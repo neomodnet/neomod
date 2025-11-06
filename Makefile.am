@@ -449,7 +449,7 @@ rbq := ')'
 CURL_INCLUDEDIR := $(DEPS_CACHE)/curl-$(CURL_VERSION)/$(SYSNAME)$(host_cpu)/include
 CURL_LIBDIR := $(DEPS_CACHE)/curl-$(CURL_VERSION)/$(SYSNAME)$(host_cpu)/lib
 CURL_CFLAGS += -I$(CURL_INCLUDEDIR) -DWITH_GZFILEOP -DCURL_STATICLIB
-CURL_LIBS += -L$(CURL_LIBDIR) $(shell find $(CURL_LIBDIR) -mindepth 1 -maxdepth 1 -type f -not $(lbq) -name '*dll*' $(rbq) -execdir printf '%s ' '{''}' ';' | $(SED) -e 's|./lib|-l|g' -e 's|\.a||g' -e 's|-lcurl|-l:libcurl.a|g')
+CURL_LIBS += -L$(CURL_LIBDIR) $(shell find $(CURL_LIBDIR) -mindepth 1 -maxdepth 1 -type f -not $(lbq) -name '*dll*' $(rbq) -execdir printf '%s ' '{''}' ';' | $(SED) -E -e 's%\./%%g' -e 's%(^| )lib%\1-l%g' -e 's%\.a%%g')
 
 PKG_CONFIG_PLUS_BUNDLED_OSSL += --with-path=$(CURL_LIBDIR)/pkgconfig
 OPENSSL_CFLAGS += -I$(CURL_INCLUDEDIR) $(shell $(PKG_CONFIG_PLUS_BUNDLED_OSSL) --cflags openssl)
@@ -517,11 +517,11 @@ $(DEPS_PREFIX)/mimalloc-$(MIMALLOC_VERSION).built: $(DEPS_CACHE)/mimalloc-$(MIMA
 		-D MI_USE_CXX=ON \
 		-D MI_BUILD_SHARED=ON \
 		-D MI_BUILD_TESTS=OFF \
-		$(if $(findstring linux,$(host_os)),,-DMI_WIN_USE_FIXED_TLS=ON) \
+		$(if $(filter linux%,$(host_os)),,-DMI_WIN_USE_FIXED_TLS=ON) \
 		$(if $(ENABLE_ASAN),-DMI_LOCAL_DYNAMIC_TLS=ON -DMI_TRACK_ASAN=ON -DMI_DEBUG_UBSAN=ON,) \
 		-D MI_INSTALL_TOPLEVEL=ON \
 		-D MI_BUILD_STATIC=OFF \
-		-D MI_BUILD_OBJECT=$(if $(findstring linux,$(host_os)),ON,OFF) && \
+		-D MI_BUILD_OBJECT=$(if $(filter win%,$(host_os)),OFF,ON) && \
 	$(CMAKE) --build . "$(CMAKEPAROPT)" && \
 	$(CMAKE) --install .
 	cp $(DEPS_PREFIX)/mimalloc/bin/mimalloc-redirect*.lib $(DEPS_PREFIX)/lib/ || true
@@ -609,7 +609,7 @@ $(DEPS_PREFIX)/mpg123-$(MPG123_VERSION).built: $(DEPS_CACHE)/mpg123-$(MPG123_VER
 	cd $(DEPS_PREFIX)/mpg123 && \
 	patch -Np1<$(BUILD_MISCDIR)/0001-libmpg123-initial-support-for-VBRI-tag-parsing.patch && \
 	$(if $(ubercompat),$(SED) -i -e 's|.*ThreadErrorMode.*||g' -e 's|mode_ok|0|' src/compat/compat_dl.c,true) && \
-	autoreconf -fiv && cd $(DEPS_PREFIX)/mpg123/build && \
+	ACLOCAL_PATH="/opt/homebrew/opt/libtool/share/aclocal:$$ACLOCAL_PATH" autoreconf -fiv && cd $(DEPS_PREFIX)/mpg123/build && \
 	PKG_CONFIG="$(PKG_CONFIG)" \
 		$(CONFIGURE_PFX) ../configure lt_cv_prog_gnu_ld=yes --host=$(host) --prefix="$(DEPS_PREFIX)" $(if $(STATICBUILD),--enable-static --disable-shared,--enable-shared --disable-static) \
 		--disable-components --enable-libmpg123 --with-audio=dummy --disable-modules \
@@ -628,18 +628,19 @@ if USE_SOLOUD
 AUDIO_CFLAGS += $(shell $(PKG_CONFIG) --cflags soloud) $(shell $(PKG_CONFIG) --cflags soundtouch) $(MPG123_CFLAGS) -DST_NO_EXCEPTION_HANDLING
 AUDIO_LIBS += $(shell $(PKG_CONFIG) --libs soloud) $(shell $(PKG_CONFIG) --libs soundtouch) $(MPG123_LIBS)
 
-if WASM_PLATFORM
-# no FFmpeg for WASM for now (not critical and it's huge bloat)
+if MACOS_PLATFORM
 FFMPEG_INSTALL_LIBS :=
+FFMPEG_SOURCE_DEP :=
 FFMPEG_INCDIR :=
-SOLOUD_FFMPEG_DEP :=
+FFMPEG_CFLAGS_INCLUDE :=
 else
-FFMPEG_INSTALL_LIBS := `find $(DEPS_CACHE)/ffmpeg-$(FFMPEG_VERSION)/$(SYSNAME)$(host_cpu)/lib '(' -name '*avutil*' -o -name '*avcodec*' -o -name '*avformat*' -o -name '*swresample*' ')' -printf '%p '`
+FFMPEG_INSTALL_LIBS := `find $(DEPS_CACHE)/ffmpeg-$(FFMPEG_VERSION)/$(SYSNAME)$(host_cpu)/lib '(' -name '*avutil*' -o -name '*avcodec*' -o -name '*avformat*' -o -name '*swresample*' ')' -print | tr '\n' ' '`
+FFMPEG_SOURCE_DEP := $(DEPS_CACHE)/ffmpeg-$(FFMPEG_VERSION)-$(SYSNAME)$(host_cpu).source
 FFMPEG_INCDIR := $(DEPS_CACHE)/ffmpeg-$(FFMPEG_VERSION)/$(SYSNAME)$(host_cpu)/include
-SOLOUD_FFMPEG_DEP := $(DEPS_CACHE)/ffmpeg-$(FFMPEG_VERSION)-$(SYSNAME)$(host_cpu).source
+FFMPEG_CFLAGS_INCLUDE := -I$(FFMPEG_INCDIR)
 endif
 
-$(DEPS_PREFIX)/SoLoud-$(SOLOUD_VERSION).built: $(DEPS_CACHE)/SoLoud-$(SOLOUD_VERSION).tar.gz $(SOLOUD_FFMPEG_DEP) $(DEPS_PREFIX)/SDL3-$(SDL3_VERSION).built $(DEPS_PREFIX)/mpg123-$(MPG123_VERSION).built
+$(DEPS_PREFIX)/SoLoud-$(SOLOUD_VERSION).built: $(DEPS_CACHE)/SoLoud-$(SOLOUD_VERSION).tar.gz $(FFMPEG_SOURCE_DEP) $(DEPS_PREFIX)/SDL3-$(SDL3_VERSION).built $(DEPS_PREFIX)/mpg123-$(MPG123_VERSION).built
 	rm -rf $(DEPS_PREFIX)/SoLoud
 	$(MKDIR_P) $(DEPS_PREFIX) $(DEPS_PREFIX)/include $(DEPS_PREFIX)/lib/pkgconfig $(DEPS_PREFIX)/SoLoud/build
 	$(TAR) xf $(DEPS_CACHE)/SoLoud-$(SOLOUD_VERSION).tar.gz -C $(DEPS_PREFIX)/SoLoud --strip-components=1 && \
@@ -981,6 +982,7 @@ $(DEPS_PREFIX)/nsync-$(NSYNC_VERSION).built: $(DEPS_CACHE)/nsync-$(NSYNC_VERSION
 	$(SED) -i 's|Windows.h|windows.h|' platform/win32/atomic.h && \
 	$(SED) -i 's|Windows.h|windows.h|' platform/win32/platform_c++11_os.h && \
 	$(SED) -i -e 's|.*"/TP".*||' -e 's|install (TARGETS nsync EXPORT nsync|\0 OPTIONAL|' CMakeLists.txt && \
+	mv BUILD BUILD.bazel 2>/dev/null || true && \
 	PKG_CONFIG="$(PKG_CONFIG)" CC="$(CC)" CXX="$(CXX)" LDFLAGS="$(LDFLAGS) -xnone" \
 	$(CMAKE_CONF_PFX) $(CMAKE) -S . -B build -G "$(CMAKE_GEN)" \
 		-DCMAKE_BUILD_TYPE="$(if $(ENABLE_DEBUG),Debug,Release)" \
@@ -1242,9 +1244,14 @@ endif # BUILD_LIBACL
 # NOTE: if we have bundled openssl, then this assumes we also have zstd libs (since the static-curl project builds that and provides the static archive)
 LIBARCHIVE_CFLAGS += $(shell $(PKG_CONFIG_PLUS_BUNDLED_OSSL) --cflags libarchive)
 LIBARCHIVE_LIBS += $(shell $(PKG_CONFIG_PLUS_BUNDLED_OSSL) --libs libarchive)
+if MACOS_PLATFORM
 $(DEPS_PREFIX)/libarchive-$(LIBARCHIVE_VERSION).built: $(DEPS_CACHE)/libarchive-$(LIBARCHIVE_VERSION).tar.gz $(DEPS_PREFIX)/curl-$(CURL_VERSION).built $\
-											$(DEPS_PREFIX)/libacl-$(LIBACL_VERSION).built $(DEPS_PREFIX)/liblzma-$(LZMA_VERSION).built $\
-											$(DEPS_PREFIX)/bzip2-$(BZIP2_VERSION).built $(DEPS_PREFIX)/zlib-$(ZLIB_VERSION).built
+                                            $(DEPS_PREFIX)/liblzma-$(LZMA_VERSION).built $\
+                                            $(DEPS_PREFIX)/bzip2-$(BZIP2_VERSION).built $(DEPS_PREFIX)/zlib-$(ZLIB_VERSION).built
+else
+$(DEPS_PREFIX)/libarchive-$(LIBARCHIVE_VERSION).built: $(DEPS_CACHE)/libarchive-$(LIBARCHIVE_VERSION).tar.gz $(DEPS_PREFIX)/curl-$(CURL_VERSION).built \
+                                            $(DEPS_PREFIX)/bzip2-$(BZIP2_VERSION).built $(DEPS_PREFIX)/zlib-$(ZLIB_VERSION).built
+endif
 	rm -rf $(DEPS_PREFIX)/libarchive
 	$(MKDIR_P) $(DEPS_PREFIX)/libarchive/build $(DEPS_PREFIX)/lib/pkgconfig
 	$(TAR) xf $(DEPS_CACHE)/libarchive-$(LIBARCHIVE_VERSION).tar.gz -C $(DEPS_PREFIX)/libarchive --strip-components=1 && \
@@ -1460,7 +1467,7 @@ endif # BUILD_PCH
 $(neomod_OBJECTS): $(BUILT_SOURCES) $(PCH_OUTPUT) | $(EMBED_OUTPUT)
 
 # add all paths with sources as an include ("-I") flag
-NEOMOD_INCLUDE_FLAGS := $(shell find $(srcdir)/src -not -path '*/.*' -type d -printf "-I%p ")
+NEOMOD_INCLUDE_FLAGS := $(shell find $(srcdir)/src -not -path '*/.*' -type d -print | sed 's|^|-I|' | tr '\n' ' ')
 
 neomod_CPPFLAGS := $(NEOMOD_CPPFLAGS)
 
@@ -1500,14 +1507,18 @@ neomod_CXXFLAGS := \
 	$(CXXFLAGS_EXTRA)
 
 # Wl,--start-group with no --end-group is a stupid hack. it's required to make the linker resolve all the symbols on windows, for some reason (i don't know why)
-# harmless on other platforms, i think
 # WASM_PRELOAD_FLAGS and NATIVE_LDFLAGS come from configure (empty when not applicable)
 neomod_LDFLAGS := \
 	$(WASM_PRELOAD_FLAGS) \
 	$(NATIVE_LDFLAGS) \
 	$(MIMALLOC_OBJ) \
-	$(MIMALLOC_DYNAMIC_LIBS) \
-	-Wl,--start-group \
+	$(MIMALLOC_DYNAMIC_LIBS)
+
+if WIN_PLATFORM
+neomod_LDFLAGS += -Wl,--start-group
+endif
+
+neomod_LDFLAGS += \
 	$(CURL_LIBS) \
 	$(SDL3_LIBS) \
 	$(AUDIO_LIBS) \
@@ -1657,9 +1668,9 @@ install-dirs:
 ASSET_FILES = $(wildcard $(srcdir)/$(ASSETS_DIR)/fonts/* $(srcdir)/$(ASSETS_DIR)/materials/* $(srcdir)/$(ASSETS_DIR)/materials/default/*)
 
 stamp-install-assets: $(ASSET_FILES) | install-dirs
-	find $(srcdir)/$(ASSETS_DIR)/fonts -type f -exec $(INSTALL) -Dm 644 '{''}' "$(DESTDIR)$(bindir)/fonts" ';'
-	find $(srcdir)/$(ASSETS_DIR)/materials -mindepth 1 -maxdepth 1 -type f -exec $(INSTALL) -Dm 644 '{''}' "$(DESTDIR)$(bindir)/materials" ';'
-	find $(srcdir)/$(ASSETS_DIR)/materials/default -mindepth 1 -maxdepth 1 -type f -exec $(INSTALL) -Dm 644 '{''}' "$(DESTDIR)$(bindir)/materials/default" ';'
+	find $(srcdir)/$(ASSETS_DIR)/fonts -type f -exec cp -f '{''}' "$(DESTDIR)$(bindir)/fonts" ';'
+	find $(srcdir)/$(ASSETS_DIR)/materials -mindepth 1 -maxdepth 1 -type f -exec cp -f '{''}' "$(DESTDIR)$(bindir)/materials" ';'
+	find $(srcdir)/$(ASSETS_DIR)/materials/default -mindepth 1 -maxdepth 1 -type f -exec cp -f '{''}' "$(DESTDIR)$(bindir)/materials/default" ';'
 	@touch $@
 
 INSTALL_STAMPS += stamp-install-assets
@@ -1734,7 +1745,7 @@ endif
 INSTALL_STAMPS += stamp-install-sharedlibs
 
 # --- patchelf rpath (linux only) ---
-if !WIN_PLATFORM
+if LINUX_PLATFORM
 stamp-install-rpath: stamp-install-sharedlibs
 	find "$(DESTDIR)$(bindir)/lib" -maxdepth 1 -name '*'.so'*' -execdir $(PATCHELF) --set-rpath '$$ORIGIN:$$ORIGIN/../' '{''}' ';'
 	find "$(DESTDIR)$(bindir)" -maxdepth 1 -name '*'.so'*' -execdir $(PATCHELF) --set-rpath '$$ORIGIN:$$ORIGIN/lib' '{''}' ';'
