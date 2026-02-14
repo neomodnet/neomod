@@ -29,62 +29,52 @@
 #include <sstream>
 #include <fstream>
 
-constexpr const float ModFPoSu::SIZEDIV3D;
-constexpr const int ModFPoSu::SUBDIVISIONS;
-
 ModFPoSu::ModFPoSu() {
     // vars
-    this->fCircumLength = 0.0f;
     this->camera = std::make_unique<Camera>(vec3(0, 0, 0), vec3(0, 0, -1));
-    this->bKeyLeftDown = false;
-    this->bKeyUpDown = false;
-    this->bKeyRightDown = false;
-    this->bKeyDownDown = false;
-    this->bKeySpaceDown = false;
-    this->bKeySpaceUpDown = false;
-    this->bZoomKeyDown = false;
-    this->bZoomed = false;
-    this->fZoomFOVAnimPercent = 0.0f;
-
-    this->fEdgeDistance = 0.0f;
-    this->bCrosshairIntersectsScreen = false;
-    this->bAlreadyWarnedAboutRawInputOverride = false;
 
     // load resources
     this->vao = resourceManager->createVertexArrayObject();
     this->vaoCube = resourceManager->createVertexArrayObject();
 
     this->skyboxModel = nullptr;
-    this->hitcircleShader = nullptr;
+
+    // init
+    this->onResolutionChange(osu->getVirtScreenSize());
+    this->makePlayfield();
+    this->makeBackgroundCube();
 
     // convar callbacks
     cv::fposu_curved.setCallback(SA::MakeDelegate<&ModFPoSu::onCurvedChange>(this));
     cv::fposu_distance.setCallback(SA::MakeDelegate<&ModFPoSu::onDistanceChange>(this));
     cv::fposu_noclip.setCallback(SA::MakeDelegate<&ModFPoSu::onNoclipChange>(this));
 
-    // init
-    this->makePlayfield();
-    this->makeBackgroundCube();
+    cv::fposu_fov.setCallback(SA::MakeDelegate<&ModFPoSu::onResolutionChange0Args>(this));
+    cv::fposu_vertical_fov.setCallback(SA::MakeDelegate<&ModFPoSu::onResolutionChange0Args>(this));
+    cv::fposu_zoom_fov.setCallback(SA::MakeDelegate<&ModFPoSu::onResolutionChange0Args>(this));
+
+    cv::fposu_cube_size.setCallback(SA::MakeDelegate<&ModFPoSu::makeBackgroundCube>(this));
 }
 
 ModFPoSu::~ModFPoSu() {
     anim::deleteExistingAnimation(&this->fZoomFOVAnimPercent);
     resourceManager->destroyResource(this->vaoCube);
     resourceManager->destroyResource(this->vao);
+
+    cv::fposu_curved.reset();
+    cv::fposu_distance.reset();
+    cv::fposu_noclip.reset();
+
+    cv::fposu_fov.reset();
+    cv::fposu_vertical_fov.reset();
+    cv::fposu_zoom_fov.reset();
+
+    cv::fposu_cube_size.reset();
 }
 
 void ModFPoSu::draw() {
     if(!cv::mod_fposu.getBool()) return;
 
-    const float fov = std::lerp(cv::fposu_fov.getFloat(), cv::fposu_zoom_fov.getFloat(), this->fZoomFOVAnimPercent);
-    Matrix4 projectionMatrix =
-        cv::fposu_vertical_fov.getBool()
-            ? Camera::buildMatrixPerspectiveFovVertical(
-                  glm::radians(fov), ((float)osu->getVirtScreenWidth() / (float)osu->getVirtScreenHeight()), 0.05f,
-                  1000.0f)
-            : Camera::buildMatrixPerspectiveFovHorizontal(
-                  glm::radians(fov), ((float)osu->getVirtScreenHeight() / (float)osu->getVirtScreenWidth()), 0.05f,
-                  1000.0f);
     Matrix4 viewMatrix = Camera::buildMatrixLookAt(
         this->camera->getPos(), this->camera->getPos() + this->camera->getViewDirection(), this->camera->getViewUp());
 
@@ -95,7 +85,7 @@ void ModFPoSu::draw() {
     g->pushTransform();
     {
         g->setWorldMatrix(viewMatrix);
-        g->setProjectionMatrix(projectionMatrix);
+        g->setProjectionMatrix(this->projectionMatrix);
 
         g->setBlending(false);
         {
@@ -129,9 +119,9 @@ void ModFPoSu::draw() {
                 }
 
                 // skybox/cube
-                if(cv::fposu_skybox.getBool()) {
-                    this->handleLazyLoad3DModels();
-
+                if(cv::fposu_skybox.getBool() &&
+                   (this->skyboxModel ||  // lazy load 3d model
+                    (this->skyboxModel = std::make_unique<ModFPoSu3DModel>(skyboxObj, nullptr, true)))) {
                     g->pushTransform();
                     {
                         Matrix4 modelMatrix;
@@ -204,6 +194,12 @@ void ModFPoSu::update() {
     if(!osu->isInPlayMode() || !cv::mod_fposu.getBool()) {
         this->handleInputOverrides(false);  // release overridden rawinput state
         return;
+    }
+
+    if(this->fZoomFOVAnimPercent != this->fZoomFOVAnimPercentPrevious) {
+        this->fZoomFOVAnimPercentPrevious = this->fZoomFOVAnimPercent;
+        // rebuild projection matrix
+        this->onResolutionChange(osu->getVirtScreenSize());
     }
 
     if(cv::fposu_noclip.getBool()) this->noclipMove();
@@ -377,6 +373,18 @@ void ModFPoSu::noclipMove() {
     // move
     this->camera->setPos(this->camera->getPos() + this->vVelocity * static_cast<float>(engine->getFrameTime()));
 }
+
+void ModFPoSu::onResolutionChange(vec2 newResolution) {
+    const float fov = std::lerp(cv::fposu_fov.getFloat(), cv::fposu_zoom_fov.getFloat(), this->fZoomFOVAnimPercent);
+    this->projectionMatrix =
+        cv::fposu_vertical_fov.getBool()
+            ? Camera::buildMatrixPerspectiveFovVertical(
+                  glm::radians(fov), ((float)newResolution.x / (float)newResolution.y), 0.05f, 1000.0f)
+            : Camera::buildMatrixPerspectiveFovHorizontal(
+                  glm::radians(fov), ((float)newResolution.y / (float)newResolution.x), 0.05f, 1000.0f);
+}
+
+void ModFPoSu::onResolutionChange0Args() { this->onResolutionChange(osu->getVirtScreenSize()); }
 
 void ModFPoSu::onKeyDown(KeyboardEvent &key) {
     if(key == cv::FPOSU_ZOOM.getVal<SCANCODE>() && !this->bZoomKeyDown) {
@@ -607,7 +615,7 @@ void ModFPoSu::makePlayfield() {
         this->vao->addVertex(bottomRight);
         this->vao->addTexcoord(rightTC, bottomTC);
 
-        (*begin).normal = normalFromTriangle(topLeft, topRight, bottomLeft);
+        // (*begin).normal = normalFromTriangle(topLeft, topRight, bottomLeft);
 
         begin++;
         next++;
@@ -708,10 +716,6 @@ void ModFPoSu::makeBackgroundCube() {
     this->vaoCube->addTexcoord(0.0f, 0.0f);
     this->vaoCube->addVertex(-size, size, -size);
     this->vaoCube->addTexcoord(0.0f, 1.0f);
-}
-
-void ModFPoSu::handleLazyLoad3DModels() {
-    if(this->skyboxModel == nullptr) this->skyboxModel = std::make_unique<ModFPoSu3DModel>(skyboxObj, nullptr, true);
 }
 
 void ModFPoSu::onCurvedChange() { this->makePlayfield(); }

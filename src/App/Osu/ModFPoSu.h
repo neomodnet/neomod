@@ -20,9 +20,6 @@ class ModFPoSu3DModel;
 class ModFPoSu {
     NOCOPY_NOMOVE(ModFPoSu);
 
-   public:
-    static constexpr const float SIZEDIV3D = 1.0f / 512.0f;  // 1.0f / (float)GameRules::OSU_COORD_WIDTH
-
    private:
     static constexpr const int SUBDIVISIONS = 4;
 
@@ -33,6 +30,8 @@ class ModFPoSu {
     void draw();
     void update();
 
+    void onResolutionChange(vec2 newResolution);
+
     void onKeyDown(KeyboardEvent &key);
     void onKeyUp(KeyboardEvent &key);
 
@@ -42,10 +41,11 @@ class ModFPoSu {
     [[nodiscard]] inline bool isCrosshairIntersectingScreen() const { return this->bCrosshairIntersectsScreen; }
     [[nodiscard]] float get3DPlayfieldScale() const;
 
-    [[nodiscard]] inline Shader *getHitcircleShader() const { return this->hitcircleShader; }
     void resetCamera();
 
    private:
+    void onResolutionChange0Args();
+
     void handleZoomedChange();
     void noclipMove();
 
@@ -56,7 +56,6 @@ class ModFPoSu {
 
     void makePlayfield();
     void makeBackgroundCube();
-    void handleLazyLoad3DModels();
 
     void onCurvedChange();
     void onDistanceChange();
@@ -67,7 +66,7 @@ class ModFPoSu {
         vec3 a{0.f};
         vec3 b{0.f};
         float textureCoordinate;
-        vec3 normal{0.f};
+        // vec3 normal{0.f};
 
         VertexPair(vec3 a, vec3 b, float tc) : a(a), b(b), textureCoordinate(tc) { ; }
     };
@@ -78,33 +77,38 @@ class ModFPoSu {
     static vec3 normalFromTriangle(vec3 p1, vec3 p2, vec3 p3);
 
    private:
+    Matrix4 modelMatrix;
+    Matrix4 projectionMatrix;
+
     VertexArrayObject *vao;
     VertexArrayObject *vaoCube;
 
-    std::list<VertexPair> meshList;
-    float fCircumLength;
-
-    Matrix4 modelMatrix;
     std::unique_ptr<Camera> camera{nullptr};
+    std::unique_ptr<ModFPoSu3DModel> skyboxModel{nullptr};  // lazy loaded
+
+    std::list<VertexPair> meshList;
+
     vec3 vPrevNoclipCameraPos{0.f};
-    bool bKeyLeftDown;
-    bool bKeyUpDown;
-    bool bKeyRightDown;
-    bool bKeyDownDown;
-    bool bKeySpaceDown;
-    bool bKeySpaceUpDown;
     vec3 vVelocity{0.f};
-    bool bZoomKeyDown;
-    bool bZoomed;
-    float fZoomFOVAnimPercent;
 
-    float fEdgeDistance;
-    bool bCrosshairIntersectsScreen;
-    bool bAlreadyWarnedAboutRawInputOverride;
+    float fCircumLength{0.f};
 
-    std::unique_ptr<ModFPoSu3DModel> skyboxModel;
+    float fZoomFOVAnimPercent{0.f};
+    float fZoomFOVAnimPercentPrevious{0.f};
 
-    Shader *hitcircleShader;
+    float fEdgeDistance{0.f};
+
+    bool bZoomKeyDown{false};
+    bool bZoomed{false};
+    bool bKeyLeftDown{false};
+    bool bKeyUpDown{false};
+    bool bKeyRightDown{false};
+    bool bKeyDownDown{false};
+    bool bKeySpaceDown{false};
+    bool bKeySpaceUpDown{false};
+
+    bool bCrosshairIntersectsScreen{false};
+    bool bAlreadyWarnedAboutRawInputOverride{false};
 };
 
 class ModFPoSu3DModel {

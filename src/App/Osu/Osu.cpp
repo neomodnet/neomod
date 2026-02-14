@@ -498,9 +498,6 @@ Osu::~Osu() {
         cv::load_beatmap_background_images.reset();
         cv::cmd::save.reset();
         cv::cursor_trail_max_size.reset();
-        cv::fposu_curved.reset();
-        cv::fposu_distance.reset();
-        cv::fposu_noclip.reset();
         cv::skin_use_skin_hitsounds.reset();
         cv::options_slider_quality.reset();
         cv::options_high_quality_sliders.reset();
@@ -1465,6 +1462,9 @@ void Osu::onResolutionChanged(vec2 newResolution, ResolutionRequestFlags src) {
 
     // always call onResolutionChange, since DPI changes cause layout changes
     ui->onResolutionChange(this->getVirtScreenSize());
+
+    // update fposu projection matrix
+    this->fposu->onResolutionChange(this->getVirtScreenSize());
 
     // skip rebuilding rendertargets if we didn't change resolution
     if(resolution_changed) {
