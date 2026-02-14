@@ -105,7 +105,11 @@ static forceinline std::string to_lower(const std::string_view str) {
     return lstr;
 }
 
-// format a non-negative integer with thousands separators (commas)
-std::string thousands(uint64_t n);
+// format an integer with thousands separators (locale-dependent commas/spaces/periods)
+template <typename T>
+concept Integral = std::is_integral_v<T>;
+
+template <Integral T> 
+std::string thousands(T n);
 
 }  // namespace SString

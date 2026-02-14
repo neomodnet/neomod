@@ -37,9 +37,7 @@ class ModFPoSu {
 
     //[[nodiscard]] inline const Camera *getCamera() const { return this->camera; }
 
-    [[nodiscard]] inline float getEdgeDistance() const { return this->fEdgeDistance; }
     [[nodiscard]] inline bool isCrosshairIntersectingScreen() const { return this->bCrosshairIntersectsScreen; }
-    [[nodiscard]] float get3DPlayfieldScale() const;
 
     void resetCamera();
 
@@ -109,20 +107,4 @@ class ModFPoSu {
 
     bool bCrosshairIntersectsScreen{false};
     bool bAlreadyWarnedAboutRawInputOverride{false};
-};
-
-class ModFPoSu3DModel {
-   public:
-    ModFPoSu3DModel(const UString &objFilePath, Image *texture = nullptr)
-        : ModFPoSu3DModel(objFilePath, texture, false) {
-        ;
-    }
-    ModFPoSu3DModel(const UString &objFilePathOrContents, Image *texture, bool source);
-    ~ModFPoSu3DModel();
-
-    void draw3D();
-
-   private:
-    VertexArrayObject *vao;
-    Image *texture;
 };

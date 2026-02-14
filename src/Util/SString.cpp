@@ -171,17 +171,31 @@ template std::string join<char>(const std::vector<std::string>&, char);
 template std::string join<const char*>(const std::vector<std::string>&, const char*);
 template std::string join<std::string_view>(const std::vector<std::string>&, std::string_view);
 
-std::string thousands(uint64_t n) {
+template <Integral T>
+std::string thousands(T n) {
 #ifdef _MSC_VER
     return fmt::format("{:L}", n);
 #else
     std::string ret;
     ret.resize(28);
-    int written = std::snprintf(ret.data(), ret.size(), "%'" PRIu64 "", n);
+    int written = 0;
+    if constexpr(std::is_same_v<T, int64_t>) {
+        written = std::snprintf(ret.data(), ret.size(), "%'" PRId64 "", n);
+    } else if constexpr(std::is_same_v<T, uint64_t>) {
+        written = std::snprintf(ret.data(), ret.size(), "%'" PRIu64 "", n);
+    } else if constexpr(std::is_same_v<T, int32_t>) {
+        written = std::snprintf(ret.data(), ret.size(), "%'" PRId32 "", n);
+    } else if constexpr(std::is_same_v<T, uint32_t>) {
+        written = std::snprintf(ret.data(), ret.size(), "%'" PRIu32 "", n);
+    }
     ret.resize(written >= 0 ? written : 0);
     return ret;
 #endif
 }
 
+template std::string thousands(int64_t n);
+template std::string thousands(uint64_t n);
+template std::string thousands(int32_t n);
+template std::string thousands(uint32_t n);
 
 }  // namespace SString

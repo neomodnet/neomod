@@ -29,6 +29,21 @@
 #include <sstream>
 #include <fstream>
 
+class ModFPoSu3DModel {
+    NOCOPY_NOMOVE(ModFPoSu3DModel)
+   public:
+    ModFPoSu3DModel(const UString &objFilePath, Image *texture = nullptr)
+        : ModFPoSu3DModel(objFilePath, texture, false) {}
+    ModFPoSu3DModel(const UString &objFilePathOrContents, Image *texture, bool source);
+    ~ModFPoSu3DModel();
+
+    void draw3D();
+
+   private:
+    VertexArrayObject *vao;
+    Image *texture;
+};
+
 ModFPoSu::ModFPoSu() {
     // vars
     this->camera = std::make_unique<Camera>(vec3(0, 0, 0), vec3(0, 0, -1));
@@ -36,8 +51,6 @@ ModFPoSu::ModFPoSu() {
     // load resources
     this->vao = resourceManager->createVertexArrayObject();
     this->vaoCube = resourceManager->createVertexArrayObject();
-
-    this->skyboxModel = nullptr;
 
     // init
     this->onResolutionChange(osu->getVirtScreenSize());
