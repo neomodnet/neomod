@@ -37,6 +37,60 @@
 
 HUD::CursorTrail::CursorTrail() : buffer(std::clamp(cv::cursor_trail_max_size.getInt() * 2, 1, 32768)) {}
 
+size_t HUD::CursorTrail::size() const { return count; }
+bool HUD::CursorTrail::empty() const { return count == 0; }
+size_t HUD::CursorTrail::capacity() const { return buffer.size(); }
+
+void HUD::CursorTrail::push_back(const CursorTrailElement &elem) {
+    if(buffer.empty()) return;
+
+    buffer[tail] = elem;
+    tail = (tail + 1) % buffer.size();
+
+    if(count < buffer.size()) {
+        count++;
+    } else {
+        head = (head + 1) % buffer.size();
+    }
+}
+
+void HUD::CursorTrail::pop_front() {
+    if(count > 0) {
+        head = (head + 1) % buffer.size();
+        count--;
+    }
+}
+
+HUD::CursorTrailElement &HUD::CursorTrail::front() { return buffer[head]; }
+const HUD::CursorTrailElement &HUD::CursorTrail::front() const { return buffer[head]; }
+
+HUD::CursorTrailElement &HUD::CursorTrail::back() { return buffer[(tail + buffer.size() - 1) % buffer.size()]; }
+const HUD::CursorTrailElement &HUD::CursorTrail::back() const {
+    return buffer[(tail + buffer.size() - 1) % buffer.size()];
+}
+
+HUD::CursorTrailElement &HUD::CursorTrail::next() {
+    assert(!buffer.empty());
+
+    auto &ret = buffer[tail];
+    tail = (tail + 1) % buffer.size();
+
+    if(count < buffer.size()) {
+        count++;
+    } else {
+        head = (head + 1) % buffer.size();
+    }
+    return ret;
+}
+
+// index 0 = oldest (front), index size()-1 = newest (back)
+HUD::CursorTrailElement &HUD::CursorTrail::operator[](size_t i) { return buffer[(head + i) % buffer.size()]; }
+const HUD::CursorTrailElement &HUD::CursorTrail::operator[](size_t i) const {
+    return buffer[(head + i) % buffer.size()];
+}
+
+void HUD::CursorTrail::clear() { head = tail = count = 0; }
+
 // cv::cursor_trail_max_size callback
 void HUD::onCursorTrailMaxChange() {
     cv::cursor_trail_max_size.setValue(std::clamp(cv::cursor_trail_max_size.getInt(), 1, 16384), false);
@@ -129,7 +183,7 @@ void HUD::draw() {
                                   .sliderbreaks = score->getNumSliderBreaks(),
                                   .maxPossibleCombo = pf->iMaxPossibleCombo,
                                   .liveStars = pf->live_stars(),
-                                  .totalStars = (float)whole_pp.total_stars,
+                                  .totalStars = (f32)whole_pp.total_stars,
                                   .bpm = pf->getMostCommonBPM(),
                                   .ar = pf->getApproachRateForSpeedMultiplier(),
                                   .cs = pf->getCS(),
@@ -137,13 +191,13 @@ void HUD::draw() {
                                   .hp = pf->getHP(),
                                   .nps = pf->getNPS(),
                                   .nd = pf->getND(),
-                                  .ur = (int)score->getUnstableRate(),
+                                  .ur = (i32)score->getUnstableRate(),
                                   .pp = pf->live_pp(),
-                                  .ppfc = (float)whole_pp.pp,
-                                  .hitWindow300 = ((int)pf->getHitWindow300() - 0.5f) *
+                                  .ppfc = (f32)whole_pp.pp,
+                                  .hitWindow300 = ((i32)pf->getHitWindow300() - 0.5f) *
                                                   (1.0f / pf->getSpeedMultiplier()),  // see InfoLabel::update()
-                                  .hitdeltaMin = (int)score->getHitErrorAvgCustomMin(),
-                                  .hitdeltaMax = (int)score->getHitErrorAvgCustomMax()});
+                                  .hitdeltaMin = (i32)score->getHitErrorAvgCustomMin(),
+                                  .hitdeltaMax = (i32)score->getHitErrorAvgCustomMax()});
         }
         g->popTransform();
 
@@ -245,14 +299,14 @@ void HUD::draw() {
 
             for(const auto &bk : beatmapBreaks) {
                 // ignore breaks after last hitobject
-                if(/*bk.endTime <= (int)startTimePlayableMS ||*/ bk.startTime >=
-                   (int)(startTimePlayableMS + lengthPlayableMS))
+                if(/*bk.endTime <= (i32)startTimePlayableMS ||*/ bk.startTime >=
+                   (i32)(startTimePlayableMS + lengthPlayableMS))
                     continue;
 
                 BREAK bk2;
 
-                bk2.startPercent = (float)(bk.startTime) / (float)(endTimePlayableMS);
-                bk2.endPercent = (float)(bk.endTime) / (float)(endTimePlayableMS);
+                bk2.startPercent = (f32)(bk.startTime) / (f32)(endTimePlayableMS);
+                bk2.endPercent = (f32)(bk.endTime) / (f32)(endTimePlayableMS);
 
                 // debugLog("{:d}: s = {:f}, e = {:f}", i, bk2.startPercent, bk2.endPercent);
 
@@ -284,8 +338,8 @@ void HUD::draw() {
 
         g->pushTransform();
         McFont *font = osu->getSongBrowserFont();
-        const float height = roundf(osu->getVirtScreenHeight() * 0.07f);
-        const float scale = (height / font->getHeight()) * 0.315f;
+        const f32 height = roundf(osu->getVirtScreenHeight() * 0.07f);
+        const f32 scale = (height / font->getHeight()) * 0.315f;
         g->scale(scale, scale);
         g->translate(30.f * scale, osu->getVirtScreenHeight() / 2.f - ((height * 2.5f) + font->getHeight() * scale));
 
@@ -372,7 +426,7 @@ void HUD::drawDummy() {
     if(cv::draw_hiterrorbar.getBool()) HUD::drawHitErrorBar(50, 100, 150, 400, 70);
 }
 
-void HUD::drawCursor(vec2 pos, float alphaMultiplier, bool secondTrail, bool updateAndDrawTrail) {
+void HUD::drawCursor(vec2 pos, f32 alphaMultiplier, bool secondTrail, bool updateAndDrawTrail) {
     const Skin *skin = osu->getSkin();
 
     if(cv::draw_cursor_ripples.getBool() && (!cv::mod_fposu.getBool() || !osu->isInPlayMode())) {
@@ -385,8 +439,8 @@ void HUD::drawCursor(vec2 pos, float alphaMultiplier, bool secondTrail, bool upd
     }
 
     const auto &cursorImg = skin->i_cursor;
-    const float scale = HUD::getCursorScaleFactor() / (cursorImg.scale());
-    const float animatedScale = scale * (skin->o_cursor_expand ? this->fCursorExpandAnim : 1.0f);
+    const f32 scale = HUD::getCursorScaleFactor() / (cursorImg.scale());
+    const f32 animatedScale = scale * (skin->o_cursor_expand ? this->fCursorExpandAnim : 1.0f);
 
     // draw cursor
     g->setColor(Color(0xffffffff).setA(cv::cursor_alpha.getFloat() * alphaMultiplier));
@@ -430,7 +484,7 @@ void HUD::drawCursor(vec2 pos, float alphaMultiplier, bool secondTrail, bool upd
     }
 }
 
-void HUD::drawCursorTrail(vec2 pos, float alphaMultiplier, bool secondTrail) {
+void HUD::drawCursorTrail(vec2 pos, f32 alphaMultiplier, bool secondTrail) {
     const bool fposuTrailJumpFix =
         (cv::mod_fposu.getBool() && osu->isInPlayMode() && !osu->getFPoSu()->isCrosshairIntersectingScreen());
 
@@ -557,31 +611,31 @@ void HUD::drawCursorRipples() {
 
     // allow overscale/underscale as usual
     // this does additionally scale with the resolution (which osu doesn't do for some reason for cursor ripples)
-    const float normalized2xScale = cursorRipple.scale();
-    const float imageScale = Osu::getRectScale(vec2(520.0f, 520.0f), 233.0f);
+    const f32 normalized2xScale = cursorRipple.scale();
+    const f32 imageScale = Osu::getRectScale(vec2(520.0f, 520.0f), 233.0f);
 
-    const float normalizedWidth = cursorRipple->getWidth() / normalized2xScale * imageScale;
-    const float normalizedHeight = cursorRipple->getHeight() / normalized2xScale * imageScale;
+    const f32 normalizedWidth = cursorRipple->getWidth() / normalized2xScale * imageScale;
+    const f32 normalizedHeight = cursorRipple->getHeight() / normalized2xScale * imageScale;
 
-    const float duration = std::max(cv::cursor_ripple_duration.getFloat(), 0.0001f);
-    const float fadeDuration = std::max(
+    const f32 duration = std::max(cv::cursor_ripple_duration.getFloat(), 0.0001f);
+    const f32 fadeDuration = std::max(
         cv::cursor_ripple_duration.getFloat() - cv::cursor_ripple_anim_start_fadeout_delay.getFloat(), 0.0001f);
 
     if(cv::cursor_ripple_additive.getBool()) g->setBlendMode(DrawBlendMode::ADDITIVE);
 
-    g->setColor(argb(255, std::clamp<int>(cv::cursor_ripple_tint_r.getInt(), 0, 255),
-                     std::clamp<int>(cv::cursor_ripple_tint_g.getInt(), 0, 255),
-                     std::clamp<int>(cv::cursor_ripple_tint_b.getInt(), 0, 255)));
+    g->setColor(argb(255, std::clamp<i32>(cv::cursor_ripple_tint_r.getInt(), 0, 255),
+                     std::clamp<i32>(cv::cursor_ripple_tint_g.getInt(), 0, 255),
+                     std::clamp<i32>(cv::cursor_ripple_tint_b.getInt(), 0, 255)));
     cursorRipple->bind();
     {
         for(auto &cursorRipple : this->cursorRipples) {
             const vec2 &pos = cursorRipple.pos;
-            const float &time = cursorRipple.time;
+            const f32 &time = cursorRipple.time;
 
-            const float animPercent = 1.0f - std::clamp<float>((time - engine->getTime()) / duration, 0.0f, 1.0f);
-            const float fadePercent = 1.0f - std::clamp<float>((time - engine->getTime()) / fadeDuration, 0.0f, 1.0f);
+            const f32 animPercent = 1.0f - std::clamp<f32>((time - engine->getTime()) / duration, 0.0f, 1.0f);
+            const f32 fadePercent = 1.0f - std::clamp<f32>((time - engine->getTime()) / fadeDuration, 0.0f, 1.0f);
 
-            const float scale =
+            const f32 scale =
                 std::lerp(cv::cursor_ripple_anim_start_scale.getFloat(), cv::cursor_ripple_anim_end_scale.getFloat(),
                           1.0f - (1.0f - animPercent) * (1.0f - animPercent));  // quad out
 
@@ -599,7 +653,7 @@ void HUD::drawFps() {
     if(!cv::draw_fps.getBool()) return;
 
     if(cv::hud_fps_smoothing.getBool()) {
-        const float smooth = pow(0.05, engine->getFrameTime());
+        const f32 smooth = pow(0.05, engine->getFrameTime());
         this->fCurFpsSmooth = smooth * this->fCurFpsSmooth + (1.0f - smooth) * (1.0f / engine->getFrameTime());
         if(engine->getTime() > this->fFpsUpdate || std::abs(this->fCurFpsSmooth - this->fCurFps) > 2.0f) {
             this->fFpsUpdate = engine->getTime() + 0.25f;
@@ -624,19 +678,19 @@ void HUD::drawFps() {
     }
 
     fps = std::round(fps);
-    const UString fpsString = fmt::format("{} fps", (int)(fps));
+    const UString fpsString = fmt::format("{} fps", (i32)(fps));
 
     const double frametime_ms = old_worst_frametime * 1000.0;
     const UString msString = fmt::format("{:.{}f} ms", frametime_ms, frametime_ms < 0.1 ? 2 : 1);
 
-    const float dpiScale = Osu::getUIScale();
+    const f32 dpiScale = Osu::getUIScale();
 
-    const int margin = std::round(3.0f * dpiScale);
-    const int shadowOffset = std::round(1.0f * dpiScale);
+    const i32 margin = std::round(3.0f * dpiScale);
+    const i32 shadowOffset = std::round(1.0f * dpiScale);
 
     // console font does not scale with DPI
-    static const int runtimeConfigHeight = (int)(engine->getConsoleFont()->getHeight() * 1.25f);
-    const int belowPadding = this->shouldDrawRuntimeInfo() ? runtimeConfigHeight : 0;
+    static const i32 runtimeConfigHeight = (i32)(engine->getConsoleFont()->getHeight() * 1.25f);
+    const i32 belowPadding = HUD::shouldDrawRuntimeInfo() ? runtimeConfigHeight : 0;
 
     const vec2 screenSize = osu->getVirtScreenSize();
 
@@ -657,7 +711,7 @@ void HUD::drawFps() {
         else if(fps >= red_refresh_rate)
             fpsColor = 0xffdddd00;
         else {
-            const float pulse = std::abs(std::sin(engine->getTime() * 4));
+            const f32 pulse = std::abs(std::sin(engine->getTime() * 4));
             fpsColor = argb(1.0f, 1.0f, 0.26f * pulse, 0.26f * pulse);
         }
 
@@ -676,7 +730,7 @@ void HUD::drawFps() {
         } else if(old_worst_frametime <= red_refresh_time) {
             msColor = 0xffdddd00;
         } else {
-            const float pulse = std::abs(std::sin(engine->getTime() * 4));
+            const f32 pulse = std::abs(std::sin(engine->getTime() * 4));
             msColor = argb(1.0f, 1.0f, 0.26f * pulse, 0.26f * pulse);
         }
 
@@ -686,19 +740,19 @@ void HUD::drawFps() {
     g->popTransform();
 }
 
-void HUD::drawPlayfieldBorder(vec2 playfieldCenter, vec2 playfieldSize, float hitcircleDiameter) {
+void HUD::drawPlayfieldBorder(vec2 playfieldCenter, vec2 playfieldSize, f32 hitcircleDiameter) {
     this->drawPlayfieldBorder(playfieldCenter, playfieldSize, hitcircleDiameter,
                               cv::hud_playfield_border_size.getInt());
 }
 
-void HUD::drawPlayfieldBorder(vec2 playfieldCenter, vec2 playfieldSize, float hitcircleDiameter, float borderSize) {
+void HUD::drawPlayfieldBorder(vec2 playfieldCenter, vec2 playfieldSize, f32 hitcircleDiameter, f32 borderSize) {
     if(borderSize <= 0.0f) return;
 
     vec2 playfieldBorderTopLeft =
-        vec2((int)(playfieldCenter.x - playfieldSize.x / 2 - hitcircleDiameter / 2 - borderSize),
-             (int)(playfieldCenter.y - playfieldSize.y / 2 - hitcircleDiameter / 2 - borderSize));
+        vec2((i32)(playfieldCenter.x - playfieldSize.x / 2 - hitcircleDiameter / 2 - borderSize),
+             (i32)(playfieldCenter.y - playfieldSize.y / 2 - hitcircleDiameter / 2 - borderSize));
     vec2 playfieldBorderSize =
-        vec2((int)(playfieldSize.x + hitcircleDiameter), (int)(playfieldSize.y + hitcircleDiameter));
+        vec2((i32)(playfieldSize.x + hitcircleDiameter), (i32)(playfieldSize.y + hitcircleDiameter));
 
     const Color innerColor = 0x44ffffff;
     const Color outerColor = 0x00000000;
@@ -783,7 +837,7 @@ void HUD::drawPlayfieldBorder(vec2 playfieldCenter, vec2 playfieldSize, float hi
 }
 
 void HUD::drawLoadingSmall(const UString &text) {
-    const float scale = Osu::getImageScale(osu->getSkin()->i_loading_spinner, 29);
+    const f32 scale = Osu::getImageScale(osu->getSkin()->i_loading_spinner, 29);
 
     g->setColor(0xffffffff);
     g->pushTransform();
@@ -795,11 +849,11 @@ void HUD::drawLoadingSmall(const UString &text) {
     }
     g->popTransform();
 
-    const float &spinner_height = osu->getSkin()->i_loading_spinner->getHeight() * scale;
+    const f32 &spinner_height = osu->getSkin()->i_loading_spinner->getHeight() * scale;
     g->setColor(0x44ffffff);
     g->pushTransform();
     {
-        g->translate((int)(osu->getVirtScreenWidth() / 2 - osu->getSubTitleFont()->getStringWidth(text) / 2),
+        g->translate((i32)(osu->getVirtScreenWidth() / 2 - osu->getSubTitleFont()->getStringWidth(text) / 2),
                      osu->getVirtScreenHeight() / 2 + 2.f * spinner_height);
         g->drawString(osu->getSubTitleFont(), text);
     }
@@ -817,22 +871,27 @@ void HUD::drawNumberWithSkinDigits(const SkinDigitDrawOpts &opts) {
             temp /= 10;
             divisor *= 10;
         }
-    }
 
-    if(divisor == 1 && opts.drawLeadingZeroes) {
-        divisor = 10;
+        u64 minDivisor = 1;
+        // left-pad logic
+        for(i32 i = 1; i < opts.minDigits; i++) {
+            minDivisor *= 10;
+        }
+        if(divisor < minDivisor) {
+            divisor = minDivisor;
+        }
     }
 
     const auto &images = opts.combo ? skin->i_combos : skin->i_scores;
-    const auto overlap = static_cast<float>(opts.combo ? skin->combo_overlap_amt : skin->score_overlap_amt);
+    const auto overlap = static_cast<f32>(opts.combo ? skin->combo_overlap_amt : skin->score_overlap_amt);
 
     // TODO: use per-digit scaling/positioning
     // need to change a ton of calling code that only uses the first image too
-    const float multiplier = images[0].scale();
-    const auto width = static_cast<float>(images[0]->getWidth());
+    const f32 multiplier = images[0].scale();
+    const auto width = static_cast<f32>(images[0]->getWidth());
 
     while(divisor >= 1) {
-        int digit = static_cast<int>(number / divisor);
+        i32 digit = static_cast<i32>(number / divisor);
         number %= divisor;
         divisor /= 10;
 
@@ -844,7 +903,7 @@ void HUD::drawNumberWithSkinDigits(const SkinDigitDrawOpts &opts) {
     }
 }
 
-void HUD::drawComboSimple(int combo, float scale) {
+void HUD::drawComboSimple(i32 combo, f32 scale) {
     g->pushTransform();
     {
         HUD::drawNumberWithSkinDigits({.number = combo, .scale = scale, .combo = true});
@@ -858,15 +917,15 @@ void HUD::drawComboSimple(int combo, float scale) {
     g->popTransform();
 }
 
-void HUD::drawCombo(int combo) {
+void HUD::drawCombo(i32 combo) {
     g->setColor(0xffffffff);
 
-    const int offset = 5;
+    const i32 offset = 5;
 
     // draw back (anim)
-    float animScaleMultiplier = 1.0f + this->fComboAnim2 * cv::combo_anim2_size.getFloat();
-    float scale = Osu::getImageScale(osu->getSkin()->i_combos[0], 32) * animScaleMultiplier * cv::hud_scale.getFloat() *
-                  cv::hud_combo_scale.getFloat();
+    f32 animScaleMultiplier = 1.0f + this->fComboAnim2 * cv::combo_anim2_size.getFloat();
+    f32 scale = Osu::getImageScale(osu->getSkin()->i_combos[0], 32) * animScaleMultiplier * cv::hud_scale.getFloat() *
+                cv::hud_combo_scale.getFloat();
     if(this->fComboAnim2 > 0.01f) {
         g->setAlpha(this->fComboAnim2 * 0.65f);
         g->pushTransform();
@@ -887,7 +946,7 @@ void HUD::drawCombo(int combo) {
 
     // draw front
     g->setAlpha(1.0f);
-    const float animPercent = (this->fComboAnim1 < 1.0f ? this->fComboAnim1 : 2.0f - this->fComboAnim1);
+    const f32 animPercent = (this->fComboAnim1 < 1.0f ? this->fComboAnim1 : 2.0f - this->fComboAnim1);
     animScaleMultiplier = 1.0f + (0.5f * animPercent * animPercent) * cv::combo_anim1_size.getFloat();
     scale = Osu::getImageScale(osu->getSkin()->i_combos[0], 32) * animScaleMultiplier * cv::hud_scale.getFloat() *
             cv::hud_combo_scale.getFloat();
@@ -910,31 +969,27 @@ void HUD::drawCombo(int combo) {
 void HUD::drawScore(u64 score) {
     g->setColor(0xffffffff);
 
-    int numDigits = 1;
-    u64 scoreCopy = score;
-    while(scoreCopy >= 10) {
-        scoreCopy /= 10;
-        numDigits++;
-    }
+    const i32 numDigits = 8;  // osu always left-pads with 8 digits
 
-    const float scale = HUD::getScoreScale();
+    const f32 scale = HUD::getScoreScale();
+    const Skin *skin = osu->getSkin();
+    const auto &score0img = skin->i_scores[0];
     g->pushTransform();
     {
         g->scale(scale, scale);
-        g->translate(
-            osu->getVirtScreenWidth() - osu->getSkin()->i_scores[0]->getWidth() * scale * numDigits +
-                osu->getSkin()->score_overlap_amt * (osu->getSkin()->i_scores[0].scale()) * scale * (numDigits - 1),
-            osu->getSkin()->i_scores[0]->getHeight() * scale / 2);
-        HUD::drawNumberWithSkinDigits({.number = score, .scale = scale, .combo = false, .drawLeadingZeroes = false});
+        g->translate(osu->getVirtScreenWidth() - score0img->getWidth() * scale * numDigits +
+                         skin->score_overlap_amt * (score0img.scale()) * scale * (numDigits - 1),
+                     score0img->getHeight() * scale / 2);
+        HUD::drawNumberWithSkinDigits({.number = score, .scale = scale, .combo = false, .minDigits = numDigits});
     }
     g->popTransform();
 }
 
-void HUD::drawScorebarBg(float alpha, float breakAnim) {
+void HUD::drawScorebarBg(f32 alpha, f32 breakAnim) {
     if(osu->getSkin()->i_scorebar_bg->isMissingTexture()) return;
 
-    const float scale = cv::hud_scale.getFloat() * cv::hud_scorebar_scale.getFloat();
-    const float ratio = Osu::getRectScale(vec2(1, 1), 1.0f);
+    const f32 scale = cv::hud_scale.getFloat() * cv::hud_scorebar_scale.getFloat();
+    const f32 ratio = Osu::getRectScale(vec2(1, 1), 1.0f);
 
     const vec2 breakAnimOffset = vec2(0, -20.0f * breakAnim) * ratio;
     g->setColor(Color(0xffffffff).setA(alpha * (1.0f - breakAnim)));
@@ -943,7 +998,7 @@ void HUD::drawScorebarBg(float alpha, float breakAnim) {
         (osu->getSkin()->i_scorebar_bg->getSize() / 2.0f) * scale + (breakAnimOffset * scale), scale);
 }
 
-void HUD::drawSectionPass(float alpha) {
+void HUD::drawSectionPass(f32 alpha) {
     if(!osu->getSkin()->i_section_pass->isMissingTexture()) {
         g->setColor(Color(0xffffffff).setA(alpha));
 
@@ -951,7 +1006,7 @@ void HUD::drawSectionPass(float alpha) {
     }
 }
 
-void HUD::drawSectionFail(float alpha) {
+void HUD::drawSectionFail(f32 alpha) {
     if(!osu->getSkin()->i_section_fail->isMissingTexture()) {
         g->setColor(Color(0xffffffff).setA(alpha));
 
@@ -959,16 +1014,16 @@ void HUD::drawSectionFail(float alpha) {
     }
 }
 
-void HUD::drawHPBar(double health, float alpha, float breakAnim) {
+void HUD::drawHPBar(double health, f32 alpha, f32 breakAnim) {
     const Skin *skin = osu->getSkin();
 
     const bool useNewDefault = !skin->i_scorebar_marker->isMissingTexture();
 
-    const float scale = cv::hud_scale.getFloat() * cv::hud_scorebar_scale.getFloat();
-    const float ratio = Osu::getRectScale(vec2(1, 1), 1.0f);
+    const f32 scale = cv::hud_scale.getFloat() * cv::hud_scorebar_scale.getFloat();
+    const f32 ratio = Osu::getRectScale(vec2(1, 1), 1.0f);
 
     const vec2 colourOffset = (useNewDefault ? vec2(7.5f, 7.8f) : vec2(3.0f, 10.0f)) * ratio;
-    const float currentXPosition = (colourOffset.x + (health * skin->i_scorebar_colour->getSize().x));
+    const f32 currentXPosition = (colourOffset.x + (health * skin->i_scorebar_colour->getSize().x));
     const vec2 markerOffset =
         (useNewDefault ? vec2(currentXPosition, (8.125f + 2.5f) * ratio) : vec2(currentXPosition, 10.0f * ratio));
     const vec2 breakAnimOffset = vec2(0, -20.0f * breakAnim) * ratio;
@@ -976,12 +1031,12 @@ void HUD::drawHPBar(double health, float alpha, float breakAnim) {
     // lerp color depending on health
     if(useNewDefault) {
         if(health < 0.2) {
-            const float factor = std::max(0.0, (0.2 - health) / 0.2);
-            const float value = std::lerp(0.0f, 1.0f, factor);
+            const f32 factor = std::max(0.0, (0.2 - health) / 0.2);
+            const f32 value = std::lerp(0.0f, 1.0f, factor);
             g->setColor(argb(1.0f, value, 0.0f, 0.0f));
         } else if(health < 0.5) {
-            const float factor = std::max(0.0, (0.5 - health) / 0.5);
-            const float value = std::lerp(1.0f, 0.0f, factor);
+            const f32 factor = std::max(0.0, (0.5 - health) / 0.5);
+            const f32 value = std::lerp(1.0f, 0.0f, factor);
             g->setColor(argb(1.0f, value, value, value));
         } else
             g->setColor(0xffffffff);
@@ -1021,19 +1076,18 @@ void HUD::drawHPBar(double health, float alpha, float breakAnim) {
     }
 }
 
-void HUD::drawAccuracySimple(float accuracy, float scale) {
+void HUD::drawAccuracySimple(f32 accuracy, f32 scale) {
     const Skin *skin = osu->getSkin();
 
     // get integer & fractional parts of the number
-    const int accuracyInt = (int)accuracy;
-    const int accuracyFrac =
-        std::clamp<int>(((int)(std::round((accuracy - accuracyInt) * 100.0f))), 0, 99);  // round up
+    const i32 accuracyInt = (i32)accuracy;
+    const i32 accuracyFrac =
+        std::clamp<i32>(((i32)(std::round((accuracy - accuracyInt) * 100.0f))), 0, 99);  // round up
 
     // draw it
     g->pushTransform();
     {
-        HUD::drawNumberWithSkinDigits(
-            {.number = accuracyInt, .scale = scale, .combo = false, .drawLeadingZeroes = true});
+        HUD::drawNumberWithSkinDigits({.number = accuracyInt, .scale = scale, .combo = false, .minDigits = 2});
 
         // draw dot '.' between the integer and fractional part
         if(skin->i_score_dot != MISSING_TEXTURE) {
@@ -1044,8 +1098,7 @@ void HUD::drawAccuracySimple(float accuracy, float scale) {
             g->translate(-skin->score_overlap_amt * (skin->i_scores[0].scale()) * scale, 0);
         }
 
-        HUD::drawNumberWithSkinDigits(
-            {.number = accuracyFrac, .scale = scale, .combo = false, .drawLeadingZeroes = true});
+        HUD::drawNumberWithSkinDigits({.number = accuracyFrac, .scale = scale, .combo = false, .minDigits = 2});
 
         // draw '%' at the end
         if(skin->i_score_percent != MISSING_TEXTURE) {
@@ -1057,28 +1110,27 @@ void HUD::drawAccuracySimple(float accuracy, float scale) {
     g->popTransform();
 }
 
-void HUD::drawAccuracy(float accuracy) {
+void HUD::drawAccuracy(f32 accuracy) {
     const Skin *skin = osu->getSkin();
 
     g->setColor(0xffffffff);
 
     // get integer & fractional parts of the number
-    const int accuracyInt = (int)accuracy;
-    const int accuracyFrac =
-        std::clamp<int>(((int)(std::round((accuracy - accuracyInt) * 100.0f))), 0, 99);  // round up
+    const i32 accuracyInt = (i32)accuracy;
+    const i32 accuracyFrac =
+        std::clamp<i32>(((i32)(std::round((accuracy - accuracyInt) * 100.0f))), 0, 99);  // round up
 
     // draw it
-    const int offset = 5;
-    const float scale =
+    const i32 offset = 5;
+    const f32 scale =
         Osu::getImageScale(skin->i_scores[0], 13) * cv::hud_scale.getFloat() * cv::hud_accuracy_scale.getFloat();
     g->pushTransform();
     {
-        const int numDigits = (accuracyInt > 99 ? 5 : 4);
-        const float xOffset =
-            skin->i_scores[0]->getWidth() * scale * numDigits +
-            (skin->i_score_dot != MISSING_TEXTURE ? skin->i_score_dot->getWidth() : 0) * scale +
-            (skin->i_score_percent != MISSING_TEXTURE ? skin->i_score_percent->getWidth() : 0) * scale -
-            skin->score_overlap_amt * (skin->i_scores[0].scale()) * scale * (numDigits + 1);
+        const i32 numDigits = (accuracyInt > 99 ? 5 : 4);
+        const f32 xOffset = skin->i_scores[0]->getWidth() * scale * numDigits +
+                            (skin->i_score_dot != MISSING_TEXTURE ? skin->i_score_dot->getWidth() : 0) * scale +
+                            (skin->i_score_percent != MISSING_TEXTURE ? skin->i_score_percent->getWidth() : 0) * scale -
+                            skin->score_overlap_amt * (skin->i_scores[0].scale()) * scale * (numDigits + 1);
 
         this->fAccuracyXOffset = osu->getVirtScreenWidth() - xOffset - offset;
         this->fAccuracyYOffset = (cv::draw_score.getBool() ? this->fScoreHeight : 0.0f) +
@@ -1087,8 +1139,7 @@ void HUD::drawAccuracy(float accuracy) {
         g->scale(scale, scale);
         g->translate(this->fAccuracyXOffset, this->fAccuracyYOffset);
 
-        HUD::drawNumberWithSkinDigits(
-            {.number = accuracyInt, .scale = scale, .combo = false, .drawLeadingZeroes = true});
+        HUD::drawNumberWithSkinDigits({.number = accuracyInt, .scale = scale, .combo = false, .minDigits = 2});
 
         // draw dot '.' between the integer and fractional part
         if(skin->i_score_dot != MISSING_TEXTURE) {
@@ -1099,8 +1150,7 @@ void HUD::drawAccuracy(float accuracy) {
             g->translate(-skin->score_overlap_amt * (skin->i_scores[0].scale()) * scale, 0);
         }
 
-        HUD::drawNumberWithSkinDigits(
-            {.number = accuracyFrac, .scale = scale, .combo = false, .drawLeadingZeroes = true});
+        HUD::drawNumberWithSkinDigits({.number = accuracyFrac, .scale = scale, .combo = false, .minDigits = 2});
 
         // draw '%' at the end
         if(skin->i_score_percent != MISSING_TEXTURE) {
@@ -1113,7 +1163,7 @@ void HUD::drawAccuracy(float accuracy) {
 }
 
 void HUD::drawSkip() {
-    const float scale = cv::hud_scale.getFloat();
+    const f32 scale = cv::hud_scale.getFloat();
 
     g->setColor(0xffffffff);
     osu->getSkin()->i_play_skip->draw(osu->getVirtScreenSize() - (osu->getSkin()->i_play_skip->getSize() / 2.f) * scale,
@@ -1123,7 +1173,7 @@ void HUD::drawSkip() {
 void HUD::drawWarningArrow(vec2 pos, bool flipVertically, bool originLeft) {
     const Skin *skin = osu->getSkin();
 
-    const float scale = cv::hud_scale.getFloat() * Osu::getImageScale(skin->i_play_warning_arrow, 78);
+    const f32 scale = cv::hud_scale.getFloat() * Osu::getImageScale(skin->i_play_warning_arrow, 78);
 
     g->pushTransform();
     {
@@ -1137,9 +1187,9 @@ void HUD::drawWarningArrow(vec2 pos, bool flipVertically, bool originLeft) {
     g->popTransform();
 }
 
-void HUD::drawWarningArrows(float /*hitcircleDiameter*/) {
-    const float divider = 18.0f;
-    const float part = GameRules::getPlayfieldSize().y * (1.0f / divider);
+void HUD::drawWarningArrows(f32 /*hitcircleDiameter*/) {
+    const f32 divider = 18.0f;
+    const f32 part = GameRules::getPlayfieldSize().y * (1.0f / divider);
 
     g->setColor(0xffffffff);
     HUD::drawWarningArrow(
@@ -1224,7 +1274,7 @@ const std::vector<SCORE_ENTRY> &HUD::getCurrentScores() {
             this->scores_cache.push_back(std::move(scoreEntry));
         }
     } else {
-        int nb_slots = 0;
+        i32 nb_slots = 0;
         {
             const bool is_online = (BanchoState::is_online() || BanchoState::is_logging_in()) &&
                                    cv::songbrowser_scores_filteringtype.getString() != "Local";
@@ -1324,8 +1374,8 @@ void HUD::resetScoreboard() {
     this->player_slot = nullptr;
     this->slots.clear();
 
-    int player_entry_id = BanchoState::is_in_a_multi_room() ? BanchoState::get_uid() : 0;
-    int i = 0;
+    i32 player_entry_id = BanchoState::is_in_a_multi_room() ? BanchoState::get_uid() : 0;
+    i32 i = 0;
     for(const auto &score : this->getCurrentScores()) {
         auto slot = std::make_unique<ScoreboardSlot>(score, i);
         if(score.entry_id == player_entry_id) {
@@ -1357,7 +1407,7 @@ void HUD::updateScoreboard(bool animate) {
 
     // Update player slot first
     const auto &new_scores = this->getCurrentScores();
-    for(int i = 0; i < new_scores.size(); i++) {
+    for(i32 i = 0; i < new_scores.size(); i++) {
         if(new_scores[i].entry_id != this->player_slot->score.entry_id) continue;
 
         this->player_slot->updateIndex(i, true, animate);
@@ -1366,7 +1416,7 @@ void HUD::updateScoreboard(bool animate) {
     }
 
     // Update other slots
-    for(int i = 0; i < new_scores.size(); i++) {
+    for(i32 i = 0; i < new_scores.size(); i++) {
         if(new_scores[i].entry_id == this->player_slot->score.entry_id) continue;
 
         for(const auto &slot : this->slots) {
@@ -1397,7 +1447,7 @@ void HUD::drawHitErrorBar(BeatmapInterface *pf) {
     }
 }
 
-void HUD::drawHitErrorBar(float hitWindow300, float hitWindow100, float hitWindow50, float hitWindowMiss, int ur) {
+void HUD::drawHitErrorBar(f32 hitWindow300, f32 hitWindow100, f32 hitWindow50, f32 hitWindowMiss, i32 ur) {
     const vec2 center = vec2(osu->getVirtScreenWidth() / 2.0f,
                              osu->getVirtScreenHeight() -
                                  osu->getVirtScreenHeight() * 2.15f * cv::hud_hiterrorbar_height_percent.getFloat() *
@@ -1466,27 +1516,27 @@ void HUD::drawHitErrorBar(float hitWindow300, float hitWindow100, float hitWindo
     }
 }
 
-void HUD::drawHitErrorBarInt(float hitWindow300, float hitWindow100, float hitWindow50, float hitWindowMiss) {
-    const float alpha = cv::hud_hiterrorbar_alpha.getFloat();
+void HUD::drawHitErrorBarInt(f32 hitWindow300, f32 hitWindow100, f32 hitWindow50, f32 hitWindowMiss) {
+    const f32 alpha = cv::hud_hiterrorbar_alpha.getFloat();
     if(alpha <= 0.0f) return;
 
-    const float alphaEntry = alpha * cv::hud_hiterrorbar_entry_alpha.getFloat();
-    const int alphaCenterlineInt =
-        std::clamp<int>((int)(alpha * cv::hud_hiterrorbar_centerline_alpha.getFloat() * 255.0f), 0, 255);
-    const int alphaBarInt = std::clamp<int>((int)(alpha * cv::hud_hiterrorbar_bar_alpha.getFloat() * 255.0f), 0, 255);
+    const f32 alphaEntry = alpha * cv::hud_hiterrorbar_entry_alpha.getFloat();
+    const i32 alphaCenterlineInt =
+        std::clamp<i32>((i32)(alpha * cv::hud_hiterrorbar_centerline_alpha.getFloat() * 255.0f), 0, 255);
+    const i32 alphaBarInt = std::clamp<i32>((i32)(alpha * cv::hud_hiterrorbar_bar_alpha.getFloat() * 255.0f), 0, 255);
 
-    const Color color300 = argb(alphaBarInt, std::clamp<int>(cv::hud_hiterrorbar_entry_300_r.getInt(), 0, 255),
-                                std::clamp<int>(cv::hud_hiterrorbar_entry_300_g.getInt(), 0, 255),
-                                std::clamp<int>(cv::hud_hiterrorbar_entry_300_b.getInt(), 0, 255));
-    const Color color100 = argb(alphaBarInt, std::clamp<int>(cv::hud_hiterrorbar_entry_100_r.getInt(), 0, 255),
-                                std::clamp<int>(cv::hud_hiterrorbar_entry_100_g.getInt(), 0, 255),
-                                std::clamp<int>(cv::hud_hiterrorbar_entry_100_b.getInt(), 0, 255));
-    const Color color50 = argb(alphaBarInt, std::clamp<int>(cv::hud_hiterrorbar_entry_50_r.getInt(), 0, 255),
-                               std::clamp<int>(cv::hud_hiterrorbar_entry_50_g.getInt(), 0, 255),
-                               std::clamp<int>(cv::hud_hiterrorbar_entry_50_b.getInt(), 0, 255));
-    const Color colorMiss = argb(alphaBarInt, std::clamp<int>(cv::hud_hiterrorbar_entry_miss_r.getInt(), 0, 255),
-                                 std::clamp<int>(cv::hud_hiterrorbar_entry_miss_g.getInt(), 0, 255),
-                                 std::clamp<int>(cv::hud_hiterrorbar_entry_miss_b.getInt(), 0, 255));
+    const Color color300 = argb(alphaBarInt, std::clamp<i32>(cv::hud_hiterrorbar_entry_300_r.getInt(), 0, 255),
+                                std::clamp<i32>(cv::hud_hiterrorbar_entry_300_g.getInt(), 0, 255),
+                                std::clamp<i32>(cv::hud_hiterrorbar_entry_300_b.getInt(), 0, 255));
+    const Color color100 = argb(alphaBarInt, std::clamp<i32>(cv::hud_hiterrorbar_entry_100_r.getInt(), 0, 255),
+                                std::clamp<i32>(cv::hud_hiterrorbar_entry_100_g.getInt(), 0, 255),
+                                std::clamp<i32>(cv::hud_hiterrorbar_entry_100_b.getInt(), 0, 255));
+    const Color color50 = argb(alphaBarInt, std::clamp<i32>(cv::hud_hiterrorbar_entry_50_r.getInt(), 0, 255),
+                               std::clamp<i32>(cv::hud_hiterrorbar_entry_50_g.getInt(), 0, 255),
+                               std::clamp<i32>(cv::hud_hiterrorbar_entry_50_b.getInt(), 0, 255));
+    const Color colorMiss = argb(alphaBarInt, std::clamp<i32>(cv::hud_hiterrorbar_entry_miss_r.getInt(), 0, 255),
+                                 std::clamp<i32>(cv::hud_hiterrorbar_entry_miss_g.getInt(), 0, 255),
+                                 std::clamp<i32>(cv::hud_hiterrorbar_entry_miss_b.getInt(), 0, 255));
 
     vec2 size = vec2(osu->getVirtScreenWidth() * cv::hud_hiterrorbar_width_percent.getFloat(),
                      osu->getVirtScreenHeight() * cv::hud_hiterrorbar_height_percent.getFloat()) *
@@ -1498,15 +1548,15 @@ void HUD::drawHitErrorBarInt(float hitWindow300, float hitWindow100, float hitWi
 
     const vec2 center = vec2(0, 0);  // NOTE: moved to drawHitErrorBar()
 
-    const float entryHeight = size.y * cv::hud_hiterrorbar_bar_height_scale.getFloat();
-    const float entryWidth = size.y * cv::hud_hiterrorbar_bar_width_scale.getFloat();
+    const f32 entryHeight = size.y * cv::hud_hiterrorbar_bar_height_scale.getFloat();
+    const f32 entryWidth = size.y * cv::hud_hiterrorbar_bar_width_scale.getFloat();
 
-    float totalHitWindowLength = hitWindow50;
+    f32 totalHitWindowLength = hitWindow50;
     if(cv::hud_hiterrorbar_showmisswindow.getBool()) totalHitWindowLength = hitWindowMiss;
 
-    const float percent50 = hitWindow50 / totalHitWindowLength;
-    const float percent100 = hitWindow100 / totalHitWindowLength;
-    const float percent300 = hitWindow300 / totalHitWindowLength;
+    const f32 percent50 = hitWindow50 / totalHitWindowLength;
+    const f32 percent100 = hitWindow100 / totalHitWindowLength;
+    const f32 percent300 = hitWindow300 / totalHitWindowLength;
 
     // draw background bar with color indicators for 300s, 100s and 50s (and the miss window)
     if(alphaBarInt > 0) {
@@ -1540,12 +1590,11 @@ void HUD::drawHitErrorBarInt(float hitWindow300, float hitWindow100, float hitWi
         if(cv::hud_hiterrorbar_entry_additive.getBool()) g->setBlendMode(DrawBlendMode::ADDITIVE);
 
         const bool modMing3012 = cv::mod_ming3012.getBool();
-        const float hitFadeDuration = cv::hud_hiterrorbar_entry_hit_fade_time.getFloat();
-        const float missFadeDuration = cv::hud_hiterrorbar_entry_miss_fade_time.getFloat();
-        for(int i = this->hiterrors.size() - 1; i >= 0; i--) {
-            const float percent =
-                std::clamp<float>((float)this->hiterrors[i].delta / (float)totalHitWindowLength, -5.0f, 5.0f);
-            float fade = std::clamp<float>(
+        const f32 hitFadeDuration = cv::hud_hiterrorbar_entry_hit_fade_time.getFloat();
+        const f32 missFadeDuration = cv::hud_hiterrorbar_entry_miss_fade_time.getFloat();
+        for(i32 i = this->hiterrors.size() - 1; i >= 0; i--) {
+            const f32 percent = std::clamp<f32>((f32)this->hiterrors[i].delta / (f32)totalHitWindowLength, -5.0f, 5.0f);
+            f32 fade = std::clamp<f32>(
                 (this->hiterrors[i].time - engine->getTime()) /
                     (this->hiterrors[i].miss || this->hiterrors[i].misaim ? missFadeDuration : hitFadeDuration),
                 0.0f, 1.0f);
@@ -1563,7 +1612,7 @@ void HUD::drawHitErrorBarInt(float hitWindow300, float hitWindow100, float hitWi
 
             g->setColor(Color(barColor).setA(alphaEntry * fade));
 
-            float missHeightMultiplier = 1.0f;
+            f32 missHeightMultiplier = 1.0f;
             if(this->hiterrors[i].miss) missHeightMultiplier = 1.5f;
             if(this->hiterrors[i].misaim) missHeightMultiplier = 4.0f;
 
@@ -1577,22 +1626,22 @@ void HUD::drawHitErrorBarInt(float hitWindow300, float hitWindow100, float hitWi
 
     // white center line
     if(alphaCenterlineInt > 0) {
-        g->setColor(argb(alphaCenterlineInt, std::clamp<int>(cv::hud_hiterrorbar_centerline_r.getInt(), 0, 255),
-                         std::clamp<int>(cv::hud_hiterrorbar_centerline_g.getInt(), 0, 255),
-                         std::clamp<int>(cv::hud_hiterrorbar_centerline_b.getInt(), 0, 255)));
+        g->setColor(argb(alphaCenterlineInt, std::clamp<i32>(cv::hud_hiterrorbar_centerline_r.getInt(), 0, 255),
+                         std::clamp<i32>(cv::hud_hiterrorbar_centerline_g.getInt(), 0, 255),
+                         std::clamp<i32>(cv::hud_hiterrorbar_centerline_b.getInt(), 0, 255)));
         g->fillRect(center.x - entryWidth / 2.0f / 2.0f, center.y - entryHeight / 2.0f, entryWidth / 2.0f, entryHeight);
     }
 }
 
-void HUD::drawHitErrorBarInt2(vec2 center, int ur) {
-    const float alpha = cv::hud_hiterrorbar_alpha.getFloat() * cv::hud_hiterrorbar_ur_alpha.getFloat();
+void HUD::drawHitErrorBarInt2(vec2 center, i32 ur) {
+    const f32 alpha = cv::hud_hiterrorbar_alpha.getFloat() * cv::hud_hiterrorbar_ur_alpha.getFloat();
     if(alpha <= 0.0f) return;
 
-    const float dpiScale = Osu::getUIScale();
+    const f32 dpiScale = Osu::getUIScale();
 
-    const float hitErrorBarSizeY = osu->getVirtScreenHeight() * cv::hud_hiterrorbar_height_percent.getFloat() *
-                                   cv::hud_scale.getFloat() * cv::hud_hiterrorbar_scale.getFloat();
-    const float entryHeight = hitErrorBarSizeY * cv::hud_hiterrorbar_bar_height_scale.getFloat();
+    const f32 hitErrorBarSizeY = osu->getVirtScreenHeight() * cv::hud_hiterrorbar_height_percent.getFloat() *
+                                 cv::hud_scale.getFloat() * cv::hud_hiterrorbar_scale.getFloat();
+    const f32 entryHeight = hitErrorBarSizeY * cv::hud_hiterrorbar_bar_height_scale.getFloat();
 
     if(cv::draw_hiterrorbar_ur.getBool()) {
         g->pushTransform();
@@ -1600,17 +1649,17 @@ void HUD::drawHitErrorBarInt2(vec2 center, int ur) {
             UString urText = fmt::format("{} UR", ur);
             McFont *urTextFont = osu->getSongBrowserFont();
 
-            const float hitErrorBarScale = cv::hud_scale.getFloat() * cv::hud_hiterrorbar_scale.getFloat();
-            const float urTextScale = hitErrorBarScale * cv::hud_hiterrorbar_ur_scale.getFloat() * 0.5f;
-            const float urTextWidth = urTextFont->getStringWidth(urText) * urTextScale;
-            const float urTextHeight = urTextFont->getHeight() * hitErrorBarScale;
+            const f32 hitErrorBarScale = cv::hud_scale.getFloat() * cv::hud_hiterrorbar_scale.getFloat();
+            const f32 urTextScale = hitErrorBarScale * cv::hud_hiterrorbar_ur_scale.getFloat() * 0.5f;
+            const f32 urTextWidth = urTextFont->getStringWidth(urText) * urTextScale;
+            const f32 urTextHeight = urTextFont->getHeight() * hitErrorBarScale;
 
             g->scale(urTextScale, urTextScale);
             g->translate(
-                (int)(center.x + (-urTextWidth / 2.0f) +
+                (i32)(center.x + (-urTextWidth / 2.0f) +
                       (urTextHeight) * (cv::hud_hiterrorbar_ur_offset_x_percent.getFloat()) * dpiScale) +
                     1,
-                (int)(center.y + (urTextHeight) * (cv::hud_hiterrorbar_ur_offset_y_percent.getFloat()) * dpiScale -
+                (i32)(center.y + (urTextHeight) * (cv::hud_hiterrorbar_ur_offset_y_percent.getFloat()) * dpiScale -
                       entryHeight / 1.25f) +
                     1);
 
@@ -1630,15 +1679,15 @@ void HUD::drawHitErrorBarInt2(vec2 center, int ur) {
     }
 }
 
-void HUD::drawProgressBar(float percent, bool waiting) {
+void HUD::drawProgressBar(f32 percent, bool waiting) {
     if(!cv::draw_accuracy.getBool()) this->fAccuracyXOffset = osu->getVirtScreenWidth();
 
-    const float num_segments = 15 * 8;
-    const int offset = 20;
-    const float radius = Osu::getUIScale(10.5f) * cv::hud_scale.getFloat() * cv::hud_progressbar_scale.getFloat();
-    const float circularMetreScale =
+    const f32 num_segments = 15 * 8;
+    const i32 offset = 20;
+    const f32 radius = Osu::getUIScale(10.5f) * cv::hud_scale.getFloat() * cv::hud_progressbar_scale.getFloat();
+    const f32 circularMetreScale =
         ((2 * radius) / osu->getSkin()->i_circular_metre->getWidth()) * 1.3f;  // hardcoded 1.3 multiplier?!
-    const float actualCircularMetreScale = ((2 * radius) / osu->getSkin()->i_circular_metre->getWidth());
+    const f32 actualCircularMetreScale = ((2 * radius) / osu->getSkin()->i_circular_metre->getWidth());
     vec2 center = vec2(this->fAccuracyXOffset - radius - offset, this->fAccuracyYOffset);
 
     // clamp to top edge of screen
@@ -1649,12 +1698,12 @@ void HUD::drawProgressBar(float percent, bool waiting) {
     // clamp to bottom edge of score numbers
     if(cv::draw_score.getBool() && center.y - radius < this->fScoreHeight) center.y = this->fScoreHeight + radius;
 
-    const float theta = 2 * PI / float(num_segments);
-    const float s = sinf(theta);  // precalculate the sine and cosine
-    const float c = cosf(theta);
-    float t;
-    float x = 0;
-    float y = -radius;  // we start at the top
+    const f32 theta = 2 * PI / f32(num_segments);
+    const f32 s = sinf(theta);  // precalculate the sine and cosine
+    const f32 c = cosf(theta);
+    f32 t;
+    f32 x = 0;
+    f32 y = -radius;  // we start at the top
 
     if(waiting)
         g->setColor(0xaa00f200);
@@ -1666,8 +1715,8 @@ void HUD::drawProgressBar(float percent, bool waiting) {
         vao.clear();
 
         vec2 prevVertex{0.f};
-        for(int i = 0; i < num_segments + 1; i++) {
-            float curPercent = (i * (360.0f / num_segments)) / 360.0f;
+        for(i32 i = 0; i < num_segments + 1; i++) {
+            f32 curPercent = (i * (360.0f / num_segments)) / 360.0f;
             if(curPercent > percent) break;
 
             // build current vertex
@@ -1727,10 +1776,10 @@ void HUD::drawStatistics(const HUDStats &s) {
 
     McFont *font = osu->getTitleFont();
 
-    float scale = cv::hud_statistics_scale.getFloat() * cv::hud_scale.getFloat();
-    float flatYDelta = 10.f;
+    f32 scale = cv::hud_statistics_scale.getFloat() * cv::hud_scale.getFloat();
+    f32 flatYDelta = 10.f;
 
-    const float subtitleRatio = osu->getSubTitleFont()->getSize() / (float)font->getSize();
+    const f32 subtitleRatio = osu->getSubTitleFont()->getSize() / (f32)font->getSize();
     if(scale <= subtitleRatio) {
         // use subtitle font and adjust scaling, to avoid downscaling artifacts
         font = osu->getSubTitleFont();
@@ -1738,8 +1787,8 @@ void HUD::drawStatistics(const HUDStats &s) {
         flatYDelta *= subtitleRatio;
     }
 
-    const float offsetScale = Osu::getRectScale(vec2(1.0f, 1.0f), 1.0f);
-    const float yDelta = ((font->getHeight() + flatYDelta) * scale) * cv::hud_statistics_spacing_scale.getFloat();
+    const f32 offsetScale = Osu::getRectScale(vec2(1.0f, 1.0f), 1.0f);
+    const f32 yDelta = ((font->getHeight() + flatYDelta) * scale) * cv::hud_statistics_spacing_scale.getFloat();
 
     static constexpr Color shadowColor = rgb(0, 0, 0);
     static constexpr Color textColor = rgb(255, 255, 255);
@@ -1748,9 +1797,9 @@ void HUD::drawStatistics(const HUDStats &s) {
     {
         g->scale(scale, scale);
         g->translate(cv::hud_statistics_offset_x.getInt(),
-                     (int)(font->getHeight() * scale) + (cv::hud_statistics_offset_y.getInt() * offsetScale));
+                     (i32)(font->getHeight() * scale) + (cv::hud_statistics_offset_y.getInt() * offsetScale));
 
-        auto addStatistic = [font, yDelta](const UString &text, float xOffset, float yOffset) {
+        auto addStatistic = [font, yDelta](const UString &text, f32 xOffset, f32 yOffset) {
             if(text.length() < 1) return;
 
             g->translate(xOffset, yOffset);
@@ -1765,12 +1814,12 @@ void HUD::drawStatistics(const HUDStats &s) {
 
         if(cv::draw_statistics_pp.getBool())
             addStatistic(
-                fmt::format("{:.{}f}pp", s.pp, std::clamp<int>(cv::hud_statistics_pp_decimal_places.getInt(), 0, 2)),
+                fmt::format("{:.{}f}pp", s.pp, std::clamp<i32>(cv::hud_statistics_pp_decimal_places.getInt(), 0, 2)),
                 cv::hud_statistics_pp_offset_x.getInt(), cv::hud_statistics_pp_offset_y.getInt());
 
         if(cv::draw_statistics_perfectpp.getBool())
             addStatistic(fmt::format("SS: {:.{}f}pp", s.ppfc,
-                                     std::clamp<int>(cv::hud_statistics_pp_decimal_places.getInt(), 0, 2)),
+                                     std::clamp<i32>(cv::hud_statistics_pp_decimal_places.getInt(), 0, 2)),
                          cv::hud_statistics_perfectpp_offset_x.getInt(),
                          cv::hud_statistics_perfectpp_offset_y.getInt());
 
@@ -1801,31 +1850,31 @@ void HUD::drawStatistics(const HUDStats &s) {
                          cv::hud_statistics_bpm_offset_y.getInt());
 
         if(cv::draw_statistics_ar.getBool()) {
-            float AR = std::round(s.ar * 100.0f) / 100.0f;
+            f32 AR = std::round(s.ar * 100.0f) / 100.0f;
             addStatistic(fmt::format("AR: {:g}"_cf, AR), cv::hud_statistics_ar_offset_x.getInt(),
                          cv::hud_statistics_ar_offset_y.getInt());
         }
 
         if(cv::draw_statistics_cs.getBool()) {
-            float CS = std::round(s.cs * 100.0f) / 100.0f;
+            f32 CS = std::round(s.cs * 100.0f) / 100.0f;
             addStatistic(fmt::format("CS: {:g}"_cf, CS), cv::hud_statistics_cs_offset_x.getInt(),
                          cv::hud_statistics_cs_offset_y.getInt());
         }
 
         if(cv::draw_statistics_od.getBool()) {
-            float OD = std::round(s.od * 100.0f) / 100.0f;
+            f32 OD = std::round(s.od * 100.0f) / 100.0f;
             addStatistic(fmt::format("OD: {:g}"_cf, OD), cv::hud_statistics_od_offset_x.getInt(),
                          cv::hud_statistics_od_offset_y.getInt());
         }
 
         if(cv::draw_statistics_hp.getBool()) {
-            float HP = std::round(s.hp * 100.0f) / 100.0f;
+            f32 HP = std::round(s.hp * 100.0f) / 100.0f;
             addStatistic(fmt::format("HP: {:g}"_cf, HP), cv::hud_statistics_hp_offset_x.getInt(),
                          cv::hud_statistics_hp_offset_y.getInt());
         }
 
         if(cv::draw_statistics_hitwindow300.getBool())
-            addStatistic(fmt::format("300: +-{:d}ms"_cf, (int)s.hitWindow300),
+            addStatistic(fmt::format("300: +-{:d}ms"_cf, (i32)s.hitWindow300),
                          cv::hud_statistics_hitwindow300_offset_x.getInt(),
                          cv::hud_statistics_hitwindow300_offset_y.getInt());
 
@@ -1848,8 +1897,8 @@ void HUD::drawStatistics(const HUDStats &s) {
     g->popTransform();
 }
 
-void HUD::drawTargetHeatmap(float hitcircleDiameter) {
-    const vec2 center = vec2((int)(hitcircleDiameter / 2.0f + 5.0f), (int)(hitcircleDiameter / 2.0f + 5.0f));
+void HUD::drawTargetHeatmap(f32 hitcircleDiameter) {
+    const vec2 center = vec2((i32)(hitcircleDiameter / 2.0f + 5.0f), (i32)(hitcircleDiameter / 2.0f + 5.0f));
 
     // constexpr const COLORPART brightnessSub = 0;
     static constexpr Color color300 = rgb(0, 255, 255);
@@ -1859,25 +1908,25 @@ void HUD::drawTargetHeatmap(float hitcircleDiameter) {
 
     Circle::drawCircle(osu->getSkin(), center, hitcircleDiameter, rgb(50, 50, 50));
 
-    const int size = hitcircleDiameter * 0.075f;
+    const i32 size = hitcircleDiameter * 0.075f;
     for(auto &target : this->targets) {
-        const float delta = target.delta;
+        const f32 delta = target.delta;
 
-        const float overlap = 0.15f;
+        const f32 overlap = 0.15f;
         Color color;
         if(delta < cv::mod_target_300_percent.getFloat() - overlap)
             color = color300;
         else if(delta < cv::mod_target_300_percent.getFloat() + overlap) {
-            const float factor300 = (cv::mod_target_300_percent.getFloat() + overlap - delta) / (2.0f * overlap);
-            const float factor100 = 1.0f - factor300;
+            const f32 factor300 = (cv::mod_target_300_percent.getFloat() + overlap - delta) / (2.0f * overlap);
+            const f32 factor100 = 1.0f - factor300;
             color = argb(1.0f, color300.Rf() * factor300 + color100.Rf() * factor100,
                          color300.Gf() * factor300 + color100.Gf() * factor100,
                          color300.Bf() * factor300 + color100.Bf() * factor100);
         } else if(delta < cv::mod_target_100_percent.getFloat() - overlap)
             color = color100;
         else if(delta < cv::mod_target_100_percent.getFloat() + overlap) {
-            const float factor100 = (cv::mod_target_100_percent.getFloat() + overlap - delta) / (2.0f * overlap);
-            const float factor50 = 1.0f - factor100;
+            const f32 factor100 = (cv::mod_target_100_percent.getFloat() + overlap - delta) / (2.0f * overlap);
+            const f32 factor50 = 1.0f - factor100;
             color = argb(1.0f, color100.Rf() * factor100 + color50.Rf() * factor50,
                          color100.Gf() * factor100 + color50.Gf() * factor50,
                          color100.Bf() * factor100 + color50.Bf() * factor50);
@@ -1886,11 +1935,11 @@ void HUD::drawTargetHeatmap(float hitcircleDiameter) {
         else
             color = colorMiss;
 
-        g->setColor(Color(color).setA(std::clamp<float>((target.time - engine->getTime()) / 3.5f, 0.0f, 1.0f)));
+        g->setColor(Color(color).setA(std::clamp<f32>((target.time - engine->getTime()) / 3.5f, 0.0f, 1.0f)));
 
-        const float theta = glm::radians(target.angle);
-        const float cs = std::cos(theta);
-        const float sn = std::sin(theta);
+        const f32 theta = glm::radians(target.angle);
+        const f32 cs = std::cos(theta);
+        const f32 sn = std::sin(theta);
 
         vec2 up = vec2(-1, 0);
         vec2 offset{0.f};
@@ -1901,7 +1950,7 @@ void HUD::drawTargetHeatmap(float hitcircleDiameter) {
 
         // g->fillRect(center.x-size/2 - offset.x, center.y-size/2 - offset.y, size, size);
 
-        const float imageScale = Osu::getImageScaleToFitResolution(osu->getSkin()->i_circle_full, vec2(size, size));
+        const f32 imageScale = Osu::getImageScaleToFitResolution(osu->getSkin()->i_circle_full, vec2(size, size));
         g->pushTransform();
         {
             g->scale(imageScale, imageScale);
@@ -1989,7 +2038,7 @@ void HUD::drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 
                                               cv::hud_scrubbing_timeline_strains_speed_color_b.getInt() / 255.0f);
 
                 g->setDepthBuffer(true);
-                for(int i = 0; i < aimStrains.size(); i++) {
+                for(i32 i = 0; i < aimStrains.size(); i++) {
                     f64 aimStrain = (aimStrains[i]) / highestStrain;
                     f64 speedStrain = (speedStrains[i]) / highestStrain;
                     // f64 strain = (aimStrains[i] + speedStrains[i]) / highestStrain;
@@ -2189,29 +2238,29 @@ void HUD::drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 
     g->popTransform();
 }
 
-void HUD::drawInputOverlay(int numK1, int numK2, int numM1, int numM2) {
+void HUD::drawInputOverlay(i32 numK1, i32 numK2, i32 numM1, i32 numM2) {
     SkinImage *inputoverlayBackground = osu->getSkin()->i_input_overlay_bg;
     SkinImage *inputoverlayKey = osu->getSkin()->i_input_overlay_key;
 
-    const float scale = cv::hud_scale.getFloat() * cv::hud_inputoverlay_scale.getFloat();  // global scaler
-    const float oScale = inputoverlayBackground->getResolutionScale() *
-                         1.6f;  // for converting harcoded osu offset pixels to screen pixels
-    const float offsetScale = Osu::getRectScale(vec2(1.0f, 1.0f),
-                                                1.0f);  // for scaling the x/y offset convars relative to screen size
+    const f32 scale = cv::hud_scale.getFloat() * cv::hud_inputoverlay_scale.getFloat();  // global scaler
+    const f32 oScale = inputoverlayBackground->getResolutionScale() *
+                       1.6f;  // for converting harcoded osu offset pixels to screen pixels
+    const f32 offsetScale = Osu::getRectScale(vec2(1.0f, 1.0f),
+                                              1.0f);  // for scaling the x/y offset convars relative to screen size
 
-    const float xStartOffset = cv::hud_inputoverlay_offset_x.getFloat() * offsetScale;
-    const float yStartOffset = cv::hud_inputoverlay_offset_y.getFloat() * offsetScale;
+    const f32 xStartOffset = cv::hud_inputoverlay_offset_x.getFloat() * offsetScale;
+    const f32 yStartOffset = cv::hud_inputoverlay_offset_y.getFloat() * offsetScale;
 
-    const float xStart = osu->getVirtScreenWidth() - xStartOffset;
-    const float yStart = osu->getVirtScreenHeight() / 2 - (40.0f * oScale) * scale + yStartOffset;
+    const f32 xStart = osu->getVirtScreenWidth() - xStartOffset;
+    const f32 yStart = osu->getVirtScreenHeight() / 2 - (40.0f * oScale) * scale + yStartOffset;
 
     // background
     {
-        const float xScale = 1.05f + 0.001f;
-        const float rot = 90.0f;
+        const f32 xScale = 1.05f + 0.001f;
+        const f32 rot = 90.0f;
 
-        const float xOffset = (inputoverlayBackground->getSize().y / 2);
-        const float yOffset = (inputoverlayBackground->getSize().x / 2) * xScale;
+        const f32 xOffset = (inputoverlayBackground->getSize().y / 2);
+        const f32 yOffset = (inputoverlayBackground->getSize().x / 2) * xScale;
 
         g->setColor(0xffffffff);
         g->pushTransform();
@@ -2225,7 +2274,7 @@ void HUD::drawInputOverlay(int numK1, int numK2, int numM1, int numM2) {
 
     // keys
     {
-        const float textFontHeightPercent = 0.3f;
+        const f32 textFontHeightPercent = 0.3f;
         const Color colorIdle = argb(255, 255, 255, 255);
         const Color colorKeyboard = argb(255, 255, 222, 0);
         const Color colorMouse = argb(255, 248, 0, 158);
@@ -2233,13 +2282,13 @@ void HUD::drawInputOverlay(int numK1, int numK2, int numM1, int numM2) {
         McFont *textFont = osu->getSongBrowserFont();
         McFont *textFontBold = osu->getSongBrowserFontBold();
 
-        for(int i = 0; i < 4; i++) {
+        for(i32 i = 0; i < 4; i++) {
             textFont = osu->getSongBrowserFont();  // reset
 
             UString text;
             Color color = colorIdle;
-            float animScale = 1.0f;
-            float animColor = 0.0f;
+            f32 animScale = 1.0f;
+            f32 animColor = 0.0f;
             switch(i) {
                 case 0:
                     text = numK1 > 0 ? fmt::format("{:d}", numK1) : "K1";
@@ -2280,10 +2329,9 @@ void HUD::drawInputOverlay(int numK1, int numK2, int numM1, int numM2) {
             inputoverlayKey->draw(pos, scale * animScale);
 
             // text
-            const float keyFontScale =
-                (inputoverlayKey->getSizeBase().y * textFontHeightPercent) / textFont->getHeight();
-            const float stringWidth = textFont->getStringWidth(text) * keyFontScale;
-            const float stringHeight = textFont->getHeight() * keyFontScale;
+            const f32 keyFontScale = (inputoverlayKey->getSizeBase().y * textFontHeightPercent) / textFont->getHeight();
+            const f32 stringWidth = textFont->getStringWidth(text) * keyFontScale;
+            const f32 stringHeight = textFont->getHeight() * keyFontScale;
 
             g->setColor(osu->getSkin()->c_input_overlay_text);
             g->pushTransform();
@@ -2298,20 +2346,20 @@ void HUD::drawInputOverlay(int numK1, int numK2, int numM1, int numM2) {
     }
 }
 
-float HUD::getCursorScaleFactor() {
+f32 HUD::getCursorScaleFactor() {
     // FUCK OSU hardcoded piece of shit code
-    const float spriteRes = 768.0f;
+    const f32 spriteRes = 768.0f;
 
-    float mapScale = 1.0f;
+    f32 mapScale = 1.0f;
     if(cv::automatic_cursor_size.getBool() && osu->isInPlayMode())
-        mapScale = 1.0f - 0.7f * (float)(osu->getMapInterface()->getCS() - 4.0f) / 5.0f;
+        mapScale = 1.0f - 0.7f * (f32)(osu->getMapInterface()->getCS() - 4.0f) / 5.0f;
 
-    return ((float)osu->getVirtScreenHeight() / spriteRes) * mapScale;
+    return ((f32)osu->getVirtScreenHeight() / spriteRes) * mapScale;
 }
 
-float HUD::getCursorTrailScaleFactor() { return HUD::getCursorScaleFactor() / osu->getSkin()->i_cursor_trail.scale(); }
+f32 HUD::getCursorTrailScaleFactor() { return HUD::getCursorScaleFactor() / osu->getSkin()->i_cursor_trail.scale(); }
 
-float HUD::getScoreScale() {
+f32 HUD::getScoreScale() {
     return Osu::getImageScale(osu->getSkin()->i_scores[0], 13 * 1.5f) * cv::hud_scale.getFloat() *
            cv::hud_score_scale.getFloat();
 }
@@ -2339,7 +2387,7 @@ void HUD::addHitError(i32 delta, bool miss, bool misaim) {
     }
 
     // remove old
-    for(int i = 0; i < this->hiterrors.size(); i++) {
+    for(i32 i = 0; i < this->hiterrors.size(); i++) {
         if(engine->getTime() > this->hiterrors[i].time) {
             this->hiterrors.erase(this->hiterrors.begin() + i);
             i--;
@@ -2350,7 +2398,7 @@ void HUD::addHitError(i32 delta, bool miss, bool misaim) {
         this->hiterrors.erase(this->hiterrors.begin());
 }
 
-void HUD::addTarget(float delta, float angle) {
+void HUD::addTarget(f32 delta, f32 angle) {
     TARGET t;
     t.time = engine->getTime() + 3.5f;
     t.delta = delta;
@@ -2367,8 +2415,8 @@ void HUD::animateInputOverlay(GameplayKeys key_flag, bool down) {
     for(GameplayKeys flag = GameplayKeys::K2 /* 8 */; flag >= 1; flag = static_cast<GameplayKeys>(flag >> 1)) {
         if(!(flag & key_flag)) continue;
 
-        float *animScale = nullptr;
-        float *animColor = nullptr;
+        f32 *animScale = nullptr;
+        f32 *animColor = nullptr;
 
         switch(flag) {
             case GameplayKeys::Smoke:
@@ -2405,7 +2453,7 @@ void HUD::animateInputOverlay(GameplayKeys key_flag, bool down) {
             // scale
             // NOTE: osu is running the keyup anim in parallel, but only allowing it to override once the keydown anim has
             // finished, and with some weird speedup?
-            const float remainingDuration = anim::getRemainingDuration(animScale);
+            const f32 remainingDuration = anim::getRemainingDuration(animScale);
             anim::moveQuadOut(
                 animScale, 1.0f,
                 cv::hud_inputoverlay_anim_scale_duration.getFloat() -
@@ -2458,10 +2506,10 @@ void HUD::addCursorTrailPosition(CursorTrail &trail, vec2 pos) const {
 
     const bool smoothCursorTrail = osu->getSkin()->useSmoothCursorTrail() || cv::cursor_trail_smooth_force.getBool();
 
-    const float scaleAnim =
+    const f32 scaleAnim =
         (osu->getSkin()->o_cursor_expand && cv::cursor_trail_expand.getBool() ? this->fCursorExpandAnim : 1.0f) *
         cv::cursor_trail_scale.getFloat();
-    const float trailWidth =
+    const f32 trailWidth =
         trailImage->getWidth() * HUD::getCursorTrailScaleFactor() * scaleAnim * cv::cursor_scale.getFloat();
 
     CursorTrailElement *ctToSet = nullptr;
@@ -2474,16 +2522,16 @@ void HUD::addCursorTrailPosition(CursorTrail &trail, vec2 pos) const {
         if(trail.size() > 0) {
             const CursorTrailElement &prev = trail.back();
             const vec2 prevPos = prev.pos;
-            const float prevTime = prev.time;
-            const float prevScale = prev.scale;
+            const f32 prevTime = prev.time;
+            const f32 prevScale = prev.scale;
 
             vec2 delta = nextPos - prevPos;
-            const int numMidPoints = (int)(vec::length(delta) / (trailWidth / cv::cursor_trail_smooth_div.getFloat()));
+            const i32 numMidPoints = (i32)(vec::length(delta) / (trailWidth / cv::cursor_trail_smooth_div.getFloat()));
             if(numMidPoints > 0) {
                 const vec2 step = vec::normalize(delta) * (trailWidth / cv::cursor_trail_smooth_div.getFloat());
-                const float timeStep = (nextTime - prevTime) / (float)(numMidPoints);
-                const float scaleStep = (scaleAnim - prevScale) / (float)(numMidPoints);
-                for(int i = std::clamp<int>(numMidPoints - cv::cursor_trail_max_size.getInt() / 2, 0,
+                const f32 timeStep = (nextTime - prevTime) / (f32)(numMidPoints);
+                const f32 scaleStep = (scaleAnim - prevScale) / (f32)(numMidPoints);
+                for(i32 i = std::clamp<i32>(numMidPoints - cv::cursor_trail_max_size.getInt() / 2, 0,
                                             cv::cursor_trail_max_size.getInt());
                     i < numMidPoints; i++)  // limit to half the maximum new mid points per frame
                 {
@@ -2547,13 +2595,13 @@ void HUD::updateScoringMetric() {
     }
 }
 
-bool HUD::shouldDrawRuntimeInfo() const {
+bool HUD::shouldDrawRuntimeInfo() {
     if(osu->isInPlayModeAndNotPaused()) return false;
     return cv::draw_runtime_info.getBool();
 }
 
 void HUD::drawRuntimeInfo() {
-    if(!this->shouldDrawRuntimeInfo()) return;
+    if(!HUD::shouldDrawRuntimeInfo()) return;
 
     // this information shouldn't scale with DPI
     McFont *font = engine->getConsoleFont();
@@ -2589,8 +2637,8 @@ void HUD::drawRuntimeInfo() {
                            soundEngine->getTypeId() == SoundEngine::BASS ? "bss" : "sld");
     }();
 
-    static const int infoStringWidth = font->getStringWidth(infoString);
-    static const int fontHeight = font->getHeight();
+    static const i32 infoStringWidth = font->getStringWidth(infoString);
+    static const i32 fontHeight = font->getHeight();
 
     g->pushTransform();
     {

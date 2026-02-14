@@ -306,7 +306,7 @@ void UI::draw() {
     }
 
     // draw build info on top of everything else
-    this->hud->drawRuntimeInfo();
+    HUD::drawRuntimeInfo();
 
     // if we are not using the native window resolution
     if(isBufferedDraw) {

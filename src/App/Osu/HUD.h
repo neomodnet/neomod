@@ -33,9 +33,9 @@ struct SCORE_ENTRY {
     f32 accuracy;
     f64 pp{0.f};
     u64 score;
-    int currentCombo;
-    int maxCombo;
-    int misses;
+    i32 currentCombo;
+    i32 maxCombo;
+    i32 misses;
     bool dead;
     bool highlight;
 };
@@ -48,28 +48,28 @@ class HUD final : public UIScreen {
 
     void draw() override;
     void drawDummy();
-    void drawRuntimeInfo();
+    static void drawRuntimeInfo();
 
-    void drawCursor(vec2 pos, float alphaMultiplier = 1.0f, bool secondTrail = false, bool updateAndDrawTrail = true);
+    void drawCursor(vec2 pos, f32 alphaMultiplier = 1.0f, bool secondTrail = false, bool updateAndDrawTrail = true);
     void drawCursorTrail(
-        vec2 pos, float alphaMultiplier = 1.0f,
+        vec2 pos, f32 alphaMultiplier = 1.0f,
         bool secondTrail = false);  // NOTE: only use if drawCursor() with updateAndDrawTrail = false (FPoSu)
     void drawCursorRipples();
     void drawFps();
     void drawHitErrorBar(BeatmapInterface *pf);
-    void drawPlayfieldBorder(vec2 playfieldCenter, vec2 playfieldSize, float hitcircleDiameter);
-    void drawPlayfieldBorder(vec2 playfieldCenter, vec2 playfieldSize, float hitcircleDiameter, float borderSize);
+    void drawPlayfieldBorder(vec2 playfieldCenter, vec2 playfieldSize, f32 hitcircleDiameter);
+    void drawPlayfieldBorder(vec2 playfieldCenter, vec2 playfieldSize, f32 hitcircleDiameter, f32 borderSize);
     void drawLoadingSmall(const UString &text);
 
-    struct SkinDigitDrawOpts { // NOLINT
+    struct SkinDigitDrawOpts {  // NOLINT
         u64 number;
-        float scale{1.f};
-        bool combo; // true == skin combo digits, false == skin score digits
-        bool drawLeadingZeroes{false};
+        f32 scale{1.f};
+        bool combo;        // true == skin combo digits, false == skin score digits
+        u32 minDigits{0};  // left pad with N zeroes
     };
     static void drawNumberWithSkinDigits(const SkinDigitDrawOpts &opts);
-    static void drawComboSimple(int combo, float scale = 1.0f);          // used by RankingScreen
-    static void drawAccuracySimple(float accuracy, float scale = 1.0f);  // used by RankingScreen
+    static void drawComboSimple(i32 combo, f32 scale = 1.0f);        // used by RankingScreen
+    static void drawAccuracySimple(f32 accuracy, f32 scale = 1.0f);  // used by RankingScreen
     static void drawWarningArrow(vec2 pos, bool flipVertically, bool originLeft = true);
 
     [[nodiscard]] bool shouldDrawScoreboard() const;
@@ -81,13 +81,13 @@ class HUD final : public UIScreen {
     void updateScoreboard(bool animate);
     void drawFancyScoreboard();
 
-    void drawScorebarBg(float alpha, float breakAnim);
-    void drawSectionPass(float alpha);
-    void drawSectionFail(float alpha);
+    void drawScorebarBg(f32 alpha, f32 breakAnim);
+    void drawSectionPass(f32 alpha);
+    void drawSectionFail(f32 alpha);
 
     void animateCombo();
     void addHitError(i32 delta, bool miss = false, bool misaim = false);
-    void addTarget(float delta, float angle);
+    void addTarget(f32 delta, f32 angle);
     void animateInputOverlay(GameplayKeys key_flag, bool down);
 
     void addCursorRipple(vec2 pos);
@@ -103,14 +103,14 @@ class HUD final : public UIScreen {
     void drawSkip();
 
     // ILLEGAL:
-    [[nodiscard]] inline float getScoreBarBreakAnim() const { return this->fScoreBarBreakAnim; }
+    [[nodiscard]] inline f32 getScoreBarBreakAnim() const { return this->fScoreBarBreakAnim; }
 
     std::vector<std::unique_ptr<ScoreboardSlot>> slots;
     ScoreboardSlot *player_slot{nullptr};  // pointer to an entry inside "slots"
 
     MD5Hash beatmap_md5;
 
-    static float getCursorScaleFactor();
+    static f32 getCursorScaleFactor();
 
    private:
     const std::vector<SCORE_ENTRY> &getCurrentScores();
@@ -120,139 +120,106 @@ class HUD final : public UIScreen {
 
     struct CursorTrailElement {
         vec2 pos{0.f};
-        float time;
-        float alpha;
-        float scale;
+        f32 time;
+        f32 alpha;
+        f32 scale;
     };
 
     // ring buffer
     struct CursorTrail {
        private:
         std::vector<CursorTrailElement> buffer;
-        size_t head{0};  // index of oldest element
-        size_t tail{0};  // index where next element will be written
-        size_t count{0};
+        uSz head{0};  // index of oldest element
+        uSz tail{0};  // index where next element will be written
+        uSz count{0};
 
        public:
         CursorTrail();
 
-        [[nodiscard]] size_t size() const { return count; }
-        [[nodiscard]] bool empty() const { return count == 0; }
-        [[nodiscard]] size_t capacity() const { return buffer.size(); }
+        [[nodiscard]] uSz size() const;
+        [[nodiscard]] bool empty() const;
+        [[nodiscard]] uSz capacity() const;
 
-        void push_back(const CursorTrailElement &elem) {
-            if(buffer.empty()) return;
+        void push_back(const CursorTrailElement &elem);
+        void pop_front();
+        CursorTrailElement &front();
+        [[nodiscard]] const CursorTrailElement &front() const;
 
-            buffer[tail] = elem;
-            tail = (tail + 1) % buffer.size();
+        CursorTrailElement &back();
+        [[nodiscard]] const CursorTrailElement &back() const;
 
-            if(count < buffer.size()) {
-                count++;
-            } else {
-                head = (head + 1) % buffer.size();
-            }
-        }
-
-        void pop_front() {
-            if(count > 0) {
-                head = (head + 1) % buffer.size();
-                count--;
-            }
-        }
-
-        CursorTrailElement &front() { return buffer[head]; }
-        [[nodiscard]] const CursorTrailElement &front() const { return buffer[head]; }
-
-        CursorTrailElement &back() { return buffer[(tail + buffer.size() - 1) % buffer.size()]; }
-        [[nodiscard]] const CursorTrailElement &back() const {
-            return buffer[(tail + buffer.size() - 1) % buffer.size()];
-        }
-
-        CursorTrailElement &next() {
-            assert(!buffer.empty());
-
-            auto &ret = buffer[tail];
-            tail = (tail + 1) % buffer.size();
-
-            if(count < buffer.size()) {
-                count++;
-            } else {
-                head = (head + 1) % buffer.size();
-            }
-            return ret;
-        }
-
+        CursorTrailElement &next();
         // index 0 = oldest (front), index size()-1 = newest (back)
-        CursorTrailElement &operator[](size_t i) { return buffer[(head + i) % buffer.size()]; }
-        const CursorTrailElement &operator[](size_t i) const { return buffer[(head + i) % buffer.size()]; }
+        CursorTrailElement &operator[](uSz i);
+        const CursorTrailElement &operator[](uSz i) const;
 
-        void clear() { head = tail = count = 0; }
+        void clear();
     };
 
     struct CursorRippleElement {
         vec2 pos{0.f};
-        float time;
+        f32 time;
     };
 
     struct HITERROR {
-        float time;
+        f32 time;
         i32 delta;
         bool miss;
         bool misaim;
     };
 
     struct TARGET {
-        float time;
-        float delta;
-        float angle;
+        f32 time;
+        f32 delta;
+        f32 angle;
     };
 
     struct BREAK {
-        float startPercent;
-        float endPercent;
+        f32 startPercent;
+        f32 endPercent;
     };
 
     struct HUDStats {
-        int misses, sliderbreaks;
-        int maxPossibleCombo;
-        float liveStars, totalStars;
-        int bpm;
+        i32 misses, sliderbreaks;
+        i32 maxPossibleCombo;
+        f32 liveStars, totalStars;
+        i32 bpm;
 
-        float ar, cs, od, hp;
-        int nps;
-        int nd;
-        int ur;
-        float pp, ppfc;
+        f32 ar, cs, od, hp;
+        i32 nps;
+        i32 nd;
+        i32 ur;
+        f32 pp, ppfc;
 
-        float hitWindow300;
-        int hitdeltaMin, hitdeltaMax;
+        f32 hitWindow300;
+        i32 hitdeltaMin, hitdeltaMax;
     };
 
     void onCursorTrailMaxChange();
     void addCursorTrailPosition(CursorTrail &trail, vec2 pos) const;
-    void drawCursorTrailInt(Shader *trailShader, CursorTrail &trail, vec2 pos, float alphaMultiplier = 1.0f,
+    void drawCursorTrailInt(Shader *trailShader, CursorTrail &trail, vec2 pos, f32 alphaMultiplier = 1.0f,
                             bool emptyTrailFrame = false);
-    void drawCursorTrailRaw(float alpha, vec2 pos);
-    void drawAccuracy(float accuracy);
-    void drawCombo(int combo);
+    void drawCursorTrailRaw(f32 alpha, vec2 pos);
+    void drawAccuracy(f32 accuracy);
+    void drawCombo(i32 combo);
     static void drawScore(u64 score);
-    void drawHPBar(double health, float alpha, float breakAnim);
-    static void drawWarningArrows(float hitcircleDiameter = 0.0f);
-    void drawHitErrorBar(float hitWindow300, float hitWindow100, float hitWindow50, float hitWindowMiss, int ur);
-    void drawHitErrorBarInt(float hitWindow300, float hitWindow100, float hitWindow50, float hitWindowMiss);
-    static void drawHitErrorBarInt2(vec2 center, int ur);
-    void drawProgressBar(float percent, bool waiting);
+    void drawHPBar(double health, f32 alpha, f32 breakAnim);
+    static void drawWarningArrows(f32 hitcircleDiameter = 0.0f);
+    void drawHitErrorBar(f32 hitWindow300, f32 hitWindow100, f32 hitWindow50, f32 hitWindowMiss, i32 ur);
+    void drawHitErrorBarInt(f32 hitWindow300, f32 hitWindow100, f32 hitWindow50, f32 hitWindowMiss);
+    static void drawHitErrorBarInt2(vec2 center, i32 ur);
+    void drawProgressBar(f32 percent, bool waiting);
     static void drawStatistics(const HUDStats &stats);
-    void drawTargetHeatmap(float hitcircleDiameter);
+    void drawTargetHeatmap(f32 hitcircleDiameter);
     static void drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 beatmapStartTimePlayable,
-                               f32 beatmapPercentFinishedPlayable, const std::vector<BREAK> &breaks);
-    void drawInputOverlay(int numK1, int numK2, int numM1, int numM2);
+                                      f32 beatmapPercentFinishedPlayable, const std::vector<BREAK> &breaks);
+    void drawInputOverlay(i32 numK1, i32 numK2, i32 numM1, i32 numM2);
 
-    [[nodiscard]] bool shouldDrawRuntimeInfo() const;
+    static bool shouldDrawRuntimeInfo();
 
-    static float getCursorTrailScaleFactor();
+    static f32 getCursorTrailScaleFactor();
 
-    static float getScoreScale();
+    static f32 getScoreScale();
 
     McFont *tempFont;
 
@@ -260,34 +227,34 @@ class HUD final : public UIScreen {
     const f64 fScoreboardCacheRefreshTime{0.250f};  // only update every 250ms instead of every frame
     f64 fScoreboardLastUpdateTime{0.f};
 
-    float fAccuracyXOffset;
-    float fAccuracyYOffset;
-    float fScoreHeight;
+    f32 fAccuracyXOffset;
+    f32 fAccuracyYOffset;
+    f32 fScoreHeight;
 
-    float fComboAnim1;
-    float fComboAnim2;
+    f32 fComboAnim1;
+    f32 fComboAnim2;
 
     // fps counter
-    float fCurFps;
-    float fCurFpsSmooth;
-    float fFpsUpdate;
+    f32 fCurFps;
+    f32 fCurFpsSmooth;
+    f32 fFpsUpdate;
 
     // hit error bar
     std::vector<HITERROR> hiterrors;
 
     // inputoverlay / key overlay
-    float fInputoverlayK1AnimScale;
-    float fInputoverlayK2AnimScale;
-    float fInputoverlayM1AnimScale;
-    float fInputoverlayM2AnimScale;
+    f32 fInputoverlayK1AnimScale;
+    f32 fInputoverlayK2AnimScale;
+    f32 fInputoverlayM1AnimScale;
+    f32 fInputoverlayM2AnimScale;
 
-    float fInputoverlayK1AnimColor;
-    float fInputoverlayK2AnimColor;
-    float fInputoverlayM1AnimColor;
-    float fInputoverlayM2AnimColor;
+    f32 fInputoverlayK1AnimColor;
+    f32 fInputoverlayK2AnimColor;
+    f32 fInputoverlayM1AnimColor;
+    f32 fInputoverlayM2AnimColor;
 
     // cursor & trail & ripples
-    float fCursorExpandAnim;
+    f32 fCursorExpandAnim;
     CursorTrail cursorTrail;
     CursorTrail cursorTrail2;
     CursorTrail cursorTrailSpectator1;
@@ -303,6 +270,6 @@ class HUD final : public UIScreen {
 
     // health
     double fHealth;
-    float fScoreBarBreakAnim;
-    float fKiScaleAnim;
+    f32 fScoreBarBreakAnim;
+    f32 fKiScaleAnim;
 };
