@@ -48,7 +48,7 @@ void UIRankingScreenRankingPanel::draw() {
         g->translate(this->getPos().x + Osu::getUIScale(111.0f) * uiScale,
                      this->getPos().y + (score0img->getHeight() / 2) * scale +
                          (Osu::getUIScale(11.0f) + globalYOffset) * uiScale);
-        HUD::drawNumberWithSkinDigits({.number = this->iScore, .scale = scale, .combo = false});
+        HUD::drawNumberWithSkinDigits({.number = this->iScore, .scale = scale, .combo = false, .minDigits = 8});
     }
     g->popTransform();
 
