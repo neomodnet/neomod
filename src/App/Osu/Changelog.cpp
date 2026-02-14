@@ -39,6 +39,7 @@ Changelog::Changelog() : ScreenBackable() {
         R"(  - Currently included: 9 rates between 0.75x and 1.5x, and for each rate, 6 unique mod combinations (valid combos of nomod/HR/HD/EZ))",
         R"(- Added an SDL_gpu-based renderer (Vulkan or D3D12))",
         R"(  - Currently requires "-sdlgpu" or "-gpu" to be passed as a launch option; use "-sdlgpu vulkan" to prefer Vulkan over D3D12 on Windows)",
+        R"(- Improved user avatar/direct screen thumbnail loading responsiveness)",
         R"(- Made "Click on the orange cursor to continue play!" actually accurate)",
         R"(- Fixed selected collection jumping around unexpectedly)",
         R"(- Updated BASS to fix some offset issues (e.g. https://osu.ppy.sh/beatmapsets/246733 ))",

@@ -80,8 +80,6 @@ SDLGPUImage::~SDLGPUImage() {
 
 void SDLGPUImage::init() {
     if(!this->isAsyncReady()) return;
-    this->resetDirtyRegion();
-
     auto *device = static_cast<SDLGPUInterface *>(g.get())->getDevice();
 
     // wait for async GPU upload to finish
@@ -90,6 +88,7 @@ void SDLGPUImage::init() {
         SDL_ReleaseGPUFence(device, m_uploadFence);
         m_uploadFence = nullptr;
     }
+    this->resetDirtyRegion();
 
     // free raw image
     if(!this->bKeepInSystemMemory) this->rawImage.clear();
