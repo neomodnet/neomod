@@ -906,7 +906,7 @@ void HUD::drawNumberWithSkinDigits(const SkinDigitDrawOpts &opts) {
 void HUD::drawComboSimple(i32 combo, f32 scale) {
     g->pushTransform();
     {
-        HUD::drawNumberWithSkinDigits({.number = combo, .scale = scale, .combo = true});
+        HUD::drawNumberWithSkinDigits({.number = (u64)combo, .scale = scale, .combo = true});
 
         // draw 'x' at the end
         if(osu->getSkin()->i_combo_x != MISSING_TEXTURE) {
@@ -933,7 +933,7 @@ void HUD::drawCombo(i32 combo) {
             g->scale(scale, scale);
             g->translate(offset, osu->getVirtScreenHeight() - osu->getSkin()->i_combos[0]->getHeight() * scale / 2.0f,
                          0.0f);
-            HUD::drawNumberWithSkinDigits({.number = combo, .scale = scale, .combo = true});
+            HUD::drawNumberWithSkinDigits({.number = (u64)combo, .scale = scale, .combo = true});
 
             // draw 'x' at the end
             if(osu->getSkin()->i_combo_x != MISSING_TEXTURE) {
@@ -955,7 +955,7 @@ void HUD::drawCombo(i32 combo) {
         g->scale(scale, scale);
         g->translate(offset, osu->getVirtScreenHeight() - osu->getSkin()->i_combos[0]->getHeight() * scale / 2.0f,
                      0.0f);
-        HUD::drawNumberWithSkinDigits({.number = combo, .scale = scale, .combo = true});
+        HUD::drawNumberWithSkinDigits({.number = (u64)combo, .scale = scale, .combo = true});
 
         // draw 'x' at the end
         if(osu->getSkin()->i_combo_x != MISSING_TEXTURE) {
@@ -969,7 +969,7 @@ void HUD::drawCombo(i32 combo) {
 void HUD::drawScore(u64 score) {
     g->setColor(0xffffffff);
 
-    const i32 numDigits = 8;  // osu always left-pads with 8 digits
+    const u32 numDigits = 8;  // osu always left-pads with 8 digits
 
     const f32 scale = HUD::getScoreScale();
     const Skin *skin = osu->getSkin();
@@ -1087,7 +1087,7 @@ void HUD::drawAccuracySimple(f32 accuracy, f32 scale) {
     // draw it
     g->pushTransform();
     {
-        HUD::drawNumberWithSkinDigits({.number = accuracyInt, .scale = scale, .combo = false, .minDigits = 2});
+        HUD::drawNumberWithSkinDigits({.number = (u64)accuracyInt, .scale = scale, .combo = false, .minDigits = 2});
 
         // draw dot '.' between the integer and fractional part
         if(skin->i_score_dot != MISSING_TEXTURE) {
@@ -1098,7 +1098,7 @@ void HUD::drawAccuracySimple(f32 accuracy, f32 scale) {
             g->translate(-skin->score_overlap_amt * (skin->i_scores[0].scale()) * scale, 0);
         }
 
-        HUD::drawNumberWithSkinDigits({.number = accuracyFrac, .scale = scale, .combo = false, .minDigits = 2});
+        HUD::drawNumberWithSkinDigits({.number = (u64)accuracyFrac, .scale = scale, .combo = false, .minDigits = 2});
 
         // draw '%' at the end
         if(skin->i_score_percent != MISSING_TEXTURE) {
@@ -1139,7 +1139,7 @@ void HUD::drawAccuracy(f32 accuracy) {
         g->scale(scale, scale);
         g->translate(this->fAccuracyXOffset, this->fAccuracyYOffset);
 
-        HUD::drawNumberWithSkinDigits({.number = accuracyInt, .scale = scale, .combo = false, .minDigits = 2});
+        HUD::drawNumberWithSkinDigits({.number = (u64)accuracyInt, .scale = scale, .combo = false, .minDigits = 2});
 
         // draw dot '.' between the integer and fractional part
         if(skin->i_score_dot != MISSING_TEXTURE) {
@@ -1150,7 +1150,7 @@ void HUD::drawAccuracy(f32 accuracy) {
             g->translate(-skin->score_overlap_amt * (skin->i_scores[0].scale()) * scale, 0);
         }
 
-        HUD::drawNumberWithSkinDigits({.number = accuracyFrac, .scale = scale, .combo = false, .minDigits = 2});
+        HUD::drawNumberWithSkinDigits({.number = (u64)accuracyFrac, .scale = scale, .combo = false, .minDigits = 2});
 
         // draw '%' at the end
         if(skin->i_score_percent != MISSING_TEXTURE) {

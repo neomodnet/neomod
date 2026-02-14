@@ -527,7 +527,7 @@ class SkinPreviewElement final : public CBaseUIElement {
                 g->pushTransform();
                 g->scale(scoreScale, scoreScale);
                 g->translate(pos.x - skin->i_scores[0]->getWidth() * scoreScale, pos.y);
-                HUD::drawNumberWithSkinDigits({.number = i - 1, .scale = 1.0f, .combo = false});
+                HUD::drawNumberWithSkinDigits({.number = (u64)(i - 1), .scale = 1.0f, .combo = false});
                 g->popTransform();
             }
         }
