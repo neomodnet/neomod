@@ -1373,7 +1373,8 @@ void SongBrowser::refreshBeatmaps(UIScreen *next_screen) {
     this->bInitializedBeatmaps = false;
 
     // remember for initial songbrowser load
-    if(BeatmapDifficulty *map = osu->getMapInterface()->getBeatmap(); !!map && map->getMD5() != MD5Hash::sentinel && !map->getMD5().is_suspicious()) {
+    if(BeatmapDifficulty *map = osu->getMapInterface()->getBeatmap();
+       !!map && map->getMD5() != MD5Hash::sentinel && !map->getMD5().is_suspicious()) {
         BeatmapInterface::loading_reselect_map = map->getMD5();
     }
 
@@ -1696,7 +1697,7 @@ bool SongBrowser::scrollToBestButton() {
             return best->isSearchMatch();
         }
 
-        auto *curCollBtnsUnprioritized = getCollectionButtonsForGroup(this->curGroup);
+        auto *curCollBtnsUnprioritized = this->getCollectionButtonsForGroup(this->curGroup);
         if(!curCollBtnsUnprioritized) {
             this->carousel->scrollToTop();
             return true;
@@ -1827,9 +1828,7 @@ void SongBrowser::rebuildSongButtons() {
     this->carousel->invalidate();
 
     // NOTE: currently supports 3 depth layers (collection > beatmap > diffs)
-    for(auto &visibleSongButton : this->visibleSongButtons) {
-        CarouselButton *button = visibleSongButton;
-
+    for(CarouselButton *button : this->visibleSongButtons) {
         if(!(button->isSelected() && button->isHiddenIfSelected())) this->carousel->container.addBaseUIElement(button);
 
         button->resetAnimations();
@@ -1852,7 +1851,7 @@ void SongBrowser::rebuildSongButtons() {
 
         // children
         if(button->isSelected()) {
-            const auto &children = visibleSongButton->getChildren();
+            const auto &children = button->getChildren();
             for(auto button2 : children) {
                 bool isButton2SearchMatch = false;
                 if(button2->getChildren().size() > 0) {
@@ -2599,7 +2598,7 @@ void SongBrowser::rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(
             }
         }
     } else {
-        if(auto *groupButtons = getCollectionButtonsForGroup(this->curGroup)) {
+        if(auto *groupButtons = this->getCollectionButtonsForGroup(this->curGroup); !!groupButtons) {
             for(const auto &groupButton : *groupButtons) {
                 bool isAnyMatchInGroup = false;
 
@@ -2927,7 +2926,7 @@ void SongBrowser::rebuildAfterGroupOrSortChange(GroupType group, const std::opti
             }
         }
     } else {
-        if(auto *collBtns = getCollectionButtonsForGroup(group)) {
+        if(auto *collBtns = this->getCollectionButtonsForGroup(group); !!collBtns) {
             if(group == GroupType::DIFFICULTY) {
                 this->rebucketDifficultyCollections();
             }

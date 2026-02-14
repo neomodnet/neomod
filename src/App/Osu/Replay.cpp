@@ -206,7 +206,7 @@ Mods Mods::from_cvars() {
     using enum ModFlags;
     Mods mods;
 
-#define ADDIFCV(cvar__, mod__) static_cast<bool>(cv::cvar__.getBool()) ? (void)(mods.flags |= (mod__)) : (void)(0)
+#define ADDIFCV(cvar__, mod__) cv::cvar__.getBool() ? (void)(mods.flags |= (mod__)) : (void)(0)
 
     ADDIFCV(mod_nofail, NoFail);
     ADDIFCV(drain_disabled, NoHP);  // Not an actual "mod", it's in the options menu

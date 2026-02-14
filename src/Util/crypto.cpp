@@ -34,10 +34,13 @@ namespace {
 // NOLINTNEXTLINE(cert-msc51-cpp, cert-msc32-c)
 std::mt19937_64 rngalg;
 
-std::uniform_int_distribution<i64> rngdist{0, crypto::prng::PRAND_MAX};
+std::uniform_int_distribution<i64> rngdist;
 }  // namespace
 
 void init() noexcept {
+    // initialize uniform int distribution range
+    rngdist.param(std::uniform_int_distribution<i64>::param_type{0, crypto::prng::PRAND_MAX});
+
     // seed with true random (seed C rand() here as well)
     srand(crypto::rng::get_rand<u32>());
     rngalg.seed(crypto::rng::get_rand<u64>());
