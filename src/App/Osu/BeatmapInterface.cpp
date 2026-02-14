@@ -2689,9 +2689,6 @@ void BeatmapInterface::update2() {
         }
     }
 
-    // get timestamp from the previous update cycle
-    const u64 lastUpdateTime = this->iLastMusicPosUpdateTime;
-
     // update timing (with offsets)
     this->iCurMusicPosWithOffsets = this->iCurMusicPos;
     this->iCurMusicPosWithOffsets +=
@@ -2704,6 +2701,9 @@ void BeatmapInterface::update2() {
     if(this->beatmap->getVersion() < 5) {
         this->iCurMusicPosWithOffsets -= cv::old_beatmap_offset.getInt();
     }
+
+    // get timestamp from the previous update cycle
+    const u64 lastUpdateTime = this->iLastMusicPosUpdateTime;
 
     // update the update timestamp
     const u64 currentUpdateTime = Timing::getTicksNS();
@@ -2834,10 +2834,11 @@ void BeatmapInterface::update2() {
 
         this->interpolatedMousePos *= GameRules::getPlayfieldScaleFactor();
         this->interpolatedMousePos += GameRules::getPlayfieldOffset();
+    }
 
-        if(cv::debug_draw_gameplay_clicks.getBool()) {
-            this->all_clicks.insert(this->all_clicks.end(), this->clicks.cbegin(), this->clicks.cend());
-        }
+    // add current clicks to all_clicks for debug
+    if(cv::debug_draw_gameplay_clicks.getBool()) {
+        this->all_clicks.insert(this->all_clicks.end(), this->clicks.cbegin(), this->clicks.cend());
     }
 
     // for performance reasons, a lot of operations are crammed into 1 loop over all hitobjects:
@@ -3781,7 +3782,8 @@ FinishedScore BeatmapInterface::saveAndSubmitScore(bool quit) {
     const f32 HP = this->getHP();
     const f32 CS = this->getCS();
     const f32 OD = this->getOD();
-    const f32 speedMultiplier = this->getSpeedMultiplier();  // NOTE: not this->getSpeedMultiplier()! (outdated comment ?)
+    const f32 speedMultiplier =
+        this->getSpeedMultiplier();  // NOTE: not this->getSpeedMultiplier()! (outdated comment ?)
     const bool relax = osu->getModRelax();
     const bool hidden = osu->getModHD();
     const bool touchDevice = osu->getModTD();

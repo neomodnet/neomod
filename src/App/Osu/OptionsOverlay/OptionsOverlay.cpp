@@ -527,7 +527,7 @@ class SkinPreviewElement final : public CBaseUIElement {
                 g->pushTransform();
                 g->scale(scoreScale, scoreScale);
                 g->translate(pos.x - skin->i_scores[0]->getWidth() * scoreScale, pos.y);
-                ui->getHUD()->drawScoreNumber(i - 1, 1.0f);
+                HUD::drawNumberWithSkinDigits({.number = i - 1, .scale = 1.0f, .combo = false});
                 g->popTransform();
             }
         }
@@ -2786,7 +2786,7 @@ void OptionsOverlayImpl::scheduleSearchUpdate() {
 
 void OptionsOverlayImpl::askForLoginDetails() {
     this->setVisible(true);
-    this->options->scrollToElement(this->sectionGeneral, 0, 100 * osu->getUIScale());
+    this->options->scrollToElement(this->sectionGeneral, 0, 100 * Osu::getUIScale());
     this->nameTextbox->focus();
 }
 

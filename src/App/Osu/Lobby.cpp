@@ -178,7 +178,7 @@ void Lobby::updateLayout(vec2 newResolution) {
     this->list->setPos(round(newResolution.x * 0.6), 0);
     this->list->setSize(round(newResolution.x * 0.4), newResolution.y);
 
-    const f32 padding = 20.f * osu->getUIScale();
+    const f32 padding = 20.f * Osu::getUIScale();
 
     if(this->rooms.empty()) {
         auto noRoomsOpenElement = new CBaseUILabel(0, 0, 0, 0, "", "There are no matches available.");
@@ -198,11 +198,11 @@ void Lobby::updateLayout(vec2 newResolution) {
         round(newResolution.x * 0.3) - this->create_room_btn->getSize().x / 2,
         70 + std::round(newResolution.y * free_ratio / 2) - this->create_room_btn->getSize().y / 2);
 
-    const f32 room_margin = 20.f * osu->getUIScale();
-    const f32 room_height = 105.f * osu->getUIScale();
+    const f32 room_margin = 20.f * Osu::getUIScale();
+    const f32 room_height = 105.f * Osu::getUIScale();
     f32 y = room_margin / 2.f;
     for(auto& room : this->rooms) {
-        const f32 x = 10.f * osu->getUIScale();
+        const f32 x = 10.f * Osu::getUIScale();
         const f32 room_width = this->list->getSize().x - room_margin;
         auto room_ui = new RoomUIElement(this, *room, x, y, room_width, room_height);
         this->list->container.addBaseUIElement(room_ui);

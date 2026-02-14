@@ -805,8 +805,8 @@ void SDLGPUInterface::drawImage(const Image *image, AnchorPoint anchor, float ed
         // SDL_gpu uses top-left origin like DX11
         float clipMinX = (clipRect.getX() + m_viewport.pos.x) - .5f;
         float clipMinY = (clipRect.getY() + m_viewport.pos.y) - .5f;
-        float clipMaxX = (clipMinX + clipRect.getWidth()) + .5f;
-        float clipMaxY = (clipMinY + clipRect.getHeight()) + .5f;
+        float clipMaxX = (clipMinX + clipRect.getWidth());
+        float clipMaxY = (clipMinY + clipRect.getHeight());
 
         m_smoothClipShader->enable();
         m_smoothClipShader->setUniform2f("rect_min", clipMinX, clipMinY);

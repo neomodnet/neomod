@@ -848,7 +848,7 @@ void MainMenu::draw() {
         float animation = std::fmod((float)(engine->getTime()) * 3.2f, 2.0f);
         if(animation > 1.0f) animation = 2.0f - animation;
         animation = -animation * (animation - 2);  // quad out
-        float offset = osu->getUIScale(45.0f * animation);
+        float offset = Osu::getUIScale(45.0f * animation);
 
         const float scale =
             this->versionButton->getSize().x / osu->getSkin()->i_play_warning_arrow2->getSizeBaseRaw().x;

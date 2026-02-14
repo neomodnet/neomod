@@ -146,7 +146,7 @@ void OnlineMapListing::onResolutionChange(vec2 /*newResolution*/) {
     this->full_title = fmt::format("{} - {}", this->meta.artist, this->meta.title);
     this->creator_width = this->font->getStringWidth(this->meta.creator);
 
-    const f32 scale = osu->getUIScale();
+    const f32 scale = Osu::getUIScale();
     f32 x = this->getSize().x - 40.f * scale;
     f32 y = this->getSize().y - 40.f * scale;
 
@@ -367,7 +367,7 @@ void OsuDirectScreen::draw() {
     ScreenBackable::draw();
 
     if(this->loading) {
-        const f32 spinner_size = (40.f * osu->getUIScale());
+        const f32 spinner_size = (40.f * Osu::getUIScale());
         const f32 scale = spinner_size / osu->getSkin()->i_loading_spinner->getSize().y;
         g->setColor(0xffffffff);
         g->pushTransform();
@@ -409,7 +409,7 @@ void OsuDirectScreen::onResolutionChange(vec2 newResolution) {
     this->setSize(osu->getVirtScreenSize());  // HACK: don't forget this or else nothing works!
     ScreenBackable::onResolutionChange(newResolution);
 
-    const f32 scale = osu->getUIScale();
+    const f32 scale = Osu::getUIScale();
     f32 x = 50.f;
     f32 y = 30.f;
 

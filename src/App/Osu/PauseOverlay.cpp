@@ -102,7 +102,7 @@ void PauseOverlay::draw() {
         if(animation > 1.0f) animation = 2.0f - animation;
 
         animation = -animation * (animation - 2);  // quad out
-        const float offset = osu->getUIScale(20.0f + 45.0f * animation);
+        const float offset = Osu::getUIScale(20.0f + 45.0f * animation);
 
         g->setColor(Color(arrowColor).setA(this->fWarningArrowsAnimAlpha * this->fDimAnim));
 
@@ -168,7 +168,7 @@ void PauseOverlay::onSelectionChange() {
             this->bInitialWarningArrowFlyIn = false;
 
             this->fWarningArrowsAnimY = this->selectedButton->getPos().y;
-            this->fWarningArrowsAnimX = this->selectedButton->getPos().x - osu->getUIScale(170.0f);
+            this->fWarningArrowsAnimX = this->selectedButton->getPos().x - Osu::getUIScale(170.0f);
 
             anim::moveLinear(&this->fWarningArrowsAnimAlpha, 1.0f, 0.3f);
             anim::moveQuadIn(&this->fWarningArrowsAnimX, this->selectedButton->getPos().x, 0.3f);
@@ -301,7 +301,7 @@ void PauseOverlay::updateLayout() {
         Image *img = button->getImage();
         if(img == nullptr) img = MISSING_TEXTURE;
 
-        const float scale = osu->getUIScale(256) / (411.0f * (osu->getSkin()->i_pause_continue.scale()));
+        const float scale = Osu::getUIScale(256) / (411.0f * (osu->getSkin()->i_pause_continue.scale()));
 
         button->setBaseScale(scale, scale);
         button->setSize(img->getWidth() * scale, img->getHeight() * scale);

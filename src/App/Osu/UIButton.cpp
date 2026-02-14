@@ -21,10 +21,10 @@ void UIButton::draw() {
     Image *buttonMiddle = this->bDefaultSkin ? osu->getSkin()->i_button_mid_default : osu->getSkin()->i_button_mid;
     Image *buttonRight = this->bDefaultSkin ? osu->getSkin()->i_button_right_default : osu->getSkin()->i_button_right;
 
-    float leftScale = osu->getImageScaleToFitResolution(buttonLeft, this->getSize());
+    float leftScale = Osu::getImageScaleToFitResolution(buttonLeft, this->getSize());
     float leftWidth = buttonLeft->getWidth() * leftScale;
 
-    float rightScale = osu->getImageScaleToFitResolution(buttonRight, this->getSize());
+    float rightScale = Osu::getImageScaleToFitResolution(buttonRight, this->getSize());
     float rightWidth = buttonRight->getWidth() * rightScale;
 
     float middleWidth = this->getSize().x - leftWidth - rightWidth;

@@ -77,7 +77,7 @@ void ToastElement::draw() {
 
     // border
     g->setColor(Color(this->isMouseInside() ? rgb(255, 255, 255) : this->borderColor).setA(alpha));
-    g->drawBorder(this->getPos(), this->getSize(), osu->getUIScale());
+    g->drawBorder(this->getPos(), this->getSize(), Osu::getUIScale());
 
     // text
     f64 y = this->getPos().y;
@@ -162,7 +162,7 @@ void NotificationOverlay::draw() {
 }
 
 void NotificationOverlay::onResolutionChange(vec2 /*newResolution*/) {
-    f64 scale = osu->getUIScale();
+    f64 scale = Osu::getUIScale();
 
     TOAST_WIDTH = 350.0 * scale;
     TOAST_INNER_X_MARGIN = 5.0 * scale;

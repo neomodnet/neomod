@@ -707,8 +707,8 @@ void DirectX11Interface::drawImage(const Image *image, AnchorPoint anchor, float
 
         float clipMinX = (clipRect.getX() + viewport.TopLeftX) - .5f;  // i don't know... weird rounding
         float clipMinY = (clipRect.getY() + viewport.TopLeftY) - .5f;
-        float clipMaxX = (clipMinX + clipRect.getWidth()) + .5f;
-        float clipMaxY = (clipMinY + clipRect.getHeight()) + .5f;
+        float clipMaxX = (clipMinX + clipRect.getWidth());
+        float clipMaxY = (clipMinY + clipRect.getHeight());
 
         this->smoothClipShader->enable();
         this->smoothClipShader->setUniform2f("rect_min", clipMinX, clipMinY);

@@ -1017,8 +1017,8 @@ void Chat::removeChannel(const UString &channel_name) {
 }
 
 void Chat::updateLayout(vec2 newResolution) {
-    this->input_box_height = 30.f * osu->getUIScale();
-    this->button_height = 26.f * osu->getUIScale();
+    this->input_box_height = 30.f * Osu::getUIScale();
+    this->button_height = 26.f * Osu::getUIScale();
 
     this->updateTickerLayout(newResolution);
 
@@ -1056,7 +1056,7 @@ void Chat::updateLayout(vec2 newResolution) {
 }
 
 void Chat::updateButtonLayout(vec2 screen) {
-    const f32 dpiScale = osu->getUIScale();
+    const f32 dpiScale = Osu::getUIScale();
     const f32 space = 20.f * dpiScale;
     const f32 border = 2.f * dpiScale;
     const f32 initial_x = border;
@@ -1122,7 +1122,7 @@ void Chat::updateButtonLayout(vec2 screen) {
 void Chat::updateTickerLayout(vec2 screen) {
     this->ticker->updateLayout(vec2{0.f, 0.f}, screen);
 
-    f32 h = this->ticker->ui->getScrollSize().y + 5.f * osu->getUIScale();
+    f32 h = this->ticker->ui->getScrollSize().y + 5.f * Osu::getUIScale();
     this->ticker->ui->setPos(vec2{0.f, screen.y - h});
     this->ticker->ui->setSize(vec2{screen.x, h});
 }

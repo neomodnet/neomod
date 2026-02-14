@@ -109,7 +109,7 @@ bool UIModList::isVisible() { return !!*this->flags; }
     do {                                                        \
         element->onResized();                                   \
         element->setSizeToContent(x_padding, y_padding);        \
-        element->setPos(10.f * osu->getUIScale(), settings_y);  \
+        element->setPos(10.f * Osu::getUIScale(), settings_y);  \
         this->settings->container.addBaseUIElement(element);    \
         settings_y += element->getSize().y;                     \
     } while(0)
@@ -122,14 +122,14 @@ bool UIModList::isVisible() { return !!*this->flags; }
         label->setSizeToContent(0, 0);                                                        \
         button->onResized();                                                                  \
         button->setSizeToContent(button_padding, button_padding);                             \
-        button->setPos(label->getSize().x + 20.f * osu->getUIScale(),                         \
+        button->setPos(label->getSize().x + 20.f * Osu::getUIScale(),                         \
                        label->getPos().y + (label->getSize().y - button->getSize().y) / 2.f); \
         this->settings->container.addBaseUIElement(button);                                   \
     } while(0)
 
 #define PAD(x)                               \
     do {                                     \
-        settings_y += x * osu->getUIScale(); \
+        settings_y += x * Osu::getUIScale(); \
     } while(0)
 
 RoomScreen::RoomScreen() : UIScreen() {
@@ -366,9 +366,9 @@ CBaseUIContainer *RoomScreen::setVisible(bool visible) {
 }
 
 void RoomScreen::updateSettingsLayout(vec2 newResolution) {
-    const f32 button_padding = 10.f * osu->getUIScale();
+    const f32 button_padding = 10.f * Osu::getUIScale();
     const bool is_host = BanchoState::room.is_host();
-    int settings_y = 10.f * osu->getUIScale();
+    int settings_y = 10.f * Osu::getUIScale();
 
     this->settings->invalidate();
     this->settings->setPos(round(newResolution.x * 0.6), 0);
@@ -396,7 +396,7 @@ void RoomScreen::updateSettingsLayout(vec2 newResolution) {
     if(is_host) {
         // Room name (input)
         ADD_ELEMENT(this->room_name_iptl);
-        this->room_name_ipt->setSize(this->settings->getSize().x - 20.f * osu->getUIScale(), 40.f * osu->getUIScale());
+        this->room_name_ipt->setSize(this->settings->getSize().x - 20.f * Osu::getUIScale(), 40.f * Osu::getUIScale());
         ADD_ELEMENT(this->room_name_ipt);
         PAD(10.f);
     }
@@ -448,7 +448,7 @@ void RoomScreen::updateSettingsLayout(vec2 newResolution) {
         ADD_ELEMENT(this->no_mods_selected);
     } else {
         this->mods->flags = &BanchoState::room.mods;
-        this->mods->setSize(300.f * osu->getUIScale(), 90.f * osu->getUIScale());
+        this->mods->setSize(300.f * Osu::getUIScale(), 90.f * Osu::getUIScale());
         ADD_ELEMENT(this->mods);
     }
 

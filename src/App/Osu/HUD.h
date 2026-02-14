@@ -60,15 +60,17 @@ class HUD final : public UIScreen {
     void drawPlayfieldBorder(vec2 playfieldCenter, vec2 playfieldSize, float hitcircleDiameter);
     void drawPlayfieldBorder(vec2 playfieldCenter, vec2 playfieldSize, float hitcircleDiameter, float borderSize);
     void drawLoadingSmall(const UString &text);
-    inline void drawScoreNumber(u64 number, float scale = 1.0f, bool drawLeadingZeroes = false) {
-        return this->drawComboOrScoreDigits(number, scale, drawLeadingZeroes, false);
-    }
-    inline void drawComboNumber(u64 number, float scale = 1.0f, bool drawLeadingZeroes = false) {
-        return this->drawComboOrScoreDigits(number, scale, drawLeadingZeroes, true);
-    }
-    void drawComboSimple(int combo, float scale = 1.0f);          // used by RankingScreen
-    void drawAccuracySimple(float accuracy, float scale = 1.0f);  // used by RankingScreen
-    void drawWarningArrow(vec2 pos, bool flipVertically, bool originLeft = true);
+
+    struct SkinDigitDrawOpts { // NOLINT
+        u64 number;
+        float scale{1.f};
+        bool combo; // true == skin combo digits, false == skin score digits
+        bool drawLeadingZeroes{false};
+    };
+    static void drawNumberWithSkinDigits(const SkinDigitDrawOpts &opts);
+    static void drawComboSimple(int combo, float scale = 1.0f);          // used by RankingScreen
+    static void drawAccuracySimple(float accuracy, float scale = 1.0f);  // used by RankingScreen
+    static void drawWarningArrow(vec2 pos, bool flipVertically, bool originLeft = true);
 
     [[nodiscard]] bool shouldDrawScoreboard() const;
 
@@ -233,18 +235,16 @@ class HUD final : public UIScreen {
     void drawCursorTrailRaw(float alpha, vec2 pos);
     void drawAccuracy(float accuracy);
     void drawCombo(int combo);
-    void drawScore(u64 score);
+    static void drawScore(u64 score);
     void drawHPBar(double health, float alpha, float breakAnim);
-
-    void drawComboOrScoreDigits(u64 number, float scale, bool drawLeadingZeroes, bool combo /* false for score */);
-    void drawWarningArrows(float hitcircleDiameter = 0.0f);
+    static void drawWarningArrows(float hitcircleDiameter = 0.0f);
     void drawHitErrorBar(float hitWindow300, float hitWindow100, float hitWindow50, float hitWindowMiss, int ur);
     void drawHitErrorBarInt(float hitWindow300, float hitWindow100, float hitWindow50, float hitWindowMiss);
-    void drawHitErrorBarInt2(vec2 center, int ur);
+    static void drawHitErrorBarInt2(vec2 center, int ur);
     void drawProgressBar(float percent, bool waiting);
-    void drawStatistics(const HUDStats &stats) const;
+    static void drawStatistics(const HUDStats &stats);
     void drawTargetHeatmap(float hitcircleDiameter);
-    void drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 beatmapStartTimePlayable,
+    static void drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 beatmapStartTimePlayable,
                                f32 beatmapPercentFinishedPlayable, const std::vector<BREAK> &breaks);
     void drawInputOverlay(int numK1, int numK2, int numM1, int numM2);
 

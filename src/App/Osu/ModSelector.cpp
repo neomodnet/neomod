@@ -810,7 +810,7 @@ void ModSelector::updateLayout() {
 
         // override sliders (down here because they depend on the mod grid button alignment)
         const int margin = 10 * dpiScale;
-        const int overrideSliderWidth = osu->getUIScale(250.0f);
+        const int overrideSliderWidth = Osu::getUIScale(250.0f);
         const int overrideSliderHeight = 25 * dpiScale;
         const int overrideSliderOffsetY =
             ((start.y - this->overrideSliders.size() * overrideSliderHeight) / (this->overrideSliders.size() - 1)) *
@@ -848,7 +848,7 @@ void ModSelector::updateLayout() {
         // action buttons
         float actionMinY = start.y + size.y * this->iGridHeight +
                            offset.y * (this->iGridHeight - 1);  // exact bottom of the mod buttons
-        vec2 actionSize = vec2(osu->getUIScale(448.0f) * uiScale, size.y * 0.75f);
+        vec2 actionSize = vec2(Osu::getUIScale(448.0f) * uiScale, size.y * 0.75f);
         float actionOffsetY = actionSize.y * 0.5f;
         vec2 actionStart = vec2(
             osu->getVirtScreenWidth() / 2.0f - actionSize.x / 2.0f,
@@ -900,7 +900,7 @@ void ModSelector::updateLayout() {
 
         // override sliders (down here because they depend on the mod grid button alignment)
         const int margin = 10 * dpiScale;
-        int overrideSliderWidth = osu->getUIScale(250.0f);
+        int overrideSliderWidth = Osu::getUIScale(250.0f);
         int overrideSliderHeight = 25 * dpiScale;
         int overrideSliderOffsetY = 5 * dpiScale;
         vec2 overrideSliderStart = vec2(osu->getVirtScreenWidth() / 2 - overrideSliderWidth / 2, 5 * dpiScale);

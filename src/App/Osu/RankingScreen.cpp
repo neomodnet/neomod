@@ -240,7 +240,7 @@ void RankingScreen::draw() {
 
     // draw active mods
     const vec2 modPosStart =
-        vec2(this->rankings->getSize().x - osu->getUIScale(20), this->rankings->getRelPosY() + osu->getUIScale(260));
+        vec2(this->rankings->getSize().x - Osu::getUIScale(20), this->rankings->getRelPosY() + Osu::getUIScale(260));
     vec2 modPos = modPosStart;
     vec2 modPosMax{0.f};
     const auto &skin = osu->getSkin();
@@ -283,7 +283,7 @@ void RankingScreen::draw() {
         const float heightMultiplier = 1.25f;
         const int experimentalModHeight = (experimentalModFont->getHeight() * heightMultiplier);
         const vec2 experimentalModPos = vec2(modPosStart.x - maxStringWidth - backgroundMargin,
-                                             std::max(modPosStart.y, modPosMax.y) + osu->getUIScale(10) +
+                                             std::max(modPosStart.y, modPosMax.y) + Osu::getUIScale(10) +
                                                  experimentalModFont->getHeight() * heightMultiplier);
         const int backgroundWidth = maxStringWidth + 2 * backgroundMargin;
         const int backgroundHeight = experimentalModHeight * this->extraMods.size() + 2 * backgroundMargin;
@@ -334,7 +334,7 @@ void RankingScreen::drawModImage(SkinImage *image, vec2 &pos, vec2 &max) {
     g->setColor(0xffffffff);
     image->draw(vec2(pos.x - image->getSize().x / 2.0f, pos.y));
 
-    pos.x -= osu->getUIScale(20);
+    pos.x -= Osu::getUIScale(20);
 
     if(pos.y + image->getSize().y / 2 > max.y) max.y = pos.y + image->getSize().y / 2;
 }
@@ -524,7 +524,7 @@ void RankingScreen::updateLayout() {
                                  Osu::getImageScale(this->rankingTitle->getImage(), 75.0f) * uiScale);
     this->rankingTitle->setSize(this->rankingTitle->getImage()->getWidth() * this->rankingTitle->getScale().x,
                                 this->rankingTitle->getImage()->getHeight() * this->rankingTitle->getScale().y);
-    this->rankingTitle->setRelPos(this->getSize().x - this->rankingTitle->getSize().x - osu->getUIScale(20.0f), 0);
+    this->rankingTitle->setRelPos(this->getSize().x - this->rankingTitle->getSize().x - Osu::getUIScale(20.0f), 0);
 
     this->songInfo->setSize(
         osu->getVirtScreenWidth(),
@@ -600,9 +600,9 @@ void RankingScreen::setGrade(ScoreGrade grade) {
     this->rankingGrade->setSize(this->rankingGrade->getImage()->getWidth() * this->rankingGrade->getScale().x,
                                 this->rankingGrade->getImage()->getHeight() * this->rankingGrade->getScale().y);
     this->rankingGrade->setRelPos(
-        this->rankings->getSize().x - osu->getUIScale(120) -
+        this->rankings->getSize().x - Osu::getUIScale(120) -
             this->rankingGrade->getImage()->getWidth() * this->rankingGrade->getScale().x / 2.0f,
-        -this->rankings->getRelPos().y + osu->getUIScale(osu->getSkin()->version > 1.0f ? 200 : 170) -
+        -this->rankings->getRelPos().y + Osu::getUIScale(osu->getSkin()->version > 1.0f ? 200 : 170) -
             this->rankingGrade->getImage()->getHeight() * this->rankingGrade->getScale().x / 2.0f);
 }
 
@@ -633,5 +633,5 @@ vec2 RankingScreen::getPPPosRaw() const {
     float ppStringWidth = osu->getTitleFont()->getStringWidth(ppString);
     return vec2(this->rankingGrade->getPos().x, Osu::getRawUIScale() * 10.f) +
            vec2(this->rankingGrade->getSize().x / 2 - (ppStringWidth / 2 + Osu::getRawUIScale() * 100.f),
-                this->rankings->getRelPosY() + osu->getUIScale(400) + osu->getTitleFont()->getHeight() / 2);
+                this->rankings->getRelPosY() + Osu::getUIScale(400) + osu->getTitleFont()->getHeight() / 2);
 }
