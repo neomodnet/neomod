@@ -1332,6 +1332,7 @@ void SongBrowser::onDifficultySelected(DatabaseBeatmap *map, bool play) {
                 BANCHO::Net::send_packet(packet);
 
                 ui->getRoom()->on_map_change();
+                ui->setScreen(ui->getRoom());
             } else {
                 // CTRL + click = auto
                 if(keyboard->isControlDown()) {

@@ -36,6 +36,7 @@ Changelog::Changelog() : ScreenBackable() {
     v43_01.title = "43.01 (" CHANGELOG_TIMESTAMP ")";
     v43_01.changes = {
         R"(- (Windows/Web) Fixed score/combo number text not working at all)",
+        R"(- (Windows/Web) Fixed not being able to select a map in multiplayer)",
         R"(- (Web) Fixed not being able to press left/right mouse button at the same time)",
     };
     changelogs.push_back(v43_01);
