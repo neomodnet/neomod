@@ -112,7 +112,7 @@ void OpenGLRenderTarget::init() {
 
     // fill texture
     if(isMultiSampled()) {
-#ifdef MCENGINE_PLATFORM_OPENGL
+#ifdef MCENGINE_FEATURE_OPENGL
         glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, numMultiSamples, GL_RGBA8, (int)this->getSize().x,
                                 (int)this->getSize().y, true);  // use fixed sample locations
 #else                                                           // GL ES
