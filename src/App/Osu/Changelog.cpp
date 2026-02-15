@@ -32,8 +32,15 @@ Changelog::Changelog() : ScreenBackable() {
 
     std::vector<CHANGELOG> changelogs;
 
+    CHANGELOG v43_01;
+    v43_01.title = "43.01 (" CHANGELOG_TIMESTAMP ")";
+    v43_01.changes = {
+        R"()",
+    };
+    changelogs.push_back(v43_01);
+
     CHANGELOG v43_00;
-    v43_00.title = "43.00 (" CHANGELOG_TIMESTAMP ")";
+    v43_00.title = "43.00 (2026-02-15)";
     v43_00.changes = {
         R"(- Added initial support for pre-calculating star rating for various mod/rate combinations)",
         R"(  - Currently included: 9 rates between 0.75x and 1.5x, and for each rate, 6 unique mod combinations (valid combos of nomod/HR/HD/EZ))",

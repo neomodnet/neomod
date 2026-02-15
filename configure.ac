@@ -1,5 +1,5 @@
 AC_PREREQ([2.69])
-AC_INIT([neosu], [[43.00]], [], [], [https://github.com/kiwec/neosu])
+AC_INIT([neosu], [[43.01]], [], [], [https://github.com/kiwec/neosu])
 AC_CONFIG_SRCDIR([src/Engine/Engine.cpp])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_HEADERS([src/config.h])
