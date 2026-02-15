@@ -32,19 +32,22 @@ Changelog::Changelog() : ScreenBackable() {
 
     std::vector<CHANGELOG> changelogs;
 
-    CHANGELOG v42_02;
-    v42_02.title = "42.02 (" CHANGELOG_TIMESTAMP ")";
-    v42_02.changes = {
+    CHANGELOG v43_00;
+    v43_00.title = "43.00 (" CHANGELOG_TIMESTAMP ")";
+    v43_00.changes = {
         R"(- Added initial support for pre-calculating star rating for various mod/rate combinations)",
         R"(  - Currently included: 9 rates between 0.75x and 1.5x, and for each rate, 6 unique mod combinations (valid combos of nomod/HR/HD/EZ))",
         R"(- Added an SDL_gpu-based renderer (Vulkan or D3D12))",
         R"(  - Currently requires "-sdlgpu" or "-gpu" to be passed as a launch option; use "-sdlgpu vulkan" to prefer Vulkan over D3D12 on Windows)",
+        R"(- Added WASM releases (https://neosu.net/online/))",
+        R"(- Improved OAuth login flow)",
         R"(- Improved user avatar/direct screen thumbnail loading responsiveness)",
         R"(- Made "Click on the orange cursor to continue play!" actually accurate)",
+        R"(- Fixed notification toasts getting drawn in the wrong order)",
         R"(- Fixed selected collection jumping around unexpectedly)",
         R"(- Updated BASS to fix some offset issues (e.g. https://osu.ppy.sh/beatmapsets/246733 ))",
     };
-    changelogs.push_back(v42_02);
+    changelogs.push_back(v43_00);
 
     CHANGELOG v42_01;
     v42_01.title = "42.01 (2026-02-03)";

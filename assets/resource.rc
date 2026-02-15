@@ -5,8 +5,8 @@
 
 // version information
 1 VERSIONINFO
-FILEVERSION 42,2,0,0
-PRODUCTVERSION 42,2,0,0
+FILEVERSION 43,0,0,0
+PRODUCTVERSION 43,0,0,0
 FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
 #ifdef _DEBUG
 FILEFLAGS VS_FF_DEBUG
@@ -23,12 +23,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "neosu"
             VALUE "FileDescription", "neosu"
-            VALUE "FileVersion", "42.02.0.0"
+            VALUE "FileVersion", "43.00.0.0"
             VALUE "InternalName", "neosu"
             VALUE "LegalCopyright", "Copyright (C) 2025-2026"
             VALUE "OriginalFilename", "neosu.exe"
             VALUE "ProductName", "neosu"
-            VALUE "ProductVersion", "42.02"
+            VALUE "ProductVersion", "43.00"
         END
     END
     BLOCK "VarFileInfo"
