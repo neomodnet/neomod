@@ -14,6 +14,7 @@ class DatabaseBeatmap;
 typedef DatabaseBeatmap BeatmapDifficulty;
 typedef DatabaseBeatmap BeatmapSet;
 
+class CBaseUILabel;
 class CBaseUIContainer;
 class UIButton;
 class UIButtonWithIcon;
@@ -105,6 +106,7 @@ class MainMenu final : public UIScreen, public MouseListener {
     std::vector<MainButton *> menuElements;
 
     PauseButton *pauseButton;
+    CBaseUILabel *tipLabel{nullptr};
     UIButton *updateAvailableButton{nullptr};
     UIButtonVertical *onlineBeatmapsButton{nullptr};
     CBaseUIButton *versionButton;

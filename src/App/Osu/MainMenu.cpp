@@ -14,6 +14,7 @@
 #include "Changelog.h"
 #include "CBaseUIButton.h"
 #include "CBaseUIContainer.h"
+#include "CBaseUILabel.h"
 #include "OsuConVars.h"
 #include "Environment.h"
 #include "MakeDelegateWrapper.h"
@@ -256,6 +257,9 @@ MainMenu::MainMenu() : UIScreen() {
     this->pauseButton = new PauseButton(0, 0, 0, 0, "", "");
     this->pauseButton->setClickCallback(SA::MakeDelegate<&MainMenu::onPausePressed>(this));
     this->addBaseUIElement(this->pauseButton);
+
+    this->tipLabel = new CBaseUILabel(0, 0, 0, 0, "", "Tip: Press Alt+Enter to toggle Fullscreen.");
+    this->addBaseUIElement(this->tipLabel);
 
     this->updateAvailableButton = new UIButton(0, 0, 0, 0, "", "Checking for updates ...");
     this->updateAvailableButton->setUseDefaultSkin();
@@ -1299,6 +1303,14 @@ void MainMenu::updateLayout() {
     this->pauseButton->setSize(30 * dpiScale, 30 * dpiScale);
     this->pauseButton->setRelPos(osu->getVirtScreenWidth() - this->pauseButton->getSize().x * 2 - 10 * dpiScale,
                                  this->pauseButton->getSize().y + 10 * dpiScale);
+
+    this->tipLabel->setTextColor(0xff888888);
+    this->tipLabel->setSizeToContent();
+    this->tipLabel->setDrawBackground(false);
+    this->tipLabel->setDrawFrame(false);
+    this->tipLabel->setRelPos(osu->getVirtScreenWidth() / 2 - this->tipLabel->getSize().x / 2,
+                              osu->getVirtScreenHeight() - this->tipLabel->getSize().y - 40 * dpiScale);
+    this->tipLabel->setVisible(Env::cfg(OS::WASM));
 
     if(this->updateAvailableButton != nullptr) {
         this->updateAvailableButton->setSize(375 * dpiScale, 50 * dpiScale);
