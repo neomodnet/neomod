@@ -884,7 +884,7 @@ void Osu::onKeyDown(KeyboardEvent &key) {
     }
 
     // screenshots
-    if(key == cv::SAVE_SCREENSHOT.getVal<SCANCODE>()) {
+    if(key == cv::SAVE_SCREENSHOT.getVal<SCANCODE>() && cv::enable_screenshots.getBool()) {
         if(!key.isRepeat()) {
             this->saveScreenshot();
         }
@@ -1230,6 +1230,8 @@ void Osu::reloadMapInterface() { this->map_iface = std::make_unique<BeatmapInter
 
 void Osu::saveScreenshot() {
     static i32 screenshotNumber = 0;
+
+    if(!cv::enable_screenshots.getBool()) return;
 
     if(!env->directoryExists(NEOSU_SCREENSHOTS_PATH) && !env->createDirectory(NEOSU_SCREENSHOTS_PATH)) {
         ui->getNotificationOverlay()->addNotification("Error: Couldn't create screenshots folder.", 0xffff0000, false,

@@ -1439,7 +1439,9 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     this->addSubSection("Keys - Universal", keyboardSectionTags);
     this->addKeyBindButton_("Toggle chat", &cv::TOGGLE_CHAT);
     this->addKeyBindButton_("Toggle user list", &cv::TOGGLE_EXTENDED_CHAT);
-    this->addKeyBindButton_("Save Screenshot", &cv::SAVE_SCREENSHOT);
+    if(cv::enable_screenshots.getBool()) {
+        this->addKeyBindButton_("Save Screenshot", &cv::SAVE_SCREENSHOT);
+    }
     this->addKeyBindButton_("Increase Volume", &cv::INCREASE_VOLUME);
     this->addKeyBindButton_("Decrease Volume", &cv::DECREASE_VOLUME);
     this->addKeyBindButton_("Disable Mouse Buttons", &cv::DISABLE_MOUSE_BUTTONS);
