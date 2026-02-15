@@ -816,6 +816,10 @@ bool Environment::minimizeWindow() {
     // TODO: make minimize-on-focus-lost an option in options menu and stop trying to be smart about it,
     // i don't think it's possible to cover all edge cases automatically
 
+    if constexpr(Env::cfg(OS::WASM)) {
+        m_bMinimizeSupported = false;
+    }
+
     // also somehow disableFullscreen seems to go into an "infinite loop" on i3wm? so really try to avoid it...
     static bool hardcodedBrokenDesktopChecked{false};
     if(m_bMinimizeSupported && !hardcodedBrokenDesktopChecked &&

@@ -89,8 +89,7 @@ class Environment {
     std::unique_ptr<Interop> m_interop;
 
    public:
-    Environment(const Mc::AppDescriptor &appDesc,
-                std::unordered_map<std::string, std::optional<std::string>> argMap,
+    Environment(const Mc::AppDescriptor &appDesc, std::unordered_map<std::string, std::optional<std::string>> argMap,
                 std::vector<std::string> cmdlineVec);
     virtual ~Environment();
 
@@ -234,6 +233,13 @@ class Environment {
     [[nodiscard]] constexpr bool winFullscreened() const {
         using enum WinFlags;
         using namespace flags::operators;
+
+        if constexpr(Env::cfg(OS::WASM)) {
+            // no point checking window size in wasm since it's always 100% of the page
+            // ...and on firefox specifically, makes the game think it's fullscreened when it's not
+            return m_bRestoreFullscreen || flags::has<F_FULLSCREEN>(m_winflags);
+        }
+
         // we do not use "real" fullscreen mode, so maximized+borderless+unoccluded is the same as fullscreen
         // also return true if our window size is == the desktop res, i dont understand why sdl doesn't update this in tandem
         // also return true if we are pending a re-fullscreen, to avoid issues related to that and event ordering on alt-tab
