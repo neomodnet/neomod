@@ -614,6 +614,7 @@ CONVAR(sv_allow_speed_override, false, SERVER,
 CONVAR(sv_has_irc_users, true, SERVER, "players with negative IDs will show up as IRC users");
 
 // Main menu
+CONVAR(adblock, false, CLIENT | SKINS | SERVER);
 CONVAR(draw_menu_background, true, CLIENT | SKINS | SERVER);
 CONVAR(main_menu_alpha, 0.8f, CLIENT | SKINS | SERVER);
 CONVAR(main_menu_friend, true, CLIENT | SKINS | SERVER);
@@ -979,7 +980,6 @@ CONVAR(user_draw_pp, true, CLIENT | SKINS | SERVER);
 CONVAR(user_include_relax_and_autopilot_for_stats, false, CLIENT | SKINS | SERVER);
 
 // Unfinished features
-CONVAR(adblock, true, CLIENT | SKINS | SERVER);
 CONVAR(prefer_websockets, false, CLIENT, "prefer websocket connections over http polling");
 CONVAR(enable_spectating, false, CLIENT);
 CONVAR(allow_mp_invites, true, CLIENT, "allow multiplayer game invites from all users");

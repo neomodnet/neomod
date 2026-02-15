@@ -5,14 +5,12 @@
 
 class CBaseUILabel;
 
-// TODO: draw frame on hover
-// TODO: icon alignment/size is fucked
-// XXX: shit naming
-// XXX: text shadow, like CBaseUIButton
-
 class UIButtonWithIcon : public CBaseUIContainer {
    public:
     UIButtonWithIcon(const UString& text, char16_t icon);
+
+    void draw() override;
+    void onResized() override;
 
     template <typename Callable>
     void setClickCallback(Callable&& cb) {

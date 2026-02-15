@@ -279,8 +279,8 @@ MainMenu::MainMenu() : UIScreen() {
     this->versionButton->setClickCallback(SA::MakeDelegate<&MainMenu::onVersionPressed>(this));
     this->addBaseUIElement(this->versionButton);
 
-    this->discordButton = new UIButtonWithIcon("discord.gg/YWPBFSpH8v", Icons::DISCORD);
-    this->discordButton->setClickCallback([]() { env->openURLInDefaultBrowser("https://discord.gg/YWPBFSpH8v"); });
+    this->discordButton = new UIButtonWithIcon("neosu.net/discord", Icons::DISCORD);
+    this->discordButton->setClickCallback([]() { env->openURLInDefaultBrowser("https://neosu.net/discord"); });
     this->addBaseUIElement(this->discordButton);
 
     this->twitterButton = new UIButtonWithIcon("x.com/neosugame", Icons::TWITTER);
@@ -1332,11 +1332,13 @@ void MainMenu::updateLayout() {
         McFont *font = engine->getDefaultFont();
         f32 margin = std::round(3.f * dpiScale);
         f32 ads_y = osu->getVirtScreenSize().y;
-        if(cv::draw_fps.getBool()) ads_y -= (font->getHeight() + margin) * 2.f;
+        if(cv::draw_fps.getBool()) ads_y -= (font->getHeight() + margin) * 2.5f;
 
+        this->discordButton->onResized();
         ads_y -= this->discordButton->getSize().y + margin;
         this->discordButton->setRelPos(osu->getVirtScreenSize().x - this->discordButton->getSize().x, ads_y);
 
+        this->twitterButton->onResized();
         ads_y -= this->twitterButton->getSize().y + margin;
         this->twitterButton->setRelPos(osu->getVirtScreenSize().x - this->twitterButton->getSize().x, ads_y);
     }
