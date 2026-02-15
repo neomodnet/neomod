@@ -32,7 +32,7 @@
 
 // EM_ASM_INT doesn't work in CI, if you have too much time feel free to find out why
 EM_JS(int, js_get_canvas_width, (), { return document.getElementById('canvas').width; });
-EM_JS(int, js_get_canvas_height, (), { return document.getElementById('canvas').width; });
+EM_JS(int, js_get_canvas_height, (), { return document.getElementById('canvas').height; });
 #endif
 
 // for sending keys synthetically from console
