@@ -680,7 +680,7 @@ CONVAR(cursor_trail_smooth_force, false, CLIENT | SKINS | SERVER);
 CONVAR(cursor_trail_smooth_length, 0.5f, CLIENT | SKINS | SERVER, "how long smooth cursortrails should be, in seconds");
 CONVAR(cursor_trail_spacing, 15.f, CLIENT | SKINS | SERVER,
        "how big the gap between consecutive unsmooth cursortrail images should be, in milliseconds");
-CONVAR(disable_mousebuttons, true, CLIENT | SKINS | SERVER);
+CONVAR(disable_mousebuttons, Env::cfg(OS::WASM) ? false : true, CLIENT | SKINS | SERVER);
 CONVAR(disable_mousewheel, true, CLIENT | SKINS | SERVER);
 CONVAR(drain_kill, true, CLIENT | SERVER | PROTECTED | GAMEPLAY, "whether to kill the player upon failing");
 CONVAR(drain_disabled, false, CLIENT | SERVER | PROTECTED | GAMEPLAY,
