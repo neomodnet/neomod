@@ -1332,7 +1332,7 @@ void MainMenu::updateLayout() {
         McFont *font = engine->getDefaultFont();
         f32 margin = std::round(3.f * dpiScale);
         f32 ads_y = osu->getVirtScreenSize().y;
-        if(cv::draw_fps.getBool()) ads_y -= (font->getHeight() + margin) * 2.5f;
+        if(cv::draw_fps.getBool()) ads_y -= (font->getHeight() * 3.f + margin);
 
         this->discordButton->onResized();
         ads_y -= this->discordButton->getSize().y + margin;

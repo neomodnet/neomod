@@ -11,7 +11,6 @@ UIButtonWithIcon::UIButtonWithIcon(const UString& text, char16_t icon) : CBaseUI
     this->icon->setDrawBackground(false);
     this->icon->setDrawFrame(false);
     this->icon->setDrawTextShadow(true);
-    this->icon->setFont(osu->getFontIcons());
     this->addBaseUIElement(this->icon);
 
     this->text = new CBaseUILabel(0, 0, 0, 0, "", text);
@@ -33,7 +32,9 @@ void UIButtonWithIcon::draw() {
 }
 
 void UIButtonWithIcon::onResized() {
+    this->icon->setFont(osu->getFontIcons());  // calls onResized()
     this->icon->setSizeToContent();
+    this->text->onResized();
     this->text->setSizeToContent();
 
     const f32 dpiScale = Osu::getUIScale();
@@ -42,7 +43,6 @@ void UIButtonWithIcon::onResized() {
     const f32 btn_height = std::max(this->icon->getSize().y, this->text->getSize().y);
 
     this->text->setRelPos(this->icon->getSize().x + inner_margin, btn_height / 2 - this->text->getSize().y / 2);
-    this->update_pos();
 
     this->setSize(btn_width, btn_height);
 }
