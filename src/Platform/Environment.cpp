@@ -200,8 +200,7 @@ Graphics *Environment::createRenderer() {
         return new DirectX11Interface(Env::cfg(OS::WINDOWS) ? getHwnd() : reinterpret_cast<HWND>(m_window));
 #endif
 #ifdef MCENGINE_FEATURE_SDLGPU
-    if(usingSDLGPU())
-        return new SDLGPUInterface(m_window);
+    if(usingSDLGPU()) return new SDLGPUInterface(m_window);
 #endif
 #if defined(MCENGINE_FEATURE_OPENGL) || defined(MCENGINE_FEATURE_GLES32)
     // need to load stuff dynamically before the base class constructors
@@ -1212,7 +1211,8 @@ void Environment::onUseIMEChange(float newValue) {
 // called by event loop on display or window events
 void Environment::updateWindowSizeCache() {
     int width{320}, height{240};
-    if(!SDL_GetWindowSizeInPixels(m_window, &width, &height)) {
+    auto func = m_bDPIOverride ? SDL_GetWindowSize : SDL_GetWindowSizeInPixels;
+    if(!func(m_window, &width, &height)) {
         debugLog("Failed to get window size (returning cached {},{}): {:s}", m_vLastKnownWindowSize.x,
                  m_vLastKnownWindowSize.y, SDL_GetError());
     } else {
@@ -1366,7 +1366,7 @@ Environment::CursorPosition Environment::consumeCursorPositionCache() {
         m_vLastAbsPenPos = m_vCurrentAbsPenPos;
     }
 
-    const float scaleFactor = m_bForceAbsCursor ? 1.f : m_fPixelDensity;
+    const float scaleFactor = m_bForceAbsCursor ? 1.f : getPixelDensity();
     // if we're in raw input or forcing absolute cursor then SDL isn't clipping the motion for us
     const bool needsClipping = m_bForceAbsCursor || isOSMouseInputRaw();
 

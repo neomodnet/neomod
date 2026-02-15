@@ -87,10 +87,10 @@ static ConVar sendkey_cmd("sendkey", CLIENT | NOLOAD | NOSAVE, CFUNC(sendkey));
 static ConVar sendtext_cmd("sendtext", CLIENT | NOLOAD | NOSAVE, CFUNC(sendtext));
 }  // namespace cv
 
-SDLMain::SDLMain(const Mc::AppDescriptor &appDesc,
-                 std::unordered_map<std::string, std::optional<std::string>> argMap,
+SDLMain::SDLMain(const Mc::AppDescriptor &appDesc, std::unordered_map<std::string, std::optional<std::string>> argMap,
                  std::vector<std::string> argVec)
-    : Environment(appDesc, std::move(argMap), std::move(argVec)), m_gpuConfigurator(std::make_unique<GPUDriverConfigurator>()) {
+    : Environment(appDesc, std::move(argMap), std::move(argVec)),
+      m_gpuConfigurator(std::make_unique<GPUDriverConfigurator>()) {
     // the reason we set up GPUDriverConfigurator here is because some things it does might need to happen before the window itself is created
     // setup callbacks
     cv::fps_max.setCallback(SA::MakeDelegate<&SDLMain::fps_max_callback>(this));
@@ -623,7 +623,8 @@ bool SDLMain::createWindow() {
 
     // set vulkan for linux dxvk-native, opengl otherwise (or none for windows dx11)
     const i64 windowFlags =
-        SDL_WINDOW_HIDDEN | SDL_WINDOW_INPUT_FOCUS | SDL_WINDOW_MOUSE_FOCUS | SDL_WINDOW_HIGH_PIXEL_DENSITY |
+        SDL_WINDOW_HIDDEN | SDL_WINDOW_INPUT_FOCUS | SDL_WINDOW_MOUSE_FOCUS |
+        (m_bDPIOverride ? 0LL : SDL_WINDOW_HIGH_PIXEL_DENSITY) |  // respect -nodpi
         (usingGL() ? SDL_WINDOW_OPENGL : ((Env::cfg(OS::LINUX) && usingDX11()) ? SDL_WINDOW_VULKAN : 0LL));
 
     // limit default window size so it fits the screen
