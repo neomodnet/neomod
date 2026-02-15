@@ -179,6 +179,12 @@ class CBaseUIScrollView : public CBaseUIElement {
 
     CBaseUIScrollViewContainer container;
 
+    // backdoor to allow broken nested scrollview shenanigans to circumvent clipping
+    void forceInvalidateClipping() {
+        this->bClippingDirty = true;
+        this->previousClippingVisibleElements = 0;
+    }
+
    protected:
     void onMoved() override;
 

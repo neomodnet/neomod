@@ -1901,7 +1901,7 @@ void OptionsOverlayImpl::draw() {
 
     // Re-drawing context menu to make sure it's drawn on top of the back button
     // Context menu input still gets processed first, so this is fine
-    this->contextMenu->draw();
+    this->contextMenu->draw();  // TODO: remove this (double-drawing hurts performance and increases opacity)
 
     if(this->cursorSizeSlider->getFloat() < 0.15f) mouse->drawDebug();
 

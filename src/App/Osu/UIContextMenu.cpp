@@ -95,7 +95,8 @@ void UIContextMenu::draw() {
     }
 
     // draw background
-    g->setColor(Color(this->backgroundColor).setA(this->backgroundColor.Af() * this->fAnimation));
+    const Color bgColor = Color(this->backgroundColor).setA(this->backgroundColor.Af() * this->fAnimation);
+    g->setColor(bgColor);
 
     g->fillRect(this->getPos().x + 1, this->getPos().y + 1, this->getSize().x - 1, this->getSize().y - 1);
 
@@ -347,8 +348,10 @@ void UIContextMenu::setVisible2(bool visible2) {
 
     if(!this->bVisible2) this->setSize(1, 1);  // reset size
 
-    if(this->parent && this->parent->isVisible())
-        this->parent->setScrollSizeToContent();  // and update parent scroll size
+    if(this->parent && this->parent->isVisible()) {
+        this->parent->setScrollSizeToContent();   // and update parent scroll size
+        this->parent->forceInvalidateClipping();  // self-inflicted pain
+    }
 }
 
 void UIContextMenu::onMouseDownOutside(bool /*left*/, bool /*right*/) { this->setVisible2(false); }

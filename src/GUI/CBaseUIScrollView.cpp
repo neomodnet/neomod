@@ -62,7 +62,7 @@ void ScrollContainer::invalidate() {
 void ScrollContainer::update(CBaseUIEventCtx &c) {
     // intentionally not calling parent
     CBaseUIElement::update(c);
-    if(!this->bVisible) return;
+    if(!this->isVisible()) return;
 
     this->invalidateUpdate = false;
 
@@ -79,7 +79,7 @@ void ScrollContainer::update(CBaseUIEventCtx &c) {
 }
 
 void ScrollContainer::draw() {
-    if(!this->bVisible) return;
+    if(!this->isVisible()) return;
 
     this->invalidateUpdate = false;
 
@@ -108,7 +108,7 @@ void ScrollContainer::draw() {
 }
 
 bool ScrollContainer::isBusy() {
-    if(!this->bVisible) return false;
+    if(!this->isVisible()) return false;
 
     for(auto *e : this->vVisibleElements) {
         if(e->isBusy()) {
@@ -123,7 +123,7 @@ bool ScrollContainer::isBusy() {
 }
 
 bool ScrollContainer::isActive() {
-    if(!this->bVisible) return false;
+    if(!this->isVisible()) return false;
 
     for(auto *e : this->vVisibleElements) {
         if(e->isActive()) {

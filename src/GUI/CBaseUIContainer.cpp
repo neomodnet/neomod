@@ -138,7 +138,7 @@ CBaseUIElement *CBaseUIContainer::getBaseUIElement(const UString &name) {
 }
 
 void CBaseUIContainer::draw() {
-    if(!this->bVisible) return;
+    if(!this->isVisible()) return;
 
     for(auto *e : this->vElements) {
         if(e->isVisible()) {
@@ -171,7 +171,7 @@ void CBaseUIContainer::draw_debug() {
 
 void CBaseUIContainer::update(CBaseUIEventCtx &c) {
     CBaseUIElement::update(c);
-    if(!this->bVisible) return;
+    if(!this->isVisible()) return;
 
     // NOTE: do NOT use a range-based for loop here, update() might invalidate iterators by changing the container contents...
     const auto &elements = this->vElements;
@@ -182,7 +182,7 @@ void CBaseUIContainer::update(CBaseUIEventCtx &c) {
 }
 
 void CBaseUIContainer::update_pos() {
-    if(!this->bVisible) return;
+    if(!this->isVisible()) return;
     const vec2 thisPos = this->rect.getPos();
 
     vec2 eRelPos{};
@@ -242,7 +242,7 @@ void CBaseUIContainer::onDisabled() {
 void CBaseUIContainer::onMouseDownOutside(bool /*left*/, bool /*right*/) { this->onFocusStolen(); }
 
 bool CBaseUIContainer::isBusy() {
-    if(!this->bVisible) return false;
+    if(!this->isVisible()) return false;
 
     for(auto *elem : this->vElements) {
         if(elem->isBusy()) return true;
@@ -252,7 +252,7 @@ bool CBaseUIContainer::isBusy() {
 }
 
 bool CBaseUIContainer::isActive() {
-    if(!this->bVisible) return false;
+    if(!this->isVisible()) return false;
 
     for(auto *elem : this->vElements) {
         if(elem->isActive()) return true;

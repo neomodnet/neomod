@@ -40,6 +40,8 @@ SDLGPUInterface::SDLGPUInterface(SDL_Window *window)
     : Graphics(), m_window(window), m_currentPrimitiveType(SDL_GPU_PRIMITIVETYPE_TRIANGLELIST) {}
 
 SDLGPUInterface::~SDLGPUInterface() {
+    cv::r_sync_max_frames.reset();  // release callback
+
     if(m_device) {
         SDL_WaitForGPUIdle(m_device);
 
