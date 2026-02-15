@@ -3,7 +3,6 @@
 [![linux-multiarch](https://github.com/kiwec/neosu/actions/workflows/linux-multiarch.yml/badge.svg)](https://github.com/kiwec/neosu/actions/workflows/linux-multiarch.yml)
 [![linux-aarch64](https://github.com/kiwec/neosu/actions/workflows/linux-aarch64.yaml/badge.svg)](https://github.com/kiwec/neosu/actions/workflows/linux-aarch64.yaml)
 [![web-wasm32](https://github.com/kiwec/neosu/actions/workflows/web-wasm32.yml/badge.svg)](https://github.com/kiwec/neosu/actions/workflows/web-wasm32.yml)
-
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/kiwec/neosu)
 
 This is a third-party fork of McKay's [McOsu](https://store.steampowered.com/app/607260/McOsu/).

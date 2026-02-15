@@ -151,6 +151,8 @@ CONVAR(osu_folder, ""sv, CLIENT);
 CONVAR(osu_folder_sub_skins, "Skins/"sv, CLIENT);
 CONVAR(songs_folder, "Songs/"sv, CLIENT);
 CONVAR(export_folder, NEOSU_DATA_DIR "exports/"sv, CLIENT, "path to export files to (like beatmaps, skins)");
+CONVAR(maps_save_immediately, (Env::cfg(OS::WASM) ? true : false), CLIENT,
+       "write neosu_maps.db as soon as a new beatmap is added (will NOT save on override/sr calc changes)");
 
 // Looks
 CONVAR(always_render_cursor_trail, true, CLIENT | SKINS,

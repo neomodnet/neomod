@@ -513,6 +513,10 @@ BeatmapSet *Database::addBeatmapSet(const std::string &beatmapFolderPath, i32 se
         this->bPendingBatchDiffCalc = true;  // picked up by SongBrowser::update
     }
 
+    if(cv::maps_save_immediately.getBool()) {
+        db->saveMaps();
+    }
+
     return raw_mapset;
 }
 
