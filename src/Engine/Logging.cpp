@@ -7,6 +7,9 @@
 #include "Environment.h"
 #include "UString.h"
 
+// for SDL_CleanupTLS
+#include <SDL3/SDL_thread.h>
+
 #ifdef MCENGINE_PLATFORM_WINDOWS
 #include "WinDebloatDefs.h"
 #include <io.h>
@@ -333,12 +336,18 @@ void init(bool create_console) noexcept {
     // initialize async thread pool before creating any async loggers
     // queue size: 32768 slots (each ~256 bytes), 1 background thread
     // use overrun_oldest policy for non-blocking behavior
-    spdlog::init_thread_pool(32768, 1, []() -> void {
-        McThread::set_current_thread_name(US_("spd_logger"));
-        // this causes a "leak" according to ASan, through SDL_CreateEnvironment (because it tries to query some SDL hint value)
-        // just skip it
-        // McThread::set_current_thread_prio(McThread::Priority::LOW);
-    });
+    spdlog::init_thread_pool(
+        32768, 1,
+        []() -> void {  // pre-thread-init
+            McThread::set_current_thread_name(US_("spd_logger"));
+            McThread::set_current_thread_prio(McThread::Priority::LOW);
+        },
+        []() -> void {  // post-thread-shutdown cleanup
+            // since spdlog creates std::threads,
+            // need to clean up any SDL things from SDL functions that we might have
+            // called from inside of it (including McThread::set_current_thread_prio)
+            SDL_CleanupTLS();
+        });
 
     // engine console sink handles its own formatting
     auto engine_console_sink{std::make_shared<ConsoleBoxSink>()};

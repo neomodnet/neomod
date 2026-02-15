@@ -13155,12 +13155,9 @@ int gladLoaderLoadGLES2(void) {
 #endif
     did_load = _glad_GLES2_loader_handle == NULL;
     handle = glad_gles2_dlopen_handle();
-    printf("got here %p %u\n", handle, did_load);
     if (handle != NULL) {
         userptr = glad_gles2_build_userptr(handle);
-        printf("userptr.handle %p .get_proc_address_ptr %p\n", userptr.handle, userptr.get_proc_address_ptr);
         version = gladLoadGLES2UserPtr(glad_gles2_get_proc, &userptr);
-        printf("version %d\n", version);
 
         if (!version && did_load) {
             gladLoaderUnloadGLES2();
