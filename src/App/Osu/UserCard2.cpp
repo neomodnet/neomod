@@ -24,11 +24,12 @@ void UserCard2::update_userid(i32 new_userid) {
     UserInfo *new_userinfo = nullptr;
     i32 old_userid = 0;  // abusing avatar playerid field to avoid needing to store id redundantly
 
-    if(!this->info ||                                                               //
-       (this->info != (new_userinfo = BANCHO::User::get_user_info(new_userid))) ||  //
-       (new_userid != (old_userid = this->avatar->thumb_id->id))                    //
+    if(!this->info ||                                                                     //
+       (this->info != (new_userinfo = BANCHO::User::get_user_info(new_userid, true))) ||  //
+       (new_userid != (old_userid = this->avatar->thumb_id->id))                          //
     ) {
-        this->info = new_userinfo ? new_userinfo : BANCHO::User::get_user_info(new_userid);  // don't request it twice
+        this->info =
+            new_userinfo ? new_userinfo : BANCHO::User::get_user_info(new_userid, true);  // don't request it twice
         this->avatar = std::make_unique<UIAvatar>(new_userid, 0.f, 0.f, 0.f, 0.f);
         this->avatar->on_screen = true;
         this->setClickCallback([new_userid] { ui->getUserActions()->open(new_userid); });
