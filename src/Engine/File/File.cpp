@@ -863,3 +863,28 @@ void File::readToVector(std::vector<u8> &out) {
     out.clear();
     return;
 }
+
+#ifdef MCENGINE_PLATFORM_WASM
+#include <emscripten/emscripten.h>
+
+void File::flushToDisk() {
+    // keep the runtime alive until the async sync completes, otherwise the IDB
+    // connection gets torn down before the data reaches IndexedDB.
+    // clang-format off
+    EM_ASM(
+        if(typeof FS !== 'undefined' && FS.syncfs) {
+            runtimeKeepalivePush();
+            FS.syncfs(false, function(e) {
+                if(e) console.error('syncfs error:', e);
+                runtimeKeepalivePop();
+            });
+        }
+    );
+    // clang-format on
+}
+
+#else
+
+void File::flushToDisk() {}
+
+#endif

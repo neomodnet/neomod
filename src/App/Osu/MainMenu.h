@@ -82,7 +82,7 @@ class MainMenu final : public UIScreen, public MouseListener {
     void onPlayButtonPressed();
     void onMultiplayerButtonPressed();
     void onOptionsButtonPressed();
-    void onExitButtonPressed();
+    void onSaveOrExitButtonPressed();
 
     void onUpdatePressed();
     void onVersionPressed();

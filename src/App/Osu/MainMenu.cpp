@@ -42,6 +42,7 @@
 #include "SkinImage.h"
 #include "SongBrowser/SongBrowser.h"
 #include "SoundEngine.h"
+#include "TooltipOverlay.h"
 #include "UI.h"
 #include "UIButton.h"
 #include "UIButtonWithIcon.h"
@@ -84,6 +85,25 @@ class MainMenu::MainButton final : public CBaseUIButton {
    public:
     MainButton(MainMenu *parent, float xPos, float yPos, float xSize, float ySize, UString name, UString text)
         : CBaseUIButton(xPos, yPos, xSize, ySize, std::move(name), std::move(text)), mm_ptr(parent) {}
+
+    void update(CBaseUIEventCtx &c) override {
+        CBaseUIButton::update(c);
+        if(c.mouse_consumed()) {
+            this->bShowSaveTooltip = false;
+            return;
+        }
+        if(!this->isVisible() || !this->isEnabled()) return;
+        if(this->bShowSaveTooltip) {
+            auto *ttoverlay = ui->getTooltipOverlay();
+            ttoverlay->begin();
+            {
+                ttoverlay->addLine(US_("Save everything from this session."));
+                ttoverlay->addLine(US_("(Optional, automatic on tab close.)"));
+            }
+            ttoverlay->end();
+        }
+    }
+
     bool isMouseInside() override {
         return this->isEnabled() && CBaseUIButton::isMouseInside() && !this->mm_ptr->cube->isMouseInside();
     }
@@ -92,9 +112,19 @@ class MainMenu::MainButton final : public CBaseUIButton {
         if(this->mm_ptr->cube->isMouseInside()) return;
         CBaseUIButton::onMouseDownInside(left, right);
     }
+
+    void onMouseOutside() override {
+        CBaseUIButton::onMouseOutside();
+        this->bShowSaveTooltip = false;
+    }
+
     void onMouseInside() override {
         if(this->mm_ptr->cube->isMouseInside()) return;
         CBaseUIButton::onMouseInside();
+        const bool isSave = this->getText() == US_("Save");
+        if(isSave) {
+            this->bShowSaveTooltip = true;
+        }
 
         if(this->mm_ptr->button_sound_cooldown + 0.05f < engine->getTime()) {
             this->mm_ptr->button_sound_cooldown = engine->getTime();
@@ -102,7 +132,7 @@ class MainMenu::MainButton final : public CBaseUIButton {
                 soundEngine->play(osu->getSkin()->s_hover_sp);
             } else if(this->getText() == US_("Multiplayer")) {
                 soundEngine->play(osu->getSkin()->s_hover_mp);
-            } else if(this->getText() == US_("Options (CTRL + O)")) {
+            } else if(this->getText() == US_("Options (CTRL + O)") || isSave) {
                 soundEngine->play(osu->getSkin()->s_hover_options);
             } else if(this->getText() == US_("Exit")) {
                 soundEngine->play(osu->getSkin()->s_hover_exit);
@@ -112,6 +142,7 @@ class MainMenu::MainButton final : public CBaseUIButton {
 
    private:
     MainMenu *mm_ptr;
+    [[maybe_unused]] bool bShowSaveTooltip{false};
 };
 
 MainMenu::MainMenu() : UIScreen() {
@@ -250,9 +281,10 @@ MainMenu::MainMenu() : UIScreen() {
         ->setClickCallback(SA::MakeDelegate<&MainMenu::onMultiplayerButtonPressed>(this));
     this->addMainMenuButton("Options (CTRL + O)")
         ->setClickCallback(SA::MakeDelegate<&MainMenu::onOptionsButtonPressed>(this));
-    if constexpr(!Env::cfg(OS::WASM)) {
-        this->addMainMenuButton("Exit")->setClickCallback(SA::MakeDelegate<&MainMenu::onExitButtonPressed>(this));
-    }
+
+    static const UString lastButtonText = Env::cfg(OS::WASM) ? US_("Save") : US_("Exit");
+    this->addMainMenuButton(lastButtonText)
+        ->setClickCallback(SA::MakeDelegate<&MainMenu::onSaveOrExitButtonPressed>(this));
 
     this->pauseButton = new PauseButton(0, 0, 0, 0, "", "");
     this->pauseButton->setClickCallback(SA::MakeDelegate<&MainMenu::onPausePressed>(this));
@@ -1218,7 +1250,7 @@ void MainMenu::onKeyDown(KeyboardEvent &e) {
     } else {
         if(e == KEY_P || e == KEY_ENTER || e == KEY_NUMPAD_ENTER) this->onPlayButtonPressed();
         if(e == KEY_O) this->onOptionsButtonPressed();
-        if(e == KEY_E || e == KEY_X) this->onExitButtonPressed();
+        if(e == KEY_E || e == KEY_X) this->onSaveOrExitButtonPressed();
 
         if(e == KEY_ESCAPE) this->setMenuElementsVisible(false);
     }
@@ -1562,14 +1594,16 @@ void MainMenu::onOptionsButtonPressed() {
     soundEngine->play(osu->getSkin()->s_click_options);
 }
 
-void MainMenu::onExitButtonPressed() {
-    if constexpr(Env::cfg(OS::WASM)) return;
-
-    this->fShutdownScheduledTime = engine->getTime() + 0.3f;
-    this->bWasCleanShutdown = true;
-    this->setMenuElementsVisible(false);
-
-    soundEngine->play(osu->getSkin()->s_click_exit);
+void MainMenu::onSaveOrExitButtonPressed() {
+    if constexpr(Env::cfg(OS::WASM)) {
+        soundEngine->play(osu->getSkin()->s_click_options);
+        osu->saveEverything();
+    } else {
+        this->fShutdownScheduledTime = engine->getTime() + 0.3f;
+        this->bWasCleanShutdown = true;
+        this->setMenuElementsVisible(false);
+        soundEngine->play(osu->getSkin()->s_click_exit);
+    }
 }
 
 void MainMenu::onPausePressed() {

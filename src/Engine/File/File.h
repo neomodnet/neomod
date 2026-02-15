@@ -98,6 +98,9 @@ class File {
     // copy file from source to destination, overwriting if exists
     [[nodiscard]] static bool copy(std::string_view fromPath, std::string_view toPath);
 
+    // save indexedDB for wasm, noop on other platforms
+    static void flushToDisk();
+
    private:
     // private implementation helpers
     bool openForReading();

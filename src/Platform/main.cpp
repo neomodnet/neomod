@@ -23,6 +23,7 @@
 #include "Thread.h"
 #include "Engine.h"
 #include "DiffCalcTool.h"
+#include "File.h"
 
 #include "environment_private.h"
 #include "AppDescriptor.h"
@@ -113,22 +114,10 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
             fmain->m_engine->shutdown();
         }
     }
-#ifdef MCENGINE_PLATFORM_WASM
-    // flush IDBFS to IndexedDB after config/scores have been saved.
-    // keep the runtime alive until the async sync completes, otherwise the IDB
-    // connection gets torn down before the data reaches IndexedDB.
-    // clang-format off
-    EM_ASM(
-        if(typeof FS !== 'undefined' && FS.syncfs) {
-            runtimeKeepalivePush();
-            FS.syncfs(false, function(e) {
-                if(e) console.error('syncfs error:', e);
-                runtimeKeepalivePop();
-            });
-        }
-    );
-    // clang-format on
-#endif
+
+    // flush IDBFS to IndexedDB after config/scores have been saved (only does anything on WASM)
+    File::flushToDisk();
+
     if constexpr(Env::cfg(OS::WASM) || Env::cfg(FEAT::MAINCB)) {
         // we allocated it with new
         delete fmain;

@@ -130,6 +130,7 @@ class Osu final : public App, public MouseListener {
 
     void reloadMapInterface();
     void reloadSkin() { this->onSkinReload(); }
+    void saveEverything();
     void saveScreenshot();
 
     // threading-related

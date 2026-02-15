@@ -1692,6 +1692,17 @@ void Osu::onMinimized() {
     if(this->UIReady()) ui->getVolumeOverlay()->loseFocus();
 }
 
+void Osu::saveEverything() {
+    if(this->UIReady()) {
+        this->ui_memb->getOptionsOverlay()->save();
+    }
+    if(db) {
+        db->save();
+    }
+
+    File::flushToDisk();
+}
+
 bool Osu::onShutdown() {
     debugLog("Osu::onShutdown()");
 
@@ -1701,14 +1712,7 @@ bool Osu::onShutdown() {
         return false;
     }
 
-    // save everything
-    if(this->UIReady()) {
-        ui->getOptionsOverlay()->save();
-    }
-    if(db) {
-        db->save();
-    }
-
+    this->saveEverything();
     BanchoState::disconnect(true);
 
     return true;
