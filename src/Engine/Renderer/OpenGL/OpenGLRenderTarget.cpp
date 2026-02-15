@@ -23,6 +23,14 @@ void OpenGLRenderTarget::init() {
 
     debugLog("Building RenderTarget ({}x{}) ...", (int)this->getSize().x, (int)this->getSize().y);
 
+    static int maxSize = 0;
+    if(!maxSize) glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxSize);
+    if(maxSize < this->vSize.x || maxSize < this->vSize.y) {
+        this->vSize *= maxSize / std::max(this->vSize.x, this->vSize.y);
+        debugLog("WARNING: RenderTarget size exceeds max texture size, clamping to ({}x{})", this->vSize.x,
+                 this->vSize.y);
+    }
+
     this->iFrameBuffer = 0;
     this->iRenderTexture = 0;
     this->iDepthBuffer = 0;
