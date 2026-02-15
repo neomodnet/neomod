@@ -6,7 +6,7 @@
 
 #include <cstring>
 
-#if defined(_MSC_VER) || defined(MCENGINE_PLATFORM_WASM)
+#if !defined(__GLIBCXX__) || defined(__EMSCRIPTEN__)
 #include "fmt/format.h"
 #else
 #include <cinttypes>
@@ -177,7 +177,7 @@ template <Integral T>
 std::string thousands(T n) {
     // I don't know how to check for support for the ' format specifier,
     // but we know it's broken on these platforms at least.
-#if defined(_MSC_VER) || defined(MCENGINE_PLATFORM_WASM)
+#if !defined(__GLIBCXX__) || defined(__EMSCRIPTEN__)
     return fmt::format("{:L}", n);
 #else
     std::string ret;
