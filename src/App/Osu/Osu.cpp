@@ -1526,6 +1526,14 @@ void Osu::reloadFonts() {
         if(font->getDPI() != newDPI) {
             font->setDPI(newDPI);
             resourceManager->reloadResource(font);
+            if(font == this->fontIcons) {
+                float averageIconHeight = 0.0f;
+                for(char16_t icon : Icons::icons) {
+                    const float height = font->getGlyphHeight(icon);
+                    if(height > averageIconHeight) averageIconHeight = height;
+                }
+                font->setHeight(averageIconHeight);
+            }
         }
     }
 }

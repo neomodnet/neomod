@@ -11,6 +11,7 @@ UIButtonWithIcon::UIButtonWithIcon(const UString& text, char16_t icon) : CBaseUI
     this->icon->setDrawBackground(false);
     this->icon->setDrawFrame(false);
     this->icon->setDrawTextShadow(true);
+    this->icon->setFont(osu->getFontIcons());
     this->addBaseUIElement(this->icon);
 
     this->text = new CBaseUILabel(0, 0, 0, 0, "", text);
