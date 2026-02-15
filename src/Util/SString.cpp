@@ -1,10 +1,12 @@
 // Copyright (c) 2023-2024, kiwec & 2025, WH, All rights reserved.
 
+#include "config.h"
+
 #include "SString.h"
 
 #include <cstring>
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) || defined(MCENGINE_PLATFORM_WASM)
 #include "fmt/format.h"
 #else
 #include <cinttypes>
@@ -173,7 +175,9 @@ template std::string join<std::string_view>(const std::vector<std::string>&, std
 
 template <Integral T>
 std::string thousands(T n) {
-#ifdef _MSC_VER
+    // I don't know how to check for support for the ' format specifier,
+    // but we know it's broken on these platforms at least.
+#if defined(_MSC_VER) || defined(MCENGINE_PLATFORM_WASM)
     return fmt::format("{:L}", n);
 #else
     std::string ret;
