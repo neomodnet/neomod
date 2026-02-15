@@ -1216,7 +1216,7 @@ std::string BanchoState::get_disk_uuid_wasm() {
         std::array<char, 64> buf{};
         fgets(buf.data(), buf.size(), f);
         fclose(f);
-        if(buf[0]) return std::string{std::string_view{buf}};
+        if(buf[0]) return std::string{std::string_view{buf.data()}};
     }
 
     const char *uuid = emscripten_run_script_string("crypto.randomUUID()");
