@@ -32,8 +32,15 @@ Changelog::Changelog() : ScreenBackable() {
 
     std::vector<CHANGELOG> changelogs;
 
+    CHANGELOG v43_02;
+    v43_02.title = "43.02 (" CHANGELOG_TIMESTAMP ")";
+    v43_02.changes = {
+        R"()",
+    };
+    changelogs.push_back(v43_02);
+
     CHANGELOG v43_01;
-    v43_01.title = "43.01 (" CHANGELOG_TIMESTAMP ")";
+    v43_01.title = "43.01 (2026-02-15)";
     v43_01.changes = {
         R"(- Fixed not being able to select a map in multiplayer)",
         R"(- (Windows/Web) Fixed score/combo number text not working at all)",

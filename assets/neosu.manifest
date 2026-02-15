@@ -3,7 +3,7 @@
   <assemblyIdentity
     type="win32"
     name="neosu"
-    version="43.01.0.0"
+    version="43.02.0.0"
     processorArchitecture="*"/>
 
   <description>neosu</description>
