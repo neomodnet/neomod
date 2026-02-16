@@ -115,7 +115,7 @@ class DownloadManager {
         request->downloading.store(true, std::memory_order_release);
         this->per_host_retry_after[request->host] = now + std::chrono::milliseconds(100);
 
-        debugLog("Downloading {:s}", request->url);
+        logIfCV(debug_network, "Downloading {:s}", request->url);
 
         Mc::Net::RequestOptions options{
             .user_agent = BanchoState::user_agent,
