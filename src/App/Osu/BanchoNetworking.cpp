@@ -44,10 +44,10 @@ bool use_websockets = false;
 std::shared_ptr<Mc::Net::WSInstance> websocket{nullptr};
 double login_poll_timeout{-1.};
 
-void parse_packets(u8 *data, size_t s_data) {
+void parse_packets(std::span<u8> packet_data) {
     Packet batch = {
-        .memory = data,
-        .size = s_data,
+        .memory = packet_data.data(),
+        .size = packet_data.size(),
         .pos = 0,
     };
 
@@ -133,7 +133,7 @@ void attempt_logging_in() {
             }
         }
 
-        parse_packets((u8 *)response.body.data(), response.body.length());
+        parse_packets({(u8 *)response.body.data(), response.body.length()});
     });
 }
 
@@ -160,7 +160,7 @@ void send_bancho_packet_http(Packet outgoing) {
             return;
         }
 
-        parse_packets((u8 *)response.body.data(), response.body.length());
+        parse_packets({(u8 *)response.body.data(), response.body.length()});
     });
 }
 
@@ -276,7 +276,7 @@ void update_networking() {
     }
 
     if(websocket && !websocket->in.empty()) {
-        parse_packets((u8 *)websocket->in.data(), websocket->in.size());
+        parse_packets(websocket->in);
         websocket->in.clear();
     }
 }

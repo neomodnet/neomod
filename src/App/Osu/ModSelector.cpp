@@ -133,11 +133,6 @@ class ModSelectorOverrideSliderLockButton final : public CBaseUICheckbox {
 };
 
 ModSelector::ModSelector() : UIScreen() {
-    this->fAnimation = 0.0f;
-    this->fExperimentalAnimation = 0.0f;
-    this->bScheduledHide = false;
-    this->bExperimentalVisible = false;
-
     const vec2 osuScreen = osu->getVirtScreenSize();
 
     this->setSize(osuScreen.x, osuScreen.y);
@@ -148,26 +143,14 @@ ModSelector::ModSelector() : UIScreen() {
                                           ->setDrawFrame(false)
                                           ->setDrawBackground(false));
 
-    this->bWaitForCSChangeFinished = false;
-    this->bWaitForSpeedChangeFinished = false;
-    this->bWaitForHPChangeFinished = false;
-
-    this->speedSlider = nullptr;
-    this->bShowOverrideSliderALTHint = true;
-
     // build mod grid buttons
-    this->iGridWidth = 6;
-    this->iGridHeight = 3;
+    for(auto &button : this->modButtons) {
+        auto *imageButton = new UIModSelectorModButton(this, 50, 50, 100, 100, "");
+        imageButton->setDrawBackground(false);
+        imageButton->setVisible(false);
 
-    for(int x = 0; x < this->iGridWidth; x++) {
-        for(int y = 0; y < this->iGridHeight; y++) {
-            auto *imageButton = new UIModSelectorModButton(this, 50, 50, 100, 100, "");
-            imageButton->setDrawBackground(false);
-            imageButton->setVisible(false);
-
-            this->addBaseUIElement(imageButton);
-            this->modButtons.push_back(imageButton);
-        }
+        this->addBaseUIElement(imageButton);
+        button = imageButton;
     }
 
     // build override sliders
@@ -259,27 +242,28 @@ ModSelector::ModSelector() : UIScreen() {
         &cv::mod_strict_tracking);
 
     this->nonSubmittableWarning = new CBaseUILabel();
-    this->nonSubmittableWarning->setDrawFrame(false);
-    this->nonSubmittableWarning->setDrawBackground(false);
-    this->nonSubmittableWarning->setText(
-        "WARNING: Score submission will be disabled due to non-vanilla mod selection.");
-    this->nonSubmittableWarning->setTextColor(0xffff0000);
-    this->nonSubmittableWarning->setTextJustification(TEXT_JUSTIFICATION::CENTERED);
-    this->nonSubmittableWarning->setVisible(false);
+    this->nonSubmittableWarning
+        ->setDrawFrame(false)                                                                      //
+        ->setDrawBackground(false)                                                                 //
+        ->setText("WARNING: Score submission will be disabled due to non-vanilla mod selection.")  //
+        ->setTextColor(0xffff0000)                                                                 //
+        ->setTextJustification(TEXT_JUSTIFICATION::CENTERED)                                       //
+        ->setVisible(false);                                                                       //
     this->addBaseUIElement(this->nonSubmittableWarning);
 
     // build score multiplier label
     this->scoreMultiplierLabel = new CBaseUILabel();
-    this->scoreMultiplierLabel->setDrawFrame(false);
-    this->scoreMultiplierLabel->setDrawBackground(false);
-    this->scoreMultiplierLabel->setTextJustification(TEXT_JUSTIFICATION::CENTERED);
+    this->scoreMultiplierLabel                                 //
+        ->setDrawFrame(false)                                  //
+        ->setDrawBackground(false)                             //
+        ->setTextJustification(TEXT_JUSTIFICATION::CENTERED);  //
     this->addBaseUIElement(this->scoreMultiplierLabel);
 
     // build action buttons
-    this->resetModsButton = this->addActionButton("1. Reset All Mods");
-    this->resetModsButton->setClickCallback(SA::MakeDelegate<&ModSelector::resetModsUserInitiated>(this));
+    this->resetModsButton = this->addActionButton(US_("1. Reset All Mods"));
     this->resetModsButton->setColor(0xffc62b00);
-    this->closeButton = this->addActionButton("2. Close");
+    this->resetModsButton->setClickCallback(SA::MakeDelegate<&ModSelector::resetModsUserInitiated>(this));
+    this->closeButton = this->addActionButton(US_("2. Close"));
     this->closeButton->setClickCallback(SA::MakeDelegate<&ModSelector::close>(this));
     this->closeButton->setColor(0xff636363);
 
@@ -288,98 +272,94 @@ ModSelector::ModSelector() : UIScreen() {
 }
 
 void ModSelector::updateButtons(bool initial) {
-    this->modButtonEasy = this->setModButtonOnGrid(
-        0, 0, 0, initial && osu->getModEZ(), &cv::mod_easy, "ez",
+    this->modButtonEZ = this->setModButtonOnGrid(
+        EZ_POS, 0, initial && osu->getModEZ(), &cv::mod_easy, "ez",
         "Reduces overall difficulty - larger circles, more forgiving HP drain, less accuracy required.",
         &Skin::i_modselect_ez);
-    this->modButtonNofail = this->setModButtonOnGrid(
-        1, 0, 0, initial && osu->getModNF(), &cv::mod_nofail, "nf",
+    this->modButtonNF = this->setModButtonOnGrid(
+        NF_POS, 0, initial && osu->getModNF(), &cv::mod_nofail, "nf",
         "You can't fail. No matter what.\nNOTE: To disable drain completely:\nOptions > Gameplay > "
         "Mechanics > \"Disable HP Drain\".",
         &Skin::i_modselect_nf);
-    this->setModButtonOnGrid(4, 0, 0, initial && osu->getModNightmare(), &cv::mod_nightmare, "nightmare",
-                             "Unnecessary clicks count as misses.\nMassively reduced slider follow circle radius.",
-                             &Skin::i_modselect_nightmare);
+    this->modButtonNM =
+        this->setModButtonOnGrid(NM_POS, 0, initial && osu->getModNightmare(), &cv::mod_nightmare, "nightmare",
+                                 "Unnecessary clicks count as misses.\nMassively reduced slider follow circle radius.",
+                                 &Skin::i_modselect_nightmare);
 
-    this->modButtonHardrock = this->setModButtonOnGrid(0, 1, 0, initial && osu->getModHR(), &cv::mod_hardrock, "hr",
-                                                       "Everything just got a bit harder...", &Skin::i_modselect_hr);
-    this->modButtonSuddendeath = this->setModButtonOnGrid(1, 1, 0, initial && osu->getModSD(), &cv::mod_suddendeath,
-                                                          "sd", "Miss a note and fail.", &Skin::i_modselect_sd);
-    this->setModButtonOnGrid(1, 1, 1, initial && osu->getModSS(), &cv::mod_perfect, "ss", "SS or quit.",
+    this->modButtonHR = this->setModButtonOnGrid(HR_POS, 0, initial && osu->getModHR(), &cv::mod_hardrock, "hr",
+                                                 "Everything just got a bit harder...", &Skin::i_modselect_hr);
+    this->modButtonSDPF = this->setModButtonOnGrid(SDPF_POS, 0, initial && osu->getModSD(), &cv::mod_suddendeath, "sd",
+                                                   "Miss a note and fail.", &Skin::i_modselect_sd);
+    this->setModButtonOnGrid(SDPF_POS, 1, initial && osu->getModSS(), &cv::mod_perfect, "ss", "SS or quit.",
                              &Skin::i_modselect_pf);
 
-    if(cv::nightcore_enjoyer.getBool()) {
-        this->modButtonHalftime =
-            this->setModButtonOnGrid(2, 0, 0, initial && cv::mod_halftime_dummy.getBool(), &cv::mod_halftime_dummy,
-                                     "dc", "A E S T H E T I C", &Skin::i_modselect_dc);
-        this->modButtonDoubletime =
-            this->setModButtonOnGrid(2, 1, 0, initial && cv::mod_doubletime_dummy.getBool(), &cv::mod_doubletime_dummy,
-                                     "nc", "uguuuuuuuu", &Skin::i_modselect_nc);
-    } else {
-        this->modButtonHalftime =
-            this->setModButtonOnGrid(2, 0, 0, initial && cv::mod_halftime_dummy.getBool(), &cv::mod_halftime_dummy,
-                                     "ht", "Less zoom.", &Skin::i_modselect_ht);
-        this->modButtonDoubletime =
-            this->setModButtonOnGrid(2, 1, 0, initial && cv::mod_doubletime_dummy.getBool(), &cv::mod_doubletime_dummy,
-                                     "dt", "Zoooooooooom.", &Skin::i_modselect_dt);
+    {
+        const bool nce = cv::nightcore_enjoyer.getBool();
+        // clang-format off
+        const UString HTTooltip            = nce ? US_("A E S T H E T I C") : US_("Less zoom.");
+        const UString HTName               = nce ? US_("dc")                : US_("ht");
+        const SkinImageSkinMember HTMember = nce ? &Skin::i_modselect_dc    : &Skin::i_modselect_ht;
+
+        const UString DTTooltip            = nce ? US_("uguuuuuuuu")     : US_("Zoooooooooom.");
+        const UString DTName               = nce ? US_("nc")             : US_("dt");
+        const SkinImageSkinMember DTMember = nce ? &Skin::i_modselect_nc : &Skin::i_modselect_dt;
+        // clang-format on
+        this->modButtonHT = this->setModButtonOnGrid(HT_POS, 0, initial && cv::mod_halftime_dummy.getBool(),
+                                                     &cv::mod_halftime_dummy, HTName, HTTooltip, HTMember);
+        this->modButtonDT = this->setModButtonOnGrid(DT_POS, 0, initial && cv::mod_doubletime_dummy.getBool(),
+                                                     &cv::mod_doubletime_dummy, DTName, DTTooltip, DTMember);
     }
 
-    this->modButtonHidden = this->setModButtonOnGrid(
-        3, 1, 0, initial && osu->getModHD(), &cv::mod_hidden, "hd",
+    this->modButtonHD = this->setModButtonOnGrid(
+        HD_POS, 0, initial && osu->getModHD(), &cv::mod_hidden, "hd",
         "Play with no approach circles and fading notes for a slight score advantage.", &Skin::i_modselect_hd);
 
-    this->modButtonFlashlight =
-        this->setModButtonOnGrid(4, 1, 0, initial && osu->getModFlashlight(), &cv::mod_flashlight, "fl",
-                                 "Restricted view area.", &Skin::i_modselect_fl);
-    this->setModButtonOnGrid(4, 1, 1, initial && cv::mod_actual_flashlight.getBool(), &cv::mod_actual_flashlight, "afl",
-                             "Actual flashlight.", &Skin::i_modselect_fl);
+    this->modButtonFL = this->setModButtonOnGrid(FL_POS, 0, initial && osu->getModFlashlight(), &cv::mod_flashlight,
+                                                 "fl", "Restricted view area.", &Skin::i_modselect_fl);
+    this->setModButtonOnGrid(FL_POS, 1, initial && cv::mod_actual_flashlight.getBool(), &cv::mod_actual_flashlight,
+                             "afl", "Actual flashlight.", &Skin::i_modselect_fl);
 
-    this->modButtonTD = this->setModButtonOnGrid(5, 1, 0, initial && osu->getModTD(), &cv::mod_touchdevice, "nerftd",
+    this->modButtonTD = this->setModButtonOnGrid(TD_POS, 0, initial && osu->getModTD(), &cv::mod_touchdevice, "nerftd",
                                                  "Simulate pp nerf for touch devices.\nOnly affects pp calculation.",
                                                  &Skin::i_modselect_td);
-    this->getModButtonOnGrid(5, 1)->setAvailable(!cv::mod_touchdevice_always.getBool());
 
-    this->modButtonRelax = this->setModButtonOnGrid(
-        0, 2, 0, initial && osu->getModRelax(), &cv::mod_relax, "relax",
+    this->modButtonRX = this->setModButtonOnGrid(
+        RX_POS, 0, initial && osu->getModRelax(), &cv::mod_relax, "relax",
         "You don't need to click.\nGive your clicking/tapping fingers a break from the heat of things.\n** UNRANKED **",
         &Skin::i_modselect_rx);
-    this->modButtonAutopilot = this->setModButtonOnGrid(
-        1, 2, 0, initial && osu->getModAutopilot(), &cv::mod_autopilot, "autopilot",
+    this->modButtonAP = this->setModButtonOnGrid(
+        AP_POS, 0, initial && osu->getModAutopilot(), &cv::mod_autopilot, "autopilot",
         "Automatic cursor movement - just follow the rhythm.\n** UNRANKED **", &Skin::i_modselect_ap);
-    this->modButtonSpunout =
-        this->setModButtonOnGrid(2, 2, 0, initial && osu->getModSpunout(), &cv::mod_spunout, "spunout",
+    this->modButtonSO =
+        this->setModButtonOnGrid(SO_POS, 0, initial && osu->getModSpunout(), &cv::mod_spunout, "spunout",
                                  "Spinners will be automatically completed.", &Skin::i_modselect_so);
-    this->modButtonAuto =
-        this->setModButtonOnGrid(3, 2, 0, initial && osu->getModAuto(), &cv::mod_autoplay, "auto",
+    this->modButtonAUTO =
+        this->setModButtonOnGrid(AUTO_POS, 0, initial && osu->getModAuto(), &cv::mod_autoplay, "auto",
                                  "Watch a perfect automated play through the song.", &Skin::i_modselect_auto);
-    this->setModButtonOnGrid(
-        4, 2, 0, initial && osu->getModTarget(), &cv::mod_target, "practicetarget",
+    this->modButtonTGT = this->setModButtonOnGrid(
+        TGT_POS, 0, initial && osu->getModTarget(), &cv::mod_target, "practicetarget",
         "Accuracy is based on the distance to the center of all hitobjects.\n300s still require at "
         "least being in the hit window of a 100 in addition to the rule above.",
         &Skin::i_modselect_target);
-    this->modButtonScoreV2 =
-        this->setModButtonOnGrid(5, 2, 0, initial && osu->getModScorev2(), &cv::mod_scorev2, "v2",
+    this->modButtonSV2 =
+        this->setModButtonOnGrid(SV2_POS, 0, initial && osu->getModScorev2(), &cv::mod_scorev2, "v2",
                                  "Try the future scoring system.\n** UNRANKED **", &Skin::i_modselect_sv2);
 
-    // Enable all mods that we disable conditionally below
-    this->getModButtonOnGrid(2, 0)->setAvailable(true);
-    this->getModButtonOnGrid(2, 1)->setAvailable(true);
-    this->getModButtonOnGrid(3, 2)->setAvailable(true);
-    this->getModButtonOnGrid(4, 2)->setAvailable(true);
-    this->getModButtonOnGrid(4, 0)->setAvailable(true);
-    this->getModButtonOnGrid(5, 2)->setAvailable(true);
+    // Only enable this if mod_touchdevice_always is enabled
+    this->modButtonTD->setAvailable(!cv::mod_touchdevice_always.getBool());
 
-    if(BanchoState::is_in_a_multi_room()) {
-        if(!BanchoState::room.is_host()) {
-            this->getModButtonOnGrid(2, 0)->setAvailable(false);  // Disable DC/HT
-            this->getModButtonOnGrid(2, 1)->setAvailable(false);  // Disable DT/NC
-            this->getModButtonOnGrid(4, 2)->setAvailable(false);  // Disable Target
-        }
+    const bool isMulti = BanchoState::is_in_a_multi_room();
+    const bool isHostEquivalent = !isMulti || BanchoState::room.is_host();
 
-        this->getModButtonOnGrid(5, 2)->setAvailable(false);  // Disable ScoreV2 (we use win condition instead)
-        this->getModButtonOnGrid(4, 0)->setAvailable(false);  // Disable nightmare mod
-        this->getModButtonOnGrid(3, 2)->setAvailable(false);  // Disable auto mod
-    }
+    // Only enable these in singleplayer or if we're the host of a multi lobby
+    this->modButtonHT->setAvailable(isHostEquivalent);
+    this->modButtonDT->setAvailable(isHostEquivalent);
+    this->modButtonTGT->setAvailable(isHostEquivalent);
+
+    // Only enable these in singleplayer
+    this->modButtonSV2->setAvailable(!isMulti);  // we use win condition instead in multi
+    this->modButtonNM->setAvailable(!isMulti);
+    this->modButtonAUTO->setAvailable(!isMulti);
 }
 
 void ModSelector::updateScoreMultiplierLabelText() {
@@ -424,7 +404,7 @@ void ModSelector::draw() {
         // get mod button element bounds
         vec2 modGridButtonsStart = vec2(osu->getVirtScreenWidth(), osu->getVirtScreenHeight());
         vec2 modGridButtonsSize = vec2(0, osu->getVirtScreenHeight());
-        for(auto button : this->modButtons) {
+        for(auto *button : this->modButtons) {
             if(button->getPos().x < modGridButtonsStart.x) modGridButtonsStart.x = button->getPos().x;
             if(button->getPos().y < modGridButtonsStart.y) modGridButtonsStart.y = button->getPos().y;
 
@@ -466,7 +446,7 @@ void ModSelector::draw() {
         // get mod button element bounds
         vec2 modGridButtonsStart = vec2(osu->getVirtScreenWidth(), osu->getVirtScreenHeight());
         vec2 modGridButtonsSize = vec2(0, osu->getVirtScreenHeight());
-        for(auto button : this->modButtons) {
+        for(auto *button : this->modButtons) {
             if(button->getPos().x < modGridButtonsStart.x) modGridButtonsStart.x = button->getPos().x;
             if(button->getPos().y < modGridButtonsStart.y) modGridButtonsStart.y = button->getPos().y;
 
@@ -694,19 +674,19 @@ void ModSelector::onKeyDown(KeyboardEvent &key) {
     } else {
         // mod hotkeys
         // clang-format off
-        if(scanCode == cv::MOD_EASY.getVal<SCANCODE>()) this->modButtonEasy->click();
-        else if(scanCode == cv::MOD_NOFAIL.getVal<SCANCODE>()) this->modButtonNofail->click();
-        else if(scanCode == cv::MOD_HARDROCK.getVal<SCANCODE>()) this->modButtonHardrock->click();
-        else if(scanCode == cv::MOD_SUDDENDEATH.getVal<SCANCODE>()) this->modButtonSuddendeath->click();
-        else if(scanCode == cv::MOD_HIDDEN.getVal<SCANCODE>()) this->modButtonHidden->click();
-        else if(scanCode == cv::MOD_FLASHLIGHT.getVal<SCANCODE>()) this->modButtonFlashlight->click();
-        else if(scanCode == cv::MOD_RELAX.getVal<SCANCODE>()) this->modButtonRelax->click();
-        else if(scanCode == cv::MOD_AUTOPILOT.getVal<SCANCODE>()) this->modButtonAutopilot->click();
-        else if(scanCode == cv::MOD_SPUNOUT.getVal<SCANCODE>()) this->modButtonSpunout->click();
-        else if(scanCode == cv::MOD_AUTO.getVal<SCANCODE>()) this->modButtonAuto->click();
-        else if(scanCode == cv::MOD_SCOREV2.getVal<SCANCODE>()) this->modButtonScoreV2->click();
-        else if(scanCode == cv::MOD_HALFTIME.getVal<SCANCODE>()) this->modButtonHalftime->click();
-        else if(scanCode == cv::MOD_DOUBLETIME.getVal<SCANCODE>()) this->modButtonDoubletime->click();
+        if(scanCode == cv::MOD_EASY.getVal<SCANCODE>()) this->modButtonEZ->click();
+        else if(scanCode == cv::MOD_NOFAIL.getVal<SCANCODE>()) this->modButtonNF->click();
+        else if(scanCode == cv::MOD_HARDROCK.getVal<SCANCODE>()) this->modButtonHR->click();
+        else if(scanCode == cv::MOD_SUDDENDEATH.getVal<SCANCODE>()) this->modButtonSDPF->click();
+        else if(scanCode == cv::MOD_HIDDEN.getVal<SCANCODE>()) this->modButtonHD->click();
+        else if(scanCode == cv::MOD_FLASHLIGHT.getVal<SCANCODE>()) this->modButtonFL->click();
+        else if(scanCode == cv::MOD_RELAX.getVal<SCANCODE>()) this->modButtonRX->click();
+        else if(scanCode == cv::MOD_AUTOPILOT.getVal<SCANCODE>()) this->modButtonAP->click();
+        else if(scanCode == cv::MOD_SPUNOUT.getVal<SCANCODE>()) this->modButtonSO->click();
+        else if(scanCode == cv::MOD_AUTO.getVal<SCANCODE>()) this->modButtonAUTO->click();
+        else if(scanCode == cv::MOD_SCOREV2.getVal<SCANCODE>()) this->modButtonSV2->click();
+        else if(scanCode == cv::MOD_HALFTIME.getVal<SCANCODE>()) this->modButtonHT->click();
+        else if(scanCode == cv::MOD_DOUBLETIME.getVal<SCANCODE>()) this->modButtonDT->click();
         // clang-format on
     }
     key.consume();
@@ -793,7 +773,7 @@ bool ModSelector::isMouseInside() {
 }
 
 void ModSelector::updateLayout() {
-    if(this->modButtons.size() < 1 || this->overrideSliders.size() < 1) return;
+    if(this->modButtons[0] == nullptr || this->overrideSliders.size() < 1) return;
 
     const float dpiScale = Osu::getUIScale();
     const float uiScale = Osu::getRawUIScale();
@@ -804,12 +784,12 @@ void ModSelector::updateLayout() {
         vec2 center = osu->getVirtScreenSize() / 2.0f;
         vec2 size = osu->getSkin()->i_modselect_ez->getSizeBase() * uiScale;
         vec2 offset = vec2(size.x * 1.0f, size.y * 0.33f);
-        vec2 start = vec2(center.x - (size.x * this->iGridWidth) / 2.0f - (offset.x * (this->iGridWidth - 1)) / 2.0f,
-                          center.y - (size.y * this->iGridHeight) / 2.0f - (offset.y * (this->iGridHeight - 1)) / 2.0f);
+        vec2 start = vec2(center.x - (size.x * GRID_WIDTH) / 2.0f - (offset.x * (GRID_WIDTH - 1)) / 2.0f,
+                          center.y - (size.y * GRID_HEIGHT) / 2.0f - (offset.y * (GRID_HEIGHT - 1)) / 2.0f);
 
-        for(int x = 0; x < this->iGridWidth; x++) {
-            for(int y = 0; y < this->iGridHeight; y++) {
-                UIModSelectorModButton *button = this->getModButtonOnGrid(x, y);
+        for(int x = 0; x < GRID_WIDTH; x++) {
+            for(int y = 0; y < GRID_HEIGHT; y++) {
+                UIModSelectorModButton *button = this->getGridButton({x, y});
 
                 if(button != nullptr) {
                     button->setPos(start + vec2(size.x * x + offset.x * x, size.y * y + offset.y * y));
@@ -857,8 +837,8 @@ void ModSelector::updateLayout() {
         }
 
         // action buttons
-        float actionMinY = start.y + size.y * this->iGridHeight +
-                           offset.y * (this->iGridHeight - 1);  // exact bottom of the mod buttons
+        float actionMinY =
+            start.y + size.y * GRID_HEIGHT + offset.y * (GRID_HEIGHT - 1);  // exact bottom of the mod buttons
         vec2 actionSize = vec2(Osu::getUIScale(448.0f) * uiScale, size.y * 0.75f);
         float actionOffsetY = actionSize.y * 0.5f;
         vec2 actionStart = vec2(
@@ -875,8 +855,8 @@ void ModSelector::updateLayout() {
         }
 
         // score multiplier info label
-        const float modGridMaxY = start.y + size.y * this->iGridHeight +
-                                  offset.y * (this->iGridHeight - 1);  // exact bottom of the mod buttons
+        const float modGridMaxY =
+            start.y + size.y * GRID_HEIGHT + offset.y * (GRID_HEIGHT - 1);  // exact bottom of the mod buttons
         this->nonSubmittableWarning->setSizeToContent()
             ->setSize(vec2(osu->getVirtScreenWidth(), 20 * uiScale))
             ->setPos(
@@ -892,14 +872,14 @@ void ModSelector::updateLayout() {
         vec2 center = osu->getVirtScreenSize() / 2.0f;
         vec2 blockSize = osu->getSkin()->i_modselect_ez->getSizeBase() * uiScale;
         vec2 offset = vec2(blockSize.x * 0.15f, blockSize.y * 0.05f);
-        vec2 size = vec2((blockSize.x * this->iGridWidth) + (offset.x * (this->iGridWidth - 1)),
-                         (blockSize.y * this->iGridHeight) + (offset.y * (this->iGridHeight - 1)));
+        vec2 size = vec2((blockSize.x * GRID_WIDTH) + (offset.x * (GRID_WIDTH - 1)),
+                         (blockSize.y * GRID_HEIGHT) + (offset.y * (GRID_HEIGHT - 1)));
         center.y = osu->getVirtScreenHeight() - size.y / 2 - offset.y * 3.0f;
         vec2 start = vec2(center.x - size.x / 2.0f, center.y - size.y / 2.0f);
 
-        for(int x = 0; x < this->iGridWidth; x++) {
-            for(int y = 0; y < this->iGridHeight; y++) {
-                UIModSelectorModButton *button = this->getModButtonOnGrid(x, y);
+        for(int x = 0; x < GRID_WIDTH; x++) {
+            for(int y = 0; y < GRID_HEIGHT; y++) {
+                UIModSelectorModButton *button = this->getGridButton({x, y});
 
                 if(button != nullptr) {
                     button->setPos(start + vec2(blockSize.x * x + offset.x * x, blockSize.y * y + offset.y * y));
@@ -1012,10 +992,10 @@ void ModSelector::updateExperimentalLayout() {
     expCont->setVisible(!BanchoState::is_in_a_multi_room());
 }
 
-UIModSelectorModButton *ModSelector::setModButtonOnGrid(int x, int y, int state, bool initialState, ConVar *modCvar,
+UIModSelectorModButton *ModSelector::setModButtonOnGrid(ivec2 pos, int state, bool initialState, ConVar *modCvar,
                                                         UString modName, const UString &tooltipText,
                                                         SkinImageSkinMember getSkinImageMember) {
-    UIModSelectorModButton *modButton = this->getModButtonOnGrid(x, y);
+    UIModSelectorModButton *modButton = this->getGridButton(pos);
 
     if(modButton != nullptr) {
         modButton->setState(state, initialState, modCvar, std::move(modName), tooltipText, getSkinImageMember);
@@ -1023,15 +1003,6 @@ UIModSelectorModButton *ModSelector::setModButtonOnGrid(int x, int y, int state,
     }
 
     return modButton;
-}
-
-UIModSelectorModButton *ModSelector::getModButtonOnGrid(int x, int y) {
-    const int index = x * this->iGridHeight + y;
-
-    if(index < this->modButtons.size())
-        return this->modButtons[index];
-    else
-        return nullptr;
 }
 
 ModSelector::OVERRIDE_SLIDER ModSelector::addOverrideSlider(UString text, const UString &labelText, ConVar *cvar,
@@ -1168,7 +1139,7 @@ void ModSelector::resetMods() {
         overrideSlider.slider->setValue(overrideSlider.slider->getMin(), this->bVisible);
     }
 
-    for(const auto &modButton : this->modButtons) {
+    for(auto *modButton : this->modButtons) {
         modButton->resetState();
     }
 
@@ -1204,24 +1175,24 @@ void ModSelector::enableModsFromFlags(LegacyFlags flags) {
     cv::mod_suddendeath.setValue(false);
     cv::mod_perfect.setValue(false);
     if(flags::has<LegacyFlags::Perfect>(flags)) {
-        this->modButtonSuddendeath->setState(1);
-        this->modButtonSuddendeath->setOn(true, true);
+        this->modButtonSDPF->setState(1);
+        this->modButtonSDPF->setOn(true, true);
     } else if(flags::has<LegacyFlags::SuddenDeath>(flags)) {
-        this->modButtonSuddendeath->setState(0);
-        this->modButtonSuddendeath->setOn(true, true);
+        this->modButtonSDPF->setState(0);
+        this->modButtonSDPF->setOn(true, true);
     }
 
-    this->modButtonNofail->setOn(flags::has<LegacyFlags::NoFail>(flags), true);
-    this->modButtonEasy->setOn(flags::has<LegacyFlags::Easy>(flags), true);
+    this->modButtonNF->setOn(flags::has<LegacyFlags::NoFail>(flags), true);
+    this->modButtonEZ->setOn(flags::has<LegacyFlags::Easy>(flags), true);
     this->modButtonTD->setOn(flags::has<LegacyFlags::TouchDevice>(flags), true);
-    this->modButtonHidden->setOn(flags::has<LegacyFlags::Hidden>(flags), true);
-    this->modButtonHardrock->setOn(flags::has<LegacyFlags::HardRock>(flags), true);
-    this->modButtonRelax->setOn(flags::has<LegacyFlags::Relax>(flags), true);
-    this->modButtonSpunout->setOn(flags::has<LegacyFlags::SpunOut>(flags), true);
-    this->modButtonAutopilot->setOn(flags::has<LegacyFlags::Autopilot>(flags), true);
-    this->getModButtonOnGrid(4, 2)->setOn(flags::has<LegacyFlags::Target>(flags), true);
-    this->modButtonFlashlight->setOn(flags::has<LegacyFlags::Flashlight>(flags), true);
-    this->modButtonScoreV2->setOn(flags::has<LegacyFlags::ScoreV2>(flags), true);
+    this->modButtonHD->setOn(flags::has<LegacyFlags::Hidden>(flags), true);
+    this->modButtonHR->setOn(flags::has<LegacyFlags::HardRock>(flags), true);
+    this->modButtonRX->setOn(flags::has<LegacyFlags::Relax>(flags), true);
+    this->modButtonSO->setOn(flags::has<LegacyFlags::SpunOut>(flags), true);
+    this->modButtonAP->setOn(flags::has<LegacyFlags::Autopilot>(flags), true);
+    this->modButtonTGT->setOn(flags::has<LegacyFlags::Target>(flags), true);
+    this->modButtonFL->setOn(flags::has<LegacyFlags::Flashlight>(flags), true);
+    this->modButtonSV2->setOn(flags::has<LegacyFlags::ScoreV2>(flags), true);
 
     osu->updateMods();
 }
@@ -1486,10 +1457,10 @@ UString ModSelector::getOverrideSliderLabelText(const ModSelector::OVERRIDE_SLID
 }
 
 void ModSelector::enableAuto() {
-    if(!this->modButtonAuto->isOn()) this->modButtonAuto->click();
+    if(!this->modButtonAUTO->isOn()) this->modButtonAUTO->click();
 }
 
-void ModSelector::toggleAuto() { this->modButtonAuto->click(); }
+void ModSelector::toggleAuto() { this->modButtonAUTO->click(); }
 
 void ModSelector::onCheckboxChange(CBaseUICheckbox *checkbox) {
     for(const auto &experimentalMod : this->experimentalMods) {

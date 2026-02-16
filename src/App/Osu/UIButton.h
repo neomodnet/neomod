@@ -10,10 +10,16 @@ class UIButton : public CBaseUIButton {
     void draw() override;
     void update(CBaseUIEventCtx &c) override;
 
-    void setColor(Color color) { this->color = color; }
-    void setUseDefaultSkin() { this->bDefaultSkin = true; }
+    UIButton *setColor(Color color) {
+        this->color = color;
+        return this;
+    }
+    UIButton *setUseDefaultSkin() {
+        this->bDefaultSkin = true;
+        return this;
+    }
 
-    void setTooltipText(const UString& text);
+    UIButton *setTooltipText(const UString &text);
 
     void onMouseInside() override;
     void onMouseOutside() override;
@@ -44,6 +50,6 @@ class UIButtonVertical : public CBaseUIButton {
     UIButtonVertical(float xPos, float yPos, float xSize, float ySize, UString name, UString text)
         : CBaseUIButton(xPos, yPos, xSize, ySize, std::move(name), std::move(text)) {}
 
-    CBaseUIButton* setSizeToContent(int horizontalBorderSize = 1, int verticalBorderSize = 1) override;
+    UIButtonVertical *setSizeToContent(int horizontalBorderSize = 1, int verticalBorderSize = 1) override;
     void drawText() override;
 };

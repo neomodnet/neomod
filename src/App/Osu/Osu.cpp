@@ -1768,18 +1768,19 @@ void Osu::onSpeedChange(float speed) {
     // Update mod menu UI
     {
         // DT/HT buttons
+        auto *modSelector = this->ui_memb->getModSelector();
         cv::mod_doubletime_dummy.setValue(speed == 1.5f, false);
-        ui->getModSelector()->modButtonDoubletime->setOn(speed == 1.5f, true);
+        modSelector->getGridButton(ModSelector::DT_POS)->setOn(speed == 1.5f, true);
         cv::mod_halftime_dummy.setValue(speed == 0.75f, false);
-        ui->getModSelector()->modButtonHalftime->setOn(speed == 0.75f, true);
-        ui->getModSelector()->updateButtons(true);
+        modSelector->getGridButton(ModSelector::HT_POS)->setOn(speed == 0.75f, true);
+        modSelector->updateButtons(true);
 
         // Speed slider ('+1' to compensate for turn-off area of the override sliders)
-        ui->getModSelector()->speedSlider->setValue(speed + 1.f, true, false);
-        ui->getModSelector()->updateOverrideSliderLabels();
+        modSelector->speedSlider->setValue(speed + 1.f, true, false);
+        modSelector->updateOverrideSliderLabels();
 
         // Score multiplier
-        ui->getModSelector()->updateScoreMultiplierLabelText();
+        modSelector->updateScoreMultiplierLabelText();
     }
 }
 

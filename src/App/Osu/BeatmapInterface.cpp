@@ -908,8 +908,9 @@ void BeatmapInterface::stop(bool quit) {
 
     // Auto mod was "temporary" since it was set from Ctrl+Clicking a map, not from the mod selector
     if(osu->bModAutoTemp) {
-        if(ui->getModSelector()->modButtonAuto->isOn()) {
-            ui->getModSelector()->modButtonAuto->click();
+        auto *btnAuto = ui->getModSelector()->getGridButton(ModSelector::AUTO_POS);
+        if(btnAuto && btnAuto->isOn()) {
+            btnAuto->click();
         }
         osu->bModAutoTemp = false;
     }

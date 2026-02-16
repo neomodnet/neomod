@@ -127,9 +127,12 @@ void UIButton::animateClickColor() {
     anim::moveLinear(&this->fClickAnim, 0.0f, 0.5f, true);
 }
 
-void UIButton::setTooltipText(const UString &text) { this->tooltipTextLines = text.split(US_("\n")); }
+UIButton *UIButton::setTooltipText(const UString &text) {
+    this->tooltipTextLines = text.split(US_("\n"));
+    return this;
+}
 
-CBaseUIButton *UIButtonVertical::setSizeToContent(int horizontalBorderSize, int verticalBorderSize) {
+UIButtonVertical *UIButtonVertical::setSizeToContent(int horizontalBorderSize, int verticalBorderSize) {
     this->setSize(this->fStringHeight + 2 * horizontalBorderSize, this->fStringWidth + 2 * verticalBorderSize);
     return this;
 }
