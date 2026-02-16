@@ -579,7 +579,9 @@ void Osu::update() {
 
     // only update if not playing (and online)
     // TODO: offline/local avatars?
-    if(BanchoState::is_online() && (!this->isInPlayModeAndNotPaused() || this->map_iface->isInBreak())) {
+    if(BanchoState::is_online() &&
+       // XXX: there are too many flags/states to individually check whether or not we're in a "low-latency session" or not
+       (!this->isInPlayModeAndNotPaused() || this->map_iface->isInBreak() || this->map_iface->isInSkippableSection())) {
         this->thumbnailManager->update();
     }
 

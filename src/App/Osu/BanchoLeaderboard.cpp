@@ -190,6 +190,6 @@ void process_leaderboard_response(const Packet &response) {
     }
 
     db->getOnlineScores()[beatmap_hash] = std::move(scores);
-    ui->getSongBrowser()->rebuildScoreButtons();
+    ui->getSongBrowser()->onGotNewLeaderboard(beatmap_hash);
 }
 }  // namespace BANCHO::Leaderboard

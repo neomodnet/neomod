@@ -2151,6 +2151,18 @@ void SongBrowser::updateScoreBrowserLayout() {
     this->scoreBrowser->setScrollSizeToContent();
 }
 
+void SongBrowser::onGotNewLeaderboard(const MD5Hash &lbHash) {
+    if(!this->isVisible()) return;
+    assert(BanchoState::is_online());
+
+    auto *map = osu->getMapInterface()->getBeatmap();
+    if(!map) return;
+    // skip rebuild requests if we have switched off of the map in the meantime
+    if(map->getMD5() != lbHash) return;
+
+    this->rebuildScoreButtons();
+}
+
 void SongBrowser::rebuildScoreButtons() {
     if(!this->isVisible()) return;
 

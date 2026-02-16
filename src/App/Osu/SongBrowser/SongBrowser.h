@@ -162,7 +162,7 @@ class SongBrowser final : public ScreenBackable {
     void scrollToSongButton(CarouselButton *songButton, bool alignOnTop = false, bool knownVisible = false);
     void rebuildSongButtons();
     void recreateCollectionsButtons();
-    void rebuildScoreButtons();
+    void onGotNewLeaderboard(const MD5Hash &lbHash);
     void updateSongButtonLayout();
 
     enum class SetVisibility : u8 {
@@ -265,6 +265,7 @@ class SongBrowser final : public ScreenBackable {
 
     // TODO: make more stuff private
    private:
+    void rebuildScoreButtons();
     CollBtnContainer *getCollectionButtonsForGroup(GroupType group);
 
     GroupType curGroup{GroupType::NO_GROUPING};

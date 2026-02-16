@@ -195,14 +195,14 @@ void submit_score(FinishedScore score) {
     }
 
     auto url = fmt::format("osu.{}/web/osu-submit-modular-selector.php", BanchoState::endpoint);
-    networkHandler->httpRequestAsync(url, std::move(options), [](Mc::Net::Response response) {
+    networkHandler->httpRequestAsync(url, std::move(options), [beatmap_hash_str](Mc::Net::Response response) {
         if(response.success) {
             // TODO: handle success (pp, etc + error codes)
             debugLog("Score submit result: {}", response.body);
 
             // Reset leaderboards so new score will appear
             db->getOnlineScores().clear();
-            ui->getSongBrowser()->rebuildScoreButtons();
+            ui->getSongBrowser()->onGotNewLeaderboard(beatmap_hash_str);
         } else {
             // TODO: handle failure
         }

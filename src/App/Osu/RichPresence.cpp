@@ -149,7 +149,7 @@ void updateBanchoMods() {
     // Servers like akatsuki send different leaderboards based on what mods
     // you have selected. Reset leaderboard when switching mods.
     db->getOnlineScores().clear();
-    ui->getSongBrowser()->rebuildScoreButtons();
+    ui->getSongBrowser()->onGotNewLeaderboard(map_md5);
 }
 
 void onMainMenu() {
