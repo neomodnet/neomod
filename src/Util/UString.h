@@ -87,14 +87,17 @@ class UString {
     UString(const char16_t *str) noexcept;
     UString(const char16_t *str, int length) noexcept;
     UString(std::u16string_view str) noexcept;
+    UString(std::string_view utf8) noexcept;
     UString(std::wstring_view str) noexcept;
+
     UString(const wchar_t *str) noexcept;
     UString(const wchar_t *str, int length) noexcept;
     UString(const char *utf8) noexcept;
     UString(const char *utf8, int length) noexcept;
-    UString(std::string_view utf8) noexcept;
-    UString(const std::string &utf8) noexcept;
-    UString(const std::wstring &wchar) noexcept;
+
+    UString(std::string utf8) noexcept;
+    UString(std::wstring wchar) noexcept;
+    UString(std::u16string utf16) noexcept;
 
     inline constexpr UString(std::string_view utf8, std::u16string_view unicode) noexcept
         : sUnicode(unicode), sUtf8(utf8) {}
@@ -362,8 +365,9 @@ class UString {
     [[nodiscard]] int findCharSimd(char16_t ch, int start, int end) const noexcept;
 
     // constructor helpers
-    void fromUtf32(const char32_t *utf32, size_t length) noexcept;
-    void fromSupposedUtf8(const char *utf8, size_t length) noexcept;
+    void constructFromUtf32(std::u32string utf32) noexcept;
+    void constructFromUtf32(const char32_t *utf32, size_t length) noexcept;
+    void constructFromSupposedUtf8() noexcept;
 
     // for updating utf8 representation when unicode representation changes
     void updateUtf8(size_t startUtf16 = 0) noexcept;

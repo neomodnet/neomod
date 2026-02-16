@@ -852,8 +852,8 @@ void Chat::addChannel(const UString &channel_name, bool switch_to) {
 
 void Chat::addMessage(UString channel_name, const ChatMessage &msg, bool mark_unread) {
     const auto *user = BANCHO::User::get_user_info(msg.author_id);
-    bool chatter_is_moderator = (user->privileges & Privileges::MODERATOR);
-    chatter_is_moderator |= (msg.author_id == 0);  // system message
+    const bool chatter_is_moderator = (msg.author_id == 0) ||  // system message
+                                      (user->privileges & Privileges::MODERATOR);
 
     auto ignore_list = SString::split(cv::chat_ignore_list.getString(), ' ');
     auto msg_words = msg.text.split(US_(" "));
@@ -863,7 +863,7 @@ void Chat::addMessage(UString channel_name, const ChatMessage &msg, bool mark_un
                 if(ignored.empty()) continue;
 
                 word.lowerCase();
-                if(word.toUtf8() == SString::to_lower(ignored)) {
+                if(word.utf8View() == SString::to_lower(ignored)) {
                     // Found a word we don't want - don't print the message
                     return;
                 }
@@ -883,7 +883,7 @@ void Chat::addMessage(UString channel_name, const ChatMessage &msg, bool mark_un
             if(highlight.empty()) continue;
 
             word.lowerCase();
-            if(word.toUtf8() == SString::to_lower(highlight)) {
+            if(word.utf8View() == SString::to_lower(highlight)) {
                 should_highlight = true;
                 break;
             }
@@ -893,7 +893,7 @@ void Chat::addMessage(UString channel_name, const ChatMessage &msg, bool mark_un
         // TODO: highlight message
         auto notif = fmt::format("{} mentioned you in {}", msg.author_name, channel_name);
         ui->getNotificationOverlay()->addToast(
-            notif, CHAT_TOAST, [channel_name] { ui->getChat()->openChannel(channel_name); }, ToastElement::TYPE::CHAT);
+            std::move(notif), CHAT_TOAST, [channel_name] { ui->getChat()->openChannel(channel_name); }, ToastElement::TYPE::CHAT);
     }
 
     bool is_pm =
@@ -905,7 +905,7 @@ void Chat::addMessage(UString channel_name, const ChatMessage &msg, bool mark_un
         if(cv::chat_notify_on_dm.getBool()) {
             auto notif = fmt::format("{} sent you a message", msg.author_name);
             ui->getNotificationOverlay()->addToast(
-                notif, CHAT_TOAST, [channel_name] { ui->getChat()->openChannel(channel_name); },
+                std::move(notif), CHAT_TOAST, [channel_name] { ui->getChat()->openChannel(channel_name); },
                 ToastElement::TYPE::CHAT);
         }
         if(cv::chat_ping_on_mention.getBool()) {
@@ -915,13 +915,12 @@ void Chat::addMessage(UString channel_name, const ChatMessage &msg, bool mark_un
         }
     }
 
-    bool mentioned = SString::contains_ncase(msg.text.toUtf8(), BanchoState::get_username());
-    mentioned &= msg.author_id != BanchoState::get_uid();
-
+    const bool mentioned = (msg.author_id != BanchoState::get_uid()) &&
+                           SString::contains_ncase(msg.text.utf8View(), BanchoState::get_username());
     if(mentioned && cv::chat_notify_on_mention.getBool()) {
         auto notif = fmt::format("You were mentioned in {:s}", channel_name);
         ui->getNotificationOverlay()->addToast(
-            notif, CHAT_TOAST, [channel_name] { ui->getChat()->openChannel(channel_name); }, ToastElement::TYPE::CHAT);
+            std::move(notif), CHAT_TOAST, [channel_name] { ui->getChat()->openChannel(channel_name); }, ToastElement::TYPE::CHAT);
     }
     if(mentioned && cv::chat_ping_on_mention.getBool()) {
         // Yes, osu! really does use "match-start.wav" for when you get pinged

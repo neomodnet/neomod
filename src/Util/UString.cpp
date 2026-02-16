@@ -16,8 +16,8 @@
 static constexpr char16_t ESCAPE_CHAR = u'\\';
 
 UString::UString(const char16_t *str) noexcept {
-    if(!str) return;
-    this->sUnicode = str;
+    if(!str || !*str) return;
+    this->sUnicode.assign(str);
     updateUtf8();
 }
 
@@ -29,8 +29,14 @@ UString::UString(const char16_t *str, int length) noexcept {
 
 UString::UString(std::u16string_view str) noexcept {
     if(str.empty()) return;
-    this->sUnicode = str;
+    this->sUnicode.assign(str);
     updateUtf8();
+}
+
+UString::UString(std::string_view utf8) noexcept {
+    if(utf8.empty()) return;
+    this->sUtf8.assign(utf8);
+    constructFromSupposedUtf8();
 }
 
 UString::UString(std::wstring_view str) noexcept {
@@ -38,17 +44,17 @@ UString::UString(std::wstring_view str) noexcept {
 #if WCHAR_MAX <= 0xFFFF
     this->sUnicode.assign(reinterpret_cast<std::u16string_view &>(str));
 #else
-    fromUtf32(reinterpret_cast<const char32_t *>(str.data()), str.length());
+    constructFromUtf32(reinterpret_cast<const char32_t *>(str.data()), str.length());
 #endif
     updateUtf8();
 }
 
 UString::UString(const wchar_t *str) noexcept {
-    if(!str) return;
+    if(!str || !*str) return;
 #if WCHAR_MAX <= 0xFFFF
     this->sUnicode.assign(reinterpret_cast<const char16_t *>(str), std::wcslen(str));
 #else
-    fromUtf32(reinterpret_cast<const char32_t *>(str), std::wcslen(str));
+    constructFromUtf32(reinterpret_cast<const char32_t *>(str), std::wcslen(str));
 #endif
     updateUtf8();
 }
@@ -58,43 +64,52 @@ UString::UString(const wchar_t *str, int length) noexcept {
 #if WCHAR_MAX <= 0xFFFF
     this->sUnicode.assign(reinterpret_cast<const char16_t *>(str), length);
 #else
-    fromUtf32(reinterpret_cast<const char32_t *>(str), length);
+    constructFromUtf32(reinterpret_cast<const char32_t *>(str), length);
 #endif
     updateUtf8();
 }
 
 UString::UString(const char *utf8) noexcept {
-    if(!utf8) return;
+    if(!utf8 || !*utf8) return;
     this->sUtf8.assign(utf8, std::strlen(utf8));
-    fromSupposedUtf8(this->sUtf8.data(), this->sUtf8.size());
+    constructFromSupposedUtf8();
 }
 
 UString::UString(const char *utf8, int length) noexcept {
     if(!utf8 || length <= 0) return;
     this->sUtf8.assign(utf8, length);
-    fromSupposedUtf8(this->sUtf8.data(), this->sUtf8.size());
+    constructFromSupposedUtf8();
 }
 
-UString::UString(const std::string &utf8) noexcept {
+UString::UString(std::string utf8) noexcept {
     if(utf8.empty()) return;
-    this->sUtf8 = utf8;
-    fromSupposedUtf8(this->sUtf8.data(), this->sUtf8.size());
+#if defined(__cpp_lib_containers_ranges) && __cpp_lib_containers_ranges >= 202202L
+    this->sUtf8.assign_range(std::move(utf8));
+#else
+    this->sUtf8.assign(std::make_move_iterator(utf8.begin()), std::make_move_iterator(utf8.end()));
+#endif
+    constructFromSupposedUtf8();
 }
 
-UString::UString(const std::wstring &wstring) noexcept {
+UString::UString(std::wstring wstring) noexcept {
     if(wstring.empty()) return;
 #if WCHAR_MAX <= 0xFFFF
-    this->sUnicode.assign(reinterpret_cast<const char16_t *>(wstring.data()), wstring.size());
+#if defined(__cpp_lib_containers_ranges) && __cpp_lib_containers_ranges >= 202202L
+    this->sUnicode.assign_range(std::move(reinterpret_cast<std::u16string &&>(wstring)));
 #else
-    fromUtf32(reinterpret_cast<const char32_t *>(wstring.data()), wstring.length());
+    this->sUnicode.assign(std::make_move_iterator(reinterpret_cast<std::u16string &&>(wstring).begin()),
+                          std::make_move_iterator(reinterpret_cast<std::u16string &&>(wstring).end()));
+#endif
+#else
+    constructFromUtf32(reinterpret_cast<std::u32string &&>(wstring));
 #endif
     updateUtf8();
 }
 
-UString::UString(std::string_view utf8) noexcept {
-    if(utf8.empty()) return;
-    this->sUtf8 = utf8;
-    fromSupposedUtf8(this->sUtf8.data(), this->sUtf8.size());
+UString::UString(std::u16string utf16) noexcept {
+    if(utf16.empty()) return;
+    this->sUnicode = std::move(utf16);
+    updateUtf8();
 }
 
 UString &UString::operator=(std::nullptr_t) noexcept {
@@ -441,7 +456,16 @@ std::wstring_view UString::wstringView() const noexcept {
 const wchar_t *UString::wchar_str() const noexcept { return reinterpret_cast<const wchar_t *>(this->sUnicode.data()); }
 #endif
 
-void UString::fromUtf32(const char32_t *utf32, size_t char32Length) noexcept {
+void UString::constructFromUtf32(std::u32string utf32) noexcept {
+    if(utf32.empty()) return;
+
+    size_t utf16Length = simdutf::utf16_length_from_utf32(utf32);
+    this->sUnicode.resize_and_overwrite(utf16Length, [&](char16_t *data, size_t size) -> size_t {
+        return simdutf::convert_utf32_to_utf16le(utf32, std::span<char16_t>(data, size));
+    });
+}
+
+void UString::constructFromUtf32(const char32_t *utf32, size_t char32Length) noexcept {
     if(!utf32 || char32Length == 0) return;
 
     size_t utf16Length = simdutf::utf16_length_from_utf32(utf32, char32Length);
@@ -481,11 +505,10 @@ void UString::updateUtf8(size_t startUtf16) noexcept {
 }
 
 // this is only called from specific constructors, so assume that the parameters utf8 == this->sUtf8, char8Length == this->sUtf8.length()
-void UString::fromSupposedUtf8(const char *utf8, size_t char8Length) noexcept {
-    if(!utf8 || !char8Length) {
-        this->sUnicode.clear();
-        return;
-    }
+void UString::constructFromSupposedUtf8() noexcept {
+    const char *utf8 = this->sUtf8.c_str();
+    const size_t char8Length = this->sUtf8.length();
+    assert(!!utf8 && (char8Length > 0));
 
     // detect encoding with BOM support
     size_t bomPrefixBytes = 0;
