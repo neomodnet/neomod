@@ -55,8 +55,13 @@ struct Color {
     constexpr Color(A a, R r, G g, B b)
         requires Colors::Numeric<A> && Colors::Numeric<R> && Colors::Numeric<G> && Colors::Numeric<B> &&
                      (!Colors::all_compatible_v<A, R, G, B>)
-    = delete;/* ("parameters should have compatible types"); */
+    = delete; /* ("parameters should have compatible types"); */
 
+    friend inline bool operator==(Color a, Color b) { return a.v == b.v; }
+    friend inline bool operator==(Color a, u32 b) { return a.v == b; }
+    friend inline bool operator==(u32 a, Color b) { return a == b.v; }
+    friend inline bool operator==(Color a, i32 b) { return a.v == static_cast<u32>(b); }
+    friend inline bool operator==(i32 a, Color b) { return static_cast<u32>(a) == b.v; }
     operator u32() const { return v; }
 
     // clang-format off

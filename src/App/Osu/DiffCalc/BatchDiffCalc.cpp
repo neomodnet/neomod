@@ -20,6 +20,7 @@
 #include "Thread.h"
 #include "SyncJthread.h"
 #include "SyncStoptoken.h"
+#include "ContainerRanges.h"
 
 #include <atomic>
 #include <memory>
@@ -235,8 +236,7 @@ void process_score_group(const BeatmapDifficulty* map, const ModParams& params, 
 
     {
         Sync::scoped_lock lock(results_mutex);
-        score_results.insert(score_results.end(), std::make_move_iterator(group_results.begin()),
-                             std::make_move_iterator(group_results.end()));
+        Mc::append_range(score_results, std::move(group_results));
     }
     scores_processed.fetch_add(static_cast<u32>(scores.size()), std::memory_order_relaxed);
 }

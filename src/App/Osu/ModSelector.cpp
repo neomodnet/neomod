@@ -13,6 +13,7 @@
 #include "CBaseUILabel.h"
 #include "CBaseUIScrollView.h"
 #include "CBaseUISlider.h"
+#include "ContainerRanges.h"
 #include "Logging.h"
 #include "OsuConVars.h"
 #include "ConVarHandler.h"
@@ -183,10 +184,10 @@ ModSelector::ModSelector() : UIScreen() {
 
     overrideCS.slider->setAnimated(false);  // quick fix for otherwise possible inconsistencies due to slider vertex
                                             // buffers and animated CS changes
-    overrideCS.slider->setChangeCallback(SA::MakeDelegate<&ModSelector::onOverrideSliderChange>(this));
-    overrideAR.slider->setChangeCallback(SA::MakeDelegate<&ModSelector::onOverrideSliderChange>(this));
-    overrideOD.slider->setChangeCallback(SA::MakeDelegate<&ModSelector::onOverrideSliderChange>(this));
-    overrideHP.slider->setChangeCallback(SA::MakeDelegate<&ModSelector::onOverrideSliderChange>(this));
+    auto changeCallback = SA::MakeDelegate<&ModSelector::onOverrideSliderChange>(this);
+    for(auto *slider : std::array{overrideCS.slider, overrideAR.slider, overrideOD.slider, overrideHP.slider}) {
+        slider->setChangeCallback(changeCallback);
+    }
 
     overrideAR.desc->setClickCallback(SA::MakeDelegate<&ModSelector::onOverrideARSliderDescClicked>(this));
     overrideOD.desc->setClickCallback(SA::MakeDelegate<&ModSelector::onOverrideODSliderDescClicked>(this));
@@ -542,15 +543,17 @@ void ModSelector::draw() {
 
     // draw experimental mods
     if(!BanchoState::is_in_a_multi_room()) {
+        const auto &expCont = this->experimentalContainer;
+        const McRect expContRect = expCont->getRect();
         g->pushTransform();
         {
             g->translate(experimentalModsAnimationTranslation, 0);
             g->setColor(backgroundColor);
-            g->fillRect(this->experimentalContainer->getPos().x - margin,
-                        this->experimentalContainer->getPos().y - margin,
-                        this->experimentalContainer->getSize().x + 2 * margin * this->fExperimentalAnimation,
-                        this->experimentalContainer->getSize().y + 2 * margin);
-            this->experimentalContainer->draw();
+            g->fillRect(expContRect.getPos().x - margin,                                      //
+                        expContRect.getPos().y - margin,                                      //
+                        expContRect.getSize().x + 2 * margin * this->fExperimentalAnimation,  //
+                        expContRect.getSize().y + 2 * margin);                                //
+            expCont->draw();
         }
         g->popTransform();
     }
@@ -999,11 +1002,14 @@ void ModSelector::updateExperimentalLayout() {
         if(i == 0) yCounter += 8 * dpiScale;
     }
 
-    this->experimentalContainer->setSizeX(experimentalMaxWidth + 25 * dpiScale /*, yCounter*/);
-    this->experimentalContainer->setPosY(-1);
-    this->experimentalContainer->setScrollSizeToContent(1 * dpiScale);
-    this->experimentalContainer->container.update_pos();
-    this->experimentalContainer->setVisible(!BanchoState::is_in_a_multi_room());
+    auto &expCont = this->experimentalContainer;
+    expCont
+        ->setSizeX(experimentalMaxWidth + 25 * dpiScale /*, yCounter*/)  //
+        ->setPosY(-1);                                                   //
+    expCont
+        ->setScrollSizeToContent(1 * dpiScale)  //
+        ->container.update_pos();               //
+    expCont->setVisible(!BanchoState::is_in_a_multi_room());
 }
 
 UIModSelectorModButton *ModSelector::setModButtonOnGrid(int x, int y, int state, bool initialState, ConVar *modCvar,
@@ -1045,31 +1051,31 @@ ModSelector::OVERRIDE_SLIDER ModSelector::addOverrideSlider(UString text, const 
     os.cvar = cvar;
     os.lockCvar = lockCvar;
 
-    bool debugDrawFrame = false;
+    const bool debugDrawFrame = false;
+    constexpr Color color = rgb(119, 119, 119);
 
-    os.slider->setDrawFrame(debugDrawFrame);
-    os.slider->setDrawBackground(false);
-    os.slider->setFrameColor(0xff777777);
-    os.desc->setEnabled(lockCvar != nullptr);
-    os.desc->setDrawFrame(debugDrawFrame);
-    os.desc->setDrawBackground(false);
-    os.desc->setTextColor(0xff777777);
-    os.label->setDrawFrame(debugDrawFrame);
-    os.label->setDrawBackground(false);
-    os.label->setTextColor(0xff777777);
-
-    os.slider->setBounds(min, max + 1.0f);
-    os.slider->setKeyDelta(0.1f);
-    os.slider->setLiveUpdate(true);
-    os.slider->setAllowMouseWheel(false);
+    os.slider                               //
+        ->setDrawFrame(debugDrawFrame)      //
+        ->setDrawBackground(false)          //
+        ->setFrameColor(color);             //
+    os.desc                                 //
+        ->setDrawFrame(debugDrawFrame)      //
+        ->setDrawBackground(false)          //
+        ->setTextColor(color)               //
+        ->setEnabled(lockCvar != nullptr);  //
+    os.label                                //
+        ->setDrawFrame(debugDrawFrame)      //
+        ->setDrawBackground(false)          //
+        ->setTextColor(color);              //
+    os.slider                               //
+        ->setBounds(min, max + 1.0f)        //
+        ->setKeyDelta(0.1f)                 //
+        ->setLiveUpdate(true)               //
+        ->setAllowMouseWheel(false);        //
 
     if(os.cvar != nullptr) os.slider->setValue(os.cvar->getFloat() + 1.0f, false);
 
-    if(os.lock != nullptr) this->overrideSliderContainer->addBaseUIElement(os.lock);
-
-    this->overrideSliderContainer->addBaseUIElement(os.desc);
-    this->overrideSliderContainer->addBaseUIElement(os.slider);
-    this->overrideSliderContainer->addBaseUIElement(os.label);
+    this->overrideSliderContainer->addBaseUIElements({os.lock, os.desc, os.slider, os.label});
     this->overrideSliders.push_back(os);
 
     return os;

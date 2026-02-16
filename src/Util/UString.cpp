@@ -3,6 +3,8 @@
 
 #include "simdutf.h"
 
+#include "ContainerRanges.h"
+
 #include <algorithm>
 #include <bitset>
 #include <cassert>
@@ -83,23 +85,14 @@ UString::UString(const char *utf8, int length) noexcept {
 
 UString::UString(std::string utf8) noexcept {
     if(utf8.empty()) return;
-#if defined(__cpp_lib_containers_ranges) && __cpp_lib_containers_ranges >= 202202L
-    this->sUtf8.assign_range(std::move(utf8));
-#else
-    this->sUtf8.assign(std::make_move_iterator(utf8.begin()), std::make_move_iterator(utf8.end()));
-#endif
+    Mc::assign_range(this->sUtf8, std::move(utf8));
     constructFromSupposedUtf8();
 }
 
 UString::UString(std::wstring wstring) noexcept {
     if(wstring.empty()) return;
 #if WCHAR_MAX <= 0xFFFF
-#if defined(__cpp_lib_containers_ranges) && __cpp_lib_containers_ranges >= 202202L
-    this->sUnicode.assign_range(std::move(reinterpret_cast<std::u16string &&>(wstring)));
-#else
-    this->sUnicode.assign(std::make_move_iterator(reinterpret_cast<std::u16string &&>(wstring).begin()),
-                          std::make_move_iterator(reinterpret_cast<std::u16string &&>(wstring).end()));
-#endif
+    Mc::assign_range(this->sUnicode, std::move(reinterpret_cast<std::u16string &&>(wstring)));
 #else
     constructFromUtf32(reinterpret_cast<std::u32string &&>(wstring));
 #endif

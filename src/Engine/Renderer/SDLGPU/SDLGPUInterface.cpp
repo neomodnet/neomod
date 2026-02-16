@@ -27,6 +27,7 @@
 #include "VertexArrayObject.h"
 #include "Environment.h"
 #include "SString.h"
+#include "ContainerRanges.h"
 
 #include "binary_embed.h"
 
@@ -1007,7 +1008,7 @@ void SDLGPUInterface::drawVAO(VertexArrayObject *vao) {
 
     // append vertices to staging buffer and record a draw command
     const u32 offset = (u32)m_stagingVertices.size();
-    m_stagingVertices.insert(m_stagingVertices.end(), m_vertices.begin(), m_vertices.end());
+    Mc::append_range(m_stagingVertices, m_vertices);
 
     recordDraw(nullptr, offset, (u32)m_vertices.size());
 }

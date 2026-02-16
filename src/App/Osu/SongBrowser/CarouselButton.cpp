@@ -21,6 +21,7 @@
 #include "SoundEngine.h"
 #include "UI.h"
 #include "UIContextMenu.h"
+#include "ContainerRanges.h"
 
 using namespace neosu::sbr;
 
@@ -355,11 +356,12 @@ void CarouselButton::addChild(SongButton *child) {
 
 void CarouselButton::addChildren(std::vector<SongButton *> children) {
     this->lastChildSortStarPrecalcIdx = 0xFF;
-    this->children.insert(this->children.end(), std::make_move_iterator(children.begin()),
-                          std::make_move_iterator(children.end()));
+    Mc::append_range(this->children, std::move(children));
 }
 
-bool CarouselButton::childrenNeedSorting() const { return this->lastChildSortStarPrecalcIdx != StarPrecalc::active_idx; }
+bool CarouselButton::childrenNeedSorting() const {
+    return this->lastChildSortStarPrecalcIdx != StarPrecalc::active_idx;
+}
 
 Color CarouselButton::getActiveBackgroundColor() const {
     return argb(std::clamp<int>(cv::songbrowser_button_active_color_a.getInt(), 0, 255),

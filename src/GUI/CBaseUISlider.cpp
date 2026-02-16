@@ -281,8 +281,6 @@ CBaseUISlider *CBaseUISlider::setInitialValue(float value) {
     return this;
 }
 
-void CBaseUISlider::setBlockSize(float xSize, float ySize) { this->vBlockSize = vec2(xSize, ySize); }
-
 float CBaseUISlider::getPercent() {
     return std::clamp<float>((this->fCurValue - this->fMinValue) / (std::abs(this->fMaxValue - this->fMinValue)), 0.0f,
                              1.0f);

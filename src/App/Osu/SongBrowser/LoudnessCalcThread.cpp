@@ -13,6 +13,7 @@
 #include "Logging.h"
 #include "SyncOnce.h"
 #include "SyncJthread.h"
+#include "ContainerRanges.h"
 
 #ifdef MCENGINE_FEATURE_BASS
 #include "BassManager.h"
@@ -280,7 +281,7 @@ void VolNormalization::start_calc_instance(const std::vector<DatabaseBeatmap *> 
         std::vector<DatabaseBeatmap *> chunk;
         for(int j = 0; j < cur_chunk_size; j++) {
             auto &group = *(it + j);
-            chunk.insert(chunk.end(), group.begin(), group.end());
+            Mc::append_range(chunk, group);
         }
         it += cur_chunk_size;
 

@@ -21,18 +21,35 @@ class CBaseUISlider : public CBaseUIElement {
 
     void fireChangeCallback();
 
-    void setOrientation(bool horizontal) {
+    CBaseUISlider *setOrientation(bool horizontal) {
         this->bHorizontal = horizontal;
         this->onResized();
+        return this;
     }
 
-    void setDrawFrame(bool drawFrame) { this->bDrawFrame = drawFrame; }
-    void setDrawBackground(bool drawBackground) { this->bDrawBackground = drawBackground; }
+    CBaseUISlider *setDrawFrame(bool drawFrame) {
+        this->bDrawFrame = drawFrame;
+        return this;
+    }
+    CBaseUISlider *setDrawBackground(bool drawBackground) {
+        this->bDrawBackground = drawBackground;
+        return this;
+    }
 
-    void setFrameColor(Color frameColor) { this->frameColor = frameColor; }
-    void setBackgroundColor(Color backgroundColor) { this->backgroundColor = backgroundColor; }
+    CBaseUISlider *setFrameColor(Color frameColor) {
+        this->frameColor = frameColor;
+        return this;
+    }
+    CBaseUISlider *setBackgroundColor(Color backgroundColor) {
+        this->backgroundColor = backgroundColor;
+        return this;
+    }
 
-    void setBlockSize(float xSize, float ySize);
+    CBaseUISlider *setBlockSize(float xSize, float ySize) {
+        this->vBlockSize.x = xSize;
+        this->vBlockSize.y = ySize;
+        return this;
+    }
 
     // callbacks, either void or with ourself as the argument
     using SliderChangeCallback = SA::delegate<void(CBaseUISlider *)>;

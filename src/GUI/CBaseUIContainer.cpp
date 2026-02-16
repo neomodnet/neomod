@@ -6,6 +6,7 @@
 #include "Engine.h"
 #include "Logging.h"
 #include "Graphics.h"
+#include "ContainerRanges.h"
 
 CBaseUIContainer::CBaseUIContainer(float Xpos, float Ypos, float Xsize, float Ysize, UString name)
     : CBaseUIElement(Xpos, Ypos, Xsize, Ysize, std::move(name)) {}
@@ -40,6 +41,23 @@ CBaseUIContainer *CBaseUIContainer::addBaseUIElement(CBaseUIElement *element) {
     element->relRect.setPos(element->rect.getPos());
     element->setPos(this->rect.getPos() + element->relRect.getPos());
     this->vElements.push_back(element);
+
+    return this;
+}
+
+CBaseUIContainer *CBaseUIContainer::addBaseUIElements(const std::vector<CBaseUIElement *> &elements) {
+    if(elements.empty()) return this;
+
+    this->vElements.reserve(this->vElements.size() + elements.size());
+
+    const vec2 thisPos = this->rect.getPos();
+
+    for(auto *element : elements) {
+        if(unlikely(element == nullptr)) continue;
+        element->relRect.setPos(element->rect.getPos());
+        element->setPos(thisPos + element->relRect.getPos());
+        this->vElements.push_back(element);
+    }
 
     return this;
 }

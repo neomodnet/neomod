@@ -61,6 +61,7 @@
 #include "BottomBar.h"
 #include "RoomScreen.h"
 #include "Chat.h"
+#include "ContainerRanges.h"
 
 #include <algorithm>
 #include <memory>
@@ -3390,7 +3391,7 @@ void SongBrowser::recreateCollectionsButtons() {
                 folder.push_back(parent);
             } else {
                 // only add matched diff buttons
-                folder.insert(folder.end(), matching_diffs.begin(), matching_diffs.end());
+                Mc::append_range(folder, matching_diffs);
             }
         }
 

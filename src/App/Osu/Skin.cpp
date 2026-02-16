@@ -23,6 +23,7 @@
 #include "VolumeOverlay.h"
 #include "Logging.h"
 #include "crypto.h"
+#include "ContainerRanges.h"
 
 #include <cstring>
 #include <utility>
@@ -978,9 +979,7 @@ SkinImage *Skin::createSkinImage(const std::string &skinElementName, vec2 baseSi
         new SkinImage(this, skinElementName, baseSizeForScaling2x, osuSize, animationSeparator, ignoreDefaultSkin);
     this->images.push_back(skinImage);
 
-    const std::vector<std::string> &filepathsForExport = skinImage->getFilepathsForExport();
-    this->filepaths_for_export.insert(this->filepaths_for_export.end(), filepathsForExport.begin(),
-                                      filepathsForExport.end());
+    Mc::append_range(this->filepaths_for_export, skinImage->getFilepathsForExport());
 
     return skinImage;
 }

@@ -19,6 +19,7 @@
 #include "Engine.h"
 #include "Graphics.h"
 #include "Logging.h"
+#include "ContainerRanges.h"
 
 #include "ctre.hpp"
 
@@ -68,12 +69,8 @@ void SDLGPUShader::init() {
 
     {
         // parse uniform blocks from both GLSL sources
-        auto vshUniforms = parseUniformBlocks(vshGlsl);
-        m_uniformBlocks.insert(m_uniformBlocks.end(), std::make_move_iterator(vshUniforms.begin()),
-                               std::make_move_iterator(vshUniforms.end()));
-        auto fshUniforms = parseUniformBlocks(fshGlsl);
-        m_uniformBlocks.insert(m_uniformBlocks.end(), std::make_move_iterator(fshUniforms.begin()),
-                               std::make_move_iterator(fshUniforms.end()));
+        Mc::append_range(m_uniformBlocks, parseUniformBlocks(vshGlsl));
+        Mc::append_range(m_uniformBlocks, parseUniformBlocks(fshGlsl));
     }
 
     if(m_uniformBlocks.empty()) {

@@ -6,25 +6,27 @@
 #include <atomic>
 #include <memory>
 
+namespace Mc {
+
 // fallback for libc++ missing std::atomic<std::shared_ptr<T>> (STILL! and std::atomic_*(std::shared_ptr<T>) is already deprecated in C++20 ...)
-#if __cpp_lib_atomic_shared_ptr >= 201711L
+#if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
 template <typename T>
-using mcatomic_shptr = std::atomic<std::shared_ptr<T>>;
+using atomic_sharedptr = std::atomic<std::shared_ptr<T>>;
 #else
 template <typename T>
-class mcatomic_shptr {
+class atomic_sharedptr {
     mutable std::shared_ptr<T> m_ptr;
 
    public:
-    mcatomic_shptr() = default;
-    ~mcatomic_shptr() = default;
+    atomic_sharedptr() = default;
+    ~atomic_sharedptr() = default;
 
-    explicit mcatomic_shptr(std::shared_ptr<T> desired) noexcept : m_ptr(std::move(desired)) {}
+    explicit atomic_sharedptr(std::shared_ptr<T> desired) noexcept : m_ptr(std::move(desired)) {}
 
-    mcatomic_shptr(const mcatomic_shptr&) = delete;
-    mcatomic_shptr& operator=(const mcatomic_shptr&) = delete;
-    mcatomic_shptr(mcatomic_shptr&&) = delete;
-    mcatomic_shptr& operator=(mcatomic_shptr&&) = delete;
+    atomic_sharedptr(const atomic_sharedptr&) = delete;
+    atomic_sharedptr& operator=(const atomic_sharedptr&) = delete;
+    atomic_sharedptr(atomic_sharedptr&&) = delete;
+    atomic_sharedptr& operator=(atomic_sharedptr&&) = delete;
 
     std::shared_ptr<T> load(std::memory_order order = std::memory_order_seq_cst) const noexcept {
         return std::atomic_load_explicit(&m_ptr, order);
@@ -54,9 +56,11 @@ class mcatomic_shptr {
     auto operator*() const noexcept { return load().operator*(); }
     explicit operator bool() const noexcept { return load().operator bool(); }
 
-    mcatomic_shptr& operator=(std::shared_ptr<T> desired) {
+    atomic_sharedptr& operator=(std::shared_ptr<T> desired) {
         store(std::move(desired));
         return *this;
     }
 };
 #endif
+
+}  // namespace Mc

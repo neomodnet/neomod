@@ -2,6 +2,7 @@
 #include "VertexArrayObject.h"
 
 #include "Engine.h"
+#include "ContainerRanges.h"
 
 VertexArrayObject::VertexArrayObject(DrawPrimitive primitive, DrawUsageType usage, bool keepInSystemMemory)
     : Resource(VAO) {
@@ -48,24 +49,20 @@ void VertexArrayObject::clear() {
 }
 
 void VertexArrayObject::addVertices(std::vector<vec3> vertices) noexcept {
-    this->vertices.insert(this->vertices.end(), std::make_move_iterator(vertices.begin()),
-                          std::make_move_iterator(vertices.end()));
+    Mc::append_range(this->vertices, std::move(vertices));
     this->iNumVertices = this->vertices.size();
 }
 
 void VertexArrayObject::addTexcoords(std::vector<vec2> texcoords) noexcept {
-    this->texcoords.insert(this->texcoords.end(), std::make_move_iterator(texcoords.begin()),
-                           std::make_move_iterator(texcoords.end()));
+    Mc::append_range(this->texcoords, std::move(texcoords));
 }
 
 void VertexArrayObject::addNormals(std::vector<vec3> normals) noexcept {
-    this->normals.insert(this->normals.end(), std::make_move_iterator(normals.begin()),
-                         std::make_move_iterator(normals.end()));
+    Mc::append_range(this->normals, std::move(normals));
 }
 
-void VertexArrayObject::addColors(std::vector<Color> color) noexcept {
-    this->colors.insert(this->colors.end(), std::make_move_iterator(color.begin()),
-                        std::make_move_iterator(color.end()));
+void VertexArrayObject::addColors(std::vector<Color> colors) noexcept {
+    Mc::append_range(this->colors, std::move(colors));
 }
 
 void VertexArrayObject::setVertex(int index, vec2 v) noexcept {

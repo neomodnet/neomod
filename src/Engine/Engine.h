@@ -8,7 +8,7 @@
 
 #include "Rect.h"
 #include "KeyboardListener.h"
-#include "CompatShims.h"
+#include "AtomicSharedPtr.h"
 #include "SyncMutex.h"
 #include "SyncJthread.h"
 
@@ -156,7 +156,7 @@ class Engine final : public KeyboardListener {
     // engine gui, mostly for debugging
     CBaseUIContainer *guiContainer;
     VisualProfiler *visualProfiler;
-    static mcatomic_shptr<ConsoleBox> consoleBox;
+    static Mc::atomic_sharedptr<ConsoleBox> consoleBox;
 
     McFont *consoleFont{nullptr};
     McFont *defaultFont{nullptr};

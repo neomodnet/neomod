@@ -49,7 +49,7 @@ std::unique_ptr<NetworkHandler> networkHandler{nullptr};
 std::unique_ptr<AsyncIOHandler> io{nullptr};
 std::unique_ptr<DirectoryWatcher> directoryWatcher{nullptr};
 
-mcatomic_shptr<ConsoleBox> Engine::consoleBox{nullptr};
+Mc::atomic_sharedptr<ConsoleBox> Engine::consoleBox{nullptr};
 
 Engine *engine{nullptr};
 Engine::Engine() {

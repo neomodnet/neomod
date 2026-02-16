@@ -2,6 +2,8 @@
 // Copyright (c) 2011, PG, All rights reserved.
 #include "CBaseUIElement.h"
 
+#include <span>
+
 class CBaseUIContainer : public CBaseUIElement {
     NOCOPY_NOMOVE(CBaseUIContainer)
    public:
@@ -24,6 +26,10 @@ class CBaseUIContainer : public CBaseUIElement {
         return this->addBaseUIElement(element, pos.x, pos.y);
     }
     CBaseUIContainer *addBaseUIElement(CBaseUIElement *element);
+    CBaseUIContainer *addBaseUIElements(const std::vector<CBaseUIElement *> &elements);
+    inline CBaseUIContainer *addBaseUIElements(std::span<CBaseUIElement *> elements) {
+        return this->addBaseUIElements(std::vector<CBaseUIElement *>{elements.begin(), elements.end()});
+    }
 
     CBaseUIContainer *addBaseUIElementBack(CBaseUIElement *element, float xPos, float yPos);
     inline CBaseUIContainer *addBaseUIElementBack(CBaseUIElement *element, vec2 pos) {

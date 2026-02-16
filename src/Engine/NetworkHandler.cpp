@@ -12,6 +12,7 @@
 #include "Logging.h"
 #include "SyncJthread.h"
 #include "SyncCV.h"
+#include "ContainerRanges.h"
 
 #include "binary_embed.h"
 #include <curl/curl.h>
@@ -622,7 +623,7 @@ void NetworkImpl::update() {
                     bytes_available -= nb_read;
                 }
                 if(!ws->in_partial.empty() && meta->bytesleft == 0) {
-                    ws->in.insert(ws->in.end(), ws->in_partial.begin(), ws->in_partial.end());
+                    Mc::append_range(ws->in, std::move(ws->in_partial));
                     ws->in_partial.clear();
                 }
             } else if(res == CURLE_AGAIN) {
