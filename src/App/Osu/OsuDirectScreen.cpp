@@ -43,6 +43,7 @@ class OnlineMapListing : public CBaseUIContainer {
     OnlineMapListing(OsuDirectScreen* parent, Downloader::BeatmapSetMetadata meta);
     ~OnlineMapListing() override;
 
+    void update(CBaseUIEventCtx& c) override;
     void draw() override;
 
     // NOT inherited, called manually
@@ -59,23 +60,23 @@ class OnlineMapListing : public CBaseUIContainer {
    private:
     OsuDirectScreen* directScreen;
     McFont* font;
-
     Downloader::BeatmapSetMetadata meta;
 
-    // Cache
-    std::string full_title;
-    f32 creator_width{0.f};
-    ThumbIdentifier thumb_id;
-
+    vec2 mousedown_coords{-999.f, -999.f};
     f32 hover_anim{0.f};
     f32 click_anim{0.f};
 
-    vec2 mousedown_coords{-999.f, -999.f};
+    // Cache
+    std::string full_title;
+    ThumbIdentifier thumb_id;
+    Downloader::DownloadHandle dl_handle;
+
+    f32 creator_width{0.f};
+    f32 download_progress{0.f};
 
     bool installed;
     bool downloading{false};
     bool download_failed{false};
-    Downloader::DownloadHandle dl_handle;
 };
 
 // "b.{}/thumb/{:d}.jpg";
@@ -182,15 +183,13 @@ void OnlineMapListing::onResolutionChange(vec2 /*newResolution*/) {
     }
 }
 
-void OnlineMapListing::draw() {
-    // XXX: laggy/slow
-    // TODOs:
-    //   - move downloading out of draw()
-    //   - continue downloading even if clipped (not visible)
+void OnlineMapListing::update(CBaseUIEventCtx& c) {
+    // TODO:
+    //   - continue downloading even if clipped
 
-    CBaseUIContainer::draw();
+    CBaseUIContainer::update(c);
 
-    f32 download_progress = 0.f;
+    this->download_progress = 0.f;
     if(this->downloading) {
         // TODO: downloads will not finish if player leaves this screen
         bool ready = Downloader::download_beatmapset(this->meta.set_id, this->dl_handle);
@@ -216,9 +215,15 @@ void OnlineMapListing::draw() {
             this->download_failed = true;
         } else {
             // To show we're downloading, always draw at least 5%
-            download_progress = std::max(0.05f, this->dl_handle.progress());
+            this->download_progress = std::max(0.05f, this->dl_handle.progress());
         }
     }
+}
+
+void OnlineMapListing::draw() {
+    // XXX: laggy/slow
+
+    CBaseUIContainer::draw();
 
     // use a 4:3 aspect ratio
     const vec2 map_bg_size = {this->getSize().y * (4.f / 3.f), this->getSize().y};
@@ -249,7 +254,7 @@ void OnlineMapListing::draw() {
     g->pushClipRect(McRect(pos_counter, progress_size));
     {
         // Download progress
-        const f32 download_width = progress_size.x * download_progress;
+        const f32 download_width = progress_size.x * this->download_progress;
         g->setColor(rgb(150, 255, 150));
         g->setAlpha(alpha);
         g->fillRect(pos_counter, {download_width, progress_size.y});
@@ -534,10 +539,10 @@ void OsuDirectScreen::search(std::string_view query) {
 
                 debugLog("Received {} maps", nb_results);
                 for(i32 i = 1; i < set_lines.size(); i++) {
-                    const auto meta = Downloader::parse_beatmapset_metadata(set_lines[i]);
+                    auto meta = Downloader::parse_beatmapset_metadata(set_lines[i]);
                     if(meta.set_id == 0) continue;
 
-                    this->results->container.addBaseUIElement(new OnlineMapListing(this, meta));
+                    this->results->container.addBaseUIElement(new OnlineMapListing(this, std::move(meta)));
                 }
 
                 this->onResolutionChange(osu->getVirtScreenSize());
