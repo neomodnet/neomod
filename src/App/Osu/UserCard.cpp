@@ -31,10 +31,8 @@ UserCard::UserCard(i32 user_id) : CBaseUIButton() {
     this->fPPDeltaAnim = 0.0f;
 
     // We do not pass mouse events to this->avatar
-    this->setClickCallback([](CBaseUIButton *btn) {
-        auto card = (UserCard *)btn;
-        ui->getUserActions()->open(card->user_id, card == osu->getUserButton().get());
-    });
+    this->setClickCallback(SA::MakeDelegate(
+        [](UserCard *card) { ui->getUserActions()->open(card->user_id, card == osu->getUserButton().get()); }));
 }
 
 UserCard::~UserCard() { anim::deleteExistingAnimation(&this->fPPDeltaAnim); }
@@ -282,7 +280,6 @@ void UserCard::setID(i32 new_id) {
     this->user_id = new_id;
 
     if(BANCHO::User::is_online_id(this->user_id)) {
-        this->avatar = std::make_unique<UIAvatar>(this->user_id, 0.f, 0.f, 0.f, 0.f);
-        this->avatar->on_screen = true;
+        this->avatar = std::make_unique<UIAvatar>(this, this->user_id, 0.f, 0.f, 0.f, 0.f);
     }
 }

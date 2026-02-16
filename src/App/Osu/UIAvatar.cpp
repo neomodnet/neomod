@@ -1,6 +1,7 @@
 // Copyright (c) 2024, kiwec, All rights reserved.
 #include "UIAvatar.h"
 
+#include "Logging.h"
 #include "ThumbnailManager.h"
 #include "Bancho.h"
 #include "Engine.h"
@@ -11,8 +12,9 @@
 #include "UIUserContextMenu.h"
 #include "MakeDelegateWrapper.h"
 
-UIAvatar::UIAvatar(i32 player_id, float xPos, float yPos, float xSize, float ySize)
+UIAvatar::UIAvatar(CBaseUIElement *parent, i32 player_id, float xPos, float yPos, float xSize, float ySize)
     : CBaseUIButton(xPos, yPos, xSize, ySize, "avatar", ""),
+      parent(parent),
       thumb_id(new ThumbIdentifier{
           .save_path = fmt::format("{}/avatars/{}/{}", env->getCacheDir(), BanchoState::endpoint, player_id),
           .download_url = fmt::format("a.{}/{:d}", BanchoState::endpoint, player_id),
@@ -30,8 +32,20 @@ UIAvatar::~UIAvatar() {
     }
 }
 
+bool UIAvatar::isVisible() {
+    if(this->parent) {
+        return this->parent->isVisible() && osu->getVirtScreenRect().intersects(this->parent->getRect()) &&
+               this->parent->getRect().intersects(this->getRect());
+    } else {
+        return this->bVisible && osu->getVirtScreenRect().intersects(this->getRect());
+    }
+}
+
 void UIAvatar::draw_avatar(float alpha) {
-    if(!this->on_screen) return;  // Comment when you need to debug on_screen logic
+    if(!this->isVisible()) {
+        // debugLog("not visible {} parent {}", this->getRect(), this->parent ? this->parent->getRect() : McRect{});
+        return;  // Comment when you need to debug on_screen logic
+    }
 
     auto *avatar_image = osu->getThumbnailManager()->try_get_image(*this->thumb_id);
     if(avatar_image) {

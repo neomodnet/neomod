@@ -78,17 +78,15 @@ void ScoreButton::draw() {
 
     const int yPos = (int)this->getPos().y;  // avoid max shimmering
 
-    // index number
     if(this->avatar) {
         const float margin = this->getSize().y * 0.1;
         f32 avatar_width = this->getSize().y - (2.f * margin);
         this->avatar->setPos(this->getPos().x + margin, this->getPos().y + margin);
         this->avatar->setSize(avatar_width, avatar_width);
-
-        // Update avatar visibility status
-        this->avatar->on_screen = g_songbrowser->scoreBrowser->getRect().intersects(this->avatar->getRect());
         this->avatar->draw_avatar(1.f);
     }
+
+    // index number
     const float indexNumberScale = 0.35f;
     const float indexNumberWidthPercent = (this->style == STYLE::TOP_RANKS ? 0.075f : 0.15f);
     McFont *indexNumberFont = osu->getSongBrowserFontBold();
@@ -674,8 +672,8 @@ void ScoreButton::setScore(const FinishedScore &newscore, const DatabaseBeatmap 
 
     this->avatar.reset();
     if(sc.player_id != 0) {
-        this->avatar = std::make_unique<UIAvatar>(sc.player_id, this->getPos().x, this->getPos().y, this->getSize().y,
-                                                  this->getSize().y);
+        this->avatar = std::make_unique<UIAvatar>(this, sc.player_id, this->getPos().x, this->getPos().y,
+                                                  this->getSize().y, this->getSize().y);
 
         const UserInfo *user = BANCHO::User::try_get_user_info(sc.player_id);
         this->is_friend = user && user->is_friend();

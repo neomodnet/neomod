@@ -30,8 +30,7 @@ void UserCard2::update_userid(i32 new_userid) {
     ) {
         this->info =
             new_userinfo ? new_userinfo : BANCHO::User::get_user_info(new_userid, true);  // don't request it twice
-        this->avatar = std::make_unique<UIAvatar>(new_userid, 0.f, 0.f, 0.f, 0.f);
-        this->avatar->on_screen = true;
+        this->avatar = std::make_unique<UIAvatar>(this, new_userid, 0.f, 0.f, 0.f, 0.f);
         this->setClickCallback([new_userid] { ui->getUserActions()->open(new_userid); });
     }
 }

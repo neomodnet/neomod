@@ -266,8 +266,6 @@ class HUD final : public UIScreen {
     // target heatmap
     std::vector<TARGET> targets;
 
-    std::vector<UIAvatar *> avatars;
-
     // health
     double fHealth;
     f32 fScoreBarBreakAnim;

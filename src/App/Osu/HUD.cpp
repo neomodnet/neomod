@@ -30,7 +30,6 @@
 #include "SongBrowser/SongBrowser.h"
 #include "SoundEngine.h"
 #include "UI.h"
-#include "UIAvatar.h"
 #include "VertexArrayObject.h"
 #include "score.h"
 #include "Sound.h"

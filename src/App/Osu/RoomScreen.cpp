@@ -269,15 +269,6 @@ void RoomScreen::draw() {
     // XXX: Add convar for toggling room backgrounds
     osu->getBackgroundImageHandler()->draw(osu->getMapInterface()->getBeatmap());
     UIScreen::draw();
-
-    // Update avatar visibility status
-    const McRect slotlist_rect = this->slotlist->getRect();
-    for(auto *elm : this->slotlist->container.getElements()) {
-        if(elm->getName() == US_("avatar")) {
-            auto *avatar = static_cast<UIAvatar *>(elm);
-            avatar->on_screen = slotlist_rect.intersects(avatar->getRect());
-        }
-    }
 }
 
 void RoomScreen::update(CBaseUIEventCtx &c) {
@@ -512,7 +503,8 @@ void RoomScreen::updateLayout(vec2 newResolution) {
             }
 
             const f32 SLOT_HEIGHT = 40.f * dpiScale;
-            auto avatar = new UIAvatar(slot.player_id, 10.f * dpiScale, y_total, SLOT_HEIGHT, SLOT_HEIGHT);
+            auto avatar =
+                new UIAvatar(this->slotlist, slot.player_id, 10.f * dpiScale, y_total, SLOT_HEIGHT, SLOT_HEIGHT);
             this->slotlist->container.addBaseUIElement(avatar);
 
             auto user_box = new UIUserLabel(slot.player_id, username);
@@ -562,8 +554,8 @@ void RoomScreen::on_map_change() {
     // Results screen has map background and such showing, so prevent map from changing while we're on it.
     if(ui->getRankingScreen()->isVisible()) return;
 
-    debugLog("Map changed to ID {:d}, MD5 {:s}: {:s}", BanchoState::room.map_id,
-             BanchoState::room.map_md5, BanchoState::room.map_name);
+    debugLog("Map changed to ID {:d}, MD5 {:s}: {:s}", BanchoState::room.map_id, BanchoState::room.map_md5,
+             BanchoState::room.map_name);
     this->ready_btn->is_loading = true;
 
     // Deselect current map

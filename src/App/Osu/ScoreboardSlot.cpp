@@ -14,7 +14,7 @@
 #include "UI.h"
 
 ScoreboardSlot::ScoreboardSlot(const SCORE_ENTRY &score, int index) {
-    this->avatar = std::make_unique<UIAvatar>(score.player_id, 0.f, 0.f, 0.f, 0.f);
+    this->avatar = std::make_unique<UIAvatar>(nullptr, score.player_id, 0.f, 0.f, 0.f, 0.f);
     this->score = score;
     this->index = index;
 
@@ -75,7 +75,6 @@ void ScoreboardSlot::draw() {
     }
 
     // Draw avatar
-    this->avatar->on_screen = true;
     this->avatar->setPos(0, start_y);
     this->avatar->setSize(avatar_width, avatar_height);
     this->avatar->setVisible(true);
