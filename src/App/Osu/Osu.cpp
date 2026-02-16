@@ -761,6 +761,11 @@ void Osu::updateMods() {
     this->score->mods = Replay::Mods::from_cvars();
     this->score->setCheated();
 
+    // this is called 3 times in succession with the same mods
+    // when enabling a mod selector button and 2 times when disabling them
+    // debugLog("updating mods: {}", this->score->getModsStringForRichPresence());
+    // MC_DO_BACKTRACE;
+
     {
         auto idx = StarPrecalc::index_of(this->score->mods.flags, this->score->mods.speed);
         StarPrecalc::active_idx = (idx != StarPrecalc::INVALID_MODCOMBO) ? (u8)idx : StarPrecalc::NOMOD_1X_INDEX;
@@ -1341,32 +1346,7 @@ float Osu::getCSDifficultyMultiplier() {
         return 1.f;
 }
 
-float Osu::getScoreMultiplier() const {  // TODO: use Mods::get_scorev1_multiplier
-    float multiplier = 1.0f;
-
-    // Dumb formula, but the values for HT/DT were dumb to begin with
-    f32 s = this->map_iface->getSpeedMultiplier();
-    if(s > 1.f) {
-        multiplier *= (0.24f * s) + 0.76f;
-    } else if(s < 1.f) {
-        multiplier *= 0.008f * std::expf(4.81588f * s);
-    }
-
-    if(cv::mod_easy.getBool() || (cv::mod_nofail.getBool() && !cv::mod_scorev2.getBool())) multiplier *= 0.50f;
-    if(cv::mod_hardrock.getBool()) {
-        if(cv::mod_scorev2.getBool())
-            multiplier *= 1.10f;
-        else
-            multiplier *= 1.06f;
-    }
-    if(cv::mod_flashlight.getBool()) multiplier *= 1.12f;
-    if(cv::mod_hidden.getBool()) multiplier *= 1.06f;
-    if(cv::mod_spunout.getBool()) multiplier *= 0.90f;
-
-    if(cv::mod_relax.getBool() || cv::mod_autopilot.getBool()) multiplier *= 0.f;
-
-    return multiplier;
-}
+float Osu::getScoreMultiplier() const { return this->score->getScoreMultiplier(); }
 
 float Osu::getAnimationSpeedMultiplier() const {
     float animationSpeedMultiplier = this->map_iface->getSpeedMultiplier();

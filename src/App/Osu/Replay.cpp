@@ -280,6 +280,8 @@ Mods Mods::from_cvars() {
     return mods;
 }
 
+// FIXME: this is pretty broken, it overrides beatmap values as "mods" if they weren't actually overridden
+// among other issues, like setting drain_disabled etc.
 void Mods::use(const Mods &mods) {
     using enum ModFlags;
     // Reset mod selector buttons and sliders

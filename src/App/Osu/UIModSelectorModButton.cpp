@@ -3,6 +3,7 @@
 
 #include <utility>
 
+#include "Logging.h"
 #include "OsuConVars.h"
 #include "AnimationHandler.h"
 #include "Bancho.h"
@@ -205,6 +206,14 @@ void UIModSelectorModButton::setOn(bool on, bool silent) {
         return;
     }
 
+    // FIXME: called in (???):
+    // BeatmapInterface::start
+    // ModSelector::enableModsFromFlags
+    // ModSelector::onOverrideSliderChange
+    // ModSelector::onOverrideSliderLockChange
+    // ModSelector::onCheckboxChange
+    // Replay::Mods::use
+    // OptionsOverlayImpl::onModChangingToggle
     osu->updateMods();
 
     constexpr float animationDuration = 0.05f;
@@ -252,6 +261,11 @@ void UIModSelectorModButton::setState(int state) {
     if(this->iState < this->states.size() && this->states[this->iState].skinImageMember != nullptr) {
         this->activeSkinImageMember = this->states[this->iState].skinImageMember;
     }
+
+    // FIXME: needing to call a bunch of functions from all over the place just to keep
+    // mod selection consistent across all UI is really psychotic
+    this->osuModSelector->updateScoreMultiplierLabelText();
+    this->osuModSelector->updateOverrideSliderLabels();
 }
 
 void UIModSelectorModButton::setState(unsigned int state, bool initialState, ConVar *cvar, UString modName,
