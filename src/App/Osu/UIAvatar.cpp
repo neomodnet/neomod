@@ -21,14 +21,22 @@ UIAvatar::UIAvatar(CBaseUIElement *parent, i32 player_id, float xPos, float yPos
           .id = player_id}) {
     this->setClickCallback(SA::MakeDelegate<&UIAvatar::onAvatarClicked>(this));
 
-    // add to load queue
-    osu->getThumbnailManager()->request_image(*this->thumb_id);
+    if(this->isVisible()) {
+        this->load_requested = true;
+        // add to load queue
+        osu->getThumbnailManager()->request_image(*this->thumb_id);
+    } else {
+        this->load_requested = false;
+        // delay until visible
+    }
 }
 
 UIAvatar::~UIAvatar() {
-    // remove from load queue
-    if(ThumbnailManager *am = osu && osu->getThumbnailManager() ? osu->getThumbnailManager().get() : nullptr) {
-        am->discard_image(*this->thumb_id);
+    if(this->load_requested) {
+        // remove from load queue
+        if(ThumbnailManager *am = osu && osu->getThumbnailManager() ? osu->getThumbnailManager().get() : nullptr) {
+            am->discard_image(*this->thumb_id);
+        }
     }
 }
 
@@ -42,12 +50,19 @@ bool UIAvatar::isVisible() {
 }
 
 void UIAvatar::draw_avatar(float alpha) {
-    if(!this->isVisible()) {
+    if(!this->isVisible()) {  // Comment when you need to debug on_screen logic
         // debugLog("not visible {} parent {}", this->getRect(), this->parent ? this->parent->getRect() : McRect{});
-        return;  // Comment when you need to debug on_screen logic
+        return;
     }
 
-    auto *avatar_image = osu->getThumbnailManager()->try_get_image(*this->thumb_id);
+    const auto &thumbnail_manager = osu->getThumbnailManager();
+    if(!this->load_requested) {
+        this->load_requested = true;
+        // add to load queue
+        thumbnail_manager->request_image(*this->thumb_id);
+    }
+
+    auto *avatar_image = thumbnail_manager->try_get_image(*this->thumb_id);
     if(avatar_image) {
         g->pushTransform();
         g->setColor(Color(0xffffffff).setA(alpha));

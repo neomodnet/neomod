@@ -20,4 +20,5 @@ class UIAvatar final : public CBaseUIButton {
 
     CBaseUIElement *parent;
     std::unique_ptr<ThumbIdentifier> thumb_id;
+    bool load_requested;
 };
