@@ -56,6 +56,8 @@ struct UserInfo {
 
 namespace BANCHO::User {
 
+static inline bool is_online_id(i32 id) { return id > 0 || id < -10000; }
+
 extern Hash::flat::map<i32, const UserInfo *> online_users;
 extern Hash::flat::set<i32> friends;
 

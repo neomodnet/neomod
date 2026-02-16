@@ -223,8 +223,7 @@ void BanchoState::handle_packet(Packet &packet) {
             BanchoState::set_uid(new_user_id);
             BanchoState::is_oauth = !cv::mp_oauth_token.getString().empty();
 
-            const bool is_online = (new_user_id > 0) || (new_user_id < -10000);
-            if(is_online) {
+            if(BANCHO::User::is_online_id(new_user_id)) {
                 // Prevent getting into an invalid state where we are "logged in" but can't send any packets
                 if(BanchoState::cho_token.empty()) {
                     ui->getNotificationOverlay()->addToast("Failed to log in: Server didn't send a cho-token header.",

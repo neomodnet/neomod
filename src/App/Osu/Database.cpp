@@ -775,7 +775,6 @@ Database::PlayerStats Database::calculatePlayerStats(const std::string &playerNa
     this->prevPlayerStats.name = playerName;
     this->prevPlayerStats.pp = pp;
     this->prevPlayerStats.accuracy = acc;
-    this->prevPlayerStats.numScoresWithPP = ps.ppScores.size();
 
     if(ps.totalScore != this->prevPlayerStats.totalScore) {
         this->prevPlayerStats.level = getLevelForScore(ps.totalScore);

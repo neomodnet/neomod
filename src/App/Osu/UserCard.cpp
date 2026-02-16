@@ -211,15 +211,9 @@ void UserCard::draw() {
 void UserCard::update(CBaseUIEventCtx &c) {
     if(!this->bVisible) return;
 
-    const bool is_online = (this->user_id > 0) || (this->user_id < -10000);
-    if(is_online) {
+    if(BANCHO::User::is_online_id(this->user_id)) {
         const UserInfo *my = BANCHO::User::get_user_info(this->user_id, true);
         this->setText(my->name);
-
-        static i64 total_score = 0;
-        if(total_score != my->total_score) {
-            total_score = my->total_score;
-        }
     } else {
         this->setText(BanchoState::get_username().c_str());
     }
@@ -236,14 +230,13 @@ void UserCard::update(CBaseUIEventCtx &c) {
 void UserCard::updateUserStats() {
     Database::PlayerStats stats;
 
-    const bool is_online = (this->user_id > 0) || (this->user_id < -10000);
-    const bool is_self = !is_online || (this->user_id == BanchoState::get_uid());
+    const bool is_self = (this->user_id == BanchoState::get_uid()) || !BANCHO::User::is_online_id(this->user_id);
     if(is_self && !BanchoState::can_submit_scores()) {
         stats = db->calculatePlayerStats(this->getText().toUtf8());
     } else {
         const UserInfo *my = BANCHO::User::get_user_info(this->user_id, true);
 
-        int level = Database::getLevelForScore(my->total_score);
+        const int level = Database::getLevelForScore(my->total_score);
         float percentToNextLevel = 1.f;
         u32 score_for_current_level = Database::getRequiredScoreForLevel(level);
         u32 score_for_next_level = Database::getRequiredScoreForLevel(level + 1);
@@ -252,11 +245,10 @@ void UserCard::updateUserStats() {
                                  (float)(score_for_next_level - score_for_current_level);
         }
 
-        stats = Database::PlayerStats{
+        stats = {
             .name = my->name,
             .pp = (float)my->pp,
             .accuracy = my->accuracy,
-            .numScoresWithPP = 0,
             .level = level,
             .percentToNextLevel = percentToNextLevel,
             .totalScore = (u32)my->total_score,
@@ -289,8 +281,7 @@ void UserCard::setID(i32 new_id) {
 
     this->user_id = new_id;
 
-    const bool is_online = (this->user_id > 0) || (this->user_id < -10000);
-    if(is_online) {
+    if(BANCHO::User::is_online_id(this->user_id)) {
         this->avatar = std::make_unique<UIAvatar>(this->user_id, 0.f, 0.f, 0.f, 0.f);
         this->avatar->on_screen = true;
     }

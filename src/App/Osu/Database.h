@@ -83,7 +83,6 @@ class Database final {
         UString name;
         float pp;
         float accuracy;
-        int numScoresWithPP;
         int level;
         float percentToNextLevel;
         u64 totalScore;
@@ -312,7 +311,6 @@ class Database final {
         .name = "",
         .pp = 0.0f,
         .accuracy = 0.0f,
-        .numScoresWithPP = 0,
         .level = 0,
         .percentToNextLevel = 0.0f,
         .totalScore = 0,

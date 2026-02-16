@@ -52,8 +52,8 @@ void UIUserContextMenuScreen::open(i32 user_id, bool is_song_browser_button) {
 
     this->menu->begin(is_song_browser_button ? osu->getUserButton()->getSize().x : 0);
 
-    const bool is_online = (user_id > 0) || (user_id < -10000);
-    if(!ui->getUserStatsScreen()->isVisible() && (!is_online || (user_id == BanchoState::get_uid()))) {
+    const bool is_online = BANCHO::User::is_online_id(user_id);
+    if(!ui->getUserStatsScreen()->isVisible() && ((user_id == BanchoState::get_uid()) || !is_online)) {
         this->menu->addButton("View top plays", VIEW_TOP_PLAYS);
     }
 
