@@ -579,7 +579,9 @@ void Osu::update() {
 
     // only update if not playing (and online)
     // TODO: offline/local avatars?
-    if(!this->isInPlayModeAndNotPaused() && BanchoState::is_online()) this->thumbnailManager->update();
+    if(BanchoState::is_online() && (!this->isInPlayModeAndNotPaused() || this->map_iface->isInBreak())) {
+        this->thumbnailManager->update();
+    }
 
     ui->update();
 
@@ -755,7 +757,12 @@ void Osu::update() {
     }
 }
 
-bool Osu::isInPlayModeAndNotPaused() const { return this->isInPlayMode() && !this->map_iface->isPaused(); }
+bool Osu::isInPlayModeAndNotPaused() const {
+    // very elegant
+    return this->isInPlayMode() && !(this->map_iface->isPaused() ||   //
+                                     this->map_iface->isLoading() ||  //
+                                     this->ui_memb->getPauseOverlay()->isVisible());
+}
 
 void Osu::updateMods() {
     this->score->mods = Replay::Mods::from_cvars();
