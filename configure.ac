@@ -1140,8 +1140,8 @@ AC_SUBST([NEOSU_LDFLAGS])
 # dont error out on some false positive warnings during LTO
 AS_IF([test "x$enable_werror" != "xno"], [
     werror_flags_temp="-Werror"
-    AX_CHECK_COMPILE_FLAG([-Wno-error=stringop-overflow -Wno-error=maybe-uninitialized], [
-        werror_flags_temp="$werror_flags_temp -Wno-error=stringop-overflow -Wno-error=maybe-uninitialized"
+    AX_CHECK_COMPILE_FLAG([-Wno-error=stringop-overflow -Wno-error=stringop-overread -Wno-error=maybe-uninitialized], [
+        werror_flags_temp="$werror_flags_temp -Wno-error=stringop-overflow -Wno-error=stringop-overread -Wno-error=maybe-uninitialized"
     ])
     AX_CHECK_COMPILE_FLAG([-Wno-error=alloc-size-larger-than=], [
         werror_flags_temp="$werror_flags_temp -Wno-error=alloc-size-larger-than="
