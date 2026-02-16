@@ -16,22 +16,31 @@ class ToastElement final : public CBaseUIButton {
     NOCOPY_NOMOVE(ToastElement)
    public:
     enum class TYPE : uint8_t { PERMANENT, SYSTEM, CHAT };
+    const TYPE type;
 
-    ToastElement(const UString &text, Color borderColor_arg, TYPE type);
+    static constexpr f64 DEFAULT_TOAST_TIMEOUT{10.};
+
+    ToastElement(UString text, Color borderColor_arg, TYPE type);
     ~ToastElement() override = default;
 
     void draw() override;
     void onClicked(bool left = true, bool right = false) override;
     void updateLayout();
 
+    [[nodiscard]] inline f64 getTimeout() const { return this->timeout; }
+    [[nodiscard]] bool hasTimedOut() const;
+
+    inline void setTimeout(f64 timeout) { this->timeout = std::max(timeout, 0.5); }
+    void freezeTimeout();  // stop the timeout at the currently remaining time
+
+   private:
     UString text;
     std::vector<UString> lines;
 
-    f64 creationTime;
-    f32 height = 0.f;
+    f64 creation_time;
+    f64 timeout{DEFAULT_TOAST_TIMEOUT};  // relative to creation time
 
-    Color borderColor;
-    TYPE type;
+    Color border_color;
 };
 
 class NotificationOverlayKeyListener {
@@ -57,8 +66,20 @@ class NotificationOverlay final : public UIScreen {
     void onChar(KeyboardEvent &e) override;
 
     using ToastClickCallback = std::function<void()>;
-    void addToast(const UString &text, Color borderColor, ToastClickCallback callback = {},
-                  ToastElement::TYPE type = ToastElement::TYPE::SYSTEM);
+    struct ToastOpts {
+        UString text;
+        ToastClickCallback callback{};
+        f64 timeout{ToastElement::DEFAULT_TOAST_TIMEOUT};
+        Color borderColor;
+        ToastElement::TYPE type{ToastElement::TYPE::SYSTEM};
+    };
+    void addToast(ToastOpts opts);
+    inline void addToast(UString text, Color borderColor, ToastClickCallback callback = {},
+                         ToastElement::TYPE type = ToastElement::TYPE::SYSTEM) {
+        return this->addToast(
+            {.text = std::move(text), .callback = std::move(callback), .borderColor = borderColor, .type = type});
+    }
+
     void addNotification(UString text, Color textColor = 0xffffffff, bool waitForKey = false, float duration = -1.0f);
     void setDisallowWaitForKeyLeftClick(bool disallowWaitForKeyLeftClick) {
         this->bWaitForKeyDisallowsLeftClick = disallowWaitForKeyLeftClick;

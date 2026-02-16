@@ -46,37 +46,44 @@ static f64 TOAST_OUTER_Y_MARGIN = 10.0;
 static f64 TOAST_SCREEN_BOTTOM_MARGIN = 20.0;
 static f64 TOAST_SCREEN_RIGHT_MARGIN = 10.0;
 
-ToastElement::ToastElement(const UString &text, Color borderColor_arg, ToastElement::TYPE type)
-    : CBaseUIButton(0, 0, 0, 0, "", "") {
+ToastElement::ToastElement(UString text, Color borderColor_arg, ToastElement::TYPE type)
+    : CBaseUIButton(0, 0, 0, 0, "", ""), type(type) {
     this->setGrabClicks(true);
 
     // TODO: animations
 
-    this->text = text;
-    this->type = type;
-    this->borderColor = borderColor_arg;
-    this->creationTime = engine->getTime();
+    this->text = std::move(text);
+    this->border_color = borderColor_arg;
+    this->creation_time = engine->getTime();
 
     this->updateLayout();
 }
 
+void ToastElement::freezeTimeout() { this->creation_time += engine->getFrameTime(); }
+bool ToastElement::hasTimedOut() const { return this->creation_time + this->timeout < engine->getTime(); }
+
+void ToastElement::updateLayout() {
+    this->lines = this->font->wrap(this->text, TOAST_WIDTH - TOAST_INNER_X_MARGIN * 2.0);
+    this->setSize(TOAST_WIDTH, (this->font->getHeight() * 1.5 * this->lines.size()) + (TOAST_INNER_Y_MARGIN * 2.0));
+}
+
 void ToastElement::onClicked(bool left, bool right) {
-    // Set creationTime to -10 so toast is deleted in NotificationOverlay::update
-    this->creationTime = -10.0;
+    // Negate creationTime so toast is deleted in NotificationOverlay::update
+    this->creation_time = -this->timeout;
 
     CBaseUIButton::onClicked(left, right);
 }
 
 void ToastElement::draw() {
     f32 alpha = 0.9;
-    alpha *= std::max(0.0, (this->creationTime + 9.5) - engine->getTime());
+    alpha *= std::max(0.0, (this->creation_time + (this->timeout - 0.5)) - engine->getTime());
 
     // background
     g->setColor(Color(this->isMouseInside() ? 0xff222222 : 0xff111111).setA(alpha));
     g->fillRect(this->getPos(), this->getSize());
 
     // border
-    g->setColor(Color(this->isMouseInside() ? rgb(255, 255, 255) : this->borderColor).setA(alpha));
+    g->setColor(Color(this->isMouseInside() ? rgb(255, 255, 255) : this->border_color).setA(alpha));
     g->drawBorder(this->getPos(), this->getSize(), Osu::getUIScale());
 
     // text
@@ -92,15 +99,16 @@ void ToastElement::draw() {
     }
 }
 
-void ToastElement::updateLayout() {
-    this->lines = this->font->wrap(text, TOAST_WIDTH - TOAST_INNER_X_MARGIN * 2.0);
-    this->setSize(TOAST_WIDTH, (this->font->getHeight() * 1.5 * this->lines.size()) + (TOAST_INNER_Y_MARGIN * 2.0));
+namespace {
+bool should_chat_toasts_be_visible() {
+    return cv::notify_during_gameplay.getBool() ||  //
+           !osu->isInPlayMode() ||                  //
+           ui->getPauseOverlay()->isVisible();
 }
+}  // namespace
 
 void NotificationOverlay::update(CBaseUIEventCtx &c) {
-    bool chat_toasts_visible = cv::notify_during_gameplay.getBool();
-    chat_toasts_visible |= !osu->isInPlayMode();
-    chat_toasts_visible |= ui->getPauseOverlay()->isVisible();
+    const bool chat_toasts_visible = should_chat_toasts_be_visible();
 
     bool a_toast_is_hovered = false;
     const vec2 &screen{osu->getVirtScreenSize()};
@@ -116,30 +124,22 @@ void NotificationOverlay::update(CBaseUIEventCtx &c) {
 
     // Delay toast disappearance
     for(const auto &t : this->toasts) {
-        bool delay_toast = t->type == ToastElement::TYPE::PERMANENT;
-        delay_toast |= t->type == ToastElement::TYPE::CHAT && !chat_toasts_visible;
-        delay_toast |= a_toast_is_hovered;
-        delay_toast |= !env->winFocused();
+        const bool delay_toast = t->type == ToastElement::TYPE::PERMANENT ||                       //
+                                 a_toast_is_hovered ||                                             //
+                                 (t->type == ToastElement::TYPE::CHAT && !chat_toasts_visible) ||  //
+                                 !env->winFocused();                                               //
 
         if(delay_toast) {
-            t->creationTime += engine->getFrameTime();
+            t->freezeTimeout();
         }
     }
 
-    f64 current_time = engine->getTime();
-    for(auto it = this->toasts.begin(); it != this->toasts.end(); it++) {
-        const auto &toast = *it;
-        if(toast->creationTime + 10.0 < current_time) {
-            this->toasts.erase(it);
-            return;
-        }
-    }
+    // remove timed out toasts
+    std::erase_if(this->toasts, [](const auto &toast) -> bool { return toast->hasTimedOut(); });
 }
 
 void NotificationOverlay::draw() {
-    bool chat_toasts_visible = cv::notify_during_gameplay.getBool();
-    chat_toasts_visible |= !osu->isInPlayMode();
-    chat_toasts_visible |= ui->getPauseOverlay()->isVisible();
+    const bool chat_toasts_visible = should_chat_toasts_be_visible();
 
     for(const auto &t : this->toasts) {
         if(t->type == ToastElement::TYPE::CHAT && !chat_toasts_visible) continue;
@@ -296,17 +296,17 @@ void NotificationOverlay::addNotification(UString text, Color textColor, bool wa
     anim::moveQuadOut(&this->notification1.backgroundAnim, 1.0f, 0.15f, 0.0f, true);
 }
 
-void NotificationOverlay::addToast(const UString &text, Color borderColor, ToastClickCallback callback,
-                                   ToastElement::TYPE type) {
-    auto toast = std::make_unique<ToastElement>(text, borderColor, type);
+void NotificationOverlay::addToast(ToastOpts opts) {
     if constexpr(Env::cfg(BUILD::DEBUG)) {
         // also log it
         // TODO: debug channels/separate files
-        debugLog(text.toUtf8());
+        debugLog(std::string{opts.text.utf8View()});
     }
+    auto toast = std::make_unique<ToastElement>(std::move(opts.text), opts.borderColor, opts.type);
+    toast->setTimeout(opts.timeout);
 
-    if(!!callback) {
-        toast->setClickCallback(std::move(callback));
+    if(!!opts.callback) {
+        toast->setClickCallback(std::move(opts.callback));
     }
     this->toasts.push_back(std::move(toast));
 }
