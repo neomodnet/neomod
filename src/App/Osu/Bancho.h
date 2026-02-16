@@ -67,6 +67,7 @@ struct BanchoState final {
     static std::string build_login_packet();
     static void update_online_status(OnlineStatus new_status);
     static void initialize_neosu_server_session();
+    static void check_and_notify_nonsubmittable();
 
     // cached uuid
     [[nodiscard]] static const std::string &get_disk_uuid();
@@ -117,4 +118,5 @@ struct BanchoState final {
     // HACK: can't cancel async login (so log out immediately after logging in, if ever)
     static bool async_logout_pending;
     static bool was_in_a_multi_room;
+    static bool nonsubmittable_notification_clicked;
 };

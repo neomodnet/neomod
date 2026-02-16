@@ -445,10 +445,8 @@ bool BeatmapInterface::play() {
                 ui->getChat()->handle_command("/np");
             }
         }
-
-        if(BanchoState::can_submit_scores() && !cvars().areAllCvarsSubmittable()) {
-            ui->getNotificationOverlay()->addToast(US_("Score will not submit with current mods/settings"),
-                                                   ERROR_TOAST);
+        if(BanchoState::is_online() && BanchoState::can_submit_scores()) {
+            BanchoState::check_and_notify_nonsubmittable();
         }
 
         return true;

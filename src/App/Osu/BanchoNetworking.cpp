@@ -356,6 +356,9 @@ void BanchoState::poll_login() {
 void BanchoState::disconnect(bool shutdown) {
     cvars().resetServerCvars();
 
+    // reset
+    BanchoState::nonsubmittable_notification_clicked = false;
+
     // Logout
     // This is a blocking call, but we *do* want this to block when quitting the game.
     if(BanchoState::is_online() && !BANCHO::Net::auth_token.empty()) {

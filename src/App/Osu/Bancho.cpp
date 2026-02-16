@@ -90,6 +90,7 @@ bool BanchoState::was_in_a_multi_room{false};
 
 bool BanchoState::async_logout_pending{false};
 OnlineStatus BanchoState::online_status{OnlineStatus::LOGGED_OUT};
+bool BanchoState::nonsubmittable_notification_clicked{false};
 
 /*###################################################################################################*/
 
@@ -194,6 +195,22 @@ void BanchoState::initialize_neosu_server_session() {
     for(auto name : to_unprotect) {
         auto cvar = cvars().getConVarByName(name);
         cvar->setServerProtected(CvarProtection::UNPROTECTED);
+    }
+}
+
+void BanchoState::check_and_notify_nonsubmittable() {
+    // if we go from having (all cvars submittable)->(NOT all cvars submittable),
+    // clear the "clicked" flag, so it shows up again if they become non-submittable
+    // again later due to an incompatible setting/mod change
+    const bool currently_submittable = cvars().areAllCvarsSubmittable();
+    if(currently_submittable) {
+        BanchoState::nonsubmittable_notification_clicked = false;
+    }
+
+    if(!currently_submittable && !BanchoState::nonsubmittable_notification_clicked) {
+        ui->getNotificationOverlay()->addToast(
+            US_("Score will not submit with current mods/settings"), ERROR_TOAST,
+            []() -> void { BanchoState::nonsubmittable_notification_clicked = true; });
     }
 }
 
