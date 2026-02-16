@@ -131,7 +131,7 @@ void UpdateHandler::onVersionCheckComplete(const std::string &response, bool suc
         .user_agent = BanchoState::user_agent,
         .timeout = 300,  // 5 minutes for large downloads
         .connect_timeout = 10,
-        .follow_redirects = true,
+        .flags = Mc::Net::RequestOptions::FOLLOW_REDIRECTS,
     };
 
     this->status = STATUS_DOWNLOADING_UPDATE;

@@ -332,7 +332,7 @@ void BanchoState::poll_login() {
         .user_agent = BanchoState::user_agent,
         .timeout = 30,
         .connect_timeout = 5,
-        .follow_redirects = true,
+        .flags = Mc::Net::RequestOptions::FOLLOW_REDIRECTS,
     };
 
     networkHandler->httpRequestAsync(url, std::move(options), [](Mc::Net::Response response) {
@@ -381,8 +381,10 @@ void BanchoState::disconnect(bool shutdown) {
 
         auto query_url = fmt::format("c.{:s}/", BanchoState::endpoint);
 
-        // use sync request for logout on shutdown to make sure it completes
+        // use sync request for logout on shutdown to make sure it completes.
+        // on WASM, KEEPALIVE uses fetch(keepalive) instead of blocking sync XHR.
         if(shutdown) {
+            options.flags |= Mc::Net::RequestOptions::KEEPALIVE;
             networkHandler->httpRequestSynchronous(query_url, std::move(options));
         } else {
             networkHandler->httpRequestAsync(query_url, std::move(options));

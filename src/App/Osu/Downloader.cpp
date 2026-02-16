@@ -123,7 +123,7 @@ class DownloadManager {
                 [request](float progress) { request->progress.store(progress, std::memory_order_release); },
             .timeout = 30,
             .connect_timeout = 5,
-            .follow_redirects = true,
+            .flags = Mc::Net::RequestOptions::FOLLOW_REDIRECTS,
         };
 
         // capture s_download_manager as a copy to keep DownloadManager alive during callback

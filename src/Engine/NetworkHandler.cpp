@@ -374,7 +374,7 @@ void NetworkImpl::processNewRequests() {
 
         // curl_multi broken (TODO: check?) on websockets
         // HACK: we're blocking whole network thread here, while websocket is connecting
-        if(request->options.is_websocket) {
+        if(request->options.flags & RequestOptions::WEBSOCKET) {
             auto res = curl_easy_perform(request->easy_handle);
             curl_easy_getinfo(request->easy_handle, CURLINFO_RESPONSE_CODE, &request->response.response_code);
             request->response.success = (res == CURLE_OK) && (request->response.response_code == 101);
@@ -495,11 +495,11 @@ void NetworkImpl::Request::setupCurlHandle() {
         this->easy_handle.setopt(CURLOPT_USERAGENT, this->options.user_agent.c_str());
     }
 
-    if(this->options.follow_redirects) {
+    if(this->options.flags & RequestOptions::FOLLOW_REDIRECTS) {
         this->easy_handle.setopt(CURLOPT_FOLLOWLOCATION, 1L);
     }
 
-    if(this->options.is_websocket) {
+    if(this->options.flags & RequestOptions::WEBSOCKET) {
         // Special behavior: on CURLOPT_CONNECT_ONLY == 2,
         // curl actually waits for server response on perform
         this->easy_handle.setopt(CURLOPT_CONNECT_ONLY, 2L);
@@ -685,7 +685,7 @@ std::shared_ptr<WSInstance> NetworkImpl::initWebsocket(std::string_view url, con
                                .user_agent = options.user_agent,
                                .timeout = options.timeout,
                                .connect_timeout = options.connect_timeout,
-                               .is_websocket = true};
+                               .flags = RequestOptions::WEBSOCKET};
 
     this->httpRequestAsync(std::move(urlWithScheme), httpOptions, [this, websocket](const Response& response) {
         if(response.success) {

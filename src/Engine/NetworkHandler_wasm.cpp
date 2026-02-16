@@ -27,9 +27,33 @@
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #pragma GCC diagnostic ignored "-Winvalid-pp-token" // not 100% sure this is ignoreable, but i think it is?
 
-// raw synchronous XMLHttpRequest:
-// - works on the main browser thread unlike EMSCRIPTEN_FETCH_SYNCHRONOUS
-//   (which requires Atomics.wait, blocked on the main thread by browsers).
+// fire-and-forget POST via fetch() with keepalive.
+// unlike sync_xhr this doesn't block the main thread, and the keepalive flag
+// tells the browser to finish delivering the request even during page unload.
+// use this (via RequestOptions::KEEPALIVE) for shutdown/cleanup requests.
+EM_JS(void, keepalive_post, (const char* url, const char* req_headers,
+                              const char* body, int body_len), {
+    var headers = {};
+    if (req_headers) {
+        UTF8ToString(req_headers).split('\r\n').forEach(function(line) {
+            if (!line) return;
+            var sep = line.indexOf(': ');
+            if (sep > 0) headers[line.substring(0, sep)] = line.substring(sep + 2);
+        });
+    }
+
+    var opts = { method: 'POST', headers: headers, keepalive: true };
+    if (body && body_len > 0) {
+        opts.body = HEAPU8.slice(body, body + body_len);
+    }
+
+    fetch(UTF8ToString(url), opts).catch(function() {});
+})
+
+// WARNING: synchronous XMLHttpRequest on the main thread is deprecated and will
+// cause the page to hang during unload (refresh/close). prefer KEEPALIVE flag
+// for fire-and-forget requests (e.g. logout on shutdown).
+// this only exists for the rare case where a synchronous response is truly needed.
 // - allocates response body/headers/error via _malloc; caller must free() them.
 EM_JS(int, sync_xhr, (const char* method, const char* url, const char* req_headers,
                        const char* body, int body_len,
@@ -106,6 +130,7 @@ std::string urlEncode(std::string_view input) noexcept {
     return result;
 }
 
+namespace {
 void encodeMimeParts(RequestOptions& options) {
     if(options.mime_parts.empty()) return;
 
@@ -131,6 +156,7 @@ void encodeMimeParts(RequestOptions& options) {
 
     options.post_data += boundary + "--\r\n";
 }
+}  // namespace
 
 struct NetworkImpl {
    private:
@@ -261,7 +287,8 @@ void NetworkImpl::httpRequestAsync(std::string_view url, RequestOptions options,
                                   url.starts_with("http://");  // should normally not already be prefixed, but allow it
 
     const std::string url_with_scheme =
-        scheme_prepended ? std::string{url} : fmt::format("{}{}", cv::use_https.getBool() ? "https://" : "http://", url);
+        scheme_prepended ? std::string{url}
+                         : fmt::format("{}{}", cv::use_https.getBool() ? "https://" : "http://", url);
 
     emscripten_fetch_attr_t attr;
     emscripten_fetch_attr_init(&attr);
@@ -344,9 +371,8 @@ Response NetworkImpl::httpRequestSynchronous(std::string_view url, RequestOption
                                   url.starts_with("http://");  // should normally not already be prefixed, but allow it
 
     const std::string url_with_scheme =
-        scheme_prepended ? std::string{url} : fmt::format("{}{}", cv::use_https.getBool() ? "https://" : "http://", url);
-
-    std::string method = options.post_data.empty() ? "GET" : "POST";
+        scheme_prepended ? std::string{url}
+                         : fmt::format("{}{}", cv::use_https.getBool() ? "https://" : "http://", url);
 
     // format headers as "Key: Value\r\n" pairs
     std::string headers_str;
@@ -357,11 +383,23 @@ Response NetworkImpl::httpRequestSynchronous(std::string_view url, RequestOption
         headers_str += "\r\n";
     }
 
+    // if KEEPALIVE, do a non-blocking fire-and-forget via fetch(keepalive).
+    // no response is available; just assume success.
+    if(options.flags & RequestOptions::KEEPALIVE) {
+        keepalive_post(url_with_scheme.c_str(), headers_str.empty() ? nullptr : headers_str.c_str(),
+                       options.post_data.empty() ? nullptr : options.post_data.c_str(),
+                       static_cast<int>(options.post_data.length()));
+        Response res;
+        res.success = true;
+        return res;
+    }
+
     char* out_body = nullptr;
     char* out_headers = nullptr;
     char* out_error = nullptr;
 
-    int status = sync_xhr(method.c_str(), url_with_scheme.c_str(), headers_str.empty() ? nullptr : headers_str.c_str(),
+    int status = sync_xhr(options.post_data.empty() ? "GET" : "POST", url_with_scheme.c_str(),
+                          headers_str.empty() ? nullptr : headers_str.c_str(),
                           options.post_data.empty() ? nullptr : options.post_data.c_str(),
                           static_cast<int>(options.post_data.length()), &out_body, &out_headers, &out_error);
 

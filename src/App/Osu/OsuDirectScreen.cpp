@@ -495,7 +495,7 @@ void OsuDirectScreen::search(std::string_view query) {
         .user_agent = "osu!",
         .timeout = 5,
         .connect_timeout = 5,
-        .follow_redirects = true,
+        .flags = Mc::Net::RequestOptions::FOLLOW_REDIRECTS,
     };
 
     debugLog("Searching for maps matching \"{}\" (offset {})", query, offset);

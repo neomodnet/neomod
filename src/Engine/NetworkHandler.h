@@ -88,10 +88,15 @@ struct RequestOptions {
     std::function<void(float)> progress_callback{nullptr};  // progress callback for downloads
     long timeout{5};
     long connect_timeout{5};
-    bool follow_redirects{false};
 
-    // TODO: remove this
-    bool is_websocket{false};
+    // NOTE: not all flags are supported by all APIs/implementations
+    static constexpr u8 FOLLOW_REDIRECTS = 1 << 0;
+    static constexpr u8 WEBSOCKET = 1 << 1;  // TODO: remove this
+    // KEEPALIVE: for httpRequestSynchronous, use a non-blocking fire-and-forget request
+    // that survives page unload. on WASM this uses fetch(keepalive); on native it's a no-op
+    // (the synchronous request already completes reliably).
+    static constexpr u8 KEEPALIVE = 1 << 2;
+    u8 flags{0};
 };
 
 // async response data
