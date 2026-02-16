@@ -16,16 +16,16 @@
 #include "UI.h"
 
 namespace cv {
-static ConVar test_notification("test_notification", ""sv, CLIENT | NOLOAD | NOSAVE, [](std::string_view text) -> void {
+static ConVar notify("notify", ""sv, CLIENT | SERVER | NOLOAD | NOSAVE, [](std::string_view text) -> void {
     if(ui && ui->getNotificationOverlay()) {
         ui->getNotificationOverlay()->addNotification(text);
-        test_notification.setValue("", false);
+        notify.setValue("", false);
     }
 });
-static ConVar test_toast("test_toast", ""sv, CLIENT | NOLOAD | NOSAVE, [](std::string_view text) -> void {
+static ConVar toast("toast", ""sv, CLIENT | SERVER | NOLOAD | NOSAVE, [](std::string_view text) -> void {
     if(ui && ui->getNotificationOverlay()) {
         ui->getNotificationOverlay()->addToast(text, INFO_TOAST);
-        test_toast.setValue("", false);
+        toast.setValue("", false);
     }
 });
 }  // namespace cv

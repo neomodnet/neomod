@@ -628,7 +628,7 @@ CONVAR(beatmap_preview_mods_live, false, CLIENT | SKINS | SERVER,
        "whether to immediately apply all currently selected mods while browsing beatmaps (e.g. speed/pitch)");
 CONVAR(beatmap_preview_music_loop, true, CLIENT | SKINS | SERVER);
 CONVAR(bug_flicker_log, false, CLIENT | SKINS | SERVER);
-CONVAR(notify_during_gameplay, false, CLIENT, "show notification popups instantly during gameplay");
+CONVAR(notify_during_gameplay, false, CLIENT | SERVER, "show notification popups instantly during gameplay");
 CONVAR(circle_color_saturation, 1.0f, CLIENT | SKINS | SERVER);
 CONVAR(circle_fade_out_scale, 0.4f, CLIENT | SKINS | SERVER);
 CONVAR(circle_number_rainbow, false, CLIENT | SKINS | SERVER);
