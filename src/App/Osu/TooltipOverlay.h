@@ -11,7 +11,7 @@ class TooltipOverlay final : public UIScreen {
     void draw() override;
 
     void begin();
-    void addLine(const UString& text);
+    void addLine(UString text);
     void end();
 
    private:

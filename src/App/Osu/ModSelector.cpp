@@ -51,11 +51,12 @@ class ModSelectorOverrideSliderDescButton final : public CBaseUIButton {
         CBaseUIButton::update(c);
 
         if(this->isMouseInside() && this->sTooltipText.length() > 0) {
-            ui->getTooltipOverlay()->begin();
+            TooltipOverlay *ttoverlay = ui->getTooltipOverlay();
+            ttoverlay->begin();
             {
-                ui->getTooltipOverlay()->addLine(this->sTooltipText);
+                ttoverlay->addLine(this->sTooltipText);
             }
-            ui->getTooltipOverlay()->end();
+            ttoverlay->end();
         }
     }
 
@@ -395,7 +396,7 @@ void ModSelector::updateScoreMultiplierLabelText() {
 }
 
 void ModSelector::updateExperimentalButtons() {
-    for(auto &experimentalMod : this->experimentalMods) {
+    for(const auto &experimentalMod : this->experimentalMods) {
         ConVar *cvar = experimentalMod.cvar;
         if(cvar != nullptr) {
             auto *checkboxPointer = dynamic_cast<CBaseUICheckbox *>(experimentalMod.element);
@@ -448,7 +449,7 @@ void ModSelector::draw() {
         // get override slider element bounds
         vec2 overrideSlidersStart = vec2(osu->getVirtScreenWidth(), 0);
         vec2 overrideSlidersSize{0.f};
-        for(auto &overrideSlider : this->overrideSliders) {
+        for(const auto &overrideSlider : this->overrideSliders) {
             CBaseUIButton *desc = overrideSlider.desc;
             CBaseUILabel *label = overrideSlider.label;
 
@@ -501,7 +502,7 @@ void ModSelector::draw() {
         {
             const float dpiScale = Osu::getUIScale();
 
-            UString experimentalText = "Experimental Mods";
+            static const UString experimentalText = US_("Experimental Mods");
             McFont *experimentalFont = osu->getSubTitleFont();
 
             const float experimentalTextWidth = experimentalFont->getStringWidth(experimentalText);
@@ -559,7 +560,7 @@ void ModSelector::update(CBaseUIEventCtx &c) {
     // HACKHACK: updating while invisible is stupid, but the only quick solution for still animating otherwise stuck
     // sliders while closed
     if(!this->bVisible) {
-        for(auto &overrideSlider : this->overrideSliders) {
+        for(const auto &overrideSlider : this->overrideSliders) {
             if(overrideSlider.slider->hasChanged()) overrideSlider.slider->update(c);
         }
         if(this->bScheduledHide) {
@@ -582,11 +583,12 @@ void ModSelector::update(CBaseUIEventCtx &c) {
     if(this->nonSubmittableWarning->isVisible() && this->nonSubmittableWarning->isMouseInside()) {
         auto nonSubmittableCvars = cvars().getNonSubmittableCvars();
         if(!nonSubmittableCvars.empty()) {
-            ui->getTooltipOverlay()->begin();
+            TooltipOverlay *ttoverlay = ui->getTooltipOverlay();
+            ttoverlay->begin();
             for(const auto &cvar : nonSubmittableCvars) {
-                ui->getTooltipOverlay()->addLine(cvar->getName());
+                ttoverlay->addLine(cvar->getName());
             }
-            ui->getTooltipOverlay()->end();
+            ttoverlay->end();
         }
     }
 
@@ -595,13 +597,14 @@ void ModSelector::update(CBaseUIEventCtx &c) {
 
         // override slider tooltips (ALT)
         if(this->bShowOverrideSliderALTHint) {
-            for(auto &overrideSlider : this->overrideSliders) {
+            for(const auto &overrideSlider : this->overrideSliders) {
                 if(overrideSlider.slider->isBusy()) {
-                    ui->getTooltipOverlay()->begin();
+                    TooltipOverlay *ttoverlay = ui->getTooltipOverlay();
+                    ttoverlay->begin();
                     {
-                        ui->getTooltipOverlay()->addLine("Hold [ALT] to slide in 0.01 increments.");
+                        ttoverlay->addLine("Hold [ALT] to slide in 0.01 increments.");
                     }
-                    ui->getTooltipOverlay()->end();
+                    ttoverlay->end();
 
                     if(keyboard->isAltDown()) this->bShowOverrideSliderALTHint = false;
                 }
@@ -610,8 +613,8 @@ void ModSelector::update(CBaseUIEventCtx &c) {
 
         // handle experimental mods visibility
         bool experimentalModEnabled = false;
-        for(auto &experimentalMod : this->experimentalMods) {
-            auto *checkboxPointer = dynamic_cast<CBaseUICheckbox *>(experimentalMod.element);
+        for(const auto &experimentalMod : this->experimentalMods) {
+            const auto *checkboxPointer = dynamic_cast<CBaseUICheckbox *>(experimentalMod.element);
             if(checkboxPointer != nullptr && checkboxPointer->isChecked()) {
                 experimentalModEnabled = true;
                 break;
@@ -637,36 +640,32 @@ void ModSelector::update(CBaseUIEventCtx &c) {
 
     // delayed onModUpdate() triggers when changing some values
     {
+        // this logic is hard to follow but it's what was here before
+        static const auto modUpdateFunc = [](CBaseUISlider *slider, bool &waitForFinished) {
+            if(slider != nullptr && (slider->isActive() || slider->hasChanged())) {
+                waitForFinished = true;
+            } else if(waitForFinished) {
+                return true;
+            }
+            return false;
+        };
+
         // handle dynamic CS and slider vertex buffer updates
-        if(this->CSSlider != nullptr && (this->CSSlider->isActive() || this->CSSlider->hasChanged())) {
-            this->bWaitForCSChangeFinished = true;
-        } else if(this->bWaitForCSChangeFinished) {
-            this->bWaitForCSChangeFinished = false;
-            this->bWaitForSpeedChangeFinished = false;
-            this->bWaitForHPChangeFinished = false;
-
-            if(osu->isInPlayMode()) osu->getMapInterface()->onModUpdate();
-        }
-
         // handle dynamic live pp calculation updates (when CS or Speed/BPM changes)
-        if(this->speedSlider != nullptr && (this->speedSlider->isActive() || this->speedSlider->hasChanged())) {
-            this->bWaitForSpeedChangeFinished = true;
-        } else if(this->bWaitForSpeedChangeFinished) {
-            this->bWaitForCSChangeFinished = false;
-            this->bWaitForSpeedChangeFinished = false;
-            this->bWaitForHPChangeFinished = false;
-
-            if(osu->isInPlayMode()) osu->getMapInterface()->onModUpdate();
+        // handle dynamic HP drain updates
+        bool doneWaiting = false;
+        for(auto [slider, boolean] : std::array{std::pair{this->CSSlider, &this->bWaitForCSChangeFinished},
+                                                std::pair{this->speedSlider, &this->bWaitForSpeedChangeFinished},
+                                                std::pair{this->HPSlider, &this->bWaitForHPChangeFinished}}) {
+            if(modUpdateFunc(slider, *boolean)) {
+                this->bWaitForCSChangeFinished = this->bWaitForSpeedChangeFinished = this->bWaitForHPChangeFinished =
+                    false;
+                doneWaiting = true;
+            }
         }
 
-        // handle dynamic HP drain updates
-        if(this->HPSlider != nullptr && (this->HPSlider->isActive() || this->HPSlider->hasChanged())) {
-            this->bWaitForHPChangeFinished = true;
-        } else if(this->bWaitForHPChangeFinished) {
-            this->bWaitForCSChangeFinished = false;
-            this->bWaitForSpeedChangeFinished = false;
-            this->bWaitForHPChangeFinished = false;
-            if(osu->isInPlayMode()) osu->getMapInterface()->onModUpdate();
+        if(doneWaiting && osu->isInPlayMode()) {
+            osu->getMapInterface()->onModUpdate();
         }
     }
 }
@@ -676,28 +675,37 @@ void ModSelector::onKeyDown(KeyboardEvent &key) {
     if(!this->bVisible || key.isConsumed()) return;
 
     this->overrideSliderContainer->onKeyDown(key);
+    if(key.isConsumed()) return;
 
-    if(key == KEY_1) this->resetModsUserInitiated();
+    const SCANCODE scanCode = key.getScanCode();
 
-    if(key == KEY_F1 || key == cv::TOGGLE_MODSELECT.getVal<SCANCODE>() || key == KEY_2 ||
-       key == cv::GAME_PAUSE.getVal<SCANCODE>() || key == KEY_ESCAPE || key == KEY_ENTER || key == KEY_NUMPAD_ENTER)
-        this->close(key == cv::GAME_PAUSE.getVal<SCANCODE>() || key == KEY_ESCAPE);
-
-    // mod hotkeys
-    if(key == cv::MOD_EASY.getVal<SCANCODE>()) this->modButtonEasy->click();
-    if(key == cv::MOD_NOFAIL.getVal<SCANCODE>()) this->modButtonNofail->click();
-    if(key == cv::MOD_HARDROCK.getVal<SCANCODE>()) this->modButtonHardrock->click();
-    if(key == cv::MOD_SUDDENDEATH.getVal<SCANCODE>()) this->modButtonSuddendeath->click();
-    if(key == cv::MOD_HIDDEN.getVal<SCANCODE>()) this->modButtonHidden->click();
-    if(key == cv::MOD_FLASHLIGHT.getVal<SCANCODE>()) this->modButtonFlashlight->click();
-    if(key == cv::MOD_RELAX.getVal<SCANCODE>()) this->modButtonRelax->click();
-    if(key == cv::MOD_AUTOPILOT.getVal<SCANCODE>()) this->modButtonAutopilot->click();
-    if(key == cv::MOD_SPUNOUT.getVal<SCANCODE>()) this->modButtonSpunout->click();
-    if(key == cv::MOD_AUTO.getVal<SCANCODE>()) this->modButtonAuto->click();
-    if(key == cv::MOD_SCOREV2.getVal<SCANCODE>()) this->modButtonScoreV2->click();
-    if(key == cv::MOD_HALFTIME.getVal<SCANCODE>()) this->modButtonHalftime->click();
-    if(key == cv::MOD_DOUBLETIME.getVal<SCANCODE>()) this->modButtonDoubletime->click();
-
+    const bool forceClose = scanCode == cv::GAME_PAUSE.getVal<SCANCODE>() || scanCode == KEY_ESCAPE;
+    if(forceClose ||                                           //
+       scanCode == KEY_F1 ||                                   //
+       scanCode == cv::TOGGLE_MODSELECT.getVal<SCANCODE>() ||  //
+       scanCode == KEY_2 ||                                    //
+       scanCode == KEY_ENTER || scanCode == KEY_NUMPAD_ENTER) {
+        this->close(forceClose);
+    } else if(scanCode == KEY_1) {
+        this->resetModsUserInitiated();
+    } else {
+        // mod hotkeys
+        // clang-format off
+        if(scanCode == cv::MOD_EASY.getVal<SCANCODE>()) this->modButtonEasy->click();
+        else if(scanCode == cv::MOD_NOFAIL.getVal<SCANCODE>()) this->modButtonNofail->click();
+        else if(scanCode == cv::MOD_HARDROCK.getVal<SCANCODE>()) this->modButtonHardrock->click();
+        else if(scanCode == cv::MOD_SUDDENDEATH.getVal<SCANCODE>()) this->modButtonSuddendeath->click();
+        else if(scanCode == cv::MOD_HIDDEN.getVal<SCANCODE>()) this->modButtonHidden->click();
+        else if(scanCode == cv::MOD_FLASHLIGHT.getVal<SCANCODE>()) this->modButtonFlashlight->click();
+        else if(scanCode == cv::MOD_RELAX.getVal<SCANCODE>()) this->modButtonRelax->click();
+        else if(scanCode == cv::MOD_AUTOPILOT.getVal<SCANCODE>()) this->modButtonAutopilot->click();
+        else if(scanCode == cv::MOD_SPUNOUT.getVal<SCANCODE>()) this->modButtonSpunout->click();
+        else if(scanCode == cv::MOD_AUTO.getVal<SCANCODE>()) this->modButtonAuto->click();
+        else if(scanCode == cv::MOD_SCOREV2.getVal<SCANCODE>()) this->modButtonScoreV2->click();
+        else if(scanCode == cv::MOD_HALFTIME.getVal<SCANCODE>()) this->modButtonHalftime->click();
+        else if(scanCode == cv::MOD_DOUBLETIME.getVal<SCANCODE>()) this->modButtonDoubletime->click();
+        // clang-format on
+    }
     key.consume();
 }
 
@@ -715,8 +723,8 @@ CBaseUIContainer *ModSelector::setVisible(bool visible) {
         anim::moveQuadOut(&this->fAnimation, 1.0f, 0.1f, 0.0f, true);
 
         bool experimentalModEnabled = false;
-        for(auto &experimentalMod : this->experimentalMods) {
-            auto *checkboxPointer = dynamic_cast<CBaseUICheckbox *>(experimentalMod.element);
+        for(const auto &experimentalMod : this->experimentalMods) {
+            const auto *checkboxPointer = dynamic_cast<CBaseUICheckbox *>(experimentalMod.element);
             if(checkboxPointer != nullptr && checkboxPointer->isChecked()) {
                 experimentalModEnabled = true;
                 break;
@@ -1141,11 +1149,11 @@ void ModSelector::resetModsUserInitiated() {
 void ModSelector::resetMods() {
     // cv::mod_fposu.setValue(false);  // intentionally commented out so people can play it in multi
 
-    for(auto &overrideSlider : this->overrideSliders) {
+    for(const auto &overrideSlider : this->overrideSliders) {
         if(overrideSlider.lock != nullptr) overrideSlider.lock->setChecked(false);
     }
 
-    for(auto &overrideSlider : this->overrideSliders) {
+    for(const auto &overrideSlider : this->overrideSliders) {
         // HACKHACK: force small delta to force an update (otherwise values could get stuck, e.g. for "Use Mods" context
         // menu)
         // HACKHACK: only animate while visible to workaround "Use mods" bug (if custom speed multiplier already
@@ -1154,11 +1162,11 @@ void ModSelector::resetMods() {
         overrideSlider.slider->setValue(overrideSlider.slider->getMin(), this->bVisible);
     }
 
-    for(auto &modButton : this->modButtons) {
+    for(const auto &modButton : this->modButtons) {
         modButton->resetState();
     }
 
-    for(auto &experimentalMod : this->experimentalMods) {
+    for(const auto &experimentalMod : this->experimentalMods) {
         ConVar *cvar = experimentalMod.cvar;
         auto *checkboxPointer = dynamic_cast<CBaseUICheckbox *>(experimentalMod.element);
         if(checkboxPointer != nullptr) {
@@ -1225,7 +1233,10 @@ void ModSelector::close(bool force) {
 }
 
 void ModSelector::onOverrideSliderChange(CBaseUISlider *slider) {
-    for(auto &overrideSlider : this->overrideSliders) {
+    const auto &mapIface = osu->getMapInterface();
+    const BeatmapDifficulty *beatmap = mapIface->getBeatmap();
+
+    for(const auto &overrideSlider : this->overrideSliders) {
         if(overrideSlider.slider != slider) continue;
 
         float sliderValue = slider->getFloat() - 1.0f;
@@ -1242,8 +1253,8 @@ void ModSelector::onOverrideSliderChange(CBaseUISlider *slider) {
             overrideSlider.label->setWidthToContent(0);
 
             // HACKHACK: dirty
-            if(osu->getMapInterface()->getBeatmap() != nullptr) {
-                if(overrideSlider.label->getName().find("BPM") != -1) {
+            if(beatmap) {
+                if(overrideSlider.label->getName().find(US_("BPM")) != -1) {
                     // reset AR and OD override sliders if the bpm slider was reset
                     if(!this->ARLock->isChecked()) this->ARSlider->setValue(0.0f, false);
                     if(!this->ODLock->isChecked()) this->ODSlider->setValue(0.0f, false);
@@ -1257,7 +1268,7 @@ void ModSelector::onOverrideSliderChange(CBaseUISlider *slider) {
             }
         } else {
             // HACKHACK: dirty
-            if(overrideSlider.label->getName().find("BPM") != -1) {
+            if(overrideSlider.label->getName().find(US_("BPM")) != -1) {
                 // HACKHACK: force Speed/BPM slider to have a min value of 0.05 instead of 0 (because that's the
                 // minimum for BASS) note that the BPM slider is just a 'fake' slider, it directly controls the
                 // speed slider to do its thing (thus it needs the same limits)
@@ -1274,9 +1285,9 @@ void ModSelector::onOverrideSliderChange(CBaseUISlider *slider) {
                 this->ODLock->setChecked(false);
 
                 // force change all other depending sliders
-                if(osu->getMapInterface()->getBeatmap() != nullptr) {
-                    const float newAR = osu->getMapInterface()->getConstantApproachRateForSpeedMultiplier();
-                    const float newOD = osu->getMapInterface()->getConstantOverallDifficultyForSpeedMultiplier();
+                if(beatmap) {
+                    const float newAR = mapIface->getConstantApproachRateForSpeedMultiplier();
+                    const float newOD = mapIface->getConstantOverallDifficultyForSpeedMultiplier();
 
                     // '+1' to compensate for turn-off area of the override sliders
                     this->ARSlider->setValue(newAR + 1.0f, false);
@@ -1297,7 +1308,9 @@ void ModSelector::onOverrideSliderChange(CBaseUISlider *slider) {
 }
 
 void ModSelector::onOverrideSliderLockChange(CBaseUICheckbox *checkbox) {
-    for(auto &overrideSlider : this->overrideSliders) {
+    const auto &mapIface = osu->getMapInterface();
+
+    for(const auto &overrideSlider : this->overrideSliders) {
         if(overrideSlider.lock == checkbox) {
             const bool locked = overrideSlider.lock->isChecked();
             const bool wasLocked = overrideSlider.lockCvar->getBool();
@@ -1311,12 +1324,12 @@ void ModSelector::onOverrideSliderLockChange(CBaseUICheckbox *checkbox) {
                 if(checkbox == this->ARLock) {
                     if(this->ARSlider->getFloat() < 1.0f)
                         this->ARSlider->setValue(
-                            osu->getMapInterface()->getRawAR() + 1.0f,
+                            mapIface->getRawAR() + 1.0f,
                             false);  // '+1' to compensate for turn-off area of the override sliders
                 } else if(checkbox == this->ODLock) {
                     if(this->ODSlider->getFloat() < 1.0f)
                         this->ODSlider->setValue(
-                            osu->getMapInterface()->getRawOD() + 1.0f,
+                            mapIface->getRawOD() + 1.0f,
                             false);  // '+1' to compensate for turn-off area of the override sliders
                 }
             }
@@ -1339,7 +1352,7 @@ void ModSelector::updateOverrideSliderLabels() {
     const Color activeColor = 0xffffffff;
     const Color inactiveLabelColor = 0xff1166ff;
 
-    for(auto &overrideSlider : this->overrideSliders) {
+    for(const auto &overrideSlider : this->overrideSliders) {
         const float convarValue = overrideSlider.cvar->getFloat();
         const bool isLocked = (overrideSlider.lock != nullptr && overrideSlider.lock->isChecked());
 
@@ -1369,48 +1382,47 @@ void ModSelector::updateOverrideSliderLabels() {
 
 UString ModSelector::getOverrideSliderLabelText(const ModSelector::OVERRIDE_SLIDER &s, bool active) {
     float convarValue = s.cvar->getFloat();
+    const auto &mapIface = osu->getMapInterface();
 
     UString newLabelText = s.label->getName();
-    if(osu->getMapInterface()->getBeatmap() != nullptr) {
+    if(const BeatmapDifficulty *beatmap = mapIface->getBeatmap()) {
         // for relevant values (AR/OD), any non-1.0x speed multiplier should show the fractional parts caused by such a
         // speed multiplier (same for non-1.0x difficulty multiplier)
         const bool forceDisplayTwoDecimalDigits =
-            (osu->getMapInterface()->getSpeedMultiplier() != 1.0f || Osu::getDifficultyMultiplier() != 1.0f ||
+            (mapIface->getSpeedMultiplier() != 1.0f || Osu::getDifficultyMultiplier() != 1.0f ||
              Osu::getCSDifficultyMultiplier() != 1.0f);
 
         // HACKHACK: dirty
         bool wasSpeedSlider = false;
         float beatmapValue = 1.0f;
-        if(s.label->getName().find("CS") != -1) {
-            beatmapValue = std::clamp<float>(
-                osu->getMapInterface()->getBeatmap()->getCS() * Osu::getCSDifficultyMultiplier(), 0.0f, 10.0f);
-            convarValue = osu->getMapInterface()->getCS();
-        } else if(s.label->getName().find("AR") != -1) {
-            beatmapValue = active ? osu->getMapInterface()->getRawARForSpeedMultiplier()
-                                  : osu->getMapInterface()->getApproachRateForSpeedMultiplier();
+        if(s.label->getName().find(US_("CS")) != -1) {
+            beatmapValue = std::clamp<float>(beatmap->getCS() * Osu::getCSDifficultyMultiplier(), 0.0f, 10.0f);
+            convarValue = mapIface->getCS();
+        } else if(s.label->getName().find(US_("AR")) != -1) {
+            beatmapValue =
+                active ? mapIface->getRawARForSpeedMultiplier() : mapIface->getApproachRateForSpeedMultiplier();
 
             // compensate and round
-            convarValue = osu->getMapInterface()->getApproachRateForSpeedMultiplier();
+            convarValue = mapIface->getApproachRateForSpeedMultiplier();
             if(!keyboard->isAltDown() && !forceDisplayTwoDecimalDigits)
                 convarValue = std::round(convarValue * 10.0f) / 10.0f;
             else
                 convarValue = std::round(convarValue * 100.0f) / 100.0f;
-        } else if(s.label->getName().find("OD") != -1) {
-            beatmapValue = active ? osu->getMapInterface()->getRawODForSpeedMultiplier()
-                                  : osu->getMapInterface()->getOverallDifficultyForSpeedMultiplier();
+        } else if(s.label->getName().find(US_("OD")) != -1) {
+            beatmapValue =
+                active ? mapIface->getRawODForSpeedMultiplier() : mapIface->getOverallDifficultyForSpeedMultiplier();
 
             // compensate and round
-            convarValue = osu->getMapInterface()->getOverallDifficultyForSpeedMultiplier();
+            convarValue = mapIface->getOverallDifficultyForSpeedMultiplier();
             if(!keyboard->isAltDown() && !forceDisplayTwoDecimalDigits)
                 convarValue = std::round(convarValue * 10.0f) / 10.0f;
             else
                 convarValue = std::round(convarValue * 100.0f) / 100.0f;
-        } else if(s.label->getName().find("HP") != -1) {
-            beatmapValue = std::clamp<float>(
-                osu->getMapInterface()->getBeatmap()->getHP() * Osu::getDifficultyMultiplier(), 0.0f, 10.0f);
-            convarValue = osu->getMapInterface()->getHP();
-        } else if(s.desc->getText().find("Speed") != -1) {
-            beatmapValue = active ? 1.f : osu->getMapInterface()->getSpeedMultiplier();
+        } else if(s.label->getName().find(US_("HP")) != -1) {
+            beatmapValue = std::clamp<float>(beatmap->getHP() * Osu::getDifficultyMultiplier(), 0.0f, 10.0f);
+            convarValue = mapIface->getHP();
+        } else if(s.desc->getText().find(US_("Speed")) != -1) {
+            beatmapValue = active ? 1.f : mapIface->getSpeedMultiplier();
 
             wasSpeedSlider = true;
             {
@@ -1423,13 +1435,13 @@ UString ModSelector::getOverrideSliderLabelText(const ModSelector::OVERRIDE_SLID
 
                 newLabelText.append("  (BPM: ");
 
-                int minBPM = osu->getMapInterface()->getBeatmap()->getMinBPM();
-                int maxBPM = osu->getMapInterface()->getBeatmap()->getMaxBPM();
-                int mostCommonBPM = osu->getMapInterface()->getBeatmap()->getMostCommonBPM();
-                int newMinBPM = minBPM * osu->getMapInterface()->getSpeedMultiplier();
-                int newMaxBPM = maxBPM * osu->getMapInterface()->getSpeedMultiplier();
-                int newMostCommonBPM = mostCommonBPM * osu->getMapInterface()->getSpeedMultiplier();
-                if(!active || osu->getMapInterface()->getSpeedMultiplier() == 1.0f) {
+                int minBPM = beatmap->getMinBPM();
+                int maxBPM = beatmap->getMaxBPM();
+                int mostCommonBPM = beatmap->getMostCommonBPM();
+                int newMinBPM = minBPM * mapIface->getSpeedMultiplier();
+                int newMaxBPM = maxBPM * mapIface->getSpeedMultiplier();
+                int newMostCommonBPM = mostCommonBPM * mapIface->getSpeedMultiplier();
+                if(!active || mapIface->getSpeedMultiplier() == 1.0f) {
                     if(minBPM == maxBPM)
                         newLabelText.append(fmt::format("{}", newMaxBPM));
                     else
@@ -1448,7 +1460,7 @@ UString ModSelector::getOverrideSliderLabelText(const ModSelector::OVERRIDE_SLID
 
         // always round beatmapValue to 1 decimal digit, except for the speed slider, and except for non-1.0x speed
         // multipliers, and except for non-1.0x difficulty multipliers HACKHACK: dirty
-        if(s.desc->getText().find("Speed") == -1) {
+        if(s.desc->getText().find(US_("Speed")) == -1) {
             if(forceDisplayTwoDecimalDigits)
                 beatmapValue = std::round(beatmapValue * 100.0f) / 100.0f;
             else
@@ -1474,7 +1486,7 @@ void ModSelector::enableAuto() {
 void ModSelector::toggleAuto() { this->modButtonAuto->click(); }
 
 void ModSelector::onCheckboxChange(CBaseUICheckbox *checkbox) {
-    for(auto &experimentalMod : this->experimentalMods) {
+    for(const auto &experimentalMod : this->experimentalMods) {
         if(experimentalMod.element == checkbox) {
             if(experimentalMod.cvar != nullptr) experimentalMod.cvar->setValue(checkbox->isChecked());
 

@@ -145,19 +145,6 @@ class Graphics {
         return this->drawRect((int)pos.x, (int)pos.y, (int)size.x, (int)size.y, top, right, bottom, left);
     }
 
-    inline void drawBorder(int x, int y, int width, int height, float thickness) {
-        return this->drawRectf(RectOptions{
-            .x = (float)x + thickness / 2.f,
-            .y = (float)y + thickness / 2.f,
-            .width = (float)width - thickness,
-            .height = (float)height - thickness,
-            .lineThickness = thickness,
-            .withColor = false,
-        });
-    }
-    inline void drawBorder(vec2 pos, vec2 size, float thickness) {
-        return this->drawBorder((int)pos.x, (int)pos.y, (int)size.x, (int)size.y, thickness);
-    }
     inline void fillRect(int x, int y, int width, int height) {
         return this->fillRectf((float)x, (float)y, (float)width, (float)height);
     }

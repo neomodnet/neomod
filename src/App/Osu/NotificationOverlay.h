@@ -20,7 +20,7 @@ class ToastElement final : public CBaseUIButton {
 
     static constexpr f64 DEFAULT_TOAST_TIMEOUT{10.};
 
-    ToastElement(UString text, Color borderColor_arg, TYPE type);
+    ToastElement(UString text, Color borderColor, TYPE type);
     ~ToastElement() override = default;
 
     void draw() override;
@@ -34,13 +34,10 @@ class ToastElement final : public CBaseUIButton {
     void freezeTimeout();  // stop the timeout at the currently remaining time
 
    private:
-    UString text;
     std::vector<UString> lines;
 
     f64 creation_time;
     f64 timeout{DEFAULT_TOAST_TIMEOUT};  // relative to creation time
-
-    Color border_color;
 };
 
 class NotificationOverlayKeyListener {

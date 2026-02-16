@@ -15,7 +15,7 @@ TooltipOverlay::TooltipOverlay() : UIScreen() {
     this->bDelayFadeout = false;
 }
 
-TooltipOverlay::~TooltipOverlay() {}
+TooltipOverlay::~TooltipOverlay() = default;
 
 void TooltipOverlay::draw() {
     if(this->bDelayFadeout) {
@@ -33,7 +33,7 @@ void TooltipOverlay::draw() {
         const int margin = 5 * dpiScale;
         const int lineSpacing = 8 * dpiScale;
         const float borderTextAlpha = this->fAnim * this->fAnim * this->fAnim;
-        const float backgroundAlpha = borderTextAlpha * 0.9f; // make the background semi-transparent at all times
+        const float backgroundAlpha = borderTextAlpha * 0.9f;  // make the background semi-transparent at all times
 
         int width = 0;
         for(const auto& line : this->lines) {
@@ -91,7 +91,7 @@ void TooltipOverlay::begin() {
     this->bDelayFadeout = true;
 }
 
-void TooltipOverlay::addLine(const UString& text) { this->lines.push_back(text); }
+void TooltipOverlay::addLine(UString text) { this->lines.push_back(std::move(text)); }
 
 void TooltipOverlay::end() {
     anim::moveLinear(&this->fAnim, 1.0f, (1.0f - this->fAnim) * cv::tooltip_anim_duration.getFloat(), true);
