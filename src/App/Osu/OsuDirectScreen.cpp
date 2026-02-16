@@ -147,38 +147,37 @@ void OnlineMapListing::onResolutionChange(vec2 /*newResolution*/) {
     this->creator_width = this->font->getStringWidth(this->meta.creator);
 
     const f32 scale = Osu::getUIScale();
-    f32 x = this->getSize().x - 40.f * scale;
-    f32 y = this->getSize().y - 40.f * scale;
+    vec2 pos_counter = this->getSize() - (40.f * scale);
 
-    auto iconElemsCopy = reinterpret_cast<std::vector<UIIcon*>&>(this->vElements);
+    auto icon_elems_copy = reinterpret_cast<std::vector<UIIcon*>&>(this->vElements);
     this->invalidate();  // clear this->vElements and rebuild
 
-    for(sSz addedElemI = 0; const auto& diff : this->meta.beatmaps) {
+    for(sSz added_elem_i = 0; const auto& diff : this->meta.beatmaps) {
         if(diff.mode != 0) continue;
 
         UIIcon* icon = nullptr;
-        if(addedElemI < iconElemsCopy.size()) {
-            icon = iconElemsCopy[addedElemI];
-            iconElemsCopy[addedElemI] = nullptr;  // set to null so we don't delete it later
+        if(added_elem_i < icon_elems_copy.size()) {
+            icon = icon_elems_copy[added_elem_i];
+            icon_elems_copy[added_elem_i] = nullptr;  // set to null so we don't delete it later
         } else {
             icon = new UIIcon(Icons::CIRCLE);
         }
 
-        icon->setPos(x, y);
+        icon->setPos(pos_counter);
         icon->setSize(30.f * scale, 30.f * scale);
         icon->setTooltipText(fmt::format("{}{}", diff.diffname,
                                          diff.star_rating > 0.f ? fmt::format(" ({:.2f} ★)", diff.star_rating) : ""));
 
         this->addBaseUIElement(icon);
 
-        x -= 40.f * scale;
+        pos_counter.x -= 40.f * scale;
 
-        ++addedElemI;
+        ++added_elem_i;
     }
 
     // delete any excess items in the container (if we somehow rebuilt with fewer than we originally had)
     // we set the element to NULL if we put it back into the container, so SAFE_DELETE won't delete those
-    for(auto* icon : iconElemsCopy) {
+    for(auto* icon : icon_elems_copy) {
         SAFE_DELETE(icon);
     }
 }
@@ -221,41 +220,39 @@ void OnlineMapListing::draw() {
         }
     }
 
-    const f32 map_bg_size = this->getSize().y;
-    f32 x = this->getPos().x;
-    f32 y = this->getPos().y;
+    // use a 4:3 aspect ratio
+    const vec2 map_bg_size = {this->getSize().y * (4.f / 3.f), this->getSize().y};
+    vec2 pos_counter = this->getPos();
 
-    {
+    if(auto* map_thumbnail = osu->getThumbnailManager()->try_get_image(this->thumb_id)) {
+        // Map thumbnail
+        const f32 scale = Osu::getImageScaleToFillResolution(map_thumbnail, map_bg_size);
+        g->pushTransform();
+        g->setColor(Color(0xffffffff));
+        g->scale(scale, scale);
+
+        g->translate(pos_counter);  // needs to be *after* scale
+        g->drawImage(map_thumbnail, AnchorPoint::TOP_LEFT);
+        g->popTransform();
+    } else {
         // Map thumbnail placeholder
         g->setColor(Color(0x55000000));
-        g->fillRect(x, y, map_bg_size, map_bg_size);
-
-        // Map thumbnail
-        auto* map_thumbnail = osu->getThumbnailManager()->try_get_image(this->thumb_id);
-        if(map_thumbnail) {
-            g->pushTransform();
-            g->setColor(Color(0xffffffff));
-            g->scale(map_bg_size / map_thumbnail->getWidth(), map_bg_size / map_thumbnail->getHeight());
-            g->translate(x, y);  // needs to be *after* scale
-            g->drawImage(map_thumbnail, AnchorPoint::TOP_LEFT);
-            g->popTransform();
-        }
+        g->fillRect(pos_counter, map_bg_size);
     }
 
-    x += map_bg_size;
+    pos_counter.x += map_bg_size.x;
 
     const f32 padding = 5.f;
-    const f32 width = this->getSize().x - map_bg_size;
-    const f32 height = this->getSize().y;
+    const vec2 progress_size = {this->getSize().x - map_bg_size.x, this->getSize().y};
     const f32 alpha = std::min(0.25f + this->hover_anim + this->click_anim, 1.f);
 
-    g->pushClipRect(McRect(x, y, width, height));
+    g->pushClipRect(McRect(pos_counter, progress_size));
     {
         // Download progress
-        const f32 download_width = width * download_progress;
+        const f32 download_width = progress_size.x * download_progress;
         g->setColor(rgb(150, 255, 150));
         g->setAlpha(alpha);
-        g->fillRect(x, y, download_width, height);
+        g->fillRect(pos_counter, {download_width, progress_size.y});
 
         // Background
         Color color = rgb(255, 255, 255);
@@ -263,14 +260,16 @@ void OnlineMapListing::draw() {
             color = rgb(0, 150, 0);
         else if(this->download_failed)
             color = rgb(200, 0, 0);
+
+        color.setA(alpha);
+
         g->setColor(color);
-        g->setAlpha(alpha);
-        g->fillRect(x + download_width, y, width - download_width, height);
+        g->fillRect(pos_counter.x + download_width, pos_counter.y, progress_size.x - download_width, progress_size.y);
 
         g->pushTransform();
         {
             g->setColor(0xffffffff);
-            g->translate(x + padding, y + padding + this->font->getHeight());
+            g->translate(pos_counter.x + padding, pos_counter.y + padding + this->font->getHeight());
             g->drawString(this->font, this->full_title);
         }
         g->popTransform();
@@ -278,7 +277,8 @@ void OnlineMapListing::draw() {
         g->pushTransform();
         {
             g->setColor(0xffffffff);
-            g->translate(x + width - (this->creator_width + 2 * padding), y + padding + this->font->getHeight());
+            g->translate(pos_counter.x + progress_size.x - (this->creator_width + 2 * padding),
+                         pos_counter.y + padding + this->font->getHeight());
             g->drawString(this->font, this->meta.creator);
         }
         g->popTransform();
