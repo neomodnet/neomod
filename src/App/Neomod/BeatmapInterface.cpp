@@ -965,6 +965,9 @@ void BeatmapInterface::fail(bool force_death) {
         this->fHealth = 0.0;
         this->fHealth2 = 0.0f;
 
+        // Send a score update with health = 0 so server knows we died
+        ui->getRoom()->onClientScoreChange(true);
+
         if(cv::drain_kill_notification_duration.getFloat() > 0.0f) {
             if(!osu->getScore()->hasDied())
                 ui->getNotificationOverlay()->addNotification("You have failed, but you can keep playing!", 0xffffffff,
