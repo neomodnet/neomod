@@ -396,6 +396,9 @@ void NeomodEnvInterop::setup_system_integrations() {
 
     RegCloseKey(neomod_key);
 
+    // Remove neosu to avoid duplicate launch option
+    RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\Classes\\neosu");
+
     // Register neomod as .osk handler
     HKEY osk_key;
     err = RegCreateKeyEx(HKEY_CURRENT_USER, TEXT("Software\\Classes\\.osk\\OpenWithProgids"), 0, nullptr,
@@ -405,6 +408,7 @@ void NeomodEnvInterop::setup_system_integrations() {
         return;
     }
     RegSetValueEx(osk_key, TEXT("neomod"), 0, REG_SZ, (BYTE *)TEXT(""), sizeof(TEXT("")));
+    RegDeleteValue(osk_key, TEXT("neosu"));
     RegCloseKey(osk_key);
 
     // Register neomod as .osr handler
@@ -416,6 +420,7 @@ void NeomodEnvInterop::setup_system_integrations() {
         return;
     }
     RegSetValueEx(osr_key, TEXT("neomod"), 0, REG_SZ, (BYTE *)TEXT(""), sizeof(TEXT("")));
+    RegDeleteValue(osr_key, TEXT("neosu"));
     RegCloseKey(osr_key);
 
     // Register neomod as .osz handler
@@ -427,6 +432,7 @@ void NeomodEnvInterop::setup_system_integrations() {
         return;
     }
     RegSetValueEx(osz_key, TEXT("neomod"), 0, REG_SZ, (BYTE *)TEXT(""), sizeof(TEXT("")));
+    RegDeleteValue(osz_key, TEXT("neosu"));
     RegCloseKey(osz_key);
 }
 
