@@ -183,18 +183,16 @@ class Database final {
     Hash::flat::map<MD5Hash, std::unique_ptr<StarPrecalc::SRArray>> star_ratings;
     [[nodiscard]] f32 get_star_rating(const MD5Hash &hash, ModFlags flags, f32 speed) const;
 
+    // this copies neosu_maps.db and neosu_scores.db to
+    // neomod_ prefixed equivalents, if neomod_*.db equivalents don't already exist
+    static bool migrate_neosu_to_neomod();
+
    private:
     friend bool Collections::load_all();
     friend bool Collections::load_peppy(std::string_view peppy_collections_path);
     friend bool Collections::load_mcneomod(std::string_view neomod_collections_path);
     friend bool Collections::save_collections();
     friend class DatabaseBeatmap;
-
-    // not great to be doing a whole bunch of file i/o on startup,
-    // but this is run in the Database ctor to copy neosu_maps.db and neosu_scores.db to
-    // neomod_ prefixed equivalents
-    friend class MainMenu;
-    static bool migrate_neosu_to_neomod();
 
     void scheduleLoadRaw();
 
