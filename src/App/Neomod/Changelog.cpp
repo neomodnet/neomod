@@ -32,8 +32,15 @@ Changelog::Changelog() : ScreenBackable() {
 
     std::vector<CHANGELOG> changelogs;
 
+    CHANGELOG v43_03;
+    v43_03.title = "43.03 (" CHANGELOG_TIMESTAMP ")";
+    v43_03.changes = {
+        R"()",
+    };
+    changelogs.push_back(v43_03);
+
     CHANGELOG v43_02;
-    v43_02.title = "43.02 (" CHANGELOG_TIMESTAMP ")";
+    v43_02.title = "43.02 (2026-02-17)";
     v43_02.changes = {
         R"(- Renamed neosu to neomod (https://neomod.net/))",
         R"(- Added "notify" and "toast" commands for servers)",
