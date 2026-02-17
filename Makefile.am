@@ -548,7 +548,6 @@ $(DEPS_PREFIX)/SDL3-$(SDL3_VERSION).built: $(DEPS_CACHE)/SDL3-$(SDL3_VERSION).ta
 	$(SED) -i 's|KMSDRM_gbm_surface_release_buffer.*next_bo.*|//\0|' src/video/kmsdrm/SDL_kmsdrmvideo.c && \
 	patch -Np1<$(BUILD_MISCDIR)/SDL3-Use-RIDEV_NOLEGACY-for-Windows-raw-mouse-input.patch && \
 	patch -Np1<$(BUILD_MISCDIR)/SDL3-PR14048-emscripten-clipboard.patch && \
-	patch -Np1<$(BUILD_MISCDIR)/SDL3-gpu_vulkan-Set-texture-container-before-transitionin.patch && \
 	patch -Np1<$(BUILD_MISCDIR)/SDL3-WIP-gpu_vulkan-Address-more-defragmentation-related-.patch && \
 	patch -Np1<$(BUILD_MISCDIR)/SDL3-Revert-emscripten-Handle-mouse-button-events-more-co.patch && \
 	PKG_CONFIG="$(PKG_CONFIG)" LDFLAGS="$(LDFLAGS)" CC="$(CC)" CXX="$(CXX)" \
