@@ -11,21 +11,27 @@ VERSION_RC="${VERSION_RC//,0/,}" # 39,3 (don't start a group 0)
 VERSION_CL="${VERSION//./_}" # 39_03
 LASTDATE="$(TZ=UTC date +%Y-%m-%d)"
 
-sed -E -i '' "s/version=\"[0-9]+\.[0-9]+\.0\.0\"/version=\"$VERSION.0.0\"/" assets/neosu.manifest
+if [[ $(sed --version | head -n 1) = *GNU* ]]; then
+SEDCMD=("sed" "-Ei")
+else
+SEDCMD=("sed" "-E" "-i" "''")
+fi
 
-sed -E -i '' "s/[0-9]+,[0-9]+,0,0/$VERSION_RC,0,0/g" assets/resource.rc
-sed -E -i '' "s/(\"FileVersion\", \")[0-9]+\.[0-9]+\.0\.0/\1$VERSION.0.0/" assets/resource.rc
-sed -E -i '' "s/(\"ProductVersion\", \")[0-9]+\.[0-9]+/\1$VERSION/" assets/resource.rc
+"${SEDCMD[@]}" "s/version=\"[0-9]+\.[0-9]+\.0\.0\"/version=\"$VERSION.0.0\"/" assets/neomod.manifest
 
-sed -E -i '' "2s/[0-9]+\.[0-9]+/$VERSION/" cmake-win/src/CMakeLists.txt
+"${SEDCMD[@]}" "s/[0-9]+,[0-9]+,0,0/$VERSION_RC,0,0/g" assets/resource.rc
+"${SEDCMD[@]}" "s/(\"FileVersion\", \")[0-9]+\.[0-9]+\.0\.0/\1$VERSION.0.0/" assets/resource.rc
+"${SEDCMD[@]}" "s/(\"ProductVersion\", \")[0-9]+\.[0-9]+/\1$VERSION/" assets/resource.rc
 
-sed -E -i '' "2s/[0-9]+\.[0-9]+/$VERSION/" configure.ac
+"${SEDCMD[@]}" "2s/[0-9]+\.[0-9]+/$VERSION/" cmake-win/src/CMakeLists.txt
+
+"${SEDCMD[@]}" "2s/[0-9]+\.[0-9]+/$VERSION/" configure.ac
 autoconf
 
 # update previous version
-sed -E -i '' "s|(.*\.title = .*)(\" CHANGELOG_TIMESTAMP \")(.*)|\1$LASTDATE\3|" src/App/Osu/Changelog.cpp
+"${SEDCMD[@]}" "s|(.*\.title = .*)(\" CHANGELOG_TIMESTAMP \")(.*)|\1$LASTDATE\3|" src/App/Neomod/Changelog.cpp
 
-sed -i '' "/std::vector<CHANGELOG> changelogs;/a\\
+"${SEDCMD[@]}" "/std::vector<CHANGELOG> changelogs;/a\\
 \\
     CHANGELOG v$VERSION_CL;\\
     v$VERSION_CL.title = \"$VERSION (\" CHANGELOG_TIMESTAMP \")\";\\
