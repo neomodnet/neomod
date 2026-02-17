@@ -373,10 +373,6 @@ bool Database::migrate_neosu_to_neomod() {
 }
 
 Database::Database() : importTimer(std::make_unique<Timer>()) {
-    if(migrate_neosu_to_neomod()) {
-        debugLog("Migrated old neosu databases to neomod.");
-    }
-
     // convar callback
     cv::cmd::save.setCallback(SA::MakeDelegate<&Database::save>(this));
 }

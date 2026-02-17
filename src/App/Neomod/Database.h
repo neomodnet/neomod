@@ -193,6 +193,7 @@ class Database final {
     // not great to be doing a whole bunch of file i/o on startup,
     // but this is run in the Database ctor to copy neosu_maps.db and neosu_scores.db to
     // neomod_ prefixed equivalents
+    friend class MainMenu;
     static bool migrate_neosu_to_neomod();
 
     void scheduleLoadRaw();

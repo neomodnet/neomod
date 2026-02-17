@@ -258,6 +258,15 @@ MainMenu::MainMenu() : UIScreen() {
                     cv::letterboxed_resolution.setValue(cv::resolution.getString());
                     shouldSave = true;
                 }
+                if(version < 43.02) {
+                    if(cv::mp_server.getString() == "neosu.net"sv) {
+                        cv::mp_server.setValue(cv::mp_server.getDefaultString());
+                        shouldSave = true;
+                    }
+                    if(Database::migrate_neosu_to_neomod()) {
+                        debugLog("Migrated old neosu databases to neomod.");
+                    }
+                }
 
                 if(shouldSave) {
                     ui->getOptionsOverlay()->save();
