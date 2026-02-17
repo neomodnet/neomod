@@ -24,7 +24,6 @@ static int replace_exe_name(wchar_t *path, wchar_t *path_end) {
     }
 
     // find "neosu" in the filename
-    wchar_t *fname = p;
     wchar_t *match = NULL;
     while(*p && p + 5 <= path_end) {
         if(p[0] == L'n' && p[1] == L'e' && p[2] == L'o' && p[3] == L's' && p[4] == L'u') {
@@ -61,7 +60,7 @@ void entry(void) {
     // GetCommandLineW returns something like: "C:\path\neosu.exe" -flag1 -flag2
     // or: C:\path\neosu.exe -flag1 -flag2
     wchar_t *cmdline = GetCommandLineW();
-    wchar_t new_cmdline[32768];
+    static wchar_t new_cmdline[32768];
     wchar_t *argv0_end;
     DWORD pos = 0;
     STARTUPINFOW si;
