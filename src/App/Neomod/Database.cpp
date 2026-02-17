@@ -337,7 +337,46 @@ void Database::destroyLoader() {
     logIf(cv::debug_db.getBool() || cv::debug_async_db.getBool(), "done");
 }
 
+bool Database::migrate_neosu_to_neomod() {
+    bool scores_migrated = false;
+    bool maps_migrated = false;
+
+    {
+        const std::string neomod_scores_path = getDBPath(DatabaseType::NEOMOD_SCORES);
+        const std::string_view old_neosu_scores_path = NEOMOD_DB_DIR "neosu_scores.db";
+
+        // migrate scores
+        if(!Environment::fileExists(neomod_scores_path) && Environment::fileExists(old_neosu_scores_path)) {
+            if(!File::copy(old_neosu_scores_path, neomod_scores_path)) {
+                debugLog("WARNING: score database migration {}->{} failed!", old_neosu_scores_path, neomod_scores_path);
+            } else {
+                scores_migrated = true;
+            }
+        }
+    }
+    {
+        const std::string neomod_maps_path = getDBPath(DatabaseType::NEOMOD_MAPS);
+        const std::string_view old_neosu_maps_path = NEOMOD_DB_DIR "neosu_maps.db";
+
+        // migrate maps
+        if(!Environment::fileExists(neomod_maps_path) && Environment::fileExists(old_neosu_maps_path)) {
+            if(!File::copy(old_neosu_maps_path, neomod_maps_path)) {
+                debugLog("WARNING: map database migration {}->{} failed!", old_neosu_maps_path, neomod_maps_path);
+            } else {
+                maps_migrated = true;
+            }
+        }
+    }
+
+    // TODO?: result unused, could maybe cache it in config or something to avoid the stat syscall
+    return scores_migrated || maps_migrated;
+}
+
 Database::Database() : importTimer(std::make_unique<Timer>()) {
+    if(migrate_neosu_to_neomod()) {
+        debugLog("Migrated old neosu databases to neomod.");
+    }
+
     // convar callback
     cv::cmd::save.setCallback(SA::MakeDelegate<&Database::save>(this));
 }
@@ -2140,7 +2179,8 @@ void Database::loadScores(std::string_view dbPath) {
     }
 
     if(nb_neomod_scores != nb_scores) {
-        debugLog("Inconsistency in " PACKAGE_NAME "_scores.db! Expected {:d} scores, found {:d}!", nb_scores, nb_neomod_scores);
+        debugLog("Inconsistency in " PACKAGE_NAME "_scores.db! Expected {:d} scores, found {:d}!", nb_scores,
+                 nb_neomod_scores);
     }
 
     debugLog("Loaded {:d} " PACKAGE_NAME " scores", nb_neomod_scores);
@@ -2638,9 +2678,9 @@ std::unique_ptr<BeatmapSet> Database::loadRawBeatmap(const std::string &beatmapP
         std::string fullFilePath = beatmapPath;
         fullFilePath.append(beatmapFile);
 
-        auto map = std::make_unique<BeatmapDifficulty>(
-            fullFilePath, beatmapPath,
-            is_peppy ? DatabaseBeatmap::BeatmapType::PEPPY_DIFFICULTY : DatabaseBeatmap::BeatmapType::NEOMOD_DIFFICULTY);
+        auto map = std::make_unique<BeatmapDifficulty>(fullFilePath, beatmapPath,
+                                                       is_peppy ? DatabaseBeatmap::BeatmapType::PEPPY_DIFFICULTY
+                                                                : DatabaseBeatmap::BeatmapType::NEOMOD_DIFFICULTY);
         auto res = map->loadMetadata();
         if(!res.error.errc) {
             diffs->push_back(std::move(map));
@@ -2652,8 +2692,9 @@ std::unique_ptr<BeatmapSet> Database::loadRawBeatmap(const std::string &beatmapP
 
     std::unique_ptr<BeatmapSet> set{nullptr};
     if(diffs && !diffs->empty()) {
-        set = std::make_unique<BeatmapSet>(std::move(diffs), is_peppy ? DatabaseBeatmap::BeatmapType::PEPPY_BEATMAPSET
-                                                                      : DatabaseBeatmap::BeatmapType::NEOMOD_BEATMAPSET);
+        set =
+            std::make_unique<BeatmapSet>(std::move(diffs), is_peppy ? DatabaseBeatmap::BeatmapType::PEPPY_BEATMAPSET
+                                                                    : DatabaseBeatmap::BeatmapType::NEOMOD_BEATMAPSET);
     }
 
     if(!set && lastError.errc) {

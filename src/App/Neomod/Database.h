@@ -126,8 +126,7 @@ class Database final {
     void cancel();
     void save();
 
-    BeatmapSet *addBeatmapSet(const std::string &beatmapFolderPath, i32 set_id_override = -1,
-                              bool is_peppy = false);
+    BeatmapSet *addBeatmapSet(const std::string &beatmapFolderPath, i32 set_id_override = -1, bool is_peppy = false);
 
     // returns true if adding succeeded
     bool addScore(const FinishedScore &score);
@@ -190,6 +189,11 @@ class Database final {
     friend bool Collections::load_mcneomod(std::string_view neomod_collections_path);
     friend bool Collections::save_collections();
     friend class DatabaseBeatmap;
+
+    // not great to be doing a whole bunch of file i/o on startup,
+    // but this is run in the Database ctor to copy neosu_maps.db and neosu_scores.db to
+    // neomod_ prefixed equivalents
+    static bool migrate_neosu_to_neomod();
 
     void scheduleLoadRaw();
 
