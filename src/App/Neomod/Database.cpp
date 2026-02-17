@@ -157,7 +157,7 @@ Database::DatabaseType Database::getDBType(std::string_view db_path) {
         // mcosu/neomod collections
         return MCNEOMOD_COLLECTIONS;
     }
-    if(db_name == PACKAGE_NAME "_scores.db") {
+    if(db_name == PACKAGE_NAME "_scores.db"sv || db_name == "neosu_scores.db"sv) {
         // neomod!
         return NEOMOD_SCORES;
     }
