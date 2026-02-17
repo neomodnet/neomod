@@ -35,7 +35,7 @@ Changelog::Changelog() : ScreenBackable() {
     CHANGELOG v43_02;
     v43_02.title = "43.02 (" CHANGELOG_TIMESTAMP ")";
     v43_02.changes = {
-        R"(- Renamed neosu to neomod)",
+        R"(- Renamed neosu to neomod ( https://neomod.net/ ))",
     };
     changelogs.push_back(v43_02);
 
