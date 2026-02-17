@@ -23,12 +23,10 @@
 
 #include <chrono>
 
-#define NEOMOD_STATUS_PFX "[" PACKAGE_NAME "]"
-
 namespace RichPresence {
 namespace {  // static
 
-std::string last_status{NEOMOD_STATUS_PFX "\nWaking up"};
+std::string last_status{"\nWaking up"};
 Action last_action = Action::IDLE;
 
 void crop_to(const std::string& str, char* output, int max_len) {
@@ -112,7 +110,7 @@ void setBanchoStatus(const char* info_text, Action action) {
     }
 
     char fancy_text[1024] = {0};
-    snprintf(fancy_text, 1023, NEOMOD_STATUS_PFX "\n%s", info_text);
+    snprintf(fancy_text, 1023, "\n%s", info_text);
 
     last_status = fancy_text;
     last_action = action;
