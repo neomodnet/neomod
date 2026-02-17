@@ -35,7 +35,13 @@ Changelog::Changelog() : ScreenBackable() {
     CHANGELOG v43_02;
     v43_02.title = "43.02 (" CHANGELOG_TIMESTAMP ")";
     v43_02.changes = {
-        R"(- Renamed neosu to neomod ( https://neomod.net/ ))",
+        R"(- Renamed neosu to neomod (https://neomod.net/))",
+        R"(- Added "notify" and "toast" commands for servers)",
+        R"(- Client now sends multiplayer death packet immediately)",
+        R"(- Fixed avatar loading getting stuck)",
+        R"(- Fixed song browser leaderboards being jittery)",
+        R"(- Fixed users list not getting filled on login)",
+        R"(- Unsquished beatmap thumbnails in download screen)",
     };
     changelogs.push_back(v43_02);
 
