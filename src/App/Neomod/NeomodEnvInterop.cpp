@@ -152,6 +152,7 @@ bool NeomodEnvInterop::handle_cmdline_args(const std::vector<std::string> &args)
 
 #include "WinDebloatDefs.h"
 #include <objbase.h>
+#include <winreg.h>
 
 #include <SDL3/SDL_system.h>
 #include <SDL3/SDL_events.h>
