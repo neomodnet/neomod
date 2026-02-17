@@ -149,6 +149,7 @@ bool NeomodEnvInterop::handle_cmdline_args(const std::vector<std::string> &args)
 #include "Engine.h"
 #include "SString.h"
 #include "Timing.h"
+#include "dynutils.h"
 
 #include "WinDebloatDefs.h"
 #include <objbase.h>
@@ -398,7 +399,13 @@ void NeomodEnvInterop::setup_system_integrations() {
     RegCloseKey(neomod_key);
 
     // Remove neosu to avoid duplicate launch option
-    RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\Classes\\neosu");
+    if(auto advapi_handle = dynutils::load_lib_system("advapi32.dll")) {
+        using RegDeleteTreeW_t = LSTATUS WINAPI(HKEY hKey, LPCWSTR lpSubKey);
+        if(auto *pRegDeleteTreeW = dynutils::load_func<RegDeleteTreeW_t>(advapi_handle, "RegDeleteTreeW")) {
+            pRegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\Classes\\neosu");
+        }
+        dynutils::unload_lib(advapi_handle);
+    }
 
     // Register neomod as .osk handler
     HKEY osk_key;
