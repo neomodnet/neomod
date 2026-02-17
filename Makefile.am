@@ -1799,8 +1799,9 @@ CLEANFILES += $(INSTALL_STAMPS) .install-state
 install-exec-hook: install-libs
 if LINUX_PLATFORM
 	@cd "$(DESTDIR)$(bindir)" && \
-	$(LN_S) -f $(PROGRAMS) McEngine && \
-	$(LN_S) -f $(PROGRAMS) McOsu
+	$(LN_S) -rf $(PROGRAMS) McEngine && \
+	$(LN_S) -rf $(PROGRAMS) McOsu && \
+	$(LN_S) -rf $(PROGRAMS) neosu
 else
 if WIN_PLATFORM
 	@cp -P neomod.pdb "$(DESTDIR)$(bindir)" &>/dev/null || true # don't fail install if we had no pdb
