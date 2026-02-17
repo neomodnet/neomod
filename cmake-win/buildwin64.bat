@@ -101,7 +101,7 @@ if not "%CLEAN%"=="" (
 set INSTALL_PREFIX="%cd%\dist-%BUILD_TYPE%"
 
 :: Show build configuration
-echo Building neosu (%BUILD_TYPE% configuration) using superbuild
+echo Building neomod (%BUILD_TYPE% configuration) using superbuild
 echo Build directory: %BUILD_DIR%
 echo Dependency cache: depcache
 echo.
@@ -137,14 +137,14 @@ if %ERRORLEVEL% neq 0 (
 
 :: Build main project directly to ensure source changes are detected
 echo Building main project...
-cmake --build "%BUILD_DIR%\neosu" --config %BUILD_TYPE% --parallel %JOBS%
+cmake --build "%BUILD_DIR%\neomod" --config %BUILD_TYPE% --parallel %JOBS%
 if %ERRORLEVEL% neq 0 (
     echo Main project build failed
     exit /b 1
 )
 
 echo Installing main project...
-cmake --install "%BUILD_DIR%\neosu" --config %BUILD_TYPE%
+cmake --install "%BUILD_DIR%\neomod" --config %BUILD_TYPE%
 if %ERRORLEVEL% neq 0 (
     echo Main project install failed
     exit /b 1
@@ -152,5 +152,5 @@ if %ERRORLEVEL% neq 0 (
 
 echo.
 echo Build completed successfully!
-echo Executable: %INSTALL_PREFIX%\bin\neosu.exe
+echo Executable: %INSTALL_PREFIX%\bin\neomod.exe
 echo Dependencies cached in: depcache (reused across builds)

@@ -4,14 +4,14 @@
 #include "Osu.h"
 #include "BaseFrameworkTest.h"
 #include "AudioTester.h"
-#include "NeosuEnvInterop.h"
+#include "NeomodEnvInterop.h"
 
 #include <array>
 
 namespace Mc {
 
 static constexpr std::array sDescriptors{
-    AppDescriptor{"neosu", [] -> App * { return new Osu(); }, neosu::createInterop, neosu::handleExistingWindow},
+    AppDescriptor{PACKAGE_NAME, [] -> App * { return new Osu(); }, neomod::createInterop, neomod::handleExistingWindow},
     AppDescriptor{"BaseFrameworkTest", [] -> App * { return new Mc::Tests::BaseFrameworkTest(); }},
     AppDescriptor{"AudioTester", [] -> App * { return new Mc::Tests::AudioTester(); }},
 };

@@ -63,7 +63,7 @@ cond_sources "if WIN_PLATFORM" "WIN_SOURCES"       src/Platform/Windows
 
 # unconditional sources + conditional variable references
 {
-    printf '\nneosu_SOURCES = \\\n'
+    printf '\nneomod_SOURCES = \\\n'
 
     find_sources src libraries \
         -not -path 'src/Engine/Renderer/DirectX11/*' \
@@ -108,7 +108,7 @@ echo "Running autotools..."
 autoreconf -fiv
 
 echo "
-Bootstrap complete. You can now build neosu either:
+Bootstrap complete. You can now build neomod either:
 
 For development (recommended, out-of-tree build):
   mkdir build

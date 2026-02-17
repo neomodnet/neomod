@@ -94,7 +94,7 @@ jobs:
           restore-keys: |
             ccache-win-${{ matrix.arch }}-
 
-      - name: Building neosu
+      - name: Building neomod
         run: |
           ./autogen.sh
           cd build-out
@@ -112,5 +112,5 @@ jobs:
 
       - uses: actions/upload-artifact@v6.0.0
         with:
-          name: neosu-win-${{ matrix.arch }}
+          name: neomod-win-${{ matrix.arch }}
           path: build-out/dist

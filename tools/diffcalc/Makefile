@@ -6,7 +6,7 @@ CXXFLAGS ?= -O2
 override CXXFLAGS += -std=c++23 -DBUILD_TOOLS_ONLY
 
 SRCDIR = ../../src
-INCLUDES = -I$(SRCDIR)/App/Osu -I$(SRCDIR)/App/Osu/DiffCalc -I$(SRCDIR)/Util
+INCLUDES = -I$(SRCDIR)/App/Neomod -I$(SRCDIR)/App/Neomod/DiffCalc -I$(SRCDIR)/Util
 
 # GLM: use system headers by default, override with GLM_INCLUDE=-I/path/to/glm
 # https://github.com/g-truc/glm
@@ -14,11 +14,11 @@ GLM_INCLUDE ?=
 INCLUDES += $(GLM_INCLUDE)
 
 SOURCES = \
-	$(SRCDIR)/App/Osu/DatabaseBeatmap.cpp \
-	$(SRCDIR)/App/Osu/DiffCalc/DifficultyCalculator.cpp \
-	$(SRCDIR)/App/Osu/GameRules.cpp \
-	$(SRCDIR)/App/Osu/SliderCurves.cpp \
-	$(SRCDIR)/App/Osu/Tools/DiffCalcTool.cpp \
+	$(SRCDIR)/App/Neomod/DatabaseBeatmap.cpp \
+	$(SRCDIR)/App/Neomod/DiffCalc/DifficultyCalculator.cpp \
+	$(SRCDIR)/App/Neomod/GameRules.cpp \
+	$(SRCDIR)/App/Neomod/SliderCurves.cpp \
+	$(SRCDIR)/App/Neomod/Tools/DiffCalcTool.cpp \
 	$(SRCDIR)/Util/SString.cpp
 
 OBJDIR = obj

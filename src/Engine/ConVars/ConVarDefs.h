@@ -251,7 +251,7 @@ CONVAR(alt_sleep, 1, CLIENT,
        "use an alternative sleep implementation (on Windows) for potentially more accurate frame limiting");
 
 // Constants
-CONVAR(version, NEOSU_VERSION, CONSTANT);
+CONVAR(version, PACKAGE_VERSION, CONSTANT);
 
 // Sanity checks
 CONVAR(r_drawstring_max_string_length, 16384, CLIENT,

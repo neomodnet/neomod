@@ -21,13 +21,13 @@ BEGIN
     BEGIN
         BLOCK "040904B0"  // US English, Unicode
         BEGIN
-            VALUE "CompanyName", "neosu"
-            VALUE "FileDescription", "neosu"
+            VALUE "CompanyName", "neomod"
+            VALUE "FileDescription", "neomod"
             VALUE "FileVersion", "43.02.0.0"
-            VALUE "InternalName", "neosu"
+            VALUE "InternalName", "neomod"
             VALUE "LegalCopyright", "Copyright (C) 2025-2026"
-            VALUE "OriginalFilename", "neosu.exe"
-            VALUE "ProductName", "neosu"
+            VALUE "OriginalFilename", "neomod.exe"
+            VALUE "ProductName", "neomod"
             VALUE "ProductVersion", "43.02"
         END
     END
@@ -38,4 +38,4 @@ BEGIN
 END
 
 // application manifest
-1 24 "neosu.manifest"
+1 24 "neomod.manifest"

@@ -73,7 +73,7 @@ jobs:
           restore-keys: |
             ccache-linux-aarch64-
 
-      - name: Building neosu
+      - name: Building neomod
         run: |
           ./autogen.sh
           export MAKEFLAGS="-j$(nproc)"
@@ -93,5 +93,5 @@ jobs:
 
       - uses: actions/upload-artifact@v6.0.0
         with:
-          name: neosu-linux-aarch64
+          name: neomod-linux-aarch64
           path: build-out/dist

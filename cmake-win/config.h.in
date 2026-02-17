@@ -1,4 +1,4 @@
-/* config.h.in - Configuration header template for neosu */
+/* config.h.in - Configuration header template for neomod */
 
 #ifndef CONFIG_H
 #define CONFIG_H
@@ -11,7 +11,7 @@
 #define PACKAGE_URL "@PROJECT_URL@"
 #define PACKAGE_VERSION "@PROJECT_VERSION@"
 
-#define NEOSU_VERSION "@PROJECT_VERSION@"
+#define NEOMOD_VERSION "@PROJECT_VERSION@"
 
 /* Platform definitions */
 #cmakedefine MCENGINE_PLATFORM_WINDOWS

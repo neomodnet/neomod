@@ -11,7 +11,7 @@ VERSION_RC="${VERSION_RC//,0/,}" # 39,3 (don't start a group 0)
 VERSION_CL="${VERSION//./_}" # 39_03
 LASTDATE="$(TZ=UTC date +%Y-%m-%d)"
 
-sed -Ei "s/version=\"[0-9]+\.[0-9]+\.0\.0\"/version=\"$VERSION.0.0\"/" assets/neosu.manifest
+sed -Ei "s/version=\"[0-9]+\.[0-9]+\.0\.0\"/version=\"$VERSION.0.0\"/" assets/neomod.manifest
 
 sed -Ei "s/[0-9]+,[0-9]+,0,0/$VERSION_RC,0,0/g" assets/resource.rc
 sed -Ei "s/(\"FileVersion\", \")[0-9]+\.[0-9]+\.0\.0/\1$VERSION.0.0/" assets/resource.rc
@@ -23,7 +23,7 @@ sed -Ei "2s/[0-9]+\.[0-9]+/$VERSION/" configure.ac
 autoconf
 
 # update previous version
-sed -E -i "s|(.*\.title = .*)(\" CHANGELOG_TIMESTAMP \")(.*)|\1$LASTDATE\3|" src/App/Osu/Changelog.cpp
+sed -E -i "s|(.*\.title = .*)(\" CHANGELOG_TIMESTAMP \")(.*)|\1$LASTDATE\3|" src/App/Neomod/Changelog.cpp
 
 sed -i "/std::vector<CHANGELOG> changelogs;/a\\
 \\
@@ -32,4 +32,4 @@ sed -i "/std::vector<CHANGELOG> changelogs;/a\\
     v$VERSION_CL.changes = {\\
         R\"()\",\\
     };\\
-    changelogs.push_back(v$VERSION_CL);" src/App/Osu/Changelog.cpp
+    changelogs.push_back(v$VERSION_CL);" src/App/Neomod/Changelog.cpp

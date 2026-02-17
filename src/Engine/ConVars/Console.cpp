@@ -132,8 +132,9 @@ void Console::execConfigFile(std::string_view filename_view) {
                 const auto commentIndex = line.find("//");
                 if(commentIndex != std::string::npos) line.erase(commentIndex, line.length() - commentIndex);
 
+                // TODO: move this out of engine code
                 // McOsu used to prefix all convars with "osu_". Maybe it made sense when McEngine was
-                // a separate thing, but in neosu everything is related to osu anyway, so it's redundant.
+                // a separate thing, but in neomod everything is related to osu anyway, so it's redundant.
                 // So, to avoid breaking old configs, we're removing the prefix for (almost) all convars here.
                 if(line.starts_with("osu_") && !line.starts_with("osu_folder")) {
                     line.erase(0, 4);

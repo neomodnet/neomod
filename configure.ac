@@ -1,5 +1,5 @@
 AC_PREREQ([2.69])
-AC_INIT([neosu], [[43.02]], [], [], [https://github.com/kiwec/neosu])
+AC_INIT([neomod], [[43.02]], [], [], [https://github.com/neomodnet/neomod])
 AC_CONFIG_SRCDIR([src/Engine/Engine.cpp])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_HEADERS([src/config.h])
@@ -20,7 +20,7 @@ AH_BOTTOM([
 #endif
 ])
 
-AC_DEFINE_UNQUOTED([NEOSU_VERSION], [PACKAGE_VERSION], [Defined to the version of neosu being built.])
+AC_DEFINE_UNQUOTED([NEOMOD_VERSION], [PACKAGE_VERSION], [Defined to the version of neomod being built.])
 
 _tstamp=$(TZ=UTC date +%y%m%d%H%M)
 AC_SUBST([BUILD_TIMESTAMP], [$_tstamp])
@@ -317,9 +317,9 @@ AS_IF([test "$host_os" = "linux-gnu"], [
 ])
 
 AS_IF([test "$host_os" = "mingw32"], [
-    NEOSU_CPPFLAGS="$NEOSU_CPPFLAGS -D_UNICODE -DUNICODE=1"
-    NEOSU_CXXFLAGS="$NEOSU_CXXFLAGS -D_UNICODE -DUNICODE=1 -municode"
-    NEOSU_LDFLAGS="$NEOSU_LDFLAGS -municode"
+    NEOMOD_CPPFLAGS="$NEOMOD_CPPFLAGS -D_UNICODE -DUNICODE=1"
+    NEOMOD_CXXFLAGS="$NEOMOD_CXXFLAGS -D_UNICODE -DUNICODE=1 -municode"
+    NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -municode"
     AS_IF([test "x$enable_clang" = "xyes"], [
         LLVMMINGW=1
         AC_SUBST([LLVMMINGW])
@@ -527,7 +527,7 @@ AS_IF([test -n "$WASM_CC"], [
         CXX=g++
         CXXFLAGS="$CXXFLAGS -fno-semantic-interposition"
         CFLAGS="$CFLAGS -fno-semantic-interposition"
-        NEOSU_CXXFLAGS="$NEOSU_CXXFLAGS -fimplicit-constexpr"
+        NEOMOD_CXXFLAGS="$NEOMOD_CXXFLAGS -fimplicit-constexpr"
         _ccache_ctype="gcc"
         _cid="GNU"
     ])
@@ -577,10 +577,10 @@ AS_IF([test -n "$WASM_CC"], [
     emscripten_flags="$emscripten_flags -sWEBSOCKET_URL=wss:// -sFULL_ES3 -sINITIAL_MEMORY=1536MB"
     emscripten_flags="$emscripten_flags -sEXPORTED_RUNTIME_METHODS=callMain,ENV -sINCOMING_MODULE_JS_API=locateFile,onAbort,onRuntimeInitialized,noInitialRun,print"
 
-    NEOSU_CPPFLAGS="$NEOSU_CPPFLAGS -U__linux__ -D__EMSCRIPTEN__"
-    NEOSU_CXXFLAGS="$NEOSU_CXXFLAGS $emscripten_flags"
+    NEOMOD_CPPFLAGS="$NEOMOD_CPPFLAGS -U__linux__ -D__EMSCRIPTEN__"
+    NEOMOD_CXXFLAGS="$NEOMOD_CXXFLAGS $emscripten_flags"
     # --emrun for support for running the .html with emrun (useful for offline testing)
-    NEOSU_LDFLAGS="$NEOSU_LDFLAGS $emscripten_flags -lidbfs.js -lnodefs.js --pre-js $WASM_POLYFILL_DEP --emrun"
+    NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS $emscripten_flags -lidbfs.js -lnodefs.js --pre-js $WASM_POLYFILL_DEP --emrun"
 
     WASM_PRELOAD_FLAGS="--preload-file \$(srcdir)/\$(ASSETS_DIR)/fonts@fonts --preload-file \$(srcdir)/\$(ASSETS_DIR)/materials@materials"
     AS_IF([test "x$enable_redistributable" = "xno"], [
@@ -609,7 +609,7 @@ __EOF__
     LIBPREFIX="lib"
     EXEEXT=".html"
     AC_DEFINE([MCENGINE_PLATFORM_WASM], [1], [Define if compiling for WASM with Emscripten.])
-    AC_DEFINE([NEOSU_DATA_DIR], ["/persist/"], [Persistent writable data directory for WASM.])
+    AC_DEFINE([NEOMOD_DATA_DIR], ["/persist/"], [Persistent writable data directory for WASM.])
 ], [test "$host_os" = "linux-gnu"], [
     AS_IF([test "$host_cpu" = "i686"], [
         install -Dm755 /dev/stdin $PWD/build/$target-$CC <<EOF
@@ -621,12 +621,12 @@ EOF
 $CXX -m32 "\$@"
 EOF
         AS_IF([test "x$enable_clang" = "xyes"], [
-            NEOSU_LDFLAGS="$NEOSU_LDFLAGS -latomic"
+            NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -latomic"
         ])
         # ld complains about libcrypto.a(libcrypto-lib-cast-586.o): warning: relocation against `CAST_S_table1' in read-only section `.text'
         # TODO: rebuild curl/openssl with -fPIE maybe?
-        NEOSU_CXXFLAGS="$NEOSU_CXXFLAGS -fno-PIE -no-pie"
-        NEOSU_LDFLAGS="$NEOSU_LDFLAGS -no-pie"
+        NEOMOD_CXXFLAGS="$NEOMOD_CXXFLAGS -fno-PIE -no-pie"
+        NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -no-pie"
         AC_SUBST([NASMOBJ],[elf32])
     ],[
         install -Dm755 /dev/stdin $PWD/build/$target-$CC <<EOF
@@ -687,7 +687,7 @@ __EOF__
     ])
 
     # increase default stack size to 8mb from 1mb
-    NEOSU_LDFLAGS="$NEOSU_LDFLAGS -Wl,--stack,8388608"
+    NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,--stack,8388608"
     AC_DEFINE([MCENGINE_PLATFORM_WINDOWS], [1], [Define if compiling for Windows.])
 ])
 
@@ -852,7 +852,7 @@ CFLAGS="$CFLAGS $COMMON_FLAGS"
 AC_SUBST([CXXFLAGS])
 AC_SUBST([CFLAGS])
 AC_SUBST([LDFLAGS])
-AC_SUBST([CXXFLAGS_EXTRA]) # appended to neosu build flags only
+AC_SUBST([CXXFLAGS_EXTRA]) # appended to neomod build flags only
 
 AC_LANG_PUSH([C++])
 AS_IF([test "x$enable_native" != "xno"], [
@@ -908,14 +908,14 @@ AS_IF([test "$SRCREMAP" != "no" && test "$host_os" = "mingw32" && { test -n "$SR
 
     # this seems to be the only way i can get visual studio to find the source paths automatically,
     # mounting the git source at X:\ and using -Wl,pdbsourcepath:'X:\'
-    # this ends up turning a path like "/home/xyz/neosu/build-folder" into "X:\build-folder"
+    # this ends up turning a path like "/home/xyz/neomod/build-folder" into "X:\build-folder"
 
     # FIXME: non-portable realpath?
     rel_src_to_build_dirname="$(realpath --relative-to="$srcdir" "$PWD")"
 
     CXXFLAGS="$CXXFLAGS -ffile-prefix-map=\"\${abs_top_builddir}\"=\"${rel_src_to_build_dirname}\""
     CFLAGS="$CFLAGS -ffile-prefix-map=\"\${abs_top_builddir}\"=\"${rel_src_to_build_dirname}\""
-    NEOSU_LDFLAGS="$NEOSU_LDFLAGS -ffile-prefix-map=\"\${abs_top_builddir}\"=\"${rel_src_to_build_dirname}\""
+    NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -ffile-prefix-map=\"\${abs_top_builddir}\"=\"${rel_src_to_build_dirname}\""
 ])
 
 # this is currently extremely broken with mingw-gcc
@@ -926,22 +926,22 @@ AS_IF([test "$host_os" = "mingw32" && { test -n "$SRCREMAP" || test "x$enable_cl
         CXXFLAGS="-g $CXXFLAGS -gcodeview" # add some debug info too since its detached
         CFLAGS="-g $CFLAGS -gcodeview"
         AX_CHECK_LINK_FLAG([-Wl,--pdb=], [
-            NEOSU_LDFLAGS="$NEOSU_LDFLAGS -Wl,--pdb="
+            NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,--pdb="
         ])
         # speeds up link time on llvm-mingw, not crucial though
         AX_CHECK_COMPILE_FLAG([-gcodeview-ghash], [
             AX_CHECK_LINK_FLAG([-Wl,/debug:ghash], [
                 CXXFLAGS="$CXXFLAGS -gcodeview-ghash"
                 CFLAGS="$CFLAGS -gcodeview-ghash"
-                NEOSU_LDFLAGS="$NEOSU_LDFLAGS -Wl,/debug:ghash"
+                NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,/debug:ghash"
             ])
         ])
         AX_CHECK_LINK_FLAG([-Wl,/pdbaltpath:%_PDB%], [
-            NEOSU_LDFLAGS="$NEOSU_LDFLAGS -Wl,/pdbaltpath:%_PDB%"
+            NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,/pdbaltpath:%_PDB%"
         ])
         AS_IF([test "$SRCREMAP" != "no"], [
             AX_CHECK_LINK_FLAG([-Wl,/pdbsourcepath:], [
-                NEOSU_LDFLAGS="$NEOSU_LDFLAGS -Wl,/pdbsourcepath:'${SRCREMAP:-X:\\}'"
+                NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,/pdbsourcepath:'${SRCREMAP:-X:\\}'"
             ])
         ])
     ])
@@ -952,13 +952,13 @@ AS_IF([test "x$enable_debug" = "xyes"], [
     AS_IF([test "$host_os" = "mingw32"],[
         # make the exe open with a console window
         AS_IF([test "x$enable_clang" = "xyes"], [
-            NEOSU_LDFLAGS="$NEOSU_LDFLAGS -Wl,--subsystem,console:${win_subsystem_ver}"
+            NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,--subsystem,console:${win_subsystem_ver}"
 
             CXXFLAGS="$CXXFLAGS -g3 -Og"
             CFLAGS="$CFLAGS -g3 -Og"
         ], [
-            NEOSU_CXXFLAGS="$NEOSU_CXXFLAGS -mconsole"
-            NEOSU_LDFLAGS="$NEOSU_LDFLAGS -mconsole -Wl,--subsystem,console:${win_subsystem_ver}"
+            NEOMOD_CXXFLAGS="$NEOMOD_CXXFLAGS -mconsole"
+            NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -mconsole -Wl,--subsystem,console:${win_subsystem_ver}"
 
             CXXFLAGS="$CXXFLAGS -g3 -ggdb3 -gdwarf-5 -Og"
             CFLAGS="$CFLAGS -g3 -ggdb3 -gdwarf-5 -Og"
@@ -976,17 +976,17 @@ AS_IF([test "x$enable_debug" = "xyes"], [
     ])
 
     ENABLE_DEBUG=$enable_debug
-    NEOSU_CPPFLAGS="$NEOSU_CPPFLAGS -D_DEBUG"
+    NEOMOD_CPPFLAGS="$NEOMOD_CPPFLAGS -D_DEBUG"
     AS_IF([test -z "$CLANG" && test -z "$WASM_CC"], [
-        NEOSU_CXXFLAGS="$NEOSU_CXXFLAGS -Wcast-align -Wpacked-not-aligned"
+        NEOMOD_CXXFLAGS="$NEOMOD_CXXFLAGS -Wcast-align -Wpacked-not-aligned"
         # CPPFLAGS="$CPPFLAGS -D_GLIBCXX_DEBUG"
         # CXXFLAGS="$CXXFLAGS -D_GLIBCXX_DEBUG"
     ])
     # assertions breaks in a couple places due to calling malloc/free in the soloud mixer (inside SoundTouch)
     # hopefully it's not fatal to ignore...
     # AS_IF([test -n "$WASM_CC"], [
-    #     NEOSU_CXXFLAGS="$NEOSU_CXXFLAGS -sASSERTIONS"
-    #     NEOSU_LDFLAGS="$NEOSU_LDFLAGS -sASSERTIONS"
+    #     NEOMOD_CXXFLAGS="$NEOMOD_CXXFLAGS -sASSERTIONS"
+    #     NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -sASSERTIONS"
     # ])
     AC_SUBST([ENABLE_DEBUG])
     AS_IF([test "x$enable_strip" != "xyes"], [enable_strip=no]) # disable stripping unless its explicitly requested for debug (why tho?)
@@ -996,7 +996,7 @@ AS_IF([test "x$enable_debug" = "xyes"], [
         # put it at the start so -O3 is overrideable from the command line
         CXXFLAGS="-O3 $(printf '%s' "$CXXFLAGS" | sed 's/-O2//g')" # where do those -g -O2 flags even come from...
         CFLAGS="-O3 $(printf '%s' "$CFLAGS" | sed 's/-O2//g')"
-        NEOSU_LDFLAGS="$NEOSU_LDFLAGS -Wl,-O1"
+        NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,-O1"
 
         AS_IF([test "x$enable_clang" != "xyes" && test -z "$WASM_CC"], [
             # -fipa-pta is GCC-only, skip for clang and emscripten
@@ -1005,7 +1005,7 @@ AS_IF([test "x$enable_debug" = "xyes"], [
         ])
     ])
     AS_IF([test "x$enable_strip" != "xno"], [
-        NEOSU_LDFLAGS="$NEOSU_LDFLAGS -Wl,-s" # strip flag
+        NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,-s" # strip flag
     ], [
         AS_IF([test -z "$WASM_CC"],[
             # add minimal debug info
@@ -1015,19 +1015,19 @@ AS_IF([test "x$enable_debug" = "xyes"], [
     ])
     AS_IF([test "$host_os" = "mingw32"], [
         AS_IF([test "x$enable_clang" = "xyes"], [
-            NEOSU_LDFLAGS="$NEOSU_LDFLAGS -Wl,--subsystem,windows:${win_subsystem_ver}"
+            NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,--subsystem,windows:${win_subsystem_ver}"
         ], [
-            NEOSU_CXXFLAGS="$NEOSU_CXXFLAGS -mwindows"
-            NEOSU_LDFLAGS="$NEOSU_LDFLAGS -mwindows -Wl,--subsystem,windows:${win_subsystem_ver}"
+            NEOMOD_CXXFLAGS="$NEOMOD_CXXFLAGS -mwindows"
+            NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -mwindows -Wl,--subsystem,windows:${win_subsystem_ver}"
         ])
     ])
 ])
 
 AS_IF([test "x$enable_omp" = "xyes"], [
     AS_IF([test "x$enable_clang" = "xyes"], [
-        NEOSU_CXXFLAGS="$NEOSU_CXXFLAGS -fopenmp-optimistic-collapse"
+        NEOMOD_CXXFLAGS="$NEOMOD_CXXFLAGS -fopenmp-optimistic-collapse"
     ])
-    NEOSU_CXXFLAGS="$NEOSU_CXXFLAGS -fopenmp"
+    NEOMOD_CXXFLAGS="$NEOMOD_CXXFLAGS -fopenmp"
     AC_SUBST([OPENMP], [1])
 ])
 
@@ -1070,8 +1070,8 @@ AS_IF([test "x$enable_lto" != "xno"], [
     # this is hilariously slow, don't use it
     AS_IF([test "x$enable_lto" = "xultra"], [
         AX_CHECK_LINK_FLAG([-flto-partition=one], [
-            NEOSU_CXXFLAGS="$NEOSU_CXXFLAGS -flto-partition=one"
-            NEOSU_LDFLAGS="$NEOSU_LDFLAGS -flto-partition=one"
+            NEOMOD_CXXFLAGS="$NEOMOD_CXXFLAGS -flto-partition=one"
+            NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -flto-partition=one"
         ])
     ])
 ])
@@ -1094,7 +1094,7 @@ AX_CHECK_LINK_FLAG([-Wl,--icf=all], [
 # see: https://clang.llvm.org/docs/UsersManual.html#cmdoption-fstrict-vtable-pointers
 AX_CHECK_COMPILE_FLAG([-fstrict-vtable-pointers], [
     # only for our code, this will probably break dependencies
-    NEOSU_CXXFLAGS="$NEOSU_CXXFLAGS -fstrict-vtable-pointers"
+    NEOMOD_CXXFLAGS="$NEOMOD_CXXFLAGS -fstrict-vtable-pointers"
 ])
 
 # check for --enable-hardened capability (-fhardened)
@@ -1130,12 +1130,12 @@ AS_IF([test "x$enable_harden" != "xno"], [
 ])
 
 # common flags
-NEOSU_CPPFLAGS="$NEOSU_CPPFLAGS"
-NEOSU_CXXFLAGS="$NEOSU_CXXFLAGS -Wall -Wextra -Wno-sign-compare -Wunused-parameter -Wdeprecated-declarations -Wno-error=deprecated-declarations"
-NEOSU_LDFLAGS="$NEOSU_LDFLAGS -Wl,--gc-sections" # remove unused sections
-AC_SUBST([NEOSU_CPPFLAGS])
-AC_SUBST([NEOSU_CXXFLAGS])
-AC_SUBST([NEOSU_LDFLAGS])
+NEOMOD_CPPFLAGS="$NEOMOD_CPPFLAGS"
+NEOMOD_CXXFLAGS="$NEOMOD_CXXFLAGS -Wall -Wextra -Wno-sign-compare -Wunused-parameter -Wdeprecated-declarations -Wno-error=deprecated-declarations"
+NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,--gc-sections" # remove unused sections
+AC_SUBST([NEOMOD_CPPFLAGS])
+AC_SUBST([NEOMOD_CXXFLAGS])
+AC_SUBST([NEOMOD_LDFLAGS])
 
 # dont error out on some false positive warnings during LTO
 AS_IF([test "x$enable_werror" != "xno"], [
@@ -1155,7 +1155,7 @@ AS_IF([test "x$enable_werror" != "xno"], [
             werror_flags_temp="$werror_flags_temp -Wno-unknown-warning-option"
         ])
     ])
-    NEOSU_CXXFLAGS="$werror_flags_temp $NEOSU_CXXFLAGS"
+    NEOMOD_CXXFLAGS="$werror_flags_temp $NEOMOD_CXXFLAGS"
 ])
 
 # sanity check for pre-bundled assets and required files before checking for external dependencies
@@ -1185,7 +1185,7 @@ AS_IF([test -f "$srcdir/$ASSETS_DIR/shaders/GL_slider_f.glsl"], [
     AC_MSG_RESULT([yes])
 ], [
     AC_MSG_RESULT([no])
-    AC_MSG_ERROR([neosu shader resources are missing!])
+    AC_MSG_ERROR([neomod shader resources are missing!])
 ])
 
 AC_MSG_CHECKING([for fonts in $srcdir/$ASSETS_DIR/fonts])
@@ -1193,7 +1193,7 @@ AS_IF([test -d "$srcdir/$ASSETS_DIR/fonts"], [
     AC_MSG_RESULT([yes])
 ], [
     AC_MSG_RESULT([no])
-    AC_MSG_ERROR([neosu fonts are missing!])
+    AC_MSG_ERROR([neomod fonts are missing!])
 ])
 
 AC_MSG_CHECKING([for default material assets in $srcdir/$ASSETS_DIR/materials])
@@ -1201,7 +1201,7 @@ AS_IF([test -d "$srcdir/$ASSETS_DIR/materials"], [
     AC_MSG_RESULT([yes])
 ], [
     AC_MSG_RESULT([no])
-    AC_MSG_ERROR([neosu material assets are missing!])
+    AC_MSG_ERROR([neomod material assets are missing!])
 ])
 
 AC_DEFUN([PKG_CHECK_AUTO], [
@@ -1572,7 +1572,7 @@ AC_CONFIG_FILES([Makefile src/build_timestamp.h])
 AC_OUTPUT
 
 AC_MSG_NOTICE([
-neosu build configuration:
+neomod build configuration:
     Build target:       ${target}
     Install prefix:     ${prefix}
     Renderers:          ${rendbackendlist}

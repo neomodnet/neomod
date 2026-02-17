@@ -134,7 +134,7 @@ namespace {
 void encodeMimeParts(RequestOptions& options) {
     if(options.mime_parts.empty()) return;
 
-    std::string boundary{"-----neosu--"};
+    std::string boundary{"-----" PACKAGE_NAME "--"};
     {
         std::array<u8, 16> rnd;
         crypto::rng::get_rand(rnd);

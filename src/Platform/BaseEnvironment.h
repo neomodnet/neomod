@@ -58,7 +58,7 @@ constexpr REND operator|(REND lhs, REND rhs) {
     return static_cast<REND>(static_cast<uint8_t>(lhs) | static_cast<uint8_t>(rhs));
 }
 
-// system neosu was compiled for
+// system we were compiled for
 consteval OS getOS() {
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(__CYGWIN__) || defined(__CYGWIN32__) || \
     defined(__TOS_WIN__) || defined(__WINDOWS__)

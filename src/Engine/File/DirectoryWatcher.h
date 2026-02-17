@@ -39,7 +39,7 @@ class DirectoryWatcher {
    private:
     friend class Engine;
 
-    // Similar to other neosu async APIs, let us control when callbacks are fired
+    // Similar to other engine async APIs, let us control when callbacks are fired
     // to avoid race condition issues.
     void update();
 

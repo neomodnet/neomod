@@ -305,17 +305,17 @@ const std::string &Environment::getCacheDir() const noexcept {
     if(!m_sCacheDir.empty()) return m_sCacheDir;
 
     if constexpr(Env::cfg(OS::LINUX) || Env::cfg(OS::MAC)) {
-        // $XDG_CACHE_HOME/neosu
+        // $XDG_CACHE_HOME/neomod
         const std::string xdg_cache_home = Environment::getEnvVariable("XDG_CACHE_HOME");
         if(!xdg_cache_home.empty()) {
-            m_sCacheDir = xdg_cache_home + "/neosu";
+            m_sCacheDir = xdg_cache_home + "/" PACKAGE_NAME;
             return m_sCacheDir;
         }
 
-        // $HOME/.cache/neosu
+        // $HOME/.cache/neomod
         const std::string home = Environment::getEnvVariable("HOME");
         if(!home.empty()) {
-            m_sCacheDir = home + "/.cache/neosu";
+            m_sCacheDir = home + "/.cache/" PACKAGE_NAME;
             return m_sCacheDir;
         }
     }

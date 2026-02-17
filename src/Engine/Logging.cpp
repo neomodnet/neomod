@@ -54,7 +54,7 @@
 
 // e.g. ./logs/
 #define LOGFILE_LOCATION MCENGINE_DATA_DIR "logs/"
-// e.g. ./logs/neosu-linux-x64-dev-40.03.log
+// e.g. ./logs/neomod-linux-x64-dev-40.03.log
 #define LOGFILE_NAME LOGFILE_LOCATION PACKAGE_NAME "-" OS_NAME "-" RELEASE_IDENTIFIER "-" PACKAGE_VERSION ".log"
 
 namespace Logger {

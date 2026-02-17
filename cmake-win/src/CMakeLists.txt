@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(neosu VERSION 43.02 LANGUAGES C CXX)
+project(neomod VERSION 43.02 LANGUAGES C CXX)
 
 # MSVC specific configuration
 if(NOT MSVC)
@@ -47,8 +47,8 @@ if(NOT BASS_VERSION)
 endif()
 
 # Set variables for config.h generation
-set(PROJECT_TARNAME "neosu")
-set(PROJECT_URL "https://github.com/kiwec/neosu")
+set(PROJECT_TARNAME "neomod")
+set(PROJECT_URL "https://github.com/neomodnet/neomod")
 string(TIMESTAMP BUILD_TIMESTAMP %y%m%d%H%M UTC)
 message(STATUS "Build timestamp: ${BUILD_TIMESTAMP}")
 
@@ -186,7 +186,7 @@ file(GLOB_RECURSE SOURCES
 )
 
 # Add main executable target
-add_executable(neosu ${SOURCES})
+add_executable(neomod ${SOURCES})
 
 # Get all source files and extract their directories
 file(GLOB_RECURSE ALL_SOURCE_FILES
@@ -208,7 +208,7 @@ list(REMOVE_DUPLICATES SRC_DIRS)
 set(BASS_CACHE_DIR "${DEPS_CACHE}/bass-${BASS_VERSION}")
 
 # Include directories
-target_include_directories(neosu PRIVATE
+target_include_directories(neomod PRIVATE
     ${CMAKE_BINARY_DIR}  # for generated config.h
     ${CMAKE_SOURCE_DIR}/../../src
     ${SRC_DIRS}
@@ -231,7 +231,7 @@ target_include_directories(neosu PRIVATE
 string(REGEX REPLACE "/EH[^ ]*" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 # Apply compiler options
-target_compile_options(neosu PRIVATE
+target_compile_options(neomod PRIVATE
     "/utf-8"
     "/Zc:preprocessor"
     "/Zc:__cplusplus"
@@ -248,7 +248,7 @@ target_compile_options(neosu PRIVATE
 )
 
 # Definitions
-target_compile_definitions(neosu PRIVATE
+target_compile_definitions(neomod PRIVATE
     GLM_ENABLE_EXPERIMENTAL
     FMT_USE_EXCEPTIONS=0
     _HAS_EXCEPTIONS=0
@@ -266,14 +266,14 @@ target_compile_definitions(neosu PRIVATE
 )
 
 # Link options
-target_link_options(neosu PRIVATE
+target_link_options(neomod PRIVATE
     $<$<CONFIG:Debug>:/DEBUG:FULL;/SUBSYSTEM:CONSOLE;/ENTRY:wmainCRTStartup;/INCREMENTAL;/FUNCTIONPADMIN;/OPT:NOREF;/OPT:NOICF>
     $<$<CONFIG:Release>:/DEBUG:FULL;/SUBSYSTEM:WINDOWS;/ENTRY:wWinMainCRTStartup;/OPT:REF;/OPT:ICF>
     /STACK:8388608 # 8MB default stack size
     ${LIBARCHIVE_STATIC_LDFLAGS}
 )
 
-target_link_directories(neosu PRIVATE
+target_link_directories(neomod PRIVATE
     ${DEPS_INSTALL_DIR}/lib
     ${BZIP2_STATIC_LIBRARY_DIRS}
     ${LIBARCHIVE_STATIC_LIBRARY_DIRS}
@@ -282,11 +282,11 @@ target_link_directories(neosu PRIVATE
 # binary resources (NASM object from generated assembly)
 add_library(binary_embed_obj OBJECT ${EMBED_SOURCE})
 set_property(TARGET binary_embed_obj PROPERTY ASM_NASM_OBJECT_FORMAT win64)
-target_link_libraries(neosu PRIVATE binary_embed_obj)
-target_include_directories(neosu PRIVATE ${EMBED_OUTPUT_DIR})
+target_link_libraries(neomod PRIVATE binary_embed_obj)
+target_include_directories(neomod PRIVATE ${EMBED_OUTPUT_DIR})
 
 # Link libraries
-target_link_libraries(neosu PRIVATE
+target_link_libraries(neomod PRIVATE
     OpenGL::GL
     OpenGL::GLU
     SDL3::SDL3-static
@@ -309,12 +309,12 @@ target_link_libraries(neosu PRIVATE
 )
 
 if(NOT DISABLE_NSYNC AND nsync_cpp_FOUND)
-    target_link_libraries(neosu PRIVATE nsync_cpp)
-    target_compile_definitions(neosu PRIVATE NSYNC_ATOMIC_CPP11 NSYNC_USE_CPP11_TIMEPOINT)
+    target_link_libraries(neomod PRIVATE nsync_cpp)
+    target_compile_definitions(neomod PRIVATE NSYNC_ATOMIC_CPP11 NSYNC_USE_CPP11_TIMEPOINT)
 endif()
 
 # Installation
-install(TARGETS neosu RUNTIME DESTINATION bin)
+install(TARGETS neomod RUNTIME DESTINATION bin)
 
 install(FILES $<TARGET_PDB_FILE:${PROJECT_NAME}> DESTINATION bin OPTIONAL)
 
@@ -342,7 +342,7 @@ install(FILES
 
 install(DIRECTORY DESTINATION bin/screenshots)
 
-message(STATUS "neosu Main Build Configuration:")
+message(STATUS "neomod Main Build Configuration:")
 message(STATUS "  Build Type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "  Install Prefix: ${CMAKE_INSTALL_PREFIX}")
 message(STATUS "  Dependencies: ${DEPS_INSTALL_DIR}")

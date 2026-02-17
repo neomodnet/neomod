@@ -195,7 +195,7 @@ struct Beatmap {
     // speed_pp == this->difficulty_attributes.SpeedDifficulty
 };
 
-EMSCRIPTEN_BINDINGS(neosu_diffcalc) {
+EMSCRIPTEN_BINDINGS(neomod_diffcalc) {
     class_<Beatmap>("Beatmap").constructor<std::string>().function("calculate", &Beatmap::calculate);
     constant("PP_ALGORITHM_VERSION", DiffCalc::PP_ALGORITHM_VERSION);
 }

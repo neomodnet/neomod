@@ -77,7 +77,7 @@ jobs:
           restore-keys: |
             ccache-web-wasm32-
 
-      - name: Building neosu
+      - name: Building neomod
         run: |
           ./autogen.sh
           export MAKEFLAGS="-j$(nproc)"
@@ -88,5 +88,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: neosu-web-wasm32
+          name: neomod-web-wasm32
           path: build-out/dist/bin-wasm32

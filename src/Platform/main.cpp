@@ -196,7 +196,7 @@ MAIN_FUNC /* int argc, char *argv[] */
 
     const bool diffcalcOnly = argc >= 2 && strncmp(argv[1], "-diffcalc", sizeof("-diffcalc") - 1) == 0;
     if(diffcalcOnly) {
-        return (SDL_AppResult)NEOSU_run_diffcalc(argc, argv);
+        return (SDL_AppResult)NEOMOD_run_diffcalc(argc, argv);
     }
 
     // parse args here
@@ -243,7 +243,7 @@ MAIN_FUNC /* int argc, char *argv[] */
 
     assert(appDesc);
 
-    // for the neosu (default) implementation, this checks if an existing instance is running, and if it is,
+    // for the neomod (default) implementation, this checks if an existing instance is running, and if it is,
     // sends it a message (with the current argc+argv) and quits the current instance (so we might never proceed further in this process)
     if(appDesc->handleExistingWindow) {
         appDesc->handleExistingWindow(argc, argv);
@@ -286,10 +286,10 @@ MAIN_FUNC /* int argc, char *argv[] */
 
     // set up some common app metadata (SDL says these should be called as early as possible)
     SDL_SetAppMetadataProperty(SDL_PROP_APP_METADATA_NAME_STRING, PACKAGE_NAME);
-    SDL_SetAppMetadataProperty(SDL_PROP_APP_METADATA_VERSION_STRING, NEOSU_VERSION);
-    SDL_SetAppMetadataProperty(SDL_PROP_APP_METADATA_IDENTIFIER_STRING, "net.kiwec.neosu");
+    SDL_SetAppMetadataProperty(SDL_PROP_APP_METADATA_VERSION_STRING, PACKAGE_VERSION);
+    SDL_SetAppMetadataProperty(SDL_PROP_APP_METADATA_IDENTIFIER_STRING, "net.neomodnet." PACKAGE_NAME);
     SDL_SetAppMetadataProperty(SDL_PROP_APP_METADATA_CREATOR_STRING, "kiwec/spectator/McKay");
-    SDL_SetAppMetadataProperty(SDL_PROP_APP_METADATA_COPYRIGHT_STRING, "MIT/GPL3");  // neosu is gpl3, mcengine is mit
+    SDL_SetAppMetadataProperty(SDL_PROP_APP_METADATA_COPYRIGHT_STRING, "MIT/GPL3");  // neomod is gpl3, mcengine is mit
     SDL_SetAppMetadataProperty(SDL_PROP_APP_METADATA_URL_STRING, PACKAGE_URL);
     SDL_SetAppMetadataProperty(SDL_PROP_APP_METADATA_TYPE_STRING, "game");
 

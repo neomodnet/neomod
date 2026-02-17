@@ -346,7 +346,7 @@ void ConVarHandler::ConVarBuiltins::dumpcommands(void) {
     html.append(R"(</section>)");
 
     html.append(fmt::format(R"(<p style="text-align:center">
-        This page was generated on {:%Y-%m-%d} for neosu v{:.2f}.<br>
+        This page was generated on {:%Y-%m-%d} for )" PACKAGE_NAME R"( v{:.2f}.<br>
         Use the <code>dumpcommands</code> command to regenerate it yourself.
     </p>)",
                             fmt::gmtime(std::time(nullptr)), cv::version.getDouble()));

@@ -1,4 +1,4 @@
-# Dependencies configuration for neosu
+# Dependencies configuration for neomod
 # This file contains version information, URLs, and hashes for all external dependencies
 
 # helper wrapper around ExternalProject_Add to avoid repetition in the top-level CMakeLists

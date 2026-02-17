@@ -81,7 +81,7 @@ jobs:
           restore-keys: |
             ccache-linux-${{ matrix.arch }}-
 
-      - name: Building neosu
+      - name: Building neomod
         run: |
           ./autogen.sh
           export MAKEFLAGS="-j$(nproc)"
@@ -101,5 +101,5 @@ jobs:
 
       - uses: actions/upload-artifact@v6.0.0
         with:
-          name: neosu-linux-${{ matrix.arch }}
+          name: neomod-linux-${{ matrix.arch }}
           path: build-out/dist

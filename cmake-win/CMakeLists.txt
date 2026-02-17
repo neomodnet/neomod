@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(neosu-superbuild)
+project(neomod-superbuild)
 
 # MSVC specific configuration
 if(NOT MSVC)
@@ -479,9 +479,9 @@ add_external_project(bassflac
 )
 
 # Now build the main project after all dependencies are ready
-ExternalProject_Add(neosu_main
+ExternalProject_Add(neomod_main
     SOURCE_DIR ${CMAKE_SOURCE_DIR}/src
-    BINARY_DIR ${CMAKE_BINARY_DIR}/neosu
+    BINARY_DIR ${CMAKE_BINARY_DIR}/neomod
     DEPENDS
         zlib_external
         bzip2_external
@@ -546,7 +546,7 @@ ExternalProject_Add(neosu_main
 )
 
 # Build summary
-message(STATUS "neosu Superbuild Configuration:")
+message(STATUS "neomod Superbuild Configuration:")
 message(STATUS "  Build Type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "  Parallel Jobs: ${CPU_COUNT}")
 message(STATUS "  Install Prefix: ${CMAKE_INSTALL_PREFIX}")

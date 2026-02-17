@@ -62,10 +62,10 @@ Module['preRun'] = Module['preRun'] || [];
 Module['preRun'].push(function() {
     FS.mkdir('/persist');
     if(typeof process !== 'undefined' && process.versions && process.versions.node) {
-        // Node.js: use NODEFS backed by a host directory next to neosu.js
+        // Node.js: use NODEFS backed by a host directory next to neomod.js
         var path = require('path');
         var fs = require('fs');
-        var dataDir = path.join(path.dirname(process.argv[1]), 'neosu-data');
+        var dataDir = path.join(path.dirname(process.argv[1]), 'neomod-data');
         fs.mkdirSync(dataDir, { recursive: true });
         FS.mount(NODEFS, { root: dataDir }, '/persist');
     } else {

@@ -380,7 +380,7 @@ bool BassSoundEngine::initializeOutputDevice(const SoundEngine::OUTPUT_DEVICE &d
                      (evcallback ? BASS_WASAPI_EVENT : 0);  // use event-driven (pull) mode instead of timer (push) mode
 
         if(cv::win_snd_wasapi_exclusive.getBool()) {
-            // BASS_WASAPI_EXCLUSIVE makes neosu have exclusive output to the sound card
+            // BASS_WASAPI_EXCLUSIVE makes us have exclusive output to the sound card
             flags |= BASS_WASAPI_EXCLUSIVE;
         }
         if(!BASS_WASAPI_Init(device.id, 0, 0, flags, bufferSize, updatePeriod, WASAPIPROC_BASS,

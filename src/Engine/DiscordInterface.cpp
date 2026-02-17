@@ -111,7 +111,7 @@ static bool connect() {
     DISCCALL(dapp.core->set_log_hook(dapp.core, DiscordLogLevel_Warn, nullptr, on_discord_log));
 #endif
     DISCCALL(dapp.activities = dapp.core->get_activity_manager(dapp.core));
-    DISCCALL(dapp.activities->register_command(dapp.activities, "neosu://run"));
+    DISCCALL(dapp.activities->register_command(dapp.activities, PACKAGE_NAME "://run"));
 
     initialized = true;
     return true;
@@ -240,8 +240,8 @@ void set_activity(struct DiscordActivity *activity) {
     // currently unused. should be lobby id, etc
 
     activity->application_id = DISCORD_CLIENT_ID;
-    strcpy(&activity->name[0], "neosu");
-    strcpy(&activity->assets.large_image[0], "neosu_icon");
+    strcpy(&activity->name[0], PACKAGE_NAME);
+    strcpy(&activity->assets.large_image[0], PACKAGE_NAME "_icon");
     activity->assets.large_text[0] = '\0';
     strcpy(&activity->assets.small_image[0], "None");
     activity->assets.small_text[0] = '\0';
