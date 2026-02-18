@@ -102,12 +102,15 @@ bool Console::processCommand(std::string_view command, bool fromFile) {
     return true;
 }
 
+// TODO: move this bullshit osu_ prefix rewriting out of engine code or preferably dont do it at all
 void Console::execConfigFile(std::string_view filename_view) {
     if(filename_view.empty()) return;
     std::string filename{filename_view};
 
-    if(!filename.contains('/'))  // allow absolute paths
+    const bool is_absolute = filename.contains('/');
+    if(!is_absolute) {  // allow absolute paths
         filename = fmt::format(MCENGINE_CFG_PATH "/{}", filename_view);
+    }
 
     // handle extension
     if(!filename.ends_with(".cfg")) filename.append(".cfg");
@@ -132,13 +135,12 @@ void Console::execConfigFile(std::string_view filename_view) {
                 const auto commentIndex = line.find("//");
                 if(commentIndex != std::string::npos) line.erase(commentIndex, line.length() - commentIndex);
 
-                // TODO: move this out of engine code
                 // McOsu used to prefix all convars with "osu_". Maybe it made sense when McEngine was
                 // a separate thing, but in neomod everything is related to osu anyway, so it's redundant.
                 // So, to avoid breaking old configs, we're removing the prefix for (almost) all convars here.
                 if(line.starts_with("osu_") && !line.starts_with("osu_folder")) {
                     line.erase(0, 4);
-                    needs_write = true;
+                    needs_write = !is_absolute;  // DON'T OVERWRITE CONFIGS COMING FROM OTHER INSTALLATIONS!!!
                 }
 
                 // add command (original adds all processed lines, even if they become empty after comment removal)
@@ -156,6 +158,9 @@ void Console::execConfigFile(std::string_view filename_view) {
     // if we don't remove prefixed lines, this could prevent users from
     // setting some convars back to their default value
     if(needs_write) {
+        if(is_absolute) {
+            fubar_abort();
+        }
         io->write(filename, rewritten_file, [filename](bool success) {
             if(!success) {
                 debugLog("WARNING: failed to write out config to {}!", filename);

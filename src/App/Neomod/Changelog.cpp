@@ -35,8 +35,10 @@ Changelog::Changelog() : ScreenBackable() {
     CHANGELOG v43_03;
     v43_03.title = "43.03 (" CHANGELOG_TIMESTAMP ")";
     v43_03.changes = {
+        R"(- Fixed overwriting externally-imported McOsu configs (sorry))",
         R"(- Fixed !mp abort not sending the player back to the match room)",
         R"(- Fixed sliders playing hitsounds incorrectly)",
+        R"(- Fixed slider hit animations (support multiple at once on head/tail))",
     };
     changelogs.push_back(v43_03);
 
