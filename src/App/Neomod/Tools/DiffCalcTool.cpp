@@ -121,12 +121,15 @@ std::string modsStringFromMods(ModFlags mods, float speed) {
     const bool dt = speed == 1.5f && !nc;  // only show dt/nc, not both
     const bool ht = speed == 0.75f;
 
+    const bool pf = flags::has<Perfect>(mods);
+    const bool sd = !pf && flags::has<SuddenDeath>(mods);
+
     if(flags::has<NoFail>(mods)) modsString.append("NF,");
     if(flags::has<Easy>(mods)) modsString.append("EZ,");
     if(flags::has<TouchDevice>(mods)) modsString.append("TD,");
     if(flags::has<Hidden>(mods)) modsString.append("HD,");
     if(flags::has<HardRock>(mods)) modsString.append("HR,");
-    if(flags::has<SuddenDeath>(mods)) modsString.append("SD,");
+    if(sd) modsString.append("SD,");
     if(dt) modsString.append("DT,");
     if(nc) modsString.append("NC,");
     if(flags::has<Relax>(mods)) modsString.append("Relax,");
@@ -134,7 +137,7 @@ std::string modsStringFromMods(ModFlags mods, float speed) {
     if(flags::has<Flashlight>(mods)) modsString.append("FL,");
     if(flags::has<SpunOut>(mods)) modsString.append("SO,");
     if(flags::has<Autopilot>(mods)) modsString.append("AP,");
-    if(flags::has<Perfect>(mods)) modsString.append("PF,");
+    if(pf) modsString.append("PF,");
     if(flags::has<ScoreV2>(mods)) modsString.append("v2,");
     if(flags::has<Target>(mods)) modsString.append("Target,");
     if(flags::has<Nightmare>(mods)) modsString.append("Nightmare,");

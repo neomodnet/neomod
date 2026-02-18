@@ -828,12 +828,15 @@ UString ScoreButton::getModsStringForDisplay(const Replay::Mods &mods) {
     const bool dt = mods.speed == 1.5f && !nc;  // only show dt/nc, not both
     const bool ht = mods.speed == 0.75f;
 
+    const bool pf = flags::has<Perfect>(mods.flags);
+    const bool sd = !pf && flags::has<SuddenDeath>(mods.flags);
+
     if(flags::has<NoFail>(mods.flags)) modsString.append("NF,");
     if(flags::has<Easy>(mods.flags)) modsString.append("EZ,");
     if(flags::has<TouchDevice>(mods.flags)) modsString.append("TD,");
     if(flags::has<Hidden>(mods.flags)) modsString.append("HD,");
     if(flags::has<HardRock>(mods.flags)) modsString.append("HR,");
-    if(flags::has<SuddenDeath>(mods.flags)) modsString.append("SD,");
+    if(sd) modsString.append("SD,");
     if(dt) modsString.append("DT,");
     if(nc) modsString.append("NC,");
     if(flags::has<Relax>(mods.flags)) modsString.append("Relax,");
@@ -841,7 +844,7 @@ UString ScoreButton::getModsStringForDisplay(const Replay::Mods &mods) {
     if(flags::has<Flashlight>(mods.flags)) modsString.append("FL,");
     if(flags::has<SpunOut>(mods.flags)) modsString.append("SO,");
     if(flags::has<Autopilot>(mods.flags)) modsString.append("AP,");
-    if(flags::has<Perfect>(mods.flags)) modsString.append("PF,");
+    if(pf) modsString.append("PF,");
     if(flags::has<ScoreV2>(mods.flags)) modsString.append("v2,");
     if(flags::has<Target>(mods.flags)) modsString.append("Target,");
     if(flags::has<Nightmare>(mods.flags)) modsString.append("Nightmare,");
