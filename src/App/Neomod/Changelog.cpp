@@ -35,6 +35,7 @@ Changelog::Changelog() : ScreenBackable() {
     CHANGELOG v43_03;
     v43_03.title = "43.03 (" CHANGELOG_TIMESTAMP ")";
     v43_03.changes = {
+        R"(- Fixed !mp abort not sending the player back to the match room)",
         R"(- Fixed sliders playing hitsounds incorrectly)",
     };
     changelogs.push_back(v43_03);

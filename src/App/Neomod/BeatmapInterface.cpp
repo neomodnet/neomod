@@ -904,8 +904,6 @@ void BeatmapInterface::stop(bool quit) {
     this->bIsPaused = false;
     this->bContinueScheduled = false;
 
-    auto scoreptr = this->saveAndSubmitScore(quit);
-
     // Auto mod was "temporary" since it was set from Ctrl+Clicking a map, not from the mod selector
     if(osu->bModAutoTemp) {
         auto *btnAuto = ui->getModSelector()->getGridButton(ModSelector::AUTO_POS);
@@ -928,8 +926,8 @@ void BeatmapInterface::stop(bool quit) {
 
     if(BanchoState::is_playing_a_multi_map()) {
         if(quit) {
+            auto scoreptr = ui->getRoom()->get_approximate_score();
             osu->onPlayEnd(scoreptr, true);
-            ui->getRoom()->ragequit();
         } else {
             ui->getRoom()->onClientScoreChange(true);
             Packet packet;
@@ -937,6 +935,7 @@ void BeatmapInterface::stop(bool quit) {
             BANCHO::Net::send_packet(packet);
         }
     } else {
+        auto scoreptr = this->saveAndSubmitScore(quit);
         osu->onPlayEnd(scoreptr, quit);
     }
 

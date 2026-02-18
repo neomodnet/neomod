@@ -799,7 +799,9 @@ void RoomScreen::on_player_skip(i32 user_id) {
 
 void RoomScreen::on_match_aborted() {
     if(!BanchoState::is_playing_a_multi_map()) return;
-    osu->onPlayEnd(this->get_approximate_score(), false);
+    if(osu->isInPlayMode()) {
+        osu->getMapInterface()->stop(true);
+    }
     BanchoState::match_started = false;
     ui->getHUD()->updateScoringMetric();
     ui->setScreen(ui->getRoom());
