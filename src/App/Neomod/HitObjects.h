@@ -284,7 +284,7 @@ class Slider final : public HitObject {
 
     void updateAnimations(i32 curPos);
 
-    void onHit(LiveScore::HIT result, i32 delta, bool startOrEnd, float targetDelta = 0.0f, float targetAngle = 0.0f,
+    void onHit(LiveScore::HIT result, i32 delta, bool isEndCircle, float targetDelta = 0.0f, float targetAngle = 0.0f,
                bool isEndResultFromStrictTrackingMod = false);
     void onRepeatHit(const SLIDERCLICK &click);
     void onTickHit(const SLIDERCLICK &click);

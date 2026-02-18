@@ -1984,13 +1984,13 @@ void Slider::onClickEvent(std::vector<Click> &clicks) {
     }
 }
 
-void Slider::onHit(LiveScore::HIT result, i32 delta, bool startOrEnd, float targetDelta, float targetAngle,
+void Slider::onHit(LiveScore::HIT result, i32 delta, bool isEndCircle, float targetDelta, float targetAngle,
                    bool isEndResultFromStrictTrackingMod) {
     if(this->points.size() == 0) return;
 
     // start + end of a slider add +30 points, if successful
 
-    // debugLog("startOrEnd = {:d},    m_iCurRepeat = {:d}", (int)startOrEnd, this->iCurRepeat);
+    // debugLog("isEndCircle = {:d},    m_iCurRepeat = {:d}", (int)isEndCircle, this->iCurRepeat);
 
     // sound and hit animation and also sliderbreak combo drop
     {
@@ -2001,10 +2001,14 @@ void Slider::onHit(LiveScore::HIT result, i32 delta, bool startOrEnd, float targ
             f32 pan = GameRules::osuCoords2Pan(osuCoords.x);
 
             if(this->edgeSamples.size() > 0) {
-                this->edgeSamples[0].play(pan, delta, this->click_time);
+                if(isEndCircle) {
+                    this->edgeSamples.back().play(pan, delta, this->click_time);
+                } else {
+                    this->edgeSamples[0].play(pan, delta, this->click_time);
+                }
             }
 
-            if(!startOrEnd) {
+            if(!isEndCircle) {
                 this->fStartHitAnimation = 0.001f;  // quickfix for 1 frame missing images
                 anim::moveQuadOut(&this->fStartHitAnimation, 1.0f,
                                   GameRules::getFadeOutTime(this->pi->getBaseAnimationSpeed()), true);
@@ -2022,7 +2026,7 @@ void Slider::onHit(LiveScore::HIT result, i32 delta, bool startOrEnd, float targ
         }
 
         // end body fadeout
-        if(this->pf != nullptr && startOrEnd) {
+        if(this->pf != nullptr && isEndCircle) {
             this->fEndSliderBodyFadeAnimation = 0.001f;  // quickfix for 1 frame missing images
             anim::moveQuadOut(&this->fEndSliderBodyFadeAnimation, 1.0f,
                               GameRules::getFadeOutTime(this->pi->getBaseAnimationSpeed()) *
@@ -2034,7 +2038,7 @@ void Slider::onHit(LiveScore::HIT result, i32 delta, bool startOrEnd, float targ
     }
 
     // add score, and we are finished
-    if(!startOrEnd) {
+    if(!isEndCircle) {
         // startcircle
 
         this->bStartFinished = true;
@@ -2113,19 +2117,15 @@ void Slider::onRepeatHit(const SLIDERCLICK &click) {
         const vec2 osuCoords = this->pf->pixels2OsuCoords(this->pf->osuCoords2Pixels(this->vCurPointRaw));
         f32 pan = GameRules::osuCoords2Pan(osuCoords.x);
 
+        // Try to play a repeat sample based on what the mapper gave us
+        // NOTE: iCurRepeatCounterForHitSounds starts at 1
         auto nb_edge_samples = this->edgeSamples.size();
-        if(click.sliderend) {
-            // On sliderend, play the last edgeSample.
-            this->edgeSamples.back().play(pan, 0, click.time);
+        if(std::cmp_less(this->iCurRepeatCounterForHitSounds + 1, nb_edge_samples)) {
+            this->edgeSamples[this->iCurRepeatCounterForHitSounds].play(pan, 0, click.time);
         } else {
-            // NOTE: iCurRepeatCounterForHitSounds starts at 1
-            if(std::cmp_less(this->iCurRepeatCounterForHitSounds + 1, nb_edge_samples)) {
-                this->edgeSamples[this->iCurRepeatCounterForHitSounds].play(pan, 0, click.time);
-            } else {
-                // We have more repeats than edge samples!
-                // Just play whatever we can (either the last repeat sample, or the start sample)
-                this->edgeSamples[nb_edge_samples - 2].play(pan, 0, click.time);
-            }
+            // We have more repeats than edge samples!
+            // Just play whatever we can (either the last repeat sample, or the start sample)
+            this->edgeSamples[nb_edge_samples - 2].play(pan, 0, click.time);
         }
 
         float animation_multiplier = this->pf->getSpeedAdjustedAnimationSpeed();
