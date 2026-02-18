@@ -1547,7 +1547,8 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
                               &cv::draw_hud);
     this->addCheckboxTooltip_(
         "SHIFT + TAB toggles everything",
-        "Enabled: " PACKAGE_NAME " default (toggle \"Draw HUD\")\nDisabled: osu! default (always show hiterrorbar + key overlay)",
+        "Enabled: " PACKAGE_NAME
+        " default (toggle \"Draw HUD\")\nDisabled: osu! default (always show hiterrorbar + key overlay)",
         &cv::hud_shift_tab_toggles_everything);
     this->addSpacer();
     this->addCheckbox_("Draw Score", &cv::draw_score);

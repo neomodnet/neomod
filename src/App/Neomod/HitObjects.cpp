@@ -24,6 +24,7 @@
 #include "SoundEngine.h"
 #include "Logging.h"
 #include "UI.h"
+#include "crypto.h"
 
 using namespace flags::operators;
 
@@ -374,14 +375,14 @@ void HitObject::update(i32 curPos, f64 /*frame_time*/) {
             // hidden hitobject body fadein
             const float fin_start_percent = cv::mod_hd_circle_fadein_start_percent.getFloat();
             const float fin_end_percent = cv::mod_hd_circle_fadein_end_percent.getFloat();
-            const float fout_start_percent = cv::mod_hd_circle_fadeout_start_percent.getFloat();
-            const float fout_end_percent = cv::mod_hd_circle_fadeout_end_percent.getFloat();
             const i32 hiddenFadeInStart = this->click_time - (i32)(this->iApproachTime * fin_start_percent);
             const i32 hiddenFadeInEnd = this->click_time - (i32)(this->iApproachTime * fin_end_percent);
             this->fAlpha = std::clamp<float>(
                 1.0f - ((float)(hiddenFadeInEnd - curPos) / (float)(hiddenFadeInEnd - hiddenFadeInStart)), 0.0f, 1.0f);
 
             // hidden hitobject body fadeout
+            const float fout_start_percent = cv::mod_hd_circle_fadeout_start_percent.getFloat();
+            const float fout_end_percent = cv::mod_hd_circle_fadeout_end_percent.getFloat();
             const i32 hiddenFadeOutStart = this->click_time - (i32)(this->iApproachTime * fout_start_percent);
             const i32 hiddenFadeOutEnd = this->click_time - (i32)(this->iApproachTime * fout_end_percent);
             if(curPos >= hiddenFadeOutStart)
@@ -425,7 +426,8 @@ void HitObject::update(i32 curPos, f64 /*frame_time*/) {
 void HitObject::addHitResult(LiveScore::HIT result, i32 delta, bool isEndOfCombo, vec2 posRaw, float targetDelta,
                              float targetAngle, bool ignoreOnHitErrorBar, bool ignoreCombo, bool ignoreHealth,
                              bool addObjectDurationToSkinAnimationTimeStartOffset) {
-    if(this->pf != nullptr && osu->getModTarget() && result != LiveScore::HIT::HIT_MISS && targetDelta >= 0.0f) {
+    if(this->pf != nullptr && this->pi->getMods().has(ModFlags::Target) && result != LiveScore::HIT::HIT_MISS &&
+       targetDelta >= 0.0f) {
         const float p300 = cv::mod_target_300_percent.getFloat();
         const float p100 = cv::mod_target_100_percent.getFloat();
         const float p50 = cv::mod_target_50_percent.getFloat();
@@ -491,7 +493,7 @@ void Circle::drawApproachCircle(BeatmapInterface *pf, vec2 rawPos, int number, i
                                      colorRGBMultiplier * cv::circle_color_saturation.getFloat());
 
     drawApproachCircle(pf->getSkin(), pf->osuCoords2Pixels(rawPos), comboColor, pf->fHitcircleDiameter, approachScale,
-                       alpha, osu->getModHD(), overrideHDApproachCircle);
+                       alpha, pf->getMods().has(ModFlags::Hidden), overrideHDApproachCircle);
 }
 
 void Circle::drawCircle(BeatmapInterface *pf, vec2 rawPos, int number, int colorCounter, int colorOffset,
@@ -785,11 +787,12 @@ Circle::~Circle() { this->onReset(0); }
 
 void Circle::draw() {
     HitObject::draw();
+
     const Skin *skin = this->pf->getSkin();
+    const bool hd = this->pi->getMods().has(ModFlags::Hidden);
 
     // draw hit animation
-    bool is_instafade = cv::instafade.getBool();
-    if(!is_instafade && this->fHitAnimation > 0.0f && this->fHitAnimation != 1.0f && !osu->getModHD()) {
+    if(!hd && !cv::instafade.getBool() && this->fHitAnimation > 0.0f && this->fHitAnimation != 1.0f) {
         float alpha = 1.0f - this->fHitAnimation;
 
         float scale = this->fHitAnimation;
@@ -816,7 +819,6 @@ void Circle::draw() {
         return;
 
     // draw circle
-    const bool hd = osu->getModHD();
     vec2 shakeCorrectedPos = this->vRawPos;
     if(engine->getTime() < this->fShakeAnimation && !this->pf->isInMafhamRenderChunk())  // handle note blocking shaking
     {
@@ -834,10 +836,16 @@ void Circle::draw() {
     skin->i_hitcircleoverlay->setAnimationTimeOffset(!this->pf->isInMafhamRenderChunk()
                                                          ? this->click_time - this->iApproachTime
                                                          : this->pf->getCurMusicPosWithOffsets());
-    drawCircle(this->pf, shakeCorrectedPos, this->combo_number, this->iColorCounter, this->iColorOffset,
-               this->fHittableDimRGBColorMultiplierPercent, this->bWaiting && !hd ? 1.0f : this->fApproachScale,
-               this->bWaiting && !hd ? 1.0f : this->fAlpha, this->bWaiting && !hd ? 1.0f : this->fAlpha, true,
-               this->bOverrideHDApproachCircle);
+
+    {
+        const float approachScale = this->bWaiting && !hd ? 1.0f : this->fApproachScale;
+        const float alpha = this->bWaiting && !hd ? 1.0f : this->fAlpha;
+        const float numberAlpha = this->bWaiting && !hd ? 1.0f : this->fAlpha;
+
+        drawCircle(this->pf, shakeCorrectedPos, this->combo_number, this->iColorCounter, this->iColorOffset,
+                   this->fHittableDimRGBColorMultiplierPercent, approachScale, alpha, numberAlpha, true,
+                   this->bOverrideHDApproachCircle);
+    }
 }
 
 void Circle::draw2() {
@@ -847,7 +855,7 @@ void Circle::draw2() {
                  // we still need to draw the object
 
     // draw approach circle
-    const bool hd = osu->getModHD();
+    const bool hd = this->pi->getMods().has(ModFlags::Hidden);
 
     // HACKHACK: don't fucking change this piece of code here, it fixes a heisenbug
     // (https://github.com/McKay42/McOsu/issues/165)
@@ -1062,13 +1070,14 @@ void Slider::draw() {
 
     const ModFlags &curGameplayFlags = this->pf->getMods().flags;
 
-    const bool isCompletelyFinished = this->bStartFinished && this->bEndFinished && this->bFinished;
+    const bool hd = flags::has<ModFlags::Hidden>(curGameplayFlags);
 
+    const bool isCompletelyFinished = this->bStartFinished && this->bEndFinished && this->bFinished;
     if((this->bVisible || (this->bStartFinished && !this->bFinished)) &&
        !isCompletelyFinished)  // extra possibility to avoid flicker between HitObject::m_bVisible delay and the
                                // fadeout animation below this if block
     {
-        float alpha = (cv::mod_hd_slider_fast_fade.getBool() ? this->fAlpha : this->fBodyAlpha);
+        const float alpha = (cv::mod_hd_slider_fast_fade.getBool() ? this->fAlpha : this->fBodyAlpha);
         float sliderSnake = cv::snaking_sliders.getBool() ? this->fSliderSnakePercent : 1.0f;
 
         // shrinking sliders
@@ -1123,21 +1132,28 @@ void Slider::draw() {
             const bool ifStrictTrackingModShouldDrawEndCircle =
                 (!cv::mod_strict_tracking.getBool() || this->endResult != LiveScore::HIT::HIT_MISS);
 
-            // end circle
-            if((!this->bEndFinished && this->iRepeat % 2 != 0 && ifStrictTrackingModShouldDrawEndCircle) ||
-               (!sliderRepeatEndCircleFinished &&
-                (ifStrictTrackingModShouldDrawEndCircle || (this->iRepeat > 1 && endCircleIsAtActualSliderEnd) ||
-                 (this->iRepeat > 1 && std::abs(this->iRepeat - this->iCurRepeat) > 2))))
-                this->drawEndCircle(alpha, sliderSnake);
+            {
+                const bool draw_end =
+                    ((!this->bEndFinished && this->iRepeat % 2 != 0 && ifStrictTrackingModShouldDrawEndCircle) ||
+                     (!sliderRepeatEndCircleFinished &&
+                      (ifStrictTrackingModShouldDrawEndCircle || (this->iRepeat > 1 && endCircleIsAtActualSliderEnd) ||
+                       (this->iRepeat > 1 && std::abs(this->iRepeat - this->iCurRepeat) > 2))));
 
-            // start circle
-            if(!this->bStartFinished ||
-               (!sliderRepeatStartCircleFinished &&
-                (ifStrictTrackingModShouldDrawEndCircle || (this->iRepeat > 1 && !endCircleIsAtActualSliderEnd) ||
-                 (this->iRepeat > 1 && std::abs(this->iRepeat - this->iCurRepeat) > 2))) ||
-               (!this->bEndFinished && this->iRepeat % 2 == 0 && ifStrictTrackingModShouldDrawEndCircle))
-                this->drawStartCircle(alpha);
+                const bool draw_start =
+                    (!this->bStartFinished ||
+                     (!sliderRepeatStartCircleFinished &&
+                      (ifStrictTrackingModShouldDrawEndCircle || (this->iRepeat > 1 && !endCircleIsAtActualSliderEnd) ||
+                       (this->iRepeat > 1 && std::abs(this->iRepeat - this->iCurRepeat) > 2))) ||
+                     (!this->bEndFinished && this->iRepeat % 2 == 0 && ifStrictTrackingModShouldDrawEndCircle));
 
+                const float circle_alpha = this->fAlpha;
+
+                // end circle
+                if(draw_end) this->drawEndCircle(circle_alpha, sliderSnake);
+
+                // start circle
+                if(draw_start) this->drawStartCircle(circle_alpha);
+            }
             // reverse arrows
             if(this->fReverseArrowAlpha > 0.0f) {
                 // if the combo color is nearly white, blacken the reverse arrow
@@ -1217,10 +1233,13 @@ void Slider::draw() {
     }
 
     // slider body fade animation, draw start/end circle hit animation
-    bool instafade_slider_body = cv::instafade_sliders.getBool();
-    bool instafade_slider_head = cv::instafade.getBool();
-    if(!instafade_slider_body && this->fEndSliderBodyFadeAnimation > 0.0f &&
-       this->fEndSliderBodyFadeAnimation != 1.0f && !(flags::has<ModFlags::Hidden>(curGameplayFlags))) {
+    const bool instafade_slider_body = cv::instafade_sliders.getBool();
+    const bool instafade_slider_head = cv::instafade.getBool();
+
+    const bool slider_fading_out =
+        this->fEndSliderBodyFadeAnimation > 0.0f && this->fEndSliderBodyFadeAnimation != 1.0f;
+
+    if(!hd && !instafade_slider_body && slider_fading_out) {
         std::vector<vec2> emptyVector;
         std::vector<vec2> alwaysPoints;
         alwaysPoints.push_back(this->pf->osuCoords2Pixels(this->curve->pointAt(this->fSlidePercent)));
@@ -1232,66 +1251,76 @@ void Slider::draw() {
                                  1.0f, 1.0f - this->fEndSliderBodyFadeAnimation, this->click_time);
     }
 
-    if(!instafade_slider_head && cv::slider_sliderhead_fadeout.getBool() && this->fStartHitAnimation > 0.0f &&
-       this->fStartHitAnimation != 1.0f && !(flags::has<ModFlags::Hidden>(curGameplayFlags))) {
-        float alpha = 1.0f - this->fStartHitAnimation;
-
-        float scale = this->fStartHitAnimation;
-        scale = -scale * (scale - 2.0f);  // quad out scale
-
-        bool drawNumber = (skin->version > 1.0f ? false : true) && this->iCurRepeat < 1;
-
-        g->pushTransform();
-        {
-            g->scale((1.0f + scale * foscale), (1.0f + scale * foscale));
-            if(this->iCurRepeat < 1) {
-                skin->i_hitcircleoverlay->setAnimationTimeOffset(!this->pf->isInMafhamRenderChunk()
-                                                                     ? this->click_time - this->iApproachTime
-                                                                     : this->pf->getCurMusicPosWithOffsets());
-                skin->i_slider_start_circle_overlay2->setAnimationTimeOffset(
-                    !this->pf->isInMafhamRenderChunk() ? this->click_time - this->iApproachTime
-                                                       : this->pf->getCurMusicPosWithOffsets());
-
-                Circle::drawSliderStartCircle(this->pf, this->curve->pointAt(0.0f), this->combo_number,
-                                              this->iColorCounter, this->iColorOffset, 1.0f, 1.0f, alpha, alpha,
-                                              drawNumber);
-            } else {
-                skin->i_hitcircleoverlay->setAnimationTimeOffset(
-                    !this->pf->isInMafhamRenderChunk() ? this->click_time : this->pf->getCurMusicPosWithOffsets());
-                skin->i_slider_end_circle_overlay2->setAnimationTimeOffset(
-                    !this->pf->isInMafhamRenderChunk() ? this->click_time : this->pf->getCurMusicPosWithOffsets());
-
-                Circle::drawSliderEndCircle(this->pf, this->curve->pointAt(0.0f), this->combo_number,
-                                            this->iColorCounter, this->iColorOffset, 1.0f, 1.0f, alpha, alpha,
-                                            drawNumber);
-            }
+    const bool do_endhit_animations = !hd && !instafade_slider_head;
+    const bool do_starthit_animations = do_endhit_animations && cv::slider_sliderhead_fadeout.getBool();
+    for(auto anim_it = this->clickAnimations.begin(); anim_it != this->clickAnimations.end();) {
+        if(!anim_it->isAnimating()) {
+            anim_it = this->clickAnimations.erase(anim_it);
+            continue;
         }
-        g->popTransform();
-    }
+        auto &anim = *anim_it;
+        ++anim_it;
 
-    if(!instafade_slider_head && this->fEndHitAnimation > 0.0f && this->fEndHitAnimation != 1.0f &&
-       !(flags::has<ModFlags::Hidden>(curGameplayFlags))) {
-        float alpha = 1.0f - this->fEndHitAnimation;
+        if(do_starthit_animations && anim.type & HitAnim::HEAD) {
+            const float alpha = 1.0f - anim.percent;
+            const float number_alpha = alpha;
 
-        float scale = this->fEndHitAnimation;
-        scale = -scale * (scale - 2.0f);  // quad out scale
+            float scale = anim.percent;
+            scale = -scale * (scale - 2.0f);  // quad out scale
 
-        g->pushTransform();
-        {
-            g->scale((1.0f + scale * foscale), (1.0f + scale * foscale));
+            const bool drawNumber = (skin->version > 1.0f ? false : true) && this->iCurRepeat < 1;
+
+            g->pushTransform();
             {
-                skin->i_hitcircleoverlay->setAnimationTimeOffset(!this->pf->isInMafhamRenderChunk()
-                                                                     ? this->click_time - this->iFadeInTime
-                                                                     : this->pf->getCurMusicPosWithOffsets());
-                skin->i_slider_end_circle_overlay2->setAnimationTimeOffset(!this->pf->isInMafhamRenderChunk()
-                                                                               ? this->click_time - this->iFadeInTime
-                                                                               : this->pf->getCurMusicPosWithOffsets());
+                g->scale((1.0f + scale * foscale), (1.0f + scale * foscale));
+                if(this->iCurRepeat < 1) {
+                    skin->i_hitcircleoverlay->setAnimationTimeOffset(!this->pf->isInMafhamRenderChunk()
+                                                                         ? this->click_time - this->iApproachTime
+                                                                         : this->pf->getCurMusicPosWithOffsets());
+                    skin->i_slider_start_circle_overlay2->setAnimationTimeOffset(
+                        !this->pf->isInMafhamRenderChunk() ? this->click_time - this->iApproachTime
+                                                           : this->pf->getCurMusicPosWithOffsets());
 
-                Circle::drawSliderEndCircle(this->pf, this->curve->pointAt(1.0f), this->combo_number,
-                                            this->iColorCounter, this->iColorOffset, 1.0f, 1.0f, alpha, 0.0f, false);
+                    Circle::drawSliderStartCircle(this->pf, this->curve->pointAt(0.0f), this->combo_number,
+                                                  this->iColorCounter, this->iColorOffset, 1.0f, 1.0f, alpha,
+                                                  number_alpha, drawNumber);
+                } else {
+                    skin->i_hitcircleoverlay->setAnimationTimeOffset(
+                        !this->pf->isInMafhamRenderChunk() ? this->click_time : this->pf->getCurMusicPosWithOffsets());
+                    skin->i_slider_end_circle_overlay2->setAnimationTimeOffset(
+                        !this->pf->isInMafhamRenderChunk() ? this->click_time : this->pf->getCurMusicPosWithOffsets());
+
+                    Circle::drawSliderEndCircle(this->pf, this->curve->pointAt(0.0f), this->combo_number,
+                                                this->iColorCounter, this->iColorOffset, 1.0f, 1.0f, alpha, alpha,
+                                                drawNumber);
+                }
             }
+            g->popTransform();
         }
-        g->popTransform();
+        if(do_endhit_animations && anim.type & HitAnim::TAIL) {
+            const float alpha = 1.0f - anim.percent;
+
+            float scale = anim.percent;
+            scale = -scale * (scale - 2.0f);  // quad out scale
+
+            g->pushTransform();
+            {
+                g->scale((1.0f + scale * foscale), (1.0f + scale * foscale));
+                {
+                    skin->i_hitcircleoverlay->setAnimationTimeOffset(!this->pf->isInMafhamRenderChunk()
+                                                                         ? this->click_time - this->iFadeInTime
+                                                                         : this->pf->getCurMusicPosWithOffsets());
+                    skin->i_slider_end_circle_overlay2->setAnimationTimeOffset(
+                        !this->pf->isInMafhamRenderChunk() ? this->click_time - this->iFadeInTime
+                                                           : this->pf->getCurMusicPosWithOffsets());
+
+                    Circle::drawSliderEndCircle(this->pf, this->curve->pointAt(1.0f), this->combo_number,
+                                                this->iColorCounter, this->iColorOffset, 1.0f, 1.0f, alpha, 0.0f,
+                                                false);
+                }
+            }
+            g->popTransform();
+        }
     }
 
     HitObject::draw();
@@ -1396,7 +1425,7 @@ void Slider::draw2(bool drawApproachCircle, bool drawOnlyApproachCircle) {
     }
 }
 
-void Slider::drawStartCircle(float /*alpha*/) {
+void Slider::drawStartCircle(float alpha) {
     const Skin *skin = this->pf->getSkin();
 
     if(this->bStartFinished) {
@@ -1406,8 +1435,8 @@ void Slider::drawStartCircle(float /*alpha*/) {
             !this->pf->isInMafhamRenderChunk() ? this->click_time : this->pf->getCurMusicPosWithOffsets());
 
         Circle::drawSliderEndCircle(this->pf, this->curve->pointAt(0.0f), this->combo_number, this->iColorCounter,
-                                    this->iColorOffset, this->fHittableDimRGBColorMultiplierPercent, 1.0f, this->fAlpha,
-                                    0.0f, false, false);
+                                    this->iColorOffset, this->fHittableDimRGBColorMultiplierPercent, 1.0f, alpha, 0.0f,
+                                    false, false);
     } else {
         skin->i_hitcircleoverlay->setAnimationTimeOffset(!this->pf->isInMafhamRenderChunk()
                                                              ? this->click_time - this->iApproachTime
@@ -1418,12 +1447,12 @@ void Slider::drawStartCircle(float /*alpha*/) {
 
         Circle::drawSliderStartCircle(this->pf, this->curve->pointAt(0.0f), this->combo_number, this->iColorCounter,
                                       this->iColorOffset, this->fHittableDimRGBColorMultiplierPercent,
-                                      this->fApproachScale, this->fAlpha, this->fAlpha,
-                                      !this->bHideNumberAfterFirstRepeatHit, this->bOverrideHDApproachCircle);
+                                      this->fApproachScale, alpha, alpha, !this->bHideNumberAfterFirstRepeatHit,
+                                      this->bOverrideHDApproachCircle);
     }
 }
 
-void Slider::drawEndCircle(float /*alpha*/, float sliderSnake) {
+void Slider::drawEndCircle(float alpha, float sliderSnake) {
     const Skin *skin = this->pf->getSkin();
 
     skin->i_hitcircleoverlay->setAnimationTimeOffset(!this->pf->isInMafhamRenderChunk()
@@ -1434,8 +1463,8 @@ void Slider::drawEndCircle(float /*alpha*/, float sliderSnake) {
                                                                    : this->pf->getCurMusicPosWithOffsets());
 
     Circle::drawSliderEndCircle(this->pf, this->curve->pointAt(sliderSnake), this->combo_number, this->iColorCounter,
-                                this->iColorOffset, this->fHittableDimRGBColorMultiplierPercent, 1.0f, this->fAlpha,
-                                0.0f, false, false);
+                                this->iColorOffset, this->fHittableDimRGBColorMultiplierPercent, 1.0f, alpha, 0.0f,
+                                false, false);
 }
 
 void Slider::drawBody(float alpha, float from, float to) {
@@ -1522,8 +1551,7 @@ void Slider::update(i32 curPos, f64 frame_time) {
     this->fReverseArrowAlpha *= cv::slider_reverse_arrow_alpha_multiplier.getFloat();
 
     this->fBodyAlpha = this->fAlpha;
-    if((flags::has<ModFlags::Hidden>(curIFaceMods)))  // hidden modifies the body alpha
-    {
+    if(flags::has<ModFlags::Hidden>(curIFaceMods)) {   // hidden modifies the body alpha
         this->fBodyAlpha = this->fAlphaWithoutHidden;  // fade in as usual
 
         // fade out over the duration of the slider, starting exactly when the default fadein finishes
@@ -2008,19 +2036,15 @@ void Slider::onHit(LiveScore::HIT result, i32 delta, bool isEndCircle, float tar
                 }
             }
 
+            const float fadeout_time = GameRules::getFadeOutTime(this->pi->getBaseAnimationSpeed());
+
             if(!isEndCircle) {
-                this->fStartHitAnimation = 0.001f;  // quickfix for 1 frame missing images
-                anim::moveQuadOut(&this->fStartHitAnimation, 1.0f,
-                                  GameRules::getFadeOutTime(this->pi->getBaseAnimationSpeed()), true);
+                this->addHitAnim(HitAnim::HEAD, fadeout_time);
             } else {
                 if(this->iRepeat % 2 != 0) {
-                    this->fEndHitAnimation = 0.001f;  // quickfix for 1 frame missing images
-                    anim::moveQuadOut(&this->fEndHitAnimation, 1.0f,
-                                      GameRules::getFadeOutTime(this->pi->getBaseAnimationSpeed()), true);
+                    this->addHitAnim(HitAnim::TAIL, fadeout_time);
                 } else {
-                    this->fStartHitAnimation = 0.001f;  // quickfix for 1 frame missing images
-                    anim::moveQuadOut(&this->fStartHitAnimation, 1.0f,
-                                      GameRules::getFadeOutTime(this->pi->getBaseAnimationSpeed()), true);
+                    this->addHitAnim(HitAnim::HEAD, fadeout_time);
                 }
             }
         }
@@ -2119,7 +2143,8 @@ void Slider::onRepeatHit(const SLIDERCLICK &click) {
 
         // Try to play a repeat sample based on what the mapper gave us
         // NOTE: iCurRepeatCounterForHitSounds starts at 1
-        auto nb_edge_samples = this->edgeSamples.size();
+        const uSz nb_edge_samples = this->edgeSamples.size();
+        assert(nb_edge_samples > 0);
         if(std::cmp_less(this->iCurRepeatCounterForHitSounds + 1, nb_edge_samples)) {
             this->edgeSamples[this->iCurRepeatCounterForHitSounds].play(pan, 0, click.time);
         } else {
@@ -2134,14 +2159,12 @@ void Slider::onRepeatHit(const SLIDERCLICK &click) {
         this->fFollowCircleTickAnimationScale = 0.0f;
         anim::moveLinear(&this->fFollowCircleTickAnimationScale, 1.0f, tick_pulse_time, true);
 
+        const float fadeout_time = GameRules::getFadeOutTime(this->pi->getBaseAnimationSpeed());
+
         if(click.sliderend) {
-            this->fEndHitAnimation = 0.001f;  // quickfix for 1 frame missing images
-            anim::moveQuadOut(&this->fEndHitAnimation, 1.0f,
-                              GameRules::getFadeOutTime(this->pi->getBaseAnimationSpeed()), true);
+            this->addHitAnim(HitAnim::TAIL, fadeout_time);
         } else {
-            this->fStartHitAnimation = 0.001f;  // quickfix for 1 frame missing images
-            anim::moveQuadOut(&this->fStartHitAnimation, 1.0f,
-                              GameRules::getFadeOutTime(this->pi->getBaseAnimationSpeed()), true);
+            this->addHitAnim(HitAnim::HEAD, fadeout_time);
         }
     }
 
@@ -2241,9 +2264,13 @@ void Slider::onReset(i32 curPos) {
         this->samples.stop();
 
         anim::deleteExistingAnimation(&this->fFollowCircleTickAnimationScale);
-        anim::deleteExistingAnimation(&this->fStartHitAnimation);
-        anim::deleteExistingAnimation(&this->fEndHitAnimation);
         anim::deleteExistingAnimation(&this->fEndSliderBodyFadeAnimation);
+    }
+    if(!this->clickAnimations.empty()) {
+        for(auto &anim : this->clickAnimations) {
+            anim::deleteExistingAnimation(&anim.percent);
+        }
+        this->clickAnimations.clear();
     }
 
     this->lastSliderSampleSets.clear();
@@ -2260,25 +2287,18 @@ void Slider::onReset(i32 curPos) {
 
     if(this->click_time > curPos) {
         this->bStartFinished = false;
-        this->fStartHitAnimation = 0.0f;
         this->bEndFinished = false;
         this->bFinished = false;
-        this->fEndHitAnimation = 0.0f;
         this->fEndSliderBodyFadeAnimation = 0.0f;
     } else if(curPos < this->getEndTime()) {
         this->bStartFinished = true;
-        this->fStartHitAnimation = 1.0f;
-
         this->bEndFinished = false;
         this->bFinished = false;
-        this->fEndHitAnimation = 0.0f;
         this->fEndSliderBodyFadeAnimation = 0.0f;
     } else {
         this->bStartFinished = true;
-        this->fStartHitAnimation = 1.0f;
         this->bEndFinished = true;
         this->bFinished = true;
-        this->fEndHitAnimation = 1.0f;
         this->fEndSliderBodyFadeAnimation = 1.0f;
     }
 
@@ -2298,6 +2318,23 @@ void Slider::onReset(i32 curPos) {
             if(click.type == 1 && click.tickIndex == i && !click.finished) numMissingTickClicks++;
         }
         this->ticks[i].finished = numMissingTickClicks == 0;
+    }
+}
+
+Slider::HitAnim &Slider::addHitAnim(u8 typeFlags, float duration) {
+    // percent = 0.001f: quickfix for 1 frame missing images
+    // sanity check, avoid bogus maps with insanely fast buzzsliders overloading animationhandler
+    if(this->clickAnimations.size() >= 128) {
+        // just overwrite a random one, no one would notice anyways with this many on screen at once
+        auto &ret = this->clickAnimations[prand() % 128];
+        ret.percent = 0.001f;
+        ret.type = decltype(ret.type)(typeFlags);
+        anim::moveQuadOut(&ret.percent, 1.0f, duration, true);
+        return ret;
+    } else {
+        auto &ret = this->clickAnimations.emplace_back(HitAnim{.percent = 0.001f, .type{typeFlags}});
+        anim::moveQuadOut(&ret.percent, 1.0f, duration, true);
+        return ret;
     }
 }
 

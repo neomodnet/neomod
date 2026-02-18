@@ -1,5 +1,6 @@
 #pragma once
 #include "BeatmapInterface.h"
+#include <deque>
 
 class ConVar;
 class ModFPoSu;
@@ -294,11 +295,24 @@ class Slider final : public HitObject {
 
     bool isClickHeldSlider();  // special logic to disallow hold tapping
 
+    struct HitAnim {
+        float percent;
+        // HEAD_TAIL is to emulate how pre-2015 osu! sliders were rendered,
+        // when the tail animation happens, the head also gets an additional hit animation, but without drawing the numbers again
+        // (TODO: shelved the idea for now)
+        enum : u8 { HEAD = (1 << 0), TAIL = (1 << 1), HEAD_TAIL = HEAD | TAIL | (1 << 2) } type;
+        [[nodiscard]] bool isAnimating() const { return (this->percent > 0.f && this->percent != 1.f); };
+    };
+    HitAnim &addHitAnim(u8 typeFlags, float duration);
+
     struct SLIDERTICK {
         float percent;
         bool finished;
     };
 
+    // TODO: deque is overkill here but we need stable pointers for AnimationHandler
+    // maybe just hand-roll the quad interp and use a vector?
+    std::deque<HitAnim> clickAnimations;
     std::vector<vec2> points;
     std::vector<HitSamples> edgeSamples;
     std::vector<HitSamples::Set_Slider_Hit> lastSliderSampleSets{};
@@ -321,13 +335,11 @@ class Slider final : public HitObject {
     float fSliderTime;
     float fSliderTimeWithoutRepeats;
 
-    float fSlidePercent{0.f};        // 0.0f - 1.0f - 0.0f - 1.0f - etc.
+    float fSlidePercent{0.f};  // 0.0f - 1.0f - 0.0f - 1.0f - etc.
     float fSliderSnakePercent{0.f};
     float fReverseArrowAlpha{0.f};
     float fBodyAlpha{0.f};
 
-    float fStartHitAnimation{0.f};
-    float fEndHitAnimation{0.f};
     float fEndSliderBodyFadeAnimation{0.f};
 
     float fFollowCircleTickAnimationScale{0.f};
