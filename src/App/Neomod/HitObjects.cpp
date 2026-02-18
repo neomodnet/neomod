@@ -2001,7 +2001,7 @@ void Slider::onHit(LiveScore::HIT result, i32 delta, bool isEndCircle, float tar
             f32 pan = GameRules::osuCoords2Pan(osuCoords.x);
 
             if(this->edgeSamples.size() > 0) {
-                if(isEndCircle) {
+                if(this->bHeldTillEnd && isEndCircle) {
                     this->edgeSamples.back().play(pan, delta, this->click_time);
                 } else {
                     this->edgeSamples[0].play(pan, delta, this->click_time);
