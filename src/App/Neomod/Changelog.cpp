@@ -32,8 +32,15 @@ Changelog::Changelog() : ScreenBackable() {
 
     std::vector<CHANGELOG> changelogs;
 
+    CHANGELOG v43_04;
+    v43_04.title = "43.04 (" CHANGELOG_TIMESTAMP ")";
+    v43_04.changes = {
+        R"()",
+    };
+    changelogs.push_back(v43_04);
+
     CHANGELOG v43_03;
-    v43_03.title = "43.03 (" CHANGELOG_TIMESTAMP ")";
+    v43_03.title = "43.03 (2026-02-19)";
     v43_03.changes = {
         R"(- Fixed overwriting externally-imported McOsu configs (sorry))",
         R"(- Fixed !mp abort not sending the player back to the match room)",

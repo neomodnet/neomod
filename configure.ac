@@ -1,5 +1,5 @@
 AC_PREREQ([2.69])
-AC_INIT([neomod], [[43.03]], [], [], [https://github.com/neomodnet/neomod])
+AC_INIT([neomod], [[43.04]], [], [], [https://github.com/neomodnet/neomod])
 AC_CONFIG_SRCDIR([src/Engine/Engine.cpp])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_HEADERS([src/config.h])

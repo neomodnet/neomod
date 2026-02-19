@@ -11,10 +11,10 @@ VERSION_RC="${VERSION_RC//,0/,}" # 39,3 (don't start a group 0)
 VERSION_CL="${VERSION//./_}" # 39_03
 LASTDATE="$(TZ=UTC date +%Y-%m-%d)"
 
-if [[ $(sed --version | head -n 1) = *GNU* ]]; then
-SEDCMD=("sed" "-Ei")
+if sed --version 2>/dev/null | grep -q "GNU"; then
+  SEDCMD=("sed" "-E" "-i")
 else
-SEDCMD=("sed" "-E" "-i" "''")
+  SEDCMD=("sed" "-Ei" "")
 fi
 
 "${SEDCMD[@]}" "s/version=\"[0-9]+\.[0-9]+\.0\.0\"/version=\"$VERSION.0.0\"/" assets/neomod.manifest
