@@ -52,18 +52,23 @@ void UIPauseMenuButton::setBaseScale(float xScale, float yScale) {
 void UIPauseMenuButton::onMouseInside() {
     CBaseUIButton::onMouseInside();
 
-    if(env->winFocused()) soundEngine->play(osu->getSkin()->s_menu_hover);
-
     const float animationDuration = 0.09f;
     anim::moveLinear(&this->vScale.x, this->vBaseScale.x * this->fScaleMultiplier, animationDuration, true);
     anim::moveLinear(&this->vScale.y, this->vBaseScale.y * this->fScaleMultiplier, animationDuration, true);
 
-    if(this->getName() == US_("Resume")) {
-        soundEngine->play(osu->getSkin()->s_hover_pause_continue);
-    } else if(this->getName() == US_("Retry")) {
-        soundEngine->play(osu->getSkin()->s_hover_pause_retry);
-    } else if(this->getName() == US_("Quit")) {
-        soundEngine->play(osu->getSkin()->s_hover_pause_back);
+    if(!env->winFocused()) return;
+
+    if(auto *skin = osu->getSkin()) {
+        Sound *toPlay = nullptr;
+        const UString &name = this->getName();
+        if(name == US_("Resume")) {
+            toPlay = skin->s_hover_pause_continue;
+        } else if(name == US_("Retry")) {
+            toPlay = skin->s_hover_pause_retry;
+        } else if(name == US_("Quit")) {
+            toPlay = skin->s_hover_pause_back;
+        }
+        soundEngine->play(toPlay);
     }
 }
 
