@@ -931,7 +931,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
 
     this->addSubSection_("Privacy");
 #ifndef MCENGINE_PLATFORM_WASM
-    this->addCheckbox_("Automatically update " PACKAGE_NAME " to the latest version", &cv::auto_update);
+    this->addCheckbox_("Automatically update to the latest version", &cv::auto_update);
 #endif
     // this->addCheckbox_("Allow private messages from strangers", &cv::allow_stranger_dms);
     // this->addCheckbox_("Allow game invites from strangers", &cv::allow_mp_invites);
@@ -2742,8 +2742,7 @@ void OptionsOverlayImpl::updateLayout() {
                 break;
         }
     }
-    this->spacer->setPosY(yCounter);
-    this->options->container.addBaseUIElement(this->spacer);
+    this->options->container.addBaseUIElement(this->spacer, 0, yCounter);
 
     this->options->setScrollSizeToContent();
     if(!enableHorizontalScrolling) this->options->scrollToLeft();
