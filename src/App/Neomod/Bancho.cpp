@@ -544,6 +544,9 @@ void BanchoState::handle_packet(Packet &packet) {
 
         case INP_ROOM_CLOSED: {
             i32 room_id = packet.read<i32>();
+            if(room_id == BanchoState::room.id) {
+                ui->getRoom()->ragequit();
+            }
             ui->getLobby()->removeRoom(room_id);
             break;
         }
