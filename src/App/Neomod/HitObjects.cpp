@@ -1606,8 +1606,9 @@ void Slider::update(i32 curPos, f64 frame_time) {
         this->vCurPoint = this->pi->osuCoords2Pixels(this->vCurPointRaw);
     }
 
-    // When all keys are released, forget isClickHeldSlider() restrictions
-    if(!this->pi->isClickHeld()) this->iKeyFlags = 0;
+    // No longer ignore keys that were released since entering the slider
+    // see isClickHeldSlider()
+    this->iIgnoredKeys &= this->pi->getKeys();
 
     // handle dynamic followradius
     float followRadius =
@@ -2066,7 +2067,11 @@ void Slider::onHit(LiveScore::HIT result, i32 delta, bool isEndCircle, float tar
         // startcircle
 
         this->bStartFinished = true;
-        this->iKeyFlags = this->pi->lastPressedKey;
+
+        // ignore all keys that were held prior to entering the slider
+        // except the one used to tap the slider head (or, "hold into" the slider)
+        // see isClickHeldSlider()
+        this->iIgnoredKeys = (this->pi->getKeys() & ~this->pi->lastPressedKey);
 
         if(flags::has<ModFlags::Target>(this->pi->getMods().flags)) {
             // not end of combo, show in hiterrorbar, use for accuracy, increase combo, increase
@@ -2275,7 +2280,7 @@ void Slider::onReset(i32 curPos) {
 
     this->lastSliderSampleSets.clear();
     this->iStrictTrackingModLastClickHeldTime = 0;
-    this->iKeyFlags = 0;
+    this->iIgnoredKeys = 0;
     this->bCursorLeft = true;
     this->bHeldTillEnd = false;
     this->bHeldTillEndForLenienceHack = false;
@@ -2353,8 +2358,6 @@ void Slider::rebuildVertexBuffer(bool useRawCoords) {
 Slider::~Slider() { this->onReset(0); }
 
 bool Slider::isClickHeldSlider() {
-    if(!this->pi->isClickHeld()) return false;
-
     // osu! has a weird slider quirk, that I'll explain in detail here.
     // When holding K1 before the slider, tapping K2 on slider head, and releasing K2 later,
     // the slider is no longer considered being "held" until K2 is pressed again, or K1 is released and pressed again.
@@ -2362,8 +2365,11 @@ bool Slider::isClickHeldSlider() {
     // The reason this exists is to prevent people from holding K1 the whole map and tapping with K2.
     // Holding is part of the rhythm flow, and this is a rhythm game right?
 
-    // So: Check the key pressed to enter the slider is still being held.
-    return (this->iKeyFlags & this->pi->getKeys()) == this->iKeyFlags;
+    // Note that the restriction only applies to the slider head.
+    // Any key pressed *after* entering the slider counts as a hold.
+
+    u8 held_gameplay_keys = this->pi->getKeys() & ~LegacyReplay::Smoke;
+    return (held_gameplay_keys & ~this->iIgnoredKeys);
 }
 
 Spinner::Spinner(int x, int y, i32 time, HitSamples samples, bool isEndOfCombo, i32 endTime,

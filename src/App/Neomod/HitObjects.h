@@ -347,7 +347,7 @@ class Slider final : public HitObject {
     float fFollowCircleAnimationAlpha{0.f};
 
     int iRepeat;
-    int iKeyFlags{0};
+    int iIgnoredKeys{0};
     int iReverseArrowPos{0};
     int iCurRepeat{0};
     int iCurRepeatCounterForHitSounds{0};

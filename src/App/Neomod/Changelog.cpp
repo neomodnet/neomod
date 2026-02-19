@@ -37,6 +37,7 @@ Changelog::Changelog() : ScreenBackable() {
     v43_04.changes = {
         R"(- Added support for WebSocket connections)",
         R"(- Client will now leave multiplayer when the match gets closed)",
+        R"(- Made slider keylock more lenient to match stable)",
     };
     changelogs.push_back(v43_04);
 
