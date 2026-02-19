@@ -1221,23 +1221,3 @@ const SkinImage *Skin::getGradeImageSmall(ScoreGrade grade) const {
             return this->i_ranking_d_small;
     }
 }
-
-namespace neomod::skin {
-
-const BasicSkinImage &getImageMember(BasicSkinImage Skin::*memb) {
-    if(auto *skin = osu->getSkin(); !!skin) {
-        return skin->*memb;
-    }
-
-    static BasicSkinImage def{MISSING_TEXTURE};
-    return def;
-}
-
-SkinImage *getSkinImageMember(SkinImage *Skin::*memb) {
-    if(auto *skin = osu->getSkin(); !!skin) {
-        return skin->*memb;
-    }
-    return nullptr;
-}
-
-}  // namespace neomod::skin

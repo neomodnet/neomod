@@ -49,7 +49,6 @@
 #include <utility>
 
 using namespace flags::operators;
-static McFont *chat_font = nullptr;
 
 ChatChannel::ChatChannel(Chat *chat, UString name_arg) {
     this->chat = chat;
@@ -103,7 +102,7 @@ void ChatChannel::add_message(ChatMessage msg) {
     localtime_x(&msg.tms, &tm);
     UString timestamp_str = fmt::format("{:02d}:{:02d} ", tm.tm_hour, tm.tm_min);
     if(is_action) timestamp_str.append(u'*');
-    float time_width = chat_font->getStringWidth(timestamp_str);
+    float time_width = this->chat->font->getStringWidth(timestamp_str);
     auto *timestamp = new CBaseUILabel(x, this->y_total, time_width, line_height, "", timestamp_str);
     timestamp->setDrawFrame(false);
     timestamp->setDrawBackground(false);
@@ -112,7 +111,7 @@ void ChatChannel::add_message(ChatMessage msg) {
 
     bool is_system_message = msg.author_name.length() == 0;
     if(!is_system_message) {
-        float name_width = chat_font->getStringWidth(msg.author_name);
+        float name_width = this->chat->font->getStringWidth(msg.author_name);
         auto user_box = new UIUserLabel(msg.author_id, msg.author_name);
         user_box->setTextColor(0xff2596be);
         user_box->setPos(x, this->y_total);
@@ -217,7 +216,7 @@ void ChatChannel::add_message(ChatMessage msg) {
         auto fragment_text = fragment->getText();
 
         for(int i = 0; i < fragment_text.length(); i++) {
-            float char_width = chat_font->getGlyphWidth(fragment_text[i]);
+            float char_width = this->chat->font->getGlyphWidth(fragment_text[i]);
             if(line_width + char_width + 20 >= this->ui->getSize().x) {
                 auto *link_fragment = dynamic_cast<ChatLink *>(fragment);
                 if(link_fragment == nullptr) {
@@ -280,9 +279,7 @@ void ChatChannel::updateLayout(vec2 pos, vec2 size) {
     }
 }
 
-Chat::Chat() : UIScreen() {
-    chat_font = engine->getDefaultFont();
-
+Chat::Chat() : UIScreen(), font(engine->getDefaultFont()) {
     this->ticker = new ChatChannel(nullptr, "");
     this->ticker->ui->setVerticalScrolling(false);
     this->ticker->ui->setDrawScrollbars(false);
@@ -1070,7 +1067,7 @@ void Chat::updateButtonLayout(vec2 screen) {
     f32 button_container_height = this->button_height + border;
     for(auto chan : this->channels) {
         UIButton *btn = chan->btn;
-        const f32 button_width = chat_font->getStringWidth(btn->getText()) + space;
+        const f32 button_width = this->font->getStringWidth(btn->getText()) + space;
 
         // Wrap channel buttons
         if(total_x + button_width > screen.x - space) {
@@ -1086,7 +1083,7 @@ void Chat::updateButtonLayout(vec2 screen) {
     total_x = initial_x;
     for(auto chan : this->channels) {
         UIButton *btn = chan->btn;
-        float button_width = chat_font->getStringWidth(btn->getText()) + space;
+        float button_width = this->font->getStringWidth(btn->getText()) + space;
 
         // Wrap channel buttons
         if(total_x + button_width > screen.x - space) {

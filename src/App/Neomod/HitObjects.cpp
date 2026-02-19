@@ -2207,32 +2207,23 @@ void Slider::onTickHit(const SLIDERCLICK &click) {
     if(!click.successful) {
         this->onSliderBreak();
     } else if(this->pf != nullptr) {
-        const vec2 osuCoords = this->pf->pixels2OsuCoords(this->pf->osuCoords2Pixels(this->vCurPointRaw));
-        f32 pan = GameRules::osuCoords2Pan(osuCoords.x);
-
-        {
-            static constexpr auto SLIDERTICK_SAMPLESET_METHODS =  //
-                std::array{
-                    //
-                    &Skin::s_normal_slidertick,  //
-                    &Skin::s_soft_slidertick,    //
-                    &Skin::s_drum_slidertick,    //
-                };
+        if(const auto *skin = this->pf->getSkin()) {
+            static constexpr std::array SLIDERTICK_SAMPLESET_METHODS{
+                &Skin::s_normal_slidertick,  //
+                &Skin::s_soft_slidertick,    //
+                &Skin::s_drum_slidertick,    //
+            };
 
             // NOTE: osu! wiki doesn't mention if ticks use the normal set or the addition set.
             //       in fact, it doesn't mention ticks at all.
-            Sound *Skin::*sound_ptr = nullptr;
+            if(const i32 additionSet = this->samples.getAdditionSet(click.time); additionSet > 0 && additionSet < 4) {
+                /* NORMAL (1) SOFT (2) DRUM (3) */
+                if(Sound *skin_sound = skin->*SLIDERTICK_SAMPLESET_METHODS[additionSet - 1]) {
+                    const vec2 osuCoords = this->pf->pixels2OsuCoords(this->pf->osuCoords2Pixels(this->vCurPointRaw));
+                    f32 pan = GameRules::osuCoords2Pan(osuCoords.x);
 
-            auto additionSet = this->samples.getAdditionSet(click.time);
-            if(additionSet > 0 && additionSet < 4) /* NORMAL (1) SOFT (2) DRUM (3) */ {
-                additionSet--;
-                sound_ptr = SLIDERTICK_SAMPLESET_METHODS[additionSet];
-            }
-
-            Sound *skin_sound = sound_ptr && this->pf->getSkin() ? this->pf->getSkin()->*sound_ptr : nullptr;
-            if(skin_sound != nullptr) {
-                soundEngine->play(skin_sound, pan, 0.f,
-                                  this->samples.getVolume(this->samples.getAdditionSet(click.time), true, click.time));
+                    soundEngine->play(skin_sound, pan, 0.f, this->samples.getVolume(additionSet, true, click.time));
+                }
             }
         }
 

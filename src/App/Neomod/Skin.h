@@ -1,5 +1,5 @@
 #pragma once
-// Copyright (c) 2015, PG, All rights reserved.
+// Copyright (c) 2015, PG & 2026, WH, All rights reserved.
 #include "noinclude.h"
 #include "Color.h"
 #include "Vectors.h"
@@ -421,9 +421,3 @@ struct Skin final {
     bool o_ready{false};
     bool o_default;
 };
-
-// Getters for specific members for the currently active (osu) skin (not beatmap skin (not implemented)).
-namespace neomod::skin {
-const BasicSkinImage &getImageMember(BasicSkinImage Skin::*memb);
-SkinImage *getSkinImageMember(SkinImage *Skin::*memb);
-}  // namespace neomod::skin

@@ -26,7 +26,7 @@ void UIPauseMenuButton::draw() {
     if(!this->bVisible) return;
 
     // draw image
-    if(Image *image = this->imageMember ? neomod::skin::getImageMember(this->imageMember) : nullptr; !!image) {
+    if(Image *image = this->getImage(); image && image != MISSING_TEXTURE) {
         g->setColor(argb(this->fAlpha, 1.0f, 1.0f, 1.0f));
         g->pushTransform();
         {
@@ -34,7 +34,8 @@ void UIPauseMenuButton::draw() {
             g->scale(this->vScale.x, this->vScale.y);
 
             // center and draw
-            g->translate(this->getPos().x + (int)(this->getSize().x / 2), this->getPos().y + (int)(this->getSize().y / 2));
+            g->translate(this->getPos().x + (int)(this->getSize().x / 2),
+                         this->getPos().y + (int)(this->getSize().y / 2));
             g->drawImage(image);
         }
         g->popTransform();
@@ -72,4 +73,12 @@ void UIPauseMenuButton::onMouseOutside() {
     const float animationDuration = 0.09f;
     anim::moveLinear(&this->vScale.x, this->vBaseScale.x, animationDuration, true);
     anim::moveLinear(&this->vScale.y, this->vBaseScale.y, animationDuration, true);
+}
+
+Image *UIPauseMenuButton::getImage() const {
+    if(!this->imageMember) return MISSING_TEXTURE;
+    if(const auto *skin = osu->getSkin()) {
+        return skin->*this->imageMember;
+    }
+    return MISSING_TEXTURE;
 }

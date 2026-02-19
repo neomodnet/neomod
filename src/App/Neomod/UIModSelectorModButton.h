@@ -33,6 +33,7 @@ class UIModSelectorModButton final : public CBaseUIButton {
     void setOn(bool on, bool silent = false);
 
    private:
+    [[nodiscard]] SkinImage *getActiveSkinImage() const;
     ModSelector *osuModSelector;
 
     bool bOn;

@@ -40,9 +40,7 @@ UIModSelectorModButton::UIModSelectorModButton(ModSelector *osuModSelector, floa
 void UIModSelectorModButton::draw() {
     if(!this->bVisible) return;
 
-    if(SkinImage *activeImage =
-           this->activeSkinImageMember ? neomod::skin::getSkinImageMember(this->activeSkinImageMember) : nullptr;
-       !!activeImage) {
+    if(SkinImage *activeImage = this->getActiveSkinImage(); !!activeImage) {
         g->pushTransform();
         {
             g->scale(this->vScale.x, this->vScale.y);
@@ -299,4 +297,12 @@ const UString &UIModSelectorModButton::getActiveModName() const {
         return this->states[this->iState].modName;
     else
         return CBaseUIElement::emptyUString;
+}
+
+SkinImage *UIModSelectorModButton::getActiveSkinImage() const {
+    if(!this->activeSkinImageMember) return nullptr;
+    if(const auto *skin = osu->getSkin()) {
+        return skin->*this->activeSkinImageMember;
+    }
+    return nullptr;
 }

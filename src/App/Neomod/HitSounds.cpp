@@ -165,45 +165,41 @@ std::vector<HitSamples::Set_Slider_Hit> HitSamples::play(f32 pan, i32 delta, i32
     Set_Slider_Hit potentially_played;
     std::vector<Set_Slider_Hit> played_list;
 
-    auto get_default_sound = [&potentially_played, skin, is_sliderslide](i32 set, i32 hitSound) -> Sound* {
+    const auto get_skin_sound = [&potentially_played, skin, is_sliderslide](i32 set, i32 hitSound) -> Sound* {
         // map indices
-        i32 set_idx, slider_or_circle_idx, hit_idx;
-        switch(set) {
-            default:
-            case SampleSetType::NORMAL:
-                set_idx = 0;
-                break;
-            case SampleSetType::SOFT:
-                set_idx = 1;
-                break;
-            case SampleSetType::DRUM:
-                set_idx = 2;
-                break;
-        }
-
-        slider_or_circle_idx = is_sliderslide ? SLIDER_IDX : HIT_IDX;
-
-        switch(hitSound) {
-            default:
-            case HitSoundType::NORMAL:
-                hit_idx = 0;
-                break;
-            case HitSoundType::WHISTLE:
-                hit_idx = 1;
-                break;
-            case HitSoundType::FINISH:
-                hit_idx = 2;
-                break;
-            case HitSoundType::CLAP:
-                hit_idx = 3;
-                break;
-        }
+        const i32 slider_or_circle_idx = is_sliderslide ? SLIDER_IDX : HIT_IDX;
+        const i32 set_idx = [&set]() -> i32 {
+            switch(set) {
+                case SampleSetType::NORMAL:
+                    return 0;
+                case SampleSetType::SOFT:
+                    return 1;
+                case SampleSetType::DRUM:
+                    return 2;
+                default:
+                    return 0;
+            }
+        }();
+        const i32 hit_idx = [&hitSound]() -> i32 {
+            switch(hitSound) {
+                case HitSoundType::NORMAL:
+                    return 0;
+                case HitSoundType::WHISTLE:
+                    return 1;
+                case HitSoundType::FINISH:
+                    return 2;
+                case HitSoundType::CLAP:
+                    return 3;
+                default:
+                    return 0;
+            }
+        }();
 
         Sound* Skin::* sound_ptr = SOUND_METHODS[set_idx][slider_or_circle_idx][hit_idx];
         // debugLog("got {} for set_idx {} slider_or_circle_idx {} hit_idx {}", !!sound_ptr, set_idx, slider_or_circle_idx,
         //          hit_idx);
         if(sound_ptr != nullptr) {
-            auto ret = skin->*sound_ptr;
+            Sound* ret = skin->*sound_ptr;
             if(ret) {
                 // debugLog("returning {}", ret->getFilePath());
                 potentially_played = Set_Slider_Hit{set_idx, slider_or_circle_idx, hit_idx};
@@ -214,14 +210,13 @@ std::vector<HitSamples::Set_Slider_Hit> HitSamples::play(f32 pan, i32 delta, i32
         return nullptr;
     };
 
-    auto get_map_sound = [get_default_sound](i32 set, i32 hitSound) {
+    const auto get_map_sound = [&get_skin_sound](i32 set, i32 hitSound) {
         // TODO @kiwec: map hitsounds are not supported
-
-        return get_default_sound(set, hitSound);
+        return get_skin_sound(set, hitSound);
     };
 
-    auto try_play = [pan, pitch, is_sliderslide, &get_map_sound](i32 set, i32 hitSound, f32 volume) -> bool {
-        auto snd = get_map_sound(set, hitSound);
+    const auto try_play = [pan, pitch, is_sliderslide, &get_map_sound](i32 set, i32 hitSound, f32 volume) -> bool {
+        Sound* snd = get_map_sound(set, hitSound);
         if(!snd) return false;
 
         if(is_sliderslide && snd->isPlaying()) return false;

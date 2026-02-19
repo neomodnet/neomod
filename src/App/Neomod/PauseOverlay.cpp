@@ -421,7 +421,3 @@ UIPauseMenuButton *PauseOverlay::addButton(ImageSkinMember skinMember, UString b
     this->buttons.push_back(button);
     return button;
 }
-
-Image *UIPauseMenuButton::getImage() const {
-    return this->imageMember ? neomod::skin::getImageMember(this->imageMember) : nullptr;
-}
