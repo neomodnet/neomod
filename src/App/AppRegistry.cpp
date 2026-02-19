@@ -4,6 +4,7 @@
 #include "Osu.h"
 #include "BaseFrameworkTest.h"
 #include "AudioTester.h"
+#include "HitSoundTest.h"
 #include "NeomodEnvInterop.h"
 
 #include <array>
@@ -14,6 +15,7 @@ static constexpr std::array sDescriptors{
     AppDescriptor{PACKAGE_NAME, [] -> App * { return new Osu(); }, neomod::createInterop, neomod::handleExistingWindow},
     AppDescriptor{"BaseFrameworkTest", [] -> App * { return new Mc::Tests::BaseFrameworkTest(); }},
     AppDescriptor{"AudioTester", [] -> App * { return new Mc::Tests::AudioTester(); }},
+    AppDescriptor{"HitSoundTest", [] -> App * { return new Mc::Tests::HitSoundTest(); }},
 };
 
 std::span<const AppDescriptor> getAllAppDescriptors() { return sDescriptors; }

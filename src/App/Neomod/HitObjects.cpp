@@ -2214,15 +2214,32 @@ void Slider::onTickHit(const SLIDERCLICK &click) {
                 &Skin::s_drum_slidertick,    //
             };
 
-            // NOTE: osu! wiki doesn't mention if ticks use the normal set or the addition set.
-            //       in fact, it doesn't mention ticks at all.
-            if(const i32 additionSet = this->samples.getAdditionSet(click.time); additionSet > 0 && additionSet < 4) {
-                /* NORMAL (1) SOFT (2) DRUM (3) */
-                if(Sound *skin_sound = skin->*SLIDERTICK_SAMPLESET_METHODS[additionSet - 1]) {
+            const BeatmapDifficulty *beatmap = this->pf->getBeatmap();
+            const auto ti = (click.time != -1 && beatmap) ? beatmap->getTimingInfoForTime(click.time)
+                                                          : this->pf->getCurrentTimingInfo();
+            HitSoundContext ctx{
+                .timingPointSampleSet = ti.sampleSet,
+                .timingPointVolume = ti.volume,
+                .defaultSampleSet = this->pf->getDefaultSampleSet(),
+                .layeredHitSounds = false,  // unused by sliderticks
+                .forcedSampleSet = cv::skin_force_hitsound_sample_set.getInt(),
+                .ignoreSampleVolume = cv::ignore_beatmap_sample_volume.getBool(),
+                .boostVolume = false,  // unused by sliderticks
+            };
+
+            if(const auto tick = this->samples.resolveSliderTick(ctx);
+               tick.set >= 0 && tick.set < (i32)SLIDERTICK_SAMPLESET_METHODS.size()) {
+                if(Sound *skin_sound = skin->*SLIDERTICK_SAMPLESET_METHODS[tick.set]) {
                     const vec2 osuCoords = this->pf->pixels2OsuCoords(this->pf->osuCoords2Pixels(this->vCurPointRaw));
                     f32 pan = GameRules::osuCoords2Pan(osuCoords.x);
-
-                    soundEngine->play(skin_sound, pan, 0.f, this->samples.getVolume(additionSet, true, click.time));
+                    if(!cv::sound_panning.getBool() ||
+                       (cv::mod_fposu.getBool() && !cv::mod_fposu_sound_panning.getBool()) ||
+                       (cv::mod_fps.getBool() && !cv::mod_fps_sound_panning.getBool())) {
+                        pan = 0.0f;
+                    } else {
+                        pan *= cv::sound_panning_multiplier.getFloat();
+                    }
+                    soundEngine->play(skin_sound, pan, 0.f, tick.volume);
                 }
             }
         }

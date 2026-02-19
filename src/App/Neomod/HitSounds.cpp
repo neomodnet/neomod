@@ -9,38 +9,23 @@
 #include "SoundEngine.h"
 #include "Sound.h"
 
-i32 HitSamples::getNormalSet(i32 play_time) {
-    if(cv::skin_force_hitsound_sample_set.getInt() > 0) return cv::skin_force_hitsound_sample_set.getInt();
-
+i32 HitSamples::getNormalSet(const HitSoundContext &ctx) const {
+    if(ctx.forcedSampleSet > 0) return ctx.forcedSampleSet;
     if(this->normalSet != 0) return this->normalSet;
-
-    const auto& map_iface = osu->getMapInterface();
-    if(unlikely(!map_iface)) return 0;  // sanity
-
-    const BeatmapDifficulty* beatmap = map_iface->getBeatmap();
-
-    // Fallback to timing point sample set
-    const i32 tp_sampleset = (play_time != -1 && beatmap) ? beatmap->getTimingInfoForTime(play_time).sampleSet
-                                                          : map_iface->getCurrentTimingInfo().sampleSet;
-    if(tp_sampleset != 0) return tp_sampleset;
-
-    // ...Fallback to beatmap sample set
-    return map_iface->getDefaultSampleSet();
+    if(ctx.timingPointSampleSet != 0) return ctx.timingPointSampleSet;
+    return ctx.defaultSampleSet;
 }
 
-i32 HitSamples::getAdditionSet(i32 play_time) {
-    if(cv::skin_force_hitsound_sample_set.getInt() > 0) return cv::skin_force_hitsound_sample_set.getInt();
-
+i32 HitSamples::getAdditionSet(const HitSoundContext &ctx) const {
+    if(ctx.forcedSampleSet > 0) return ctx.forcedSampleSet;
     if(this->additionSet != 0) return this->additionSet;
-
-    // Fallback to normal sample set
-    return this->getNormalSet(play_time);
+    return this->getNormalSet(ctx);
 }
 
-f32 HitSamples::getVolume(i32 hitSoundType, bool is_sliderslide, i32 play_time) {
+f32 HitSamples::getVolume(const HitSoundContext &ctx, i32 hitSoundType, bool is_sliderslide) const {
     f32 volume = 1.0f;
 
-    // Some hardcoded modifiers for hitcircle sounds
+    // some hardcoded modifiers for hitcircle sounds
     if(!is_sliderslide) {
         switch(hitSoundType) {
             case HitSoundType::NORMAL:
@@ -56,23 +41,19 @@ f32 HitSamples::getVolume(i32 hitSoundType, bool is_sliderslide, i32 play_time) 
                 volume *= 0.85f;
                 break;
             default:
-                std::unreachable();  // unreachable
+                std::unreachable();
         }
     }
 
-    if(!cv::ignore_beatmap_sample_volume.getBool()) {
+    if(!ctx.ignoreSampleVolume) {
         if(this->volume > 0) {
             volume *= (f32)this->volume / 100.0f;
-        } else if(const auto& map_iface = osu->getMapInterface(); likely(!!map_iface)) {
-            const DatabaseBeatmap* beatmap = map_iface->getBeatmap();
-            const auto mapTimingPointVol = (play_time != -1 && beatmap)
-                                               ? beatmap->getTimingInfoForTime(play_time).volume
-                                               : map_iface->getCurrentTimingInfo().volume;
-            volume *= (f32)mapTimingPointVol / 100.0f;
+        } else {
+            volume *= (f32)ctx.timingPointVolume / 100.0f;
         }
     }
 
-    if(!is_sliderslide && cv::snd_boost_hitsound_volume.getBool()) {
+    if(!is_sliderslide && ctx.boostVolume) {
         static constexpr const float ONE_OVER_E = 3.678795e-01f;
         static constexpr const float ONE_IDENT_MUL = 0.761463f;
         volume = (std::log(volume + ONE_OVER_E) + 1.f) * ONE_IDENT_MUL;
@@ -139,14 +120,95 @@ static constexpr auto SOUND_METHODS =  //
           }}};  //
 #undef A_
 
+// maps SampleSetType (1-3) to SOUND_METHODS index (0-2)
+static constexpr i32 sampleSetToIndex(i32 set) {
+    switch(set) {
+        case SampleSetType::NORMAL:
+            return 0;
+        case SampleSetType::SOFT:
+            return 1;
+        case SampleSetType::DRUM:
+            return 2;
+        default:
+            return 0;
+    }
+}
+
+// maps HitSoundType bitmask value to SOUND_METHODS hit index (0-3)
+static constexpr i32 hitSoundToIndex(i32 hitSound) {
+    switch(hitSound) {
+        case HitSoundType::NORMAL:
+            return 0;
+        case HitSoundType::WHISTLE:
+            return 1;
+        case HitSoundType::FINISH:
+            return 2;
+        case HitSoundType::CLAP:
+            return 3;
+        default:
+            return 0;
+    }
+}
+
+std::vector<ResolvedHitSound> HitSamples::resolve(const HitSoundContext &ctx, bool is_sliderslide) const {
+    std::vector<ResolvedHitSound> result;
+
+    namespace HT = HitSoundType;
+    for(const auto type : {HT::NORMAL, HT::WHISTLE, HT::FINISH, HT::CLAP}) {
+        // special case for NORMAL (play if this->hitSounds == 0 or layered hitsounds are enabled)
+
+        // NOTE: LayeredHitSounds seems to be forced even if the map uses custom hitsounds
+        //       according to https://osu.ppy.sh/community/forums/topics/15937
+        if(!(this->hitSounds & type) &&
+           !((type == HT::NORMAL) && ((this->hitSounds == 0) || ctx.layeredHitSounds)))
+            continue;
+
+        const f32 vol = this->getVolume(ctx, type, is_sliderslide);
+        if(vol <= 0.f) continue;  // don't play silence
+
+        const i32 set = type == HT::NORMAL ? this->getNormalSet(ctx) : this->getAdditionSet(ctx);
+
+        const i32 set_idx = sampleSetToIndex(set);
+        const i32 slider_idx = is_sliderslide ? SLIDER_IDX : HIT_IDX;
+        const i32 hit_idx = hitSoundToIndex(type);
+
+        // check that a valid sound method exists in the lookup table
+        if(SOUND_METHODS[set_idx][slider_idx][hit_idx] != nullptr) {
+            result.push_back({set_idx, slider_idx, hit_idx, vol});
+        }
+    }
+
+    return result;
+}
+
+ResolvedSliderTick HitSamples::resolveSliderTick(const HitSoundContext &ctx) const {
+    // slider ticks use the normal sample set per osu! reference behavior
+    const i32 set = this->getNormalSet(ctx);
+    const i32 set_idx = sampleSetToIndex(set);
+
+    // slider tick volume: no hitcircle-type modifier (is_sliderslide=true), no boost
+    f32 volume = 1.0f;
+    if(!ctx.ignoreSampleVolume) {
+        if(this->volume > 0) {
+            volume *= (f32)this->volume / 100.0f;
+        } else {
+            volume *= (f32)ctx.timingPointVolume / 100.0f;
+        }
+    }
+
+    return {set_idx, volume};
+}
+
+// global-dependent methods (delegate to pure versions)
+
 std::vector<HitSamples::Set_Slider_Hit> HitSamples::play(f32 pan, i32 delta, i32 play_time, bool is_sliderslide) {
-    const auto& map_iface = osu->getMapInterface();
+    const auto &map_iface = osu->getMapInterface();
     if(unlikely(!map_iface)) return {};  // sanity
 
     // Don't play hitsounds when seeking
     if(unlikely(map_iface->bWasSeekFrame)) return {};
 
-    const Skin* skin = map_iface->getSkin();
+    const Skin *skin = map_iface->getSkin();
     if(unlikely(!skin)) return {};  // sanity
 
     if(!cv::sound_panning.getBool() || (cv::mod_fposu.getBool() && !cv::mod_fposu_sound_panning.getBool()) ||
@@ -162,104 +224,51 @@ std::vector<HitSamples::Set_Slider_Hit> HitSamples::play(f32 pan, i32 delta, i32
         pitch = (f32)delta / range * cv::snd_pitch_hitsounds_factor.getFloat();
     }
 
-    Set_Slider_Hit potentially_played;
+    // build context from current state
+    const BeatmapDifficulty *beatmap = map_iface->getBeatmap();
+    const auto ti = (play_time != -1 && beatmap) ? beatmap->getTimingInfoForTime(play_time)
+                                                  : map_iface->getCurrentTimingInfo();
+    HitSoundContext ctx{
+        .timingPointSampleSet = ti.sampleSet,
+        .timingPointVolume = ti.volume,
+        .defaultSampleSet = map_iface->getDefaultSampleSet(),
+        .layeredHitSounds = skin->o_layered_hitsounds,
+        .forcedSampleSet = cv::skin_force_hitsound_sample_set.getInt(),
+        .ignoreSampleVolume = cv::ignore_beatmap_sample_volume.getBool(),
+        .boostVolume = cv::snd_boost_hitsound_volume.getBool(),
+    };
+
+    auto resolved = this->resolve(ctx, is_sliderslide);
+
+    // actually play the resolved sounds
     std::vector<Set_Slider_Hit> played_list;
+    for(const auto &r : resolved) {
+        Sound *Skin::*sound_ptr = SOUND_METHODS[r.set][r.slider][r.hit];
+        Sound *snd = skin->*sound_ptr;
+        if(!snd) continue;
 
-    const auto get_skin_sound = [&potentially_played, skin, is_sliderslide](i32 set, i32 hitSound) -> Sound* {
-        // map indices
-        const i32 slider_or_circle_idx = is_sliderslide ? SLIDER_IDX : HIT_IDX;
-        const i32 set_idx = [&set]() -> i32 {
-            switch(set) {
-                case SampleSetType::NORMAL:
-                    return 0;
-                case SampleSetType::SOFT:
-                    return 1;
-                case SampleSetType::DRUM:
-                    return 2;
-                default:
-                    return 0;
-            }
-        }();
-        const i32 hit_idx = [&hitSound]() -> i32 {
-            switch(hitSound) {
-                case HitSoundType::NORMAL:
-                    return 0;
-                case HitSoundType::WHISTLE:
-                    return 1;
-                case HitSoundType::FINISH:
-                    return 2;
-                case HitSoundType::CLAP:
-                    return 3;
-                default:
-                    return 0;
-            }
-        }();
+        if(is_sliderslide && snd->isPlaying()) continue;
 
-        Sound* Skin::* sound_ptr = SOUND_METHODS[set_idx][slider_or_circle_idx][hit_idx];
-        // debugLog("got {} for set_idx {} slider_or_circle_idx {} hit_idx {}", !!sound_ptr, set_idx, slider_or_circle_idx,
-        //          hit_idx);
-        if(sound_ptr != nullptr) {
-            Sound* ret = skin->*sound_ptr;
-            if(ret) {
-                // debugLog("returning {}", ret->getFilePath());
-                potentially_played = Set_Slider_Hit{set_idx, slider_or_circle_idx, hit_idx};
-            }
-            return ret;
-        }
-
-        return nullptr;
-    };
-
-    const auto get_map_sound = [&get_skin_sound](i32 set, i32 hitSound) {
-        // TODO @kiwec: map hitsounds are not supported
-        return get_skin_sound(set, hitSound);
-    };
-
-    const auto try_play = [pan, pitch, is_sliderslide, &get_map_sound](i32 set, i32 hitSound, f32 volume) -> bool {
-        Sound* snd = get_map_sound(set, hitSound);
-        if(!snd) return false;
-
-        if(is_sliderslide && snd->isPlaying()) return false;
-
-        return soundEngine->play(snd, pan, pitch, volume);
-    };
-
-    namespace HT = HitSoundType;
-    for(const auto type : {HT::NORMAL, HT::WHISTLE, HT::FINISH, HT::CLAP}) {
-        // special case for NORMAL (play if this->hitSounds == 0 or layered hitsounds are enabled)
-
-        // NOTE: LayeredHitSounds seems to be forced even if the map uses custom hitsounds
-        //       according to https://osu.ppy.sh/community/forums/topics/15937
-        if(!(this->hitSounds & type) &&
-           !((type == HT::NORMAL) && ((this->hitSounds == 0) || skin->o_layered_hitsounds)))
-            continue;
-
-        const f32 volume = this->getVolume(type, is_sliderslide, play_time);
-        if(volume <= 0.) continue;  // don't play silence
-
-        const auto set = type == HT::NORMAL ? this->getNormalSet(play_time) : this->getAdditionSet(play_time);
-
-        if(try_play(set, type, volume)) {
-            played_list.push_back(potentially_played);
-            potentially_played = {};
+        if(soundEngine->play(snd, pan, pitch, r.volume)) {
+            played_list.push_back({r.set, r.slider, r.hit});
         }
     }
 
     return played_list;
 }
 
-void HitSamples::stop(const std::vector<Set_Slider_Hit>& specific_sets) {
+void HitSamples::stop(const std::vector<Set_Slider_Hit> &specific_sets) {
     // TODO @kiwec: map hitsounds are not supported
-    const auto& map_iface = osu->getMapInterface();
+    const auto &map_iface = osu->getMapInterface();
     if(unlikely(!map_iface)) return;  // sanity
-    const Skin* skin = map_iface->getSkin();
+    const Skin *skin = map_iface->getSkin();
     if(unlikely(!skin)) return;  // sanity
 
     // stop specified previously played sounds, otherwise stop everything
     if(!specific_sets.empty()) {
-        for(const auto& triple : specific_sets) {
+        for(const auto &triple : specific_sets) {
             assert(SOUND_METHODS[triple.set][triple.slider][triple.hit]);
-            Sound* to_stop = skin->*SOUND_METHODS[triple.set][triple.slider][triple.hit];
+            Sound *to_stop = skin->*SOUND_METHODS[triple.set][triple.slider][triple.hit];
 
             if(to_stop && to_stop->isPlaying()) {
                 // debugLog("stopping specific set {} {} {} {}", triple.set, triple.slider, triple.hit,
@@ -275,11 +284,11 @@ void HitSamples::stop(const std::vector<Set_Slider_Hit>& specific_sets) {
     //       we'll need to store the started sounds somewhere.
 
     // Bruteforce approach. Will be rewritten when adding map hitsounds.
-    for(const auto& sample_set : SOUND_METHODS) {
-        const auto& slider_sounds = sample_set[SLIDER_IDX];
-        for(const auto& slider_snd_ptr : slider_sounds) {
+    for(const auto &sample_set : SOUND_METHODS) {
+        const auto &slider_sounds = sample_set[SLIDER_IDX];
+        for(const auto &slider_snd_ptr : slider_sounds) {
             if(slider_snd_ptr == nullptr) continue;  // ugly
-            Sound* snd_memb = skin->*slider_snd_ptr;
+            Sound *snd_memb = skin->*slider_snd_ptr;
             if(snd_memb != nullptr && snd_memb->isPlaying()) {
                 // debugLog("stopping {}", snd_memb->getFilePath());
                 soundEngine->stop(snd_memb);
