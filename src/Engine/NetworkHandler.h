@@ -60,7 +60,9 @@ struct WSInstance {
     f64 time_created{0.f};
 
    private:
-#ifndef MCENGINE_PLATFORM_WASM
+#ifdef MCENGINE_PLATFORM_WASM
+    int handle{0};
+#else
     CURL* handle{nullptr};
 
     // Servers can send fragmented packets, we want to only append them

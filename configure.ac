@@ -580,7 +580,7 @@ AS_IF([test -n "$WASM_CC"], [
     NEOMOD_CPPFLAGS="$NEOMOD_CPPFLAGS -U__linux__ -D__EMSCRIPTEN__"
     NEOMOD_CXXFLAGS="$NEOMOD_CXXFLAGS $emscripten_flags"
     # --emrun for support for running the .html with emrun (useful for offline testing)
-    NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS $emscripten_flags -lidbfs.js -lnodefs.js --pre-js $WASM_POLYFILL_DEP --emrun"
+    NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS $emscripten_flags -lwebsocket.js -lidbfs.js -lnodefs.js --pre-js $WASM_POLYFILL_DEP --emrun"
 
     WASM_PRELOAD_FLAGS="--preload-file \$(srcdir)/\$(ASSETS_DIR)/fonts@fonts --preload-file \$(srcdir)/\$(ASSETS_DIR)/materials@materials"
     AS_IF([test "x$enable_redistributable" = "xno"], [

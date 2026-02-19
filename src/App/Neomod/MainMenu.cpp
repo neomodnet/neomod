@@ -267,6 +267,10 @@ MainMenu::MainMenu() : UIScreen() {
                         debugLog("Migrated old neosu databases to neomod.");
                     }
                 }
+                if(version < 43.04 || buildstamp <= 2602190926) {
+                    cv::prefer_websockets.setValue(true);
+                    shouldSave = true;
+                }
 
                 if(shouldSave) {
                     ui->getOptionsOverlay()->save();

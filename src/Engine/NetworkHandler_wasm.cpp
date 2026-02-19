@@ -11,8 +11,9 @@
 #include "ConVar.h"
 #include "Logging.h"
 
-#include <emscripten/fetch.h>
 #include <emscripten/em_js.h>
+#include <emscripten/fetch.h>
+#include <emscripten/websocket.h>
 #include <cstring>
 #include <cstdlib>
 
@@ -108,7 +109,11 @@ EM_JS(int, sync_xhr, (const char* method, const char* url, const char* req_heade
 
 namespace Mc::Net {
 
-WSInstance::~WSInstance() = default;
+WSInstance::~WSInstance() {
+    if(this->handle) {
+        emscripten_websocket_delete(this->handle);
+    }
+}
 
 std::string urlEncode(std::string_view input) noexcept {
     std::string result;
@@ -192,15 +197,22 @@ struct NetworkImpl {
 
     void httpRequestAsync(std::string_view url, RequestOptions options, AsyncCallback callback);
     Response httpRequestSynchronous(std::string_view url, RequestOptions options);
+    std::shared_ptr<WSInstance> initWebsocket(std::string_view url, const WSOptions& options);
     void update();
 
     std::vector<CompletedRequest> completed_requests;
 
    private:
+    std::vector<std::shared_ptr<WSInstance>> active_websockets;
+
     static Hash::unstable_stringmap<std::string> extractHeaders(emscripten_fetch_t* fetch);
     static void fetchSuccess(emscripten_fetch_t* fetch);
     static void fetchError(emscripten_fetch_t* fetch);
     static void fetchProgress(emscripten_fetch_t* fetch);
+    static bool wsOpen(int zero, const EmscriptenWebSocketOpenEvent* ev, void* userData);
+    static bool wsClose(int zero, const EmscriptenWebSocketCloseEvent* ev, void* userData);
+    static bool wsError(int zero, const EmscriptenWebSocketErrorEvent* ev, void* userData);
+    static bool wsMessage(int zero, const EmscriptenWebSocketMessageEvent* ev, void* userData);
 };
 
 Hash::unstable_stringmap<std::string> NetworkImpl::extractHeaders(emscripten_fetch_t* fetch) {
@@ -425,6 +437,72 @@ Response NetworkImpl::httpRequestSynchronous(std::string_view url, RequestOption
     return res;
 }
 
+bool NetworkImpl::wsOpen(int /*zero*/, const EmscriptenWebSocketOpenEvent* /*ev*/, void* userData) {
+    auto ws = (WSInstance*)userData;
+    ws->status = WSStatus::CONNECTED;
+    return EM_TRUE;
+}
+
+bool NetworkImpl::wsClose(int /*zero*/, const EmscriptenWebSocketCloseEvent* /*ev*/, void* userData) {
+    auto ws = (WSInstance*)userData;
+    ws->status = WSStatus::DISCONNECTED;
+    return EM_TRUE;
+}
+
+bool NetworkImpl::wsError(int /*zero*/, const EmscriptenWebSocketErrorEvent* /*ev*/, void* userData) {
+    auto ws = (WSInstance*)userData;
+    ws->status = WSStatus::DISCONNECTED;
+    return EM_TRUE;
+}
+
+bool NetworkImpl::wsMessage(int /*zero*/, const EmscriptenWebSocketMessageEvent* ev, void* userData) {
+    auto ws = (WSInstance*)userData;
+    if(ev->numBytes > 0) {
+        ws->in.insert(ws->in.end(), ev->data, ev->data + ev->numBytes);
+    }
+    return EM_TRUE;
+}
+
+std::shared_ptr<WSInstance> NetworkImpl::initWebsocket(std::string_view url, const WSOptions& options) {
+    assert(!url.starts_with("ws://") && !url.starts_with("wss://") && !url.starts_with("http://") &&
+           !url.starts_with("https://"));
+
+    std::string urlWithScheme = fmt::format("{}{}", cv::use_https.getBool() ? "wss://" : "ws://", url);
+
+    auto ws = std::make_shared<WSInstance>();
+    ws->time_created = engine->getTime();
+
+    if(!emscripten_websocket_is_supported()) {
+        ws->status = WSStatus::UNSUPPORTED;
+        return ws;
+    }
+
+    // Fun fact: browsers don't let you set WebSocket headers!
+    // The most sane workaround seems to be passing them as URL params instead.
+    // https://stackoverflow.com/questions/4361173/http-headers-in-websockets-client-api
+    std::string urlWithParams = urlWithScheme;
+    for(const auto& [key, value] : options.headers) {
+        urlWithParams += (urlWithParams.find('?') == std::string::npos) ? '?' : '&';
+        urlWithParams += urlEncode(key) + '=' + urlEncode(value);
+    }
+
+    EmscriptenWebSocketCreateAttributes cfg;
+    cfg.url = urlWithParams.c_str();
+    cfg.protocols = "binary";
+    cfg.createOnMainThread = false;
+
+    // HACK: Passing raw pointer here, but should be safe since destructor unregisters these
+    ws->handle = emscripten_websocket_new(&cfg);
+    emscripten_websocket_set_onopen_callback(ws->handle, ws.get(), NetworkImpl::wsOpen);
+    emscripten_websocket_set_onclose_callback(ws->handle, ws.get(), NetworkImpl::wsClose);
+    emscripten_websocket_set_onerror_callback(ws->handle, ws.get(), NetworkImpl::wsError);
+    emscripten_websocket_set_onmessage_callback(ws->handle, ws.get(), NetworkImpl::wsMessage);
+
+    this->active_websockets.push_back(ws);
+
+    return ws;
+}
+
 // callbacks are deferred to run here, during the engine update tick
 void NetworkImpl::update() {
     auto pending = std::move(completed_requests);
@@ -432,6 +510,22 @@ void NetworkImpl::update() {
     for(auto& completed : pending) {
         completed.callback(std::move(completed.response));
     }
+
+    // websocket send
+    for(auto& ws : this->active_websockets) {
+        if(ws->status != WSStatus::CONNECTED || ws->out.empty()) continue;
+
+        EMSCRIPTEN_RESULT result;
+        result = emscripten_websocket_send_binary(ws->handle, ws->out.data(), ws->out.size());
+        if(result < 0) {
+            debugLog("Failed to send data on websocket: EMSCRIPTEN_RESULT {}", result);
+            ws->status = WSStatus::DISCONNECTED;
+            continue;
+        }
+
+        ws->out.clear();
+    }
+    std::erase_if(this->active_websockets, [](const auto& ws) { return ws->status == WSStatus::DISCONNECTED; });
 }
 
 // passthroughs
@@ -446,11 +540,8 @@ void NetworkHandler::httpRequestAsync(std::string_view url, RequestOptions optio
     return pImpl->httpRequestAsync(url, std::move(options), std::move(callback));
 }
 
-std::shared_ptr<WSInstance> NetworkHandler::initWebsocket(std::string_view /*url*/, const WSOptions& /*options*/) {
-    debugLog("WARNING: WebSocket support is not yet implemented for WASM");
-    auto ws = std::make_shared<WSInstance>();
-    ws->status = WSStatus::UNSUPPORTED;
-    return ws;
+std::shared_ptr<WSInstance> NetworkHandler::initWebsocket(std::string_view url, const WSOptions& options) {
+    return pImpl->initWebsocket(url, options);
 }
 
 // no-op
