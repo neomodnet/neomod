@@ -795,7 +795,7 @@ void Chat::mark_as_read(ChatChannel *chan) {
     // XXX: Only mark as read after 500ms
     chan->read = true;
 
-    std::string url{"web/osu-markasread.php?"};
+    std::string url{"/web/osu-markasread.php?"};
     url.append(fmt::format("channel={:s}", Mc::Net::urlEncode(chan->name.utf8View())));
     BANCHO::Api::append_auth_params(url);
 
@@ -893,7 +893,8 @@ void Chat::addMessage(UString channel_name, const ChatMessage &msg, bool mark_un
         // TODO: highlight message
         auto notif = fmt::format("{} mentioned you in {}", msg.author_name, channel_name);
         ui->getNotificationOverlay()->addToast(
-            std::move(notif), CHAT_TOAST, [channel_name] { ui->getChat()->openChannel(channel_name); }, ToastElement::TYPE::CHAT);
+            std::move(notif), CHAT_TOAST, [channel_name] { ui->getChat()->openChannel(channel_name); },
+            ToastElement::TYPE::CHAT);
     }
 
     bool is_pm =
@@ -920,7 +921,8 @@ void Chat::addMessage(UString channel_name, const ChatMessage &msg, bool mark_un
     if(mentioned && cv::chat_notify_on_mention.getBool()) {
         auto notif = fmt::format("You were mentioned in {:s}", channel_name);
         ui->getNotificationOverlay()->addToast(
-            std::move(notif), CHAT_TOAST, [channel_name] { ui->getChat()->openChannel(channel_name); }, ToastElement::TYPE::CHAT);
+            std::move(notif), CHAT_TOAST, [channel_name] { ui->getChat()->openChannel(channel_name); },
+            ToastElement::TYPE::CHAT);
     }
     if(mentioned && cv::chat_ping_on_mention.getBool()) {
         // Yes, osu! really does use "match-start.wav" for when you get pinged
