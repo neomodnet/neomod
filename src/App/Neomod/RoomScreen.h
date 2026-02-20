@@ -69,10 +69,12 @@ class RoomScreen final : public UIScreen {
     void onStartGameClicked();
     void onSelectModsClicked();
     void onSelectMapClicked();
+    void onDownloadMapsClicked();
     void onChangePasswordClicked();
     void onChangeWinConditionClicked();
     void onWinConditionSelected(const UString& win_condition_str, int win_condition);
     void set_new_password(const UString& new_password);
+    void set_current_map(DatabaseBeatmap* map);
     void onFreemodCheckboxChanged(CBaseUICheckbox* checkbox);
 
     CBaseUILabel* map_label{nullptr};
@@ -92,6 +94,7 @@ class RoomScreen final : public UIScreen {
     CBaseUILabel* map_attributes2{nullptr};
     CBaseUILabel* map_stars{nullptr};
     UIButton* select_map_btn{nullptr};
+    UIButton* online_maps_btn{nullptr};
     UIButton* select_mods_btn{nullptr};
     UICheckbox* freemod{nullptr};
     UIModList* mods{nullptr};

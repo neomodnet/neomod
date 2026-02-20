@@ -36,6 +36,7 @@ Changelog::Changelog() : ScreenBackable() {
     v43_05.title = "43.05 (" CHANGELOG_TIMESTAMP ")";
     v43_05.changes = {
         R"(- Added support for customizing the skin used for fallback/missing elements (shift+click on a skin in the skin list))",
+        R"(- Added "Download maps" button in multiplayer rooms)",
     };
     changelogs.push_back(v43_05);
 

@@ -26,6 +26,7 @@
 #include "OptionsOverlay.h"
 #include "Osu.h"
 #include "OsuConVars.h"
+#include "RoomScreen.h"
 #include "Skin.h"
 #include "SongBrowser/SongBrowser.h"
 #include "SString.h"
@@ -355,11 +356,14 @@ CBaseUIContainer* OsuDirectScreen::setVisible(bool visible) {
     if(visible) {
         this->onResolutionChange(osu->getVirtScreenSize());
 
+        // clear previous search results
+        // we do this now instead of on setVisible(false), because this deletes map listings
+        // ...and we can call setScreen() from inside of a map listing update loop
+        // ...which deletes map listings WHILE we are iterating map listings
+        this->reset();
+
         this->search_bar->clear();
         this->search_bar->focus();
-    } else {
-        // clear search results if we're setting invisible
-        this->reset();
     }
 
     return this;
@@ -408,7 +412,14 @@ void OsuDirectScreen::update(CBaseUIEventCtx& c) {
     }
 }
 
-void OsuDirectScreen::onBack() { ui->setScreen(ui->getMainMenu()); }
+void OsuDirectScreen::onBack() {
+    if(BanchoState::is_in_a_multi_room()) {
+        ui->getRoom()->set_current_map(osu->getMapInterface()->getBeatmap());
+        ui->setScreen(ui->getRoom());
+    } else {
+        ui->setScreen(ui->getMainMenu());
+    }
+}
 
 void OsuDirectScreen::onResolutionChange(vec2 newResolution) {
     this->setSize(osu->getVirtScreenSize());  // HACK: don't forget this or else nothing works!

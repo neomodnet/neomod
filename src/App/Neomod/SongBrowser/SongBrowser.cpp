@@ -1322,17 +1322,7 @@ void SongBrowser::onDifficultySelected(DatabaseBeatmap *map, bool play) {
         // start playing
         if(play) {
             if(BanchoState::is_in_a_multi_room()) {
-                BanchoState::room.map_name = fmt::format("{:s} - {:s} [{:s}]", map->getArtistLatin(),
-                                                         map->getTitleLatin(), map->getDifficultyName());
-                BanchoState::room.map_md5 = map->getMD5();
-                BanchoState::room.map_id = map->getID();
-
-                Packet packet;
-                packet.id = OUTP_MATCH_CHANGE_SETTINGS;
-                BanchoState::room.pack(packet);
-                BANCHO::Net::send_packet(packet);
-
-                ui->getRoom()->on_map_change();
+                ui->getRoom()->set_current_map(map);
                 ui->setScreen(ui->getRoom());
             } else {
                 // CTRL + click = auto

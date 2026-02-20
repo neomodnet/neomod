@@ -29,6 +29,7 @@
 #include "NotificationOverlay.h"
 #include "OptionsOverlay.h"
 #include "Osu.h"
+#include "OsuDirectScreen.h"
 #include "PromptOverlay.h"
 #include "RankingScreen.h"
 #include "ResourceManager.h"
@@ -170,6 +171,10 @@ RoomScreen::RoomScreen() : UIScreen() {
     this->select_map_btn->setColor(0xff0c7c99);
     this->select_map_btn->setUseDefaultSkin();
     this->select_map_btn->setClickCallback(SA::MakeDelegate<&RoomScreen::onSelectMapClicked>(this));
+    this->online_maps_btn = new UIButton(0, 0, 0, 0, "online_maps_btn", "Download maps");
+    this->online_maps_btn->setColor(0xff0c7c99);
+    this->online_maps_btn->setUseDefaultSkin();
+    this->online_maps_btn->setClickCallback(SA::MakeDelegate<&RoomScreen::onDownloadMapsClicked>(this));
 
     INIT_LABEL(this->map_title, "(no map selected)", false);
     INIT_LABEL(this->map_stars, "", false);
@@ -222,6 +227,7 @@ RoomScreen::~RoomScreen() {
     SAFE_DELETE(this->room_name_iptl);
     SAFE_DELETE(this->room_name_ipt);
     SAFE_DELETE(this->select_map_btn);
+    SAFE_DELETE(this->online_maps_btn);
     SAFE_DELETE(this->select_mods_btn);
     SAFE_DELETE(this->change_win_condition_btn);
     SAFE_DELETE(this->win_condition);
@@ -417,6 +423,16 @@ void RoomScreen::updateSettingsLayout(vec2 newResolution) {
     ADD_ELEMENT(map_label);
     if(is_host) {
         ADD_BUTTON(this->select_map_btn, map_label);
+
+        // Add "Download maps" button to the right of the "Select map" button
+        // Jank code because the obvious setPos() wasn't working and I gave up
+        // after 1h of debugging this piece of shit UI framework.
+        this->online_maps_btn->onResized();
+        this->online_maps_btn->setSizeToContent(button_padding, button_padding);
+        this->online_maps_btn->setPos(
+            map_label->getSize().x + this->select_map_btn->getSize().x + 30.f * Osu::getUIScale(),
+            map_label->getPos().y + (map_label->getSize().y - this->online_maps_btn->getSize().y) / 2.f);
+        this->settings->container.addBaseUIElement(this->online_maps_btn);
     }
     ADD_ELEMENT(this->map_title);
     if(!this->ready_btn->is_loading) {
@@ -870,6 +886,21 @@ void RoomScreen::onSelectMapClicked() {
     BANCHO::Net::send_packet(packet);
 }
 
+void RoomScreen::onDownloadMapsClicked() {
+    if(!BanchoState::room.is_host()) return;
+
+    ui->setScreen(ui->getOsuDirectScreen());
+    soundEngine->play(osu->getSkin()->s_menu_hit);
+
+    Packet packet;
+    packet.id = OUTP_MATCH_CHANGE_SETTINGS;
+    BanchoState::room.map_id = -1;
+    BanchoState::room.map_name = "";
+    BanchoState::room.map_md5 = {};
+    BanchoState::room.pack(packet);
+    BANCHO::Net::send_packet(packet);
+}
+
 void RoomScreen::onChangePasswordClicked() {
     ui->getPromptOverlay()->prompt("New password:", SA::MakeDelegate<&RoomScreen::set_new_password>(this));
 }
@@ -908,6 +939,23 @@ void RoomScreen::set_new_password(const UString &new_password) {
     packet.id = OUTP_CHANGE_ROOM_PASSWORD;
     BanchoState::room.pack(packet);
     BANCHO::Net::send_packet(packet);
+}
+
+void RoomScreen::set_current_map(DatabaseBeatmap *map) {
+    if(!BanchoState::room.is_host()) return;
+    if(!map) return;
+
+    BanchoState::room.map_name =
+        fmt::format("{:s} - {:s} [{:s}]", map->getArtistLatin(), map->getTitleLatin(), map->getDifficultyName());
+    BanchoState::room.map_md5 = map->getMD5();
+    BanchoState::room.map_id = map->getID();
+
+    Packet packet;
+    packet.id = OUTP_MATCH_CHANGE_SETTINGS;
+    BanchoState::room.pack(packet);
+    BANCHO::Net::send_packet(packet);
+
+    this->on_map_change();
 }
 
 void RoomScreen::onFreemodCheckboxChanged(CBaseUICheckbox *checkbox) {
