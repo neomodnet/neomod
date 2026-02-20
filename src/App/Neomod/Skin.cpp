@@ -727,34 +727,23 @@ void Skin::load() {
     if(!this->s_click_pause_retry) this->s_click_pause_retry = this->s_click_button;
     if(!this->s_hover_pause_retry) this->s_hover_pause_retry = this->s_pause_hover;
 
-    // custom
-    BasicSkinImage defaultCursor{resourceManager->getImage("SKIN_CURSOR_DEFAULT")};
-    BasicSkinImage defaultCursor2 = this->i_cursor;
-    if(defaultCursor)
-        this->i_cursor_default = defaultCursor;
-    else if(defaultCursor2)
-        this->i_cursor_default = defaultCursor2;
-
-    BasicSkinImage defaultButtonLeft{resourceManager->getImage("SKIN_BUTTON_LEFT_DEFAULT")};
-    BasicSkinImage defaultButtonLeft2 = this->i_button_left;
-    if(defaultButtonLeft)
-        this->i_button_left_default = defaultButtonLeft;
-    else if(defaultButtonLeft2)
-        this->i_button_left_default = defaultButtonLeft2;
-
-    BasicSkinImage defaultButtonMiddle{resourceManager->getImage("SKIN_BUTTON_MIDDLE_DEFAULT")};
-    BasicSkinImage defaultButtonMiddle2 = this->i_button_mid;
-    if(defaultButtonMiddle)
-        this->i_button_mid_default = defaultButtonMiddle;
-    else if(defaultButtonMiddle2)
-        this->i_button_mid_default = defaultButtonMiddle2;
-
-    BasicSkinImage defaultButtonRight{resourceManager->getImage("SKIN_BUTTON_RIGHT_DEFAULT")};
-    BasicSkinImage defaultButtonRight2 = this->i_button_right;
-    if(defaultButtonRight)
-        this->i_button_right_default = defaultButtonRight;
-    else if(defaultButtonRight2)
-        this->i_button_right_default = defaultButtonRight2;
+    // always load these from the bundled default skin for consistent UI appearance (e.g. options menu buttons).
+    // can't rely on the _DEFAULT resource cache from checkLoadImage, since a user fallback skin may have
+    // provided the element before we ever reach the default dir.
+    if(this->o_default) {
+        this->i_cursor_default = this->i_cursor;
+        this->i_button_left_default = this->i_button_left;
+        this->i_button_mid_default = this->i_button_mid;
+        this->i_button_right_default = this->i_button_right;
+    } else {
+        this->checkLoadImage(this->i_cursor_default, "cursor", "SKIN_CURSOR", false, "png", false, default_dir);
+        this->checkLoadImage(this->i_button_left_default, "button-left", "SKIN_BUTTON_LEFT", false, "png", false,
+                             default_dir);
+        this->checkLoadImage(this->i_button_mid_default, "button-middle", "SKIN_BUTTON_MIDDLE", false, "png", false,
+                             default_dir);
+        this->checkLoadImage(this->i_button_right_default, "button-right", "SKIN_BUTTON_RIGHT", false, "png", false,
+                             default_dir);
+    }
 
     // print some debug info
     debugLog("Skin: Version {:f}", this->version);
@@ -1044,15 +1033,16 @@ SkinImage *Skin::createSkinImage(const std::string &skinElementName, vec2 baseSi
 }
 
 void Skin::checkLoadImage(BasicSkinImage &imgRef, const std::string &skinElementName, const std::string &resourceName,
-                          bool ignoreDefaultSkin, const std::string &fileExtension, bool forceLoadMipmaps) {
+                          bool ignoreDefaultSkin, const std::string &fileExtension, bool forceLoadMipmaps,
+                          const std::string &overrideDir) {
     if(imgRef.img != MISSING_TEXTURE) return;  // already loaded
 
     const bool use_mipmaps = cv::skin_mipmaps.getBool() || forceLoadMipmaps;
-    const size_t n_dirs = ignoreDefaultSkin ? 1 : this->search_dirs.size();
+    const size_t n_dirs = overrideDir.empty() ? (ignoreDefaultSkin ? 1 : this->search_dirs.size()) : 1;
 
     // forward iteration: first match wins
     for(size_t i = 0; i < n_dirs; i++) {
-        const auto &dir = this->search_dirs[i];
+        const auto &dir = overrideDir.empty() ? this->search_dirs[i] : overrideDir;
 
         std::string base = dir;
         base.append(skinElementName);
@@ -1071,8 +1061,10 @@ void Skin::checkLoadImage(BasicSkinImage &imgRef, const std::string &skinElement
 
         // only the built-in default dir (last entry for non-default skins) uses _DEFAULT naming;
         // primary and fallback dirs use unnamed resources tracked in this->resources.
-        // compare against full search_dirs size, not n_dirs, since ignoreDefaultSkin truncates n_dirs
-        const bool is_cached_default = !this->o_default && (i == this->search_dirs.size() - 1);
+        // compare against full search_dirs size, not n_dirs, since ignoreDefaultSkin truncates n_dirs.
+        // overrideDir loads are also cached (they explicitly target the default dir).
+        const bool is_cached_default =
+            !this->o_default && (!overrideDir.empty() || i == this->search_dirs.size() - 1);
 
         std::string res_name;
         if(is_cached_default) {

@@ -52,7 +52,7 @@ struct Skin final {
                                bool ignoreDefaultSkin = false, const std::string &animationSeparator = "-");
     void checkLoadImage(BasicSkinImage &imgRef, const std::string &skinElementName, const std::string &resourceName,
                         bool ignoreDefaultSkin = false, const std::string &fileExtension = "png",
-                        bool forceLoadMipmaps = false);
+                        bool forceLoadMipmaps = false, const std::string &overrideDir = {});
 
     void loadSound(Sound *&sndRef, const std::string &skinElementName, const std::string &resourceName,
                    bool isOverlayable = false, bool isSample = false, bool loop = false,
