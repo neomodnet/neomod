@@ -3,7 +3,7 @@
   <assemblyIdentity
     type="win32"
     name="neomod"
-    version="43.04.0.0"
+    version="43.05.0.0"
     processorArchitecture="*"/>
 
   <description>neomod</description>

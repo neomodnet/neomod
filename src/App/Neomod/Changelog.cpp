@@ -32,10 +32,16 @@ Changelog::Changelog() : ScreenBackable() {
 
     std::vector<CHANGELOG> changelogs;
 
-    CHANGELOG v43_04;
-    v43_04.title = "43.04 (" CHANGELOG_TIMESTAMP ")";
-    v43_04.changes = {
+    CHANGELOG v43_05;
+    v43_05.title = "43.05 (" CHANGELOG_TIMESTAMP ")";
+    v43_05.changes = {
         R"(- Added support for customizing the skin used for fallback/missing elements (shift+click on a skin in the skin list))",
+    };
+    changelogs.push_back(v43_05);
+
+    CHANGELOG v43_04;
+    v43_04.title = "43.04 (2026-02-19)";
+    v43_04.changes = {
         R"(- Added support for WebSocket connections)",
         R"(- Client will now leave multiplayer when the match gets closed)",
         R"(- Fixed scores getting saved even when leaving a map early)",

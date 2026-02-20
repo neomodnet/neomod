@@ -5,8 +5,8 @@
 
 // version information
 1 VERSIONINFO
-FILEVERSION 43,4,0,0
-PRODUCTVERSION 43,4,0,0
+FILEVERSION 43,5,0,0
+PRODUCTVERSION 43,5,0,0
 FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
 #ifdef _DEBUG
 FILEFLAGS VS_FF_DEBUG
@@ -23,12 +23,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "neomod"
             VALUE "FileDescription", "neomod"
-            VALUE "FileVersion", "43.04.0.0"
+            VALUE "FileVersion", "43.05.0.0"
             VALUE "InternalName", "neomod"
             VALUE "LegalCopyright", "Copyright (C) 2025-2026"
             VALUE "OriginalFilename", "neomod.exe"
             VALUE "ProductName", "neomod"
-            VALUE "ProductVersion", "43.04"
+            VALUE "ProductVersion", "43.05"
         END
     END
     BLOCK "VarFileInfo"
