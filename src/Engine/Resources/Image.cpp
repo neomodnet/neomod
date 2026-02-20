@@ -41,8 +41,7 @@
 #include "stb_image.h"
 /* ==== end stb_image config ==== */
 
-// (workaround unnecessary in latest zlib-ng versions, so i guess it was a zlib-ng issue)
-#if defined(ZLIBNG_VERNUM) && ZLIBNG_VERNUM < 0x020205F0L
+#if defined(ZLIBNG_VERNUM)
 // this is complete bullshit and a bug in zlib-ng (probably, less likely libpng)
 // need to prevent zlib from lazy-initializing the crc tables, otherwise data race galore
 // literally causes insane lags/issues in completely unrelated places for async loading

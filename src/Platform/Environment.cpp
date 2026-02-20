@@ -72,6 +72,8 @@ Environment *env{nullptr};
 
 SDL_Environment *Environment::s_sdlenv{nullptr};
 
+void Mc::initEnvBlock() { Environment::s_sdlenv = SDL_GetEnvironment(); }
+
 Environment::Environment(const Mc::AppDescriptor &appDesc,
                          std::unordered_map<std::string, std::optional<std::string>> argMap,
                          std::vector<std::string> cmdlineVec)
@@ -81,7 +83,9 @@ Environment::Environment(const Mc::AppDescriptor &appDesc,
       m_cursorIcons(/*lazy init*/) {
     env = this;
 
-    s_sdlenv = SDL_GetEnvironment();
+    if(!s_sdlenv) {
+        s_sdlenv = SDL_GetEnvironment();
+    }
 
     m_engine = nullptr;  // will be initialized by the mainloop once setup is complete
     m_window = nullptr;  // ditto

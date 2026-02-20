@@ -27,7 +27,8 @@ class UString;
 class Engine;
 namespace Mc {
 struct AppDescriptor;
-}
+void initEnvBlock();
+}  // namespace Mc
 
 class Environment;
 extern Environment *env;
@@ -421,6 +422,7 @@ class Environment {
     bool m_bIsWayland;
 
     // process environment (declared here for restart access)
+    friend void Mc::initEnvBlock();
     static SDL_Environment *s_sdlenv;
 
    private:

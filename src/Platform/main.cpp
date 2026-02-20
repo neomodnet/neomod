@@ -249,6 +249,9 @@ MAIN_FUNC /* int argc, char *argv[] */
         appDesc->handleExistingWindow(argc, argv);
     }
 
+    // explicitly initialize environment block before SDL tries to
+    Mc::initEnvBlock();
+
 #ifdef MCENGINE_PLATFORM_WINDOWS
     CrashHandler::init();
 #endif

@@ -462,8 +462,8 @@ void Engine::onRestored() {
 }
 
 void Engine::onResolutionChange(vec2 newResolution) {
-    debugLog("(Engine) ({:d}, {:d}) -> ({:d}, {:d})", (int)this->screenRect.getWidth(), (int)this->screenRect.getHeight(),
-             (int)newResolution.x, (int)newResolution.y);
+    debugLog("(Engine) ({:d}, {:d}) -> ({:d}, {:d})", (int)this->screenRect.getWidth(),
+             (int)this->screenRect.getHeight(), (int)newResolution.x, (int)newResolution.y);
 
     // NOTE: Windows [Show Desktop] button in the superbar causes (0,0)
     if(newResolution.x < 2 || newResolution.y < 2) {
