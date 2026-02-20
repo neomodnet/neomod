@@ -35,6 +35,7 @@ Changelog::Changelog() : ScreenBackable() {
     CHANGELOG v43_04;
     v43_04.title = "43.04 (" CHANGELOG_TIMESTAMP ")";
     v43_04.changes = {
+        R"(- Added support for customizing the skin used for fallback/missing elements (shift+click on a skin in the skin list))",
         R"(- Added support for WebSocket connections)",
         R"(- Client will now leave multiplayer when the match gets closed)",
         R"(- Fixed scores getting saved even when leaving a map early)",
