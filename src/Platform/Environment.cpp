@@ -440,13 +440,19 @@ std::string manualDirectoryFixup(std::string_view input) {
 // passthroughs, with some extra validation
 std::vector<std::string> Environment::getFilesInFolder(std::string_view folder) noexcept {
     std::vector<std::string> out;
-    File::getDirectoryEntries(manualDirectoryFixup(folder), false, out);
+    File::getDirectoryEntries(manualDirectoryFixup(folder), File::DirContents::FILES, out);
     return out;
 }
 
 std::vector<std::string> Environment::getFoldersInFolder(std::string_view folder) noexcept {
     std::vector<std::string> out;
-    File::getDirectoryEntries(manualDirectoryFixup(folder), true, out);
+    File::getDirectoryEntries(manualDirectoryFixup(folder), File::DirContents::DIRECTORIES, out);
+    return out;
+}
+
+std::vector<std::string> Environment::getEntriesInFolder(std::string_view folder) noexcept {
+    std::vector<std::string> out;
+    File::getDirectoryEntries(manualDirectoryFixup(folder), File::DirContents::ALL, out);
     return out;
 }
 

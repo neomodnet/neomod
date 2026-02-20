@@ -82,7 +82,8 @@ class File {
     [[nodiscard]] static File::FILETYPE exists(std::string_view filePath);
 
     // only returns true if succeeded, appends to the input vector
-    static bool getDirectoryEntries(const std::string &toEnumerate, bool wantDirectories,
+    enum class DirContents : u8 { DIRECTORIES = 1 << 0, FILES = 1 << 1, ALL = DIRECTORIES | FILES };
+    static bool getDirectoryEntries(const std::string &toEnumerate, DirContents types,
                                     std::vector<std::string> &utf8NamesOut) noexcept;
 
     // fs::path works differently depending on the type of string it was constructed with
@@ -125,5 +126,6 @@ class File {
     MODE fileMode;
     bool bReady;
 };
+MAKE_FLAG_ENUM(File::DirContents)
 
 #endif

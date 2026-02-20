@@ -37,14 +37,19 @@ class DirectoryCache final {
     DirectoryCache() = default;
 
     // directory entry type
+    struct EntryPair {
+        std::string name;
+        File::FILETYPE type;
+    };
+
     struct DirectoryEntry {
-        Hash::unstable_ncase_stringmap<std::pair<std::string, File::FILETYPE>> files;
+        Hash::unstable_ncase_stringmap<EntryPair> files;
         chrono::steady_clock::time_point lastCacheAccess;
         fs::file_time_type lastModified;
     };
 
     // look up a file with case-insensitive matching
-    std::pair<std::string, File::FILETYPE> lookup(const fs::path &dirPath, std::string_view filename) {
+    EntryPair lookup(const fs::path &dirPath, std::string_view filename) {
         std::string dirKey(dirPath.string());
         auto it = this->cache.find(dirKey);
 
@@ -160,8 +165,12 @@ class DirectoryCache final {
 #include <sys/stat.h>
 #include <fcntl.h>
 
-bool File::getDirectoryEntries(const std::string &pathToEnum, bool wantDirectories,
+bool File::getDirectoryEntries(const std::string &pathToEnum, DirContents types,
                                std::vector<std::string> &utf8NamesOut) noexcept {
+    using namespace flags::operators;
+    const bool wantDirectories = !!(types & DirContents::DIRECTORIES);
+    const bool wantFiles = !!(types & DirContents::FILES);
+
     const int fd = openat64(AT_FDCWD, pathToEnum.c_str(), O_RDONLY | O_CLOEXEC | O_DIRECTORY);
     if(fd == -1) {
         debugLog("openat64 failed on {}: {}", pathToEnum, strerror(errno));
@@ -181,23 +190,23 @@ bool File::getDirectoryEntries(const std::string &pathToEnum, bool wantDirectori
     while((entry = readdir64(dir)) != nullptr) {
         const char *name = &entry->d_name[0];
 
-        // skip . and .. for directories
-        if(wantDirectories && name[0] == '.' && (name[1] == '\0' || (name[1] == '.' && name[2] == '\0'))) {
+        // skip . and ..
+        if(name[0] == '.' && (name[1] == '\0' || (name[1] == '.' && name[2] == '\0'))) {
             continue;
         }
 
         // d_type is supported on most linux filesystems (ext4, xfs, btrfs, etc)
         // but may be DT_UNKNOWN on network filesystems
-        bool is_dir;
+        bool isDir;
         if(entry->d_type != DT_UNKNOWN) {
-            is_dir = (entry->d_type == DT_DIR);
+            isDir = (entry->d_type == DT_DIR);
         } else {
             // fallback for filesystems that don't populate d_type
             struct stat64 st;
-            is_dir = (fstatat64(fd, name, &st, 0) == 0 && S_ISDIR(st.st_mode));
+            isDir = (fstatat64(fd, name, &st, 0) == 0 && S_ISDIR(st.st_mode));
         }
 
-        if(wantDirectories == is_dir) {
+        if((wantDirectories && isDir) || (wantFiles && !isDir)) {
             utf8NamesOut.emplace_back(name);
         }
     }
@@ -215,8 +224,12 @@ bool File::getDirectoryEntries(const std::string &pathToEnum, bool wantDirectori
 #define INVALID_HANDLE_VALUE ((HANDLE)(LONG_PTR) - 1)
 #endif
 
-bool File::getDirectoryEntries(const std::string &pathToEnum, bool wantDirectories,
+bool File::getDirectoryEntries(const std::string &pathToEnum, DirContents types,
                                std::vector<std::string> &utf8NamesOut) noexcept {
+    using namespace flags::operators;
+    const bool wantDirectories = !!(types & DirContents::DIRECTORIES);
+    const bool wantFiles = !!(types & DirContents::FILES);
+
     // Since we want to avoid wide strings in the codebase as much as possible,
     // we convert wide paths to UTF-8 (as they fucking should be).
     // We can't just use FindFirstFileA, because then any path with unicode
@@ -248,23 +261,24 @@ bool File::getDirectoryEntries(const std::string &pathToEnum, bool wantDirectori
         utf8NamesOut.reserve(512);
 
         do {
-            const wchar_t *wide_filename = &data.cFileName[0];
-            const size_t length = std::wcslen(wide_filename);
+            const wchar_t *wFilename = &data.cFileName[0];
+            const size_t length = std::wcslen(wFilename);
             if(length == 0) continue;
+            // skip . and ..
+            if(wFilename[0] == L'.' && (wFilename[1] == L'\0' || (wFilename[1] == L'.' && wFilename[2] == L'\0'))) {
+                continue;
+            }
 
-            const bool add_entry =
-                (!wantDirectories ||
-                 !(wide_filename[0] == L'.' &&
-                   (wide_filename[1] == L'\0' || (wide_filename[1] == L'.' && wide_filename[2] == L'\0')))) &&
-                (wantDirectories == !!(data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY));
-
-            if(add_entry) {
-                UString uFilename{wide_filename, static_cast<int>(length)};
+            const bool isDir = !!(data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
+            if((wantDirectories && isDir) || (wantFiles && !isDir)) {
+                UString uFilename{wFilename, static_cast<int>(length)};
                 utf8NamesOut.emplace_back(uFilename.utf8View());
             }
         } while(FindNextFileW(handle, &data));
 
         FindClose(handle);
+    } else {
+        return false;
     }
 
     return true;
@@ -273,13 +287,15 @@ bool File::getDirectoryEntries(const std::string &pathToEnum, bool wantDirectori
 #else
 
 // for getting files in folder/ folders in folder
-bool File::getDirectoryEntries(const std::string &pathToEnum, bool wantDirectories,
+bool File::getDirectoryEntries(const std::string &pathToEnum, DirContents types,
                                std::vector<std::string> &utf8NamesOut) noexcept {
+    using namespace flags::operators;
+    const bool wantDirectories = !!(types & DirContents::DIRECTORIES);
+    const bool wantFiles = !!(types & DirContents::FILES);
+
     utf8NamesOut.reserve(512);
 
     std::error_code ec;
-    const bool wantFiles = !wantDirectories;
-
     for(const auto &entry : fs::directory_iterator(pathToEnum, ec)) {
         if(ec) continue;
         auto fileType = entry.status(ec).type();

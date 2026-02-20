@@ -765,10 +765,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     cv::options_high_quality_sliders.setCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onHighQualitySlidersConVarChange>(this));
 
-    this->notelockTypes.push_back(US_("None"));
-    this->notelockTypes.push_back(US_("McOsu"));
-    this->notelockTypes.push_back(US_("osu!stable (default)"));
-    this->notelockTypes.push_back(US_("osu!lazer 2020"));
+    this->notelockTypes = {US_("None"), US_("McOsu"), US_("osu!stable (default)"), US_("osu!lazer 2020")};
 
     parent->setPos(-1, 0);
 

@@ -443,7 +443,7 @@ bool Archive::Writer::addDirectoryRecursive(const std::string& diskDir, const st
 
     // add files in this directory
     std::vector<std::string> files;
-    if(!File::getDirectoryEntries(diskDir, false, files)) {
+    if(!File::getDirectoryEntries(diskDir, File::DirContents::FILES, files)) {
         logIfCV(debug_file, "failed to enumerate files in {:s}", diskDir.c_str());
         return false;
     }
@@ -465,7 +465,7 @@ bool Archive::Writer::addDirectoryRecursive(const std::string& diskDir, const st
 
     // recurse into subdirectories
     std::vector<std::string> dirs;
-    if(!File::getDirectoryEntries(diskDir, true, dirs)) {
+    if(!File::getDirectoryEntries(diskDir, File::DirContents::DIRECTORIES, dirs)) {
         logIfCV(debug_file, "failed to enumerate directories in {:s}", diskDir.c_str());
         return false;
     }
