@@ -462,10 +462,6 @@ void Skin::load() {
     this->checkLoadImage(this->i_spinner_osu, "spinner-osu", "SKIN_SPINNEROSU");     // TODO: use
     this->checkLoadImage(this->i_spinner_rpm, "spinner-rpm", "SKIN_SPINNERRPM");     // TODO: use
 
-    {
-        // cursor loading was here, moved up to improve async usability
-    }
-
     this->randomizeFilePath();
     this->i_modselect_ez = this->createSkinImage("selection-mod-easy", vec2(68, 66), 38);
     this->i_modselect_nf = this->createSkinImage("selection-mod-nofail", vec2(68, 66), 38);
@@ -569,9 +565,6 @@ void Skin::load() {
 
     this->randomizeFilePath();
     this->checkLoadImage(this->i_beatmap_import_spinner, "beatmapimport-spinner", "SKIN_BEATMAP_IMPORT_SPINNER");
-    {
-        // loading spinner load was here, moved up to improve async usability
-    }
     this->checkLoadImage(this->i_circle_empty, "circle-empty", "SKIN_CIRCLE_EMPTY");
     this->checkLoadImage(this->i_circle_full, "circle-full", "SKIN_CIRCLE_FULL");
     this->randomizeFilePath();

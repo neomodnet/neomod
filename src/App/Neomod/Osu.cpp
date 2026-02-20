@@ -148,12 +148,15 @@ Osu::Osu()
     cvars().setCVSubmittableCheckFunc(Osu::globalOnAreAllCvarsSubmittableCallback);
 
     // create cache dir, with migration for old versions
-    Environment::createDirectory(env->getCacheDir());
-    if(Environment::directoryExists(NEOMOD_DATA_DIR "avatars")) {
-        Environment::renameFile(NEOMOD_DATA_DIR "avatars", env->getCacheDir() + "/avatars");
+    {
+        const std::string &cacheDir = env->getCacheDir();
+        Environment::createDirectory(cacheDir);
+        if(Environment::directoryExists(NEOMOD_DATA_DIR "avatars")) {
+            Environment::renameFile(NEOMOD_DATA_DIR "avatars", cacheDir + "/avatars");
+        }
+        Environment::createDirectory(cacheDir + "/avatars");
+        Environment::createDirectory(cacheDir + "/thumbs");
     }
-    Environment::createDirectory(env->getCacheDir() + "/avatars");
-    Environment::createDirectory(env->getCacheDir() + "/thumbs");
 
     // create directories we will assume already exist later on
     Environment::createDirectory(NEOMOD_CFG_PATH);
@@ -2066,9 +2069,12 @@ void Osu::audioRestartCallbackBefore() {
 // the actual reset will be sandwiched between these during restart
 // part 2 of callback
 void Osu::audioRestartCallbackAfter() {
-    if(ui && ui->getOptionsOverlay() && this->skin) {
-        ui->getOptionsOverlay()->onOutputDeviceChange();
-        this->skin->reloadSounds();
+    if(this->UIReady()) {
+        auto *options = this->ui_memb->getOptionsOverlay();
+        options->onOutputDeviceChange();
+        if(this->skin) {
+            this->skin->reloadSounds();
+        }
 
         // start playing music again after audio device changed
         Sound *map_music = nullptr;
@@ -2085,7 +2091,7 @@ void Osu::audioRestartCallbackAfter() {
         if(this->music_was_playing) {
             this->music_unpause_scheduled = true;
         }
-        ui->getOptionsOverlay()->scheduleLayoutUpdate();
+        options->scheduleLayoutUpdate();
     }
 
     // resume loudness calc
@@ -2129,9 +2135,8 @@ std::string Osu::getDefaultFallbackOsuFolder() {
     std::string toplevelDir;
 
     // non-windows, or windows in wine (try to find default osu-winello install folder)
-    if(!Env::cfg(OS::WINDOWS) || (RuntimePlatform::current() & RuntimePlatform::WIN_WINE)) {
-        const bool isWine = (RuntimePlatform::current() & RuntimePlatform::WIN_WINE);
-
+    bool isWine = false;
+    if(!Env::cfg(OS::WINDOWS) || (isWine = (RuntimePlatform::current() & RuntimePlatform::WIN_WINE))) {
         // try $XDG_DATA_HOME/
         toplevelDir = Environment::getEnvVariable("XDG_DATA_HOME");
         if(toplevelDir.empty() && isWine) {
