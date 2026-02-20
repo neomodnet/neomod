@@ -932,48 +932,8 @@ bool Skin::parseSkinINI(std::string filepath) {
         }
     }
 
-    // fixup incorrectly-cased subfolder prefixes for compatibility with case-sensitive filesystems
-    // e.g. "Images\\Main\\score" where on disk it's "images/main/"
-    // TODO: have a check to determine whether the current filesystem is case-insensitive already
-
-    const bool debug = cv::debug_osu.getBool() || cv::debug_file.getBool();
     for(std::string *prefix_ref : {&this->combo_prefix, &this->score_prefix, &this->hitcircle_prefix}) {
-        auto &prefix = *prefix_ref;
-        if(prefix.empty()) continue;
-
-        File::normalizeSlashes(prefix, '\\', '/');
-        if(!prefix.contains('/')) continue;  // no subdirectory, nothing to fix
-
-        // split into directory components + filename prefix (last element)
-        auto parts = SString::split<std::string>(prefix, '/');
-        const auto filename_prefix = std::move(parts.back());
-        parts.pop_back();
-
-        // walk directory components, fixing case against what's actually on disk
-        std::string cur_path = this->skin_dir;
-        for(auto &dir_part : parts) {
-            auto folders = Environment::getFoldersInFolder(cur_path);
-            Hash::unstable_ncase_set<std::string> folders_nocase(folders.begin(), folders.end());
-
-            if(auto it = folders_nocase.find(dir_part); it != folders_nocase.end()) {
-                logIf(debug, "prefix fixup: matched '{}' -> '{}' in {}", dir_part, *it, cur_path);
-                dir_part = *it;
-                if(!cur_path.ends_with('/')) cur_path += '/';
-                cur_path += *it;
-            } else {
-                logIf(debug, "prefix fixup: '{}' not found in {}, leaving as-is", dir_part, cur_path);
-                break;
-            }
-        }
-
-        // reassemble: dir1/dir2/.../filenameprefix
-        prefix.clear();
-        for(const auto &dir_part : parts) {
-            prefix += dir_part;
-            prefix += '/';
-        }
-        prefix += filename_prefix;
-        logIf(debug, "prefix fixup result: {}", prefix);
+        this->fixupPrefix(*prefix_ref, this->skin_dir);
     }
 
     return true;
@@ -1002,6 +962,54 @@ void Skin::parseFallbackPrefixes(const std::string &iniPath) {
         Parsing::parse(curLine, "ScorePrefix", ':', &this->fallback_score_prefix);
         Parsing::parse(curLine, "HitCirclePrefix", ':', &this->fallback_hitcircle_prefix);
     }
+
+    for(std::string *prefix_ref :
+        {&this->fallback_combo_prefix, &this->fallback_score_prefix, &this->fallback_hitcircle_prefix}) {
+        this->fixupPrefix(*prefix_ref, this->fallback_dir);
+    }
+}
+
+// fixup incorrectly-cased subfolder prefixes for compatibility with case-sensitive filesystems
+// e.g. "Images\\Main\\score" where on disk it's "images/main/"
+// TODO: have a check to determine whether the current filesystem is case-insensitive already
+void Skin::fixupPrefix(std::string &prefix, const std::string &baseDir) {
+    if(prefix.empty()) return;
+
+    File::normalizeSlashes(prefix, '\\', '/');
+    if(!prefix.contains('/')) return;  // no subdirectory, nothing to fix
+
+    const bool debug = cv::debug_osu.getBool() || cv::debug_file.getBool();
+
+    // split into directory components + filename prefix (last element)
+    auto parts = SString::split<std::string>(prefix, '/');
+    const auto filename_prefix = std::move(parts.back());
+    parts.pop_back();
+
+    // walk directory components, fixing case against what's actually on disk
+    std::string cur_path = baseDir;
+    for(auto &dir_part : parts) {
+        auto folders = Environment::getFoldersInFolder(cur_path);
+        Hash::unstable_ncase_set<std::string> folders_nocase(folders.begin(), folders.end());
+
+        if(auto it = folders_nocase.find(dir_part); it != folders_nocase.end()) {
+            logIf(debug, "prefix fixup: matched '{}' -> '{}' in {}", dir_part, *it, cur_path);
+            dir_part = *it;
+            if(!cur_path.ends_with('/')) cur_path += '/';
+            cur_path += *it;
+        } else {
+            logIf(debug, "prefix fixup: '{}' not found in {}, leaving as-is", dir_part, cur_path);
+            break;
+        }
+    }
+
+    // reassemble: dir1/dir2/.../filenameprefix
+    prefix.clear();
+    for(const auto &dir_part : parts) {
+        prefix += dir_part;
+        prefix += '/';
+    }
+    prefix += filename_prefix;
+    logIf(debug, "prefix fixup result: {}", prefix);
 }
 
 Color Skin::getComboColorForCounter(int i, int offset) const {

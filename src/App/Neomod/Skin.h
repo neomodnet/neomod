@@ -47,6 +47,7 @@ struct Skin final {
 
     bool parseSkinINI(std::string filepath);
     void parseFallbackPrefixes(const std::string &iniPath);
+    void fixupPrefix(std::string &prefix, const std::string &baseDir);
 
     SkinImage *createSkinImage(const std::string &skinElementName, vec2 baseSizeForScaling2x, f32 osuSize,
                                bool ignoreDefaultSkin = false, const std::string &animationSeparator = "-");
