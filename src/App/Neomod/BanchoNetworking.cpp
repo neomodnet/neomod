@@ -39,6 +39,7 @@ namespace {  // static namespace
 Packet outgoing;
 u64 last_packet_ms{0};
 double seconds_between_pings{1.0};
+double pong_expected_before{-1.};
 std::string auth_token = "";
 bool use_websockets = false;
 std::shared_ptr<Mc::Net::WSInstance> websocket{nullptr};
@@ -73,6 +74,7 @@ void parse_packets(std::span<u8> packet_data) {
         BanchoState::handle_packet(incoming);
 
         seconds_between_pings = 1.0;
+        pong_expected_before = -1.0;
         batch.pos += packet_len;
     }
 }
@@ -245,6 +247,8 @@ void update_networking() {
 
     // Handle login and outgoing packet processing
     if(should_ping && outgoing.pos == 0) {
+        pong_expected_before = current_time + 10.0;
+
         outgoing.write<u16>(OUTP_PING);
         outgoing.write<u8>(0);
         outgoing.write<u32>(0);
@@ -252,6 +256,19 @@ void update_networking() {
         // Polling gets slower over time, but resets when we receive new data
         if(seconds_between_pings < 30.0) {
             seconds_between_pings += 1.0;
+        }
+    }
+
+    // Server timed out
+    if(pong_expected_before > 0.0 && current_time > pong_expected_before) {
+        pong_expected_before = -1.;
+
+        if(use_websockets) {
+            // cloudflare might have silently dropped the connection, try opening a new websocket
+            websocket = nullptr;
+        } else {
+            BanchoState::disconnect();
+            return;
         }
     }
 

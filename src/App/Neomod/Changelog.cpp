@@ -38,6 +38,7 @@ Changelog::Changelog() : ScreenBackable() {
         R"(- Added support for customizing the skin used for fallback/missing elements (shift+click on a skin in the skin list))",
         R"(- Added "Download maps" button in multiplayer rooms)",
         R"(- Fixed multiplayer lobby showing duplicate rooms)",
+        R"(- Fixed WebSocket connections silently dying)",
     };
     changelogs.push_back(v43_05);
 
