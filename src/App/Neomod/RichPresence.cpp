@@ -112,6 +112,10 @@ void setBanchoStatus(const char* info_text, Action action) {
     char fancy_text[1024] = {0};
     snprintf(fancy_text, 1023, "\n%s", info_text);
 
+    // Don't send status update if it's the same as our current status
+    // (prevents situations like spamming main menu updates if song fails to loop)
+    if(last_status == std::string(fancy_text) && last_action == action) return;
+
     last_status = fancy_text;
     last_action = action;
 
