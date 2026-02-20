@@ -36,6 +36,8 @@ using SDLGPUPrimitiveType = u8;
 using SDLGPUTextureFormat = u8;
 using SDLGPUSampleCount = u8;
 
+using SDL_PropertiesID = u32;
+
 struct SDLGPUSimpleVertex {
     vec3 pos;
     vec4 col;
@@ -62,22 +64,22 @@ struct PipelineKey {
 // clang-format off
 struct PipelineKeyHash {
     using is_avalanching = void;
-    [[nodiscard]] auto operator()(const PipelineKey &k) const noexcept -> uint64_t {
+    [[nodiscard]] auto operator()(const PipelineKey &k) const noexcept -> u64 {
         // mix all fields into a single hash
-        uint64_t h = 0;
-        h ^= Hash::flat::hash<uint64_t>{}(reinterpret_cast<uintptr_t>(k.vertexShader));
-        h ^= Hash::flat::hash<uint64_t>{}(reinterpret_cast<uintptr_t>(k.fragmentShader)) * 0x9e3779b97f4a7c15ULL;
-        h ^= Hash::flat::hash<uint64_t>{}((uint64_t)k.primitiveType) * 0x517cc1b727220a95ULL;
-        h ^= Hash::flat::hash<uint64_t>{}((uint64_t)k.sampleCount) * 0x3c6ef372fe94f82aULL;
-        uint64_t packed = (uint64_t)k.blendMode
-                        | ((uint64_t)k.stencilState << 8)
-                        | ((uint64_t)k.blendingEnabled << 16)
-                        | ((uint64_t)k.depthTestEnabled << 17)
-                        | ((uint64_t)k.depthWriteEnabled << 18)
-                        | ((uint64_t)k.wireframe << 19)
-                        | ((uint64_t)k.cullingEnabled << 20)
-                        | ((uint64_t)k.colorWriteMask << 24);
-        h ^= Hash::flat::hash<uint64_t>{}(packed) * 0x6c62272e07bb0142ULL;
+        u64 h = 0;
+        h ^= Hash::flat::hash<u64>{}(reinterpret_cast<uintptr_t>(k.vertexShader));
+        h ^= Hash::flat::hash<u64>{}(reinterpret_cast<uintptr_t>(k.fragmentShader)) * 0x9e3779b97f4a7c15ULL;
+        h ^= Hash::flat::hash<u64>{}((u64)k.primitiveType) * 0x517cc1b727220a95ULL;
+        h ^= Hash::flat::hash<u64>{}((u64)k.sampleCount) * 0x3c6ef372fe94f82aULL;
+        u64 packed = (u64)k.blendMode
+                        | ((u64)k.stencilState << 8)
+                        | ((u64)k.blendingEnabled << 16)
+                        | ((u64)k.depthTestEnabled << 17)
+                        | ((u64)k.depthWriteEnabled << 18)
+                        | ((u64)k.wireframe << 19)
+                        | ((u64)k.cullingEnabled << 20)
+                        | ((u64)k.colorWriteMask << 24);
+        h ^= Hash::flat::hash<u64>{}(packed) * 0x6c62272e07bb0142ULL;
         return h;
     }
 };
@@ -221,6 +223,10 @@ class SDLGPUInterface final : public Graphics {
 
     SDL_Window *m_window;
     SDL_GPUDevice *m_device{nullptr};
+
+    // cached properties for renderer queries
+    SDL_PropertiesID m_devProps{0};
+    std::string m_rendererName{"SDLGPUInterface"};
 
     // shaders
     std::unique_ptr<SDLGPUShader> m_defaultShader{nullptr};

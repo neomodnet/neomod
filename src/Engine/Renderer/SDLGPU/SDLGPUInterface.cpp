@@ -126,7 +126,11 @@ bool SDLGPUInterface::init() {
         }
     }
 
-    debugLog("SDLGPUInterface: GPU driver: {}", SDL_GetGPUDeviceDriver(m_device));
+    const std::string driver = SDL_GetGPUDeviceDriver(m_device);
+    m_rendererName = fmt::format("SDLGPUInterface ({})", driver);
+    m_devProps = SDL_GetGPUDeviceProperties(m_device);
+
+    debugLog("SDLGPUInterface: GPU driver: {}", driver);
 
     // claim window
     if(!SDL_ClaimWindowForGPUDevice(m_device, m_window)) {
@@ -1607,18 +1611,22 @@ void SDLGPUInterface::popRenderTarget() {
     addRenderPassBoundary();
 }
 
-// renderer info (TODO: how?)
-
-const char *SDLGPUInterface::getName() const { return "SDLGPUInterface"; }
+const char *SDLGPUInterface::getName() const { return m_rendererName.c_str(); }
 
 UString SDLGPUInterface::getVendor() {
-    if(m_device) return UString(SDL_GetGPUDeviceDriver(m_device));
-    return "";
+    if(!m_devProps) return "?";
+    return SDL_GetStringProperty(m_devProps, SDL_PROP_GPU_DEVICE_DRIVER_NAME_STRING, "?");
 }
 
-UString SDLGPUInterface::getModel() { return ""; }
+UString SDLGPUInterface::getModel() {
+    if(!m_devProps) return "?";
+    return SDL_GetStringProperty(m_devProps, SDL_PROP_GPU_DEVICE_NAME_STRING, "?");
+}
 
-UString SDLGPUInterface::getVersion() { return ""; }
+UString SDLGPUInterface::getVersion() {
+    if(!m_devProps) return "?";
+    return SDL_GetStringProperty(m_devProps, SDL_PROP_GPU_DEVICE_DRIVER_VERSION_STRING, "?");
+}
 
 int SDLGPUInterface::getVRAMTotal() { return 0; }
 
