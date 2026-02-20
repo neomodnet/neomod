@@ -278,11 +278,13 @@ void update_networking() {
         Packet out = outgoing;
         outgoing = Packet();
 
-        // DEBUG: If we're not sending the right amount of bytes, bancho.py just
-        // chugs along! To try to detect it faster, we'll send two packets per request.
-        out.write<u16>(OUTP_PING);
-        out.write<u8>(0);
-        out.write<u32>(0);
+        if(cv::debug_network.getBool()) {
+            // DEBUG: If we're not sending the right amount of bytes, bancho.py just
+            // chugs along! To try to detect it faster, we'll send two packets per request.
+            out.write<u16>(OUTP_PING);
+            out.write<u8>(0);
+            out.write<u32>(0);
+        }
 
         if(use_websockets) {
             send_bancho_packet_ws(out);
