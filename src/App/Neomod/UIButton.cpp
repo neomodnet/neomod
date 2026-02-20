@@ -16,10 +16,11 @@
 
 void UIButton::draw() {
     if(!this->bVisible || !this->bVisible2) return;
+    const auto *skin = osu->getSkin();
 
-    Image *buttonLeft = this->bDefaultSkin ? osu->getSkin()->i_button_left_default : osu->getSkin()->i_button_left;
-    Image *buttonMiddle = this->bDefaultSkin ? osu->getSkin()->i_button_mid_default : osu->getSkin()->i_button_mid;
-    Image *buttonRight = this->bDefaultSkin ? osu->getSkin()->i_button_right_default : osu->getSkin()->i_button_right;
+    const Image *buttonLeft = this->bDefaultSkin ? skin->i_button_left_default : skin->i_button_left;
+    const Image *buttonMiddle = this->bDefaultSkin ? skin->i_button_mid_default : skin->i_button_mid;
+    const Image *buttonRight = this->bDefaultSkin ? skin->i_button_right_default : skin->i_button_right;
 
     float leftScale = Osu::getImageScaleToFitResolution(buttonLeft, this->getSize());
     float leftWidth = buttonLeft->getWidth() * leftScale;
@@ -59,13 +60,13 @@ void UIButton::draw() {
     buttonRight->unbind();
 
     if(this->is_loading) {
-        const float scale = (this->getSize().y * 0.8) / osu->getSkin()->i_loading_spinner->getSize().y;
+        const float scale = (this->getSize().y * 0.8) / skin->i_loading_spinner->getSize().y;
         g->setColor(0xffffffff);
         g->pushTransform();
         g->rotate(engine->getTime() * 180, 0, 0, 1);
         g->scale(scale, scale);
         g->translate(this->getPos().x + this->getSize().x / 2.0f, this->getPos().y + this->getSize().y / 2.0f);
-        g->drawImage(osu->getSkin()->i_loading_spinner);
+        g->drawImage(skin->i_loading_spinner);
         g->popTransform();
     } else {
         this->drawText();

@@ -263,7 +263,7 @@ struct OptionsOverlayImpl final {
     CBaseUISlider *statisticsOverlayYOffsetSlider{nullptr};
     CBaseUISlider *cursorSizeSlider{nullptr};
     CBaseUILabel *skinLabel{nullptr};
-    CBaseUIButton *skinSelectLocalButton{nullptr};
+    UIButton *skinSelectLocalButton{nullptr};
     CBaseUIButton *resolutionSelectButton{nullptr};
     CBaseUILabel *resolutionLabel{nullptr};
     CBaseUIButton *outputDeviceSelectButton{nullptr};
@@ -1273,11 +1273,13 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
 
         {
             OptionsElement *skinSelect = this->addButtonLabel_("Select Skin", "default");
-            this->skinSelectLocalButton = static_cast<CBaseUIButton *>(skinSelect->baseElems[0].get());
+            this->skinSelectLocalButton = static_cast<UIButton *>(skinSelect->baseElems[0].get());
             this->skinLabel = static_cast<CBaseUILabel *>(skinSelect->baseElems[1].get());
         }
 
         this->skinSelectLocalButton->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSkinSelect>(this));
+        this->skinSelectLocalButton->setTooltipText(
+            "Shift-click a skin to set it as fallback.\nMissing elements fall back to it instead of \"default\".");
 
         if constexpr(!Env::cfg(OS::WASM)) {
             this->addButton_("Open current Skin folder")
@@ -2835,7 +2837,16 @@ void OptionsOverlayImpl::updateFposuCMper360() {
 void OptionsOverlayImpl::updateSkinNameLabel() {
     if(this->skinLabel == nullptr) return;
 
-    this->skinLabel->setText(cv::skin.getString().c_str());
+    const auto &fallback = cv::skin_fallback.getString();
+    if(!fallback.empty()) {
+        UString label = cv::skin.getString();
+        label.append(US_(" (+"));
+        label.append(fallback);
+        label.append(US_(")"));
+        this->skinLabel->setText(label);
+    } else {
+        this->skinLabel->setText(cv::skin.getString().c_str());
+    }
     this->skinLabel->setTextColor(0xffffffff);
 }
 
@@ -2955,14 +2966,24 @@ void OptionsOverlayImpl::onSkinSelect() {
 
         this->contextMenu->begin();
 
+        constexpr Color fallbackColor = 0xffff8800;
+        constexpr Color selectedColor = 0xff00ff00;
+
+        const auto &fallbackSkin = cv::skin_fallback.getString();
         CBaseUIButton *buttonDefault = this->contextMenu->addButton("default");
-        if(cv::skin.getString() == "default") buttonDefault->setTextBrightColor(0xff00ff00);
+        if(cv::skin.getString() == "default")
+            buttonDefault->setTextBrightColor(selectedColor);
+        else if(fallbackSkin == "default" || fallbackSkin.empty())
+            buttonDefault->setTextBrightColor(fallbackColor);
 
         for(const auto &skinFolder : skinFolders) {
             if(skinFolder.compare(".") == 0 || skinFolder.compare("..") == 0) continue;
 
             CBaseUIButton *button = this->contextMenu->addButton(skinFolder.c_str());
-            if(skinFolder.compare(cv::skin.getString()) == 0) button->setTextBrightColor(0xff00ff00);
+            if(skinFolder.compare(cv::skin.getString()) == 0)
+                button->setTextBrightColor(selectedColor);
+            else if(skinFolder.compare(fallbackSkin) == 0)
+                button->setTextBrightColor(fallbackColor);
         }
         {
             using namespace flags::operators;
@@ -2989,8 +3010,22 @@ void OptionsOverlayImpl::onSkinSelect() {
 }
 
 void OptionsOverlayImpl::onSkinSelect2(const UString &skinName, int /*id*/) {
-    cv::skin.setValue(skinName);
-    this->updateSkinNameLabel();
+    if(keyboard->isShiftDown()) {
+        // shift-click: set/toggle fallback skin
+        if(skinName == cv::skin.getString())
+            return;  // can't be both primary and fallback
+
+        else if(skinName == "default"sv || skinName == cv::skin_fallback.getString())
+            cv::skin_fallback.setValue("");  // toggle off
+        else
+            cv::skin_fallback.setValue(skinName);
+
+        osu->reloadSkin();
+        this->updateSkinNameLabel();
+    } else {
+        cv::skin.setValue(skinName);
+        this->updateSkinNameLabel();
+    }
 }
 
 void OptionsOverlayImpl::onResolutionSelect() {
