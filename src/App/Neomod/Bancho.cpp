@@ -526,6 +526,7 @@ void BanchoState::handle_packet(Packet &packet) {
             break;
         }
 
+        case INP_ROOM_CREATED:  // fallthrough
         case INP_ROOM_UPDATED: {
             auto room = Room(packet);
             if(ui->getLobby()->isVisible()) {
@@ -534,11 +535,6 @@ void BanchoState::handle_packet(Packet &packet) {
                 ui->getRoom()->on_room_updated(room);
             }
 
-            break;
-        }
-
-        case INP_ROOM_CREATED: {
-            ui->getLobby()->addRoom(std::make_unique<Room>(packet));
             break;
         }
 

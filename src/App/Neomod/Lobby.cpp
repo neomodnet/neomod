@@ -138,6 +138,12 @@ CBaseUIContainer* Lobby::setVisible(bool visible) {
     this->bVisible = visible;
 
     if(visible) {
+        if(!db->isFinished()) {
+            // Not having a loaded database causes a bunch of issues in multi
+            ui->getSongBrowser()->refreshBeatmaps(this);
+            return this;
+        }
+
         Packet packet;
         packet.id = OUTP_JOIN_ROOM_LIST;
         BANCHO::Net::send_packet(packet);
@@ -149,12 +155,6 @@ CBaseUIContainer* Lobby::setVisible(bool visible) {
 
         // LOBBY presence is broken so we send MULTIPLAYER
         RichPresence::setBanchoStatus("Looking to play", Action::MULTIPLAYER);
-
-        if(!db->isFinished()) {
-            // Not having a loaded database causes a bunch of issues in multi
-            ui->getSongBrowser()->refreshBeatmaps(this);
-            return this;
-        }
     } else {
         Packet packet;
         packet.id = OUTP_EXIT_ROOM_LIST;
@@ -212,11 +212,6 @@ void Lobby::updateLayout(vec2 newResolution) {
     this->list->setScrollSizeToContent();
 }
 
-void Lobby::addRoom(std::unique_ptr<Room> room) {
-    this->rooms.push_back(std::move(room));
-    this->updateLayout(this->getSize());
-}
-
 void Lobby::joinRoom(u32 id, const UString& password) {
     Packet packet;
     packet.id = OUTP_JOIN_ROOM;
@@ -240,13 +235,11 @@ void Lobby::updateRoom(const Room& room) {
     if(auto old_room = std::ranges::find(this->rooms, room.id, [](const auto& room_) -> u32 { return room_->id; });
        old_room != this->rooms.end()) {
         *(old_room->get()) = room;
-        this->updateLayout(this->getSize());
-        return;
+    } else {
+        this->rooms.push_back(std::make_unique<Room>(room));
     }
 
-    // On bancho.py, if a player creates a room when we're already in the lobby,
-    // we won't receive a ROOM_CREATED but only a ROOM_UPDATED packet.
-    this->addRoom(std::make_unique<Room>(room));
+    this->updateLayout(this->getSize());
 }
 
 void Lobby::removeRoom(u32 room_id) {

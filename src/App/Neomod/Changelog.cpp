@@ -37,6 +37,7 @@ Changelog::Changelog() : ScreenBackable() {
     v43_05.changes = {
         R"(- Added support for customizing the skin used for fallback/missing elements (shift+click on a skin in the skin list))",
         R"(- Added "Download maps" button in multiplayer rooms)",
+        R"(- Fixed multiplayer lobby showing duplicate rooms)",
     };
     changelogs.push_back(v43_05);
 
