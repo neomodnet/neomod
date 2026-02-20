@@ -2,7 +2,6 @@
 #include "Skin.h"
 
 #include "Archival.h"
-#include "BeatmapInterface.h"
 #include "OsuConVars.h"
 #include "Font.h"
 #include "Sound.h"
@@ -12,7 +11,6 @@
 #include "File.h"
 #include "Database.h"
 #include "NotificationOverlay.h"
-#include "Osu.h"
 #include "Parsing.h"
 #include "ResourceManager.h"
 #include "SString.h"
@@ -20,7 +18,6 @@
 #include "SoundEngine.h"
 #include "UI.h"
 #include "Hashing.h"
-#include "VolumeOverlay.h"
 #include "Logging.h"
 #include "crypto.h"
 #include "ContainerRanges.h"
@@ -122,10 +119,11 @@ bool Skin::unpack(const char *filepath) {
     return true;
 }
 
-Skin::Skin(const UString &name, std::string filepath, bool isDefaultSkin) {
-    this->name = name.utf8View();
+Skin::Skin(std::string name, std::string filepath, std::string fallbackDir) {
+    this->name = std::move(name);
     this->skin_dir = std::move(filepath);
-    this->o_default = isDefaultSkin;
+    this->fallback_dir = std::move(fallbackDir);
+    this->o_default = (this->skin_dir == MCENGINE_IMAGES_PATH "/default/");
 
     // vars
     this->c_spinner_approach_circle = 0xffffffff;
@@ -161,20 +159,16 @@ Skin::~Skin() {
     // sounds are managed by resourcemanager, not unloaded here
 }
 
-void Skin::update() {
+void Skin::update(bool isInPlayMode, bool isPlaying, i32 curMusicPos) {
     // tasks which have to be run after async loading finishes
     if(!this->o_ready && this->isReady()) {
         this->o_ready = true;
-
-        // force effect volume update
-        ui->getVolumeOverlay()->updateEffectVolume(this);
     }
 
     // shitty check to not animate while paused with hitobjects in background
-    if(osu->isInPlayMode() && !osu->getMapInterface()->isPlaying() && !cv::skin_animation_force.getBool()) return;
+    if(isInPlayMode && !isPlaying && !cv::skin_animation_force.getBool()) return;
 
-    const bool useEngineTimeForAnimations = !osu->isInPlayMode();
-    const i32 curMusicPos = osu->getMapInterface()->getCurMusicPosWithOffsets();
+    const bool useEngineTimeForAnimations = !isInPlayMode;
     for(auto &image : this->images) {
         image->update(this->anim_speed, useEngineTimeForAnimations, curMusicPos);
     }
@@ -201,6 +195,8 @@ bool Skin::isReady() {
 }
 
 void Skin::load() {
+    const std::string default_dir{MCENGINE_IMAGES_PATH "/default/"};
+
     // random skins
     {
         this->filepaths_for_random_skin.clear();
@@ -231,6 +227,17 @@ void Skin::load() {
                 this->skin_dir = this->filepaths_for_random_skin[randomIndex];
             }
         }
+    }
+
+    // build the search directory list: [primary, fallback?, default?]
+    this->search_dirs.clear();
+    this->search_dirs.push_back(this->skin_dir);
+    if(!this->fallback_dir.empty() && this->fallback_dir != this->skin_dir && this->fallback_dir != default_dir) {
+        this->search_dirs.push_back(this->fallback_dir);
+    }
+    // if we are not the neomod-provided default skin, add it as the third-tier fallback level
+    if(!this->o_default) {
+        this->search_dirs.push_back(default_dir);
     }
 
     // spinner loading has top priority in async
@@ -267,6 +274,11 @@ void Skin::load() {
         parseSkinIni2Status = this->parseSkinINI(this->skin_ini_path);
     }
 
+    // parse fallback skin's skin.ini for prefix settings
+    if(!this->fallback_dir.empty()) {
+        this->parseFallbackPrefixes(this->fallback_dir + "skin.ini");
+    }
+
     // default values, if none were loaded
     if(this->c_combo_colors.size() == 0) {
         this->c_combo_colors.push_back(argb(255, 255, 192, 0));
@@ -292,9 +304,14 @@ void Skin::load() {
     this->randomizeFilePath();
     {
         const std::string hitCirclePrefix = this->hitcircle_prefix.empty() ? "default" : this->hitcircle_prefix;
+        const std::string &fbHitCirclePrefix = this->fallback_hitcircle_prefix;
         for(int i = 0; i < 10; i++) {
             const std::string resName = fmt::format("SKIN_DEFAULT{}", i);
             this->checkLoadImage(this->i_defaults[i], fmt::format("{}-{}", hitCirclePrefix, i), resName);
+            // try fallback skin's prefix if it differs from primary
+            if(this->i_defaults[i].img == MISSING_TEXTURE && !fbHitCirclePrefix.empty() &&
+               fbHitCirclePrefix != hitCirclePrefix)
+                this->checkLoadImage(this->i_defaults[i], fmt::format("{}-{}", fbHitCirclePrefix, i), resName);
             // special cases: fallback to default skin hitcircle numbers if the
             // defined prefix doesn't point to any valid files
             if(this->i_defaults[i].img == MISSING_TEXTURE)
@@ -305,29 +322,43 @@ void Skin::load() {
     this->randomizeFilePath();
     {
         const std::string scorePrefix = this->score_prefix.empty() ? "score" : this->score_prefix;
+        const std::string &fbScorePrefix = this->fallback_score_prefix;
         for(int i = 0; i < 10; i++) {
             const std::string resName = fmt::format("SKIN_SCORE{}", i);
             this->checkLoadImage(this->i_scores[i], fmt::format("{}-{}", scorePrefix, i), resName);
+            // try fallback skin's prefix if it differs from primary
+            if(this->i_scores[i].img == MISSING_TEXTURE && !fbScorePrefix.empty() && fbScorePrefix != scorePrefix)
+                this->checkLoadImage(this->i_scores[i], fmt::format("{}-{}", fbScorePrefix, i), resName);
             // fallback logic
             if(this->i_scores[i].img == MISSING_TEXTURE)
                 this->checkLoadImage(this->i_scores[i], fmt::format("score-{}", i), resName);
         }
 
         this->checkLoadImage(this->i_score_x, fmt::format("{}-x", scorePrefix), "SKIN_SCOREX");
+        if(this->i_score_x.img == MISSING_TEXTURE && !fbScorePrefix.empty() && fbScorePrefix != scorePrefix)
+            this->checkLoadImage(this->i_score_x, fmt::format("{}-x", fbScorePrefix), "SKIN_SCOREX");
         // if (this->scoreX == MISSING_TEXTURE) checkLoadImage(m_scoreX, "score-x", "SKIN_SCOREX"); // special
         // case: ScorePrefix'd skins don't get default fallbacks, instead missing extraneous things like the X are
         // simply not drawn
         this->checkLoadImage(this->i_score_percent, fmt::format("{}-percent", scorePrefix), "SKIN_SCOREPERCENT");
+        if(this->i_score_percent.img == MISSING_TEXTURE && !fbScorePrefix.empty() && fbScorePrefix != scorePrefix)
+            this->checkLoadImage(this->i_score_percent, fmt::format("{}-percent", fbScorePrefix), "SKIN_SCOREPERCENT");
         this->checkLoadImage(this->i_score_dot, fmt::format("{}-dot", scorePrefix), "SKIN_SCOREDOT");
+        if(this->i_score_dot.img == MISSING_TEXTURE && !fbScorePrefix.empty() && fbScorePrefix != scorePrefix)
+            this->checkLoadImage(this->i_score_dot, fmt::format("{}-dot", fbScorePrefix), "SKIN_SCOREDOT");
     }
 
     this->randomizeFilePath();
     {
         // yes, "score" is the default value for the combo prefix
         const std::string comboPrefix = this->combo_prefix.empty() ? "score" : this->combo_prefix;
+        const std::string &fbComboPrefix = this->fallback_combo_prefix;
         for(int i = 0; i < 10; i++) {
             const std::string resName = fmt::format("SKIN_COMBO{}", i);
             this->checkLoadImage(this->i_combos[i], fmt::format("{}-{}", comboPrefix, i), resName);
+            // try fallback skin's prefix if it differs from primary
+            if(this->i_combos[i].img == MISSING_TEXTURE && !fbComboPrefix.empty() && fbComboPrefix != comboPrefix)
+                this->checkLoadImage(this->i_combos[i], fmt::format("{}-{}", fbComboPrefix, i), resName);
             // fallback logic
             if(this->i_combos[i].img == MISSING_TEXTURE)
                 this->checkLoadImage(this->i_combos[i], fmt::format("score-{}", i), resName);
@@ -335,6 +366,8 @@ void Skin::load() {
 
         // special case as above for extras
         this->checkLoadImage(this->i_combo_x, fmt::format("{}-x", comboPrefix), "SKIN_COMBOX");
+        if(this->i_combo_x.img == MISSING_TEXTURE && !fbComboPrefix.empty() && fbComboPrefix != comboPrefix)
+            this->checkLoadImage(this->i_combo_x, fmt::format("{}-x", fbComboPrefix), "SKIN_COMBOX");
     }
 
     this->randomizeFilePath();
@@ -478,11 +511,10 @@ void Skin::load() {
     this->randomizeFilePath();
     // always load default skin menu-back (to show in options menu)
     {
-        // HACKHACK to avoid annoying code changes
-        std::string origpath = this->skin_dir;
-        this->skin_dir = MCENGINE_IMAGES_PATH "/default/";
+        std::string origdir = this->search_dirs[0];
+        this->search_dirs[0] = MCENGINE_IMAGES_PATH "/default/";
         this->i_menu_back2_DEFAULTSKIN = this->createSkinImage("menu-back", vec2(225, 87), 54);
-        this->skin_dir = origpath;
+        this->search_dirs[0] = std::move(origdir);
     }
     this->i_menu_back2 = this->createSkinImage("menu-back", vec2(225, 87), 54);
 
@@ -729,10 +761,12 @@ void Skin::load() {
     debugLog("Skin: HitCircleOverlap = {:d}", this->hitcircle_overlap_amt);
 
     // delayed error notifications due to resource loading potentially blocking engine time
-    if(!parseSkinIni1Status && parseSkinIni2Status && cv::skin.getString() != "default")
-        ui->getNotificationOverlay()->addNotification("Error: Couldn't load skin.ini!", 0xffff0000);
-    else if(!parseSkinIni2Status)
-        ui->getNotificationOverlay()->addNotification("Error: Couldn't load DEFAULT skin.ini!!!", 0xffff0000);
+    if(auto *notifOverlay = ui && ui->getNotificationOverlay() ? ui->getNotificationOverlay() : nullptr) {
+        if(!parseSkinIni1Status && parseSkinIni2Status && cv::skin.getString() != "default")
+            notifOverlay->addNotification("Error: Couldn't load skin.ini!", 0xffff0000);
+        else if(!parseSkinIni2Status)
+            notifOverlay->addNotification("Error: Couldn't load DEFAULT skin.ini!!!", 0xffff0000);
+    }
 }
 
 void Skin::loadBeatmapOverride(const std::string & /*filepath*/) {
@@ -956,6 +990,31 @@ bool Skin::parseSkinINI(std::string filepath) {
     return true;
 }
 
+void Skin::parseFallbackPrefixes(const std::string &iniPath) {
+    File file(iniPath);
+    if(!file.canRead() || !file.getFileSize()) return;
+
+    UString content{file.readToString().c_str(), static_cast<int>(file.getFileSize())};
+
+    bool inFonts = false;
+    for(const auto curLine : SString::split_newlines(content.utf8View())) {
+        if(curLine.empty() || SString::is_comment(curLine)) continue;
+        if(curLine.find("[Fonts]") != std::string::npos) {
+            inFonts = true;
+            continue;
+        }
+        if(curLine.starts_with('[')) {
+            inFonts = false;
+            continue;
+        }
+        if(!inFonts) continue;
+
+        Parsing::parse(curLine, "ComboPrefix", ':', &this->fallback_combo_prefix);
+        Parsing::parse(curLine, "ScorePrefix", ':', &this->fallback_score_prefix);
+        Parsing::parse(curLine, "HitCirclePrefix", ':', &this->fallback_hitcircle_prefix);
+    }
+}
+
 Color Skin::getComboColorForCounter(int i, int offset) const {
     i += cv::skin_color_index_add.getInt();
     i = std::max(i, 0);
@@ -970,7 +1029,7 @@ Color Skin::getComboColorForCounter(int i, int offset) const {
 
 void Skin::randomizeFilePath() {
     if(this->o_random_elements && this->filepaths_for_random_skin.size() > 0)
-        this->skin_dir = this->filepaths_for_random_skin[prand() % this->filepaths_for_random_skin.size()];
+        this->search_dirs[0] = this->filepaths_for_random_skin[prand() % this->filepaths_for_random_skin.size()];
 }
 
 SkinImage *Skin::createSkinImage(const std::string &skinElementName, vec2 baseSizeForScaling2x, float osuSize,
@@ -986,195 +1045,131 @@ SkinImage *Skin::createSkinImage(const std::string &skinElementName, vec2 baseSi
 
 void Skin::checkLoadImage(BasicSkinImage &imgRef, const std::string &skinElementName, const std::string &resourceName,
                           bool ignoreDefaultSkin, const std::string &fileExtension, bool forceLoadMipmaps) {
-    if(imgRef.img != MISSING_TEXTURE) return;  // we are already loaded
+    if(imgRef.img != MISSING_TEXTURE) return;  // already loaded
 
-    // NOTE: only the default skin is loaded with a resource name (it must never be unloaded by other instances), and it
-    // is NOT added to the resources vector
+    const bool use_mipmaps = cv::skin_mipmaps.getBool() || forceLoadMipmaps;
+    const size_t n_dirs = ignoreDefaultSkin ? 1 : this->search_dirs.size();
 
-    std::string defaultFilePath1 = MCENGINE_IMAGES_PATH "/default/";
-    defaultFilePath1.append(skinElementName);
-    defaultFilePath1.append("@2x.");
-    defaultFilePath1.append(fileExtension);
+    // forward iteration: first match wins
+    for(size_t i = 0; i < n_dirs; i++) {
+        const auto &dir = this->search_dirs[i];
 
-    std::string defaultFilePath2 = MCENGINE_IMAGES_PATH "/default/";
-    defaultFilePath2.append(skinElementName);
-    defaultFilePath2.append(".");
-    defaultFilePath2.append(fileExtension);
+        std::string base = dir;
+        base.append(skinElementName);
 
-    std::string filepath1 = this->skin_dir;
-    filepath1.append(skinElementName);
-    filepath1.append("@2x.");
-    filepath1.append(fileExtension);
+        std::string path_2x = base;
+        path_2x.append("@2x.");
+        path_2x.append(fileExtension);
 
-    std::string filepath2 = this->skin_dir;
-    filepath2.append(skinElementName);
-    filepath2.append(".");
-    filepath2.append(fileExtension);
+        std::string path_1x = base;
+        path_1x.append(".");
+        path_1x.append(fileExtension);
+        const bool exists_2x = env->fileExists(path_2x);
+        const bool exists_1x = env->fileExists(path_1x);
 
-    const bool existsDefaultFilePath1 = env->fileExists(defaultFilePath1);
-    const bool existsDefaultFilePath2 = env->fileExists(defaultFilePath2);
-    const bool existsFilepath1 = env->fileExists(filepath1);
-    const bool existsFilepath2 = env->fileExists(filepath2);
+        if(!exists_2x && !exists_1x) continue;
 
-    // check if an @2x version of this image exists
-    if(cv::skin_hd.getBool()) {
-        // load default skin
-        if(!ignoreDefaultSkin) {
-            if(existsDefaultFilePath1) {
-                std::string defaultResourceName = resourceName;
-                defaultResourceName.append("_DEFAULT");  // so we don't load the default skin twice
+        // only the built-in default dir (last entry for non-default skins) uses _DEFAULT naming;
+        // primary and fallback dirs use unnamed resources tracked in this->resources.
+        // compare against full search_dirs size, not n_dirs, since ignoreDefaultSkin truncates n_dirs
+        const bool is_cached_default = !this->o_default && (i == this->search_dirs.size() - 1);
 
-                if(cv::skin_async.getBool()) resourceManager->requestNextLoadAsync();
-
-                imgRef = {resourceManager->loadImageAbs(defaultFilePath1, defaultResourceName,
-                                                        cv::skin_mipmaps.getBool() || forceLoadMipmaps)};
-            } else {
-                // fallback to @1x
-                if(existsDefaultFilePath2) {
-                    std::string defaultResourceName = resourceName;
-                    defaultResourceName.append("_DEFAULT");  // so we don't load the default skin twice
-
-                    if(cv::skin_async.getBool()) resourceManager->requestNextLoadAsync();
-
-                    imgRef = {resourceManager->loadImageAbs(defaultFilePath2, defaultResourceName,
-                                                            cv::skin_mipmaps.getBool() || forceLoadMipmaps)};
-                }
-            }
+        std::string res_name;
+        if(is_cached_default) {
+            res_name = resourceName;
+            res_name.append("_DEFAULT");
         }
 
-        // load user skin
-        if(existsFilepath1) {
+        bool loaded = false;
+        if(cv::skin_hd.getBool() && exists_2x) {
             if(cv::skin_async.getBool()) resourceManager->requestNextLoadAsync();
-
-            imgRef = {resourceManager->loadImageAbs(filepath1, "", cv::skin_mipmaps.getBool() || forceLoadMipmaps)};
-            this->resources.push_back(imgRef.img);
-
-            // export
-            this->filepaths_for_export.push_back(filepath1);
-            if(existsFilepath2) this->filepaths_for_export.push_back(filepath2);
-
-            if(!existsFilepath1 && !existsFilepath2) {
-                if(existsDefaultFilePath1) this->filepaths_for_export.push_back(defaultFilePath1);
-                if(existsDefaultFilePath2) this->filepaths_for_export.push_back(defaultFilePath2);
-            }
-
-            return;  // nothing more to do here
-        }
-    }
-
-    // else load normal @1x version
-
-    // load default skin
-    if(!ignoreDefaultSkin) {
-        if(existsDefaultFilePath2) {
-            std::string defaultResourceName = resourceName;
-            defaultResourceName.append("_DEFAULT");  // so we don't load the default skin twice
-
+            imgRef = {resourceManager->loadImageAbs(path_2x, res_name, use_mipmaps)};
+            loaded = true;
+        } else if(exists_1x) {
             if(cv::skin_async.getBool()) resourceManager->requestNextLoadAsync();
-
-            imgRef = {resourceManager->loadImageAbs(defaultFilePath2, defaultResourceName,
-                                                    cv::skin_mipmaps.getBool() || forceLoadMipmaps)};
+            imgRef = {resourceManager->loadImageAbs(path_1x, res_name, use_mipmaps)};
+            loaded = true;
         }
-    }
 
-    // load user skin
-    if(existsFilepath2) {
-        if(cv::skin_async.getBool()) resourceManager->requestNextLoadAsync();
-
-        imgRef = {resourceManager->loadImageAbs(filepath2, "", cv::skin_mipmaps.getBool() || forceLoadMipmaps)};
-        this->resources.push_back(imgRef.img);
-    }
-
-    // export
-    if(existsFilepath1) this->filepaths_for_export.push_back(filepath1);
-    if(existsFilepath2) this->filepaths_for_export.push_back(filepath2);
-
-    if(!existsFilepath1 && !existsFilepath2) {
-        if(existsDefaultFilePath1) this->filepaths_for_export.push_back(defaultFilePath1);
-        if(existsDefaultFilePath2) this->filepaths_for_export.push_back(defaultFilePath2);
+        if(loaded) {
+            if(!is_cached_default) {
+                this->resources.push_back(imgRef.img);
+            }
+            if(exists_2x) this->filepaths_for_export.push_back(std::move(path_2x));
+            if(exists_1x) this->filepaths_for_export.push_back(std::move(path_1x));
+            break;
+        }
     }
 }
 
 void Skin::loadSound(Sound *&sndRef, const std::string &skinElementName, const std::string &resourceName,
                      bool isOverlayable, bool isSample, bool loop, bool fallback_to_default) {
-    if(sndRef != nullptr) return;  // we are already loaded
+    if(sndRef != nullptr) return;
 
-    // random skin support
     this->randomizeFilePath();
 
-    bool was_first_load = false;
-
-    auto try_load_sound = [isSample, isOverlayable, &was_first_load](
-                              const std::string &base_path, const std::string &filename, bool loop,
-                              const std::string &resource_name, bool default_skin) -> Sound * {
-        const char *extensions[] = {".wav", ".mp3", ".ogg", ".flac"};
-        for(auto &extension : extensions) {
-            std::string fn = filename;
-            fn.append(extension);
-
-            std::string path = base_path;
-            path.append(fn);
-
-            // this check will fix up the filename casing
-            if(env->fileExists(path)) {
-                Sound *existing_sound = resourceManager->getSound(resource_name);
-
-                // default already loaded, just return it
-                if(default_skin && existing_sound) {
-                    // check if it's actually a default skin, though, since we no longer add a "_DEFAULT"
-                    // to the resource name to differentiate it
-                    // this avoids thinking that we have a loaded default skin element when it was actually from a previous (non-default) skin
-                    const std::string &existing_path = existing_sound->getFilePath();
-                    if(!existing_path.empty() && existing_path.contains(MCENGINE_IMAGES_PATH "/default/")) {
-                        return existing_sound;
-                    }
-                }
-
-                was_first_load = true;
-
-                // user skin, rebuild with new path
-                if(existing_sound) {
-                    existing_sound->rebuild(path, cv::skin_async.getBool());
-                    return existing_sound;
-                }
-
-                if(cv::skin_async.getBool()) {
-                    resourceManager->requestNextLoadAsync();
-                }
-
-                // load sound here
-                return resourceManager->loadSoundAbs(path, resource_name, !isSample, isOverlayable, loop);
-            }
+    // find first existing file with any supported audio extension
+    auto find_sound_file = [](const std::string &dir, const std::string &name) -> std::string {
+        for(auto ext : {".wav", ".mp3", ".ogg", ".flac"}) {
+            std::string path = dir;
+            path.append(name);
+            path.append(ext);
+            if(env->fileExists(path)) return path;
         }
-        return nullptr;
+        return {};
     };
 
-    // load user skin
-    bool loaded_user_skin = false;
-    if(cv::skin_use_skin_hitsounds.getBool() || !isSample) {
-        sndRef = try_load_sound(this->skin_dir, skinElementName, loop, resourceName, false);
-        loaded_user_skin = (sndRef != nullptr);
+    const size_t n_dirs = fallback_to_default ? this->search_dirs.size() : 1;
+
+    for(size_t i = 0; i < n_dirs; i++) {
+        if(i == 0 && isSample && !cv::skin_use_skin_hitsounds.getBool()) continue;
+
+        std::string path = find_sound_file(this->search_dirs[i], skinElementName);
+        if(path.empty()) continue;
+
+        // only the built-in default dir (last entry for non-default skins) uses _DEFAULT naming.
+        // compare against full search_dirs size, not n_dirs, since ignoreDefaultSkin truncates n_dirs
+        const bool is_default_dir = !this->o_default && (i == this->search_dirs.size() - 1);
+        const bool is_primary = (i == 0);
+
+        if(is_default_dir) {
+            // default dir: use _DEFAULT name, cached forever by ResourceManager
+            std::string default_name = resourceName;
+            default_name.append("_DEFAULT");
+            if(cv::skin_async.getBool()) resourceManager->requestNextLoadAsync();
+            sndRef = resourceManager->loadSoundAbs(std::move(path), default_name, !isSample, isOverlayable, loop);
+        } else if(is_primary) {
+            // primary dir: reuse existing Sound object if available, rebuild with new path
+            Sound *existing = resourceManager->getSound(resourceName);
+            if(existing) {
+                existing->rebuild(path, cv::skin_async.getBool());
+                sndRef = existing;
+            } else {
+                if(cv::skin_async.getBool()) resourceManager->requestNextLoadAsync();
+                sndRef = resourceManager->loadSoundAbs(std::move(path), resourceName, !isSample, isOverlayable, loop);
+            }
+        } else {
+            // fallback dir: rebuild existing or create new, with _FALLBACK suffix
+            std::string fallback_name = resourceName;
+            fallback_name.append("_FALLBACK");
+            Sound *existing = resourceManager->getSound(fallback_name);
+            if(existing) {
+                existing->rebuild(path, cv::skin_async.getBool());
+                sndRef = existing;
+            } else {
+                if(cv::skin_async.getBool()) resourceManager->requestNextLoadAsync();
+                sndRef = resourceManager->loadSoundAbs(std::move(path), fallback_name, !isSample, isOverlayable, loop);
+            }
+        }
+        break;
     }
 
-    if(fallback_to_default && !loaded_user_skin) {
-        std::string defaultpath = MCENGINE_IMAGES_PATH "/default/";
-        sndRef = try_load_sound(defaultpath, skinElementName, loop, resourceName, true);
-    }
-
-    // failed both default and user
     if(sndRef == nullptr) {
         debugLog("Skin Warning: NULL sound {:s}!", skinElementName.c_str());
         return;
     }
 
-    // force reload default skin sound anyway if the custom skin does not include it (e.g. audio device change)
-    if(!loaded_user_skin && !was_first_load) {
-        resourceManager->reloadResource(sndRef, cv::skin_async.getBool());
-    }
-
     this->sounds.push_back(sndRef);
-
-    // export
     this->filepaths_for_export.push_back(sndRef->getFilePath());
 }
 

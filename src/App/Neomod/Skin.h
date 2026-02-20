@@ -46,6 +46,7 @@ struct Skin final {
     void randomizeFilePath();
 
     bool parseSkinINI(std::string filepath);
+    void parseFallbackPrefixes(const std::string &iniPath);
 
     SkinImage *createSkinImage(const std::string &skinElementName, vec2 baseSizeForScaling2x, f32 osuSize,
                                bool ignoreDefaultSkin = false, const std::string &animationSeparator = "-");
@@ -62,10 +63,10 @@ struct Skin final {
    public:
     static bool unpack(const char *filepath);
 
-    Skin(const UString &name, std::string filepath, bool isDefaultSkin = false);
+    Skin(std::string name, std::string filepath, std::string fallbackDir = "");
     ~Skin();
 
-    void update();
+    void update(bool isInPlayMode, bool isPlaying, i32 curMusicPos);
 
     bool isReady();
 
@@ -83,7 +84,14 @@ struct Skin final {
 
     std::string name;           // the skin name by itself
     std::string skin_dir;       // fully qualified skin directory (e.g. /path/to/skins_directory/<name>/)
+    std::string fallback_dir;   // optional fallback skin directory (between primary and default)
     std::string skin_ini_path;  // fully qualified skin.ini path (e.g. /path/to/skins_directory/<name>/skin.ini)
+
+    // ordered list of directories to search for skin elements (first match wins)
+    // typically: [user_skin_dir, default_skin_dir] or [user_skin_dir, fallback_skin_dir, default_skin_dir]
+    // the default skin itself only searches its own dir
+    std::vector<std::string> search_dirs;
+
     std::vector<Resource *> resources;
     std::vector<Sound *> sounds;
     std::vector<SkinImage *> images;
@@ -391,6 +399,11 @@ struct Skin final {
     std::string combo_prefix;
     std::string score_prefix;
     std::string hitcircle_prefix;
+
+    // prefixes from the fallback skin's skin.ini (for per-directory prefix resolution)
+    std::string fallback_combo_prefix;
+    std::string fallback_score_prefix;
+    std::string fallback_hitcircle_prefix;
     f32 anim_speed{1.f};
 
     // skin.ini

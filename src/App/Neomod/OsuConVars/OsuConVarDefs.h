@@ -875,6 +875,7 @@ CONVAR(seek_delta, 5, CLIENT | SKINS | SERVER, "how many seconds to skip backwar
 CONVAR(show_approach_circle_on_first_hidden_object, true, CLIENT | SKINS | SERVER);
 CONVAR(simulate_replays, false, CLIENT | SKINS | SERVER, "experimental \"improved\" replay playback");
 CONVAR(skin, "default"sv, CLIENT | SKINS | SERVER);
+CONVAR(skin_fallback, ""sv, CLIENT | SKINS | SERVER, "fallback skin for missing elements");
 CONVAR(skin_animation_force, false, CLIENT | SKINS | SERVER);
 CONVAR(skin_animation_fps_override, -1.0f, CLIENT | SKINS | SERVER);
 CONVAR(skin_async, true, CLIENT | SKINS | SERVER, "load in background without blocking");

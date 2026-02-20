@@ -166,6 +166,11 @@ void AsyncResourceLoader::shutdown() {
         this->loadingResourcesSet.clear();
     }
 
+    {
+        Sync::scoped_lock lock(this->pendingReloadsMutex);
+        this->pendingReloads.clear();
+    }
+
     // cleanup async destroy queue
     for(auto &[rs, del] : this->asyncDestroyQueue) {
         rs->release();
@@ -237,6 +242,18 @@ void AsyncResourceLoader::update(bool lowLatency) {
 
         this->iActiveWorkCount.fetch_sub(1, std::memory_order_acq_rel);
         if(!interrupted) numProcessed++;
+
+        // if a reload was requested while this resource was being loaded, do it now
+        bool needsReload = false;
+        {
+            Sync::scoped_lock lock(this->pendingReloadsMutex);
+            needsReload = this->pendingReloads.erase(rs) > 0;
+        }
+        if(needsReload) {
+            logIf(debug, "Executing deferred reload for {:s}", rs->getDebugIdentifier());
+            rs->release();
+            requestAsyncLoad(rs);
+        }
     }
 
     // process async destroy queue
@@ -281,6 +298,12 @@ void AsyncResourceLoader::update(bool lowLatency) {
 void AsyncResourceLoader::scheduleAsyncDestroy(Resource *resource, bool shouldDelete) {
     logIfCV(debug_rm, "Scheduled async destroy of {:s}", resource->getDebugIdentifier());
 
+    // destroy cancels any pending reload
+    {
+        Sync::scoped_lock lock(this->pendingReloadsMutex);
+        this->pendingReloads.erase(resource);
+    }
+
     Sync::scoped_lock lock(this->asyncDestroyMutex);
     this->asyncDestroyQueue.emplace_back(ToDestroy{.rs = resource, .shouldDelete = shouldDelete});
 }
@@ -300,18 +323,17 @@ void AsyncResourceLoader::reloadResources(const std::vector<Resource *> &resourc
 
         logIf(debug, "Async reloading {:s}", rs->getDebugIdentifier());
 
-        bool isBeingLoaded = isLoadingResource(rs);
-
-        if(!isBeingLoaded) {
-            // possibly overly-paranoid sanity check to remove any duplicates
-            // we're already implicitly deduplicating in our loadingResourcesSet but this is more explicit
+        if(isLoadingResource(rs)) {
+            // can't reload right now; defer until the current load completes
+            Sync::scoped_lock lock(this->pendingReloadsMutex);
+            this->pendingReloads.insert(rs);
+            logIf(debug, "Resource {:s} is currently being loaded, deferring reload", rs->getDebugIdentifier());
+        } else {
             if(const auto &[_, newlyInserted] = resourcesToReload.insert(rs); newlyInserted) {
                 rs->release();
             } else if(debug) {
                 debugLog("W: skipping duplicate pending reload");
             }
-        } else if(debug) {
-            debugLog("Resource {:s} is currently being loaded, skipping reload", rs->getDebugIdentifier());
         }
     }
 

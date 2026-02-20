@@ -109,6 +109,11 @@ class AsyncResourceLoader final {
     Sync::condition_variable_any workAvailable;
     Sync::mutex workAvailableMutex;
 
+    // resources that had a reload requested while they were still being loaded;
+    // will be released + re-queued for async load after their current load completes
+    Hash::flat::set<Resource *> pendingReloads;
+    Sync::mutex pendingReloadsMutex;
+
     // async destroy queue
     struct ToDestroy {
         Resource *rs;

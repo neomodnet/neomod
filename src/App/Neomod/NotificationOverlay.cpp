@@ -280,6 +280,11 @@ void NotificationOverlay::onChar(KeyboardEvent &e) {
 }
 
 void NotificationOverlay::addNotification(UString text, Color textColor, bool waitForKey, float duration) {
+    if constexpr(Env::cfg(BUILD::DEBUG)) {
+        // also log it
+        // TODO: debug channels/separate files
+        debugLog(std::string{text.utf8View()});
+    }
     const float notificationDuration = (duration < 0.0f ? cv::notification_duration.getFloat() : duration);
 
     // swap effect

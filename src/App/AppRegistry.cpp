@@ -5,6 +5,7 @@
 #include "BaseFrameworkTest.h"
 #include "AudioTester.h"
 #include "HitSoundTest.h"
+#include "SkinLoadTest.h"
 #include "NeomodEnvInterop.h"
 
 #include <array>
@@ -16,6 +17,7 @@ static constexpr std::array sDescriptors{
     AppDescriptor{"BaseFrameworkTest", [] -> App * { return new Mc::Tests::BaseFrameworkTest(); }},
     AppDescriptor{"AudioTester", [] -> App * { return new Mc::Tests::AudioTester(); }},
     AppDescriptor{"HitSoundTest", [] -> App * { return new Mc::Tests::HitSoundTest(); }},
+    AppDescriptor{"SkinLoadTest", [] -> App * { return new Mc::Tests::SkinLoadTest(); }},
 };
 
 std::span<const AppDescriptor> getAllAppDescriptors() { return sDescriptors; }

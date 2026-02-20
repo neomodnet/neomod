@@ -262,10 +262,11 @@ Osu::Osu()
     // Avoids initializing the sound device twice, which can take a while depending on the driver
     this->setupAudio();
 
-    // Initialize skin after sound engine has started, or else sounds won't load properly
     cv::skin.setCallback(SA::MakeDelegate<&Osu::onSkinChange>(this));
+    // no callback for skin_fallback: it's read on-demand by onSkinChange.
+    // to apply a new fallback, change skin or use skin_reload.
     cv::skin_reload.setCallback(SA::MakeDelegate<&Osu::onSkinReload>(this));
-    // load skin
+    // Initialize skin after sound engine has started, or else sounds won't load properly
     this->onSkinChange(cv::skin.getString());
 
     // Init neomod_version after loading config for correct bleedingedge detection
@@ -382,7 +383,7 @@ void Osu::doDeferredInitTasks() {
     if constexpr(!Env::cfg(BUILD::DEBUG) && !Env::cfg(OS::WASM)) {  // don't auto-update debug/web builds
         // don't auto update if this env var is set to anything other than 0 or empty (if it is set)
         std::string extUpdater = Environment::getEnvVariable("NEOMOD_EXTERNAL_UPDATE_PROVIDER");
-        if (extUpdater.empty()) {
+        if(extUpdater.empty()) {
             extUpdater = Environment::getEnvVariable("NEOSU_EXTERNAL_UPDATE_PROVIDER");
         }
         if(cv::auto_update.getBool() && (extUpdater.empty() || Parsing::strto<bool>(extUpdater) == false)) {
@@ -574,7 +575,10 @@ void Osu::update() {
         this->doDeferredInitTasks();
     }
 
-    if(this->skin.get()) this->skin->update();
+    if(this->skin.get()) {
+        this->skin->update(this->isInPlayMode(), this->map_iface->isPlaying(),
+                           this->map_iface->getCurMusicPosWithOffsets());
+    }
 
     this->fposu->update();
 
@@ -725,6 +729,9 @@ void Osu::update() {
             }
 
             this->skinScheduledToLoad = nullptr;
+
+            // force effect volume update now that the new skin's sounds are loaded
+            ui->getVolumeOverlay()->updateEffectVolume(this->skin.get());
 
             // force layout update after all skin elements have been loaded
             this->last_res_change_req_src |= R_MISC_MANUAL;
@@ -1713,28 +1720,44 @@ void Osu::onSkinReload() {
     this->onSkinChange(cv::skin.getString());
 }
 
+// resolve a skin name to its directory path
+// tries neomod skins folder first, then osu! skins folder
+// returns empty string for "default" or empty name
+static std::string resolveSkinPath(std::string_view skinName) {
+    if(skinName.empty() || skinName == "default") return {};
+
+    std::string neomodFolder = fmt::format(NEOMOD_SKINS_PATH "/{}/", skinName);
+    if(env->directoryExists(neomodFolder)) return neomodFolder;
+
+    std::string ppyFolder{
+        fmt::format("{}/{}/{}/", cv::osu_folder.getString(), cv::osu_folder_sub_skins.getString(), skinName)};
+    File::normalizeSlashes(ppyFolder, '\\', '/');
+    return ppyFolder;
+}
+
 void Osu::onSkinChange(std::string_view newSkinName) {
     if(this->skin) {
         if(this->bSkinLoadScheduled || this->skinScheduledToLoad != nullptr) return;
         if(newSkinName.length() < 1) return;
     }
 
+    // resolve fallback skin path
+    std::string fallbackDir;
+    const auto &fallbackName = cv::skin_fallback.getString();
+    if(!fallbackName.empty() && fallbackName != newSkinName && fallbackName != "default") {
+        fallbackDir = resolveSkinPath(fallbackName);
+    }
+
     if(newSkinName == "default") {
-        this->skinScheduledToLoad = new Skin(newSkinName, MCENGINE_IMAGES_PATH "/default/", true);
+        this->skinScheduledToLoad =
+            new Skin(std::string{newSkinName}, MCENGINE_IMAGES_PATH "/default/", std::move(fallbackDir));
         if(!this->skin) this->skin.reset(this->skinScheduledToLoad);
         this->bSkinLoadScheduled = true;
         return;
     }
 
-    std::string neomodSkinFolder = fmt::format(NEOMOD_SKINS_PATH "/{}/", newSkinName);
-    if(env->directoryExists(neomodSkinFolder)) {
-        this->skinScheduledToLoad = new Skin(newSkinName, neomodSkinFolder, false);
-    } else {
-        std::string ppySkinFolder{
-            fmt::format("{}/{}/{}/", cv::osu_folder.getString(), cv::osu_folder_sub_skins.getString(), newSkinName)};
-        File::normalizeSlashes(ppySkinFolder, '\\', '/');
-        this->skinScheduledToLoad = new Skin(newSkinName, ppySkinFolder, false);
-    }
+    std::string skinDir = resolveSkinPath(newSkinName);
+    this->skinScheduledToLoad = new Skin(std::string{newSkinName}, std::move(skinDir), std::move(fallbackDir));
 
     // initial load
     if(!this->skin) this->skin.reset(this->skinScheduledToLoad);

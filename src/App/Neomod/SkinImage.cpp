@@ -94,156 +94,68 @@ bool SkinImage::load(const std::string& skinElementName, const std::string& anim
 }
 
 bool SkinImage::loadImage(const std::string& skinElementName, bool ignoreDefaultSkin, bool animated, bool addToImages) {
-    std::string filepath1 = this->skin->skin_dir;
-    filepath1.append(skinElementName);
-    filepath1.append("@2x.png");
+    const size_t n_dirs = ignoreDefaultSkin ? 1 : this->skin->search_dirs.size();
 
-    std::string filepath2 = this->skin->skin_dir;
-    filepath2.append(skinElementName);
-    filepath2.append(".png");
+    for(size_t i = 0; i < n_dirs; i++) {
+        const auto& dir = this->skin->search_dirs[i];
 
-    std::string defaultFilePath1 = MCENGINE_IMAGES_PATH "/default/";
-    defaultFilePath1.append(skinElementName);
-    defaultFilePath1.append("@2x.png");
+        std::string base = dir;
+        base.append(skinElementName);
 
-    std::string defaultFilePath2 = MCENGINE_IMAGES_PATH "/default/";
-    defaultFilePath2.append(skinElementName);
-    defaultFilePath2.append(".png");
+        std::string path_2x = base;
+        path_2x.append("@2x.png");
 
-    const bool existsFilepath1 = env->fileExists(filepath1);
-    const bool existsFilepath2 = env->fileExists(filepath2);
-    const bool existsDefaultFilePath1 = env->fileExists(defaultFilePath1);
-    const bool existsDefaultFilePath2 = env->fileExists(defaultFilePath2);
+        std::string path_1x = base;
+        path_1x.append(".png");
 
-    // load user skin
+        const bool exists_2x = env->fileExists(path_2x);
+        const bool exists_1x = env->fileExists(path_1x);
 
-    // check if an @2x version of this image exists
-    if(cv::skin_hd.getBool()) {
-        // load user skin
+        if(!exists_2x && !exists_1x) continue;
 
-        if(existsFilepath1) {
+        // only the built-in default dir (last entry in the full search_dirs) counts as "from default"
+        // compare against full size, not n_dirs, since ignoreDefaultSkin truncates the search
+        if(!this->skin->o_default && i == this->skin->search_dirs.size() - 1) this->bIsFromDefaultSkin = true;
+
+        // try @2x if HD enabled
+        if(cv::skin_hd.getBool() && exists_2x) {
             IMAGE image;
 
             if(cv::skin_async.getBool()) resourceManager->requestNextLoadAsync();
 
-            image.img = resourceManager->loadImageAbsUnnamed(filepath1, cv::skin_mipmaps.getBool());
+            image.img = resourceManager->loadImageAbsUnnamed(path_2x, cv::skin_mipmaps.getBool());
             image.scale = 2.0f;
 
-            if(!animated) {
-                this->nonAnimatedImage = image;
-            }
+            if(!animated) this->nonAnimatedImage = image;
 
             if(addToImages) {
                 this->images.push_back(image);
-
-                // export
-                {
-                    this->filepathsForExport.push_back(filepath1);
-
-                    if(existsFilepath2) this->filepathsForExport.push_back(filepath2);
-                }
-
+                this->filepathsForExport.push_back(path_2x);
+                if(exists_1x) this->filepathsForExport.push_back(path_1x);
                 this->is_2x = true;
             }
-            return true;  // nothing more to do here
-        }
-    }
-    // else load the normal version
-
-    // load user skin
-
-    if(existsFilepath2) {
-        IMAGE image;
-
-        if(cv::skin_async.getBool()) resourceManager->requestNextLoadAsync();
-
-        image.img = resourceManager->loadImageAbsUnnamed(filepath2, cv::skin_mipmaps.getBool());
-        image.scale = 1.0f;
-
-        if(!animated) {
-            this->nonAnimatedImage = image;
+            return true;
         }
 
-        if(addToImages) {
-            this->images.push_back(image);
-
-            // export
-            {
-                this->filepathsForExport.push_back(filepath2);
-
-                if(existsFilepath1) this->filepathsForExport.push_back(filepath1);
-            }
-
-            this->is_2x = false;
-        }
-
-        return true;  // nothing more to do here
-    }
-
-    if(ignoreDefaultSkin) return false;
-
-    // load default skin
-
-    this->bIsFromDefaultSkin = true;
-
-    // check if an @2x version of this image exists
-    if(cv::skin_hd.getBool()) {
-        if(existsDefaultFilePath1) {
+        // load @1x
+        if(exists_1x) {
             IMAGE image;
 
             if(cv::skin_async.getBool()) resourceManager->requestNextLoadAsync();
 
-            image.img = resourceManager->loadImageAbsUnnamed(defaultFilePath1, cv::skin_mipmaps.getBool());
-            image.scale = 2.0f;
+            image.img = resourceManager->loadImageAbsUnnamed(path_1x, cv::skin_mipmaps.getBool());
+            image.scale = 1.0f;
 
-            if(!animated) {
-                this->nonAnimatedImage = image;
-            }
+            if(!animated) this->nonAnimatedImage = image;
 
             if(addToImages) {
                 this->images.push_back(image);
-
-                // export
-                {
-                    this->filepathsForExport.push_back(defaultFilePath1);
-
-                    if(existsDefaultFilePath2) this->filepathsForExport.push_back(defaultFilePath2);
-                }
-
-                this->is_2x = true;
+                this->filepathsForExport.push_back(path_1x);
+                if(exists_2x) this->filepathsForExport.push_back(path_2x);
+                this->is_2x = false;
             }
-
-            return true;  // nothing more to do here
+            return true;
         }
-    }
-    // else load the normal version
-
-    if(existsDefaultFilePath2) {
-        IMAGE image;
-
-        if(cv::skin_async.getBool()) resourceManager->requestNextLoadAsync();
-
-        image.img = resourceManager->loadImageAbsUnnamed(defaultFilePath2, cv::skin_mipmaps.getBool());
-        image.scale = 1.0f;
-
-        if(!animated) {
-            this->nonAnimatedImage = image;
-        }
-
-        if(addToImages) {
-            this->images.push_back(image);
-
-            // export
-            {
-                this->filepathsForExport.push_back(defaultFilePath2);
-
-                if(existsDefaultFilePath1) this->filepathsForExport.push_back(defaultFilePath1);
-            }
-
-            this->is_2x = false;
-        }
-
-        return true;  // nothing more to do here
     }
 
     return false;
