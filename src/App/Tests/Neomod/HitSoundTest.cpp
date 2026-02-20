@@ -1,11 +1,9 @@
 // Copyright (c) 2026, WH, All rights reserved.
 #include "HitSoundTest.h"
 
+#include "NeomodTestMacros.h"
 #include "Engine.h"
-#include "Logging.h"
 #include "HitSounds.h"
-
-#include <cmath>
 
 namespace Mc::Tests {
 
@@ -41,36 +39,6 @@ static const char *hitName(i32 idx) {
     }
 }
 
-#define TEST_ASSERT(cond, msg)                                       \
-    do {                                                             \
-        if(!(cond)) {                                                \
-            debugLog("  FAIL: {} ({}:{})", msg, __FILE__, __LINE__); \
-            m_failures++;                                            \
-        } else {                                                     \
-            m_passes++;                                              \
-        }                                                            \
-    } while(0)
-
-#define TEST_ASSERT_EQ(actual, expected, msg)                                                                 \
-    do {                                                                                                      \
-        if((actual) != (expected)) {                                                                          \
-            debugLog("  FAIL: {} -- expected {}, got {} ({}:{})", msg, expected, actual, __FILE__, __LINE__); \
-            m_failures++;                                                                                     \
-        } else {                                                                                              \
-            m_passes++;                                                                                       \
-        }                                                                                                     \
-    } while(0)
-
-#define TEST_ASSERT_NEAR(actual, expected, eps, msg)                                                           \
-    do {                                                                                                       \
-        if(std::abs((actual) - (expected)) > (eps)) {                                                          \
-            debugLog("  FAIL: {} -- expected ~{}, got {} ({}:{})", msg, expected, actual, __FILE__, __LINE__); \
-            m_failures++;                                                                                      \
-        } else {                                                                                               \
-            m_passes++;                                                                                        \
-        }                                                                                                      \
-    } while(0)
-
 // default context: normal set, 100% volume, layered hitsounds on, no overrides
 static HitSoundContext defaultCtx() {
     return {
@@ -84,21 +52,14 @@ static HitSoundContext defaultCtx() {
     };
 }
 
-HitSoundTest::HitSoundTest() { debugLog("HitSoundTest created"); }
+HitSoundTest::HitSoundTest() { logRaw("HitSoundTest created"); }
 
 void HitSoundTest::update() {
     if(!m_ran) {
         m_ran = true;
         runTests();
 
-        debugLog("");
-        debugLog("=== HitSoundTest results: {} passed, {} failed ===", m_passes, m_failures);
-
-        if(m_failures > 0) {
-            debugLog("SOME TESTS FAILED");
-        } else {
-            debugLog("ALL TESTS PASSED");
-        }
+        TEST_PRINT_RESULTS("HitSoundTest");
 
         engine->shutdown();
     }
@@ -108,7 +69,7 @@ void HitSoundTest::runTests() {
     // -------------------------------------------------------
     // getNormalSet tests
     // -------------------------------------------------------
-    debugLog("--- getNormalSet ---");
+    TEST_SECTION("getNormalSet");
     {
         // hitobject normalSet wins over timing point
         HitSamples s{.normalSet = SampleSetType::DRUM};
@@ -145,7 +106,7 @@ void HitSoundTest::runTests() {
     // -------------------------------------------------------
     // getAdditionSet tests
     // -------------------------------------------------------
-    debugLog("--- getAdditionSet ---");
+    TEST_SECTION("getAdditionSet");
     {
         // hitobject additionSet used directly
         HitSamples s{.normalSet = SampleSetType::NORMAL, .additionSet = SampleSetType::DRUM};
@@ -177,7 +138,7 @@ void HitSoundTest::runTests() {
     // -------------------------------------------------------
     // getVolume tests
     // -------------------------------------------------------
-    debugLog("--- getVolume ---");
+    TEST_SECTION("getVolume");
     {
         // hitobject volume overrides timing point volume
         HitSamples s{.volume = 50};
@@ -247,7 +208,7 @@ void HitSoundTest::runTests() {
     // -------------------------------------------------------
     // resolve() tests -- which sounds get resolved
     // -------------------------------------------------------
-    debugLog("--- resolve ---");
+    TEST_SECTION("resolve");
     {
         // hitSounds=0 -> plays hitnormal only
         HitSamples s{.hitSounds = 0};
@@ -256,7 +217,7 @@ void HitSoundTest::runTests() {
         TEST_ASSERT_EQ((int)r.size(), 1, "hitSounds=0 resolves to 1 sound");
         if(!r.empty()) {
             TEST_ASSERT_EQ(r[0].hit, 0, "hitSounds=0 plays hitnormal");
-            debugLog("    -> {}-{}", setName(r[0].set), hitName(r[0].hit));
+            logRaw("    -> {}-{}", setName(r[0].set), hitName(r[0].hit));
         }
     }
     {
@@ -268,7 +229,7 @@ void HitSoundTest::runTests() {
         TEST_ASSERT_EQ((int)r.size(), 1, "WHISTLE only (no layered) -> 1 sound");
         if(!r.empty()) {
             TEST_ASSERT_EQ(r[0].hit, 1, "only WHISTLE plays");
-            debugLog("    -> {}-{}", setName(r[0].set), hitName(r[0].hit));
+            logRaw("    -> {}-{}", setName(r[0].set), hitName(r[0].hit));
         }
     }
     {
@@ -281,7 +242,7 @@ void HitSoundTest::runTests() {
         if(r.size() == 2) {
             TEST_ASSERT_EQ(r[0].hit, 0, "first is hitnormal");
             TEST_ASSERT_EQ(r[1].hit, 1, "second is hitwhistle");
-            debugLog("    -> {}-{}, {}-{}", setName(r[0].set), hitName(r[0].hit), setName(r[1].set), hitName(r[1].hit));
+            logRaw("    -> {}-{}, {}-{}", setName(r[0].set), hitName(r[0].hit), setName(r[1].set), hitName(r[1].hit));
         }
     }
     {
@@ -306,7 +267,7 @@ void HitSoundTest::runTests() {
             TEST_ASSERT_EQ(r[0].hit, 0, "first is hitnormal (layered)");
             TEST_ASSERT_EQ(r[1].hit, 1, "second is hitwhistle");
             TEST_ASSERT_EQ(r[2].hit, 3, "third is hitclap");
-            debugLog("    -> {}-{}, {}-{}, {}-{}", setName(r[0].set), hitName(r[0].hit), setName(r[1].set),
+            logRaw("    -> {}-{}, {}-{}, {}-{}", setName(r[0].set), hitName(r[0].hit), setName(r[1].set),
                      hitName(r[1].hit), setName(r[2].set), hitName(r[2].hit));
         }
     }
@@ -329,7 +290,7 @@ void HitSoundTest::runTests() {
     // -------------------------------------------------------
     // resolve() -- sample set routing
     // -------------------------------------------------------
-    debugLog("--- resolve sample set routing ---");
+    TEST_SECTION("resolve sample set routing");
     {
         // normal sound uses normalSet, addition sounds use additionSet
         HitSamples s{
@@ -344,7 +305,7 @@ void HitSoundTest::runTests() {
         if(r.size() == 2) {
             TEST_ASSERT_EQ(r[0].set, 2, "hitnormal uses normalSet=DRUM (idx 2)");
             TEST_ASSERT_EQ(r[1].set, 1, "hitwhistle uses additionSet=SOFT (idx 1)");
-            debugLog("    -> {}-{}, {}-{}", setName(r[0].set), hitName(r[0].hit), setName(r[1].set), hitName(r[1].hit));
+            logRaw("    -> {}-{}, {}-{}", setName(r[0].set), hitName(r[0].hit), setName(r[1].set), hitName(r[1].hit));
         }
     }
     {
@@ -367,7 +328,7 @@ void HitSoundTest::runTests() {
     // -------------------------------------------------------
     // resolve() -- slider sounds
     // -------------------------------------------------------
-    debugLog("--- resolve slider sounds ---");
+    TEST_SECTION("resolve slider sounds");
     {
         // slider sounds use slider index
         HitSamples s{.hitSounds = HitSoundType::NORMAL};
@@ -377,7 +338,7 @@ void HitSoundTest::runTests() {
         if(!r.empty()) {
             TEST_ASSERT_EQ(r[0].slider, 1, "slider sound uses slider index");
             TEST_ASSERT_EQ(r[0].hit, 0, "slider hitnormal");
-            debugLog("    -> {}-slider{}", setName(r[0].set), hitName(r[0].hit));
+            logRaw("    -> {}-slider{}", setName(r[0].set), hitName(r[0].hit));
         }
     }
     {
@@ -397,7 +358,7 @@ void HitSoundTest::runTests() {
     // -------------------------------------------------------
     // resolve() -- zero volume is skipped
     // -------------------------------------------------------
-    debugLog("--- resolve zero volume ---");
+    TEST_SECTION("resolve zero volume");
     {
         // timing point volume=0 with hitobject volume=0 -> 0 volume -> skipped
         HitSamples s{.hitSounds = HitSoundType::NORMAL, .volume = 0};
@@ -410,7 +371,7 @@ void HitSoundTest::runTests() {
     // -------------------------------------------------------
     // resolve() -- forced sample set
     // -------------------------------------------------------
-    debugLog("--- resolve forced sample set ---");
+    TEST_SECTION("resolve forced sample set");
     {
         HitSamples s{
             .hitSounds = HitSoundType::NORMAL | HitSoundType::WHISTLE,
@@ -425,14 +386,14 @@ void HitSoundTest::runTests() {
         if(r.size() == 2) {
             TEST_ASSERT_EQ(r[0].set, 0, "forced: hitnormal uses NORMAL (idx 0)");
             TEST_ASSERT_EQ(r[1].set, 0, "forced: hitwhistle uses NORMAL (idx 0)");
-            debugLog("    -> {}-{}, {}-{}", setName(r[0].set), hitName(r[0].hit), setName(r[1].set), hitName(r[1].hit));
+            logRaw("    -> {}-{}, {}-{}", setName(r[0].set), hitName(r[0].hit), setName(r[1].set), hitName(r[1].hit));
         }
     }
 
     // -------------------------------------------------------
     // resolve() -- volume values in resolved sounds
     // -------------------------------------------------------
-    debugLog("--- resolve volume values ---");
+    TEST_SECTION("resolve volume values");
     {
         HitSamples s{
             .hitSounds = HitSoundType::NORMAL | HitSoundType::FINISH,
@@ -453,7 +414,7 @@ void HitSoundTest::runTests() {
     // -------------------------------------------------------
     // resolveSliderTick tests
     // -------------------------------------------------------
-    debugLog("--- resolveSliderTick ---");
+    TEST_SECTION("resolveSliderTick");
     {
         // slider ticks use the normal sample set, not the addition set (per osu! reference)
         HitSamples s{
