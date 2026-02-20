@@ -123,6 +123,7 @@ class Osu final : public App, public MouseListener {
     static float getUIScale(float osuSize);
     static float getUIScale();                                  // NOTE: includes premultiplied dpi scale!
     static inline float getRawUIScale() { return rawUIScale; }  // equivalent to cv::ui_scale.getFloat()
+    [[nodiscard]] inline bool UIReady() const { return !!this->ui_memb && this->bUILoaded; };
 
     void onResolutionChanged(vec2 newResolution, ResolutionRequestFlags src);
 
@@ -266,7 +267,6 @@ class Osu final : public App, public MouseListener {
     std::unique_ptr<UI> ui_memb{nullptr};
 
     bool bUILoaded{false};
-    [[nodiscard]] inline bool UIReady() const { return !!this->ui_memb && this->bUILoaded; };
 
     void doDeferredInitTasks();
     // defer some things to post-construction on the first update tick so that we're fully initialized

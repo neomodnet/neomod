@@ -5,6 +5,7 @@
 #include "UIScreen.h"
 
 #include <memory>
+#include <string_view>
 
 #define CHAT_TOAST 0xff8a2be2
 #define INFO_TOAST 0xffffdd00
@@ -91,6 +92,10 @@ class NotificationOverlay final : public UIScreen {
     inline bool isWaitingForKey() { return this->bWaitForKey || this->bConsumeNextChar; }
 
    private:
+    // convar callbacks
+    void onToastCallback(std::string_view args);
+    void onNotificationCallback(std::string_view args);
+
     struct NOTIFICATION {
         UString text = "";
         Color textColor = argb(255, 255, 255, 255);
@@ -108,9 +113,9 @@ class NotificationOverlay final : public UIScreen {
 
     NOTIFICATION notification1;
     NOTIFICATION notification2;
-    NotificationOverlayKeyListener *keyListener;
+    NotificationOverlayKeyListener *keyListener{nullptr};
 
-    bool bWaitForKey;
-    bool bWaitForKeyDisallowsLeftClick;
-    bool bConsumeNextChar;
+    bool bWaitForKey{false};
+    bool bWaitForKeyDisallowsLeftClick{false};
+    bool bConsumeNextChar{false};
 };

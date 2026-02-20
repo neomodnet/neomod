@@ -16,35 +16,43 @@
 #include "UI.h"
 
 namespace cv {
-static ConVar notify("notify", ""sv, CLIENT | SERVER | NOLOAD | NOSAVE, [](std::string_view text) -> void {
-    if(ui && ui->getNotificationOverlay()) {
-        ui->getNotificationOverlay()->addNotification(text);
-        notify.setValue("", false);
-    }
-});
-static ConVar toast("toast", ""sv, CLIENT | SERVER | NOLOAD | NOSAVE, [](std::string_view text) -> void {
-    if(ui && ui->getNotificationOverlay()) {
-        ui->getNotificationOverlay()->addToast(text, INFO_TOAST);
-        toast.setValue("", false);
-    }
-});
+static ConVar notify("notify", ""sv, CLIENT | SERVER | NOLOAD | NOSAVE);
+static ConVar toast("toast", ""sv, CLIENT | SERVER | NOLOAD | NOSAVE);
 }  // namespace cv
 
-NotificationOverlay::NotificationOverlay() : UIScreen() {
-    this->bWaitForKey = false;
-    this->bWaitForKeyDisallowsLeftClick = false;
-    this->bConsumeNextChar = false;
-    this->keyListener = nullptr;
+void NotificationOverlay::onToastCallback(std::string_view args) {
+    this->addToast(args, INFO_TOAST);
+    cv::toast.setValue("", false);
 }
 
-NotificationOverlay::~NotificationOverlay() = default;
+void NotificationOverlay::onNotificationCallback(std::string_view args) {
+    this->addNotification(args);
+    cv::notify.setValue("", false);
+}
 
-static f64 TOAST_WIDTH = 350.0;
-static f64 TOAST_INNER_X_MARGIN = 5.0;
-static f64 TOAST_INNER_Y_MARGIN = 5.0;
-static f64 TOAST_OUTER_Y_MARGIN = 10.0;
-static f64 TOAST_SCREEN_BOTTOM_MARGIN = 20.0;
-static f64 TOAST_SCREEN_RIGHT_MARGIN = 10.0;
+NotificationOverlay::NotificationOverlay() : UIScreen() {
+    cv::toast.setCallback(SA::MakeDelegate<&NotificationOverlay::onToastCallback>(this));
+    cv::notify.setCallback(SA::MakeDelegate<&NotificationOverlay::onNotificationCallback>(this));
+}
+
+NotificationOverlay::~NotificationOverlay() {
+    cv::notify.removeCallback();
+    cv::toast.removeCallback();
+}
+
+static constexpr f32 DEF_TOAST_WIDTH{350.0f};
+static constexpr f32 DEF_TOAST_INNER_X_MARGIN{5.0f};
+static constexpr f32 DEF_TOAST_INNER_Y_MARGIN{5.0f};
+static constexpr f32 DEF_TOAST_OUTER_Y_MARGIN{10.0f};
+static constexpr f32 DEF_TOAST_SCREEN_BOTTOM_MARGIN{20.0f};
+static constexpr f32 DEF_TOAST_SCREEN_RIGHT_MARGIN{10.0f};
+
+static f32 TOAST_WIDTH{DEF_TOAST_WIDTH};
+static f32 TOAST_INNER_X_MARGIN{DEF_TOAST_INNER_X_MARGIN};
+static f32 TOAST_INNER_Y_MARGIN{DEF_TOAST_INNER_Y_MARGIN};
+static f32 TOAST_OUTER_Y_MARGIN{DEF_TOAST_OUTER_Y_MARGIN};
+static f32 TOAST_SCREEN_BOTTOM_MARGIN{DEF_TOAST_SCREEN_BOTTOM_MARGIN};
+static f32 TOAST_SCREEN_RIGHT_MARGIN{DEF_TOAST_SCREEN_RIGHT_MARGIN};
 
 ToastElement::ToastElement(UString text, Color borderColor, ToastElement::TYPE type)
     : CBaseUIButton(0, 0, 0, 0, "", std::move(text)), type(type) {
@@ -62,8 +70,8 @@ void ToastElement::freezeTimeout() { this->creation_time += engine->getFrameTime
 bool ToastElement::hasTimedOut() const { return this->creation_time + this->timeout < engine->getTime(); }
 
 void ToastElement::updateLayout() {
-    this->lines = this->font->wrap(this->getText(), TOAST_WIDTH - TOAST_INNER_X_MARGIN * 2.0);
-    this->setSize(TOAST_WIDTH, (this->font->getHeight() * 1.5 * this->lines.size()) + (TOAST_INNER_Y_MARGIN * 2.0));
+    this->lines = this->font->wrap(this->getText(), TOAST_WIDTH - TOAST_INNER_X_MARGIN * 2.0f);
+    this->setSize(TOAST_WIDTH, (this->font->getHeight() * 1.5f * this->lines.size()) + (TOAST_INNER_Y_MARGIN * 2.0f));
 }
 
 void ToastElement::onClicked(bool left, bool right) {
@@ -91,8 +99,8 @@ void draw_border_rect(Graphics *g, vec2 pos, vec2 size, float thickness) {
 }  // namespace
 
 void ToastElement::draw() {
-    f32 alpha = 0.9;
-    alpha *= std::max(0.0, (this->creation_time + (this->timeout - 0.5)) - engine->getTime());
+    const f32 alpha =
+        0.9f * static_cast<f32>(std::max(0.0, (this->creation_time + (this->timeout - 0.5)) - engine->getTime()));
 
     // background
     g->setColor(Color(this->isMouseInside() ? 0xff222222 : 0xff111111).setA(alpha));
@@ -103,9 +111,9 @@ void ToastElement::draw() {
     draw_border_rect(g.get(), this->getPos(), this->getSize(), Osu::getUIScale());
 
     // text
-    f64 y = this->getPos().y;
+    f32 y = this->getPos().y;
     for(const auto &line : this->lines) {
-        y += (this->font->getHeight() * 1.5);
+        y += (this->font->getHeight() * 1.5f);
         g->setColor(Color(0xffffffff).setA(alpha));
 
         g->pushTransform();
@@ -124,11 +132,13 @@ bool should_chat_toasts_be_visible() {
 }  // namespace
 
 void NotificationOverlay::update(CBaseUIEventCtx &c) {
+    if(this->toasts.empty()) return;
+
     const bool chat_toasts_visible = should_chat_toasts_be_visible();
+    const vec2 screen = osu->getVirtScreenSize();
 
     bool a_toast_is_hovered = false;
-    const vec2 &screen{osu->getVirtScreenSize()};
-    f64 bottom_y = screen.y - TOAST_SCREEN_BOTTOM_MARGIN;
+    f32 bottom_y = screen.y - TOAST_SCREEN_BOTTOM_MARGIN;
     for(const auto &t : this->toasts | std::views::reverse) {
         if(t->type == ToastElement::TYPE::CHAT && !chat_toasts_visible) continue;
 
@@ -138,20 +148,25 @@ void NotificationOverlay::update(CBaseUIEventCtx &c) {
         a_toast_is_hovered |= t->isMouseInside();
     }
 
-    // Delay toast disappearance
-    for(const auto &t : this->toasts) {
-        const bool delay_toast = t->type == ToastElement::TYPE::PERMANENT ||                       //
-                                 a_toast_is_hovered ||                                             //
+    for(auto tit = this->toasts.begin(); tit != this->toasts.end();) {
+        const auto &t = *tit;
+        if(t->hasTimedOut()) {
+            // remove timed out toasts
+            tit = this->toasts.erase(tit);
+            continue;
+        }
+        ++tit;
+
+        const bool delay_toast = a_toast_is_hovered ||                                             //
+                                 t->type == ToastElement::TYPE::PERMANENT ||                       //
                                  (t->type == ToastElement::TYPE::CHAT && !chat_toasts_visible) ||  //
-                                 !env->winFocused();                                               //
+                                 !env->winFocused();
 
         if(delay_toast) {
+            // prevent some toasts from timing out depending on the above conditions
             t->freezeTimeout();
         }
     }
-
-    // remove timed out toasts
-    std::erase_if(this->toasts, [](const auto &toast) -> bool { return toast->hasTimedOut(); });
 }
 
 void NotificationOverlay::draw() {
@@ -178,14 +193,14 @@ void NotificationOverlay::draw() {
 }
 
 void NotificationOverlay::onResolutionChange(vec2 /*newResolution*/) {
-    f64 scale = Osu::getUIScale();
+    const f32 scale = Osu::getUIScale();
 
-    TOAST_WIDTH = 350.0 * scale;
-    TOAST_INNER_X_MARGIN = 5.0 * scale;
-    TOAST_INNER_Y_MARGIN = 5.0 * scale;
-    TOAST_OUTER_Y_MARGIN = 10.0 * scale;
-    TOAST_SCREEN_BOTTOM_MARGIN = 20.0 * scale;
-    TOAST_SCREEN_RIGHT_MARGIN = 10.0 * scale;
+    TOAST_WIDTH = DEF_TOAST_WIDTH * scale;
+    TOAST_INNER_X_MARGIN = DEF_TOAST_INNER_X_MARGIN * scale;
+    TOAST_INNER_Y_MARGIN = DEF_TOAST_INNER_Y_MARGIN * scale;
+    TOAST_OUTER_Y_MARGIN = DEF_TOAST_OUTER_Y_MARGIN * scale;
+    TOAST_SCREEN_BOTTOM_MARGIN = DEF_TOAST_SCREEN_BOTTOM_MARGIN * scale;
+    TOAST_SCREEN_RIGHT_MARGIN = DEF_TOAST_SCREEN_RIGHT_MARGIN * scale;
 
     for(auto &toast : this->toasts) {
         toast->updateLayout();
