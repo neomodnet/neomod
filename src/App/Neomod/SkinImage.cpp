@@ -86,8 +86,9 @@ bool SkinImage::load(const std::string& skinElementName, const std::string& anim
         this->loadImage(skinElementName, ignoreDefaultSkin, false, false);
     } else {
         // load non-animated skin element
-        this->bDeleteNonAnimatedImage = false;  // avoid double-delete
-        this->loadImage(skinElementName, ignoreDefaultSkin, false, true);
+        if(this->loadImage(skinElementName, ignoreDefaultSkin, false, true))
+            this->bDeleteNonAnimatedImage =
+                false;  // avoid double-delete (image is in both images[] and nonAnimatedImage)
     }
 
     return this->images.size() > 0;  // if any image was found

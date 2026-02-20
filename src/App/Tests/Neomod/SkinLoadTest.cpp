@@ -3,6 +3,10 @@
 
 #include "NeomodTestMacros.h"
 #include "Engine.h"
+#include "Resource.h"
+#include "ResourceManager.h"
+
+#include <map>
 #include "Skin.h"
 #include "SkinImage.h"
 #include "Sound.h"
@@ -139,6 +143,52 @@ void SkinLoadTest::update() {
             advanceToNextPhase();
             return;
 
+        case RELOAD_LEAK_WARMUP:
+            // first load: populates _DEFAULT caches etc.
+            m_skin = std::make_unique<Skin>("tier1", *m_tier1_path + "/", *m_tier2_path + "/");
+            m_phase = WAIT_RELOAD_LEAK_WARMUP;
+            return;
+
+        case WAIT_RELOAD_LEAK_WARMUP:
+            if(!m_skin->isReady()) return;
+            // destroy and reload once to warm up all caches
+            m_skin.reset();
+            m_skin = std::make_unique<Skin>("tier1", *m_tier1_path + "/", *m_tier2_path + "/");
+            m_phase = WAIT_RELOAD_LEAK_BASELINE;
+            return;
+
+        case WAIT_RELOAD_LEAK_BASELINE:
+            if(!m_skin->isReady()) return;
+            // snapshot resources after warmup reload is fully loaded
+            m_baseline_resource_count = resourceManager->getResources().size();
+            m_baseline_paths.clear();
+            for(auto *r : resourceManager->getResources()) m_baseline_paths.insert(r->getFilePath());
+            m_reload_iteration = 0;
+            // destroy and recreate again - this time any growth is a leak
+            m_skin.reset();
+            m_skin = std::make_unique<Skin>("tier1", *m_tier1_path + "/", *m_tier2_path + "/");
+            m_phase = WAIT_RELOAD_LEAK_RELOAD;
+            return;
+
+        case WAIT_RELOAD_LEAK_RELOAD:
+            if(!m_skin->isReady()) return;
+            m_phase = TEST_RELOAD_LEAK;
+            [[fallthrough]];
+
+        case TEST_RELOAD_LEAK:
+            m_reload_iteration++;
+            testReloadLeak();
+            if(m_reload_iteration < 3) {
+                // do more reload cycles to detect cumulative leaks
+                m_skin.reset();
+                m_skin = std::make_unique<Skin>("tier1", *m_tier1_path + "/", *m_tier2_path + "/");
+                m_phase = WAIT_RELOAD_LEAK_RELOAD;
+            } else {
+                m_skin.reset();
+                advanceToNextPhase();
+            }
+            return;
+
         case DONE:
             return;
     }
@@ -171,6 +221,9 @@ void SkinLoadTest::advanceToNextPhase() {
     } else if(m_phase == TEST_SEQUENTIAL_B) {
         // hot-swap test: create skin A, then create skin B while A is alive
         m_phase = HOTSWAP_CREATE_A;
+    } else if(m_phase == HOTSWAP_TEST && m_tier1_path && m_tier2_path) {
+        // reload leak test
+        m_phase = RELOAD_LEAK_WARMUP;
     } else {
         m_phase = DONE;
         finish();
@@ -180,12 +233,16 @@ void SkinLoadTest::advanceToNextPhase() {
 // --- helpers ---
 
 bool SkinLoadTest::skinElementExists(const std::string &dir, const std::string &elementName) {
-    return env->fileExists(dir + elementName + "@2x.png") || env->fileExists(dir + elementName + ".png");
+    // must use named strings so fileExists(std::string&) is called (case-insensitive)
+    std::string path_2x = dir + elementName + "@2x.png";
+    std::string path_1x = dir + elementName + ".png";
+    return env->fileExists(path_2x) || env->fileExists(path_1x);
 }
 
 bool SkinLoadTest::soundElementExists(const std::string &dir, const std::string &elementName) {
     for(auto ext : {".wav", ".mp3", ".ogg", ".flac"}) {
-        if(env->fileExists(dir + elementName + ext)) return true;
+        std::string path = dir + elementName + ext;
+        if(env->fileExists(path)) return true;
     }
     return false;
 }
@@ -580,6 +637,30 @@ void SkinLoadTest::testHotSwap() {
         m_skin->update(false, false, 0);
         m_skin->update(true, true, 1000);
         TEST_ASSERT(true, "post-swap update() ok");
+    }
+}
+
+void SkinLoadTest::testReloadLeak() {
+    size_t current_count = resourceManager->getResources().size();
+
+    TEST_SECTION(fmt::format("reload leak: iteration {} resource count", m_reload_iteration));
+    logRaw("  baseline: {} resources, after reload: {}", m_baseline_resource_count, current_count);
+    TEST_ASSERT_EQ((int)current_count, (int)m_baseline_resource_count,
+                   fmt::format("reload {}: resource count unchanged", m_reload_iteration));
+
+    if(current_count != m_baseline_resource_count) {
+        // diff: find paths that appear more times now than in baseline
+        std::multiset<std::string> current_paths;
+        for(auto *r : resourceManager->getResources()) current_paths.insert(r->getFilePath());
+
+        logRaw("  delta: {} resource(s):", (int)current_count - (int)m_baseline_resource_count);
+        for(auto &path : current_paths) {
+            auto cur = current_paths.count(path);
+            auto base = m_baseline_paths.count(path);
+            if(cur > base) {
+                logRaw("    LEAKED path=\"{}\" (was {}, now {})", path, base, cur);
+            }
+        }
     }
 }
 

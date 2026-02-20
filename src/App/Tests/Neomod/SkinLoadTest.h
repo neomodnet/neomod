@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 
 class Image;
@@ -27,6 +28,7 @@ class SkinLoadTest : public App {
     void testFallbackTier(const std::string &label, const std::string &primaryPath, const std::string &fallbackPath);
     void testSequentialLoad();
     void testHotSwap();
+    void testReloadLeak();
     void advanceToNextPhase();
     void finish();
 
@@ -60,6 +62,11 @@ class SkinLoadTest : public App {
         HOTSWAP_CREATE_B,
         HOTSWAP_WAIT_B,
         HOTSWAP_TEST,
+        RELOAD_LEAK_WARMUP,
+        WAIT_RELOAD_LEAK_WARMUP,
+        WAIT_RELOAD_LEAK_BASELINE,
+        WAIT_RELOAD_LEAK_RELOAD,
+        TEST_RELOAD_LEAK,
         DONE
     };
     Phase m_phase{WAIT_DEFAULT};
@@ -74,6 +81,11 @@ class SkinLoadTest : public App {
     std::optional<std::string> m_tier1_path;
     std::optional<std::string> m_tier2_path;
     std::optional<std::string> m_tier3_path;
+
+    // reload leak test
+    size_t m_baseline_resource_count = 0;
+    std::multiset<std::string> m_baseline_paths;
+    int m_reload_iteration = 0;
 
     int m_passes = 0;
     int m_failures = 0;
