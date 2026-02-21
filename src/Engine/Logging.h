@@ -1,5 +1,5 @@
 #pragma once
-// Copyright (c) 2025, WH, All rights reserved.
+// Copyright (c) 2025-2026, WH, All rights reserved.
 
 #include "BaseEnvironment.h"
 
@@ -11,6 +11,7 @@ using fmt::literals::operator""_cf;
 #include <string_view>
 #include <cassert>
 #include <source_location>
+// #include <functional>
 
 // helper macros to allow using a single string directly or a format string with args
 #define _logFmtStart fmt::format(
@@ -72,5 +73,13 @@ void flush() noexcept;
 
 // is stdout a terminal (util func.)
 [[nodiscard]] bool isaTTY() noexcept;
+
+// // custom log hooks
+// enum class HookHandle : uint64_t {};
+// using SinkCallback = std::function<void(std::string logStr)>;
+// // patterns are spdlog patterns
+// HookHandle addLogHook(SinkCallback sinkCallback, std::string logPattern = "%v");
+
+// bool removeLogHook(HookHandle handle);
 
 };  // namespace Logger

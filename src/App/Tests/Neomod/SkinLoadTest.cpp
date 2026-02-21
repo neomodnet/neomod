@@ -291,7 +291,7 @@ void SkinLoadTest::testDefaultSkin() {
         TEST_ASSERT_EQ((int)m_skin->search_dirs.size(), 1, "default skin has 1 search dir");
         TEST_ASSERT_EQ(m_skin->search_dirs[0], std::string(MCENGINE_IMAGES_PATH "/default/"),
                        "default skin search dir is the default path");
-        TEST_ASSERT(m_skin->o_default, "default skin flag is set");
+        TEST_ASSERT(m_skin->is_default, "default skin flag is set");
     }
 
     TEST_SECTION("default skin: core images");
@@ -334,7 +334,7 @@ void SkinLoadTest::testFakeSkin() {
                        "first search dir is user skin dir");
         TEST_ASSERT_EQ(m_skin->search_dirs[1], std::string(MCENGINE_IMAGES_PATH "/default/"),
                        "second search dir is default path");
-        TEST_ASSERT(!m_skin->o_default, "default skin flag is not set");
+        TEST_ASSERT(!m_skin->is_default, "default skin flag is not set");
     }
 
     TEST_SECTION("fake skin: fallback to default for images");
@@ -381,7 +381,7 @@ void SkinLoadTest::testRealSkin(const std::string &label, const std::string &ski
         TEST_ASSERT_EQ(m_skin->search_dirs[0], skinPath + "/", label + " primary dir is skin path");
         TEST_ASSERT_EQ(m_skin->search_dirs[1], std::string(MCENGINE_IMAGES_PATH "/default/"),
                        label + " fallback dir is default path");
-        TEST_ASSERT(!m_skin->o_default, label + " is not default skin");
+        TEST_ASSERT(!m_skin->is_default, label + " is not default skin");
     }
 
     TEST_SECTION(label + " skin: core images loaded");
@@ -454,7 +454,7 @@ void SkinLoadTest::testFallbackTier(const std::string &label, const std::string 
         TEST_ASSERT_EQ(m_skin->search_dirs[0], primaryDir, label + " [0] is primary");
         TEST_ASSERT_EQ(m_skin->search_dirs[1], fallbackDir, label + " [1] is fallback");
         TEST_ASSERT_EQ(m_skin->search_dirs[2], defaultDir, label + " [2] is default");
-        TEST_ASSERT(!m_skin->o_default, label + " is not default skin");
+        TEST_ASSERT(!m_skin->is_default, label + " is not default skin");
     }
 
     TEST_SECTION(label + ": image source verification");

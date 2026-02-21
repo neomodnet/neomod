@@ -1,4 +1,4 @@
-// Copyright (c) 2025, WH, All rights reserved.
+// Copyright (c) 2025-2026, WH, All rights reserved.
 #include "Logging.h"
 
 #include "Engine.h"

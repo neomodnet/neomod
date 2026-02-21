@@ -436,6 +436,6 @@ struct Skin final {
     bool o_random;
     bool o_random_elements;
 
-    bool o_ready{false};
-    bool o_default;
+    bool is_ready{false};
+    bool is_default;
 };

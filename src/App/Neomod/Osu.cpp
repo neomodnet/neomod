@@ -391,7 +391,8 @@ void Osu::doDeferredInitTasks() {
         if(extUpdater.empty()) {
             extUpdater = Environment::getEnvVariable("NEOSU_EXTERNAL_UPDATE_PROVIDER");
         }
-        if(cv::auto_update.getBool() && (extUpdater.empty() || Parsing::strto<bool>(extUpdater) == false)) {
+        if(cv::auto_update.getBool() &&
+           (extUpdater.empty() || extUpdater == "0" || SString::to_lower(extUpdater) == "false")) {
             bool force_update = cv::bleedingedge.getBool() != cv::is_bleedingedge.getBool();
             this->updateHandler->checkForUpdates(force_update);
         }

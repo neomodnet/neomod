@@ -123,7 +123,7 @@ Skin::Skin(std::string name, std::string filepath, std::string fallbackDir) {
     this->name = std::move(name);
     this->skin_dir = std::move(filepath);
     this->fallback_dir = std::move(fallbackDir);
-    this->o_default = (this->skin_dir == MCENGINE_IMAGES_PATH "/default/");
+    this->is_default = (this->skin_dir == MCENGINE_IMAGES_PATH "/default/");
 
     // vars
     this->c_spinner_approach_circle = 0xffffffff;
@@ -161,8 +161,8 @@ Skin::~Skin() {
 
 void Skin::update(bool isInPlayMode, bool isPlaying, i32 curMusicPos) {
     // tasks which have to be run after async loading finishes
-    if(!this->o_ready && this->isReady()) {
-        this->o_ready = true;
+    if(!this->is_ready && this->isReady()) {
+        this->is_ready = true;
     }
 
     // shitty check to not animate while paused with hitobjects in background
@@ -175,7 +175,7 @@ void Skin::update(bool isInPlayMode, bool isPlaying, i32 curMusicPos) {
 }
 
 bool Skin::isReady() const {
-    if(this->o_ready) return true;
+    if(this->is_ready) return true;
 
     // default skin sounds aren't added to the resources vector... so check explicitly for that
     for(const auto *sound : this->sounds) {
@@ -236,7 +236,7 @@ void Skin::load() {
         this->search_dirs.push_back(this->fallback_dir);
     }
     // if we are not the neomod-provided default skin, add it as the third-tier fallback level
-    if(!this->o_default) {
+    if(!this->is_default) {
         this->search_dirs.push_back(default_dir);
     }
 
@@ -335,17 +335,11 @@ void Skin::load() {
         }
 
         this->checkLoadImage(this->i_score_x, fmt::format("{}-x", scorePrefix), "SKIN_SCOREX");
-        if(this->i_score_x.img == MISSING_TEXTURE && !fbScorePrefix.empty() && fbScorePrefix != scorePrefix)
-            this->checkLoadImage(this->i_score_x, fmt::format("{}-x", fbScorePrefix), "SKIN_SCOREX");
         // if (this->scoreX == MISSING_TEXTURE) checkLoadImage(m_scoreX, "score-x", "SKIN_SCOREX"); // special
         // case: ScorePrefix'd skins don't get default fallbacks, instead missing extraneous things like the X are
         // simply not drawn
         this->checkLoadImage(this->i_score_percent, fmt::format("{}-percent", scorePrefix), "SKIN_SCOREPERCENT");
-        if(this->i_score_percent.img == MISSING_TEXTURE && !fbScorePrefix.empty() && fbScorePrefix != scorePrefix)
-            this->checkLoadImage(this->i_score_percent, fmt::format("{}-percent", fbScorePrefix), "SKIN_SCOREPERCENT");
         this->checkLoadImage(this->i_score_dot, fmt::format("{}-dot", scorePrefix), "SKIN_SCOREDOT");
-        if(this->i_score_dot.img == MISSING_TEXTURE && !fbScorePrefix.empty() && fbScorePrefix != scorePrefix)
-            this->checkLoadImage(this->i_score_dot, fmt::format("{}-dot", fbScorePrefix), "SKIN_SCOREDOT");
     }
 
     this->randomizeFilePath();
@@ -364,10 +358,8 @@ void Skin::load() {
                 this->checkLoadImage(this->i_combos[i], fmt::format("score-{}", i), resName);
         }
 
-        // special case as above for extras
+        // same special case as above for extras
         this->checkLoadImage(this->i_combo_x, fmt::format("{}-x", comboPrefix), "SKIN_COMBOX");
-        if(this->i_combo_x.img == MISSING_TEXTURE && !fbComboPrefix.empty() && fbComboPrefix != comboPrefix)
-            this->checkLoadImage(this->i_combo_x, fmt::format("{}-x", fbComboPrefix), "SKIN_COMBOX");
     }
 
     this->randomizeFilePath();
@@ -431,20 +423,20 @@ void Skin::load() {
     this->randomizeFilePath();
     this->checkLoadImage(
         this->i_slider_start_circle, "sliderstartcircle", "SKIN_SLIDERSTARTCIRCLE",
-        !this->o_default);  // !m_bIsDefaultSkin ensures that default doesn't override user, in these special cases
-    this->i_slider_start_circle2 = this->createSkinImage("sliderstartcircle", vec2(128, 128), 64, !this->o_default);
+        !this->is_default);  // !m_bIsDefaultSkin ensures that default doesn't override user, in these special cases
+    this->i_slider_start_circle2 = this->createSkinImage("sliderstartcircle", vec2(128, 128), 64, !this->is_default);
     this->checkLoadImage(this->i_slider_start_circle_overlay, "sliderstartcircleoverlay",
-                         "SKIN_SLIDERSTARTCIRCLEOVERLAY", !this->o_default);
+                         "SKIN_SLIDERSTARTCIRCLEOVERLAY", !this->is_default);
     this->i_slider_start_circle_overlay2 =
-        this->createSkinImage("sliderstartcircleoverlay", vec2(128, 128), 64, !this->o_default);
+        this->createSkinImage("sliderstartcircleoverlay", vec2(128, 128), 64, !this->is_default);
     this->i_slider_start_circle_overlay2->setAnimationFramerate(2);
     this->randomizeFilePath();
-    this->checkLoadImage(this->i_slider_end_circle, "sliderendcircle", "SKIN_SLIDERENDCIRCLE", !this->o_default);
-    this->i_slider_end_circle2 = this->createSkinImage("sliderendcircle", vec2(128, 128), 64, !this->o_default);
+    this->checkLoadImage(this->i_slider_end_circle, "sliderendcircle", "SKIN_SLIDERENDCIRCLE", !this->is_default);
+    this->i_slider_end_circle2 = this->createSkinImage("sliderendcircle", vec2(128, 128), 64, !this->is_default);
     this->checkLoadImage(this->i_slider_end_circle_overlay, "sliderendcircleoverlay", "SKIN_SLIDERENDCIRCLEOVERLAY",
-                         !this->o_default);
+                         !this->is_default);
     this->i_slider_end_circle_overlay2 =
-        this->createSkinImage("sliderendcircleoverlay", vec2(128, 128), 64, !this->o_default);
+        this->createSkinImage("sliderendcircleoverlay", vec2(128, 128), 64, !this->is_default);
     this->i_slider_end_circle_overlay2->setAnimationFramerate(2);
 
     this->randomizeFilePath();
@@ -723,7 +715,7 @@ void Skin::load() {
     // always load these from the bundled default skin for consistent UI appearance (e.g. options menu buttons).
     // can't rely on the _DEFAULT resource cache from checkLoadImage, since a user fallback skin may have
     // provided the element before we ever reach the default dir.
-    if(this->o_default) {
+    if(this->is_default) {
         this->i_cursor_default = this->i_cursor;
         this->i_button_left_default = this->i_button_left;
         this->i_button_mid_default = this->i_button_mid;
@@ -1064,7 +1056,7 @@ void Skin::checkLoadImage(BasicSkinImage &imgRef, const std::string &skinElement
         // primary and fallback dirs use unnamed resources tracked in this->resources.
         // compare against full search_dirs size, not n_dirs, since ignoreDefaultSkin truncates n_dirs.
         // overrideDir loads are also cached (they explicitly target the default dir).
-        const bool is_cached_default = !this->o_default && (!overrideDir.empty() || i == this->search_dirs.size() - 1);
+        const bool is_cached_default = !this->is_default && (!overrideDir.empty() || i == this->search_dirs.size() - 1);
 
         std::string res_name;
         if(is_cached_default) {
@@ -1121,7 +1113,7 @@ void Skin::loadSound(Sound *&sndRef, const std::string &skinElementName, const s
 
         // only the built-in default dir (last entry for non-default skins) uses _DEFAULT naming.
         // compare against full search_dirs size, not n_dirs, since ignoreDefaultSkin truncates n_dirs
-        const bool is_default_dir = !this->o_default && (i == this->search_dirs.size() - 1);
+        const bool is_default_dir = !this->is_default && (i == this->search_dirs.size() - 1);
         const bool is_primary = (i == 0);
 
         if(is_default_dir) {

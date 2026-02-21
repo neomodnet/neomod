@@ -116,7 +116,7 @@ bool SkinImage::loadImage(const std::string& skinElementName, bool ignoreDefault
 
         // only the built-in default dir (last entry in the full search_dirs) counts as "from default"
         // compare against full size, not n_dirs, since ignoreDefaultSkin truncates the search
-        if(!this->skin->o_default && i == this->skin->search_dirs.size() - 1) this->bIsFromDefaultSkin = true;
+        if(!this->skin->is_default && i == this->skin->search_dirs.size() - 1) this->bIsFromDefaultSkin = true;
 
         // try @2x if HD enabled
         if(cv::skin_hd.getBool() && exists_2x) {
@@ -164,7 +164,10 @@ bool SkinImage::loadImage(const std::string& skinElementName, bool ignoreDefault
 
 SkinImage::~SkinImage() {
     for(auto& image : this->images) {
-        if(image.img != MISSING_TEXTURE) resourceManager->destroyResource(image.img);
+        if(image.img != MISSING_TEXTURE) {
+            resourceManager->destroyResource(image.img);
+            image.img = MISSING_TEXTURE;
+        }
     }
     this->images.clear();
     if(this->bDeleteNonAnimatedImage && this->nonAnimatedImage.img != MISSING_TEXTURE) {
