@@ -54,8 +54,8 @@ class Lobby final : public UIScreen {
     void on_room_join_failed();
 
     std::vector<std::unique_ptr<Room>> rooms;
+    McFont* font;
     UIButton* create_room_btn;
     CBaseUIScrollView* list;
-    i32 room_to_join;
-    McFont* font;
+    i32 room_to_join{0};
 };

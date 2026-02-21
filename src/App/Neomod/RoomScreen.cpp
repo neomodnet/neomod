@@ -90,35 +90,35 @@ void UIModList::draw() {
 
 bool UIModList::isVisible() { return !!*this->flags; }
 
-#define INIT_LABEL(label_name, default_text, is_big)                      \
-    do {                                                                  \
-        label_name = new CBaseUILabel(0, 0, 0, 0, "label", default_text); \
-        label_name->setFont(is_big ? lfont : font);                       \
-        label_name->setSizeToContent(0, 0);                               \
-        label_name->setDrawFrame(false);                                  \
-        label_name->setDrawBackground(false);                             \
+#define INIT_LABEL(label_name, default_text, is_big)                        \
+    do {                                                                    \
+        (label_name) = new CBaseUILabel(0, 0, 0, 0, "label", default_text); \
+        (label_name)->setFont((is_big) ? lfont : font);                     \
+        (label_name)->setSizeToContent(0, 0);                               \
+        (label_name)->setDrawFrame(false);                                  \
+        (label_name)->setDrawBackground(false);                             \
     } while(0)
 
-#define ADD_ELEMENT_WITH_PADDING(element, x_padding, y_padding) \
-    do {                                                        \
-        element->onResized();                                   \
-        element->setSizeToContent(x_padding, y_padding);        \
-        element->setPos(10.f * Osu::getUIScale(), settings_y);  \
-        this->settings->container.addBaseUIElement(element);    \
-        settings_y += element->getSize().y;                     \
+#define ADD_ELEMENT_WITH_PADDING(element, x_padding, y_padding)  \
+    do {                                                         \
+        (element)->onResized();                                  \
+        (element)->setSizeToContent(x_padding, y_padding);       \
+        (element)->setPos(10.f * Osu::getUIScale(), settings_y); \
+        this->settings->container.addBaseUIElement(element);     \
+        settings_y += (element)->getSize().y;                    \
     } while(0)
 
 #define ADD_ELEMENT(element) ADD_ELEMENT_WITH_PADDING(element, button_padding, button_padding)
 
-#define ADD_BUTTON(button, label)                                                             \
-    do {                                                                                      \
-        label->onResized();                                                                   \
-        label->setSizeToContent(0, 0);                                                        \
-        button->onResized();                                                                  \
-        button->setSizeToContent(button_padding, button_padding);                             \
-        button->setPos(label->getSize().x + 20.f * Osu::getUIScale(),                         \
-                       label->getPos().y + (label->getSize().y - button->getSize().y) / 2.f); \
-        this->settings->container.addBaseUIElement(button);                                   \
+#define ADD_BUTTON(button, label)                                                                     \
+    do {                                                                                              \
+        (label)->onResized();                                                                         \
+        (label)->setSizeToContent(0, 0);                                                              \
+        (button)->onResized();                                                                        \
+        (button)->setSizeToContent(button_padding, button_padding);                                   \
+        (button)->setPos((label)->getSize().x + 20.f * Osu::getUIScale(),                             \
+                         (label)->getPos().y + ((label)->getSize().y - (button)->getSize().y) / 2.f); \
+        this->settings->container.addBaseUIElement(button);                                           \
     } while(0)
 
 #define PAD(x)                               \
@@ -361,8 +361,8 @@ void RoomScreen::updateSettingsLayout(vec2 newResolution) {
     int settings_y = 10.f * Osu::getUIScale();
 
     this->settings->invalidate();
-    this->settings->setPos(round(newResolution.x * 0.6), 0);
-    this->settings->setSize(round(newResolution.x * 0.4), newResolution.y);
+    this->settings->setPos(std::round(newResolution.x * 0.6f), 0);
+    this->settings->setSize(std::round(newResolution.x * 0.4f), newResolution.y);
 
     // Room name (title)
     this->room_name->setText(BanchoState::room.name);
@@ -486,7 +486,7 @@ void RoomScreen::updateLayout(vec2 newResolution) {
 
     const float dpiScale = Osu::getUIScale();
     this->pauseButton->setSize(30 * dpiScale, 30 * dpiScale);
-    this->pauseButton->setPos(round(newResolution.x * 0.6) - this->pauseButton->getSize().x * 2 - 10 * dpiScale,
+    this->pauseButton->setPos(std::round(newResolution.x * 0.6f) - this->pauseButton->getSize().x * 2 - 10 * dpiScale,
                               this->pauseButton->getSize().y + 10 * dpiScale);
 
     this->player_list_label->onResized();
@@ -494,7 +494,7 @@ void RoomScreen::updateLayout(vec2 newResolution) {
 
     // XXX: Display detailed user presence
     this->slotlist->setPosY(100.f * dpiScale);
-    this->slotlist->setSize(newResolution.x * 0.6 - 200.f * dpiScale, newResolution.y * 0.6 - 110.f * dpiScale);
+    this->slotlist->setSize(newResolution.x * 0.6f - 200.f * dpiScale, newResolution.y * 0.6f - 110.f * dpiScale);
     this->slotlist->freeElements();
     i32 y_total = 10.f * dpiScale;
     for(auto &slot : BanchoState::room.slots) {
