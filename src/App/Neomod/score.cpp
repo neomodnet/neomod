@@ -426,7 +426,7 @@ UString LiveScore::getModsStringForRichPresence() const {
 }
 
 void LiveScore::onScoreChange() {
-    if(this->simulating || !ui || !ui->getRoom()) return;
+    if(this->simulating || !osu->UIReady()) return;
 
     ui->getRoom()->onClientScoreChange();
 

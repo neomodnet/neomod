@@ -137,7 +137,8 @@ Osu::Osu()
       MouseListener(),
       global_osu_(this),
       previous_mods(std::make_unique<Replay::Mods>()),
-      map_iface(std::make_unique<BeatmapInterface>()) {
+      map_iface(std::make_unique<BeatmapInterface>()),
+      score(std::make_unique<LiveScore>(false)) {
     // global cvar callbacks will be removed in destructor
     ConVar::setOnSetValueProtectedCallback(SA::MakeDelegate<&Osu::globalOnSetValueProtectedCallback>(this));
 
@@ -233,7 +234,6 @@ Osu::Osu()
     // load a few select subsystems very early
     db = std::make_unique<Database>();  // global database instance
     this->ui_memb = std::make_unique<UI>();
-    this->score = std::make_unique<LiveScore>(false);
     this->updateHandler = std::make_unique<UpdateHandler>();
     this->thumbnailManager = std::make_unique<ThumbnailManager>();
     this->backgroundImageHandler = std::make_unique<BGImageHandler>();
