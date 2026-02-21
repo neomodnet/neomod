@@ -657,24 +657,39 @@ void Engine::processStdinCommands() {
 
         if(cmd.starts_with("@wait")) {
             this->stdinWaitFrames = std::max(1, Parsing::strto<int>(cmd.substr("@wait"sv.size())));
-            break;
+            break;  // can't sleep in the main thread in WASM
         }
 
         Console::processCommand(cmd);
         if(this->bShuttingDown) break;
     }
 #else
-    Sync::scoped_lock lock(this->stdinMutex);
-    while(!this->stdinQueue.empty()) {
-        std::string cmd = std::move(this->stdinQueue.front());
-        this->stdinQueue.pop_front();
+    int sleepMillis = 0;
+    {
+        Sync::scoped_lock lock(this->stdinMutex);
+        while(!this->stdinQueue.empty()) {
+            std::string cmd = std::move(this->stdinQueue.front());
+            this->stdinQueue.pop_front();
 
-        if(cmd.starts_with("@wait")) {
-            this->stdinWaitFrames = std::max(1, Parsing::strto<int>(cmd.substr("@wait"sv.size())));
-            break;
+            if(cmd.starts_with("@wait")) {
+                this->stdinWaitFrames = std::max(1, Parsing::strto<int>(cmd.substr("@wait"sv.size())));
+                break;
+            } else if(cmd.starts_with("@sleep")) {
+                sleepMillis = std::clamp(Parsing::strto<int>(cmd.substr("@sleep"sv.size())), 0, 60000);
+                break;
+            }
+            Console::processCommand(cmd);
         }
-
-        Console::processCommand(cmd);
+    }
+    if(sleepMillis > 0) {
+        const int remainder = sleepMillis % 1000;
+        const int wholeSeconds = (sleepMillis - remainder) / 1000;
+        for(int sec = 0; sec < wholeSeconds; ++sec) {
+            Timing::sleepMS(1000);
+        }
+        if(remainder) {
+            Timing::sleepMS(remainder);
+        }
     }
 #endif
 }
