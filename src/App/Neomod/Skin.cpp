@@ -380,7 +380,7 @@ void Skin::load() {
     this->randomizeFilePath();
     this->i_scorebar_bg = this->createSkinImage("scorebar-bg", vec2(695, 44), 27.5f);
     this->i_scorebar_colour = this->createSkinImage("scorebar-colour", vec2(645, 10), 6.25f);
-    this->i_scorebar_marker = this->createSkinImage("scorebar-marker", vec2(24, 24), 15.0f);
+    this->i_scorebar_marker = this->createSkinImage("scorebar-marker", vec2(24, 24), 15.0f, true);
     this->i_scorebar_ki = this->createSkinImage("scorebar-ki", vec2(116, 116), 72.0f);
     this->i_scorebad_ki_danger = this->createSkinImage("scorebar-kidanger", vec2(116, 116), 72.0f);
     this->i_scorebar_ki_danger2 = this->createSkinImage("scorebar-kidanger2", vec2(116, 116), 72.0f);
@@ -1064,8 +1064,7 @@ void Skin::checkLoadImage(BasicSkinImage &imgRef, const std::string &skinElement
         // primary and fallback dirs use unnamed resources tracked in this->resources.
         // compare against full search_dirs size, not n_dirs, since ignoreDefaultSkin truncates n_dirs.
         // overrideDir loads are also cached (they explicitly target the default dir).
-        const bool is_cached_default =
-            !this->o_default && (!overrideDir.empty() || i == this->search_dirs.size() - 1);
+        const bool is_cached_default = !this->o_default && (!overrideDir.empty() || i == this->search_dirs.size() - 1);
 
         std::string res_name;
         if(is_cached_default) {
