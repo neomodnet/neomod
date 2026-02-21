@@ -1,5 +1,5 @@
 #pragma once
-// Copyright (c) 2015, PG & 2026, WH, All rights reserved.
+// Copyright (c) 2015, PG, 2024-2025, kiwec, 2025-2026, WH, All rights reserved.
 #include "noinclude.h"
 #include "Color.h"
 #include "Vectors.h"
@@ -38,6 +38,10 @@ struct BasicSkinImage {
     mutable i8 scale_mul{-1};
 };
 
+struct SkinIniOptions {
+
+};
+
 struct Skin final {
    private:
     NOCOPY_NOMOVE(Skin)
@@ -69,7 +73,7 @@ struct Skin final {
 
     void update(bool isInPlayMode, bool isPlaying, i32 curMusicPos);
 
-    bool isReady();
+    [[nodiscard]] bool isReady() const;
 
     void loadBeatmapOverride(const std::string &filepath);
     void reloadSounds();

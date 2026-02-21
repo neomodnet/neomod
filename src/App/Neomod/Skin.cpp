@@ -1,4 +1,4 @@
-// Copyright (c) 2015, PG, All rights reserved.
+// Copyright (c) 2015, PG, 2024-2025, kiwec, 2025-2026, WH, All rights reserved.
 #include "Skin.h"
 
 #include "Archival.h"
@@ -169,24 +169,24 @@ void Skin::update(bool isInPlayMode, bool isPlaying, i32 curMusicPos) {
     if(isInPlayMode && !isPlaying && !cv::skin_animation_force.getBool()) return;
 
     const bool useEngineTimeForAnimations = !isInPlayMode;
-    for(auto &image : this->images) {
+    for(auto *image : this->images) {
         image->update(this->anim_speed, useEngineTimeForAnimations, curMusicPos);
     }
 }
 
-bool Skin::isReady() {
+bool Skin::isReady() const {
     if(this->o_ready) return true;
 
     // default skin sounds aren't added to the resources vector... so check explicitly for that
-    for(auto &sound : this->sounds) {
+    for(const auto *sound : this->sounds) {
         if(resourceManager->isLoadingResource(sound)) return false;
     }
 
-    for(auto &resource : this->resources) {
+    for(const auto *resource : this->resources) {
         if(resourceManager->isLoadingResource(resource)) return false;
     }
 
-    for(auto &image : this->images) {
+    for(const auto *image : this->images) {
         if(!image->isReady()) return false;
     }
 

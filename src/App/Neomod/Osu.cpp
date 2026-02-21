@@ -320,6 +320,8 @@ Osu::Osu()
         osu && osu->UIReady() ? ui->getModSelector()->updateExperimentalButtons() : (void)0;
     });
 
+    this->prevUIScale = Osu::getUIScale();
+
     // load global resources
     const int baseDPI = 96;
     const int newDPI = Osu::getUIScale() * baseDPI;
@@ -1451,9 +1453,6 @@ void Osu::onResolutionChanged(vec2 newResolution, ResolutionRequestFlags src) {
         cv::windowed_resolution.setValue(res_str, false);
     }
 
-    // NOTE: when only changing DPI, "prevUIScale" is already the new UI scale!
-    const float prevUIScale = getUIScale();
-
     const bool resolution_changed = (this->getSliderFrameBuffer()->getSize() != newResolution);  // HACK
     this->internalRect = {vec2{}, newResolution};
 
@@ -1484,8 +1483,10 @@ void Osu::onResolutionChanged(vec2 newResolution, ResolutionRequestFlags src) {
 
     // a bit hacky, but detect resolution-specific-dpi-scaling changes and force a font and layout reload after a 1
     // frame delay (1/2)
-    if(!LossyComparisonToFixExcessFPUPrecisionBugBecauseFuckYou::equalEpsilon(getUIScale(), prevUIScale))
+    if(!LossyComparisonToFixExcessFPUPrecisionBugBecauseFuckYou::equalEpsilon(Osu::getUIScale(), this->prevUIScale)) {
+        this->prevUIScale = Osu::getUIScale();
         this->last_res_change_req_src = R_DELAYED_DESYNC_FIX;
+    }
 }
 
 void Osu::onDPIChanged() {

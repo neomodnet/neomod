@@ -251,6 +251,8 @@ class Osu final : public App, public MouseListener {
     void onUserCardChange(std::string_view new_username);
 
    private:
+    float prevUIScale{1.f};  // hack-ish dpi change reload check
+
     void globalOnSetValueProtectedCallback();
     static bool globalOnGetValueProtectedCallback(const char *cvarname);
     static bool globalOnSetValueGameplayCallback(const char *cvarname, CvarEditor setterkind);

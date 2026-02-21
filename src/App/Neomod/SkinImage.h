@@ -65,7 +65,7 @@ class SkinImage final {
 
     [[nodiscard]] float getResolutionScale() const;
 
-    bool isReady();
+    [[nodiscard]] bool isReady() const;
 
     [[nodiscard]] inline int getNumImages() const { return this->images.size(); }
     [[nodiscard]] inline float getFrameDuration() const { return this->fFrameDuration; }
@@ -87,7 +87,7 @@ class SkinImage final {
     void drawBrightQuad(VertexArrayObject* vao, float brightness) const;  // helper
 
     Skin* skin;
-    bool bReady;
+    mutable bool bReady;
 
     // scaling
     vec2 vBaseSizeForScaling2x{0};
