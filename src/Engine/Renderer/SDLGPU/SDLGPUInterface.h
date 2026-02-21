@@ -14,6 +14,10 @@
 
 #include "Graphics.h"
 #include "Hashing.h"
+#include "SyncMutex.h"
+
+#include <array>
+#include <bit>
 
 class SDLGPUShader;
 class SDLGPUVertexArrayObject;
@@ -178,8 +182,6 @@ class SDLGPUInterface final : public Graphics {
                                                bool keepInSystemMemory) override;
 
     // sdlgpu-specific accessors
-    inline SDL_GPUDevice *getDevice() const { return m_device; }
-
     // texture binding state (set by SDLGPUImage::bind/unbind)
     inline SDL_GPUTexture *getBoundTexture() const { return m_boundTexture; }
     inline SDL_GPUSampler *getBoundSampler() const { return m_boundSampler; }
@@ -197,6 +199,12 @@ class SDLGPUInterface final : public Graphics {
     // shader switching
     void setActiveShader(SDLGPUShader *shader);
     inline SDLGPUShader *getActiveShader() const { return m_activeShader; }
+
+    // shared upload transfer buffer pool (loader threads acquire, main thread releases)
+    // outAllocSize receives the actual allocation size of the returned buffer (for passing back to release)
+    SDL_GPUTransferBuffer *acquireUploadTransferBuffer(u32 minSize, u32 &outAllocSize);
+    // arguments are zeroed
+    void releaseUploadTransferBuffer(SDL_GPUTransferBuffer *&buf, u32 &size);
 
     // SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM
     static const SDLGPUTextureFormat DEFAULT_TEXTURE_FORMAT;
@@ -378,6 +386,16 @@ class SDLGPUInterface final : public Graphics {
         .pendingClearDepth = false,
         .pendingClearStencil = false,
     };
+
+    // upload transfer buffer pool, bucketed by power-of-2 size class.
+    // index = countr_zero(size) - POOL_MIN_LOG2
+    static constexpr u32 UPLOAD_POOL_BUDGET = 512 * 1024 * 1024;  // max idle VRAM in pool
+    // (is 512MB too much? eh, if you're using this renderer you probably have a good enough GPU, dunno how to query this)
+    static constexpr u32 POOL_MIN_LOG2 = 2;      // 4 bytes (1x1 RGBA)
+    static constexpr u32 POOL_NUM_CLASSES = 27;  // 2^2 .. 2^28 (256MB)
+    Sync::mutex m_uploadTransferPoolMutex;
+    std::array<std::vector<SDL_GPUTransferBuffer *>, POOL_NUM_CLASSES> m_uploadTransferPool{};
+    u32 m_uploadTransferPoolBytes{0};
 
     // stats (TODO? unused)
     int m_iStatsNumDrawCalls{0};

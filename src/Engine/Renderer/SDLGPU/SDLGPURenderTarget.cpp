@@ -19,14 +19,18 @@
 
 #include "SDLGPUInterface.h"
 
-SDLGPURenderTarget::SDLGPURenderTarget(int x, int y, int width, int height, MultisampleType multiSampleType)
-    : RenderTarget(x, y, width, height, multiSampleType) {}
+SDLGPURenderTarget::SDLGPURenderTarget(SDLGPUInterface *gpu, SDL_GPUDevice *device, int x, int y, int width, int height,
+                                       MultisampleType multiSampleType)
+    : RenderTarget(x, y, width, height, multiSampleType), m_gpu(gpu), m_device(device) {}
 
 void SDLGPURenderTarget::init() {
+    if(!m_gpu || !m_device) {
+        debugLog("SDLGPURenderTarget: no GPU/device context");
+        this->setReady(false);
+        return;
+    }
     debugLog("Building RenderTarget ({}x{}) ...", (int)this->getSize().x, (int)this->getSize().y);
 
-    auto *gpu = static_cast<SDLGPUInterface *>(g.get());
-    auto *device = gpu->getDevice();
     const u32 w = (u32)this->getSize().x;
     const u32 h = (u32)this->getSize().y;
 
@@ -60,7 +64,7 @@ void SDLGPURenderTarget::init() {
         colorInfo.num_levels = 1;
         colorInfo.sample_count = SDL_GPU_SAMPLECOUNT_1;
 
-        m_colorTexture = SDL_CreateGPUTexture(device, &colorInfo);
+        m_colorTexture = SDL_CreateGPUTexture(m_device, &colorInfo);
     }
 
     if(!m_colorTexture) {
@@ -80,10 +84,10 @@ void SDLGPURenderTarget::init() {
         msaaInfo.num_levels = 1;
         msaaInfo.sample_count = (SDL_GPUSampleCount)m_sampleCount;
 
-        m_msaaTexture = SDL_CreateGPUTexture(device, &msaaInfo);
+        m_msaaTexture = SDL_CreateGPUTexture(m_device, &msaaInfo);
         if(!m_msaaTexture) {
             debugLog("SDLGPURenderTarget Error: Couldn't create MSAA texture: {}", SDL_GetError());
-            SDL_ReleaseGPUTexture(device, m_colorTexture);
+            SDL_ReleaseGPUTexture(m_device, m_colorTexture);
             m_colorTexture = nullptr;
             return;
         }
@@ -101,16 +105,16 @@ void SDLGPURenderTarget::init() {
         depthInfo.num_levels = 1;
         depthInfo.sample_count = this->isMultiSampled() ? (SDL_GPUSampleCount)m_sampleCount : SDL_GPU_SAMPLECOUNT_1;
 
-        m_depthTexture = SDL_CreateGPUTexture(device, &depthInfo);
+        m_depthTexture = SDL_CreateGPUTexture(m_device, &depthInfo);
     }
 
     if(!m_depthTexture) {
         debugLog("SDLGPURenderTarget Error: Couldn't create depth texture: {}", SDL_GetError());
         if(m_msaaTexture) {
-            SDL_ReleaseGPUTexture(device, m_msaaTexture);
+            SDL_ReleaseGPUTexture(m_device, m_msaaTexture);
             m_msaaTexture = nullptr;
         }
-        SDL_ReleaseGPUTexture(device, m_colorTexture);
+        SDL_ReleaseGPUTexture(m_device, m_colorTexture);
         m_colorTexture = nullptr;
         return;
     }
@@ -124,7 +128,7 @@ void SDLGPURenderTarget::init() {
     samplerInfo.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
     samplerInfo.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
 
-    m_sampler = SDL_CreateGPUSampler(device, &samplerInfo);
+    m_sampler = SDL_CreateGPUSampler(m_device, &samplerInfo);
     if(!m_sampler) {
         debugLog("SDLGPURenderTarget Error: Couldn't create sampler: {}", SDL_GetError());
         return;
@@ -136,22 +140,22 @@ void SDLGPURenderTarget::init() {
 void SDLGPURenderTarget::initAsync() { this->setAsyncReady(true); }
 
 void SDLGPURenderTarget::destroy() {
-    auto *device = static_cast<SDLGPUInterface *>(g.get())->getDevice();
+    if(!m_gpu || !m_device) return;
 
     if(m_sampler) {
-        SDL_ReleaseGPUSampler(device, m_sampler);
+        SDL_ReleaseGPUSampler(m_device, m_sampler);
         m_sampler = nullptr;
     }
     if(m_depthTexture) {
-        SDL_ReleaseGPUTexture(device, m_depthTexture);
+        SDL_ReleaseGPUTexture(m_device, m_depthTexture);
         m_depthTexture = nullptr;
     }
     if(m_msaaTexture) {
-        SDL_ReleaseGPUTexture(device, m_msaaTexture);
+        SDL_ReleaseGPUTexture(m_device, m_msaaTexture);
         m_msaaTexture = nullptr;
     }
     if(m_colorTexture) {
-        SDL_ReleaseGPUTexture(device, m_colorTexture);
+        SDL_ReleaseGPUTexture(m_device, m_colorTexture);
         m_colorTexture = nullptr;
     }
 }
@@ -161,8 +165,8 @@ void SDLGPURenderTarget::draw(int x, int y) {
 
     bind();
     {
-        g->setColor(this->color);
-        g->drawQuad(x, y, (int)this->getSize().x, (int)this->getSize().y);
+        m_gpu->setColor(this->color);
+        m_gpu->drawQuad(x, y, (int)this->getSize().x, (int)this->getSize().y);
     }
     unbind();
 }
@@ -172,8 +176,8 @@ void SDLGPURenderTarget::draw(int x, int y, int width, int height) {
 
     bind();
     {
-        g->setColor(this->color);
-        g->drawQuad(x, y, width, height);
+        m_gpu->setColor(this->color);
+        m_gpu->drawQuad(x, y, width, height);
     }
     unbind();
 }
@@ -188,7 +192,7 @@ void SDLGPURenderTarget::drawRect(int x, int y, int width, int height) {
 
     bind();
     {
-        g->setColor(this->color);
+        m_gpu->setColor(this->color);
 
         static VertexArrayObject vao;
         vao.clear();
@@ -211,15 +215,13 @@ void SDLGPURenderTarget::drawRect(int x, int y, int width, int height) {
         vao.addTexcoord(texCoordWidth0, texCoordHeight1);
         vao.addVertex(x, y);
 
-        g->drawVAO(&vao);
+        m_gpu->drawVAO(&vao);
     }
     unbind();
 }
 
 void SDLGPURenderTarget::enable() {
-    if(!this->isReady()) return;
-
-    auto *gpu = static_cast<SDLGPUInterface *>(g.get());
+    if(!m_gpu || !m_device || !this->isReady()) return;
 
     Color clearCol = this->clearColor;
     if(cv::debug_rt.getBool()) clearCol = argb(0.5f, 0.0f, 0.5f, 0.0f);
@@ -230,37 +232,33 @@ void SDLGPURenderTarget::enable() {
     SDL_GPUTexture *resolveTex = m_msaaTexture ? m_colorTexture : nullptr;
 
     // NOTE: we currently always implicitly use SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM for the format
-    gpu->pushRenderTarget(renderTex, m_depthTexture, this->bClearColorOnDraw, clearCol, resolveTex, m_sampleCount);
+    m_gpu->pushRenderTarget(renderTex, m_depthTexture, this->bClearColorOnDraw, clearCol, resolveTex, m_sampleCount);
 }
 
 void SDLGPURenderTarget::disable() {
-    if(!this->isReady()) return;
+    if(!m_gpu || !m_device || !this->isReady()) return;
 
-    auto *gpu = static_cast<SDLGPUInterface *>(g.get());
-    gpu->popRenderTarget();
+    m_gpu->popRenderTarget();
 }
 
 void SDLGPURenderTarget::bind(unsigned int /*textureUnit*/) {
-    if(!this->isReady()) return;
-
-    auto *gpu = static_cast<SDLGPUInterface *>(g.get());
+    if(!m_gpu || !m_device || !this->isReady()) return;
 
     // backup current
-    m_prevTexture = gpu->getBoundTexture();
-    m_prevSampler = gpu->getBoundSampler();
+    m_prevTexture = m_gpu->getBoundTexture();
+    m_prevSampler = m_gpu->getBoundSampler();
 
     // bind this RT's color texture for sampling
-    gpu->setBoundTexture(m_colorTexture);
-    gpu->setBoundSampler(m_sampler);
-    gpu->setTexturing(true);
+    m_gpu->setBoundTexture(m_colorTexture);
+    m_gpu->setBoundSampler(m_sampler);
+    m_gpu->setTexturing(true);
 }
 
 void SDLGPURenderTarget::unbind() {
-    if(!this->isReady()) return;
+    if(!m_gpu || !m_device || !this->isReady()) return;
 
-    auto *gpu = static_cast<SDLGPUInterface *>(g.get());
-    gpu->setBoundTexture(m_prevTexture);
-    gpu->setBoundSampler(m_prevSampler);
+    m_gpu->setBoundTexture(m_prevTexture);
+    m_gpu->setBoundSampler(m_prevSampler);
 }
 
 #endif

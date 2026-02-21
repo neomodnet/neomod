@@ -15,22 +15,24 @@
 
 typedef struct SDL_Window SDL_Window;
 typedef struct SDL_GPUDevice SDL_GPUDevice;
-typedef struct SDL_GPUFence SDL_GPUFence;
-typedef struct SDL_GPUTransferBuffer SDL_GPUTransferBuffer;
 typedef struct SDL_GPUSampler SDL_GPUSampler;
 typedef struct SDL_GPUTexture SDL_GPUTexture;
 
 struct SDL_GPUSamplerCreateInfo;
-struct SDL_GPUTransferBufferCreateInfo;
 
 class SDLGPUInterface;
 
 class SDLGPUImage final : public Image {
     NOCOPY_NOMOVE(SDLGPUImage)
+   private:
+    friend SDLGPUInterface;
+    SDLGPUImage(SDLGPUInterface *gpu, SDL_GPUDevice *device, std::string filepath, bool mipmapped = false,
+                bool keepInSystemMemory = false);
+    SDLGPUImage(SDLGPUInterface *gpu, SDL_GPUDevice *device, int width, int height, bool mipmapped = false,
+                bool keepInSystemMemory = false);
+
    public:
     SDLGPUImage() = delete;
-    SDLGPUImage(std::string filepath, bool mipmapped = false, bool keepInSystemMemory = false);
-    SDLGPUImage(int width, int height, bool mipmapped = false, bool keepInSystemMemory = false);
     ~SDLGPUImage() override;
 
     void bind(unsigned int textureUnit = 0) const override;
@@ -46,18 +48,18 @@ class SDLGPUImage final : public Image {
 
    private:
     void createOrUpdateSampler();
-    void uploadPixelData(SDL_GPUDevice *device);
+    void uploadPixelData();
+
+    SDLGPUInterface *m_gpu;
+    SDL_GPUDevice *m_device;
 
     SDL_GPUTexture *m_texture{nullptr};
     SDL_GPUSampler *m_sampler{nullptr};
-    SDL_GPUFence *m_uploadFence{nullptr};
-    SDL_GPUTransferBuffer *m_transferBuf{nullptr};  // persistent for bKeepInSystemMemory images
 
     mutable SDL_GPUTexture *m_prevTexture{nullptr};
     mutable SDL_GPUSampler *m_prevSampler{nullptr};
 
     std::unique_ptr<SDL_GPUSamplerCreateInfo> m_lastSamplerCreateInfo{nullptr};
-    std::unique_ptr<SDL_GPUTransferBufferCreateInfo> m_lastTransferBufferCreateInfo{nullptr};
 };
 
 #endif

@@ -26,23 +26,19 @@
 #include <charconv>
 #include <cstring>
 
-SDLGPUShader::SDLGPUShader(std::string vertexShaderPack, std::string fragmentShaderPack, [[maybe_unused]] bool source)
-    : Shader(), m_sVsh(std::move(vertexShaderPack)), m_sFsh(std::move(fragmentShaderPack)) {
-    auto *gpu = static_cast<SDLGPUInterface *>(g.get());
-    if(!gpu || !(m_device = gpu->getDevice())) {
-        debugLog("SDLGPUShader: no GPU device");
-        return;
-    }
-}
+SDLGPUShader::SDLGPUShader(SDLGPUInterface *gpu, SDL_GPUDevice *device, std::string vertexShaderPack,
+                           std::string fragmentShaderPack, [[maybe_unused]] bool source)
+    : Shader(),
+      m_gpu(gpu),
+      m_device(device),
+      m_sVsh(std::move(vertexShaderPack)),
+      m_sFsh(std::move(fragmentShaderPack)) {}
 
 void SDLGPUShader::init() {
-    if(!m_device) {  // should not happen
-        auto *gpu = static_cast<SDLGPUInterface *>(g.get());
-        if(!gpu || !(m_device = gpu->getDevice())) {
-            debugLog("SDLGPUShader: no GPU device");
-            this->setReady(false);
-            return;
-        }
+    if(!m_device || !m_gpu) {  // should not happen
+        debugLog("SDLGPUShader: no GPU/device context");
+        this->setReady(false);
+        return;
     }
 
     // parse vertex shader pack
@@ -159,13 +155,10 @@ void SDLGPUShader::destroy() {
 }
 
 void SDLGPUShader::enable() {
-    if(!this->isReady()) return;
-
-    auto *gpu = static_cast<SDLGPUInterface *>(g.get());
-    if(!gpu) return;
+    if(!m_gpu || !m_device || !this->isReady()) return;
 
     // backup
-    SDLGPUShader *currentShader = gpu->getActiveShader();
+    SDLGPUShader *currentShader = m_gpu->getActiveShader();
 
     if(currentShader == this) {
         engine->showMessageErrorFatal(US_("Programmer Error"), US_("Tried to enable() the same shader twice!"));
@@ -174,24 +167,21 @@ void SDLGPUShader::enable() {
 
     m_lastActiveShader = currentShader;
 
-    gpu->setActiveShader(this);
+    m_gpu->setActiveShader(this);
 }
 
 void SDLGPUShader::disable() {
-    if(!this->isReady()) return;
-
-    auto *gpu = static_cast<SDLGPUInterface *>(g.get());
-    if(!gpu) return;
+    if(!m_gpu || !m_device || !this->isReady()) return;
 
     // restore backup
     assert(m_lastActiveShader);
-    gpu->setActiveShader(m_lastActiveShader);
+    m_gpu->setActiveShader(m_lastActiveShader);
 }
 
 // uniform setters
 
 void SDLGPUShader::writeUniform(std::string_view name, const void *data, u32 dataSize) {
-    if(!this->isReady()) return;
+    if(!m_gpu || !m_device || !this->isReady()) return;
 
     auto it = m_uniformCache.find(name);
     size_t bi, vi;

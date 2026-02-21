@@ -18,15 +18,16 @@
 
 #include <cstring>
 
-SDLGPUVertexArrayObject::SDLGPUVertexArrayObject(DrawPrimitive primitive, DrawUsageType usage, bool keepInSystemMemory)
-    : VertexArrayObject(primitive, usage, keepInSystemMemory), m_convertedPrimitive(primitive) {}
+SDLGPUVertexArrayObject::SDLGPUVertexArrayObject(SDLGPUInterface *gpu, SDL_GPUDevice *device, DrawPrimitive primitive,
+                                                 DrawUsageType usage, bool keepInSystemMemory)
+    : VertexArrayObject(primitive, usage, keepInSystemMemory),
+      m_gpu(gpu),
+      m_device(device),
+      m_convertedPrimitive(primitive) {}
 SDLGPUVertexArrayObject::~SDLGPUVertexArrayObject() { destroy(); }
 
 void SDLGPUVertexArrayObject::init() {
-    if(!this->isAsyncReady() || this->vertices.size() < 2) return;
-
-    auto *gpu = static_cast<SDLGPUInterface *>(g.get());
-    auto *device = gpu->getDevice();
+    if(!m_gpu || !m_device || !this->isAsyncReady() || this->vertices.size() < 2) return;
 
     // if already ready, handle partial updates by re-uploading
     if(this->isReady()) {
@@ -36,14 +37,14 @@ void SDLGPUVertexArrayObject::init() {
             }
 
             // re-upload
-            void *mapped = SDL_MapGPUTransferBuffer(device, m_transferBuffer, true);
+            void *mapped = SDL_MapGPUTransferBuffer(m_device, m_transferBuffer, true);
             if(mapped) {
                 std::memcpy(mapped, m_convertedVertices.data(),
                             sizeof(SDLGPUSimpleVertex) * m_convertedVertices.size());
-                SDL_UnmapGPUTransferBuffer(device, m_transferBuffer);
+                SDL_UnmapGPUTransferBuffer(m_device, m_transferBuffer);
             }
 
-            auto *cmdBuf = SDL_AcquireGPUCommandBuffer(device);
+            auto *cmdBuf = SDL_AcquireGPUCommandBuffer(m_device);
             if(cmdBuf) {
                 auto *copyPass = SDL_BeginGPUCopyPass(cmdBuf);
                 if(copyPass) {
@@ -180,7 +181,7 @@ void SDLGPUVertexArrayObject::init() {
         bufInfo.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
         bufInfo.size = bufSize;
 
-        m_vertexBuffer = SDL_CreateGPUBuffer(device, &bufInfo);
+        m_vertexBuffer = SDL_CreateGPUBuffer(m_device, &bufInfo);
         if(!m_vertexBuffer) {
             debugLog("SDLGPUVertexArrayObject Error: Couldn't CreateGPUBuffer({})", m_convertedVertices.size());
             return;
@@ -193,18 +194,18 @@ void SDLGPUVertexArrayObject::init() {
         tbInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
         tbInfo.size = bufSize;
 
-        m_transferBuffer = SDL_CreateGPUTransferBuffer(device, &tbInfo);
+        m_transferBuffer = SDL_CreateGPUTransferBuffer(m_device, &tbInfo);
         if(!m_transferBuffer) return;
     }
 
     // upload data
-    void *mapped = SDL_MapGPUTransferBuffer(device, m_transferBuffer, false);
+    void *mapped = SDL_MapGPUTransferBuffer(m_device, m_transferBuffer, false);
     if(mapped) {
         std::memcpy(mapped, m_convertedVertices.data(), bufSize);
-        SDL_UnmapGPUTransferBuffer(device, m_transferBuffer);
+        SDL_UnmapGPUTransferBuffer(m_device, m_transferBuffer);
     }
 
-    auto *cmdBuf = SDL_AcquireGPUCommandBuffer(device);
+    auto *cmdBuf = SDL_AcquireGPUCommandBuffer(m_device);
     if(cmdBuf) {
         auto *copyPass = SDL_BeginGPUCopyPass(cmdBuf);
         if(copyPass) {
@@ -230,14 +231,12 @@ void SDLGPUVertexArrayObject::initAsync() { this->setAsyncReady(true); }
 void SDLGPUVertexArrayObject::destroy() {
     VertexArrayObject::destroy();
 
-    auto *device = static_cast<SDLGPUInterface *>(g.get())->getDevice();
-
     if(m_transferBuffer) {
-        SDL_ReleaseGPUTransferBuffer(device, m_transferBuffer);
+        SDL_ReleaseGPUTransferBuffer(m_device, m_transferBuffer);
         m_transferBuffer = nullptr;
     }
     if(m_vertexBuffer) {
-        SDL_ReleaseGPUBuffer(device, m_vertexBuffer);
+        SDL_ReleaseGPUBuffer(m_device, m_vertexBuffer);
         m_vertexBuffer = nullptr;
     }
 
@@ -245,7 +244,7 @@ void SDLGPUVertexArrayObject::destroy() {
 }
 
 void SDLGPUVertexArrayObject::draw() {
-    if(!this->isReady()) return;
+    if(!m_gpu || !m_device || !this->isReady()) return;
 
     const int start = std::clamp<int>(this->iDrawRangeFromIndex > -1
                                           ? this->iDrawRangeFromIndex
@@ -260,8 +259,7 @@ void SDLGPUVertexArrayObject::draw() {
 
     if(start >= end) return;
 
-    auto *gpu = static_cast<SDLGPUInterface *>(g.get());
-    gpu->recordBakedDraw(m_vertexBuffer, (u32)start, (u32)(end - start), m_convertedPrimitive);
+    m_gpu->recordBakedDraw(m_vertexBuffer, (u32)start, (u32)(end - start), m_convertedPrimitive);
 }
 
 #endif

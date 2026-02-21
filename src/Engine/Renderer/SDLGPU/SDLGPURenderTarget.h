@@ -15,14 +15,22 @@
 
 typedef struct SDL_GPUTexture SDL_GPUTexture;
 typedef struct SDL_GPUSampler SDL_GPUSampler;
+typedef struct SDL_GPUDevice SDL_GPUDevice;
 
 // can't forward declare unsized enums, these correspond to the SDL_ prefixed enums of the same name
 using SDLGPUSampleCount = u8;
 
+class SDLGPUInterface;
+
 class SDLGPURenderTarget final : public RenderTarget {
     NOCOPY_NOMOVE(SDLGPURenderTarget)
+   private:
+    friend SDLGPUInterface;
+    SDLGPURenderTarget(SDLGPUInterface *gpu, SDL_GPUDevice *device, int x, int y, int width, int height,
+                       MultisampleType multiSampleType = MultisampleType::X0);
+
    public:
-    SDLGPURenderTarget(int x, int y, int width, int height, MultisampleType multiSampleType = MultisampleType::X0);
+    SDLGPURenderTarget() = delete;
     ~SDLGPURenderTarget() override { destroy(); }
 
     void draw(int x, int y) override;
@@ -41,6 +49,9 @@ class SDLGPURenderTarget final : public RenderTarget {
     void destroy() override;
 
    private:
+    SDLGPUInterface *m_gpu;
+    SDL_GPUDevice *m_device;
+
     SDL_GPUTexture *m_colorTexture{nullptr};
     SDL_GPUTexture *m_msaaTexture{nullptr};  // multisampled color texture (only when MSAA)
     SDL_GPUTexture *m_depthTexture{nullptr};

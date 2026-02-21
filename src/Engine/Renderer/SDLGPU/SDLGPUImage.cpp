@@ -21,15 +21,6 @@
 #include <cstring>
 
 namespace {
-[[nodiscard]] constexpr bool operator==(const SDL_GPUTransferBufferCreateInfo &a,
-                                        const SDL_GPUTransferBufferCreateInfo &b) noexcept {
-    // clang-format off
-    return a.usage == b.usage &&
-           a.size == b.size &&
-           a.props == b.props;
-    // clang-format on
-}
-
 [[nodiscard]] constexpr bool operator==(const SDL_GPUSamplerCreateInfo &a, const SDL_GPUSamplerCreateInfo &b) noexcept {
     // clang-format off
     return a.min_filter == b.min_filter &&
@@ -50,44 +41,38 @@ namespace {
 }
 }  // namespace
 
-SDLGPUImage::SDLGPUImage(std::string filepath, bool mipmapped, bool keepInSystemMemory)
+SDLGPUImage::SDLGPUImage(SDLGPUInterface *gpu, SDL_GPUDevice *device, std::string filepath, bool mipmapped,
+                         bool keepInSystemMemory)
     : Image(std::move(filepath), mipmapped, keepInSystemMemory),
-      m_lastSamplerCreateInfo(std::make_unique<SDL_GPUSamplerCreateInfo>()),
-      m_lastTransferBufferCreateInfo(std::make_unique<SDL_GPUTransferBufferCreateInfo>()) {}
+      m_gpu(gpu),
+      m_device(device),
+      m_lastSamplerCreateInfo(std::make_unique<SDL_GPUSamplerCreateInfo>()) {}
 
-SDLGPUImage::SDLGPUImage(int width, int height, bool mipmapped, bool keepInSystemMemory)
+SDLGPUImage::SDLGPUImage(SDLGPUInterface *gpu, SDL_GPUDevice *device, int width, int height, bool mipmapped,
+                         bool keepInSystemMemory)
     : Image(width, height, mipmapped, keepInSystemMemory),
-      m_lastSamplerCreateInfo(std::make_unique<SDL_GPUSamplerCreateInfo>()),
-      m_lastTransferBufferCreateInfo(std::make_unique<SDL_GPUTransferBufferCreateInfo>()) {}
+      m_gpu(gpu),
+      m_device(device),
+      m_lastSamplerCreateInfo(std::make_unique<SDL_GPUSamplerCreateInfo>()) {}
 
 SDLGPUImage::~SDLGPUImage() {
+    if(!m_gpu || !m_device) return;
     this->destroy();
 
-    auto *device = static_cast<SDLGPUInterface *>(g.get())->getDevice();
-
-    if(m_uploadFence) {
-        SDL_WaitForGPUFences(device, false, &m_uploadFence, 1);
-        SDL_ReleaseGPUFence(device, m_uploadFence);
-        m_uploadFence = nullptr;
-    }
-
-    if(m_transferBuf) SDL_ReleaseGPUTransferBuffer(device, m_transferBuf);
-    if(m_sampler) SDL_ReleaseGPUSampler(device, m_sampler);
-    if(m_texture) SDL_ReleaseGPUTexture(device, m_texture);
+    if(m_sampler) SDL_ReleaseGPUSampler(m_device, m_sampler);
+    if(m_texture) SDL_ReleaseGPUTexture(m_device, m_texture);
 
     this->rawImage.clear();
 }
 
 void SDLGPUImage::init() {
-    if(!this->isAsyncReady()) return;
-    auto *device = static_cast<SDLGPUInterface *>(g.get())->getDevice();
-
-    // wait for async GPU upload to finish
-    if(m_uploadFence) {
-        SDL_WaitForGPUFences(device, false, &m_uploadFence, 1);
-        SDL_ReleaseGPUFence(device, m_uploadFence);
-        m_uploadFence = nullptr;
+    if(!m_gpu || !m_device) {
+        debugLog("SDLGPUImage: no GPU/device context");
+        this->setReady(false);
+        return;
     }
+    if(!this->isAsyncReady()) return;
+
     this->resetDirtyRegion();
 
     // free raw image
@@ -96,37 +81,132 @@ void SDLGPUImage::init() {
     this->setReady(m_texture != nullptr && m_sampler != nullptr);
 }
 
-void SDLGPUImage::uploadPixelData(SDL_GPUDevice *device) {
-    const u32 totalBytes = (u32)this->totalBytes();
+void SDLGPUImage::initAsync() {
+    if(m_texture != nullptr && !this->bKeepInSystemMemory) {
+        this->setAsyncReady(true);
+        return;
+    }
 
-    // reuse persistent transfer buffer for images kept in system memory
-    auto *transferBuf = m_transferBuf;
-    {
-        SDL_GPUTransferBufferCreateInfo tbInfo{};
-        tbInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
-        tbInfo.size = (u32)totalBytes;
-        bool infoMismatch = false;
-        if(!transferBuf || (infoMismatch = (*m_lastTransferBufferCreateInfo != tbInfo))) {
-            if(infoMismatch) {
-                SDL_ReleaseGPUTransferBuffer(device, transferBuf);
-                transferBuf = nullptr;
-            }
-
-            transferBuf = SDL_CreateGPUTransferBuffer(device, &tbInfo);
-            if(!transferBuf) return;
-
-            if(this->bKeepInSystemMemory) {
-                m_transferBuf = transferBuf;
-                *m_lastTransferBufferCreateInfo = tbInfo;
-            }
+    // load raw image from file if needed
+    if(!this->bCreatedImage) {
+        logIfCV(debug_rm, "Resource Manager: Loading {:s}", this->sFilePath);
+        if(!loadRawImage()) {
+            this->setAsyncReady(false);
+            return;
         }
     }
+
+    if(this->isInterrupted()) return;
+
+    // create sampler (applies current filter/wrap mode)
+    if(m_sampler == nullptr) {
+        if(this->filterMode != TextureFilterMode::LINEAR) setFilterMode(this->filterMode);
+        if(this->wrapMode != TextureWrapMode::CLAMP) setWrapMode(this->wrapMode);
+        createOrUpdateSampler();
+    }
+
+    if(!m_sampler) {
+        debugLog("SDLGPUImage Error: Couldn't CreateGPUSampler() on {}!", this->getDebugIdentifier());
+        SDL_ReleaseGPUTexture(m_device, m_texture);
+        m_texture = nullptr;
+        this->setAsyncReady(false);
+        return;
+    }
+
+    // calculate mip levels: cap to 32px smallest mipmap (same as OpenGL/DX11)
+    const u32 maxDim = (u32)std::max(this->iWidth, this->iHeight);
+    const u32 mipLevels =
+        this->bMipmapped ? (u32)std::max(2, (int)std::floor(std::log2(maxDim)) - 4) : 1;  // must be >= 1 if mipmapped
+
+    // create texture (or re-upload to existing)
+    if(m_texture == nullptr) {
+        SDL_GPUTextureCreateInfo texInfo{};
+        texInfo.type = SDL_GPU_TEXTURETYPE_2D;
+        texInfo.format = (SDL_GPUTextureFormat)SDLGPUInterface::DEFAULT_TEXTURE_FORMAT;
+        texInfo.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
+        if(this->bMipmapped) texInfo.usage |= SDL_GPU_TEXTUREUSAGE_COLOR_TARGET;  // needed for GenerateMipmaps
+        texInfo.width = (u32)this->iWidth;
+        texInfo.height = (u32)this->iHeight;
+        texInfo.layer_count_or_depth = 1;
+        texInfo.num_levels = mipLevels;
+        texInfo.sample_count = SDL_GPU_SAMPLECOUNT_1;
+
+        m_texture = SDL_CreateGPUTexture(m_device, &texInfo);
+        if(!m_texture) {
+            debugLog("SDLGPUImage Error: Couldn't CreateGPUTexture() on file {:s}: {}", this->sFilePath,
+                     SDL_GetError());
+            this->setAsyncReady(false);
+            return;
+        }
+    }
+
+    // upload pixel data (and generate mipmaps if needed)
+    if(this->totalBytes() >= (u64)this->iWidth * this->iHeight * Image::NUM_CHANNELS) {
+        this->uploadPixelData();
+    }
+
+    this->setAsyncReady(true);
+}
+
+void SDLGPUImage::destroy() {
+    if(!m_device || !m_gpu) return;
+    if(!this->bKeepInSystemMemory) {
+        if(m_texture) {
+            SDL_ReleaseGPUTexture(m_device, m_texture);
+            m_texture = nullptr;
+        }
+
+        this->rawImage.clear();
+    }
+}
+
+void SDLGPUImage::bind(unsigned int /*textureUnit*/) const {
+    if(!m_gpu || !m_device || !this->isReady()) return;
+
+    // backup current
+    m_prevTexture = m_gpu->getBoundTexture();
+    m_prevSampler = m_gpu->getBoundSampler();
+
+    // bind
+    m_gpu->setBoundTexture(m_texture);
+    m_gpu->setBoundSampler(m_sampler);
+    m_gpu->setTexturing(true);
+}
+
+void SDLGPUImage::unbind() const {
+    if(!m_gpu || !m_device || !this->isReady()) return;
+
+    m_gpu->setBoundTexture(m_prevTexture);
+    m_gpu->setBoundSampler(m_prevSampler);
+}
+
+void SDLGPUImage::setFilterMode(TextureFilterMode newFilterMode) {
+    Image::setFilterMode(newFilterMode);
+    if(!m_gpu || !m_device || !this->isReady()) return;
+    createOrUpdateSampler();
+}
+
+void SDLGPUImage::setWrapMode(TextureWrapMode newWrapMode) {
+    Image::setWrapMode(newWrapMode);
+    if(!m_gpu || !m_device || !this->isReady()) return;
+    createOrUpdateSampler();
+}
+
+void SDLGPUImage::uploadPixelData() {
+    const u32 totalBytes = (u32)this->totalBytes();
+
+    u32 poolBufSize = 0;
+    auto *transferBuf = m_gpu->acquireUploadTransferBuffer(totalBytes, poolBufSize);
+    if(!transferBuf) return;
 
     auto dirtyRects = this->getDirtyRects();
 
     // map and copy pixel data
-    void *mapped = SDL_MapGPUTransferBuffer(device, transferBuf, false);
-    if(!mapped) return;
+    void *mapped = SDL_MapGPUTransferBuffer(m_device, transferBuf, false);
+    if(!mapped) {
+        m_gpu->releaseUploadTransferBuffer(transferBuf, poolBufSize);
+        return;
+    }
 
     const bool fullImage = dirtyRects.size() == 1 && (u32)dirtyRects[0].getWidth() == (u32)this->iWidth &&
                            (u32)dirtyRects[0].getHeight() == (u32)this->iHeight;
@@ -159,10 +239,10 @@ void SDLGPUImage::uploadPixelData(SDL_GPUDevice *device) {
         }
     }
 
-    SDL_UnmapGPUTransferBuffer(device, transferBuf);
+    SDL_UnmapGPUTransferBuffer(m_device, transferBuf);
 
     // upload via copy pass, then generate mipmaps
-    auto *cmdBuf = SDL_AcquireGPUCommandBuffer(device);
+    auto *cmdBuf = SDL_AcquireGPUCommandBuffer(m_device);
     if(cmdBuf) {
         auto *copyPass = SDL_BeginGPUCopyPass(cmdBuf);
         if(copyPass) {
@@ -204,144 +284,19 @@ void SDLGPUImage::uploadPixelData(SDL_GPUDevice *device) {
             SDL_GenerateMipmapsForGPUTexture(cmdBuf, m_texture);
         }
 
-        m_uploadFence = SDL_SubmitGPUCommandBufferAndAcquireFence(cmdBuf);
-    }
-
-    if(!this->bKeepInSystemMemory) SDL_ReleaseGPUTransferBuffer(device, transferBuf);
-}
-
-void SDLGPUImage::initAsync() {
-    if(m_texture != nullptr && !this->bKeepInSystemMemory) {
-        this->setAsyncReady(true);
-        return;
-    }
-
-    // load raw image from file if needed
-    if(!this->bCreatedImage) {
-        logIfCV(debug_rm, "Resource Manager: Loading {:s}", this->sFilePath);
-        if(!loadRawImage()) {
-            this->setAsyncReady(false);
-            return;
+        // wait for the upload to complete on this thread so the transfer buffer is
+        // genuinely idle when returned to the pool
+        auto *fence = SDL_SubmitGPUCommandBufferAndAcquireFence(cmdBuf);
+        if(fence) {
+            SDL_WaitForGPUFences(m_device, false, &fence, 1);
+            SDL_ReleaseGPUFence(m_device, fence);
         }
     }
 
-    if(this->isInterrupted()) return;
-
-    auto *device = static_cast<SDLGPUInterface *>(g.get())->getDevice();
-
-    // sanity: if we have an existing upload fence, wait on it
-    if(m_uploadFence) {
-        SDL_WaitForGPUFences(device, false, &m_uploadFence, 1);
-        SDL_ReleaseGPUFence(device, m_uploadFence);
-        m_uploadFence = nullptr;
-    }
-
-    // create sampler (applies current filter/wrap mode)
-    if(m_sampler == nullptr) {
-        if(this->filterMode != TextureFilterMode::LINEAR) setFilterMode(this->filterMode);
-        if(this->wrapMode != TextureWrapMode::CLAMP) setWrapMode(this->wrapMode);
-        createOrUpdateSampler();
-    }
-
-    if(!m_sampler) {
-        debugLog("SDLGPUImage Error: Couldn't CreateGPUSampler() on {}!", this->getDebugIdentifier());
-        SDL_ReleaseGPUTexture(device, m_texture);
-        m_texture = nullptr;
-        this->setAsyncReady(false);
-        return;
-    }
-
-    // calculate mip levels: cap to 32px smallest mipmap (same as OpenGL/DX11)
-    const u32 maxDim = (u32)std::max(this->iWidth, this->iHeight);
-    const u32 mipLevels =
-        this->bMipmapped ? (u32)std::max(2, (int)std::floor(std::log2(maxDim)) - 4) : 1;  // must be >= 1 if mipmapped
-
-    // create texture (or re-upload to existing)
-    if(m_texture == nullptr) {
-        SDL_GPUTextureCreateInfo texInfo{};
-        texInfo.type = SDL_GPU_TEXTURETYPE_2D;
-        texInfo.format = (SDL_GPUTextureFormat)SDLGPUInterface::DEFAULT_TEXTURE_FORMAT;
-        texInfo.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
-        if(this->bMipmapped) texInfo.usage |= SDL_GPU_TEXTUREUSAGE_COLOR_TARGET;  // needed for GenerateMipmaps
-        texInfo.width = (u32)this->iWidth;
-        texInfo.height = (u32)this->iHeight;
-        texInfo.layer_count_or_depth = 1;
-        texInfo.num_levels = mipLevels;
-        texInfo.sample_count = SDL_GPU_SAMPLECOUNT_1;
-
-        m_texture = SDL_CreateGPUTexture(device, &texInfo);
-        if(!m_texture) {
-            debugLog("SDLGPUImage Error: Couldn't CreateGPUTexture() on file {:s}: {}", this->sFilePath,
-                     SDL_GetError());
-            this->setAsyncReady(false);
-            return;
-        }
-    }
-
-    // upload pixel data (and generate mipmaps if needed)
-    if(this->totalBytes() >= (u64)this->iWidth * this->iHeight * Image::NUM_CHANNELS) {
-        this->uploadPixelData(device);
-    }
-
-    this->setAsyncReady(true);
-}
-
-void SDLGPUImage::destroy() {
-    if(!this->bKeepInSystemMemory) {
-        auto *device = static_cast<SDLGPUInterface *>(g.get())->getDevice();
-
-        if(m_uploadFence) {
-            SDL_WaitForGPUFences(device, false, &m_uploadFence, 1);
-            SDL_ReleaseGPUFence(device, m_uploadFence);
-            m_uploadFence = nullptr;
-        }
-
-        if(m_texture) {
-            SDL_ReleaseGPUTexture(device, m_texture);
-            m_texture = nullptr;
-        }
-
-        this->rawImage.clear();
-    }
-}
-
-void SDLGPUImage::bind(unsigned int /*textureUnit*/) const {
-    if(!this->isReady()) return;
-
-    auto *gpu = static_cast<SDLGPUInterface *>(g.get());
-
-    // backup current
-    m_prevTexture = gpu->getBoundTexture();
-    m_prevSampler = gpu->getBoundSampler();
-
-    // bind
-    gpu->setBoundTexture(m_texture);
-    gpu->setBoundSampler(m_sampler);
-    gpu->setTexturing(true);
-}
-
-void SDLGPUImage::unbind() const {
-    if(!this->isReady()) return;
-
-    auto *gpu = static_cast<SDLGPUInterface *>(g.get());
-    gpu->setBoundTexture(m_prevTexture);
-    gpu->setBoundSampler(m_prevSampler);
-}
-
-void SDLGPUImage::setFilterMode(TextureFilterMode newFilterMode) {
-    Image::setFilterMode(newFilterMode);
-    if(!this->isReady()) return;
-    createOrUpdateSampler();
-}
-
-void SDLGPUImage::setWrapMode(TextureWrapMode newWrapMode) {
-    Image::setWrapMode(newWrapMode);
-    if(!this->isReady()) return;
-    createOrUpdateSampler();
+    m_gpu->releaseUploadTransferBuffer(transferBuf, poolBufSize);
 }
 
 void SDLGPUImage::createOrUpdateSampler() {
-    auto *device = static_cast<SDLGPUInterface *>(g.get())->getDevice();
     {
         SDL_GPUSamplerCreateInfo samplerInfo{};
 
@@ -378,13 +333,13 @@ void SDLGPUImage::createOrUpdateSampler() {
             if(*m_lastSamplerCreateInfo == samplerInfo) {
                 return;
             }
-            SDL_ReleaseGPUSampler(device, m_sampler);
+            SDL_ReleaseGPUSampler(m_device, m_sampler);
             m_sampler = nullptr;
         }
         *m_lastSamplerCreateInfo = samplerInfo;
     }
 
-    m_sampler = SDL_CreateGPUSampler(device, &*m_lastSamplerCreateInfo);
+    m_sampler = SDL_CreateGPUSampler(m_device, &*m_lastSamplerCreateInfo);
 }
 
 #endif

@@ -18,20 +18,27 @@
 #include "Hashing.h"
 #include "types.h"
 
+#include <string>
+#include <vector>
+
 typedef struct SDL_GPUCommandBuffer SDL_GPUCommandBuffer;
 typedef struct SDL_GPUDevice SDL_GPUDevice;
 typedef struct SDL_GPUShader SDL_GPUShader;
 
 typedef u32 SDL_GPUShaderFormat;
 
-#include <string>
-#include <vector>
+class SDLGPUInterface;
 
 class SDLGPUShader final : public Shader {
     NOCOPY_NOMOVE(SDLGPUShader);
 
+   private:
+    friend SDLGPUInterface;
+    SDLGPUShader(SDLGPUInterface *gpu, SDL_GPUDevice *device, std::string vertexShaderPack,
+                 std::string fragmentShaderPack, bool source = true);
+
    public:
-    SDLGPUShader(std::string vertexShaderPack, std::string fragmentShaderPack, bool source = true);
+    SDLGPUShader() = delete;
     ~SDLGPUShader() override { destroy(); }
 
     void enable() override;
@@ -99,12 +106,13 @@ class SDLGPUShader final : public Shader {
 
     void writeUniform(std::string_view name, const void *data, u32 dataSize);
 
+    SDLGPUInterface *m_gpu;
+    SDL_GPUDevice *m_device;
+
     std::string m_sVsh;
     std::string m_sFsh;
 
     SDLGPUShader *m_lastActiveShader{nullptr};  // for restore, to allow nested shaders to restore last enabled shader
-
-    SDL_GPUDevice *m_device{nullptr};  // cached at init for dtor order
     SDL_GPUShader *m_gpuVertexShader{nullptr};
     SDL_GPUShader *m_gpuFragmentShader{nullptr};
 

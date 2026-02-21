@@ -51,6 +51,10 @@ SDLGPUInterface::~SDLGPUInterface() {
             m_cmdBuf = nullptr;
         }
 
+        for(auto &bucket : m_uploadTransferPool) {
+            for(auto *buf : bucket) SDL_ReleaseGPUTransferBuffer(m_device, buf);
+        }
+
         for(auto &[key, pipeline] : m_pipelineCache) SDL_ReleaseGPUGraphicsPipeline(m_device, pipeline);
         m_pipelineCache.clear();
         if(m_vertexBuffer) SDL_ReleaseGPUBuffer(m_device, m_vertexBuffer);
@@ -1721,29 +1725,83 @@ void SDLGPUInterface::initSmoothClipShader() {
 // factory
 
 Image *SDLGPUInterface::createImage(std::string filePath, bool mipmapped, bool keepInSystemMemory) {
-    return new SDLGPUImage(std::move(filePath), mipmapped, keepInSystemMemory);
+    return new SDLGPUImage(this, m_device, std::move(filePath), mipmapped, keepInSystemMemory);
 }
 
 Image *SDLGPUInterface::createImage(i32 width, i32 height, bool mipmapped, bool keepInSystemMemory) {
-    return new SDLGPUImage(width, height, mipmapped, keepInSystemMemory);
+    return new SDLGPUImage(this, m_device, width, height, mipmapped, keepInSystemMemory);
 }
 
 RenderTarget *SDLGPUInterface::createRenderTarget(int x, int y, int width, int height, MultisampleType msType) {
-    return new SDLGPURenderTarget(x, y, width, height, msType);
+    return new SDLGPURenderTarget(this, m_device, x, y, width, height, msType);
 }
 
 Shader *SDLGPUInterface::createShaderFromFile(std::string vertexShaderFilePath, std::string fragmentShaderFilePath) {
-    return new SDLGPUShader(vertexShaderFilePath, fragmentShaderFilePath,
+    return new SDLGPUShader(this, m_device, vertexShaderFilePath, fragmentShaderFilePath,
                             false);  // NOTE: not currently implemented (all shaders are included as binary data)
 }
 
 Shader *SDLGPUInterface::createShaderFromSource(std::string vertexShader, std::string fragmentShader) {
-    return new SDLGPUShader(vertexShader, fragmentShader);
+    return new SDLGPUShader(this, m_device, vertexShader, fragmentShader);
 }
 
 VertexArrayObject *SDLGPUInterface::createVertexArrayObject(DrawPrimitive primitive, DrawUsageType usage,
                                                             bool keepInSystemMemory) {
-    return new SDLGPUVertexArrayObject(primitive, usage, keepInSystemMemory);
+    return new SDLGPUVertexArrayObject(this, m_device, primitive, usage, keepInSystemMemory);
+}
+
+// upload transfer buffer pool
+
+SDL_GPUTransferBuffer *SDLGPUInterface::acquireUploadTransferBuffer(u32 minSize, u32 &outAllocSize) {
+    const u32 idealSize = std::bit_ceil(minSize);
+    const u32 classIdx = std::countr_zero(idealSize) - POOL_MIN_LOG2;
+
+    {
+        const Sync::scoped_lock lock(m_uploadTransferPoolMutex);
+
+        // try exact class first, then scan upward for the smallest usable buffer
+        for(u32 i = classIdx; i < POOL_NUM_CLASSES; i++) {
+            auto &bucket = m_uploadTransferPool[i];
+            if(!bucket.empty()) {
+                auto *buf = bucket.back();
+                bucket.pop_back();
+                outAllocSize = 1u << (i + POOL_MIN_LOG2);
+                m_uploadTransferPoolBytes -= outAllocSize;
+                return buf;
+            }
+        }
+    }
+
+    // nothing usable in pool, so create a new one
+    outAllocSize = idealSize;
+    SDL_GPUTransferBufferCreateInfo tbInfo{
+        .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
+        .size = outAllocSize,
+        .props = 0,
+    };
+    return SDL_CreateGPUTransferBuffer(m_device, &tbInfo);
+}
+
+void SDLGPUInterface::releaseUploadTransferBuffer(SDL_GPUTransferBuffer *&bufArg, u32 &sizeArg) {
+    auto *buf = bufArg;
+    const u32 size = sizeArg;
+    bufArg = nullptr;
+    sizeArg = 0;
+
+    const u32 classIdx = std::countr_zero(size) - POOL_MIN_LOG2;
+
+    {
+        const Sync::scoped_lock lock(m_uploadTransferPoolMutex);
+
+        if(classIdx < POOL_NUM_CLASSES && m_uploadTransferPoolBytes + size <= UPLOAD_POOL_BUDGET) {
+            m_uploadTransferPool[classIdx].push_back(buf);
+            m_uploadTransferPoolBytes += size;
+            return;
+        }
+    }
+
+    // bucket full or over budget, so just release directly
+    SDL_ReleaseGPUTransferBuffer(m_device, buf);
 }
 
 // util
