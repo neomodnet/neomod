@@ -51,47 +51,40 @@
 using namespace flags::operators;
 
 void UIModList::draw() {
-    std::vector<SkinImage *> mods;
+    // TODO: when can this->flags actually change? why can't we just store the flags ourselves instead of using a pointer
+    if(this->last_flags != *this->flags) {
+        this->last_flags = *this->flags;
 
-    if(flags::has<LegacyFlags::Perfect>(*this->flags))
-        mods.push_back(osu->getSkin()->i_modselect_pf);
-    else if(flags::has<LegacyFlags::SuddenDeath>(*this->flags))
-        mods.push_back(osu->getSkin()->i_modselect_sd);
+        Replay::Mods temp = Replay::Mods::from_legacy(*this->flags);
+        // clientside nightcore
+        if(cv::nightcore_enjoyer.getBool() && (temp.speed == 1.5f || temp.speed == 0.75f)) {
+            temp.flags |= ModFlags::NoPitchCorrection;
+        } else {
+            temp.flags &= ~ModFlags::NoPitchCorrection;
+        }
 
-    if(cv::nightcore_enjoyer.getBool()) {
-        if(flags::has<LegacyFlags::DoubleTime>(*this->flags)) mods.push_back(osu->getSkin()->i_modselect_nc);
-        if(flags::has<LegacyFlags::HalfTime>(*this->flags)) mods.push_back(osu->getSkin()->i_modselect_dc);
-    } else {
-        if(flags::has<LegacyFlags::DoubleTime>(*this->flags)) mods.push_back(osu->getSkin()->i_modselect_dt);
-        if(flags::has<LegacyFlags::HalfTime>(*this->flags)) mods.push_back(osu->getSkin()->i_modselect_ht);
+        this->mod_images.clear();
+        Skin::getModImagesForMods(this->mod_images, temp);
     }
 
-    if(flags::has<LegacyFlags::NoFail>(*this->flags)) mods.push_back(osu->getSkin()->i_modselect_nf);
-    if(flags::has<LegacyFlags::Easy>(*this->flags)) mods.push_back(osu->getSkin()->i_modselect_ez);
-    if(flags::has<LegacyFlags::TouchDevice>(*this->flags)) mods.push_back(osu->getSkin()->i_modselect_td);
-    if(flags::has<LegacyFlags::Hidden>(*this->flags)) mods.push_back(osu->getSkin()->i_modselect_hd);
-    if(flags::has<LegacyFlags::HardRock>(*this->flags)) mods.push_back(osu->getSkin()->i_modselect_hr);
-    if(flags::has<LegacyFlags::Relax>(*this->flags)) mods.push_back(osu->getSkin()->i_modselect_rx);
-    if(flags::has<LegacyFlags::Autoplay>(*this->flags)) mods.push_back(osu->getSkin()->i_modselect_auto);
-    if(flags::has<LegacyFlags::SpunOut>(*this->flags)) mods.push_back(osu->getSkin()->i_modselect_so);
-    if(flags::has<LegacyFlags::Autopilot>(*this->flags)) mods.push_back(osu->getSkin()->i_modselect_ap);
-    if(flags::has<LegacyFlags::Target>(*this->flags)) mods.push_back(osu->getSkin()->i_modselect_target);
-    if(flags::has<LegacyFlags::ScoreV2>(*this->flags)) mods.push_back(osu->getSkin()->i_modselect_sv2);
-
     g->setColor(0xffffffff);
-    vec2 modPos = this->getPos();
-    for(auto mod : mods) {
-        float target_height = this->getSize().y;
-        float scaling_factor = target_height / mod->getSize().y;
-        float target_width = mod->getSize().x * scaling_factor;
+    vec2 mod_pos = this->getPos();
 
-        vec2 fixed_pos = modPos;
+    const auto *skin = osu->getSkin();
+    for(const auto memb : this->mod_images) {
+        const SkinImage *mod_icon = skin->*memb;
+        float target_height = this->getSize().y;
+        float scaling_factor = target_height / mod_icon->getSize().y;
+        float target_width = mod_icon->getSize().x * scaling_factor;
+
+        vec2 fixed_pos = mod_pos;
         fixed_pos.x += (target_width / 2);
         fixed_pos.y += (target_height / 2);
-        mod->draw(fixed_pos, scaling_factor);
+        mod_icon->draw(fixed_pos, scaling_factor);
 
         // Overlap mods a bit, just like peppy's client does
-        modPos.x += target_width * 0.6;
+        // TODO: check if this is right... should probably re-use the logic in RankingScreen?
+        mod_pos.x += target_width * 0.6f;
     }
 }
 

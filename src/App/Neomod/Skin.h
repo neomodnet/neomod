@@ -20,6 +20,11 @@ enum class ScoreGrade : uint8_t;
 
 extern Image *MISSING_TEXTURE;
 
+namespace Replay {
+struct Mods;
+}
+enum class LegacyFlags : u32;
+
 // for lazy-loading "is @2x" checks, for non-animated skin images (which belong to the SkinImage class)
 struct BasicSkinImage {
     BasicSkinImage() = default;
@@ -38,9 +43,7 @@ struct BasicSkinImage {
     mutable i8 scale_mul{-1};
 };
 
-struct SkinIniOptions {
-
-};
+struct SkinIniOptions {};
 
 struct Skin final {
    private:
@@ -81,6 +84,21 @@ struct Skin final {
     // drawable helpers
     Color getComboColorForCounter(int i, int offset) const;
     inline void setBeatmapComboColors(std::vector<Color> colors) { this->c_beatmap_combo_colors = std::move(colors); }
+
+    // these theoretically "should" match osu!stable mod image stacking order (by increasing bit position)
+    static void getModImagesForMods(std::vector<SkinImage * Skin::*> &outVec, LegacyFlags flags);
+    static void getModImagesForMods(std::vector<SkinImage * Skin::*> &outVec, const Replay::Mods &mods);
+
+    inline static std::vector<SkinImage * Skin::*> getModImagesForMods(LegacyFlags flags) {
+        std::vector<SkinImage * Skin::*> ret;
+        getModImagesForMods(ret, flags);
+        return ret;
+    }
+    inline static std::vector<SkinImage * Skin::*> getModImagesForMods(const Replay::Mods &mods) {
+        std::vector<SkinImage * Skin::*> ret;
+        getModImagesForMods(ret, mods);
+        return ret;
+    }
 
     [[nodiscard]] const BasicSkinImage &getGradeImageLarge(ScoreGrade grade) const;
     [[nodiscard]] const SkinImage *getGradeImageSmall(ScoreGrade grade) const;

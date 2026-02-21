@@ -1200,3 +1200,45 @@ const SkinImage *Skin::getGradeImageSmall(ScoreGrade grade) const {
             return this->i_ranking_d_small;
     }
 }
+
+void Skin::getModImagesForMods(std::vector<SkinImage * Skin::*> &outVec, const Replay::Mods &mods) {
+    using enum ModFlags;
+
+    const bool modSS = flags::has<Perfect>(mods.flags);
+    const bool modSD = flags::has<SuddenDeath>(mods.flags);
+
+    // only for exact values
+    const bool pitchCore = flags::has<NoPitchCorrection>(mods.flags);
+    const bool modNC = mods.speed == 1.5f && pitchCore;
+    const bool modDT = mods.speed == 1.5f && !modNC;  // only show dt/nc, not both
+
+    const bool modDC = mods.speed == 0.75f && pitchCore;
+    const bool modHT = mods.speed == 0.75f && !modDC;
+
+    if(flags::has<NoFail>(mods.flags)) outVec.push_back(&Skin::i_modselect_nf);
+    if(flags::has<Easy>(mods.flags)) outVec.push_back(&Skin::i_modselect_ez);
+    if(flags::has<TouchDevice>(mods.flags)) outVec.push_back(&Skin::i_modselect_td);
+    if(flags::has<Hidden>(mods.flags)) outVec.push_back(&Skin::i_modselect_hd);
+    if(flags::has<HardRock>(mods.flags)) outVec.push_back(&Skin::i_modselect_hr);
+    if(modSD && !modSS) outVec.push_back(&Skin::i_modselect_sd);
+    if(modDT) outVec.push_back(&Skin::i_modselect_dt);
+    if(flags::has<Relax>(mods.flags)) outVec.push_back(&Skin::i_modselect_rx);
+    if(modHT)
+        outVec.push_back(&Skin::i_modselect_ht);
+    else if(modDC)
+        outVec.push_back(&Skin::i_modselect_dc);  // idk where this should actually go since osu doesn't have it
+    if(modNC) outVec.push_back(&Skin::i_modselect_nc);
+    if(flags::has<Autoplay>(mods.flags)) outVec.push_back(&Skin::i_modselect_auto);
+    if(flags::has<SpunOut>(mods.flags)) outVec.push_back(&Skin::i_modselect_so);
+    if(flags::has<Autopilot>(mods.flags)) outVec.push_back(&Skin::i_modselect_ap);
+    if(modSS) outVec.push_back(&Skin::i_modselect_pf);
+    if(flags::has<Target>(mods.flags)) outVec.push_back(&Skin::i_modselect_target);
+    if(flags::has<Nightmare>(mods.flags)) outVec.push_back(&Skin::i_modselect_nightmare);
+    if(flags::has<ScoreV2>(mods.flags)) outVec.push_back(&Skin::i_modselect_sv2);
+
+    return;
+}
+
+void Skin::getModImagesForMods(std::vector<SkinImage * Skin::*> &outVec, LegacyFlags flags) {
+    return Skin::getModImagesForMods(outVec, Replay::Mods::from_legacy(flags));
+}

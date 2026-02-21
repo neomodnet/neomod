@@ -3,6 +3,7 @@
 #include "Database.h"
 #include "ScreenBackable.h"
 #include "score.h"
+#include "Skin.h"
 
 class CBaseUIContainer;
 class CBaseUIScrollView;
@@ -36,7 +37,7 @@ class RankingScreen final : public ScreenBackable {
     void updateLayout() override;
     void onBack() override;
 
-    void drawModImage(SkinImage *image, vec2 &pos, vec2 &max);
+    void drawModImage(const SkinImage *image, vec2 &pos, vec2 &max) const;
 
     void setGrade(ScoreGrade grade);
     void setIndex(int index);
@@ -62,24 +63,7 @@ class RankingScreen final : public ScreenBackable {
     float fHitErrorAvgMax;
 
     UString sMods;
-    bool bModSS;
-    bool bModSD;
-    bool bModEZ;
-    bool bModHD;
-    bool bModHR;
-    bool bModNightmare;
-    bool bModScorev2;
-    bool bModTarget;
-    bool bModSpunout;
-    bool bModRelax;
-    bool bModNF;
-    bool bModAutopilot;
-    bool bModAuto;
-    bool bModTD;
-    bool bModNC;
-    bool bModDT;
-    bool bModHT;
-
+    std::vector<SkinImage * Skin::*> modImages;
     std::vector<ConVar *> extraMods;
 
     // custom

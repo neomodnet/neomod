@@ -5,6 +5,9 @@
 #include "DownloadHandle.h"
 #include "UIScreen.h"
 #include "score.h"
+// need to include full Skin.h because MSVC blows up if you forward declare pointers-to-members
+// https://learn.microsoft.com/en-us/cpp/preprocessor/pointers-to-members?view=msvc-170
+#include "Skin.h"
 
 class Room;
 struct Packet;
@@ -31,6 +34,10 @@ class UIModList final : public CBaseUIContainer {
 
     // Dummy function for RoomScreen generic macro
     void setSizeToContent(int /*a*/, int /*b*/) {}
+
+   private:
+    LegacyFlags last_flags{};
+    std::vector<SkinImage * Skin::*> mod_images;
 };
 
 class RoomScreen final : public UIScreen {
