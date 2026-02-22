@@ -301,13 +301,13 @@ void VisualProfiler::draw() {
                         g->translate(leftTrans, 0);
                         if(!this->textLines[i].textLeftAligned.isEmpty())
                             g->drawString(textFont, this->textLines[i].textLeftAligned,
-                                          TextShadow{.col_text = textColor, .offs_px = (int)(1 * env->getDPIScale())});
+                                          TextShadow{.col_text = textColor, .offs_px = std::round(1.f * env->getDPIScale())});
 
                         const int rightTrans =
                             (engine->getScreenWidth() - (this->textLines[i].widthRight * textScale)) - leftTrans;
                         g->translate(rightTrans, 0);
                         g->drawString(textFont, this->textLines[i].textRightAligned,
-                                      TextShadow{.col_text = textColor, .offs_px = (int)(1 * env->getDPIScale())});
+                                      TextShadow{.col_text = textColor, .offs_px = std::round(1.f * env->getDPIScale())});
                     }
                     g->popTransform();
                 }

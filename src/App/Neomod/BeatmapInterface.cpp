@@ -183,7 +183,7 @@ void BeatmapInterface::drawDebug() {
                                                 t.sampleIndex, t.volume, (i32)t.uninherited, (i32)t.kiai);
 
         g->drawString(debugFont, curtpString,
-                      TextShadow{.col_text = textColor, .col_shadow = shadowColor, .offs_px = 1});
+                      TextShadow{.col_text = textColor, .col_shadow = shadowColor, .offs_px = 1.f});
 
         // spacing for next
         g->translate(0, dbgfontheight);

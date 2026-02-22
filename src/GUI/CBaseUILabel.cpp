@@ -55,8 +55,8 @@ void CBaseUILabel::drawText() {
             g->translate((i32)(this->getPos().x + xPosAdd),
                          (i32)(this->getPos().y + this->getSize().y / 2.f + this->fStringHeight / 2.f));
             if(this->bDrawTextShadow) {
-                const i32 shadowOffset =
-                    (i32)std::round(1.0f * ((f32)this->font->getDPI() / 96.0f));  // NOTE: "abusing" font dpi
+                const f32 shadowOffset =
+                    std::round(1.0f * ((f32)this->font->getDPI() / 96.0f));  // NOTE: "abusing" font dpi
 
                 g->drawString(
                     this->font, this->sText,

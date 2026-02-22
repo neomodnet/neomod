@@ -513,7 +513,7 @@ void McFontImpl::drawString(const UString &text, std::optional<TextShadow> shado
 
     if(const auto &shadOpt = shadow; shadOpt.has_value() && shadOpt->col_shadow.A() > 0) {
         const auto &shadowConf = *shadOpt;
-        const int px = shadowConf.offs_px;
+        const float px = shadowConf.offs_px;
 
         g->translate(px, px);
         g->setColor(shadowConf.col_shadow);

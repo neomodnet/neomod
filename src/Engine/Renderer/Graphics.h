@@ -29,7 +29,7 @@ class VertexArrayObject;
 struct TextShadow {
     Color col_text{rgb(255, 255, 255)};
     Color col_shadow{rgb(0, 0, 0)};
-    int offs_px{1};  // not scaled to display DPI
+    float offs_px{1.f};  // not scaled to display DPI
 };
 
 enum class AnchorPoint : uint8_t {

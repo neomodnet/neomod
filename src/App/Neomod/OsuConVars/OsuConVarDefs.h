@@ -869,7 +869,9 @@ CONVAR(scoreboard_animations, true, CLIENT | SKINS | SERVER, "animate in-game sc
 CONVAR(scores_bonus_pp, true, CLIENT | SKINS | SERVER, "whether to add bonus pp to total (real) pp or not");
 CONVAR(scores_enabled, true, CLIENT | SKINS | SERVER);
 CONVAR(scores_save_immediately, true, CLIENT | SKINS | SERVER, "write scores.db as soon as a new score is added");
-CONVAR(scores_sort_by_pp, true, CLIENT | SKINS | SERVER, "display pp in score browser instead of score");
+CONVAR(scores_sort_by_pp, true, CLIENT | SKINS | SERVER, "fall back to pp in score browser instead of score");
+CONVAR(scores_always_display_pp, false, CLIENT | SKINS | SERVER,
+       "ignore score sorting type and always show pp instead of score");
 CONVAR(scrubbing_smooth, true, CLIENT | SKINS | SERVER);
 CONVAR(seek_delta, 5, CLIENT | SKINS | SERVER, "how many seconds to skip backward/forward when quick seeking");
 CONVAR(show_approach_circle_on_first_hidden_object, true, CLIENT | SKINS | SERVER);

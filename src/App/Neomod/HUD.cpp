@@ -685,7 +685,7 @@ void HUD::drawFps() {
     const f32 dpiScale = Osu::getUIScale();
 
     const i32 margin = std::round(3.0f * dpiScale);
-    const i32 shadowOffset = std::round(1.0f * dpiScale);
+    const f32 shadowOffset = std::round(1.0f * dpiScale);
 
     // console font does not scale with DPI
     static const i32 runtimeConfigHeight = (i32)(engine->getConsoleFont()->getHeight() * 1.25f);
@@ -1803,7 +1803,7 @@ void HUD::drawStatistics(const HUDStats &s) {
 
             g->translate(xOffset, yOffset);
 
-            g->drawString(font, text, TextShadow{.col_text = textColor, .col_shadow = shadowColor, .offs_px = 1});
+            g->drawString(font, text, TextShadow{.col_text = textColor, .col_shadow = shadowColor, .offs_px = 1.f});
 
             g->translate((-xOffset), (-yOffset) + yDelta);
         };

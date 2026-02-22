@@ -62,12 +62,14 @@ class ScoreButton final : public CBaseUIButton {
     UIContextMenu *contextMenu;
 
     // STYLE::SCORE_BROWSER
+    // TODO: clean up this mess of confusing variable/names
     UString sScoreTime;
     UString sScoreUsername;
-    UString sScoreScore;
-    UString sScoreScorePP;
+    UString sFmtedScoreScoreWithCombo;
+    UString sFmtedScorePPWithCombo;
     UString sScoreAccuracy;
     UString sScoreAccuracyFC;
+    UString sFmtedScoreAccuracyWithCombo;
     UString sScoreMods;
     UString sCustom;
 

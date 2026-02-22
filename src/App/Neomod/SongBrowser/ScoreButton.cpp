@@ -170,30 +170,56 @@ void ScoreButton::draw() {
         const float paddingBottom = height * paddingBottomPercent;
         const float scale = (height / scoreFont->getHeight()) * scoreScale;
 
-        UString &string = (this->style == STYLE::TOP_RANKS ? this->sScoreScorePPWeightedPP : this->sScoreScorePP);
+        // TODO: these variable names like "sScoreScorePPWeightedWeight" are so ridiculous
+        constexpr Color topRanksColor = 0xffdeff87;
+        constexpr Color topRanksScorePPWeightedWeightColor = 0xffbbbbbb;
+        constexpr Color songBrowserColor = 0xffffffff;
+        constexpr Color textShadowColor = argb(0.75f, 0.f, 0.f, 0.f);
+
+        TextShadow shadow{.col_text = (this->style == STYLE::TOP_RANKS ? topRanksColor : songBrowserColor),
+                          .col_shadow = textShadowColor,
+                          .offs_px = 0.75f};
+
+        const UString &mainString = [&]() {
+            // top ranks: draw pp + weight % and weighted pp
+            if(this->style == STYLE::TOP_RANKS) {
+                // misleading name, this is just pp but formatted differently...
+                return this->sScoreScorePPWeightedPP;
+            }
+
+            // override behavior
+            if(cv::scores_always_display_pp.getBool()) {
+                return this->sFmtedScorePPWithCombo;
+            }
+
+            // show score for score sorting, pp for pp sorting
+            const auto &sortTypeString{cv::songbrowser_scores_sortingtype.getString()};
+            if(sortTypeString == "By pp"sv) {
+                return this->sFmtedScorePPWithCombo;
+            } else if(sortTypeString == "By score"sv) {
+                return this->sFmtedScoreScoreWithCombo;
+            } else {
+                // fallback behavior for other sorting types (misleading convar name)
+                if(cv::scores_sort_by_pp.getBool()) {
+                    return this->sFmtedScorePPWithCombo;
+                } else {
+                    return this->sFmtedScoreScoreWithCombo;
+                }
+            }
+        }();
 
         g->scale(scale, scale);
         g->translate(
             (int)(this->getPos().x + this->getSize().x * indexNumberWidthPercent + gradeWidth + gradePaddingRight),
             (int)(yPos + height * 1.5f + scoreFont->getHeight() * scale / 2.0f - paddingBottom));
-        g->translate(0.75f, 0.75f);
-        g->setColor(Color(0xff000000).setA(0.75f));
 
-        const auto &scoreStr = (this->style == STYLE::TOP_RANKS ? string : this->sScoreScore);
-        g->drawString(scoreFont, (cv::scores_sort_by_pp.getBool() ? string : scoreStr));
-        g->translate(-0.75f, -0.75f);
-        g->setColor((this->style == STYLE::TOP_RANKS ? 0xffdeff87 : 0xffffffff));
-        g->drawString(scoreFont, (cv::scores_sort_by_pp.getBool() ? string : scoreStr));
+        g->drawString(scoreFont, mainString, shadow);
 
         if(this->style == STYLE::TOP_RANKS) {
-            g->translate(scoreFont->getStringWidth(string) * scale, 0);
-            g->translate(0.75f, 0.75f);
-            g->setColor(Color(0xff000000).setA(0.75f));
+            shadow.col_text = topRanksScorePPWeightedWeightColor;
 
-            g->drawString(scoreFont, this->sScoreScorePPWeightedWeight);
-            g->translate(-0.75f, -0.75f);
-            g->setColor(0xffbbbbbb);
-            g->drawString(scoreFont, this->sScoreScorePPWeightedWeight);
+            g->translate(scoreFont->getStringWidth(mainString) * scale, 0);
+            g->drawString(scoreFont, this->sScoreScorePPWeightedWeight, shadow);
         }
     }
     g->popTransform();
@@ -384,8 +410,9 @@ void ScoreButton::update(CBaseUIEventCtx &c) {
                 db->scores_mtx.unlock();
             }
 
-            this->sScoreScorePP = fmt::format("PP: {}pp ({}x{:s})", (int)std::round(sc.get_pp()),
-                                              SString::thousands(sc.comboMax), comboBasedSuffix(sc.perfect, fullCombo));
+            this->sFmtedScorePPWithCombo =
+                fmt::format("PP: {}pp ({}x{:s})", (int)std::round(sc.get_pp()), SString::thousands(sc.comboMax),
+                            comboBasedSuffix(sc.perfect, fullCombo));
         }
     }
 
@@ -683,20 +710,21 @@ void ScoreButton::setScore(const FinishedScore &newscore, const DatabaseBeatmap 
     const std::string_view comboSuffix = comboBasedSuffix(sc.perfect, fullCombo);
 
     this->scoreGrade = sc.calculate_grade();
-    this->sScoreUsername = UString(sc.playerName.c_str());
-    this->sScoreScore =
+    this->sScoreUsername = sc.playerName;
+    this->sFmtedScoreScoreWithCombo =
         fmt::format("Score: {} ({}x{:s})", SString::thousands(sc.score), SString::thousands(sc.comboMax), comboSuffix);
 
     if(f64 pp = sc.get_pp(); pp == -1.0) {
-        this->sScoreScorePP = fmt::format("PP: ??? ({}x{:s})", SString::thousands(sc.comboMax), comboSuffix);
+        this->sFmtedScorePPWithCombo = fmt::format("PP: ??? ({}x{:s})", SString::thousands(sc.comboMax), comboSuffix);
     } else {
         // TODO: should PP use thousands separators?
-        this->sScoreScorePP =
+        this->sFmtedScorePPWithCombo =
             fmt::format("PP: {}pp ({}x{:s})", (int)std::round(pp), SString::thousands(sc.comboMax), comboSuffix);
     }
 
     this->sScoreAccuracy = fmt::format("{:.2f}%", accuracy);
     this->sScoreAccuracyFC = fmt::format("{}{:.2f}%", sc.perfect ? "PFC " : (fullCombo ? "FC" : ""), accuracy);
+
     this->sScoreMods = getModsStringForDisplay(sc.mods);
     this->sCustom = (sc.mods.speed != 1.0f ? fmt::format("Spd: {:g}x", sc.mods.speed) : US_(""));
     if(map != nullptr) {
@@ -742,7 +770,7 @@ void ScoreButton::setScore(const FinishedScore &newscore, const DatabaseBeatmap 
     std::array<char, 64> dateString{};
     int written = std::strftime(dateString.data(), dateString.size(), "%d-%b-%y %H:%M:%S", &tm);
 
-    this->sScoreDateTime = UString(dateString.data(), written);
+    this->sScoreDateTime = UString{dateString.data(), written};
     this->iScoreUnixTimestamp = sc.unixTimestamp;
 
     UString achievedOn = "Achieved on ";
