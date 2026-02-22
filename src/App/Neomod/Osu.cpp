@@ -1025,31 +1025,26 @@ void Osu::onKeyDown(KeyboardEvent &key) {
                 ui->getModSelector()->setVisible(!ui->getModSelector()->isVisible());
             }
 
-            // quick save/load
             if(!BanchoState::is_playing_a_multi_map()) {
-                if(key == cv::QUICK_SAVE.getVal<SCANCODE>()) this->iQuickSaveMS = this->map_iface->getTime();
-
-                if(key == cv::QUICK_LOAD.getVal<SCANCODE>()) {
+                // quick save/load
+                if(key == cv::QUICK_SAVE.getVal<SCANCODE>()) {
+                    this->iQuickSaveMS = this->map_iface->getTime();
+                } else if(key == cv::QUICK_LOAD.getVal<SCANCODE>()) {
                     // special case: allow cancelling the failing animation here
                     if(this->map_iface->hasFailed()) this->map_iface->cancelFailing();
-
                     this->map_iface->seekMS(this->iQuickSaveMS);
-                }
-            }
+                } else {
+                    // quick seek
+                    const bool backward = (key == cv::SEEK_TIME_BACKWARD.getVal<SCANCODE>());
+                    const bool forward = (key == cv::SEEK_TIME_FORWARD.getVal<SCANCODE>());
+                    if(backward || forward) {
+                        if(const i32 diffMS = (cv::seek_delta.getInt() * (backward ? -1 : 1)) * 1000; diffMS != 0) {
+                            // special case: allow cancelling the failing animation here
+                            if(this->map_iface->hasFailed()) this->map_iface->cancelFailing();
 
-            // quick seek
-            if(!BanchoState::is_playing_a_multi_map()) {
-                const bool backward = (key == cv::SEEK_TIME_BACKWARD.getVal<SCANCODE>());
-                const bool forward = (key == cv::SEEK_TIME_FORWARD.getVal<SCANCODE>());
-                if(backward || forward) {
-                    i32 diff = 0;
-                    if(backward) diff -= cv::seek_delta.getInt();
-                    if(forward) diff += cv::seek_delta.getInt();
-                    if(diff != 0) {
-                        // special case: allow cancelling the failing animation here
-                        if(this->map_iface->hasFailed()) this->map_iface->cancelFailing();
-
-                        this->map_iface->seekMS(this->map_iface->getTime() + diff);
+                            const i32 destMS = std::max((i32)this->map_iface->getTime() + diffMS, 0);
+                            this->map_iface->seekMS(destMS);
+                        }
                     }
                 }
             }

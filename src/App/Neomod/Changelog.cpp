@@ -37,6 +37,8 @@ Changelog::Changelog() : ScreenBackable() {
     v43_05.changes = {
         R"(- Added support for customizing the skin used for fallback/missing elements (shift+click on a skin in the skin list))",
         R"(- Added "Download maps" button in multiplayer rooms)",
+        R"(- Improved performance with the SDL_gpu renderer)",
+        R"(- Fixed quick-seek jumping by milliseconds instead of seconds)",
         R"(- Fixed multiplayer lobby showing duplicate rooms)",
         R"(- Fixed WebSocket connections silently dying)",
     };
