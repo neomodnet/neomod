@@ -4,22 +4,6 @@
 #include "Engine.h"
 #include "ContainerRanges.h"
 
-VertexArrayObject::VertexArrayObject(DrawPrimitive primitive, DrawUsageType usage, bool keepInSystemMemory)
-    : Resource(VAO) {
-    this->primitive = primitive;
-    this->usage = usage;
-    this->bKeepInSystemMemory = keepInSystemMemory;
-
-    this->iNumVertices = 0;
-    this->bHasTexcoords = false;
-
-    this->iDrawRangeFromIndex = -1;
-    this->iDrawRangeToIndex = -1;
-    this->iDrawPercentNearestMultiple = 0;
-    this->fDrawPercentFromPercent = 0.0f;
-    this->fDrawPercentToPercent = 1.0f;
-}
-
 void VertexArrayObject::init() {
     // this->bReady may only be set in inheriting classes, if baking was successful
 }

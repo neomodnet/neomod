@@ -20,22 +20,25 @@ namespace SliderRenderer {
 
 namespace {  // static namespace
 
-Shader *s_BLEND_SHADER = nullptr;
-float s_UNIT_CIRCLE_VAO_DIAMETER = 0.0f;
+Shader *s_BLEND_SHADER{nullptr};
+float s_UNIT_CIRCLE_VAO_DIAMETER{0.0f};
 
 // base mesh
-float s_MESH_CENTER_HEIGHT = 0.5f;   // Camera::buildMatrixOrtho2D() uses -1 to 1 for zn/zf, so don't make this too high
-int s_UNIT_CIRCLE_SUBDIVISIONS = 0;  // see osu_slider_body_unit_circle_subdivisions now
+float s_MESH_CENTER_HEIGHT{0.5f};   // Camera::buildMatrixOrtho2D() uses -1 to 1 for zn/zf, so don't make this too high
+int s_UNIT_CIRCLE_SUBDIVISIONS{0};  // see slider_body_unit_circle_subdivisions now
 std::vector<float> s_UNIT_CIRCLE;
-VertexArrayObject *s_UNIT_CIRCLE_VAO = nullptr;
-VertexArrayObject *s_UNIT_CIRCLE_VAO_BAKED = nullptr;
-VertexArrayObject *s_UNIT_CIRCLE_VAO_TRIANGLES = nullptr;
+// managed by RM (renderer-bound baking)
+VertexArrayObject *s_UNIT_CIRCLE_VAO_BAKED{nullptr};
+
+// unbaked, basic VAO containers
+VertexArrayObject s_UNIT_CIRCLE_VAO{DrawPrimitive::TRIANGLE_FAN};
+VertexArrayObject s_UNIT_CIRCLE_VAO_TRIANGLES{DrawPrimitive::TRIANGLES};
 
 // tiny rendering optimization for RenderTarget
-float s_fBoundingBoxMinX = (std::numeric_limits<float>::max)();
-float s_fBoundingBoxMaxX = 0.0f;
-float s_fBoundingBoxMinY = (std::numeric_limits<float>::max)();
-float s_fBoundingBoxMaxY = 0.0f;
+float s_fBoundingBoxMinX{(std::numeric_limits<float>::max)()};
+float s_fBoundingBoxMaxX{0.0f};
+float s_fBoundingBoxMinY{(std::numeric_limits<float>::max)()};
+float s_fBoundingBoxMaxY{0.0f};
 
 struct UniformCache {
     // convar-dependent settings (updated by convar callbacks)
@@ -148,8 +151,8 @@ std::unique_ptr<VertexArrayObject> generateVAO(const std::vector<vec2> &points, 
         }
 
         if(!debugSquareVao) {
-            const std::vector<vec3> &meshVertices = s_UNIT_CIRCLE_VAO_TRIANGLES->getVertices();
-            const std::vector<vec2> &meshTexCoords = s_UNIT_CIRCLE_VAO_TRIANGLES->getTexcoords();
+            const std::vector<vec3> &meshVertices = s_UNIT_CIRCLE_VAO_TRIANGLES.getVertices();
+            const std::vector<vec2> &meshTexCoords = s_UNIT_CIRCLE_VAO_TRIANGLES.getTexcoords();
             for(int v = 0; v < meshVertices.size(); v++) {
                 vao->addVertex(meshVertices[v] + vec3(point.x, point.y, 0) + translation);
                 vao->addTexcoord(meshTexCoords[v]);
@@ -221,7 +224,7 @@ void draw(const std::vector<vec2> &points, const std::vector<vec2> &alwaysPoints
 
             // draw curve mesh
             drawFillSliderBodyPeppy(
-                points, (cv::slider_legacy_use_baked_vao.getBool() ? s_UNIT_CIRCLE_VAO_BAKED : s_UNIT_CIRCLE_VAO),
+                points, (cv::slider_legacy_use_baked_vao.getBool() ? s_UNIT_CIRCLE_VAO_BAKED : &s_UNIT_CIRCLE_VAO),
                 hitcircleDiameter / 2.0f, drawFromIndex, drawUpToIndex);
 
             if(alwaysPoints.size() > 0)
@@ -279,7 +282,7 @@ void draw(VertexArrayObject *vao, const std::vector<vec2> &alwaysPoints, vec2 tr
             preDrawColorSetup(useGradientImage, sliderTimeForRainbow, colorRGBMultiplier, undimmedColor);
 
             // draw curve mesh
-            vao->setDrawPercent(from, to, s_UNIT_CIRCLE_VAO_TRIANGLES->getVertices().size());
+            vao->setDrawPercent(from, to, s_UNIT_CIRCLE_VAO_TRIANGLES.getVertices().size());
             g->pushTransform();
             {
                 g->scale(scale, scale);
@@ -359,10 +362,7 @@ void checkUpdateVars(float hitcircleDiameter) {
 
     // build shaders and circle mesh
     if(s_BLEND_SHADER == nullptr)  // only do this once
-    {
-        // build shaders
         s_BLEND_SHADER = resourceManager->createShaderAuto("slider");
-    }
 
     const int subdivisions = cv::slider_body_unit_circle_subdivisions.getInt();
     if(subdivisions != s_UNIT_CIRCLE_SUBDIVISIONS) {
@@ -407,11 +407,8 @@ void checkUpdateVars(float hitcircleDiameter) {
     }
 
     // build vaos
-    if(s_UNIT_CIRCLE_VAO == nullptr) s_UNIT_CIRCLE_VAO = new VertexArrayObject(DrawPrimitive::TRIANGLE_FAN);
     if(s_UNIT_CIRCLE_VAO_BAKED == nullptr)
         s_UNIT_CIRCLE_VAO_BAKED = resourceManager->createVertexArrayObject(DrawPrimitive::TRIANGLE_FAN);
-    if(s_UNIT_CIRCLE_VAO_TRIANGLES == nullptr)
-        s_UNIT_CIRCLE_VAO_TRIANGLES = new VertexArrayObject(DrawPrimitive::TRIANGLES);
 
     // (re-)generate master circle mesh (centered) if the size changed
     // dynamic mods like minimize or wobble have to use the legacy renderer anyway, since the slider shape may change
@@ -423,14 +420,14 @@ void checkUpdateVars(float hitcircleDiameter) {
 
         // triangle fan
         s_UNIT_CIRCLE_VAO_DIAMETER = hitcircleDiameter;
-        s_UNIT_CIRCLE_VAO->clear();
+        s_UNIT_CIRCLE_VAO.clear();
         for(int i = 0; i < s_UNIT_CIRCLE.size() / 5; i++) {
             vec3 vertexPos = vec3((radius * s_UNIT_CIRCLE[i * 5 + 2]), (radius * s_UNIT_CIRCLE[i * 5 + 3]),
                                   s_UNIT_CIRCLE[i * 5 + 4]);
             vec2 vertexTexcoord = vec2(s_UNIT_CIRCLE[i * 5 + 0], s_UNIT_CIRCLE[i * 5 + 1]);
 
-            s_UNIT_CIRCLE_VAO->addVertex(vertexPos);
-            s_UNIT_CIRCLE_VAO->addTexcoord(vertexTexcoord);
+            s_UNIT_CIRCLE_VAO.addVertex(vertexPos);
+            s_UNIT_CIRCLE_VAO.addTexcoord(vertexTexcoord);
 
             s_UNIT_CIRCLE_VAO_BAKED->addVertex(vertexPos);
             s_UNIT_CIRCLE_VAO_BAKED->addTexcoord(vertexTexcoord);
@@ -440,25 +437,25 @@ void checkUpdateVars(float hitcircleDiameter) {
 
         // pure triangles (needed for VertexArrayObject, because we can't merge multiple triangle fan meshes into one
         // VertexArrayObject)
-        s_UNIT_CIRCLE_VAO_TRIANGLES->clear();
+        s_UNIT_CIRCLE_VAO_TRIANGLES.clear();
         vec3 startVertex =
             vec3((radius * s_UNIT_CIRCLE[0 * 5 + 2]), (radius * s_UNIT_CIRCLE[0 * 5 + 3]), s_UNIT_CIRCLE[0 * 5 + 4]);
         vec2 startUV = vec2(s_UNIT_CIRCLE[0 * 5 + 0], s_UNIT_CIRCLE[0 * 5 + 1]);
         for(int i = 1; i < s_UNIT_CIRCLE.size() / 5 - 1; i++) {
             // center
-            s_UNIT_CIRCLE_VAO_TRIANGLES->addVertex(startVertex);
-            s_UNIT_CIRCLE_VAO_TRIANGLES->addTexcoord(startUV);
+            s_UNIT_CIRCLE_VAO_TRIANGLES.addVertex(startVertex);
+            s_UNIT_CIRCLE_VAO_TRIANGLES.addTexcoord(startUV);
 
             // pizza slice edge 1
-            s_UNIT_CIRCLE_VAO_TRIANGLES->addVertex(vec3((radius * s_UNIT_CIRCLE[i * 5 + 2]),
-                                                        (radius * s_UNIT_CIRCLE[i * 5 + 3]), s_UNIT_CIRCLE[i * 5 + 4]));
-            s_UNIT_CIRCLE_VAO_TRIANGLES->addTexcoord(vec2(s_UNIT_CIRCLE[i * 5 + 0], s_UNIT_CIRCLE[i * 5 + 1]));
+            s_UNIT_CIRCLE_VAO_TRIANGLES.addVertex(vec3((radius * s_UNIT_CIRCLE[i * 5 + 2]),
+                                                       (radius * s_UNIT_CIRCLE[i * 5 + 3]), s_UNIT_CIRCLE[i * 5 + 4]));
+            s_UNIT_CIRCLE_VAO_TRIANGLES.addTexcoord(vec2(s_UNIT_CIRCLE[i * 5 + 0], s_UNIT_CIRCLE[i * 5 + 1]));
 
             // pizza slice edge 2
-            s_UNIT_CIRCLE_VAO_TRIANGLES->addVertex(vec3((radius * s_UNIT_CIRCLE[(i + 1) * 5 + 2]),
-                                                        (radius * s_UNIT_CIRCLE[(i + 1) * 5 + 3]),
-                                                        s_UNIT_CIRCLE[(i + 1) * 5 + 4]));
-            s_UNIT_CIRCLE_VAO_TRIANGLES->addTexcoord(
+            s_UNIT_CIRCLE_VAO_TRIANGLES.addVertex(vec3((radius * s_UNIT_CIRCLE[(i + 1) * 5 + 2]),
+                                                       (radius * s_UNIT_CIRCLE[(i + 1) * 5 + 3]),
+                                                       s_UNIT_CIRCLE[(i + 1) * 5 + 4]));
+            s_UNIT_CIRCLE_VAO_TRIANGLES.addTexcoord(
                 vec2(s_UNIT_CIRCLE[(i + 1) * 5 + 0], s_UNIT_CIRCLE[(i + 1) * 5 + 1]));
         }
     }

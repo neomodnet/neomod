@@ -8,8 +8,9 @@
 class VertexArrayObject : public Resource {
     NOCOPY_NOMOVE(VertexArrayObject)
    public:
-    VertexArrayObject(DrawPrimitive primitive = DrawPrimitive::TRIANGLES,
-                      DrawUsageType usage = DrawUsageType::STATIC, bool keepInSystemMemory = false);
+    constexpr VertexArrayObject(DrawPrimitive primitive = DrawPrimitive::TRIANGLES,
+                                DrawUsageType usage = DrawUsageType::STATIC, bool keepInSystemMemory = false)
+        : Resource(VAO), primitive(primitive), usage(usage), bKeepInSystemMemory(keepInSystemMemory) {}
     ~VertexArrayObject() override = default;
 
     void clear();
@@ -95,17 +96,17 @@ class VertexArrayObject : public Resource {
     std::vector<int> partialUpdateVertexIndices;
     std::vector<int> partialUpdateColorIndices;
 
-    unsigned int iNumVertices;
-    int iDrawRangeFromIndex;
-    int iDrawRangeToIndex;
-    int iDrawPercentNearestMultiple;
-    float fDrawPercentFromPercent;
-    float fDrawPercentToPercent;
+    unsigned int iNumVertices{0};
+    int iDrawRangeFromIndex{-1};
+    int iDrawRangeToIndex{-1};
+    int iDrawPercentNearestMultiple{0};
+    float fDrawPercentFromPercent{0.f};
+    float fDrawPercentToPercent{1.f};
 
     DrawPrimitive primitive;
     DrawUsageType usage;
     bool bKeepInSystemMemory;
-    bool bHasTexcoords;
+    bool bHasTexcoords{false};
 };
 
 #endif

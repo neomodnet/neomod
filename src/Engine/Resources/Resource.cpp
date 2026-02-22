@@ -6,11 +6,6 @@
 
 #include <utility>
 
-Resource::Resource(Type resType) : resType(resType) {
-    this->sDebugIdentifier =
-        fmt::format("{:8p}:{:s}:name=<none>:postinit=false:filepath=<none>"_cf, fmt::ptr(this), this->typeToString());
-}
-
 Resource::Resource(Type resType, std::string filepath, bool doFilesystemExistenceCheck) : resType(resType) {
     this->sFilePath = std::move(filepath);
 

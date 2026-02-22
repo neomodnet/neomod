@@ -554,7 +554,7 @@ SDL_AppResult SDLMain::iterate() {
 
     // draw
     // (always draw in headless to make it more realistic/representative)
-    if(m_bHeadless || (!winMinimized() && !m_bRestoreFullscreen)) {
+    if(isHeadless() || (!winMinimized() && !m_bRestoreFullscreen)) {
         m_engine->onPaint();
     }
 

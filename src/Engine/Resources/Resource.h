@@ -6,6 +6,9 @@
 
 #include "BaseEnvironment.h"
 
+#include "fmt/format.h"
+#include "fmt/compile.h"
+
 #include <atomic>
 #include <string>
 #include <memory>
@@ -38,7 +41,12 @@ class Resource {
     };
 
    protected:
-    Resource(Type resType);
+    constexpr Resource(Type resType) : resType(resType) {
+        this->sDebugIdentifier.assign(fmt::format(
+            fmt::operator""_cf < "{:8p}:{:s}:name=<none>:postinit=false:filepath=<none>">(), fmt::ptr(this),
+            this->typeToString()));
+    }
+
     Resource(Type resType, std::string filepath, bool doFilesystemExistenceCheck = true);
 
    public:
