@@ -461,7 +461,7 @@ void VisualProfiler::draw() {
                     g->translate(-stringWidth, 0);
                     g->drawString(
                         this->font, this->groups[i].name,
-                        TextShadow{.col_text = this->groups[i].color, .offs_px = (int)(1 * env->getDPIScale())});
+                        TextShadow{.col_text = this->groups[i].color, .offs_px = std::round(1.f * env->getDPIScale())});
                     g->translate(stringWidth, (int)(-this->font->getHeight() - padding));
                 }
             }
