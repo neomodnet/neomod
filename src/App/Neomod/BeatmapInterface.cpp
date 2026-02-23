@@ -931,6 +931,7 @@ void BeatmapInterface::stop(bool quit) {
     if(BanchoState::is_playing_a_multi_map()) {
         if(quit) {
             osu->onPlayEnd(score, true);
+            ui->getRoom()->ragequit();
         } else {
             ui->getRoom()->onClientScoreChange(true);
             Packet packet;
