@@ -673,21 +673,33 @@ class OptionsMenuKeyBindLabel final : public CBaseUILabel {
         if(!this->bVisible) return;
         CBaseUILabel::update(c);
 
-        const auto newKeyCode = (SCANCODE)this->key->getInt();
+        const auto newKeyCode = this->key->getVal<SCANCODE>();
         if(this->keyCode == newKeyCode) return;
 
         this->keyCode = newKeyCode;
 
         // succ
-        UString labelText = env->keyCodeToString(this->keyCode);
-        if(labelText.find("?") != -1) labelText.append(fmt::format("  ({})", this->key->getInt()));
+        UString labelText;
 
         // handle bound/unbound
-        if(this->keyCode == 0) {
+        // HACKHACK: show mouse left/right for LEFT_CLICK_2/RIGHT_CLICK_2 if not bound to keyboard keys
+        const bool isUnboundKey1_2 = this->key == &cv::LEFT_CLICK_2 && this->keyCode == 0;
+        const bool isUnboundKey2_2 = this->key == &cv::RIGHT_CLICK_2 && this->keyCode == 0;
+        const bool isUnbound = this->keyCode == 0 && !(isUnboundKey1_2 || isUnboundKey2_2);
+        if(isUnboundKey1_2) {
+            labelText = "Mouse Left";
+        } else if(isUnboundKey2_2) {
+            labelText = "Mouse Right";
+        } else if(this->keyCode == 0) {
             labelText = "<UNBOUND>";
-            this->setTextColor(this->textColorUnbound);
-        } else
-            this->setTextColor(this->textColorBound);
+        } else {
+            labelText = env->keyCodeToString(this->keyCode);
+            if(labelText.find("?") != -1) {
+                labelText.append(fmt::format("  ({})", this->key->getInt()));
+            }
+        }
+
+        this->setTextColor(isUnbound ? this->textColorUnbound : this->textColorBound);
 
         // update text
         this->setText(labelText);

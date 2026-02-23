@@ -2026,10 +2026,9 @@ void Slider::onHit(LiveScore::HIT result, i32 delta, bool isEndCircle, float tar
         if(result == LiveScore::HIT::HIT_MISS) {
             if(!isEndResultFromStrictTrackingMod) this->onSliderBreak();
         } else if(this->pf != nullptr) {
-            const vec2 osuCoords = this->pf->pixels2OsuCoords(this->pf->osuCoords2Pixels(this->vCurPointRaw));
-            f32 pan = GameRules::osuCoords2Pan(osuCoords.x);
-
             if(this->edgeSamples.size() > 0) {
+                const vec2 osuCoords = this->pf->pixels2OsuCoords(this->pf->osuCoords2Pixels(this->vCurPointRaw));
+                const f32 pan = GameRules::osuCoords2Pan(osuCoords.x);
                 if(isEndCircle) {
                     this->edgeSamples.back().play(pan, delta, this->getEndTime());
                 } else {
