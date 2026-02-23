@@ -319,12 +319,6 @@ class Osu final : public App, public MouseListener {
     bool bClickedSkipButton{false};
     float fPrevSeekMousePosX{-1.f};
 
-    // used because we have conflicting "keyboard M1" and "mouse M1" keys (see LEFT_CLICK_2)
-    // we want to hold M1 when any M1 keys are held
-    // and release M1 only when all M1 keys are released
-    u8 nb_M1s_down{0};
-    u8 nb_M2s_down{0};
-
    public:  // public due to BeatmapInterface access
     u32 iQuickSaveMS{0};
 

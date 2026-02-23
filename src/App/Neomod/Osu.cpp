@@ -958,19 +958,11 @@ void Osu::onKeyDown(KeyboardEvent &key) {
                 if(key == cv::LEFT_CLICK.getVal<SCANCODE>()) {
                     gameplayKeyPressed = GameplayKeys::K1;
                 } else if(key == cv::LEFT_CLICK_2.getVal<SCANCODE>()) {
-                    this->nb_M1s_down++;
-                    // don't re-press if already pressed
-                    if(this->nb_M1s_down == 1) {
-                        gameplayKeyPressed = GameplayKeys::M1;
-                    }
+                    gameplayKeyPressed = GameplayKeys::M1;
                 } else if(key == cv::RIGHT_CLICK.getVal<SCANCODE>()) {
                     gameplayKeyPressed = GameplayKeys::K2;
                 } else if(key == cv::RIGHT_CLICK_2.getVal<SCANCODE>()) {
-                    this->nb_M2s_down++;
-                    // don't re-press if already pressed
-                    if(this->nb_M2s_down == 1) {
-                        gameplayKeyPressed = GameplayKeys::M2;
-                    }
+                    gameplayKeyPressed = GameplayKeys::M2;
                 } else if(key == cv::SMOKE.getVal<SCANCODE>()) {
                     gameplayKeyPressed = GameplayKeys::Smoke;
                 }
@@ -1131,18 +1123,11 @@ void Osu::onKeyUp(KeyboardEvent &key) {
         if(key == cv::LEFT_CLICK.getVal<SCANCODE>()) {
             gameplayKeyReleased = GameplayKeys::K1;
         } else if(key == cv::LEFT_CLICK_2.getVal<SCANCODE>()) {
-            this->nb_M1s_down--;
-            if(this->nb_M1s_down == 0) {
-                gameplayKeyReleased = GameplayKeys::M1;
-            }
             gameplayKeyReleased = GameplayKeys::M1;
         } else if(key == cv::RIGHT_CLICK.getVal<SCANCODE>()) {
             gameplayKeyReleased = GameplayKeys::K2;
         } else if(key == cv::RIGHT_CLICK_2.getVal<SCANCODE>()) {
-            this->nb_M2s_down--;
-            if(this->nb_M2s_down == 0) {
-                gameplayKeyReleased = GameplayKeys::M2;
-            }
+            gameplayKeyReleased = GameplayKeys::M2;
         } else if(key == cv::SMOKE.getVal<SCANCODE>()) {
             gameplayKeyReleased = GameplayKeys::Smoke;
         }
@@ -1177,25 +1162,27 @@ void Osu::onChar(KeyboardEvent &e) { this->UIReady() ? ui->onChar(e) : (void)0; 
 
 void Osu::onButtonChange(ButtonEvent ev) {
     using enum MouseButtonFlags;
-    if(!(ev.btn & (MF_LEFT | MF_RIGHT)) ||
-       (cv::disable_mousebuttons.getBool() && (this->isInPlayMode() && !this->map_iface->isPaused())))
+    if(!(ev.btn & (MF_LEFT | MF_RIGHT))) {
         return;
-
-    // we want to hold M1 when any M1 keys are held
-    // and release M1 only when all M1 keys are released
-    // this means we won't send a "press" event if M1 is already held
-    // and we won't send a "release" event if we're still holding M1 (LEFT_CLICK_2)
-    if(!!(ev.btn & MF_LEFT)) {
-        this->nb_M1s_down += ev.down ? 1 : -1;
-        if(this->nb_M1s_down == 0 || (ev.down && this->nb_M1s_down == 1)) {
-            this->onGameplayKey(GameplayKeys::M1, ev.down, ev.timestamp, true);
+    }
+    const bool inGameplay = this->isInPlayMode() && !this->map_iface->isPaused();
+    const bool isLeft = !!(ev.btn & MF_LEFT);
+    const bool isRight = !isLeft;
+    if(inGameplay) {
+        // respect disable_mousebuttons cvar in gameplay
+        if(cv::disable_mousebuttons.getBool()) {
+            return;
         }
-    } else {
-        this->nb_M2s_down += ev.down ? 1 : -1;
-        if(this->nb_M2s_down == 0 || (ev.down && this->nb_M2s_down == 1)) {
-            this->onGameplayKey(GameplayKeys::M2, ev.down, ev.timestamp, true);
+        // disallow mouse buttons from overlapping with LEFT/RIGHT (2) binds in gameplay
+        if(isLeft && cv::LEFT_CLICK_2.getVal<SCANCODE>() != 0) {
+            return;
+        }
+        if(isRight && cv::RIGHT_CLICK_2.getVal<SCANCODE>() != 0) {
+            return;
         }
     }
+
+    this->onGameplayKey(isLeft ? GameplayKeys::M1 : GameplayKeys::M2, ev.down, ev.timestamp, true);
 }
 
 Sound *Osu::getSound(ActionSound action) const {
