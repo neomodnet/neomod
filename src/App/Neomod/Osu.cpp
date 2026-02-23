@@ -1929,10 +1929,10 @@ void Osu::onGameplayKey(GameplayKeys key_flag, bool down, u64 timestamp, bool fr
     // remove smoke from consideration
     held_now &= ~GameplayKeys::Smoke;
 
-    auto k1m1 = (GameplayKeys::K1 | GameplayKeys::M1);
-    auto k2m2 = (GameplayKeys::K2 | GameplayKeys::M2);
-    bool is_k1m1 = !!(key_flag & k1m1);
-    auto group = is_k1m1 ? k1m1 : k2m2;
+    const auto k1m1 = (GameplayKeys::K1 | GameplayKeys::M1);
+    const auto k2m2 = (GameplayKeys::K2 | GameplayKeys::M2);
+    const bool is_k1m1 = !!(key_flag & k1m1);
+    const auto group = is_k1m1 ? k1m1 : k2m2;
 
     // always allow keyup
     bool can_press = !down || cv::mod_no_keylock.getBool();
@@ -1947,7 +1947,7 @@ void Osu::onGameplayKey(GameplayKeys key_flag, bool down, u64 timestamp, bool fr
     // this doesn't register a new click; it only maintains hold for sliders/spinners.
     // done before onKey so that current_keys is already correct before replay frames etc.
     if(!down && !cv::mod_no_keylock.getBool()) {
-        auto sibling = this->map_iface->raw_gameplay_keys & group;
+        const auto sibling = this->map_iface->raw_gameplay_keys & group;
         if(sibling && !(this->map_iface->current_keys & sibling)) {
             this->map_iface->current_keys |= sibling;
             // manually animate input overlay

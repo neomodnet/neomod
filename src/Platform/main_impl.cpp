@@ -998,7 +998,7 @@ void SDLMain::restart(const std::vector<std::string> &args) {
             logString += fmt::format("({}) {} ", i, entry);
         }
         logString += ".";
-        debugLog(logString);
+        logRaw(logString);
     }
 
     SDL_SetPointerProperty(restartprops, SDL_PROP_PROCESS_CREATE_ARGS_POINTER, (void *)restartArgsChar.data());
@@ -1017,7 +1017,7 @@ void SDLMain::restart(const std::vector<std::string> &args) {
 #endif
 
     if(!SDL_CreateProcessWithProperties(restartprops)) {
-        debugLog("[restart]: WARNING: couldn't restart!");
+        logRaw("[restart]: WARNING: couldn't restart!");
     }
 
     SDL_DestroyProperties(restartprops);
