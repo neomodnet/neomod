@@ -329,8 +329,7 @@ MAIN_FUNC /* int argc, char *argv[] */
         }
     }
 
-    if(!SDL_Init(SDL_INIT_VIDEO))  // other subsystems can be init later
-    {
+    if(!SDL_Init(SDL_INIT_VIDEO)) {  // other subsystems can be init later
         debugLog("Couldn't SDL_Init(): {}", SDL_GetError());
         return SDL_APP_FAILURE;
     }
