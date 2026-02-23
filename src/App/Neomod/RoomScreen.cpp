@@ -693,7 +693,6 @@ void RoomScreen::on_room_updated(const Room &room) {
     ui->getModSelector()->updateButtons();
     ui->getModSelector()->resetMods();
     ui->getModSelector()->enableModsFromFlags(BanchoState::room.mods | player_slot->mods);
-    cv::mod_no_pausing.setValue(true);
 
     this->updateLayout(osu->getVirtScreenSize());
 }
@@ -703,6 +702,15 @@ void RoomScreen::on_match_started(const Room &room) {
     if(osu->getMapInterface()->getBeatmap() == nullptr) {
         debugLog("We received MATCH_STARTED without being ready, wtf!");
         return;
+    }
+
+    // Re-apply mods to make sure we are in sync (instant abort->start edge case)
+    for(auto &slot : BanchoState::room.slots) {
+        if(slot.player_id != BanchoState::get_uid()) continue;
+        ui->getModSelector()->resetMods();
+        ui->getModSelector()->enableModsFromFlags(BanchoState::room.mods | slot.mods);
+        cv::mod_no_pausing.setValue(true);
+        break;
     }
 
     this->last_packet_tms = time(nullptr);
