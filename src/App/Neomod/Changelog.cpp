@@ -41,6 +41,7 @@ Changelog::Changelog() : ScreenBackable() {
         R"(- Fixed keylock behaving differently when using mouse instead of keyboard binds)",
         R"(- Fixed quick-seek jumping by milliseconds instead of seconds)",
         R"(- Fixed multiplayer lobby showing duplicate rooms)",
+        R"(- Fixed multiplayer map not updating while player is looking at the score screen)",
         R"(- Fixed WebSocket connections silently dying)",
     };
     changelogs.push_back(v43_05);

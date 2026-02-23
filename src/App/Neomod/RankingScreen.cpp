@@ -209,7 +209,7 @@ void RankingScreen::draw() {
 
     // draw background image
     if(cv::draw_rankingscreen_background_image.getBool()) {
-        osu->getBackgroundImageHandler()->draw(osu->getMapInterface()->getBeatmap());
+        osu->getBackgroundImageHandler()->draw(this->storedScore.map);
 
         // draw top black bar
         g->setColor(0xff000000);

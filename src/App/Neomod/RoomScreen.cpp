@@ -560,8 +560,7 @@ void RoomScreen::ragequit(bool play_sound) {
 }
 
 void RoomScreen::on_map_change() {
-    // Results screen has map background and such showing, so prevent map from changing while we're on it.
-    if(ui->getRankingScreen()->isVisible()) return;
+    if(BanchoState::is_playing_a_multi_map()) return;
 
     debugLog("Map changed to ID {:d}, MD5 {:s}: {:s}", BanchoState::room.map_id, BanchoState::room.map_md5,
              BanchoState::room.map_name);
