@@ -231,6 +231,13 @@ struct NetworkImpl {
         }
 
         curl_global_cleanup();
+
+#ifdef MCENGINE_PLATFORM_LINUX
+        // close IPC socket so restart works (this instance is gone)
+        if(int sock = this->ipc_socket_fd.load(std::memory_order_acquire); sock != -1) {
+            close(sock);
+        }
+#endif
     }
 
     // public interface methods (passthroughs)
