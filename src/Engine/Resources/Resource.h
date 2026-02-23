@@ -26,6 +26,7 @@ class RenderTarget;
 class Resource {
     NOCOPY_NOMOVE(Resource)
     friend class ResourceManager;
+    friend struct ResourceManagerImpl;
 
    public:
     enum Type : uint8_t {

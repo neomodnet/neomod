@@ -141,7 +141,7 @@ class ModSelector final : public UIScreen {
 
     // should not be public
    public:
-    inline UIModSelectorModButton *getGridButton(ivec2 pos) {
+    [[nodiscard]] inline UIModSelectorModButton *getGridButton(ivec2 pos) const {
         if(likely((pos.x >= 0 && pos.y >= 0) && pos.x <= GRID_WIDTH && pos.y <= GRID_HEIGHT)) {
             const int index = pos.x * GRID_HEIGHT + pos.y;
             return this->modButtons[index];

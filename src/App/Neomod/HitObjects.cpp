@@ -307,7 +307,7 @@ void HitObject::update(i32 curPos, f64 /*frame_time*/) {
         const float scale = std::clamp<float>((float)this->iDelta / (float)this->iApproachTime, 0.0f, 1.0f);
         this->fApproachScale = 1 + (scale * cv::approach_scale_multiplier.getFloat());
         if(cv::mod_approach_different.getBool()) {
-            const float back_const = 1.70158;
+            constexpr float back_const = 1.70158;
 
             float time = 1.0f - scale;
             {

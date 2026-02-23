@@ -181,6 +181,23 @@ struct ResourceManagerImpl final {
         }
     }
 
+    void setResourceName(Resource *res, std::string_view name) {
+        if(!res) {
+            logIfCV(debug_rm, "attempted to set name {:s} on NULL resource!", name);
+            return;
+        }
+
+        std::string currentName = res->getName();
+        if(!currentName.empty() && currentName == name) return;  // it's already the same name, nothing to do
+
+        res->setName(name);
+
+        // add the new name to the resource map (if it's a managed resource)
+        if(this->nextLoadUnmanagedStack.size() < 1 || !this->nextLoadUnmanagedStack.back())
+            this->mNameToResourceMap.try_emplace(name, res);
+        return;
+    }
+
     // content
     std::vector<Resource *> vResources;
 
@@ -421,23 +438,6 @@ void ResourceManager::reloadResources(const std::vector<Resource *> &resources, 
     pImpl->asyncLoader.reloadResources(resources);
 }
 
-void ResourceManager::setResourceName(Resource *res, std::string_view name) {
-    if(!res) {
-        logIfCV(debug_rm, "attempted to set name {:s} on NULL resource!", name);
-        return;
-    }
-
-    std::string currentName = res->getName();
-    if(!currentName.empty() && currentName == name) return;  // it's already the same name, nothing to do
-
-    res->setName(name);
-
-    // add the new name to the resource map (if it's a managed resource)
-    if(pImpl->nextLoadUnmanagedStack.size() < 1 || !pImpl->nextLoadUnmanagedStack.back())
-        pImpl->mNameToResourceMap.try_emplace(name, res);
-    return;
-}
-
 bool ResourceManager::addManagedResource(Resource *userPtr, const std::string &resourceName) {
     auto res = pImpl->checkIfExistsAndHandle<Resource>(resourceName);
     if(res != nullptr) return false;
@@ -446,7 +446,7 @@ bool ResourceManager::addManagedResource(Resource *userPtr, const std::string &r
     pImpl->resetFlags();
 
     // set it up
-    setResourceName(userPtr, resourceName);
+    pImpl->setResourceName(userPtr, resourceName);
     loadResource(userPtr, false);
 
     return true;
@@ -460,7 +460,7 @@ Image *ResourceManager::loadImage(std::string filepath, const std::string &resou
     // create instance and load it
     filepath.insert(0, MCENGINE_IMAGES_PATH "/");
     Image *img = g->createImage(filepath, mipmapped, keepInSystemMemory);
-    setResourceName(img, resourceName);
+    pImpl->setResourceName(img, resourceName);
 
     loadResource(img, true);
 
@@ -483,7 +483,7 @@ Image *ResourceManager::loadImageAbs(std::string absoluteFilepath, const std::st
 
     // create instance and load it
     Image *img = g->createImage(std::move(absoluteFilepath), mipmapped, keepInSystemMemory);
-    setResourceName(img, resourceName);
+    pImpl->setResourceName(img, resourceName);
 
     loadResource(img, true);
 
@@ -520,7 +520,7 @@ McFont *ResourceManager::loadFont(std::string filepath, const std::string &resou
     // create instance and load it
     filepath.insert(0, MCENGINE_FONTS_PATH "/");
     auto *fnt = new McFont(std::move(filepath), fontSize, antialiasing, fontDPI);
-    setResourceName(fnt, resourceName);
+    pImpl->setResourceName(fnt, resourceName);
 
     loadResource(fnt, true);
 
@@ -536,7 +536,7 @@ McFont *ResourceManager::loadFont(std::string filepath, const std::string &resou
     // create instance and load it
     filepath.insert(0, MCENGINE_FONTS_PATH "/");
     auto *fnt = new McFont(std::move(filepath), characters, fontSize, antialiasing, fontDPI);
-    setResourceName(fnt, resourceName);
+    pImpl->setResourceName(fnt, resourceName);
 
     loadResource(fnt, true);
 
@@ -551,7 +551,7 @@ Sound *ResourceManager::loadSound(std::string filepath, const std::string &resou
     // create instance and load it
     filepath.insert(0, MCENGINE_SOUNDS_PATH "/");
     auto *snd{soundEngine->createSound(filepath, stream, overlayable, loop)};
-    setResourceName(snd, resourceName);
+    pImpl->setResourceName(snd, resourceName);
 
     loadResource(snd, true);
 
@@ -565,7 +565,7 @@ Sound *ResourceManager::loadSoundAbs(std::string filepath, const std::string &re
 
     // create instance and load it
     auto *snd{soundEngine->createSound(std::move(filepath), stream, overlayable, loop)};
-    setResourceName(snd, resourceName);
+    pImpl->setResourceName(snd, resourceName);
 
     loadResource(snd, true);
 
@@ -581,7 +581,7 @@ Shader *ResourceManager::loadShader(std::string vertexShaderFilePath, std::strin
     vertexShaderFilePath.insert(0, MCENGINE_SHADERS_PATH "/");
     fragmentShaderFilePath.insert(0, MCENGINE_SHADERS_PATH "/");
     Shader *shader = g->createShaderFromFile(vertexShaderFilePath, fragmentShaderFilePath);
-    setResourceName(shader, resourceName);
+    pImpl->setResourceName(shader, resourceName);
 
     loadResource(shader, true);
 
@@ -605,7 +605,7 @@ Shader *ResourceManager::createShader(std::string vertexShader, std::string frag
 
     // create instance and load it
     Shader *shader = g->createShaderFromSource(std::move(vertexShader), std::move(fragmentShader));
-    setResourceName(shader, resourceName);
+    pImpl->setResourceName(shader, resourceName);
 
     loadResource(shader, true);
 
@@ -631,7 +631,7 @@ Shader *ResourceManager::createShaderAuto(std::string_view shaderBasename) {
     shader = g->createShaderFromSource(std::string{ALL_BINMAP.at(fmt::format("{}_{}_vsh", pfx, shaderBasename))},
                                        std::string{ALL_BINMAP.at(fmt::format("{}_{}_fsh", pfx, shaderBasename))});
 
-    setResourceName(shader, shaderBasename);
+    pImpl->setResourceName(shader, shaderBasename);
     loadResource(shader, true);
 
     return shader;
@@ -641,7 +641,7 @@ RenderTarget *ResourceManager::createRenderTarget(int x, int y, int width, int h
                                                   MultisampleType multiSampleType) {
     RenderTarget *rt = g->createRenderTarget(x, y, width, height, multiSampleType);
     // for uniqueness, use timestamp
-    setResourceName(rt, fmt::format("_RT_{:d}x{:d}-{}", width, height, Timing::getTicksNS()));
+    pImpl->setResourceName(rt, fmt::format("_RT_{:d}x{:d}-{}", width, height, Timing::getTicksNS()));
 
     loadResource(rt, true);
 
@@ -654,7 +654,7 @@ RenderTarget *ResourceManager::createRenderTarget(int width, int height, Multisa
 
 TextureAtlas *ResourceManager::createTextureAtlas(int width, int height, bool filtering) {
     auto *ta = new TextureAtlas(width, height, filtering);
-    setResourceName(ta, fmt::format("_TA_{:d}x{:d}-{}", width, height, Timing::getTicksNS()));
+    pImpl->setResourceName(ta, fmt::format("_TA_{:d}x{:d}-{}", width, height, Timing::getTicksNS()));
 
     loadResource(ta, false);
 

@@ -70,9 +70,6 @@ class ResourceManager final {
     [[nodiscard]] size_t getSyncLoadMaxBatchSize() const;
     void setSyncLoadMaxBatchSize(size_t resourcesToLoad);
 
-    // can't allow directly setting resource names, otherwise the map will go out of sync
-    void setResourceName(Resource *res, std::string_view name);
-
     // resources which will be garbage collected on shutdown
     // userPtr must contain a pre-created (allocated with new) resource of any type
     // returns true if it was successfully added to tracking

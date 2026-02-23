@@ -222,7 +222,6 @@ void Engine::loadApp() {
     // load other default resources and things which are not strictly necessary
     {
         MISSING_TEXTURE = resourceManager->createImage(512, 512);
-        resourceManager->setResourceName(MISSING_TEXTURE, "MISSING_TEXTURE");
         for(int x = 0; x < 512; x++) {
             for(int y = 0; y < 512; y++) {
                 int rowCounter = (x / 64);
