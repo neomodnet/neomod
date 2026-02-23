@@ -225,19 +225,31 @@ void UpdateHandler::installUpdate() {
         if(outFilePath.length() == 0) continue;
 
         // Bypass Windows write protection for .exe, .dll, .ttf and possibly others
-        std::string old_path{outFilePath};
-        old_path.append(".old");
-        Environment::deleteFile(old_path);
-        Environment::renameFile(outFilePath, old_path);
+        std::string oldPath{outFilePath};
+        oldPath.append(".old");
+        Environment::deleteFile(oldPath);
+        Environment::renameFile(outFilePath, oldPath);
 
         debugLog("UpdateHandler: Writing {:s}", outFilePath.c_str());
         if(!file.extractToFile(outFilePath)) {
             debugLog("UpdateHandler: Failed to extract file {:s}", outFilePath.c_str());
             Environment::deleteFile(outFilePath);
-            Environment::renameFile(old_path, outFilePath);
+            Environment::renameFile(oldPath, outFilePath);
             this->status = STATUS_ERROR;
             return;
         }
+#ifndef _WIN32
+        // make sure the executable is actually executable (workaround server sending zips with non-executable exes...)
+        if(outFilePath == PACKAGE_NAME ""sv || outFilePath == "neosu"sv) {
+            struct stat64 oldStat{};
+            const int res = stat64(oldPath.c_str(), &oldStat);
+            if(res == 0) {
+                chmod(outFilePath.c_str(), oldStat.st_mode);
+            } else {
+                debugLog("WARNING: could not stat {} ({})", oldPath, res);
+            }
+        }
+#endif
     }
 
     cv::is_bleedingedge.setValue(cv::bleedingedge.getBool());
