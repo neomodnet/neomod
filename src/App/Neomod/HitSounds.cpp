@@ -83,8 +83,8 @@ static constexpr auto SOUND_METHODS =  //
           A_{
               &Skin::s_normal_sliderslide,    //
               &Skin::s_normal_sliderwhistle,  //
-              (Sound* Skin::*)nullptr,        // SET-sliderfinish and SET-sliderclap aren't actually valid
-              (Sound* Skin::*)nullptr         //
+              (Sound *Skin::*)nullptr,        // SET-sliderfinish and SET-sliderclap aren't actually valid
+              (Sound *Skin::*)nullptr         //
           }},
        // SampleSetType::SOFT
        A_{//
@@ -99,8 +99,8 @@ static constexpr auto SOUND_METHODS =  //
           A_{
               &Skin::s_soft_sliderslide,    //
               &Skin::s_soft_sliderwhistle,  //
-              (Sound* Skin::*)nullptr,      //
-              (Sound* Skin::*)nullptr       //
+              (Sound *Skin::*)nullptr,      //
+              (Sound *Skin::*)nullptr       //
           }},                               //
        // SampleSetType::DRUM
        A_{//
@@ -115,8 +115,8 @@ static constexpr auto SOUND_METHODS =  //
           A_{
               &Skin::s_drum_sliderslide,    //
               &Skin::s_drum_sliderwhistle,  //
-              (Sound* Skin::*)nullptr,      //
-              (Sound* Skin::*)nullptr       //
+              (Sound *Skin::*)nullptr,      //
+              (Sound *Skin::*)nullptr       //
           }}};  //
 #undef A_
 
@@ -159,8 +159,7 @@ std::vector<ResolvedHitSound> HitSamples::resolve(const HitSoundContext &ctx, bo
 
         // NOTE: LayeredHitSounds seems to be forced even if the map uses custom hitsounds
         //       according to https://osu.ppy.sh/community/forums/topics/15937
-        if(!(this->hitSounds & type) &&
-           !((type == HT::NORMAL) && ((this->hitSounds == 0) || ctx.layeredHitSounds)))
+        if(!(this->hitSounds & type) && !((type == HT::NORMAL) && ((this->hitSounds == 0) || ctx.layeredHitSounds)))
             continue;
 
         const f32 vol = this->getVolume(ctx, type, is_sliderslide);
@@ -226,8 +225,9 @@ std::vector<HitSamples::Set_Slider_Hit> HitSamples::play(f32 pan, i32 delta, i32
 
     // build context from current state
     const BeatmapDifficulty *beatmap = map_iface->getBeatmap();
-    const auto ti = (play_time != -1 && beatmap) ? beatmap->getTimingInfoForTime(play_time)
-                                                  : map_iface->getCurrentTimingInfo();
+    const auto ti = (play_time != -1 && beatmap)
+                        ? beatmap->getTimingInfoForTime(play_time + cv::timingpoints_offset.getInt())
+                        : map_iface->getCurrentTimingInfo();
     HitSoundContext ctx{
         .timingPointSampleSet = ti.sampleSet,
         .timingPointVolume = ti.volume,

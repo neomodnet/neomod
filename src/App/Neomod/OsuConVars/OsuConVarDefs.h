@@ -833,7 +833,7 @@ CONVAR(od_override_lock, false, CLIENT | SERVER | PROTECTED | GAMEPLAY,
        "always force constant 300 hit window even through speed changes");
 CONVAR(old_beatmap_offset, 24.0f, CLIENT | SKINS | SERVER,
        "offset in ms which is added to beatmap versions < 5 (default value is hardcoded 24 ms in stable)");
-CONVAR(timingpoints_offset, 0.0f, CLIENT,
+CONVAR(timingpoints_offset, 5.0f, CLIENT,
        "offset in ms which is added before determining the active timingpoint for the sample type and sample volume "
        "(hitsounds) of the current frame");
 CONVAR(options_high_quality_sliders, false, CLIENT | SKINS | SERVER);
