@@ -1695,6 +1695,7 @@ void BeatmapInterface::resetScore() {
     this->last_event_ms = 0;
     this->current_keys = 0;
     this->last_keys = 0;
+    this->raw_gameplay_keys = 0;
     this->current_frame_idx = 0;
     this->iCurMusicPos = 0;
     this->iCurMusicPosWithOffsets = 0;

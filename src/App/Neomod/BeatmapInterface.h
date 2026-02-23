@@ -162,6 +162,7 @@ class BeatmapInterface final : public AbstractBeatmapInterface {
     f64 last_event_time = 0.0;
     i32 last_event_ms = 0;
     u8 current_keys = 0;
+    u8 raw_gameplay_keys{0};  // physical key state before keylock filtering
     u8 last_keys = 0;
 
     // replay replaying (prerecorded)

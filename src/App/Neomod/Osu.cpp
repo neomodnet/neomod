@@ -1906,12 +1906,21 @@ void Osu::updateConfineCursor() {
 
 // needs a separate fromMouse parameter, since M1/M2 might be bound to keyboard keys too
 void Osu::onGameplayKey(GameplayKeys key_flag, bool down, u64 timestamp, bool fromMouse) {
+    // always track raw physical state before keylock filtering
+    const bool is_smoke = key_flag & GameplayKeys::Smoke;
+    if(!is_smoke) {
+        if(down)
+            this->map_iface->raw_gameplay_keys |= key_flag;
+        else
+            this->map_iface->raw_gameplay_keys &= ~key_flag;
+    }
+
     auto held_now = this->map_iface->getKeys();
 
     const bool changed = !(held_now & key_flag) == down;
     if(!changed) return;
 
-    if(key_flag & GameplayKeys::Smoke) {
+    if(is_smoke) {
         // just add/remove smoke
         this->map_iface->current_keys = down ? (held_now | GameplayKeys::Smoke) : (held_now & ~GameplayKeys::Smoke);
         return;
@@ -1920,13 +1929,35 @@ void Osu::onGameplayKey(GameplayKeys key_flag, bool down, u64 timestamp, bool fr
     // remove smoke from consideration
     held_now &= ~GameplayKeys::Smoke;
 
+    auto k1m1 = (GameplayKeys::K1 | GameplayKeys::M1);
+    auto k2m2 = (GameplayKeys::K2 | GameplayKeys::M2);
+    bool is_k1m1 = !!(key_flag & k1m1);
+    auto group = is_k1m1 ? k1m1 : k2m2;
+
     // always allow keyup
     bool can_press = !down || cv::mod_no_keylock.getBool();
     if(!can_press) {
-        auto k1m1 = (GameplayKeys::K1 | GameplayKeys::M1);
-        auto k2m2 = (GameplayKeys::K2 | GameplayKeys::M2);
-        bool is_k1m1 = !!(key_flag & k1m1);
-        can_press = !(held_now & (is_k1m1 ? k1m1 : k2m2));
+        can_press = !(held_now & group);
+    }
+
+    auto *hud = this->ui_memb->getHUD();
+
+    // when a key is released with keylock active, check if a sibling in the same
+    // group is still physically held and should take over the held state.
+    // this doesn't register a new click; it only maintains hold for sliders/spinners.
+    // done before onKey so that current_keys is already correct before replay frames etc.
+    if(!down && !cv::mod_no_keylock.getBool()) {
+        auto sibling = this->map_iface->raw_gameplay_keys & group;
+        if(sibling && !(this->map_iface->current_keys & sibling)) {
+            this->map_iface->current_keys |= sibling;
+            // manually animate input overlay
+
+            // NOTE: stable seems bugged/inconsistent in this regard, it adds keys to the key counter even though
+            // they would not have actually resulted in a new keypress
+            // (e.g. m1d->k1d->k1u results in m1 having 2 inputs, k1 having 1 input, but only the first m1 actually did anything)
+            // but we don't do that here (we just move the held key down to the sibling but don't add any key presses to the keycounts)
+            hud->animateInputOverlay(static_cast<GameplayKeys>(sibling), true);
+        }
     }
 
     // NOTE: allow events even while beatmap is paused, to correctly not-continue immediately due to pressed keys
@@ -1944,10 +1975,10 @@ void Osu::onGameplayKey(GameplayKeys key_flag, bool down, u64 timestamp, bool fr
     // cursor anim + ripples
     if(do_animate) {
         if(down && can_press) {
-            ui->getHUD()->animateCursorExpand();
-            ui->getHUD()->addCursorRipple(mouse->getPos());
+            hud->animateCursorExpand();
+            hud->addCursorRipple(mouse->getPos());
         } else if(!this->map_iface->isClickHeld()) {
-            ui->getHUD()->animateCursorShrink();
+            hud->animateCursorShrink();
         }
     }
 }
