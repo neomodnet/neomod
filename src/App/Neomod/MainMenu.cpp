@@ -315,7 +315,7 @@ MainMenu::MainMenu() : UIScreen() {
     this->onlineBeatmapsButton = new UIButtonVertical(0, 0, 0, 0, "", "Online Beatmaps");
     this->onlineBeatmapsButton->setFont(osu->getSubTitleFont());
     this->onlineBeatmapsButton->setDrawBackground(false);
-    this->onlineBeatmapsButton->setClickCallback([]() { ui->setScreen(ui->getOsuDirectScreen()); });
+    this->onlineBeatmapsButton->setClickCallback(SA::MakeDelegate<&MainMenu::onOnlineBeatmapsButtonPressed>(this));
     this->addBaseUIElement(this->onlineBeatmapsButton);
 
     this->versionButton = new CBaseUIButton(0, 0, 0, 0, "", "");
@@ -980,12 +980,6 @@ void MainMenu::update(CBaseUIEventCtx &c) {
     this->discordButton->setVisible(!cv::adblock.getBool());
     this->twitterButton->setVisible(!cv::adblock.getBool());
 
-    // NOTE: Not checking for supporter status, since every server enables direct anyway
-    // If we did want to check it, we'd have to store the result of the PRIVILEGES packet,
-    // because regular clients use *that* for checking for direct availability, instead
-    // of the privileges sent in presence/stats packets.
-    this->onlineBeatmapsButton->setVisible(BanchoState::is_online());
-
     this->updateLayout();
 
     // update and focus handling
@@ -1593,6 +1587,7 @@ void MainMenu::onPlayButtonPressed() {
 
 void MainMenu::onMultiplayerButtonPressed() {
     if(!BanchoState::is_online()) {
+        ui->getNotificationOverlay()->addNotification("You must log in to join Multiplayer!");
         ui->getOptionsOverlay()->askForLoginDetails();
         return;
     }
@@ -1617,6 +1612,20 @@ void MainMenu::onSaveOrExitButtonPressed() {
         this->setMenuElementsVisible(false);
         soundEngine->play(osu->getSkin()->s_click_exit);
     }
+}
+
+void MainMenu::onOnlineBeatmapsButtonPressed() {
+    if(!BanchoState::is_online()) {
+        ui->getNotificationOverlay()->addNotification("You must log in to download beatmaps!");
+        ui->getOptionsOverlay()->askForLoginDetails();
+        return;
+    }
+
+    // NOTE: Not checking for supporter status, since every server enables direct anyway
+    // If we did want to check it, we'd have to store the result of the PRIVILEGES packet,
+    // because regular clients use *that* for checking for direct availability, instead
+    // of the privileges sent in presence/stats packets.
+    ui->setScreen(ui->getOsuDirectScreen());
 }
 
 void MainMenu::onPausePressed() {

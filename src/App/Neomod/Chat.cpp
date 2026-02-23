@@ -1325,6 +1325,7 @@ CBaseUIContainer *Chat::setVisible(bool visible) {
     soundEngine->play(osu->getSkin()->s_click_button);
 
     if(visible && !BanchoState::is_online()) {
+        ui->getNotificationOverlay()->addNotification("You must log in to chat!");
         ui->getOptionsOverlay()->askForLoginDetails();
         return this;
     }

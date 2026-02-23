@@ -726,12 +726,17 @@ void SongBrowser::draw() {
     UIScreen::draw();
 
     // no beatmaps found (osu folder is probably invalid)
-    if(db->getBeatmapSets().size() == 0 && !Env::cfg(OS::WASM)) {
+    if(db->getBeatmapSets().size() == 0) {
         UString errorMessage1 = "Invalid osu! folder (or no beatmaps found): ";
         errorMessage1.append(this->sLastOsuFolder);
         UString errorMessage2 = "Go to Options -> osu!folder";
 
-        g->setColor(0xffff0000);
+        if constexpr(Env::cfg(OS::WASM)) {
+            errorMessage1 = "Drop .osz beatmaps onto this window to import them";
+            errorMessage2 = "Or click \"Online Beatmaps\" in the Main Menu";
+        }
+
+        g->setColor(Env::cfg(OS::WASM) ? 0xffffffff : 0xffff0000);
         g->pushTransform();
         {
             g->translate(
@@ -741,7 +746,7 @@ void SongBrowser::draw() {
         }
         g->popTransform();
 
-        g->setColor(0xff00ff00);
+        g->setColor(Env::cfg(OS::WASM) ? 0xffffffff : 0xff00ff00);
         g->pushTransform();
         {
             g->translate(

@@ -2800,7 +2800,7 @@ void OptionsOverlayImpl::scheduleSearchUpdate() {
 void OptionsOverlayImpl::askForLoginDetails() {
     this->setVisible(true);
     this->options->scrollToElement(this->sectionGeneral, 0, 100 * Osu::getUIScale());
-    this->nameTextbox->focus();
+    if(this->nameTextbox->isVisible()) this->nameTextbox->focus();
 }
 
 void OptionsOverlayImpl::updateOsuFolderTextbox(std::string_view newFolder) {

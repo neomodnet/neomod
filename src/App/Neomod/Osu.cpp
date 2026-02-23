@@ -874,6 +874,7 @@ void Osu::onKeyDown(KeyboardEvent &key) {
     // F8 toggle chat
     if(key == cv::TOGGLE_CHAT.getVal<SCANCODE>()) {
         if(!BanchoState::is_online()) {
+            ui->getNotificationOverlay()->addNotification("You must log in to chat!");
             ui->getOptionsOverlay()->askForLoginDetails();
         } else if(ui->getOptionsOverlay()->isVisible()) {
             // When options menu is open, instead of toggling chat, always open chat
@@ -889,6 +890,7 @@ void Osu::onKeyDown(KeyboardEvent &key) {
     // F9 toggle extended chat
     if(key == cv::TOGGLE_EXTENDED_CHAT.getVal<SCANCODE>()) {
         if(!BanchoState::is_online()) {
+            ui->getNotificationOverlay()->addNotification("You must log in to chat!");
             ui->getOptionsOverlay()->askForLoginDetails();
         } else if(ui->getOptionsOverlay()->isVisible()) {
             // When options menu is open, instead of toggling extended chat, always enable it
