@@ -15,6 +15,10 @@
 #include <ctime>
 #include <fstream>
 
+#ifndef _WIN32
+#include <sys/stat.h>
+#endif
+
 //------------------------------------------------------------------------------
 // Archive::Entry implementation
 //------------------------------------------------------------------------------
@@ -25,6 +29,7 @@ Archive::Entry::Entry(struct archive* archive, struct archive_entry* entry) {
         this->sFilename = "";
         this->iUncompressedSize = 0;
         this->iCompressedSize = 0;
+        this->iPermissions = 0;
         this->bIsDirectory = false;
         return;
     }
@@ -32,6 +37,7 @@ Archive::Entry::Entry(struct archive* archive, struct archive_entry* entry) {
     this->sFilename = archive_entry_pathname(entry);
     this->iUncompressedSize = archive_entry_size(entry);
     this->iCompressedSize = 0;  // libarchive doesn't always provide compressed size
+    this->iPermissions = archive_entry_perm(entry);
     this->bIsDirectory = archive_entry_filetype(entry) == AE_IFDIR;
 
     // extract data immediately while archive is positioned correctly
@@ -90,6 +96,12 @@ bool Archive::Entry::extractToFile(const std::string& outputPath) const {
         logIfCV(debug_file, "failed to write to file {:s}", outputPath.c_str());
         return false;
     }
+
+#ifndef _WIN32
+    if(this->iPermissions != 0) {
+        chmod(outputPath.c_str(), this->iPermissions);
+    }
+#endif
 
     return true;
 }

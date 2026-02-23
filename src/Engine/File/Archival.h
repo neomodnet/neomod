@@ -76,6 +76,7 @@ class Archive {
         std::string sFilename;
         size_t iUncompressedSize;
         size_t iCompressedSize;
+        unsigned iPermissions;
         bool bIsDirectory;
         std::vector<u8> data;  // store extracted data
     };
