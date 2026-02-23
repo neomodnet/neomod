@@ -102,6 +102,4 @@ class Chat final : public UIScreen {
     ChatChannel *ticker = nullptr;
     f64 ticker_tms = 0.0;
     f64 last_sort_time = 0.0;
-
-    McFont *font;
 };
