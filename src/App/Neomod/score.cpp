@@ -80,6 +80,7 @@ void LiveScore::addHitResult(AbstractBeatmapInterface *beatmap, HitObject * /*hi
                              bool ignoreOnHitErrorBar, bool hitErrorBarOnly, bool ignoreCombo, bool ignoreScore) {
     // current combo, excluding the current hitobject which caused the addHitResult() call
     const int scoreComboMultiplier = std::max(this->iCombo - 1, 0);
+    const uSz prevNumHitDeltas = this->hitdeltas.size();
 
     if(hit == LiveScore::HIT::HIT_MISS) {
         this->iCombo = 0;
@@ -195,7 +196,7 @@ void LiveScore::addHitResult(AbstractBeatmapInterface *beatmap, HitObject * /*hi
     this->fHitErrorAvgMax = 0.0f;
     this->fHitErrorAvgCustomMin = 0.0f;
     this->fHitErrorAvgCustomMax = 0.0f;
-    if(this->hitdeltas.size() > 0) {
+    if(this->hitdeltas.size() > 0 && prevNumHitDeltas != this->hitdeltas.size()) {
         int numPositives = 0;
         int numNegatives = 0;
         int numCustomPositives = 0;

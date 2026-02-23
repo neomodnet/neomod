@@ -2770,7 +2770,7 @@ void Spinner::onHit() {
     }
 
     // add it, and we are finished
-    this->addHitResult(result, 0, this->is_end_of_combo, this->vRawPos, -1.0f);
+    this->addHitResult(result, 0, this->is_end_of_combo, this->vRawPos, -1.0f, 0.f, /*ignoreOnHitErrorBar=*/true);
     this->bFinished = true;
 
     const auto spinner_spinsound = this->pf && this->pf->getSkin() ? this->pf->getSkin()->s_spinner_spin : nullptr;
