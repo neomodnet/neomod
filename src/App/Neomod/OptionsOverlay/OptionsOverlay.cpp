@@ -50,6 +50,7 @@
 #include "SString.h"
 #include "TooltipOverlay.h"
 #include "AsyncIOHandler.h"
+#include "AsyncPool.h"
 #include "Parsing.h"
 
 #include "Sound.h"
@@ -117,7 +118,7 @@ struct OptionsOverlayImpl final {
     bool isBusy();
 
     void scheduleLayoutUpdate();
-    void onSkinSelect();
+    void onSkinSelectOpened();
     void onOutputDeviceChange();
     void updateOsuFolderTextbox(std::string_view newFolder);
     void askForLoginDetails();
@@ -129,6 +130,8 @@ struct OptionsOverlayImpl final {
     void onBack();
 
    private:
+    void onSkinSelectFoldersFinished(const std::vector<std::string> &skinFolders);
+
     void setVisibleInt(bool visible, bool fromOnBack = false);
     void scheduleSearchUpdate();
 
@@ -316,6 +319,9 @@ struct OptionsOverlayImpl final {
     int iNumResetAllKeyBindingsPressed{0};
     int iNumResetEverythingPressed{0};
 
+    // non-blocking skin folder enumerator (clicking select skin can lag spike with large folders otherwise)
+    Async::Future<std::vector<std::string>> skinFolderEnumHandle;
+
     // search
     UString sSearchString{};
     float fSearchOnCharKeybindHackTime{0.f};
@@ -347,7 +353,7 @@ void OptionsOverlay::setUsername(UString username) { return pImpl->setUsername(s
 bool OptionsOverlay::isMouseInside() { return pImpl->isMouseInside(); }
 bool OptionsOverlay::isBusy() { return pImpl->isBusy(); }
 void OptionsOverlay::scheduleLayoutUpdate() { return pImpl->scheduleLayoutUpdate(); }
-void OptionsOverlay::onSkinSelect() { return pImpl->onSkinSelect(); }
+void OptionsOverlay::onSkinSelect() { return pImpl->onSkinSelectOpened(); }
 void OptionsOverlay::onOutputDeviceChange() { return pImpl->onOutputDeviceChange(); }
 void OptionsOverlay::updateOsuFolderTextbox(std::string_view newFolder) {
     return pImpl->updateOsuFolderTextbox(newFolder);
@@ -1286,7 +1292,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
             this->skinLabel = static_cast<CBaseUILabel *>(skinSelect->baseElems[1].get());
         }
 
-        this->skinSelectLocalButton->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSkinSelect>(this));
+        this->skinSelectLocalButton->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSkinSelectOpened>(this));
         this->skinSelectLocalButton->setTooltipText(
             "Shift-click a skin to set it as fallback.\nMissing elements fall back to it instead of \"default\".");
 
@@ -1953,6 +1959,12 @@ void OptionsOverlayImpl::update_login_button(bool loggedIn) {
 }
 
 void OptionsOverlayImpl::update(CBaseUIEventCtx &c) {
+    // handle skin folder loading finish
+    if(this->skinFolderEnumHandle.valid() && this->skinFolderEnumHandle.is_ready()) {
+        auto skinFolders = this->skinFolderEnumHandle.get();
+        this->onSkinSelectFoldersFinished(skinFolders);
+    }
+
     if(this->bLayoutUpdateScheduled.load(std::memory_order_relaxed)) {
         this->updateLayout();
     }
@@ -2930,7 +2942,7 @@ void OptionsOverlayImpl::openCurrentSkinFolder() {
     }
 }
 
-void OptionsOverlayImpl::onSkinSelect() {
+void OptionsOverlayImpl::onSkinSelectOpened() {
     // XXX: Instead of a dropdown, we should make a dedicated skin select screen with search bar
 
     // Just close the skin selection menu if it's already open
@@ -2940,28 +2952,40 @@ void OptionsOverlayImpl::onSkinSelect() {
     }
 
     if(osu->isSkinLoading()) return;
+    if(this->skinFolderEnumHandle.valid()) return;  // we are waiting
+
+    this->skinSelectLocalButton->is_loading = true;
 
     cv::osu_folder.setValue(this->osuFolderTextbox->getText());
     std::string skinFolder{cv::osu_folder.getString()};
     if(!skinFolder.ends_with('/')) skinFolder.push_back('/');
     skinFolder.append(cv::osu_folder_sub_skins.getString());
 
-    std::vector<std::string> skinFolders;
-    for(const auto &dir : {env->getFoldersInFolder(NEOMOD_SKINS_PATH "/"), env->getFoldersInFolder(skinFolder)}) {
-        for(const auto &skin : dir) {
-            skinFolders.push_back(skin);
-        }
-    }
+    this->skinFolderEnumHandle = Async::submit(
+        [skinFolder] {
+            std::vector<std::string> skinFolders;
+            for(const auto &dir :
+                {Environment::getFoldersInFolder(NEOMOD_SKINS_PATH "/"), Environment::getFoldersInFolder(skinFolder)}) {
+                for(const auto &skin : dir) {
+                    skinFolders.push_back(skin);
+                }
+            }
+            if(cv::sort_skins_cleaned.getBool()) {
+                // Sort skins only by alphanum characters, ignore the others
+                std::ranges::sort(skinFolders, SString::alnum_comp);
+            } else {
+                // more stable-like sorting (i.e. "-     Cookiezi" comes before "Cookiezi")
+                std::ranges::sort(
+                    skinFolders, [](const char *s1, const char *s2) { return strcasecmp(s1, s2) < 0; },
+                    [](const std::string &str) -> const char * { return str.c_str(); });
+            }
+            return skinFolders;
+        },
+        Lane::Background);
+}
 
-    if(cv::sort_skins_cleaned.getBool()) {
-        // Sort skins only by alphanum characters, ignore the others
-        std::ranges::sort(skinFolders, SString::alnum_comp);
-    } else {
-        // more stable-like sorting (i.e. "-     Cookiezi" comes before "Cookiezi")
-        std::ranges::sort(
-            skinFolders, [](const char *s1, const char *s2) { return strcasecmp(s1, s2) < 0; },
-            [](const std::string &str) -> const char * { return str.c_str(); });
-    }
+void OptionsOverlayImpl::onSkinSelectFoldersFinished(const std::vector<std::string> &skinFolders) {
+    this->skinSelectLocalButton->is_loading = false;
 
     if(skinFolders.size() > 0) {
         if(parent->bVisible) {
