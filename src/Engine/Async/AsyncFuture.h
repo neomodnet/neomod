@@ -3,9 +3,12 @@
 
 #include "noinclude.h"
 #include "config.h"
+#include "AsyncTypes.h"
 
 #include <chrono>
 #include <future>
+#include <memory>
+#include <type_traits>
 
 #ifdef MCENGINE_PLATFORM_WASM
 extern "C" void emscripten_main_thread_process_queued_calls(void);
@@ -15,6 +18,19 @@ bool is_main_thread() noexcept;
 #endif
 
 namespace Async {
+
+namespace detail {
+template <typename T, typename Cb>
+struct then_result {
+    using type = std::invoke_result_t<Cb, T>;
+};
+template <typename Cb>
+struct then_result<void, Cb> {
+    using type = std::invoke_result_t<Cb>;
+};
+template <typename T, typename Cb>
+using then_result_t = typename then_result<T, Cb>::type;
+}  // namespace detail
 
 template <typename T>
 class Future {
@@ -50,7 +66,19 @@ class Future {
         m_future.wait();
     }
 
-   private:
+    // continuation: runs cb(result) on a pool thread, returns Future<U>.
+    // consumes this future (valid() == false after call).
+    // note: the bridging task blocks a pool thread while waiting on this future.
+    // declared here, defined in AsyncPool.h (needs Async::submit).
+    template <typename Cb>
+    auto then(Cb&& cb, Lane lane = Lane::Foreground) -> Future<detail::then_result_t<T, Cb>>;
+
+    // continuation: queues cb(result) for the next main-thread update tick.
+    // consumes this future. returned Future<void> represents "cb was queued" (not "cb has run").
+    template <typename Cb>
+    Future<void> then_on_main(Cb&& cb);
+
+   protected:
     std::future<T> m_future;
 };
 

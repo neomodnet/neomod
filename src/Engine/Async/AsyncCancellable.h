@@ -32,6 +32,13 @@ struct CancellableHandle : public Future<T> {
     }
 
     void cancel() { this->stop.request_stop(); }
+
+    // continuation with cancellation status: queues cb(Result<T>) for the next main-thread update tick.
+    // consumes this handle (future + stop_source moved out; original becomes inert).
+    // returns CancellableHandle<void> that preserves cancel-on-destroy semantics.
+    // declared here, defined in AsyncPool.h (needs Async::submit + Async::queue_main).
+    template <typename Cb>
+    CancellableHandle<void> then_on_main(Cb &&cb);
 };
 
 }  // namespace Async

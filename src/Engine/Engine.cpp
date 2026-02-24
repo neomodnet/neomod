@@ -375,6 +375,11 @@ void Engine::onUpdate() {
         }
 
         {
+            VPROF_BUDGET("Async::update", VPROF_BUDGETGROUP_UPDATE);
+            Async::update();
+        }
+
+        {
             VPROF_BUDGET("DirectoryWatcher::update", VPROF_BUDGETGROUP_UPDATE);
             directoryWatcher->update();
         }

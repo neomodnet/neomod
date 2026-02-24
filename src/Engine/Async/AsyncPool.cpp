@@ -27,12 +27,14 @@ AsyncPool::AsyncPool(size_t thread_count) {
 
     m_fgThreads.reserve(fg);
     for(size_t i = 0; i < fg; i++) {
-        m_fgThreads.emplace_back([this](const Sync::stop_token &stoken, size_t index) { fg_worker_loop(stoken, index); }, i);
+        m_fgThreads.emplace_back(
+            [this](const Sync::stop_token &stoken, size_t index) { fg_worker_loop(stoken, index); }, i);
     }
 
     m_bgThreads.reserve(bg);
     for(size_t i = 0; i < bg; i++) {
-        m_bgThreads.emplace_back([this](const Sync::stop_token &stoken, size_t index) { bg_worker_loop(stoken, index); }, i);
+        m_bgThreads.emplace_back(
+            [this](const Sync::stop_token &stoken, size_t index) { bg_worker_loop(stoken, index); }, i);
     }
 
     debugLog("AsyncPool: started {} worker threads ({} fg, {} bg)", thread_count, fg, bg);
