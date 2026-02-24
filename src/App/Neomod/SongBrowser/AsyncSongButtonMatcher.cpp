@@ -1,26 +1,21 @@
 // Copyright (c) 2016 PG, All rights reserved.
 #include "AsyncSongButtonMatcher.h"
 
+#include "AsyncPool.h"
 #include "SString.h"
 
 #include "SongButton.h"
 #include "DatabaseBeatmap.h"
+namespace AsyncSongButtonMatcher {
 
 namespace {
 static bool searchMatcher(const DatabaseBeatmap *databaseBeatmap, const std::vector<std::string> &searchStringTokens,
                           float speed);
 }
 
-AsyncSongButtonMatcher::AsyncSongButtonMatcher() : Resource(APPDEFINED) {}
-
-void AsyncSongButtonMatcher::setSongButtonsAndSearchString(const std::vector<SongButton *> &songButtons,
-                                                           const std::string &searchString,
-                                                           const std::string &hardcodedSearchString,
-                                                           float currentSpeedMultiplier) {
-    this->fSpeedMultiplier = currentSpeedMultiplier;
-    this->vSongButtons = songButtons;
-    this->sSearchString.clear();
-
+Async::CancellableHandle<void> submitSearchMatch(std::vector<SongButton *> songButtons, const std::string &searchString,
+                                                 const std::string &hardcodedSearchString, float speedMultiplier) {
+    // prepare combined lowercase search string
     UString uSearch;
     const UString uHardcodedSearch{hardcodedSearchString};
 
@@ -33,38 +28,31 @@ void AsyncSongButtonMatcher::setSongButtonsAndSearchString(const std::vector<Son
     // do case-insensitive searches
     uSearch.lowerCase();
 
-    this->sSearchString = uSearch.utf8View();
-    this->sHardcodedSearchString = uHardcodedSearch.utf8View();
-}
+    std::string combinedSearch{uSearch.utf8View()};
 
-void AsyncSongButtonMatcher::initAsync() {
-    if(this->bDead.load(std::memory_order_acquire)) {
-        this->setAsyncReady(true);
-        return;
-    }
-    const float speed = this->fSpeedMultiplier;
+    return Async::submit_cancellable(
+        [buttons = std::move(songButtons), search = std::move(combinedSearch),
+         speed = speedMultiplier](const Sync::stop_token &tok) {
+            // flag matches across entire database
+            const std::vector<std::string> searchStringTokens = SString::split<std::string>(search, ' ');
+            for(auto *songButton : buttons) {
+                // FIXME: this is unsafe, children could be getting sorted while we do this
+                std::vector<SongButton *> children = songButton->getChildren();
+                if(children.size() > 0) {
+                    for(auto c : children) {
+                        const bool match = searchMatcher(c->getDatabaseBeatmap(), searchStringTokens, speed);
+                        c->setIsSearchMatch(match);
+                    }
+                } else {
+                    const bool match = searchMatcher(songButton->getDatabaseBeatmap(), searchStringTokens, speed);
+                    songButton->setIsSearchMatch(match);
+                }
 
-    // flag matches across entire database
-    const std::vector<std::string> searchStringTokens =
-        SString::split<std::string>(this->sSearchString, ' ');  // make a copy
-    for(auto &songButton : this->vSongButtons) {
-        // FIXME: this is unsafe, children could be getting sorted while we do this
-        std::vector<SongButton *> children = songButton->getChildren();
-        if(children.size() > 0) {
-            for(auto c : children) {
-                const bool match = searchMatcher(c->getDatabaseBeatmap(), searchStringTokens, speed);
-                c->setIsSearchMatch(match);
+                // cancellation point
+                if(tok.stop_requested()) break;
             }
-        } else {
-            const bool match = searchMatcher(songButton->getDatabaseBeatmap(), searchStringTokens, speed);
-            songButton->setIsSearchMatch(match);
-        }
-
-        // cancellation point
-        if(this->bDead.load(std::memory_order_acquire)) break;
-    }
-
-    this->setAsyncReady(true);
+        },
+        Lane::Background);
 }
 
 namespace {
@@ -383,3 +371,4 @@ static bool searchMatcher(const DatabaseBeatmap *databaseBeatmap, const std::vec
 }
 
 }  // namespace
+}  // namespace AsyncSongButtonMatcher

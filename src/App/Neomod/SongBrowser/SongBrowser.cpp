@@ -450,8 +450,6 @@ SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
     this->search->setOffsetRight(10);
     this->fSearchWaitTime = 0.0f;
     this->bInSearch = (!cv::songbrowser_search_hardcoded_filter.getString().empty());
-    this->backgroundSearchMatcher = new AsyncSongButtonMatcher();
-
     this->updateLayout();
 }
 
@@ -460,9 +458,6 @@ SongBrowser::~SongBrowser() {
     AsyncPPC::set_map(nullptr);
     VolNormalization::abort();
     this->checkHandleKillBackgroundSearchMatcher();
-
-    resourceManager->destroyResource(this->backgroundSearchMatcher);
-    this->backgroundSearchMatcher = nullptr;
 
     this->hashToDiffButton->clear();
     for(auto &songButton : this->parentButtons) {
@@ -718,7 +713,7 @@ void SongBrowser::draw() {
     this->search->setSearchString(this->sSearchString, cv::songbrowser_search_hardcoded_filter.getString());
     this->search->setDrawNumResults(this->bInSearch);
     this->search->setNumFoundResults(this->currentVisibleSearchMatches);
-    this->search->setSearching(!this->backgroundSearchMatcher->isDead());
+    this->search->setSearching(this->searchHandle.valid() && !this->searchHandle.is_ready());
     this->search->draw();
 
     // NOTE: Intentionally not calling ScreenBackable::draw() here, since we're already drawing
@@ -940,12 +935,11 @@ void SongBrowser::update(CBaseUIEventCtx &c) {
 
     // handle background search matcher
     {
-        if(!this->backgroundSearchMatcher->isDead() && this->backgroundSearchMatcher->isAsyncReady()) {
-            // we have the results, now update the UI
+        if(this->searchHandle.valid() && this->searchHandle.is_ready()) {
+            this->searchHandle.get();
             this->rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(true);
-            this->backgroundSearchMatcher->kill();
         }
-        if(this->backgroundSearchMatcher->isDead()) {
+        if(!this->searchHandle.valid()) {
             if(this->scheduled_scroll_to_selected_button) {
                 this->scheduled_scroll_to_selected_button = false;
                 this->scrollToBestButton();
@@ -2306,17 +2300,8 @@ void SongBrowser::scheduleSearchUpdate(bool immediately) {
 }
 
 void SongBrowser::checkHandleKillBackgroundSearchMatcher() {
-    if(!this->backgroundSearchMatcher->isDead()) {
-        this->backgroundSearchMatcher->kill();
-
-        const double startTime = Timing::getTimeReal();
-        while(!this->backgroundSearchMatcher->isAsyncReady()) {
-            if(Timing::getTimeReal() - startTime > 2) {
-                debugLog("WARNING: Ignoring stuck SearchMatcher thread!");
-                break;
-            }
-        }
-    }
+    this->searchHandle.cancel();
+    if(this->searchHandle.valid()) this->searchHandle.wait();
 }
 
 void SongBrowser::initializeGroupingButtons() {
@@ -2514,14 +2499,9 @@ void SongBrowser::onSearchUpdate() {
             // stop potentially running async search
             this->checkHandleKillBackgroundSearchMatcher();
 
-            this->backgroundSearchMatcher->revive();
-            this->backgroundSearchMatcher->release();
-            this->backgroundSearchMatcher->setSongButtonsAndSearchString(this->parentButtons, this->sSearchString,
-                                                                         hardcodedFilterString,
-                                                                         osu->getMapInterface()->getSpeedMultiplier());
-
-            resourceManager->requestNextLoadAsync();
-            resourceManager->loadResource(this->backgroundSearchMatcher);
+            this->searchHandle = AsyncSongButtonMatcher::submitSearchMatch(
+                this->parentButtons, this->sSearchString, hardcodedFilterString,
+                osu->getMapInterface()->getSpeedMultiplier());
         } else
             this->rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(true, true);
 

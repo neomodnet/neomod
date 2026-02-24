@@ -2,6 +2,7 @@
 // Copyright (c) 2016, PG & 2023-2025, kiwec & 2025, WH, All rights reserved.
 #include "types.h"
 
+#include "AsyncCancellable.h"
 #include "DownloadHandle.h"
 #include "ScreenBackable.h"
 
@@ -32,8 +33,6 @@ class CBaseUILabel;
 
 class McFont;
 class ConVar;
-
-class AsyncSongButtonMatcher;
 struct FinishedScore;
 
 #ifndef UTIL_MD5HASH_H
@@ -383,5 +382,5 @@ class SongBrowser final : public ScreenBackable {
     bool bShouldRecountMatchesAfterSearch{true};
     i32 currentVisibleSearchMatches{0};
     std::optional<GroupType> searchPrevGroup{std::nullopt};
-    AsyncSongButtonMatcher *backgroundSearchMatcher;
+    Async::CancellableHandle<void> searchHandle;
 };
