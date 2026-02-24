@@ -66,10 +66,8 @@ class Image : public Resource {
 
     bool loadRawImage();
 
-    // holding actual pointer width/height separately, just in case
     struct CFree {
-        // stb_image_free is just a macro to free, anyways
-        forceinline void operator()(void *p) const noexcept { free(p); }
+        void operator()(void *p) const noexcept;
     };
     struct SizedRGBABytes final : public std::unique_ptr<u8[], CFree> {
         using unique_ptr::unique_ptr;
@@ -126,6 +124,7 @@ class Image : public Resource {
         }
 
        private:
+        // holding actual data width/height separately, just in case
         i32 width{0};
         i32 height{0};
     };

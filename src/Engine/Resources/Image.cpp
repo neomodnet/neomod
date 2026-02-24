@@ -13,6 +13,7 @@
 #include "Logging.h"
 #include "ConVar.h"
 #include "Graphics.h"
+#include "AsyncPool.h"
 
 #include <png.h>
 #include <turbojpeg.h>
@@ -706,4 +707,14 @@ bool Image::isRawImageCompletelyTransparent() const {
     }
 
     return true;  // all pixels are transparent
+}
+
+void Image::CFree::operator()(void *p) const noexcept {
+    // this can take a long time on the main thread so just let some background thread do it
+    Async::dispatch(
+        [p]() {
+            // stb_image_free is just a macro to free, anyways
+            free(p);
+        },
+        Lane::Background);
 }
