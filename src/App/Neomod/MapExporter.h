@@ -2,10 +2,14 @@
 #pragma once
 #include "types.h"
 
+#include "AsyncCancellable.h"
+#include "AsyncChannel.h"
+#include "UString.h"
+
 #include <functional>
 #include <vector>
 #include <string>
-#include <atomic>
+#include <set>
 
 namespace MapExporter {
 
@@ -33,6 +37,16 @@ struct ExportContext {
     UpdateProgressCallback cb{nullptr};
 };
 
-void export_paths(ExportContext ctx);
+struct Notification {
+    UString msg;
+    bool success;
+    std::function<void()> click_cb;
+};
+
+// submits export work on Lane::Background. pushes Notifications into `out` as work completes.
+// caller owns the returned handle and the channel; channel must outlive the handle.
+Async::CancellableHandle<void> submit_export(
+    std::set<ExportContext> contexts,
+    Async::Channel<Notification> &out);
 
 }  // namespace MapExporter

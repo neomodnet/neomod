@@ -62,7 +62,7 @@ void AsyncResourceLoader::requestAsyncLoad(Resource *resource) {
                 resource->loadAsync();
             }
         },
-        Lane::Background);
+        Lane::Foreground);
 
     {
         Sync::scoped_lock lock(this->m_inFlightMutex);

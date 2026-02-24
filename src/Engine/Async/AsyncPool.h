@@ -155,11 +155,11 @@ auto submit_cancellable(F&& f, Lane lane = Lane::Foreground) -> CancellableHandl
     Sync::stop_source source;
     auto token = source.get_token();
 
-    auto future = pool().submit([func = std::forward<F>(f), tok = std::move(token)]() -> T {
+    auto future = pool().submit([func = std::forward<F>(f), tok = std::move(token)]() mutable -> T {
         return func(tok);
     }, lane);
 
-    return CancellableHandle<T>{std::move(future), std::move(source)};
+    return CancellableHandle<T>(std::move(future), std::move(source));
 }
 
 }  // namespace Async

@@ -457,6 +457,8 @@ SongBrowser::~SongBrowser() {
     BatchDiffCalc::abort_calc();
     AsyncPPC::set_map(nullptr);
     VolNormalization::abort();
+    this->exportHandle.cancel();
+    if(this->exportHandle.valid()) this->exportHandle.wait();
     this->checkHandleKillBackgroundSearchMatcher();
 
     this->hashToDiffButton->clear();
@@ -945,6 +947,23 @@ void SongBrowser::update(CBaseUIEventCtx &c) {
                 this->scrollToBestButton();
             }
         }
+    }
+
+    // handle export completion
+    {
+        if(this->exportHandle.valid() && this->exportHandle.is_ready()) {
+            this->exportHandle.get();
+            if(!this->pendingExports.empty()) {
+                this->exportHandle =
+                    MapExporter::submit_export(std::move(this->pendingExports), this->exportNotifications);
+            }
+        }
+    }
+
+    // dispatch export notifications
+    for(auto &n : this->exportNotifications.drain()) {
+        ui->getNotificationOverlay()->addToast(std::move(n.msg), n.success ? SUCCESS_TOAST : ERROR_TOAST,
+                                               std::move(n.click_cb));
     }
 }
 
@@ -2304,6 +2323,13 @@ void SongBrowser::checkHandleKillBackgroundSearchMatcher() {
     if(this->searchHandle.valid()) this->searchHandle.wait();
 }
 
+void SongBrowser::startExport(MapExporter::ExportContext ctx) {
+    this->pendingExports.emplace(std::move(ctx));
+    if(!this->exportHandle.valid()) {
+        this->exportHandle = MapExporter::submit_export(std::move(this->pendingExports), this->exportNotifications);
+    }
+}
+
 void SongBrowser::initializeGroupingButtons() {
 #define MKCBTN(name__) \
     std::make_unique<CollectionButton>(250.f, 250.f, 200.f, 50.f, fmt::format("cbtn-{}", name__), name__)
@@ -3114,7 +3140,7 @@ void SongBrowser::onSongButtonContextMenu(SongButton *songButton, const UString 
             assert(songButton->getDatabaseBeatmap());
             std::string folder = songButton->getDatabaseBeatmap()->getFolder();
             auto ctx = MapExporter::ExportContext{{folder}, "", BottomBar::update_export_progress_cb};
-            MapExporter::export_paths(std::move(ctx));
+            this->startExport(std::move(ctx));
         }
     }
 
@@ -3215,7 +3241,7 @@ void SongBrowser::onCollectionButtonContextMenu(CollectionButton *collectionButt
             [namestr = std::string{collection_name}](f32 progress, std::string entry) -> void {
                 return BottomBar::update_export_progress(progress, std::move(entry), namestr);
             }};
-        MapExporter::export_paths(std::move(ctx));
+        this->startExport(std::move(ctx));
     }
 }
 

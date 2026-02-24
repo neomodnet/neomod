@@ -3,11 +3,14 @@
 #include "types.h"
 
 #include "AsyncCancellable.h"
+#include "AsyncChannel.h"
+#include "MapExporter.h"
 #include "DownloadHandle.h"
 #include "ScreenBackable.h"
 
 #include <memory>
 #include <optional>
+#include <set>
 
 class BeatmapCarousel;
 class Database;
@@ -383,4 +386,11 @@ class SongBrowser final : public ScreenBackable {
     i32 currentVisibleSearchMatches{0};
     std::optional<GroupType> searchPrevGroup{std::nullopt};
     Async::CancellableHandle<void> searchHandle;
+
+    // map export
+    void startExport(MapExporter::ExportContext ctx);
+    // channel before handle so handle's destructor runs first
+    Async::Channel<MapExporter::Notification> exportNotifications;
+    Async::CancellableHandle<void> exportHandle;
+    std::set<MapExporter::ExportContext> pendingExports;
 };
