@@ -37,8 +37,7 @@ class Resource {
         TEXTUREATLAS,
         VAO,
         SOUND,
-        APPDEFINED,
-        LAST_RESTYPE = APPDEFINED
+        LAST_RESTYPE = SOUND
     };
 
    protected:
@@ -58,7 +57,7 @@ class Resource {
     void loadAsync();
     void release();
     void reload();
-    virtual void interruptLoad();
+    void interruptLoad();
 
     [[nodiscard]] inline const std::string &getName() const { return this->sName; }
     [[nodiscard]] inline const std::string &getFilePath() const { return this->sFilePath; }
@@ -159,7 +158,7 @@ class Resource {
     [[nodiscard]] const virtual Sound *asSound() const { return nullptr; }
 
     [[nodiscard]] constexpr std::string_view typeToString() const {
-        static_assert(APPDEFINED == LAST_RESTYPE);
+        static_assert(SOUND == LAST_RESTYPE);
 
         switch(this->getResType()) {
             case IMAGE:
@@ -176,8 +175,6 @@ class Resource {
                 return "VAO";
             case SOUND:
                 return "SOUND";
-            case APPDEFINED:
-                return "APPDEFINED";
         }
         std::unreachable();
     }

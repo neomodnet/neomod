@@ -140,9 +140,6 @@ struct ResourceManagerImpl final {
             case Resource::Type::VAO:
                 this->vVertexArrayObjects.push_back(res->asVAO());
                 break;
-            case Resource::Type::APPDEFINED:
-                // app-defined types aren't added to specific vectors
-                break;
         }
     }
 
@@ -171,9 +168,6 @@ struct ResourceManagerImpl final {
             case Resource::Type::VAO: {
                 std::erase(this->vVertexArrayObjects, res);
             } break;
-            case Resource::Type::APPDEFINED:
-                // app-defined types aren't added to specific vectors
-                break;
         }
     }
 
