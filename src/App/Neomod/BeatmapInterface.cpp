@@ -686,6 +686,7 @@ bool BeatmapInterface::start() {
     this->iPreviousSectionPassFailTime = -1;
     this->fShouldFlashSectionPass = 0.0f;
     this->fShouldFlashSectionFail = 0.0f;
+    this->fAfterMusicIsFinishedVirtualAudioTimeStart = -1.f;
 
     this->music->setPositionMS(0);
     this->iCurMusicPos = 0;

@@ -38,6 +38,7 @@ Changelog::Changelog() : ScreenBackable() {
         R"(- Added support for customizing the skin used for fallback/missing elements (shift+click on a skin in the skin list))",
         R"(- Added "Download maps" button in multiplayer rooms)",
         R"(- Improved performance with the SDL_gpu renderer)",
+        R"(- Fixed pausing not working if done within 5 seconds of finishing a previous map)",
         R"(- Fixed updater not setting executable permissions on Linux)",
         R"(- Fixed keylock behaving differently when using mouse instead of keyboard binds)",
         R"(- Fixed quick-seek jumping by milliseconds instead of seconds)",
