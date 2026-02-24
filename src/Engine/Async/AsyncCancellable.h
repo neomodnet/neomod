@@ -7,7 +7,8 @@
 namespace Async {
 
 // returned by submit_cancellable / submit_then_cancellable; holds future + stop source.
-// auto-cancels and waits on destruction/move-assignment (like jthread).
+// auto-cancels on destruction/move-assignment (signals stop, but does not block).
+// callers who need to block should call wait() explicitly.
 template <typename T>
 struct CancellableHandle : public Future<T> {
     Sync::stop_source stop;
@@ -15,10 +16,7 @@ struct CancellableHandle : public Future<T> {
     CancellableHandle() noexcept = default;
     CancellableHandle(Future<T> &&f, Sync::stop_source s) noexcept : Future<T>(std::move(f)), stop(std::move(s)) {}
 
-    ~CancellableHandle() {
-        this->cancel();
-        if(this->valid()) this->wait();
-    }
+    ~CancellableHandle() { this->cancel(); }
 
     CancellableHandle(const CancellableHandle &) = delete;
     CancellableHandle &operator=(const CancellableHandle &) = delete;
@@ -27,7 +25,6 @@ struct CancellableHandle : public Future<T> {
     CancellableHandle &operator=(CancellableHandle &&other) noexcept {
         if(this != &other) {
             this->cancel();
-            if(this->valid()) this->wait();
             Future<T>::operator=(std::move(other));
             this->stop = std::move(other.stop);
         }

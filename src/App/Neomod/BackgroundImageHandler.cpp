@@ -14,40 +14,150 @@
 #include "Environment.h"
 #include "Hashing.h"
 #include "Graphics.h"
+#include "AsyncPool.h"
 
 #include "Skin.h"
 
 #include "demoji.h"
 namespace {
-// background image path parser (from .osu files)
-class MapBGImagePathLoader final : public Resource {
-    NOCOPY_NOMOVE(MapBGImagePathLoader)
-   public:
-    MapBGImagePathLoader(std::string filePath) : Resource(APPDEFINED) { this->sFilePath = std::move(filePath); }
-    ~MapBGImagePathLoader() override { destroy(); }
 
-    [[nodiscard]] inline const std::string &getParsedBGFileName() const { return this->parsed_bg_filename; }
-    [[nodiscard]] inline bool foundBrokenFilenameReplacement() const { return this->found_mojibake_filename; }
-
-   protected:
-    void init() override {
-        // (nothing)
-        this->bReady.store(true, std::memory_order_release);
-    }
-    void initAsync() override;
-    void destroy() override { /* nothing */ }
-
-   private:
-    bool checkMojibake();
-
-    std::string parsed_bg_filename;
-    bool found_mojibake_filename{false};
-
-    // set to true if demoji_bwd returned -1 (failed to initialize)
-    static std::atomic<bool> dont_attempt_mojibake_checks;
+struct BGPathResult {
+    std::string filename;
+    bool mojibake_corrected{false};
 };
 
-std::atomic<bool> MapBGImagePathLoader::dont_attempt_mojibake_checks{false};
+// set to true if demoji_bwd returned -1 (failed to initialize)
+std::atomic<bool> dont_attempt_mojibake_checks{false};
+
+bool checkMojibake(std::string_view file_path, std::string &parsed_bg_filename) {
+    bool ret = false;
+    const bool debug = cv::debug_bg_loader.getBool();
+
+    size_t last_slash = file_path.find_last_of("/\\");
+    if(last_slash == std::string_view::npos) {
+        // sanity check... we're not a in a folder
+        return ret;
+    }
+
+    std::string_view containing_folder = file_path.substr(0, last_slash + 1);
+    std::string full_image_path = fmt::format("{}{}", containing_folder, parsed_bg_filename);
+    if(File::exists(full_image_path) == File::FILETYPE::FILE) {
+        // we found it, return early
+        return ret;
+    }
+
+    logIf(debug, "{} doesn't exist, trying to re-mojibake...", full_image_path);
+    const size_t out_size = parsed_bg_filename.size() * 4;
+
+    auto converted_output = std::make_unique_for_overwrite<char[]>(parsed_bg_filename.size() * 4);
+    const auto conv_result_len =
+        demoji_bwd(parsed_bg_filename.data(), parsed_bg_filename.size(), converted_output.get(), out_size);
+
+    // if demoji_bwd is broken/unavailable for some reason then don't try to use it again
+    // (this function won't be called anymore)
+    if(conv_result_len == -1) dont_attempt_mojibake_checks.store(true, std::memory_order_release);
+
+    if(conv_result_len > 0) {
+        std::string_view result = {converted_output.get(), converted_output.get() + conv_result_len};
+
+        if(result == parsed_bg_filename) {
+            logIf(debug, "input matched converted output, nothing to do");
+            return ret;
+        }
+
+        std::string converted_path = fmt::format("{}{}", containing_folder, result);
+        const bool converted_exists = File::exists(converted_path) == File::FILETYPE::FILE;
+
+        if(converted_exists) {
+            parsed_bg_filename = result;
+            ret = true;
+        }
+
+        logIf(debug, "got result {}, converted path {}, {} on disk", result, converted_path,
+              converted_exists ? "exists" : "does not exist");
+    } else if(conv_result_len == 0 && debug) {
+        debugLog("got no conversion result for {}", parsed_bg_filename);
+    } else if(debug) {
+        debugLog("got error {}", conv_result_len);
+    }
+
+    return ret;
+}
+
+Async::CancellableHandle<BGPathResult> parseBgFromOsuFile(std::string file_path) {
+    auto lambda = [file_path = std::move(file_path)](const Sync::stop_token &tok) -> BGPathResult {
+        BGPathResult result;
+
+        bool found = false;
+        {
+            File file(file_path);
+
+            if(tok.stop_requested() || !file.canRead()) return result;
+            const uSz file_size = file.getFileSize();
+
+            static constexpr const uSz CHUNK_SIZE = 64ULL;
+
+            std::array<std::string, CHUNK_SIZE> lines;
+            bool quit = false, is_events_block = false;
+
+            uSz lines_in_chunk = std::min<uSz>(file_size, CHUNK_SIZE);
+
+            std::string temp_parsed_filename;
+            temp_parsed_filename.reserve(64);
+
+            while(!found && !quit && lines_in_chunk > 0) {
+                // read 64 lines at a time
+                for(uSz i = 0; i < lines_in_chunk; i++) {
+                    if(tok.stop_requested()) return result;
+                    if(!file.canRead()) {
+                        // cut short
+                        lines_in_chunk = i;
+                        break;
+                    }
+                    lines[i] = file.readLine();
+                }
+
+                for(uSz i = 0; i < lines_in_chunk; i++) {
+                    if(tok.stop_requested()) return result;
+
+                    std::string_view cur_line = lines[i];
+
+                    // ignore comments, but only if at the beginning of a line (e.g. allow Artist:DJ'TEKINA//SOMETHING)
+                    if(cur_line.empty() || SString::is_comment(cur_line)) continue;
+
+                    if(!is_events_block && cur_line.contains("[Events]")) {
+                        is_events_block = true;
+                        continue;
+                    } else if(cur_line.contains("[TimingPoints]") || cur_line.contains("[Colours]") ||
+                              cur_line.contains("[HitObjects]")) {
+                        quit = true;
+                        break;  // NOTE: stop early
+                    }
+
+                    if(!is_events_block) continue;
+
+                    // parse events block for filename
+                    i32 type{-1}, start;
+                    if(Parsing::parse(cur_line, &type, ',', &start, ',', &temp_parsed_filename) && (type == 0)) {
+                        result.filename = temp_parsed_filename;
+                        found = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if(tok.stop_requested()) return result;
+
+        if(found && !dont_attempt_mojibake_checks.load(std::memory_order_acquire)) {
+            result.mojibake_corrected = checkMojibake(file_path, result.filename);
+        }
+
+        return result;
+    };
+    return Async::submit_cancellable(std::move(lambda), Lane::Background);
+}
+
 }  // namespace
 
 // actual implementation
@@ -66,7 +176,7 @@ struct BGImageHandlerImpl final {
         std::string folder;
         std::string bg_image_filename;
 
-        MapBGImagePathLoader *bg_image_path_ldr;
+        Async::CancellableHandle<BGPathResult> bg_path_handle;
         Image *image;
 
         [[nodiscard]] inline bool isStale(u32 num_frames_before_stale) const {
@@ -91,7 +201,6 @@ struct BGImageHandlerImpl final {
 
     [[nodiscard]] u32 getMaxEvictions() const;
 
-    void handleLoadPathForEntry(const std::string &path, ENTRY &entry);
     inline void handleLoadImageForEntry(ENTRY &entry) { return this->acquireImageRef(entry); }
 
     void acquireImageRef(ENTRY &entry);
@@ -146,7 +255,6 @@ BGImageHandlerImpl::BGImageHandlerImpl() {
 
 BGImageHandlerImpl::~BGImageHandlerImpl() {
     for(auto &[_, entry] : this->cache) {
-        if(entry.bg_image_path_ldr) resourceManager->destroyResource(entry.bg_image_path_ldr);
         this->releaseImageRef(entry);
     }
     this->cache.clear();
@@ -207,10 +315,6 @@ void BGImageHandlerImpl::update(bool allow_eviction) {
 
         // check and handle evictions
         if(evicted < max_to_evict && consider_evictions && !was_used_last_frame) {
-            if(entry.bg_image_path_ldr) {
-                entry.bg_image_path_ldr->interruptLoad();
-                resourceManager->destroyResource(entry.bg_image_path_ldr, ResourceDestroyFlags::RDF_FORCE_ASYNC);
-            }
             logIf(doLogging, "evicting entry: {}", entry.bg_image_filename);
             this->releaseImageRef(entry);
 
@@ -229,31 +333,26 @@ void BGImageHandlerImpl::update(bool allow_eviction) {
                         // DatabaseBeatmapBackgroundImagePathLoader
                         logIf(doLogging, "loading path for entry (scheduled): {}", entry.bg_image_filename);
                         entry.image = nullptr;
-                        this->handleLoadPathForEntry(osu_path, entry);
+                        entry.bg_path_handle = parseBgFromOsuFile(osu_path);
                     } else {
                         // if backgroundImageFileName is already loaded/valid, then we can directly load the image
                         logIf(doLogging, "loading image for entry (scheduled): {}", entry.bg_image_filename);
-                        entry.bg_image_path_ldr = nullptr;
                         this->handleLoadImageForEntry(entry);
                     }
                 }
             } else {
-                // no load scheduled (potential load-in-progress if it was necessary), handle backgroundImagePathLoader
-                // loading finish
-                if(entry.image == nullptr && entry.bg_image_path_ldr != nullptr && entry.bg_image_path_ldr->isReady()) {
-                    std::string bg_loaded_name = entry.bg_image_path_ldr->getParsedBGFileName();
-                    entry.overwrite_db_entry = entry.bg_image_path_ldr->foundBrokenFilenameReplacement();
-                    if(bg_loaded_name.length() > 1) {
-                        entry.bg_image_filename = bg_loaded_name;
+                // no load scheduled (potential load-in-progress if it was necessary), handle bg path parse completion
+                if(entry.image == nullptr && entry.bg_path_handle.valid() && entry.bg_path_handle.is_ready()) {
+                    auto bg_result = entry.bg_path_handle.get();
+                    entry.overwrite_db_entry = bg_result.mojibake_corrected;
+                    if(bg_result.filename.length() > 1) {
+                        entry.bg_image_filename = std::move(bg_result.filename);
                         this->handleLoadImageForEntry(entry);
                     } else {
                         entry.ready_but_image_not_found = true;
                     }
 
                     logIf(doLogging, "loading image for entry (bg path loader finished): {}", entry.bg_image_filename);
-
-                    resourceManager->destroyResource(entry.bg_image_path_ldr, ResourceDestroyFlags::RDF_FORCE_ASYNC);
-                    entry.bg_image_path_ldr = nullptr;
                 }
             }
         }
@@ -335,7 +434,7 @@ const Image *BGImageHandlerImpl::getLoadBackgroundImage(const DatabaseBeatmap *b
         // create entry
         ENTRY entry{.folder = beatmap->getFolder(),
                     .bg_image_filename = beatmap->getBackgroundImageFileName(),
-                    .bg_image_path_ldr = nullptr,
+                    .bg_path_handle = {},
                     .image = nullptr,
                     .loading_time = engine->getTime() + (load_immediately ? 0. : this->image_loading_delay),
                     .frame_last_accessed = engine->getFrameCount(),
@@ -344,7 +443,7 @@ const Image *BGImageHandlerImpl::getLoadBackgroundImage(const DatabaseBeatmap *b
                     .ready_but_image_not_found = false,
                     .has_image_ref = false};
 
-        this->cache.try_emplace(beatmap_filepath, entry);
+        this->cache.try_emplace(beatmap_filepath, std::move(entry));
     }
 
     if(try_menubg_fallback) {
@@ -359,14 +458,6 @@ const Image *BGImageHandlerImpl::getLoadBackgroundImage(const DatabaseBeatmap *b
 }
 
 // private
-
-void BGImageHandlerImpl::handleLoadPathForEntry(const std::string &path, ENTRY &entry) {
-    entry.bg_image_path_ldr = new MapBGImagePathLoader(path);
-
-    // start path load
-    resourceManager->requestNextLoadAsync();
-    resourceManager->loadResource(entry.bg_image_path_ldr);
-}
 
 void BGImageHandlerImpl::acquireImageRef(ENTRY &entry) {
     std::string full_bg_image_path = fmt::format("{}{}", entry.folder, entry.bg_image_filename);
@@ -417,149 +508,6 @@ u32 BGImageHandlerImpl::getMaxEvictions() const {
             std::round(std::log2<u32>(static_cast<u32>(this->shared_images.size() - this->max_cache_size)) * 2u));
     }
     ret = std::clamp<u32>(ret, 0u, this->shared_images.size() / 2u);
-    return ret;
-}
-
-#ifdef _DEBUG
-#include "Thread.h"
-#endif
-
-#include <cassert>
-#include <utility>
-
-namespace {
-void MapBGImagePathLoader::initAsync() {
-    if(this->isInterrupted()) return;
-    // sanity
-    assert(!McThread::is_main_thread());
-
-    bool found = false;
-    {
-        File file(this->sFilePath);
-
-        if(this->isInterrupted() || !file.canRead()) return;
-        const uSz file_size = file.getFileSize();
-
-        static constexpr const uSz CHUNK_SIZE = 64ULL;
-
-        std::array<std::string, CHUNK_SIZE> lines;
-        bool quit = false, is_events_block = false;
-
-        uSz lines_in_chunk = std::min<uSz>(file_size, CHUNK_SIZE);
-
-        std::string temp_parsed_filename;
-        temp_parsed_filename.reserve(64);
-
-        while(!found && !quit && lines_in_chunk > 0) {
-            // read 64 lines at a time
-            for(uSz i = 0; i < lines_in_chunk; i++) {
-                if(this->isInterrupted()) {
-                    return;
-                }
-                if(!file.canRead()) {
-                    // cut short
-                    lines_in_chunk = i;
-                    break;
-                }
-                lines[i] = file.readLine();
-            }
-
-            for(uSz i = 0; i < lines_in_chunk; i++) {
-                if(this->isInterrupted()) {
-                    return;
-                }
-
-                std::string_view cur_line = lines[i];
-
-                // ignore comments, but only if at the beginning of a line (e.g. allow Artist:DJ'TEKINA//SOMETHING)
-                if(cur_line.empty() || SString::is_comment(cur_line)) continue;
-
-                if(!is_events_block && cur_line.contains("[Events]")) {
-                    is_events_block = true;
-                    continue;
-                } else if(cur_line.contains("[TimingPoints]") || cur_line.contains("[Colours]") ||
-                          cur_line.contains("[HitObjects]")) {
-                    quit = true;
-                    break;  // NOTE: stop early
-                }
-
-                if(!is_events_block) continue;
-
-                // parse events block for filename
-                i32 type{-1}, start;
-                if(Parsing::parse(cur_line, &type, ',', &start, ',', &temp_parsed_filename) && (type == 0)) {
-                    this->parsed_bg_filename = temp_parsed_filename;
-                    found = true;
-                    break;
-                }
-            }
-        }
-    }
-
-    if(this->isInterrupted()) return;
-
-    if(found && !dont_attempt_mojibake_checks.load(std::memory_order_acquire)) {
-        this->found_mojibake_filename = checkMojibake();
-    }
-
-    this->bAsyncReady.store(true, std::memory_order_release);
-    // NOTE: on purpose. there is nothing to do in init(), so finish 1 frame early
-    this->bReady.store(true, std::memory_order_release);
-};
-}  // namespace
-
-bool MapBGImagePathLoader::checkMojibake() {
-    bool ret = false;
-    const bool debug = cv::debug_bg_loader.getBool();
-
-    size_t last_slash = this->sFilePath.find_last_of("/\\");
-    if(last_slash == std::string::npos) {
-        // sanity check... we're not a in a folder
-        return ret;
-    }
-
-    std::string containing_folder = this->sFilePath.substr(0, last_slash + 1);
-    std::string full_image_path = fmt::format("{}{}", containing_folder, this->parsed_bg_filename);
-    if(File::exists(full_image_path) == File::FILETYPE::FILE) {
-        // we found it, return early
-        return ret;
-    }
-
-    logIf(debug, "{} doesn't exist, trying to re-mojibake...", full_image_path);
-    const size_t out_size = this->parsed_bg_filename.size() * 4;
-
-    auto converted_output = std::make_unique_for_overwrite<char[]>(this->parsed_bg_filename.size() * 4);
-    const auto conv_result_len =
-        demoji_bwd(this->parsed_bg_filename.data(), this->parsed_bg_filename.size(), converted_output.get(), out_size);
-
-    // if demoji_bwd is broken/unavailable for some reason then don't try to use it again
-    // (this function won't be called anymore)
-    if(conv_result_len == -1) dont_attempt_mojibake_checks.store(true, std::memory_order_release);
-
-    if(conv_result_len > 0) {
-        std::string_view result = {converted_output.get(), converted_output.get() + conv_result_len};
-
-        if(result == this->parsed_bg_filename) {
-            logIf(debug, "input matched converted output, nothing to do");
-            return ret;
-        }
-
-        std::string converted_path = fmt::format("{}{}", containing_folder, result);
-        const bool converted_exists = File::exists(converted_path) == File::FILETYPE::FILE;
-
-        if(converted_exists) {
-            this->parsed_bg_filename = result;
-            ret = true;
-        }
-
-        logIf(debug, "got result {}, converted path {}, {} on disk", result, converted_path,
-              converted_exists ? "exists" : "does not exist");
-    } else if(conv_result_len == 0 && debug) {
-        debugLog("got no conversion result for {}", this->parsed_bg_filename);
-    } else if(debug) {
-        debugLog("got error {}", conv_result_len);
-    }
-
     return ret;
 }
 

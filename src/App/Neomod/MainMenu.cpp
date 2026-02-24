@@ -1735,8 +1735,8 @@ void MainMenu::submitSongsFolderEnum() {
     this->songsFolderHandle = Async::submit_cancellable(
         [path = this->songsFolderPath](const Sync::stop_token &tok) -> std::vector<std::string> {
             std::vector<std::string> entries;
-            if(env->directoryExists(path)) {
-                std::vector<std::string> peppy_mapsets = env->getFoldersInFolder(path);
+            if(Environment::directoryExists(path)) {
+                std::vector<std::string> peppy_mapsets = Environment::getFoldersInFolder(path);
                 std::string trimmed = path;
                 if(!trimmed.empty() && (trimmed.back() == '/' || trimmed.back() == '\\')) trimmed.pop_back();
                 for(const auto &mapset : peppy_mapsets) {
@@ -1744,7 +1744,7 @@ void MainMenu::submitSongsFolderEnum() {
                     entries.push_back(fmt::format("{}/{}/", trimmed, mapset));
                 }
             }
-            auto neomod_mapsets = env->getFoldersInFolder(NEOMOD_MAPS_PATH "/");
+            auto neomod_mapsets = Environment::getFoldersInFolder(NEOMOD_MAPS_PATH "/");
             for(const auto &mapset : neomod_mapsets) {
                 if(tok.stop_requested()) return {};
                 entries.push_back(fmt::format(NEOMOD_MAPS_PATH "/{}/", mapset));

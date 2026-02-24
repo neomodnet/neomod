@@ -208,9 +208,13 @@ void AsyncPoolTest::update() {
                 exited.store(true, std::memory_order_release);
             });
             Timing::sleepMS(5);
-            // handle goes out of scope here; destructor should cancel + wait
+            // handle goes out of scope here; destructor signals cancel but does not block
         }
-        TEST_ASSERT(exited.load(std::memory_order_acquire), "handle destructor auto-cancelled and waited");
+        // task should observe the stop and exit on its own
+        for(int i = 0; i < 10000 && !exited.load(std::memory_order_acquire); i++) {
+            Timing::tinyYield();
+        }
+        TEST_ASSERT(exited.load(std::memory_order_acquire), "handle destructor signalled cancel");
     }
 
     TEST_PRINT_RESULTS("AsyncPoolTest");
