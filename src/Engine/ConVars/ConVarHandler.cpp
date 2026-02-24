@@ -203,7 +203,9 @@ void ConVarHandler::ConVarBuiltins::find(std::string_view args) {
     }
 
     if(matchingConVars.size() > 0) {
-        std::ranges::sort(matchingConVars, {}, [](const ConVar *v) { return v->getName(); });
+        std::ranges::sort(
+            matchingConVars, [](const char *s1, const char *s2) -> bool { return strcmp(s1, s2) < 0; },
+            [](const ConVar *v) { return v->getName(); });
     }
 
     if(matchingConVars.size() < 1) {

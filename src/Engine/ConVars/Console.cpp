@@ -106,6 +106,7 @@ bool Console::processCommand(std::string_view command, bool fromFile) {
 void Console::execConfigFile(std::string_view filename_view) {
     if(filename_view.empty()) return;
     std::string filename{filename_view};
+    File::normalizeSlashes(filename);
 
     const bool is_absolute = filename.contains('/');
     if(!is_absolute) {  // allow absolute paths
