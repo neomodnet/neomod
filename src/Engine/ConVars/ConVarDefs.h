@@ -161,7 +161,7 @@ CONVAR(snd_disable_exclusive_unfocused, true, CLIENT,
 CONVAR(snd_speed_compensate_pitch, true, CLIENT, "automatically keep pitch constant if speed changes");
 CONVAR(volume_change_interval, 0.05f, CLIENT | SKINS | SERVER);
 CONVAR(volume_effects, 1.0f, CLIENT | SKINS | SERVER);
-CONVAR(volume_master, 1.0f, CLIENT | SKINS | SERVER);
+CONVAR(volume_master, 0.7f, CLIENT | SKINS | SERVER);
 CONVAR(volume_master_inactive, 0.25f, CLIENT | SKINS | SERVER);
 CONVAR(volume_music, 0.4f, CLIENT | SKINS | SERVER);
 CONVAR(win_snd_wasapi_buffer_size, 0.011f, CLIENT,
