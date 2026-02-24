@@ -137,9 +137,9 @@ class ResourceManager final {
 
     [[nodiscard]] bool isLoading() const;
     [[nodiscard]] bool isLoadingResource(const Resource *rs) const;
-    [[nodiscard]] size_t getNumLoadingWork() const;
-    [[nodiscard]] size_t getNumActiveThreads() const;
-    [[nodiscard]] size_t getNumLoadingWorkAsyncDestroy() const;
+    bool waitForResource(Resource *rs);
+    [[nodiscard]] size_t getNumInFlight() const;
+    [[nodiscard]] size_t getNumAsyncDestroyQueue() const;
 
    private:
     void destroyResources();

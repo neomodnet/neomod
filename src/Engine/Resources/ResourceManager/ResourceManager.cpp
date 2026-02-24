@@ -7,10 +7,6 @@
 
 #include "ResourceManager.h"
 
-#ifdef MCENGINE_PLATFORM_WASM
-#include <emscripten/threading.h>
-#endif
-
 #include "Font.h"
 #include "Image.h"
 #include "RenderTarget.h"
@@ -294,23 +290,17 @@ void ResourceManager::destroyResource(Resource *rs, ResourceDestroyFlags destfla
     // check if it's being loaded and schedule async destroy if so
     // (!!(flags & ResourceDestroyFlags::RDF_FORCE_ASYNC)) ||
     if(pImpl->asyncLoader.isLoadingResource(rs)) {
-        logIf(debug, "Scheduled async destroy of {:s}", rs->getDebugIdentifier());
-
         // interrupt async load
         rs->interruptLoad();
-
-        pImpl->asyncLoader.scheduleAsyncDestroy(rs, shouldDelete);
 
         if(isManagedResource) pImpl->removeManagedResource(rs, managedResourceIterator);
 
         if(flags::has<RDF_FORCE_BLOCKING>(destflags)) {
-            do {
-                this->update();
-#ifdef MCENGINE_PLATFORM_WASM
-                // pthreads proxy I/O to the main thread; drain the queue so the loader thread can make progress
-                emscripten_main_thread_process_queued_calls();
-#endif
-            } while(pImpl->asyncLoader.isLoadingResource(rs));
+            pImpl->asyncLoader.waitForResource(rs);
+            rs->release();
+            if(shouldDelete) SAFE_DELETE(rs);
+        } else {
+            pImpl->asyncLoader.scheduleAsyncDestroy(rs, shouldDelete);
         }
 
         return;
@@ -364,13 +354,11 @@ bool ResourceManager::isLoading() const { return pImpl->asyncLoader.isLoading();
 
 bool ResourceManager::isLoadingResource(const Resource *rs) const { return pImpl->asyncLoader.isLoadingResource(rs); }
 
-size_t ResourceManager::getNumLoadingWork() const { return pImpl->asyncLoader.getNumLoadingWork(); }
+bool ResourceManager::waitForResource(Resource *rs) { return pImpl->asyncLoader.waitForResource(rs); }
 
-size_t ResourceManager::getNumActiveThreads() const { return pImpl->asyncLoader.getNumActiveThreads(); }
+size_t ResourceManager::getNumInFlight() const { return pImpl->asyncLoader.getNumInFlight(); }
 
-size_t ResourceManager::getNumLoadingWorkAsyncDestroy() const {
-    return pImpl->asyncLoader.getNumLoadingWorkAsyncDestroy();
-}
+size_t ResourceManager::getNumAsyncDestroyQueue() const { return pImpl->asyncLoader.getNumAsyncDestroyQueue(); }
 
 void ResourceManager::requestNextLoadAsync() { pImpl->bNextLoadAsync.store(true, std::memory_order_release); }
 
@@ -403,32 +391,12 @@ void ResourceManager::reloadResources(const std::vector<Resource *> &resources, 
 
     if(!async)  // synchronous
     {
-        // the resource could be in the middle of async loading
-        // so if we explicitly want to load synchronously we have to wait until that's finished
-        std::vector<Resource *> asyncLoadingList;
         for(auto &res : resources) {
             if(unlikely(pImpl->asyncLoader.isLoadingResource(res))) {
                 res->interruptLoad();
-                asyncLoadingList.push_back(res);
-            } else {
-                res->reload();
+                pImpl->asyncLoader.waitForResource(res);
             }
-        }
-
-        while(!asyncLoadingList.empty()) {
-            this->update();
-#ifdef MCENGINE_PLATFORM_WASM
-            emscripten_main_thread_process_queued_calls();
-#endif
-            for(auto resit = asyncLoadingList.begin(); resit != asyncLoadingList.end();) {
-                if(pImpl->asyncLoader.isLoadingResource(*resit)) {
-                    ++resit;
-                } else {
-                    (*resit)->reload();
-                    resit = asyncLoadingList.erase(resit);
-                    continue;
-                }
-            }
+            res->reload();
         }
 
         return;

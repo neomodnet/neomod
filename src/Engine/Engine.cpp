@@ -174,11 +174,11 @@ Engine::~Engine() {
     debugLog("Engine: Freeing animation handler...");
     anim::clearAll();
 
-    debugLog("Engine: Freeing async pool...");
-    m_asyncPool.reset();
-
     debugLog("Engine: Freeing resource manager...");
     resourceManager.reset();
+
+    debugLog("Engine: Freeing async pool...");
+    m_asyncPool.reset();
 
     debugLog("Engine: Freeing Sound...");
     soundEngine.reset();

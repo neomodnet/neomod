@@ -9,6 +9,7 @@
 #include "Keyboard.h"
 #include "Mouse.h"
 #include "Profiler.h"
+#include "AsyncPool.h"
 #include "ResourceManager.h"
 #include "Resource.h"
 #include "RuntimePlatform.h"
@@ -230,12 +231,13 @@ void VisualProfiler::draw() {
                                 this->textLines);
                     addTextLine(fmt::format("Sound Volume: {:f}"_cf, soundEngine->getVolume()), textFont,
                                 this->textLines);
-                    addTextLine(fmt::format("RM Threads: {:d}"_cf, resourceManager->getNumActiveThreads()), textFont,
-                                this->textLines);
-                    addTextLine(fmt::format("RM LoadingWork: {:d}"_cf, resourceManager->getNumLoadingWork()), textFont,
-                                this->textLines);
                     addTextLine(
-                        fmt::format("RM LoadingWorkAD: {:d}"_cf, resourceManager->getNumLoadingWorkAsyncDestroy()),
+                        fmt::format("Pool: {:d} threads, {:d} pending"_cf, Async::pool().thread_count(),
+                                    Async::pool().pending_count()),
+                        textFont, this->textLines);
+                    addTextLine(
+                        fmt::format("RM InFlight: {:d}, DestroyQ: {:d}"_cf, resourceManager->getNumInFlight(),
+                                    resourceManager->getNumAsyncDestroyQueue()),
                         textFont, this->textLines);
                     addTextLine(fmt::format("RM Named Resources: {:d}"_cf, resourceManager->getResources().size()),
                                 textFont, this->textLines);
