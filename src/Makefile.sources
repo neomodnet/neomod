@@ -186,11 +186,13 @@ neomod_SOURCES = \
 	src/App/Neomod/UserStatsScreen.cpp \
 	src/App/Neomod/VolumeOverlay.cpp \
 	src/App/Neomod/score.cpp \
+	src/App/Tests/AsyncPoolTest.cpp \
 	src/App/Tests/AudioTester/AudioTester.cpp \
 	src/App/Tests/BaseFrameworkTest/BaseFrameworkTest.cpp \
 	src/App/Tests/Neomod/HitSoundTest.cpp \
 	src/App/Tests/Neomod/SkinLoadTest.cpp \
 	src/Engine/AnimationHandler.cpp \
+	src/Engine/Async/AsyncPool.cpp \
 	src/Engine/ConVars/ConVar.cpp \
 	src/Engine/ConVars/ConVarHandler.cpp \
 	src/Engine/ConVars/Console.cpp \

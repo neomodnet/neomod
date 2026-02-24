@@ -35,6 +35,7 @@ class NetworkHandler;
 using Mc::Net::NetworkHandler;
 class ResourceManager;
 class AsyncIOHandler;
+class AsyncPool;
 class DirectoryWatcher;
 
 class CBaseUIContainer;
@@ -160,6 +161,9 @@ class Engine final : public KeyboardListener {
 
     McFont *consoleFont{nullptr};
     McFont *defaultFont{nullptr};
+
+    // async thread pool
+    std::unique_ptr<AsyncPool> m_asyncPool;
 
     // custom
     bool bShuttingDown;

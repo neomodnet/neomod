@@ -1,7 +1,7 @@
 // Copyright (c) 2026, WH, All rights reserved.
 #include "SkinLoadTest.h"
 
-#include "NeomodTestMacros.h"
+#include "TestMacros.h"
 #include "Engine.h"
 #include "Resource.h"
 #include "ResourceManager.h"
