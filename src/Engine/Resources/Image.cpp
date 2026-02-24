@@ -290,11 +290,9 @@ void Image::saveToImage(const u8 *data, i32 width, i32 height, u8 channels, std:
 
     garbage_zlib();
     debugLog("Saving image to {:s} ...", filepath);
-
     FILE *fp = File::fopen_c(filepath.c_str(), "wb");
     if(!fp) {
         debugLog("PNG error: Could not open file {:s} for writing", filepath);
-        engine->showMessageError("PNG Error", "Could not open file for writing");
         return;
     }
 
@@ -302,7 +300,6 @@ void Image::saveToImage(const u8 *data, i32 width, i32 height, u8 channels, std:
     if(!png_ptr) {
         fclose(fp);
         debugLog("PNG error: png_create_write_struct failed");
-        engine->showMessageError("PNG Error", "png_create_write_struct failed");
         return;
     }
 
@@ -311,7 +308,6 @@ void Image::saveToImage(const u8 *data, i32 width, i32 height, u8 channels, std:
         png_destroy_write_struct(&png_ptr, nullptr);
         fclose(fp);
         debugLog("PNG error: png_create_info_struct failed");
-        engine->showMessageError("PNG Error", "png_create_info_struct failed");
         return;
     }
 
@@ -319,7 +315,6 @@ void Image::saveToImage(const u8 *data, i32 width, i32 height, u8 channels, std:
         png_destroy_write_struct(&png_ptr, &info_ptr);
         fclose(fp);
         debugLog("PNG error during write");
-        engine->showMessageError("PNG Error", "Error during PNG write");
         return;
     }
 

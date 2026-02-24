@@ -54,6 +54,7 @@
 #include "Shader.h"
 #include "Skin.h"
 #include "AsyncPPCalculator.h"
+#include "AsyncPool.h"
 #include "SongBrowser/LoudnessCalcThread.h"
 #include "DiffCalc/BatchDiffCalc.h"
 #include "SongBrowser/SongBrowser.h"
@@ -1280,13 +1281,12 @@ void Osu::saveScreenshot() {
     while(env->fileExists(fmt::format(NEOMOD_SCREENSHOTS_PATH "/screenshot{}.png", screenshotNumber)))
         screenshotNumber++;
 
-    auto screenshotFilename = fmt::format(NEOMOD_SCREENSHOTS_PATH "/screenshot{}.png", screenshotNumber);
     constexpr u8 screenshotChannels{3};
 
-    const auto saveFunc = [currentRes = this->internalRect, &skin = this->skin,
-                           filename = std::move(screenshotFilename)](std::vector<u8> pixels) -> void {
+    auto saveFunc = [screenshotFilename{fmt::format(NEOMOD_SCREENSHOTS_PATH "/screenshot{}.png", screenshotNumber)},
+                     currentRes = this->internalRect, &skin = this->skin](std::vector<u8> pixelData) -> void {
         if(!osu) return;  // paranoia
-        if(pixels.empty()) {
+        if(pixelData.empty()) {
             static uint8_t once = 0;
             if(!once++)
                 ui->getNotificationOverlay()->addNotification("Error: Couldn't grab a screenshot :(", 0xffff0000, false,
@@ -1295,48 +1295,54 @@ void Osu::saveScreenshot() {
             return;
         }
 
-        const f32 outerWidth = g->getResolution().x;
-        const f32 outerHeight = g->getResolution().y;
-        const f32 innerWidth = currentRes.getWidth();
-        const f32 innerHeight = currentRes.getHeight();
-
         if(skin) {
             soundEngine->play(skin->s_shutter);
         }
-        ui->getNotificationOverlay()->addToast(fmt::format("Saved screenshot to {}", filename), CHAT_TOAST,
-                                               [filename] { env->openFileBrowser(filename); });
+        ui->getNotificationOverlay()->addToast(fmt::format("Saved screenshot to {}", screenshotFilename), CHAT_TOAST,
+                                               [screenshotFilename] { env->openFileBrowser(screenshotFilename); });
 
-        // don't need cropping
-        if(!cv::crop_screenshots.getBool() || (g->getResolution() == currentRes.getSize())) {
-            Image::saveToImage(pixels.data(), static_cast<i32>(outerWidth), static_cast<i32>(outerHeight),
-                               screenshotChannels, filename);
-            return;
-        }
+        const vec2 graphicsRes = g->getResolution();
 
-        // need cropping
-        f32 offsetXpct = 0, offsetYpct = 0;
-        if((g->getResolution() != currentRes.getSize()) && cv::letterboxing.getBool()) {
-            offsetXpct = cv::letterboxing_offset_x.getFloat();
-            offsetYpct = cv::letterboxing_offset_y.getFloat();
-        }
+        Async::dispatch(
+            [graphicsRes, currentRes, pixels = std::move(pixelData), screenshotFilename]() {
+                const f32 outerWidth = graphicsRes.x;
+                const f32 outerHeight = graphicsRes.y;
+                const f32 innerWidth = currentRes.getWidth();
+                const f32 innerHeight = currentRes.getHeight();
 
-        const i32 startX = std::clamp<i32>(static_cast<i32>((outerWidth - innerWidth) * (1 + offsetXpct) / 2), 0,
-                                           static_cast<i32>(outerWidth - innerWidth));
-        const i32 startY = std::clamp<i32>(static_cast<i32>((outerHeight - innerHeight) * (1 + offsetYpct) / 2), 0,
-                                           static_cast<i32>(outerHeight - innerHeight));
+                // don't need cropping
+                if(!cv::crop_screenshots.getBool() || (graphicsRes == currentRes.getSize())) {
+                    Image::saveToImage(pixels.data(), static_cast<i32>(outerWidth), static_cast<i32>(outerHeight),
+                                       screenshotChannels, screenshotFilename);
+                    return;
+                }
 
-        std::vector<u8> croppedPixels(static_cast<size_t>(innerWidth * innerHeight * screenshotChannels));
+                // need cropping
+                f32 offsetXpct = 0, offsetYpct = 0;
+                if((graphicsRes != currentRes.getSize()) && cv::letterboxing.getBool()) {
+                    offsetXpct = cv::letterboxing_offset_x.getFloat();
+                    offsetYpct = cv::letterboxing_offset_y.getFloat();
+                }
 
-        for(sSz y = 0; y < static_cast<sSz>(innerHeight); ++y) {
-            auto srcRowStart =
-                pixels.begin() + ((startY + y) * static_cast<sSz>(outerWidth) + startX) * screenshotChannels;
-            auto destRowStart = croppedPixels.begin() + (y * static_cast<sSz>(innerWidth)) * screenshotChannels;
-            // copy the entire row
-            std::ranges::copy_n(srcRowStart, static_cast<sSz>(innerWidth) * screenshotChannels, destRowStart);
-        }
+                const i32 startX = std::clamp<i32>(static_cast<i32>((outerWidth - innerWidth) * (1 + offsetXpct) / 2),
+                                                   0, static_cast<i32>(outerWidth - innerWidth));
+                const i32 startY = std::clamp<i32>(static_cast<i32>((outerHeight - innerHeight) * (1 + offsetYpct) / 2),
+                                                   0, static_cast<i32>(outerHeight - innerHeight));
 
-        Image::saveToImage(croppedPixels.data(), static_cast<i32>(innerWidth), static_cast<i32>(innerHeight),
-                           screenshotChannels, filename);
+                std::vector<u8> croppedPixels(static_cast<size_t>(innerWidth * innerHeight * screenshotChannels));
+
+                for(sSz y = 0; y < static_cast<sSz>(innerHeight); ++y) {
+                    auto srcRowStart =
+                        pixels.begin() + ((startY + y) * static_cast<sSz>(outerWidth) + startX) * screenshotChannels;
+                    auto destRowStart = croppedPixels.begin() + (y * static_cast<sSz>(innerWidth)) * screenshotChannels;
+                    // copy the entire row
+                    std::ranges::copy_n(srcRowStart, static_cast<sSz>(innerWidth) * screenshotChannels, destRowStart);
+                }
+
+                Image::saveToImage(croppedPixels.data(), static_cast<i32>(innerWidth), static_cast<i32>(innerHeight),
+                                   screenshotChannels, screenshotFilename);
+            },
+            Lane::Background);
     };
 
     g->takeScreenshot({.savePath = {}, .dataCB = std::move(saveFunc), .withAlpha = screenshotChannels > 3});
