@@ -28,7 +28,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: emscripten/emsdk:5.0.1
+    container: emscripten/emsdk:5.0.0
     defaults:
       run:
         working-directory: .
