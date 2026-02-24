@@ -2,17 +2,20 @@
 // Copyright (c) 2015, PG, All rights reserved.
 #include <utility>
 
+#include "AsyncCancellable.h"
 #include "CBaseUIButton.h"
 #include "DownloadHandle.h"
 #include "MouseListener.h"
 #include "UIScreen.h"
-#include "Resource.h"
-#include "ResourceManager.h"
+
+#include <string>
+#include <vector>
 
 class Image;
 class DatabaseBeatmap;
 typedef DatabaseBeatmap BeatmapDifficulty;
 typedef DatabaseBeatmap BeatmapSet;
+//class Shader;
 
 class CBaseUILabel;
 class CBaseUIContainer;
@@ -153,29 +156,13 @@ class MainMenu final : public UIScreen, public MouseListener {
     void drawMapBackground(DatabaseBeatmap *beatmap, f32 alpha);
     DatabaseBeatmap *currentMap{nullptr};
     DatabaseBeatmap *lastMap{nullptr};
-    Shader *background_shader = nullptr;
+    //Shader *background_shader = nullptr;
     f32 mapFadeAnim{1.f};
     std::vector<std::unique_ptr<BeatmapSet>> preloadedMaps;
 
-    struct SongsFolderEnumerator final : public Resource {
-        NOCOPY_NOMOVE(SongsFolderEnumerator)
-       public:
-        SongsFolderEnumerator();
-        ~SongsFolderEnumerator() override;
-
-        [[nodiscard]] inline const std::vector<std::string> &getEntries() const { return this->entries; }
-        [[nodiscard]] inline std::string getFolderPath() const { return this->osuSongsFolderPath; }
-        void rebuild();
-
-       protected:
-        void init() override { this->setReady(true); }
-        void initAsync() override;
-        void destroy() override { this->entries.clear(); }
-
-       private:
-        std::vector<std::string> entries{};
-        std::string osuSongsFolderPath{""};
-    };
-
-    SongsFolderEnumerator songs_enumerator;
+    // songs folder enumeration (for random beatmap before db loads)
+    void submitSongsFolderEnum();
+    Async::CancellableHandle<std::vector<std::string>> songsFolderHandle;
+    std::vector<std::string> songsFolderEntries;
+    std::string songsFolderPath;
 };

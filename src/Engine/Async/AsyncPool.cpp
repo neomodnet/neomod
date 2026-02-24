@@ -86,7 +86,7 @@ void AsyncPool::fg_worker_loop(const Sync::stop_token &stoken, size_t index) noe
 
 void AsyncPool::bg_worker_loop(const Sync::stop_token &stoken, size_t index) noexcept {
     McThread::set_current_thread_name(fmt::format("async_bg_{}", index));
-    McThread::set_current_thread_prio(McThread::Priority::NORMAL);
+    McThread::set_current_thread_prio(McThread::Priority::LOW);
 
     while(true) {
         std::unique_ptr<TaskBase> task;

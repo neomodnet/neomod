@@ -5,6 +5,7 @@
 #include <cmath>
 #include <utility>
 
+#include "AsyncPool.h"
 #include "AnimationHandler.h"
 #include "AsyncIOHandler.h"
 #include "BackgroundImageHandler.h"
@@ -331,6 +332,8 @@ MainMenu::MainMenu() : UIScreen() {
     this->twitterButton = new UIButtonWithIcon("x.com/neomodnet", Icons::TWITTER);
     this->twitterButton->setClickCallback([]() { env->openURLInDefaultBrowser("https://x.com/neomodnet"); });
     this->addBaseUIElement(this->twitterButton);
+
+    this->submitSongsFolderEnum();
 }
 
 MainMenu::~MainMenu() {
@@ -1176,13 +1179,18 @@ void MainMenu::selectRandomBeatmap() {
         RichPresence::onMainMenu();
     } else {
         // Database is not loaded yet, load a random map and select it
-        if(!this->songs_enumerator.isAsyncReady()) return;
-        auto mapset_folders = this->songs_enumerator.getEntries();
-        if(mapset_folders.empty()) {
-            // check if it was loaded with a different path
-            if(this->songs_enumerator.getFolderPath() != Database::getOsuSongsFolder()) {
-                // rebuild will reinit with the current song folder
-                this->songs_enumerator.rebuild();
+        if(this->songsFolderHandle.valid()) {
+            if(this->songsFolderHandle.is_ready()) {
+                this->songsFolderEntries = this->songsFolderHandle.get();
+            } else {
+                // still running
+                return;
+            }
+        }
+        if(this->songsFolderEntries.empty()) {
+            // check if it was loaded with a different path from what we have now and reload it if so
+            if(this->songsFolderPath != Database::getOsuSongsFolder()) {
+                this->submitSongsFolderEnum();
             }
             return;
         }
@@ -1191,7 +1199,7 @@ void MainMenu::selectRandomBeatmap() {
 
         constexpr int RETRY_SETS{10};
         for(int i = 0; i < RETRY_SETS; i++) {
-            const auto &mapset_folder = mapset_folders[prand() % mapset_folders.size()];
+            const auto &mapset_folder = this->songsFolderEntries[prand() % this->songsFolderEntries.size()];
             auto set = db->loadRawBeatmap(mapset_folder);
             if(set == nullptr) {
                 // loadRawBeatmap will log failure with reason
@@ -1722,41 +1730,26 @@ void PauseButton::draw() {
     if(this->bActive && this->bEnabled) this->drawHoverRect(6);
 };
 
-MainMenu::SongsFolderEnumerator::SongsFolderEnumerator() : Resource(APPDEFINED) {
-    this->osuSongsFolderPath = Database::getOsuSongsFolder();
-
-    resourceManager->requestNextLoadAsync();
-    resourceManager->loadResource(this);
-}
-
-MainMenu::SongsFolderEnumerator::~SongsFolderEnumerator() {
-    resourceManager->destroyResource(this, ResourceDestroyFlags::RDF_NODELETE);
-}
-
-void MainMenu::SongsFolderEnumerator::rebuild() {
-    this->setAsyncReady(false);
-    this->setReady(false);
-
-    // update folder path
-    this->osuSongsFolderPath = Database::getOsuSongsFolder();
-
-    resourceManager->reloadResource(this, true);
-}
-
-void MainMenu::SongsFolderEnumerator::initAsync() {
-    if(env->directoryExists(this->osuSongsFolderPath)) {
-        auto peppy_mapsets = env->getFoldersInFolder(this->osuSongsFolderPath);
-        auto trimmed_folder = this->osuSongsFolderPath;
-        if(trimmed_folder.back() == '/' || trimmed_folder.back() == '\\') trimmed_folder.pop_back();
-        for(const auto &mapset : peppy_mapsets) {
-            this->entries.push_back(fmt::format("{}/{}/", trimmed_folder, mapset));
-        }
-    }
-
-    auto neomod_mapsets = env->getFoldersInFolder(NEOMOD_MAPS_PATH "/");
-    for(const auto &mapset : neomod_mapsets) {
-        this->entries.push_back(fmt::format(NEOMOD_MAPS_PATH "/{}/", mapset));
-    }
-
-    this->setAsyncReady(true);
+void MainMenu::submitSongsFolderEnum() {
+    this->songsFolderPath = Database::getOsuSongsFolder();
+    this->songsFolderHandle = Async::submit_cancellable(
+        [path = this->songsFolderPath](const Sync::stop_token &tok) -> std::vector<std::string> {
+            std::vector<std::string> entries;
+            if(env->directoryExists(path)) {
+                std::vector<std::string> peppy_mapsets = env->getFoldersInFolder(path);
+                std::string trimmed = path;
+                if(!trimmed.empty() && (trimmed.back() == '/' || trimmed.back() == '\\')) trimmed.pop_back();
+                for(const auto &mapset : peppy_mapsets) {
+                    if(tok.stop_requested()) return {};
+                    entries.push_back(fmt::format("{}/{}/", trimmed, mapset));
+                }
+            }
+            auto neomod_mapsets = env->getFoldersInFolder(NEOMOD_MAPS_PATH "/");
+            for(const auto &mapset : neomod_mapsets) {
+                if(tok.stop_requested()) return {};
+                entries.push_back(fmt::format(NEOMOD_MAPS_PATH "/{}/", mapset));
+            }
+            return entries;
+        },
+        Lane::Background);
 }
