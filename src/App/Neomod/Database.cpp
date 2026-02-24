@@ -16,7 +16,7 @@
 #include "File.h"
 #include "LegacyReplay.h"
 #include "NotificationOverlay.h"
-#include "ResourceManager.h"
+#include "AsyncPool.h"
 #include "AsyncPPCalculator.h"
 #include "SongBrowser/LoudnessCalcThread.h"
 #include "DiffCalc/BatchDiffCalc.h"
@@ -215,67 +215,21 @@ bool Database::isOsuDBReadable(std::string_view peppy_db_path) {
     return osu_db_version > 0;
 }
 
-// run after at least one engine frame (due to resourceManager->update() in Engine::onUpdate())
-void Database::AsyncDBLoader::init() {
-    if(!db) return;  // don't crash when exiting while loading db
+void Database::onDBLoadComplete() {
+    logIf(cv::debug_db.getBool() || cv::debug_async_db.getBool(), "(onDBLoadComplete) start");
 
-    logIf(cv::debug_db.getBool() || cv::debug_async_db.getBool(), "(AsyncDBLoader) start");
-
-    if(db->needs_raw_load) {
-        db->scheduleLoadRaw();
+    if(this->needs_raw_load) {
+        this->scheduleLoadRaw();
     } else {
         // signal that we are done
-        db->loading_progress = 1.0f;
+        this->loading_progress = 1.0f;
 
         // will find maps/scores needing recalc dynamically
         BatchDiffCalc::start_calc();
-        VolNormalization::start_calc(db->loudness_to_calc);
-
-        this->setReady(true);
+        VolNormalization::start_calc(this->loudness_to_calc);
     }
 
-    logIf(cv::debug_db.getBool() || cv::debug_async_db.getBool(), "(AsyncDBLoader) done");
-}
-
-// run immediately on a separate thread when resourceManager->loadResource() is called
-void Database::AsyncDBLoader::initAsync() {
-    logIf(cv::debug_db.getBool() || cv::debug_async_db.getBool(), "(AsyncDBLoader) start");
-    assert(db != nullptr);
-
-    db->findDatabases();
-
-    if(db->load_interrupted.load(std::memory_order_acquire)) goto done;
-
-    using enum Database::DatabaseType;
-    db->loadScores(db->database_files[NEOMOD_SCORES]);
-    if(db->load_interrupted.load(std::memory_order_acquire)) goto done;
-    db->loadOldMcNeomodScores(db->database_files[MCNEOMOD_SCORES]);
-    if(db->load_interrupted.load(std::memory_order_acquire)) goto done;
-    db->loadPeppyScores(db->database_files[STABLE_SCORES]);
-    db->scores_loaded = true;
-    if(db->load_interrupted.load(std::memory_order_acquire)) goto done;
-
-    db->loadMaps();
-    if(db->load_interrupted.load(std::memory_order_acquire)) goto done;
-
-    if(!db->needs_raw_load) {
-        Collections::load_all();
-        if(db->load_interrupted.load(std::memory_order_acquire)) goto done;
-    }
-
-    // .db files that were dropped on the main window
-    for(const auto &db_pair : db->external_databases) {
-        db->importDatabase(db_pair);
-        if(db->load_interrupted.load(std::memory_order_acquire)) goto done;
-    }
-    // only clear this after we have actually loaded them
-    db->extern_db_paths_to_import_async_copy.clear();
-    db->external_databases.clear();
-
-done:
-
-    this->setAsyncReady(true);
-    logIf(cv::debug_db.getBool() || cv::debug_async_db.getBool(), "(AsyncDBLoader) done");
+    logIf(cv::debug_db.getBool() || cv::debug_async_db.getBool(), "(onDBLoadComplete) done");
 }
 
 void Database::startLoader() {
@@ -313,17 +267,49 @@ void Database::startLoader() {
                                                       this->extern_db_paths_to_import.cend());
     this->extern_db_paths_to_import.clear();
 
-    // create initial loader instance
-    if(!this->loader) {
-        this->loader = std::make_unique<AsyncDBLoader>();
-        resourceManager->requestNextLoadAsync();
-        resourceManager->loadResource(this->loader.get());
-    } else {
-        if(!this->loader->isReady()) {
-            resourceManager->destroyResource(this->loader.get(), ResourceDestroyFlags::RDF_NODELETE);
-        }
-        resourceManager->reloadResource(this->loader.get(), true);
-    }
+    // reset after destroyLoader() set it to true (subroutines still check it)
+    this->load_interrupted.store(false, std::memory_order_release);
+
+    this->db_load_handle = Async::submit_cancellable(
+        [this](const Sync::stop_token &tok) {
+            logIf(cv::debug_db.getBool() || cv::debug_async_db.getBool(), "(db loader async) start");
+
+            this->findDatabases();
+
+            if(tok.stop_requested()) goto done;
+
+            {
+                using enum Database::DatabaseType;
+                this->loadScores(this->database_files[NEOMOD_SCORES]);
+                if(tok.stop_requested()) goto done;
+                this->loadOldMcNeomodScores(this->database_files[MCNEOMOD_SCORES]);
+                if(tok.stop_requested()) goto done;
+                this->loadPeppyScores(this->database_files[STABLE_SCORES]);
+                this->scores_loaded = true;
+                if(tok.stop_requested()) goto done;
+            }
+
+            this->loadMaps();
+            if(tok.stop_requested()) goto done;
+
+            if(!this->needs_raw_load) {
+                Collections::load_all();
+                if(tok.stop_requested()) goto done;
+            }
+
+            // .db files that were dropped on the main window
+            for(const auto &db_pair : this->external_databases) {
+                this->importDatabase(db_pair);
+                if(tok.stop_requested()) goto done;
+            }
+            // only clear this after we have actually loaded them
+            this->extern_db_paths_to_import_async_copy.clear();
+            this->external_databases.clear();
+
+        done:
+            logIf(cv::debug_db.getBool() || cv::debug_async_db.getBool(), "(db loader async) done");
+        },
+        Lane::Background);
 
     logIf(cv::debug_db.getBool() || cv::debug_async_db.getBool(), "done");
 }
@@ -331,9 +317,9 @@ void Database::startLoader() {
 void Database::destroyLoader() {
     logIf(cv::debug_db.getBool() || cv::debug_async_db.getBool(), "start");
     directoryWatcher->stop_watching(NEOMOD_MAPS_PATH "/");
-    if(this->loader) {
-        resourceManager->destroyResource(this->loader.get(), ResourceDestroyFlags::RDF_NODELETE);  // force blocking
-    }
+    this->db_load_handle.cancel();
+    this->load_interrupted.store(true, std::memory_order_release);  // for subroutines (loadMaps, etc.)
+    if(this->db_load_handle.valid()) this->db_load_handle.wait();
     logIf(cv::debug_db.getBool() || cv::debug_async_db.getBool(), "done");
 }
 
@@ -380,10 +366,7 @@ Database::Database() : importTimer(std::make_unique<Timer>()) {
 Database::~Database() {
     cv::cmd::save.removeCallback();
     this->destroyLoader();
-    if(this->score_saver) {
-        resourceManager->destroyResource(this->score_saver.get(),
-                                         ResourceDestroyFlags::RDF_NODELETE);  // don't delete a unique_ptr
-    }
+    if(this->score_save_future.valid()) this->score_save_future.wait();
 
     BatchDiffCalc::abort_calc();
     AsyncPPC::set_map(nullptr);
@@ -401,6 +384,12 @@ Database::~Database() {
 }
 
 void Database::update() {
+    // check if async db load finished
+    if(this->db_load_handle.valid() && this->db_load_handle.is_ready()) {
+        this->db_load_handle.get();
+        this->onDBLoadComplete();
+    }
+
     // loadRaw() logic
     if(this->raw_load_scheduled) {
         Timer t;
@@ -474,6 +463,7 @@ void Database::load() {
 }
 
 void Database::cancel() {
+    this->db_load_handle.cancel();
     this->load_interrupted = true;
     this->loading_progress = 1.0f;  // force finished
     this->raw_found_changes = true;
@@ -555,29 +545,6 @@ BeatmapSet *Database::addBeatmapSet(const std::string &beatmapFolderPath, i32 se
     return raw_mapset;
 }
 
-void Database::AsyncScoreSaver::initAsync() {
-    auto compressed_replay = LegacyReplay::compress_frames(this->scorecopy.replay);
-    if(!compressed_replay.empty()) {
-        auto replay_path = fmt::format(NEOMOD_REPLAYS_PATH "/{:d}.replay.lzma", this->scorecopy.unixTimestamp);
-        debugLog("Saving replay to {}...", replay_path);
-        io->write(replay_path, std::move(compressed_replay), [replay_path](bool success) {
-            if(success) {
-                debugLog("Replay saved.");
-            } else {
-                debugLog("Failed to save replay to {}!", replay_path);
-            }
-        });
-    }
-
-    if(db && !engine->isShuttingDown() && cv::scores_save_immediately.getBool()) {
-        db->saveScores();
-    }
-
-    this->setAsyncReady(true);
-    // nothing to do in init(), set ready now
-    this->setReady(true);
-}
-
 bool Database::addScore(const FinishedScore &score) {
     // if addScoreRaw returns false, it means it wasn't added because we already have the score
     // so just skip everything and return the index
@@ -587,20 +554,29 @@ bool Database::addScore(const FinishedScore &score) {
 
         this->scores_changed = true;
 
-        // create initial instance
-        if(!this->score_saver) {
-            this->score_saver = std::make_unique<AsyncScoreSaver>(score);
-            resourceManager->requestNextLoadAsync();
-            resourceManager->loadResource(this->score_saver.get());
-        } else {
-            if(!this->score_saver->isReady()) {  // a previous save attempt is still running
-                // NODELETE implies blocking, so this just waits for a previous instance to finish (but does not delete it)
-                resourceManager->destroyResource(this->score_saver.get(), ResourceDestroyFlags::RDF_NODELETE);
-            }
-            // set new score
-            this->score_saver->scorecopy = score;
-            resourceManager->reloadResource(this->score_saver.get(), true);
-        }
+        // wait for any previous save to finish before starting a new one
+        if(this->score_save_future.valid()) this->score_save_future.wait();
+
+        this->score_save_future = Async::submit(
+            [this, scorecopy = score] {
+                auto compressed_replay = LegacyReplay::compress_frames(scorecopy.replay);
+                if(!compressed_replay.empty()) {
+                    auto replay_path = fmt::format(NEOMOD_REPLAYS_PATH "/{:d}.replay.lzma", scorecopy.unixTimestamp);
+                    debugLog("Saving replay to {}...", replay_path);
+                    io->write(replay_path, std::move(compressed_replay), [replay_path](bool success) {
+                        if(success) {
+                            debugLog("Replay saved.");
+                        } else {
+                            debugLog("Failed to save replay to {}!", replay_path);
+                        }
+                    });
+                }
+
+                if(!engine->isShuttingDown() && cv::scores_save_immediately.getBool()) {
+                    this->saveScores();
+                }
+            },
+            Lane::Background);
     }
 
     // @PPV3: use new replay format

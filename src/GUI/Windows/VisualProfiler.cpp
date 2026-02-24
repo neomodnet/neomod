@@ -11,7 +11,6 @@
 #include "Profiler.h"
 #include "AsyncPool.h"
 #include "ResourceManager.h"
-#include "Resource.h"
 #include "RuntimePlatform.h"
 #include "SoundEngine.h"
 #include "Font.h"
@@ -25,7 +24,6 @@ static ConVar vprof_sysinfo_refresh_interval("vprof_sysinfo_refresh_interval", 0
 }
 
 struct VProfGatherer final {
-    VProfGatherer() : worker(this) {}
     struct InfoBundle {
         SysMon::MemoryInfo mem;
         SysMon::CpuInfo cpu;
@@ -34,47 +32,33 @@ struct VProfGatherer final {
     [[nodiscard]] const InfoBundle &getLatest() const { return this->lastInfo; }
 
     void update() {
+        // check completion
+        if(this->pending.valid() && this->pending.is_ready()) {
+            this->lastInfo = this->pending.get();
+            this->waiting = false;
+            // so we don't spam updates unnecessarily fast if it can't keep up for some reason
+            this->lastCheckTime = engine->getTime();
+        }
+
+        // check if time to re-poll
         if(const f64 now = engine->getTime();
            this->lastCheckTime + cv::vprof_sysinfo_refresh_interval.getFloat() < now) {
             this->lastCheckTime = now;
 
             if(!this->waiting) {
-                resourceManager->reloadResource(&this->worker, true);
+                this->pending = Async::submit([]() -> InfoBundle {
+                    InfoBundle info{};
+                    SysMon::getCpuInfo(info.cpu);
+                    SysMon::getMemoryInfo(info.mem);
+                    return info;
+                }, Lane::Background);
                 this->waiting = true;
             }
         }
-        return;
     }
 
    private:
-    class Dispatchee : public Resource {
-        NOCOPY_NOMOVE(Dispatchee)
-       public:
-        Dispatchee(VProfGatherer *parent) : Resource(APPDEFINED), parent(parent) {}
-        ~Dispatchee() override { this->destroy(); }
-        void init() override {
-            parent->waiting = false;
-            parent->lastInfo = this->scratchInfo;
-            // So we don't spam updates unnecessarily fast if it can't keep up for some reason.
-            parent->lastCheckTime = engine->getTime();
-        }
-        void initAsync() override {
-            if(!this->isInterrupted()) {
-                SysMon::getCpuInfo(this->scratchInfo.cpu);
-                SysMon::getMemoryInfo(this->scratchInfo.mem);
-            }
-            this->setAsyncReady(true);
-            this->setReady(true);
-        }
-        void destroy() override {}
-
-       private:
-        friend VProfGatherer;
-        InfoBundle scratchInfo{};
-        VProfGatherer *parent;
-    };
-
-    Dispatchee worker;
+    Async::Future<InfoBundle> pending;
     InfoBundle lastInfo{};
     f64 lastCheckTime{0.};
     bool waiting{false};

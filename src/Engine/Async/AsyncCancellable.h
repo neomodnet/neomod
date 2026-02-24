@@ -8,8 +8,7 @@ namespace Async {
 
 // returned by submit_cancellable / submit_then_cancellable; holds future + stop source
 template <typename T>
-struct CancellableHandle {
-    Future<T> future;
+struct CancellableHandle : public Future<T> {
     Sync::stop_source stop;
 
     void cancel() { stop.request_stop(); }

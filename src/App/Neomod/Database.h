@@ -1,7 +1,7 @@
 #pragma once
 // Copyright (c) 2016, PG, All rights reserved.
 
-#include "Resource.h"
+#include "AsyncCancellable.h"
 #include "LegacyReplay.h"
 #include "Overrides.h"
 #include "UString.h"
@@ -233,39 +233,7 @@ class Database final {
     // copy so that more can be added without thread races during loading
     std::vector<std::string> extern_db_paths_to_import_async_copy;
 
-    class AsyncDBLoader final : public Resource {
-        NOCOPY_NOMOVE(AsyncDBLoader)
-       public:
-        AsyncDBLoader() : Resource(APPDEFINED) {}
-        ~AsyncDBLoader() override { this->destroy(); }
-
-       protected:
-        void init() override;
-        void initAsync() override;
-        void destroy() override {}
-
-       private:
-        friend class Database;
-    };
-
-    struct AsyncScoreSaver : public Resource {
-        NOCOPY_NOMOVE(AsyncScoreSaver)
-       public:
-        AsyncScoreSaver() = delete;
-        friend class Database;
-        FinishedScore scorecopy;
-
-        AsyncScoreSaver(FinishedScore score) : Resource(APPDEFINED), scorecopy(std::move(score)) {}
-        ~AsyncScoreSaver() override { this->destroy(); }
-
-       protected:
-        inline void init() override { this->setReady(true); }
-        void initAsync() override;
-        void destroy() override {}
-    };
-
-    friend class AsyncDBLoader;
-    friend struct AsyncScoreSaver;
+    void onDBLoadComplete();
 
     void startLoader();
     void destroyLoader();
@@ -287,8 +255,8 @@ class Database final {
 
     static MD5Hash recalcMD5(std::string osu_path);
 
-    std::unique_ptr<AsyncDBLoader> loader;
-    std::unique_ptr<AsyncScoreSaver> score_saver;
+    Async::CancellableHandle<void> db_load_handle;
+    Async::Future<void> score_save_future;
 
     std::unique_ptr<Timing::Timer> importTimer;
     bool is_first_load{true};      // only load differences after first raw load

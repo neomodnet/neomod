@@ -86,7 +86,7 @@ void AsyncPoolTest::update() {
         Timing::sleepMS(5);
 
         handle.cancel();
-        handle.future.wait();
+        handle.wait();
         TEST_ASSERT(exited.load(std::memory_order_acquire), "cancellable task observed stop and exited");
     }
 
