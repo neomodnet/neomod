@@ -1684,8 +1684,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                             const auto &[_, diffc] = *existingit;
                             assert(diffc);
                             // if a diff with a the same md5hash hasn't already been added here
-                            if(!std::ranges::contains(
-                                   *diffc, md5hash, [](const auto &existingdiff) { return existingdiff->getMD5(); })) {
+                            if(!std::ranges::contains(*diffc, md5hash, &DatabaseBeatmap::getMD5)) {
                                 diffp = map.get();
                                 diffc->push_back(std::move(map));
                             }
@@ -1705,8 +1704,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                             const auto &[_, diffc] = *existingit;
                             assert(diffc);
                             // if a diff with a the same md5hash hasn't already been added here
-                            if(!std::ranges::contains(
-                                   *diffc, md5hash, [](const auto &existingdiff) { return existingdiff->getMD5(); })) {
+                            if(!std::ranges::contains(*diffc, md5hash, &DatabaseBeatmap::getMD5)) {
                                 diffp = map.get();
                                 diffc->push_back(std::move(map));
                             }

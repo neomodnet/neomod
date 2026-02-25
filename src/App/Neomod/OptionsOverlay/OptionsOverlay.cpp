@@ -223,7 +223,7 @@ struct OptionsOverlayImpl final {
 #define addButtonLabel_(UStext, USlabelText, ...) addButton(US_(UStext), USlabelText __VA_OPT__(, ) __VA_ARGS__)
 #define addButtonButton_(UStext1, UStext2) addButtonButton(US_(UStext1), US_(UStext2))
 #define addButtonButtonLabel_(UStext1, UStext2, USlabelText, ...) \
-    addButtonButton(US_(UStext1), US_(UStext2), US_(USlabelText) __VA_OPT__(, ) __VA_ARGS__)
+    addButtonButtonLabel(US_(UStext1), US_(UStext2), US_(USlabelText) __VA_OPT__(, ) __VA_ARGS__)
 #define addKeyBindButton_(UStext, cvar) addKeyBindButton(US_(UStext), cvar)
 #define addCheckbox_(UStext, ...) addCheckbox(US_(UStext) __VA_OPT__(, ) __VA_ARGS__)
 #define addCheckboxTooltip_(UStext, UStooltipText, ...) \
@@ -1091,7 +1091,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
         this->outputDeviceLabel = (CBaseUILabel *)outputDeviceSelect->baseElems[1].get();
 
         {
-            OptionsElement *soloudBackendSelect = this->addButtonButtonLabel("MiniAudio", "SDL", "");
+            OptionsElement *soloudBackendSelect = this->addButtonButtonLabel_("MiniAudio", "SDL", "Backend");
             const auto &MAButton = static_cast<UIButton *>(soloudBackendSelect->baseElems[0].get());
             const auto &SDLButton = static_cast<UIButton *>(soloudBackendSelect->baseElems[1].get());
             static auto MAButton_static = MAButton;
@@ -1099,13 +1099,10 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
             MAButton_static = MAButton;  // always update
             SDLButton_static = SDLButton;
 
-            const auto &driverLabel = static_cast<CBaseUILabel *>(soloudBackendSelect->baseElems[2].get());
-            driverLabel->setVisible(false);
-
-            // i would put the tooltip on the label, but CBaseUILabel doesn't support that
-            const UString outputTooltip = "Pick the one you feel works best,\nthere should be very little difference.";
-            MAButton->setTooltipText(outputTooltip);
-            SDLButton->setTooltipText(outputTooltip);
+            const auto &backendLabel = static_cast<UILabel *>(soloudBackendSelect->baseElems[2].get());
+            backendLabel->setVisible(true);
+            backendLabel->setTooltipText(
+                US_("Pick the one you feel works best,\nthere should be very little difference."));
 
             soloudBackendSelect->cvars[MAButton] = &cv::snd_soloud_backend;
             soloudBackendSelect->cvars[SDLButton] = &cv::snd_soloud_backend;
@@ -3936,7 +3933,7 @@ OptionsElement *OptionsOverlayImpl::addButtonButtonLabel(const UString &text1, c
     button2->setUseDefaultSkin();
     this->options->container.addBaseUIElement(button2);
 
-    auto *label = new CBaseUILabel(0, 0, this->options->getSize().x, 50, labelText, labelText);
+    auto *label = new UILabel(0, 0, this->options->getSize().x, 50, labelText, labelText);
     label->setDrawFrame(false);
     label->setDrawBackground(false);
     this->options->container.addBaseUIElement(label);
@@ -4059,7 +4056,7 @@ UISlider *OptionsOverlayImpl::addSlider(const UString &text, float min, float ma
     }
     this->options->container.addBaseUIElement(slider);
 
-    // UILabel vs UISlider: UILabel allows tooltips
+    // UILabel vs CBaseUILabel: UILabel allows tooltips
     auto *label1 = new UILabel(0, 0, this->options->getSize().x, 50, text, text);
     label1->setDrawFrame(false);
     label1->setDrawBackground(false);
