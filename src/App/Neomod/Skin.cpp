@@ -53,7 +53,7 @@ float BasicSkinImage::scale() const {
 }
 
 bool Skin::unpack(const char *filepath) {
-    auto skin_name = env->getFileNameFromFilePath(filepath);
+    auto skin_name = Environment::getFileNameFromFilePath(filepath);
     debugLog("Extracting {:s}...", skin_name.c_str());
     skin_name.erase(skin_name.size() - 4);  // remove .osk extension
 
@@ -83,8 +83,8 @@ bool Skin::unpack(const char *filepath) {
         return false;
     }
 
-    if(!env->directoryExists(skin_root)) {
-        env->createDirectory(skin_root);
+    if(!Environment::directoryExists(skin_root)) {
+        Environment::createDirectory(skin_root);
     }
 
     for(const auto &entry : entries) {
@@ -95,8 +95,8 @@ bool Skin::unpack(const char *filepath) {
         std::string file_path = skin_root;
 
         for(const auto &folder : folders) {
-            if(!env->directoryExists(file_path)) {
-                env->createDirectory(file_path);
+            if(!Environment::directoryExists(file_path)) {
+                Environment::createDirectory(file_path);
             }
 
             if(folder == "..") {
@@ -207,7 +207,7 @@ void Skin::load() {
             {
                 std::string skinFolder = cv::osu_folder.getString();
                 skinFolder.append(cv::osu_folder_sub_skins.getString());
-                std::vector<std::string> skinFolders = env->getFoldersInFolder(skinFolder);
+                std::vector<std::string> skinFolders = Environment::getFoldersInFolder(skinFolder);
 
                 for(const auto &i : skinFolders) {
                     std::string randomSkinFolder = skinFolder;
@@ -1047,8 +1047,8 @@ void Skin::checkLoadImage(BasicSkinImage &imgRef, const std::string &skinElement
         std::string path_1x = base;
         path_1x.append(".");
         path_1x.append(fileExtension);
-        const bool exists_2x = env->fileExists(path_2x);
-        const bool exists_1x = env->fileExists(path_1x);
+        const bool exists_2x = Environment::fileExists(path_2x);
+        const bool exists_1x = Environment::fileExists(path_1x);
 
         if(!exists_2x && !exists_1x) continue;
 
@@ -1098,7 +1098,7 @@ void Skin::loadSound(Sound *&sndRef, const std::string &skinElementName, const s
             std::string path = dir;
             path.append(name);
             path.append(ext);
-            if(env->fileExists(path)) return path;
+            if(Environment::fileExists(path)) return path;
         }
         return {};
     };

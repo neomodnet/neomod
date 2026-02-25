@@ -46,12 +46,14 @@ struct VProfGatherer final {
             this->lastCheckTime = now;
 
             if(!this->waiting) {
-                this->pending = Async::submit([]() -> InfoBundle {
-                    InfoBundle info{};
-                    SysMon::getCpuInfo(info.cpu);
-                    SysMon::getMemoryInfo(info.mem);
-                    return info;
-                }, Lane::Background);
+                this->pending = Async::submit(
+                    []() -> InfoBundle {
+                        InfoBundle info{};
+                        SysMon::getCpuInfo(info.cpu);
+                        SysMon::getMemoryInfo(info.mem);
+                        return info;
+                    },
+                    Lane::Background);
                 this->waiting = true;
             }
         }
@@ -94,7 +96,7 @@ VisualProfiler::VisualProfiler() : CBaseUIElement(0, 0, 0, 0, "") {
     this->setProfile(&g_profCurrentProfile);  // by default we look at the standard full engine-wide profile
 
     this->font = engine->getDefaultFont();
-    this->fontConsole = resourceManager->getFont("FONT_CONSOLE");
+    this->fontConsole = engine->getConsoleFont();
     this->lineVao = resourceManager->createVertexArrayObject(DrawPrimitive::LINES, DrawUsageType::DYNAMIC, true);
 
     this->bScheduledForceRebuildLineVao = false;
@@ -215,14 +217,12 @@ void VisualProfiler::draw() {
                                 this->textLines);
                     addTextLine(fmt::format("Sound Volume: {:f}"_cf, soundEngine->getVolume()), textFont,
                                 this->textLines);
-                    addTextLine(
-                        fmt::format("Pool: {:d} threads, {:d} pending"_cf, Async::pool().thread_count(),
-                                    Async::pool().pending_count()),
-                        textFont, this->textLines);
-                    addTextLine(
-                        fmt::format("RM InFlight: {:d}, DestroyQ: {:d}"_cf, resourceManager->getNumInFlight(),
-                                    resourceManager->getNumAsyncDestroyQueue()),
-                        textFont, this->textLines);
+                    addTextLine(fmt::format("Pool: {:d} threads, {:d} pending"_cf, Async::pool().thread_count(),
+                                            Async::pool().pending_count()),
+                                textFont, this->textLines);
+                    addTextLine(fmt::format("RM InFlight: {:d}, DestroyQ: {:d}"_cf, resourceManager->getNumInFlight(),
+                                            resourceManager->getNumAsyncDestroyQueue()),
+                                textFont, this->textLines);
                     addTextLine(fmt::format("RM Named Resources: {:d}"_cf, resourceManager->getResources().size()),
                                 textFont, this->textLines);
                     addTextLine(fmt::format("Animations: {:d}"_cf, anim::getNumActiveAnimations()), textFont,
@@ -286,14 +286,16 @@ void VisualProfiler::draw() {
                         const int leftTrans = engine->getScreenWidth() - largestLineWidth;
                         g->translate(leftTrans, 0);
                         if(!this->textLines[i].textLeftAligned.isEmpty())
-                            g->drawString(textFont, this->textLines[i].textLeftAligned,
-                                          TextShadow{.col_text = textColor, .offs_px = std::round(1.f * env->getDPIScale())});
+                            g->drawString(
+                                textFont, this->textLines[i].textLeftAligned,
+                                TextShadow{.col_text = textColor, .offs_px = std::round(1.f * env->getDPIScale())});
 
                         const int rightTrans =
                             (engine->getScreenWidth() - (this->textLines[i].widthRight * textScale)) - leftTrans;
                         g->translate(rightTrans, 0);
-                        g->drawString(textFont, this->textLines[i].textRightAligned,
-                                      TextShadow{.col_text = textColor, .offs_px = std::round(1.f * env->getDPIScale())});
+                        g->drawString(
+                            textFont, this->textLines[i].textRightAligned,
+                            TextShadow{.col_text = textColor, .offs_px = std::round(1.f * env->getDPIScale())});
                     }
                     g->popTransform();
                 }
