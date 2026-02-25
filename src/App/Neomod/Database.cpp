@@ -393,7 +393,7 @@ void Database::update() {
         Timer t;
 
         while(t.getElapsedTime() < 0.033f) {
-            if(this->load_interrupted.load(std::memory_order_acquire)) break;  // cancellation point
+            if(this->isCancelled()) break;  // cancellation point
 
             if(this->raw_load_beatmap_folders.size() > 0 &&
                this->cur_raw_load_idx < this->raw_load_beatmap_folders.size()) {
@@ -462,8 +462,9 @@ void Database::load() {
 }
 
 void Database::cancel() {
-    this->db_load_handle.cancel();
-    this->load_interrupted = true;
+    // block on async load to cancel if it's in progress
+    this->destroyLoader();
+
     this->loading_progress = 1.0f;  // force finished
     this->raw_found_changes = true;
 }
@@ -1027,7 +1028,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
 
             u32 nb_sets = neomod_maps.read<u32>();
             for(uSz i = 0; i < nb_sets; i++) {
-                if(this->load_interrupted.load(std::memory_order_acquire)) break;  // cancellation point
+                if(this->isCancelled()) break;  // cancellation point
 
                 u32 progress_bytes = this->bytes_processed + neomod_maps.total_pos;
                 f64 progress_float = (f64)progress_bytes / (f64)this->total_bytes;
@@ -1092,16 +1093,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 std::string mapset_path = fmt::format(NEOMOD_MAPS_PATH "/{}/", set_id);
 
                 for(u16 j = 0; j < nb_diffs; j++) {
-                    if(this->load_interrupted.load(std::memory_order_acquire)) {  // cancellation point
-                        // clean up partially loaded diffs in current set
-                        Sync::unique_lock lock(this->beatmap_difficulties_mtx);
-                        for(const auto &diff : *diffs) {
-                            this->beatmap_difficulties.erase(diff->getMD5());
-
-                            // remove from loudness_to_calc
-                            std::erase(this->loudness_to_calc, diff.get());
-                        }
-                        diffs.reset();
+                    if(this->isCancelled()) {  // cancellation point
                         break;
                     }
 
@@ -1380,16 +1372,11 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
     }
 
     // load peppy maps
-
-    // read beatmapInfos, and also build two hashmaps (diff hash -> BeatmapDifficulty, diff hash -> Beatmap)
-    struct Beatmap_Set {
-        int setID{0};
-        std::unique_ptr<DiffContainer> diffs;
-    };
-    std::vector<Beatmap_Set> beatmapSets;
-    Hash::flat::map<int, size_t> setIDToIndex;
-
     if(!this->needs_raw_load) {
+        Hash::flat::map<int, std::unique_ptr<DiffContainer>> sid_to_diffcont;
+        Hash::flat::map<std::string, std::unique_ptr<DiffContainer>> invalid_sid_folder_to_diffcont;
+        uSz nb_unique_peppy_sets = 0;
+
         ByteBufferedFile::Reader dbr(peppy_db_path);
         u32 osu_db_version = (dbr.good() && dbr.total_size > 0) ? dbr.read<u32>() : 0;
         bool should_read_peppy_database = osu_db_version > 0;
@@ -1422,7 +1409,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
             std::vector<DB_TIMINGPOINT> timing_points_buffer;
 
             for(uSz i = 0; i < this->num_beatmaps_to_load; i++) {
-                if(this->load_interrupted.load(std::memory_order_acquire)) break;  // cancellation point
+                if(this->isCancelled()) break;  // cancellation point
 
                 // update progress (another thread checks if progress >= 1.f to know when we're done)
                 u32 progress_bytes = this->bytes_processed + dbr.total_pos;
@@ -1583,8 +1570,8 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
 
                 // somehow, some beatmaps may have spaces at the start/end of their
                 // path, breaking the Windows API (e.g. https://osu.ppy.sh/s/215347)
-                std::string path = dbr.read_string();
-                SString::trim_inplace(path);
+                std::string subFolder = dbr.read_string();
+                SString::trim_inplace(subFolder);
 
                 /*i64 lastOnlineCheck = */ dbr.skip<u64>();
 
@@ -1615,23 +1602,20 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 // it can happen that nested beatmaps are stored in the
                 // database, and that osu! stores that filepath with a backslash (because windows)
                 // so replace them with / to normalize
-                std::ranges::replace(path, '\\', '/');
+                std::ranges::replace(subFolder, '\\', '/');
 
                 // build beatmap & diffs from all the data
-                std::string beatmapPath = songFolder;
-                beatmapPath.append(path);
-                beatmapPath.push_back('/');
-                std::string fullFilePath = beatmapPath;
-                fullFilePath.append(osuFileName);
+                std::string beatmapPath = fmt::format("{}{}/", songFolder, subFolder);
+                std::string fullFilePath = beatmapPath + osuFileName;
 
                 if(md5hash.empty()) {
                     md5hash = recalcMD5(fullFilePath);
                 }
 
                 // special case: legacy fallback behavior for invalid beatmapSetID, try to parse the ID from the path
-                if(beatmapSetID < 1 && path.length() > 0) {
-                    size_t slash = path.find('/');
-                    std::string candidate = (slash != std::string::npos) ? path.substr(0, slash) : path;
+                if(beatmapSetID < 1 && subFolder.length() > 0) {
+                    size_t slash = subFolder.find('/');
+                    std::string candidate = (slash != std::string::npos) ? subFolder.substr(0, slash) : subFolder;
 
                     if(!candidate.empty() && std::isdigit(static_cast<unsigned char>(candidate[0]))) {
                         if(!Parsing::parse(candidate, &beatmapSetID)) {
@@ -1639,7 +1623,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                         }
                     }
                 }
-                if (beatmapSetID <= 0) {
+                if(beatmapSetID < 1) {
                     // use -1 as a sentinel if we still couldn't get one
                     beatmapSetID = -1;
                 }
@@ -1692,27 +1676,49 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                     map->iMostCommonBPM = bpm.most_common;
                     // (the diff is now fully built)
 
-                    // now, search if the current set (to which this diff would belong) already exists and add it there, or
-                    // if it doesn't exist then create the set
-                    if(const auto &existingit = setIDToIndex.find(beatmapSetID); existingit != setIDToIndex.end()) {
-                        const auto &[_, idx] = *existingit;
-                        assert(beatmapSets[idx].diffs);
-                        DiffContainer &existingDiffs = *beatmapSets[idx].diffs;
-                        // if a diff with a the same md5hash hasn't already been added here
-                        if(!std::ranges::contains(existingDiffs, md5hash,
-                                                  [](const auto &existingdiff) { return existingdiff->getMD5(); })) {
+                    // now, search if the current setID container (to which this diff would belong) already exists and add it there, or
+                    // if it doesn't exist then create the container
+                    if(beatmapSetID != -1) {
+                        if(const auto &existingit = sid_to_diffcont.find(beatmapSetID);
+                           existingit != sid_to_diffcont.end()) {
+                            const auto &[_, diffc] = *existingit;
+                            assert(diffc);
+                            // if a diff with a the same md5hash hasn't already been added here
+                            if(!std::ranges::contains(
+                                   *diffc, md5hash, [](const auto &existingdiff) { return existingdiff->getMD5(); })) {
+                                diffp = map.get();
+                                diffc->push_back(std::move(map));
+                            }
+                        } else {
                             diffp = map.get();
-                            existingDiffs.push_back(std::move(map));
+
+                            auto diffc = std::make_unique<DiffContainer>();
+                            diffc->push_back(std::move(map));
+                            sid_to_diffcont.emplace(beatmapSetID, std::move(diffc));
+
+                            ++nb_unique_peppy_sets;
                         }
                     } else {
-                        diffp = map.get();
-                        setIDToIndex[beatmapSetID] = beatmapSets.size();
+                        // group maps with invalid set IDs by folder
+                        if(const auto &existingit = invalid_sid_folder_to_diffcont.find(subFolder);
+                           existingit != invalid_sid_folder_to_diffcont.end()) {
+                            const auto &[_, diffc] = *existingit;
+                            assert(diffc);
+                            // if a diff with a the same md5hash hasn't already been added here
+                            if(!std::ranges::contains(
+                                   *diffc, md5hash, [](const auto &existingdiff) { return existingdiff->getMD5(); })) {
+                                diffp = map.get();
+                                diffc->push_back(std::move(map));
+                            }
+                        } else {
+                            diffp = map.get();
 
-                        Beatmap_Set s;
-                        s.setID = beatmapSetID;
-                        s.diffs = std::make_unique<DiffContainer>();
-                        s.diffs->push_back(std::move(map));
-                        beatmapSets.push_back(std::move(s));
+                            auto diffc = std::make_unique<DiffContainer>();
+                            diffc->push_back(std::move(map));
+                            invalid_sid_folder_to_diffcont.emplace(subFolder, std::move(diffc));
+
+                            ++nb_unique_peppy_sets;
+                        }
                     }
                 }
 
@@ -1751,74 +1757,50 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 nb_peppy_maps++;
             }
 
-            Sync::unique_lock lock(this->beatmap_difficulties_mtx);
-
-            // build beatmap sets
-            for(auto &beatmapSet : beatmapSets) {
-                if(this->load_interrupted.load(std::memory_order_acquire)) {  // cancellation point
-                    // clean up remaining unprocessed diffs2 vectors and their contents
-                    for(size_t i = &beatmapSet - &beatmapSets[0]; i < beatmapSets.size(); i++) {
-                        if(beatmapSets[i].diffs) {
-                            for(const auto &diff : *beatmapSets[i].diffs) {
-                                this->beatmap_difficulties.erase(diff->getMD5());
-
-                                // remove from loudness_to_calc
-                                std::erase(this->loudness_to_calc, diff.get());
-                            }
-                            beatmapSets[i].diffs.reset();
-                        }
+            if(!this->isCancelled()) {
+                // create BeatmapSets from the collected setID->container and folder->container hashmaps
+                temp_loading_beatmapsets.reserve(temp_loading_beatmapsets.size() + nb_unique_peppy_sets);
+                for(auto &[_, cont] : sid_to_diffcont) {
+                    if(this->isCancelled()) {  // cancellation point
+                        break;
                     }
-                    break;
+                    assert(cont && !cont->empty());
+                    temp_loading_beatmapsets.emplace_back(
+                        new BeatmapSet(std::move(cont), DatabaseBeatmap::BeatmapType::PEPPY_BEATMAPSET));
                 }
-
-                if(!beatmapSet.diffs || beatmapSet.diffs->empty()) {  // sanity check
-                    // clean up empty diffs2 vector
-                    beatmapSet.diffs.reset();
-                    continue;
-                }
-
-                if(beatmapSet.setID > 0) {
-                    auto set = std::make_unique<BeatmapSet>(std::move(beatmapSet.diffs),
-                                                            DatabaseBeatmap::BeatmapType::PEPPY_BEATMAPSET);
-                    temp_loading_beatmapsets.push_back(std::move(set));
-                    // beatmapSet.diffs2 ownership transferred to BeatmapSet
-                } else {
-                    // set with invalid ID: treat all its diffs separately. we'll group the diffs by title+artist.
-                    Hash::unstable_stringmap<std::unique_ptr<DiffContainer>> titleArtistToBeatmap;
-                    for(auto &diff : (*beatmapSet.diffs)) {
-                        const std::string titleArtist =
-                            fmt::format("{}|{}", diff->getTitleLatin(), diff->getArtistLatin());
-
-                        auto it = titleArtistToBeatmap.find(titleArtist);
-                        if(it == titleArtistToBeatmap.end()) {
-                            titleArtistToBeatmap[titleArtist] = std::make_unique<DiffContainer>();
-                        }
-
-                        titleArtistToBeatmap[titleArtist]->push_back(std::move(diff));
+                for(auto &[_, cont] : invalid_sid_folder_to_diffcont) {
+                    if(this->isCancelled()) {  // cancellation point
+                        break;
                     }
-
-                    for(auto &[_, diffs] : titleArtistToBeatmap) {
-                        auto set = std::make_unique<BeatmapSet>(std::move(diffs),
-                                                                DatabaseBeatmap::BeatmapType::PEPPY_BEATMAPSET);
-                        temp_loading_beatmapsets.push_back(std::move(set));
-                    }
+                    assert(cont && !cont->empty());
+                    temp_loading_beatmapsets.emplace_back(
+                        new BeatmapSet(std::move(cont), DatabaseBeatmap::BeatmapType::PEPPY_BEATMAPSET));
                 }
             }
         }
         this->bytes_processed += dbr.total_size;
     }
 
-    this->beatmapsets = std::move(temp_loading_beatmapsets);
+    // TODO: partial loading? it shouldn't be that difficult, would be more useful for raw loading (used to be supported)
+    if(!this->isCancelled()) {
+        this->beatmapsets = std::move(temp_loading_beatmapsets);
 
-    // link each diff's star_ratings pointer to its entry in the star_ratings map
-    {
-        Sync::shared_lock sr_lock(this->star_ratings_mtx);
-        Sync::unique_lock diff_lock(this->beatmap_difficulties_mtx);
-        for(const auto &[hash, diff] : this->beatmap_difficulties) {
-            if(auto it = this->star_ratings.find(hash); it != this->star_ratings.end()) {
-                diff->star_ratings = it->second.get();
+        // link each diff's star_ratings pointer to its entry in the star_ratings map
+        {
+            Sync::shared_lock sr_lock(this->star_ratings_mtx);
+            Sync::unique_lock diff_lock(this->beatmap_difficulties_mtx);
+            for(const auto &[hash, diff] : this->beatmap_difficulties) {
+                if(auto it = this->star_ratings.find(hash); it != this->star_ratings.end()) {
+                    diff->star_ratings = it->second.get();
+                }
             }
         }
+    } else {
+        Sync::unique_lock lock(this->beatmap_difficulties_mtx);
+
+        this->beatmap_difficulties.clear();
+        this->loudness_to_calc.clear();
+        this->beatmapsets.clear();
     }
 
     this->importTimer->update();
