@@ -282,10 +282,10 @@ Image::ImageDecodeResult Image::decodeSTBFromMemory(const u8 *inData, u64 size) 
     return SUCCESS;
 }
 
-void Image::saveToImage(const u8 *data, i32 width, i32 height, u8 channels, std::string filepath) {
+bool Image::saveToImage(const u8 *data, i32 width, i32 height, u8 channels, std::string filepath) {
     if(channels != 3 && channels != 4) {
         debugLog("PNG Error: Can only save 3 or 4 channel image data.");
-        return;
+        return false;
     }
 
     garbage_zlib();
@@ -293,14 +293,14 @@ void Image::saveToImage(const u8 *data, i32 width, i32 height, u8 channels, std:
     FILE *fp = File::fopen_c(filepath.c_str(), "wb");
     if(!fp) {
         debugLog("PNG error: Could not open file {:s} for writing", filepath);
-        return;
+        return false;
     }
 
     png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
     if(!png_ptr) {
         fclose(fp);
         debugLog("PNG error: png_create_write_struct failed");
-        return;
+        return false;
     }
 
     png_infop info_ptr = png_create_info_struct(png_ptr);
@@ -308,14 +308,14 @@ void Image::saveToImage(const u8 *data, i32 width, i32 height, u8 channels, std:
         png_destroy_write_struct(&png_ptr, nullptr);
         fclose(fp);
         debugLog("PNG error: png_create_info_struct failed");
-        return;
+        return false;
     }
 
     if(setjmp(&png_jmpbuf(png_ptr)[0])) {
         png_destroy_write_struct(&png_ptr, &info_ptr);
         fclose(fp);
         debugLog("PNG error during write");
-        return;
+        return false;
     }
 
     png_init_io(png_ptr, fp);
@@ -336,6 +336,8 @@ void Image::saveToImage(const u8 *data, i32 width, i32 height, u8 channels, std:
     png_write_end(png_ptr, nullptr);
     png_destroy_write_struct(&png_ptr, &info_ptr);
     fclose(fp);
+
+    return true;
 }
 
 Image::Image(std::string filepath, bool mipmapped, bool keepInSystemMemory)

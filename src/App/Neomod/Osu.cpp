@@ -1297,13 +1297,11 @@ void Osu::saveScreenshot() {
         if(skin) {
             soundEngine->play(skin->s_shutter);
         }
-        ui->getNotificationOverlay()->addToast(fmt::format("Saved screenshot to {}", screenshotFilename), CHAT_TOAST,
-                                               [screenshotFilename] { env->openFileBrowser(screenshotFilename); });
 
         const vec2 graphicsRes = g->getResolution();
 
-        Async::dispatch(
-            [graphicsRes, currentRes, pixels = std::move(pixelData), screenshotFilename]() {
+        Async::submit(
+            [graphicsRes, currentRes, pixels = std::move(pixelData), screenshotFilename]() -> bool {
                 const f32 outerWidth = graphicsRes.x;
                 const f32 outerHeight = graphicsRes.y;
                 const f32 innerWidth = currentRes.getWidth();
@@ -1311,9 +1309,8 @@ void Osu::saveScreenshot() {
 
                 // don't need cropping
                 if(!cv::crop_screenshots.getBool() || (graphicsRes == currentRes.getSize())) {
-                    Image::saveToImage(pixels.data(), static_cast<i32>(outerWidth), static_cast<i32>(outerHeight),
-                                       screenshotChannels, screenshotFilename);
-                    return;
+                    return Image::saveToImage(pixels.data(), static_cast<i32>(outerWidth),
+                                              static_cast<i32>(outerHeight), screenshotChannels, screenshotFilename);
                 }
 
                 // need cropping
@@ -1338,10 +1335,21 @@ void Osu::saveScreenshot() {
                     std::ranges::copy_n(srcRowStart, static_cast<sSz>(innerWidth) * screenshotChannels, destRowStart);
                 }
 
-                Image::saveToImage(croppedPixels.data(), static_cast<i32>(innerWidth), static_cast<i32>(innerHeight),
-                                   screenshotChannels, screenshotFilename);
+                return Image::saveToImage(croppedPixels.data(), static_cast<i32>(innerWidth),
+                                          static_cast<i32>(innerHeight), screenshotChannels, screenshotFilename);
             },
-            Lane::Background);
+            Lane::Background)
+            .then_on_main([screenshotFilename](bool res) {
+                if(!osu || !osu->UIReady()) return;
+                if(!res) {
+                    ui->getNotificationOverlay()->addNotification("Error: Couldn't grab a screenshot :(", 0xffff0000,
+                                                                  false, 3.0f);
+                } else {
+                    ui->getNotificationOverlay()->addToast(
+                        fmt::format("Saved screenshot to {}", screenshotFilename), CHAT_TOAST,
+                        [screenshotFilename] { env->openFileBrowser(screenshotFilename); });
+                }
+            });
     };
 
     g->takeScreenshot({.savePath = {}, .dataCB = std::move(saveFunc), .withAlpha = screenshotChannels > 3});

@@ -15,9 +15,34 @@
 #include "Logging.h"
 #include "UI.h"
 
+namespace {
+
+bool should_chat_toasts_be_visible() {
+    return cv::notify_during_gameplay.getBool() ||  //
+           !osu->isInPlayMode() ||                  //
+           ui->getPauseOverlay()->isVisible();
+}
+
+void draw_border_rect(Graphics *g, int x, int y, int width, int height, float thickness) {
+    return g->drawRectf(Graphics::RectOptions{
+        .x = (float)x + thickness / 2.f,
+        .y = (float)y + thickness / 2.f,
+        .width = (float)width - thickness,
+        .height = (float)height - thickness,
+        .lineThickness = thickness,
+        .withColor = false,
+    });
+}
+
+void draw_border_rect(Graphics *g, vec2 pos, vec2 size, float thickness) {
+    return draw_border_rect(g, (int)pos.x, (int)pos.y, (int)size.x, (int)size.y, thickness);
+}
+
+}  // namespace
+
 namespace cv::cmd {
-static ConVar notify("notify", ""sv, CLIENT | SERVER | NOLOAD | NOSAVE);
-static ConVar toast("toast", ""sv, CLIENT | SERVER | NOLOAD | NOSAVE);
+static ConVar notify("notify", CLIENT | SERVER | NOLOAD | NOSAVE);
+static ConVar toast("toast", CLIENT | SERVER | NOLOAD | NOSAVE);
 }  // namespace cv::cmd
 
 void NotificationOverlay::onToastCallback(std::string_view args) {
@@ -84,23 +109,6 @@ void ToastElement::onClicked(bool left, bool right) {
     CBaseUIButton::onClicked(left, right);
 }
 
-namespace {
-void draw_border_rect(Graphics *g, int x, int y, int width, int height, float thickness) {
-    return g->drawRectf(Graphics::RectOptions{
-        .x = (float)x + thickness / 2.f,
-        .y = (float)y + thickness / 2.f,
-        .width = (float)width - thickness,
-        .height = (float)height - thickness,
-        .lineThickness = thickness,
-        .withColor = false,
-    });
-}
-
-void draw_border_rect(Graphics *g, vec2 pos, vec2 size, float thickness) {
-    return draw_border_rect(g, (int)pos.x, (int)pos.y, (int)size.x, (int)size.y, thickness);
-}
-}  // namespace
-
 void ToastElement::draw() {
     const f32 alpha =
         0.9f * static_cast<f32>(std::max(0.0, (this->creation_time + (this->timeout - 0.5)) - engine->getTime()));
@@ -125,14 +133,6 @@ void ToastElement::draw() {
         g->popTransform();
     }
 }
-
-namespace {
-bool should_chat_toasts_be_visible() {
-    return cv::notify_during_gameplay.getBool() ||  //
-           !osu->isInPlayMode() ||                  //
-           ui->getPauseOverlay()->isVisible();
-}
-}  // namespace
 
 void NotificationOverlay::update(CBaseUIEventCtx &c) {
     if(!this->isVisible() && this->toasts.empty()) return;

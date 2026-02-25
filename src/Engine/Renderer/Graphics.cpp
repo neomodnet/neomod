@@ -22,7 +22,8 @@ void Graphics::processPendingScreenshot() {
         if(savePath.empty() && !callback) {
             static i32 num = 0;
             Environment::createDirectory(MCENGINE_DATA_DIR "screenshots");
-            while(Environment::fileExists(fmt::format(MCENGINE_DATA_DIR "screenshots/test_screenshot{}.png", num))) num++;
+            while(Environment::fileExists(fmt::format(MCENGINE_DATA_DIR "screenshots/test_screenshot{}.png", num)))
+                num++;
             savePath = fmt::format(MCENGINE_DATA_DIR "screenshots/test_screenshot{}.png", num);
         }
 
@@ -40,8 +41,9 @@ void Graphics::processPendingScreenshot() {
             callback(std::move(pixels));
         } else {
             const auto res = this->getResolution();
-            Image::saveToImage(pixels.data(), (i32)res.x, (i32)res.y, screenshot.withAlpha ? 4 : 3, savePath);
-            debugLog("saved to {}", savePath);
+            if(Image::saveToImage(pixels.data(), (i32)res.x, (i32)res.y, screenshot.withAlpha ? 4 : 3, savePath)) {
+                debugLog("saved to {}", savePath);
+            }
         }
     }
     this->pendingScreenshots.clear();

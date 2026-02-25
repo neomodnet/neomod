@@ -26,7 +26,8 @@ enum class TextureWrapMode : u8;
 
 class Image : public Resource {
    public:
-    static void saveToImage(const u8 *data, i32 width, i32 height, u8 channels, std::string filepath);
+    // returns false on failure
+    static bool saveToImage(const u8 *data, i32 width, i32 height, u8 channels, std::string filepath);
 
     enum class TYPE : uint8_t { TYPE_RGBA, TYPE_PNG, TYPE_JPG };
 
