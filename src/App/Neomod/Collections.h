@@ -17,7 +17,7 @@ std::vector<Collection> &get_loaded();
 
 Collection &get_or_create_collection(std::string_view name);
 
-bool load_all();
+bool load_all(std::string_view neomod_collections_path, std::string_view peppy_collections_path);
 bool load_peppy(std::string_view peppy_collections_path);
 bool load_mcneomod(std::string_view neomod_collections_path);
 void unload_all();
@@ -34,7 +34,7 @@ class Collection {
     friend bool delete_collection(std::string_view collection_name);
     friend Collection &get_or_create_collection(std::string_view name);
 
-    friend bool load_all();
+    friend bool load_all(std::string_view neomod_collections_path, std::string_view peppy_collections_path);
     friend bool load_peppy(std::string_view peppy_collections_path);
     friend bool load_mcneomod(std::string_view neomod_collections_path);
     friend void unload_all();

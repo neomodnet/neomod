@@ -18,7 +18,6 @@ namespace Timing {
 class Timer;
 }
 namespace Collections {
-extern bool load_all();
 extern bool load_peppy(std::string_view peppy_collections_path);
 extern bool load_mcneomod(std::string_view neomod_collections_path);
 extern bool save_collections();
@@ -188,7 +187,6 @@ class Database final {
     static bool migrate_neosu_to_neomod();
 
    private:
-    friend bool Collections::load_all();
     friend bool Collections::load_peppy(std::string_view peppy_collections_path);
     friend bool Collections::load_mcneomod(std::string_view neomod_collections_path);
     friend bool Collections::save_collections();
@@ -242,7 +240,7 @@ class Database final {
 
     void findDatabases();
     bool importDatabase(const std::pair<DatabaseType, std::string> &db_pair);
-    void loadMaps();
+    void loadMaps(std::string_view neomod_maps_path, std::string_view peppy_db_path);
     void loadScores(std::string_view dbPath);
     void loadOldMcNeomodScores(std::string_view dbPath);
     void loadPeppyScores(std::string_view dbPath);
@@ -267,8 +265,6 @@ class Database final {
     std::atomic<bool> load_interrupted{false};
     // this vector owns all loaded beatmapsets, raw beatmapset pointers are assumed not ownable
     std::vector<std::unique_ptr<BeatmapSet>> beatmapsets;
-    std::vector<std::unique_ptr<BeatmapSet>>
-        temp_loading_beatmapsets;  // staging buffer for async loadMaps() thread only; moved into beatmapsets when async load finishes
 
     Sync::shared_mutex beatmap_difficulties_mtx;
     Hash::flat::map<MD5Hash, BeatmapDifficulty *> beatmap_difficulties;

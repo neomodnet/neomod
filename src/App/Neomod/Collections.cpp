@@ -189,16 +189,12 @@ bool load_mcneomod(std::string_view neomod_collections_path) {
 }
 
 // Should only be called from db loader thread!
-bool load_all() {
+bool load_all(std::string_view neomod_collections_path, std::string_view peppy_collections_path) {
     const double startTime = Timing::getTimeReal();
 
     unload_all();
-
-    const auto& peppy_path = db->database_files[Database::DatabaseType::STABLE_COLLECTIONS];
-    load_peppy(peppy_path);
-
-    const auto& mcneomod_path = db->database_files[Database::DatabaseType::MCNEOMOD_COLLECTIONS];
-    load_mcneomod(mcneomod_path);
+    load_peppy(peppy_collections_path);
+    load_mcneomod(neomod_collections_path);
 
     debugLog("peppy+neomod collections: loading took {:f} seconds", (Timing::getTimeReal() - startTime));
     s_collections_loaded = true;

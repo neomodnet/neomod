@@ -3,6 +3,7 @@
 
 #include "AsyncIOHandler.h"
 #include "Bancho.h"
+#include "ContainerRanges.h"
 #include "Parsing.h"
 #include "SString.h"
 #include "MD5Hash.h"
@@ -258,13 +259,10 @@ void Database::startLoader() {
         Sync::unique_lock lock(this->beatmap_difficulties_mtx);
         this->beatmap_difficulties.clear();
     }
-    this->temp_loading_beatmapsets.clear();
     this->beatmapsets.clear();
 
     // append, the copy will only be cleared if loading them succeeded
-    this->extern_db_paths_to_import_async_copy.insert(this->extern_db_paths_to_import_async_copy.end(),
-                                                      this->extern_db_paths_to_import.cbegin(),
-                                                      this->extern_db_paths_to_import.cend());
+    Mc::append_range(this->extern_db_paths_to_import_async_copy, std::move(this->extern_db_paths_to_import));
     this->extern_db_paths_to_import.clear();
 
     // reset after destroyLoader() set it to true (subroutines still check it)
@@ -287,14 +285,15 @@ void Database::startLoader() {
                 this->loadPeppyScores(this->database_files[STABLE_SCORES]);
                 this->scores_loaded = true;
                 if(tok.stop_requested()) goto done;
-            }
-
-            this->loadMaps();
-            if(tok.stop_requested()) goto done;
-
-            if(!this->needs_raw_load) {
-                Collections::load_all();
+                this->loadMaps(this->database_files[NEOMOD_MAPS], this->database_files[STABLE_MAPS]);
                 if(tok.stop_requested()) goto done;
+
+                // loaded after raw load otherwise
+                if(!this->needs_raw_load) {
+                    Collections::load_all(this->database_files[MCNEOMOD_COLLECTIONS],
+                                          this->database_files[STABLE_COLLECTIONS]);
+                    if(tok.stop_requested()) goto done;
+                }
             }
 
             // .db files that were dropped on the main window
@@ -377,7 +376,6 @@ Database::~Database() {
         Sync::unique_lock lock(this->beatmap_difficulties_mtx);
         this->beatmap_difficulties.clear();
     }
-    this->temp_loading_beatmapsets.clear();
     this->beatmapsets.clear();
 
     Collections::unload_all();
@@ -427,7 +425,8 @@ void Database::update() {
                 debugLog("Refresh finished, added {} beatmaps in {:f} seconds.", this->beatmapsets.size(),
                          this->importTimer->getElapsedTime());
 
-                Collections::load_all();
+                Collections::load_all(this->database_files[DatabaseType::MCNEOMOD_COLLECTIONS],
+                                      this->database_files[DatabaseType::STABLE_COLLECTIONS]);
 
                 // clang-format off
                 for(auto &diff : this->beatmapsets
@@ -998,14 +997,14 @@ MD5Hash Database::recalcMD5(std::string osu_path) {
     return md5digest;
 }
 
-void Database::loadMaps() {
-    const auto &peppy_db_path = this->database_files[DatabaseType::STABLE_MAPS];
-    const auto &neomod_maps_path = this->database_files[DatabaseType::NEOMOD_MAPS];
-
-    const std::string &songFolder = Database::getOsuSongsFolder();
+void Database::loadMaps(std::string_view neomod_maps_path, std::string_view peppy_db_path) {
+    const std::string songFolder = Database::getOsuSongsFolder();
     debugLog("Database: songFolder = {:s}", songFolder);
 
     this->importTimer->start();
+
+    // staging buffer, moved into Database::beatmapsets when async load finishes
+    std::vector<std::unique_ptr<BeatmapSet>> temp_loading_beatmapsets;
 
     u32 nb_neomod_maps = 0;
     u32 nb_peppy_maps = 0;
@@ -1301,7 +1300,7 @@ void Database::loadMaps() {
                 if(diffs && !diffs->empty()) {
                     auto set =
                         std::make_unique<BeatmapSet>(std::move(diffs), DatabaseBeatmap::BeatmapType::NEOMOD_BEATMAPSET);
-                    this->temp_loading_beatmapsets.push_back(std::move(set));
+                    temp_loading_beatmapsets.push_back(std::move(set));
 
                     // NOTE: Don't add neomod sets to beatmapSets since they're already processed
                     // Adding them would create duplicate ownership of the diffs vector
@@ -1640,11 +1639,15 @@ void Database::loadMaps() {
                         }
                     }
                 }
+                if (beatmapSetID <= 0) {
+                    // use -1 as a sentinel if we still couldn't get one
+                    beatmapSetID = -1;
+                }
 
                 BeatmapDifficulty *diffp = nullptr;
                 {
                     // fill diff with data
-                    auto map = std::make_unique<BeatmapDifficulty>(fullFilePath, beatmapPath,
+                    auto map = std::make_unique<BeatmapDifficulty>(std::move(fullFilePath), std::move(beatmapPath),
                                                                    DatabaseBeatmap::BeatmapType::PEPPY_DIFFICULTY);
 
                     map->sTitle = std::move(songTitle);
@@ -1777,7 +1780,7 @@ void Database::loadMaps() {
                 if(beatmapSet.setID > 0) {
                     auto set = std::make_unique<BeatmapSet>(std::move(beatmapSet.diffs),
                                                             DatabaseBeatmap::BeatmapType::PEPPY_BEATMAPSET);
-                    this->temp_loading_beatmapsets.push_back(std::move(set));
+                    temp_loading_beatmapsets.push_back(std::move(set));
                     // beatmapSet.diffs2 ownership transferred to BeatmapSet
                 } else {
                     // set with invalid ID: treat all its diffs separately. we'll group the diffs by title+artist.
@@ -1797,15 +1800,15 @@ void Database::loadMaps() {
                     for(auto &[_, diffs] : titleArtistToBeatmap) {
                         auto set = std::make_unique<BeatmapSet>(std::move(diffs),
                                                                 DatabaseBeatmap::BeatmapType::PEPPY_BEATMAPSET);
-                        this->temp_loading_beatmapsets.push_back(std::move(set));
+                        temp_loading_beatmapsets.push_back(std::move(set));
                     }
                 }
             }
         }
         this->bytes_processed += dbr.total_size;
     }
-    this->beatmapsets = std::move(this->temp_loading_beatmapsets);
-    this->temp_loading_beatmapsets.clear();
+
+    this->beatmapsets = std::move(temp_loading_beatmapsets);
 
     // link each diff's star_ratings pointer to its entry in the star_ratings map
     {
