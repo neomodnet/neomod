@@ -15,29 +15,29 @@
 #include "Logging.h"
 #include "UI.h"
 
-namespace cv {
+namespace cv::cmd {
 static ConVar notify("notify", ""sv, CLIENT | SERVER | NOLOAD | NOSAVE);
 static ConVar toast("toast", ""sv, CLIENT | SERVER | NOLOAD | NOSAVE);
-}  // namespace cv
+}  // namespace cv::cmd
 
 void NotificationOverlay::onToastCallback(std::string_view args) {
     this->addToast(args, INFO_TOAST);
-    cv::toast.setValue("", false);
+    cv::cmd::toast.setValue("", false);
 }
 
 void NotificationOverlay::onNotificationCallback(std::string_view args) {
     this->addNotification(args);
-    cv::notify.setValue("", false);
+    cv::cmd::notify.setValue("", false);
 }
 
 NotificationOverlay::NotificationOverlay() : UIScreen() {
-    cv::toast.setCallback(SA::MakeDelegate<&NotificationOverlay::onToastCallback>(this));
-    cv::notify.setCallback(SA::MakeDelegate<&NotificationOverlay::onNotificationCallback>(this));
+    cv::cmd::toast.setCallback(SA::MakeDelegate<&NotificationOverlay::onToastCallback>(this));
+    cv::cmd::notify.setCallback(SA::MakeDelegate<&NotificationOverlay::onNotificationCallback>(this));
 }
 
 NotificationOverlay::~NotificationOverlay() {
-    cv::notify.removeCallback();
-    cv::toast.removeCallback();
+    cv::cmd::notify.removeCallback();
+    cv::cmd::toast.removeCallback();
 }
 
 static constexpr f32 DEF_TOAST_WIDTH{350.0f};
@@ -55,7 +55,7 @@ static f32 TOAST_SCREEN_BOTTOM_MARGIN{DEF_TOAST_SCREEN_BOTTOM_MARGIN};
 static f32 TOAST_SCREEN_RIGHT_MARGIN{DEF_TOAST_SCREEN_RIGHT_MARGIN};
 
 ToastElement::ToastElement(UString text, Color borderColor, ToastElement::TYPE type)
-    : CBaseUIButton(0, 0, 0, 0, "", std::move(text)), type(type) {
+    : CBaseUIButton(0.f, 0.f, 0.f, 0.f, "", std::move(text)), type(type) {
     this->setGrabClicks(true);
 
     // TODO: animations
@@ -67,7 +67,8 @@ ToastElement::ToastElement(UString text, Color borderColor, ToastElement::TYPE t
 }
 
 void ToastElement::freezeTimeout() { this->creation_time += engine->getFrameTime(); }
-bool ToastElement::hasTimedOut() const { return this->creation_time + this->timeout < engine->getTime(); }
+f64 ToastElement::getTimeRemaining() const { return (this->creation_time + this->timeout) - engine->getTime(); }
+bool ToastElement::hasTimedOut() const { return this->getTimeRemaining() <= 0.; }
 
 void ToastElement::updateLayout() {
     this->lines = this->font->wrap(this->getText(), TOAST_WIDTH - TOAST_INNER_X_MARGIN * 2.0f);
@@ -75,8 +76,10 @@ void ToastElement::updateLayout() {
 }
 
 void ToastElement::onClicked(bool left, bool right) {
-    // Negate creationTime so toast is deleted in NotificationOverlay::update
-    this->creation_time = -this->timeout;
+    // Change creation_time so that the fadeout is triggered immediately
+    const f64 time_remaining_until_fadeout =
+        std::max<f64>(1., ((this->creation_time + (this->timeout - 0.5)) - engine->getTime()) - 1.);
+    this->creation_time -= time_remaining_until_fadeout;
 
     CBaseUIButton::onClicked(left, right);
 }
@@ -132,6 +135,8 @@ bool should_chat_toasts_be_visible() {
 }  // namespace
 
 void NotificationOverlay::update(CBaseUIEventCtx &c) {
+    if(!this->isVisible() && this->toasts.empty()) return;
+    UIScreen::update(c);
     if(this->toasts.empty()) return;
 
     const bool chat_toasts_visible = should_chat_toasts_be_visible();
@@ -157,10 +162,11 @@ void NotificationOverlay::update(CBaseUIEventCtx &c) {
         }
         ++tit;
 
-        const bool delay_toast = a_toast_is_hovered ||                                             //
-                                 t->type == ToastElement::TYPE::PERMANENT ||                       //
-                                 (t->type == ToastElement::TYPE::CHAT && !chat_toasts_visible) ||  //
-                                 !env->winFocused();
+        const bool delay_toast = t->getTimeRemaining() > 1.55 &&               // don't delay if we are fading out
+                                 (a_toast_is_hovered ||                        //
+                                  t->type == ToastElement::TYPE::PERMANENT ||  //
+                                  (t->type == ToastElement::TYPE::CHAT && !chat_toasts_visible) ||  //
+                                  !env->winFocused());
 
         if(delay_toast) {
             // prevent some toasts from timing out depending on the above conditions

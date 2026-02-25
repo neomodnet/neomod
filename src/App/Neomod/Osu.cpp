@@ -505,7 +505,6 @@ Osu::~Osu() {
         cv::background_image_eviction_delay_frames.reset();
         cv::background_image_loading_delay.reset();
         cv::load_beatmap_background_images.reset();
-        cv::cmd::save.reset();
         cv::cursor_trail_max_size.reset();
         cv::skin_use_skin_hitsounds.reset();
         cv::options_slider_quality.reset();

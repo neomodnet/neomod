@@ -106,7 +106,6 @@ CONVAR(minimize, CLIENT, CFUNC(_minimize));
 CONVAR(printsize, CLIENT, CFUNC(_printsize));
 CONVAR(resizable_toggle, CLIENT, CFUNC(_toggleresizable));
 CONVAR(restart, CLIENT, CFUNC(_restart));
-CONVAR(save);  // database save, set in Database
 CONVAR(showconsolebox);
 CONVAR(snd_restart);
 CONVAR(take_screenshot, CLIENT | NOLOAD | NOSAVE,

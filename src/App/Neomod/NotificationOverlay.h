@@ -7,11 +7,13 @@
 #include <memory>
 #include <string_view>
 
-#define CHAT_TOAST 0xff8a2be2
-#define INFO_TOAST 0xffffdd00
-#define ERROR_TOAST 0xffdd0000
-#define SUCCESS_TOAST 0xff00ff00
-#define STATUS_TOAST 0xff003bff
+enum ToastTypeColor : u32 {
+    CHAT_TOAST = 0xff8a2be2,
+    INFO_TOAST = 0xffffdd00,
+    ERROR_TOAST = 0xffdd0000,
+    SUCCESS_TOAST = 0xff00ff00,
+    STATUS_TOAST = 0xff003bff,
+};
 
 class ToastElement final : public CBaseUIButton {
     NOCOPY_NOMOVE(ToastElement)
@@ -28,7 +30,7 @@ class ToastElement final : public CBaseUIButton {
     void onClicked(bool left = true, bool right = false) override;
     void updateLayout();
 
-    [[nodiscard]] inline f64 getTimeout() const { return this->timeout; }
+    [[nodiscard]] f64 getTimeRemaining() const;
     [[nodiscard]] bool hasTimedOut() const;
 
     inline void setTimeout(f64 timeout) { this->timeout = std::max(timeout, 0.5); }

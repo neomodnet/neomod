@@ -54,6 +54,8 @@ namespace cmd {
 // Server-callable commands
 CONVAR(spectate, CLIENT | SERVER, CFUNC(Spectating::start_by_username));
 
+CONVAR(save, CLIENT);  // database save, callback set in Database
+
 }  // namespace cmd
 
 // Audio

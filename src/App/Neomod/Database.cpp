@@ -539,7 +539,7 @@ BeatmapSet *Database::addBeatmapSet(const std::string &beatmapFolderPath, i32 se
     }
 
     if(cv::maps_save_immediately.getBool()) {
-        db->saveMaps();
+        this->saveMaps();
     }
 
     return raw_mapset;
