@@ -1425,8 +1425,7 @@ void MainMenu::animMainButton() {
     this->bInMainMenuRandomAnim = true;
 
     this->iMainMenuRandomAnimType = (prand() % 4) == 1 ? 1 : 0;
-    if(!this->bMainMenuAnimFadeToFriendForNextAnim && cv::main_menu_friend.getBool() &&
-       Env::cfg(OS::WINDOWS))  // NOTE: z buffer bullshit on other platforms >:(
+    if(!this->bMainMenuAnimFadeToFriendForNextAnim && cv::main_menu_friend.getBool())
         this->bMainMenuAnimFadeToFriendForNextAnim = (prand() % 24) == 1;
 
     this->fMainMenuAnim = 0.0f;
