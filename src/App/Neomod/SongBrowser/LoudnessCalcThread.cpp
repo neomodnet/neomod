@@ -268,7 +268,7 @@ void VolNormalization::start_calc_instance(const std::vector<DatabaseBeatmap *> 
     i32 nb_threads = cv::loudness_calc_threads.getInt();
     if(nb_threads <= 0) {
         // dividing by 2 still burns cpu if hyperthreading is enabled, let's keep it at a sane amount of threads
-        nb_threads = std::max((McThread::get_logical_cpu_count() - 1) / 2, 1);
+        nb_threads = std::max(McThread::get_logical_cpu_count() / 3, 1);
     }
     if(groups.size() < (size_t)nb_threads) nb_threads = groups.size();
     int chunk_size = groups.size() / nb_threads;
