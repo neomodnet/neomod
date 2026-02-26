@@ -40,7 +40,7 @@ class TextureAtlas final : public Resource {
 
     [[nodiscard]] inline int getWidth() const { return this->iWidth; }
     [[nodiscard]] inline int getHeight() const { return this->iHeight; }
-    [[nodiscard]] inline const std::unique_ptr<Image> &getAtlasImage() const { return this->atlasImage; }
+    [[nodiscard]] inline Image *getAtlasImage() const { return this->atlasImage.get(); }
 
     TextureAtlas *asTextureAtlas() final { return this; }
     [[nodiscard]] const TextureAtlas *asTextureAtlas() const final { return this; }

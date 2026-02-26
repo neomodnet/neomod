@@ -415,7 +415,7 @@ void BanchoState::handle_packet(Packet &packet) {
             (void)extra;  // this is mania seed or something we can't use
 
             if(BanchoState::spectating) {
-                const auto &map_iface = osu->getMapInterface();
+                auto *map_iface = osu->getMapInterface();
                 UserInfo *info = BANCHO::User::get_user_info(BanchoState::spectated_player_id, true);
 
                 u16 nb_frames = packet.read<u16>();

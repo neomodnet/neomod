@@ -859,9 +859,7 @@ std::unique_ptr<u8[]> McFontImpl::createExpandedBitmapData(const FT_Bitmap &bitm
             const size_t srcIdx = k + static_cast<size_t>(bitmap.width) * j;
             const size_t dstIdx = srcIdx * 4;
 
-            Channel alpha = m_bAntialiasing                    ? bitmap.buffer[srcIdx]
-                            : monoBitmapUnpacked[srcIdx] > 0   ? 255
-                                                               : 0;
+            Channel alpha = m_bAntialiasing ? bitmap.buffer[srcIdx] : monoBitmapUnpacked[srcIdx] > 0 ? 255 : 0;
             expandedData[dstIdx + 0] = 255;    // R
             expandedData[dstIdx + 1] = 255;    // G
             expandedData[dstIdx + 2] = 255;    // B
@@ -1337,7 +1335,7 @@ void McFont::drawTextureAtlas() const {
 
         g->scale(fitWidth, fitWidth);
         g->translate(ta->getWidth() / 2.f, (ta->getHeight() / 2.f) + yOffset);
-        g->drawImage(ta->getAtlasImage().get());
+        g->drawImage(ta->getAtlasImage());
     }
     g->popTransform();
 }

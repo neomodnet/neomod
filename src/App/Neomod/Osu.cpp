@@ -109,7 +109,7 @@ bool Osu::globalOnSetValueGameplayCallback(const char *cvarname, CvarEditor sett
         debugLog("{} affects gameplay: won't submit score.", cvarname);
     }
     // maybe an impossible scenario for this to be NULL here but just checking anyways
-    if(const auto &liveScore = osu->getScore(); !!liveScore) {
+    if(auto *liveScore = osu->getScore(); !!liveScore) {
         liveScore->setCheated();
     }
 

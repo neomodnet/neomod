@@ -994,7 +994,7 @@ void BeatmapInterface::cancelFailing() {
     soundEngine->stop(this->getSkin()->s_fail);
 }
 
-f32 BeatmapInterface::getIdealVolume() {
+f32 BeatmapInterface::getIdealVolume() const {
     if(unlikely(!this->music)) return 1.f;
 
     f32 volume = cv::volume_music.getFloat();
@@ -1614,7 +1614,7 @@ void BeatmapInterface::loadMusic(bool reload, bool async) {
 }
 
 void BeatmapInterface::onMusicLoadingFinished(Resource *rs, void * /*userdata*/) {
-    const auto &map_iface = osu->getMapInterface();
+    auto *map_iface = osu->getMapInterface();
     if(!map_iface) return;
 
     auto *music = static_cast<Sound *>(rs);
@@ -3356,7 +3356,7 @@ void BeatmapInterface::update2() {
         }
 
         if(score_frame_idx != -1) {
-            const auto &score = osu->getScore();
+            auto *score = osu->getScore();
             auto fixed_score = this->score_frames[score_frame_idx];
             score->iNum300s = fixed_score.num300;
             score->iNum100s = fixed_score.num100;
@@ -3518,7 +3518,7 @@ void BeatmapInterface::invalidateWholeMapPPInfo() {
     this->getWholeMapPPInfo();                  // make new request immediately
 }
 
-const AsyncPPC::pp_res &BeatmapInterface::getWholeMapPPInfo() {
+const AsyncPPC::pp_res &BeatmapInterface::getWholeMapPPInfo() const {
     auto map = this->beatmap;
     if(!map) return this->full_ppinfo;
 
@@ -3592,6 +3592,7 @@ bool BeatmapInterface::isBuffering() {
     return this->is_buffering;
 }
 
+// TODO: make isBuffering const
 bool BeatmapInterface::isLoading() {
     return (this->isActuallyLoading() || this->isBuffering() ||
             (BanchoState::is_playing_a_multi_map() && !this->all_players_loaded));
@@ -3826,7 +3827,7 @@ FinishedScore BeatmapInterface::saveAndSubmitScore(bool quit) {
     this->fAimStars = (f32)diffAttributesOut.AimDifficulty;
     this->fSpeedStars = (f32)diffAttributesOut.SpeedDifficulty;
 
-    const auto &liveScore = osu->getScore();
+    auto *liveScore = osu->getScore();
 
     // calculate final pp
     const int numHitObjects = this->hitobjects.size();

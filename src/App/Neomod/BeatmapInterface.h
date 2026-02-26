@@ -97,7 +97,7 @@ class BeatmapInterface final : public AbstractBeatmapInterface {
     [[nodiscard]] f32 getSpeedMultiplier() const override;
     [[nodiscard]] f32 getPitchMultiplier() const override;
 
-    const AsyncPPC::pp_res &getWholeMapPPInfo();
+    const AsyncPPC::pp_res &getWholeMapPPInfo() const;
 
     // hud
     [[nodiscard]] inline bool isSpinnerActive() const { return this->bIsSpinnerActive; }
@@ -133,7 +133,7 @@ class BeatmapInterface final : public AbstractBeatmapInterface {
     void unloadMusic();
     static void onMusicLoadingFinished(Resource *rs, void *this_);
 
-    f32 getIdealVolume();
+    [[nodiscard]] f32 getIdealVolume() const;
     void setMusicSpeed(f32 speed);
     void setMusicPitch(f32 pitch);
     void seekMS(u32 ms);
@@ -394,8 +394,8 @@ class BeatmapInterface final : public AbstractBeatmapInterface {
     void resetLiveStarsTasks();
     void invalidateWholeMapPPInfo();
 
-    AsyncPPC::pp_res full_ppinfo;
-    AsyncPPC::pp_calc_request full_calc_req_params;
+    mutable AsyncPPC::pp_res full_ppinfo;
+    mutable AsyncPPC::pp_calc_request full_calc_req_params;
 
     // live pp/stars
     friend struct LivePPCalc;

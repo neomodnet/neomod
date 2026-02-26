@@ -202,7 +202,7 @@ void InfoLabel::update(CBaseUIEventCtx &c) {
 
     // detail info tooltip when hovering over diff info
     if(this->isMouseInside() && !ui->getOptionsOverlay()->isMouseInside()) {
-        const auto &pf = osu->getMapInterface();
+        const auto *pf = osu->getMapInterface();
 
         const f32 speedMultiplierInv = (1.0f / pf->getSpeedMultiplier());
 
@@ -213,7 +213,7 @@ void InfoLabel::update(CBaseUIEventCtx &c) {
         const f32 hitobjectRadiusRoundedCompensated = (GameRules::getRawHitCircleDiameter(pf->getCS()) / 2.0f);
 
         const auto *bmDiff2{pf->getBeatmap()};
-        const auto &tooltipOverlay{ui->getTooltipOverlay()};
+        auto *tooltipOverlay{ui->getTooltipOverlay()};
         tooltipOverlay->begin();
         {
             tooltipOverlay->addLine(fmt::format("Approach time: {:.2f}ms"_cf, approachTimeRoundedCompensated));
@@ -221,7 +221,7 @@ void InfoLabel::update(CBaseUIEventCtx &c) {
             tooltipOverlay->addLine(fmt::format("100: +-{:.2f}ms"_cf, hitWindow100RoundedCompensated));
             tooltipOverlay->addLine(fmt::format(" 50: +-{:.2f}ms"_cf, hitWindow50RoundedCompensated));
             tooltipOverlay->addLine(
-                fmt::format("Spinner difficulty: {:.2f}"_cf, GameRules::getSpinnerSpinsPerSecond(pf.get())));
+                fmt::format("Spinner difficulty: {:.2f}"_cf, GameRules::getSpinnerSpinsPerSecond(pf)));
             tooltipOverlay->addLine(fmt::format("Hit object radius: {:.2f}"_cf, hitobjectRadiusRoundedCompensated));
 
             if(bmDiff2 != nullptr) {
@@ -247,7 +247,8 @@ void InfoLabel::update(CBaseUIEventCtx &c) {
                 tooltipOverlay->addLine(fmt::format("MD5: {:s}"_cf, bmDiff2->getMD5()));
                 // mostly for debugging
                 if(keyboard->isShiftDown()) {
-                    tooltipOverlay->addLine(fmt::format("Active precalc: {:#02x}={:s}", StarPrecalc::active_idx, StarPrecalc::dbgstr_idx(StarPrecalc::active_idx)));
+                    tooltipOverlay->addLine(fmt::format("Active precalc: {:#02x}={:s}", StarPrecalc::active_idx,
+                                                        StarPrecalc::dbgstr_idx(StarPrecalc::active_idx)));
 
                     tooltipOverlay->addLine(fmt::format("Title: {:s}"_cf, bmDiff2->getTitleLatin()));
                     tooltipOverlay->addLine(fmt::format("TitleUnicode: {:s}"_cf, bmDiff2->getTitleUnicode()));
@@ -352,8 +353,8 @@ UString InfoLabel::buildSongInfoString() const {
 }
 
 UString InfoLabel::buildDiffInfoString() const {
-    const auto &pf = osu->getMapInterface();
-    auto *map = pf->getBeatmap();
+    const auto *pf = osu->getMapInterface();
+    const auto *map = pf->getBeatmap();
     if(!map) return "";
 
     const f32 CS = pf->getCS();

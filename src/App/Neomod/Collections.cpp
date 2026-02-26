@@ -19,7 +19,7 @@ std::vector<Collection> s_collections;
 
 }  // namespace
 
-std::vector<Collection>& get_loaded() { return s_collections; }
+const std::vector<Collection> &get_loaded() { return s_collections; }
 
 bool delete_collection(std::string_view collection_name) {
     if(collection_name.empty() || s_collections.empty()) return false;

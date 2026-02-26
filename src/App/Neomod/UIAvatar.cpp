@@ -34,7 +34,7 @@ UIAvatar::UIAvatar(CBaseUIElement *parent, i32 player_id, float xPos, float yPos
 UIAvatar::~UIAvatar() {
     if(this->load_requested) {
         // remove from load queue
-        if(ThumbnailManager *am = osu && osu->getThumbnailManager() ? osu->getThumbnailManager().get() : nullptr) {
+        if(ThumbnailManager *am = osu && osu->getThumbnailManager() ? osu->getThumbnailManager() : nullptr) {
             am->discard_image(*this->thumb_id);
         }
     }
@@ -55,7 +55,7 @@ void UIAvatar::draw_avatar(float alpha) {
         return;
     }
 
-    const auto &thumbnail_manager = osu->getThumbnailManager();
+    auto *thumbnail_manager = osu->getThumbnailManager();
     if(!this->load_requested) {
         this->load_requested = true;
         // add to load queue

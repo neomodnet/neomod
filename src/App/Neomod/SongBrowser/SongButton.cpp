@@ -362,8 +362,9 @@ void SongButton::onContextMenu(const UString &text, int id) {
         {
             cmenu->addButtonJustified("[+] Create new Collection?", TEXT_JUSTIFICATION::LEFT, -id * 2);
 
-            auto sorted_collections = Collections::get_loaded();  // sort by name
+            auto sorted_collections = Collections::get_loaded();
 
+            // sort by name
             std::ranges::stable_sort(
                 sorted_collections, [](const char *s1, const char *s2) -> bool { return strcasecmp(s1, s2) < 0; },
                 [](const auto &col) -> const char * { return col.get_name().c_str(); });

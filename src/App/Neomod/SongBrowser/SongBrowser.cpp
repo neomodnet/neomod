@@ -506,7 +506,7 @@ void SongBrowser::draw() {
     // draw background image
     if(cv::draw_songbrowser_background_image.getBool()) {
         const DatabaseBeatmap *beatmap = osu->getMapInterface()->getBeatmap();
-        const auto &bgHandler = osu->getBackgroundImageHandler();
+        auto *bgHandler = osu->getBackgroundImageHandler();
         const Image *loadedImage = bgHandler->getLoadBackgroundImage(beatmap);
 
         float alpha = 1.0f;
@@ -831,8 +831,8 @@ void SongBrowser::update(CBaseUIEventCtx &c) {
         }
 
         // deferred batch calc for newly imported maps
-        if(!BatchDiffCalc::running() && db->bPendingBatchDiffCalc) {
-            db->bPendingBatchDiffCalc = false;
+        if(!BatchDiffCalc::running() && db->batch_diffcalc_pending) {
+            db->batch_diffcalc_pending = false;
             BatchDiffCalc::start_calc();
         }
     }

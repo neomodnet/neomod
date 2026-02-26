@@ -32,7 +32,7 @@ UserCard::UserCard(i32 user_id) : CBaseUIButton() {
 
     // We do not pass mouse events to this->avatar
     this->setClickCallback(SA::MakeDelegate(
-        [](UserCard *card) { ui->getUserActions()->open(card->user_id, card == osu->getUserButton().get()); }));
+        [](UserCard *card) { ui->getUserActions()->open(card->user_id, card == osu->getUserButton()); }));
 }
 
 UserCard::~UserCard() { anim::deleteExistingAnimation(&this->fPPDeltaAnim); }

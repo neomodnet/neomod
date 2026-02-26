@@ -179,7 +179,7 @@ class Database final {
     Hash::flat::map<MD5Hash, MapOverrides> peppy_overrides;
     std::vector<BeatmapDifficulty *> loudness_to_calc;
 
-    bool bPendingBatchDiffCalc{false};
+    bool batch_diffcalc_pending{false};
 
     mutable Sync::shared_mutex star_ratings_mtx;
     Hash::flat::map<MD5Hash, std::unique_ptr<StarPrecalc::SRArray>> star_ratings;

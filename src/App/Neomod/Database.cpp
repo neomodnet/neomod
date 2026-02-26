@@ -237,11 +237,6 @@ void Database::startLoader() {
     logIf(cv::debug_db.getBool() || cv::debug_async_db.getBool(), "start");
     this->destroyLoader();
 
-    // stop threads that rely on database content
-    BatchDiffCalc::abort_calc();
-    AsyncPPC::set_map(nullptr);
-    VolNormalization::abort();
-
     // only clear diffs/sets for full reloads (only handled for raw re-loading atm)
     // const bool lastLoadWasRaw{this->needs_raw_load};
     // TODO: fix delta load logic
@@ -315,6 +310,12 @@ void Database::startLoader() {
 
 void Database::destroyLoader() {
     logIf(cv::debug_db.getBool() || cv::debug_async_db.getBool(), "start");
+
+    // stop threads that rely on database content
+    BatchDiffCalc::abort_calc();
+    AsyncPPC::set_map(nullptr);
+    VolNormalization::abort();
+
     directoryWatcher->stop_watching(NEOMOD_MAPS_PATH "/");
     this->db_load_handle.cancel();
     this->load_interrupted.store(true, std::memory_order_release);  // for subroutines (loadMaps, etc.)
@@ -535,7 +536,7 @@ BeatmapSet *Database::addBeatmapSet(const std::string &beatmapFolderPath, i32 se
     // only notify songbrowser if loading is done (it rebuilds from beatmapsets in onDatabaseLoadingFinished)
     if(this->isFinished()) {
         ui->getSongBrowser()->addBeatmapSet(raw_mapset);
-        this->bPendingBatchDiffCalc = true;  // picked up by SongBrowser::update
+        this->batch_diffcalc_pending = true;  // picked up by SongBrowser::update
     }
 
     if(cv::maps_save_immediately.getBool()) {

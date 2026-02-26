@@ -201,7 +201,7 @@ ResolvedSliderTick HitSamples::resolveSliderTick(const HitSoundContext &ctx) con
 // global-dependent methods (delegate to pure versions)
 
 std::vector<HitSamples::Set_Slider_Hit> HitSamples::play(f32 pan, i32 delta, i32 play_time, bool is_sliderslide) {
-    const auto &map_iface = osu->getMapInterface();
+    const auto *map_iface = osu->getMapInterface();
     if(unlikely(!map_iface)) return {};  // sanity
 
     // Don't play hitsounds when seeking
@@ -259,7 +259,7 @@ std::vector<HitSamples::Set_Slider_Hit> HitSamples::play(f32 pan, i32 delta, i32
 
 void HitSamples::stop(const std::vector<Set_Slider_Hit> &specific_sets) {
     // TODO @kiwec: map hitsounds are not supported
-    const auto &map_iface = osu->getMapInterface();
+    const auto *map_iface = osu->getMapInterface();
     if(unlikely(!map_iface)) return;  // sanity
     const Skin *skin = map_iface->getSkin();
     if(unlikely(!skin)) return;  // sanity

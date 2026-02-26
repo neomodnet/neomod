@@ -250,7 +250,7 @@ void VolNormalization::start_calc_instance(const std::vector<DatabaseBeatmap *> 
     if(!cv::normalize_loudness.getBool()) return;
 
     // group maps by audio file so each file is only decoded once
-    // (due to diffs in a beatmapset sharing the samea audio file)
+    // (due to diffs in a beatmapset sharing the same audio file)
     std::unordered_map<std::string, std::vector<DatabaseBeatmap *>> by_file;
     by_file.reserve(maps_to_calc.size());
     for(auto map : maps_to_calc) {

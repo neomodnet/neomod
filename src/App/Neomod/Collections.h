@@ -11,7 +11,7 @@ namespace Collections {
 
 class Collection;
 
-std::vector<Collection> &get_loaded();
+const std::vector<Collection> &get_loaded();
 
 [[nodiscard]] bool delete_collection(std::string_view collection_name);
 

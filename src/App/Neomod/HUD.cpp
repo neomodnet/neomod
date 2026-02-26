@@ -155,8 +155,8 @@ HUD::~HUD() {
 }
 
 void HUD::draw() {
-    const auto &pf = osu->getMapInterface();
-    const auto &score = osu->getScore();
+    auto *pf = osu->getMapInterface();
+    const auto *score = osu->getScore();
 
     if(cv::draw_hud.getBool()) {
         if(cv::draw_inputoverlay.getBool()) {
@@ -1219,7 +1219,7 @@ bool HUD::shouldDrawScoreboard() const {
 const std::vector<SCORE_ENTRY> &HUD::getCurrentScores() {
     this->scores_cache.clear();
 
-    const auto &pf = osu->getMapInterface();
+    const auto *pf = osu->getMapInterface();
 
     if(BanchoState::is_in_a_multi_room()) {
         for(auto &i : BanchoState::room.slots) {
@@ -1756,7 +1756,7 @@ void HUD::drawProgressBar(f32 percent, bool waiting) {
 
 void HUD::drawStatistics(const HUDStats &s) {
     static const auto getOffsetStatText = []() -> UString {
-        const auto &bmi = osu->getMapInterface();
+        const auto *bmi = osu->getMapInterface();
         if(!bmi || !bmi->getMusic() || !bmi->getBeatmap()) return "";
 
         const i32 uniScaled =

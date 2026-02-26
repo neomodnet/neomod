@@ -630,17 +630,17 @@ std::pair<bool, float> MainMenu::getTimingpointPulseAmount() {
 
     float pulse = (div - fmod(engine->getTime(), div)) / div;
 
-    const auto &selectedMap = osu->getMapInterface();
+    const auto *selectedMap = osu->getMapInterface();
     if(!selectedMap) {
         return {false, pulse};
     }
 
-    const auto &music = selectedMap->getMusic();
+    const auto *music = selectedMap->getMusic();
     if(!music || !music->isPlaying()) {
         return {false, pulse};
     }
 
-    const auto &map = selectedMap->getBeatmap();
+    const auto *map = selectedMap->getBeatmap();
     if(!map) {
         return {false, pulse};
     }
@@ -872,7 +872,7 @@ void MainMenu::clearPreloadedMaps() {
 // Differences from BackgroundImageHandler::draw:
 // - We load background images immediately
 void MainMenu::drawMapBackground(DatabaseBeatmap *beatmap, f32 alpha) {
-    const auto &bgih = osu->getBackgroundImageHandler();
+    auto *bgih = osu->getBackgroundImageHandler();
     bgih->draw(bgih->getLoadBackgroundImage(beatmap, true), alpha);
 }
 
@@ -1648,7 +1648,7 @@ void MainMenu::onPausePressed() {
 
 void MainMenu::onUpdatePressed() {
     using enum UpdateHandler::STATUS;
-    const auto &updateHandler = osu->getUpdateHandler();
+    auto *updateHandler = osu->getUpdateHandler();
     const auto status = updateHandler->getStatus();
 
     if(status == STATUS_DOWNLOAD_COMPLETE)

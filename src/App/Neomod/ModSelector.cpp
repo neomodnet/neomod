@@ -1210,7 +1210,7 @@ void ModSelector::close(bool force) {
 }
 
 void ModSelector::onOverrideSliderChange(CBaseUISlider *slider) {
-    const auto &mapIface = osu->getMapInterface();
+    const auto *mapIface = osu->getMapInterface();
     const BeatmapDifficulty *beatmap = mapIface->getBeatmap();
 
     for(const auto &overrideSlider : this->overrideSliders) {
@@ -1285,7 +1285,7 @@ void ModSelector::onOverrideSliderChange(CBaseUISlider *slider) {
 }
 
 void ModSelector::onOverrideSliderLockChange(CBaseUICheckbox *checkbox) {
-    const auto &mapIface = osu->getMapInterface();
+    const auto *mapIface = osu->getMapInterface();
 
     for(const auto &overrideSlider : this->overrideSliders) {
         if(overrideSlider.lock == checkbox) {
@@ -1359,7 +1359,7 @@ void ModSelector::updateOverrideSliderLabels() {
 
 UString ModSelector::getOverrideSliderLabelText(const ModSelector::OVERRIDE_SLIDER &s, bool active) {
     float convarValue = s.cvar->getFloat();
-    const auto &mapIface = osu->getMapInterface();
+    const auto *mapIface = osu->getMapInterface();
 
     UString newLabelText = s.label->getName();
     if(const BeatmapDifficulty *beatmap = mapIface->getBeatmap()) {

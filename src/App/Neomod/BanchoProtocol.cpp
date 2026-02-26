@@ -103,7 +103,7 @@ ScoreFrame ScoreFrame::get() {
         }
     }
 
-    const auto &score = osu->getScore();
+    const auto *score = osu->getScore();
     auto perfect = (score->getNumSliderBreaks() == 0 && score->getNumMisses() == 0 && score->getNum50s() == 0 &&
                     score->getNum100s() == 0);
 

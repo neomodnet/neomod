@@ -147,18 +147,16 @@ class Osu final : public App, public MouseListener {
     [[nodiscard]] inline int getVirtScreenWidth() const { return (int)this->internalRect.getWidth(); }
     [[nodiscard]] inline int getVirtScreenHeight() const { return (int)this->internalRect.getHeight(); }
 
-    [[nodiscard]] inline const std::unique_ptr<UserCard> &getUserButton() const { return this->userButton; }
-    [[nodiscard]] inline const std::unique_ptr<BGImageHandler> &getBackgroundImageHandler() const {
-        return this->backgroundImageHandler;
+    [[nodiscard]] inline UserCard *getUserButton() const { return this->userButton.get(); }
+    [[nodiscard]] inline BGImageHandler *getBackgroundImageHandler() const {
+        return this->backgroundImageHandler.get();
     }
 
-    [[nodiscard]] inline const std::unique_ptr<ModFPoSu> &getFPoSu() const { return this->fposu; }
-    [[nodiscard]] inline const std::unique_ptr<LiveScore> &getScore() const { return this->score; }
-    [[nodiscard]] inline const std::unique_ptr<UpdateHandler> &getUpdateHandler() const { return this->updateHandler; }
-    [[nodiscard]] inline const std::unique_ptr<BeatmapInterface> &getMapInterface() const { return this->map_iface; }
-    [[nodiscard]] inline const std::unique_ptr<ThumbnailManager> &getThumbnailManager() const {
-        return this->thumbnailManager;
-    }
+    [[nodiscard]] inline ModFPoSu *getFPoSu() const { return this->fposu.get(); }
+    [[nodiscard]] inline LiveScore *getScore() const { return this->score.get(); }
+    [[nodiscard]] inline UpdateHandler *getUpdateHandler() const { return this->updateHandler.get(); }
+    [[nodiscard]] inline BeatmapInterface *getMapInterface() const { return this->map_iface.get(); }
+    [[nodiscard]] inline ThumbnailManager *getThumbnailManager() const { return this->thumbnailManager.get(); }
 
     [[nodiscard]] inline RenderTarget *getBackBuffer() const { return this->backBuffer; }
     [[nodiscard]] inline RenderTarget *getPlayfieldBuffer() const { return this->playfieldBuffer; }
