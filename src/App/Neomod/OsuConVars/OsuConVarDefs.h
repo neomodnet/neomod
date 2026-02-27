@@ -622,7 +622,7 @@ CONVAR(draw_menu_background, true, CLIENT | SKINS | SERVER);
 CONVAR(main_menu_alpha, 0.8f, CLIENT | SKINS | SERVER);
 CONVAR(main_menu_friend, true, CLIENT | SKINS | SERVER);
 CONVAR(main_menu_background_fade_duration, 0.25f, CLIENT | SKINS | SERVER);
-CONVAR(main_menu_startup_anim_duration, 0.25f, CLIENT | SKINS | SERVER);
+CONVAR(main_menu_startup_anim_duration, 0.5f, CLIENT | SKINS | SERVER);
 CONVAR(main_menu_use_server_logo, true, CLIENT | SKINS | SERVER);
 
 // Not sorted

@@ -1316,7 +1316,7 @@ CBaseUIContainer *MainMenu::setVisible(bool visible) {
 
         if(this->bStartupAnim) {
             this->bStartupAnim = false;
-            anim::moveQuadOut(&this->fStartupAnim, 1.0f, cv::main_menu_startup_anim_duration.getFloat());
+            anim::moveQuartOut(&this->fStartupAnim, 1.0f, cv::main_menu_startup_anim_duration.getFloat());
             anim::moveQuartOut(&this->fStartupAnim2, 1.0f, cv::main_menu_startup_anim_duration.getFloat() * 6.0f,
                                cv::main_menu_startup_anim_duration.getFloat() * 0.5f);
         }
