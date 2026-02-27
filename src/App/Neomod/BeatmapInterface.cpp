@@ -336,7 +336,7 @@ void BeatmapInterface::onKey(GameplayKeys key_flag, bool down, u64 timestamp) {
         // allow held keys to change while paused, but don't animate or anything
         // to reiterate, this needs to happen because we have no separate outside-gameplay-held-keys state (anymore),
         // BeatmapInterface::current_keys is the only source of truth
-        if(this->bIsPaused || !osu->isInPlayMode()) return;
+        if(!osu->isInPlayMode()) return;
 
         if(this->bContinueScheduled) {
             // don't insta-unpause if we had a held key or doubleclicked or something
@@ -349,6 +349,8 @@ void BeatmapInterface::onKey(GameplayKeys key_flag, bool down, u64 timestamp) {
                 vec::length(this->getCursorPos() - this->vContinueCursorPoint) < (this->fHitcircleDiameter / 2.f);
             if(!this->bClickedContinue) return;
         }
+
+        if(this->bIsPaused) return;
 
         if(cv::mod_singletap.getBool() && !(this->lastPressedKey & key_flag)) {
             if(this->iCurrentHitObjectIndex > this->iAllowAnyNextKeyUntilHitObjectIndex) {
