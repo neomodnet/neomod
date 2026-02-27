@@ -793,8 +793,23 @@ void Environment::openFileBrowser(std::string_view initialpath) const noexcept {
     }
 
     assert(!encodedPath.empty());
-
-    if(!SDL_OpenURL(encodedPath.c_str())) {
+    bool success = SDL_OpenURL(encodedPath.c_str());
+    if(!success && Env::cfg(OS::WINDOWS)) {
+        // bullshit
+        auto fspath = File::getFsPath(initialpath);
+        if(!fspath.empty()) {
+            namespace fs = std::filesystem;
+            std::error_code ec;
+            auto status = fs::status(fspath, ec);
+            const bool isMaybeAlreadyDir = (ec || initialpath.ends_with('\\') || initialpath.ends_with('/') ||
+                                            status.type() == fs::file_type::directory);
+            // apparently "replace_filename" can throw, let's hope it doesn't :)
+            encodedPath = fmt::format(
+                "file://{}", UString{isMaybeAlreadyDir ? fspath.wstring() : fspath.replace_filename({}).wstring()});
+            success = SDL_OpenURL(encodedPath.c_str());
+        }
+    }
+    if(!success) {
         debugLog("Failed to open file URI {:s}: {:s}", encodedPath, SDL_GetError());
     }
 }
@@ -1530,7 +1545,9 @@ std::string Environment::getThingFromPathHelper(std::string_view path, bool fold
         }
 
         // make sure whatever we got now ends with a slash
-        if(retPath.back() != prefSep && retPath.back() != otherSep) retPath = retPath + prefSep;
+        if(retPath.back() != prefSep && retPath.back() != otherSep) {
+            retPath = retPath + prefSep;
+        }
     } else if(lastSlash != std::string::npos)  // just return the file
     {
         retPath = retPath.substr(lastSlash + 1);
