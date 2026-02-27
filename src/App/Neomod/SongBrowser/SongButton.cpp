@@ -215,8 +215,8 @@ void SongButton::drawSubTitle(float deselectedAlpha, bool forceSelectedStyle) {
                                                         : osu->getSkin()->c_song_select_inactive_text);
     if(!(this->bSelected || forceSelectedStyle)) g->setAlpha(deselectedAlpha);
 
-    const std::string &artist{this->databaseBeatmap ? this->databaseBeatmap->getArtist() : ""};
-    const std::string &mapper{this->databaseBeatmap ? this->databaseBeatmap->getCreator() : ""};
+    const std::string_view artist{this->databaseBeatmap ? this->databaseBeatmap->getArtist() : ""sv};
+    const std::string_view mapper{this->databaseBeatmap ? this->databaseBeatmap->getCreator() : ""sv};
 
     g->pushTransform();
     {
