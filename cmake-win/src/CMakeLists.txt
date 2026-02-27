@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(neomod VERSION 43.05 LANGUAGES C CXX)
+project(neomod VERSION 43.06 LANGUAGES C CXX)
 
 # MSVC specific configuration
 if(NOT MSVC)

@@ -32,8 +32,15 @@ Changelog::Changelog() : ScreenBackable() {
 
     std::vector<CHANGELOG> changelogs;
 
+    CHANGELOG v43_06;
+    v43_06.title = "43.06 (" CHANGELOG_TIMESTAMP ")";
+    v43_06.changes = {
+        R"()",
+    };
+    changelogs.push_back(v43_06);
+
     CHANGELOG v43_05;
-    v43_05.title = "43.05 (" CHANGELOG_TIMESTAMP ")";
+    v43_05.title = "43.05 (2026-02-24)";
     v43_05.changes = {
         R"(- Added support for customizing the skin used for fallback/missing elements (shift+click on a skin in the skin list))",
         R"(- Added "Download maps" button in multiplayer rooms)",
