@@ -111,7 +111,7 @@ class MainMenu final : public UIScreen, public MouseListener {
 
     PauseButton *pauseButton;
     CBaseUILabel *tipLabel{nullptr};
-    UIButton *updateAvailableButton{nullptr};
+    std::unique_ptr<UIButton> updateAvailableButton{nullptr};
     UIButtonVertical *onlineBeatmapsButton{nullptr};
     CBaseUIButton *versionButton;
 
@@ -151,11 +151,10 @@ class MainMenu final : public UIScreen, public MouseListener {
     float fPrevShuffleTime{0.f};
 
     Downloader::DownloadHandle server_icon_dl;
-    Image *logo_img;
+    const Image *logo_img;
 
-    void drawMapBackground(DatabaseBeatmap *beatmap, f32 alpha);
-    DatabaseBeatmap *currentMap{nullptr};
-    DatabaseBeatmap *lastMap{nullptr};
+    const DatabaseBeatmap *currentMap{nullptr};
+    const DatabaseBeatmap *lastMap{nullptr};
     //Shader *background_shader = nullptr;
     f32 mapFadeAnim{1.f};
     std::vector<std::unique_ptr<BeatmapSet>> preloadedMaps;

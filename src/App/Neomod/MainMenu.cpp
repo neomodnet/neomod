@@ -150,6 +150,13 @@ MainMenu::MainMenu() : UIScreen() {
     // engine settings
     mouse->addListener(this);  // TODO: why is this special-cased here?
 
+    this->updateAvailableButton.reset(
+        static_cast<UIButton *>((new UIButton(0, 0, 0, 0, "", "Checking for updates ..."))
+                                    ->setUseDefaultSkin()
+                                    ->setColor(0x2200d900)
+                                    ->setTextColor(0x22ffffff)
+                                    ->setClickCallback(SA::MakeDelegate<&MainMenu::onUpdatePressed>(this))));
+
     this->fSizeAddAnim = 0.0f;
     this->fCenterOffsetAnim = 0.0f;
     this->bMenuElementsVisible = false;
@@ -307,12 +314,6 @@ MainMenu::MainMenu() : UIScreen() {
     this->tipLabel = new CBaseUILabel(0, 0, 0, 0, "", "Tip: Press Alt+Enter to toggle Fullscreen.");
     this->addBaseUIElement(this->tipLabel);
 
-    this->updateAvailableButton = new UIButton(0, 0, 0, 0, "", "Checking for updates ...");
-    this->updateAvailableButton->setUseDefaultSkin();
-    this->updateAvailableButton->setClickCallback(SA::MakeDelegate<&MainMenu::onUpdatePressed>(this));
-    this->updateAvailableButton->setColor(0x2200d900);
-    this->updateAvailableButton->setTextColor(0x22ffffff);
-
     this->onlineBeatmapsButton = new UIButtonVertical(0, 0, 0, 0, "", "Online Beatmaps");
     this->onlineBeatmapsButton->setFont(osu->getSubTitleFont());
     this->onlineBeatmapsButton->setDrawBackground(false);
@@ -340,7 +341,6 @@ MainMenu::~MainMenu() {
     mouse->removeListener(this);
 
     this->clearPreloadedMaps();
-    SAFE_DELETE(this->updateAvailableButton);
 
     anim::deleteExistingAnimation(&this->fUpdateButtonAnim);
 
@@ -600,7 +600,7 @@ void MainMenu::drawFriend(const McRect &mainButtonRect, float pulse, bool haveTi
 }
 
 void MainMenu::drawLogoImage(const McRect &mainButtonRect) {
-    auto *logo = this->logo_img;
+    const auto *logo = this->logo_img;
     if(cv::main_menu_use_server_logo.getBool() && BanchoState::server_icon != nullptr &&
        BanchoState::server_icon->isReady()) {
         logo = BanchoState::server_icon;
@@ -869,13 +869,6 @@ void MainMenu::clearPreloadedMaps() {
     this->preloadedMaps.clear();
 }
 
-// Differences from BackgroundImageHandler::draw:
-// - We load background images immediately
-void MainMenu::drawMapBackground(DatabaseBeatmap *beatmap, f32 alpha) {
-    auto *bgih = osu->getBackgroundImageHandler();
-    bgih->draw(bgih->getLoadBackgroundImage(beatmap, true), alpha);
-}
-
 void MainMenu::draw() {
     if(!this->bVisible) return;
 
@@ -885,11 +878,13 @@ void MainMenu::draw() {
         // background_shader->setUniform1f("time", engine->getTime());
         // background_shader->setUniform2f("resolution", osu->getVirtScreenWidth(), osu->getVirtScreenHeight());
 
+        auto *bgih = osu->getBackgroundImageHandler();
+        assert(bgih);
         if(this->lastMap && this->lastMap != this->currentMap) {
-            this->drawMapBackground(this->lastMap, 1.f - this->mapFadeAnim);
+            bgih->draw(bgih->getLoadBackgroundImage(this->lastMap, true), 1.f - this->mapFadeAnim);
         }
         if(this->currentMap) {
-            this->drawMapBackground(this->currentMap, this->mapFadeAnim);
+            bgih->draw(bgih->getLoadBackgroundImage(this->currentMap, true), this->mapFadeAnim);
         }
 
         // background_shader->disable();
@@ -936,7 +931,7 @@ void MainMenu::draw() {
     UIScreen::draw();
 
     // draw update check button
-    if(this->updateAvailableButton != nullptr) {
+    {
         using enum UpdateHandler::STATUS;
         const auto status = osu->getUpdateHandler()->getStatus();
         const bool drawAnim = (status == STATUS_DOWNLOAD_COMPLETE);
@@ -988,9 +983,7 @@ void MainMenu::update(CBaseUIEventCtx &c) {
     // update and focus handling
     UIScreen::update(c);
 
-    if(this->updateAvailableButton != nullptr) {
-        this->updateAvailableButton->update(c);
-    }
+    this->updateAvailableButton->update(c);
 
     // handle automatic menu closing
     if(this->fMainMenuButtonCloseTime != 0.0f && engine->getTime() > this->fMainMenuButtonCloseTime) {
@@ -1064,7 +1057,7 @@ void MainMenu::update(CBaseUIEventCtx &c) {
     }
 
     // handle update checker and status text
-    if(this->updateAvailableButton != nullptr) {
+    {
         using enum UpdateHandler::STATUS;
         const auto status = osu->getUpdateHandler()->getStatus();
 
@@ -1359,7 +1352,7 @@ void MainMenu::updateLayout() {
                               osu->getVirtScreenHeight() - this->tipLabel->getSize().y - 40 * dpiScale);
     this->tipLabel->setVisible(Env::cfg(OS::WASM));
 
-    if(this->updateAvailableButton != nullptr) {
+    {
         this->updateAvailableButton->setSize(375 * dpiScale, 50 * dpiScale);
         this->updateAvailableButton->setPos(
             osu->getVirtScreenWidth() / 2 - this->updateAvailableButton->getSize().x / 2,

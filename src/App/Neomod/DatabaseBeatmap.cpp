@@ -476,7 +476,7 @@ DatabaseBeatmap::PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjectsFromDa
         if(curBlock == Sentinel) {
             curBlock = Header;
         } else {
-            if(auto it = std::ranges::find(blocksUnseen, curLine, [](const auto &block) { return block.str; });
+            if(auto it = std::ranges::find(blocksUnseen, curLine, &MetadataBlock::str);
                it != blocksUnseen.end()) {
                 curBlock = it->id;
                 blocksUnseen.erase(it);
@@ -1445,7 +1445,7 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
         if(curBlock == Sentinel) {
             curBlock = Header;
         } else {
-            if(auto it = std::ranges::find(blocksUnseen, curLine, [](const auto &block) { return block.str; });
+            if(auto it = std::ranges::find(blocksUnseen, curLine, &MetadataBlock::str);
                it != blocksUnseen.end()) {
                 curBlock = it->id;
                 blocksUnseen.erase(it);
