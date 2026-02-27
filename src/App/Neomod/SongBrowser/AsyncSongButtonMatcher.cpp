@@ -9,8 +9,8 @@
 namespace AsyncSongButtonMatcher {
 
 namespace {
-static bool searchMatcher(const DatabaseBeatmap *databaseBeatmap, const std::vector<std::string> &searchStringTokens,
-                          float speed);
+static bool search_matcher(const DatabaseBeatmap *databaseBeatmap, const std::vector<std::string> &searchStringTokens,
+                           float speed);
 }
 
 Async::CancellableHandle<void> submitSearchMatch(std::vector<SongButton *> songButtons, const std::string &searchString,
@@ -40,11 +40,11 @@ Async::CancellableHandle<void> submitSearchMatch(std::vector<SongButton *> songB
                 std::vector<SongButton *> children = songButton->getChildren();
                 if(children.size() > 0) {
                     for(auto c : children) {
-                        const bool match = searchMatcher(c->getDatabaseBeatmap(), searchStringTokens, speed);
+                        const bool match = search_matcher(c->getDatabaseBeatmap(), searchStringTokens, speed);
                         c->setIsSearchMatch(match);
                     }
                 } else {
-                    const bool match = searchMatcher(songButton->getDatabaseBeatmap(), searchStringTokens, speed);
+                    const bool match = search_matcher(songButton->getDatabaseBeatmap(), searchStringTokens, speed);
                     songButton->setIsSearchMatch(match);
                 }
 
@@ -113,21 +113,28 @@ inline constexpr std::initializer_list<Keyword> keywords = {{.str = "ar", .id = 
                                                             {.str = "star", .id = STARS},
                                                             {.str = "creator", .id = CREATOR}};
 
-static inline bool findSubstringInDiff(const DatabaseBeatmap *diff, std::string_view searchString) {
-    return (SString::contains_ncase(diff->getTitleLatin(), searchString)) ||
-           (SString::contains_ncase(diff->getArtistLatin(), searchString)) ||
-           (!diff->getTitleUnicode().empty() && diff->getTitleUnicode().contains(searchString)) ||
-           (!diff->getArtistUnicode().empty() && diff->getArtistUnicode().contains(searchString)) ||
-           (SString::contains_ncase(diff->getCreator(), searchString)) ||
-           (SString::contains_ncase(diff->getDifficultyName(), searchString)) ||
-           (SString::contains_ncase(diff->getSource(), searchString)) ||
-           (SString::contains_ncase(diff->getTags(), searchString)) ||
-           (diff->getID() > 0 && SString::contains_ncase(std::to_string(diff->getID()), searchString)) ||
-           (diff->getSetID() > 0 && SString::contains_ncase(std::to_string(diff->getSetID()), searchString));
-};
+// similar to SString::contains_ncase but doesn't lowercase the needle (it's already lowercase)
+static forceinline bool find_needle_in_lowercase_haystack(std::string_view haystack, std::string_view needle) {
+    return !haystack.empty() && !std::ranges::search(haystack, needle, [](unsigned char ch1, unsigned char ch2) {
+                                     return std::tolower(ch1) == ch2;
+                                 }).empty();
+}
 
-static bool searchMatcher(const DatabaseBeatmap *databaseBeatmap, const std::vector<std::string> &searchStringTokens,
-                          float speed) {
+static inline bool find_substr_in_metadata(const DatabaseBeatmap *diff, std::string_view lower_substr) {
+    return (find_needle_in_lowercase_haystack(diff->getTitleLatin(), lower_substr)) ||
+           (find_needle_in_lowercase_haystack(diff->getArtistLatin(), lower_substr)) ||
+           (!diff->getTitleUnicode().empty() && diff->getTitleUnicode().contains(lower_substr)) ||
+           (!diff->getArtistUnicode().empty() && diff->getArtistUnicode().contains(lower_substr)) ||
+           (find_needle_in_lowercase_haystack(diff->getCreator(), lower_substr)) ||
+           (find_needle_in_lowercase_haystack(diff->getDifficultyName(), lower_substr)) ||
+           (find_needle_in_lowercase_haystack(diff->getSource(), lower_substr)) ||
+           (find_needle_in_lowercase_haystack(diff->getTags(), lower_substr)) ||
+           (diff->getID() > 0 && find_needle_in_lowercase_haystack(std::to_string(diff->getID()), lower_substr)) ||
+           (diff->getSetID() > 0 && find_needle_in_lowercase_haystack(std::to_string(diff->getSetID()), lower_substr));
+}
+
+static bool search_matcher(const DatabaseBeatmap *databaseBeatmap, const std::vector<std::string> &searchStringTokens,
+                           float speed) {
     if(databaseBeatmap == nullptr) return false;
 
     const auto diffs = [&bdiffs = databaseBeatmap->getDifficulties(),
@@ -327,7 +334,9 @@ static bool searchMatcher(const DatabaseBeatmap *databaseBeatmap, const std::vec
                 if(!exists) {
                     std::string litAdd{searchStringToken};
                     SString::trim_inplace(litAdd);
-                    if(!SString::is_wspace_only(litAdd)) literalSearchStrings.push_back(litAdd);
+                    if(!SString::is_wspace_only(litAdd)) {
+                        literalSearchStrings.push_back(litAdd);
+                    }
                 }
             }
         }
@@ -356,7 +365,10 @@ static bool searchMatcher(const DatabaseBeatmap *databaseBeatmap, const std::vec
             bool atLeastOneFullMatch = true;
 
             for(const auto &literalSearchString : literalSearchStrings) {
-                if(!findSubstringInDiff(diff, literalSearchString)) atLeastOneFullMatch = false;
+                if(!find_substr_in_metadata(diff, literalSearchString)) {
+                    atLeastOneFullMatch = false;
+                    break;
+                }
             }
 
             // as soon as one diff matches all strings, we are done
