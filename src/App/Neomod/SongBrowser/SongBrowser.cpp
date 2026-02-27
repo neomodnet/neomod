@@ -218,10 +218,10 @@ bool SongBrowser::sort_by_artist(SongButton const *a, SongButton const *b) {
     const auto *aPtr = a->getDatabaseBeatmap(), *bPtr = b->getDatabaseBeatmap();
     if((aPtr == nullptr) || (bPtr == nullptr)) return (aPtr == nullptr) < (bPtr == nullptr);
 
-    const auto &artistA{aPtr->getArtistLatin()};
-    const auto &artistB{bPtr->getArtistLatin()};
+    const std::string_view artistA = aPtr->getArtistLatin();
+    const std::string_view artistB = bPtr->getArtistLatin();
 
-    i32 cmp = strcasecmp(artistA.c_str(), artistB.c_str());
+    i32 cmp = strncasecmp(artistA.data(), artistB.data(), std::min<size_t>(artistA.length(), artistB.length()));
     if(cmp == 0) return sort_by_title(a, b);  // fall back to sort by title
     return cmp < 0;
 }
@@ -240,10 +240,10 @@ bool SongBrowser::sort_by_creator(SongButton const *a, SongButton const *b) {
     const auto *aPtr = a->getDatabaseBeatmap(), *bPtr = b->getDatabaseBeatmap();
     if((aPtr == nullptr) || (bPtr == nullptr)) return (aPtr == nullptr) < (bPtr == nullptr);
 
-    const auto &creatorA{aPtr->getCreator()};
-    const auto &creatorB{bPtr->getCreator()};
+    const std::string_view creatorA = aPtr->getCreator();
+    const std::string_view creatorB = bPtr->getCreator();
 
-    i32 cmp = strcasecmp(creatorA.c_str(), creatorB.c_str());
+    i32 cmp = strncasecmp(creatorA.data(), creatorB.data(), std::min<size_t>(creatorA.length(), creatorB.length()));
     if(cmp == 0) return sort_by_difficulty(a, b);
     return cmp < 0;
 }
@@ -277,10 +277,10 @@ bool SongBrowser::sort_by_title(SongButton const *a, SongButton const *b) {
     const auto *aPtr = a->getDatabaseBeatmap(), *bPtr = b->getDatabaseBeatmap();
     if((aPtr == nullptr) || (bPtr == nullptr)) return (aPtr == nullptr) < (bPtr == nullptr);
 
-    const auto &titleA{aPtr->getTitleLatin()};
-    const auto &titleB{bPtr->getTitleLatin()};
+    const std::string_view titleA = aPtr->getTitleLatin();
+    const std::string_view titleB = bPtr->getTitleLatin();
 
-    i32 cmp = strcasecmp(titleA.c_str(), titleB.c_str());
+    i32 cmp = strncasecmp(titleA.data(), titleB.data(), std::min<size_t>(titleA.length(), titleB.length()));
     if(cmp == 0) return sort_by_difficulty(a, b);
     return cmp < 0;
 }
@@ -3138,7 +3138,7 @@ void SongBrowser::onSongButtonContextMenu(SongButton *songButton, const UString 
             Collections::save_collections();
         } else if(id == 5) {  // export beatmapset
             assert(songButton->getDatabaseBeatmap());
-            std::string folder = songButton->getDatabaseBeatmap()->getFolder();
+            std::string folder{songButton->getDatabaseBeatmap()->getFolder()};
             auto ctx = MapExporter::ExportContext{{folder}, "", BottomBar::update_export_progress_cb};
             this->startExport(std::move(ctx));
         }
@@ -3220,7 +3220,7 @@ void SongBrowser::onCollectionButtonContextMenu(CollectionButton *collectionButt
         auto &existingCollection = Collections::get_or_create_collection(collection_name);
         for(auto &mapHash : existingCollection.get_maps()) {
             if(auto *diff = db->getBeatmapDifficulty(mapHash); diff) {
-                pathsToExport.push_back(diff->getFolder());
+                pathsToExport.emplace_back(diff->getFolder());
             }
         }
 

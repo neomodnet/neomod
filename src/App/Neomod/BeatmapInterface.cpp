@@ -3781,7 +3781,7 @@ vec2 BeatmapInterface::getFirstPersonCursorDelta() const {
 
 FinishedScore BeatmapInterface::saveAndSubmitScore(bool quit) {
     // calculate stars
-    const std::string &osuFilePath = this->beatmap->getFilePath();
+    const std::string osuFilePath{this->beatmap->getFilePath()};
     const f32 AR = this->getAR();
     const f32 HP = this->getHP();
     const f32 CS = this->getCS();

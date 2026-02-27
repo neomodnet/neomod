@@ -1000,9 +1000,6 @@ MD5Hash Database::recalcMD5(std::string osu_path) {
 }
 
 void Database::loadMaps(std::string_view neomod_maps_path, std::string_view peppy_db_path) {
-    const std::string songFolder = Database::getOsuSongsFolder();
-    debugLog("Database: songFolder = {:s}", songFolder);
-
     this->importTimer->start();
 
     // staging buffer, moved into Database::beatmapsets when async load finishes
@@ -1166,8 +1163,8 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                         loudness = neomod_maps.read<f32>();
                     }
 
-                    std::string sTitleUnicode = sTitle;
-                    std::string sArtistUnicode = sArtist;
+                    std::string sTitleUnicode;
+                    std::string sArtistUnicode;
                     if(version >= 20250801) {
                         neomod_maps.read_string(sTitleUnicode);
                         neomod_maps.read_string(sArtistUnicode);
@@ -1272,11 +1269,12 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                         diff->loudness = loudness;
                     }
 
-                    diff->sTitleUnicode = std::move(sTitleUnicode);
-                    diff->sArtistUnicode = std::move(sArtistUnicode);
-
-                    diff->bEmptyTitleUnicode = bEmptyTitleUnicode;
-                    diff->bEmptyArtistUnicode = bEmptyArtistUnicode;
+                    if(!bEmptyTitleUnicode) {
+                        diff->sTitleUnicode = std::make_unique<std::string>(std::move(sTitleUnicode));
+                    }
+                    if(!bEmptyArtistUnicode) {
+                        diff->sArtistUnicode = std::make_unique<std::string>(std::move(sArtistUnicode));
+                    }
 
                     diff->sBackgroundImageFileName = std::move(sBackgroundImageFileName);
 
@@ -1374,6 +1372,9 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
 
     // load peppy maps
     if(!this->needs_raw_load) {
+        const std::string peppy_songfolder = Database::getOsuSongsFolder();
+        debugLog("Database: osu!stable song folder = {:s}", peppy_songfolder);
+
         Hash::flat::map<int, std::unique_ptr<DiffContainer>> sid_to_diffcont;
         Hash::flat::map<std::string, std::unique_ptr<DiffContainer>> invalid_sid_folder_to_diffcont;
         uSz nb_unique_peppy_sets = 0;
@@ -1386,11 +1387,11 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
             u32 osu_db_folder_count = dbr.read<u32>();
             dbr.skip<u8>();
             dbr.skip<u64>() /* timestamp */;
-            std::string playerName = dbr.read_string();
+            std::string player_name = dbr.read_string();
             this->num_beatmaps_to_load = dbr.read<u32>();
 
             debugLog("Database: version = {:d}, folderCount = {:d}, playerName = {:s}, numDiffs = {:d}", osu_db_version,
-                     osu_db_folder_count, playerName, this->num_beatmaps_to_load);
+                     osu_db_folder_count, player_name, this->num_beatmaps_to_load);
 
             // hard cap upper db version
             if(osu_db_version > cv::database_version.getVal<u32>() && !cv::database_ignore_version.getBool()) {
@@ -1426,17 +1427,17 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                     dbr.skip<u32>();
                 }
 
-                std::string artistName = dbr.read_string();
-                SString::trim_inplace(artistName);
-                std::string artistNameUnicode = dbr.read_string();
-                std::string songTitle = dbr.read_string();
-                SString::trim_inplace(songTitle);
-                std::string songTitleUnicode = dbr.read_string();
-                std::string creatorName = dbr.read_string();
-                SString::trim_inplace(creatorName);
-                std::string difficultyName = dbr.read_string();
-                SString::trim_inplace(difficultyName);
-                std::string audioFileName = dbr.read_string();
+                std::string artist_name = dbr.read_string();
+                SString::trim_inplace(artist_name);
+                std::string unicode_artist_name = dbr.read_string();
+                std::string song_title = dbr.read_string();
+                SString::trim_inplace(song_title);
+                std::string unicode_song_title = dbr.read_string();
+                std::string creator_name = dbr.read_string();
+                SString::trim_inplace(creator_name);
+                std::string diff_name = dbr.read_string();
+                SString::trim_inplace(diff_name);
+                std::string audio_filename = dbr.read_string();
 
                 MD5Hash md5hash;
                 (void)dbr.read_hash_chars(md5hash);  // TODO: validate
@@ -1454,11 +1455,12 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                         override_ = overrides->second;
                     }
                 }
-                std::string osuFileName = dbr.read_string();
+                std::string dotosu_filename = dbr.read_string();
                 /*unsigned char rankedStatus = */ dbr.skip<u8>();
-                auto numCircles = dbr.read<u16>();
-                auto numSliders = dbr.read<u16>();
-                auto numSpinners = dbr.read<u16>();
+                u16 nb_circles = dbr.read<u16>();
+                u16 nb_sliders = dbr.read<u16>();
+                u16 nb_spinners = dbr.read<u16>();
+
                 const i64 modification_time_dotnet_ticks = dbr.read<i64>();
                 // convert to unix time (peppy db 100% stores these in .NET timestamp form)
                 const i64 last_modification_time =
@@ -1477,7 +1479,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                     OD = dbr.read<f32>();
                 }
 
-                auto sliderMultiplier = dbr.read<f64>();
+                f64 slider_multiplier = dbr.read<f64>();
 
                 f32 nomod_star_rating = 0.0f;
                 if(osu_db_version >= 20140609) {
@@ -1523,10 +1525,10 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 /*unsigned int drainTime = */ dbr.skip<u32>();  // seconds
                 int duration = dbr.read<u32>();                 // milliseconds
                 duration = duration >= 0 ? duration : 0;        // sanity clamp
-                int previewTime = dbr.read<u32>();
+                int preview_time = dbr.read<u32>();
 
                 BPMInfo bpm;
-                auto nb_timing_points = dbr.read<u32>();
+                u32 nb_timing_points = dbr.read<u32>();
                 if(overrides_found &&
                    override_.min_bpm != -1) {  // only use cached override bpm if it's not the sentinel -1
                     dbr.skip_bytes(sizeof(DB_TIMINGPOINT) * nb_timing_points);
@@ -1543,10 +1545,10 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                     }
                 }
 
-                int beatmapID =
+                i32 beatmap_id =
                     dbr.read<i32>();  // fucking bullshit, this is NOT an unsigned integer as is described on
                                       // the wiki, it can and is -1 sometimes
-                int beatmapSetID = dbr.read<i32>();  // same here
+                i32 beatmapset_id = dbr.read<i32>();  // same here
                 /*unsigned int threadID = */ dbr.skip<u32>();
 
                 /*unsigned char osuStandardGrade = */ dbr.skip<u8>();
@@ -1554,16 +1556,16 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 /*unsigned char ctbGrade = */ dbr.skip<u8>();
                 /*unsigned char maniaGrade = */ dbr.skip<u8>();
 
-                auto localOffset = dbr.read<u16>();
-                auto stackLeniency = dbr.read<f32>();
-                auto mode = dbr.read<u8>();
+                u16 offset_local = dbr.read<u16>();
+                f32 stack_leniency = dbr.read<f32>();
+                u8 mode = dbr.read<u8>();
 
-                std::string songSource = dbr.read_string();
-                std::string songTags = dbr.read_string();
-                SString::trim_inplace(songSource);
-                SString::trim_inplace(songTags);
+                std::string song_source = dbr.read_string();
+                std::string song_tags = dbr.read_string();
+                SString::trim_inplace(song_source);
+                SString::trim_inplace(song_tags);
 
-                auto onlineOffset = dbr.read<u16>();
+                u16 offset_online = dbr.read<u16>();
                 dbr.skip_string();  // song title font
                 /*bool unplayed = */ dbr.skip<u8>();
                 /*i64 lastTimePlayed = */ dbr.skip<u64>();
@@ -1571,8 +1573,8 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
 
                 // somehow, some beatmaps may have spaces at the start/end of their
                 // path, breaking the Windows API (e.g. https://osu.ppy.sh/s/215347)
-                std::string subFolder = dbr.read_string();
-                SString::trim_inplace(subFolder);
+                std::string beatmap_subfolder = dbr.read_string();
+                SString::trim_inplace(beatmap_subfolder);
 
                 /*i64 lastOnlineCheck = */ dbr.skip<u64>();
 
@@ -1594,84 +1596,84 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 // the good way would be to check if the .osu file actually exists on disk, but that is slow af, ain't
                 // nobody got time for that so, since I've seen some concrete examples of what happens in such cases, we
                 // just exclude those
-                if(artistName.length() < 1 && songTitle.length() < 1 && creatorName.length() < 1 &&
-                   difficultyName.length() < 1)
+                if(artist_name.length() < 1 && song_title.length() < 1 && creator_name.length() < 1 &&
+                   diff_name.length() < 1)
                     continue;
 
                 if(mode != 0) continue;
+                // we have read all the bytes from this database entry at this point
 
                 // it can happen that nested beatmaps are stored in the
                 // database, and that osu! stores that filepath with a backslash (because windows)
                 // so replace them with / to normalize
-                std::ranges::replace(subFolder, '\\', '/');
+                std::ranges::replace(beatmap_subfolder, '\\', '/');
 
                 // build beatmap & diffs from all the data
-                std::string beatmapPath = fmt::format("{}{}/", songFolder, subFolder);
-                std::string fullFilePath = beatmapPath + osuFileName;
+                std::string beatmap_dir = fmt::format("{}{}/", peppy_songfolder, beatmap_subfolder);
+                std::string dotosu_fullpath = beatmap_dir + dotosu_filename;
 
                 if(md5hash.empty()) {
-                    md5hash = recalcMD5(fullFilePath);
+                    md5hash = recalcMD5(dotosu_fullpath);
                 }
 
                 // special case: legacy fallback behavior for invalid beatmapSetID, try to parse the ID from the path
-                if(beatmapSetID < 1 && subFolder.length() > 0) {
-                    size_t slash = subFolder.find('/');
-                    std::string candidate = (slash != std::string::npos) ? subFolder.substr(0, slash) : subFolder;
+                if(beatmapset_id < 1 && beatmap_subfolder.length() > 0) {
+                    size_t slash = beatmap_subfolder.find('/');
+                    std::string candidate =
+                        (slash != std::string::npos) ? beatmap_subfolder.substr(0, slash) : beatmap_subfolder;
 
                     if(!candidate.empty() && std::isdigit(static_cast<unsigned char>(candidate[0]))) {
-                        if(!Parsing::parse(candidate, &beatmapSetID)) {
-                            beatmapSetID = -1;
+                        if(!Parsing::parse(candidate, &beatmapset_id)) {
+                            beatmapset_id = -1;
                         }
                     }
                 }
-                if(beatmapSetID < 1) {
+                if(beatmapset_id < 1) {
                     // use -1 as a sentinel if we still couldn't get one
-                    beatmapSetID = -1;
+                    beatmapset_id = -1;
                 }
 
                 BeatmapDifficulty *diffp = nullptr;
                 {
                     // fill diff with data
-                    auto map = std::make_unique<BeatmapDifficulty>(std::move(fullFilePath), std::move(beatmapPath),
+                    auto map = std::make_unique<BeatmapDifficulty>(std::move(dotosu_fullpath), std::move(beatmap_dir),
                                                                    DatabaseBeatmap::BeatmapType::PEPPY_DIFFICULTY);
 
-                    map->sTitle = std::move(songTitle);
-                    map->sTitleUnicode = std::move(songTitleUnicode);
-                    if(SString::is_wspace_only(map->sTitleUnicode)) {
-                        map->bEmptyTitleUnicode = true;
+                    map->sTitle = std::move(song_title);
+                    if(!SString::is_wspace_only(unicode_song_title)) {
+                        map->sTitleUnicode = std::make_unique<std::string>(std::move(unicode_song_title));
                     }
-                    map->sAudioFileName = std::move(audioFileName);
+                    map->sAudioFileName = std::move(audio_filename);
                     map->iLengthMS = duration;
 
-                    map->fStackLeniency = stackLeniency;
+                    map->fStackLeniency = stack_leniency;
 
-                    map->sArtist = std::move(artistName);
-                    map->sArtistUnicode = std::move(artistNameUnicode);
-                    if(SString::is_wspace_only(map->sArtistUnicode)) {
-                        map->bEmptyArtistUnicode = true;
+                    map->sArtist = std::move(artist_name);
+                    if(!SString::is_wspace_only(unicode_artist_name)) {
+                        map->sArtistUnicode = std::make_unique<std::string>(std::move(unicode_artist_name));
                     }
-                    map->sCreator = std::move(creatorName);
-                    map->sDifficultyName = std::move(difficultyName);
-                    map->sSource = std::move(songSource);
-                    map->sTags = std::move(songTags);
+                    map->sCreator = std::move(creator_name);
+                    map->sDifficultyName = std::move(diff_name);
+                    map->sSource = std::move(song_source);
+                    map->sTags = std::move(song_tags);
                     map->writeMD5(md5hash);
-                    map->iID = beatmapID;
-                    map->iSetID = beatmapSetID;
+                    map->iID = beatmap_id;
+                    map->iSetID = beatmapset_id;
 
                     map->fAR = AR;
                     map->fCS = CS;
                     map->fHP = HP;
                     map->fOD = OD;
-                    map->fSliderMultiplier = sliderMultiplier;
+                    map->fSliderMultiplier = slider_multiplier;
 
                     // map->sBackgroundImageFileName = "";
 
-                    map->iPreviewTime = previewTime;
+                    map->iPreviewTime = preview_time;
                     map->last_modification_time = last_modification_time;
 
-                    map->iNumCircles = numCircles;
-                    map->iNumSliders = numSliders;
-                    map->iNumSpinners = numSpinners;
+                    map->iNumCircles = nb_circles;
+                    map->iNumSliders = nb_sliders;
+                    map->iNumSpinners = nb_spinners;
                     map->iMinBPM = bpm.min;
                     map->iMaxBPM = bpm.max;
                     map->iMostCommonBPM = bpm.most_common;
@@ -1679,8 +1681,8 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
 
                     // now, search if the current setID container (to which this diff would belong) already exists and add it there, or
                     // if it doesn't exist then create the container
-                    if(beatmapSetID != -1) {
-                        if(const auto &existingit = sid_to_diffcont.find(beatmapSetID);
+                    if(beatmapset_id != -1) {
+                        if(const auto &existingit = sid_to_diffcont.find(beatmapset_id);
                            existingit != sid_to_diffcont.end()) {
                             const auto &[_, diffc] = *existingit;
                             assert(diffc);
@@ -1694,13 +1696,13 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
 
                             auto diffc = std::make_unique<DiffContainer>();
                             diffc->push_back(std::move(map));
-                            sid_to_diffcont.emplace(beatmapSetID, std::move(diffc));
+                            sid_to_diffcont.emplace(beatmapset_id, std::move(diffc));
 
                             ++nb_unique_peppy_sets;
                         }
                     } else {
                         // group maps with invalid set IDs by folder
-                        if(const auto &existingit = invalid_sid_folder_to_diffcont.find(subFolder);
+                        if(const auto &existingit = invalid_sid_folder_to_diffcont.find(beatmap_subfolder);
                            existingit != invalid_sid_folder_to_diffcont.end()) {
                             const auto &[_, diffc] = *existingit;
                             assert(diffc);
@@ -1714,7 +1716,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
 
                             auto diffc = std::make_unique<DiffContainer>();
                             diffc->push_back(std::move(map));
-                            invalid_sid_folder_to_diffcont.emplace(subFolder, std::move(diffc));
+                            invalid_sid_folder_to_diffcont.emplace(beatmap_subfolder, std::move(diffc));
 
                             ++nb_unique_peppy_sets;
                         }
@@ -1739,8 +1741,8 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                             nomod_star_rating *= -1.f;
                         }
 
-                        diffp->iLocalOffset = localOffset;
-                        diffp->iOnlineOffset = onlineOffset;
+                        diffp->iLocalOffset = offset_local;
+                        diffp->iOnlineOffset = offset_online;
                         diffp->fStarsNomod = nomod_star_rating;
                         diffp->draw_background = true;
                     }
@@ -1885,8 +1887,8 @@ void Database::saveMaps() {
             maps.write<i32>(diff->iMostCommonBPM);
             maps.write<u8>(diff->draw_background);
             maps.write<f32>(diff->loudness.load(std::memory_order_acquire));
-            maps.write_string(diff->sTitleUnicode);
-            maps.write_string(diff->sArtistUnicode);
+            maps.write_string(diff->getTitleUnicode());
+            maps.write_string(diff->getArtistUnicode());
             maps.write_string(diff->sBackgroundImageFileName);
             maps.write<u32>(diff->ppv2Version);
 

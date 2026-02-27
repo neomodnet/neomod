@@ -88,15 +88,9 @@ void UserStatsScreen::rebuildScoreButtons() {
         DatabaseBeatmap *map = db->getBeatmapDifficulty(score->beatmap_hash);
         if(!map) continue;
 
-        UString title = "...";
-        if(map != nullptr) {
-            title = map->getArtist().c_str();
-            title.append(" - ");
-            title.append(map->getTitle().c_str());
-            title.append(" [");
-            title.append(map->getDifficultyName().c_str());
-            title.append("]");
-        }
+        const UString title{
+            map ? fmt::format("{} - {} [{}]", map->getArtist(), map->getTitle(), map->getDifficultyName())
+                : US_("...")};
 
         auto *button = new ScoreButton(this->m_contextMenu.get(), 0, 0, 300, 100, ScoreButton::STYLE::TOP_RANKS);
         button->setScore(*score, map, ++i, title, weight);

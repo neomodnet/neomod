@@ -117,23 +117,23 @@ struct LivePPCalc::LivePPCalcImpl {
 
         m_calc_inst.enqueue([p =
                                  LazyCalcParams{
-                                     .osufile_path = m_bmi->beatmap ? m_bmi->beatmap->getFilePath() : "",  //
-                                     .legacy_total_score = score.getScore(),                               //
-                                     .CS = m_bmi->getCS(),                                                 //
-                                     .AR = m_bmi->getAR(),                                                 //
-                                     .HP = m_bmi->getHP(),                                                 //
-                                     .OD = m_bmi->getOD(),                                                 //
-                                     .speed_multiplier = m_bmi->getSpeedMultiplier(),                      //
-                                     .current_hitobject = m_bmi->iCurrentHitObjectIndex,                   //
-                                     .nb_circles = m_bmi->iCurrentNumCircles,                              //
-                                     .nb_sliders = m_bmi->iCurrentNumSliders,                              //
-                                     .nb_spinners = m_bmi->iCurrentNumSpinners,                            //
-                                     .highest_combo = score.getComboMax(),                                 //
-                                     .nb_misses = score.getNumMisses(),                                    //
-                                     .nb_300s = score.getNum300s(),                                        //
-                                     .nb_100s = score.getNum100s(),                                        //
-                                     .nb_50s = score.getNum50s(),                                          //
-                                     .mods = score.mods,                                                   //
+                                     .osufile_path{m_bmi->beatmap ? m_bmi->beatmap->getFilePath() : ""sv},  //
+                                     .legacy_total_score = score.getScore(),                                //
+                                     .CS = m_bmi->getCS(),                                                  //
+                                     .AR = m_bmi->getAR(),                                                  //
+                                     .HP = m_bmi->getHP(),                                                  //
+                                     .OD = m_bmi->getOD(),                                                  //
+                                     .speed_multiplier = m_bmi->getSpeedMultiplier(),                       //
+                                     .current_hitobject = m_bmi->iCurrentHitObjectIndex,                    //
+                                     .nb_circles = m_bmi->iCurrentNumCircles,                               //
+                                     .nb_sliders = m_bmi->iCurrentNumSliders,                               //
+                                     .nb_spinners = m_bmi->iCurrentNumSpinners,                             //
+                                     .highest_combo = score.getComboMax(),                                  //
+                                     .nb_misses = score.getNumMisses(),                                     //
+                                     .nb_300s = score.getNum300s(),                                         //
+                                     .nb_100s = score.getNum100s(),                                         //
+                                     .nb_50s = score.getNum50s(),                                           //
+                                     .mods = score.mods,                                                    //
                                  },
                              &old_cache = m_param_cache](void) -> LazyPPRes {
             LazyPPRes result;

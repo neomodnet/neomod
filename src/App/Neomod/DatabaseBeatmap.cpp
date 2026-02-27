@@ -135,17 +135,17 @@ DatabaseBeatmap::DatabaseBeatmap(std::unique_ptr<DiffContainer> &&difficulties, 
     }
 
     // set representative values for this container (i.e. use values from first difficulty)
-    this->sFolder = diffs[0]->sFolder;
+    const auto &firstDiff = *diffs[0];
+    this->sFolder = firstDiff.sFolder;
 
-    this->sTitle = diffs[0]->sTitle;
-    this->sTitleUnicode = diffs[0]->sTitleUnicode;
-    this->bEmptyTitleUnicode = diffs[0]->bEmptyTitleUnicode;
-    this->sArtist = diffs[0]->sArtist;
-    this->sArtistUnicode = diffs[0]->sArtistUnicode;
-    this->bEmptyArtistUnicode = diffs[0]->bEmptyArtistUnicode;
-    this->sCreator = diffs[0]->sCreator;
-    this->sBackgroundImageFileName = diffs[0]->sBackgroundImageFileName;
-    this->iSetID = diffs[0]->iSetID;
+    this->sTitle = firstDiff.sTitle;
+    this->sTitleUnicode = firstDiff.sTitleUnicode ? std::make_unique<std::string>(*firstDiff.sTitleUnicode) : nullptr;
+    this->sArtist = firstDiff.sArtist;
+    this->sArtistUnicode =
+        firstDiff.sArtistUnicode ? std::make_unique<std::string>(*firstDiff.sArtistUnicode) : nullptr;
+    this->sCreator = firstDiff.sCreator;
+    this->sBackgroundImageFileName = firstDiff.sBackgroundImageFileName;
+    this->iSetID = firstDiff.iSetID;
 
     // also calculate largest representative values
     this->updateRepresentativeValues();
@@ -191,8 +191,7 @@ void swap(DatabaseBeatmap &a, DatabaseBeatmap &b) noexcept {
     SF(fHP)                SF(fOD)           SF(fStackLeniency)           SF(fSliderTickRate) SF(fSliderMultiplier) SF(ppv2Version)
     SF(fStarsNomod)        SF(star_ratings)  SF(iMinBPM)                  SF(iMaxBPM)         SF(iMostCommonBPM)    SF(iNumCircles)
     SF(iNumSliders)        SF(iNumSpinners)  SF(last_queried_sr)          SF(last_queried_sr_idx)
-    SF(iVersion)           SF(type)          SF(bEmptyArtistUnicode)
-    SF(bEmptyTitleUnicode) SF(do_not_store)  SF(draw_background)
+    SF(iVersion)           SF(type)          SF(do_not_store)  SF(draw_background)
 #undef SF
         // clang-format on
 
@@ -209,12 +208,13 @@ void swap(DatabaseBeatmap &a, DatabaseBeatmap &b) noexcept {
 #define COPYOTHER(field) field(other.field)
 #define MOVEOTHER(field) field(std::move(other.field))
 #define ATOMICOTHER(field) field(other.field.load(std::memory_order_relaxed))
+#define COPYUPTR(field) field(other.field ? new std::remove_cvref_t<decltype(*other.field)>(*other.field) : nullptr)
 
 DatabaseBeatmap::DatabaseBeatmap(const DatabaseBeatmap &other)
     // clang-format off
     : COPYOTHER(sMD5Hash),            COPYOTHER(parentSet),                COPYOTHER(timingpoints),     COPYOTHER(sFolder),
       COPYOTHER(sFilePath),           COPYOTHER(last_modification_time),   COPYOTHER(sTitle),
-      COPYOTHER(sTitleUnicode),       COPYOTHER(sArtist),                  COPYOTHER(sArtistUnicode),
+      COPYUPTR(sTitleUnicode),        COPYOTHER(sArtist),                  COPYUPTR(sArtistUnicode),
       COPYOTHER(sCreator),            COPYOTHER(sDifficultyName),          COPYOTHER(sSource),
       COPYOTHER(sTags),               COPYOTHER(sBackgroundImageFileName), COPYOTHER(sAudioFileName),
       COPYOTHER(iID),                 COPYOTHER(iLengthMS),                COPYOTHER(iLocalOffset),
@@ -227,8 +227,7 @@ DatabaseBeatmap::DatabaseBeatmap(const DatabaseBeatmap &other)
       COPYOTHER(iNumSliders),         COPYOTHER(iNumSpinners),             ATOMICOTHER(loudness),
       COPYOTHER(last_queried_sr),     COPYOTHER(last_queried_sr_idx),
       COPYOTHER(iVersion),            ATOMICOTHER(md5_init),
-      COPYOTHER(type),                COPYOTHER(bEmptyArtistUnicode),      COPYOTHER(bEmptyTitleUnicode),
-      COPYOTHER(do_not_store),        COPYOTHER(draw_background) {
+      COPYOTHER(type),                COPYOTHER(do_not_store),             COPYOTHER(draw_background) {
     // clang-format on
 
     if(other.difficulties) {
@@ -257,14 +256,14 @@ DatabaseBeatmap::DatabaseBeatmap(DatabaseBeatmap &&other) noexcept
       COPYOTHER(iNumSliders),        COPYOTHER(iNumSpinners),        ATOMICOTHER(loudness),
       COPYOTHER(last_queried_sr),    COPYOTHER(last_queried_sr_idx),
       COPYOTHER(iVersion),           ATOMICOTHER(md5_init),
-      COPYOTHER(type),               COPYOTHER(bEmptyArtistUnicode), COPYOTHER(bEmptyTitleUnicode),
-      COPYOTHER(do_not_store),       COPYOTHER(draw_background) {
+      COPYOTHER(type),               COPYOTHER(do_not_store),       COPYOTHER(draw_background) {
     // clang-format on
 
     other.difficulties.reset();
     other.timingpoints.clear();
 }
 
+#undef COPYUPTR
 #undef COPYOTHER
 #undef ATOMICOTHER
 #undef MOVEOTHER
@@ -476,8 +475,7 @@ DatabaseBeatmap::PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjectsFromDa
         if(curBlock == Sentinel) {
             curBlock = Header;
         } else {
-            if(auto it = std::ranges::find(blocksUnseen, curLine, &MetadataBlock::str);
-               it != blocksUnseen.end()) {
+            if(auto it = std::ranges::find(blocksUnseen, curLine, &MetadataBlock::str); it != blocksUnseen.end()) {
                 curBlock = it->id;
                 blocksUnseen.erase(it);
             }
@@ -1428,6 +1426,8 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
     this->timingpoints.clear();
 
     std::vector<DatabaseBeatmap::TIMINGPOINT> tempTimingpoints;
+    std::string tempTitleUnicode;
+    std::string tempArtistUnicode;
 
     // load metadata
     bool foundAR = false;
@@ -1445,8 +1445,7 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
         if(curBlock == Sentinel) {
             curBlock = Header;
         } else {
-            if(auto it = std::ranges::find(blocksUnseen, curLine, &MetadataBlock::str);
-               it != blocksUnseen.end()) {
+            if(auto it = std::ranges::find(blocksUnseen, curLine, &MetadataBlock::str); it != blocksUnseen.end()) {
                 curBlock = it->id;
                 blocksUnseen.erase(it);
             }
@@ -1494,9 +1493,9 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
 
             case Metadata: {
                 PARSE_LINE("Title", ':', &this->sTitle);
-                PARSE_LINE("TitleUnicode", ':', &this->sTitleUnicode);
+                PARSE_LINE("TitleUnicode", ':', &tempTitleUnicode);
                 PARSE_LINE("Artist", ':', &this->sArtist);
-                PARSE_LINE("ArtistUnicode", ':', &this->sArtistUnicode);
+                PARSE_LINE("ArtistUnicode", ':', &tempArtistUnicode);
                 PARSE_LINE("Creator", ':', &this->sCreator);
                 PARSE_LINE("Version", ':', &this->sDifficultyName);
                 PARSE_LINE("Source", ':', &this->sSource);
@@ -1546,12 +1545,11 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
         }
     }
 
-    // im not actually sure if we need to do this again here
-    if(SString::is_wspace_only(this->sTitleUnicode)) {
-        this->bEmptyTitleUnicode = true;
+    if(!SString::is_wspace_only(tempTitleUnicode)) {
+        this->sTitleUnicode = std::make_unique<std::string>(std::move(tempTitleUnicode));
     }
-    if(SString::is_wspace_only(this->sArtistUnicode)) {
-        this->bEmptyArtistUnicode = true;
+    if(!SString::is_wspace_only(tempArtistUnicode)) {
+        this->sArtistUnicode = std::make_unique<std::string>(std::move(tempArtistUnicode));
     }
 
     // general sanity checks

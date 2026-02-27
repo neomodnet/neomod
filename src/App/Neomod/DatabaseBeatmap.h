@@ -64,6 +64,8 @@ using std::stop_token;
 #include <memory>
 #include <functional>
 
+using std::string_view_literals::operator""sv;
+
 // purpose:
 // 1) contain all infos which are ALWAYS kept in memory for beatmaps
 // 2) be the data source for Beatmap when starting a difficulty
@@ -389,8 +391,8 @@ class DatabaseBeatmap final {
     inline void setLocalOffset(i16 localOffset) { this->iLocalOffset = localOffset; }
     inline void setOnlineOffset(i16 onlineOffset) { this->iOnlineOffset = onlineOffset; }
 
-    [[nodiscard]] inline const std::string &getFolder() const { return this->sFolder; }
-    [[nodiscard]] inline const std::string &getFilePath() const { return this->sFilePath; }
+    [[nodiscard]] inline std::string_view getFolder() const { return this->sFolder; }
+    [[nodiscard]] inline std::string_view getFilePath() const { return this->sFilePath; }
 
     template <typename T = BeatmapDifficulty>
     [[nodiscard]] inline const std::vector<std::unique_ptr<T>> &getDifficulties() const
@@ -415,34 +417,36 @@ class DatabaseBeatmap final {
     [[nodiscard]] inline int getID() const { return this->iID; }
     [[nodiscard]] inline int getSetID() const { return this->iSetID; }
 
-    [[nodiscard]] inline const std::string &getTitle() const {
-        if(!this->bEmptyTitleUnicode && prefer_cjk_names()) {
-            return this->sTitleUnicode;
+    [[nodiscard]] inline std::string_view getTitle() const {
+        if(this->sTitleUnicode && prefer_cjk_names()) {
+            return *this->sTitleUnicode;
         } else {
             return this->sTitle;
         }
     }
-    [[nodiscard]] inline const std::string &getTitleLatin() const { return this->sTitle; }
-    [[nodiscard]] inline const std::string &getTitleUnicode() const { return this->sTitleUnicode; }
+    [[nodiscard]] inline std::string_view getTitleLatin() const { return this->sTitle; }
+    [[nodiscard]] inline std::string_view getTitleUnicode() const {
+        return this->sTitleUnicode ? *this->sTitleUnicode : ""sv;
+    }
 
-    [[nodiscard]] inline const std::string &getArtist() const {
-        if(!this->bEmptyArtistUnicode && prefer_cjk_names()) {
-            return this->sArtistUnicode;
+    [[nodiscard]] inline std::string_view getArtist() const {
+        if(this->sArtistUnicode && prefer_cjk_names()) {
+            return *this->sArtistUnicode;
         } else {
             return this->sArtist;
         }
     }
-    [[nodiscard]] inline const std::string &getArtistLatin() const { return this->sArtist; }
-    [[nodiscard]] inline const std::string &getArtistUnicode() const { return this->sArtistUnicode; }
-
-    [[nodiscard]] inline const std::string &getCreator() const { return this->sCreator; }
-    [[nodiscard]] inline const std::string &getDifficultyName() const { return this->sDifficultyName; }
-    [[nodiscard]] inline const std::string &getSource() const { return this->sSource; }
-    [[nodiscard]] inline const std::string &getTags() const { return this->sTags; }
-    [[nodiscard]] inline const std::string &getBackgroundImageFileName() const {
-        return this->sBackgroundImageFileName;
+    [[nodiscard]] inline std::string_view getArtistLatin() const { return this->sArtist; }
+    [[nodiscard]] inline std::string_view getArtistUnicode() const {
+        return this->sArtistUnicode ? *this->sArtistUnicode : ""sv;
     }
-    [[nodiscard]] inline const std::string &getAudioFileName() const { return this->sAudioFileName; }
+
+    [[nodiscard]] inline std::string_view getCreator() const { return this->sCreator; }
+    [[nodiscard]] inline std::string_view getDifficultyName() const { return this->sDifficultyName; }
+    [[nodiscard]] inline std::string_view getSource() const { return this->sSource; }
+    [[nodiscard]] inline std::string_view getTags() const { return this->sTags; }
+    [[nodiscard]] inline std::string_view getBackgroundImageFileName() const { return this->sBackgroundImageFileName; }
+    [[nodiscard]] inline std::string_view getAudioFileName() const { return this->sAudioFileName; }
 
     [[nodiscard]] inline u32 getLengthMS() const { return this->iLengthMS; }
     [[nodiscard]] inline int getPreviewTime() const { return this->iPreviewTime; }
@@ -477,16 +481,16 @@ class DatabaseBeatmap final {
 
     [[nodiscard]] inline f32 getStarsNomod() const { return this->getStarRating(StarPrecalc::NOMOD_1X_INDEX); }
 
-    [[nodiscard]] inline int getMinBPM() const { return this->iMinBPM; }
-    [[nodiscard]] inline int getMaxBPM() const { return this->iMaxBPM; }
-    [[nodiscard]] inline int getMostCommonBPM() const { return this->iMostCommonBPM; }
+    [[nodiscard]] inline i32 getMinBPM() const { return this->iMinBPM; }
+    [[nodiscard]] inline i32 getMaxBPM() const { return this->iMaxBPM; }
+    [[nodiscard]] inline i32 getMostCommonBPM() const { return this->iMostCommonBPM; }
 
-    [[nodiscard]] inline int getNumObjects() const {
+    [[nodiscard]] inline i32 getNumObjects() const {
         return this->iNumCircles + this->iNumSliders + this->iNumSpinners;
     }
-    [[nodiscard]] inline int getNumCircles() const { return this->iNumCircles; }
-    [[nodiscard]] inline int getNumSliders() const { return this->iNumSliders; }
-    [[nodiscard]] inline int getNumSpinners() const { return this->iNumSpinners; }
+    [[nodiscard]] inline i32 getNumCircles() const { return this->iNumCircles; }
+    [[nodiscard]] inline i32 getNumSliders() const { return this->iNumSliders; }
+    [[nodiscard]] inline i32 getNumSpinners() const { return this->iNumSpinners; }
 
     [[nodiscard]] inline i32 getLocalOffset() const { return this->iLocalOffset; }
     [[nodiscard]] inline i32 getOnlineOffset() const { return this->iOnlineOffset; }
@@ -529,10 +533,14 @@ class DatabaseBeatmap final {
     // raw metadata
     i64 last_modification_time{0};
 
+   private:
+    // if there is no unicode representation, they remain NULL
     std::string sTitle;
-    std::string sTitleUnicode;
+    std::unique_ptr<std::string> sTitleUnicode{nullptr};
     std::string sArtist;
-    std::string sArtistUnicode;
+    std::unique_ptr<std::string> sArtistUnicode{nullptr};
+
+   public:
     std::string sCreator;
     std::string sDifficultyName;  // difficulty name ("Version")
     std::string sSource;          // only used by search
@@ -567,9 +575,9 @@ class DatabaseBeatmap final {
     int iMaxBPM{0};
     int iMostCommonBPM{0};
 
-    int iNumCircles{0};
-    int iNumSliders{0};
-    int iNumSpinners{0};
+    u16 iNumCircles{0};
+    u16 iNumSliders{0};
+    u16 iNumSpinners{0};
 
     // custom data (not necessary, not part of the beatmap file, and not precomputed)
     std::atomic<f32> loudness{0.f};
@@ -586,8 +594,6 @@ class DatabaseBeatmap final {
 
     BeatmapType type{BeatmapType::NEOMOD_DIFFICULTY};
 
-    bool bEmptyArtistUnicode{false};
-    bool bEmptyTitleUnicode{false};
     bool do_not_store{false};
     bool draw_background{true};
 

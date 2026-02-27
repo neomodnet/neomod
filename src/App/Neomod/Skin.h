@@ -78,7 +78,7 @@ struct Skin final {
 
     [[nodiscard]] bool isReady() const;
 
-    void loadBeatmapOverride(const std::string &filepath);
+    void loadBeatmapOverride(std::string_view filepath);
     void reloadSounds();
 
     // drawable helpers

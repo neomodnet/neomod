@@ -380,7 +380,7 @@ const Image *BGImageHandlerImpl::getLoadBackgroundImage(const DatabaseBeatmap *b
     // NOTE: no references to beatmap are kept anywhere (database can safely be deleted/reloaded without having to
     // notify the BackgroundImageHandler)
 
-    const std::string &beatmap_filepath = beatmap->getFilePath();
+    const std::string beatmap_filepath{beatmap->getFilePath()};
     this->last_requested_entry = beatmap_filepath;
 
     logIf(cv::debug_bg_loader.getInt() > 1, "trying to load image for {}", beatmap_filepath);
@@ -432,8 +432,8 @@ const Image *BGImageHandlerImpl::getLoadBackgroundImage(const DatabaseBeatmap *b
         }
 
         // create entry
-        ENTRY entry{.folder = beatmap->getFolder(),
-                    .bg_image_filename = beatmap->getBackgroundImageFileName(),
+        ENTRY entry{.folder{beatmap->getFolder()},
+                    .bg_image_filename{beatmap->getBackgroundImageFileName()},
                     .bg_path_handle = {},
                     .image = nullptr,
                     .loading_time = engine->getTime() + (load_immediately ? 0. : this->image_loading_delay),

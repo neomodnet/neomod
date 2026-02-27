@@ -743,7 +743,7 @@ void Skin::load() {
     }
 }
 
-void Skin::loadBeatmapOverride(const std::string & /*filepath*/) {
+void Skin::loadBeatmapOverride(std::string_view /*filepath*/) {
     // debugLog("Skin::loadBeatmapOverride( {:s} )", filepath.c_str());
     //  TODO: beatmap skin support
 }

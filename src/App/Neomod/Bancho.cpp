@@ -911,7 +911,7 @@ void BanchoState::handle_packet(Packet &packet) {
             std::string url = fmt::format("osu.{}/web/" PACKAGE_NAME "-submit-map.php?hash={}", BanchoState::endpoint, md5);
             BANCHO::Api::append_auth_params(url);
 
-            std::string file_path = map->getFilePath();
+            std::string file_path{map->getFilePath()};
 
             DatabaseBeatmap::MapFileReadDoneCallback callback = [url, md5,
                                                                  file_path](std::vector<u8> osu_file) -> void {
