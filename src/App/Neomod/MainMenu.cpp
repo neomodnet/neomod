@@ -16,6 +16,7 @@
 #include "CBaseUIButton.h"
 #include "CBaseUIContainer.h"
 #include "CBaseUILabel.h"
+#include "Chat.h"
 #include "OsuConVars.h"
 #include "Environment.h"
 #include "MakeDelegateWrapper.h"
@@ -76,6 +77,13 @@ class MainMenu::CubeButton final : public CBaseUIButton {
         anim::moveQuadInOut(&this->mm_ptr->fSizeAddAnim, 0.0f, 0.15f, 0.0f, true);
 
         CBaseUIButton::onMouseOutside();
+    }
+
+    bool isMouseInside() override {
+        // more terrible workarounds for lack of Z-ordering
+        return CBaseUIButton::isMouseInside() &&
+               !(ui->getOptionsOverlay()->isMouseInside() || ui->getChat()->isMouseInside() ||
+                 ui->getChangelog()->isMouseInside());
     }
 
    private:
