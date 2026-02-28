@@ -620,11 +620,6 @@ void NetworkImpl::update() {
             res = curl_ws_recv(ws->handle, buf, sizeof(buf), &nb_read, &meta);
 
             if(res == CURLE_OK) {
-                if(meta->flags & CURLWS_CLOSE) {
-                    debugLog("Websocket connection closed.");
-                    ws->status = WSStatus::DISCONNECTED;
-                    break;
-                }
                 if(nb_read > 0 && (meta->flags & CURLWS_BINARY)) {
                     ws->in_partial.insert(ws->in_partial.end(), buf, buf + nb_read);
                     bytes_available -= nb_read;
@@ -640,6 +635,11 @@ void NetworkImpl::update() {
                 ws->status = WSStatus::DISCONNECTED;
             } else {
                 debugLog("Failed to receive data on websocket: {}", curl_easy_strerror(res));
+                ws->status = WSStatus::DISCONNECTED;
+            }
+
+            if(meta->flags & CURLWS_CLOSE) {
+                debugLog("Websocket connection closed.");
                 ws->status = WSStatus::DISCONNECTED;
             }
         }
