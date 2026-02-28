@@ -417,6 +417,8 @@ void BanchoState::disconnect(bool shutdown) {
 
     free(BANCHO::Net::outgoing.memory);
     BANCHO::Net::outgoing = Packet();
+    BANCHO::Net::websocket = nullptr;
+    BANCHO::Net::use_websockets = false;
 
     BanchoState::set_uid(0);
     osu->getUserButton()->setID(0);

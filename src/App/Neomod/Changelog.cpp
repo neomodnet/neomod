@@ -35,7 +35,7 @@ Changelog::Changelog() : ScreenBackable() {
     CHANGELOG v43_06;
     v43_06.title = "43.06 (" CHANGELOG_TIMESTAMP ")";
     v43_06.changes = {
-        R"()",
+        R"(- Fixed WebSocket connection closures being ignored on native client)",
     };
     changelogs.push_back(v43_06);
 
