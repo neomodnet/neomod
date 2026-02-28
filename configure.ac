@@ -232,6 +232,9 @@ AC_ARG_WITH([renderer],
 AC_ARG_WITH([audio],
     AS_HELP_STRING([--with-audio={bass,soloud}], [The (comma separated list of) audio backend(s) to build with (default: soloud)]))
 
+AC_ARG_WITH([ffmpeg],
+    AS_HELP_STRING([--with-ffmpeg], [Build ffmpeg shared libraries (default: yes)]))
+
 AC_ARG_WITH([mimalloc],
     AS_HELP_STRING([--with-mimalloc], [Use mimalloc instead of the default memory allocator (faster) (default: on if not debug and not winx86)]))
 
@@ -460,6 +463,14 @@ AS_IF([test "$with_bass" = "yes"], [
 ])
 
 AC_SUBST([AUDBACKENDLIST])
+
+AS_IF([test "x$with_ffmpeg" != "xno" && test "$with_soloud" != "xno" && test "$WASM_PLATFORM" != "yes"], [
+    with_ffmpeg=yes
+    AC_DEFINE([MCENGINE_FEATURE_FFMPEG], [1], [Define if ffmpeg library is available.])
+], [
+    with_ffmpeg=no
+])
+AC_SUBST([with_ffmpeg])
 
 AS_IF([test "x$enable_asan" = "xyes" || test "x$enable_tsan" = "xyes"], [
     sanitizer_string=
@@ -1526,6 +1537,7 @@ AM_CONDITIONAL([BUILD_MIMALLOC], [{ test "x$enable_debug" != "xyes" || test "x$w
 
 AM_CONDITIONAL([USE_BASS], [test "$with_bass" = "yes"])
 AM_CONDITIONAL([USE_SOLOUD], [test "$with_soloud" = "yes"])
+AM_CONDITIONAL([USE_FFMPEG], [test "$with_ffmpeg" = "yes"])
 AM_CONDITIONAL([USE_GL], [test "$use_opengl" = "yes" || test "$use_opengles32" = "yes"])
 AM_CONDITIONAL([USE_OPENGL], [test "$use_opengl" = "yes"])
 AM_CONDITIONAL([USE_OPENGLES], [test "$use_opengles32" = "yes"])
