@@ -350,7 +350,7 @@ void BeatmapInterface::onKey(GameplayKeys key_flag, bool down, u64 timestamp) {
             if(!this->bClickedContinue) return;
         }
 
-        if(this->bIsPaused) return;
+        if(this->bIsPaused && !this->bContinueScheduled) return;
 
         if(cv::mod_singletap.getBool() && !(this->lastPressedKey & key_flag)) {
             if(this->iCurrentHitObjectIndex > this->iAllowAnyNextKeyUntilHitObjectIndex) {
