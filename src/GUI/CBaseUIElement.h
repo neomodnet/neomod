@@ -221,20 +221,21 @@ class CBaseUIElement : public KeyboardListener {
     // vec2 &vmSize;  // reference to relRect.vSize
 
     // attributes
-   protected:
-    bool grabs_clicks{false};  // TODO: remove this (confusing behavior)
-    bool bVisible{true};
-    bool bActive{false};  // we are doing something, e.g. textbox is blinking and ready to receive input
-    bool bBusy{false};    // we demand the focus to be kept on us, e.g. click-drag scrolling in a scrollview
-    bool bEnabled{true};
-
-    bool bKeepActive{false};  // once clicked, don't lose m_bActive, we have to manually release it (e.g. textbox)
-    bool bMouseInside{false};
-
-    bool bHandleLeftMouse{true};
-    bool bHandleRightMouse{false};
 
    private:
-    uint8_t mouseInsideCheck{0};
-    uint8_t mouseUpCheck{0};
+    uint8_t mouseInsideCheck : 2{0};
+    uint8_t mouseUpCheck : 2{0};
+
+   protected:
+    bool grabs_clicks : 1{false};  // TODO: remove this (confusing behavior)
+    bool bVisible : 1{true};
+    bool bActive : 1{false};  // we are doing something, e.g. textbox is blinking and ready to receive input
+    bool bBusy : 1{false};    // we demand the focus to be kept on us, e.g. click-drag scrolling in a scrollview
+    bool bEnabled : 1{true};
+
+    bool bKeepActive : 1{false};  // once clicked, don't lose m_bActive, we have to manually release it (e.g. textbox)
+    bool bMouseInside : 1{false};
+
+    bool bHandleLeftMouse : 1{true};
+    bool bHandleRightMouse : 1{false};
 };

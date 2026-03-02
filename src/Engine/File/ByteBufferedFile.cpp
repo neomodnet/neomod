@@ -170,6 +170,42 @@ std::string ByteBufferedFile::Reader::read_string() {
     return str;
 }
 
+bool ByteBufferedFile::Reader::read_cstring(std::unique_ptr<char[]> &inout) {
+    bool success = false;
+    u8 empty_check = 0;
+    u32 len = 0;
+    uSz read = 0;
+    if(this->error_flag) {
+        goto out;
+    }
+
+    empty_check = this->read<u8>();
+    if(empty_check == 0) goto out;
+
+    len = this->read_uleb128();
+    inout = std::make_unique_for_overwrite<char[]>(len + 1);
+    read = this->read_bytes(reinterpret_cast<u8 *>(inout.get()), len);
+
+    inout[len] = '\0';
+
+    if(read != len) {
+        this->set_error("Failed to read " + std::to_string(len) + " bytes for string");
+        goto out;
+    }
+    success = true;
+out:
+    if(!success) {
+        inout = std::make_unique<char[]>(1);
+    }
+    return success;
+}
+
+std::unique_ptr<char[]> ByteBufferedFile::Reader::read_cstring() {
+    std::unique_ptr<char[]> str;
+    this->read_cstring(str);
+    return str;
+}
+
 u32 ByteBufferedFile::Reader::read_uleb128() {
     if(this->error_flag) {
         return 0;

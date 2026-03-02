@@ -130,6 +130,25 @@ const char* parse_str(const char* begin, const char* end, T* arg) {
             SString::trim_inplace(*arg);
             return end;
         }
+    } else if constexpr(std::is_same_v<T, std::unique_ptr<char[]>>) {
+        if(begin < end && *begin == '"') {
+            begin++;
+            const char* start = begin;
+            while(begin < end && *begin != '"') {
+                begin++;
+            }
+
+            if(begin == end) return nullptr;
+
+            *arg = SString::strcpy_u(std::string_view{start, static_cast<uSz>(begin - start)});
+            begin++;
+            return begin;
+        } else {
+            std::string_view tmp{begin, end};
+            SString::trim_inplace(tmp);
+            *arg = SString::strcpy_u(tmp);
+            return end;
+        }
     } else {
         static_assert(Env::always_false_v<T>, "parsing for this type is not implemented");
         return nullptr;
@@ -146,10 +165,11 @@ const char* parse_impl(const char* begin, const char* end, T arg, Extra... extra
         while(begin < end && (*begin == ' ' || *begin == '\t')) begin++;
     }
 
-    if constexpr(std::is_same_v<T, std::string*> && sizeof...(extra) > 0) {
+    if constexpr((std::is_same_v<T, std::string*> || std::is_same_v<T, std::unique_ptr<char[]>*>) &&
+                 sizeof...(extra) > 0) {
         // you can only parse an std::string if it is the LAST parameter,
         // because it will consume the WHOLE string.
-        static_assert(Env::always_false_v<T>, "cannot parse an std::string in the middle of the parsing chain");
+        static_assert(Env::always_false_v<T>, "cannot parse to a string in the middle of the parsing chain");
         return nullptr;
     } else if constexpr(is_skip_v<T>) {
         // parse and discard the value

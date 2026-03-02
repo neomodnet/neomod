@@ -5,10 +5,12 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstring>
 #include <string>
 #include <vector>
 #include <type_traits>
 #include <cassert>
+#include <memory>
 
 // non-UString-related fast and small string manipulation helpers
 
@@ -103,6 +105,28 @@ static forceinline std::string to_lower(const std::string_view str) {
     if(str.empty()) return lstr;
     lower_inplace(lstr);
     return lstr;
+}
+
+static inline std::unique_ptr<char[]> strcpy_u(std::string_view sv) {
+    if(sv.empty()) return nullptr;
+
+    const size_t len = sv.length();
+    std::unique_ptr<char[]> ret = std::make_unique_for_overwrite<char[]>(len + 1);
+    std::memcpy(ret.get(), sv.data(), len);
+    ret[len] = '\0';
+
+    return ret;
+}
+
+static inline std::unique_ptr<char[]> strcpy_u(const char *data) {
+    if(!data) return nullptr;
+
+    const size_t len = std::strlen(data);
+    std::unique_ptr<char[]> ret = std::make_unique_for_overwrite<char[]>(len + 1);
+    std::memcpy(ret.get(), data, len);
+    ret[len] = '\0';
+
+    return ret;
 }
 
 // format an integer with thousands separators (locale-dependent commas/spaces/periods)

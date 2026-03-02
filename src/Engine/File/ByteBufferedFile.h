@@ -188,8 +188,13 @@ class ByteBufferedFile {
         [[nodiscard]] bool read_hash_chars(MD5String &hash_str_inout);  // read into a given buffer directly
         [[nodiscard]] bool read_hash_chars(MD5Hash &hash_digest_inout);
         [[nodiscard]] bool read_hash_digest(MD5Hash &hash_digest_inout);
+
         bool read_string(std::string &inout);
         [[nodiscard]] std::string read_string();
+
+        bool read_cstring(std::unique_ptr<char[]> &inout);
+        [[nodiscard]] std::unique_ptr<char[]> read_cstring();
+
         [[nodiscard]] u32 read_uleb128();
 
         void skip_string();

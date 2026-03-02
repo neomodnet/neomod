@@ -1181,9 +1181,9 @@ void SongBrowser::onPlayEnd(bool quit) {
         // should be cheap
         // TODO: don't do this here, probably inherently racy somehow
         // NOTE: all modification times need to be accurate to support sorting/grouping by date added
-        if(bm->last_modification_time <= 0 && !bm->sFilePath.empty()) {
+        if(bm->last_modification_time <= 0 && !bm->getFilePath().empty()) {
             struct stat64 attr;
-            if(File::stat_c(bm->sFilePath.c_str(), &attr) == 0) {
+            if(File::stat_c(bm->sFilePath.get(), &attr) == 0) {
                 bm->last_modification_time = attr.st_mtime;
             }
         }

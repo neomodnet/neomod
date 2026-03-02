@@ -319,14 +319,14 @@ void process_work_item(WorkItem& item, const Sync::stop_token& stoken, WorkerCon
     }
 
     // load primitive objects once for this beatmap
-    auto primitives = DatabaseBeatmap::loadPrimitiveObjects(item.map->sFilePath, stoken);
+    auto primitives = DatabaseBeatmap::loadPrimitiveObjects(item.map->getFilePath(), stoken);
     if(stoken.stop_requested()) return;
 
     if(primitives.error.errc) {
         const u32 item_failed_scores = item.scores.size();
         errored_count.fetch_add(item_failed_scores, std::memory_order_relaxed);
         logFailure(primitives.error, "loadPrimitiveObjects map hash: {} map path: {}", item.map->getMD5(),
-                   item.map->sFilePath);
+                   item.map->getFilePath());
         if(item.needs_map_calc) {
             errored_count.fetch_add(1, std::memory_order_relaxed);
             Sync::scoped_lock lock(results_mutex);
@@ -384,7 +384,7 @@ void process_work_item(WorkItem& item, const Sync::stop_token& stoken, WorkerCon
 
             if(diffres.error.errc) {
                 logFailure(diffres.error, "loadDifficultyHitObjects map hash: {} map path: {}", item.map->getMD5(),
-                           item.map->sFilePath);
+                           item.map->getFilePath());
                 continue;
             }
 
