@@ -82,7 +82,7 @@ class DownloadManager {
     Hash::unstable_stringmap<std::chrono::steady_clock::time_point> per_host_retry_after;
 
     void checkAndStartNextDownload() {
-        // NOTE: this->queue_mutex should already be acquired here!
+        assert(!this->queue_mutex.try_lock());  // should already be held
         if(this->shutting_down.load(std::memory_order_acquire)) return;
         if(this->queue.empty()) return;
 

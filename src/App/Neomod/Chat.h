@@ -51,6 +51,10 @@ class Chat final : public UIScreen {
     void onChar(KeyboardEvent &e) override;
     void onResolutionChange(vec2 newResolution) override;
 
+    bool isMouseInside() override;
+    bool isMouseInChat();
+    bool isMouseInUserList();
+
     void mark_as_read(ChatChannel *chan);
     void switchToChannel(ChatChannel *chan);
     void addChannel(const UString &channel_name, bool switch_to = false);
@@ -73,7 +77,6 @@ class Chat final : public UIScreen {
     bool isSmallChat();
     bool isVisibilityForced();
     void updateVisibility();
-    bool isMouseInChat();
 
     void askWhatChannelToJoin(CBaseUIButton *btn);
     UIButton *join_channel_btn;

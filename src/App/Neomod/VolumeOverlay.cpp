@@ -270,7 +270,7 @@ bool VolumeOverlay::canChangeVolume() {
             !(ui->getChangelog()->isVisible()) &&                                                                 //
             !(ui->getRankingScreen()->isVisible()) &&                                                             //
             !(ui->getModSelector()->isMouseInScrollView()) &&                                                     //
-            !(ui->getChat()->isMouseInChat()) &&                                                                  //
+            !(ui->getChat()->isMouseInside()) &&                                                                  //
             !(ui->getUserStatsScreen()->isVisible())                                                              //
         );
 

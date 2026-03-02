@@ -454,8 +454,12 @@ void Chat::update(CBaseUIEventCtx &c) {
         was_M3_down = is_M3_down;
     }
 
-    // Focus without placing the cursor at the end of the field
-    this->input_box->focus(false);
+    // FIXME: steals click focus globally no matter where you click on the screen
+    // why is this here anyways? just handle onMouseDownInside on the chatbox?
+    if(this->isMouseInChat()) {
+        // Focus without placing the cursor at the end of the field
+        this->input_box->focus(false);
+    }
 }
 
 void Chat::handle_command(const UString &msg) {
@@ -1352,10 +1356,16 @@ CBaseUIContainer *Chat::setVisible(bool visible) {
     return this;
 }
 
+bool Chat::isMouseInUserList() { return this->user_list->isVisible() && this->user_list->isMouseInside(); }
+
 bool Chat::isMouseInChat() {
-    if(!this->isVisible()) return false;
-    if(this->selected_channel == nullptr) return false;
-    return this->input_box->isMouseInside() || this->selected_channel->ui->isMouseInside();
+    return this->selected_channel &&  //
+           (this->input_box->isMouseInside() || this->selected_channel->ui->isMouseInside());
+}
+
+bool Chat::isMouseInside() {
+    return this->isVisible() && UIScreen::isMouseInside() &&
+           (this->button_container->isMouseInside() || this->isMouseInChat() || this->isMouseInUserList());
 }
 
 void Chat::askWhatChannelToJoin(CBaseUIButton * /*btn*/) {
