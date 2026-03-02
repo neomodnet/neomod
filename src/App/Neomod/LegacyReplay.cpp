@@ -213,10 +213,10 @@ bool load_from_disk(FinishedScore& score, bool update_db) {
     bool success = false;
 
     const bool is_peppy = score.peppy_replay_tms > 0;
-    const auto path = is_peppy
-                          ? fmt::format("{:s}/Data/r/{:s}-{:d}.osr", cv::osu_folder.getString(), score.beatmap_hash,
-                                        score.peppy_replay_tms)
-                          : fmt::format(NEOMOD_REPLAYS_PATH "/{:s}/{:d}.replay.lzma", score.server, score.unixTimestamp);
+    const auto path =
+        is_peppy ? fmt::format("{:s}/Data/r/{:s}-{:d}.osr", cv::osu_folder.getString(), score.beatmap_hash,
+                               score.peppy_replay_tms)
+                 : fmt::format(NEOMOD_REPLAYS_PATH "/{:s}/{:d}.replay.lzma", score.server, score.unixTimestamp);
     do {
         uSz file_size = 0;
         std::unique_ptr<u8[]> buffer;
@@ -286,7 +286,7 @@ void load_and_watch(FinishedScore score) {
         return;
     }
 
-    auto map = db->getBeatmapDifficulty(score.beatmap_hash);
+    auto* map = db->getBeatmapDifficulty(score.beatmap_hash);
     if(map == nullptr) {
         // XXX: Auto-download beatmap
         ui->getNotificationOverlay()->addToast(US_("Missing beatmap for this replay"), ERROR_TOAST);

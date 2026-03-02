@@ -33,7 +33,7 @@
 #include "MakeDelegateWrapper.h"
 
 RoomUIElement::RoomUIElement(Lobby* multi, const Room& room, float x, float y, float width, float height)
-    : CBaseUIScrollView(x, y, width, height, "") {
+    : CBaseUIScrollView(x, y, width, height, {}) {
     // NOTE: We can't store the room pointer, since it might expire later
     this->multi = multi;
     this->room_id = room.id;
@@ -42,28 +42,27 @@ RoomUIElement::RoomUIElement(Lobby* multi, const Room& room, float x, float y, f
     this->setBlockScrolling(true);
     this->setDrawFrame(true);
 
-    float title_width = multi->font->getStringWidth(room.name) + 20;
-    auto title_ui = new CBaseUILabel(10, 5, title_width, 30, "", room.name);
+    const float title_width = multi->font->getStringWidth(room.name) + 20.f;
+    auto* title_ui = new CBaseUILabel(10.f, 5.f, title_width, 30.f, {}, room.name);
     title_ui->setDrawFrame(false);
     title_ui->setDrawBackground(false);
     this->container.addBaseUIElement(title_ui);
 
-    char player_count_str[256] = {0};
-    snprintf(player_count_str, 255, "Players: %d/%d", room.nb_players, room.nb_open_slots);
-    float player_count_width = multi->font->getStringWidth(player_count_str) + 20;
-    auto slots_ui = new CBaseUILabel(10, 33, player_count_width, 30, "", UString(player_count_str));
+    const UString player_count_str = fmt::format("Players: {:d}/{:d}", room.nb_players, room.nb_open_slots);
+    const float player_count_width = multi->font->getStringWidth(player_count_str) + 20.f;
+    auto* slots_ui = new CBaseUILabel(10.f, 33.f, player_count_width, 30.f, {}, player_count_str);
     slots_ui->setDrawFrame(false);
     slots_ui->setDrawBackground(false);
     this->container.addBaseUIElement(slots_ui);
 
-    this->join_btn = new UIButton(10, 65, 120, 30, "", "Join room");
+    this->join_btn = new UIButton(10.f, 65.f, 120.f, 30.f, {}, "Join room");
     this->join_btn->setUseDefaultSkin();
     this->join_btn->setColor(0xff00d900);
     this->join_btn->setClickCallback(SA::MakeDelegate<&RoomUIElement::onRoomJoinButtonClick>(this));
     this->container.addBaseUIElement(this->join_btn);
 
     if(room.has_password) {
-        auto pwlabel = new CBaseUILabel(135, 64, 150, 30, "", "(password required)");
+        auto* pwlabel = new CBaseUILabel(135.f, 64.f, 150.f, 30.f, {}, "(password required)");
         pwlabel->setDrawFrame(false);
         pwlabel->setDrawBackground(false);
         this->container.addBaseUIElement(pwlabel);
@@ -76,27 +75,27 @@ void RoomUIElement::onRoomJoinButtonClick(CBaseUIButton* /*btn*/) {
         ui->getPromptOverlay()->prompt("Room password:",
                                        SA::MakeDelegate<&Lobby::on_room_join_with_password>(this->multi));
     } else {
-        this->multi->joinRoom(this->room_id, "");
+        this->multi->joinRoom(this->room_id, {});
     }
 }
 
 Lobby::Lobby() : UIScreen() {
     this->font = engine->getDefaultFont();
 
-    auto heading = new CBaseUILabel(50, 30, 300, 40, "", "Multiplayer rooms");
+    auto* heading = new CBaseUILabel(50.f, 30.f, 300.f, 40.f, {}, "Multiplayer rooms");
     heading->setFont(osu->getTitleFont());
     heading->setSizeToContent(0, 0);
     heading->setDrawFrame(false);
     heading->setDrawBackground(false);
     this->addBaseUIElement(heading);
 
-    this->create_room_btn = new UIButton(0, 0, 200, 50, "", "Create new room");
+    this->create_room_btn = new UIButton(0.f, 0.f, 200.f, 50.f, {}, "Create new room");
     this->create_room_btn->setUseDefaultSkin();
     this->create_room_btn->setColor(0xff00d900);
     this->create_room_btn->setClickCallback(SA::MakeDelegate<&Lobby::on_create_room_clicked>(this));
     this->addBaseUIElement(this->create_room_btn);
 
-    this->list = new CBaseUIScrollView(0, 0, 0, 0, "");
+    this->list = new CBaseUIScrollView(0.f, 0.f, 0.f, 0.f, {});
     this->list->setDrawFrame(false);
     this->list->setDrawBackground(true);
     this->list->setBackgroundColor(0xdd000000);
@@ -181,7 +180,7 @@ void Lobby::updateLayout(vec2 newResolution) {
     const i32 padding = static_cast<int>(20.f * Osu::getUIScale());
 
     if(this->rooms.empty()) {
-        auto noRoomsOpenElement = new CBaseUILabel(0, 0, 0, 0, "", "There are no matches available.");
+        auto* noRoomsOpenElement = new CBaseUILabel(0.f, 0.f, 0.f, 0.f, {}, "There are no matches available.");
         noRoomsOpenElement->setTextJustification(TEXT_JUSTIFICATION::CENTERED);
         noRoomsOpenElement->setSizeToContent(padding, padding);
         noRoomsOpenElement->setPos(this->list->getSize().x / 2 - noRoomsOpenElement->getSize().x / 2,
@@ -201,10 +200,10 @@ void Lobby::updateLayout(vec2 newResolution) {
     const f32 room_margin = 20.f * Osu::getUIScale();
     const f32 room_height = 105.f * Osu::getUIScale();
     f32 y = room_margin / 2.f;
-    for(auto& room : this->rooms) {
+    for(const auto& room : this->rooms) {
         const f32 x = 10.f * Osu::getUIScale();
         const f32 room_width = this->list->getSize().x - room_margin;
-        auto room_ui = new RoomUIElement(this, *room, x, y, room_width, room_height);
+        auto* room_ui = new RoomUIElement(this, *room, x, y, room_width, room_height);
         this->list->container.addBaseUIElement(room_ui);
         y += room_height + room_margin;
     }
@@ -259,7 +258,7 @@ void Lobby::on_create_room_clicked() {
     BanchoState::room.slots[0].player_id = BanchoState::get_uid();
 
     if(osu->getMapInterface() && osu->getMapInterface()->getBeatmap()) {
-        auto map = osu->getMapInterface()->getBeatmap();
+        const auto* map = osu->getMapInterface()->getBeatmap();
         BanchoState::room.map_name =
             fmt::format("{:s} - {:s} [{:s}]", map->getArtist(), map->getTitle(), map->getDifficultyName());
         BanchoState::room.map_md5 = map->getMD5();

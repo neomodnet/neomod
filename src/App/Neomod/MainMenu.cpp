@@ -1140,7 +1140,7 @@ void MainMenu::update(CBaseUIEventCtx &c) {
 
                 // load timing points if needed
                 // XXX: file io, don't block main thread
-                auto *map = osu->getMapInterface()->getBeatmap();
+                auto *map = osu->getMapInterface()->getBeatmapMutable();
                 if(map && map->getTimingpoints().empty()) {
                     map->loadMetadata(false);
                 }

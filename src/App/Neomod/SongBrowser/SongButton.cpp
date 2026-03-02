@@ -107,7 +107,7 @@ void SongButton::update(CBaseUIEventCtx &c) {
     if(!bottomChild) return;
 
     const auto *currentRepresentativeBeatmap = this->databaseBeatmap;
-    auto *newRepresentativeBeatmap = bottomChild->getDatabaseBeatmap();
+    auto *newRepresentativeBeatmap = bottomChild->databaseBeatmap;
 
     if(currentRepresentativeBeatmap == nullptr || currentRepresentativeBeatmap != newRepresentativeBeatmap) {
         this->databaseBeatmap = newRepresentativeBeatmap;

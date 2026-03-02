@@ -78,7 +78,7 @@ class CarouselButton : public CBaseUIButton {
     [[nodiscard]] inline std::vector<SongButton *> &getChildren() { return this->children; }
     [[nodiscard]] inline const std::vector<SongButton *> &getChildren() const { return this->children; }
 
-    [[nodiscard]] virtual DatabaseBeatmap *getDatabaseBeatmap() const { return nullptr; }
+    [[nodiscard]] virtual const DatabaseBeatmap *getDatabaseBeatmap() const { return nullptr; }
     [[nodiscard]] virtual Color getActiveBackgroundColor() const;
     [[nodiscard]] virtual Color getInactiveBackgroundColor() const;
 

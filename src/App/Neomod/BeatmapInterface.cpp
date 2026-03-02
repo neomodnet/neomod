@@ -2000,7 +2000,8 @@ void BeatmapInterface::drawContinue() {
     g->popTransform();
 
     // pulse animation
-    const float cursorAnimPulsePercent = std::clamp<float>(fmod(engine->getTime(), 1.35f), 0.0f, 1.0f);
+    const float cursorAnimPulsePercent =
+        std::clamp<float>(static_cast<float>(std::fmod(engine->getTime(), 1.35)), 0.0f, 1.0f);
     g->setColor(argb((short)(255.0f * (1.0f - cursorAnimPulsePercent)), 255, 153, 51));
     g->pushTransform();
     {

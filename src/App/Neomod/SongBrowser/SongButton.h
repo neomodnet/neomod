@@ -33,7 +33,7 @@ class SongButton : public CarouselButton {
     void updateLayoutEx() override;
     virtual void updateGrade() { ; }
 
-    [[nodiscard]] DatabaseBeatmap *getDatabaseBeatmap() const override { return this->databaseBeatmap; }
+    [[nodiscard]] const DatabaseBeatmap *getDatabaseBeatmap() const override { return this->databaseBeatmap; }
     ScoreGrade grade = ScoreGrade::N;
 
    protected:

@@ -70,7 +70,8 @@ class AbstractBeatmapInterface {
     bool holding_slider = false;
 
     // Generic behavior below, do not override
-    [[nodiscard]] inline BeatmapDifficulty *getBeatmap() const { return this->beatmap; }
+    [[nodiscard]] inline const BeatmapDifficulty *getBeatmap() const { return this->beatmap; }
+    [[nodiscard]] inline BeatmapDifficulty *getBeatmapMutable() const { return this->beatmap; }
 
     [[nodiscard]] bool isClickHeld() const;
     [[nodiscard]] LiveScore::HIT getHitResult(i32 delta) const;

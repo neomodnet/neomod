@@ -859,7 +859,7 @@ void Osu::onKeyDown(KeyboardEvent &key) {
     }
 
     if(key == cv::TOGGLE_MAP_BACKGROUND.getVal<SCANCODE>()) {
-        auto diff = this->map_iface->getBeatmap();
+        auto *diff = this->map_iface->getBeatmapMutable();
         if(!diff) {
             ui->getNotificationOverlay()->addNotification("No beatmap is currently selected.");
         } else {
@@ -1097,7 +1097,7 @@ void Osu::onKeyDown(KeyboardEvent &key) {
 
         // local offset
         if(key == cv::INCREASE_LOCAL_OFFSET.getVal<SCANCODE>()) {
-            DatabaseBeatmap *curMap = this->map_iface->getBeatmap();
+            auto *curMap = this->map_iface->getBeatmapMutable();
 
             i32 offsetAdd = keyboard->isAltDown() ? 1 : 5;
             curMap->setLocalOffset(curMap->getLocalOffset() + offsetAdd);
@@ -1106,7 +1106,7 @@ void Osu::onKeyDown(KeyboardEvent &key) {
                 fmt::format("Local beatmap offset set to {} ms", curMap->getLocalOffset()));
         }
         if(key == cv::DECREASE_LOCAL_OFFSET.getVal<SCANCODE>()) {
-            DatabaseBeatmap *curMap = this->map_iface->getBeatmap();
+            auto *curMap = this->map_iface->getBeatmapMutable();
 
             i32 offsetAdd = -(keyboard->isAltDown() ? 1 : 5);
             curMap->setLocalOffset(curMap->getLocalOffset() + offsetAdd);

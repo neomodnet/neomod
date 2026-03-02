@@ -452,7 +452,7 @@ void HUD::drawCursor(vec2 pos, f32 alphaMultiplier, bool secondTrail, bool updat
             g->translate((cursorImg->getWidth() / 2.0f) * animatedScale * cv::cursor_scale.getFloat(),
                          (cursorImg->getHeight() / 2.0f) * animatedScale * cv::cursor_scale.getFloat());
 
-        if(skin->o_cursor_rotate) g->rotate(fmod(engine->getTime() * 37.0f, 360.0f));
+        if(skin->o_cursor_rotate) g->rotate(static_cast<float>(std::fmod(engine->getTime() * 37., 360.)));
 
         g->translate(pos.x, pos.y);
         g->drawImage(cursorImg);
@@ -1366,7 +1366,7 @@ const std::vector<SCORE_ENTRY> &HUD::getCurrentScores() {
 }
 
 void HUD::resetScoreboard() {
-    DatabaseBeatmap *map = osu->getMapInterface()->getBeatmap();
+    const auto *map = osu->getMapInterface()->getBeatmap();
     if(map == nullptr) return;
 
     this->beatmap_md5 = map->getMD5();
@@ -1397,7 +1397,7 @@ void HUD::updateScoreboard(bool animate) {
     if(!this->shouldDrawScoreboard()) return;  // don't do anything if we don't want to draw the scoreboard
     if(!this->player_slot) return;             // wait for resetScoreboard() (FIXME: spaghetti)
 
-    DatabaseBeatmap *map = osu->getMapInterface()->getBeatmap();
+    const auto *map = osu->getMapInterface()->getBeatmap();
     if(map == nullptr) return;
 
     if(!cv::scoreboard_animations.getBool()) {

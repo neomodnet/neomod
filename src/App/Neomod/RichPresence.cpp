@@ -42,7 +42,7 @@ void crop_to(const std::string& str, char* output, int max_len) {
 }
 
 // output is assumed to be a char[128] string
-void mapstr(DatabaseBeatmap* map, char* output, bool /*include_difficulty*/) {
+void mapstr(const DatabaseBeatmap* map, char* output, bool /*include_difficulty*/) {
     if(map == nullptr) {
         strcpy(output, "No map selected");
         return;
@@ -204,7 +204,7 @@ void onSongBrowser() {
 void onPlayStart() {
     auto map = osu->getMapInterface()->getBeatmap();
 
-    static DatabaseBeatmap* last_diff = nullptr;
+    static const DatabaseBeatmap* last_diff = nullptr;
     static int64_t tms = 0;
     if(tms == 0 || last_diff != map) {
         last_diff = map;

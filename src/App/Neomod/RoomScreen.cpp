@@ -941,7 +941,7 @@ void RoomScreen::set_new_password(const UString &new_password) {
     BANCHO::Net::send_packet(packet);
 }
 
-void RoomScreen::set_current_map(DatabaseBeatmap *map) {
+void RoomScreen::set_current_map(const DatabaseBeatmap *map) {
     if(!BanchoState::room.is_host()) return;
     if(!map) return;
 

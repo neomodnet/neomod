@@ -1147,7 +1147,7 @@ CBaseUIContainer *SongBrowser::setVisible(bool visible) {
 }
 
 void SongBrowser::selectSelectedBeatmapSongButton() {
-    DatabaseBeatmap *map = nullptr;
+    const DatabaseBeatmap *map = nullptr;
     if(this->hashToDiffButton->empty() || !(map = osu->getMapInterface()->getBeatmap())) return;
 
     auto it = this->hashToDiffButton->find(map->getMD5());
@@ -1176,7 +1176,7 @@ void SongBrowser::onPlayEnd(bool quit) {
     }
 
     // update song info
-    if(auto *bm = osu->getMapInterface()->getBeatmap()) {
+    if(auto *bm = osu->getMapInterface()->getBeatmapMutable()) {
         // also fix up modification time for improperly stored beatmaps while we're here
         // should be cheap
         // TODO: don't do this here, probably inherently racy somehow
@@ -1383,7 +1383,7 @@ void SongBrowser::refreshBeatmaps(UIScreen *next_screen) {
     this->bInitializedBeatmaps = false;
 
     // remember for initial songbrowser load
-    if(BeatmapDifficulty *map = osu->getMapInterface()->getBeatmap();
+    if(const BeatmapDifficulty *map = osu->getMapInterface()->getBeatmap();
        !!map && map->getMD5() != MD5Hash::sentinel && !map->getMD5().is_suspicious()) {
         BeatmapInterface::loading_reselect_map = map->getMD5();
     }
@@ -1512,7 +1512,7 @@ void SongBrowser::addBeatmapSet(BeatmapSet *mapset, bool initialSongBrowserLoad)
         reinterpret_cast<const std::vector<SongDifficultyButton *> &>(parentButton->getChildren());
 
     for(SongDifficultyButton *diff_btn : tempChildrenForGroups) {
-        DatabaseBeatmap *diff = diff_btn->getDatabaseBeatmap();
+        const DatabaseBeatmap *diff = diff_btn->getDatabaseBeatmap();
         assert(diff);  // we just added it
 
         // map each difficulty hash to its button
