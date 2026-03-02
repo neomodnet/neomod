@@ -218,30 +218,30 @@ bool save_collections() {
 
     const auto neomod_collections_db = Database::getDBPath(Database::DatabaseType::MCNEOMOD_COLLECTIONS);
 
-    ByteBufferedFile::Writer db(neomod_collections_db);
-    if(!db.good()) {
-        debugLog("Cannot save collections to {}: {}", neomod_collections_db, db.error());
+    ByteBufferedFile::Writer dbw(neomod_collections_db);
+    if(!dbw.good()) {
+        debugLog("Cannot save collections to {}: {}", neomod_collections_db, dbw.error());
         return false;
     }
 
-    db.write<u32>(COLLECTIONS_DB_VERSION);
+    dbw.write<u32>(COLLECTIONS_DB_VERSION);
 
     u32 nb_collections = s_collections.size();
-    db.write<u32>(nb_collections);
+    dbw.write<u32>(nb_collections);
 
     for(const auto& collection : s_collections) {
-        db.write_string(collection.name);
+        dbw.write_string(collection.name);
 
         u32 nb_deleted = collection.deleted_maps.size();
-        db.write<u32>(nb_deleted);
+        dbw.write<u32>(nb_deleted);
         for(const auto& mapmd5 : collection.deleted_maps) {
-            db.write_hash_chars(mapmd5);
+            dbw.write_hash_chars(mapmd5);
         }
 
         u32 nb_neomod = collection.neomod_maps.size();
-        db.write<u32>(nb_neomod);
+        dbw.write<u32>(nb_neomod);
         for(const auto& mapmd5 : collection.neomod_maps) {
-            db.write_hash_chars(mapmd5);
+            dbw.write_hash_chars(mapmd5);
         }
     }
 
