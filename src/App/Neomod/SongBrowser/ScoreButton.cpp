@@ -723,7 +723,7 @@ void ScoreButton::setScore(const FinishedScore &newscore, const DatabaseBeatmap 
     }
 
     this->sScoreAccuracy = fmt::format("{:.2f}%", accuracy);
-    this->sScoreAccuracyFC = fmt::format("{}{:.2f}%", sc.perfect ? "PFC " : (fullCombo ? "FC" : ""), accuracy);
+    this->sScoreAccuracyFC = fmt::format("{}{:.2f}%", sc.perfect ? "PFC " : (fullCombo ? "FC " : ""), accuracy);
 
     this->sScoreMods = getModsStringForDisplay(sc.mods);
     this->sCustom = (sc.mods.speed != 1.0f ? fmt::format("Spd: {:g}x", sc.mods.speed) : US_(""));
