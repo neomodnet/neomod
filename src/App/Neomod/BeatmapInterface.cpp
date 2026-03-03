@@ -344,10 +344,17 @@ void BeatmapInterface::onKey(GameplayKeys key_flag, bool down, u64 timestamp) {
                 return;
             }
 
+            // sanity check: if we changed resolutions after pausing, the old continue cursor point might be offscreen
+            // so re-clamp it
+            this->vContinueCursorPoint =
+                vec::clamp(this->vContinueCursorPoint, vec2{10.f, 10.f}, osu->getVirtScreenSize() - vec2{10.f, 10.f});
+
             this->bClickedContinue =
                 !ui->getModSelector()->isMouseInside() &&
                 vec::length(this->getMousePos() - this->vContinueCursorPoint) < (this->fHitcircleDiameter / 2.f);
-            if(!this->bClickedContinue) return;
+            if(!this->bClickedContinue) {
+                return;
+            }
         }
 
         if(cv::mod_singletap.getBool() && !(this->lastPressedKey & key_flag)) {
@@ -849,7 +856,9 @@ void BeatmapInterface::pause(bool quitIfWaiting) {
             this->is_submittable = false;
         }
 
-        this->vContinueCursorPoint = this->getMousePos();
+        // clamp to actual game rect (but a bit smaller)
+        this->vContinueCursorPoint =
+            vec::clamp(this->getMousePos(), vec2{10.f, 10.f}, osu->getVirtScreenSize() - vec2{10.f, 10.f});
         if(cv::mod_fps.getBool()) {
             this->vContinueCursorPoint = GameRules::getPlayfieldCenter();
         }
@@ -1982,12 +1991,6 @@ void BeatmapInterface::drawContinue() {
     const auto &cursorImage = this->getSkin()->i_cursor_default;
     const float cursorScale =
         Osu::getImageScaleToFitResolution(cursorImage, vec2(hitcircleDiameter, hitcircleDiameter));
-
-    // bleh
-    if(cursor.x < cursorImage->getWidth() || cursor.y < cursorImage->getHeight() ||
-       cursor.x > osu->getVirtScreenWidth() - cursorImage->getWidth() ||
-       cursor.y > osu->getVirtScreenHeight() - cursorImage->getHeight())
-        cursor = osu->getVirtScreenSize() / 2.f;
 
     // base
     g->setColor(argb(255, 255, 153, 51));
