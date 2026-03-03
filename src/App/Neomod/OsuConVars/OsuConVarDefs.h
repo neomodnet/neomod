@@ -848,9 +848,10 @@ CONVAR(pause_anim_duration, 0.15f, CLIENT | SKINS | SERVER);
 CONVAR(pause_dim_alpha, 0.58f, CLIENT | SKINS | SERVER);
 CONVAR(pause_dim_background, true, CLIENT | SKINS | SERVER);
 CONVAR(pause_on_focus_loss, true, CLIENT | SKINS | SERVER);
-CONVAR(
-    unpause_continue_delay, 0.15f, CLIENT,
-    R"(add a delay (in seconds) before pause menu buttons become clickable, as well as the "click to continue" cursor)");
+CONVAR(pausemenu_button_delay, 0.2f, CLIENT,
+       R"(add a delay (in seconds) before the pause menu continue/retry/quit buttons become usable)");
+CONVAR(unpause_continue_delay, 0.15f, CLIENT,
+       R"(add a delay (in seconds) before the "click to continue" cursor becomes clickable)");
 CONVAR(pvs, true, CLIENT | SKINS | SERVER,
        "optimizes all loops over all hitobjects by clamping the range to the Potentially Visible Set");
 CONVAR(quick_retry_delay, 0.27f, CLIENT | SKINS | SERVER);

@@ -8,10 +8,12 @@ class CBaseUIContainer;
 class UIPauseMenuButton;
 
 class PauseOverlay final : public UIScreen {
+    NOCOPY_NOMOVE(PauseOverlay)
    public:
     using ImageSkinMember = BasicSkinImage Skin::*;
 
     PauseOverlay();
+    ~PauseOverlay() override;
 
     void draw() override;
     void update(CBaseUIEventCtx &c) override;
@@ -34,25 +36,29 @@ class PauseOverlay final : public UIScreen {
     void onBackClicked();
 
     void onSelectionChange();
+    [[nodiscard]] bool areButtonsActive() const;
 
     void scheduleVisibilityChange(bool visible);
 
     UIPauseMenuButton *addButton(ImageSkinMember getImageFunc, UString name);
 
-    bool bScheduledVisibilityChange;
-    bool bScheduledVisibility;
-
     std::vector<UIPauseMenuButton *> buttons;
-    UIPauseMenuButton *selectedButton;
-    float fWarningArrowsAnimStartTime;
-    float fWarningArrowsAnimAlpha;
-    float fWarningArrowsAnimX;
-    float fWarningArrowsAnimY;
-    bool bInitialWarningArrowFlyIn;
+    UIPauseMenuButton *selectedButton{nullptr};
+    double fButtonsActiveTime{0.0};
+    float fButtonBrightnessAnim{1.f};
+    float fDimAnim{0.f};
 
-    bool bContinueEnabled;
-    bool bClick1Down;
-    bool bClick2Down;
+    float fWarningArrowsAnimStartTime{0.f};
+    float fWarningArrowsAnimAlpha{0.f};
+    float fWarningArrowsAnimX{0.f};
+    float fWarningArrowsAnimY{0.f};
 
-    float fDimAnim;
+    bool bScheduledVisibilityChange{false};
+    bool bScheduledVisibility{false};
+
+    bool bInitialWarningArrowFlyIn{true};
+
+    bool bContinueEnabled{true};
+    bool bClick1Down{false};
+    bool bClick2Down{false};
 };

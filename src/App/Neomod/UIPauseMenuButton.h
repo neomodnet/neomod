@@ -13,9 +13,11 @@ class UIPauseMenuButton final : public CBaseUIButton {
 
     void onMouseInside() override;
     void onMouseOutside() override;
+    void onDisabled() override;
 
     void setBaseScale(float xScale, float yScale);
     void setAlpha(float alpha) { this->fAlpha = alpha; }
+    void setBrightness(float brightness) { this->fBrightness = brightness; }
 
     [[nodiscard]] Image* getImage() const;
 
@@ -25,6 +27,7 @@ class UIPauseMenuButton final : public CBaseUIButton {
     float fScaleMultiplier;
 
     float fAlpha;
+    float fBrightness{1.0f};
 
     ImageSkinMember imageMember{nullptr};
 };

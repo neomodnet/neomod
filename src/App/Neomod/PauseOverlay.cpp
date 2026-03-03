@@ -27,22 +27,6 @@
 #include "UIPauseMenuButton.h"
 
 PauseOverlay::PauseOverlay() : UIScreen() {
-    this->bScheduledVisibility = false;
-    this->bScheduledVisibilityChange = false;
-
-    this->selectedButton = nullptr;
-    this->fWarningArrowsAnimStartTime = 0.0f;
-    this->fWarningArrowsAnimAlpha = 0.0f;
-    this->fWarningArrowsAnimX = 0.0f;
-    this->fWarningArrowsAnimY = 0.0f;
-    this->bInitialWarningArrowFlyIn = true;
-
-    this->bContinueEnabled = true;
-    this->bClick1Down = false;
-    this->bClick2Down = false;
-
-    this->fDimAnim = 0.0f;
-
     this->setSize(osu->getVirtScreenWidth(), osu->getVirtScreenHeight());
 
     UIPauseMenuButton *continueButton = this->addButton(&Skin::i_pause_continue, "Resume");
@@ -54,6 +38,14 @@ PauseOverlay::PauseOverlay() : UIScreen() {
     backButton->setClickCallback(SA::MakeDelegate<&PauseOverlay::onBackClicked>(this));
 
     this->updateLayout();
+}
+
+PauseOverlay::~PauseOverlay() {
+    anim::deleteExistingAnimation(&this->fDimAnim);
+    anim::deleteExistingAnimation(&this->fButtonBrightnessAnim);
+    anim::deleteExistingAnimation(&this->fWarningArrowsAnimAlpha);
+    anim::deleteExistingAnimation(&this->fWarningArrowsAnimX);
+    anim::deleteExistingAnimation(&this->fWarningArrowsAnimY);
 }
 
 void PauseOverlay::draw() {
@@ -92,6 +84,7 @@ void PauseOverlay::draw() {
     // draw buttons
     for(auto &button : this->buttons) {
         button->setAlpha(1.0f - (1.0f - this->fDimAnim) * (1.0f - this->fDimAnim) * (1.0f - this->fDimAnim));
+        button->setBrightness(this->fButtonBrightnessAnim);
     }
     UIScreen::draw();
 
@@ -122,6 +115,12 @@ void PauseOverlay::update(CBaseUIEventCtx &c) {
     // hide retry button in multiplayer
     this->buttons[1]->setVisible(!BanchoState::is_playing_a_multi_map());
 
+    // disable buttons until the activation delay expires
+    const bool buttonsActive = this->areButtonsActive();
+    for(auto &button : this->buttons) {
+        button->setEnabled(buttonsActive);
+    }
+
     // update and focus handling
     UIScreen::update(c);
 
@@ -134,6 +133,7 @@ void PauseOverlay::update(CBaseUIEventCtx &c) {
 }
 
 void PauseOverlay::onContinueClicked() {
+    if(!this->areButtonsActive()) return;
     if(!this->bContinueEnabled) return;
     if(anim::isAnimating(&this->fDimAnim)) return;
 
@@ -144,6 +144,7 @@ void PauseOverlay::onContinueClicked() {
 }
 
 void PauseOverlay::onRetryClicked() {
+    if(!this->areButtonsActive()) return;
     if(BanchoState::is_playing_a_multi_map()) return;  // sanity
     if(anim::isAnimating(&this->fDimAnim)) return;
 
@@ -154,6 +155,7 @@ void PauseOverlay::onRetryClicked() {
 }
 
 void PauseOverlay::onBackClicked() {
+    if(!this->areButtonsActive()) return;
     if(anim::isAnimating(&this->fDimAnim)) return;
 
     soundEngine->play(osu->getSkin()->s_click_pause_back);
@@ -195,7 +197,7 @@ void PauseOverlay::onKeyDown(KeyboardEvent &e) {
             this->bClick2Down = true;
             fireButtonClick = true;
         }
-        if(fireButtonClick) {
+        if(fireButtonClick && this->areButtonsActive()) {
             for(auto &button : this->buttons) {
                 if(button->isMouseInside()) {
                     button->click();
@@ -259,7 +261,8 @@ void PauseOverlay::onKeyDown(KeyboardEvent &e) {
             this->onSelectionChange();
         }
 
-        if(this->selectedButton != nullptr && (e == KEY_ENTER || e == KEY_NUMPAD_ENTER)) this->selectedButton->click();
+        if(this->selectedButton != nullptr && (e == KEY_ENTER || e == KEY_NUMPAD_ENTER) && this->areButtonsActive())
+            this->selectedButton->click();
     }
 
     // consume ALL events, except for a few special binds which are allowed through (e.g. for unpause or changing the
@@ -280,6 +283,8 @@ void PauseOverlay::onChar(KeyboardEvent &e) {
 
     e.consume();
 }
+
+bool PauseOverlay::areButtonsActive() const { return engine->getTime() >= this->fButtonsActiveTime; }
 
 void PauseOverlay::scheduleVisibilityChange(bool visible) {
     if(visible != this->bVisible) {
@@ -395,6 +400,14 @@ CBaseUIContainer *PauseOverlay::setVisible(bool visible) {
     this->fWarningArrowsAnimAlpha = 0.0f;
     this->bScheduledVisibility = visible;
     this->bScheduledVisibilityChange = false;
+
+    // delay button activation to prevent accidental clicks when opening the menu
+    if(this->bVisible) {
+        const float delay = cv::pausemenu_button_delay.getFloat();
+        this->fButtonsActiveTime = engine->getTime() + delay;
+        this->fButtonBrightnessAnim = 0.3f;
+        anim::moveQuadIn(&this->fButtonBrightnessAnim, 1.0f, delay, true);
+    }
 
     if(this->bVisible) this->updateLayout();
 

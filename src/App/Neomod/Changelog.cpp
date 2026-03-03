@@ -35,7 +35,11 @@ Changelog::Changelog() : ScreenBackable() {
     CHANGELOG v43_06;
     v43_06.title = "43.06 (" CHANGELOG_TIMESTAMP ")";
     v43_06.changes = {
+        R"(- Added "pausemenu_button_delay" ConVar to prevent accidental insta-retry/quit)",
+        R"(- Slightly improved progress indicator (pie chart) positioning behavior)",
         R"(- Fixed WebSocket connection closures being ignored on native client)",
+        R"(- Fixed cases where "click to continue" became unclickable)",
+        R"(- Fixed volume overlay eating pause menu up/down inputs)",
     };
     changelogs.push_back(v43_06);
 

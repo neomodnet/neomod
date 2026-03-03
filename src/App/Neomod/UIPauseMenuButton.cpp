@@ -27,7 +27,7 @@ void UIPauseMenuButton::draw() {
 
     // draw image
     if(Image *image = this->getImage(); image && image != MISSING_TEXTURE) {
-        g->setColor(argb(this->fAlpha, 1.0f, 1.0f, 1.0f));
+        g->setColor(argb(this->fAlpha, this->fBrightness, this->fBrightness, this->fBrightness));
         g->pushTransform();
         {
             // scale
@@ -78,6 +78,14 @@ void UIPauseMenuButton::onMouseOutside() {
     const float animationDuration = 0.09f;
     anim::moveLinear(&this->vScale.x, this->vBaseScale.x, animationDuration, true);
     anim::moveLinear(&this->vScale.y, this->vBaseScale.y, animationDuration, true);
+}
+
+void UIPauseMenuButton::onDisabled() {
+    CBaseUIButton::onDisabled();
+    if(this->bMouseInside) {
+        this->bMouseInside = false;
+        this->onMouseOutside();
+    }
 }
 
 Image *UIPauseMenuButton::getImage() const {
