@@ -1704,7 +1704,7 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(BeatmapDiffi
 
     // update beatmap length stat
     if(databaseBeatmap->iLengthMS == 0 && result.hitobjects.size() > 0)
-        databaseBeatmap->iLengthMS = result.hitobjects.back()->click_time + result.hitobjects.back()->duration;
+        databaseBeatmap->iLengthMS = result.hitobjects.back()->getClickTime() + result.hitobjects.back()->getDuration();
 
     // set isEndOfCombo + precalculate Score v2 combo portion maximum
     if(beatmap != nullptr) {
@@ -1720,18 +1720,19 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(BeatmapDiffi
 
             uSz scoreComboMultiplier = combo == 0 ? 0 : combo - 1;
 
-            if(currentHitObject->type == HitObjectType::CIRCLE || currentHitObject->type == HitObjectType::SPINNER) {
+            if(currentHitObject->getType() == HitObjectType::CIRCLE ||
+               currentHitObject->getType() == HitObjectType::SPINNER) {
                 scoreV2ComboPortionMaximum += (u32)(300.0 * (1.0 + (double)scoreComboMultiplier / 10.0));
                 combo++;
-            } else if(currentHitObject->type == HitObjectType::SLIDER) {
+            } else if(currentHitObject->getType() == HitObjectType::SLIDER) {
                 combo += 1 + static_cast<const Slider *>(currentHitObject)->getClicks().size();
                 scoreComboMultiplier = combo == 0 ? 0 : combo - 1;
                 scoreV2ComboPortionMaximum += (u32)(300.0 * (1.0 + (double)scoreComboMultiplier / 10.0));
                 combo++;
             }
 
-            if(nextHitObject == nullptr || nextHitObject->combo_number == 1) {
-                currentHitObject->is_end_of_combo = true;
+            if(nextHitObject == nullptr || nextHitObject->getComboNumber() == 1) {
+                currentHitObject->setIsEndOfCombo(true);
             }
         }
 
@@ -1750,8 +1751,8 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(BeatmapDiffi
             // NOTE: spinners don't increment the combo number
             int comboNumber = 1;
             for(const auto &currentHitObject : result.hitobjects) {
-                if(currentHitObject->type != HitObjectType::SPINNER) {
-                    currentHitObject->combo_number = comboNumber;
+                if(currentHitObject->getType() != HitObjectType::SPINNER) {
+                    currentHitObject->setComboNumber(comboNumber);
                     comboNumber++;
                 }
             }
@@ -1760,10 +1761,10 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(BeatmapDiffi
         const int numberMax = cv::number_max.getInt();
         if(numberMax > 0) {
             for(const auto &currentHitObject : result.hitobjects) {
-                const int currentComboNumber = currentHitObject->combo_number;
+                const int currentComboNumber = currentHitObject->getComboNumber();
                 const int newComboNumber = (currentComboNumber % numberMax);
 
-                currentHitObject->combo_number = (newComboNumber == 0) ? numberMax : newComboNumber;
+                currentHitObject->setComboNumber((newComboNumber == 0) ? numberMax : newComboNumber);
             }
         }
     }

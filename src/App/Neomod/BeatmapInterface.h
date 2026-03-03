@@ -24,9 +24,9 @@ struct LiveReplayFrame;
 struct ScoreFrame;
 
 struct Click {
-    u64 timestamp;  // Timing::getTicksNS() when the event occurred
-    vec2 pos{0.f};
-    i32 music_pos;  // current music position when the click happened
+    u64 timestampNS;      // Timing::getTicksNS() when the event occurred
+    vec2 cursorPos{0.f};  // cursor position when the click happened
+    i32 musicPosMS;       // current music position when the click happened
 };
 
 class BeatmapInterface final : public AbstractBeatmapInterface {
