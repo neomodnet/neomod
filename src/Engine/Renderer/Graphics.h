@@ -276,6 +276,8 @@ class Graphics {
     void offset3DScene(float x, float y, float z = 0);
 
    protected:
+    static vec2 getAnchoredOrigin(AnchorPoint anchor, vec2 size);
+
     virtual bool init() { return true; }   // must be called after the OS implementation constructor
     virtual void onTransformUpdate() = 0;  // called if matrices have changed and need to be (re-)applied/uploaded
 

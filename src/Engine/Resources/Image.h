@@ -41,8 +41,9 @@ class Image : public Resource {
     virtual inline void setFilterMode(TextureFilterMode filterMode) { this->filterMode = filterMode; };
     virtual inline void setWrapMode(TextureWrapMode wrapMode) { this->wrapMode = wrapMode; };
 
+    // these functions will require a reload() to upload to GPU
     void setPixel(i32 x, i32 y, Color color);
-    void setPixels(const std::vector<u8> &pixels);
+    void setImageData(i32 w, i32 h, const u8 *rgbaPixels);
     void setRegion(i32 x, i32 y, i32 w, i32 h, const u8 *rgbaPixels);
     void clearRegion(i32 x, i32 y, i32 w, i32 h);
 
@@ -59,6 +60,9 @@ class Image : public Resource {
 
     // all images are converted to RGBA
     static constexpr const u8 NUM_CHANNELS{4};
+
+    // used by renderer backends
+    [[nodiscard]] inline bool isGPUReady() const { return this->isReady() && !this->bLoadedImageEntirelyTransparent; }
 
    protected:
     void init() override = 0;

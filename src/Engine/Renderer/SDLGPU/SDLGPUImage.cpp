@@ -71,6 +71,11 @@ void SDLGPUImage::init() {
         this->setReady(false);
         return;
     }
+    if(this->bLoadedImageEntirelyTransparent) {
+        this->setReady(true);
+        this->setAsyncReady(true);
+        return;
+    }
     if(!this->isAsyncReady()) return;
 
     this->resetDirtyRegion();
@@ -161,7 +166,7 @@ void SDLGPUImage::destroy() {
 }
 
 void SDLGPUImage::bind(unsigned int /*textureUnit*/) const {
-    if(!m_gpu || !m_device || !this->isReady()) return;
+    if(!m_gpu || !m_device || !this->isGPUReady()) return;
 
     // backup current
     m_prevTexture = m_gpu->getBoundTexture();
@@ -174,7 +179,7 @@ void SDLGPUImage::bind(unsigned int /*textureUnit*/) const {
 }
 
 void SDLGPUImage::unbind() const {
-    if(!m_gpu || !m_device || !this->isReady()) return;
+    if(!m_gpu || !m_device || !this->isGPUReady()) return;
 
     m_gpu->setBoundTexture(m_prevTexture);
     m_gpu->setBoundSampler(m_prevSampler);
@@ -182,13 +187,13 @@ void SDLGPUImage::unbind() const {
 
 void SDLGPUImage::setFilterMode(TextureFilterMode newFilterMode) {
     Image::setFilterMode(newFilterMode);
-    if(!m_gpu || !m_device || !this->isReady()) return;
+    if(!m_gpu || !m_device || !this->isGPUReady()) return;
     createOrUpdateSampler();
 }
 
 void SDLGPUImage::setWrapMode(TextureWrapMode newWrapMode) {
     Image::setWrapMode(newWrapMode);
-    if(!m_gpu || !m_device || !this->isReady()) return;
+    if(!m_gpu || !m_device || !this->isGPUReady()) return;
     createOrUpdateSampler();
 }
 

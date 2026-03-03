@@ -1,14 +1,51 @@
 // Copyright (c) 2016, PG, All rights reserved.
 #include "Graphics.h"
 
-#include <cmath>
-
 #include "Camera.h"
 #include "ConVar.h"
 #include "Engine.h"
 #include "Environment.h"
 #include "Image.h"
 #include "Logging.h"
+
+#include <cmath>
+#include <utility>
+
+vec2 Graphics::getAnchoredOrigin(AnchorPoint anchor, vec2 size) {
+    vec2 ret;
+    switch(anchor) {
+        case AnchorPoint::CENTER:
+            ret.x = -size.x / 2;
+            ret.y = -size.y / 2;
+            break;
+        case AnchorPoint::TOP_LEFT:
+            ret.x = 0;
+            ret.y = 0;
+            break;
+        case AnchorPoint::TOP_RIGHT:
+            ret.x = -size.x;
+            ret.y = 0;
+            break;
+        case AnchorPoint::BOTTOM_LEFT:
+            ret.x = 0;
+            ret.y = -size.y;
+            break;
+        case AnchorPoint::LEFT:
+            ret.x = 0;
+            ret.y = -size.y / 2;
+            break;
+        default:
+            if constexpr(Env::cfg(BUILD::DEBUG)) {
+                debugLog("AnchorPoint {} not implemented", static_cast<size_t>(anchor));
+                ret.x = 0;
+                ret.y = 0;
+            } else {
+                std::unreachable();
+            }
+            break;
+    }
+    return ret;
+}
 
 void Graphics::takeScreenshot(ScreenshotParams params) { this->pendingScreenshots.push_back(std::move(params)); }
 

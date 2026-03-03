@@ -443,7 +443,9 @@ std::vector<McIRect> Image::getDirtyRects() {
 }
 
 bool Image::loadRawImage() {
-    bool alreadyLoaded = !!this->rawImage.get() && this->totalBytes() >= 4;
+    const bool alreadyLoaded =
+        (!!this->rawImage.get() && this->totalBytes() >= 4) ||
+        (!this->bCreatedImage && this->bLoadedImageEntirelyTransparent && this->iWidth > 0 && this->iHeight > 0);
 
     auto exit = [this]() -> bool {
         // if we were interrupted, it's not a load error
@@ -560,11 +562,18 @@ bool Image::loadRawImage() {
     this->iWidth = this->rawImage.getX();
     this->iHeight = this->rawImage.getY();
 
+    if(this->bLoadedImageEntirelyTransparent) {
+        // don't keep entirely transparent images in memory at all (this is checked in the graphics backends' init() calls)
+        this->rawImage.clear();
+    }
+
     return !this->bLoadedImageEntirelyTransparent;
 }
 
 Color Image::getPixel(i32 x, i32 y) const {
-    if(unlikely(x < 0 || y < 0 || this->totalBytes() < 1)) return 0xffffff00;
+    if(unlikely(x < 0 || y < 0 || this->totalBytes() < 1)) {
+        return this->bLoadedImageEntirelyTransparent ? 0x00000000 : 0xffffff00;
+    }
 
     const u64 indexEnd = static_cast<u64>(Image::NUM_CHANNELS) * y * this->rawImage.getX() +
                          static_cast<u64>(Image::NUM_CHANNELS) * x + Image::NUM_CHANNELS;
@@ -581,7 +590,17 @@ Color Image::getPixel(i32 x, i32 y) const {
 }
 
 void Image::setPixel(i32 x, i32 y, Color color) {
-    assert(!(x < 0 || y < 0 || this->totalBytes() < 1) && "setPixel: out of bounds");
+    assert(!(x < 0 || y < 0) && "setPixel: out of bounds");
+    if(this->totalBytes() < 1 && this->bLoadedImageEntirelyTransparent) {
+        // allow setting fully transparent loaded images' pixels to non-transparent by creating a new rawImage
+        // (since we deleted it in initAsync)
+        // (not currently used, but support it to avoid surprises)
+        if(color == 0) {
+            return;  // we would not do anything trying to set an already entirely-transparent image pixel to entirely-transparent
+        }
+        this->rawImage = SizedRGBABytes{this->iWidth, this->iHeight, true};
+        this->bLoadedImageEntirelyTransparent = false;
+    }
 
 #ifdef _DEBUG
     const u64 indexEnd = static_cast<u64>(Image::NUM_CHANNELS) * y * this->rawImage.getX() +
@@ -597,7 +616,7 @@ void Image::setPixel(i32 x, i32 y, Color color) {
     this->rawImage[indexBegin + 2] = color.B();
     this->rawImage[indexBegin + 3] = color.A();
     if(!this->bCreatedImage) {
-        if(color.A() != 0) {
+        if(color != 0) {
             // play it safe, don't recompute the entire alpha channel visibility here
             this->bLoadedImageEntirelyTransparent = false;
         }
@@ -608,8 +627,13 @@ void Image::setPixel(i32 x, i32 y, Color color) {
 }
 
 void Image::setRegion(i32 x, i32 y, i32 w, i32 h, const u8 *rgbaPixels) {
+    assert(!!rgbaPixels);
     assert(x >= 0 && y >= 0 && w > 0 && h > 0);
     assert(x + w <= this->iWidth && y + h <= this->iHeight);
+    if(this->totalBytes() < 1 && this->bLoadedImageEntirelyTransparent) {
+        this->rawImage = SizedRGBABytes{this->iWidth, this->iHeight, true};
+        this->bLoadedImageEntirelyTransparent = false;
+    }
 
     const sSz stride = static_cast<sSz>(this->iWidth) * NUM_CHANNELS;
     u8 *dst = this->rawImage.get() + static_cast<sSz>(y) * stride + static_cast<sSz>(x) * NUM_CHANNELS;
@@ -655,16 +679,17 @@ void Image::clearRegion(i32 x, i32 y, i32 w, i32 h) {
     }
 }
 
-void Image::setPixels(const std::vector<u8> &pixels) {
-    if(pixels.size() < this->totalBytes()) {
-        debugLog("Image Error: setPixels() supplied array is too small!");
-        return;
+void Image::setImageData(i32 w, i32 h, const u8 *rgbaPixels) {
+    assert(!!rgbaPixels);
+    assert(w >= 0 && h >= 0);
+    if(w == this->iWidth && h == this->iHeight) {
+        return setRegion(0, 0, w, h, rgbaPixels);
     }
+    assert(w <= 16384 && h <= 16384);
 
-    assert(this->totalBytes() == static_cast<u64>(this->iWidth) * this->iHeight * NUM_CHANNELS &&
-           "width and height are somehow out of sync with raw image");
+    this->rawImage = SizedRGBABytes{w, h};
 
-    std::memcpy(this->rawImage.get(), pixels.data(), this->totalBytes());
+    std::memcpy(this->rawImage.get(), rgbaPixels, this->totalBytes());
     if(!this->bCreatedImage) {
         // recompute alpha channel visibility here (TODO: remove if slow)
         this->bLoadedImageEntirelyTransparent = isRawImageCompletelyTransparent();

@@ -760,7 +760,16 @@ void SDLGPUInterface::drawQuad(vec2 topLeft, vec2 topRight, vec2 bottomRight, ve
 // 2d resource drawing
 
 void SDLGPUInterface::drawImage(const Image *image, AnchorPoint anchor, float edgeSoftness, McRect clipRect) {
-    if(image == nullptr || !image->isReady()) return;
+    // skip entirely transparent images or if the current transparency is disabled
+    if(image == nullptr || !image->isGPUReady() || m_color.A() == 0) {
+        if (image && cv::r_debug_drawimage.getBool()) {
+            const vec2 size = image->getSize();
+            const vec2 pos = getAnchoredOrigin(anchor, size);
+            this->setColor(0xbbff00ff);
+            Graphics::drawRectf(pos.x, pos.y, size.x, size.y);
+        }
+        return;
+    }
 
     const bool clipRectSpecified = vec::length(clipRect.getSize()) != 0;
     bool smoothedEdges = edgeSoftness > 0.0f;
@@ -777,39 +786,12 @@ void SDLGPUInterface::drawImage(const Image *image, AnchorPoint anchor, float ed
     this->updateTransform();
     this->setTexturing(true);
 
-    const float width = (float)image->getWidth();
-    const float height = (float)image->getHeight();
-
-    f32 x{}, y{};
-    switch(anchor) {
-        case AnchorPoint::CENTER:
-            x = -width / 2;
-            y = -height / 2;
-            break;
-        case AnchorPoint::TOP_LEFT:
-            x = 0;
-            y = 0;
-            break;
-        case AnchorPoint::TOP_RIGHT:
-            x = -width;
-            y = 0;
-            break;
-        case AnchorPoint::BOTTOM_LEFT:
-            x = 0;
-            y = -height;
-            break;
-        case AnchorPoint::LEFT:
-            x = 0;
-            y = -height / 2;
-            break;
-        default:
-            x = 0;
-            y = 0;
-            break;
-    }
+    const vec2 size = image->getSize();
+    const vec2 pos = getAnchoredOrigin(anchor, size);
+    const auto [x, y, width, height] = std::tuple{pos.x, pos.y, size.x, size.y};
 
     if(smoothedEdges && !clipRectSpecified) {
-        clipRect = McRect{x, y, width, height};
+        clipRect = McRect{pos, size};
     }
 
     if(smoothedEdges) {
@@ -827,21 +809,23 @@ void SDLGPUInterface::drawImage(const Image *image, AnchorPoint anchor, float ed
         m_smoothClipShader->setUniformMatrix4fv("mvp", this->MP);
     }
 
-    static VertexArrayObject vao(DrawPrimitive::QUADS);
+    static VertexArrayObject vao(DrawPrimitive::TRIANGLE_STRIP);
+    vao.clear();
     {
-        vao.clear();
         vao.addVertex(x, y);
         vao.addTexcoord(0, 0);
         vao.addVertex(x, y + height);
         vao.addTexcoord(0, 1);
-        vao.addVertex(x + width, y + height);
-        vao.addTexcoord(1, 1);
         vao.addVertex(x + width, y);
         vao.addTexcoord(1, 0);
+        vao.addVertex(x + width, y + height);
+        vao.addTexcoord(1, 1);
     }
 
     image->bind();
-    this->drawVAO(&vao);
+    {
+        this->drawVAO(&vao);
+    }
     image->unbind();
 
     if(smoothedEdges) {

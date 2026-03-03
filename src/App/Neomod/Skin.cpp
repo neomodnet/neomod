@@ -187,7 +187,7 @@ bool Skin::isReady() const {
     }
 
     for(const auto *image : this->images) {
-        if(!image->isReady()) return false;
+        if(!image->areImagesFinishedLoading()) return false;
     }
 
     // (ready is set in update())
@@ -749,14 +749,8 @@ void Skin::loadBeatmapOverride(std::string_view /*filepath*/) {
 }
 
 void Skin::reloadSounds() {
-    std::vector<Resource *> soundResources;
-    soundResources.reserve(this->sounds.size());
-
-    for(auto &sound : this->sounds) {
-        soundResources.push_back(sound);
-    }
-
-    resourceManager->reloadResources(soundResources, cv::skin_async.getBool());
+    resourceManager->reloadResources(reinterpret_cast<const std::vector<Resource *> &>(this->sounds),
+                                     cv::skin_async.getBool());
 }
 
 bool Skin::parseSkinINI(std::string filepath) {

@@ -20,8 +20,14 @@ OpenGLImage::~OpenGLImage() {
 
 void OpenGLImage::init() {
     // only load if not:
+    // 0. entirely transparent
     // 1. already uploaded to gpu, and we didn't keep the image in system memory
     // 2. failed to async load
+    if(this->bLoadedImageEntirelyTransparent) {
+        this->setReady(true);
+        this->setAsyncReady(true);
+        return;
+    }
     if((this->GLTexture != 0 && !this->bKeepInSystemMemory) || !(this->isAsyncReady())) {
         if(cv::debug_image.getBool()) {
             debugLog(
@@ -159,7 +165,7 @@ void OpenGLImage::deleteGL() {
 }
 
 void OpenGLImage::bind(unsigned int textureUnit) const {
-    if(!this->isReady()) return;
+    if(!this->isGPUReady()) return;
 
     this->iTextureUnitBackup = textureUnit;
 
@@ -176,7 +182,7 @@ void OpenGLImage::bind(unsigned int textureUnit) const {
 }
 
 void OpenGLImage::unbind() const {
-    if(!this->isReady() || !cv::r_gl_image_unbind.getBool()) return;
+    if(!this->isGPUReady() || !cv::r_gl_image_unbind.getBool()) return;
 
     // restore texture unit (just in case) and set to no texture
     glActiveTexture(GL_TEXTURE0 + this->iTextureUnitBackup);
@@ -188,7 +194,7 @@ void OpenGLImage::unbind() const {
 
 void OpenGLImage::setFilterMode(TextureFilterMode filterMode) {
     Image::setFilterMode(filterMode);
-    if(!this->isReady()) return;
+    if(!this->isGPUReady()) return;
 
     bind();
     {
@@ -212,7 +218,7 @@ void OpenGLImage::setFilterMode(TextureFilterMode filterMode) {
 
 void OpenGLImage::setWrapMode(TextureWrapMode wrapMode) {
     Image::setWrapMode(wrapMode);
-    if(!this->isReady()) return;
+    if(!this->isGPUReady()) return;
 
     bind();
     {

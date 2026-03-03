@@ -52,14 +52,21 @@ DirectX11Image::~DirectX11Image() {
 }
 
 void DirectX11Image::init() {
+    // only load if not:
+    // 0. entirely transparent
+    // 1. already uploaded to gpu, and we didn't keep the image in system memory
+    // 2. failed to async load
+    if(this->bLoadedImageEntirelyTransparent) {
+        this->setReady(true);
+        this->setAsyncReady(true);
+        return;
+    }
     if((this->texture != nullptr && !this->bKeepInSystemMemory) || !this->isAsyncReady()) {
-        if(cv::debug_image.getBool()) {
-            debugLog(
+        logIfCV(debug_image,
                 "we are already loaded, bReady: {} createdImage: {} texture: {:p} bKeepInSystemMemory: {} bAsyncReady: "
                 "{}",
                 this->isReady(), this->bCreatedImage, fmt::ptr(this->texture), this->bKeepInSystemMemory,
                 this->isAsyncReady());
-        }
         return;  // only load if we are not already loaded
     }
 
@@ -269,7 +276,7 @@ void DirectX11Image::deleteDX() {
 }
 
 void DirectX11Image::bind(unsigned int textureUnit) const {
-    if(!this->isReady()) return;
+    if(!this->isGPUReady()) return;
 
     this->iTextureUnitBackup = textureUnit;
 
@@ -294,7 +301,7 @@ void DirectX11Image::bind(unsigned int textureUnit) const {
 }
 
 void DirectX11Image::unbind() const {
-    if(!this->isReady()) return;
+    if(!this->isGPUReady()) return;
 
     // restore
     // HACKHACK: slow af
@@ -329,7 +336,7 @@ void DirectX11Image::setFilterMode(TextureFilterMode filterMode) {
 
     // TODO: anisotropic filtering support (this->samplerDesc.Filter = D3D11_FILTER_ANISOTROPIC), needs new FILTER_MODE_ANISOTROPIC and support in other renderers (implies mipmapping)
 
-    if(!this->isReady()) return;
+    if(!this->isGPUReady()) return;
 
     createOrUpdateSampler();
 }
@@ -350,7 +357,7 @@ void DirectX11Image::setWrapMode(TextureWrapMode wrapMode) {
             break;
     }
 
-    if(!this->isReady()) return;
+    if(!this->isGPUReady()) return;
 
     createOrUpdateSampler();
 }

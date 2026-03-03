@@ -65,7 +65,7 @@ class SkinImage final {
 
     [[nodiscard]] float getResolutionScale() const;
 
-    [[nodiscard]] bool isReady() const;
+    [[nodiscard]] bool areImagesFinishedLoading() const;
 
     [[nodiscard]] inline int getNumImages() const { return this->images.size(); }
     [[nodiscard]] inline float getFrameDuration() const { return this->fFrameDuration; }
