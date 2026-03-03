@@ -895,10 +895,9 @@ void HUD::drawNumberWithSkinDigits(const SkinDigitDrawOpts &opts) {
         divisor /= 10;
 
         const auto &img = images[digit];
-        g->translate(width * 0.5f * opts.scale, 0);
+        g->translate((width * 0.5f) * opts.scale, 0);
         g->drawImage(img);
-        g->translate(width * 0.5f * opts.scale, 0);
-        g->translate(-overlap * multiplier * opts.scale, 0);
+        g->translate(((-overlap * multiplier) + (width * 0.5f)) * opts.scale, 0);
     }
 }
 
@@ -1125,18 +1124,36 @@ void HUD::drawAccuracy(f32 accuracy) {
         Osu::getImageScale(skin->i_scores[0], 13) * cv::hud_scale.getFloat() * cv::hud_accuracy_scale.getFloat();
     g->pushTransform();
     {
-        const i32 numDigits = (accuracyInt > 99 ? 5 : 4);
-        const f32 xOffset = skin->i_scores[0]->getWidth() * scale * numDigits +
-                            (skin->i_score_dot != MISSING_TEXTURE ? skin->i_score_dot->getWidth() : 0) * scale +
-                            (skin->i_score_percent != MISSING_TEXTURE ? skin->i_score_percent->getWidth() : 0) * scale -
-                            skin->score_overlap_amt * (skin->i_scores[0].scale()) * scale * (numDigits + 1);
+        constexpr i32 numTotalDigits = 5;
+        const i32 numDrawDigits = (accuracyInt > 99 ? 5 : 4);
 
-        this->fAccuracyXOffset = osu->getVirtScreenWidth() - xOffset - offset;
+        const i32 dotWidth = (scale * (skin->i_score_dot != MISSING_TEXTURE ? skin->i_score_dot->getWidth() : 0));
+        const i32 pctWidth =
+            (scale * (skin->i_score_percent != MISSING_TEXTURE ? skin->i_score_percent->getWidth() : 0));
+        const i32 digitWidth = (scale * skin->i_scores[0]->getWidth());
+        const i32 digitOverlapSize = (scale * skin->score_overlap_amt * (skin->i_scores[0].scale()));
+
+        // TODO: this calculation seems wrong if we want to draw them like osu!stable
+        const f32 xOffset = digitWidth * numDrawDigits +  //
+                            dotWidth +                    //
+                            pctWidth -                    //
+                            digitOverlapSize * (numDrawDigits + 1);
+
+        // for HUD::drawProgressBar, to not move the progress bar depending on accuracy
+        // TODO: seems like it should only depend on score_percent?
+        const f32 xOffsetConst = digitWidth * (numTotalDigits - 1) +  // questionable
+                                 dotWidth +                           //
+                                 pctWidth -                           //
+                                 digitOverlapSize * numTotalDigits;
+
+        const f32 drawXOffset = osu->getVirtScreenWidth() - xOffset - offset;
+
+        this->fAccuracyXOffset = osu->getVirtScreenWidth() - xOffsetConst - offset;
         this->fAccuracyYOffset = (cv::draw_score.getBool() ? this->fScoreHeight : 0.0f) +
                                  skin->i_scores[0]->getHeight() * scale / 2 + offset * 2;
 
         g->scale(scale, scale);
-        g->translate(this->fAccuracyXOffset, this->fAccuracyYOffset);
+        g->translate(drawXOffset, this->fAccuracyYOffset);
 
         HUD::drawNumberWithSkinDigits({.number = (u64)accuracyInt, .scale = scale, .combo = false, .minDigits = 2});
 
