@@ -2764,7 +2764,6 @@ void Spinner::onHit() {
     if(this->pf != nullptr && result != LiveScore::HIT::HIT_MISS) {
         const vec2 osuCoords = this->pf->pixels2OsuCoords(this->pf->osuCoords2Pixels(this->vRawPos));
         f32 pan = GameRules::osuCoords2Pan(osuCoords.x);
-        // TODO: skin->bSpinnerFrequencyModulate (pitch up the longer the spinner goes)
         this->samples.play(pan, 0);
     }
 
@@ -2808,13 +2807,19 @@ void Spinner::rotate(float rad) {
 
     // spinner sound
     if(this->pf != nullptr && !this->pf->bWasSeekFrame) {
-        const auto spinner_spinsound = this->pf->getSkin() ? this->pf->getSkin()->s_spinner_spin : nullptr;
+        const Skin *skin = this->pf->getSkin();
+        Sound *spinner_spinsound = skin ? skin->s_spinner_spin : nullptr;
         if(spinner_spinsound) {
             if(!spinner_spinsound->isPlaying()) {
                 soundEngine->play(spinner_spinsound);
             }
-            const float frequency = 20000.0f + (int)(std::clamp<float>(this->fRatio, 0.0f, 2.5f) * 40000.0f);
-            spinner_spinsound->setFrequency(frequency);
+            if(skin->o_spinner_frequency_modulate) {
+                const float frequency = 20000.0f + (int)(std::clamp<float>(this->fRatio, 0.0f, 2.5f) * 40000.0f);
+                spinner_spinsound->setFrequency(frequency);
+            } else {
+                // sanity reset
+                spinner_spinsound->setFrequency(0);
+            }
         }
     }
 
