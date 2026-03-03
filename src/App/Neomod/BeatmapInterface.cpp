@@ -336,7 +336,7 @@ void BeatmapInterface::onKey(GameplayKeys key_flag, bool down, u64 timestamp) {
         // allow held keys to change while paused, but don't animate or anything
         // to reiterate, this needs to happen because we have no separate outside-gameplay-held-keys state (anymore),
         // BeatmapInterface::current_keys is the only source of truth
-        if(!osu->isInPlayMode()) return;
+        if(!osu->isInPlayMode() || this->bIsPaused) return;
 
         if(this->bContinueScheduled) {
             // don't insta-unpause if we had a held key or doubleclicked or something
@@ -346,11 +346,9 @@ void BeatmapInterface::onKey(GameplayKeys key_flag, bool down, u64 timestamp) {
 
             this->bClickedContinue =
                 !ui->getModSelector()->isMouseInside() &&
-                vec::length(this->getCursorPos() - this->vContinueCursorPoint) < (this->fHitcircleDiameter / 2.f);
+                vec::length(this->getMousePos() - this->vContinueCursorPoint) < (this->fHitcircleDiameter / 2.f);
             if(!this->bClickedContinue) return;
         }
-
-        if(this->bIsPaused && !this->bContinueScheduled) return;
 
         if(cv::mod_singletap.getBool() && !(this->lastPressedKey & key_flag)) {
             if(this->iCurrentHitObjectIndex > this->iAllowAnyNextKeyUntilHitObjectIndex) {
@@ -1798,7 +1796,7 @@ void BeatmapInterface::draw() {
     }
 
     // draw continue overlay (moved from HUD to draw properly in FPoSu)
-    if(this->isContinueScheduled() && cv::draw_continue.getBool()) this->drawContinue();
+    if(this->isContinueScheduled() && !this->isPaused() && cv::draw_continue.getBool()) this->drawContinue();
 
     // draw spectator pause message
     if(this->spectate_pause) {
