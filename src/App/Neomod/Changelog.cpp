@@ -17,6 +17,7 @@
 #include "Environment.h"
 #include "MakeDelegateWrapper.h"
 #include "UI.h"
+#include "ConVar.h"
 
 #include "build_timestamp.h"
 
@@ -1019,6 +1020,76 @@ class ChangelogLabel final : public CBaseUIButton {
         return CBaseUIButton::isMouseInside() && !ui->getChangelog()->backButton->isMouseInside();
     }
 };
+
+class ChangelogTitleLabel final : public CBaseUILabel {
+    NOCOPY_NOMOVE(ChangelogTitleLabel)
+   private:
+    static std::pair<std::string, double> parseVerFromText(const UString &text) {
+        std::pair<std::string, double> ret;
+
+        if(const int firstWhitespace = text.find(u' '); firstWhitespace != -1) {
+            const auto versionSubstr = text.substr(0, firstWhitespace);
+            const auto [versionDbl, err] = versionSubstr.to<f64>();
+            const bool good = err == std::errc();
+            if(good && versionDbl >= 38.00) {
+                ret.first = versionSubstr.utf8View();
+                ret.second = versionDbl;
+            }
+        }
+
+        return ret;
+    }
+
+   public:
+    ChangelogTitleLabel(const UString &text, const UString &previousText) : CBaseUILabel(0, 0, 0, 0, "", text) {
+        if(text.isEmpty()) return;
+
+        const auto [curVerStr, curVerNum] = parseVerFromText(text);
+
+        // NOTE: PACKAGE_URL should point to https://github.com/neomodnet/neomod
+        if(curVerNum < cv::version.getDouble()) {
+            // older version text, link to tag directly
+            this->clickableURL = fmt::format(PACKAGE_URL "/releases/tag/v{}", curVerStr);
+        } else if(const auto [prevVerStr, prevVerNum] = parseVerFromText(previousText);
+                  (Osu::isBleedingEdge() || Env::cfg(BUILD::DEBUG)) && !prevVerStr.empty() && prevVerNum <= curVerNum) {
+            // show latest commits
+            this->clickableURL = fmt::format(PACKAGE_URL "/compare/v{}...master", prevVerStr);
+        } else {
+            // point to the github releases page by itself
+            this->clickableURL = PACKAGE_URL "/releases";
+        }
+    }
+
+    ~ChangelogTitleLabel() override = default;
+
+    void draw() override {
+        if(this->bVisible && this->isMouseInside() && !this->clickableURL.empty()) {
+            // highlight if we have a clickable url
+            g->setColor(0x3fffffff);
+
+            const int marginY = 10;
+            const int marginX = 10;
+            g->fillRect(this->getPos().x - marginX, this->getPos().y - marginY, this->getSize().x + marginX * 2,
+                        this->getSize().y + marginY * 2);
+        }
+
+        CBaseUILabel::draw();
+    }
+
+    void onMouseUpInside(bool /*left*/ = true, bool /*right*/ = false) override {
+        if(!this->clickableURL.empty()) {
+            env->openURLInDefaultBrowser(this->clickableURL);
+        }
+    }
+
+    bool isMouseInside() override {
+        return CBaseUILabel::isMouseInside() && !ui->getChangelog()->backButton->isMouseInside();
+    }
+
+   private:
+    std::string clickableURL;
+};
+
 }  // namespace
 
 void Changelog::addAllChangelogs(std::vector<CHANGELOG> &&logtexts) {
@@ -1027,7 +1098,8 @@ void Changelog::addAllChangelogs(std::vector<CHANGELOG> &&logtexts) {
         CHANGELOG_UI changelog;
 
         // title label
-        changelog.title = new CBaseUILabel(0, 0, 0, 0, "", changelogs[i].title);
+        changelog.title =
+            new ChangelogTitleLabel(changelogs[i].title, i < changelogs.size() - 1 ? changelogs[i + 1].title : "");
         if(i == 0)
             changelog.title->setTextColor(0xff00ff00);
         else
