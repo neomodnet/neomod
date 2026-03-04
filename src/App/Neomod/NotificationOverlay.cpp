@@ -63,6 +63,12 @@ NotificationOverlay::NotificationOverlay() : UIScreen() {
 NotificationOverlay::~NotificationOverlay() {
     cv::cmd::notify.removeCallback();
     cv::cmd::toast.removeCallback();
+    anim::deleteExistingAnimation(&this->notification1.alpha);
+    anim::deleteExistingAnimation(&this->notification1.backgroundAnim);
+    anim::deleteExistingAnimation(&this->notification1.fallAnim);
+    anim::deleteExistingAnimation(&this->notification2.alpha);
+    anim::deleteExistingAnimation(&this->notification2.backgroundAnim);
+    anim::deleteExistingAnimation(&this->notification2.fallAnim);
 }
 
 static constexpr f32 DEF_TOAST_WIDTH{350.0f};

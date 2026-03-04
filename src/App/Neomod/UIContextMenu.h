@@ -12,6 +12,7 @@ class UIContextMenuButton;
 class UIContextMenuTextbox;
 
 class UIContextMenu final : public CBaseUIScrollView {
+    NOCOPY_NOMOVE(UIContextMenu)
    public:
     void clampToBottomScreenEdge();
     void clampToRightScreenEdge();
@@ -19,6 +20,7 @@ class UIContextMenu final : public CBaseUIScrollView {
    public:
     UIContextMenu(float xPos = 0, float yPos = 0, float xSize = 0, float ySize = 0, const UString &name = {},
                   CBaseUIScrollView *parent = nullptr);
+    ~UIContextMenu() override;
 
     void draw() override;
     void update(CBaseUIEventCtx &c) override;

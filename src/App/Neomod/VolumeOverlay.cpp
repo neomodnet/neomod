@@ -69,6 +69,12 @@ VolumeOverlay::VolumeOverlay() : UIScreen() {
     this->updateLayout();
 }
 
+VolumeOverlay::~VolumeOverlay() {
+    anim::deleteExistingAnimation(&this->fVolumeChangeFade);
+    anim::deleteExistingAnimation(&this->fLastVolume);
+    anim::deleteExistingAnimation(&this->fVolumeInactiveToActiveAnim);
+}
+
 void VolumeOverlay::animate() {
     const bool active = this->fVolumeChangeTime > engine->getTime();
     this->fVolumeChangeTime = engine->getTime() + cv::hud_volume_duration.getFloat() + 0.2f;

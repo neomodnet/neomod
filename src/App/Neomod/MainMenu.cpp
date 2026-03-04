@@ -350,19 +350,18 @@ MainMenu::~MainMenu() {
 
     this->clearPreloadedMaps();
 
-    anim::deleteExistingAnimation(&this->fUpdateButtonAnim);
-
-    anim::deleteExistingAnimation(&this->fMainMenuAnimFriendEyeFollowX);
-    anim::deleteExistingAnimation(&this->fMainMenuAnimFriendEyeFollowY);
-
+    anim::deleteExistingAnimation(&this->fCenterOffsetAnim);
     anim::deleteExistingAnimation(&this->fMainMenuAnim);
     anim::deleteExistingAnimation(&this->fMainMenuAnim1);
     anim::deleteExistingAnimation(&this->fMainMenuAnim2);
     anim::deleteExistingAnimation(&this->fMainMenuAnim3);
-
-    anim::deleteExistingAnimation(&this->fCenterOffsetAnim);
+    anim::deleteExistingAnimation(&this->fMainMenuAnimFriendEyeFollowX);
+    anim::deleteExistingAnimation(&this->fMainMenuAnimFriendEyeFollowY);
+    anim::deleteExistingAnimation(&this->fSizeAddAnim);
     anim::deleteExistingAnimation(&this->fStartupAnim);
     anim::deleteExistingAnimation(&this->fStartupAnim2);
+    anim::deleteExistingAnimation(&this->fUpdateButtonAnim);
+    anim::deleteExistingAnimation(&this->mapFadeAnim);
 
     // if the user didn't click on the update notification during this session, quietly remove it so it's not annoying
     if(this->bWasCleanShutdown) this->writeVersionFile();

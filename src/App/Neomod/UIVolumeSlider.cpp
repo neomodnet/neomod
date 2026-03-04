@@ -39,6 +39,8 @@ UIVolumeSlider::UIVolumeSlider(float xPos, float yPos, float xSize, float ySize,
     this->setFrameColor(0xff7f7f7f);
 }
 
+UIVolumeSlider::~UIVolumeSlider() { anim::deleteExistingAnimation(&this->fSelectionAnim); }
+
 void UIVolumeSlider::drawBlock() {
     if(!resourcesReady) {
         for(const auto& type : std::array{imageResources.disabled, imageResources.enabled}) {

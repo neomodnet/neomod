@@ -15,7 +15,7 @@ TooltipOverlay::TooltipOverlay() : UIScreen() {
     this->bDelayFadeout = false;
 }
 
-TooltipOverlay::~TooltipOverlay() = default;
+TooltipOverlay::~TooltipOverlay() { anim::deleteExistingAnimation(&this->fAnim); }
 
 void TooltipOverlay::draw() {
     if(this->bDelayFadeout) {

@@ -3,8 +3,10 @@
 #include "CBaseUIButton.h"
 
 class UIBackButton final : public CBaseUIButton {
+    NOCOPY_NOMOVE(UIBackButton)
    public:
     UIBackButton(float xPos, float yPos, float xSize, float ySize, UString name);
+    ~UIBackButton() override;
 
     void draw() override;
     void update(CBaseUIEventCtx &c) override;

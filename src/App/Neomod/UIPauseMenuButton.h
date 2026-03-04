@@ -4,10 +4,12 @@
 #include "Skin.h"
 
 class UIPauseMenuButton final : public CBaseUIButton {
+    NOCOPY_NOMOVE(UIPauseMenuButton);
    public:
     using ImageSkinMember = BasicSkinImage Skin::*;
 
     UIPauseMenuButton(ImageSkinMember imageMember, float xPos, float yPos, float xSize, float ySize, UString name);
+    ~UIPauseMenuButton() override;
 
     void draw() override;
 

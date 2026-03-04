@@ -84,6 +84,8 @@ UIContextMenu::UIContextMenu(float xPos, float yPos, float xSize, float ySize, c
     this->bBigStyle = false;
 }
 
+UIContextMenu::~UIContextMenu() { anim::deleteExistingAnimation(&this->fAnimation); }
+
 void UIContextMenu::draw() {
     if(!this->bVisible2) return;
 

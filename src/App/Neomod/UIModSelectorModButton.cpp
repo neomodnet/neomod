@@ -37,6 +37,12 @@ UIModSelectorModButton::UIModSelectorModButton(ModSelector *osuModSelector, floa
     this->bFocusStolenDelay = false;
 }
 
+UIModSelectorModButton::~UIModSelectorModButton() {
+    anim::deleteExistingAnimation(&this->fRot);
+    anim::deleteExistingAnimation(&this->vScale.x);
+    anim::deleteExistingAnimation(&this->vScale.y);
+}
+
 void UIModSelectorModButton::draw() {
     if(!this->bVisible) return;
 

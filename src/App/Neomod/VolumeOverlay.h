@@ -8,8 +8,10 @@ class UIVolumeSlider;
 struct Skin;
 
 class VolumeOverlay final : public UIScreen {
+    NOCOPY_NOMOVE(VolumeOverlay)
    public:
     VolumeOverlay();
+    ~VolumeOverlay() override;
 
     void animate();
     void draw() override;

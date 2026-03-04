@@ -22,6 +22,11 @@ UIPauseMenuButton::UIPauseMenuButton(ImageSkinMember imageMember, float xPos, fl
     this->fAlpha = 1.0f;
 }
 
+UIPauseMenuButton::~UIPauseMenuButton() {
+    anim::deleteExistingAnimation(&this->vScale.x);
+    anim::deleteExistingAnimation(&this->vScale.y);
+}
+
 void UIPauseMenuButton::draw() {
     if(!this->bVisible) return;
 

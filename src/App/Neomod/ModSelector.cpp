@@ -388,7 +388,10 @@ void ModSelector::updateExperimentalButtons() {
     }
 }
 
-ModSelector::~ModSelector() = default;
+ModSelector::~ModSelector() {
+    anim::deleteExistingAnimation(&this->fExperimentalAnimation);
+    anim::deleteExistingAnimation(&this->fAnimation);
+}
 
 void ModSelector::draw() {
     if(!this->bVisible && !this->bScheduledHide) return;

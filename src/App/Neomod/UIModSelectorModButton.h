@@ -8,8 +8,12 @@ class ModSelector;
 class ConVar;
 
 class UIModSelectorModButton final : public CBaseUIButton {
+    NOCOPY_NOMOVE(UIModSelectorModButton);
+
    public:
     UIModSelectorModButton(ModSelector *osuModSelector, float xPos, float yPos, float xSize, float ySize, UString name);
+    ~UIModSelectorModButton() override;
+
     using SkinImageSkinMember = SkinImage Skin::*;
 
     void draw() override;

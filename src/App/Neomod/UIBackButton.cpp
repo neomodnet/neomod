@@ -18,6 +18,8 @@ UIBackButton::UIBackButton(float xPos, float yPos, float xSize, float ySize, USt
     this->fAnimation = 0.0f;
 }
 
+UIBackButton::~UIBackButton() { anim::deleteExistingAnimation(&this->fAnimation); }
+
 void UIBackButton::draw() {
     if(!this->bVisible) return;
 
@@ -30,7 +32,7 @@ void UIBackButton::draw() {
             this->bUseDefaultBack ? osu->getSkin()->i_menu_back2_DEFAULTSKIN : osu->getSkin()->i_menu_back2;
 
         backimg.draw(this->getPos() + (backimg.getSize() / 2.f), 1.f,
-                      this->fAnimation * 0.25f /* hover animation brightness */);
+                     this->fAnimation * 0.25f /* hover animation brightness */);
     }
     g->popTransform();
 
