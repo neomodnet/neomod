@@ -301,7 +301,7 @@ void SkinLoadTest::testDefaultSkin() {
         TEST_ASSERT(m_skin->i_cursor.img != MISSING_TEXTURE, "cursor loaded");
         TEST_ASSERT(m_skin->i_star.img != MISSING_TEXTURE, "star loaded");
         TEST_ASSERT(m_skin->i_loading_spinner.img != MISSING_TEXTURE, "loading-spinner loaded");
-        TEST_ASSERT(m_skin->resources.size() > 0, "resources vector is populated");
+        TEST_ASSERT(m_skin->basic_images.size() > 0, "resources vector is populated");
     }
 
     TEST_SECTION("default skin: core sounds");
@@ -313,8 +313,7 @@ void SkinLoadTest::testDefaultSkin() {
 
     TEST_SECTION("default skin: SkinImage elements");
     {
-        TEST_ASSERT(m_skin->i_hitcircleoverlay != nullptr, "hitcircleoverlay SkinImage created");
-        TEST_ASSERT(!m_skin->i_hitcircleoverlay->isMissingTexture(), "hitcircleoverlay not missing");
+        TEST_ASSERT(!m_skin->i_hitcircleoverlay.isMissingTexture(), "hitcircleoverlay not missing");
     }
 
     TEST_SECTION("default skin: parametrized update()");
@@ -362,15 +361,13 @@ void SkinLoadTest::testFakeSkin() {
 
     TEST_SECTION("fake skin: SkinImage fallback");
     {
-        TEST_ASSERT(m_skin->i_sliderb != nullptr, "sliderb SkinImage created");
-        TEST_ASSERT(!m_skin->i_sliderb->isMissingTexture(), "sliderb falls back to default");
-        TEST_ASSERT(m_skin->i_sliderb->isFromDefaultSkin(), "sliderb reports from default skin");
+        TEST_ASSERT(!m_skin->i_sliderb.isMissingTexture(), "sliderb falls back to default");
+        TEST_ASSERT(m_skin->i_sliderb.isFromDefaultSkin(), "sliderb reports from default skin");
     }
 
     TEST_SECTION("fake skin: menu-back DEFAULTSKIN hack");
     {
-        TEST_ASSERT(m_skin->i_menu_back2_DEFAULTSKIN != nullptr, "menu-back DEFAULTSKIN created");
-        TEST_ASSERT(!m_skin->i_menu_back2_DEFAULTSKIN->isMissingTexture(), "menu-back DEFAULTSKIN not missing");
+        TEST_ASSERT(!m_skin->i_menu_back2_DEFAULTSKIN.isMissingTexture(), "menu-back DEFAULTSKIN not missing");
     }
 }
 
@@ -389,7 +386,7 @@ void SkinLoadTest::testRealSkin(const std::string &label, const std::string &ski
         TEST_ASSERT(m_skin->i_hitcircle.img != MISSING_TEXTURE, label + " hitcircle loaded");
         TEST_ASSERT(m_skin->i_approachcircle.img != MISSING_TEXTURE, label + " approachcircle loaded");
         TEST_ASSERT(m_skin->i_cursor.img != MISSING_TEXTURE, label + " cursor loaded");
-        TEST_ASSERT(m_skin->resources.size() > 0, label + " resources populated");
+        TEST_ASSERT(m_skin->basic_images.size() > 0, label + " resources populated");
     }
 
     TEST_SECTION(label + " skin: source verification (images)");
@@ -409,20 +406,17 @@ void SkinLoadTest::testRealSkin(const std::string &label, const std::string &ski
 
     TEST_SECTION(label + " skin: SkinImage elements");
     {
-        TEST_ASSERT(m_skin->i_hitcircleoverlay != nullptr, label + " hitcircleoverlay created");
-        TEST_ASSERT(!m_skin->i_hitcircleoverlay->isMissingTexture(), label + " hitcircleoverlay loaded");
+        TEST_ASSERT(!m_skin->i_hitcircleoverlay.isMissingTexture(), label + " hitcircleoverlay loaded");
 
         if(env->fileExists(skinPath + "/hitcircleoverlay.png") ||
            env->fileExists(skinPath + "/hitcircleoverlay@2x.png")) {
-            TEST_ASSERT(!m_skin->i_hitcircleoverlay->isFromDefaultSkin(),
-                        label + " hitcircleoverlay is from user skin");
+            TEST_ASSERT(!m_skin->i_hitcircleoverlay.isFromDefaultSkin(), label + " hitcircleoverlay is from user skin");
         }
 
-        TEST_ASSERT(m_skin->i_sliderb != nullptr, label + " sliderb created");
-        TEST_ASSERT(!m_skin->i_sliderb->isMissingTexture(), label + " sliderb loaded");
+        TEST_ASSERT(!m_skin->i_sliderb.isMissingTexture(), label + " sliderb loaded");
         if(env->fileExists(skinPath + "/sliderb0.png") || env->fileExists(skinPath + "/sliderb0@2x.png") ||
            env->fileExists(skinPath + "/sliderb.png") || env->fileExists(skinPath + "/sliderb@2x.png")) {
-            TEST_ASSERT(!m_skin->i_sliderb->isFromDefaultSkin(), label + " sliderb is from user skin");
+            TEST_ASSERT(!m_skin->i_sliderb.isFromDefaultSkin(), label + " sliderb is from user skin");
         }
     }
 
@@ -479,28 +473,28 @@ void SkinLoadTest::testFallbackTier(const std::string &label, const std::string 
     TEST_SECTION(label + ": isFromDefaultSkin correctness");
     {
         // SkinImage should only report isFromDefaultSkin if the image actually came from the default dir
-        if(m_skin->i_sliderb && !m_skin->i_sliderb->isMissingTexture()) {
+        if(!m_skin->i_sliderb.isMissingTexture()) {
             bool primaryHas = skinElementExists(primaryDir, "sliderb") || skinElementExists(primaryDir, "sliderb0");
             bool fallbackHas = skinElementExists(fallbackDir, "sliderb") || skinElementExists(fallbackDir, "sliderb0");
 
             if(primaryHas || fallbackHas) {
-                TEST_ASSERT(!m_skin->i_sliderb->isFromDefaultSkin(),
+                TEST_ASSERT(!m_skin->i_sliderb.isFromDefaultSkin(),
                             label + " sliderb NOT from default (primary or fallback has it)");
             } else {
-                TEST_ASSERT(m_skin->i_sliderb->isFromDefaultSkin(),
+                TEST_ASSERT(m_skin->i_sliderb.isFromDefaultSkin(),
                             label + " sliderb IS from default (neither primary nor fallback has it)");
             }
         }
 
-        if(m_skin->i_hitcircleoverlay && !m_skin->i_hitcircleoverlay->isMissingTexture()) {
+        if(!m_skin->i_hitcircleoverlay.isMissingTexture()) {
             bool primaryHas = skinElementExists(primaryDir, "hitcircleoverlay");
             bool fallbackHas = skinElementExists(fallbackDir, "hitcircleoverlay");
 
             if(primaryHas || fallbackHas) {
-                TEST_ASSERT(!m_skin->i_hitcircleoverlay->isFromDefaultSkin(),
+                TEST_ASSERT(!m_skin->i_hitcircleoverlay.isFromDefaultSkin(),
                             label + " hitcircleoverlay NOT from default");
             } else {
-                TEST_ASSERT(m_skin->i_hitcircleoverlay->isFromDefaultSkin(),
+                TEST_ASSERT(m_skin->i_hitcircleoverlay.isFromDefaultSkin(),
                             label + " hitcircleoverlay IS from default");
             }
         }
@@ -561,7 +555,7 @@ void SkinLoadTest::testSequentialLoad() {
             }
 
             // verify resources from old skin were cleaned up (new skin has its own resources)
-            TEST_ASSERT(m_skin->resources.size() > 0, "seq B: new skin has its own resources");
+            TEST_ASSERT(m_skin->basic_images.size() > 0, "seq B: new skin has its own resources");
         }
     }
 }

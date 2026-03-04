@@ -72,15 +72,15 @@ void UIModList::draw() {
 
     const auto *skin = osu->getSkin();
     for(const auto memb : this->mod_images) {
-        const SkinImage *mod_icon = skin->*memb;
+        const SkinImage &mod_icon = skin->*memb;
         float target_height = this->getSize().y;
-        float scaling_factor = target_height / mod_icon->getSize().y;
-        float target_width = mod_icon->getSize().x * scaling_factor;
+        float scaling_factor = target_height / mod_icon.getSize().y;
+        float target_width = mod_icon.getSize().x * scaling_factor;
 
         vec2 fixed_pos = mod_pos;
         fixed_pos.x += (target_width / 2);
         fixed_pos.y += (target_height / 2);
-        mod_icon->draw(fixed_pos, scaling_factor);
+        mod_icon.draw(fixed_pos, scaling_factor);
 
         // Overlap mods a bit, just like peppy's client does
         // TODO: check if this is right... should probably re-use the logic in RankingScreen?

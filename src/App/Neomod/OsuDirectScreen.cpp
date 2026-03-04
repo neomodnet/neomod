@@ -377,7 +377,7 @@ void OsuDirectScreen::draw() {
 
     if(this->loading) {
         const f32 spinner_size = (40.f * Osu::getUIScale());
-        const f32 scale = spinner_size / osu->getSkin()->i_loading_spinner->getSize().y;
+        const f32 scale = spinner_size / osu->getSkin()->i_loading_spinner.getSize().y;
         g->setColor(0xffffffff);
         g->pushTransform();
         g->rotate(engine->getTime() * 180, 0, 0, 1);

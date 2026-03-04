@@ -117,15 +117,14 @@ void ScoreButton::draw() {
     g->pushTransform();
     {
         const float scale = Osu::getRectScaleToFitResolution(
-            gradeImg->getSizeBaseRaw(),
+            gradeImg.getSizeBaseRaw(),
             vec2(this->getSize().x * (1.0f - indexNumberWidthPercent), this->getSize().y * gradeHeightPercent));
-        gradeWidth = gradeImg->getSizeBaseRaw().x * scale;
+        gradeWidth = gradeImg.getSizeBaseRaw().x * scale;
 
         g->setColor(0xffffffff);
-        gradeImg->drawRaw(
-            vec2((int)(this->getPos().x + this->getSize().x * indexNumberWidthPercent + gradeWidth / 2.0f),
-                 (int)(this->getPos().y + this->getSize().y / 2.0f)),
-            scale);
+        gradeImg.drawRaw(vec2((int)(this->getPos().x + this->getSize().x * indexNumberWidthPercent + gradeWidth / 2.0f),
+                              (int)(this->getPos().y + this->getSize().y / 2.0f)),
+                         scale);
     }
     g->popTransform();
 

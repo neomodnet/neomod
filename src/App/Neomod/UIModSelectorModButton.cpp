@@ -40,7 +40,7 @@ UIModSelectorModButton::UIModSelectorModButton(ModSelector *osuModSelector, floa
 void UIModSelectorModButton::draw() {
     if(!this->bVisible) return;
 
-    if(SkinImage *activeImage = this->getActiveSkinImage(); !!activeImage) {
+    if(const SkinImage *activeImage = this->getActiveSkinImage(); !!activeImage) {
         g->pushTransform();
         {
             g->scale(this->vScale.x, this->vScale.y);
@@ -299,10 +299,10 @@ const UString &UIModSelectorModButton::getActiveModName() const {
         return CBaseUIElement::emptyUString;
 }
 
-SkinImage *UIModSelectorModButton::getActiveSkinImage() const {
+const SkinImage *UIModSelectorModButton::getActiveSkinImage() const {
     if(!this->activeSkinImageMember) return nullptr;
     if(const auto *skin = osu->getSkin()) {
-        return skin->*this->activeSkinImageMember;
+        return &(skin->*this->activeSkinImageMember);
     }
     return nullptr;
 }

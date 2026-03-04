@@ -89,10 +89,12 @@ f32 SongBrowser::getUIScale() {
 
 // Because we draw skin elements 'manually' to enforce the correct scaling,
 // this helper function automatically adjusts for 2x image resolution.
-f32 SongBrowser::getSkinScale(const SkinImage *img) { return SongBrowser::getUIScale() * (img->is_2x ? 0.5f : 1.f); }
+f32 SongBrowser::getSkinScale(const SkinImage &img) {
+    return SongBrowser::getUIScale() / img.getImageForCurrentFrame().scale;
+}
 
-vec2 SongBrowser::getSkinDimensions(const SkinImage *img) {
-    return img->getImageSizeForCurrentFrame() * SongBrowser::getSkinScale(img);
+vec2 SongBrowser::getSkinDimensions(const SkinImage &img) {
+    return img.getImageSizeForCurrentFrame() * SongBrowser::getSkinScale(img);
 }
 
 namespace {
@@ -554,8 +556,8 @@ void SongBrowser::draw() {
         }
 
         g->setBlendMode(DrawBlendMode::ADDITIVE);
-        osu->getSkin()->i_mode_osu->drawRaw(vec2(osu->getVirtScreenWidth() / 2, osu->getVirtScreenHeight() / 2),
-                                            mode_osu_scale, AnchorPoint::CENTER);
+        osu->getSkin()->i_mode_osu.drawRaw(vec2(osu->getVirtScreenWidth() / 2, osu->getVirtScreenHeight() / 2),
+                                           mode_osu_scale, AnchorPoint::CENTER);
         g->setBlendMode(DrawBlendMode::ALPHA);
     }
 

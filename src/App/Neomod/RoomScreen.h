@@ -37,7 +37,7 @@ class UIModList final : public CBaseUIContainer {
 
    private:
     LegacyFlags last_flags{};
-    std::vector<SkinImage * Skin::*> mod_images;
+    std::vector<SkinImage Skin::*> mod_images;
 };
 
 class RoomScreen final : public UIScreen {

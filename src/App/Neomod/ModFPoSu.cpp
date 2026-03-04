@@ -147,22 +147,22 @@ void ModFPoSu::draw() {
                         g->setWorldMatrixMul(modelMatrix);
 
                         g->setColor(0xffffffff);
-                        osu->getSkin()->i_skybox->bind();
+                        osu->getSkin()->i_skybox.bind();
                         {
                             this->skyboxModel->draw3D();
                         }
-                        osu->getSkin()->i_skybox->unbind();
+                        osu->getSkin()->i_skybox.unbind();
                     }
                     g->popTransform();
                 } else if(cv::fposu_cube.getBool()) {
-                    osu->getSkin()->i_background_cube->bind();
+                    osu->getSkin()->i_background_cube.bind();
                     {
                         g->setColor(rgb(std::clamp<int>(cv::fposu_cube_tint_r.getInt(), 0, 255),
                                         std::clamp<int>(cv::fposu_cube_tint_g.getInt(), 0, 255),
                                         std::clamp<int>(cv::fposu_cube_tint_b.getInt(), 0, 255)));
                         g->drawVAO(this->vaoCube);
                     }
-                    osu->getSkin()->i_background_cube->unbind();
+                    osu->getSkin()->i_background_cube.unbind();
                 }
             }
             g->setDepthBuffer(false);

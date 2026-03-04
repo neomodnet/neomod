@@ -34,24 +34,6 @@
 #define NOT_LOOPING false
 #define LOOPING true
 
-float BasicSkinImage::scale() const {
-    if(unlikely(this->scale_mul == -1)) {
-        this->scale_mul = 1;
-        std::string_view path;
-        if(this->img && this->img != MISSING_TEXTURE &&
-           // i don't think @2x jpeg are even supported in osu stable, but doesn't hurt to check here anyways...
-           (path = this->img->getFilePath()).length() > 8 /* @2x.jpeg == 8 */) {
-            path = path.substr(path.length() - 8);
-
-            if(path.contains("@2x")) {
-                this->scale_mul = 2;
-            }
-        }
-    }
-
-    return this->scale_mul;
-}
-
 bool Skin::unpack(const char *filepath) {
     auto skin_name = Environment::getFileNameFromFilePath(filepath);
     debugLog("Extracting {:s}...", skin_name.c_str());
@@ -144,19 +126,30 @@ Skin::Skin(std::string name, std::string filepath, std::string fallbackDir) {
     this->load();
 }
 
-Skin::~Skin() {
-    for(auto &resource : this->resources) {
-        if(resource && resource != (Resource *)MISSING_TEXTURE) resourceManager->destroyResource(resource);
-    }
-    this->resources.clear();
+void Skin::destroy(bool everything) {
+    const auto destroyFlags = everything ? ResourceDestroyFlags::RDF_FORCE_BLOCKING : ResourceDestroyFlags::RDF_DEFAULT;
 
-    for(auto &image : this->images) {
-        delete image;
+    for(auto &bimg : this->basic_images) {
+        // don't destroy named/cached default skin images unless we are destroying everything
+        if(bimg->img && bimg->img != MISSING_TEXTURE && (everything || !bimg->isFromDefault())) {
+            resourceManager->destroyResource(bimg->img, destroyFlags);
+        }
     }
-    this->images.clear();
+    this->basic_images.clear();
 
-    this->filepaths_for_export.clear();
-    // sounds are managed by resourcemanager, not unloaded here
+    for(auto &simg : this->skin_images) {
+        simg->destroy(everything);
+    }
+    this->skin_images.clear();
+
+    // sounds are managed by resourcemanager, not unloaded here (unless we are destroying everything)
+    if(everything) {
+        for(auto *sound : this->sounds) {
+            resourceManager->destroyResource(sound, destroyFlags);
+            sound = nullptr;
+        }
+        this->sounds.clear();
+    }
 }
 
 void Skin::update(bool isInPlayMode, bool isPlaying, i32 curMusicPos) {
@@ -169,7 +162,7 @@ void Skin::update(bool isInPlayMode, bool isPlaying, i32 curMusicPos) {
     if(isInPlayMode && !isPlaying && !cv::skin_animation_force.getBool()) return;
 
     const bool useEngineTimeForAnimations = !isInPlayMode;
-    for(auto *image : this->images) {
+    for(auto *image : this->skin_images) {
         image->update(this->anim_speed, useEngineTimeForAnimations, curMusicPos);
     }
 }
@@ -182,12 +175,12 @@ bool Skin::isReady() const {
         if(resourceManager->isLoadingResource(sound)) return false;
     }
 
-    for(const auto *resource : this->resources) {
-        if(resourceManager->isLoadingResource(resource)) return false;
+    for(const auto *image : this->basic_images) {
+        if(resourceManager->isLoadingResource(image->img)) return false;
     }
 
-    for(const auto *image : this->images) {
-        if(!image->areImagesFinishedLoading()) return false;
+    for(const auto *image : this->skin_images) {
+        if(!image->isReady()) return false;
     }
 
     // (ready is set in update())
@@ -243,21 +236,21 @@ void Skin::load() {
     // spinner loading has top priority in async
     this->randomizeFilePath();
     {
-        this->checkLoadImage(this->i_loading_spinner, "loading-spinner", "SKIN_LOADING_SPINNER");
+        this->loadUnsizedImage(this->i_loading_spinner, "loading-spinner", "SK_I_LOADING_SPINNER");
     }
 
     // and the cursor comes right after that
     this->randomizeFilePath();
     {
-        this->checkLoadImage(this->i_cursor, "cursor", "SKIN_CURSOR");
-        this->checkLoadImage(this->i_cursor_middle, "cursormiddle", "SKIN_CURSORMIDDLE", true);
-        this->checkLoadImage(this->i_cursor_trail, "cursortrail", "SKIN_CURSORTRAIL");
-        this->checkLoadImage(this->i_cursor_ripple, "cursor-ripple", "SKIN_CURSORRIPPLE");
-        this->checkLoadImage(this->i_cursor_smoke, "cursor-smoke", "SKIN_CURSORSMOKE");
+        this->loadUnsizedImage(this->i_cursor, "cursor", "SK_I_CURSOR");
+        this->loadUnsizedImage(this->i_cursor_middle, "cursormiddle", "SK_I_CURSORMIDDLE", true);
+        this->loadUnsizedImage(this->i_cursor_trail, "cursortrail", "SK_I_CURSORTRAIL");
+        this->loadUnsizedImage(this->i_cursor_ripple, "cursor-ripple", "SK_I_CURSORRIPPLE");
+        this->loadUnsizedImage(this->i_cursor_smoke, "cursor-smoke", "SK_I_CURSORSMOKE");
 
         // special case: if fallback to default cursor, do load cursorMiddle
-        if(this->i_cursor.img == resourceManager->getImage("SKIN_CURSOR_DEFAULT"))
-            this->checkLoadImage(this->i_cursor_middle, "cursormiddle", "SKIN_CURSORMIDDLE");
+        if(this->i_cursor.img == resourceManager->getImage("SK_I_CURSOR_DEFAULT"))
+            this->loadUnsizedImage(this->i_cursor_middle, "cursormiddle", "SK_I_CURSORMIDDLE");
     }
 
     // skin ini
@@ -289,33 +282,33 @@ void Skin::load() {
 
     // images
     this->randomizeFilePath();
-    this->checkLoadImage(this->i_hitcircle, "hitcircle", "SKIN_HITCIRCLE");
-    this->i_hitcircleoverlay = this->createSkinImage("hitcircleoverlay", vec2(128, 128), 64);
-    this->i_hitcircleoverlay->setAnimationFramerate(2);
+    this->loadUnsizedImage(this->i_hitcircle, "hitcircle", "SK_I_HITCIRCLE");
+    this->createSkinImage(this->i_hitcircleoverlay, "hitcircleoverlay", vec2(128, 128), 64);
+    this->i_hitcircleoverlay.setAnimationFramerate(2);
 
     this->randomizeFilePath();
-    this->checkLoadImage(this->i_approachcircle, "approachcircle", "SKIN_APPROACHCIRCLE");
+    this->loadUnsizedImage(this->i_approachcircle, "approachcircle", "SK_I_APPROACHCIRCLE");
     this->randomizeFilePath();
-    this->checkLoadImage(this->i_reversearrow, "reversearrow", "SKIN_REVERSEARROW");
+    this->loadUnsizedImage(this->i_reversearrow, "reversearrow", "SK_I_REVERSEARROW");
 
     this->randomizeFilePath();
-    this->i_followpoint = this->createSkinImage("followpoint", vec2(16, 22), 64);
+    this->createSkinImage(this->i_followpoint, "followpoint", vec2(16, 22), 64);
 
     this->randomizeFilePath();
     {
         const std::string hitCirclePrefix = this->hitcircle_prefix.empty() ? "default" : this->hitcircle_prefix;
         const std::string &fbHitCirclePrefix = this->fallback_hitcircle_prefix;
         for(int i = 0; i < 10; i++) {
-            const std::string resName = fmt::format("SKIN_DEFAULT{}", i);
-            this->checkLoadImage(this->i_defaults[i], fmt::format("{}-{}", hitCirclePrefix, i), resName);
+            const std::string resName = fmt::format("SK_I_DEFAULT{}", i);
+            this->loadUnsizedImage(this->i_defaults[i], fmt::format("{}-{}", hitCirclePrefix, i), resName);
             // try fallback skin's prefix if it differs from primary
             if(this->i_defaults[i].img == MISSING_TEXTURE && !fbHitCirclePrefix.empty() &&
                fbHitCirclePrefix != hitCirclePrefix)
-                this->checkLoadImage(this->i_defaults[i], fmt::format("{}-{}", fbHitCirclePrefix, i), resName);
+                this->loadUnsizedImage(this->i_defaults[i], fmt::format("{}-{}", fbHitCirclePrefix, i), resName);
             // special cases: fallback to default skin hitcircle numbers if the
             // defined prefix doesn't point to any valid files
             if(this->i_defaults[i].img == MISSING_TEXTURE)
-                this->checkLoadImage(this->i_defaults[i], fmt::format("default-{}", i), resName);
+                this->loadUnsizedImage(this->i_defaults[i], fmt::format("default-{}", i), resName);
         }
     }
 
@@ -324,22 +317,22 @@ void Skin::load() {
         const std::string scorePrefix = this->score_prefix.empty() ? "score" : this->score_prefix;
         const std::string &fbScorePrefix = this->fallback_score_prefix;
         for(int i = 0; i < 10; i++) {
-            const std::string resName = fmt::format("SKIN_SCORE{}", i);
-            this->checkLoadImage(this->i_scores[i], fmt::format("{}-{}", scorePrefix, i), resName);
+            const std::string resName = fmt::format("SK_I_SCORE{}", i);
+            this->loadUnsizedImage(this->i_scores[i], fmt::format("{}-{}", scorePrefix, i), resName);
             // try fallback skin's prefix if it differs from primary
             if(this->i_scores[i].img == MISSING_TEXTURE && !fbScorePrefix.empty() && fbScorePrefix != scorePrefix)
-                this->checkLoadImage(this->i_scores[i], fmt::format("{}-{}", fbScorePrefix, i), resName);
+                this->loadUnsizedImage(this->i_scores[i], fmt::format("{}-{}", fbScorePrefix, i), resName);
             // fallback logic
             if(this->i_scores[i].img == MISSING_TEXTURE)
-                this->checkLoadImage(this->i_scores[i], fmt::format("score-{}", i), resName);
+                this->loadUnsizedImage(this->i_scores[i], fmt::format("score-{}", i), resName);
         }
 
-        this->checkLoadImage(this->i_score_x, fmt::format("{}-x", scorePrefix), "SKIN_SCOREX");
-        // if (this->scoreX == MISSING_TEXTURE) checkLoadImage(m_scoreX, "score-x", "SKIN_SCOREX"); // special
+        this->loadUnsizedImage(this->i_score_x, fmt::format("{}-x", scorePrefix), "SK_I_SCOREX");
+        // if (this->scoreX == MISSING_TEXTURE) checkLoadImage(m_scoreX, "score-x", "SK_I_SCOREX"); // special
         // case: ScorePrefix'd skins don't get default fallbacks, instead missing extraneous things like the X are
         // simply not drawn
-        this->checkLoadImage(this->i_score_percent, fmt::format("{}-percent", scorePrefix), "SKIN_SCOREPERCENT");
-        this->checkLoadImage(this->i_score_dot, fmt::format("{}-dot", scorePrefix), "SKIN_SCOREDOT");
+        this->loadUnsizedImage(this->i_score_percent, fmt::format("{}-percent", scorePrefix), "SK_I_SCOREPERCENT");
+        this->loadUnsizedImage(this->i_score_dot, fmt::format("{}-dot", scorePrefix), "SK_I_SCOREDOT");
     }
 
     this->randomizeFilePath();
@@ -348,341 +341,334 @@ void Skin::load() {
         const std::string comboPrefix = this->combo_prefix.empty() ? "score" : this->combo_prefix;
         const std::string &fbComboPrefix = this->fallback_combo_prefix;
         for(int i = 0; i < 10; i++) {
-            const std::string resName = fmt::format("SKIN_COMBO{}", i);
-            this->checkLoadImage(this->i_combos[i], fmt::format("{}-{}", comboPrefix, i), resName);
+            const std::string resName = fmt::format("SK_I_COMBO{}", i);
+            this->loadUnsizedImage(this->i_combos[i], fmt::format("{}-{}", comboPrefix, i), resName);
             // try fallback skin's prefix if it differs from primary
             if(this->i_combos[i].img == MISSING_TEXTURE && !fbComboPrefix.empty() && fbComboPrefix != comboPrefix)
-                this->checkLoadImage(this->i_combos[i], fmt::format("{}-{}", fbComboPrefix, i), resName);
+                this->loadUnsizedImage(this->i_combos[i], fmt::format("{}-{}", fbComboPrefix, i), resName);
             // fallback logic
             if(this->i_combos[i].img == MISSING_TEXTURE)
-                this->checkLoadImage(this->i_combos[i], fmt::format("score-{}", i), resName);
+                this->loadUnsizedImage(this->i_combos[i], fmt::format("score-{}", i), resName);
         }
 
         // same special case as above for extras
-        this->checkLoadImage(this->i_combo_x, fmt::format("{}-x", comboPrefix), "SKIN_COMBOX");
+        this->loadUnsizedImage(this->i_combo_x, fmt::format("{}-x", comboPrefix), "SK_I_COMBOX");
     }
 
     this->randomizeFilePath();
-    this->i_play_skip = this->createSkinImage("play-skip", vec2(193, 147), 94);
+    this->createSkinImage(this->i_play_skip, "play-skip", vec2(193, 147), 94);
     this->randomizeFilePath();
-    this->checkLoadImage(this->i_play_warning_arrow, "play-warningarrow", "SKIN_PLAYWARNINGARROW");
-    this->i_play_warning_arrow2 = this->createSkinImage("play-warningarrow", vec2(167, 129), 128);
+    this->loadUnsizedImage(this->i_play_warning_arrow, "play-warningarrow", "SK_I_PLAYWARNINGARROW");
+    this->createSkinImage(this->i_play_warning_arrow2, "play-warningarrow", vec2(167, 129), 128);
     this->randomizeFilePath();
-    this->checkLoadImage(this->i_circular_metre, "circularmetre", "SKIN_CIRCULARMETRE");
+    this->loadUnsizedImage(this->i_circular_metre, "circularmetre", "SK_I_CIRCULARMETRE");
     this->randomizeFilePath();
-    this->i_scorebar_bg = this->createSkinImage("scorebar-bg", vec2(695, 44), 27.5f);
-    this->i_scorebar_colour = this->createSkinImage("scorebar-colour", vec2(645, 10), 6.25f);
-    this->i_scorebar_marker = this->createSkinImage("scorebar-marker", vec2(24, 24), 15.0f, true);
-    this->i_scorebar_ki = this->createSkinImage("scorebar-ki", vec2(116, 116), 72.0f);
-    this->i_scorebad_ki_danger = this->createSkinImage("scorebar-kidanger", vec2(116, 116), 72.0f);
-    this->i_scorebar_ki_danger2 = this->createSkinImage("scorebar-kidanger2", vec2(116, 116), 72.0f);
+    this->createSkinImage(this->i_scorebar_bg, "scorebar-bg", vec2(695, 44), 27.5f);
+    this->createSkinImage(this->i_scorebar_colour, "scorebar-colour", vec2(645, 10), 6.25f);
+    this->createSkinImage(this->i_scorebar_marker, "scorebar-marker", vec2(24, 24), 15.0f, true);
+    this->createSkinImage(this->i_scorebar_ki, "scorebar-ki", vec2(116, 116), 72.0f);
+    this->createSkinImage(this->i_scorebad_ki_danger, "scorebar-kidanger", vec2(116, 116), 72.0f);
+    this->createSkinImage(this->i_scorebar_ki_danger2, "scorebar-kidanger2", vec2(116, 116), 72.0f);
     this->randomizeFilePath();
-    this->i_section_pass = this->createSkinImage("section-pass", vec2(650, 650), 400.0f);
+    this->createSkinImage(this->i_section_pass, "section-pass", vec2(650, 650), 400.0f);
     this->randomizeFilePath();
-    this->i_section_fail = this->createSkinImage("section-fail", vec2(650, 650), 400.0f);
+    this->createSkinImage(this->i_section_fail, "section-fail", vec2(650, 650), 400.0f);
     this->randomizeFilePath();
-    this->i_input_overlay_bg = this->createSkinImage("inputoverlay-background", vec2(193, 55), 34.25f);
-    this->i_input_overlay_key = this->createSkinImage("inputoverlay-key", vec2(43, 46), 26.75f);
+    this->createSkinImage(this->i_input_overlay_bg, "inputoverlay-background", vec2(193, 55), 34.25f);
+    this->createSkinImage(this->i_input_overlay_key, "inputoverlay-key", vec2(43, 46), 26.75f);
 
     this->randomizeFilePath();
-    this->i_hit0 = this->createSkinImage("hit0", vec2(128, 128), 42);
-    this->i_hit0->setAnimationFramerate(60);
-    this->i_hit50 = this->createSkinImage("hit50", vec2(128, 128), 42);
-    this->i_hit50->setAnimationFramerate(60);
-    this->i_hit50g = this->createSkinImage("hit50g", vec2(128, 128), 42);
-    this->i_hit50g->setAnimationFramerate(60);
-    this->i_hit50k = this->createSkinImage("hit50k", vec2(128, 128), 42);
-    this->i_hit50k->setAnimationFramerate(60);
-    this->i_hit100 = this->createSkinImage("hit100", vec2(128, 128), 42);
-    this->i_hit100->setAnimationFramerate(60);
-    this->i_hit100g = this->createSkinImage("hit100g", vec2(128, 128), 42);
-    this->i_hit100g->setAnimationFramerate(60);
-    this->i_hit100k = this->createSkinImage("hit100k", vec2(128, 128), 42);
-    this->i_hit100k->setAnimationFramerate(60);
-    this->i_hit300 = this->createSkinImage("hit300", vec2(128, 128), 42);
-    this->i_hit300->setAnimationFramerate(60);
-    this->i_hit300g = this->createSkinImage("hit300g", vec2(128, 128), 42);
-    this->i_hit300g->setAnimationFramerate(60);
-    this->i_hit300k = this->createSkinImage("hit300k", vec2(128, 128), 42);
-    this->i_hit300k->setAnimationFramerate(60);
+    // clang-format off
+#define MKPAIR_(hitimgname) std::pair<SkinImage *, std::string>{&this->i_##hitimgname, #hitimgname ""sv}
+    for(const auto &[imgptr, str] : std::array{
+            MKPAIR_(hit0),
+            MKPAIR_(hit50),  MKPAIR_(hit50g),  MKPAIR_(hit50k),
+            MKPAIR_(hit100), MKPAIR_(hit100g), MKPAIR_(hit100k),
+            MKPAIR_(hit300), MKPAIR_(hit300g), MKPAIR_(hit300k),
+        }) {
+        this->createSkinImage(*imgptr, str, vec2(128, 128), 42);
+        imgptr->setAnimationFramerate(60);
+    }
+#undef MKPAIR_
+    // clang-format on
 
     this->randomizeFilePath();
-    this->checkLoadImage(this->i_particle50, "particle50", "SKIN_PARTICLE50", true);
-    this->checkLoadImage(this->i_particle100, "particle100", "SKIN_PARTICLE100", true);
-    this->checkLoadImage(this->i_particle300, "particle300", "SKIN_PARTICLE300", true);
+    this->loadUnsizedImage(this->i_particle50, "particle50", "SK_I_PARTICLE50", true);
+    this->loadUnsizedImage(this->i_particle100, "particle100", "SK_I_PARTICLE100", true);
+    this->loadUnsizedImage(this->i_particle300, "particle300", "SK_I_PARTICLE300", true);
 
     this->randomizeFilePath();
-    this->checkLoadImage(this->i_slider_gradient, "slidergradient", "SKIN_SLIDERGRADIENT");
+    this->loadUnsizedImage(this->i_slider_gradient, "slidergradient", "SK_I_SLIDERGRADIENT");
     this->randomizeFilePath();
-    this->i_sliderb = this->createSkinImage("sliderb", vec2(128, 128), 64, false, "");
-    this->i_sliderb->setAnimationFramerate(/*45.0f*/ 50.0f);
+    this->createSkinImage(this->i_sliderb, "sliderb", vec2(128, 128), 64, false, "");
+    this->i_sliderb.setAnimationFramerate(/*45.0f*/ 50.0f);
     this->randomizeFilePath();
-    this->checkLoadImage(this->i_slider_score_point, "sliderscorepoint", "SKIN_SLIDERSCOREPOINT");
+    this->loadUnsizedImage(this->i_slider_score_point, "sliderscorepoint", "SK_I_SLIDERSCOREPOINT");
     this->randomizeFilePath();
-    this->i_slider_follow_circle = this->createSkinImage("sliderfollowcircle", vec2(259, 259), 64);
+    this->createSkinImage(this->i_slider_follow_circle, "sliderfollowcircle", vec2(259, 259), 64);
     this->randomizeFilePath();
-    this->checkLoadImage(
-        this->i_slider_start_circle, "sliderstartcircle", "SKIN_SLIDERSTARTCIRCLE",
+    this->loadUnsizedImage(
+        this->i_slider_start_circle, "sliderstartcircle", "SK_I_SLIDERSTARTCIRCLE",
         !this->is_default);  // !m_bIsDefaultSkin ensures that default doesn't override user, in these special cases
-    this->i_slider_start_circle2 = this->createSkinImage("sliderstartcircle", vec2(128, 128), 64, !this->is_default);
-    this->checkLoadImage(this->i_slider_start_circle_overlay, "sliderstartcircleoverlay",
-                         "SKIN_SLIDERSTARTCIRCLEOVERLAY", !this->is_default);
-    this->i_slider_start_circle_overlay2 =
-        this->createSkinImage("sliderstartcircleoverlay", vec2(128, 128), 64, !this->is_default);
-    this->i_slider_start_circle_overlay2->setAnimationFramerate(2);
+    this->createSkinImage(this->i_slider_start_circle2, "sliderstartcircle", vec2(128, 128), 64, !this->is_default);
+    this->loadUnsizedImage(this->i_slider_start_circle_overlay, "sliderstartcircleoverlay",
+                           "SK_I_SLIDERSTARTCIRCLEOVERLAY", !this->is_default);
+    this->createSkinImage(this->i_slider_start_circle_overlay2, "sliderstartcircleoverlay", vec2(128, 128), 64,
+                          !this->is_default);
+    this->i_slider_start_circle_overlay2.setAnimationFramerate(2);
     this->randomizeFilePath();
-    this->checkLoadImage(this->i_slider_end_circle, "sliderendcircle", "SKIN_SLIDERENDCIRCLE", !this->is_default);
-    this->i_slider_end_circle2 = this->createSkinImage("sliderendcircle", vec2(128, 128), 64, !this->is_default);
-    this->checkLoadImage(this->i_slider_end_circle_overlay, "sliderendcircleoverlay", "SKIN_SLIDERENDCIRCLEOVERLAY",
-                         !this->is_default);
-    this->i_slider_end_circle_overlay2 =
-        this->createSkinImage("sliderendcircleoverlay", vec2(128, 128), 64, !this->is_default);
-    this->i_slider_end_circle_overlay2->setAnimationFramerate(2);
+    this->loadUnsizedImage(this->i_slider_end_circle, "sliderendcircle", "SK_I_SLIDERENDCIRCLE", !this->is_default);
+    this->createSkinImage(this->i_slider_end_circle2, "sliderendcircle", vec2(128, 128), 64, !this->is_default);
+    this->loadUnsizedImage(this->i_slider_end_circle_overlay, "sliderendcircleoverlay", "SK_I_SLIDERENDCIRCLEOVERLAY",
+                           !this->is_default);
+    this->createSkinImage(this->i_slider_end_circle_overlay2, "sliderendcircleoverlay", vec2(128, 128), 64,
+                          !this->is_default);
+    this->i_slider_end_circle_overlay2.setAnimationFramerate(2);
 
     this->randomizeFilePath();
-    this->checkLoadImage(this->i_spinner_bg, "spinner-background", "SKIN_SPINNERBACKGROUND");
-    this->checkLoadImage(this->i_spinner_circle, "spinner-circle", "SKIN_SPINNERCIRCLE");
-    this->checkLoadImage(this->i_spinner_approach_circle, "spinner-approachcircle", "SKIN_SPINNERAPPROACHCIRCLE");
-    this->checkLoadImage(this->i_spinner_bottom, "spinner-bottom", "SKIN_SPINNERBOTTOM");
-    this->checkLoadImage(this->i_spinner_middle, "spinner-middle", "SKIN_SPINNERMIDDLE");
-    this->checkLoadImage(this->i_spinner_middle2, "spinner-middle2", "SKIN_SPINNERMIDDLE2");
-    this->checkLoadImage(this->i_spinner_top, "spinner-top", "SKIN_SPINNERTOP");
-    this->checkLoadImage(this->i_spinner_spin, "spinner-spin", "SKIN_SPINNERSPIN");
-    this->checkLoadImage(this->i_spinner_clear, "spinner-clear", "SKIN_SPINNERCLEAR");
-    this->checkLoadImage(this->i_spinner_metre, "spinner-metre", "SKIN_SPINNERMETRE");
-    this->checkLoadImage(this->i_spinner_glow, "spinner-glow", "SKIN_SPINNERGLOW");  // TODO: use
-    this->checkLoadImage(this->i_spinner_osu, "spinner-osu", "SKIN_SPINNEROSU");     // TODO: use
-    this->checkLoadImage(this->i_spinner_rpm, "spinner-rpm", "SKIN_SPINNERRPM");     // TODO: use
+    this->loadUnsizedImage(this->i_spinner_bg, "spinner-background", "SK_I_SPINNERBACKGROUND");
+    this->loadUnsizedImage(this->i_spinner_circle, "spinner-circle", "SK_I_SPINNERCIRCLE");
+    this->loadUnsizedImage(this->i_spinner_approach_circle, "spinner-approachcircle", "SK_I_SPINNERAPPROACHCIRCLE");
+    this->loadUnsizedImage(this->i_spinner_bottom, "spinner-bottom", "SK_I_SPINNERBOTTOM");
+    this->loadUnsizedImage(this->i_spinner_middle, "spinner-middle", "SK_I_SPINNERMIDDLE");
+    this->loadUnsizedImage(this->i_spinner_middle2, "spinner-middle2", "SK_I_SPINNERMIDDLE2");
+    this->loadUnsizedImage(this->i_spinner_top, "spinner-top", "SK_I_SPINNERTOP");
+    this->loadUnsizedImage(this->i_spinner_spin, "spinner-spin", "SK_I_SPINNERSPIN");
+    this->loadUnsizedImage(this->i_spinner_clear, "spinner-clear", "SK_I_SPINNERCLEAR");
+    this->loadUnsizedImage(this->i_spinner_metre, "spinner-metre", "SK_I_SPINNERMETRE");
+    this->loadUnsizedImage(this->i_spinner_glow, "spinner-glow", "SK_I_SPINNERGLOW");  // TODO: use
+    this->loadUnsizedImage(this->i_spinner_osu, "spinner-osu", "SK_I_SPINNEROSU");     // TODO: use
+    this->loadUnsizedImage(this->i_spinner_rpm, "spinner-rpm", "SK_I_SPINNERRPM");     // TODO: use
 
     this->randomizeFilePath();
-    this->i_modselect_ez = this->createSkinImage("selection-mod-easy", vec2(68, 66), 38);
-    this->i_modselect_nf = this->createSkinImage("selection-mod-nofail", vec2(68, 66), 38);
-    this->i_modselect_ht = this->createSkinImage("selection-mod-halftime", vec2(68, 66), 38);
-    this->i_modselect_hr = this->createSkinImage("selection-mod-hardrock", vec2(68, 66), 38);
-    this->i_modselect_sd = this->createSkinImage("selection-mod-suddendeath", vec2(68, 66), 38);
-    this->i_modselect_pf = this->createSkinImage("selection-mod-perfect", vec2(68, 66), 38);
-    this->i_modselect_dt = this->createSkinImage("selection-mod-doubletime", vec2(68, 66), 38);
-    this->i_modselect_nc = this->createSkinImage("selection-mod-nightcore", vec2(68, 66), 38);
-    this->i_modselect_dc = this->createSkinImage("selection-mod-daycore", vec2(68, 66), 38);
-    this->i_modselect_hd = this->createSkinImage("selection-mod-hidden", vec2(68, 66), 38);
-    this->i_modselect_fl = this->createSkinImage("selection-mod-flashlight", vec2(68, 66), 38);
-    this->i_modselect_rx = this->createSkinImage("selection-mod-relax", vec2(68, 66), 38);
-    this->i_modselect_ap = this->createSkinImage("selection-mod-relax2", vec2(68, 66), 38);
-    this->i_modselect_so = this->createSkinImage("selection-mod-spunout", vec2(68, 66), 38);
-    this->i_modselect_auto = this->createSkinImage("selection-mod-autoplay", vec2(68, 66), 38);
-    this->i_modselect_nightmare = this->createSkinImage("selection-mod-nightmare", vec2(68, 66), 38);
-    this->i_modselect_target = this->createSkinImage("selection-mod-target", vec2(68, 66), 38);
-    this->i_modselect_sv2 = this->createSkinImage("selection-mod-scorev2", vec2(68, 66), 38);
-    this->i_modselect_td = this->createSkinImage("selection-mod-touchdevice", vec2(68, 66), 38);
-    this->i_modselect_cinema = this->createSkinImage("selection-mod-cinema", vec2(68, 66), 38);
+    this->createSkinImage(this->i_modselect_ez, "selection-mod-easy", vec2(68, 66), 38);
+    this->createSkinImage(this->i_modselect_nf, "selection-mod-nofail", vec2(68, 66), 38);
+    this->createSkinImage(this->i_modselect_ht, "selection-mod-halftime", vec2(68, 66), 38);
+    this->createSkinImage(this->i_modselect_hr, "selection-mod-hardrock", vec2(68, 66), 38);
+    this->createSkinImage(this->i_modselect_sd, "selection-mod-suddendeath", vec2(68, 66), 38);
+    this->createSkinImage(this->i_modselect_pf, "selection-mod-perfect", vec2(68, 66), 38);
+    this->createSkinImage(this->i_modselect_dt, "selection-mod-doubletime", vec2(68, 66), 38);
+    this->createSkinImage(this->i_modselect_nc, "selection-mod-nightcore", vec2(68, 66), 38);
+    this->createSkinImage(this->i_modselect_dc, "selection-mod-daycore", vec2(68, 66), 38);
+    this->createSkinImage(this->i_modselect_hd, "selection-mod-hidden", vec2(68, 66), 38);
+    this->createSkinImage(this->i_modselect_fl, "selection-mod-flashlight", vec2(68, 66), 38);
+    this->createSkinImage(this->i_modselect_rx, "selection-mod-relax", vec2(68, 66), 38);
+    this->createSkinImage(this->i_modselect_ap, "selection-mod-relax2", vec2(68, 66), 38);
+    this->createSkinImage(this->i_modselect_so, "selection-mod-spunout", vec2(68, 66), 38);
+    this->createSkinImage(this->i_modselect_auto, "selection-mod-autoplay", vec2(68, 66), 38);
+    this->createSkinImage(this->i_modselect_nightmare, "selection-mod-nightmare", vec2(68, 66), 38);
+    this->createSkinImage(this->i_modselect_target, "selection-mod-target", vec2(68, 66), 38);
+    this->createSkinImage(this->i_modselect_sv2, "selection-mod-scorev2", vec2(68, 66), 38);
+    this->createSkinImage(this->i_modselect_td, "selection-mod-touchdevice", vec2(68, 66), 38);
+    this->createSkinImage(this->i_modselect_cinema, "selection-mod-cinema", vec2(68, 66), 38);
 
-    this->i_mode_osu = this->createSkinImage("mode-osu", vec2(32, 32), 32);
-    this->i_mode_osu_small = this->createSkinImage("mode-osu-small", vec2(32, 32), 32);
+    this->createSkinImage(this->i_mode_osu, "mode-osu", vec2(32, 32), 32);
+    this->createSkinImage(this->i_mode_osu_small, "mode-osu-small", vec2(32, 32), 32);
 
     this->randomizeFilePath();
-    this->checkLoadImage(this->i_pause_continue, "pause-continue", "SKIN_PAUSE_CONTINUE");
-    this->checkLoadImage(this->i_pause_replay, "pause-replay", "SKIN_PAUSE_REPLAY");
-    this->checkLoadImage(this->i_pause_retry, "pause-retry", "SKIN_PAUSE_RETRY");
-    this->checkLoadImage(this->i_pause_back, "pause-back", "SKIN_PAUSE_BACK");
-    this->checkLoadImage(this->i_pause_overlay, "pause-overlay", "SKIN_PAUSE_OVERLAY");
+    this->loadUnsizedImage(this->i_pause_continue, "pause-continue", "SK_I_PAUSE_CONTINUE");
+    this->loadUnsizedImage(this->i_pause_replay, "pause-replay", "SK_I_PAUSE_REPLAY");
+    this->loadUnsizedImage(this->i_pause_retry, "pause-retry", "SK_I_PAUSE_RETRY");
+    this->loadUnsizedImage(this->i_pause_back, "pause-back", "SK_I_PAUSE_BACK");
+    this->loadUnsizedImage(this->i_pause_overlay, "pause-overlay", "SK_I_PAUSE_OVERLAY");
     if(this->i_pause_overlay.img == MISSING_TEXTURE)
-        this->checkLoadImage(this->i_pause_overlay, "pause-overlay", "SKIN_PAUSE_OVERLAY", true, "jpg");
-    this->checkLoadImage(this->i_fail_bg, "fail-background", "SKIN_FAIL_BACKGROUND");
+        this->loadUnsizedImage(this->i_pause_overlay, "pause-overlay", "SK_I_PAUSE_OVERLAY", true, "jpg");
+    this->loadUnsizedImage(this->i_fail_bg, "fail-background", "SK_I_FAIL_BACKGROUND");
     if(this->i_fail_bg.img == MISSING_TEXTURE)
-        this->checkLoadImage(this->i_fail_bg, "fail-background", "SKIN_FAIL_BACKGROUND", true, "jpg");
-    this->checkLoadImage(this->i_unpause, "unpause", "SKIN_UNPAUSE");
+        this->loadUnsizedImage(this->i_fail_bg, "fail-background", "SK_I_FAIL_BACKGROUND", true, "jpg");
+    this->loadUnsizedImage(this->i_unpause, "unpause", "SK_I_UNPAUSE");
 
     this->randomizeFilePath();
-    this->checkLoadImage(this->i_button_left, "button-left", "SKIN_BUTTON_LEFT");
-    this->checkLoadImage(this->i_button_mid, "button-middle", "SKIN_BUTTON_MIDDLE");
-    this->checkLoadImage(this->i_button_right, "button-right", "SKIN_BUTTON_RIGHT");
+    this->loadUnsizedImage(this->i_button_left, "button-left", "SK_I_BUTTON_LEFT");
+    this->loadUnsizedImage(this->i_button_mid, "button-middle", "SK_I_BUTTON_MIDDLE");
+    this->loadUnsizedImage(this->i_button_right, "button-right", "SK_I_BUTTON_RIGHT");
     this->randomizeFilePath();
     // always load default skin menu-back (to show in options menu)
     {
         std::string origdir = this->search_dirs[0];
         this->search_dirs[0] = MCENGINE_IMAGES_PATH "/default/";
-        this->i_menu_back2_DEFAULTSKIN = this->createSkinImage("menu-back", vec2(225, 87), 54);
+        this->createSkinImage(this->i_menu_back2_DEFAULTSKIN, "menu-back", vec2(225, 87), 54);
         this->search_dirs[0] = std::move(origdir);
     }
-    this->i_menu_back2 = this->createSkinImage("menu-back", vec2(225, 87), 54);
+    this->createSkinImage(this->i_menu_back2, "menu-back", vec2(225, 87), 54);
 
     this->randomizeFilePath();
 
     // NOTE: scaling is ignored when drawing this specific element
-    this->i_sel_mode = this->createSkinImage("selection-mode", vec2(90, 90), 38);
+    this->createSkinImage(this->i_sel_mode, "selection-mode", vec2(90, 90), 38);
 
-    this->i_sel_mode_over = this->createSkinImage("selection-mode-over", vec2(88, 90), 38);
-    this->i_sel_mods = this->createSkinImage("selection-mods", vec2(74, 90), 38);
-    this->i_sel_mods_over = this->createSkinImage("selection-mods-over", vec2(74, 90), 38);
-    this->i_sel_random = this->createSkinImage("selection-random", vec2(74, 90), 38);
-    this->i_sel_random_over = this->createSkinImage("selection-random-over", vec2(74, 90), 38);
-    this->i_sel_options = this->createSkinImage("selection-options", vec2(74, 90), 38);
-    this->i_sel_options_over = this->createSkinImage("selection-options-over", vec2(74, 90), 38);
-
-    this->randomizeFilePath();
-    this->checkLoadImage(this->i_songselect_top, "songselect-top", "SKIN_SONGSELECT_TOP");
-    this->checkLoadImage(this->i_songselect_bot, "songselect-bottom", "SKIN_SONGSELECT_BOTTOM");
-    this->randomizeFilePath();
-    this->checkLoadImage(this->i_menu_button_bg, "menu-button-background", "SKIN_MENU_BUTTON_BACKGROUND");
-    this->i_menu_button_bg2 = this->createSkinImage("menu-button-background", vec2(699, 103), 64.0f);
-    this->randomizeFilePath();
-    this->checkLoadImage(this->i_star, "star", "SKIN_STAR");
+    this->createSkinImage(this->i_sel_mode_over, "selection-mode-over", vec2(88, 90), 38);
+    this->createSkinImage(this->i_sel_mods, "selection-mods", vec2(74, 90), 38);
+    this->createSkinImage(this->i_sel_mods_over, "selection-mods-over", vec2(74, 90), 38);
+    this->createSkinImage(this->i_sel_random, "selection-random", vec2(74, 90), 38);
+    this->createSkinImage(this->i_sel_random_over, "selection-random-over", vec2(74, 90), 38);
+    this->createSkinImage(this->i_sel_options, "selection-options", vec2(74, 90), 38);
+    this->createSkinImage(this->i_sel_options_over, "selection-options-over", vec2(74, 90), 38);
 
     this->randomizeFilePath();
-    this->checkLoadImage(this->i_ranking_panel, "ranking-panel", "SKIN_RANKING_PANEL");
-    this->checkLoadImage(this->i_ranking_graph, "ranking-graph", "SKIN_RANKING_GRAPH");
-    this->checkLoadImage(this->i_ranking_title, "ranking-title", "SKIN_RANKING_TITLE");
-    this->checkLoadImage(this->i_ranking_max_combo, "ranking-maxcombo", "SKIN_RANKING_MAXCOMBO");
-    this->checkLoadImage(this->i_ranking_accuracy, "ranking-accuracy", "SKIN_RANKING_ACCURACY");
-
-    this->checkLoadImage(this->i_ranking_a, "ranking-A", "SKIN_RANKING_A");
-    this->checkLoadImage(this->i_ranking_b, "ranking-B", "SKIN_RANKING_B");
-    this->checkLoadImage(this->i_ranking_c, "ranking-C", "SKIN_RANKING_C");
-    this->checkLoadImage(this->i_ranking_d, "ranking-D", "SKIN_RANKING_D");
-    this->checkLoadImage(this->i_ranking_s, "ranking-S", "SKIN_RANKING_S");
-    this->checkLoadImage(this->i_ranking_sh, "ranking-SH", "SKIN_RANKING_SH");
-    this->checkLoadImage(this->i_ranking_x, "ranking-X", "SKIN_RANKING_X");
-    this->checkLoadImage(this->i_ranking_xh, "ranking-XH", "SKIN_RANKING_XH");
-
-    this->i_ranking_a_small = this->createSkinImage("ranking-A-small", vec2(34, 40), 128);
-    this->i_ranking_b_small = this->createSkinImage("ranking-B-small", vec2(34, 40), 128);
-    this->i_ranking_c_small = this->createSkinImage("ranking-C-small", vec2(34, 40), 128);
-    this->i_ranking_d_small = this->createSkinImage("ranking-D-small", vec2(34, 40), 128);
-    this->i_ranking_s_small = this->createSkinImage("ranking-S-small", vec2(34, 40), 128);
-    this->i_ranking_sh_small = this->createSkinImage("ranking-SH-small", vec2(34, 40), 128);
-    this->i_ranking_x_small = this->createSkinImage("ranking-X-small", vec2(34, 40), 128);
-    this->i_ranking_xh_small = this->createSkinImage("ranking-XH-small", vec2(34, 40), 128);
-
-    this->i_ranking_perfect = this->createSkinImage("ranking-perfect", vec2(478, 150), 128);
+    this->loadUnsizedImage(this->i_songselect_top, "songselect-top", "SK_I_SONGSELECT_TOP");
+    this->loadUnsizedImage(this->i_songselect_bot, "songselect-bottom", "SK_I_SONGSELECT_BOTTOM");
+    this->randomizeFilePath();
+    this->loadUnsizedImage(this->i_menu_button_bg, "menu-button-background", "SK_I_MENU_BUTTON_BACKGROUND");
+    this->createSkinImage(this->i_menu_button_bg2, "menu-button-background", vec2(699, 103), 64.0f);
+    this->randomizeFilePath();
+    this->loadUnsizedImage(this->i_star, "star", "SK_I_STAR");
 
     this->randomizeFilePath();
-    this->checkLoadImage(this->i_beatmap_import_spinner, "beatmapimport-spinner", "SKIN_BEATMAP_IMPORT_SPINNER");
-    this->checkLoadImage(this->i_circle_empty, "circle-empty", "SKIN_CIRCLE_EMPTY");
-    this->checkLoadImage(this->i_circle_full, "circle-full", "SKIN_CIRCLE_FULL");
+    this->loadUnsizedImage(this->i_ranking_panel, "ranking-panel", "SK_I_RANKING_PANEL");
+    this->loadUnsizedImage(this->i_ranking_graph, "ranking-graph", "SK_I_RANKING_GRAPH");
+    this->loadUnsizedImage(this->i_ranking_title, "ranking-title", "SK_I_RANKING_TITLE");
+    this->loadUnsizedImage(this->i_ranking_max_combo, "ranking-maxcombo", "SK_I_RANKING_MAXCOMBO");
+    this->loadUnsizedImage(this->i_ranking_accuracy, "ranking-accuracy", "SK_I_RANKING_ACCURACY");
+
+    this->loadUnsizedImage(this->i_ranking_a, "ranking-A", "SK_I_RANKING_A");
+    this->loadUnsizedImage(this->i_ranking_b, "ranking-B", "SK_I_RANKING_B");
+    this->loadUnsizedImage(this->i_ranking_c, "ranking-C", "SK_I_RANKING_C");
+    this->loadUnsizedImage(this->i_ranking_d, "ranking-D", "SK_I_RANKING_D");
+    this->loadUnsizedImage(this->i_ranking_s, "ranking-S", "SK_I_RANKING_S");
+    this->loadUnsizedImage(this->i_ranking_sh, "ranking-SH", "SK_I_RANKING_SH");
+    this->loadUnsizedImage(this->i_ranking_x, "ranking-X", "SK_I_RANKING_X");
+    this->loadUnsizedImage(this->i_ranking_xh, "ranking-XH", "SK_I_RANKING_XH");
+
+    this->createSkinImage(this->i_ranking_a_small, "ranking-A-small", vec2(34, 40), 128);
+    this->createSkinImage(this->i_ranking_b_small, "ranking-B-small", vec2(34, 40), 128);
+    this->createSkinImage(this->i_ranking_c_small, "ranking-C-small", vec2(34, 40), 128);
+    this->createSkinImage(this->i_ranking_d_small, "ranking-D-small", vec2(34, 40), 128);
+    this->createSkinImage(this->i_ranking_s_small, "ranking-S-small", vec2(34, 40), 128);
+    this->createSkinImage(this->i_ranking_sh_small, "ranking-SH-small", vec2(34, 40), 128);
+    this->createSkinImage(this->i_ranking_x_small, "ranking-X-small", vec2(34, 40), 128);
+    this->createSkinImage(this->i_ranking_xh_small, "ranking-XH-small", vec2(34, 40), 128);
+
+    this->createSkinImage(this->i_ranking_perfect, "ranking-perfect", vec2(478, 150), 128);
+
     this->randomizeFilePath();
-    this->checkLoadImage(this->i_seek_triangle, "seektriangle", "SKIN_SEEKTRIANGLE");
+    this->loadUnsizedImage(this->i_beatmap_import_spinner, "beatmapimport-spinner", "SK_I_BEATMAP_IMPORT_SPINNER");
+    this->loadUnsizedImage(this->i_circle_empty, "circle-empty", "SK_I_CIRCLE_EMPTY");
+    this->loadUnsizedImage(this->i_circle_full, "circle-full", "SK_I_CIRCLE_FULL");
     this->randomizeFilePath();
-    this->checkLoadImage(this->i_user_icon, "user-icon", "SKIN_USER_ICON");
+    this->loadUnsizedImage(this->i_seek_triangle, "seektriangle", "SK_I_SEEKTRIANGLE");
     this->randomizeFilePath();
-    this->checkLoadImage(this->i_background_cube, "backgroundcube", "SKIN_FPOSU_BACKGROUNDCUBE", false, "png",
-                         true);  // force mipmaps
+    this->loadUnsizedImage(this->i_user_icon, "user-icon", "SK_I_USER_ICON");
     this->randomizeFilePath();
-    this->checkLoadImage(this->i_menu_bg, "menu-background", "SKIN_MENU_BACKGROUND", false, "jpg");
+    this->loadUnsizedImage(this->i_background_cube, "backgroundcube", "SK_I_FPOSU_BACKGROUNDCUBE", false, "png",
+                           true);  // force mipmaps
     this->randomizeFilePath();
-    this->checkLoadImage(this->i_skybox, "skybox", "SKIN_FPOSU_3D_SKYBOX");
+    this->loadUnsizedImage(this->i_menu_bg, "menu-background", "SK_I_MENU_BACKGROUND", false, "jpg");
+    this->randomizeFilePath();
+    this->loadUnsizedImage(this->i_skybox, "skybox", "SK_I_FPOSU_3D_SKYBOX");
 
     // slider ticks
-    this->loadSound(this->s_normal_slidertick, "normal-slidertick", "SKIN_NORMALSLIDERTICK_SND",  //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                            //
-    this->loadSound(this->s_soft_slidertick, "soft-slidertick", "SKIN_SOFTSLIDERTICK_SND",        //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                            //
-    this->loadSound(this->s_drum_slidertick, "drum-slidertick", "SKIN_DRUMSLIDERTICK_SND",        //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                            //
+    this->loadSound(this->s_normal_slidertick, "normal-slidertick", "SK_S_NORMALSLIDERTICK",  //
+                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+    this->loadSound(this->s_soft_slidertick, "soft-slidertick", "SK_S_SOFTSLIDERTICK",        //
+                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+    this->loadSound(this->s_drum_slidertick, "drum-slidertick", "SK_S_DRUMSLIDERTICK",        //
+                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
 
     // silder slides
-    this->loadSound(this->s_normal_sliderslide, "normal-sliderslide", "SKIN_NORMALSLIDERSLIDE_SND",  //
-                    NOT_OVERLAYABLE, SAMPLE, LOOPING);                                               //
-    this->loadSound(this->s_soft_sliderslide, "soft-sliderslide", "SKIN_SOFTSLIDERSLIDE_SND",        //
-                    NOT_OVERLAYABLE, SAMPLE, LOOPING);                                               //
-    this->loadSound(this->s_drum_sliderslide, "drum-sliderslide", "SKIN_DRUMSLIDERSLIDE_SND",        //
-                    NOT_OVERLAYABLE, SAMPLE, LOOPING);                                               //
+    this->loadSound(this->s_normal_sliderslide, "normal-sliderslide", "SK_S_NORMALSLIDERSLIDE",  //
+                    NOT_OVERLAYABLE, SAMPLE, LOOPING);                                           //
+    this->loadSound(this->s_soft_sliderslide, "soft-sliderslide", "SK_S_SOFTSLIDERSLIDE",        //
+                    NOT_OVERLAYABLE, SAMPLE, LOOPING);                                           //
+    this->loadSound(this->s_drum_sliderslide, "drum-sliderslide", "SK_S_DRUMSLIDERSLIDE",        //
+                    NOT_OVERLAYABLE, SAMPLE, LOOPING);                                           //
 
     // slider whistles
-    this->loadSound(this->s_normal_sliderwhistle, "normal-sliderwhistle", "SKIN_NORMALSLIDERWHISTLE_SND",  //
-                    NOT_OVERLAYABLE, SAMPLE, LOOPING);                                                     //
-    this->loadSound(this->s_soft_sliderwhistle, "soft-sliderwhistle", "SKIN_SOFTSLIDERWHISTLE_SND",        //
-                    NOT_OVERLAYABLE, SAMPLE, LOOPING);                                                     //
-    this->loadSound(this->s_drum_sliderwhistle, "drum-sliderwhistle", "SKIN_DRUMSLIDERWHISTLE_SND",        //
-                    NOT_OVERLAYABLE, SAMPLE, LOOPING);                                                     //
+    this->loadSound(this->s_normal_sliderwhistle, "normal-sliderwhistle", "SK_S_NORMALSLIDERWHISTLE",  //
+                    NOT_OVERLAYABLE, SAMPLE, LOOPING);                                                 //
+    this->loadSound(this->s_soft_sliderwhistle, "soft-sliderwhistle", "SK_S_SOFTSLIDERWHISTLE",        //
+                    NOT_OVERLAYABLE, SAMPLE, LOOPING);                                                 //
+    this->loadSound(this->s_drum_sliderwhistle, "drum-sliderwhistle", "SK_S_DRUMSLIDERWHISTLE",        //
+                    NOT_OVERLAYABLE, SAMPLE, LOOPING);                                                 //
 
     // hitcircle
-    this->loadSound(this->s_normal_hitnormal, "normal-hitnormal", "SKIN_NORMALHITNORMAL_SND",     //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                            //
-    this->loadSound(this->s_soft_hitnormal, "soft-hitnormal", "SKIN_SOFTHITNORMAL_SND",           //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                            //
-    this->loadSound(this->s_drum_hitnormal, "drum-hitnormal", "SKIN_DRUMHITNORMAL_SND",           //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                            //
-    this->loadSound(this->s_normal_hitwhistle, "normal-hitwhistle", "SKIN_NORMALHITWHISTLE_SND",  //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                            //
-    this->loadSound(this->s_soft_hitwhistle, "soft-hitwhistle", "SKIN_SOFTHITWHISTLE_SND",        //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                            //
-    this->loadSound(this->s_drum_hitwhistle, "drum-hitwhistle", "SKIN_DRUMHITWHISTLE_SND",        //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                            //
-    this->loadSound(this->s_normal_hitfinish, "normal-hitfinish", "SKIN_NORMALHITFINISH_SND",     //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                            //
-    this->loadSound(this->s_soft_hitfinish, "soft-hitfinish", "SKIN_SOFTHITFINISH_SND",           //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                            //
-    this->loadSound(this->s_drum_hitfinish, "drum-hitfinish", "SKIN_DRUMHITFINISH_SND",           //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                            //
-    this->loadSound(this->s_normal_hitclap, "normal-hitclap", "SKIN_NORMALHITCLAP_SND",           //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                            //
-    this->loadSound(this->s_soft_hitclap, "soft-hitclap", "SKIN_SOFTHITCLAP_SND",                 //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                            //
-    this->loadSound(this->s_drum_hitclap, "drum-hitclap", "SKIN_DRUMHITCLAP_SND",                 //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                            //
+    this->loadSound(this->s_normal_hitnormal, "normal-hitnormal", "SK_S_NORMALHITNORMAL",     //
+                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+    this->loadSound(this->s_soft_hitnormal, "soft-hitnormal", "SK_S_SOFTHITNORMAL",           //
+                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+    this->loadSound(this->s_drum_hitnormal, "drum-hitnormal", "SK_S_DRUMHITNORMAL",           //
+                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+    this->loadSound(this->s_normal_hitwhistle, "normal-hitwhistle", "SK_S_NORMALHITWHISTLE",  //
+                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+    this->loadSound(this->s_soft_hitwhistle, "soft-hitwhistle", "SK_S_SOFTHITWHISTLE",        //
+                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+    this->loadSound(this->s_drum_hitwhistle, "drum-hitwhistle", "SK_S_DRUMHITWHISTLE",        //
+                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+    this->loadSound(this->s_normal_hitfinish, "normal-hitfinish", "SK_S_NORMALHITFINISH",     //
+                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+    this->loadSound(this->s_soft_hitfinish, "soft-hitfinish", "SK_S_SOFTHITFINISH",           //
+                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+    this->loadSound(this->s_drum_hitfinish, "drum-hitfinish", "SK_S_DRUMHITFINISH",           //
+                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+    this->loadSound(this->s_normal_hitclap, "normal-hitclap", "SK_S_NORMALHITCLAP",           //
+                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+    this->loadSound(this->s_soft_hitclap, "soft-hitclap", "SK_S_SOFTHITCLAP",                 //
+                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+    this->loadSound(this->s_drum_hitclap, "drum-hitclap", "SK_S_DRUMHITCLAP",                 //
+                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
 
     // spinner
-    this->loadSound(this->s_spinner_bonus, "spinnerbonus", "SKIN_SPINNERBONUS_SND", OVERLAYABLE, SAMPLE, NOT_LOOPING);
-    this->loadSound(this->s_spinner_spin, "spinnerspin", "SKIN_SPINNERSPIN_SND", NOT_OVERLAYABLE, SAMPLE, LOOPING);
+    this->loadSound(this->s_spinner_bonus, "spinnerbonus", "SK_S_SPINNERBONUS", OVERLAYABLE, SAMPLE, NOT_LOOPING);
+    this->loadSound(this->s_spinner_spin, "spinnerspin", "SK_S_SPINNERSPIN", NOT_OVERLAYABLE, SAMPLE, LOOPING);
 
     // others
-    this->loadSound(this->s_combobreak, "combobreak", "SKIN_COMBOBREAK_SND", true, true);
-    this->loadSound(this->s_fail, "failsound", "SKIN_FAILSOUND_SND");
-    this->loadSound(this->s_applause, "applause", "SKIN_APPLAUSE_SND");
-    this->loadSound(this->s_menu_hit, "menuhit", "SKIN_MENUHIT_SND", true, true);
-    this->loadSound(this->s_menu_hover, "menuclick", "SKIN_MENUCLICK_SND", true, true);
-    this->loadSound(this->s_check_on, "check-on", "SKIN_CHECKON_SND", true, true);
-    this->loadSound(this->s_check_off, "check-off", "SKIN_CHECKOFF_SND", true, true);
-    this->loadSound(this->s_shutter, "shutter", "SKIN_SHUTTER_SND", true, true);
-    this->loadSound(this->s_section_pass, "sectionpass", "SKIN_SECTIONPASS_SND");
-    this->loadSound(this->s_section_fail, "sectionfail", "SKIN_SECTIONFAIL_SND");
+    this->loadSound(this->s_combobreak, "combobreak", "SK_S_COMBOBREAK", true, true);
+    this->loadSound(this->s_fail, "failsound", "SK_S_FAILSOUND");
+    this->loadSound(this->s_applause, "applause", "SK_S_APPLAUSE");
+    this->loadSound(this->s_menu_hit, "menuhit", "SK_S_MENUHIT", true, true);
+    this->loadSound(this->s_menu_hover, "menuclick", "SK_S_MENUCLICK", true, true);
+    this->loadSound(this->s_check_on, "check-on", "SK_S_CHECKON", true, true);
+    this->loadSound(this->s_check_off, "check-off", "SK_S_CHECKOFF", true, true);
+    this->loadSound(this->s_shutter, "shutter", "SK_S_SHUTTER", true, true);
+    this->loadSound(this->s_section_pass, "sectionpass", "SK_S_SECTIONPASS");
+    this->loadSound(this->s_section_fail, "sectionfail", "SK_S_SECTIONFAIL");
 
     // UI feedback
-    this->loadSound(this->s_message_sent, "key-confirm", "SKIN_MESSAGE_SENT_SND", true, true, false);
-    this->loadSound(this->s_deleting_text, "key-delete", "SKIN_DELETING_TEXT_SND", true, true, false);
-    this->loadSound(this->s_moving_text_cursor, "key-movement", "MOVING_TEXT_CURSOR_SND", true, true, false);
-    this->loadSound(this->s_typing1, "key-press-1", "TYPING_1_SND", true, true, false);
-    this->loadSound(this->s_typing2, "key-press-2", "TYPING_2_SND", true, true, false, false);
-    this->loadSound(this->s_typing3, "key-press-3", "TYPING_3_SND", true, true, false, false);
-    this->loadSound(this->s_typing4, "key-press-4", "TYPING_4_SND", true, true, false, false);
-    this->loadSound(this->s_menu_back, "menuback", "MENU_BACK_SND", true, true, false, false);
-    this->loadSound(this->s_close_chat_tab, "click-close", "CLOSE_CHAT_TAB_SND", true, true, false, false);
-    this->loadSound(this->s_click_button, "click-short-confirm", "CLICK_BUTTON_SND", true, true, false, false);
-    this->loadSound(this->s_hover_button, "click-short", "HOVER_BUTTON_SND", true, true, false, false);
-    this->loadSound(this->s_click_back_button, "back-button-click", "BACK_BUTTON_CLICK_SND", true, true, false, false);
-    this->loadSound(this->s_hover_back_button, "back-button-hover", "BACK_BUTTON_HOVER_SND", true, true, false, false);
-    this->loadSound(this->s_click_main_menu_cube, "menu-play-click", "CLICK_MAIN_MENU_CUBE_SND", true, true, false,
+    this->loadSound(this->s_message_sent, "key-confirm", "SK_S_MESSAGE_SENT", true, true, false);
+    this->loadSound(this->s_deleting_text, "key-delete", "SK_S_DELETING_TEXT", true, true, false);
+    this->loadSound(this->s_moving_text_cursor, "key-movement", "SK_S_MOVING_TEXT_CURSOR", true, true, false);
+    this->loadSound(this->s_typing1, "key-press-1", "SK_S_TYPING_1", true, true, false);
+    this->loadSound(this->s_typing2, "key-press-2", "SK_S_TYPING_2", true, true, false, false);
+    this->loadSound(this->s_typing3, "key-press-3", "SK_S_TYPING_3", true, true, false, false);
+    this->loadSound(this->s_typing4, "key-press-4", "SK_S_TYPING_4", true, true, false, false);
+    this->loadSound(this->s_menu_back, "menuback", "SK_S_MENU_BACK", true, true, false, false);
+    this->loadSound(this->s_close_chat_tab, "click-close", "SK_S_CLOSE_CHAT_TAB", true, true, false, false);
+    this->loadSound(this->s_click_button, "click-short-confirm", "SK_S_CLICK_BUTTON", true, true, false, false);
+    this->loadSound(this->s_hover_button, "click-short", "SK_S_HOVER_BUTTON", true, true, false, false);
+    this->loadSound(this->s_click_back_button, "back-button-click", "SK_S_BACK_BUTTON_CLICK", true, true, false, false);
+    this->loadSound(this->s_hover_back_button, "back-button-hover", "SK_S_BACK_BUTTON_HOVER", true, true, false, false);
+    this->loadSound(this->s_click_main_menu_cube, "menu-play-click", "SK_S_CLICK_MAIN_MENU_CUBE", true, true, false,
                     false);
-    this->loadSound(this->s_hover_main_menu_cube, "menu-play-hover", "HOVER_MAIN_MENU_CUBE_SND", true, true, false,
+    this->loadSound(this->s_hover_main_menu_cube, "menu-play-hover", "SK_S_HOVER_MAIN_MENU_CUBE", true, true, false,
                     false);
-    this->loadSound(this->s_click_sp, "menu-freeplay-click", "CLICK_SINGLEPLAYER_SND", true, true, false, false);
-    this->loadSound(this->s_hover_sp, "menu-freeplay-hover", "HOVER_SINGLEPLAYER_SND", true, true, false, false);
-    this->loadSound(this->s_click_mp, "menu-multiplayer-click", "CLICK_MULTIPLAYER_SND", true, true, false, false);
-    this->loadSound(this->s_hover_mp, "menu-multiplayer-hover", "HOVER_MULTIPLAYER_SND", true, true, false, false);
-    this->loadSound(this->s_click_options, "menu-options-click", "CLICK_OPTIONS_SND", true, true, false, false);
-    this->loadSound(this->s_hover_options, "menu-options-hover", "HOVER_OPTIONS_SND", true, true, false, false);
-    this->loadSound(this->s_click_exit, "menu-exit-click", "CLICK_EXIT_SND", true, true, false, false);
-    this->loadSound(this->s_hover_exit, "menu-exit-hover", "HOVER_EXIT_SND", true, true, false, false);
-    this->loadSound(this->s_expand, "select-expand", "EXPAND_SND", true, true, false);
-    this->loadSound(this->s_select_difficulty, "select-difficulty", "SELECT_DIFFICULTY_SND", true, true, false, false);
-    this->loadSound(this->s_sliderbar, "sliderbar", "DRAG_SLIDER_SND", true, true, false);
-    this->loadSound(this->s_match_confirm, "match-confirm", "ALL_PLAYERS_READY_SND", true, true, false);
-    this->loadSound(this->s_room_joined, "match-join", "ROOM_JOINED_SND", true, true, false);
-    this->loadSound(this->s_room_quit, "match-leave", "ROOM_QUIT_SND", true, true, false);
-    this->loadSound(this->s_room_not_ready, "match-notready", "ROOM_NOT_READY_SND", true, true, false);
-    this->loadSound(this->s_room_ready, "match-ready", "ROOM_READY_SND", true, true, false);
-    this->loadSound(this->s_match_start, "match-start", "MATCH_START_SND", true, true, false);
+    this->loadSound(this->s_click_sp, "menu-freeplay-click", "SK_S_CLICK_SINGLEPLAYER", true, true, false, false);
+    this->loadSound(this->s_hover_sp, "menu-freeplay-hover", "SK_S_HOVER_SINGLEPLAYER", true, true, false, false);
+    this->loadSound(this->s_click_mp, "menu-multiplayer-click", "SK_S_CLICK_MULTIPLAYER", true, true, false, false);
+    this->loadSound(this->s_hover_mp, "menu-multiplayer-hover", "SK_S_HOVER_MULTIPLAYER", true, true, false, false);
+    this->loadSound(this->s_click_options, "menu-options-click", "SK_S_CLICK_OPTIONS", true, true, false, false);
+    this->loadSound(this->s_hover_options, "menu-options-hover", "SK_S_HOVER_OPTIONS", true, true, false, false);
+    this->loadSound(this->s_click_exit, "menu-exit-click", "SK_S_CLICK_EXIT", true, true, false, false);
+    this->loadSound(this->s_hover_exit, "menu-exit-hover", "SK_S_HOVER_EXIT", true, true, false, false);
+    this->loadSound(this->s_expand, "select-expand", "SK_S_EXPAND", true, true, false);
+    this->loadSound(this->s_select_difficulty, "select-difficulty", "SK_S_SELECT_DIFFICULTY", true, true, false, false);
+    this->loadSound(this->s_sliderbar, "sliderbar", "SK_S_DRAG_SLIDER", true, true, false);
+    this->loadSound(this->s_match_confirm, "match-confirm", "SK_S_ALL_PLAYERS_READY", true, true, false);
+    this->loadSound(this->s_room_joined, "match-join", "SK_S_ROOM_JOINED", true, true, false);
+    this->loadSound(this->s_room_quit, "match-leave", "SK_S_ROOM_QUIT", true, true, false);
+    this->loadSound(this->s_room_not_ready, "match-notready", "SK_S_ROOM_NOT_READY", true, true, false);
+    this->loadSound(this->s_room_ready, "match-ready", "SK_S_ROOM_READY", true, true, false);
+    this->loadSound(this->s_match_start, "match-start", "SK_S_MATCH_START", true, true, false);
 
-    this->loadSound(this->s_pause_loop, "pause-loop", "PAUSE_LOOP_SND", NOT_OVERLAYABLE, STREAM, LOOPING, true);
-    this->loadSound(this->s_pause_hover, "pause-hover", "PAUSE_HOVER_SND", OVERLAYABLE, SAMPLE, NOT_LOOPING, false);
-    this->loadSound(this->s_click_pause_back, "pause-back-click", "CLICK_QUIT_SONG_SND", true, true, false, false);
-    this->loadSound(this->s_hover_pause_back, "pause-back-hover", "HOVER_QUIT_SONG_SND", true, true, false, false);
-    this->loadSound(this->s_click_pause_continue, "pause-continue-click", "CLICK_RESUME_SONG_SND", true, true, false,
+    this->loadSound(this->s_pause_loop, "pause-loop", "SK_S_PAUSE_LOOP", NOT_OVERLAYABLE, STREAM, LOOPING, true);
+    this->loadSound(this->s_pause_hover, "pause-hover", "SK_S_PAUSE_HOVER", OVERLAYABLE, SAMPLE, NOT_LOOPING, false);
+    this->loadSound(this->s_click_pause_back, "pause-back-click", "SK_S_CLICK_QUIT_SONG", true, true, false, false);
+    this->loadSound(this->s_hover_pause_back, "pause-back-hover", "SK_S_HOVER_QUIT_SONG", true, true, false, false);
+    this->loadSound(this->s_click_pause_continue, "pause-continue-click", "SK_S_CLICK_RESUME_SONG", true, true, false,
                     false);
-    this->loadSound(this->s_hover_pause_continue, "pause-continue-hover", "HOVER_RESUME_SONG_SND", true, true, false,
+    this->loadSound(this->s_hover_pause_continue, "pause-continue-hover", "SK_S_HOVER_RESUME_SONG", true, true, false,
                     false);
-    this->loadSound(this->s_click_pause_retry, "pause-retry-click", "CLICK_RETRY_SONG_SND", true, true, false, false);
-    this->loadSound(this->s_hover_pause_retry, "pause-retry-hover", "HOVER_RETRY_SONG_SND", true, true, false, false);
+    this->loadSound(this->s_click_pause_retry, "pause-retry-click", "SK_S_CLICK_RETRY_SONG", true, true, false, false);
+    this->loadSound(this->s_hover_pause_retry, "pause-retry-hover", "SK_S_HOVER_RETRY_SONG", true, true, false, false);
 
     if(!this->s_click_button) this->s_click_button = this->s_menu_hit;
     if(!this->s_hover_button) this->s_hover_button = this->s_menu_hover;
@@ -721,17 +707,17 @@ void Skin::load() {
         this->i_button_mid_default = this->i_button_mid;
         this->i_button_right_default = this->i_button_right;
     } else {
-        this->checkLoadImage(this->i_cursor_default, "cursor", "SKIN_CURSOR", false, "png", false, default_dir);
-        this->checkLoadImage(this->i_button_left_default, "button-left", "SKIN_BUTTON_LEFT", false, "png", false,
-                             default_dir);
-        this->checkLoadImage(this->i_button_mid_default, "button-middle", "SKIN_BUTTON_MIDDLE", false, "png", false,
-                             default_dir);
-        this->checkLoadImage(this->i_button_right_default, "button-right", "SKIN_BUTTON_RIGHT", false, "png", false,
-                             default_dir);
+        this->loadUnsizedImage(this->i_cursor_default, "cursor", "SK_I_CURSOR", false, "png", false, default_dir);
+        this->loadUnsizedImage(this->i_button_left_default, "button-left", "SK_I_BUTTON_LEFT", false, "png", false,
+                               default_dir);
+        this->loadUnsizedImage(this->i_button_mid_default, "button-middle", "SK_I_BUTTON_MIDDLE", false, "png", false,
+                               default_dir);
+        this->loadUnsizedImage(this->i_button_right_default, "button-right", "SK_I_BUTTON_RIGHT", false, "png", false,
+                               default_dir);
     }
 
     // print some debug info
-    debugLog("Skin: Version {:f}", this->version);
+    debugLog("Skin: Version {:.2f}", this->version);
     debugLog("Skin: HitCircleOverlap = {:d}", this->hitcircle_overlap_amt);
 
     // delayed error notifications due to resource loading potentially blocking engine time
@@ -1008,24 +994,27 @@ void Skin::randomizeFilePath() {
         this->search_dirs[0] = this->filepaths_for_random_skin[prand() % this->filepaths_for_random_skin.size()];
 }
 
-SkinImage *Skin::createSkinImage(const std::string &skinElementName, vec2 baseSizeForScaling2x, float osuSize,
-                                 bool ignoreDefaultSkin, const std::string &animationSeparator) {
-    auto *skinImage =
-        new SkinImage(this, skinElementName, baseSizeForScaling2x, osuSize, animationSeparator, ignoreDefaultSkin);
-    this->images.push_back(skinImage);
+void Skin::createSkinImage(SkinImage &ref, const std::string &skinElementName, vec2 baseSizeForScaling2x, float osuSize,
+                           bool ignoreDefaultSkin, const std::string &animationSeparator) {
+    assert(!ref.skin);
 
-    Mc::append_range(this->filepaths_for_export, skinImage->getFilepathsForExport());
-
-    return skinImage;
+    this->skin_images.push_back(&ref);
+    auto exportFiles =
+        ref.init(this, skinElementName, baseSizeForScaling2x, osuSize, animationSeparator, ignoreDefaultSkin);
+    Mc::append_range(this->filepaths_for_export, std::move(exportFiles));
 }
 
-void Skin::checkLoadImage(BasicSkinImage &imgRef, const std::string &skinElementName, const std::string &resourceName,
-                          bool ignoreDefaultSkin, const std::string &fileExtension, bool forceLoadMipmaps,
-                          const std::string &overrideDir) {
-    if(imgRef.img != MISSING_TEXTURE) return;  // already loaded
+void Skin::loadUnsizedImage(BasicSkinImage &ref, const std::string &skinElementName, const std::string &resourceName,
+                            bool ignoreDefaultSkin, const std::string &fileExtension, bool forceLoadMipmaps,
+                            const std::string &overrideDir) {
+    assert(ref == MISSING_TEXTURE);
+    bool loaded = false;
 
     const bool use_mipmaps = cv::skin_mipmaps.getBool() || forceLoadMipmaps;
     const size_t n_dirs = overrideDir.empty() ? (ignoreDefaultSkin ? 1 : this->search_dirs.size()) : 1;
+
+    const bool load_hd = cv::skin_hd.getBool();
+    const bool load_async = cv::skin_async.getBool();
 
     // forward iteration: first match wins
     for(size_t i = 0; i < n_dirs; i++) {
@@ -1058,31 +1047,37 @@ void Skin::checkLoadImage(BasicSkinImage &imgRef, const std::string &skinElement
             res_name.append("_DEFAULT");
         }
 
-        bool loaded = false;
-        if(cv::skin_hd.getBool() && exists_2x) {
-            if(cv::skin_async.getBool()) resourceManager->requestNextLoadAsync();
-            imgRef = {resourceManager->loadImageAbs(path_2x, res_name, use_mipmaps)};
+        if(load_hd && exists_2x) {
+            if(load_async) resourceManager->requestNextLoadAsync();
+            ref.img = resourceManager->loadImageAbs(path_2x, res_name, use_mipmaps);
+            ref.scale_mul = 2;
             loaded = true;
         } else if(exists_1x) {
-            if(cv::skin_async.getBool()) resourceManager->requestNextLoadAsync();
-            imgRef = {resourceManager->loadImageAbs(path_1x, res_name, use_mipmaps)};
+            if(load_async) resourceManager->requestNextLoadAsync();
+            ref.img = resourceManager->loadImageAbs(path_1x, res_name, use_mipmaps);
+            ref.scale_mul = 1;
             loaded = true;
         }
 
         if(loaded) {
-            if(!is_cached_default) {
-                this->resources.push_back(imgRef.img);
-            }
             if(exists_2x) this->filepaths_for_export.push_back(std::move(path_2x));
             if(exists_1x) this->filepaths_for_export.push_back(std::move(path_1x));
+            ref.is_default = is_cached_default;
+
             break;
         }
     }
+
+    if(loaded && ref.img != MISSING_TEXTURE) {
+        this->basic_images.push_back(&ref);
+    }
+
+    return;
 }
 
-void Skin::loadSound(Sound *&sndRef, const std::string &skinElementName, const std::string &resourceName,
+void Skin::loadSound(Sound *&ref, const std::string &skinElementName, const std::string &resourceName,
                      bool isOverlayable, bool isSample, bool loop, bool fallback_to_default) {
-    if(sndRef != nullptr) return;
+    assert(!ref);
 
     this->randomizeFilePath();
 
@@ -1115,16 +1110,16 @@ void Skin::loadSound(Sound *&sndRef, const std::string &skinElementName, const s
             std::string default_name = resourceName;
             default_name.append("_DEFAULT");
             if(cv::skin_async.getBool()) resourceManager->requestNextLoadAsync();
-            sndRef = resourceManager->loadSoundAbs(std::move(path), default_name, !isSample, isOverlayable, loop);
+            ref = resourceManager->loadSoundAbs(std::move(path), default_name, !isSample, isOverlayable, loop);
         } else if(is_primary) {
             // primary dir: reuse existing Sound object if available, rebuild with new path
             Sound *existing = resourceManager->getSound(resourceName);
             if(existing) {
                 existing->rebuild(path, cv::skin_async.getBool());
-                sndRef = existing;
+                ref = existing;
             } else {
                 if(cv::skin_async.getBool()) resourceManager->requestNextLoadAsync();
-                sndRef = resourceManager->loadSoundAbs(std::move(path), resourceName, !isSample, isOverlayable, loop);
+                ref = resourceManager->loadSoundAbs(std::move(path), resourceName, !isSample, isOverlayable, loop);
             }
         } else {
             // fallback dir: rebuild existing or create new, with _FALLBACK suffix
@@ -1133,22 +1128,23 @@ void Skin::loadSound(Sound *&sndRef, const std::string &skinElementName, const s
             Sound *existing = resourceManager->getSound(fallback_name);
             if(existing) {
                 existing->rebuild(path, cv::skin_async.getBool());
-                sndRef = existing;
+                ref = existing;
             } else {
                 if(cv::skin_async.getBool()) resourceManager->requestNextLoadAsync();
-                sndRef = resourceManager->loadSoundAbs(std::move(path), fallback_name, !isSample, isOverlayable, loop);
+                ref = resourceManager->loadSoundAbs(std::move(path), fallback_name, !isSample, isOverlayable, loop);
             }
         }
         break;
     }
 
-    if(sndRef == nullptr) {
+    if(ref == nullptr) {
         debugLog("Skin Warning: NULL sound {:s}!", skinElementName.c_str());
-        return;
+    } else {
+        this->sounds.push_back(ref);
+        this->filepaths_for_export.push_back(ref->getFilePath());
     }
 
-    this->sounds.push_back(sndRef);
-    this->filepaths_for_export.push_back(sndRef->getFilePath());
+    return;
 }
 
 const BasicSkinImage &Skin::getGradeImageLarge(ScoreGrade grade) const {
@@ -1173,7 +1169,7 @@ const BasicSkinImage &Skin::getGradeImageLarge(ScoreGrade grade) const {
     }
 }
 
-const SkinImage *Skin::getGradeImageSmall(ScoreGrade grade) const {
+const SkinImage &Skin::getGradeImageSmall(ScoreGrade grade) const {
     using enum ScoreGrade;
     switch(grade) {
         case XH:
@@ -1195,7 +1191,7 @@ const SkinImage *Skin::getGradeImageSmall(ScoreGrade grade) const {
     }
 }
 
-void Skin::getModImagesForMods(std::vector<SkinImage * Skin::*> &outVec, const Replay::Mods &mods) {
+void Skin::getModImagesForMods(std::vector<SkinImage Skin::*> &outVec, const Replay::Mods &mods) {
     using enum ModFlags;
 
     const bool modSS = flags::has<Perfect>(mods.flags);
@@ -1233,6 +1229,6 @@ void Skin::getModImagesForMods(std::vector<SkinImage * Skin::*> &outVec, const R
     return;
 }
 
-void Skin::getModImagesForMods(std::vector<SkinImage * Skin::*> &outVec, LegacyFlags flags) {
+void Skin::getModImagesForMods(std::vector<SkinImage Skin::*> &outVec, LegacyFlags flags) {
     return Skin::getModImagesForMods(outVec, Replay::Mods::from_legacy(flags));
 }

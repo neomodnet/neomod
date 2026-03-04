@@ -4,6 +4,7 @@
 #include "Color.h"
 #include "Vectors.h"
 #include "Image.h"
+#include "SkinImage.h"
 
 #include <array>
 #include <vector>
@@ -25,14 +26,31 @@ struct Mods;
 }
 enum class LegacyFlags : u32;
 
-// for lazy-loading "is @2x" checks, for non-animated skin images (which belong to the SkinImage class)
+struct BasicSkinImage;
+struct Skin;
+
+enum class SkinSoundID : u8;
+enum class SkinImageID : u8;
+
+// minimal Image wrapper for some cached info (not a full SkinImage, which is used for pre-sized/animated images)
 struct BasicSkinImage {
     BasicSkinImage() = default;
     BasicSkinImage(Image *img) : img(img) {}
 
     Image *img{MISSING_TEXTURE};
 
-    [[nodiscard]] float scale() const;
+    // passthroughs
+    void bind(unsigned int textureUnit = 0) const { return img->bind(textureUnit); }
+    void unbind() const { return img->unbind(); }
+    [[nodiscard]] inline const std::string &getName() const { return img->getName(); }
+    [[nodiscard]] inline i32 getWidth() const { return img->getWidth(); }
+    [[nodiscard]] inline i32 getHeight() const { return img->getHeight(); }
+    [[nodiscard]] inline ivec2 getSize() const { return img->getSize(); }
+
+    [[nodiscard]] inline bool isFromDefault() const { return this->is_default; }
+
+    // 1.0 or 2.0 (depending on loaded with @2x or not)
+    [[nodiscard]] inline f32 scale() const { return static_cast<f32>(this->scale_mul); }
 
     inline Image *operator->() const noexcept { return img; }
     inline operator Image *() const noexcept { return img; }
@@ -40,237 +58,11 @@ struct BasicSkinImage {
     inline bool operator==(Image *other) const noexcept { return img == other; }
 
    private:
-    mutable i8 scale_mul{-1};
-};
+    friend struct Skin;
 
-// TODO/WIP below...
-
-// clang-format off
-enum class SkinSound : u8 {
-    normal_hitnormal,
-    normal_hitwhistle,
-    normal_hitfinish,
-    normal_hitclap,
-    normal_slidertick,
-    normal_sliderslide,
-    normal_sliderwhistle,
-    soft_hitnormal,
-    soft_hitwhistle,
-    soft_hitfinish,
-    soft_hitclap,
-    soft_slidertick,
-    soft_sliderslide,
-    soft_sliderwhistle,
-    drum_hitnormal,
-    drum_hitwhistle,
-    drum_hitfinish,
-    drum_hitclap,
-    drum_slidertick,
-    drum_sliderslide,
-    drum_sliderwhistle,
-    spinner_bonus,
-    spinner_spin,
-    message_sent,
-    deleting_text,
-    moving_text_cursor,
-    typing1,
-    typing2,
-    typing3,
-    typing4,
-    menu_back,
-    close_chat_tab,
-    hover_button,
-    click_button,
-    click_main_menu_cube,
-    hover_main_menu_cube,
-    click_sp,
-    hover_sp,
-    click_mp,
-    hover_mp,
-    click_options,
-    hover_options,
-    click_exit,
-    hover_exit,
-    pause_loop,
-    pause_hover,
-    click_pause_back,
-    hover_pause_back,
-    click_pause_continue,
-    hover_pause_continue,
-    click_pause_retry,
-    hover_pause_retry,
-    click_back_button,
-    hover_back_button,
-    expand,
-    select_difficulty,
-    sliderbar,
-    match_confirm,   // all players are ready
-    room_joined,     // a player joined
-    room_quit,       // a player left
-    room_not_ready,  // a player is no longer ready
-    room_ready,      // a player is now ready
-    match_start,     // match started
-    combobreak,
-    fail,
-    applause,
-    menu_hit,
-    menu_hover,
-    check_on,
-    check_off,
-    shutter,
-    section_pass,
-    section_fail,
-    max_sound
+    i8 scale_mul{1};
+    bool is_default{false};
 };
-
-enum class NonAnimatedSkinImage : u8 {
-    hitcircle,
-    approachcircle,
-    reversearrow,
-    score_x,
-    score_percent,
-    score_dot,
-    combo_x,
-    play_warning_arrow,
-    circular_metre,
-    particle50,
-    particle100,
-    particle300,
-    slider_gradient,
-    slider_score_point,
-    slider_start_circle,
-    slider_start_circle_overlay,
-    slider_end_circle,
-    slider_end_circle_overlay,
-    spinner_approach_circle,
-    spinner_bg,
-    spinner_circle,
-    spinner_clear,
-    spinner_bottom,
-    spinner_glow,
-    spinner_metre,
-    spinner_middle,
-    spinner_middle2,
-    spinner_osu,
-    spinner_top,
-    spinner_rpm,
-    spinner_spin,
-    cursor,
-    cursor_default,
-    cursor_middle,
-    cursor_trail,
-    cursor_ripple,
-    cursor_smoke,
-    pause_continue,
-    pause_replay,
-    pause_retry,
-    pause_back,
-    pause_overlay,
-    fail_bg,
-    unpause,
-    button_left,
-    button_mid,
-    button_right,
-    button_left_default,
-    button_mid_default,
-    button_right_default,
-    songselect_top,
-    songselect_bot,
-    menu_button_bg,
-    star, star2, // NOTE: star2 unused (used for particle effects, most skins make it blank)
-    ranking_panel, ranking_graph, ranking_title, ranking_max_combo, ranking_accuracy,
-    ranking_a, ranking_b, ranking_c, ranking_d, ranking_s, ranking_sh, ranking_x, ranking_xh,
-    beatmap_import_spinner,
-    loading_spinner,
-    circle_empty,
-    circle_full,
-    seek_triangle,
-    user_icon,
-    background_cube,
-    menu_bg,
-    skybox,
-    default_0, default_1, default_2, default_3, default_4, default_5, default_6, default_7, default_8, default_9,
-      combo_0,   combo_1,   combo_2,   combo_3,   combo_4,   combo_5,   combo_6,   combo_7,   combo_8,   combo_9,
-      score_0,   score_1,   score_2,   score_3,   score_4,   score_5,   score_6,   score_7,   score_8,   score_9,
-    max_nonanimatedskinimage
-};
-
-enum class AnimatedSkinImage : u8 {
-    hitcircleoverlay,
-    followpoint,
-    play_skip,
-    play_warning_arrow2,
-    scorebar_bg,
-    scorebar_colour,
-    scorebar_marker,
-    scorebar_ki,
-    scorebad_ki_danger,
-    scorebar_ki_danger2,
-    section_pass,
-    section_fail,
-    input_overlay_bg,
-    input_overlay_key,
-    hit0,
-    hit50,
-    hit50g,
-    hit50k,
-    hit100,
-    hit100g,
-    hit100k,
-    hit300,
-    hit300g,
-    hit300k,
-    sliderb,
-    slider_follow_circle,
-    slider_start_circle2,
-    slider_start_circle_overlay2,
-    slider_end_circle2,
-    slider_end_circle_overlay2,
-    modselect_ez,
-    modselect_nf,
-    modselect_ht,
-    modselect_dc,
-    modselect_hr,
-    modselect_sd,
-    modselect_pf,
-    modselect_dt,
-    modselect_nc,
-    modselect_hd,
-    modselect_fl,
-    modselect_rx,
-    modselect_ap,
-    modselect_so,
-    modselect_auto,
-    modselect_nightmare,
-    modselect_target,
-    modselect_sv2,
-    modselect_td,
-    modselect_cinema,
-    mode_osu,
-    mode_osu_small,
-    menu_back2_DEFAULTSKIN,
-    menu_back2,
-    sel_mode,
-    sel_mode_over,
-    sel_mods,
-    sel_mods_over,
-    sel_random,
-    sel_random_over,
-    sel_options,
-    sel_options_over,
-    menu_button_bg2,
-    ranking_a_small,
-    ranking_b_small,
-    ranking_c_small,
-    ranking_d_small,
-    ranking_s_small,
-    ranking_sh_small,
-    ranking_x_small,
-    ranking_xh_small,
-    ranking_perfect,
-    max_animatedskinimage
-};
-// clang-format on
 
 struct Skin final {
    private:
@@ -283,13 +75,13 @@ struct Skin final {
     void parseFallbackPrefixes(const std::string &iniPath);
     void fixupPrefix(std::string &prefix, const std::string &baseDir);
 
-    SkinImage *createSkinImage(const std::string &skinElementName, vec2 baseSizeForScaling2x, f32 osuSize,
-                               bool ignoreDefaultSkin = false, const std::string &animationSeparator = "-");
-    void checkLoadImage(BasicSkinImage &imgRef, const std::string &skinElementName, const std::string &resourceName,
-                        bool ignoreDefaultSkin = false, const std::string &fileExtension = "png",
-                        bool forceLoadMipmaps = false, const std::string &overrideDir = {});
+    void createSkinImage(SkinImage &ref, const std::string &skinElementName, vec2 baseSizeForScaling2x, f32 osuSize,
+                         bool ignoreDefaultSkin = false, const std::string &animationSeparator = "-");
+    void loadUnsizedImage(BasicSkinImage &ref, const std::string &skinElementName, const std::string &resourceName,
+                          bool ignoreDefaultSkin = false, const std::string &fileExtension = "png",
+                          bool forceLoadMipmaps = false, const std::string &overrideDir = {});
 
-    void loadSound(Sound *&sndRef, const std::string &skinElementName, const std::string &resourceName,
+    void loadSound(Sound *&ref, const std::string &skinElementName, const std::string &resourceName,
                    bool isOverlayable = false, bool isSample = false, bool loop = false,
                    bool fallback_to_default = true);
 
@@ -299,7 +91,8 @@ struct Skin final {
     static bool unpack(const char *filepath);
 
     Skin(std::string name, std::string filepath, std::string fallbackDir = "");
-    ~Skin();
+    inline ~Skin() { this->destroy(); }
+    void destroy(bool everything = false);
 
     void update(bool isInPlayMode, bool isPlaying, i32 curMusicPos);
 
@@ -309,26 +102,26 @@ struct Skin final {
     void reloadSounds();
 
     // drawable helpers
-    Color getComboColorForCounter(int i, int offset) const;
+    [[nodiscard]] Color getComboColorForCounter(int i, int offset) const;
     inline void setBeatmapComboColors(std::vector<Color> colors) { this->c_beatmap_combo_colors = std::move(colors); }
 
     // these theoretically "should" match osu!stable mod image stacking order (by increasing bit position)
-    static void getModImagesForMods(std::vector<SkinImage * Skin::*> &outVec, LegacyFlags flags);
-    static void getModImagesForMods(std::vector<SkinImage * Skin::*> &outVec, const Replay::Mods &mods);
+    static void getModImagesForMods(std::vector<SkinImage Skin::*> &outVec, LegacyFlags flags);
+    static void getModImagesForMods(std::vector<SkinImage Skin::*> &outVec, const Replay::Mods &mods);
 
-    inline static std::vector<SkinImage * Skin::*> getModImagesForMods(LegacyFlags flags) {
-        std::vector<SkinImage * Skin::*> ret;
+    inline static std::vector<SkinImage Skin::*> getModImagesForMods(LegacyFlags flags) {
+        std::vector<SkinImage Skin::*> ret;
         getModImagesForMods(ret, flags);
         return ret;
     }
-    inline static std::vector<SkinImage * Skin::*> getModImagesForMods(const Replay::Mods &mods) {
-        std::vector<SkinImage * Skin::*> ret;
+    inline static std::vector<SkinImage Skin::*> getModImagesForMods(const Replay::Mods &mods) {
+        std::vector<SkinImage Skin::*> ret;
         getModImagesForMods(ret, mods);
         return ret;
     }
 
     [[nodiscard]] const BasicSkinImage &getGradeImageLarge(ScoreGrade grade) const;
-    [[nodiscard]] const SkinImage *getGradeImageSmall(ScoreGrade grade) const;
+    [[nodiscard]] const SkinImage &getGradeImageSmall(ScoreGrade grade) const;
 
     [[nodiscard]] inline bool useSmoothCursorTrail() const { return this->i_cursor_middle.img != MISSING_TEXTURE; }
 
@@ -342,16 +135,16 @@ struct Skin final {
     // the default skin itself only searches its own dir
     std::vector<std::string> search_dirs;
 
-    std::vector<Resource *> resources;
     std::vector<Sound *> sounds;
-    std::vector<SkinImage *> images;
+    std::vector<BasicSkinImage *> basic_images;
+    std::vector<SkinImage *> skin_images;
 
     // images
     BasicSkinImage i_hitcircle{};
-    SkinImage *i_hitcircleoverlay{nullptr};
+    mutable SkinImage i_hitcircleoverlay{};
     BasicSkinImage i_approachcircle{};
     BasicSkinImage i_reversearrow{};
-    SkinImage *i_followpoint{nullptr};
+    mutable SkinImage i_followpoint{};
 
     std::array<BasicSkinImage, 10> i_defaults{};
 
@@ -363,48 +156,48 @@ struct Skin final {
     std::array<BasicSkinImage, 10> i_combos{};
     BasicSkinImage i_combo_x{};
 
-    SkinImage *i_play_skip{nullptr};
+    mutable SkinImage i_play_skip{};
     BasicSkinImage i_play_warning_arrow{};
-    SkinImage *i_play_warning_arrow2{nullptr};
+    mutable SkinImage i_play_warning_arrow2{};
     BasicSkinImage i_circular_metre{};
-    SkinImage *i_scorebar_bg{nullptr};
-    SkinImage *i_scorebar_colour{nullptr};
-    SkinImage *i_scorebar_marker{nullptr};
-    SkinImage *i_scorebar_ki{nullptr};
-    SkinImage *i_scorebad_ki_danger{nullptr};
-    SkinImage *i_scorebar_ki_danger2{nullptr};
-    SkinImage *i_section_pass{nullptr};
-    SkinImage *i_section_fail{nullptr};
-    SkinImage *i_input_overlay_bg{nullptr};
-    SkinImage *i_input_overlay_key{nullptr};
+    mutable SkinImage i_scorebar_bg{};
+    mutable SkinImage i_scorebar_colour{};
+    mutable SkinImage i_scorebar_marker{};
+    mutable SkinImage i_scorebar_ki{};
+    mutable SkinImage i_scorebad_ki_danger{};
+    mutable SkinImage i_scorebar_ki_danger2{};
+    mutable SkinImage i_section_pass{};
+    mutable SkinImage i_section_fail{};
+    mutable SkinImage i_input_overlay_bg{};
+    mutable SkinImage i_input_overlay_key{};
 
-    SkinImage *i_hit0{nullptr};
-    SkinImage *i_hit50{nullptr};
-    SkinImage *i_hit50g{nullptr};
-    SkinImage *i_hit50k{nullptr};
-    SkinImage *i_hit100{nullptr};
-    SkinImage *i_hit100g{nullptr};
-    SkinImage *i_hit100k{nullptr};
-    SkinImage *i_hit300{nullptr};
-    SkinImage *i_hit300g{nullptr};
-    SkinImage *i_hit300k{nullptr};
+    mutable SkinImage i_hit0{};
+    mutable SkinImage i_hit50{};
+    mutable SkinImage i_hit50g{};
+    mutable SkinImage i_hit50k{};
+    mutable SkinImage i_hit100{};
+    mutable SkinImage i_hit100g{};
+    mutable SkinImage i_hit100k{};
+    mutable SkinImage i_hit300{};
+    mutable SkinImage i_hit300g{};
+    mutable SkinImage i_hit300k{};
 
     BasicSkinImage i_particle50{};
     BasicSkinImage i_particle100{};
     BasicSkinImage i_particle300{};
 
     BasicSkinImage i_slider_gradient{};
-    SkinImage *i_sliderb{nullptr};
-    SkinImage *i_slider_follow_circle{nullptr};
+    mutable SkinImage i_sliderb{};
+    mutable SkinImage i_slider_follow_circle{};
     BasicSkinImage i_slider_score_point{};
     BasicSkinImage i_slider_start_circle{};
-    SkinImage *i_slider_start_circle2{nullptr};
+    mutable SkinImage i_slider_start_circle2{};
     BasicSkinImage i_slider_start_circle_overlay{};
-    SkinImage *i_slider_start_circle_overlay2{nullptr};
+    mutable SkinImage i_slider_start_circle_overlay2{};
     BasicSkinImage i_slider_end_circle{};
-    SkinImage *i_slider_end_circle2{nullptr};
+    mutable SkinImage i_slider_end_circle2{};
     BasicSkinImage i_slider_end_circle_overlay{};
-    SkinImage *i_slider_end_circle_overlay2{nullptr};
+    mutable SkinImage i_slider_end_circle_overlay2{};
 
     BasicSkinImage i_spinner_approach_circle{};
     BasicSkinImage i_spinner_bg{};
@@ -427,29 +220,29 @@ struct Skin final {
     BasicSkinImage i_cursor_ripple{};
     BasicSkinImage i_cursor_smoke{};
 
-    SkinImage *i_modselect_ez{nullptr};
-    SkinImage *i_modselect_nf{nullptr};
-    SkinImage *i_modselect_ht{nullptr};
-    SkinImage *i_modselect_dc{nullptr};
-    SkinImage *i_modselect_hr{nullptr};
-    SkinImage *i_modselect_sd{nullptr};
-    SkinImage *i_modselect_pf{nullptr};
-    SkinImage *i_modselect_dt{nullptr};
-    SkinImage *i_modselect_nc{nullptr};
-    SkinImage *i_modselect_hd{nullptr};
-    SkinImage *i_modselect_fl{nullptr};
-    SkinImage *i_modselect_rx{nullptr};
-    SkinImage *i_modselect_ap{nullptr};
-    SkinImage *i_modselect_so{nullptr};
-    SkinImage *i_modselect_auto{nullptr};
-    SkinImage *i_modselect_nightmare{nullptr};
-    SkinImage *i_modselect_target{nullptr};
-    SkinImage *i_modselect_sv2{nullptr};
-    SkinImage *i_modselect_td{nullptr};
-    SkinImage *i_modselect_cinema{nullptr};
+    mutable SkinImage i_modselect_ez{};
+    mutable SkinImage i_modselect_nf{};
+    mutable SkinImage i_modselect_ht{};
+    mutable SkinImage i_modselect_dc{};
+    mutable SkinImage i_modselect_hr{};
+    mutable SkinImage i_modselect_sd{};
+    mutable SkinImage i_modselect_pf{};
+    mutable SkinImage i_modselect_dt{};
+    mutable SkinImage i_modselect_nc{};
+    mutable SkinImage i_modselect_hd{};
+    mutable SkinImage i_modselect_fl{};
+    mutable SkinImage i_modselect_rx{};
+    mutable SkinImage i_modselect_ap{};
+    mutable SkinImage i_modselect_so{};
+    mutable SkinImage i_modselect_auto{};
+    mutable SkinImage i_modselect_nightmare{};
+    mutable SkinImage i_modselect_target{};
+    mutable SkinImage i_modselect_sv2{};
+    mutable SkinImage i_modselect_td{};
+    mutable SkinImage i_modselect_cinema{};
 
-    SkinImage *i_mode_osu{nullptr};
-    SkinImage *i_mode_osu_small{nullptr};
+    mutable SkinImage i_mode_osu{};
+    mutable SkinImage i_mode_osu_small{};
 
     BasicSkinImage i_pause_continue{};
     BasicSkinImage i_pause_replay{};
@@ -465,21 +258,21 @@ struct Skin final {
     BasicSkinImage i_button_left_default{};
     BasicSkinImage i_button_mid_default{};
     BasicSkinImage i_button_right_default{};
-    SkinImage *i_menu_back2_DEFAULTSKIN{nullptr};
-    SkinImage *i_menu_back2{nullptr};
-    SkinImage *i_sel_mode{nullptr};
-    SkinImage *i_sel_mode_over{nullptr};
-    SkinImage *i_sel_mods{nullptr};
-    SkinImage *i_sel_mods_over{nullptr};
-    SkinImage *i_sel_random{nullptr};
-    SkinImage *i_sel_random_over{nullptr};
-    SkinImage *i_sel_options{nullptr};
-    SkinImage *i_sel_options_over{nullptr};
+    mutable SkinImage i_menu_back2_DEFAULTSKIN{};
+    mutable SkinImage i_menu_back2{};
+    mutable SkinImage i_sel_mode{};
+    mutable SkinImage i_sel_mode_over{};
+    mutable SkinImage i_sel_mods{};
+    mutable SkinImage i_sel_mods_over{};
+    mutable SkinImage i_sel_random{};
+    mutable SkinImage i_sel_random_over{};
+    mutable SkinImage i_sel_options{};
+    mutable SkinImage i_sel_options_over{};
 
     BasicSkinImage i_songselect_top{};
     BasicSkinImage i_songselect_bot{};
     BasicSkinImage i_menu_button_bg{};
-    SkinImage *i_menu_button_bg2{nullptr};
+    mutable SkinImage i_menu_button_bg2{};
     BasicSkinImage i_star{};
     BasicSkinImage i_ranking_panel{};
     BasicSkinImage i_ranking_graph{};
@@ -494,15 +287,15 @@ struct Skin final {
     BasicSkinImage i_ranking_sh{};
     BasicSkinImage i_ranking_x{};
     BasicSkinImage i_ranking_xh{};
-    SkinImage *i_ranking_a_small{nullptr};
-    SkinImage *i_ranking_b_small{nullptr};
-    SkinImage *i_ranking_c_small{nullptr};
-    SkinImage *i_ranking_d_small{nullptr};
-    SkinImage *i_ranking_s_small{nullptr};
-    SkinImage *i_ranking_sh_small{nullptr};
-    SkinImage *i_ranking_x_small{nullptr};
-    SkinImage *i_ranking_xh_small{nullptr};
-    SkinImage *i_ranking_perfect{nullptr};
+    mutable SkinImage i_ranking_a_small{};
+    mutable SkinImage i_ranking_b_small{};
+    mutable SkinImage i_ranking_c_small{};
+    mutable SkinImage i_ranking_d_small{};
+    mutable SkinImage i_ranking_s_small{};
+    mutable SkinImage i_ranking_sh_small{};
+    mutable SkinImage i_ranking_x_small{};
+    mutable SkinImage i_ranking_xh_small{};
+    mutable SkinImage i_ranking_perfect{};
 
     BasicSkinImage i_beatmap_import_spinner{};
     BasicSkinImage i_loading_spinner{};

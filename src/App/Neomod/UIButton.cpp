@@ -60,7 +60,7 @@ void UIButton::draw() {
     buttonRight->unbind();
 
     if(this->is_loading) {
-        const float scale = (this->getSize().y * 0.8) / skin->i_loading_spinner->getSize().y;
+        const float scale = (this->getSize().y * 0.8) / skin->i_loading_spinner.getSize().y;
         g->setColor(0xffffffff);
         g->pushTransform();
         g->rotate(engine->getTime() * 180, 0, 0, 1);

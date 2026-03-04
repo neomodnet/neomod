@@ -55,7 +55,7 @@ class ModSelector final : public UIScreen {
     void updateLayout();
     void updateExperimentalLayout();
 
-    using SkinImageSkinMember = SkinImage *Skin::*;
+    using SkinImageSkinMember = SkinImage Skin::*;
 
    private:
     struct OVERRIDE_SLIDER {

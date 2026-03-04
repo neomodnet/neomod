@@ -26,10 +26,10 @@ void UIBackButton::draw() {
     {
         g->setColor(0xffffffff);
 
-        const SkinImage *backimg =
+        const SkinImage &backimg =
             this->bUseDefaultBack ? osu->getSkin()->i_menu_back2_DEFAULTSKIN : osu->getSkin()->i_menu_back2;
 
-        backimg->draw(this->getPos() + (backimg->getSize() / 2.f), 1.f,
+        backimg.draw(this->getPos() + (backimg.getSize() / 2.f), 1.f,
                       this->fAnimation * 0.25f /* hover animation brightness */);
     }
     g->popTransform();
@@ -67,13 +67,13 @@ void UIBackButton::onMouseOutside() {
 }
 
 void UIBackButton::updateLayout() {
-    const SkinImage *backimg = osu->getSkin()->i_menu_back2;
+    const SkinImage *backimg = &osu->getSkin()->i_menu_back2;
 
     if(OptionsOverlay *optmenu = ui ? ui->getOptionsOverlay() : nullptr;
        optmenu && optmenu->isVisible() && backimg->getSize().y > (optmenu->getSize().y / 4) &&
-       (osu->getSkin()->i_menu_back2_DEFAULTSKIN && osu->getSkin()->i_menu_back2_DEFAULTSKIN->areImagesFinishedLoading())) {
+       (osu->getSkin()->i_menu_back2_DEFAULTSKIN.isReady())) {
         // always show default back button when options menu is showing, if its height is > 1/4 the options menu height
-        backimg = osu->getSkin()->i_menu_back2_DEFAULTSKIN;
+        backimg = &osu->getSkin()->i_menu_back2_DEFAULTSKIN;
         this->bUseDefaultBack = true;
     } else {
         this->bUseDefaultBack = false;

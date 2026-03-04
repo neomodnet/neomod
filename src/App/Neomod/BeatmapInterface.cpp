@@ -2151,17 +2151,17 @@ void BeatmapInterface::drawFollowPoints() {
                 {
                     g->rotate(glm::degrees(std::atan2(yDiff, xDiff)));
 
-                    skin->i_followpoint->setAnimationTimeOffset(fadeInTime);
+                    skin->i_followpoint.setAnimationTimeOffset(fadeInTime);
 
                     // NOTE: getSizeBaseRaw() depends on the current animation time being set correctly beforehand!
                     // (otherwise you get incorrect scales, e.g. for animated elements with inconsistent @2x mixed in)
                     // the followpoints are scaled by one eighth of the hitcirclediameter (not the raw diameter, but the
                     // scaled diameter)
                     const f32 followPointImageScale =
-                        ((this->fHitcircleDiameter / 8.0f) / skin->i_followpoint->getSizeBaseRaw().x) *
+                        ((this->fHitcircleDiameter / 8.0f) / skin->i_followpoint.getSizeBaseRaw().x) *
                         followPointScaleMultiplier;
 
-                    skin->i_followpoint->drawRaw(followPos, followPointImageScale * scale);
+                    skin->i_followpoint.drawRaw(followPos, followPointImageScale * scale);
                 }
                 g->popTransform();
             }

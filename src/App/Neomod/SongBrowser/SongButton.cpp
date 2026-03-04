@@ -177,7 +177,7 @@ void SongButton::drawGrade() {
     {
         const float scale = this->calculateGradeScale();
         g->setColor(0xffffffff);
-        gradeImg->drawRaw(vec2(pos.x + this->fGradeOffset, pos.y + size.y / 2), scale, AnchorPoint::LEFT);
+        gradeImg.drawRaw(vec2(pos.x + this->fGradeOffset, pos.y + size.y / 2), scale, AnchorPoint::LEFT);
     }
     g->popTransform();
 }
@@ -464,12 +464,12 @@ void SongButton::onCreateNewCollectionConfirmed(const UString &text, int id) {
 float SongButton::calculateGradeScale() {
     const vec2 size = this->getActualSize();
     const auto &gradeImg = osu->getSkin()->getGradeImageSmall(this->grade);
-    return Osu::getRectScaleToFitResolution(gradeImg->getSizeBaseRaw(), vec2(size.x, size.y * this->fGradeScale));
+    return Osu::getRectScaleToFitResolution(gradeImg.getSizeBaseRaw(), vec2(size.x, size.y * this->fGradeScale));
 }
 
 float SongButton::calculateGradeWidth() {
     const auto &gradeImg = osu->getSkin()->getGradeImageSmall(this->grade);
-    return gradeImg->getSizeBaseRaw().x * this->calculateGradeScale();
+    return gradeImg.getSizeBaseRaw().x * this->calculateGradeScale();
 }
 
 void SongButton::onOpenBeatmapFolderClicked() {

@@ -163,7 +163,7 @@ RankingScreen::RankingScreen() : ScreenBackable() {
     this->songInfo = new UIRankingScreenInfoLabel(5, 5, 0, 0, "");
     this->addBaseUIElement(this->songInfo);
 
-    this->rankingTitle = new CBaseUIImage(osu->getSkin()->i_ranking_title->getName(), 0, 0, 0, 0, "");
+    this->rankingTitle = new CBaseUIImage(osu->getSkin()->i_ranking_title.getName(), 0, 0, 0, 0, "");
     this->rankingTitle->setDrawBackground(false);
     this->rankingTitle->setDrawFrame(false);
     this->addBaseUIElement(this->rankingTitle);
@@ -173,7 +173,7 @@ RankingScreen::RankingScreen() : ScreenBackable() {
     this->rankingPanel->setDrawFrame(false);
     this->rankings->container.addBaseUIElement(this->rankingPanel);
 
-    this->rankingGrade = new CBaseUIImage(osu->getSkin()->i_ranking_a->getName(), 0, 0, 0, 0, "");
+    this->rankingGrade = new CBaseUIImage(osu->getSkin()->i_ranking_a.getName(), 0, 0, 0, 0, "");
     this->rankingGrade->setDrawBackground(false);
     this->rankingGrade->setDrawFrame(false);
     this->rankings->container.addBaseUIElement(this->rankingGrade);
@@ -293,13 +293,13 @@ void RankingScreen::draw() {
     }
 }
 
-void RankingScreen::drawModImage(const SkinImage *image, vec2 &pos, vec2 &max) const {
+void RankingScreen::drawModImage(const SkinImage &image, vec2 &pos, vec2 &max) const {
     g->setColor(0xffffffff);
-    image->draw(vec2(pos.x - image->getSize().x / 2.0f, pos.y));
+    image.draw(vec2(pos.x - image.getSize().x / 2.0f, pos.y));
 
     pos.x -= Osu::getUIScale(20);
 
-    if(pos.y + image->getSize().y / 2 > max.y) max.y = pos.y + image->getSize().y / 2;
+    if(pos.y + image.getSize().y / 2 > max.y) max.y = pos.y + image.getSize().y / 2;
 }
 
 void RankingScreen::update(CBaseUIEventCtx &c) {

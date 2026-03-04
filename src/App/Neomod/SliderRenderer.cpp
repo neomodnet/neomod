@@ -110,7 +110,7 @@ forceinline void preDrawColorSetup(bool gradient, i32 sliderTime, float colorRGB
         // this only affects the gradient image if used (meaning shaders
         // either don't work or are disabled on purpose)
         g->setColor(argb(1.0f, colorRGBMultiplier, colorRGBMultiplier, colorRGBMultiplier));
-        osu->getSkin()->i_slider_gradient->bind();
+        osu->getSkin()->i_slider_gradient.bind();
     } else {
         const bool doRainbow = cv::slider_rainbow.getBool();
 
@@ -234,7 +234,7 @@ void draw(const std::vector<vec2> &points, const std::vector<vec2> &alwaysPoints
             if(!useGradientImage) {
                 s_BLEND_SHADER->disable();
             } else {
-                osu->getSkin()->i_slider_gradient->unbind();
+                osu->getSkin()->i_slider_gradient.unbind();
             }
         }
         osu->getSliderFrameBuffer()->disable();
@@ -301,7 +301,7 @@ void draw(VertexArrayObject *vao, const std::vector<vec2> &alwaysPoints, vec2 tr
             if(!useGradientImage) {
                 s_BLEND_SHADER->disable();
             } else {
-                osu->getSkin()->i_slider_gradient->unbind();
+                osu->getSkin()->i_slider_gradient.unbind();
             }
         }
 
@@ -515,11 +515,11 @@ void updateConfigUniforms() {
 
 void drawDebugLegacy(const std::vector<vec2> &points, float hitcircleDiameter, Color undimmedColor,
                      float colorRGBMultiplier, float alpha, int drawFromIndex, int drawUpToIndex) {
-    const float circleImageScale = hitcircleDiameter / (float)osu->getSkin()->i_hitcircle->getWidth();
+    const float circleImageScale = hitcircleDiameter / (float)osu->getSkin()->i_hitcircle.getWidth();
     const float circleImageScaleInv = (1.0f / circleImageScale);
 
-    const auto width = (float)osu->getSkin()->i_hitcircle->getWidth();
-    const auto height = (float)osu->getSkin()->i_hitcircle->getHeight();
+    const auto width = (float)osu->getSkin()->i_hitcircle.getWidth();
+    const auto height = (float)osu->getSkin()->i_hitcircle.getHeight();
 
     const float x = (-width / 2.0f);
     const float y = (-height / 2.0f);
@@ -533,7 +533,7 @@ void drawDebugLegacy(const std::vector<vec2> &points, float hitcircleDiameter, C
 
         g->setColor(Color(dimmedColor).setA(alpha * cv::slider_alpha_multiplier.getFloat()));
 
-        osu->getSkin()->i_hitcircle->bind();
+        osu->getSkin()->i_hitcircle.bind();
         {
             for(int i = drawFromIndex; i < drawUpToIndex; i++) {
                 const vec2 point = points[i] * circleImageScaleInv;
@@ -556,7 +556,7 @@ void drawDebugLegacy(const std::vector<vec2> &points, float hitcircleDiameter, C
                 g->drawVAO(&vao);
             }
         }
-        osu->getSkin()->i_hitcircle->unbind();
+        osu->getSkin()->i_hitcircle.unbind();
     }
     g->popTransform();
     return;
@@ -568,7 +568,7 @@ void drawDebugVAO(VertexArrayObject *vao, vec2 translation, float scale, float f
 
     g->setColor(Color(dimmedColor).setA(alpha * cv::slider_alpha_multiplier.getFloat()));
 
-    osu->getSkin()->i_hitcircle->bind();
+    osu->getSkin()->i_hitcircle.bind();
 
     vao->setDrawPercent(from, to, 6);  // HACKHACK: hardcoded magic number
     {

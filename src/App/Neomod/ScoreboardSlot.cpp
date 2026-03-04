@@ -64,10 +64,10 @@ void ScoreboardSlot::draw() {
     if(cv::hud_scoreboard_use_menubuttonbackground.getBool()) {
         // XXX: Doesn't work on resolutions more vertical than 4:3
         float bg_scale = 0.625f;
-        const auto *bg_img = osu->getSkin()->i_menu_button_bg2;
-        float oScale = bg_img->getResolutionScale() * 0.99f;
+        const auto &bg_img = osu->getSkin()->i_menu_button_bg2;
+        float oScale = bg_img.getResolutionScale() * 0.99f;
         g->fillRect(0, start_y, avatar_width, height);
-        bg_img->draw(vec2(avatar_width + (bg_img->getSizeBase().x / 2) * bg_scale - (470 * oScale) * bg_scale,
+        bg_img.draw(vec2(avatar_width + (bg_img.getSizeBase().x / 2) * bg_scale - (470 * oScale) * bg_scale,
                           start_y + height / 2),
                      bg_scale);
     } else {

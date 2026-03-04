@@ -37,7 +37,7 @@ class RankingScreen final : public ScreenBackable {
     void updateLayout() override;
     void onBack() override;
 
-    void drawModImage(const SkinImage *image, vec2 &pos, vec2 &max) const;
+    void drawModImage(const SkinImage &image, vec2 &pos, vec2 &max) const;
 
     void setGrade(ScoreGrade grade);
     void setIndex(int index);
@@ -63,7 +63,7 @@ class RankingScreen final : public ScreenBackable {
     float fHitErrorAvgMax;
 
     UString sMods;
-    std::vector<SkinImage * Skin::*> modImages;
+    std::vector<SkinImage Skin::*> modImages;
     std::vector<ConVar *> extraMods;
 
     // custom

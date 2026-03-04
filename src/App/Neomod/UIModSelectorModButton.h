@@ -10,7 +10,7 @@ class ConVar;
 class UIModSelectorModButton final : public CBaseUIButton {
    public:
     UIModSelectorModButton(ModSelector *osuModSelector, float xPos, float yPos, float xSize, float ySize, UString name);
-    using SkinImageSkinMember = SkinImage *Skin::*;
+    using SkinImageSkinMember = SkinImage Skin::*;
 
     void draw() override;
     void update(CBaseUIEventCtx &c) override;
@@ -33,7 +33,7 @@ class UIModSelectorModButton final : public CBaseUIButton {
     void setOn(bool on, bool silent = false);
 
    private:
-    [[nodiscard]] SkinImage *getActiveSkinImage() const;
+    [[nodiscard]] const SkinImage *getActiveSkinImage() const;
     ModSelector *osuModSelector;
 
     bool bOn;

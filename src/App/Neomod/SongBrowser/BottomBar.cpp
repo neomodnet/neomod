@@ -99,21 +99,21 @@ void update(CBaseUIEventCtx& c) {
     const vec2 screen = osu->getVirtScreenSize();
     bool is_widescreen = (screen.x / screen.y) > (4.f / 3.f);
 
-    const SkinImage* mode_img = skin->i_sel_mode_over;
+    const SkinImage& mode_img = skin->i_sel_mode_over;
     btns[MODE].rect.setSize(SongBrowser::getSkinDimensions(mode_img));
     btns[MODE].rect.setPos({Osu::getUIScale(is_widescreen ? 140.0f : 120.0f), screen.y - btns[MODE].rect.getHeight()});
 
-    const SkinImage* mods_img = skin->i_sel_mods_over;
+    const SkinImage& mods_img = skin->i_sel_mods_over;
     btns[MODS].rect.setSize(SongBrowser::getSkinDimensions(mods_img));
     btns[MODS].rect.setPos(
         {btns[MODE].rect.getX() + SongBrowser::getUIScale(92.5f), screen.y - btns[MODS].rect.getHeight()});
 
-    const SkinImage* random_img = skin->i_sel_random_over;
+    const SkinImage& random_img = skin->i_sel_random_over;
     btns[RANDOM].rect.setSize(SongBrowser::getSkinDimensions(random_img));
     btns[RANDOM].rect.setPos(
         {btns[MODS].rect.getX() + SongBrowser::getUIScale(77.5f), screen.y - btns[RANDOM].rect.getHeight()});
 
-    const SkinImage* options_img = skin->i_sel_options_over;
+    const SkinImage& options_img = skin->i_sel_options_over;
     btns[OPTIONS].rect.setSize(SongBrowser::getSkinDimensions(options_img));
     btns[OPTIONS].rect.setPos(
         {btns[RANDOM].rect.getX() + SongBrowser::getUIScale(77.5f), screen.y - btns[OPTIONS].rect.getHeight()});
@@ -185,39 +185,39 @@ void draw() {
 
     // Careful, these buttons are often used as overlays
     // eg. selection-mode usually covers the whole screen, drawing topbar, bottom right osu cookie etc
-    const std::array btn_imgs{std::pair{&btns[MODE], skin->i_sel_mode},         //
-                              std::pair{&btns[MODS], skin->i_sel_mods},         //
-                              std::pair{&btns[RANDOM], skin->i_sel_random},     //
-                              std::pair{&btns[OPTIONS], skin->i_sel_options}};  //
+    const std::array btn_imgs{std::pair{&btns[MODE], &skin->i_sel_mode},         //
+                              std::pair{&btns[MODS], &skin->i_sel_mods},         //
+                              std::pair{&btns[RANDOM], &skin->i_sel_random},     //
+                              std::pair{&btns[OPTIONS], &skin->i_sel_options}};  //
     for(const auto& [btn, img] : btn_imgs) {
         if(img == nullptr) continue;
 
-        const f32 scale = SongBrowser::getSkinScale(img);
+        const f32 scale = SongBrowser::getSkinScale(*img);
         img->drawRaw(vec2(btn->rect.getX(), screen_size.y), scale, AnchorPoint::BOTTOM_LEFT);
     }
 
     // Ok, and now for the hover images... which are drawn in a weird order, same as update_bottombar()
-    const std::array btn_hoverimgs{std::pair{&btns[RANDOM], skin->i_sel_random_over},     //
-                                   std::pair{&btns[MODS], skin->i_sel_mods_over},         //
-                                   std::pair{&btns[MODE], skin->i_sel_mode_over},         //
-                                   std::pair{&btns[OPTIONS], skin->i_sel_options_over}};  //
+    const std::array btn_hoverimgs{std::pair{&btns[RANDOM], &skin->i_sel_random_over},     //
+                                   std::pair{&btns[MODS], &skin->i_sel_mods_over},         //
+                                   std::pair{&btns[MODE], &skin->i_sel_mode_over},         //
+                                   std::pair{&btns[OPTIONS], &skin->i_sel_options_over}};  //
     for(const auto& [btn, img] : btn_hoverimgs) {
         if(img == nullptr) continue;
 
         g->setAlpha(btn->alpha);
-        const f32 scale = SongBrowser::getSkinScale(img);
+        const f32 scale = SongBrowser::getSkinScale(*img);
         img->drawRaw(vec2(btn->rect.getX(), screen_size.y), scale, AnchorPoint::BOTTOM_LEFT);
     }
 
     // mode-osu-small (often used as overlay)
-    const SkinImage* mos_img = skin->i_mode_osu_small;
-    if(mos_img != nullptr) {
+    const SkinImage& mos_img = skin->i_mode_osu_small;
+    if(!mos_img.isMissingTexture()) {
         f32 mos_scale = SongBrowser::getSkinScale(mos_img);
         g->setBlendMode(DrawBlendMode::ADDITIVE);
         g->setColor(0xffffffff);
-        mos_img->drawRaw(vec2(btns[MODE].rect.getX() + (btns[MODS].rect.getX() - btns[MODE].rect.getX()) / 2.f,
-                              screen_size.y - SongBrowser::getUIScale(56.f)),
-                         mos_scale, AnchorPoint::CENTER);
+        mos_img.drawRaw(vec2(btns[MODE].rect.getX() + (btns[MODS].rect.getX() - btns[MODE].rect.getX()) / 2.f,
+                             screen_size.y - SongBrowser::getUIScale(56.f)),
+                        mos_scale, AnchorPoint::CENTER);
         g->setBlendMode(DrawBlendMode::ALPHA);
     }
 

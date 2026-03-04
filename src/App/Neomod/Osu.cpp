@@ -467,17 +467,11 @@ Osu::~Osu() {
 
     // destroy all skin sounds (and potentially loading skin), then skin
     if(this->skinScheduledToLoad && this->skinScheduledToLoad != this->skin.get()) {
-        for(auto *sound : this->skinScheduledToLoad->sounds) {
-            resourceManager->destroyResource(sound, ResourceDestroyFlags::RDF_FORCE_BLOCKING);
-        }
-        this->skinScheduledToLoad->sounds.clear();
+        this->skinScheduledToLoad->destroy(true);
         SAFE_DELETE(this->skinScheduledToLoad);
     }
     if(this->skin) {
-        for(auto *sound : this->skin->sounds) {
-            resourceManager->destroyResource(sound, ResourceDestroyFlags::RDF_FORCE_BLOCKING);
-        }
-        this->skin->sounds.clear();
+        this->skin->destroy(true);
         this->skin.reset();
     }
 

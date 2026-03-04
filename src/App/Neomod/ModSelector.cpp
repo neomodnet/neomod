@@ -782,7 +782,7 @@ void ModSelector::updateLayout() {
     {
         // mod grid buttons
         vec2 center = osu->getVirtScreenSize() / 2.0f;
-        vec2 size = osu->getSkin()->i_modselect_ez->getSizeBase() * uiScale;
+        vec2 size = osu->getSkin()->i_modselect_ez.getSizeBase() * uiScale;
         vec2 offset = vec2(size.x * 1.0f, size.y * 0.33f);
         vec2 start = vec2(center.x - (size.x * GRID_WIDTH) / 2.0f - (offset.x * (GRID_WIDTH - 1)) / 2.0f,
                           center.y - (size.y * GRID_HEIGHT) / 2.0f - (offset.y * (GRID_HEIGHT - 1)) / 2.0f);
@@ -870,7 +870,7 @@ void ModSelector::updateLayout() {
     {
         // mod grid buttons
         vec2 center = osu->getVirtScreenSize() / 2.0f;
-        vec2 blockSize = osu->getSkin()->i_modselect_ez->getSizeBase() * uiScale;
+        vec2 blockSize = osu->getSkin()->i_modselect_ez.getSizeBase() * uiScale;
         vec2 offset = vec2(blockSize.x * 0.15f, blockSize.y * 0.05f);
         vec2 size = vec2((blockSize.x * GRID_WIDTH) + (offset.x * (GRID_WIDTH - 1)),
                          (blockSize.y * GRID_HEIGHT) + (offset.y * (GRID_HEIGHT - 1)));

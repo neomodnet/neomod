@@ -10,32 +10,35 @@
 #include "Skin.h"
 #include "Logging.h"
 
-SkinImage::SkinImage(Skin* skin, const std::string& skinElementName, vec2 baseSizeForScaling2x, float osuSize,
-                     const std::string& animationSeparator, bool ignoreDefaultSkin) {
+std::vector<std::string> SkinImage::init(Skin* skin, const std::string& skinElementName, vec2 baseSizeForScaling2x,
+                                         float osuSize, const std::string& animationSeparator, bool ignoreDefaultSkin) {
+    std::vector<std::string> toExport;
+
+    // sanity (should not happen with the way SkinImages are loaded atm)
+    if(this->skin == skin) {
+        this->destroy(true);
+    }
     this->skin = skin;
     this->vBaseSizeForScaling2x = baseSizeForScaling2x;
     this->fOsuSize = osuSize;
 
-    this->bReady = false;
-
-    this->iCurMusicPos = 0;
-    this->iFrameCounter = 0;
-    this->iFrameCounterUnclamped = 0;
-    this->iBeatmapAnimationTimeStartOffset = 0;
-
-    this->bIsMissingTexture = false;
-    this->bIsFromDefaultSkin = false;
-
-    this->fDrawClipWidthPercent = 1.0f;
-
     // logic: first load user skin (true), and if no image could be found then load the default skin (false)
     // this is necessary so that all elements can be correctly overridden with a user skin (e.g. if the user skin only
     // has sliderb.png, but the default skin has sliderb0.png!)
-    if(!this->load(skinElementName, animationSeparator, true)) {
-        if(!ignoreDefaultSkin) this->load(skinElementName, animationSeparator, false);
+    if(!this->load(skinElementName, animationSeparator, true, toExport)) {
+        if(!ignoreDefaultSkin) this->load(skinElementName, animationSeparator, false, toExport);
     }
 
-    this->bHasNonAnimatedImage = this->nonAnimatedImage.img != MISSING_TEXTURE;
+    if(this->nonAnimatedImage.img != MISSING_TEXTURE) {
+        this->bHasNonAnimatedImage = true;
+
+        // avoid double-delete
+        this->bCanDeleteNonAnimatedImage =
+            !std::ranges::contains(this->images, this->nonAnimatedImage.img, &IMAGE::img);
+    } else {
+        this->bHasNonAnimatedImage = false;
+        this->bCanDeleteNonAnimatedImage = true;
+    }
 
     // if we couldn't load ANYTHING at all, gracefully fallback to missing texture
     if(this->images.size() < 1) {
@@ -54,16 +57,18 @@ SkinImage::SkinImage(Skin* skin, const std::string& skinElementName, vec2 baseSi
         this->fFrameDuration = 1.0f / this->skin->anim_framerate;
     else if(this->images.size() > 0)
         this->fFrameDuration = 1.0f / (float)this->images.size();
+
+    return toExport;
 }
 
-bool SkinImage::load(const std::string& skinElementName, const std::string& animationSeparator,
-                     bool ignoreDefaultSkin) {
+bool SkinImage::load(const std::string& skinElementName, const std::string& animationSeparator, bool ignoreDefaultSkin,
+                     std::vector<std::string>& exportVec) {
     std::string animatedSkinElementStartName = skinElementName;
     animatedSkinElementStartName.append(animationSeparator);
     animatedSkinElementStartName.append("0");
-    if(this->loadImage(animatedSkinElementStartName, ignoreDefaultSkin, true,
-                       true))  // try loading the first animated element (if this exists then we continue
-                               // loading until the first missing frame)
+    if(this->loadImage(animatedSkinElementStartName, ignoreDefaultSkin, true, true,
+                       exportVec))  // try loading the first animated element (if this exists then we continue
+                                    // loading until the first missing frame)
     {
         int frame = 1;
         while(true) {
@@ -71,7 +76,7 @@ bool SkinImage::load(const std::string& skinElementName, const std::string& anim
             currentAnimatedSkinElementFrameName.append(animationSeparator);
             currentAnimatedSkinElementFrameName.append(std::to_string(frame));
 
-            if(!this->loadImage(currentAnimatedSkinElementFrameName, ignoreDefaultSkin, true, true))
+            if(!this->loadImage(currentAnimatedSkinElementFrameName, ignoreDefaultSkin, true, true, exportVec))
                 break;  // stop loading on the first missing frame
 
             frame++;
@@ -83,18 +88,17 @@ bool SkinImage::load(const std::string& skinElementName, const std::string& anim
             }
         }
         // also try to load non-animated skin element, but don't add it to images
-        this->loadImage(skinElementName, ignoreDefaultSkin, false, false);
+        this->loadImage(skinElementName, ignoreDefaultSkin, false, false, exportVec);
     } else {
         // load non-animated skin element
-        if(this->loadImage(skinElementName, ignoreDefaultSkin, false, true))
-            this->bDeleteNonAnimatedImage =
-                false;  // avoid double-delete (image is in both images[] and nonAnimatedImage)
+        this->loadImage(skinElementName, ignoreDefaultSkin, false, true, exportVec);
     }
 
     return this->images.size() > 0;  // if any image was found
 }
 
-bool SkinImage::loadImage(const std::string& skinElementName, bool ignoreDefaultSkin, bool animated, bool addToImages) {
+bool SkinImage::loadImage(const std::string& skinElementName, bool ignoreDefaultSkin, bool animated, bool addToImages,
+                          std::vector<std::string>& exportVec) {
     const size_t n_dirs = ignoreDefaultSkin ? 1 : this->skin->search_dirs.size();
 
     for(size_t i = 0; i < n_dirs; i++) {
@@ -131,9 +135,8 @@ bool SkinImage::loadImage(const std::string& skinElementName, bool ignoreDefault
 
             if(addToImages) {
                 this->images.push_back(image);
-                this->filepathsForExport.push_back(path_2x);
-                if(exists_1x) this->filepathsForExport.push_back(path_1x);
-                this->is_2x = true;
+                exportVec.push_back(path_2x);
+                if(exists_1x) exportVec.push_back(path_1x);
             }
             return true;
         }
@@ -151,9 +154,8 @@ bool SkinImage::loadImage(const std::string& skinElementName, bool ignoreDefault
 
             if(addToImages) {
                 this->images.push_back(image);
-                this->filepathsForExport.push_back(path_1x);
-                if(exists_2x) this->filepathsForExport.push_back(path_2x);
-                this->is_2x = false;
+                exportVec.push_back(path_1x);
+                if(exists_2x) exportVec.push_back(path_2x);
             }
             return true;
         }
@@ -162,19 +164,39 @@ bool SkinImage::loadImage(const std::string& skinElementName, bool ignoreDefault
     return false;
 }
 
-SkinImage::~SkinImage() {
-    for(auto& image : this->images) {
-        if(image.img != MISSING_TEXTURE) {
-            resourceManager->destroyResource(image.img);
+void SkinImage::destroy(bool everything) {
+    this->bReady = false;
+
+    const auto destroyFlags = everything ? ResourceDestroyFlags::RDF_FORCE_BLOCKING : ResourceDestroyFlags::RDF_DEFAULT;
+    auto imagesToDelete = std::move(this->images);
+    this->images.clear();
+
+    for(auto& image : imagesToDelete) {
+        if(image.img && image.img != MISSING_TEXTURE) {
+            resourceManager->destroyResource(image.img, destroyFlags);
             image.img = MISSING_TEXTURE;
         }
     }
-    this->images.clear();
-    if(this->bDeleteNonAnimatedImage && this->nonAnimatedImage.img != MISSING_TEXTURE) {
-        resourceManager->destroyResource(this->nonAnimatedImage.img);
+
+    if(this->bHasNonAnimatedImage && this->bCanDeleteNonAnimatedImage && this->nonAnimatedImage.img &&
+       this->nonAnimatedImage.img != MISSING_TEXTURE) {
+        resourceManager->destroyResource(this->nonAnimatedImage.img, destroyFlags);
+        this->nonAnimatedImage.img = MISSING_TEXTURE;
     }
 
-    this->filepathsForExport.clear();
+    this->skin = nullptr;
+    this->vBaseSizeForScaling2x = {0.f, 0.f};
+    this->fOsuSize = 0.f;
+    this->iCurMusicPos = 0;
+    this->iFrameCounter = 0;
+    this->iFrameCounterUnclamped = 0;
+    this->fFrameDuration = 0.f;
+    this->iBeatmapAnimationTimeStartOffset = 0;
+    this->fDrawClipWidthPercent = 1.f;
+    this->bIsMissingTexture = false;
+    this->bIsFromDefaultSkin = false;
+    this->bCanDeleteNonAnimatedImage = false;
+    this->bHasNonAnimatedImage = false;
 }
 
 void SkinImage::drawBrightQuad(VertexArrayObject* vao, float brightness) const {
@@ -376,14 +398,15 @@ float SkinImage::getImageScale(bool animated) const {
 
 float SkinImage::getResolutionScale() const { return Osu::getRectScale(this->vBaseSizeForScaling2x, this->fOsuSize); }
 
-bool SkinImage::areImagesFinishedLoading() const {
+bool SkinImage::isReady() const {
     if(this->bReady) return true;
 
     for(auto& image : this->images) {
         if(resourceManager->isLoadingResource(image.img)) return false;
     }
 
-    if(this->bDeleteNonAnimatedImage && this->nonAnimatedImage.img != MISSING_TEXTURE) {
+    if(this->bHasNonAnimatedImage && this->bCanDeleteNonAnimatedImage &&
+       this->nonAnimatedImage.img != MISSING_TEXTURE) {
         if(resourceManager->isLoadingResource(this->nonAnimatedImage.img)) return false;
     }
 

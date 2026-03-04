@@ -99,7 +99,7 @@ void SongDifficultyButton::draw() {
     if(stars > 0) {
         const float starOffsetY = (size.y * 0.85);
         const float starWidth = (size.y * 0.2);
-        const float starScale = starWidth / skin->i_star->getHeight();
+        const float starScale = starWidth / skin->i_star.getHeight();
         const int numFullStars = std::clamp<int>((int)stars, 0, 25);
         const float partialStarScale =
             std::max(0.5f, std::clamp<float>(stars - numFullStars, 0.0f, 1.0f));  // at least 0.5x

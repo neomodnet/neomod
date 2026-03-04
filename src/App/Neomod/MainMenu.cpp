@@ -906,7 +906,7 @@ void MainMenu::draw() {
         float offset = Osu::getUIScale(45.0f * animation);
 
         const float scale =
-            this->versionButton->getSize().x / osu->getSkin()->i_play_warning_arrow2->getSizeBaseRaw().x;
+            this->versionButton->getSize().x / osu->getSkin()->i_play_warning_arrow2.getSizeBaseRaw().x;
 
         const vec2 arrowPos = vec2(this->versionButton->getSize().x / 1.75f,
                                    osu->getVirtScreenHeight() - this->versionButton->getSize().y * 2 -
@@ -919,7 +919,7 @@ void MainMenu::draw() {
             McFont *smallFont = osu->getSubTitleFont();
             g->translate(arrowPos.x - smallFont->getStringWidth(notificationText) / 2.0f,
                          (-offset * 2) * scale + arrowPos.y -
-                             (osu->getSkin()->i_play_warning_arrow2->getSizeBaseRaw().y * scale) / 1.5f,
+                             (osu->getSkin()->i_play_warning_arrow2.getSizeBaseRaw().y * scale) / 1.5f,
                          0);
             g->drawString(smallFont, notificationText);
         }
@@ -930,7 +930,7 @@ void MainMenu::draw() {
         {
             g->rotate(90.0f);
             g->translate(0, -offset * 2, 0);
-            osu->getSkin()->i_play_warning_arrow2->drawRaw(arrowPos, scale);
+            osu->getSkin()->i_play_warning_arrow2.drawRaw(arrowPos, scale);
         }
         g->popTransform();
     }

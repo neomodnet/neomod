@@ -98,7 +98,7 @@ void UIRankingScreenRankingPanel::draw() {
     {
         g->scale(scale, scale);
         g->translate(
-            this->getPos().x + skin->i_ranking_max_combo->getWidth() * scale * 0.5f + Osu::getUIScale(4.0f) * uiScale,
+            this->getPos().x + skin->i_ranking_max_combo.getWidth() * scale * 0.5f + Osu::getUIScale(4.0f) * uiScale,
             this->getPos().y + (Osu::getUIScale(row4 - 5 - row4ImageOffset) + globalYOffset) * uiScale);
         g->drawImage(skin->i_ranking_max_combo);
     }
@@ -123,7 +123,7 @@ void UIRankingScreenRankingPanel::draw() {
     {
         g->scale(scale, scale);
         g->translate(
-            this->getPos().x + skin->i_ranking_accuracy->getWidth() * scale * 0.5f + Osu::getUIScale(183.0f) * uiScale,
+            this->getPos().x + skin->i_ranking_accuracy.getWidth() * scale * 0.5f + Osu::getUIScale(183.0f) * uiScale,
             this->getPos().y + (Osu::getUIScale(row4 - 3 - row4ImageOffset) + globalYOffset) * uiScale);
         g->drawImage(skin->i_ranking_accuracy);
     }
@@ -131,22 +131,22 @@ void UIRankingScreenRankingPanel::draw() {
 
     // draw perfect
     if(this->bPerfect) {
-        scale = Osu::getRectScale(skin->i_ranking_perfect->getSizeBaseRaw(), 94.0f) * uiScale;
-        skin->i_ranking_perfect->drawRaw(
+        scale = Osu::getRectScale(skin->i_ranking_perfect.getSizeBaseRaw(), 94.0f) * uiScale;
+        skin->i_ranking_perfect.drawRaw(
             this->getPos() +
                 vec2(Osu::getUIScale(skin->version > 1.0f ? 260 : 200), Osu::getUIScale(430.0f) + globalYOffset) *
                     vec2(1.0f, 0.97f) * uiScale -
-                vec2(0, skin->i_ranking_perfect->getSizeBaseRaw().y) * scale * 0.5f,
+                vec2(0, skin->i_ranking_perfect.getSizeBaseRaw().y) * scale * 0.5f,
             scale);
     }
 }
 
-void UIRankingScreenRankingPanel::drawHitImage(SkinImage *img, float /*scale*/, vec2 pos) const {
+void UIRankingScreenRankingPanel::drawHitImage(const SkinImage &img, float /*scale*/, vec2 pos) const {
     const float uiScale = /*cv::ui_scale.getFloat()*/ 1.0f;  // NOTE: commented for now, doesn't really work due to
                                                              // legacy layout expectations
 
     // img->setAnimationFrameForce(0);
-    img->draw(
+    img.draw(
         vec2(this->getPos().x + Osu::getUIScale(pos.x) * uiScale, this->getPos().y + Osu::getUIScale(pos.y) * uiScale),
         uiScale, 0.f, false /* try non-animated */);
 }

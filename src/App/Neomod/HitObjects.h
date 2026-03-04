@@ -191,7 +191,7 @@ class Circle final : public HitObject {
     // split helper functions
     static void drawApproachCircle(const Skin *skin, vec2 pos, Color comboColor, float hitcircleDiameter,
                                    float approachScale, float alpha, bool modHD, bool overrideHDApproachCircle);
-    static void drawHitCircleOverlay(SkinImage *hitCircleOverlayImage, vec2 pos, float circleOverlayImageScale,
+    static void drawHitCircleOverlay(const SkinImage &hitCircleOverlayImage, vec2 pos, float circleOverlayImageScale,
                                      float alpha, float colorRGBMultiplier);
     static void drawHitCircle(Image *hitCircleImage, vec2 pos, Color comboColor, float circleImageScale, float alpha);
     static void drawHitCircleNumber(const Skin *skin, float numberScale, float overlapScale, vec2 pos, int number,
