@@ -35,7 +35,7 @@ UserCard::UserCard(i32 user_id) : CBaseUIButton() {
         [](UserCard *card) { ui->getUserActions()->open(card->user_id, card == osu->getUserButton()); }));
 }
 
-UserCard::~UserCard() { anim::deleteExistingAnimation(&this->fPPDeltaAnim); }
+UserCard::~UserCard() = default;
 
 void UserCard::draw() {
     if(!this->bVisible) return;
@@ -192,12 +192,12 @@ void UserCard::draw() {
                 g->translate((int)textPos.x, (int)textPos.y);
 
                 g->translate(1, 1);
-                g->setColor(Color(0xff000000).setA(this->fPPDeltaAnim));
+                g->setColor(Color(0xff000000).setA((f32)this->fPPDeltaAnim));
 
                 g->drawString(deltaFont, performanceDeltaString);
 
                 g->translate(-1, -1);
-                g->setColor(Color(this->fPPDelta > 0.0f ? 0xff00ff00 : 0xffff0000).setA(this->fPPDeltaAnim));
+                g->setColor(Color(this->fPPDelta > 0.0f ? 0xff00ff00 : 0xffff0000).setA((f32)this->fPPDeltaAnim));
 
                 g->drawString(deltaFont, performanceDeltaString);
             }
@@ -269,7 +269,7 @@ void UserCard::updateUserStats() {
     if(changed) {
         if(changedPP && !isFirstLoad && this->fPPDelta != 0.0f && this->fPP != 0.0f) {
             this->fPPDeltaAnim = 1.0f;
-            anim::moveLinear(&this->fPPDeltaAnim, 0.0f, 25.0f, true);
+            this->fPPDeltaAnim.set(0.0f, 25.0f, anim::Linear);
         }
     }
 }

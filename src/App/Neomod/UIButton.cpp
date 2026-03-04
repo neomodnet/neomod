@@ -125,7 +125,7 @@ void UIButton::onFocusStolen() {
 
 void UIButton::animateClickColor() {
     this->fClickAnim = 1.0f;
-    anim::moveLinear(&this->fClickAnim, 0.0f, 0.5f, true);
+    this->fClickAnim.set(0.0f, 0.5f, anim::Linear);
 }
 
 UIButton *UIButton::setTooltipText(const UString &text) {

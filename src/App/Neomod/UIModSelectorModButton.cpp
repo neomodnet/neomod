@@ -24,8 +24,9 @@ UIModSelectorModButton::UIModSelectorModButton(ModSelector *osuModSelector, floa
     : CBaseUIButton(xPos, yPos, xSize, ySize, std::move(name), "") {
     this->osuModSelector = osuModSelector;
     this->iState = 0;
-    this->vScale = this->vBaseScale = vec2(1, 1);
-    this->fRot = 0.0f;
+    this->vBaseScale = vec2(1, 1);
+    this->fScaleX = 1.f;
+    this->fScaleY = 1.f;
 
     this->fEnabledScaleMultiplier = 1.25f;
     this->fEnabledRotationDeg = 6.0f;
@@ -37,11 +38,7 @@ UIModSelectorModButton::UIModSelectorModButton(ModSelector *osuModSelector, floa
     this->bFocusStolenDelay = false;
 }
 
-UIModSelectorModButton::~UIModSelectorModButton() {
-    anim::deleteExistingAnimation(&this->fRot);
-    anim::deleteExistingAnimation(&this->vScale.x);
-    anim::deleteExistingAnimation(&this->vScale.y);
-}
+UIModSelectorModButton::~UIModSelectorModButton() = default;
 
 void UIModSelectorModButton::draw() {
     if(!this->bVisible) return;
@@ -49,7 +46,7 @@ void UIModSelectorModButton::draw() {
     if(const SkinImage *activeImage = this->getActiveSkinImage(); !!activeImage) {
         g->pushTransform();
         {
-            g->scale(this->vScale.x, this->vScale.y);
+            g->scale(this->fScaleX, this->fScaleY);
 
             if(this->fRot != 0.0f) g->rotate(this->fRot);
 
@@ -165,10 +162,12 @@ void UIModSelectorModButton::onFocusStolen() {
 void UIModSelectorModButton::setBaseScale(float xScale, float yScale) {
     this->vBaseScale.x = xScale;
     this->vBaseScale.y = yScale;
-    this->vScale = this->vBaseScale;
+    this->fScaleX = this->vBaseScale.x;
+    this->fScaleY = this->vBaseScale.y;
 
     if(this->bOn) {
-        this->vScale = this->vBaseScale * this->fEnabledScaleMultiplier;
+        this->fScaleX = this->vBaseScale.x * this->fEnabledScaleMultiplier;
+        this->fScaleY = this->vBaseScale.y * this->fEnabledScaleMultiplier;
         this->fRot = this->fEnabledRotationDeg;
     }
 }
@@ -194,17 +193,17 @@ void UIModSelectorModButton::setOn(bool on, bool silent) {
 
     if(silent) {
         // set values directly, without animation
-        anim::deleteExistingAnimation(&this->fRot);
-        anim::deleteExistingAnimation(&this->vScale.x);
-        anim::deleteExistingAnimation(&this->vScale.y);
-
+        this->fRot.stop();
+        this->fScaleX.stop();
+        this->fScaleY.stop();
         if(this->bOn) {
             this->fRot = this->fEnabledRotationDeg;
-            this->vScale.x = this->vBaseScale.x * this->fEnabledScaleMultiplier;
-            this->vScale.y = this->vBaseScale.y * this->fEnabledScaleMultiplier;
+            this->fScaleX = this->vBaseScale.x * this->fEnabledScaleMultiplier;
+            this->fScaleY = this->vBaseScale.y * this->fEnabledScaleMultiplier;
         } else {
             this->fRot = 0.0f;
-            this->vScale = this->vBaseScale;
+            this->fScaleX = this->vBaseScale.x;
+            this->fScaleY = this->vBaseScale.y;
         }
         // return early
         return;
@@ -226,31 +225,31 @@ void UIModSelectorModButton::setOn(bool on, bool silent) {
         if(prevState) {
             // swap effect
             constexpr float swapDurationMultiplier = 0.65f;
-            anim::moveLinear(&this->fRot, 0.0f, animationDuration * swapDurationMultiplier, true);
-            anim::moveLinear(&this->vScale.x, this->vBaseScale.x, animationDuration * swapDurationMultiplier, true);
-            anim::moveLinear(&this->vScale.y, this->vBaseScale.y, animationDuration * swapDurationMultiplier, true);
+            this->fRot.set(0.0f, animationDuration * swapDurationMultiplier, anim::Linear);
+            this->fScaleX.set(this->vBaseScale.x, animationDuration * swapDurationMultiplier, anim::Linear);
+            this->fScaleY.set(this->vBaseScale.y, animationDuration * swapDurationMultiplier, anim::Linear);
 
-            anim::moveLinear(&this->fRot, this->fEnabledRotationDeg, animationDuration * swapDurationMultiplier,
-                             animationDuration * swapDurationMultiplier, false);
-            anim::moveLinear(&this->vScale.x, this->vBaseScale.x * this->fEnabledScaleMultiplier,
-                             animationDuration * swapDurationMultiplier, animationDuration * swapDurationMultiplier,
-                             false);
-            anim::moveLinear(&this->vScale.y, this->vBaseScale.y * this->fEnabledScaleMultiplier,
-                             animationDuration * swapDurationMultiplier, animationDuration * swapDurationMultiplier,
-                             false);
+            this->fRot.append(this->fEnabledRotationDeg, animationDuration * swapDurationMultiplier,
+                              anim::Linear, animationDuration * swapDurationMultiplier);
+            this->fScaleX.append(this->vBaseScale.x * this->fEnabledScaleMultiplier,
+                                 animationDuration * swapDurationMultiplier, anim::Linear,
+                                 animationDuration * swapDurationMultiplier);
+            this->fScaleY.append(this->vBaseScale.y * this->fEnabledScaleMultiplier,
+                                 animationDuration * swapDurationMultiplier, anim::Linear,
+                                 animationDuration * swapDurationMultiplier);
         } else {
-            anim::moveLinear(&this->fRot, this->fEnabledRotationDeg, animationDuration, true);
-            anim::moveLinear(&this->vScale.x, this->vBaseScale.x * this->fEnabledScaleMultiplier, animationDuration,
-                             true);
-            anim::moveLinear(&this->vScale.y, this->vBaseScale.y * this->fEnabledScaleMultiplier, animationDuration,
-                             true);
+            this->fRot.set(this->fEnabledRotationDeg, animationDuration, anim::Linear);
+            this->fScaleX.set(this->vBaseScale.x * this->fEnabledScaleMultiplier, animationDuration,
+                              anim::Linear);
+            this->fScaleY.set(this->vBaseScale.y * this->fEnabledScaleMultiplier, animationDuration,
+                              anim::Linear);
         }
 
         soundEngine->play(osu->getSkin()->s_check_on);
     } else {
-        anim::moveLinear(&this->fRot, 0.0f, animationDuration, true);
-        anim::moveLinear(&this->vScale.x, this->vBaseScale.x, animationDuration, true);
-        anim::moveLinear(&this->vScale.y, this->vBaseScale.y, animationDuration, true);
+        this->fRot.set(0.0f, animationDuration, anim::Linear);
+        this->fScaleX.set(this->vBaseScale.x, animationDuration, anim::Linear);
+        this->fScaleY.set(this->vBaseScale.y, animationDuration, anim::Linear);
 
         if(prevState) {
             soundEngine->play(osu->getSkin()->s_check_off);

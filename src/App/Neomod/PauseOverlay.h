@@ -1,5 +1,6 @@
 #pragma once
 // Copyright (c) 2016, PG, All rights reserved.
+#include "AnimationHandler.h"
 #include "UIScreen.h"
 #include "Skin.h"
 
@@ -45,13 +46,13 @@ class PauseOverlay final : public UIScreen {
     std::vector<UIPauseMenuButton *> buttons;
     UIPauseMenuButton *selectedButton{nullptr};
     double fButtonsActiveTime{0.0};
-    float fButtonBrightnessAnim{1.f};
-    float fDimAnim{0.f};
+    AnimFloat fButtonBrightnessAnim{1.f};
+    AnimFloat fDimAnim;
 
     float fWarningArrowsAnimStartTime{0.f};
-    float fWarningArrowsAnimAlpha{0.f};
-    float fWarningArrowsAnimX{0.f};
-    float fWarningArrowsAnimY{0.f};
+    AnimFloat fWarningArrowsAnimAlpha;
+    AnimFloat fWarningArrowsAnimX;
+    AnimFloat fWarningArrowsAnimY;
 
     bool bScheduledVisibilityChange{false};
     bool bScheduledVisibility{false};

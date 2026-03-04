@@ -444,7 +444,6 @@ SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
     this->thumbnailYRatio = cv::draw_songbrowser_thumbnails.getBool() ? 1.333333f : 0.f;
 
     // behaviour
-    this->fPulseAnimation = 0.0f;
     this->fBackgroundFadeInTime = 0.0f;
 
     // search
@@ -1358,7 +1357,7 @@ void SongBrowser::onDifficultySelected(DatabaseBeatmap *map, bool play) {
 
     // animate
     this->fPulseAnimation = 1.0f;
-    anim::moveLinear(&this->fPulseAnimation, 0.0f, 0.55f, true);
+    this->fPulseAnimation.set(0.0f, 0.55f, anim::Linear);
 
     // update score display
     this->rebuildScoreButtons();

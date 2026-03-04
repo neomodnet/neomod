@@ -2,6 +2,7 @@
 // Copyright (c) 2016, PG & 2023-2025, kiwec & 2025, WH, All rights reserved.
 #include "types.h"
 
+#include "AnimationHandler.h"
 #include "AsyncCancellable.h"
 #include "AsyncChannel.h"
 #include "MapExporter.h"
@@ -363,7 +364,7 @@ class SongBrowser final : public ScreenBackable {
 
     // behaviour
     const DatabaseBeatmap *lastSelectedBeatmap{nullptr};
-    float fPulseAnimation;
+    AnimFloat fPulseAnimation;
     float fBackgroundFadeInTime;
     std::vector<const DatabaseBeatmap *> previousRandomBeatmaps;
 

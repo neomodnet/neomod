@@ -205,7 +205,7 @@ void CBaseUIWindow::draw() {
     }
 
     // TODO: structure
-    if(anim::isAnimating(&this->fAnimation) && !this->bCoherenceMode) {
+    if(this->fAnimation.animating() && !this->bCoherenceMode) {
         /*
         m_rt->disable();
 
@@ -422,24 +422,24 @@ void CBaseUIWindow::udpateResizeAndMoveLogic(bool captureMouse) {
 }
 
 void CBaseUIWindow::close() {
-    if(anim::isAnimating(&this->fAnimation)) return;
+    if(this->fAnimation.animating()) return;
 
     this->bAnimIn = false;
     this->fAnimation = 1.0f;
-    anim::moveQuadInOut(&this->fAnimation, 0.0f, cv::ui_window_animspeed.getFloat());
+    this->fAnimation.set(0.0f, cv::ui_window_animspeed.getFloat(), anim::QuadInOut);
 
     this->onClosed();
 }
 
 void CBaseUIWindow::open() {
-    if(anim::isAnimating(&this->fAnimation) || this->bVisible) return;
+    if(this->fAnimation.animating() || this->bVisible) return;
 
     this->setVisible(true);
 
     if(!this->bCoherenceMode) {
         this->bAnimIn = true;
         this->fAnimation = 0.001f;
-        anim::moveQuadOut(&this->fAnimation, 1.0f, cv::ui_window_animspeed.getFloat());
+        this->fAnimation.set(1.0f, cv::ui_window_animspeed.getFloat(), anim::QuadOut);
     } else
         this->fAnimation = 1.0f;
 }

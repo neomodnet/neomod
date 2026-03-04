@@ -1,5 +1,6 @@
 #pragma once
 // Copyright (c) 2016, PG, All rights reserved.
+#include "AnimationHandler.h"
 #include "CBaseUIButton.h"
 #include "KeyboardEvent.h"
 #include "UIScreen.h"
@@ -103,9 +104,9 @@ class NotificationOverlay final : public UIScreen {
         Color textColor = argb(255, 255, 255, 255);
 
         float time = 0.f;
-        float alpha = 0.f;
-        float backgroundAnim = 0.f;
-        float fallAnim = 0.f;
+        AnimFloat alpha;
+        AnimFloat backgroundAnim;
+        AnimFloat fallAnim;
     };
 
     void drawNotificationText(const NOTIFICATION &n);

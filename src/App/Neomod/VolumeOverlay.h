@@ -1,4 +1,5 @@
 #pragma once
+#include "AnimationHandler.h"
 #include "UIScreen.h"
 
 #include <memory>
@@ -33,11 +34,11 @@ class VolumeOverlay final : public UIScreen {
     void updateEffectVolume(Skin* skin);
     void onMusicVolumeChange();
 
-    float fLastVolume;
+    AnimFloat fLastVolume;
     float fVolumeChangeTime;
-    float fVolumeChangeFade;
+    AnimFloat fVolumeChangeFade;
     bool bVolumeInactiveToActiveScheduled = false;
-    float fVolumeInactiveToActiveAnim = 0.f;
+    AnimFloat fVolumeInactiveToActiveAnim;
 
     std::unique_ptr<CBaseUIContainer> volumeSliderOverlayContainer{nullptr};
     UIVolumeSlider* volumeMaster = nullptr;

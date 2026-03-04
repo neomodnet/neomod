@@ -141,7 +141,7 @@ ConsoleBox::ConsoleBox() : CBaseUIElement(0, 0, 0, 0, ""), fConsoleDelay(engine-
     }
 }
 
-ConsoleBox::~ConsoleBox() { anim::deleteExistingAnimation(&this->fLogYPos); }
+ConsoleBox::~ConsoleBox() = default;
 
 void ConsoleBox::draw() {
     // HACKHACK: legacy OpenGL fix
@@ -153,7 +153,7 @@ void ConsoleBox::draw() {
 
         if(cv::console_overlay.getBool() || this->textbox->isVisible()) this->drawLogOverlay();
 
-        if(anim::isAnimating(&this->fConsoleAnimation)) {
+        if(this->fConsoleAnimation.animating()) {
             g->push3DScene(McRect(this->textbox->getPos().x, this->textbox->getPos().y, this->textbox->getSize().x,
                                   this->textbox->getSize().y));
             {
@@ -217,8 +217,8 @@ void ConsoleBox::processPendingLogAnimations() {
     // check if we have pending animation reset from logging thread
     if(this->bLogAnimationResetPending.exchange(false)) {
         // execute animation operations on main thread only
-        anim::deleteExistingAnimation(&this->fLogYPos);
-        this->fLogYPos = 0;
+        this->fLogYPos.stop();
+        this->fLogYPos = 0.f;
         this->fLogTime = this->fPendingLogTime.load(std::memory_order_acquire);
     }
 }
@@ -255,10 +255,10 @@ void ConsoleBox::update(CBaseUIEventCtx &c) {
             this->textbox->setPosY(engine->getScreenHeight() - this->fConsoleAnimation);
         else {
             this->bConsoleAnimateIn = false;
+            this->fConsoleAnimation.stop();
             this->fConsoleAnimation = this->getAnimTargetY();
             this->textbox->setPosY(engine->getScreenHeight() - this->fConsoleAnimation);
             this->textbox->setActive(true);
-            anim::deleteExistingAnimation(&this->fConsoleAnimation);
         }
     }
 
@@ -269,9 +269,9 @@ void ConsoleBox::update(CBaseUIEventCtx &c) {
         else {
             this->bConsoleAnimateOut = false;
             this->textbox->setVisible(false);
+            this->fConsoleAnimation.stop();
             this->fConsoleAnimation = 0.0f;
             this->textbox->setPosY(engine->getScreenHeight());
-            anim::deleteExistingAnimation(&this->fConsoleAnimation);
         }
     }
 
@@ -315,9 +315,9 @@ void ConsoleBox::update(CBaseUIEventCtx &c) {
         cv::console_overlay_timeout.getFloat() == 0.f /* infinite timeout */ || this->bForceLogVisible.exchange(false);
 
     if(!forceVisible && engine->getTime() > this->fLogTime) {
-        if(!anim::isAnimating(&this->fLogYPos) && this->fLogYPos == 0.0f)
-            anim::moveQuadInOut(&this->fLogYPos,
-                                this->logFont->getHeight() * (cv::console_overlay_lines.getFloat() + 1), 0.5f);
+        if(!this->fLogYPos.animating() && this->fLogYPos == 0.0f)
+            this->fLogYPos.set(this->logFont->getHeight() * (cv::console_overlay_lines.getFloat() + 1), 0.5f,
+                               anim::QuadInOut);
 
         if(!this->bClearPending &&
            this->fLogYPos >= this->logFont->getHeight() * (cv::console_overlay_lines.getInt() + 1)) {
@@ -593,7 +593,7 @@ void ConsoleBox::show() {
 void ConsoleBox::toggle(KeyboardEvent &e) {
     if(this->textbox->isVisible() && !this->bConsoleAnimateIn && !this->bSuggestionAnimateIn) {
         this->bConsoleAnimateOut = true;
-        anim::moveSmoothEnd(&this->fConsoleAnimation, 0.0f, 2.0f * 0.8f);
+        this->fConsoleAnimation.set(0.0f, 0.25f, anim::QuartOut);
 
         if(this->suggestion->container.getElements().size() > 0) this->bSuggestionAnimateOut = true;
 
@@ -604,7 +604,7 @@ void ConsoleBox::toggle(KeyboardEvent &e) {
         this->textbox->setBusy(true);
         this->bConsoleAnimateIn = true;
 
-        anim::moveSmoothEnd(&this->fConsoleAnimation, this->getAnimTargetY(), 1.5f * 0.6f);
+        this->fConsoleAnimation.set(this->getAnimTargetY(), 0.15f, anim::QuartOut);
 
         if(this->suggestion->container.getElements().size() > 0) {
             this->bSuggestionAnimateIn = true;

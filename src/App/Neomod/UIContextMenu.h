@@ -88,7 +88,7 @@ class UIContextMenu final : public CBaseUIScrollView {
 
     i32 iYCounter = 0;
     i32 iWidthCounter = 0;
-    f32 fAnimation = 0.f;
+    AnimFloat fAnimation;
 
     bool bVisible2 = false;
     bool bInvertAnimation = false;

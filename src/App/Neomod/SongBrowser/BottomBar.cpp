@@ -35,7 +35,7 @@ std::string export_collection;
 
 struct ButtonState {
     McRect rect{};
-    f32 alpha{0.f};  // hover alpha
+    AnimFloat alpha;  // hover alpha
 };
 std::array<ButtonState, BTN_MAX> btns{};
 Button hovered_btn = BTN_NONE;
@@ -56,7 +56,7 @@ void press_button(Button btn_index) {
 
     if(hovered_btn != btn_index) {
         btns[btn_index].alpha = 1.f;
-        anim::moveLinear(&btns[btn_index].alpha, 0.0f, 0.1f, 0.05f, true);
+        btns[btn_index].alpha.set(0.0f, 0.1f, anim::Linear, 0.05f);
     }
 
     switch(btn_index) {
@@ -139,10 +139,10 @@ void update(CBaseUIEventCtx& c) {
 
     if(hovered_btn != new_hover) {
         if(hovered_btn != BTN_NONE) {
-            anim::moveLinear(&btns[hovered_btn].alpha, 0.0f, btns[hovered_btn].alpha * 0.1f, true);
+            btns[hovered_btn].alpha.set(0.0f, f32(btns[hovered_btn].alpha) * 0.1f, anim::Linear);
         }
         if(new_hover != BTN_NONE) {
-            anim::moveLinear(&btns[new_hover].alpha, 1.f, 0.1f, true);
+            btns[new_hover].alpha.set(1.f, 0.1f, anim::Linear);
         }
 
         hovered_btn = new_hover;

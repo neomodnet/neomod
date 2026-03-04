@@ -1,5 +1,6 @@
 #pragma once
 // Copyright (c) 2018, PG, All rights reserved.
+#include "AnimationHandler.h"
 #include "CBaseUIButton.h"
 #include "Database.h"
 #include "score.h"
@@ -90,7 +91,7 @@ class ScoreButton final : public CBaseUIButton {
     ScoreGrade scoreGrade{ScoreGrade::D};
 
     STYLE style;
-    float fIndexNumberAnim{0.0f};
+    AnimFloat fIndexNumberAnim;
     bool bIsPulseAnim{false};
 
     bool bRightClick{false};

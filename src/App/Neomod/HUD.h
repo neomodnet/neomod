@@ -1,5 +1,6 @@
 #pragma once
 // Copyright (c) 2016, PG, All rights reserved.
+#include "AnimationHandler.h"
 #include "UIScreen.h"
 #include "MD5Hash.h"
 #include "types.h"
@@ -231,8 +232,8 @@ class HUD final : public UIScreen {
     f32 fAccuracyYOffset;
     f32 fScoreHeight;
 
-    f32 fComboAnim1;
-    f32 fComboAnim2;
+    AnimFloat fComboAnim1;
+    AnimFloat fComboAnim2;
 
     // fps counter
     f32 fCurFps;
@@ -243,18 +244,18 @@ class HUD final : public UIScreen {
     std::vector<HITERROR> hiterrors;
 
     // inputoverlay / key overlay
-    f32 fInputoverlayK1AnimScale;
-    f32 fInputoverlayK2AnimScale;
-    f32 fInputoverlayM1AnimScale;
-    f32 fInputoverlayM2AnimScale;
+    AnimFloat fInputoverlayK1AnimScale;
+    AnimFloat fInputoverlayK2AnimScale;
+    AnimFloat fInputoverlayM1AnimScale;
+    AnimFloat fInputoverlayM2AnimScale;
 
-    f32 fInputoverlayK1AnimColor;
-    f32 fInputoverlayK2AnimColor;
-    f32 fInputoverlayM1AnimColor;
-    f32 fInputoverlayM2AnimColor;
+    AnimFloat fInputoverlayK1AnimColor;
+    AnimFloat fInputoverlayK2AnimColor;
+    AnimFloat fInputoverlayM1AnimColor;
+    AnimFloat fInputoverlayM2AnimColor;
 
     // cursor & trail & ripples
-    f32 fCursorExpandAnim;
+    AnimFloat fCursorExpandAnim;
     CursorTrail cursorTrail;
     CursorTrail cursorTrail2;
     CursorTrail cursorTrailSpectator1;
@@ -268,6 +269,6 @@ class HUD final : public UIScreen {
 
     // health
     double fHealth;
-    f32 fScoreBarBreakAnim;
-    f32 fKiScaleAnim;
+    AnimFloat fScoreBarBreakAnim;
+    AnimFloat fKiScaleAnim;
 };

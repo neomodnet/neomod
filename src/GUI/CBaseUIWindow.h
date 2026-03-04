@@ -1,5 +1,6 @@
 #pragma once
 // Copyright (c) 2014, PG, All rights reserved.
+#include "AnimationHandler.h"
 #include "CBaseUIElement.h"
 #include "Color.h"
 
@@ -154,7 +155,7 @@ class CBaseUIWindow : public CBaseUIElement {
 
     // window properties
 
-    float fAnimation;
+    AnimFloat fAnimation;
 
     enum class RESIZETYPE : uint8_t {
         UNKNOWN = 0,

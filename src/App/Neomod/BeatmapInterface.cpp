@@ -145,13 +145,7 @@ BeatmapInterface::BeatmapInterface() : AbstractBeatmapInterface(), ppv2_calc(thi
     this->bInMafhamRenderChunk = false;
 }
 
-BeatmapInterface::~BeatmapInterface() {
-    anim::deleteExistingAnimation(&this->fBreakBackgroundFade);
-    anim::deleteExistingAnimation(&this->fHealth2);
-    anim::deleteExistingAnimation(&this->fFailAnim);
-
-    this->unloadObjects();
-}
+BeatmapInterface::~BeatmapInterface() { this->unloadObjects(); }
 
 void BeatmapInterface::drawDebug() {
     static constexpr Color shadowColor = argb(255, 0, 0, 0);
@@ -689,7 +683,7 @@ bool BeatmapInterface::start() {
     this->bContinueScheduled = false;
 
     this->bInBreak = cv::background_fade_after_load.getBool();
-    anim::deleteExistingAnimation(&this->fBreakBackgroundFade);
+    this->fBreakBackgroundFade.stop();
     this->fBreakBackgroundFade = cv::background_fade_after_load.getBool() ? 1.0f : 0.0f;
     this->iPreviousSectionPassFailTime = -1;
     this->fShouldFlashSectionPass = 0.0f;
@@ -769,7 +763,7 @@ void BeatmapInterface::actualRestart() {
     this->bContinueScheduled = false;
 
     this->bInBreak = false;
-    anim::deleteExistingAnimation(&this->fBreakBackgroundFade);
+    this->fBreakBackgroundFade.stop();
     this->fBreakBackgroundFade = 0.0f;
     this->iPreviousSectionPassFailTime = -1;
     this->fShouldFlashSectionPass = 0.0f;
@@ -883,7 +877,7 @@ void BeatmapInterface::pause(bool quitIfWaiting) {
     }
 
     // if we have failed, and the user early exits to the pause menu, stop the failing animation
-    if(this->bFailed) anim::deleteExistingAnimation(&this->fFailAnim);
+    if(this->bFailed) this->fFailAnim.stop();
 }
 
 void BeatmapInterface::pausePreviewMusic(bool toggle) {
@@ -969,13 +963,13 @@ void BeatmapInterface::fail(bool force_death) {
         // trigger music slowdown and delayed menu, see update()
         this->bFailed = true;
         this->fFailAnim = 1.0f;
-        anim::moveLinear(&this->fFailAnim, 0.0f, cv::fail_time.getFloat(), true);
+        this->fFailAnim.set(0.0f, cv::fail_time.getFloat(), anim::Linear);
     } else if(!osu->getScore()->isDead()) {
         debugLog("Disabling score submission due to death");
         this->is_submittable = false;
 
-        anim::deleteExistingAnimation(&this->fHealth2);
         this->fHealth = 0.0;
+        this->fHealth2.stop();
         this->fHealth2 = 0.0f;
 
         // Send a score update with health = 0 so server knows we died
@@ -996,7 +990,7 @@ void BeatmapInterface::cancelFailing() {
 
     this->bFailed = false;
 
-    anim::deleteExistingAnimation(&this->fFailAnim);
+    this->fFailAnim.stop();
     this->fFailAnim = 1.0f;
 
     if(likely(!!this->music)) this->music->setFrequency(0.0f);
@@ -1425,9 +1419,8 @@ void BeatmapInterface::addHealth(f64 percent, bool isFromHitResult) {
         return;
 
     if(this->bFailed) {
-        anim::deleteExistingAnimation(&this->fHealth2);
-
         this->fHealth = 0.0;
+        this->fHealth2.stop();
         this->fHealth2 = 0.0f;
 
         return;
@@ -1450,9 +1443,8 @@ void BeatmapInterface::addHealth(f64 percent, bool isFromHitResult) {
 
             // special case: set health to 160/200 (osu!stable behavior, seems fine for all drains)
             this->fHealth = 160.0f / 200.f;
+            this->fHealth2.stop();
             this->fHealth2 = (f32)this->fHealth;
-
-            anim::deleteExistingAnimation(&this->fHealth2);
         } else if(isFromHitResult && percent < 0.0)  // judgement fail
         {
             this->fail();
@@ -1713,11 +1705,12 @@ void BeatmapInterface::resetScore() {
     this->iCurMusicPosWithOffsets = 0;
 
     this->fHealth = 1.0;
+    this->fHealth2.stop();
     this->fHealth2 = 1.0f;
     this->bFailed = false;
+    this->fFailAnim.stop();
     this->fFailAnim = 1.0f;
     this->bTempSeekNF = false;
-    anim::deleteExistingAnimation(&this->fFailAnim);
 
     osu->getScore()->reset();
     ui->getHUD()->resetScoreboard();
@@ -3241,10 +3234,9 @@ void BeatmapInterface::update2() {
             if(this->bInBreak && !cv::background_dont_fade_during_breaks.getBool()) {
                 const int breakDuration = breakEvent.endTime - breakEvent.startTime;
                 if(breakDuration > (int)(cv::background_fade_min_duration.getFloat() * 1000.0f))
-                    anim::moveLinear(&this->fBreakBackgroundFade, 1.0f, cv::background_fade_in_duration.getFloat(),
-                                     true);
+                    this->fBreakBackgroundFade.set(1.0f, cv::background_fade_in_duration.getFloat(), anim::Linear);
             } else
-                anim::moveLinear(&this->fBreakBackgroundFade, 0.0f, cv::background_fade_out_duration.getFloat(), true);
+                this->fBreakBackgroundFade.set(0.0f, cv::background_fade_out_duration.getFloat(), anim::Linear);
         }
     }
 

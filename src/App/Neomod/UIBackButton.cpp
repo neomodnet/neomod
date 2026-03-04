@@ -14,11 +14,9 @@
 #include "UI.h"
 
 UIBackButton::UIBackButton(float xPos, float yPos, float xSize, float ySize, UString name)
-    : CBaseUIButton(xPos, yPos, xSize, ySize, std::move(name), "") {
-    this->fAnimation = 0.0f;
-}
+    : CBaseUIButton(xPos, yPos, xSize, ySize, std::move(name), "") {}
 
-UIBackButton::~UIBackButton() { anim::deleteExistingAnimation(&this->fAnimation); }
+UIBackButton::~UIBackButton() = default;
 
 void UIBackButton::draw() {
     if(!this->bVisible) return;
@@ -55,7 +53,7 @@ void UIBackButton::onMouseInside() {
     CBaseUIButton::onMouseInside();
     if(this->bFocusStolenDelay) return;
 
-    anim::moveQuadOut(&this->fAnimation, 1.0f, 0.15f, 0.0f, true);
+    this->fAnimation.set(1.0f, 0.15f, anim::QuadOut);
     if(button_sound_cooldown + 0.05f < engine->getTime()) {
         button_sound_cooldown = engine->getTime();
         soundEngine->play(osu->getSkin()->s_hover_back_button);
@@ -65,7 +63,7 @@ void UIBackButton::onMouseInside() {
 void UIBackButton::onMouseOutside() {
     CBaseUIButton::onMouseOutside();
 
-    anim::moveQuadOut(&this->fAnimation, 0.0f, this->fAnimation * 0.1f, 0.0f, true);
+    this->fAnimation.set(0.0f, this->fAnimation * 0.1f, anim::QuadOut);
 }
 
 void UIBackButton::updateLayout() {
@@ -85,7 +83,7 @@ void UIBackButton::updateLayout() {
 }
 
 void UIBackButton::resetAnimation() {
-    anim::deleteExistingAnimation(&this->fAnimation);
+    this->fAnimation.stop();
     this->fAnimation = 0.0f;
 }
 

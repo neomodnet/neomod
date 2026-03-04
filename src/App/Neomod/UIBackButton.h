@@ -1,5 +1,6 @@
 #pragma once
 // Copyright (c) 2016, PG, All rights reserved.
+#include "AnimationHandler.h"
 #include "CBaseUIButton.h"
 
 class UIBackButton final : public CBaseUIButton {
@@ -22,7 +23,7 @@ class UIBackButton final : public CBaseUIButton {
    private:
     void onFocusStolen() override;
 
-    float fAnimation;
+    AnimFloat fAnimation;
 
     bool bUseDefaultBack{false};
     bool bFocusStolenDelay{false};

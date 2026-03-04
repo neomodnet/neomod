@@ -315,8 +315,6 @@ Chat::Chat() : UIScreen() {
 }
 
 Chat::~Chat() {
-    anim::deleteExistingAnimation(&this->fAnimation);
-
     for(auto &chan : this->channels) {
         SAFE_DELETE(chan);
     }
@@ -327,7 +325,7 @@ Chat::~Chat() {
 void Chat::draw() {
     this->drawTicker();
 
-    const bool isAnimating = anim::isAnimating(&this->fAnimation);
+    const bool isAnimating = this->fAnimation.animating();
     if(!this->bVisible && !isAnimating) return;
 
     if(isAnimating) {
@@ -362,7 +360,7 @@ void Chat::draw() {
             g->translate3DScene(0, -(1.0f - this->fAnimation) * this->getSize().y * 1.25f,
                                 -(1.0f - this->fAnimation) * 700);
 
-            osu->getSliderFrameBuffer()->setColor(argb(this->fAnimation, 1.0f, 1.0f, 1.0f));
+            osu->getSliderFrameBuffer()->setColor(argb(f32(this->fAnimation), 1.0f, 1.0f, 1.0f));
             osu->getSliderFrameBuffer()->draw(0, 0);
         }
         g->pop3DScene();
@@ -377,7 +375,7 @@ void Chat::drawTicker() {
 
     f32 a = std::clamp(6.0 - time_elapsed, 0.0, 1.0);
     auto ticker_size = this->ticker->ui->getSize();
-    if(!anim::isAnimating(&this->fAnimation)) {
+    if(!this->fAnimation.animating()) {
         this->fAnimation = 0.f;
         if(this->isVisible()) return;  // don't draw ticker while chat is visible
     }
@@ -1337,7 +1335,7 @@ CBaseUIContainer *Chat::setVisible(bool visible) {
     this->bVisible = visible;
     if(visible) {
         ui->getOptionsOverlay()->setVisible(false);
-        anim::moveQuartOut(&this->fAnimation, 1.0f, 0.25f * (1.0f - this->fAnimation), true);
+        this->fAnimation.set(1.0f, 0.25f * (1.0f - this->fAnimation), anim::QuartOut);
 
         if(this->selected_channel != nullptr && !this->selected_channel->read) {
             this->mark_as_read(this->selected_channel);
@@ -1347,7 +1345,7 @@ CBaseUIContainer *Chat::setVisible(bool visible) {
             this->updateLayout(osu->getVirtScreenSize());
         }
     } else {
-        anim::moveQuadOut(&this->fAnimation, 0.0f, 0.25f * this->fAnimation, true);
+        this->fAnimation.set(0.0f, 0.25f * this->fAnimation, anim::QuadOut);
     }
 
     // HACKHACK for text input listening

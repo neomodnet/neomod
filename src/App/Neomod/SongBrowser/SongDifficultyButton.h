@@ -43,7 +43,7 @@ class SongDifficultyButton final : public SongButton {
 
     SongButton *parentSongButton;
 
-    float fOffsetPercentAnim;
+    AnimFloat fOffsetPercentAnim;
 
     enum class OffsetState : u8 { UNINITIALIZED, SELECTED, DESELECTED };
     OffsetState lastOffsetState{OffsetState::UNINITIALIZED};

@@ -1,4 +1,5 @@
 #pragma once
+#include "AnimationHandler.h"
 #include "BeatmapInterface.h"
 #include <deque>
 
@@ -235,7 +236,7 @@ class Circle final : public HitObject {
     vec2 m_rawPos;
     vec2 m_originalRawPos;  // for live mod changing
 
-    float m_hitAnimation{0.f};
+    AnimFloat m_hitAnimation;
     float m_shakeAnimation{0.f};
 };
 
@@ -309,7 +310,7 @@ class Slider final : public HitObject {
     bool isClickHeldSlider();  // special logic to disallow hold tapping
 
     struct HitAnim {
-        float percent;
+        AnimFloat percent;
         // HEAD_TAIL is to emulate how pre-2015 osu! sliders were rendered,
         // when the tail animation happens, the head also gets an additional hit animation, but without drawing the numbers again
         // (TODO: shelved the idea for now)
@@ -323,8 +324,7 @@ class Slider final : public HitObject {
         bool finished;
     };
 
-    // TODO: deque is overkill here but we need stable pointers for AnimationHandler
-    // maybe just hand-roll the quad interp and use a vector?
+    // TODO: deque is overkill here, maybe just hand-roll the quad interp and use a vector?
     std::deque<HitAnim> m_clickAnimations;
     std::vector<vec2> m_points;
     std::vector<HitSamples> m_edgeSamples;
@@ -353,9 +353,9 @@ class Slider final : public HitObject {
     float m_reverseArrowAlpha{0.f};
     float m_bodyAlpha{0.f};
 
-    float m_endSliderBodyFadeAnimation{0.f};
+    AnimFloat m_endSliderBodyFadeAnimation;
 
-    float m_followCircleTickAnimationScale{0.f};
+    AnimFloat m_followCircleTickAnimationScale;
     float m_followCircleAnimationScale{0.f};
     float m_followCircleAnimationAlpha{0.f};
 

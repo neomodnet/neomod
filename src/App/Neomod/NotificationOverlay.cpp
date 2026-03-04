@@ -63,12 +63,6 @@ NotificationOverlay::NotificationOverlay() : UIScreen() {
 NotificationOverlay::~NotificationOverlay() {
     cv::cmd::notify.removeCallback();
     cv::cmd::toast.removeCallback();
-    anim::deleteExistingAnimation(&this->notification1.alpha);
-    anim::deleteExistingAnimation(&this->notification1.backgroundAnim);
-    anim::deleteExistingAnimation(&this->notification1.fallAnim);
-    anim::deleteExistingAnimation(&this->notification2.alpha);
-    anim::deleteExistingAnimation(&this->notification2.backgroundAnim);
-    anim::deleteExistingAnimation(&this->notification2.fallAnim);
 }
 
 static constexpr f32 DEF_TOAST_WIDTH{350.0f};
@@ -226,13 +220,13 @@ void NotificationOverlay::drawNotificationText(const NotificationOverlay::NOTIFI
 
     g->pushTransform();
     {
-        g->setColor(argb(n.alpha, 0.f, 0.f, 0.f));
+        g->setColor(argb((f32)n.alpha, 0.f, 0.f, 0.f));
 
         g->translate((int)(osu->getVirtScreenWidth() / 2 - stringWidth / 2 + 1),
                      (int)(osu->getVirtScreenHeight() / 2 + font->getHeight() / 2 + n.fallAnim * height * 0.15f + 1));
         g->drawString(font, n.text);
 
-        g->setColor(Color(n.textColor).setA(n.alpha));
+        g->setColor(Color(n.textColor).setA((f32)n.alpha));
 
         g->translate(-1, -1);
         g->drawString(font, n.text);
@@ -244,7 +238,7 @@ void NotificationOverlay::drawNotificationBackground(const NotificationOverlay::
     McFont *font = osu->getSubTitleFont();
     int height = font->getHeight() * 2 * n.backgroundAnim;
 
-    g->setColor(argb(n.alpha * 0.75f, 0.f, 0.f, 0.f));
+    g->setColor(argb((f32)n.alpha * 0.75f, 0.f, 0.f, 0.f));
 
     g->fillRect(0, osu->getVirtScreenHeight() / 2 - height / 2, osu->getVirtScreenWidth(), height);
 }
@@ -309,10 +303,10 @@ void NotificationOverlay::addNotification(UString text, Color textColor, bool wa
         this->notification2.backgroundAnim = 1.0f;
         this->notification2.fallAnim = 0.0f;
 
-        anim::deleteExistingAnimation(&this->notification1.alpha);
+        this->notification1.alpha.stop();
 
-        anim::moveQuadIn(&this->notification2.fallAnim, 1.0f, 0.2f, 0.0f, true);
-        anim::moveQuadIn(&this->notification2.alpha, 0.0f, 0.2f, 0.0f, true);
+        this->notification2.fallAnim.set(1.0f, 0.2f, anim::QuadIn);
+        this->notification2.alpha.set(0.0f, 0.2f, anim::QuadIn);
     }
 
     // build new notification
@@ -337,11 +331,11 @@ void NotificationOverlay::addNotification(UString text, Color textColor, bool wa
     if(this->isVisible())
         this->notification1.alpha = 1.0f;
     else
-        anim::moveLinear(&this->notification1.alpha, 1.0f, 0.075f, true);
+        this->notification1.alpha.set(1.0f, 0.075f, anim::Linear);
 
-    if(!waitForKey) anim::moveQuadOut(&this->notification1.alpha, 0.0f, fadeOutTime, notificationDuration, false);
+    if(!waitForKey) this->notification1.alpha.append(0.0f, fadeOutTime, anim::QuadOut, notificationDuration);
 
-    anim::moveQuadOut(&this->notification1.backgroundAnim, 1.0f, 0.15f, 0.0f, true);
+    this->notification1.backgroundAnim.set(1.0f, 0.15f, anim::QuadOut);
 }
 
 void NotificationOverlay::addToast(ToastOpts opts) {

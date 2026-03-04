@@ -138,21 +138,7 @@ HUD::HUD() : UIScreen() {
     this->fKiScaleAnim = 0.8f;
 }
 
-HUD::~HUD() {
-    anim::deleteExistingAnimation(&this->fScoreBarBreakAnim);
-    anim::deleteExistingAnimation(&this->fComboAnim1);
-    anim::deleteExistingAnimation(&this->fComboAnim2);
-    anim::deleteExistingAnimation(&this->fInputoverlayK1AnimScale);
-    anim::deleteExistingAnimation(&this->fInputoverlayK1AnimColor);
-    anim::deleteExistingAnimation(&this->fInputoverlayK2AnimScale);
-    anim::deleteExistingAnimation(&this->fInputoverlayK2AnimColor);
-    anim::deleteExistingAnimation(&this->fInputoverlayM1AnimScale);
-    anim::deleteExistingAnimation(&this->fInputoverlayM1AnimColor);
-    anim::deleteExistingAnimation(&this->fInputoverlayM2AnimScale);
-    anim::deleteExistingAnimation(&this->fInputoverlayM2AnimColor);
-    anim::deleteExistingAnimation(&this->fCursorExpandAnim);
-    anim::deleteExistingAnimation(&this->fKiScaleAnim);
-}
+HUD::~HUD() = default;
 
 void HUD::draw() {
     auto *pf = osu->getMapInterface();
@@ -212,13 +198,13 @@ void HUD::draw() {
         }
 
         if(cv::hud_scorebar_hide_during_breaks.getBool()) {
-            if(!anim::isAnimating(&this->fScoreBarBreakAnim) && !pf->isWaiting()) {
+            if(!this->fScoreBarBreakAnim.animating() && !pf->isWaiting()) {
                 if(this->fScoreBarBreakAnim == 0.0f && pf->isInBreak()) {
-                    anim::moveLinear(&this->fScoreBarBreakAnim, 1.0f, cv::hud_scorebar_hide_anim_duration.getFloat(),
-                                     true);
+                    this->fScoreBarBreakAnim.set(1.0f, cv::hud_scorebar_hide_anim_duration.getFloat(),
+                                                 anim::Linear);
                 } else if(this->fScoreBarBreakAnim == 1.0f && !pf->isInBreak()) {
-                    anim::moveLinear(&this->fScoreBarBreakAnim, 0.0f, cv::hud_scorebar_hide_anim_duration.getFloat(),
-                                     true);
+                    this->fScoreBarBreakAnim.set(0.0f, cv::hud_scorebar_hide_anim_duration.getFloat(),
+                                                 anim::Linear);
                 }
             }
         } else {
@@ -2384,8 +2370,8 @@ void HUD::animateCombo() {
     this->fComboAnim1 = 0.0f;
     this->fComboAnim2 = 1.0f;
 
-    anim::moveLinear(&this->fComboAnim1, 2.0f, cv::combo_anim1_duration.getFloat(), true);
-    anim::moveQuadOut(&this->fComboAnim2, 0.0f, cv::combo_anim2_duration.getFloat(), 0.0f, true);
+    this->fComboAnim1.set(2.0f, cv::combo_anim1_duration.getFloat(), anim::Linear);
+    this->fComboAnim2.set(0.0f, cv::combo_anim2_duration.getFloat(), anim::QuadOut);
 }
 
 void HUD::addHitError(i32 delta, bool miss, bool misaim) {
@@ -2431,8 +2417,8 @@ void HUD::animateInputOverlay(GameplayKeys key_flag, bool down) {
     for(GameplayKeys flag = GameplayKeys::K2 /* 8 */; flag >= 1; flag = static_cast<GameplayKeys>(flag >> 1)) {
         if(!(flag & key_flag)) continue;
 
-        f32 *animScale = nullptr;
-        f32 *animColor = nullptr;
+        AnimFloat *animScale = nullptr;
+        AnimFloat *animColor = nullptr;
 
         switch(flag) {
             case GameplayKeys::Smoke:
@@ -2459,25 +2445,25 @@ void HUD::animateInputOverlay(GameplayKeys key_flag, bool down) {
         if(down) {
             // scale
             *animScale = 1.0f;
-            anim::moveQuadOut(animScale, cv::hud_inputoverlay_anim_scale_multiplier.getFloat(),
-                              cv::hud_inputoverlay_anim_scale_duration.getFloat(), true);
+            animScale->set(cv::hud_inputoverlay_anim_scale_multiplier.getFloat(),
+                           cv::hud_inputoverlay_anim_scale_duration.getFloat(), anim::QuadOut);
 
             // color
+            animColor->stop();
             *animColor = 1.0f;
-            anim::deleteExistingAnimation(animColor);
         } else {
             // scale
             // NOTE: osu is running the keyup anim in parallel, but only allowing it to override once the keydown anim has
             // finished, and with some weird speedup?
-            const f32 remainingDuration = anim::getRemainingDuration(animScale);
-            anim::moveQuadOut(
-                animScale, 1.0f,
+            const f32 remainingDuration = animScale->remaining();
+            animScale->append(
+                1.0f,
                 cv::hud_inputoverlay_anim_scale_duration.getFloat() -
                     std::min(remainingDuration * 1.4f, cv::hud_inputoverlay_anim_scale_duration.getFloat()),
-                remainingDuration);
+                anim::QuadOut, remainingDuration);
 
             // color
-            anim::moveLinear(animColor, 0.0f, cv::hud_inputoverlay_anim_color_duration.getFloat(), true);
+            animColor->set(0.0f, cv::hud_inputoverlay_anim_color_duration.getFloat(), anim::Linear);
         }
     }
 }
@@ -2494,17 +2480,17 @@ void HUD::addCursorRipple(vec2 pos) {
 
 void HUD::animateCursorExpand() {
     this->fCursorExpandAnim = 1.0f;
-    anim::moveQuadOut(&this->fCursorExpandAnim, cv::cursor_expand_scale_multiplier.getFloat(),
-                      cv::cursor_expand_duration.getFloat(), 0.0f, true);
+    this->fCursorExpandAnim.set(cv::cursor_expand_scale_multiplier.getFloat(),
+                                cv::cursor_expand_duration.getFloat(), anim::QuadOut);
 }
 
 void HUD::animateCursorShrink() {
-    anim::moveQuadOut(&this->fCursorExpandAnim, 1.0f, cv::cursor_expand_duration.getFloat(), 0.0f, true);
+    this->fCursorExpandAnim.set(1.0f, cv::cursor_expand_duration.getFloat(), anim::QuadOut);
 }
 
 void HUD::animateKiBulge() {
     this->fKiScaleAnim = 1.2f;
-    anim::moveLinear(&this->fKiScaleAnim, 0.8f, 0.150f, true);
+    this->fKiScaleAnim.set(0.8f, 0.150f, anim::Linear);
 }
 
 void HUD::animateKiExplode() {

@@ -88,7 +88,7 @@ class Chat final : public UIScreen {
 
     CBaseUIScrollView *user_list;
 
-    float fAnimation = 0.f;
+    AnimFloat fAnimation;
     bool user_wants_chat = false;
     bool visibility_was_forced = false;
     bool layout_update_scheduled = false;

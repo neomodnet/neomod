@@ -2,6 +2,7 @@
 // Copyright (c) 2015, PG, All rights reserved.
 #include <utility>
 
+#include "AnimationHandler.h"
 #include "AsyncCancellable.h"
 #include "CBaseUIButton.h"
 #include "DownloadHandle.h"
@@ -94,14 +95,14 @@ class MainMenu final : public UIScreen, public MouseListener {
     float fUpdateStatusTime;
     float fUpdateButtonTextTime;
     float fUpdateButtonAnimTime;
-    float fUpdateButtonAnim;
+    AnimFloat fUpdateButtonAnim;
     bool bHasClickedUpdate;
     bool shuffling = false;
 
     vec2 vSize{0.f};
     vec2 vCenter{0.f};
-    float fSizeAddAnim;
-    float fCenterOffsetAnim;
+    AnimFloat fSizeAddAnim;
+    AnimFloat fCenterOffsetAnim;
 
     bool bMenuElementsVisible;
     float fMainMenuButtonCloseTime = 0.f;
@@ -124,10 +125,10 @@ class MainMenu final : public UIScreen, public MouseListener {
     // custom
     float fMainMenuAnimTime;
     float fMainMenuAnimDuration;
-    float fMainMenuAnim;
-    float fMainMenuAnim1;
-    float fMainMenuAnim2;
-    float fMainMenuAnim3;
+    AnimFloat fMainMenuAnim;
+    AnimFloat fMainMenuAnim1;
+    AnimFloat fMainMenuAnim2;
+    AnimFloat fMainMenuAnim3;
     float fMainMenuAnim1Target;
     float fMainMenuAnim2Target;
     float fMainMenuAnim3Target;
@@ -139,15 +140,15 @@ class MainMenu final : public UIScreen, public MouseListener {
     bool bMainMenuAnimFadeToFriendForNextAnim;
     bool bMainMenuAnimFriendScheduled;
     float fMainMenuAnimFriendPercent;
-    float fMainMenuAnimFriendEyeFollowX;
-    float fMainMenuAnimFriendEyeFollowY;
+    AnimFloat fMainMenuAnimFriendEyeFollowX;
+    AnimFloat fMainMenuAnimFriendEyeFollowY;
 
     float fShutdownScheduledTime;
     bool bWasCleanShutdown;
 
     bool bStartupAnim{true};
-    f32 fStartupAnim{0.f};
-    f32 fStartupAnim2{0.f};
+    AnimFloat fStartupAnim;
+    AnimFloat fStartupAnim2;
     float fPrevShuffleTime{0.f};
 
     Downloader::DownloadHandle server_icon_dl;
@@ -156,7 +157,7 @@ class MainMenu final : public UIScreen, public MouseListener {
     const DatabaseBeatmap *currentMap{nullptr};
     const DatabaseBeatmap *lastMap{nullptr};
     //Shader *background_shader = nullptr;
-    f32 mapFadeAnim{1.f};
+    AnimFloat mapFadeAnim{1.f};
     std::vector<std::unique_ptr<BeatmapSet>> preloadedMaps;
 
     // songs folder enumeration (for random beatmap before db loads)

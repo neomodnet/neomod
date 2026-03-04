@@ -1,5 +1,6 @@
 #pragma once
 // Copyright (c) 2015, PG, All rights reserved.
+#include "AnimationHandler.h"
 #include "noinclude.h"
 #include "ModFlags.h"
 #include "UIScreen.h"
@@ -93,8 +94,8 @@ class ModSelector final : public UIScreen {
     void close(bool force);
 
    private:
-    float fAnimation{0.f};
-    float fExperimentalAnimation{0.f};
+    AnimFloat fAnimation;
+    AnimFloat fExperimentalAnimation;
     bool bScheduledHide{false};
     bool bExperimentalVisible{false};
     std::unique_ptr<CBaseUIContainer> overrideSliderContainer;

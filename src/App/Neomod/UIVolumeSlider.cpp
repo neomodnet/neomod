@@ -20,7 +20,6 @@ UIVolumeSlider::UIVolumeSlider(float xPos, float yPos, float xSize, float ySize,
     this->bSelected = false;
 
     this->bWentMouseInside = false;
-    this->fSelectionAnim = 0.0f;
 
     this->font = engine->getDefaultFont();
     if(!imageResources.disabled[0]) {  // init all at once, once
@@ -39,7 +38,7 @@ UIVolumeSlider::UIVolumeSlider(float xPos, float yPos, float xSize, float ySize,
     this->setFrameColor(0xff7f7f7f);
 }
 
-UIVolumeSlider::~UIVolumeSlider() { anim::deleteExistingAnimation(&this->fSelectionAnim); }
+UIVolumeSlider::~UIVolumeSlider() = default;
 
 void UIVolumeSlider::drawBlock() {
     if(!resourcesReady) {
@@ -66,8 +65,8 @@ void UIVolumeSlider::drawBlock() {
 
         g->scale((this->vBlockSize.y / img->getSize().x) * scaleMultiplier,
                  (this->vBlockSize.y / img->getSize().y) * scaleMultiplier);
-        g->translate(this->getPos().x + this->vBlockPos.x + this->vBlockSize.x / 2.0f,
-                     this->getPos().y + this->vBlockPos.y + this->vBlockSize.y / 2.0f + 1);
+        g->translate(this->getPos().x + this->blockPos().x + this->vBlockSize.x / 2.0f,
+                     this->getPos().y + this->blockPos().y + this->vBlockSize.y / 2.0f + 1);
         g->setColor(0xffffffff);
         g->drawImage(img);
     }
@@ -99,11 +98,11 @@ void UIVolumeSlider::setSelected(bool selected) {
 
     if(this->bSelected) {
         this->setFrameColor(0xffffffff);
-        anim::moveQuadOut(&this->fSelectionAnim, 1.0f, 0.1f, true);
-        anim::moveQuadIn(&this->fSelectionAnim, 0.0f, 0.15f, 0.1f, false);
+        this->fSelectionAnim.set(1.0f, 0.1f, anim::QuadOut);
+        this->fSelectionAnim.append(0.0f, 0.15f, anim::QuadIn, 0.1f);
     } else {
         this->setFrameColor(0xff7f7f7f);
-        anim::moveLinear(&this->fSelectionAnim, 0.0f, 0.15f * this->fSelectionAnim, true);
+        this->fSelectionAnim.set(0.0f, 0.15f * this->fSelectionAnim, anim::Linear);
     }
 }
 

@@ -1,5 +1,6 @@
 #pragma once
 // Copyright (c) 2013, PG, All rights reserved.
+#include "AnimationHandler.h"
 #include "Color.h"
 
 #include "CBaseUIContainer.h"
@@ -120,7 +121,7 @@ class CBaseUIScrollView : public CBaseUIElement {
     [[nodiscard]] inline f64 getRelPosY() const { return this->vScrollPos.y; }
     [[nodiscard]] inline f64 getRelPosX() const { return this->vScrollPos.x; }
     [[nodiscard]] inline dvec2 getScrollSize() const { return this->vScrollSize; }
-    [[nodiscard]] inline dvec2 getVelocity() const { return (this->vScrollPos - this->vVelocity); }
+    [[nodiscard]] inline dvec2 getVelocity() const { return dvec2{this->vScrollPos} - dvec2{this->vVelocity}; }
 
     [[nodiscard]] inline bool isAtBottom() const {
         return (this->getSize().y - this->vScrollPos.y) >= this->vScrollSize.y;
@@ -201,9 +202,9 @@ class CBaseUIScrollView : public CBaseUIElement {
     Color frameDarkColor{0};
     Color scrollbarColor{0xaaffffff};
 
-    dvec2 vScrollPos{1., 1.};
-    dvec2 vScrollPosBackup{0.};
-    dvec2 vMouseBackup{0.};
+    AnimVec2D vScrollPos{1., 1.};
+    dvec2 vScrollPosBackup{0., 0.};
+    dvec2 vMouseBackup{0., 0.};
 
     f32 fScrollMouseWheelMultiplier{1.f};
     f32 fScrollbarSizeMultiplier{1.f};
@@ -212,10 +213,10 @@ class CBaseUIScrollView : public CBaseUIElement {
 
     // scroll logic
     dvec2 vScrollSize{1., 1.};
-    dvec2 vMouseBackup2{0.};
-    dvec2 vMouseBackup3{0.};
-    dvec2 vVelocity{0., 0.};
-    dvec2 vKineticAverage{0.};
+    dvec2 vMouseBackup2{0., 0.};
+    dvec2 vMouseBackup3{0., 0.};
+    AnimVec2D vVelocity{0., 0.};
+    AnimVec2D vKineticAverage{0., 0.};
 
     uSz previousClippingVisibleElements{0};
     uSz previousClippingTotalElements{0};

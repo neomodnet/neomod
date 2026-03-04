@@ -1,6 +1,7 @@
 #pragma once
 // Copyright (c) 2011, PG, All rights reserved.
 
+#include "AnimationHandler.h"
 #include "CBaseUIElement.h"
 #include "SyncMutex.h"
 #include "UString.h"
@@ -81,7 +82,7 @@ class ConsoleBox : public CBaseUIElement {
     bool bRequireShiftToActivate{false};
     bool bConsoleAnimateOnce{false};  // set to true for on-launch anim in
     float fConsoleDelay;
-    float fConsoleAnimation{0.f};
+    AnimFloat fConsoleAnimation;
     bool bConsoleAnimateIn{false};
     bool bConsoleAnimateOut{false};
 
@@ -90,7 +91,7 @@ class ConsoleBox : public CBaseUIElement {
     float fSuggestionAnimation{0.f};
 
     float fLogTime{0.f};
-    float fLogYPos{0.f};
+    AnimFloat fLogYPos;
     std::vector<LOG_ENTRY> log_entries;
     McFont *logFont;
 

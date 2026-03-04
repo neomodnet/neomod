@@ -1,5 +1,6 @@
 #pragma once
 // Copyright (c) 2019, Colin Brook & PG, All rights reserved.
+#include "AnimationHandler.h"
 #include "noinclude.h"
 #include "Vectors.h"
 #include "Matrices.h"
@@ -91,7 +92,7 @@ class ModFPoSu {
 
     float fCircumLength{0.f};
 
-    float fZoomFOVAnimPercent{0.f};
+    AnimFloat fZoomFOVAnimPercent;
     float fZoomFOVAnimPercentPrevious{0.f};
 
     float fEdgeDistance{0.f};

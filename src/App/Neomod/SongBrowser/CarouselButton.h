@@ -3,6 +3,7 @@
 #include <utility>
 #include <atomic>
 
+#include "AnimationHandler.h"
 #include "CBaseUIButton.h"
 
 class BeatmapCarousel;
@@ -118,10 +119,10 @@ class CarouselButton : public CBaseUIButton {
 
     float fTargetRelPosY;
     float fOffsetPercent{0.f};
-    float fHoverOffsetAnimation{0.f};
-    float fHoverMoveAwayAnimation{0.f};
-    float fCenterOffsetAnimation{0.f};
-    float fCenterOffsetVelocityAnimation{0.f};
+    AnimFloat fHoverOffsetAnimation;
+    AnimFloat fHoverMoveAwayAnimation;
+    AnimFloat fCenterOffsetAnimation;
+    AnimFloat fCenterOffsetVelocityAnimation;
 
     u8 lastChildSortStarPrecalcIdx{0xFF};
 

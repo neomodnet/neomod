@@ -70,7 +70,7 @@ ModFPoSu::ModFPoSu() {
 }
 
 ModFPoSu::~ModFPoSu() {
-    anim::deleteExistingAnimation(&this->fZoomFOVAnimPercent);
+    this->fZoomFOVAnimPercent.stop();
     resourceManager->destroyResource(this->vaoCube);
     resourceManager->destroyResource(this->vao);
 
@@ -443,11 +443,11 @@ void ModFPoSu::onKeyUp(KeyboardEvent &key) {
 
 void ModFPoSu::handleZoomedChange() {
     if(this->bZoomed)
-        anim::moveQuadOut(&this->fZoomFOVAnimPercent, 1.0f,
-                          (1.0f - this->fZoomFOVAnimPercent) * cv::fposu_zoom_anim_duration.getFloat(), true);
+        this->fZoomFOVAnimPercent.set(
+            1.0f, (1.0f - this->fZoomFOVAnimPercent) * cv::fposu_zoom_anim_duration.getFloat(), anim::QuadOut);
     else
-        anim::moveQuadOut(&this->fZoomFOVAnimPercent, 0.0f,
-                          this->fZoomFOVAnimPercent * cv::fposu_zoom_anim_duration.getFloat(), true);
+        this->fZoomFOVAnimPercent.set(0.0f, this->fZoomFOVAnimPercent * cv::fposu_zoom_anim_duration.getFloat(),
+                                      anim::QuadOut);
 }
 
 void ModFPoSu::handleInputOverrides(bool rawDeltasRequired) {

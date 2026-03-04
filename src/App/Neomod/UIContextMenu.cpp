@@ -84,7 +84,7 @@ UIContextMenu::UIContextMenu(float xPos, float yPos, float xSize, float ySize, c
     this->bBigStyle = false;
 }
 
-UIContextMenu::~UIContextMenu() { anim::deleteExistingAnimation(&this->fAnimation); }
+UIContextMenu::~UIContextMenu() = default;
 
 void UIContextMenu::draw() {
     if(!this->bVisible2) return;
@@ -335,7 +335,7 @@ void UIContextMenu::end(bool invertAnimation, EndStyle style) {
     this->setVisible2(true);
 
     this->fAnimation = 0.001f;
-    anim::moveQuartOut(&this->fAnimation, 1.0f, 0.15f, true);
+    this->fAnimation.set(1.0f, 0.15f, anim::QuartOut);
 
     soundEngine->play(osu->getSkin()->s_expand);
 

@@ -1,5 +1,6 @@
 #pragma once
 // Copyright (c) 2018, PG, All rights reserved.
+#include "AnimationHandler.h"
 #include "CBaseUIButton.h"
 #include "Skin.h"
 
@@ -24,7 +25,7 @@ class UIPauseMenuButton final : public CBaseUIButton {
     [[nodiscard]] Image* getImage() const;
 
    private:
-    vec2 vScale{0.f};
+    AnimFloat fScaleX{0.f}, fScaleY{0.f};
     vec2 vBaseScale{0.f};
     float fScaleMultiplier;
 

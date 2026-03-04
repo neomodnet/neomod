@@ -64,8 +64,8 @@ class OnlineMapListing : public CBaseUIContainer {
     Downloader::BeatmapSetMetadata meta;
 
     vec2 mousedown_coords{-999.f, -999.f};
-    f32 hover_anim{0.f};
-    f32 click_anim{0.f};
+    AnimFloat hover_anim;
+    AnimFloat click_anim;
 
     // Cache
     std::string full_title;
@@ -104,9 +104,6 @@ OnlineMapListing::OnlineMapListing(OsuDirectScreen* parent, Downloader::BeatmapS
 
 OnlineMapListing::~OnlineMapListing() {
     osu->getThumbnailManager()->discard_image(this->thumb_id);
-
-    anim::deleteExistingAnimation(&this->click_anim);
-    anim::deleteExistingAnimation(&this->hover_anim);
 }
 
 void OnlineMapListing::onMouseDownInside(bool /*left*/, bool /*right*/) { this->mousedown_coords = mouse->getPos(); }
@@ -115,7 +112,7 @@ void OnlineMapListing::onMouseUpInside(bool /*left*/, bool /*right*/) {
     const f32 distance = vec::distance(mouse->getPos(), this->mousedown_coords);
     if(distance < 5.f) {
         this->click_anim = 1.f;
-        anim::moveQuadInOut(&this->click_anim, 0.0f, 0.15f, 0.0f, true);
+        this->click_anim.set(0.0f, 0.15f, anim::QuadInOut);
 
         if(this->installed) {
             // Select map, or go to song browser if already selected
@@ -141,8 +138,8 @@ void OnlineMapListing::onMouseUpInside(bool /*left*/, bool /*right*/) {
 
 void OnlineMapListing::onMouseUpOutside(bool /*left*/, bool /*right*/) { this->mousedown_coords = {-999.f, -999.f}; }
 
-void OnlineMapListing::onMouseInside() { anim::moveQuadInOut(&this->hover_anim, 0.25f, 0.15f, 0.0f, true); }
-void OnlineMapListing::onMouseOutside() { anim::moveQuadInOut(&this->hover_anim, 0.f, 0.15f, 0.0f, true); }
+void OnlineMapListing::onMouseInside() { this->hover_anim.set(0.25f, 0.15f, anim::QuadInOut); }
+void OnlineMapListing::onMouseOutside() { this->hover_anim.set(0.f, 0.15f, anim::QuadInOut); }
 
 void OnlineMapListing::onResolutionChange(vec2 /*newResolution*/) {
     this->full_title = fmt::format("{} - {}", this->meta.artist, this->meta.title);

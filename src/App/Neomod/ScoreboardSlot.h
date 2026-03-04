@@ -1,6 +1,7 @@
 #pragma once
 // Copyright (c) 2024, kiwec, All rights reserved.
 
+#include "AnimationHandler.h"
 #include "HUD.h"
 #include "UIAvatar.h"
 
@@ -58,9 +59,9 @@ class ScoreboardSlot final {
     std::unique_ptr<UIAvatar> avatar{nullptr};
 
     int index;
-    float y = 0.f;
-    float fAlpha = 0.f;
-    float fFlash = 0.f;
+    AnimFloat y;
+    AnimFloat fAlpha;
+    AnimFloat fFlash;
     bool is_friend = false;
     bool was_visible = false;
 };

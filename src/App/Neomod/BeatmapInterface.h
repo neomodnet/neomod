@@ -1,6 +1,7 @@
 #pragma once
 // Copyright (c) 2015, PG, All rights reserved.
 
+#include "AnimationHandler.h"
 #include "AbstractBeatmapInterface.h"
 #include "DatabaseBeatmap.h"
 #include "AsyncPPCalculator.h"
@@ -297,16 +298,16 @@ class BeatmapInterface final : public AbstractBeatmapInterface {
 
     // health
     bool bFailed;
-    f32 fFailAnim;
+    AnimFloat fFailAnim;
     f64 fHealth;
-    f32 fHealth2;
+    AnimFloat fHealth2;
 
     // drain
     f64 fDrainRate;
 
     // breaks
     std::vector<DatabaseBeatmap::BREAK> breaks;
-    f32 fBreakBackgroundFade;
+    AnimFloat fBreakBackgroundFade;
     bool bInBreak;
     HitObject *currentHitObject;
     i32 iNextHitObjectTime;

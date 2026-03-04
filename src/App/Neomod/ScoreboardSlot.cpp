@@ -22,11 +22,7 @@ ScoreboardSlot::ScoreboardSlot(const SCORE_ENTRY &score, int index) {
     this->is_friend = user && user->is_friend();
 }
 
-ScoreboardSlot::~ScoreboardSlot() {
-    anim::deleteExistingAnimation(&this->fAlpha);
-    anim::deleteExistingAnimation(&this->fFlash);
-    anim::deleteExistingAnimation(&this->y);
-}
+ScoreboardSlot::~ScoreboardSlot() = default;
 
 void ScoreboardSlot::draw() {
     if(this->fAlpha == 0.f) return;
@@ -51,7 +47,7 @@ void ScoreboardSlot::draw() {
     start_y = roundf(start_y);
 
     if(this->fFlash > 0.f && !cv::avoid_flashes.getBool()) {
-        g->setColor(Color(0xffffffff).setA(this->fFlash));
+        g->setColor(Color(0xffffffff).setA((f32)this->fFlash));
 
         g->fillRect(0, start_y, avatar_width + width, height);
     }
@@ -68,8 +64,8 @@ void ScoreboardSlot::draw() {
         float oScale = bg_img.getResolutionScale() * 0.99f;
         g->fillRect(0, start_y, avatar_width, height);
         bg_img.draw(vec2(avatar_width + (bg_img.getSizeBase().x / 2) * bg_scale - (470 * oScale) * bg_scale,
-                          start_y + height / 2),
-                     bg_scale);
+                         start_y + height / 2),
+                    bg_scale);
     } else {
         g->fillRect(0, start_y, avatar_width + width, height);
     }
@@ -118,7 +114,7 @@ void ScoreboardSlot::draw() {
         g->translate(avatar_width + padding, start_y + padding + font_normal->getHeight() * scale);
         if(drawTextShadow) {
             g->translate(1, 1);
-            g->setColor(Color(textShadowColor).setA(this->fAlpha));
+            g->setColor(Color(textShadowColor).setA((f32)this->fAlpha));
 
             g->drawString(font_normal, this->score.name);
             g->translate(-1, -1);
@@ -147,7 +143,7 @@ void ScoreboardSlot::draw() {
 
         if(drawTextShadow) {
             g->translate(1, 1);
-            g->setColor(Color(textShadowColor).setA(this->fAlpha));
+            g->setColor(Color(textShadowColor).setA((f32)this->fAlpha));
 
             g->drawString(font_normal, comboString);
             g->translate(-1, -1);
@@ -188,7 +184,7 @@ void ScoreboardSlot::draw() {
 
             if(drawTextShadow) {
                 g->translate(1, 1);
-                g->setColor(Color(textShadowColor).setA(this->fAlpha));
+                g->setColor(Color(textShadowColor).setA((f32)this->fAlpha));
 
                 g->drawString(font_normal, wincond_based_scoretext);
                 g->translate(-1, -1);
@@ -212,7 +208,7 @@ void ScoreboardSlot::updateIndex(int new_index, bool is_player, bool animate) {
     if(is_player) {
         if(animate && new_index < this->index) {
             this->fFlash = 1.f;
-            anim::moveQuartOut(&this->fFlash, 0.0f, 0.5f, 0.0f, true);
+            this->fFlash.set(0.0f, 0.5f, anim::QuartOut);
         }
 
         // Ensure the player is always visible
@@ -236,26 +232,26 @@ void ScoreboardSlot::updateIndex(int new_index, bool is_player, bool animate) {
 
     if(this->was_visible && !is_visible) {
         if(animate) {
-            anim::moveQuartOut(&this->y, scoreboard_y, 0.5f, 0.0f, true);
-            anim::moveQuartOut(&this->fAlpha, 0.0f, 0.5f, 0.0f, true);
+            this->y.set(scoreboard_y, 0.5f, anim::QuartOut);
+            this->fAlpha.set(0.0f, 0.5f, anim::QuartOut);
         } else {
             this->y = scoreboard_y;
             this->fAlpha = 0.0f;
         }
         this->was_visible = false;
     } else if(!this->was_visible && is_visible) {
-        anim::deleteExistingAnimation(&this->y);
+        this->y.stop();
         this->y = scoreboard_y;
         if(animate) {
             this->fAlpha = 0.f;
-            anim::moveQuartOut(&this->fAlpha, 1.0f, 0.5f, 0.0f, true);
+            this->fAlpha.set(1.0f, 0.5f, anim::QuartOut);
         } else {
             this->fAlpha = 1.0f;
         }
         this->was_visible = true;
     } else if(this->was_visible || is_visible) {
         if(animate) {
-            anim::moveQuartOut(&this->y, scoreboard_y, 0.5f, 0.0f, true);
+            this->y.set(scoreboard_y, 0.5f, anim::QuartOut);
         } else {
             this->y = scoreboard_y;
         }

@@ -1,5 +1,6 @@
 #pragma once
 // Copyright (c) 2016, PG, All rights reserved.
+#include "AnimationHandler.h"
 #include "CBaseUIButton.h"
 
 class UIButton : public CBaseUIButton {
@@ -36,7 +37,7 @@ class UIButton : public CBaseUIButton {
 
     bool bDefaultSkin{false};
     Color color{0xffffffff};
-    float fClickAnim{0.f};
+    AnimFloat fClickAnim;
     float fHoverAnim{0.f};
 
     std::vector<UString> tooltipTextLines;

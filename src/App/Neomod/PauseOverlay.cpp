@@ -40,21 +40,15 @@ PauseOverlay::PauseOverlay() : UIScreen() {
     this->updateLayout();
 }
 
-PauseOverlay::~PauseOverlay() {
-    anim::deleteExistingAnimation(&this->fDimAnim);
-    anim::deleteExistingAnimation(&this->fButtonBrightnessAnim);
-    anim::deleteExistingAnimation(&this->fWarningArrowsAnimAlpha);
-    anim::deleteExistingAnimation(&this->fWarningArrowsAnimX);
-    anim::deleteExistingAnimation(&this->fWarningArrowsAnimY);
-}
+PauseOverlay::~PauseOverlay() = default;
 
 void PauseOverlay::draw() {
-    const bool isAnimating = anim::isAnimating(&this->fDimAnim);
+    const bool isAnimating = this->fDimAnim.animating();
     if(!this->bVisible && !isAnimating) return;
 
     // draw dim
     if(cv::pause_dim_background.getBool()) {
-        g->setColor(argb(this->fDimAnim * cv::pause_dim_alpha.getFloat(), 0.078f, 0.078f, 0.078f));
+        g->setColor(argb((f32)this->fDimAnim * cv::pause_dim_alpha.getFloat(), 0.078f, 0.078f, 0.078f));
         g->fillRect(0, 0, osu->getVirtScreenWidth(), osu->getVirtScreenHeight());
     }
 
@@ -70,7 +64,7 @@ void PauseOverlay::draw() {
             const float scale = Osu::getImageScaleToFillResolution(image, osu->getVirtScreenSize());
             const vec2 centerTrans = (osu->getVirtScreenSize() / 2.f);
 
-            g->setColor(argb(this->fDimAnim, 1.0f, 1.0f, 1.0f));
+            g->setColor(argb((f32)this->fDimAnim, 1.0f, 1.0f, 1.0f));
             g->pushTransform();
             {
                 g->scale(scale, scale);
@@ -99,11 +93,11 @@ void PauseOverlay::draw() {
 
         g->setColor(Color(arrowColor).setA(this->fWarningArrowsAnimAlpha * this->fDimAnim));
 
-        ui->getHUD()->drawWarningArrow(vec2(this->fWarningArrowsAnimX, this->fWarningArrowsAnimY) +
+        ui->getHUD()->drawWarningArrow(vec2((f32)this->fWarningArrowsAnimX, (f32)this->fWarningArrowsAnimY) +
                                            vec2(0, this->selectedButton->getSize().y / 2) - vec2(offset, 0),
                                        false, false);
         ui->getHUD()->drawWarningArrow(
-            vec2(osu->getVirtScreenWidth() - this->fWarningArrowsAnimX, this->fWarningArrowsAnimY) +
+            vec2(osu->getVirtScreenWidth() - this->fWarningArrowsAnimX, (f32)this->fWarningArrowsAnimY) +
                 vec2(0, this->selectedButton->getSize().y / 2) + vec2(offset, 0),
             true, false);
     }
@@ -129,13 +123,13 @@ void PauseOverlay::update(CBaseUIEventCtx &c) {
         this->setVisible(this->bScheduledVisibility);
     }
 
-    if(anim::isAnimating(&this->fWarningArrowsAnimX)) this->fWarningArrowsAnimStartTime = engine->getTime();
+    if(this->fWarningArrowsAnimX.animating()) this->fWarningArrowsAnimStartTime = engine->getTime();
 }
 
 void PauseOverlay::onContinueClicked() {
     if(!this->areButtonsActive()) return;
     if(!this->bContinueEnabled) return;
-    if(anim::isAnimating(&this->fDimAnim)) return;
+    if(this->fDimAnim.animating()) return;
 
     soundEngine->play(osu->getSkin()->s_click_pause_continue);
     osu->getMapInterface()->pause();
@@ -146,7 +140,7 @@ void PauseOverlay::onContinueClicked() {
 void PauseOverlay::onRetryClicked() {
     if(!this->areButtonsActive()) return;
     if(BanchoState::is_playing_a_multi_map()) return;  // sanity
-    if(anim::isAnimating(&this->fDimAnim)) return;
+    if(this->fDimAnim.animating()) return;
 
     soundEngine->play(osu->getSkin()->s_click_pause_retry);
     osu->getMapInterface()->restart();
@@ -156,7 +150,7 @@ void PauseOverlay::onRetryClicked() {
 
 void PauseOverlay::onBackClicked() {
     if(!this->areButtonsActive()) return;
-    if(anim::isAnimating(&this->fDimAnim)) return;
+    if(this->fDimAnim.animating()) return;
 
     soundEngine->play(osu->getSkin()->s_click_pause_back);
     osu->getMapInterface()->stop(true);
@@ -172,12 +166,12 @@ void PauseOverlay::onSelectionChange() {
             this->fWarningArrowsAnimY = this->selectedButton->getPos().y;
             this->fWarningArrowsAnimX = this->selectedButton->getPos().x - Osu::getUIScale(170.0f);
 
-            anim::moveLinear(&this->fWarningArrowsAnimAlpha, 1.0f, 0.3f);
-            anim::moveQuadIn(&this->fWarningArrowsAnimX, this->selectedButton->getPos().x, 0.3f);
+            this->fWarningArrowsAnimAlpha.set(1.0f, 0.3f, anim::Linear);
+            this->fWarningArrowsAnimX.set(this->selectedButton->getPos().x, 0.3f, anim::QuadIn);
         } else
             this->fWarningArrowsAnimX = this->selectedButton->getPos().x;
 
-        anim::moveQuadOut(&this->fWarningArrowsAnimY, this->selectedButton->getPos().y, 0.1f);
+        this->fWarningArrowsAnimY.set(this->selectedButton->getPos().y, 0.1f, anim::QuadOut);
     }
 }
 
@@ -406,7 +400,7 @@ CBaseUIContainer *PauseOverlay::setVisible(bool visible) {
         const float delay = cv::pausemenu_button_delay.getFloat();
         this->fButtonsActiveTime = engine->getTime() + delay;
         this->fButtonBrightnessAnim = 0.3f;
-        anim::moveQuadIn(&this->fButtonBrightnessAnim, 1.0f, delay, true);
+        this->fButtonBrightnessAnim.set(1.0f, delay, anim::QuadIn);
     }
 
     if(this->bVisible) this->updateLayout();
@@ -415,9 +409,10 @@ CBaseUIContainer *PauseOverlay::setVisible(bool visible) {
     osu->updateWindowsKeyDisable();
 
     if(this->bVisible != wasVisible) {
-        anim::moveQuadOut(
-            &this->fDimAnim, (this->bVisible ? 1.0f : 0.0f),
-            cv::pause_anim_duration.getFloat() * (this->bVisible ? 1.0f - this->fDimAnim : this->fDimAnim), true);
+        this->fDimAnim.set(
+            (this->bVisible ? 1.0f : 0.0f),
+            cv::pause_anim_duration.getFloat() * (this->bVisible ? 1.0f - this->fDimAnim : this->fDimAnim),
+            anim::QuadOut);
     }
     ui->getChat()->updateVisibility();
     return this;

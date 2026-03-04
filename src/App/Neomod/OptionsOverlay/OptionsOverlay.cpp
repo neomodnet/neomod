@@ -304,7 +304,7 @@ struct OptionsOverlayImpl final {
     ConVar *waitingKey{nullptr};
 
     // custom
-    float fAnimation{0.f};
+    AnimFloat fAnimation;
 
     float fOsuFolderTextboxInvalidAnim{0.f};
     bool bLetterboxingOffsetUpdateScheduled{false};
@@ -399,7 +399,7 @@ class ResetButton final : public CBaseUIButton {
         this->fAnim = 1.0f;
     }
 
-    ~ResetButton() override { anim::deleteExistingAnimation(&this->fAnim); }
+    ~ResetButton() override = default;
 
     void draw() override {
         if(!this->bVisible || this->fAnim <= 0.0f) return;
@@ -434,15 +434,15 @@ class ResetButton final : public CBaseUIButton {
    private:
     void onEnabled() override {
         CBaseUIButton::onEnabled();
-        anim::moveQuadOut(&this->fAnim, 1.0f, (1.0f - this->fAnim) * 0.15f, true);
+        this->fAnim.set(1.0f, (1.0f - this->fAnim) * 0.15f, anim::QuadOut);
     }
 
     void onDisabled() override {
         CBaseUIButton::onDisabled();
-        anim::moveQuadOut(&this->fAnim, 0.0f, this->fAnim * 0.15f, true);
+        this->fAnim.set(0.0f, this->fAnim * 0.15f, anim::QuadOut);
     }
 
-    float fAnim;
+    AnimFloat fAnim;
 };
 
 struct OptionsElement {
@@ -1851,8 +1851,6 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
 }
 
 OptionsOverlayImpl::~OptionsOverlayImpl() {
-    anim::deleteExistingAnimation(&this->fAnimation);
-
     this->options->invalidate();
 
     SAFE_DELETE(this->spacer);
@@ -1861,7 +1859,7 @@ OptionsOverlayImpl::~OptionsOverlayImpl() {
 }
 
 void OptionsOverlayImpl::draw() {
-    const bool isAnimating = anim::isAnimating(&this->fAnimation);
+    const bool isAnimating = this->fAnimation.animating();
     if(!parent->bVisible && !isAnimating) {
         this->contextMenu->draw();
         return;
@@ -1934,7 +1932,7 @@ void OptionsOverlayImpl::draw() {
             g->translate3DScene(-(1.0f - this->fAnimation) * this->options->getSize().x * 1.25f, 0,
                                 -(1.0f - this->fAnimation) * 700);
 
-            osu->getSliderFrameBuffer()->setColor(argb(this->fAnimation, 1.0f, 1.0f, 1.0f));
+            osu->getSliderFrameBuffer()->setColor(argb((f32)this->fAnimation, 1.0f, 1.0f, 1.0f));
             osu->getSliderFrameBuffer()->draw(0, 0);
         }
         g->pop3DScene();
@@ -2271,9 +2269,9 @@ void OptionsOverlayImpl::setVisibleInt(bool visible, bool fromOnBack) {
     if(visible != parent->bVisible) {
         // open/close animation
         if(!parent->bVisible)
-            anim::moveQuartOut(&this->fAnimation, 1.0f, 0.25f * (1.0f - this->fAnimation), true);
+            this->fAnimation.set(1.0f, 0.25f * (1.0f - this->fAnimation), anim::QuartOut);
         else
-            anim::moveQuadOut(&this->fAnimation, 0.0f, 0.25f * this->fAnimation, true);
+            this->fAnimation.set(0.0f, 0.25f * this->fAnimation, anim::QuadOut);
 
         // save even if not closed via onBack(), e.g. if closed via setVisible(false) from outside
         if(!visible && !fromOnBack) {

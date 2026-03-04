@@ -36,7 +36,7 @@ class UIVolumeSlider final : public CBaseUISlider {
     static bool resourcesReady;
 
     McFont* font;
-    float fSelectionAnim;
+    AnimFloat fSelectionAnim;
 
     TYPE type;
     bool bSelected;

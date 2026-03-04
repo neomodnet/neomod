@@ -1,5 +1,6 @@
 #pragma once
 // Copyright (c) 2016, PG, All rights reserved.
+#include "AnimationHandler.h"
 #include "CBaseUIButton.h"
 #include "Skin.h"
 
@@ -55,8 +56,8 @@ class UIModSelectorModButton final : public CBaseUIButton {
     };
     std::vector<STATE> states;
 
-    vec2 vScale{0.f};
-    float fRot;
+    AnimFloat fScaleX{0.f}, fScaleY{0.f};
+    AnimFloat fRot;
     SkinImageSkinMember activeSkinImageMember{nullptr};
 
     bool bFocusStolenDelay;

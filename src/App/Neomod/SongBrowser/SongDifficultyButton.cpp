@@ -33,8 +33,6 @@ SongDifficultyButton::SongDifficultyButton(float xPos, float yPos, float xSize, 
     this->databaseBeatmap = diff;
     this->parentSongButton = parentSongButton;
 
-    this->fOffsetPercentAnim = 0.f;
-
     // settings
     this->setHideIfSelected(false);
     this->bUpdateGradeScheduled = true;
@@ -46,7 +44,7 @@ SongDifficultyButton::SongDifficultyButton(float xPos, float yPos, float xSize, 
     this->updateLayoutEx();
 }
 
-SongDifficultyButton::~SongDifficultyButton() { anim::deleteExistingAnimation(&this->fOffsetPercentAnim); }
+SongDifficultyButton::~SongDifficultyButton() = default;
 
 void SongDifficultyButton::draw() {
     // NOTE(spec): we don't need this check because the updateClipping() call in the scrollview already sets visibility
@@ -172,8 +170,8 @@ void SongDifficultyButton::update(CBaseUIEventCtx& c) {
         const f32 targetAnim = newOffsetPercentSelectionState ? 1.f : 0.f;
 
         if(targetAnim != this->fOffsetPercentAnim) {
-            anim::moveQuadOut(&this->fOffsetPercentAnim, targetAnim,
-                              0.25f * (std::abs(targetAnim - this->fOffsetPercentAnim)), true);
+            this->fOffsetPercentAnim.set(targetAnim,
+                                        0.25f * (std::abs(targetAnim - this->fOffsetPercentAnim)), anim::QuadOut);
         }
     }
 
@@ -187,11 +185,9 @@ void SongDifficultyButton::update(CBaseUIEventCtx& c) {
 void SongDifficultyButton::resetAnimations() {
     CarouselButton::resetAnimations();
 
-    if(this->fOffsetPercentAnim != 1.f && this->fOffsetPercentAnim != 0.f) {
-        anim::deleteExistingAnimation(&this->fOffsetPercentAnim);
-    }
     // force reanimate in update()
     this->lastOffsetState = OffsetState::UNINITIALIZED;
+    this->fOffsetPercentAnim.stop();
     this->fOffsetPercentAnim = 0.f;
 }
 

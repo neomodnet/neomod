@@ -25,8 +25,8 @@ void UISlider::draw() {
     int lineAdd = 1;
 
     float line1Start = this->getPos().x + (this->vBlockSize.x - 1) / 2 + 1;
-    float line1End = this->getPos().x + this->vBlockPos.x + lineAdd;
-    float line2Start = this->getPos().x + this->vBlockPos.x + this->vBlockSize.x - lineAdd;
+    float line1End = this->getPos().x + this->blockPos().x + lineAdd;
+    float line2Start = this->getPos().x + this->blockPos().x + this->vBlockSize.x - lineAdd;
     float line2End = this->getPos().x + this->getSize().x - (this->vBlockSize.x - 1) / 2;
 
     // draw sliding line
@@ -39,7 +39,7 @@ void UISlider::draw() {
                     (int)(this->getPos().y + this->getSize().y / 2.0f + 1));
 
     // draw sliding block
-    vec2 blockCenter = this->getPos() + this->vBlockPos + this->vBlockSize / 2.f;
+    vec2 blockCenter = this->getPos() + this->blockPos() + this->vBlockSize / 2.f;
     vec2 scale = vec2(this->vBlockSize.x / img->getWidth(), this->vBlockSize.y / img->getHeight());
 
     g->setColor(this->frameColor);

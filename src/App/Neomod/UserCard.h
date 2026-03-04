@@ -1,5 +1,6 @@
 #pragma once
 // Copyright (c) 2018, PG, All rights reserved.
+#include "AnimationHandler.h"
 #include "CBaseUIButton.h"
 
 #include <memory>
@@ -30,5 +31,5 @@ class UserCard final : public CBaseUIButton {
     float fPercentToNextLevel;
 
     float fPPDelta;
-    float fPPDeltaAnim;
+    AnimFloat fPPDeltaAnim;
 };

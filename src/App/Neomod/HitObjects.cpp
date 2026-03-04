@@ -961,7 +961,7 @@ void Circle::onHit(LiveScore::HIT result, i32 delta, float targetDelta, float ta
         m_hitSamples.play(pan, delta, m_clickTimeMS);
 
         m_hitAnimation = 0.001f;  // quickfix for 1 frame missing images
-        anim::moveQuadOut(&m_hitAnimation, 1.0f, GameRules::getFadeOutTime(m_pi->getBaseAnimationSpeed()), true);
+        m_hitAnimation.set(1.0f, GameRules::getFadeOutTime(m_pi->getBaseAnimationSpeed()), anim::QuadOut);
     }
 
     // add it, and we are finished
@@ -976,7 +976,7 @@ void Circle::onReset(i32 curPosMS) {
     m_shakeAnimation = 0.0f;
 
     if(m_pf != nullptr) {
-        anim::deleteExistingAnimation(&m_hitAnimation);
+        m_hitAnimation.stop();
     }
 
     if(m_clickTimeMS > curPosMS) {
@@ -2018,10 +2018,10 @@ void Slider::onHit(LiveScore::HIT result, i32 delta, bool isEndCircle, float tar
         // end body fadeout
         if(m_pf != nullptr && isEndCircle) {
             m_endSliderBodyFadeAnimation = 0.001f;  // quickfix for 1 frame missing images
-            anim::moveQuadOut(&m_endSliderBodyFadeAnimation, 1.0f,
-                              GameRules::getFadeOutTime(m_pi->getBaseAnimationSpeed()) *
-                                  cv::slider_body_fade_out_time_multiplier.getFloat(),
-                              true);
+            m_endSliderBodyFadeAnimation.set(1.0f,
+                                             GameRules::getFadeOutTime(m_pi->getBaseAnimationSpeed()) *
+                                                 cv::slider_body_fade_out_time_multiplier.getFloat(),
+                                             anim::QuadOut);
             // debugLog("stopping due to end body fadeout");
             m_hitSamples.stop();
         }
@@ -2125,7 +2125,7 @@ void Slider::onRepeatHit(const SLIDERCLICK &click) {
         float tick_pulse_time = cv::slider_followcircle_tick_pulse_time.getFloat() * animation_multiplier;
 
         m_followCircleTickAnimationScale = 0.0f;
-        anim::moveLinear(&m_followCircleTickAnimationScale, 1.0f, tick_pulse_time, true);
+        m_followCircleTickAnimationScale.set(1.0f, tick_pulse_time, anim::Linear);
 
         const float fadeoutTimeSecs = GameRules::getFadeOutTime(m_pi->getBaseAnimationSpeed());
 
@@ -2215,7 +2215,7 @@ void Slider::onTickHit(const SLIDERCLICK &click) {
         float tick_pulse_time = cv::slider_followcircle_tick_pulse_time.getFloat() * animation_multiplier;
 
         m_followCircleTickAnimationScale = 0.0f;
-        anim::moveLinear(&m_followCircleTickAnimationScale, 1.0f, tick_pulse_time, true);
+        m_followCircleTickAnimationScale.set(1.0f, tick_pulse_time, anim::Linear);
     }
 
     // add score
@@ -2243,15 +2243,10 @@ void Slider::onReset(i32 curPosMS) {
         // debugLog("stopping due to onReset");
         m_hitSamples.stop();
 
-        anim::deleteExistingAnimation(&m_followCircleTickAnimationScale);
-        anim::deleteExistingAnimation(&m_endSliderBodyFadeAnimation);
+        m_followCircleTickAnimationScale.stop();
+        m_endSliderBodyFadeAnimation.stop();
     }
-    if(!m_clickAnimations.empty()) {
-        for(auto &anim : m_clickAnimations) {
-            anim::deleteExistingAnimation(&anim.percent);
-        }
-        m_clickAnimations.clear();
-    }
+    m_clickAnimations.clear();
 
     m_lastSliderSampleSets.clear();
     m_strictTrackingModLastClickHeldTime = 0;
@@ -2311,11 +2306,11 @@ Slider::HitAnim &Slider::addHitAnim(u8 typeFlags, float duration) {
         auto &ret = m_clickAnimations[prand() % 128];
         ret.percent = 0.001f;
         ret.type = decltype(ret.type)(typeFlags);
-        anim::moveQuadOut(&ret.percent, 1.0f, duration, true);
+        ret.percent.set(1.0f, duration, anim::QuadOut);
         return ret;
     } else {
-        auto &ret = m_clickAnimations.emplace_back(HitAnim{.percent = 0.001f, .type{typeFlags}});
-        anim::moveQuadOut(&ret.percent, 1.0f, duration, true);
+        auto &ret = m_clickAnimations.emplace_back(HitAnim{.percent{0.001f}, .type{typeFlags}});
+        ret.percent.set(1.0f, duration, anim::QuadOut);
         return ret;
     }
 }

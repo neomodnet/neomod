@@ -4,6 +4,7 @@
 // TODO: fix vertical sliders
 // TODO: this entire class is a mess
 
+#include "AnimationHandler.h"
 #include "CBaseUIElement.h"
 #include "Color.h"
 #include "Delegate.h"
@@ -101,7 +102,9 @@ class CBaseUISlider : public CBaseUIElement {
 
     SliderChangeCallback sliderChangeCallback;
 
-    vec2 vBlockSize, vBlockPos{0.f};
+    vec2 vBlockSize;
+    AnimVec2 vBlockPos{0.f, 0.f};
+    [[nodiscard]] vec2 blockPos() const { return vec2{this->vBlockPos}; }
     vec2 vGrabBackup{0.f};
 
     // to avoid "fighting" between externally set values and mouse-based slider values, if the mouse position hasn't moved

@@ -69,11 +69,7 @@ VolumeOverlay::VolumeOverlay() : UIScreen() {
     this->updateLayout();
 }
 
-VolumeOverlay::~VolumeOverlay() {
-    anim::deleteExistingAnimation(&this->fVolumeChangeFade);
-    anim::deleteExistingAnimation(&this->fLastVolume);
-    anim::deleteExistingAnimation(&this->fVolumeInactiveToActiveAnim);
-}
+VolumeOverlay::~VolumeOverlay() = default;
 
 void VolumeOverlay::animate() {
     const bool active = this->fVolumeChangeTime > engine->getTime();
@@ -81,12 +77,12 @@ void VolumeOverlay::animate() {
 
     if(!active) {
         this->fVolumeChangeFade = 0.0f;
-        anim::moveQuadOut(&this->fVolumeChangeFade, 1.0f, 0.15f, true);
+        this->fVolumeChangeFade.set(1.0f, 0.15f, anim::QuadOut);
     } else
-        anim::moveQuadOut(&this->fVolumeChangeFade, 1.0f, 0.1f * (1.0f - this->fVolumeChangeFade), true);
+        this->fVolumeChangeFade.set(1.0f, 0.1f * (1.0f - this->fVolumeChangeFade), anim::QuadOut);
 
-    anim::moveQuadOut(&this->fVolumeChangeFade, 0.0f, 0.20f, cv::hud_volume_duration.getFloat(), false);
-    anim::moveQuadOut(&this->fLastVolume, cv::volume_master.getFloat(), 0.15f, 0.0f, true);
+    this->fVolumeChangeFade.append(0.0f, 0.20f, anim::QuadOut, cv::hud_volume_duration.getFloat());
+    this->fLastVolume.set(cv::volume_master.getFloat(), 0.15f, anim::QuadOut);
 }
 
 void VolumeOverlay::draw() {
@@ -288,14 +284,14 @@ void VolumeOverlay::gainFocus() {
     if(soundEngine->hasExclusiveOutput()) return;
 
     this->fVolumeInactiveToActiveAnim = 0.0f;
-    anim::moveLinear(&this->fVolumeInactiveToActiveAnim, 1.0f, 0.3f, 0.1f, true);
+    this->fVolumeInactiveToActiveAnim.set(1.0f, 0.3f, anim::Linear, 0.1f);
 }
 
 void VolumeOverlay::loseFocus() {
     if(soundEngine->hasExclusiveOutput()) return;
 
     this->bVolumeInactiveToActiveScheduled = true;
-    anim::deleteExistingAnimation(&this->fVolumeInactiveToActiveAnim);
+    this->fVolumeInactiveToActiveAnim.stop();
     this->fVolumeInactiveToActiveAnim = 0.0f;
     soundEngine->setMasterVolume(cv::volume_master_inactive.getFloat() * cv::volume_master.getFloat());
 }
@@ -303,7 +299,7 @@ void VolumeOverlay::loseFocus() {
 void VolumeOverlay::onVolumeChange(int multiplier) {
     // sanity reset
     this->bVolumeInactiveToActiveScheduled = false;
-    anim::deleteExistingAnimation(&this->fVolumeInactiveToActiveAnim);
+    this->fVolumeInactiveToActiveAnim.stop();
     this->fVolumeInactiveToActiveAnim = 0.0f;
 
     // don't actually change volume for the first interaction, just make ourselves visible
