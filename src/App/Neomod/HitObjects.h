@@ -1,7 +1,7 @@
 #pragma once
 #include "AnimationHandler.h"
 #include "BeatmapInterface.h"
-#include <deque>
+#include <vector>
 
 class ConVar;
 class ModFPoSu;
@@ -308,6 +308,10 @@ class Slider final : public HitObject {
     [[nodiscard]] float getT(i32 posMS, bool raw) const;
 
     bool isClickHeldSlider();  // special logic to disallow hold tapping
+    struct SLIDERTICK {
+        float percent;
+        bool finished;
+    };
 
     struct HitAnim {
         AnimFloat percent;
@@ -319,13 +323,8 @@ class Slider final : public HitObject {
     };
     HitAnim &addHitAnim(u8 typeFlags, float duration);
 
-    struct SLIDERTICK {
-        float percent;
-        bool finished;
-    };
 
-    // TODO: deque is overkill here, maybe just hand-roll the quad interp and use a vector?
-    std::deque<HitAnim> m_clickAnimations;
+    std::vector<HitAnim> m_clickAnimations;
     std::vector<vec2> m_points;
     std::vector<HitSamples> m_edgeSamples;
     std::vector<HitSamples::Set_Slider_Hit> m_lastSliderSampleSets{};

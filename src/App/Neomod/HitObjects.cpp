@@ -1244,13 +1244,14 @@ void Slider::draw() {
 
     const bool do_endhit_animations = !hd && !instafade_slider_head;
     const bool do_starthit_animations = do_endhit_animations && cv::slider_sliderhead_fadeout.getBool();
-    for(auto anim_it = m_clickAnimations.begin(); anim_it != m_clickAnimations.end();) {
-        if(!anim_it->isAnimating()) {
-            anim_it = m_clickAnimations.erase(anim_it);
+    for(uSz i = 0; i < m_clickAnimations.size();) {
+        if(!m_clickAnimations[i].isAnimating()) {
+            m_clickAnimations[i] = std::move(m_clickAnimations.back());
+            m_clickAnimations.pop_back();
             continue;
         }
-        auto &anim = *anim_it;
-        ++anim_it;
+        auto &anim = m_clickAnimations[i];
+        ++i;
 
         if(do_starthit_animations && anim.type & HitAnim::HEAD) {
             const float alpha = 1.0f - anim.percent;
