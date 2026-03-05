@@ -171,6 +171,7 @@ void SkinImage::destroy(bool everything) {
     auto imagesToDelete = std::move(this->images);
     this->images.clear();
 
+    // we delete everything including default skin resources since they aren't named (thus can't be accidentally shared)
     for(auto& image : imagesToDelete) {
         if(image.img && image.img != MISSING_TEXTURE) {
             resourceManager->destroyResource(image.img, destroyFlags);

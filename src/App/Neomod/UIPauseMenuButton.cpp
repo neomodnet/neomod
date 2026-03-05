@@ -11,6 +11,9 @@
 #include "Environment.h"
 #include "Graphics.h"
 
+// #include "Logging.h"
+// #include "Timing.h"
+
 UIPauseMenuButton::UIPauseMenuButton(ImageSkinMember imageMember, float xPos, float yPos, float xSize, float ySize,
                                      UString name)
     : CBaseUIButton(xPos, yPos, xSize, ySize, std::move(name)) {
@@ -54,6 +57,7 @@ void UIPauseMenuButton::setBaseScale(float xScale, float yScale) {
 }
 
 void UIPauseMenuButton::onMouseInside() {
+    // debugLog("{} {}", Timing::getTicksNS(), engine->getFrameCount());
     CBaseUIButton::onMouseInside();
 
     const float animationDuration = 0.09f;

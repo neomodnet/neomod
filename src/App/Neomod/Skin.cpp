@@ -130,8 +130,9 @@ void Skin::destroy(bool everything) {
     const auto destroyFlags = everything ? ResourceDestroyFlags::RDF_FORCE_BLOCKING : ResourceDestroyFlags::RDF_DEFAULT;
 
     for(auto &bimg : this->basic_images) {
-        // don't destroy named/cached default skin images unless we are destroying everything
-        if(bimg->img && bimg->img != MISSING_TEXTURE && (everything || !bimg->isFromDefault())) {
+        // don't destroy named/cached default skin images (because we might have multiple copies of them)
+        // we still add it to the basic_images vector so that we can check if it's finished loading
+        if(bimg->img && bimg->img != MISSING_TEXTURE && !bimg->isFromDefault()) {
             resourceManager->destroyResource(bimg->img, destroyFlags);
         }
     }
@@ -144,9 +145,12 @@ void Skin::destroy(bool everything) {
 
     // sounds are managed by resourcemanager, not unloaded here (unless we are destroying everything)
     if(everything) {
-        for(auto *sound : this->sounds) {
-            resourceManager->destroyResource(sound, destroyFlags);
-            sound = nullptr;
+        for(auto &sound : this->sounds) {
+            // actually, need to do the same check to make sure we don't delete _DEFAULT sounds
+            if(!sound->getName().ends_with("_DEFAULT")) {
+                resourceManager->destroyResource(sound, destroyFlags);
+                sound = nullptr;
+            }
         }
         this->sounds.clear();
     }
