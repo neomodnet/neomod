@@ -280,8 +280,7 @@ void BGImageHandler::draw(const Image *image, f32 alpha) {
     {
         g->setColor(Color(0xff999999).setA(alpha));
         g->scale(scale, scale);
-        g->translate(osu->getVirtScreenWidth() / 2, osu->getVirtScreenHeight() / 2);
-        g->drawImage(image);
+        g->drawImage(image, AnchorPoint::TOP_LEFT);
     }
     g->popTransform();
 }
@@ -397,7 +396,8 @@ const Image *BGImageHandlerImpl::getLoadBackgroundImage(const DatabaseBeatmap *b
         // worked before the rework, but 100% safe(r) since we are not async
         if(entry.image != nullptr && entry.bg_image_filename.length() > 1 &&
            (beatmap->getBackgroundImageFileName().length() < 2 || entry.overwrite_db_entry)) {
-            const_cast<DatabaseBeatmap *>(beatmap)->sBackgroundImageFileName = SString::strcpy_u(entry.bg_image_filename);
+            const_cast<DatabaseBeatmap *>(beatmap)->sBackgroundImageFileName =
+                SString::strcpy_u(entry.bg_image_filename);
 
             entry.overwrite_db_entry = false;
 

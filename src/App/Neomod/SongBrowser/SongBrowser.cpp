@@ -2548,6 +2548,7 @@ void SongBrowser::onSearchUpdate() {
 
         // reset all search flags
         for(auto &songButton : this->parentButtons) {
+            songButton->setIsSearchMatch(true);
             for(auto &c : songButton->getChildren()) {
                 c->setIsSearchMatch(true);
             }
