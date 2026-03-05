@@ -535,8 +535,7 @@ CONVAR(mod_wobble_frequency, 1.0f, CLIENT | SERVER | GAMEPLAY);
 CONVAR(mod_wobble_rotation_speed, 1.0f, CLIENT | SERVER | GAMEPLAY);
 CONVAR(mod_wobble_strength, 25.0f, CLIENT | SERVER | GAMEPLAY);
 CONVAR(mod_no_pausing, false, CLIENT | SERVER | GAMEPLAY);
-CONVAR(mod_traceable, false,
-       CLIENT | SERVER | GAMEPLAY | PROTECTED /* TODO: make it rankable (needs score/pp integration etc.) */);
+CONVAR(mod_traceable, false, CLIENT | SERVER | GAMEPLAY);
 
 // Important gameplay values
 CONVAR(animation_speed_override, -1.0f, CLIENT | SERVER | PROTECTED | GAMEPLAY);
