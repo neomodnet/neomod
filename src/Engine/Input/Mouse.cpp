@@ -46,6 +46,7 @@ void Mouse::draw() {
 
     // red = cursor clip
     if(env->isCursorClipped()) {
+        g->setColor(0xffff0000);
         McRect cursorClip = env->getCursorClip();
         g->drawRect(cursorClip.getMinX(), cursorClip.getMinY(), cursorClip.getWidth() - 1, cursorClip.getHeight() - 1);
     }
@@ -103,7 +104,7 @@ void Mouse::update() {
     this->vRawDelta = {0.f, 0.f};
 
     auto [newRel, newAbs, pixelScale, needsClipping] = env->consumeCursorPositionCache();
-    if(vec::length(newRel) <= 0.f) goto out;  // early return for no motion
+    if(vec::length(newRel) <= 0.) goto out;  // early return for no motion
 
     // vRawDelta doesn't include sensitivity or clipping, which is useful for fposu
     this->vRawDelta = newRel;
@@ -129,17 +130,25 @@ void Mouse::update() {
         if(env->isCursorClipped()) {
             clipRect = env->getCursorClip();
             doClip = true;
-        } else if(env->winFullscreened() && !env->isPointValid(env->getWindowPos() + newAbs)) {
+        } else if(env->winFullscreened() && !env->isPointValid(env->getWindowPos() + vec2{newAbs})) {
             // quickfix to avoid flashing cursor along the edges of the window when unconfined + in raw input
             clipRect = engine->getScreenRect();
             doClip = true;
         }
         if(doClip && !clipRect.contains(newAbs)) {
             // re-calculate clamped cursor position
-            newAbs = vec2{std::clamp<float>(newAbs.x, clipRect.getMinX(), clipRect.getMaxX()),
-                          std::clamp<float>(newAbs.y, clipRect.getMinY(), clipRect.getMaxY())};
+            if(newAbs.x < clipRect.getMinX()) {
+                newAbs.x = clipRect.getMinX();
+            } else if(newAbs.x > clipRect.getMaxX()) {
+                newAbs.x = clipRect.getMaxX();
+            }
+            if(newAbs.y < clipRect.getMinY()) {
+                newAbs.y = clipRect.getMinY();
+            } else if(newAbs.y > clipRect.getMaxY()) {
+                newAbs.y = clipRect.getMaxY();
+            }
             newRel = newAbs - this->vPosWithoutOffsets;
-            if(vec::length(newRel) == 0) {
+            if(vec::length(newRel) == 0.f) {
                 goto out;  // early return for the trivial case (like if we're confined in a corner)
             }
         }
@@ -183,9 +192,9 @@ void Mouse::resetWheelDelta() {
     this->iWheelDeltaHorizontalActual = 0;
 }
 
-void Mouse::onPosChange(vec2 pos) {
+void Mouse::onPosChange(dvec2 pos) {
     this->vPosWithoutOffsets = pos;
-    this->vPos = (this->vOffset + pos);
+    this->vPos = (dvec2{this->vOffset} + pos);
 
     // notify environment of the virtual cursor position
     env->updateCachedMousePos(this->vPosWithoutOffsets);

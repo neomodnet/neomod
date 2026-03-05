@@ -369,9 +369,9 @@ class Environment {
     [[nodiscard]] vec2 getAsyncMousePos() const;  // debug
 
     struct CursorPosition {
-        vec2 rel;     // relative *since last call*
-        vec2 abs;     // mouse absolute
-        float scale;  // unscaled from pixel density (seems macOS specific?) (TODO: must be a better way to do this...)
+        dvec2 rel;     // relative *since last call*
+        dvec2 abs;     // mouse absolute
+        double scale;  // unscaled from pixel density (seems macOS specific?) (TODO: must be a better way to do this...)
         // if the cursor is already clipped to the clip rectangle or if it needs to be clipped manually
         // (TODO: very ugly to be putting this here)
         bool needsClipping;

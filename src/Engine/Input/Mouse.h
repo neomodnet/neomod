@@ -27,7 +27,7 @@ class Mouse final : public InputDevice {
     void removeListener(MouseListener *mouseListener);
 
     // input handling
-    void onPosChange(vec2 pos);
+    void onPosChange(dvec2 pos);
     void onWheelVertical(int delta);
     void onWheelHorizontal(int delta);
     void onButtonChange(ButtonEvent ev);
@@ -103,7 +103,7 @@ class Mouse final : public InputDevice {
 
     // position state
     vec2 vPos{0.f};                // position with offset applied
-    vec2 vPosWithoutOffsets{0.f};  // position without offset
+    dvec2 vPosWithoutOffsets{0.f};  // position without offset
     vec2 vDelta{0.f};  // movement delta in the current frame
     vec2 vRawDelta{0.f};  // movement delta in the current frame, without consideration for clipping or sensitivity
 

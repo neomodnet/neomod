@@ -1373,10 +1373,10 @@ Environment::CursorPosition Environment::consumeCursorPositionCache() {
     SDL_GetRelativeMouseState(&xRel, &yRel);
     SDL_GetMouseState(&x, &y);
 
-    vec2 newRel = {xRel, yRel};
-    vec2 newAbs = {x, y};
+    dvec2 newRel = {xRel, yRel};
+    dvec2 newAbs = {x, y};
 
-    const bool hadRelative = vec::length(newRel) != 0.f;
+    const bool hadRelative = vec::length(newRel) != 0.;
     if(hadRelative) {
         m_bForceAbsCursor = false;
     }
