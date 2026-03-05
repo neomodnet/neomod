@@ -108,8 +108,8 @@ class AsyncPool final {
     [[nodiscard]] size_t pending_count() const noexcept { return m_pending.load(std::memory_order_relaxed); }
 
    private:
-    void fg_worker_loop(const Sync::stop_token& stoken, size_t index) noexcept;
-    void bg_worker_loop(const Sync::stop_token& stoken, size_t index) noexcept;
+    void fg_worker_loop(size_t index) noexcept;
+    void bg_worker_loop(size_t index) noexcept;
 
     std::queue<std::unique_ptr<TaskBase>>& queue_for(Lane lane) {
         return lane == Lane::Foreground ? m_fgQueue : m_bgQueue;
@@ -128,8 +128,8 @@ class AsyncPool final {
     std::queue<std::unique_ptr<TaskBase>> m_fgQueue;
     std::queue<std::unique_ptr<TaskBase>> m_bgQueue;
     Sync::mutex m_workMutex;
-    Sync::condition_variable_any m_fgCV;
-    Sync::condition_variable_any m_bgCV;
+    Sync::condition_variable m_fgCV;
+    Sync::condition_variable m_bgCV;
     std::atomic<size_t> m_pending{0};
 
     std::vector<Sync::jthread> m_fgThreads;

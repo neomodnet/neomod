@@ -27,14 +27,12 @@ AsyncPool::AsyncPool(size_t thread_count) {
 
     m_fgThreads.reserve(fg);
     for(size_t i = 0; i < fg; i++) {
-        m_fgThreads.emplace_back(
-            [this](const Sync::stop_token &stoken, size_t index) { fg_worker_loop(stoken, index); }, i);
+        m_fgThreads.emplace_back([this, i]() { fg_worker_loop(i); });
     }
 
     m_bgThreads.reserve(bg);
     for(size_t i = 0; i < bg; i++) {
-        m_bgThreads.emplace_back(
-            [this](const Sync::stop_token &stoken, size_t index) { bg_worker_loop(stoken, index); }, i);
+        m_bgThreads.emplace_back([this, i]() { bg_worker_loop(i); });
     }
 
     debugLog("AsyncPool: started {} worker threads ({} fg, {} bg)", thread_count, fg, bg);
@@ -54,12 +52,11 @@ void AsyncPool::shutdown() {
     m_fgCV.notify_all();
     m_bgCV.notify_all();
 
-    // jthread destructors call request_stop() + join()
     m_fgThreads.clear();
     m_bgThreads.clear();
 }
 
-void AsyncPool::fg_worker_loop(const Sync::stop_token &stoken, size_t index) noexcept {
+void AsyncPool::fg_worker_loop(size_t index) noexcept {
     McThread::set_current_thread_name(fmt::format("async_fg_{}", index));
     McThread::set_current_thread_prio(McThread::Priority::NORMAL);
 
@@ -67,7 +64,7 @@ void AsyncPool::fg_worker_loop(const Sync::stop_token &stoken, size_t index) noe
         std::unique_ptr<TaskBase> task;
         {
             Sync::unique_lock<Sync::mutex> lock(m_workMutex);
-            m_fgCV.wait(lock, stoken, [this] { return !m_fgQueue.empty() || !m_bgQueue.empty() || m_shutdown; });
+            m_fgCV.wait(lock, [this] { return !m_fgQueue.empty() || !m_bgQueue.empty() || m_shutdown; });
 
             // try foreground first, then steal from background
             if(!m_fgQueue.empty()) {
@@ -86,7 +83,7 @@ void AsyncPool::fg_worker_loop(const Sync::stop_token &stoken, size_t index) noe
     }
 }
 
-void AsyncPool::bg_worker_loop(const Sync::stop_token &stoken, size_t index) noexcept {
+void AsyncPool::bg_worker_loop(size_t index) noexcept {
     McThread::set_current_thread_name(fmt::format("async_bg_{}", index));
     McThread::set_current_thread_prio(McThread::Priority::LOW);
 
@@ -94,7 +91,7 @@ void AsyncPool::bg_worker_loop(const Sync::stop_token &stoken, size_t index) noe
         std::unique_ptr<TaskBase> task;
         {
             Sync::unique_lock<Sync::mutex> lock(m_workMutex);
-            m_bgCV.wait(lock, stoken, [this] { return !m_bgQueue.empty() || m_shutdown; });
+            m_bgCV.wait(lock, [this] { return !m_bgQueue.empty() || m_shutdown; });
 
             if(m_bgQueue.empty()) return;
 
