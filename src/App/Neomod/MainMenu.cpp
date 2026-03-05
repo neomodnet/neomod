@@ -320,6 +320,12 @@ MainMenu::MainMenu() : UIScreen() {
     this->addBaseUIElement(this->pauseButton);
 
     this->tipLabel = new CBaseUILabel(0, 0, 0, 0, "", "Tip: Press Alt+Enter to toggle Fullscreen.");
+    this->tipLabel->setTextColor(rgb(200, 200, 200));
+    this->tipLabel->setShadowColor(rgb(50, 50, 50));
+    this->tipLabel->setDrawTextShadow(true);
+    this->tipLabel->setDrawBackground(false);
+    this->tipLabel->setDrawFrame(false);
+    this->tipLabel->setVisible(Env::cfg(OS::WASM));
     this->addBaseUIElement(this->tipLabel);
 
     this->onlineBeatmapsButton = new UIButtonVertical(0, 0, 0, 0, "", "Online Beatmaps");
@@ -1337,10 +1343,7 @@ void MainMenu::updateLayout() {
     this->pauseButton->setRelPos(osu->getVirtScreenWidth() - this->pauseButton->getSize().x * 2 - 10 * dpiScale,
                                  this->pauseButton->getSize().y + 10 * dpiScale);
 
-    this->tipLabel->setTextColor(0xff888888);
     this->tipLabel->setSizeToContent();
-    this->tipLabel->setDrawBackground(false);
-    this->tipLabel->setDrawFrame(false);
     this->tipLabel->setRelPos(osu->getVirtScreenWidth() / 2 - this->tipLabel->getSize().x / 2,
                               osu->getVirtScreenHeight() - this->tipLabel->getSize().y - 40 * dpiScale);
     this->tipLabel->setVisible(Env::cfg(OS::WASM));
