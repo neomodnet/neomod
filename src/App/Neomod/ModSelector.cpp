@@ -202,6 +202,8 @@ ModSelector::ModSelector() : UIScreen() {
     this->addExperimentalCheckbox("Alternate", "You can never use the same key twice in a row.",
                                   &cv::mod_fullalternate);
     this->addExperimentalCheckbox("No keylock", "You can use 4 keys instead of only 2.", &cv::mod_no_keylock);
+    this->addExperimentalCheckbox("Traceable", "Hitcircles are invisible. Good luck if you use this with Hidden!",
+                                  &cv::mod_traceable);
     this->addExperimentalCheckbox("No pausing", "Pausing is cheating", &cv::mod_no_pausing);
     this->addExperimentalCheckbox(
         "FPoSu: Strafing", "Playfield moves in 3D space (see fposu_mod_strafing_...).\nOnly works in FPoSu mode!",

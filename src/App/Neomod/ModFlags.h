@@ -59,6 +59,7 @@ enum class ModFlags : u64 {
     Singletap = 1ULL << 43,
     NoKeylock = 1ULL << 44,
     NoPausing = 1ULL << 45,
+    Traceable = 1ULL << 46,
 
     // Reserved
     SliderHeadAccuracy = 1ULL << 46,

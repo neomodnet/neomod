@@ -145,6 +145,7 @@ std::string modsStringFromMods(ModFlags mods, float speed) {
     if(flags::has<FPoSu>(mods)) modsString.append("FPoSu,");
     if(flags::has<Singletap>(mods)) modsString.append("1K,");
     if(flags::has<NoKeylock>(mods)) modsString.append("4K,");
+    if(flags::has<Traceable>(mods)) modsString.append("TC,");
 
     if(modsString.length() > 0) modsString.pop_back();  // remove trailing comma
 

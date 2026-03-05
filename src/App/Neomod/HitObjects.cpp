@@ -787,9 +787,17 @@ void Circle::draw() {
     HitObject::draw();
 
     const Skin *skin = m_pf->getSkin();
-    const bool hd = m_pi->getMods().has(ModFlags::Hidden);
 
-    // draw hit animation
+    const ModFlags curGameplayFlags = m_pf->getMods().flags;
+
+    if(flags::has<ModFlags::Traceable>(curGameplayFlags)) {
+        // draw nothing for traceable (approach circles are drawn in draw2())
+        return;
+    }
+
+    const bool hd = flags::has<ModFlags::Hidden>(curGameplayFlags);
+
+    // draw hit animation (if not hidden)
     if(!hd && !cv::instafade.getBool() && m_hitAnimation > 0.0f && m_hitAnimation != 1.0f) {
         float alpha = 1.0f - m_hitAnimation;
 
@@ -871,7 +879,7 @@ void Circle::update(i32 curPosMS, f64 frameTimeSecs) {
     HitObject::update(curPosMS, frameTimeSecs);
     if(m_finished) return;
 
-    const ModFlags &curIFaceMods = m_pi->getMods().flags;
+    const ModFlags curIFaceMods = m_pi->getMods().flags;
     const i32 deltaMS = curPosMS - m_clickTimeMS;
 
     if(flags::has<ModFlags::Autoplay>(curIFaceMods)) {
@@ -1062,9 +1070,10 @@ void Slider::draw() {
     const float foscale = cv::circle_fade_out_scale.getFloat();
     const Skin *skin = m_pf->getSkin();
 
-    const ModFlags &curGameplayFlags = m_pf->getMods().flags;
+    const ModFlags curGameplayFlags = m_pf->getMods().flags;
 
     const bool hd = flags::has<ModFlags::Hidden>(curGameplayFlags);
+    const bool tc = flags::has<ModFlags::Traceable>(curGameplayFlags);
 
     const bool isCompletelyFinished = m_startFinished && m_endFinished && m_finished;
     if((m_visible || (m_startFinished && !m_finished)) &&
@@ -1089,7 +1098,7 @@ void Slider::draw() {
         tickColor = Colors::scale(tickColor, m_hittableDimRGBColorMultiplierPct);
         const float tickImageScale =
             (m_pf->fHitcircleDiameter / (16.0f * (skin->i_slider_score_point.scale()))) * 0.125f;
-        for(auto &tick : m_ticks) {
+        for(const auto &tick : m_ticks) {
             if(tick.finished || tick.percent > sliderSnake) continue;
 
             vec2 pos = m_pf->osuCoords2Pixels(m_curve->pointAt(tick.percent));
@@ -1105,13 +1114,14 @@ void Slider::draw() {
             g->popTransform();
         }
 
-        // draw start & end circle & reverse arrows
-        if(m_points.size() > 1) {
+        // draw start & end circle (if not traceable)
+        const bool has_points = m_points.size() > 1;
+        if(has_points && !tc) {
             // HACKHACK: very dirty code
             bool sliderRepeatStartCircleFinished = (m_repeat < 2);
             bool sliderRepeatEndCircleFinished = false;
             bool endCircleIsAtActualSliderEnd = true;
-            for(auto &click : m_clicks) {
+            for(const auto &click : m_clicks) {
                 // repeats
                 if(click.type == 0) {
                     endCircleIsAtActualSliderEnd = click.sliderend;
@@ -1126,100 +1136,78 @@ void Slider::draw() {
             const bool ifStrictTrackingModShouldDrawEndCircle =
                 (!cv::mod_strict_tracking.getBool() || m_endResult != LiveScore::HIT::HIT_MISS);
 
-            {
-                const bool draw_end =
-                    ((!m_endFinished && m_repeat % 2 != 0 && ifStrictTrackingModShouldDrawEndCircle) ||
-                     (!sliderRepeatEndCircleFinished &&
-                      (ifStrictTrackingModShouldDrawEndCircle || (m_repeat > 1 && endCircleIsAtActualSliderEnd) ||
-                       (m_repeat > 1 && std::abs(m_repeat - m_curRepeat) > 2))));
+            const bool draw_end =
+                ((!m_endFinished && m_repeat % 2 != 0 && ifStrictTrackingModShouldDrawEndCircle) ||
+                 (!sliderRepeatEndCircleFinished &&
+                  (ifStrictTrackingModShouldDrawEndCircle || (m_repeat > 1 && endCircleIsAtActualSliderEnd) ||
+                   (m_repeat > 1 && std::abs(m_repeat - m_curRepeat) > 2))));
 
-                const bool draw_start =
-                    (!m_startFinished ||
-                     (!sliderRepeatStartCircleFinished &&
-                      (ifStrictTrackingModShouldDrawEndCircle || (m_repeat > 1 && !endCircleIsAtActualSliderEnd) ||
-                       (m_repeat > 1 && std::abs(m_repeat - m_curRepeat) > 2))) ||
-                     (!m_endFinished && m_repeat % 2 == 0 && ifStrictTrackingModShouldDrawEndCircle));
+            const bool draw_start =
+                (!m_startFinished ||
+                 (!sliderRepeatStartCircleFinished &&
+                  (ifStrictTrackingModShouldDrawEndCircle || (m_repeat > 1 && !endCircleIsAtActualSliderEnd) ||
+                   (m_repeat > 1 && std::abs(m_repeat - m_curRepeat) > 2))) ||
+                 (!m_endFinished && m_repeat % 2 == 0 && ifStrictTrackingModShouldDrawEndCircle));
 
-                const float circle_alpha = m_alpha;
+            const float circle_alpha = m_alpha;
 
-                // end circle
-                if(draw_end) drawEndCircle(circle_alpha, sliderSnake);
+            // end circle
+            if(draw_end) drawEndCircle(circle_alpha, sliderSnake);
 
-                // start circle
-                if(draw_start) drawStartCircle(circle_alpha);
+            // start circle
+            if(draw_start) drawStartCircle(circle_alpha);
+        }
+
+        // draw reverse arrows
+        const bool reversePossible = has_points && m_reverseArrowAlpha > 0.0f;
+        const bool reverseEnd = reversePossible && (m_reverseArrowPos == 2 || m_reverseArrowPos == 3);
+        const bool reverseStart = reversePossible && (m_reverseArrowPos == 1 || m_reverseArrowPos == 3);
+        if(reverseEnd || reverseStart) {
+            // if the combo color is nearly white, blacken the reverse arrow
+            Color comboColor = skin->getComboColorForCounter(m_colorCounter, m_colorOffset);
+            Color reverseArrowColor = 0xffffffff;
+            if((comboColor.Rf() + comboColor.Gf() + comboColor.Bf()) / 3.0f >
+               cv::slider_reverse_arrow_black_threshold.getFloat())
+                reverseArrowColor = 0xff000000;
+
+            reverseArrowColor = Colors::scale(reverseArrowColor, m_hittableDimRGBColorMultiplierPct);
+
+            float div = 0.30f;
+            float pulse = (div - std::fmod(std::abs(m_pf->getCurMusicPos()) / 1000.0f, div)) / div;
+            pulse *= pulse;  // quad in
+
+            if(!cv::slider_reverse_arrow_animated.getBool() || m_pf->isInMafhamRenderChunk()) {
+                pulse = 0.0f;
             }
-            // reverse arrows
-            if(m_reverseArrowAlpha > 0.0f) {
-                // if the combo color is nearly white, blacken the reverse arrow
-                Color comboColor = skin->getComboColorForCounter(m_colorCounter, m_colorOffset);
-                Color reverseArrowColor = 0xffffffff;
-                if((comboColor.Rf() + comboColor.Gf() + comboColor.Bf()) / 3.0f >
-                   cv::slider_reverse_arrow_black_threshold.getFloat())
-                    reverseArrowColor = 0xff000000;
 
-                reverseArrowColor = Colors::scale(reverseArrowColor, m_hittableDimRGBColorMultiplierPct);
+            const auto &raImage = skin->i_reversearrow;
+            const float osuCoordScaleMultiplier = m_pf->fHitcircleDiameter / m_pf->fRawHitcircleDiameter;
+            const float reverseArrowImageScale =
+                ((m_pf->fRawHitcircleDiameter / (128.0f * raImage.scale())) * osuCoordScaleMultiplier) *
+                (1.0f + pulse * 0.30f);
 
-                float div = 0.30f;
-                float pulse = (div - std::fmod(std::abs(m_pf->getCurMusicPos()) / 1000.0f, div)) / div;
-                pulse *= pulse;  // quad in
+            // end and/or start
+            for(int rev = 0; rev < 2; ++rev) {
+                const bool isEnd = rev == 0;
+                if(isEnd && !reverseEnd) continue;
+                if(!isEnd && !reverseStart) continue;
+                vec2 pos = m_pf->osuCoords2Pixels(m_curve->pointAt(isEnd ? 1.f : 0.f));
+                float rotation = (isEnd ? m_curve->getEndAngle() : m_curve->getStartAngle()) -
+                                 cv::playfield_rotation.getFloat() - m_pf->getPlayfieldRotation();
+                if((flags::has<ModFlags::HardRock>(curGameplayFlags))) rotation = 360.0f - rotation;
+                if(cv::playfield_mirror_horizontal.getBool()) rotation = 360.0f - rotation;
+                if(cv::playfield_mirror_vertical.getBool()) rotation = 180.0f - rotation;
 
-                if(!cv::slider_reverse_arrow_animated.getBool() || m_pf->isInMafhamRenderChunk()) pulse = 0.0f;
+                g->setColor(Color(reverseArrowColor).setA(m_reverseArrowAlpha));
 
-                // end
-                if(m_reverseArrowPos == 2 || m_reverseArrowPos == 3) {
-                    vec2 pos = m_pf->osuCoords2Pixels(m_curve->pointAt(1.0f));
-                    float rotation =
-                        m_curve->getEndAngle() - cv::playfield_rotation.getFloat() - m_pf->getPlayfieldRotation();
-                    if((flags::has<ModFlags::HardRock>(curGameplayFlags))) rotation = 360.0f - rotation;
-                    if(cv::playfield_mirror_horizontal.getBool()) rotation = 360.0f - rotation;
-                    if(cv::playfield_mirror_vertical.getBool()) rotation = 180.0f - rotation;
-
-                    const float osuCoordScaleMultiplier = m_pf->fHitcircleDiameter / m_pf->fRawHitcircleDiameter;
-                    float reverseArrowImageScale =
-                        (m_pf->fRawHitcircleDiameter / (128.0f * (skin->i_reversearrow.scale()))) *
-                        osuCoordScaleMultiplier;
-
-                    reverseArrowImageScale *= 1.0f + pulse * 0.30f;
-
-                    g->setColor(Color(reverseArrowColor).setA(m_reverseArrowAlpha));
-
-                    g->pushTransform();
-                    {
-                        g->rotate(rotation);
-                        g->scale(reverseArrowImageScale, reverseArrowImageScale);
-                        g->translate(pos.x, pos.y);
-                        g->drawImage(skin->i_reversearrow);
-                    }
-                    g->popTransform();
+                g->pushTransform();
+                {
+                    g->rotate(rotation);
+                    g->scale(reverseArrowImageScale, reverseArrowImageScale);
+                    g->translate(pos.x, pos.y);
+                    g->drawImage(raImage);
                 }
-
-                // start
-                if(m_reverseArrowPos == 1 || m_reverseArrowPos == 3) {
-                    vec2 pos = m_pf->osuCoords2Pixels(m_curve->pointAt(0.0f));
-                    float rotation =
-                        m_curve->getStartAngle() - cv::playfield_rotation.getFloat() - m_pf->getPlayfieldRotation();
-                    if((flags::has<ModFlags::HardRock>(curGameplayFlags))) rotation = 360.0f - rotation;
-                    if(cv::playfield_mirror_horizontal.getBool()) rotation = 360.0f - rotation;
-                    if(cv::playfield_mirror_vertical.getBool()) rotation = 180.0f - rotation;
-
-                    const float osuCoordScaleMultiplier = m_pf->fHitcircleDiameter / m_pf->fRawHitcircleDiameter;
-                    float reverseArrowImageScale =
-                        (m_pf->fRawHitcircleDiameter / (128.0f * (skin->i_reversearrow.scale()))) *
-                        osuCoordScaleMultiplier;
-
-                    reverseArrowImageScale *= 1.0f + pulse * 0.30f;
-
-                    g->setColor(Color(reverseArrowColor).setA(m_reverseArrowAlpha));
-
-                    g->pushTransform();
-                    {
-                        g->rotate(rotation);
-                        g->scale(reverseArrowImageScale, reverseArrowImageScale);
-                        g->translate(pos.x, pos.y);
-                        g->drawImage(skin->i_reversearrow);
-                    }
-                    g->popTransform();
-                }
+                g->popTransform();
             }
         }
     }
@@ -1242,7 +1230,7 @@ void Slider::draw() {
                                  1.0f - m_endSliderBodyFadeAnimation, m_clickTimeMS);
     }
 
-    const bool do_endhit_animations = !hd && !instafade_slider_head;
+    const bool do_endhit_animations = !tc && !hd && !instafade_slider_head;  // no animations with traceable/hidden here
     const bool do_starthit_animations = do_endhit_animations && cv::slider_sliderhead_fadeout.getBool();
     for(uSz i = 0; i < m_clickAnimations.size();) {
         if(!m_clickAnimations[i].isAnimating()) {
@@ -1345,7 +1333,7 @@ void Slider::draw2(bool drawApproachCircle, bool drawOnlyApproachCircle) {
 
     if(drawApproachCircle && drawOnlyApproachCircle) return;
 
-    const ModFlags &curGameplayFlags = m_pf->getMods().flags;
+    const ModFlags curGameplayFlags = m_pf->getMods().flags;
 
     // draw followcircle
     // HACKHACK: this is not entirely correct (due to m_bHeldTillEnd, if held within 300 range but then released, will
@@ -1505,7 +1493,7 @@ void Slider::update(i32 curPosMS, f64 frameTimeSecs) {
     // all further calculations are only done while we are active
     if(m_finished) return;
 
-    const ModFlags &curIFaceMods = m_pi->getMods().flags;
+    const ModFlags curIFaceMods = m_pi->getMods().flags;
 
     // slider slide percent
     m_slidePct = 0.0f;
@@ -1802,7 +1790,7 @@ void Slider::update(i32 curPosMS, f64 frameTimeSecs) {
         // handle sliderslide sound
         // TODO @kiwec: move this to draw()
         if(m_pf != nullptr) {
-            const ModFlags &curGameplayFlags = m_pf->getMods().flags;
+            const ModFlags curGameplayFlags = m_pf->getMods().flags;
 
             const bool sliding = m_startFinished && !m_endFinished && m_cursorInside && m_deltaMS <= 0             //
                                  && (isClickHeldSlider() || (flags::has<ModFlags::Autoplay>(curGameplayFlags)) ||  //

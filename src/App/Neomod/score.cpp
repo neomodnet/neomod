@@ -421,6 +421,9 @@ UString LiveScore::getModsStringForRichPresence() const {
     if(osu->getModTarget()) modsString.append("TP");
     if(osu->getModNightmare()) modsString.append("NM");
     if(osu->getModTD()) modsString.append("TD");
+    // @spec: osu!lazer uses this so good enough for me /shrug
+    // not sure about the order though...
+    if(osu->getModTraceable()) modsString.append("TC");
 
     return modsString;
 }

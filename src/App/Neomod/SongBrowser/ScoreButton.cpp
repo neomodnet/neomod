@@ -882,6 +882,7 @@ UString ScoreButton::getModsStringForDisplay(const Replay::Mods &mods) {
     if(flags::has<FPoSu>(mods.flags)) modsString.append("FPoSu,");
     if(flags::has<Singletap>(mods.flags)) modsString.append("1K,");
     if(flags::has<NoKeylock>(mods.flags)) modsString.append("4K,");
+    if(flags::has<Traceable>(mods.flags)) modsString.append("TC,");  // TODO: order???
 
     if(modsString.length() > 0) modsString.pop_back();  // remove trailing comma
 
