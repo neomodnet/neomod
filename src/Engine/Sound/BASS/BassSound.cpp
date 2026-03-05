@@ -217,7 +217,7 @@ void BassSound::setPositionUS(u64 us) {
             break;
         }
 
-        Timing::sleepNS(100000);
+        Timing::sleepNS(100ULL * 1000);
     }
 
     logIfCV(debug_snd, "set position to actual: {:.4f}s desired: {:.4f}s", actualSecs, tgtSecs);

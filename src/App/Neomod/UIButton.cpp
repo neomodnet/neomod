@@ -33,7 +33,7 @@ void UIButton::draw() {
     {
         auto color = this->is_loading ? rgba(0x33, 0x33, 0x33, 0xff) : this->color;
 
-        float brightness = 1.f + (this->fHoverAnim * 0.2f);
+        float brightness = 1.f + (this->fHoverAlpha * 0.2f);
         color = Colors::scale(color, brightness);
 
         g->setColor(color);
@@ -96,7 +96,7 @@ void UIButton::onMouseInside() {
     if(this->bFocusStolenDelay) return;
 
     // There's actually no animation, it just goes to 1 instantly
-    this->fHoverAnim = 1.f;
+    this->fHoverAlpha = 1.f;
 
     if(button_sound_cooldown + 0.05f < engine->getTime()) {
         button_sound_cooldown = engine->getTime();
@@ -104,7 +104,7 @@ void UIButton::onMouseInside() {
     }
 }
 
-void UIButton::onMouseOutside() { this->fHoverAnim = 0.f; }
+void UIButton::onMouseOutside() { this->fHoverAlpha = 0.f; }
 
 void UIButton::onClicked(bool left, bool right) {
     CBaseUIButton::onClicked(left, right);

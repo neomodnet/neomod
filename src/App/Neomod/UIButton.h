@@ -38,7 +38,7 @@ class UIButton : public CBaseUIButton {
     bool bDefaultSkin{false};
     Color color{0xffffffff};
     AnimFloat fClickAnim;
-    float fHoverAnim{0.f};
+    float fHoverAlpha{0.f};
 
     std::vector<UString> tooltipTextLines;
     bool bFocusStolenDelay{false};

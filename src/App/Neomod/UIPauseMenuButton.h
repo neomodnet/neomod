@@ -6,6 +6,7 @@
 
 class UIPauseMenuButton final : public CBaseUIButton {
     NOCOPY_NOMOVE(UIPauseMenuButton);
+
    public:
     using ImageSkinMember = BasicSkinImage Skin::*;
 
@@ -25,11 +26,11 @@ class UIPauseMenuButton final : public CBaseUIButton {
     [[nodiscard]] Image* getImage() const;
 
    private:
-    AnimFloat fScaleX{0.f}, fScaleY{0.f};
+    AnimVec2 vScale{1.f, 1.f};
     vec2 vBaseScale{0.f};
-    float fScaleMultiplier;
+    float fScaleMultiplier{1.1f};
 
-    float fAlpha;
+    float fAlpha{1.f};
     float fBrightness{1.0f};
 
     ImageSkinMember imageMember{nullptr};

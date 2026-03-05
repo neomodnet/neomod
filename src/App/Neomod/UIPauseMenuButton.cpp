@@ -11,19 +11,10 @@
 #include "Environment.h"
 #include "Graphics.h"
 
-// #include "Logging.h"
-// #include "Timing.h"
-
 UIPauseMenuButton::UIPauseMenuButton(ImageSkinMember imageMember, float xPos, float yPos, float xSize, float ySize,
                                      UString name)
     : CBaseUIButton(xPos, yPos, xSize, ySize, std::move(name)) {
     this->imageMember = imageMember;
-
-    this->fScaleX = 1.f;
-    this->fScaleY = 1.f;
-    this->fScaleMultiplier = 1.1f;
-
-    this->fAlpha = 1.0f;
 }
 
 UIPauseMenuButton::~UIPauseMenuButton() = default;
@@ -37,7 +28,7 @@ void UIPauseMenuButton::draw() {
         g->pushTransform();
         {
             // scale
-            g->scale(this->fScaleX, this->fScaleY);
+            g->scale(this->vScale.x, this->vScale.y);
 
             // center and draw
             g->translate(this->getPos().x + (int)(this->getSize().x / 2),
@@ -49,20 +40,16 @@ void UIPauseMenuButton::draw() {
 }
 
 void UIPauseMenuButton::setBaseScale(float xScale, float yScale) {
-    this->vBaseScale.x = xScale;
-    this->vBaseScale.y = yScale;
-
-    this->fScaleX = this->vBaseScale.x;
-    this->fScaleY = this->vBaseScale.y;
+    this->vBaseScale = {xScale, yScale};
+    this->vScale = this->vBaseScale;
 }
 
 void UIPauseMenuButton::onMouseInside() {
-    // debugLog("{} {}", Timing::getTicksNS(), engine->getFrameCount());
     CBaseUIButton::onMouseInside();
 
     const float animationDuration = 0.09f;
-    this->fScaleX.set(this->vBaseScale.x * this->fScaleMultiplier, animationDuration, anim::Linear);
-    this->fScaleY.set(this->vBaseScale.y * this->fScaleMultiplier, animationDuration, anim::Linear);
+    this->vScale.x.set(this->vBaseScale.x * this->fScaleMultiplier, animationDuration, anim::Linear);
+    this->vScale.y.set(this->vBaseScale.y * this->fScaleMultiplier, animationDuration, anim::Linear);
 
     if(!env->winFocused()) return;
 
@@ -84,8 +71,8 @@ void UIPauseMenuButton::onMouseOutside() {
     CBaseUIButton::onMouseOutside();
 
     const float animationDuration = 0.09f;
-    this->fScaleX.set(this->vBaseScale.x, animationDuration, anim::Linear);
-    this->fScaleY.set(this->vBaseScale.y, animationDuration, anim::Linear);
+    this->vScale.x.set(this->vBaseScale.x, animationDuration, anim::Linear);
+    this->vScale.y.set(this->vBaseScale.y, animationDuration, anim::Linear);
 }
 
 void UIPauseMenuButton::onDisabled() {

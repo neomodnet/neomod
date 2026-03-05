@@ -28,11 +28,12 @@ void CBaseUIElement::update(CBaseUIEventCtx &c) {
     // TODO: hover "consumption"
     {
         const bool oldMouseInsideState = this->bMouseInside;
-        const bool mousePosInside = this->getRect().containsStrict(mouse->getPos());
 
-        // check if mouse is (strictly) inside element
-        // exclude bounds to avoid conflicting focus if elements share border pixels
-        this->bMouseInside = mousePosInside;
+        // to avoid issues with mouse position right along the boundaries
+        const McIRect integerRect{vec::round(this->getRect().getMin()), vec::round(this->getRect().getSize())};
+        const ivec2 integerMousePos{vec::round(mouse->getPos())};
+
+        this->bMouseInside = integerRect.containsStrict(integerMousePos);
         // re-check to account for possible isMouseInside override
         if((this->bMouseInside = this->isMouseInside())) {
             c.propagate_hover = false;  // doesn't really do anything much atm

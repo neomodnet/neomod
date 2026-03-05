@@ -99,8 +99,11 @@ void SoLoudSound::initAsync() {
 SOUNDHANDLE SoLoudSound::getHandle() { return this->handle; }
 
 void SoLoudSound::destroy() {
-    if(!this->isReady()) return;
+    if(!this->isAsyncReady()) {
+        this->interruptLoad();
+    }
 
+    this->setAsyncReady(false);
     this->setReady(false);
 
     // stop the sound if it's playing
@@ -120,7 +123,6 @@ void SoLoudSound::destroy() {
     this->activeHandleCache.clear();
     this->fLastPlayTime = 0.0f;
     this->bIgnored = false;
-    this->setAsyncReady(false);
 
     // reset position cache state
     this->cached_stream_position = 0.0;
