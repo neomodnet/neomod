@@ -37,6 +37,7 @@ Changelog::Changelog() : ScreenBackable() {
     v43_06.title = "43.06 (" CHANGELOG_TIMESTAMP ")";
     v43_06.changes = {
         R"(- Added "pausemenu_button_delay" ConVar to prevent accidental insta-retry/quit)",
+        R"(- Added ingame scoreboard preview for HUD options adjustments)",
         R"(- Slightly improved progress indicator (pie chart) positioning behavior)",
         R"(- Fixed WebSocket connection closures being ignored on native client)",
         R"(- Fixed cases where "click to continue" became unclickable)",

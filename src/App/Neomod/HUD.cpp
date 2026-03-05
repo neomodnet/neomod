@@ -138,9 +138,7 @@ HUD::HUD() : UIScreen() {
     this->fKiScaleAnim = 0.8f;
 }
 
-HUD::~HUD() {
-    cv::cursor_trail_max_size.reset();
-}
+HUD::~HUD() { cv::cursor_trail_max_size.reset(); }
 
 void HUD::draw() {
     auto *pf = osu->getMapInterface();
@@ -155,7 +153,9 @@ void HUD::draw() {
         }
 
         if(this->shouldDrawScoreboard()) {
-            this->drawFancyScoreboard();
+            for(const auto &slot : this->slots) {
+                slot->draw(this->scoring_metric);
+            }
         }
 
         g->pushTransform();
@@ -202,11 +202,9 @@ void HUD::draw() {
         if(cv::hud_scorebar_hide_during_breaks.getBool()) {
             if(!this->fScoreBarBreakAnim.animating() && !pf->isWaiting()) {
                 if(this->fScoreBarBreakAnim == 0.0f && pf->isInBreak()) {
-                    this->fScoreBarBreakAnim.set(1.0f, cv::hud_scorebar_hide_anim_duration.getFloat(),
-                                                 anim::Linear);
+                    this->fScoreBarBreakAnim.set(1.0f, cv::hud_scorebar_hide_anim_duration.getFloat(), anim::Linear);
                 } else if(this->fScoreBarBreakAnim == 1.0f && !pf->isInBreak()) {
-                    this->fScoreBarBreakAnim.set(0.0f, cv::hud_scorebar_hide_anim_duration.getFloat(),
-                                                 anim::Linear);
+                    this->fScoreBarBreakAnim.set(0.0f, cv::hud_scorebar_hide_anim_duration.getFloat(), anim::Linear);
                 }
             }
         } else {
@@ -350,6 +348,51 @@ void HUD::draw() {
     }
 }
 
+namespace {
+std::vector<ScoreboardSlot> build_dummy_slots() {
+    std::vector<ScoreboardSlot> ret;
+
+    SCORE_ENTRY entry_template{
+        .name = "",
+        .accuracy = 1.0f,
+        .pp = 69.f,
+        .score = 12345678,
+        .currentCombo = 420,
+        .maxCombo = 420,
+        .misses = 0,
+        .dead = false,
+        .highlight = true,
+    };
+    for(int i = 0; i < 5; ++i) {
+        if(i > 0) {
+            entry_template.player_id = -1;
+            entry_template.highlight = false;
+            entry_template.accuracy -= 0.01f;
+            entry_template.pp -= 1.f;
+            entry_template.score -= 1;
+            entry_template.currentCombo -= 1;
+            entry_template.maxCombo -= 1;
+            entry_template.misses += 1;
+        }
+        if(i == 1) entry_template.name = "spectator";
+        if(i == 2) entry_template.name = "kiwec";
+        if(i == 3) entry_template.name = "McKay";
+        if(i == 4) {
+            entry_template.dead = true;
+            entry_template.name = "peppy";
+        }
+
+        // don't read into it why i chose McKay too much
+        const int override_friend_status = (i == 3 ? 1 : 0);
+        const int player_slot_index = (i == 0 ? -1 : 0);
+
+        auto &slot = ret.emplace_back(entry_template, i, true /* dummy avatar */, override_friend_status);
+        slot.updateIndex(i, false /* no animate */, player_slot_index);
+    }
+    return ret;
+}
+}  // namespace
+
 void HUD::drawDummy() {
     this->drawPlayfieldBorder(GameRules::getPlayfieldCenter(), GameRules::getPlayfieldSize(), 0);
 
@@ -359,21 +402,19 @@ void HUD::drawDummy() {
 
     if(cv::draw_inputoverlay.getBool()) this->drawInputOverlay(0, 0, 0, 0);
 
-    SCORE_ENTRY scoreEntry;
-    scoreEntry.name = BanchoState::get_username();
-    scoreEntry.currentCombo = 420;
-    scoreEntry.maxCombo = 420;
-    scoreEntry.misses = 0;
-    scoreEntry.pp = 69.f;
-    scoreEntry.score = 12345678;
-    scoreEntry.accuracy = 1.0f;
-    scoreEntry.dead = false;
-    scoreEntry.highlight = true;
-    if(this->shouldDrawScoreboard()) {
-        static std::vector<SCORE_ENTRY> scoreEntries;
-        scoreEntries.clear();
-        {
-            scoreEntries.push_back(scoreEntry);
+    if(this->dummy_slots.empty()) {
+        // lazy build
+        this->dummy_slots = build_dummy_slots();
+    }
+
+    auto &score_entry = this->dummy_slots[0].score;
+    // always update username
+    score_entry.name = BanchoState::get_username();
+
+    // if we are ingame, we might already be drawing a scoreboard
+    if(!osu->isInPlayMode() || !this->shouldDrawScoreboard()) {
+        for(auto &slot : this->dummy_slots) {
+            slot.draw(this->scoring_metric, 1.f);
         }
     }
 
@@ -400,15 +441,15 @@ void HUD::drawDummy() {
 
     HUD::drawWarningArrows();
 
-    if(cv::draw_combo.getBool()) this->drawCombo(scoreEntry.currentCombo);
+    if(cv::draw_combo.getBool()) this->drawCombo(score_entry.currentCombo);
 
-    if(cv::draw_score.getBool()) this->drawScore(scoreEntry.score);
+    if(cv::draw_score.getBool()) this->drawScore(score_entry.score);
 
     this->fScoreHeight = 0.0f;
 
     if(cv::draw_progressbar.getBool()) this->drawProgressBar(0.25f, false);
 
-    if(cv::draw_accuracy.getBool()) this->drawAccuracy(scoreEntry.accuracy * 100.0f);
+    if(cv::draw_accuracy.getBool()) this->drawAccuracy(score_entry.accuracy * 100.0f);
 
     if(cv::draw_hiterrorbar.getBool()) HUD::drawHitErrorBar(50, 100, 150, 400, 70);
 }
@@ -1411,10 +1452,12 @@ void HUD::updateScoreboard(bool animate) {
 
     // Update player slot first
     const auto &new_scores = this->getCurrentScores();
+    i32 player_index = 0;
     for(i32 i = 0; i < new_scores.size(); i++) {
         if(new_scores[i].entry_id != this->player_slot->score.entry_id) continue;
 
-        this->player_slot->updateIndex(i, true, animate);
+        player_index = i;
+        this->player_slot->updateIndex(i, true);
         this->player_slot->score = new_scores[i];
         break;
     }
@@ -1426,20 +1469,13 @@ void HUD::updateScoreboard(bool animate) {
         for(const auto &slot : this->slots) {
             if(slot->score.entry_id != new_scores[i].entry_id) continue;
 
-            slot->updateIndex(i, false, animate);
+            slot->updateIndex(i, animate, player_index);
             slot->score = new_scores[i];
             break;
         }
     }
 
     this->fScoreboardLastUpdateTime = timeNow;
-}
-
-void HUD::drawFancyScoreboard() {
-    if(!this->shouldDrawScoreboard()) return;
-    for(const auto &slot : this->slots) {
-        slot->draw();
-    }
 }
 
 void HUD::drawHitErrorBar(BeatmapInterface *pf) {
@@ -2482,8 +2518,8 @@ void HUD::addCursorRipple(vec2 pos) {
 
 void HUD::animateCursorExpand() {
     this->fCursorExpandAnim = 1.0f;
-    this->fCursorExpandAnim.set(cv::cursor_expand_scale_multiplier.getFloat(),
-                                cv::cursor_expand_duration.getFloat(), anim::QuadOut);
+    this->fCursorExpandAnim.set(cv::cursor_expand_scale_multiplier.getFloat(), cv::cursor_expand_duration.getFloat(),
+                                anim::QuadOut);
 }
 
 void HUD::animateCursorShrink() {

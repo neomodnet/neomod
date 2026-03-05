@@ -11,21 +11,44 @@
 #include "Skin.h"
 #include "SkinImage.h"
 #include "SString.h"
-#include "UI.h"
 
-ScoreboardSlot::ScoreboardSlot(const SCORE_ENTRY &score, int index) {
-    this->avatar = std::make_unique<UIAvatar>(nullptr, score.player_id, 0.f, 0.f, 0.f, 0.f);
+ScoreboardSlot::ScoreboardSlot(const SCORE_ENTRY &score, int index, bool use_dummy_avatar, int override_is_friend) {
+    if(!use_dummy_avatar) {
+        this->avatar = std::make_unique<UIAvatar>(nullptr, score.player_id, 0.f, 0.f, 0.f, 0.f);
+    }
     this->score = score;
     this->index = index;
 
-    const UserInfo *user = BANCHO::User::try_get_user_info(score.player_id);
-    this->is_friend = user && user->is_friend();
+    if(override_is_friend >= 0) {
+        this->is_friend = override_is_friend > 0;
+    } else {
+        const UserInfo *user = BANCHO::User::try_get_user_info(score.player_id);
+        this->is_friend = user && user->is_friend();
+    }
 }
 
-ScoreboardSlot::~ScoreboardSlot() = default;
+void ScoreboardSlot::drawAvatar(vec2 pos, vec2 size, float alpha) const {
+    if(this->avatar) {
+        this->avatar->setPos(pos);
+        this->avatar->setSize(size);
+        this->avatar->setVisible(true);
+        this->avatar->draw_avatar(alpha);
+    } else if(const auto &avatar_image = osu->getSkin()->i_user_icon; avatar_image != MISSING_TEXTURE) {
+        // mostly copied from UIAvatar::drawAvatar
+        g->setColor(argb(alpha, 1.f, 1.f, 1.f));
+        g->pushTransform();
+        {
+            g->scale(size.x / avatar_image.getWidth(), size.y / avatar_image.getHeight());
+            g->translate(pos.x + size.x / 2.0f, pos.y + size.y / 2.0f);
+            g->drawImage(avatar_image);
+        }
+        g->popTransform();
+    }
+}
 
-void ScoreboardSlot::draw() {
-    if(this->fAlpha == 0.f) return;
+void ScoreboardSlot::draw(WinCondition scoring_metric, float override_alpha) {
+    const float alpha = override_alpha > -1.f ? override_alpha : this->fAlpha;
+    if(alpha < 0.001f) return;
 
     g->pushTransform();
 
@@ -36,15 +59,15 @@ void ScoreboardSlot::draw() {
 
     const SlotColEffect cur_slot_color_effect = this->getCurSlotEffect();
 
-    const float height = roundf(osu->getVirtScreenHeight() * 0.07f);
-    const float width = roundf(height * 2.6f);  // does not include avatar_width
+    const float height = std::round(osu->getVirtScreenHeight() * 0.07f);
+    const float width = std::round(height * 2.6f);  // does not include avatar_width
     const float avatar_height = height;
     const float avatar_width = avatar_height;
-    const float padding = roundf(height * 0.05f);
+    const float padding = std::round(height * 0.05f);
 
     float start_y = osu->getVirtScreenHeight() / 2.0f - (height * 2.5f);
     start_y += this->y * height;
-    start_y = roundf(start_y);
+    start_y = std::round(start_y);
 
     if(this->fFlash > 0.f && !cv::avoid_flashes.getBool()) {
         g->setColor(Color(0xffffffff).setA((f32)this->fFlash));
@@ -55,7 +78,7 @@ void ScoreboardSlot::draw() {
     // Draw background
     g->setColor(slot_colors[BKGND][cur_slot_color_effect]);
 
-    g->setAlpha(0.3f * this->fAlpha);
+    g->setAlpha(0.3f * alpha);
 
     if(cv::hud_scoreboard_use_menubuttonbackground.getBool()) {
         // XXX: Doesn't work on resolutions more vertical than 4:3
@@ -71,10 +94,7 @@ void ScoreboardSlot::draw() {
     }
 
     // Draw avatar
-    this->avatar->setPos(0, start_y);
-    this->avatar->setSize(avatar_width, avatar_height);
-    this->avatar->setVisible(true);
-    this->avatar->draw_avatar(0.8f * this->fAlpha);
+    this->drawAvatar({0, start_y}, {avatar_width, avatar_height}, 0.8f * alpha);
 
     // Draw index
     g->pushTransform();
@@ -89,12 +109,12 @@ void ScoreboardSlot::draw() {
                      start_y + (avatar_height / 2.0f) + font_bold->getHeight() * scale / 2.0f * 0.9f);
 
         g->translate(0.5f, 0.5f);
-        g->setColor(Color(0xff000000).setA(0.3f * this->fAlpha));
+        g->setColor(Color(0xff000000).setA(0.3f * alpha));
 
         g->drawString(font_bold, indexString);
 
         g->translate(-0.5f, -0.5f);
-        g->setColor(Color(0xffffffff).setA(0.7f * this->fAlpha));
+        g->setColor(Color(0xffffffff).setA(0.7f * alpha));
 
         g->drawString(font_bold, indexString);
     }
@@ -114,7 +134,7 @@ void ScoreboardSlot::draw() {
         g->translate(avatar_width + padding, start_y + padding + font_normal->getHeight() * scale);
         if(drawTextShadow) {
             g->translate(1, 1);
-            g->setColor(Color(textShadowColor).setA((f32)this->fAlpha));
+            g->setColor(Color(textShadowColor).setA((f32)alpha));
 
             g->drawString(font_normal, this->score.name);
             g->translate(-1, -1);
@@ -122,7 +142,7 @@ void ScoreboardSlot::draw() {
 
         g->setColor(slot_colors[OTHER][cur_slot_color_effect]);
 
-        g->setAlpha(this->fAlpha);
+        g->setAlpha(alpha);
         g->drawString(font_normal, this->score.name);
         g->popClipRect();
     }
@@ -143,7 +163,7 @@ void ScoreboardSlot::draw() {
 
         if(drawTextShadow) {
             g->translate(1, 1);
-            g->setColor(Color(textShadowColor).setA((f32)this->fAlpha));
+            g->setColor(Color(textShadowColor).setA((f32)alpha));
 
             g->drawString(font_normal, comboString);
             g->translate(-1, -1);
@@ -151,7 +171,7 @@ void ScoreboardSlot::draw() {
 
         g->setColor(slot_colors[COMBOACC][cur_slot_color_effect]);
 
-        g->setAlpha(this->fAlpha);
+        g->setAlpha(alpha);
         g->drawString(font_normal, comboString);
     }
     g->popTransform();
@@ -160,7 +180,7 @@ void ScoreboardSlot::draw() {
     {
         UString wincond_based_scoretext;
         SlotColType wincond_based_coltype = OTHER;
-        switch(ui->getHUD()->getScoringMetric()) {
+        switch(scoring_metric) {
             case WinCondition::ACCURACY: {
                 wincond_based_coltype = COMBOACC;
                 wincond_based_scoretext = fmt::format("{:.2f}%"_cf, this->score.accuracy * 100.0f);
@@ -184,7 +204,7 @@ void ScoreboardSlot::draw() {
 
             if(drawTextShadow) {
                 g->translate(1, 1);
-                g->setColor(Color(textShadowColor).setA((f32)this->fAlpha));
+                g->setColor(Color(textShadowColor).setA((f32)alpha));
 
                 g->drawString(font_normal, wincond_based_scoretext);
                 g->translate(-1, -1);
@@ -192,7 +212,7 @@ void ScoreboardSlot::draw() {
 
             g->setColor(slot_colors[wincond_based_coltype][cur_slot_color_effect]);
 
-            g->setAlpha(this->fAlpha);
+            g->setAlpha(alpha);
             g->drawString(font_normal, wincond_based_scoretext);
         }
         g->popTransform();
@@ -203,8 +223,8 @@ void ScoreboardSlot::draw() {
     g->popTransform();
 }
 
-void ScoreboardSlot::updateIndex(int new_index, bool is_player, bool animate) {
-    int player_idx = ui->getHUD()->player_slot->index;
+void ScoreboardSlot::updateIndex(int new_index, bool animate, int player_index) {
+    const bool is_player = player_index == -1;
     if(is_player) {
         if(animate && new_index < this->index) {
             this->fFlash = 1.f;
@@ -212,13 +232,13 @@ void ScoreboardSlot::updateIndex(int new_index, bool is_player, bool animate) {
         }
 
         // Ensure the player is always visible
-        player_idx = new_index;
+        player_index = new_index;
     }
 
-    int min_visible_idx = player_idx - 4;
+    int min_visible_idx = player_index - 4;
     if(min_visible_idx < 0) min_visible_idx = 0;
 
-    int max_visible_idx = player_idx;
+    int max_visible_idx = player_index;
     if(max_visible_idx < 5) max_visible_idx = 5;
 
     bool is_visible = new_index == 0 || (new_index >= min_visible_idx && new_index <= max_visible_idx);

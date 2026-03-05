@@ -8,13 +8,24 @@
 #include <array>
 
 class ScoreboardSlot final {
-    NOCOPY_NOMOVE(ScoreboardSlot)
    public:
-    ScoreboardSlot(const SCORE_ENTRY& score, int index);
-    ~ScoreboardSlot();
+    ScoreboardSlot() = delete;
+    ScoreboardSlot(const ScoreboardSlot &) = delete;
+    ScoreboardSlot &operator=(const ScoreboardSlot &) = delete;
 
-    void draw();
-    void updateIndex(int new_index, bool is_player, bool animate);
+    // move-only
+    ScoreboardSlot(const SCORE_ENTRY &score, int index,
+                   bool use_dummy_avatar = false,  //
+                   int override_is_friend = -1     // if 0 or 1 then don't query online friend status
+    );
+    ScoreboardSlot(ScoreboardSlot &&) = default;
+    ScoreboardSlot &operator=(ScoreboardSlot &&) = default;
+
+    ~ScoreboardSlot() = default;
+
+    void draw(WinCondition scoring_metric, float override_alpha = -1.f /* for HUD::drawDummy */);
+    void updateIndex(int new_index, bool animate,
+                     int player_index = -1 /* if -1 then we are the player, otherwise this is the player slot index */);
     SCORE_ENTRY score;
 
    private:
@@ -55,6 +66,8 @@ class ScoreboardSlot final {
         if(this->is_friend) return FRIEND;
         return DEFAULT;
     }
+
+    void drawAvatar(vec2 pos, vec2 size, float alpha) const;
 
     std::unique_ptr<UIAvatar> avatar{nullptr};
 

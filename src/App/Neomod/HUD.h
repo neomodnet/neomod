@@ -80,7 +80,6 @@ class HUD final : public UIScreen {
 
     void resetScoreboard();
     void updateScoreboard(bool animate);
-    void drawFancyScoreboard();
 
     void drawScorebarBg(f32 alpha, f32 breakAnim);
     void drawSectionPass(f32 alpha);
@@ -116,6 +115,9 @@ class HUD final : public UIScreen {
    private:
     const std::vector<SCORE_ENTRY> &getCurrentScores();
     std::vector<SCORE_ENTRY> scores_cache;
+
+    // for drawDummy
+    std::vector<ScoreboardSlot> dummy_slots;
 
     WinCondition scoring_metric{};
 
