@@ -30,10 +30,18 @@ void CBaseUIElement::update(CBaseUIEventCtx &c) {
         const bool oldMouseInsideState = this->bMouseInside;
 
         // to avoid issues with mouse position right along the boundaries
-        const McIRect integerRect{vec::round(this->getRect().getMin()), vec::round(this->getRect().getSize())};
-        const ivec2 integerMousePos{vec::round(mouse->getPos())};
+        if(!oldMouseInsideState) {
+            // going into strictly-contains area from outside
+            if(this->getRect().containsStrict(mouse->getPos())) {
+                this->bMouseInside = true;
+            }
+        } else {
+            // leaving deadzone area from inside
+            if(!this->getRect().contains(mouse->getPos())) {
+                this->bMouseInside = false;
+            }
+        }
 
-        this->bMouseInside = integerRect.containsStrict(integerMousePos);
         // re-check to account for possible isMouseInside override
         if((this->bMouseInside = this->isMouseInside())) {
             c.propagate_hover = false;  // doesn't really do anything much atm
