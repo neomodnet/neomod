@@ -1856,6 +1856,12 @@ OptionsOverlayImpl::~OptionsOverlayImpl() {
     SAFE_DELETE(this->spacer);
     SAFE_DELETE(this->contextMenu);
     this->elemContainers.clear();
+
+    cv::skin_use_skin_hitsounds.reset();
+    cv::options_slider_quality.reset();
+    cv::options_high_quality_sliders.reset();
+    cv::rich_presence_map_backgrounds.reset();
+    cv::snd_soloud_backend.removeChangeCallback(); // SoLoudSoundEngine sets a single-arg callback
 }
 
 void OptionsOverlayImpl::draw() {

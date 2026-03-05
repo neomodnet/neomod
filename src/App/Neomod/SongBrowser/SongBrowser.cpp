@@ -495,6 +495,8 @@ SongBrowser::~SongBrowser() {
     SAFE_DELETE(this->topbarLeft);
     SAFE_DELETE(this->topbarRight);
     SAFE_DELETE(this->scoreBrowser);
+
+    cv::songbrowser_search_hardcoded_filter.reset();
 }
 
 void SongBrowser::draw() {

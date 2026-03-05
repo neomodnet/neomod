@@ -493,25 +493,8 @@ Osu::~Osu() {
     env->setCursorClip(false, {});
     env->setCursorVisible(true);
 
-    // TODO: this is disgusting and completely manual, but required if we want to support re-entrancy
+    // remove any convar callbacks we set here (to allow some degree of re-entrancy)
     {
-        cv::background_image_cache_size.reset();
-        cv::background_image_eviction_delay_frames.reset();
-        cv::background_image_loading_delay.reset();
-        cv::load_beatmap_background_images.reset();
-        cv::cursor_trail_max_size.reset();
-        cv::skin_use_skin_hitsounds.reset();
-        cv::options_slider_quality.reset();
-        cv::options_high_quality_sliders.reset();
-        cv::rich_presence.reset();
-        cv::rich_presence_map_backgrounds.reset();
-        cv::snd_soloud_backend.reset();
-        cv::loudness_calc_threads.reset();
-        cv::songbrowser_search_hardcoded_filter.reset();
-        cv::volume_master.reset();
-        cv::volume_effects.reset();
-        cv::volume_music.reset();
-        cv::hud_volume_size_multiplier.reset();
         cv::resolution.reset();
         cv::letterboxed_resolution.reset();
         cv::windowed_resolution.reset();
@@ -541,14 +524,13 @@ Osu::~Osu() {
         cv::mod_fullalternate.reset();
         cv::mod_singletap.reset();
         cv::mod_no_keylock.reset();
-        cv::snd_freq.reset();
         cv::win_snd_wasapi_exclusive.reset();
         cv::win_snd_wasapi_buffer_size.reset();
         cv::win_snd_wasapi_period_size.reset();
         cv::win_snd_wasapi_event_callbacks.reset();
         cv::asio_buffer_size.reset();
+        cv::snd_freq.reset();
         cv::snd_output_device.reset();
-        cv::win_global_media_hotkeys.reset();
     }
     // "osu" will be set to null when global_osu_ is deleted (at the end of all automatically deleted members)
 }

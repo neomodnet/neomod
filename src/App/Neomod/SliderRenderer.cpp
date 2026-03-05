@@ -151,12 +151,14 @@ std::unique_ptr<VertexArrayObject> generateVAO(const std::vector<vec2> &points, 
         }
 
         if(!debugSquareVao) {
-            const std::vector<vec3> &meshVertices = s_UNIT_CIRCLE_VAO_TRIANGLES.getVertices();
-            const std::vector<vec2> &meshTexCoords = s_UNIT_CIRCLE_VAO_TRIANGLES.getTexcoords();
-            for(int v = 0; v < meshVertices.size(); v++) {
-                vao->addVertex(meshVertices[v] + vec3(point.x, point.y, 0) + translation);
-                vao->addTexcoord(meshTexCoords[v]);
+            std::vector<vec3> meshVertices = s_UNIT_CIRCLE_VAO_TRIANGLES.getVertices();
+            for(auto &meshVertex : meshVertices) {
+                meshVertex += vec3(point.x, point.y, 0) + translation;
             }
+            vao->addVertices(std::move(meshVertices));
+
+            std::vector<vec2> meshTexCoords = s_UNIT_CIRCLE_VAO_TRIANGLES.getTexcoords();
+            vao->addTexcoords(std::move(meshTexCoords));
         } else {
             const vec3 topLeft = vec3(point.x, point.y, 0) - xOffset / 2.0f - yOffset / 2.0f + translation;
             const vec3 topRight = topLeft + xOffset;

@@ -69,7 +69,12 @@ VolumeOverlay::VolumeOverlay() : UIScreen() {
     this->updateLayout();
 }
 
-VolumeOverlay::~VolumeOverlay() = default;
+VolumeOverlay::~VolumeOverlay() {
+    cv::volume_master.reset();
+    cv::volume_effects.reset();
+    cv::volume_music.reset();
+    cv::hud_volume_size_multiplier.reset();
+}
 
 void VolumeOverlay::animate() {
     const bool active = this->fVolumeChangeTime > engine->getTime();

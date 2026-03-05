@@ -554,11 +554,12 @@ SoLoudSoundEngine::~SoLoudSoundEngine() {
         soloud->deinit();
     }
     soloud.reset();
-    cv::snd_freq.removeCallback();
-    cv::cmd::snd_restart.removeCallback();
-    cv::snd_soloud_backend.removeCallback();
-    cv::snd_sanity_simultaneous_limit.removeCallback();
-    cv::snd_output_device.removeCallback();
+    cv::snd_freq.reset();
+    cv::cmd::snd_restart.reset();
+    cv::snd_soloud_backend.reset();
+    cv::snd_sanity_simultaneous_limit.reset();
+    cv::snd_output_device.reset();
+    cv::snd_soloud_resampler.reset();
 }
 
 void SoLoudSoundEngine::setMasterVolume(float volume) {

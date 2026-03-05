@@ -694,15 +694,16 @@ std::shared_ptr<WSInstance> NetworkImpl::initWebsocket(std::string_view url, con
                                .connect_timeout = options.connect_timeout,
                                .flags = RequestOptions::WEBSOCKET};
 
-    this->httpRequestAsync(std::move(urlWithScheme), httpOptions, [this, websocket](const Response& response) {
-        if(response.success) {
-            websocket->handle = response.easy_handle;
-            websocket->status = WSStatus::CONNECTED;
-            this->active_websockets.push_back(websocket);
-        } else {
-            websocket->status = WSStatus::UNSUPPORTED;
-        }
-    });
+    this->httpRequestAsync(std::move(urlWithScheme), std::move(httpOptions),
+                           [this, websocket](const Response& response) {
+                               if(response.success) {
+                                   websocket->handle = response.easy_handle;
+                                   websocket->status = WSStatus::CONNECTED;
+                                   this->active_websockets.push_back(websocket);
+                               } else {
+                                   websocket->status = WSStatus::UNSUPPORTED;
+                               }
+                           });
 
     return websocket;
 }
