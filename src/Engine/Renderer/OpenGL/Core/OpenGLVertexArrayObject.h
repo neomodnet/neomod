@@ -24,16 +24,16 @@ class OpenGLVertexArrayObject final : public VertexArrayObject {
     void destroy() override;
 
    private:
-    unsigned int iVertexBuffer;
-    unsigned int iTexcoordBuffer;
-    unsigned int iColorBuffer;
-    unsigned int iNormalBuffer;
+    unsigned int iVertexBuffer{0};
+    unsigned int iTexcoordBuffer{0};
+    unsigned int iColorBuffer{0};
+    unsigned int iNormalBuffer{0};
 
-    unsigned int iNumTexcoords;
-    unsigned int iNumColors;
-    unsigned int iNumNormals;
+    unsigned int iNumTexcoords{0};
+    unsigned int iNumColors{0};
+    unsigned int iNumNormals{0};
 
-    unsigned int iVertexArray;
+    unsigned int iVertexArray{0};
 };
 
 #endif

@@ -14,16 +14,6 @@
 
 OpenGLVertexArrayObject::OpenGLVertexArrayObject(DrawPrimitive primitive, DrawUsageType usage, bool keepInSystemMemory)
     : VertexArrayObject(primitive, usage, keepInSystemMemory) {
-    this->iVertexBuffer = 0;
-    this->iTexcoordBuffer = 0;
-    this->iColorBuffer = 0;
-    this->iNormalBuffer = 0;
-
-    this->iNumTexcoords = 0;
-    this->iNumColors = 0;
-    this->iNumNormals = 0;
-
-    this->iVertexArray = 0;
 }
 
 void OpenGLVertexArrayObject::init() {

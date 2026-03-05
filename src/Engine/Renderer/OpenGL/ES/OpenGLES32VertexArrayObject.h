@@ -35,15 +35,15 @@ class OpenGLES32VertexArrayObject final : public VertexArrayObject {
 
    private:
     // buffer objects
-    unsigned int m_iVertexBuffer;
-    unsigned int m_iTexcoordBuffer;
-    unsigned int m_iColorBuffer;
-    unsigned int m_iNormalBuffer;
+    unsigned int m_iVertexBuffer{0};
+    unsigned int m_iTexcoordBuffer{0};
+    unsigned int m_iColorBuffer{0};
+    unsigned int m_iNormalBuffer{0};
 
     // counts
-    unsigned int m_iNumTexcoords;
-    unsigned int m_iNumColors;
-    unsigned int m_iNumNormals;
+    unsigned int m_iNumTexcoords{0};
+    unsigned int m_iNumColors{0};
+    unsigned int m_iNumNormals{0};
 };
 
 #endif

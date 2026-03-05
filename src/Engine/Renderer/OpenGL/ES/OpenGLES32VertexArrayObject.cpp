@@ -20,14 +20,6 @@
 OpenGLES32VertexArrayObject::OpenGLES32VertexArrayObject(DrawPrimitive primitive, DrawUsageType usage,
                                                          bool keepInSystemMemory)
     : VertexArrayObject(primitive, usage, keepInSystemMemory) {
-    m_iVertexBuffer = 0;
-    m_iTexcoordBuffer = 0;
-    m_iColorBuffer = 0;
-    m_iNormalBuffer = 0;
-
-    m_iNumTexcoords = 0;
-    m_iNumColors = 0;
-    m_iNumNormals = 0;
 }
 
 void OpenGLES32VertexArrayObject::init() {

@@ -164,9 +164,9 @@ bool SDLGPUInterface::init() {
     // create default shader
     {
         const auto vshPack = std::string(reinterpret_cast<const char *>(SDLGPU_default_vsh),
-                                         static_cast<size_t>(SDLGPU_default_vsh_size()));
+                                         static_cast<uSz>(SDLGPU_default_vsh_size()));
         const auto fshPack = std::string(reinterpret_cast<const char *>(SDLGPU_default_fsh),
-                                         static_cast<size_t>(SDLGPU_default_fsh_size()));
+                                         static_cast<uSz>(SDLGPU_default_fsh_size()));
 
         m_defaultShader.reset(static_cast<SDLGPUShader *>(createShaderFromSource(vshPack, fshPack)));
         m_defaultShader->load();
@@ -762,7 +762,7 @@ void SDLGPUInterface::drawQuad(vec2 topLeft, vec2 topRight, vec2 bottomRight, ve
 void SDLGPUInterface::drawImage(const Image *image, AnchorPoint anchor, float edgeSoftness, McRect clipRect) {
     // skip entirely transparent images or if the current transparency is disabled
     if(image == nullptr || !image->isGPUReady() || m_color.A() == 0) {
-        if (image && cv::r_debug_drawimage.getBool()) {
+        if(image && cv::r_debug_drawimage.getBool()) {
             const vec2 size = image->getSize();
             const vec2 pos = getAnchoredOrigin(anchor, size);
             this->setColor(0xbbff00ff);
@@ -870,139 +870,110 @@ void SDLGPUInterface::drawVAO(VertexArrayObject *vao) {
 
     if(vertices.size() < 2) return;
 
-    // rewrite quads and triangle fans into triangles (SDL_gpu doesn't support them)
-    static std::vector<vec3> finalVertices;
-    finalVertices = vertices;
-    static std::vector<vec2> finalTexcoords;
-    finalTexcoords = texcoords;
+    // SDL_gpu doesn't support quads or triangle fans; must convert to triangles
+    const DrawPrimitive srcPrimitive = vao->getPrimitive();
+    if(srcPrimitive == DrawPrimitive::QUADS && vertices.size() <= 3) return;
+    if(srcPrimitive == DrawPrimitive::TRIANGLE_FAN && vertices.size() <= 2) return;
+
+    // convert per-vertex colors from packed Color to vec4 (used as a LUT during primitive conversion).
+    // if no per-vertex colors, a single default entry is used so the inner loop can index unconditionally.
     static std::vector<vec4> colors;
     colors.clear();
-    static std::vector<vec4> finalColors;
-    finalColors.clear();
-
-    for(auto vcolor : vcolors) {
-        const vec4 color = vec4(vcolor.Rf(), vcolor.Gf(), vcolor.Bf(), vcolor.Af());
-        colors.push_back(color);
-        finalColors.push_back(color);
+    if(vcolors.empty()) {
+        colors.emplace_back(m_color.Rf(), m_color.Gf(), m_color.Bf(), m_color.Af());
+    } else {
+        for(auto vcolor : vcolors) colors.emplace_back(vcolor.Rf(), vcolor.Gf(), vcolor.Bf(), vcolor.Af());
     }
-    const size_t maxColorIndex = (colors.size() > 0 ? colors.size() - 1 : 0);
+    const uSz maxColorIndex = colors.size() - 1;
 
-    DrawPrimitive primitive = vao->getPrimitive();
-    if(primitive == DrawPrimitive::QUADS) {
-        finalVertices.clear();
-        finalTexcoords.clear();
-        finalColors.clear();
-        primitive = DrawPrimitive::TRIANGLES;
-
-        if(vertices.size() > 3) {
-            for(size_t i = 0; i < vertices.size(); i += 4) {
-                finalVertices.push_back(vertices[i + 0]);
-                finalVertices.push_back(vertices[i + 1]);
-                finalVertices.push_back(vertices[i + 2]);
-
-                if(!texcoords.empty()) {
-                    finalTexcoords.push_back(texcoords[i + 0]);
-                    finalTexcoords.push_back(texcoords[i + 1]);
-                    finalTexcoords.push_back(texcoords[i + 2]);
-                }
-
-                if(colors.size() > 0) {
-                    finalColors.push_back(colors[std::clamp<size_t>(i + 0, 0, maxColorIndex)]);
-                    finalColors.push_back(colors[std::clamp<size_t>(i + 1, 0, maxColorIndex)]);
-                    finalColors.push_back(colors[std::clamp<size_t>(i + 2, 0, maxColorIndex)]);
-                }
-
-                finalVertices.push_back(vertices[i + 0]);
-                finalVertices.push_back(vertices[i + 2]);
-                finalVertices.push_back(vertices[i + 3]);
-
-                if(!texcoords.empty()) {
-                    finalTexcoords.push_back(texcoords[i + 0]);
-                    finalTexcoords.push_back(texcoords[i + 2]);
-                    finalTexcoords.push_back(texcoords[i + 3]);
-                }
-
-                if(colors.size() > 0) {
-                    finalColors.push_back(colors[std::clamp<size_t>(i + 0, 0, maxColorIndex)]);
-                    finalColors.push_back(colors[std::clamp<size_t>(i + 2, 0, maxColorIndex)]);
-                    finalColors.push_back(colors[std::clamp<size_t>(i + 3, 0, maxColorIndex)]);
-                }
-            }
-        }
-    } else if(primitive == DrawPrimitive::TRIANGLE_FAN) {
-        finalVertices.clear();
-        finalTexcoords.clear();
-        finalColors.clear();
-        primitive = DrawPrimitive::TRIANGLES;
-
-        if(vertices.size() > 2) {
-            for(size_t i = 2; i < vertices.size(); i++) {
-                finalVertices.push_back(vertices[0]);
-                finalVertices.push_back(vertices[i]);
-                finalVertices.push_back(vertices[i - 1]);
-
-                if(!texcoords.empty()) {
-                    finalTexcoords.push_back(texcoords[0]);
-                    finalTexcoords.push_back(texcoords[i]);
-                    finalTexcoords.push_back(texcoords[i - 1]);
-                }
-
-                if(colors.size() > 0) {
-                    finalColors.push_back(colors[std::clamp<size_t>(0, 0, maxColorIndex)]);
-                    finalColors.push_back(colors[std::clamp<size_t>(i, 0, maxColorIndex)]);
-                    finalColors.push_back(colors[std::clamp<size_t>(i - 1, 0, maxColorIndex)]);
-                }
-            }
-        }
-    }
-
-    // build SDLGPUSimpleVertex array
-    const bool hasTexcoords0 = (finalTexcoords.size() > 0);
-    m_vertices.resize(finalVertices.size());
-    {
-        const bool hasColors = (finalColors.size() > 0);
-        const size_t maxCI = (hasColors ? finalColors.size() - 1 : 0);
-        const size_t maxTI = (hasTexcoords0 ? finalTexcoords.size() - 1 : 0);
-        const vec4 color = vec4(m_color.Rf(), m_color.Gf(), m_color.Bf(), m_color.Af());
-
-        for(size_t i = 0; i < finalVertices.size(); i++) {
-            m_vertices[i].pos = finalVertices[i];
-
-            if(hasColors)
-                m_vertices[i].col = finalColors[std::clamp<size_t>(i, 0, maxCI)];
-            else
-                m_vertices[i].col = color;
-
-            if(hasTexcoords0)
-                m_vertices[i].tex = finalTexcoords[std::clamp<size_t>(i, 0, maxTI)];
-            else
-                m_vertices[i].tex = vec2(0.f, 0.f);
-        }
-    }
+    const bool hasTexcoords0 = !texcoords.empty();
+    static constexpr vec2 zeroTex{};
+    const vec2 *texData = hasTexcoords0 ? texcoords.data() : &zeroTex;
+    const uSz maxTexIndex = hasTexcoords0 ? texcoords.size() - 1 : 0;
 
     // set primitive type and texturing
     this->setTexturing(hasTexcoords0);
 
-    const SDLGPUPrimitiveType gpuPrimitive = primitiveToSDLGPUPrimitive(primitive);
-
-    if(gpuPrimitive != m_currentPrimitiveType) {
+    if(const SDLGPUPrimitiveType gpuPrimitive = primitiveToSDLGPUPrimitive(srcPrimitive);
+       gpuPrimitive != m_currentPrimitiveType) {
         m_currentPrimitiveType = gpuPrimitive;
         m_bPipelineDirty = true;
     }
     rebuildPipeline();
 
-    // if staging buffer would overflow, flush first
-    if(m_stagingVertices.size() + m_vertices.size() > MAX_STAGING_VERTS) {
-        flushDrawCommands();
-        // re-add initial boundary for the current RT state after flush
-        addRenderPassBoundary();
+    // clang-format off
+    static constexpr const auto getStepsAndIdx = [](DrawPrimitive t) -> std::tuple<const uSz, const uSz, uSz> {
+        switch(t) {
+            case DrawPrimitive::QUADS: return {4, 6, 0};
+            case DrawPrimitive::TRIANGLE_FAN: return {1, 3, 2};
+            case DrawPrimitive::TRIANGLES: return {3, 3, 0};
+            case DrawPrimitive::LINES: return {2, 2, 0};
+            // not worth trying to split strips, points, etc.
+            default: return {1, 1, 0};
+        }
+    };
+    // clang-format on
+
+    // batch parameters for primitive conversion
+    // srcStep = source vertices consumed per primitive unit, outStep = output vertices emitted per unit
+    auto [srcStep, outStep, srcIdx]{getStepsAndIdx(srcPrimitive)};
+
+    // append vertices to staging buffer, converting primitives to triangles as needed.
+    // performing more than 1 loop here should be basically impossible in realistic scenarios,
+    // but still worth handling out of caution
+    while(srcIdx < vertices.size()) {
+        if(m_stagingVertices.size() + outStep > MAX_STAGING_VERTS) {
+            flushDrawCommands();
+            addRenderPassBoundary();
+        }
+
+        const uSz available = MAX_STAGING_VERTS - m_stagingVertices.size();
+        const uSz batchUnits = std::min(available / outStep, (vertices.size() - srcIdx) / srcStep);
+        if(batchUnits == 0) break;
+
+        const uSz batchOutVerts = batchUnits * outStep;
+        const uSz batchSrcEnd = srcIdx + batchUnits * srcStep;
+
+        const u32 offset = (u32)m_stagingVertices.size();
+        m_stagingVertices.resize(offset + batchOutVerts);
+        uSz si = offset;
+        SDLGPUSimpleVertex *sb;
+
+        if(srcPrimitive == DrawPrimitive::QUADS) {
+            static constexpr std::array<int, 6> viAdd{0, 1, 2, 0, 2, 3};
+            for(; srcIdx < batchSrcEnd; srcIdx += 4) {
+                for(uSz j = 0; j < 6; ++j) {
+                    const uSz vi = srcIdx + viAdd[j];
+                    sb = &m_stagingVertices[si++];
+                    sb->pos = vertices[vi];
+                    sb->col = colors[std::min(vi, maxColorIndex)];
+                    sb->tex = texData[std::min(vi, maxTexIndex)];
+                }
+            }
+        } else if(srcPrimitive == DrawPrimitive::TRIANGLE_FAN) {
+            static constexpr std::array<int, 3> viAdd{0, -1, 0xDEAD /* useless */};
+            for(; srcIdx < batchSrcEnd; srcIdx++) {
+                uSz vi = 0;
+                for(uSz j = 0; j < 3; ++j) {
+                    sb = &m_stagingVertices[si++];
+                    sb->pos = vertices[vi];
+                    sb->col = colors[std::min(vi, maxColorIndex)];
+                    sb->tex = texData[std::min(vi, maxTexIndex)];
+                    // 0, i, i - 1
+                    vi = srcIdx + viAdd[j];
+                }
+            }
+        } else {
+            for(; srcIdx < batchSrcEnd; srcIdx++) {
+                sb = &m_stagingVertices[si++];
+                sb->pos = vertices[srcIdx];
+                sb->col = colors[std::min(srcIdx, maxColorIndex)];
+                sb->tex = texData[std::min(srcIdx, maxTexIndex)];
+            }
+        }
+
+        recordDraw(nullptr, offset, (u32)batchOutVerts);
     }
-
-    // append vertices to staging buffer and record a draw command
-    const u32 offset = (u32)m_stagingVertices.size();
-    Mc::append_range(m_stagingVertices, m_vertices);
-
-    recordDraw(nullptr, offset, (u32)m_vertices.size());
 }
 
 void SDLGPUInterface::recordBakedDraw(SDL_GPUBuffer *buffer, u32 firstVertex, u32 vertexCount,
@@ -1046,7 +1017,7 @@ void SDLGPUInterface::recordDraw(SDL_GPUBuffer *bakedBuffer, u32 vertexOffset, u
         auto &ub = cmd.uniformBlocks[cmd.numUniformBlocks];
         ub.slot = block.binding;
         ub.isVertex = (block.set == 1);
-        ub.size = (u32)std::min(block.buffer.size(), (size_t)80);
+        ub.size = (u32)std::min(block.buffer.size(), (uSz)80);
         std::memcpy(ub.data.data(), block.buffer.data(), ub.size);
         cmd.numUniformBlocks++;
     }
@@ -1141,9 +1112,9 @@ void SDLGPUInterface::flushDrawCommands() {
 
     // replay render passes from boundaries
     const u32 totalDraws = (u32)m_pendingDraws.size();
-    const size_t numBoundaries = m_renderPassBoundaries.size();
+    const uSz numBoundaries = m_renderPassBoundaries.size();
 
-    for(size_t bi = 0; bi < numBoundaries; bi++) {
+    for(uSz bi = 0; bi < numBoundaries; bi++) {
         auto &boundary = m_renderPassBoundaries[bi];
         auto &state = boundary.state;
         const u32 drawStart = boundary.drawIndex;
@@ -1531,7 +1502,7 @@ std::vector<u8> SDLGPUInterface::getScreenshot(bool withAlpha) {
 
     // read pixels
     std::vector<u8> result;
-    result.reserve(static_cast<size_t>(w) * h * (withAlpha ? 4 : 3));
+    result.reserve(static_cast<uSz>(w) * h * (withAlpha ? 4 : 3));
 
     void *mapped = SDL_MapGPUTransferBuffer(m_device, tb, false);
     if(mapped) {
@@ -1696,9 +1667,9 @@ void SDLGPUInterface::initSmoothClipShader() {
 
     m_smoothClipShader.reset(static_cast<SDLGPUShader *>(
         createShaderFromSource(std::string(reinterpret_cast<const char *>(SDLGPU_smoothclip_vsh),
-                                           static_cast<size_t>(SDLGPU_smoothclip_vsh_size())),
+                                           static_cast<uSz>(SDLGPU_smoothclip_vsh_size())),
                                std::string(reinterpret_cast<const char *>(SDLGPU_smoothclip_fsh),
-                                           static_cast<size_t>(SDLGPU_smoothclip_fsh_size())))));
+                                           static_cast<uSz>(SDLGPU_smoothclip_fsh_size())))));
 
     if(m_smoothClipShader) {
         m_smoothClipShader->loadAsync();

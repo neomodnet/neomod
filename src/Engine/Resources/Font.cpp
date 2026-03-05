@@ -1320,21 +1320,23 @@ void McFont::cleanupSharedResources() {
 
 void McFont::drawTextureAtlas() const {
     // debug
-    g->setColor(0xFFFFFFFF);
+    g->setColor((Color)-1);
     g->pushTransform();
     {
+        const vec2 actualScreenPos = mouse->getOffset();
+        const vec2 actualScreenSize = engine->getScreenSize() * mouse->getScale();  // "hack"...
+
         const auto &ta = pImpl->m_textureAtlas;
-        const i32 offscreenPixels = ta->getHeight() - (engine->getScreenHeight() * 0.75);
-        const f32 textYRatio = (f32)(engine->getScreenHeight() * 0.75) / (f32)ta->getHeight();
+        const i32 offscreenPixels = ta->getHeight() - (actualScreenSize.y * 0.75);
+        const f32 textYRatio = (f32)(actualScreenSize.y * 0.75) / (f32)ta->getHeight();
 
         const i32 yOffset =
-            textYRatio >= 1
-                ? 0
-                : -(i32)((f32)(offscreenPixels) * (mouse->getPos().y / (f32)(engine->getScreenHeight() * 0.75)));
-        const f32 fitWidth = (engine->getScreenWidth() * 0.75) / ta->getWidth();
+            textYRatio >= 1 ? 0
+                            : -(i32)((f32)(offscreenPixels) * (mouse->getPos().y / (f32)(actualScreenSize.y * 0.75)));
+        const f32 fitWidth = (actualScreenSize.x * 0.75) / ta->getWidth();
 
         g->scale(fitWidth, fitWidth);
-        g->translate(ta->getWidth() / 2.f, (ta->getHeight() / 2.f) + yOffset);
+        g->translate((actualScreenPos.x + ta->getWidth()) / 2.f, (actualScreenPos.y + ta->getHeight() / 2.f) + yOffset);
         g->drawImage(ta->getAtlasImage());
     }
     g->popTransform();

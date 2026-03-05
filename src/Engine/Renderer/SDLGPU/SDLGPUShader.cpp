@@ -183,10 +183,8 @@ void SDLGPUShader::disable() {
 void SDLGPUShader::writeUniform(std::string_view name, const void *data, u32 dataSize) {
     if(!m_gpu || !m_device || !this->isReady()) return;
 
-    auto it = m_uniformCache.find(name);
     size_t bi, vi;
-
-    if(it != m_uniformCache.end()) {
+    if(const auto &it = m_uniformCache.find(name); it != m_uniformCache.end()) {
         bi = it->second.first;
         vi = it->second.second;
     } else {
