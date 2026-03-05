@@ -387,6 +387,11 @@ class Environment {
     // the difference between setOSMousePos and this is that it doesn't actually warp the OS cursor
     inline void updateCachedMousePos(vec2 pos) { m_vLastAbsMousePos = pos; }
 
+    // this is basically to work around issues with wayland not providing a mouse position until the window is actually focused,
+    // so we can't put the game cursor where the mouse is when the window opened until we get a mouse enter event
+    // (a mouse enter event seems to just happen after some arbitrary time after creating the window...)
+    bool m_bVirtualMousePositionInitialized{false};
+
     // is used to track relative tablet motion, is zeroed after consumeMousePositionCache
     // on some platforms, SDL automatically tracks relative motion deltas from absolute pen motion, but not others...
     // so we'll do it manually in that case

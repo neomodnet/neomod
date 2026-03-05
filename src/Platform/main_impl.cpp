@@ -211,14 +211,10 @@ SDL_AppResult SDLMain::initialize() {
 
     updateWindowStateCache();
 
-    // initialize mouse position
+    // (this seems to not work on wayland, will be handled by the first SDL_WINDOW_EVENT_MOUSE_ENTER event)
     {
-        float x{0.f}, y{0.f};
-        SDL_GetGlobalMouseState(&x, &y);
-        vec2 posInWindow = vec2{x, y} - getWindowPos();
-
-        setOSMousePos(posInWindow);
-        mouse->onPosChange(posInWindow);
+        const vec2 realPos = getAsyncMousePos();
+        mouse->onPosChange(realPos);
     }
 
     // SDL3 stops listening to text input globally when window is created
@@ -367,6 +363,10 @@ SDL_AppResult SDLMain::handleEvent(SDL_Event *event) {
                     break;
 
                 case SDL_EVENT_WINDOW_MOUSE_ENTER:
+                    if(!m_bVirtualMousePositionInitialized) {
+                        m_bVirtualMousePositionInitialized = true;
+                        mouse->onPosChange(getAsyncMousePos());
+                    }
                     m_bIsCursorInsideWindow = true;
                     if(m_bHideCursorPending) {
                         setCursorVisible(false);

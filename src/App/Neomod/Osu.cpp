@@ -370,6 +370,13 @@ Osu::Osu()
 }
 
 void Osu::doDeferredInitTasks() {
+    // first reconcile focused state
+    if(this->focusChangePending != -1) {
+        const bool focused = this->focusChangePending > 0;
+        this->focusChangePending = -1;
+        this->doChangeFocus(focused);
+    }
+
     // do this after reading configs if we wanted to set a windowed resolution
     if(this->last_res_change_req_src & R_CV_WINDOWED_RESOLUTION) {
         this->onWindowedResolutionChanged(cv::windowed_resolution.getString());
@@ -555,6 +562,13 @@ void Osu::update() {
     if(unlikely(!this->bFirstUpdateTasksDone)) {
         this->bFirstUpdateTasksDone = true;
         this->doDeferredInitTasks();
+    }
+
+    // reconcile focus
+    if(unlikely(this->focusChangePending != -1)) {
+        const bool focused = this->focusChangePending > 0;
+        this->focusChangePending = -1;
+        this->doChangeFocus(focused);
     }
 
     if(this->skin.get()) {
@@ -745,7 +759,7 @@ void Osu::update() {
     // delayed layout updates
     // ignore CV_WINDOWED_RESOLUTION since that will come from the window resize
     if(this->last_res_change_req_src & ~(R_ENGINE | R_NOT_PENDING | R_CV_WINDOWED_RESOLUTION)) {
-        this->onResolutionChanged(this->getVirtScreenSize(), this->last_res_change_req_src);
+        this->doResolutionChange(this->getVirtScreenSize(), this->last_res_change_req_src);
     }
 }
 
@@ -1387,7 +1401,7 @@ bool Osu::shouldFallBackToLegacySliderRenderer() const {
         /* || (this->osu_playfield_rotation->getFloat() < -0.01f || m_osu_playfield_rotation->getFloat() > 0.01f)*/;
 }
 
-void Osu::onResolutionChanged(vec2 newResolution, ResolutionRequestFlags src) {
+void Osu::doResolutionChange(vec2 newResolution, ResolutionRequestFlags src) {
     if(src == R_ENGINE && this->last_res_change_req_src != R_NOT_PENDING) {
         // since cv::windowed_resolution does env->setWindowSize, it goes through the engine first
         src |= this->last_res_change_req_src;
@@ -1561,6 +1575,8 @@ void Osu::updateMouseSettings() {
 }
 
 void Osu::updateWindowsKeyDisable() {
+    if(!this->UIReady()) return;
+
     const bool isPlayerPlaying =
         (env->winFocused() && !env->winMinimized()) && this->isInPlayMode() &&
         (!(this->map_iface->isPaused() || this->map_iface->isContinueScheduled()) ||
@@ -1658,38 +1674,29 @@ void Osu::onFSLetterboxedResChanged(std::string_view args) {
     this->last_res_change_req_src |= R_CV_LETTERBOXED_RES;
 }
 
-void Osu::onFocusGained() {
-    if(!this->UIReady()) return;
-
-    // cursor clipping
-    this->updateConfineCursor();
-
-    if(this->bWasBossKeyPaused) {
-        this->bWasBossKeyPaused = false;
-
-        // make sure playfield is fully constructed before accessing it
-        this->map_iface->pausePreviewMusic();
-    }
-
-    this->updateWindowsKeyDisable();
-    ui->getVolumeOverlay()->gainFocus();
-}
-
-void Osu::onFocusLost() {
-    if(!this->UIReady()) return;
-    if(this->isInPlayMode() && !this->map_iface->isPaused() && cv::pause_on_focus_loss.getBool()) {
-        if(!BanchoState::is_playing_a_multi_map() && !this->map_iface->is_watching && !BanchoState::spectating) {
-            this->map_iface->pause(false);
-            ui->getPauseOverlay()->setVisible(true);
-            ui->getModSelector()->setVisible(false);
+void Osu::doChangeFocus(bool focused) {
+    if(focused) {
+        if(this->bWasBossKeyPaused) {
+            this->bWasBossKeyPaused = false;
+            this->map_iface->pausePreviewMusic();
         }
+
+        this->ui_memb->getVolumeOverlay()->gainFocus();
+    } else {
+        if(this->isInPlayMode() && !this->map_iface->isPaused() && cv::pause_on_focus_loss.getBool()) {
+            if(!BanchoState::is_playing_a_multi_map() && !this->map_iface->is_watching && !BanchoState::spectating) {
+                this->map_iface->pause(false);
+                ui->getPauseOverlay()->setVisible(true);
+                ui->getModSelector()->setVisible(false);
+            }
+        }
+
+        this->ui_memb->getVolumeOverlay()->loseFocus();
     }
 
-    this->updateWindowsKeyDisable();
-    ui->getVolumeOverlay()->loseFocus();
-
-    // release cursor clip
+    // grab/ungrab cursor+keyboard
     this->updateConfineCursor();
+    this->updateWindowsKeyDisable();
 }
 
 void Osu::onMinimized() {
@@ -1836,6 +1843,8 @@ void Osu::onLetterboxingChange(float oldValue, float newValue) {
 
 // Here, "cursor" is the Windows mouse cursor, not the game cursor
 void Osu::updateCursorVisibility() {
+    if(!this->UIReady()) return;
+
     if(!env->isCursorInWindow()) {
         return;  // don't do anything
     }
@@ -1865,6 +1874,8 @@ void Osu::updateCursorVisibility() {
 }
 
 void Osu::updateConfineCursor() {
+    if(!this->UIReady()) return;
+
     McRect clip{};
     const bool is_fullscreen = env->winFullscreened();
     const bool playing = this->isInPlayMode();

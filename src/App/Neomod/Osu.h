@@ -94,12 +94,12 @@ class Osu final : public App, public MouseListener {
     void onButtonChange(ButtonEvent ev) override;
 
     forceinline void onResolutionChanged(vec2 newResolution) override {
-        onResolutionChanged(newResolution, ResolutionRequestFlags::R_ENGINE);
+        doResolutionChange(newResolution, ResolutionRequestFlags::R_ENGINE);
     }
     void onDPIChanged() override;
 
-    void onFocusGained() override;
-    void onFocusLost() override;
+    inline void onFocusGained() override { this->focusChangePending = 1; }
+    inline void onFocusLost() override { this->focusChangePending = 0; }
     inline void onRestored() override {}
     void onMinimized() override;
     bool onShutdown() override;
@@ -125,7 +125,7 @@ class Osu final : public App, public MouseListener {
     static inline float getRawUIScale() { return rawUIScale; }  // equivalent to cv::ui_scale.getFloat()
     [[nodiscard]] inline bool UIReady() const { return !!this->ui_memb && this->bUILoaded; };
 
-    void onResolutionChanged(vec2 newResolution, ResolutionRequestFlags src);
+    void doResolutionChange(vec2 newResolution, ResolutionRequestFlags src);
 
     void onPlayEnd(const FinishedScore &score, bool quit = true);
 
@@ -272,6 +272,9 @@ class Osu final : public App, public MouseListener {
     void doDeferredInitTasks();
     // defer some things to post-construction on the first update tick so that we're fully initialized
     bool bFirstUpdateTasksDone{false};
+
+    void doChangeFocus(bool focused);
+    int focusChangePending{-1};  // 0 == lose focus, 1 == gain focus
 
     // interfaces (other)
     std::unique_ptr<Skin> skin{nullptr};
