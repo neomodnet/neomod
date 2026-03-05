@@ -13,11 +13,11 @@
 
 #ifdef MCENGINE_FEATURE_GLES32
 
-#include "Graphics.h"
+#include "ModernGraphicsShared.h"
 
 class OpenGLES32Shader;
 
-class OpenGLES32Interface : public Graphics {
+class OpenGLES32Interface : public ModernGraphicsShared {
     NOCOPY_NOMOVE(OpenGLES32Interface)
     friend class OpenGLES32Shader;
 
@@ -36,22 +36,7 @@ class OpenGLES32Interface : public Graphics {
     void setColor(Color color) final;
     void setAlpha(float alpha) final;
 
-    // 2d primitive drawing
-    void drawLinef(float x1, float y1, float x2, float y2) final;
-    void drawRectf(const RectOptions &opt) final;
-    void fillRectf(float x, float y, float width, float height) final;
-    // TODO
-    void drawPixels(int /*x*/, int /*y*/, int /*width*/, int /*height*/, DrawPixelsType /*type*/,
-                    const void * /*pixels*/) final {}
-    void drawPixel(int /*x*/, int /*y*/) final {}
-    void fillRoundedRect(int /*x*/, int /*y*/, int /*width*/, int /*height*/, int /*radius*/) final {}
-
-    void fillGradient(int x, int y, int width, int height, Color topLeftColor, Color topRightColor,
-                      Color bottomLeftColor, Color bottomRightColor) final;
-
-    void drawQuad(int x, int y, int width, int height) final;
-    void drawQuad(vec2 topLeft, vec2 topRight, vec2 bottomRight, vec2 bottomLeft, Color topLeftColor,
-                  Color topRightColor, Color bottomRightColor, Color bottomLeftColor) final;
+    // 2d primitive drawing (implemented in ModernGraphicsShared)
 
     // 2d resource drawing
     void drawImage(const Image *image, AnchorPoint anchor = AnchorPoint::CENTER, float edgeSoftness = 0.0f,
@@ -124,6 +109,8 @@ class OpenGLES32Interface : public Graphics {
    protected:
     void onTransformUpdate() final;
     std::vector<u8> getScreenshot(bool withAlpha = false) final;
+
+    void setTexturing(bool /*enabled*/, bool /*force*/) override { /*unused here*/ }
 
    private:
     void handleGLErrors();

@@ -1346,7 +1346,6 @@ void MainMenu::updateLayout() {
     this->tipLabel->setSizeToContent();
     this->tipLabel->setRelPos(osu->getVirtScreenWidth() / 2 - this->tipLabel->getSize().x / 2,
                               osu->getVirtScreenHeight() - this->tipLabel->getSize().y - 40 * dpiScale);
-    this->tipLabel->setVisible(Env::cfg(OS::WASM));
 
     {
         this->updateAvailableButton->setSize(375 * dpiScale, 50 * dpiScale);

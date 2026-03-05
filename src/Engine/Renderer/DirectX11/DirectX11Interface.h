@@ -13,7 +13,7 @@
 #ifdef MCENGINE_FEATURE_DIRECTX11
 
 #include "BaseEnvironment.h"
-#include "Graphics.h"
+#include "ModernGraphicsShared.h"
 
 class DirectX11Shader;
 
@@ -48,7 +48,7 @@ using D3D11CreateDevice_t = HRESULT D3D11_CALL(IDXGIAdapter *, D3D_DRIVER_TYPE, 
                                                const D3D_FEATURE_LEVEL *, UINT, UINT, ID3D11Device **,
                                                D3D_FEATURE_LEVEL *, ID3D11DeviceContext **);
 
-class DirectX11Interface final : public Graphics {
+class DirectX11Interface final : public ModernGraphicsShared {
     NOCOPY_NOMOVE(DirectX11Interface)
    public:
     struct SimpleVertex {
@@ -72,20 +72,8 @@ class DirectX11Interface final : public Graphics {
     void setColor(Color color) override;
     void setAlpha(float alpha) override;
 
-    // 2d primitive drawing
-    void drawPixel(int x, int y) override;
-    [[deprecated("not implemented")]] void drawPixels(int x, int y, int width, int height, DrawPixelsType type,
-                                                      const void *pixels) override;
-    void drawLinef(float x1, float y1, float x2, float y2) final;
-    void drawRectf(const RectOptions &opt) final;
-    void fillRectf(float x, float y, float width, float height) final;
-
-    void fillGradient(int x, int y, int width, int height, Color topLeftColor, Color topRightColor,
-                      Color bottomLeftColor, Color bottomRightColor) override;
-
-    void drawQuad(int x, int y, int width, int height) override;
-    void drawQuad(vec2 topLeft, vec2 topRight, vec2 bottomRight, vec2 bottomLeft, Color topLeftColor,
-                  Color topRightColor, Color bottomRightColor, Color bottomLeftColor) override;
+    // 2d primitive drawing (implemented in ModernGraphicsShared)
+    void drawPixel(int x, int y) override;  // TODO: add shared implementation
 
     // 2d resource drawing
     void drawImage(const Image *image, AnchorPoint anchor = AnchorPoint::CENTER, float edgeSoftness = 0.0f,
@@ -104,12 +92,6 @@ class DirectX11Interface final : public Graphics {
     void pushViewport() override;
     void setViewport(int x, int y, int width, int height) override;
     void popViewport() override;
-
-    // TODO:
-    [[deprecated("not implemented")]] void fillRoundedRect(int /*x*/, int /*y*/, int /*width*/, int /*height*/,
-                                                           int /*radius*/) override {
-        ;
-    }
 
     // TODO (?): unused currently
     [[deprecated("not implemented")]] void pushStencil() override { ; }
@@ -163,7 +145,7 @@ class DirectX11Interface final : public Graphics {
     inline ID3D11DeviceContext *getDeviceContext() const { return this->deviceContext; }
     inline DirectX11Shader *getShaderGeneric() const { return this->shaderTexturedGeneric; }
     inline DirectX11Shader *getActiveShader() const { return this->activeShader; }
-    void setTexturing(bool enabled, bool force = false);
+    void setTexturing(bool enabled, bool force = false) override;
 
    protected:
     bool init() final;

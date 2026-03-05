@@ -105,6 +105,9 @@ class Graphics {
     virtual void drawLinef(float x1, float y1, float x2, float y2) = 0;
 
     virtual void drawRectf(const RectOptions &opt) = 0;  // this is the main drawrect function
+
+    // TODO: more of these could be inline passthroughs to a single drawRectf implementation
+    // e.g. add "cornerRadius" and "fill" option to RectOptions
     virtual void fillRectf(float x, float y, float width, float height) = 0;
     virtual void fillRoundedRect(int x, int y, int width, int height, int radius) = 0;
     virtual void fillGradient(int x, int y, int width, int height, Color topLeftColor, Color topRightColor,

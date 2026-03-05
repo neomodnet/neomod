@@ -12,7 +12,7 @@
 
 #ifdef MCENGINE_FEATURE_SDLGPU
 
-#include "Graphics.h"
+#include "ModernGraphicsShared.h"
 #include "Hashing.h"
 #include "SyncMutex.h"
 
@@ -91,7 +91,7 @@ struct PipelineKeyHash {
 };
 // clang-format on
 
-class SDLGPUInterface final : public Graphics {
+class SDLGPUInterface final : public ModernGraphicsShared {
     NOCOPY_NOMOVE(SDLGPUInterface)
    public:
     SDLGPUInterface(SDL_Window *window);
@@ -108,19 +108,7 @@ class SDLGPUInterface final : public Graphics {
     void setColor(Color color) override;
     void setAlpha(float alpha) override;
 
-    // 2d primitive drawing
-    void drawPixels(int x, int y, int width, int height, DrawPixelsType type, const void *pixels) override;
-    void drawPixel(int x, int y) override;
-    void drawLinef(float x1, float y1, float x2, float y2) override;
-    void drawRectf(const RectOptions &opt) override;
-    void fillRectf(float x, float y, float width, float height) override;
-    void fillRoundedRect(int x, int y, int width, int height, int radius) override;
-    void fillGradient(int x, int y, int width, int height, Color topLeftColor, Color topRightColor,
-                      Color bottomLeftColor, Color bottomRightColor) override;
-
-    void drawQuad(int x, int y, int width, int height) override;
-    void drawQuad(vec2 topLeft, vec2 topRight, vec2 bottomRight, vec2 bottomLeft, Color topLeftColor,
-                  Color topRightColor, Color bottomRightColor, Color bottomLeftColor) override;
+    // 2d primitive drawing (implemented in ModernGraphicsShared)
 
     // 2d resource drawing
     void drawImage(const Image *image, AnchorPoint anchor, float edgeSoftness, McRect clipRect) override;
@@ -211,7 +199,7 @@ class SDLGPUInterface final : public Graphics {
     // SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM
     static const SDLGPUTextureFormat DEFAULT_TEXTURE_FORMAT;
 
-    void setTexturing(bool enabled, bool force = false);
+    void setTexturing(bool enabled, bool force = false) override;
 
    protected:
     std::vector<u8> getScreenshot(bool withAlpha) override;
