@@ -128,7 +128,7 @@ neomod_SOURCES = \
 	src/App/Neomod/NeomodEnvInterop.cpp \
 	src/App/Neomod/NeomodUrl.cpp \
 	src/App/Neomod/NotificationOverlay.cpp \
-	src/App/Neomod/OptionsOverlay/OptionsOverlay.cpp \
+	src/App/Neomod/OptionsOverlay.cpp \
 	src/App/Neomod/Osu.cpp \
 	src/App/Neomod/OsuConVars/OsuConVars.cpp \
 	src/App/Neomod/OsuDirectScreen.cpp \

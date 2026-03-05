@@ -274,7 +274,11 @@ struct McFontImpl final {
     // helper to set font size on any face for this font instance
     void setFaceSize(FT_Face face);
 
-    [[nodiscard]] inline int getDynSlotSize() const { return 2 * m_iFontSize; }
+    [[nodiscard]] inline int getDynSlotSize() const {
+        // pixel em size (ceiling) + padding on each side
+        return (((m_iFontSize + 2 /* idk, some fudge to make this work for small fonts */) * m_iFontDPI) + 71) / 72 +
+               (2 * TextureAtlas::ATLAS_PADDING);
+    }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -495,15 +499,6 @@ void McFontImpl::drawString(const UString &text, std::optional<TextShadow> shado
         buildStringGeometry(text, buffer.getVerts(), buffer.getTexcoords(), maxGlyphs, buffer.getMetrics());
     }
 
-    // if(stringToCacheIndex(buffer.string) % 32 == 0) {
-    //     size_t totalBytes = 0;
-    //     for(const auto &elem : m_vStringCache) {
-    //         totalBytes += (elem.string.size() * sizeof(char16_t)) + (elem.getMetrics().size() * sizeof(void *)) +
-    //                       (elem.getVerts().size() * sizeof(vec3)) + (elem.getTexcoords().size() * sizeof(vec2));
-    //     }
-    //     debugLog("cache memory usage: {}MB", totalBytes / (1024ULL * 1024));
-    // }
-
     m_vao->reserve(buffer.getVerts().size());
 
     m_vao->setVertices(buffer.getVerts());
@@ -702,7 +697,7 @@ bool McFontImpl::loadGlyphDynamic(char16_t ch, FT_Face existingFace) {
         int slotIndex = allocateDynamicSlot(ch);
         const DynamicSlot &slot = m_dynamicSlots[slotIndex];
 
-        const int maxSlotContent = getDynSlotSize() - 2 * TextureAtlas::ATLAS_PADDING;
+        const int maxSlotContent = getDynSlotSize() - TextureAtlas::ATLAS_PADDING;
         if(bitmap.width > maxSlotContent || bitmap.rows > maxSlotContent) {
             if(cv::r_debug_font_unicode.getBool()) {
                 debugLog("Font Info: Clipping oversized glyph {} ({}x{}) to fit dynamic slot ({}x{})", debugstr,
@@ -880,7 +875,7 @@ void McFontImpl::renderBitmapToAtlas(char16_t ch, int x, int y, const FT_Bitmap 
     int renderHeight = std::min(static_cast<int>(bitmap.rows), atlasHeight - y);
 
     if(isDynamicSlot) {
-        const int maxSlotContent = getDynSlotSize() - 2 * TextureAtlas::ATLAS_PADDING;
+        const int maxSlotContent = getDynSlotSize() - TextureAtlas::ATLAS_PADDING;
         renderWidth = std::min(renderWidth, maxSlotContent);
         renderHeight = std::min(renderHeight, maxSlotContent);
     }
@@ -1336,8 +1331,15 @@ void McFont::drawTextureAtlas() const {
         const f32 fitWidth = (actualScreenSize.x * 0.75) / ta->getWidth();
 
         g->scale(fitWidth, fitWidth);
-        g->translate((actualScreenPos.x + ta->getWidth()) / 2.f, (actualScreenPos.y + ta->getHeight() / 2.f) + yOffset);
+        const vec2 centerTrans{(actualScreenPos.x + ta->getWidth()) / 2.f, (actualScreenPos.y + ta->getHeight() / 2.f) + yOffset};
+        g->translate(centerTrans);
+
+        // draw image
         g->drawImage(ta->getAtlasImage());
+
+        // draw bounds
+        g->setColor(rgb(255, 50, 50));
+        g->drawRect(-ta->getWidth() / 2, -ta->getHeight() / 2, ta->getWidth(), ta->getHeight());
     }
     g->popTransform();
 }

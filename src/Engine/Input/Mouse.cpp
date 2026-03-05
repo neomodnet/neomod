@@ -83,7 +83,7 @@ void Mouse::drawDebug() {
     g->drawRect(pos.x - rectSize.x / 2.0f, pos.y - rectSize.y / 2.0f, rectSize.x, rectSize.y);
 
     McFont *posFont = engine->getDefaultFont();
-    UString posString = fmt::format("[{}, {}]", (int)pos.x, (int)pos.y);
+    UString posString = fmt::format("[{:.2f}, {:.2f}]", pos.x, pos.y);
     float stringWidth = posFont->getStringWidth(posString);
     float stringHeight = posFont->getHeight();
     vec2 textOffset = vec2(
@@ -93,8 +93,8 @@ void Mouse::drawDebug() {
                                                                                : rectSize.y / 2.0f + stringHeight);
 
     g->pushTransform();
-    g->translate(pos.x + textOffset.x, pos.y + textOffset.y);
-    g->drawString(posFont, fmt::format("[{}, {}]", (int)pos.x, (int)pos.y));
+    g->translate(vec::round(pos + textOffset));
+    g->drawString(posFont, posString);
     g->popTransform();
 }
 
@@ -259,9 +259,7 @@ void Mouse::addListener(MouseListener *mouseListener, bool insertOnTop) {
         this->listeners.push_back(mouseListener);
 }
 
-void Mouse::removeListener(MouseListener *mouseListener) {
-    std::erase(this->listeners, mouseListener);
-}
+void Mouse::removeListener(MouseListener *mouseListener) { std::erase(this->listeners, mouseListener); }
 
 void Mouse::onRawInputChanged(float newval) {
     this->bIsRawInputDesired = !!static_cast<int>(newval);

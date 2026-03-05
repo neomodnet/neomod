@@ -1361,7 +1361,7 @@ McRect Environment::SDLRectToMcRect(const SDL_Rect &sdlrect) noexcept {
 vec2 Environment::getAsyncMousePos() const {
     float x{}, y{};
     SDL_GetGlobalMouseState(&x, &y);
-    return {x, y};
+    return vec2{x, y} - getWindowPos();
 }
 
 Environment::CursorPosition Environment::consumeCursorPositionCache() {
