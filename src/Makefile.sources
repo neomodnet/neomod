@@ -213,7 +213,7 @@ neomod_SOURCES = \
 	src/Engine/Profiler.cpp \
 	src/Engine/Renderer/Camera.cpp \
 	src/Engine/Renderer/Graphics.cpp \
-	src/Engine/Renderer/ModernGraphicsShared.cpp \
+	src/Engine/Renderer/ModernShared/ModernGraphicsShared.cpp \
 	src/Engine/Renderer/NullGraphics/NullGraphics.cpp \
 	src/Engine/Renderer/NullGraphics/NullImage.cpp \
 	src/Engine/Renderer/NullGraphics/NullRenderTarget.cpp \

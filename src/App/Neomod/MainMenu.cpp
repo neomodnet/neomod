@@ -360,6 +360,7 @@ MainMenu::~MainMenu() {
     if(this->bWasCleanShutdown) this->writeVersionFile();
 }
 
+// TODO: replace with something unique
 void MainMenu::drawFriend(const McRect &mainButtonRect, float pulse, bool haveTimingpoints) {
     // ears
     {
