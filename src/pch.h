@@ -50,6 +50,10 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <array>
+#include <set>
+#include <unordered_set>
+#include <unordered_map>
 #include <type_traits>
 
 // i have no idea where these come from but they seem to be transitively included through some stdlib header,
