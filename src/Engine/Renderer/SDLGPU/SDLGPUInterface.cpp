@@ -327,7 +327,7 @@ void SDLGPUInterface::createPipeline() {
     SDL_GPUVertexInputState vertexInputState{
         .vertex_buffer_descriptions = &vertexBufferDesc,
         .num_vertex_buffers = 1,
-        .vertex_attributes = vertexAttributes,
+        .vertex_attributes = &vertexAttributes[0],
         .num_vertex_attributes = 3,
     };
 
@@ -725,18 +725,27 @@ void SDLGPUInterface::drawVAO(VertexArrayObject *vao) {
     if(srcPrimitive == DrawPrimitive::QUADS && vertices.size() <= 3) return;
     if(srcPrimitive == DrawPrimitive::TRIANGLE_FAN && vertices.size() <= 2) return;
 
-    // convert per-vertex colors from packed Color to vec4 (used as a LUT during primitive conversion).
-    // if no per-vertex colors, a single default entry is used so the inner loop can index unconditionally.
-    static std::vector<vec4> colors;
-    colors.clear();
-    if(vcolors.empty()) {
-        colors.emplace_back(m_color.Rf(), m_color.Gf(), m_color.Bf(), m_color.Af());
-    } else {
-        for(auto vcolor : vcolors) colors.emplace_back(vcolor.Rf(), vcolor.Gf(), vcolor.Bf(), vcolor.Af());
-    }
-    const uSz maxColorIndex = colors.size() - 1;
-
     const bool hasTexcoords0 = !texcoords.empty();
+
+    // convert per-vertex colors from packed Color to vec4.
+    // when textured with no per-vertex colors, use white (col uniform provides m_color).
+    // when non-textured with no per-vertex colors, use m_color directly (col uniform unused).
+    static std::vector<vec4> colors;
+    if(vcolors.empty()) {
+        const vec4 c =
+            hasTexcoords0 ? vec4{1.f, 1.f, 1.f, 1.f} : vec4{m_color.Rf(), m_color.Gf(), m_color.Bf(), m_color.Af()};
+        colors.assign(vertices.size(), c);
+    } else {
+        const uSz n = std::min(vcolors.size(), vertices.size());
+        colors.resize(vertices.size());
+        for(uSz i = 0; i < n; i++) {
+            colors[i] = {vcolors[i].Rf(), vcolors[i].Gf(), vcolors[i].Bf(), vcolors[i].Af()};
+        }
+        if(n < vertices.size()) {
+            // "programmer error", fewer colors were provided than vertices, but handle it anyways (backfill with the last color) to not crash
+            std::fill(colors.begin() + (sSz)n, colors.end(), colors[n - 1]);
+        }
+    }
     static constexpr vec2 zeroTex{};
     const vec2 *texData = hasTexcoords0 ? texcoords.data() : &zeroTex;
     const uSz maxTexIndex = hasTexcoords0 ? texcoords.size() - 1 : 0;
@@ -787,7 +796,7 @@ void SDLGPUInterface::drawVAO(VertexArrayObject *vao) {
         const u32 offset = (u32)m_stagingVertices.size();
         m_stagingVertices.resize(offset + batchOutVerts);
         uSz si = offset;
-        SDLGPUSimpleVertex *sb;
+        SDLGPUSimpleVertex *sb = nullptr;
 
         if(srcPrimitive == DrawPrimitive::QUADS) {
             static constexpr std::array<int, 6> viAdd{0, 1, 2, 0, 2, 3};
@@ -796,7 +805,7 @@ void SDLGPUInterface::drawVAO(VertexArrayObject *vao) {
                     const uSz vi = srcIdx + viAdd[j];
                     sb = &m_stagingVertices[si++];
                     sb->pos = vertices[vi];
-                    sb->col = colors[std::min(vi, maxColorIndex)];
+                    sb->col = colors[vi];
                     sb->tex = texData[std::min(vi, maxTexIndex)];
                 }
             }
@@ -807,7 +816,7 @@ void SDLGPUInterface::drawVAO(VertexArrayObject *vao) {
                 for(uSz j = 0; j < 3; ++j) {
                     sb = &m_stagingVertices[si++];
                     sb->pos = vertices[vi];
-                    sb->col = colors[std::min(vi, maxColorIndex)];
+                    sb->col = colors[vi];
                     sb->tex = texData[std::min(vi, maxTexIndex)];
                     // 0, i, i - 1
                     vi = srcIdx + viAdd[j];
@@ -817,7 +826,7 @@ void SDLGPUInterface::drawVAO(VertexArrayObject *vao) {
             for(; srcIdx < batchSrcEnd; srcIdx++) {
                 sb = &m_stagingVertices[si++];
                 sb->pos = vertices[srcIdx];
-                sb->col = colors[std::min(srcIdx, maxColorIndex)];
+                sb->col = colors[srcIdx];
                 sb->tex = texData[std::min(srcIdx, maxTexIndex)];
             }
         }
