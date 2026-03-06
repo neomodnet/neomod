@@ -196,7 +196,7 @@ void BeatmapInterface::drawBackground() {
            (backgroundImage = osu->getBackgroundImageHandler()->getLoadBackgroundImage(
                 this->beatmap, false, cv::draw_menu_background.getBool()))) {
             const float scale = Osu::getImageScaleToFillResolution(backgroundImage, osu->getVirtScreenSize());
-
+            const vec2 centerTrans = (osu->getVirtScreenSize() / 2.0f);
             const float backgroundFadeDimMultiplier = 1.0f - (cv::background_dim.getFloat() - 0.3f);
             const auto dim =
                 (1.0f - cv::background_dim.getFloat()) + this->fBreakBackgroundFade * backgroundFadeDimMultiplier;
@@ -206,7 +206,8 @@ void BeatmapInterface::drawBackground() {
             g->pushTransform();
             {
                 g->scale(scale, scale);
-                g->drawImage(backgroundImage, AnchorPoint::TOP_LEFT);
+                g->translate((int)centerTrans.x, (int)centerTrans.y);
+                g->drawImage(backgroundImage);
             }
             g->popTransform();
         }

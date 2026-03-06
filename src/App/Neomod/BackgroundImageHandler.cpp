@@ -280,7 +280,8 @@ void BGImageHandler::draw(const Image *image, f32 alpha) {
     {
         g->setColor(Color(0xff999999).setA(alpha));
         g->scale(scale, scale);
-        g->drawImage(image, AnchorPoint::TOP_LEFT);
+        g->translate(osu->getVirtScreenWidth() / 2, osu->getVirtScreenHeight() / 2);
+        g->drawImage(image);
     }
     g->popTransform();
 }
