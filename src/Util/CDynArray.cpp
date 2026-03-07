@@ -2,6 +2,7 @@
 #include "CDynArray.h"
 #include "noinclude.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstring>
 
