@@ -116,7 +116,7 @@ void OpenGLInterface::setColor(Color color) {
 
     this->color = color;
 
-    glColor4ub(this->color.R(), this->color.G(), this->color.B(), this->color.A());
+    glColor4ub(this->color.r, this->color.g, this->color.b, this->color.a);
 }
 
 void OpenGLInterface::drawPixels(int x, int y, int width, int height, DrawPixelsType type, const void *pixels) {
@@ -320,7 +320,7 @@ void OpenGLInterface::drawQuad(vec2 topLeft, vec2 topRight, vec2 bottomRight, ve
 
 void OpenGLInterface::drawImage(const Image *image, AnchorPoint anchor, float edgeSoftness, McRect clipRect) {
     // skip entirely transparent images or if the current transparency is disabled
-    if(image == nullptr || !image->isGPUReady() || this->color.A() == 0) {
+    if(image == nullptr || !image->isGPUReady() || this->color.a == 0) {
         if(image && cv::r_debug_drawimage.getBool()) {
             const vec2 size = image->getSize();
             const vec2 pos = getAnchoredOrigin(anchor, size);
@@ -438,10 +438,10 @@ void OpenGLInterface::drawVAO(VertexArrayObject *vao) {
     }
 
     // fetch data references
-    const auto &vertices = vao->getVertices();
-    const auto &texcoords = vao->getTexcoords();
-    const auto &normals = vao->getNormals();
-    const auto &colors = vao->getColors();
+    const auto vertices = vao->getVertices();
+    const auto texcoords = vao->getTexcoords();
+    const auto normals = vao->getNormals();
+    const auto colors = vao->getColors();
 
     const bool hasTexcoords0 = vao->hasTexcoords() && !texcoords.empty();
     const bool hasNormals = !normals.empty();
@@ -489,7 +489,7 @@ void OpenGLInterface::drawVAO(VertexArrayObject *vao) {
         bool needsConversion = false;
         MC_UNROLL
         for(size_t i = 0; i < drawCount; ++i) {
-            if(colors[i].R() != colors[i].B()) {
+            if(colors[i].r != colors[i].b) {
                 needsConversion = true;
                 break;
             }

@@ -10,7 +10,7 @@
 // NOLINTBEGIN(misc-definitions-in-headers)
 
 #if !defined(OSU_CONVARS_H) && \
-    (defined(_CLANGD) || defined(Q_CREATOR_RUN) || defined(__INTELLISENSE__) || defined(__CDT_PARSER__))
+    (defined(_CLANGD) || defined(Q_CREATOR_RUN) || defined(__INTELLISENSE__) || defined(__CDT_PARSER__) || defined(__clang_analyzer__))
 #define DEFINE_OSU_CONVARS
 #include "OsuConVars.h"
 

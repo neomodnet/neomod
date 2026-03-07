@@ -72,10 +72,10 @@ void SDLGPUVertexArrayObject::init() {
     m_convertedVertices.clear();
 
     // maybe TODO: handle normals (not currently used in app code)
-    std::vector<vec3> finalVertices = this->vertices;
-    std::vector<vec2> finalTexcoords = this->texcoords;
-    std::vector<vec4> colors;
-    std::vector<vec4> finalColors;
+    Mc::CDynArray<vec3> finalVertices;
+    Mc::CDynArray<vec2> finalTexcoords;
+    Mc::CDynArray<vec4> colors;
+    Mc::CDynArray<vec4> finalColors;
 
     for(auto clr : this->colors) {
         const vec4 color = vec4(clr.Rf(), clr.Gf(), clr.Bf(), clr.Af());
@@ -150,6 +150,9 @@ void SDLGPUVertexArrayObject::init() {
                 }
             }
         }
+    } else {
+        finalVertices = this->vertices;
+        finalTexcoords = this->texcoords;
     }
 
     // build SDLGPUSimpleVertex array
@@ -244,7 +247,7 @@ void SDLGPUVertexArrayObject::destroy() {
 }
 
 void SDLGPUVertexArrayObject::draw() {
-    if(!m_gpu || !m_device || !this->isReady()) return;
+    if(unlikely(!m_gpu || !m_device || !this->isReady())) return;
 
     const int start = std::clamp<int>(this->iDrawRangeFromIndex > -1
                                           ? this->iDrawRangeFromIndex

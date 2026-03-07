@@ -16,6 +16,7 @@
 #include "Hashing.h"
 #include "SyncMutex.h"
 #include "UString.h"
+#include "CDynArray.h"
 
 #include <array>
 #include <bit>
@@ -50,47 +51,6 @@ struct SDLGPUSimpleVertex {
     vec4 col;
     vec2 tex;
 };
-
-struct PipelineKey {
-    SDL_GPUShader *vertexShader;
-    SDL_GPUShader *fragmentShader;
-    SDLGPUPrimitiveType primitiveType;
-    DrawBlendMode blendMode;
-    SDLGPUSampleCount sampleCount;
-    u8 stencilState;
-    bool blendingEnabled;
-    bool depthTestEnabled;
-    bool depthWriteEnabled;
-    bool wireframe;
-    bool cullingEnabled;
-    u8 colorWriteMask;  // packed RGBA bits
-
-    bool operator==(const PipelineKey &) const = default;
-};
-
-// clang-format off
-struct PipelineKeyHash {
-    using is_avalanching = void;
-    [[nodiscard]] auto operator()(const PipelineKey &k) const noexcept -> u64 {
-        // mix all fields into a single hash
-        u64 h = 0;
-        h ^= Hash::flat::hash<u64>{}(reinterpret_cast<uintptr_t>(k.vertexShader));
-        h ^= Hash::flat::hash<u64>{}(reinterpret_cast<uintptr_t>(k.fragmentShader)) * 0x9e3779b97f4a7c15ULL;
-        h ^= Hash::flat::hash<u64>{}((u64)k.primitiveType) * 0x517cc1b727220a95ULL;
-        h ^= Hash::flat::hash<u64>{}((u64)k.sampleCount) * 0x3c6ef372fe94f82aULL;
-        u64 packed = (u64)k.blendMode
-                        | ((u64)k.stencilState << 8)
-                        | ((u64)k.blendingEnabled << 16)
-                        | ((u64)k.depthTestEnabled << 17)
-                        | ((u64)k.depthWriteEnabled << 18)
-                        | ((u64)k.wireframe << 19)
-                        | ((u64)k.cullingEnabled << 20)
-                        | ((u64)k.colorWriteMask << 24);
-        h ^= Hash::flat::hash<u64>{}(packed) * 0x6c62272e07bb0142ULL;
-        return h;
-    }
-};
-// clang-format on
 
 class SDLGPUInterface final : public ModernGraphicsShared {
     NOCOPY_NOMOVE(SDLGPUInterface)
@@ -177,8 +137,8 @@ class SDLGPUInterface final : public ModernGraphicsShared {
 
     // sdlgpu-specific accessors
     // texture binding state (set by SDLGPUImage::bind/unbind)
-    inline SDL_GPUTexture *getBoundTexture() const { return m_boundTexture; }
-    inline SDL_GPUSampler *getBoundSampler() const { return m_boundSampler; }
+    [[nodiscard]] inline SDL_GPUTexture *getBoundTexture() const { return m_boundTexture; }
+    [[nodiscard]] inline SDL_GPUSampler *getBoundSampler() const { return m_boundSampler; }
     inline void setBoundTexture(SDL_GPUTexture *tex) { m_boundTexture = tex; }
     inline void setBoundSampler(SDL_GPUSampler *sampler) { m_boundSampler = sampler; }
 
@@ -192,7 +152,7 @@ class SDLGPUInterface final : public ModernGraphicsShared {
 
     // shader switching
     void setActiveShader(SDLGPUShader *shader);
-    inline SDLGPUShader *getActiveShader() const { return m_activeShader; }
+    [[nodiscard]] inline SDLGPUShader *getActiveShader() const { return m_activeShader; }
 
     // shared upload transfer buffer pool (loader threads acquire, main thread releases)
     // outAllocSize receives the actual allocation size of the returned buffer (for passing back to release)
@@ -240,6 +200,47 @@ class SDLGPUInterface final : public ModernGraphicsShared {
     std::unique_ptr<SDLGPUShader> m_smoothClipShader{nullptr};
 
     // pipeline cache (keyed by state)
+    struct PipelineKey {
+        SDL_GPUShader *vertexShader;
+        SDL_GPUShader *fragmentShader;
+        SDLGPUPrimitiveType primitiveType;
+        DrawBlendMode blendMode;
+        SDLGPUSampleCount sampleCount;
+        u8 stencilState;
+        bool blendingEnabled;
+        bool depthTestEnabled;
+        bool depthWriteEnabled;
+        bool wireframe;
+        bool cullingEnabled;
+        u8 colorWriteMask;  // packed RGBA bits
+
+        bool operator==(const PipelineKey &) const = default;
+    };
+
+    // clang-format off
+    struct PipelineKeyHash {
+        using is_avalanching = void;
+        [[nodiscard]] auto operator()(const PipelineKey &k) const noexcept -> u64 {
+            // mix all fields into a single hash
+            u64 h = 0;
+            h ^= Hash::flat::hash<u64>{}(reinterpret_cast<uintptr_t>(k.vertexShader));
+            h ^= Hash::flat::hash<u64>{}(reinterpret_cast<uintptr_t>(k.fragmentShader)) * 0x9e3779b97f4a7c15ULL;
+            h ^= Hash::flat::hash<u64>{}((u64)k.primitiveType) * 0x517cc1b727220a95ULL;
+            h ^= Hash::flat::hash<u64>{}((u64)k.sampleCount) * 0x3c6ef372fe94f82aULL;
+            u64 packed = (u64)k.blendMode
+                            | ((u64)k.stencilState << 8)
+                            | ((u64)k.blendingEnabled << 16)
+                            | ((u64)k.depthTestEnabled << 17)
+                            | ((u64)k.depthWriteEnabled << 18)
+                            | ((u64)k.wireframe << 19)
+                            | ((u64)k.cullingEnabled << 20)
+                            | ((u64)k.colorWriteMask << 24);
+            h ^= Hash::flat::hash<u64>{}(packed) * 0x6c62272e07bb0142ULL;
+            return h;
+        }
+    };
+    // clang-format on
+
     Hash::flat::map<PipelineKey, SDL_GPUGraphicsPipeline *, PipelineKeyHash> m_pipelineCache;
     SDL_GPUGraphicsPipeline *m_currentPipeline{nullptr};
 
@@ -300,15 +301,6 @@ class SDLGPUInterface final : public ModernGraphicsShared {
 
     // deferred draw batching
     struct DrawCommand {
-        u32 vertexOffset;
-        u32 vertexCount;
-        SDL_GPUBuffer *bakedBuffer;  // nullptr for immediate (uses shared staging buffer)
-
-        SDL_GPUGraphicsPipeline *pipeline;
-
-        SDL_GPUTexture *texture;
-        SDL_GPUSampler *sampler;
-
         // uniform block snapshots
         struct UniformBlock {
             alignas(16) std::array<u8, 80> data;
@@ -316,20 +308,36 @@ class SDLGPUInterface final : public ModernGraphicsShared {
             u32 size;
             bool isVertex;  // true=vertex, false=fragment
         };
-        u8 numUniformBlocks;
         UniformBlock uniformBlocks[4];
+
+        u32 vertexOffset;
+        u32 vertexCount;
+
+        SDL_GPUBuffer *bakedBuffer;  // nullptr for immediate (uses shared staging buffer)
+
+        SDL_GPUGraphicsPipeline *pipeline;
+
+        SDL_GPUTexture *texture;
+        SDL_GPUSampler *sampler;
 
         // viewport
         Viewport viewport;
 
         // scissor
-        bool scissorEnabled;
         Scissor scissor;
 
         // stencil
         u8 stencilRef;
+
+        // these are moved down here for struct padding reduction
+
+        // number of actual uniform blocks (up to 4)
+        u8 numUniformBlocks;
+
+        // scissor state
+        bool scissorEnabled;
     };
-    std::vector<DrawCommand> m_pendingDraws;
+    Mc::CDynArray<DrawCommand> m_pendingDraws;
 
     // pipeline state that requires rebuild
     int m_iStencilState{0};  // 0=off, 1=writing mask, 2=testing

@@ -385,14 +385,9 @@ struct Matrix4 : public glm::mat4 {
         static_cast<glm::mat4&>(*this)[index][2] = v.z;
     }
 
-    const float* get() const { return &static_cast<const glm::mat4&>(*this)[0][0]; }
+    [[nodiscard]] const float* get() const { return &static_cast<const glm::mat4&>(*this)[0][0]; }
     [[nodiscard]] const glm::mat4& getGLM() const { return *this; }
     [[nodiscard]] glm::mat4& getGLM() { return *this; }
-
-    const float* getTranspose() const {
-        m_transpose = glm::transpose(*this);
-        return &m_transpose[0][0];
-    }
 
     [[nodiscard]] float getDeterminant() const { return glm::determinant(*this); }
 
@@ -627,9 +622,6 @@ struct Matrix4 : public glm::mat4 {
     friend vec3 operator*(const vec3& vec, const Matrix4& m);
     friend vec4 operator*(const vec4& vec, const Matrix4& m);
     friend std::ostream& operator<<(std::ostream& os, const Matrix4& m);
-
-   private:
-    mutable glm::mat4 m_transpose;  // cache for getTranspose()
 };
 
 inline Matrix4 operator-(const Matrix4& m) { return {-static_cast<const glm::mat4&>(m)}; }

@@ -611,10 +611,10 @@ void Image::setPixel(i32 x, i32 y, Color color) {
     const u64 indexBegin =
         static_cast<u64>(Image::NUM_CHANNELS) * y * this->rawImage.getX() + static_cast<u64>(Image::NUM_CHANNELS) * x;
 
-    this->rawImage[indexBegin + 0] = color.R();
-    this->rawImage[indexBegin + 1] = color.G();
-    this->rawImage[indexBegin + 2] = color.B();
-    this->rawImage[indexBegin + 3] = color.A();
+    this->rawImage[indexBegin + 0] = color.r;
+    this->rawImage[indexBegin + 1] = color.g;
+    this->rawImage[indexBegin + 2] = color.b;
+    this->rawImage[indexBegin + 3] = color.a;
     if(!this->bCreatedImage) {
         if(color != 0) {
             // play it safe, don't recompute the entire alpha channel visibility here

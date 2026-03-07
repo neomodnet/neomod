@@ -571,6 +571,9 @@ void Osu::update() {
         this->doChangeFocus(focused);
     }
 
+    // does things which needed to wait until loading finished
+    this->map_iface->checkHandleAsyncMusicLoadFinish();
+
     if(this->skin.get()) {
         this->skin->update(this->isInPlayMode(), this->map_iface->isPlaying(),
                            this->map_iface->getCurMusicPosWithOffsets());

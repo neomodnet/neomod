@@ -14,8 +14,8 @@
 #ifdef MCENGINE_FEATURE_DIRECTX11
 
 #include "VertexArrayObject.h"
-
 #include "DirectX11Interface.h"
+#include "CDynArray.h"
 
 class DirectX11VertexArrayObject final : public VertexArrayObject {
     NOCOPY_NOMOVE(DirectX11VertexArrayObject)
@@ -36,7 +36,7 @@ class DirectX11VertexArrayObject final : public VertexArrayObject {
     static int primitiveToDirectX(DrawPrimitive primitive);
     static int usageToDirectX(DrawUsageType usage);
 
-    std::vector<DirectX11Interface::SimpleVertex> convertedVertices;
+    Mc::CDynArray<DirectX11Interface::SimpleVertex> convertedVertices;
 
     ID3D11Buffer *vertexBuffer{};
 

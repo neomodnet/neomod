@@ -7,6 +7,8 @@
 #include "UString.h"
 #include "MakeDelegateWrapper.h"
 #include "Hashing.h"
+#include "Color.h"
+#include "CDynArray.h"
 
 // glm, header only, template-heavy
 #include "glm/geometric.hpp"

@@ -22,8 +22,6 @@
 
 #include "d3dcompiler.h"
 
-
-
 #define MCENGINE_D3D11_SHADER_MAX_NUM_CONSTANT_BUFFERS 9
 
 DirectX11Shader::DirectX11Shader(std::string vertexShader, std::string fragmentShader, [[maybe_unused]] bool source)
@@ -400,7 +398,9 @@ void DirectX11Shader::setUniform4f(std::string_view name, float x, float y, floa
 }
 
 void DirectX11Shader::setUniformMatrix4fv(std::string_view name, const Matrix4 &matrix) {
-    setUniformMatrix4fv(name, matrix.getTranspose());
+    Matrix4 transposed{matrix};  // HACKHACK
+    transposed.transpose();
+    setUniformMatrix4fv(name, transposed.get());
 }
 
 void DirectX11Shader::setUniformMatrix4fv(std::string_view name, const float *const v) {
@@ -711,7 +711,7 @@ bool DirectX11Shader::compile(const std::string &vertexShader, const std::string
             if(byteWidth % 16 != 0) {
                 engine->showMessageError("DirectX11Shader Error",
                                          fmt::format("Invalid byteWidth {} for \"{}\" (must be a multiple of 16)",
-                                                         (int)byteWidth, name.c_str()));
+                                                     (int)byteWidth, name.c_str()));
                 return false;
             }
 
@@ -728,14 +728,13 @@ bool DirectX11Shader::compile(const std::string &vertexShader, const std::string
             hr1 = dx11->getDevice()->CreateBuffer(&bufferDesc, nullptr, &buffer);
             if(FAILED(hr1) || buffer == nullptr) {
                 engine->showMessageError("DirectX11Shader Error", fmt::format("Couldn't CreateBuffer({}, {:x}, {:x})!",
-                                                                                  hr1, hr1, MAKE_DXGI_HRESULT(hr1)));
+                                                                              hr1, hr1, MAKE_DXGI_HRESULT(hr1)));
                 return false;
             }
 
             this->constantBuffers.push_back(buffer);
         } else {
-            engine->showMessageError("DirectX11Shader Error",
-                                     fmt::format("Invalid descType \"{}\"", descType.c_str()));
+            engine->showMessageError("DirectX11Shader Error", fmt::format("Invalid descType \"{}\"", descType.c_str()));
             return false;
         }
     }

@@ -465,7 +465,7 @@ void DirectX11Interface::drawPixel(int x, int y) {
 
 void DirectX11Interface::drawImage(const Image *image, AnchorPoint anchor, float edgeSoftness, McRect clipRect) {
     // skip entirely transparent images or if the current transparency is disabled
-    if(image == nullptr || !image->isGPUReady() || this->color.A() == 0) {
+    if(image == nullptr || !image->isGPUReady() || this->color.a == 0) {
         if(image && cv::r_debug_drawimage.getBool()) {
             const vec2 size = image->getSize();
             const vec2 pos = getAnchoredOrigin(anchor, size);
@@ -523,7 +523,7 @@ void DirectX11Interface::drawImage(const Image *image, AnchorPoint anchor, float
         this->smoothClipShader->setUniform1f("edge_softness", edgeSoftness);
 
         // set mvp for the shader
-        this->smoothClipShader->setUniformMatrix4fv("mvp", this->MP);
+        this->smoothClipShader->setMVP(this->MP);
     }
 
     static VertexArrayObject vao(DrawPrimitive::TRIANGLE_STRIP);
@@ -581,10 +581,10 @@ void DirectX11Interface::drawVAO(VertexArrayObject *vao) {
         return;
     }
 
-    const std::vector<vec3> &vertices = vao->getVertices();
-    /// const std::vector<vec3> &normals = vao->getNormals();
-    const std::vector<vec2> &texcoords = vao->getTexcoords();
-    const std::vector<Color> &vcolors = vao->getColors();
+    const auto vertices = vao->getVertices();
+    /// const auto normals = vao->getNormals();
+    const auto texcoords = vao->getTexcoords();
+    const auto vcolors = vao->getColors();
 
     if(vertices.size() < 2) return;
 
@@ -594,13 +594,13 @@ void DirectX11Interface::drawVAO(VertexArrayObject *vao) {
     // no support for triangle fans, because fuck youuu
     // rewrite all quads into triangles
     // rewrite all triangle fans into triangles
-    static std::vector<vec3> finalVertices;
-    finalVertices = vertices;
-    static std::vector<vec2> finalTexcoords;
-    finalTexcoords = texcoords;
-    static std::vector<vec4> colors;
+    static Mc::CDynArray<vec3> finalVertices;
+    finalVertices.assign(vertices.begin(), vertices.end());
+    static Mc::CDynArray<vec2> finalTexcoords;
+    finalTexcoords.assign(texcoords.begin(), texcoords.end());
+    static Mc::CDynArray<vec4> colors;
     colors.clear();
-    static std::vector<vec4> finalColors;
+    static Mc::CDynArray<vec4> finalColors;
     finalColors.clear();
 
     for(auto vcolor : vcolors) {
@@ -1207,11 +1207,11 @@ VertexArrayObject *DirectX11Interface::createVertexArrayObject(DrawPrimitive pri
 
 void DirectX11Interface::onTransformUpdate() {
     // always update default shader
-    if(this->shaderTexturedGeneric) this->shaderTexturedGeneric->setUniformMatrix4fv("mvp", this->MP);
+    if(this->shaderTexturedGeneric) this->shaderTexturedGeneric->setMVP(this->MP);
 
     // update active shader
     if(this->activeShader && this->activeShader != this->shaderTexturedGeneric && this->activeShader->isReady()) {
-        this->activeShader->setUniformMatrix4fv("mvp", this->MP);
+        this->activeShader->setMVP(this->MP);
     }
 }
 

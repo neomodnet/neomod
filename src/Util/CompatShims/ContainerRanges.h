@@ -7,25 +7,6 @@
 
 namespace Mc {
 
-#if defined(__cpp_lib_containers_ranges) && __cpp_lib_containers_ranges >= 202202L
-
-template <typename Container, typename R>
-constexpr void append_range(Container& c, R&& rg) {
-    c.append_range(std::forward<R>(rg));
-}
-
-template <typename Container, typename R>
-constexpr void assign_range(Container& c, R&& rg) {
-    c.assign_range(std::forward<R>(rg));
-}
-
-template <typename Container, typename R>
-constexpr typename Container::iterator insert_range(Container& c, typename Container::const_iterator pos, R&& rg) {
-    return c.insert_range(pos, std::forward<R>(rg));
-}
-
-#else
-
 template <class R, class T>
 concept ContainerCompatibleRange =
     std::ranges::input_range<R> && std::convertible_to<std::ranges::range_reference_t<R>, T>;
@@ -51,7 +32,5 @@ constexpr typename Container::iterator insert_range(Container& c, typename Conta
 }
 
 // NOLINTEND(cppcoreguidelines-missing-std-forward)
-
-#endif
 
 }  // namespace Mc

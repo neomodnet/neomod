@@ -1592,6 +1592,8 @@ void BeatmapInterface::loadMusic(bool reload, bool async) {
         return;
     }
 
+    this->bIsAsyncMusicLoadHandled = false;
+
     // load the song (again)
     if(haveExistingMusic) {
         // rebuild with new path
@@ -1600,45 +1602,34 @@ void BeatmapInterface::loadMusic(bool reload, bool async) {
         // fresh load
         if(async) resourceManager->requestNextLoadAsync();
         this->music = resourceManager->loadSoundAbs(newPath, "BEATMAP_MUSIC", true /* stream */, false, false);
+    }
 
-        // for sync load it should be ready now (one-time manual call for a fresh load, then the callback should handle it after)
-        if(!async) {
-            BeatmapInterface::onMusicLoadingFinished(this->music, this);
-        }
-
-        // set the callback after we call it once manually
-        this->music->setOnInitCB(
-            Resource::SyncLoadCB{.userdata = nullptr, .callback = &BeatmapInterface::onMusicLoadingFinished});
+    // for sync load it should be ready now (otherwise Osu::update will call checkHandleAsyncMusicLoadFinish during update() until it is loaded)
+    if(!async) {
+        this->checkHandleAsyncMusicLoadFinish();
     }
 
     // TODO: load custom hitsounds
     // TODO: load custom skin elements
 }
 
-void BeatmapInterface::onMusicLoadingFinished(Resource *rs, void * /*userdata*/) {
-    auto *map_iface = osu->getMapInterface();
-    if(!map_iface) return;
+void BeatmapInterface::checkHandleAsyncMusicLoadFinish() {
+    if(this->bIsAsyncMusicLoadHandled || unlikely(!this->music)) return;
+    if(resourceManager->isLoadingResource(this->music)) return;
 
-    auto *music = static_cast<Sound *>(rs);
-    if(!music || music != map_iface->getMusic()) {
-        // impossible?
-        if(music) {
-            debugLog("loaded music was different from currently playing!?");
-        }
-        return;
-    }
+    this->bIsAsyncMusicLoadHandled = true;
 
-    if(!music->isReady() || !soundEngine->enqueue(music)) {
+    if(!this->music->isReady() || !soundEngine->enqueue(this->music)) {
         logIf(cv::debug_osu.getBool() || cv::debug_snd.getBool(), "failed to enqueue music at {}",
-              music->getFilePath());
+              this->music->getFilePath());
     } else {
         // ready and enqueued
-        music->setBaseVolume(map_iface->getIdealVolume());
-        map_iface->fMusicFrequencyBackup = music->getFrequency();
-        map_iface->setMusicSpeed(map_iface->getSpeedMultiplier());
-        if(map_iface->bIsWaitingForPreview) {
-            map_iface->bIsWaitingForPreview = false;
-            map_iface->handlePreviewPlay();
+        this->music->setBaseVolume(this->getIdealVolume());
+        this->fMusicFrequencyBackup = music->getFrequency();
+        this->setMusicSpeed(this->getSpeedMultiplier());
+        if(this->bIsWaitingForPreview) {
+            this->bIsWaitingForPreview = false;
+            this->handlePreviewPlay();
             if(!ui->getMainMenu()->isVisible() && db->isFinished()) {
                 loading_reselect_map.clear();
             }

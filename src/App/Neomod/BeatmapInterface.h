@@ -50,6 +50,9 @@ class BeatmapInterface final : public AbstractBeatmapInterface {
     // live (but also on start)
     void onModUpdate(bool rebuildSliderVertexBuffers = true, bool recomputeDrainRate = true);
 
+    // does things which needed to wait until loading finished, even outside of play mode (called by Osu::update)
+    void checkHandleAsyncMusicLoadFinish();
+
     // HACK: Updates buffering state and pauses/unpauses the music!
     bool isBuffering();
 
@@ -132,7 +135,6 @@ class BeatmapInterface final : public AbstractBeatmapInterface {
     inline void reloadMusicNow() { this->loadMusic(true, false); }
     void loadMusic(bool reload = false, bool async = false);
     void unloadMusic();
-    static void onMusicLoadingFinished(Resource *rs, void *this_);
 
     [[nodiscard]] f32 getIdealVolume() const;
     void setMusicSpeed(f32 speed);
@@ -293,6 +295,7 @@ class BeatmapInterface final : public AbstractBeatmapInterface {
     f32 fAfterMusicIsFinishedVirtualAudioTimeStart;
     bool bIsFirstMissSound;
     bool bIsWaitingForPreview{false};
+    bool bIsAsyncMusicLoadHandled{true};
     DatabaseBeatmap::TIMING_INFO cur_timing_info{};
     i32 default_sample_set{1};
 

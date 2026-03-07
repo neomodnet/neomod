@@ -618,7 +618,7 @@ void SDLGPUInterface::setAlpha(float alpha) {
 
 void SDLGPUInterface::drawImage(const Image *image, AnchorPoint anchor, float edgeSoftness, McRect clipRect) {
     // skip entirely transparent images or if the current transparency is disabled
-    if(image == nullptr || !image->isGPUReady() || m_color.A() == 0) {
+    if(image == nullptr || !image->isGPUReady() || m_color.a == 0) {
         if(image && cv::r_debug_drawimage.getBool()) {
             const vec2 size = image->getSize();
             const vec2 pos = getAnchoredOrigin(anchor, size);
@@ -663,7 +663,7 @@ void SDLGPUInterface::drawImage(const Image *image, AnchorPoint anchor, float ed
         m_smoothClipShader->setUniform2f("rect_max", clipMaxX, clipMaxY);
         m_smoothClipShader->setUniform1f("edge_softness", edgeSoftness);
         m_smoothClipShader->setUniform4f("col", m_color.Rf(), m_color.Gf(), m_color.Bf(), m_color.Af());
-        m_smoothClipShader->setUniformMatrix4fv("mvp", this->MP);
+        m_smoothClipShader->setMVP(this->MP);
     }
 
     static VertexArrayObject vao(DrawPrimitive::TRIANGLE_STRIP);
@@ -720,9 +720,9 @@ void SDLGPUInterface::drawVAO(VertexArrayObject *vao) {
         return;
     }
 
-    const std::vector<vec3> &vertices = vao->getVertices();
-    const std::vector<vec2> &texcoords = vao->getTexcoords();
-    const std::vector<Color> &vcolors = vao->getColors();
+    const auto vertices = vao->getVertices();
+    const auto texcoords = vao->getTexcoords();
+    const auto vcolors = vao->getColors();
     // maybe TODO: handle normals (not currently used in app code)
 
     if(vertices.size() < 2) return;
@@ -737,7 +737,7 @@ void SDLGPUInterface::drawVAO(VertexArrayObject *vao) {
     // convert per-vertex colors from packed Color to vec4.
     // when textured with no per-vertex colors, use white (col uniform provides m_color).
     // when non-textured with no per-vertex colors, use m_color directly (col uniform unused).
-    static std::vector<vec4> colors;
+    static Mc::CDynArray<vec4> colors;
     if(vcolors.empty()) {
         const vec4 c =
             hasTexcoords0 ? vec4{1.f, 1.f, 1.f, 1.f} : vec4{m_color.Rf(), m_color.Gf(), m_color.Bf(), m_color.Af()};
@@ -767,26 +767,26 @@ void SDLGPUInterface::drawVAO(VertexArrayObject *vao) {
     }
     rebuildPipeline();
 
+    // batch parameters for primitive conversion
+
+    // srcStep = source vertices consumed per primitive unit, outStep = output vertices emitted per unit, srcIdx = current source vertex index
     // clang-format off
-    static constexpr const auto getStepsAndIdx = [](DrawPrimitive t) -> std::tuple<const uSz, const uSz, uSz> {
-        switch(t) {
-            case DrawPrimitive::QUADS: return {4, 6, 0};
-            case DrawPrimitive::TRIANGLE_FAN: return {1, 3, 2};
-            case DrawPrimitive::TRIANGLES: return {3, 3, 0};
-            case DrawPrimitive::LINES: return {2, 2, 0};
-            // not worth trying to split strips, points, etc.
-            default: return {1, 1, 0};
-        }
-    };
+    uSz _srcStepTmp, _outStepTmp, srcIdx; // NOLINT(cppcoreguidelines-init-variables)
+    switch(srcPrimitive) {
+        case DrawPrimitive::QUADS:        _srcStepTmp = 4; _outStepTmp = 6; srcIdx = 0; break;
+        case DrawPrimitive::TRIANGLE_FAN: _srcStepTmp = 1; _outStepTmp = 3; srcIdx = 2; break;
+        case DrawPrimitive::TRIANGLES:    _srcStepTmp = 3; _outStepTmp = 3; srcIdx = 0; break;
+        case DrawPrimitive::LINES:        _srcStepTmp = 2; _outStepTmp = 2; srcIdx = 0; break;
+        // not worth trying to split strips, points, etc.
+        default: _srcStepTmp = 1; _outStepTmp = 1; srcIdx = 0;
+    }
     // clang-format on
 
-    // batch parameters for primitive conversion
-    // srcStep = source vertices consumed per primitive unit, outStep = output vertices emitted per unit
-    auto [srcStep, outStep, srcIdx]{getStepsAndIdx(srcPrimitive)};
+    const uSz srcStep{_srcStepTmp}, outStep{_outStepTmp};
 
     // append vertices to staging buffer, converting primitives to triangles as needed.
     // performing more than 1 loop here should be basically impossible in realistic scenarios,
-    // but still worth handling out of caution
+    // but still worth handling out of precaution
     while(srcIdx < vertices.size()) {
         if(m_stagingVertices.size() + outStep > MAX_STAGING_VERTS) {
             flushDrawCommands();
@@ -844,7 +844,7 @@ void SDLGPUInterface::drawVAO(VertexArrayObject *vao) {
 
 void SDLGPUInterface::recordBakedDraw(SDL_GPUBuffer *buffer, u32 firstVertex, u32 vertexCount,
                                       DrawPrimitive primitive) {
-    if(!m_cmdBuf || vertexCount == 0) return;
+    if(unlikely(!m_cmdBuf || vertexCount == 0)) return;
 
     const SDLGPUPrimitiveType gpuPrimitive = primitiveToSDLGPUPrimitive(primitive);
 
@@ -858,9 +858,10 @@ void SDLGPUInterface::recordBakedDraw(SDL_GPUBuffer *buffer, u32 firstVertex, u3
 }
 
 void SDLGPUInterface::recordDraw(SDL_GPUBuffer *bakedBuffer, u32 vertexOffset, u32 vertexCount) {
-    if(!m_cmdBuf || vertexCount == 0) return;
+    if(unlikely(!m_cmdBuf || vertexCount == 0)) return;
 
-    DrawCommand cmd{};
+    DrawCommand &cmd = m_pendingDraws.emplace_back();
+
     cmd.vertexOffset = vertexOffset;
     cmd.vertexCount = vertexCount;
     cmd.bakedBuffer = bakedBuffer;
@@ -875,10 +876,12 @@ void SDLGPUInterface::recordDraw(SDL_GPUBuffer *bakedBuffer, u32 vertexOffset, u
         cmd.sampler = m_dummySampler;
     }
 
+    // update shader mvp with current transformation matrix
+    m_activeShader->setMVP(this->MP);
+
     // snapshot uniform blocks from active shader
     cmd.numUniformBlocks = 0;
-    m_activeShader->setUniformMatrix4fv("mvp", this->MP);
-    for(auto &block : m_activeShader->getUniformBlocks()) {
+    for(const auto &block : m_activeShader->getUniformBlocks()) {
         if(cmd.numUniformBlocks >= 4) break;
         auto &ub = cmd.uniformBlocks[cmd.numUniformBlocks];
         ub.slot = block.binding;
@@ -895,11 +898,8 @@ void SDLGPUInterface::recordDraw(SDL_GPUBuffer *bakedBuffer, u32 vertexOffset, u
     cmd.scissorEnabled = m_bScissorEnabled;
     if(m_bScissorEnabled && !m_clipRectStack.empty()) {
         const auto &cr = m_clipRectStack.back();
-        Scissor &csc = cmd.scissor;
-        csc.pos.x = (i32)cr.getMinX();
-        csc.pos.y = (i32)cr.getMinY();
-        csc.size.x = (i32)cr.getWidth();
-        csc.size.y = (i32)cr.getHeight();
+        Scissor &csc =
+            cmd.scissor = {.pos{(i32)cr.getMinX(), (i32)cr.getMinY()}, .size{(i32)cr.getWidth(), (i32)cr.getHeight()}};
         // clamp for vulkan
         if(csc.pos.x < 0) {
             csc.size.x += csc.pos.x;
@@ -916,7 +916,6 @@ void SDLGPUInterface::recordDraw(SDL_GPUBuffer *bakedBuffer, u32 vertexOffset, u
     // snapshot stencil reference
     cmd.stencilRef = (u8)(m_iStencilState == 1 ? 1 : 0);
 
-    m_pendingDraws.push_back(cmd);
     m_iStatsNumDrawCalls++;
 }
 
@@ -979,6 +978,12 @@ void SDLGPUInterface::flushDrawCommands() {
     // replay render passes from boundaries
     const u32 totalDraws = (u32)m_pendingDraws.size();
     const uSz numBoundaries = m_renderPassBoundaries.size();
+
+    // hoisted out
+    SDL_Rect tmpSc{};
+    SDL_GPUViewport tmpVp{};
+    tmpVp.min_depth = 0.0f;  // always 0-1
+    tmpVp.max_depth = 1.0f;
 
     for(uSz bi = 0; bi < numBoundaries; bi++) {
         auto &boundary = m_renderPassBoundaries[bi];
@@ -1049,32 +1054,33 @@ void SDLGPUInterface::flushDrawCommands() {
 
             // set viewport
             if(cmd.viewport != lastViewport) {
-                SDL_GPUViewport vp{
-                    .x = cmd.viewport.pos.x,
-                    .y = cmd.viewport.pos.y,
-                    .w = cmd.viewport.size.x,
-                    .h = cmd.viewport.size.y,
-                    .min_depth = 0.0f,
-                    .max_depth = 1.0f,
-                };
-                SDL_SetGPUViewport(m_renderPass, &vp);
-                lastViewport = cmd.viewport;
+                auto &cvp = cmd.viewport;
+                tmpVp.x = cvp.pos.x;
+                tmpVp.y = cvp.pos.y;
+                tmpVp.w = cvp.size.x;
+                tmpVp.h = cvp.size.y;
+                SDL_SetGPUViewport(m_renderPass, &tmpVp);
+                lastViewport = cvp;
             }
 
             // set scissor
             if(cmd.scissorEnabled != lastScissorEnabled || (cmd.scissorEnabled && (cmd.scissor != lastScissor))) {
                 if(cmd.scissorEnabled) {
-                    SDL_Rect sc{.x = cmd.scissor.pos.x,
-                                .y = cmd.scissor.pos.y,
-                                .w = cmd.scissor.size.x,
-                                .h = cmd.scissor.size.y};
-                    SDL_SetGPUScissor(m_renderPass, &sc);
+                    auto &csc = cmd.scissor;
+                    tmpSc.x = csc.pos.x;
+                    tmpSc.y = csc.pos.y;
+                    tmpSc.w = csc.size.x;
+                    tmpSc.h = csc.size.y;
+                    lastScissor = csc;
                 } else {
-                    SDL_Rect fullRect{.x = 0, .y = 0, .w = (int)cmd.viewport.size.x, .h = (int)cmd.viewport.size.y};
-                    SDL_SetGPUScissor(m_renderPass, &fullRect);
+                    tmpSc.x = 0;
+                    tmpSc.y = 0;
+                    tmpSc.w = (int)cmd.viewport.size.x;
+                    tmpSc.h = (int)cmd.viewport.size.y;
+                    lastScissor = {vec2{}, cmd.viewport.size};
                 }
+                SDL_SetGPUScissor(m_renderPass, &tmpSc);
                 lastScissorEnabled = cmd.scissorEnabled;
-                lastScissor = cmd.scissor;
             }
 
             // set stencil reference

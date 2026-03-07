@@ -13,7 +13,6 @@
 #include <string>
 #include <memory>
 #include <utility>  // unreachable
-#include <optional>
 
 class TextureAtlas;
 class Sound;
@@ -67,19 +66,6 @@ class Resource {
     [[nodiscard]] forceinline bool isAsyncReady() const { return this->bAsyncReady.load(std::memory_order_acquire); }
     [[nodiscard]] forceinline bool isInterrupted() const { return this->bInterrupted.load(std::memory_order_acquire); }
 
-    // run a callback after init() is called, rs parameter is the resource that finished loading
-    // check rs->isReady() for success status
-    struct SyncLoadCB {
-        using cb = void (*)(Resource *rs, void *userdata);
-        void *userdata;
-        cb callback;
-    };
-
-    inline void setOnInitCB(std::optional<SyncLoadCB> callback = std::nullopt) {
-        // arg can be empty to remove
-        this->onInit = callback;
-    }
-
    protected:
     virtual void init() = 0;
     virtual void initAsync() = 0;
@@ -89,7 +75,6 @@ class Resource {
     inline void setReady(bool ready) { return this->bReady.store(ready, std::memory_order_release); }
     inline void setAsyncReady(bool ready) { return this->bAsyncReady.store(ready, std::memory_order_release); }
 
-    std::optional<SyncLoadCB> onInit;
     std::string sFilePath{};
     std::string sName{};
     std::string sDebugIdentifier;

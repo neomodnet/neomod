@@ -44,7 +44,7 @@ void SDLGPUShader::init() {
     // parse vertex shader pack
     std::string vshGlsl;
     std::vector<u8> vshBinary;
-    SDL_GPUShaderFormat vshFormat;
+    SDL_GPUShaderFormat vshFormat;  // NOLINT(cppcoreguidelines-init-variables)
     if(!parseShaderPack(m_device, reinterpret_cast<const u8 *>(m_sVsh.data()), m_sVsh.size(), &vshGlsl, vshBinary,
                         vshFormat)) {
         debugLog("SDLGPUShader: failed to parse vertex shader pack");
@@ -55,7 +55,7 @@ void SDLGPUShader::init() {
     // parse fragment shader pack
     std::string fshGlsl;
     std::vector<u8> fshBinary;
-    SDL_GPUShaderFormat fshFormat;
+    SDL_GPUShaderFormat fshFormat;  // NOLINT(cppcoreguidelines-init-variables)
     if(!parseShaderPack(m_device, reinterpret_cast<const u8 *>(m_sFsh.data()), m_sFsh.size(), &fshGlsl, fshBinary,
                         fshFormat)) {
         debugLog("SDLGPUShader: failed to parse fragment shader pack");
@@ -65,8 +65,9 @@ void SDLGPUShader::init() {
 
     {
         // parse uniform blocks from both GLSL sources
-        Mc::append_range(m_uniformBlocks, parseUniformBlocks(vshGlsl));
-        Mc::append_range(m_uniformBlocks, parseUniformBlocks(fshGlsl));
+        std::vector<UniformBlock> tmpUniformBlocks = parseUniformBlocks(vshGlsl);
+        Mc::append_range(tmpUniformBlocks, parseUniformBlocks(fshGlsl));
+        m_uniformBlocks = std::move(tmpUniformBlocks);
     }
 
     if(m_uniformBlocks.empty()) {
@@ -155,7 +156,7 @@ void SDLGPUShader::destroy() {
 }
 
 void SDLGPUShader::enable() {
-    if(!m_gpu || !m_device || !this->isReady()) return;
+    if(unlikely(!m_gpu || !m_device || !this->isReady())) return;
 
     // backup
     SDLGPUShader *currentShader = m_gpu->getActiveShader();
@@ -171,7 +172,7 @@ void SDLGPUShader::enable() {
 }
 
 void SDLGPUShader::disable() {
-    if(!m_gpu || !m_device || !this->isReady()) return;
+    if(unlikely(!m_gpu || !m_device || !this->isReady())) return;
 
     // restore backup
     assert(m_lastActiveShader);
@@ -181,19 +182,21 @@ void SDLGPUShader::disable() {
 // uniform setters
 
 void SDLGPUShader::writeUniform(std::string_view name, const void *data, u32 dataSize) {
-    if(!m_gpu || !m_device || !this->isReady()) return;
+    if(unlikely(!m_gpu || !m_device || !this->isReady())) return;
 
-    size_t bi, vi;
+    u8 *uniformVarDataPtr;  // NOLINT(cppcoreguidelines-init-variables)
+    u32 varSize;            // NOLINT(cppcoreguidelines-init-variables)
     if(const auto &it = m_uniformCache.find(name); it != m_uniformCache.end()) {
-        bi = it->second.first;
-        vi = it->second.second;
+        uniformVarDataPtr = it->second.first;
+        varSize = it->second.second;
     } else {
         bool found = false;
-        for(bi = 0; bi < m_uniformBlocks.size(); bi++) {
-            auto &block = m_uniformBlocks[bi];
-            for(vi = 0; vi < block.vars.size(); vi++) {
-                if(block.vars[vi].name == name) {
-                    m_uniformCache.emplace(std::string(name), std::pair{bi, vi});
+        for(auto &block : m_uniformBlocks) {
+            for(auto &var : block.vars) {
+                if(var.name == name) {
+                    uniformVarDataPtr = block.buffer.data() + var.offset;
+                    varSize = var.size;
+                    m_uniformCache.emplace(std::string{name}, std::pair{uniformVarDataPtr, varSize});
                     found = true;
                     break;
                 }
@@ -206,8 +209,7 @@ void SDLGPUShader::writeUniform(std::string_view name, const void *data, u32 dat
         }
     }
 
-    auto &var = m_uniformBlocks[bi].vars[vi];
-    std::memcpy(m_uniformBlocks[bi].buffer.data() + var.offset, data, std::min(dataSize, var.size));
+    std::memcpy(uniformVarDataPtr, data, std::min(dataSize, varSize));
 }
 
 void SDLGPUShader::setUniform1f(std::string_view name, float value) { writeUniform(name, &value, sizeof(float)); }
@@ -220,7 +222,7 @@ void SDLGPUShader::setUniform1i(std::string_view name, int value) { writeUniform
 
 void SDLGPUShader::setUniform2f(std::string_view name, float x, float y) {
     float v[2] = {x, y};
-    writeUniform(name, v, sizeof(v));
+    writeUniform(name, &v[0], sizeof(v));
 }
 
 void SDLGPUShader::setUniform2fv(std::string_view name, int count, const float *const vectors) {
@@ -229,7 +231,7 @@ void SDLGPUShader::setUniform2fv(std::string_view name, int count, const float *
 
 void SDLGPUShader::setUniform3f(std::string_view name, float x, float y, float z) {
     float v[3] = {x, y, z};
-    writeUniform(name, v, sizeof(v));
+    writeUniform(name, &v[0], sizeof(v));
 }
 
 void SDLGPUShader::setUniform3fv(std::string_view name, int count, const float *const vectors) {
@@ -238,7 +240,7 @@ void SDLGPUShader::setUniform3fv(std::string_view name, int count, const float *
 
 void SDLGPUShader::setUniform4f(std::string_view name, float x, float y, float z, float w) {
     float v[4] = {x, y, z, w};
-    writeUniform(name, v, sizeof(v));
+    writeUniform(name, &v[0], sizeof(v));
 }
 
 void SDLGPUShader::setUniformMatrix4fv(std::string_view name, const Matrix4 &matrix) {
@@ -255,16 +257,16 @@ bool SDLGPUShader::parseShaderPack(SDL_GPUDevice *device, const u8 *data, size_t
                                    std::vector<u8> &binaryOut, SDL_GPUShaderFormat &formatOut) {
     if(dataSize < 12 || std::memcmp(data, "SGSH", 4) != 0) return false;
 
-    u32 version;
+    u32 version;  // NOLINT(cppcoreguidelines-init-variables)
     std::memcpy(&version, data + 4, 4);
     if(version != 1) return false;
 
-    u32 numSections;
+    u32 numSections;  // NOLINT(cppcoreguidelines-init-variables)
     std::memcpy(&numSections, data + 8, 4);
     if(dataSize < 12 + numSections * 12) return false;
 
     std::vector<ShaderPackSection> sections(numSections);
-    for(u32 i = 0; i < numSections; i++) {
+    for(uSz i = 0; i < numSections; i++) {
         const u8 *entry = data + 12 + i * 12;
         std::memcpy(&sections[i].format, entry, 4);
         std::memcpy(&sections[i].offset, entry + 4, 4);
@@ -274,7 +276,7 @@ bool SDLGPUShader::parseShaderPack(SDL_GPUDevice *device, const u8 *data, size_t
     // extract GLSL source (optional, caller may not need it)
     if(glslOut) {
         bool foundGlsl = false;
-        for(auto &sec : sections) {
+        for(const auto &sec : sections) {
             if(sec.format == FMT_GLSL) {
                 if(sec.offset + sec.size > dataSize) return false;
                 glslOut->assign(reinterpret_cast<const char *>(data) + sec.offset, sec.size);
@@ -298,9 +300,9 @@ bool SDLGPUShader::parseShaderPack(SDL_GPUDevice *device, const u8 *data, size_t
     };
 
     bool foundBinary = false;
-    for(auto &prio : formatPriority) {
+    for(const auto &prio : formatPriority) {
         if(!(supportedFormats & prio.gpuFmt)) continue;
-        for(auto &sec : sections) {
+        for(const auto &sec : sections) {
             if(sec.format == prio.packFmt) {
                 if(sec.offset + sec.size > dataSize) return false;
                 binaryOut.assign(data + sec.offset, data + sec.offset + sec.size);
@@ -376,10 +378,11 @@ std::vector<SDLGPUShader::UniformBlock> SDLGPUShader::parseUniformBlocks(const s
             totalOffset = alignedOffset + typeSize(typeName);
         }
         totalOffset = (totalOffset + 15) & ~15u;  // std140 struct alignment
-        block.buffer.resize(totalOffset, 0);
+        block.buffer = FixedSizeArray<u8>{totalOffset, {/*zero*/}};
 
         // second pass: record non-padding variables with their offsets
         u32 currentOffset = 0;
+        std::vector<UniformVar> tmpVars;
         for(auto varMatch : ctre::search_all<varPat>(blockBody)) {
             auto typeName = varMatch.get<1>().to_view();
             auto varName = varMatch.get<2>().to_view();
@@ -388,9 +391,10 @@ std::vector<SDLGPUShader::UniformBlock> SDLGPUShader::parseUniformBlocks(const s
             u32 size = typeSize(typeName);
             currentOffset = alignedOffset + size;
 
-            if(varName.starts_with("_pad")) continue;
-            block.vars.push_back({std::string(varName), alignedOffset, size});
+            if(varName.starts_with("_pad"sv)) continue;
+            tmpVars.emplace_back(std::string{varName}, alignedOffset, size);
         }
+        block.vars = std::move(tmpVars);
 
         ret.push_back(std::move(block));
     }

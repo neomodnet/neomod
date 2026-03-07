@@ -254,6 +254,7 @@ neomod_SOURCES = \
 	src/Platform/main.cpp \
 	src/Platform/main_impl.cpp \
 	src/Util/ACFParser.cpp \
+	src/Util/CDynArray.cpp \
 	src/Util/MD5Hash.cpp \
 	src/Util/Quaternion.cpp \
 	src/Util/SString.cpp \

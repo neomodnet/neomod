@@ -15,6 +15,7 @@
 
 #include "Shader.h"
 
+#include "FixedSizeArray.h"
 #include "Hashing.h"
 #include "types.h"
 
@@ -82,16 +83,15 @@ class SDLGPUShader final : public Shader {
         u32 offset;  // byte offset within the uniform block buffer
         u32 size;    // size in bytes
     };
-
     struct UniformBlock {
-        std::vector<UniformVar> vars;
-        std::vector<u8> buffer;  // cpu-side data
+        FixedSizeArray<UniformVar> vars;
+        FixedSizeArray<u8> buffer;  // cpu-side data
         u32 set;
         u32 binding;
     };
 
     // access uniform blocks for snapshotting into deferred draw commands
-    [[nodiscard]] const std::vector<UniformBlock> &getUniformBlocks() const { return m_uniformBlocks; }
+    [[nodiscard]] const FixedSizeArray<UniformBlock> &getUniformBlocks() const { return m_uniformBlocks; }
 
    private:
     // parse a .shdpk shader pack, extracting GLSL source and the best-matching binary for the device
@@ -123,10 +123,10 @@ class SDLGPUShader final : public Shader {
 
     // uniform blocks parsed from GLSL (fragment stage only for custom shaders)
     // index 0 = vertex uniforms (set=1), rest = fragment uniform blocks
-    std::vector<UniformBlock> m_uniformBlocks;
+    FixedSizeArray<UniformBlock> m_uniformBlocks;
 
-    // fast name → (block index, var index) lookup
-    Hash::unstable_stringmap<std::pair<size_t, size_t>> m_uniformCache;
+    // fast name -> uniform {var data pointer, var size} lookup
+    Hash::unstable_stringmap<std::pair<u8 *, u32>> m_uniformCache;
 };
 
 #endif

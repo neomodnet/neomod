@@ -87,10 +87,10 @@ void DirectX11VertexArrayObject::init() {
 
     this->convertedVertices.clear();
     {
-        std::vector<vec3> finalVertices = this->vertices;
-        std::vector<vec2> finalTexcoords = this->texcoords;
-        std::vector<vec4> colors;
-        std::vector<vec4> finalColors;
+        Mc::CDynArray<vec3> finalVertices = this->vertices;
+        Mc::CDynArray<vec2> finalTexcoords = this->texcoords;
+        Mc::CDynArray<vec4> colors;
+        Mc::CDynArray<vec4> finalColors;
 
         for(auto clr : this->colors) {
             const vec4 color = vec4(clr.Rf(), clr.Gf(), clr.Bf(), clr.Af());

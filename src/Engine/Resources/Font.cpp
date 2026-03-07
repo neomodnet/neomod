@@ -22,6 +22,7 @@
 #include "SyncMutex.h"
 #include "Image.h"
 #include "Hashing.h"
+#include "CDynArray.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -46,6 +47,7 @@
 #endif
 
 namespace {  // static namespace
+using Mc::CDynArray;
 
 // constants for atlas generation and rendering
 constexpr const float ATLAS_OCCUPANCY_TARGET{0.75f};  // target atlas occupancy before resize
@@ -137,18 +139,18 @@ struct McFontImpl final {
         [[nodiscard]] size_t numVerts() const { return verts.size(); }
         [[nodiscard]] size_t numMetrics() const { return metrics.size(); }
 
-        std::vector<vec3> &getVerts() { return verts; }
-        std::vector<vec2> &getTexcoords() { return texcoords; }
-        std::vector<const GLYPH_METRICS *> &getMetrics() { return metrics; }
+        CDynArray<vec3> &getVerts() { return verts; }
+        CDynArray<vec2> &getTexcoords() { return texcoords; }
+        CDynArray<const GLYPH_METRICS *> &getMetrics() { return metrics; }
 
-        [[nodiscard]] const std::vector<vec3> &getVerts() const { return verts; }
-        [[nodiscard]] const std::vector<vec2> &getTexcoords() const { return texcoords; }
-        [[nodiscard]] const std::vector<const GLYPH_METRICS *> &getMetrics() const { return metrics; }
+        [[nodiscard]] const CDynArray<vec3> &getVerts() const { return verts; }
+        [[nodiscard]] const CDynArray<vec2> &getTexcoords() const { return texcoords; }
+        [[nodiscard]] const CDynArray<const GLYPH_METRICS *> &getMetrics() const { return metrics; }
 
        private:
-        std::vector<vec3> verts{};
-        std::vector<vec2> texcoords{};
-        std::vector<const GLYPH_METRICS *> metrics{};
+        CDynArray<vec3> verts{};
+        CDynArray<vec2> texcoords{};
+        CDynArray<const GLYPH_METRICS *> metrics{};
     };
 
     std::vector<char16_t> m_vInitialGlyphs;
@@ -262,12 +264,12 @@ struct McFontImpl final {
     FT_Face getFontFaceForGlyph(char16_t ch);
 
     // returns end vertex from startVertex
-    size_t buildGlyphGeometry(std::vector<vec3> &vertsOut, std::vector<vec2> &texcoordsOut, const GLYPH_METRICS &gm,
+    size_t buildGlyphGeometry(std::span<vec3> vertsOut, std::span<vec2> texcoordsOut, const GLYPH_METRICS &gm,
                               float advanceX, size_t startVertex);
 
     // returns final vertices ready to be drawn in the out parameter
-    void buildStringGeometry(const UString &text, std::vector<vec3> &vertsOut, std::vector<vec2> &texcoordsOut,
-                             size_t maxGlyphs, std::vector<const GLYPH_METRICS *> &gmOut);
+    void buildStringGeometry(const UString &text, std::span<vec3> vertsOut, std::span<vec2> texcoordsOut,
+                             size_t maxGlyphs, std::span<const GLYPH_METRICS *> gmOut);
 
     static std::unique_ptr<Channel[]> unpackMonoBitmap(const FT_Bitmap &bitmap);
 
@@ -506,7 +508,7 @@ void McFontImpl::drawString(const UString &text, std::optional<TextShadow> shado
 
     m_textureAtlas->getAtlasImage()->bind();
 
-    if(const auto &shadOpt = shadow; shadOpt.has_value() && shadOpt->col_shadow.A() > 0) {
+    if(const auto &shadOpt = shadow; shadOpt.has_value() && shadOpt->col_shadow.a > 0) {
         const auto &shadowConf = *shadOpt;
         const float px = shadowConf.offs_px;
 
@@ -1087,8 +1089,8 @@ FT_BitmapGlyph McFontImpl::loadBitmapGlyph(char16_t ch, FT_Face face, bool store
     return bitmapGlyph;
 }
 
-size_t McFontImpl::buildGlyphGeometry(std::vector<vec3> &vertsOut, std::vector<vec2> &texcoordsOut,
-                                      const GLYPH_METRICS &gm, float advanceX, size_t startVertex) {
+size_t McFontImpl::buildGlyphGeometry(std::span<vec3> vertsOut, std::span<vec2> texcoordsOut, const GLYPH_METRICS &gm,
+                                      float advanceX, size_t startVertex) {
     const float atlasWidth{static_cast<float>(m_textureAtlas->getAtlasImage()->getWidth())};
     const float atlasHeight{static_cast<float>(m_textureAtlas->getAtlasImage()->getHeight())};
 
@@ -1148,8 +1150,8 @@ size_t McFontImpl::buildGlyphGeometry(std::vector<vec3> &vertsOut, std::vector<v
     return startVertex + VERTS_PER_VAO;
 }
 
-void McFontImpl::buildStringGeometry(const UString &text, std::vector<vec3> &vertsOut, std::vector<vec2> &texcoordsOut,
-                                     size_t maxGlyphs, std::vector<const GLYPH_METRICS *> &gmOut) {
+void McFontImpl::buildStringGeometry(const UString &text, std::span<vec3> vertsOut, std::span<vec2> texcoordsOut,
+                                     size_t maxGlyphs, std::span<const GLYPH_METRICS *> gmOut) {
     float advanceX = 0.0f;
     size_t startVertex = 0;
 
@@ -1331,7 +1333,8 @@ void McFont::drawTextureAtlas() const {
         const f32 fitWidth = (actualScreenSize.x * 0.75) / ta->getWidth();
 
         g->scale(fitWidth, fitWidth);
-        const vec2 centerTrans{(actualScreenPos.x + ta->getWidth()) / 2.f, (actualScreenPos.y + ta->getHeight() / 2.f) + yOffset};
+        const vec2 centerTrans{(actualScreenPos.x + ta->getWidth()) / 2.f,
+                               (actualScreenPos.y + ta->getHeight() / 2.f) + yOffset};
         g->translate(centerTrans);
 
         // draw image

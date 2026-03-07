@@ -45,7 +45,7 @@ class SDLGPUVertexArrayObject final : public VertexArrayObject {
     SDLGPUInterface *m_gpu;
     SDL_GPUDevice *m_device;
 
-    std::vector<SDLGPUSimpleVertex> m_convertedVertices;
+    Mc::CDynArray<SDLGPUSimpleVertex> m_convertedVertices;
     SDL_GPUBuffer *m_vertexBuffer{nullptr};
     SDL_GPUTransferBuffer *m_transferBuffer{nullptr};
     DrawPrimitive m_convertedPrimitive;

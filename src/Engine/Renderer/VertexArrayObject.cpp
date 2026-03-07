@@ -49,6 +49,51 @@ void VertexArrayObject::addColors(std::vector<Color> colors) noexcept {
     Mc::append_range(this->colors, std::move(colors));
 }
 
+void VertexArrayObject::addVertices(Mc::CDynArray<vec3> vertices) noexcept {
+    Mc::append_range(this->vertices, std::move(vertices));
+    this->iNumVertices = this->vertices.size();
+}
+
+void VertexArrayObject::addTexcoords(Mc::CDynArray<vec2> texcoords) noexcept {
+    Mc::append_range(this->texcoords, std::move(texcoords));
+}
+
+void VertexArrayObject::addNormals(Mc::CDynArray<vec3> normals) noexcept {
+    Mc::append_range(this->normals, std::move(normals));
+}
+
+void VertexArrayObject::addColors(Mc::CDynArray<Color> colors) noexcept {
+    Mc::append_range(this->colors, std::move(colors));
+}
+
+
+void VertexArrayObject::addVertices(std::span<const vec3> vertices) noexcept {
+    Mc::append_range(this->vertices, vertices);
+    this->iNumVertices = this->vertices.size();
+}
+
+void VertexArrayObject::addTexcoords(std::span<const vec2> texcoords) noexcept {
+    Mc::append_range(this->texcoords, texcoords);
+}
+
+void VertexArrayObject::addNormals(std::span<const vec3> normals) noexcept { Mc::append_range(this->normals, normals); }
+
+void VertexArrayObject::addColors(std::span<const Color> colors) noexcept { Mc::append_range(this->colors, colors); }
+
+void VertexArrayObject::setVertices(std::span<const vec3> vertices) noexcept {
+    Mc::assign_range(this->vertices, vertices);
+    this->iNumVertices = this->vertices.size();
+}
+
+void VertexArrayObject::setTexcoords(std::span<const vec2> texcoords) noexcept {
+    Mc::assign_range(this->texcoords, texcoords);
+    this->bHasTexcoords = !this->texcoords.empty();
+}
+
+void VertexArrayObject::setNormals(std::span<const vec3> normals) noexcept { Mc::assign_range(this->normals, normals); }
+
+void VertexArrayObject::setColors(std::span<const Color> colors) noexcept { Mc::assign_range(this->colors, colors); }
+
 void VertexArrayObject::setVertex(int index, vec2 v) noexcept {
     if(index < 0 || index > (this->vertices.size() - 1)) return;
 

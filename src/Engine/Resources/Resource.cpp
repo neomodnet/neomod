@@ -51,9 +51,6 @@ bool Resource::doPathFixup(std::string& input) {
 
 void Resource::load() {
     this->init();
-    if(this->onInit.has_value()) {
-        this->onInit->callback(this, this->onInit->userdata);
-    }
 }
 
 void Resource::loadAsync() {

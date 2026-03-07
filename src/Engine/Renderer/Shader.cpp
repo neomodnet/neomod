@@ -12,8 +12,8 @@
 
 #include <sstream>
 
-Shader::SHADER_PARSE_RESULT Shader::parseShaderFromString(
-    const std::string &graphicsInterfaceAndShaderTypePrefix, const std::string &shaderSource) {
+Shader::SHADER_PARSE_RESULT Shader::parseShaderFromString(const std::string &graphicsInterfaceAndShaderTypePrefix,
+                                                          const std::string &shaderSource) {
     SHADER_PARSE_RESULT result;
 
     // e.g. ###OpenGLInterface::VertexShader##########################################################################################
@@ -54,7 +54,7 @@ Shader::SHADER_PARSE_RESULT Shader::parseShaderFromString(
     if(!foundGraphicsInterfaceAndShaderTypePrefixAtLeastOnce)
         engine->showMessageError(
             "Shader Error", fmt::format("Missing \"{}\" in shader {}", graphicsInterfaceAndShaderTypePrefix.c_str(),
-                                            shaderSource.c_str()));
+                                        shaderSource.c_str()));
 
     return result;
 }

@@ -119,7 +119,7 @@ class ModSelector final : public UIScreen {
     UIModSelectorModButton *modButton##name; \
                                              \
    public:                                   \
-    static constexpr ivec2 name##_POS{x, y}; \
+    static inline ivec2 name##_POS{x, y}; \
                                              \
    private:
     // clang-format off

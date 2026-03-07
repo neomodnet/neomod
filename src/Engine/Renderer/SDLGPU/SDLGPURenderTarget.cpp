@@ -221,7 +221,7 @@ void SDLGPURenderTarget::drawRect(int x, int y, int width, int height) {
 }
 
 void SDLGPURenderTarget::enable() {
-    if(!m_gpu || !m_device || !this->isReady()) return;
+    if(unlikely(!m_gpu || !m_device || !this->isReady())) return;
 
     Color clearCol = this->clearColor;
     if(cv::debug_rt.getBool()) clearCol = argb(0.5f, 0.0f, 0.5f, 0.0f);
@@ -236,13 +236,13 @@ void SDLGPURenderTarget::enable() {
 }
 
 void SDLGPURenderTarget::disable() {
-    if(!m_gpu || !m_device || !this->isReady()) return;
+    if(unlikely(!m_gpu || !m_device || !this->isReady())) return;
 
     m_gpu->popRenderTarget();
 }
 
 void SDLGPURenderTarget::bind(unsigned int /*textureUnit*/) {
-    if(!m_gpu || !m_device || !this->isReady()) return;
+    if(unlikely(!m_gpu || !m_device || !this->isReady())) return;
 
     // backup current
     m_prevTexture = m_gpu->getBoundTexture();
@@ -255,7 +255,7 @@ void SDLGPURenderTarget::bind(unsigned int /*textureUnit*/) {
 }
 
 void SDLGPURenderTarget::unbind() {
-    if(!m_gpu || !m_device || !this->isReady()) return;
+    if(unlikely(!m_gpu || !m_device || !this->isReady())) return;
 
     m_gpu->setBoundTexture(m_prevTexture);
     m_gpu->setBoundSampler(m_prevSampler);

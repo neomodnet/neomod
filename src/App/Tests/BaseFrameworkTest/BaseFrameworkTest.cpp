@@ -170,7 +170,7 @@ Sound *BaseFrameworkTest::getSound(ActionSound action) const {
 }
 
 void BaseFrameworkTest::showNotification(const NotificationInfo &notif) {
-    debugLog("text: {} color: {} duration: {} class: {} preset: {} cb: {:p}", notif.text, notif.custom_color.v,
+    debugLog("text: {} color: {} duration: {} class: {} preset: {} cb: {:p}", notif.text, notif.custom_color,
              notif.duration, static_cast<size_t>(notif.nclass), static_cast<size_t>(notif.preset),
              fmt::ptr(&notif.callback));
     if(notif.callback) {

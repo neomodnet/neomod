@@ -248,7 +248,7 @@ void OpenGLES32Interface::setAlpha(float alpha) { setColor(rgba(m_color.Rf(), m_
 
 void OpenGLES32Interface::drawImage(const Image *image, AnchorPoint anchor, float edgeSoftness, McRect clipRect) {
     // skip entirely transparent images or if the current transparency is disabled
-    if(image == nullptr || !image->isGPUReady() || m_color.A() == 0) {
+    if(image == nullptr || !image->isGPUReady() || m_color.a == 0) {
         if(image && cv::r_debug_drawimage.getBool()) {
             const vec2 size = image->getSize();
             const vec2 pos = getAnchoredOrigin(anchor, size);
@@ -302,7 +302,7 @@ void OpenGLES32Interface::drawImage(const Image *image, AnchorPoint anchor, floa
         this->smoothClipShader->setUniform4f("col", m_color.Rf(), m_color.Gf(), m_color.Bf(), m_color.Af());
 
         // set mvp for the shader
-        this->smoothClipShader->setUniformMatrix4fv("mvp", this->MP);
+        this->smoothClipShader->setMVP(this->MP);
     }
 
     static VertexArrayObject vao(DrawPrimitive::TRIANGLE_STRIP);
@@ -387,10 +387,10 @@ void OpenGLES32Interface::drawVAO(VertexArrayObject *vao) {
         return;
     }
 
-    const std::vector<vec3> &vertices = vao->getVertices();
-    [[maybe_unused]] const std::vector<vec3> &normals = vao->getNormals();
-    const std::vector<vec2> &texcoords = vao->getTexcoords();
-    const std::vector<Color> &vcolors = vao->getColors();
+    const auto vertices = vao->getVertices();
+    [[maybe_unused]] const auto normals = vao->getNormals();
+    const auto texcoords = vao->getTexcoords();
+    const auto vcolors = vao->getColors();
 
     if(vertices.size() < 2) return;
 
@@ -398,17 +398,17 @@ void OpenGLES32Interface::drawVAO(VertexArrayObject *vao) {
 
     // no support for quads, because fuck you
     // rewrite all quads into triangles
-    std::vector<vec3> finalVertices = vertices;
-    std::vector<vec2> finalTexcoords = texcoords;
-    std::vector<Color> colors;
-    std::vector<Color> finalColors;
+    Mc::CDynArray<vec3> finalVertices{vertices.begin(), vertices.end()};
+    Mc::CDynArray<vec2> finalTexcoords{texcoords.begin(), texcoords.end()};
+    Mc::CDynArray<Color> colors;
+    Mc::CDynArray<Color> finalColors;
 
     if(!vcolors.empty()) {
         // check if any color needs conversion (only R and B are swapped)
         bool needsConversion = false;
         MC_UNROLL
         for(auto color : vcolors) {
-            if(color.R() != color.B()) {
+            if(color.r != color.b) {
                 needsConversion = true;
                 break;
             }
@@ -420,7 +420,7 @@ void OpenGLES32Interface::drawVAO(VertexArrayObject *vao) {
                 colors.push_back(abgr(color));
             }
         } else {
-            colors = vcolors;
+            colors.assign(vcolors.begin(), vcolors.end());
         }
         finalColors = colors;
     }
@@ -818,7 +818,7 @@ VertexArrayObject *OpenGLES32Interface::createVertexArrayObject(DrawPrimitive pr
 
 void OpenGLES32Interface::onTransformUpdate() {
     // always update default shader
-    if(m_shaderTexturedGeneric) m_shaderTexturedGeneric->setUniformMatrix4fv("mvp", this->MP);
+    if(m_shaderTexturedGeneric) m_shaderTexturedGeneric->setMVP(this->MP);
 
     // update all registered shaders, including the default one
     updateAllShaderTransforms();
@@ -852,7 +852,7 @@ void OpenGLES32Interface::unregisterShader(OpenGLES32Shader *shader) {
 void OpenGLES32Interface::updateAllShaderTransforms() {
     for(size_t i = 0; i < m_registeredShaders.size(); i++) {
         if(m_registeredShaders[i]->isActive()) {
-            m_registeredShaders[i]->setUniformMatrix4fv("mvp", this->MP);
+            m_registeredShaders[i]->setMVP(this->MP);
         }
     }
 }

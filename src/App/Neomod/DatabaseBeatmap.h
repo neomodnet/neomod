@@ -330,7 +330,8 @@ class DatabaseBeatmap final {
     ~DatabaseBeatmap();
 
     DatabaseBeatmap(const std::string &filePath, const std::string &folder, BeatmapType type);  // beatmap difficulty
-    DatabaseBeatmap(std::unique_ptr<char[]> filePath, std::unique_ptr<char[]> folder, BeatmapType type);  // beatmap difficulty
+    DatabaseBeatmap(std::unique_ptr<char[]> filePath, std::unique_ptr<char[]> folder,
+                    BeatmapType type);  // beatmap difficulty
     DatabaseBeatmap(std::unique_ptr<DiffContainer> &&difficulties,
                     BeatmapType type);  // beatmapset
 
@@ -592,7 +593,9 @@ class DatabaseBeatmap final {
     // precomputed data (can-run-without-but-nice-to-have data)
     u32 ppv2Version{0};  // necessary for knowing if stars are up to date
     float fStarsNomod{0.f};
-    StarPrecalc::SRArray *star_ratings{nullptr};  // points into Database::star_ratings map (stable via unique_ptr)
+    // points into Database::star_ratings map (stable via unique_ptr)
+    // NOTE?TODO?WARNING @spec: i just realized this is unsafe if we ever want to copy DatabaseBeatmap objects around and the star ratings map removes an entry...
+    StarPrecalc::SRArray *star_ratings{nullptr};
 
     int iMinBPM{0};
     int iMaxBPM{0};
