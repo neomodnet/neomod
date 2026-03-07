@@ -869,6 +869,8 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
         loginElement->cvars[keepCbx] = &cv::mp_autologin;
     }
 
+    this->addCheckbox_("Use WebSocket connection when available", &cv::prefer_websockets);
+
 #ifndef MCENGINE_PLATFORM_WASM
     this->addSubSection_("osu!folder");
     this->addLabel_("1) If you have an existing osu!stable installation:")->setTextColor(0xff666666);
