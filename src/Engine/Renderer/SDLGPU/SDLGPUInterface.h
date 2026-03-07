@@ -15,6 +15,7 @@
 #include "ModernGraphicsShared.h"
 #include "Hashing.h"
 #include "SyncMutex.h"
+#include "UString.h"
 
 #include <array>
 #include <bit>
@@ -150,13 +151,16 @@ class SDLGPUInterface final : public ModernGraphicsShared {
     void flush() override;
 
     // renderer info
-    const char *getName() const override;
     [[nodiscard]] inline vec2 getResolution() const override { return m_viewport.size; }
-    UString getVendor() override;
-    UString getModel() override;
-    UString getVersion() override;
-    int getVRAMTotal() override;
-    int getVRAMRemaining() override;
+
+    [[nodiscard]] inline const char *getName() const override { return m_rendererName.c_str(); }
+    [[nodiscard]] inline UString getVendor() override { return m_gpuVendor; }
+    [[nodiscard]] inline UString getModel() override { return m_gpuModel; }
+    [[nodiscard]] inline UString getVersion() override { return m_gpuDriverVersion; }
+
+    // TODO? (how)
+    [[nodiscard]] inline int getVRAMTotal() override { return 0; }
+    [[nodiscard]] inline int getVRAMRemaining() override { return 0; }
 
     // callbacks
     void onResolutionChange(vec2 newResolution) override;
@@ -196,8 +200,8 @@ class SDLGPUInterface final : public ModernGraphicsShared {
     // arguments are zeroed
     void releaseUploadTransferBuffer(SDL_GPUTransferBuffer *&buf, u32 &size);
 
-    // SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM
-    static const SDLGPUTextureFormat DEFAULT_TEXTURE_FORMAT;
+    // 4 == SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM
+    static constexpr SDLGPUTextureFormat DEFAULT_TEXTURE_FORMAT{4};
 
     void setTexturing(bool enabled, bool force = false) override;
 
@@ -224,7 +228,11 @@ class SDLGPUInterface final : public ModernGraphicsShared {
 
     // cached properties for renderer queries
     SDL_PropertiesID m_devProps{0};
+
     std::string m_rendererName{"SDLGPUInterface"};
+    UString m_gpuVendor{US_("?")};
+    UString m_gpuModel{US_("?")};
+    UString m_gpuDriverVersion{US_("?")};
 
     // shaders
     std::unique_ptr<SDLGPUShader> m_defaultShader{nullptr};

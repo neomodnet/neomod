@@ -1470,7 +1470,7 @@ void Osu::doResolutionChange(vec2 newResolution, ResolutionRequestFlags src) {
         cv::windowed_resolution.setValue(res_str, false);
     }
 
-    const bool resolution_changed = (this->getSliderFrameBuffer()->getSize() != newResolution);  // HACK
+    const bool resolution_changed = (this->sliderFrameBuffer->getSize() != newResolution);  // HACK
     this->internalRect = {vec2{}, newResolution};
 
     // update dpi specific engine globals

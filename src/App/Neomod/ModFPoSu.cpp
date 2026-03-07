@@ -269,37 +269,34 @@ void ModFPoSu::update() {
         // regular mouse position mode
 
         // calculate mouse delta
-        vec2 rawDelta = mouse->getRawDelta();
+        dvec2 rawDelta = mouse->getRawDelta();
 
         // apply fposu mouse sensitivity multiplier
         const double countsPerCm = (double)cv::fposu_mouse_dpi.getInt() / 2.54;
-        const double cmPer360 = cv::fposu_mouse_cm_360.getFloat();
+        const double cmPer360 = cv::fposu_mouse_cm_360.getDouble();
         const double countsPer360 = cmPer360 * countsPerCm;
         const double multiplier = 360.0 / countsPer360;
         rawDelta *= multiplier;
 
         // apply zoom_sensitivity_ratio if zoomed
-        if(this->bZoomed && cv::fposu_zoom_sensitivity_ratio.getFloat() > 0.0f)
-            rawDelta *= (cv::fposu_zoom_fov.getFloat() / cv::fposu_fov.getFloat()) *
-                        cv::fposu_zoom_sensitivity_ratio.getFloat();  // see
+        if(this->bZoomed && cv::fposu_zoom_sensitivity_ratio.getDouble() > 0.)
+            rawDelta *= (cv::fposu_zoom_fov.getDouble() / cv::fposu_fov.getDouble()) *
+                        cv::fposu_zoom_sensitivity_ratio.getDouble();  // see
         // https://www.reddit.com/r/GlobalOffensive/comments/3vxkav/how_zoomed_sensitivity_works/
 
         // update camera
-        if(rawDelta.x != 0.0f)
-            this->camera->rotateY(rawDelta.x * (cv::fposu_invert_horizontal.getBool() ? 1.0f : -1.0f));
-        if(rawDelta.y != 0.0f) this->camera->rotateX(rawDelta.y * (cv::fposu_invert_vertical.getBool() ? 1.0f : -1.0f));
+        if(rawDelta.x != 0.)
+            this->camera->rotateY((float)(rawDelta.x * (cv::fposu_invert_horizontal.getBool() ? 1. : -1.)));
+        if(rawDelta.y != 0.)
+            this->camera->rotateX((float)(rawDelta.y * (cv::fposu_invert_vertical.getBool() ? 1. : -1.)));
 
-        // calculate ray-mesh intersection and set new mouse pos
-        vec2 newMousePos = this->intersectRayMesh(this->camera->getPos(), this->camera->getViewDirection());
-
-        const bool osCursorVisible = (env->isCursorVisible() || !env->isCursorInWindow() || !env->winFocused());
-
-        if(!osCursorVisible) {
-            if(newMousePos.x != 0.0f || newMousePos.y != 0.0f) {
+        // don't touch mouse pos if the os cursor is visible or we are unfocused
+        if(!(env->isCursorVisible() || !env->isCursorInWindow() || !env->winFocused())) {
+            // calculate ray-mesh intersection and set new mouse pos
+            vec2 newMousePos = this->intersectRayMesh(this->camera->getPos(), this->camera->getViewDirection());
+            if(newMousePos.x != 0.f || newMousePos.y != 0.f) {
                 this->setMousePosCompensated(newMousePos);
             } else {
-                // special case: don't move the cursor if there's no intersection, the OS cursor isn't visible, and the
-                // cursor is to be confined to the window
                 this->bCrosshairIntersectsScreen = false;
             }
         }

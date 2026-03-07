@@ -180,8 +180,8 @@ void Graphics::push3DScene(McRect region) {
     }
 
     // reset & init
-    this->v3dSceneOffset.x = this->v3dSceneOffset.y = this->v3dSceneOffset.z = 0;
-    float fov = 60.0f;
+    this->v3dSceneOffset = vec3{};
+    constexpr float fov = 60.0f;
 
     // push true, set region
     this->bIs3dScene = true;

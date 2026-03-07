@@ -35,7 +35,7 @@
 
 #define DEBUG_SDLGPU false
 
-const SDLGPUTextureFormat SDLGPUInterface::DEFAULT_TEXTURE_FORMAT{SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM};
+static_assert(SDLGPUInterface::DEFAULT_TEXTURE_FORMAT == (SDLGPUTextureFormat)SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
 
 SDLGPUInterface::SDLGPUInterface(SDL_Window *window)
     : ModernGraphicsShared(), m_window(window), m_currentPrimitiveType(SDL_GPU_PRIMITIVETYPE_TRIANGLELIST) {}
@@ -131,10 +131,15 @@ bool SDLGPUInterface::init() {
     }
 
     const std::string driver = SDL_GetGPUDeviceDriver(m_device);
-    m_rendererName = fmt::format("SDLGPUInterface ({})", driver);
-    m_devProps = SDL_GetGPUDeviceProperties(m_device);
-
     debugLog("SDLGPUInterface: GPU driver: {}", driver);
+
+    // build renderer query string cache (for VProf, mainly)
+    m_rendererName = fmt::format("SDLGPUInterface ({})", driver);
+    if(m_devProps = SDL_GetGPUDeviceProperties(m_device); m_devProps != 0) {
+        m_gpuVendor = SDL_GetStringProperty(m_devProps, SDL_PROP_GPU_DEVICE_DRIVER_NAME_STRING, "?");
+        m_gpuModel = SDL_GetStringProperty(m_devProps, SDL_PROP_GPU_DEVICE_NAME_STRING, "?");
+        m_gpuDriverVersion = SDL_GetStringProperty(m_devProps, SDL_PROP_GPU_DEVICE_DRIVER_VERSION_STRING, "?");
+    }
 
     // claim window
     if(!SDL_ClaimWindowForGPUDevice(m_device, m_window)) {
@@ -169,6 +174,7 @@ bool SDLGPUInterface::init() {
                                          static_cast<uSz>(SDLGPU_default_fsh_size()));
 
         m_defaultShader.reset(static_cast<SDLGPUShader *>(createShaderFromSource(vshPack, fshPack)));
+        m_defaultShader->loadAsync();
         m_defaultShader->load();
 
         if(!m_defaultShader->isReady()) {
@@ -275,11 +281,12 @@ bool SDLGPUInterface::init() {
         debugLog("SDLGPUInterface: Failed to set max frames in flight to {}: {}", m_iMaxFrameLatency, SDL_GetError());
         // it's default to 2 in SDL, so if we failed to change it, set it to 2
         m_iMaxFrameLatency = 2;
+    } else {
+        // only set callbacks/values on this if we succeeded
+        cv::r_sync_max_frames.setDefaultDouble(m_iMaxFrameLatency);
+        cv::r_sync_max_frames.setValue(m_iMaxFrameLatency);
+        cv::r_sync_max_frames.setCallback(SA::MakeDelegate<&SDLGPUInterface::onFramecountNumChanged>(this));
     }
-
-    cv::r_sync_max_frames.setDefaultDouble(m_iMaxFrameLatency);
-    cv::r_sync_max_frames.setValue(m_iMaxFrameLatency);
-    cv::r_sync_max_frames.setCallback(SA::MakeDelegate<&SDLGPUInterface::onFramecountNumChanged>(this));
 
     return true;
 }
@@ -1428,27 +1435,6 @@ void SDLGPUInterface::popRenderTarget() {
     // record boundary
     addRenderPassBoundary();
 }
-
-const char *SDLGPUInterface::getName() const { return m_rendererName.c_str(); }
-
-UString SDLGPUInterface::getVendor() {
-    if(!m_devProps) return "?";
-    return SDL_GetStringProperty(m_devProps, SDL_PROP_GPU_DEVICE_DRIVER_NAME_STRING, "?");
-}
-
-UString SDLGPUInterface::getModel() {
-    if(!m_devProps) return "?";
-    return SDL_GetStringProperty(m_devProps, SDL_PROP_GPU_DEVICE_NAME_STRING, "?");
-}
-
-UString SDLGPUInterface::getVersion() {
-    if(!m_devProps) return "?";
-    return SDL_GetStringProperty(m_devProps, SDL_PROP_GPU_DEVICE_DRIVER_VERSION_STRING, "?");
-}
-
-int SDLGPUInterface::getVRAMTotal() { return 0; }
-
-int SDLGPUInterface::getVRAMRemaining() { return 0; }
 
 // callbacks
 
