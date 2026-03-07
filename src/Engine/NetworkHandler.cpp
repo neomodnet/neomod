@@ -619,7 +619,7 @@ void NetworkImpl::update() {
             const struct curl_ws_frame* meta = nullptr;
             res = curl_ws_recv(ws->handle, buf, sizeof(buf), &nb_read, &meta);
 
-            if(res == CURLE_OK) {
+            if(res == CURLE_OK && meta != nullptr) {
                 if(nb_read > 0 && (meta->flags & CURLWS_BINARY)) {
                     ws->in_partial.insert(ws->in_partial.end(), buf, buf + nb_read);
                     bytes_available -= nb_read;
@@ -638,7 +638,7 @@ void NetworkImpl::update() {
                 ws->status = WSStatus::DISCONNECTED;
             }
 
-            if(meta->flags & CURLWS_CLOSE) {
+            if(meta != nullptr && (meta->flags & CURLWS_CLOSE)) {
                 debugLog("Websocket connection closed.");
                 ws->status = WSStatus::DISCONNECTED;
             }
