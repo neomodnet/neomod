@@ -15,7 +15,5 @@ struct OnlineMapInfo {
     bool server_has_osz2;
 };
 
-void process_leaderboard_response(const Packet &response);
-
 void fetch_online_scores(const DatabaseBeatmap *beatmap);
 }  // namespace BANCHO::Leaderboard

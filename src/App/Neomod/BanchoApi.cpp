@@ -23,11 +23,6 @@ static void handle_api_response(const Packet &packet) {
             break;
         }
 
-        case RequestType::GET_MAP_LEADERBOARD: {
-            BANCHO::Leaderboard::process_leaderboard_response(packet);
-            break;
-        }
-
         case RequestType::GET_REPLAY: {
             if(packet.size == 0) {
                 // Most likely, 404

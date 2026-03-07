@@ -71,70 +71,18 @@ FinishedScore parse_score(const char *score_line) {
     return score;
 }
 
-}  // namespace
-
-namespace BANCHO::Leaderboard {
-void fetch_online_scores(const DatabaseBeatmap *beatmap) {
-    std::string url = "/web/osu-osz2-getscores.php?m=0&s=0&vv=4&a=0";
-
-    // TODO: b.py calls this "map_package_hash", could be useful for storyboard-specific LBs
-    //       (assuming it's some hash that includes all relevant map files)
-    url.append("&h=");
-
-    char lb_type = '1';  // Global / default
-    const char filter_first_letter{cv::songbrowser_scores_filteringtype.getString()[0]};
-    switch(filter_first_letter) {
-        case 'S':  // Selected mods
-            lb_type = '2';
-            break;
-        case 'F':  // Friends
-            lb_type = '3';
-            break;
-        case 'C':  // Country
-            lb_type = '4';
-            break;
-        case 'T':  // Team
-            lb_type = '5';
-            break;
-        default:  // Global / default
-            break;
-    }
-
-    // leaderboard type filter
-    url.append("&v=");
-    url.push_back(lb_type);
-
-    // Map info
-    std::string map_filename = env->getFileNameFromFilePath(beatmap->getFilePath());
-    url.append(fmt::format("&f={}", Mc::Net::urlEncode(map_filename)));
-    url.append(fmt::format("&c={}", beatmap->getMD5()));
-    url.append(fmt::format("&i={}", beatmap->getSetID()));
-
-    // Some servers use mod flags, even without any leaderboard filter active (e.g. for relax)
-    url.append(fmt::format("&mods={}", static_cast<u32>(ui->getModSelector()->getModFlags())));
-
-    // Auth (uses different params than default)
-    BANCHO::Api::append_auth_params(url, "us", "ha");
-
-    BANCHO::Api::Request request;
-    request.type = BANCHO::Api::GET_MAP_LEADERBOARD;
-    request.path = url;
-    request.extra = (u8 *)strdup(std::string{beatmap->getMD5().to_chars().string()}.c_str());  // lol...
-
-    BANCHO::Api::send_request(request);
-}
-
-void process_leaderboard_response(const Packet &response) {
+void process_leaderboard_response(const MD5Hash beatmap_hash, std::string body_str) {
     // Don't update the leaderboard while playing, that's weird
     if(osu->isInPlayMode()) return;
 
     // NOTE: We're not doing anything with the "info" struct.
     //       Server can return partial responses in some cases, so make sure
     //       you actually received the data if you plan on using it.
-    OnlineMapInfo info{};
-    MD5Hash beatmap_hash{(char *)response.extra};
+    BANCHO::Leaderboard::OnlineMapInfo info{};
     std::vector<FinishedScore> scores;
-    char *body = (char *)response.memory;
+
+    body_str.push_back('\0');
+    char *body = (char *)body_str.c_str();
 
     char *ranked_status = Parsing::strtok_x('|', &body);
     info.ranked_status = Parsing::strto<i32>(ranked_status);
@@ -191,5 +139,68 @@ void process_leaderboard_response(const Packet &response) {
 
     db->getOnlineScores()[beatmap_hash] = std::move(scores);
     ui->getSongBrowser()->onGotNewLeaderboard(beatmap_hash);
+}
+}  // namespace
+
+namespace BANCHO::Leaderboard {
+void fetch_online_scores(const DatabaseBeatmap *beatmap) {
+    std::string url = "osu." + BanchoState::endpoint;
+    url.append("/web/osu-osz2-getscores.php?m=0&s=0&vv=4&a=0");
+
+    // TODO: b.py calls this "map_package_hash", could be useful for storyboard-specific LBs
+    //       (assuming it's some hash that includes all relevant map files)
+    url.append("&h=");
+
+    char lb_type = '1';  // Global / default
+    const char filter_first_letter{cv::songbrowser_scores_filteringtype.getString()[0]};
+    switch(filter_first_letter) {
+        case 'S':  // Selected mods
+            lb_type = '2';
+            break;
+        case 'F':  // Friends
+            lb_type = '3';
+            break;
+        case 'C':  // Country
+            lb_type = '4';
+            break;
+        case 'T':  // Team
+            lb_type = '5';
+            break;
+        default:  // Global / default
+            break;
+    }
+
+    // leaderboard type filter
+    url.append("&v=");
+    url.push_back(lb_type);
+
+    // Map info
+    std::string map_filename = env->getFileNameFromFilePath(beatmap->getFilePath());
+    url.append(fmt::format("&f={}", Mc::Net::urlEncode(map_filename)));
+    url.append(fmt::format("&c={}", beatmap->getMD5()));
+    url.append(fmt::format("&i={}", beatmap->getSetID()));
+
+    // Some servers use mod flags, even without any leaderboard filter active (e.g. for relax)
+    url.append(fmt::format("&mods={}", static_cast<u32>(ui->getModSelector()->getModFlags())));
+
+    // Auth (uses different params than default)
+    BANCHO::Api::append_auth_params(url, "us", "ha");
+
+    const auto map_md5 = beatmap->getMD5();
+    Mc::Net::RequestOptions options{
+        .user_agent = "osu!",
+        .timeout = 5,
+        .connect_timeout = 5,
+        .flags = Mc::Net::RequestOptions::FOLLOW_REDIRECTS,
+    };
+    networkHandler->httpRequestAsync(url, std::move(options), [map_md5](const Mc::Net::Response &response) {
+        if(response.success) {
+            process_leaderboard_response(map_md5, response.body);
+        } else {
+            debugLog("Leaderboard request failed: {}", response.error_msg);
+            db->getOnlineScores()[map_md5] = std::vector<FinishedScore>();
+            ui->getSongBrowser()->onGotNewLeaderboard(map_md5);
+        }
+    });
 }
 }  // namespace BANCHO::Leaderboard

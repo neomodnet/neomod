@@ -15,7 +15,6 @@ void append_auth_params(std::string& url, std::string user_param = "u", std::str
 enum RequestType : uint8_t {
     NONE,
     GET_BEATMAPSET_INFO,
-    GET_MAP_LEADERBOARD,
     GET_REPLAY,
     MARK_AS_READ,
 };
