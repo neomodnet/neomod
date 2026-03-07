@@ -866,6 +866,8 @@ UString ScoreButton::getModsStringForDisplay(const Replay::Mods &mods) {
     if(flags::has<TouchDevice>(mods.flags)) modsString.append("TD,");
     if(flags::has<Hidden>(mods.flags)) modsString.append("HD,");
     if(flags::has<HardRock>(mods.flags)) modsString.append("HR,");
+    if(flags::has<FreezeFrame>(mods.flags)) modsString.append("FR,");
+    if(flags::has<Traceable>(mods.flags)) modsString.append("TC,");
     if(sd) modsString.append("SD,");
     if(dt) modsString.append("DT,");
     if(nc) modsString.append("NC,");
@@ -882,7 +884,6 @@ UString ScoreButton::getModsStringForDisplay(const Replay::Mods &mods) {
     if(flags::has<FPoSu>(mods.flags)) modsString.append("FPoSu,");
     if(flags::has<Singletap>(mods.flags)) modsString.append("1K,");
     if(flags::has<NoKeylock>(mods.flags)) modsString.append("4K,");
-    if(flags::has<Traceable>(mods.flags)) modsString.append("TC,");  // TODO: order???
 
     if(modsString.length() > 0) modsString.pop_back();  // remove trailing comma
 

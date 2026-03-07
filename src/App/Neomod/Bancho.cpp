@@ -176,7 +176,6 @@ void BanchoState::initialize_neomod_server_session() {
         "mod_fadingcursor",
         "mod_fposu", "mod_fposu_sound_panning",
         "mod_fps", "mod_fps_sound_panning",
-        "mod_hd_circle_fadein_end_percent", "mod_hd_circle_fadein_start_percent",
         "mod_jigsaw1", "mod_jigsaw2", "mod_jigsaw_followcircle_radius_factor",
         "mod_mafham", "mod_mafham_ignore_hittable_dim",
         "mod_mafham_render_chunksize", "mod_mafham_render_livesize",
@@ -188,7 +187,8 @@ void BanchoState::initialize_neomod_server_session() {
         "mod_timewarp", "mod_timewarp_multiplier",
         "mod_wobble", "mod_wobble2",
         "mod_wobble_frequency", "mod_wobble_rotation_speed", "mod_wobble_strength",
-        "mod_fullalternate", "mod_singletap", "mod_no_keylock", "notelock_type"
+        "mod_fullalternate", "mod_singletap", "mod_no_keylock", "notelock_type",
+        "mod_freeze_frame"
     };
     // clang-format on
 

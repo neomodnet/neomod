@@ -2084,6 +2084,7 @@ bool Osu::getModTD() const {
     return flags::has<ModFlags::TouchDevice>(this->score->mods.flags) || cv::mod_touchdevice_always.getBool();
 }
 bool Osu::getModTraceable() const { return flags::has<ModFlags::Traceable>(this->score->mods.flags); }
+bool Osu::getModFreezeFrame() const { return flags::has<ModFlags::FreezeFrame>(this->score->mods.flags); }
 bool Osu::getModDT() const { return this->score->mods.speed == 1.5f; }
 bool Osu::getModNC() const {
     return this->score->mods.speed == 1.5f && flags::has<ModFlags::NoPitchCorrection>(this->score->mods.flags);

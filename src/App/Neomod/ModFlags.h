@@ -63,6 +63,7 @@ enum class ModFlags : u64 {
     SliderTailAccuracy = 1ULL << 47,  // unused (for now)
     DKS = 1ULL << 48,                 // unused (for now)
     Traceable = 1ULL << 49,
+    FreezeFrame = 1ULL << 50,
 
     // Non-submittable
     NoHP = 1ULL << 62,

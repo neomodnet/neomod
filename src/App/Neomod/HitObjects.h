@@ -31,6 +31,7 @@ class HitObject {
    public:
     // TEMP constructor helpers (DatabaseBeatmap::loadGameplay)
     void setIsEndOfCombo(bool end) { m_endOfCombo = end; }
+    void setComboStartTime(i32 tms) { m_comboStartMS = tms; }
     void setComboNumber(i32 comboNumber) { m_comboNumber = comboNumber; }
 
    public:
@@ -125,6 +126,7 @@ class HitObject {
     AbstractBeatmapInterface *m_pi;
     BeatmapInterface *m_pf;  // NULL when simulating
 
+    i32 m_comboStartMS;  // for freeze time mod
     i32 m_clickTimeMS;
     i32 m_durationMS{0};
 

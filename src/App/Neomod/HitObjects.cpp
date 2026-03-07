@@ -293,13 +293,13 @@ void HitObject::update(i32 curPosMS, f64 /*frame_time*/) {
     const auto mods = m_pi->getMods();
 
     const double animationSpeedMultiplier = m_pi->getSpeedAdjustedAnimationSpeed();
+    const i32 visibleTms = (mods.has(ModFlags::FreezeFrame) ? m_comboStartMS : m_clickTimeMS);
     m_fadeInTimeMS = GameRules::getFadeInTime() * animationSpeedMultiplier;
     m_approachTimeMS = (m_useFadeInTimeAsApproachTime ? m_fadeInTimeMS : (i32)m_pi->getCachedApproachTimeForUpdate());
-
     m_deltaMS = m_clickTimeMS - curPosMS;
 
     // 1 ms fudge by using >=, shouldn't really be a problem
-    if(curPosMS >= (m_clickTimeMS - m_approachTimeMS) && curPosMS < (getEndTime())) {
+    if(curPosMS >= (visibleTms - m_approachTimeMS) && curPosMS < (getEndTime())) {
         // approach circle scale
         const float scale = std::clamp<float>((float)m_deltaMS / (float)m_approachTimeMS, 0.0f, 1.0f);
         m_approachScale = 1 + (scale * cv::approach_scale_multiplier.getFloat());
@@ -358,22 +358,29 @@ void HitObject::update(i32 curPosMS, f64 /*frame_time*/) {
         }
 
         // hitobject body fadein
-        const i32 fadeInStart = m_clickTimeMS - m_approachTimeMS;
-        const i32 fadeInEnd =
-            std::min(m_clickTimeMS,
-                     m_clickTimeMS - m_approachTimeMS +
-                         m_fadeInTimeMS);  // std::min() ensures that the fade always finishes at click_time
-                                           // (even if the fadeintime is longer than the approachtime)
+        const i32 fadeInStart = visibleTms - m_approachTimeMS;
+        // std::min() ensures that the fade always finishes at click_time
+        // (even if the fadeintime is longer than the approachtime)
+        const i32 fadeInEnd = std::min(visibleTms, visibleTms - m_approachTimeMS + m_fadeInTimeMS);
         m_alpha =
             std::clamp<float>(1.0f - ((float)(fadeInEnd - curPosMS) / (float)(fadeInEnd - fadeInStart)), 0.0f, 1.0f);
         m_alphaWithoutHidden = m_alpha;
+
+        if(mods.has(ModFlags::FreezeFrame)) {
+            // HACK: set m_alphaWithoutHidden as "alpha without freeze time or hidden"
+            //       this makes slider bodies & spinners draw correctly
+            const i32 fadeInStart = m_clickTimeMS - m_approachTimeMS;
+            const i32 fadeInEnd = std::min(m_clickTimeMS, m_clickTimeMS - m_approachTimeMS + m_fadeInTimeMS);
+            m_alphaWithoutHidden = std::clamp<float>(
+                1.0f - ((float)(fadeInEnd - curPosMS) / (float)(fadeInEnd - fadeInStart)), 0.0f, 1.0f);
+        }
 
         if(mods.has(ModFlags::Hidden)) {
             // hidden hitobject body fadein
             const float fin_start_percent = cv::mod_hd_circle_fadein_start_percent.getFloat();
             const float fin_end_percent = cv::mod_hd_circle_fadein_end_percent.getFloat();
-            const i32 hiddenFadeInStartMS = m_clickTimeMS - (i32)(m_approachTimeMS * fin_start_percent);
-            const i32 hiddenFadeInEndMS = m_clickTimeMS - (i32)(m_approachTimeMS * fin_end_percent);
+            const i32 hiddenFadeInStartMS = visibleTms - (i32)(m_approachTimeMS * fin_start_percent);
+            const i32 hiddenFadeInEndMS = visibleTms - (i32)(m_approachTimeMS * fin_end_percent);
             m_alpha = std::clamp<float>(
                 1.0f - ((float)(hiddenFadeInEndMS - curPosMS) / (float)(hiddenFadeInEndMS - hiddenFadeInStartMS)), 0.0f,
                 1.0f);
@@ -381,8 +388,8 @@ void HitObject::update(i32 curPosMS, f64 /*frame_time*/) {
             // hidden hitobject body fadeout
             const float fout_start_percent = cv::mod_hd_circle_fadeout_start_percent.getFloat();
             const float fout_end_percent = cv::mod_hd_circle_fadeout_end_percent.getFloat();
-            const i32 hiddenFadeOutStart = m_clickTimeMS - (i32)(m_approachTimeMS * fout_start_percent);
-            const i32 hiddenFadeOutEnd = m_clickTimeMS - (i32)(m_approachTimeMS * fout_end_percent);
+            const i32 hiddenFadeOutStart = visibleTms - (i32)(m_approachTimeMS * fout_start_percent);
+            const i32 hiddenFadeOutEnd = visibleTms - (i32)(m_approachTimeMS * fout_end_percent);
             if(curPosMS >= hiddenFadeOutStart)
                 m_alpha = std::clamp<float>(
                     ((float)(hiddenFadeOutEnd - curPosMS) / (float)(hiddenFadeOutEnd - hiddenFadeOutStart)), 0.0f,
@@ -1074,6 +1081,7 @@ void Slider::draw() {
 
     const bool hd = flags::has<ModFlags::Hidden>(curGameplayFlags);
     const bool tc = flags::has<ModFlags::Traceable>(curGameplayFlags);
+    const bool fr = flags::has<ModFlags::FreezeFrame>(curGameplayFlags);
 
     const bool isCompletelyFinished = m_startFinished && m_endFinished && m_finished;
     if((m_visible || (m_startFinished && !m_finished)) &&
@@ -1081,7 +1089,7 @@ void Slider::draw() {
                                // fadeout animation below this if block
     {
         const float alpha = (cv::mod_hd_slider_fast_fade.getBool() ? m_alpha : m_bodyAlpha);
-        float sliderSnake = cv::snaking_sliders.getBool() ? m_sliderSnakePercent : 1.0f;
+        float sliderSnake = (!fr && cv::snaking_sliders.getBool()) ? m_sliderSnakePercent : 1.0f;
 
         // shrinking sliders
         float sliderSnakeStart = 0.0f;
@@ -1444,7 +1452,8 @@ void Slider::drawBody(float alpha, float from, float to) {
                 getRawPosAt(getEndTime() + 1)));  // endpoint (because setDrawPercent() causes the last
                                                   // circle mesh to become invisible too quickly)
         }
-        if(cv::snaking_sliders.getBool() && m_sliderSnakePercent < 1.0f)
+        const bool fr = flags::has<ModFlags::FreezeFrame>(m_pf->getMods().flags);
+        if(!fr && cv::snaking_sliders.getBool() && m_sliderSnakePercent < 1.0f)
             alwaysPoints.push_back(m_pf->osuCoords2Pixels(
                 m_curve->pointAt(m_sliderSnakePercent)));  // snakeoutpoint (only while snaking out)
     }
@@ -1505,8 +1514,9 @@ void Slider::update(i32 curPosMS, f64 frameTimeSecs) {
         (1.0f / 3.0f) * m_approachTimeMS * cv::slider_snake_duration_multiplier.getFloat();
     m_sliderSnakePercent = std::min(1.0f, (curPosMS - (m_clickTimeMS - m_approachTimeMS)) / (sliderSnakeDuration));
 
+    const bool fr = flags::has<ModFlags::FreezeFrame>(curIFaceMods);
     const i32 reverseArrowFadeInStart =
-        m_clickTimeMS - (cv::snaking_sliders.getBool() ? (m_approachTimeMS - sliderSnakeDuration) : m_approachTimeMS);
+        m_clickTimeMS - (!fr && cv::snaking_sliders.getBool() ? (m_approachTimeMS - sliderSnakeDuration) : m_approachTimeMS);
     const i32 reverseArrowFadeInEnd = reverseArrowFadeInStart + cv::slider_reverse_arrow_fadein_duration.getInt();
     m_reverseArrowAlpha = 1.0f - std::clamp<float>(((float)(reverseArrowFadeInEnd - curPosMS) /
                                                     (float)(reverseArrowFadeInEnd - reverseArrowFadeInStart)),
@@ -1518,11 +1528,10 @@ void Slider::update(i32 curPosMS, f64 frameTimeSecs) {
         m_bodyAlpha = m_alphaWithoutHidden;           // fade in as usual
 
         // fade out over the duration of the slider, starting exactly when the default fadein finishes
+        // std::min() ensures that the fade always starts at click_time
+        // (even if the fadeintime is longer than the approachtime)
         const i32 hiddenSliderBodyFadeOutStart =
-            std::min(m_clickTimeMS,
-                     m_clickTimeMS - m_approachTimeMS +
-                         m_fadeInTimeMS);  // std::min() ensures that the fade always starts at click_time
-                                           // (even if the fadeintime is longer than the approachtime)
+            std::min(m_clickTimeMS, m_clickTimeMS - m_approachTimeMS + m_fadeInTimeMS);
         const float fade_percent = cv::mod_hd_slider_fade_percent.getFloat();
         const i32 hiddenSliderBodyFadeOutEnd = m_clickTimeMS + (i32)(fade_percent * m_sliderTimeMS);
         if(curPosMS >= hiddenSliderBodyFadeOutStart) {

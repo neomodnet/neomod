@@ -36,7 +36,7 @@ Changelog::Changelog() : ScreenBackable() {
     CHANGELOG v43_06;
     v43_06.title = "43.06 (" CHANGELOG_TIMESTAMP ")";
     v43_06.changes = {
-        R"(- Added "Traceable" mod)",
+        R"(- Added "Freeze Frame" and "Traceable" mods)",
         R"(  - Currently experimental (does not affect score/PP))",
         R"(  - Note: compatibility with Hidden is intentional!)",
         R"(- Added "pausemenu_button_delay" ConVar to prevent accidental insta-retry/quit)",

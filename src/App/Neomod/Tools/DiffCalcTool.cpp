@@ -129,6 +129,8 @@ std::string modsStringFromMods(ModFlags mods, float speed) {
     if(flags::has<TouchDevice>(mods)) modsString.append("TD,");
     if(flags::has<Hidden>(mods)) modsString.append("HD,");
     if(flags::has<HardRock>(mods)) modsString.append("HR,");
+    if(flags::has<FreezeFrame>(mods)) modsString.append("FR,");
+    if(flags::has<Traceable>(mods)) modsString.append("TC,");
     if(sd) modsString.append("SD,");
     if(dt) modsString.append("DT,");
     if(nc) modsString.append("NC,");
@@ -145,7 +147,6 @@ std::string modsStringFromMods(ModFlags mods, float speed) {
     if(flags::has<FPoSu>(mods)) modsString.append("FPoSu,");
     if(flags::has<Singletap>(mods)) modsString.append("1K,");
     if(flags::has<NoKeylock>(mods)) modsString.append("4K,");
-    if(flags::has<Traceable>(mods)) modsString.append("TC,");
 
     if(modsString.length() > 0) modsString.pop_back();  // remove trailing comma
 

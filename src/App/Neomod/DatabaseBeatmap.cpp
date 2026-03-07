@@ -1709,12 +1709,18 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(BeatmapDiffi
     // set isEndOfCombo + precalculate Score v2 combo portion maximum
     if(beatmap != nullptr) {
         u32 scoreV2ComboPortionMaximum = 1;
+        i32 comboStartTime = 0;
 
-        if(result.hitobjects.size() > 0) scoreV2ComboPortionMaximum = 0;
+        if(result.hitobjects.size() > 0) {
+            scoreV2ComboPortionMaximum = 0;
+            comboStartTime = result.hitobjects[0]->getClickTime();
+        }
 
         uSz combo = 0;
         for(size_t i = 0; i < result.hitobjects.size(); i++) {
             HitObject *currentHitObject = result.hitobjects[i].get();
+            currentHitObject->setComboStartTime(comboStartTime);
+
             const HitObject *nextHitObject =
                 (i + 1 < result.hitobjects.size() ? result.hitobjects[i + 1].get() : nullptr);
 
@@ -1733,6 +1739,9 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(BeatmapDiffi
 
             if(nextHitObject == nullptr || nextHitObject->getComboNumber() == 1) {
                 currentHitObject->setIsEndOfCombo(true);
+                if(nextHitObject != nullptr) {
+                    comboStartTime = nextHitObject->getClickTime();
+                }
             }
         }
 

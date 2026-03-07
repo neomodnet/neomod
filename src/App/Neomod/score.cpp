@@ -406,6 +406,8 @@ UString LiveScore::getModsStringForRichPresence() const {
     if(osu->getModEZ()) modsString.append("EZ");
     if(osu->getModHD()) modsString.append("HD");
     if(osu->getModHR()) modsString.append("HR");
+    if(osu->getModFreezeFrame()) modsString.append("FR");
+    if(osu->getModTraceable()) modsString.append("TC");
     if(osu->getModSD()) modsString.append("SD");
     if(osu->getModNC())
         modsString.append("NC");
@@ -421,9 +423,6 @@ UString LiveScore::getModsStringForRichPresence() const {
     if(osu->getModTarget()) modsString.append("TP");
     if(osu->getModNightmare()) modsString.append("NM");
     if(osu->getModTD()) modsString.append("TD");
-    // @spec: osu!lazer uses this so good enough for me /shrug
-    // not sure about the order though...
-    if(osu->getModTraceable()) modsString.append("TC");
 
     return modsString;
 }
