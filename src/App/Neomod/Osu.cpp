@@ -275,16 +275,16 @@ Osu::Osu()
 
     // Init neomod_version after loading config for correct bleedingedge detection
     if(Env::cfg(BUILD::DEBUG)) {
-        BanchoState::neomod_version = fmt::format("dev-{}", cv::build_timestamp.getVal<u64>());
+        BanchoState::neomod_version = fmt::format("dev-{}-" OS_NAME, cv::build_timestamp.getVal<u64>());
     } else if(Osu::isBleedingEdge()) {
-        BanchoState::neomod_version = fmt::format("bleedingedge-{}", cv::build_timestamp.getVal<u64>());
+        BanchoState::neomod_version = fmt::format("bleedingedge-{}-" OS_NAME, cv::build_timestamp.getVal<u64>());
     } else {
-        BanchoState::neomod_version = fmt::format("release-{:.2f}", cv::version.getFloat());
+        BanchoState::neomod_version = fmt::format("release-{:.2f}-" OS_NAME, cv::version.getFloat());
     }
 
     BanchoState::user_agent = "Mozilla/5.0 (compatible; " PACKAGE_NAME "/";
     BanchoState::user_agent.append(BanchoState::neomod_version);
-    BanchoState::user_agent.append("; " OS_NAME "; +https://" NEOMOD_DOMAIN "/)");
+    BanchoState::user_agent.append("; +https://" NEOMOD_DOMAIN "/)");
 
     // Convar callbacks that should be set after loading the config
     cv::mod_mafham.setCallback(SA::MakeDelegate<&Osu::rebuildRenderTargets>(this));

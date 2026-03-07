@@ -3875,7 +3875,7 @@ FinishedScore BeatmapInterface::saveAndSubmitScore(bool quit) {
 
     FinishedScore score;
 
-    score.client = fmt::format(PACKAGE_NAME "-" OS_NAME "-{:s}", BanchoState::neomod_version);
+    score.client = fmt::format(PACKAGE_NAME "-{}", BanchoState::neomod_version);
 
     score.unixTimestamp =
         std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
