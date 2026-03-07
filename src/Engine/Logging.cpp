@@ -50,12 +50,14 @@
 #endif
 
 // same as release build stdout logging, don't clutter engine logs with source info and stuff
-#define ENGINE_LOG_PATTERN "[%!] %v"
+#define ENGINE_CONSOLE_LOG_PATTERN "[%!] %v"
 
 // e.g. ./logs/
 #define LOGFILE_LOCATION MCENGINE_DATA_DIR "logs/"
 // e.g. ./logs/neomod-linux-x64-dev-40.03.log
 #define LOGFILE_NAME LOGFILE_LOCATION PACKAGE_NAME "-" OS_NAME "-" RELEASE_IDENTIFIER "-" PACKAGE_VERSION ".log"
+#define LOGFILE_NAME_NETWORK \
+    LOGFILE_LOCATION PACKAGE_NAME "-" OS_NAME "-" RELEASE_IDENTIFIER "-" PACKAGE_VERSION "-network.log"
 
 namespace Logger {
 namespace {  // static
@@ -63,6 +65,10 @@ std::shared_ptr<spdlog::async_logger> s_logger;
 spdlog::async_logger *s_logger_raw_ptr{nullptr};
 std::shared_ptr<spdlog::async_logger> s_raw_logger;
 spdlog::async_logger *s_raw_logger_raw_ptr{nullptr};
+
+// network channel (file-only, single format)
+std::shared_ptr<spdlog::async_logger> s_network_logger;
+spdlog::async_logger *s_network_logger_raw_ptr{nullptr};
 
 bool s_log_initialized{false};
 
@@ -138,20 +144,31 @@ class custom_srcloc_formatter : public spdlog::custom_flag_formatter {
 
 namespace _detail {
 
-void log_int(std::source_location loc, log_level::level_enum lvl, std::string_view str) noexcept {
+void log_int(uint8_t channel, std::source_location loc, log_level::level_enum lvl, std::string_view str) noexcept {
     // checking for wasInit for the unlikely case that we try to log something through here WHILE initializing/uninitializing
     if(likely(s_log_initialized)) {
-        return s_logger_raw_ptr->log(
-            spdlog::source_loc{loc.file_name(), static_cast<int>(loc.line()), loc.function_name()},
-            (spdlog::level::level_enum)lvl, str);
+        const auto spd_lvl = (spdlog::level::level_enum)lvl;
+        const spdlog::source_loc spd_loc{loc.file_name(), static_cast<int>(loc.line()), loc.function_name()};
+        if(channel & CHAN_DEFAULT) {
+            s_logger_raw_ptr->log(spd_loc, spd_lvl, str);
+        }
+        if((channel & CHAN_NETWORK) && s_network_logger_raw_ptr) {
+            s_network_logger_raw_ptr->log(spd_lvl, str);
+        }
     } else {
         printf("%.*s\n", static_cast<int>(str.length()), str.data());
     }
 }
 
-void logRaw_int(log_level::level_enum lvl, std::string_view str) noexcept {
+void logRaw_int(uint8_t channel, log_level::level_enum lvl, std::string_view str) noexcept {
     if(likely(s_log_initialized)) {
-        return s_raw_logger_raw_ptr->log((spdlog::level::level_enum)lvl, str);
+        const auto spd_lvl = (spdlog::level::level_enum)lvl;
+        if(channel & CHAN_DEFAULT) {
+            s_raw_logger_raw_ptr->log(spd_lvl, str);
+        }
+        if((channel & CHAN_NETWORK) && s_network_logger_raw_ptr) {
+            s_network_logger_raw_ptr->log(spd_lvl, str);
+        }
     } else {
         printf("%.*s\n", static_cast<int>(str.length()), str.data());
     }
@@ -204,7 +221,7 @@ class ConsoleBoxSink final : public spdlog::sinks::base_sink<custom_spdmtx> {
         // create separate formatters for different logger types
         // also, don't auto-append newlines, each console log is already on a new line
         auto tempformatter = std::make_unique<spdlog::pattern_formatter>(spdlog::pattern_time_type::local, "");
-        tempformatter->add_flag<custom_srcloc_formatter>('!').set_pattern(ENGINE_LOG_PATTERN);
+        tempformatter->add_flag<custom_srcloc_formatter>('!').set_pattern(ENGINE_CONSOLE_LOG_PATTERN);
         base_sink::formatter_ = std::move(tempformatter);
 
         // raw formatter always uses plain pattern
@@ -384,6 +401,19 @@ void init(bool create_console) noexcept {
 
         main_sinks.push_back(file_sink);
         raw_sinks.push_back(file_sink);
+
+        // network channel: file-only, single plain format
+        auto network_file_sink{
+            std::make_shared<spdlog::sinks::basic_file_sink<custom_spdmtx>>(LOGFILE_NAME_NETWORK, true)};
+        network_file_sink->set_pattern(FILE_LOG_PATTERN_PREF " %v");
+
+        s_network_logger = std::make_shared<spdlog::async_logger>("network", spdlog::sinks_init_list{network_file_sink},
+                                                                  spdlog::thread_pool(),
+                                                                  spdlog::async_overflow_policy::overrun_oldest);
+        s_network_logger_raw_ptr = s_network_logger.get();
+        s_network_logger->set_level(spdlog::level::trace);
+        s_network_logger->flush_on(spdlog::level::off);
+        spdlog::register_logger(s_network_logger);
     }
 
     // create main async logger with stdout + console + optional file sink
@@ -428,7 +458,11 @@ void shutdown() noexcept {
     flush();
     s_log_initialized = false;
 
+    s_network_logger_raw_ptr = nullptr;
+    s_network_logger.reset();
+    s_raw_logger_raw_ptr = nullptr;
     s_raw_logger.reset();
+    s_logger_raw_ptr = nullptr;
     s_logger.reset();
 
     // spdlog docs recommend calling this on exit
@@ -448,6 +482,7 @@ void flush() noexcept {
     if(likely(s_log_initialized)) {
         s_logger->flush();
         s_raw_logger->flush();
+        if(s_network_logger) s_network_logger->flush();
     } else {
         fflush(stdout);
         fflush(stderr);

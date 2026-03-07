@@ -18,9 +18,11 @@ using fmt::literals::operator""_cf;
 #define _logFmtEnd(...) , __VA_ARGS__)
 
 // main context-aware logging macro
-#define debugLog(str__, ...)                                                                    \
-    Logger::_detail::log_int(std::source_location::current(), Logger::_detail::log_level::info, \
+#define logChannel(chan__, str__, ...)                                                                  \
+    Logger::_detail::log_int(chan__, std::source_location::current(), Logger::_detail::log_level::info, \
                              __VA_OPT__(_logFmtStart)(str__) __VA_OPT__(_logFmtEnd(__VA_ARGS__)))
+
+#define debugLog(str__, ...) logChannel(LoggerLogChannel::CHAN_DEFAULT, str__ __VA_OPT__(, ) __VA_ARGS__)
 
 // log only if condition is true
 #define logIf(cond__, ...) (static_cast<bool>(cond__) ? debugLog(__VA_ARGS__) : void(0))
@@ -29,9 +31,11 @@ using fmt::literals::operator""_cf;
 #define logIfCV(cvar__, ...) logIf(cv::cvar__.getBool(), __VA_ARGS__)
 
 // raw logging without any context
-#define logRaw(str__, ...)                                        \
-    Logger::_detail::logRaw_int(Logger::_detail::log_level::info, \
+#define logRawChannel(chan__, str__, ...)                                 \
+    Logger::_detail::logRaw_int(chan__, Logger::_detail::log_level::info, \
                                 __VA_OPT__(_logFmtStart)(str__) __VA_OPT__(_logFmtEnd(__VA_ARGS__)))
+
+#define logRaw(str__, ...) logRawChannel(LoggerLogChannel::CHAN_DEFAULT, str__ __VA_OPT__(, ) __VA_ARGS__)
 
 // print the call stack immediately
 // TODO: some portable way to do this
@@ -49,9 +53,17 @@ using fmt::literals::operator""_cf;
 #define MC_DO_BACKTRACE (void)0;
 #endif
 
+enum LoggerLogChannel : uint8_t {
+    CHAN_APP = (1 << 0),
+    CHAN_ENGINE = (1 << 1),
+    CHAN_NETWORK = (1 << 2),
+    CHAN_DEFAULT = CHAN_APP | CHAN_ENGINE
+};
+
 // main Logger API
 namespace Logger {
 class ConsoleBoxSink;
+
 namespace _detail {
 
 // copied from spdlog, don't want to include it here
@@ -60,8 +72,8 @@ namespace log_level {
 enum level_enum : int { trace = 0, debug = 1, info = 2, warn = 3, err = 4, critical = 5, off = 6, n_levels };
 }
 
-void log_int(std::source_location loc, log_level::level_enum lvl, std::string_view str) noexcept;
-void logRaw_int(log_level::level_enum lvl, std::string_view str) noexcept;
+void log_int(uint8_t log_channel, std::source_location loc, log_level::level_enum lvl, std::string_view str) noexcept;
+void logRaw_int(uint8_t log_channel, log_level::level_enum lvl, std::string_view str) noexcept;
 }  // namespace _detail
 
 // Logger::init() is called immediately after main()

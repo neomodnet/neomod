@@ -477,10 +477,38 @@ struct curl_blob cert_blob{
 }  // namespace
 #endif
 
+namespace {
+int curlDebugCallback(CURL* /*handle*/, curl_infotype type, char* data, size_t size, void* /*userdata*/) {
+    if(!cv::debug_network.getBool()) return 0;  // no thanks
+
+    // skip raw data (binary, potentially large)
+    if(type == CURLINFO_DATA_IN || type == CURLINFO_DATA_OUT || type == CURLINFO_SSL_DATA_IN ||
+       type == CURLINFO_SSL_DATA_OUT) {
+        return 0;
+    }
+    std::string_view sv{data, size};
+
+    // curl includes trailing newlines but our logger also adds them, so remove these
+    while(!sv.empty() && (sv.back() == '\n' || sv.back() == '\r')) {
+        sv.remove_suffix(1);
+    }
+
+    if(!sv.empty()) {
+        logRawChannel(CHAN_NETWORK, sv);
+    }
+
+    return 0;
+}
+}  // namespace
+
 void NetworkImpl::Request::setupCurlHandle() {
     assert(this->easy_handle.get());
 
-    this->easy_handle.setopt(CURLOPT_VERBOSE, cv::debug_network.getBool() ? 1L : 0L);
+    // always enable verbose, filter it out in the callback if we have debug_network disabled
+    // (can't easily update verbose mode for existing handles)
+    this->easy_handle.setopt(CURLOPT_VERBOSE, 1L);
+    this->easy_handle.setopt(CURLOPT_DEBUGFUNCTION, curlDebugCallback);
+
     this->easy_handle.setopt(CURLOPT_URL, this->url.c_str());
     this->easy_handle.setopt(CURLOPT_CONNECTTIMEOUT, this->options.connect_timeout);
     this->easy_handle.setopt(CURLOPT_TIMEOUT, this->options.timeout);

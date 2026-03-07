@@ -1863,7 +1863,7 @@ OptionsOverlayImpl::~OptionsOverlayImpl() {
     cv::options_slider_quality.reset();
     cv::options_high_quality_sliders.reset();
     cv::rich_presence_map_backgrounds.reset();
-    cv::snd_soloud_backend.removeChangeCallback(); // SoLoudSoundEngine sets a single-arg callback
+    cv::snd_soloud_backend.removeChangeCallback();  // SoLoudSoundEngine sets a single-arg callback
 }
 
 void OptionsOverlayImpl::draw() {
