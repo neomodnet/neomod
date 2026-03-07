@@ -9,6 +9,7 @@
 #include <memory>
 #include <iterator>
 #include <cstring>
+#include <cstdlib>
 
 namespace Mc {
 struct CDynArrayDeleter {
