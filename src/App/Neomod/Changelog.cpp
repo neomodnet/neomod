@@ -33,8 +33,15 @@ Changelog::Changelog() : ScreenBackable() {
 
     std::vector<CHANGELOG> changelogs;
 
+    CHANGELOG v43_07;
+    v43_07.title = "43.07 (" CHANGELOG_TIMESTAMP ")";
+    v43_07.changes = {
+        R"()",
+    };
+    changelogs.push_back(v43_07);
+
     CHANGELOG v43_06;
-    v43_06.title = "43.06 (" CHANGELOG_TIMESTAMP ")";
+    v43_06.title = "43.06 (2026-03-07)";
     v43_06.changes = {
         R"(- Added "Freeze Frame" and "Traceable" mods)",
         R"(  - Currently experimental (does not affect score/PP))",
