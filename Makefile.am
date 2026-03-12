@@ -614,6 +614,7 @@ FFMPEG_CONFIGURE_FLAGS += --target-os=$(if $(findstring mingw,$(host_os)),mingw3
 FFMPEG_CONFIGURE_FLAGS += --ar=$(AR) --cc=$(CC) --cxx=$(CXX) --ld=$(CXX)
 FFMPEG_CONFIGURE_FLAGS += $(if $(findstring mingw,$(host_os)),--disable-w32threads --enable-pthreads --windres=$(WINDRES),)
 FFMPEG_CONFIGURE_FLAGS += $(if $(STRIPBINS),,--disable-stripping)
+FFMPEG_CONFIGURE_FLAGS += $(if $(findstring $(host),$(build)),,--enable-cross-compile)
 FFMPEG_EXTRA_FLAGS := $(if $(findstring mingw,$(host_os)),-fno-lto $(if $(findstring whole-program,$(CXXFLAGS)),-fno-whole-program-vtables,),)
 
 $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION_REAL).built: $(DEPS_CACHE)/$(FFMPEG_TARBALL) $(DEPS_PREFIX)/winpthread-noversion.built
