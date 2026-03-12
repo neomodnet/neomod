@@ -672,6 +672,7 @@ __EOF__
     AC_DEFINE([MCENGINE_PLATFORM_LINUX], [1], [Define if compiling for Linux.])
 ],[
     AC_CHECK_TOOL([WINDRES], [windres], [windres])
+    AC_CHECK_TOOL([DLLTOOL], [dlltool], [dlltool]) # needed for ffmpeg build
 
     CMAKE_SYSTEM_NAME="Windows"
     CMAKERCOPT="-DCMAKE_RC_COMPILER=$WINDRES"

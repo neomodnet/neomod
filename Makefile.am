@@ -600,7 +600,7 @@ FFMPEG_INCDIR := $(DEPS_PREFIX)/include
 FFMPEG_LIBDIR := $(DEPS_PREFIX)/lib
 FFMPEG_CONFIGURE_FLAGS := --prefix="$(DEPS_PREFIX)"
 FFMPEG_CONFIGURE_FLAGS += --enable-gpl
-FFMPEG_CONFIGURE_FLAGS += --enable-shared --disable-autodetect
+FFMPEG_CONFIGURE_FLAGS += --enable-shared --disable-static --disable-autodetect
 FFMPEG_CONFIGURE_FLAGS += --disable-programs
 FFMPEG_CONFIGURE_FLAGS += --disable-doc
 FFMPEG_CONFIGURE_FLAGS += --disable-avdevice --disable-swscale --disable-avfilter --disable-network --disable-iamf --disable-pixelutils
@@ -611,15 +611,17 @@ FFMPEG_CONFIGURE_FLAGS += --enable-parser=aac,flac,mpegaudio,vorbis,opus
 FFMPEG_CONFIGURE_FLAGS += --arch=$(host_cpu)
 FFMPEG_CONFIGURE_FLAGS += --target-os=$(if $(findstring mingw,$(host_os)),mingw32,linux)
 FFMPEG_CONFIGURE_FLAGS += --ar=$(AR) --cc=$(CC) --cxx=$(CXX) --ld=$(CXX)
-FFMPEG_CONFIGURE_FLAGS += $(if $(findstring mingw,$(host_os)),--disable-w32threads --enable-pthreads,)
+FFMPEG_CONFIGURE_FLAGS += $(if $(findstring mingw,$(host_os)),--disable-w32threads --enable-pthreads --windres=$(WINDRES),)
 
 $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION_REAL).built: $(DEPS_CACHE)/$(FFMPEG_TARBALL) $(DEPS_PREFIX)/winpthread-noversion.built
 	rm -rf $(DEPS_PREFIX)/ffmpeg
 	$(MKDIR_P) $(DEPS_PREFIX)/ffmpeg/build $(DEPS_PREFIX)/lib/pkgconfig
 	$(TAR) xf $(DEPS_CACHE)/$(FFMPEG_TARBALL) -C $(DEPS_PREFIX)/ffmpeg --strip-components=1 && \
 	$(if $(ubercompat),$(SED) -i -e "s|WC_ERR_INVALID_CHARS|0|" $(DEPS_PREFIX)/ffmpeg/libavutil/wchar_filename.h,) && \
+	$(SED) -i -e 's|dlltool=.*|dlltool=$(DLLTOOL)|' $(DEPS_PREFIX)/ffmpeg/configure && \
 	cd $(DEPS_PREFIX)/ffmpeg/build && \
-	CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS) $(WINPTHREAD_LDFLAGS)" $(CONFIGURE_PFX) ../configure $(FFMPEG_CONFIGURE_FLAGS) && \
+	CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS) $(WINPTHREAD_LDFLAGS)" \
+		$(CONFIGURE_PFX) ../configure $(FFMPEG_CONFIGURE_FLAGS) && \
 	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
 	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install
 	touch $@
