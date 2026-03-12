@@ -612,6 +612,8 @@ FFMPEG_CONFIGURE_FLAGS += --arch=$(host_cpu)
 FFMPEG_CONFIGURE_FLAGS += --target-os=$(if $(findstring mingw,$(host_os)),mingw32,linux)
 FFMPEG_CONFIGURE_FLAGS += --ar=$(AR) --cc=$(CC) --cxx=$(CXX) --ld=$(CXX)
 FFMPEG_CONFIGURE_FLAGS += $(if $(findstring mingw,$(host_os)),--disable-w32threads --enable-pthreads --windres=$(WINDRES),)
+FFMPEG_CONFIGURE_FLAGS += $(if $(STRIPBINS),,--disable-stripping)
+FFMPEG_EXTRA_FLAGS := $(if $(findstring mingw,$(host_os)),$(if $(findstring i686,$(host_cpu)),-fno-lto),)
 
 $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION_REAL).built: $(DEPS_CACHE)/$(FFMPEG_TARBALL) $(DEPS_PREFIX)/winpthread-noversion.built
 	rm -rf $(DEPS_PREFIX)/ffmpeg
@@ -620,7 +622,7 @@ $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION_REAL).built: $(DEPS_CACHE)/$(FFMPEG_TARBA
 	$(if $(ubercompat),$(SED) -i -e "s|WC_ERR_INVALID_CHARS|0|" $(DEPS_PREFIX)/ffmpeg/libavutil/wchar_filename.h,) && \
 	$(SED) -i -e 's|dlltool=.*|dlltool=$(DLLTOOL)|' $(DEPS_PREFIX)/ffmpeg/configure && \
 	cd $(DEPS_PREFIX)/ffmpeg/build && \
-	CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS) $(WINPTHREAD_LDFLAGS)" \
+	CFLAGS="$(CFLAGS) $(FFMPEG_EXTRA_FLAGS)" CXXFLAGS="$(CXXFLAGS) $(FFMPEG_EXTRA_FLAGS)" LDFLAGS="$(LDFLAGS) $(WINPTHREAD_LDFLAGS) $(FFMPEG_EXTRA_FLAGS)" \
 		$(CONFIGURE_PFX) ../configure $(FFMPEG_CONFIGURE_FLAGS) && \
 	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
 	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install
@@ -1717,7 +1719,9 @@ endif
 if USE_SOLOUD
 	$(if $(STATICBUILD),,@cp -Pu "$(SOLOUD_PREFIX)/lib"/*$(LIBPREFIX)soloud*$(DLLEXT)* "$(DESTDIR)$(bindir)/$(LIBDEST)")
 	$(if $(STATICBUILD),,@cp -Pu "$(SOUNDTOUCH_PREFIX)/lib"/*$(LIBPREFIX)SoundTouch*$(DLLEXT)* "$(DESTDIR)$(bindir)/$(LIBDEST)")
-	@find $(DEPS_PREFIX)/lib '(' -name 'libavutil*' -o -name 'libavcodec*' -o -name 'libavformat*' -o -name 'libswresample*' ')' -name '*.so*' -exec cp -Pu '{}' "$(DESTDIR)$(bindir)/" ';' 2>/dev/null || true
+if USE_FFMPEG
+	@find $(DEPS_PREFIX)/lib $(DEPS_PREFIX)/bin '(' -name '*avutil*' -o -name '*avcodec*' -o -name '*avformat*' -o -name '*swresample*' ')' -a '(' -name '*'$(DLLEXT) -o -name '*.so.*' ')' -exec cp -Pu '{}' "$(DESTDIR)$(bindir)/" ';' 2>/dev/null || true
+endif
 if BUILD_MPG123
 	$(if $(STATICBUILD),,@`find $(MPG123_PREFIX) '(' -iname '*mpg*'$(DLLEXT) -o -iname '*mpg*''.so.*' ')' -exec cp -Pu '{''}' "$(DESTDIR)$(bindir)/$(LIBDEST)" ';'`)
 endif
