@@ -609,9 +609,9 @@ FFMPEG_CONFIGURE_FLAGS += --enable-decoder=mp3,aac,vorbis,opus,flac,pcm_s16le,pc
 FFMPEG_CONFIGURE_FLAGS += --enable-demuxer=mp3,aac,ogg,flac,wav,mov,m4a,matroska
 FFMPEG_CONFIGURE_FLAGS += --enable-parser=aac,flac,mpegaudio,vorbis,opus
 FFMPEG_CONFIGURE_FLAGS += --arch=$(host_cpu)
-FFMPEG_CONFIGURE_FLAGS += --target-os=$(if $(filter mingw,$(host_os)),mingw32,linux)
+FFMPEG_CONFIGURE_FLAGS += --target-os=$(if $(findstring mingw,$(host_os)),mingw32,linux)
 FFMPEG_CONFIGURE_FLAGS += --ar=$(AR) --cc=$(CC) --cxx=$(CXX) --ld=$(CXX)
-FFMPEG_CONFIGURE_FLAGS += $(if $(filter mingw,$(host_os)),--disable-w32threads --enable-pthreads,)
+FFMPEG_CONFIGURE_FLAGS += $(if $(findstring mingw,$(host_os)),--disable-w32threads --enable-pthreads,)
 
 $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION_REAL).built: $(DEPS_CACHE)/$(FFMPEG_TARBALL) $(DEPS_PREFIX)/winpthread-noversion.built
 	rm -rf $(DEPS_PREFIX)/ffmpeg
