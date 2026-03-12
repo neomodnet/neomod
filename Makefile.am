@@ -602,6 +602,7 @@ FFMPEG_CONFIGURE_FLAGS += --enable-demuxer=mp3,aac,ogg,flac,wav,mov,m4a,matroska
 FFMPEG_CONFIGURE_FLAGS += --enable-parser=aac,flac,mpegaudio,vorbis,opus
 FFMPEG_CONFIGURE_FLAGS += --arch=$(host_cpu)
 FFMPEG_CONFIGURE_FLAGS += $(if $(WIN_PLATFORM),--target-os=mingw32,--target-os=$(SYSNAME))
+FFMPEG_CONFIGURE_FLAGS += --ar=$(AR) --cc=$(CC) --cxx=$(CXX)
 
 $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION).built: $(DEPS_CACHE)/ffmpeg-$(FFMPEG_VERSION).tar.xz
 	rm -rf $(DEPS_PREFIX)/ffmpeg
