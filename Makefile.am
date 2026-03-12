@@ -620,7 +620,7 @@ $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION_REAL).built: $(DEPS_CACHE)/$(FFMPEG_TARBA
 	rm -rf $(DEPS_PREFIX)/ffmpeg
 	$(MKDIR_P) $(DEPS_PREFIX)/ffmpeg/build $(DEPS_PREFIX)/lib/pkgconfig
 	$(TAR) xf $(DEPS_CACHE)/$(FFMPEG_TARBALL) -C $(DEPS_PREFIX)/ffmpeg --strip-components=1 && \
-	$(if $(ubercompat),$(SED) -i -e "s|WC_ERR_INVALID_CHARS|0|" $(DEPS_PREFIX)/ffmpeg/libavutil/wchar_filename.h,) && \
+	$(if $(ubercompat),$(SED) -i -e "s|WC_ERR_INVALID_CHARS|0|" $(DEPS_PREFIX)/ffmpeg/libavutil/wchar_filename.h,true) && \
 	$(SED) -i -e 's|dlltool=.*|dlltool=$(DLLTOOL)|' $(DEPS_PREFIX)/ffmpeg/configure && \
 	cd $(DEPS_PREFIX)/ffmpeg/build && \
 	CFLAGS="$(CFLAGS) $(FFMPEG_EXTRA_FLAGS)" CXXFLAGS="$(CXXFLAGS) $(FFMPEG_EXTRA_FLAGS)" LDFLAGS="$(LDFLAGS) $(WINPTHREAD_LDFLAGS) $(FFMPEG_EXTRA_FLAGS)" \
