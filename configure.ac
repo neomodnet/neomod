@@ -464,7 +464,7 @@ AS_IF([test "$with_bass" = "yes"], [
 
 AC_SUBST([AUDBACKENDLIST])
 
-AS_IF([test "x$with_ffmpeg" != "xno" && test "$with_soloud" != "xno" && test "$WASM_PLATFORM" != "yes"], [
+AS_IF([test "x$with_ffmpeg" != "xno" && test "$with_soloud" != "xno" && test -z "$WASM_CC"], [
     with_ffmpeg=yes
     AC_DEFINE([MCENGINE_FEATURE_FFMPEG], [1], [Define if ffmpeg library is available.])
 ], [
