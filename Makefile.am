@@ -595,7 +595,7 @@ FFMPEG_CONFIGURE_FLAGS += --enable-gpl
 FFMPEG_CONFIGURE_FLAGS += --enable-shared --disable-autodetect
 FFMPEG_CONFIGURE_FLAGS += --disable-programs
 FFMPEG_CONFIGURE_FLAGS += --disable-doc
-FFMPEG_CONFIGURE_FLAGS += --disable-avdevice --disable-swscale --disable-postproc --disable-avfilter --disable-network --disable-iamf --disable-pixelutils
+FFMPEG_CONFIGURE_FLAGS += --disable-avdevice --disable-swscale --disable-avfilter --disable-network --disable-iamf --disable-pixelutils
 FFMPEG_CONFIGURE_FLAGS += --disable-everything
 FFMPEG_CONFIGURE_FLAGS += --enable-decoder=mp3,aac,vorbis,opus,flac,pcm_s16le,pcm_f32le
 FFMPEG_CONFIGURE_FLAGS += --enable-demuxer=mp3,aac,ogg,flac,wav,mov,m4a,matroska
