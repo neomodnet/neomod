@@ -608,7 +608,7 @@ $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION).built: $(DEPS_CACHE)/ffmpeg-$(FFMPEG_VER
 	$(MKDIR_P) $(DEPS_PREFIX)/ffmpeg/build $(DEPS_PREFIX)/lib/pkgconfig
 	$(TAR) xf $(DEPS_CACHE)/ffmpeg-$(FFMPEG_VERSION).tar.xz -C $(DEPS_PREFIX)/ffmpeg --strip-components=1 && \
 	cd $(DEPS_PREFIX)/ffmpeg/build && \
-	RANLIB="$(RANLIB)" CC="$(CC)" CXX="$(CXX)" AR="$(AR)" LD="$(LD)" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS) ../configure $(FFMPEG_CONFIGURE_FLAGS) \
+	RANLIB="$(RANLIB)" CC="$(CC)" CXX="$(CXX)" AR="$(AR)" LD="$(LD)" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" ../configure $(FFMPEG_CONFIGURE_FLAGS) && \
 	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
 	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install
 	touch $@
