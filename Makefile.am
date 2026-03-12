@@ -135,9 +135,14 @@ $(DEPS_CACHE)/SoundTouch-$(SOUNDTOUCH_VERSION).tar.gz:
 	$(CURLCOMMAND) "https://codeberg.org/soundtouch/soundtouch/archive/$(SOUNDTOUCH_VERSION).tar.gz" || { rm -f $@; exit 1; }
 
 # --with-ffmpeg
-$(DEPS_CACHE)/ffmpeg-$(FFMPEG_VERSION).tar.xz:
+# newer releases are broken for windows xp
+FFMPEG_VERSION_REAL := $(if $(ubercompat),2456a39581c3388bcf6f61c66aef36a887537c23,$(FFMPEG_VERSION))
+FFMPEG_URL := $(if $(ubercompat),https://github.com/FFmpeg/FFmpeg/archive/$(FFMPEG_VERSION_REAL).tar.gz,https://ffmpeg.org/releases/ffmpeg-$(FFMPEG_VERSION_REAL).tar.xz)
+FFMPEG_TARBALL := $(if $(ubercompat),ffmpeg-$(FFMPEG_VERSION_REAL).tar.gz,ffmpeg-$(FFMPEG_VERSION_REAL).tar.xz)
+
+$(DEPS_CACHE)/$(FFMPEG_TARBALL):
 	$(MKDIR_P) $(DEPS_CACHE)
-	$(CURLCOMMAND) "https://ffmpeg.org/releases/ffmpeg-$(FFMPEG_VERSION).tar.xz" || { rm -f $@; exit 1; }
+	$(CURLCOMMAND) $(FFMPEG_URL) || { rm -f $@; exit 1; }
 
 # used for compiling HLSL shaders for SDL_gpu on mingw builds
 # hardcoded version here for now, i don't think it matters
@@ -589,7 +594,7 @@ AUDIO_LIBS += $(shell $(PKG_CONFIG) --libs soloud) $(shell $(PKG_CONFIG) --libs 
 SOLOUD_FFMPEG_DEP =
 
 if USE_FFMPEG
-SOLOUD_FFMPEG_DEP += $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION).built
+SOLOUD_FFMPEG_DEP += $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION_REAL).built
 
 FFMPEG_INCDIR := $(DEPS_PREFIX)/include
 FFMPEG_LIBDIR := $(DEPS_PREFIX)/lib
@@ -606,17 +611,19 @@ FFMPEG_CONFIGURE_FLAGS += --enable-parser=aac,flac,mpegaudio,vorbis,opus
 FFMPEG_CONFIGURE_FLAGS += --arch=$(host_cpu)
 FFMPEG_CONFIGURE_FLAGS += --target-os=$(if $(filter mingw,$(host_os)),mingw32,linux)
 FFMPEG_CONFIGURE_FLAGS += --ar=$(AR) --cc=$(CC) --cxx=$(CXX) --ld=$(CXX)
+FFMPEG_CONFIGURE_FLAGS += $(if $(filter mingw,$(host_os)),--disable-w32threads --enable-pthreads,)
 
-$(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION).built: $(DEPS_CACHE)/ffmpeg-$(FFMPEG_VERSION).tar.xz
+$(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION_REAL).built: $(DEPS_CACHE)/$(FFMPEG_TARBALL) $(DEPS_PREFIX)/winpthread-noversion.built
 	rm -rf $(DEPS_PREFIX)/ffmpeg
 	$(MKDIR_P) $(DEPS_PREFIX)/ffmpeg/build $(DEPS_PREFIX)/lib/pkgconfig
-	$(TAR) xf $(DEPS_CACHE)/ffmpeg-$(FFMPEG_VERSION).tar.xz -C $(DEPS_PREFIX)/ffmpeg --strip-components=1 && \
+	$(TAR) xf $(DEPS_CACHE)/$(FFMPEG_TARBALL) -C $(DEPS_PREFIX)/ffmpeg --strip-components=1 && \
+	$(if $(ubercompat),$(SED) -i -e "s|WC_ERR_INVALID_CHARS|0|" $(DEPS_PREFIX)/ffmpeg/libavutil/wchar_filename.h,) && \
 	cd $(DEPS_PREFIX)/ffmpeg/build && \
-	CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" $(CONFIGURE_PFX) ../configure $(FFMPEG_CONFIGURE_FLAGS) && \
+	CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS) $(WINPTHREAD_LDFLAGS)" $(CONFIGURE_PFX) ../configure $(FFMPEG_CONFIGURE_FLAGS) && \
 	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
 	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install
 	touch $@
-INSTALL_LIB_DEPS += $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION).built
+INSTALL_LIB_DEPS += $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION_REAL).built
 endif
 
 $(DEPS_PREFIX)/SoLoud-$(SOLOUD_VERSION).built: $(DEPS_CACHE)/SoLoud-$(SOLOUD_VERSION).tar.gz $(SOLOUD_FFMPEG_DEP) $(DEPS_PREFIX)/SDL3-$(SDL3_VERSION).built $(DEPS_PREFIX)/mpg123-$(MPG123_VERSION).built
@@ -1436,7 +1443,7 @@ BUILT_SOURCES := \
 	$(DEPS_PREFIX)/curl-$(CURL_VERSION).built
 
 if !WASM_PLATFORM
-BUILT_SOURCES += $(DEPS_CACHE)/curl-$(CURL_VERSION)/certbundle/cacert.pem $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION).built
+BUILT_SOURCES += $(DEPS_CACHE)/curl-$(CURL_VERSION)/certbundle/cacert.pem $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION_REAL).built
 endif
 
 # (this is also disabled in CI by default, because we dont cache the pch there, so there's no point)
