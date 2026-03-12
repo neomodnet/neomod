@@ -601,15 +601,15 @@ FFMPEG_CONFIGURE_FLAGS += --enable-decoder=mp3,aac,vorbis,opus,flac,pcm_s16le,pc
 FFMPEG_CONFIGURE_FLAGS += --enable-demuxer=mp3,aac,ogg,flac,wav,mov,m4a,matroska
 FFMPEG_CONFIGURE_FLAGS += --enable-parser=aac,flac,mpegaudio,vorbis,opus
 FFMPEG_CONFIGURE_FLAGS += --arch=$(host_cpu)
-FFMPEG_CONFIGURE_FLAGS += $(if $(WIN_PLATFORM),--target-os=mingw32,--target-os=$(SYSNAME))
-FFMPEG_CONFIGURE_FLAGS += --ar=$(AR) --cc=$(CC) --cxx=$(CXX)
+FFMPEG_CONFIGURE_FLAGS += --target-os=$(if $(WIN_PLATFORM),mingw32,$(SYSNAME))
+FFMPEG_CONFIGURE_FLAGS += --ar=$(AR) --cc=$(CC) --cxx=$(CXX) --ld=$(CXX)
 
 $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION).built: $(DEPS_CACHE)/ffmpeg-$(FFMPEG_VERSION).tar.xz
 	rm -rf $(DEPS_PREFIX)/ffmpeg
 	$(MKDIR_P) $(DEPS_PREFIX)/ffmpeg/build $(DEPS_PREFIX)/lib/pkgconfig
 	$(TAR) xf $(DEPS_CACHE)/ffmpeg-$(FFMPEG_VERSION).tar.xz -C $(DEPS_PREFIX)/ffmpeg --strip-components=1 && \
 	cd $(DEPS_PREFIX)/ffmpeg/build && \
-	RANLIB="$(RANLIB)" CC="$(CC)" CXX="$(CXX)" AR="$(AR)" LD="$(LD)" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" ../configure $(FFMPEG_CONFIGURE_FLAGS) && \
+	CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" ../configure $(FFMPEG_CONFIGURE_FLAGS) && \
 	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
 	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install
 	touch $@
