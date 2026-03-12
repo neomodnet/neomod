@@ -590,38 +590,25 @@ if USE_FFMPEG
 FFMPEG_INCDIR := $(DEPS_PREFIX)/include
 FFMPEG_LIBDIR := $(DEPS_PREFIX)/lib
 SOLOUD_FFMPEG_DEP := $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION).built
+FFMPEG_CONFIGURE_FLAGS := --prefix="$(DEPS_PREFIX)"
+FFMPEG_CONFIGURE_FLAGS += --enable-gpl
+FFMPEG_CONFIGURE_FLAGS += --enable-shared --disable-autodetect
+FFMPEG_CONFIGURE_FLAGS += --disable-programs
+FFMPEG_CONFIGURE_FLAGS += --disable-doc
+FFMPEG_CONFIGURE_FLAGS += --disable-avdevice --disable-swscale --disable-postproc --disable-avfilter --disable-network --disable-iamf --disable-pixelutils
+FFMPEG_CONFIGURE_FLAGS += --disable-everything
+FFMPEG_CONFIGURE_FLAGS += --enable-decoder=mp3,aac,vorbis,opus,flac,pcm_s16le,pcm_f32le
+FFMPEG_CONFIGURE_FLAGS += --enable-demuxer=mp3,aac,ogg,flac,wav,mov,m4a,matroska
+FFMPEG_CONFIGURE_FLAGS += --enable-parser=aac,flac,mpegaudio,vorbis,opus
+FFMPEG_CONFIGURE_FLAGS += --arch=$(host_cpu)
+FFMPEG_CONFIGURE_FLAGS += $(if $(WIN_PLATFORM),--target-os=mingw32,--target-os=$(SYSNAME))
 
 $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION).built: $(DEPS_CACHE)/ffmpeg-$(FFMPEG_VERSION).tar.xz
 	rm -rf $(DEPS_PREFIX)/ffmpeg
 	$(MKDIR_P) $(DEPS_PREFIX)/ffmpeg/build $(DEPS_PREFIX)/lib/pkgconfig
 	$(TAR) xf $(DEPS_CACHE)/ffmpeg-$(FFMPEG_VERSION).tar.xz -C $(DEPS_PREFIX)/ffmpeg --strip-components=1 && \
 	cd $(DEPS_PREFIX)/ffmpeg/build && \
-	CC="$(CC)" CXX="$(CXX)" ../configure \
-		--prefix="$(DEPS_PREFIX)" \
-		--disable-static \
-		--enable-shared \
-		--disable-everything \
-		--disable-programs \
-		--disable-doc \
-		--disable-network \
-		--disable-autodetect \
-		--disable-avdevice \
-		--disable-avfilter \
-		--disable-swscale \
-		--disable-encoders \
-		--disable-muxers \
-		--disable-hwaccels \
-		--disable-protocols \
-		--enable-protocol=file \
-		--enable-demuxer=mp3,aac,ogg,flac,wav,mov,m4a,matroska \
-		--enable-decoder=mp3,aac,vorbis,opus,flac,pcm_s16le,pcm_f32le \
-		--enable-parser=aac,flac,mpegaudio,vorbis,opus \
-		--enable-avutil \
-		--enable-avcodec \
-		--enable-avformat \
-		--enable-swresample \
-		$(if $(WIN_PLATFORM),--target-os=mingw32,--target-os=$(if $(filter linux,$(SYSNAME)),linux,)) \
-		$(if $(filter x86_64,$(host_cpu)),--arch=x86_64,--arch=$(host_cpu)) && \
+	RANLIB="$(RANLIB)" CC="$(CC)" CXX="$(CXX)" AR="$(AR)" LD="$(LD)" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS) ../configure $(FFMPEG_CONFIGURE_FLAGS) \
 	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
 	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install
 	touch $@
@@ -1445,8 +1432,7 @@ BUILT_SOURCES := \
 	$(DEPS_PREFIX)/curl-$(CURL_VERSION).built
 
 if !WASM_PLATFORM
-BUILT_SOURCES += $(DEPS_CACHE)/curl-$(CURL_VERSION)/certbundle/cacert.pem
-BUILT_SOURCES += $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION).built
+BUILT_SOURCES += $(DEPS_CACHE)/curl-$(CURL_VERSION)/certbundle/cacert.pem $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION).built
 endif
 
 # (this is also disabled in CI by default, because we dont cache the pch there, so there's no point)
