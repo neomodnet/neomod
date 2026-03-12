@@ -1035,6 +1035,10 @@ AS_IF([test "x$enable_debug" = "xyes"], [
     ])
 ])
 
+AS_IF([test "x$enable_strip" != "xno"], [
+    AC_SUBST([ffmpeg_strip], [1]) # kludge for ffmpeg build
+])
+
 AS_IF([test "x$enable_omp" = "xyes"], [
     AS_IF([test "x$enable_clang" = "xyes"], [
         NEOMOD_CXXFLAGS="$NEOMOD_CXXFLAGS -fopenmp-optimistic-collapse"
