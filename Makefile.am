@@ -586,10 +586,13 @@ if USE_SOLOUD
 AUDIO_CFLAGS += $(shell $(PKG_CONFIG) --cflags soloud) $(shell $(PKG_CONFIG) --cflags soundtouch) $(MPG123_CFLAGS) -DST_NO_EXCEPTION_HANDLING
 AUDIO_LIBS += $(shell $(PKG_CONFIG) --libs soloud) $(shell $(PKG_CONFIG) --libs soundtouch) $(MPG123_LIBS)
 
+SOLOUD_FFMPEG_DEP =
+
 if USE_FFMPEG
+SOLOUD_FFMPEG_DEP += $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION).built
+
 FFMPEG_INCDIR := $(DEPS_PREFIX)/include
 FFMPEG_LIBDIR := $(DEPS_PREFIX)/lib
-SOLOUD_FFMPEG_DEP := $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION).built
 FFMPEG_CONFIGURE_FLAGS := --prefix="$(DEPS_PREFIX)"
 FFMPEG_CONFIGURE_FLAGS += --enable-gpl
 FFMPEG_CONFIGURE_FLAGS += --enable-shared --disable-autodetect
@@ -601,7 +604,7 @@ FFMPEG_CONFIGURE_FLAGS += --enable-decoder=mp3,aac,vorbis,opus,flac,pcm_s16le,pc
 FFMPEG_CONFIGURE_FLAGS += --enable-demuxer=mp3,aac,ogg,flac,wav,mov,m4a,matroska
 FFMPEG_CONFIGURE_FLAGS += --enable-parser=aac,flac,mpegaudio,vorbis,opus
 FFMPEG_CONFIGURE_FLAGS += --arch=$(host_cpu)
-FFMPEG_CONFIGURE_FLAGS += --target-os=$(if $(WIN_PLATFORM),mingw32,$(SYSNAME))
+FFMPEG_CONFIGURE_FLAGS += --target-os=$(if $(filter mingw,$(host_os)),mingw32,linux)
 FFMPEG_CONFIGURE_FLAGS += --ar=$(AR) --cc=$(CC) --cxx=$(CXX) --ld=$(CXX)
 
 $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION).built: $(DEPS_CACHE)/ffmpeg-$(FFMPEG_VERSION).tar.xz
@@ -609,7 +612,7 @@ $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION).built: $(DEPS_CACHE)/ffmpeg-$(FFMPEG_VER
 	$(MKDIR_P) $(DEPS_PREFIX)/ffmpeg/build $(DEPS_PREFIX)/lib/pkgconfig
 	$(TAR) xf $(DEPS_CACHE)/ffmpeg-$(FFMPEG_VERSION).tar.xz -C $(DEPS_PREFIX)/ffmpeg --strip-components=1 && \
 	cd $(DEPS_PREFIX)/ffmpeg/build && \
-	CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" ../configure $(FFMPEG_CONFIGURE_FLAGS) && \
+	CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" $(CONFIGURE_PFX) ../configure $(FFMPEG_CONFIGURE_FLAGS) && \
 	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
 	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install
 	touch $@
