@@ -924,7 +924,9 @@ bool Environment::minimizeWindow() {
     }
 
     // also somehow disableFullscreen seems to go into an "infinite loop" on i3wm? so really try to avoid it...
+    // on KDE Wayland, calling disableFullscreen() before SDL_MinimizeWindow() makes the window unrestorable
     static bool hardcodedBrokenDesktopChecked{false};
+    static bool skipDisableFullscreenOnMinimize{false};
     if(m_bMinimizeSupported && !hardcodedBrokenDesktopChecked &&
        ((m_bIsWayland || m_bIsX11) || (RuntimePlatform::current() & RuntimePlatform::WIN_WINE))) {
         auto desktop = getEnvVariable("XDG_CURRENT_DESKTOP");
@@ -939,6 +941,10 @@ bool Environment::minimizeWindow() {
            !getEnvVariable("WINE_HOST_I3SOCK").empty() || !getEnvVariable("WINE_HOST_SWAYSOCK").empty()) {
             logIf(m_bEnvDebug, "Disabled minimize support due to being on sway/i3", desktop);
             m_bMinimizeSupported = false;
+        }
+        if(m_bIsWayland && !desktop.empty() && desktop == "KDE") {
+            logIf(m_bEnvDebug, "Skipping disableFullscreen before minimize on KDE Wayland: {}", desktop);
+            skipDisableFullscreenOnMinimize = true;
         }
         hardcodedBrokenDesktopChecked = true;
     }
@@ -961,7 +967,9 @@ bool Environment::minimizeWindow() {
             brokenMinimizeRepeatedSpamWorkaroundCounter++;
         }
         m_bRestoreFullscreen = true;
-        disableFullscreen();
+        if(!skipDisableFullscreenOnMinimize) {
+            disableFullscreen();
+        }
     } else {
         brokenMinimizeRepeatedSpamWorkaroundCounter = 0;
     }
