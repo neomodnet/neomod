@@ -164,16 +164,16 @@ ModSelector::ModSelector() : UIScreen() {
     }
 
     // build override sliders
-    OVERRIDE_SLIDER overrideCS = this->addOverrideSlider("CS Override", "CS:", &cv::cs_override, 0.0f, 12.5f,
-                                                         "Circle Size (higher number = smaller circles).");
+    OVERRIDE_SLIDER overrideCS = this->addOverrideSlider(_("CS Override"), _("CS:"), &cv::cs_override, 0.0f, 12.5f,
+                                                         _("Circle Size (higher number = smaller circles)."));
     OVERRIDE_SLIDER overrideAR =
-        this->addOverrideSlider("AR Override", "AR:", &cv::ar_override, 0.0f, 12.5f,
-                                "Approach Rate (higher number = faster circles).", &cv::ar_override_lock);
+        this->addOverrideSlider(_("AR Override"), _("AR:"), &cv::ar_override, 0.0f, 12.5f,
+                                _("Approach Rate (higher number = faster circles)."), &cv::ar_override_lock);
     OVERRIDE_SLIDER overrideOD =
-        this->addOverrideSlider("OD Override", "OD:", &cv::od_override, 0.0f, 12.5f,
-                                "Overall Difficulty (higher number = harder accuracy).", &cv::od_override_lock);
-    OVERRIDE_SLIDER overrideHP = this->addOverrideSlider("HP Override", "HP:", &cv::hp_override, 0.0f, 12.5f,
-                                                         "Hit/Health Points (higher number = harder survival).");
+        this->addOverrideSlider(_("OD Override"), _("OD:"), &cv::od_override, 0.0f, 12.5f,
+                                _("Overall Difficulty (higher number = harder accuracy)."), &cv::od_override_lock);
+    OVERRIDE_SLIDER overrideHP = this->addOverrideSlider(_("HP Override"), _("HP:"), &cv::hp_override, 0.0f, 12.5f,
+                                                         _("Hit/Health Points (higher number = harder survival)."));
 
     overrideCS.slider->setAnimated(false);  // quick fix for otherwise possible inconsistencies due to slider vertex
                                             // buffers and animated CS changes
@@ -193,7 +193,7 @@ ModSelector::ModSelector() : UIScreen() {
     this->ODLock = overrideOD.lock;
 
     OVERRIDE_SLIDER overrideSpeed =
-        this->addOverrideSlider("Speed/BPM Multiplier", "x", &cv::speed_override, 0.9f, 2.5f);
+        this->addOverrideSlider(_("Speed/BPM Multiplier"), "x", &cv::speed_override, 0.9f, 2.5f);
 
     overrideSpeed.slider->setChangeCallback(SA::MakeDelegate<&ModSelector::onOverrideSliderChange>(this));
     // overrideSpeed.slider->setValue(-1.0f, false);
@@ -203,69 +203,76 @@ ModSelector::ModSelector() : UIScreen() {
     this->speedSlider = overrideSpeed.slider;
 
     // build experimental buttons
-    this->addExperimentalLabel(" Experimental Mods (!)");
-    this->addExperimentalCheckbox("Flip Up/Down", "Playfield is flipped upside down (mirrored at horizontal axis).",
+    this->addExperimentalLabel(_(" Experimental Mods (!)"));
+    this->addExperimentalCheckbox(_("Flip Up/Down"),
+                                  _("Playfield is flipped upside down (mirrored at horizontal axis)."),
                                   &cv::playfield_mirror_horizontal);
-    this->addExperimentalCheckbox("Flip Left/Right", "Playfield is flipped left/right (mirrored at vertical axis).",
+    this->addExperimentalCheckbox(_("Flip Left/Right"),
+                                  _("Playfield is flipped left/right (mirrored at vertical axis)."),
                                   &cv::playfield_mirror_vertical);
-    this->addExperimentalCheckbox("Singletap", "You can only press one key.", &cv::mod_singletap);
-    this->addExperimentalCheckbox("Alternate", "You can never use the same key twice in a row.",
+    this->addExperimentalCheckbox(_("Singletap"), _("You can only press one key."), &cv::mod_singletap);
+    this->addExperimentalCheckbox(_("Alternate"), _("You can never use the same key twice in a row."),
                                   &cv::mod_fullalternate);
-    this->addExperimentalCheckbox("No keylock", "You can use 4 keys instead of only 2.", &cv::mod_no_keylock);
-    this->addExperimentalCheckbox("DKS", "Also click hitcircles when releasing a key.", &cv::mod_dks);
-    this->addExperimentalCheckbox("Traceable", "Hitcircles are invisible. Good luck if you use this with Hidden!",
+    this->addExperimentalCheckbox(_("No keylock"), _("You can use 4 keys instead of only 2."), &cv::mod_no_keylock);
+    this->addExperimentalCheckbox(_("DKS"), _("Also click hitcircles when releasing a key."), &cv::mod_dks);
+    this->addExperimentalCheckbox(_("Traceable"), _("Hitcircles are invisible. Good luck if you use this with Hidden!"),
                                   &cv::mod_traceable);
     this->addExperimentalCheckbox(
-        "Freeze Frame", "Draw all hitobjects in a combo group together. Try it with Hidden for an extra challenge!",
+        _("Freeze Frame"),
+        _("Draw all hitobjects in a combo group together. Try it with Hidden for an extra challenge!"),
         &cv::mod_freeze_frame);
-    this->addExperimentalCheckbox("No pausing", "Pausing is cheating", &cv::mod_no_pausing);
+    this->addExperimentalCheckbox(_("No pausing"), _("Pausing is cheating"), &cv::mod_no_pausing);
     this->addExperimentalCheckbox(
-        "FPoSu: Strafing", "Playfield moves in 3D space (see fposu_mod_strafing_...).\nOnly works in FPoSu mode!",
+        _("FPoSu: Strafing"), _("Playfield moves in 3D space (see fposu_mod_strafing_...).\nOnly works in FPoSu mode!"),
         &cv::fposu_mod_strafing);
-    this->addExperimentalCheckbox("Wobble", "Playfield rotates and moves.", &cv::mod_wobble);
-    this->addExperimentalCheckbox("AR Wobble", "Approach rate oscillates between -1 and +1.", &cv::mod_arwobble);
-    this->addExperimentalCheckbox("Approach Different",
-                                  "Customize the approach circle animation.\nSee mod_approach_different_style.\nSee "
-                                  "mod_approach_different_initial_size.",
+    this->addExperimentalCheckbox(_("Wobble"), _("Playfield rotates and moves."), &cv::mod_wobble);
+    this->addExperimentalCheckbox(_("AR Wobble"), _("Approach rate oscillates between -1 and +1."), &cv::mod_arwobble);
+    this->addExperimentalCheckbox(_("Approach Different"),
+                                  _("Customize the approach circle animation.\nSee mod_approach_different_style.\nSee "
+                                    "mod_approach_different_initial_size."),
                                   &cv::mod_approach_different);
-    this->addExperimentalCheckbox("Timewarp", "Speed increases from 100% to 150% over the course of the beatmap.",
+    this->addExperimentalCheckbox(_("Timewarp"), _("Speed increases from 100% to 150% over the course of the beatmap."),
                                   &cv::mod_timewarp);
+    this->addExperimentalCheckbox(_("AR Timewarp"),
+                                  _("Approach rate decreases from 100% to 50% over the course of the beatmap."),
+                                  &cv::mod_artimewarp);
     this->addExperimentalCheckbox(
-        "AR Timewarp", "Approach rate decreases from 100% to 50% over the course of the beatmap.", &cv::mod_artimewarp);
-    this->addExperimentalCheckbox("Minimize", "Circle size decreases from 100% to 50% over the course of the beatmap.",
-                                  &cv::mod_minimize);
-    this->addExperimentalCheckbox("Fading Cursor", "The cursor fades the higher the combo, becoming invisible at 50.",
+        _("Minimize"), _("Circle size decreases from 100% to 50% over the course of the beatmap."), &cv::mod_minimize);
+    this->addExperimentalCheckbox(_("Fading Cursor"),
+                                  _("The cursor fades the higher the combo, becoming invisible at 50."),
                                   &cv::mod_fadingcursor);
-    this->addExperimentalCheckbox("First Person", "Centered cursor.", &cv::mod_fps);
-    this->addExperimentalCheckbox("Precise sliders", "Massively reduced slider follow circle radius.",
+    this->addExperimentalCheckbox(_("First Person"), _("Centered cursor."), &cv::mod_fps);
+    this->addExperimentalCheckbox(_("Precise sliders"), _("Massively reduced slider follow circle radius."),
                                   &cv::mod_jigsaw2);
-    this->addExperimentalCheckbox("Reverse Sliders",
-                                  "Reverses the direction of all sliders. (Reload beatmap to apply!)",
+    this->addExperimentalCheckbox(_("Reverse Sliders"),
+                                  _("Reverses the direction of all sliders. (Reload beatmap to apply!)"),
                                   &cv::mod_reverse_sliders);
-    this->addExperimentalCheckbox("No 50s", "Only 300s or 100s. Try harder.", &cv::mod_no50s);
-    this->addExperimentalCheckbox("No 100s no 50s", "300 or miss. PF \"lite\"", &cv::mod_no100s);
-    this->addExperimentalCheckbox("MinG3012", "No 100s. Only 300s or 50s. Git gud.", &cv::mod_ming3012);
+    this->addExperimentalCheckbox(_("No 50s"), _("Only 300s or 100s. Try harder."), &cv::mod_no50s);
+    this->addExperimentalCheckbox(_("No 100s no 50s"), _("300 or miss. PF \"lite\""), &cv::mod_no100s);
+    this->addExperimentalCheckbox(_("MinG3012"), _("No 100s. Only 300s or 50s. Git gud."), &cv::mod_ming3012);
+    this->addExperimentalCheckbox(_("Half Timing Window"),
+                                  _("The hit timing window is cut in half. Hit early or perfect (300)."),
+                                  &cv::mod_halfwindow);
+    this->addExperimentalCheckbox(_("MillhioreF"), _("Go below AR 0. Doubled approach time."), &cv::mod_millhioref);
     this->addExperimentalCheckbox(
-        "Half Timing Window", "The hit timing window is cut in half. Hit early or perfect (300).", &cv::mod_halfwindow);
-    this->addExperimentalCheckbox("MillhioreF", "Go below AR 0. Doubled approach time.", &cv::mod_millhioref);
-    this->addExperimentalCheckbox(
-        "Mafham",
-        "Approach rate is set to negative infinity. See the entire beatmap at once.\nUses very "
-        "aggressive optimizations to keep the framerate high, you have been warned!",
+        _("Mafham"),
+        _("Approach rate is set to negative infinity. See the entire beatmap at once.\nUses very "
+          "aggressive optimizations to keep the framerate high, you have been warned!"),
         &cv::mod_mafham);
-    this->addExperimentalCheckbox("Strict clicks", "Unnecessary clicks count as misses.", &cv::mod_jigsaw1);
+    this->addExperimentalCheckbox(_("Strict clicks"), _("Unnecessary clicks count as misses."), &cv::mod_jigsaw1);
     this->addExperimentalCheckbox(
-        "Strict Tracking", "Leaving sliders in any way counts as a miss and combo break. (Reload beatmap to apply!)",
+        _("Strict Tracking"),
+        _("Leaving sliders in any way counts as a miss and combo break. (Reload beatmap to apply!)"),
         &cv::mod_strict_tracking);
 
     this->nonSubmittableWarning = new CBaseUILabel();
     this->nonSubmittableWarning
-        ->setDrawFrame(false)                                                                      //
-        ->setDrawBackground(false)                                                                 //
-        ->setText("WARNING: Score submission will be disabled due to non-vanilla mod selection.")  //
-        ->setTextColor(0xffff0000)                                                                 //
-        ->setTextJustification(TEXT_JUSTIFICATION::CENTERED)                                       //
-        ->setVisible(false);                                                                       //
+        ->setDrawFrame(false)                                                                         //
+        ->setDrawBackground(false)                                                                    //
+        ->setText(_("WARNING: Score submission will be disabled due to non-vanilla mod selection."))  //
+        ->setTextColor(0xffff0000)                                                                    //
+        ->setTextJustification(TEXT_JUSTIFICATION::CENTERED)                                          //
+        ->setVisible(false);                                                                          //
     this->addBaseUIElement(this->nonSubmittableWarning);
 
     // build score multiplier label
@@ -277,10 +284,10 @@ ModSelector::ModSelector() : UIScreen() {
     this->addBaseUIElement(this->scoreMultiplierLabel);
 
     // build action buttons
-    this->resetModsButton = this->addActionButton("1. Reset All Mods");
+    this->resetModsButton = this->addActionButton(_("1. Reset All Mods"));
     this->resetModsButton->setColor(0xffc62b00);
     this->resetModsButton->setClickCallback(SA::MakeDelegate<&ModSelector::resetModsUserInitiated>(this));
-    this->closeButton = this->addActionButton("2. Close");
+    this->closeButton = this->addActionButton(_("2. Close"));
     this->closeButton->setClickCallback(SA::MakeDelegate<&ModSelector::close>(this));
     this->closeButton->setColor(0xff636363);
 
@@ -304,33 +311,36 @@ void ModSelector::updateButtons(bool initial) {
 
 #define MKIMGGETR(sipmr) SA::MakeDelegate([](const Skin *skin) -> const SkinImage * { return &(skin->*&Skin::sipmr); })
 
-    this->modButtonEZ =
-        setGridModbtn(this->getGridButton(EZ_POS), 0, initial && osu->getModEZ(), &cv::mod_easy, "ez",
-                      "Reduces overall difficulty - larger circles, more forgiving HP drain, less accuracy required.",
-                      MKIMGGETR(i_modselect_ez));
+    this->modButtonEZ = setGridModbtn(
+        this->getGridButton(EZ_POS), 0, initial && osu->getModEZ(), &cv::mod_easy, "ez",
+        _("Reduces overall difficulty - larger circles, more forgiving HP drain, less accuracy required."),
+        MKIMGGETR(i_modselect_ez));
     this->modButtonNF =
         setGridModbtn(this->getGridButton(NF_POS), 0, initial && osu->getModNF(), &cv::mod_nofail, "nf",
-                      "You can't fail. No matter what.\nNOTE: To disable drain completely:\nOptions > Gameplay > "
-                      "Mechanics > \"Disable HP Drain\".",
+                      _("You can't fail. No matter what.\nNOTE: To disable drain completely:\nOptions > Gameplay > "
+                        "Mechanics > \"Disable HP Drain\"."),
                       MKIMGGETR(i_modselect_nf));
 
     this->modButtonHR = setGridModbtn(this->getGridButton(HR_POS), 0, initial && osu->getModHR(), &cv::mod_hardrock,
-                                      "hr", "Everything just got a bit harder...", MKIMGGETR(i_modselect_hr));
-    this->modButtonSDPF = setGridModbtn(this->getGridButton(SDPF_POS), 0, initial && osu->getModSD(),
-                                        &cv::mod_suddendeath, "sd", "Miss a note and fail.", MKIMGGETR(i_modselect_sd));
-    setGridModbtn(this->getGridButton(SDPF_POS), 1, initial && osu->getModSS(), &cv::mod_perfect, "ss", "SS or quit.",
-                  MKIMGGETR(i_modselect_pf));
+                                      "hr", _("Everything just got a bit harder..."), MKIMGGETR(i_modselect_hr));
+    this->modButtonSDPF =
+        setGridModbtn(this->getGridButton(SDPF_POS), 0, initial && osu->getModSD(), &cv::mod_suddendeath, "sd",
+                      _("Miss a note and fail."), MKIMGGETR(i_modselect_sd));
+    setGridModbtn(this->getGridButton(SDPF_POS), 1, initial && osu->getModSS(), &cv::mod_perfect, "ss",
+                  _("SS or quit."), MKIMGGETR(i_modselect_pf));
 
     {
         const bool nce = cv::nightcore_enjoyer.getBool();
         // clang-format off
-        std::string_view HTTooltip     = nce ? "A E S T H E T I C" : "Less zoom.";
+        // TRANSLATORS: "A E S T H E T I C" is a vaporwave aesthetic meme. This is a joke tooltip for Half Time when Nightcore enjoyer mode is on.
+        std::string_view HTTooltip     = nce ? _("A E S T H E T I C") : _("Less zoom.");
         std::string_view HTName        = nce ? "dc"                : "ht";
         const SkinImageGetter HTMember = nce ?
                                          MKIMGGETR(i_modselect_dc) :
                                          MKIMGGETR(i_modselect_ht);
 
-        std::string_view DTTooltip     = nce ? "uguuuuuuuu"     : "Zoooooooooom.";
+        // TRANSLATORS: "uguuuuuuuu" is an anime-style meme sound/expression. This is a joke tooltip for Double Time when Nightcore enjoyer mode is on.
+        std::string_view DTTooltip     = nce ? _("uguuuuuuuu")     : _("Zoooooooooom.");
         std::string_view DTName        = nce ? "nc"             : "dt";
         const SkinImageGetter DTMember = nce ?
                                          MKIMGGETR(i_modselect_nc) :
@@ -343,35 +353,36 @@ void ModSelector::updateButtons(bool initial) {
     }
 
     this->modButtonHD = setGridModbtn(this->getGridButton(HD_POS), 0, initial && osu->getModHD(), &cv::mod_hidden, "hd",
-                                      "Play with no approach circles and fading notes for a slight score advantage.",
+                                      _("Play with no approach circles and fading notes for a slight score advantage."),
                                       MKIMGGETR(i_modselect_hd));
 
     this->modButtonFL = setGridModbtn(this->getGridButton(FL_POS), 0, initial && osu->getModFlashlight(),
-                                      &cv::mod_flashlight, "fl", "Restricted view area.", MKIMGGETR(i_modselect_fl));
+                                      &cv::mod_flashlight, "fl", _("Restricted view area."), MKIMGGETR(i_modselect_fl));
     setGridModbtn(this->getGridButton(FL_POS), 1, initial && cv::mod_actual_flashlight.getBool(),
-                  &cv::mod_actual_flashlight, "afl", "Actual flashlight.", MKIMGGETR(i_modselect_fl));
+                  &cv::mod_actual_flashlight, "afl", _("Actual flashlight."), MKIMGGETR(i_modselect_fl));
 
-    this->modButtonRX = setGridModbtn(
-        this->getGridButton(RX_POS), 0, initial && osu->getModRelax(), &cv::mod_relax, "relax",
-        "You don't need to click.\nGive your clicking/tapping fingers a break from the heat of things.\n** UNRANKED **",
-        MKIMGGETR(i_modselect_rx));
+    this->modButtonRX =
+        setGridModbtn(this->getGridButton(RX_POS), 0, initial && osu->getModRelax(), &cv::mod_relax, "relax",
+                      _("You don't need to click.\nGive your clicking/tapping fingers a break from the heat of "
+                        "things.\n** UNRANKED **"),
+                      MKIMGGETR(i_modselect_rx));
     this->modButtonAP = setGridModbtn(
         this->getGridButton(AP_POS), 0, initial && osu->getModAutopilot(), &cv::mod_autopilot, "autopilot",
-        "Automatic cursor movement - just follow the rhythm.\n** UNRANKED **", MKIMGGETR(i_modselect_ap));
+        _("Automatic cursor movement - just follow the rhythm.\n** UNRANKED **"), MKIMGGETR(i_modselect_ap));
     this->modButtonSO =
         setGridModbtn(this->getGridButton(SO_POS), 0, initial && osu->getModSpunout(), &cv::mod_spunout, "spunout",
-                      "Spinners will be automatically completed.", MKIMGGETR(i_modselect_so));
+                      _("Spinners will be automatically completed."), MKIMGGETR(i_modselect_so));
     this->modButtonAUTO =
         setGridModbtn(this->getGridButton(AUTO_POS), 0, initial && osu->getModAuto(), &cv::mod_autoplay, "auto",
-                      "Watch a perfect automated play through the song.", MKIMGGETR(i_modselect_auto));
+                      _("Watch a perfect automated play through the song."), MKIMGGETR(i_modselect_auto));
     this->modButtonTGT = setGridModbtn(
         this->getGridButton(TGT_POS), 0, initial && osu->getModTarget(), &cv::mod_target, "practicetarget",
-        "Accuracy is based on the distance to the center of all hitobjects.\n300s still require at "
-        "least being in the hit window of a 100 in addition to the rule above.",
+        _("Accuracy is based on the distance to the center of all hitobjects.\n300s still require at "
+          "least being in the hit window of a 100 in addition to the rule above."),
         MKIMGGETR(i_modselect_target));
     this->modButtonSV2 =
         setGridModbtn(this->getGridButton(SV2_POS), 0, initial && osu->getModScorev2(), &cv::mod_scorev2, "v2",
-                      "Try the future scoring system.\n** UNRANKED **", MKIMGGETR(i_modselect_sv2));
+                      _("Try the future scoring system.\n** UNRANKED **"), MKIMGGETR(i_modselect_sv2));
 
     const bool isMulti = BanchoState::is_in_a_multi_room();
     const bool isHostEquivalent = !isMulti || BanchoState::room.is_host();
@@ -399,7 +410,7 @@ void ModSelector::updateScoreMultiplierLabelText() {
     else
         this->scoreMultiplierLabel->setTextColor(argb(alpha, 255, 69, 00));
 
-    this->scoreMultiplierLabel->setText(fmt::format("Score Multiplier: {:.2f}X", scoreMultiplier));
+    this->scoreMultiplierLabel->setText(fmt::format(fmt::runtime(_("Score Multiplier: {:.2f}X")), scoreMultiplier));
 }
 
 void ModSelector::updateExperimentalButtons() {
@@ -509,7 +520,7 @@ void ModSelector::draw() {
         {
             const float dpiScale = Osu::getUIScale();
 
-            static constexpr std::string_view experimentalText = "Experimental Mods";
+            static std::string_view experimentalText = _("Experimental Mods");
             McFont *experimentalFont = osu->getSubTitleFont();
 
             const float experimentalTextWidth = experimentalFont->getStringWidth(experimentalText);
@@ -611,7 +622,7 @@ void ModSelector::update(CBaseUIEventCtx &c) {
                     TooltipOverlay *ttoverlay = ui->getTooltipOverlay();
                     ttoverlay->begin();
                     {
-                        ttoverlay->addLine("Hold [ALT] to slide in 0.01 increments.");
+                        ttoverlay->addLine(_("Hold [ALT] to slide in 0.01 increments."));
                     }
                     ttoverlay->end();
 

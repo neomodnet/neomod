@@ -416,7 +416,7 @@ class ResetButton final : public CBaseUIButton {
         if(this->isMouseInside() && this->isAvailable()) {
             ui->getTooltipOverlay()->begin();
             {
-                ui->getTooltipOverlay()->addLine("Reset");
+                ui->getTooltipOverlay()->addLine(_("Reset"));
             }
             ui->getTooltipOverlay()->end();
         }
@@ -701,11 +701,11 @@ class OptionsMenuKeyBindLabel final : public CBaseUILabel {
         const bool isUnboundKey2_2 = this->bind->cvar == binds::RIGHT_CLICK_2.cvar && this->scanCode == 0;
         const bool isUnbound = this->scanCode == 0 && !(isUnboundKey1_2 || isUnboundKey2_2);
         if(isUnboundKey1_2) {
-            labelText = "Mouse Left";
+            labelText = _("Mouse Left");
         } else if(isUnboundKey2_2) {
-            labelText = "Mouse Right";
+            labelText = _("Mouse Right");
         } else if(this->scanCode == 0) {
-            labelText = "<UNBOUND>";
+            labelText = _("<UNBOUND>");
         } else {
             labelText = env->scanCodeToString(this->scanCode);
             if(labelText.find('?') != std::string::npos) {
@@ -792,7 +792,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     cv::options_high_quality_sliders.setCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onHighQualitySlidersConVarChange>(this));
 
-    this->notelockTypes = {"None", "McOsu", "osu!stable (default)", "osu!lazer 2020"};
+    this->notelockTypes = {_("None"), _("McOsu"), _("osu!stable (default)"), _("osu!lazer 2020")};
 
     parent->setPos(-1, 0);
 
@@ -826,31 +826,32 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
 
     //**************************************************************************************************************************//
 
-    this->sectionGeneral = this->addSection("General");
+    this->sectionGeneral = this->addSection(_("General"));
 
-    this->addSubSection("Online server");
+    this->addSubSection(_("Online server"));
 
     // Only renders if server submission policy is unknown
     {
-        this->addLabel("If the server admins don't explicitly allow " PACKAGE_NAME ",")->setTextColor(0xff666666);
+        this->addLabel(fmt::format(fmt::runtime(_("If the server admins don't explicitly allow {},")), PACKAGE_NAME))
+            ->setTextColor(0xff666666);
         this->elemContainers.back()->render_condition = RenderCondition::SCORE_SUBMISSION_POLICY;
-        this->addLabel("you might get banned!")->setTextColor(0xff666666);
+        this->addLabel(_("you might get banned!"))->setTextColor(0xff666666);
         this->elemContainers.back()->render_condition = RenderCondition::SCORE_SUBMISSION_POLICY;
         this->addLabel("");
         this->elemContainers.back()->render_condition = RenderCondition::SCORE_SUBMISSION_POLICY;
     }
 
-    this->serverTextbox = this->addTextbox(cv::mp_server.getString(), "Server address:", &cv::mp_server);
+    this->serverTextbox = this->addTextbox(cv::mp_server.getString(), _("Server address:"), &cv::mp_server);
 
     // Only renders if server submission policy is unknown
     {
-        this->submitScoresCheckbox = this->addCheckbox("Submit scores", &cv::submit_scores);
+        this->submitScoresCheckbox = this->addCheckbox(_("Submit scores"), &cv::submit_scores);
         this->elemContainers.back()->render_condition = RenderCondition::SCORE_SUBMISSION_POLICY;
     }
 
     // Only renders if server isn't OAuth
     {
-        this->addSubSection("Login details (username/password)");
+        this->addSubSection(_("Login details (username/password)"));
         this->elemContainers.back()->render_condition = RenderCondition::PASSWORD_AUTH;
         this->nameTextbox = this->addTextbox(cv::name.getString(), &cv::name);
         this->elemContainers.back()->render_condition = RenderCondition::PASSWORD_AUTH;
@@ -862,7 +863,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
 
     {
         enum ELEMS : uint8_t { LOGINBTN = 0, KEEPSIGNEDCBX = 1 };
-        OptionsElement *loginElement = this->addButtonCheckbox("Log in", "Keep me logged in");
+        OptionsElement *loginElement = this->addButtonCheckbox(_("Log in"), _("Keep me logged in"));
         loginElement->cvar = &cv::mp_autologin;
 
         this->logInButton = static_cast<UIButton *>(loginElement->baseElems[LOGINBTN].get());
@@ -877,98 +878,98 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
         keepCbx->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onCheckboxChange>(this));
     }
 
-    this->addCheckbox("Use WebSocket connection when available", &cv::prefer_websockets);
+    this->addCheckbox(_("Use WebSocket connection when available"), &cv::prefer_websockets);
 
 #ifndef MCENGINE_PLATFORM_WASM
-    this->addSubSection("osu!folder");
-    this->addLabel("1) If you have an existing osu!stable installation:")->setTextColor(0xff666666);
-    this->addLabel("2) osu! > Options > \"Open osu! folder\"")->setTextColor(0xff666666);
-    this->addLabel("3) Copy paste the full path into the textbox:")->setTextColor(0xff666666);
+    this->addSubSection(_("osu! folder"));
+    this->addLabel(_("1) If you have an existing osu!stable installation:"))->setTextColor(0xff666666);
+    this->addLabel(_("2) osu! > Options > \"Open osu! folder\""))->setTextColor(0xff666666);
+    this->addLabel(_("3) Copy paste the full path into the textbox:"))->setTextColor(0xff666666);
     this->addLabel("");
     this->osuFolderTextbox = this->addTextbox(cv::osu_folder.getString(), &cv::osu_folder);
-    UIButton *importPeppySettingsButton = this->addButton("Import settings from osu!stable");
+    UIButton *importPeppySettingsButton = this->addButton(_("Import settings from osu!stable"));
     importPeppySettingsButton->setClickCallback(SA::MakeDelegate([]() -> void {
         if(SettingsImporter::import_from_osu_stable()) {
-            ui->getNotificationOverlay()->addToast("Successfully imported settings from osu!stable.", SUCCESS_TOAST);
+            ui->getNotificationOverlay()->addToast(_("Successfully imported settings from osu!stable."), SUCCESS_TOAST);
         } else {
-            ui->getNotificationOverlay()->addToast("Error: Couldn't find osu!stable install directory or config file!",
-                                                   ERROR_TOAST);
+            ui->getNotificationOverlay()->addToast(
+                _("Error: Couldn't find osu!stable install directory or config file!"), ERROR_TOAST);
         }
     }));
     this->addCheckbox(
-        "Use osu!.db database (read-only)",
-        "If you have an existing osu! installation,\nthen this will speed up the initial loading process.",
+        _("Use osu!.db database (read-only)"),
+        _("If you have an existing osu! installation,\nthen this will speed up the initial loading process."),
         &cv::database_enabled);
     this->addCheckbox(
-        "Load osu! collection.db (read-only)",
-        "If you have an existing osu! installation,\nalso load and display your created collections from there.",
+        _("Load osu! collection.db (read-only)"),
+        _("If you have an existing osu! installation,\nalso load and display your created collections from there."),
         &cv::collections_legacy_enabled);
 #endif
 
     this->addSpacer();
     this->addCheckbox(
-        "Include Relax/Autopilot for total weighted pp/acc",
-        "NOTE: osu! does not allow this (since these mods are unranked).\nShould relax/autopilot scores be "
-        "included in the weighted pp/acc calculation?",
+        _("Include Relax/Autopilot for total weighted pp/acc"),
+        _("NOTE: osu! does not allow this (since these mods are unranked).\nShould relax/autopilot scores be "
+          "included in the weighted pp/acc calculation?"),
         &cv::user_include_relax_and_autopilot_for_stats);
-    this->addCheckbox("Always show pp instead of score in scorebrowser", "Ignore score sorting type entirely.",
+    this->addCheckbox(_("Always show pp instead of score in scorebrowser"), _("Ignore score sorting type entirely."),
                       &cv::scores_always_display_pp);
 
-    this->addSubSection("Songbrowser");
+    this->addSubSection(_("Songbrowser"));
     // Fallback font support is currently implemented for these platforms
     // Remember to update this if adding support for another platform
     if constexpr(Env::cfg(OS::LINUX | OS::WINDOWS)) {
-        this->addCheckbox("Prefer metadata in original language", &cv::prefer_cjk);
+        this->addCheckbox(_("Prefer metadata in original language"), &cv::prefer_cjk);
         this->elemContainers.back()->searchTags = "native character cjk";
     }
-    this->addCheckbox("Draw Strain Graph in Songbrowser",
-                      "Hold either SHIFT/CTRL to show only speed/aim strains.\nSpeed strain is red, aim strain is "
-                      "green.\n(See osu_hud_scrubbing_timeline_strains_*)",
+    this->addCheckbox(_("Draw Strain Graph in Songbrowser"),
+                      _("Hold either SHIFT/CTRL to show only speed/aim strains.\nSpeed strain is red, aim strain is "
+                        "green.\n(See osu_hud_scrubbing_timeline_strains_*)"),
                       &cv::draw_songbrowser_strain_graph);
-    this->addCheckbox("Draw Strain Graph in Scrubbing Timeline",
-                      "Speed strain is red, aim strain is green.\n(See osu_hud_scrubbing_timeline_strains_*)",
+    this->addCheckbox(_("Draw Strain Graph in Scrubbing Timeline"),
+                      _("Speed strain is red, aim strain is green.\n(See osu_hud_scrubbing_timeline_strains_*)"),
                       &cv::draw_scrubbing_timeline_strain_graph);
-    this->addCheckbox("Song Buttons Velocity Animation",
-                      "If enabled, then song buttons are pushed to the right depending on the scrolling velocity.",
+    this->addCheckbox(_("Song Buttons Velocity Animation"),
+                      _("If enabled, then song buttons are pushed to the right depending on the scrolling velocity."),
                       &cv::songbrowser_button_anim_x_push);
-    this->addCheckbox("Song Buttons Curved Layout",
-                      "If enabled, then song buttons are positioned on a vertically centered curve.",
+    this->addCheckbox(_("Song Buttons Curved Layout"),
+                      _("If enabled, then song buttons are positioned on a vertically centered curve."),
                       &cv::songbrowser_button_anim_y_curve);
 
-    this->addSubSection("Window");
-    this->addCheckbox("Pause on Focus Loss", "Should the game pause when you switch to another application?",
+    this->addSubSection(_("Window"));
+    this->addCheckbox(_("Pause on Focus Loss"), _("Should the game pause when you switch to another application?"),
                       &cv::pause_on_focus_loss);
 
-    this->addSubSection("Alerts");
-    this->addCheckbox("Notify when friends change status", &cv::notify_friend_status_change);
-    this->addCheckbox("Notify when receiving a direct message", &cv::chat_notify_on_dm);
-    this->addCheckbox("Notify when mentioned", &cv::chat_notify_on_mention);
-    this->addCheckbox("Ping when mentioned", &cv::chat_ping_on_mention);
-    this->addCheckbox("Show notifications during gameplay", &cv::notify_during_gameplay);
+    this->addSubSection(_("Alerts"));
+    this->addCheckbox(_("Notify when friends change status"), &cv::notify_friend_status_change);
+    this->addCheckbox(_("Notify when receiving a direct message"), &cv::chat_notify_on_dm);
+    this->addCheckbox(_("Notify when mentioned"), &cv::chat_notify_on_mention);
+    this->addCheckbox(_("Ping when mentioned"), &cv::chat_ping_on_mention);
+    this->addCheckbox(_("Show notifications during gameplay"), &cv::notify_during_gameplay);
 
-    this->addSubSection("In-game chat");
-    this->addCheckbox("Chat ticker", &cv::chat_ticker);
-    this->addCheckbox("Automatically hide chat during gameplay", &cv::chat_auto_hide);
-    this->addTextbox(cv::chat_ignore_list.getString(),
-                     "Chat word ignore list (space-separated):", &cv::chat_ignore_list);
-    // this->addTextbox(cv::chat_highlight_words.getString(), "Chat word highlight list (space-separated):", &cv::chat_highlight_words);
+    this->addSubSection(_("In-game chat"));
+    this->addCheckbox(_("Chat ticker"), &cv::chat_ticker);
+    this->addCheckbox(_("Automatically hide chat during gameplay"), &cv::chat_auto_hide);
+    this->addTextbox(cv::chat_ignore_list.getString(), _("Chat word ignore list (space-separated):"),
+                     &cv::chat_ignore_list);
+    // this->addTextbox(cv::chat_highlight_words.getString(), _("Chat word highlight list (space-separated):"), &cv::chat_highlight_words);
 
-    this->addSubSection("Privacy");
+    this->addSubSection(_("Privacy"));
 #ifndef MCENGINE_PLATFORM_WASM
-    this->addCheckbox("Automatically update to the latest version", &cv::auto_update);
+    this->addCheckbox(_("Automatically update to the latest version"), &cv::auto_update);
 #endif
-    // this->addCheckbox("Allow private messages from strangers", &cv::allow_stranger_dms);
-    // this->addCheckbox("Allow game invites from strangers", &cv::allow_mp_invites);
-    this->addCheckbox("Replace main menu logo with server logo", &cv::main_menu_use_server_logo);
-    this->addCheckbox("Show spectator list", &cv::draw_spectator_list);
-    this->addCheckbox("Share currently played map with spectators", &cv::spec_share_map);
+    // this->addCheckbox(_("Allow private messages from strangers"), &cv::allow_stranger_dms);
+    // this->addCheckbox(_("Allow game invites from strangers"), &cv::allow_mp_invites);
+    this->addCheckbox(_("Replace main menu logo with server logo"), &cv::main_menu_use_server_logo);
+    this->addCheckbox(_("Show spectator list"), &cv::draw_spectator_list);
+    this->addCheckbox(_("Share currently played map with spectators"), &cv::spec_share_map);
     if constexpr(Env::cfg(FEAT::DISCORD)) {
         this->addCheckbox(
-            "Enable Discord Rich Presence",
-            "Shows your current game state in your friends' friendslists.\ne.g.: Playing Gavin G - Reach Out "
-            "[Cherry Blossom's Insane]",
+            _("Enable Discord Rich Presence"),
+            _("Shows your current game state in your friends' friendslists.\ne.g.: Playing Gavin G - Reach Out "
+              "[Cherry Blossom's Insane]"),
             &cv::rich_presence);
-        this->addCheckbox("Draw map backgrounds in Discord Rich Presence", &cv::rich_presence_map_backgrounds);
+        this->addCheckbox(_("Draw map backgrounds in Discord Rich Presence"), &cv::rich_presence_map_backgrounds);
 
         // XXX: have a generic "update_activity"
         cv::rich_presence_map_backgrounds.setCallback([]() { DiscRPC::clear_activity(); });
@@ -976,117 +977,122 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
 
     //**************************************************************************************************************************//
 
-    CBaseUIElement *sectionGraphics = this->addSection("Graphics");
+    CBaseUIElement *sectionGraphics = this->addSection(_("Graphics"));
 
-    this->addSubSection("Renderer");
+    this->addSubSection(_("Renderer"));
     // makes the game run worse
     if constexpr(!Env::cfg(OS::WASM)) {
-        this->addCheckbox("VSync", "If enabled: plz enjoy input lag.", &cv::vsync);
-        this->addCheckbox("High Priority", "Sets the game process priority to high", &cv::win_processpriority);
+        this->addCheckbox(_("VSync"), _("If enabled: plz enjoy input lag."), &cv::vsync);
+        this->addCheckbox(_("High Priority"), _("Sets the game process priority to high"), &cv::win_processpriority);
     }
 
-    this->addCheckbox("Show FPS Counter", &cv::draw_fps);
+    this->addCheckbox(_("Show FPS Counter"), &cv::draw_fps);
 
     CBaseUISlider *prerenderedFramesSlider =
-        this->addSlider("Max Queued Frames", 1.0f, 3.0f, &cv::r_sync_max_frames, -1.0f, true);
+        this->addSlider(_("Max Queued Frames"), 1.0f, 3.0f, &cv::r_sync_max_frames, -1.0f, true);
     prerenderedFramesSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeInt>(this));
     prerenderedFramesSlider->setKeyDelta(1);
-    this->addLabel("Raise for higher fps, decrease for lower latency")->setTextColor(0xff666666);
+    this->addLabel(_("Raise for higher fps, decrease for lower latency"))->setTextColor(0xff666666);
 
     this->addSpacer();
 
-    CBaseUISlider *fpsSlider = this->addSlider("FPS Limiter:", 0.0f, 1000.0f, &cv::fps_max, -1.0f, true);
+    CBaseUISlider *fpsSlider = this->addSlider(_("FPS Limiter:"), 0.0f, 1000.0f, &cv::fps_max, -1.0f, true);
     fpsSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onFPSSliderChange>(this));
     fpsSlider->setKeyDelta(1);
 
-    CBaseUISlider *fpsSlider2 = this->addSlider("FPS Limiter (menus):", 0.0f, 1000.0f, &cv::fps_max_menu, -1.0f, true);
+    CBaseUISlider *fpsSlider2 =
+        this->addSlider(_("FPS Limiter (menus):"), 0.0f, 1000.0f, &cv::fps_max_menu, -1.0f, true);
     fpsSlider2->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onFPSSliderChange>(this));
     fpsSlider2->setKeyDelta(1);
 
-    this->addSubSection("Layout");
+    this->addSubSection(_("Layout"));
     OptionsElement *resolutionSelect = this->addButton(
-        "Select Resolution", fmt::format("{}x{}", osu->getVirtScreenWidth(), osu->getVirtScreenHeight()), false,
+        _("Select Resolution"), fmt::format("{}x{}", osu->getVirtScreenWidth(), osu->getVirtScreenHeight()), false,
         &cv::resolution);
     this->resolutionSelectButton = (CBaseUIButton *)resolutionSelect->baseElems[0].get();
     this->resolutionSelectButton->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onResolutionSelect>(this));
     this->resolutionLabel = (CBaseUILabel *)resolutionSelect->baseElems[1].get();
-    this->fullscreenCheckbox = this->addCheckbox("Fullscreen", &cv::fullscreen);
+    this->fullscreenCheckbox = this->addCheckbox(_("Fullscreen"), &cv::fullscreen);
     this->fullscreenCheckbox->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onFullscreenChange>(this));
-    this->addCheckbox("Keep Aspect Ratio",
-                      "Black borders instead of a stretched image.\nOnly relevant if fullscreen is enabled, and "
-                      "letterboxing is disabled.\nUse the two position sliders below to move the viewport around.",
+    this->addCheckbox(_("Keep Aspect Ratio"),
+                      _("Black borders instead of a stretched image.\nOnly relevant if fullscreen is enabled, and "
+                        "letterboxing is disabled.\nUse the two position sliders below to move the viewport around."),
                       &cv::resolution_keep_aspect_ratio);
     this->addCheckbox(
-        "Letterboxing",
-        "Useful to get the low latency of fullscreen with a smaller game resolution.\nUse the two position "
-        "sliders below to move the viewport around.",
+        _("Letterboxing"),
+        _("Useful to get the low latency of fullscreen with a smaller game resolution.\nUse the two position "
+          "sliders below to move the viewport around."),
         &cv::letterboxing);
     this->letterboxingOffsetXSlider =
-        this->addSlider("Horizontal position", -1.0f, 1.0f, &cv::letterboxing_offset_x, 170)
+        this->addSlider(_("Horizontal position"), -1.0f, 1.0f, &cv::letterboxing_offset_x, 170)
             ->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeLetterboxingOffset>(this))
             ->setKeyDelta(0.01f)
             ->setAnimated(false);
     this->letterboxingOffsetYSlider =
-        this->addSlider("Vertical position", -1.0f, 1.0f, &cv::letterboxing_offset_y, 170)
+        this->addSlider(_("Vertical position"), -1.0f, 1.0f, &cv::letterboxing_offset_y, 170)
             ->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeLetterboxingOffset>(this))
             ->setKeyDelta(0.01f)
             ->setAnimated(false);
 
-    this->addSubSection("UI Scaling");
+    this->addSubSection(_("UI Scaling"));
     this->addCheckbox(
-            "DPI Scaling",
-            fmt::format("Automatically scale to the DPI of your display: {} DPI.\nScale factor = {} / 96 = {:.2g}x",
-                        env->getDPI(), env->getDPI(), env->getDPIScale()),
+            _("DPI Scaling"),
+            fmt::format(
+                fmt::runtime(
+                    _("Automatically scale to the DPI of your display: {} DPI.\nScale factor = {} / 96 = {:.2g}x")),
+                env->getDPI(), env->getDPI(), env->getDPIScale()),
             &cv::ui_scale_to_dpi)
         ->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onDPIScalingChange>(this));
-    this->uiScaleSlider = this->addSlider("UI Scale:", 1.0f, 1.5f, &cv::ui_scale, 0.f, false, true);
+    this->uiScaleSlider = this->addSlider(_("UI Scale:"), 1.0f, 1.5f, &cv::ui_scale, 0.f, false, true);
     this->uiScaleSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeUIScale>(this));
     this->uiScaleSlider->setKeyDelta(0.01f);
     this->uiScaleSlider->setAnimated(false);
 
-    this->addSubSection("Detail Settings");
-    this->addCheckbox("Animate scoreboard", "Use fancy animations for the in-game scoreboard",
+    this->addSubSection(_("Detail Settings"));
+    this->addCheckbox(_("Animate scoreboard"), _("Use fancy animations for the in-game scoreboard"),
                       &cv::scoreboard_animations);
     this->addCheckbox(
-        "Avoid flashing elements",
-        "Disables cosmetic flash effects\nDisables dimming when holding silders with Flashlight mod enabled",
+        _("Avoid flashing elements"),
+        _("Disables cosmetic flash effects\nDisables dimming when holding silders with Flashlight mod enabled"),
         &cv::avoid_flashes);
     this->addCheckbox(
-        "Mipmaps",
-        "Reload your skin to apply! (CTRL + ALT + S)\nGenerate mipmaps for each skin element, at the cost of "
-        "VRAM.\nProvides smoother visuals on lower resolutions for @2x-only skins.",
+        _("Mipmaps"),
+        _("Reload your skin to apply! (CTRL + ALT + S)\nGenerate mipmaps for each skin element, at the cost of "
+          "VRAM.\nProvides smoother visuals on lower resolutions for @2x-only skins."),
         &cv::skin_mipmaps);
     this->addSpacer();
     this->addCheckbox(
-        "Snaking in sliders",
-        "\"Growing\" sliders.\nSliders gradually snake out from their starting point while fading in.\nHas no "
-        "impact on performance whatsoever.",
+        _("Snaking in sliders"),
+        _("\"Growing\" sliders.\nSliders gradually snake out from their starting point while fading in.\nHas no "
+          "impact on performance whatsoever."),
         &cv::snaking_sliders);
-    this->addCheckbox("Snaking out sliders",
-                      "\"Shrinking\" sliders.\nSliders will shrink with the sliderball while sliding.\nCan improve "
-                      "performance a tiny bit, since there will be less to draw overall.",
+    this->addCheckbox(_("Snaking out sliders"),
+                      _("\"Shrinking\" sliders.\nSliders will shrink with the sliderball while sliding.\nCan improve "
+                        "performance a tiny bit, since there will be less to draw overall."),
                       &cv::slider_shrink);
     this->addSpacer();
-    this->addCheckbox("Legacy Slider Renderer (!)",
-                      "WARNING: Only try enabling this on shitty old computers!\nMay or may not improve fps while few "
-                      "sliders are visible.\nGuaranteed lower fps while many sliders are visible!",
-                      &cv::force_legacy_slider_renderer);
-    this->addCheckbox("Higher Quality Sliders (!)", "Disable this if your fps drop too low while sliders are visible.",
+    this->addCheckbox(
+        _("Legacy Slider Renderer (!)"),
+        _("WARNING: Only try enabling this on shitty old computers!\nMay or may not improve fps while few "
+          "sliders are visible.\nGuaranteed lower fps while many sliders are visible!"),
+        &cv::force_legacy_slider_renderer);
+    this->addCheckbox(_("Higher Quality Sliders (!)"),
+                      _("Disable this if your fps drop too low while sliders are visible."),
                       &cv::options_high_quality_sliders)
         ->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onHighQualitySlidersCheckboxChange>(this));
 
-    this->sliderQualitySlider = this->addSlider("Slider Quality", 0.0f, 1.0f, &cv::options_slider_quality);
+    this->sliderQualitySlider = this->addSlider(_("Slider Quality"), 0.0f, 1.0f, &cv::options_slider_quality);
     this->sliderQualitySlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeSliderQuality>(this));
 
     //**************************************************************************************************************************//
 
-    CBaseUIElement *sectionAudio = this->addSection("Audio");
+    CBaseUIElement *sectionAudio = this->addSection(_("Audio"));
 
-    this->addSubSection("Devices");
+    this->addSubSection(_("Devices"));
     {
         OptionsElement *outputDeviceSelect =
-            this->addButton("Select Output Device", "Default", true, &cv::snd_output_device);
+            this->addButton(_("Select Output Device"), _("Default"), true, &cv::snd_output_device);
         this->outputDeviceResetButton = outputDeviceSelect->resetButton.get();
         this->outputDeviceResetButton->setClickCallback(
             SA::MakeDelegate([]() -> void { soundEngine->setOutputDevice(soundEngine->getDefaultDevice()); }));
@@ -1099,7 +1105,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
 
         {
             OptionsElement *soloudBackendSelect =
-                this->addButtonButtonLabel("MiniAudio", "SDL", "Backend", false, &cv::snd_soloud_backend);
+                this->addButtonButtonLabel(_("MiniAudio"), _("SDL"), _("Backend"), false, &cv::snd_soloud_backend);
             const auto &MAButton = static_cast<UIButton *>(soloudBackendSelect->baseElems[0].get());
             const auto &SDLButton = static_cast<UIButton *>(soloudBackendSelect->baseElems[1].get());
             static auto MAButton_static = MAButton;
@@ -1109,7 +1115,8 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
 
             const auto &backendLabel = static_cast<UILabel *>(soloudBackendSelect->baseElems[2].get());
             backendLabel->setVisible(true);
-            backendLabel->setTooltipText("Pick the one you feel works best,\nthere should be very little difference.");
+            backendLabel->setTooltipText(
+                _("Pick the one you feel works best,\nthere should be very little difference."));
 
             soloudBackendSelect->render_condition = {[]() -> bool {
                 bool ret =
@@ -1139,9 +1146,10 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
             // need to use a change callback here because we already have a single-arg callback for the convar...
             cv::snd_soloud_backend.setCallback([](float /**/, float /**/) -> void { setActiveColors(); });
 
-            this->addCheckbox("Auto-disable exclusive mode",
-                              "Toggle exclusive mode off/on\nwhen losing/gaining focus, if already\nin exclusive mode.",
-                              &cv::snd_disable_exclusive_unfocused);
+            this->addCheckbox(
+                _("Auto-disable exclusive mode"),
+                _("Toggle exclusive mode off/on\nwhen losing/gaining focus, if already\nin exclusive mode."),
+                &cv::snd_disable_exclusive_unfocused);
 
             this->elemContainers.back()->render_condition = {[]() -> bool {
                 if constexpr(!Env::cfg(OS::WINDOWS)) return false;
@@ -1156,37 +1164,37 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
         // Dirty...
         auto wasapi_idx = this->elemContainers.size();
         {
-            this->addSubSection("WASAPI");
+            this->addSubSection(_("WASAPI"));
 
-            this->addCheckbox("Low-latency Callbacks",
-                              "Run BASSWASAPI in callback mode to potentially further decrease "
-                              "latency.\n(period/buffer size are ignored)",
+            this->addCheckbox(_("Low-latency Callbacks"),
+                              _("Run BASSWASAPI in callback mode to potentially further decrease "
+                                "latency.\n(period/buffer size are ignored)"),
                               &cv::win_snd_wasapi_event_callbacks);
 
             this->wasapiBufferSizeSlider =
-                this->addSlider("Buffer Size:", 0.000f, 0.050f, &cv::win_snd_wasapi_buffer_size);
+                this->addSlider(_("Buffer Size:"), 0.000f, 0.050f, &cv::win_snd_wasapi_buffer_size);
             this->wasapiBufferSizeSlider->setChangeCallback(
                 SA::MakeDelegate<&OptionsOverlayImpl::onWASAPIBufferChange>(this));
             this->wasapiBufferSizeSlider->setKeyDelta(0.001f);
             this->wasapiBufferSizeSlider->setAnimated(false);
-            this->addLabel("Windows 7: Start at 11 ms,")->setTextColor(0xff666666);
-            this->addLabel("Windows 10: Start at 1 ms,")->setTextColor(0xff666666);
-            this->addLabel("and if crackling: increment until fixed.")->setTextColor(0xff666666);
-            this->addLabel("(lower is better, non-wasapi has ~40 ms minimum)")->setTextColor(0xff666666);
+            this->addLabel(_("Windows 7: Start at 11 ms,"))->setTextColor(0xff666666);
+            this->addLabel(_("Windows 10: Start at 1 ms,"))->setTextColor(0xff666666);
+            this->addLabel(_("and if crackling: increment until fixed."))->setTextColor(0xff666666);
+            this->addLabel(_("(lower is better, non-wasapi has ~40 ms minimum)"))->setTextColor(0xff666666);
             this->addCheckbox(
-                "Exclusive Mode",
-                "Dramatically reduces latency, but prevents other applications from capturing/playing audio.",
+                _("Exclusive Mode"),
+                _("Dramatically reduces latency, but prevents other applications from capturing/playing audio."),
                 &cv::win_snd_wasapi_exclusive);
             this->addLabel("");
             this->addLabel("");
-            this->addLabel("WARNING: Only if you know what you are doing")->setTextColor(0xffff0000);
+            this->addLabel(_("WARNING: Only if you know what you are doing"))->setTextColor(0xffff0000);
             this->wasapiPeriodSizeSlider =
-                this->addSlider("Period Size:", 0.0f, 0.050f, &cv::win_snd_wasapi_period_size);
+                this->addSlider(_("Period Size:"), 0.0f, 0.050f, &cv::win_snd_wasapi_period_size);
             this->wasapiPeriodSizeSlider->setChangeCallback(
                 SA::MakeDelegate<&OptionsOverlayImpl::onWASAPIPeriodChange>(this));
             this->wasapiPeriodSizeSlider->setKeyDelta(0.001f);
             this->wasapiPeriodSizeSlider->setAnimated(false);
-            UIButton *restartSoundEngine = this->addButton("Restart SoundEngine");
+            UIButton *restartSoundEngine = this->addButton(_("Restart SoundEngine"));
             restartSoundEngine->setClickCallback(onOutputDeviceRestartCB);
             restartSoundEngine->setColor(0xff003947);
             this->addLabel("");
@@ -1199,18 +1207,18 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
         // Dirty...
         auto asio_idx = this->elemContainers.size();
         {
-            this->addSubSection("ASIO");
-            this->asioBufferSizeSlider = this->addSlider("Buffer Size:", 0, 44100, &cv::asio_buffer_size);
+            this->addSubSection(_("ASIO"));
+            this->asioBufferSizeSlider = this->addSlider(_("Buffer Size:"), 0, 44100, &cv::asio_buffer_size);
             this->asioBufferSizeSlider->setKeyDelta(512);
             this->asioBufferSizeSlider->setAnimated(false);
             this->asioBufferSizeSlider->setLiveUpdate(false);
             this->asioBufferSizeSlider->setChangeCallback(
                 SA::MakeDelegate<&OptionsOverlayImpl::onASIOBufferChange>(this));
             this->addLabel("");
-            UIButton *asio_settings_btn = this->addButton("Open ASIO settings");
+            UIButton *asio_settings_btn = this->addButton(_("Open ASIO settings"));
             asio_settings_btn->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::OpenASIOSettings>(this));
             asio_settings_btn->setColor(0xff003947);
-            UIButton *restartSoundEngine = this->addButton("Restart SoundEngine");
+            UIButton *restartSoundEngine = this->addButton(_("Restart SoundEngine"));
             restartSoundEngine->setClickCallback(onOutputDeviceRestartCB);
             restartSoundEngine->setColor(0xff003947);
 
@@ -1223,90 +1231,92 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
         }
     }
 
-    this->addSubSection("Volume");
+    this->addSubSection(_("Volume"));
 
-    this->addCheckbox("Normalize loudness across songs", &cv::normalize_loudness)
+    this->addCheckbox(_("Normalize loudness across songs"), &cv::normalize_loudness)
         ->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onLoudnessNormalizationToggle>(this));
 
-    CBaseUISlider *masterVolumeSlider = this->addSlider("Master:", 0.0f, 1.0f, &cv::volume_master, 70.0f);
+    CBaseUISlider *masterVolumeSlider = this->addSlider(_("Master:"), 0.0f, 1.0f, &cv::volume_master, 70.0f);
     masterVolumeSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     masterVolumeSlider->setKeyDelta(0.01f);
-    CBaseUISlider *inactiveVolumeSlider = this->addSlider("Inactive:", 0.0f, 1.0f, &cv::volume_master_inactive, 70.0f);
+    CBaseUISlider *inactiveVolumeSlider =
+        this->addSlider(_("Inactive:"), 0.0f, 1.0f, &cv::volume_master_inactive, 70.0f);
     inactiveVolumeSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     inactiveVolumeSlider->setKeyDelta(0.01f);
-    CBaseUISlider *musicVolumeSlider = this->addSlider("Music:", 0.0f, 1.0f, &cv::volume_music, 70.0f);
+    CBaseUISlider *musicVolumeSlider = this->addSlider(_("Music:"), 0.0f, 1.0f, &cv::volume_music, 70.0f);
     musicVolumeSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     musicVolumeSlider->setKeyDelta(0.01f);
-    CBaseUISlider *effectsVolumeSlider = this->addSlider("Effects:", 0.0f, 1.0f, &cv::volume_effects, 70.0f);
+    CBaseUISlider *effectsVolumeSlider = this->addSlider(_("Effects:"), 0.0f, 1.0f, &cv::volume_effects, 70.0f);
     effectsVolumeSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     effectsVolumeSlider->setKeyDelta(0.01f);
 
-    this->addSubSection("Offset Adjustment");
+    this->addSubSection(_("Offset Adjustment"));
     {
-        this->addSlider("Scaled Offset:", -300.0f, 300.0f, &cv::universal_offset)
+        this->addSlider(_("Scaled Offset:"), -300.0f, 300.0f, &cv::universal_offset)
             ->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeIntMS>(this))
             ->setKeyDelta(1);
 
         auto *label1 = static_cast<UILabel *>(this->elemContainers.back()->baseElems[0].get());
-        label1->setTooltipText("Behaves the same as \"Universal Offset\" in osu! (is multiplied by playback rate).");
+        label1->setTooltipText(_("Behaves the same as \"Universal Offset\" in osu! (is multiplied by playback rate)."));
     }
 
     {
-        this->addSlider("Unscaled Offset:", -300.0f, 300.0f, &cv::universal_offset_norate)
+        this->addSlider(_("Unscaled Offset:"), -300.0f, 300.0f, &cv::universal_offset_norate)
             ->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeIntMS>(this))
             ->setKeyDelta(1);
 
         auto *label1 = static_cast<UILabel *>(this->elemContainers.back()->baseElems[0].get());
         label1->setTooltipText(
-            "\"Universal Offset\", but unaffected by rate adjustments.\n+15 unscaled offset is the same as using -15 "
-            "local offset on every map.");
+            _("\"Universal Offset\", but unaffected by rate adjustments.\n+15 unscaled offset is the same as using -15 "
+              "local offset on every map."));
     }
 
-    this->addSubSection("Gameplay");
-    this->addCheckbox("Boost hitsound volume", "Apply a small logarithmic multiplier to non-sliderslide hitsounds.",
+    this->addSubSection(_("Gameplay"));
+    this->addCheckbox(_("Boost hitsound volume"),
+                      _("Apply a small logarithmic multiplier to non-sliderslide hitsounds."),
                       &cv::snd_boost_hitsound_volume);
-    this->addCheckbox("Change hitsound pitch based on accuracy", &cv::snd_pitch_hitsounds);
-    this->addCheckbox("Prefer Nightcore over Double Time", &cv::nightcore_enjoyer)
+    this->addCheckbox(_("Change hitsound pitch based on accuracy"), &cv::snd_pitch_hitsounds);
+    this->addCheckbox(_("Prefer Nightcore over Double Time"), &cv::nightcore_enjoyer)
         ->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onModChangingToggle>(this));
 
-    this->addSubSection("Songbrowser");
-    this->addCheckbox("Apply speed/pitch mods while browsing",
-                      "Whether to always apply all mods, or keep the preview music normal.",
+    this->addSubSection(_("Songbrowser"));
+    this->addCheckbox(_("Apply speed/pitch mods while browsing"),
+                      _("Whether to always apply all mods, or keep the preview music normal."),
                       &cv::beatmap_preview_mods_live);
 
     //**************************************************************************************************************************//
 
-    this->skinSection = this->addSection("Skin");
+    this->skinSection = this->addSection(_("Skin"));
 
-    this->addSubSection("Skin");
+    this->addSubSection(_("Skin"));
     this->addSkinPreview();
     {
         if constexpr(Env::cfg(OS::WASM)) {
-            this->addLabel("To import a skin, just drop the .osk file on this window!")->setTextColor(0xff666666);
+            this->addLabel(_("To import a skin, just drop the .osk file on this window!"))->setTextColor(0xff666666);
             this->addSpacer();
         }
 
         {
-            OptionsElement *skinSelect = this->addButton("Select Skin", "default", false, &cv::skin);
+            OptionsElement *skinSelect = this->addButton(_("Select Skin"), _("default"), false, &cv::skin);
             this->skinSelectLocalButton = static_cast<UIButton *>(skinSelect->baseElems[0].get());
             this->skinLabel = static_cast<CBaseUILabel *>(skinSelect->baseElems[1].get());
         }
 
         this->skinSelectLocalButton->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSkinSelectOpened>(this));
         this->skinSelectLocalButton->setTooltipText(
-            "Shift-click a skin to set it as fallback.\nMissing elements fall back to it instead of \"default\".");
+            _("Shift-click a skin to set it as fallback.\nMissing elements fall back to it instead of \"default\"."));
 
         if constexpr(!Env::cfg(OS::WASM)) {
-            this->addButton("Open current Skin folder")
+            this->addButton(_("Open current Skin folder"))
                 ->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::openCurrentSkinFolder>(this));
         }
 
-        OptionsElement *skinReload = this->addButtonButton("Reload Skin", "Random Skin", &cv::skin);
+        OptionsElement *skinReload = this->addButtonButton(_("Reload Skin"), _("Random Skin"), &cv::skin);
         auto *skinReloadBtn = static_cast<UIButton *>(skinReload->baseElems[0].get());
         auto *skinRandomBtn = static_cast<UIButton *>(skinReload->baseElems[1].get());
 
         skinReloadBtn->setClickCallback(SA::MakeDelegate([]() -> void { osu->reloadSkin(); }));
-        skinReloadBtn->setTooltipText("(CTRL + ALT + S)");
+        skinReloadBtn->setTooltipText(_("(CTRL + ALT + S)"));
 
         skinRandomBtn->setClickCallback(SA::MakeDelegate([]() -> void {
             const bool isRandomSkinEnabled = cv::skin_random.getBool();
@@ -1316,82 +1326,82 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
         }));
 
         skinRandomBtn->setTooltipText(
-            "Temporary, does not change your configured skin (reload to reset).\nUse \"skin_random 1\" to "
-            "randomize on every skin reload.\nUse \"skin_random_elements 1\" to mix multiple skins.\nUse "
-            "\"skin_export\" to export the currently active skin.");
+            _("Temporary, does not change your configured skin (reload to reset).\nUse \"skin_random 1\" to "
+              "randomize on every skin reload.\nUse \"skin_random_elements 1\" to mix multiple skins.\nUse "
+              "\"skin_export\" to export the currently active skin."));
         skinRandomBtn->setColor(0xff003947);
     }
     this->addSpacer();
-    this->addCheckbox("Sort Skins Alphabetically",
-                      "Less like stable, but useful if you don't\nlike obnoxious skin names floating to the top.",
+    this->addCheckbox(_("Sort Skins Alphabetically"),
+                      _("Less like stable, but useful if you don't\nlike obnoxious skin names floating to the top."),
                       &cv::sort_skins_cleaned);
     CBaseUISlider *numberScaleSlider =
-        this->addSlider("Number Scale:", 0.01f, 3.0f, &cv::number_scale_multiplier, 135.0f);
+        this->addSlider(_("Number Scale:"), 0.01f, 3.0f, &cv::number_scale_multiplier, 135.0f);
     numberScaleSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     numberScaleSlider->setKeyDelta(0.01f);
     CBaseUISlider *hitResultScaleSlider =
-        this->addSlider("HitResult Scale:", 0.01f, 3.0f, &cv::hitresult_scale, 135.0f);
+        this->addSlider(_("HitResult Scale:"), 0.01f, 3.0f, &cv::hitresult_scale, 135.0f);
     hitResultScaleSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     hitResultScaleSlider->setKeyDelta(0.01f);
-    this->addCheckbox("Draw Numbers", &cv::draw_numbers);
-    this->addCheckbox("Draw Approach Circles", &cv::draw_approach_circles);
-    this->addCheckbox("Instafade Circles", &cv::instafade);
-    this->addCheckbox("Instafade Sliders", &cv::instafade_sliders);
+    this->addCheckbox(_("Draw Numbers"), &cv::draw_numbers);
+    this->addCheckbox(_("Draw Approach Circles"), &cv::draw_approach_circles);
+    this->addCheckbox(_("Instafade Circles"), &cv::instafade);
+    this->addCheckbox(_("Instafade Sliders"), &cv::instafade_sliders);
     this->addSpacer();
     this->addCheckbox(
-        "Ignore Beatmap Sample Volume",
-        "Ignore beatmap timingpoint effect volumes.\nQuiet hitsounds can destroy accuracy and concentration, "
-        "enabling this will fix that.",
+        _("Ignore Beatmap Sample Volume"),
+        _("Ignore beatmap timingpoint effect volumes.\nQuiet hitsounds can destroy accuracy and concentration, "
+          "enabling this will fix that."),
         &cv::ignore_beatmap_sample_volume);
-    this->addCheckbox("Ignore Beatmap Combo Colors", &cv::ignore_beatmap_combo_colors);
-    this->addCheckbox("Use skin's sound samples",
-                      "If this is not selected, then the default skin hitsounds will be used.",
+    this->addCheckbox(_("Ignore Beatmap Combo Colors"), &cv::ignore_beatmap_combo_colors);
+    this->addCheckbox(_("Use skin's sound samples"),
+                      _("If this is not selected, then the default skin hitsounds will be used."),
                       &cv::skin_use_skin_hitsounds);
-    this->addCheckbox("Load HD @2x",
-                      "On very low resolutions (below 1600x900) you can disable this to get smoother visuals.",
+    this->addCheckbox(_("Load HD @2x"),
+                      _("On very low resolutions (below 1600x900) you can disable this to get smoother visuals."),
                       &cv::skin_hd);
     this->addSpacer();
-    this->addCheckbox("Draw Cursor Trail", &cv::draw_cursor_trail);
+    this->addCheckbox(_("Draw Cursor Trail"), &cv::draw_cursor_trail);
     this->addCheckbox(
-        "Force Smooth Cursor Trail",
-        "Usually, the presence of the cursormiddle.png skin image enables smooth cursortrails.\nThis option "
-        "allows you to force enable smooth cursortrails for all skins.",
+        _("Force Smooth Cursor Trail"),
+        _("Usually, the presence of the cursormiddle.png skin image enables smooth cursortrails.\nThis option "
+          "allows you to force enable smooth cursortrails for all skins."),
         &cv::cursor_trail_smooth_force);
-    this->addCheckbox("Always draw Cursor Trail", "Draw the cursor trail even when the cursor isn't moving",
+    this->addCheckbox(_("Always draw Cursor Trail"), _("Draw the cursor trail even when the cursor isn't moving"),
                       &cv::always_render_cursor_trail);
-    this->addSlider("Cursor trail spacing:", 0.f, 30.f, &cv::cursor_trail_spacing, -1.f, true)
+    this->addSlider(_("Cursor trail spacing:"), 0.f, 30.f, &cv::cursor_trail_spacing, -1.f, true)
         ->setAnimated(false)
         ->setKeyDelta(0.01f);
-    this->cursorSizeSlider = this->addSlider("Cursor Size:", 0.01f, 5.0f, &cv::cursor_scale, -1.0f, true);
+    this->cursorSizeSlider = this->addSlider(_("Cursor Size:"), 0.01f, 5.0f, &cv::cursor_scale, -1.0f, true);
     this->cursorSizeSlider->setAnimated(false);
     this->cursorSizeSlider->setKeyDelta(0.01f);
-    this->addCheckbox("Automatic Cursor Size", "Cursor size will adjust based on the CS of the current beatmap.",
+    this->addCheckbox(_("Automatic Cursor Size"), _("Cursor size will adjust based on the CS of the current beatmap."),
                       &cv::automatic_cursor_size);
     this->addSpacer();
     this->sliderPreviewElement = this->addSliderPreview();
-    this->addSlider("Slider Border Size", 0.0f, 9.0f, &cv::slider_border_size_multiplier)->setKeyDelta(0.01f);
-    this->addSlider("Slider Opacity", 0.0f, 1.0f, &cv::slider_alpha_multiplier, 200.0f);
-    this->addSlider("Slider Body Opacity", 0.0f, 1.0f, &cv::slider_body_alpha_multiplier, 200.0f, true);
-    this->addSlider("Slider Body Saturation", 0.0f, 1.0f, &cv::slider_body_color_saturation, 200.0f, true);
+    this->addSlider(_("Slider Border Size"), 0.0f, 9.0f, &cv::slider_border_size_multiplier)->setKeyDelta(0.01f);
+    this->addSlider(_("Slider Opacity"), 0.0f, 1.0f, &cv::slider_alpha_multiplier, 200.0f);
+    this->addSlider(_("Slider Body Opacity"), 0.0f, 1.0f, &cv::slider_body_alpha_multiplier, 200.0f, true);
+    this->addSlider(_("Slider Body Saturation"), 0.0f, 1.0f, &cv::slider_body_color_saturation, 200.0f, true);
     this->addCheckbox(
-        "Use slidergradient.png",
-        "Enabling this will improve performance,\nbut also block all dynamic slider (color/border) features.",
+        _("Use slidergradient.png"),
+        _("Enabling this will improve performance,\nbut also block all dynamic slider (color/border) features."),
         &cv::slider_use_gradient_image);
-    this->addCheckbox("Use osu!lazer Slider Style",
-                      "Only really looks good if your skin doesn't \"SliderTrackOverride\" too dark.",
+    this->addCheckbox(_("Use osu!lazer Slider Style"),
+                      _("Only really looks good if your skin doesn't \"SliderTrackOverride\" too dark."),
                       &cv::slider_osu_next_style);
-    this->addCheckbox("Use combo color as tint for slider ball", &cv::slider_ball_tint_combo_color);
-    this->addCheckbox("Use combo color as tint for slider border", &cv::slider_border_tint_combo_color);
-    this->addCheckbox("Draw Slider End Circle", &cv::slider_draw_endcircle);
+    this->addCheckbox(_("Use combo color as tint for slider ball"), &cv::slider_ball_tint_combo_color);
+    this->addCheckbox(_("Use combo color as tint for slider border"), &cv::slider_border_tint_combo_color);
+    this->addCheckbox(_("Draw Slider End Circle"), &cv::slider_draw_endcircle);
 
     //**************************************************************************************************************************//
 
-    CBaseUIElement *sectionInput = this->addSection("Input");
+    CBaseUIElement *sectionInput = this->addSection(_("Input"));
 
-    this->addSubSection("Mouse", "scroll sensitivity");
+    this->addSubSection(_("Mouse"), "scroll sensitivity");
 
     {
-        UISlider *sensSlider = this->addSlider("Sensitivity:", 0.1f, 6.0f, &cv::mouse_sensitivity);
+        UISlider *sensSlider = this->addSlider(_("Sensitivity:"), 0.1f, 6.0f, &cv::mouse_sensitivity);
         sensSlider->setKeyDelta(0.01f);
         sensSlider->setUpdateRelPosOnChange(true);
 
@@ -1399,130 +1409,131 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
             []() -> bool { return cv::mouse_sensitivity.getFloat() != 1.f; }};
         this->addLabel("");
         this->elemContainers.back()->render_condition = sensWarningCondition;
-        this->addLabel("WARNING: Set Sensitivity to 1 for tablets!")->setTextColor(0xffff0000);
+        this->addLabel(_("WARNING: Set Sensitivity to 1 for tablets!"))->setTextColor(0xffff0000);
         this->elemContainers.back()->render_condition = sensWarningCondition;
         this->addLabel("");
         this->elemContainers.back()->render_condition = sensWarningCondition;
     }
 
-    this->addCheckbox("Raw Mouse Input", "Not recommended if you're using a tablet.", &cv::mouse_raw_input);
-    this->addCheckbox("Confine Cursor (Windowed)", &cv::confine_cursor_windowed);
-    this->addCheckbox("Confine Cursor (Fullscreen)", &cv::confine_cursor_fullscreen);
-    this->addCheckbox("Confine Cursor (NEVER)", "Overrides automatic cursor clipping during gameplay.",
+    this->addCheckbox(_("Raw Mouse Input"), _("Not recommended if you're using a tablet."), &cv::mouse_raw_input);
+    this->addCheckbox(_("Confine Cursor (Windowed)"), &cv::confine_cursor_windowed);
+    this->addCheckbox(_("Confine Cursor (Fullscreen)"), &cv::confine_cursor_fullscreen);
+    this->addCheckbox(_("Confine Cursor (NEVER)"), _("Overrides automatic cursor clipping during gameplay."),
                       &cv::confine_cursor_never);
-    this->addCheckbox("Disable Mouse Wheel in Play Mode", &cv::disable_mousewheel);
-    this->addCheckbox("Disable Mouse Buttons in Play Mode", &cv::disable_mousebuttons);
-    this->addCheckbox("Cursor ripples", "The cursor will ripple outwards on clicking.", &cv::draw_cursor_ripples);
+    this->addCheckbox(_("Disable Mouse Wheel in Play Mode"), &cv::disable_mousewheel);
+    this->addCheckbox(_("Disable Mouse Buttons in Play Mode"), &cv::disable_mousebuttons);
+    this->addCheckbox(_("Cursor ripples"), _("The cursor will ripple outwards on clicking."), &cv::draw_cursor_ripples);
 
     this->addSpacer();
     const std::string keyboardSectionTags{"keyboard keys key bindings binds keybinds keybindings"};
-    CBaseUIElement *subSectionKeyboard = this->addSubSection("Keyboard", keyboardSectionTags);
+    CBaseUIElement *subSectionKeyboard = this->addSubSection(_("Keyboard"), keyboardSectionTags);
     if constexpr(Env::cfg(OS::WINDOWS)) {
-        this->addCheckbox("Raw Keyboard Input", &cv::keyboard_raw_input);
+        this->addCheckbox(_("Raw Keyboard Input"), &cv::keyboard_raw_input);
         if(cv::win_global_media_hotkeys.getDefaultDouble() != -1.) {  // it's set to -1 if it doesn't work
             this->addCheckbox(
-                "Global Media Hotkeys",
-                "Allows controlling main menu music with\nkeyboard media shortcuts, even while alt-tabbed",
+                _("Global Media Hotkeys"),
+                _("Allows controlling main menu music with\nkeyboard media shortcuts, even while alt-tabbed"),
                 &cv::win_global_media_hotkeys);
         }
     }
-    UIButton *resetAllKeyBindingsButton = this->addButton("Reset all key bindings");
+    UIButton *resetAllKeyBindingsButton = this->addButton(_("Reset all key bindings"));
     resetAllKeyBindingsButton->setColor(0xffd90000);
     resetAllKeyBindingsButton->setClickCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onKeyBindingsResetAllPressed>(this));
-    this->addSubSection("Keys - In-Game", keyboardSectionTags);
-    this->addKeyBindButton("Left Click", &binds::LEFT_CLICK);
-    this->addKeyBindButton("Right Click", &binds::RIGHT_CLICK);
-    this->addKeyBindButton("Left Click (2)", &binds::LEFT_CLICK_2);
-    this->addKeyBindButton("Right Click (2)", &binds::RIGHT_CLICK_2);
-    this->addKeyBindButton("Smoke", &binds::SMOKE);
-    this->addKeyBindButton("Game Pause", &binds::GAME_PAUSE)->setDisallowLeftMouseClickBinding(true);
-    this->addKeyBindButton("Skip Cutscene", &binds::SKIP_CUTSCENE);
-    this->addKeyBindButton("Toggle Scoreboard", &binds::TOGGLE_SCOREBOARD);
-    this->addKeyBindButton("Scrubbing (+ Click Drag!)", &binds::SEEK_TIME);
-    this->addKeyBindButton("Quick Seek -5sec <<<", &binds::SEEK_TIME_BACKWARD);
-    this->addKeyBindButton("Quick Seek +5sec >>>", &binds::SEEK_TIME_FORWARD);
-    this->addKeyBindButton("Increase Local Song Offset", &binds::INCREASE_LOCAL_OFFSET);
-    this->addKeyBindButton("Decrease Local Song Offset", &binds::DECREASE_LOCAL_OFFSET);
-    this->addKeyBindButton("Quick Retry (hold briefly)", &binds::QUICK_RETRY);
-    this->addKeyBindButton("Quick Save", &binds::QUICK_SAVE);
-    this->addKeyBindButton("Quick Load", &binds::QUICK_LOAD);
-    this->addKeyBindButton("Instant Replay", &binds::INSTANT_REPLAY);
-    this->addSubSection("Keys - FPoSu", keyboardSectionTags);
-    this->addKeyBindButton("Zoom", &binds::FPOSU_ZOOM);
-    this->addSubSection("Keys - Universal", keyboardSectionTags);
-    this->addKeyBindButton("Toggle chat", &binds::TOGGLE_CHAT);
-    this->addKeyBindButton("Toggle user list", &binds::TOGGLE_EXTENDED_CHAT);
+    this->addSubSection(_("Keys - In-Game"), keyboardSectionTags);
+    this->addKeyBindButton(_("Left Click"), &binds::LEFT_CLICK);
+    this->addKeyBindButton(_("Right Click"), &binds::RIGHT_CLICK);
+    this->addKeyBindButton(_("Left Click (2)"), &binds::LEFT_CLICK_2);
+    this->addKeyBindButton(_("Right Click (2)"), &binds::RIGHT_CLICK_2);
+    this->addKeyBindButton(_("Smoke"), &binds::SMOKE);
+    this->addKeyBindButton(_("Game Pause"), &binds::GAME_PAUSE)->setDisallowLeftMouseClickBinding(true);
+    this->addKeyBindButton(_("Skip Cutscene"), &binds::SKIP_CUTSCENE);
+    this->addKeyBindButton(_("Toggle Scoreboard"), &binds::TOGGLE_SCOREBOARD);
+    this->addKeyBindButton(_("Scrubbing (+ Click Drag!)"), &binds::SEEK_TIME);
+    this->addKeyBindButton(_("Quick Seek -5sec <<<"), &binds::SEEK_TIME_BACKWARD);
+    this->addKeyBindButton(_("Quick Seek +5sec >>>"), &binds::SEEK_TIME_FORWARD);
+    this->addKeyBindButton(_("Increase Local Song Offset"), &binds::INCREASE_LOCAL_OFFSET);
+    this->addKeyBindButton(_("Decrease Local Song Offset"), &binds::DECREASE_LOCAL_OFFSET);
+    this->addKeyBindButton(_("Quick Retry (hold briefly)"), &binds::QUICK_RETRY);
+    this->addKeyBindButton(_("Quick Save"), &binds::QUICK_SAVE);
+    this->addKeyBindButton(_("Quick Load"), &binds::QUICK_LOAD);
+    this->addKeyBindButton(_("Instant Replay"), &binds::INSTANT_REPLAY);
+    this->addSubSection(_("Keys - FPoSu"), keyboardSectionTags);
+    this->addKeyBindButton(_("Zoom"), &binds::FPOSU_ZOOM);
+    this->addSubSection(_("Keys - Universal"), keyboardSectionTags);
+    this->addKeyBindButton(_("Toggle chat"), &binds::TOGGLE_CHAT);
+    this->addKeyBindButton(_("Toggle user list"), &binds::TOGGLE_EXTENDED_CHAT);
     if(cv::enable_screenshots.getBool()) {
-        this->addKeyBindButton("Save Screenshot", &binds::SAVE_SCREENSHOT);
+        this->addKeyBindButton(_("Save Screenshot"), &binds::SAVE_SCREENSHOT);
     }
-    this->addKeyBindButton("Increase Volume", &binds::INCREASE_VOLUME);
-    this->addKeyBindButton("Decrease Volume", &binds::DECREASE_VOLUME);
-    this->addKeyBindButton("Disable Mouse Buttons", &binds::DISABLE_MOUSE_BUTTONS);
-    this->addKeyBindButton("Toggle Map Background", &binds::TOGGLE_MAP_BACKGROUND);
-    this->addKeyBindButton("Boss Key (Minimize)", &binds::BOSS_KEY);
-    this->addKeyBindButton("Open Skin Selection Menu", &binds::OPEN_SKIN_SELECT_MENU);
-    this->addSubSection("Keys - Song Select", keyboardSectionTags);
-    this->addKeyBindButton("Toggle Mod Selection Screen", &binds::TOGGLE_MODSELECT)
-        ->setTooltipText("(F1 can not be unbound. This is just an additional key.)");
-    this->addKeyBindButton("Random Beatmap", &binds::RANDOM_BEATMAP)
-        ->setTooltipText("(F2 can not be unbound. This is just an additional key.)");
-    this->addSubSection("Keys - Mod Select", keyboardSectionTags);
-    this->addKeyBindButton("Easy", &binds::MOD_EASY);
-    this->addKeyBindButton("No Fail", &binds::MOD_NOFAIL);
-    this->addKeyBindButton("Half Time", &binds::MOD_HALFTIME);
-    this->addKeyBindButton("Hard Rock", &binds::MOD_HARDROCK);
-    this->addKeyBindButton("Sudden Death", &binds::MOD_SUDDENDEATH);
-    this->addKeyBindButton("Double Time", &binds::MOD_DOUBLETIME);
-    this->addKeyBindButton("Hidden", &binds::MOD_HIDDEN);
-    this->addKeyBindButton("Flashlight", &binds::MOD_FLASHLIGHT);
-    this->addKeyBindButton("Relax", &binds::MOD_RELAX);
-    this->addKeyBindButton("Autopilot", &binds::MOD_AUTOPILOT);
-    this->addKeyBindButton("Spunout", &binds::MOD_SPUNOUT);
-    this->addKeyBindButton("Auto", &binds::MOD_AUTO);
-    this->addKeyBindButton("Score V2", &binds::MOD_SCOREV2);
+    this->addKeyBindButton(_("Increase Volume"), &binds::INCREASE_VOLUME);
+    this->addKeyBindButton(_("Decrease Volume"), &binds::DECREASE_VOLUME);
+    this->addKeyBindButton(_("Disable Mouse Buttons"), &binds::DISABLE_MOUSE_BUTTONS);
+    this->addKeyBindButton(_("Toggle Map Background"), &binds::TOGGLE_MAP_BACKGROUND);
+    this->addKeyBindButton(_("Boss Key (Minimize)"), &binds::BOSS_KEY);
+    this->addKeyBindButton(_("Open Skin Selection Menu"), &binds::OPEN_SKIN_SELECT_MENU);
+    this->addSubSection(_("Keys - Song Select"), keyboardSectionTags);
+    this->addKeyBindButton(_("Toggle Mod Selection Screen"), &binds::TOGGLE_MODSELECT)
+        ->setTooltipText(_("(F1 can not be unbound. This is just an additional key.)"));
+    this->addKeyBindButton(_("Random Beatmap"), &binds::RANDOM_BEATMAP)
+        ->setTooltipText(_("(F2 can not be unbound. This is just an additional key.)"));
+    this->addSubSection(_("Keys - Mod Select"), keyboardSectionTags);
+    this->addKeyBindButton(_("Easy"), &binds::MOD_EASY);
+    this->addKeyBindButton(_("No Fail"), &binds::MOD_NOFAIL);
+    this->addKeyBindButton(_("Half Time"), &binds::MOD_HALFTIME);
+    this->addKeyBindButton(_("Hard Rock"), &binds::MOD_HARDROCK);
+    this->addKeyBindButton(_("Sudden Death"), &binds::MOD_SUDDENDEATH);
+    this->addKeyBindButton(_("Double Time"), &binds::MOD_DOUBLETIME);
+    this->addKeyBindButton(_("Hidden"), &binds::MOD_HIDDEN);
+    this->addKeyBindButton(_("Flashlight"), &binds::MOD_FLASHLIGHT);
+    this->addKeyBindButton(_("Relax"), &binds::MOD_RELAX);
+    this->addKeyBindButton(_("Autopilot"), &binds::MOD_AUTOPILOT);
+    this->addKeyBindButton(_("Spunout"), &binds::MOD_SPUNOUT);
+    this->addKeyBindButton(_("Auto"), &binds::MOD_AUTO);
+    this->addKeyBindButton(_("Score V2"), &binds::MOD_SCOREV2);
 
     //**************************************************************************************************************************//
 
-    CBaseUIElement *sectionGameplay = this->addSection("Gameplay");
+    CBaseUIElement *sectionGameplay = this->addSection(_("Gameplay"));
 
-    this->addSubSection("General");
-    this->backgroundDimSlider = this->addSlider("Background Dim:", 0.0f, 1.0f, &cv::background_dim, 220.0f);
+    this->addSubSection(_("General"));
+    this->backgroundDimSlider = this->addSlider(_("Background Dim:"), 0.0f, 1.0f, &cv::background_dim, 220.0f);
     this->backgroundDimSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->backgroundBrightnessSlider =
-        this->addSlider("Background Brightness:", 0.0f, 1.0f, &cv::background_brightness, 220.0f);
+        this->addSlider(_("Background Brightness:"), 0.0f, 1.0f, &cv::background_brightness, 220.0f);
     this->backgroundBrightnessSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->addSpacer();
-    this->addCheckbox("Don't change dim level during breaks",
-                      "Makes the background basically impossible to see during breaks.\nNot recommended.",
+    this->addCheckbox(_("Don't change dim level during breaks"),
+                      _("Makes the background basically impossible to see during breaks.\nNot recommended."),
                       &cv::background_dont_fade_during_breaks);
-    this->addCheckbox("Show approach circle on first \"Hidden\" object",
+    this->addCheckbox(_("Show approach circle on first \"Hidden\" object"),
                       &cv::show_approach_circle_on_first_hidden_object);
-    this->addCheckbox("SuddenDeath restart on miss", "Skips the failing animation, and instantly restarts like SS/PF.",
+    this->addCheckbox(_("SuddenDeath restart on miss"),
+                      _("Skips the failing animation, and instantly restarts like SS/PF."),
                       &cv::mod_suddendeath_restart);
-    this->addCheckbox("Show Skip Button during Intro", "Skip intro to first hitobject.", &cv::skip_intro_enabled);
-    this->addCheckbox("Show Skip Button during Breaks", "Skip breaks in the middle of beatmaps.",
+    this->addCheckbox(_("Show Skip Button during Intro"), _("Skip intro to first hitobject."), &cv::skip_intro_enabled);
+    this->addCheckbox(_("Show Skip Button during Breaks"), _("Skip breaks in the middle of beatmaps."),
                       &cv::skip_breaks_enabled);
     // FIXME: broken
-    // this->addCheckbox("Save Failed Scores", "Allow failed scores to be saved as F ranks.",
+    // this->addCheckbox(_("Save Failed Scores"), _("Allow failed scores to be saved as F ranks."),
     //                   &cv::save_failed_scores);
     this->addSpacer();
-    this->addSubSection("Mechanics", "health drain notelock lock block blocking noteblock");
+    this->addSubSection(_("Mechanics"), "health drain notelock lock block blocking noteblock");
     this->addCheckbox(
-        "Kill Player upon Failing",
-        "Enabled: Singleplayer default. You die upon failing and the beatmap stops.\nDisabled: Multiplayer "
-        "default. Allows you to keep playing even after failing.",
+        _("Kill Player upon Failing"),
+        _("Enabled: Singleplayer default. You die upon failing and the beatmap stops.\nDisabled: Multiplayer "
+          "default. Allows you to keep playing even after failing."),
         &cv::drain_kill);
-    this->addCheckbox("Disable HP drain",
-                      "Like NF, but entirely disables HP mechanics. Will block online score submission.",
+    this->addCheckbox(_("Disable HP drain"),
+                      _("Like NF, but entirely disables HP mechanics. Will block online score submission."),
                       &cv::drain_disabled)
         ->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onModChangingToggle>(this));
 
     this->addSpacer();
     this->addLabel("");
 
-    OptionsElement *notelockSelect = this->addButton("Select [Notelock]", "None", true, &cv::notelock_type);
+    OptionsElement *notelockSelect = this->addButton(_("Select [Notelock]"), _("None"), true, &cv::notelock_type);
     ((CBaseUIButton *)notelockSelect->baseElems[0].get())
         ->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onNotelockSelect>(this));
     this->notelockSelectButton = notelockSelect->baseElems[0].get();
@@ -1531,250 +1542,259 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     this->notelockSelectResetButton->setClickCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onNotelockSelectResetClicked>(this));
     this->addLabel("");
-    this->addLabel("Info about different notelock algorithms:")->setTextColor(0xff666666);
+    this->addLabel(_("Info about different notelock algorithms:"))->setTextColor(0xff666666);
     this->addLabel("");
-    this->addLabel("- McOsu: Auto miss previous circle, always.")->setTextColor(0xff666666);
-    this->addLabel("- osu!stable: Locked until previous circle is miss.")->setTextColor(0xff666666);
-    this->addLabel("- osu!lazer 2020: Auto miss previous circle if > time.")->setTextColor(0xff666666);
+    this->addLabel(_("- McOsu: Auto miss previous circle, always."))->setTextColor(0xff666666);
+    this->addLabel(_("- osu!stable: Locked until previous circle is miss."))->setTextColor(0xff666666);
+    this->addLabel(_("- osu!lazer 2020: Auto miss previous circle if > time."))->setTextColor(0xff666666);
     this->addLabel("");
     this->addSpacer();
-    this->addSubSection("Backgrounds", "image thumbnail");
-    this->addCheckbox("Load Background Images (!)", "NOTE: Disabling this will disable ALL beatmap images everywhere!",
+    this->addSubSection(_("Backgrounds"), "image thumbnail");
+    this->addCheckbox(_("Load Background Images (!)"),
+                      _("NOTE: Disabling this will disable ALL beatmap images everywhere!"),
                       &cv::load_beatmap_background_images);
-    this->addCheckbox("Draw Background in Beatmap", &cv::draw_beatmap_background_image);
-    this->addCheckbox("Draw Background in SongBrowser",
-                      "NOTE: You can disable this if you always want menu-background.",
+    this->addCheckbox(_("Draw Background in Beatmap"), &cv::draw_beatmap_background_image);
+    this->addCheckbox(_("Draw Background in SongBrowser"),
+                      _("NOTE: You can disable this if you always want menu-background."),
                       &cv::draw_songbrowser_background_image);
-    this->addCheckbox("Draw Background Thumbnails in SongBrowser", &cv::draw_songbrowser_thumbnails);
-    this->addCheckbox("Draw Background in Ranking/Results Screen", &cv::draw_rankingscreen_background_image);
-    this->addCheckbox("Draw menu-background in Menu", &cv::draw_menu_background);
-    this->addCheckbox("Draw menu-background in SongBrowser",
-                      "NOTE: Only applies if \"Draw Background in SongBrowser\" is disabled.",
+    this->addCheckbox(_("Draw Background Thumbnails in SongBrowser"), &cv::draw_songbrowser_thumbnails);
+    this->addCheckbox(_("Draw Background in Ranking/Results Screen"), &cv::draw_rankingscreen_background_image);
+    this->addCheckbox(_("Draw menu-background in Menu"), &cv::draw_menu_background);
+    this->addCheckbox(_("Draw menu-background in SongBrowser"),
+                      _("NOTE: Only applies if \"Draw Background in SongBrowser\" is disabled."),
                       &cv::draw_songbrowser_menu_background_image);
     this->addSpacer();
-    // addCheckbox("Show pp on ranking screen", &cv::rankingscreen_pp);
+    // addCheckbox(_("Show pp on ranking screen"), &cv::rankingscreen_pp);
 
-    this->addSubSection("HUD");
-    this->addCheckbox("Draw HUD", "NOTE: You can also press SHIFT + TAB while playing to toggle this.", &cv::draw_hud);
-    this->addCheckbox("SHIFT + TAB toggles everything",
-                      "Enabled: " PACKAGE_NAME
-                      " default (toggle \"Draw HUD\")\nDisabled: osu! default (always show hiterrorbar + key overlay)",
-                      &cv::hud_shift_tab_toggles_everything);
-    this->addSpacer();
-    this->addCheckbox("Draw Score", &cv::draw_score);
-    this->addCheckbox("Draw Combo", &cv::draw_combo);
-    this->addCheckbox("Draw Accuracy", &cv::draw_accuracy);
-    this->addCheckbox("Draw ProgressBar", &cv::draw_progressbar);
-    this->addCheckbox("Draw HitErrorBar", &cv::draw_hiterrorbar);
-    this->addCheckbox("Draw HitErrorBar UR", "Unstable Rate", &cv::draw_hiterrorbar_ur);
-    this->addCheckbox("Draw ScoreBar", "Health/HP Bar.", &cv::draw_scorebar);
+    this->addSubSection(_("HUD"));
+    this->addCheckbox(_("Draw HUD"), _("NOTE: You can also press SHIFT + TAB while playing to toggle this."),
+                      &cv::draw_hud);
     this->addCheckbox(
-        "Draw ScoreBar-bg",
-        "Some skins abuse this as the playfield background image.\nIt is actually just the background image "
-        "for the Health/HP Bar.",
+        _("SHIFT + TAB toggles everything"),
+        _("Enabled: " PACKAGE_NAME
+          " default (toggle \"Draw HUD\")\nDisabled: osu! default (always show hiterrorbar + key overlay)"),
+        &cv::hud_shift_tab_toggles_everything);
+    this->addSpacer();
+    this->addCheckbox(_("Draw Score"), &cv::draw_score);
+    this->addCheckbox(_("Draw Combo"), &cv::draw_combo);
+    this->addCheckbox(_("Draw Accuracy"), &cv::draw_accuracy);
+    this->addCheckbox(_("Draw ProgressBar"), &cv::draw_progressbar);
+    this->addCheckbox(_("Draw HitErrorBar"), &cv::draw_hiterrorbar);
+    this->addCheckbox(_("Draw HitErrorBar UR"), _("Unstable Rate"), &cv::draw_hiterrorbar_ur);
+    this->addCheckbox(_("Draw ScoreBar"), _("Health/HP Bar."), &cv::draw_scorebar);
+    this->addCheckbox(
+        _("Draw ScoreBar-bg"),
+        _("Some skins abuse this as the playfield background image.\nIt is actually just the background image "
+          "for the Health/HP Bar."),
         &cv::draw_scorebarbg);
-    this->addCheckbox("Draw ScoreBoard in singleplayer", &cv::draw_scoreboard);
-    this->addCheckbox("Draw ScoreBoard in multiplayer", &cv::draw_scoreboard_mp);
-    this->addCheckbox("Draw Key Overlay", &cv::draw_inputoverlay);
-    this->addCheckbox("Draw Scrubbing Timeline", &cv::draw_scrubbing_timeline);
-    this->addCheckbox("Draw Miss Window on HitErrorBar", &cv::hud_hiterrorbar_showmisswindow);
+    this->addCheckbox(_("Draw ScoreBoard in singleplayer"), &cv::draw_scoreboard);
+    this->addCheckbox(_("Draw ScoreBoard in multiplayer"), &cv::draw_scoreboard_mp);
+    this->addCheckbox(_("Draw Key Overlay"), &cv::draw_inputoverlay);
+    this->addCheckbox(_("Draw Scrubbing Timeline"), &cv::draw_scrubbing_timeline);
+    this->addCheckbox(_("Draw Miss Window on HitErrorBar"), &cv::hud_hiterrorbar_showmisswindow);
     this->addSpacer();
     this->addCheckbox(
-        "Draw Stats: pp",
-        "Realtime pp counter.\nDynamically calculates earned pp by incrementally updating the star rating.",
+        _("Draw Stats: pp"),
+        _("Realtime pp counter.\nDynamically calculates earned pp by incrementally updating the star rating."),
         &cv::draw_statistics_pp);
-    this->addCheckbox("Draw Stats: pp (SS)", "Max possible total pp for active mods (full combo + perfect acc).",
+    this->addCheckbox(_("Draw Stats: pp (SS)"), _("Max possible total pp for active mods (full combo + perfect acc)."),
                       &cv::draw_statistics_perfectpp);
-    this->addCheckbox("Draw Stats: Misses", "Number of misses.", &cv::draw_statistics_misses);
-    this->addCheckbox("Draw Stats: SliderBreaks", "Number of slider breaks.", &cv::draw_statistics_sliderbreaks);
-    this->addCheckbox("Draw Stats: Max Possible Combo", &cv::draw_statistics_maxpossiblecombo);
-    this->addCheckbox("Draw Stats: Stars*** (Until Now)",
-                      "Incrementally updates the star rating (aka \"realtime stars\").",
+    this->addCheckbox(_("Draw Stats: Misses"), _("Number of misses."), &cv::draw_statistics_misses);
+    this->addCheckbox(_("Draw Stats: SliderBreaks"), _("Number of slider breaks."), &cv::draw_statistics_sliderbreaks);
+    this->addCheckbox(_("Draw Stats: Max Possible Combo"), &cv::draw_statistics_maxpossiblecombo);
+    this->addCheckbox(_("Draw Stats: Stars*** (Until Now)"),
+                      _("Incrementally updates the star rating (aka \"realtime stars\")."),
                       &cv::draw_statistics_livestars);
-    this->addCheckbox("Draw Stats: Stars* (Total)", "Total stars for active mods.", &cv::draw_statistics_totalstars);
-    this->addCheckbox("Draw Stats: BPM", &cv::draw_statistics_bpm);
-    this->addCheckbox("Draw Stats: AR", &cv::draw_statistics_ar);
-    this->addCheckbox("Draw Stats: CS", &cv::draw_statistics_cs);
-    this->addCheckbox("Draw Stats: OD", &cv::draw_statistics_od);
-    this->addCheckbox("Draw Stats: HP", &cv::draw_statistics_hp);
-    this->addCheckbox("Draw Stats: 300 hitwindow", "Timing window for hitting a 300 (e.g. +-25ms).",
+    this->addCheckbox(_("Draw Stats: Stars* (Total)"), _("Total stars for active mods."),
+                      &cv::draw_statistics_totalstars);
+    this->addCheckbox(_("Draw Stats: BPM"), &cv::draw_statistics_bpm);
+    this->addCheckbox(_("Draw Stats: AR"), &cv::draw_statistics_ar);
+    this->addCheckbox(_("Draw Stats: CS"), &cv::draw_statistics_cs);
+    this->addCheckbox(_("Draw Stats: OD"), &cv::draw_statistics_od);
+    this->addCheckbox(_("Draw Stats: HP"), &cv::draw_statistics_hp);
+    this->addCheckbox(_("Draw Stats: 300 hitwindow"), _("Timing window for hitting a 300 (e.g. +-25ms)."),
                       &cv::draw_statistics_hitwindow300);
-    this->addCheckbox("Draw Stats: Notes Per Second", "How many clicks per second are currently required.",
+    this->addCheckbox(_("Draw Stats: Notes Per Second"), _("How many clicks per second are currently required."),
                       &cv::draw_statistics_nps);
-    this->addCheckbox("Draw Stats: Note Density", "How many objects are visible at the same time.",
+    this->addCheckbox(_("Draw Stats: Note Density"), _("How many objects are visible at the same time."),
                       &cv::draw_statistics_nd);
-    this->addCheckbox("Draw Stats: Unstable Rate", &cv::draw_statistics_ur);
-    this->addCheckbox("Draw Stats: Accuracy Error",
-                      "Average hit error delta (e.g. -5ms +15ms).\nSee \"hud_statistics_hitdelta_chunksize 30\",\nit "
-                      "defines how many recent hit deltas are averaged.",
+    this->addCheckbox(_("Draw Stats: Unstable Rate"), &cv::draw_statistics_ur);
+    this->addCheckbox(_("Draw Stats: Accuracy Error"),
+                      _("Average hit error delta (e.g. -5ms +15ms).\nSee \"hud_statistics_hitdelta_chunksize 30\",\nit "
+                        "defines how many recent hit deltas are averaged."),
                       &cv::draw_statistics_hitdelta);
     this->addSpacer();
-    this->hudSizeSlider = this->addSlider("HUD Scale:", 0.01f, 3.0f, &cv::hud_scale, 165.0f);
+    this->hudSizeSlider = this->addSlider(_("HUD Scale:"), 0.01f, 3.0f, &cv::hud_scale, 165.0f);
     this->hudSizeSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudSizeSlider->setKeyDelta(0.01f);
     this->addSpacer();
-    this->hudScoreScaleSlider = this->addSlider("Score Scale:", 0.01f, 3.0f, &cv::hud_score_scale, 165.0f);
+    this->hudScoreScaleSlider = this->addSlider(_("Score Scale:"), 0.01f, 3.0f, &cv::hud_score_scale, 165.0f);
     this->hudScoreScaleSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudScoreScaleSlider->setKeyDelta(0.01f);
-    this->hudComboScaleSlider = this->addSlider("Combo Scale:", 0.01f, 3.0f, &cv::hud_combo_scale, 165.0f);
+    this->hudComboScaleSlider = this->addSlider(_("Combo Scale:"), 0.01f, 3.0f, &cv::hud_combo_scale, 165.0f);
     this->hudComboScaleSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudComboScaleSlider->setKeyDelta(0.01f);
-    this->hudAccuracyScaleSlider = this->addSlider("Accuracy Scale:", 0.01f, 3.0f, &cv::hud_accuracy_scale, 165.0f);
+    this->hudAccuracyScaleSlider = this->addSlider(_("Accuracy Scale:"), 0.01f, 3.0f, &cv::hud_accuracy_scale, 165.0f);
     this->hudAccuracyScaleSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudAccuracyScaleSlider->setKeyDelta(0.01f);
     this->hudHiterrorbarScaleSlider =
-        this->addSlider("HitErrorBar Scale:", 0.01f, 3.0f, &cv::hud_hiterrorbar_scale, 165.0f);
+        this->addSlider(_("HitErrorBar Scale:"), 0.01f, 3.0f, &cv::hud_hiterrorbar_scale, 165.0f);
     this->hudHiterrorbarScaleSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudHiterrorbarScaleSlider->setKeyDelta(0.01f);
     this->hudHiterrorbarURScaleSlider =
-        this->addSlider("HitErrorBar UR Scale:", 0.01f, 3.0f, &cv::hud_hiterrorbar_ur_scale, 165.0f);
+        this->addSlider(_("HitErrorBar UR Scale:"), 0.01f, 3.0f, &cv::hud_hiterrorbar_ur_scale, 165.0f);
     this->hudHiterrorbarURScaleSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudHiterrorbarURScaleSlider->setKeyDelta(0.01f);
     this->hudProgressbarScaleSlider =
-        this->addSlider("ProgressBar Scale:", 0.01f, 3.0f, &cv::hud_progressbar_scale, 165.0f);
+        this->addSlider(_("ProgressBar Scale:"), 0.01f, 3.0f, &cv::hud_progressbar_scale, 165.0f);
     this->hudProgressbarScaleSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudProgressbarScaleSlider->setKeyDelta(0.01f);
-    this->hudScoreBarScaleSlider = this->addSlider("ScoreBar Scale:", 0.01f, 3.0f, &cv::hud_scorebar_scale, 165.0f);
+    this->hudScoreBarScaleSlider = this->addSlider(_("ScoreBar Scale:"), 0.01f, 3.0f, &cv::hud_scorebar_scale, 165.0f);
     this->hudScoreBarScaleSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudScoreBarScaleSlider->setKeyDelta(0.01f);
     this->hudScoreBoardScaleSlider =
-        this->addSlider("ScoreBoard Scale:", 0.01f, 3.0f, &cv::hud_scoreboard_scale, 165.0f);
+        this->addSlider(_("ScoreBoard Scale:"), 0.01f, 3.0f, &cv::hud_scoreboard_scale, 165.0f);
     this->hudScoreBoardScaleSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudScoreBoardScaleSlider->setKeyDelta(0.01f);
     this->hudInputoverlayScaleSlider =
-        this->addSlider("Key Overlay Scale:", 0.01f, 3.0f, &cv::hud_inputoverlay_scale, 165.0f);
+        this->addSlider(_("Key Overlay Scale:"), 0.01f, 3.0f, &cv::hud_inputoverlay_scale, 165.0f);
     this->hudInputoverlayScaleSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudInputoverlayScaleSlider->setKeyDelta(0.01f);
     this->statisticsOverlayScaleSlider =
-        this->addSlider("Statistics Scale:", 0.01f, 3.0f, &cv::hud_statistics_scale, 165.0f);
+        this->addSlider(_("Statistics Scale:"), 0.01f, 3.0f, &cv::hud_statistics_scale, 165.0f);
     this->statisticsOverlayScaleSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->statisticsOverlayScaleSlider->setKeyDelta(0.01f);
     this->addSpacer();
     this->statisticsOverlayXOffsetSlider =
-        this->addSlider("Statistics X Offset:", 0.0f, 2000.0f, &cv::hud_statistics_offset_x, 165.0f, true);
+        this->addSlider(_("Statistics X Offset:"), 0.0f, 2000.0f, &cv::hud_statistics_offset_x, 165.0f, true);
     this->statisticsOverlayXOffsetSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeInt>(this));
     this->statisticsOverlayXOffsetSlider->setKeyDelta(1.0f);
     this->statisticsOverlayYOffsetSlider =
-        this->addSlider("Statistics Y Offset:", 0.0f, 1000.0f, &cv::hud_statistics_offset_y, 165.0f, true);
+        this->addSlider(_("Statistics Y Offset:"), 0.0f, 1000.0f, &cv::hud_statistics_offset_y, 165.0f, true);
     this->statisticsOverlayYOffsetSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeInt>(this));
     this->statisticsOverlayYOffsetSlider->setKeyDelta(1.0f);
 
-    this->addSubSection("Playfield");
-    this->addCheckbox("Draw FollowPoints", &cv::draw_followpoints);
-    this->addCheckbox("Draw Playfield Border", "Correct border relative to the current Circle Size.",
+    this->addSubSection(_("Playfield"));
+    this->addCheckbox(_("Draw FollowPoints"), &cv::draw_followpoints);
+    this->addCheckbox(_("Draw Playfield Border"), _("Correct border relative to the current Circle Size."),
                       &cv::draw_playfield_border);
     this->addSpacer();
     this->playfieldBorderSizeSlider =
-        this->addSlider("Playfield Border Size:", 0.0f, 500.0f, &cv::hud_playfield_border_size);
+        this->addSlider(_("Playfield Border Size:"), 0.0f, 500.0f, &cv::hud_playfield_border_size);
     this->playfieldBorderSizeSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeInt>(this));
     this->playfieldBorderSizeSlider->setKeyDelta(1.0f);
 
-    this->addSubSection("Hitobjects");
+    this->addSubSection(_("Hitobjects"));
     this->addCheckbox(
-        "Use Fast Hidden Fading Sliders (!)",
-        "NOTE: osu! doesn't do this, so don't enable it for serious practicing.\nIf enabled: Fade out sliders "
-        "with the same speed as circles.",
+        _("Use Fast Hidden Fading Sliders (!)"),
+        _("NOTE: osu! doesn't do this, so don't enable it for serious practicing.\nIf enabled: Fade out sliders "
+          "with the same speed as circles."),
         &cv::mod_hd_slider_fast_fade);
 
     //**************************************************************************************************************************//
 
-    CBaseUIElement *sectionFposu = this->addSection("FPoSu (3D)");
+    CBaseUIElement *sectionFposu = this->addSection(_("FPoSu (3D)"));
 
-    this->addSubSection("FPoSu - General");
-    this->addCheckbox("FPoSu",
-                      "The real 3D FPS mod.\nPlay from a first person shooter perspective in a 3D environment.\nThis "
-                      "is only intended for mouse! (Enable \"Tablet/Absolute Mode\" for tablets.)",
+    this->addSubSection(_("FPoSu - General"));
+    this->addCheckbox(_("FPoSu"),
+                      _("The real 3D FPS mod.\nPlay from a first person shooter perspective in a 3D environment.\nThis "
+                        "is only intended for mouse! (Enable \"Tablet/Absolute Mode\" for tablets.)"),
                       &cv::mod_fposu);
     this->addLabel("");
-    this->addLabel("NOTE: Use CTRL + O during gameplay to get here!")->setTextColor(0xff555555);
+    this->addLabel(_("NOTE: Use CTRL + O during gameplay to get here!"))->setTextColor(0xff555555);
     this->addLabel("");
-    this->addLabel("LEFT/RIGHT arrow keys to precisely adjust sliders.")->setTextColor(0xff555555);
+    this->addLabel(_("LEFT/RIGHT arrow keys to precisely adjust sliders."))->setTextColor(0xff555555);
     this->addLabel("");
-    CBaseUISlider *fposuDistanceSlider = this->addSlider("Distance:", 0.01f, 5.0f, &cv::fposu_distance, -1.0f, true);
+    CBaseUISlider *fposuDistanceSlider = this->addSlider(_("Distance:"), 0.01f, 5.0f, &cv::fposu_distance, -1.0f, true);
     fposuDistanceSlider->setKeyDelta(0.01f);
-    this->addCheckbox("Vertical FOV", "If enabled: Vertical FOV.\nIf disabled: Horizontal FOV (default).",
+    this->addCheckbox(_("Vertical FOV"), _("If enabled: Vertical FOV.\nIf disabled: Horizontal FOV (default)."),
                       &cv::fposu_vertical_fov);
-    CBaseUISlider *fovSlider = this->addSlider("FOV:", 10.0f, 160.0f, &cv::fposu_fov, -1.0f, true, true);
+    CBaseUISlider *fovSlider = this->addSlider(_("FOV:"), 10.0f, 160.0f, &cv::fposu_fov, -1.0f, true, true);
     fovSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeTwoDecimalPlaces>(this));
     fovSlider->setKeyDelta(0.01f);
     CBaseUISlider *zoomedFovSlider =
-        this->addSlider("FOV (Zoom):", 10.0f, 160.0f, &cv::fposu_zoom_fov, -1.0f, true, true);
+        this->addSlider(_("FOV (Zoom):"), 10.0f, 160.0f, &cv::fposu_zoom_fov, -1.0f, true, true);
     zoomedFovSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeTwoDecimalPlaces>(this));
     zoomedFovSlider->setKeyDelta(0.01f);
-    this->addCheckbox("Zoom Key Toggle", "Enabled: Zoom key toggles zoom.\nDisabled: Zoom while zoom key is held.",
+    this->addCheckbox(_("Zoom Key Toggle"),
+                      _("Enabled: Zoom key toggles zoom.\nDisabled: Zoom while zoom key is held."),
                       &cv::fposu_zoom_toggle);
-    this->addSubSection("FPoSu - Playfield");
-    this->addCheckbox("Curved play area", &cv::fposu_curved);
-    this->addCheckbox("Background cube", &cv::fposu_cube);
-    this->addCheckbox("Skybox", "NOTE: Overrides \"Background cube\".\nSee skybox_example.png for cubemap layout.",
+    this->addSubSection(_("FPoSu - Playfield"));
+    this->addCheckbox(_("Curved play area"), &cv::fposu_curved);
+    this->addCheckbox(_("Background cube"), &cv::fposu_cube);
+    this->addCheckbox(_("Skybox"),
+                      _("NOTE: Overrides \"Background cube\".\nSee skybox_example.png for cubemap layout."),
                       &cv::fposu_skybox);
-    this->addSlider("Background Opacity", 0.0f, 1.0f, &cv::background_alpha)
+    this->addSlider(_("Background Opacity"), 0.0f, 1.0f, &cv::background_alpha)
         ->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
 
-    this->addSubSection("FPoSu - Mouse");
+    this->addSubSection(_("FPoSu - Mouse"));
 
-    UIButton *cm360CalculatorLinkButton = this->addButton("https://www.mouse-sensitivity.com/");
+    UIButton *cm360CalculatorLinkButton = this->addButton(_("https://www.mouse-sensitivity.com/"));
     cm360CalculatorLinkButton->setClickCallback(SA::MakeDelegate([]() -> void {
-        ui->getNotificationOverlay()->addNotification("Opening browser, please wait ...", 0xffffffff, false, 0.75f);
+        ui->getNotificationOverlay()->addNotification(_("Opening browser, please wait ..."), 0xffffffff, false, 0.75f);
         Environment::openURLInDefaultBrowser("https://www.mouse-sensitivity.com/");
     }));
 
     cm360CalculatorLinkButton->setColor(0xff0e4a59);
     this->addLabel("");
-    this->dpiTextbox = this->addTextbox(cv::fposu_mouse_dpi.getString(), "DPI:", &cv::fposu_mouse_dpi);
-    this->cm360Textbox = this->addTextbox(cv::fposu_mouse_cm_360.getString(), "cm per 360:", &cv::fposu_mouse_cm_360);
+    this->dpiTextbox = this->addTextbox(cv::fposu_mouse_dpi.getString(), _("DPI:"), &cv::fposu_mouse_dpi);
+    this->cm360Textbox =
+        this->addTextbox(cv::fposu_mouse_cm_360.getString(), _("cm per 360:"), &cv::fposu_mouse_cm_360);
     this->addLabel("");
-    this->addCheckbox("Invert Vertical", &cv::fposu_invert_vertical);
-    this->addCheckbox("Invert Horizontal", &cv::fposu_invert_horizontal);
-    this->addCheckbox("Tablet/Absolute Mode (!)",
-                      "Don't enable this if you are using a mouse.\nIf this is enabled, then DPI and cm per "
-                      "360 will be ignored!",
+    this->addCheckbox(_("Invert Vertical"), &cv::fposu_invert_vertical);
+    this->addCheckbox(_("Invert Horizontal"), &cv::fposu_invert_horizontal);
+    this->addCheckbox(_("Tablet/Absolute Mode (!)"),
+                      _("Don't enable this if you are using a mouse.\nIf this is enabled, then DPI and cm per "
+                        "360 will be ignored!"),
                       &cv::fposu_absolute_mode);
 
     //**************************************************************************************************************************//
 
-    this->addSection("Bullshit");
+    // TRANSLATORS: Name of a settings category containing joke/unnecessary options
+    this->addSection(_("Bullshit"));
 
-    this->addSubSection("Why");
-    this->addCheckbox("Rainbow Circles", &cv::circle_rainbow);
-    this->addCheckbox("Rainbow Sliders", &cv::slider_rainbow);
-    this->addCheckbox("Rainbow Numbers", &cv::circle_number_rainbow);
-    this->addCheckbox("Draw 300s", &cv::hitresult_draw_300s);
+    // TRANSLATORS: Subcategory of "Bullshit" - contains joke visual settings (rainbow circles, etc.)
+    this->addSubSection(_("Why"));
+    this->addCheckbox(_("Rainbow Circles"), &cv::circle_rainbow);
+    this->addCheckbox(_("Rainbow Sliders"), &cv::slider_rainbow);
+    this->addCheckbox(_("Rainbow Numbers"), &cv::circle_number_rainbow);
+    this->addCheckbox(_("Draw 300s"), &cv::hitresult_draw_300s);
 
-    auto *sectionMisc = this->addSection("Miscellaneous");
+    auto *sectionMisc = this->addSection(_("Miscellaneous"));
 #ifndef MCENGINE_PLATFORM_WASM
-    this->addSubSection("Testing");
-    this->addCheckbox("Use bleeding edge release stream", &cv::bleedingedge);
+    this->addSubSection(_("Testing"));
+    this->addCheckbox(_("Use bleeding edge release stream"), &cv::bleedingedge);
 #endif
 
     if(cv::enable_screenshots.getBool()) {  // TODO: why is this even a convar (its only used during constructor)
-        this->addSubSection("Screenshots");
-        this->addCheckbox("Crop Screenshots",
-                          "Crop screenshots to the letterbox resolution,\nif letterboxing is enabled.",
+        this->addSubSection(_("Screenshots"));
+        this->addCheckbox(_("Crop Screenshots"),
+                          _("Crop screenshots to the letterbox resolution,\nif letterboxing is enabled."),
                           &cv::crop_screenshots);
-        this->addCheckbox("Copy Screenshots to Clipboard",
-                          "If screenshots should be copied to the system clipboard\nalong with saving them to the "
-                          "screenshots/ folder.",
+        this->addCheckbox(_("Copy Screenshots to Clipboard"),
+                          _("If screenshots should be copied to the system clipboard\nalong with saving them to the "
+                            "screenshots/ folder."),
                           &cv::screenshot_clipboard);
     }
 
-    this->addSubSection("Nags", "tip menu social links");
+    this->addSubSection(_("Nags"), "tip menu social links");
 
-    this->addCheckbox("Show Main Menu Tips", &cv::main_menu_tips);
-    this->addCheckbox("Hide Discord/X Links", &cv::adblock);
+    this->addCheckbox(_("Show Main Menu Tips"), &cv::main_menu_tips);
+    this->addCheckbox(_("Hide Discord/X Links"), &cv::adblock);
 
-    this->addSubSection("Import/Reset", "mcosu stable");
+    this->addSubSection(_("Import/Reset"), "mcosu stable");
 
 #ifndef MCENGINE_PLATFORM_WASM
-    UIButton *importMcOsuSettingsButton = this->addButton("Import collections/scores/settings from McOsu");
+    UIButton *importMcOsuSettingsButton = this->addButton(_("Import collections/scores/settings from McOsu"));
     importMcOsuSettingsButton->setClickCallback(SA::MakeDelegate([]() -> void {
         auto conclude_import = [](bool success) {
             if(success) {
@@ -1784,11 +1804,11 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
                     ui->getSongBrowser()->refreshBeatmaps(ui->getActiveScreen());
                 }
 
-                ui->getNotificationOverlay()->addToast("Successfully imported settings from McOsu.", SUCCESS_TOAST);
+                ui->getNotificationOverlay()->addToast(_("Successfully imported settings from McOsu."), SUCCESS_TOAST);
 
             } else {
                 ui->getNotificationOverlay()->addToast(
-                    "Couldn't find McOsu config files! Make sure to select the directory containing McOsu.exe.",
+                    _("Couldn't find McOsu config files! Make sure to select the directory containing McOsu.exe."),
                     ERROR_TOAST);
             }
         };
@@ -1799,10 +1819,10 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
             return;
         }
 
-        ui->getNotificationOverlay()->addNotification("Opening file browser ...", 0xffffffff, false, 0.75f);
+        ui->getNotificationOverlay()->addNotification(_("Opening file browser ..."), 0xffffffff, false, 0.75f);
         env->openFolderWindow([conclude_import](const std::vector<std::string> &paths) {
             if(paths.empty()) {
-                ui->getNotificationOverlay()->addToast("You must select the McOsu folder to import its settings.",
+                ui->getNotificationOverlay()->addToast(_("You must select the McOsu folder to import its settings."),
                                                        ERROR_TOAST);
                 return;
             }
@@ -1815,7 +1835,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     }));
 #endif
 
-    UIButton *resetAllSettingsButton = this->addButton("Reset all settings");
+    UIButton *resetAllSettingsButton = this->addButton(_("Reset all settings"));
     resetAllSettingsButton->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onResetEverythingClicked>(this));
     resetAllSettingsButton->setColor(0xffd90000);
 
@@ -1950,13 +1970,13 @@ void OptionsOverlayImpl::draw() {
 
 void OptionsOverlayImpl::update_login_button(bool loggedIn) {
     if(loggedIn || BanchoState::is_online()) {
-        this->logInButton->setText("Disconnect");
+        this->logInButton->setText(_("Disconnect"));
         this->logInButton->setColor(0xffd90000);
     } else if(BanchoState::get_online_status() == OnlineStatus::POLLING) {
-        this->logInButton->setText("Waiting for browser...");
+        this->logInButton->setText(_("Waiting for browser..."));
         this->logInButton->setColor(0xffd9d900);
     } else {
-        this->logInButton->setText("Log in");
+        this->logInButton->setText(_("Log in"));
         this->logInButton->setColor(0xff00d900);
     }
     this->logInButton->is_loading = BanchoState::is_logging_in();
@@ -3048,7 +3068,7 @@ void OptionsOverlayImpl::onSkinSelectFoldersFinished(const std::vector<std::stri
             });
         }
     } else {
-        ui->getNotificationOverlay()->addToast("Error: Couldn't find any skins", ERROR_TOAST);
+        ui->getNotificationOverlay()->addToast(_("Error: Couldn't find any skins"), ERROR_TOAST);
         this->options->scrollToTop();
         this->fOsuFolderTextboxInvalidAnim = engine->getTime() + 3.0f;
     }
@@ -3169,7 +3189,8 @@ void OptionsOverlayImpl::onOutputDeviceSelect2(std::string_view outputDeviceName
         if((soundEngine->getOutputDriverType() == SoundEngine::OutputDriver::SOLOUD_MA)) {
             if(device.name.find("(Exclusive)") != std::string_view::npos &&
                soundEngine->getOutputDeviceName().find("(Exclusive)") == std::string_view::npos) {
-                ui->getNotificationOverlay()->addToast("Tried to enable exclusive mode, but couldn't :(", ERROR_TOAST);
+                ui->getNotificationOverlay()->addToast(_("Tried to enable exclusive mode, but couldn't :("),
+                                                       ERROR_TOAST);
             }
         }
         if(this->outputDeviceLabel != nullptr)
@@ -3435,11 +3456,8 @@ void OptionsOverlayImpl::onKeyBindingButtonPressed(CBaseUIButton *button) {
     if(const auto &it = this->uiToOptElemMap.find(button); it != this->uiToOptElemMap.end() && (element = it->second)) {
         this->waitingKey = element->cvar;
 
-        std::string notificationText = "Press new key for ";
-        notificationText.append(button->getText());
-        notificationText.append(":");
-
         const bool waitForKey = true;
+        auto notificationText = fmt::format(fmt::runtime(_("Press new key for {}:")), button->getText());
         ui->getNotificationOverlay()->addNotification(notificationText, 0xffffffff, waitForKey);
         ui->getNotificationOverlay()->setDisallowWaitForKeyLeftClick(
             !(dynamic_cast<KeyBindButton *>(button)->isLeftMouseClickBindingAllowed()));
@@ -3470,14 +3488,14 @@ void OptionsOverlayImpl::onKeyBindingsResetAllPressed(CBaseUIButton * /*button*/
 
         this->scheduleLayoutUpdate();
 
-        ui->getNotificationOverlay()->addNotification("All key bindings have been reset.", 0xff00ff00);
+        ui->getNotificationOverlay()->addNotification(_("All key bindings have been reset."), 0xff00ff00);
     } else {
         if(remainingUntilReset > 1)
             ui->getNotificationOverlay()->addNotification(
-                fmt::format("Press {} more times to confirm.", remainingUntilReset));
+                fmt::format(fmt::runtime(_("Press {:d} more times to confirm.")), remainingUntilReset));
         else
             ui->getNotificationOverlay()->addNotification(
-                fmt::format("Press {} more time to confirm!", remainingUntilReset), 0xffffff00);
+                fmt::format(fmt::runtime(_("Press {:d} more time to confirm!")), remainingUntilReset), 0xffffff00);
     }
 }
 
@@ -3768,10 +3786,10 @@ void OptionsOverlayImpl::pushForcedCvarTooltipIfHovered() {
             ttoverlay->begin();
             switch(e->cvar->getMaster()) {
                 case CvarEditor::SERVER:
-                    ttoverlay->addLine("This setting is forced by the server.");
+                    ttoverlay->addLine(_("This setting is forced by the server."));
                     break;
                 case CvarEditor::SKIN:
-                    ttoverlay->addLine("This setting is forced by the current skin.");
+                    ttoverlay->addLine(_("This setting is forced by the current skin."));
                     break;
                 case CvarEditor::CLIENT:
                     break;  // unreachable: cvarLocked implies non-CLIENT master
@@ -3830,14 +3848,14 @@ void OptionsOverlayImpl::onResetEverythingClicked(CBaseUIButton * /*button*/) {
             if(resetButton != nullptr && resetButton->isEnabled()) resetButton->click();
         }
 
-        ui->getNotificationOverlay()->addNotification("All settings have been reset.", 0xff00ff00);
+        ui->getNotificationOverlay()->addNotification(_("All settings have been reset."), 0xff00ff00);
     } else {
         if(remainingUntilReset > 1)
             ui->getNotificationOverlay()->addNotification(
-                fmt::format("Press {} more times to confirm.", remainingUntilReset));
+                fmt::format(fmt::runtime(_("Press {:d} more times to confirm.")), remainingUntilReset));
         else
             ui->getNotificationOverlay()->addNotification(
-                fmt::format("Press {} more time to confirm!", remainingUntilReset), 0xffffff00);
+                fmt::format(fmt::runtime(_("Press {:d} more time to confirm!")), remainingUntilReset), 0xffffff00);
     }
 }
 
@@ -3993,7 +4011,7 @@ OptionsElement *OptionsOverlayImpl::addButtonButtonLabel(const std::string &text
 KeyBindButton *OptionsOverlayImpl::addKeyBindButton(const std::string &text, OsuKeyBinds::Bind *bind) {
     /// UString unbindIconString; unbindIconString.insert(0, Icons::UNDO);
     auto *unbindButton = new UIButton(0, 0, this->options->getSize().x, 50, text, "");
-    unbindButton->setTooltipText("Unbind");
+    unbindButton->setTooltipText(_("Unbind"));
     unbindButton->setColor(0x77d90000);
     unbindButton->setUseDefaultSkin();
     unbindButton->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onKeyUnbindButtonPressed>(this));
@@ -4230,7 +4248,7 @@ void OptionsOverlayImpl::save() {
     static AsyncIOHandler::WriteCallback wr_callback = [](bool success) -> void {
         if(!success) {
             if(osu) {
-                ui->getNotificationOverlay()->addToast("Failed to save osu.cfg", ERROR_TOAST);
+                ui->getNotificationOverlay()->addToast(_("Failed to save osu.cfg"), ERROR_TOAST);
             } else {
                 debugLog("Failed to save osu.cfg");
             }

@@ -192,6 +192,11 @@ MAIN_FUNC /* int argc, char *argv[] */
     }
 #endif
 
+    // init gettext for i18n
+    // must be called after setlocale()
+    bindtextdomain(PACKAGE_NAME, MCENGINE_LOCALE_PATH);
+    textdomain(PACKAGE_NAME);
+
 #ifdef WITH_LIVEPP
     debugLog("Starting Live++");
     lpp::LppSynchronizedAgent lppAgent = lpp::LppCreateSynchronizedAgent(nullptr, L"../../../LivePP");

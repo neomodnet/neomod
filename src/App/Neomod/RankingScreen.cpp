@@ -48,7 +48,7 @@
 namespace {
 class RankingScreenIndexLabel final : public CBaseUILabel {
    public:
-    RankingScreenIndexLabel() : CBaseUILabel(-1, 0, 0, 0, "", "You achieved the #1 score on local rankings!") {
+    RankingScreenIndexLabel() : CBaseUILabel(-1, 0, 0, 0, "", _("You achieved the #1 score on local rankings!")) {
         this->bVisible2 = false;
     }
 
@@ -192,10 +192,10 @@ struct RankingScreen::RankingScreenImpl {
         this->rankingIndex->setTextColor(0xffffcb21);
         this->rankings->container.addBaseUIElement(this->rankingIndex);
 
-        this->retry_btn = new UIButton(0, 0, 0, 0, "", "Retry");
+        this->retry_btn = new UIButton(0, 0, 0, 0, "", _("Retry"));
         this->retry_btn->setClickCallback(SA::MakeDelegate<&RankingScreen::onRetryClicked>(parent));
         this->rankings->container.addBaseUIElement(this->retry_btn);
-        this->watch_btn = new UIButton(0, 0, 0, 0, "", "Watch replay");
+        this->watch_btn = new UIButton(0, 0, 0, 0, "", _("Watch replay"));
         this->watch_btn->setClickCallback(SA::MakeDelegate<&RankingScreen::onWatchClicked>(parent));
         this->rankings->container.addBaseUIElement(this->watch_btn);
 
@@ -345,27 +345,27 @@ void RankingScreen::update(CBaseUIEventCtx &c) {
         tto->begin();
         {
             auto &sc = m_impl->storedScore;
-            tto->addLine(fmt::format("{:.2f}pp", sc.get_or_calc_pp()));
+            tto->addLine(fmt::format(fmt::runtime(_("{:.2f}pp")), sc.get_or_calc_pp()));
             if(sc.ppv2_total_stars > 0.0) {
-                tto->addLine(fmt::format("Stars: {:.2f} ({:.2f} aim, {:.2f} speed)", sc.ppv2_total_stars,
+                tto->addLine(fmt::format(fmt::runtime(_("Stars: {:.2f} ({:.2f} aim, {:.2f} speed)")), sc.ppv2_total_stars,
                                          sc.ppv2_aim_stars, sc.ppv2_speed_stars));
             }
-            tto->addLine(fmt::format("Speed: {:.3g}x", sc.mods.speed));
+            tto->addLine(fmt::format(fmt::runtime(_("Speed: {:.3g}x")), sc.mods.speed));
 
             const f32 AR = GameRules::arWithSpeed(sc.mods.get_naive_ar(sc.map), sc.mods.speed);
             const f32 OD = GameRules::odWithSpeed(sc.mods.get_naive_od(sc.map), sc.mods.speed);
             const f32 CS = sc.mods.get_naive_cs(sc.map);
             const f32 HP = sc.mods.get_naive_hp(sc.map);
 
-            tto->addLine(fmt::format("CS:{:.2f} AR:{:.2f} OD:{:.2f} HP:{:.2f}", CS, AR, OD, HP));
+            tto->addLine(fmt::format(fmt::runtime(_("CS:{:.2f} AR:{:.2f} OD:{:.2f} HP:{:.2f}")), CS, AR, OD, HP));
 
             if(m_impl->sMods.length() > 0) tto->addLine(m_impl->sMods);
 
             if(m_impl->fUnstableRate > 0.f) {
-                tto->addLine("Accuracy:");
+                tto->addLine(_("Accuracy:"));
                 tto->addLine(
-                    fmt::format("Error: {:.2f}ms - {:.2f}ms avg", m_impl->fHitErrorAvgMin, m_impl->fHitErrorAvgMax));
-                tto->addLine(fmt::format("Unstable Rate: {:.2f}", m_impl->fUnstableRate));
+                    fmt::format(fmt::runtime(_("Error: {:.2f}ms - {:.2f}ms avg")), m_impl->fHitErrorAvgMin, m_impl->fHitErrorAvgMax));
+                tto->addLine(fmt::format(fmt::runtime(_("Unstable Rate: {:.2f}")), m_impl->fUnstableRate));
             }
         }
         tto->end();
@@ -453,7 +453,7 @@ void RankingScreen::setScore(const FinishedScore &newscore) {
 
     const std::string modsString = ScoreButton::getModsStringForDisplay(sc.mods);
     if(modsString.length() > 0) {
-        m_impl->sMods = "Mods: ";
+        m_impl->sMods = _("Mods: ");
         m_impl->sMods.append(modsString);
     } else
         m_impl->sMods = "";
@@ -596,7 +596,7 @@ void RankingScreen::setIndex(int index) {
     if(!cv::scores_enabled.getBool()) index = -1;
 
     if(index > -1) {
-        m_impl->rankingIndex->setText(fmt::format("You achieved the #{} score on local rankings!", (index + 1)));
+        m_impl->rankingIndex->setText(fmt::format(fmt::runtime(_("You achieved the #{} score on local rankings!")), (index + 1)));
         m_impl->rankingIndex->setVisible2(true);
         m_impl->rankingBottom->setVisible2(true);
     } else {

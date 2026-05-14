@@ -9,6 +9,10 @@
 #include <cstdint>
 #include <type_traits>
 
+#include <libintl.h>
+#include <locale.h>
+#define _(String) gettext(String)
+
 namespace Env {
 enum class OS : uint8_t {
     WINDOWS = 1 << 0,

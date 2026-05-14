@@ -52,7 +52,8 @@ std::array<char, N> crop_string_to_n(const std::string& str) {
 }
 
 std::array<char, 128> beatmap_desc_str(const DatabaseBeatmap* map, bool include_difficulty) {
-    std::array<char, 128> ret{"No map selected"};
+    std::array<char, 128> ret{};
+    strncpy(ret.data(), _("No map selected"), ret.size() - 1);
     if(!map) return ret;
 
     std::string playingInfo = fmt::format("{:s} - {:s}", map->getArtist(), map->getTitle());
@@ -181,7 +182,7 @@ void onMainMenu() {
     last_callback = MusicDependentCallback::ON_MAINMENU;
     bool force_not_afk =
         BanchoState::spectating || (ui->getChat()->isVisible() && ui->getChat()->user_list->isVisible());
-    setBanchoStatus("Main Menu", force_not_afk ? Action::IDLE : Action::AFK);
+    setBanchoStatus(_("Main Menu"), force_not_afk ? Action::IDLE : Action::AFK);
 
     auto activity = DiscRPC::create_base_activity();
 
@@ -192,7 +193,7 @@ void onMainMenu() {
         activity.details = beatmap_desc_str(map, false);
     }
 
-    activity.state = {"Main menu"};
+    strncpy(activity.state.data(), _("Main menu"), activity.state.size() - 1);
     set_activity_with_image(activity);
 }
 
@@ -200,18 +201,18 @@ void onSongBrowser() {
     last_callback = MusicDependentCallback::ON_SONGBROWSER;
     auto activity = DiscRPC::create_base_activity();
 
-    activity.details = {"Picking a map"};
+    strncpy(activity.details.data(), _("Picking a map"), activity.details.size() - 1);
 
     if(ui->getRoom()->isVisible()) {
-        setBanchoStatus("Picking a map", Action::MULTIPLAYER);
+        setBanchoStatus(_("Picking a map"), Action::MULTIPLAYER);
 
-        activity.state = {"Multiplayer"};
+        strncpy(activity.state.data(), _("Multiplayer"), activity.state.size() - 1);
         activity.party.size.current_size = BanchoState::room.nb_players;
         activity.party.size.max_size = BanchoState::room.nb_open_slots;
     } else {
-        setBanchoStatus("Song selection", Action::IDLE);
+        setBanchoStatus(_("Song selection"), Action::IDLE);
 
-        activity.state = {"Singleplayer"};
+        strncpy(activity.state.data(), _("Singleplayer"), activity.state.size() - 1);
         activity.party.size.current_size = 0;
         activity.party.size.max_size = 0;
     }
@@ -241,7 +242,7 @@ void onPlayStart() {
     if(BanchoState::is_in_a_multi_room()) {
         setBanchoStatus(activity.details.data(), Action::MULTIPLAYER);
 
-        activity.state = {"Playing in a lobby"};
+        strncpy(activity.state.data(), _("Playing in a lobby"), activity.state.size() - 1);
         activity.party.size.current_size = BanchoState::room.nb_players;
         activity.party.size.max_size = BanchoState::room.nb_open_slots;
     } else if(BanchoState::spectating) {
@@ -251,14 +252,14 @@ void onPlayStart() {
 
         const auto* user = BANCHO::User::get_user_info(BanchoState::spectated_player_id, true);
         if(user->has_presence) {
-            snprintf(activity.state.data(), 128, "Spectating %s", user->name.c_str());
+            snprintf(activity.state.data(), 128, _("Spectating %s"), user->name.c_str());
         } else {
-            activity.state = {"Spectating"};
+            strncpy(activity.state.data(), _("Spectating"), activity.state.size() - 1);
         }
     } else {
         setBanchoStatus(activity.details.data(), Action::PLAYING);
 
-        activity.state = {"Playing Solo"};
+        strncpy(activity.state.data(), _("Playing Solo"), activity.state.size() - 1);
         activity.party.size.current_size = 0;
         activity.party.size.max_size = 0;
     }

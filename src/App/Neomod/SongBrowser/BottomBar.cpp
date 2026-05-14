@@ -230,7 +230,7 @@ void draw() {
     i32 calcx = osu->getUserButton()->getPos().x + osu->getUserButton()->getSize().x + 20;
     i32 calcy = osu->getUserButton()->getPos().y + 15;
     if(BatchDiffCalc::get_maps_total() > 0) {
-        std::string msg = fmt::format("Calculating stars ({}/{}) ...", BatchDiffCalc::get_maps_processed(),
+        std::string msg = fmt::format(fmt::runtime(_("Calculating stars ({}/{}) ...")), BatchDiffCalc::get_maps_processed(),
                                       BatchDiffCalc::get_maps_total());
         g->pushTransform();
         g->translate(calcx, calcy);
@@ -244,9 +244,9 @@ void draw() {
             Sync::scoped_lock lk(export_progress_mtx);
             export_entry_copy = export_entry;
         }
-        std::string msg1 = fmt::format("Exporting {} {:.2f}%",
-                                       !export_collection.empty() ? export_collection : "mapset", progress * 100.f);
-        std::string msg2 = fmt::format(" {:s}", export_entry_copy);
+        std::string msg1 = fmt::format(fmt::runtime(_("Exporting {} {:.2f}%")),
+                                       !export_collection.empty() ? export_collection : _("mapset"), progress * 100.f);
+        std::string msg2 = fmt::format(fmt::runtime(_(" {:s}")), export_entry_copy);
         g->pushTransform();
         g->translate(calcx, calcy);
         g->drawString(font, msg1);
@@ -257,7 +257,7 @@ void draw() {
     }
     if(cv::normalize_loudness.getBool() && VolNormalization::get_total() > 0 &&
        VolNormalization::get_computed() < VolNormalization::get_total()) {
-        std::string msg = fmt::format("Computing loudness ({}/{}) ...", VolNormalization::get_computed(),
+        std::string msg = fmt::format(fmt::runtime(_("Computing loudness ({}/{}) ...")), VolNormalization::get_computed(),
                                       VolNormalization::get_total());
         g->pushTransform();
         g->translate(calcx, calcy);
@@ -268,7 +268,7 @@ void draw() {
     const auto calc_total = BatchDiffCalc::get_scores_total();
     const auto calc_computed = BatchDiffCalc::get_scores_processed();
     if(calc_total > 0 && calc_computed < calc_total) {
-        std::string msg = fmt::format("Converting scores ({}/{}) ...", calc_computed, calc_total);
+        std::string msg = fmt::format(fmt::runtime(_("Converting scores ({}/{}) ...")), calc_computed, calc_total);
         g->pushTransform();
         g->translate(calcx, calcy);
         g->drawString(font, msg);

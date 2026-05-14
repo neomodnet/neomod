@@ -352,15 +352,15 @@ SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
     this->songInfo = new InfoLabel(0, 0, 0, 0, "");
     this->topbarLeft->addBaseUIElement(this->songInfo);
 
-    this->filterScoresDropdown = new UIButtonRounded(0, 0, 0, 0, "", "Local", 5);
+    this->filterScoresDropdown = new UIButtonRounded(0, 0, 0, 0, "", _("Local"), 5);
     this->filterScoresDropdown->setClickCallback(SA::MakeDelegate<&SongBrowser::onFilterScoresClicked>(this));
     this->topbarLeft->addBaseUIElement(this->filterScoresDropdown);
 
-    this->sortScoresDropdown = new UIButtonRounded(0, 0, 0, 0, "", "By score", 5);
+    this->sortScoresDropdown = new UIButtonRounded(0, 0, 0, 0, "", _("By score"), 5);
     this->sortScoresDropdown->setClickCallback(SA::MakeDelegate<&SongBrowser::onSortScoresClicked>(this));
     this->topbarLeft->addBaseUIElement(this->sortScoresDropdown);
 
-    this->webButton = new UIButtonRounded(0, 0, 0, 0, "", "Web", 5);
+    this->webButton = new UIButtonRounded(0, 0, 0, 0, "", _("Web"), 5);
     this->webButton->setClickCallback(SA::MakeDelegate<&SongBrowser::onWebClicked>(this));
     this->topbarLeft->addBaseUIElement(this->webButton);
 
@@ -374,12 +374,12 @@ SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
                                ->setDrawTextShadow(true)
                                ->setDrawBackground(false)
                                ->setDrawFrame(false)
-                               ->setText("Group:")  // setting text later so string metrics get applied...
+                               ->setText(_("Group:"))  // setting text later so string metrics get applied...
                                ->setSizeToContent(-1, 0);
         this->groupLabel->setGrabClicks(true);
         this->topbarRight->addBaseUIElement(this->groupLabel);
 
-        this->groupButton = new UIButtonRounded(0, 0, 0, 0, "", "No Grouping", 5);
+        this->groupButton = new UIButtonRounded(0, 0, 0, 0, "", _("No Grouping"), 5);
         this->groupButton->setClickCallback(SA::MakeDelegate<&SongBrowser::onGroupClicked>(this));
         this->groupButton->setGrabClicks(true);
         this->topbarRight->addBaseUIElement(this->groupButton);
@@ -391,33 +391,33 @@ SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
                               ->setDrawTextShadow(true)
                               ->setDrawBackground(false)
                               ->setDrawFrame(false)
-                              ->setText("Sort:")
+                              ->setText(_("Sort:"))
                               ->setSizeToContent(-1, 0);
         this->sortLabel->setGrabClicks(true);
         this->topbarRight->addBaseUIElement(this->sortLabel);
 
-        this->sortButton = new UIButtonRounded(0, 0, 0, 0, "", "By Date Added", 5);
+        this->sortButton = new UIButtonRounded(0, 0, 0, 0, "", _("By Date Added"), 5);
         this->sortButton->setClickCallback(SA::MakeDelegate<&SongBrowser::onSortClicked>(this));
         this->sortButton->setGrabClicks(true);
         this->topbarRight->addBaseUIElement(this->sortButton);
 
         // "hardcoded" grouping tabs
-        this->groupByCollectionBtn = new UIButtonRounded(0, 0, 0, 0, "", "Collections", 5);
+        this->groupByCollectionBtn = new UIButtonRounded(0, 0, 0, 0, "", _("Collections"), 5);
         this->groupByCollectionBtn->setHandleRightMouse(true);
         this->groupByCollectionBtn->setClickCallback(SA::MakeDelegate<&SongBrowser::onQuickGroupClicked>(this));
         this->groupByCollectionBtn->setGrabClicks(true);
         this->topbarRight->addBaseUIElement(this->groupByCollectionBtn);
-        this->groupByArtistBtn = new UIButtonRounded(0, 0, 0, 0, "", "By Artist", 5);
+        this->groupByArtistBtn = new UIButtonRounded(0, 0, 0, 0, "", _("By Artist"), 5);
         this->groupByArtistBtn->setHandleRightMouse(true);
         this->groupByArtistBtn->setClickCallback(SA::MakeDelegate<&SongBrowser::onQuickGroupClicked>(this));
         this->groupByArtistBtn->setGrabClicks(true);
         this->topbarRight->addBaseUIElement(this->groupByArtistBtn);
-        this->groupByDifficultyBtn = new UIButtonRounded(0, 0, 0, 0, "", "By Difficulty", 5);
+        this->groupByDifficultyBtn = new UIButtonRounded(0, 0, 0, 0, "", _("By Difficulty"), 5);
         this->groupByDifficultyBtn->setHandleRightMouse(true);
         this->groupByDifficultyBtn->setClickCallback(SA::MakeDelegate<&SongBrowser::onQuickGroupClicked>(this));
         this->groupByDifficultyBtn->setGrabClicks(true);
         this->topbarRight->addBaseUIElement(this->groupByDifficultyBtn);
-        this->groupByNothingBtn = new UIButtonRounded(0, 0, 0, 0, "", "No Grouping", 5);
+        this->groupByNothingBtn = new UIButtonRounded(0, 0, 0, 0, "", _("No Grouping"), 5);
         this->groupByNothingBtn->setHandleRightMouse(true);
         this->groupByNothingBtn->setClickCallback(SA::MakeDelegate<&SongBrowser::onQuickGroupClicked>(this));
         this->groupByNothingBtn->setGrabClicks(true);
@@ -437,15 +437,15 @@ SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
     this->scoreBrowser->setScrollbarSizeMultiplier(0.25f);
     this->scoreBrowser->setScrollResistance(15);
     this->scoreBrowser->setHorizontalClipping(false);
-    this->scoreBrowserScoresStillLoadingElement = new ScoresStillLoadingElement("Loading...");
-    this->scoreBrowserNoRecordsSetElement = new NoRecordsSetElement("No records set!");
+    this->scoreBrowserScoresStillLoadingElement = new ScoresStillLoadingElement(_("Loading..."));
+    this->scoreBrowserNoRecordsSetElement = new NoRecordsSetElement(_("No records set!"));
     this->scoreBrowser->container.addBaseUIElement(this->scoreBrowserNoRecordsSetElement);
 
     // NOTE: we don't add localBestContainer to the screen; we draw and update it manually so that
     //       it can be drawn under skins which overlay the scores list.
     this->localBestContainer = std::make_unique<CBaseUIContainer>(0.f, 0.f, 0.f, 0.f, "");
     this->localBestContainer->setVisible(false);
-    this->localBestLabel = new CBaseUILabel(0, 0, 0, 0, "", "Personal Best (from local scores)");
+    this->localBestLabel = new CBaseUILabel(0, 0, 0, 0, "", _("Personal Best (from local scores)"));
     this->localBestLabel->setDrawBackground(false);
     this->localBestLabel->setDrawFrame(false);
     this->localBestLabel->setTextJustification(TEXT_JUSTIFICATION::CENTERED);
@@ -658,13 +658,13 @@ void SongBrowser::draw() {
 
     // no beatmaps found (osu folder is probably invalid)
     if(db->getBeatmapSets().size() == 0) {
-        std::string errorMessage1 = "Invalid osu! folder (or no beatmaps found): ";
+        std::string errorMessage1 = _("Invalid osu! folder (or no beatmaps found): ");
         errorMessage1.append(this->sLastOsuFolder);
-        std::string errorMessage2 = "Go to Options -> osu!folder";
+        std::string errorMessage2 = _("Go to Options -> osu!folder");
 
         if constexpr(Env::cfg(OS::WASM)) {
-            errorMessage1 = "Drop .osz beatmaps onto this window to import them";
-            errorMessage2 = "Or click \"Online Beatmaps\" in the Main Menu";
+            errorMessage1 = _("Drop .osz beatmaps onto this window to import them");
+            errorMessage2 = _("Or click \"Online Beatmaps\" in the Main Menu");
         }
 
         g->setColor(Env::cfg(OS::WASM) ? 0xffffffff : 0xffff0000);
@@ -844,7 +844,7 @@ bool SongBrowser::selectBeatmapset(const BeatmapSet *set) {
     }
 
     if(best_diff == nullptr) {
-        ui->getNotificationOverlay()->addToast("Beatmapset has no difficulties", ERROR_TOAST);
+        ui->getNotificationOverlay()->addToast(_("Beatmapset has no difficulties"), ERROR_TOAST);
         return false;
     } else {
         this->onSelectionChange((*this->hashToDiffButton)[best_diff->getMD5()], false);
@@ -897,7 +897,7 @@ void SongBrowser::update(CBaseUIEventCtx &c) {
     if(this->map_autodl) {
         const i32 set_id = Downloader::resolve_beatmapset_id_for(this->map_autodl, this->set_autodl);
         if(set_id < 0) {
-            ui->getNotificationOverlay()->addToast(fmt::format("Failed to find Beatmap #{:d} :(", this->map_autodl),
+            ui->getNotificationOverlay()->addToast(fmt::format(fmt::runtime(_("Failed to find Beatmap #{:d} :(")), this->map_autodl),
                                                    ERROR_TOAST);
             this->map_autodl = 0;
             this->set_autodl = 0;
@@ -2255,7 +2255,7 @@ void SongBrowser::rebuildScoreButtons() {
     const MD5Hash mapHash = validBeatmap ? map->getMD5() : MD5Hash{};
 
     bool is_online = (BanchoState::is_online() || BanchoState::is_logging_in()) &&
-                     cv::songbrowser_scores_filteringtype.getString() != "Local";
+                     cv::songbrowser_scores_filteringtype.getString() != _("Local");
 
     std::vector<FinishedScore> scores;
     if(validBeatmap) {
@@ -2415,7 +2415,7 @@ void SongBrowser::initializeGroupingButtons() {
 
         // 0-9
         {
-            coll->at(0) = MKCBTN("0-9");
+            coll->at(0) = MKCBTN(_("0-9"));
         }
 
         // A-Z
@@ -2425,7 +2425,7 @@ void SongBrowser::initializeGroupingButtons() {
 
         // Other
         {
-            coll->at(27) = MKCBTN("Other");
+            coll->at(27) = MKCBTN(_("Other"));
         }
     }
 
@@ -2435,11 +2435,11 @@ void SongBrowser::initializeGroupingButtons() {
         for(size_t i = 0; i < 12; i++) {
             std::string difficultyCollectionName;
             if(i < 1)
-                difficultyCollectionName = "Below 1 star";
+                difficultyCollectionName = _("Below 1 star");
             else if(i > 10)
-                difficultyCollectionName = "Above 10 stars";
+                difficultyCollectionName = _("Above 10 stars");
             else
-                difficultyCollectionName = fmt::format("{:d} star{:s}", i, i == 1 ? "" : "s");
+                difficultyCollectionName = fmt::format(fmt::runtime(_("{:d} star{:s}")), i, i == 1 ? "" : "s");
 
             diffbtns[i] = MKCBTN(std::move(difficultyCollectionName));
         }
@@ -2448,12 +2448,12 @@ void SongBrowser::initializeGroupingButtons() {
     // bpm
     if(auto &bpmbtns = this->bpmCollectionButtons; bpmbtns.size() != 6) {
         bpmbtns.resize(6);
-        bpmbtns[0] = MKCBTN("Under 60 BPM");
-        bpmbtns[1] = MKCBTN("Under 120 BPM");
-        bpmbtns[2] = MKCBTN("Under 180 BPM");
-        bpmbtns[3] = MKCBTN("Under 240 BPM");
-        bpmbtns[4] = MKCBTN("Under 300 BPM");
-        bpmbtns[5] = MKCBTN("Over 300 BPM");
+        bpmbtns[0] = MKCBTN(_("Under 60 BPM"));
+        bpmbtns[1] = MKCBTN(_("Under 120 BPM"));
+        bpmbtns[2] = MKCBTN(_("Under 180 BPM"));
+        bpmbtns[3] = MKCBTN(_("Under 240 BPM"));
+        bpmbtns[4] = MKCBTN(_("Under 300 BPM"));
+        bpmbtns[5] = MKCBTN(_("Over 300 BPM"));
     }
 
     // dateadded
@@ -2464,13 +2464,13 @@ void SongBrowser::initializeGroupingButtons() {
     // length
     if(auto &lenbtns = this->lengthCollectionButtons; lenbtns.size() != 7) {
         lenbtns.resize(7);
-        lenbtns[0] = MKCBTN("1 minute or less");
-        lenbtns[1] = MKCBTN("2 minutes or less");
-        lenbtns[2] = MKCBTN("3 minutes or less");
-        lenbtns[3] = MKCBTN("4 minutes or less");
-        lenbtns[4] = MKCBTN("5 minutes or less");
-        lenbtns[5] = MKCBTN("10 minutes or less");
-        lenbtns[6] = MKCBTN("Over 10 minutes");
+        lenbtns[0] = MKCBTN(_("1 minute or less"));
+        lenbtns[1] = MKCBTN(_("2 minutes or less"));
+        lenbtns[2] = MKCBTN(_("3 minutes or less"));
+        lenbtns[3] = MKCBTN(_("4 minutes or less"));
+        lenbtns[4] = MKCBTN(_("5 minutes or less"));
+        lenbtns[5] = MKCBTN(_("10 minutes or less"));
+        lenbtns[6] = MKCBTN(_("Over 10 minutes"));
     }
 #undef MKCBTN
 }
@@ -2746,7 +2746,7 @@ void SongBrowser::rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(
 }
 
 void SongBrowser::onFilterScoresClicked(CBaseUIButton *button) {
-    static const std::array filters{"Local"s, "Global"s, "Selected mods"s, "Country"s, "Friends"s, "Team"s};
+    static const std::array filters{_("Local"), _("Global"), _("Selected mods"), _("Country"), _("Friends"), _("Team")};
 
     this->contextMenu->setPos(button->getPos());
     this->contextMenu->setRelPos(button->getRelPos());
@@ -2760,7 +2760,7 @@ void SongBrowser::onFilterScoresClicked(CBaseUIButton *button) {
                 }
             }
         } else {
-            CBaseUIButton *button = this->contextMenu->addButton("Local");
+            CBaseUIButton *button = this->contextMenu->addButton(_("Local"));
             button->setTextBrightColor(0xff00ff00);
         }
     }
@@ -2819,7 +2819,7 @@ void SongBrowser::onWebClicked(CBaseUIButton * /*button*/) {
         auto scheme = cv::use_https.getBool() ? "https://" : "http://";
         auto endpoint = BanchoState::is_online() ? BanchoState::endpoint : "ppy.sh";
         env->openURLInDefaultBrowser(fmt::format("{}osu.{}/b/{}", scheme, endpoint, this->songInfo->getBeatmapID()));
-        ui->getNotificationOverlay()->addNotification("Opening browser, please wait ...", 0xffffffff, false, 0.75f);
+        ui->getNotificationOverlay()->addNotification(_("Opening browser, please wait ..."), 0xffffffff, false, 0.75f);
     }
 }
 
@@ -3051,10 +3051,10 @@ void SongBrowser::rebuildAfterGroupOrSortChange(GroupType group, const std::opti
 void SongBrowser::onSelectionMode() {
     if(cv::mod_fposu.getBool()) {
         cv::mod_fposu.setValue(false);
-        ui->getNotificationOverlay()->addToast("Disabled FPoSu mode.", INFO_TOAST);
+        ui->getNotificationOverlay()->addToast(_("Disabled FPoSu mode."), INFO_TOAST);
     } else {
         cv::mod_fposu.setValue(true);
-        ui->getNotificationOverlay()->addToast("Enabled FPoSu mode.", SUCCESS_TOAST);
+        ui->getNotificationOverlay()->addToast(_("Enabled FPoSu mode."), SUCCESS_TOAST);
     }
 }
 

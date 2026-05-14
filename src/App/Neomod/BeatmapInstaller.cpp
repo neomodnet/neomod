@@ -141,7 +141,7 @@ void BeatmapInstaller::update() {
 void BeatmapInstaller::on_done(i32 set_id, const Entry& e, const BeatmapSet* set) {
     debugLog("Finished installing beatmapset {:d}", set_id);
 
-    ui->getNotificationOverlay()->addToast(fmt::format("Downloaded beatmapset #{:d}", set_id), SUCCESS_TOAST);
+    ui->getNotificationOverlay()->addToast(fmt::format(fmt::runtime(_("Downloaded beatmapset #{:d}")), set_id), SUCCESS_TOAST);
 
     if(e.auto_select) {
         const auto& diffs = set->getDifficulties();
@@ -151,5 +151,5 @@ void BeatmapInstaller::on_done(i32 set_id, const Entry& e, const BeatmapSet* set
 }
 
 void BeatmapInstaller::on_failed(i32 set_id) {
-    ui->getNotificationOverlay()->addToast(fmt::format("Failed to download beatmapset #{:d} :(", set_id), ERROR_TOAST);
+    ui->getNotificationOverlay()->addToast(fmt::format(fmt::runtime(_("Failed to download beatmapset #{:d} :(")), set_id), ERROR_TOAST);
 }

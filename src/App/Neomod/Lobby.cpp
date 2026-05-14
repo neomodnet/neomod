@@ -49,21 +49,21 @@ RoomUIElement::RoomUIElement(Lobby* multi, const Room& room, float x, float y, f
     title_ui->setDrawBackground(false);
     this->container.addBaseUIElement(title_ui);
 
-    std::string player_count_str = fmt::format("Players: {:d}/{:d}", room.nb_players, room.nb_open_slots);
+    std::string player_count_str = fmt::format(fmt::runtime(_("Players: {:d}/{:d}")), room.nb_players, room.nb_open_slots);
     const float player_count_width = multi->font->getStringWidth(player_count_str) + 20.f;
     auto* slots_ui = new CBaseUILabel(10.f, 33.f, player_count_width, 30.f, {}, std::move(player_count_str));
     slots_ui->setDrawFrame(false);
     slots_ui->setDrawBackground(false);
     this->container.addBaseUIElement(slots_ui);
 
-    this->join_btn = new UIButton(10.f, 65.f, 120.f, 30.f, {}, "Join room");
+    this->join_btn = new UIButton(10.f, 65.f, 120.f, 30.f, {}, _("Join room"));
     this->join_btn->setUseDefaultSkin();
     this->join_btn->setColor(0xff00d900);
     this->join_btn->setClickCallback(SA::MakeDelegate<&RoomUIElement::onRoomJoinButtonClick>(this));
     this->container.addBaseUIElement(this->join_btn);
 
     if(room.has_password) {
-        auto* pwlabel = new CBaseUILabel(135.f, 64.f, 150.f, 30.f, {}, "(password required)");
+        auto* pwlabel = new CBaseUILabel(135.f, 64.f, 150.f, 30.f, {}, _("(password required)"));
         pwlabel->setDrawFrame(false);
         pwlabel->setDrawBackground(false);
         this->container.addBaseUIElement(pwlabel);
@@ -73,7 +73,7 @@ RoomUIElement::RoomUIElement(Lobby* multi, const Room& room, float x, float y, f
 void RoomUIElement::onRoomJoinButtonClick(CBaseUIButton* /*btn*/) {
     if(this->has_password) {
         this->multi->room_to_join = this->room_id;
-        ui->getPromptOverlay()->prompt("Room password:",
+        ui->getPromptOverlay()->prompt(_("Room password:"),
                                        SA::MakeDelegate<&Lobby::on_room_join_with_password>(this->multi));
     } else {
         this->multi->joinRoom(this->room_id, {});
@@ -83,14 +83,14 @@ void RoomUIElement::onRoomJoinButtonClick(CBaseUIButton* /*btn*/) {
 Lobby::Lobby() : UIScreen() {
     this->font = engine->getDefaultFont();
 
-    auto* heading = new CBaseUILabel(50.f, 30.f, 300.f, 40.f, {}, "Multiplayer rooms");
+    auto* heading = new CBaseUILabel(50.f, 30.f, 300.f, 40.f, {}, _("Multiplayer rooms"));
     heading->setFont(osu->getTitleFont());
     heading->setSizeToContent(0, 0);
     heading->setDrawFrame(false);
     heading->setDrawBackground(false);
     this->addBaseUIElement(heading);
 
-    this->create_room_btn = new UIButton(0.f, 0.f, 200.f, 50.f, {}, "Create new room");
+    this->create_room_btn = new UIButton(0.f, 0.f, 200.f, 50.f, {}, _("Create new room"));
     this->create_room_btn->setUseDefaultSkin();
     this->create_room_btn->setColor(0xff00d900);
     this->create_room_btn->setClickCallback(SA::MakeDelegate<&Lobby::on_create_room_clicked>(this));
@@ -154,7 +154,7 @@ CBaseUIContainer* Lobby::setVisible(bool visible) {
         BANCHO::Net::send_packet(packet);
 
         // LOBBY presence is broken so we send MULTIPLAYER
-        RichPresence::setBanchoStatus("Looking to play", Action::MULTIPLAYER);
+        RichPresence::setBanchoStatus(_("Looking to play"), Action::MULTIPLAYER);
     } else {
         Packet packet;
         packet.id = OUTP_EXIT_ROOM_LIST;
@@ -181,7 +181,7 @@ void Lobby::updateLayout(vec2 newResolution) {
     const i32 padding = static_cast<int>(20.f * Osu::getUIScale());
 
     if(this->rooms.empty()) {
-        auto* noRoomsOpenElement = new CBaseUILabel(0.f, 0.f, 0.f, 0.f, {}, "There are no matches available.");
+        auto* noRoomsOpenElement = new CBaseUILabel(0.f, 0.f, 0.f, 0.f, {}, _("There are no matches available."));
         noRoomsOpenElement->setTextJustification(TEXT_JUSTIFICATION::CENTERED);
         noRoomsOpenElement->setSizeToContent(padding, padding);
         noRoomsOpenElement->setPos(this->list->getSize().x / 2 - noRoomsOpenElement->getSize().x / 2,
@@ -228,7 +228,7 @@ void Lobby::joinRoom(u32 id, std::string_view password) {
     }
 
     debugLog("Joining room #{:d} with password '{:s}'", id, password);
-    ui->getNotificationOverlay()->addNotification("Joining room...");
+    ui->getNotificationOverlay()->addNotification(_("Joining room..."));
 }
 
 void Lobby::updateRoom(const Room& room) {
@@ -250,7 +250,7 @@ void Lobby::removeRoom(u32 room_id) {
 
 void Lobby::on_create_room_clicked() {
     BanchoState::room = Room();
-    BanchoState::room.name = "New room";  // XXX: doesn't work
+    BanchoState::room.name = _("New room");  // XXX: doesn't work
     BanchoState::room.host_id = BanchoState::get_uid();
     for(auto& slot : BanchoState::room.slots) {
         slot.status = 1;  // open slot
@@ -271,7 +271,7 @@ void Lobby::on_create_room_clicked() {
     BanchoState::room.pack(packet);
     BANCHO::Net::send_packet(packet);
 
-    ui->getNotificationOverlay()->addNotification("Creating room...");
+    ui->getNotificationOverlay()->addNotification(_("Creating room..."));
 }
 
 void Lobby::on_room_join_with_password(std::string_view password) { this->joinRoom(this->room_to_join, password); }

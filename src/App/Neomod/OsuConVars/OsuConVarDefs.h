@@ -952,7 +952,6 @@ CONVAR(allow_mp_invites, true, CLIENT, "allow multiplayer game invites from all 
 CONVAR(allow_stranger_dms, true, CLIENT, "allow private messages from non-friends");
 CONVAR(ignore_beatmap_samples, false, CLIENT | SERVER, "ignore beatmap hitsounds");
 CONVAR(ignore_beatmap_skins, false, CLIENT | SERVER, "ignore beatmap skins");
-CONVAR(language, "en"sv, CLIENT | SERVER);
 CONVAR(draw_storyboard, true, CLIENT | SERVER);
 CONVAR(draw_video, true, CLIENT | SERVER);
 CONVAR(save_failed_scores, false, CLIENT | HIDDEN, "save scores locally, even if there was a fail");

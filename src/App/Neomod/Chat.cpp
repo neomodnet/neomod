@@ -487,7 +487,7 @@ void Chat::handle_command(std::string_view msg) {
     if(msg == "/np") {
         auto map = osu->getMapInterface()->getBeatmap();
         if(map == nullptr) {
-            this->addSystemMessage("You are not listening to anything.");
+            this->addSystemMessage(_("You are not listening to anything."));
             return;
         }
 
@@ -525,12 +525,12 @@ void Chat::handle_command(std::string_view msg) {
         auto friend_name = msg.substr(11);
         UserInfo *user = BANCHO::User::find_user(friend_name);
         if(!user) {
-            this->addSystemMessage(fmt::format("User '{:s}' not found. Are they online?", friend_name));
+            this->addSystemMessage(fmt::format(fmt::runtime(_("User '{:s}' not found. Are they online?")), friend_name));
             return;
         }
 
         if(user->is_friend()) {
-            this->addSystemMessage(fmt::format("You are already friends with {:s}!", friend_name));
+            this->addSystemMessage(fmt::format(fmt::runtime(_("You are already friends with {:s}!")), friend_name));
         } else {
             Packet packet;
             packet.id = OUTP_FRIEND_ADD;
@@ -539,7 +539,7 @@ void Chat::handle_command(std::string_view msg) {
 
             BANCHO::User::friends.insert(user->user_id);
 
-            this->addSystemMessage(fmt::format("You are now friends with {:s}.", friend_name));
+            this->addSystemMessage(fmt::format(fmt::runtime(_("You are now friends with {:s}.")), friend_name));
         }
 
         return;
@@ -553,12 +553,12 @@ void Chat::handle_command(std::string_view msg) {
 
     if(msg == "/away") {
         this->away_msg.clear();
-        this->addSystemMessage("Away message removed.");
+        this->addSystemMessage(_("Away message removed."));
         return;
     }
     if(msg.starts_with("/away ")) {
         this->away_msg = msg.substr(6);
-        this->addSystemMessage(fmt::format("Away message set to '{:s}'.", this->away_msg));
+        this->addSystemMessage(fmt::format(fmt::runtime(_("Away message set to '{:s}'.")), this->away_msg));
         return;
     }
 
@@ -566,7 +566,7 @@ void Chat::handle_command(std::string_view msg) {
         auto friend_name = msg.substr(11);
         auto *user = BANCHO::User::find_user(friend_name);
         if(!user) {
-            this->addSystemMessage(fmt::format("User '{:s}' not found. Are they online?", friend_name));
+            this->addSystemMessage(fmt::format(fmt::runtime(_("User '{:s}' not found. Are they online?")), friend_name));
             return;
         }
 
@@ -581,9 +581,9 @@ void Chat::handle_command(std::string_view msg) {
                 BANCHO::User::friends.erase(it);
             }
 
-            this->addSystemMessage(fmt::format("You are no longer friends with {:s}.", friend_name));
+            this->addSystemMessage(fmt::format(fmt::runtime(_("You are no longer friends with {:s}.")), friend_name));
         } else {
-            this->addSystemMessage(fmt::format("You aren't friends with {:s}!", friend_name));
+            this->addSystemMessage(fmt::format(fmt::runtime(_("You aren't friends with {:s}!")), friend_name));
         }
 
         return;
@@ -605,7 +605,7 @@ void Chat::handle_command(std::string_view msg) {
 
     if(msg.starts_with("/invite ")) {
         if(!BanchoState::is_in_a_multi_room()) {
-            this->addSystemMessage("You are not in a multiplayer room!");
+            this->addSystemMessage(_("You are not in a multiplayer room!"));
             return;
         }
 
@@ -621,7 +621,7 @@ void Chat::handle_command(std::string_view msg) {
         packet.write<i32>(BanchoState::get_uid());
         BANCHO::Net::send_packet(packet);
 
-        this->addSystemMessage(fmt::format("{:s} has been invited to the game.", username));
+        this->addSystemMessage(fmt::format(fmt::runtime(_("{:s} has been invited to the game.")), username));
         return;
     }
 
@@ -637,7 +637,7 @@ void Chat::handle_command(std::string_view msg) {
         return;
     }
 
-    this->addSystemMessage("This command is not supported.");
+    this->addSystemMessage(_("This command is not supported."));
 }
 
 void Chat::onKeyDown(KeyboardEvent &key) {
@@ -899,7 +899,7 @@ void Chat::addMessage(std::string channel_name, const ChatMessage &msg, bool mar
     }
     if(should_highlight) {
         // TODO: highlight message
-        auto notif = fmt::format("{} mentioned you in {}", msg.author_name, channel_name);
+        auto notif = fmt::format(fmt::runtime(_("{} mentioned you in {}")), msg.author_name, channel_name);
         ui->getNotificationOverlay()->addToast(
             std::move(notif), CHAT_TOAST, [channel_name] { ui->getChat()->openChannel(channel_name); },
             ToastElement::TYPE::CHAT);
@@ -911,7 +911,7 @@ void Chat::addMessage(std::string channel_name, const ChatMessage &msg, bool mar
         channel_name = msg.author_name;
 
         if(cv::chat_notify_on_dm.getBool()) {
-            auto notif = fmt::format("{} sent you a message", msg.author_name);
+            auto notif = fmt::format(fmt::runtime(_("{} sent you a message")), msg.author_name);
             ui->getNotificationOverlay()->addToast(
                 std::move(notif), CHAT_TOAST, [channel_name] { ui->getChat()->openChannel(channel_name); },
                 ToastElement::TYPE::CHAT);
@@ -926,7 +926,7 @@ void Chat::addMessage(std::string channel_name, const ChatMessage &msg, bool mar
     const bool mentioned =
         (msg.author_id != BanchoState::get_uid()) && SString::contains_ncase(msg.text, BanchoState::get_username());
     if(mentioned && cv::chat_notify_on_mention.getBool()) {
-        auto notif = fmt::format("You were mentioned in {:s}", channel_name);
+        auto notif = fmt::format(fmt::runtime(_("You were mentioned in {:s}")), channel_name);
         ui->getNotificationOverlay()->addToast(
             std::move(notif), CHAT_TOAST, [channel_name] { ui->getChat()->openChannel(channel_name); },
             ToastElement::TYPE::CHAT);
@@ -1332,7 +1332,7 @@ CBaseUIContainer *Chat::setVisible(bool visible) {
     soundEngine->play(osu->getSkin()->s_click_button);
 
     if(visible && !BanchoState::is_online()) {
-        ui->getNotificationOverlay()->addNotification("You must log in to chat!");
+        ui->getNotificationOverlay()->addNotification(_("You must log in to chat!"));
         ui->getOptionsOverlay()->askForLoginDetails();
         return this;
     }
@@ -1373,6 +1373,6 @@ bool Chat::isMouseInside() {
 
 void Chat::askWhatChannelToJoin(CBaseUIButton * /*btn*/) {
     // XXX: Could display nicer UI with full channel list (chat_channels in Bancho.cpp)
-    ui->getPromptOverlay()->prompt("Type in the channel you want to join (e.g. '#osu'):",
+    ui->getPromptOverlay()->prompt(_("Type in the channel you want to join (e.g. '#osu'):"),
                                    SA::MakeDelegate<&Chat::join>(this));
 }

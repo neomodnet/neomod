@@ -40,44 +40,44 @@ std::span<const Tip> getAllTips() {
     // clang-format off
 // NOTE: must have at least 1 non-empty tip in here
 static std::array s_tips{
-    Tip{R"(Press Alt + Enter to toggle Fullscreen.)"},
-    Tip{R"(Press Shift + F1 to open the in-game console.)"},
-    Tip{R"(Shift + Click on a skin in the dropdown list to change the source for base skin elements.)"},
+    Tip{_(R"(Press Alt + Enter to toggle Fullscreen.)")},
+    Tip{_(R"(Press Shift + F1 to open the in-game console.)")},
+    Tip{_(R"(Shift + Click on a skin in the dropdown list to change the source for base skin elements.)")},
     Tip{
         [&b = binds::TOGGLE_MODSELECT]() -> std::string
-        { return fmt::format(R"(Press {:s} during gameplay to change mods in realtime.)", env->scanCodeToString(b.get())); }
+        { return fmt::format(fmt::runtime(_(R"(Press {:s} during gameplay to change mods in realtime.)")), env->scanCodeToString(b.get())); }
     },
     Tip{
         [&ch = binds::TOGGLE_CHAT, &exch = binds::TOGGLE_EXTENDED_CHAT]() -> std::string {
             if(!BanchoState::is_online()) return "";
-            return fmt::format(R"(Press {:s} or {:s} anywhere to open chat.)", env->scanCodeToString(ch.get()), env->scanCodeToString(exch.get()));
+            return fmt::format(fmt::runtime(_(R"(Press {:s} or {:s} anywhere to open chat.)")), env->scanCodeToString(ch.get()), env->scanCodeToString(exch.get()));
         }
     },
 #if !defined(MCENGINE_PLATFORM_WASM) // irrelevant for web
 #if defined(MCENGINE_FEATURE_BASS) && defined(MCENGINE_FEATURE_SOLOUD)
 #if defined(MCENGINE_PLATFORM_WINDOWS)
-	Tip{R"(Launch with the neomod-BASS shortcut to use BASS (ASIO/Exclusive mode) for audio.)"},
+	Tip{_(R"(Launch with the neomod-BASS shortcut to use BASS (ASIO/Exclusive mode) for audio.)")},
 #else
-	Tip{R"(Launch with "-sound bass" as a commandline argument to use BASS for audio.)"},
+	Tip{_(R"(Launch with "-sound bass" as a commandline argument to use BASS for audio.)")},
 #endif // defined(MCENGINE_PLATFORM_WINDOWS)
 #endif // defined(MCENGINE_FEATURE_BASS) && defined(MCENGINE_FEATURE_SOLOUD)
 #if defined(MCENGINE_FEATURE_SDLGPU)
 #if defined(MCENGINE_PLATFORM_WINDOWS)
-    Tip{R"(Put "-gpu" after the "Target:" field in a shortcut to neomod to use the D3D12 renderer.)"},
-    Tip{R"(Put "-gpu vk" after the "Target:" field in a shortcut to neomod to use the Vulkan renderer.)"},
+    Tip{_(R"(Put "-gpu" after the "Target:" field in a shortcut to neomod to use the D3D12 renderer.)")},
+    Tip{_(R"(Put "-gpu vk" after the "Target:" field in a shortcut to neomod to use the Vulkan renderer.)")},
 #else
-    Tip{R"(Launch with "-sdlgpu" as a commandline argument to use the Vulkan renderer.)"},
+    Tip{_(R"(Launch with "-sdlgpu" as a commandline argument to use the Vulkan renderer.)")},
 #endif // defined(MCENGINE_PLATFORM_WINDOWS)
 #endif // defined(MCENGINE_FEATURE_SDLGPU)
 #if defined(MCENGINE_FEATURE_DIRECTX11)
 #if defined(MCENGINE_PLATFORM_WINDOWS)
-    Tip{R"(Put "-dx11" after the "Target:" field in a shortcut to neomod to use the D3D11 renderer.)"},
+    Tip{_(R"(Put "-dx11" after the "Target:" field in a shortcut to neomod to use the D3D11 renderer.)")},
 #else
-    Tip{R"(Launch with "-dx11" as a commandline argument to use the D3D11 renderer.)"},
+    Tip{_(R"(Launch with "-dx11" as a commandline argument to use the D3D11 renderer.)")},
 #endif // defined(MCENGINE_PLATFORM_WINDOWS)
 #endif // defined(MCENGINE_FEATURE_DIRECTX11)
 #endif // !defined(MCENGINE_PLATFORM_WASM)
-    Tip{R"(Press Ctrl + O to open the options menu from anywhere.)"},
+    Tip{_(R"(Press Ctrl + O to open the options menu from anywhere.)")},
         // clang-format on
     };
 
@@ -141,7 +141,7 @@ std::string getCurrentTip() {
     }
     current = getAllTips()[s_currentIdx].get();
     assert(!current.empty());
-    return fmt::format("Tip: {:s}", current);
+    return fmt::format(fmt::runtime(_("Tip: {:s}")), current);
 }
 
 void cycleTip(int addIndex) {

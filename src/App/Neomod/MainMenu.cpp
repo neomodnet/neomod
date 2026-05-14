@@ -111,8 +111,8 @@ class MainMenu::MainButton final : public UIButtonRounded {
             auto *ttoverlay = ui->getTooltipOverlay();
             ttoverlay->begin();
             {
-                ttoverlay->addLine("Save everything from this session.");
-                ttoverlay->addLine("(Optional, automatic on tab close.)");
+                ttoverlay->addLine(_("Save everything from this session."));
+                ttoverlay->addLine(_("(Optional, automatic on tab close.)"));
             }
             ttoverlay->end();
         }
@@ -142,13 +142,13 @@ class MainMenu::MainButton final : public UIButtonRounded {
 
         if(this->mm->buttonSoundCooldown + 0.05f < engine->getTime()) {
             this->mm->buttonSoundCooldown = engine->getTime();
-            if(this->getText() == "Singleplayer") {
+            if(this->getText() == _("Singleplayer")) {
                 soundEngine->play(osu->getSkin()->s_hover_sp);
-            } else if(this->getText() == "Multiplayer") {
+            } else if(this->getText() == _("Multiplayer")) {
                 soundEngine->play(osu->getSkin()->s_hover_mp);
-            } else if(this->getText() == "Options" || isSave) {
+            } else if(this->getText() == _("Options") || isSave) {
                 soundEngine->play(osu->getSkin()->s_hover_options);
-            } else if(this->getText() == "Exit") {
+            } else if(this->getText() == _("Exit")) {
                 soundEngine->play(osu->getSkin()->s_hover_exit);
             }
         }
@@ -164,7 +164,7 @@ MainMenu::MainMenu() : UIScreen() {
     mouse->addListener(this);  // TODO: why is this special-cased here?
 
     this->updateAvailableButton.reset(
-        static_cast<UIButton *>((new UIButton(0, 0, 0, 0, "", "Checking for updates ..."))
+        static_cast<UIButton *>((new UIButton(0, 0, 0, 0, "", _("Checking for updates ...")))
                                     ->setUseDefaultSkin()
                                     ->setColor(0x2200d900)
                                     ->setTextColor(0x22ffffff)
@@ -332,12 +332,13 @@ MainMenu::MainMenu() : UIScreen() {
     this->cube->setClickCallback(SA::MakeDelegate<&MainMenu::onCubePressed>(this));
     this->addBaseUIElement(this->cube);
 
-    this->addMainMenuButton("Singleplayer")->setClickCallback(SA::MakeDelegate<&MainMenu::onPlayButtonPressed>(this));
-    this->addMainMenuButton("Multiplayer")
+    this->addMainMenuButton(_("Singleplayer"))
+        ->setClickCallback(SA::MakeDelegate<&MainMenu::onPlayButtonPressed>(this));
+    this->addMainMenuButton(_("Multiplayer"))
         ->setClickCallback(SA::MakeDelegate<&MainMenu::onMultiplayerButtonPressed>(this));
-    this->addMainMenuButton("Options")->setClickCallback(SA::MakeDelegate<&MainMenu::onOptionsButtonPressed>(this));
+    this->addMainMenuButton(_("Options"))->setClickCallback(SA::MakeDelegate<&MainMenu::onOptionsButtonPressed>(this));
 
-    std::string lastButtonText = Env::cfg(OS::WASM) ? "Save" : "Exit";
+    std::string lastButtonText = Env::cfg(OS::WASM) ? _("Save") : _("Exit");
     this->addMainMenuButton(std::move(lastButtonText))
         ->setClickCallback(SA::MakeDelegate<&MainMenu::onSaveOrExitButtonPressed>(this));
 
@@ -345,7 +346,7 @@ MainMenu::MainMenu() : UIScreen() {
     this->pauseButton->setClickCallback(SA::MakeDelegate<&MainMenu::onPausePressed>(this));
     this->addBaseUIElement(this->pauseButton);
 
-    this->onlineBeatmapsButton = new UIButtonVertical(0, 0, 0, 0, "", "Online Beatmaps");
+    this->onlineBeatmapsButton = new UIButtonVertical(0, 0, 0, 0, "", _("Online Beatmaps"));
     this->onlineBeatmapsButton->setFont(osu->getSubTitleFont());
     this->onlineBeatmapsButton->setDrawBackground(false);
     this->onlineBeatmapsButton->setClickCallback(SA::MakeDelegate<&MainMenu::onOnlineBeatmapsButtonPressed>(this));
@@ -923,7 +924,7 @@ void MainMenu::draw() {
                                    osu->getVirtScreenHeight() - this->versionButton->getSize().y * 2 -
                                        this->versionButton->getSize().y * scale);
 
-        std::string notificationText = "Changelog";
+        std::string notificationText = _("Changelog");
         g->setColor(0xffffffff);
         g->pushTransform();
         {
@@ -984,12 +985,12 @@ void MainMenu::update(CBaseUIEventCtx &c) {
     }
 
     if(Osu::isBleedingEdge()) {
-        static std::string versionString =
-            fmt::format("Version {:.2f} ({:s})", cv::version.getFloat(), cv::build_timestamp.getString());
+        static std::string versionString = fmt::format(fmt::runtime(_("Version {:.2f} ({:s})")), cv::version.getFloat(),
+                                                       cv::build_timestamp.getString());
         this->versionButton->setTextColor(rgb(255, 220, 220));
         this->versionButton->setText(versionString);
     } else {
-        static std::string versionString = fmt::format("Version {:.2f}", cv::version.getFloat());
+        static std::string versionString = fmt::format(fmt::runtime(_("Version {:.2f}")), cv::version.getFloat());
         this->versionButton->setTextColor(rgb(255, 255, 255));
         this->versionButton->setText(versionString);
     }
@@ -1080,12 +1081,12 @@ void MainMenu::update(CBaseUIEventCtx &c) {
             }
             break;
         case STATUS_CHECKING_FOR_UPDATE:
-            this->updateAvailableButton->setText("Checking for updates ...");
+            this->updateAvailableButton->setText(_("Checking for updates ..."));
             this->updateAvailableButton->setColor(0x2200d900);
             this->updateAvailableButton->setVisible(true);
             break;
         case STATUS_DOWNLOADING_UPDATE:
-            this->updateAvailableButton->setText("Downloading ...");
+            this->updateAvailableButton->setText(_("Downloading ..."));
             this->updateAvailableButton->setColor(0x2200d900);
             this->updateAvailableButton->setVisible(true);
             break;
@@ -1099,9 +1100,10 @@ void MainMenu::update(CBaseUIEventCtx &c) {
                 this->updateAvailableButton->setVisible(true);
 
                 if(this->updateAvailableButton->getText().find("ready") != std::string::npos)
-                    this->updateAvailableButton->setText("Click here to install the update!");
+                    this->updateAvailableButton->setText(_("Click here to install the update!"));
                 else
-                    this->updateAvailableButton->setText("A new version of " PACKAGE_NAME " is ready!");
+                    this->updateAvailableButton->setText(
+                        fmt::format(fmt::runtime(_("A new version of {} is ready!")), PACKAGE_NAME));
             }
             if(engine->getTime() > this->updateButtonAnimTime) {
                 this->updateButtonAnimTime = engine->getTime() + 3.0f;
@@ -1110,7 +1112,7 @@ void MainMenu::update(CBaseUIEventCtx &c) {
             }
             break;
         case STATUS_ERROR:
-            this->updateAvailableButton->setText("Update Error! Click to retry ...");
+            this->updateAvailableButton->setText(_("Update Error! Click to retry ..."));
             this->updateAvailableButton->setColor(rgb(220, 0, 0));
             this->updateAvailableButton->setTextColor(0xffffffff);
             this->updateAvailableButton->setVisible(true);
@@ -1605,7 +1607,7 @@ void MainMenu::onPlayButtonPressed() {
 
 void MainMenu::onMultiplayerButtonPressed() {
     if(!BanchoState::is_online()) {
-        ui->getNotificationOverlay()->addNotification("You must log in to join Multiplayer!");
+        ui->getNotificationOverlay()->addNotification(_("You must log in to join Multiplayer!"));
         ui->getOptionsOverlay()->askForLoginDetails();
         return;
     }
@@ -1634,7 +1636,7 @@ void MainMenu::onSaveOrExitButtonPressed() {
 
 void MainMenu::onOnlineBeatmapsButtonPressed() {
     if(!BanchoState::is_online()) {
-        ui->getNotificationOverlay()->addNotification("You must log in to download beatmaps!");
+        ui->getNotificationOverlay()->addNotification(_("You must log in to download beatmaps!"));
         ui->getOptionsOverlay()->askForLoginDetails();
         return;
     }

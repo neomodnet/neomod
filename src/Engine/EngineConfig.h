@@ -4,8 +4,9 @@
 
 #include "config.h"
 
-#define CASSERT_STR_ENDSWITH(str__, termchar__) \
-    static_assert(str__[(sizeof(str__) / sizeof((str__)[0]) - 2)] == termchar__, # str__ " (" str__ ") must end with " # termchar__ )
+#define CASSERT_STR_ENDSWITH(str__, termchar__)                                  \
+    static_assert(str__[(sizeof(str__) / sizeof((str__)[0]) - 2)] == termchar__, \
+                  #str__ " (" str__ ") must end with " #termchar__)
 
 #ifndef MCENGINE_DATA_DIR
 
@@ -21,6 +22,7 @@ CASSERT_STR_ENDSWITH(MCENGINE_DATA_DIR, '/');
 
 /* *INDENT-OFF* */  // clang-format off
 
+#define MCENGINE_LOCALE_PATH    MCENGINE_DATA_DIR "locale"
 #define MCENGINE_IMAGES_PATH	MCENGINE_DATA_DIR "materials"
 #define MCENGINE_FONTS_PATH		MCENGINE_DATA_DIR "fonts"
 #define MCENGINE_SOUNDS_PATH	MCENGINE_DATA_DIR "sounds"

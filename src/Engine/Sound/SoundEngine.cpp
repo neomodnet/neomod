@@ -104,7 +104,7 @@ SoundEngine::OUTPUT_DEVICE SoundEngine::getDefaultDevice() {
         .id = 0,
         .enabled = true,
         .isDefault = true,
-        .name = "No sound",
+        .name = _("No sound"),
         .driver = OutputDriver::NONE,
     };
 }

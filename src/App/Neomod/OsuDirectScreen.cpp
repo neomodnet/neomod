@@ -363,7 +363,7 @@ void OnlineMapListing::draw() {
 }
 
 OsuDirectScreen::OsuDirectScreen() {
-    this->title = new CBaseUILabel(0, 0, 0, 0, "", "Online Beatmaps");
+    this->title = new CBaseUILabel(0, 0, 0, 0, "", _("Online Beatmaps"));
     this->title->setDrawFrame(false);
     this->title->setDrawBackground(false);
     this->addBaseUIElement(this->title);
@@ -372,23 +372,23 @@ OsuDirectScreen::OsuDirectScreen() {
     this->search_bar->setBackgroundColor(0xaa000000);
     this->addBaseUIElement(this->search_bar);
 
-    this->newest_btn = new UIButton(0, 0, 0, 0, "", "Newest maps");
+    this->newest_btn = new UIButton(0, 0, 0, 0, "", _("Newest maps"));
     this->newest_btn->setColor(0xff88FF00);
     this->newest_btn->setClickCallback([this]() {
         this->reset();
-        this->search("Newest");
+        this->search(_("Newest"));
     });
     this->addBaseUIElement(this->newest_btn);
 
-    this->best_rated_btn = new UIButton(0, 0, 0, 0, "", "Best maps");
+    this->best_rated_btn = new UIButton(0, 0, 0, 0, "", _("Best maps"));
     this->best_rated_btn->setColor(0xffFF006A);
     this->best_rated_btn->setClickCallback([this]() {
         this->reset();
-        this->search("Top Rated");
+        this->search(_("Top Rated"));
     });
     this->addBaseUIElement(this->best_rated_btn);
 
-    this->ranked_only = new CBaseUICheckbox(0, 0, 0, 0, "", "Only show ranked beatmaps");
+    this->ranked_only = new CBaseUICheckbox(0, 0, 0, 0, "", _("Only show ranked beatmaps"));
     this->ranked_only->setDrawFrame(false);
     this->ranked_only->setDrawBackground(false);
     this->ranked_only->setChecked(cv::direct_ranking_status_filter.getVal<RankingStatusFilter>() ==

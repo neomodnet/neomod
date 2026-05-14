@@ -153,58 +153,59 @@ RoomScreen::RoomScreen() : UIScreen() {
     this->settings->setHorizontalScrolling(false);
     this->addBaseUIElement(this->settings);
 
-    INIT_LABEL(this->room_name, "Multiplayer room", true);
-    INIT_LABEL(this->host, "Host: None", false);  // XXX: make it an UIUserLabel
+    INIT_LABEL(this->room_name, _("Multiplayer room"), true);
+    INIT_LABEL(this->host, _("Host: None"), false);  // XXX: make it an UIUserLabel
 
-    INIT_LABEL(this->room_name_iptl, "Room name", false);
+    INIT_LABEL(this->room_name_iptl, _("Room name"), false);
     this->room_name_ipt = new CBaseUITextbox(0, 0, this->settings->getSize().x, 40, "");
-    this->room_name_ipt->setText("Multiplayer room");
+    this->room_name_ipt->setText(_("Multiplayer room"));
 
-    this->change_password_btn = new UIButton(0, 0, 0, 0, "change_password_btn", "Change password");
+    this->change_password_btn = new UIButton(0, 0, 0, 0, "change_password_btn", _("Change password"));
     this->change_password_btn->setColor(0xff0c7c99);
     this->change_password_btn->setUseDefaultSkin();
     this->change_password_btn->setClickCallback(SA::MakeDelegate<&RoomScreen::onChangePasswordClicked>(this));
 
-    INIT_LABEL(this->win_condition, "Win condition: Score", false);
-    this->change_win_condition_btn = new UIButton(0, 0, 0, 0, "change_win_condition_btn", "Win condition: Score");
+    INIT_LABEL(this->win_condition, _("Win condition: Score"), false);
+    this->change_win_condition_btn = new UIButton(0, 0, 0, 0, "change_win_condition_btn", _("Win condition: Score"));
     this->change_win_condition_btn->setColor(0xff00d900);
     this->change_win_condition_btn->setUseDefaultSkin();
     this->change_win_condition_btn->setClickCallback(SA::MakeDelegate<&RoomScreen::onChangeWinConditionClicked>(this));
 
-    INIT_LABEL(map_label, "Beatmap", true);
-    this->select_map_btn = new UIButton(0, 0, 0, 0, "select_map_btn", "Select map");
+    INIT_LABEL(map_label, _("Beatmap"), true);
+    this->select_map_btn = new UIButton(0, 0, 0, 0, "select_map_btn", _("Select map"));
     this->select_map_btn->setColor(0xff0c7c99);
     this->select_map_btn->setUseDefaultSkin();
     this->select_map_btn->setClickCallback(SA::MakeDelegate<&RoomScreen::onSelectMapClicked>(this));
     this->online_maps_btn = new UIButton(0, 0, 0, 0, "online_maps_btn", "Download maps");
+    this->online_maps_btn = new UIButton(0, 0, 0, 0, "online_maps_btn", _("Download maps"));
     this->online_maps_btn->setColor(0xff0c7c99);
     this->online_maps_btn->setUseDefaultSkin();
     this->online_maps_btn->setClickCallback(SA::MakeDelegate<&RoomScreen::onDownloadMapsClicked>(this));
 
-    INIT_LABEL(this->map_title, "(no map selected)", false);
+    INIT_LABEL(this->map_title, _("(no map selected)"), false);
     INIT_LABEL(this->map_stars, "", false);
     INIT_LABEL(this->map_attributes, "", false);
     INIT_LABEL(this->map_attributes2, "", false);
 
-    INIT_LABEL(mods_label, "Mods", true);
-    this->select_mods_btn = new UIButton(0, 0, 0, 0, "select_mods_btn", "Select mods [F1]");
+    INIT_LABEL(mods_label, _("Mods"), true);
+    this->select_mods_btn = new UIButton(0, 0, 0, 0, "select_mods_btn", _("Select mods [F1]"));
     this->select_mods_btn->setColor(0xff0c7c99);
     this->select_mods_btn->setUseDefaultSkin();
     this->select_mods_btn->setClickCallback(SA::MakeDelegate<&RoomScreen::onSelectModsClicked>(this));
-    this->freemod = new UICheckbox(0, 0, 0, 0, "allow_freemod", "Freemod");
+    this->freemod = new UICheckbox(0, 0, 0, 0, "allow_freemod", _("Freemod"));
     this->freemod->setDrawFrame(false);
     this->freemod->setDrawBackground(false);
     this->freemod->setChangeCallback(SA::MakeDelegate<&RoomScreen::onFreemodCheckboxChanged>(this));
     this->mods = new UIModList(&BanchoState::room.mods);
-    INIT_LABEL(this->no_mods_selected, "No mods selected.", false);
+    INIT_LABEL(this->no_mods_selected, _("No mods selected."), false);
 
-    this->ready_btn = new UIButton(0, 0, 0, 0, "start_game_btn", "Start game");
+    this->ready_btn = new UIButton(0, 0, 0, 0, "start_game_btn", _("Start game"));
     this->ready_btn->setColor(0xff00d900);
     this->ready_btn->setUseDefaultSkin();
     this->ready_btn->setClickCallback(SA::MakeDelegate<&RoomScreen::onReadyButtonClick>(this));
     this->ready_btn->is_loading = true;
 
-    this->player_list_label = new CBaseUILabel(50, 50, 0, 0, "label", "Player list");
+    this->player_list_label = new CBaseUILabel(50, 50, 0, 0, "label", _("Player list"));
     this->player_list_label->setFont(this->lfont);
     this->player_list_label->setSizeToContent(0, 0);
     this->player_list_label->setDrawFrame(false);
@@ -253,7 +254,7 @@ void RoomScreen::draw() {
 
     // visual state only - the install pipeline is driven from update()
     if(BanchoState::room.map_id == -1 || BanchoState::room.map_id == 0) {
-        this->map_title->setText("Host is selecting a map...");
+        this->map_title->setText(_("Host is selecting a map..."));
         this->map_title->setSizeToContent(0, 0);
         this->ready_btn->is_loading = true;
     } else if(BanchoState::room.map_id != this->current_map_id) {
@@ -271,9 +272,9 @@ void RoomScreen::draw() {
             }
         }
         if(failed) {
-            this->map_title->setText(fmt::format("Failed to download Beatmap #{:d} :(", BanchoState::room.map_id));
+            this->map_title->setText(fmt::format(fmt::runtime(_("Failed to download Beatmap #{:d} :(")), BanchoState::room.map_id));
         } else {
-            this->map_title->setText(fmt::format("Downloading... {:.2f}%", progress * 100.f));
+            this->map_title->setText(fmt::format(fmt::runtime(_("Downloading... {:.2f}%")), progress * 100.f));
         }
         this->map_title->setSizeToContent(0, 0);
         this->ready_btn->is_loading = true;
@@ -356,7 +357,7 @@ void RoomScreen::onKeyDown(KeyboardEvent &key) {
         static f64 last_escape_press = 0.0;
         if(last_escape_press + 1.0 < engine->getTime()) {
             last_escape_press = engine->getTime();
-            ui->getNotificationOverlay()->addNotification("Hit 'Escape' once more to exit this multiplayer match.",
+            ui->getNotificationOverlay()->addNotification(_("Hit 'Escape' once more to exit this multiplayer match."),
                                                           0xffffffff, false, 0.75f);
         } else {
             this->ragequit();
@@ -421,10 +422,10 @@ void RoomScreen::updateSettingsLayout(vec2 newResolution) {
 
     // Host name
     if(!is_host) {
-        std::string host_str = "Host: None";
+        std::string host_str = _("Host: None");
         if(BanchoState::room.host_id != 0) {
             const auto *host = BANCHO::User::get_user_info(BanchoState::room.host_id, true);
-            host_str = fmt::format("Host: {}", host->name.c_str());
+            host_str = fmt::format(fmt::runtime(_("Host: {}")), host->name.c_str());
         }
         this->host->setText(std::move(host_str));
         ADD_ELEMENT(this->host);
@@ -440,15 +441,15 @@ void RoomScreen::updateSettingsLayout(vec2 newResolution) {
 
     // Win condition
     if(BanchoState::room.win_condition == WinCondition::SCOREV1) {
-        this->win_condition->setText("Win condition: Score");
+        this->win_condition->setText(_("Win condition: Score"));
     } else if(BanchoState::room.win_condition == WinCondition::ACCURACY) {
-        this->win_condition->setText("Win condition: Accuracy");
+        this->win_condition->setText(_("Win condition: Accuracy"));
     } else if(BanchoState::room.win_condition == WinCondition::CURRENT_COMBO) {
-        this->win_condition->setText("Win condition: Combo");
+        this->win_condition->setText(_("Win condition: Combo"));
     } else if(BanchoState::room.win_condition == WinCondition::SCOREV2) {
-        this->win_condition->setText("Win condition: ScoreV2");
+        this->win_condition->setText(_("Win condition: ScoreV2"));
     } else {
-        this->win_condition->setText("Win condition: ???");
+        this->win_condition->setText(_("Win condition: ???"));
     }
     if(is_host) {
         this->change_win_condition_btn->setText(std::string{this->win_condition->getText()});
@@ -513,12 +514,12 @@ void RoomScreen::updateSettingsLayout(vec2 newResolution) {
     if(is_host && is_ready && nb_ready > 1) {
         const std::string force_start_str =
             BanchoState::room.all_players_ready()
-                ? "Start game"
-                : fmt::format("Force start ({:d}/{:d})", nb_ready, BanchoState::room.nb_players);
+                ? _("Start game")
+                : fmt::format(fmt::runtime(_("Force start ({:d}/{:d})")), nb_ready, BanchoState::room.nb_players);
         this->ready_btn->setText(force_start_str);
         this->ready_btn->setColor(0xff00d900);
     } else {
-        this->ready_btn->setText(is_ready ? "Not ready" : "Ready!");
+        this->ready_btn->setText(is_ready ? _("Not ready") : _("Ready!"));
         this->ready_btn->setColor(is_ready ? 0xffd90000 : 0xff00d900);
     }
     PAD(20.f);
@@ -551,9 +552,9 @@ void RoomScreen::updateLayout(vec2 newResolution) {
             auto color = 0xffffffff;
             std::string username = user_info->name;
             if(slot.is_player_playing()) {
-                username = fmt::format("[playing] {}", user_info->name);
+                username = fmt::format(fmt::runtime(_("[playing] {}")), user_info->name);
             } else if(slot.no_map()) {
-                username = fmt::format("[no map] {}", user_info->name);
+                username = fmt::format(fmt::runtime(_("[no map] {}")), user_info->name);
             } else if(slot.is_ready()) {
                 color = 0xff00ff00;
             }
@@ -618,7 +619,7 @@ void RoomScreen::on_map_change() {
     osu->getMapInterface()->deselectBeatmap();
 
     if(BanchoState::room.map_id == 0) {
-        this->map_title->setText("(no map selected)");
+        this->map_title->setText(_("(no map selected)"));
         this->map_title->setSizeToContent(0, 0);
         this->ready_btn->is_loading = true;
     } else {
@@ -627,17 +628,17 @@ void RoomScreen::on_map_change() {
             ui->getSongBrowser()->onDifficultySelected(beatmap, false);
             this->map_title->setText(BanchoState::room.map_name);
             this->map_title->setSizeToContent(0, 0);
-            auto attributes = fmt::format("AR: {:.1f}, CS: {:.1f}, HP: {:.1f}, OD: {:.1f}", beatmap->getAR(),
+            auto attributes = fmt::format(fmt::runtime(_("AR: {:.1f}, CS: {:.1f}, HP: {:.1f}, OD: {:.1f}")), beatmap->getAR(),
                                           beatmap->getCS(), beatmap->getHP(), beatmap->getOD());
             this->map_attributes->setText(attributes);
             this->map_attributes->setSizeToContent(0, 0);
             auto attributes2 =
-                fmt::format("Length: {:d} seconds, BPM: {:d} ({:d} - {:d})", beatmap->getLengthMS() / 1000,
+                fmt::format(fmt::runtime(_("Length: {:d} seconds, BPM: {:d} ({:d} - {:d})")), beatmap->getLengthMS() / 1000,
                             beatmap->getMostCommonBPM(), beatmap->getMinBPM(), beatmap->getMaxBPM());
             this->map_attributes2->setText(attributes2);
             this->map_attributes2->setSizeToContent(0, 0);
 
-            auto stars = fmt::format("Star rating: {:.2f}*", beatmap->getStarRating(StarPrecalc::active_idx));
+            auto stars = fmt::format(fmt::runtime(_("Star rating: {:.2f}*")), beatmap->getStarRating(StarPrecalc::active_idx));
             this->map_stars->setText(stars);
             this->map_stars->setSizeToContent(0, 0);
             this->ready_btn->is_loading = false;
@@ -770,7 +771,7 @@ void RoomScreen::on_match_started(const Room &room) {
 
         soundEngine->play(osu->getSkin()->s_match_start);
     } else {
-        ui->getNotificationOverlay()->addToast("Failed to load map", ERROR_TOAST);
+        ui->getNotificationOverlay()->addToast(_("Failed to load map"), ERROR_TOAST);
         this->ragequit();  // map failed to load
     }
 }
@@ -950,16 +951,16 @@ void RoomScreen::onDownloadMapsClicked() {
 }
 
 void RoomScreen::onChangePasswordClicked() {
-    ui->getPromptOverlay()->prompt("New password:", SA::MakeDelegate<&RoomScreen::set_new_password>(this));
+    ui->getPromptOverlay()->prompt(_("New password:"), SA::MakeDelegate<&RoomScreen::set_new_password>(this));
 }
 
 void RoomScreen::onChangeWinConditionClicked() {
     this->contextMenu->setVisible(false);
     this->contextMenu->begin();
-    this->contextMenu->addButton("Score V1", (int)WinCondition::SCOREV1);
-    this->contextMenu->addButton("Score V2", (int)WinCondition::SCOREV2);
-    this->contextMenu->addButton("Accuracy", (int)WinCondition::ACCURACY);
-    this->contextMenu->addButton("Combo", (int)WinCondition::CURRENT_COMBO);
+    this->contextMenu->addButton(_("Score V1"), (int)WinCondition::SCOREV1);
+    this->contextMenu->addButton(_("Score V2"), (int)WinCondition::SCOREV2);
+    this->contextMenu->addButton(_("Accuracy"), (int)WinCondition::ACCURACY);
+    this->contextMenu->addButton(_("Combo"), (int)WinCondition::CURRENT_COMBO);
     this->contextMenu->end(false, false);
     this->contextMenu->setPos(mouse->getPos());
     this->contextMenu->setClickCallback(SA::MakeDelegate<&RoomScreen::onWinConditionSelected>(this));

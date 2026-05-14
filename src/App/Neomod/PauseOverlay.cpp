@@ -39,11 +39,11 @@ PauseOverlay::PauseOverlay() : UIScreen() {
     };
 #define MKIMGGETR(sipmr) SA::MakeDelegate([](const Skin *skin) -> const Image * { return (skin->*&Skin::sipmr).img; })
 
-    addButton(MKIMGGETR(i_pause_continue), "Resume")
+    addButton(MKIMGGETR(i_pause_continue), _("Resume"))
         ->setClickCallback(SA::MakeDelegate<&PauseOverlay::onContinueClicked>(this));
-    addButton(MKIMGGETR(i_pause_retry), "Retry")
+    addButton(MKIMGGETR(i_pause_retry), _("Retry"))
         ->setClickCallback(SA::MakeDelegate<&PauseOverlay::onRetryClicked>(this));
-    addButton(MKIMGGETR(i_pause_back), "Quit")->setClickCallback(SA::MakeDelegate<&PauseOverlay::onBackClicked>(this));
+    addButton(MKIMGGETR(i_pause_back), _("Quit"))->setClickCallback(SA::MakeDelegate<&PauseOverlay::onBackClicked>(this));
 
 #undef MKIMGGETR
 

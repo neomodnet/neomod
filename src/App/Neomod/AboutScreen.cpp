@@ -34,21 +34,21 @@ AboutScreen::AboutScreen() : ScreenBackable() {
     this->scrollView->setScrollResistance(0);
     this->addBaseUIElement(this->scrollView);
 
-    this->changelogHeader = new CBaseUILabel(0, 0, 0, 0, "", "Changelog");
+    this->changelogHeader = new CBaseUILabel(0, 0, 0, 0, "", _("Changelog"));
     this->changelogHeader->setFont(osu->getTitleFont());
     this->changelogHeader->setSizeToContent(0, 0);
     this->changelogHeader->setDrawFrame(false);
     this->changelogHeader->setDrawBackground(false);
     this->scrollView->container.addBaseUIElement(this->changelogHeader);
 
-    this->creditsHeader = new CBaseUILabel(0, 0, 0, 0, "", "Credits");
+    this->creditsHeader = new CBaseUILabel(0, 0, 0, 0, "", _("Credits"));
     this->creditsHeader->setFont(osu->getTitleFont());
     this->creditsHeader->setSizeToContent(0, 0);
     this->creditsHeader->setDrawFrame(false);
     this->creditsHeader->setDrawBackground(false);
     this->scrollView->container.addBaseUIElement(this->creditsHeader);
 
-    this->licensesHeader = new CBaseUILabel(0, 0, 0, 0, "", "Licenses");
+    this->licensesHeader = new CBaseUILabel(0, 0, 0, 0, "", _("Licenses"));
     this->licensesHeader->setFont(osu->getTitleFont());
     this->licensesHeader->setSizeToContent(0, 0);
     this->licensesHeader->setDrawFrame(false);
@@ -61,6 +61,7 @@ AboutScreen::AboutScreen() : ScreenBackable() {
     v43_10.title = "43.10 (" CHANGELOG_TIMESTAMP ")";
     v43_10.changes = {
         R"(- Added credits and license info below changelog)",
+        R"(- Added support for UI translations. Please contribute if you can!)",
         R"(- Settings forced by a skin or a server are now grayed out in the options menu)",
         R"(- Online beatmap downloads now continue in the background even if navigating away from download)",
         R"(- Fixed broken slider bodies during slider snaking with the SDL_gpu renderer)",

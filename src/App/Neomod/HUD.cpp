@@ -328,7 +328,7 @@ void HUD::draw() {
         BanchoState::spectating ? BanchoState::fellow_spectators.size() : BanchoState::spectators.size();
     if(nb_spectators > 0 && cv::draw_spectator_list.getBool()) {
         // XXX: maybe draw player names? avatars?
-        const std::string str = fmt::format("{} spectators", nb_spectators);
+        const std::string str = fmt::format(fmt::runtime(_("{} spectators")), nb_spectators);
 
         g->pushTransform();
         McFont *font = osu->getSongBrowserFont();
@@ -1309,11 +1309,11 @@ std::span<const SCORE_ENTRY> HUD::updateAndGetCurrentScores() {
 
             if(slot->has_quit()) {
                 slot->current_hp = 0;
-                scoreEntry.name = fmt::format("{} [quit]", user_info->name.c_str());
+                scoreEntry.name = fmt::format(fmt::runtime(_("{} [quit]")), user_info->name.c_str());
             } else if(pf->isInSkippableSection() && pf->iCurrentHitObjectIndex < 1) {
                 if(slot->skipped) {
                     // XXX: Draw pretty "Skip" image instead
-                    scoreEntry.name = fmt::format("{} [skip]", user_info->name.c_str());
+                    scoreEntry.name = fmt::format(fmt::runtime(_("{} [skip]")), user_info->name.c_str());
                 }
             }
 
@@ -1693,7 +1693,7 @@ void HUD::drawHitErrorBarInt2(vec2 center, i32 ur) {
     if(cv::draw_hiterrorbar_ur.getBool()) {
         g->pushTransform();
         {
-            std::string urText = fmt::format("{} UR", ur);
+            std::string urText = fmt::format(fmt::runtime(_("{} UR")), ur);
             McFont *urTextFont = osu->getSongBrowserFont();
 
             const f32 hitErrorBarScale = cv::hud_scale.getFloat() * cv::hud_hiterrorbar_scale.getFloat();
@@ -1860,84 +1860,87 @@ void HUD::drawStatistics(const HUDStats &s) {
 
         if(cv::draw_statistics_pp.getBool())
             addStatistic(
-                fmt::format("{:.{}f}pp", s.pp, std::clamp<i32>(cv::hud_statistics_pp_decimal_places.getInt(), 0, 2)),
+                fmt::format(fmt::runtime(_("{:.{}f}pp")), s.pp, std::clamp<i32>(cv::hud_statistics_pp_decimal_places.getInt(), 0, 2)),
                 cv::hud_statistics_pp_offset_x.getInt(), cv::hud_statistics_pp_offset_y.getInt());
 
         if(cv::draw_statistics_perfectpp.getBool())
-            addStatistic(fmt::format("SS: {:.{}f}pp", s.ppfc,
+            addStatistic(fmt::format(fmt::runtime(_("SS: {:.{}f}pp")), s.ppfc,
                                      std::clamp<i32>(cv::hud_statistics_pp_decimal_places.getInt(), 0, 2)),
                          cv::hud_statistics_perfectpp_offset_x.getInt(),
                          cv::hud_statistics_perfectpp_offset_y.getInt());
 
         if(cv::draw_statistics_misses.getBool())
-            addStatistic(fmt::format("Miss: {:d}"_cf, s.misses), cv::hud_statistics_misses_offset_x.getInt(),
+            addStatistic(fmt::format(fmt::runtime(_("Miss: {:d}")), s.misses), cv::hud_statistics_misses_offset_x.getInt(),
                          cv::hud_statistics_misses_offset_y.getInt());
 
         if(cv::draw_statistics_sliderbreaks.getBool())
-            addStatistic(fmt::format("SBrk: {:d}"_cf, s.sliderbreaks),
+            // TRANSLATORS: "SBrk" stands for "Slider Breaks" (number of slider breaks/missed slider ticks)
+            addStatistic(fmt::format(fmt::runtime(_("SBrk: {:d}")), s.sliderbreaks),
                          cv::hud_statistics_sliderbreaks_offset_x.getInt(),
                          cv::hud_statistics_sliderbreaks_offset_y.getInt());
 
         if(cv::draw_statistics_maxpossiblecombo.getBool())
-            addStatistic(fmt::format("FC: {:d}x"_cf, s.maxPossibleCombo),
+            addStatistic(fmt::format(fmt::runtime(_("FC: {:d}x")), s.maxPossibleCombo),
                          cv::hud_statistics_maxpossiblecombo_offset_x.getInt(),
                          cv::hud_statistics_maxpossiblecombo_offset_y.getInt());
 
         if(cv::draw_statistics_livestars.getBool())
-            addStatistic(fmt::format("{:.3g}***"_cf, s.liveStars), cv::hud_statistics_livestars_offset_x.getInt(),
+            addStatistic(fmt::format(fmt::runtime(_("{:.3g}***")), s.liveStars), cv::hud_statistics_livestars_offset_x.getInt(),
                          cv::hud_statistics_livestars_offset_y.getInt());
 
         if(cv::draw_statistics_totalstars.getBool())
-            addStatistic(fmt::format("{:.3g}*"_cf, s.totalStars), cv::hud_statistics_totalstars_offset_x.getInt(),
+            addStatistic(fmt::format(fmt::runtime(_("{:.3g}*")), s.totalStars), cv::hud_statistics_totalstars_offset_x.getInt(),
                          cv::hud_statistics_totalstars_offset_y.getInt());
 
         if(cv::draw_statistics_bpm.getBool())
-            addStatistic(fmt::format("BPM: {:d}"_cf, s.bpm), cv::hud_statistics_bpm_offset_x.getInt(),
+            addStatistic(fmt::format(fmt::runtime(_("BPM: {:d}")), s.bpm), cv::hud_statistics_bpm_offset_x.getInt(),
                          cv::hud_statistics_bpm_offset_y.getInt());
 
         if(cv::draw_statistics_ar.getBool()) {
             f32 AR = std::round(s.ar * 100.0f) / 100.0f;
-            addStatistic(fmt::format("AR: {:g}"_cf, AR), cv::hud_statistics_ar_offset_x.getInt(),
+            addStatistic(fmt::format(fmt::runtime(_("AR: {:g}")), AR), cv::hud_statistics_ar_offset_x.getInt(),
                          cv::hud_statistics_ar_offset_y.getInt());
         }
 
         if(cv::draw_statistics_cs.getBool()) {
             f32 CS = std::round(s.cs * 100.0f) / 100.0f;
-            addStatistic(fmt::format("CS: {:g}"_cf, CS), cv::hud_statistics_cs_offset_x.getInt(),
+            addStatistic(fmt::format(fmt::runtime(_("CS: {:g}")), CS), cv::hud_statistics_cs_offset_x.getInt(),
                          cv::hud_statistics_cs_offset_y.getInt());
         }
 
         if(cv::draw_statistics_od.getBool()) {
             f32 OD = std::round(s.od * 100.0f) / 100.0f;
-            addStatistic(fmt::format("OD: {:g}"_cf, OD), cv::hud_statistics_od_offset_x.getInt(),
+            addStatistic(fmt::format(fmt::runtime(_("OD: {:g}")), OD), cv::hud_statistics_od_offset_x.getInt(),
                          cv::hud_statistics_od_offset_y.getInt());
         }
 
         if(cv::draw_statistics_hp.getBool()) {
             f32 HP = std::round(s.hp * 100.0f) / 100.0f;
-            addStatistic(fmt::format("HP: {:g}"_cf, HP), cv::hud_statistics_hp_offset_x.getInt(),
+            addStatistic(fmt::format(fmt::runtime(_("HP: {:g}")), HP), cv::hud_statistics_hp_offset_x.getInt(),
                          cv::hud_statistics_hp_offset_y.getInt());
         }
 
         if(cv::draw_statistics_hitwindow300.getBool())
-            addStatistic(fmt::format("300: +-{:d}ms"_cf, (i32)s.hitWindow300),
+            addStatistic(fmt::format(fmt::runtime(_("300: +-{:d}ms")), (i32)s.hitWindow300),
                          cv::hud_statistics_hitwindow300_offset_x.getInt(),
                          cv::hud_statistics_hitwindow300_offset_y.getInt());
 
         if(cv::draw_statistics_nps.getBool())
-            addStatistic(fmt::format("NPS: {:d}"_cf, s.nps), cv::hud_statistics_nps_offset_x.getInt(),
+            // TRANSLATORS: "NPS" stands for "Notes Per Second"
+            addStatistic(fmt::format(fmt::runtime(_("NPS: {:d}")), s.nps), cv::hud_statistics_nps_offset_x.getInt(),
                          cv::hud_statistics_nps_offset_y.getInt());
 
         if(cv::draw_statistics_nd.getBool())
-            addStatistic(fmt::format("ND: {:d}"_cf, s.nd), cv::hud_statistics_nd_offset_x.getInt(),
+            // TRANSLATORS: "ND" stands for "Note Density"
+            addStatistic(fmt::format(fmt::runtime(_("ND: {:d}")), s.nd), cv::hud_statistics_nd_offset_x.getInt(),
                          cv::hud_statistics_nd_offset_y.getInt());
 
         if(cv::draw_statistics_ur.getBool())
-            addStatistic(fmt::format("UR: {:d}"_cf, s.ur), cv::hud_statistics_ur_offset_x.getInt(),
+            addStatistic(fmt::format(fmt::runtime(_("UR: {:d}")), s.ur), cv::hud_statistics_ur_offset_x.getInt(),
                          cv::hud_statistics_ur_offset_y.getInt());
 
         if(cv::draw_statistics_hitdelta.getBool())
-            addStatistic(fmt::format("-{:d}ms +{:d}ms"_cf, std::abs(s.hitdeltaMin), s.hitdeltaMax),
+            addStatistic(fmt::format(fmt::runtime(_("-{:d}ms +{:d}ms")), std::abs(s.hitdeltaMin), s.hitdeltaMax),
                          cv::hud_statistics_hitdelta_offset_x.getInt(), cv::hud_statistics_hitdelta_offset_y.getInt());
     }
     g->popTransform();

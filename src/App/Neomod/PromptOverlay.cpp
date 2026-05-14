@@ -20,13 +20,13 @@ PromptOverlay::PromptOverlay() : UIScreen() {
     this->prompt_input = new CBaseUITextbox(0, 0, 400, 40, "");
     this->addBaseUIElement(this->prompt_input);
 
-    this->ok_btn = new UIButton(0, 0, 110, 35, "ok_btn", "OK");
+    this->ok_btn = new UIButton(0, 0, 110, 35, "ok_btn", _("OK"));
     this->ok_btn->setColor(0xff00d900);
     this->ok_btn->setUseDefaultSkin();
     this->ok_btn->setClickCallback(SA::MakeDelegate<&PromptOverlay::on_ok>(this));
     this->addBaseUIElement(this->ok_btn);
 
-    this->cancel_btn = new UIButton(0, 0, 110, 35, "cancel_btn", "Cancel");
+    this->cancel_btn = new UIButton(0, 0, 110, 35, "cancel_btn", _("Cancel"));
     this->cancel_btn->setColor(0xff0c7c99);
     this->cancel_btn->setUseDefaultSkin();
     this->cancel_btn->setClickCallback(SA::MakeDelegate<&PromptOverlay::on_cancel>(this));
