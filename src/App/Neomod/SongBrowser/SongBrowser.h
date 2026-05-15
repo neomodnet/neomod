@@ -185,31 +185,26 @@ class SongBrowser final : public ScreenBackable {
     [[nodiscard]] inline InfoLabel *getInfoLabel() const { return this->songInfo; }
     [[nodiscard]] SongDifficultyButton *getDiffButtonByHash(const MD5Hash &diff_hash) const;
 
+    // Map sorting/filtering
     using SORTING_COMPARATOR = bool (*)(const SongButton *a, const SongButton *b);
     struct SORTING_METHOD {
         std::string_view name;
         SORTING_COMPARATOR comparator;
     };
 
-    static constexpr std::array<SORTING_METHOD, SortType::MAX> SORTING_METHODS{
-        {{"By Artist", sort_by_artist},          //
-         {"By BPM", sort_by_bpm},                //
-         {"By Creator", sort_by_creator},        //
-         {"By Date Added", sort_by_date_added},  //
-         {"By Difficulty", sort_by_difficulty},  //
-         {"By Length", sort_by_length},          //
-         {"By Title", sort_by_title},            //
-         {"By Rank Achieved", sort_by_grade}}};  //
+    std::array<SORTING_METHOD, SortType::MAX> SORTING_METHODS;
+    std::array<std::string_view, GroupType::MAX> GROUP_NAMES;
 
-    static constexpr std::array<std::string_view, GroupType::MAX> GROUP_NAMES{{"By Artist",      //
-                                                                               "By BPM",         //
-                                                                               "By Creator",     //
-                                                                               "By Date",        //
-                                                                               "By Difficulty",  //
-                                                                               "By Length",      //
-                                                                               "By Title",       //
-                                                                               "Collections",    //
-                                                                               "No Grouping"}};  //
+    // Score sorting
+    struct SCORE_SORTING_METHOD {
+        using SCORE_SORTING_COMPARATOR = bool (*)(const FinishedScore &, const FinishedScore &);
+
+        std::string_view name;
+        SCORE_SORTING_COMPARATOR comparator;
+    };
+
+    std::array<SCORE_SORTING_METHOD, 6> SCORE_SORTING_METHODS;
+    int DEFAULT_SCORE_SORTING_INDEX;
 
     [[nodiscard]] inline GroupType getGroupingMode() const { return this->curGroup; }
 

@@ -1176,8 +1176,8 @@ void HUD::drawAccuracy(f32 accuracy) {
         // for HUD::drawProgressBar, to not move the progress bar depending on accuracy
         // TODO: seems like it should only depend on score_percent?
         const f32 xOffsetConst = (i32)((f32)digitWidth * 0.95f) * numTotalDigits +  // VERY questionable
-                                 dotWidth +                                        //
-                                 pctWidth -                                        //
+                                 dotWidth +                                         //
+                                 pctWidth -                                         //
                                  digitOverlapSize * numTotalDigits;
 
         const f32 drawXOffset = osu->getVirtScreenWidth() - xOffset - offset;
@@ -1859,9 +1859,9 @@ void HUD::drawStatistics(const HUDStats &s) {
         if(cv::draw_statistics_audio_offset.getBool()) addStatistic(getOffsetStatText(), 0, 0);
 
         if(cv::draw_statistics_pp.getBool())
-            addStatistic(
-                fmt::format(fmt::runtime(_("{:.{}f}pp")), s.pp, std::clamp<i32>(cv::hud_statistics_pp_decimal_places.getInt(), 0, 2)),
-                cv::hud_statistics_pp_offset_x.getInt(), cv::hud_statistics_pp_offset_y.getInt());
+            addStatistic(fmt::format(fmt::runtime(_("{:.{}f}pp")), s.pp,
+                                     std::clamp<i32>(cv::hud_statistics_pp_decimal_places.getInt(), 0, 2)),
+                         cv::hud_statistics_pp_offset_x.getInt(), cv::hud_statistics_pp_offset_y.getInt());
 
         if(cv::draw_statistics_perfectpp.getBool())
             addStatistic(fmt::format(fmt::runtime(_("SS: {:.{}f}pp")), s.ppfc,
@@ -1870,8 +1870,8 @@ void HUD::drawStatistics(const HUDStats &s) {
                          cv::hud_statistics_perfectpp_offset_y.getInt());
 
         if(cv::draw_statistics_misses.getBool())
-            addStatistic(fmt::format(fmt::runtime(_("Miss: {:d}")), s.misses), cv::hud_statistics_misses_offset_x.getInt(),
-                         cv::hud_statistics_misses_offset_y.getInt());
+            addStatistic(fmt::format(fmt::runtime(_("Miss: {:d}")), s.misses),
+                         cv::hud_statistics_misses_offset_x.getInt(), cv::hud_statistics_misses_offset_y.getInt());
 
         if(cv::draw_statistics_sliderbreaks.getBool())
             // TRANSLATORS: "SBrk" stands for "Slider Breaks" (number of slider breaks/missed slider ticks)
@@ -1885,11 +1885,13 @@ void HUD::drawStatistics(const HUDStats &s) {
                          cv::hud_statistics_maxpossiblecombo_offset_y.getInt());
 
         if(cv::draw_statistics_livestars.getBool())
-            addStatistic(fmt::format(fmt::runtime(_("{:.3g}***")), s.liveStars), cv::hud_statistics_livestars_offset_x.getInt(),
+            addStatistic(fmt::format(fmt::runtime(_("{:.3g}***")), s.liveStars),
+                         cv::hud_statistics_livestars_offset_x.getInt(),
                          cv::hud_statistics_livestars_offset_y.getInt());
 
         if(cv::draw_statistics_totalstars.getBool())
-            addStatistic(fmt::format(fmt::runtime(_("{:.3g}*")), s.totalStars), cv::hud_statistics_totalstars_offset_x.getInt(),
+            addStatistic(fmt::format(fmt::runtime(_("{:.3g}*")), s.totalStars),
+                         cv::hud_statistics_totalstars_offset_x.getInt(),
                          cv::hud_statistics_totalstars_offset_y.getInt());
 
         if(cv::draw_statistics_bpm.getBool())
@@ -2630,17 +2632,20 @@ void HUD::updateScoringMetric() {
     if(BanchoState::is_playing_a_multi_map()) {
         this->scoring_metric = BanchoState::room.win_condition;
     } else {
-        const auto &sortTypeString{cv::songbrowser_scores_sortingtype.getString()};
-        if(sortTypeString == "By accuracy") {
-            this->scoring_metric = WinCondition::ACCURACY;
-        } else if(sortTypeString == "By combo") {
-            this->scoring_metric = WinCondition::MAX_COMBO;
-        } else if(sortTypeString == "By misses") {
-            this->scoring_metric = WinCondition::MISSES;
-        } else if(sortTypeString == "By pp") {
-            this->scoring_metric = WinCondition::PP;
-        } else {
-            this->scoring_metric = WinCondition::SCOREV1;
+        this->scoring_metric = WinCondition::SCOREV1;
+
+        u32 sortIndex = cv::songbrowser_scores_sortingtype.getInt();
+        if(sortIndex < ui->getSongBrowser()->SCORE_SORTING_METHODS.size()) {
+            auto sort = ui->getSongBrowser()->SCORE_SORTING_METHODS[sortIndex];
+            if(sort.comparator == db->sortScoreByAccuracy) {
+                this->scoring_metric = WinCondition::ACCURACY;
+            } else if(sort.comparator == db->sortScoreByCombo) {
+                this->scoring_metric = WinCondition::MAX_COMBO;
+            } else if(sort.comparator == db->sortScoreByMisses) {
+                this->scoring_metric = WinCondition::MISSES;
+            } else if(sort.comparator == db->sortScoreByPP) {
+                this->scoring_metric = WinCondition::PP;
+            }
         }
     }
 }

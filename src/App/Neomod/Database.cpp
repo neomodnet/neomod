@@ -671,21 +671,15 @@ void Database::deleteScore(const FinishedScore &scoreToDelete) {
 void Database::sortScoresInPlace(std::vector<FinishedScore> &scores) {
     if(scores.size() < 2) return;
 
-    bool found = false;
-    const auto &sortTypeString{cv::songbrowser_scores_sortingtype.getString()};
-    for(const auto &sortMethod : Database::SCORE_SORTING_METHODS) {
-        if(sortTypeString == sortMethod.name) {
-            std::ranges::sort(scores, sortMethod.comparator);
-            found = true;
-            break;
-        }
+    int sortIndex = cv::songbrowser_scores_sortingtype.getInt();
+
+    // Fallback: sort by pp
+    if(sortIndex < 0 || sortIndex >= ui->getSongBrowser()->SCORE_SORTING_METHODS.size()) {
+        sortIndex = ui->getSongBrowser()->DEFAULT_SCORE_SORTING_INDEX;
+        cv::songbrowser_scores_sortingtype.setValue(sortIndex);
     }
 
-    // Fallback
-    if(!found) {
-        cv::songbrowser_scores_sortingtype.setValue("By pp");
-        std::ranges::sort(scores, sortScoreByPP);
-    }
+    std::ranges::sort(scores, ui->getSongBrowser()->SCORE_SORTING_METHODS[sortIndex].comparator);
 }
 
 void Database::sortScores(const MD5Hash &beatmapMD5Hash) {

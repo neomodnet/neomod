@@ -311,6 +311,31 @@ SongBrowser::GlobalSongBrowserCtorDtor::~GlobalSongBrowserCtorDtor() {
 }
 
 SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
+    this->SORTING_METHODS = {{{_("By Artist"), sort_by_artist},          //
+                              {_("By BPM"), sort_by_bpm},                //
+                              {_("By Creator"), sort_by_creator},        //
+                              {_("By Date Added"), sort_by_date_added},  //
+                              {_("By Difficulty"), sort_by_difficulty},  //
+                              {_("By Length"), sort_by_length},          //
+                              {_("By Title"), sort_by_title},            //
+                              {_("By Rank Achieved"), sort_by_grade}}};
+    this->GROUP_NAMES = {{_("By Artist"),      //
+                          _("By BPM"),         //
+                          _("By Creator"),     //
+                          _("By Date"),        //
+                          _("By Difficulty"),  //
+                          _("By Length"),      //
+                          _("By Title"),       //
+                          _("Collections"),    //
+                          _("No Grouping")}};  //
+    this->SCORE_SORTING_METHODS = {{{_("By accuracy"), db->sortScoreByAccuracy},
+                                    {_("By combo"), db->sortScoreByCombo},
+                                    {_("By date"), db->sortScoreByDate},
+                                    {_("By misses"), db->sortScoreByMisses},
+                                    {_("By score"), db->sortScoreByScore},
+                                    {_("By pp"), db->sortScoreByPP}}};
+    this->DEFAULT_SCORE_SORTING_INDEX = 5;  // By pp
+
     this->lastDiffSortModIndex = StarPrecalc::active_idx;
 
     this->hashToDiffButton = std::make_unique<MD5HashMap>();
@@ -889,7 +914,7 @@ void SongBrowser::update(CBaseUIEventCtx &c) {
 
     // handle changed mods resort
     if(this->lastDiffSortModIndex != StarPrecalc::active_idx) {
-        this->onSortChange(cv::songbrowser_sortingtype.getString());
+        this->onSortChange("", cv::songbrowser_sortingtype.getInt());
         this->lastDiffSortModIndex = StarPrecalc::active_idx;
     }
 
@@ -897,8 +922,8 @@ void SongBrowser::update(CBaseUIEventCtx &c) {
     if(this->map_autodl) {
         const i32 set_id = Downloader::resolve_beatmapset_id_for(this->map_autodl, this->set_autodl);
         if(set_id < 0) {
-            ui->getNotificationOverlay()->addToast(fmt::format(fmt::runtime(_("Failed to find Beatmap #{:d} :(")), this->map_autodl),
-                                                   ERROR_TOAST);
+            ui->getNotificationOverlay()->addToast(
+                fmt::format(fmt::runtime(_("Failed to find Beatmap #{:d} :(")), this->map_autodl), ERROR_TOAST);
             this->map_autodl = 0;
             this->set_autodl = 0;
         } else if(set_id > 0) {
@@ -2513,10 +2538,9 @@ void SongBrowser::onDatabaseLoadingFinished() {
     this->bInitializedBeatmaps = true;
     this->bSongButtonsNeedSorting = true;
 
-    this->onSortChange(cv::songbrowser_sortingtype.getString());
+    this->onSortChange("", cv::songbrowser_sortingtype.getInt());
     this->onGroupChange("", this->curGroup);  // does nothing besides re-highlight the buttons
-
-    this->onSortScoresChange(cv::songbrowser_scores_sortingtype.getString());
+    this->onSortScoresChange("", cv::songbrowser_scores_sortingtype.getInt());
 
     // update rich presence (discord total pp)
     RichPresence::onSongBrowser();
@@ -2773,10 +2797,11 @@ void SongBrowser::onSortScoresClicked(CBaseUIButton *button) {
     this->contextMenu->setRelPos(button->getRelPos());
     this->contextMenu->begin(button->getSize().x);
     {
-        for(const auto &scoreSortingMethod : Database::SCORE_SORTING_METHODS) {
-            CBaseUIButton *button = this->contextMenu->addButton(std::string{scoreSortingMethod.name});
-            if(scoreSortingMethod.name == cv::songbrowser_scores_sortingtype.getString())
-                button->setTextBrightColor(0xff00ff00);
+        int i = 0;
+        for(const auto &scoreSortingMethod : this->SCORE_SORTING_METHODS) {
+            CBaseUIButton *button = this->contextMenu->addButton(std::string{scoreSortingMethod.name}, i);
+            if(i == cv::songbrowser_scores_sortingtype.getInt()) button->setTextBrightColor(0xff00ff00);
+            i++;
         }
     }
     this->contextMenu->end(false, false);
@@ -2806,9 +2831,14 @@ void SongBrowser::onFilterScoresChange(std::string_view text, int id) {
     this->scoreBrowser->scrollToTop();
 }
 
-void SongBrowser::onSortScoresChange(std::string_view text, int /*id*/) {
-    cv::songbrowser_scores_sortingtype.setValue(text);  // NOTE: remember
-    this->sortScoresDropdown->setText(std::string{text});
+void SongBrowser::onSortScoresChange(std::string_view /*text*/, int id) {
+    // sanity check
+    if(id < 0 || id >= this->SCORE_SORTING_METHODS.size()) {
+        id = this->DEFAULT_SCORE_SORTING_INDEX;
+    }
+
+    cv::songbrowser_scores_sortingtype.setValue(id);  // NOTE: remember
+    this->sortScoresDropdown->setText(std::string{this->SCORE_SORTING_METHODS[id].name});
     this->rebuildScoreButtons();
     this->scoreBrowser->scrollToTop();
     ui->getHUD()->updateScoringMetric();
@@ -2927,7 +2957,7 @@ void SongBrowser::onSortChange(std::string_view text, int id) {
     const bool sortChanged = sort_id != this->curSortMethod;
 
     this->sortButton->setText(std::string{newMethod.name});
-    cv::songbrowser_sortingtype.setValue(newMethod.name);
+    cv::songbrowser_sortingtype.setValue(sort_id);
 
     // reuse the group update logic instead of duplicating it
     if(!sortChanged) {
@@ -3229,8 +3259,8 @@ void SongBrowser::onSongButtonContextMenu(SongButton *songButton, std::string_vi
             this->rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(
                 false, false);  // (last false = skipping rebuildSongButtons() here)
             this->bSongButtonsNeedSorting = true;
-            this->onSortChange(
-                cv::songbrowser_sortingtype.getString());  // (because this does the rebuildSongButtons())
+            this->onSortChange("",
+                               cv::songbrowser_sortingtype.getInt());  // (because this does the rebuildSongButtons())
         }
         if(previouslySelectedCollectionName.length() > 0) {
             for(auto &collectionButton : this->collectionButtons) {

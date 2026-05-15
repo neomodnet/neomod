@@ -203,18 +203,21 @@ void ScoreButton::draw() {
             }
 
             // show score for score sorting, pp for pp sorting
-            const auto &sortTypeString{cv::songbrowser_scores_sortingtype.getString()};
-            if(sortTypeString == "By pp"sv) {
-                return this->sFmtedScorePPWithCombo;
-            } else if(sortTypeString == "By score"sv) {
-                return this->sFmtedScoreScoreWithCombo;
-            } else {
-                // fallback behavior for other sorting types (misleading convar name)
-                if(cv::scores_sort_by_pp.getBool()) {
+            u32 sortIndex = cv::songbrowser_scores_sortingtype.getInt();
+            if(sortIndex < g_songbrowser->SCORE_SORTING_METHODS.size()) {
+                auto sort = g_songbrowser->SCORE_SORTING_METHODS[sortIndex];
+                if(sort.comparator == db->sortScoreByPP) {
                     return this->sFmtedScorePPWithCombo;
-                } else {
+                } else if(sort.comparator == db->sortScoreByScore) {
                     return this->sFmtedScoreScoreWithCombo;
                 }
+            }
+
+            // fallback behavior for other sorting types (misleading convar name)
+            if(cv::scores_sort_by_pp.getBool()) {
+                return this->sFmtedScorePPWithCombo;
+            } else {
+                return this->sFmtedScoreScoreWithCombo;
             }
         }();
 

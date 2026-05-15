@@ -75,13 +75,6 @@ class Database final {
         u64 totalScore;
     };
 
-    struct SCORE_SORTING_METHOD {
-        using SCORE_SORTING_COMPARATOR = bool (*)(const FinishedScore &, const FinishedScore &);
-
-        std::string_view name;
-        SCORE_SORTING_COMPARATOR comparator;
-    };
-
     // sorting methods
     static bool sortScoreByScore(const FinishedScore &a, const FinishedScore &b);
     static bool sortScoreByCombo(const FinishedScore &a, const FinishedScore &b);
@@ -89,14 +82,6 @@ class Database final {
     static bool sortScoreByMisses(const FinishedScore &a, const FinishedScore &b);
     static bool sortScoreByAccuracy(const FinishedScore &a, const FinishedScore &b);
     static bool sortScoreByPP(const FinishedScore &a, const FinishedScore &b);
-
-   public:
-    static constexpr std::array<SCORE_SORTING_METHOD, 6> SCORE_SORTING_METHODS{{{"By accuracy", sortScoreByAccuracy},
-                                                                                {"By combo", sortScoreByCombo},
-                                                                                {"By date", sortScoreByDate},
-                                                                                {"By misses", sortScoreByMisses},
-                                                                                {"By score", sortScoreByScore},
-                                                                                {"By pp", sortScoreByPP}}};
 
    public:
     Database();

@@ -23,20 +23,15 @@ UISearchOverlay::UISearchOverlay(float xPos, float yPos, float xSize, float ySiz
 }
 
 void UISearchOverlay::draw() {
-    /*
-    g->setColor(0xaaaaaaaa);
-    g->fillRect(this->getPos(), this->getSize());
-    */
-
     // draw search text and background
     const float searchTextScale = 1.0f;
     McFont *searchTextFont = this->font;
 
-    const std::string searchText1 = "Search: ";
-    const std::string searchText2 = "Type to search!";
-    const std::string noMatchesFoundText1 = "No matches found. Hit ESC to reset.";
-    const std::string noMatchesFoundText2 = "Hit ESC to reset.";
-    const std::string searchingText2 = "Searching, please wait ...";
+    const std::string searchText1 = _("Search: ");
+    const std::string searchText2 = _("Type to search!");
+    const std::string noMatchesFoundText1 = _("No matches found. Hit ESC to reset.");
+    const std::string noMatchesFoundText2 = _("Hit ESC to reset.");
+    const std::string searchingText2 = _("Searching, please wait ...");
 
     std::string combinedSearchText = searchText1;
     combinedSearchText.append(searchText2);
