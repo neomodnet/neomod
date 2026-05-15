@@ -95,6 +95,12 @@ Engine::Engine() {
     this->bShuttingDown = false;
     this->bShouldProcessStdin = env->isHeadless() || env->getLaunchArgs().contains("-console");
 
+    // initialize default locale from env var instead of always using "en"
+    // (standard on linux and used for wasm)
+    auto locale = env->getEnvVariable("LANGUAGE");
+    if(locale.empty()) locale = "en";
+    cv::language.setValue(locale);
+
     // initialize all engine subsystems (the order does matter!)
     debugLog("Engine: Initializing subsystems ...");
     {
