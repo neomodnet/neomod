@@ -689,7 +689,7 @@ AS_CASE(["$host_os"],
     # --emrun for support for running the .html with emrun (useful for offline testing)
     NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS $emscripten_flags -lwebsocket.js -lidbfs.js -lnodefs.js --pre-js $WASM_POLYFILL_DEP --emrun"
 
-    WASM_PRELOAD_FLAGS="--preload-file \$(srcdir)/\$(ASSETS_DIR)/fonts@fonts --preload-file \$(srcdir)/\$(ASSETS_DIR)/materials@materials"
+    WASM_PRELOAD_FLAGS="--preload-file \$(srcdir)/\$(ASSETS_DIR)/fonts@fonts --preload-file \$(srcdir)/\$(ASSETS_DIR)/materials@materials --preload-file \$(builddir)/locale@locale"
     AS_IF([test "x$enable_redistributable" = "xno"], [
         # bundle some copyrighted beatmaps for non-redistributable builds
         # useful for testing purposes to have something to immediately play
