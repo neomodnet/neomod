@@ -165,6 +165,11 @@ $(DEPS_CACHE)/$(FFMPEG_TARBALL):
 	$(MKDIR_P) $(DEPS_CACHE)
 	$(CURLCOMMAND) $(FFMPEG_URL) || { rm -f $@; exit 1; }
 
+# needed for building libintl from source (gettext)
+$(DEPS_CACHE)/gettext-$(GETTEXT_VERSION).tar.gz:
+	$(MKDIR_P) $(DEPS_CACHE)
+	$(CURLCOMMAND) "https://ftp.gnu.org/gnu/gettext/gettext-$(GETTEXT_VERSION).tar.gz" || { rm -f $@; exit 1; }
+
 # used for compiling HLSL shaders for SDL_gpu on mingw builds
 # hardcoded version here for now, i don't think it matters
 $(DEPS_CACHE)/linux_dxc_2025_07_14.x86_64.tar.gz:
@@ -1271,6 +1276,30 @@ $(DEPS_PREFIX)/ctre-$(CTRE_VERSION).built:
 	$(MKDIR_P) $(DEPS_PREFIX) && touch $@
 endif # BUILD_LZMA
 
+if BUILD_LIBINTL
+LIBINTL_CFLAGS += -I$(DEPS_PREFIX)/include
+LIBINTL_LIBS += -L$(DEPS_PREFIX)/lib -lintl
+$(DEPS_PREFIX)/libintl-$(GETTEXT_VERSION).built: $(DEPS_CACHE)/gettext-$(GETTEXT_VERSION).tar.gz
+	rm -rf $(DEPS_PREFIX)/libintl
+	$(MKDIR_P) $(DEPS_PREFIX)/libintl/build $(DEPS_PREFIX)/lib/pkgconfig
+	$(TAR) xf $(DEPS_CACHE)/gettext-$(GETTEXT_VERSION).tar.gz -C $(DEPS_PREFIX)/libintl --strip-components=1 && \
+	cd $(DEPS_PREFIX)/libintl/gettext-runtime && \
+	$(CONFIGURE_PFX) ./configure --host=$(host) --prefix="$(DEPS_PREFIX)" \
+		$(if $(STATICBUILD),--enable-static --disable-shared,--enable-shared --disable-static) \
+		--without-libiconv-prefix \
+		CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" RANLIB="$(RANLIB)" AR="$(AR)" && \
+	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
+	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install && \
+	rm -f $(DEPS_PREFIX)/lib/libintl*$(DLLEXT); \
+	cp -f $(DEPS_PREFIX)/libintl/gettext-runtime/intl/.libs/libgnuintl.a $(DEPS_PREFIX)/lib/libintl.a; \
+	cp -f $(DEPS_PREFIX)/libintl/gettext-runtime/intl/libgnuintl.h $(DEPS_PREFIX)/include/libintl.h
+	touch $@
+INSTALL_LIB_DEPS += $(DEPS_PREFIX)/libintl-$(GETTEXT_VERSION).built
+else
+$(DEPS_PREFIX)/libintl-$(GETTEXT_VERSION).built:
+	$(MKDIR_P) $(DEPS_PREFIX) && touch $@
+endif # BUILD_LIBINTL
+
 if BUILD_LIBARCHIVE
 
 # required for proper permissions support on linux
@@ -1475,6 +1504,7 @@ BUILT_SOURCES := \
 	$(DEPS_PREFIX)/libarchive-$(LIBARCHIVE_VERSION).built \
 	$(DEPS_PREFIX)/simdutf-$(SIMDUTF_VERSION).built \
 	$(DEPS_PREFIX)/ctre-$(CTRE_VERSION).built \
+	$(DEPS_PREFIX)/libintl-$(GETTEXT_VERSION).built \
 	$(DEPS_PREFIX)/libacl-$(LIBACL_VERSION).built \
 	$(DEPS_PREFIX)/curl-$(CURL_VERSION_REAL).built
 
@@ -1560,6 +1590,7 @@ NEOMOD_SHARED_SOURCE_FLAGS := \
 	$(LZMA_CFLAGS) \
 	$(SIMDUTF_CFLAGS) \
 	$(CTRE_CFLAGS) \
+	$(LIBINTL_CFLAGS) \
 	$(DISCORDRPC_CFLAGS)
 
 # pch only used for C++ sources
@@ -1606,6 +1637,7 @@ neomod_LDFLAGS := \
 	$(LZMA_LIBS) \
 	$(NSYNC_LIBS) \
 	$(SIMDUTF_LIBS) \
+	$(LIBINTL_LIBS) \
 	$(DISCORDRPC_LIBS) \
 	$(END_GROUP_FLAGS) \
 	$(NEOMOD_LDFLAGS) \
