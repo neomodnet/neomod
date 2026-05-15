@@ -764,3 +764,15 @@ void _toggleresizable() { env->setWindowResizable(!env->winResizable()); }
 void _focus() { engine->focus(); }
 void _center() { engine->center(); }
 void _dpiinfo() { debugLog("env->getDPI() = {:d}, env->getDPIScale() = {:f}", env->getDPI(), env->getDPIScale()); }
+
+// gettext hack, see "language" cvar callback
+extern "C" {
+extern int _nl_msg_cat_cntr;
+}
+void _update_locale(std::string_view newLang) {
+    // gettext hack to change language at runtime
+    // (this is called while loading osu.cfg)
+    // https://www.gnu.org/software/gettext/manual/gettext.html#Being-a-gettext-grok
+    env->setEnvVariable("LANGUAGE", newLang, true);
+    ++_nl_msg_cat_cntr;
+}

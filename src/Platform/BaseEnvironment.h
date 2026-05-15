@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <type_traits>
 
+#define _INTL_REDIRECT_MACROS
 #include <libintl.h>
 #include <locale.h>
 #define _(String) gettext(String)

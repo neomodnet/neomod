@@ -62,11 +62,6 @@ extern void _update();
 
 #include "BaseEnvironment.h"
 
-// gettext hack, see "language" cvar callback
-extern "C" {
-extern int _nl_msg_cat_cntr;
-}
-
 namespace Profiling {
 extern void vprofToggleCB(float);
 }
@@ -284,15 +279,7 @@ CONVAR(file_size_max, 1024, CLIENT | SKINS | SERVER,
        "maximum filesize sanity limit in MB, all files bigger than this are not allowed to load");
 CONVAR(interpolate_music_pos, 2L, CLIENT | SKINS | SERVER,
        "interpolate song position with engine time (0 = none, 1 = new method, 2 = McOsu, 3 = \"lazer\" (broken?))");
-CONVAR(language, "en"sv, CLIENT | SKINS | SERVER, "display language used by the game",
-       [](std::string_view newLang) -> void {
-           // gettext hack to change language at runtime
-           // (this is called while loading osu.cfg)
-           // https://www.gnu.org/software/gettext/manual/gettext.html#Being-a-gettext-grok
-           std::string newLang_nullTerminated{newLang};
-           setenv("LANGUAGE", newLang_nullTerminated.c_str(), 1);
-           ++_nl_msg_cat_cntr;
-       });
+CONVAR(language, "en"sv, CLIENT | SKINS | SERVER, "display language used by the game", CFUNC(_update_locale));
 CONVAR(minimize_on_focus_lost_if_borderless_windowed_fullscreen, false, CLIENT | SKINS | SERVER);
 CONVAR(minimize_on_focus_lost_if_fullscreen, true, CLIENT | SKINS | SERVER);
 CONVAR(mouse_raw_input, false, CLIENT | SKINS | SERVER);
