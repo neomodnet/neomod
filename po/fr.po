@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: neomod\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-14 17:54+0200\n"
+"POT-Creation-Date: 2026-05-15 14:09+0200\n"
 "PO-Revision-Date: 2026-05-14 16:09+0200\n"
 "Last-Translator: kiwec <kiwec@neomod.net>\n"
 "Language-Team: French <traduc@traduc.org>\n"
@@ -132,7 +132,7 @@ msgstr "{} [passé]"
 msgid "{} UR"
 msgstr "{} UR"
 
-#: src/App/Neomod/HUD.cpp:1863
+#: src/App/Neomod/HUD.cpp:1862
 #, c++-format
 msgid "{:.{}f}pp"
 msgstr "{:.{}f}pp"
@@ -163,59 +163,59 @@ msgstr "FC : {:d}x"
 msgid "{:.3g}***"
 msgstr "{:.3g}***"
 
-#: src/App/Neomod/HUD.cpp:1892
+#: src/App/Neomod/HUD.cpp:1893
 #, c++-format
 msgid "{:.3g}*"
 msgstr "{:.3g}*"
 
-#: src/App/Neomod/HUD.cpp:1896
+#: src/App/Neomod/HUD.cpp:1898
 #, c++-format
 msgid "BPM: {:d}"
 msgstr "BPM : {:d}"
 
-#: src/App/Neomod/HUD.cpp:1901
+#: src/App/Neomod/HUD.cpp:1903
 #, c++-format
 msgid "AR: {:g}"
 msgstr "AR : {:g}"
 
-#: src/App/Neomod/HUD.cpp:1907
+#: src/App/Neomod/HUD.cpp:1909
 #, c++-format
 msgid "CS: {:g}"
 msgstr "CS : {:g}"
 
-#: src/App/Neomod/HUD.cpp:1913
+#: src/App/Neomod/HUD.cpp:1915
 #, c++-format
 msgid "OD: {:g}"
 msgstr "OD : {:g}"
 
-#: src/App/Neomod/HUD.cpp:1919
+#: src/App/Neomod/HUD.cpp:1921
 #, c++-format
 msgid "HP: {:g}"
 msgstr "HP : {:g}"
 
-#: src/App/Neomod/HUD.cpp:1924
+#: src/App/Neomod/HUD.cpp:1926
 #, c++-format
 msgid "300: +-{:d}ms"
 msgstr "300: +-{:d}ms"
 
 #. TRANSLATORS: "NPS" stands for "Notes Per Second"
-#: src/App/Neomod/HUD.cpp:1930
+#: src/App/Neomod/HUD.cpp:1932
 #, c++-format
 msgid "NPS: {:d}"
 msgstr "NPS : {:d}"
 
 #. TRANSLATORS: "ND" stands for "Note Density"
-#: src/App/Neomod/HUD.cpp:1935
+#: src/App/Neomod/HUD.cpp:1937
 #, c++-format
 msgid "ND: {:d}"
 msgstr "ND : {:d}"
 
-#: src/App/Neomod/HUD.cpp:1939
+#: src/App/Neomod/HUD.cpp:1941
 #, c++-format
 msgid "UR: {:d}"
 msgstr "UR : {:d}"
 
-#: src/App/Neomod/HUD.cpp:1943
+#: src/App/Neomod/HUD.cpp:1945
 #, c++-format
 msgid "-{:d}ms +{:d}ms"
 msgstr "-{:d}ms +{:d}ms"
@@ -355,7 +355,8 @@ msgstr "Appuyez sur Shift + F1 pour ouvrir la console de commandes."
 msgid ""
 "Shift + Click on a skin in the dropdown list to change the source for base "
 "skin elements."
-msgstr "Shift + Cliquez sur un skin dans la liste pour changer le skin par défaut."
+msgstr ""
+"Shift + Cliquez sur un skin dans la liste pour changer le skin par défaut."
 
 #: src/App/Neomod/MainMenuTips.cpp:48
 #, c++-format
@@ -371,40 +372,54 @@ msgstr "Appuyez sur {:s} ou {:s} n'import où pour ouvrir le chat."
 msgid ""
 "Launch with the neomod-BASS shortcut to use BASS (ASIO/Exclusive mode) for "
 "audio."
-msgstr "Lancez avec le raccourci neomod-BASS pour utiliser le moteur audio BASS (ASIO/Mode exclusif)."
+msgstr ""
+"Lancez avec le raccourci neomod-BASS pour utiliser le moteur audio BASS "
+"(ASIO/Mode exclusif)."
 
 #: src/App/Neomod/MainMenuTips.cpp:61
 msgid ""
 "Launch with \"-sound bass\" as a commandline argument to use BASS for audio."
-msgstr "Lancez avec \"-sound bass\" en argument de ligne de commande pour utiliser le moteur audio BASS."
+msgstr ""
+"Lancez avec \"-sound bass\" en argument de ligne de commande pour utiliser "
+"le moteur audio BASS."
 
 #: src/App/Neomod/MainMenuTips.cpp:66
 msgid ""
 "Put \"-gpu\" after the \"Target:\" field in a shortcut to neomod to use the "
 "D3D12 renderer."
-msgstr "Lancez avec \"-gpu\" en argument de ligne de commande pour utiliser le moteur de rendu D3D12."
+msgstr ""
+"Lancez avec \"-gpu\" en argument de ligne de commande pour utiliser le "
+"moteur de rendu D3D12."
 
 #: src/App/Neomod/MainMenuTips.cpp:67
 msgid ""
 "Put \"-gpu vk\" after the \"Target:\" field in a shortcut to neomod to use "
 "the Vulkan renderer."
-msgstr "Lancez avec \"-vk\" en argument de ligne de commande pour utiliser le moteur de rendu Vulkan."
+msgstr ""
+"Lancez avec \"-vk\" en argument de ligne de commande pour utiliser le moteur "
+"de rendu Vulkan."
 
 #: src/App/Neomod/MainMenuTips.cpp:69
 msgid ""
 "Launch with \"-sdlgpu\" as a commandline argument to use the Vulkan renderer."
-msgstr "Lancez avec \"-sdlgpu\" en argument de ligne de commande pour utiliser le moteur de rendu Vulkan."
+msgstr ""
+"Lancez avec \"-sdlgpu\" en argument de ligne de commande pour utiliser le "
+"moteur de rendu Vulkan."
 
 #: src/App/Neomod/MainMenuTips.cpp:74
 msgid ""
 "Put \"-dx11\" after the \"Target:\" field in a shortcut to neomod to use the "
 "D3D11 renderer."
-msgstr "Lancez avec \"-dx11\" en argument de ligne de commande pour utiliser le moteur de rendu D3D11."
+msgstr ""
+"Lancez avec \"-dx11\" en argument de ligne de commande pour utiliser le "
+"moteur de rendu D3D11."
 
 #: src/App/Neomod/MainMenuTips.cpp:76
 msgid ""
 "Launch with \"-dx11\" as a commandline argument to use the D3D11 renderer."
-msgstr "Lancez avec \"-dx11\" en argument de ligne de commande pour utiliser le moteur de rendu D3D11."
+msgstr ""
+"Lancez avec \"-dx11\" en argument de ligne de commande pour utiliser le "
+"moteur de rendu D3D11."
 
 #: src/App/Neomod/MainMenuTips.cpp:80
 msgid "Press Ctrl + O to open the options menu from anywhere."
@@ -865,187 +880,195 @@ msgstr "Mods expérimentaux"
 msgid "Hold [ALT] to slide in 0.01 increments."
 msgstr "Maintenez [ALT] pour glisser par incréments de 0,01."
 
-#: src/App/Neomod/OptionsOverlay.cpp:419
+#: src/App/Neomod/OptionsOverlay.cpp:429
 msgid "Reset"
 msgstr "Réinitialiser"
 
-#: src/App/Neomod/OptionsOverlay.cpp:704
+#: src/App/Neomod/OptionsOverlay.cpp:714
 msgid "Mouse Left"
 msgstr "Souris gauche"
 
-#: src/App/Neomod/OptionsOverlay.cpp:706
+#: src/App/Neomod/OptionsOverlay.cpp:716
 msgid "Mouse Right"
 msgstr "Souris droite"
 
-#: src/App/Neomod/OptionsOverlay.cpp:708
+#: src/App/Neomod/OptionsOverlay.cpp:718
 msgid "<UNBOUND>"
 msgstr "<NON ATTRIBUÉ>"
 
-#: src/App/Neomod/OptionsOverlay.cpp:795
+#: src/App/Neomod/OptionsOverlay.cpp:805
 msgid "McOsu"
 msgstr "McOsu"
 
-#: src/App/Neomod/OptionsOverlay.cpp:795 src/App/Neomod/OptionsOverlay.cpp:1536
+#: src/App/Neomod/OptionsOverlay.cpp:805 src/App/Neomod/OptionsOverlay.cpp:1561
 msgid "None"
 msgstr "Aucun"
 
-#: src/App/Neomod/OptionsOverlay.cpp:795
+#: src/App/Neomod/OptionsOverlay.cpp:805
 msgid "osu!lazer 2020"
 msgstr "osu!lazer 2020"
 
-#: src/App/Neomod/OptionsOverlay.cpp:795
+#: src/App/Neomod/OptionsOverlay.cpp:805
 msgid "osu!stable (default)"
 msgstr "osu!stable (défaut)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:829 src/App/Neomod/OptionsOverlay.cpp:1499
+#: src/App/Neomod/OptionsOverlay.cpp:839 src/App/Neomod/OptionsOverlay.cpp:1524
 msgid "General"
 msgstr "Général"
 
-#: src/App/Neomod/OptionsOverlay.cpp:831
+#: src/App/Neomod/OptionsOverlay.cpp:841
 msgid "Online server"
 msgstr "Serveur en ligne"
 
-#: src/App/Neomod/OptionsOverlay.cpp:835
+#: src/App/Neomod/OptionsOverlay.cpp:845
 #, c++-format
 msgid "If the server admins don't explicitly allow {},"
 msgstr "Si les admins du serveur n'autorisent pas {}"
 
-#: src/App/Neomod/OptionsOverlay.cpp:838
+#: src/App/Neomod/OptionsOverlay.cpp:848
 msgid "you might get banned!"
 msgstr "vous pourriez vous faire bannir!"
 
-#: src/App/Neomod/OptionsOverlay.cpp:844
+#: src/App/Neomod/OptionsOverlay.cpp:854
 msgid "Server address:"
 msgstr "Adresse du serveur :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:848
+#: src/App/Neomod/OptionsOverlay.cpp:858
 msgid "Submit scores"
 msgstr "Envoyer les scores"
 
-#: src/App/Neomod/OptionsOverlay.cpp:854
+#: src/App/Neomod/OptionsOverlay.cpp:864
 msgid "Login details (username/password)"
 msgstr "Identifiants (nom d'utilisateur/mot de passe)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:866
+#: src/App/Neomod/OptionsOverlay.cpp:876
 msgid "Keep me logged in"
 msgstr "Rester connecté"
 
-#: src/App/Neomod/OptionsOverlay.cpp:866 src/App/Neomod/OptionsOverlay.cpp:1979
+#: src/App/Neomod/OptionsOverlay.cpp:876 src/App/Neomod/OptionsOverlay.cpp:2004
 msgid "Log in"
 msgstr "Connexion"
 
-#: src/App/Neomod/OptionsOverlay.cpp:881
-msgid "Use WebSocket connection when available"
-msgstr "Utiliser une connexion par WebSockets lorsque disponible"
+#: src/App/Neomod/OptionsOverlay.cpp:892
+msgid "Localization"
+msgstr ""
 
-#: src/App/Neomod/OptionsOverlay.cpp:884
+#: src/App/Neomod/OptionsOverlay.cpp:902
+#, fuzzy
+msgid "Select language"
+msgstr "Sélectionner la map"
+
+#: src/App/Neomod/OptionsOverlay.cpp:909
+msgid "Prefer metadata in original language"
+msgstr "Préférer les métadonnées dans la langue d'origine"
+
+#: src/App/Neomod/OptionsOverlay.cpp:915
 msgid "osu! folder"
 msgstr "Dossier osu!"
 
-#: src/App/Neomod/OptionsOverlay.cpp:885
+#: src/App/Neomod/OptionsOverlay.cpp:916
 msgid "1) If you have an existing osu!stable installation:"
 msgstr "1) Si vous avez une installation osu!stable :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:886
+#: src/App/Neomod/OptionsOverlay.cpp:917
 #, fuzzy
 msgid "2) osu! > Options > \"Open osu! folder\""
 msgstr "2) osu! > Options > \"Ouvrir dossier osu!\""
 
-#: src/App/Neomod/OptionsOverlay.cpp:887
+#: src/App/Neomod/OptionsOverlay.cpp:918
 msgid "3) Copy paste the full path into the textbox:"
 msgstr "3) Copiez collez le chemin complet ici :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:890
+#: src/App/Neomod/OptionsOverlay.cpp:921
 #, fuzzy
 msgid "Import settings from osu!stable"
-msgstr "Importer les collections/scores/paramètres de McOsu"
+msgstr "Importer les collections/scores/paramètres de osu!stable"
 
-#: src/App/Neomod/OptionsOverlay.cpp:893
+#: src/App/Neomod/OptionsOverlay.cpp:924
 #, fuzzy
 msgid "Successfully imported settings from osu!stable."
-msgstr "Paramètres importés avec succès depuis McOsu."
+msgstr "Paramètres de osu!stable importés avec succès."
 
-#: src/App/Neomod/OptionsOverlay.cpp:896
+#: src/App/Neomod/OptionsOverlay.cpp:927
 msgid "Error: Couldn't find osu!stable install directory or config file!"
-msgstr "Erreur : N'a pas pu trouver le dossier osu! ou le fichier de configuration !"
+msgstr ""
+"Erreur : N'a pas pu trouver le dossier osu! ou le fichier de configuration !"
 
-#: src/App/Neomod/OptionsOverlay.cpp:900
+#: src/App/Neomod/OptionsOverlay.cpp:931
 msgid "Use osu!.db database (read-only)"
 msgstr "Utiliser osu!.db (lecture seule)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:901
+#: src/App/Neomod/OptionsOverlay.cpp:932
 msgid ""
 "If you have an existing osu! installation,\n"
 "then this will speed up the initial loading process."
-msgstr "Si vous avez installé osu!,\ncela accélèrera le chargement initial."
+msgstr ""
+"Si vous avez installé osu!,\n"
+"cela accélèrera le chargement initial."
 
-#: src/App/Neomod/OptionsOverlay.cpp:904
+#: src/App/Neomod/OptionsOverlay.cpp:935
 msgid "Load osu! collection.db (read-only)"
-msgstr "Importer les collections de osu!"
+msgstr "Utiliser collections.db (lecture seule)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:905
+#: src/App/Neomod/OptionsOverlay.cpp:936
 msgid ""
 "If you have an existing osu! installation,\n"
 "also load and display your created collections from there."
 msgstr ""
 
-#: src/App/Neomod/OptionsOverlay.cpp:911
+#: src/App/Neomod/OptionsOverlay.cpp:942
 msgid "Include Relax/Autopilot for total weighted pp/acc"
-msgstr ""
+msgstr "Inclure les scores Relax/Autopilot dans les statistiques"
 
-#: src/App/Neomod/OptionsOverlay.cpp:912
+#: src/App/Neomod/OptionsOverlay.cpp:943
 msgid ""
 "NOTE: osu! does not allow this (since these mods are unranked).\n"
 "Should relax/autopilot scores be included in the weighted pp/acc calculation?"
-msgstr ""
+msgstr "NOTE: osu! ne fait pas cela (puisque ces mods ne sont pas rankés)."
 
-#: src/App/Neomod/OptionsOverlay.cpp:915
+#: src/App/Neomod/OptionsOverlay.cpp:946
 msgid "Always show pp instead of score in scorebrowser"
-msgstr ""
+msgstr "Toujours trier les scores par pp"
 
-#: src/App/Neomod/OptionsOverlay.cpp:915
+#: src/App/Neomod/OptionsOverlay.cpp:946
 msgid "Ignore score sorting type entirely."
 msgstr ""
 
-#: src/App/Neomod/OptionsOverlay.cpp:918 src/App/Neomod/OptionsOverlay.cpp:1282
+#: src/App/Neomod/OptionsOverlay.cpp:949 src/App/Neomod/OptionsOverlay.cpp:1307
 msgid "Songbrowser"
 msgstr "Navigateur de musiques"
 
-#: src/App/Neomod/OptionsOverlay.cpp:922
-msgid "Prefer metadata in original language"
-msgstr "Préférer les métadonnées dans la langue d'origine"
-
-#: src/App/Neomod/OptionsOverlay.cpp:925
+#: src/App/Neomod/OptionsOverlay.cpp:950
 msgid "Draw Strain Graph in Songbrowser"
-msgstr "Afficher le graphique de strain dans le navigateur de musiques"
+msgstr "Afficher le graphique de tension dans les menus"
 
-#: src/App/Neomod/OptionsOverlay.cpp:926
+#: src/App/Neomod/OptionsOverlay.cpp:951
 msgid ""
 "Hold either SHIFT/CTRL to show only speed/aim strains.\n"
 "Speed strain is red, aim strain is green.\n"
 "(See osu_hud_scrubbing_timeline_strains_*)"
 msgstr ""
-"Maintenez SHIFT ou CTRL pour n'afficher que les strains de vitesse/visée.\n"
-"Le strain de vitesse est rouge, le strain de visée est vert.\n"
+"Maintenez SHIFT ou CTRL pour n'afficher que les tensions de vitesse/visée.\n"
+"La tension de vitesse est rouge, la tension de visée est verte.\n"
 "(Voir osu_hud_scrubbing_timeline_strains_*)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:929
+#: src/App/Neomod/OptionsOverlay.cpp:954
 msgid "Draw Strain Graph in Scrubbing Timeline"
-msgstr "Afficher le graphique de strain dans la timeline"
+msgstr "Afficher le graphique de tension dans la timeline"
 
-#: src/App/Neomod/OptionsOverlay.cpp:930
+#: src/App/Neomod/OptionsOverlay.cpp:955
 msgid ""
 "Speed strain is red, aim strain is green.\n"
 "(See osu_hud_scrubbing_timeline_strains_*)"
 msgstr ""
-"Le strain de vitesse est rouge, le strain de visée est vert.\n"
+"La tension de vitesse est rouge, la tension de visée est verte.\n"
 "(Voir osu_hud_scrubbing_timeline_strains_*)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:932
+#: src/App/Neomod/OptionsOverlay.cpp:957
 msgid "Song Buttons Velocity Animation"
-msgstr "Animation de vélocité des boutons de musiques"
+msgstr "Animer les boutons de musiques"
 
-#: src/App/Neomod/OptionsOverlay.cpp:933
+#: src/App/Neomod/OptionsOverlay.cpp:958
 msgid ""
 "If enabled, then song buttons are pushed to the right depending on the "
 "scrolling velocity."
@@ -1053,168 +1076,168 @@ msgstr ""
 "Si activé, les boutons de musiques sont poussés vers la droite en fonction "
 "de la vélocité de défilement."
 
-#: src/App/Neomod/OptionsOverlay.cpp:935
+#: src/App/Neomod/OptionsOverlay.cpp:960
 msgid "Song Buttons Curved Layout"
-msgstr "Disposition courbée des boutons de musiques"
+msgstr "Courber les boutons de musiques"
 
-#: src/App/Neomod/OptionsOverlay.cpp:936
+#: src/App/Neomod/OptionsOverlay.cpp:961
 msgid ""
 "If enabled, then song buttons are positioned on a vertically centered curve."
 msgstr ""
 "Si activé, les boutons de musiques sont positionnés sur une courbe centrée "
 "verticalement."
 
-#: src/App/Neomod/OptionsOverlay.cpp:939
+#: src/App/Neomod/OptionsOverlay.cpp:964
 msgid "Window"
 msgstr "Fenêtre"
 
-#: src/App/Neomod/OptionsOverlay.cpp:940
+#: src/App/Neomod/OptionsOverlay.cpp:965
 msgid "Pause on Focus Loss"
 msgstr "Pause en cas de perte de focus"
 
-#: src/App/Neomod/OptionsOverlay.cpp:940
+#: src/App/Neomod/OptionsOverlay.cpp:965
 msgid "Should the game pause when you switch to another application?"
 msgstr ""
 "Le jeu doit-il se mettre en pause lorsque vous passez à une autre "
 "application ?"
 
-#: src/App/Neomod/OptionsOverlay.cpp:943
+#: src/App/Neomod/OptionsOverlay.cpp:968
 msgid "Alerts"
 msgstr "Alertes"
 
-#: src/App/Neomod/OptionsOverlay.cpp:944
+#: src/App/Neomod/OptionsOverlay.cpp:969
 msgid "Notify when friends change status"
 msgstr "Notifier quand les amis changent de statut"
 
-#: src/App/Neomod/OptionsOverlay.cpp:945
+#: src/App/Neomod/OptionsOverlay.cpp:970
 msgid "Notify when receiving a direct message"
 msgstr "Notifier à la réception d'un message direct"
 
-#: src/App/Neomod/OptionsOverlay.cpp:946
+#: src/App/Neomod/OptionsOverlay.cpp:971
 msgid "Notify when mentioned"
 msgstr "Notifier quand on vous mentionne"
 
-#: src/App/Neomod/OptionsOverlay.cpp:947
+#: src/App/Neomod/OptionsOverlay.cpp:972
 msgid "Ping when mentioned"
-msgstr "Bip quand on vous mentionne"
+msgstr "Biper quand on vous mentionne"
 
-#: src/App/Neomod/OptionsOverlay.cpp:948
+#: src/App/Neomod/OptionsOverlay.cpp:973
 msgid "Show notifications during gameplay"
 msgstr "Afficher les notifications pendant le jeu"
 
-#: src/App/Neomod/OptionsOverlay.cpp:950
+#: src/App/Neomod/OptionsOverlay.cpp:975
 msgid "In-game chat"
 msgstr "Chat en jeu"
 
-#: src/App/Neomod/OptionsOverlay.cpp:951
+#: src/App/Neomod/OptionsOverlay.cpp:976
 msgid "Chat ticker"
-msgstr "Fil d'actualité du chat"
+msgstr "Afficher le mini-chat"
 
-#: src/App/Neomod/OptionsOverlay.cpp:952
+#: src/App/Neomod/OptionsOverlay.cpp:977
 msgid "Automatically hide chat during gameplay"
 msgstr "Masquer automatiquement le chat pendant le jeu"
 
-#: src/App/Neomod/OptionsOverlay.cpp:953
+#: src/App/Neomod/OptionsOverlay.cpp:978
 msgid "Chat word ignore list (space-separated):"
-msgstr "Liste de mots ignorés dans le chat (séparés par des espaces) :"
+msgstr "Liste de mots à ignorer (séparés par des espaces) :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:957
+#: src/App/Neomod/OptionsOverlay.cpp:982
 msgid "Privacy"
 msgstr "Confidentialité"
 
-#: src/App/Neomod/OptionsOverlay.cpp:959
+#: src/App/Neomod/OptionsOverlay.cpp:984
 msgid "Automatically update to the latest version"
-msgstr "Mettre à jour automatiquement vers la dernière version"
+msgstr "Mettre à jour le jeu automatiquement"
 
-#: src/App/Neomod/OptionsOverlay.cpp:963
+#: src/App/Neomod/OptionsOverlay.cpp:988
 msgid "Replace main menu logo with server logo"
-msgstr "Remplacer le logo du menu principal par le logo du serveur"
+msgstr "Utiliser le logo du serveur dans le menu principal"
 
-#: src/App/Neomod/OptionsOverlay.cpp:964
+#: src/App/Neomod/OptionsOverlay.cpp:989
 msgid "Show spectator list"
 msgstr "Afficher la liste des spectateurs"
 
-#: src/App/Neomod/OptionsOverlay.cpp:965
+#: src/App/Neomod/OptionsOverlay.cpp:990
 msgid "Share currently played map with spectators"
 msgstr "Partager la map en cours avec les spectateurs"
 
-#: src/App/Neomod/OptionsOverlay.cpp:968
+#: src/App/Neomod/OptionsOverlay.cpp:993
 msgid "Enable Discord Rich Presence"
-msgstr "Activer Discord Rich Presence"
+msgstr "Partager l'activité sur Discord"
 
-#: src/App/Neomod/OptionsOverlay.cpp:969
+#: src/App/Neomod/OptionsOverlay.cpp:994
 msgid ""
 "Shows your current game state in your friends' friendslists.\n"
 "e.g.: Playing Gavin G - Reach Out [Cherry Blossom's Insane]"
 msgstr ""
-"Affiche votre état de jeu actuel dans la liste d'amis de vos amis.\n"
+"Affiche votre état de jeu actuel à vos amis.\n"
 "Ex. : Joue à Gavin G - Reach Out [Cherry Blossom's Insane]"
 
-#: src/App/Neomod/OptionsOverlay.cpp:972
+#: src/App/Neomod/OptionsOverlay.cpp:997
 msgid "Draw map backgrounds in Discord Rich Presence"
-msgstr "Afficher les fonds de map dans Discord Rich Presence"
+msgstr "Inclure l'image de la map actuall sur l'activité Discord"
 
-#: src/App/Neomod/OptionsOverlay.cpp:980
+#: src/App/Neomod/OptionsOverlay.cpp:1005
 msgid "Graphics"
 msgstr "Graphismes"
 
-#: src/App/Neomod/OptionsOverlay.cpp:982
+#: src/App/Neomod/OptionsOverlay.cpp:1007
 msgid "Renderer"
 msgstr "Rendu"
 
-#: src/App/Neomod/OptionsOverlay.cpp:985
+#: src/App/Neomod/OptionsOverlay.cpp:1010
 msgid "If enabled: plz enjoy input lag."
 msgstr "Si activé : profitez de la latence d'entrée."
 
-#: src/App/Neomod/OptionsOverlay.cpp:985
+#: src/App/Neomod/OptionsOverlay.cpp:1010
 msgid "VSync"
-msgstr "VSync"
+msgstr "Synchronisation Vertiale (VSync)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:986
+#: src/App/Neomod/OptionsOverlay.cpp:1011
 msgid "High Priority"
 msgstr "Haute priorité"
 
-#: src/App/Neomod/OptionsOverlay.cpp:986
+#: src/App/Neomod/OptionsOverlay.cpp:1011
 msgid "Sets the game process priority to high"
-msgstr "Définit la priorité du processus du jeu sur haute"
+msgstr "Définit la priorité du processus du jeu sur \"haute\""
 
-#: src/App/Neomod/OptionsOverlay.cpp:989
+#: src/App/Neomod/OptionsOverlay.cpp:1014
 msgid "Show FPS Counter"
 msgstr "Afficher le compteur FPS"
 
-#: src/App/Neomod/OptionsOverlay.cpp:992
+#: src/App/Neomod/OptionsOverlay.cpp:1017
 msgid "Max Queued Frames"
 msgstr "Max de trames en file d'attente"
 
-#: src/App/Neomod/OptionsOverlay.cpp:995
+#: src/App/Neomod/OptionsOverlay.cpp:1020
 msgid "Raise for higher fps, decrease for lower latency"
-msgstr "Augmentez pour plus de FPS, diminuez pour une latence plus faible"
+msgstr "Augmentez pour + de FPS, diminuez pour - de latence"
 
-#: src/App/Neomod/OptionsOverlay.cpp:999
+#: src/App/Neomod/OptionsOverlay.cpp:1024
 msgid "FPS Limiter:"
 msgstr "Limiteur de FPS :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1004
+#: src/App/Neomod/OptionsOverlay.cpp:1029
 msgid "FPS Limiter (menus):"
 msgstr "Limiteur de FPS (menus) :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1008
+#: src/App/Neomod/OptionsOverlay.cpp:1033
 msgid "Layout"
 msgstr "Disposition"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1010
+#: src/App/Neomod/OptionsOverlay.cpp:1035
 msgid "Select Resolution"
 msgstr "Sélectionner la résolution"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1015
+#: src/App/Neomod/OptionsOverlay.cpp:1040
 msgid "Fullscreen"
 msgstr "Plein écran"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1017
+#: src/App/Neomod/OptionsOverlay.cpp:1042
 msgid "Keep Aspect Ratio"
 msgstr "Conserver le ratio d'affichage"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1018
+#: src/App/Neomod/OptionsOverlay.cpp:1043
 msgid ""
 "Black borders instead of a stretched image.\n"
 "Only relevant if fullscreen is enabled, and letterboxing is disabled.\n"
@@ -1226,11 +1249,11 @@ msgstr ""
 "Utilisez les deux curseurs de position ci-dessous pour déplacer la zone "
 "d'affichage."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1022
+#: src/App/Neomod/OptionsOverlay.cpp:1047
 msgid "Letterboxing"
 msgstr "Letterboxing"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1023
+#: src/App/Neomod/OptionsOverlay.cpp:1048
 msgid ""
 "Useful to get the low latency of fullscreen with a smaller game resolution.\n"
 "Use the two position sliders below to move the viewport around."
@@ -1240,96 +1263,92 @@ msgstr ""
 "Utilisez les deux curseurs de position ci-dessous pour déplacer la zone "
 "d'affichage."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1027
+#: src/App/Neomod/OptionsOverlay.cpp:1052
 msgid "Horizontal position"
 msgstr "Position horizontale"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1032
+#: src/App/Neomod/OptionsOverlay.cpp:1057
 msgid "Vertical position"
 msgstr "Position verticale"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1037
+#: src/App/Neomod/OptionsOverlay.cpp:1062
 msgid "UI Scaling"
 msgstr "Échelle de l'interface"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1039
+#: src/App/Neomod/OptionsOverlay.cpp:1064
 msgid "DPI Scaling"
-msgstr "Échelle DPI"
+msgstr ""
 
-#: src/App/Neomod/OptionsOverlay.cpp:1042
+#: src/App/Neomod/OptionsOverlay.cpp:1067
 #, c++-format
 msgid ""
 "Automatically scale to the DPI of your display: {} DPI.\n"
 "Scale factor = {} / 96 = {:.2g}x"
 msgstr ""
-"Mise à l'échelle automatique selon le DPI de votre écran : {} DPI.\n"
-"Facteur d'échelle = {} / 96 = {:.2g}x"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1046
+#: src/App/Neomod/OptionsOverlay.cpp:1071
 msgid "UI Scale:"
-msgstr "Échelle de l'interface :"
-
-#: src/App/Neomod/OptionsOverlay.cpp:1051
-msgid "Detail Settings"
-msgstr "Paramètres de détail"
-
-#: src/App/Neomod/OptionsOverlay.cpp:1052
-msgid "Animate scoreboard"
-msgstr "Animer le tableau des scores"
-
-#: src/App/Neomod/OptionsOverlay.cpp:1052
-msgid "Use fancy animations for the in-game scoreboard"
 msgstr ""
-"Utiliser des animations sophistiquées pour le tableau des scores en jeu"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1055
+#: src/App/Neomod/OptionsOverlay.cpp:1076
+msgid "Detail Settings"
+msgstr "Détails"
+
+#: src/App/Neomod/OptionsOverlay.cpp:1077
+msgid "Animate scoreboard"
+msgstr "Animer les scores"
+
+#: src/App/Neomod/OptionsOverlay.cpp:1077
+msgid "Use fancy animations for the in-game scoreboard"
+msgstr "Utiliser des belles animations pour le tableau des scores en jeu"
+
+#: src/App/Neomod/OptionsOverlay.cpp:1080
 msgid "Avoid flashing elements"
-msgstr "Éviter les éléments clignotants"
+msgstr "Éviter les éléments clignotants (épilepsie)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1056
+#: src/App/Neomod/OptionsOverlay.cpp:1081
 msgid ""
 "Disables cosmetic flash effects\n"
 "Disables dimming when holding silders with Flashlight mod enabled"
 msgstr ""
 "Désactive les effets de flash cosmétiques\n"
-"Désactive l'assombrissement en maintenant les sliders avec le mod Flashlight "
+"Désactive l'assombrissement causé par les sliders avec le mod Flashlight "
 "activé"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1059
+#: src/App/Neomod/OptionsOverlay.cpp:1084
 msgid "Mipmaps"
 msgstr "Mipmaps"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1060
+#: src/App/Neomod/OptionsOverlay.cpp:1085
 msgid ""
 "Reload your skin to apply! (CTRL + ALT + S)\n"
 "Generate mipmaps for each skin element, at the cost of VRAM.\n"
 "Provides smoother visuals on lower resolutions for @2x-only skins."
 msgstr ""
 "Rechargez votre skin pour appliquer ! (CTRL + ALT + S)\n"
-"Génère des mipmaps pour chaque élément du skin, au prix de la VRAM.\n"
-"Offre des visuels plus fluides sur les basses résolutions pour les skins @2x "
+"Génère des mipmaps pour chaque élément du skin, en utilisant + de VRAM.\n"
+"Offre des visuels plus fluides sur les résolutions basses pour les skins @2x "
 "uniquement."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1065
+#: src/App/Neomod/OptionsOverlay.cpp:1090
 msgid "Snaking in sliders"
-msgstr "Snaking in sliders"
+msgstr "Animation d'apparition des sliders"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1066
+#: src/App/Neomod/OptionsOverlay.cpp:1091
 msgid ""
 "\"Growing\" sliders.\n"
 "Sliders gradually snake out from their starting point while fading in.\n"
 "Has no impact on performance whatsoever."
 msgstr ""
 "Sliders \"grandissants\".\n"
-"Les sliders se déploient progressivement depuis leur point de départ en "
-"fondu.\n"
+"Les sliders se déploient progressivement depuis leur point de départ.\n"
 "N'a aucun impact sur les performances."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1069
+#: src/App/Neomod/OptionsOverlay.cpp:1094
 msgid "Snaking out sliders"
-msgstr "Snaking out sliders"
+msgstr "Animation de disparition des sliders"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1070
+#: src/App/Neomod/OptionsOverlay.cpp:1095
 msgid ""
 "\"Shrinking\" sliders.\n"
 "Sliders will shrink with the sliderball while sliding.\n"
@@ -1338,13 +1357,13 @@ msgstr ""
 "Sliders \"rétrécissants\".\n"
 "Les sliders rétrécissent avec la boule de slider pendant le glissement.\n"
 "Peut légèrement améliorer les performances car il y a moins d'éléments à "
-"dessiner."
+"afficher."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1075
+#: src/App/Neomod/OptionsOverlay.cpp:1100
 msgid "Legacy Slider Renderer (!)"
-msgstr "Rendu de slider hérité (!)"
+msgstr "Ancien rendu de slider (!)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1076
+#: src/App/Neomod/OptionsOverlay.cpp:1101
 msgid ""
 "WARNING: Only try enabling this on shitty old computers!\n"
 "May or may not improve fps while few sliders are visible.\n"
@@ -1354,48 +1373,48 @@ msgstr ""
 "Peut ou non améliorer les FPS quand peu de sliders sont visibles.\n"
 "FPS inférieurs garantis quand beaucoup de sliders sont visibles !"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1079
+#: src/App/Neomod/OptionsOverlay.cpp:1104
 msgid "Higher Quality Sliders (!)"
 msgstr "Sliders de meilleure qualité (!)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1080
+#: src/App/Neomod/OptionsOverlay.cpp:1105
 msgid "Disable this if your fps drop too low while sliders are visible."
 msgstr ""
 "Désactivez ceci si vos FPS chutent trop quand les sliders sont visibles."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1084
+#: src/App/Neomod/OptionsOverlay.cpp:1109
 msgid "Slider Quality"
 msgstr "Qualité des sliders"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1090
+#: src/App/Neomod/OptionsOverlay.cpp:1115
 msgid "Audio"
 msgstr "Audio"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1092
+#: src/App/Neomod/OptionsOverlay.cpp:1117
 msgid "Devices"
 msgstr "Périphériques"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1095
+#: src/App/Neomod/OptionsOverlay.cpp:1120
 msgid "Default"
 msgstr "Par défaut"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1095
+#: src/App/Neomod/OptionsOverlay.cpp:1120
 msgid "Select Output Device"
-msgstr "Sélectionner le périphérique de sortie"
+msgstr "Carte son"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1108
+#: src/App/Neomod/OptionsOverlay.cpp:1133
 msgid "Backend"
-msgstr "Backend"
+msgstr "Moteur audio"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1108
+#: src/App/Neomod/OptionsOverlay.cpp:1133
 msgid "MiniAudio"
 msgstr "MiniAudio"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1108
+#: src/App/Neomod/OptionsOverlay.cpp:1133
 msgid "SDL"
 msgstr "SDL"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1119
+#: src/App/Neomod/OptionsOverlay.cpp:1144
 msgid ""
 "Pick the one you feel works best,\n"
 "there should be very little difference."
@@ -1403,29 +1422,26 @@ msgstr ""
 "Choisissez celui qui vous semble le mieux fonctionner,\n"
 "il devrait y avoir très peu de différence."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1150
+#: src/App/Neomod/OptionsOverlay.cpp:1175
 msgid "Auto-disable exclusive mode"
 msgstr "Désactiver automatiquement le mode exclusif"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1151
+#: src/App/Neomod/OptionsOverlay.cpp:1176
 msgid ""
 "Toggle exclusive mode off/on\n"
 "when losing/gaining focus, if already\n"
 "in exclusive mode."
-msgstr ""
-"Active/désactive le mode exclusif\n"
-"en perdant/gagnant le focus, si déjà\n"
-"en mode exclusif."
+msgstr "Désactive le mode exclusif lorsque le jeu est minimisé."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1167
+#: src/App/Neomod/OptionsOverlay.cpp:1192
 msgid "WASAPI"
 msgstr "WASAPI"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1169
+#: src/App/Neomod/OptionsOverlay.cpp:1194
 msgid "Low-latency Callbacks"
 msgstr "Rappels basse latence"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1170
+#: src/App/Neomod/OptionsOverlay.cpp:1195
 msgid ""
 "Run BASSWASAPI in callback mode to potentially further decrease latency.\n"
 "(period/buffer size are ignored)"
@@ -1434,32 +1450,32 @@ msgstr ""
 "latence.\n"
 "(la taille de la période/tampon est ignorée)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1175
-#: src/App/Neomod/OptionsOverlay.cpp:1211
+#: src/App/Neomod/OptionsOverlay.cpp:1200
+#: src/App/Neomod/OptionsOverlay.cpp:1236
 msgid "Buffer Size:"
 msgstr "Taille du tampon :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1180
+#: src/App/Neomod/OptionsOverlay.cpp:1205
 msgid "Windows 7: Start at 11 ms,"
 msgstr "Windows 7 : Commencez à 11 ms,"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1181
+#: src/App/Neomod/OptionsOverlay.cpp:1206
 msgid "Windows 10: Start at 1 ms,"
 msgstr "Windows 10 : Commencez à 1 ms,"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1182
+#: src/App/Neomod/OptionsOverlay.cpp:1207
 msgid "and if crackling: increment until fixed."
-msgstr "et si crépitements : augmentez jusqu'à résolution."
+msgstr "et si crépitements : augmentez jusqu'à correction."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1183
+#: src/App/Neomod/OptionsOverlay.cpp:1208
 msgid "(lower is better, non-wasapi has ~40 ms minimum)"
 msgstr "(plus bas est mieux, non-wasapi a ~40 ms minimum)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1185
+#: src/App/Neomod/OptionsOverlay.cpp:1210
 msgid "Exclusive Mode"
 msgstr "Mode exclusif"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1186
+#: src/App/Neomod/OptionsOverlay.cpp:1211
 msgid ""
 "Dramatically reduces latency, but prevents other applications from capturing/"
 "playing audio."
@@ -1467,156 +1483,155 @@ msgstr ""
 "Réduit considérablement la latence, mais empêche les autres applications de "
 "capturer/lire l'audio."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1190
+#: src/App/Neomod/OptionsOverlay.cpp:1215
 msgid "WARNING: Only if you know what you are doing"
 msgstr "ATTENTION : Seulement si vous savez ce que vous faites"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1192
+#: src/App/Neomod/OptionsOverlay.cpp:1217
 msgid "Period Size:"
 msgstr "Taille de la période :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1197
-#: src/App/Neomod/OptionsOverlay.cpp:1221
+#: src/App/Neomod/OptionsOverlay.cpp:1222
+#: src/App/Neomod/OptionsOverlay.cpp:1246
 msgid "Restart SoundEngine"
 msgstr "Redémarrer le moteur audio"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1210
+#: src/App/Neomod/OptionsOverlay.cpp:1235
 msgid "ASIO"
 msgstr "ASIO"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1218
+#: src/App/Neomod/OptionsOverlay.cpp:1243
 msgid "Open ASIO settings"
 msgstr "Ouvrir les paramètres ASIO"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1234
+#: src/App/Neomod/OptionsOverlay.cpp:1259
 msgid "Volume"
 msgstr "Volume"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1236
+#: src/App/Neomod/OptionsOverlay.cpp:1261
 msgid "Normalize loudness across songs"
 msgstr "Normaliser le volume sonore entre les musiques"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1239
+#: src/App/Neomod/OptionsOverlay.cpp:1264
 msgid "Master:"
-msgstr "Principal :"
+msgstr "Global :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1243
+#: src/App/Neomod/OptionsOverlay.cpp:1268
 msgid "Inactive:"
 msgstr "Inactif :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1246
+#: src/App/Neomod/OptionsOverlay.cpp:1271
 msgid "Music:"
 msgstr "Musique :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1249
+#: src/App/Neomod/OptionsOverlay.cpp:1274
 msgid "Effects:"
 msgstr "Effets :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1253
+#: src/App/Neomod/OptionsOverlay.cpp:1278
 msgid "Offset Adjustment"
-msgstr "Ajustement du décalage"
+msgstr "Décalage audio"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1255
+#: src/App/Neomod/OptionsOverlay.cpp:1280
 msgid "Scaled Offset:"
 msgstr "Décalage ajusté :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1260
+#: src/App/Neomod/OptionsOverlay.cpp:1285
 msgid ""
 "Behaves the same as \"Universal Offset\" in osu! (is multiplied by playback "
 "rate)."
 msgstr ""
-"Se comporte comme le \"Universal Offset\" dans osu! (est multiplié par le "
-"taux de lecture)."
+"Se comporte comme \"Universal Offset\" dans osu! (multiplié par la vitesse "
+"de lecture)."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1264
+#: src/App/Neomod/OptionsOverlay.cpp:1289
 msgid "Unscaled Offset:"
 msgstr "Décalage brut :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1270
+#: src/App/Neomod/OptionsOverlay.cpp:1295
 msgid ""
 "\"Universal Offset\", but unaffected by rate adjustments.\n"
 "+15 unscaled offset is the same as using -15 local offset on every map."
 msgstr ""
-"\"Universal Offset\", mais non affecté par les ajustements de vitesse.\n"
+"Comme \"Universal Offset\", mais non affecté par les ajustements de "
+"vitesse.\n"
 "+15 de décalage brut équivaut à utiliser -15 de décalage local sur chaque "
 "map."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1274
-#: src/App/Neomod/OptionsOverlay.cpp:1497
+#: src/App/Neomod/OptionsOverlay.cpp:1299
+#: src/App/Neomod/OptionsOverlay.cpp:1522
 msgid "Gameplay"
 msgstr "Gameplay"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1275
+#: src/App/Neomod/OptionsOverlay.cpp:1300
 msgid "Boost hitsound volume"
 msgstr "Amplifier le volume des hitsounds"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1276
+#: src/App/Neomod/OptionsOverlay.cpp:1301
 msgid "Apply a small logarithmic multiplier to non-sliderslide hitsounds."
 msgstr ""
 "Applique un petit multiplicateur logarithmique aux hitsounds autres que ceux "
 "de glissement des sliders."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1278
+#: src/App/Neomod/OptionsOverlay.cpp:1303
 msgid "Change hitsound pitch based on accuracy"
-msgstr "Changer la hauteur des hitsounds selon la précision"
+msgstr "Changer la tonalité des hitsounds selon la précision"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1279
+#: src/App/Neomod/OptionsOverlay.cpp:1304
 msgid "Prefer Nightcore over Double Time"
 msgstr "Préférer Nightcore à Double Time"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1283
+#: src/App/Neomod/OptionsOverlay.cpp:1308
 msgid "Apply speed/pitch mods while browsing"
-msgstr "Appliquer les mods de vitesse/hauteur pendant la navigation"
+msgstr "Appliquer les mods de vitesse dans les menus"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1284
+#: src/App/Neomod/OptionsOverlay.cpp:1309
 msgid "Whether to always apply all mods, or keep the preview music normal."
-msgstr ""
-"Que ce soit pour toujours appliquer tous les mods ou garder la musique de "
-"prévisualisation normale."
+msgstr "Applique les mods de vitesse en dehors du gameplay."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1289
-#: src/App/Neomod/OptionsOverlay.cpp:1291
+#: src/App/Neomod/OptionsOverlay.cpp:1314
+#: src/App/Neomod/OptionsOverlay.cpp:1316
 msgid "Skin"
 msgstr "Skin"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1295
+#: src/App/Neomod/OptionsOverlay.cpp:1320
 msgid "To import a skin, just drop the .osk file on this window!"
 msgstr ""
 "Pour importer un skin, déposez simplement le fichier .osk sur cette fenêtre !"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1300
+#: src/App/Neomod/OptionsOverlay.cpp:1325
 msgid "Select Skin"
-msgstr "Sélectionner le skin"
+msgstr "Sélectionner un skin"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1300
+#: src/App/Neomod/OptionsOverlay.cpp:1325
 msgid "default"
-msgstr "défaut"
+msgstr ""
 
-#: src/App/Neomod/OptionsOverlay.cpp:1307
+#: src/App/Neomod/OptionsOverlay.cpp:1332
 msgid ""
 "Shift-click a skin to set it as fallback.\n"
 "Missing elements fall back to it instead of \"default\"."
 msgstr ""
-"Shift-clic sur un skin pour le définir comme fallback.\n"
-"Les éléments manquants utilisent celui-ci au lieu de \"défaut\"."
+"Shift + cliquez un skin pour le définir comme fallback.\n"
+"Les éléments manquants utilisent celui-ci au lieu de \"default\"."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1310
+#: src/App/Neomod/OptionsOverlay.cpp:1335
 msgid "Open current Skin folder"
 msgstr "Ouvrir le dossier du skin actuel"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1314
+#: src/App/Neomod/OptionsOverlay.cpp:1339
 msgid "Random Skin"
 msgstr "Skin aléatoire"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1314
+#: src/App/Neomod/OptionsOverlay.cpp:1339
 msgid "Reload Skin"
 msgstr "Recharger le skin"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1319
+#: src/App/Neomod/OptionsOverlay.cpp:1344
 msgid "(CTRL + ALT + S)"
 msgstr "(CTRL + ALT + S)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1329
+#: src/App/Neomod/OptionsOverlay.cpp:1354
 msgid ""
 "Temporary, does not change your configured skin (reload to reset).\n"
 "Use \"skin_random 1\" to randomize on every skin reload.\n"
@@ -1629,11 +1644,11 @@ msgstr ""
 "Utilisez \"skin_random_elements 1\" pour mélanger plusieurs skins.\n"
 "Utilisez \"skin_export\" pour exporter le skin actuellement actif."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1335
+#: src/App/Neomod/OptionsOverlay.cpp:1360
 msgid "Sort Skins Alphabetically"
 msgstr "Trier les skins par ordre alphabétique"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1336
+#: src/App/Neomod/OptionsOverlay.cpp:1361
 msgid ""
 "Less like stable, but useful if you don't\n"
 "like obnoxious skin names floating to the top."
@@ -1641,63 +1656,63 @@ msgstr ""
 "Moins comme stable, mais utile si vous n'aimez pas\n"
 "les noms de skin prétentieux qui remontent en haut."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1339
+#: src/App/Neomod/OptionsOverlay.cpp:1364
 msgid "Number Scale:"
-msgstr "Échelle des nombres :"
+msgstr "Taille des nombres"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1343
+#: src/App/Neomod/OptionsOverlay.cpp:1368
 msgid "HitResult Scale:"
-msgstr "Échelle des résultats :"
+msgstr "Taille des résultats"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1346
+#: src/App/Neomod/OptionsOverlay.cpp:1371
 msgid "Draw Numbers"
 msgstr "Afficher les nombres"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1347
+#: src/App/Neomod/OptionsOverlay.cpp:1372
 msgid "Draw Approach Circles"
 msgstr "Afficher les cercles d'approche"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1348
+#: src/App/Neomod/OptionsOverlay.cpp:1373
 msgid "Instafade Circles"
 msgstr "Instafade des cercles"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1349
+#: src/App/Neomod/OptionsOverlay.cpp:1374
 msgid "Instafade Sliders"
 msgstr "Instafade des sliders"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1352
+#: src/App/Neomod/OptionsOverlay.cpp:1377
 msgid "Ignore Beatmap Sample Volume"
-msgstr "Ignorer le volume des échantillons de la beatmap"
+msgstr "Ignorer le volume des samples de la beatmap"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1353
+#: src/App/Neomod/OptionsOverlay.cpp:1378
 msgid ""
 "Ignore beatmap timingpoint effect volumes.\n"
 "Quiet hitsounds can destroy accuracy and concentration, enabling this will "
 "fix that."
 msgstr ""
-"Ignore les volumes d'effet des points de timing de la beatmap.\n"
+"Ignore les volumes d'effet de samples de la beatmap.\n"
 "Des hitsounds trop silencieux peuvent nuire à la précision et à la "
 "concentration, activer ceci corrige cela."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1356
+#: src/App/Neomod/OptionsOverlay.cpp:1381
 msgid "Ignore Beatmap Combo Colors"
 msgstr "Ignorer les couleurs de combo de la beatmap"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1357
+#: src/App/Neomod/OptionsOverlay.cpp:1382
 msgid "Use skin's sound samples"
-msgstr "Utiliser les échantillons sonores du skin"
+msgstr "Utiliser les samples du skin"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1358
+#: src/App/Neomod/OptionsOverlay.cpp:1383
 msgid "If this is not selected, then the default skin hitsounds will be used."
 msgstr ""
 "Si ce n'est pas sélectionné, les hitsounds du skin par défaut seront "
 "utilisés."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1360
+#: src/App/Neomod/OptionsOverlay.cpp:1385
 msgid "Load HD @2x"
 msgstr "Charger HD @2x"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1361
+#: src/App/Neomod/OptionsOverlay.cpp:1386
 msgid ""
 "On very low resolutions (below 1600x900) you can disable this to get "
 "smoother visuals."
@@ -1705,15 +1720,15 @@ msgstr ""
 "Sur les très basses résolutions (en dessous de 1600x900), vous pouvez "
 "désactiver ceci pour des visuels plus fluides."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1364
+#: src/App/Neomod/OptionsOverlay.cpp:1389
 msgid "Draw Cursor Trail"
 msgstr "Afficher la traînée du curseur"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1366
+#: src/App/Neomod/OptionsOverlay.cpp:1391
 msgid "Force Smooth Cursor Trail"
 msgstr "Forcer la traînée lisse du curseur"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1367
+#: src/App/Neomod/OptionsOverlay.cpp:1392
 msgid ""
 "Usually, the presence of the cursormiddle.png skin image enables smooth "
 "cursortrails.\n"
@@ -1724,52 +1739,52 @@ msgstr ""
 "Cette option vous permet de forcer l'activation des traînées lisses pour "
 "tous les skins."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1370
+#: src/App/Neomod/OptionsOverlay.cpp:1395
 msgid "Always draw Cursor Trail"
 msgstr "Toujours afficher la traînée du curseur"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1370
+#: src/App/Neomod/OptionsOverlay.cpp:1395
 msgid "Draw the cursor trail even when the cursor isn't moving"
 msgstr "Afficher la traînée du curseur même quand le curseur ne bouge pas"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1372
+#: src/App/Neomod/OptionsOverlay.cpp:1397
 msgid "Cursor trail spacing:"
 msgstr "Espacement de la traînée :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1375
+#: src/App/Neomod/OptionsOverlay.cpp:1400
 msgid "Cursor Size:"
 msgstr "Taille du curseur :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1378
+#: src/App/Neomod/OptionsOverlay.cpp:1403
 msgid "Automatic Cursor Size"
 msgstr "Taille automatique du curseur"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1378
+#: src/App/Neomod/OptionsOverlay.cpp:1403
 msgid "Cursor size will adjust based on the CS of the current beatmap."
 msgstr ""
 "La taille du curseur s'ajustera en fonction du CS de la beatmap actuelle."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1382
+#: src/App/Neomod/OptionsOverlay.cpp:1407
 msgid "Slider Border Size"
-msgstr "Taille de la bordure du slider"
+msgstr "Epaisseur du slider"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1383
+#: src/App/Neomod/OptionsOverlay.cpp:1408
 msgid "Slider Opacity"
 msgstr "Opacité du slider"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1384
+#: src/App/Neomod/OptionsOverlay.cpp:1409
 msgid "Slider Body Opacity"
-msgstr "Opacité du corps du slider"
+msgstr "Opacité du fond du slider"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1385
+#: src/App/Neomod/OptionsOverlay.cpp:1410
 msgid "Slider Body Saturation"
-msgstr "Saturation du corps du slider"
+msgstr "Saturation du slider"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1387
+#: src/App/Neomod/OptionsOverlay.cpp:1412
 msgid "Use slidergradient.png"
 msgstr "Utiliser slidergradient.png"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1388
+#: src/App/Neomod/OptionsOverlay.cpp:1413
 msgid ""
 "Enabling this will improve performance,\n"
 "but also block all dynamic slider (color/border) features."
@@ -1778,98 +1793,98 @@ msgstr ""
 "mais bloquera toutes les fonctionnalités dynamiques des sliders (couleur/"
 "bordure)."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1390
+#: src/App/Neomod/OptionsOverlay.cpp:1415
 msgid "Use osu!lazer Slider Style"
 msgstr "Utiliser le style de slider osu!lazer"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1391
+#: src/App/Neomod/OptionsOverlay.cpp:1416
 msgid ""
 "Only really looks good if your skin doesn't \"SliderTrackOverride\" too dark."
 msgstr ""
 "N'a vraiment belle allure que si votre skin \"SliderTrackOverride\" n'est "
 "pas trop sombre."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1393
+#: src/App/Neomod/OptionsOverlay.cpp:1418
 msgid "Use combo color as tint for slider ball"
-msgstr "Utiliser la couleur de combo comme teinte pour la boule du slider"
+msgstr "Utiliser le combo comme teinte de boule du slider"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1394
+#: src/App/Neomod/OptionsOverlay.cpp:1419
 msgid "Use combo color as tint for slider border"
-msgstr "Utiliser la couleur de combo comme teinte pour la bordure du slider"
+msgstr "Utiliser le combo comme teinte de bordure du slider"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1395
+#: src/App/Neomod/OptionsOverlay.cpp:1420
 msgid "Draw Slider End Circle"
 msgstr "Afficher le cercle de fin du slider"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1399
+#: src/App/Neomod/OptionsOverlay.cpp:1424
 msgid "Input"
-msgstr "Entrées"
+msgstr "Périphériques"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1401
+#: src/App/Neomod/OptionsOverlay.cpp:1426
 msgid "Mouse"
 msgstr "Souris"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1404
+#: src/App/Neomod/OptionsOverlay.cpp:1429
 msgid "Sensitivity:"
 msgstr "Sensibilité :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1412
+#: src/App/Neomod/OptionsOverlay.cpp:1437
 msgid "WARNING: Set Sensitivity to 1 for tablets!"
 msgstr "ATTENTION : Réglez la sensibilité à 1 pour les tablettes !"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1418
+#: src/App/Neomod/OptionsOverlay.cpp:1443
 msgid "Not recommended if you're using a tablet."
 msgstr "Non recommandé si vous utilisez une tablette."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1418
+#: src/App/Neomod/OptionsOverlay.cpp:1443
 msgid "Raw Mouse Input"
 msgstr "Entrée souris brute"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1419
+#: src/App/Neomod/OptionsOverlay.cpp:1444
 msgid "Confine Cursor (Windowed)"
-msgstr "Confiner le curseur (fenêtré)"
+msgstr "Confiner le curseur (en mode fenêtré)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1420
+#: src/App/Neomod/OptionsOverlay.cpp:1445
 msgid "Confine Cursor (Fullscreen)"
-msgstr "Confiner le curseur (plein écran)"
+msgstr "Confiner le curseur (en plein écran)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1421
+#: src/App/Neomod/OptionsOverlay.cpp:1446
 msgid "Confine Cursor (NEVER)"
-msgstr "Confiner le curseur (JAMAIS)"
+msgstr "Ne jamais confiner le curseur"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1421
+#: src/App/Neomod/OptionsOverlay.cpp:1446
 msgid "Overrides automatic cursor clipping during gameplay."
 msgstr "Remplace le clipping automatique du curseur pendant le jeu."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1423
+#: src/App/Neomod/OptionsOverlay.cpp:1448
 msgid "Disable Mouse Wheel in Play Mode"
-msgstr "Désactiver la molette de la souris en mode jeu"
+msgstr "Désactiver la molette de la souris en jeu"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1424
+#: src/App/Neomod/OptionsOverlay.cpp:1449
 msgid "Disable Mouse Buttons in Play Mode"
-msgstr "Désactiver les boutons de la souris en mode jeu"
+msgstr "Désactiver les boutons de la souris en jeu"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1425
+#: src/App/Neomod/OptionsOverlay.cpp:1450
 msgid "Cursor ripples"
-msgstr "Rides du curseur"
+msgstr "Vagues du curseur"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1425
+#: src/App/Neomod/OptionsOverlay.cpp:1450
 msgid "The cursor will ripple outwards on clicking."
 msgstr "Le curseur créera des rides vers l'extérieur en cliquant."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1429
+#: src/App/Neomod/OptionsOverlay.cpp:1454
 msgid "Keyboard"
 msgstr "Clavier"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1431
+#: src/App/Neomod/OptionsOverlay.cpp:1456
 msgid "Raw Keyboard Input"
 msgstr "Entrée clavier brute"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1434
+#: src/App/Neomod/OptionsOverlay.cpp:1459
 msgid "Global Media Hotkeys"
 msgstr "Raccourcis média globaux"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1435
+#: src/App/Neomod/OptionsOverlay.cpp:1460
 msgid ""
 "Allows controlling main menu music with\n"
 "keyboard media shortcuts, even while alt-tabbed"
@@ -1877,219 +1892,219 @@ msgstr ""
 "Permet de contrôler la musique du menu principal avec\n"
 "les raccourcis média du clavier, même en étant alt-tab"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1439
+#: src/App/Neomod/OptionsOverlay.cpp:1464
 msgid "Reset all key bindings"
 msgstr "Réinitialiser tous les raccourcis clavier"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1443
+#: src/App/Neomod/OptionsOverlay.cpp:1468
 msgid "Keys - In-Game"
 msgstr "Touches - En jeu"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1444
+#: src/App/Neomod/OptionsOverlay.cpp:1469
 msgid "Left Click"
 msgstr "Clic gauche"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1445
+#: src/App/Neomod/OptionsOverlay.cpp:1470
 msgid "Right Click"
 msgstr "Clic droit"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1446
+#: src/App/Neomod/OptionsOverlay.cpp:1471
 msgid "Left Click (2)"
 msgstr "Clic gauche (2)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1447
+#: src/App/Neomod/OptionsOverlay.cpp:1472
 msgid "Right Click (2)"
 msgstr "Clic droit (2)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1448
+#: src/App/Neomod/OptionsOverlay.cpp:1473
 msgid "Smoke"
 msgstr "Fumée"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1449
+#: src/App/Neomod/OptionsOverlay.cpp:1474
 msgid "Game Pause"
-msgstr "Pause du jeu"
+msgstr "Pause"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1450
+#: src/App/Neomod/OptionsOverlay.cpp:1475
 msgid "Skip Cutscene"
 msgstr "Passer la cinématique"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1451
+#: src/App/Neomod/OptionsOverlay.cpp:1476
 msgid "Toggle Scoreboard"
-msgstr "Afficher/Masquer le tableau des scores"
+msgstr "Tableau des scores"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1452
+#: src/App/Neomod/OptionsOverlay.cpp:1477
 msgid "Scrubbing (+ Click Drag!)"
 msgstr "Scrubbing (+ cliquer-glisser !)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1453
+#: src/App/Neomod/OptionsOverlay.cpp:1478
 msgid "Quick Seek -5sec <<<"
-msgstr "Recherche rapide -5s <<<"
+msgstr "Téléportation -5s <<<"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1454
+#: src/App/Neomod/OptionsOverlay.cpp:1479
 msgid "Quick Seek +5sec >>>"
-msgstr "Recherche rapide +5s >>>"
+msgstr "Téléportation +5s >>>"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1455
+#: src/App/Neomod/OptionsOverlay.cpp:1480
 msgid "Increase Local Song Offset"
-msgstr "Augmenter le décalage local de la musique"
+msgstr "Augmenter le décalage audio local"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1456
+#: src/App/Neomod/OptionsOverlay.cpp:1481
 msgid "Decrease Local Song Offset"
-msgstr "Diminuer le décalage local de la musique"
+msgstr "Diminuer le décalage audio local"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1457
+#: src/App/Neomod/OptionsOverlay.cpp:1482
 msgid "Quick Retry (hold briefly)"
-msgstr "Réessai rapide (maintenir brièvement)"
+msgstr "Réessai rapide (maintenir)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1458
+#: src/App/Neomod/OptionsOverlay.cpp:1483
 msgid "Quick Save"
 msgstr "Sauvegarde rapide"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1459
+#: src/App/Neomod/OptionsOverlay.cpp:1484
 msgid "Quick Load"
 msgstr "Chargement rapide"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1460
+#: src/App/Neomod/OptionsOverlay.cpp:1485
 msgid "Instant Replay"
 msgstr "Replay instantané"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1461
+#: src/App/Neomod/OptionsOverlay.cpp:1486
 msgid "Keys - FPoSu"
 msgstr "Touches - FPoSu"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1462
+#: src/App/Neomod/OptionsOverlay.cpp:1487
 msgid "Zoom"
 msgstr "Zoom"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1463
+#: src/App/Neomod/OptionsOverlay.cpp:1488
 msgid "Keys - Universal"
 msgstr "Touches - Universelles"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1464
+#: src/App/Neomod/OptionsOverlay.cpp:1489
 msgid "Toggle chat"
-msgstr "Afficher/Masquer le chat"
+msgstr "Chat"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1465
+#: src/App/Neomod/OptionsOverlay.cpp:1490
 msgid "Toggle user list"
-msgstr "Afficher/Masquer la liste d'utilisateurs"
+msgstr "Liste d'utilisateurs"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1467
+#: src/App/Neomod/OptionsOverlay.cpp:1492
 msgid "Save Screenshot"
-msgstr "Sauvegarder une capture d'écran"
+msgstr "Capture d'écran"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1469
+#: src/App/Neomod/OptionsOverlay.cpp:1494
 msgid "Increase Volume"
 msgstr "Augmenter le volume"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1470
+#: src/App/Neomod/OptionsOverlay.cpp:1495
 msgid "Decrease Volume"
 msgstr "Diminuer le volume"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1471
+#: src/App/Neomod/OptionsOverlay.cpp:1496
 msgid "Disable Mouse Buttons"
-msgstr "Désactiver les boutons de la souris"
+msgstr "(Dés)activer les boutons de souris"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1472
+#: src/App/Neomod/OptionsOverlay.cpp:1497
 msgid "Toggle Map Background"
-msgstr "Afficher/Masquer le fond de la map"
+msgstr "Cacher le fond de la map"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1473
+#: src/App/Neomod/OptionsOverlay.cpp:1498
 msgid "Boss Key (Minimize)"
-msgstr "Touche patron (Minimiser)"
+msgstr "Minimiser le jeu"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1474
+#: src/App/Neomod/OptionsOverlay.cpp:1499
 msgid "Open Skin Selection Menu"
-msgstr "Ouvrir le menu de sélection du skin"
+msgstr "Sélectionner un skin"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1475
+#: src/App/Neomod/OptionsOverlay.cpp:1500
 msgid "Keys - Song Select"
 msgstr "Touches - Sélection de musique"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1476
+#: src/App/Neomod/OptionsOverlay.cpp:1501
 msgid "Toggle Mod Selection Screen"
-msgstr "Afficher/Masquer l'écran de sélection des mods"
+msgstr "Sélection des mods"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1477
+#: src/App/Neomod/OptionsOverlay.cpp:1502
 msgid "(F1 can not be unbound. This is just an additional key.)"
 msgstr "(F1 ne peut pas être dissocié. Ce n'est qu'une touche supplémentaire.)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1478
+#: src/App/Neomod/OptionsOverlay.cpp:1503
 msgid "Random Beatmap"
 msgstr "Beatmap aléatoire"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1479
+#: src/App/Neomod/OptionsOverlay.cpp:1504
 msgid "(F2 can not be unbound. This is just an additional key.)"
 msgstr "(F2 ne peut pas être dissocié. Ce n'est qu'une touche supplémentaire.)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1480
+#: src/App/Neomod/OptionsOverlay.cpp:1505
 msgid "Keys - Mod Select"
 msgstr "Touches - Sélection de mods"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1481
+#: src/App/Neomod/OptionsOverlay.cpp:1506
 msgid "Easy"
 msgstr "Easy"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1482
+#: src/App/Neomod/OptionsOverlay.cpp:1507
 msgid "No Fail"
 msgstr "No Fail"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1483
+#: src/App/Neomod/OptionsOverlay.cpp:1508
 msgid "Half Time"
 msgstr "Half Time"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1484
+#: src/App/Neomod/OptionsOverlay.cpp:1509
 msgid "Hard Rock"
 msgstr "Hard Rock"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1485
+#: src/App/Neomod/OptionsOverlay.cpp:1510
 msgid "Sudden Death"
 msgstr "Sudden Death"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1486
+#: src/App/Neomod/OptionsOverlay.cpp:1511
 msgid "Double Time"
 msgstr "Double Time"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1487
+#: src/App/Neomod/OptionsOverlay.cpp:1512
 msgid "Hidden"
 msgstr "Hidden"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1488
+#: src/App/Neomod/OptionsOverlay.cpp:1513
 msgid "Flashlight"
 msgstr "Flashlight"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1489
+#: src/App/Neomod/OptionsOverlay.cpp:1514
 msgid "Relax"
 msgstr "Relax"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1490
+#: src/App/Neomod/OptionsOverlay.cpp:1515
 msgid "Autopilot"
 msgstr "Autopilot"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1491
+#: src/App/Neomod/OptionsOverlay.cpp:1516
 msgid "Spunout"
 msgstr "Spunout"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1492
+#: src/App/Neomod/OptionsOverlay.cpp:1517
 msgid "Auto"
 msgstr "Auto"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1493 src/App/Neomod/RoomScreen.cpp:961
+#: src/App/Neomod/OptionsOverlay.cpp:1518 src/App/Neomod/RoomScreen.cpp:961
 msgid "Score V2"
 msgstr "Score V2"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1500
+#: src/App/Neomod/OptionsOverlay.cpp:1525
 msgid "Background Dim:"
-msgstr "Assombrissement du fond :"
+msgstr "Assombrissement du fond"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1503
+#: src/App/Neomod/OptionsOverlay.cpp:1528
 msgid "Background Brightness:"
-msgstr "Luminosité du fond :"
+msgstr "Luminosité du fond"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1507
+#: src/App/Neomod/OptionsOverlay.cpp:1532
 msgid "Don't change dim level during breaks"
 msgstr "Ne pas changer l'assombrissement pendant les pauses"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1508
+#: src/App/Neomod/OptionsOverlay.cpp:1533
 msgid ""
 "Makes the background basically impossible to see during breaks.\n"
 "Not recommended."
@@ -2097,43 +2112,43 @@ msgstr ""
 "Rend le fond pratiquement impossible à voir pendant les pauses.\n"
 "Non recommandé."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1510
+#: src/App/Neomod/OptionsOverlay.cpp:1535
 msgid "Show approach circle on first \"Hidden\" object"
-msgstr "Afficher le cercle d'approche du premier élément en Hidden"
+msgstr "Afficher le cercle d'approche du premier cercle (HD)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1512
+#: src/App/Neomod/OptionsOverlay.cpp:1537
 msgid "SuddenDeath restart on miss"
-msgstr "Redémarrage de SuddenDeath sur miss"
+msgstr "Redémarrage en cas de miss (SD)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1513
+#: src/App/Neomod/OptionsOverlay.cpp:1538
 msgid "Skips the failing animation, and instantly restarts like SS/PF."
 msgstr "Saute l'animation d'échec et redémarre instantanément comme SS/PF."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1515
+#: src/App/Neomod/OptionsOverlay.cpp:1540
 msgid "Show Skip Button during Intro"
 msgstr "Afficher le bouton Passer pendant l'intro"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1515
+#: src/App/Neomod/OptionsOverlay.cpp:1540
 msgid "Skip intro to first hitobject."
 msgstr "Passer l'intro jusqu'au premier hitobject."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1516
+#: src/App/Neomod/OptionsOverlay.cpp:1541
 msgid "Show Skip Button during Breaks"
 msgstr "Afficher le bouton Passer pendant les pauses"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1516
+#: src/App/Neomod/OptionsOverlay.cpp:1541
 msgid "Skip breaks in the middle of beatmaps."
 msgstr "Passer les pauses au milieu des beatmaps."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1522
+#: src/App/Neomod/OptionsOverlay.cpp:1547
 msgid "Mechanics"
 msgstr "Mécaniques"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1524
+#: src/App/Neomod/OptionsOverlay.cpp:1549
 msgid "Kill Player upon Failing"
-msgstr "Arrêter le joueur en cas d'échec"
+msgstr "Mourir en cas d'échec"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1525
+#: src/App/Neomod/OptionsOverlay.cpp:1550
 msgid ""
 "Enabled: Singleplayer default. You die upon failing and the beatmap stops.\n"
 "Disabled: Multiplayer default. Allows you to keep playing even after failing."
@@ -2142,11 +2157,11 @@ msgstr ""
 "Désactivé : Par défaut en multijoueur. Vous permet de continuer à jouer même "
 "après avoir échoué."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1528
+#: src/App/Neomod/OptionsOverlay.cpp:1553
 msgid "Disable HP drain"
-msgstr "Désactiver le drain de HP"
+msgstr "Désactiver la baisse de santé"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1529
+#: src/App/Neomod/OptionsOverlay.cpp:1554
 msgid ""
 "Like NF, but entirely disables HP mechanics. Will block online score "
 "submission."
@@ -2154,137 +2169,137 @@ msgstr ""
 "Comme NF, mais désactive entièrement les mécaniques de HP. Bloquer la "
 "soumission des scores en ligne."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1536
+#: src/App/Neomod/OptionsOverlay.cpp:1561
 msgid "Select [Notelock]"
 msgstr "Sélectionner [Notelock]"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1545
+#: src/App/Neomod/OptionsOverlay.cpp:1570
 msgid "Info about different notelock algorithms:"
 msgstr "Infos sur les différents algorithmes de notelock :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1547
+#: src/App/Neomod/OptionsOverlay.cpp:1572
 msgid "- McOsu: Auto miss previous circle, always."
 msgstr "- McOsu : Miss automatique du cercle précédent, toujours."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1548
+#: src/App/Neomod/OptionsOverlay.cpp:1573
 msgid "- osu!stable: Locked until previous circle is miss."
 msgstr ""
 "- osu!stable : Verrouillé jusqu'à ce que le cercle précédent soit miss."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1549
+#: src/App/Neomod/OptionsOverlay.cpp:1574
 msgid "- osu!lazer 2020: Auto miss previous circle if > time."
 msgstr "- osu!lazer 2020 : Miss automatique du cercle précédent si > temps."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1552
+#: src/App/Neomod/OptionsOverlay.cpp:1577
 msgid "Backgrounds"
 msgstr "Fonds"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1553
+#: src/App/Neomod/OptionsOverlay.cpp:1578
 msgid "Load Background Images (!)"
 msgstr "Charger les images de fond (!)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1554
+#: src/App/Neomod/OptionsOverlay.cpp:1579
 msgid "NOTE: Disabling this will disable ALL beatmap images everywhere!"
 msgstr ""
 "NOTE : Désactiver ceci désactivera TOUTES les images de beatmap partout !"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1556
+#: src/App/Neomod/OptionsOverlay.cpp:1581
 msgid "Draw Background in Beatmap"
 msgstr "Afficher le fond dans la beatmap"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1557
+#: src/App/Neomod/OptionsOverlay.cpp:1582
 msgid "Draw Background in SongBrowser"
 msgstr "Afficher le fond dans le navigateur de musiques"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1558
+#: src/App/Neomod/OptionsOverlay.cpp:1583
 msgid "NOTE: You can disable this if you always want menu-background."
 msgstr ""
 "NOTE : Vous pouvez désactiver ceci si vous voulez toujours le fond du menu."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1560
+#: src/App/Neomod/OptionsOverlay.cpp:1585
 msgid "Draw Background Thumbnails in SongBrowser"
-msgstr "Afficher les miniatures du fond dans le navigateur de musiques"
+msgstr "Afficher les miniatures du fond dans les menus"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1561
+#: src/App/Neomod/OptionsOverlay.cpp:1586
 msgid "Draw Background in Ranking/Results Screen"
 msgstr "Afficher le fond dans l'écran de classement/résultats"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1562
+#: src/App/Neomod/OptionsOverlay.cpp:1587
 msgid "Draw menu-background in Menu"
-msgstr "Afficher le fond du menu dans le menu"
+msgstr "Utiliser menu-background dans le menu principal"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1563
+#: src/App/Neomod/OptionsOverlay.cpp:1588
 msgid "Draw menu-background in SongBrowser"
-msgstr "Afficher le fond du menu dans le navigateur de musiques"
+msgstr "Utiliser menu-background dans les menus"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1564
+#: src/App/Neomod/OptionsOverlay.cpp:1589
 msgid "NOTE: Only applies if \"Draw Background in SongBrowser\" is disabled."
 msgstr ""
 "NOTE : S'applique uniquement si \"Afficher le fond dans le navigateur de "
 "musiques\" est désactivé."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1569
+#: src/App/Neomod/OptionsOverlay.cpp:1594
 msgid "HUD"
 msgstr "HUD"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1570
+#: src/App/Neomod/OptionsOverlay.cpp:1595
 msgid "Draw HUD"
 msgstr "Afficher le HUD"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1570
+#: src/App/Neomod/OptionsOverlay.cpp:1595
 msgid "NOTE: You can also press SHIFT + TAB while playing to toggle this."
 msgstr ""
 "NOTE : Vous pouvez aussi appuyer sur SHIFT + TAB en jeu pour basculer ceci."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1573
+#: src/App/Neomod/OptionsOverlay.cpp:1598
 msgid "SHIFT + TAB toggles everything"
-msgstr "SHIFT + TAB bascule tout"
+msgstr "SHIFT + TAB pour tout cacher"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1574
+#: src/App/Neomod/OptionsOverlay.cpp:1599
 msgid "Enabled: "
 msgstr "Activé : "
 
-#: src/App/Neomod/OptionsOverlay.cpp:1578
+#: src/App/Neomod/OptionsOverlay.cpp:1603
 msgid "Draw Score"
 msgstr "Afficher le score"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1579
+#: src/App/Neomod/OptionsOverlay.cpp:1604
 msgid "Draw Combo"
 msgstr "Afficher le combo"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1580
+#: src/App/Neomod/OptionsOverlay.cpp:1605
 msgid "Draw Accuracy"
 msgstr "Afficher la précision"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1581
+#: src/App/Neomod/OptionsOverlay.cpp:1606
 msgid "Draw ProgressBar"
 msgstr "Afficher la barre de progression"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1582
+#: src/App/Neomod/OptionsOverlay.cpp:1607
 msgid "Draw HitErrorBar"
 msgstr "Afficher la barre d'erreur"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1583
+#: src/App/Neomod/OptionsOverlay.cpp:1608
 msgid "Draw HitErrorBar UR"
 msgstr "Afficher l'UR de la barre d'erreur"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1583
+#: src/App/Neomod/OptionsOverlay.cpp:1608
 msgid "Unstable Rate"
 msgstr "Taux d'instabilité"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1584
+#: src/App/Neomod/OptionsOverlay.cpp:1609
 msgid "Draw ScoreBar"
 msgstr "Afficher la barre de score"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1584
+#: src/App/Neomod/OptionsOverlay.cpp:1609
 msgid "Health/HP Bar."
 msgstr "Barre de vie/HP."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1586
+#: src/App/Neomod/OptionsOverlay.cpp:1611
 msgid "Draw ScoreBar-bg"
 msgstr "Afficher le fond de la barre de score"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1587
+#: src/App/Neomod/OptionsOverlay.cpp:1612
 msgid ""
 "Some skins abuse this as the playfield background image.\n"
 "It is actually just the background image for the Health/HP Bar."
@@ -2292,31 +2307,31 @@ msgstr ""
 "Certains skins utilisent ceci comme image de fond de l'aire de jeu.\n"
 "C'est en fait juste l'image de fond de la barre de vie/HP."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1590
+#: src/App/Neomod/OptionsOverlay.cpp:1615
 msgid "Draw ScoreBoard in singleplayer"
 msgstr "Afficher le tableau des scores en solo"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1591
+#: src/App/Neomod/OptionsOverlay.cpp:1616
 msgid "Draw ScoreBoard in multiplayer"
 msgstr "Afficher le tableau des scores en multijoueur"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1592
+#: src/App/Neomod/OptionsOverlay.cpp:1617
 msgid "Draw Key Overlay"
 msgstr "Afficher la superposition des touches"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1593
+#: src/App/Neomod/OptionsOverlay.cpp:1618
 msgid "Draw Scrubbing Timeline"
 msgstr "Afficher la timeline de scrubbing"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1594
+#: src/App/Neomod/OptionsOverlay.cpp:1619
 msgid "Draw Miss Window on HitErrorBar"
 msgstr "Afficher la fenêtre de miss sur la barre d'erreur"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1597
+#: src/App/Neomod/OptionsOverlay.cpp:1622
 msgid "Draw Stats: pp"
 msgstr "Afficher les stats : pp"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1598
+#: src/App/Neomod/OptionsOverlay.cpp:1623
 msgid ""
 "Realtime pp counter.\n"
 "Dynamically calculates earned pp by incrementally updating the star rating."
@@ -2325,106 +2340,106 @@ msgstr ""
 "Calcule dynamiquement les pp gagnés en mettant à jour progressivement le "
 "star rating."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1600
+#: src/App/Neomod/OptionsOverlay.cpp:1625
 msgid "Draw Stats: pp (SS)"
 msgstr "Afficher les stats : pp (SS)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1600
+#: src/App/Neomod/OptionsOverlay.cpp:1625
 msgid "Max possible total pp for active mods (full combo + perfect acc)."
 msgstr ""
 "pp total maximum possible pour les mods actifs (full combo + précision "
 "parfaite)."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1602
+#: src/App/Neomod/OptionsOverlay.cpp:1627
 msgid "Draw Stats: Misses"
 msgstr "Afficher les stats : Misses"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1602
+#: src/App/Neomod/OptionsOverlay.cpp:1627
 msgid "Number of misses."
 msgstr "Nombre de misses."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1603
+#: src/App/Neomod/OptionsOverlay.cpp:1628
 msgid "Draw Stats: SliderBreaks"
 msgstr "Afficher les stats : SliderBreaks"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1603
+#: src/App/Neomod/OptionsOverlay.cpp:1628
 msgid "Number of slider breaks."
 msgstr "Nombre de slider breaks."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1604
+#: src/App/Neomod/OptionsOverlay.cpp:1629
 msgid "Draw Stats: Max Possible Combo"
 msgstr "Afficher les stats : Combo maximum possible"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1605
+#: src/App/Neomod/OptionsOverlay.cpp:1630
 msgid "Draw Stats: Stars*** (Until Now)"
 msgstr "Afficher les stats : Étoiles*** (jusqu'à présent)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1606
+#: src/App/Neomod/OptionsOverlay.cpp:1631
 msgid "Incrementally updates the star rating (aka \"realtime stars\")."
 msgstr ""
 "Met à jour progressivement le star rating (alias \"étoiles en temps réel\")."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1608
+#: src/App/Neomod/OptionsOverlay.cpp:1633
 msgid "Draw Stats: Stars* (Total)"
 msgstr "Afficher les stats : Étoiles* (Total)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1608
+#: src/App/Neomod/OptionsOverlay.cpp:1633
 msgid "Total stars for active mods."
 msgstr "Total d'étoiles pour les mods actifs."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1610
+#: src/App/Neomod/OptionsOverlay.cpp:1635
 msgid "Draw Stats: BPM"
 msgstr "Afficher les stats : BPM"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1611
+#: src/App/Neomod/OptionsOverlay.cpp:1636
 msgid "Draw Stats: AR"
 msgstr "Afficher les stats : AR"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1612
+#: src/App/Neomod/OptionsOverlay.cpp:1637
 msgid "Draw Stats: CS"
 msgstr "Afficher les stats : CS"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1613
+#: src/App/Neomod/OptionsOverlay.cpp:1638
 msgid "Draw Stats: OD"
 msgstr "Afficher les stats : OD"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1614
+#: src/App/Neomod/OptionsOverlay.cpp:1639
 msgid "Draw Stats: HP"
 msgstr "Afficher les stats : HP"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1615
+#: src/App/Neomod/OptionsOverlay.cpp:1640
 msgid "Draw Stats: 300 hitwindow"
 msgstr "Afficher les stats : fenêtre de hit 300"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1615
+#: src/App/Neomod/OptionsOverlay.cpp:1640
 msgid "Timing window for hitting a 300 (e.g. +-25ms)."
 msgstr "Fenêtre de timing pour un 300 (ex. +-25ms)."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1617
+#: src/App/Neomod/OptionsOverlay.cpp:1642
 msgid "Draw Stats: Notes Per Second"
 msgstr "Afficher les stats : Notes par seconde"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1617
+#: src/App/Neomod/OptionsOverlay.cpp:1642
 msgid "How many clicks per second are currently required."
 msgstr "Combien de clics par seconde sont actuellement nécessaires."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1619
+#: src/App/Neomod/OptionsOverlay.cpp:1644
 msgid "Draw Stats: Note Density"
 msgstr "Afficher les stats : Densité de notes"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1619
+#: src/App/Neomod/OptionsOverlay.cpp:1644
 msgid "How many objects are visible at the same time."
 msgstr "Combien d'objets sont visibles en même temps."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1621
+#: src/App/Neomod/OptionsOverlay.cpp:1646
 msgid "Draw Stats: Unstable Rate"
 msgstr "Afficher les stats : Taux d'instabilité"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1622
+#: src/App/Neomod/OptionsOverlay.cpp:1647
 msgid "Draw Stats: Accuracy Error"
 msgstr "Afficher les stats : Erreur de précision"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1623
+#: src/App/Neomod/OptionsOverlay.cpp:1648
 msgid ""
 "Average hit error delta (e.g. -5ms +15ms).\n"
 "See \"hud_statistics_hitdelta_chunksize 30\",\n"
@@ -2434,87 +2449,87 @@ msgstr ""
 "Voir \"hud_statistics_hitdelta_chunksize 30\",\n"
 "ceci définit combien de deltas de hit récents sont moyennés."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1627
+#: src/App/Neomod/OptionsOverlay.cpp:1652
 msgid "HUD Scale:"
-msgstr "Échelle du HUD :"
+msgstr "Échelle du HUD"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1631
+#: src/App/Neomod/OptionsOverlay.cpp:1656
 msgid "Score Scale:"
-msgstr "Échelle du score :"
-
-#: src/App/Neomod/OptionsOverlay.cpp:1634
-msgid "Combo Scale:"
-msgstr "Échelle du combo :"
-
-#: src/App/Neomod/OptionsOverlay.cpp:1637
-msgid "Accuracy Scale:"
-msgstr "Échelle de la précision :"
-
-#: src/App/Neomod/OptionsOverlay.cpp:1641
-msgid "HitErrorBar Scale:"
-msgstr "Échelle de la barre d'erreur :"
-
-#: src/App/Neomod/OptionsOverlay.cpp:1646
-msgid "HitErrorBar UR Scale:"
-msgstr "Échelle de l'UR de la barre d'erreur :"
-
-#: src/App/Neomod/OptionsOverlay.cpp:1651
-msgid "ProgressBar Scale:"
-msgstr "Échelle de la barre de progression :"
-
-#: src/App/Neomod/OptionsOverlay.cpp:1655
-msgid "ScoreBar Scale:"
-msgstr "Échelle de la barre de score :"
+msgstr "Échelle du score"
 
 #: src/App/Neomod/OptionsOverlay.cpp:1659
-msgid "ScoreBoard Scale:"
-msgstr "Échelle du tableau des scores :"
+msgid "Combo Scale:"
+msgstr "Échelle du combo"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1664
-msgid "Key Overlay Scale:"
-msgstr "Échelle de la superposition des touches :"
+#: src/App/Neomod/OptionsOverlay.cpp:1662
+msgid "Accuracy Scale:"
+msgstr "Échelle de la précision"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1669
-msgid "Statistics Scale:"
-msgstr "Échelle des statistiques :"
+#: src/App/Neomod/OptionsOverlay.cpp:1666
+msgid "HitErrorBar Scale:"
+msgstr "Échelle de la barre d'erreur"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1675
-msgid "Statistics X Offset:"
-msgstr "Décalage X des statistiques :"
+#: src/App/Neomod/OptionsOverlay.cpp:1671
+msgid "HitErrorBar UR Scale:"
+msgstr "Échelle de l'UR de la barre d'erreur"
+
+#: src/App/Neomod/OptionsOverlay.cpp:1676
+msgid "ProgressBar Scale:"
+msgstr "Échelle de la barre de progression"
 
 #: src/App/Neomod/OptionsOverlay.cpp:1680
-msgid "Statistics Y Offset:"
-msgstr "Décalage Y des statistiques :"
+msgid "ScoreBar Scale:"
+msgstr "Échelle de la barre de score"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1685
+#: src/App/Neomod/OptionsOverlay.cpp:1684
+msgid "ScoreBoard Scale:"
+msgstr "Échelle des scores"
+
+#: src/App/Neomod/OptionsOverlay.cpp:1689
+msgid "Key Overlay Scale:"
+msgstr "Échelle de la superposition des touches"
+
+#: src/App/Neomod/OptionsOverlay.cpp:1694
+msgid "Statistics Scale:"
+msgstr "Échelle des stats"
+
+#: src/App/Neomod/OptionsOverlay.cpp:1700
+msgid "Statistics X Offset:"
+msgstr "Décalage X des stats"
+
+#: src/App/Neomod/OptionsOverlay.cpp:1705
+msgid "Statistics Y Offset:"
+msgstr "Décalage Y des stats"
+
+#: src/App/Neomod/OptionsOverlay.cpp:1710
 msgid "Playfield"
 msgstr "Aire de jeu"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1686
+#: src/App/Neomod/OptionsOverlay.cpp:1711
 msgid "Draw FollowPoints"
 msgstr "Afficher les points de suivi"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1687
+#: src/App/Neomod/OptionsOverlay.cpp:1712
 msgid "Correct border relative to the current Circle Size."
 msgstr "Bordure correcte relative à la taille actuelle des cercles."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1687
+#: src/App/Neomod/OptionsOverlay.cpp:1712
 msgid "Draw Playfield Border"
 msgstr "Afficher la bordure de l'aire de jeu"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1691
+#: src/App/Neomod/OptionsOverlay.cpp:1716
 msgid "Playfield Border Size:"
 msgstr "Taille de la bordure de l'aire de jeu :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1695
+#: src/App/Neomod/OptionsOverlay.cpp:1720
 msgid "Hitobjects"
 msgstr "Hitobjects"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1697
+#: src/App/Neomod/OptionsOverlay.cpp:1722
 msgid "Use Fast Hidden Fading Sliders (!)"
 msgstr "Utiliser le fondu rapide des sliders Hidden (!)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1698
+#: src/App/Neomod/OptionsOverlay.cpp:1723
 msgid ""
 "NOTE: osu! doesn't do this, so don't enable it for serious practicing.\n"
 "If enabled: Fade out sliders with the same speed as circles."
@@ -2523,19 +2538,19 @@ msgstr ""
 "sérieux.\n"
 "Si activé : Fondu des sliders à la même vitesse que les cercles."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1704
+#: src/App/Neomod/OptionsOverlay.cpp:1729
 msgid "FPoSu (3D)"
 msgstr "FPoSu (3D)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1706
+#: src/App/Neomod/OptionsOverlay.cpp:1731
 msgid "FPoSu - General"
 msgstr "FPoSu - Général"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1707
+#: src/App/Neomod/OptionsOverlay.cpp:1732
 msgid "FPoSu"
 msgstr "FPoSu"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1708
+#: src/App/Neomod/OptionsOverlay.cpp:1733
 msgid ""
 "The real 3D FPS mod.\n"
 "Play from a first person shooter perspective in a 3D environment.\n"
@@ -2548,19 +2563,19 @@ msgstr ""
 "Ceci est uniquement destiné à la souris ! (Activez \"Mode tablette/absolu\" "
 "pour les tablettes.)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1712
+#: src/App/Neomod/OptionsOverlay.cpp:1737
 msgid "NOTE: Use CTRL + O during gameplay to get here!"
 msgstr "NOTE : Utilisez CTRL + O pendant le jeu pour arriver ici !"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1714
+#: src/App/Neomod/OptionsOverlay.cpp:1739
 msgid "LEFT/RIGHT arrow keys to precisely adjust sliders."
 msgstr "Touches fléchées GAUCHE/DROITE pour ajuster précisément les sliders."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1716
+#: src/App/Neomod/OptionsOverlay.cpp:1741
 msgid "Distance:"
 msgstr "Distance :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1718
+#: src/App/Neomod/OptionsOverlay.cpp:1743
 msgid ""
 "If enabled: Vertical FOV.\n"
 "If disabled: Horizontal FOV (default)."
@@ -2568,23 +2583,23 @@ msgstr ""
 "Si activé : FOV vertical.\n"
 "Si désactivé : FOV horizontal (défaut)."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1718
+#: src/App/Neomod/OptionsOverlay.cpp:1743
 msgid "Vertical FOV"
 msgstr "FOV vertical"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1720
+#: src/App/Neomod/OptionsOverlay.cpp:1745
 msgid "FOV:"
 msgstr "FOV :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1724
+#: src/App/Neomod/OptionsOverlay.cpp:1749
 msgid "FOV (Zoom):"
 msgstr "FOV (zoom) :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1727
+#: src/App/Neomod/OptionsOverlay.cpp:1752
 msgid "Zoom Key Toggle"
 msgstr "Bascule de la touche de zoom"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1728
+#: src/App/Neomod/OptionsOverlay.cpp:1753
 msgid ""
 "Enabled: Zoom key toggles zoom.\n"
 "Disabled: Zoom while zoom key is held."
@@ -2592,23 +2607,23 @@ msgstr ""
 "Activé : La touche de zoom bascule le zoom.\n"
 "Désactivé : Zoom tant que la touche de zoom est maintenue."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1730
+#: src/App/Neomod/OptionsOverlay.cpp:1755
 msgid "FPoSu - Playfield"
 msgstr "FPoSu - Aire de jeu"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1731
+#: src/App/Neomod/OptionsOverlay.cpp:1756
 msgid "Curved play area"
 msgstr "Zone de jeu courbée"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1732
+#: src/App/Neomod/OptionsOverlay.cpp:1757
 msgid "Background cube"
 msgstr "Cube d'arrière-plan"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1733
+#: src/App/Neomod/OptionsOverlay.cpp:1758
 msgid "Skybox"
 msgstr "Skybox"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1734
+#: src/App/Neomod/OptionsOverlay.cpp:1759
 msgid ""
 "NOTE: Overrides \"Background cube\".\n"
 "See skybox_example.png for cubemap layout."
@@ -2616,44 +2631,44 @@ msgstr ""
 "NOTE : Remplace \"Cube d'arrière-plan\".\n"
 "Voir skybox_example.png pour la disposition du cubemap."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1736
+#: src/App/Neomod/OptionsOverlay.cpp:1761
 msgid "Background Opacity"
 msgstr "Opacité de l'arrière-plan"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1739
+#: src/App/Neomod/OptionsOverlay.cpp:1764
 msgid "FPoSu - Mouse"
 msgstr "FPoSu - Souris"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1741
+#: src/App/Neomod/OptionsOverlay.cpp:1766
 msgid "https://www.mouse-sensitivity.com/"
 msgstr "https://www.mouse-sensitivity.com/"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1743
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2822
+#: src/App/Neomod/OptionsOverlay.cpp:1768
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2852
 msgid "Opening browser, please wait ..."
 msgstr "Ouverture du navigateur, veuillez patienter..."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1749
+#: src/App/Neomod/OptionsOverlay.cpp:1774
 msgid "DPI:"
 msgstr "DPI :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1751
+#: src/App/Neomod/OptionsOverlay.cpp:1776
 msgid "cm per 360:"
 msgstr "cm par 360 :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1753
+#: src/App/Neomod/OptionsOverlay.cpp:1778
 msgid "Invert Vertical"
 msgstr "Inverser vertical"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1754
+#: src/App/Neomod/OptionsOverlay.cpp:1779
 msgid "Invert Horizontal"
 msgstr "Inverser horizontal"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1755
+#: src/App/Neomod/OptionsOverlay.cpp:1780
 msgid "Tablet/Absolute Mode (!)"
 msgstr "Mode tablette/absolu (!)"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1756
+#: src/App/Neomod/OptionsOverlay.cpp:1781
 msgid ""
 "Don't enable this if you are using a mouse.\n"
 "If this is enabled, then DPI and cm per 360 will be ignored!"
@@ -2662,52 +2677,52 @@ msgstr ""
 "Si ceci est activé, le DPI et les cm par 360 seront ignorés !"
 
 #. TRANSLATORS: Name of a settings category containing joke/unnecessary options
-#: src/App/Neomod/OptionsOverlay.cpp:1763
+#: src/App/Neomod/OptionsOverlay.cpp:1788
 msgid "Bullshit"
-msgstr "Délire"
+msgstr "Conneries"
 
 #. TRANSLATORS: Subcategory of "Bullshit" - contains joke visual settings (rainbow circles, etc.)
-#: src/App/Neomod/OptionsOverlay.cpp:1766
+#: src/App/Neomod/OptionsOverlay.cpp:1791
 msgid "Why"
-msgstr "Pourquoi"
+msgstr "Pourquoi..."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1767
+#: src/App/Neomod/OptionsOverlay.cpp:1792
 msgid "Rainbow Circles"
 msgstr "Cercles arc-en-ciel"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1768
+#: src/App/Neomod/OptionsOverlay.cpp:1793
 msgid "Rainbow Sliders"
 msgstr "Sliders arc-en-ciel"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1769
+#: src/App/Neomod/OptionsOverlay.cpp:1794
 msgid "Rainbow Numbers"
 msgstr "Nombres arc-en-ciel"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1770
+#: src/App/Neomod/OptionsOverlay.cpp:1795
 msgid "Draw 300s"
 msgstr "Afficher les 300"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1772
+#: src/App/Neomod/OptionsOverlay.cpp:1797
 msgid "Miscellaneous"
 msgstr "Divers"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1774
+#: src/App/Neomod/OptionsOverlay.cpp:1799
 msgid "Testing"
-msgstr "Test"
+msgstr "Bêta test"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1775
+#: src/App/Neomod/OptionsOverlay.cpp:1800
 msgid "Use bleeding edge release stream"
-msgstr "Utiliser le canal de versions \"bleeding edge\""
+msgstr "Utiliser la version \"bleeding edge\" du jeu"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1779
+#: src/App/Neomod/OptionsOverlay.cpp:1804
 msgid "Screenshots"
 msgstr "Captures d'écran"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1780
+#: src/App/Neomod/OptionsOverlay.cpp:1805
 msgid "Crop Screenshots"
 msgstr "Rogner les captures d'écran"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1781
+#: src/App/Neomod/OptionsOverlay.cpp:1806
 msgid ""
 "Crop screenshots to the letterbox resolution,\n"
 "if letterboxing is enabled."
@@ -2715,11 +2730,11 @@ msgstr ""
 "Rogner les captures d'écran à la résolution du letterbox,\n"
 "si le letterboxing est activé."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1783
+#: src/App/Neomod/OptionsOverlay.cpp:1808
 msgid "Copy Screenshots to Clipboard"
 msgstr "Copier les captures d'écran dans le presse-papiers"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1784
+#: src/App/Neomod/OptionsOverlay.cpp:1809
 msgid ""
 "If screenshots should be copied to the system clipboard\n"
 "along with saving them to the screenshots/ folder."
@@ -2727,31 +2742,31 @@ msgstr ""
 "Si les captures d'écran doivent être copiées dans le presse-papiers système\n"
 "en plus d'être sauvegardées dans le dossier screenshots/."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1789
+#: src/App/Neomod/OptionsOverlay.cpp:1814
 msgid "Nags"
 msgstr "Rappels"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1791
+#: src/App/Neomod/OptionsOverlay.cpp:1816
 msgid "Show Main Menu Tips"
-msgstr "Afficher les astuces du menu principal"
+msgstr "Afficher les astuces dans le menu principal"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1792
+#: src/App/Neomod/OptionsOverlay.cpp:1817
 msgid "Hide Discord/X Links"
 msgstr "Masquer les liens Discord/X"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1794
+#: src/App/Neomod/OptionsOverlay.cpp:1819
 msgid "Import/Reset"
 msgstr "Importer/Réinitialiser"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1797
+#: src/App/Neomod/OptionsOverlay.cpp:1822
 msgid "Import collections/scores/settings from McOsu"
 msgstr "Importer les collections/scores/paramètres de McOsu"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1807
+#: src/App/Neomod/OptionsOverlay.cpp:1832
 msgid "Successfully imported settings from McOsu."
 msgstr "Paramètres importés avec succès depuis McOsu."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1811
+#: src/App/Neomod/OptionsOverlay.cpp:1836
 msgid ""
 "Couldn't find McOsu config files! Make sure to select the directory "
 "containing McOsu.exe."
@@ -2759,78 +2774,78 @@ msgstr ""
 "Impossible de trouver les fichiers de configuration McOsu ! Assurez-vous de "
 "sélectionner le dossier contenant McOsu.exe."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1822
+#: src/App/Neomod/OptionsOverlay.cpp:1847
 msgid "Opening file browser ..."
 msgstr "Ouverture du navigateur de fichiers..."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1825
+#: src/App/Neomod/OptionsOverlay.cpp:1850
 msgid "You must select the McOsu folder to import its settings."
 msgstr "Vous devez sélectionner le dossier McOsu pour importer ses paramètres."
 
-#: src/App/Neomod/OptionsOverlay.cpp:1838
+#: src/App/Neomod/OptionsOverlay.cpp:1863
 msgid "Reset all settings"
 msgstr "Réinitialiser tous les paramètres"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1973
+#: src/App/Neomod/OptionsOverlay.cpp:1998
 msgid "Disconnect"
 msgstr "Déconnexion"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1976
+#: src/App/Neomod/OptionsOverlay.cpp:2001
 msgid "Waiting for browser..."
 msgstr "En attente du navigateur..."
 
-#: src/App/Neomod/OptionsOverlay.cpp:3071
+#: src/App/Neomod/OptionsOverlay.cpp:3131
 msgid "Error: Couldn't find any skins"
 msgstr "Erreur : Aucun skin trouvé"
 
-#: src/App/Neomod/OptionsOverlay.cpp:3192
+#: src/App/Neomod/OptionsOverlay.cpp:3252
 msgid "Tried to enable exclusive mode, but couldn't :("
 msgstr "Tentative d'activation du mode exclusif, mais échec :("
 
-#: src/App/Neomod/OptionsOverlay.cpp:3460
+#: src/App/Neomod/OptionsOverlay.cpp:3520
 #, c++-format
 msgid "Press new key for {}:"
 msgstr "Appuyez sur la nouvelle touche pour {} :"
 
-#: src/App/Neomod/OptionsOverlay.cpp:3491
+#: src/App/Neomod/OptionsOverlay.cpp:3551
 msgid "All key bindings have been reset."
 msgstr "Tous les raccourcis clavier ont été réinitialisés."
 
-#: src/App/Neomod/OptionsOverlay.cpp:3495
-#: src/App/Neomod/OptionsOverlay.cpp:3855
+#: src/App/Neomod/OptionsOverlay.cpp:3555
+#: src/App/Neomod/OptionsOverlay.cpp:3915
 #, c++-format
 msgid "Press {:d} more times to confirm."
 msgstr "Appuyez {:d} fois de plus pour confirmer."
 
-#: src/App/Neomod/OptionsOverlay.cpp:3498
-#: src/App/Neomod/OptionsOverlay.cpp:3858
+#: src/App/Neomod/OptionsOverlay.cpp:3558
+#: src/App/Neomod/OptionsOverlay.cpp:3918
 #, c++-format
 msgid "Press {:d} more time to confirm!"
 msgstr "Appuyez encore {:d} fois pour confirmer !"
 
-#: src/App/Neomod/OptionsOverlay.cpp:3789
+#: src/App/Neomod/OptionsOverlay.cpp:3849
 msgid "This setting is forced by the server."
 msgstr "Ce paramètre est imposé par le serveur."
 
-#: src/App/Neomod/OptionsOverlay.cpp:3792
+#: src/App/Neomod/OptionsOverlay.cpp:3852
 msgid "This setting is forced by the current skin."
 msgstr "Ce paramètre est imposé par le skin actuel."
 
-#: src/App/Neomod/OptionsOverlay.cpp:3851
+#: src/App/Neomod/OptionsOverlay.cpp:3911
 msgid "All settings have been reset."
 msgstr "Tous les paramètres ont été réinitialisés."
 
-#: src/App/Neomod/OptionsOverlay.cpp:4014
+#: src/App/Neomod/OptionsOverlay.cpp:4074
 msgid "Unbind"
 msgstr "Dissocier"
 
-#: src/App/Neomod/OptionsOverlay.cpp:4251
+#: src/App/Neomod/OptionsOverlay.cpp:4311
 msgid "Failed to save osu.cfg"
 msgstr "Échec de la sauvegarde de osu.cfg"
 
 #: src/App/Neomod/OsuDirectScreen.cpp:374
 msgid "Newest maps"
-msgstr "Maps les plus récentes"
+msgstr "Maps récentes"
 
 #: src/App/Neomod/OsuDirectScreen.cpp:378
 msgid "Newest"
@@ -2838,7 +2853,7 @@ msgstr "Plus récentes"
 
 #: src/App/Neomod/OsuDirectScreen.cpp:382
 msgid "Best maps"
-msgstr "Meilleures maps"
+msgstr "Maps populaires"
 
 #: src/App/Neomod/OsuDirectScreen.cpp:386
 msgid "Top Rated"
@@ -3144,185 +3159,244 @@ msgstr "Calcul de l'intensité sonore ({}/{})..."
 msgid "Converting scores ({}/{}) ..."
 msgstr "Conversion des scores ({}/{})..."
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:355
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2258
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2749
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2763
-msgid "Local"
-msgstr "Local"
-
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:359
-msgid "By score"
-msgstr "Par score"
-
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:363
-msgid "Web"
-msgstr "Web"
-
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:377
-msgid "Group:"
-msgstr "Groupe :"
-
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:382
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:420
-msgid "No Grouping"
-msgstr "Aucun groupement"
-
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:394
-msgid "Sort:"
-msgstr "Trier :"
-
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:399
-msgid "By Date Added"
-msgstr "Par date d'ajout"
-
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:405
-msgid "Collections"
-msgstr "Collections"
-
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:410
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:314
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:322
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:435
 msgid "By Artist"
 msgstr "Par artiste"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:415
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:315
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:323
+msgid "By BPM"
+msgstr "Par BPM"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:316
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:324
+msgid "By Creator"
+msgstr "Par créateur"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:317
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:424
+msgid "By Date Added"
+msgstr "Par date d'ajout"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:318
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:326
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:440
 msgid "By Difficulty"
 msgstr "Par difficulté"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:440
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:319
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:327
+msgid "By Length"
+msgstr "Par longueur"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:320
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:328
+msgid "By Title"
+msgstr "Par titre"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:321
+msgid "By Rank Achieved"
+msgstr "Par rank obtenu"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:325
+#, fuzzy
+msgid "By Date"
+msgstr "Par date d'ajout"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:329
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:430
+msgid "Collections"
+msgstr "Collections"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:330
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:407
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:445
+msgid "No Grouping"
+msgstr "Sans groupe"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:331
+#, fuzzy
+msgid "By accuracy"
+msgstr "Par précision"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:332
+#, fuzzy
+msgid "By combo"
+msgstr "Par combo"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:333
+msgid "By date"
+msgstr "Par date"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:334
+msgid "By misses"
+msgstr "Par nombre de miss"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:335
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:384
+msgid "By score"
+msgstr "Par score"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:336
+msgid "By pp"
+msgstr "Par pp"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:380
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2283
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2773
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2787
+msgid "Local"
+msgstr "Local"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:388
+msgid "Web"
+msgstr "Web"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:402
+msgid "Group:"
+msgstr "Groupe :"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:419
+msgid "Sort:"
+msgstr "Trier :"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:465
 msgid "Loading..."
 msgstr "Chargement en cours..."
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:441
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:466
 msgid "No records set!"
 msgstr "Aucun record établi !"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:448
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:473
 msgid "Personal Best (from local scores)"
-msgstr "Meilleur personnel (scores locaux)"
+msgstr "Meilleur score personnel (local)"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:661
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:686
 msgid "Invalid osu! folder (or no beatmaps found): "
 msgstr "Dossier osu! invalide (ou aucune beatmap trouvée) : "
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:663
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:688
 msgid "Go to Options -> osu!folder"
 msgstr "Allez dans Options -> osu!folder"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:666
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:691
 msgid "Drop .osz beatmaps onto this window to import them"
 msgstr "Déposez des beatmaps .osz sur cette fenêtre pour les importer"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:667
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:692
 msgid "Or click \"Online Beatmaps\" in the Main Menu"
 msgstr "Ou cliquez sur \"Beatmaps en ligne\" dans le menu principal"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:847
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:872
 msgid "Beatmapset has no difficulties"
 msgstr "Le beatmapset n'a pas de difficultés"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:900
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:926
 #, c++-format
 msgid "Failed to find Beatmap #{:d} :("
 msgstr "Impossible de trouver la beatmap #{:d} :("
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2418
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2443
 msgid "0-9"
 msgstr "0-9"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2428
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2453
 msgid "Other"
 msgstr "Autre"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2438
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2463
 msgid "Below 1 star"
 msgstr "Moins d'1 étoile"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2440
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2465
 msgid "Above 10 stars"
 msgstr "Plus de 10 étoiles"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2442
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2467
 #, c++-format
 msgid "{:d} star{:s}"
 msgstr "{:d} étoile{:s}"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2451
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2476
 msgid "Under 60 BPM"
 msgstr "Moins de 60 BPM"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2452
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2477
 msgid "Under 120 BPM"
 msgstr "Moins de 120 BPM"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2453
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2478
 msgid "Under 180 BPM"
 msgstr "Moins de 180 BPM"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2454
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2479
 msgid "Under 240 BPM"
 msgstr "Moins de 240 BPM"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2455
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2480
 msgid "Under 300 BPM"
 msgstr "Moins de 300 BPM"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2456
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2481
 msgid "Over 300 BPM"
 msgstr "Plus de 300 BPM"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2467
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2492
 msgid "1 minute or less"
 msgstr "1 minute ou moins"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2468
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2493
 msgid "2 minutes or less"
 msgstr "2 minutes ou moins"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2469
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2494
 msgid "3 minutes or less"
 msgstr "3 minutes ou moins"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2470
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2495
 msgid "4 minutes or less"
 msgstr "4 minutes ou moins"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2471
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2496
 msgid "5 minutes or less"
 msgstr "5 minutes ou moins"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2472
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2497
 msgid "10 minutes or less"
 msgstr "10 minutes ou moins"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2473
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2498
 msgid "Over 10 minutes"
 msgstr "Plus de 10 minutes"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2749
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2773
 msgid "Country"
 msgstr "Pays"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2749
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2773
 msgid "Friends"
 msgstr "Amis"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2749
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2773
 msgid "Global"
 msgstr "Global"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2749
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2773
 msgid "Selected mods"
 msgstr "Mods sélectionnés"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2749
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:2773
 msgid "Team"
 msgstr "Équipe"
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:3054
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:3084
 msgid "Disabled FPoSu mode."
 msgstr "Mode FPoSu désactivé."
 
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp:3057
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp:3087
 msgid "Enabled FPoSu mode."
 msgstr "Mode FPoSu activé."
 
@@ -3375,6 +3449,27 @@ msgstr "{:s} joue à des mini-jeux"
 #, c++-format
 msgid "Downloading map... {:.2f}%"
 msgstr "Téléchargement de la map... {:.2f}%"
+
+#: src/App/Neomod/UISearchOverlay.cpp:30
+msgid "Search: "
+msgstr "Recherche :"
+
+#: src/App/Neomod/UISearchOverlay.cpp:31
+msgid "Type to search!"
+msgstr "Ecrivez pour rechercher !"
+
+#: src/App/Neomod/UISearchOverlay.cpp:32
+msgid "No matches found. Hit ESC to reset."
+msgstr "Aucun résultat. Appuyez sur Echap pour annuler."
+
+#: src/App/Neomod/UISearchOverlay.cpp:33
+msgid "Hit ESC to reset."
+msgstr "Appuyez sur Echap pour annuler."
+
+#: src/App/Neomod/UISearchOverlay.cpp:34
+#, fuzzy
+msgid "Searching, please wait ..."
+msgstr "Ouverture du navigateur, veuillez patienter..."
 
 #: src/Engine/Sound/SoundEngine.cpp:107
 msgid "No sound"
