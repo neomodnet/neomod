@@ -888,8 +888,6 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
         keepCbx->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onCheckboxChange>(this));
     }
 
-    this->addCheckbox(_("Use WebSocket connection when available"), &cv::prefer_websockets);
-
     {
         this->addSubSection(_("Localization"));
 
