@@ -96,6 +96,13 @@ enum class ElementType : int8_t {
 };
 using enum ElementType;
 struct OptionsElement;
+
+const int NB_LANGUAGES = 2;
+const std::array<std::pair<std::string_view, std::string_view>, NB_LANGUAGES> LANGUAGES{{
+    {"en"sv, "English"sv},
+    {"fr"sv, "Français"sv},
+    // Make sure to update NB_LANGUAGES above if you add one!
+}};
 }  // namespace
 
 struct OptionsOverlayImpl final {
@@ -143,6 +150,8 @@ struct OptionsOverlayImpl final {
     void updateNotelockSelectLabel();
 
     // options
+    void onLanguageSelect();
+    void onLanguageSelected(std::string_view newLanguage, int id = -1);
     void onFullscreenChange(CBaseUICheckbox *checkbox);
     void onDPIScalingChange(CBaseUICheckbox *checkbox);
     void openCurrentSkinFolder();
@@ -257,6 +266,7 @@ struct OptionsOverlayImpl final {
     CBaseUISlider *cursorSizeSlider{nullptr};
     CBaseUILabel *skinLabel{nullptr};
     UIButton *skinSelectLocalButton{nullptr};
+    CBaseUIButton *languageSelectButton{nullptr};
     CBaseUIButton *resolutionSelectButton{nullptr};
     CBaseUILabel *resolutionLabel{nullptr};
     CBaseUIButton *outputDeviceSelectButton{nullptr};
@@ -880,6 +890,29 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
 
     this->addCheckbox(_("Use WebSocket connection when available"), &cv::prefer_websockets);
 
+    {
+        this->addSubSection(_("Localization"));
+
+        std::string currentLanguage = "English";
+        for(const auto &[locale, language] : LANGUAGES) {
+            if(locale == cv::language.getString()) {
+                currentLanguage = language;
+                break;
+            }
+        }
+
+        auto languageElement = this->addButton(_("Select language"), currentLanguage, false, &cv::language);
+        this->languageSelectButton = (CBaseUIButton *)languageElement->baseElems[0].get();
+        this->languageSelectButton->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onLanguageSelect>(this));
+
+        // Fallback font support is currently implemented for these platforms
+        // Remember to update this if adding support for another platform
+        if constexpr(Env::cfg(OS::LINUX | OS::WINDOWS)) {
+            this->addCheckbox(_("Prefer metadata in original language"), &cv::prefer_cjk);
+            this->elemContainers.back()->searchTags = "native character cjk";
+        }
+    }
+
 #ifndef MCENGINE_PLATFORM_WASM
     this->addSubSection(_("osu! folder"));
     this->addLabel(_("1) If you have an existing osu!stable installation:"))->setTextColor(0xff666666);
@@ -916,12 +949,6 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
                       &cv::scores_always_display_pp);
 
     this->addSubSection(_("Songbrowser"));
-    // Fallback font support is currently implemented for these platforms
-    // Remember to update this if adding support for another platform
-    if constexpr(Env::cfg(OS::LINUX | OS::WINDOWS)) {
-        this->addCheckbox(_("Prefer metadata in original language"), &cv::prefer_cjk);
-        this->elemContainers.back()->searchTags = "native character cjk";
-    }
     this->addCheckbox(_("Draw Strain Graph in Songbrowser"),
                       _("Hold either SHIFT/CTRL to show only speed/aim strains.\nSpeed strain is red, aim strain is "
                         "green.\n(See osu_hud_scrubbing_timeline_strains_*)"),
@@ -2931,6 +2958,41 @@ void OptionsOverlayImpl::updateNotelockSelectLabel() {
 
     this->notelockSelectLabel->setText(
         this->notelockTypes[std::clamp<int>(cv::notelock_type.getInt(), 0, this->notelockTypes.size() - 1)]);
+}
+
+void OptionsOverlayImpl::onLanguageSelect() {
+    // Just close the language selection menu if it's already open
+    if(this->contextMenu->isVisible()) {
+        this->contextMenu->setVisible2(false);
+        return;
+    }
+
+    this->contextMenu->setPos(this->languageSelectButton->getPos());
+    this->contextMenu->setRelPos(this->languageSelectButton->getPos());
+    this->contextMenu->begin();
+    for(const auto &[locale, language] : LANGUAGES) {
+        this->contextMenu->addButton(std::string(language));
+    }
+    this->contextMenu->end(false, UIContextMenu::EndStyle{0});
+    this->contextMenu->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onLanguageSelected>(this));
+}
+
+void OptionsOverlayImpl::onLanguageSelected(std::string_view newLanguage, int /*id*/) {
+    // Because we have so many places where the UI only sets its strings once,
+    // the simplest way to make locales work is to just restart the entire game.
+    //
+    // Unless someone is willing to refactor the entire codebase to account for this,
+    // and deal with the additional cognitive load when adding any new UI elements,
+    // this is how this setting will always be applied.
+    //
+    // We don't restart on cvar change because there are possibly many places where
+    // the cvar could get set (eg when reloading config).
+    for(const auto &[locale, language] : LANGUAGES) {
+        if(language != newLanguage) continue;
+
+        cv::language.setValue(locale);
+        engine->restart();  // calls onShutdown() which calls save()
+    }
 }
 
 void OptionsOverlayImpl::onFullscreenChange(CBaseUICheckbox *checkbox) {
