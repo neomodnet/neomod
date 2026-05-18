@@ -410,7 +410,7 @@ void ModSelector::updateScoreMultiplierLabelText() {
     else
         this->scoreMultiplierLabel->setTextColor(argb(alpha, 255, 69, 00));
 
-    this->scoreMultiplierLabel->setText(fmt::format(fmt::runtime(_("Score Multiplier: {:.2f}X")), scoreMultiplier));
+    this->scoreMultiplierLabel->setText(tformat("Score Multiplier: {:.2f}X", scoreMultiplier));
 }
 
 void ModSelector::updateExperimentalButtons() {

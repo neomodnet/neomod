@@ -9,10 +9,14 @@
 #include <cstdint>
 #include <type_traits>
 
+// Macros to mark strings for translation (and get translated version)
+// You could edit the tformat macro to be a template function, and use compile-time checks
+// for the syntax of the format string, but it's probably not worth the overhead.
 #define _INTL_REDIRECT_MACROS
 #include <libintl.h>
 #include <locale.h>
 #define _(String) gettext(String)
+#define tformat(String, args...) fmt::format(fmt::runtime(_(String)), args)
 
 namespace Env {
 enum class OS : uint8_t {

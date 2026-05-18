@@ -49,7 +49,7 @@ RoomUIElement::RoomUIElement(Lobby* multi, const Room& room, float x, float y, f
     title_ui->setDrawBackground(false);
     this->container.addBaseUIElement(title_ui);
 
-    std::string player_count_str = fmt::format(fmt::runtime(_("Players: {:d}/{:d}")), room.nb_players, room.nb_open_slots);
+    std::string player_count_str = tformat("Players: {:d}/{:d}", room.nb_players, room.nb_open_slots);
     const float player_count_width = multi->font->getStringWidth(player_count_str) + 20.f;
     auto* slots_ui = new CBaseUILabel(10.f, 33.f, player_count_width, 30.f, {}, std::move(player_count_str));
     slots_ui->setDrawFrame(false);

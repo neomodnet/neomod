@@ -45,12 +45,12 @@ static std::array s_tips{
     Tip{_(R"(Shift + Click on a skin in the dropdown list to change the source for base skin elements.)")},
     Tip{
         [&b = binds::TOGGLE_MODSELECT]() -> std::string
-        { return fmt::format(fmt::runtime(_(R"(Press {:s} during gameplay to change mods in realtime.)")), env->scanCodeToString(b.get())); }
+        { return tformat(R"(Press {:s} during gameplay to change mods in realtime.)", env->scanCodeToString(b.get())); }
     },
     Tip{
         [&ch = binds::TOGGLE_CHAT, &exch = binds::TOGGLE_EXTENDED_CHAT]() -> std::string {
             if(!BanchoState::is_online()) return "";
-            return fmt::format(fmt::runtime(_(R"(Press {:s} or {:s} anywhere to open chat.)")), env->scanCodeToString(ch.get()), env->scanCodeToString(exch.get()));
+            return tformat(R"(Press {:s} or {:s} anywhere to open chat.)", env->scanCodeToString(ch.get()), env->scanCodeToString(exch.get()));
         }
     },
 #if !defined(MCENGINE_PLATFORM_WASM) // irrelevant for web
@@ -141,7 +141,7 @@ std::string getCurrentTip() {
     }
     current = getAllTips()[s_currentIdx].get();
     assert(!current.empty());
-    return fmt::format(fmt::runtime(_("Tip: {:s}")), current);
+    return tformat("Tip: {:s}", current);
 }
 
 void cycleTip(int addIndex) {

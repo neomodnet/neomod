@@ -985,12 +985,12 @@ void MainMenu::update(CBaseUIEventCtx &c) {
     }
 
     if(Osu::isBleedingEdge()) {
-        static std::string versionString = fmt::format(fmt::runtime(_("Version {:.2f} ({:s})")), cv::version.getFloat(),
-                                                       cv::build_timestamp.getString());
+        static std::string versionString =
+            tformat("Version {:.2f} ({:s})", cv::version.getFloat(), cv::build_timestamp.getString());
         this->versionButton->setTextColor(rgb(255, 220, 220));
         this->versionButton->setText(versionString);
     } else {
-        static std::string versionString = fmt::format(fmt::runtime(_("Version {:.2f}")), cv::version.getFloat());
+        static std::string versionString = tformat("Version {:.2f}", cv::version.getFloat());
         this->versionButton->setTextColor(rgb(255, 255, 255));
         this->versionButton->setText(versionString);
     }
@@ -1102,8 +1102,7 @@ void MainMenu::update(CBaseUIEventCtx &c) {
                 if(this->updateAvailableButton->getText().find("ready") != std::string::npos)
                     this->updateAvailableButton->setText(_("Click here to install the update!"));
                 else
-                    this->updateAvailableButton->setText(
-                        fmt::format(fmt::runtime(_("A new version of {} is ready!")), PACKAGE_NAME));
+                    this->updateAvailableButton->setText(tformat("A new version of {} is ready!", PACKAGE_NAME));
             }
             if(engine->getTime() > this->updateButtonAnimTime) {
                 this->updateButtonAnimTime = engine->getTime() + 3.0f;

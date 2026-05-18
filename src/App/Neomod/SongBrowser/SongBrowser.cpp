@@ -922,8 +922,8 @@ void SongBrowser::update(CBaseUIEventCtx &c) {
     if(this->map_autodl) {
         const i32 set_id = Downloader::resolve_beatmapset_id_for(this->map_autodl, this->set_autodl);
         if(set_id < 0) {
-            ui->getNotificationOverlay()->addToast(
-                fmt::format(fmt::runtime(_("Failed to find Beatmap #{:d} :(")), this->map_autodl), ERROR_TOAST);
+            ui->getNotificationOverlay()->addToast(tformat("Failed to find Beatmap #{:d} :(", this->map_autodl),
+                                                   ERROR_TOAST);
             this->map_autodl = 0;
             this->set_autodl = 0;
         } else if(set_id > 0) {
@@ -2464,7 +2464,7 @@ void SongBrowser::initializeGroupingButtons() {
             else if(i > 10)
                 difficultyCollectionName = _("Above 10 stars");
             else
-                difficultyCollectionName = fmt::format(fmt::runtime(_("{:d} star{:s}")), i, i == 1 ? "" : "s");
+                difficultyCollectionName = tformat("{:d} star{:s}", i, i == 1 ? "" : "s");
 
             diffbtns[i] = MKCBTN(std::move(difficultyCollectionName));
         }

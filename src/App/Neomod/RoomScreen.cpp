@@ -272,9 +272,9 @@ void RoomScreen::draw() {
             }
         }
         if(failed) {
-            this->map_title->setText(fmt::format(fmt::runtime(_("Failed to download Beatmap #{:d} :(")), BanchoState::room.map_id));
+            this->map_title->setText(tformat("Failed to download Beatmap #{:d} :(", BanchoState::room.map_id));
         } else {
-            this->map_title->setText(fmt::format(fmt::runtime(_("Downloading... {:.2f}%")), progress * 100.f));
+            this->map_title->setText(tformat("Downloading... {:.2f}%", progress * 100.f));
         }
         this->map_title->setSizeToContent(0, 0);
         this->ready_btn->is_loading = true;
@@ -425,7 +425,7 @@ void RoomScreen::updateSettingsLayout(vec2 newResolution) {
         std::string host_str = _("Host: None");
         if(BanchoState::room.host_id != 0) {
             const auto *host = BANCHO::User::get_user_info(BanchoState::room.host_id, true);
-            host_str = fmt::format(fmt::runtime(_("Host: {}")), host->name.c_str());
+            host_str = tformat("Host: {}", host->name.c_str());
         }
         this->host->setText(std::move(host_str));
         ADD_ELEMENT(this->host);
@@ -515,7 +515,7 @@ void RoomScreen::updateSettingsLayout(vec2 newResolution) {
         const std::string force_start_str =
             BanchoState::room.all_players_ready()
                 ? _("Start game")
-                : fmt::format(fmt::runtime(_("Force start ({:d}/{:d})")), nb_ready, BanchoState::room.nb_players);
+                : tformat("Force start ({:d}/{:d})", nb_ready, BanchoState::room.nb_players);
         this->ready_btn->setText(force_start_str);
         this->ready_btn->setColor(0xff00d900);
     } else {
@@ -552,9 +552,9 @@ void RoomScreen::updateLayout(vec2 newResolution) {
             auto color = 0xffffffff;
             std::string username = user_info->name;
             if(slot.is_player_playing()) {
-                username = fmt::format(fmt::runtime(_("[playing] {}")), user_info->name);
+                username = tformat("[playing] {}", user_info->name);
             } else if(slot.no_map()) {
-                username = fmt::format(fmt::runtime(_("[no map] {}")), user_info->name);
+                username = tformat("[no map] {}", user_info->name);
             } else if(slot.is_ready()) {
                 color = 0xff00ff00;
             }
@@ -628,17 +628,16 @@ void RoomScreen::on_map_change() {
             ui->getSongBrowser()->onDifficultySelected(beatmap, false);
             this->map_title->setText(BanchoState::room.map_name);
             this->map_title->setSizeToContent(0, 0);
-            auto attributes = fmt::format(fmt::runtime(_("AR: {:.1f}, CS: {:.1f}, HP: {:.1f}, OD: {:.1f}")), beatmap->getAR(),
-                                          beatmap->getCS(), beatmap->getHP(), beatmap->getOD());
+            auto attributes = tformat("AR: {:.1f}, CS: {:.1f}, HP: {:.1f}, OD: {:.1f}", beatmap->getAR(),
+                                      beatmap->getCS(), beatmap->getHP(), beatmap->getOD());
             this->map_attributes->setText(attributes);
             this->map_attributes->setSizeToContent(0, 0);
-            auto attributes2 =
-                fmt::format(fmt::runtime(_("Length: {:d} seconds, BPM: {:d} ({:d} - {:d})")), beatmap->getLengthMS() / 1000,
-                            beatmap->getMostCommonBPM(), beatmap->getMinBPM(), beatmap->getMaxBPM());
+            auto attributes2 = tformat("Length: {:d} seconds, BPM: {:d} ({:d} - {:d})", beatmap->getLengthMS() / 1000,
+                                       beatmap->getMostCommonBPM(), beatmap->getMinBPM(), beatmap->getMaxBPM());
             this->map_attributes2->setText(attributes2);
             this->map_attributes2->setSizeToContent(0, 0);
 
-            auto stars = fmt::format(fmt::runtime(_("Star rating: {:.2f}*")), beatmap->getStarRating(StarPrecalc::active_idx));
+            auto stars = tformat("Star rating: {:.2f}*", beatmap->getStarRating(StarPrecalc::active_idx));
             this->map_stars->setText(stars);
             this->map_stars->setSizeToContent(0, 0);
             this->ready_btn->is_loading = false;

@@ -345,27 +345,27 @@ void RankingScreen::update(CBaseUIEventCtx &c) {
         tto->begin();
         {
             auto &sc = m_impl->storedScore;
-            tto->addLine(fmt::format(fmt::runtime(_("{:.2f}pp")), sc.get_or_calc_pp()));
+            tto->addLine(tformat("{:.2f}pp", sc.get_or_calc_pp()));
             if(sc.ppv2_total_stars > 0.0) {
-                tto->addLine(fmt::format(fmt::runtime(_("Stars: {:.2f} ({:.2f} aim, {:.2f} speed)")), sc.ppv2_total_stars,
-                                         sc.ppv2_aim_stars, sc.ppv2_speed_stars));
+                tto->addLine(tformat("Stars: {:.2f} ({:.2f} aim, {:.2f} speed)", sc.ppv2_total_stars, sc.ppv2_aim_stars,
+                                     sc.ppv2_speed_stars));
             }
-            tto->addLine(fmt::format(fmt::runtime(_("Speed: {:.3g}x")), sc.mods.speed));
+            tto->addLine(tformat("Speed: {:.3g}x", sc.mods.speed));
 
             const f32 AR = GameRules::arWithSpeed(sc.mods.get_naive_ar(sc.map), sc.mods.speed);
             const f32 OD = GameRules::odWithSpeed(sc.mods.get_naive_od(sc.map), sc.mods.speed);
             const f32 CS = sc.mods.get_naive_cs(sc.map);
             const f32 HP = sc.mods.get_naive_hp(sc.map);
 
-            tto->addLine(fmt::format(fmt::runtime(_("CS:{:.2f} AR:{:.2f} OD:{:.2f} HP:{:.2f}")), CS, AR, OD, HP));
+            tto->addLine(tformat("CS:{:.2f} AR:{:.2f} OD:{:.2f} HP:{:.2f}", CS, AR, OD, HP));
 
             if(m_impl->sMods.length() > 0) tto->addLine(m_impl->sMods);
 
             if(m_impl->fUnstableRate > 0.f) {
                 tto->addLine(_("Accuracy:"));
                 tto->addLine(
-                    fmt::format(fmt::runtime(_("Error: {:.2f}ms - {:.2f}ms avg")), m_impl->fHitErrorAvgMin, m_impl->fHitErrorAvgMax));
-                tto->addLine(fmt::format(fmt::runtime(_("Unstable Rate: {:.2f}")), m_impl->fUnstableRate));
+                    tformat("Error: {:.2f}ms - {:.2f}ms avg", m_impl->fHitErrorAvgMin, m_impl->fHitErrorAvgMax));
+                tto->addLine(tformat("Unstable Rate: {:.2f}", m_impl->fUnstableRate));
             }
         }
         tto->end();
@@ -596,7 +596,7 @@ void RankingScreen::setIndex(int index) {
     if(!cv::scores_enabled.getBool()) index = -1;
 
     if(index > -1) {
-        m_impl->rankingIndex->setText(fmt::format(fmt::runtime(_("You achieved the #{} score on local rankings!")), (index + 1)));
+        m_impl->rankingIndex->setText(tformat("You achieved the #{} score on local rankings!", (index + 1)));
         m_impl->rankingIndex->setVisible2(true);
         m_impl->rankingBottom->setVisible2(true);
     } else {

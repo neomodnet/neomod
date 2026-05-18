@@ -36,7 +36,7 @@ void LoadingScreen::drawProgress() {
     const f32 shadowOffset = std::round(1.0f * Osu::getUIScale());
 
     // progress message
-    const std::string loadingMessage = fmt::format(fmt::runtime(_("Loading ... ({:d} %)")), (int)(this->progress * 100.0f));
+    const std::string loadingMessage = tformat("Loading ... ({:d} %)", (int)(this->progress * 100.0f));
     g->pushTransform();
     {
         g->translate((int)(osu->getVirtScreenWidth() / 2 - font->getStringWidth(loadingMessage) / 2),

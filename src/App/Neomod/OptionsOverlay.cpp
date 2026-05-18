@@ -842,7 +842,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
 
     // Only renders if server submission policy is unknown
     {
-        this->addLabel(fmt::format(fmt::runtime(_("If the server admins don't explicitly allow {},")), PACKAGE_NAME))
+        this->addLabel(tformat("If the server admins don't explicitly allow {},", PACKAGE_NAME))
             ->setTextColor(0xff666666);
         this->elemContainers.back()->render_condition = RenderCondition::SCORE_SUBMISSION_POLICY;
         this->addLabel(_("you might get banned!"))->setTextColor(0xff666666);
@@ -3517,7 +3517,7 @@ void OptionsOverlayImpl::onKeyBindingButtonPressed(CBaseUIButton *button) {
         this->waitingKey = element->cvar;
 
         const bool waitForKey = true;
-        auto notificationText = fmt::format(fmt::runtime(_("Press new key for {}:")), button->getText());
+        auto notificationText = tformat("Press new key for {}:", button->getText());
         ui->getNotificationOverlay()->addNotification(notificationText, 0xffffffff, waitForKey);
         ui->getNotificationOverlay()->setDisallowWaitForKeyLeftClick(
             !(dynamic_cast<KeyBindButton *>(button)->isLeftMouseClickBindingAllowed()));
@@ -3552,10 +3552,10 @@ void OptionsOverlayImpl::onKeyBindingsResetAllPressed(CBaseUIButton * /*button*/
     } else {
         if(remainingUntilReset > 1)
             ui->getNotificationOverlay()->addNotification(
-                fmt::format(fmt::runtime(_("Press {:d} more times to confirm.")), remainingUntilReset));
+                tformat("Press {:d} more times to confirm.", remainingUntilReset));
         else
             ui->getNotificationOverlay()->addNotification(
-                fmt::format(fmt::runtime(_("Press {:d} more time to confirm!")), remainingUntilReset), 0xffffff00);
+                tformat("Press {:d} more time to confirm!", remainingUntilReset), 0xffffff00);
     }
 }
 
@@ -3912,10 +3912,10 @@ void OptionsOverlayImpl::onResetEverythingClicked(CBaseUIButton * /*button*/) {
     } else {
         if(remainingUntilReset > 1)
             ui->getNotificationOverlay()->addNotification(
-                fmt::format(fmt::runtime(_("Press {:d} more times to confirm.")), remainingUntilReset));
+                tformat("Press {:d} more times to confirm.", remainingUntilReset));
         else
             ui->getNotificationOverlay()->addNotification(
-                fmt::format(fmt::runtime(_("Press {:d} more time to confirm!")), remainingUntilReset), 0xffffff00);
+                tformat("Press {:d} more time to confirm!", remainingUntilReset), 0xffffff00);
     }
 }
 

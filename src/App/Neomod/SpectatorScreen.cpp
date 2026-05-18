@@ -69,7 +69,7 @@ void start(int user_id) {
     BANCHO::Net::send_packet(packet);
 
     const UserInfo *user_info = BANCHO::User::get_user_info(user_id, true);
-    auto notif = fmt::format(fmt::runtime(_("Started spectating {:s}")), user_info->name);
+    auto notif = tformat("Started spectating {:s}", user_info->name);
     ui->getNotificationOverlay()->addToast(notif, SUCCESS_TOAST);
 
     BanchoState::spectating = true;
@@ -99,7 +99,7 @@ void stop() {
     }
 
     const UserInfo *user_info = BANCHO::User::get_user_info(BanchoState::spectated_player_id, true);
-    auto notif = fmt::format(fmt::runtime(_("Stopped spectating {:s}")), user_info->name);
+    auto notif = tformat("Stopped spectating {:s}", user_info->name);
     ui->getNotificationOverlay()->addToast(notif, INFO_TOAST);
 
     BanchoState::spectating = false;
@@ -196,7 +196,7 @@ void SpectatorScreen::update(CBaseUIEventCtx &c) {
         last_player_id = BanchoState::spectated_player_id;
     }
 
-    this->spectating->setText(fmt::format(fmt::runtime(_("Spectating {:s}")), user_info->name));
+    this->spectating->setText(tformat("Spectating {:s}", user_info->name));
 
     {
         using enum LiveReplayAction;
@@ -205,12 +205,12 @@ void SpectatorScreen::update(CBaseUIEventCtx &c) {
             std::string_view action_str = action == NONE          ? _("AFK")
                                           : action == SONG_SELECT ? _("picking a map...")
                                                                   : _("spectating someone else");
-            this->status->setText(fmt::format(fmt::runtime(_("{:s} is {}")), user_info->name, action_str));
+            this->status->setText(tformat("{:s} is {}", user_info->name, action_str));
         }
     }
 
     if(user_info->mode != GameMode::STANDARD) {
-        this->status->setText(fmt::format(fmt::runtime(_("{:s} is playing minigames")), user_info->name));
+        this->status->setText(tformat("{:s} is playing minigames", user_info->name));
     } else if(user_info->map_id != -1 && user_info->map_id != 0) {
         if(user_info->map_id != current_map_id) {
             f32 progress = 0.f;
@@ -225,7 +225,7 @@ void SpectatorScreen::update(CBaseUIEventCtx &c) {
                 }
             }
             if(failed) {
-                this->status->setText(fmt::format(fmt::runtime(_("Failed to download Beatmap #{:d} :(")), user_info->map_id));
+                this->status->setText(tformat("Failed to download Beatmap #{:d} :(", user_info->map_id));
                 if(user_info->map_id != this->last_failed_map) {
                     Packet packet;
                     packet.id = OUTP_CANT_SPECTATE;
@@ -233,7 +233,7 @@ void SpectatorScreen::update(CBaseUIEventCtx &c) {
                     this->last_failed_map = user_info->map_id;
                 }
             } else {
-                this->status->setText(fmt::format(fmt::runtime(_("Downloading map... {:.2f}%")), progress * 100.f));
+                this->status->setText(tformat("Downloading map... {:.2f}%", progress * 100.f));
             }
         }
     }
