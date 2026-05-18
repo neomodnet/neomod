@@ -134,18 +134,23 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
         fmain->~SDLMain();
     }
 
-    if constexpr(!Env::cfg(OS::WASM)) {
-        if(restart) {
-            SDLMain::restart(restartArgs);
-        }
-        if constexpr(!Env::cfg(FEAT::MAINCB)) {
-            SDL_Quit();
-            printf("Shutdown success.\n");
-            std::exit(0);
-        }
+#ifdef MCENGINE_PLATFORM_WASM
+    if(restart) {
+        emscripten_run_script("location.reload()");
     } else {
+        // NOTE: the current wasm shell doesn't detect shutdown, so it just keeps displaying the last drawn frame
         printf("Shutdown success.\n");
     }
+#else
+    if(restart) {
+        SDLMain::restart(restartArgs);
+    }
+    if constexpr(!Env::cfg(FEAT::MAINCB)) {
+        SDL_Quit();
+        printf("Shutdown success.\n");
+        std::exit(0);
+    }
+#endif
 }
 
 // we can just call handleEvent and iterate directly if we're not using main callbacks

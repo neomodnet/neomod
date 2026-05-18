@@ -39,7 +39,7 @@ jobs:
       - name: Install build dependencies
         run: |
           apt-get update
-          apt-get install -y automake autoconf autoconf-archive libtool pkgconf ninja-build meson nasm ccache
+          apt-get install -y automake autoconf autoconf-archive libtool pkgconf ninja-build meson nasm ccache gettext
 
       - name: Set up build directory
         run: |
