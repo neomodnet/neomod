@@ -51,6 +51,7 @@
 #include <lmcons.h>
 #include <libloaderapi.h>
 #include <winbase.h>
+#include <winnls.h>  // getDefaultLocale
 #elif defined(__APPLE__) || defined(MCENGINE_PLATFORM_LINUX)
 #include <pwd.h>
 #include <unistd.h>
@@ -302,6 +303,33 @@ std::string_view Environment::getUsername() const noexcept {
     // fallback
     if(m_sUsername.empty()) m_sUsername = std::string{PACKAGE_NAME "-user"};
     return m_sUsername;
+}
+
+const std::string Environment::getDefaultLocale() noexcept {
+#if defined(MCENGINE_PLATFORM_WINDOWS)
+
+#ifdef MC_ARCH32
+    // GetUserDefaultLocaleName is Windows Vista and later, this is fallback for Windows XP
+    // This will give something like "en", not "en-US", but who cares
+    // We could concat with LOCALE_SISO639TRYNAME if we ever add Traditional English
+    char locale_name[9];  // 9 is max according to ms docs
+    GetLocaleInfoA(GetUserDefaultLCID(), LOCALE_SISO639LANGNAME, locale_name, 9);
+    return locale_name;
+#else
+    std::array<wchar_t, LOCALE_NAME_MAX_LENGTH> wlocale{};
+    GetUserDefaultLocaleName(wlocale.data(), LOCALE_NAME_MAX_LENGTH);
+    return UniString::to_utf8(wlocale.data());
+#endif
+
+#else
+    // TODO: macos
+
+    // Linux and POSIX-y systems
+    // WASM shell also injects "navigator.language" into $LANGUAGE
+    auto locale = env->getEnvVariable("LANGUAGE");
+    if(locale.empty()) locale = "en";
+    return locale;
+#endif
 }
 
 // i.e. toplevel appdata path (or ~/.local/share/)

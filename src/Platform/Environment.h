@@ -99,7 +99,9 @@ class Environment {
     // engine/factory
     std::unique_ptr<Graphics> createRenderer();
 
-    [[nodiscard]] constexpr forceinline bool usingNullGraphics() const { return m_renderer == RuntimeRenderer::NULLGRAPHICS; }
+    [[nodiscard]] constexpr forceinline bool usingNullGraphics() const {
+        return m_renderer == RuntimeRenderer::NULLGRAPHICS;
+    }
 #ifdef MCENGINE_FEATURE_DIRECTX11
     [[nodiscard]] inline bool usingDX11() const { return m_renderer == RuntimeRenderer::DX11; }
 #else
@@ -148,6 +150,7 @@ class Environment {
 
     // user
     [[nodiscard]] std::string_view getUsername() const noexcept;
+    [[nodiscard]] const std::string getDefaultLocale() noexcept;
     [[nodiscard]] const std::string &getUserDataPath() const noexcept;
     [[nodiscard]] const std::string &getLocalDataPath() const noexcept;
     [[nodiscard]] const std::string &getCacheDir() const noexcept;
