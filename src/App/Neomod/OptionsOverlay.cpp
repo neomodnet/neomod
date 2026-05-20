@@ -97,9 +97,10 @@ enum class ElementType : int8_t {
 using enum ElementType;
 struct OptionsElement;
 
-const int NB_LANGUAGES = 2;
+const int NB_LANGUAGES = 3;
 const std::array<std::pair<std::string_view, std::string_view>, NB_LANGUAGES> LANGUAGES{{
     {"en"sv, "English"sv},
+    {"ru"sv, "Русский"sv},
     {"fr"sv, "Français"sv},
     // Make sure to update NB_LANGUAGES above if you add one!
 }};
