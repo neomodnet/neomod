@@ -112,6 +112,8 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
     const bool restart = fmain->isRestartScheduled();
     std::vector<std::string> restartArgs{};
     if(restart) {
+        // TODO: fails to restart if launched with relative path from another directory
+        //       (since we called setcwdexe in the meantime...)
         restartArgs = fmain->getCommandLine();
     }
 
@@ -199,6 +201,10 @@ MAIN_FUNC /* int argc, char *argv[] */
 
     // init gettext for i18n
     // must be called after setlocale()
+    // TODO: doesn't work if MCENGINE_LOCALE_PATH is a relative dir (which it is by default)
+    //       and the user is starting from another directory (since setcwdexe() call is later)
+    //       i tried just moving these lines after setcwdexe but then gettext returns english always...
+    //       even when starting from the same directory. this is hell to debug
     bindtextdomain(PACKAGE_NAME, MCENGINE_LOCALE_PATH);
     textdomain(PACKAGE_NAME);
 

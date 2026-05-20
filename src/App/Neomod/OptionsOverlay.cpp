@@ -891,6 +891,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     {
         this->addSubSection(_("Localization"));
 
+#ifdef HAVE_LIBINTL
         std::string currentLanguage = "English";
         for(const auto &[locale, language] : LANGUAGES) {
             if(locale == cv::language.getString()) {
@@ -902,6 +903,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
         auto languageElement = this->addButton(_("Select language"), currentLanguage, false, &cv::language);
         this->languageSelectButton = (CBaseUIButton *)languageElement->baseElems[0].get();
         this->languageSelectButton->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onLanguageSelect>(this));
+#endif
 
         // Fallback font support is currently implemented for these platforms
         // Remember to update this if adding support for another platform

@@ -1801,15 +1801,23 @@ AS_IF([test "x$have_curl" = "xdownload" || test "x$have_openssl" = "xyes"], [
     AC_DEFINE([USE_OPENSSL], [1], [Defined if OpenSSL cryptographic primitives are available.])
 ])
 
-have_libintl="build from source"
+AC_ARG_WITH([libintl], AS_HELP_STRING([--with-libintl], [Build with libintl support (default: yes)]))
+
+AS_IF([test "x$with_libintl" != "xno"], [
+    AS_IF([test "x$enable_system_deps" != "xno"], [
+        PKG_CHECK_AUTO([LIBINTL], [libintl >= $GETTEXT_VERSION], [have_libintl=yes], [have_libintl=no])
+    ])
+    AS_IF([test "x$have_libintl" != "xyes"], [
+        have_libintl="build from source"
+    ])
+    AC_DEFINE([HAVE_LIBINTL], [1], [Defined if libintl support is available.])
+], [
+    have_libintl=no
+])
 LIBINTL_CFLAGS="-I${DEPS_PREFIX}/include"
 LIBINTL_LIBS="-L${DEPS_PREFIX}/lib -lintl"
 AC_SUBST([LIBINTL_CFLAGS])
 AC_SUBST([LIBINTL_LIBS])
-
-AS_IF([test "x$have_libintl" = "xbuild from source"], [
-    AC_DEFINE([HAVE_LIBINTL], [1], [Defined if a standalone libintl is available.])
-])
 
 AS_IF([test "$with_soloud" = "yes"], [
     AS_IF([test "x$have_mpg123" != "xyes"], [have_mpg123="build from source"])
@@ -1855,6 +1863,7 @@ AM_CONDITIONAL([BUILD_MPG123], [test "$with_soloud" = "yes" && test "x$have_mpg1
 AM_CONDITIONAL([BUILD_SPDLOG], [test "x$have_spdlog" != "xyes"])
 AM_CONDITIONAL([BUILD_NSYNC], [test "x$have_nsync" = "xbuild from source"])
 AM_CONDITIONAL([BUILD_GLM], [test "x$have_glm" != "xyes"])
+AM_CONDITIONAL([BUILD_LIBINTL], [test "x$have_libintl" != "xyes"])
 AM_CONDITIONAL([BUILD_MIMALLOC], [{ test "x$enable_debug" != "xyes" || test "x$with_mimalloc" = "xyes"; } &&
                                 { { test "$SYSNAME" = "windows" && test "$host_cpu" = "i686" && test "x$with_mimalloc" = "xyes" ; } ||
                                   { test "x$with_mimalloc" != "xno" ; };
@@ -1975,5 +1984,5 @@ Dependencies:
     spdlog:             ${have_spdlog-build from source}
     nsync:              ${have_nsync-build from source}
     glm (math)          ${have_glm-build from source}
-    libintl:            build from source
+    libintl:            ${have_libintl-build from source}
 ])
