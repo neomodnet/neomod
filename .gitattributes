@@ -1,6 +1,6 @@
 [attr]generated gitlab-generated linguist-generated=true
 
-po/neomod.pot generated
+translations/neomod.pot generated
 
 src/Makefile.sources generated
 src/config.h.in generated

@@ -507,7 +507,7 @@ AS_IF([test "x$use_sdlgpu" = "xyes"], [
 ])
 
 # build the list of binary embed manifests based on renderer selection
-EMBED_MANIFESTS="\$(srcdir)/\$(ASSETS_DIR)/binary/misc_embed.manifest"
+EMBED_MANIFESTS="\$(srcdir)/\$(ASSETS_DIR)/binary/misc_embed.manifest \$(builddir)/gen/locale_embed.manifest"
 AS_IF([test "x$use_opengl" = "xyes" || test "x$use_opengles32" = "xyes"], [
     EMBED_MANIFESTS="$EMBED_MANIFESTS \$(srcdir)/\$(ASSETS_DIR)/binary/gl_shaders_embed.manifest"
 ])
@@ -689,7 +689,7 @@ AS_CASE(["$host_os"],
     # --emrun for support for running the .html with emrun (useful for offline testing)
     NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS $emscripten_flags -lwebsocket.js -lidbfs.js -lnodefs.js --pre-js $WASM_POLYFILL_DEP --emrun"
 
-    WASM_PRELOAD_FLAGS="--preload-file \$(srcdir)/\$(ASSETS_DIR)/fonts@fonts --preload-file \$(srcdir)/\$(ASSETS_DIR)/materials@materials --preload-file \$(builddir)/locale@locale"
+    WASM_PRELOAD_FLAGS="--preload-file \$(srcdir)/\$(ASSETS_DIR)/fonts@fonts --preload-file \$(srcdir)/\$(ASSETS_DIR)/materials@materials"
     AS_IF([test "x$enable_redistributable" = "xno"], [
         # bundle some copyrighted beatmaps for non-redistributable builds
         # useful for testing purposes to have something to immediately play
@@ -1582,9 +1582,6 @@ SIMDUTF_MIN_VERSION=7.0.0
 SIMDUTF_BUILD_VERSION=9.0.0 # fast and correct utf conversion utilities
 CTRE_MIN_VERSION=3.10.0 # regex support that doesn't have exceptions FORCED enabled
 CTRE_BUILD_VERSION=6225211806c48230e5d17a1e555ef69e7325051c # git as of Jan 28th, 2026
-GETTEXT_VERSION=0.23.1
-AC_SUBST([GETTEXT_VERSION])
-AC_SUBST([LIBINTL_PREFIX],[$DEPS_PREFIX])
 
 # always build these from source if we want to use them
 AC_SUBST([SOLOUD_VERSION], [aa5bd395becd371a694755388cac2cb4fb09d27a]) # neoloud fork
@@ -1801,24 +1798,6 @@ AS_IF([test "x$have_curl" = "xdownload" || test "x$have_openssl" = "xyes"], [
     AC_DEFINE([USE_OPENSSL], [1], [Defined if OpenSSL cryptographic primitives are available.])
 ])
 
-AC_ARG_WITH([libintl], AS_HELP_STRING([--with-libintl], [Build with libintl support (default: yes)]))
-
-AS_IF([test "x$with_libintl" != "xno"], [
-    AS_IF([test "x$enable_system_deps" != "xno"], [
-        PKG_CHECK_AUTO([LIBINTL], [libintl >= $GETTEXT_VERSION], [have_libintl=yes], [have_libintl=no])
-    ])
-    AS_IF([test "x$have_libintl" != "xyes"], [
-        have_libintl="build from source"
-    ])
-    AC_DEFINE([HAVE_LIBINTL], [1], [Defined if libintl support is available.])
-], [
-    have_libintl=no
-])
-LIBINTL_CFLAGS="-I${DEPS_PREFIX}/include"
-LIBINTL_LIBS="-L${DEPS_PREFIX}/lib -lintl"
-AC_SUBST([LIBINTL_CFLAGS])
-AC_SUBST([LIBINTL_LIBS])
-
 AS_IF([test "$with_soloud" = "yes"], [
     AS_IF([test "x$have_mpg123" != "xyes"], [have_mpg123="build from source"])
 ], [
@@ -1863,7 +1842,6 @@ AM_CONDITIONAL([BUILD_MPG123], [test "$with_soloud" = "yes" && test "x$have_mpg1
 AM_CONDITIONAL([BUILD_SPDLOG], [test "x$have_spdlog" != "xyes"])
 AM_CONDITIONAL([BUILD_NSYNC], [test "x$have_nsync" = "xbuild from source"])
 AM_CONDITIONAL([BUILD_GLM], [test "x$have_glm" != "xyes"])
-AM_CONDITIONAL([BUILD_LIBINTL], [test "x$have_libintl" != "xyes"])
 AM_CONDITIONAL([BUILD_MIMALLOC], [{ test "x$enable_debug" != "xyes" || test "x$with_mimalloc" = "xyes"; } &&
                                 { { test "$SYSNAME" = "windows" && test "$host_cpu" = "i686" && test "x$with_mimalloc" = "xyes" ; } ||
                                   { test "x$with_mimalloc" != "xno" ; };
@@ -1912,8 +1890,6 @@ AC_SUBST([ubercompat])
 AM_CONDITIONAL([WINSHARED_DLLS_NEEDED], [test -n "$WINSHARED_DLLS"])
 AM_CONDITIONAL([BUILD_WINPTHREAD_NOVERSION], 
     [test "$host_os" = "mingw32" && test "x$enable_static" = "xyes"])
-
-AM_CONDITIONAL([BUILD_LIBINTL], [test "x$have_libintl" = "xbuild from source"])
 
 AM_CONDITIONAL([BUILD_TESTS], [test "x$enable_tests" != "xno"])
 AM_CONDITIONAL([AUDIO_SHORTCUTS], [test -n "$make_audio_shortcuts" && test -n "$WINE" && test "$SYSNAME" = "windows"])
@@ -1984,5 +1960,4 @@ Dependencies:
     spdlog:             ${have_spdlog-build from source}
     nsync:              ${have_nsync-build from source}
     glm (math)          ${have_glm-build from source}
-    libintl:            ${have_libintl-build from source}
 ])

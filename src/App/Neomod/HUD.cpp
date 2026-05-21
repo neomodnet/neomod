@@ -249,7 +249,7 @@ void HUD::draw() {
         // dynamic hud scaling updates
         this->fScoreHeight = osu->getSkin()->i_scores[0]->getHeight() * HUD::getScoreScale();
 
-        if(cv::draw_progressbar.getBool()) this->drawProgressBar(pf->getPercentFinishedPlayable(), pf->isWaiting());
+        if(cv::draw_progressbar.getBool()) this->drawClock(pf->getPercentFinishedPlayable(), pf->isWaiting());
 
         if(cv::draw_accuracy.getBool()) this->drawAccuracy(score->getAccuracy() * 100.0f);
 
@@ -456,7 +456,7 @@ void HUD::drawDummy() {
 
     this->fScoreHeight = 0.0f;
 
-    if(cv::draw_progressbar.getBool()) this->drawProgressBar(0.25f, false);
+    if(cv::draw_progressbar.getBool()) this->drawClock(0.25f, false);
 
     if(cv::draw_accuracy.getBool()) this->drawAccuracy(score_entry.accuracy * 100.0f);
 
@@ -1173,7 +1173,7 @@ void HUD::drawAccuracy(f32 accuracy) {
                             pctWidth -                    //
                             digitOverlapSize * (numDrawDigits + 1);
 
-        // for HUD::drawProgressBar, to not move the progress bar depending on accuracy
+        // for HUD::drawClock, to not change the clock depending on accuracy
         // TODO: seems like it should only depend on score_percent?
         const f32 xOffsetConst = (i32)((f32)digitWidth * 0.95f) * numTotalDigits +  // VERY questionable
                                  dotWidth +                                         //
@@ -1726,7 +1726,7 @@ void HUD::drawHitErrorBarInt2(vec2 center, i32 ur) {
     }
 }
 
-void HUD::drawProgressBar(f32 percent, bool waiting) {
+void HUD::drawClock(f32 percent, bool waiting) {
     if(!cv::draw_accuracy.getBool()) this->fAccuracyXOffset = osu->getVirtScreenWidth();
 
     const f32 num_segments = 15 * 8;

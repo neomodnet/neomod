@@ -199,15 +199,6 @@ MAIN_FUNC /* int argc, char *argv[] */
     }
 #endif
 
-    // init gettext for i18n
-    // must be called after setlocale()
-    // TODO: doesn't work if MCENGINE_LOCALE_PATH is a relative dir (which it is by default)
-    //       and the user is starting from another directory (since setcwdexe() call is later)
-    //       i tried just moving these lines after setcwdexe but then gettext returns english always...
-    //       even when starting from the same directory. this is hell to debug
-    bindtextdomain(PACKAGE_NAME, MCENGINE_LOCALE_PATH);
-    textdomain(PACKAGE_NAME);
-
 #ifdef WITH_LIVEPP
     debugLog("Starting Live++");
     lpp::LppSynchronizedAgent lppAgent = lpp::LppCreateSynchronizedAgent(nullptr, L"../../../LivePP");

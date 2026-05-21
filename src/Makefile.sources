@@ -253,6 +253,7 @@ neomod_SOURCES = \
 	src/Engine/Thread.cpp \
 	src/Engine/Timing.cpp \
 	src/Engine/URLHistory.cpp \
+	src/Engine/i18n.cpp \
 	src/GUI/CBaseUIButton.cpp \
 	src/GUI/CBaseUICheckbox.cpp \
 	src/GUI/CBaseUIContainer.cpp \

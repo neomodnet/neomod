@@ -211,7 +211,7 @@ class HUD final : public UIScreen {
     void drawHitErrorBar(f32 hitWindow300, f32 hitWindow100, f32 hitWindow50, f32 hitWindowMiss, i32 ur);
     void drawHitErrorBarInt(f32 hitWindow300, f32 hitWindow100, f32 hitWindow50, f32 hitWindowMiss);
     static void drawHitErrorBarInt2(vec2 center, i32 ur);
-    void drawProgressBar(f32 percent, bool waiting);
+    void drawClock(f32 percent, bool waiting);
     static void drawStatistics(const HUDStats &stats);
     void drawTargetHeatmap(f32 hitcircleDiameter);
     static void drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 beatmapStartTimePlayable,

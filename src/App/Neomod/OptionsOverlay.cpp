@@ -96,15 +96,6 @@ enum class ElementType : int8_t {
 };
 using enum ElementType;
 struct OptionsElement;
-
-const int NB_LANGUAGES = 4;
-const std::array<std::pair<std::string_view, std::string_view>, NB_LANGUAGES> LANGUAGES{{
-    {"en"sv, "English"sv},
-    {"ru"sv, "Русский"sv},
-    {"pl"sv, "Polski"sv},
-    {"fr"sv, "Français"sv},
-    // Make sure to update NB_LANGUAGES above if you add one!
-}};
 }  // namespace
 
 struct OptionsOverlayImpl final {
@@ -893,11 +884,10 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     {
         this->addSubSection(_("Localization"));
 
-#ifdef HAVE_LIBINTL
         std::string currentLanguage = "English";
-        for(const auto &[locale, language] : LANGUAGES) {
-            if(locale == cv::language.getString()) {
-                currentLanguage = language;
+        for(const auto lang : i18n::get_available_languages()) {
+            if(lang.code == cv::language.getString()) {
+                currentLanguage = lang.name;
                 break;
             }
         }
@@ -905,7 +895,6 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
         auto languageElement = this->addButton(_("Select language"), currentLanguage, false, &cv::language);
         this->languageSelectButton = (CBaseUIButton *)languageElement->baseElems[0].get();
         this->languageSelectButton->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onLanguageSelect>(this));
-#endif
 
         // Fallback font support is currently implemented for these platforms
         // Remember to update this if adding support for another platform
@@ -1063,6 +1052,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
             ->setKeyDelta(0.01f)
             ->setAnimated(false);
 
+    // TRANSLATORS: Global UI scale, to make text bigger on big screens
     this->addSubSection(_("UI Scaling"));
     this->addCheckbox(
             _("DPI Scaling"),
@@ -1326,7 +1316,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
         }
 
         {
-            OptionsElement *skinSelect = this->addButton(_("Select Skin"), _("default"), false, &cv::skin);
+            OptionsElement *skinSelect = this->addButton(_("Select Skin"), "default", false, &cv::skin);
             this->skinSelectLocalButton = static_cast<UIButton *>(skinSelect->baseElems[0].get());
             this->skinLabel = static_cast<CBaseUILabel *>(skinSelect->baseElems[1].get());
         }
@@ -1607,7 +1597,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     this->addCheckbox(_("Draw Score"), &cv::draw_score);
     this->addCheckbox(_("Draw Combo"), &cv::draw_combo);
     this->addCheckbox(_("Draw Accuracy"), &cv::draw_accuracy);
-    this->addCheckbox(_("Draw ProgressBar"), &cv::draw_progressbar);
+    this->addCheckbox(_("Draw Clock"), &cv::draw_progressbar);
     this->addCheckbox(_("Draw HitErrorBar"), &cv::draw_hiterrorbar);
     this->addCheckbox(_("Draw HitErrorBar UR"), _("Unstable Rate"), &cv::draw_hiterrorbar_ur);
     this->addCheckbox(_("Draw ScoreBar"), _("Health/HP Bar."), &cv::draw_scorebar);
@@ -1653,60 +1643,61 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
                         "defines how many recent hit deltas are averaged."),
                       &cv::draw_statistics_hitdelta);
     this->addSpacer();
-    this->hudSizeSlider = this->addSlider(_("HUD Scale:"), 0.01f, 3.0f, &cv::hud_scale, 165.0f);
+
+    // TRANSLATORS: Section of option sliders to set the scale of in-game UI elements
+    this->addSubSection(_("Scaling"));
+    this->hudSizeSlider = this->addSlider(_("HUD:"), 0.01f, 3.0f, &cv::hud_scale, 165.0f);
     this->hudSizeSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudSizeSlider->setKeyDelta(0.01f);
-    this->addSpacer();
-    this->hudScoreScaleSlider = this->addSlider(_("Score Scale:"), 0.01f, 3.0f, &cv::hud_score_scale, 165.0f);
+    this->hudScoreScaleSlider = this->addSlider(_("Score:"), 0.01f, 3.0f, &cv::hud_score_scale, 165.0f);
     this->hudScoreScaleSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudScoreScaleSlider->setKeyDelta(0.01f);
-    this->hudComboScaleSlider = this->addSlider(_("Combo Scale:"), 0.01f, 3.0f, &cv::hud_combo_scale, 165.0f);
+    this->hudComboScaleSlider = this->addSlider(_("Combo:"), 0.01f, 3.0f, &cv::hud_combo_scale, 165.0f);
     this->hudComboScaleSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudComboScaleSlider->setKeyDelta(0.01f);
-    this->hudAccuracyScaleSlider = this->addSlider(_("Accuracy Scale:"), 0.01f, 3.0f, &cv::hud_accuracy_scale, 165.0f);
+    this->hudAccuracyScaleSlider = this->addSlider(_("Accuracy:"), 0.01f, 3.0f, &cv::hud_accuracy_scale, 165.0f);
     this->hudAccuracyScaleSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudAccuracyScaleSlider->setKeyDelta(0.01f);
     this->hudHiterrorbarScaleSlider =
-        this->addSlider(_("HitErrorBar Scale:"), 0.01f, 3.0f, &cv::hud_hiterrorbar_scale, 165.0f);
+        this->addSlider(_("HitErrorBar:"), 0.01f, 3.0f, &cv::hud_hiterrorbar_scale, 165.0f);
     this->hudHiterrorbarScaleSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudHiterrorbarScaleSlider->setKeyDelta(0.01f);
     this->hudHiterrorbarURScaleSlider =
-        this->addSlider(_("HitErrorBar UR Scale:"), 0.01f, 3.0f, &cv::hud_hiterrorbar_ur_scale, 165.0f);
+        this->addSlider(_("HitErrorBar UR:"), 0.01f, 3.0f, &cv::hud_hiterrorbar_ur_scale, 165.0f);
     this->hudHiterrorbarURScaleSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudHiterrorbarURScaleSlider->setKeyDelta(0.01f);
-    this->hudProgressbarScaleSlider =
-        this->addSlider(_("ProgressBar Scale:"), 0.01f, 3.0f, &cv::hud_progressbar_scale, 165.0f);
+    this->hudProgressbarScaleSlider = this->addSlider(_("Clock:"), 0.01f, 3.0f, &cv::hud_progressbar_scale, 165.0f);
     this->hudProgressbarScaleSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudProgressbarScaleSlider->setKeyDelta(0.01f);
-    this->hudScoreBarScaleSlider = this->addSlider(_("ScoreBar Scale:"), 0.01f, 3.0f, &cv::hud_scorebar_scale, 165.0f);
+    this->hudScoreBarScaleSlider = this->addSlider(_("ScoreBar:"), 0.01f, 3.0f, &cv::hud_scorebar_scale, 165.0f);
     this->hudScoreBarScaleSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudScoreBarScaleSlider->setKeyDelta(0.01f);
-    this->hudScoreBoardScaleSlider =
-        this->addSlider(_("ScoreBoard Scale:"), 0.01f, 3.0f, &cv::hud_scoreboard_scale, 165.0f);
+    this->hudScoreBoardScaleSlider = this->addSlider(_("ScoreBoard:"), 0.01f, 3.0f, &cv::hud_scoreboard_scale, 165.0f);
     this->hudScoreBoardScaleSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudScoreBoardScaleSlider->setKeyDelta(0.01f);
     this->hudInputoverlayScaleSlider =
-        this->addSlider(_("Key Overlay Scale:"), 0.01f, 3.0f, &cv::hud_inputoverlay_scale, 165.0f);
+        this->addSlider(_("Key Overlay:"), 0.01f, 3.0f, &cv::hud_inputoverlay_scale, 165.0f);
     this->hudInputoverlayScaleSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudInputoverlayScaleSlider->setKeyDelta(0.01f);
     this->statisticsOverlayScaleSlider =
-        this->addSlider(_("Statistics Scale:"), 0.01f, 3.0f, &cv::hud_statistics_scale, 165.0f);
+        this->addSlider(_("Statistics:"), 0.01f, 3.0f, &cv::hud_statistics_scale, 165.0f);
     this->statisticsOverlayScaleSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->statisticsOverlayScaleSlider->setKeyDelta(0.01f);
     this->addSpacer();
+    this->addSubSection(_("Statistics Offset"));
     this->statisticsOverlayXOffsetSlider =
-        this->addSlider(_("Statistics X Offset:"), 0.0f, 2000.0f, &cv::hud_statistics_offset_x, 165.0f, true);
+        this->addSlider(_("X Offset:"), 0.0f, 2000.0f, &cv::hud_statistics_offset_x, 165.0f, true);
     this->statisticsOverlayXOffsetSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeInt>(this));
     this->statisticsOverlayXOffsetSlider->setKeyDelta(1.0f);
     this->statisticsOverlayYOffsetSlider =
-        this->addSlider(_("Statistics Y Offset:"), 0.0f, 1000.0f, &cv::hud_statistics_offset_y, 165.0f, true);
+        this->addSlider(_("Y Offset:"), 0.0f, 1000.0f, &cv::hud_statistics_offset_y, 165.0f, true);
     this->statisticsOverlayYOffsetSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeInt>(this));
     this->statisticsOverlayYOffsetSlider->setKeyDelta(1.0f);
@@ -1715,9 +1706,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     this->addCheckbox(_("Draw FollowPoints"), &cv::draw_followpoints);
     this->addCheckbox(_("Draw Playfield Border"), _("Correct border relative to the current Circle Size."),
                       &cv::draw_playfield_border);
-    this->addSpacer();
-    this->playfieldBorderSizeSlider =
-        this->addSlider(_("Playfield Border Size:"), 0.0f, 500.0f, &cv::hud_playfield_border_size);
+    this->playfieldBorderSizeSlider = this->addSlider(_("Border Size:"), 0.0f, 500.0f, &cv::hud_playfield_border_size);
     this->playfieldBorderSizeSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeInt>(this));
     this->playfieldBorderSizeSlider->setKeyDelta(1.0f);
 
@@ -2972,8 +2961,8 @@ void OptionsOverlayImpl::onLanguageSelect() {
     this->contextMenu->setPos(this->languageSelectButton->getPos());
     this->contextMenu->setRelPos(this->languageSelectButton->getPos());
     this->contextMenu->begin();
-    for(const auto &[locale, language] : LANGUAGES) {
-        this->contextMenu->addButton(std::string(language));
+    for(const auto lang : i18n::get_available_languages()) {
+        this->contextMenu->addButton(std::string(lang.name));
     }
     this->contextMenu->end(false, UIContextMenu::EndStyle{0});
     this->contextMenu->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onLanguageSelected>(this));
@@ -2989,10 +2978,10 @@ void OptionsOverlayImpl::onLanguageSelected(std::string_view newLanguage, int /*
     //
     // We don't restart on cvar change because there are possibly many places where
     // the cvar could get set (eg when reloading config).
-    for(const auto &[locale, language] : LANGUAGES) {
-        if(language != newLanguage) continue;
+    for(const auto lang : i18n::get_available_languages()) {
+        if(lang.name != newLanguage) continue;
 
-        cv::language.setValue(locale);
+        cv::language.setValue(lang.code);
         engine->restart();  // calls onShutdown() which calls save()
     }
 }
