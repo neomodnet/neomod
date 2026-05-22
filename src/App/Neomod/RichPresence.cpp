@@ -252,7 +252,8 @@ void onPlayStart() {
 
         const auto* user = BANCHO::User::get_user_info(BanchoState::spectated_player_id, true);
         if(user->has_presence) {
-            snprintf(activity.state.data(), 128, _("Spectating %s"), user->name.c_str());
+            auto msg = tformat("Spectating %s", user->name.c_str());
+            strncpy(activity.state.data(), msg.c_str(), activity.state.size() - 1);
         } else {
             strncpy(activity.state.data(), _("Spectating"), activity.state.size() - 1);
         }
