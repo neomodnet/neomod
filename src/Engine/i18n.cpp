@@ -1,6 +1,7 @@
 // Copyright (c) 2026, kiwec, All rights reserved.
 #include "i18n.h"
 
+#include <utility>  // std::unreachable on gcc
 #include "binary_embed.h"
 #include "Logging.h"
 #include "SString.h"
