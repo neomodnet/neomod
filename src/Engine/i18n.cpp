@@ -4,6 +4,7 @@
 #include "binary_embed.h"
 #include "Logging.h"
 #include "SString.h"
+#include "types.h"
 
 namespace {
 
