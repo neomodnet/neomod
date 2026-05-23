@@ -1342,8 +1342,10 @@ endif # BUILD_WINPTHREAD_NOVERSION
 
 EMBED_SCRIPT := $(srcdir)/build-aux/gen_binary_embed.py
 EMBED_OUTPUT := $(builddir)/gen/binary_embed.cpp
-# EMBED_MANIFESTS is set by configure based on --with-renderer selection
-EMBED_MANIFEST_FLAGS := $(foreach m,$(EMBED_MANIFESTS),-f $(m))
+# EMBED_MANIFESTS / BUILD_EMBED_MANIFESTS are set by configure based on --with-renderer selection.
+# -f manifests have $(srcdir) prepended to their entries; -F manifests don't.
+EMBED_MANIFEST_FLAGS := $(foreach m,$(EMBED_MANIFESTS),-f $(m)) \
+                        $(foreach m,$(BUILD_EMBED_MANIFESTS),-F $(m))
 
 if WASM_PLATFORM
 EMBED_TYPE := cppembed
@@ -1374,26 +1376,33 @@ endif
 
 PO_FILES := $(wildcard $(srcdir)/translations/*.po)
 MO_FILES := $(patsubst $(srcdir)/translations/%.po, $(builddir)/gen/%.mo, $(PO_FILES))
+TRANSLATION_SOURCES := $(shell find $(srcdir)/src -name '*.cpp' 2>/dev/null)
+TRANSLATION_SCRIPT := $(srcdir)/build-aux/gen_translations.py
 
-# TODO:
-# - gen_translations.py is called twice per build?
-# - touching a .po file doesn't seem to run msgfmt (or update the embed .cpp)
+# .mo files are built individually from their .po source so editing a single .po
+# triggers a rebuild of just that .mo (and downstream binary_embed.o). The order-only
+# prereq on the stamp ensures msgfmt doesn't race with gen_translations.py's msgmerge
+# rewriting the .po files when source strings change.
+# --check-format makes the build fail on format-specifier mismatches in translations
+# instead of crashing at runtime under -fno-exceptions.
+$(builddir)/gen/%.mo: $(srcdir)/translations/%.po | $(GEN_TRANSLATIONS_STAMP)
+	@$(MKDIR_P) $(dir $@)
+	$(MSGFMT) --check-format -o $@ $<
 
-$(builddir)/gen/%.mo: $(srcdir)/translations/%.po
-	msgfmt -o $@ $<
+# gen_translations.py produces translations.h, locale_embed.manifest, and (when strings
+# changed) updates the source-tree neomod.pot + per-language .po files. We funnel everything
+# through a stamp so a single script invocation per build covers all outputs, and the script
+# uses cmp-and-write internally so unchanged outputs keep their original mtime (no spurious
+# rebuilds of PCH or binary_embed.cpp).
+GEN_TRANSLATIONS_STAMP := $(builddir)/gen/.translations.stamp
 
-# Can't depend on gen_translations because it's a circular dependency (part of neomod_SOURCES)
-# But it won't generate itself otherwise
-$(builddir)/gen/locale_embed.manifest:
-	$(PYTHON) $(srcdir)/build-aux/gen_translations.py $(srcdir) $(builddir)
+$(GEN_TRANSLATIONS_STAMP): $(TRANSLATION_SCRIPT) $(TRANSLATION_SOURCES)
+	@$(MKDIR_P) $(dir $@)
+	$(PYTHON) $(TRANSLATION_SCRIPT) $(srcdir) $(builddir)
+	@touch $@
 
-$(builddir)/gen/translations.h: gen_translations
-
-# This should be run every build. It checks if source code strings changed, and if they did,
-# it regenerates neomod.pot, the .po files, translations.h and locale_embed.manifest.
-.PHONY: gen_translations
-gen_translations: $(neomod_SOURCES)
-	$(PYTHON) $(srcdir)/build-aux/gen_translations.py $(srcdir) $(builddir)
+$(builddir)/gen/translations.h: $(GEN_TRANSLATIONS_STAMP) ;
+$(builddir)/gen/locale_embed.manifest: $(GEN_TRANSLATIONS_STAMP) ;
 
 #####################################################################################################################################################
 ## SDL_GPU SHADER COMPILATION (GLSL → SPIR-V / MSL → .shdpk shader packs)
@@ -1454,7 +1463,7 @@ $(EMBED_CONFIG_STAMP): FORCE
 	@$(MKDIR_P) $(dir $@)
 	@echo '$(EMBED_FULL_MANIFEST_FLAGS)' | cmp -s - $@ || echo '$(EMBED_FULL_MANIFEST_FLAGS)' > $@
 
-$(EMBED_OUTPUT): $(EMBED_SCRIPT) $(EMBED_MANIFESTS) $(EMBED_CACERT_DEPS) $(SDLGPU_EMBED_DEPS) $(EMBED_CONFIG_STAMP)
+$(EMBED_OUTPUT): $(EMBED_SCRIPT) $(EMBED_MANIFESTS) $(BUILD_EMBED_MANIFESTS) $(EMBED_CACERT_DEPS) $(SDLGPU_EMBED_DEPS) $(EMBED_CONFIG_STAMP) $(MO_FILES)
 	$(MKDIR_P) $(dir $@)
 	$(PYTHON) $(EMBED_SCRIPT) -t $(EMBED_TYPE) -b $(srcdir) -d $(EMBED_DEPFILE) $(EMBED_FULL_MANIFEST_FLAGS) $@ \
 		$(EMBED_CACERT_ARGS)
@@ -1464,7 +1473,8 @@ $(EMBED_OUTPUT): $(EMBED_SCRIPT) $(EMBED_MANIFESTS) $(EMBED_CACERT_DEPS) $(SDLGP
 neomod_SOURCES += $(EMBED_OUTPUT)
 CLEANFILES += $(EMBED_OUTPUT) $(builddir)/gen/binary_embed.h $(EMBED_DEPFILE) $(EMBED_CONFIG_STAMP) \
 	$(builddir)/gen/shaders/*.shdpk $(builddir)/gen/shaders/*.spv $(builddir)/gen/shaders/*.dxil \
-	$(builddir)/gen/shaders/sdlgpu_shaders.manifest $(builddir)/gen/shaders/.stamp
+	$(builddir)/gen/shaders/sdlgpu_shaders.manifest $(builddir)/gen/shaders/.stamp \
+	$(GEN_TRANSLATIONS_STAMP) $(builddir)/gen/translations.h $(builddir)/gen/locale_embed.manifest $(MO_FILES)
 
 #####################################################################################################################################################
 ## END EXTERNAL DEPENDENCY BUILD/SETUP SECTION
@@ -1525,7 +1535,7 @@ PCH_BUILD_FLAGS :=
 PCH_FLAGS += -fpch-preprocess
 endif # CLANG_BUILD
 
-$(PCH_OUTPUT): $(PCH_SOURCE) $(BUILT_SOURCES)
+$(PCH_OUTPUT): $(PCH_SOURCE) $(BUILT_SOURCES) $(builddir)/gen/translations.h
 	@rm -f $(PCH_OUTPUT) # remove possibly existing-but-outdated pch to avoid recursively including it (sanity)
 	@$(MKDIR_P) $(dir $@)
 	$(CXX) -x c++-header -MMD -MF $(PCH_DEPS) $(PCH_BUILD_FLAGS) \
@@ -1546,7 +1556,9 @@ endif # BUILD_PCH
 # making sure deps are built before main compile
 # EMBED_OUTPUT is order-only (after |): must exist before compilation, but updating it doesn't rebuild all objects
 # (only binary_embed.o through neomod_SOURCES dep)
-$(neomod_OBJECTS): $(BUILT_SOURCES) $(PCH_OUTPUT) | $(EMBED_OUTPUT)
+# translations.h is pulled in via pch.h -> BaseEnvironment.h -> i18n.h; non-PCH builds need it
+# explicitly so parallel compile doesn't race against gen_translations.py.
+$(neomod_OBJECTS): $(BUILT_SOURCES) $(PCH_OUTPUT) $(builddir)/gen/translations.h | $(EMBED_OUTPUT)
 
 # add all paths with sources as an include ("-I") flag
 NEOMOD_INCLUDE_FLAGS := $(shell find $(srcdir)/src -not -path '*/.*' -type d -print | $(SED) 's|^|-I|' | tr '\n' ' ')

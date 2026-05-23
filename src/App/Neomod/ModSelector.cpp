@@ -231,13 +231,18 @@ ModSelector::ModSelector() : UIScreen() {
                                   _("Customize the approach circle animation.\nSee mod_approach_different_style.\nSee "
                                     "mod_approach_different_initial_size."),
                                   &cv::mod_approach_different);
-    this->addExperimentalCheckbox(_("Timewarp"), _("Speed increases from 100% to 150% over the course of the beatmap."),
+    this->addExperimentalCheckbox(_("Timewarp"),
+                                  // xgettext: no-c-format
+                                  _("Speed increases from 100% to 150% over the course of the beatmap."),
                                   &cv::mod_timewarp);
     this->addExperimentalCheckbox(_("AR Timewarp"),
+                                  // xgettext: no-c-format
                                   _("Approach rate decreases from 100% to 50% over the course of the beatmap."),
                                   &cv::mod_artimewarp);
-    this->addExperimentalCheckbox(
-        _("Minimize"), _("Circle size decreases from 100% to 50% over the course of the beatmap."), &cv::mod_minimize);
+    this->addExperimentalCheckbox(_("Minimize"),
+                                  // xgettext: no-c-format
+                                  _("Circle size decreases from 100% to 50% over the course of the beatmap."),
+                                  &cv::mod_minimize);
     this->addExperimentalCheckbox(_("Fading Cursor"),
                                   _("The cursor fades the higher the combo, becoming invisible at 50."),
                                   &cv::mod_fadingcursor);

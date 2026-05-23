@@ -220,6 +220,13 @@ AC_DEFUN([AC_PROG_NASM], [
     fi
 ])
 
+AC_DEFUN([AC_PROG_MSGFMT], [
+    AC_CHECK_PROG([MSGFMT], [msgfmt], [msgfmt])
+    if test -z "$MSGFMT"; then
+        AC_MSG_ERROR([msgfmt (from gettext) not found - required for generating translations])
+    fi
+])
+
 # needed for building SPIR-V shaders (optional on macOS where MSL suffices)
 # tries glslc first (from shaderc), falls back to glslangValidator (from glslang-tools)
 AC_DEFUN([AC_PROG_GLSLC], [
@@ -243,6 +250,7 @@ AC_PROG_UNZIP
 AC_PROG_MESON
 AC_PROG_CMAKE
 AC_PROG_LIB_TOOLIZE
+AC_PROG_MSGFMT
 AC_PROG_PYTHON
 AC_SUBST([PYTHON])
 
@@ -506,8 +514,13 @@ AS_IF([test "x$use_sdlgpu" = "xyes"], [
     use_sdlgpu=no
 ])
 
-# build the list of binary embed manifests based on renderer selection
-EMBED_MANIFESTS="\$(srcdir)/\$(ASSETS_DIR)/binary/misc_embed.manifest \$(builddir)/gen/locale_embed.manifest"
+# build the list of binary embed manifests based on renderer selection.
+# EMBED_MANIFESTS: srcdir-anchored manifests, consumed via gen_binary_embed.py -f (paths
+#   prepended with --base-dir=$(srcdir)).
+# BUILD_EMBED_MANIFESTS: build-tree manifests with absolute paths, consumed via -F (no
+#   base-dir prepend) so out-of-source builds work.
+EMBED_MANIFESTS="\$(srcdir)/\$(ASSETS_DIR)/binary/misc_embed.manifest"
+BUILD_EMBED_MANIFESTS="\$(builddir)/gen/locale_embed.manifest"
 AS_IF([test "x$use_opengl" = "xyes" || test "x$use_opengles32" = "xyes"], [
     EMBED_MANIFESTS="$EMBED_MANIFESTS \$(srcdir)/\$(ASSETS_DIR)/binary/gl_shaders_embed.manifest"
 ])
@@ -518,6 +531,7 @@ AS_IF([test "x$use_dx11" = "xyes"], [
 # SDL_gpu shader packs are compiled and embedded via pack_sdlgpu_shader.py,
 # not through a static manifest (see Makefile.am).
 AC_SUBST([EMBED_MANIFESTS])
+AC_SUBST([BUILD_EMBED_MANIFESTS])
 
 AUDBACKENDLIST=""
 
