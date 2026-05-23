@@ -1,5 +1,6 @@
 #pragma once
 // Copyright (c) 2026, kiwec, All rights reserved.
+#include <fmt/format.h>
 #include <string_view>
 #include <vector>
 
@@ -34,6 +35,12 @@ std::vector<Language> get_available_languages();
 
 }  // namespace i18n
 
-// Macros to mark strings for translation (and get translated version)
+// Macro to mark string for translation (and get translated version)
 #define _(String) i18n::translate(i18n::string_index(String), String)
-#define tformat(String, args...) fmt::format(fmt::runtime(_(String)), args)
+
+// Format a string with translation (compile-time checked arguments)
+template <typename... Args>
+std::string tformat_impl(fmt::format_string<Args...> /*original*/, const char* translated, Args&&... args) {
+    return fmt::vformat(translated, fmt::make_format_args(args...));
+}
+#define tformat(String, args...) tformat_impl(String, _(String), args)

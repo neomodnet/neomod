@@ -315,7 +315,7 @@ const std::string Environment::getDefaultLocale() noexcept {
     // GetUserDefaultLocaleName is Windows Vista and later, this is fallback for Windows XP
     // This will give something like "en", not "en-US", but who cares
     // We could concat with LOCALE_SISO639TRYNAME if we ever add Traditional English
-    char locale_name[9];  // 9 is max according to ms docs
+    char locale_name[9]{};  // 9 is max according to ms docs
     GetLocaleInfoA(GetUserDefaultLCID(), LOCALE_SISO639LANGNAME, locale_name, 9);
     return locale_name;
 #else
