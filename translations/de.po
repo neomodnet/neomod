@@ -3318,6 +3318,3 @@ msgstr "Suchen, bitte warten ..."
 #: src/Engine/Sound/SoundEngine.cpp
 msgid "No sound"
 msgstr "Kein Ton"
-
-#~ msgid "https://www.mouse-sensitivity.com/"
-#~ msgstr "https://www.mouse-sensitivity.com/"

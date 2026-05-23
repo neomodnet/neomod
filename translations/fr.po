@@ -3302,6 +3302,3 @@ msgstr "Ouverture du navigateur, veuillez patienter..."
 #: src/Engine/Sound/SoundEngine.cpp
 msgid "No sound"
 msgstr "Aucun son"
-
-#~ msgid "https://www.mouse-sensitivity.com/"
-#~ msgstr "https://www.mouse-sensitivity.com/"

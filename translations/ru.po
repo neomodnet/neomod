@@ -3332,6 +3332,3 @@ msgstr "Поиск, пожалуйста подождите ..."
 #: src/Engine/Sound/SoundEngine.cpp
 msgid "No sound"
 msgstr "Нет звука"
-
-#~ msgid "https://www.mouse-sensitivity.com/"
-#~ msgstr "https://www.mouse-sensitivity.com/"

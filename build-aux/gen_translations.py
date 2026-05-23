@@ -181,6 +181,16 @@ for code, lang in languages.items():
             ["msgmerge", "-U", "--backup=none", "--no-wrap", "--add-location=file", str(po), str(pot_path)],
             check=True,
         )
+        # msgmerge keeps removed-but-previously-translated entries around as `#~ msgid ...`
+        # blocks (standard gettext convention so translators can recover history). For a
+        # codebase that churns translatable strings, the obsolete block grows without bound
+        # and noises up .po diffs. Strip it after every merge - if a translator ever needs
+        # the prior text, it's still in git history.
+        result = subprocess.run(
+            ["msgattrib", "--no-obsolete", "--no-wrap", "--add-location=file", str(po)],
+            check=True, stdout=subprocess.PIPE,
+        )
+        po.write_bytes(result.stdout)
     else:
         print(f"{code}.po doesn't exist, generating a new file.")
         subprocess.run(
