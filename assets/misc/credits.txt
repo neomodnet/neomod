@@ -21,7 +21,7 @@ The default skin is made by:
 
 Translations are provided by:
 - French: kiwec
-- German, Polish, Russian: Google Gemini 3.1 Pro (please provide better translations if you can)
+- German, Japanese, Polish, Russian: Google Gemini 3.1 Pro (please provide better translations if you can)
 
 We make use of a lot of open source dependencies:
 

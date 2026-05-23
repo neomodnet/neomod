@@ -25,7 +25,7 @@ enum PLURAL_FORM {
     SIX_FORMS,
 };
 static const std::unordered_map<std::string_view, PLURAL_FORM> plural_forms_table = {
-    {"jp", ONE_FORM},       {"vi", ONE_FORM},      {"ko", ONE_FORM},      {"th", ONE_FORM},
+    {"ja", ONE_FORM},       {"vi", ONE_FORM},      {"ko", ONE_FORM},      {"th", ONE_FORM},
 
     {"en", TWO_FORMS_A},    {"de", TWO_FORMS_A},   {"nl", TWO_FORMS_A},   {"sv", TWO_FORMS_A},   {"da", TWO_FORMS_A},
     {"no", TWO_FORMS_A},    {"fo", TWO_FORMS_A},   {"es", TWO_FORMS_A},   {"pt", TWO_FORMS_A},   {"it", TWO_FORMS_A},
