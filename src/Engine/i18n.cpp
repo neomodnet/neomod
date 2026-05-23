@@ -204,8 +204,11 @@ void load(std::string_view locale) {
     }
 
     // English is the source language; no .mo blob is embedded for it. Re-check after parsing
-    // to catch "en_US", "en_CA", etc. that the literal early-return above misses.
-    if(lang == "en") {
+    // to catch "en_US", "en_CA", etc. that the literal early-return above misses. "C" and "POSIX"
+    // are the libc "no locale set" sentinels - emscripten defaults LANG=C.UTF-8 when neither
+    // navigator.language nor a user-set env var is available, so we treat them as English too
+    // instead of logging a spurious "Failed to load locale 'C.UTF-8'" on every WASM startup.
+    if(lang == "en" || lang == "C" || lang == "POSIX") {
         current_language = "";
         return;
     }
