@@ -169,7 +169,10 @@ int get_plural(int n) {
 namespace i18n {
 
 void load(std::string_view locale) {
-    if(locale == "en"sv) {
+    // Empty means "no default detected" (e.g. macOS without CoreFoundation, headless Linux
+    // with no LANG/LANGUAGE/LC_*). Treat it the same as English so we don't log a noisy
+    // "Failed to load locale ''" on every startup.
+    if(locale.empty() || locale == "en"sv) {
         current_language = "";
         return;
     }
@@ -188,6 +191,13 @@ void load(std::string_view locale) {
         auto bar = SString::split(lang, '-');
         lang = bar[0];
         if(bar.size() > 1) region = bar[1];
+    }
+
+    // English is the source language; no .mo blob is embedded for it. Re-check after parsing
+    // to catch "en_US", "en_CA", etc. that the literal early-return above misses.
+    if(lang == "en") {
+        current_language = "";
+        return;
     }
 
     // Edge case for Brazillian Portuguese
