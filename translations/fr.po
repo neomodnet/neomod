@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: neomod\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-22 14:28+0200\n"
+"POT-Creation-Date: 2026-05-23 09:28+0200\n"
 "PO-Revision-Date: 2026-05-14 16:09+0200\n"
 "Last-Translator: kiwec <kiwec@neomod.net>\n"
 "Language-Team: French <traduc@traduc.org>\n"
@@ -2965,16 +2965,17 @@ msgid "Playing in a lobby"
 msgstr "Joue dans un lobby"
 
 #: ../src/App/Neomod/RichPresence.cpp:255
-#, c-format
-msgid "Spectating %s"
-msgstr "Regarde %s"
+#: ../src/App/Neomod/SpectatorScreen.cpp:199
+#, c++-format
+msgid "Spectating {:s}"
+msgstr "Regarde {:s}"
 
-#: ../src/App/Neomod/RichPresence.cpp:257
+#: ../src/App/Neomod/RichPresence.cpp:258
 #: ../src/App/Neomod/SpectatorScreen.cpp:135
 msgid "Spectating"
 msgstr "Regarde"
 
-#: ../src/App/Neomod/RichPresence.cpp:262
+#: ../src/App/Neomod/RichPresence.cpp:263
 msgid "Playing Solo"
 msgstr "Joue en solo"
 
@@ -3422,11 +3423,6 @@ msgstr "..."
 #: ../src/App/Neomod/SpectatorScreen.cpp:144
 msgid "Stop spectating"
 msgstr "Arrêter de regarder"
-
-#: ../src/App/Neomod/SpectatorScreen.cpp:199
-#, c++-format
-msgid "Spectating {:s}"
-msgstr "Regarde {:s}"
 
 #: ../src/App/Neomod/SpectatorScreen.cpp:205
 msgid "AFK"

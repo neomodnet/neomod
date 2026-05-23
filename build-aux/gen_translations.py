@@ -7,8 +7,9 @@ keywords = ["_", "tformat"]
 # Add a new language here to automatically generate a new .po file!
 languages = {
     "ru": "Русский",
-    "pl": "Polski",
     "fr": "Français",
+    "pl": "Polski",
+    "de": "Deutsch",
 }
 
 srcdir = sys.argv[1]
