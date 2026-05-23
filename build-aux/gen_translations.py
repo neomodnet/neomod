@@ -123,6 +123,9 @@ try:
             # --no-wrap matches the msgmerge flag below; otherwise xgettext wraps msgid lines
             # at 78 cols and msgmerge re-wraps differently per platform.
             "--no-wrap",
+            # Keep the source-file reference for translator tooling, but drop line numbers so
+            # `#:` comments don't churn whenever unrelated code edits shift line offsets.
+            "--add-location=file",
             # Pick up "// xgettext: no-c-format" markers on problem strings (e.g. "100% to 150%"
             # that would otherwise get spurious c-format flags).
             "--add-comments=TRANSLATORS",
@@ -173,8 +176,9 @@ for code, lang in languages.items():
         subprocess.run(
             # --no-wrap keeps msgstr lines unbroken, so .po output is identical regardless of
             # the locale/libc/msgmerge version that produced it (default-wrapped output churns
-            # across platforms).
-            ["msgmerge", "-U", "--backup=none", "--no-wrap", str(po), str(pot_path)],
+            # across platforms). --add-location=file matches the xgettext flag above so the
+            # `#:` references in .po stay aligned with .pot if msgmerge ever runs standalone.
+            ["msgmerge", "-U", "--backup=none", "--no-wrap", "--add-location=file", str(po), str(pot_path)],
             check=True,
         )
     else:
