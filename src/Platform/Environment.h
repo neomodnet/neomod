@@ -150,7 +150,7 @@ class Environment {
 
     // user
     [[nodiscard]] std::string_view getUsername() const noexcept;
-    [[nodiscard]] const std::string &getDefaultLocale() noexcept;
+    [[nodiscard]] const std::string &getDefaultLocale() const noexcept;
     [[nodiscard]] const std::string &getUserDataPath() const noexcept;
     [[nodiscard]] const std::string &getLocalDataPath() const noexcept;
     [[nodiscard]] const std::string &getCacheDir() const noexcept;
@@ -440,7 +440,7 @@ class Environment {
     bool m_bIsWayland;
 
     // locale (cached)
-    std::string m_sLocaleString;
+    mutable std::string m_sLocaleString;
 
     // process environment (declared here for restart access)
     friend void Mc::initEnvBlock();

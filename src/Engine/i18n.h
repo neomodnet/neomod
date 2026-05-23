@@ -40,7 +40,8 @@ std::span<const Language> get_available_languages();
 
 // Format a string with translation (compile-time checked arguments)
 template <typename... Args>
+// NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
 std::string tformat_impl(fmt::format_string<Args...> /*original*/, const char* translated, Args&&... args) {
-    return fmt::vformat(translated, fmt::make_format_args(args...));
+    return fmt::vformat(translated, fmt::make_format_args(static_cast<Args&&>(args)...));
 }
 #define tformat(String, ...) tformat_impl(String, _(String) __VA_OPT__(, ) __VA_ARGS__)

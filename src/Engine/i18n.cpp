@@ -1,17 +1,18 @@
 // Copyright (c) 2026, kiwec, All rights reserved.
 #include "i18n.h"
 
-#include <utility>  // std::unreachable on gcc
 #include "binary_embed.h"
 #include "Logging.h"
 #include "SString.h"
 #include "Thread.h"
 #include "types.h"
 
+#include <utility>  // std::unreachable on gcc
+
 namespace {
 
 // Reference: https://www.gnu.org/software/gettext/manual/html_node/Plural-forms.html
-enum PLURAL_FORM {
+enum PLURAL_FORM : u8 {
     ONE_FORM,
     TWO_FORMS_A,
     TWO_FORMS_B,
@@ -25,6 +26,7 @@ enum PLURAL_FORM {
     FOUR_FORMS,
     SIX_FORMS,
 };
+
 static const std::unordered_map<std::string_view, PLURAL_FORM> plural_forms_table = {
     {"ja", ONE_FORM},       {"vi", ONE_FORM},      {"ko", ONE_FORM},      {"th", ONE_FORM},
 
@@ -80,7 +82,7 @@ struct MOString {
 void load_translation(const char* data) {
     // "data" is assumed to be well-formed, we will not do any size checks!
     // (should be ok because we build and embed the .mo files during compilation)
-    const MOHeader* mo = (const MOHeader*)data;
+    const MOHeader* mo = reinterpret_cast<const MOHeader*>(data);
     assert(mo->magic == 0x950412de || mo->magic == 0xde120495);
     assert(mo->version == 0);
 
@@ -90,8 +92,8 @@ void load_translation(const char* data) {
         translations[i] = translation_fallback;
     }
 
-    const MOString* origs = (const MOString*)(data + mo->orig_offset);
-    const MOString* trans = (const MOString*)(data + mo->trans_offset);
+    const MOString* origs = reinterpret_cast<const MOString*>(data + mo->orig_offset);
+    const MOString* trans = reinterpret_cast<const MOString*>(data + mo->trans_offset);
 
     // XXX: since strings are sorted in lexicographical order, we could do binary search to load translations
     //      a bit faster. but surely this is already fast enough not to bother with extra complexity?
@@ -218,7 +220,7 @@ void load(std::string_view locale) {
         std::string blob_key{"locale_"};
         blob_key.append(identifier);
         assert(ALL_BINMAP.contains(blob_key));
-        load_translation(ALL_BINMAP.at(blob_key).data());
+        load_translation(ALL_BINMAP.at(blob_key).data() /* NOLINT(bugprone-suspicious-stringview-data-usage) */);
 
         auto it = plural_forms_table.find(lang_for_plural);
         if(it == plural_forms_table.end()) {

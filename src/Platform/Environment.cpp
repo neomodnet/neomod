@@ -312,7 +312,7 @@ std::string_view Environment::getUsername() const noexcept {
     return m_sUsername;
 }
 
-const std::string &Environment::getDefaultLocale() noexcept {
+const std::string &Environment::getDefaultLocale() const noexcept {
     // need restart to update locale
     if(!m_sLocaleString.empty()) return m_sLocaleString;
 #if defined(MCENGINE_PLATFORM_WINDOWS)
