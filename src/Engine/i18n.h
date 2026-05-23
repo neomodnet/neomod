@@ -1,8 +1,8 @@
 #pragma once
 // Copyright (c) 2026, kiwec, All rights reserved.
 #include <fmt/format.h>
+#include <span>
 #include <string_view>
-#include <vector>
 
 #include "translations.h"
 
@@ -24,14 +24,14 @@ consteval int string_index(std::string_view s) {
 }
 
 void load(std::string_view locale);
-const char* translate(int index, const std::string_view& original);
-const char* translate_plural(int index, const std::string_view& singular, const std::string_view& plural, int n);
+const char* translate(int index, std::string_view original);
+const char* translate_plural(int index, std::string_view singular, std::string_view plural, int n);
 
 struct Language {
     std::string_view code;
     std::string_view name;
 };
-std::vector<Language> get_available_languages();
+std::span<const Language> get_available_languages();
 
 }  // namespace i18n
 
@@ -43,4 +43,4 @@ template <typename... Args>
 std::string tformat_impl(fmt::format_string<Args...> /*original*/, const char* translated, Args&&... args) {
     return fmt::vformat(translated, fmt::make_format_args(args...));
 }
-#define tformat(String, args...) tformat_impl(String, _(String), args)
+#define tformat(String, ...) tformat_impl(String, _(String) __VA_OPT__(, ) __VA_ARGS__)

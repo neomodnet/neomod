@@ -5,6 +5,7 @@
 #include "binary_embed.h"
 #include "Logging.h"
 #include "SString.h"
+#include "Thread.h"
 #include "types.h"
 
 namespace {
@@ -169,6 +170,13 @@ int get_plural(int n) {
 namespace i18n {
 
 void load(std::string_view locale) {
+    // The translations[], current_language, and current_plural_form globals are read
+    // unsynchronized by every _() / tformat() call across all threads. This is safe only
+    // because load() runs single-threaded from the main thread (cv::language callback,
+    // which fires from convar updates, plus engine->restart() teardown). Wiring this up
+    // from a worker thread would race readers; assert here so the invariant fails loudly.
+    assert(McThread::is_main_thread());
+
     // Empty means "no default detected" (e.g. macOS without CoreFoundation, headless Linux
     // with no LANG/LANGUAGE/LC_*). Treat it the same as English so we don't log a noisy
     // "Failed to load locale ''" on every startup.
@@ -181,16 +189,16 @@ void load(std::string_view locale) {
     std::string lang{};
     std::string region{};
     {
-        auto foo = SString::split(locale, '.');
-        lang = foo[0];
+        auto parts = SString::split(locale, '.');
+        lang = parts[0];
 
         for(int i = 0; i < lang.length(); i++) {
             if(lang[i] == '_') lang[i] = '-';
         }
 
-        auto bar = SString::split(lang, '-');
-        lang = bar[0];
-        if(bar.size() > 1) region = bar[1];
+        auto lang_region = SString::split(lang, '-');
+        lang = lang_region[0];
+        if(lang_region.size() > 1) region = lang_region[1];
     }
 
     // English is the source language; no .mo blob is embedded for it. Re-check after parsing
@@ -207,10 +215,10 @@ void load(std::string_view locale) {
     for(const auto& [identifier, full_language_name] : LANGUAGES) {
         if(identifier != lang) continue;
 
-        std::string foo{"locale_"};
-        foo.append(identifier);
-        assert(ALL_BINMAP.contains(foo));
-        load_translation(ALL_BINMAP.at(foo).data());
+        std::string blob_key{"locale_"};
+        blob_key.append(identifier);
+        assert(ALL_BINMAP.contains(blob_key));
+        load_translation(ALL_BINMAP.at(blob_key).data());
 
         auto it = plural_forms_table.find(lang_for_plural);
         if(it == plural_forms_table.end()) {
@@ -228,7 +236,7 @@ void load(std::string_view locale) {
     debugLog("Failed to load locale '{}' (doesn't exist!)", locale);
 }
 
-const char* translate(int index, const std::string_view& original) {
+const char* translate(int index, std::string_view original) {
     // NOTE: if the compiler is being retarded and stripping null bytes from static strings, gg
     //       technically ub but no other way to do this and keep consteval
     //       unless we rewrite whole codebase to expect string_views everywhere it's string or char*
@@ -240,7 +248,7 @@ const char* translate(int index, const std::string_view& original) {
     return translations[index];
 }
 
-const char* translate_plural(int index, const std::string_view& singular, const std::string_view& plural, int n) {
+const char* translate_plural(int index, std::string_view singular, std::string_view plural, int n) {
     if(index == -1 || current_language.empty() || current_language == "en") {
         return n == 1 ? singular.data() : plural.data();
     }
@@ -258,12 +266,18 @@ const char* translate_plural(int index, const std::string_view& singular, const 
     return text;
 }
 
-std::vector<Language> get_available_languages() {
-    std::vector<Language> out;
-    for(const auto& [identifier, full_language_name] : LANGUAGES) {
-        out.push_back(Language{.code = identifier, .name = full_language_name});
+namespace {
+// Convert the generated LANGUAGES pairs to Language structs at compile time so callers can
+// iterate with `.code` / `.name` without paying for a vector allocation on every call.
+constexpr auto AVAILABLE_LANGUAGES = []() consteval {
+    std::array<Language, LANGUAGES.size()> arr{};
+    for(size_t i = 0; i < arr.size(); i++) {
+        arr[i] = {.code = LANGUAGES[i].first, .name = LANGUAGES[i].second};
     }
-    return out;
-}
+    return arr;
+}();
+}  // namespace
+
+std::span<const Language> get_available_languages() { return AVAILABLE_LANGUAGES; }
 
 }  // namespace i18n
