@@ -2406,10 +2406,6 @@ msgstr ""
 msgid "FPoSu - Mouse"
 msgstr ""
 
-#: src/App/Neomod/OptionsOverlay.cpp:1759
-msgid "https://www.mouse-sensitivity.com/"
-msgstr ""
-
 #: src/App/Neomod/OptionsOverlay.cpp:1761
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp:2852
 msgid "Opening browser, please wait ..."

@@ -2539,10 +2539,6 @@ msgstr "Прозрачность фона"
 msgid "FPoSu - Mouse"
 msgstr "FPoSu - Мышь"
 
-#: src/App/Neomod/OptionsOverlay.cpp:1759
-msgid "https://www.mouse-sensitivity.com/"
-msgstr "https://www.mouse-sensitivity.com/"
-
 #: src/App/Neomod/OptionsOverlay.cpp:1761
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp:2852
 msgid "Opening browser, please wait ..."
@@ -3356,3 +3352,6 @@ msgstr "Поиск, пожалуйста подождите ..."
 #: src/Engine/Sound/SoundEngine.cpp:107
 msgid "No sound"
 msgstr "Нет звука"
+
+#~ msgid "https://www.mouse-sensitivity.com/"
+#~ msgstr "https://www.mouse-sensitivity.com/"
