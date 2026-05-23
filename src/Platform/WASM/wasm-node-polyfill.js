@@ -57,8 +57,20 @@ if(typeof window === 'undefined') {
     }
 }
 
-// mount persistent filesystem at /persist/ before C++ starts
 Module['preRun'] = Module['preRun'] || [];
+
+// inject the browser's locale into the env so Environment::getDefaultLocale's POSIX chain
+// (LANGUAGE -> LC_ALL -> LC_MESSAGES -> LANG) picks it up. navigator.language is e.g. "ja-JP";
+// remap the dash to underscore so it matches the POSIX form i18n::load() expects.
+// Node.js doesn't define navigator; it falls back to $LANG from process.env (usually unset,
+// so the C++ side defaults to "en").
+Module['preRun'].push(function() {
+    if(typeof navigator !== 'undefined' && navigator.language) {
+        ENV['LANGUAGE'] = navigator.language.replace('-', '_');
+    }
+});
+
+// mount persistent filesystem at /persist/ before C++ starts
 Module['preRun'].push(function() {
     FS.mkdir('/persist');
     if(typeof process !== 'undefined' && process.versions && process.versions.node) {
