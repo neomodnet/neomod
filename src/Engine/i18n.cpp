@@ -245,6 +245,10 @@ const char* translate(int index, std::string_view original) {
     // NOTE: if the compiler is being retarded and stripping null bytes from static strings, gg
     //       technically ub but no other way to do this and keep consteval
     //       unless we rewrite whole codebase to expect string_views everywhere it's string or char*
+    //       _() always feeds us a string literal (string_index is consteval), so reading the byte
+    //       at .size() is well-defined for every real call site; the assert catches any future
+    //       non-literal misuse before it silently reads past-end bytes.
+    assert(original.data()[original.size()] == '\0');
     if(current_language.empty() || current_language == "en") return original.data();
 
     if(index == -1) return original.data();
@@ -254,6 +258,8 @@ const char* translate(int index, std::string_view original) {
 }
 
 const char* translate_plural(int index, std::string_view singular, std::string_view plural, int n) {
+    assert(singular.data()[singular.size()] == '\0');
+    assert(plural.data()[plural.size()] == '\0');
     if(index == -1 || current_language.empty() || current_language == "en") {
         return n == 1 ? singular.data() : plural.data();
     }
