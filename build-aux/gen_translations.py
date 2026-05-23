@@ -145,6 +145,24 @@ def write_bytes_if_changed(path: Path, content: bytes) -> bool:
     return True
 
 
+def xgettext_supports_flag_value(flag_value: str) -> bool:
+    """Probe whether xgettext accepts `--flag=keyword:1:<flag_value>`. Older xgettext
+    (pre-gettext-0.22, e.g. Ubuntu 22.04's 0.21) rejects values it doesn't recognize
+    with: 'A --flag argument doesn't have the <keyword>:<argnum>:[pass-]<flag> syntax'.
+    Used to keep the script working on CI runners shipping older gettext while still
+    enabling c++-format validation locally where available."""
+    with tempfile.NamedTemporaryFile("w", suffix=".cpp", dir=str(gen_dir), delete=False) as tmp:
+        probe = Path(tmp.name)
+    try:
+        result = subprocess.run(
+            ["xgettext", f"--flag=_:1:{flag_value}", "-o", "-", str(probe)],
+            capture_output=True,
+        )
+        return result.returncode == 0
+    finally:
+        probe.unlink(missing_ok=True)
+
+
 def build_mo(po_path: Path, mo_path: Path) -> None:
     """Compile .po -> .mo via msgfmt with cmp-and-write. We own .mo generation here
     (instead of a separate Makefile rule) so the entire translation pipeline lives in
@@ -177,7 +195,7 @@ with tempfile.NamedTemporaryFile("w", suffix=".pot", dir=str(gen_dir), delete=Fa
     temp_pot = Path(tmp.name)
 
 try:
-    subprocess.run(
+    xgettext_args = (
         ["xgettext"]
         + ["--keyword=" + k for k in keywords]
         + [
@@ -191,21 +209,31 @@ try:
             # Pick up "// xgettext: no-c-format" markers on problem strings (e.g. "100% to 150%"
             # that would otherwise get spurious c-format flags).
             "--add-comments=TRANSLATORS",
-            # tformat's first argument is a fmt::format_string, so let msgfmt --check-format validate
-            # translator format mismatches. We deliberately do NOT pass --flag=_:1:no-c-format - that
-            # would globally disable c-format detection for every _() string, which is too broad: it
-            # would silently hide format-string bugs if anyone ever feeds an _() string to printf or
-            # similar. The literal-`%` strings (ModSelector.cpp "100%" etc.) use per-call-site
-            # `// xgettext: no-c-format` comments to suppress the flag locally instead.
-            "--flag=tformat:1:c++-format",
             "--sort-by-file",
             "-o", str(temp_pot),
             "--package-name=neomod",
         ]
-        + SOURCES,
-        cwd=str(srcdir_abs),
-        check=True,
     )
+
+    # tformat's first argument is a fmt::format_string, so let msgfmt --check-format validate
+    # translator format mismatches. We deliberately do NOT pass --flag=_:1:no-c-format - that
+    # would globally disable c-format detection for every _() string, which is too broad: it
+    # would silently hide format-string bugs if anyone ever feeds an _() string to printf or
+    # similar. The literal-`%` strings (ModSelector.cpp "100%" etc.) use per-call-site
+    # `// xgettext: no-c-format` comments to suppress the flag locally instead.
+    #
+    # 'c++-format' is gettext 0.22+ (2023). Older xgettext (e.g. Ubuntu 22.04 ships 0.21)
+    # rejects the flag value and aborts, so probe support and degrade gracefully on CI.
+    # Without the flag, msgfmt --check-format still validates _()-marked strings tagged
+    # 'c-format' by xgettext's auto-detection - just not tformat-specific fmt syntax.
+    if xgettext_supports_flag_value("c++-format"):
+        xgettext_args.append("--flag=tformat:1:c++-format")
+    else:
+        print("xgettext < 0.22 detected; skipping --flag=tformat:1:c++-format "
+              "(translator format-string validation for tformat() disabled).",
+              file=sys.stderr)
+
+    subprocess.run(xgettext_args + SOURCES, cwd=str(srcdir_abs), check=True)
 
     msgids = parse_pot_msgids(temp_pot.read_text(encoding="utf-8"))
     new_translations_h = build_translations_h(msgids)
