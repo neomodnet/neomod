@@ -1560,7 +1560,9 @@ void discoverSystemFallbacks() {
                                             "/usr/share/fonts/TTF/liberation/LiberationSans-Regular.ttf",
                                             "/usr/share/fonts/liberation/LiberationSans-Regular.ttf",
                                             "/usr/share/fonts/noto/NotoSans-Regular.ttf",
+                                            "/usr/share/fonts/noto/NotoSansCJK-Regular.ttc",
                                             "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+                                            "/usr/share/fonts/noto-emoji/NotoColorEmoji.ttf",
                                             "/usr/share/fonts/TTF/noto/NotoColorEmoji.ttf"};
 #else  // TODO: loading WOFF fonts in wasm? idk
     std::vector<std::string> systemFonts;

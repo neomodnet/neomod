@@ -307,7 +307,7 @@ msgstr "保存"
 
 #: ../src/App/Neomod/MainMenu.cpp:349 ../src/App/Neomod/OsuDirectScreen.cpp:365
 msgid "Online Beatmaps"
-msgstr "オンラインビートマップ"
+msgstr "オンライン譜面"
 
 #: ../src/App/Neomod/MainMenu.cpp:989
 #, c++-format
