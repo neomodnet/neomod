@@ -1376,7 +1376,9 @@ endif
 
 PO_FILES := $(wildcard $(srcdir)/translations/*.po)
 MO_FILES := $(patsubst $(srcdir)/translations/%.po, $(builddir)/gen/%.mo, $(PO_FILES))
-TRANSLATION_SOURCES := $(shell find $(srcdir)/src -name '*.cpp' 2>/dev/null)
+# NOTE: non-recursive (:=) so won't pick up anything added to neomod_SOURCES after this point,
+# but translatable strings only exist in sources that are already in it at this point so it shouldn't matter in practice
+TRANSLATION_SRCS := $(filter-out $(EMBED_OUTPUT),$(filter %.cpp,$(neomod_SOURCES)))
 TRANSLATION_SCRIPT := $(srcdir)/build-aux/gen_translations.py
 
 # gen_translations.py is the sole producer of the translation outputs: it runs xgettext
@@ -1385,7 +1387,7 @@ TRANSLATION_SCRIPT := $(srcdir)/build-aux/gen_translations.py
 # listed as prereqs so manual translator edits (e.g. fixing fr.po by hand) trigger regen.
 GEN_TRANSLATIONS_STAMP := $(builddir)/gen/.translations.stamp
 
-$(GEN_TRANSLATIONS_STAMP): $(TRANSLATION_SCRIPT) $(TRANSLATION_SOURCES) $(PO_FILES)
+$(GEN_TRANSLATIONS_STAMP): $(TRANSLATION_SCRIPT) $(TRANSLATION_SRCS) $(PO_FILES)
 	@$(MKDIR_P) $(dir $@)
 	$(PYTHON) $(TRANSLATION_SCRIPT) $(srcdir) $(builddir)
 	@touch $@
