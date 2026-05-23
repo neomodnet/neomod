@@ -200,7 +200,6 @@ void _focus();
 void _center();
 void _errortest();
 void _dpiinfo();
-void _update_locale(std::string_view newLang);
 
 // black and purple placeholder texture, valid from engine startup to shutdown
 extern Image *MISSING_TEXTURE;

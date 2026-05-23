@@ -758,4 +758,3 @@ void _toggleresizable() { env->setWindowResizable(!env->winResizable()); }
 void _focus() { engine->focus(); }
 void _center() { engine->center(); }
 void _dpiinfo() { debugLog("env->getDPI() = {:d}, env->getDPIScale() = {:f}", env->getDPI(), env->getDPIScale()); }
-void _update_locale(std::string_view newLang) { i18n::load(newLang); }
