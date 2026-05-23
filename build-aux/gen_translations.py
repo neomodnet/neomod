@@ -17,25 +17,31 @@ languages = {
     "de": "Deutsch",
 }
 
-# srcdir is kept as-passed (typically a relative path like ".." from automake's perspective)
-# so xgettext records portable "../src/..." references in neomod.pot.
-# builddir is also kept as-passed so manifest entries match make's $(builddir) form
-# (otherwise the depfile gets absolute paths that don't match the make pattern rule).
-# builddir_abs is used internally for unambiguous filesystem ops.
-srcdir = Path(sys.argv[1])
+# Resolve both inputs to absolute paths for unambiguous filesystem ops. xgettext records
+# the path string it was given verbatim into .pot/.po `#:` references, so to keep those
+# references identical across machines we feed it srcdir-relative paths ("src/App/...")
+# and run with cwd=srcdir_abs. This is independent of how the script was invoked
+# (make uses ".." / ".", a manual run might use absolute paths) and where builddir lives
+# (in-tree under srcdir, sibling, /tmp/..., or anywhere else).
+srcdir_abs = Path(sys.argv[1]).resolve()
+builddir_abs = Path(sys.argv[2]).resolve()
+
+# builddir is preserved as-passed (typically ".") for manifest entries, so they match
+# make's $(builddir) form and the gen/%.mo pattern rule.
 builddir = Path(sys.argv[2])
-builddir_abs = builddir.resolve()
 
 gen_dir = builddir_abs / "gen"
 gen_dir.mkdir(parents=True, exist_ok=True)
 
-pot_path = srcdir / "translations" / "neomod.pot"
+pot_path = srcdir_abs / "translations" / "neomod.pot"
 translations_h_path = gen_dir / "translations.h"
 manifest_path = gen_dir / "locale_embed.manifest"
 
 # Translation calls only live in .cpp - .h files contain raw-string OBJ blobs
 # and other non-C content that confuses xgettext.
-SOURCES = sorted(str(p) for p in (srcdir / "src").rglob("*.cpp"))
+SOURCES = sorted(
+    str(p.relative_to(srcdir_abs)) for p in (srcdir_abs / "src").rglob("*.cpp")
+)
 
 
 def parse_pot_msgids(pot_text: str) -> list[str]:
@@ -132,6 +138,7 @@ try:
             "--package-name=neomod",
         ]
         + SOURCES,
+        cwd=str(srcdir_abs),
         check=True,
     )
 
@@ -161,7 +168,7 @@ translations_h_path.write_text(new_translations_h, encoding="utf-8")
 
 # Generate or update language .po files to match latest strings
 for code, lang in languages.items():
-    po = srcdir / "translations" / f"{code}.po"
+    po = srcdir_abs / "translations" / f"{code}.po"
     if po.exists():
         subprocess.run(
             # --no-wrap keeps msgstr lines unbroken, so .po output is identical regardless of
@@ -183,7 +190,8 @@ for code, lang in languages.items():
             check=True,
         )
 
-# Write locale_embed.manifest with absolute paths.
-# Consumed via gen_binary_embed.py's -F flag, which doesn't prepend --base-dir.
+# locale_embed.manifest is consumed within the same build, so entries are written
+# using $(builddir)-relative paths to match gen_binary_embed.py's -F flag (which does not
+# prepend --base-dir) and the gen/%.mo pattern rule in Makefile.am.
 manifest_content = "\n".join(f"locale_{code} : {builddir}/gen/{code}.mo" for code in languages) + "\n"
 write_if_changed(manifest_path, manifest_content)
