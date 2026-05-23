@@ -220,11 +220,16 @@ AC_DEFUN([AC_PROG_NASM], [
     fi
 ])
 
-AC_DEFUN([AC_PROG_MSGFMT], [
-    AC_CHECK_PROG([MSGFMT], [msgfmt], [msgfmt])
-    if test -z "$MSGFMT"; then
-        AC_MSG_ERROR([msgfmt (from gettext) not found - required for generating translations])
-    fi
+AC_DEFUN([AC_PROG_GETTEXT_TOOLS], [
+    # gen_translations.py uses xgettext, msgmerge, msgattrib, msgfmt, and msginit.
+    # All ship with the gettext package, but distros sometimes split the dev tools
+    # (xgettext et al.) from the runtime, so check each individually.
+    m4_foreach_w([gt_tool], [xgettext msgmerge msgattrib msgfmt msginit], [
+        AC_CHECK_PROG(m4_toupper(gt_tool), gt_tool, [yes], [no])
+        AS_IF([test "x$m4_toupper(gt_tool)" = "xno"], [
+            AC_MSG_ERROR([gt_tool (from gettext) not found - install the gettext package (provides xgettext/msgmerge/msgattrib/msgfmt/msginit)])
+        ])
+    ])
 ])
 
 # needed for building SPIR-V shaders (optional on macOS where MSL suffices)
@@ -250,7 +255,7 @@ AC_PROG_UNZIP
 AC_PROG_MESON
 AC_PROG_CMAKE
 AC_PROG_LIB_TOOLIZE
-AC_PROG_MSGFMT
+AC_PROG_GETTEXT_TOOLS
 AC_PROG_PYTHON
 AC_SUBST([PYTHON])
 
