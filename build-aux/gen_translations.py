@@ -110,6 +110,40 @@ def write_if_changed(path: Path, content: str) -> bool:
     return True
 
 
+def write_bytes_if_changed(path: Path, content: bytes) -> bool:
+    if path.exists() and path.read_bytes() == content:
+        return False
+    path.write_bytes(content)
+    return True
+
+
+def build_mo(po_path: Path, mo_path: Path) -> None:
+    """Compile .po -> .mo via msgfmt with cmp-and-write. We own .mo generation here
+    (instead of a separate Makefile rule) so the entire translation pipeline lives in
+    one recipe - the stamp file - which avoids a make-graph race: with the old per-.mo
+    rule, msgmerge's mid-recipe rewrite of .po landed AFTER make had already decided
+    .mo was up to date, leaving a stale binary_embed.cpp until the *next* make invocation.
+    Compiling here means the .mo's actual disk mtime is set before make's downstream
+    dep checks run."""
+    with tempfile.NamedTemporaryFile("wb", suffix=".mo", dir=str(gen_dir), delete=False) as tmp:
+        tmp_mo = Path(tmp.name)
+    try:
+        # --check-format makes the build fail on format-specifier mismatches in translations
+        # instead of silently producing a .mo that fmt::vformat will std::abort on at runtime
+        # (we build with -fno-exceptions, so fmt's default error path is abort).
+        subprocess.run(
+            ["msgfmt", "--check-format", "-o", str(tmp_mo), str(po_path)],
+            check=True,
+        )
+        new_bytes = tmp_mo.read_bytes()
+        if not mo_path.exists() or mo_path.read_bytes() != new_bytes:
+            shutil.move(str(tmp_mo), str(mo_path))
+            tmp_mo = None
+    finally:
+        if tmp_mo is not None and tmp_mo.exists():
+            tmp_mo.unlink()
+
+
 # Regenerate .pot into a temp file so we can decide whether to actually update it.
 with tempfile.NamedTemporaryFile("w", suffix=".pot", dir=str(gen_dir), delete=False) as tmp:
     temp_pot = Path(tmp.name)
@@ -154,9 +188,16 @@ try:
         translations_h_path.exists()
         and translations_h_path.read_text(encoding="utf-8") == new_translations_h
     ):
-        # Make sure the manifest exists for first-build-after-clean scenarios.
+        # Manifest and .mo files may be missing on first-build-after-clean even though
+        # the string set didn't change - generate them if needed (cmp-and-write keeps
+        # the existing ones' mtimes intact for the no-op case).
         manifest_content = "\n".join(f"locale_{code} : {builddir}/gen/{code}.mo" for code in languages) + "\n"
         write_if_changed(manifest_path, manifest_content)
+        for code in languages:
+            po = srcdir_abs / "translations" / f"{code}.po"
+            mo = gen_dir / f"{code}.mo"
+            if po.exists():
+                build_mo(po, mo)
         sys.exit(0)
 
     print("Strings changed, updating translations.")
@@ -169,28 +210,38 @@ finally:
 
 translations_h_path.write_text(new_translations_h, encoding="utf-8")
 
-# Generate or update language .po files to match latest strings
+# Generate or update language .po files to match latest strings. msgmerge writes to a
+# temp file (not in-place) so we can pipe through msgattrib and cmp-and-write the final
+# result - unchanged .po keeps its mtime, which keeps downstream .mo / binary_embed off
+# the rebuild list when only line-number references shifted.
 for code, lang in languages.items():
     po = srcdir_abs / "translations" / f"{code}.po"
     if po.exists():
-        subprocess.run(
+        with tempfile.NamedTemporaryFile("wb", suffix=".po", dir=str(gen_dir), delete=False) as tmp:
+            tmp_po = Path(tmp.name)
+        try:
             # --no-wrap keeps msgstr lines unbroken, so .po output is identical regardless of
             # the locale/libc/msgmerge version that produced it (default-wrapped output churns
             # across platforms). --add-location=file matches the xgettext flag above so the
             # `#:` references in .po stay aligned with .pot if msgmerge ever runs standalone.
-            ["msgmerge", "-U", "--backup=none", "--no-wrap", "--add-location=file", str(po), str(pot_path)],
-            check=True,
-        )
-        # msgmerge keeps removed-but-previously-translated entries around as `#~ msgid ...`
-        # blocks (standard gettext convention so translators can recover history). For a
-        # codebase that churns translatable strings, the obsolete block grows without bound
-        # and noises up .po diffs. Strip it after every merge - if a translator ever needs
-        # the prior text, it's still in git history.
-        result = subprocess.run(
-            ["msgattrib", "--no-obsolete", "--no-wrap", "--add-location=file", str(po)],
-            check=True, stdout=subprocess.PIPE,
-        )
-        po.write_bytes(result.stdout)
+            subprocess.run(
+                ["msgmerge", "--no-wrap", "--add-location=file",
+                 "-o", str(tmp_po), str(po), str(pot_path)],
+                check=True,
+            )
+            # msgmerge keeps removed-but-previously-translated entries around as `#~ msgid ...`
+            # blocks (standard gettext convention so translators can recover history). For a
+            # codebase that churns translatable strings, the obsolete block grows without bound
+            # and noises up .po diffs. If a translator ever needs the prior text, it's still in git history.
+            result = subprocess.run(
+                ["msgattrib", "--no-obsolete", "--no-wrap", "--add-location=file",
+                 str(tmp_po)],
+                check=True, stdout=subprocess.PIPE,
+            )
+            write_bytes_if_changed(po, result.stdout)
+        finally:
+            if tmp_po.exists():
+                tmp_po.unlink()
     else:
         print(f"{code}.po doesn't exist, generating a new file.")
         subprocess.run(
@@ -203,6 +254,15 @@ for code, lang in languages.items():
             ],
             check=True,
         )
+
+# Compile each .po into a .mo. See build_mo's docstring for why this lives here instead
+# of in Makefile.am: it eliminates the make-graph race that left binary_embed stale for
+# one make invocation after any translatable-string change.
+for code in languages:
+    po = srcdir_abs / "translations" / f"{code}.po"
+    mo = gen_dir / f"{code}.mo"
+    if po.exists():
+        build_mo(po, mo)
 
 # locale_embed.manifest is consumed within the same build, so entries are written
 # using $(builddir)-relative paths to match gen_binary_embed.py's -F flag (which does not

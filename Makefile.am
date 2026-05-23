@@ -1379,28 +1379,18 @@ MO_FILES := $(patsubst $(srcdir)/translations/%.po, $(builddir)/gen/%.mo, $(PO_F
 TRANSLATION_SOURCES := $(shell find $(srcdir)/src -name '*.cpp' 2>/dev/null)
 TRANSLATION_SCRIPT := $(srcdir)/build-aux/gen_translations.py
 
-# .mo files are built individually from their .po source so editing a single .po
-# triggers a rebuild of just that .mo (and downstream binary_embed.o). The order-only
-# prereq on the stamp ensures msgfmt doesn't race with gen_translations.py's msgmerge
-# rewriting the .po files when source strings change.
-# --check-format makes the build fail on format-specifier mismatches in translations
-# instead of crashing at runtime under -fno-exceptions.
-$(builddir)/gen/%.mo: $(srcdir)/translations/%.po | $(GEN_TRANSLATIONS_STAMP)
-	@$(MKDIR_P) $(dir $@)
-	$(MSGFMT) --check-format -o $@ $<
-
-# gen_translations.py produces translations.h, locale_embed.manifest, and (when strings
-# changed) updates the source-tree neomod.pot + per-language .po files. We funnel everything
-# through a stamp so a single script invocation per build covers all outputs, and the script
-# uses cmp-and-write internally so unchanged outputs keep their original mtime (no spurious
-# rebuilds of PCH or binary_embed.cpp).
+# gen_translations.py is the sole producer of the translation outputs: it runs xgettext
+# + msgmerge + msgattrib + msgfmt internally with cmp-and-write semantics, producing
+# .pot, .po, .mo, translations.h, and locale_embed.manifest in one shot. PO_FILES are
+# listed as prereqs so manual translator edits (e.g. fixing fr.po by hand) trigger regen.
 GEN_TRANSLATIONS_STAMP := $(builddir)/gen/.translations.stamp
 
-$(GEN_TRANSLATIONS_STAMP): $(TRANSLATION_SCRIPT) $(TRANSLATION_SOURCES)
+$(GEN_TRANSLATIONS_STAMP): $(TRANSLATION_SCRIPT) $(TRANSLATION_SOURCES) $(PO_FILES)
 	@$(MKDIR_P) $(dir $@)
 	$(PYTHON) $(TRANSLATION_SCRIPT) $(srcdir) $(builddir)
 	@touch $@
 
+$(builddir)/gen/%.mo: $(GEN_TRANSLATIONS_STAMP) ;
 $(builddir)/gen/translations.h: $(GEN_TRANSLATIONS_STAMP) ;
 $(builddir)/gen/locale_embed.manifest: $(GEN_TRANSLATIONS_STAMP) ;
 
