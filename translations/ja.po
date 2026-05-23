@@ -1,7 +1,12 @@
 # Japanese translations for neomod package.
 # Copyright (C) 2026 THE neomod'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the neomod package.
-# Automatically generated, 2026.
+# Gemini <gemini@google.com>, 2026.
+#
+# WARNING: Machine-translated by Google's Gemini AI. Not human-reviewed.
+# May contain errors in grammatical gender, politeness register, game-specific
+# terminology, or context-dependent meaning. Please flag mistranslations
+# or volunteer a review to replace these.
 #
 msgid ""
 msgstr ""
@@ -9,13 +14,14 @@ msgstr ""
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-05-23 09:47+0200\n"
 "PO-Revision-Date: 2026-05-23 09:47+0200\n"
-"Last-Translator: Automatically generated\n"
+"Last-Translator: Gemini <gemini@google.com>\n"
 "Language-Team: none\n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Gemini\n"
 
 #: src/App/Neomod/AboutScreen.cpp src/App/Neomod/MainMenu.cpp
 msgid "Changelog"
