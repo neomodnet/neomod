@@ -7,7 +7,8 @@ INCLUDES = -I$(SRCDIR)/App/Neomod -I$(SRCDIR)/App/Neomod/DiffCalc -I$(SRCDIR)/Ut
 
 # GLM: use system headers by default, override with GLM_INCLUDE=-I/path/to/glm
 # https://github.com/g-truc/glm
-GLM_INCLUDE ?=
+PKG_CONFIG ?= pkg-config
+GLM_INCLUDE ?= $(shell pkg-config --cflags glm)
 INCLUDES += $(GLM_INCLUDE)
 
 SOURCES = \

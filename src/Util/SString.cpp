@@ -3,12 +3,12 @@
 #include "config.h"
 #endif
 
-#include "BaseEnvironment.h"
 #include "SString.h"
 
 #include <cstring>
 
 #ifndef BUILD_TOOLS_ONLY
+#include "BaseEnvironment.h"
 #if !defined(__GLIBCXX__) || defined(__EMSCRIPTEN__)
 #include "fmt/format.h"
 #else

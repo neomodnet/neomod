@@ -1,6 +1,10 @@
 // Copyright (c) 2026, kiwec, All rights reserved.
 #include "i18n.h"
 
+// Stub-mode builds (MSVC CMake, BUILD_TOOLS_ONLY tools) get all their i18n behavior
+// from i18n.h's passthrough branch, so this TU compiles to empty there.
+#if !defined(_MSC_VER) && !defined(BUILD_TOOLS_ONLY)
+
 #include "binary_embed.h"
 #include "Logging.h"
 #include "SString.h"
@@ -95,19 +99,18 @@ void load_translation(const char* data) {
     const MOString* origs = reinterpret_cast<const MOString*>(data + mo->orig_offset);
     const MOString* trans = reinterpret_cast<const MOString*>(data + mo->trans_offset);
 
-    // XXX: since strings are sorted in lexicographical order, we could do binary search to load translations
-    //      a bit faster. but surely this is already fast enough not to bother with extra complexity?
+    // .mo files store msgids sorted by strcmp (gettext spec), which matches the byte-order
+    // sort of TRANSLATABLE_STRINGS (enforced by static_assert in i18n.h). Binary-search per
+    // .mo entry: O(M log N) instead of the prior O(M*N) nested scan.
     for(u32 i = 0; i < mo->nb_strings; i++) {
-        const char* orig = data + origs[i].offset;
+        const std::string_view orig{data + origs[i].offset};
 
-        for(int j = 0; j < TRANSLATABLE_STRINGS.size(); j++) {
-            if(TRANSLATABLE_STRINGS[j] == orig) {
-                const char* translation = data + trans[i].offset;
-                if(translation[0] != '\0') {
-                    translations[j] = translation;
-                }
-                break;
-            }
+        auto it = std::ranges::lower_bound(TRANSLATABLE_STRINGS, orig);
+        if(it == TRANSLATABLE_STRINGS.end() || *it != orig) continue;
+
+        const char* translation = data + trans[i].offset;
+        if(translation[0] != '\0') {
+            translations[it - TRANSLATABLE_STRINGS.begin()] = translation;
         }
     }
 
@@ -170,6 +173,16 @@ int get_plural(int n) {
 }  // namespace
 
 namespace i18n {
+
+// gen_translations.py emits TRANSLATABLE_STRINGS via Python's sorted(set(...)) over the
+// .po-decoded msgids, which matches std::string_view::operator< (byte order) for
+// well-formed UTF-8. string_index() relies on this sort invariant for its binary search;
+// guard it so any future change to the generator that breaks the order fails to compile
+// instead of silently making _() return -1 for valid strings.
+
+// (this is moved to the .cpp to avoid redundantly running is_sorted on all strings in every compilation unit that includes it)
+static_assert(std::ranges::is_sorted(TRANSLATABLE_STRINGS),
+              "TRANSLATABLE_STRINGS must be sorted (string_index relies on binary search)");
 
 void load(std::string_view locale) {
     // The translations[], current_language, and current_plural_form globals are read
@@ -292,3 +305,5 @@ constexpr auto AVAILABLE_LANGUAGES = []() consteval {
 std::span<const Language> get_available_languages() { return AVAILABLE_LANGUAGES; }
 
 }  // namespace i18n
+
+#endif  // !(_MSC_VER || BUILD_TOOLS_ONLY)

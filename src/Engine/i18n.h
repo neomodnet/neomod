@@ -1,26 +1,31 @@
 #pragma once
 // Copyright (c) 2026, kiwec, All rights reserved.
-#include <fmt/format.h>
 #include <span>
 #include <string_view>
+
+// TODO: add CMake support for translation generation (using _MSC_VER as a "hack" to detect CMake here)
+#if !defined(_MSC_VER) && !defined(BUILD_TOOLS_ONLY)
+
+#include <algorithm>
+#include "fmt/format.h"
 
 #include "translations.h"
 
 namespace i18n {
 
-// Gets a compile time index for any string to translate
-// (so we can access translations in O(1), instead of using a hashmap)
+// Gets a compile-time index for any string to translate via O(log N) binary search
+// (so we can access translations in O(1) at runtime, instead of using a hashmap).
 consteval int string_index(std::string_view s) {
-    for(int i = 0; i < TRANSLATABLE_STRINGS.size(); i++) {
-        if(TRANSLATABLE_STRINGS[i] == s) return i;
+    auto it = std::ranges::lower_bound(TRANSLATABLE_STRINGS, s);
+    if(it == TRANSLATABLE_STRINGS.end() || *it != s) {
+        // You could imagine an implementation where we throw a compiler error here,
+        // but I prefer a soft fallback to the original string.
+        //
+        // This allows the build system to be more flexible instead of HAVING
+        // to regenerate strings every time a source file is changed.
+        return -1;
     }
-
-    // You could imagine an implementation where we throw a compiler error here,
-    // but I prefer a soft fallback to the original string.
-    //
-    // This allows the build system to be more flexible instead of HAVING
-    // to regenerate strings every time a source file is changed.
-    return -1;
+    return static_cast<int>(it - TRANSLATABLE_STRINGS.begin());
 }
 
 void load(std::string_view locale);
@@ -45,3 +50,43 @@ std::string tformat_impl(fmt::format_string<Args...> /*original*/, const char* t
     return fmt::vformat(translated, fmt::make_format_args(args...));
 }
 #define tformat(String, ...) tformat_impl(String, _(String) __VA_OPT__(, ) __VA_ARGS__)
+
+#else  // _MSC_VER || BUILD_TOOLS_ONLY
+
+#include <array>
+
+// BUILD_TOOLS_ONLY explicitly avoids dragging in fmt
+#if defined(BUILD_TOOLS_ONLY)
+#include <format>
+#else
+#include "fmt/format.h"
+#endif
+
+namespace i18n {
+
+inline void load(std::string_view /*locale*/) {}
+
+struct Language {
+    std::string_view code;
+    std::string_view name;
+};
+
+inline std::span<const Language> get_available_languages() {
+    using namespace std::string_view_literals;
+    static constexpr std::array<Language, 1> AVAILABLE_LANGUAGES{{
+        {.code = "en"sv, .name = "English"sv},
+    }};
+    return AVAILABLE_LANGUAGES;
+}
+
+}  // namespace i18n
+
+#define _(String) (String)
+
+#if defined(BUILD_TOOLS_ONLY)
+#define tformat(String, ...) std::format(String __VA_OPT__(, ) __VA_ARGS__)
+#else
+#define tformat(String, ...) fmt::format(String __VA_OPT__(, ) __VA_ARGS__)
+#endif
+
+#endif  // !(_MSC_VER || BUILD_TOOLS_ONLY)
