@@ -99,7 +99,10 @@ void load_translation(const char* data) {
 
         for(int j = 0; j < TRANSLATABLE_STRINGS.size(); j++) {
             if(TRANSLATABLE_STRINGS[j] == orig) {
-                translations[j] = data + trans[i].offset;
+                const char* translation = data + trans[i].offset;
+                if(translation[0] != '\0') {
+                    translations[j] = translation;
+                }
                 break;
             }
         }

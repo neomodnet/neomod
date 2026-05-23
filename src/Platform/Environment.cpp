@@ -181,6 +181,9 @@ Environment::Environment(const Mc::AppDescriptor &appDesc,
         }
     }
 
+    // initialize default language instead of always using "en"
+    cv::language.setValue(this->getDefaultLocale());
+
     // setup callbacks
     cv::debug_env.setCallback(SA::MakeDelegate<&Environment::onLogLevelChange>(this));
     cv::monitor.setCallback(SA::MakeDelegate<&Environment::onMonitorChange>(this));
@@ -326,7 +329,7 @@ const std::string Environment::getDefaultLocale() noexcept {
 
     // Linux and POSIX-y systems
     // WASM shell also injects "navigator.language" into $LANGUAGE
-    auto locale = env->getEnvVariable("LANGUAGE");
+    auto locale = this->getEnvVariable("LANGUAGE");
     if(locale.empty()) locale = "en";
     return locale;
 #endif

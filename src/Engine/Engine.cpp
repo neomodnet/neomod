@@ -95,9 +95,6 @@ Engine::Engine() {
     this->bShuttingDown = false;
     this->bShouldProcessStdin = env->isHeadless() || env->getLaunchArgs().contains("-console");
 
-    // initialize default language instead of always using "en"
-    cv::language.setValue(env->getDefaultLocale());
-
     // initialize all engine subsystems (the order does matter!)
     debugLog("Engine: Initializing subsystems ...");
     {
