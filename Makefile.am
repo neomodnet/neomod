@@ -1363,6 +1363,39 @@ EMBED_CACERT_ARGS := curl_ca_embed:$(CACERT_INCDIR)cacert.pem
 endif
 
 #####################################################################################################################################################
+## TRANSLATIONS
+#####################################################################################################################################################
+
+# neomod.pot file is the main translation template
+# .po files contain translations for each language
+# .mo files are compiled translations
+# locale_embed.manifest is used to embed the .mo files
+# translations.h contains english strings & the language list
+
+PO_FILES := $(wildcard $(srcdir)/translations/*.po)
+MO_FILES := $(patsubst $(srcdir)/translations/%.po, $(builddir)/gen/%.mo, $(PO_FILES))
+
+# TODO:
+# - gen_translations.py is called twice per build?
+# - touching a .po file doesn't seem to run msgfmt (or update the embed .cpp)
+
+$(builddir)/gen/%.mo: $(srcdir)/translations/%.po
+	msgfmt -o $@ $<
+
+# Can't depend on gen_translations because it's a circular dependency (part of neomod_SOURCES)
+# But it won't generate itself otherwise
+$(builddir)/gen/locale_embed.manifest:
+	$(PYTHON) $(srcdir)/build-aux/gen_translations.py $(srcdir) $(builddir)
+
+$(builddir)/gen/translations.h: gen_translations
+
+# This should be run every build. It checks if source code strings changed, and if they did,
+# it regenerates neomod.pot, the .po files, translations.h and locale_embed.manifest.
+.PHONY: gen_translations
+gen_translations: $(neomod_SOURCES)
+	$(PYTHON) $(srcdir)/build-aux/gen_translations.py $(srcdir) $(builddir)
+
+#####################################################################################################################################################
 ## SDL_GPU SHADER COMPILATION (GLSL → SPIR-V / MSL → .shdpk shader packs)
 #####################################################################################################################################################
 
@@ -1420,9 +1453,6 @@ EMBED_FULL_MANIFEST_FLAGS := $(EMBED_MANIFEST_FLAGS) $(SDLGPU_EMBED_MANIFEST_FLA
 $(EMBED_CONFIG_STAMP): FORCE
 	@$(MKDIR_P) $(dir $@)
 	@echo '$(EMBED_FULL_MANIFEST_FLAGS)' | cmp -s - $@ || echo '$(EMBED_FULL_MANIFEST_FLAGS)' > $@
-
-gen/locale_embed.manifest:
-	$(PYTHON) $(srcdir)/build-aux/gen_translations.py $(srcdir) $(builddir)
 
 $(EMBED_OUTPUT): $(EMBED_SCRIPT) $(EMBED_MANIFESTS) $(EMBED_CACERT_DEPS) $(SDLGPU_EMBED_DEPS) $(EMBED_CONFIG_STAMP)
 	$(MKDIR_P) $(dir $@)
