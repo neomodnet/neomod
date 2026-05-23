@@ -14,17 +14,17 @@
 
 namespace UniString {
 
-uSz num_codepoints(std::string_view utf8) {
+uSz num_codepoints(std::string_view utf8) noexcept {
     if(utf8.empty()) return 0;
     return simdutf::count_utf8(utf8);
 }
 
-uSz num_codepoints(std::u16string_view utf16) {
+uSz num_codepoints(std::u16string_view utf16) noexcept {
     if(utf16.empty()) return 0;
     return simdutf::count_utf16le(utf16);
 }
 
-uSz num_codepoints(std::u32string_view utf32) { return utf32.size(); }
+uSz num_codepoints(std::u32string_view utf32) noexcept { return utf32.size(); }
 
 namespace {
 
@@ -33,7 +33,7 @@ constexpr char UTF8_REPLACEMENT[]{'\xEF', '\xBF', '\xBD'};
 
 // replace invalid UTF-8 sequences with U+FFFD.
 // first_error is the byte offset of the first known-bad byte (from validate_utf8_with_errors)
-std::string sanitize_utf8(const char *input, uSz len, uSz first_error) {
+std::string sanitize_utf8(const char *input, uSz len, uSz first_error) noexcept {
     std::string ret;
     ret.reserve(len);
     // copy the valid prefix before the first error
@@ -51,7 +51,7 @@ std::string sanitize_utf8(const char *input, uSz len, uSz first_error) {
 }
 
 // replace invalid codepoints with U+FFFD in-place
-void sanitize_utf32(char32_t *data, uSz len) {
+void sanitize_utf32(char32_t *data, uSz len) noexcept {
     for(uSz i = 0; i < len; i++) {
         if(data[i] > 0x10FFFF || (data[i] >= 0xD800 && data[i] <= 0xDFFF)) data[i] = 0xFFFD;
     }
@@ -65,34 +65,34 @@ struct AlignedBuffer {
    public:
     AlignedBuffer() = delete;
     // NOLINTNEXTLINE
-    AlignedBuffer(const u8 *src, uSz size) : src_data(src), in_size(size) {
+    AlignedBuffer(const u8 *src, uSz size) noexcept : src_data(src), in_size(size) {
         if(reinterpret_cast<uintptr_t>(src) % static_cast<uSz>(alignment) != 0) {
             make_mutable();
         } else {
             data = const_cast<u8 *>(src);  // NOLINT
         }
     }
-    ~AlignedBuffer() {
+    ~AlignedBuffer() noexcept {
         if(allocated) {
             ::operator delete(static_cast<void *>(data), alignment);
         }
     }
 
     template <typename T>
-    [[nodiscard]] const T *get() const {
+    [[nodiscard]] const T *get() const noexcept {
         return reinterpret_cast<const T *>(data);
     }
 
     template <typename T>
-    [[nodiscard]] T *get_mut() {
+    [[nodiscard]] T *get_mut() noexcept {
         if(!is_mutable()) make_mutable();
         return reinterpret_cast<T *>(data);
     }
 
    private:
-    [[nodiscard]] bool is_mutable() const { return allocated || data == &small[0]; }
+    [[nodiscard]] bool is_mutable() const noexcept { return allocated || data == &small[0]; }
 
-    void make_mutable() {
+    void make_mutable() noexcept {
         if(is_mutable()) return;
         if(in_size <= sizeof(small)) {
             data = &small[0];
@@ -111,7 +111,7 @@ struct AlignedBuffer {
     bool allocated{false};
 };
 
-inline std::pair<uSz, simdutf::encoding_type> get_bom_and_encoding(const u8 *data, uSz size) {
+inline std::pair<uSz, simdutf::encoding_type> get_bom_and_encoding(const u8 *data, uSz size) noexcept {
     uSz bom_size = 0;
 
     // check up to 4 bytes, since a UTF-32 BOM is 4 bytes
@@ -131,7 +131,7 @@ inline std::pair<uSz, simdutf::encoding_type> get_bom_and_encoding(const u8 *dat
 
 }  // namespace
 
-std::string to_utf8(const char *arbitrarily_encoded_data, uSz size) {
+std::string to_utf8(const char *arbitrarily_encoded_data, uSz size) noexcept {
     if(unlikely(!arbitrarily_encoded_data || size == 0)) return {};
 
     // detect encoding with BOM support
@@ -241,9 +241,9 @@ std::string to_utf8(const char *arbitrarily_encoded_data, uSz size) {
     return ret;
 }
 
-std::string to_utf8(std::string_view maybe_utf8) { return to_utf8(maybe_utf8.data(), maybe_utf8.size()); }
+std::string to_utf8(std::string_view maybe_utf8) noexcept { return to_utf8(maybe_utf8.data(), maybe_utf8.size()); }
 
-std::string to_utf8(std::u16string_view utf16) {
+std::string to_utf8(std::u16string_view utf16) noexcept {
     if(utf16.empty()) return {};
 
     static constexpr auto do_convert = [](const char16_t *data, uSz size) {
@@ -261,7 +261,7 @@ std::string to_utf8(std::u16string_view utf16) {
     return do_convert(sanitized.data(), sanitized.size());
 }
 
-std::string to_utf8(std::u32string_view utf32) {
+std::string to_utf8(std::u32string_view utf32) noexcept {
     if(utf32.empty()) return {};
 
     static constexpr auto do_convert = [](const char32_t *data, uSz size) {
@@ -279,7 +279,7 @@ std::string to_utf8(std::u32string_view utf32) {
     return do_convert(sanitized.data(), sanitized.size());
 }
 
-std::u16string to_utf16(std::string_view utf8) {
+std::u16string to_utf16(std::string_view utf8) noexcept {
     if(utf8.empty()) return {};
 
     static constexpr auto do_convert = [](const char *data, uSz size) {
@@ -297,7 +297,7 @@ std::u16string to_utf16(std::string_view utf8) {
     return do_convert(sanitized.data(), sanitized.size());
 }
 
-std::u16string to_utf16(std::u32string_view utf32) {
+std::u16string to_utf16(std::u32string_view utf32) noexcept {
     if(utf32.empty()) return {};
 
     static constexpr auto do_convert = [](const char32_t *data, uSz size) {
@@ -315,7 +315,7 @@ std::u16string to_utf16(std::u32string_view utf32) {
     return do_convert(sanitized.data(), sanitized.size());
 }
 
-std::u32string to_utf32(std::string_view utf8) {
+std::u32string to_utf32(std::string_view utf8) noexcept {
     if(utf8.empty()) return {};
 
     static constexpr auto do_convert = [](const char *data, uSz size) {
@@ -333,7 +333,7 @@ std::u32string to_utf32(std::string_view utf8) {
     return do_convert(sanitized.data(), sanitized.size());
 }
 
-std::u32string to_utf32(std::u16string_view utf16) {
+std::u32string to_utf32(std::u16string_view utf16) noexcept {
     if(utf16.empty()) return {};
 
     static constexpr auto do_convert = [](const char16_t *data, uSz size) {
@@ -351,7 +351,7 @@ std::u32string to_utf32(std::u16string_view utf16) {
     return do_convert(sanitized.data(), sanitized.size());
 }
 
-std::string to_utf8(std::wstring_view wide) {
+std::string to_utf8(std::wstring_view wide) noexcept {
     if(wide.empty()) return {};
 #if WCHAR_MAX <= 0xFFFF
     return to_utf8(std::u16string_view{reinterpret_cast<const char16_t *>(wide.data()), wide.size()});
@@ -360,7 +360,7 @@ std::string to_utf8(std::wstring_view wide) {
 #endif
 }
 
-std::wstring to_wide(std::string_view utf8) {
+std::wstring to_wide(std::string_view utf8) noexcept {
     if(utf8.empty()) return {};
 #if WCHAR_MAX <= 0xFFFF
     auto u16 = to_utf16(utf8);
@@ -371,9 +371,9 @@ std::wstring to_wide(std::string_view utf8) {
 #endif
 }
 
-u8codepoint_view::u8codepoint_view(std::string_view sv) : m_sv(sv) {}
+u8codepoint_view::u8codepoint_view(std::string_view sv) noexcept : m_sv(sv) {}
 
-char32_t u8codepoint_view::iterator::operator*() const {
+char32_t u8codepoint_view::iterator::operator*() const noexcept {
     char32_t c = pos[0];
     if(c < 0x80) return c;
     if(c < 0xE0) return (c & 0x1F) << 6 | (pos[1] & 0x3F);
@@ -381,7 +381,7 @@ char32_t u8codepoint_view::iterator::operator*() const {
     return (c & 0x07) << 18 | (pos[1] & 0x3F) << 12 | (pos[2] & 0x3F) << 6 | (pos[3] & 0x3F);
 }
 
-u8codepoint_view::iterator &u8codepoint_view::iterator::operator++() {
+u8codepoint_view::iterator &u8codepoint_view::iterator::operator++() noexcept {
     if(pos[0] < 0x80)
         pos += 1;
     else if(pos[0] < 0xE0)
@@ -394,39 +394,41 @@ u8codepoint_view::iterator &u8codepoint_view::iterator::operator++() {
     return *this;
 }
 
-bool u8codepoint_view::iterator::operator==(const iterator &o) const { return pos == o.pos; }
+bool u8codepoint_view::iterator::operator==(const iterator &o) const noexcept { return pos == o.pos; }
 
-u8codepoint_view::iterator u8codepoint_view::begin() const { return {reinterpret_cast<const u8 *>(m_sv.data())}; }
+u8codepoint_view::iterator u8codepoint_view::begin() const noexcept {
+    return {reinterpret_cast<const u8 *>(m_sv.data())};
+}
 
-u8codepoint_view::iterator u8codepoint_view::end() const {
+u8codepoint_view::iterator u8codepoint_view::end() const noexcept {
     return {reinterpret_cast<const u8 *>(m_sv.data() + m_sv.size())};
 }
 
-u16codepoint_view::u16codepoint_view(std::u16string_view sv) : m_sv(sv) {}
+u16codepoint_view::u16codepoint_view(std::u16string_view sv) noexcept : m_sv(sv) {}
 
-char32_t u16codepoint_view::iterator::operator*() const {
+char32_t u16codepoint_view::iterator::operator*() const noexcept {
     if(*pos >= 0xD800 && *pos <= 0xDBFF) return 0x10000 + (char32_t(*pos - 0xD800) << 10) + (pos[1] - 0xDC00);
     return *pos;
 }
 
-u16codepoint_view::iterator &u16codepoint_view::iterator::operator++() {
+u16codepoint_view::iterator &u16codepoint_view::iterator::operator++() noexcept {
     pos += (*pos >= 0xD800 && *pos <= 0xDBFF) ? 2 : 1;
     return *this;
 }
 
-bool u16codepoint_view::iterator::operator==(const iterator &o) const { return pos == o.pos; }
+bool u16codepoint_view::iterator::operator==(const iterator &o) const noexcept { return pos == o.pos; }
 
-u16codepoint_view::iterator u16codepoint_view::begin() const {
+u16codepoint_view::iterator u16codepoint_view::begin() const noexcept {
     return {m_sv.data() /* NOLINT(bugprone-suspicious-stringview-data-usage) */};
 }
 
-u16codepoint_view::iterator u16codepoint_view::end() const { return {m_sv.data() + m_sv.size()}; }
+u16codepoint_view::iterator u16codepoint_view::end() const noexcept { return {m_sv.data() + m_sv.size()}; }
 
-u8codepoint_view codepoints(std::string_view sv) { return u8codepoint_view{sv}; }
+u8codepoint_view codepoints(std::string_view sv) noexcept { return u8codepoint_view{sv}; }
 
-u16codepoint_view codepoints(std::u16string_view sv) { return u16codepoint_view{sv}; }
+u16codepoint_view codepoints(std::u16string_view sv) noexcept { return u16codepoint_view{sv}; }
 
-uSz prev(std::string_view sv, uSz pos) {
+uSz prev(std::string_view sv, uSz pos) noexcept {
     if(pos == 0) return 0;
     do {
         pos--;
@@ -434,7 +436,7 @@ uSz prev(std::string_view sv, uSz pos) {
     return pos;
 }
 
-uSz next(std::string_view sv, uSz pos) {
+uSz next(std::string_view sv, uSz pos) noexcept {
     if(pos >= sv.size()) return sv.size();
     do {
         pos++;
