@@ -58,6 +58,9 @@
 #ifdef MCENGINE_PLATFORM_LINUX
 #include <X11/Xlib.h>
 #endif
+#ifdef __APPLE__
+#include <CoreFoundation/CoreFoundation.h>  // getDefaultLocale
+#endif
 #elif defined(__EMSCRIPTEN__)
 // TODO (?)
 #endif
@@ -181,8 +184,9 @@ Environment::Environment(const Mc::AppDescriptor &appDesc,
         }
     }
 
+    m_sLocaleString = {};
     // initialize default language instead of always using "en"
-    cv::language.setValue(this->getDefaultLocale());
+    cv::language.setValue(getDefaultLocale());
 
     // setup callbacks
     cv::debug_env.setCallback(SA::MakeDelegate<&Environment::onLogLevelChange>(this));
@@ -308,7 +312,9 @@ std::string_view Environment::getUsername() const noexcept {
     return m_sUsername;
 }
 
-const std::string Environment::getDefaultLocale() noexcept {
+const std::string &Environment::getDefaultLocale() noexcept {
+    // need restart to update locale
+    if(!m_sLocaleString.empty()) return m_sLocaleString;
 #if defined(MCENGINE_PLATFORM_WINDOWS)
 
 #ifdef MC_ARCH32
@@ -316,22 +322,40 @@ const std::string Environment::getDefaultLocale() noexcept {
     // This will give something like "en", not "en-US", but who cares
     // We could concat with LOCALE_SISO639TRYNAME if we ever add Traditional English
     char locale_name[9]{};  // 9 is max according to ms docs
-    GetLocaleInfoA(GetUserDefaultLCID(), LOCALE_SISO639LANGNAME, locale_name, 9);
-    return locale_name;
+    GetLocaleInfoA(GetUserDefaultLCID(), LOCALE_SISO639LANGNAME, &locale_name[0], 9);
+    return (m_sLocaleString = &locale_name[0]);
 #else
     std::array<wchar_t, LOCALE_NAME_MAX_LENGTH> wlocale{};
     GetUserDefaultLocaleName(wlocale.data(), LOCALE_NAME_MAX_LENGTH);
-    return UniString::to_utf8(wlocale.data());
+    return (m_sLocaleString = UniString::to_utf8(wlocale.data()));
 #endif
 
-#else
-    // TODO: macos
+#else  // !MCENGINE_PLATFORM_WINDOWS
 
-    // Linux and POSIX-y systems
-    // WASM shell also injects "navigator.language" into $LANGUAGE
-    auto locale = this->getEnvVariable("LANGUAGE");
-    if(locale.empty()) locale = "en";
-    return locale;
+#if defined(MCENGINE_PLATFORM_MACOS)
+    // CFLocaleGetIdentifier returns identifiers like "ja_JP" or "en_US"; i18n::load()
+    // already splits on '_' so we can return it verbatim. macOS doesn't set $LANG by default,
+    // so we have to ask Core Foundation directly instead of falling into the POSIX chain below.
+    if(CFLocaleRef cflocale = CFLocaleCopyCurrent()) {
+        CFStringRef cfid = static_cast<CFStringRef>(CFLocaleGetIdentifier(cflocale));
+        char buf[64]{};
+        const bool ok = CFStringGetCString(cfid, &buf[0], sizeof(buf), kCFStringEncodingUTF8);
+        CFRelease(cflocale);
+        if(ok && buf[0] != '\0') return (m_sLocaleString = &buf[0]);
+    }
+#endif
+
+    // Linux/POSIX (and macOS fallback if Core Foundation didn't return anything).
+    // Order matches the gettext lookup chain: LANGUAGE is the user override, then
+    // the standard POSIX locale variables. LANGUAGE may be a colon-separated priority
+    // list ("de:en:fr"); we keep the highest-priority entry.
+    for(const char *var : {"LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"}) {
+        auto locale = getEnvVariable(var);
+        if(locale.empty()) continue;
+        if(const auto colon = locale.find(':'); colon != std::string::npos) locale.resize(colon);
+        return (m_sLocaleString = locale);
+    }
+    return (m_sLocaleString = "en");
 #endif
 }
 
@@ -572,9 +596,9 @@ std::string Environment::getFileExtensionFromFilePath(std::string_view filepath)
 std::vector<std::string> Environment::getLogicalDrives() {
     std::vector<std::string> drives{};
 
-    if constexpr(Env::cfg(OS::LINUX)) {
+    if constexpr(!Env::cfg(OS::WINDOWS)) {
         drives.emplace_back("/");
-    } else if constexpr(Env::cfg(OS::WINDOWS)) {
+    } else {
 #if defined(MCENGINE_PLATFORM_WINDOWS)
         DWORD dwDrives = GetLogicalDrives();
         for(int i = 0; i < 26; i++)  // A-Z
@@ -592,9 +616,6 @@ std::vector<std::string> Environment::getLogicalDrives() {
             }
         }
 #endif
-    } else if constexpr(Env::cfg(OS::WASM)) {
-        // TODO: VFS
-        drives.emplace_back("/");
     }
 
     return drives;
