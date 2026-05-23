@@ -76,13 +76,18 @@ Path(f"{builddir}/gen/locale_embed.manifest").write_text(
 )
 
 # Regenerate template file to contain latest strings
-Path(f"{srcdir}/translations/neomod.pot").unlink()
+neomod_pot = Path(f"{srcdir}/translations/neomod.pot")
+if neomod_pot.exists():
+    neomod_pot.unlink()
 subprocess.run(
     ["xgettext"]
     + ["--keyword=" + k for k in keywords]
     + [
         "--omit-header",
         "--add-comments=TRANSLATORS",
+        "--from-code=c++",
+        "--flag=_:1:no-c-format",
+        "--flag=tformat:1:c++-format",
         "--sort-by-file",
         "-o",
         f"{srcdir}/translations/neomod.pot",
