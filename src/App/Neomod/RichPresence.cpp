@@ -13,6 +13,7 @@
 #include "DiscordInterface.h"
 #include "Engine.h"
 #include "Environment.h"
+#include "i18n.h"
 #include "ModSelector.h"
 #include "Osu.h"
 #include "RoomScreen.h"

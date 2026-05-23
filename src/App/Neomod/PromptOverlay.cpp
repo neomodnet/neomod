@@ -7,6 +7,7 @@
 #include "Engine.h"
 #include "Osu.h"
 #include "Graphics.h"
+#include "i18n.h"
 #include "UIButton.h"
 #include "MakeDelegateWrapper.h"
 #include "Mouse.h"

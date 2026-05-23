@@ -16,6 +16,7 @@
 #include "Environment.h"
 #include "GameRules.h"
 #include "HitObjects.h"
+#include "i18n.h"
 #include "Lobby.h"
 #include "ModFPoSu.h"
 #include "Mouse.h"

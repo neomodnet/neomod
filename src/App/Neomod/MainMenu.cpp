@@ -21,6 +21,7 @@
 #include "Downloader.h"
 #include "Engine.h"
 #include "File.h"
+#include "i18n.h"
 #include "Font.h"
 #include "Parsing.h"
 #include "Sound.h"

@@ -6,6 +6,7 @@
 #include "DatabaseBeatmap.h"
 #include "Downloader.h"
 #include "Engine.h"
+#include "i18n.h"
 #include "Logging.h"
 #include "NotificationOverlay.h"
 #include "Osu.h"

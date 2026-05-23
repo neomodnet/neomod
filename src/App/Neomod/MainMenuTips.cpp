@@ -5,6 +5,7 @@
 #include "ConVar.h"
 #include "Environment.h"
 #include "Font.h"
+#include "i18n.h"
 
 #include "OsuKeyBinds.h"
 #include "Bancho.h"

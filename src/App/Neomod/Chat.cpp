@@ -17,6 +17,7 @@
 #include "ChatLink.h"
 #include "Engine.h"
 #include "Font.h"
+#include "i18n.h"
 #include "Keyboard.h"
 #include "Lobby.h"
 #include "ModSelector.h"

@@ -5,7 +5,6 @@
 
 #include "config.h"
 #include "noinclude.h"
-#include "i18n.h"
 
 #include <cstdint>
 #include <type_traits>

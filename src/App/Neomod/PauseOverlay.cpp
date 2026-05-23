@@ -14,6 +14,7 @@
 #include "Engine.h"
 #include "BanchoNetworking.h"
 #include "HUD.h"
+#include "i18n.h"
 #include "Keyboard.h"
 #include "OsuKeyBinds.h"
 #include "ModSelector.h"

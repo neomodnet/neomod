@@ -17,6 +17,7 @@
 #include "File.h"
 #include "HitObjects.h"
 #include "HUD.h"
+#include "i18n.h"
 #include "Font.h"
 #include "RenderTarget.h"
 #include "KeyBindings.h"

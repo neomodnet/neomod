@@ -18,6 +18,7 @@
 #include "Environment.h"
 #include "Font.h"
 #include "Graphics.h"
+#include "i18n.h"
 #include "Icons.h"
 #include "Logging.h"
 #include "MainMenu.h"

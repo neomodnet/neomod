@@ -16,6 +16,7 @@
 #include "Database.h"
 #include "Engine.h"
 #include "Font.h"
+#include "i18n.h"
 #include "KeyBindings.h"
 #include "MainMenu.h"
 #include "NotificationOverlay.h"

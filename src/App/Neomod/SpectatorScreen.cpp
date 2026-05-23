@@ -13,6 +13,7 @@
 #include "OsuConVars.h"
 #include "Downloader.h"
 #include "ModSelector.h"
+#include "i18n.h"
 #include "KeyBindings.h"
 #include "Lobby.h"
 #include "Logging.h"

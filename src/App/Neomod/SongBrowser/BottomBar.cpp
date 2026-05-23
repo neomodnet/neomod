@@ -4,6 +4,7 @@
 #include "AnimationHandler.h"
 #include "OsuConVars.h"
 #include "Engine.h"
+#include "i18n.h"
 #include "VolNormalization.h"
 #include "BatchDiffCalc.h"
 #include "Mouse.h"

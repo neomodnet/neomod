@@ -23,6 +23,7 @@
 #include "Environment.h"
 #include "Font.h"
 #include "HUD.h"
+#include "i18n.h"
 #include "Icons.h"
 #include "KeyBindings.h"
 #include "OsuKeyBinds.h"

@@ -8,6 +8,7 @@
 #include "Graphics.h"
 #include "SoundEngine.h"
 #include "Engine.h"
+#include "i18n.h"
 #include "Mouse.h"
 #include "Keyboard.h"
 

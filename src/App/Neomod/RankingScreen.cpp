@@ -17,6 +17,7 @@
 #include "DatabaseBeatmap.h"
 #include "Engine.h"
 #include "GameRules.h"
+#include "i18n.h"
 #include "Font.h"
 #include "Sound.h"
 #include "Keyboard.h"

@@ -7,6 +7,7 @@
 #include "Engine.h"
 #include "Environment.h"
 #include "ConVar.h"
+#include "i18n.h"
 #include "Logging.h"
 
 SoundEngine *SoundEngine::initialize() {

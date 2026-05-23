@@ -8,6 +8,7 @@
 #include "ResourceManager.h"
 #include "Font.h"
 #include "Graphics.h"
+#include "i18n.h"
 #include "UniString.h"
 
 UISearchOverlay::UISearchOverlay(float xPos, float yPos, float xSize, float ySize, std::string name)

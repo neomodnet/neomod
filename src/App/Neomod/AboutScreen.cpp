@@ -7,6 +7,7 @@
 #include "CBaseUIScrollView.h"
 #include "Engine.h"
 #include "HUD.h"
+#include "i18n.h"
 #include "Logging.h"
 #include "MainMenu.h"
 #include "NotificationOverlay.h"

@@ -3,6 +3,7 @@
 
 #include "Engine.h"
 #include "Environment.h"
+#include "i18n.h"
 #include "Logging.h"
 #include "ResourceManager.h"
 #include "AnimationHandler.h"

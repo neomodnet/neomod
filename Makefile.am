@@ -1535,7 +1535,7 @@ PCH_BUILD_FLAGS :=
 PCH_FLAGS += -fpch-preprocess
 endif # CLANG_BUILD
 
-$(PCH_OUTPUT): $(PCH_SOURCE) $(BUILT_SOURCES) $(builddir)/gen/translations.h
+$(PCH_OUTPUT): $(PCH_SOURCE) $(BUILT_SOURCES)
 	@rm -f $(PCH_OUTPUT) # remove possibly existing-but-outdated pch to avoid recursively including it (sanity)
 	@$(MKDIR_P) $(dir $@)
 	$(CXX) -x c++-header -MMD -MF $(PCH_DEPS) $(PCH_BUILD_FLAGS) \
@@ -1556,9 +1556,10 @@ endif # BUILD_PCH
 # making sure deps are built before main compile
 # EMBED_OUTPUT is order-only (after |): must exist before compilation, but updating it doesn't rebuild all objects
 # (only binary_embed.o through neomod_SOURCES dep)
-# translations.h is pulled in via pch.h -> BaseEnvironment.h -> i18n.h; non-PCH builds need it
-# explicitly so parallel compile doesn't race against gen_translations.py.
-$(neomod_OBJECTS): $(BUILT_SOURCES) $(PCH_OUTPUT) $(builddir)/gen/translations.h | $(EMBED_OUTPUT)
+# translations.h is also order-only: only the ~20 TUs that explicitly `#include "i18n.h"` actually
+# depend on it (the per-source .d files track this). Keeping it order-only means a translatable-string
+# add/remove doesn't churn the whole tree; non-translation TUs sail through unchanged.
+$(neomod_OBJECTS): $(BUILT_SOURCES) $(PCH_OUTPUT) | $(EMBED_OUTPUT) $(builddir)/gen/translations.h
 
 # add all paths with sources as an include ("-I") flag
 NEOMOD_INCLUDE_FLAGS := $(shell find $(srcdir)/src -not -path '*/.*' -type d -print | $(SED) 's|^|-I|' | tr '\n' ' ')
