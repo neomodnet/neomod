@@ -112,8 +112,6 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
     const bool restart = fmain->isRestartScheduled();
     std::vector<std::string> restartArgs{};
     if(restart) {
-        // TODO: fails to restart if launched with relative path from another directory
-        //       (since we called setcwdexe in the meantime...)
         restartArgs = fmain->getCommandLine();
     }
 
