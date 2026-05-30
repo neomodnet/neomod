@@ -597,14 +597,17 @@ SDL_AppResult SDLMain::iterate() {
 
     if constexpr(!Env::cfg(FEAT::MAINCB))  // main callbacks use SDL iteration rate to limit fps
     {
-        VPROF_BUDGET("FPSLimiter", VPROF_BUDGETGROUP_SLEEP);
+        // run uncapped in headless mode
+        if(likely(!isHeadless())) {
+            VPROF_BUDGET("FPSLimiter", VPROF_BUDGETGROUP_SLEEP);
 
-        // if minimized or unfocused, use BG fps, otherwise use fps_max (if 0 it's unlimited)
-        const bool minimizedOrUnfocused = winMinimized() || !winFocused();
-        const bool inActiveGameplay = !minimizedOrUnfocused && (app && app->isInGameplay());
-        const int targetFPS =
-            minimizedOrUnfocused ? m_iFpsMaxBG : (inActiveGameplay ? m_iFpsMax : cv::fps_max_menu.getInt());
-        FPSLimiter::limit_frames(targetFPS, /*precise_sleeps=*/inActiveGameplay);
+            // if minimized or unfocused, use BG fps, otherwise use fps_max (if 0 it's unlimited)
+            const bool minimizedOrUnfocused = winMinimized() || !winFocused();
+            const bool inActiveGameplay = !minimizedOrUnfocused && (app && app->isInGameplay());
+            const int targetFPS =
+                minimizedOrUnfocused ? m_iFpsMaxBG : (inActiveGameplay ? m_iFpsMax : cv::fps_max_menu.getInt());
+            FPSLimiter::limit_frames(targetFPS, /*precise_sleeps=*/inActiveGameplay);
+        }
     }
 
     return SDL_APP_CONTINUE;
