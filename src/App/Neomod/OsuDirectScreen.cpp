@@ -559,8 +559,8 @@ void OsuDirectScreen::onResolutionChange(vec2 newResolution) {
 }
 
 void OsuDirectScreen::reset() {
-    // "Cancel" current request and immediately allow a new one
-    this->request_id++;
+    // cancel the in-flight request (if any) and immediately allow a new one
+    this->search_cancel.request_stop();
     this->loading = false;
 
     // Clear search results
@@ -589,48 +589,44 @@ void OsuDirectScreen::search(std::string_view query) {
     };
 
     debugLog("Searching for maps matching \"{:s}\" (offset {:d})", query, offset);
-    const auto current_request_id = ++this->request_id;
+    this->search_cancel = {};
+    options.cancel_token = this->search_cancel.get_token();
     this->current_query = query;
     this->last_search_time = engine->getTime();
     this->loading = true;
 
-    networkHandler->httpRequestAsync(
-        url, std::move(options), [current_request_id, this](const Mc::Net::Response& response) {
-            this->loading = false;
+    networkHandler->httpRequestAsync(url, std::move(options), [this](const Mc::Net::Response& response) {
+        // a cancelled request never reaches here, so a stale response can't clobber newer results
+        this->loading = false;
 
-            if(current_request_id != this->request_id) {
-                // Request was "cancelled"
+        if(response.success) {
+            const auto set_lines = SString::split_newlines(response.body);
+
+            i32 nb_results{0};
+            const bool success = Parsing::strto_s(set_lines[0], nb_results);
+            if(!success || nb_results <= 0) {
+                // HACK: reached end of results (or errored), prevent further requests
+                this->last_search_time = 9999999.9;
+
+                if(nb_results == -1 && set_lines.size() >= 2) {
+                    // Relay server's error message to the player
+                    ui->getNotificationOverlay()->addToast(std::string{set_lines[1]}, ERROR_TOAST);
+                }
+
                 return;
             }
 
-            if(response.success) {
-                const auto set_lines = SString::split_newlines(response.body);
+            debugLog("Received {} maps", nb_results);
+            for(i32 i = 1; i < set_lines.size(); i++) {
+                auto meta = Downloader::parse_beatmapset_metadata(set_lines[i]);
+                if(meta.set_id == 0) continue;
 
-                i32 nb_results{0};
-                const bool success = Parsing::strto_s(set_lines[0], nb_results);
-                if(!success || nb_results <= 0) {
-                    // HACK: reached end of results (or errored), prevent further requests
-                    this->last_search_time = 9999999.9;
-
-                    if(nb_results == -1 && set_lines.size() >= 2) {
-                        // Relay server's error message to the player
-                        ui->getNotificationOverlay()->addToast(std::string{set_lines[1]}, ERROR_TOAST);
-                    }
-
-                    return;
-                }
-
-                debugLog("Received {} maps", nb_results);
-                for(i32 i = 1; i < set_lines.size(); i++) {
-                    auto meta = Downloader::parse_beatmapset_metadata(set_lines[i]);
-                    if(meta.set_id == 0) continue;
-
-                    this->results->container.addBaseUIElement(new OnlineMapListing(std::move(meta)));
-                }
-
-                this->onResolutionChange(osu->getVirtScreenSize());
-            } else {
-                // TODO: handle failure
+                this->results->container.addBaseUIElement(new OnlineMapListing(std::move(meta)));
             }
-        });
+
+            this->onResolutionChange(osu->getVirtScreenSize());
+        } else {
+            // TODO: handle failure
+        }
+    });
 }

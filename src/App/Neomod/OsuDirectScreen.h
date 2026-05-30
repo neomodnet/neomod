@@ -3,6 +3,7 @@
 #include "ScreenBackable.h"
 
 #include "types.h"
+#include "SyncStoptoken.h"
 
 #include <memory>
 // "OsuDirectScreen" is a cumbersome name, but "SearchScreen" is too generic,
@@ -24,7 +25,7 @@ class OsuDirectScreen final : public ScreenBackable {
 
     CBaseUIContainer* setVisible(bool visible) override;
     void draw() override;
-    void update(CBaseUIEventCtx &c) override;
+    void update(CBaseUIEventCtx& c) override;
     void onBack() override;
     void onResolutionChange(vec2 newResolution) override;
 
@@ -45,7 +46,8 @@ class OsuDirectScreen final : public ScreenBackable {
 
     vec2 spinner_pos{1.f, 1.f};  // init on onresolutionchange
 
-    uSz request_id{1};
+    // armed per search so reset() / a new query can cancel the in-flight request
+    Sync::stop_source search_cancel;
     f64 last_search_time{0.0};
 
     bool loading{false};
