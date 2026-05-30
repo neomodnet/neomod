@@ -30,6 +30,9 @@ void UpdateHandler::updateCallback() { this->checkForUpdates(true); }
 
 UpdateHandler::UpdateHandler() { cv::cmd::update.setCallback(SA::MakeDelegate<&UpdateHandler::updateCallback>(this)); }
 
+// cancel any in-flight version check/download so its callback can't fire against this destroyed handler
+UpdateHandler::~UpdateHandler() { this->cancel_src.request_stop(); }
+
 void UpdateHandler::onBleedingEdgeChanged(float oldVal, float newVal) {
     const bool oldState = !!static_cast<int>(oldVal);
     const bool newState = !!static_cast<int>(newVal);

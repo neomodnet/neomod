@@ -19,7 +19,7 @@ class UpdateHandler {
     };
 
     UpdateHandler();
-    ~UpdateHandler() = default;
+    ~UpdateHandler();
 
     void checkForUpdates(bool force_update);
     void installUpdate();

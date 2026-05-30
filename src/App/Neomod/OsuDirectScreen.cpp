@@ -405,7 +405,10 @@ OsuDirectScreen::OsuDirectScreen() {
     this->addBaseUIElement(this->results);
 }
 
-OsuDirectScreen::~OsuDirectScreen() = default;
+OsuDirectScreen::~OsuDirectScreen() {
+    // cancel any in-flight search so its callback can't fire against this destroyed screen
+    this->search_cancel.request_stop();
+}
 
 void OsuDirectScreen::onRankedCheckboxChange(CBaseUICheckbox* checkbox) {
     cv::direct_ranking_status_filter.setValue(checkbox->isChecked() ? (u8)RankingStatusFilter::RANKED
