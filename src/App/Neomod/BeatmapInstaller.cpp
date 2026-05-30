@@ -43,8 +43,8 @@ void BeatmapInstaller::enqueue(i32 set_id, bool auto_select, std::string_view di
 
 void BeatmapInstaller::cancel(i32 set_id) {
     if(auto it = this->entries.find(set_id); it != this->entries.end()) {
-        // dropping the entry releases our DownloadHandle. if the network callback is still in flight,
-        // it keeps the underlying Request alive until the response arrives, then the bytes are discarded.
+        // abort the in-flight transfer (if any), then drop the entry
+        Downloader::abort_download(it->second.dl_handle);
         this->entries.erase(it);
     }
 }

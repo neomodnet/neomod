@@ -46,6 +46,10 @@ BeatmapSetMetadata parse_beatmapset_metadata(std::string_view server_response);
 
 void abort_downloads();
 
+// Cancel a single in-flight/queued download: aborts the transfer, drops the queue entry,
+// resets the passed handle, and lets the next queued download start.
+void abort_download(DownloadHandle &handle);
+
 // Start an HTTP download. Deduplicates by URL.
 DownloadHandle download(std::string_view url);
 

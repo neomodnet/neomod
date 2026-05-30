@@ -54,8 +54,7 @@ class BeatmapInstaller final {
     // upgrades an entry queued earlier without one).
     void enqueue(i32 set_id, bool auto_select, std::string_view display_name = {});
 
-    // best-effort: drops the entry. an in-flight HTTP transfer keeps running and its bytes are discarded.
-    // TODO: implement cancellation in NetworkHandler (would also get rid of other TODOs like canceling in-progress logins etc.)
+    // aborts the in-flight transfer (if any) and drops the entry.
     void cancel(i32 set_id);
 
     [[nodiscard]] State get_state(i32 set_id) const;

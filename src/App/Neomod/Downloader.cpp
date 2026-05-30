@@ -13,6 +13,7 @@
 #include "Parsing.h"
 #include "SString.h"
 #include "SyncMutex.h"
+#include "SyncStoptoken.h"
 #include "Logging.h"
 #include "SongBrowser.h"
 #include "Environment.h"
@@ -34,6 +35,7 @@ struct Request {
     Sync::mutex data_mutex;
     std::atomic<bool> downloading{false};
     std::atomic<bool> completed{false};
+    Sync::stop_source cancel_src;  // request_stop() aborts the in-flight transfer
 };
 
 float DownloadHandle::progress() const {
@@ -125,6 +127,7 @@ class DownloadManager {
             .connect_timeout = 5,
             .flags = Mc::Net::RequestOptions::FOLLOW_REDIRECTS,
         };
+        options.cancel_token = request->cancel_src.get_token();
 
         // capture s_download_manager as a copy to keep DownloadManager alive during callback
         networkHandler->httpRequestAsync(request->url, std::move(options),
@@ -183,8 +186,24 @@ class DownloadManager {
         if(!this->shutting_down.exchange(true)) {
             // clear download queue to prevent new work
             Sync::scoped_lock lock(this->queue_mutex);
+            // abort in-flight transfers so they stop using bandwidth (their callbacks won't run)
+            for(auto& [url, weak] : this->queue) {
+                if(auto req = weak.lock()) req->cancel_src.request_stop();
+            }
             this->queue.clear();
         }
+    }
+
+    // cancel a single download: abort its transfer, drop the queue entry, and start the next.
+    // the network callback won't fire, so the bookkeeping it would have done happens here instead.
+    void cancel(const std::shared_ptr<Request>& req) {
+        if(!req) return;
+        req->cancel_src.request_stop();
+
+        Sync::scoped_lock lock(this->queue_mutex);
+        this->queue.erase(req->url);
+        req->downloading.store(false, std::memory_order_release);
+        this->checkAndStartNextDownload();
     }
 
     static std::string_view get_hostname(std::string_view url) {
@@ -270,6 +289,11 @@ void abort_downloads() {
         s_download_manager->shutdown();
         s_download_manager.reset();
     }
+}
+
+void abort_download(DownloadHandle& handle) {
+    if(handle && s_download_manager) s_download_manager->cancel(handle);
+    handle.reset();
 }
 
 DownloadHandle download(std::string_view url) {
