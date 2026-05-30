@@ -31,14 +31,15 @@ void UpdateHandler::updateCallback() { this->checkForUpdates(true); }
 UpdateHandler::UpdateHandler() { cv::cmd::update.setCallback(SA::MakeDelegate<&UpdateHandler::updateCallback>(this)); }
 
 void UpdateHandler::onBleedingEdgeChanged(float oldVal, float newVal) {
-    if(this->getStatus() != STATUS_IDLE && this->getStatus() != STATUS_ERROR) {
-        debugLog("Can't change release stream while an update is in progress!");
-        cv::bleedingedge.setValue(oldVal, false);
-    }
-
     const bool oldState = !!static_cast<int>(oldVal);
     const bool newState = !!static_cast<int>(newVal);
     if(oldState == newState) return;
+
+    // cancel any in-flight check/download so we can re-check against the newly selected stream
+    if(this->getStatus() != STATUS_IDLE && this->getStatus() != STATUS_ERROR) {
+        this->cancel_src.request_stop();
+        this->status = STATUS_IDLE;
+    }
 
     this->checkForUpdates(true);
 }
@@ -63,6 +64,10 @@ void UpdateHandler::checkForUpdates(bool force_update) {
         .timeout = 10,
         .connect_timeout = 5,
     };
+
+    // arm cancellation for this whole check -> download chain (see onBleedingEdgeChanged)
+    this->cancel_src = {};
+    options.cancel_token = this->cancel_src.get_token();
 
     this->status = STATUS_CHECKING_FOR_UPDATE;
     networkHandler->httpRequestAsync(versionUrl, std::move(options),
@@ -133,6 +138,8 @@ void UpdateHandler::onVersionCheckComplete(const std::string &response, bool suc
         .connect_timeout = 10,
         .flags = Mc::Net::RequestOptions::FOLLOW_REDIRECTS,
     };
+    // same source as the version check, so cancelling aborts the download too
+    options.cancel_token = this->cancel_src.get_token();
 
     this->status = STATUS_DOWNLOADING_UPDATE;
     networkHandler->httpRequestAsync(update_url, std::move(options),

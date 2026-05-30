@@ -2,6 +2,7 @@
 // Copyright (c) 2016, PG, All rights reserved.
 
 #include "noinclude.h"
+#include "SyncStoptoken.h"
 
 #include <string>
 #include <atomic>
@@ -38,4 +39,7 @@ class UpdateHandler {
 
     // status
     std::atomic<STATUS> status = STATUS::STATUS_IDLE;
+
+    // armed per checkForUpdates(); request_stop() aborts an in-flight version check or download
+    Sync::stop_source cancel_src;
 };

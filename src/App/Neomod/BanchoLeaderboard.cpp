@@ -2,6 +2,7 @@
 #include "BanchoLeaderboard.h"
 
 #include "NetworkHandler.h"
+#include "SyncStoptoken.h"
 #include "Osu.h"
 #include "Bancho.h"
 #include "BanchoApi.h"
@@ -25,6 +26,9 @@
 #include <vector>
 
 namespace {  // static namespace
+// armed per fetch so selecting a different map cancels the stale leaderboard request
+Sync::stop_source fetch_cancel;
+
 FinishedScore parse_score(const char *score_line) {
     FinishedScore score;
     score.client = "peppy-unknown";
@@ -194,6 +198,12 @@ void fetch_online_scores(const DatabaseBeatmap *beatmap) {
         .timeout = 5,
         .connect_timeout = 5,
     };
+
+    // cancel any previous in-flight fetch; selecting a new map supersedes the old leaderboard
+    fetch_cancel.request_stop();
+    fetch_cancel = {};
+    options.cancel_token = fetch_cancel.get_token();
+
     networkHandler->httpRequestAsync(url, std::move(options), [map_md5](const Mc::Net::Response &response) {
         if(response.success) {
             process_leaderboard_response(map_md5, response.body);

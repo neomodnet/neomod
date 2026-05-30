@@ -18,6 +18,7 @@
 #include "NetworkHandler.h"
 #include "NotificationOverlay.h"
 #include "Osu.h"
+#include "SyncStoptoken.h"
 #include "OsuConVars.h"
 #include "SongBrowser.h"
 #include "score.h"
@@ -301,6 +302,9 @@ bool save_osr(const FinishedScore& score, std::span<const std::string> additiona
 }
 
 namespace {
+// armed per online replay download so starting another supersedes the previous one
+Sync::stop_source replay_dl_cancel;
+
 bool load_raw(std::string_view lzma_path, FinishedScore& score_out) {
     uSz file_size = 0;
     std::unique_ptr<u8[]> buffer;
@@ -399,6 +403,12 @@ void load_and_watch(FinishedScore score) {
         .timeout = 5,
         .connect_timeout = 5,
     };
+
+    // cancel any previous replay download; only one replay is watched at a time
+    replay_dl_cancel.request_stop();
+    replay_dl_cancel = {};
+    options.cancel_token = replay_dl_cancel.get_token();
+
     networkHandler->httpRequestAsync(url, std::move(options), [score](const Mc::Net::Response& response) mutable {
         if(!response.success) {
             // Most likely, 404
