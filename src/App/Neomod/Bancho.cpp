@@ -97,7 +97,6 @@ std::string BanchoState::disk_uuid;
 std::atomic<i32> BanchoState::user_id{0};
 bool BanchoState::was_in_a_multi_room{false};
 
-bool BanchoState::async_logout_pending{false};
 OnlineStatus BanchoState::online_status{OnlineStatus::LOGGED_OUT};
 bool BanchoState::nonsubmittable_notification_clicked{false};
 
@@ -147,11 +146,6 @@ void BanchoState::update_online_status(OnlineStatus new_status) {
         }
 
         ui->getOptionsOverlay()->scheduleLayoutUpdate();
-    }
-
-    if(async_logout_pending && new_status == OnlineStatus::LOGGED_IN) {
-        async_logout_pending = false;
-        BanchoState::disconnect();
     }
 }
 

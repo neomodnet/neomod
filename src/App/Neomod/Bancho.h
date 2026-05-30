@@ -113,8 +113,6 @@ struct BanchoState final {
 
     static std::atomic<i32> user_id;
     static OnlineStatus online_status;
-    // HACK: can't cancel async login (so log out immediately after logging in, if ever)
-    static bool async_logout_pending;
     static bool was_in_a_multi_room;
     static bool nonsubmittable_notification_clicked;
 };

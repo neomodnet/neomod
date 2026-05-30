@@ -23,6 +23,7 @@
 #include "ResourceManager.h"
 #include "SongBrowser.h"
 #include "SString.h"
+#include "SyncStoptoken.h"
 #include "Timing.h"
 #include "UserCard.h"
 #include "UI.h"
@@ -45,6 +46,10 @@ std::string auth_token = "";
 bool use_websockets = false;
 std::shared_ptr<Mc::Net::WSInstance> websocket{nullptr};
 double login_poll_timeout{-1.};
+
+// armed per login/oauth-poll request so disconnect() can cancel an in-flight attempt.
+// at most one login-related request is ever in flight at a time, so a single source suffices.
+Sync::stop_source login_cancel;
 
 void parse_packets(std::span<u8> packet_data) {
     Packet batch = {
@@ -102,7 +107,10 @@ void attempt_logging_in() {
 
     last_packet_ms = Timing::getTicksMS();
 
-    // TODO: allow user to cancel login attempt
+    // arm cancellation so disconnect() can abort this in-flight login attempt
+    login_cancel = {};
+    options.cancel_token = login_cancel.get_token();
+
     networkHandler->httpRequestAsync(BanchoState::game_endpoint, std::move(options), [](Mc::Net::Response response) {
         if(!response.success) {
             auto errmsg = fmt::format("Failed to log in: {}", response.error_msg);
@@ -360,6 +368,10 @@ void BanchoState::poll_login() {
         .flags = Mc::Net::RequestOptions::FOLLOW_REDIRECTS,
     };
 
+    // share the login-cancel source so disconnect() can abort an in-flight poll
+    BANCHO::Net::login_cancel = {};
+    options.cancel_token = BANCHO::Net::login_cancel.get_token();
+
     networkHandler->httpRequestAsync(url, std::move(options), [](Mc::Net::Response response) {
         if(response.success) {
             if(response.response_code == 204) {
@@ -414,9 +426,10 @@ void BanchoState::disconnect(bool shutdown) {
         }
 
         free(packet.memory);
-    } else if(BanchoState::is_logging_in()) {
-        // HACKHACK: can't cancel existing in-progress request directly
-        BanchoState::async_logout_pending = true;
+    } else if(BanchoState::is_logging_in() || BanchoState::get_online_status() == OnlineStatus::POLLING) {
+        // cancel the in-flight login/oauth-poll request directly; its callback won't run
+        BANCHO::Net::login_cancel.request_stop();
+        BANCHO::Net::login_poll_timeout = -1.;
     }
 
     free(BANCHO::Net::outgoing.memory);
@@ -461,7 +474,6 @@ void BanchoState::disconnect(bool shutdown) {
 
 void BanchoState::reconnect() {
     BanchoState::disconnect();
-    BanchoState::async_logout_pending = false;
 
     // Disable autologin, in case there's an error while logging in
     // Will be reenabled after the login succeeds
