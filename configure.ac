@@ -712,7 +712,7 @@ AS_CASE(["$host_os"],
     emscripten_flags="-sPTHREAD_POOL_SIZE=32 -sAUDIO_WORKLET=1 -sWASM=1 -sWASM_WORKERS=1 -sUSE_PTHREADS=1 -sFETCH=1"
     emscripten_flags="$emscripten_flags -sMAX_WEBGL_VERSION=2 -sLLD_REPORT_UNDEFINED -sSTACK_SIZE=1MB -sENVIRONMENT=web,worker,node"
     emscripten_flags="$emscripten_flags -sWEBSOCKET_URL=wss:// -sFULL_ES3 -sINITIAL_MEMORY=1536MB"
-    emscripten_flags="$emscripten_flags -sEXPORTED_RUNTIME_METHODS=callMain,ENV,FS -sINCOMING_MODULE_JS_API=locateFile,onAbort,onRuntimeInitialized,noInitialRun,print"
+    emscripten_flags="$emscripten_flags -sEXPORTED_RUNTIME_METHODS=callMain,ENV,FS -sINCOMING_MODULE_JS_API=arguments,locateFile,onAbort,onRuntimeInitialized,noInitialRun,print"
 
     NEOMOD_CPPFLAGS="$NEOMOD_CPPFLAGS -U__linux__ -D__EMSCRIPTEN__"
     NEOMOD_COMPFLAGS="$NEOMOD_COMPFLAGS $emscripten_flags"
