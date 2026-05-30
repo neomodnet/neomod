@@ -10,6 +10,7 @@
 #include "Engine.h"
 #include "ConVar.h"
 #include "Logging.h"
+#include "SyncStoptoken.h"
 
 #include <emscripten/em_js.h>
 #include <emscripten/fetch.h>
@@ -116,17 +117,11 @@ WSInstance::~WSInstance() {
     }
 }
 
-void WSInstance::write(std::span<const u8> data) {
-    this->out.insert(this->out.end(), data.begin(), data.end());
-}
+void WSInstance::write(std::span<const u8> data) { this->out.insert(this->out.end(), data.begin(), data.end()); }
 
-std::vector<u8> WSInstance::read() {
-    return std::exchange(this->in, {});
-}
+std::vector<u8> WSInstance::read() { return std::exchange(this->in, {}); }
 
-std::vector<u8> WSInstance::drain_output() {
-    return std::exchange(this->out, {});
-}
+std::vector<u8> WSInstance::drain_output() { return std::exchange(this->out, {}); }
 
 std::string urlEncode(std::string_view input) noexcept {
     std::string result;
@@ -194,6 +189,9 @@ struct NetworkImpl {
         AsyncCallback callback;
         NetworkImpl* impl;
 
+        // the in-flight fetch handle, so a cancellation can abort it (see update())
+        emscripten_fetch_t* fetch{nullptr};
+
         // storage for header C strings (kept alive until fetch completes)
         std::vector<std::string> header_storage;
         std::vector<const char*> header_ptrs;  // null-terminated array of alternating key/value
@@ -206,6 +204,7 @@ struct NetworkImpl {
     struct CompletedRequest {
         AsyncCallback callback;
         Response response;
+        Sync::stop_token cancel_token;  // re-checked at dispatch: a request cancelled after completing isn't delivered
     };
 
     void httpRequestAsync(std::string_view url, RequestOptions options, AsyncCallback callback);
@@ -214,6 +213,10 @@ struct NetworkImpl {
     void update();
 
     std::vector<CompletedRequest> completed_requests;
+
+    // in-flight async fetches, so update() can abort the ones whose caller requested cancellation.
+    // entries are removed by the fetch callbacks on completion, or by update() on cancellation.
+    std::vector<Request*> active_requests;
 
    private:
     std::vector<std::shared_ptr<WSInstance>> active_websockets;
@@ -253,14 +256,18 @@ void NetworkImpl::fetchSuccess(emscripten_fetch_t* fetch) {
     auto* request = static_cast<Request*>(fetch->userData);
 
     if(!shutting_down) {
-        Response res;
-        res.response_code = fetch->status;
-        res.body = std::string(fetch->data, fetch->numBytes);
-        res.headers = extractHeaders(fetch);
-        res.success = true;
+        std::erase(request->impl->active_requests, request);
 
-        if(request->callback) {
-            request->impl->completed_requests.emplace_back(std::move(request->callback), std::move(res));
+        // a cancel may have raced the natural completion: drop without delivering
+        if(!request->options.cancel_token.stop_requested() && request->callback) {
+            Response res;
+            res.response_code = fetch->status;
+            res.body = std::string(fetch->data, fetch->numBytes);
+            res.headers = extractHeaders(fetch);
+            res.success = true;
+
+            request->impl->completed_requests.emplace_back(std::move(request->callback), std::move(res),
+                                                           request->options.cancel_token);
         }
     }
 
@@ -272,25 +279,29 @@ void NetworkImpl::fetchError(emscripten_fetch_t* fetch) {
     auto* request = static_cast<Request*>(fetch->userData);
 
     if(!shutting_down) {
-        Response res;
-        res.response_code = fetch->status;
-        if(fetch->data && fetch->numBytes > 0) {
-            res.body = std::string(fetch->data, fetch->numBytes);
-        }
-        res.headers = extractHeaders(fetch);
-        res.error_msg = fetch->statusText;
-        res.success = false;
+        std::erase(request->impl->active_requests, request);
 
-        if(res.error_msg.empty()) {
-            if(res.response_code == 0) {
-                res.error_msg = "Connection failed.";
-            } else {
-                res.error_msg = "HTTP " + std::to_string(res.response_code);
+        // a cancel may have raced the natural completion: drop without delivering
+        if(!request->options.cancel_token.stop_requested() && request->callback) {
+            Response res;
+            res.response_code = fetch->status;
+            if(fetch->data && fetch->numBytes > 0) {
+                res.body = std::string(fetch->data, fetch->numBytes);
             }
-        }
+            res.headers = extractHeaders(fetch);
+            res.error_msg = fetch->statusText;
+            res.success = false;
 
-        if(request->callback) {
-            request->impl->completed_requests.emplace_back(std::move(request->callback), std::move(res));
+            if(res.error_msg.empty()) {
+                if(res.response_code == 0) {
+                    res.error_msg = "Connection failed.";
+                } else {
+                    res.error_msg = "HTTP " + std::to_string(res.response_code);
+                }
+            }
+
+            request->impl->completed_requests.emplace_back(std::move(request->callback), std::move(res),
+                                                           request->options.cancel_token);
         }
     }
 
@@ -327,6 +338,12 @@ void NetworkImpl::httpRequestAsync(std::string_view url, RequestOptions options,
     auto* request = new Request(this, std::move(url_with_scheme), std::move(options), std::move(callback));
     encodeMimeParts(request->options);
 
+    // cancelled before submission: nothing to fetch, don't run the callback
+    if(request->options.cancel_token.stop_requested()) {
+        delete request;
+        return;
+    }
+
     if(!request->options.headers.empty()) {
         request->header_storage.reserve(request->options.headers.size() * 2);
         request->header_ptrs.reserve(request->options.headers.size() * 2 + 1);
@@ -354,7 +371,10 @@ void NetworkImpl::httpRequestAsync(std::string_view url, RequestOptions options,
     attr.onerror = &NetworkImpl::fetchError;
     attr.onprogress = &NetworkImpl::fetchProgress;
 
-    emscripten_fetch(&attr, request->url.c_str());
+    // async fetch: callbacks fire later from the browser event loop, never synchronously here,
+    // so it's safe to record the handle and track the request afterwards.
+    request->fetch = emscripten_fetch(&attr, request->url.c_str());
+    this->active_requests.push_back(request);
 }
 
 // parse raw headers from XMLHttpRequest.getAllResponseHeaders() format ("Key: Value\r\n")
@@ -518,9 +538,24 @@ std::shared_ptr<WSInstance> NetworkImpl::initWebsocket(std::string_view url, con
 
 // callbacks are deferred to run here, during the engine update tick
 void NetworkImpl::update() {
+    // abort in-flight fetches whose caller asked to cancel: close the transfer and drop the request
+    // without running its callback. emscripten does not fire our callbacks for a closed fetch.
+    for(auto it = this->active_requests.begin(); it != this->active_requests.end();) {
+        Request* r = *it;
+        if(r->options.cancel_token.stop_requested()) {
+            it = this->active_requests.erase(it);
+            if(r->fetch) emscripten_fetch_close(r->fetch);
+            delete r;
+        } else {
+            ++it;
+        }
+    }
+
     auto pending = std::move(completed_requests);
     completed_requests.clear();
     for(auto& completed : pending) {
+        // cancelled after completing but before delivery: drop without invoking the callback
+        if(completed.cancel_token.stop_requested()) continue;
         completed.callback(std::move(completed.response));
     }
 

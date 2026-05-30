@@ -7,6 +7,7 @@
 #include "StaticPImpl.h"
 #include "Hashing.h"
 #include "SyncMutex.h"
+#include "SyncStoptoken.h"
 
 #include <string>
 #include <string_view>
@@ -110,6 +111,12 @@ struct RequestOptions {
     // (the synchronous request already completes reliably).
     static constexpr u8 KEEPALIVE = 1 << 2;
     u8 flags{0};
+
+    // optional cancellation: if a token is set and stop is requested before the request
+    // finishes, the in-flight transfer is aborted and the callback is never invoked.
+    // applies to httpRequestAsync only (synchronous requests block the caller and ignore this).
+    // the canceller keeps the matching Sync::stop_source alive and calls request_stop() to cancel.
+    Sync::stop_token cancel_token{};
 };
 
 // async response data

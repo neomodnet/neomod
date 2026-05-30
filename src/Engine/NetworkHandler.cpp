@@ -12,6 +12,7 @@
 #include "Logging.h"
 #include "SyncJthread.h"
 #include "SyncCV.h"
+#include "SyncStoptoken.h"
 #include "ContainerRanges.h"
 
 #include "binary_embed.h"
@@ -20,6 +21,7 @@
 #include <utility>
 #include <queue>
 #include <atomic>
+#include <optional>
 
 #if defined(MCENGINE_PLATFORM_LINUX) || defined(MCENGINE_PLATFORM_MACOS)
 #include <sys/socket.h>
@@ -126,6 +128,15 @@ class CurlSlist {
     explicit operator bool() const { return !!this->list; }
 };
 
+// stop_callback body: wakes curl_multi_poll so a cancellation request is noticed promptly
+// (curl_multi_wakeup is thread-safe, so this can fire from the canceller's thread)
+struct CurlMultiWaker {
+    CURLM* multi_handle{nullptr};
+    void operator()() const noexcept {
+        if(multi_handle) curl_multi_wakeup(multi_handle);
+    }
+};
+
 }  // namespace
 
 struct NetworkImpl {
@@ -151,6 +162,11 @@ struct NetworkImpl {
         bool is_sync{false};
         void* sync_id{nullptr};
 
+        // registered on the network thread for cancellable requests; wakes the poll when
+        // cancellation is requested. the Request's address is stable (owned via unique_ptr),
+        // so holding a non-movable stop_callback in-place is safe.
+        std::optional<Sync::stop_callback<CurlMultiWaker>> cancel_waker;
+
         Request(std::string url, RequestOptions opts, AsyncCallback cb = {})
             : url(std::move(url)), options(std::move(opts)), callback(std::move(cb)) {}
 
@@ -162,6 +178,7 @@ struct NetworkImpl {
     struct CompletedRequest {
         AsyncCallback callback;
         Response response;
+        Sync::stop_token cancel_token;  // re-checked at dispatch: a request cancelled after completing isn't delivered
     };
 
     NetworkImpl() {
@@ -255,6 +272,7 @@ struct NetworkImpl {
     void handleIPCConnection(int ipc_fd);
 
     void processNewRequests();
+    void processCancelledRequests();
     void processCompletedRequests();
     void websocketSend();
 
@@ -278,6 +296,7 @@ void NetworkImpl::threadLoopFunc(const Sync::stop_token& stopToken) {
 
     while(!stopToken.stop_requested()) {
         processNewRequests();
+        processCancelledRequests();
         websocketSend();
 
         i32 running_handles = 0;
@@ -320,6 +339,11 @@ void NetworkImpl::processNewRequests() {
         auto request = std::move(this->pending_requests.front());
         this->pending_requests.pop();
 
+        // cancelled before it even started: don't open a connection, don't run the callback.
+        // sync requests block their caller and ignore cancellation, so never drop one here (it would
+        // strand the waiting caller, who only wakes once a response lands in sync_responses).
+        if(!request->is_sync && request->options.cancel_token.stop_requested()) continue;
+
         request->easy_handle.reset(curl_easy_init());
         if(!request->easy_handle) {
             request->response.success = false;
@@ -336,6 +360,12 @@ void NetworkImpl::processNewRequests() {
             request->websocket->multi_wakeup.store(this->multi_handle, std::memory_order_release);
         }
 
+        // arm prompt cancellation. websockets manage their own teardown (shared_ptr + status), and
+        // sync requests block their caller (cancelling would strand it), so neither registers a waker.
+        if(!request->websocket && !request->is_sync && request->options.cancel_token.stop_possible()) {
+            request->cancel_waker.emplace(request->options.cancel_token, CurlMultiWaker{this->multi_handle});
+        }
+
         CURLMcode mres = curl_multi_add_handle(this->multi_handle, request->easy_handle);
         if(mres != CURLM_OK) {
             request->response.success = false;
@@ -347,6 +377,20 @@ void NetworkImpl::processNewRequests() {
         }
 
         this->active_requests[request->easy_handle] = std::move(request);
+    }
+}
+
+// drop requests whose caller asked to cancel: abort the transfer and discard the callback without running it.
+// runs on the network thread, woken promptly by the request's CurlMultiWaker when stop is requested.
+void NetworkImpl::processCancelledRequests() {
+    for(auto it = this->active_requests.begin(); it != this->active_requests.end();) {
+        auto& request = it->second;
+        if(!request->is_sync && request->options.cancel_token.stop_requested()) {
+            curl_multi_remove_handle(this->multi_handle, it->first);
+            it = this->active_requests.erase(it);  // ~Request cleans up the easy handle and unregisters the waker
+        } else {
+            ++it;
+        }
     }
 }
 
@@ -392,9 +436,12 @@ void NetworkImpl::processCompletedRequests() {
                 cv_it->second->notify_one();
             }
         } else if(request->callback) {
+            // a cancel may have raced the natural completion: drop without delivering
+            if(request->options.cancel_token.stop_requested()) continue;
             // defer async callback execution
             Sync::scoped_lock completed_lock{this->completed_requests_mutex};
-            this->completed_requests.emplace_back(std::move(request->callback), std::move(request->response));
+            this->completed_requests.emplace_back(std::move(request->callback), std::move(request->response),
+                                                  request->options.cancel_token);
         }
     }
 }
@@ -642,6 +689,9 @@ void NetworkImpl::update() {
             this->completed_requests.clear();
         }
         for(auto& completed : responses_to_handle) {
+            // cancelled after completing but before delivery (both this and request_stop run on the
+            // main thread, so this is race-free): drop it without invoking the callback
+            if(completed.cancel_token.stop_requested()) continue;
             completed.callback(std::move(completed.response));
         }
     }
