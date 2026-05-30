@@ -12,18 +12,26 @@ namespace Mc::Tests {
 
 using namespace Mc::Net;
 
-// stable, low-traffic targets reachable from both native and browser builds.
-// example.com returns 200 with "Example Domain" in the body, 404 for any unknown path.
-// the .invalid TLD (RFC 2606) never resolves, so it always yields a connection failure.
 namespace {
-constexpr std::string_view URL_OK = "https://example.com";
-constexpr std::string_view URL_404 = "https://example.com/neomod-nonexistent-xyz";
+// browsers enforce CORS, so the wasm/emrun build can't fetch arbitrary third-party hosts. point the HTTP
+// cases at the local CORS-enabled helper (src/App/Tests/network_test_server.py) so the same suite runs
+// against the same routes from both the native (curl) and browser (fetch) builds. override the base with
+// -testarg:base_url <url> if the server runs on a different port.
+constexpr std::string_view DEFAULT_BASE_URL = "http://127.0.0.1:8423";
+constexpr std::string_view BODY_OK = "neomod NetworkTest OK";  // what the /ok route returns
+// reserved TLD (RFC 6761): never resolves, so it is a portable connection failure on both backends.
 constexpr std::string_view URL_BADHOST = "https://nonexistent-host-neomod-test.invalid";
 constexpr double WATCHDOG_SECS = 15.0;      // a request that hung past its own timeout is a failure
 constexpr double CANCEL_SETTLE_SECS = 4.0;  // long enough that an un-cancelled request would have completed
 }  // namespace
 
-NetworkTest::NetworkTest() { logRaw("NetworkTest created"); }
+NetworkTest::NetworkTest() {
+    const std::string base{getTestArg("base_url").value_or(std::string{DEFAULT_BASE_URL})};
+    m_urlOk = base + "/ok";
+    m_urlSlow = base + "/slow";  // delays ~1s server-side so it stays in flight long enough to cancel
+    m_url404 = base + "/does-not-exist";
+    logRaw("NetworkTest created (base_url = {})", base);
+}
 
 void NetworkTest::startGet(std::string_view url, Capture& cap, Sync::stop_token token) {
     cap = {};
@@ -54,10 +62,10 @@ void NetworkTest::runSyncTest() {
         .timeout = 10,
         .connect_timeout = 5,
     };
-    const Response resp = networkHandler->httpRequestSynchronous(URL_OK, std::move(options));
-    TEST_ASSERT(resp.success, "synchronous GET to example.com succeeds");
+    const Response resp = networkHandler->httpRequestSynchronous(m_urlOk, std::move(options));
+    TEST_ASSERT(resp.success, "synchronous GET to /ok succeeds");
     TEST_ASSERT_EQ(resp.response_code, 200L, "synchronous GET returns HTTP 200");
-    TEST_ASSERT(resp.body.contains("Example Domain"), "synchronous GET body has expected content");
+    TEST_ASSERT(resp.body.contains(BODY_OK), "synchronous GET body has expected content");
 }
 
 void NetworkTest::update() {
@@ -69,7 +77,7 @@ void NetworkTest::update() {
             runSyncTest();
 
             TEST_SECTION("async GET");
-            startGet(URL_OK, m_get);
+            startGet(m_urlOk, m_get);
             m_watchdog = now + WATCHDOG_SECS;
             m_phase = WAIT_GET;
             return;
@@ -77,15 +85,15 @@ void NetworkTest::update() {
         case WAIT_GET:
             if(!m_get.fired && now <= m_watchdog) return;
             if(m_get.fired) {
-                TEST_ASSERT(m_get.resp.success, "async GET to example.com succeeds");
+                TEST_ASSERT(m_get.resp.success, "async GET to /ok succeeds");
                 TEST_ASSERT_EQ(m_get.resp.response_code, 200L, "async GET returns HTTP 200");
-                TEST_ASSERT(m_get.resp.body.contains("Example Domain"), "async GET body has expected content");
+                TEST_ASSERT(m_get.resp.body.contains(BODY_OK), "async GET body has expected content");
             } else {
                 TEST_ASSERT(false, "async GET callback never arrived");
             }
 
             TEST_SECTION("async 404");
-            startGet(URL_404, m_notfound);
+            startGet(m_url404, m_notfound);
             m_watchdog = now + WATCHDOG_SECS;
             m_phase = WAIT_NOTFOUND;
             return;
@@ -115,7 +123,7 @@ void NetworkTest::update() {
             }
 
             TEST_SECTION("unstopped cancel token still delivers");
-            startGet(URL_OK, m_token, m_token_src.get_token());
+            startGet(m_urlOk, m_token, m_token_src.get_token());
             m_watchdog = now + WATCHDOG_SECS;
             m_phase = WAIT_TOKEN;
             return;
@@ -132,7 +140,7 @@ void NetworkTest::update() {
             // nothing can slip through in between. the callback must never arrive, whether the request is dropped
             // before it starts, aborted in flight, or completed-then-suppressed by the update-loop re-check.
             TEST_SECTION("immediate cancellation");
-            startGet(URL_OK, m_cancelImmediate, m_cancelImmediate_src.get_token());
+            startGet(m_urlSlow, m_cancelImmediate, m_cancelImmediate_src.get_token());
             m_cancelImmediate_src.request_stop();
             m_watchdog = now + CANCEL_SETTLE_SECS;
             m_phase = WAIT_CANCEL_IMMEDIATE;
@@ -149,7 +157,7 @@ void NetworkTest::update() {
 
             // now a genuine in-flight cancel: submit, let one frame pass so the request can actually start
             TEST_SECTION("in-flight cancellation");
-            startGet(URL_OK, m_cancelInflight, m_cancelInflight_src.get_token());
+            startGet(m_urlSlow, m_cancelInflight, m_cancelInflight_src.get_token());
             m_phase = CANCEL_INFLIGHT_DECIDE;
             return;
 

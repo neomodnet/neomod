@@ -4,6 +4,8 @@
 #include "NetworkHandler.h"
 #include "SyncStoptoken.h"
 
+#include <string>
+
 namespace Mc::Tests {
 
 // sanity suite for NetworkHandler, exercising the same code on native (curl) and
@@ -30,6 +32,11 @@ class NetworkTest : public App {
 
     int m_passes = 0;
     int m_failures = 0;
+
+    // request targets, resolved from -testarg:base_url (default http://127.0.0.1:8423) in the ctor
+    std::string m_urlOk;
+    std::string m_urlSlow;
+    std::string m_url404;
 
     // each network request spans multiple frames: kick it off, then poll its Capture until the
     // callback fires (delivered by networkHandler->update(), which runs just before app->update())
