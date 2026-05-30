@@ -7,7 +7,22 @@
 # same suite runs against the exact same responses from both the native (curl) and browser
 # (fetch) builds, fully locally and offline.
 #
-# usage: python3 network_test_server.py [port]   (default 8423, matching NetworkTest's default base_url)
+
+#   running (local):
+# 
+# python3 tools/network-test-server/network_test_server.py 8423 & SRV=$!
+# /path/to/neomod -headless -testapp NetworkTest
+# kill $SRV
+# 
+#   running (browser)
+# 
+# python3 tools/network-test-server/network_test_server.py 8423 & SRV=$!
+# emrun --kill-exit /path/to/neomod.html -- -headless -testapp NetworkTest
+# kill $SRV
+# 
+# if using a different port: run the server on it and add -testarg:base_url http://127.0.0.1:<port>
+# (8423 is just default)
+
 import sys
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
