@@ -14,8 +14,10 @@
 #include "Database.h"
 #include "DatabaseBeatmap.h"
 #include "DirectoryWatcher.h"
+#include "Downloader.h"
 #include "Engine.h"
 #include "File.h"
+#include "FixedSizeArray.h"
 #include "LegacyReplay.h"
 #include "NotificationOverlay.h"
 #include "AsyncPool.h"
@@ -35,6 +37,7 @@
 #include "fmt/chrono.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstring>
 #include <utility>
 
@@ -284,6 +287,12 @@ void Database::startLoader() {
                 this->loadMaps(this->database_files[NEOMOD_MAPS], this->database_files[STABLE_MAPS]);
                 if(tok.stop_requested()) goto done;
 
+                // extract + import any loose .osz files dropped into maps/ before handing off to the
+                // song browser, so they're part of the initial listing.
+                // TODO: add to progress indicator
+                this->importLooseOsz();
+                if(tok.stop_requested()) goto done;
+
                 // loaded after raw load otherwise
                 if(!this->needs_raw_load) {
                     Collections::load_all(this->database_files[MCNEOMOD_COLLECTIONS],
@@ -482,10 +491,11 @@ void Database::save() {
 
 // NOTE: Should currently only be used for neomod beatmapsets! e.g. from maps/ folder
 //       See loadRawBeatmap()
-//       (unless is_peppy is specified, in which case we're loading a raw osu folder and not saving the things we loaded)
-const BeatmapSet *Database::addBeatmapSet(const std::string &beatmapFolderPath, i32 set_id_override, bool is_peppy) {
-    std::unique_ptr<BeatmapSet> mapset = this->loadRawBeatmap(beatmapFolderPath, is_peppy);
-    if(mapset == nullptr) return nullptr;
+//       (unless is_peppy is spec{ified, false}, in which case we're loading a raw osu folder and not saving the things we loaded)
+std::pair<BeatmapSet *, bool /*added*/> Database::addBeatmapSet(const std::string &beatmapFolderPath,
+                                                                i32 set_id_override, bool is_peppy) {
+    std::unique_ptr<BeatmapSet> mapset = loadRawBeatmap(beatmapFolderPath, is_peppy);
+    if(mapset == nullptr) return {};
 
     BeatmapSet *raw_mapset = mapset.get();
 
@@ -523,11 +533,19 @@ const BeatmapSet *Database::addBeatmapSet(const std::string &beatmapFolderPath, 
     if(mapset->difficulties->empty()) {
         debugLog("WARNING: didn't add new mapset {} id {}, only had duplicate difficulties!", mapset->getFolder(),
                  real_set_id);
-        if(const auto *existing_mapset = this->getBeatmapSet(real_set_id)) {
-            return existing_mapset;
+
+        BeatmapSet *existing_mapset = nullptr;
+        for(const auto &set : this->beatmapsets) {
+            if(set->getSetID() == real_set_id) {
+                existing_mapset = set.get();
+            }
+        }
+
+        if(existing_mapset) {
+            return {existing_mapset, false};
         } else {
             assert(false);  // should be unreachable
-            return nullptr;
+            return {};
         }
     }
 
@@ -542,9 +560,10 @@ const BeatmapSet *Database::addBeatmapSet(const std::string &beatmapFolderPath, 
 
     this->beatmapsets.push_back(std::move(mapset));
 
-    // only notify songbrowser if loading is done (it rebuilds from beatmapsets in onDatabaseLoadingFinished)
+    // post-load imports still need diffcalc + loudness kicked off here
+    // during the initial load the browser rebuilds from
+    // beatmapsets in onDatabaseLoadingFinished, so there's nothing to do.
     if(this->isFinished()) {
-        ui->getSongBrowser()->addBeatmapSet(raw_mapset);
         this->batch_diffcalc_pending = true;  // picked up by SongBrowser::update
 
         // post-DB-load imports never made it into loudness_to_calc, so kick off priority
@@ -558,7 +577,60 @@ const BeatmapSet *Database::addBeatmapSet(const std::string &beatmapFolderPath, 
         this->saveMaps();
     }
 
-    return raw_mapset;
+    return {raw_mapset, true};
+}
+
+// TODO: duplication in BeatmapInstaller
+void Database::importLooseOsz() {
+    // import any loose .osz files sitting in the maps/ drop-zone (dropped in while the game was closed).
+    // runs on the loader thread before the song browser builds its buttons, so these maps are part of
+    // the initial listing. isFinished() is still false here, so addBeatmapSet won't notify the
+    // not-yet-built song browser, and appending to beatmapsets is safe (same thread as loadMaps).
+    std::vector<std::string> files = env->getFilesInFolder(NEOMOD_MAPS_PATH "/");
+
+    std::vector<std::string> oszs;
+    for(auto &file : files) {
+        if(env->getFileExtensionFromFilePath(file) == "osz") oszs.push_back(std::move(file));
+    }
+    if(oszs.empty()) return;
+
+    debugLog("Importing {} loose .osz file(s) from {}", oszs.size(), NEOMOD_MAPS_PATH "/");
+
+    for(uSz i = 0; i < oszs.size(); i++) {
+        if(this->isCancelled()) return;  // cancellation point
+
+        const std::string path = NEOMOD_MAPS_PATH "/" + oszs[i];
+
+        FixedSizeArray<u8> osz_data;
+        {
+            File osz(path);
+            const uSz filesize = osz.getFileSize();
+            osz_data = FixedSizeArray{osz.takeFileBuffer(), filesize};
+            if(!osz.canRead() || !filesize || !osz_data.data()) {
+                debugLog("Failed to read {}", path);
+                continue;
+            }
+        }
+
+        // fallback id: a leading number in the filename, e.g. "12345 Artist - Title.osz"
+        i32 fallback_id = -1;
+        std::string name = Environment::getFileNameFromFilePath(path);
+        if(!name.empty() && std::isdigit(static_cast<unsigned char>(name[0]))) {
+            if(!Parsing::parse(name, &fallback_id)) fallback_id = -1;
+        }
+
+        const i32 set_id = Downloader::resolve_and_extract_osz(osz_data, name, fallback_id);
+        if(set_id > 0 && this->addBeatmapSet(fmt::format(NEOMOD_MAPS_PATH "/{}/", set_id), set_id).first != nullptr) {
+            env->deleteFile(path);
+        } else {
+            debugLog("Failed to import loose .osz {}", path);
+        }
+
+        // nudge the loading bar forward through the import tail (loadMaps leaves us near 0.99); stays
+        // below 1.0 so the loading overlay keeps the song browser hidden until every import is done.
+        // (FIXME: HACK)
+        this->loading_progress = static_cast<f32>(0.99 + 0.0099 * (f64)(i + 1) / (f64)oszs.size());
+    }
 }
 
 bool Database::addScore(const FinishedScore &score) {

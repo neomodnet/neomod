@@ -4,6 +4,7 @@
 #include "noinclude.h"
 
 #include "types.h"
+#include "AsyncFuture.h"
 #include "DownloadHandle.h"
 #include "Hashing.h"
 
@@ -20,11 +21,13 @@ enum class MapInstallStage : u8 {
     Downloading = (1 << 2),
     Installing = (1 << 3),
     Done = (1 << 4),
-    Failed = (1 << 5)
+    Failed = (1 << 5),
+    Extracting = (1 << 6),  // local .osz imports only: decompress on a worker before Installing
 };
 
-// drives beatmapset download + extraction + database import as a single async unit,
-// keyed by set_id and decoupled from any UI element. ticked from Osu::update().
+// drives beatmapset import (downloaded sets and local .osz files) as a single async unit, decoupled
+// from any UI element. ticked from Osu::update(). downloads are keyed by set_id; local files have no
+// id until cracked open, so they ride a separate queue and resolve theirs on a worker thread.
 class BeatmapInstaller final {
     NOCOPY_NOMOVE(BeatmapInstaller)
    public:
@@ -54,6 +57,11 @@ class BeatmapInstaller final {
     // upgrades an entry queued earlier without one).
     void enqueue(i32 set_id, bool auto_select, std::string_view display_name = {});
 
+    // import a local .osz file (drag-drop, file association, maps/ watcher). the set id is unknown
+    // until the archive is cracked open on a worker thread. delete_after removes the source file once
+    // imported (used for the maps/ drop-zone, never for files the user passed in by path).
+    void enqueue_local(std::string osz_path, bool auto_select, bool delete_after);
+
     // aborts the in-flight transfer (if any) and drops the entry.
     void cancel(i32 set_id);
 
@@ -76,10 +84,22 @@ class BeatmapInstaller final {
         f64 finished_time{0.0};
     };
 
-    void on_done(i32 set_id, const Entry& e, const BeatmapSet* set);
+    // a local .osz import in flight. has no set_id until Extracting resolves it from the archive.
+    struct LocalEntry {
+        std::string osz_path;
+        Async::Future<i32> extract_future;  // resolved set_id (>0) on success, <= 0 on failure
+        i32 set_id{-1};
+        MapInstallStage stage{MapInstallStage::Queued};
+        bool auto_select{false};
+        bool delete_after{false};
+        f64 finished_time{0.0};
+    };
+
+    void on_done(BeatmapSet* set, i32 set_id, bool added, bool auto_select);
     void on_failed(i32 set_id);
 
     Hash::flat::map<i32, Entry> entries;
+    std::vector<LocalEntry> local_imports;
 
     // how long to keep Failed entries around so listings can render the red state
     static constexpr f64 FAILED_ENTRY_TTL_S = 60.0;

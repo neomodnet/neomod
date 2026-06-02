@@ -2500,13 +2500,8 @@ void SongBrowser::initializeGroupingButtons() {
 }
 
 void SongBrowser::onDatabaseLoadingFinished() {
-    // Extract oszs from neomod's maps/ directory now
-    auto oszs = env->getFilesInFolder(NEOMOD_MAPS_PATH "/");
-    for(const auto &file : oszs) {
-        if(env->getFileExtensionFromFilePath(file) != "osz") continue;
-        auto path = NEOMOD_MAPS_PATH "/" + file;
-        if(neomod::handle_osz(path)) env->deleteFile(path);
-    }
+    // loose .osz files dropped into maps/ were already extracted + imported by the loader stage
+    // (Database::importLooseOsz), so by the time we get here the database already contains them.
 
     Timer t;
     t.start();
@@ -2587,13 +2582,11 @@ void SongBrowser::onDatabaseLoadingFinished() {
     // Watch for new maps now
     directoryWatcher->watch_directory(NEOMOD_MAPS_PATH "/", [](const FileChangeEvent &ev) {
         if(ev.type != FileChangeType::CREATED) return;
-        logRaw("[DirectoryWatcher] Importing new beatmap {}: type {}", ev.path, (u32)ev.type);
         if(env->getFileExtensionFromFilePath(ev.path) != "osz") return;
+        logRaw("[DirectoryWatcher] Importing new beatmap {}", ev.path);
 
-        if(const BeatmapSet *set = neomod::handle_osz(ev.path)) {
-            env->deleteFile(ev.path);
-            ui->getSongBrowser()->selectBeatmapset(set);
-        }
+        // drop-zone file: import async via the installer, navigate to it, and delete the .osz on success.
+        osu->getBeatmapInstaller()->enqueue_local(ev.path, /*auto_select=*/true, /*delete_after=*/true);
     });
 }
 

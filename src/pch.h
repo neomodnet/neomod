@@ -9,6 +9,7 @@
 #include "MD5Hash.h"
 #include "Color.h"
 #include "Rect.h"  // mostly due to formatters
+#include "ContainerRanges.h"
 
 #include "SyncMutex.h"
 #include "SyncCV.h"

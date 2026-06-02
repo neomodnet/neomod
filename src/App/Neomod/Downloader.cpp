@@ -282,6 +282,35 @@ i32 get_beatmapset_id_from_osu_file(std::string_view file) {
 
     return -1;
 }
+
+// write already-decompressed archive entries into map_dir, creating parent directories as needed.
+// files that can't be written are skipped (validated later when the beatmap is loaded).
+bool write_entries_to_dir(const std::vector<Archive::Entry>& entries, std::string_view map_dir) {
+    std::string base{map_dir};
+    while(base.size() > 1 && (base.back() == '/' || base.back() == '\\')) base.pop_back();
+
+    env->createDirectory(base);
+
+    for(const auto& entry : entries) {
+        if(entry.isDirectory()) continue;
+
+        const std::string& filename = entry.getFilename();
+        if(filename.find("..") != std::string::npos) continue;  // path traversal guard
+
+        std::string dir_path{base};
+        const auto folders = SString::split(filename, '/');
+        for(size_t i = 0; i + 1 < folders.size(); i++) {
+            dir_path.append("/").append(folders[i]);
+            env->createDirectory(dir_path);
+        }
+
+        if(!entry.extractToFile(fmt::format("{}/{}", base, filename))) {
+            debugLog("Failed to extract file {:s}", filename);
+        }
+    }
+
+    return true;
+}
 }  // namespace
 
 void abort_downloads() {
@@ -306,39 +335,6 @@ DownloadHandle download(std::string_view url) {
     return DownloadHandle{std::move(req)};
 }
 
-i32 extract_beatmapset_id(std::span<const u8> data) {
-    debugLog("Reading beatmapset ({:d} bytes)", data.size());
-    i32 set_id = -1;
-
-    Archive::Reader archive(data);
-    if(!archive.isValid()) {
-        debugLog("Failed to open .osz file");
-        return set_id;
-    }
-
-    auto entries = archive.getAllEntries();
-    if(entries.empty()) {
-        debugLog(".osz file is empty!");
-        return set_id;
-    }
-
-    for(const auto& entry : entries) {
-        if(entry.isDirectory()) continue;
-
-        std::string filename = entry.getFilename();
-        if(env->getFileExtensionFromFilePath(filename).compare("osu") != 0) continue;
-
-        const auto& osu_data = entry.getUncompressedData();
-        if(osu_data.empty()) continue;
-
-        set_id = get_beatmapset_id_from_osu_file(
-            std::string_view{reinterpret_cast<const char*>(osu_data.data()), osu_data.size()});
-        if(set_id != -1) break;
-    }
-
-    return set_id;
-}
-
 bool extract_beatmapset(std::span<const u8> data, const std::string& map_dir) {
     debugLog("Extracting beatmapset ({:d} bytes)", data.size());
 
@@ -354,41 +350,46 @@ bool extract_beatmapset(std::span<const u8> data, const std::string& map_dir) {
         return false;
     }
 
-    if(!env->directoryExists(map_dir)) {
-        env->createDirectory(map_dir);
+    return write_entries_to_dir(entries, map_dir);
+}
+
+i32 resolve_and_extract_osz(std::span<const u8> data, std::string_view osz_name, i32 fallback_id) {
+    debugLog("Reading beatmapset {:s} ({:d} bytes)", osz_name, data.size());
+
+    Archive::Reader archive(data);
+    if(!archive.isValid()) {
+        debugLog("Failed to open .osz file");
+        return -1;
     }
 
+    auto entries = archive.getAllEntries();
+    if(entries.empty()) {
+        debugLog(".osz file is empty!");
+        return -1;
+    }
+
+    // single decompression pass: the entries are already in memory, so resolve the set id from the
+    // first .osu that declares one (falling back to the caller-supplied id, e.g. parsed from the .osz
+    // filename) and then write those same buffers to disk without re-extracting.
+    i32 set_id = -1;
     for(const auto& entry : entries) {
         if(entry.isDirectory()) continue;
+        if(env->getFileExtensionFromFilePath(entry.getFilename()) != "osu") continue;
 
-        std::string filename = entry.getFilename();
-        const auto folders = SString::split(filename, '/');
-        std::string file_path = map_dir;
+        const auto& osu_data = entry.getUncompressedData();
+        if(osu_data.empty()) continue;
 
-        for(const auto& folder : folders) {
-            if(!env->directoryExists(file_path)) {
-                env->createDirectory(file_path);
-            }
-
-            if(folder == "..") {
-                // security check: skip files with path traversal attempts
-                goto skip_file;
-            } else {
-                file_path.append("/");
-                file_path.append(folder);
-            }
-        }
-
-        if(!entry.extractToFile(file_path)) {
-            debugLog("Failed to extract file {:s}", filename.c_str());
-        }
-
-    skip_file:;
-        // when a file can't be extracted we just ignore it (as long as the archive is valid)
-        // we'll check for errors when loading the beatmap
+        set_id = get_beatmapset_id_from_osu_file(
+            std::string_view{reinterpret_cast<const char*>(osu_data.data()), osu_data.size()});
+        if(set_id != -1) break;
     }
+    if(set_id < 0) set_id = fallback_id;
+    if(set_id < 0) return -1;
 
-    return true;
+    if(!write_entries_to_dir(entries, fmt::format(NEOMOD_MAPS_PATH "/{}/", set_id))) {
+        return -1;
+    }
+    return set_id;
 }
 
 bool download_beatmapset(u32 set_id, DownloadHandle& handle) {

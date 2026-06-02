@@ -1208,7 +1208,7 @@ void MainMenu::selectRandomBeatmap() {
         constexpr int RETRY_SETS{10};
         for(int i = 0; i < RETRY_SETS; i++) {
             const auto &mapset_folder = this->songsFolderEntries[prand() % this->songsFolderEntries.size()];
-            auto set = db->loadRawBeatmap(mapset_folder);
+            auto set = Database::loadRawBeatmap(mapset_folder);
             if(set == nullptr) {
                 // loadRawBeatmap will log failure with reason
                 // debugLog("Failed to load beatmap set '{:s}'", mapset_folder.c_str());

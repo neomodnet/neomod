@@ -93,8 +93,8 @@ class Database final {
     void cancel();
     void save();
 
-    const BeatmapSet *addBeatmapSet(const std::string &beatmapFolderPath, i32 set_id_override = -1,
-                                    bool is_peppy = false);
+    std::pair<BeatmapSet *, bool /*added*/> addBeatmapSet(const std::string &beatmapFolderPath,
+                                                          i32 set_id_override = -1, bool is_peppy = false);
 
     // returns true if adding succeeded
     bool addScore(const FinishedScore &score);
@@ -134,7 +134,7 @@ class Database final {
     static std::string getOsuSongsFolder();
 
     // only used for raw loading without db
-    std::unique_ptr<BeatmapSet> loadRawBeatmap(const std::string &beatmapPath, bool is_peppy = false);
+    static std::unique_ptr<BeatmapSet> loadRawBeatmap(const std::string &beatmapPath, bool is_peppy = false);
 
     inline void addPathToImport(const std::string &dbPath) { this->extern_db_paths_to_import.push_back(dbPath); }
 
@@ -216,6 +216,8 @@ class Database final {
     void findDatabases();
     bool importDatabase(const std::pair<DatabaseType, std::string> &db_pair);
     void loadMaps(std::string_view neomod_maps_path, std::string_view peppy_db_path);
+    // extract + import loose .osz files from the maps/ drop-zone during the loader's run (before buttons build)
+    void importLooseOsz();
     void loadScores(std::string_view dbPath);
     void loadOldMcNeomodScores(std::string_view dbPath);
     void loadPeppyScores(std::string_view dbPath);

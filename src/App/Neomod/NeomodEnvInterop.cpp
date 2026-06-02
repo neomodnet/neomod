@@ -2,15 +2,12 @@
 #include "Environment.h"
 
 #include "OsuConVars.h"
+#include "BeatmapInstaller.h"
 #include "Database.h"
 #include "DatabaseBeatmap.h"
-#include "Downloader.h"  // for extract_beatmapset
-#include "File.h"
-#include "FixedSizeArray.h"
 #include "NeomodUrl.h"
 #include "OptionsOverlay.h"
 #include "Osu.h"
-#include "Parsing.h"
 #include "RankingScreen.h"
 #include "Skin.h"
 #include "SongBrowser/SongBrowser.h"
@@ -52,67 +49,12 @@ bool handle_osk(std::string_view osk_path) {
     return true;
 }
 
-const BeatmapSet *handle_osz(std::string_view osz_path) {
-    if(!osu) return nullptr;
-
-    if(osu->isInPlayMode()) {
-        ui->getNotificationOverlay()->addToast(fmt::format("Can't import {} while playing.", osz_path), ERROR_TOAST);
-        return nullptr;
-    } else if(!db->isFinished() || db->isCancelled()) {
-        ui->getNotificationOverlay()->addToast(fmt::format("Can't import {} before songs have been loaded.", osz_path),
-                                               ERROR_TOAST);
-        return nullptr;
-    }
-
-    FixedSizeArray<u8> osz_data;
-    {
-        File osz(osz_path);
-        uSz osz_filesize = osz.getFileSize();
-        osz_data = FixedSizeArray{osz.takeFileBuffer(), osz_filesize};
-        if(!osz.canRead() || !osz_filesize || !osz_data.data()) {
-            ui->getNotificationOverlay()->addToast(fmt::format("Failed to import {}", osz_path), ERROR_TOAST);
-            return nullptr;
-        }
-    }
-
-    i32 set_id = Downloader::extract_beatmapset_id(osz_data);
-    if(set_id < 0) {
-        // special case: legacy fallback behavior for invalid beatmapSetID, try to parse the ID from the
-        // path
-        std::string mapset_name = Environment::getFileNameFromFilePath(osz_path);
-        if(!mapset_name.empty() && std::isdigit(static_cast<unsigned char>(mapset_name[0]))) {
-            if(!Parsing::parse(mapset_name, &set_id)) {
-                set_id = -1;
-            }
-        }
-    }
-    if(set_id == -1) {
-        ui->getNotificationOverlay()->addToast("Beatmapset doesn't have a valid ID.", ERROR_TOAST);
-        return nullptr;
-    }
-
-    std::string mapset_dir = fmt::format(NEOMOD_MAPS_PATH "/{}/", set_id);
-    Environment::createDirectory(mapset_dir);
-    if(!Downloader::extract_beatmapset(osz_data, mapset_dir)) {
-        ui->getNotificationOverlay()->addToast("Failed to extract beatmapset", ERROR_TOAST);
-        return nullptr;
-    }
-
-    const BeatmapSet *set = db->addBeatmapSet(mapset_dir, set_id);
-    if(!set) {
-        ui->getNotificationOverlay()->addToast("Failed to import beatmapset", ERROR_TOAST);
-        return nullptr;
-    }
-
-    return set;
-}
-
 bool NeomodEnvInterop::handle_cmdline_args(const std::vector<std::string> &args) {
     if(!osu || !db) return false;
     using namespace neomod;
 
     bool got_db_related_import = false;
-    std::vector<std::string> db_dependent_imports;
+    std::vector<std::string> replay_imports;
     bool need_to_reload_database = false;
 
     for(const auto &arg : args) {
@@ -133,8 +75,14 @@ bool NeomodEnvInterop::handle_cmdline_args(const std::vector<std::string> &args)
             if(!extension.empty()) {
                 debugLog("Handling {}...", arg);
 
-                if(extension == "osz" || extension == "osr") {
-                    db_dependent_imports.push_back(arg);
+                if(extension == "osz") {
+                    // external file: import async through the installer and navigate to it, but never
+                    // delete the user's file. the installer defers the import until the db is loaded.
+                    osu->getBeatmapInstaller()->enqueue_local(arg, /*auto_select=*/true, /*delete_after=*/false);
+                    need_to_reload_database |= (!db->isFinished() || db->isCancelled());
+                    got_db_related_import = true;
+                } else if(extension == "osr") {
+                    replay_imports.push_back(arg);
                     need_to_reload_database |= (!db->isFinished() || db->isCancelled());
                     got_db_related_import = true;
                 } else if(extension == "osk" || extension == "zip") {
@@ -155,23 +103,16 @@ bool NeomodEnvInterop::handle_cmdline_args(const std::vector<std::string> &args)
     if(!osu->isInPlayMode()) {
         SongBrowser *sbr = ui->getSongBrowser();
         RankingScreen *rankingscreen = ui->getRankingScreen();
-        auto finish_importing = [sbr, rankingscreen, notif = ui->getNotificationOverlay(), db_dependent_imports] {
-            const BeatmapSet *last_imported_set = nullptr;
+        // .osz imports run through the installer (enqueued above); only replays need post-load handling.
+        auto finish_importing = [sbr, rankingscreen, notif = ui->getNotificationOverlay(), replay_imports] {
             FinishedScore last_imported_replay;
 
-            for(const auto &path : db_dependent_imports) {
-                auto extension = Environment::getFileExtensionFromFilePath(path);
-                if(extension == "osz"sv) {
-                    if(const auto *imported = handle_osz(path)) {
-                        last_imported_set = imported;
-                    }
-                } else if(extension == "osr") {
-                    FinishedScore replay;
-                    if(LegacyReplay::load_osr(path, replay)) {
-                        last_imported_replay = replay;
-                    } else {
-                        notif->addToast("Failed to load replay.", ERROR_TOAST);
-                    }
+            for(const auto &path : replay_imports) {
+                FinishedScore replay;
+                if(LegacyReplay::load_osr(path, replay)) {
+                    last_imported_replay = replay;
+                } else {
+                    notif->addToast("Failed to load replay.", ERROR_TOAST);
                 }
             }
 
@@ -186,8 +127,6 @@ bool NeomodEnvInterop::handle_cmdline_args(const std::vector<std::string> &args)
                     // TODO: auto-download
                     notif->addToast("This replay's beatmap is not installed.", ERROR_TOAST);
                 }
-            } else if(last_imported_set != nullptr) {
-                sbr->selectBeatmapset(last_imported_set);
             }
         };
 

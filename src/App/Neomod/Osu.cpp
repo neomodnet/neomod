@@ -578,13 +578,16 @@ void Osu::update() {
         this->doChangeFocus(focused);
     }
 
-    // online beatmap downloads and thumbnails (avatars/beatmap thumbnails) are currently only relevant when online
+    // beatmap imports: local .osz files (drag-drop, file association, maps/ watcher) can arrive while
+    // offline, so the installer must tick regardless of online status. download entries are only ever
+    // enqueued from online UI (osu!direct/multiplayer/spectator), so ticking offline is harmless.
+    // gated out of play mode so we don't auto-select a map mid-gameplay.
+    if(!this->isInPlayMode()) {
+        this->beatmapInstaller->update();
+    }
+
+    // thumbnails (avatars/beatmap thumbnails) are currently only relevant when online
     if(BanchoState::is_online()) {
-        // update background beatmap downloads
-        // (gated differently from thumbnails so that we don't auto-select a map while playing)
-        if(!this->isInPlayMode()) {
-            this->beatmapInstaller->update();
-        }
         // XXX: there are too many flags/states to individually check whether or not we're in a "low-latency session" or not
         // TODO: offline/local avatars?
         if(!this->isInPlayModeAndNotPaused() || this->map_iface->isInBreak() ||
