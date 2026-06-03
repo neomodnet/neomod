@@ -68,8 +68,13 @@ void process_beatmapset_info_response(const Packet &packet);
 // extract an archive whose beatmapset id is already known, into map_dir.
 bool extract_beatmapset(std::span<const u8> data, const std::string &map_dir);
 
-// extract a local .osz: resolves the beatmapset id from the archive (or fallback_id if the .osu files
-// don't declare one), extracts into maps/<id>/, and returns the resolved id (-1 if no valid id).
-i32 resolve_and_extract_osz(std::span<const u8> data, std::string_view osz_name, i32 fallback_id);
+// extract a local .osz already in memory: resolves the beatmapset id from the archive (or, failing
+// that, a leading number in osz_name), extracts into maps/<id>/, and returns the resolved id (-1 if
+// none).
+i32 resolve_and_extract_osz(std::span<const u8> data, std::string_view osz_name);
+
+// read a local .osz from disk and extract it via resolve_and_extract_osz. returns the resolved set id
+// (> 0) or <= 0 on failure. does blocking file I/O + decompression, so call it off the main thread.
+i32 read_and_extract_osz(std::string_view path);
 
 }  // namespace Downloader

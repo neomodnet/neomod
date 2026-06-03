@@ -17,8 +17,11 @@
 #include "Logging.h"
 #include "SongBrowser.h"
 #include "Environment.h"
+#include "File.h"
+#include "FixedSizeArray.h"
 
 #include <atomic>
+#include <cctype>
 #include <memory>
 #include <unordered_map>
 #include <chrono>
@@ -357,7 +360,7 @@ bool extract_beatmapset(std::span<const u8> data, const std::string& map_dir) {
     return write_entries_to_dir(entries, map_dir);
 }
 
-i32 resolve_and_extract_osz(std::span<const u8> data, std::string_view osz_name, i32 fallback_id) {
+i32 resolve_and_extract_osz(std::span<const u8> data, std::string_view osz_name) {
     debugLog("Reading beatmapset {:s} ({:d} bytes)", osz_name, data.size());
 
     Archive::Reader archive(data);
@@ -373,8 +376,7 @@ i32 resolve_and_extract_osz(std::span<const u8> data, std::string_view osz_name,
     }
 
     // single decompression pass: the entries are already in memory, so resolve the set id from the
-    // first .osu that declares one (falling back to the caller-supplied id, e.g. parsed from the .osz
-    // filename) and then write those same buffers to disk without re-extracting.
+    // first .osu that declares one and then write those same buffers to disk without re-extracting.
     i32 set_id = -1;
     for(const auto& entry : entries) {
         if(entry.isDirectory()) continue;
@@ -387,13 +389,29 @@ i32 resolve_and_extract_osz(std::span<const u8> data, std::string_view osz_name,
             std::string_view{reinterpret_cast<const char*>(osu_data.data()), osu_data.size()});
         if(set_id != -1) break;
     }
-    if(set_id < 0) set_id = fallback_id;
+
+    // fallback: a leading number in the filename, e.g. "12345 Artist - Title.osz"
+    if(set_id < 0 && !osz_name.empty() && std::isdigit(static_cast<unsigned char>(osz_name.front()))) {
+        i32 parsed = -1;
+        if(Parsing::parse(osz_name, &parsed)) set_id = parsed;
+    }
     if(set_id < 0) return -1;
 
     if(!write_entries_to_dir(entries, fmt::format(NEOMOD_MAPS_PATH "/{}/", set_id))) {
         return -1;
     }
     return set_id;
+}
+
+i32 read_and_extract_osz(std::string_view path) {
+    FixedSizeArray<u8> osz_data;
+    {
+        File osz(path);
+        const uSz filesize = osz.getFileSize();
+        osz_data = FixedSizeArray{osz.takeFileBuffer(), filesize};
+        if(!osz.canRead() || !filesize || !osz_data.data()) return -1;
+    }
+    return resolve_and_extract_osz(osz_data, Environment::getFileNameFromFilePath(path));
 }
 
 bool download_beatmapset(u32 set_id, DownloadHandle& handle) {

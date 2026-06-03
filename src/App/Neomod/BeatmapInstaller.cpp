@@ -9,18 +9,13 @@
 #include "Downloader.h"
 #include "Engine.h"
 #include "Environment.h"
-#include "File.h"
-#include "FixedSizeArray.h"
 #include "i18n.h"
 #include "Logging.h"
 #include "NotificationOverlay.h"
 #include "Osu.h"
 #include "OsuConfig.h"
-#include "Parsing.h"
 #include "SongBrowser/SongBrowser.h"
 #include "UI.h"
-
-#include <cctype>
 
 void BeatmapInstaller::enqueue(i32 set_id, bool auto_select, std::string_view display_name) {
     if(set_id <= 0) return;
@@ -132,12 +127,9 @@ void BeatmapInstaller::update() {
             }
 
             case Installing: {
-                // defensive: only import while db isn't being rebuilt. db->isFinished() flips back to <1
-                // during a refresh, and addBeatmapSet would race the loader.
-                if(!db->isFinished() || db->isCancelled()) break;
+                auto [set, imported, ready] = this->try_import(set_id);
+                if(!ready) break;  // db busy/rebuilding; retry next tick
 
-                const std::string mapset_path = fmt::format(NEOMOD_MAPS_PATH "/{}/", set_id);
-                auto [set, imported] = db->addBeatmapSet(mapset_path, set_id);
                 if(set == nullptr) {
                     e.stage = Failed;
                     e.finished_time = now;
@@ -180,25 +172,7 @@ void BeatmapInstaller::update() {
             case Queued: {
                 // read + decompress + extract on a worker so the main thread never blocks on it.
                 le.extract_future = Async::submit(
-                    [path = le.osz_path]() -> i32 {
-                        FixedSizeArray<u8> osz_data;
-                        {
-                            File osz(path);
-                            const uSz filesize = osz.getFileSize();
-                            osz_data = FixedSizeArray{osz.takeFileBuffer(), filesize};
-                            if(!osz.canRead() || !filesize || !osz_data.data()) return -1;
-                        }
-
-                        // fallback id: a leading number in the filename, e.g. "12345 Artist - Title.osz"
-                        i32 fallback_id = -1;
-                        std::string name = Environment::getFileNameFromFilePath(path);
-                        if(!name.empty() && std::isdigit(static_cast<unsigned char>(name[0]))) {
-                            if(!Parsing::parse(name, &fallback_id)) fallback_id = -1;
-                        }
-
-                        return Downloader::resolve_and_extract_osz(osz_data, name, fallback_id);
-                    },
-                    Lane::Background);
+                    [path = le.osz_path]() -> i32 { return Downloader::read_and_extract_osz(path); }, Lane::Background);
                 le.stage = Extracting;
                 break;
             }
@@ -219,12 +193,9 @@ void BeatmapInstaller::update() {
             }
 
             case Installing: {
-                // same guard as downloads: don't import while the database is being (re)built.
-                // TODO: dedup
-                if(!db->isFinished() || db->isCancelled()) break;
+                auto [set, imported, ready] = this->try_import(le.set_id);
+                if(!ready) break;  // db busy/rebuilding; retry next tick
 
-                const std::string mapset_path = fmt::format(NEOMOD_MAPS_PATH "/{}/", le.set_id);
-                auto [set, imported] = db->addBeatmapSet(mapset_path, le.set_id);
                 if(set == nullptr) {
                     le.stage = Failed;
                     le.finished_time = now;
@@ -254,6 +225,15 @@ void BeatmapInstaller::update() {
             ++it;
         }
     }
+}
+
+BeatmapInstaller::ImportResult BeatmapInstaller::try_import(i32 set_id) {
+    // db->isFinished() drops below 1 during a refresh; importing then would race the loader thread
+    // appending to beatmapsets, so wait for it to settle (the caller retries next tick).
+    if(!db->isFinished() || db->isCancelled()) return {};
+
+    auto [set, added] = db->addBeatmapSet(fmt::format(NEOMOD_MAPS_PATH "/{}/", set_id), set_id);
+    return {set, added, true};
 }
 
 void BeatmapInstaller::on_done(BeatmapSet* set, i32 set_id, bool added, bool auto_select) {

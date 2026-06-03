@@ -95,6 +95,18 @@ class BeatmapInstaller final {
         f64 finished_time{0.0};
     };
 
+    // result of try_import(): set/imported are valid only when ready == true. ready == false means the
+    // db is mid-(re)build and the caller should retry next tick (addBeatmapSet would race the loader).
+    struct ImportResult {
+        BeatmapSet* set{nullptr};
+        bool imported{false};
+        bool ready{false};
+    };
+
+    // shared Installing-stage tail for downloads and local imports: imports the already-extracted
+    // maps/<set_id>/ folder once the db is idle.
+    ImportResult try_import(i32 set_id);
+
     void on_done(BeatmapSet* set, i32 set_id, bool added, bool auto_select);
     void on_failed(i32 set_id);
 

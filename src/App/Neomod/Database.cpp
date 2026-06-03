@@ -17,7 +17,6 @@
 #include "Downloader.h"
 #include "Engine.h"
 #include "File.h"
-#include "FixedSizeArray.h"
 #include "LegacyReplay.h"
 #include "NotificationOverlay.h"
 #include "AsyncPool.h"
@@ -575,7 +574,8 @@ std::pair<BeatmapSet *, bool /*added*/> Database::addBeatmapSet(const std::strin
     return {raw_mapset, true};
 }
 
-// TODO: duplication in BeatmapInstaller
+// shares the .osz read + extract path with BeatmapInstaller (Downloader::read_and_extract_osz); kept as
+// a separate loader-stage import because it runs before the installer and song browser exist.
 void Database::importLooseOsz() {
     // import any loose .osz files sitting in the maps/ drop-zone (dropped in while the game was closed).
     // runs on the loader thread before the song browser builds its buttons, so these maps are part of
@@ -596,25 +596,7 @@ void Database::importLooseOsz() {
 
         const std::string path = NEOMOD_MAPS_PATH "/" + oszs[i];
 
-        FixedSizeArray<u8> osz_data;
-        {
-            File osz(path);
-            const uSz filesize = osz.getFileSize();
-            osz_data = FixedSizeArray{osz.takeFileBuffer(), filesize};
-            if(!osz.canRead() || !filesize || !osz_data.data()) {
-                debugLog("Failed to read {}", path);
-                continue;
-            }
-        }
-
-        // fallback id: a leading number in the filename, e.g. "12345 Artist - Title.osz"
-        i32 fallback_id = -1;
-        std::string name = Environment::getFileNameFromFilePath(path);
-        if(!name.empty() && std::isdigit(static_cast<unsigned char>(name[0]))) {
-            if(!Parsing::parse(name, &fallback_id)) fallback_id = -1;
-        }
-
-        const i32 set_id = Downloader::resolve_and_extract_osz(osz_data, name, fallback_id);
+        const i32 set_id = Downloader::read_and_extract_osz(path);
         if(set_id > 0 && this->addBeatmapSet(fmt::format(NEOMOD_MAPS_PATH "/{}/", set_id), set_id).first != nullptr) {
             env->deleteFile(path);
         } else {
