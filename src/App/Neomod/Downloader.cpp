@@ -284,13 +284,15 @@ i32 get_beatmapset_id_from_osu_file(std::string_view file) {
 }
 
 // write already-decompressed archive entries into map_dir, creating parent directories as needed.
-// files that can't be written are skipped (validated later when the beatmap is loaded).
+// files that can't be written are skipped (validated later when the beatmap is loaded); returns
+// false if nothing at all could be written.
 bool write_entries_to_dir(const std::vector<Archive::Entry>& entries, std::string_view map_dir) {
     std::string base{map_dir};
     while(base.size() > 1 && (base.back() == '/' || base.back() == '\\')) base.pop_back();
 
     env->createDirectory(base);
 
+    bool wrote_any = false;
     for(const auto& entry : entries) {
         if(entry.isDirectory()) continue;
 
@@ -304,12 +306,14 @@ bool write_entries_to_dir(const std::vector<Archive::Entry>& entries, std::strin
             env->createDirectory(dir_path);
         }
 
-        if(!entry.extractToFile(fmt::format("{}/{}", base, filename))) {
+        if(entry.extractToFile(fmt::format("{}/{}", base, filename))) {
+            wrote_any = true;
+        } else {
             debugLog("Failed to extract file {:s}", filename);
         }
     }
 
-    return true;
+    return wrote_any;
 }
 }  // namespace
 

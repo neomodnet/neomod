@@ -491,7 +491,7 @@ void Database::save() {
 
 // NOTE: Should currently only be used for neomod beatmapsets! e.g. from maps/ folder
 //       See loadRawBeatmap()
-//       (unless is_peppy is spec{ified, false}, in which case we're loading a raw osu folder and not saving the things we loaded)
+//       (unless is_peppy is specified, in which case we're loading a raw osu folder and not saving the things we loaded)
 std::pair<BeatmapSet *, bool /*added*/> Database::addBeatmapSet(const std::string &beatmapFolderPath,
                                                                 i32 set_id_override, bool is_peppy) {
     std::unique_ptr<BeatmapSet> mapset = loadRawBeatmap(beatmapFolderPath, is_peppy);
@@ -501,6 +501,9 @@ std::pair<BeatmapSet *, bool /*added*/> Database::addBeatmapSet(const std::strin
 
     const i32 real_set_id = set_id_override != -1 ? set_id_override : mapset->iSetID;
 
+    // an existing set that already owns one of our diffs (matched by MD5 below); used to return the real
+    // owner if every diff turns out to be a duplicate.
+    BeatmapSet *dedup_parent = nullptr;
     {
         // deduplicate diffs
         // TODO: this will disallow adding a neomod beatmapset if we already have a peppy beatmapset that is the same (and vice versa)!
@@ -511,6 +514,7 @@ std::pair<BeatmapSet *, bool /*added*/> Database::addBeatmapSet(const std::strin
             if(!inserted) {
                 // update set id just in case we had an override, though
                 BeatmapDifficulty *diffparent = existingit->second->parentSet;
+                dedup_parent = diffparent;
                 if(const i32 old_set_id = diffparent->iSetID; old_set_id == -1 && real_set_id > 0) {
                     logIfCV(debug_db, "updating old set {} id {} -> {}", diffparent->getFolder(), old_set_id,
                             real_set_id);
@@ -534,19 +538,10 @@ std::pair<BeatmapSet *, bool /*added*/> Database::addBeatmapSet(const std::strin
         debugLog("WARNING: didn't add new mapset {} id {}, only had duplicate difficulties!", mapset->getFolder(),
                  real_set_id);
 
-        BeatmapSet *existing_mapset = nullptr;
-        for(const auto &set : this->beatmapsets) {
-            if(set->getSetID() == real_set_id) {
-                existing_mapset = set.get();
-            }
-        }
-
-        if(existing_mapset) {
-            return {existing_mapset, false};
-        } else {
-            assert(false);  // should be unreachable
-            return {};
-        }
+        // every diff was a duplicate, so dedup_parent points at the existing set that owns them. its set
+        // id may differ from real_set_id (e.g. the same map present as both a peppy and a neomod set, per
+        // the TODO above), which is why we return the matched parent rather than re-searching by id.
+        return {dedup_parent, false};
     }
 
     // Some beatmaps don't provide beatmap/beatmapset IDs in the .osu files
