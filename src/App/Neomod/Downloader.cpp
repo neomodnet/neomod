@@ -381,7 +381,7 @@ i32 resolve_and_extract_osz(std::span<const u8> data, std::string_view osz_name)
     i32 set_id = -1;
     for(const auto& entry : entries) {
         if(entry.isDirectory()) continue;
-        if(env->getFileExtensionFromFilePath(entry.getFilename()) != "osu") continue;
+        if(!entry.getFilename().ends_with(".osu")) continue;
 
         const auto& osu_data = entry.getUncompressedData();
         if(osu_data.empty()) continue;
@@ -409,8 +409,9 @@ i32 read_and_extract_osz(std::string_view path) {
     {
         File osz(path);
         const uSz filesize = osz.getFileSize();
+        if(!osz.canRead() || !filesize) return -1;
         osz_data = FixedSizeArray{osz.takeFileBuffer(), filesize};
-        if(!osz.canRead() || !filesize || !osz_data.data()) return -1;
+        if(!osz_data.data()) return -1;
     }
     return resolve_and_extract_osz(osz_data, Environment::getFileNameFromFilePath(path));
 }
