@@ -103,7 +103,7 @@ class Database final {
 
     PlayerPPScores getPlayerPPScores(std::string_view playerName);
     PlayerStats calculatePlayerStats(std::string_view playerName);
-    static float getWeightForIndex(int i);
+    static float getWeightForIndex(uSz i);
     static float getBonusPPForNumScores(size_t numScores);
     static u64 getRequiredScoreForLevel(int level);
     static int getLevelForScore(u64 score, int maxLevel = 120);

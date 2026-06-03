@@ -861,7 +861,7 @@ Database::PlayerStats Database::calculatePlayerStats(std::string_view playerName
     for(uSz i = 0; i < ps.ppScores.size(); i++) {
         const float weight = getWeightForIndex(ps.ppScores.size() - 1 - i);
 
-        pp += ps.ppScores[i]->get_pp() * weight;
+        pp += (f32)ps.ppScores[i]->get_pp() * weight;
         acc += LiveScore::calculateAccuracy(ps.ppScores[i]->num300s, ps.ppScores[i]->num100s, ps.ppScores[i]->num50s,
                                             ps.ppScores[i]->numMisses) *
                weight;
@@ -887,8 +887,8 @@ Database::PlayerStats Database::calculatePlayerStats(std::string_view playerName
 
         if(requiredScoreForNextLevel > requiredScoreForCurrentLevel)
             this->prevPlayerStats.percentToNextLevel =
-                (double)(ps.totalScore - requiredScoreForCurrentLevel) /
-                (double)(requiredScoreForNextLevel - requiredScoreForCurrentLevel);
+                (f32)((double)(ps.totalScore - requiredScoreForCurrentLevel) /
+                      (double)(requiredScoreForNextLevel - requiredScoreForCurrentLevel));
     }
 
     this->prevPlayerStats.totalScore = ps.totalScore;
@@ -896,17 +896,17 @@ Database::PlayerStats Database::calculatePlayerStats(std::string_view playerName
     return this->prevPlayerStats;
 }
 
-float Database::getWeightForIndex(int i) { return std::pow(0.95f, (f32)i); }
+float Database::getWeightForIndex(uSz i) { return std::pow(0.95f, (f32)i); }
 
 float Database::getBonusPPForNumScores(size_t numScores) {
-    return (417.0 - 1.0 / 3.0) * (1.0 - pow(0.995, std::min(1000.0, (f64)numScores)));
+    return (417.0f - 1.0f / 3.0f) * (f32)(1.0 - pow(0.995, std::min(1000.0, (f64)numScores)));
 }
 
 u64 Database::getRequiredScoreForLevel(int level) {
     // https://zxq.co/ripple/ocl/src/branch/master/level.go
     if(level <= 100) {
         if(level > 1)
-            return (u64)std::floor(5000 / 3 * (4 * pow(level, 3) - 3 * pow(level, 2) - level) +
+            return (u64)std::floor(5000. / 3 * (4 * pow(level, 3) - 3 * pow(level, 2) - level) +
                                    std::floor(1.25 * pow(1.8, (double)(level - 60))));
 
         return 1;
@@ -1117,7 +1117,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
 
                 u32 progress_bytes = this->bytes_processed + neomod_maps.total_pos;
                 f64 progress_float = (f64)progress_bytes / (f64)this->total_bytes;
-                this->loading_progress = std::clamp(progress_float, 0.01, 0.99);
+                this->loading_progress = (f32)std::clamp(progress_float, 0.01, 0.99);
 
                 i32 set_id = neomod_maps.read<i32>();
                 u16 nb_diffs = neomod_maps.read<u16>();
@@ -1209,7 +1209,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                     f32 fCS = neomod_maps.read<f32>();
                     f32 fHP = neomod_maps.read<f32>();
                     f32 fOD = neomod_maps.read<f32>();
-                    f64 fSliderMultiplier = neomod_maps.read<f64>();
+                    f64 fSliderMultiplier = neomod_maps.read<f64>();  // TODO: store as float?
                     u32 iPreviewTime = neomod_maps.read<u32>();
                     const i64 maybe_dotnettime = neomod_maps.read<i64>();
                     i64 last_modification_time = maybe_dotnettime;
@@ -1225,7 +1225,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                     u16 iNumCircles = neomod_maps.read<u16>();
                     u16 iNumSliders = neomod_maps.read<u16>();
                     u16 iNumSpinners = neomod_maps.read<u16>();
-                    f64 fStarsNomod = neomod_maps.read<f64>();
+                    f64 fStarsNomod = neomod_maps.read<f64>();  // TODO: store as float?
 
                     i32 iMinBPM{-1}, iMaxBPM{-1}, iMostCommonBPM{-1};
                     if(version >= 20251209) {  // prior versions had a rounding bug, force recalc
@@ -1337,15 +1337,15 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                     diff->fCS = fCS;
                     diff->fHP = fHP;
                     diff->fOD = fOD;
-                    diff->fSliderMultiplier = fSliderMultiplier;
-                    diff->iPreviewTime = iPreviewTime;
+                    diff->fSliderMultiplier = (f32)fSliderMultiplier;
+                    diff->iPreviewTime = (i32)iPreviewTime;
                     diff->last_modification_time = last_modification_time;
                     diff->iLocalOffset = iLocalOffset;
                     diff->iOnlineOffset = iOnlineOffset;
                     diff->iNumCircles = iNumCircles;
                     diff->iNumSliders = iNumSliders;
                     diff->iNumSpinners = iNumSpinners;
-                    diff->fStarsNomod = fStarsNomod;
+                    diff->fStarsNomod = (f32)fStarsNomod;
 
                     diff->iMinBPM = iMinBPM;
                     diff->iMaxBPM = iMaxBPM;
@@ -1506,7 +1506,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 // update progress (another thread checks if progress >= 1.f to know when we're done)
                 u32 progress_bytes = this->bytes_processed + dbr.total_pos;
                 f64 progress_float = (f64)progress_bytes / (f64)this->total_bytes;
-                this->loading_progress = std::clamp(progress_float, 0.01, 0.99);
+                this->loading_progress = (f32)std::clamp(progress_float, 0.01, 0.99);
 
                 // NOTE: This is documented wrongly in many places.
                 //       This int was added in 20160408 and removed in 20191106
@@ -1556,6 +1556,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 const i64 last_modification_time =
                     (modification_time_dotnet_ticks - LegacyReplay::UNIX_EPOCH_TICKS) / LegacyReplay::TICKS_PER_SECOND;
 
+                // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
                 f32 AR, CS, HP, OD;
                 if(osu_db_version < 20140609) {
                     AR = dbr.read<u8>();
@@ -1613,9 +1614,10 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 }
 
                 /*unsigned int drainTime = */ dbr.skip<u32>();  // seconds
-                int duration = dbr.read<u32>();                 // milliseconds
+                int duration = (int)dbr.read<u32>();            // milliseconds
                 duration = duration >= 0 ? duration : 0;        // sanity clamp
-                int preview_time = dbr.read<u32>();
+                int preview_time = (int)dbr.read<u32>();
+                preview_time = preview_time >= 0 ? preview_time : 0;  // sanity clamp
 
                 BPMInfo bpm;
                 u32 nb_timing_points = dbr.read<u32>();
@@ -1627,7 +1629,8 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                     bpm.most_common = override_.avg_bpm;
                 } else if(nb_timing_points > 0) {
                     timing_points_buffer.resize(nb_timing_points);
-                    if(dbr.read_bytes((u8 *)timing_points_buffer.data(), sizeof(DB_TIMINGPOINT) * nb_timing_points) !=
+                    if(dbr.read_bytes(reinterpret_cast<u8 *>(timing_points_buffer.data()),
+                                      sizeof(DB_TIMINGPOINT) * nb_timing_points) !=
                        sizeof(DB_TIMINGPOINT) * nb_timing_points) {
                         debugLog("WARNING: failed to read timing points from beatmap {:d} !", (i + 1));
                     } else {
@@ -1646,7 +1649,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 /*unsigned char ctbGrade = */ dbr.skip<u8>();
                 /*unsigned char maniaGrade = */ dbr.skip<u8>();
 
-                u16 offset_local = dbr.read<u16>();
+                i16 offset_local = dbr.read<i16>();
                 f32 stack_leniency = dbr.read<f32>();
                 u8 mode = dbr.read<u8>();
 
@@ -1655,7 +1658,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 SString::trim_inplace(song_source);
                 SString::trim_inplace(song_tags);
 
-                u16 offset_online = dbr.read<u16>();
+                i16 offset_online = dbr.read<i16>();
                 dbr.skip_string();  // song title font
                 /*bool unplayed = */ dbr.skip<u8>();
                 /*i64 lastTimePlayed = */ dbr.skip<u64>();
@@ -1754,7 +1757,8 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                     map->fCS = CS;
                     map->fHP = HP;
                     map->fOD = OD;
-                    map->fSliderMultiplier = slider_multiplier;
+                    // is downcasting actually safe here...? why is this even stored as a double in osu!.db anyways
+                    map->fSliderMultiplier = (f32)slider_multiplier;
 
                     // map->sBackgroundImageFileName = "";
 
@@ -1944,7 +1948,7 @@ void Database::saveMaps() {
             maps.write<i32>(diff->iID);
             maps.write_string(diff->getTitle());
             maps.write_string(diff->getAudioFileName());
-            maps.write<i32>(diff->iLengthMS);
+            maps.write<i32>((i32)diff->iLengthMS);  // TODO: weird casting
             maps.write<f32>(diff->fStackLeniency);
             maps.write_string(diff->getArtist());
             maps.write_string(diff->getCreator());
@@ -2136,8 +2140,8 @@ void Database::loadScores(std::string_view dbPath) {
     }
 
     u32 nb_neomod_scores = 0;
-    u8 magic_bytes[6] = {0};
-    if(dbr.read_bytes(magic_bytes, 5) != 5 || memcmp(magic_bytes, "NEOSC", 5) != 0) {
+    std::array<u8, 6> magic_bytes{};
+    if(dbr.read_bytes(magic_bytes.data(), 5) != 5 || memcmp(magic_bytes.data(), "NEOSC", 5) != 0) {
         ui->getNotificationOverlay()->addToast("Failed to load " PACKAGE_NAME "_scores.db!", ERROR_TOAST);
         this->bytes_processed += dbr.total_size;
         return;
@@ -2201,9 +2205,10 @@ void Database::loadScores(std::string_view dbPath) {
             sc.unstableRate = dbr.read<f32>();
             sc.hitErrorAvgMin = dbr.read<f32>();
             sc.hitErrorAvgMax = dbr.read<f32>();
-            sc.maxPossibleCombo = dbr.read<u32>();
-            sc.numHitObjects = dbr.read<u32>();
-            sc.numCircles = dbr.read<u32>();
+            // TODO: look into casts...
+            sc.maxPossibleCombo = (int)dbr.read<u32>();
+            sc.numHitObjects = (int)dbr.read<u32>();
+            sc.numCircles = (int)dbr.read<u32>();
 
             sc.beatmap_hash = beatmap_hash;
 
@@ -2213,7 +2218,7 @@ void Database::loadScores(std::string_view dbPath) {
 
         u32 progress_bytes = this->bytes_processed + dbr.total_pos;
         f64 progress_float = (f64)progress_bytes / (f64)this->total_bytes;
-        this->loading_progress = std::clamp(progress_float, 0.01, 0.99);
+        this->loading_progress = (f32)std::clamp(progress_float, 0.01, 0.99);
     }
 
     if(nb_neomod_scores != nb_scores) {
@@ -2245,7 +2250,7 @@ void Database::loadOldMcNeomodScores(std::string_view dbPath) {
         for(u32 b = 0; b < nb_beatmaps; b++) {
             u32 progress_bytes = this->bytes_processed + dbr.total_pos;
             f64 progress_float = (f64)progress_bytes / (f64)this->total_bytes;
-            this->loading_progress = std::clamp(progress_float, 0.01, 0.99);
+            this->loading_progress = (f32)std::clamp(progress_float, 0.01, 0.99);
             MD5Hash md5hash;
             (void)dbr.read_hash_chars(md5hash);  // TODO: validate
             u32 nb_scores = dbr.read<u32>();
@@ -2281,9 +2286,10 @@ void Database::loadOldMcNeomodScores(std::string_view dbPath) {
                 sc.mods.ar_override = dbr.read<f32>();
                 sc.mods.od_override = dbr.read<f32>();
                 sc.mods.hp_override = dbr.read<f32>();
-                sc.maxPossibleCombo = dbr.read<u32>();
-                sc.numHitObjects = dbr.read<u32>();
-                sc.numCircles = dbr.read<u32>();
+                // TODO: look into casts...
+                sc.maxPossibleCombo = (i32)dbr.read<u32>();
+                sc.numHitObjects = (i32)dbr.read<u32>();
+                sc.numCircles = (i32)dbr.read<u32>();
                 sc.bancho_score_id = dbr.read<u32>();
                 sc.client = PACKAGE_NAME "-win64-release-35.10";  // we don't know the actual version
                 dbr.read_string(sc.server);
@@ -2340,7 +2346,7 @@ void Database::loadOldMcNeomodScores(std::string_view dbPath) {
         for(int b = 0; b < numBeatmaps; b++) {
             u32 progress_bytes = this->bytes_processed + dbr.total_pos;
             f64 progress_float = (f64)progress_bytes / (f64)this->total_bytes;
-            this->loading_progress = std::clamp(progress_float, 0.01, 0.99);
+            this->loading_progress = (f32)std::clamp(progress_float, 0.01, 0.99);
 
             const std::string md5hash_str = dbr.read_string();
             if(md5hash_str.length() < 32) {
@@ -2521,7 +2527,7 @@ void Database::loadPeppyScores(std::string_view dbPath) {
 
     debugLog("osu!stable scores.db: version = {:d}, nb_beatmaps = {:d}", db_version, nb_beatmaps);
 
-    char client_str[15] = "peppy-YYYYMMDD";
+    std::array<char, 15> client_str{"peppy-YYYYMMDD"};
     for(u32 b = 0; b < nb_beatmaps; b++) {
         const std::string md5hash_str = dbr.read_string();
         if(md5hash_str.length() < 32) {
@@ -2543,8 +2549,8 @@ void Database::loadPeppyScores(std::string_view dbPath) {
             u8 gamemode = dbr.read<u8>();
 
             u32 score_version = dbr.read<u32>();
-            snprintf(client_str, 14, "peppy-%d", score_version);
-            sc.client = client_str;
+            snprintf(client_str.data(), 14, "peppy-%d", score_version);
+            sc.client = std::string_view{client_str};
 
             sc.server = "ppy.sh";
             dbr.skip_string();  // beatmap hash (already have it)
@@ -2601,7 +2607,7 @@ void Database::loadPeppyScores(std::string_view dbPath) {
 
         u32 progress_bytes = this->bytes_processed + dbr.total_pos;
         f64 progress_float = (f64)progress_bytes / (f64)this->total_bytes;
-        this->loading_progress = std::clamp(progress_float, 0.01, 0.99);
+        this->loading_progress = (f32)std::clamp(progress_float, 0.01, 0.99);
     }
 
     debugLog("Loaded {:d} osu!stable scores", nb_imported);
@@ -2626,7 +2632,7 @@ void Database::saveScores() {
         return;
     }
 
-    dbr.write_bytes((u8 *)"NEOSC", 5);
+    dbr.write_bytes(reinterpret_cast<const u8 *>("NEOSC"), 5);
     dbr.write<u32>(NEOMOD_SCORE_DB_VERSION);
 
     u32 nb_beatmaps = 0;
