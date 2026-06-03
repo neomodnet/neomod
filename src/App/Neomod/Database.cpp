@@ -554,21 +554,33 @@ std::pair<BeatmapSet *, bool /*added*/> Database::addBeatmapSet(const std::strin
 
     this->beatmapsets.push_back(std::move(mapset));
 
-    // post-load imports still need diffcalc + loudness kicked off here
-    // during the initial load the browser rebuilds from
-    // beatmapsets in onDatabaseLoadingFinished, so there's nothing to do.
+    // kick off loudness for the freshly added diffs. BatchDiffCalc finds maps needing diffcalc
+    // dynamically, but VolNormalization::start_calc only ever processes the explicit loudness_to_calc
+    // vector, so imports have to funnel their diffs into it themselves or never get calculated.
     if(this->isFinished()) {
         this->batch_diffcalc_pending = true;  // picked up by SongBrowser::update
 
-        // post-DB-load imports never made it into loudness_to_calc, so kick off priority
-        // requests now so the maps have correct loudness by the time the user previews them.
+        // post-load import: the batch loudness pass already ran, so request priority calc now so the
+        // map has correct loudness by the time the user previews it.
         for(const auto &diff : raw_mapset->getDifficulties()) {
             VolNormalization::request_priority(diff.get());
         }
-    }
 
-    if(cv::maps_save_immediately.getBool()) {
-        this->saveMaps();
+        // saveMaps already guards itself by this->isFinished(), but putting it here for clarity anyways
+        // NOTE: this should be removed, only done as a "hack" to prevent corrupt database/folder state
+        // (which loading from raw folders would fix in a better way)
+        // (mainly relevant on WASM where it's more likely that the page might be unloaded before we successfully saved on shutdown)
+        if(cv::maps_save_immediately.getBool()) {
+            this->saveMaps();
+        }
+    } else {
+        // pre-finish import (raw load / loose .osz on the loader thread): the priority worker won't run
+        // until after load and these never pass through loadMaps' db-read path (which is what normally
+        // populates loudness_to_calc), so add them for the batch start_calc at load completion. without
+        // this their loudness stays 0 until a restart re-reads them from the db.
+        for(const auto &diff : raw_mapset->getDifficulties()) {
+            this->loudness_to_calc.push_back(diff.get());
+        }
     }
 
     return {raw_mapset, true};
