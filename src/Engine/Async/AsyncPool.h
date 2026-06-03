@@ -148,6 +148,8 @@ class AsyncPool final {
 // ---------------------------------------------------------------------------
 namespace Async {
 
+inline size_t get_thread_count() { return AsyncPool::get().thread_count(); }
+
 template <typename F>
 auto submit(F&& f, Lane lane = Lane::Foreground) -> Future<std::invoke_result_t<F>> {
     return AsyncPool::get().submit(std::forward<F>(f), lane);

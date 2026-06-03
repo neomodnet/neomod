@@ -12,7 +12,7 @@
 #include <utility>
 
 AsyncResourceLoader::AsyncResourceLoader()
-    : iLoadsPerUpdate(static_cast<size_t>(std::ceil(static_cast<double>(AsyncPool::get().thread_count()) * (1. / 4.)))),
+    : iLoadsPerUpdate(static_cast<size_t>(std::ceil(static_cast<double>(Async::get_thread_count()) * (1. / 4.)))),
       iLoadsPerUpdateFloor(iLoadsPerUpdate) {}
 
 AsyncResourceLoader::~AsyncResourceLoader() { shutdown(); }

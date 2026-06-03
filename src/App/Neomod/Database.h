@@ -93,8 +93,8 @@ class Database final {
     void cancel();
     void save();
 
-    std::pair<BeatmapSet *, bool /*added*/> addBeatmapSet(const std::string &beatmapFolderPath,
-                                                          i32 set_id_override = -1, bool is_peppy = false);
+    std::pair<BeatmapSet *, bool /*added*/> addBeatmapSet(std::string_view beatmapFolderPath, i32 set_id_override = -1,
+                                                          bool is_peppy = false);
 
     // returns true if adding succeeded
     bool addScore(const FinishedScore &score);
@@ -137,9 +137,9 @@ class Database final {
     static std::string getOsuSongsFolder();
 
     // only used for raw loading without db
-    static std::unique_ptr<BeatmapSet> loadRawBeatmap(const std::string &beatmapPath, bool is_peppy = false);
+    static std::unique_ptr<BeatmapSet> loadRawBeatmap(std::string_view beatmapPath, bool is_peppy = false);
 
-    inline void addPathToImport(const std::string &dbPath) { this->extern_db_paths_to_import.push_back(dbPath); }
+    inline void addPathToImport(std::string_view dbPath) { this->extern_db_paths_to_import.emplace_back(dbPath); }
 
     // locks peppy_overrides mutex and updates overrides for loaded-from-stable-db maps which will be stored in the local database
     void update_overrides(const BeatmapDifficulty *diff);

@@ -493,8 +493,8 @@ void Database::save() {
 // NOTE: Should currently only be used for neomod beatmapsets! e.g. from maps/ folder
 //       See loadRawBeatmap()
 //       (unless is_peppy is specified, in which case we're loading a raw osu folder and not saving the things we loaded)
-std::pair<BeatmapSet *, bool /*added*/> Database::addBeatmapSet(const std::string &beatmapFolderPath,
-                                                                i32 set_id_override, bool is_peppy) {
+std::pair<BeatmapSet *, bool /*added*/> Database::addBeatmapSet(std::string_view beatmapFolderPath, i32 set_id_override,
+                                                                bool is_peppy) {
     std::unique_ptr<BeatmapSet> mapset = loadRawBeatmap(beatmapFolderPath, is_peppy);
     if(mapset == nullptr) return {};
 
@@ -595,15 +595,14 @@ void Database::importLooseOsz() {
     // runs on the loader thread before the song browser builds its buttons, so these maps are part of
     // the initial listing. isFinished() is still false here, so addBeatmapSet won't notify the
     // not-yet-built song browser, and appending to beatmapsets is safe (same thread as loadMaps).
-    std::vector<std::string> files = env->getFilesInFolder(NEOMOD_MAPS_PATH "/");
 
     std::vector<std::string> oszs;
-    for(auto &file : files) {
-        if(env->getFileExtensionFromFilePath(file) == "osz") oszs.push_back(std::move(file));
+    for(auto &file : env->getFilesInFolder(NEOMOD_MAPS_PATH "/")) {
+        if(file.ends_with(".osz")) oszs.push_back(std::move(file));
     }
     if(oszs.empty()) return;
 
-    debugLog("Importing {} loose .osz file(s) from {}", oszs.size(), NEOMOD_MAPS_PATH "/");
+    debugLog("Importing {:d} loose .osz file(s) from {}", oszs.size(), NEOMOD_MAPS_PATH "/");
 
     // the .osz aren't in loadMaps' byte budget, so the percentage stays pinned near 0.99 throughout
     // this loop; the import count surfaced via getImportDone()/getImportTotal() is the user's actual
@@ -617,7 +616,7 @@ void Database::importLooseOsz() {
     // disk faster than the imports that delete each source .osz.
     // (this loader is itself a pool task, but blocking on these sub-tasks is deadlock-free: the pool has
     // >= 2 threads, fg threads work-steal bg tasks, and read_and_extract_osz never re-enters the pool.)
-    const uSz window_size = std::min<uSz>(std::clamp<uSz>(AsyncPool::get().thread_count(), 4, 16), oszs.size());
+    const uSz window_size = std::min<uSz>(std::clamp<uSz>(Async::get_thread_count(), 4, 16), oszs.size());
 
     auto submit_extract = [](const std::string &osz_name) {
         return Async::submit(
@@ -2700,26 +2699,26 @@ void Database::saveScores() {
     debugLog("Saved {:d} scores in {:f} seconds.", nb_scores, (Timing::getTimeReal() - startTime));
 }
 
-std::unique_ptr<BeatmapSet> Database::loadRawBeatmap(const std::string &beatmapPath, bool is_peppy) {
+std::unique_ptr<BeatmapSet> Database::loadRawBeatmap(std::string_view beatmapPathUnsanitized, bool is_peppy) {
+    // this should never happen but guard against it anyways
+    // (lots of things expect beatmapPath to end with a path separator, if it doesn't, things would blow up in weird ways)
+    const std::string beatmapPath{beatmapPathUnsanitized.ends_with('/') ? beatmapPathUnsanitized
+                                                                        : fmt::format("{:s}/", beatmapPathUnsanitized)};
     logIfCV(debug_db, "beatmap path: {:s}", beatmapPath);
-
-    // try loading all diffs
-    DatabaseBeatmap::LoadError lastError;
 
     auto diffs = std::make_unique<DiffContainer>();
 
+    using enum DatabaseBeatmap::BeatmapType;
+    auto difficultyType = is_peppy ? PEPPY_DIFFICULTY : NEOMOD_DIFFICULTY;
+
+    // try loading all diffs
+    DatabaseBeatmap::LoadError lastError;
     std::vector<std::string> beatmapFiles = env->getFilesInFolder(beatmapPath);
-
     for(const auto &beatmapFile : beatmapFiles) {
-        std::string ext = env->getFileExtensionFromFilePath(beatmapFile);
-        if(ext.compare("osu") != 0) continue;
+        if(!beatmapFile.ends_with(".osu")) continue;
 
-        std::string fullFilePath = beatmapPath;
-        fullFilePath.append(beatmapFile);
-
-        auto map = std::make_unique<BeatmapDifficulty>(fullFilePath, beatmapPath,
-                                                       is_peppy ? DatabaseBeatmap::BeatmapType::PEPPY_DIFFICULTY
-                                                                : DatabaseBeatmap::BeatmapType::NEOMOD_DIFFICULTY);
+        const std::string fullFilePath = fmt::format("{:s}{:s}", beatmapPath, beatmapFile);
+        auto map = std::make_unique<BeatmapDifficulty>(fullFilePath, beatmapPath, difficultyType);
         auto res = map->loadMetadata();
         if(!res.error.errc) {
             diffs->push_back(std::move(map));
@@ -2731,9 +2730,8 @@ std::unique_ptr<BeatmapSet> Database::loadRawBeatmap(const std::string &beatmapP
 
     std::unique_ptr<BeatmapSet> set{nullptr};
     if(diffs && !diffs->empty()) {
-        set =
-            std::make_unique<BeatmapSet>(std::move(diffs), is_peppy ? DatabaseBeatmap::BeatmapType::PEPPY_BEATMAPSET
-                                                                    : DatabaseBeatmap::BeatmapType::NEOMOD_BEATMAPSET);
+        auto setType = is_peppy ? PEPPY_BEATMAPSET : NEOMOD_BEATMAPSET;
+        set = std::make_unique<BeatmapSet>(std::move(diffs), setType);
     }
 
     if(!set && lastError.errc) {
