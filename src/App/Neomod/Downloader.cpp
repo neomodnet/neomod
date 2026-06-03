@@ -300,7 +300,8 @@ bool write_entries_to_dir(const std::vector<Archive::Entry>& entries, std::strin
         if(entry.isDirectory()) continue;
 
         const std::string& filename = entry.getFilename();
-        if(filename.find("..") != std::string::npos) continue;  // path traversal guard
+        if(filename.find("../") != std::string::npos || filename.find("..\\") != std::string::npos)
+            continue;  // path traversal guard
 
         std::string dir_path{base};
         const auto folders = SString::split(filename, '/');
