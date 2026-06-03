@@ -58,9 +58,15 @@ void BeatmapInstaller::enqueue_local(std::string osz_path, bool auto_select, boo
 
     LocalEntry le;
     le.osz_path = std::move(osz_path);
-    le.auto_select = auto_select;
     le.delete_after = delete_after;
     le.stage = MapInstallStage::Queued;
+
+    // auto-select first enqueued map if we get > 1 at a time
+    // NOTE: this logic will work "incorrectly" if we ever try to enqueue a local beatmap to import with auto_select is false
+    // and the local_imports already has non-auto_select elements in it,
+    // but that currently never happens, and this is simpler than re-scanning it or adding more bookkeeping
+    le.auto_select = auto_select && this->local_imports.empty();
+
     this->local_imports.push_back(std::move(le));
 }
 
@@ -184,8 +190,7 @@ void BeatmapInstaller::update() {
                     le.stage = Failed;
                     le.finished_time = now;
                     ui->getNotificationOverlay()->addToast(
-                        fmt::format("Failed to import {}", Environment::getFileNameFromFilePath(le.osz_path)),
-                        ERROR_TOAST);
+                        tformat("Failed to import {}", Environment::getFileNameFromFilePath(le.osz_path)), ERROR_TOAST);
                 } else {
                     le.stage = Installing;
                 }
@@ -200,8 +205,7 @@ void BeatmapInstaller::update() {
                     le.stage = Failed;
                     le.finished_time = now;
                     ui->getNotificationOverlay()->addToast(
-                        fmt::format("Failed to import {}", Environment::getFileNameFromFilePath(le.osz_path)),
-                        ERROR_TOAST);
+                        tformat("Failed to import {}", Environment::getFileNameFromFilePath(le.osz_path)), ERROR_TOAST);
                 } else {
                     le.stage = Done;
                     le.finished_time = now;
@@ -250,8 +254,6 @@ void BeatmapInstaller::on_done(BeatmapSet* set, i32 set_id, bool added, bool aut
         // TODO: spaghetti
         // (onDifficultySelected just plays music, i.e. we can call it when we are still in online beatmaps screen)
         // otherwise actually select it
-        // ALSO TODO: if we are in songbrowser and importing a lot of maps, it will cause us to jump around...
-        // (existing issue)
         if(ui->getActiveScreen() == ui->getSongBrowserBase()) {
             ui->getSongBrowser()->selectBeatmapset(set);
         } else {

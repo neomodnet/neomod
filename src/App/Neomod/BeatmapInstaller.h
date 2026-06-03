@@ -60,6 +60,7 @@ class BeatmapInstaller final {
     // import a local .osz file (drag-drop, file association, maps/ watcher). the set id is unknown
     // until the archive is cracked open on a worker thread. delete_after removes the source file once
     // imported (used for the maps/ drop-zone, never for files the user passed in by path).
+    // NOTE: auto_select has some quirks you might want to read about if you set it to false (see enqueue_local function body)
     void enqueue_local(std::string osz_path, bool auto_select, bool delete_after);
 
     // aborts the in-flight transfer (if any) and drops the entry.

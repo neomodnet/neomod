@@ -34,6 +34,11 @@ msgid "Downloaded beatmapset #{:d}"
 msgstr "Mapset #{:d} téléchargé"
 
 #: src/App/Neomod/BeatmapInstaller.cpp
+#, fuzzy, c++-format
+msgid "Failed to import {}"
+msgstr "Échec du chargement de la map"
+
+#: src/App/Neomod/BeatmapInstaller.cpp
 #, c++-format
 msgid "Failed to download beatmapset #{:d} :("
 msgstr "Échec du téléchargement du mapset #{:d} :("

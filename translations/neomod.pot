@@ -17,6 +17,11 @@ msgstr ""
 
 #: src/App/Neomod/BeatmapInstaller.cpp
 #, c++-format
+msgid "Failed to import {}"
+msgstr ""
+
+#: src/App/Neomod/BeatmapInstaller.cpp
+#, c++-format
 msgid "Failed to download beatmapset #{:d} :("
 msgstr ""
 
