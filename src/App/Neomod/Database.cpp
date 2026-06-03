@@ -606,22 +606,42 @@ void Database::importLooseOsz() {
     debugLog("Importing {} loose .osz file(s) from {}", oszs.size(), NEOMOD_MAPS_PATH "/");
 
     // the .osz aren't in loadMaps' byte budget, so the percentage stays pinned near 0.99 throughout
-    // this loop; the import count surfaced via getLoadingMessage() is the user's actual progress signal.
+    // this loop; the import count surfaced via getImportDone()/getImportTotal() is the user's actual
+    // progress signal.
     this->import_total.store(static_cast<u32>(oszs.size()), std::memory_order_release);
 
+    // extraction (read + decompress + write) is ~99% of per-map cost and independent per file, so fan it
+    // out across the async pool while addBeatmapSet stays serial on this loader thread (it appends to
+    // beatmapsets / loudness_to_calc, which mustn't be touched concurrently). a bounded sliding window
+    // keeps at most window_size extractions in flight, so a huge drop can't pile up extracted folders on
+    // disk faster than the imports that delete each source .osz.
+    // (this loader is itself a pool task, but blocking on these sub-tasks is deadlock-free: the pool has
+    // >= 2 threads, fg threads work-steal bg tasks, and read_and_extract_osz never re-enters the pool.)
+    const uSz window_size = std::min<uSz>(std::clamp<uSz>(AsyncPool::get().thread_count(), 4, 16), oszs.size());
+
+    auto submit_extract = [](const std::string &osz_name) {
+        return Async::submit(
+            [path = NEOMOD_MAPS_PATH "/" + osz_name]() -> i32 { return Downloader::read_and_extract_osz(path); },
+            Lane::Background);
+    };
+
+    std::vector<Async::Future<i32>> window(window_size);
+    for(uSz i = 0; i < window_size; i++) window[i] = submit_extract(oszs[i]);
+
     for(uSz i = 0; i < oszs.size(); i++) {
-        if(this->isCancelled()) return;  // cancellation point
+        if(this->isCancelled()) return;  // abandons in-flight extracts; harmless, re-imported next run
 
-        this->import_done.store(static_cast<u32>(i + 1), std::memory_order_release);
-
+        // window[i % window_size] holds oszs[i]'s extraction (primed above, then refilled in order)
+        const i32 set_id = window[i % window_size].get();
         const std::string path = NEOMOD_MAPS_PATH "/" + oszs[i];
-
-        const i32 set_id = Downloader::read_and_extract_osz(path);
         if(set_id > 0 && this->addBeatmapSet(fmt::format(NEOMOD_MAPS_PATH "/{}/", set_id), set_id).first != nullptr) {
             env->deleteFile(path);
         } else {
             debugLog("Failed to import loose .osz {}", path);
         }
+        this->import_done.store(static_cast<u32>(i + 1), std::memory_order_release);
+
+        if(const uSz next = i + window_size; next < oszs.size()) window[i % window_size] = submit_extract(oszs[next]);
     }
 }
 
