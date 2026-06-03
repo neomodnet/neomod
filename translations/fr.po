@@ -3134,6 +3134,11 @@ msgid "Failed to find Beatmap #{:d} :("
 msgstr "Impossible de trouver la beatmap #{:d} :("
 
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
+#, fuzzy, c++-format
+msgid "Importing beatmaps ({:d}/{:d})"
+msgstr "Forcer le démarrage ({:d}/{:d})"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "0-9"
 msgstr "0-9"
 

@@ -1445,6 +1445,29 @@ class SongBrowser::BeatmapLoadingOverlay final : public LoadingScreen {
         return db->getProgress();
     }
 
+    void drawProgress() override {
+        LoadingScreen::drawProgress();
+
+        // loose .osz imports aren't part of the byte-based percentage, so without this the bar just
+        // sits pinned near the end with no sign of progress while a big drop extracts. surface the count.
+        const u32 total = db->getImportTotal();
+        if(total == 0) return;
+
+        auto *font = osu->getSubTitleFont();
+        const f32 shadowOffset = std::round(1.0f * Osu::getUIScale());
+        const std::string msg = tformat("Importing beatmaps ({:d}/{:d})", db->getImportDone(), total);
+
+        g->setColor(0xffffffff);
+        g->pushTransform();
+        {
+            g->translate((int)(osu->getVirtScreenWidth() / 2 - font->getStringWidth(msg) / 2),
+                         (int)(osu->getVirtScreenHeight() - 15 - font->getHeight() - 5.0f * Osu::getUIScale()));
+            g->drawString(font, msg,
+                          TextFX{.col_text = rgb(255, 255, 255), .col_shadow = rgb(0, 0, 0), .offs_px = shadowOffset});
+        }
+        g->popTransform();
+    }
+
     void finish() override {
         this->progress = 1.f;
 

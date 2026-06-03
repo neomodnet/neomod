@@ -109,6 +109,9 @@ class Database final {
     static int getLevelForScore(u64 score, int maxLevel = 120);
 
     [[nodiscard]] inline float getProgress() const { return this->loading_progress.load(std::memory_order_acquire); }
+    // loose .osz import counters for the loading overlay; total stays 0 when nothing is being imported
+    [[nodiscard]] inline u32 getImportDone() const { return this->import_done.load(std::memory_order_acquire); }
+    [[nodiscard]] inline u32 getImportTotal() const { return this->import_total.load(std::memory_order_acquire); }
     [[nodiscard]] inline bool isCancelled() const {
         return this->load_interrupted.load(std::memory_order_acquire) ||
                (this->db_load_handle.valid() && this->db_load_handle.stop.stop_requested());
@@ -201,6 +204,12 @@ class Database final {
     u64 bytes_processed{0};
     u64 total_bytes{0};
     std::atomic<float> loading_progress{0.f};
+
+    // loose .osz import progress for the loading overlay. written by the loader thread in
+    // importLooseOsz, read by the main-thread overlay via getImportDone()/getImportTotal(). total
+    // stays 0 when there's nothing to import.
+    std::atomic<u32> import_done{0};
+    std::atomic<u32> import_total{0};
 
     std::vector<std::string> extern_db_paths_to_import;
     // copy so that more can be added without thread races during loading

@@ -252,6 +252,9 @@ void Database::startLoader() {
 
     this->is_first_load = true;
 
+    this->import_done.store(0, std::memory_order_release);
+    this->import_total.store(0, std::memory_order_release);
+
     this->loudness_to_calc.clear();
     {
         Sync::unique_lock lock(this->beatmap_difficulties_mtx);
@@ -288,7 +291,6 @@ void Database::startLoader() {
 
                 // extract + import any loose .osz files dropped into maps/ before handing off to the
                 // song browser, so they're part of the initial listing.
-                // TODO: add to progress indicator
                 this->importLooseOsz();
                 if(tok.stop_requested()) goto done;
 
@@ -603,8 +605,14 @@ void Database::importLooseOsz() {
 
     debugLog("Importing {} loose .osz file(s) from {}", oszs.size(), NEOMOD_MAPS_PATH "/");
 
+    // the .osz aren't in loadMaps' byte budget, so the percentage stays pinned near 0.99 throughout
+    // this loop; the import count surfaced via getLoadingMessage() is the user's actual progress signal.
+    this->import_total.store(static_cast<u32>(oszs.size()), std::memory_order_release);
+
     for(uSz i = 0; i < oszs.size(); i++) {
         if(this->isCancelled()) return;  // cancellation point
+
+        this->import_done.store(static_cast<u32>(i + 1), std::memory_order_release);
 
         const std::string path = NEOMOD_MAPS_PATH "/" + oszs[i];
 
@@ -614,11 +622,6 @@ void Database::importLooseOsz() {
         } else {
             debugLog("Failed to import loose .osz {}", path);
         }
-
-        // nudge the loading bar forward through the import tail (loadMaps leaves us near 0.99); stays
-        // below 1.0 so the loading overlay keeps the song browser hidden until every import is done.
-        // (FIXME: HACK)
-        this->loading_progress = static_cast<f32>(0.99 + 0.0099 * (f64)(i + 1) / (f64)oszs.size());
     }
 }
 

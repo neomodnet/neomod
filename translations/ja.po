@@ -3150,6 +3150,11 @@ msgid "Failed to find Beatmap #{:d} :("
 msgstr "ビートマップ #{:d} が見つかりませんでした :("
 
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
+#, fuzzy, c++-format
+msgid "Importing beatmaps ({:d}/{:d})"
+msgstr "強制スタート ({:d}/{:d})"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "0-9"
 msgstr "0-9"
 
