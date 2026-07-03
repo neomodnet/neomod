@@ -13,8 +13,7 @@
 
 #include "SliderRenderer.h"
 #include "SliderCurves.h"
-
-#include "fmt/format.h"
+#include "Logging.h"
 
 #include <algorithm>
 #include <array>
@@ -53,8 +52,9 @@ void SliderRenderTest::rebuildBattery() {
         {"loop", SLIDERCURVETYPE::BEZIER, {{20, 80}, {210, 25}, {210, 130}, {35, 35}, {70, 140}}},  // self-overlapping
     };
     // aspire "wobble" slider: dozens of oscillating, duplicated control points crammed into a tiny box, so the
-    // tessellated path retraces itself many times with a cusp at every reversal (mirrors the pathological
-    // bill wurtz - slow down last slider). stresses zero-length segments + unstable convex sides + T-junctions.
+    // tessellated path retraces itself many times with a cusp at every reversal.
+    // stresses zero-length segments + unstable convex sides + T-junctions 
+    // (see sliders on https://osu.ppy.sh/beatmapsets/1799342#osu/3688621)
     {
         ShapeDef wobble{"wobble", SLIDERCURVETYPE::BEZIER, {}};
         for(int k = 0; k < 60; ++k) {
@@ -225,9 +225,9 @@ void SliderRenderTest::draw() {
     }
     m_perfAccum += engine->getFrameTime();
     if(++m_perfFrames >= 100) {
-        fmt::print(stderr, "[perf] {:<4} sep={:.2f} stress=x{:<2} draws={:<4} avg={:.3f} ms ({} frames)\n",
-                   sdf ? "SDF" : "CONE", cv::slider_curve_points_separation.getFloat(), m_stressCount, drawn,
-                   (m_perfAccum / (f64)m_perfFrames) * 1000.0, m_perfFrames);
+        logRaw("[perf] {:<4} sep={:.2f} stress=x{:<2} draws={:<4} avg={:.3f} ms ({} frames)", sdf ? "SDF" : "CONE",
+               cv::slider_curve_points_separation.getFloat(), m_stressCount, drawn,
+               (m_perfAccum / (f64)m_perfFrames) * 1000.0, m_perfFrames);
         m_perfAccum = 0.0;
         m_perfFrames = 0;
     }

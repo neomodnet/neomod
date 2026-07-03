@@ -164,8 +164,8 @@ bool usingSDF() {
 
 std::unique_ptr<VertexArrayObject> generateVAO(vec2 screenRect, std::span<const vec2> points, f32 hitcircleDiameter,
                                                vec3 translation, bool skipOOBPoints) {
-    resourceManager->requestNextLoadUnmanaged();
-    std::unique_ptr<VertexArrayObject> vao{resourceManager->createVertexArrayObject()};
+    std::unique_ptr<VertexArrayObject> vao{
+        g->createVertexArrayObject(DrawPrimitive::TRIANGLES, DrawUsageType::STATIC, /*keepInSystemMemory=*/false)};
 
     checkUpdateVars(hitcircleDiameter);
 
@@ -180,10 +180,10 @@ std::unique_ptr<VertexArrayObject> generateVAO(vec2 screenRect, std::span<const 
         return point.x < bounds.x || point.x > bounds.y || point.y < bounds.z || point.y > bounds.w;
     };
 
-    const vec3 xOffset = vec3(hitcircleDiameter, 0, 0);
-    const vec3 yOffset = vec3(0, hitcircleDiameter, 0);
-
     if(cv::slider_debug_draw_square_vao.getBool()) {  // debug
+        const vec3 xOffset = vec3(hitcircleDiameter, 0, 0);
+        const vec3 yOffset = vec3(0, hitcircleDiameter, 0);
+
         for(const auto &point : points) {
             if(skipOOBPoints && isOOB(point)) continue;
 
@@ -206,6 +206,8 @@ std::unique_ptr<VertexArrayObject> generateVAO(vec2 screenRect, std::span<const 
                                                   vec2{1, 0}});
         }
     } else if(usingSDF()) {  // analytic distance-field body (regular fast path)
+        // TODO: rewrite this
+
         // render the body as an exact distance field instead of stamping a full cone disc at every curve point
         // (massive overdraw: neighboring radius-r discs sit only ~2.5 osu!px apart). each primitive's texcoord
         // carries (fragment - nearest curve feature)/r, and the sliderSDF shader writes length(texcoord) to
@@ -381,7 +383,8 @@ std::unique_ptr<VertexArrayObject> generateVAO(vec2 screenRect, std::span<const 
     }
 
     if(vao->getNumVertices() > 0) {
-        resourceManager->loadResource(vao.get());
+        vao->loadAsync();
+        vao->load();
     } else {
         debugLog("ERROR: Zero triangles!");
     }

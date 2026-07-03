@@ -64,7 +64,7 @@ class SliderRenderTest : public App {
     f32 m_hitcircleDiameter{70.0f};
     int m_numShapes{0};  // set by rebuildBattery
 
-    // headless perf readout: averages real frame time to stderr (windowed frame time isn't useful on a vsync-
+    // headless perf readout: averages real frame time to stdout (windowed frame time isn't useful on a vsync-
     // blocked swapchain, but -headless doesn't block, so the SDF vs cone GPU cost shows up there)
     f64 m_perfAccum{0.0};
     int m_perfFrames{0};
