@@ -133,7 +133,8 @@ class Environment {
     static const std::string &getPathToSelf(const char *argv0 = nullptr);
 
     // i.e. getenv()
-    [[nodiscard]] static std::string getEnvVariable(std::string_view varToQuery) noexcept;
+    // isUnset is an out variable, if the variable was unset it will be set to true
+    [[nodiscard]] static std::string getEnvVariable(std::string_view varToQuery, bool *isUnset = nullptr) noexcept;
     // i.e. setenv()
     static bool setEnvVariable(std::string_view varToSet, std::string_view varValue, bool overwrite = true) noexcept;
     // i.e. unsetenv()

@@ -212,11 +212,13 @@ Environment::Environment(const Mc::AppDescriptor &appDesc,
     });
     cv::getenv.setCallback([](std::string_view args) -> void {
         SString::trim_inplace(args);
-        if(args.empty()) {
-            logRaw("[getenv] variable {:s} is unset", args);
-        } else {
-            for(auto var : SString::split(args, ' ')) {
-                logRaw("{:s}={:s}", var, Environment::getEnvVariable(var));
+        for(auto var : SString::split(args, ' ')) {
+            bool unset = false;
+            const std::string value = Environment::getEnvVariable(var, &unset);
+            if(unset) {
+                logRaw("[getenv] {:s} is not set", var);
+            } else {
+                logRaw("{:s}={:s}", var, value);
             }
         }
         cv::getenv.setValue("", false);
@@ -709,15 +711,20 @@ const std::string &Environment::getPathToSelf(const char *argv0) {
     return pathStr;
 }
 
-std::string Environment::getEnvVariable(std::string_view varToQuery) noexcept {
-    const char *varVal = nullptr;
+std::string Environment::getEnvVariable(std::string_view varToQuery, bool *isUnset) noexcept {
+    bool wasUnset = false;
+    std::string ret;
     if(s_sdlenv && !varToQuery.empty()) {
-        varVal = SDL_GetEnvironmentVariable(s_sdlenv, std::string{varToQuery}.c_str());
-        if(varVal) {
-            return std::string{varVal};
+        if(const char *varVal = SDL_GetEnvironmentVariable(s_sdlenv, std::string{varToQuery}.c_str())) {
+            ret = varVal;
+        } else {
+            wasUnset = true;
         }
     }
-    return {""};
+    if(!!isUnset) {
+        *isUnset = wasUnset;
+    }
+    return ret;
 }
 
 bool Environment::setEnvVariable(std::string_view varToSet, std::string_view varValue, bool overwrite) noexcept {
