@@ -111,9 +111,6 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT::LOAD_GAMEPLAY_RESULT(DatabaseBeatmap::LOA
 DatabaseBeatmap::LOAD_GAMEPLAY_RESULT &DatabaseBeatmap::LOAD_GAMEPLAY_RESULT::operator=(
     DatabaseBeatmap::LOAD_GAMEPLAY_RESULT &&) noexcept = default;
 
-DatabaseBeatmap::DatabaseBeatmap() = default;
-DatabaseBeatmap::~DatabaseBeatmap() = default;
-
 DatabaseBeatmap::DatabaseBeatmap(std::unique_ptr<char[]> filePath, std::unique_ptr<char[]> folder, BeatmapType type)
     : sFolder(std::move(folder)), sFilePath(std::move(filePath)), type(type) {
     this->iVersion = cv::beatmap_version.getInt();
@@ -179,94 +176,6 @@ void DatabaseBeatmap::updateRepresentativeValues() noexcept {
             this->last_modification_time = diff->last_modification_time;
     }
 }
-
-void swap(DatabaseBeatmap &a, DatabaseBeatmap &b) noexcept {
-    // "swap field" temp macro, trying to avoid bloating line count for this file with these ctors/operators
-    // clang-format off
-#define SF(fieldname) std::swap(a.fieldname, b.fieldname);
-    SF(sMD5Hash)           SF(difficulties)  SF(parentSet)                SF(timingpoints)    SF(sFolder)           SF(sFilePath)         SF(last_modification_time)
-    SF(sTitle)             SF(sTitleUnicode) SF(sArtist)                  SF(sArtistUnicode)  SF(sCreator)          SF(sDifficultyName)
-    SF(sSource)            SF(sTags)         SF(sBackgroundImageFileName) SF(sAudioFileName)  SF(iID)               SF(iLengthMS)
-    SF(iLocalOffset)       SF(iOnlineOffset) SF(iSetID)                   SF(iPreviewTime)    SF(fAR)               SF(fCS)
-    SF(fHP)                SF(fOD)           SF(fStackLeniency)           SF(fSliderTickRate) SF(fSliderMultiplier) SF(ppv2Version)
-    SF(fStarsNomod)        SF(star_ratings)  SF(iMinBPM)                  SF(iMaxBPM)         SF(iMostCommonBPM)    SF(iNumCircles)
-    SF(iNumSliders)        SF(iNumSpinners)  SF(last_queried_sr)          SF(last_queried_sr_idx)
-    SF(iVersion)           SF(type)          SF(do_not_store)  SF(draw_background)
-#undef SF
-        // clang-format on
-
-        auto tmp_loudness = a.loudness.load(std::memory_order_relaxed);
-    a.loudness.store(b.loudness.load(std::memory_order_relaxed), std::memory_order_relaxed);
-    b.loudness.store(tmp_loudness, std::memory_order_relaxed);
-
-    auto tmp_md5 = a.md5_init.load(std::memory_order_relaxed);
-    a.md5_init.store(b.md5_init.load(std::memory_order_relaxed), std::memory_order_relaxed);
-    b.md5_init.store(tmp_md5, std::memory_order_relaxed);
-}
-
-// temp shorthand macros
-#define COPYOTHER(field) field(other.field)
-#define MOVEOTHER(field) field(std::move(other.field))
-#define ATOMICOTHER(field) field(other.field.load(std::memory_order_relaxed))
-#define COPYUPCSTR(field) field(SString::strcpy_u(other.field.get()))
-
-DatabaseBeatmap::DatabaseBeatmap(const DatabaseBeatmap &other)
-    // clang-format off
-    : COPYOTHER(sMD5Hash),            COPYOTHER(parentSet),                COPYOTHER(timingpoints),     COPYUPCSTR(sFolder),
-      COPYUPCSTR(sFilePath),          COPYOTHER(last_modification_time),   COPYUPCSTR(sTitle),
-      COPYUPCSTR(sTitleUnicode),      COPYUPCSTR(sArtist),                 COPYUPCSTR(sArtistUnicode),
-      COPYUPCSTR(sCreator),           COPYUPCSTR(sDifficultyName),         COPYUPCSTR(sSource),
-      COPYUPCSTR(sTags),              COPYUPCSTR(sBackgroundImageFileName),COPYUPCSTR(sAudioFileName),
-      COPYOTHER(iID),                 COPYOTHER(iLengthMS),                COPYOTHER(iLocalOffset),
-      COPYOTHER(iOnlineOffset),       COPYOTHER(iSetID),                   COPYOTHER(iPreviewTime),
-      COPYOTHER(fAR),                 COPYOTHER(fCS),                      COPYOTHER(fHP),
-      COPYOTHER(fOD),                 COPYOTHER(fStackLeniency),           COPYOTHER(fSliderTickRate),
-      COPYOTHER(fSliderMultiplier),   COPYOTHER(ppv2Version),              COPYOTHER(fStarsNomod),
-      COPYOTHER(star_ratings),        COPYOTHER(iMinBPM),                  COPYOTHER(iMaxBPM),
-      COPYOTHER(iMostCommonBPM),      COPYOTHER(iNumCircles),
-      COPYOTHER(iNumSliders),         COPYOTHER(iNumSpinners),             ATOMICOTHER(loudness),
-      COPYOTHER(last_queried_sr),     COPYOTHER(last_queried_sr_idx),
-      COPYOTHER(iVersion),            ATOMICOTHER(md5_init),
-      COPYOTHER(type),                COPYOTHER(do_not_store),             COPYOTHER(draw_background) {
-    // clang-format on
-
-    if(other.difficulties) {
-        this->difficulties = std::make_unique<DiffContainer>();
-        for(const auto &diff : *other.difficulties) {
-            assert(diff != nullptr);
-            this->difficulties->emplace_back(std::make_unique<BeatmapDifficulty>(*diff));
-        }
-    }
-}
-
-DatabaseBeatmap::DatabaseBeatmap(DatabaseBeatmap &&other) noexcept
-    // clang-format off
-    : COPYOTHER(sMD5Hash),           MOVEOTHER(difficulties),        COPYOTHER(parentSet),        MOVEOTHER(timingpoints),
-      MOVEOTHER(sFolder),            MOVEOTHER(sFilePath),           MOVEOTHER(last_modification_time),
-      MOVEOTHER(sTitle),             MOVEOTHER(sTitleUnicode),       MOVEOTHER(sArtist),
-      MOVEOTHER(sArtistUnicode),     MOVEOTHER(sCreator),            MOVEOTHER(sDifficultyName),
-      MOVEOTHER(sSource),            MOVEOTHER(sTags),               MOVEOTHER(sBackgroundImageFileName),
-      MOVEOTHER(sAudioFileName),     COPYOTHER(iID),                 COPYOTHER(iLengthMS),
-      COPYOTHER(iLocalOffset),       COPYOTHER(iOnlineOffset),       COPYOTHER(iSetID),
-      COPYOTHER(iPreviewTime),       COPYOTHER(fAR),                 COPYOTHER(fCS),
-      COPYOTHER(fHP),                COPYOTHER(fOD),                 COPYOTHER(fStackLeniency),
-      COPYOTHER(fSliderTickRate),    COPYOTHER(fSliderMultiplier),   COPYOTHER(ppv2Version),
-      COPYOTHER(fStarsNomod),        COPYOTHER(star_ratings),        COPYOTHER(iMinBPM),
-      COPYOTHER(iMaxBPM),            COPYOTHER(iMostCommonBPM),      COPYOTHER(iNumCircles),
-      COPYOTHER(iNumSliders),        COPYOTHER(iNumSpinners),        ATOMICOTHER(loudness),
-      COPYOTHER(last_queried_sr),    COPYOTHER(last_queried_sr_idx),
-      COPYOTHER(iVersion),           ATOMICOTHER(md5_init),
-      COPYOTHER(type),               COPYOTHER(do_not_store),       COPYOTHER(draw_background) {
-    // clang-format on
-
-    other.difficulties.reset();
-    other.timingpoints.clear();
-}
-
-#undef COPYUPCSTR
-#undef COPYOTHER
-#undef ATOMICOTHER
-#undef MOVEOTHER
 
 bool DatabaseBeatmap::operator==(const DatabaseBeatmap &other) const {
     // we are both BeatmapDifficulties

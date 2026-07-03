@@ -212,7 +212,7 @@ class DatabaseBeatmap final {
         i32 positionMS, const FixedSizeArray<DBType::TIMINGPOINT> &timingpoints);
 
 #ifndef BUILD_TOOLS_ONLY
-
+    NOCOPY_NOMOVE(DatabaseBeatmap)
    public:
     enum class BeatmapType : uint8_t {
         NEOMOD_BEATMAPSET,
@@ -221,8 +221,8 @@ class DatabaseBeatmap final {
         PEPPY_DIFFICULTY,
     };
 
-    DatabaseBeatmap();
-    ~DatabaseBeatmap();
+    DatabaseBeatmap() = delete;
+    ~DatabaseBeatmap() = default;
 
     DatabaseBeatmap(const std::string &filePath, const std::string &folder, BeatmapType type);  // beatmap difficulty
     DatabaseBeatmap(std::unique_ptr<char[]> filePath, std::unique_ptr<char[]> folder,
@@ -230,18 +230,9 @@ class DatabaseBeatmap final {
     DatabaseBeatmap(std::unique_ptr<DiffContainer> &&difficulties,
                     BeatmapType type);  // beatmapset
 
-    DatabaseBeatmap(const DatabaseBeatmap &);
-    DatabaseBeatmap(DatabaseBeatmap &&) noexcept;
-    DatabaseBeatmap &operator=(DatabaseBeatmap other) noexcept {
-        swap(*this, other);
-        return *this;
-    }
-
     // for difficulties, compares MD5 hash for equality
     // if both are mapsets, recursively compare their contained difficulties' MD5 hashes
     bool operator==(const DatabaseBeatmap &other) const;
-
-    friend void swap(DatabaseBeatmap &a, DatabaseBeatmap &b) noexcept;
 
     // if we are a beatmapset, update values from difficulties
     void updateRepresentativeValues() noexcept;
@@ -487,7 +478,6 @@ class DatabaseBeatmap final {
     u32 ppv2Version{0};  // necessary for knowing if stars are up to date
     float fStarsNomod{0.f};
     // points into Database::star_ratings map (stable via unique_ptr)
-    // NOTE?TODO?WARNING @spec: i just realized this is unsafe if we ever want to copy DatabaseBeatmap objects around and the star ratings map removes an entry...
     StarPrecalc::SRArray *star_ratings{nullptr};
 
     int iMinBPM{0};
