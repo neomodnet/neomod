@@ -874,10 +874,9 @@ CONVAR(slider_body_lazer_fadeout_style, true, CLIENT | SKINS | SERVER,
        "out the last remaining part of the body (instead of vanishing instantly)");
 CONVAR(slider_body_smoothsnake, true, CLIENT | SKINS | SERVER,
        "draw 1 extra interpolated circle mesh at the start & end of every slider for extra smooth snaking/shrinking");
-CONVAR(slider_body_sdf, true, CLIENT | SKINS | SERVER,
-       "render slider bodies as an analytic distance-field mesh (exact, low-overdraw, smooth at any quality) instead "
-       "of overlapping cone discs; far less GPU overhead. falls back to cone discs on GLES, for dynamic mods, and "
-       "when slider_use_gradient_image is enabled");
+CONVAR(slider_body_sdf, false, CLIENT | SKINS | SERVER,
+       "render slider bodies as an analytic distance-field mesh (exact, low-overdraw, smooth at any quality) instead."
+       " auto-falls-back to cone mesh if slider_use_gradient_image is used");
 CONVAR(slider_body_unit_circle_subdivisions, 42, CLIENT | SKINS | SERVER);
 CONVAR(slider_border_feather, 0.0f, CLIENT | SKINS | SERVER, CFUNC(SliderRenderer::onUniformConfigChanged));
 CONVAR(slider_border_size_multiplier, 1.0f, CLIENT | SKINS | SERVER, CFUNC(SliderRenderer::onUniformConfigChanged));
