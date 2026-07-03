@@ -108,10 +108,14 @@ static inline char *av_make_error_string(char *errbuf, size_t errbuf_size, int e
 }  // namespace funcs
 
 // open the libraries and populate the function pointers
+// (false == ffmpeg unusable)
 bool init();
 
 // if init failed, this might have something
 std::string_view getInitError();
+
+// check if the debug_ffmpeg cvar is set
+bool isDebugEnabled();
 }  // namespace Mc::FFmpeg
 
 #endif  // defined(MCENGINE_FEATURE_FFMPEG)

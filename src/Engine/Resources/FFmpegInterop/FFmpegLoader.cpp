@@ -7,6 +7,7 @@
 #include "EngineConfig.h"
 #include "dynutils.h"
 #include "SyncMutex.h"
+#include "SyncOnce.h"
 #include "Logging.h"
 #include "SString.h"
 
@@ -51,9 +52,6 @@ struct LoadContext {
     dynutils::lib_obj *swscale_handle{nullptr};
     dynutils::lib_obj *avcodec_handle{nullptr};
     dynutils::lib_obj *avformat_handle{nullptr};
-
-    bool initialized{false};
-    bool available{false};
 
     // initialization state
     std::string error_string{""};
@@ -244,16 +242,29 @@ bool init_internal() {
     ld_ctx().error_string = "";
     return true;
 }
+
+Sync::once_flag ffmpeg_init_once;
+bool ffmpeg_available{false};
+
 }  // namespace
 
+std::string_view getInitError() { return ld_ctx().error_string; }
+
 bool init() {
-    if(ld_ctx().initialized) return ld_ctx().available;
-    const bool available = ld_ctx().available = init_internal();
-    ld_ctx().initialized = true;
-    return available;
+    Sync::call_once(ffmpeg_init_once, []() {
+        ffmpeg_available = init_internal();
+        if(!ffmpeg_available) {
+            logRaw("Failed to load FFmpeg: {}", getInitError());
+        }
+    });
+    return ffmpeg_available;
 }
 
-std::string_view getInitError() { return ld_ctx().error_string; }
+bool isDebugEnabled() {
+    if(cv::debug_ffmpeg.isDefault()) return false;
+    const auto &str = cv::debug_ffmpeg.getString();
+    return (!str.empty() && str != "0" && str != "none" && str != "false");
+}
 
 }  // namespace Mc::FFmpeg
 

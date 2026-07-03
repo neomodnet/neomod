@@ -14,18 +14,6 @@ namespace Mc::FFmpeg {
 using namespace funcs;
 
 namespace {
-Sync::once_flag ffmpeg_init_once;
-bool ffmpeg_available{false};
-
-bool loadffmpeg() {
-    Sync::call_once(ffmpeg_init_once, []() {
-        ffmpeg_available = Mc::FFmpeg::init();
-        if(!ffmpeg_available) {
-            logRaw("Failed to load FFmpeg: {}", Mc::FFmpeg::getInitError());
-        }
-    });
-    return ffmpeg_available;
-}
 
 // auto ffmpeg state cleanup
 struct FFState {  // NOLINT
@@ -64,13 +52,9 @@ struct MemReader {
 
 ImageDecodeResult decodeFFmpegFromMemory(Image *this_, const u8 *inData, u64 size) {
     using enum ImageDecodeResult;
-    if(!loadffmpeg()) return UNAVAILABLE;
+    if(!Mc::FFmpeg::init()) return UNAVAILABLE;
 
-    const bool ff_debug_enabled = [] -> bool {
-        if(cv::debug_ffmpeg.isDefault()) return false;
-        const auto &str = cv::debug_ffmpeg.getString();
-        return (!str.empty() && str != "0" && str != "none" && str != "false");
-    }();
+    const bool ff_debug_enabled = Mc::FFmpeg::isDebugEnabled();
 
     MemReader mem{inData, size, 0};
 
