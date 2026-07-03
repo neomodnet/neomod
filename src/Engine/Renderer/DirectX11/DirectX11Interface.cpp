@@ -530,6 +530,8 @@ void DirectX11Interface::drawImage(const Image *image, AnchorPoint anchor, float
         this->smoothClipShader->setUniform2f("rect_min", clipMinX, clipMinY);
         this->smoothClipShader->setUniform2f("rect_max", clipMaxX, clipMaxY);
         this->smoothClipShader->setUniform1f("edge_softness", edgeSoftness);
+        this->smoothClipShader->setUniform4f("col", m_data->color.Rf(), m_data->color.Gf(), m_data->color.Bf(),
+                                             m_data->color.Af());
 
         // set mvp for the shader
         this->smoothClipShader->setMVP(m_data->MP);
