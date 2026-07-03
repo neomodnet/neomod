@@ -30,8 +30,7 @@
 #include "binary_embed.h"
 
 OpenGLES32Interface::OpenGLES32Interface(void *window)
-    : SDLGLInterface(static_cast<SDL_Window *>(window)),
-      m_vResolution(engine->getScreenSize()) {
+    : SDLGLInterface(static_cast<SDL_Window *>(window)), m_vResolution(engine->getScreenSize()) {
     // renderer
     m_bInScene = false;
 
@@ -705,6 +704,8 @@ void OpenGLES32Interface::setBlending(bool enabled) {
 void OpenGLES32Interface::setBlendMode(DrawBlendMode blendMode) {
     Graphics::setBlendMode(blendMode);
 
+    // only MAX uses a non-default blend equation, so unconditionally restore ADD for the others
+    glBlendEquation(blendMode == DrawBlendMode::MAX ? GL_MAX : GL_FUNC_ADD);
     switch(blendMode) {
         case DrawBlendMode::ALPHA:
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -717,6 +718,9 @@ void OpenGLES32Interface::setBlendMode(DrawBlendMode blendMode) {
             break;
         case DrawBlendMode::PREMUL_COLOR:
             glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+            break;
+        case DrawBlendMode::MAX:
+            glBlendFunc(GL_ONE, GL_ONE);
             break;
     }
 }

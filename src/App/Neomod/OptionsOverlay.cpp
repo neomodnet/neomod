@@ -643,13 +643,16 @@ class SliderPreviewElement final : public CBaseUIElement {
                             .to = 1,
                             .undimmedColor = osu->getSkin()->getComboColorForCounter(420, 0)});
                     else {
-                        // (lazy generate vao)
-                        if(!this->vao || length != this->fPrevLength) {
+                        // (lazy generate vao; also regenerate when the SDF/cone mode changed since the last bake)
+                        if(!this->vao || length != this->fPrevLength ||
+                           this->bPrevSDFMode != SliderRenderer::usingSDF()) {
                             this->fPrevLength = length;
+                            this->bPrevSDFMode = SliderRenderer::usingSDF();
 
                             debugLog("Regenerating options menu slider preview vao ...");
 
-                            this->vao = SliderRenderer::generateVAO(osu->getVirtScreenSize(), points, hitcircleDiameter, vec3{}, false);
+                            this->vao = SliderRenderer::generateVAO(osu->getVirtScreenSize(), points, hitcircleDiameter,
+                                                                    vec3{}, false);
                         }
                         vec4 emptyBounds{};
                         SliderRenderer::draw(SliderRenderer::DrawVAOParams{
@@ -691,6 +694,7 @@ class SliderPreviewElement final : public CBaseUIElement {
 
    private:
     std::unique_ptr<VertexArrayObject> vao{nullptr};
+    bool bPrevSDFMode{false};  // SliderRenderer::usingSDF() at bake time (rebake trigger)
     float fPrevLength{0.f};
     bool bDrawSliderHack{true};
 };

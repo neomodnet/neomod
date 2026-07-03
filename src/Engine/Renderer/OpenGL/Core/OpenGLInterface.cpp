@@ -66,7 +66,8 @@ bool OpenGLInterface::init() {
     glFrontFace(GL_CCW);
 
     // debugging
-    auto glDebugFunc = glDebugMessageCallback ? glDebugMessageCallback : (glDebugMessageCallbackARB ? glDebugMessageCallbackARB : nullptr);
+    auto glDebugFunc = glDebugMessageCallback ? glDebugMessageCallback
+                                              : (glDebugMessageCallbackARB ? glDebugMessageCallbackARB : nullptr);
     if(glDebugFunc) {
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
         glDebugFunc(SDLGLInterface::glDebugCB, nullptr);
@@ -709,6 +710,8 @@ void OpenGLInterface::setBlending(bool enabled) {
 void OpenGLInterface::setBlendMode(DrawBlendMode blendMode) {
     Graphics::setBlendMode(blendMode);
 
+    // only MAX uses a non-default blend equation, so unconditionally restore ADD for the others
+    glBlendEquation(blendMode == DrawBlendMode::MAX ? GL_MAX : GL_FUNC_ADD);
     switch(blendMode) {
         case DrawBlendMode::ALPHA:
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -721,6 +724,9 @@ void OpenGLInterface::setBlendMode(DrawBlendMode blendMode) {
             break;
         case DrawBlendMode::PREMUL_COLOR:
             glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+            break;
+        case DrawBlendMode::MAX:
+            glBlendFunc(GL_ONE, GL_ONE);
             break;
     }
 }

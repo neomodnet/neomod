@@ -2367,7 +2367,7 @@ void Slider::rebuildVertexBuffer(bool useRawCoords) {
         for(auto &p : osuCoordPoints) p = m_pi->osuCoords2LegacyPixels(p - m_stackOffset);
     }
     m_vao = SliderRenderer::generateVAO(osu->getVirtScreenSize(), osuCoordPoints, m_pi->fRawHitcircleDiameter,
-                                        /*translation=*/vec3{});
+                                        /*translation=*/vec3{}, /*skipOOBPoints=*/true);
 }
 
 Slider::~Slider() { onReset(0); }

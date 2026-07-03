@@ -66,8 +66,8 @@ AboutScreen::AboutScreen() : ScreenBackable() {
         R"(  - Added right-click-to-open-beatmapset)",
         R"(  - Fixed various beatmap card overflow behaviors)",
         R"(- Fixed skin dropdown in options menu blocking drag-scrolling)",
-        // TODO: maybe before next release
-        // R"(- Implemented SDF-based slider rendering for improved quality & performance)",
+        R"(- Implemented SDF-based slider rendering for improved quality & performance)",
+        R"(  - Enabled by default, set slider_body_sdf 0 to disable (please report any issues on Discord or GitHub!))",
         R"(- Updated mod selector screen in song browser to be transparent)",
         R"(- Refactored and improved UI element focus behavior overall (please report bugs/regressions))",
     };

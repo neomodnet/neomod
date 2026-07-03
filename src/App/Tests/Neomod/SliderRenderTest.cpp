@@ -53,7 +53,7 @@ void SliderRenderTest::rebuildBattery() {
     };
     // aspire "wobble" slider: dozens of oscillating, duplicated control points crammed into a tiny box, so the
     // tessellated path retraces itself many times with a cusp at every reversal.
-    // stresses zero-length segments + unstable convex sides + T-junctions 
+    // stresses zero-length segments + unstable convex sides + T-junctions
     // (see sliders on https://osu.ppy.sh/beatmapsets/1799342#osu/3688621)
     {
         ShapeDef wobble{"wobble", SLIDERCURVETYPE::BEZIER, {}};
@@ -255,6 +255,17 @@ void SliderRenderTest::onKeyDown(KeyboardEvent &e) {
     } else if(sc == KEY_Z) {  // cycle solo-zoom: grid -> shape0 -> ... -> shapeN -> grid
         m_solo = m_solo + 1 >= m_numShapes ? -1 : m_solo + 1;
         rebuildBattery();
+        e.consume();
+    } else if(sc >= KEY_1 && sc <= KEY_0) {
+        static_assert((int)KEY_1 + 9 == (int)KEY_0);
+        const int shape = (int)sc - (int)KEY_1;
+        if(shape == 9 /*KEY_0*/) {
+            m_solo = -1;
+            rebuildBattery();
+        } else if(shape >= 0 && shape < m_numShapes) {
+            m_solo = shape;
+            rebuildBattery();
+        }
         e.consume();
     }
 }

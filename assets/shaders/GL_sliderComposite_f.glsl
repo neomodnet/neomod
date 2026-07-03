@@ -1,18 +1,13 @@
 #version {RUNTIME_VERSION}
 
-// analytic distance-field slider body: tex_coord is the fragment's offset from the nearest curve feature,
-// normalized by the body radius. its magnitude is the exact distance field, written to gl_FragDepth so
-// overlapping primitives resolve to the nearest feature (GL_LESS = seamless tube union); fragments outside
-// the unit disc (d >= 1) fail against the 1.0 depth clear, giving exactly round caps/joins with no discard.
-// radial (1 at the centerline, 0 at the edge) replaces the old per-vertex-baked tex_coord.x.
+// tex holds the slider's accumulated distance field (see the sliderField shader): the MAX-blend union of
+// every primitive's radial gradient, i.e. exactly the radial the old one-pass shaders computed per
+// primitive, but resolved to the nearest curve feature. shading it here runs the gradient once per pixel
+// no matter how much the body geometry self-overlaps, and radial ramping to 0 keeps the silhouette
+// analytically round at any tessellation density.
 
 #ifdef GL_ES
-
-// NOTE: GLES (#version 100) has no core gl_FragDepth; this needs GL_EXT_frag_depth.
-#extension GL_EXT_frag_depth : enable
-
 precision highp float;
-
 #endif
 
 uniform sampler2D tex;
@@ -21,6 +16,7 @@ uniform float bodyColorSaturation;
 uniform float bodyAlphaMultiplier;
 uniform float borderSizeMultiplier;
 uniform float borderFeather;
+uniform float alphaMultiplier;
 uniform vec3 colBorder;
 uniform vec3 colBody;
 
@@ -50,13 +46,7 @@ vec4 getOuterBodyColor(in vec4 bodyColor)
 
 void main()
 {
-	float d = length(tex_coord);
-#ifdef GL_ES
-	gl_FragDepthEXT = d;
-#else
-	gl_FragDepth = d;
-#endif
-	float radial = 1.0 - d;
+	float radial = texture2D(tex, tex_coord).r;
 
 	float borderSize = (defaultBorderSize + borderFeather) * borderSizeMultiplier;
 	float transitionSize = defaultTransitionSize + borderFeather;
@@ -108,6 +98,9 @@ void main()
 		float delta = ((radial - size) / (1.0-size));
 		out_color = mix(outerBodyColor, innerBodyColor, delta);
 	}
+
+	// the slider's overall fade percent
+	out_color.a *= alphaMultiplier;
 
 	gl_FragColor = out_color;
 }

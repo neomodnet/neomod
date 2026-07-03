@@ -384,6 +384,14 @@ void SDLGPUInterface::createPipeline() {
                 blendState.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
                 blendState.alpha_blend_op = SDL_GPU_BLENDOP_ADD;
                 break;
+            case DrawBlendMode::MAX:
+                blendState.src_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
+                blendState.dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
+                blendState.color_blend_op = SDL_GPU_BLENDOP_MAX;
+                blendState.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
+                blendState.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
+                blendState.alpha_blend_op = SDL_GPU_BLENDOP_MAX;
+                break;
         }
     }
 

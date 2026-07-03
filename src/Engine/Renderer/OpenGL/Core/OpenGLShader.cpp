@@ -180,15 +180,24 @@ bool OpenGLShader::compile(const std::string &vertexShader, const std::string &f
     this->iFragmentShader = source ? createShaderFromString(fragmentShader, GL_FRAGMENT_SHADER_ARB)
                                    : createShaderFromFile(fragmentShader, GL_FRAGMENT_SHADER_ARB);
 
+    const bool showDebugPopup = cv::debug_shaders.getBool() || Env::cfg(BUILD::DEBUG);
     if(this->iVertexShader == 0 || this->iFragmentShader == 0) {
-        engine->showMessageError("OpenGLShader Error", "Couldn't createShader()");
+        if(showDebugPopup) {
+            engine->showMessageError("OpenGLShader Error", "Couldn't createShader()");
+        } else {
+            debugLog("Couldn't createShader()");
+        }
         return false;
     }
 
     // create program
     this->iProgram = MCglCreateProgramObject();
     if(this->iProgram == 0) {
-        engine->showMessageError("OpenGLShader Error", "Couldn't glCreateProgramObjectARB()");
+        if(showDebugPopup) {
+            engine->showMessageError("OpenGLShader Error", "Couldn't glCreateProgram()");
+        } else {
+            debugLog("Couldn't glCreateProgram()");
+        }
         return false;
     }
 
@@ -202,7 +211,11 @@ bool OpenGLShader::compile(const std::string &vertexShader, const std::string &f
     int returnValue = GL_TRUE;
     MCglGetObjectParameteriv(this->iProgram, GL_OBJECT_LINK_STATUS_ARB, &returnValue);
     if(returnValue == GL_FALSE) {
-        engine->showMessageError("OpenGLShader Error", "Couldn't glLinkProgramARB()");
+        if(showDebugPopup) {
+            engine->showMessageError("OpenGLShader Error", "Couldn't glLinkProgram()");
+        } else {
+            debugLog("Couldn't glLinkProgram()");
+        }
         return false;
     }
 

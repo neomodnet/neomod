@@ -57,7 +57,8 @@ enum class DrawBlendMode : unsigned char {
     ADDITIVE,      // glBlendFunc(GL_SRC_ALPHA, GL_ONE)
     PREMUL_ALPHA,  // glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE,
                    // GL_ONE_MINUS_SRC_ALPHA)
-    PREMUL_COLOR   // glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+    PREMUL_COLOR,  // glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+    MAX            // glBlendEquation(GL_MAX): dst = max(src, dst) per channel (blend factors ignored)
 };
 
 enum class DrawCompareFunc : unsigned char { NEVER, LESS, EQUAL, LESSEQUAL, GREATER, NOTEQUAL, GREATEREQUAL, ALWAYS };

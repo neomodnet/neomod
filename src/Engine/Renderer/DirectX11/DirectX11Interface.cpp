@@ -876,6 +876,16 @@ void DirectX11Interface::setBlendMode(DrawBlendMode blendMode) {
             blendDescRT0.DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
             blendDescRT0.BlendOpAlpha = D3D11_BLEND_OP_ADD;
         } break;
+
+        case DrawBlendMode::MAX: {
+            blendDescRT0.SrcBlend = D3D11_BLEND_ONE;
+            blendDescRT0.DestBlend = D3D11_BLEND_ONE;
+            blendDescRT0.BlendOp = D3D11_BLEND_OP_MAX;
+
+            blendDescRT0.SrcBlendAlpha = D3D11_BLEND_ONE;
+            blendDescRT0.DestBlendAlpha = D3D11_BLEND_ONE;
+            blendDescRT0.BlendOpAlpha = D3D11_BLEND_OP_MAX;
+        } break;
     }
 
     this->device->CreateBlendState(&this->blendDesc, &this->blendState);

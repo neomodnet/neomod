@@ -8,8 +8,10 @@ GL_cursortrail_vsh  : assets/shaders/GL_cursortrail_v.glsl
 GL_cursortrail_fsh  : assets/shaders/GL_cursortrail_f.glsl
 GL_slider_vsh       : assets/shaders/GL_slider_v.glsl
 GL_slider_fsh       : assets/shaders/GL_slider_f.glsl
-GL_sliderSDF_vsh    : assets/shaders/GL_sliderSDF_v.glsl
-GL_sliderSDF_fsh    : assets/shaders/GL_sliderSDF_f.glsl
+GL_sliderField_vsh  : assets/shaders/GL_sliderField_v.glsl
+GL_sliderField_fsh  : assets/shaders/GL_sliderField_f.glsl
+GL_sliderComposite_vsh : assets/shaders/GL_sliderComposite_v.glsl
+GL_sliderComposite_fsh : assets/shaders/GL_sliderComposite_f.glsl
 GL_flashlight_vsh   : assets/shaders/GL_flashlight_v.glsl
 GL_flashlight_fsh   : assets/shaders/GL_flashlight_f.glsl
 GL_actual_flashlight_vsh : assets/shaders/GL_actual_flashlight_v.glsl
