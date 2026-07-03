@@ -196,12 +196,44 @@ Environment::Environment(const Mc::AppDescriptor &appDesc,
     cv::keyboard_raw_input.setValue(m_bRawKB);  // (2)
     cv::keyboard_raw_input.setCallback(SA::MakeDelegate<&Environment::onRawKeyboardChange>(this));
     cv::debug_draw_hardware_cursor.setCallback(SA::MakeDelegate<&Environment::onDebugDrawHardwareCursorChange>(this));
+    cv::setenv.setCallback([](std::string_view args) -> void {
+        SString::trim_inplace(args);
+        if(args.empty()) return;
+        std::string first;
+        std::string rest;
+        if(auto spacePos = args.find(' '); spacePos != std::string::npos) {
+            first = args.substr(0, spacePos);
+            rest = args.substr(spacePos + 1);
+        } else {
+            first = args;
+        }
+        cv::setenv.setValue("", false);
+        Environment::setEnvVariable(first, rest);
+    });
+    cv::getenv.setCallback([](std::string_view args) -> void {
+        SString::trim_inplace(args);
+        if(args.empty()) {
+            logRaw("[getenv] variable {:s} is unset", args);
+        } else {
+            for(auto var : SString::split(args, ' ')) {
+                logRaw("{:s}={:s}", var, Environment::getEnvVariable(var));
+            }
+        }
+        cv::getenv.setValue("", false);
+    });
 
     // set high priority right away
     McThread::set_current_thread_prio(cv::win_processpriority.getVal<McThread::Priority>());
 }
 
 Environment::~Environment() {
+    cv::debug_env.reset();
+    cv::monitor.reset();
+    cv::keyboard_raw_input.reset();
+    cv::debug_draw_hardware_cursor.reset();
+    cv::setenv.reset();
+    cv::getenv.reset();
+
     for(auto &sdl_cur : m_cursorIcons) {
         if(sdl_cur) {
             SDL_DestroyCursor(sdl_cur);
@@ -689,18 +721,28 @@ std::string Environment::getEnvVariable(std::string_view varToQuery) noexcept {
 }
 
 bool Environment::setEnvVariable(std::string_view varToSet, std::string_view varValue, bool overwrite) noexcept {
-    if(s_sdlenv && !varToSet.empty()) {
-        return SDL_SetEnvironmentVariable(s_sdlenv, std::string{varToSet}.c_str(),
-                                          varValue.empty() ? "" : std::string{varValue}.c_str(), overwrite);
+    if(varToSet.empty()) return false;
+    assert(McThread::is_main_thread());
+    const std::string cVar{varToSet};
+    const std::string cVal{varValue};
+    bool ret = SDL_setenv_unsafe(cVar.c_str(), cVal.c_str(), overwrite);
+    if(s_sdlenv) {
+        // also set SDL environment (which is decoupled from C runtime environment)
+        ret = SDL_SetEnvironmentVariable(s_sdlenv, cVar.c_str(), cVal.c_str(), overwrite);
     }
-    return false;
+    return ret;
 }
 
 bool Environment::unsetEnvVariable(std::string_view varToUnset) noexcept {
-    if(s_sdlenv && !varToUnset.empty()) {
-        return SDL_UnsetEnvironmentVariable(s_sdlenv, std::string{varToUnset}.c_str());
+    if(varToUnset.empty()) return false;
+    assert(McThread::is_main_thread());
+    const std::string cVar{varToUnset};
+    bool ret = SDL_unsetenv_unsafe(cVar.c_str());
+    if(s_sdlenv) {
+        // also unset SDL environment (which is decoupled from C runtime environment)
+        ret = SDL_UnsetEnvironmentVariable(s_sdlenv, cVar.c_str());
     }
-    return false;
+    return ret;
 }
 
 std::string Environment::encodeStringToURI(std::string_view unencodedString) noexcept {

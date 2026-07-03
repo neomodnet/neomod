@@ -309,6 +309,10 @@ CONVAR(pen_input, true, CLIENT | SKINS | SERVER, "support OTD Artist Mode and na
 CONVAR(rich_presence, true, CLIENT | SKINS | SERVER);  // callback set in DiscordInterface
 CONVAR(ssl_verify, true, CLIENT);
 CONVAR(use_https, true, CLIENT);
+CONVAR(
+    setenv, ""sv, CLIENT | NOSAVE | HIDDEN,
+    "for advanced users, this may crash your game if used incorrectly (fmt: <var> <value>)");  // callbacks set in Environment ctor
+CONVAR(getenv, ""sv, CLIENT | NOSAVE | HIDDEN, "for advanced users (fmt: <var1> [<var2> <var3>...])");
 CONVAR(ui_scrollview_kinetic_approach_time, 0.075f, CLIENT | SKINS | SERVER,
        "approach target afterscroll delta over this duration");
 CONVAR(ui_scrollview_kinetic_energy_multiplier, 24.0f, CLIENT, "afterscroll delta multiplier");
