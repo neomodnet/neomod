@@ -30,7 +30,7 @@ f32 s_UNIT_CIRCLE_VAO_DIAMETER{0.0f};
 f32 s_MESH_CENTER_HEIGHT{0.5f};     // Camera::buildMatrixOrtho2D() uses -1 to 1 for zn/zf, so don't make this too high
 i32 s_UNIT_CIRCLE_SUBDIVISIONS{0};  // see slider_body_unit_circle_subdivisions now
 
-// analytic SDF body: each curve point emits one equal-size block = a body slab quad (6 verts) + a cap/join fan
+// analytic SDF body: each kept curve point emits one equal-size block = a body slab quad (6 verts) + a cap/join fan
 // (SDF_FAN_SLICES triangles). these must stay in lockstep: if VERTS_PER_SDF_BLOCK doesn't match the emitted count,
 // setDrawPercent() snake-snapping rounds the draw range to the wrong boundary and clips the static end cap
 constexpr i32 SDF_FAN_SLICES{4};
@@ -222,9 +222,9 @@ std::unique_ptr<VertexArrayObject> generateVAO(vec2 screenRect, std::span<const 
 
         // duplicated consecutive points (bezier piece anchors) yield segments too short for a usable direction,
         // so every point takes its in/out direction from the nearest DISTINCT point instead ({0,0} if that side
-        // has none). the duplicates must still emit their own equal-size blocks, and skipOOBPoints is ignored:
-        // one block per input point keeps setDrawPercent()'s percent -> block snapping in lockstep with the
-        // caller's percent -> curve-point mapping (snake head position).
+        // has none). the duplicates must still emit their own equal-size blocks: one block per point keeps
+        // setDrawPercent()'s percent -> block snapping in lockstep with the caller's percent -> curve-point
+        // mapping (snake head position).
         constexpr f32 DIR_EPS = 0.01f;
         std::vector<vec2> dirIn(n, vec2{0.0f, 0.0f});
         std::vector<vec2> dirOut(n, vec2{0.0f, 0.0f});
@@ -251,10 +251,14 @@ std::unique_ptr<VertexArrayObject> generateVAO(vec2 screenRect, std::span<const 
             }
         }
 
+        // OOB points emit no blocks at all (see the loop below), so don't reserve for them either
+        uSz keptPoints = n;
+        if(skipOOBPoints) keptPoints = (uSz)std::ranges::count_if(points, [&](vec2 p) { return !isOOB(p); });
+
         std::vector<vec3> meshVerts;
         std::vector<vec2> meshTCs;
-        meshVerts.reserve(VERTS_PER_SDF_BLOCK * n);
-        meshTCs.reserve(VERTS_PER_SDF_BLOCK * n);
+        meshVerts.reserve(VERTS_PER_SDF_BLOCK * keptPoints);
+        meshTCs.reserve(VERTS_PER_SDF_BLOCK * keptPoints);
 
         const auto emitVert = [&](vec2 p, vec2 tc) {
             meshVerts.emplace_back(p.x + translation.x, p.y + translation.y, translation.z);
@@ -305,8 +309,14 @@ std::unique_ptr<VertexArrayObject> generateVAO(vec2 screenRect, std::span<const 
             }
         };
 
-        // one block per input point: the slab of the segment arriving at the point + the fan rounding the point
+        // one block per kept input point: the slab of the segment arriving at the point + the fan rounding it
         for(uSz i = 0; i < n; ++i) {
+            // dropping a far-offscreen block desyncs the percent -> block snapping from the caller's snake
+            // mapping just like the cone path dropping its discs, but only on the same broken/aspire maps,
+            // where baking + transforming millions of offscreen blocks every frame is the greater evil (the
+            // OOB bounds are generous enough that a cut end can never reach the viewport)
+            if(skipOOBPoints && isOOB(points[i])) continue;
+
             const vec2 seg = i >= 1 ? points[i] - points[i - 1] : vec2{0.0f, 0.0f};
             const f32 segLen = vec::length(seg);
             if(segLen > DIR_EPS)
