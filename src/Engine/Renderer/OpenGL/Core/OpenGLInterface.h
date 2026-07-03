@@ -61,21 +61,12 @@ class OpenGLInterface final : public SDLGLInterface {
     void setViewport(int x, int y, int width, int height) final;
     void popViewport() final;
 
-    // stencil
-    void pushStencil() final;
-    void fillStencil(bool inside) final;
-    void popStencil() final;
-
     // renderer settings
     void setClipping(bool enabled) final;
     void setAlphaTesting(bool enabled) final;
     void setAlphaTestFunc(DrawCompareFunc alphaFunc, float ref) final;
-    void setBlending(bool enabled) final;
-    void setBlendMode(DrawBlendMode blendMode) final;
-    void setDepthBuffer(bool enabled) final;
     void setColorWriting(bool r, bool g, bool b, bool a) final;
     void setColorInversion(bool enabled) final;
-    void setCulling(bool culling) final;
     void setAntialiasing(bool aa) final;
     void setWireframe(bool enabled) final;
 

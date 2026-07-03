@@ -639,26 +639,6 @@ void OpenGLES32Interface::popViewport() {
     m_data->viewportStack.pop_back();
 }
 
-void OpenGLES32Interface::pushStencil() {
-    // init and clear
-    glClearStencil(0);
-    glClear(GL_STENCIL_BUFFER_BIT);
-    glEnable(GL_STENCIL_TEST);
-
-    // set mask
-    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-    glStencilFunc(GL_ALWAYS, 1, 1);
-    glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
-}
-
-void OpenGLES32Interface::fillStencil(bool inside) {
-    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-    glStencilFunc(GL_NOTEQUAL, inside ? 0 : 1, 1);
-    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-}
-
-void OpenGLES32Interface::popStencil() { glDisable(GL_STENCIL_TEST); }
-
 void OpenGLES32Interface::setClipping(bool enabled) {
     if(enabled) {
         if(m_clipRectStack.size() > 0) glEnable(GL_SCISSOR_TEST);
@@ -692,46 +672,6 @@ void OpenGLES32Interface::setAlphaTestFunc(DrawCompareFunc /*alphaFunc*/, float 
 void OpenGLES32Interface::setAntialiasing(bool /*aa*/) {}
 #endif
 
-void OpenGLES32Interface::setBlending(bool enabled) {
-    Graphics::setBlending(enabled);
-
-    if(enabled)
-        glEnable(GL_BLEND);
-    else
-        glDisable(GL_BLEND);
-}
-
-void OpenGLES32Interface::setBlendMode(DrawBlendMode blendMode) {
-    Graphics::setBlendMode(blendMode);
-
-    // only MAX uses a non-default blend equation, so unconditionally restore ADD for the others
-    glBlendEquation(blendMode == DrawBlendMode::MAX ? GL_MAX : GL_FUNC_ADD);
-    switch(blendMode) {
-        case DrawBlendMode::ALPHA:
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            break;
-        case DrawBlendMode::ADDITIVE:
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-            break;
-        case DrawBlendMode::PREMUL_ALPHA:
-            glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-            break;
-        case DrawBlendMode::PREMUL_COLOR:
-            glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-            break;
-        case DrawBlendMode::MAX:
-            glBlendFunc(GL_ONE, GL_ONE);
-            break;
-    }
-}
-
-void OpenGLES32Interface::setDepthBuffer(bool enabled) {
-    if(enabled)
-        glEnable(GL_DEPTH_TEST);
-    else
-        glDisable(GL_DEPTH_TEST);
-}
-
 void OpenGLES32Interface::setColorInversion(bool enabled) {
     if(m_bColorInversion == enabled) return;
     m_bColorInversion = enabled;
@@ -739,13 +679,6 @@ void OpenGLES32Interface::setColorInversion(bool enabled) {
     if(m_shaderTexturedGeneric->isActive()) {
         m_shaderTexturedGeneric->setUniform1f("inv", enabled ? 1.0f : 0.0f);
     }
-}
-
-void OpenGLES32Interface::setCulling(bool culling) {
-    if(culling)
-        glEnable(GL_CULL_FACE);
-    else
-        glDisable(GL_CULL_FACE);
 }
 
 void OpenGLES32Interface::setWireframe(bool _) {

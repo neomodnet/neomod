@@ -58,21 +58,11 @@ class OpenGLES32Interface final : public SDLGLInterface {
     void setViewport(int x, int y, int width, int height) final;
     void popViewport() final;
 
-    // stencil
-    void pushStencil() final;
-    void fillStencil(bool inside) final;
-    void popStencil() final;
-
     // renderer settings
+    void setClipping(bool enabled) final;
     void setAlphaTesting(bool enabled) final;
     void setAlphaTestFunc(DrawCompareFunc alphaFunc, float ref) final;
     void setAntialiasing(bool aa) final;
-    void setClipping(bool enabled) final;
-    void setBlending(bool enabled) final;
-    void setBlendMode(DrawBlendMode blendMode) final;
-    void setDepthBuffer(bool enabled) final;
-
-    void setCulling(bool culling) final;
     void setWireframe(bool _) final;
 
     // TODO

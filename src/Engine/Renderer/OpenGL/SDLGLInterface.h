@@ -37,6 +37,7 @@ using GLsizei = int;
 class OpenGLSync;
 
 typedef struct SDL_Window SDL_Window;
+// shared superclass for OpenGLInterface and OpenGLES32Interface
 class SDLGLInterface : public GLGraphicsBackend {
     NOCOPY_NOMOVE(SDLGLInterface);
 
@@ -49,6 +50,17 @@ class SDLGLInterface : public GLGraphicsBackend {
     // scene
     void beginScene() override;
     void endScene() override;
+
+    // stencil
+    void pushStencil() final;
+    void fillStencil(bool inside) final;
+    void popStencil() final;
+
+    // renderer settings
+    void setDepthBuffer(bool enabled) final;
+    void setCulling(bool culling) final;
+    void setBlending(bool enabled) final;
+    void setBlendMode(DrawBlendMode blendMode) final;
 
     // device settings
     void setVSync(bool vsync) override;
