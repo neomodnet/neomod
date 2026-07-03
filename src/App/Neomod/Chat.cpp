@@ -665,10 +665,10 @@ void Chat::onKeyDown(KeyboardEvent &key) {
         static_assert((int)KEY_1 + 9 == (int)KEY_0);
 
         // KEY_1 => tab_select := 0
-        const i32 tab_select = KEY_1 - sc;
+        const i32 tab_select = (i32)sc - (i32)KEY_1;
 
         key.consume();
-        if(tab_select < this->channels.size()) {
+        if(tab_select >= 0 && tab_select < this->channels.size()) {
             this->switchToChannel(this->channels[tab_select]);
         }
         return;
