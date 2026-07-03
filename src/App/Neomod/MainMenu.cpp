@@ -927,7 +927,7 @@ void MainMenu::draw() {
     if(!this->bVisible) return;
 
     // draw background
-    if(cv::draw_menu_background.getBool()) {
+    if(cv::main_menu_prefer_map_bg.getBool()) {
         auto *bgih = osu->getBackgroundImageHandler();
         assert(bgih);
         if(this->lastMap && this->lastMap != this->currentMap) {
@@ -935,6 +935,20 @@ void MainMenu::draw() {
         }
         if(this->currentMap) {
             bgih->draw(bgih->getLoadBackgroundImage(this->currentMap, true), this->mapFadeAnim);
+        }
+    } else if(cv::draw_menu_background.getBool()) {
+        // menu-background
+        Image *backgroundImage = osu->getSkin()->i_menu_bg;
+        if(backgroundImage != nullptr && backgroundImage != MISSING_TEXTURE && backgroundImage->isReady()) {
+            const float scale = Osu::getImageScaleToFillResolution(backgroundImage, osu->getVirtScreenSize());
+            g->setColor(0xffffffff);
+            g->pushTransform();
+            {
+                g->scale(scale, scale);
+                g->translate(osu->getVirtScreenSize() / 2.f);
+                g->drawImage(backgroundImage);
+            }
+            g->popTransform();
         }
     }
 
@@ -1003,14 +1017,17 @@ void MainMenu::tick() {
 
     if(!this->bVisible) return;
 
-    if(cv::draw_menu_background.getBool()) {
+    {
         // Check if we need to update the background
         auto *currentOsuMap = osu->getMapInterface() ? osu->getMapInterface()->getBeatmap() : nullptr;
         if(this->mapFadeAnim == 1.f && this->currentMap != currentOsuMap) {
             this->lastMap = this->currentMap ? this->currentMap : currentOsuMap;  // don't fade from NULL?
             this->currentMap = currentOsuMap;
-            this->mapFadeAnim = 0.f;
-            this->mapFadeAnim.set(1.f, cv::main_menu_background_fade_duration.getFloat(), anim::Linear);
+            // only animate if map bgs are enabled, but keep updating last/current map
+            if(cv::main_menu_prefer_map_bg.getBool()) {
+                this->mapFadeAnim = 0.f;
+                this->mapFadeAnim.set(1.f, cv::main_menu_background_fade_duration.getFloat(), anim::Linear);
+            }
         }
     }
 

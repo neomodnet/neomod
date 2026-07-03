@@ -2179,6 +2179,15 @@ msgid "Draw Background in Ranking/Results Screen"
 msgstr "Rysuj Tło na ekranie wyników"
 
 #: src/App/Neomod/OptionsOverlay.cpp
+#, fuzzy
+msgid "Prefer beatmap background in Menu"
+msgstr "Rysuj menu-background w Menu"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Use the background from the currently playing song, even in the main menu."
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "Draw menu-background in Menu"
 msgstr "Rysuj menu-background w Menu"
 

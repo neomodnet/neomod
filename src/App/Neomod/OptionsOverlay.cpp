@@ -1609,6 +1609,9 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
                       &cv::draw_songbrowser_background_image);
     this->addCheckbox(_("Draw Background Thumbnails in SongBrowser"), &cv::draw_songbrowser_thumbnails);
     this->addCheckbox(_("Draw Background in Ranking/Results Screen"), &cv::draw_rankingscreen_background_image);
+    this->addCheckbox(_("Prefer beatmap background in Menu"),
+                      _("Use the background from the currently playing song, even in the main menu."),
+                      &cv::main_menu_prefer_map_bg);
     this->addCheckbox(_("Draw menu-background in Menu"), &cv::draw_menu_background);
     this->addCheckbox(_("Draw menu-background in SongBrowser"),
                       _("NOTE: Only applies if \"Draw Background in SongBrowser\" is disabled."),

@@ -69,6 +69,7 @@ AboutScreen::AboutScreen() : ScreenBackable() {
         R"(- Implemented SDF-based slider rendering for improved quality & performance)",
         R"(  - Enabled by default, set slider_body_sdf 0 to disable (please report any issues on Discord or GitHub!))",
         R"(- Updated mod selector screen in song browser to be transparent)",
+        R"(- Added setting to disable beatmap backgrounds in the main menu)",
         R"(- Refactored and improved UI element focus behavior overall (please report bugs/regressions))",
     };
     changelogs.push_back(v43_11);

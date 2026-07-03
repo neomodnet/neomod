@@ -575,6 +575,7 @@ CONVAR(sv_has_irc_users, true, SERVER, "players with negative IDs will show up a
 // Main menu
 CONVAR(adblock, false, CLIENT | SKINS | SERVER);
 CONVAR(draw_menu_background, true, CLIENT | SKINS | SERVER);
+CONVAR(main_menu_prefer_map_bg, true, CLIENT | SKINS | SERVER);
 CONVAR(main_menu_alpha, 0.8f, CLIENT | SKINS | SERVER);
 CONVAR(main_menu_friend, true, CLIENT | SKINS | SERVER);
 CONVAR(main_menu_background_fade_duration, 0.25f, CLIENT | SKINS | SERVER);
