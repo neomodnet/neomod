@@ -76,9 +76,14 @@ struct Skin final {
                           bool ignoreDefaultSkin = false, const std::string &fileExtension = "png",
                           bool forceLoadMipmaps = false, const std::string &overrideDir = {});
 
+    enum LoadSoundFlags : u8 {
+        OVERLAYABLE = (1 << 0),
+        SAMPLE = (1 << 1),  // STREAM = !SAMPLE
+        LOOPING = (1 << 2),
+        NO_DEFAULT = (1 << 3)  // don't fallback to default skin if missing
+    };
     void loadSound(Sound *&ref, const std::string &skinElementName, const std::string &resourceName,
-                   bool isOverlayable = false, bool isSample = false, bool loop = false,
-                   bool fallback_to_default = true);
+                   u8 flags = {});
 
     void load();
 

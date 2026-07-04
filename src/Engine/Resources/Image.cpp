@@ -750,9 +750,6 @@ bool Image::isRawImageCompletelyTransparent() const {
     const i64 totalPixels = static_cast<i64>(this->rawImage.getNumPixels());
 
     for(i64 i = 0; i < totalPixels; ++i) {
-        if(this->isInterrupted())  // cancellation point
-            return false;
-
         // check alpha channel directly
         if(this->rawImage[i * Image::NUM_CHANNELS + alphaOffset] > 0) return false;  // non-transparent pixel
     }

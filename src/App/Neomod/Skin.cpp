@@ -27,15 +27,6 @@
 #include <cstring>
 #include <utility>
 
-// Readability
-// XXX: change loadSound() interface to use flags instead
-#define NOT_OVERLAYABLE false
-#define OVERLAYABLE true
-#define STREAM false
-#define SAMPLE true
-#define NOT_LOOPING false
-#define LOOPING true
-
 bool Skin::unpack(std::string_view filepath) {
     auto skin_name = Environment::getFileNameFromFilePath(filepath);
     debugLog("Extracting {:s}...", skin_name.c_str());
@@ -106,27 +97,25 @@ bool Skin::unpack(std::string_view filepath) {
     return true;
 }
 
-Skin::Skin(std::string name, std::string filepath, std::string fallbackDir) {
-    this->name = std::move(name);
-    this->skin_dir = std::move(filepath);
-    this->fallback_dir = std::move(fallbackDir);
-    this->is_default = (this->skin_dir == MCENGINE_IMAGES_PATH "/default/");
-
-    // vars
-    this->c_spinner_approach_circle = 0xffffffff;
-    this->c_spinner_bg = rgb(100, 100, 100);  // https://osu.ppy.sh/wiki/en/Skinning/skin.ini#[colours]
-    this->c_slider_border = 0xffffffff;
-    this->c_slider_ball = 0xffffffff;  // NOTE: 0xff02aaff is a hardcoded special case for osu!'s default skin, but it
-                                       // does not apply to user skins
-
-    this->c_song_select_active_text = 0xff000000;
-    this->c_song_select_inactive_text = 0xffffffff;
-    this->c_input_overlay_text = 0xff000000;
-
-    // custom
-    this->o_random = cv::skin_random.getBool();
-    this->o_random_elements = cv::skin_random_elements.getBool();
-
+Skin::Skin(std::string name, std::string filepath, std::string fallbackDir)
+    : name(std::move(name)),
+      skin_dir(std::move(filepath)),
+      fallback_dir(std::move(fallbackDir)),
+      // vars
+      c_spinner_approach_circle(0xffffffff),
+      c_spinner_bg(rgb(100, 100, 100)),  // https://osu.ppy.sh/wiki/en/Skinning/skin.ini#[colours]
+      c_slider_border(0xffffffff),
+      c_slider_track_override(
+          rgb(0, 0, 0)),  // initial value (not actually used until a SliderTrackOverride is parsed from skin.ini)
+      c_slider_ball(0xffffffff),  // NOTE: 0xff02aaff is a hardcoded special case for osu!'s default skin, but it
+                                  // does not apply to user skins
+      c_song_select_inactive_text(0xffffffff),
+      c_song_select_active_text(0xff000000),
+      c_input_overlay_text(0xff000000),
+      // custom
+      o_random(cv::skin_random.getBool()),
+      o_random_elements(cv::skin_random_elements.getBool()),
+      is_default(this->skin_dir.starts_with(MCENGINE_IMAGES_PATH "/default")) {
     // load all files
     this->load();
 }
@@ -567,116 +556,130 @@ void Skin::load() {
 
     // slider ticks
     this->loadSound(this->s_normal_slidertick, "normal-slidertick", "SK_S_NORMALSLIDERTICK",  //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+                    OVERLAYABLE | SAMPLE);                                                    //
     this->loadSound(this->s_soft_slidertick, "soft-slidertick", "SK_S_SOFTSLIDERTICK",        //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+                    OVERLAYABLE | SAMPLE);                                                    //
     this->loadSound(this->s_drum_slidertick, "drum-slidertick", "SK_S_DRUMSLIDERTICK",        //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+                    OVERLAYABLE | SAMPLE);                                                    //
 
     // silder slides
     this->loadSound(this->s_normal_sliderslide, "normal-sliderslide", "SK_S_NORMALSLIDERSLIDE",  //
-                    NOT_OVERLAYABLE, SAMPLE, LOOPING);                                           //
+                    SAMPLE | LOOPING);                                                           //
     this->loadSound(this->s_soft_sliderslide, "soft-sliderslide", "SK_S_SOFTSLIDERSLIDE",        //
-                    NOT_OVERLAYABLE, SAMPLE, LOOPING);                                           //
+                    SAMPLE | LOOPING);                                                           //
     this->loadSound(this->s_drum_sliderslide, "drum-sliderslide", "SK_S_DRUMSLIDERSLIDE",        //
-                    NOT_OVERLAYABLE, SAMPLE, LOOPING);                                           //
+                    SAMPLE | LOOPING);                                                           //
 
     // slider whistles
     this->loadSound(this->s_normal_sliderwhistle, "normal-sliderwhistle", "SK_S_NORMALSLIDERWHISTLE",  //
-                    NOT_OVERLAYABLE, SAMPLE, LOOPING);                                                 //
+                    SAMPLE | LOOPING);                                                                 //
     this->loadSound(this->s_soft_sliderwhistle, "soft-sliderwhistle", "SK_S_SOFTSLIDERWHISTLE",        //
-                    NOT_OVERLAYABLE, SAMPLE, LOOPING);                                                 //
+                    SAMPLE | LOOPING);                                                                 //
     this->loadSound(this->s_drum_sliderwhistle, "drum-sliderwhistle", "SK_S_DRUMSLIDERWHISTLE",        //
-                    NOT_OVERLAYABLE, SAMPLE, LOOPING);                                                 //
+                    SAMPLE | LOOPING);                                                                 //
 
     // hitcircle
     this->loadSound(this->s_normal_hitnormal, "normal-hitnormal", "SK_S_NORMALHITNORMAL",     //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+                    OVERLAYABLE | SAMPLE);                                                    //
     this->loadSound(this->s_soft_hitnormal, "soft-hitnormal", "SK_S_SOFTHITNORMAL",           //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+                    OVERLAYABLE | SAMPLE);                                                    //
     this->loadSound(this->s_drum_hitnormal, "drum-hitnormal", "SK_S_DRUMHITNORMAL",           //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+                    OVERLAYABLE | SAMPLE);                                                    //
     this->loadSound(this->s_normal_hitwhistle, "normal-hitwhistle", "SK_S_NORMALHITWHISTLE",  //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+                    OVERLAYABLE | SAMPLE);                                                    //
     this->loadSound(this->s_soft_hitwhistle, "soft-hitwhistle", "SK_S_SOFTHITWHISTLE",        //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+                    OVERLAYABLE | SAMPLE);                                                    //
     this->loadSound(this->s_drum_hitwhistle, "drum-hitwhistle", "SK_S_DRUMHITWHISTLE",        //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+                    OVERLAYABLE | SAMPLE);                                                    //
     this->loadSound(this->s_normal_hitfinish, "normal-hitfinish", "SK_S_NORMALHITFINISH",     //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+                    OVERLAYABLE | SAMPLE);                                                    //
     this->loadSound(this->s_soft_hitfinish, "soft-hitfinish", "SK_S_SOFTHITFINISH",           //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+                    OVERLAYABLE | SAMPLE);                                                    //
     this->loadSound(this->s_drum_hitfinish, "drum-hitfinish", "SK_S_DRUMHITFINISH",           //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+                    OVERLAYABLE | SAMPLE);                                                    //
     this->loadSound(this->s_normal_hitclap, "normal-hitclap", "SK_S_NORMALHITCLAP",           //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+                    OVERLAYABLE | SAMPLE);                                                    //
     this->loadSound(this->s_soft_hitclap, "soft-hitclap", "SK_S_SOFTHITCLAP",                 //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+                    OVERLAYABLE | SAMPLE);                                                    //
     this->loadSound(this->s_drum_hitclap, "drum-hitclap", "SK_S_DRUMHITCLAP",                 //
-                    OVERLAYABLE, SAMPLE, NOT_LOOPING);                                        //
+                    OVERLAYABLE | SAMPLE);                                                    //
 
     // spinner
-    this->loadSound(this->s_spinner_bonus, "spinnerbonus", "SK_S_SPINNERBONUS", OVERLAYABLE, SAMPLE, NOT_LOOPING);
-    this->loadSound(this->s_spinner_spin, "spinnerspin", "SK_S_SPINNERSPIN", NOT_OVERLAYABLE, SAMPLE, LOOPING);
+    this->loadSound(this->s_spinner_bonus, "spinnerbonus", "SK_S_SPINNERBONUS", OVERLAYABLE | SAMPLE);
+    this->loadSound(this->s_spinner_spin, "spinnerspin", "SK_S_SPINNERSPIN", SAMPLE | LOOPING);
 
     // others
-    this->loadSound(this->s_combobreak, "combobreak", "SK_S_COMBOBREAK", true, true);
+    this->loadSound(this->s_combobreak, "combobreak", "SK_S_COMBOBREAK", OVERLAYABLE | SAMPLE);
     this->loadSound(this->s_fail, "failsound", "SK_S_FAILSOUND");
     this->loadSound(this->s_applause, "applause", "SK_S_APPLAUSE");
-    this->loadSound(this->s_menu_hit, "menuhit", "SK_S_MENUHIT", true, true);
-    this->loadSound(this->s_menu_hover, "menuclick", "SK_S_MENUCLICK", true, true);
-    this->loadSound(this->s_check_on, "check-on", "SK_S_CHECKON", true, true);
-    this->loadSound(this->s_check_off, "check-off", "SK_S_CHECKOFF", true, true);
-    this->loadSound(this->s_shutter, "shutter", "SK_S_SHUTTER", true, true);
+    this->loadSound(this->s_menu_hit, "menuhit", "SK_S_MENUHIT", OVERLAYABLE | SAMPLE);
+    this->loadSound(this->s_menu_hover, "menuclick", "SK_S_MENUCLICK", OVERLAYABLE | SAMPLE);
+    this->loadSound(this->s_check_on, "check-on", "SK_S_CHECKON", OVERLAYABLE | SAMPLE);
+    this->loadSound(this->s_check_off, "check-off", "SK_S_CHECKOFF", OVERLAYABLE | SAMPLE);
+    this->loadSound(this->s_shutter, "shutter", "SK_S_SHUTTER", OVERLAYABLE | SAMPLE);
     this->loadSound(this->s_section_pass, "sectionpass", "SK_S_SECTIONPASS");
     this->loadSound(this->s_section_fail, "sectionfail", "SK_S_SECTIONFAIL");
 
     // UI feedback
-    this->loadSound(this->s_message_sent, "key-confirm", "SK_S_MESSAGE_SENT", true, true, false);
-    this->loadSound(this->s_deleting_text, "key-delete", "SK_S_DELETING_TEXT", true, true, false);
-    this->loadSound(this->s_moving_text_cursor, "key-movement", "SK_S_MOVING_TEXT_CURSOR", true, true, false);
-    this->loadSound(this->s_typing1, "key-press-1", "SK_S_TYPING_1", true, true, false);
-    this->loadSound(this->s_typing2, "key-press-2", "SK_S_TYPING_2", true, true, false, false);
-    this->loadSound(this->s_typing3, "key-press-3", "SK_S_TYPING_3", true, true, false, false);
-    this->loadSound(this->s_typing4, "key-press-4", "SK_S_TYPING_4", true, true, false, false);
-    this->loadSound(this->s_menu_back, "menuback", "SK_S_MENU_BACK", true, true, false, false);
-    this->loadSound(this->s_close_chat_tab, "click-close", "SK_S_CLOSE_CHAT_TAB", true, true, false, false);
-    this->loadSound(this->s_click_button, "click-short-confirm", "SK_S_CLICK_BUTTON", true, true, false, false);
-    this->loadSound(this->s_hover_button, "click-short", "SK_S_HOVER_BUTTON", true, true, false, false);
-    this->loadSound(this->s_click_back_button, "back-button-click", "SK_S_BACK_BUTTON_CLICK", true, true, false, false);
-    this->loadSound(this->s_hover_back_button, "back-button-hover", "SK_S_BACK_BUTTON_HOVER", true, true, false, false);
-    this->loadSound(this->s_click_main_menu_cube, "menu-play-click", "SK_S_CLICK_MAIN_MENU_CUBE", true, true, false,
-                    false);
-    this->loadSound(this->s_hover_main_menu_cube, "menu-play-hover", "SK_S_HOVER_MAIN_MENU_CUBE", true, true, false,
-                    false);
-    this->loadSound(this->s_click_sp, "menu-freeplay-click", "SK_S_CLICK_SINGLEPLAYER", true, true, false, false);
-    this->loadSound(this->s_hover_sp, "menu-freeplay-hover", "SK_S_HOVER_SINGLEPLAYER", true, true, false, false);
-    this->loadSound(this->s_click_mp, "menu-multiplayer-click", "SK_S_CLICK_MULTIPLAYER", true, true, false, false);
-    this->loadSound(this->s_hover_mp, "menu-multiplayer-hover", "SK_S_HOVER_MULTIPLAYER", true, true, false, false);
-    this->loadSound(this->s_click_options, "menu-options-click", "SK_S_CLICK_OPTIONS", true, true, false, false);
-    this->loadSound(this->s_hover_options, "menu-options-hover", "SK_S_HOVER_OPTIONS", true, true, false, false);
-    this->loadSound(this->s_click_exit, "menu-exit-click", "SK_S_CLICK_EXIT", true, true, false, false);
-    this->loadSound(this->s_hover_exit, "menu-exit-hover", "SK_S_HOVER_EXIT", true, true, false, false);
-    this->loadSound(this->s_expand, "select-expand", "SK_S_EXPAND", true, true, false);
-    this->loadSound(this->s_select_difficulty, "select-difficulty", "SK_S_SELECT_DIFFICULTY", true, true, false, false);
-    this->loadSound(this->s_sliderbar, "sliderbar", "SK_S_DRAG_SLIDER", true, true, false);
-    this->loadSound(this->s_match_confirm, "match-confirm", "SK_S_ALL_PLAYERS_READY", true, true, false);
-    this->loadSound(this->s_room_joined, "match-join", "SK_S_ROOM_JOINED", true, true, false);
-    this->loadSound(this->s_room_quit, "match-leave", "SK_S_ROOM_QUIT", true, true, false);
-    this->loadSound(this->s_room_not_ready, "match-notready", "SK_S_ROOM_NOT_READY", true, true, false);
-    this->loadSound(this->s_room_ready, "match-ready", "SK_S_ROOM_READY", true, true, false);
-    this->loadSound(this->s_match_start, "match-start", "SK_S_MATCH_START", true, true, false);
+    this->loadSound(this->s_message_sent, "key-confirm", "SK_S_MESSAGE_SENT", OVERLAYABLE | SAMPLE);
+    this->loadSound(this->s_deleting_text, "key-delete", "SK_S_DELETING_TEXT", OVERLAYABLE | SAMPLE);
+    this->loadSound(this->s_moving_text_cursor, "key-movement", "SK_S_MOVING_TEXT_CURSOR", OVERLAYABLE | SAMPLE);
+    this->loadSound(this->s_typing1, "key-press-1", "SK_S_TYPING_1", OVERLAYABLE | SAMPLE);
+    this->loadSound(this->s_typing2, "key-press-2", "SK_S_TYPING_2", OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_typing3, "key-press-3", "SK_S_TYPING_3", OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_typing4, "key-press-4", "SK_S_TYPING_4", OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_menu_back, "menuback", "SK_S_MENU_BACK", OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_close_chat_tab, "click-close", "SK_S_CLOSE_CHAT_TAB", OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_click_button, "click-short-confirm", "SK_S_CLICK_BUTTON",
+                    OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_hover_button, "click-short", "SK_S_HOVER_BUTTON", OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_click_back_button, "back-button-click", "SK_S_BACK_BUTTON_CLICK",
+                    OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_hover_back_button, "back-button-hover", "SK_S_BACK_BUTTON_HOVER",
+                    OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_click_main_menu_cube, "menu-play-click", "SK_S_CLICK_MAIN_MENU_CUBE",
+                    OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_hover_main_menu_cube, "menu-play-hover", "SK_S_HOVER_MAIN_MENU_CUBE",
+                    OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_click_sp, "menu-freeplay-click", "SK_S_CLICK_SINGLEPLAYER",
+                    OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_hover_sp, "menu-freeplay-hover", "SK_S_HOVER_SINGLEPLAYER",
+                    OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_click_mp, "menu-multiplayer-click", "SK_S_CLICK_MULTIPLAYER",
+                    OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_hover_mp, "menu-multiplayer-hover", "SK_S_HOVER_MULTIPLAYER",
+                    OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_click_options, "menu-options-click", "SK_S_CLICK_OPTIONS",
+                    OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_hover_options, "menu-options-hover", "SK_S_HOVER_OPTIONS",
+                    OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_click_exit, "menu-exit-click", "SK_S_CLICK_EXIT", OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_hover_exit, "menu-exit-hover", "SK_S_HOVER_EXIT", OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_expand, "select-expand", "SK_S_EXPAND", OVERLAYABLE | SAMPLE);
+    this->loadSound(this->s_select_difficulty, "select-difficulty", "SK_S_SELECT_DIFFICULTY",
+                    OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_sliderbar, "sliderbar", "SK_S_DRAG_SLIDER", OVERLAYABLE | SAMPLE);
+    this->loadSound(this->s_match_confirm, "match-confirm", "SK_S_ALL_PLAYERS_READY", OVERLAYABLE | SAMPLE);
+    this->loadSound(this->s_room_joined, "match-join", "SK_S_ROOM_JOINED", OVERLAYABLE | SAMPLE);
+    this->loadSound(this->s_room_quit, "match-leave", "SK_S_ROOM_QUIT", OVERLAYABLE | SAMPLE);
+    this->loadSound(this->s_room_not_ready, "match-notready", "SK_S_ROOM_NOT_READY", OVERLAYABLE | SAMPLE);
+    this->loadSound(this->s_room_ready, "match-ready", "SK_S_ROOM_READY", OVERLAYABLE | SAMPLE);
+    this->loadSound(this->s_match_start, "match-start", "SK_S_MATCH_START", OVERLAYABLE | SAMPLE);
 
-    this->loadSound(this->s_pause_loop, "pause-loop", "SK_S_PAUSE_LOOP", NOT_OVERLAYABLE, STREAM, LOOPING, true);
-    this->loadSound(this->s_pause_hover, "pause-hover", "SK_S_PAUSE_HOVER", OVERLAYABLE, SAMPLE, NOT_LOOPING, false);
-    this->loadSound(this->s_click_pause_back, "pause-back-click", "SK_S_CLICK_QUIT_SONG", true, true, false, false);
-    this->loadSound(this->s_hover_pause_back, "pause-back-hover", "SK_S_HOVER_QUIT_SONG", true, true, false, false);
-    this->loadSound(this->s_click_pause_continue, "pause-continue-click", "SK_S_CLICK_RESUME_SONG", true, true, false,
-                    false);
-    this->loadSound(this->s_hover_pause_continue, "pause-continue-hover", "SK_S_HOVER_RESUME_SONG", true, true, false,
-                    false);
-    this->loadSound(this->s_click_pause_retry, "pause-retry-click", "SK_S_CLICK_RETRY_SONG", true, true, false, false);
-    this->loadSound(this->s_hover_pause_retry, "pause-retry-hover", "SK_S_HOVER_RETRY_SONG", true, true, false, false);
+    this->loadSound(this->s_pause_loop, "pause-loop", "SK_S_PAUSE_LOOP", LOOPING);
+    this->loadSound(this->s_pause_hover, "pause-hover", "SK_S_PAUSE_HOVER", OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_click_pause_back, "pause-back-click", "SK_S_CLICK_QUIT_SONG",
+                    OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_hover_pause_back, "pause-back-hover", "SK_S_HOVER_QUIT_SONG",
+                    OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_click_pause_continue, "pause-continue-click", "SK_S_CLICK_RESUME_SONG",
+                    OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_hover_pause_continue, "pause-continue-hover", "SK_S_HOVER_RESUME_SONG",
+                    OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_click_pause_retry, "pause-retry-click", "SK_S_CLICK_RETRY_SONG",
+                    OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_hover_pause_retry, "pause-retry-hover", "SK_S_HOVER_RETRY_SONG",
+                    OVERLAYABLE | SAMPLE | NO_DEFAULT);
 
     if(!this->s_click_button) this->s_click_button = this->s_menu_hit;
     if(!this->s_hover_button) this->s_hover_button = this->s_menu_hover;
@@ -842,8 +845,7 @@ bool Skin::parseSkinINI(std::string filepath) {
             }
 
             case COLOURS: {
-                u8 comboNum;
-                u8 r, g, b;
+                u8 comboNum, r, g, b;  // NOLINT(cppcoreguidelines-init-variables)
 
                 if(Parsing::parse(curLine, "Combo", &comboNum, ':', &r, ',', &g, ',', &b)) {
                     if(comboNum >= 1 && comboNum <= 8) tempColors[comboNum - 1] = rgb(r, g, b);
@@ -1090,9 +1092,12 @@ void Skin::loadUnsizedImage(BasicSkinImage &ref, const std::string &skinElementN
     return;
 }
 
-void Skin::loadSound(Sound *&ref, const std::string &skinElementName, const std::string &resourceName,
-                     bool isOverlayable, bool isSample, bool loop, bool fallback_to_default) {
+void Skin::loadSound(Sound *&ref, const std::string &skinElementName, const std::string &resourceName, u8 flags) {
     assert(!ref);
+    const bool isOverlayable = !!(flags & OVERLAYABLE);
+    const bool isSample = !!(flags & SAMPLE);
+    const bool loop = !!(flags & LOOPING);
+    const bool fallback_to_default = !(flags & NO_DEFAULT);
 
     this->randomizeFilePath();
 

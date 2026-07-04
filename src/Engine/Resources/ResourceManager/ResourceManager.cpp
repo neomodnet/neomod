@@ -120,25 +120,26 @@ struct ResourceManagerImpl final {
         if(!res) return;
 
         switch(res->getResType()) {
-            case Resource::Type::IMAGE:
+            using enum Resource::Type;
+            case IMAGE:
                 this->vImages.push_back(res->asImage());
                 break;
-            case Resource::Type::FONT:
+            case FONT:
                 this->vFonts.push_back(res->asFont());
                 break;
-            case Resource::Type::SOUND:
+            case SOUND:
                 this->vSounds.push_back(res->asSound());
                 break;
-            case Resource::Type::SHADER:
+            case SHADER:
                 this->vShaders.push_back(res->asShader());
                 break;
-            case Resource::Type::RENDERTARGET:
+            case RENDERTARGET:
                 this->vRenderTargets.push_back(res->asRenderTarget());
                 break;
-            case Resource::Type::TEXTUREATLAS:
+            case TEXTUREATLAS:
                 this->vTextureAtlases.push_back(res->asTextureAtlas());
                 break;
-            case Resource::Type::VAO:
+            case VAO:
                 this->vVertexArrayObjects.push_back(res->asVAO());
                 break;
         }
@@ -148,25 +149,26 @@ struct ResourceManagerImpl final {
         if(!res) return;
 
         switch(res->getResType()) {
-            case Resource::Type::IMAGE: {
+            using enum Resource::Type;
+            case IMAGE: {
                 std::erase(this->vImages, res);
             } break;
-            case Resource::Type::FONT: {
+            case FONT: {
                 std::erase(this->vFonts, res);
             } break;
-            case Resource::Type::SOUND: {
+            case SOUND: {
                 std::erase(this->vSounds, res);
             } break;
-            case Resource::Type::SHADER: {
+            case SHADER: {
                 std::erase(this->vShaders, res);
             } break;
-            case Resource::Type::RENDERTARGET: {
+            case RENDERTARGET: {
                 std::erase(this->vRenderTargets, res);
             } break;
-            case Resource::Type::TEXTUREATLAS: {
+            case TEXTUREATLAS: {
                 std::erase(this->vTextureAtlases, res);
             } break;
-            case Resource::Type::VAO: {
+            case VAO: {
                 std::erase(this->vVertexArrayObjects, res);
             } break;
         }

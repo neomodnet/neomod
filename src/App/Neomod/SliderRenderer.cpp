@@ -256,8 +256,14 @@ std::unique_ptr<VertexArrayObject> generateVAO(vec2 screenRect, std::span<const 
         }
 
         // OOB points emit no blocks at all (see the loop below), so don't reserve for them either
+        // TODO: is this double loop faster/worth it over just reserving the entire thing anyways/not reserving anything
         uSz keptPoints = n;
-        if(skipOOBPoints) keptPoints = (uSz)std::ranges::count_if(points, [&](vec2 p) { return !isOOB(p); });
+        if(skipOOBPoints) {
+            uSz count = 0;
+            for(auto point : points)
+                if(!isOOB(point)) ++count;
+            keptPoints = count;
+        }
 
         std::vector<vec3> meshVerts;
         std::vector<vec2> meshTCs;

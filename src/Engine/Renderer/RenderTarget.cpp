@@ -19,6 +19,7 @@ RenderTarget::RenderTarget(int x, int y, int width, int height, MultisampleType 
 
 RenderTarget::~RenderTarget() = default;
 
+static CONSTINIT std::array<vec3, 6> lastDrawVerts1{};
 void RenderTarget::draw(int x, int y) {
     if(!this->isReady()) {
         logIfCV(debug_rt, "WARNING: RenderTarget is not ready!");
@@ -32,11 +33,10 @@ void RenderTarget::draw(int x, int y) {
         // all draw*() functions of the RenderTarget class guarantee correctly flipped images
         // if bind() is used, no guarantee can be made about the texture orientation (assuming an anonymous
         // Renderer)
-        static std::vector<vec3> vertices(6, vec3{0.f, 0.f, 0.f});
 
         // clang-format off
-        std::vector<vec3> newVertices = {
-            {x, y, 0.f},
+        std::array<vec3, 6> newVertices = {
+            vec3{x, y, 0.f},
             {x, y + this->vSize.y, 0.f},
             {x + this->vSize.x, y + this->vSize.y, 0.f},
             {x + this->vSize.x, y + this->vSize.y, 0.f},
@@ -45,17 +45,17 @@ void RenderTarget::draw(int x, int y) {
         };
         // clang-format on
 
-        if(!this->vao1->isReady() || vertices != newVertices) {
+        if(!this->vao1->isReady() || lastDrawVerts1 != newVertices) {
             this->vao1->release();
 
-            vertices = std::move(newVertices);
+            lastDrawVerts1 = newVertices;
 
-            this->vao1->setVertices(vertices);
+            this->vao1->setVertices(lastDrawVerts1);
 
             const float vTop = g->hasFlippedTextureOrigin() ? 1.f : 0.f;
             const float vBot = g->hasFlippedTextureOrigin() ? 0.f : 1.f;
-            this->vao1->setTexcoords(std::vector<vec2>{vec2{0.f, vTop}, vec2{0.f, vBot}, vec2{1.f, vBot},
-                                                       vec2{1.f, vBot}, vec2{1.f, vTop}, vec2{0.f, vTop}});
+            this->vao1->setTexcoords(
+                std::array<vec2, 6>{vec2{0.f, vTop}, {0.f, vBot}, {1.f, vBot}, {1.f, vBot}, {1.f, vTop}, {0.f, vTop}});
 
             this->vao1->loadAsync();
             this->vao1->load();
@@ -66,7 +66,7 @@ void RenderTarget::draw(int x, int y) {
     this->unbind();
 }
 
-static CONSTINIT std::array<vec3, 6> lastDrawVerts{};
+static CONSTINIT std::array<vec3, 6> lastDrawVerts2{};
 void RenderTarget::draw(int x, int y, int width, int height) {
     if(!this->isReady()) {
         logIfCV(debug_rt, "WARNING: RenderTarget is not ready!");
@@ -88,12 +88,12 @@ void RenderTarget::draw(int x, int y, int width, int height) {
         };
         // clang-format on
 
-        if(!this->vao2->isReady() || lastDrawVerts != newVertices) {
+        if(!this->vao2->isReady() || lastDrawVerts2 != newVertices) {
             this->vao2->release();
 
-            lastDrawVerts = newVertices;
+            lastDrawVerts2 = newVertices;
 
-            this->vao2->setVertices(lastDrawVerts);
+            this->vao2->setVertices(lastDrawVerts2);
 
             const float vTop = g->hasFlippedTextureOrigin() ? 1.f : 0.f;
             const float vBot = g->hasFlippedTextureOrigin() ? 0.f : 1.f;
