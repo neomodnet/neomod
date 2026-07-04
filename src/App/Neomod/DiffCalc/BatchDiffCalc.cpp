@@ -129,7 +129,7 @@ struct MapResult {
 // per-thread mutable state for worker threads
 struct WorkerContext {
     std::unique_ptr<std::vector<DiffCalc::DiffObject>> diffobj_cache;
-    std::vector<BPMTuple> bpm_calc_buf;
+    std::vector<BPMCalc::BPMTuple> bpm_calc_buf;
     std::vector<f32> base_span_durations;
     std::vector<f32> base_scoring_times;
 };
@@ -491,7 +491,7 @@ void process_work_item(WorkItem& item, const Sync::stop_token& stoken, WorkerCon
 
         if(!primitives.timingpoints.empty()) {
             ctx.bpm_calc_buf.resize(primitives.timingpoints.size());
-            BPMInfo bpm = getBPM(primitives.timingpoints, ctx.bpm_calc_buf);
+            BPMCalc::BPMInfo bpm = BPMCalc::getBPM(primitives.timingpoints, ctx.bpm_calc_buf);
             result.min_bpm = bpm.min;
             result.max_bpm = bpm.max;
             result.avg_bpm = bpm.most_common;

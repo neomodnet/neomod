@@ -16,7 +16,7 @@ inline constexpr const int OSU_COORD_HEIGHT{384};
 //  Positional Audio  //
 //********************//
 
-forceinline float osuCoords2Pan(float x) { return (x / (float)OSU_COORD_WIDTH - 0.5f) * 0.8f; }
+constexpr inline float osuCoords2Pan(float x) { return (x / (float)OSU_COORD_WIDTH - 0.5f) * 0.8f; }
 
 //************************//
 //	Hitobject Animations  //
@@ -30,19 +30,19 @@ i32 getFadeInTime();
 //	Hitobject Timing  //
 //********************//
 
-constexpr forceinline float getMinHitWindow300() { return 80.f; }
-constexpr forceinline float getMidHitWindow300() { return 50.f; }
-constexpr forceinline float getMaxHitWindow300() { return 20.f; }
+inline constexpr const float MIN_HITWINDOW_300{80.f};
+inline constexpr const float MID_HITWINDOW_300{50.f};
+inline constexpr const float MAX_HITWINDOW_300{20.f};
 
-constexpr forceinline float getMinHitWindow100() { return 140.f; }
-constexpr forceinline float getMidHitWindow100() { return 100.f; }
-constexpr forceinline float getMaxHitWindow100() { return 60.f; }
+inline constexpr const float MIN_HITWINDOW_100{140.f};
+inline constexpr const float MID_HITWINDOW_100{100.f};
+inline constexpr const float MAX_HITWINDOW_100{60.f};
 
-constexpr forceinline float getMinHitWindow50() { return 200.f; }
-constexpr forceinline float getMidHitWindow50() { return 150.f; }
-constexpr forceinline float getMaxHitWindow50() { return 100.f; }
+inline constexpr const float MIN_HITWINDOW_50{200.f};
+inline constexpr const float MID_HITWINDOW_50{150.f};
+inline constexpr const float MAX_HITWINDOW_50{100.f};
 
-constexpr forceinline float getHitWindowMiss() { return 400.f; }
+inline constexpr const float HITWINDOW_MISS{400.f};
 
 // respect mods and overrides
 float getMinApproachTime();
@@ -51,58 +51,60 @@ float getMaxApproachTime();
 
 // AR 5 -> 1200 ms
 template <typename T>
-forceinline T mapDifficultyRange(T scaledDiff, T min, T mid, T max)
     requires(std::is_same_v<T, float> || std::is_same_v<T, double>)
-{
-    if(scaledDiff == (T)5.)
+constexpr inline T mapDifficultyRange(T scaledDiff, T min, T mid, T max) {
+    constexpr const T MIDDLE{5};
+    if(scaledDiff == MIDDLE)
         return mid;
-    else if(scaledDiff > (T)5.)
-        return mid + (max - mid) * (scaledDiff - (T)5.) / (T)5.;
+    else if(scaledDiff > MIDDLE)
+        return mid + (max - mid) * (scaledDiff - MIDDLE) / MIDDLE;
     else
-        return mid - (mid - min) * ((T)5. - scaledDiff) / (T)5.;
+        return mid - (mid - min) * (MIDDLE - scaledDiff) / MIDDLE;
 }
 
 float arToMilliseconds(float AR);
 
-inline INLINE_BODY float odTo50HitWindowMS(float OD) {
-    return mapDifficultyRange(OD, getMinHitWindow50(), getMidHitWindow50(), getMaxHitWindow50());
+constexpr inline float odTo50HitWindowMS(float OD) {
+    return mapDifficultyRange(OD, MIN_HITWINDOW_50, MID_HITWINDOW_50, MAX_HITWINDOW_50);
 }
-inline INLINE_BODY float odTo100HitWindowMS(float OD) {
-    return mapDifficultyRange(OD, getMinHitWindow100(), getMidHitWindow100(), getMaxHitWindow100());
+constexpr inline float odTo100HitWindowMS(float OD) {
+    return mapDifficultyRange(OD, MIN_HITWINDOW_100, MID_HITWINDOW_100, MAX_HITWINDOW_100);
 }
-inline INLINE_BODY float odTo300HitWindowMS(float OD) {
-    return mapDifficultyRange(OD, getMinHitWindow300(), getMidHitWindow300(), getMaxHitWindow300());
+constexpr inline float odTo300HitWindowMS(float OD) {
+    return mapDifficultyRange(OD, MIN_HITWINDOW_300, MID_HITWINDOW_300, MAX_HITWINDOW_300);
 }
 
 // 1200 ms -> AR 5
-forceinline float mapDifficultyRangeInv(float val, float min, float mid, float max) {
+template <typename T>
+    requires(std::is_same_v<T, float> || std::is_same_v<T, double>)
+constexpr inline float mapDifficultyRangeInv(T val, T min, T mid, T max) {
+    constexpr const T MIDDLE{5};
     if(val == mid)
-        return 5.0f;
+        return MIDDLE;
     else if(val < mid)  // > 5.0f (inverted)
-        return ((val * 5.0f - mid * 5.0f) / (max - mid)) + 5.0f;
+        return ((val * MIDDLE - mid * MIDDLE) / (max - mid)) + MIDDLE;
     else  // < 5.0f (inverted)
-        return 5.0f - ((mid * 5.0f - val * 5.0f) / (mid - min));
+        return MIDDLE - ((mid * MIDDLE - val * MIDDLE) / (mid - min));
 }
 
 // AR 9, speed 1.5 -> AR 10.3
 float arWithSpeed(float AR, float speed);
 
 // OD 9, speed 1.5 -> OD 10.4
-inline INLINE_BODY float odWithSpeed(float OD, float speed) {
+constexpr inline float odWithSpeed(float OD, float speed) {
     float hittableTime = odTo300HitWindowMS(OD);
-    return mapDifficultyRangeInv(hittableTime / speed, getMinHitWindow300(), getMidHitWindow300(),
-                                 getMaxHitWindow300());
+    return mapDifficultyRangeInv(hittableTime / speed, MIN_HITWINDOW_300, MID_HITWINDOW_300, MAX_HITWINDOW_300);
 }
 
-inline INLINE_BODY float getApproachTimeForStacking(float AR) {
+constexpr inline float getApproachTimeForStacking(float AR) {
     return mapDifficultyRange(AR, getMinApproachTime(), getMidApproachTime(), getMaxApproachTime());
 }
 
 // raw spins required per second
 float getSpinnerSpinsPerSecond(const AbstractBeatmapInterface *beatmap);
 
-inline INLINE_BODY float getSpinnerRotationsForSpeedMultiplier(const AbstractBeatmapInterface *beatmap,
-                                                               i32 spinnerDuration, float speedMultiplier) {
+inline float getSpinnerRotationsForSpeedMultiplier(const AbstractBeatmapInterface *beatmap, i32 spinnerDuration,
+                                                   float speedMultiplier) {
     /// return (int)((float)spinnerDuration / 1000.0f * getSpinnerSpinsPerSecond(beatmap)); // actual
     return (int)((((float)spinnerDuration / 1000.0f * getSpinnerSpinsPerSecond(beatmap)) * 0.5f) *
                  (std::min(1.0f / speedMultiplier, 1.0f)));  // Mc
@@ -118,9 +120,8 @@ float getSpinnerRotationsForSpeedMultiplier(const AbstractBeatmapInterface *beat
 
 float getPlayfieldScaleFactor();
 
-forceinline vec2 getPlayfieldSize() {
+inline vec2 getPlayfieldSize() {
     const float scaleFactor = getPlayfieldScaleFactor();
-
     return {(float)OSU_COORD_WIDTH * scaleFactor, (float)OSU_COORD_HEIGHT * scaleFactor};
 }
 
@@ -143,14 +144,14 @@ inline vec2 getPlayfieldCenter() {
 // lenience for all plays, but by an amount so small it should only be effective in replays."
 inline constexpr const float broken_gamefield_rounding_allowance{1.00041f};
 
-forceinline f32 getRawHitCircleScale(f32 CS) {
+inline f32 getRawHitCircleScale(f32 CS) {
     return std::max(0.0f, ((1.0f - 0.7f * (CS - 5.0f) / 5.0f) / 2.0f) * broken_gamefield_rounding_allowance);
 }
 
 // gives the circle diameter in osu!pixels, goes negative above CS 12.1429
-forceinline f32 getRawHitCircleDiameter(f32 CS) { return getRawHitCircleScale(CS) * 128.0f; }
+inline f32 getRawHitCircleDiameter(f32 CS) { return getRawHitCircleScale(CS) * 128.0f; }
 
 // scales osu!pixels to the actual playfield size
-forceinline f32 getHitCircleXMultiplier() { return getPlayfieldSize().x / OSU_COORD_WIDTH; }
+inline f32 getHitCircleXMultiplier() { return getPlayfieldSize().x / OSU_COORD_WIDTH; }
 
 }  // namespace GameRules

@@ -74,6 +74,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <variant>
 #include <vector>
 
 // i have no idea where these come from but they seem to be transitively included through some stdlib header,

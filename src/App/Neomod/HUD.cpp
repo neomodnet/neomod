@@ -124,16 +124,6 @@ HUD::HUD() : UIScreen() {
     this->fCurFpsSmooth = 60.0f;
     this->fFpsUpdate = 0.0f;
 
-    this->fInputoverlayK1AnimScale = 1.0f;
-    this->fInputoverlayK2AnimScale = 1.0f;
-    this->fInputoverlayM1AnimScale = 1.0f;
-    this->fInputoverlayM2AnimScale = 1.0f;
-
-    this->fInputoverlayK1AnimColor = 0.0f;
-    this->fInputoverlayK2AnimColor = 0.0f;
-    this->fInputoverlayM1AnimColor = 0.0f;
-    this->fInputoverlayM2AnimColor = 0.0f;
-
     this->fAccuracyXOffset = 0.0f;
     this->fAccuracyYOffset = 0.0f;
     this->fScoreHeight = 0.0f;
@@ -239,7 +229,7 @@ void HUD::draw() {
                (pf == nullptr || (!pf->isSpinnerActive() || !cv::hud_hiterrorbar_hide_during_spinner.getBool())) &&
                !pf->isLoading()) {
                 this->drawHitErrorBar(pf->getHitWindow300(), pf->getHitWindow100(), pf->getHitWindow50(),
-                                      GameRules::getHitWindowMiss(), score->getUnstableRate());
+                                      GameRules::HITWINDOW_MISS, score->getUnstableRate());
             }
         }
 
@@ -269,7 +259,7 @@ void HUD::draw() {
                (pf == nullptr || (!pf->isSpinnerActive() || !cv::hud_hiterrorbar_hide_during_spinner.getBool())) &&
                !pf->isLoading()) {
                 this->drawHitErrorBar(pf->getHitWindow300(), pf->getHitWindow100(), pf->getHitWindow50(),
-                                      GameRules::getHitWindowMiss(), score->getUnstableRate());
+                                      GameRules::HITWINDOW_MISS, score->getUnstableRate());
             }
         }
     }
@@ -660,24 +650,19 @@ void HUD::drawCursorRipples() {
 
     if(cv::cursor_ripple_additive.getBool()) g->setBlendMode(DrawBlendMode::ADDITIVE);
 
-    g->setColor(argb(255, std::clamp<i32>(cv::cursor_ripple_tint_r.getInt(), 0, 255),
-                     std::clamp<i32>(cv::cursor_ripple_tint_g.getInt(), 0, 255),
-                     std::clamp<i32>(cv::cursor_ripple_tint_b.getInt(), 0, 255)));
+    g->setColor(RGB_CV_TO_COL(cursor_ripple_tint));
     cursorRipple->bind();
     {
-        for(auto &cursorRipple : this->cursorRipples) {
-            const vec2 &pos = cursorRipple.pos;
-            const f32 &time = cursorRipple.time;
-
-            const f32 animPercent = 1.0f - std::clamp<f32>((time - engine->getTime()) / duration, 0.0f, 1.0f);
-            const f32 fadePercent = 1.0f - std::clamp<f32>((time - engine->getTime()) / fadeDuration, 0.0f, 1.0f);
+        for(auto r : this->cursorRipples) {
+            const f32 animPercent = 1.0f - std::clamp<f32>((r.time - engine->getTime()) / duration, 0.0f, 1.0f);
+            const f32 fadePercent = 1.0f - std::clamp<f32>((r.time - engine->getTime()) / fadeDuration, 0.0f, 1.0f);
 
             const f32 scale =
                 std::lerp(cv::cursor_ripple_anim_start_scale.getFloat(), cv::cursor_ripple_anim_end_scale.getFloat(),
                           1.0f - (1.0f - animPercent) * (1.0f - animPercent));  // quad out
 
             g->setAlpha(cv::cursor_ripple_alpha.getFloat() * (1.0f - fadePercent));
-            g->drawQuad(pos.x - normalizedWidth * scale / 2, pos.y - normalizedHeight * scale / 2,
+            g->drawQuad(r.pos.x - normalizedWidth * scale / 2, r.pos.y - normalizedHeight * scale / 2,
                         normalizedWidth * scale, normalizedHeight * scale);
         }
     }
@@ -1273,53 +1258,52 @@ std::span<const SCORE_ENTRY> HUD::updateAndGetCurrentScores() {
     const auto *pf = osu->getMapInterface();
 
     if(BanchoState::is_in_a_multi_room()) {
-        for(auto &i : BanchoState::room.slots) {
-            auto slot = &i;
-            if(!slot->is_player_playing() && !slot->has_finished_playing()) continue;
+        for(auto &slot : BanchoState::room.slots) {
+            if(!slot.is_player_playing() && !slot.has_finished_playing()) continue;
 
-            if(slot->player_id == BanchoState::get_uid()) {
+            if(slot.player_id == BanchoState::get_uid()) {
                 const LiveScore &player_score = *osu->getScore();
                 // Update local player slot instantly
                 // (not including fields that won't be used for the HUD)
-                slot->num300 = (u16)player_score.getNum300s();
-                slot->num100 = (u16)player_score.getNum100s();
-                slot->num50 = (u16)player_score.getNum50s();
-                slot->num_miss = (u16)player_score.getNumMisses();
-                slot->current_combo = (u16)player_score.getCombo();
-                slot->max_combo = (u16)player_score.getComboMax();
-                slot->total_score = (i32)player_score.getScore();
-                slot->current_hp = pf->getHealth() * 200;
+                slot.num300 = (u16)player_score.getNum300s();
+                slot.num100 = (u16)player_score.getNum100s();
+                slot.num50 = (u16)player_score.getNum50s();
+                slot.num_miss = (u16)player_score.getNumMisses();
+                slot.current_combo = (u16)player_score.getCombo();
+                slot.max_combo = (u16)player_score.getComboMax();
+                slot.total_score = (i32)player_score.getScore();
+                slot.current_hp = pf->getHealth() * 200;
             }
 
-            const auto *user_info = BANCHO::User::get_user_info(slot->player_id, true);
+            const auto *user_info = BANCHO::User::get_user_info(slot.player_id, true);
 
             SCORE_ENTRY scoreEntry;
-            scoreEntry.entry_id = slot->player_id;
-            scoreEntry.player_id = slot->player_id;
+            scoreEntry.entry_id = slot.player_id;
+            scoreEntry.player_id = slot.player_id;
             scoreEntry.name = user_info->name;
-            scoreEntry.currentCombo = slot->current_combo;
-            scoreEntry.maxCombo = slot->max_combo;
-            scoreEntry.misses = slot->num_miss;
-            scoreEntry.score = slot->total_score;
-            scoreEntry.dead = (slot->current_hp == 0);
-            scoreEntry.highlight = (slot->player_id == BanchoState::get_uid());
+            scoreEntry.currentCombo = slot.current_combo;
+            scoreEntry.maxCombo = slot.max_combo;
+            scoreEntry.misses = slot.num_miss;
+            scoreEntry.score = slot.total_score;
+            scoreEntry.dead = (slot.current_hp == 0);
+            scoreEntry.highlight = (slot.player_id == BanchoState::get_uid());
 
             // NOTE: not setting scoreEntry.pp since we would have to compute it on-the-fly for each slot
             //       and "pp" is not a valid win condition for multiplayer matches
 
-            if(slot->has_quit()) {
-                slot->current_hp = 0;
+            if(slot.has_quit()) {
+                slot.current_hp = 0;
                 scoreEntry.name = tformat("{} [quit]", user_info->name.c_str());
             } else if(pf->isInSkippableSection() && pf->iCurrentHitObjectIndex < 1) {
-                if(slot->skipped) {
+                if(slot.skipped) {
                     // XXX: Draw pretty "Skip" image instead
                     scoreEntry.name = tformat("{} [skip]", user_info->name.c_str());
                 }
             }
 
             // hit_score != total_score: total_score also accounts for spinner bonus & mods
-            u64 hit_score = 300 * slot->num300 + 100 * slot->num100 + 50 * slot->num50;
-            u64 max_score = 300 * (slot->num300 + slot->num100 + slot->num50 + slot->num_miss);
+            u64 hit_score = 300 * slot.num300 + 100 * slot.num100 + 50 * slot.num50;
+            u64 max_score = 300 * (slot.num300 + slot.num100 + slot.num50 + slot.num_miss);
             scoreEntry.accuracy = max_score > 0 ? hit_score / max_score : 0.f;
 
             this->scores_cache.push_back(std::move(scoreEntry));
@@ -1490,7 +1474,7 @@ void HUD::drawHitErrorBar(BeatmapInterface *pf) {
         if(cv::draw_hiterrorbar.getBool() &&
            (!pf->isSpinnerActive() || !cv::hud_hiterrorbar_hide_during_spinner.getBool()) && !pf->isLoading())
             this->drawHitErrorBar(pf->getHitWindow300(), pf->getHitWindow100(), pf->getHitWindow50(),
-                                  GameRules::getHitWindowMiss(), osu->getScore()->getUnstableRate());
+                                  GameRules::HITWINDOW_MISS, osu->getScore()->getUnstableRate());
     }
 }
 
@@ -1572,18 +1556,10 @@ void HUD::drawHitErrorBarInt(f32 hitWindow300, f32 hitWindow100, f32 hitWindow50
         std::clamp<i32>((i32)(alpha * cv::hud_hiterrorbar_centerline_alpha.getFloat() * 255.0f), 0, 255);
     const i32 alphaBarInt = std::clamp<i32>((i32)(alpha * cv::hud_hiterrorbar_bar_alpha.getFloat() * 255.0f), 0, 255);
 
-    const Color color300 = argb(alphaBarInt, std::clamp<i32>(cv::hud_hiterrorbar_entry_300_r.getInt(), 0, 255),
-                                std::clamp<i32>(cv::hud_hiterrorbar_entry_300_g.getInt(), 0, 255),
-                                std::clamp<i32>(cv::hud_hiterrorbar_entry_300_b.getInt(), 0, 255));
-    const Color color100 = argb(alphaBarInt, std::clamp<i32>(cv::hud_hiterrorbar_entry_100_r.getInt(), 0, 255),
-                                std::clamp<i32>(cv::hud_hiterrorbar_entry_100_g.getInt(), 0, 255),
-                                std::clamp<i32>(cv::hud_hiterrorbar_entry_100_b.getInt(), 0, 255));
-    const Color color50 = argb(alphaBarInt, std::clamp<i32>(cv::hud_hiterrorbar_entry_50_r.getInt(), 0, 255),
-                               std::clamp<i32>(cv::hud_hiterrorbar_entry_50_g.getInt(), 0, 255),
-                               std::clamp<i32>(cv::hud_hiterrorbar_entry_50_b.getInt(), 0, 255));
-    const Color colorMiss = argb(alphaBarInt, std::clamp<i32>(cv::hud_hiterrorbar_entry_miss_r.getInt(), 0, 255),
-                                 std::clamp<i32>(cv::hud_hiterrorbar_entry_miss_g.getInt(), 0, 255),
-                                 std::clamp<i32>(cv::hud_hiterrorbar_entry_miss_b.getInt(), 0, 255));
+    const Color color300 = RGB_CV_TO_COL(hud_hiterrorbar_entry_300).setA(alphaBarInt);
+    const Color color100 = RGB_CV_TO_COL(hud_hiterrorbar_entry_100).setA(alphaBarInt);
+    const Color color50 = RGB_CV_TO_COL(hud_hiterrorbar_entry_50).setA(alphaBarInt);
+    const Color colorMiss = RGB_CV_TO_COL(hud_hiterrorbar_entry_miss).setA(alphaBarInt);
 
     vec2 size = vec2(osu->getVirtScreenWidth() * cv::hud_hiterrorbar_width_percent.getFloat(),
                      osu->getVirtScreenHeight() * cv::hud_hiterrorbar_height_percent.getFloat()) *
@@ -1673,9 +1649,7 @@ void HUD::drawHitErrorBarInt(f32 hitWindow300, f32 hitWindow100, f32 hitWindow50
 
     // white center line
     if(alphaCenterlineInt > 0) {
-        g->setColor(argb(alphaCenterlineInt, std::clamp<i32>(cv::hud_hiterrorbar_centerline_r.getInt(), 0, 255),
-                         std::clamp<i32>(cv::hud_hiterrorbar_centerline_g.getInt(), 0, 255),
-                         std::clamp<i32>(cv::hud_hiterrorbar_centerline_b.getInt(), 0, 255)));
+        g->setColor(RGB_CV_TO_COL(hud_hiterrorbar_centerline).setA(alphaCenterlineInt));
         g->fillRect(center.x - entryWidth / 2.0f / 2.0f, center.y - entryHeight / 2.0f, entryWidth / 2.0f, entryHeight);
     }
 }
@@ -1745,7 +1719,7 @@ void HUD::drawClock(f32 percent, bool waiting) {
     // clamp to bottom edge of score numbers
     if(cv::draw_score.getBool() && center.y - radius < this->fScoreHeight) center.y = this->fScoreHeight + radius;
 
-    const f32 theta = 2 * PI / f32(num_segments);
+    const f32 theta = 2 * PI_F / num_segments;
     const f32 s = sinf(theta);  // precalculate the sine and cosine
     const f32 c = cosf(theta);
     f32 t;
@@ -1842,17 +1816,17 @@ void HUD::drawStatistics(const HUDStats &s) {
     g->pushTransform();
     {
         g->scale(scale, scale);
-        g->translate(cv::hud_statistics_offset_x.getInt(),
-                     (i32)(font->getHeight() * scale) + (cv::hud_statistics_offset_y.getInt() * offsetScale));
+        g->translate((f32)cv::hud_statistics_offset_x.getInt(),
+                     (f32)(i32)(font->getHeight() * scale) + ((f32)cv::hud_statistics_offset_y.getInt() * offsetScale));
 
-        auto addStatistic = [font, yDelta](const std::string &text, f32 xOffset, f32 yOffset) {
+        auto addStatistic = [font, yDelta](const std::string &text, i32 xOffset, i32 yOffset) {
             if(text.length() < 1) return;
 
-            g->translate(xOffset, yOffset);
+            g->translate((f32)xOffset, (f32)yOffset);
 
             g->drawString(font, text, TextFX{.col_text = textColor, .col_shadow = shadowColor, .offs_px = 1.f});
 
-            g->translate((-xOffset), (-yOffset) + yDelta);
+            g->translate((-(f32)xOffset), (-(f32)yOffset) + yDelta);
         };
 
         // debugging
@@ -2012,8 +1986,8 @@ void HUD::drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 
                                 f32 beatmapPercentFinishedPlayable, const std::vector<BREAK> &breaks) {
     static vec2 last_cursor_pos = mouse->getPos();
     static f64 last_cursor_movement = engine->getTime();
-    vec2 new_cursor_pos = mouse->getPos();
-    f64 new_cursor_movement = engine->getTime();
+    const vec2 new_cursor_pos = mouse->getPos();
+    const f64 new_cursor_movement = engine->getTime();
     if(last_cursor_pos.x != new_cursor_pos.x || last_cursor_pos.y != new_cursor_pos.y) {
         last_cursor_pos = new_cursor_pos;
         last_cursor_movement = new_cursor_movement;
@@ -2022,34 +1996,34 @@ void HUD::drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 
     // Auto-hide scrubbing timeline when watching a replay
     f64 galpha = 1.0f;
     if(osu->getMapInterface()->is_watching) {
-        f64 time_since_last_move = new_cursor_movement - (last_cursor_movement + 1.0f);
+        const f64 time_since_last_move = new_cursor_movement - (last_cursor_movement + 1.0f);
         galpha = fmax(0.f, fmin(1.0f - time_since_last_move, 1.0f));
     }
 
-    f32 dpiScale = Osu::getUIScale();
-    vec2 cursorPos = mouse->getPos();
-    cursorPos.y = osu->getVirtScreenHeight() * 0.8;
+    const f32 dpiScale = Osu::getUIScale();
+    const vec2 cursorPos{mouse->getPos().x, osu->getVirtScreenHeight() * 0.8f};
 
-    Color grey = 0xffbbbbbb;
-    Color greyTransparent = 0xbbbbbbbb;
-    Color greyDark = 0xff777777;
-    Color green = 0xff00ff00;
+    const Color grey = 0xffbbbbbb;
+    const Color greyTransparent = 0xbbbbbbbb;
+    const Color greyDark = 0xff777777;
+    const Color green = 0xff00ff00;
 
     McFont *timeFont = osu->getSubTitleFont();
 
-    f32 breakHeight = 15 * dpiScale;
-    f32 currentTimeTopTextOffset = 7 * dpiScale;
-    f32 currentTimeLeftRightTextOffset = 5 * dpiScale;
-    f32 startAndEndTimeTextOffset = 5 * dpiScale + breakHeight;
-    u32 endTimeMS = beatmapStartTimePlayable + beatmapLengthPlayable;
+    const f32 breakHeight = 15 * dpiScale;
+    const f32 currentTimeTopTextOffset = 7 * dpiScale;
+    const f32 currentTimeLeftRightTextOffset = 5 * dpiScale;
+    const f32 startAndEndTimeTextOffset = 5 * dpiScale + breakHeight;
+    const u32 endTimeMS = beatmapStartTimePlayable + beatmapLengthPlayable;
     if(endTimeMS == 0) return;
 
     // draw strain graph
     if(cv::draw_scrubbing_timeline_strain_graph.getBool()) {
-        const std::vector<f64> &aimStrains = osu->getMapInterface()->getWholeMapPPInfo().aimStrains;
-        const std::vector<f64> &speedStrains = osu->getMapInterface()->getWholeMapPPInfo().speedStrains;
+        const auto &ppInfo = osu->getMapInterface()->getWholeMapPPInfo();
+        const std::vector<f64> &aimStrains = ppInfo.aimStrains;
+        const std::vector<f64> &speedStrains = ppInfo.speedStrains;
 
-        u32 nb_strains = aimStrains.size();
+        const u32 nb_strains = aimStrains.size();
         if(aimStrains.size() > 0 && aimStrains.size() == speedStrains.size()) {
             // get highest strain values for normalization
             f64 highestAimStrain = 0.0;
@@ -2057,9 +2031,9 @@ void HUD::drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 
             f64 highestStrain = 0.0;
             i32 highestStrainIndex = -1;
             for(i32 i = 0; i < aimStrains.size(); i++) {
-                f64 aimStrain = aimStrains[i];
-                f64 speedStrain = speedStrains[i];
-                f64 strain = aimStrain + speedStrain;
+                const f64 aimStrain = aimStrains[i];
+                const f64 speedStrain = speedStrains[i];
+                const f64 strain = aimStrain + speedStrain;
 
                 if(strain > highestStrain) {
                     highestStrain = strain;
@@ -2071,28 +2045,25 @@ void HUD::drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 
 
             // draw strain bar graph
             if(highestAimStrain > 0.0 && highestSpeedStrain > 0.0 && highestStrain > 0.0) {
-                f32 offsetX = (f32)beatmapStartTimePlayable / (f32)endTimeMS * (f32)osu->getVirtScreenWidth();
-                f32 drawable_area = (f32)osu->getVirtScreenWidth() - offsetX;
-                f32 strainWidth = drawable_area / (f32)nb_strains;
-                f32 strainHeightMultiplier = cv::hud_scrubbing_timeline_strains_height.getFloat() * dpiScale;
+                const f32 offsetX = (f32)beatmapStartTimePlayable / (f32)endTimeMS * (f32)osu->getVirtScreenWidth();
+                const f32 drawable_area = (f32)osu->getVirtScreenWidth() - offsetX;
+                const f32 strainWidth = drawable_area / (f32)nb_strains;
+                const f32 strainHeightMultiplier = cv::hud_scrubbing_timeline_strains_height.getFloat() * dpiScale;
 
-                f32 alpha = cv::hud_scrubbing_timeline_strains_alpha.getFloat() * galpha;
-                Color aimStrainColor = argb(alpha, cv::hud_scrubbing_timeline_strains_aim_color_r.getInt() / 255.0f,
-                                            cv::hud_scrubbing_timeline_strains_aim_color_g.getInt() / 255.0f,
-                                            cv::hud_scrubbing_timeline_strains_aim_color_b.getInt() / 255.0f);
-                Color speedStrainColor = argb(alpha, cv::hud_scrubbing_timeline_strains_speed_color_r.getInt() / 255.0f,
-                                              cv::hud_scrubbing_timeline_strains_speed_color_g.getInt() / 255.0f,
-                                              cv::hud_scrubbing_timeline_strains_speed_color_b.getInt() / 255.0f);
+                const f32 alpha = cv::hud_scrubbing_timeline_strains_alpha.getFloat() * galpha;
+
+                const Color aimStrainColor = RGB_CV_TO_COL(hud_scrubbing_timeline_strains_aim_color).setA(alpha);
+                const Color speedStrainColor = RGB_CV_TO_COL(hud_scrubbing_timeline_strains_speed_color).setA(alpha);
 
                 g->setDepthBuffer(true);
                 for(i32 i = 0; i < aimStrains.size(); i++) {
-                    f64 aimStrain = (aimStrains[i]) / highestStrain;
-                    f64 speedStrain = (speedStrains[i]) / highestStrain;
-                    // f64 strain = (aimStrains[i] + speedStrains[i]) / highestStrain;
+                    const f64 aimStrain = (aimStrains[i]) / highestStrain;
+                    const f64 speedStrain = (speedStrains[i]) / highestStrain;
+                    // const f64 strain = (aimStrains[i] + speedStrains[i]) / highestStrain;
 
-                    f64 aimStrainHeight = aimStrain * strainHeightMultiplier;
-                    f64 speedStrainHeight = speedStrain * strainHeightMultiplier;
-                    // f64 strainHeight = strain * strainHeightMultiplier;
+                    const f64 aimStrainHeight = aimStrain * strainHeightMultiplier;
+                    const f64 speedStrainHeight = speedStrain * strainHeightMultiplier;
+                    // const f64 strainHeight = strain * strainHeightMultiplier;
 
                     g->setColor(aimStrainColor);
                     g->fillRect(i * strainWidth + offsetX, cursorPos.y - aimStrainHeight,
@@ -2106,18 +2077,18 @@ void HUD::drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 
 
                 // highlight highest total strain value (+- section block)
                 if(highestStrainIndex > -1) {
-                    f64 aimStrain = (aimStrains[highestStrainIndex]) / highestStrain;
-                    f64 speedStrain = (speedStrains[highestStrainIndex]) / highestStrain;
-                    // f64 strain = (aimStrains[i] + speedStrains[i]) / highestStrain;
+                    const f64 aimStrain = (aimStrains[highestStrainIndex]) / highestStrain;
+                    const f64 speedStrain = (speedStrains[highestStrainIndex]) / highestStrain;
+                    // const f64 strain = (aimStrains[i] + speedStrains[i]) / highestStrain;
 
-                    f64 aimStrainHeight = aimStrain * strainHeightMultiplier;
-                    f64 speedStrainHeight = speedStrain * strainHeightMultiplier;
-                    // f64 strainHeight = strain * strainHeightMultiplier;
+                    const f64 aimStrainHeight = aimStrain * strainHeightMultiplier;
+                    const f64 speedStrainHeight = speedStrain * strainHeightMultiplier;
+                    // const f64 strainHeight = strain * strainHeightMultiplier;
 
-                    vec2 topLeftCenter = vec2(highestStrainIndex * strainWidth + offsetX + strainWidth / 2.0f,
-                                              cursorPos.y - aimStrainHeight - speedStrainHeight);
+                    const vec2 topLeftCenter = vec2(highestStrainIndex * strainWidth + offsetX + strainWidth / 2.0f,
+                                                    cursorPos.y - aimStrainHeight - speedStrainHeight);
 
-                    f32 margin = 5.0f * dpiScale;
+                    const f32 margin = 5.0f * dpiScale;
 
                     g->setColor(Color(0xffffffff).setA(alpha));
 
@@ -2133,7 +2104,7 @@ void HUD::drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 
     g->setColor(Color(greyTransparent).setA(galpha));
 
     for(auto i : breaks) {
-        i32 width =
+        const i32 width =
             std::max((i32)(osu->getVirtScreenWidth() * std::clamp<f32>(i.endPercent - i.startPercent, 0.0f, 1.0f)), 2);
         g->fillRect(osu->getVirtScreenWidth() * i.startPercent, cursorPos.y + 1, width, breakHeight);
     }
@@ -2217,7 +2188,7 @@ void HUD::drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 
 
     // quicksave time triangle & text
     if(osu->getQuickSaveTimeMS() != 0) {
-        f32 quickSavePercent = std::clamp<f32>(osu->getQuickSaveTimeMS() / (f32)endTimeMS, 0.f, 1.f);
+        const f32 quickSavePercent = std::clamp<f32>(osu->getQuickSaveTimeMS() / (f32)endTimeMS, 0.f, 1.f);
         triangleTip = vec2(osu->getVirtScreenWidth() * quickSavePercent, cursorPos.y);
         g->pushTransform();
         {
@@ -2234,7 +2205,7 @@ void HUD::drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 
         g->popTransform();
 
         // end time text
-        u32 quickSaveTimeMS = osu->getQuickSaveTimeMS();
+        const u32 quickSaveTimeMS = osu->getQuickSaveTimeMS();
         std::string endTimeText =
             fmt::format("{}:{:02d}", (quickSaveTimeMS / 1000) / 60, (quickSaveTimeMS / 1000) % 60);
         g->pushTransform();
@@ -2260,7 +2231,7 @@ void HUD::drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 
     }
 
     // current time hover text
-    u32 hoverTimeMS = std::clamp<f32>((cursorPos.x / (f32)osu->getVirtScreenWidth()), 0.0f, 1.0f) * endTimeMS;
+    const u32 hoverTimeMS = std::clamp<f32>((cursorPos.x / (f32)osu->getVirtScreenWidth()), 0.0f, 1.0f) * endTimeMS;
     std::string hoverTimeText = fmt::format("{}:{:02d}", (hoverTimeMS / 1000) / 60, (hoverTimeMS / 1000) % 60);
     triangleTip = vec2(cursorPos.x, cursorPos.y);
     g->pushTransform();
@@ -2327,50 +2298,23 @@ void HUD::drawInputOverlay(i32 numK1, i32 numK2, i32 numM1, i32 numM2) {
         const Color colorKeyboard = argb(255, 255, 222, 0);
         const Color colorMouse = argb(255, 248, 0, 158);
 
-        McFont *textFont = osu->getSongBrowserFont();
-        McFont *textFontBold = osu->getSongBrowserFontBold();
+        struct {
+            i32 key;
+            i32 count;
+            std::string base_text;
+        } keys[] = {{IOKEY_K1, numK1, "K1"}, {IOKEY_K2, numK2, "K2"}, {IOKEY_M1, numM1, "M1"}, {IOKEY_M2, numM2, "M2"}};
 
-        for(i32 i = 0; i < 4; i++) {
-            textFont = osu->getSongBrowserFont();  // reset
+        for(auto [key, count, baseText] : keys) {
+            McFont *textFont = (count > 0) ? osu->getSongBrowserFontBold() : osu->getSongBrowserFont();
 
-            std::string text;
-            Color color = colorIdle;
-            f32 animScale = 1.0f;
-            f32 animColor = 0.0f;
-            switch(i) {
-                case 0:
-                    text = numK1 > 0 ? fmt::format("{:d}", numK1) : "K1";
-                    color = colorKeyboard;
-                    animScale = this->fInputoverlayK1AnimScale;
-                    animColor = this->fInputoverlayK1AnimColor;
-                    if(numK1 > 0) textFont = textFontBold;
-                    break;
-                case 1:
-                    text = numK2 > 0 ? fmt::format("{:d}", numK2) : "K2";
-                    color = colorKeyboard;
-                    animScale = this->fInputoverlayK2AnimScale;
-                    animColor = this->fInputoverlayK2AnimColor;
-                    if(numK2 > 0) textFont = textFontBold;
-                    break;
-                case 2:
-                    text = numM1 > 0 ? fmt::format("{:d}", numM1) : "M1";
-                    color = colorMouse;
-                    animScale = this->fInputoverlayM1AnimScale;
-                    animColor = this->fInputoverlayM1AnimColor;
-                    if(numM1 > 0) textFont = textFontBold;
-                    break;
-                case 3:
-                    text = numM2 > 0 ? fmt::format("{:d}", numM2) : "M2";
-                    color = colorMouse;
-                    animScale = this->fInputoverlayM2AnimScale;
-                    animColor = this->fInputoverlayM2AnimColor;
-                    if(numM2 > 0) textFont = textFontBold;
-                    break;
-            }
+            const std::string text = (count > 0) ? fmt::format("{:d}", count) : baseText;
+            const Color color = (key < IOKEY_M1) ? colorKeyboard : colorMouse;
+            const f32 animScale = this->inputOverlayKeys[key].scale;
+            const f32 animColor = this->inputOverlayKeys[key].color;
 
             // key
             const vec2 pos =
-                vec2(xStart - (15.0f * oScale) * scale + 1, yStart + (19.0f * oScale + i * 29.5f * oScale) * scale);
+                vec2(xStart - (15.0f * oScale) * scale + 1, yStart + (19.0f * oScale + key * 29.5f * oScale) * scale);
             g->setColor(argb(1.0f, (1.0f - animColor) * colorIdle.Rf() + animColor * color.Rf(),
                              (1.0f - animColor) * colorIdle.Gf() + animColor * color.Gf(),
                              (1.0f - animColor) * colorIdle.Bf() + animColor * color.Bf()));
@@ -2462,54 +2406,42 @@ void HUD::animateInputOverlay(GameplayKeys key_flag, bool down) {
 
     for(GameplayKeys flag = GameplayKeys::K2 /* 8 */; flag >= 1; flag = static_cast<GameplayKeys>(flag >> 1)) {
         if(!(flag & key_flag)) continue;
+        static constexpr const auto keyToInputOverlayIndex = [](GameplayKeys key) -> i32 {
+            switch(key) {
+                    // clang-format off
+                case GameplayKeys::K1:    return IOKEY_K1;
+                case GameplayKeys::K2:    return IOKEY_K2;
+                case GameplayKeys::M1:    return IOKEY_M1;
+                case GameplayKeys::M2:    return IOKEY_M2;
+                case GameplayKeys::Smoke: std::unreachable();
+                    // clang-format on
+            }
+        };
 
-        AnimFloat *animScale = nullptr;
-        AnimFloat *animColor = nullptr;
-
-        switch(flag) {
-            case GameplayKeys::Smoke:
-                std::unreachable();
-                return;
-            case GameplayKeys::K1:
-                animScale = &this->fInputoverlayK1AnimScale;
-                animColor = &this->fInputoverlayK1AnimColor;
-                break;
-            case GameplayKeys::K2:
-                animScale = &this->fInputoverlayK2AnimScale;
-                animColor = &this->fInputoverlayK2AnimColor;
-                break;
-            case GameplayKeys::M1:
-                animScale = &this->fInputoverlayM1AnimScale;
-                animColor = &this->fInputoverlayM1AnimColor;
-                break;
-            case GameplayKeys::M2:
-                animScale = &this->fInputoverlayM2AnimScale;
-                animColor = &this->fInputoverlayM2AnimColor;
-                break;
-        }
+        auto &iokey = this->inputOverlayKeys[keyToInputOverlayIndex(flag)];
 
         if(down) {
             // scale
-            *animScale = 1.0f;
-            animScale->set(cv::hud_inputoverlay_anim_scale_multiplier.getFloat(),
-                           cv::hud_inputoverlay_anim_scale_duration.getFloat(), anim::QuadOut);
+            iokey.scale = 1.0f;
+            iokey.scale.set(cv::hud_inputoverlay_anim_scale_multiplier.getFloat(),
+                            cv::hud_inputoverlay_anim_scale_duration.getFloat(), anim::QuadOut);
 
             // color
-            animColor->stop();
-            *animColor = 1.0f;
+            iokey.color.stop();
+            iokey.color = 1.0f;
         } else {
             // scale
             // NOTE: osu is running the keyup anim in parallel, but only allowing it to override once the keydown anim has
             // finished, and with some weird speedup?
-            const f32 remainingDuration = animScale->remaining();
-            animScale->append(
+            const f32 remainingDuration = iokey.scale.remaining();
+            iokey.scale.append(
                 1.0f,
                 cv::hud_inputoverlay_anim_scale_duration.getFloat() -
                     std::min(remainingDuration * 1.4f, cv::hud_inputoverlay_anim_scale_duration.getFloat()),
                 anim::QuadOut, remainingDuration);
 
             // color
-            animColor->set(0.0f, cv::hud_inputoverlay_anim_color_duration.getFloat(), anim::Linear);
+            iokey.color.set(0.0f, cv::hud_inputoverlay_anim_color_duration.getFloat(), anim::Linear);
         }
     }
 }

@@ -512,6 +512,10 @@ class DatabaseBeatmap final {
     friend class BGImageHandler;
 };
 
+struct DB_TIMINGPOINT;
+
+namespace neomod::BPMCalc {
+
 struct BPMInfo {
     i32 min{0};
     i32 max{0};
@@ -522,8 +526,6 @@ struct BPMTuple {
     i32 bpm;
     double duration;
 };
-
-struct DB_TIMINGPOINT;
 
 template <typename T>
 BPMInfo getBPM(const T &timing_points, std::vector<BPMTuple> &bpm_buffer)
@@ -590,6 +592,7 @@ BPMInfo getBPM(const T &timing_points, std::vector<BPMTuple> &bpm_buffer)
         .most_common = mostCommonBPM,
     };
 }
+}  // namespace neomod::BPMCalc
 
 #else
 };

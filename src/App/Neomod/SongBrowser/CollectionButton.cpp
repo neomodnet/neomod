@@ -168,15 +168,8 @@ void CollectionButton::onDeleteCollectionConfirmed(std::string_view /*text*/, in
 }
 
 Color CollectionButton::getActiveBackgroundColor() const {
-    return argb(std::clamp<int>(cv::songbrowser_button_collection_active_color_a.getInt(), 0, 255),
-                std::clamp<int>(cv::songbrowser_button_collection_active_color_r.getInt(), 0, 255),
-                std::clamp<int>(cv::songbrowser_button_collection_active_color_g.getInt(), 0, 255),
-                std::clamp<int>(cv::songbrowser_button_collection_active_color_b.getInt(), 0, 255));
+    return ARGB_CV_TO_COL(songbrowser_button_collection_active_color);
 }
-
 Color CollectionButton::getInactiveBackgroundColor() const {
-    return argb(std::clamp<int>(cv::songbrowser_button_collection_inactive_color_a.getInt(), 0, 255),
-                std::clamp<int>(cv::songbrowser_button_collection_inactive_color_r.getInt(), 0, 255),
-                std::clamp<int>(cv::songbrowser_button_collection_inactive_color_g.getInt(), 0, 255),
-                std::clamp<int>(cv::songbrowser_button_collection_inactive_color_b.getInt(), 0, 255));
+    return ARGB_CV_TO_COL(songbrowser_button_collection_inactive_color);
 }

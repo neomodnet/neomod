@@ -246,15 +246,17 @@ class HUD final : public UIScreen {
     std::vector<HITERROR> hiterrors;
 
     // inputoverlay / key overlay
-    AnimFloat fInputoverlayK1AnimScale;
-    AnimFloat fInputoverlayK2AnimScale;
-    AnimFloat fInputoverlayM1AnimScale;
-    AnimFloat fInputoverlayM2AnimScale;
-
-    AnimFloat fInputoverlayK1AnimColor;
-    AnimFloat fInputoverlayK2AnimColor;
-    AnimFloat fInputoverlayM1AnimColor;
-    AnimFloat fInputoverlayM2AnimColor;
+    enum InputOverlayKey : u8 {
+        IOKEY_K1,
+        IOKEY_K2,
+        IOKEY_M1,
+        IOKEY_M2,
+    };
+    struct InputOverlayElement {
+        AnimFloat scale{1.f};
+        AnimFloat color{0.f};
+    };
+    std::array<InputOverlayElement, 4> inputOverlayKeys;
 
     // cursor & trail & ripples
     AnimFloat fCursorExpandAnim;

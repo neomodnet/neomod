@@ -790,14 +790,8 @@ void SongBrowser::drawStrainGraphOverlay() {
             const f32 alpha =
                 (graphRect.contains(mouse->getPos()) ? 1.0f : cv::hud_scrubbing_timeline_strains_alpha.getFloat());
 
-            const Color aimStrainColor =
-                argb(alpha, (f32)cv::hud_scrubbing_timeline_strains_aim_color_r.getInt() / 255.0f,
-                     (f32)cv::hud_scrubbing_timeline_strains_aim_color_g.getInt() / 255.0f,
-                     (f32)cv::hud_scrubbing_timeline_strains_aim_color_b.getInt() / 255.0f);
-            const Color speedStrainColor =
-                argb(alpha, (f32)cv::hud_scrubbing_timeline_strains_speed_color_r.getInt() / 255.0f,
-                     (f32)cv::hud_scrubbing_timeline_strains_speed_color_g.getInt() / 255.0f,
-                     (f32)cv::hud_scrubbing_timeline_strains_speed_color_b.getInt() / 255.0f);
+            const Color aimStrainColor = RGB_CV_TO_COL(hud_scrubbing_timeline_strains_aim_color).setA(alpha);
+            const Color speedStrainColor = RGB_CV_TO_COL(hud_scrubbing_timeline_strains_speed_color).setA(alpha);
 
             g->setDepthBuffer(true);
             for(int i = 0; i < aimStrains.size(); i++) {

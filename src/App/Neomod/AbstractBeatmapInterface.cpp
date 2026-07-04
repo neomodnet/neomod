@@ -7,23 +7,23 @@
 #include "score.h"
 
 f32 AbstractBeatmapInterface::getHitWindow300() const {
-    return GameRules::mapDifficultyRange(this->getOD(), GameRules::getMinHitWindow300(),
-                                         GameRules::getMidHitWindow300(), GameRules::getMaxHitWindow300());
+    return GameRules::mapDifficultyRange(this->getOD(), GameRules::MIN_HITWINDOW_300, GameRules::MID_HITWINDOW_300,
+                                         GameRules::MAX_HITWINDOW_300);
 }
 
 f32 AbstractBeatmapInterface::getRawHitWindow300() const {
-    return GameRules::mapDifficultyRange(this->getRawOD(), GameRules::getMinHitWindow300(),
-                                         GameRules::getMidHitWindow300(), GameRules::getMaxHitWindow300());
+    return GameRules::mapDifficultyRange(this->getRawOD(), GameRules::MIN_HITWINDOW_300, GameRules::MID_HITWINDOW_300,
+                                         GameRules::MAX_HITWINDOW_300);
 }
 
 f32 AbstractBeatmapInterface::getHitWindow100() const {
-    return GameRules::mapDifficultyRange(this->getOD(), GameRules::getMinHitWindow100(),
-                                         GameRules::getMidHitWindow100(), GameRules::getMaxHitWindow100());
+    return GameRules::mapDifficultyRange(this->getOD(), GameRules::MIN_HITWINDOW_100, GameRules::MID_HITWINDOW_100,
+                                         GameRules::MAX_HITWINDOW_100);
 }
 
 f32 AbstractBeatmapInterface::getHitWindow50() const {
-    return GameRules::mapDifficultyRange(this->getOD(), GameRules::getMinHitWindow50(), GameRules::getMidHitWindow50(),
-                                         GameRules::getMaxHitWindow50());
+    return GameRules::mapDifficultyRange(this->getOD(), GameRules::MIN_HITWINDOW_50, GameRules::MID_HITWINDOW_50,
+                                         GameRules::MAX_HITWINDOW_50);
 }
 
 f32 AbstractBeatmapInterface::getApproachRateForSpeedMultiplier() const {
@@ -46,20 +46,20 @@ f32 AbstractBeatmapInterface::getConstantApproachRateForSpeedMultiplier() const 
 
 f32 AbstractBeatmapInterface::getOverallDifficultyForSpeedMultiplier() const {
     return GameRules::mapDifficultyRangeInv((f32)this->getHitWindow300() * (1.0f / this->getSpeedMultiplier()),
-                                            GameRules::getMinHitWindow300(), GameRules::getMidHitWindow300(),
-                                            GameRules::getMaxHitWindow300());
+                                            GameRules::MIN_HITWINDOW_300, GameRules::MID_HITWINDOW_300,
+                                            GameRules::MAX_HITWINDOW_300);
 }
 
 f32 AbstractBeatmapInterface::getRawODForSpeedMultiplier() const {
     return GameRules::mapDifficultyRangeInv((f32)this->getRawHitWindow300() * (1.0f / this->getSpeedMultiplier()),
-                                            GameRules::getMinHitWindow300(), GameRules::getMidHitWindow300(),
-                                            GameRules::getMaxHitWindow300());
+                                            GameRules::MIN_HITWINDOW_300, GameRules::MID_HITWINDOW_300,
+                                            GameRules::MAX_HITWINDOW_300);
 }
 
 f32 AbstractBeatmapInterface::getConstantOverallDifficultyForSpeedMultiplier() const {
     return GameRules::mapDifficultyRangeInv((f32)this->getRawHitWindow300() * this->getSpeedMultiplier(),
-                                            GameRules::getMinHitWindow300(), GameRules::getMidHitWindow300(),
-                                            GameRules::getMaxHitWindow300());
+                                            GameRules::MIN_HITWINDOW_300, GameRules::MID_HITWINDOW_300,
+                                            GameRules::MAX_HITWINDOW_300);
 }
 
 const Replay::Mods &AbstractBeatmapInterface::getMods() const { return osu->getScore()->mods; }
@@ -69,7 +69,7 @@ i32 AbstractBeatmapInterface::getPVS() const {
     // this is an approximation with generous boundaries, it doesn't need to be exact (just good enough to filter 10000
     // hitobjects down to a few hundred or so) it will be used in both positive and negative directions (previous and
     // future hitobjects) to speed up loops which iterate over all hitobjects
-    return this->fCachedApproachTimeForUpdate + GameRules::getFadeInTime() + (i32)GameRules::getHitWindowMiss() +
+    return this->fCachedApproachTimeForUpdate + GameRules::getFadeInTime() + (i32)GameRules::HITWINDOW_MISS +
            1500;  // sanity
 }
 
@@ -92,7 +92,7 @@ LiveHitResult AbstractBeatmapInterface::getHitResult(i32 delta) const {
     const f32 fDelta = std::abs((f32)delta);
 
     // We are 400ms away from the hitobject, don't count this as a miss
-    if(fDelta > GameRules::getHitWindowMiss()) {
+    if(fDelta > GameRules::HITWINDOW_MISS) {
         return LiveHitResult::HIT_NULL;
     }
 

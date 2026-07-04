@@ -41,6 +41,8 @@
 #include <utility>
 #include <variant>
 
+using namespace neomod;
+
 std::unique_ptr<Database> db = nullptr;
 
 bool Database::sortScoreByScore(const FinishedScore &a, const FinishedScore &b) {
@@ -1504,7 +1506,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
         }
 
         if(should_read_peppy_database) {
-            std::vector<BPMTuple> bpm_calculation_buffer;
+            std::vector<BPMCalc::BPMTuple> bpm_calculation_buffer;
             std::vector<DB_TIMINGPOINT> timing_points_buffer;
 
             for(uSz i = 0; i < this->num_beatmaps_to_load; i++) {
@@ -1581,32 +1583,29 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
 
                 f32 nomod_star_rating = 0.0f;
                 if(osu_db_version >= 20140609) {
-                    // https://osu.ppy.sh/home/changelog/stable40/20250108.3
-                    const u32 sr_field_size = osu_db_version < 20250108 ? sizeof(f64) : sizeof(f32);
+                    static constexpr const auto read_nomod_stars = []<typename T>(ByteBufferedFile::Reader &dbr,
+                                                                                  uSz num_std_star_ratings) {
+                        f32 ret_sr = 0.f;
+                        for(uSz s = 0; s < num_std_star_ratings; s++) {
+                            dbr.skip<u8>();  // 0x08 ObjType
+                            auto mods = dbr.read<u32>();
+                            dbr.skip<u8>();  // 0x0c ObjType
+                            if(mods == 0 && ret_sr == 0.f) {
+                                ret_sr = static_cast<f32>(dbr.read<T>());
+                            } else {
+                                dbr.skip<T>();
+                            }
+                        }
+                        return ret_sr;
+                    };
 
                     const auto num_std_star_ratings = dbr.read<u32>();
+                    // https://osu.ppy.sh/home/changelog/stable40/20250108.3
+                    const u32 sr_field_size = osu_db_version < 20250108 ? sizeof(f64) : sizeof(f32);
                     if(sr_field_size == sizeof(f64)) {  // older format
-                        for(uSz s = 0; s < num_std_star_ratings; s++) {
-                            dbr.skip<u8>();  // 0x08 ObjType
-                            auto mods = dbr.read<u32>();
-                            dbr.skip<u8>();  // 0x0c ObjType
-                            if(mods == 0 && nomod_star_rating == 0.f) {
-                                nomod_star_rating = static_cast<f32>(dbr.read<f64>());
-                            } else {
-                                dbr.skip<f64>();
-                            }
-                        }
+                        nomod_star_rating = read_nomod_stars.template operator()<f64>(dbr, num_std_star_ratings);
                     } else {
-                        for(uSz s = 0; s < num_std_star_ratings; s++) {
-                            dbr.skip<u8>();  // 0x08 ObjType
-                            auto mods = dbr.read<u32>();
-                            dbr.skip<u8>();  // 0x0c ObjType
-                            if(mods == 0 && nomod_star_rating == 0.f) {
-                                nomod_star_rating = dbr.read<f32>();
-                            } else {
-                                dbr.skip<f32>();
-                            }
-                        }
+                        nomod_star_rating = read_nomod_stars.template operator()<f32>(dbr, num_std_star_ratings);
                     }
 
                     // taiko/ctb/mania are here only to skip the correct amount of bytes
@@ -1626,7 +1625,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 int preview_time = (int)dbr.read<u32>();
                 preview_time = preview_time >= 0 ? preview_time : 0;  // sanity clamp
 
-                BPMInfo bpm;
+                BPMCalc::BPMInfo bpm;
                 u32 nb_timing_points = dbr.read<u32>();
                 if(overrides_found &&
                    override_.min_bpm != -1) {  // only use cached override bpm if it's not the sentinel -1
@@ -1641,7 +1640,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                        sizeof(DB_TIMINGPOINT) * nb_timing_points) {
                         debugLog("WARNING: failed to read timing points from beatmap {:d} !", (i + 1));
                     } else {
-                        bpm = getBPM(timing_points_buffer, bpm_calculation_buffer);
+                        bpm = BPMCalc::getBPM(timing_points_buffer, bpm_calculation_buffer);
                     }
                 }
 

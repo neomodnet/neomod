@@ -366,16 +366,5 @@ bool CarouselButton::childrenNeedSorting() const {
     return this->lastChildSortStarPrecalcIdx != StarPrecalc::active_idx;
 }
 
-Color CarouselButton::getActiveBackgroundColor() const {
-    return argb(std::clamp<int>(cv::songbrowser_button_active_color_a.getInt(), 0, 255),
-                std::clamp<int>(cv::songbrowser_button_active_color_r.getInt(), 0, 255),
-                std::clamp<int>(cv::songbrowser_button_active_color_g.getInt(), 0, 255),
-                std::clamp<int>(cv::songbrowser_button_active_color_b.getInt(), 0, 255));
-}
-
-Color CarouselButton::getInactiveBackgroundColor() const {
-    return argb(std::clamp<int>(cv::songbrowser_button_inactive_color_a.getInt(), 0, 255),
-                std::clamp<int>(cv::songbrowser_button_inactive_color_r.getInt(), 0, 255),
-                std::clamp<int>(cv::songbrowser_button_inactive_color_g.getInt(), 0, 255),
-                std::clamp<int>(cv::songbrowser_button_inactive_color_b.getInt(), 0, 255));
-}
+Color CarouselButton::getActiveBackgroundColor() const { return ARGB_CV_TO_COL(songbrowser_button_active_color); }
+Color CarouselButton::getInactiveBackgroundColor() const { return ARGB_CV_TO_COL(songbrowser_button_inactive_color); }

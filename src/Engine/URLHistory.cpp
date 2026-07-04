@@ -2,6 +2,8 @@
 #include "URLHistory.h"
 
 #ifdef MCENGINE_PLATFORM_WASM
+#include "noinclude.h"
+
 #include <emscripten/em_js.h>
 
 EM_JS(void, set_path_internal, (const char* path), { history.replaceState({}, "", UTF8ToString(path)); })

@@ -606,8 +606,6 @@ f64 recomputeStarRating(const RawDifficultyValues &raw, const BeatmapDiffcalcDat
 }
 
 f64 calculatePPv2(PPv2CalcParams &cpar) {
-    const bool isMcOsuImported = cpar.isMcOsuImported;
-
     // NOTE: depends on active mods + OD + AR
 
     if(cpar.c300 < 0) cpar.c300 = cpar.numHitObjects - cpar.c100 - cpar.c50 - cpar.misses;
@@ -657,7 +655,7 @@ f64 calculatePPv2(PPv2CalcParams &cpar) {
         std::clamp<f64>(comboBasedMissCount, (f64)cpar.misses, (f64)(cpar.c50 + cpar.c100 + cpar.misses));
 
     if(score.legacyTotalScore > 0) {
-        f64 scoreBasedMisscount = calculateScoreBasedMisscount(cpar.attributes, score, cpar.timescale, isMcOsuImported);
+        f64 scoreBasedMisscount = calculateScoreBasedMisscount(cpar.attributes, score, cpar.timescale, cpar.isMcOsuImported);
         effectiveMissCount =
             std::clamp<f64>(scoreBasedMisscount, (f64)cpar.misses, (f64)(cpar.c50 + cpar.c100 + cpar.misses));
     }

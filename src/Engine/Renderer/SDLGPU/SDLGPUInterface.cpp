@@ -928,7 +928,7 @@ void SDLGPUInterface::recordDraw(SDL_GPUBuffer *bakedBuffer, u32 vertexOffset, u
         auto &ub = cmd.uniformBlocks[cmd.numUniformBlocks];
         ub.slot = block.binding;
         ub.isVertex = (block.set == 1);
-        ub.size = (u32)std::min(block.buffer.size(), (uSz)80);
+        ub.size = (u32)std::min(block.buffer.size(), (uSz)ub.data.size());
         std::memcpy(ub.data.data(), block.buffer.data(), ub.size);
         cmd.numUniformBlocks++;
     }

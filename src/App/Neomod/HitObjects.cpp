@@ -405,7 +405,7 @@ void HitObject::update(i32 curPosMS, f64 /*frame_time*/) {
         // hittable dim, see https://github.com/ppy/osu/pull/20572
         if(cv::hitobject_hittable_dim.getBool() &&
            (!flags::has<ModFlags::Mafham>(mods.flags) || !cv::mod_mafham_ignore_hittable_dim.getBool())) {
-            const i32 hittableDimFadeStart = m_clickTimeMS - (i32)GameRules::getHitWindowMiss();
+            const i32 hittableDimFadeStart = m_clickTimeMS - (i32)GameRules::HITWINDOW_MISS;
 
             // yes, this means the un-dim animation cuts into the already clickable range
             const i32 hittableDimFadeEnd = hittableDimFadeStart + (i32)cv::hitobject_hittable_dim_duration.getInt();
@@ -650,7 +650,7 @@ void Circle::drawApproachCircle(const Skin *skin, vec2 pos, Color comboColor, f3
             if(cv::circle_rainbow.getBool()) {
                 const f64 frequency = 0.3;
                 const f64 time = engine->getTime() * 20.0;
-                const f32 offset = (f32)std::fmod(frequency * time + rainbowNumber * rainbowColorCounter, 2.0 * PI);
+                const f32 offset = (f32)std::fmod(frequency * time + rainbowNumber * rainbowColorCounter, 2.0 * PI_F);
 
                 f32 red1 = 0.5f + (std::sin(offset + 0) * 0.5f);
                 f32 green1 = 0.5f + (std::sin(offset + 2) * 0.5f);
@@ -685,7 +685,7 @@ void Circle::drawHitCircle(Image *hitCircleImage, vec2 pos, Color comboColor, f3
         const f64 frequency = 0.3;
         const f64 time = engine->getTime() * 20.0;
         const f32 offset =
-            (f32)std::fmod(frequency * time + rainbowNumber * rainbowNumber * rainbowColorCounter, 2.0 * PI);
+            (f32)std::fmod(frequency * time + rainbowNumber * rainbowNumber * rainbowColorCounter, 2.0 * PI_F);
 
         f32 red1 = 0.5f + (std::sin(offset + 0) * 0.5f);
         f32 green1 = 0.5f + (std::sin(offset + 2) * 0.5f);
@@ -726,7 +726,7 @@ void Circle::drawHitCircleNumber(const Skin *skin, f32 numberScale, f32 overlapS
         const f64 frequency = 0.3;
         const f64 time = engine->getTime() * 20.0;
         const f32 offset = (f32)std::fmod(
-            frequency * time + rainbowNumber * rainbowNumber * rainbowNumber * rainbowColorCounter, 2.0 * PI);
+            frequency * time + rainbowNumber * rainbowNumber * rainbowNumber * rainbowColorCounter, 2.0 * PI_F);
 
         f32 red1 = 0.5f + (std::sin(offset + 0) * 0.5f);
         f32 green1 = 0.5f + (std::sin(offset + 2) * 0.5f);
@@ -2682,10 +2682,10 @@ void Spinner::update(i32 curPosMS, f64 frameTimeSecs) {
 
             m_deltaOverflowMS += frameTimeSecs * 1000.0f;
 
-            if(angleDiff < -PI)
-                angleDiff += 2 * PI;
-            else if(angleDiff > PI)
-                angleDiff -= 2 * PI;
+            if(angleDiff < -PI_F)
+                angleDiff += 2 * PI_F;
+            else if(angleDiff > PI_F)
+                angleDiff -= 2 * PI_F;
 
             if(isSpinning) m_deltaAngleOverflow += angleDiff;
 
@@ -2706,7 +2706,7 @@ void Spinner::update(i32 curPosMS, f64 frameTimeSecs) {
                 m_deltaAngleIndex %= m_maxStoredDeltaAngles;
 
                 f32 rotationAngle = m_sumDeltaAngle / m_maxStoredDeltaAngles;
-                f32 rotationPerSec = rotationAngle * (1000.0f / DELTA_UPDATE_TIME_MS) / (2.0f * PI);
+                f32 rotationPerSec = rotationAngle * (1000.0f / DELTA_UPDATE_TIME_MS) / (2.0f * PI_F);
 
                 f32 decay = std::pow(0.01f, (f32)frameTimeSecs);
                 m_RPM = m_RPM * decay + (1.0 - decay) * std::abs(rotationPerSec) * 60;
@@ -2844,7 +2844,7 @@ vec2 Spinner::getAutoCursorPos(i32 curPosMS) const {
     const f32 AUTO_MULTIPLIER = (1.0f / 20.0f);
     f32 multiplier =
         flags::any<ModFlags::Autoplay | ModFlags::Autopilot>(m_pi->getMods().flags) ? AUTO_MULTIPLIER : 1.0f;
-    f32 angle = (deltaMS * multiplier) - PI / 2.0f;
+    f32 angle = (deltaMS * multiplier) - PI_F / 2.0f;
     f32 r = GameRules::getPlayfieldSize().y / 10.0f;  // XXX: slow?
     return vec2((f32)(actualPos.x + r * std::cos(angle)), (f32)(actualPos.y + r * std::sin(angle)));
 }
