@@ -2416,6 +2416,8 @@ void HUD::animateInputOverlay(GameplayKeys key_flag, bool down) {
                 case GameplayKeys::Smoke: std::unreachable();
                     // clang-format on
             }
+            std::unreachable();
+            return 0;
         };
 
         auto &iokey = this->inputOverlayKeys[keyToInputOverlayIndex(flag)];
