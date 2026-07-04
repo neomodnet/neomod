@@ -39,6 +39,7 @@
 #include <cctype>
 #include <cstring>
 #include <utility>
+#include <variant>
 
 std::unique_ptr<Database> db = nullptr;
 
@@ -1472,9 +1473,8 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
         const std::string peppy_songfolder = Database::getOsuSongsFolder();
         debugLog("Database: osu!stable song folder = {:s}", peppy_songfolder);
 
-        Hash::flat::map<int, std::unique_ptr<DiffContainer>> sid_to_diffcont;
-        Hash::flat::map<std::string, std::unique_ptr<DiffContainer>> invalid_sid_folder_to_diffcont;
-        uSz nb_unique_peppy_sets = 0;
+        // diffs grouped by beatmapset ID, or by folder for maps with an invalid (-1) set ID
+        Hash::flat::map<std::variant<i32, std::string>, std::unique_ptr<DiffContainer>> sid_or_folder_to_diffcont;
 
         ByteBufferedFile::Reader dbr(peppy_db_path);
         u32 osu_db_version = (dbr.good() && dbr.get_total_size() > 0) ? dbr.read<u32>() : 0;
@@ -1780,40 +1780,15 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                     map->iMostCommonBPM = bpm.most_common;
                     // (the diff is now fully built)
 
-                    // now, search if the current setID container (to which this diff would belong) already exists and add it there, or
-                    // if it doesn't exist then create the container
-                    auto find_existing = [&]() -> DiffContainer * {
-                        DiffContainer *ret = nullptr;
-                        if(beatmapset_id != -1) {
-                            if(const auto &e = sid_to_diffcont.find(beatmapset_id); e != sid_to_diffcont.end())
-                                ret = e->second.get();
-                        } else {
-                            // group maps with invalid set IDs by folder
-                            if(const auto &e = invalid_sid_folder_to_diffcont.find(beatmap_subfolder);
-                               e != invalid_sid_folder_to_diffcont.end())
-                                ret = e->second.get();
-                        }
-                        return ret;
-                    };
+                    // now, get the container to which this diff would belong (creating it if it doesn't exist yet),
+                    // and add the diff to it if one with the same md5hash hasn't already been added there
+                    auto &diffcont = (beatmapset_id != -1) ? sid_or_folder_to_diffcont[beatmapset_id]
+                                                           : sid_or_folder_to_diffcont[std::move(beatmap_subfolder)];
+                    if(!diffcont) diffcont = std::make_unique<DiffContainer>();
 
-                    if(DiffContainer *existing_container = find_existing()) {
-                        // if a diff with a the same md5hash hasn't already been added here
-                        if(!std::ranges::contains(*existing_container, md5hash, &DatabaseBeatmap::getMD5)) {
-                            diffp = map.get();
-                            existing_container->push_back(std::move(map));
-                        }
-                    } else {
+                    if(!std::ranges::contains(*diffcont, md5hash, &DatabaseBeatmap::getMD5)) {
                         diffp = map.get();
-
-                        auto diffc = std::make_unique<DiffContainer>();
-                        diffc->push_back(std::move(map));
-
-                        if(beatmapset_id != -1) {
-                            sid_to_diffcont.emplace(beatmapset_id, std::move(diffc));
-                        } else {
-                            invalid_sid_folder_to_diffcont.emplace(beatmap_subfolder, std::move(diffc));
-                        }
-                        ++nb_unique_peppy_sets;
+                        diffcont->push_back(std::move(map));
                     }
                 }
 
@@ -1853,14 +1828,9 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
             }
 
             if(!this->isCancelled()) {
-                // create BeatmapSets from the collected setID->container and folder->container hashmaps
-                temp_loading_beatmapsets.reserve(temp_loading_beatmapsets.size() + nb_unique_peppy_sets);
-                for(auto &[_, cont] : sid_to_diffcont) {
-                    assert(cont && !cont->empty());
-                    temp_loading_beatmapsets.emplace_back(
-                        new BeatmapSet(std::move(cont), DatabaseBeatmap::BeatmapType::PEPPY_BEATMAPSET));
-                }
-                for(auto &[_, cont] : invalid_sid_folder_to_diffcont) {
+                // create BeatmapSets from the collected diff containers
+                temp_loading_beatmapsets.reserve(temp_loading_beatmapsets.size() + sid_or_folder_to_diffcont.size());
+                for(auto &[_, cont] : sid_or_folder_to_diffcont) {
                     assert(cont && !cont->empty());
                     temp_loading_beatmapsets.emplace_back(
                         new BeatmapSet(std::move(cont), DatabaseBeatmap::BeatmapType::PEPPY_BEATMAPSET));
