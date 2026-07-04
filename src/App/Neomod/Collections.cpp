@@ -90,9 +90,9 @@ Collection& get_or_create_collection(std::string_view name) {
 // Should only be called from db loader thread!
 bool load_peppy(std::string_view peppy_collections_path) {
     ByteBufferedFile::Reader peppy_collections(peppy_collections_path);
-    if(peppy_collections.total_size == 0) return false;
+    if(peppy_collections.get_total_size() == 0) return false;
     if(!cv::collections_legacy_enabled.getBool()) {
-        db->bytes_processed += peppy_collections.total_size;
+        db->bytes_processed += peppy_collections.get_total_size();
         return false;
     }
 
@@ -100,7 +100,7 @@ bool load_peppy(std::string_view peppy_collections_path) {
     if(version > cv::database_version.getVal<u32>() && !cv::database_ignore_version.getBool()) {
         debugLog("osu!stable collection.db (version {}) is newer than latest supported (version {})!", version,
                  cv::database_version.getVal<u32>());
-        db->bytes_processed += peppy_collections.total_size;
+        db->bytes_processed += peppy_collections.get_total_size();
         return false;
     }
 
@@ -123,20 +123,20 @@ bool load_peppy(std::string_view peppy_collections_path) {
             collection.peppy_maps.insert(map_hash);
         }
 
-        u32 progress_bytes = db->bytes_processed + peppy_collections.total_pos;
+        u32 progress_bytes = db->bytes_processed + peppy_collections.get_total_pos();
         f64 progress_float = (f64)progress_bytes / (f64)db->total_bytes;
         db->loading_progress = std::clamp(progress_float, 0.01, 0.99);
     }
 
     debugLog("Loaded {:d} peppy collections ({:d} maps)", nb_collections, total_maps);
-    db->bytes_processed += peppy_collections.total_size;
+    db->bytes_processed += peppy_collections.get_total_size();
     return true;
 }
 
 // Should only be called from db loader thread!
 bool load_mcneomod(std::string_view neomod_collections_path) {
     ByteBufferedFile::Reader neomod_collections(neomod_collections_path);
-    if(neomod_collections.total_size == 0) return false;
+    if(neomod_collections.get_total_size() == 0) return false;
 
     u32 total_maps = 0;
 
@@ -145,7 +145,7 @@ bool load_mcneomod(std::string_view neomod_collections_path) {
 
     if(version > COLLECTIONS_DB_VERSION) {
         debugLog("neomod collections.db version is too recent! Cannot load it without stuff breaking.");
-        db->bytes_processed += neomod_collections.total_size;
+        db->bytes_processed += neomod_collections.get_total_size();
         return false;
     }
 
@@ -180,13 +180,13 @@ bool load_mcneomod(std::string_view neomod_collections_path) {
             collection.neomod_maps.insert(map_hash);
         }
 
-        u32 progress_bytes = db->bytes_processed + neomod_collections.total_pos;
+        u32 progress_bytes = db->bytes_processed + neomod_collections.get_total_pos();
         f64 progress_float = (f64)progress_bytes / (f64)db->total_bytes;
         db->loading_progress = std::clamp(progress_float, 0.01, 0.99);
     }
 
     debugLog("Loaded {:d} neomod collections ({:d} maps)", nb_collections, total_maps);
-    db->bytes_processed += neomod_collections.total_size;
+    db->bytes_processed += neomod_collections.get_total_size();
     return true;
 }
 

@@ -7,6 +7,7 @@
 #include <string>
 #include <type_traits>
 #include <vector>
+#include <span>
 
 // fast and small string manipulation helpers
 
@@ -95,7 +96,7 @@ void split_newlines(std::vector<R>& ret, std::string_view s);
 
 // join a vector of std::strings
 template <typename S = char, split_join_enabled_t<S> = true>
-std::string join(const std::vector<std::string>& strings, S delim = ' ');
+std::string join(std::span<const std::string> strings, S delim = ' ');
 
 // in-place whitespace/newline trimming (both sides)
 void trim_inplace(std::string& str);
@@ -148,9 +149,9 @@ extern template std::vector<std::string_view> split_newlines<std::string_view>(s
 extern template void split_newlines<std::string>(std::vector<std::string>&, std::string_view);
 extern template void split_newlines<std::string_view>(std::vector<std::string_view>&, std::string_view);
 
-extern template std::string join<char>(const std::vector<std::string>&, char);
-extern template std::string join<const char*>(const std::vector<std::string>&, const char*);
-extern template std::string join<std::string_view>(const std::vector<std::string>&, std::string_view);
+extern template std::string join<char>(std::span<const std::string>, char);
+extern template std::string join<const char*>(std::span<const std::string>, const char*);
+extern template std::string join<std::string_view>(std::span<const std::string>, std::string_view);
 
 #ifndef BUILD_TOOLS_ONLY
 // format an integer with thousands separators (locale-dependent commas/spaces/periods)

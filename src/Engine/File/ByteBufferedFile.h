@@ -214,10 +214,14 @@ class Reader {
 
     void skip_string() noexcept;
 
+    // underlying file state getters
+    [[nodiscard]] uSz get_total_size() const { return total_size; }
+    [[nodiscard]] uSz get_total_pos() const { return total_pos; }
+
+   private:
     uSz total_size{0};
     uSz total_pos{0};
 
-   private:
     // out-of-line bulk path for read_bytes
     uSz read_bytes_direct(u8 *out, uSz len) noexcept;
 

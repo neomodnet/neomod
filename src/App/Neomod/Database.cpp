@@ -215,7 +215,7 @@ bool Database::isOsuDBReadable(std::string_view peppy_db_path) {
     if(!Environment::fileExists(peppy_db_path)) return false;
 
     ByteBufferedFile::Reader dbr(peppy_db_path);
-    u32 osu_db_version = (dbr.good() && dbr.total_size > 0) ? dbr.read<u32>() : 0;
+    u32 osu_db_version = (dbr.good() && dbr.get_total_size() > 0) ? dbr.read<u32>() : 0;
     return osu_db_version > 0;
 }
 
@@ -1106,7 +1106,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
     // Load neomod map database
     {
         ByteBufferedFile::Reader neomod_maps(neomod_maps_path);
-        if(neomod_maps.total_size > 0) {
+        if(neomod_maps.get_total_size() > 0) {
             u32 version = neomod_maps.read<u32>();
             if(version < NEOMOD_MAPS_DB_VERSION) {
                 // Reading from older database version: backup just in case
@@ -1122,7 +1122,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
             for(uSz i = 0; i < nb_sets; i++) {
                 if(this->isCancelled()) break;  // cancellation point
 
-                u32 progress_bytes = this->bytes_processed + neomod_maps.total_pos;
+                u32 progress_bytes = this->bytes_processed + neomod_maps.get_total_pos();
                 f64 progress_float = (f64)progress_bytes / (f64)this->total_bytes;
                 this->loading_progress = (f32)std::clamp(progress_float, 0.01, 0.99);
 
@@ -1463,7 +1463,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 }
             }
         }
-        this->bytes_processed += neomod_maps.total_size;
+        this->bytes_processed += neomod_maps.get_total_size();
         this->neomod_maps_loaded = true;
     }
 
@@ -1477,7 +1477,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
         uSz nb_unique_peppy_sets = 0;
 
         ByteBufferedFile::Reader dbr(peppy_db_path);
-        u32 osu_db_version = (dbr.good() && dbr.total_size > 0) ? dbr.read<u32>() : 0;
+        u32 osu_db_version = (dbr.good() && dbr.get_total_size() > 0) ? dbr.read<u32>() : 0;
         bool should_read_peppy_database = osu_db_version > 0;
         if(should_read_peppy_database) {
             // read header
@@ -1499,7 +1499,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
             }
         }
         if(!should_read_peppy_database) {
-            debugLog("not loading {}, ver: {} size: {} err: {}", peppy_db_path, osu_db_version, dbr.total_size,
+            debugLog("not loading {}, ver: {} size: {} err: {}", peppy_db_path, osu_db_version, dbr.get_total_size(),
                      dbr.error());
         }
 
@@ -1511,7 +1511,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 if(this->isCancelled()) break;  // cancellation point
 
                 // update progress (another thread checks if progress >= 1.f to know when we're done)
-                u32 progress_bytes = this->bytes_processed + dbr.total_pos;
+                u32 progress_bytes = this->bytes_processed + dbr.get_total_pos();
                 f64 progress_float = (f64)progress_bytes / (f64)this->total_bytes;
                 this->loading_progress = (f32)std::clamp(progress_float, 0.01, 0.99);
 
@@ -1856,24 +1856,18 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 // create BeatmapSets from the collected setID->container and folder->container hashmaps
                 temp_loading_beatmapsets.reserve(temp_loading_beatmapsets.size() + nb_unique_peppy_sets);
                 for(auto &[_, cont] : sid_to_diffcont) {
-                    if(this->isCancelled()) {  // cancellation point
-                        break;
-                    }
                     assert(cont && !cont->empty());
                     temp_loading_beatmapsets.emplace_back(
                         new BeatmapSet(std::move(cont), DatabaseBeatmap::BeatmapType::PEPPY_BEATMAPSET));
                 }
                 for(auto &[_, cont] : invalid_sid_folder_to_diffcont) {
-                    if(this->isCancelled()) {  // cancellation point
-                        break;
-                    }
                     assert(cont && !cont->empty());
                     temp_loading_beatmapsets.emplace_back(
                         new BeatmapSet(std::move(cont), DatabaseBeatmap::BeatmapType::PEPPY_BEATMAPSET));
                 }
             }
         }
-        this->bytes_processed += dbr.total_size;
+        this->bytes_processed += dbr.get_total_size();
     }
 
     // TODO: partial loading? it shouldn't be that difficult, would be more useful for raw loading (used to be supported)
@@ -2141,8 +2135,8 @@ bool Database::importDatabase(const std::pair<DatabaseType, std::string> &db_pai
 
 void Database::loadScores(std::string_view dbPath) {
     ByteBufferedFile::Reader dbr(dbPath);
-    if(dbr.total_size == 0) {
-        this->bytes_processed += dbr.total_size;
+    if(dbr.get_total_size() == 0) {
+        this->bytes_processed += dbr.get_total_size();
         return;
     }
 
@@ -2150,14 +2144,14 @@ void Database::loadScores(std::string_view dbPath) {
     std::array<u8, 6> magic_bytes{};
     if(dbr.read_bytes(magic_bytes.data(), 5) != 5 || memcmp(magic_bytes.data(), "NEOSC", 5) != 0) {
         ui->getNotificationOverlay()->addToast("Failed to load " PACKAGE_NAME "_scores.db!", ERROR_TOAST);
-        this->bytes_processed += dbr.total_size;
+        this->bytes_processed += dbr.get_total_size();
         return;
     }
 
     u32 db_version = dbr.read<u32>();
     if(db_version > NEOMOD_SCORE_DB_VERSION) {
         debugLog(PACKAGE_NAME "_scores.db version is newer than current " PACKAGE_NAME " version!");
-        this->bytes_processed += dbr.total_size;
+        this->bytes_processed += dbr.get_total_size();
         return;
     } else if(db_version < NEOMOD_SCORE_DB_VERSION) {
         // Reading from older database version: backup just in case
@@ -2223,7 +2217,7 @@ void Database::loadScores(std::string_view dbPath) {
             nb_neomod_scores++;
         }
 
-        u32 progress_bytes = this->bytes_processed + dbr.total_pos;
+        u32 progress_bytes = this->bytes_processed + dbr.get_total_pos();
         f64 progress_float = (f64)progress_bytes / (f64)this->total_bytes;
         this->loading_progress = (f32)std::clamp(progress_float, 0.01, 0.99);
     }
@@ -2234,7 +2228,7 @@ void Database::loadScores(std::string_view dbPath) {
     }
 
     debugLog("Loaded {:d} " PACKAGE_NAME " scores", nb_neomod_scores);
-    this->bytes_processed += dbr.total_size;
+    this->bytes_processed += dbr.get_total_size();
 }
 
 // import scores from mcosu, or old neomod (before we started saving replays)
@@ -2242,8 +2236,8 @@ void Database::loadOldMcNeomodScores(std::string_view dbPath) {
     ByteBufferedFile::Reader dbr(dbPath);
 
     u32 db_version = dbr.read<u32>();
-    if(dbr.total_size == 0 || db_version == 0) {
-        this->bytes_processed += dbr.total_size;
+    if(dbr.get_total_size() == 0 || db_version == 0) {
+        this->bytes_processed += dbr.get_total_size();
         return;
     }
 
@@ -2255,7 +2249,7 @@ void Database::loadOldMcNeomodScores(std::string_view dbPath) {
     if(is_neomod) {
         u32 nb_beatmaps = dbr.read<u32>();
         for(u32 b = 0; b < nb_beatmaps; b++) {
-            u32 progress_bytes = this->bytes_processed + dbr.total_pos;
+            u32 progress_bytes = this->bytes_processed + dbr.get_total_pos();
             f64 progress_float = (f64)progress_bytes / (f64)this->total_bytes;
             this->loading_progress = (f32)std::clamp(progress_float, 0.01, 0.99);
             MD5Hash md5hash;
@@ -2351,7 +2345,7 @@ void Database::loadOldMcNeomodScores(std::string_view dbPath) {
         debugLog("McOsu scores: version = {}, numBeatmaps = {}", db_version, numBeatmaps);
 
         for(int b = 0; b < numBeatmaps; b++) {
-            u32 progress_bytes = this->bytes_processed + dbr.total_pos;
+            u32 progress_bytes = this->bytes_processed + dbr.get_total_pos();
             f64 progress_float = (f64)progress_bytes / (f64)this->total_bytes;
             this->loading_progress = (f32)std::clamp(progress_float, 0.01, 0.99);
 
@@ -2518,7 +2512,7 @@ void Database::loadOldMcNeomodScores(std::string_view dbPath) {
         debugLog("Loaded {} McOsu scores", nb_imported);
     }
 
-    this->bytes_processed += dbr.total_size;
+    this->bytes_processed += dbr.get_total_size();
 }
 
 void Database::loadPeppyScores(std::string_view dbPath) {
@@ -2527,8 +2521,8 @@ void Database::loadPeppyScores(std::string_view dbPath) {
 
     u32 db_version = dbr.read<u32>();
     u32 nb_beatmaps = dbr.read<u32>();
-    if(dbr.total_size == 0 || db_version == 0) {
-        this->bytes_processed += dbr.total_size;
+    if(dbr.get_total_size() == 0 || db_version == 0) {
+        this->bytes_processed += dbr.get_total_size();
         return;
     }
 
@@ -2610,13 +2604,13 @@ void Database::loadPeppyScores(std::string_view dbPath) {
             }
         }
 
-        u32 progress_bytes = this->bytes_processed + dbr.total_pos;
+        u32 progress_bytes = this->bytes_processed + dbr.get_total_pos();
         f64 progress_float = (f64)progress_bytes / (f64)this->total_bytes;
         this->loading_progress = (f32)std::clamp(progress_float, 0.01, 0.99);
     }
 
     debugLog("Loaded {:d} osu!stable scores", nb_imported);
-    this->bytes_processed += dbr.total_size;
+    this->bytes_processed += dbr.get_total_size();
 }
 
 void Database::saveScores() {

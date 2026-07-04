@@ -215,7 +215,7 @@ template void split_newlines<std::string>(std::vector<std::string>&, std::string
 template void split_newlines<std::string_view>(std::vector<std::string_view>&, std::string_view);
 
 template <typename S, split_join_enabled_t<S>>
-std::string join(const std::vector<std::string>& strings, S delim) {
+std::string join(std::span<const std::string> strings, S delim) {
     if(strings.empty()) return {};
 
     std::string result = strings[0];
@@ -229,9 +229,9 @@ std::string join(const std::vector<std::string>& strings, S delim) {
 }
 
 // explicit instantiations
-template std::string join<char>(const std::vector<std::string>&, char);
-template std::string join<const char*>(const std::vector<std::string>&, const char*);
-template std::string join<std::string_view>(const std::vector<std::string>&, std::string_view);
+template std::string join<char>(std::span<const std::string>, char);
+template std::string join<const char*>(std::span<const std::string>, const char*);
+template std::string join<std::string_view>(std::span<const std::string>, std::string_view);
 
 #ifndef BUILD_TOOLS_ONLY
 template <Integral T>
