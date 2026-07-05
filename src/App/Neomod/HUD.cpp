@@ -38,6 +38,9 @@
 #include "Sound.h"
 #include "Graphics.h"
 
+// TODO:
+// NOLINTBEGIN(cppcoreguidelines-narrowing-conversions,bugprone-narrowing-conversions)
+
 HUD::CursorTrail::CursorTrail() : buffer(std::clamp(cv::cursor_trail_max_size.getInt() * 2, 1, 32768)) {}
 
 size_t HUD::CursorTrail::size() const { return count; }
@@ -288,10 +291,10 @@ void HUD::draw() {
                    (i32)(startTimePlayableMS + lengthPlayableMS))
                     continue;
 
-                BREAK bk2;
-
-                bk2.startPercent = (f32)(bk.startTime) / (f32)(endTimePlayableMS);
-                bk2.endPercent = (f32)(bk.endTime) / (f32)(endTimePlayableMS);
+                BREAK bk2{
+                    .startPercent = (f32)(bk.startTime) / (f32)(endTimePlayableMS),
+                    .endPercent = (f32)(bk.endTime) / (f32)(endTimePlayableMS),
+                };
 
                 // debugLog("{:d}: s = {:f}, e = {:f}", i, bk2.startPercent, bk2.endPercent);
 
@@ -727,7 +730,7 @@ void HUD::drawFps() {
 
     g->pushTransform();
     {
-        Color fpsColor;
+        Color fpsColor{};
         if(fps >= yellow_refresh_rate)
             fpsColor = 0xffffffff;
         else if(fps >= red_refresh_rate)
@@ -745,7 +748,7 @@ void HUD::drawFps() {
 
     g->pushTransform();
     {
-        Color msColor;
+        Color msColor{};
 
         if(old_worst_frametime <= yellow_refresh_time) {
             msColor = 0xffffffff;
@@ -862,7 +865,7 @@ void HUD::drawLoadingSmall(std::string_view text) {
     {
         g->rotate((f32)std::fmod(engine->getTime(), 2.) * 180.f, 0, 0, 1);
         g->scale(scale, scale);
-        g->translate(osu->getVirtScreenWidth() / 2, osu->getVirtScreenHeight() / 2);
+        g->translate(osu->getVirtScreenWidth() / 2.f, osu->getVirtScreenHeight() / 2.f);
         g->drawImage(osu->getSkin()->i_loading_spinner);
     }
     g->popTransform();
@@ -871,8 +874,8 @@ void HUD::drawLoadingSmall(std::string_view text) {
     g->setColor(0x44ffffff);
     g->pushTransform();
     {
-        g->translate((i32)(osu->getVirtScreenWidth() / 2 - osu->getSubTitleFont()->getStringWidth(text) / 2),
-                     osu->getVirtScreenHeight() / 2 + 2.f * spinner_height);
+        g->translate((i32)(osu->getVirtScreenWidth() / 2.f - osu->getSubTitleFont()->getStringWidth(text) / 2.f),
+                     osu->getVirtScreenHeight() / 2.f + 2.f * spinner_height);
         g->drawString(osu->getSubTitleFont(), text);
     }
     g->popTransform();
@@ -1302,9 +1305,9 @@ std::span<const SCORE_ENTRY> HUD::updateAndGetCurrentScores() {
             }
 
             // hit_score != total_score: total_score also accounts for spinner bonus & mods
-            u64 hit_score = 300 * slot.num300 + 100 * slot.num100 + 50 * slot.num50;
-            u64 max_score = 300 * (slot.num300 + slot.num100 + slot.num50 + slot.num_miss);
-            scoreEntry.accuracy = max_score > 0 ? hit_score / max_score : 0.f;
+            const u64 hit_score = 300UL * slot.num300 + 100UL * slot.num100 + 50UL * slot.num50;
+            const u64 max_score = 300UL * (slot.num300 + slot.num100 + slot.num50 + slot.num_miss);
+            scoreEntry.accuracy = (max_score > 0) ? (hit_score / (f64)max_score) : 0.f;
 
             this->scores_cache.push_back(std::move(scoreEntry));
         }
@@ -1623,7 +1626,7 @@ void HUD::drawHitErrorBarInt(f32 hitWindow300, f32 hitWindow100, f32 hitWindow50
                 0.0f, 1.0f);
             fade *= fade;  // quad out
 
-            Color barColor;
+            Color barColor{};
             {
                 if(this->hiterrors[i].miss || this->hiterrors[i].misaim)
                     barColor = colorMiss;
@@ -1722,8 +1725,8 @@ void HUD::drawClock(f32 percent, bool waiting) {
     const f32 theta = 2 * PI_F / num_segments;
     const f32 s = sinf(theta);  // precalculate the sine and cosine
     const f32 c = cosf(theta);
-    f32 t;
-    f32 x = 0;
+    f32 t = 0.f;
+    f32 x = 0.f;
     f32 y = -radius;  // we start at the top
 
     if(waiting)
@@ -1934,7 +1937,7 @@ void HUD::drawTargetHeatmap(f32 hitcircleDiameter) {
         const f32 delta = target.delta;
 
         const f32 overlap = 0.15f;
-        Color color;
+        Color color{};
         if(delta < cv::mod_target_300_percent.getFloat() - overlap)
             color = color300;
         else if(delta < cv::mod_target_300_percent.getFloat() + overlap) {
@@ -2271,7 +2274,7 @@ void HUD::drawInputOverlay(i32 numK1, i32 numK2, i32 numM1, i32 numM2) {
     const f32 yStartOffset = cv::hud_inputoverlay_offset_y.getFloat() * offsetScale;
 
     const f32 xStart = osu->getVirtScreenWidth() - xStartOffset;
-    const f32 yStart = osu->getVirtScreenHeight() / 2 - (40.0f * oScale) * scale + yStartOffset;
+    const f32 yStart = osu->getVirtScreenHeight() / 2.f - (40.0f * oScale) * scale + yStartOffset;
 
     // background
     {
@@ -2304,7 +2307,7 @@ void HUD::drawInputOverlay(i32 numK1, i32 numK2, i32 numM1, i32 numM2) {
             std::string base_text;
         } keys[] = {{IOKEY_K1, numK1, "K1"}, {IOKEY_K2, numK2, "K2"}, {IOKEY_M1, numM1, "M1"}, {IOKEY_M2, numM2, "M2"}};
 
-        for(auto [key, count, baseText] : keys) {
+        for(auto [key, count, baseText] : keys) {  // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
             McFont *textFont = (count > 0) ? osu->getSongBrowserFontBold() : osu->getSongBrowserFont();
 
             const std::string text = (count > 0) ? fmt::format("{:d}", count) : baseText;
@@ -2366,17 +2369,13 @@ void HUD::animateCombo() {
 
 void HUD::addHitError(i32 delta, bool miss, bool misaim) {
     // add entry
-    {
-        HITERROR h;
-
-        h.delta = delta;
-        h.time = engine->getTime() + (miss || misaim ? cv::hud_hiterrorbar_entry_miss_fade_time.getFloat()
-                                                     : cv::hud_hiterrorbar_entry_hit_fade_time.getFloat());
-        h.miss = miss;
-        h.misaim = misaim;
-
-        this->hiterrors.push_back(h);
-    }
+    this->hiterrors.push_back({
+        .time = (f32)(engine->getTime() + (miss || misaim ? cv::hud_hiterrorbar_entry_miss_fade_time.getFloat()
+                                                          : cv::hud_hiterrorbar_entry_hit_fade_time.getFloat())),
+        .delta = delta,
+        .miss = miss,
+        .misaim = misaim,
+    });
 
     // remove old
     for(i32 i = 0; i < this->hiterrors.size(); i++) {
@@ -2391,12 +2390,7 @@ void HUD::addHitError(i32 delta, bool miss, bool misaim) {
 }
 
 void HUD::addTarget(f32 delta, f32 angle) {
-    TARGET t;
-    t.time = engine->getTime() + 3.5f;
-    t.delta = delta;
-    t.angle = angle;
-
-    this->targets.push_back(t);
+    this->targets.push_back({.time = (f32)(engine->getTime() + 3.5f), .delta = delta, .angle = angle});
 }
 
 void HUD::animateInputOverlay(GameplayKeys key_flag, bool down) {
@@ -2592,7 +2586,7 @@ void HUD::drawRuntimeInfo() {
     McFont *font = engine->getConsoleFont();
 
     static const std::string infoString = []() -> std::string {
-        const char *osstr;
+        const char *osstr{};
         switch(Env::getOS()) {
             case OS::WINDOWS:
                 osstr = "win";
@@ -2632,3 +2626,5 @@ void HUD::drawRuntimeInfo() {
     }
     g->popTransform();
 }
+
+// NOLINTEND(cppcoreguidelines-narrowing-conversions,bugprone-narrowing-conversions)
