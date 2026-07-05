@@ -1915,15 +1915,6 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     resetAllSettingsButton->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onResetEverythingClicked>(this));
     resetAllSettingsButton->setColor(0xffd90000);
 
-    this->addSpacer();
-    this->addSpacer();
-    this->addSpacer();
-    this->addSpacer();
-    this->addSpacer();
-    this->addSpacer();
-    this->addSpacer();
-    this->addSpacer();
-
     //**************************************************************************************************************************//
 
     // build categories
@@ -2905,7 +2896,10 @@ void OptionsOverlayImpl::updateLayout() {
                 break;
         }
     }
-    this->options->container.addBaseUIElement(this->spacer, 0, yCounter);
+    // bottom scroll padding: always leave enough room to scroll the last (possibly filtered) option
+    // clear of the back button, which is drawn over the bottom of the panel
+    this->spacer->setSizeY(std::max(240.0f * dpiScale, parent->backButton->getSize().y + 40.0f * dpiScale));
+    this->options->container.addBaseUIElement(this->spacer, 0, (float)yCounter);
 
     this->options->setScrollSizeToContent();
     if(!enableHorizontalScrolling) this->options->scrollToLeft();

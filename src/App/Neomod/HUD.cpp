@@ -2343,7 +2343,7 @@ void HUD::drawInputOverlayTrail(f32 xStart, f32 yStart, f32 oScale, f32 scale) {
     const f32 fadeStartPx = fadeEndPx * std::clamp(cv::hud_inputoverlay_trail_fade_start.getFloat(), 0.0f, 1.0f);
     const f32 fadeRangePx = std::max(1.0f, fadeEndPx - fadeStartPx);
     const f32 height = std::max(1.0f, cv::hud_inputoverlay_trail_height.getFloat()) * unit;
-    const f32 minWidth = 1.0f;  // keep very fast taps visible (a true-width block would be sub-pixel)
+    constexpr f32 minWidth = 1.0f;  // keep very fast taps visible (a true-width block would be sub-pixel)
 
     static constexpr std::array<GameplayKeys, 4> rowFlags{GameplayKeys::K1, GameplayKeys::K2, GameplayKeys::M1,
                                                           GameplayKeys::M2};
@@ -2401,8 +2401,7 @@ void HUD::drawInputOverlayTrail(f32 xStart, f32 yStart, f32 oScale, f32 scale) {
             const f32 dFar = std::min(std::max((f32)(now - block.startTime) * pxPerMs, dNear + minWidth), fadeEndPx);
 
             // plain rectangles, so the width is an exact readout of the hold duration; split at the
-            // fade-start kink so alpha stays flat up to it and ramps linearly after (one quad spanning
-            // the kink would fade the opaque near end too, the old "diamond" artifact)
+            // fade-start kink so alpha stays flat up to it and ramps linearly after
             const std::array<f32, 3> cols{dNear, std::clamp(fadeStartPx, dNear, dFar), dFar};
             f32 prevD = cols[0];
             for(i32 k = 1; k < 3; k++) {
