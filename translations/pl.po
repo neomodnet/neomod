@@ -2200,6 +2200,38 @@ msgid "NOTE: Only applies if \"Draw Background in SongBrowser\" is disabled."
 msgstr "UWAGA: Działa tylko wtedy, gdy \"Rysuj Tło w Przeglądarce Utworów\" jest wyłączone."
 
 #: src/App/Neomod/OptionsOverlay.cpp
+#, fuzzy
+msgid "Key Overlay"
+msgstr "Skala Nakładki Klawiszy:"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Draw Key Overlay"
+msgstr "Rysuj Nakładkę Klawiszy"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+#, fuzzy
+msgid "Draw Key Overlay Trail"
+msgstr "Rysuj Nakładkę Klawiszy"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Scrolling blocks next to the key overlay, visualizing how long each key was held."
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
+#, fuzzy
+msgid "Trail Opacity:"
+msgstr "Przezroczystość Slidera"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Trail Speed:"
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
+#, fuzzy
+msgid "Trail Fade Distance:"
+msgstr "Dystans:"
+
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "HUD"
 msgstr "Interfejs (HUD)"
 
@@ -2275,19 +2307,6 @@ msgstr "Rysuj Tablicę Wyników podczas gry jednoosobowej"
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Draw ScoreBoard in multiplayer"
 msgstr "Rysuj Tablicę Wyników podczas gry wieloosobowej"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Key Overlay"
-msgstr "Rysuj Nakładkę Klawiszy"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-#, fuzzy
-msgid "Draw Key Overlay Trail"
-msgstr "Rysuj Nakładkę Klawiszy"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Scrolling blocks next to the key overlay, visualizing how long each key was held."
-msgstr ""
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Draw Scrubbing Timeline"
@@ -2487,25 +2506,6 @@ msgstr "Skalowany Offset:"
 #, fuzzy
 msgid "Y Offset:"
 msgstr "Skalowany Offset:"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-#, fuzzy
-msgid "Key Overlay Trail"
-msgstr "Skala Nakładki Klawiszy:"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-#, fuzzy
-msgid "Trail Opacity:"
-msgstr "Przezroczystość Slidera"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Trail Speed:"
-msgstr ""
-
-#: src/App/Neomod/OptionsOverlay.cpp
-#, fuzzy
-msgid "Trail Fade Distance:"
-msgstr "Dystans:"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Playfield"

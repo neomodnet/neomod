@@ -2197,6 +2197,38 @@ msgid "NOTE: Only applies if \"Draw Background in SongBrowser\" is disabled."
 msgstr "注意: \"ソングブラウザで背景を描画する\" が無効になっている場合にのみ適用されます。"
 
 #: src/App/Neomod/OptionsOverlay.cpp
+#, fuzzy
+msgid "Key Overlay"
+msgstr "キーオーバーレイ:"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Draw Key Overlay"
+msgstr "キーオーバーレイを描画する"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+#, fuzzy
+msgid "Draw Key Overlay Trail"
+msgstr "キーオーバーレイを描画する"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Scrolling blocks next to the key overlay, visualizing how long each key was held."
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
+#, fuzzy
+msgid "Trail Opacity:"
+msgstr "スライダーの不透明度"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Trail Speed:"
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
+#, fuzzy
+msgid "Trail Fade Distance:"
+msgstr "距離:"
+
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "HUD"
 msgstr "HUD"
 
@@ -2271,19 +2303,6 @@ msgstr "シングルプレイヤーでスコアボードを描画する"
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Draw ScoreBoard in multiplayer"
 msgstr "マルチプレイヤーでスコアボードを描画する"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Key Overlay"
-msgstr "キーオーバーレイを描画する"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-#, fuzzy
-msgid "Draw Key Overlay Trail"
-msgstr "キーオーバーレイを描画する"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Scrolling blocks next to the key overlay, visualizing how long each key was held."
-msgstr ""
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Draw Scrubbing Timeline"
@@ -2471,25 +2490,6 @@ msgstr "X オフセット:"
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Y Offset:"
 msgstr "Y オフセット:"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-#, fuzzy
-msgid "Key Overlay Trail"
-msgstr "キーオーバーレイ:"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-#, fuzzy
-msgid "Trail Opacity:"
-msgstr "スライダーの不透明度"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Trail Speed:"
-msgstr ""
-
-#: src/App/Neomod/OptionsOverlay.cpp
-#, fuzzy
-msgid "Trail Fade Distance:"
-msgstr "距離:"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Playfield"

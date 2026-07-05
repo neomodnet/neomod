@@ -162,6 +162,7 @@ struct OptionsOverlayImpl final {
     void onNotelockSelectResetUpdate();
 
     void onCheckboxChange(CBaseUICheckbox *checkbox);
+    void onCheckboxChangeWithLayoutUpdate(CBaseUICheckbox *checkbox);
     void onSliderChange(CBaseUISlider *slider);
     void onSliderChangeOneDecimalPlace(CBaseUISlider *slider);
     void onSliderChangeTwoDecimalPlaces(CBaseUISlider *slider);
@@ -1622,6 +1623,39 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     this->addSpacer();
     // addCheckbox(_("Show pp on ranking screen"), &cv::rankingscreen_pp);
 
+    this->addSubSection(_("Key Overlay"), "input visual hud key trail");
+    this->addCheckbox(_("Draw Key Overlay"), &cv::draw_inputoverlay);
+    {
+        auto *keytrailCbox =
+            this->addCheckbox(_("Draw Key Overlay Trail"),
+                              _("Scrolling blocks next to the key overlay, visualizing how long each key was held."),
+                              &cv::draw_inputoverlay_trail);
+        keytrailCbox->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onCheckboxChangeWithLayoutUpdate>(this));
+
+        static const RenderCondition trailOptionsCondition{
+            []() -> bool { return cv::draw_inputoverlay_trail.getBool(); }};
+
+        this->hudInputoverlayTrailOpacitySlider =
+            this->addSlider(_("Trail Opacity:"), 0.01f, 1.0f, &cv::hud_inputoverlay_trail_alpha, 165.0f);
+        this->elemContainers.back()->render_condition = trailOptionsCondition;
+        this->hudInputoverlayTrailOpacitySlider->setChangeCallback(
+            SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
+        this->hudInputoverlayTrailOpacitySlider->setKeyDelta(0.01f);
+        this->hudInputoverlayTrailSpeedSlider =
+            this->addSlider(_("Trail Speed:"), 20.0f, 500.0f, &cv::hud_inputoverlay_trail_speed, 165.0f);
+        this->elemContainers.back()->render_condition = trailOptionsCondition;
+        this->hudInputoverlayTrailSpeedSlider->setChangeCallback(
+            SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeInt>(this));
+        this->hudInputoverlayTrailSpeedSlider->setKeyDelta(1.0f);
+        this->hudInputoverlayTrailFadeSlider =
+            this->addSlider(_("Trail Fade Distance:"), 25.0f, 500.0f, &cv::hud_inputoverlay_trail_length, 165.0f);
+        this->elemContainers.back()->render_condition = trailOptionsCondition;
+        this->hudInputoverlayTrailFadeSlider->setChangeCallback(
+            SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeInt>(this));
+        this->hudInputoverlayTrailFadeSlider->setKeyDelta(1.0f);
+    }
+    this->addSpacer();
+
     this->addSubSection(_("HUD"));
     this->addCheckbox(_("Draw HUD"), _("NOTE: You can also press SHIFT + TAB while playing to toggle this."),
                       &cv::draw_hud);
@@ -1645,10 +1679,6 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
         &cv::draw_scorebarbg);
     this->addCheckbox(_("Draw ScoreBoard in singleplayer"), &cv::draw_scoreboard);
     this->addCheckbox(_("Draw ScoreBoard in multiplayer"), &cv::draw_scoreboard_mp);
-    this->addCheckbox(_("Draw Key Overlay"), &cv::draw_inputoverlay);
-    this->addCheckbox(_("Draw Key Overlay Trail"),
-                      _("Scrolling blocks next to the key overlay, visualizing how long each key was held."),
-                      &cv::draw_inputoverlay_trail);
     this->addCheckbox(_("Draw Scrubbing Timeline"), &cv::draw_scrubbing_timeline);
     this->addCheckbox(_("Draw Miss Window on HitErrorBar"), &cv::hud_hiterrorbar_showmisswindow);
     this->addSpacer();
@@ -1741,23 +1771,6 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     this->statisticsOverlayYOffsetSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeInt>(this));
     this->statisticsOverlayYOffsetSlider->setKeyDelta(1.0f);
-
-    this->addSubSection(_("Key Overlay Trail"));
-    this->hudInputoverlayTrailOpacitySlider =
-        this->addSlider(_("Trail Opacity:"), 0.01f, 1.0f, &cv::hud_inputoverlay_trail_alpha, 165.0f);
-    this->hudInputoverlayTrailOpacitySlider->setChangeCallback(
-        SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
-    this->hudInputoverlayTrailOpacitySlider->setKeyDelta(0.01f);
-    this->hudInputoverlayTrailSpeedSlider =
-        this->addSlider(_("Trail Speed:"), 20.0f, 500.0f, &cv::hud_inputoverlay_trail_speed, 165.0f);
-    this->hudInputoverlayTrailSpeedSlider->setChangeCallback(
-        SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeInt>(this));
-    this->hudInputoverlayTrailSpeedSlider->setKeyDelta(1.0f);
-    this->hudInputoverlayTrailFadeSlider =
-        this->addSlider(_("Trail Fade Distance:"), 25.0f, 500.0f, &cv::hud_inputoverlay_trail_length, 165.0f);
-    this->hudInputoverlayTrailFadeSlider->setChangeCallback(
-        SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeInt>(this));
-    this->hudInputoverlayTrailFadeSlider->setKeyDelta(1.0f);
 
     this->addSubSection(_("Playfield"));
     this->addCheckbox(_("Draw FollowPoints"), &cv::draw_followpoints);
@@ -3401,6 +3414,11 @@ void OptionsOverlayImpl::onNotelockSelectResetUpdate() {
     if(this->notelockSelectResetButton != nullptr)
         this->notelockSelectResetButton->setEnabled(cv::notelock_type.getInt() !=
                                                     (int)cv::notelock_type.getDefaultFloat());
+}
+
+void OptionsOverlayImpl::onCheckboxChangeWithLayoutUpdate(CBaseUICheckbox *checkbox) {
+    this->onCheckboxChange(checkbox);
+    if(!this->updating_layout) this->scheduleLayoutUpdate();
 }
 
 #define DO_UPDATE_LAYOUT_CHECK(slider__)                               \
