@@ -1752,6 +1752,7 @@ void BeatmapInterface::resetScore() {
 
     osu->getScore()->reset();
     ui->getHUD()->resetScoreboard();
+    ui->getHUD()->resetInputOverlayTrail();
 
     this->holding_slider = false;
     this->bIsFirstMissSound = true;
@@ -2837,7 +2838,7 @@ void BeatmapInterface::update2() {
                 if(!(this->last_keys & key) && (this->current_keys & key)) {
                     this->lastPressedKey = key;
                     this->clicks.push_back(click);
-                    ui->getHUD()->animateInputOverlay(key, true);
+                    ui->getHUD()->animateInputOverlay(key, true, current_frame.cur_music_pos);
                     if(should_count_keypress) osu->getScore()->addKeyCount(key);
                 }
             }
@@ -2850,7 +2851,7 @@ void BeatmapInterface::update2() {
                         this->clicks.push_back(click);
                         if(should_count_keypress) osu->getScore()->addKeyCount(key);
                     }
-                    ui->getHUD()->animateInputOverlay(key, false);
+                    ui->getHUD()->animateInputOverlay(key, false, current_frame.cur_music_pos);
                 }
             }
         }

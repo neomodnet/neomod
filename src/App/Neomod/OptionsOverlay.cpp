@@ -253,6 +253,9 @@ struct OptionsOverlayImpl final {
     CBaseUISlider *hudScoreBarScaleSlider{nullptr};
     CBaseUISlider *hudScoreBoardScaleSlider{nullptr};
     CBaseUISlider *hudInputoverlayScaleSlider{nullptr};
+    CBaseUISlider *hudInputoverlayTrailSpeedSlider{nullptr};
+    CBaseUISlider *hudInputoverlayTrailFadeSlider{nullptr};
+    CBaseUISlider *hudInputoverlayTrailOpacitySlider{nullptr};
     CBaseUISlider *playfieldBorderSizeSlider{nullptr};
     CBaseUISlider *statisticsOverlayScaleSlider{nullptr};
     CBaseUISlider *statisticsOverlayXOffsetSlider{nullptr};
@@ -1643,6 +1646,9 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     this->addCheckbox(_("Draw ScoreBoard in singleplayer"), &cv::draw_scoreboard);
     this->addCheckbox(_("Draw ScoreBoard in multiplayer"), &cv::draw_scoreboard_mp);
     this->addCheckbox(_("Draw Key Overlay"), &cv::draw_inputoverlay);
+    this->addCheckbox(_("Draw Key Overlay Trail"),
+                      _("Scrolling blocks next to the key overlay, visualizing how long each key was held."),
+                      &cv::draw_inputoverlay_trail);
     this->addCheckbox(_("Draw Scrubbing Timeline"), &cv::draw_scrubbing_timeline);
     this->addCheckbox(_("Draw Miss Window on HitErrorBar"), &cv::hud_hiterrorbar_showmisswindow);
     this->addSpacer();
@@ -1735,6 +1741,23 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     this->statisticsOverlayYOffsetSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeInt>(this));
     this->statisticsOverlayYOffsetSlider->setKeyDelta(1.0f);
+
+    this->addSubSection(_("Key Overlay Trail"));
+    this->hudInputoverlayTrailOpacitySlider =
+        this->addSlider(_("Trail Opacity:"), 0.01f, 1.0f, &cv::hud_inputoverlay_trail_alpha, 165.0f);
+    this->hudInputoverlayTrailOpacitySlider->setChangeCallback(
+        SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
+    this->hudInputoverlayTrailOpacitySlider->setKeyDelta(0.01f);
+    this->hudInputoverlayTrailSpeedSlider =
+        this->addSlider(_("Trail Speed:"), 20.0f, 500.0f, &cv::hud_inputoverlay_trail_speed, 165.0f);
+    this->hudInputoverlayTrailSpeedSlider->setChangeCallback(
+        SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeInt>(this));
+    this->hudInputoverlayTrailSpeedSlider->setKeyDelta(1.0f);
+    this->hudInputoverlayTrailFadeSlider =
+        this->addSlider(_("Trail Fade Distance:"), 25.0f, 500.0f, &cv::hud_inputoverlay_trail_length, 165.0f);
+    this->hudInputoverlayTrailFadeSlider->setChangeCallback(
+        SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeInt>(this));
+    this->hudInputoverlayTrailFadeSlider->setKeyDelta(1.0f);
 
     this->addSubSection(_("Playfield"));
     this->addCheckbox(_("Draw FollowPoints"), &cv::draw_followpoints);
@@ -1987,8 +2010,9 @@ void OptionsOverlayImpl::draw() {
        this->hudHiterrorbarScaleSlider->isActive() || this->hudHiterrorbarURScaleSlider->isActive() ||
        this->hudProgressbarScaleSlider->isActive() || this->hudScoreBarScaleSlider->isActive() ||
        this->hudScoreBoardScaleSlider->isActive() || this->hudInputoverlayScaleSlider->isActive() ||
-       this->statisticsOverlayScaleSlider->isActive() || this->statisticsOverlayXOffsetSlider->isActive() ||
-       this->statisticsOverlayYOffsetSlider->isActive()) {
+       this->hudInputoverlayTrailOpacitySlider->isActive() || this->hudInputoverlayTrailSpeedSlider->isActive() ||
+       this->hudInputoverlayTrailFadeSlider->isActive() || this->statisticsOverlayScaleSlider->isActive() ||
+       this->statisticsOverlayXOffsetSlider->isActive() || this->statisticsOverlayYOffsetSlider->isActive()) {
         if(!isPlayingBeatmap) ui->getHUD()->drawDummy();
     } else if(this->playfieldBorderSizeSlider->isActive()) {
         ui->getHUD()->drawPlayfieldBorder(GameRules::getPlayfieldCenter(), GameRules::getPlayfieldSize(), 100);

@@ -122,6 +122,8 @@ HUD::HUD() : UIScreen() {
     cv::cursor_trail_max_size.setCallback(SA::MakeDelegate<&HUD::onCursorTrailMaxChange>(this));
 
     this->cursorTrailVAO.reset(g->createVertexArrayObject(DrawPrimitive::QUADS, DrawUsageType::DYNAMIC, false));
+    this->inputOverlayTrailVAO.reset(
+        g->createVertexArrayObject(DrawPrimitive::TRIANGLES, DrawUsageType::DYNAMIC, false));
 
     this->fCurFps = 60.0f;
     this->fCurFpsSmooth = 60.0f;
@@ -403,7 +405,11 @@ void HUD::drawDummy() {
 
     if(cv::draw_scorebar.getBool()) this->drawHPBar(1.0, 1.0f, 0.0);
 
-    if(cv::draw_inputoverlay.getBool()) this->drawInputOverlay(0, 0, 0, 0);
+    if(cv::draw_inputoverlay.getBool()) {
+        this->updateInputOverlayDemo();
+        const auto &counts = this->inputOverlayDemo.counts;
+        this->drawInputOverlay(counts[IOKEY_K1], counts[IOKEY_K2], counts[IOKEY_M1], counts[IOKEY_M2]);
+    }
 
     if(this->dummy_slots.empty()) {
         // lazy build
@@ -2260,6 +2266,173 @@ void HUD::drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 
     g->popTransform();
 }
 
+void HUD::updateInputOverlayDemo() {
+    // looping keypress pattern: a short alternating stream, a long hold with taps on the other
+    // key, and one click on each mouse button
+    static constexpr f32 demoLoopDuration = 2.4f;
+    static constexpr struct {
+        f32 time;
+        GameplayKeys key;
+        bool down;
+    } demoEvents[] = {
+        {0.0f, GameplayKeys::K1, true},    {0.085f, GameplayKeys::K1, false}, {0.17f, GameplayKeys::K2, true},
+        {0.255f, GameplayKeys::K2, false}, {0.34f, GameplayKeys::K1, true},   {0.425f, GameplayKeys::K1, false},
+        {0.51f, GameplayKeys::K2, true},   {0.595f, GameplayKeys::K2, false}, {0.68f, GameplayKeys::K1, true},
+        {0.765f, GameplayKeys::K1, false}, {0.85f, GameplayKeys::K2, true},   {0.935f, GameplayKeys::K2, false},
+        {1.02f, GameplayKeys::K1, true},   {1.19f, GameplayKeys::K2, true},   {1.275f, GameplayKeys::K2, false},
+        {1.36f, GameplayKeys::K2, true},   {1.445f, GameplayKeys::K2, false}, {1.62f, GameplayKeys::K1, false},
+        {1.79f, GameplayKeys::M1, true},   {1.9f, GameplayKeys::M1, false},   {2.04f, GameplayKeys::M2, true},
+        {2.15f, GameplayKeys::M2, false},
+    };
+
+    auto &demo = this->inputOverlayDemo;
+    const f64 now = engine->getTime();
+
+    // (re)start the pattern cleanly if the preview wasn't drawn for a while
+    if(now - demo.lastUpdate > 1.0) {
+        this->resetInputOverlayTrail();
+        const u8 held = demo.keysHeld;
+        for(auto key : {GameplayKeys::K1, GameplayKeys::K2, GameplayKeys::M1, GameplayKeys::M2})
+            if(held & key) this->animateInputOverlay(key, false, (i32)(now * 1000.0));
+        demo = {.loopStart = now};
+    }
+    demo.lastUpdate = now;
+
+    while(demo.loopStart + demoEvents[demo.eventIdx].time <= now) {
+        const auto &evt = demoEvents[demo.eventIdx];
+        this->animateInputOverlay(evt.key, evt.down, (i32)((demo.loopStart + evt.time) * 1000.0));
+        if(evt.down) {
+            demo.keysHeld |= evt.key;
+            const i32 idx = gameplayKeyToInputOverlayIndex(evt.key);
+            demo.counts[idx]++;
+        } else {
+            demo.keysHeld &= (u8)~evt.key;
+        }
+        if(++demo.eventIdx >= std::size(demoEvents)) {
+            demo.eventIdx = 0;
+            demo.loopStart += demoLoopDuration;
+        }
+    }
+}
+
+void HUD::drawInputOverlayTrail(f32 xStart, f32 yStart, f32 oScale, f32 scale) {
+    if(!cv::draw_inputoverlay_trail.getBool()) return;
+
+    // drawDummy (options menu HUD preview) is the only caller outside of play mode; there is no
+    // music clock there, so the trail runs on engine time (see updateInputOverlayDemo)
+    const bool dummy = !osu->isInPlayMode();
+    auto *pf = osu->getMapInterface();
+    if(!dummy && pf == nullptr) return;
+
+    const i32 now = dummy ? (i32)(engine->getTime() * 1000.0) : pf->getCurMusicPosWithOffsets();
+
+    // blocks from the future mean the music position jumped backwards without passing through
+    // resetScore(); the tolerance covers small music position interpolation regressions
+    for(auto &blocks : this->inputOverlayTrails) {
+        if(!blocks.empty() && blocks.back().startTime > now + 1000) {
+            this->resetInputOverlayTrail();
+            break;
+        }
+    }
+
+    const f32 unit = oScale * scale;
+    // normalize scrolling to real time, so rate mods don't change apparent speed or block widths
+    const f32 speedMult = dummy ? 1.0f : std::max(0.05f, pf->getSpeedMultiplier());
+    const f32 pxPerMs = (std::max(1.0f, cv::hud_inputoverlay_trail_speed.getFloat()) * unit) / (1000.0f * speedMult);
+    const f32 fadeEndPx = std::max(1.0f, cv::hud_inputoverlay_trail_length.getFloat()) * unit;
+    const f32 fadeStartPx = fadeEndPx * std::clamp(cv::hud_inputoverlay_trail_fade_start.getFloat(), 0.0f, 1.0f);
+    const f32 fadeRangePx = std::max(1.0f, fadeEndPx - fadeStartPx);
+    const f32 height = std::max(1.0f, cv::hud_inputoverlay_trail_height.getFloat()) * unit;
+    const f32 minWidth = 1.0f;  // keep very fast taps visible (a true-width block would be sub-pixel)
+
+    static constexpr std::array<GameplayKeys, 4> rowFlags{GameplayKeys::K1, GameplayKeys::K2, GameplayKeys::M1,
+                                                          GameplayKeys::M2};
+    const u8 heldKeys = dummy ? this->inputOverlayDemo.keysHeld : pf->getKeys();
+    uSz totalBlocks = 0;
+    for(i32 i = 0; i < 4; i++) {
+        auto &blocks = this->inputOverlayTrails[i];
+
+        // if a release edge was missed (e.g. overlay toggled mid-hold), stop the block from growing forever
+        if(!blocks.empty() && blocks.back().endTime == TRAIL_BLOCK_OPEN && !(heldKeys & rowFlags[i]))
+            blocks.back().endTime = now;
+
+        // evict blocks whose newest edge has scrolled past the fade end (blocks are ordered by time,
+        // so everything remaining after this is at least partially visible)
+        auto it = blocks.begin();
+        while(it != blocks.end() && (f32)(now - std::min(it->endTime, now)) * pxPerMs > fadeEndPx) ++it;
+        blocks.erase(blocks.begin(), it);
+
+        totalBlocks += blocks.size();
+    }
+
+    const f32 baseAlpha = std::clamp(cv::hud_inputoverlay_trail_alpha.getFloat(), 0.0f, 1.0f);
+    if(totalBlocks == 0 || baseAlpha <= 0.0f) return;
+
+    const f32 rot = cv::hud_inputoverlay_trail_rotation.getFloat() * (PI_F / 180.0f);
+    const vec2 dir{-std::cos(rot), -std::sin(rot)};  // 0 degrees = leftward, away from the keys
+    const vec2 perp{-dir.y, dir.x};
+
+    const Color baseColor = RGB_CV_TO_COL(hud_inputoverlay_trail);
+
+    // blocks spawn at the left edge of the key buttons (getSizeBase is independent of the actual
+    // skin art, e.g. the default skin ships a 1x1 inputoverlay-background)
+    const f32 xAnchor = xStart - (15.0f * oScale) * scale + 1 -
+                        (osu->getSkin()->i_input_overlay_key.getSizeBase().x * 0.5f) * scale +
+                        cv::hud_inputoverlay_trail_offset_x.getFloat() * unit;
+
+    VertexArrayObject &vao = *this->inputOverlayTrailVAO;
+    vao.clear();
+    vao.reserve(totalBlocks * 2 * 6);  // at most two quads per block (split at the fade-start kink)
+
+    const f32 halfH = height * 0.5f;
+    const auto colorAt = [&](f32 d) {
+        return Color(baseColor).setA(baseAlpha * (1.0f - std::clamp((d - fadeStartPx) / fadeRangePx, 0.0f, 1.0f)));
+    };
+
+    for(i32 i = 0; i < 4; i++) {
+        const vec2 anchor{xAnchor, yStart + (19.0f * oScale + (f32)i * 29.5f * oScale) * scale +
+                                       cv::hud_inputoverlay_trail_offset_y.getFloat() * unit};
+
+        for(const auto &block : this->inputOverlayTrails[i]) {
+            // dNear stays glued to the anchor while the key is held (so the block grows with hold
+            // duration); dFar is capped at the fade end so the visible length never runs past it
+            const f32 dNear = (f32)(now - std::min(block.endTime, now)) * pxPerMs;
+            if(dNear >= fadeEndPx) continue;
+            const f32 dFar = std::min(std::max((f32)(now - block.startTime) * pxPerMs, dNear + minWidth), fadeEndPx);
+
+            // plain rectangles, so the width is an exact readout of the hold duration; split at the
+            // fade-start kink so alpha stays flat up to it and ramps linearly after (one quad spanning
+            // the kink would fade the opaque near end too, the old "diamond" artifact)
+            const std::array<f32, 3> cols{dNear, std::clamp(fadeStartPx, dNear, dFar), dFar};
+            f32 prevD = cols[0];
+            for(i32 k = 1; k < 3; k++) {
+                const f32 d = cols[k];
+                if(d - prevD < 0.01f) {  // degenerate strip (kink coincides with an edge)
+                    prevD = d;
+                    continue;
+                }
+                const Color c0 = colorAt(prevD), c1 = colorAt(d);
+                const vec2 n0 = anchor + dir * prevD, n1 = anchor + dir * d;
+                vao.addVertex(n0 - perp * halfH);
+                vao.addColor(c0);
+                vao.addVertex(n0 + perp * halfH);
+                vao.addColor(c0);
+                vao.addVertex(n1 + perp * halfH);
+                vao.addColor(c1);
+                vao.addVertex(n0 - perp * halfH);
+                vao.addColor(c0);
+                vao.addVertex(n1 + perp * halfH);
+                vao.addColor(c1);
+                vao.addVertex(n1 - perp * halfH);
+                vao.addColor(c1);
+                prevD = d;
+            }
+        }
+    }
+
+    g->drawVAO(&vao);
+}
+
 void HUD::drawInputOverlay(i32 numK1, i32 numK2, i32 numM1, i32 numM2) {
     const SkinImage &inputoverlayBackground = osu->getSkin()->i_input_overlay_bg;
     const SkinImage &inputoverlayKey = osu->getSkin()->i_input_overlay_key;
@@ -2275,6 +2448,9 @@ void HUD::drawInputOverlay(i32 numK1, i32 numK2, i32 numM1, i32 numM2) {
 
     const f32 xStart = osu->getVirtScreenWidth() - xStartOffset;
     const f32 yStart = osu->getVirtScreenHeight() / 2.f - (40.0f * oScale) * scale + yStartOffset;
+
+    // trail (under the background and keys)
+    this->drawInputOverlayTrail(xStart, yStart, oScale, scale);
 
     // background
     {
@@ -2359,6 +2535,20 @@ f32 HUD::getScoreScale() {
            cv::hud_score_scale.getFloat();
 }
 
+i32 HUD::gameplayKeyToInputOverlayIndex(GameplayKeys key) {
+    switch(key) {
+            // clang-format off
+        case GameplayKeys::K1:    return IOKEY_K1;
+        case GameplayKeys::K2:    return IOKEY_K2;
+        case GameplayKeys::M1:    return IOKEY_M1;
+        case GameplayKeys::M2:    return IOKEY_M2;
+        case GameplayKeys::Smoke: std::unreachable();
+            // clang-format on
+    }
+    std::unreachable();
+    return 0;
+};
+
 void HUD::animateCombo() {
     this->fComboAnim1 = 0.0f;
     this->fComboAnim2 = 1.0f;
@@ -2393,28 +2583,33 @@ void HUD::addTarget(f32 delta, f32 angle) {
     this->targets.push_back({.time = (f32)(engine->getTime() + 3.5f), .delta = delta, .angle = angle});
 }
 
-void HUD::animateInputOverlay(GameplayKeys key_flag, bool down) {
+void HUD::animateInputOverlay(GameplayKeys key_flag, bool down, std::optional<i32> musicPos) {
     if(key_flag == GameplayKeys::Smoke || !cv::draw_inputoverlay.getBool() ||
        (!cv::draw_hud.getBool() && cv::hud_shift_tab_toggles_everything.getBool()))
         return;
 
     for(GameplayKeys flag = GameplayKeys::K2 /* 8 */; flag >= 1; flag = static_cast<GameplayKeys>(flag >> 1)) {
         if(!(flag & key_flag)) continue;
-        static constexpr const auto keyToInputOverlayIndex = [](GameplayKeys key) -> i32 {
-            switch(key) {
-                    // clang-format off
-                case GameplayKeys::K1:    return IOKEY_K1;
-                case GameplayKeys::K2:    return IOKEY_K2;
-                case GameplayKeys::M1:    return IOKEY_M1;
-                case GameplayKeys::M2:    return IOKEY_M2;
-                case GameplayKeys::Smoke: std::unreachable();
-                    // clang-format on
-            }
-            std::unreachable();
-            return 0;
-        };
+        const int key_idx = gameplayKeyToInputOverlayIndex(flag);
+        auto &iokey = this->inputOverlayKeys[key_idx];
 
-        auto &iokey = this->inputOverlayKeys[keyToInputOverlayIndex(flag)];
+        if(cv::draw_inputoverlay_trail.getBool()) {
+            if(auto *pf = osu->getMapInterface()) {
+                auto &blocks = this->inputOverlayTrails[key_idx];
+                const i32 t = musicPos.value_or(pf->getCurMusicPosWithOffsets());
+                if(down) {
+                    // down while a block is still open can happen when edges get swallowed upstream
+                    // (mods, toggling mid-hold); treat as no-op
+                    if(blocks.empty() || blocks.back().endTime != TRAIL_BLOCK_OPEN) {
+                        blocks.push_back({.startTime = t, .endTime = TRAIL_BLOCK_OPEN});
+                        while(blocks.size() > (uSz)std::max(0, cv::hud_inputoverlay_trail_max_blocks.getInt()))
+                            blocks.erase(blocks.begin());
+                    }
+                } else if(!blocks.empty() && blocks.back().endTime == TRAIL_BLOCK_OPEN) {
+                    blocks.back().endTime = std::max(t, blocks.back().startTime);
+                }
+            }
+        }
 
         if(down) {
             // scale
@@ -2545,6 +2740,10 @@ void HUD::addCursorTrailPosition(CursorTrail &trail, vec2 pos) const {
 }
 
 void HUD::resetHitErrorBar() { this->hiterrors.clear(); }
+
+void HUD::resetInputOverlayTrail() {
+    for(auto &blocks : this->inputOverlayTrails) blocks.clear();
+}
 
 McRect HUD::getSkipClickRect() {
     const ivec2 osuScreenInt = osu->getVirtScreenSize();

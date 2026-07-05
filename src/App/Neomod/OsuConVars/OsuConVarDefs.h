@@ -211,6 +211,8 @@ CONVAR(draw_hiterrorbar_ur, true, CLIENT | SKINS | SERVER);
 CONVAR(draw_hitobjects, true, CLIENT | SKINS | SERVER);
 CONVAR(draw_hud, true, CLIENT | SKINS | SERVER);
 CONVAR(draw_inputoverlay, true, CLIENT | SKINS | SERVER);
+CONVAR(draw_inputoverlay_trail, false, CLIENT | SKINS | SERVER,
+       "scrolling blocks next to the key overlay visualizing how long each key was held");
 CONVAR(draw_numbers, true, CLIENT | SKINS | SERVER);
 CONVAR(draw_playfield_border, true, CLIENT | SKINS | SERVER);
 CONVAR(draw_progressbar, true, CLIENT | SKINS | SERVER);
@@ -299,6 +301,21 @@ CONVAR(hud_inputoverlay_anim_scale_multiplier, 0.8f, CLIENT | SKINS | SERVER);
 CONVAR(hud_inputoverlay_offset_x, 0.0f, CLIENT | SKINS | SERVER);
 CONVAR(hud_inputoverlay_offset_y, 0.0f, CLIENT | SKINS | SERVER);
 CONVAR(hud_inputoverlay_scale, 1.0f, CLIENT | SKINS | SERVER);
+CONVAR(hud_inputoverlay_trail_alpha, 0.6f, CLIENT | SKINS | SERVER);
+CONVAR(hud_inputoverlay_trail_fade_start, 0.6f, CLIENT | SKINS | SERVER,
+       "fraction of the trail length at which blocks begin to fade out");
+CONVAR(hud_inputoverlay_trail_height, 20.0f, CLIENT | SKINS | SERVER);
+CONVAR(hud_inputoverlay_trail_length, 150.0f, CLIENT | SKINS | SERVER,
+       "distance blocks travel before fading out completely");
+CONVAR(hud_inputoverlay_trail_max_blocks, 128, CLIENT | SKINS | SERVER);
+CONVAR(hud_inputoverlay_trail_offset_x, 0.0f, CLIENT | SKINS | SERVER);
+CONVAR(hud_inputoverlay_trail_offset_y, 0.0f, CLIENT | SKINS | SERVER);
+CONVAR(hud_inputoverlay_trail_rotation, 0.0f, CLIENT | SKINS | SERVER,
+       "direction the blocks move in degrees, 0 = away from the keys");
+CONVAR(hud_inputoverlay_trail_speed, 150.0f, CLIENT | SKINS | SERVER);
+CONVAR(hud_inputoverlay_trail_r, 255, CLIENT | SKINS | SERVER);
+CONVAR(hud_inputoverlay_trail_g, 222, CLIENT | SKINS | SERVER);
+CONVAR(hud_inputoverlay_trail_b, 0, CLIENT | SKINS | SERVER);
 CONVAR(hud_playfield_border_size, 5.0f, CLIENT | SKINS | SERVER);
 CONVAR(hud_progressbar_scale, 1.0f, CLIENT | SKINS | SERVER);
 CONVAR(hud_scale, 1.0f, CLIENT | SKINS | SERVER);

@@ -7,6 +7,8 @@
 
 #include <memory>
 #include <cassert>
+#include <limits>
+#include <optional>
 #include <span>
 
 class UIAvatar;
@@ -88,7 +90,7 @@ class HUD final : public UIScreen {
     void animateCombo();
     void addHitError(i32 delta, bool miss = false, bool misaim = false);
     void addTarget(f32 delta, f32 angle);
-    void animateInputOverlay(GameplayKeys key_flag, bool down);
+    void animateInputOverlay(GameplayKeys key_flag, bool down, std::optional<i32> musicPos = std::nullopt);
 
     void addCursorRipple(vec2 pos);
     void animateCursorExpand();
@@ -97,6 +99,7 @@ class HUD final : public UIScreen {
     void animateKiExplode();
 
     void resetHitErrorBar();
+    void resetInputOverlayTrail();
 
     McRect getSkipClickRect();
 
@@ -217,12 +220,16 @@ class HUD final : public UIScreen {
     static void drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 beatmapStartTimePlayable,
                                       f32 beatmapPercentFinishedPlayable, const std::vector<BREAK> &breaks);
     void drawInputOverlay(i32 numK1, i32 numK2, i32 numM1, i32 numM2);
+    void drawInputOverlayTrail(f32 xStart, f32 yStart, f32 oScale, f32 scale);
+    void updateInputOverlayDemo();
 
     static bool shouldDrawRuntimeInfo();
 
     static f32 getCursorTrailScaleFactor();
 
     static f32 getScoreScale();
+
+    static i32 gameplayKeyToInputOverlayIndex(GameplayKeys key);
 
     McFont *tempFont;
 
@@ -258,6 +265,24 @@ class HUD final : public UIScreen {
     };
     std::array<InputOverlayElement, 4> inputOverlayKeys;
 
+    // key overlay trail (times in music position ms, negative during lead-in)
+    static constexpr i32 TRAIL_BLOCK_OPEN = std::numeric_limits<i32>::max();
+    struct InputOverlayTrailBlock {
+        i32 startTime;
+        i32 endTime;  // TRAIL_BLOCK_OPEN while the key is still held
+    };
+    std::array<std::vector<InputOverlayTrailBlock>, 4> inputOverlayTrails;
+
+    // looping fake keypresses for the options menu HUD preview (drawDummy), on an engine time clock
+    struct InputOverlayDemo {
+        f64 loopStart{0.0};
+        f64 lastUpdate{0.0};
+        uSz eventIdx{0};
+        u8 keysHeld{0};
+        std::array<i32, 4> counts{};
+    };
+    InputOverlayDemo inputOverlayDemo;
+
     // cursor & trail & ripples
     AnimFloat fCursorExpandAnim;
     CursorTrail cursorTrail;
@@ -266,6 +291,7 @@ class HUD final : public UIScreen {
     CursorTrail cursorTrailSpectator2;
     Shader *cursorTrailShader;
     std::unique_ptr<VertexArrayObject> cursorTrailVAO;
+    std::unique_ptr<VertexArrayObject> inputOverlayTrailVAO;
     std::vector<CursorRippleElement> cursorRipples;
 
     // target heatmap

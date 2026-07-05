@@ -2261,6 +2261,15 @@ msgid "Draw Key Overlay"
 msgstr "Afficher la superposition des touches"
 
 #: src/App/Neomod/OptionsOverlay.cpp
+#, fuzzy
+msgid "Draw Key Overlay Trail"
+msgstr "Afficher la superposition des touches"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Scrolling blocks next to the key overlay, visualizing how long each key was held."
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "Draw Scrubbing Timeline"
 msgstr "Afficher la timeline de scrubbing"
 
@@ -2446,6 +2455,25 @@ msgstr "Décalage X :"
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Y Offset:"
 msgstr "Décalage Y :"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+#, fuzzy
+msgid "Key Overlay Trail"
+msgstr "Touches :"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+#, fuzzy
+msgid "Trail Opacity:"
+msgstr "Opacité du slider"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Trail Speed:"
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
+#, fuzzy
+msgid "Trail Fade Distance:"
+msgstr "Distance :"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Playfield"
