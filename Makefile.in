@@ -7886,6 +7886,7 @@ $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)-macosaarch64.source: $(DEPS_CACHE)/curl-
 @BUILD_SDL3_TRUE@	$(SED) -i 's|KMSDRM_gbm_surface_release_buffer.*next_bo.*|//\0|' src/video/kmsdrm/SDL_kmsdrmvideo.c && \
 @BUILD_SDL3_TRUE@	patch -Np1<$(BUILD_MISCDIR)/SDL3-PR14048-emscripten-clipboard.patch && \
 @BUILD_SDL3_TRUE@	patch -Np1<$(BUILD_MISCDIR)/SDL3-WIP-gpu_vulkan-Address-more-defragmentation-related-.patch && \
+@BUILD_SDL3_TRUE@	patch -Np1<$(BUILD_MISCDIR)/SDL3-IS15656-D3D12-latency-poc.patch && \
 @BUILD_SDL3_TRUE@	PKG_CONFIG="$(PKG_CONFIG)" LDFLAGS="$(LDFLAGS) $(if $(SDL3_STATIC),,$(SDL3_EXTRALIBS))" CC="$(CC)" CXX="$(CXX)" \
 @BUILD_SDL3_TRUE@	$(CMAKE_CONF_PFX) $(CMAKE) -S . -B build -G "$(CMAKE_GEN)" \
 @BUILD_SDL3_TRUE@		-D CMAKE_BUILD_TYPE="$(if $(ENABLE_DEBUG),Debug,Release)" \
