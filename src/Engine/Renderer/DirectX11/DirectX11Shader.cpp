@@ -340,9 +340,9 @@ bool DirectX11Shader::loadLibs() {
     if constexpr(Env::cfg(OS::LINUX)) {
         s_d3dCompilerHandle = dynutils::load_lib(lib_name);
     } else {
-        // try any d3dcompiler version from 43 to 47, any should be fine
+        // try any d3dcompiler version from 43 to 47, any should be fine (?)
         for(auto version : std::array<std::pair<std::string_view, unsigned int>, 5>{
-                {{"43"sv, 43}, {"44"sv, 44}, {"45"sv, 45}, {"46"sv, 46}, {"47"sv, 47}}}) {
+                {{"47"sv, 47}, {"46"sv, 46}, {"45"sv, 45}, {"44"sv, 44}, {"43"sv, 43}}}) {
             std::string full_lib = lib_name;
             full_lib += version.first;
             major = version.second;
