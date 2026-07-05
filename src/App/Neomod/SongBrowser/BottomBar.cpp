@@ -132,18 +132,31 @@ void updateInput(CBaseUIEventCtx& c) {
     // carousel scrollview that is visited later in the songbrowser walk
     osu->getUserButton()->updateInput(c);
 
+    // TODO: BottomBar isn't a CBaseUIElement so click/hover detection needs BS manual workarounds
+    bool overlay_has_mouse_inside = false;
+    for(auto* overlay : {ui->getOptionsOverlayBase(), ui->getChatBase(), ui->getModSelectorBase()}) {
+        if(overlay->isVisible() && overlay->isMouseInside()) {
+            overlay_has_mouse_inside = true;
+            break;
+        }
+    }
+
     // Yes, the order looks whack. That's the correct order.
     Button new_hover = BTN_NONE;
-    if(btns[OPTIONS].rect.contains(mousePos)) {
-        new_hover = OPTIONS;
-    } else if(btns[MODE].rect.contains(mousePos)) {
-        new_hover = MODE;
-    } else if(btns[MODS].rect.contains(mousePos)) {
-        new_hover = MODS;
-    } else if(btns[RANDOM].rect.contains(mousePos)) {
-        new_hover = RANDOM;
-    } else {
+    if(overlay_has_mouse_inside) {
         clicked = false;
+    } else {
+        if(btns[OPTIONS].rect.contains(mousePos)) {
+            new_hover = OPTIONS;
+        } else if(btns[MODE].rect.contains(mousePos)) {
+            new_hover = MODE;
+        } else if(btns[MODS].rect.contains(mousePos)) {
+            new_hover = MODS;
+        } else if(btns[RANDOM].rect.contains(mousePos)) {
+            new_hover = RANDOM;
+        } else {
+            clicked = false;
+        }
     }
 
     if(hovered_btn != new_hover) {
