@@ -379,7 +379,8 @@ void RoomScreen::onKeyDown(KeyboardEvent &key) {
     UIScreen::onKeyDown(key);
     if(key.isConsumed()) return;
 
-    if(key.getScanCode() == KEY_ESCAPE) {
+    // the discord activity has nothing but its own room
+    if(key.getScanCode() == KEY_ESCAPE && !Osu::isDiscordActivity()) {
         key.consume();
 
         static f64 last_escape_press = 0.0;
@@ -631,6 +632,69 @@ void RoomScreen::updateLayout(vec2 newResolution) {
     this->slotlist->setScrollSizeToContent();
 }
 
+class RoomScreen::ActivityOverlay final : public LoadingScreen {
+    NOCOPY_NOMOVE(ActivityOverlay)
+   public:
+    ActivityOverlay() = delete;
+    ActivityOverlay(RoomScreen *room_screen) : LoadingScreen(room_screen), room_screen(room_screen) {}
+    ~ActivityOverlay() override = default;
+
+    // there's nothing to go back to
+    void onKeyDown(KeyboardEvent &e) override { e.consume(); }
+
+   protected:
+    f32 updateProgress() override {
+        if(BanchoState::is_in_a_multi_room()) return 1.f;
+
+        const f64 now = engine->getTime();
+        if(!BanchoState::is_online()) {
+            if(!BanchoState::is_logging_in() && now >= this->next_login) {
+                this->next_login = now + RETRY_DELAY;
+                BanchoState::reconnect();
+            }
+        } else if(!db->isFinished()) {
+            // Not having a loaded database causes a bunch of issues in multi
+            ui->getSongBrowser()->refreshBeatmaps(this->room_screen);
+        } else if(now >= this->next_join) {
+            this->next_join = now + RETRY_DELAY;
+
+            Packet packet;
+            packet.id = OUTP_JOIN_ACTIVITY_ROOM;
+            packet.write_string(Environment::getEnvVariable("NEOMOD_DISCORD_INSTANCE"));
+            BANCHO::Net::send_packet(packet);
+        }
+        return 0.f;
+    }
+
+    [[nodiscard]] std::string getProgressMessage() const override {
+        if(BanchoState::is_online()) return _("Joining room...");
+        return BanchoState::is_logging_in() ? _("Connecting...") : _("Failed to connect. Retrying...");
+    }
+
+    void finish() override {
+        this->progress = 1.f;
+        this->room_screen->activity_overlay = nullptr;
+
+        // kill ourselves, popOverlay switches to the room
+        auto tmp = ui->popOverlay(this);
+    }
+
+   private:
+    static constexpr f64 RETRY_DELAY{10.0};
+
+    RoomScreen *room_screen;
+    f64 next_login{engine->getTime() + RETRY_DELAY};
+    f64 next_join{0.0};
+};
+
+void RoomScreen::showActivityOverlay() {
+    if(this->activity_overlay) return;
+
+    auto overlay = std::make_unique<ActivityOverlay>(this);
+    this->activity_overlay = overlay.get();
+    ui->pushOverlay(std::move(overlay));
+}
+
 // Exit to the lobby (or to the main menu, without a server to be in a lobby of)
 void RoomScreen::ragequit(bool play_sound) {
     BanchoState::match_started = false;
@@ -651,7 +715,11 @@ void RoomScreen::ragequit(bool play_sound) {
     });
     ui->getModSelector()->updateButtons();
 
-    ui->setScreen(BanchoState::is_online() ? ui->getLobbyBase() : ui->getMainMenuBase());
+    if(Osu::isDiscordActivity()) {
+        this->showActivityOverlay();
+    } else {
+        ui->setScreen(BanchoState::is_online() ? ui->getLobbyBase() : ui->getMainMenuBase());
+    }
     ui->getChat()->removeChannel("#multiplayer");
     ui->getChat()->updateVisibility();
 
@@ -699,6 +767,9 @@ void RoomScreen::on_map_change() {
 
 void RoomScreen::on_room_joined(const Room &room) {
     BanchoState::room = room;
+
+    // the host would otherwise rename the room the server made for the activity to what's in the textbox
+    if(Osu::isDiscordActivity()) this->room_name_ipt->setText(room.name);
 
     // protected convars read as their default for as long as we are in the room
     cvars().setProtectionEnforced(true);

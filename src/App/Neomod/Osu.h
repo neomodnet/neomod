@@ -208,6 +208,7 @@ class Osu final : public App, public MouseListener, public TouchListener {
     [[nodiscard]] bool getModFreezeFrame() const;
     [[nodiscard]] bool getModDKS() const;
 
+    [[nodiscard]] static bool isDiscordActivity();
     [[nodiscard]] static bool isKioskMode();
     [[nodiscard]] static bool isBleedingEdge();
     [[nodiscard]] constexpr bool isInPlayMode() const { return this->bIsPlayingASelectedBeatmap; }

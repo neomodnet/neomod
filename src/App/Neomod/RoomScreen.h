@@ -79,6 +79,9 @@ class RoomScreen final : public UIScreen {
     void updateMapInfo();
     void ragequit(bool play_sound = true);
 
+    // Covers the screen until we're logged in and in the room of the discord activity instance
+    void showActivityOverlay();
+
     // applies the mods of the room and of our slot in it
     void useRoomMods();
     // the player changed their mods in the mod selector: they become ours in the room (and the room's while we are
@@ -144,6 +147,9 @@ class RoomScreen final : public UIScreen {
     McFont* lfont{nullptr};
 
     f64 last_score_packet_time{0.0};
+
+    class ActivityOverlay;
+    ActivityOverlay* activity_overlay{nullptr};
 
     // tracks the last map we successfully downloaded + applied via on_map_change;
     // map_fetcher drives the install of the host's current pick until it gets there.

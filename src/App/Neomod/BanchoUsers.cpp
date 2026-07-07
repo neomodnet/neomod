@@ -17,6 +17,22 @@
 
 #include <algorithm>
 
+#ifdef MCENGINE_PLATFORM_WASM
+#include <emscripten/emscripten.h>
+
+// the discord activity shell calls this when a player starts or stops talking
+extern "C" EMSCRIPTEN_KEEPALIVE void neomod_set_player_speaking(i32 user_id, bool speaking) {
+    BANCHO::User::get_user_info(user_id)->speaking = speaking;
+}
+
+// same, when a player mutes or deafens themselves
+extern "C" EMSCRIPTEN_KEEPALIVE void neomod_set_player_voice_state(i32 user_id, bool muted, bool deafened) {
+    auto* user = BANCHO::User::get_user_info(user_id);
+    user->voice_muted = muted;
+    user->voice_deafened = deafened;
+}
+#endif
+
 namespace BANCHO::User {
 
 Hash::flat::map<i32, const UserInfo*> online_users;  // pointers to all_users elements

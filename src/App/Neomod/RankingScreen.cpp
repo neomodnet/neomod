@@ -752,7 +752,7 @@ void RankingScreen::onBack() {
         ui->getRoomScreen()->on_map_change();
     } else if(BanchoState::spectating) {
         ui->setScreen(ui->getSpectatorScreen());
-    } else {
+    } else if(!Osu::isKioskMode()) {
         ui->setScreen(ui->getSongBrowser());
     }
 }

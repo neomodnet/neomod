@@ -412,7 +412,7 @@ void Osu::doDeferredInitTasks() {
     this->updateMods();
 
     // Init online functionality (multiplayer/leaderboards/etc)
-    if(cv::mp_autologin.getBool()) {
+    if(cv::mp_autologin.getBool() || Osu::isDiscordActivity()) {
         BanchoState::reconnect();
     }
 
@@ -2242,19 +2242,18 @@ bool Osu::getModNC() const {
 bool Osu::getModHT() const { return this->score->mods.speed == 0.75f; }
 bool Osu::getModDKS() const { return flags::has<ModFlags::DKS>(this->score->mods.flags); }
 
+bool Osu::isDiscordActivity() {
+    // only ever used in wasm builds with a custom shell for discord activities
+    // as in, the embedded games you can open in discord voice chat.
+    static bool isDiscordActivity = Environment::getEnvVariable("NEOMOD_DISCORD_ACTIVITY") == "1";
+    return isDiscordActivity;
+}
+
 bool Osu::isKioskMode() {
-    // environment variables can't change under normal circumstances
-    // using them to control ambient state in wasm is kinda sus
-    if constexpr(Env::cfg(OS::WASM)) {
-        return Environment::getEnvVariable("NEOSU_KIOSK_MODE") == "1";
-    } else {
-        // should just return false?
-        static int isKioskMode = -1;
-        if(isKioskMode == -1) {
-            isKioskMode = Environment::getEnvVariable("NEOSU_KIOSK_MODE") == "1";
-        }
-        return !!isKioskMode;
-    }
+    // on wasm, kiosk mode is used for the online replay viewer and for the discord activity
+    // on desktop, kiosk mode is currently unused, but could be useful for LAN events
+    static bool isKioskMode = Environment::getEnvVariable("NEOMOD_KIOSK_MODE") == "1";
+    return !!isKioskMode;
 }
 
 bool Osu::isBleedingEdge() {

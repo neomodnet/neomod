@@ -839,6 +839,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
 
     this->sectionGeneral = this->addSection(_("General"));
 
+    const size_t online_server_begin = this->elemContainers.size();
     this->addSubSection(_("Online server"));
 
     // Only renders if server submission policy is unknown
@@ -890,6 +891,13 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
         auto *keepCbx = static_cast<UICheckbox *>(loginElement->baseElems[KEEPSIGNEDCBX].get());
         keepCbx->setChecked(cv::mp_autologin.getBool());
         keepCbx->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onCheckboxChange>(this));
+    }
+
+    if(Osu::isDiscordActivity()) {
+        // the discord activity always logs in through discord
+        for(size_t i = online_server_begin; i < this->elemContainers.size(); i++) {
+            this->elemContainers[i]->render_condition = {[]() { return false; }};
+        }
     }
 
     {
@@ -977,17 +985,21 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
 
     this->addSubSection(_("Alerts"));
     this->addCheckbox(_("Notify when friends change status"), &cv::notify_friend_status_change);
-    this->addCheckbox(_("Notify when receiving a direct message"), &cv::chat_notify_on_dm);
-    this->addCheckbox(_("Notify when mentioned"), &cv::chat_notify_on_mention);
-    this->addCheckbox(_("Ping when mentioned"), &cv::chat_ping_on_mention);
+    if(!Osu::isDiscordActivity()) {
+        this->addCheckbox(_("Notify when receiving a direct message"), &cv::chat_notify_on_dm);
+        this->addCheckbox(_("Notify when mentioned"), &cv::chat_notify_on_mention);
+        this->addCheckbox(_("Ping when mentioned"), &cv::chat_ping_on_mention);
+    }
     this->addCheckbox(_("Show notifications during gameplay"), &cv::notify_during_gameplay);
 
-    this->addSubSection(_("In-game chat"));
-    this->addCheckbox(_("Chat ticker"), &cv::chat_ticker);
-    this->addCheckbox(_("Automatically hide chat during gameplay"), &cv::chat_auto_hide);
-    this->addTextbox(cv::chat_ignore_list.getString(), _("Chat word ignore list (space-separated):"),
-                     &cv::chat_ignore_list);
-    // this->addTextbox(cv::chat_highlight_words.getString(), _("Chat word highlight list (space-separated):"), &cv::chat_highlight_words);
+    if(!Osu::isDiscordActivity()) {
+        this->addSubSection(_("In-game chat"));
+        this->addCheckbox(_("Chat ticker"), &cv::chat_ticker);
+        this->addCheckbox(_("Automatically hide chat during gameplay"), &cv::chat_auto_hide);
+        this->addTextbox(cv::chat_ignore_list.getString(), _("Chat word ignore list (space-separated):"),
+                         &cv::chat_ignore_list);
+        // this->addTextbox(cv::chat_highlight_words.getString(), _("Chat word highlight list (space-separated):"), &cv::chat_highlight_words);
+    }
 
     this->addSubSection(_("Privacy"));
 #ifndef MCENGINE_PLATFORM_WASM

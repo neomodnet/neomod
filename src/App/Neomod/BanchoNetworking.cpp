@@ -16,6 +16,7 @@
 #include "Database.h"
 #include "Downloader.h"
 #include "Engine.h"
+#include "Environment.h"
 #include "File.h"
 #include "Image.h"
 #include "Lobby.h"
@@ -464,6 +465,8 @@ void BanchoState::disconnect(bool shutdown) {
 
     // consumers check for cancellation where relevant
     Downloader::abort_downloads();
+
+    if(Osu::isDiscordActivity() && !shutdown) ui->getRoomScreen()->showActivityOverlay();
 }
 
 void BanchoState::reconnect() {
@@ -478,6 +481,11 @@ void BanchoState::reconnect() {
         const MD5String hash{crypto::hash::md5(cv::mp_password.getString())};
         cv::mp_password_md5.setValue(hash.string());
         cv::mp_password.setValue("");
+    }
+
+    // the shell gets a new token from discord every time the activity starts
+    if(Osu::isDiscordActivity()) {
+        cv::mp_oauth_token.setValue(Environment::getEnvVariable("NEOMOD_DISCORD_TOKEN"));
     }
 
     BanchoState::endpoint = cv::mp_server.getString();

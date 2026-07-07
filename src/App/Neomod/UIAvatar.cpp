@@ -3,15 +3,22 @@
 
 #include "ThumbnailManager.h"
 #include "Bancho.h"
+#include "BanchoUsers.h"
 #include "Engine.h"
 #include "Environment.h"
+#include "Font.h"
+#include "Icons.h"
 #include "Paths.h"
 #include "Osu.h"
 #include "UI.h"
 #include "Graphics.h"
 #include "Image.h"
 #include "UIUserContextMenu.h"
+#include "UniString.h"
 #include "MakeDelegateWrapper.h"
+
+#include <algorithm>
+#include <cmath>
 
 UIAvatar::UIAvatar(CBaseUIElement *parent, i32 player_id, float xPos, float yPos, float xSize, float ySize)
     : CBaseUIButton(xPos, yPos, xSize, ySize, "avatar", ""),
@@ -74,6 +81,43 @@ void UIAvatar::draw_avatar(float alpha) {
             g->drawImage(avatar_image);
         }
         g->popTransform();
+    }
+
+    if(Osu::isDiscordActivity()) {
+        if(const auto *user = BANCHO::User::try_get_user_info(this->thumb_id->id)) {
+            const vec2 pos = this->getPos();
+            const vec2 size = this->getSize();
+
+            if(user->speaking) {
+                const f32 border = std::round(std::max(2.f, 3.f * Osu::getUIScale()));
+                g->setColor(Color(0xff2dff7a).setA(alpha));
+                g->fillRectf(pos.x, pos.y, size.x, border);
+                g->fillRectf(pos.x, pos.y + size.y - border, size.x, border);
+                g->fillRectf(pos.x, pos.y + border, border, size.y - 2.f * border);
+                g->fillRectf(pos.x + size.x - border, pos.y + border, border, size.y - 2.f * border);
+            }
+
+            if(user->voice_muted || user->voice_deafened) {
+                const char32_t icon = user->voice_deafened ? Icons::DEAF : Icons::MICROPHONE_SLASH;
+                const std::string icon_str = UniString::to_utf8(std::u32string_view{&icon, 1});
+
+                auto *font = osu->getFontIcons();
+                const f32 scale = (size.y * 0.45f) / font->getHeight();
+                const f32 box = size.y * 0.5f;
+
+                g->setColor(Color(0xff000000).setA(alpha));
+                g->fillRectf(pos.x + size.x - box, pos.y + size.y - box, box, box);
+
+                g->pushTransform();
+                {
+                    g->scale(scale, scale);
+                    g->translate(pos.x + size.x - box / 2.f - font->getStringWidth(icon_str) * scale / 2.f,
+                                 pos.y + size.y - box / 2.f + font->getHeight() * scale / 2.f);
+                    g->drawString(font, icon_str, TextFX{.col_text = Color(0xffff5050).setA(alpha)});
+                }
+                g->popTransform();
+            }
+        }
     }
 
     // For debugging purposes

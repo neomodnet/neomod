@@ -23,6 +23,10 @@
 
 #include <chrono>
 
+#ifdef MCENGINE_PLATFORM_WASM
+#include <emscripten/em_asm.h>
+#endif
+
 namespace RichPresence {
 namespace {  // static
 
@@ -73,6 +77,18 @@ std::array<char, 128> beatmap_desc_str(const DatabaseBeatmap* map, bool include_
 }
 
 void set_activity_with_image(DiscordActivity& to_set) {
+#ifdef MCENGINE_PLATFORM_WASM
+    if(Osu::isDiscordActivity()) {
+        // clang-format off
+        EM_ASM({
+            if(window.neomod_set_activity) {
+                window.neomod_set_activity(UTF8ToString($0), UTF8ToString($1), $2, $3, $4);
+            }
+        }, to_set.details.data(), to_set.state.data(), to_set.party.size.current_size, to_set.party.size.max_size, (double)to_set.timestamps.start);
+        // clang-format on
+    }
+#endif
+
 #ifdef MCENGINE_FEATURE_DISCORD
     const auto map = osu->getMapInterface()->getBeatmap();
     const bool listening = !!map && osu->getMusicTrack()->isPlaying();

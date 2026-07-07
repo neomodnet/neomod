@@ -51,6 +51,11 @@ struct UserInfo {
 
     LiveReplayAction spec_action : 6 {LiveReplayAction::NONE};  // Received when spectating
 
+    // In the discord voice channel of the activity
+    bool speaking{false};
+    bool voice_muted{false};
+    bool voice_deafened{false};
+
     [[nodiscard]] bool is_friend() const;
 };
 

@@ -16,7 +16,8 @@ ScreenBackable::ScreenBackable() : UIScreen(), backButton(std::make_unique<UIBac
     this->backButton->setClickCallback(SA::MakeDelegate<&ScreenBackable::onBack>(this));
     this->updateLayout();
 
-    if(Osu::isKioskMode()) {
+    // the discord activity still has screens to go back from, like the map selection of a room
+    if(Osu::isKioskMode() && !Osu::isDiscordActivity()) {
         this->backable = false;
     }
 }
