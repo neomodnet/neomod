@@ -105,6 +105,7 @@ Environment::Environment(const Mc::AppDescriptor &appDesc,
       m_vCmdLine(std::move(cmdlineVec)),
       m_cursorIcons(/*lazy init*/) {
     env = this;
+    const auto &args = m_impl->argMap;
 
     if(!s_sdlenv) {
         s_sdlenv = SDL_GetEnvironment();
@@ -116,14 +117,14 @@ Environment::Environment(const Mc::AppDescriptor &appDesc,
 
     m_bRunning = true;
     m_bIsRestartScheduled = false;
-    m_bHeadless = m_impl->argMap.contains("-headless");
+    m_bHeadless = args.contains("-headless");
 
     m_fDisplayHz = 360.0f;
     m_fDisplayHzSecs = 1.0f / m_fDisplayHz;
 
     // make env->getDPI() always return 96
     // the hint set in main.cpp, before SDL_Init, will do the rest of the dirty work
-    m_bDPIOverride = m_impl->argMap.contains("-nodpi");
+    m_bDPIOverride = args.contains("-nodpi");
 
     m_bEnvDebug = false;
 
@@ -161,7 +162,6 @@ Environment::Environment(const Mc::AppDescriptor &appDesc,
     if(Env::cfg(OS::WASM) && m_bHeadless) {
         m_renderer = RuntimeRenderer::NULLGRAPHICS;
     } else {
-        const auto &args = m_impl->argMap;
         // use directx if:
         // we we built with support for it, and
         // (either OpenGL(ES) + SDLGPU is missing, or
@@ -196,8 +196,12 @@ Environment::Environment(const Mc::AppDescriptor &appDesc,
     }
 
     m_sLocaleString = {};
-    // initialize default language instead of always using "en"
-    cv::language.setValue(getDefaultLocale());
+    {
+        // initialize default language instead of always using "en"
+        auto defaultLanguage = getDefaultLocale();
+        cv::language.setValue(defaultLanguage);
+        cv::language.setDefaultString(defaultLanguage);
+    }
 
     // setup callbacks
     cv::debug_env.setCallback(SA::MakeDelegate<&Environment::onLogLevelChange>(this));
