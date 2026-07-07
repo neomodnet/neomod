@@ -34,6 +34,9 @@ enum class MusicDependentCallback : u8 {
     ON_NULL,
     ON_MAINMENU,
     ON_SONGBROWSER,
+    ON_PLAYSTART,
+    //ON_PLAYEND, // this doesn't set discord status for some reason?
+    ON_MULTI
 };
 MusicDependentCallback last_callback{};
 
@@ -115,6 +118,15 @@ void refreshStatus() {
             break;
         case ON_SONGBROWSER:
             onSongBrowser();
+            break;
+        case ON_PLAYSTART:
+            onPlayStart();
+            break;
+        // case ON_PLAYEND:
+        //     onPlayEnd(false);
+        //     break;
+        case ON_MULTI:
+            onMultiplayerLobby();
             break;
         case ON_NULL:
             break;
@@ -221,6 +233,7 @@ void onSongBrowser() {
 }
 
 void onPlayStart() {
+    last_callback = MusicDependentCallback::ON_PLAYSTART;
     const auto* map = osu->getMapInterface()->getBeatmap();
 
     static const DatabaseBeatmap* last_diff = nullptr;
@@ -272,6 +285,7 @@ void onPlayStart() {
 
 void onPlayEnd(bool quit) {
     if(quit) return;
+    // last_callback = MusicDependentCallback::ON_PLAYEND;
 
     // e.g.: 230pp 900x 95.50% HDHRDT 6*
 
@@ -298,6 +312,7 @@ void onPlayEnd(bool quit) {
 }
 
 void onMultiplayerLobby() {
+    last_callback = MusicDependentCallback::ON_MULTI;
     auto activity = DiscRPC::create_base_activity();
 
     activity.state = crop_string_to_n(BanchoState::endpoint);
