@@ -1129,13 +1129,21 @@ void Environment::enableFullscreen() {
         SDL_SetWindowFillDocument(m_window, true);
     }
 
+    // somehow doing this in the "correct" order on windows fails to properly restore fullscreen (?)
+    constexpr bool changeBorderlessBeforeFullscreen = !Env::cfg(OS::WINDOWS);
+    if(changeBorderlessBeforeFullscreen) {
+        SDL_SetWindowBordered(m_window, false);
+    }
     // some weird hack that apparently makes this behave better on macos?
-    SDL_SetWindowBordered(m_window, false);
     SDL_SetWindowFullscreenMode(m_window, nullptr);
 
     if(!SDL_SetWindowFullscreen(m_window, true)) {
         SDL_SetWindowBordered(m_window, true);
         debugLog("Failed to enable fullscreen: {:s}", SDL_GetError());
+    } else {
+        if(!changeBorderlessBeforeFullscreen) {
+            SDL_SetWindowBordered(m_window, false);
+        }
     }
 }
 
