@@ -44,7 +44,6 @@ struct WSOptions {
     Hash::unstable_stringmap<std::string> headers;
     std::string user_agent;
     long connect_timeout{5};
-    u64 max_recv{10ULL * 1024 * 1024};  // limit "in" buffer to 10Mb
 };
 
 struct WSInstance {
@@ -80,7 +79,6 @@ struct WSInstance {
     // Servers can send fragmented packets, we want to only append them
     // to "in" once the packets are complete.
     std::vector<u8> in_partial;
-    u64 max_recv{0};  // in bytes
 #endif
 };
 
