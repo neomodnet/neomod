@@ -94,8 +94,9 @@ struct CBaseUIEventCtx {
     struct HitPathScope {
         NOCOPY_NOMOVE(HitPathScope)
        public:
-        HitPathScope(CBaseUIEventCtx &ctx, CBaseUIElement *elem) : c(ctx) { c.hitPath.push_back(elem); }
-        ~HitPathScope() { c.hitPath.pop_back(); }
+        // out-of-line on purpose, to avoid instantiating vector push_back in every including TU
+        HitPathScope(CBaseUIEventCtx &ctx, CBaseUIElement *elem);
+        ~HitPathScope();
 
        private:
         CBaseUIEventCtx &c;

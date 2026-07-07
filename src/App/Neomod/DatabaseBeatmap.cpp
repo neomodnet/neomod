@@ -12,8 +12,11 @@
 
 #ifndef BUILD_TOOLS_ONLY
 
+#include "fmt/format.h"
+
 #include "BeatmapInterface.h"
 #include "OsuConVars.h"
+#include "Database.h"  // DB_TIMINGPOINT, for the getBPM explicit instantiations
 #include "Engine.h"
 #include "File.h"
 #include "HitObjects.h"
@@ -24,8 +27,6 @@
 #include "SongBrowser.h"
 #include "AsyncIOHandler.h"
 #include "crypto.h"
-
-#include "fmt/format.h"
 
 #include <algorithm>
 #include <sys/stat.h>
@@ -74,7 +75,7 @@ using namespace DBType;
 const Sync::stop_token DatabaseBeatmap::alwaysFalseStopPred{};
 
 // defined here to avoid including diffcalc things in DatabaseBeatmap.h
-DatabaseBeatmap::LOAD_DIFFOBJ_RESULT::LOAD_DIFFOBJ_RESULT() = default;
+DatabaseBeatmap::LOAD_DIFFOBJ_RESULT::LOAD_DIFFOBJ_RESULT() : maxComboAtIndex{0} {}
 DatabaseBeatmap::LOAD_DIFFOBJ_RESULT::~LOAD_DIFFOBJ_RESULT() = default;
 
 DatabaseBeatmap::LOAD_DIFFOBJ_RESULT::LOAD_DIFFOBJ_RESULT(DatabaseBeatmap::LOAD_DIFFOBJ_RESULT &&) noexcept = default;
@@ -1718,5 +1719,81 @@ MapOverrides DatabaseBeatmap::get_overrides() const {
 TIMING_INFO DatabaseBeatmap::getTimingInfoForTime(i32 positionMS) const {
     return getTimingInfoForTimeAndTimingPoints(positionMS, this->timingpoints);
 }
+
+namespace neomod::BPMCalc {
+
+template <typename T>
+BPMInfo getBPM(const T &timing_points, std::vector<BPMTuple> &bpm_buffer)
+    requires((std::is_same_v<T, std::vector<DB_TIMINGPOINT>> || std::is_same_v<T, std::vector<DBType::TIMINGPOINT>>) ||
+             (std::is_same_v<T, FixedSizeArray<DB_TIMINGPOINT>> ||
+              std::is_same_v<T, FixedSizeArray<DBType::TIMINGPOINT>>))
+{
+    if(timing_points.empty()) {
+        return {};
+    }
+
+    bpm_buffer.clear();  // reuse existing buffer
+    bpm_buffer.reserve(timing_points.size());
+
+    double lastTime = timing_points.back().offset;
+    for(size_t i = 0; i < timing_points.size(); i++) {
+        const auto &t = timing_points[i];
+        if(t.offset > lastTime) continue;
+        if(t.msPerBeat <= 0.0 || std::isnan(t.msPerBeat)) continue;
+
+        // "osu-stable forced the first control point to start at 0."
+        // "This is reproduced here to maintain compatibility around osu!mania scroll speed and song
+        // select display."
+        double currentTime = (i == 0 ? 0 : t.offset);
+        double nextTime = (i == timing_points.size() - 1 ? lastTime : timing_points[i + 1].offset);
+
+        i32 bpm = (i32)std::round(std::min(60000.0 / t.msPerBeat, 9001.0));
+        double duration = std::max(nextTime - currentTime, 0.0);
+
+        bool found = false;
+        for(auto &tuple : bpm_buffer) {
+            if(tuple.bpm == bpm) {
+                tuple.duration += duration;
+                found = true;
+                break;
+            }
+        }
+
+        if(!found) {
+            bpm_buffer.push_back(BPMTuple{
+                .bpm = bpm,
+                .duration = duration,
+            });
+        }
+    }
+
+    i32 min = 9001;
+    i32 max = 0;
+    i32 mostCommonBPM = 0;
+    double longestDuration = 0;
+    for(const auto &tuple : bpm_buffer) {
+        if(tuple.bpm > max) max = tuple.bpm;
+        if(tuple.bpm < min) min = tuple.bpm;
+        if(tuple.duration > longestDuration || (tuple.duration == longestDuration && tuple.bpm > mostCommonBPM)) {
+            longestDuration = tuple.duration;
+            mostCommonBPM = tuple.bpm;
+        }
+    }
+    if(min > max) min = max;
+
+    return BPMInfo{
+        .min = min,
+        .max = max,
+        .most_common = mostCommonBPM,
+    };
+}
+
+// keep in sync with the requires clause in DatabaseBeatmap.h
+template BPMInfo getBPM(const std::vector<DB_TIMINGPOINT> &, std::vector<BPMTuple> &);
+template BPMInfo getBPM(const std::vector<DBType::TIMINGPOINT> &, std::vector<BPMTuple> &);
+template BPMInfo getBPM(const FixedSizeArray<DB_TIMINGPOINT> &, std::vector<BPMTuple> &);
+template BPMInfo getBPM(const FixedSizeArray<DBType::TIMINGPOINT> &, std::vector<BPMTuple> &);
+
+}  // namespace neomod::BPMCalc
 
 #endif  // BUILD_TOOLS_ONLY

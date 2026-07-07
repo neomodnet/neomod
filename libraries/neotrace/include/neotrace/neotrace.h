@@ -32,7 +32,7 @@ struct trace
 	[[nodiscard]] bool empty() const noexcept { return count == 0; }
 	[[nodiscard]] void *const *begin() const noexcept { return frames; }
 	[[nodiscard]] void *const *end() const noexcept { return frames + count; }
-	[[nodiscard]] std::span<void *const> addresses() const noexcept { return {frames, count}; }
+	[[nodiscard]] std::span<void *const> addresses() const noexcept;
 
 	void *frames[max_frames]{};
 	size_t count{0};

@@ -57,6 +57,7 @@
 #include <cstdint>
 #include <cstring>
 #include <deque>
+#include <filesystem>
 #include <functional>
 #include <future>
 #include <initializer_list>

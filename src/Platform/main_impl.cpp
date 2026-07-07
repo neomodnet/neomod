@@ -763,8 +763,9 @@ bool SDLMain::createWindow() {
         }  // otherwise just leave it as whatever is default
 
         // setup antialiasing from -aa command line argument
-        if(m_mArgMap.contains("-aa") && m_mArgMap["-aa"].has_value()) {
-            auto aaSamples = Parsing::strto<u64>(m_mArgMap["-aa"].value());
+        const auto &argMap = getLaunchArgs();
+        if(const auto aaIt = argMap.find("-aa"); aaIt != argMap.end() && aaIt->second.has_value()) {
+            auto aaSamples = Parsing::strto<u64>(aaIt->second.value());
             if(aaSamples > 1) {
                 aaSamples = std::clamp(std::bit_floor(aaSamples), (u64)2, (u64)16);
                 SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
@@ -772,7 +773,7 @@ bool SDLMain::createWindow() {
             }
         }
         // create gl debug context
-        if(m_mArgMap.contains("-debugctx")) {
+        if(argMap.contains("-debugctx")) {
             SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
             SDL_SetLogPriority(SDL_LOG_CATEGORY_VIDEO, SDL_LOG_PRIORITY_TRACE);
         } else if(!isWine) {  // avoid wine bugs with disabled gl error context

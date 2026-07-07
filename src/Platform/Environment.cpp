@@ -45,6 +45,9 @@
 #include <string>
 #include <sstream>
 #include <iomanip>
+#include <filesystem>
+#include <optional>
+#include <unordered_map>
 
 #if defined(MCENGINE_PLATFORM_WINDOWS)
 #include "WinDebloatDefs.h"
@@ -87,11 +90,18 @@ SDL_Environment *Environment::s_sdlenv{nullptr};
 
 void Mc::initEnvBlock() { Environment::s_sdlenv = SDL_GetEnvironment(); }
 
+// see Environment.h, these are pimpl'd so including TUs don't pay to instantiate the unordered_maps
+struct Environment::EnvironmentImpl {
+    std::unordered_map<std::string, std::optional<std::string>> argMap;
+    // mutable due to lazy init (with initMonitors)
+    mutable std::unordered_map<unsigned int, McRect> monitors;
+};
+
 Environment::Environment(const Mc::AppDescriptor &appDesc,
                          std::unordered_map<std::string, std::optional<std::string>> argMap,
                          std::vector<std::string> cmdlineVec)
     : m_interop(appDesc.createInterop ? static_cast<Interop *>(appDesc.createInterop(this)) : new Interop(this)),
-      m_mArgMap(std::move(argMap)),
+      m_impl(std::move(argMap)),
       m_vCmdLine(std::move(cmdlineVec)),
       m_cursorIcons(/*lazy init*/) {
     env = this;
@@ -106,14 +116,14 @@ Environment::Environment(const Mc::AppDescriptor &appDesc,
 
     m_bRunning = true;
     m_bIsRestartScheduled = false;
-    m_bHeadless = m_mArgMap.contains("-headless");
+    m_bHeadless = m_impl->argMap.contains("-headless");
 
     m_fDisplayHz = 360.0f;
     m_fDisplayHzSecs = 1.0f / m_fDisplayHz;
 
     // make env->getDPI() always return 96
     // the hint set in main.cpp, before SDL_Init, will do the rest of the dirty work
-    m_bDPIOverride = m_mArgMap.contains("-nodpi");
+    m_bDPIOverride = m_impl->argMap.contains("-nodpi");
 
     m_bEnvDebug = false;
 
@@ -134,8 +144,6 @@ Environment::Environment(const Mc::AppDescriptor &appDesc,
     m_vLastAbsMousePos = vec2{};
 
     m_sCurrClipboardText = {};
-    // lazy init
-    m_mMonitors = {};
     // lazy init (with initMonitors)
     m_fullDesktopBoundingBox = McRect{};
 
@@ -153,6 +161,7 @@ Environment::Environment(const Mc::AppDescriptor &appDesc,
     if(Env::cfg(OS::WASM) && m_bHeadless) {
         m_renderer = RuntimeRenderer::NULLGRAPHICS;
     } else {
+        const auto &args = m_impl->argMap;
         // use directx if:
         // we we built with support for it, and
         // (either OpenGL(ES) + SDLGPU is missing, or
@@ -167,11 +176,11 @@ Environment::Environment(const Mc::AppDescriptor &appDesc,
         m_renderer =
             (Env::cfg(REND::DX11) &&
                 (!(Env::cfg(REND::GL | REND::GLES32 | REND::SDLGPU)) ||
-                  (m_mArgMap.contains("-directx") || m_mArgMap.contains("-dx11"))))
+                  (args.contains("-directx") || args.contains("-dx11"))))
             ? DX11
         : (Env::cfg(REND::SDLGPU) &&
                 (!(Env::cfg(REND::GL | REND::GLES32 | REND::DX11)) ||
-                  (m_mArgMap.contains("-sdlgpu") || m_mArgMap.contains("-gpu"))))
+                  (args.contains("-sdlgpu") || args.contains("-gpu"))))
             ? SDLGPU
         : Env::cfg(REND::GLES32)
             ? GLES
@@ -180,7 +189,7 @@ Environment::Environment(const Mc::AppDescriptor &appDesc,
         if constexpr(Env::cfg(OS::MAC) && Env::cfg(REND::SDLGPU) && Env::cfg(REND::GL)) {
             // use sdl_gpu by default on macOS, actually
             // also if headless use SDLGPU for offscreen screenshot support
-            if(m_bHeadless || !(m_mArgMap.contains("-gl") || m_mArgMap.contains("-opengl"))) {
+            if(m_bHeadless || !(args.contains("-gl") || args.contains("-opengl"))) {
                 m_renderer = SDLGPU;
             }
         }
@@ -245,6 +254,10 @@ Environment::~Environment() {
     m_cursorIcons = {};
 
     env = nullptr;
+}
+
+const std::unordered_map<std::string, std::optional<std::string>> &Environment::getLaunchArgs() const {
+    return m_impl->argMap;
 }
 
 // well this doesn't do much atm... called at the end of engine->onUpdate
@@ -772,7 +785,8 @@ std::string Environment::encodeStringToURI(std::string_view unencodedString) noe
     return escaped.str();
 }
 
-std::string Environment::filesystemPathToURI(const std::filesystem::path &path) noexcept {
+// internal path conversion helper, SDL_URLOpen needs a URL-encoded URI on Unix (because it goes to xdg-open)
+[[maybe_unused]] static std::string filesystemPathToURI(const std::filesystem::path &path) noexcept {
     namespace fs = std::filesystem;
     // convert to absolute path and normalize
     auto abs_path = fs::absolute(path);
@@ -780,7 +794,7 @@ std::string Environment::filesystemPathToURI(const std::filesystem::path &path) 
     const std::string path_str =
         Env::cfg(OS::WINDOWS) ? UniString::to_utf8(abs_path.generic_wstring()) : abs_path.generic_string();
     // URI encode the path
-    std::string uri = encodeStringToURI(path_str);
+    std::string uri = Environment::encodeStringToURI(path_str);
 
     // prepend with file:///
     if(uri[0] == '/')
@@ -1166,9 +1180,9 @@ void Environment::setMonitor(int monitor) {
 
     bool success = false;
 
-    if(!m_mMonitors.contains(monitor))  // try force reinit to check for new monitors
+    if(!m_impl->monitors.contains(monitor))  // try force reinit to check for new monitors
         initMonitors(true);
-    if(m_mMonitors.contains(monitor)) {
+    if(m_impl->monitors.contains(monitor)) {
         // SDL: "If the window is in an exclusive fullscreen or maximized state, this request has no effect."
         if(winFullscreened()) {
             disableFullscreen();
@@ -1226,9 +1240,9 @@ HWND Environment::getHwnd() const {
 }
 
 const std::unordered_map<unsigned int, McRect> &Environment::getMonitors() const {
-    if(m_mMonitors.size() < 1)  // lazy init
+    if(m_impl->monitors.size() < 1)  // lazy init
         initMonitors();
-    return m_mMonitors;
+    return m_impl->monitors;
 }
 
 int Environment::getMonitor() const {
@@ -1241,7 +1255,7 @@ McRect Environment::getDesktopRect() const { return {{}, getNativeScreenSize()};
 McRect Environment::getWindowRect() const { return {getWindowPos(), getWindowSize()}; }
 
 bool Environment::isPointValid(vec2 point) const {  // whether an x,y coordinate lands on an actual display
-    if(m_mMonitors.size() < 1) initMonitors();
+    if(m_impl->monitors.size() < 1) initMonitors();
     // check for the trivial case first
     const bool withinMinMaxBounds = m_fullDesktopBoundingBox.contains(point);
     if(!withinMinMaxBounds) {
@@ -1249,7 +1263,7 @@ bool Environment::isPointValid(vec2 point) const {  // whether an x,y coordinate
     }
     // if it's within the full min/max bounds, make sure it actually lands inside of a display rect within the
     // coordinate space (not in some empty space between/around, like with different monitor orientations)
-    for(const auto &[_, dp] : m_mMonitors) {
+    for(const auto &[_, dp] : m_impl->monitors) {
         if(dp.contains(point)) return true;
     }
     return false;
@@ -1655,10 +1669,10 @@ void Environment::initCursors() {
 }
 
 void Environment::initMonitors(bool force) const {
-    if(!force && !m_mMonitors.empty())
+    if(!force && !m_impl->monitors.empty())
         return;
     else if(force)  // refresh
-        m_mMonitors.clear();
+        m_impl->monitors.clear();
 
     m_fullDesktopBoundingBox = {};  // the min/max coordinates, for "valid point" lookups (checked first before
                                     // iterating through actual monitor rects)
@@ -1699,13 +1713,13 @@ void Environment::initMonitors(bool force) const {
             // otherwise we can get the min/max bounding box accurately
             m_fullDesktopBoundingBox = m_fullDesktopBoundingBox.Union(displayRect);
         }
-        m_mMonitors.try_emplace(di, displayRect);
+        m_impl->monitors.try_emplace(di, displayRect);
     }
 
     if(count < 1) {
         debugLog("WARNING: No monitors found! Adding default monitor ...");
         const vec2 windowSize = getWindowSize();
-        m_mMonitors.try_emplace(1, McRect{{}, windowSize});
+        m_impl->monitors.try_emplace(1, McRect{{}, windowSize});
     }
 
     // make sure this is also valid

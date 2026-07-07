@@ -9,11 +9,11 @@
 #include "Cursors.h"
 #include "KeyboardEvent.h"
 #include "Rect.h"
+#include "StaticPImpl.h"
 #include "Vectors.h"
 
 #include <unordered_map>
 #include <vector>
-#include <filesystem>
 #include <functional>
 #include <array>
 
@@ -144,9 +144,7 @@ class Environment {
 
     static void openURLInDefaultBrowser(std::string_view url) noexcept;
 
-    [[nodiscard]] inline const std::unordered_map<std::string, std::optional<std::string>> &getLaunchArgs() const {
-        return m_mArgMap;
-    }
+    [[nodiscard]] const std::unordered_map<std::string, std::optional<std::string>> &getLaunchArgs() const;
     [[nodiscard]] inline const std::vector<std::string> &getCommandLine() const { return m_vCmdLine; }
 
     // user
@@ -311,7 +309,9 @@ class Environment {
     [[nodiscard]] constexpr bool isWayland() const { return m_bIsWayland; }
 
    protected:
-    std::unordered_map<std::string, std::optional<std::string>> m_mArgMap;
+    // arg map + monitor map live behind a pimpl so including TUs don't pay to instantiate the unordered_maps
+    struct EnvironmentImpl;
+    StaticPImpl<EnvironmentImpl, sizeof(void *) == 8 ? 128 : 64> m_impl;
     std::vector<std::string> m_vCmdLine;
     std::unique_ptr<Engine> m_engine;
 
@@ -346,7 +346,6 @@ class Environment {
     void initMonitors(bool force = false) const;
 
     // mutable due to lazy init
-    mutable std::unordered_map<unsigned int, McRect> m_mMonitors;
     mutable McRect m_fullDesktopBoundingBox;
 
     float m_fDisplayHz;
@@ -470,9 +469,6 @@ class Environment {
     static std::string getThingFromPathHelper(
         std::string_view path,
         bool folder) noexcept;  // code sharing for getFolderFromFilePath/getFileNameFromFilePath
-
-    // internal path conversion helper, SDL_URLOpen needs a URL-encoded URI on Unix (because it goes to xdg-open)
-    [[nodiscard]] static std::string filesystemPathToURI(const std::filesystem::path &path) noexcept;
 
     static SDL_Rect McRectToSDLRect(const McRect &mcrect) noexcept;
     static McRect SDLRectToMcRect(const SDL_Rect &sdlrect) noexcept;

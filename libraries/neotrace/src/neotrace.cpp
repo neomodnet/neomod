@@ -126,6 +126,11 @@ std::string to_string(std::span<void *const> addresses) noexcept
 	return out;
 }
 
+std::span<void *const> trace::addresses() const noexcept
+{
+	return {frames, count};
+}
+
 std::string to_string(const trace &t) noexcept
 {
 	return to_string(t.addresses());

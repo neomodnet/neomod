@@ -297,3 +297,7 @@ bool CBaseUIContainer::isActive() {
 
     return false;
 }
+
+std::span<CBaseUIElement *const> CBaseUIContainer::getAllChildren() const {
+    return {this->vElements.data(), this->vElements.size()};
+}

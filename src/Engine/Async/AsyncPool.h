@@ -230,12 +230,7 @@ auto when_all(std::vector<Future<T>>&& futures) -> Future<std::vector<T>> {
 }
 
 // homogeneous vector of void futures
-inline auto when_all(std::vector<Future<void>>&& futures) -> Future<void> {
-    auto sf = std::make_shared<std::vector<Future<void>>>(std::move(futures));
-    return submit([sf]() {
-        for(auto& f : *sf) f.get();
-    });
-}
+auto when_all(std::vector<Future<void>>&& futures) -> Future<void>;
 
 // heterogeneous variadic (different types, all non-void)
 template <typename T1, typename T2, typename... Rest>

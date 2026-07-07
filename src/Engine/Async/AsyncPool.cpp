@@ -7,7 +7,7 @@
 
 #include <cassert>
 
-AsyncPool &AsyncPool::get() {
+AsyncPool& AsyncPool::get() {
     static AsyncPool instance{std::clamp<size_t>(McThread::get_logical_cpu_count() - 1, 2, 32)};
     return instance;
 }
@@ -97,3 +97,14 @@ void AsyncPool::bg_worker_loop(size_t index) noexcept {
         m_pending.fetch_sub(1, std::memory_order_relaxed);
     }
 }
+
+namespace Async {
+
+auto when_all(std::vector<Future<void>>&& futures) -> Future<void> {
+    auto sf = std::make_shared<std::vector<Future<void>>>(std::move(futures));
+    return submit([sf]() {
+        for(auto& f : *sf) f.get();
+    });
+}
+
+}  // namespace Async

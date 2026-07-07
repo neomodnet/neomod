@@ -52,6 +52,12 @@ void CBaseUIEventCtx::addWheelClaim(CBaseUIElement *elem) {
     this->hitCandidates.push_back({.elem = elem, .tier = this->currentHitTier, .wheelOnly = true, .path = {}});
 }
 
+CBaseUIEventCtx::HitPathScope::HitPathScope(CBaseUIEventCtx &ctx, CBaseUIElement *elem) : c(ctx) {
+    this->c.hitPath.push_back(elem);
+}
+
+CBaseUIEventCtx::HitPathScope::~HitPathScope() { this->c.hitPath.pop_back(); }
+
 CBaseUIElement::CBaseUIElement(float xPos, float yPos, float xSize, float ySize, std::nullptr_t /**/)
     : rect(xPos, yPos, xSize, ySize), relRect(this->rect) {}
 
