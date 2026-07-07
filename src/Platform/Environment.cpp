@@ -94,7 +94,7 @@ void Mc::initEnvBlock() { Environment::s_sdlenv = SDL_GetEnvironment(); }
 struct Environment::EnvironmentImpl {
     std::unordered_map<std::string, std::optional<std::string>> argMap;
     // mutable due to lazy init (with initMonitors)
-    mutable std::unordered_map<unsigned int, McRect> monitors;
+    mutable std::unordered_map<unsigned int, McRect> monitors{};
 };
 
 Environment::Environment(const Mc::AppDescriptor &appDesc,
