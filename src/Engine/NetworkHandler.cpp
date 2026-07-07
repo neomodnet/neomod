@@ -723,7 +723,6 @@ std::shared_ptr<WSInstance> NetworkImpl::initWebsocket(std::string_view url, con
     std::string urlWithScheme = fmt::format("{}{}", cv::use_https.getBool() ? "wss://" : "ws://", url);
 
     auto websocket = std::make_shared<WSInstance>();
-    websocket->max_recv = options.max_recv;
     websocket->time_created = engine->getTime();
 
     RequestOptions httpOptions{.headers = options.headers,
