@@ -18,6 +18,7 @@ class UIUserContextMenuScreen final : public UIScreen {
     void on_action(std::string_view text, int user_action);
 
     i32 user_id{0};
+    bool from_user_button{false};
     UIContextMenu* menu{nullptr};
 };
 

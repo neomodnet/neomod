@@ -8,6 +8,7 @@
 #include "BanchoUsers.h"
 #include "Chat.h"
 #include "OsuConVars.h"
+#include "Database.h"
 #include "Engine.h"
 #include "Environment.h"
 #include "MakeDelegateWrapper.h"
@@ -15,10 +16,12 @@
 #include "NotificationOverlay.h"
 #include "Osu.h"
 #include "SpectatorScreen.h"
+#include "SString.h"
 #include "UI.h"
 #include "UIContextMenu.h"
 #include "UserCard.h"
 #include "UserStatsScreen.h"
+#include "i18n.h"
 
 namespace {
 enum UserActions : uint8_t {
@@ -31,6 +34,8 @@ enum UserActions : uint8_t {
     UA_ADD_FRIEND,
     UA_REMOVE_FRIEND,
     VIEW_TOP_PLAYS,
+    UA_SWITCH_USER,
+    UA_CHANGE_NAME,
 };
 }  // namespace
 
@@ -53,6 +58,7 @@ void UIUserContextMenuScreen::stealFocus() {
 void UIUserContextMenuScreen::open(i32 user_id, bool is_song_browser_button) {
     this->close();
     this->user_id = user_id;
+    this->from_user_button = is_song_browser_button;
 
     int slot_number = -1;
     if(BanchoState::is_in_a_multi_room()) {
@@ -65,6 +71,26 @@ void UIUserContextMenuScreen::open(i32 user_id, bool is_song_browser_button) {
     }
 
     this->menu->begin(is_song_browser_button ? osu->getUserButton()->getSize().x : 0);
+
+    // offline user switcher (own card only)
+    if(!BanchoState::is_online() && user_id == BanchoState::get_uid()) {
+        auto *header = this->menu->addButtonJustified(_("Switch User:"));
+        header->setTextColor(0xff888888);
+        header->setTextDarkColor(0xff000000);
+        header->setEnabled(false);
+
+        for(const auto &name : db->getPlayerNamesWithScoresForUserSwitcher()) {
+            auto *nameButton = this->menu->addButton(name, UA_SWITCH_USER);
+            if(name == cv::name.getString()) nameButton->setTextBrightColor(0xff00ff00);
+        }
+
+        CBaseUIButton *spacer = this->menu->addButton("---");
+        spacer->setEnabled(false);
+        spacer->setTextColor(0xff888888);
+        spacer->setTextDarkColor(0xff000000);
+
+        this->menu->addButton(_("Set custom name"), UA_CHANGE_NAME);
+    }
 
     const bool is_online = BANCHO::User::is_online_id(user_id);
     if(!ui->getUserStatsScreen()->isVisible() && ((user_id == BanchoState::get_uid()) || !is_online)) {
@@ -81,7 +107,7 @@ void UIUserContextMenuScreen::open(i32 user_id, bool is_song_browser_button) {
             this->menu->addButton("Kick", KICK);
         }
 
-        const UserInfo* user_info = BANCHO::User::get_user_info(user_id, true);
+        const UserInfo *user_info = BANCHO::User::get_user_info(user_id, true);
         if(user_info->has_presence) {
             // Without user info, we don't have the username
             this->menu->addButton("Start Chat", START_CHAT);
@@ -106,22 +132,22 @@ void UIUserContextMenuScreen::open(i32 user_id, bool is_song_browser_button) {
     }
 
     if(is_song_browser_button) {
-        // Menu would open halfway off-screen, extra code to remove the jank
-        this->menu->end(true, false);
+        // Menu would open halfway off-screen, extra code to remove the jank.
+        // Position before end() so vertical clamping can kick in for tall menus (many user names).
         auto userPos = osu->getUserButton()->getPos();
         this->menu->setPos(userPos.x, userPos.y - this->menu->getSize().y);
+        this->menu->end(true, UIContextMenu::EndStyle::CLAMP_TOP);
     } else {
-        this->menu->end(false, false);
         this->menu->setPos(mouse->getPos());
+        this->menu->end(false, UIContextMenu::EndStyle::CLAMP_BOT);
     }
     this->menu->setClickCallback(SA::MakeDelegate<&UIUserContextMenuScreen::on_action>(this));
-    this->menu->setVisible(true);
 }
 
-void UIUserContextMenuScreen::close() { this->menu->setVisible(false); }
+void UIUserContextMenuScreen::close() { this->menu->setVisible2(false); }
 
-void UIUserContextMenuScreen::on_action(std::string_view /*text*/, int user_action) {
-    UserInfo* user_info = BANCHO::User::get_user_info(this->user_id);
+void UIUserContextMenuScreen::on_action(std::string_view text, int user_action) {
+    UserInfo *user_info = BANCHO::User::get_user_info(this->user_id);
     int slot_number = -1;
     if(BanchoState::is_in_a_multi_room()) {
         for(int i = 0; i < 16; i++) {
@@ -178,9 +204,49 @@ void UIUserContextMenuScreen::on_action(std::string_view /*text*/, int user_acti
         }
     } else if(user_action == VIEW_TOP_PLAYS) {
         ui->setScreen(ui->getUserStatsScreen());
+    } else if(user_action == UA_SWITCH_USER) {
+        std::string newName{text};
+        SString::trim_inplace(newName);
+        if(!newName.empty() && newName != cv::name.getString()) {
+            cv::name.setValue(newName);
+            osu->onUserCardChange(newName);  // sync options username textbox + card id
+            if(ui->getUserStatsScreen()->isVisible()) ui->getUserStatsScreen()->rebuildScoreButtons();
+        }
+    } else if(user_action == UA_CHANGE_NAME) {
+        // second-step textbox menu; the textbox id routes enter back through UA_SWITCH_USER
+        // (buttons can't coexist with a textbox, since clicks then deliver the textbox text)
+        this->menu->begin(this->from_user_button ? osu->getUserButton()->getSize().x : 0);
+        {
+            this->menu->addButtonJustified(_("Enter Username:"))->setEnabled(false);
+
+            CBaseUIButton *spacer = this->menu->addButton("---");
+            spacer->setEnabled(false);
+            spacer->setTextColor(0xff888888);
+            spacer->setTextDarkColor(0xff000000);
+
+            this->menu->addTextbox(cv::name.getString(), UA_SWITCH_USER)->setCursorPosRight();
+
+            spacer = this->menu->addButton("---");
+            spacer->setEnabled(false);
+            spacer->setTextColor(0xff888888);
+            spacer->setTextDarkColor(0xff000000);
+
+            CBaseUIButton *hint = this->menu->addButton(_("(Press ENTER to confirm.)"), UA_SWITCH_USER);
+            hint->setTextColor(0xff555555);
+            hint->setTextDarkColor(0xff000000);
+        }
+        if(this->from_user_button) {
+            auto userPos = osu->getUserButton()->getPos();
+            this->menu->setPos(userPos.x, userPos.y - this->menu->getSize().y);
+            this->menu->end(true, UIContextMenu::EndStyle::CLAMP_TOP);
+        } else {
+            this->menu->end(false, UIContextMenu::EndStyle::CLAMP_BOT);
+        }
+        this->menu->setClickCallback(SA::MakeDelegate<&UIUserContextMenuScreen::on_action>(this));
+        return;  // keep the rebuilt menu open
     }
 
-    this->menu->setVisible(false);
+    this->menu->setVisible2(false);
 }
 
 UIUserLabel::UIUserLabel(i32 user_id, std::string username) : CBaseUILabel() {

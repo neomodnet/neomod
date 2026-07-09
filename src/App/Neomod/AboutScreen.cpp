@@ -61,6 +61,7 @@ AboutScreen::AboutScreen() : ScreenBackable() {
     CHANGELOG v43_11;
     v43_11.title = "43.11 (" CHANGELOG_TIMESTAMP ")";
     v43_11.changes = {
+        R"(- Re-implemented offline user switcher (song browser user button context menu))",
         R"(- Added scrolling input visualizer to key overlay (disabled by default))",
         R"(  - Extra customizability through the "hud_inputoverlay_trail"-prefixed ConVars (you can set ConVars through the [neomod] section in skin.ini!))",
         R"(- Online beatmaps screen:)",

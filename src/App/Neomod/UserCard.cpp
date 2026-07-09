@@ -214,7 +214,7 @@ void UserCard::tick() {
         const UserInfo *my = BANCHO::User::get_user_info(this->user_id, true);
         this->setText(my->name);
     } else {
-        this->setText(BanchoState::get_username().c_str());
+        this->setText(BanchoState::get_username());
     }
 
     // calculatePlayerStats() does nothing unless username changed or scores changed

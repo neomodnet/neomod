@@ -967,6 +967,7 @@ CONVAR(user_draw_level, true, CLIENT | SKINS | SERVER);
 CONVAR(user_draw_level_bar, true, CLIENT | SKINS | SERVER);
 CONVAR(user_draw_pp, true, CLIENT | SKINS | SERVER);
 CONVAR(user_include_relax_and_autopilot_for_stats, false, CLIENT | SKINS | SERVER);
+CONVAR(user_switcher_include_legacy_scores_for_names, true, CLIENT | SKINS);
 
 // Unfinished features
 CONVAR(enable_spectating, false, CLIENT);

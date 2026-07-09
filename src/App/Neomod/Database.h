@@ -103,6 +103,7 @@ class Database final {
 
     PlayerPPScores getPlayerPPScores(std::string_view playerName);
     PlayerStats calculatePlayerStats(std::string_view playerName);
+    std::vector<std::string> getPlayerNamesWithScoresForUserSwitcher();
     static float getWeightForIndex(uSz i);
     static float getBonusPPForNumScores(size_t numScores);
     static u64 getRequiredScoreForLevel(int level);

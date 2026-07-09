@@ -1044,6 +1044,17 @@ msgid "Ignore score sorting type entirely."
 msgstr "Полностью игнорировать сортировку по очкам."
 
 #: src/App/Neomod/OptionsOverlay.cpp
+msgid "Show osu! scores.db user names in user switcher"
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid ""
+"Only relevant if \"Load osu! scores.db\" is enabled.\n"
+"Should the user switcher show ALL user names from ALL scores?\n"
+"(Even from ones you got in your database because you watched a replay?)"
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "Songbrowser"
 msgstr "Выбор песни"
 
@@ -3472,6 +3483,23 @@ msgstr "Нажмите ESC для сброса."
 #: src/App/Neomod/UISearchOverlay.cpp
 msgid "Searching, please wait ..."
 msgstr "Поиск, пожалуйста подождите ..."
+
+#: src/App/Neomod/UIUserContextMenu.cpp
+msgid "Switch User:"
+msgstr ""
+
+#: src/App/Neomod/UIUserContextMenu.cpp
+msgid "Set custom name"
+msgstr ""
+
+#: src/App/Neomod/UIUserContextMenu.cpp
+msgid "Enter Username:"
+msgstr ""
+
+#: src/App/Neomod/UIUserContextMenu.cpp
+#, fuzzy
+msgid "(Press ENTER to confirm.)"
+msgstr "Нажмите ещё {:d} раз(а) для подтверждения."
 
 #: src/Engine/Sound/SoundEngine.cpp
 msgid "No sound"

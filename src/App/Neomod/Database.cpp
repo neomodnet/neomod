@@ -838,6 +838,33 @@ Database::PlayerPPScores Database::getPlayerPPScores(std::string_view playerName
     return ppScores;
 }
 
+std::vector<std::string> Database::getPlayerNamesWithScoresForUserSwitcher() {
+    const bool includeLegacyNames = cv::user_switcher_include_legacy_scores_for_names.getBool();
+
+    std::set<std::string> tempNames;
+    {
+        Sync::shared_lock lock(this->scores_mtx);
+        for(const auto &[hash, scorevec] : this->scores) {
+            for(const auto &score : scorevec) {
+                // skip names that only exist because of scores imported from the peppy client, unless enabled
+                if(includeLegacyNames || !score.is_peppy_imported()) tempNames.insert(score.playerName);
+            }
+        }
+    }
+
+    // always add the local user, even without any scores
+    tempNames.insert(cv::name.getString());
+
+    std::vector<std::string> names;
+    names.reserve(tempNames.size());
+    for(const auto &name : tempNames) {
+        if(!name.empty()) names.push_back(name);
+    }
+    std::ranges::sort(names, SString::strcase_comp);
+
+    return names;
+}
+
 Database::PlayerStats Database::calculatePlayerStats(std::string_view playerName) {
     // FIXME: returning cached statistics even if we got new scores
     // this is makes this function a "sneaky" API that might return stale stats

@@ -972,6 +972,11 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
         &cv::user_include_relax_and_autopilot_for_stats);
     this->addCheckbox(_("Always show pp instead of score in scorebrowser"), _("Ignore score sorting type entirely."),
                       &cv::scores_always_display_pp);
+    this->addCheckbox(
+        _("Show osu! scores.db user names in user switcher"),
+        _("Only relevant if \"Load osu! scores.db\" is enabled.\nShould the user switcher show ALL user "
+          "names from ALL scores?\n(Even from ones you got in your database because you watched a replay?)"),
+        &cv::user_switcher_include_legacy_scores_for_names);
 
     this->addSubSection(_("Songbrowser"));
     this->addCheckbox(_("Draw Strain Graph in Songbrowser"),
