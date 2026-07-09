@@ -487,10 +487,6 @@ SDL_AppResult SDLMain::handleEvent(SDL_Event *event) {
                     }
                     m_engine->onFocusGained();
                     setFgFPS();
-                    // these mouse/keyboard reset calls are just to reconcile held button states
-                    if(keyboard) {
-                        keyboard->reset();
-                    }
                 } break;
 
                 case SDL_EVENT_WINDOW_FOCUS_LOST:
@@ -498,9 +494,6 @@ SDL_AppResult SDLMain::handleEvent(SDL_Event *event) {
                     m_winflags &= ~(WinFlags::F_MOUSE_FOCUS | WinFlags::F_INPUT_FOCUS);
                     m_engine->onFocusLost();
                     setBgFPS();
-                    if(keyboard) {
-                        keyboard->reset();
-                    }
                     break;
 
                 case SDL_EVENT_WINDOW_MAXIMIZED:
@@ -519,6 +512,7 @@ SDL_AppResult SDLMain::handleEvent(SDL_Event *event) {
                     if(m_bHideCursorPending) {
                         setCursorVisible(false);
                     }
+                    // reconcile held buttons on mouse enter/exit
                     if(mouse) {
                         mouse->reset();
                     }
