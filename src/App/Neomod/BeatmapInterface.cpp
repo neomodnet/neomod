@@ -2123,18 +2123,21 @@ void BeatmapInterface::drawFollowPoints() {
             const i32 objectStartTime = this->hitobjects[index]->getClickTime();
             const i32 timeDiff = objectStartTime - lastObjectEndTime;
 
-            const vec2 startPoint =
-                this->osuCoords2Pixels(this->hitobjects[lastObjectIndex]->getRawPosAt(lastObjectEndTime));
-            const vec2 endPoint = this->osuCoords2Pixels(this->hitobjects[index]->getRawPosAt(objectStartTime));
+            const vec2 startPointRaw = this->hitobjects[lastObjectIndex]->getRawPosAt(lastObjectEndTime);
+            const vec2 endPointRaw = this->hitobjects[index]->getRawPosAt(objectStartTime);
+            const vec2 startPoint = this->osuCoords2Pixels(startPointRaw);
+            const vec2 endPoint = this->osuCoords2Pixels(endPointRaw);
 
             const f32 xDiff = endPoint.x - startPoint.x;
             const f32 yDiff = endPoint.y - startPoint.y;
             const vec2 diff = endPoint - startPoint;
-            const f32 dist =
-                std::round(vec::length(diff) * 100.0f) / 100.0f;  // rounded to avoid flicker with playfield rotations
+
+            // NOTE: dist and separation are in osu!pixels, so that followpoint placement is independent of how the
+            // playfield is scaled to the screen (only the final positions are mapped to screen space)
+            const f32 dist = vec::length(endPointRaw - startPointRaw);
 
             // draw all points between the two objects
-            const int followPointSeparation = Osu::getUIScale(32) * followPointSeparationMultiplier;
+            const int followPointSeparation = 32.0f * followPointSeparationMultiplier;
             for(int j = (int)(followPointSeparation * 1.5f); j < (dist - followPointSeparation);
                 j += followPointSeparation) {
                 const f32 animRatio = ((f32)j / dist);
