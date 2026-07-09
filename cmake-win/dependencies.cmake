@@ -38,9 +38,9 @@ set(FREETYPE_HASH "SHA512=c3b6b0cc4b428c9c647ab2148386901dfd315273b68051940e8fea
 set_download_name("freetype" "${FREETYPE_VERSION}" "${FREETYPE_URL}")
 unset(_freetype_ver_temp)
 
-set(LIBJPEG_VERSION "3.1.4.1")
+set(LIBJPEG_VERSION "3.2.0")
 set(LIBJPEG_URL "https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/${LIBJPEG_VERSION}/libjpeg-turbo-${LIBJPEG_VERSION}.tar.gz")
-set(LIBJPEG_HASH "SHA512=d82c2c2bd8abb1b88a245cece407a4cf65c378003e105a99a20ae4e7e3a7282b64874c3e7d8c003e83b43c990d43f860066e6ac57c143f8b3b9732d6bca7d94a")
+set(LIBJPEG_HASH "SHA512=13536db56c16e5364690ae2d31343a203e3b653c853c1f5314d36c8eb06700e92342737f1381f0171b3eb0223384c5fbcde91b55a46576952c4e75dc049cd045")
 set_download_name("libjpeg" "${LIBJPEG_VERSION}" "${LIBJPEG_URL}")
 
 set(LIBPNG_VERSION "1.6.58")
