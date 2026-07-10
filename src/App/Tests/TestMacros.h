@@ -2,6 +2,8 @@
 #pragma once
 #include "Logging.h"
 #include "Environment.h"
+#include "LaunchArgs.h"
+#include "SString.h"
 
 #include <cmath>
 #include <optional>
@@ -11,10 +13,12 @@ namespace Mc::Tests {
 // retrieve a -testarg:<name> value from launch args
 // usage: auto path = getTestArg("skin_tier1");
 //   launched with: -testarg:skin_tier1 "/path/to/skin"
+// these dynamic switches can't be part of the LaunchArgs::ArgSwitch enum, so query the map directly
 inline std::optional<std::string> getTestArg(std::string_view name) {
     std::string key = "-testarg:";
     key.append(name);
-    const auto &args = env->getLaunchArgs();
+    SString::lower_inplace(key);  // switches are lowercased in the arg map
+    const auto &args = Mc::LaunchArgs::get_map();
     if(auto it = args.find(key); it != args.end() && it->second.has_value()) {
         return it->second;
     }

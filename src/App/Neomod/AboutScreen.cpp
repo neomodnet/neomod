@@ -58,8 +58,18 @@ AboutScreen::AboutScreen() : ScreenBackable() {
 
     std::vector<CHANGELOG> changelogs;
 
+    CHANGELOG v43_12;
+    v43_12.title = "43.12 (" CHANGELOG_TIMESTAMP ")";
+    v43_12.changes = {
+        R"(- Changed default renderer to SDL_gpu (D3D12 on Windows, Vulkan on Linux))",
+        R"(  - On Windows, Vulkan (-sdlgpu vulkan) and D3D11 (-dx11) are also available)",
+        R"(  - Switch back to OpenGL by appending -opengl to launch arguments)",
+        R"(  (TODO: document this better/add auto-fallback before release))",
+    };
+    changelogs.push_back(v43_12);
+
     CHANGELOG v43_11;
-    v43_11.title = "43.11 (" CHANGELOG_TIMESTAMP ")";
+    v43_11.title = "43.11 (2026-07-10)";
     v43_11.changes = {
         R"(- Re-implemented offline user switcher (song browser user button context menu))",
         R"(- Added scrolling input visualizer to key overlay (disabled by default))",

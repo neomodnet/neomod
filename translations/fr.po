@@ -435,18 +435,6 @@ msgid "Launch with \"-sound bass\" as a commandline argument to use BASS for aud
 msgstr "Lancez avec \"-sound bass\" en argument de ligne de commande pour utiliser le moteur audio BASS."
 
 #: src/App/Neomod/MainMenuTips.cpp
-msgid "Put \"-gpu\" after the \"Target:\" field in a shortcut to neomod to use the D3D12 renderer."
-msgstr "Lancez avec \"-gpu\" en argument de ligne de commande pour utiliser le moteur de rendu D3D12."
-
-#: src/App/Neomod/MainMenuTips.cpp
-msgid "Put \"-gpu vk\" after the \"Target:\" field in a shortcut to neomod to use the Vulkan renderer."
-msgstr "Lancez avec \"-vk\" en argument de ligne de commande pour utiliser le moteur de rendu Vulkan."
-
-#: src/App/Neomod/MainMenuTips.cpp
-msgid "Launch with \"-sdlgpu\" as a commandline argument to use the Vulkan renderer."
-msgstr "Lancez avec \"-sdlgpu\" en argument de ligne de commande pour utiliser le moteur de rendu Vulkan."
-
-#: src/App/Neomod/MainMenuTips.cpp
 msgid "Put \"-dx11\" after the \"Target:\" field in a shortcut to neomod to use the D3D11 renderer."
 msgstr "Lancez avec \"-dx11\" en argument de ligne de commande pour utiliser le moteur de rendu D3D11."
 

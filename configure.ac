@@ -1,5 +1,5 @@
 AC_PREREQ([2.69])
-AC_INIT([neomod], [[43.11]], [], [], [https://github.com/neomodnet/neomod])
+AC_INIT([neomod], [[43.12]], [], [], [https://github.com/neomodnet/neomod])
 AC_CONFIG_SRCDIR([src/Engine/Engine.cpp])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIRS([m4])
@@ -317,7 +317,7 @@ AC_ARG_ENABLE([redistributable],
     AS_HELP_STRING([--enable-redistributable], [Don't bundle any non-redistributable content (currently only relevant for WASM, skips bundling beatmaps, default: yes)]))
 
 AC_ARG_WITH([renderer],
-    AS_HELP_STRING([--with-renderer={opengl,dx11,opengles,sdlgpu}], [The (comma separated list of) renderer backend(s) to build with (default: opengl)]))
+    AS_HELP_STRING([--with-renderer={opengl,dx11,opengles,sdlgpu}], [The (comma separated list of) renderer backend(s) to build with (default: sdlgpu)]))
 
 AC_ARG_WITH([audio],
     AS_HELP_STRING([--with-audio={bass,soloud}], [The (comma separated list of) audio backend(s) to build with (default: soloud)]))
@@ -461,7 +461,6 @@ AS_IF([test "$host_os" = "mingw32"], [
     ])
 ])
 
-use_opengl_default=yes # ugly
 use_opengl=unset
 use_opengles32=unset
 use_dx11=unset
@@ -485,17 +484,14 @@ AS_VAR_SET_IF([with_renderer],
             esac
         done])
 
-AS_IF([test "x$use_dx11" = "xyes" || test "x$use_opengles32" = "xyes" || test "x$use_sdlgpu" = "xyes"], [
-    use_opengl_default=no
-    AS_IF([test "x$use_opengles32" = "xyes"], [
-        # can't combine GL and GL ES
-        use_opengl=no
-    ])
+AS_IF([! { test "x$use_dx11" = "xyes" || test "x$use_opengles32" = "xyes" || test "x$use_opengl" = "xyes" ; } ], [
+    # use sdl_gpu by default if nothing else was selected
+    use_sdlgpu=yes
 ])
 
 rendbackendlist=
 
-AS_IF([test "x$use_opengl" = "xyes" || test "x$use_opengl_default" = "xyes"], [
+AS_IF([test "x$use_opengl" = "xyes"], [
     use_opengl=yes
     AC_DEFINE([MCENGINE_FEATURE_OPENGL], [1], [Defined if the OpenGL backend is to be used.])
     rendbackendlist="opengl"
@@ -503,8 +499,8 @@ AS_IF([test "x$use_opengl" = "xyes" || test "x$use_opengl_default" = "xyes"], [
     use_opengl=no
 ])
 
-AS_IF([test "x$use_opengles32" = "xyes" && test "x$use_opengl" != "yes"], [
-    # TODO
+# can't use opengl and opengl ES at the same time
+AS_IF([test "x$use_opengles32" = "xyes" && test "x$use_opengl" != "xyes"], [
     use_opengles32=yes
     AC_DEFINE([MCENGINE_FEATURE_GLES32], [1], [Defined if the OpenGL ES backend is to be used.])
     rendbackendlist="opengles32"

@@ -283,6 +283,7 @@ neomod_SOURCES = \
 	src/GUI/Windows/VisualProfiler.cpp \
 	src/Platform/Environment.cpp \
 	src/Platform/GPUDriverConfigurator.cpp \
+	src/Platform/LaunchArgs.cpp \
 	src/Platform/RuntimePlatform.cpp \
 	src/Platform/main.cpp \
 	src/Platform/main_impl.cpp \

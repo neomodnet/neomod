@@ -19,6 +19,7 @@
 #include "Font.h"
 #include "Logging.h"
 #include "RuntimePlatform.h"
+#include "LaunchArgs.h"
 
 #include "Graphics_private.h"
 
@@ -111,7 +112,7 @@ DirectX11Interface::DirectX11Interface(HWND hwnd)
       // maybe TODO: allow runtime switching between exclusive/flip presentation
       // requires recreating swapchain (complex!)
       // flip presentation should theoretically be better/on par with exclusive fullscreen
-      bFlipping(!env->getLaunchArgs().contains("-exclusive") &&
+      bFlipping(!Mc::LaunchArgs::has_arg(Mc::LaunchArgs::MISC_DX11_EXCLUSIVE) &&
                 (!(RuntimePlatform::current() & RuntimePlatform::WIN_WINE) &&
                  RuntimePlatform::current() & (RuntimePlatform::WIN_8 | RuntimePlatform::WIN_10 |
                                                RuntimePlatform::WIN_11 | RuntimePlatform::WIN_UNKNOWN))),

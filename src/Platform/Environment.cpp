@@ -15,6 +15,7 @@
 #include "Thread.h"
 
 #include "UniString.h"
+#include "LaunchArgs.h"
 
 #include "AppDescriptor.h"
 
@@ -92,20 +93,17 @@ void Mc::initEnvBlock() { Environment::s_sdlenv = SDL_GetEnvironment(); }
 
 // see Environment.h, these are pimpl'd so including TUs don't pay to instantiate the unordered_maps
 struct Environment::EnvironmentImpl {
-    std::unordered_map<std::string, std::optional<std::string>> argMap;
     // mutable due to lazy init (with initMonitors)
     mutable std::unordered_map<unsigned int, McRect> monitors{};
 };
 
-Environment::Environment(const Mc::AppDescriptor &appDesc,
-                         std::unordered_map<std::string, std::optional<std::string>> argMap,
-                         std::vector<std::string> cmdlineVec)
+Environment::Environment(const Mc::AppDescriptor &appDesc)
     : m_interop(appDesc.createInterop ? static_cast<Interop *>(appDesc.createInterop(this)) : new Interop(this)),
-      m_impl(std::move(argMap)),
-      m_vCmdLine(std::move(cmdlineVec)),
+      m_impl(),
       m_cursorIcons(/*lazy init*/) {
     env = this;
-    const auto &args = m_impl->argMap;
+    using Mc::LaunchArgs::has_arg;
+    using enum Mc::LaunchArgs::ArgSwitch;
 
     if(!s_sdlenv) {
         s_sdlenv = SDL_GetEnvironment();
@@ -117,14 +115,14 @@ Environment::Environment(const Mc::AppDescriptor &appDesc,
 
     m_bRunning = true;
     m_bIsRestartScheduled = false;
-    m_bHeadless = args.contains("-headless");
+    m_bHeadless = has_arg(REND_HEADLESS).has_value();
 
     m_fDisplayHz = 360.0f;
     m_fDisplayHzSecs = 1.0f / m_fDisplayHz;
 
     // make env->getDPI() always return 96
     // the hint set in main.cpp, before SDL_Init, will do the rest of the dirty work
-    m_bDPIOverride = args.contains("-nodpi");
+    m_bDPIOverride = has_arg(MISC_NO_DPI).has_value();
 
     m_bEnvDebug = false;
 
@@ -162,36 +160,22 @@ Environment::Environment(const Mc::AppDescriptor &appDesc,
     if(Env::cfg(OS::WASM) && m_bHeadless) {
         m_renderer = RuntimeRenderer::NULLGRAPHICS;
     } else {
-        // use directx if:
-        // we we built with support for it, and
-        // (either OpenGL(ES) + SDLGPU is missing, or
-        // (-directx or -dx11 are specified on the command line))
-        // use SDLGPU if:
-        // we we built with support for it, and
-        // (either OpenGL(ES) + DX11 is missing, or
-        // (-sdlgpu or -gpu are specified on the command line))
-        // otherwise, use whichever of GLES32/GL are available
+        const bool wants_gl = !!has_arg(REND_GL);
+        const bool wants_dx11 = !!has_arg(REND_DX11);
+        const bool wants_sdlgpu = !!has_arg(REND_SDLGPU);
         using enum RuntimeRenderer;
-        // clang-format off
-        m_renderer =
-            (Env::cfg(REND::DX11) &&
-                (!(Env::cfg(REND::GL | REND::GLES32 | REND::SDLGPU)) ||
-                  (args.contains("-directx") || args.contains("-dx11"))))
-            ? DX11
-        : (Env::cfg(REND::SDLGPU) &&
-                (!(Env::cfg(REND::GL | REND::GLES32 | REND::DX11)) ||
-                  (args.contains("-sdlgpu") || args.contains("-gpu"))))
-            ? SDLGPU
-        : Env::cfg(REND::GLES32)
-            ? GLES
-        : GL;
-        // clang-format on
-        if constexpr(Env::cfg(OS::MAC) && Env::cfg(REND::SDLGPU) && Env::cfg(REND::GL)) {
-            // use sdl_gpu by default on macOS, actually
-            // also if headless use SDLGPU for offscreen screenshot support
-            if(m_bHeadless || !(args.contains("-gl") || args.contains("-opengl"))) {
-                m_renderer = SDLGPU;
-            }
+        if(Env::cfg(REND::DX11) && (wants_dx11 || !Env::cfg(REND::GL | REND::GLES32 | REND::SDLGPU))) {
+            m_renderer = DX11;
+        } else if(Env::cfg(REND::SDLGPU) && (wants_sdlgpu || !Env::cfg(REND::GL | REND::GLES32 | REND::DX11))) {
+            m_renderer = SDLGPU;
+        } else if(Env::cfg(REND::GL | REND::GLES32) && (wants_gl || !Env::cfg(REND::DX11 | REND::SDLGPU))) {
+            m_renderer = Env::cfg(REND::GLES32) ? GLES : GL;
+        } else {
+            // default for multiple renderers (sdlgpu->dx11->gl)
+            m_renderer = Env::cfg(REND::SDLGPU)   ? SDLGPU
+                         : Env::cfg(REND::DX11)   ? DX11
+                         : Env::cfg(REND::GLES32) ? GLES
+                                                  : GL;
         }
     }
 
@@ -258,10 +242,6 @@ Environment::~Environment() {
     m_cursorIcons = {};
 
     env = nullptr;
-}
-
-const std::unordered_map<std::string, std::optional<std::string>> &Environment::getLaunchArgs() const {
-    return m_impl->argMap;
 }
 
 // well this doesn't do much atm... called at the end of engine->onUpdate

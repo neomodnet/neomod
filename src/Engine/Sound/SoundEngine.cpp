@@ -9,6 +9,7 @@
 #include "ConVar.h"
 #include "i18n.h"
 #include "Logging.h"
+#include "LaunchArgs.h"
 
 SoundEngine *SoundEngine::initialize() {
 #if !defined(MCENGINE_FEATURE_BASS) && !defined(MCENGINE_FEATURE_SOLOUD)
@@ -16,15 +17,10 @@ SoundEngine *SoundEngine::initialize() {
 #endif
     SoundEngine *retBackend = nullptr;
 
-    auto args = env->getLaunchArgs();
-    auto soundString = args["-sound"].value_or("soloud");  // default soloud
-    SString::trim_inplace(soundString);
-    SString::lower_inplace(soundString);
-
     std::vector<SndEngineType> initOrderList;
     if constexpr(Env::cfg(AUD::SOLOUD) && Env::cfg(AUD::BASS)) {
         // built with both backends supported, only prefer bass if explicitly passed as a launch arg
-        if(soundString.contains("bass")) {
+        if(Mc::LaunchArgs::has_arg(Mc::LaunchArgs::SND_BASS)) {
             initOrderList = {SndEngineType::BASS, SndEngineType::SOLOUD};
         } else {
             initOrderList = {SndEngineType::SOLOUD, SndEngineType::BASS};

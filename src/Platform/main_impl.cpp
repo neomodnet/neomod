@@ -28,6 +28,7 @@
 #include "UniString.h"
 #include "Parsing.h"
 #include "Touch.h"
+#include "LaunchArgs.h"
 
 #ifdef MCENGINE_PLATFORM_WASM
 #include <emscripten/em_js.h>
@@ -189,10 +190,8 @@ void SDLMain::mouse_wheel(std::string_view args) {
     handleEvent(&ev);
 }
 
-SDLMain::SDLMain(const Mc::AppDescriptor &appDesc, std::unordered_map<std::string, std::optional<std::string>> argMap,
-                 std::vector<std::string> argVec)
-    : Environment(appDesc, std::move(argMap), std::move(argVec)),
-      m_gpuConfigurator(std::make_unique<GPUDriverConfigurator>()) {
+SDLMain::SDLMain(const Mc::AppDescriptor &appDesc)
+    : Environment(appDesc), m_gpuConfigurator(std::make_unique<GPUDriverConfigurator>()) {
     // the reason we set up GPUDriverConfigurator here is because some things it does might need to happen before the window itself is created
     // setup callbacks
     cv::fps_max.setCallback(SA::MakeDelegate<&SDLMain::fps_max_callback>(this));
@@ -757,9 +756,8 @@ bool SDLMain::createWindow() {
         }  // otherwise just leave it as whatever is default
 
         // setup antialiasing from -aa command line argument
-        const auto &argMap = getLaunchArgs();
-        if(const auto aaIt = argMap.find("-aa"); aaIt != argMap.end() && aaIt->second.has_value()) {
-            auto aaSamples = Parsing::strto<u64>(aaIt->second.value());
+        if(const auto aaArg = Mc::LaunchArgs::has_arg(Mc::LaunchArgs::MISC_GL_AA); aaArg && !aaArg->empty()) {
+            auto aaSamples = Parsing::strto<u64>(aaArg.value());
             if(aaSamples > 1) {
                 aaSamples = std::clamp(std::bit_floor(aaSamples), (u64)2, (u64)16);
                 SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
@@ -767,7 +765,7 @@ bool SDLMain::createWindow() {
             }
         }
         // create gl debug context
-        if(argMap.contains("-debugctx")) {
+        if(Mc::LaunchArgs::has_arg(Mc::LaunchArgs::MISC_GL_DEBUG)) {
             SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
             SDL_SetLogPriority(SDL_LOG_CATEGORY_VIDEO, SDL_LOG_PRIORITY_TRACE);
         } else if(!isWine) {  // avoid wine bugs with disabled gl error context
@@ -1123,15 +1121,16 @@ extern "C" SDL_DECLSPEC void SDLCALL SDL_UnregisterApp(void);
 extern "C" __declspec(dllimport) char *__stdcall GetCommandLineA(void);
 #endif
 
-void SDLMain::restart(const std::vector<std::string> &args) {
-    std::vector<const char *> restartArgsChar(args.size() + 1);
+void SDLMain::restart() {
+    const auto &rawArgs = Mc::LaunchArgs::get_array();
+    std::vector<const char *> restartArgsChar(rawArgs.size() + 1);
 
     restartArgsChar.back() = nullptr;
     // use the fully qualified executable path as the first arg
     // (since if we were launched with a relative path outside the root dir then the relative path points somewhere else after setcwdexe)
     restartArgsChar.front() = getPathToSelf().c_str();
-    if(args.size() > 1) {
-        for(int i = 1; const auto &arg : std::span{args.begin() + 1, args.end()}) {
+    if(rawArgs.size() > 1) {
+        for(int i = 1; const auto &arg : std::span{rawArgs.begin() + 1, rawArgs.end()}) {
             restartArgsChar[i] = arg.c_str();
             i++;
         }

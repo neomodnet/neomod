@@ -16,6 +16,7 @@
 #include <vector>
 #include <functional>
 #include <array>
+#include <span>
 
 typedef uint32_t SDL_WindowID;
 typedef struct SDL_Window SDL_Window;
@@ -28,6 +29,9 @@ class Engine;
 namespace Mc {
 struct AppDescriptor;
 void initEnvBlock();
+namespace LaunchArgs {
+extern std::span<const std::string> get_array() noexcept;
+}
 }  // namespace Mc
 
 class Environment;
@@ -77,9 +81,10 @@ class Environment {
         Interop() = delete;
         Interop(Environment *env_ptr) : env_p(env_ptr) {}
         virtual ~Interop() { env_p = nullptr; }
-        bool handle_cmdline_args() { return handle_cmdline_args(this->env_p->getCommandLine()); }
+        // handle initial program startup args
+        bool handle_cmdline_args() { return handle_cmdline_args(Mc::LaunchArgs::get_array()); }
 
-        virtual bool handle_cmdline_args(const std::vector<std::string> & /*args*/) { return true; }
+        virtual bool handle_cmdline_args(std::span<const std::string> /*args*/) { return true; }
         virtual void setup_system_integrations() {}
 
         Environment *env_p;
@@ -90,8 +95,7 @@ class Environment {
     std::unique_ptr<Interop> m_interop;
 
    public:
-    Environment(const Mc::AppDescriptor &appDesc, std::unordered_map<std::string, std::optional<std::string>> argMap,
-                std::vector<std::string> cmdlineVec);
+    Environment(const Mc::AppDescriptor &appDesc);
     virtual ~Environment();
 
     void update();
@@ -143,9 +147,6 @@ class Environment {
     static const std::string &getExeFolder();
 
     static void openURLInDefaultBrowser(std::string_view url) noexcept;
-
-    [[nodiscard]] const std::unordered_map<std::string, std::optional<std::string>> &getLaunchArgs() const;
-    [[nodiscard]] inline const std::vector<std::string> &getCommandLine() const { return m_vCmdLine; }
 
     // user
     [[nodiscard]] std::string_view getUsername() const noexcept;
@@ -312,7 +313,6 @@ class Environment {
     // arg map + monitor map live behind a pimpl so including TUs don't pay to instantiate the unordered_maps
     struct EnvironmentImpl;
     StaticPImpl<EnvironmentImpl, sizeof(void *) == 8 ? 128 : 64> m_impl;
-    std::vector<std::string> m_vCmdLine;
     std::unique_ptr<Engine> m_engine;
 
     SDL_Window *m_window;

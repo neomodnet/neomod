@@ -12,6 +12,7 @@
 #include "Logging.h"
 #include "Environment.h"
 #include "ConVar.h"
+#include "LaunchArgs.h"
 
 namespace cv {
 static ConVar debug_opengl_v("debug_opengl_v", false, CLIENT | HIDDEN,
@@ -69,13 +70,11 @@ void SDLGLInterface::load() {
 #endif
     debugLog("GL_VERSION string: {}", reinterpret_cast<const char *>(glGetString(GL_VERSION)));
 
-    const auto &argMap = env->getLaunchArgs();
-    if((Env::cfg(BUILD::DEBUG) || Env::cfg(OS::WASM)) || argMap.contains("-info") || argMap.contains("-print") ||
-       argMap.contains("-printinfo")) {
+    if((Env::cfg(BUILD::DEBUG) || Env::cfg(OS::WASM)) || Mc::LaunchArgs::has_arg(Mc::LaunchArgs::MISC_GL_VERBOSE)) {
         dumpGLContextInfo();
     }
 
-    if(argMap.contains("-debugctx")) {
+    if(Mc::LaunchArgs::has_arg(Mc::LaunchArgs::MISC_GL_DEBUG)) {
         cv::debug_opengl_v.setValue(true);
     }
 }

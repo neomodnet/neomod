@@ -25,8 +25,7 @@ class SDLMain final : public Environment {
     friend void SDL_AppQuit(void *appstate, SDL_AppResult result);
 
    public:
-    SDLMain(const Mc::AppDescriptor &appDesc, std::unordered_map<std::string, std::optional<std::string>> argMap,
-            std::vector<std::string> argVec);
+    SDLMain(const Mc::AppDescriptor &appDesc);
     ~SDLMain() override;
 
     SDL_AppResult initialize();
@@ -34,7 +33,7 @@ class SDLMain final : public Environment {
     SDL_AppResult handleEvent(SDL_Event *event);
     void shutdown(SDL_AppResult result);
 
-    static void restart(const std::vector<std::string> &restartArgs);
+    static void restart();
 
    private:
     // init methods

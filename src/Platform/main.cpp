@@ -25,6 +25,7 @@
 #include "DiffCalcTool.h"
 #include "File.h"
 #include "UniString.h"
+#include "LaunchArgs.h"
 
 #include "environment_private.h"
 #include "AppDescriptor.h"
@@ -110,10 +111,6 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
     fmain->setWindowsKeyDisabled(false);
 
     const bool restart = fmain->isRestartScheduled();
-    std::vector<std::string> restartArgs{};
-    if(restart) {
-        restartArgs = fmain->getCommandLine();
-    }
 
     // we might be called directly instead of through events, so check this again
     if(fmain->m_bRunning) {
@@ -143,7 +140,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
     }
 #else
     if(restart) {
-        SDLMain::restart(restartArgs);
+        SDLMain::restart();
     }
     if constexpr(!Env::cfg(FEAT::MAINCB)) {
         SDL_Quit();
@@ -207,46 +204,26 @@ MAIN_FUNC /* int argc, char *argv[] */
     lppAgent.EnableModule(lpp::LppGetCurrentModulePath(), lpp::LPP_MODULES_OPTION_NONE, nullptr, nullptr);
 #endif
 
-    const bool diffcalcOnly = argc >= 2 && strncmp(argv[1], "-diffcalc", sizeof("-diffcalc") - 1) == 0;
-    if(diffcalcOnly) {
+    // parse initial cmdline args
+    Mc::LaunchArgs::detail::init(argc, argv);
+
+    using Mc::LaunchArgs::has_arg;
+    using enum Mc::LaunchArgs::ArgSwitch;
+
+    if(has_arg(MODE_DIFFCALC)) {
         return (SDL_AppResult)NEOMOD_run_diffcalc(argc, argv);
     }
-
-    // parse args here
-    // simple vector representation of the whole cmdline including the program name (as the first element)
-    auto arg_cmdline = std::vector<std::string>(argv, argv + argc);
-
-    // more easily queryable representation of the args as a map
-    auto arg_map = [&]() -> std::unordered_map<std::string, std::optional<std::string>> {
-        // example usages:
-        // args.contains("-file")
-        // auto filename = args["-file"].value_or("default.txt");
-        // if (args["-output"].has_value())
-        // 	auto outfile = args["-output"].value();
-        std::unordered_map<std::string, std::optional<std::string>> args;
-        for(int i = 1; i < argc; ++i) {
-            std::string_view arg{argv[i]};
-            if(arg.starts_with('-'))
-                if(i + 1 < argc && !(argv[i + 1][0] == '-')) {
-                    args[std::string(arg)] = argv[i + 1];
-                    ++i;
-                } else
-                    args[std::string(arg)] = std::nullopt;
-            else
-                args[std::string(arg)] = std::nullopt;
-        }
-        return args;
-    }();
 
     // if we have an "existing window handler", let it run very early
     // use the handler for the desired app-to-launch, so we don't collide with a running instance of a different kind of app
     const Mc::AppDescriptor *appDesc{nullptr};
-    if(Env::cfg(FEAT::TESTS) && arg_map.contains("-testapp") && arg_map["-testapp"].has_value()) {
-        const auto &testappName = arg_map["-testapp"].value();
-        for(const auto &entry : Mc::getAllAppDescriptors()) {
-            if(testappName == entry.name) {
-                appDesc = &entry;
-                break;
+    if constexpr(Env::cfg(FEAT::TESTS)) {
+        if(const auto testappName = has_arg(MODE_TESTAPP); testappName && !testappName->empty()) {
+            for(const auto &entry : Mc::getAllAppDescriptors()) {
+                if(*testappName == entry.name) {
+                    appDesc = &entry;
+                    break;
+                }
             }
         }
     }
@@ -277,17 +254,17 @@ MAIN_FUNC /* int argc, char *argv[] */
 
     // improve floating point perf in case this isn't already enabled by the compiler
     // -nofpu to disable (debug)
-    if(arg_map.contains("-nofpu")) {
+    if(has_arg(MISC_NO_FPU)) {
         McThread::debug_disable_thread_init_changes();
     } else {
         // this is also run at the start of each new thread (since the state is thread-local)
         McThread::on_thread_init();
     }
 
-    const bool headless = arg_map.contains("-headless");
+    const bool headless = has_arg(REND_HEADLESS).has_value();
 
     // now set up spdlog logging
-    Logger::init(headless || arg_map.contains("-console"));
+    Logger::init(headless || has_arg(MODE_CONSOLE));
     atexit(Logger::shutdown);
 
 #if defined(_WIN32)
@@ -314,7 +291,7 @@ MAIN_FUNC /* int argc, char *argv[] */
 
 #if defined(_WIN32)
     // this hint needs to be set before SDL_Init
-    if(arg_map.contains("-nodpi")) {
+    if(has_arg(MISC_NO_DPI)) {
         // it's not even defined anywhere...
         SDL_SetHintWithPriority("SDL_WINDOWS_DPI_AWARENESS", "unaware", SDL_HINT_NORMAL);
     }
@@ -324,7 +301,7 @@ MAIN_FUNC /* int argc, char *argv[] */
     // so we have SDL_StartTextInput enabled most of the time
     // disable IME input panels so that it isn't annoying
     // should be fixed in engine so that IME input is actually usable
-    if(!arg_map.contains("-ime")) {
+    if(!has_arg(MISC_ENABLE_IME)) {
         SDL_SetHintWithPriority(SDL_HINT_ENABLE_SCREEN_KEYBOARD, "0", SDL_HINT_NORMAL);
     }
 
@@ -338,10 +315,7 @@ MAIN_FUNC /* int argc, char *argv[] */
             // don't use offscreen for SDL_gpu headless, that would attempt to initialize a bunch of
             // offscreen openGL stuff we don't want
             const bool using_opengl =
-                Env::cfg(REND::GL | REND::GLES32) &&
-                !(Env::cfg(REND::SDLGPU) &&
-                  ((arg_map.contains("-sdlgpu") || arg_map.contains("-gpu")) ||
-                   (Env::cfg(OS::MAC) && !(arg_map.contains("-gl") || arg_map.contains("-opengl")))));
+                Env::cfg(REND::GL | REND::GLES32) && (!Env::cfg(REND::SDLGPU | REND::DX11) || has_arg(REND_GL));
             if(using_opengl) {
                 SDL_SetHintWithPriority(SDL_HINT_VIDEO_DRIVER, "offscreen", SDL_HINT_OVERRIDE);
             }
@@ -361,13 +335,13 @@ MAIN_FUNC /* int argc, char *argv[] */
     VPROF_ENTER_SCOPE("Main", VPROF_BUDGETGROUP_ROOT);
     VPROF_ENTER_SCOPE("SDL", VPROF_BUDGETGROUP_BETWEENFRAMES);
 
-    auto *fmain = new SDLMain(*appDesc, std::move(arg_map), std::move(arg_cmdline));  // need to allocate dynamically
+    auto *fmain = new SDLMain(*appDesc);  // need to allocate dynamically
     *appstate = fmain;
     return !fmain ? SDL_APP_FAILURE : fmain->initialize();
 #else
 
     // otherwise just put it on the stack
-    SDLMain fmain{*appDesc, std::move(arg_map), arg_cmdline};
+    SDLMain fmain{*appDesc};
     if(fmain.initialize() == SDL_APP_FAILURE) {
         SDL_AppQuit(&fmain, SDL_APP_FAILURE);
     }
@@ -421,7 +395,7 @@ MAIN_FUNC /* int argc, char *argv[] */
     // i don't think this is reachable, but whatever
     // (we should hit SDL_AppQuit before this)
     if(fmain.isRestartScheduled()) {
-        SDLMain::restart(arg_cmdline);
+        SDLMain::restart();
     }
 
 #ifdef WITH_LIVEPP

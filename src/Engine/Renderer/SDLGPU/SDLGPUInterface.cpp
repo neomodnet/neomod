@@ -25,8 +25,8 @@
 #include "Font.h"
 #include "VertexArrayObject.h"
 #include "Environment.h"
-#include "SString.h"
 #include "VisualProfiler.h"
+#include "LaunchArgs.h"
 
 #include "Graphics_private.h"
 
@@ -111,14 +111,8 @@ bool SDLGPUInterface::init() {
 
     if constexpr(Env::cfg(OS::WINDOWS)) {
         if(vkAvailable && d3dAvailable) {
-            auto args = env->getLaunchArgs();
-            std::string argvalLower;
-            if(args["-sdlgpu"].has_value()) {
-                argvalLower = SString::to_lower(args["-sdlgpu"].value());
-            } else if(args["-gpu"].has_value()) {
-                argvalLower = SString::to_lower(args["-gpu"].value());
-            }
-            if(argvalLower.contains("vk") || argvalLower.contains("vulkan")) {
+            // prefer vulkan over d3d12 if explicitly requested with e.g. "-sdlgpu vulkan"
+            if(Mc::LaunchArgs::has_arg(Mc::LaunchArgs::REND_SDLGPU_VK)) {
                 initOrder[0].swap(initOrder[1]);
             }
         }

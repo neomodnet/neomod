@@ -15,6 +15,7 @@
 #include "score.h"
 #include "Logging.h"
 #include "SString.h"
+#include "LaunchArgs.h"
 
 namespace neomod {
 namespace {
@@ -25,7 +26,7 @@ struct NeomodEnvInterop : public Environment::Interop {
     NeomodEnvInterop(Environment *env_ptr) : Interop(env_ptr) {}
     ~NeomodEnvInterop() override = default;
 
-    bool handle_cmdline_args(const std::vector<std::string> &args) override;
+    bool handle_cmdline_args(const std::span<const std::string> args) override;
     void setup_system_integrations() override;
 };
 }  // namespace
@@ -49,7 +50,7 @@ bool handle_osk(std::string_view osk_path) {
     return true;
 }
 
-bool NeomodEnvInterop::handle_cmdline_args(const std::vector<std::string> &args) {
+bool NeomodEnvInterop::handle_cmdline_args(std::span<const std::string> args) {
     if(!osu || !db) return false;
     using namespace neomod;
 
@@ -132,19 +133,6 @@ bool NeomodEnvInterop::handle_cmdline_args(const std::vector<std::string> &args)
     return true;
 }
 
-namespace {
-// not used on WASM
-[[maybe_unused]] bool is_multi_instance_desired(int argc, char *argv[]) {
-    if(argc <= 1) return false;
-    for(int i = 1; i < argc; ++i) {
-        if(!argv[i]) continue;
-        if(SString::to_lower(std::string_view{argv[i]}) == "-multi"sv) {
-            return true;
-        }
-    }
-    return false;
-}
-}  // namespace
 }  // namespace neomod
 
 #ifdef MCENGINE_PLATFORM_WINDOWS
@@ -386,7 +374,11 @@ void NeomodEnvInterop::setup_system_integrations() {
 
     // Add current launch arguments, so doing "Open with -> neomod"
     // will always use the last launch options the player used.
-    auto cmdline = env->getCommandLine();
+    std::vector<std::string> cmdline = []() -> auto {
+        auto temp{Mc::LaunchArgs::get_array()};
+        return std::vector<std::string>{temp.begin(), temp.end()};
+    }();
+
     assert(!cmdline.empty());
     cmdline.erase(cmdline.begin());  // remove program name
 
@@ -445,7 +437,7 @@ void handleExistingWindow(int argc, char *argv[]) {
     // if a neomod instance is already running, send it a message then quit
     HWND existing_window = FindWindow(TEXT(PACKAGE_NAME), nullptr);
     if(existing_window) {
-        if(is_multi_instance_desired(argc, argv)) {
+        if(Mc::LaunchArgs::has_arg(Mc::LaunchArgs::MODE_MULTI)) {
             // return early (this instance was started with the -multi argument)
             return;
         }
@@ -671,7 +663,7 @@ void handleExistingWindow(int argc, char *argv[]) {
 
         case BindOutcome::AnotherAlive: {
             // return early (this instance was started with the -multi argument)
-            if(is_multi_instance_desired(argc, argv)) {
+            if(Mc::LaunchArgs::has_arg(Mc::LaunchArgs::MODE_MULTI)) {
                 close(sock_fd);
                 return;
             }

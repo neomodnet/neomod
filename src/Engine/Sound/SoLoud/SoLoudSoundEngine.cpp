@@ -9,6 +9,7 @@
 #include "SString.h"
 #include "SoLoudSound.h"
 #include "SoLoudThread.h"
+#include "LaunchArgs.h"
 
 #include "ConVar.h"
 #include "Engine.h"
@@ -91,14 +92,7 @@ SoLoudSoundEngine::SoLoudSoundEngine() : SoundEngine() {
     }
 #endif
     if(!soloud) {
-        bool threaded = false;
-        auto args = env->getLaunchArgs();
-        auto threadedString = args["-sound"].value_or("soloud");
-        SString::trim_inplace(threadedString);
-        SString::lower_inplace(threadedString);
-        if(threadedString == "soloud-threaded") {
-            threaded = true;
-        }
+        const bool threaded = Mc::LaunchArgs::has_arg(Mc::LaunchArgs::SND_SOLOUD_THREADED).has_value();
         soloud = std::make_unique<SoLoudThreadWrapper>(threaded);
     }
 

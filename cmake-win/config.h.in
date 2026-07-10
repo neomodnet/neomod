@@ -22,6 +22,7 @@
 #cmakedefine MCENGINE_FEATURE_OPENGL
 #cmakedefine MCENGINE_FEATURE_GLES32
 #cmakedefine MCENGINE_FEATURE_DIRECTX11
+#cmakedefine MCENGINE_FEATURE_SDLGPU
 
 /* Audio backend */
 #cmakedefine MCENGINE_FEATURE_BASS

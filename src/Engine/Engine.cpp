@@ -35,6 +35,7 @@
 #include "Image.h"
 #include "Console.h"
 #include "ConsoleReader.h"
+#include "LaunchArgs.h"
 
 #include <iostream>
 
@@ -68,7 +69,7 @@ Engine::Engine() {
 
     // print debug information
     debugLog("-= Engine Startup =-");
-    debugLog("cmdline: {:s}", SString::join(env->getCommandLine()));
+    debugLog("cmdline: {:s}", SString::join(Mc::LaunchArgs::get_array()));
 
     // timing
     this->iFrameCount = 0;
@@ -280,9 +281,8 @@ void Engine::loadApp() {
 #ifndef BUILD_TOOLS_ONLY
 #ifdef MCENGINE_TESTS
         {
-            const auto &it = env->getLaunchArgs().find("-testapp");
-            const bool testMode = (it != env->getLaunchArgs().end());
-            app = std::make_unique<AppRunner>(testMode, testMode ? it->second.value_or("") : "");
+            const auto testApp = Mc::LaunchArgs::has_arg(Mc::LaunchArgs::MODE_TESTAPP);
+            app = std::make_unique<AppRunner>(testApp.has_value(), testApp.value_or(""));
         }
 #else
         if(const auto &defaultApp = Mc::getDefaultAppDescriptor(); !!defaultApp.create) {
@@ -296,7 +296,7 @@ void Engine::loadApp() {
         keyboard->addListener(app.get());
 
         // start stdin reader for headless/console mode
-        if(env->isHeadless() || env->getLaunchArgs().contains("-console")) {
+        if(env->isHeadless() || Mc::LaunchArgs::has_arg(Mc::LaunchArgs::MODE_CONSOLE)) {
             this->consoleReader = std::make_unique<Mc::ConsoleReader>();
         }
     }

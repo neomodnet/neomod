@@ -5,6 +5,10 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+pushd "$SCRIPT_DIR" >/dev/null
+trap 'popd >/dev/null' EXIT
+
 VERSION="$1"                 # 39.03
 VERSION_RC="${VERSION//./,}" # 39,03
 VERSION_RC="${VERSION_RC//,0/,}" # 39,3 (don't start a group 0)

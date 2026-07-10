@@ -73,13 +73,14 @@ jobs:
           restore-keys: |
             ccache-linux-aarch64-
 
+      # TODO: add things required for sdl_gpu build to aarch64 container image
       - name: Building neomod
         run: |
           ./autogen.sh
           export MAKEFLAGS="-j$(nproc)"
           export CCACHE_DIR="${{ env.CCACHE_DIR }}"
           cd build-out && \
-          ../configure --disable-tests \
+          ../configure --disable-tests --with-renderer=opengl \
             ${{ (github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/dev') && '--disable-strip' || '' }} \
             --host=aarch64-pc-linux-gnu && \
           make install
