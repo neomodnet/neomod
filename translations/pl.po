@@ -3500,9 +3500,8 @@ msgid "Enter Username:"
 msgstr ""
 
 #: src/App/Neomod/UIUserContextMenu.cpp
-#, fuzzy
 msgid "(Press ENTER to confirm.)"
-msgstr "Naciśnij jeszcze {:d} razy by potwierdzić."
+msgstr ""
 
 #: src/Engine/Sound/SoundEngine.cpp
 msgid "No sound"

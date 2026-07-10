@@ -3440,7 +3440,7 @@ msgstr "Recherche : "
 
 #: src/App/Neomod/UISearchOverlay.cpp
 msgid "Type to search!"
-msgstr "Ecrivez pour rechercher !"
+msgstr "Écrivez pour rechercher !"
 
 #: src/App/Neomod/UISearchOverlay.cpp
 msgid "No matches found. Hit ESC to reset."
@@ -3456,20 +3456,19 @@ msgstr "Ouverture du navigateur, veuillez patienter..."
 
 #: src/App/Neomod/UIUserContextMenu.cpp
 msgid "Switch User:"
-msgstr ""
+msgstr "Changer d'utilisateur :"
 
 #: src/App/Neomod/UIUserContextMenu.cpp
 msgid "Set custom name"
-msgstr ""
+msgstr "Créer nouveau compte"
 
 #: src/App/Neomod/UIUserContextMenu.cpp
 msgid "Enter Username:"
-msgstr ""
+msgstr "Nom d'utilisateur :"
 
 #: src/App/Neomod/UIUserContextMenu.cpp
-#, fuzzy
 msgid "(Press ENTER to confirm.)"
-msgstr "Appuyez {:d} fois de plus pour confirmer."
+msgstr "(Appuyez sur ENTRÉE pour confirmer.)"
 
 #: src/Engine/Sound/SoundEngine.cpp
 msgid "No sound"
