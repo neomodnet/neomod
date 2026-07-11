@@ -33,7 +33,7 @@ class SDLMain final : public Environment {
     SDL_AppResult handleEvent(SDL_Event *event);
     void shutdown(SDL_AppResult result);
 
-    static void restart();
+    static void restart(std::span<const std::string> restartArgs);
 
    private:
     // init methods

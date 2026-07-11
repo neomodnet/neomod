@@ -195,10 +195,10 @@ class Environment {
     static void showDialog(const char *title, const char *message,
                            unsigned int flags = 0x00000010u /* SDL_MESSAGEBOX_ERROR */,
                            void /*SDL_Window*/ *modalWindow = nullptr);
-    void showMessageInfo(const std::string &title, const std::string &message) const;
-    void showMessageWarning(const std::string &title, const std::string &message) const;
-    void showMessageError(const std::string &title, const std::string &message) const;
-    void showMessageErrorFatal(const std::string &title, const std::string &message) const;
+    void showMessageInfo(std::string_view title, std::string_view message) const;
+    void showMessageWarning(std::string_view title, std::string_view message) const;
+    void showMessageError(std::string_view title, std::string_view message) const;
+    void showMessageErrorFatal(std::string_view title, std::string_view message) const;
 
     using FileDialogCallback = std::function<void(const std::vector<std::string> &paths)>;
     void openFileWindow(FileDialogCallback callback, const char *filetypefilters, std::string_view title,

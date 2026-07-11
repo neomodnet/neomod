@@ -885,20 +885,20 @@ void Environment::showDialog(const char *title, const char *message, unsigned in
     }
 }
 
-void Environment::showMessageInfo(const std::string &title, const std::string &message) const {
-    showDialog(title.c_str(), message.c_str(), SDL_MESSAGEBOX_INFORMATION, m_window);
+void Environment::showMessageInfo(std::string_view title, std::string_view message) const {
+    showDialog(std::string{title}.c_str(), std::string{message}.c_str(), SDL_MESSAGEBOX_INFORMATION, m_window);
 }
 
-void Environment::showMessageWarning(const std::string &title, const std::string &message) const {
-    showDialog(title.c_str(), message.c_str(), SDL_MESSAGEBOX_WARNING, m_window);
+void Environment::showMessageWarning(std::string_view title, std::string_view message) const {
+    showDialog(std::string{title}.c_str(), std::string{message}.c_str(), SDL_MESSAGEBOX_WARNING, m_window);
 }
 
-void Environment::showMessageError(const std::string &title, const std::string &message) const {
-    showDialog(title.c_str(), message.c_str(), SDL_MESSAGEBOX_ERROR, m_window);
+void Environment::showMessageError(std::string_view title, std::string_view message) const {
+    showDialog(std::string{title}.c_str(), std::string{message}.c_str(), SDL_MESSAGEBOX_ERROR, m_window);
 }
 
 // what is the point of this exactly?
-void Environment::showMessageErrorFatal(const std::string &title, const std::string &message) const {
+void Environment::showMessageErrorFatal(std::string_view title, std::string_view message) const {
     showMessageError(title, message);
 }
 

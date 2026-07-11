@@ -140,7 +140,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
     }
 #else
     if(restart) {
-        SDLMain::restart();
+        SDLMain::restart(Mc::LaunchArgs::get_array());
     }
     if constexpr(!Env::cfg(FEAT::MAINCB)) {
         SDL_Quit();
@@ -395,7 +395,7 @@ MAIN_FUNC /* int argc, char *argv[] */
     // i don't think this is reachable, but whatever
     // (we should hit SDL_AppQuit before this)
     if(fmain.isRestartScheduled()) {
-        SDLMain::restart();
+        SDLMain::restart(Mc::LaunchArgs::get_array());
     }
 
 #ifdef WITH_LIVEPP

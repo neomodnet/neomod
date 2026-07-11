@@ -63,14 +63,14 @@ static std::array s_tips{
 	Tip{_(R"(Launch with "-sound bass" as a commandline argument to use BASS for audio.)")},
 #endif // defined(MCENGINE_PLATFORM_WINDOWS)
 #endif // defined(MCENGINE_FEATURE_BASS) && defined(MCENGINE_FEATURE_SOLOUD)
-// #if defined(MCENGINE_FEATURE_SDLGPU)
-// #if defined(MCENGINE_PLATFORM_WINDOWS)
+#if defined(MCENGINE_FEATURE_SDLGPU)
+#if defined(MCENGINE_PLATFORM_WINDOWS)
 //     Tip{_(R"(Put "-gpu" after the "Target:" field in a shortcut to neomod to use the D3D12 renderer.)")},
-//     Tip{_(R"(Put "-gpu vk" after the "Target:" field in a shortcut to neomod to use the Vulkan renderer.)")},
+    Tip{_(R"(Put "-gpu vk" after the "Target:" field in a shortcut to neomod to use the Vulkan renderer.)")},
 // #else
 //     Tip{_(R"(Launch with "-sdlgpu" as a commandline argument to use the Vulkan renderer.)")},
-// #endif // defined(MCENGINE_PLATFORM_WINDOWS)
-// #endif // defined(MCENGINE_FEATURE_SDLGPU)
+#endif // defined(MCENGINE_PLATFORM_WINDOWS)
+#endif // defined(MCENGINE_FEATURE_SDLGPU)
 #if defined(MCENGINE_FEATURE_DIRECTX11)
 #if defined(MCENGINE_PLATFORM_WINDOWS)
     Tip{_(R"(Put "-dx11" after the "Target:" field in a shortcut to neomod to use the D3D11 renderer.)")},

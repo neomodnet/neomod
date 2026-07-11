@@ -121,9 +121,21 @@ Engine::Engine() {
         g = env->createRenderer();
         // needs init() separation due to potential graphics access
         this->runtime_assert(!!g, "Graphics failed to initialize!");
-        this->runtime_assert(
-            g->init(),
-            fmt::format("{:s} failed to initialize!\nTry running with -dx11 or -sdlgpu.", g->getName()).c_str());
+        // TODO: transparent fallback like SoundEngine
+        if constexpr(Env::cfg(OS::WINDOWS)) {
+            this->runtime_assert(
+                g->init(),
+                fmt::format(
+                    R"({:s} failed to initialize!\nTry running with "-opengl" or "-dx11" added to\nthe "Target:" field in a shortcut to)" PACKAGE_NAME
+                    ".",
+                    g->getName()));
+        } else {
+            this->runtime_assert(
+                g->init(),
+                fmt::format(
+                    "{:s} failed to initialize!\nTry running with -opengl or -dx11 as extra commandline arguments.",
+                    g->getName()));
+        }
 
         // make unique_ptrs for the rest
         networkHandler = std::make_unique<NetworkHandler>();
@@ -215,7 +227,7 @@ Engine::~Engine() {
     this->mice.clear();
     this->keyboards.clear();
 
-    // reset the static unique_ptrs
+    // reset the global unique_ptrs
     mouse.reset();
     keyboard.reset();
 
@@ -234,8 +246,8 @@ Engine::~Engine() {
     engine = nullptr;
 }
 
-void Engine::loadApp() {
-    if(this->bShuttingDown) return;
+bool Engine::loadApp() {
+    if(this->bShuttingDown) return false;
     // load core default resources
     debugLog("Engine: Loading default resources ...");
     this->defaultFont = resourceManager->loadFont("weblysleekuisb", "FONT_DEFAULT", 15, true, env->getDPI());
@@ -301,6 +313,7 @@ void Engine::loadApp() {
         }
     }
     debugLog("Engine: Loading app done.");
+    return true;
 }
 
 void Engine::onPaint() {
@@ -601,29 +614,29 @@ void Engine::toggleFullscreen() {
 
 void Engine::disableFullscreen() { env->disableFullscreen(); }
 
-void Engine::showMessageInfo(const std::string &title, const std::string &message) {
+void Engine::showMessageInfo(std::string_view title, std::string_view message) {
     debugLog("INFO: [{:s}] | {:s}", title, message);
     env->showMessageInfo(title, message);
 }
 
-void Engine::showMessageWarning(const std::string &title, const std::string &message) {
+void Engine::showMessageWarning(std::string_view title, std::string_view message) {
     debugLog("WARNING: [{:s}] | {:s}", title, message);
     env->showMessageWarning(title, message);
 }
 
-void Engine::showMessageError(const std::string &title, const std::string &message) {
+void Engine::showMessageError(std::string_view title, std::string_view message) {
     debugLog("ERROR: [{:s}] | {:s}", title, message);
     Logger::flush();
     env->showMessageError(title, message);
 }
 
-void Engine::showMessageErrorFatal(const std::string &title, const std::string &message) {
+void Engine::showMessageErrorFatal(std::string_view title, std::string_view message) {
     debugLog("FATAL ERROR: [{:s}] | {:s}", title, message);
     Logger::flush();
     env->showMessageErrorFatal(title, message);
 }
 
-void Engine::runtime_assert(bool cond, const char *reason) {
+void Engine::runtime_assert(bool cond, std::string_view reason) {
     if(cond) return;
     this->showMessageErrorFatal("Engine Error", reason);
     fubar_abort();

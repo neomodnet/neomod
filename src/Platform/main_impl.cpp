@@ -290,7 +290,7 @@ SDL_AppResult SDLMain::initialize() {
         if(isHeadless()) {
             m_engine = std::make_unique<Engine>();
             if(!m_engine || m_engine->isShuttingDown()) return SDL_APP_FAILURE;
-            m_engine->loadApp();
+            if(!m_engine->loadApp()) return SDL_APP_FAILURE;
             return SDL_APP_CONTINUE;
         }
     }
@@ -324,7 +324,9 @@ SDL_AppResult SDLMain::initialize() {
     // if we got to this point, all relevant subsystems (input handling, graphics interface, etc.) have been initialized
 
     // load app
-    m_engine->loadApp();
+    if(!m_engine->loadApp()) {
+        return SDL_APP_FAILURE;
+    }
 
     // make window visible now, after we loaded the config and set the wanted window size & fullscreen state
     // (unless running headless, then just never show the window)
@@ -1121,16 +1123,15 @@ extern "C" SDL_DECLSPEC void SDLCALL SDL_UnregisterApp(void);
 extern "C" __declspec(dllimport) char *__stdcall GetCommandLineA(void);
 #endif
 
-void SDLMain::restart() {
-    const auto &rawArgs = Mc::LaunchArgs::get_array();
-    std::vector<const char *> restartArgsChar(rawArgs.size() + 1);
+void SDLMain::restart(std::span<const std::string> restartArgs) {
+    std::vector<const char *> restartArgsChar(restartArgs.size() + 1);
 
     restartArgsChar.back() = nullptr;
     // use the fully qualified executable path as the first arg
     // (since if we were launched with a relative path outside the root dir then the relative path points somewhere else after setcwdexe)
     restartArgsChar.front() = getPathToSelf().c_str();
-    if(rawArgs.size() > 1) {
-        for(int i = 1; const auto &arg : std::span{rawArgs.begin() + 1, rawArgs.end()}) {
+    if(restartArgs.size() > 1) {
+        for(int i = 1; const auto &arg : std::span{restartArgs.begin() + 1, restartArgs.end()}) {
             restartArgsChar[i] = arg.c_str();
             i++;
         }

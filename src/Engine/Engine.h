@@ -14,6 +14,7 @@
 #include <vector>
 #include <memory>
 #include <deque>
+#include <string_view>
 
 #ifndef APP_H
 class App;
@@ -56,7 +57,7 @@ class Engine final : public KeyboardListener {
     ~Engine() override;
 
     // app
-    void loadApp();
+    bool loadApp();
 
     // render/update
     void onPaint();
@@ -85,10 +86,10 @@ class Engine final : public KeyboardListener {
     void toggleFullscreen();
     void disableFullscreen();
 
-    void showMessageInfo(const std::string &title, const std::string &message);
-    void showMessageWarning(const std::string &title, const std::string &message);
-    void showMessageError(const std::string &title, const std::string &message);
-    void showMessageErrorFatal(const std::string &title, const std::string &message);
+    void showMessageInfo(std::string_view title, std::string_view message);
+    void showMessageWarning(std::string_view title, std::string_view message);
+    void showMessageError(std::string_view title, std::string_view message);
+    void showMessageErrorFatal(std::string_view title, std::string_view message);
 
     // engine specifics
     [[nodiscard]] inline bool isShuttingDown() const { return this->bShuttingDown; }
@@ -131,7 +132,7 @@ class Engine final : public KeyboardListener {
     [[nodiscard]] constexpr McFont *getConsoleFont() const { return this->consoleFont; }
 
    private:
-    void runtime_assert(bool cond, const char *reason);
+    void runtime_assert(bool cond, std::string_view reason);
 
     // input devices
     std::vector<Mouse *> mice;
