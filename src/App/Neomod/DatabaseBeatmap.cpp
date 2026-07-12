@@ -871,18 +871,16 @@ DatabaseBeatmap::LoadError DatabaseBeatmap::calculateSliderTimesClicksTicks(
 
 DatabaseBeatmap::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(std::string_view osuFilePath, float AR,
                                                                                float CS, float speedMultiplier,
-                                                                               bool calculateStarsInaccurately,
                                                                                const Sync::stop_token &dead) {
     // load primitive arrays
     PRIMITIVE_CONTAINER c = loadPrimitiveObjects(osuFilePath, dead);
-    return loadDifficultyHitObjects(c, AR, CS, speedMultiplier, calculateStarsInaccurately, dead);
+    return loadDifficultyHitObjects(c, AR, CS, speedMultiplier, dead);
 }
 
 #endif
 
 DatabaseBeatmap::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(PRIMITIVE_CONTAINER &c, float AR,
                                                                                float CS, float speedMultiplier,
-                                                                               bool calculateStarsInaccurately,
                                                                                const Sync::stop_token &dead) {
     LOAD_DIFFOBJ_RESULT result{};
 
@@ -925,22 +923,10 @@ DatabaseBeatmap::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(P
             return result;
         }
 
-        if(!calculateStarsInaccurately) {
-            result.diffobjects.emplace_back(
-                DifficultyHitObject::TYPE::SLIDER, vec2{slider.x, slider.y}, slider.time,
-                slider.time + (i32)slider.sliderTime, slider.sliderTimeWithoutRepeats, slider.type, slider.points,
-                slider.pixelLength, slider.scoringTimesForStarCalc, slider.repeat, calculateSliderCurveInConstructor);
-        } else {
-            result.diffobjects.emplace_back(DifficultyHitObject::TYPE::SLIDER, vec2{slider.x, slider.y}, slider.time,
-                                            slider.time + (i32)slider.sliderTime, slider.sliderTimeWithoutRepeats,
-                                            slider.type,
-                                            std::vector<vec2>(),  // NOTE: ignore curve when calculating inaccurately
-                                            slider.pixelLength,
-                                            std::vector<SLIDER_SCORING_TIME>(),  // NOTE: ignore curve when calculating
-                                                                                 // inaccurately
-                                            slider.repeat,
-                                            false);  // NOTE: ignore curve when calculating inaccurately
-        }
+        result.diffobjects.emplace_back(DifficultyHitObject::TYPE::SLIDER, vec2{slider.x, slider.y}, slider.time,
+                                        slider.time + (i32)slider.sliderTime, slider.sliderTimeWithoutRepeats,
+                                        slider.type, slider.points, slider.pixelLength, slider.scoringTimesForStarCalc,
+                                        slider.repeat, calculateSliderCurveInConstructor);
     }
 
     for(const auto &spinner : c.spinners) {
@@ -976,8 +962,7 @@ DatabaseBeatmap::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(P
     // see Beatmap.cpp
     // NOTE: this must be done before the speed multiplier is applied!
     // HACKHACK: code duplication ffs
-    if(STARS_STACKING && !calculateStarsInaccurately)  // NOTE: ignore stacking when calculating inaccurately
-    {
+    if(STARS_STACKING) {
         const float finalAR = AR;
         const float finalCS = CS;
         const float rawHitCircleDiameter = GameRules::getRawHitCircleDiameter(finalCS);
@@ -1118,12 +1103,9 @@ DatabaseBeatmap::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(P
             result.diffobjects[i].time = (i32)((double)result.diffobjects[i].time * invSpeedMultiplier);
             result.diffobjects[i].endTime = (i32)((double)result.diffobjects[i].endTime * invSpeedMultiplier);
 
-            if(!calculateStarsInaccurately)  // NOTE: ignore slider curves when calculating inaccurately
-            {
-                result.diffobjects[i].spanDuration = (double)result.diffobjects[i].spanDuration * invSpeedMultiplier;
-                for(auto &scoringTime : result.diffobjects[i].scoringTimes) {
-                    scoringTime.time = ((f64)scoringTime.time * invSpeedMultiplier);
-                }
+            result.diffobjects[i].spanDuration = (double)result.diffobjects[i].spanDuration * invSpeedMultiplier;
+            for(auto &scoringTime : result.diffobjects[i].scoringTimes) {
+                scoringTime.time = ((f64)scoringTime.time * invSpeedMultiplier);
             }
         }
     }
@@ -1134,7 +1116,8 @@ DatabaseBeatmap::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(P
     }
 
     // calculate cumulative max combo per object
-    if(!calculateStarsInaccurately && !result.diffobjects.empty()) {
+    // (an empty map keeps the {0} sentinel from the constructor)
+    if(!result.diffobjects.empty()) {
         result.maxComboAtIndex.clear();  // remove dummy 0
 
         result.maxComboAtIndex.reserve(result.diffobjects.size());
@@ -1146,16 +1129,6 @@ DatabaseBeatmap::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(P
                 runningCombo += 1;
             result.maxComboAtIndex.push_back(runningCombo);
         }
-    } else {
-        result.maxComboAtIndex.clear();
-
-        // for inaccurate calculation, just store the total (scoringTimes is empty)
-        u32 totalCombo = (u32)c.hitcircles.size() + (u32)c.spinners.size();
-        for(const auto &s : c.sliders) {
-            const int repeats = std::max((s.repeat - 1), 0);
-            totalCombo += 2 + repeats + (repeats + 1) * s.ticks.size();
-        }
-        result.maxComboAtIndex.push_back(totalCombo);
     }
 
     if(result.diffobjects.empty()) {

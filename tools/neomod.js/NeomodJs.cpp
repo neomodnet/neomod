@@ -140,7 +140,7 @@ struct Beatmap {
 
     bool use_mods(Replay::Mods mods) {
         auto diffResult = DatabaseBeatmap::loadDifficultyHitObjects(this->primitives, mods.get_naive_ar(this->AR),
-                                                                    mods.get_naive_cs(this->CS), mods.speed, false);
+                                                                    mods.get_naive_cs(this->CS), mods.speed);
         if(diffResult.error.errc) {
             this->loaded_successfully = false;
             this->error_msg = diffResult.error.error_string();
@@ -162,12 +162,10 @@ struct Beatmap {
 
         this->difficulty_attributes = DiffCalc::DifficultyAttributes{};
         DiffCalc::StarCalcParams starParams{
-            .cachedDiffObjects = {},
             .outAttributes = this->difficulty_attributes,
             .beatmapData = diffcalcData,
             .outAimStrains = nullptr,
             .outSpeedStrains = nullptr,
-            .incremental = nullptr,
             .upToObjectIndex = -1,
             .cancelCheck = {},
         };

@@ -41,8 +41,6 @@ struct info_cache {
     bool ap{};
 
     // Results
-    std::unique_ptr<std::vector<DiffCalc::DiffObject>> cachedDiffObjects{
-        std::make_unique<std::vector<DiffCalc::DiffObject>>()};
     pp_res info{};
     DiffCalc::DifficultyAttributes diffattrs{};
 
@@ -67,6 +65,8 @@ std::vector<std::pair<pp_calc_request, bool>> work;
 Sync::mutex cache_mtx;
 
 std::vector<std::pair<pp_calc_request, pp_res>> cache;
+// NOTE: only ever touched by the single worker thread (incl. the computed fields the star calc
+// writes into the cached hitobject vectors), set_map() joins it before clearing
 std::vector<hitobject_cache> ho_cache;
 std::vector<info_cache> inf_cache;
 
@@ -146,7 +146,7 @@ void run_thread(const Sync::stop_token& stoken) {
                 };
 
                 new_ho.diffres = DatabaseBeatmap::loadDifficultyHitObjects(map_for_rqt->getFilePath(), rqt.AR, rqt.CS,
-                                                                           rqt.speedOverride, false, stoken);
+                                                                           rqt.speedOverride, stoken);
 
                 if(stoken.stop_requested()) return;
                 if(new_ho.diffres.error.errc) {
@@ -195,17 +195,20 @@ void run_thread(const Sync::stop_token& stoken) {
                                                            .breakDuration = computed_ho->diffres.totalBreakDuration,
                                                            .playableLength = computed_ho->diffres.playableLength};
 
-                DiffCalc::StarCalcParams params{.cachedDiffObjects = std::move(new_info.cachedDiffObjects),
-                                                .outAttributes = new_info.diffattrs,
+                // mod combos that don't affect strains (HD/RX/TD/HP toggles) reuse the shared vector's
+                // computed fields and skip the whole preprocessing+strain pass.
+                // NOTE: on >5000 slider maps this can return the first computation's attributes where a
+                // recompute would see the ~2 leftover slider curves of the MCKAY sliding window (see the
+                // star calc); measured at ~0.002% pp on a worst-case map, display-only
+                DiffCalc::StarCalcParams params{.outAttributes = new_info.diffattrs,
                                                 .beatmapData = diffcalcData,
                                                 .outAimStrains = &new_info.info.aimStrains,
                                                 .outSpeedStrains = &new_info.info.speedStrains,
-                                                .incremental = nullptr,
                                                 .upToObjectIndex = -1,
-                                                .cancelCheck = stoken};
+                                                .cancelCheck = stoken,
+                                                .strainState = &computed_ho->diffres.strainState};
 
                 new_info.info.total_stars = DiffCalc::calculateStarDiffForHitObjects(params);
-                new_info.cachedDiffObjects = std::move(params.cachedDiffObjects);
 
                 // TODO: get rid of duplicated pp_res shit (use new DifficultyAttributes)
                 new_info.info.aim_stars = new_info.diffattrs.AimDifficulty;

@@ -62,8 +62,6 @@ struct LivePPCalc::LivePPCalcImpl {
         f32 AR{0.f}, CS{0.f};
         f32 speed_multiplier{0.f};
         DatabaseBeatmap::LOAD_DIFFOBJ_RESULT diffres{};
-        std::unique_ptr<std::vector<DiffCalc::DiffObject>> diffobj_cache{
-            std::make_unique<std::vector<DiffCalc::DiffObject>>()};
     } m_param_cache;
 
     struct LazyCalcParams {
@@ -78,6 +76,7 @@ struct LivePPCalc::LivePPCalcImpl {
         Replay::Mods mods;
 
         // to avoid rebuilding diffres unless something changes
+        // (the star calc detects OD/autopilot changes itself via diffres.strainState)
         [[nodiscard]] LazyCalcParamCache &get_latest_cached(LazyCalcParamCache &c) const {
             // rebuild as necessary
             if(c.path != this->osufile_path || c.AR != this->AR || c.CS != this->CS ||
@@ -87,7 +86,6 @@ struct LivePPCalc::LivePPCalcImpl {
                 c.CS = this->CS;
                 c.speed_multiplier = this->speed_multiplier;
                 // get new diffres
-                c.diffobj_cache->clear();
                 c.diffres = DatabaseBeatmap::loadDifficultyHitObjects(this->osufile_path, this->AR, this->CS,
                                                                       this->speed_multiplier);
             }
@@ -156,9 +154,6 @@ struct LivePPCalc::LivePPCalcImpl {
             const bool autopilot = flags::has<ModFlags::Autopilot>(p.mods.flags);
             const bool modAuto = flags::has<ModFlags::Autoplay>(p.mods.flags);
 
-            // this is assumed to always be valid
-            std::unique_ptr<std::vector<DiffCalc::DiffObject>> &diffobjCache = cache.diffobj_cache;
-
             DiffCalc::BeatmapDiffcalcData diffcalcData{.sortedHitObjects = diffres.diffobjects,
                                                        .CS = p.CS,
                                                        .HP = p.HP,
@@ -174,20 +169,17 @@ struct LivePPCalc::LivePPCalcImpl {
 
             DiffCalc::DifficultyAttributes diffattrsOut{};
 
-            DiffCalc::StarCalcParams params{.cachedDiffObjects = std::move(diffobjCache),
-                                            .outAttributes = diffattrsOut,
+            // the first call computes the per-object fields for the whole map, later calls with a
+            // larger upToObjectIndex reuse them via diffres.strainState
+            DiffCalc::StarCalcParams params{.outAttributes = diffattrsOut,
                                             .beatmapData = diffcalcData,
                                             .outAimStrains = &retInfo.aimStrains,
                                             .outSpeedStrains = &retInfo.speedStrains,
-                                            .incremental = nullptr,  // TODO: use incremental instead of this bs
                                             .upToObjectIndex = p.current_hitobject,
                                             .cancelCheck = {},
-                                            .forceFillDiffobjCache = true};
+                                            .strainState = &diffres.strainState};
 
             retInfo.total_stars = DiffCalc::calculateStarDiffForHitObjects(params);
-
-            // move unique_ptr ownership back
-            diffobjCache = std::move(params.cachedDiffObjects);
 
             retInfo.aim_stars = diffattrsOut.AimDifficulty;
             retInfo.aim_slider_factor = diffattrsOut.SliderFactor;

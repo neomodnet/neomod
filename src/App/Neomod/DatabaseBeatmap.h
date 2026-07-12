@@ -9,6 +9,7 @@
 #include "Vectors_fwd.h"
 #include "FixedSizeArray.h"
 #include "DatabaseBeatmapTypes.h"
+#include "StrainComputeState.h"
 
 // TODO: make these utilities available without all of these ifdefs (move all diffcalc things to a lightweight separate directory)
 #ifndef BUILD_TOOLS_ONLY
@@ -143,6 +144,10 @@ class DatabaseBeatmap final {
         // DifficultyHitObject defined in DifficultyCalculator.h
         std::vector<DifficultyHitObject> diffobjects;
 
+        // which parameters the computed (star calc) fields of diffobjects were last fully computed
+        // with, invalid on a fresh load. pass to StarCalcParams::strainState to reuse them.
+        neomod::DiffCalc::StrainComputeState strainState{};
+
         u32 playableLength{0};
         u32 totalBreakDuration{0};
         LoadError error;
@@ -187,7 +192,7 @@ class DatabaseBeatmap final {
 
 #ifndef BUILD_TOOLS_ONLY  // pass data/primitives directly for tools build
     static LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(std::string_view osuFilePath, float AR, float CS,
-                                                        float speedMultiplier, bool calculateStarsInaccurately = false,
+                                                        float speedMultiplier,
                                                         const Sync::stop_token &dead = alwaysFalseStopPred);
 
     static PRIMITIVE_CONTAINER loadPrimitiveObjects(std::string_view osuFilePath,
@@ -195,7 +200,7 @@ class DatabaseBeatmap final {
 #endif
 
     static LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(PRIMITIVE_CONTAINER &c, float AR, float CS,
-                                                        float speedMultiplier, bool calculateStarsInaccurately,
+                                                        float speedMultiplier,
                                                         const Sync::stop_token &dead = alwaysFalseStopPred);
 
     static PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(const std::vector<u8> &fileData,

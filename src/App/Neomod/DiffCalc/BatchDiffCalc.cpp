@@ -128,7 +128,6 @@ struct MapResult {
 
 // per-thread mutable state for worker threads
 struct WorkerContext {
-    std::unique_ptr<std::vector<DiffCalc::DiffObject>> diffobj_cache;
     std::vector<BPMCalc::BPMTuple> bpm_calc_buf;
     std::vector<f32> base_span_durations;
     std::vector<f32> base_scoring_times;
@@ -160,12 +159,10 @@ forceinline bool score_needs_recalc(const FinishedScore& score) {
 
 // Calculate difficulty and PP for a group of scores sharing mod parameters.
 void process_score_group(const BeatmapDifficulty* map, const ModParams& params, std::vector<ScoreWork*>& scores,
-                         DatabaseBeatmap::PRIMITIVE_CONTAINER& primitives, const Sync::stop_token& stoken,
-                         WorkerContext& ctx) {
+                         DatabaseBeatmap::PRIMITIVE_CONTAINER& primitives, const Sync::stop_token& stoken) {
     if(scores.empty()) return;
 
-    auto diffres =
-        DatabaseBeatmap::loadDifficultyHitObjects(primitives, params.ar, params.cs, params.speed, false, stoken);
+    auto diffres = DatabaseBeatmap::loadDifficultyHitObjects(primitives, params.ar, params.cs, params.speed, stoken);
     if(stoken.stop_requested()) return;
     if(diffres.error.errc) {
         const u32 item_failed_scores = scores.size();
@@ -191,18 +188,15 @@ void process_score_group(const BeatmapDifficulty* map, const ModParams& params, 
 
     DiffCalc::DifficultyAttributes attributes{};
 
-    DiffCalc::StarCalcParams star_params{.cachedDiffObjects = std::move(ctx.diffobj_cache),
-                                         .outAttributes = attributes,
+    DiffCalc::StarCalcParams star_params{.outAttributes = attributes,
                                          .beatmapData = diffcalc_data,
                                          .outAimStrains = nullptr,
                                          .outSpeedStrains = nullptr,
-                                         .incremental = nullptr,
                                          .upToObjectIndex = -1,
-                                         .cancelCheck = stoken};
+                                         .cancelCheck = stoken,
+                                         .strainState = &diffres.strainState};
 
     f64 total_stars = DiffCalc::calculateStarDiffForHitObjects(star_params);
-    ctx.diffobj_cache = std::move(star_params.cachedDiffObjects);
-    ctx.diffobj_cache->clear();
 
     if(stoken.stop_requested()) return;
 
@@ -384,7 +378,7 @@ void process_work_item(WorkItem& item, const Sync::stop_token& stoken, WorkerCon
             // object construction, sorting, and stacking are all speed-independent;
             // only the timing fields need rescaling per speed. slider timing is
             // calculated once (sliderTimesCalculated flag on primitives).
-            auto diffres = DatabaseBeatmap::loadDifficultyHitObjects(primitives, ar, cs, 1.0f, false, stoken);
+            auto diffres = DatabaseBeatmap::loadDifficultyHitObjects(primitives, ar, cs, 1.0f, stoken);
             if(stoken.stop_requested()) return;
 
             if(&var == &VARIANTS[0]) {
@@ -453,33 +447,30 @@ void process_work_item(WorkItem& item, const Sync::stop_token& stoken, WorkerCon
                     DiffCalc::DifficultyAttributes attributes{};
                     DiffCalc::RawDifficultyValues raw_diff{};
 
-                    DiffCalc::StarCalcParams star_params{.cachedDiffObjects = std::move(ctx.diffobj_cache),
-                                                         .outAttributes = attributes,
+                    // NOTE: the speed component of diffres.strainState never matches here (the timing
+                    // fields were just rescaled above), so this always recomputes, as it must
+                    DiffCalc::StarCalcParams star_params{.outAttributes = attributes,
                                                          .beatmapData = diffcalc_data,
                                                          .outAimStrains = nullptr,
                                                          .outSpeedStrains = nullptr,
-                                                         .incremental = nullptr,
                                                          .upToObjectIndex = -1,
                                                          .cancelCheck = stoken,
-                                                         .outRawDifficulty = &raw_diff};
+                                                         .outRawDifficulty = &raw_diff,
+                                                         .strainState = &diffres.strainState};
 
                     result.star_ratings[flat_idx] =
                         static_cast<f32>(DiffCalc::calculateStarDiffForHitObjects(star_params));
-
-                    ctx.diffobj_cache = std::move(star_params.cachedDiffObjects);
 
                     if(stoken.stop_requested()) return;
 
                     // HD=1: recompute star rating from cached raw difficulty values.
                     // strains are identical (hidden only affects the final rating transform),
-                    // so we skip DiffObject construction, strain calc, and calculate_difficulty.
+                    // so we skip the whole preprocessing, strain calc, and calculate_difficulty.
                     const u8 hd_flat_idx = speed_idx * StarPrecalc::NUM_MOD_COMBOS + var.combo_idx[1];
                     diffcalc_data.hidden = true;
                     result.star_ratings[hd_flat_idx] =
                         static_cast<f32>(DiffCalc::recomputeStarRating(raw_diff, diffcalc_data));
                 }
-
-                ctx.diffobj_cache->clear();
             }
         }
 
@@ -516,7 +507,7 @@ void process_work_item(WorkItem& item, const Sync::stop_token& stoken, WorkerCon
 
         for(auto& [params, group] : score_groups) {
             if(stoken.stop_requested()) return;
-            process_score_group(item.map, params, group, primitives, stoken, ctx);
+            process_score_group(item.map, params, group, primitives, stoken);
         }
     }
 
@@ -534,7 +525,6 @@ void worker_fn(i32 thread_index, const Sync::stop_token& coord_stoken) {
     }
 
     WorkerContext ctx;
-    ctx.diffobj_cache = std::make_unique<std::vector<DiffCalc::DiffObject>>();
 
     const u32 queue_size = work_queue.size();
     while(!coord_stoken.stop_requested()) {

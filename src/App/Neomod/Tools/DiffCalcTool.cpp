@@ -14,10 +14,12 @@
 #include "Parsing.h"
 
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <charconv>
 #include <string>
 #include <string_view>
+#include <vector>
 
 using namespace neomod;
 
@@ -229,7 +231,7 @@ int entrypoint(int argc_, char *argv_[]) {
 
     // load difficulty hitobjects for star calculation
     DatabaseBeatmap::LOAD_DIFFOBJ_RESULT diffResult =
-        DatabaseBeatmap::loadDifficultyHitObjects(primitives, settings.AR, settings.CS, speedMultiplier, false);
+        DatabaseBeatmap::loadDifficultyHitObjects(primitives, settings.AR, settings.CS, speedMultiplier);
 
     if(diffResult.error.errc) {
         std::cerr << "error loading difficulty objects: " << diffResult.error.error_string() << '\n';
@@ -251,16 +253,19 @@ int entrypoint(int argc_, char *argv_[]) {
                                                .playableLength = diffResult.playableLength};
 
     DiffCalc::DifficultyAttributes outAttrs{};
+    DiffCalc::RawDifficultyValues rawDiff{};
+    std::vector<double> aimStrains;
+    std::vector<double> speedStrains;
 
     DiffCalc::StarCalcParams starParams{
-        .cachedDiffObjects = {},
         .outAttributes = outAttrs,
         .beatmapData = diffcalcData,
-        .outAimStrains = nullptr,
-        .outSpeedStrains = nullptr,
-        .incremental = nullptr,
+        .outAimStrains = &aimStrains,
+        .outSpeedStrains = &speedStrains,
         .upToObjectIndex = -1,
         .cancelCheck = {},
+        .outRawDifficulty = &rawDiff,
+        .strainState = &diffResult.strainState,
     };
 
     const double totalStars = DiffCalc::calculateStarDiffForHitObjects(starParams);
@@ -269,16 +274,19 @@ int entrypoint(int argc_, char *argv_[]) {
     const double speed = outAttrs.SpeedDifficulty;
 
     // calculate PP for SS play
+    const int numHitObjects = static_cast<int>(primitives.getNumObjects());
+    const int maxCombo = static_cast<int>(diffResult.getTotalMaxCombo());
+
     DiffCalc::PPv2CalcParams ppParams{.attributes = outAttrs,
                                       .modFlags = modFlags,
                                       .timescale = speedMultiplier,
                                       .ar = settings.AR,
                                       .od = settings.OD,
-                                      .numHitObjects = static_cast<int>(primitives.getNumObjects()),
+                                      .numHitObjects = numHitObjects,
                                       .numCircles = static_cast<int>(primitives.hitcircles.size()),
                                       .numSliders = static_cast<int>(primitives.sliders.size()),
                                       .numSpinners = static_cast<int>(primitives.spinners.size()),
-                                      .maxPossibleCombo = static_cast<int>(diffResult.getTotalMaxCombo()),
+                                      .maxPossibleCombo = maxCombo,
                                       .combo = -1,
                                       .misses = 0,
                                       .c300 = -1,
@@ -289,11 +297,49 @@ int entrypoint(int argc_, char *argv_[]) {
 
     const double pp = DiffCalc::calculatePPv2(ppParams);
 
-    // output results
+    // and for a fixed imperfect play (combo drop + misses/100s/50s + legacy score), to also
+    // exercise the miss penalty, estimated sliderbreak and scorev1 misscount estimation paths
+    DiffCalc::PPv2CalcParams imperfectPPParams{.attributes = outAttrs,
+                                               .modFlags = modFlags,
+                                               .timescale = speedMultiplier,
+                                               .ar = settings.AR,
+                                               .od = settings.OD,
+                                               .numHitObjects = numHitObjects,
+                                               .numCircles = static_cast<int>(primitives.hitcircles.size()),
+                                               .numSliders = static_cast<int>(primitives.sliders.size()),
+                                               .numSpinners = static_cast<int>(primitives.spinners.size()),
+                                               .maxPossibleCombo = maxCombo,
+                                               .combo = (maxCombo * 9) / 10,
+                                               .misses = numHitObjects / 50,
+                                               .c300 = -1,
+                                               .c100 = numHitObjects / 20,
+                                               .c50 = numHitObjects / 100,
+                                               .legacyTotalScore = outAttrs.MaximumLegacyComboScore / 2,
+                                               .isMcOsuImported = false};
+
+    const double imperfectPP = DiffCalc::calculatePPv2(imperfectPPParams);
+
+    // output results (with round-trip float precision, for exact comparisons between builds)
+    std::cout << std::setprecision(17);
     std::cout << "star rating: " << totalStars << '\n';
     std::cout << "  aim: " << aim << '\n';
     std::cout << "  speed: " << speed << '\n';
+    std::cout << "raw difficulty values:\n";
+    std::cout << "  aimNoSliders: " << rawDiff.aimNoSliders << '\n';
+    std::cout << "  aim: " << rawDiff.aim << '\n';
+    std::cout << "  speed: " << rawDiff.speed << '\n';
+    {
+        // strain digests (count + order-dependent sum), enough to pin the section strain outputs
+        double aimStrainSum = 0.0;
+        for(const double s : aimStrains) aimStrainSum += s;
+        double speedStrainSum = 0.0;
+        for(const double s : speedStrains) speedStrainSum += s;
+        std::cout << "aim strains: " << aimStrains.size() << " sum: " << aimStrainSum << '\n';
+        std::cout << "speed strains: " << speedStrains.size() << " sum: " << speedStrainSum << '\n';
+    }
     std::cout << "pp (SS): " << pp << '\n';
+    std::cout << "pp (imperfect): " << imperfectPP << '\n';
+    std::cout << "attributes (post-SS-calc):\n" << DiffCalc::PPv2CalcParamsToString(ppParams) << '\n';
     std::cout << '\n';
     std::cout << "map info:\n";
     std::cout << "  mods: " << modsStringFromMods(modFlags, speedMultiplier) << '\n';
@@ -305,6 +351,10 @@ int entrypoint(int argc_, char *argv_[]) {
     std::cout << "  objects: " << primitives.getNumObjects() << " (" << primitives.hitcircles.size() << "c + "
               << primitives.sliders.size() << "s + " << primitives.spinners.size() << "sp)\n";
     std::cout << "  max combo: " << diffResult.getTotalMaxCombo() << '\n';
+    std::cout << "  max combo at middle object: " << diffResult.getMaxComboAtIndex(primitives.getNumObjects() / 2)
+              << '\n';
+    std::cout << "  playable length: " << diffResult.playableLength << '\n';
+    std::cout << "  break duration: " << diffResult.totalBreakDuration << '\n';
 
     return 0;
 }

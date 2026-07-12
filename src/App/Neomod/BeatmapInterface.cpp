@@ -3899,14 +3899,13 @@ FinishedScore BeatmapInterface::saveAndSubmitScore(bool quit) {
 
     DiffCalc::DifficultyAttributes diffAttributesOut{};
 
-    DiffCalc::StarCalcParams params{.cachedDiffObjects = {},
-                                    .outAttributes = diffAttributesOut,
+    DiffCalc::StarCalcParams params{.outAttributes = diffAttributesOut,
                                     .beatmapData = diffcalcData,
                                     .outAimStrains = nullptr,
                                     .outSpeedStrains = nullptr,
-                                    .incremental = nullptr,
                                     .upToObjectIndex = -1,
-                                    .cancelCheck = {}};
+                                    .cancelCheck = {},
+                                    .strainState = &diffres.strainState};
 
     const f64 totalStars = DiffCalc::calculateStarDiffForHitObjects(params);
 

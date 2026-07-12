@@ -19,11 +19,14 @@ using std::stop_token;
 }
 #endif
 
+#include "StrainComputeState.h"
+
 #include <vector>
 #include <array>
 #include <memory>
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 enum class ModFlags : u64;
 
@@ -45,10 +48,29 @@ using DatabaseBeatmapTypes::SLIDER_SCORING_TIME;
 // for forward declaration
 extern const u32 PP_ALGORITHM_VERSION;
 
+struct Skills {
+    // NOLINTNEXTLINE(cppcoreguidelines-use-enum-class)
+    enum Skill : u8 { SPEED, AIM_SLIDERS, AIM_NO_SLIDERS, NUM_SKILLS };
+};
+
+inline constexpr const f64 performance_base_multiplier = 1.14;  // keep final pp normalized across changes
+
+// see https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Speed.cs
+// see https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Aim.cs
+
+// how much strains decay per interval (if the previous interval's peak strains after applying decay are still higher than the current one's, they will be used as the peak strains).
+inline constexpr const f64 decay_base[Skills::NUM_SKILLS] = {0.3, 0.15, 0.15};
+
+inline constexpr const f64 DIFFCALC_EPSILON = 1e-32;
+
+// a parsed hitobject plus the per-object difficulty data computed from it by the star calc.
+// the parsed part is filled by DatabaseBeatmap::loadDifficultyHitObjects, the computed part is
+// roughly equivalent to lazer's OsuDifficultyHitObject (+ a per-object slice of the skill state).
+// NOTE: unlike lazer, the first hitobject is included in the objects array (lazer's difficulty
+// hit objects start at the second one), so lazer's Index == index here.
 class DifficultyHitObject {
    public:
     enum class TYPE : u8 {
-        INVALID = 0,
         CIRCLE,
         SPINNER,
         SLIDER,
@@ -60,8 +82,8 @@ class DifficultyHitObject {
     DifficultyHitObject(TYPE type, vec2 pos, i32 time);               // circle
     DifficultyHitObject(TYPE type, vec2 pos, i32 time, i32 endTime);  // spinner
     DifficultyHitObject(TYPE type, vec2 pos, i32 time, i32 endTime, f32 spanDuration,
-                        SLIDERCURVETYPE osuSliderCurveType, const std::vector<vec2> &controlPoints,
-                        f32 pixelLength, std::vector<SLIDER_SCORING_TIME> scoringTimes, i32 repeats,
+                        SLIDERCURVETYPE osuSliderCurveType, const std::vector<vec2> &controlPoints, f32 pixelLength,
+                        std::vector<SLIDER_SCORING_TIME> scoringTimes, i32 repeats,
                         bool calculateSliderCurveInConstructor);  // slider
     ~DifficultyHitObject();
 
@@ -85,6 +107,37 @@ class DifficultyHitObject {
         // (MSVC std::clamp doesn't like when MAX < MIN)
         return std::max(0, endTime - time);
     }
+
+    // star calc methods, these operate on the computed fields below
+    [[nodiscard]] inline const DifficultyHitObject *get_previous(i32 backwardsIdx) const {
+        // NOTE: never null for a non-empty array, clamps to the first object instead (unlike lazer's Previous())
+        return (numObjects > 0 && index - backwardsIdx < numObjects ? &objects[std::max(0, index - backwardsIdx)]
+                                                                    : nullptr);
+    }
+    [[nodiscard]] inline const DifficultyHitObject *get_next(i32 forwardIdx) const {
+        // NOTE: this actually returns the *previous* object for forwardIdx == 0 (indices are relative to
+        // index, like get_previous), unlike lazer's Next(0) which is the real next object.
+        // its only caller (rhythm doubletapness) relies on the resulting values, so keep it as-is.
+        return (numObjects > 0 && index + forwardIdx < numObjects ? &objects[std::max(0, index + forwardIdx)]
+                                                                  : nullptr);
+    }
+
+    [[nodiscard]] inline f64 get_strain(Skills::Skill dtype) const {
+        return strains[dtype] * (dtype == Skills::SPEED ? rhythm : 1.0);
+    }
+    [[nodiscard]] inline f64 get_slider_strain(Skills::Skill dtype) const {
+        return type == TYPE::SLIDER ? strains[dtype] * (dtype == Skills::SPEED ? rhythm : 1.0) : -1;
+    }
+
+    inline static f64 strainDecay(Skills::Skill dtype, f64 ms) { return std::pow(decay_base[dtype], ms / 1000.0); }
+
+    void calculate_strains(const DifficultyHitObject &prev, const DifficultyHitObject *next, f64 hitWindow300,
+                           bool autopilotNerf, f64 smallCircleBonus);
+    void calculate_strain(const DifficultyHitObject &prev, const DifficultyHitObject *next, f64 hitWindow300,
+                          bool autopilotNerf, f64 smallCircleBonus, const Skills::Skill dtype);
+    f64 spacing_weight2(const Skills::Skill diff_type, const DifficultyHitObject &prev, const DifficultyHitObject *next,
+                        f64 hitWindow300, bool autopilotNerf, f64 smallCircleBonus);
+    [[nodiscard]] f64 get_doubletapness(const DifficultyHitObject *next, f64 hitWindow300) const;
 
    public:
     // circles (base)
@@ -112,41 +165,94 @@ class DifficultyHitObject {
     TYPE type;
     SLIDERCURVETYPE osuSliderCurveType;
     bool scheduledCurveAlloc;
-};
 
-struct Skills {
-    // NOLINTNEXTLINE(cppcoreguidelines-use-enum-class)
-    enum Skill : u8 { SPEED, AIM_SLIDERS, AIM_NO_SLIDERS, NUM_SKILLS };
-};
+    // ============================================================================================================== //
+    // computed by the star calc (calculateStarDiffForHitObjects), never set by the loader.
+    // IMPORTANT: resetComputedFields() below must reset every field in this section, keep the two in sync!
 
-inline constexpr const f64 performance_base_multiplier = 1.14;  // keep final pp normalized across changes
+    std::array<f64, Skills::NUM_SKILLS> strains{};
 
-// see https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Speed.cs
-// see https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Aim.cs
+    // https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Speed.cs
+    // needed because raw speed strain and rhythm strain are combined in different ways
+    f64 raw_speed_strain{0.};
+    f64 rhythm{0.};
 
-// how much strains decay per interval (if the previous interval's peak strains after applying decay are still higher than the current one's, they will be used as the peak strains).
-inline constexpr const f64 decay_base[Skills::NUM_SKILLS] = {0.3, 0.15, 0.15};
+    vec2 norm_start{};  // start position normalized on radius
 
-inline constexpr const f64 DIFFCALC_EPSILON = 1e-32;
+    f64 angle{std::numeric_limits<f64>::quiet_NaN()};  // precalc
 
-// This struct is the stripped out version of difficulty attributes needed for incremental (per-object) calculation
-struct IncrementalState {
-    f64 interval_end;
-    f64 max_strain;
-    f64 max_object_strain;
-    f64 max_slider_strain;
+    f64 lazyJumpDistance{0.};     // precalc
+    f64 minimumJumpDistance{0.};  // precalc
+    f64 minimumJumpTime{0.};      // precalc
+    f64 travelDistance{0.};       // precalc
 
-    // for difficult strain count calculation
-    f64 consistent_top_strain;
-    f64 difficult_strains;
-    f64 top_weighted_sliders;
+    f64 deltaTime{0.};   // strain temp
+    f64 strainTime{0.};  // strain temp
 
-    // difficulty attributes
-    f64 aim_difficult_slider_count;
-    f64 speed_note_count;
+    vec2 lazyEndPos{};       // precalc temp
+    f64 lazyTravelDist{0.};  // precalc temp
+    f64 lazyTravelTime{0.};  // precalc temp
+    f64 travelTime{0.};      // precalc temp
 
-    std::vector<f64> highest_strains;
-    std::vector<f64> slider_strains;
+    // first element (data()) and size of the containing array, so lazer-style previous()/next()
+    // lookups work anywhere (lazer stores the equivalent list reference per object).
+    // points at the element buffer, which is stable across vector/LOAD_DIFFOBJ_RESULT moves.
+    const DifficultyHitObject *objects{nullptr};
+    i32 numObjects{0};
+
+    // position in lazer's difficulty hit object list (== lazer's Index): lazer excludes the first
+    // hitobject, so this is the array position minus 1. WARNING: -1 for the first object!
+    i32 index{-1};
+
+    bool lazyCalcFinished{false};  // precalc temp
+
+    // brings every computed field into the same state a freshly constructed object would have,
+    // done for the whole vector before every full computation
+    inline void resetComputedFields(const DifficultyHitObject *allObjects, i32 numObjs, i32 arrayIndex,
+                                    f32 radiusScalingFactor) {
+        strains = {};
+        raw_speed_strain = 0.;
+        rhythm = 0.;
+        norm_start = pos * radiusScalingFactor;
+        angle = std::numeric_limits<f64>::quiet_NaN();
+        lazyJumpDistance = 0.;
+        minimumJumpDistance = 0.;
+        minimumJumpTime = 0.;
+        travelDistance = 0.;
+        deltaTime = 0.;
+        strainTime = 0.;
+        lazyEndPos = pos;
+        lazyTravelDist = 0.;
+        lazyTravelTime = 0.;
+        travelTime = 0.;
+        objects = allObjects;
+        numObjects = numObjs;
+        index = arrayIndex - 1;
+        lazyCalcFinished = false;
+    }
+
+    // for the move ctor/assignment (all computed fields are trivially copyable)
+    inline void copyComputedFields(const DifficultyHitObject &dobj) {
+        strains = dobj.strains;
+        raw_speed_strain = dobj.raw_speed_strain;
+        rhythm = dobj.rhythm;
+        norm_start = dobj.norm_start;
+        angle = dobj.angle;
+        lazyJumpDistance = dobj.lazyJumpDistance;
+        minimumJumpDistance = dobj.minimumJumpDistance;
+        minimumJumpTime = dobj.minimumJumpTime;
+        travelDistance = dobj.travelDistance;
+        deltaTime = dobj.deltaTime;
+        strainTime = dobj.strainTime;
+        lazyEndPos = dobj.lazyEndPos;
+        lazyTravelDist = dobj.lazyTravelDist;
+        lazyTravelTime = dobj.lazyTravelTime;
+        travelTime = dobj.travelTime;
+        objects = dobj.objects;
+        numObjects = dobj.numObjects;
+        index = dobj.index;
+        lazyCalcFinished = dobj.lazyCalcFinished;
+    }
 };
 
 // This struct is the core data computed by difficulty calculation and used in performance calculation
@@ -198,95 +304,6 @@ struct BeatmapDiffcalcData {
     u32 playableLength{0};
 };
 
-// TODO: wtf is this and why does it need to exist when we have DifficultyHitObject
-struct DiffObject {
-   public:
-    // move-only
-    DiffObject(const DiffObject &) = delete;
-    DiffObject &operator=(const DiffObject &) = delete;
-    DiffObject(DiffObject &&) = default;
-    DiffObject &operator=(DiffObject &&) = delete;
-
-   public:
-    DiffObject() = delete;
-    ~DiffObject() = default;
-
-    DiffObject(DifficultyHitObject *base_object, f32 radius_scaling_factor, const std::vector<DiffObject> *diff_objects,
-               i32 prevObjectIdx)
-        : ho(base_object),
-          norm_start(ho->pos * radius_scaling_factor),
-          lazyEndPos(ho->pos),
-          prevObjectIndex(prevObjectIdx),
-          objects(diff_objects) {}
-
-    std::array<f64, Skills::NUM_SKILLS> strains{};
-
-    DifficultyHitObject *ho;
-
-    // https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Speed.cs
-    // needed because raw speed strain and rhythm strain are combined in different ways
-    f64 raw_speed_strain{0.};
-    f64 rhythm{0.};
-
-    vec2 norm_start;  // start position normalized on radius
-
-    f64 angle{std::numeric_limits<f64>::quiet_NaN()};  // precalc
-
-    f64 jumpDistance{0.};     // precalc
-    f64 minJumpDistance{0.};  // precalc
-    f64 minJumpTime{0.};      // precalc
-    f64 travelDistance{0.};   // precalc
-
-    f64 delta_time{0.};           // strain temp
-    f64 adjusted_delta_time{0.};  // strain temp
-
-    vec2 lazyEndPos;         // precalc temp
-    f64 lazyTravelDist{0.};  // precalc temp
-    f64 lazyTravelTime{0.};  // precalc temp
-    f64 travelTime{0.};      // precalc temp
-    f64 smallCircleBonus{1.};
-
-    i32 prevObjectIndex;  // WARNING: this will be -1 for the first object (as the name implies), see note above
-
-    bool lazyCalcFinished{false};  // precalc temp
-
-    // NOTE: McOsu stores the first object in this array while lazer doesn't. newer lazer algorithms require referencing objects "randomly", so we just keep the entire vector around.
-    const std::vector<DiffObject> *objects;
-
-    [[nodiscard]] inline const DiffObject *get_previous(i32 backwardsIdx) const {
-        return (objects->size() > 0 && prevObjectIndex - backwardsIdx < (i32)objects->size()
-                    ? &(*objects)[std::max(0, prevObjectIndex - backwardsIdx)]
-                    : nullptr);
-    }
-    [[nodiscard]] inline const DiffObject *get_next(i32 forwardIdx) const {
-        return (objects->size() > 0 && prevObjectIndex + forwardIdx < (i32)objects->size()
-                    ? &(*objects)[std::max(0, prevObjectIndex + forwardIdx)]
-                    : nullptr);
-    }
-
-    [[nodiscard]] inline f64 get_strain(Skills::Skill type) const {
-        return strains[type] * (type == Skills::SPEED ? rhythm : 1.0);
-    }
-    [[nodiscard]] inline f64 get_slider_strain(Skills::Skill type) const {
-        return ho->type == DifficultyHitObject::TYPE::SLIDER ? strains[type] * (type == Skills::SPEED ? rhythm : 1.0)
-                                                             : -1;
-    }
-
-    inline static f64 applyDiminishingExp(f64 val) { return std::pow(val, 0.99); }
-    inline static f64 strainDecay(Skills::Skill type, f64 ms) { return std::pow(decay_base[type], ms / 1000.0); }
-
-    void calculate_strains(const DiffObject &prev, const DiffObject *next, f64 hitWindow300, bool autopilotNerf);
-    void calculate_strain(const DiffObject &prev, const DiffObject *next, f64 hitWindow300, bool autopilotNerf,
-                          const Skills::Skill dtype);
-    static f64 calculate_difficulty(const Skills::Skill type, const DiffObject *dobjects, uSz dobjectCount,
-                                    IncrementalState *incremental, std::vector<f64> *outStrains = nullptr,
-                                    DifficultyAttributes *outAttributes = nullptr);
-
-    f64 spacing_weight2(const Skills::Skill diff_type, const DiffObject &prev, const DiffObject *next, f64 hitWindow300,
-                        bool autopilotNerf);
-    f64 get_doubletapness(const DiffObject *next, f64 hitWindow300) const;
-};
-
 // raw difficulty values before the final rating transform (computeAimRating/computeSpeedRating).
 // identical between hidden and non-hidden for the same strains, so can be reused
 // to avoid redundant calculate_difficulty calls for HD pairs.
@@ -297,13 +314,11 @@ struct RawDifficultyValues {
 };
 
 struct StarCalcParams {
-    std::unique_ptr<std::vector<DiffObject>> cachedDiffObjects;
     DifficultyAttributes &outAttributes;
     const BeatmapDiffcalcData &beatmapData;
 
     std::vector<f64> *outAimStrains;
     std::vector<f64> *outSpeedStrains;
-    IncrementalState *incremental;
     i32 upToObjectIndex{-1};
 
     // cancellation
@@ -312,10 +327,12 @@ struct StarCalcParams {
     // if non-null, raw difficulty values are written here before the rating transform
     RawDifficultyValues *outRawDifficulty{nullptr};
 
-    // "pseudo-incremental":
-    // ignore "upToObjectIndex" to expect future calls with a larger object index
-    // by pre-calculating and filling cachedDiffObjects, if it's empty
-    bool forceFillDiffobjCache{false};
+    // if non-null, tracks which parameters the computed fields of beatmapData.sortedHitObjects were
+    // last fully computed with: on match the whole preprocessing+strain pass is skipped, otherwise
+    // it runs and the state is updated (so repeat calls over the same vector are cheap, e.g. live pp
+    // with an increasing upToObjectIndex). pass the state owned by the vector's LOAD_DIFFOBJ_RESULT,
+    // or null to always recompute.
+    StrainComputeState *strainState{nullptr};
 };
 
 // stars, standalone
