@@ -1258,14 +1258,12 @@ f32 BeatmapInterface::getCS() const {
         CS = std::clamp<f32>(this->beatmap->getCS() * Osu::getCSDifficultyMultiplier(), 0.0f, 10.0f);
 
     if(cv::mod_minimize.getBool() && likely(!this->hitobjects.empty())) {
-        if(likely(!this->hitobjects.empty())) {
-            const f32 percent =
-                1.0f + ((f64)(this->iCurMusicPos - this->hitobjects[0]->getClickTime()) /
-                        (f64)(this->hitobjects.back()->getClickTime() + this->hitobjects.back()->getDuration() -
-                              this->hitobjects[0]->getClickTime())) *
-                           cv::mod_minimize_multiplier.getFloat();
-            CS *= percent;
-        }
+        const f32 percent =
+            1.0f + ((f64)(this->iCurMusicPos - this->hitobjects[0]->getClickTime()) /
+                    (f64)(this->hitobjects.back()->getClickTime() + this->hitobjects.back()->getDuration() -
+                          this->hitobjects[0]->getClickTime())) *
+                       cv::mod_minimize_multiplier.getFloat();
+        CS *= percent;
     }
 
     if(cv::cs_cap_sanity.getBool()) CS = std::min(CS, 12.1429f);

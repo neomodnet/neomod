@@ -442,6 +442,11 @@ msgid "Launch with \"-sound bass\" as a commandline argument to use BASS for aud
 msgstr "オーディオにBASSを使用するには、起動オプションに \"-sound bass\" を指定してください。"
 
 #: src/App/Neomod/MainMenuTips.cpp
+#, fuzzy
+msgid "Put \"-gpu vk\" after the \"Target:\" field in a shortcut to neomod to use the Vulkan renderer."
+msgstr "D3D11レンダラーを使用するには、neomodのショートカットの「リンク先」の後に \"-dx11\" を追加してください。"
+
+#: src/App/Neomod/MainMenuTips.cpp
 msgid "Put \"-dx11\" after the \"Target:\" field in a shortcut to neomod to use the D3D11 renderer."
 msgstr "D3D11レンダラーを使用するには、neomodのショートカットの「リンク先」の後に \"-dx11\" を追加してください。"
 

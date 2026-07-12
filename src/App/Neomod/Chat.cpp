@@ -1322,19 +1322,23 @@ bool Chat::isVisibilityForced() {
 }
 
 void Chat::updateVisibility() {
-    bool can_skip = osu->getMapInterface()->isInSkippableSection();
-    bool is_spectating = cv::mod_autoplay.getBool() || (cv::mod_autopilot.getBool() && cv::mod_relax.getBool()) ||
-                         osu->getMapInterface()->is_watching || BanchoState::spectating;
-    bool is_clicking_circles =
-        osu->isInPlayMode() && !can_skip && !is_spectating && !ui->getPauseOverlay()->isVisible();
-    if(BanchoState::is_playing_a_multi_map() && !osu->getMapInterface()->all_players_loaded) {
-        is_clicking_circles = false;
-    }
-    is_clicking_circles &= cv::chat_auto_hide.getBool();
-    bool force_hide = ui->getOptionsOverlay()->isVisible() || ui->getModSelector()->isVisible() || is_clicking_circles;
-    if(!BanchoState::is_online()) force_hide = true;
-
+    const bool force_hide =
+        !BanchoState::is_online() || ui->getOptionsOverlay()->isVisible() || ui->getModSelector()->isVisible();
     if(force_hide) {
+        if(this->isVisible()) this->setVisible(false);
+        return;
+    }
+
+    const auto *map_iface = osu->getMapInterface();
+    const bool hide_while_clicking_circles =                                           //
+        cv::chat_auto_hide.getBool() &&                                                // if auto-hide is enabled
+        !(BanchoState::is_playing_a_multi_map() && !map_iface->all_players_loaded) &&  // not while waiting for players
+        !(cv::mod_autoplay.getBool() || (cv::mod_autopilot.getBool() && cv::mod_relax.getBool()) ||
+          map_iface->is_watching || BanchoState::spectating) &&  // not "spectating" (or equivalent)
+        (osu->isInPlayMode() && !map_iface->isInSkippableSection() &&
+         !ui->getPauseOverlay()->isVisible());  // is playing and not in a skippable section
+
+    if(hide_while_clicking_circles) {
         this->setVisible(false);
     } else if(this->isVisibilityForced()) {
         this->setVisible(true);
