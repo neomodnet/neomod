@@ -1276,9 +1276,9 @@ void DirectX11Interface::initSmoothClipShader() {
 
     this->smoothClipShader.reset(
         this->createShaderFromSource(std::string(reinterpret_cast<const char *>(&DX11_smoothclip_vsh[0]),
-                                                 reinterpret_cast<const char *>(&DX11_smoothclip_vsh_end[0])),
+                                                 static_cast<size_t>(DX11_smoothclip_vsh_size())),
                                      std::string(reinterpret_cast<const char *>(&DX11_smoothclip_fsh[0]),
-                                                 reinterpret_cast<const char *>(&DX11_smoothclip_fsh_end[0]))));
+                                                 static_cast<size_t>(DX11_smoothclip_fsh_size()))));
 
     if(this->smoothClipShader) {
         this->smoothClipShader->loadAsync();

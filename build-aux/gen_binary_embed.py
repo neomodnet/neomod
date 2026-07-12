@@ -71,17 +71,17 @@ def gen_header(entries, is_cppembed):
     for sym, _ in entries:
         lines.append(f'extern const unsigned char {sym}[];')
         if is_cppembed:
-            lines.append(f'extern const unsigned char *{sym}_end;')
+            lines.append(f'extern unsigned long long {sym}_size();')
         else:
             lines.append(f'extern const unsigned char {sym}_end[];')
-        lines.append(f'inline unsigned long long {sym}_size() {{ return &{sym}_end[0] - &{sym}[0]; }}') 
+            lines.append(f'inline unsigned long long {sym}_size() {{ return &{sym}_end[0] - &{sym}[0]; }}')
     lines.append('} // extern "C"')
     lines.append('')
     lines.append(
         'inline const std::unordered_map<std::string_view, std::string_view> ALL_BINMAP{')
     if len(entries) > 0:
         for sym, _ in entries:
-            lines.append('{'f'"{sym}"'', {reinterpret_cast<const char*>('f'&{sym}[0]), reinterpret_cast<const char*>(&{sym}_end[0])''}''},')
+            lines.append('{'f'"{sym}"'', {reinterpret_cast<const char*>('f'&{sym}[0]), static_cast<size_t>({sym}_size())''}''},')
         lines[-1] = lines[-1][:-1]
     lines.append('};')
     lines.append('')
@@ -108,7 +108,7 @@ def gen_cppembed(entries, output_dir):
         lines.append(f'extern const unsigned char {sym}[] = {{')
         lines.append(f'#embed "{embed_path}"')
         lines.append('};')
-        lines.append(f'extern const unsigned char *{sym}_end = (&{sym}[0] + sizeof({sym}));')
+        lines.append(f'unsigned long long {sym}_size() {{ return sizeof({sym}); }}')
     lines.append('')
     lines.append('} // extern "C"')
     lines.append('')
