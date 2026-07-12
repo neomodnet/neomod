@@ -60,6 +60,9 @@ using BeatmapDifficulty = DatabaseBeatmap;
 using BeatmapSet = DatabaseBeatmap;
 using DiffContainer = std::vector<std::unique_ptr<BeatmapDifficulty>>;
 
+template <typename T>
+concept HitObjectContainer = std::is_same_v<T, neomod::DiffCalc::DifficultyHitObject> || std::is_same_v<T, HitObject>;
+
 namespace DBType = neomod::DatabaseBeatmapTypes;
 
 // DatabaseBeatmap &operator=(DatabaseBeatmap other) already implements these...
@@ -198,6 +201,13 @@ class DatabaseBeatmap final {
     static PRIMITIVE_CONTAINER loadPrimitiveObjects(std::string_view osuFilePath,
                                                     const Sync::stop_token &dead = alwaysFalseStopPred);
 #endif
+
+    template <HitObjectContainer C>
+    using ObjectGetter = std::function<C *(uSz)>;
+
+    template <HitObjectContainer C>
+    static void calculateStacks(const ObjectGetter<C> &getObj, uSz numObjects, float AR, int beatmapVersion,
+                                float stackLeniency);
 
     static LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(PRIMITIVE_CONTAINER &c, float AR, float CS,
                                                         float speedMultiplier,

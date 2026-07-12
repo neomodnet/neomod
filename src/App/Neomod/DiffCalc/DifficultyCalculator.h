@@ -20,6 +20,7 @@ using std::stop_token;
 #endif
 
 #include "StrainComputeState.h"
+#include "StaticPImpl.h"
 
 #include <vector>
 #include <array>
@@ -76,6 +77,14 @@ class DifficultyHitObject {
         SLIDER,
     };
 
+    [[nodiscard]] inline bool isCircle() const { return type == TYPE::CIRCLE; }
+    [[nodiscard]] inline bool isSpinner() const { return type == TYPE::SPINNER; }
+    [[nodiscard]] inline bool isSlider() const { return type == TYPE::SLIDER; }
+    [[nodiscard]] inline i32 getStack() const { return stack; }
+    [[nodiscard]] inline i32 getClickTime() const { return time; }
+    [[nodiscard]] inline i32 getEndTime() const { return time + getDuration(); }
+    inline void setStack(i32 newStack) { stack = newStack; }
+
    public:
     DifficultyHitObject() = delete;
 
@@ -107,29 +116,6 @@ class DifficultyHitObject {
         // (MSVC std::clamp doesn't like when MAX < MIN)
         return std::max(0, endTime - time);
     }
-
-    // star calc methods, these operate on the computed fields below
-    [[nodiscard]] inline const DifficultyHitObject *get_previous(i32 backwardsIdx) const {
-        // NOTE: never null for a non-empty array, clamps to the first object instead (unlike lazer's Previous())
-        return (numObjects > 0 && index - backwardsIdx < numObjects ? &objects[std::max(0, index - backwardsIdx)]
-                                                                    : nullptr);
-    }
-    [[nodiscard]] inline const DifficultyHitObject *get_next(i32 forwardIdx) const {
-        // NOTE: this actually returns the *previous* object for forwardIdx == 0 (indices are relative to
-        // index, like get_previous), unlike lazer's Next(0) which is the real next object.
-        // its only caller (rhythm doubletapness) relies on the resulting values, so keep it as-is.
-        return (numObjects > 0 && index + forwardIdx < numObjects ? &objects[std::max(0, index + forwardIdx)]
-                                                                  : nullptr);
-    }
-
-    [[nodiscard]] inline f64 get_strain(Skills::Skill dtype) const {
-        return strains[dtype] * (dtype == Skills::SPEED ? rhythm : 1.0);
-    }
-    [[nodiscard]] inline f64 get_slider_strain(Skills::Skill dtype) const {
-        return type == TYPE::SLIDER ? strains[dtype] * (dtype == Skills::SPEED ? rhythm : 1.0) : -1;
-    }
-
-    inline static f64 strainDecay(Skills::Skill dtype, f64 ms) { return std::pow(decay_base[dtype], ms / 1000.0); }
 
     void calculate_strains(const DifficultyHitObject &prev, const DifficultyHitObject *next, f64 hitWindow300,
                            bool autopilotNerf, f64 smallCircleBonus);
@@ -167,92 +153,9 @@ class DifficultyHitObject {
     bool scheduledCurveAlloc;
 
     // ============================================================================================================== //
-    // computed by the star calc (calculateStarDiffForHitObjects), never set by the loader.
-    // IMPORTANT: resetComputedFields() below must reset every field in this section, keep the two in sync!
-
-    std::array<f64, Skills::NUM_SKILLS> strains{};
-
-    // https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Speed.cs
-    // needed because raw speed strain and rhythm strain are combined in different ways
-    f64 raw_speed_strain{0.};
-    f64 rhythm{0.};
-
-    vec2 norm_start{};  // start position normalized on radius
-
-    f64 angle{std::numeric_limits<f64>::quiet_NaN()};  // precalc
-
-    f64 lazyJumpDistance{0.};     // precalc
-    f64 minimumJumpDistance{0.};  // precalc
-    f64 minimumJumpTime{0.};      // precalc
-    f64 travelDistance{0.};       // precalc
-
-    f64 deltaTime{0.};   // strain temp
-    f64 strainTime{0.};  // strain temp
-
-    vec2 lazyEndPos{};       // precalc temp
-    f64 lazyTravelDist{0.};  // precalc temp
-    f64 lazyTravelTime{0.};  // precalc temp
-    f64 travelTime{0.};      // precalc temp
-
-    // first element (data()) and size of the containing array, so lazer-style previous()/next()
-    // lookups work anywhere (lazer stores the equivalent list reference per object).
-    // points at the element buffer, which is stable across vector/LOAD_DIFFOBJ_RESULT moves.
-    const DifficultyHitObject *objects{nullptr};
-    i32 numObjects{0};
-
-    // position in lazer's difficulty hit object list (== lazer's Index): lazer excludes the first
-    // hitobject, so this is the array position minus 1. WARNING: -1 for the first object!
-    i32 index{-1};
-
-    bool lazyCalcFinished{false};  // precalc temp
-
-    // brings every computed field into the same state a freshly constructed object would have,
-    // done for the whole vector before every full computation
-    inline void resetComputedFields(const DifficultyHitObject *allObjects, i32 numObjs, i32 arrayIndex,
-                                    f32 radiusScalingFactor) {
-        strains = {};
-        raw_speed_strain = 0.;
-        rhythm = 0.;
-        norm_start = pos * radiusScalingFactor;
-        angle = std::numeric_limits<f64>::quiet_NaN();
-        lazyJumpDistance = 0.;
-        minimumJumpDistance = 0.;
-        minimumJumpTime = 0.;
-        travelDistance = 0.;
-        deltaTime = 0.;
-        strainTime = 0.;
-        lazyEndPos = pos;
-        lazyTravelDist = 0.;
-        lazyTravelTime = 0.;
-        travelTime = 0.;
-        objects = allObjects;
-        numObjects = numObjs;
-        index = arrayIndex - 1;
-        lazyCalcFinished = false;
-    }
-
-    // for the move ctor/assignment (all computed fields are trivially copyable)
-    inline void copyComputedFields(const DifficultyHitObject &dobj) {
-        strains = dobj.strains;
-        raw_speed_strain = dobj.raw_speed_strain;
-        rhythm = dobj.rhythm;
-        norm_start = dobj.norm_start;
-        angle = dobj.angle;
-        lazyJumpDistance = dobj.lazyJumpDistance;
-        minimumJumpDistance = dobj.minimumJumpDistance;
-        minimumJumpTime = dobj.minimumJumpTime;
-        travelDistance = dobj.travelDistance;
-        deltaTime = dobj.deltaTime;
-        strainTime = dobj.strainTime;
-        lazyEndPos = dobj.lazyEndPos;
-        lazyTravelDist = dobj.lazyTravelDist;
-        lazyTravelTime = dobj.lazyTravelTime;
-        travelTime = dobj.travelTime;
-        objects = dobj.objects;
-        numObjects = dobj.numObjects;
-        index = dobj.index;
-        lazyCalcFinished = dobj.lazyCalcFinished;
-    }
+    // computed by the star calc (calculateStarDiffForHitObjects), never set by the loader/ctor.
+    struct Computed;
+    StaticPImpl<Computed, 160> c;
 };
 
 // This struct is the core data computed by difficulty calculation and used in performance calculation

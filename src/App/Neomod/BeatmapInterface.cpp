@@ -4297,125 +4297,14 @@ void BeatmapInterface::calculateStacks() {
         hitobject->setStack(0);
     }
 
-    const f32 STACK_LENIENCE = 3.0f;
-    const f32 STACK_OFFSET = 0.05f;
-
-    const f32 approachTime =
-        GameRules::mapDifficultyRange(this->getAR(), GameRules::getMinApproachTime(), GameRules::getMidApproachTime(),
-                                      GameRules::getMaxApproachTime());
-    const f32 stackLeniency = this->beatmap->getStackLeniency();
-
-    if(this->beatmap->getVersion() > 5) {
-        // peppy's algorithm
-        // https://gist.github.com/peppy/1167470
-
-        for(int i = this->hitobjects.size() - 1; i >= 0; i--) {
-            int n = i;
-
-            HitObject *objectI = this->hitobjects[i].get();
-
-            bool isSpinner = objectI->getType() == HitObjectType::SPINNER;
-
-            if(objectI->getStack() != 0 || isSpinner) continue;
-
-            bool isHitCircle = objectI->getType() == HitObjectType::CIRCLE;
-            bool isSlider = objectI->getType() == HitObjectType::SLIDER;
-
-            if(isHitCircle) {
-                while(--n >= 0) {
-                    HitObject *objectN = this->hitobjects[n].get();
-
-                    bool isSpinnerN = objectN->getType() == HitObjectType::SPINNER;
-
-                    if(isSpinnerN) continue;
-
-                    if(objectI->getClickTime() - (approachTime * stackLeniency) > (objectN->getEndTime())) break;
-
-                    vec2 objectNEndPosition = objectN->getOriginalRawPosAt(objectN->getEndTime());
-                    if(objectN->getDuration() != 0 &&
-                       vec::length(objectNEndPosition - objectI->getOriginalRawPosAt(objectI->getClickTime())) <
-                           STACK_LENIENCE) {
-                        int offset = objectI->getStack() - objectN->getStack() + 1;
-                        for(int j = n + 1; j <= i; j++) {
-                            if(vec::length((objectNEndPosition - this->hitobjects[j]->getOriginalRawPosAt(
-                                                                     this->hitobjects[j]->getClickTime()))) <
-                               STACK_LENIENCE)
-                                this->hitobjects[j]->setStack(this->hitobjects[j]->getStack() - offset);
-                        }
-
-                        break;
-                    }
-
-                    if(vec::length((objectN->getOriginalRawPosAt(objectN->getClickTime()) -
-                                    objectI->getOriginalRawPosAt(objectI->getClickTime()))) < STACK_LENIENCE) {
-                        objectN->setStack(objectI->getStack() + 1);
-                        objectI = objectN;
-                    }
-                }
-            } else if(isSlider) {
-                while(--n >= 0) {
-                    HitObject *objectN = this->hitobjects[n].get();
-
-                    bool isSpinnerN = objectN->getType() == HitObjectType::SPINNER;
-
-                    if(isSpinnerN) continue;
-
-                    if(objectI->getClickTime() - (approachTime * stackLeniency) > objectN->getClickTime()) break;
-
-                    if(vec::length(
-                           ((objectN->getDuration() != 0 ? objectN->getOriginalRawPosAt(objectN->getEndTime())
-                                                         : objectN->getOriginalRawPosAt(objectN->getClickTime())) -
-                            objectI->getOriginalRawPosAt(objectI->getClickTime()))) < STACK_LENIENCE) {
-                        objectN->setStack(objectI->getStack() + 1);
-                        objectI = objectN;
-                    }
-                }
-            }
-        }
-    } else  // getSelectedDifficulty()->version < 6
-    {
-        // old stacking algorithm for old beatmaps
-        // https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Beatmaps/BeatmapProcessor.cs
-
-        for(int i = 0; i < this->hitobjects.size(); i++) {
-            HitObject *currHitObject = this->hitobjects[i].get();
-            auto *sliderPointer = currHitObject && currHitObject->getType() == HitObjectType::SLIDER
-                                      ? static_cast<Slider *>(currHitObject)
-                                      : nullptr;
-
-            const bool isSlider = (sliderPointer != nullptr);
-
-            if(currHitObject->getStack() != 0 && !isSlider) continue;
-
-            i32 startTime = currHitObject->getEndTime();
-            int sliderStack = 0;
-
-            for(int j = i + 1; j < this->hitobjects.size(); j++) {
-                HitObject *objectJ = this->hitobjects[j].get();
-
-                if(objectJ->getClickTime() - (approachTime * stackLeniency) > startTime) break;
-
-                // "The start position of the hitobject, or the position at the end of the path if the hitobject is a
-                // slider"
-                vec2 position2 = isSlider ? sliderPointer->getOriginalRawPosAt(sliderPointer->getEndTime())
-                                          : currHitObject->getOriginalRawPosAt(currHitObject->getClickTime());
-
-                if(vec::length((objectJ->getOriginalRawPosAt(objectJ->getClickTime()) -
-                                currHitObject->getOriginalRawPosAt(currHitObject->getClickTime()))) < 3) {
-                    currHitObject->setStack(currHitObject->getStack() + 1);
-                    startTime = objectJ->getEndTime();
-                } else if(vec::length((objectJ->getOriginalRawPosAt(objectJ->getClickTime()) - position2)) < 3) {
-                    // "Case for sliders - bump notes down and right, rather than up and left."
-                    sliderStack++;
-                    objectJ->setStack(objectJ->getStack() - sliderStack);
-                    startTime = objectJ->getEndTime();
-                }
-            }
-        }
-    }
+    DatabaseBeatmap::calculateStacks(
+        DatabaseBeatmap::ObjectGetter<HitObject>{
+            [&objs = this->hitobjects](uSz idx) -> HitObject * { return objs[idx].get(); }},
+        this->hitobjects.size(), this->getAR(), this->beatmap->getVersion(), this->beatmap->getStackLeniency());
 
     // update hitobject positions
-    f32 stackOffset = this->fRawHitcircleDiameter * STACK_OFFSET;
+    const f32 STACK_OFFSET = 0.05f;
+    const f32 stackOffset = this->fRawHitcircleDiameter * STACK_OFFSET;
     for(auto &hitobject : this->hitobjects) {
         if(hitobject->getStack() != 0) hitobject->updateStackPosition(stackOffset);
     }

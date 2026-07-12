@@ -879,6 +879,125 @@ DatabaseBeatmap::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(s
 
 #endif
 
+template <HitObjectContainer C>
+void DatabaseBeatmap::calculateStacks(const ObjectGetter<C> &getObj, uSz numObjects, float AR, int beatmapVersion,
+                                      float stackLeniency) {
+    constexpr float STACK_LENIENCE = 3.f;
+    const float approachTime = GameRules::getApproachTimeForStacking(AR);
+
+    if(beatmapVersion) {
+        // peppy's algorithm
+        // https://gist.github.com/peppy/1167470
+
+        for(sSz i = static_cast<sSz>(numObjects) - 1; i >= 0; i--) {
+            sSz n = i;
+
+            auto *objectI = getObj(i);
+
+            bool isSpinner = objectI->isSpinner();
+
+            if(objectI->getStack() != 0 || isSpinner) continue;
+
+            bool isHitCircle = objectI->isCircle();
+            bool isSlider = objectI->isSlider();
+
+            if(isHitCircle) {
+                while(--n >= 0) {
+                    auto *objectN = getObj(n);
+
+                    bool isSpinnerN = objectN->isSpinner();
+
+                    if(isSpinnerN) continue;
+
+                    if((f32)objectI->getClickTime() - (approachTime * stackLeniency) > (f32)(objectN->getEndTime())) break;
+
+                    vec2 objectNEndPosition = objectN->getOriginalRawPosAt(objectN->getEndTime());
+                    if(objectN->getDuration() != 0 &&
+                       vec::length(objectNEndPosition - objectI->getOriginalRawPosAt(objectI->getClickTime())) <
+                           STACK_LENIENCE) {
+                        int offset = objectI->getStack() - objectN->getStack() + 1;
+                        for(sSz j = n + 1; j <= i; j++) {
+                            auto *objectJ = getObj(j);
+                            if(vec::length((objectNEndPosition -
+                                            objectJ->getOriginalRawPosAt(objectJ->getClickTime()))) < STACK_LENIENCE)
+                                objectJ->setStack(objectJ->getStack() - offset);
+                        }
+
+                        break;
+                    }
+
+                    if(vec::length((objectN->getOriginalRawPosAt(objectN->getClickTime()) -
+                                    objectI->getOriginalRawPosAt(objectI->getClickTime()))) < STACK_LENIENCE) {
+                        objectN->setStack(objectI->getStack() + 1);
+                        objectI = objectN;
+                    }
+                }
+            } else if(isSlider) {
+                while(--n >= 0) {
+                    auto *objectN = getObj(n);
+
+                    bool isSpinnerN = objectN->isSpinner();
+
+                    if(isSpinnerN) continue;
+
+                    if((f32)objectI->getClickTime() - (approachTime * stackLeniency) > (f32)objectN->getClickTime()) break;
+
+                    if(vec::length(
+                           ((objectN->getDuration() != 0 ? objectN->getOriginalRawPosAt(objectN->getEndTime())
+                                                         : objectN->getOriginalRawPosAt(objectN->getClickTime())) -
+                            objectI->getOriginalRawPosAt(objectI->getClickTime()))) < STACK_LENIENCE) {
+                        objectN->setStack(objectI->getStack() + 1);
+                        objectI = objectN;
+                    }
+                }
+            }
+        }
+    } else  // getSelectedDifficulty()->version < 6
+    {
+        // old stacking algorithm for old beatmaps
+        // https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Beatmaps/BeatmapProcessor.cs
+
+        for(int i = 0; i < numObjects; i++) {
+            auto *currHitObject = getObj(i);
+
+            const bool isSlider = currHitObject->isSlider();
+
+            if(currHitObject->getStack() != 0 && !isSlider) continue;
+
+            i32 startTime = currHitObject->getEndTime();
+            int sliderStack = 0;
+
+            for(int j = i + 1; j < numObjects; j++) {
+                auto *objectJ = getObj(j);
+
+                if((f32)objectJ->getClickTime() - (approachTime * stackLeniency) > (f32)startTime) break;
+
+                // "The start position of the hitobject, or the position at the end of the path if the hitobject is a
+                // slider"
+                const vec2 position2 = isSlider ? currHitObject->getOriginalRawPosAt(currHitObject->getEndTime())
+                                                : currHitObject->getOriginalRawPosAt(currHitObject->getClickTime());
+
+                if(vec::length((objectJ->getOriginalRawPosAt(objectJ->getClickTime()) -
+                                currHitObject->getOriginalRawPosAt(currHitObject->getClickTime()))) < 3) {
+                    currHitObject->setStack(currHitObject->getStack() + 1);
+                    startTime = objectJ->getEndTime();
+                } else if(vec::length((objectJ->getOriginalRawPosAt(objectJ->getClickTime()) - position2)) < 3) {
+                    // "Case for sliders - bump notes down and right, rather than up and left."
+                    sliderStack++;
+                    objectJ->setStack(objectJ->getStack() - sliderStack);
+                    startTime = objectJ->getEndTime();
+                }
+            }
+        }
+    }
+
+    return;
+}
+
+// explicit instantiations
+template void DatabaseBeatmap::calculateStacks(const ObjectGetter<DifficultyHitObject> &, uSz, float, int, float);
+template void DatabaseBeatmap::calculateStacks(const ObjectGetter<HitObject> &, uSz, float, int, float);
+
 DatabaseBeatmap::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(PRIMITIVE_CONTAINER &c, float AR,
                                                                                float CS, float speedMultiplier,
                                                                                const Sync::stop_token &dead) {
@@ -916,7 +1035,7 @@ DatabaseBeatmap::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(P
     }
 
     const bool calculateSliderCurveInConstructor =
-        (c.sliders.size() < 5000);  // NOTE: for explanation see OsuDifficultyHitObject constructor
+        (c.sliders.size() < 5000);  // NOTE: for explanation see DiffCalc::DifficultyHitObject constructor
     for(const auto &slider : c.sliders) {
         if(dead.stop_requested()) {
             result.error.errc = LoadError::LOAD_INTERRUPTED;
@@ -961,122 +1080,11 @@ DatabaseBeatmap::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(P
     // calculate stacks
     // see Beatmap.cpp
     // NOTE: this must be done before the speed multiplier is applied!
-    // HACKHACK: code duplication ffs
     if(STARS_STACKING) {
-        const float finalAR = AR;
-        const float finalCS = CS;
-        const float rawHitCircleDiameter = GameRules::getRawHitCircleDiameter(finalCS);
-
-        const float STACK_LENIENCE = 3.0f;
-
-        const float approachTime = GameRules::getApproachTimeForStacking(finalAR);
-
-        if(c.version > 5) {
-            // peppy's algorithm
-            // https://gist.github.com/peppy/1167470
-
-            for(sSz i = static_cast<sSz>(result.diffobjects.size()) - 1; i >= 0; i--) {
-                sSz n = i;
-
-                DifficultyHitObject *objectI = &result.diffobjects[i];
-
-                const bool isSpinner = (objectI->type == DifficultyHitObject::TYPE::SPINNER);
-
-                if(objectI->stack != 0 || isSpinner) continue;
-
-                const bool isHitCircle = (objectI->type == DifficultyHitObject::TYPE::CIRCLE);
-                const bool isSlider = (objectI->type == DifficultyHitObject::TYPE::SLIDER);
-
-                if(isHitCircle) {
-                    while(--n >= 0) {
-                        DifficultyHitObject *objectN = &result.diffobjects[n];
-
-                        const bool isSpinnerN = (objectN->type == DifficultyHitObject::TYPE::SPINNER);
-
-                        if(isSpinnerN) continue;
-
-                        if(objectI->time - (approachTime * c.stackLeniency) > (objectN->endTime)) break;
-
-                        vec2 objectNEndPosition = objectN->getOriginalRawPosAt(objectN->time + objectN->getDuration());
-                        if(objectN->getDuration() != 0 &&
-                           vec::length(objectNEndPosition - objectI->getOriginalRawPosAt(objectI->time)) <
-                               STACK_LENIENCE) {
-                            int offset = objectI->stack - objectN->stack + 1;
-                            for(sSz j = n + 1; j <= i; j++) {
-                                if(vec::length(objectNEndPosition - result.diffobjects[j].getOriginalRawPosAt(
-                                                                        result.diffobjects[j].time)) < STACK_LENIENCE)
-                                    result.diffobjects[j].stack = (result.diffobjects[j].stack - offset);
-                            }
-
-                            break;
-                        }
-
-                        if(vec::length(objectN->getOriginalRawPosAt(objectN->time) -
-                                       objectI->getOriginalRawPosAt(objectI->time)) < STACK_LENIENCE) {
-                            objectN->stack = (objectI->stack + 1);
-                            objectI = objectN;
-                        }
-                    }
-                } else if(isSlider) {
-                    while(--n >= 0) {
-                        DifficultyHitObject *objectN = &result.diffobjects[n];
-
-                        const bool isSpinner = (objectN->type == DifficultyHitObject::TYPE::SPINNER);
-
-                        if(isSpinner) continue;
-
-                        if(objectI->time - (approachTime * c.stackLeniency) > objectN->time) break;
-
-                        if(vec::length((objectN->getDuration() != 0
-                                            ? objectN->getOriginalRawPosAt(objectN->time + objectN->getDuration())
-                                            : objectN->getOriginalRawPosAt(objectN->time)) -
-                                       objectI->getOriginalRawPosAt(objectI->time)) < STACK_LENIENCE) {
-                            objectN->stack = (objectI->stack + 1);
-                            objectI = objectN;
-                        }
-                    }
-                }
-            }
-        } else  // version < 6
-        {
-            // old stacking algorithm for old beatmaps
-            // https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Beatmaps/OsuBeatmapProcessor.cs
-
-            for(int i = 0; i < result.diffobjects.size(); i++) {
-                DifficultyHitObject *currHitObject = &result.diffobjects[i];
-
-                const bool isSlider = (currHitObject->type == DifficultyHitObject::TYPE::SLIDER);
-
-                if(currHitObject->stack != 0 && !isSlider) continue;
-
-                i32 startTime = currHitObject->time + currHitObject->getDuration();
-                int sliderStack = 0;
-
-                for(int j = i + 1; j < result.diffobjects.size(); j++) {
-                    DifficultyHitObject *objectJ = &result.diffobjects[j];
-
-                    if(objectJ->time - (approachTime * c.stackLeniency) > startTime) break;
-
-                    // "The start position of the hitobject, or the position at the end of the path if the hitobject is
-                    // a slider"
-                    vec2 position2 =
-                        isSlider
-                            ? currHitObject->getOriginalRawPosAt(currHitObject->time + currHitObject->getDuration())
-                            : currHitObject->getOriginalRawPosAt(currHitObject->time);
-
-                    if(vec::length(objectJ->getOriginalRawPosAt(objectJ->time) -
-                                   currHitObject->getOriginalRawPosAt(currHitObject->time)) < 3) {
-                        currHitObject->stack++;
-                        startTime = objectJ->time + objectJ->getDuration();
-                    } else if(vec::length(objectJ->getOriginalRawPosAt(objectJ->time) - position2) < 3) {
-                        // "Case for sliders - bump notes down and right, rather than up and left."
-                        sliderStack++;
-                        objectJ->stack -= sliderStack;
-                        startTime = objectJ->time + objectJ->getDuration();
-                    }
-                }
-            }
-        }
+        calculateStacks(ObjectGetter<DifficultyHitObject>{[&objs = result.diffobjects](
+                                                              uSz idx) -> DifficultyHitObject * { return &objs[idx]; }},
+                        result.diffobjects.size(), AR, c.version, c.stackLeniency);
+        const float rawHitCircleDiameter = GameRules::getRawHitCircleDiameter(CS);
 
         // update hitobject positions
         float stackOffset = rawHitCircleDiameter / 128.0f / GameRules::broken_gamefield_rounding_allowance * 6.4f;

@@ -77,6 +77,9 @@ class HitObject {
     // }  // how much combo this hitobject is "worth"
 
     [[nodiscard]] forceinline HitObjectType getType() const { return m_type; }
+    [[nodiscard]] forceinline bool isCircle() const { return m_type == HitObjectType::CIRCLE; }
+    [[nodiscard]] forceinline bool isSlider() const { return m_type == HitObjectType::SLIDER; }
+    [[nodiscard]] forceinline bool isSpinner() const { return m_type == HitObjectType::SPINNER; }
 
     // Gameplay logic
     [[nodiscard]] forceinline i32 getEndTime() const { return m_clickTimeMS + m_durationMS; }
