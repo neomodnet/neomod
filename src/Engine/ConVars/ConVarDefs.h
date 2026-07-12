@@ -164,6 +164,7 @@ CONVAR(snd_soloud_prefer_ffmpeg, 0, CLIENT,
        "(0=no, 1=streams, 2=streams+samples) prioritize using ffmpeg as a decoder (if available) over other decoder "
        "backends");
 CONVAR(snd_soloud_prefer_exclusive, false, CLIENT, "try initializing in exclusive mode first for MiniAudio on Windows");
+CONVAR(snd_soloud_num_periods, 3, CLIENT, "fewer periods = lower end-to-end latency");
 CONVAR(snd_rate_transpose_algorithm, "cubic", CLIENT,
        "rate changing algorithm to use. \"linear\", \"cubic\", or \"shannon\" (in order of increasing "
        "quality/cpu usage)");

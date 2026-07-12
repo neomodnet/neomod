@@ -14,6 +14,7 @@
 #include "ConVar.h"
 #include "Engine.h"
 #include "Logging.h"
+#include "Parsing.h"
 
 #include "Environment.h"
 #include "ResourceManager.h"
@@ -533,23 +534,34 @@ void SoLoudSoundEngine::allowInternalCallbacks() {
     cv::snd_output_device.setCallback(SA::MakeDelegate<&SoLoudSoundEngine::setOutputDeviceByName>(this));
     cv::snd_soloud_resampler.setCallback(SA::MakeDelegate<&SoLoudSoundEngine::restart>(this));
 
-    bool doRestart = !this->bWasBackendEverReady ||          //
-                     !cv::snd_freq.isDefault() ||            //
-                     !cv::snd_soloud_backend.isDefault() ||  //
-                     !cv::snd_soloud_resampler.isDefault();
+    // initialize num periods convar to == envvar if set
+    if(const std::string numPeriodsEnvVar = Environment::getEnvVariable("SOLOUD_MINIAUDIO_PERIODS");
+       !numPeriodsEnvVar.empty()) {
+        int numPeriods = 0;
+        if(Parsing::strto_s(numPeriodsEnvVar, numPeriods); numPeriods > 0 && numPeriods <= 64) {
+            cv::snd_soloud_num_periods.setValue(numPeriods);
+        }
+    }
+    cv::snd_soloud_num_periods.setCallback(SA::MakeDelegate<&SoLoudSoundEngine::restart>(this));
+
+    const bool doRestart = !this->bWasBackendEverReady ||            //
+                           !cv::snd_freq.isDefault() ||              //
+                           !cv::snd_soloud_backend.isDefault() ||    //
+                           !cv::snd_soloud_resampler.isDefault() ||  //
+                           !cv::snd_soloud_num_periods.isDefault();
 
     if(doRestart) {
         this->restart();
     }
 
-    bool doMaxActive =
+    const bool doMaxActive =
         cv::snd_sanity_simultaneous_limit.getDefaultFloat() != cv::snd_sanity_simultaneous_limit.getFloat();
     if(doMaxActive) {
         this->onMaxActiveChange(cv::snd_sanity_simultaneous_limit.getFloat());
     }
 
     // if we restarted already, then we already set the output device to the desired one
-    bool doChangeOutput = !doRestart && !cv::snd_output_device.isDefault();
+    const bool doChangeOutput = !doRestart && !cv::snd_output_device.isDefault();
     if(doChangeOutput) {
         this->setOutputDeviceByName(cv::snd_output_device.getString());
     }
@@ -569,6 +581,7 @@ SoLoudSoundEngine::~SoLoudSoundEngine() {
     cv::snd_sanity_simultaneous_limit.reset();
     cv::snd_output_device.reset();
     cv::snd_soloud_resampler.reset();
+    cv::snd_soloud_num_periods.reset();
 }
 
 void SoLoudSoundEngine::setMasterVolume(float volume) {
@@ -701,6 +714,12 @@ bool SoLoudSoundEngine::initializeOutputDevice(const OUTPUT_DEVICE &device) {
         }
         soloud->deinit();
         this->bReady = false;
+    }
+
+    // update miniaudio periods env var to cvar value
+    if((!cv::snd_soloud_num_periods.isDefault() && !cv::snd_soloud_num_periods.getString().empty()) ||
+       !Environment::getEnvVariable("SOLOUD_MINIAUDIO_PERIODS").empty()) {
+        Environment::setEnvVariable("SOLOUD_MINIAUDIO_PERIODS", cv::snd_soloud_num_periods.getString());
     }
 
     auto backend = (getMAorSDLCV() == OutputDriver::SOLOUD_MA) ? SoLoud::Soloud::MINIAUDIO : SoLoud::Soloud::SDL3;

@@ -122,6 +122,9 @@ class HitObject {
     virtual void onClickEvent(std::vector<Click> & /*clicks*/) { ; }
     virtual void onReset(i32 curPosMS);
 
+    // only for sliders
+    virtual void rebuildVertexBuffer(bool /*useRawCoords*/ = false) { ; }
+
    private:
     static f32 lerp3f(f32 a, f32 b, f32 c, f32 percent);
 
@@ -302,7 +305,7 @@ class Slider final : public HitObject {
     void onClickEvent(std::vector<Click> &clicks) override;
     void onReset(i32 curPosMS) override;
 
-    void rebuildVertexBuffer(bool useRawCoords = false);
+    void rebuildVertexBuffer(bool useRawCoords = false) override;
 
     [[nodiscard]] inline bool isStartCircleFinished() const { return m_startFinished; }
     [[nodiscard]] inline i32 getRepeat() const { return m_repeat; }

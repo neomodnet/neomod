@@ -1211,9 +1211,30 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
 
             this->elemContainers.back()->render_condition = {[]() -> bool {
                 if constexpr(!Env::cfg(OS::WINDOWS)) return false;
-                bool ret =
-                    soundEngine ? soundEngine->getOutputDriverType() == SoundEngine::OutputDriver::SOLOUD_MA : false;
-                return ret;
+                return soundEngine ? soundEngine->getOutputDriverType() == SoundEngine::OutputDriver::SOLOUD_MA : false;
+            }};
+
+            // initialize wrapper cvar if num_periods is already at the "decreased" amount
+            if(!cv::snd_soloud_num_periods.isDefault() && cv::snd_soloud_num_periods.getInt() == 1) {
+                cv::snd_soloud_decrease_periods.setValue(true);
+            }
+            cv::snd_soloud_decrease_periods.setCallback([](float newValue) -> void {
+                const bool decrease = !!static_cast<int>(newValue);
+                const int currentValue = cv::snd_soloud_num_periods.getInt();
+                const int defaultValue = static_cast<int>(cv::snd_soloud_num_periods.getDefaultDouble());
+                const bool doCallback = decrease ? currentValue >= defaultValue : currentValue < defaultValue;
+                if(decrease)
+                    cv::snd_soloud_num_periods.setValue(1, doCallback);
+                else
+                    cv::snd_soloud_num_periods.setValue(cv::snd_soloud_num_periods.getDefaultDouble(), doCallback);
+            });
+
+            this->addCheckbox(_("Lower Latency (!)"), _("NOTE: Enabling this may result in audio crackling!"),
+                              &cv::snd_soloud_decrease_periods);
+
+            this->elemContainers.back()->render_condition = {[]() -> bool {
+                // miniaudio-only at the moment
+                return soundEngine ? soundEngine->getOutputDriverType() == SoundEngine::OutputDriver::SOLOUD_MA : false;
             }};
         }
 
@@ -1970,6 +1991,7 @@ OptionsOverlayImpl::~OptionsOverlayImpl() {
     cv::options_high_quality_sliders.reset();
     cv::rich_presence_map_backgrounds.reset();
     cv::snd_soloud_backend.removeChangeCallback();  // SoLoudSoundEngine sets a single-arg callback
+    cv::snd_soloud_decrease_periods.reset();
 }
 
 void OptionsOverlayImpl::draw() {

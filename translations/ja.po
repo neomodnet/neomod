@@ -1436,6 +1436,14 @@ msgstr ""
 "排他モードのオン/オフを切り替えます。"
 
 #: src/App/Neomod/OptionsOverlay.cpp
+msgid "Lower Latency (!)"
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "NOTE: Enabling this may result in audio crackling!"
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "WASAPI"
 msgstr "WASAPI"
 

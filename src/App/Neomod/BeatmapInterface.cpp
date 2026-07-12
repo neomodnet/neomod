@@ -2434,10 +2434,7 @@ void BeatmapInterface::update() {
                 debugLog("Beatmap: Preloading done.");
                 break;
             } else {
-                auto *ho = this->hitobjects[this->iPreLoadingIndex].get();
-                auto *sliderPointer =
-                    ho && ho->getType() == HitObjectType::SLIDER ? static_cast<Slider *>(ho) : nullptr;
-                if(sliderPointer != nullptr) sliderPointer->rebuildVertexBuffer();
+                this->hitobjects[this->iPreLoadingIndex]->rebuildVertexBuffer();
             }
 
             this->iPreLoadingIndex++;
@@ -4279,10 +4276,7 @@ void BeatmapInterface::updateSliderVertexBuffers() {
     debugLog("rebuilding for {:d} hitobjects ...", this->hitobjects.size());
 
     for(auto &hitobject : this->hitobjects) {
-        auto *sliderPointer = hitobject && hitobject->getType() == HitObjectType::SLIDER
-                                  ? static_cast<Slider *>(hitobject.get())
-                                  : nullptr;
-        if(sliderPointer != nullptr) sliderPointer->rebuildVertexBuffer();
+        hitobject->rebuildVertexBuffer();
     }
 }
 

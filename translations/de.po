@@ -1436,6 +1436,14 @@ msgstr ""
 "falls man bereits im Exklusiv-Modus ist."
 
 #: src/App/Neomod/OptionsOverlay.cpp
+msgid "Lower Latency (!)"
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "NOTE: Enabling this may result in audio crackling!"
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "WASAPI"
 msgstr "WASAPI"
 

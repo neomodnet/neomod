@@ -63,6 +63,8 @@ CONVAR(sound_panning_multiplier, 1.0f, CLIENT | SKINS | SERVER,
        "the final panning value is multiplied with this, e.g. if you want to reduce or "
        "increase the effect strength by a percentage");
 CONVAR(snd_boost_hitsound_volume, false, CLIENT | SKINS | SERVER, "slightly increase non-sliderslide hitsound volume");
+CONVAR(snd_soloud_decrease_periods, false, CLIENT,
+       "lower period size from 3->1");  // wrapper for snd_soloud_num_periods to toggle between 3/1
 
 // Audio (mods)
 CONVAR(snd_pitch_hitsounds, false, CLIENT | SKINS | SERVER, "change hitsound pitch based on accuracy");
