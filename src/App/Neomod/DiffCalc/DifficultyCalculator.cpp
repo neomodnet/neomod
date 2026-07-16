@@ -336,7 +336,7 @@ DifficultyHitObject &DifficultyHitObject::operator=(DifficultyHitObject &&dobj) 
 }
 
 void DifficultyHitObject::updateStackPosition(f32 stackOffset) {
-    pos = originalPos - vec2(stack * stackOffset, stack * stackOffset);
+    pos = originalPos - vec2((f32)stack * stackOffset, (f32)stack * stackOffset);
 }
 
 vec2 DifficultyHitObject::curvePointAt(f32 t) const { return curve->pointAt(t) - (originalPos - pos); }
@@ -435,7 +435,7 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
             else
                 endTimeMin = std::fmod(endTimeMin, 1.0);
 
-            slider.c->lazyEndPos = slider.curvePointAt(endTimeMin);
+            slider.c->lazyEndPos = slider.curvePointAt((f32)endTimeMin);
 
             vec2 cursor_pos = slider.pos;
             f64 scaling_factor = 50.0 / circleRadius;
@@ -447,15 +447,15 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
                     // NOTE: In lazer, the position of the slider end is at the visual end, but the time is at the scoring end
                     diff = slider.curvePointAt(slider.repeats % 2 ? 1.0 : 0.0) - cursor_pos;
                 } else {
-                    f64 progress =
-                        (std::clamp<f32>(slider.scoringTimes[i].time - (f32)slider.time, 0.0f, slider.getDuration())) /
-                        slider.spanDuration;
+                    f64 progress = (std::clamp<f32>(slider.scoringTimes[i].time - (f32)slider.time, 0.0f,
+                                                    (f32)slider.getDuration())) /
+                                   slider.spanDuration;
                     if(std::fmod(progress, 2.0) >= 1.0)
                         progress = 1.0 - std::fmod(progress, 1.0);
                     else
                         progress = std::fmod(progress, 1.0);
 
-                    diff = slider.curvePointAt(progress) - cursor_pos;
+                    diff = slider.curvePointAt((f32)progress) - cursor_pos;
                 }
 
                 f64 diff_len = scaling_factor * vec::length(diff);
@@ -730,7 +730,7 @@ f64 calculatePPv2(PPv2CalcParams &cpar) {
     // (the original incoming ar/od values are guaranteed to not yet have any speed multiplier applied to them, but they do have non-time-related mods already applied, like HR or any custom overrides)
     // (yes, this does work correctly when the override slider "locking" feature is used. in this case, the stored ar/od is already compensated such that it will have the locked value AFTER applying the speed multiplier here)
     // (all UI elements which display ar/od from stored scores, like the ranking screen or score buttons, also do this calculation before displaying the values to the user. of course the mod selection screen does too.)
-    const f64 adjAR = GameRules::arWithSpeed(cpar.ar, cpar.timescale);
+    const f64 adjAR = GameRules::arWithSpeed((f32)cpar.ar, (f32)cpar.timescale);
     const f64 adjOD = adjustOverallDifficultyByClockRate(cpar.od, cpar.timescale);
 
     // calculateEffectiveMissCount @ https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/OsuPerformanceCalculator.cs
@@ -966,8 +966,8 @@ f64 calculate_difficulty(const Skills::Skill type, const DifficultyHitObject *do
         if(type == Skills::SPEED) {
             // calculate relevant speed note count
             // RelevantNoteCount @ https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Speed.cs
-            static constexpr auto compareDiffObjects =
-                +[](const DifficultyHitObject &x, const DifficultyHitObject &y) -> bool {
+            static constexpr auto compareDiffObjects = [](const DifficultyHitObject &x,
+                                                          const DifficultyHitObject &y) -> bool {
                 return (x.c->get_strain(Skills::SPEED) < y.c->get_strain(Skills::SPEED));
             };
 
@@ -987,8 +987,8 @@ f64 calculate_difficulty(const Skills::Skill type, const DifficultyHitObject *do
         } else if(type == Skills::AIM_SLIDERS) {
             // calculate difficult sliders
             // GetDifficultSliders @ https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Aim.cs
-            static constexpr auto compareSliderObjects =
-                +[](const DifficultyHitObject &x, const DifficultyHitObject &y) -> bool {
+            static constexpr auto compareSliderObjects = [](const DifficultyHitObject &x,
+                                                            const DifficultyHitObject &y) -> bool {
                 return (x.c->get_slider_strain(x.type, Skills::AIM_SLIDERS) <
                         y.c->get_slider_strain(x.type, Skills::AIM_SLIDERS));
             };
@@ -1055,9 +1055,9 @@ f64 calculate_difficulty(const Skills::Skill type, const DifficultyHitObject *do
         // re-sort
         f64 reducedSections
             [reducedSectionCount];  // actualReducedSectionCount <= skillSpecificReducedSectionCount <= reducedSectionCount
-        memcpy(reducedSections, &highestStrains[highestStrains.size() - actualReducedSectionCount],
+        memcpy(&reducedSections[0], &highestStrains[highestStrains.size() - actualReducedSectionCount],
                actualReducedSectionCount * sizeof(f64));
-        highestStrains.erase(highestStrains.end() - actualReducedSectionCount, highestStrains.end());
+        highestStrains.erase(highestStrains.end() - (sSz)actualReducedSectionCount, highestStrains.end());
         for(uSz i = 0; i < actualReducedSectionCount; i++) {
             highestStrains.insert(std::ranges::upper_bound(highestStrains, reducedSections[i]), reducedSections[i]);
         }
@@ -1215,7 +1215,7 @@ f64 DifficultyHitObject::spacing_weight2(const Skills::Skill diff_type, const Di
                 f64 deltaDifference = std::max(prevDelta, currDelta) / std::min(prevDelta, currDelta);
 
                 // Take only the fractional part of the value since we're only interested in punishing multiples
-                f64 deltaDifferenceFraction = deltaDifference - (i64)(deltaDifference);
+                f64 deltaDifferenceFraction = deltaDifference - (f64)(i64)(deltaDifference);
 
                 f64 currRatio =
                     1.0 + rhythm_ratio_multiplier * std::min(0.5, smoothstepBellCurve(deltaDifferenceFraction));
@@ -1340,10 +1340,12 @@ f64 DifficultyHitObject::spacing_weight2(const Skills::Skill diff_type, const Di
 
             if(type == TYPE::SPINNER || c->index <= 1 || prev.type == TYPE::SPINNER) return 0.0;
 
-            static constexpr auto calcWideAngleBonus =
-                +[](f64 angle) { return smoothstep(angle, 40.0 * (PI / 180.0), 140.0 * (PI / 180.0)); };
-            static constexpr auto calcAcuteAngleBonus =
-                +[](f64 angle) { return smoothstep(angle, 140.0 * (PI / 180.0), 40.0 * (PI / 180.0)); };
+            static constexpr auto calcWideAngleBonus = [](f64 angle) {
+                return smoothstep(angle, 40.0 * (PI / 180.0), 140.0 * (PI / 180.0));
+            };
+            static constexpr auto calcAcuteAngleBonus = [](f64 angle) {
+                return smoothstep(angle, 140.0 * (PI / 180.0), 40.0 * (PI / 180.0));
+            };
 
             const DifficultyHitObject *prevPrev = c->get_previous(1);
             const DifficultyHitObject *prev2 = c->get_previous(2);
@@ -1726,9 +1728,12 @@ f64 calculateDeviation(const DifficultyAttributes &attributes, f64 timescale, f6
                        f64 relevantCountOk, f64 relevantCountMeh) {
     if(relevantCountGreat + relevantCountOk + relevantCountMeh <= 0.0) return std::numeric_limits<f64>::quiet_NaN();
 
-    const f64 greatHitWindow = adjustHitWindow(GameRules::odTo300HitWindowMS(attributes.OverallDifficulty)) / timescale;
-    const f64 okHitWindow = adjustHitWindow(GameRules::odTo100HitWindowMS(attributes.OverallDifficulty)) / timescale;
-    const f64 mehHitWindow = adjustHitWindow(GameRules::odTo50HitWindowMS(attributes.OverallDifficulty)) / timescale;
+    const f64 greatHitWindow =
+        adjustHitWindow(GameRules::odTo300HitWindowMS((f32)attributes.OverallDifficulty)) / timescale;
+    const f64 okHitWindow =
+        adjustHitWindow(GameRules::odTo100HitWindowMS((f32)attributes.OverallDifficulty)) / timescale;
+    const f64 mehHitWindow =
+        adjustHitWindow(GameRules::odTo50HitWindowMS((f32)attributes.OverallDifficulty)) / timescale;
 
     static constexpr const f64 z = 2.32634787404;
     static constexpr const f64 sqrt2 = std::numbers::sqrt2;
@@ -1740,7 +1745,7 @@ f64 calculateDeviation(const DifficultyAttributes &attributes, f64 timescale, f6
     f64 pLowerBound =
         std::min(p, (n * p + z * z / 2.0) / (n + z * z) - z / (n + z * z) * sqrt(n * p * (1.0 - p) + z * z / 4.0));
 
-    f64 deviation;
+    f64 deviation;  // NOLINT(cppcoreguidelines-init-variables)
 
     if(pLowerBound > 0.01) {
         deviation = greatHitWindow / (sqrt2 * erfInv(pLowerBound));
@@ -2030,7 +2035,7 @@ f64 calculateMechanicalDifficultyRating(f64 aimDifficultyValue, f64 speedDifficu
 }
 
 f64 adjustOverallDifficultyByClockRate(f64 OD, f64 clockRate) {
-    return (79.5 - (adjustHitWindow(GameRules::odTo300HitWindowMS(OD)) / clockRate)) / 6.0;
+    return (79.5 - (adjustHitWindow(GameRules::odTo300HitWindowMS((f32)OD)) / clockRate)) / 6.0;
 }
 
 f64 erf(f64 x) {
