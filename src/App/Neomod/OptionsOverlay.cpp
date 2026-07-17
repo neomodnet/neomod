@@ -1496,6 +1496,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     }
 
     this->addCheckbox(_("Raw Mouse Input"), _("Not recommended if you're using a tablet."), &cv::mouse_raw_input);
+    this->elemContainers.back()->searchTags = "raw input";
     this->addCheckbox(_("Confine Cursor (Windowed)"), &cv::confine_cursor_windowed);
     this->addCheckbox(_("Confine Cursor (Fullscreen)"), &cv::confine_cursor_fullscreen);
     this->addCheckbox(_("Confine Cursor (NEVER)"), _("Overrides automatic cursor clipping during gameplay."),
@@ -1509,6 +1510,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     CBaseUIElement *subSectionKeyboard = this->addSubSection(_("Keyboard"), keyboardSectionTags);
     if constexpr(Env::cfg(OS::WINDOWS)) {
         this->addCheckbox(_("Raw Keyboard Input"), &cv::keyboard_raw_input);
+        this->elemContainers.back()->searchTags = "raw input";
         if(cv::win_global_media_hotkeys.getDefaultDouble() != -1.) {  // it's set to -1 if it doesn't work
             this->addCheckbox(
                 _("Global Media Hotkeys"),
