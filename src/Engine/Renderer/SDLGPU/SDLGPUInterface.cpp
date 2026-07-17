@@ -238,19 +238,15 @@ bool SDLGPUInterface::init() {
                 .size = 4,
                 .props = 0,
             };
-            auto *tb = SDL_CreateGPUTransferBuffer(m_device, &dummyTbInfo);
-            if(tb) {
-                void *mapped = SDL_MapGPUTransferBuffer(m_device, tb, false);
-                if(mapped) {
+            if(auto *tb = SDL_CreateGPUTransferBuffer(m_device, &dummyTbInfo)) {
+                if(void *mapped = SDL_MapGPUTransferBuffer(m_device, tb, false)) {
                     const u32 noColor = 0x00000000;
                     std::memcpy(mapped, &noColor, 4);
                     SDL_UnmapGPUTransferBuffer(m_device, tb);
                 }
 
-                auto *cmd = SDL_AcquireGPUCommandBuffer(m_device);
-                if(cmd) {
-                    auto *cp = SDL_BeginGPUCopyPass(cmd);
-                    if(cp) {
+                if(auto *cmd = SDL_AcquireGPUCommandBuffer(m_device)) {
+                    if(auto *cp = SDL_BeginGPUCopyPass(cmd)) {
                         SDL_GPUTextureTransferInfo src{};
                         src.transfer_buffer = tb;
                         src.offset = 0;
@@ -992,14 +988,12 @@ void SDLGPUInterface::flushDrawCommands() {
 
     // single copy pass: upload ALL staging vertices to GPU buffer
     if(hasImmediateDraws && !m_stagingVertices.empty()) {
-        void *mapped = SDL_MapGPUTransferBuffer(m_device, m_transferBuffer, true);
-        if(mapped) {
+        if(void *mapped = SDL_MapGPUTransferBuffer(m_device, m_transferBuffer, true)) {
             std::memcpy(mapped, m_stagingVertices.data(), sizeof(SDLGPUSimpleVertex) * m_stagingVertices.size());
             SDL_UnmapGPUTransferBuffer(m_device, m_transferBuffer);
         }
 
-        SDL_GPUCopyPass *copyPass = SDL_BeginGPUCopyPass(m_cmdBuf);
-        if(copyPass) {
+        if(SDL_GPUCopyPass *copyPass = SDL_BeginGPUCopyPass(m_cmdBuf)) {
             SDL_GPUTransferBufferLocation src{
                 .transfer_buffer = m_transferBuffer,
                 .offset = 0,
@@ -1398,8 +1392,7 @@ std::vector<u8> SDLGPUInterface::getScreenshot(bool withAlpha) {
     if(!tb) return {};
 
     // called after EndRenderPass, so we can go straight into the copy pass
-    auto *copyPass = SDL_BeginGPUCopyPass(m_cmdBuf);
-    if(copyPass) {
+    if(auto *copyPass = SDL_BeginGPUCopyPass(m_cmdBuf)) {
         SDL_GPUTextureRegion src{};
         src.texture = m_backbuffer;
         src.w = w;
@@ -1415,8 +1408,7 @@ std::vector<u8> SDLGPUInterface::getScreenshot(bool withAlpha) {
     }
 
     // submit and wait for the download to complete (also presents the frame)
-    auto *fence = SDL_SubmitGPUCommandBufferAndAcquireFence(m_cmdBuf);
-    if(fence) {
+    if(auto *fence = SDL_SubmitGPUCommandBufferAndAcquireFence(m_cmdBuf)) {
         SDL_WaitForGPUFences(m_device, true, &fence, 1);
         SDL_ReleaseGPUFence(m_device, fence);
     }
@@ -1426,8 +1418,7 @@ std::vector<u8> SDLGPUInterface::getScreenshot(bool withAlpha) {
     std::vector<u8> result;
     result.reserve(static_cast<uSz>(w) * h * (withAlpha ? 4 : 3));
 
-    void *mapped = SDL_MapGPUTransferBuffer(m_device, tb, false);
-    if(mapped) {
+    if(void *mapped = SDL_MapGPUTransferBuffer(m_device, tb, false)) {
         const u8 *pixels = static_cast<const u8 *>(mapped);
         const bool isBGRA = (DEFAULT_TEXTURE_FORMAT == SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM ||
                              DEFAULT_TEXTURE_FORMAT == SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM_SRGB);

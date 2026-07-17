@@ -49,8 +49,7 @@ void SDLGPUVertexArrayObject::init() {
                 this->partialUpdateColorIndices.clear();
                 return;
             }
-            void *mapped = SDL_MapGPUTransferBuffer(m_device, transferBuffer, true);
-            if(mapped) {
+            if(void *mapped = SDL_MapGPUTransferBuffer(m_device, transferBuffer, true)) {
                 std::memcpy(mapped, m_convertedVertices.data(),
                             sizeof(SDLGPUSimpleVertex) * m_convertedVertices.size());
                 SDL_UnmapGPUTransferBuffer(m_device, transferBuffer);
@@ -246,23 +245,19 @@ void SDLGPUVertexArrayObject::init() {
         m_convertedVertices.resize(numVerts);
         interleave(m_convertedVertices.data());
 
-        void *mapped = SDL_MapGPUTransferBuffer(m_device, transferBuffer, true);
-        if(mapped) {
+        if(void *mapped = SDL_MapGPUTransferBuffer(m_device, transferBuffer, true)) {
             std::memcpy(mapped, m_convertedVertices.data(), bufSize);
             SDL_UnmapGPUTransferBuffer(m_device, transferBuffer);
         }
     } else {
-        void *mapped = SDL_MapGPUTransferBuffer(m_device, transferBuffer, true);
-        if(mapped) {
+        if(void *mapped = SDL_MapGPUTransferBuffer(m_device, transferBuffer, true)) {
             interleave(static_cast<SDLGPUSimpleVertex *>(mapped));
             SDL_UnmapGPUTransferBuffer(m_device, transferBuffer);
         }
     }
 
-    auto *cmdBuf = SDL_AcquireGPUCommandBuffer(m_device);
-    if(cmdBuf) {
-        auto *copyPass = SDL_BeginGPUCopyPass(cmdBuf);
-        if(copyPass) {
+    if(auto *cmdBuf = SDL_AcquireGPUCommandBuffer(m_device)) {
+        if(auto *copyPass = SDL_BeginGPUCopyPass(cmdBuf)) {
             SDL_GPUTransferBufferLocation src{.transfer_buffer = transferBuffer, .offset = 0};
             SDL_GPUBufferRegion dst{.buffer = m_vertexBuffer, .offset = 0, .size = bufSize};
             SDL_UploadToGPUBuffer(copyPass, &src, &dst, this->bKeepInSystemMemory);
