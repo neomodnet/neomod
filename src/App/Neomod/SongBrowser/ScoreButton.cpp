@@ -660,7 +660,13 @@ void ScoreButton::onContextMenu(std::string_view text, int id) {
 }
 
 void ScoreButton::onUseModsClicked() {
-    Replay::Mods::use(this->storedScore->mods);
+    Replay::Mods actual{this->storedScore->mods};
+    // TODO (ugly): allow global hp drain disable to override score mods
+    using namespace flags::operators;
+    if(cv::drain_disabled.getBool()) {
+        actual.flags |= ~ModFlags::NoHP;
+    }
+    Replay::Mods::use(actual);
     soundEngine->play(osu->getSkin()->s_check_on);
 }
 
