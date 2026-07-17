@@ -102,8 +102,11 @@ f32 SongBrowser::getSkinScale(const SkinImage &img) {
     return SongBrowser::getUIScale() / img.getImageForCurrentFrame().scale;
 }
 
+// Fixed base element size, not the loaded image size: skins commonly ship
+// screen-covering art in the bottombar elements (fake overlay trick), which must not
+// inflate the button hitboxes/layout (stable keeps the standard clickable area).
 vec2 SongBrowser::getSkinDimensions(const SkinImage &img) {
-    return img.getImageSizeForCurrentFrame() * SongBrowser::getSkinScale(img);
+    return img.getSizeBaseRawForScaling2x() * SongBrowser::getUIScale();
 }
 
 namespace {
