@@ -1408,7 +1408,7 @@ endif # CLANG_BUILD
 $(PCH_OUTPUT): $(PCH_SOURCE) $(BUILT_SOURCES)
 	@rm -f $(PCH_OUTPUT) # remove possibly existing-but-outdated pch to avoid recursively including it (sanity)
 	@$(MKDIR_P) $(dir $@)
-	$(CXX) -x c++-header -MMD -MF $(PCH_DEPS) $(PCH_BUILD_FLAGS) \
+	$(CXX) -c -x c++-header -MMD -MF $(PCH_DEPS) $(PCH_BUILD_FLAGS) \
 		$(CPPFLAGS) $(neomod_CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) \
 		-o $@ $(PCH_SOURCE)
 

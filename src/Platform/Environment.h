@@ -12,6 +12,7 @@
 #include "StaticPImpl.h"
 #include "Vectors.h"
 
+#include <memory>
 #include <unordered_map>
 #include <vector>
 #include <functional>

@@ -8557,7 +8557,7 @@ $(EMBED_OUTPUT): $(EMBED_SCRIPT) $(EMBED_MANIFESTS) $(BUILD_EMBED_MANIFESTS) $(E
 @BUILD_PCH_TRUE@$(PCH_OUTPUT): $(PCH_SOURCE) $(BUILT_SOURCES)
 @BUILD_PCH_TRUE@	@rm -f $(PCH_OUTPUT) # remove possibly existing-but-outdated pch to avoid recursively including it (sanity)
 @BUILD_PCH_TRUE@	@$(MKDIR_P) $(dir $@)
-@BUILD_PCH_TRUE@	$(CXX) -x c++-header -MMD -MF $(PCH_DEPS) $(PCH_BUILD_FLAGS) \
+@BUILD_PCH_TRUE@	$(CXX) -c -x c++-header -MMD -MF $(PCH_DEPS) $(PCH_BUILD_FLAGS) \
 @BUILD_PCH_TRUE@		$(CPPFLAGS) $(neomod_CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) \
 @BUILD_PCH_TRUE@		-o $@ $(PCH_SOURCE)
 
