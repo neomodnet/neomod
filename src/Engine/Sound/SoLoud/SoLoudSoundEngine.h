@@ -40,7 +40,7 @@ class SoLoudSoundEngine final : public SoundEngine {
     inline bool isReady() override { return this->bReady; }
 
     void setOutputDevice(const OUTPUT_DEVICE &device) override;
-    void setMasterVolume(float volume) override;
+    void setMasterVolume(f32 volume) override;
 
     void allowInternalCallbacks() override;
 
@@ -51,7 +51,6 @@ class SoLoudSoundEngine final : public SoundEngine {
     bool updateExistingSound(SoLoudSound *soloudSound, SOUNDHANDLE handle, f32 pan, f32 pitch, f32 playVolume,
                              bool startPaused);
 
-    void setVolumeGradual(SOUNDHANDLE handle, float targetVol, float fadeTimeMs = 10.0f);
     void updateOutputDevices(bool printInfo) override;
 
     bool initializeOutputDevice(const OUTPUT_DEVICE &device) override;
@@ -60,7 +59,7 @@ class SoLoudSoundEngine final : public SoundEngine {
     bool setOutputDeviceInt(const OUTPUT_DEVICE &desiredDevice, bool force = false);
     bool switchShareModes(const std::optional<OUTPUT_DEVICE> &toKnownDevice = {});
 
-    void onMaxActiveChange(float newMax);
+    void onMaxActiveChange(f32 newMax);
     void updateLastDevice();
 
     std::map<int, SoLoud::DeviceInfo> mSoloudDevices;

@@ -126,13 +126,6 @@ void SoLoudSoundEngine::restart() {
             initID = -2;
         }
         this->setOutputDeviceInt(OUTPUT_DEVICE{.id = initID, .name = initName, .driver = getMAorSDLCV()}, true);
-        // if constexpr(Env::cfg(OS::WASM)) {
-        //     // TODO: this makes no sense, but audio is really messed up unless you restart again after the first init
-        //     // weirdly, this happens with either miniaudio or SDL
-        //     if(this->bWasBackendEverReady) {
-        //         this->restart();
-        //     }
-        // }
     }
 }
 
@@ -142,8 +135,8 @@ bool SoLoudSoundEngine::play(Sound *snd, f32 pan, f32 pitch, f32 playVolume, boo
     // @spec: adding 1 here because kiwec changed the calling code in some way that i dont understand yet
     pitch += 1.0f;
 
-    pan = std::clamp<float>(pan, -1.0f, 1.0f);
-    pitch = std::clamp<float>(pitch, 0.01f, 2.0f);
+    pan = std::clamp<f32>(pan, -1.0f, 1.0f);
+    pitch = std::clamp<f32>(pitch, 0.01f, 2.0f);
 
     auto *soloudSound = snd->as<SoLoudSound>();
     if(!soloudSound) return false;
@@ -252,7 +245,7 @@ bool SoLoudSoundEngine::playSound(SoLoudSound *soloudSound, f32 pan, f32 pitch, 
 
     if(!soloudSound->bStream) {
         // calculate final pitch by combining all pitch modifiers
-        float playbackPitch = pitch * soloudSound->getPitch() * soloudSound->getSpeed();
+        const f32 playbackPitch = pitch * soloudSound->getPitch() * soloudSound->getSpeed();
 
         // set relative play speed (affects both pitch and speed)
         soloud->setRelativePlaySpeed(handle, playbackPitch);
@@ -276,12 +269,15 @@ bool SoLoudSoundEngine::playSound(SoLoudSound *soloudSound, f32 pan, f32 pitch, 
 
     // fade it in if it's a stream (since we started it paused with 0 volume)
     if(soloudSound->bStream) {
-        this->setVolumeGradual(handle, soloudSound->fBaseVolume * playVolume);
+        const f32 targetVol = soloudSound->fBaseVolume * playVolume;
+        logIfCV(debug_snd, "fading in to {:.2f}", targetVol);
+
+        // (hardcoded 10ms since it's annoying to adjust fadein on BASS, and there are too many backend-specific convars already)
+        soloud->fadeVolume(handle, targetVol, 10.f / 1000.f);
     }
 
     // now unpause it
     soloud->setPause(handle, false);
-
     soloudSound->setLastPlayTime(engine->getTime());
 
     // invalidate caches
@@ -584,24 +580,14 @@ SoLoudSoundEngine::~SoLoudSoundEngine() {
     cv::snd_soloud_num_periods.reset();
 }
 
-void SoLoudSoundEngine::setMasterVolume(float volume) {
+void SoLoudSoundEngine::setMasterVolume(f32 volume) {
     if(!this->isReady()) return;
 
-    this->fMasterVolume = std::clamp<float>(volume, 0.0f, 1.0f);
+    this->fMasterVolume = std::clamp<f32>(volume, 0.0f, 1.0f);
 
     // if (cv::debug_snd.getBool())
     // 	debugLog("setting global volume to {:f}", fVolume);
     soloud->setGlobalVolume(this->fMasterVolume);
-}
-
-void SoLoudSoundEngine::setVolumeGradual(SOUNDHANDLE handle, float targetVol, float fadeTimeMs) {
-    if(!this->isReady() || handle == 0 || !soloud->isValidVoiceHandle(handle)) return;
-
-    soloud->setVolume(handle, 0.0f);
-
-    logIfCV(debug_snd, "fading in to {:.2f}", targetVol);
-
-    soloud->fadeVolume(handle, targetVol, fadeTimeMs / 1000.0f);
 }
 
 void SoLoudSoundEngine::updateOutputDevices(bool printInfo) {
@@ -897,7 +883,7 @@ bool SoLoudSoundEngine::initializeOutputDevice(const OUTPUT_DEVICE &device) {
     return true;
 }
 
-void SoLoudSoundEngine::onMaxActiveChange(float newMax) {
+void SoLoudSoundEngine::onMaxActiveChange(f32 newMax) {
     if(!soloud || !this->isReady()) return;
     const auto desired = std::clamp<unsigned int>(static_cast<unsigned int>(newMax), 64, 255);
     if(std::cmp_not_equal(soloud->getMaxActiveVoiceCount(), desired)) {

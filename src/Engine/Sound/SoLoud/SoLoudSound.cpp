@@ -334,10 +334,17 @@ bool SoLoudSound::isHandleValid(SOUNDHANDLE queryHandle) const {
     return queryHandle != 0 && this->isReady() && soloud && soloud->isValidVoiceHandle(queryHandle);
 }
 
-void SoLoudSound::setHandleVolume(SOUNDHANDLE handle, float volume) {
+void SoLoudSound::setHandleVolume(SOUNDHANDLE handle, f32 volume) {
     if(handle != 0 && this->isReady() && soloud) {
         // soloud does not support amplified (>1.0f) volume
-        soloud->setVolume(handle, std::clamp<float>(volume, 0.f, 1.f));
+        const f32 clamped = std::clamp<f32>(volume, 0.f, 1.f);
+        if(this->isStream()) {
+            // ramp in streams
+            // (hardcoded 10ms since it's annoying to adjust fadein on BASS, and there are too many backend-specific convars already)
+            soloud->fadeVolume(handle, clamped, 10.f / 1000.f);
+        } else {
+            soloud->setVolume(handle, clamped);
+        }
     }
 }
 

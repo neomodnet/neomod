@@ -499,8 +499,9 @@ bool BassSoundEngine::play(Sound *snd, f32 pan, f32 pitch, f32 playVolume, bool 
         return false;
     }
 
-    auto flags = BASS_MIXER_DOWNMIX | BASS_MIXER_NORAMPIN | (startPaused ? BASS_MIXER_CHAN_PAUSE : 0);
-    if(!snd->isStream()) flags |= BASS_STREAM_AUTOFREE;
+    auto flags = BASS_MIXER_DOWNMIX;
+    if(startPaused) flags |= BASS_MIXER_CHAN_PAUSE;
+    if(!snd->isStream()) flags |= BASS_STREAM_AUTOFREE | BASS_MIXER_NORAMPIN;
 
     if(!BASS_Mixer_StreamAddChannel(this->g_bassOutputMixer, handle, flags)) {
         debugLog("BASS_Mixer_StreamAddChannel() failed ({:d})!", BASS_ErrorGetCode());

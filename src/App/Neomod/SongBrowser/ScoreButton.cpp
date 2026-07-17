@@ -154,7 +154,7 @@ void ScoreButton::draw() {
         const float paddingTop = height * paddingTopPercent;
         const float scale = (height / usernameFont->getHeight()) * usernameScale;
 
-        std::string &string = (this->style == STYLE::TOP_RANKS ? this->sScoreTitle : this->sScoreUsername);
+        const std::string_view string = (this->style == STYLE::TOP_RANKS ? this->sScoreTitle : this->sScoreUsername);
 
         g->scale(scale, scale);
         g->translate(
@@ -190,7 +190,7 @@ void ScoreButton::draw() {
         // TODO: use outlines here, shadows look crunchy at lower resolutions
         TextFX shadow{.col_text = (this->style == STYLE::TOP_RANKS ? topRanksColor : songBrowserColor), .offs_px = 1.f};
 
-        const std::string &mainString = [&]() {
+        const std::string_view mainString{[&]() {
             // top ranks: draw pp + weight % and weighted pp
             if(this->style == STYLE::TOP_RANKS) {
                 // misleading name, this is just pp but formatted differently...
@@ -219,7 +219,7 @@ void ScoreButton::draw() {
             } else {
                 return this->sFmtedScoreScoreWithCombo;
             }
-        }();
+        }()};
 
         g->scale(scale, scale);
         g->translate(
