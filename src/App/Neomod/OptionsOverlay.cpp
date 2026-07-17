@@ -2289,9 +2289,7 @@ void OptionsOverlayImpl::onKeyDown(KeyboardEvent &e) {
     }
 
     // keybind capture: a bind button armed waitingKey, so the next key (or Escape to cancel)
-    // binds into that convar instead of falling through to the normal handling below. this
-    // replaces the old NotificationOverlay::addKeyListener side channel; options is reached by
-    // the normal key walk (it already consumes keys while open) so no focus routing is needed.
+    // binds into that convar instead of falling through to the normal handling below.
     if(this->waitingKey != nullptr) {
         const bool cancel = (e.getScanCode() == KEY_ESCAPE) ||
                             // HACKHACK: prevent left mouse click bindings if relevant
@@ -2306,7 +2304,7 @@ void OptionsOverlayImpl::onKeyDown(KeyboardEvent &e) {
         }
         this->waitingKey = nullptr;
         this->bWaitingKeyDisallowsLeftClick = false;
-        ui->getNotificationOverlay()->stopWaitingForKey();
+        ui->getNotificationOverlay()->stopWaitingForKey(!cancel);
         e.consume();
         return;
     }
