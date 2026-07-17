@@ -1071,6 +1071,13 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     this->resolutionLabel = (CBaseUILabel *)resolutionSelect->baseElems[1].get();
     this->fullscreenCheckbox = this->addCheckbox(_("Fullscreen"), &cv::fullscreen);
     this->fullscreenCheckbox->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onFullscreenChange>(this));
+    {
+        auto *minimizeOnAltTabCbx =
+            this->addCheckbox(_("Minimize On ALT+TAB"), &cv::minimize_on_focus_lost_if_fullscreen);
+        this->elemContainers.back()->render_condition = {[]() { return cv::fullscreen.getBool(); }};
+        minimizeOnAltTabCbx->setChangeCallback(
+            SA::MakeDelegate<&OptionsOverlayImpl::onCheckboxChangeWithLayoutUpdate>(this));
+    }
     this->addCheckbox(_("Keep Aspect Ratio"),
                       _("Black borders instead of a stretched image.\nOnly relevant if fullscreen is enabled, and "
                         "letterboxing is disabled.\nUse the two position sliders below to move the viewport around."),

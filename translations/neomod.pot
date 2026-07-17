@@ -1177,6 +1177,10 @@ msgid "Fullscreen"
 msgstr ""
 
 #: src/App/Neomod/OptionsOverlay.cpp
+msgid "Minimize On ALT+TAB"
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "Keep Aspect Ratio"
 msgstr ""
 
