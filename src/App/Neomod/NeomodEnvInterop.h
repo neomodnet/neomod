@@ -11,7 +11,7 @@ namespace neomod {
 void *createInterop(void *envptr);
 void handleExistingWindow(int argc, char *argv[]);
 
-bool handle_osk(std::string_view osk_path);
+bool handle_osk(std::string_view osk_path, bool auto_select = true);
 }  // namespace neomod
 
 #endif

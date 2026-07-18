@@ -38,14 +38,16 @@ void *createInterop(void *void_envptr) {
 }
 
 // drag-drop/file associations/registry stuff below
-bool handle_osk(std::string_view osk_path) {
+bool handle_osk(std::string_view osk_path, bool auto_select) {
     if(!ui || !osu || !Skin::unpack(osk_path)) return false;
 
-    auto folder_name = Environment::getFileNameFromFilePath(osk_path);
-    folder_name.erase(folder_name.size() - 4);  // remove .osk extension
+    if(auto_select) {
+        auto folder_name = Environment::getFileNameFromFilePath(osk_path);
+        folder_name.erase(folder_name.size() - 4);  // remove .osk extension
 
-    cv::skin.setValue(Environment::getFileNameFromFilePath(folder_name));
-    ui->getOptionsOverlay()->updateSkinNameLabel();
+        cv::skin.setValue(Environment::getFileNameFromFilePath(folder_name));
+        ui->getOptionsOverlay()->updateSkinNameLabel();
+    }
 
     return true;
 }

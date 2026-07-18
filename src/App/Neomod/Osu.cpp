@@ -432,7 +432,7 @@ void Osu::doDeferredInitTasks() {
         for(const auto &file : osks) {
             if(env->getFileExtensionFromFilePath(file) != "osk") continue;
             auto path = NEOMOD_SKINS_PATH "/" + file;
-            const bool extracted = neomod::handle_osk(path);
+            const bool extracted = neomod::handle_osk(path, /*auto_select=*/false);
             if(extracted) env->deleteFile(path);
         }
 
