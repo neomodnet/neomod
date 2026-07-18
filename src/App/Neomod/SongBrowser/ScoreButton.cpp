@@ -43,7 +43,7 @@
 using namespace neomod::sbr;
 
 namespace {
-inline const char *comboBasedSuffix(bool perfect, bool FC) { return perfect ? " PFC" : (FC ? " FC" : ""); }
+inline std::string_view comboBasedSuffix(bool perfect, bool FC) { return perfect ? " PFC"sv : (FC ? " FC"sv : ""sv); }
 }  // namespace
 
 std::string ScoreButton::recentScoreIconString;
@@ -154,7 +154,7 @@ void ScoreButton::draw() {
         const float paddingTop = height * paddingTopPercent;
         const float scale = (height / usernameFont->getHeight()) * usernameScale;
 
-        const std::string_view string = (this->style == STYLE::TOP_RANKS ? this->sScoreTitle : this->sScoreUsername);
+        const std::string &string = (this->style == STYLE::TOP_RANKS ? this->sScoreTitle : this->sScoreUsername);
 
         g->scale(scale, scale);
         g->translate(
@@ -190,7 +190,7 @@ void ScoreButton::draw() {
         // TODO: use outlines here, shadows look crunchy at lower resolutions
         TextFX shadow{.col_text = (this->style == STYLE::TOP_RANKS ? topRanksColor : songBrowserColor), .offs_px = 1.f};
 
-        const std::string_view mainString{[&]() {
+        const std::string &mainString = [&]() {
             // top ranks: draw pp + weight % and weighted pp
             if(this->style == STYLE::TOP_RANKS) {
                 // misleading name, this is just pp but formatted differently...
@@ -219,7 +219,7 @@ void ScoreButton::draw() {
             } else {
                 return this->sFmtedScoreScoreWithCombo;
             }
-        }()};
+        }();
 
         g->scale(scale, scale);
         g->translate(
@@ -733,7 +733,7 @@ void ScoreButton::setScore(const FinishedScore &newscore, const DatabaseBeatmap 
     }
 
     // display
-    const std::string_view comboSuffix = comboBasedSuffix(sc.perfect, fullCombo);
+    const std::string_view comboSuffix{comboBasedSuffix(sc.perfect, fullCombo)};
 
     this->scoreGrade = sc.calculate_grade();
     this->sScoreUsername = sc.playerName;
