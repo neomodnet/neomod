@@ -73,6 +73,13 @@ struct DirWatcherImpl {
 
     Sync::jthread thr;
 
+    // locking here also makes the size store safe against a concurrent update() clearing the vector
+    void queue_finished_event(const FileChangeCallback& cb, FileChangeEvent event) {
+        Sync::scoped_lock lock(this->finished_events_mtx);
+        this->finished_events.emplace_back(cb, std::move(event));
+        this->finished_events_count.store(this->finished_events.size(), std::memory_order_release);
+    }
+
 #ifdef MCENGINE_PLATFORM_WINDOWS
    private:
     HANDLE wakeup_event{INVALID_HANDLE_VALUE};
@@ -139,7 +146,8 @@ struct DirWatcherImpl {
         McThread::set_current_thread_prio(McThread::Priority::LOW);
 
         Hash::stable_stringmap<DirectoryState> active_directories;
-        std::vector<Hash::stable_stringmap<DirectoryState>::iterator> directories_to_init;
+        // element pointers: emplace can rehash and invalidate iterators, but not pointers
+        std::vector<Hash::stable_stringmap<DirectoryState>::value_type*> directories_to_init;
 
         // Create manual-reset event for stop signaling
         HANDLE stop_event = CreateEventW(nullptr, TRUE, FALSE, nullptr);
@@ -168,7 +176,7 @@ struct DirWatcherImpl {
                     auto [it, added] = active_directories.emplace(path, DirectoryState(cb));
                     if(added) {
                         // This should always be true
-                        directories_to_init.push_back(it);
+                        directories_to_init.push_back(&*it);
                     }
                 }
                 this->directories_to_add.clear();
@@ -290,11 +298,9 @@ struct DirWatcherImpl {
                     // Handle deletions immediately
                     if(ec || file_status.type() != fs::file_type::regular) {
                         if(notify->Action == FILE_ACTION_REMOVED || notify->Action == FILE_ACTION_RENAMED_OLD_NAME) {
-                            Sync::scoped_lock lock(this->finished_events_mtx);
-                            this->finished_events.emplace_back(state.cb,
-                                                               FileChangeEvent{.path = std_filepath,
-                                                                               .type = FileChangeType::DELETED,
-                                                                               .tms = fs::file_time_type{}});
+                            this->queue_finished_event(state.cb, FileChangeEvent{.path = std_filepath,
+                                                                                 .type = FileChangeType::DELETED,
+                                                                                 .tms = fs::file_time_type{}});
                             state.unconfirmed_events.erase(std_filepath);
                         }
                     } else {
@@ -351,8 +357,7 @@ struct DirWatcherImpl {
                         // Only confirm after 2+ consecutive stable checks
                         if(unconfirmed.stable_checks >= 2) {
                             to_confirm.push_back(file);
-                            Sync::scoped_lock lock(this->finished_events_mtx);
-                            this->finished_events.emplace_back(state.cb, unconfirmed.event);
+                            this->queue_finished_event(state.cb, unconfirmed.event);
                         }
                     } else {
                         // Timestamp changed, reset counter and update
@@ -365,8 +370,6 @@ struct DirWatcherImpl {
                     state.unconfirmed_events.erase(file);
                 }
             }
-
-            this->finished_events_count.store(this->finished_events.size(), std::memory_order_release);
         }
 
         CloseHandle(stop_event);
@@ -386,6 +389,7 @@ struct DirWatcherImpl {
 
         Hash::stable_stringmap<UnconfirmedEvent> unconfirmed_events{};
         Hash::stable_stringmap<fs::file_time_type> files{};
+        fs::file_time_type dir_mtime{};
     };
 
     void worker_loop(const Sync::stop_token& stoken) {
@@ -406,11 +410,10 @@ struct DirWatcherImpl {
             Hash::stable_stringmap<fs::file_time_type> files;
 
             std::error_code ec;
-            for(const auto& entry : fs::directory_iterator(dir_path, ec)) {
-                if(ec) continue;
-                auto fileType = entry.status(ec).type();
+            for(auto it = fs::directory_iterator(dir_path, ec); it != fs::directory_iterator{}; it.increment(ec)) {
+                const auto& entry = *it;
                 // we only care about files, not directories right now
-                if(fileType != fs::file_type::regular) continue;
+                if(!entry.is_regular_file(ec)) continue;
 
                 auto time = fs::last_write_time(entry, ec);
                 if(ec) continue;
@@ -421,8 +424,13 @@ struct DirWatcherImpl {
         };
 
         Hash::stable_stringmap<DirectoryState> active_directories;
-        std::vector<Hash::stable_stringmap<DirectoryState>::iterator> directories_to_init;
+        // element pointers: emplace can rehash and invalidate iterators, but not pointers
+        std::vector<Hash::stable_stringmap<DirectoryState>::value_type*> directories_to_init;
+        u64 tick_count = 0;
         while(!stoken.stop_requested()) {
+            // every 10th tick (1s) is a full sweep, catching changes that don't bump the dir mtime
+            // (in-place rewrites, filesystems with coarse/unreliable dir mtimes)
+            const bool sweep_tick = (tick_count++ % 10) == 0;
             // Add/remove directories
             {
                 Sync::scoped_lock lock(this->directories_mtx);
@@ -439,7 +447,7 @@ struct DirWatcherImpl {
                     auto [it, added] = active_directories.emplace(path, DirectoryState(cb));
                     if(added) {
                         // This should always be true
-                        directories_to_init.push_back(it);
+                        directories_to_init.push_back(&*it);
                     }
                 }
                 this->directories_to_add.clear();
@@ -449,6 +457,10 @@ struct DirWatcherImpl {
                 for(const auto& it : directories_to_init) {
                     auto& path = it->first;
                     auto& state = it->second;
+                    // read the dir mtime before enumerating, so a change racing the enumeration
+                    // causes a redundant rescan next tick instead of a miss
+                    std::error_code ec;
+                    state.dir_mtime = fs::last_write_time(path, ec);
                     state.files = getFileTimes(path);
                 }
                 directories_to_init.clear();
@@ -456,13 +468,25 @@ struct DirWatcherImpl {
 
             // Check for changes
             for(auto& [path, state] : active_directories) {
+                // gate the expensive scan behind a single stat of the watched dir itself:
+                // entry creations/deletions/renames bump its mtime, in-place rewrites of
+                // existing files don't (those are only caught by the periodic sweep)
+                std::error_code ec;
+                const auto current_dir_mtime = fs::last_write_time(path, ec);
+                const bool scan_needed = ec  // dir vanished, rescan so files get reported as deleted
+                                         || current_dir_mtime != state.dir_mtime  // entry added/removed/renamed
+                                         || !state.unconfirmed_events.empty()     // debouncing needs consecutive checks
+                                         || sweep_tick;
+                if(!scan_needed) continue;
+
                 auto latest_files = getFileTimes(path);
 
                 // Deletions
                 for(auto& [file, tms] : state.files) {
                     if(!latest_files.contains(file)) {
-                        Sync::scoped_lock lock(this->finished_events_mtx);
-                        this->finished_events.emplace_back(
+                        // drop any pending unconfirmed event for it, like the windows path does
+                        state.unconfirmed_events.erase(file);
+                        this->queue_finished_event(
                             state.cb, FileChangeEvent{.path = file, .type = FileChangeType::DELETED, .tms = tms});
                         continue;
                     }
@@ -502,8 +526,7 @@ struct DirWatcherImpl {
 
                             // Only confirm after 2+ consecutive stable checks
                             if(existing.stable_checks >= 2) {
-                                Sync::scoped_lock lock(this->finished_events_mtx);
-                                this->finished_events.emplace_back(state.cb, existing.event);
+                                this->queue_finished_event(state.cb, existing.event);
                                 state.unconfirmed_events.erase(file);
                             }
                         }
@@ -511,10 +534,9 @@ struct DirWatcherImpl {
                     }
                 }
 
-                state.files = latest_files;
+                state.files = std::move(latest_files);
+                state.dir_mtime = current_dir_mtime;
             }
-
-            this->finished_events_count.store(this->finished_events.size(), std::memory_order_release);
 
             Timing::sleepMS(100);
         }
