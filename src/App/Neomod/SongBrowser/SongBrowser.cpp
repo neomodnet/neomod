@@ -102,11 +102,15 @@ f32 SongBrowser::getSkinScale(const SkinImage &img) {
     return SongBrowser::getUIScale() / img.getImageForCurrentFrame().scale;
 }
 
-// Fixed base element size, not the loaded image size: skins commonly ship
-// screen-covering art in the bottombar elements (fake overlay trick), which must not
-// inflate the button hitboxes/layout (stable keeps the standard clickable area).
+// Stable sizes the bottombar button hitboxes from the image dimensions, and skins rely on
+// it: wide left-padded images shift the visible button art right and expect the clickable
+// area to follow (overlaps are resolved by the hit-test order in BottomBar::updateInput()).
+// Only the height is clamped to the element's base size, so screen-covering overlay-art
+// images (fake top bar trick) can't push the hitbox over the whole screen.
 vec2 SongBrowser::getSkinDimensions(const SkinImage &img) {
-    return img.getSizeBaseRawForScaling2x() * SongBrowser::getUIScale();
+    vec2 dims = img.getImageSizeForCurrentFrame() * SongBrowser::getSkinScale(img);
+    dims.y = std::min(dims.y, img.getSizeBaseRawForScaling2x().y * SongBrowser::getUIScale());
+    return dims;
 }
 
 namespace {
