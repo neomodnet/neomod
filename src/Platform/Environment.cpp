@@ -787,7 +787,8 @@ std::string Environment::encodeStringToURI(std::string_view unencodedString) noe
         uri = fmt::format("file:///{}", uri);
 
     // add trailing slash if it's a directory
-    if(fs::is_directory(abs_path) && !uri.ends_with('/')) {
+    std::error_code ec{};
+    if(fs::is_directory(abs_path, ec) && !ec && !uri.ends_with('/')) {
         uri += '/';
     }
     return uri;

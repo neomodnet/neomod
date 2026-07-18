@@ -80,16 +80,18 @@ class DirectoryCache final {
             newEntry.lastModified = fs::last_write_time(dirPath, ec);
 
             // scan directory and populate cache
-            for(const auto &dirEntry : fs::directory_iterator(dirPath, ec)) {
-                if(ec) break;
+            for(auto it = fs::directory_iterator(dirPath, ec); it != fs::directory_iterator{}; it.increment(ec)) {
+                const auto& dirEntry = *it;
 
                 std::string filename(dirEntry.path().filename().string());
                 File::FILETYPE type = File::FILETYPE::OTHER;
 
-                if(dirEntry.is_regular_file())
+                if(dirEntry.is_regular_file(ec))
                     type = File::FILETYPE::FILE;
-                else if(dirEntry.is_directory())
+                else if(dirEntry.is_directory(ec))
                     type = File::FILETYPE::FOLDER;
+
+                ec = {};
 
                 // store both the actual filename and its type
                 newEntry.files[filename] = {filename, type};
@@ -685,8 +687,8 @@ bool File::getDirectoryEntries(std::string_view pathToEnum, DirContents types,
     utf8NamesOut.reserve(512);
 
     std::error_code ec;
-    for(const auto &entry : fs::directory_iterator(pathToEnum, ec)) {
-        if(ec) continue;
+    for(auto it = fs::directory_iterator(pathToEnum, ec); it != fs::directory_iterator{}; it.increment(ec)) {
+        const auto& entry = *it;
         auto fileType = entry.status(ec).type();
 
         if((wantFiles && fileType == fs::file_type::regular) ||
