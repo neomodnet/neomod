@@ -105,102 +105,104 @@ bin_PROGRAMS = neomod$(EXEEXT)
 @BUILD_CURL_TRUE@@WIN_PLATFORM_FALSE@am__append_9 = -ldl -pthread -lc
 @BUILD_CURL_FALSE@am__append_10 = $(OPENSSL_CFLAGS)
 @BUILD_CURL_FALSE@am__append_11 = $(OPENSSL_LIBS)
-@BUILD_MIMALLOC_TRUE@am__append_12 = $(DEPS_PREFIX)/mimalloc-$(MIMALLOC_VERSION).built
+# workaround for https://github.com/microsoft/mimalloc/issues/1333
+@BUILD_MIMALLOC_TRUE@@MACOS_PLATFORM_TRUE@@WIN_PLATFORM_FALSE@am__append_12 = -DMI_TLS_MODEL_DYNAMIC_PTHREADS=1
+@BUILD_MIMALLOC_TRUE@am__append_13 = $(DEPS_PREFIX)/mimalloc-$(MIMALLOC_VERSION).built
 # workaround: SDL3 uses GCMouse from GameController.framework in its video subsystem
 # but only reports it in pkg-config when the joystick subsystem is enabled
 # (will upstream a fix soon)
-@BUILD_SDL3_TRUE@@MACOS_PLATFORM_TRUE@am__append_13 = -Wl,-framework,GameController -Wl,-framework,CoreHaptics
-@BUILD_SDL3_TRUE@am__append_14 = $(shell $(PKG_CONFIG) --cflags sdl3)
-@BUILD_SDL3_TRUE@am__append_15 = $(shell $(PKG_CONFIG) --libs sdl3) $(SDL3_EXTRALIBS)
-@BUILD_SDL3_TRUE@am__append_16 = $(DEPS_PREFIX)/SDL3-$(SDL3_VERSION).built
-@BUILD_MPG123_TRUE@am__append_17 = $(shell $(PKG_CONFIG) --cflags libmpg123)
-@BUILD_MPG123_TRUE@am__append_18 = $(shell $(PKG_CONFIG) --libs libmpg123)
-@BUILD_MPG123_TRUE@am__append_19 = $(DEPS_PREFIX)/mpg123-$(MPG123_VERSION).built
-@USE_SOLOUD_TRUE@am__append_20 = $(shell $(PKG_CONFIG) --cflags soloud) $(shell $(PKG_CONFIG) --cflags soundtouch) $(MPG123_CFLAGS) -DST_NO_EXCEPTION_HANDLING
-@USE_SOLOUD_TRUE@am__append_21 = $(shell $(PKG_CONFIG) --libs soloud) $(shell $(PKG_CONFIG) --libs soundtouch) $(MPG123_LIBS)
-@USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@am__append_22 = $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION_REAL)-$(FFMPEG_EPOCH).built
-@USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@am__append_23 = $(FFMPEG_INCFLAG)  # so we find our build of ffmpeg's headers for FFmpegLoader
-@USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@am__append_24 = $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION_REAL)-$(FFMPEG_EPOCH).built
-@USE_SOLOUD_TRUE@am__append_25 = $(DEPS_PREFIX)/SoLoud-$(SOLOUD_VERSION).built $(DEPS_PREFIX)/SoundTouch-$(SOUNDTOUCH_VERSION).built
-@MACOS_PLATFORM_TRUE@@USE_DISCORDRPC_TRUE@am__append_26 = -framework AppKit
-@USE_DISCORDRPC_TRUE@@WIN_PLATFORM_TRUE@am__append_27 = -lpsapi -ladvapi32
-@USE_DISCORDRPC_TRUE@am__append_28 = $(DEPS_PREFIX)/discord-rpc-$(DISCORDRPC_COMMIT).built
-@USE_BASS_TRUE@am__append_29 = -I$(DEPS_CACHE)/bass-$(BASS_VERSION)/bass/include -I$(DEPS_CACHE)/bass-$(BASS_VERSION)/bassfx/include -I$(DEPS_CACHE)/bass-$(BASS_VERSION)/bassmix/include \
+@BUILD_SDL3_TRUE@@MACOS_PLATFORM_TRUE@am__append_14 = -Wl,-framework,GameController -Wl,-framework,CoreHaptics
+@BUILD_SDL3_TRUE@am__append_15 = $(shell $(PKG_CONFIG) --cflags sdl3)
+@BUILD_SDL3_TRUE@am__append_16 = $(shell $(PKG_CONFIG) --libs sdl3) $(SDL3_EXTRALIBS)
+@BUILD_SDL3_TRUE@am__append_17 = $(DEPS_PREFIX)/SDL3-$(SDL3_VERSION).built
+@BUILD_MPG123_TRUE@am__append_18 = $(shell $(PKG_CONFIG) --cflags libmpg123)
+@BUILD_MPG123_TRUE@am__append_19 = $(shell $(PKG_CONFIG) --libs libmpg123)
+@BUILD_MPG123_TRUE@am__append_20 = $(DEPS_PREFIX)/mpg123-$(MPG123_VERSION).built
+@USE_SOLOUD_TRUE@am__append_21 = $(shell $(PKG_CONFIG) --cflags soloud) $(shell $(PKG_CONFIG) --cflags soundtouch) $(MPG123_CFLAGS) -DST_NO_EXCEPTION_HANDLING
+@USE_SOLOUD_TRUE@am__append_22 = $(shell $(PKG_CONFIG) --libs soloud) $(shell $(PKG_CONFIG) --libs soundtouch) $(MPG123_LIBS)
+@USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@am__append_23 = $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION_REAL)-$(FFMPEG_EPOCH).built
+@USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@am__append_24 = $(FFMPEG_INCFLAG)  # so we find our build of ffmpeg's headers for FFmpegLoader
+@USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@am__append_25 = $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION_REAL)-$(FFMPEG_EPOCH).built
+@USE_SOLOUD_TRUE@am__append_26 = $(DEPS_PREFIX)/SoLoud-$(SOLOUD_VERSION).built $(DEPS_PREFIX)/SoundTouch-$(SOUNDTOUCH_VERSION).built
+@MACOS_PLATFORM_TRUE@@USE_DISCORDRPC_TRUE@am__append_27 = -framework AppKit
+@USE_DISCORDRPC_TRUE@@WIN_PLATFORM_TRUE@am__append_28 = -lpsapi -ladvapi32
+@USE_DISCORDRPC_TRUE@am__append_29 = $(DEPS_PREFIX)/discord-rpc-$(DISCORDRPC_COMMIT).built
+@USE_BASS_TRUE@am__append_30 = -I$(DEPS_CACHE)/bass-$(BASS_VERSION)/bass/include -I$(DEPS_CACHE)/bass-$(BASS_VERSION)/bassfx/include -I$(DEPS_CACHE)/bass-$(BASS_VERSION)/bassmix/include \
 @USE_BASS_TRUE@				-I$(DEPS_CACHE)/bass-$(BASS_VERSION)/bassloud/include
 
-@USE_BASS_TRUE@@WIN_PLATFORM_TRUE@am__append_30 = -I$(DEPS_CACHE)/bass-$(BASS_VERSION)/bassasio/include -I$(DEPS_CACHE)/bass-$(BASS_VERSION)/basswasapi/include
-@USE_BASS_TRUE@@WIN_PLATFORM_TRUE@am__append_31 = $(DEPS_CACHE)/bass-$(BASS_VERSION)/bassasio/lib/$(SYSNAME)/$(host_cpu)/$(LIBPREFIX)bassasio$(DLLEXT) \
+@USE_BASS_TRUE@@WIN_PLATFORM_TRUE@am__append_31 = -I$(DEPS_CACHE)/bass-$(BASS_VERSION)/bassasio/include -I$(DEPS_CACHE)/bass-$(BASS_VERSION)/basswasapi/include
+@USE_BASS_TRUE@@WIN_PLATFORM_TRUE@am__append_32 = $(DEPS_CACHE)/bass-$(BASS_VERSION)/bassasio/lib/$(SYSNAME)/$(host_cpu)/$(LIBPREFIX)bassasio$(DLLEXT) \
 @USE_BASS_TRUE@@WIN_PLATFORM_TRUE@					$(DEPS_CACHE)/bass-$(BASS_VERSION)/basswasapi/lib/$(SYSNAME)/$(host_cpu)/$(LIBPREFIX)basswasapi$(DLLEXT)
 
-@USE_BASS_TRUE@am__append_32 = $(DEPS_PREFIX)/bass-$(BASS_VERSION).built
-@BUILD_LIBJPEG_TRUE@am__append_33 = $(shell $(PKG_CONFIG) --cflags libturbojpeg)
-@BUILD_LIBJPEG_TRUE@am__append_34 = $(shell $(PKG_CONFIG) --libs libturbojpeg)
-@BUILD_LIBJPEG_TRUE@am__append_35 = $(DEPS_PREFIX)/libjpeg-$(LIBJPEG_VERSION).built
-@BUILD_GLM_TRUE@am__append_36 = -I$(DEPS_PREFIX)/include
-@BUILD_LIBPNG_TRUE@am__append_37 = $(shell $(PKG_CONFIG) --cflags libpng)
-@BUILD_LIBPNG_TRUE@am__append_38 = $(shell $(PKG_CONFIG) --libs libpng)
-@BUILD_LIBPNG_TRUE@am__append_39 = $(DEPS_PREFIX)/libpng-$(LIBPNG_VERSION).built
-@BUILD_BZIP2_TRUE@am__append_40 = $(shell $(PKG_CONFIG) --cflags bzip2)
-@BUILD_BZIP2_TRUE@am__append_41 = $(shell $(PKG_CONFIG) --libs bzip2)
-@BUILD_BZIP2_TRUE@am__append_42 = $(DEPS_PREFIX)/bzip2-$(BZIP2_VERSION).built
-@BUILD_ZLIB_TRUE@am__append_43 = $(shell $(PKG_CONFIG) --cflags zlib)
-@BUILD_ZLIB_TRUE@am__append_44 = $(shell $(PKG_CONFIG) --libs zlib)
-@BUILD_ZLIB_TRUE@am__append_45 = $(DEPS_PREFIX)/zlib-$(ZLIB_VERSION).built
+@USE_BASS_TRUE@am__append_33 = $(DEPS_PREFIX)/bass-$(BASS_VERSION).built
+@BUILD_LIBJPEG_TRUE@am__append_34 = $(shell $(PKG_CONFIG) --cflags libturbojpeg)
+@BUILD_LIBJPEG_TRUE@am__append_35 = $(shell $(PKG_CONFIG) --libs libturbojpeg)
+@BUILD_LIBJPEG_TRUE@am__append_36 = $(DEPS_PREFIX)/libjpeg-$(LIBJPEG_VERSION).built
+@BUILD_GLM_TRUE@am__append_37 = -I$(DEPS_PREFIX)/include
+@BUILD_LIBPNG_TRUE@am__append_38 = $(shell $(PKG_CONFIG) --cflags libpng)
+@BUILD_LIBPNG_TRUE@am__append_39 = $(shell $(PKG_CONFIG) --libs libpng)
+@BUILD_LIBPNG_TRUE@am__append_40 = $(DEPS_PREFIX)/libpng-$(LIBPNG_VERSION).built
+@BUILD_BZIP2_TRUE@am__append_41 = $(shell $(PKG_CONFIG) --cflags bzip2)
+@BUILD_BZIP2_TRUE@am__append_42 = $(shell $(PKG_CONFIG) --libs bzip2)
+@BUILD_BZIP2_TRUE@am__append_43 = $(DEPS_PREFIX)/bzip2-$(BZIP2_VERSION).built
+@BUILD_ZLIB_TRUE@am__append_44 = $(shell $(PKG_CONFIG) --cflags zlib)
+@BUILD_ZLIB_TRUE@am__append_45 = $(shell $(PKG_CONFIG) --libs zlib)
+@BUILD_ZLIB_TRUE@am__append_46 = $(DEPS_PREFIX)/zlib-$(ZLIB_VERSION).built
 # "multiple definition of std::system_error::system_error"... ?
-@CLANG_BUILD_FALSE@@WIN32_PLATFORM_TRUE@am__append_46 = -fno-lto
-@BUILD_FMT_TRUE@am__append_47 = $(shell $(PKG_CONFIG) --cflags fmt)
-@BUILD_FMT_TRUE@am__append_48 = $(shell $(PKG_CONFIG) --libs fmt)
-@BUILD_FMT_TRUE@am__append_49 = $(DEPS_PREFIX)/fmt-$(FMT_VERSION).built
-@WIN_PLATFORM_TRUE@am__append_50 = -DSPDLOG_WCHAR_TO_UTF8_SUPPORT -DSPDLOG_UTF8_TO_WCHAR_CONSOLE
-@BUILD_NSYNC_TRUE@am__append_51 = -I$(DEPS_PREFIX)/include
-@BUILD_NSYNC_TRUE@am__append_52 = -L$(DEPS_PREFIX)/lib -lnsync_cpp
-@BUILD_NSYNC_TRUE@am__append_53 = $(DEPS_PREFIX)/nsync-$(NSYNC_VERSION).built
-@BUILD_BROTLI_TRUE@@BUILD_FREETYPE2_TRUE@am__append_54 = $(shell $(PKG_CONFIG) --cflags libbrotlidec libbrotlicommon)
-@BUILD_BROTLI_TRUE@@BUILD_FREETYPE2_TRUE@am__append_55 = $(shell $(PKG_CONFIG) --libs libbrotlidec libbrotlicommon)
-@BUILD_BROTLI_TRUE@@BUILD_FREETYPE2_TRUE@am__append_56 = $(DEPS_PREFIX)/brotli-$(BROTLI_VERSION).built
-@BUILD_FREETYPE2_TRUE@am__append_57 = $(shell $(PKG_CONFIG) --cflags freetype2)
-@BUILD_FREETYPE2_TRUE@am__append_58 = $(shell $(PKG_CONFIG) --libs freetype2)
-@BUILD_FREETYPE2_TRUE@am__append_59 = $(DEPS_PREFIX)/freetype-$(FREETYPE2_VERSION).built
+@CLANG_BUILD_FALSE@@WIN32_PLATFORM_TRUE@am__append_47 = -fno-lto
+@BUILD_FMT_TRUE@am__append_48 = $(shell $(PKG_CONFIG) --cflags fmt)
+@BUILD_FMT_TRUE@am__append_49 = $(shell $(PKG_CONFIG) --libs fmt)
+@BUILD_FMT_TRUE@am__append_50 = $(DEPS_PREFIX)/fmt-$(FMT_VERSION).built
+@WIN_PLATFORM_TRUE@am__append_51 = -DSPDLOG_WCHAR_TO_UTF8_SUPPORT -DSPDLOG_UTF8_TO_WCHAR_CONSOLE
+@BUILD_NSYNC_TRUE@am__append_52 = -I$(DEPS_PREFIX)/include
+@BUILD_NSYNC_TRUE@am__append_53 = -L$(DEPS_PREFIX)/lib -lnsync_cpp
+@BUILD_NSYNC_TRUE@am__append_54 = $(DEPS_PREFIX)/nsync-$(NSYNC_VERSION).built
+@BUILD_BROTLI_TRUE@@BUILD_FREETYPE2_TRUE@am__append_55 = $(shell $(PKG_CONFIG) --cflags libbrotlidec libbrotlicommon)
+@BUILD_BROTLI_TRUE@@BUILD_FREETYPE2_TRUE@am__append_56 = $(shell $(PKG_CONFIG) --libs libbrotlidec libbrotlicommon)
+@BUILD_BROTLI_TRUE@@BUILD_FREETYPE2_TRUE@am__append_57 = $(DEPS_PREFIX)/brotli-$(BROTLI_VERSION).built
+@BUILD_FREETYPE2_TRUE@am__append_58 = $(shell $(PKG_CONFIG) --cflags freetype2)
+@BUILD_FREETYPE2_TRUE@am__append_59 = $(shell $(PKG_CONFIG) --libs freetype2)
+@BUILD_FREETYPE2_TRUE@am__append_60 = $(DEPS_PREFIX)/freetype-$(FREETYPE2_VERSION).built
 # idk
-@BUILD_SIMDUTF_TRUE@@CLANG_BUILD_FALSE@@WIN_PLATFORM_TRUE@am__append_60 = $(if $(ENABLE_DEBUG),-DSIMDUTF_IMPLEMENTATION_ICELAKE=0 -DSIMDUTF_IMPLEMENTATION_HASWELL=0,)
+@BUILD_SIMDUTF_TRUE@@CLANG_BUILD_FALSE@@WIN_PLATFORM_TRUE@am__append_61 = $(if $(ENABLE_DEBUG),-DSIMDUTF_IMPLEMENTATION_ICELAKE=0 -DSIMDUTF_IMPLEMENTATION_HASWELL=0,)
 # idk
-@BUILD_SIMDUTF_TRUE@@CLANG_BUILD_FALSE@@WIN32_PLATFORM_TRUE@@WIN_PLATFORM_TRUE@am__append_61 = -fno-lto
-@BUILD_SIMDUTF_TRUE@am__append_62 = $(shell $(PKG_CONFIG) --cflags simdutf)
-@BUILD_SIMDUTF_TRUE@am__append_63 = $(shell $(PKG_CONFIG) --libs simdutf)
-@BUILD_SIMDUTF_TRUE@am__append_64 = $(DEPS_PREFIX)/simdutf-$(SIMDUTF_VERSION).built
-@BUILD_LZMA_TRUE@am__append_65 = $(shell $(PKG_CONFIG) --cflags liblzma)
-@BUILD_LZMA_TRUE@am__append_66 = $(shell $(PKG_CONFIG) --libs liblzma)
-@BUILD_LZMA_TRUE@am__append_67 = $(DEPS_PREFIX)/liblzma-$(LZMA_VERSION).built
-@BUILD_CTRE_TRUE@am__append_68 = $(shell $(PKG_CONFIG) --cflags ctre)
-@BUILD_LIBICONV_TRUE@am__append_69 = -L$(DEPS_PREFIX)/lib
-@BUILD_LIBICONV_TRUE@am__append_70 = $(DEPS_PREFIX)/libiconv-$(LIBICONV_VERSION).built
+@BUILD_SIMDUTF_TRUE@@CLANG_BUILD_FALSE@@WIN32_PLATFORM_TRUE@@WIN_PLATFORM_TRUE@am__append_62 = -fno-lto
+@BUILD_SIMDUTF_TRUE@am__append_63 = $(shell $(PKG_CONFIG) --cflags simdutf)
+@BUILD_SIMDUTF_TRUE@am__append_64 = $(shell $(PKG_CONFIG) --libs simdutf)
+@BUILD_SIMDUTF_TRUE@am__append_65 = $(DEPS_PREFIX)/simdutf-$(SIMDUTF_VERSION).built
+@BUILD_LZMA_TRUE@am__append_66 = $(shell $(PKG_CONFIG) --cflags liblzma)
+@BUILD_LZMA_TRUE@am__append_67 = $(shell $(PKG_CONFIG) --libs liblzma)
+@BUILD_LZMA_TRUE@am__append_68 = $(DEPS_PREFIX)/liblzma-$(LZMA_VERSION).built
+@BUILD_CTRE_TRUE@am__append_69 = $(shell $(PKG_CONFIG) --cflags ctre)
+@BUILD_LIBICONV_TRUE@am__append_70 = -L$(DEPS_PREFIX)/lib
+@BUILD_LIBICONV_TRUE@am__append_71 = $(DEPS_PREFIX)/libiconv-$(LIBICONV_VERSION).built
 
 # required for proper permissions support on linux
-@BUILD_LIBACL_TRUE@@BUILD_LIBARCHIVE_TRUE@am__append_71 = $(shell $(PKG_CONFIG) --cflags libacl)
-@BUILD_LIBACL_TRUE@@BUILD_LIBARCHIVE_TRUE@am__append_72 = $(shell $(PKG_CONFIG) --libs libacl)
-@BUILD_LIBACL_TRUE@@BUILD_LIBARCHIVE_TRUE@am__append_73 = $(DEPS_PREFIX)/libacl-$(LIBACL_VERSION).built
+@BUILD_LIBACL_TRUE@@BUILD_LIBARCHIVE_TRUE@am__append_72 = $(shell $(PKG_CONFIG) --cflags libacl)
+@BUILD_LIBACL_TRUE@@BUILD_LIBARCHIVE_TRUE@am__append_73 = $(shell $(PKG_CONFIG) --libs libacl)
+@BUILD_LIBACL_TRUE@@BUILD_LIBARCHIVE_TRUE@am__append_74 = $(DEPS_PREFIX)/libacl-$(LIBACL_VERSION).built
 
 # ugly hack to make pkg-config/libarchive find the bundled openssl libs
 # NOTE: if we have bundled openssl, then this assumes we also have zstd libs (since the static-curl project builds that and provides the static archive)
-@BUILD_LIBARCHIVE_TRUE@am__append_74 = $(shell $(PKG_CONFIG_PLUS_BUNDLED_OSSL) --cflags libarchive)
-@BUILD_LIBARCHIVE_TRUE@am__append_75 = $(shell $(PKG_CONFIG_PLUS_BUNDLED_OSSL) --libs libarchive)
-@BUILD_LIBARCHIVE_TRUE@am__append_76 = $(DEPS_PREFIX)/libarchive-$(LIBARCHIVE_VERSION).built
-@DOWNLOAD_DXC_TRUE@@USE_SDLGPU_TRUE@@USE_SHADERGEN_TRUE@am__append_77 = --dxc $(DEPS_CACHE)/linux_dxc_2025_07_14/bin/dxc
-@BUILD_PCH_TRUE@@CLANG_BUILD_FALSE@am__append_78 = -fpch-preprocess
-@BUILD_PCH_TRUE@am__append_79 = $(PCH_OUTPUT) $(PCH_DEPS)
+@BUILD_LIBARCHIVE_TRUE@am__append_75 = $(shell $(PKG_CONFIG_PLUS_BUNDLED_OSSL) --cflags libarchive)
+@BUILD_LIBARCHIVE_TRUE@am__append_76 = $(shell $(PKG_CONFIG_PLUS_BUNDLED_OSSL) --libs libarchive)
+@BUILD_LIBARCHIVE_TRUE@am__append_77 = $(DEPS_PREFIX)/libarchive-$(LIBARCHIVE_VERSION).built
+@DOWNLOAD_DXC_TRUE@@USE_SDLGPU_TRUE@@USE_SHADERGEN_TRUE@am__append_78 = --dxc $(DEPS_CACHE)/linux_dxc_2025_07_14/bin/dxc
+@BUILD_PCH_TRUE@@CLANG_BUILD_FALSE@am__append_79 = -fpch-preprocess
+@BUILD_PCH_TRUE@am__append_80 = $(PCH_OUTPUT) $(PCH_DEPS)
 
 # mimalloc new/delete override for windows
-@WIN_PLATFORM_TRUE@am__append_80 = $(MIMALLOC_OVERRIDE_DEP)
-@WIN_PLATFORM_FALSE@am__append_81 = lib/
-@WASM_PLATFORM_FALSE@am__append_82 = stamp-install-assets \
+@WIN_PLATFORM_TRUE@am__append_81 = $(MIMALLOC_OVERRIDE_DEP)
+@WIN_PLATFORM_FALSE@am__append_82 = lib/
+@WASM_PLATFORM_FALSE@am__append_83 = stamp-install-assets \
 @WASM_PLATFORM_FALSE@	stamp-install-sharedlibs
-@LINUX_PLATFORM_TRUE@@WASM_PLATFORM_FALSE@am__append_83 = stamp-install-rpath
 @LINUX_PLATFORM_TRUE@@WASM_PLATFORM_FALSE@am__append_84 = stamp-install-rpath
-@MACOS_PLATFORM_TRUE@@WASM_PLATFORM_FALSE@am__append_85 = stamp-install-librpath stamp-install-exerpath
+@LINUX_PLATFORM_TRUE@@WASM_PLATFORM_FALSE@am__append_85 = stamp-install-rpath
 @MACOS_PLATFORM_TRUE@@WASM_PLATFORM_FALSE@am__append_86 = stamp-install-librpath stamp-install-exerpath
-@RUN_DSYMUTIL_TRUE@@WASM_PLATFORM_FALSE@am__append_87 = stamp-install-dsym
-@STRIPBINS_TRUE@@WASM_PLATFORM_FALSE@am__append_88 = stamp-install-strip
-@AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@am__append_89 = stamp-install-wine-shortcuts
+@MACOS_PLATFORM_TRUE@@WASM_PLATFORM_FALSE@am__append_87 = stamp-install-librpath stamp-install-exerpath
+@RUN_DSYMUTIL_TRUE@@WASM_PLATFORM_FALSE@am__append_88 = stamp-install-dsym
+@STRIPBINS_TRUE@@WASM_PLATFORM_FALSE@am__append_89 = stamp-install-strip
+@AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@am__append_90 = stamp-install-wine-shortcuts
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
@@ -992,9 +994,9 @@ AM_DEFAULT_VERBOSITY = @AM_DEFAULT_VERBOSITY@
 AR = @AR@
 ASSETS_DIR = @ASSETS_DIR@
 AUDBACKENDLIST = @AUDBACKENDLIST@
-AUDIO_CFLAGS = @AUDIO_CFLAGS@ $(am__append_20) $(am__append_23) \
-	$(am__append_29) $(am__append_30)
-AUDIO_LIBS = @AUDIO_LIBS@ $(am__append_21)
+AUDIO_CFLAGS = @AUDIO_CFLAGS@ $(am__append_21) $(am__append_24) \
+	$(am__append_30) $(am__append_31)
+AUDIO_LIBS = @AUDIO_LIBS@ $(am__append_22)
 AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
 AUTOMAKE = @AUTOMAKE@
@@ -1005,16 +1007,16 @@ BROTLICOMMON_CFLAGS = @BROTLICOMMON_CFLAGS@
 BROTLICOMMON_LIBS = @BROTLICOMMON_LIBS@
 BROTLIDEC_CFLAGS = @BROTLIDEC_CFLAGS@
 BROTLIDEC_LIBS = @BROTLIDEC_LIBS@
-BROTLI_CFLAGS = @BROTLI_CFLAGS@ $(am__append_54)
-BROTLI_LIBS = @BROTLI_LIBS@ $(am__append_55)
+BROTLI_CFLAGS = @BROTLI_CFLAGS@ $(am__append_55)
+BROTLI_LIBS = @BROTLI_LIBS@ $(am__append_56)
 BROTLI_PREFIX = @BROTLI_PREFIX@
 BROTLI_VERSION = @BROTLI_VERSION@
 BUILD_EMBED_MANIFESTS = @BUILD_EMBED_MANIFESTS@
 BUILD_MISCDIR = @BUILD_MISCDIR@
 BUILD_TIMESTAMP = @BUILD_TIMESTAMP@
 BUNDLED_INCLUDES = @BUNDLED_INCLUDES@
-BZIP2_CFLAGS = @BZIP2_CFLAGS@ $(am__append_40)
-BZIP2_LIBS = @BZIP2_LIBS@ $(am__append_41)
+BZIP2_CFLAGS = @BZIP2_CFLAGS@ $(am__append_41)
+BZIP2_LIBS = @BZIP2_LIBS@ $(am__append_42)
 BZIP2_PREFIX = @BZIP2_PREFIX@
 BZIP2_VERSION = @BZIP2_VERSION@
 CC = @CC@
@@ -1040,7 +1042,7 @@ CPU_COUNT = @CPU_COUNT@
 CP_INSTALL = @CP_INSTALL@
 CSCOPE = @CSCOPE@
 CTAGS = @CTAGS@
-CTRE_CFLAGS = @CTRE_CFLAGS@ $(am__append_68)
+CTRE_CFLAGS = @CTRE_CFLAGS@ $(am__append_69)
 CTRE_LIBS = @CTRE_LIBS@
 CTRE_PREFIX = @CTRE_PREFIX@
 CTRE_VERSION = @CTRE_VERSION@
@@ -1084,18 +1086,18 @@ ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
 EXTRA_WIN_LDFLAGS = @EXTRA_WIN_LDFLAGS@
 FFMPEG_VERSION = @FFMPEG_VERSION@
-FMT_CFLAGS = @FMT_CFLAGS@ $(am__append_47)
-FMT_LIBS = @FMT_LIBS@ $(am__append_48)
+FMT_CFLAGS = @FMT_CFLAGS@ $(am__append_48)
+FMT_LIBS = @FMT_LIBS@ $(am__append_49)
 FMT_PREFIX = @FMT_PREFIX@
 FMT_VERSION = @FMT_VERSION@
-FREETYPE2_CFLAGS = @FREETYPE2_CFLAGS@ $(am__append_57)
-FREETYPE2_LIBS = @FREETYPE2_LIBS@ $(am__append_58)
+FREETYPE2_CFLAGS = @FREETYPE2_CFLAGS@ $(am__append_58)
+FREETYPE2_LIBS = @FREETYPE2_LIBS@ $(am__append_59)
 FREETYPE2_PREFIX = @FREETYPE2_PREFIX@
 FREETYPE2_VERSION = @FREETYPE2_VERSION@
 GETCONF = @GETCONF@
 GLM_CFLAGS = @GLM_CFLAGS@ -fms-extensions -DGLM_FORCE_CXX20 \
 	-DGLM_ENABLE_EXPERIMENTAL -DGLM_FORCE_INLINE \
-	-DGLM_ENABLE_LANG_EXTENSIONS $(am__append_36)
+	-DGLM_ENABLE_LANG_EXTENSIONS $(am__append_37)
 GLM_PREFIX = @GLM_PREFIX@
 GLM_VERSION = @GLM_VERSION@
 GLSLANG_VALIDATOR = @GLSLANG_VALIDATOR@
@@ -1113,23 +1115,23 @@ INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LD = @LD@
 LDFLAGS = @LDFLAGS@
-LIBACL_CFLAGS = @LIBACL_CFLAGS@ $(am__append_71)
-LIBACL_LIBS = @LIBACL_LIBS@ $(am__append_72)
+LIBACL_CFLAGS = @LIBACL_CFLAGS@ $(am__append_72)
+LIBACL_LIBS = @LIBACL_LIBS@ $(am__append_73)
 LIBACL_PREFIX = @LIBACL_PREFIX@
 LIBACL_VERSION = @LIBACL_VERSION@
-LIBARCHIVE_CFLAGS = @LIBARCHIVE_CFLAGS@ $(am__append_74)
-LIBARCHIVE_LIBS = @LIBARCHIVE_LIBS@ $(am__append_75)
+LIBARCHIVE_CFLAGS = @LIBARCHIVE_CFLAGS@ $(am__append_75)
+LIBARCHIVE_LIBS = @LIBARCHIVE_LIBS@ $(am__append_76)
 LIBARCHIVE_PREFIX = @LIBARCHIVE_PREFIX@
 LIBARCHIVE_VERSION = @LIBARCHIVE_VERSION@
 LIBICONV_PREFIX = @LIBICONV_PREFIX@
 LIBICONV_VERSION = @LIBICONV_VERSION@
-LIBJPEG_CFLAGS = @LIBJPEG_CFLAGS@ $(am__append_33)
-LIBJPEG_LIBS = @LIBJPEG_LIBS@ $(am__append_34)
+LIBJPEG_CFLAGS = @LIBJPEG_CFLAGS@ $(am__append_34)
+LIBJPEG_LIBS = @LIBJPEG_LIBS@ $(am__append_35)
 LIBJPEG_PREFIX = @LIBJPEG_PREFIX@
 LIBJPEG_VERSION = @LIBJPEG_VERSION@
 LIBOBJS = @LIBOBJS@
-LIBPNG_CFLAGS = @LIBPNG_CFLAGS@ $(am__append_37)
-LIBPNG_LIBS = @LIBPNG_LIBS@ $(am__append_38)
+LIBPNG_CFLAGS = @LIBPNG_CFLAGS@ $(am__append_38)
+LIBPNG_LIBS = @LIBPNG_LIBS@ $(am__append_39)
 LIBPNG_PREFIX = @LIBPNG_PREFIX@
 LIBPNG_VERSION = @LIBPNG_VERSION@
 LIBPREFIX = @LIBPREFIX@
@@ -1139,8 +1141,8 @@ LLD = @LLD@
 LLVMMINGW = @LLVMMINGW@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
-LZMA_CFLAGS = @LZMA_CFLAGS@ $(am__append_65)
-LZMA_LIBS = @LZMA_LIBS@ $(am__append_66)
+LZMA_CFLAGS = @LZMA_CFLAGS@ $(am__append_66)
+LZMA_LIBS = @LZMA_LIBS@ $(am__append_67)
 LZMA_PREFIX = @LZMA_PREFIX@
 LZMA_VERSION = @LZMA_VERSION@
 MAKEFLAGS = @MAKEFLAGS@
@@ -1151,8 +1153,8 @@ MIMALLOC_PREFIX = @MIMALLOC_PREFIX@
 MIMALLOC_VERSION = @MIMALLOC_VERSION@
 MKDIR_P = @MKDIR_P@
 MOLD = @MOLD@
-MPG123_CFLAGS = @MPG123_CFLAGS@ $(am__append_17)
-MPG123_LIBS = @MPG123_LIBS@ $(am__append_18)
+MPG123_CFLAGS = @MPG123_CFLAGS@ $(am__append_18)
+MPG123_LIBS = @MPG123_LIBS@ $(am__append_19)
 MPG123_PREFIX = @MPG123_PREFIX@
 MPG123_VERSION = @MPG123_VERSION@
 MSGATTRIB = @MSGATTRIB@
@@ -1195,8 +1197,8 @@ PYTHON = @PYTHON@
 RANLIB = @RANLIB@
 RAPIDJSON_COMMIT = @RAPIDJSON_COMMIT@
 REALPATH = @REALPATH@
-SDL3_CFLAGS = @SDL3_CFLAGS@ $(am__append_14)
-SDL3_LIBS = @SDL3_LIBS@ $(am__append_15)
+SDL3_CFLAGS = @SDL3_CFLAGS@ $(am__append_15)
+SDL3_LIBS = @SDL3_LIBS@ $(am__append_16)
 SDL3_PREFIX = @SDL3_PREFIX@
 SDL3_STATIC = @SDL3_STATIC@
 SDL3_VERSION = @SDL3_VERSION@
@@ -1204,8 +1206,8 @@ SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 SIMDUTF_CFLAGS = @SIMDUTF_CFLAGS@ $(if $(ENABLE_DEBUG),,-DNDEBUG) \
-	$(am__append_62)
-SIMDUTF_LIBS = @SIMDUTF_LIBS@ $(am__append_63)
+	$(am__append_63)
+SIMDUTF_LIBS = @SIMDUTF_LIBS@ $(am__append_64)
 SIMDUTF_PREFIX = @SIMDUTF_PREFIX@
 SIMDUTF_VERSION = @SIMDUTF_VERSION@
 SOLOUD_PREFIX = @SOLOUD_PREFIX@
@@ -1214,7 +1216,7 @@ SOUNDTOUCH_PREFIX = @SOUNDTOUCH_PREFIX@
 SOUNDTOUCH_VERSION = @SOUNDTOUCH_VERSION@
 SPDLOG_CFLAGS = @SPDLOG_CFLAGS@ -USPDLOG_SHARED_LIB \
 	-USPDLOG_COMPILED_LIB -DSPDLOG_NO_EXCEPTIONS \
-	-DSPDLOG_FMT_EXTERNAL $(am__append_50)
+	-DSPDLOG_FMT_EXTERNAL $(am__append_51)
 SPDLOG_LIBS = @SPDLOG_LIBS@
 SPDLOG_PREFIX = @SPDLOG_PREFIX@
 SPDLOG_VERSION = @SPDLOG_VERSION@
@@ -1244,8 +1246,8 @@ XI_CFLAGS = @XI_CFLAGS@
 XI_LIBS = @XI_LIBS@
 XRANDR_CFLAGS = @XRANDR_CFLAGS@
 XRANDR_LIBS = @XRANDR_LIBS@
-ZLIB_CFLAGS = @ZLIB_CFLAGS@ $(am__append_43)
-ZLIB_LIBS = @ZLIB_LIBS@ $(am__append_44)
+ZLIB_CFLAGS = @ZLIB_CFLAGS@ $(am__append_44)
+ZLIB_LIBS = @ZLIB_LIBS@ $(am__append_45)
 ZLIB_PREFIX = @ZLIB_PREFIX@
 ZLIB_VERSION = @ZLIB_VERSION@
 _GSED = @_GSED@
@@ -1538,7 +1540,7 @@ neomod_SOURCES = libraries/MD5.cpp libraries/base64.cpp \
 	$(GL_CORE_SOURCES) $(GLES_SOURCES) $(DX11_SOURCES) \
 	$(SDLGPU_SOURCES) $(GLAD_SOURCES) $(SOLOUD_SOURCES) \
 	$(BASS_SOURCES) $(WIN_SOURCES) $(FFMPEG_SOURCES) \
-	$(TEST_SOURCES) $(NULL) $(EMBED_OUTPUT) $(am__append_80)
+	$(TEST_SOURCES) $(NULL) $(EMBED_OUTPUT) $(am__append_81)
 
 # generated by ./autogen.sh (includes conditional source blocks)
 CLEANFILES = $(EMBED_OUTPUT) $(builddir)/gen/binary_embed.h \
@@ -1551,7 +1553,7 @@ CLEANFILES = $(EMBED_OUTPUT) $(builddir)/gen/binary_embed.h \
 	$(builddir)/gen/shaders/.pack_stamp \
 	$(builddir)/gen/shaders/.stamp $(GEN_TRANSLATIONS_STAMP) \
 	$(TRANSLATIONS_HEADER) $(TRANSLATIONS_LOCALE_MANIFEST) \
-	$(MO_FILES) $(am__append_79)
+	$(MO_FILES) $(am__append_80)
 
 #####################################################################################################################################################
 #####################################################################################################################################################
@@ -1579,13 +1581,13 @@ LT_GNU_LD_CACHE := $(if $(filter darwin%,$(host_os)),,lt_cv_prog_gnu_ld=yes)
 LT_WITH_GNU_LD := $(if $(filter darwin%,$(host_os)),,--with-gnu-ld)
 
 # accumulated by each dependency's build block below, used by stamp-install-sharedlibs
-INSTALL_LIB_DEPS = $(am__append_12) $(am__append_16) $(am__append_19) \
-	$(am__append_24) $(am__append_25) $(am__append_28) \
-	$(am__append_32) $(am__append_35) $(am__append_39) \
-	$(am__append_42) $(am__append_45) $(am__append_49) \
-	$(am__append_53) $(am__append_56) $(am__append_59) \
-	$(am__append_64) $(am__append_67) $(am__append_70) \
-	$(am__append_73) $(am__append_76)
+INSTALL_LIB_DEPS = $(am__append_13) $(am__append_17) $(am__append_20) \
+	$(am__append_25) $(am__append_26) $(am__append_29) \
+	$(am__append_33) $(am__append_36) $(am__append_40) \
+	$(am__append_43) $(am__append_46) $(am__append_50) \
+	$(am__append_54) $(am__append_57) $(am__append_60) \
+	$(am__append_65) $(am__append_68) $(am__append_71) \
+	$(am__append_74) $(am__append_77)
 CACERT_INCDIR := $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)/certbundle
 PKG_CONFIG_PLUS_BUNDLED_OSSL = $(PKG_CONFIG) $(am__append_4)
 
@@ -1603,11 +1605,12 @@ CURL_VERSION_REAL := $(if $(ubercompat),8.18.0,$(CURL_VERSION))
 @BUILD_CURL_TRUE@CURL_LIBDIR := $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)/$(SYSNAME)$(host_cpu)/lib
 @WASM_PLATFORM_FALSE@CACERT_DOWNLOAD_DEP := $(CACERT_INCDIR)/cacert.pem
 @WASM_PLATFORM_TRUE@CACERT_DOWNLOAD_DEP := 
-@BUILD_MIMALLOC_FALSE@MIMALLOC_REDIRECT_DLL_NAME := 
-@BUILD_MIMALLOC_TRUE@@WIN_PLATFORM_FALSE@MIMALLOC_REDIRECT_DLL_NAME := 
 
 # curl has a bunch of extra stuff, so put it in its own directory
 # defines: CACERT_INCDIR; CACERT_DOWNLOAD_DEP; PKG_CONFIG_PLUS_BUNDLED_OSSL; CURL_VERSION_REAL
+@BUILD_MIMALLOC_TRUE@MIMALLOC_TLS_FLAGS = $(am__append_12)
+@BUILD_MIMALLOC_FALSE@MIMALLOC_REDIRECT_DLL_NAME := 
+@BUILD_MIMALLOC_TRUE@@WIN_PLATFORM_FALSE@MIMALLOC_REDIRECT_DLL_NAME := 
 @BUILD_MIMALLOC_TRUE@@WIN_PLATFORM_TRUE@MIMALLOC_REDIRECT_DLL_NAME := mimalloc-redirect$(if $(filter i686,$(host_cpu)),32,$(if $(filter aarch64,$(host_cpu)),-arm64,))
 @BUILD_MIMALLOC_FALSE@MIMALLOC_DYNAMIC_LIBS := 
 @BUILD_MIMALLOC_TRUE@@WIN_PLATFORM_FALSE@MIMALLOC_DYNAMIC_LIBS := 
@@ -1618,8 +1621,8 @@ CURL_VERSION_REAL := $(if $(ubercompat),8.18.0,$(CURL_VERSION))
 @BUILD_MIMALLOC_FALSE@MIMALLOC_OVERRIDE_DEP := 
 @BUILD_MIMALLOC_TRUE@@WIN_PLATFORM_FALSE@MIMALLOC_OVERRIDE_DEP := 
 @BUILD_MIMALLOC_TRUE@@WIN_PLATFORM_TRUE@MIMALLOC_OVERRIDE_DEP := $(DEPS_PREFIX)/mimalloc/mimalloc_new_delete.cpp
-@BUILD_SDL3_TRUE@SDL3_EXTRALIBS := $(am__append_13)
-@USE_SOLOUD_TRUE@SOLOUD_FFMPEG_DEP = $(am__append_22)
+@BUILD_SDL3_TRUE@SDL3_EXTRALIBS := $(am__append_14)
+@USE_SOLOUD_TRUE@SOLOUD_FFMPEG_DEP = $(am__append_23)
 @USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@FFMPEG_INCFLAG := -I$(DEPS_PREFIX)/include
 @USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@FFMPEG_LIBDIR := $(DEPS_PREFIX)/lib
 @USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@FFMPEG_CONFIGURE_FLAGS :=  \
@@ -1673,21 +1676,21 @@ CURL_VERSION_REAL := $(if $(ubercompat),8.18.0,$(CURL_VERSION))
 @USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@	symbols are hidden)
 @USE_DISCORDRPC_TRUE@DISCORDRPC_CFLAGS := -I$(DEPS_PREFIX)/include
 @USE_DISCORDRPC_TRUE@DISCORDRPC_LIBS := -L$(DEPS_PREFIX)/lib \
-@USE_DISCORDRPC_TRUE@	-ldiscord-rpc $(am__append_26) \
-@USE_DISCORDRPC_TRUE@	$(am__append_27)
+@USE_DISCORDRPC_TRUE@	-ldiscord-rpc $(am__append_27) \
+@USE_DISCORDRPC_TRUE@	$(am__append_28)
 @USE_BASS_TRUE@BASS_INSTALL_LIBS := $(DEPS_CACHE)/bass-$(BASS_VERSION)/bass/lib/$(SYSNAME)/$(host_cpu)/$(LIBPREFIX)bass$(DLLEXT) \
 @USE_BASS_TRUE@	$(DEPS_CACHE)/bass-$(BASS_VERSION)/bassflac/lib/$(SYSNAME)/$(host_cpu)/$(LIBPREFIX)bassflac$(DLLEXT) \
 @USE_BASS_TRUE@	$(DEPS_CACHE)/bass-$(BASS_VERSION)/bassfx/lib/$(SYSNAME)/$(host_cpu)/$(LIBPREFIX)bass_fx$(DLLEXT) \
 @USE_BASS_TRUE@	$(DEPS_CACHE)/bass-$(BASS_VERSION)/bassmix/lib/$(SYSNAME)/$(host_cpu)/$(LIBPREFIX)bassmix$(DLLEXT) \
 @USE_BASS_TRUE@	$(DEPS_CACHE)/bass-$(BASS_VERSION)/bassloud/lib/$(SYSNAME)/$(host_cpu)/$(LIBPREFIX)bassloud$(DLLEXT) \
-@USE_BASS_TRUE@	$(am__append_31)
-FMT_EXTRA_BUILDFLAGS := $(am__append_46)
+@USE_BASS_TRUE@	$(am__append_32)
+FMT_EXTRA_BUILDFLAGS := $(am__append_47)
 NSYNC_CFLAGS = -DNSYNC_ATOMIC_CPP11 -DNSYNC_USE_CPP11_TIMEPOINT \
-	$(am__append_51)
-NSYNC_LIBS = $(am__append_52)
-@BUILD_SIMDUTF_TRUE@SIMDUTF_EXTRA_BUILDFLAGS := $(am__append_60) \
-@BUILD_SIMDUTF_TRUE@	$(am__append_61)
-LIBICONV_LIBS := -liconv $(am__append_69)
+	$(am__append_52)
+NSYNC_LIBS = $(am__append_53)
+@BUILD_SIMDUTF_TRUE@SIMDUTF_EXTRA_BUILDFLAGS := $(am__append_61) \
+@BUILD_SIMDUTF_TRUE@	$(am__append_62)
+LIBICONV_LIBS := -liconv $(am__append_70)
 
 #####################################################################################################################################################
 #####################################################################################################################################################
@@ -1758,7 +1761,7 @@ EMBED_DEPFILE := $(builddir)/gen/binary_embed.d
 @USE_SDLGPU_FALSE@@USE_SHADERGEN_TRUE@SDLGPU_DXC_FLAG := 
 @USE_SDLGPU_TRUE@@USE_SHADERGEN_TRUE@SDLGPU_DXC_FLAG := $(if \
 @USE_SDLGPU_TRUE@@USE_SHADERGEN_TRUE@	$(DXC),--dxc $(DXC),) \
-@USE_SDLGPU_TRUE@@USE_SHADERGEN_TRUE@	$(am__append_77)
+@USE_SDLGPU_TRUE@@USE_SHADERGEN_TRUE@	$(am__append_78)
 @DOWNLOAD_DXC_FALSE@@USE_SDLGPU_TRUE@@USE_SHADERGEN_TRUE@SDLGPU_DXC_DEP := 
 @DOWNLOAD_DXC_TRUE@@USE_SDLGPU_TRUE@@USE_SHADERGEN_TRUE@SDLGPU_DXC_DEP := $(DEPS_CACHE)/linux_dxc_2025_07_14.x86_64.source
 @USE_SDLGPU_FALSE@@USE_SHADERGEN_TRUE@SDLGPU_DXC_DEP := 
@@ -1827,7 +1830,7 @@ BUILT_SOURCES := \
 @BUILD_PCH_TRUE@PCH_DEPS := $(builddir)/pch.h.d
 @BUILD_PCH_FALSE@PCH_FLAGS := 
 @BUILD_PCH_TRUE@PCH_FLAGS := -Winvalid-pch -Wno-error=invalid-pch \
-@BUILD_PCH_TRUE@	-include $(builddir)/pch.h $(am__append_78)
+@BUILD_PCH_TRUE@	-include $(builddir)/pch.h $(am__append_79)
 @BUILD_PCH_TRUE@@CLANG_BUILD_FALSE@PCH_BUILD_FLAGS := 
 @BUILD_PCH_TRUE@@CLANG_BUILD_TRUE@PCH_BUILD_FLAGS := -Xclang -fno-pch-timestamp -Xclang -fpch-instantiate-templates
 
@@ -1924,14 +1927,14 @@ EXTRA_neomod_DEPENDENCIES := $(EXTRACTED_MAPS_DEP) $(WASM_POLYFILL_DEP)
 
 # windows' loader has no concept of rpaths (so keep all built/required libs in the same level as the main exe)
 # otherwise we can tuck them away neatly in lib/ (besides ffmpeg, for self-inflicted reasons (dlopen in SoLoud, which won't find stuff in rpath))
-LIBDEST := $(am__append_81)
+LIBDEST := $(am__append_82)
 
 # more conditionals for each individual dependency depending on whether they were built locally, and also if they were built shared
 # if they're external or built statically we don't need to do anything
 # use stamp files for incremental installs so that we only re-run the necessary steps
-INSTALL_STAMPS = $(am__append_82) $(am__append_84) $(am__append_86) \
-	$(am__append_87) $(am__append_88) $(am__append_89)
-INSTALL_RPATH_STAMP = $(am__append_83) $(am__append_85)
+INSTALL_STAMPS = $(am__append_83) $(am__append_85) $(am__append_87) \
+	$(am__append_88) $(am__append_89) $(am__append_90)
+INSTALL_RPATH_STAMP = $(am__append_84) $(am__append_86)
 
 # WASM: assets are preloaded into the .wasm via --preload-file, just install the web files
 @WASM_PLATFORM_TRUE@WASM_INSTALL_FILES = neomod.js neomod.wasm
@@ -7895,10 +7898,10 @@ $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)-macosaarch64.source: $(DEPS_CACHE)/curl-
 @BUILD_MIMALLOC_TRUE@	env PKG_CONFIG="$(PKG_CONFIG)" \
 @BUILD_MIMALLOC_TRUE@		LDFLAGS="$(LDFLAGS) $(WINPTHREAD_LDFLAGS) -xnone" $(CMAKE_CONF_PFX) $(CMAKE) -S ../.. -B . -G "$(CMAKE_GEN)" \
 @BUILD_MIMALLOC_TRUE@		-D CMAKE_C_COMPILER="$(CC)" \
-@BUILD_MIMALLOC_TRUE@		-D CMAKE_C_FLAGS_RELEASE="$(CFLAGS) -Wno-array-bounds" \
-@BUILD_MIMALLOC_TRUE@		-D CMAKE_C_FLAGS_DEBUG="$(CFLAGS) -Wno-array-bounds" \
-@BUILD_MIMALLOC_TRUE@		-D CMAKE_CXX_FLAGS_RELEASE="$(CXXFLAGS) -xc++ -Wno-array-bounds" \
-@BUILD_MIMALLOC_TRUE@		-D CMAKE_CXX_FLAGS_DEBUG="$(CXXFLAGS) -xc++ -Wno-array-bounds" \
+@BUILD_MIMALLOC_TRUE@		-D CMAKE_C_FLAGS_RELEASE="$(CFLAGS) -Wno-array-bounds $(MIMALLOC_TLS_FLAGS)" \
+@BUILD_MIMALLOC_TRUE@		-D CMAKE_C_FLAGS_DEBUG="$(CFLAGS) -Wno-array-bounds $(MIMALLOC_TLS_FLAGS)" \
+@BUILD_MIMALLOC_TRUE@		-D CMAKE_CXX_FLAGS_RELEASE="$(CXXFLAGS) -xc++ -Wno-array-bounds $(MIMALLOC_TLS_FLAGS)" \
+@BUILD_MIMALLOC_TRUE@		-D CMAKE_CXX_FLAGS_DEBUG="$(CXXFLAGS) -xc++ -Wno-array-bounds $(MIMALLOC_TLS_FLAGS)" \
 @BUILD_MIMALLOC_TRUE@		-D CMAKE_SYSTEM_NAME="$(CMAKE_SYSTEM_NAME)" \
 @BUILD_MIMALLOC_TRUE@		-D CMAKE_SYSTEM_PROCESSOR="$(host_cpu)" \
 @BUILD_MIMALLOC_TRUE@		-D CMAKE_CXX_COMPILER="$(CXX)" \
