@@ -19,7 +19,7 @@
 #include <type_traits>
 #include <tuple>
 
-// type-erased task hierarchy (adapted from SoLoudThread.h)
+// type-erased task hierarchy
 class AsyncPool final {
     NOCOPY_NOMOVE(AsyncPool)
 

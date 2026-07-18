@@ -8,7 +8,6 @@
 #include "Sound.h"
 
 #include <memory>
-#include <atomic>
 
 // fwd decls to avoid include external soloud headers here
 namespace SoLoud {
@@ -17,10 +16,8 @@ class AudioSource;
 class SLFXStream;
 }  // namespace SoLoud
 
-class SoLoudThreadWrapper;
-
 // defined in SoLoudSoundEngine, soloud instance singleton pointer
-extern std::unique_ptr<SoLoudThreadWrapper> soloud;
+extern std::unique_ptr<SoLoud::Soloud> soloud;
 
 class SoLoudSound final : public Sound {
     NOCOPY_NOMOVE(SoLoudSound)
@@ -90,9 +87,9 @@ class SoLoudSound final : public Sound {
     mutable bool cached_pause_state{false};
     mutable double soloud_paused_handle_cache_time{-1.};
 
-    // async position caching to avoid blocking on getStreamPosition calls
-    mutable std::atomic<double> cached_stream_position{0.0};
-    mutable std::atomic<double> soloud_stream_position_cache_time{-1.};
+    // position caching to avoid blocking on getStreamPosition calls
+    mutable double cached_stream_position{0.0};
+    mutable double soloud_stream_position_cache_time{-1.};
     mutable bool force_sync_position_next{true};
 };
 

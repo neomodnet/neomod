@@ -17,7 +17,6 @@
 
 #include "SoLoudSoundEngine.h"
 #include "BassSoundEngine.h"
-#include "SoLoudThread.h"
 
 #include "SoundTouch.h"
 #include "soloud_wav.h"

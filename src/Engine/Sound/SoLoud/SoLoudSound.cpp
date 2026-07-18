@@ -4,7 +4,6 @@
 
 #ifdef MCENGINE_FEATURE_SOLOUD
 #include "SoLoudSound.h"
-#include "SoLoudThread.h"
 
 #include "SoLoudFX.h"
 #include "SoLoudSoundEngine.h"
@@ -14,6 +13,7 @@
 #include "File.h"
 #include "ResourceManager.h"
 #include "Logging.h"
+#include "Timing.h"
 
 #include "soloud_file.h"
 #include "soloud_wav.h"
@@ -355,23 +355,13 @@ double SoLoudSound::getStreamPositionInSeconds() const {
 
     const auto now = Timing::getTimeReal();
 
-    // check if we need to force synchronous access (e.g. init, or after seek)
-    if(this->force_sync_position_next) {
+    if(this->force_sync_position_next || (now >= this->soloud_stream_position_cache_time + 0.01)) {
         this->force_sync_position_next = false;
-        this->cached_stream_position.store(soloud->getStreamPosition(this->handle), std::memory_order_release);
-        this->soloud_stream_position_cache_time.store(now, std::memory_order_release);
-        return this->cached_stream_position;
+        this->cached_stream_position = soloud->getStreamPosition(this->handle);
+        this->soloud_stream_position_cache_time = now;
     }
 
-    // use cached value if recent enough (updated within last 10ms)
-    if(now >= this->soloud_stream_position_cache_time + 0.01) {
-        // cache is stale, trigger async update
-        this->soloud_stream_position_cache_time.store(now, std::memory_order_relaxed);  // prevent multiple async calls
-        soloud->updateCachedPosition(this->handle, this->soloud_stream_position_cache_time,
-                                     this->cached_stream_position);
-    }
-
-    return this->cached_stream_position.load(std::memory_order_acquire);
+    return this->cached_stream_position;
 }
 
 double SoLoudSound::getSourceLengthInSeconds() const {

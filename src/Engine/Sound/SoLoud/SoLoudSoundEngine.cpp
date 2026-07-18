@@ -8,7 +8,6 @@
 #include "MakeDelegateWrapper.h"
 #include "SString.h"
 #include "SoLoudSound.h"
-#include "SoLoudThread.h"
 #include "LaunchArgs.h"
 
 #include "ConVar.h"
@@ -23,10 +22,11 @@
 #include <algorithm>
 #include <cstdlib>
 
+#include "soloud.h"
 #include <SDL3/SDL_hints.h>
 #include <SDL3/SDL_audio.h>
 
-std::unique_ptr<SoLoudThreadWrapper> soloud{nullptr};
+std::unique_ptr<SoLoud::Soloud> soloud{nullptr};
 
 // factory
 Sound *SoLoudSoundEngine::createSound(std::string filepath, bool stream, bool overlayable, bool loop) {
@@ -93,8 +93,7 @@ SoLoudSoundEngine::SoLoudSoundEngine() : SoundEngine() {
     }
 #endif
     if(!soloud) {
-        const bool threaded = Mc::LaunchArgs::has_arg(Mc::LaunchArgs::SND_SOLOUD_THREADED).has_value();
-        soloud = std::make_unique<SoLoudThreadWrapper>(threaded);
+        soloud = std::make_unique<SoLoud::Soloud>();
     }
 
     cv::snd_freq.setValue(SoLoud::Soloud::AUTO);  // let it be auto-negotiated (the snd_freq callback will adjust if
@@ -691,13 +690,6 @@ bool SoLoudSoundEngine::initializeOutputDevice(const OUTPUT_DEVICE &device) {
 
     // cleanup potential previous device
     if(this->isReady()) {
-        // this isn't technically required, but might it be, if audio device initialization hangs and we have to detach the soloud thread
-        // should be fixable in soloud itself, probably
-        if(soloud->isThreaded()) {
-            for(auto *soundRes : resourceManager->getSounds()) {
-                soundRes->release();
-            }
-        }
         soloud->deinit();
         this->bReady = false;
     }
@@ -858,12 +850,12 @@ bool SoLoudSoundEngine::initializeOutputDevice(const OUTPUT_DEVICE &device) {
     this->onMaxActiveChange(cv::snd_sanity_simultaneous_limit.getFloat());
 
     debugLog(
-        "SoundEngine: Initialized SoLoud ({}) with output device = \"{:s}\" flags: 0x{:x}, backend: {:s}, sampleRate: "
+        "SoundEngine: Initialized SoLoud with output device = \"{:s}\" flags: 0x{:x}, backend: {:s}, sampleRate: "
         "{}, "
         "bufferSize: {}, channels: {}, resampler: {}",
-        soloud->isThreaded() ? "multi-threaded" : "single-thread", this->currentOutputDevice.name,
-        static_cast<unsigned int>(flags), soloud->getBackendString(), soloud->getBackendSamplerate(),
-        soloud->getBackendBufferSize(), soloud->getBackendChannels(), cv::snd_soloud_resampler.getString());
+        this->currentOutputDevice.name, static_cast<unsigned int>(flags), soloud->getBackendString(),
+        soloud->getBackendSamplerate(), soloud->getBackendBufferSize(), soloud->getBackendChannels(),
+        cv::snd_soloud_resampler.getString());
 
     {
         SoLoud::DeviceInfo inf{};

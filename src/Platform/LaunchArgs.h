@@ -49,7 +49,6 @@ enum ArgSwitch : unsigned char {
     // audio backend selection (values of -sound)
     SND_BASS,
     SND_SOLOUD,
-    SND_SOLOUD_THREADED,
     // startup modes
     MODE_CONSOLE,   // -console (stdin command processing with a visible window)
     MODE_DIFFCALC,  // -diffcalc (run the standalone difficulty calculator tool and exit)

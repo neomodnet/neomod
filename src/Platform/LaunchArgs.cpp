@@ -94,8 +94,6 @@ std::optional<std::string> has_arg(ArgSwitch arg_switch) noexcept {
             return match_value({"-sound"}, {"bass"});
         case SND_SOLOUD:
             return match_value({"-sound"}, {"soloud"});
-        case SND_SOLOUD_THREADED:
-            return match_value({"-sound"}, {"soloud-threaded"});
         case MODE_CONSOLE:
             return find_switch({"-console"});
         case MODE_DIFFCALC:
