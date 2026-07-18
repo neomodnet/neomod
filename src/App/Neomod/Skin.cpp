@@ -59,6 +59,25 @@ bool Skin::unpack(std::string_view filepath) {
         return false;
     }
 
+    // skins zipped as a folder instead of its contents would extract to skins/name/name/,
+    // so if every file lives under the same top-level folder, strip that folder while extracting
+    std::string common_root;
+    for(const auto &entry : entries) {
+        if(entry.isDirectory()) continue;
+
+        std::string filename = entry.getFilename();
+        File::normalizeSlashes(filename, '\\', '/');
+
+        const auto slash = filename.find('/');
+        const auto root =
+            (slash == std::string::npos) ? std::string_view{} : std::string_view{filename}.substr(0, slash);
+        if(root.empty() || (!common_root.empty() && common_root != root)) {
+            common_root.clear();
+            break;
+        }
+        common_root = root;
+    }
+
     if(!Environment::directoryExists(skin_root)) {
         Environment::createDirectory(skin_root);
     }
@@ -68,6 +87,7 @@ bool Skin::unpack(std::string_view filepath) {
 
         std::string filename = entry.getFilename();
         File::normalizeSlashes(filename, '\\', '/');
+        if(!common_root.empty()) filename.erase(0, common_root.size() + 1);
 
         const auto folders = SString::split(filename, '/');
         std::string file_path = skin_root;
