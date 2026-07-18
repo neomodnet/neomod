@@ -932,7 +932,7 @@ void BeatmapInterface::stop(bool quit) {
     if(this->is_watching) {
         score = this->replay_data;
     } else if(BanchoState::is_playing_a_multi_map()) {
-        score = ui->getRoom()->get_approximate_score();
+        score = ui->getRoomScreen()->get_approximate_score();
     } else {
         // Call this BEFORE unloadObjects()!
         score = this->saveAndSubmitScore(quit);
@@ -963,9 +963,9 @@ void BeatmapInterface::stop(bool quit) {
     if(BanchoState::is_playing_a_multi_map()) {
         if(quit && !Osu::isKioskMode()) {
             osu->onPlayEnd(score, true);
-            ui->getRoom()->ragequit();
+            ui->getRoomScreen()->ragequit();
         } else {
-            ui->getRoom()->onClientScoreChange(true);
+            ui->getRoomScreen()->onClientScoreChange(true);
             Packet packet;
             packet.id = OUTP_FINISH_MATCH;
             BANCHO::Net::send_packet(packet);
@@ -1003,7 +1003,7 @@ void BeatmapInterface::fail(bool force_death) {
         this->fHealth2 = 0.0f;
 
         // Send a score update with health = 0 so server knows we died
-        ui->getRoom()->onClientScoreChange(true);
+        ui->getRoomScreen()->onClientScoreChange(true);
 
         if(cv::drain_kill_notification_duration.getFloat() > 0.0f) {
             if(!osu->getScore()->hasDied())

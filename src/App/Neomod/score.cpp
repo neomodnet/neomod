@@ -438,7 +438,7 @@ std::string LiveScore::getModsStringForRichPresence() const {
 void LiveScore::onScoreChange() {
     if(this->simulating || !osu->UIReady()) return;
 
-    ui->getRoom()->onClientScoreChange();
+    ui->getRoomScreen()->onClientScoreChange();
 
     // only used to block local scores for people who think they are very clever by quickly disabling auto just before
     // the end of a beatmap

@@ -58,8 +58,8 @@ class NullScreen final : public UIScreen {
 }  // namespace
 
 // getXBase is out-of-line here (not inline in UI.h): the derived->UIScreen* conversion needs complete types
-#define X(rank, F, Acc, Type, member) \
-    UIScreen *UI::get##Acc##Base() const { return this->member; }
+#define X(rank, F, Type, member) \
+    UIScreen *UI::get##Type##Base() const { return this->member; }
 UI_SCREEN_REGISTRY(X)
 #undef X
 
@@ -107,7 +107,7 @@ bool UI::init() {
     // construct the non-early screens and apply each screen's flags from the registry; the
     // null-guard skips the rows the ctor already built (dummy/notification).
     size_t screenit = EARLY_SCREENS;
-#define X(rank, F, Acc, Type, member)                          \
+#define X(rank, F, Type, member)                          \
     if(this->member == nullptr) {                              \
         this->screens[screenit++] = this->member = new Type(); \
     }                                                          \

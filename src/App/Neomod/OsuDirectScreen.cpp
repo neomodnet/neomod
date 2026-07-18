@@ -590,8 +590,8 @@ void OsuDirectScreen::tick() {
 
 void OsuDirectScreen::onBack() {
     if(BanchoState::is_in_a_multi_room()) {
-        ui->getRoom()->set_current_map(osu->getMapInterface()->getBeatmap());
-        ui->setScreen(ui->getRoom());
+        ui->getRoomScreen()->set_current_map(osu->getMapInterface()->getBeatmap());
+        ui->setScreen(ui->getRoomScreen());
     } else {
         ui->setScreen(ui->getMainMenu());
     }

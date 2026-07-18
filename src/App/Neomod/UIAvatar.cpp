@@ -94,5 +94,5 @@ void UIAvatar::onAvatarClicked(CBaseUIButton * /*btn*/) {
         return;
     }
 
-    ui->getUserActions()->open(this->thumb_id->id);
+    ui->getUIUserContextMenuScreen()->open(this->thumb_id->id);
 }

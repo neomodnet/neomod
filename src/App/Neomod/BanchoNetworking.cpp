@@ -470,7 +470,7 @@ void BanchoState::disconnect(bool shutdown) {
 
     // Exit out of any online-only screens
     if(UIScreen *s = ui->getActiveScreen(); (s == ui->getSpectatorScreenBase()) || (s == ui->getLobbyBase()) ||
-                                            (s == ui->getOsuDirectScreenBase()) || (s == ui->getRoomBase())) {
+                                            (s == ui->getOsuDirectScreenBase()) || (s == ui->getRoomScreenBase())) {
         ui->setScreen(ui->getMainMenu());
     }
 
@@ -588,5 +588,5 @@ void BanchoState::fake_join_room() {
     room.nb_players = 1;
     room.nb_open_slots = 15;
 
-    ui->getRoom()->on_room_joined(room);
+    ui->getRoomScreen()->on_room_joined(room);
 }

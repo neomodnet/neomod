@@ -1304,9 +1304,9 @@ void Chat::onDisconnect() {
 void Chat::onResolutionChange(vec2 newResolution) { this->updateLayout(newResolution); }
 
 bool Chat::isSmallChat() {
-    if(ui->getRoom() == nullptr || ui->getLobby() == nullptr || ui->getSongBrowser() == nullptr) return false;
+    if(ui->getRoomScreen() == nullptr || ui->getLobby() == nullptr || ui->getSongBrowser() == nullptr) return false;
     bool sitting_in_room =
-        ui->getRoom()->isVisible() && !ui->getSongBrowser()->isVisible() && !BanchoState::is_playing_a_multi_map();
+        ui->getRoomScreen()->isVisible() && !ui->getSongBrowser()->isVisible() && !BanchoState::is_playing_a_multi_map();
     bool sitting_in_lobby = ui->getLobby()->isVisible();
     return sitting_in_room || sitting_in_lobby;
 }

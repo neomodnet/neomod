@@ -561,10 +561,10 @@ void RankingScreen::updateLayout() {
 
 void RankingScreen::onBack() {
     if(BanchoState::is_in_a_multi_room()) {
-        ui->setScreen(ui->getRoom());
+        ui->setScreen(ui->getRoomScreen());
 
         // Since we prevented on_map_change() from running while the ranking screen was visible, run it now.
-        ui->getRoom()->on_map_change();
+        ui->getRoomScreen()->on_map_change();
     } else {
         ui->setScreen(ui->getSongBrowser());
     }

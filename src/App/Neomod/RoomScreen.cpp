@@ -639,7 +639,7 @@ void RoomScreen::on_room_joined(const Room &room) {
     }
 
     this->updateLayout(osu->getVirtScreenSize());
-    ui->setScreen(ui->getRoom());
+    ui->setScreen(ui->getRoomScreen());
 
     RichPresence::setBanchoStatus(room.name.c_str(), Action::MULTIPLAYER);
     RichPresence::onMultiplayerLobby();
@@ -833,7 +833,7 @@ void RoomScreen::on_match_aborted() {
     }
     BanchoState::match_started = false;
     ui->getHUD()->updateScoringMetric();
-    ui->setScreen(ui->getRoom());
+    ui->setScreen(ui->getRoomScreen());
 
     // Display room presence instead of map again
     RichPresence::onMultiplayerLobby();

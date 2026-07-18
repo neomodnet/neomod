@@ -58,7 +58,7 @@ void ChatLink::onMouseUpInside(bool /*left*/, bool /*right*/) {
 
     // Detect multiplayer invite links
     if(this->link.starts_with("osump://")) {
-        if(ui->getRoom()->isVisible()) {
+        if(ui->getRoomScreen()->isVisible()) {
             ui->getNotificationOverlay()->addNotification("You are already in a multiplayer room.");
             return;
         }
@@ -93,7 +93,7 @@ void ChatLink::onMouseUpInside(bool /*left*/, bool /*right*/) {
         if(matches_endpoint(domain)) {
             std::wstring_view match_wstr = match.get<2>().to_view();
             i32 user_id = Parsing::strto<i32>(UniString::to_utf8(match_wstr));
-            ui->getUserActions()->open(user_id);
+            ui->getUIUserContextMenuScreen()->open(user_id);
             return;
         }
     }

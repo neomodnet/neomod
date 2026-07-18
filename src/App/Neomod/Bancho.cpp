@@ -510,7 +510,7 @@ void BanchoState::handle_packet(Packet &packet) {
             if(ui->getLobby()->isVisible()) {
                 ui->getLobby()->updateRoom(room);
             } else if(room.id == BanchoState::room.id) {
-                ui->getRoom()->on_room_updated(room);
+                ui->getRoomScreen()->on_room_updated(room);
             }
 
             break;
@@ -519,7 +519,7 @@ void BanchoState::handle_packet(Packet &packet) {
         case INP_ROOM_CLOSED: {
             i32 room_id = packet.read<i32>();
             if(room_id == BanchoState::room.id) {
-                ui->getRoom()->ragequit();
+                ui->getRoomScreen()->ragequit();
             }
             ui->getLobby()->removeRoom(room_id);
             break;
@@ -535,7 +535,7 @@ void BanchoState::handle_packet(Packet &packet) {
             }
 
             auto room = Room(packet);
-            ui->getRoom()->on_room_joined(room);
+            ui->getRoomScreen()->on_room_joined(room);
 
             break;
         }
@@ -570,12 +570,12 @@ void BanchoState::handle_packet(Packet &packet) {
 
         case INP_MATCH_STARTED: {
             auto room = Room(packet);
-            ui->getRoom()->on_match_started(room);
+            ui->getRoomScreen()->on_match_started(room);
             break;
         }
 
         case INP_MATCH_SCORE_UPDATED: {
-            ui->getRoom()->on_match_score_updated(packet);
+            ui->getRoomScreen()->on_match_score_updated(packet);
             break;
         }
 
@@ -592,12 +592,12 @@ void BanchoState::handle_packet(Packet &packet) {
 
         case INP_MATCH_PLAYER_FAILED: {
             i32 slot_id = packet.read<i32>();
-            ui->getRoom()->on_player_failed(slot_id);
+            ui->getRoomScreen()->on_player_failed(slot_id);
             break;
         }
 
         case INP_MATCH_FINISHED: {
-            ui->getRoom()->on_match_finished();
+            ui->getRoomScreen()->on_match_finished();
             break;
         }
 
@@ -680,7 +680,7 @@ void BanchoState::handle_packet(Packet &packet) {
 
         case INP_MATCH_PLAYER_SKIPPED: {
             i32 user_id = packet.read<i32>();
-            ui->getRoom()->on_player_skip(user_id);
+            ui->getRoomScreen()->on_player_skip(user_id);
             break;
         }
 
@@ -835,7 +835,7 @@ void BanchoState::handle_packet(Packet &packet) {
         }
 
         case INP_MATCH_ABORT: {
-            ui->getRoom()->on_match_aborted();
+            ui->getRoomScreen()->on_match_aborted();
             break;
         }
 

@@ -214,7 +214,7 @@ void onSongBrowser() {
 
     strncpy(activity.details.data(), _("Picking a map"), activity.details.size() - 1);
 
-    if(ui->getRoom()->isVisible()) {
+    if(ui->getRoomScreen()->isVisible()) {
         setBanchoStatus(_("Picking a map"), Action::MULTIPLAYER);
 
         strncpy(activity.state.data(), _("Multiplayer"), activity.state.size() - 1);

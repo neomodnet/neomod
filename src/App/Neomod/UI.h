@@ -54,8 +54,7 @@ class UIDebug;
 //   rank   : position in the layer stack mapped out below; dense + unique (a gap or duplicate is
 //            a compile error, see SCREEN_RANK/LAYER_ORDER)
 //   flags  : UIF_* mask
-//   Acc    : getAcc()/getAccBase() accessor names
-//   Type   : concrete screen class
+//   Type   : concrete screen class and accessor name
 //   member : field name, also stringized into SCREEN_NAMES (set_active_ui_screen / ui_screens)
 // dummy (index 0) is the one screen NOT here: a file-local NullScreen sentinel, no accessor, built first.
 //
@@ -76,27 +75,27 @@ class UIDebug;
 //   pushOverlay splice in just below tooltipoverlay (see EXTRAS_SPLICE).
 
 // clang-format off
-#define UI_SCREEN_REGISTRY(X)                                                                            \
-    X(20, UIF_DEFAULT,           NotificationOverlay,   NotificationOverlay,     notificationoverlay) \
-    X(19, UIF_DEFAULT,           VolumeOverlay,         VolumeOverlay,           volumeoverlay) \
-    X(16, UIF_MODAL | UIF_CLOSE, PromptOverlay,         PromptOverlay,           promptoverlay) \
-    X(12, UIF_MODAL | UIF_CLOSE, ModSelector,           ModSelector,             modselector) \
-    X(14, UIF_DEFAULT,           UserActions,           UIUserContextMenuScreen, useractions) \
-    X( 1, UIF_DEFAULT,           Room,                  RoomScreen,              room) \
-    X(13, UIF_DEFAULT,           Chat,                  Chat,                    chat) \
-    X(15, UIF_CLOSE,             OptionsOverlay,        OptionsOverlay,          optionsoverlay) \
-    X( 2, UIF_DEFAULT,           RankingScreen,         RankingScreen,           rankingscreen) \
-    X( 3, UIF_DEFAULT,           UserStatsScreen,       UserStatsScreen,         userstatsscreen) \
-    X( 4, UIF_DEFAULT,           SpectatorScreen,       SpectatorScreen,         spectatorscreen) \
-    X(11, UIF_MODAL | UIF_CLOSE, PauseOverlay,          PauseOverlay,            pauseoverlay) \
-    X(10, UIF_DEFAULT,           HUD,                   HUD,                     hud) \
-    X( 5, UIF_DEFAULT,           SongBrowser,           SongBrowser,             songbrowser) \
-    X( 6, UIF_DEFAULT,           OsuDirectScreen,       OsuDirectScreen,         osudirectscreen) \
-    X( 7, UIF_DEFAULT,           Lobby,                 Lobby,                   lobby) \
-    X( 8, UIF_DEFAULT,           AboutScreen,           AboutScreen,             aboutscreen) \
-    X( 9, UIF_DEFAULT,           MainMenu,              MainMenu,                mainmenu) \
-    X(18, UIF_DEFAULT,           TooltipOverlay,        TooltipOverlay,          tooltipoverlay) \
-    X(17, UIF_DEFAULT,           BeatmapInstallOverlay, BeatmapInstallOverlay,   beatmapinstalloverlay)
+#define UI_SCREEN_REGISTRY(X) \
+    X(20, UIF_DEFAULT,           NotificationOverlay,     notificationoverlay) \
+    X(19, UIF_DEFAULT,           VolumeOverlay,           volumeoverlay) \
+    X(16, UIF_MODAL | UIF_CLOSE, PromptOverlay,           promptoverlay) \
+    X(12, UIF_MODAL | UIF_CLOSE, ModSelector,             modselector) \
+    X(14, UIF_DEFAULT,           UIUserContextMenuScreen, useractions) \
+    X( 1, UIF_DEFAULT,           RoomScreen,              room) \
+    X(13, UIF_DEFAULT,           Chat,                    chat) \
+    X(15, UIF_CLOSE,             OptionsOverlay,          optionsoverlay) \
+    X( 2, UIF_DEFAULT,           RankingScreen,           rankingscreen) \
+    X( 3, UIF_DEFAULT,           UserStatsScreen,         userstatsscreen) \
+    X( 4, UIF_DEFAULT,           SpectatorScreen,         spectatorscreen) \
+    X(11, UIF_MODAL | UIF_CLOSE, PauseOverlay,            pauseoverlay) \
+    X(10, UIF_DEFAULT,           HUD,                     hud) \
+    X( 5, UIF_DEFAULT,           SongBrowser,             songbrowser) \
+    X( 6, UIF_DEFAULT,           OsuDirectScreen,         osudirectscreen) \
+    X( 7, UIF_DEFAULT,           Lobby,                   lobby) \
+    X( 8, UIF_DEFAULT,           AboutScreen,             aboutscreen) \
+    X( 9, UIF_DEFAULT,           MainMenu,                mainmenu) \
+    X(18, UIF_DEFAULT,           TooltipOverlay,          tooltipoverlay) \
+    X(17, UIF_DEFAULT,           BeatmapInstallOverlay,   beatmapinstalloverlay)
 // clang-format on
 
 struct UI final {
@@ -134,9 +133,9 @@ struct UI final {
     // getX() returns the concrete type; getXBase() returns UIScreen* and is defined out-of-line in
     // UI.cpp, where the concrete types are complete (the derived->base conversion needs them).
     // NOLINTBEGIN(bugprone-macro-parentheses): Type is a type name, can't be parenthesized
-#define X(rank, F, Acc, Type, member)                                    \
-    [[nodiscard]] inline Type* get##Acc() const { return this->member; } \
-    [[nodiscard]] UIScreen* get##Acc##Base() const;
+#define X(rank, F, Type, member)                                    \
+    [[nodiscard]] inline Type* get##Type() const { return this->member; } \
+    [[nodiscard]] UIScreen* get##Type##Base() const;
     UI_SCREEN_REGISTRY(X)
 #undef X
     // NOLINTEND(bugprone-macro-parentheses)
@@ -159,7 +158,7 @@ struct UI final {
     static constexpr const size_t EARLY_SCREENS{2};  // dummy + notification, built in the ctor
 
     // one typed pointer per registry row
-#define X(rank, F, Acc, Type, member) Type* member{nullptr};  // NOLINT(bugprone-macro-parentheses)
+#define X(rank, F, Type, member) Type* member{nullptr};  // NOLINT(bugprone-macro-parentheses)
     UI_SCREEN_REGISTRY(X)
 #undef X
 
@@ -183,13 +182,13 @@ struct UI final {
     f64 lastCursorMoveTime{0.};
 
     // name -> screen lookup (findScreenByName / set_active_ui_screen), index-aligned with screens[]
-#define X(rank, F, Acc, Type, member) #member,
+#define X(rank, F, Type, member) #member,
     static constexpr std::array<std::string_view, NUM_SCREENS> SCREEN_NAMES{"dummy", UI_SCREEN_REGISTRY(X)};
 #undef X
 
     // per-screen draw rank, from the registry. LAYER_ORDER below is the derived inverse, so a
     // duplicate or out-of-range rank is a compile error, not a silent mis-layer.
-#define X(rank, F, Acc, Type, member) rank,
+#define X(rank, F, Type, member) rank,
     static constexpr std::array<size_t, NUM_SCREENS> SCREEN_RANK{0, UI_SCREEN_REGISTRY(X)};
 #undef X
 

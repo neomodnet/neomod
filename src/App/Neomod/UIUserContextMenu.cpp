@@ -256,4 +256,4 @@ UIUserLabel::UIUserLabel(i32 user_id, std::string username) : CBaseUILabel() {
     this->setDrawBackground(false);
 }
 
-void UIUserLabel::onMouseUpInside(bool /*left*/, bool /*right*/) { ui->getUserActions()->open(this->user_id); }
+void UIUserLabel::onMouseUpInside(bool /*left*/, bool /*right*/) { ui->getUIUserContextMenuScreen()->open(this->user_id); }

@@ -1431,8 +1431,8 @@ void SongBrowser::onDifficultySelected(DatabaseBeatmap *map, bool play) {
         // start playing
         if(play) {
             if(BanchoState::is_in_a_multi_room()) {
-                ui->getRoom()->set_current_map(map);
-                ui->setScreen(ui->getRoom());
+                ui->getRoomScreen()->set_current_map(map);
+                ui->setScreen(ui->getRoomScreen());
             } else {
                 // CTRL + click = auto
                 if(keyboard->isControlDown()) {
@@ -2224,7 +2224,7 @@ void SongBrowser::updateLayout() {
 
 void SongBrowser::onBack() {
     if(BanchoState::is_in_a_multi_room()) {
-        ui->setScreen(ui->getRoom());
+        ui->setScreen(ui->getRoomScreen());
 
         // We didn't select a map; revert to previously selected one
         auto map = this->lastSelectedBeatmap;
@@ -2239,7 +2239,7 @@ void SongBrowser::onBack() {
             BanchoState::room.pack(packet);
             BANCHO::Net::send_packet(packet);
 
-            ui->getRoom()->on_map_change();
+            ui->getRoomScreen()->on_map_change();
         }
     } else {
         ui->setScreen(ui->getMainMenu());
