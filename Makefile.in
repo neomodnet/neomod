@@ -345,10 +345,11 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/base64.cpp \
 	src/Engine/i18n.cpp src/GUI/CBaseUIButton.cpp \
 	src/GUI/CBaseUICheckbox.cpp src/GUI/CBaseUIContainer.cpp \
 	src/GUI/CBaseUIDispatch.cpp src/GUI/CBaseUIElement.cpp \
-	src/GUI/CBaseUIImage.cpp src/GUI/CBaseUIImageButton.cpp \
-	src/GUI/CBaseUILabel.cpp src/GUI/CBaseUIScrollView.cpp \
-	src/GUI/CBaseUISlider.cpp src/GUI/CBaseUITextbox.cpp \
-	src/GUI/CBaseUIWindow.cpp src/GUI/Windows/ConsoleBox.cpp \
+	src/GUI/CBaseUIEventCtx.cpp src/GUI/CBaseUIImage.cpp \
+	src/GUI/CBaseUIImageButton.cpp src/GUI/CBaseUILabel.cpp \
+	src/GUI/CBaseUIScrollView.cpp src/GUI/CBaseUISlider.cpp \
+	src/GUI/CBaseUITextbox.cpp src/GUI/CBaseUIWindow.cpp \
+	src/GUI/Windows/ConsoleBox.cpp \
 	src/GUI/Windows/VisualProfiler.cpp \
 	src/Platform/Environment.cpp \
 	src/Platform/GPUDriverConfigurator.cpp \
@@ -613,6 +614,7 @@ am_neomod_OBJECTS = libraries/neomod-MD5.$(OBJEXT) \
 	src/GUI/neomod-CBaseUIContainer.$(OBJEXT) \
 	src/GUI/neomod-CBaseUIDispatch.$(OBJEXT) \
 	src/GUI/neomod-CBaseUIElement.$(OBJEXT) \
+	src/GUI/neomod-CBaseUIEventCtx.$(OBJEXT) \
 	src/GUI/neomod-CBaseUIImage.$(OBJEXT) \
 	src/GUI/neomod-CBaseUIImageButton.$(OBJEXT) \
 	src/GUI/neomod-CBaseUILabel.$(OBJEXT) \
@@ -873,6 +875,7 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/GUI/$(DEPDIR)/neomod-CBaseUIContainer.Po \
 	src/GUI/$(DEPDIR)/neomod-CBaseUIDispatch.Po \
 	src/GUI/$(DEPDIR)/neomod-CBaseUIElement.Po \
+	src/GUI/$(DEPDIR)/neomod-CBaseUIEventCtx.Po \
 	src/GUI/$(DEPDIR)/neomod-CBaseUIImage.Po \
 	src/GUI/$(DEPDIR)/neomod-CBaseUIImageButton.Po \
 	src/GUI/$(DEPDIR)/neomod-CBaseUILabel.Po \
@@ -1523,10 +1526,11 @@ neomod_SOURCES = libraries/MD5.cpp libraries/base64.cpp \
 	src/Engine/i18n.cpp src/GUI/CBaseUIButton.cpp \
 	src/GUI/CBaseUICheckbox.cpp src/GUI/CBaseUIContainer.cpp \
 	src/GUI/CBaseUIDispatch.cpp src/GUI/CBaseUIElement.cpp \
-	src/GUI/CBaseUIImage.cpp src/GUI/CBaseUIImageButton.cpp \
-	src/GUI/CBaseUILabel.cpp src/GUI/CBaseUIScrollView.cpp \
-	src/GUI/CBaseUISlider.cpp src/GUI/CBaseUITextbox.cpp \
-	src/GUI/CBaseUIWindow.cpp src/GUI/Windows/ConsoleBox.cpp \
+	src/GUI/CBaseUIEventCtx.cpp src/GUI/CBaseUIImage.cpp \
+	src/GUI/CBaseUIImageButton.cpp src/GUI/CBaseUILabel.cpp \
+	src/GUI/CBaseUIScrollView.cpp src/GUI/CBaseUISlider.cpp \
+	src/GUI/CBaseUITextbox.cpp src/GUI/CBaseUIWindow.cpp \
+	src/GUI/Windows/ConsoleBox.cpp \
 	src/GUI/Windows/VisualProfiler.cpp \
 	src/Platform/Environment.cpp \
 	src/Platform/GPUDriverConfigurator.cpp \
@@ -2658,6 +2662,8 @@ src/GUI/neomod-CBaseUIDispatch.$(OBJEXT): src/GUI/$(am__dirstamp) \
 	src/GUI/$(DEPDIR)/$(am__dirstamp)
 src/GUI/neomod-CBaseUIElement.$(OBJEXT): src/GUI/$(am__dirstamp) \
 	src/GUI/$(DEPDIR)/$(am__dirstamp)
+src/GUI/neomod-CBaseUIEventCtx.$(OBJEXT): src/GUI/$(am__dirstamp) \
+	src/GUI/$(DEPDIR)/$(am__dirstamp)
 src/GUI/neomod-CBaseUIImage.$(OBJEXT): src/GUI/$(am__dirstamp) \
 	src/GUI/$(DEPDIR)/$(am__dirstamp)
 src/GUI/neomod-CBaseUIImageButton.$(OBJEXT): src/GUI/$(am__dirstamp) \
@@ -3230,6 +3236,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUIContainer.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUIDispatch.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUIElement.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUIEventCtx.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUIImage.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUIImageButton.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUILabel.Po@am__quote@ # am--include-marker
@@ -5648,6 +5655,20 @@ src/GUI/neomod-CBaseUIElement.obj: src/GUI/CBaseUIElement.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/GUI/neomod-CBaseUIElement.obj `if test -f 'src/GUI/CBaseUIElement.cpp'; then $(CYGPATH_W) 'src/GUI/CBaseUIElement.cpp'; else $(CYGPATH_W) '$(srcdir)/src/GUI/CBaseUIElement.cpp'; fi`
 
+src/GUI/neomod-CBaseUIEventCtx.o: src/GUI/CBaseUIEventCtx.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/GUI/neomod-CBaseUIEventCtx.o -MD -MP -MF src/GUI/$(DEPDIR)/neomod-CBaseUIEventCtx.Tpo -c -o src/GUI/neomod-CBaseUIEventCtx.o `test -f 'src/GUI/CBaseUIEventCtx.cpp' || echo '$(srcdir)/'`src/GUI/CBaseUIEventCtx.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/GUI/$(DEPDIR)/neomod-CBaseUIEventCtx.Tpo src/GUI/$(DEPDIR)/neomod-CBaseUIEventCtx.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/GUI/CBaseUIEventCtx.cpp' object='src/GUI/neomod-CBaseUIEventCtx.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/GUI/neomod-CBaseUIEventCtx.o `test -f 'src/GUI/CBaseUIEventCtx.cpp' || echo '$(srcdir)/'`src/GUI/CBaseUIEventCtx.cpp
+
+src/GUI/neomod-CBaseUIEventCtx.obj: src/GUI/CBaseUIEventCtx.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/GUI/neomod-CBaseUIEventCtx.obj -MD -MP -MF src/GUI/$(DEPDIR)/neomod-CBaseUIEventCtx.Tpo -c -o src/GUI/neomod-CBaseUIEventCtx.obj `if test -f 'src/GUI/CBaseUIEventCtx.cpp'; then $(CYGPATH_W) 'src/GUI/CBaseUIEventCtx.cpp'; else $(CYGPATH_W) '$(srcdir)/src/GUI/CBaseUIEventCtx.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/GUI/$(DEPDIR)/neomod-CBaseUIEventCtx.Tpo src/GUI/$(DEPDIR)/neomod-CBaseUIEventCtx.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/GUI/CBaseUIEventCtx.cpp' object='src/GUI/neomod-CBaseUIEventCtx.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/GUI/neomod-CBaseUIEventCtx.obj `if test -f 'src/GUI/CBaseUIEventCtx.cpp'; then $(CYGPATH_W) 'src/GUI/CBaseUIEventCtx.cpp'; else $(CYGPATH_W) '$(srcdir)/src/GUI/CBaseUIEventCtx.cpp'; fi`
+
 src/GUI/neomod-CBaseUIImage.o: src/GUI/CBaseUIImage.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/GUI/neomod-CBaseUIImage.o -MD -MP -MF src/GUI/$(DEPDIR)/neomod-CBaseUIImage.Tpo -c -o src/GUI/neomod-CBaseUIImage.o `test -f 'src/GUI/CBaseUIImage.cpp' || echo '$(srcdir)/'`src/GUI/CBaseUIImage.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/GUI/$(DEPDIR)/neomod-CBaseUIImage.Tpo src/GUI/$(DEPDIR)/neomod-CBaseUIImage.Po
@@ -7180,6 +7201,7 @@ distclean: distclean-am
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIContainer.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIDispatch.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIElement.Po
+	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIEventCtx.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIImage.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIImageButton.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUILabel.Po
@@ -7464,6 +7486,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIContainer.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIDispatch.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIElement.Po
+	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIEventCtx.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIImage.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIImageButton.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUILabel.Po

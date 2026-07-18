@@ -143,7 +143,8 @@ void UI::update() {
     // overlays spliced in last-pushed-first); each screen/overlay is one hit-candidate
     // priority group for the button dispatch below, first-walked = top-most. consumption
     // stops the walk exactly as before, only the order changed
-    CBaseUIEventCtx c;
+    CBaseUIEventCtx &c{this->update_ctx};
+    c.clear();
 
     bool updated_active_screen = false;
     bool walked_extras = this->extra_overlays.empty();
@@ -356,8 +357,7 @@ namespace {
 // for scripted testing: log who consumed a key event (same format family as CBaseUIDebug::traceEvent)
 forceinline void traceKeyConsumed(std::string_view evt, CBaseUIElement *consumer) {
     if(unlikely(CBaseUIDebug::traceLevel() > 0))
-        logRaw("uitrace evt={} consumed_by={}",  evt,
-               CBaseUIDebug::elemName(consumer));
+        logRaw("uitrace evt={} consumed_by={}", evt, CBaseUIDebug::elemName(consumer));
 }
 }  // namespace
 

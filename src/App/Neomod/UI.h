@@ -6,6 +6,7 @@
 
 #include "OsuConfig.h"
 #include "Vectors_fwd.h"
+#include "CBaseUIEventCtx.h"
 
 #include <memory>
 #include <array>
@@ -177,6 +178,9 @@ struct UI final {
 
     // debugging
     std::unique_ptr<UIDebug> debuglayer{nullptr};
+
+    // update() context
+    CBaseUIEventCtx update_ctx;
 
     // for idle cursor fade alpha
     f64 lastCursorMoveTime{0.};

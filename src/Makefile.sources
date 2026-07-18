@@ -272,6 +272,7 @@ neomod_SOURCES = \
 	src/GUI/CBaseUIContainer.cpp \
 	src/GUI/CBaseUIDispatch.cpp \
 	src/GUI/CBaseUIElement.cpp \
+	src/GUI/CBaseUIEventCtx.cpp \
 	src/GUI/CBaseUIImage.cpp \
 	src/GUI/CBaseUIImageButton.cpp \
 	src/GUI/CBaseUILabel.cpp \

@@ -901,13 +901,6 @@ bool SongBrowser::selectBeatmapset(const BeatmapSet *set) {
 
 void SongBrowser::tick() {
     ScreenBackable::tick();
-    this->localBestContainer->tick();
-    this->contextMenu->tick();
-    BottomBar::tick();
-    this->topbarRight->tick();
-    this->scoreBrowser->tick();
-    this->topbarLeft->tick();
-    this->carousel->tick();
 
     // flush diffcalc results to database
     // do this even if not visible, but not during gameplay
@@ -927,6 +920,15 @@ void SongBrowser::tick() {
     }
 
     if(!this->bVisible) return;
+
+    // avoid ticking extra ui elements when not visible
+    this->localBestContainer->tick();
+    this->contextMenu->tick();
+    BottomBar::tick();
+    this->topbarRight->tick();
+    this->scoreBrowser->tick();
+    this->topbarLeft->tick();
+    this->carousel->tick();
 
     // handle changed mods resort
     if(this->lastDiffSortModIndex != StarPrecalc::active_idx) {
