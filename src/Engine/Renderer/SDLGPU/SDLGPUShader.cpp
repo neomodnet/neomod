@@ -190,9 +190,9 @@ void SDLGPUShader::writeUniform(std::string_view name, [[maybe_unused]] UniformT
 
     u8 *uniformVarDataPtr;  // NOLINT(cppcoreguidelines-init-variables)
     u32 varSize;            // NOLINT(cppcoreguidelines-init-variables)
-    if(const auto &it = m_uniformCache.find(name); it != m_uniformCache.end()) {
-        uniformVarDataPtr = it->second.first;
-        varSize = it->second.second;
+    if(auto it = m_uniformCache.find(name); it != m_uniformCache.end()) {
+        uniformVarDataPtr = it->second.dataPtr;
+        varSize = it->second.varSize;
     } else {
         bool found = false;
         for(auto &block : m_uniformBlocks) {
@@ -200,7 +200,7 @@ void SDLGPUShader::writeUniform(std::string_view name, [[maybe_unused]] UniformT
                 if(var.name == name) {
                     uniformVarDataPtr = block.buffer.data() + var.offset;
                     varSize = var.size;
-                    m_uniformCache.emplace(std::string{name}, std::pair{uniformVarDataPtr, varSize});
+                    m_uniformCache.emplace(std::string{name}, UniformCacheEntry{uniformVarDataPtr, varSize});
                     found = true;
                     break;
                 }

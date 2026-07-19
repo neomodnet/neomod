@@ -112,7 +112,11 @@ class SDLGPUShader final : public Shader {
     FixedSizeArray<UniformBlock> m_uniformBlocks;
 
     // fast name -> uniform {var data pointer, var size} lookup
-    Hash::unstable_stringmap<std::pair<u8 *, u32>> m_uniformCache;
+    struct UniformCacheEntry {
+        u8 *dataPtr;
+        u32 varSize;
+    };
+    Hash::unstable_stringmap<UniformCacheEntry> m_uniformCache;
 };
 
 #endif

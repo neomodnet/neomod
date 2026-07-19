@@ -583,23 +583,25 @@ void SDLGPUInterface::endScene() {
     // TODO: confusing
     if(!m_cmdBuf) m_cmdBuf = SDL_AcquireGPUCommandBuffer(m_device);
 
-    // acquire swapchain and blit backbuffer to it for presentation
-    u32 sw = 0, sh = 0;
-    SDL_GPUTexture *swapchainTexture = nullptr;
     // in headless, don't even blit to the swapchain texture at all
-    if(likely(!m_isHeadless &&
-              (SDL_WaitAndAcquireGPUSwapchainTexture(m_cmdBuf, m_window, &swapchainTexture, &sw, &sh) &&
-               !!swapchainTexture))) {
-        SDL_GPUBlitInfo blit{};
-        blit.source.texture = m_backbuffer;
-        blit.source.w = m_backbufferWidth;
-        blit.source.h = m_backbufferHeight;
-        blit.destination.texture = swapchainTexture;
-        blit.destination.w = sw;
-        blit.destination.h = sh;
-        blit.load_op = SDL_GPU_LOADOP_DONT_CARE;
-        blit.filter = SDL_GPU_FILTER_NEAREST;
-        SDL_BlitGPUTexture(m_cmdBuf, &blit);
+    if(likely(!m_isHeadless)) {
+        // acquire swapchain and blit backbuffer to it for presentation
+        u32 sw = 0, sh = 0;
+        SDL_GPUTexture *swapchainTexture = nullptr;
+        if(SDL_WaitAndAcquireGPUSwapchainTexture(m_cmdBuf, m_window, &swapchainTexture, &sw, &sh) &&
+           !!swapchainTexture) {
+            SDL_GPUBlitInfo blit{};
+            blit.source.texture = m_backbuffer;
+            blit.source.w = m_backbufferWidth;
+            blit.source.h = m_backbufferHeight;
+            blit.destination.texture = swapchainTexture;
+            blit.destination.w = sw;
+            blit.destination.h = sh;
+            blit.load_op = SDL_GPU_LOADOP_DONT_CARE;
+            blit.filter = SDL_GPU_FILTER_NEAREST;
+
+            SDL_BlitGPUTexture(m_cmdBuf, &blit);
+        }
     }
 
     SDL_SubmitGPUCommandBuffer(m_cmdBuf);

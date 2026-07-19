@@ -5,6 +5,7 @@
 
 #include "AnimationHandler.h"
 #include "CBaseUIContainer.h"
+#include "CBaseUIEventCtx.h"
 #include "CBaseUIScrollView.h"
 #include "OsuConVars.h"
 #include "MakeDelegateWrapper.h"
@@ -121,8 +122,14 @@ void UIContextMenu::draw() {
 }
 
 void UIContextMenu::updateInput(CBaseUIEventCtx &c) {
-    if(!this->bVisible2) return;  // bDrawsOnTop (set in the ctor) handles the menu's z-priority
+    if(!this->bVisible2) return;
+    // bDrawsOnTop alone would tie other bDrawsOnTop siblings
+    // (e.g. the songbrowser topbar buttons an open dropdown covers)
+    // and lose the overlap to later-visited ones, so raise a second level the menu's subtree out-ranks those too
+    // TODO: better solution (bDrawsOnTop + this is redundant/competing)
+    c.currentHitTier++;
     CBaseUIScrollView::updateInput(c);
+    c.currentHitTier--;
 }
 
 void UIContextMenu::tick() {

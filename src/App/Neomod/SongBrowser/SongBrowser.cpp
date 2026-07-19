@@ -239,8 +239,7 @@ bool SongBrowser::sort_by_artist(SongButton const *a, SongButton const *b) {
     const std::string_view artistA = aPtr->getArtistLatin();
     const std::string_view artistB = bPtr->getArtistLatin();
 
-    // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
-    i32 cmp = strncasecmp(artistA.data(), artistB.data(), std::min<size_t>(artistA.length(), artistB.length()));
+    const i32 cmp = SString::strcase_cmp3(artistA, artistB);
     if(cmp == 0) return sort_by_title(a, b);  // fall back to sort by title
     return cmp < 0;
 }
@@ -262,8 +261,7 @@ bool SongBrowser::sort_by_creator(SongButton const *a, SongButton const *b) {
     const std::string_view creatorA = aPtr->getCreator();
     const std::string_view creatorB = bPtr->getCreator();
 
-    // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
-    i32 cmp = strncasecmp(creatorA.data(), creatorB.data(), std::min<size_t>(creatorA.length(), creatorB.length()));
+    const i32 cmp = SString::strcase_cmp3(creatorA, creatorB);
     if(cmp == 0) return sort_by_difficulty(a, b);
     return cmp < 0;
 }
@@ -300,8 +298,7 @@ bool SongBrowser::sort_by_title(SongButton const *a, SongButton const *b) {
     const std::string_view titleA = aPtr->getTitleLatin();
     const std::string_view titleB = bPtr->getTitleLatin();
 
-    // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
-    i32 cmp = strncasecmp(titleA.data(), titleB.data(), std::min<size_t>(titleA.length(), titleB.length()));
+    const i32 cmp = SString::strcase_cmp3(titleA, titleB);
     if(cmp == 0) return sort_by_difficulty(a, b);
     return cmp < 0;
 }
