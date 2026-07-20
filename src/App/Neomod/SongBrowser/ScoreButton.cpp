@@ -521,28 +521,28 @@ void ScoreButton::resetHighlight() {
 
 void ScoreButton::updateElapsedTimeString() {
     if(this->iScoreUnixTimestamp > 0) {
-        const u64 curUnixTime =
+        const i64 curUnixTime =
             std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch())
                 .count();
-        const u64 delta = curUnixTime - this->iScoreUnixTimestamp;
+        const i64 delta = curUnixTime - (i64)this->iScoreUnixTimestamp;
 
-        const u64 deltaInSeconds = delta;
-        const u64 deltaInMinutes = delta / 60;
-        const u64 deltaInHours = deltaInMinutes / 60;
-        const u64 deltaInDays = deltaInHours / 24;
-        const u64 deltaInYears = deltaInDays / 365;
+        const i64 deltaInSeconds = delta;
+        const i64 deltaInMinutes = delta / 60;
+        const i64 deltaInHours = deltaInMinutes / 60;
+        const i64 deltaInDays = deltaInHours / 24;
+        const i64 deltaInYears = deltaInDays / 365;
 
         if(deltaInHours < 96 || this->style == STYLE::TOP_RANKS) {
             if(deltaInDays > 364)
-                this->sScoreTime = fmt::format("{}y", (int)(deltaInYears));
+                this->sScoreTime = fmt::format("{}y", deltaInYears);
             else if(deltaInHours > 47)
-                this->sScoreTime = fmt::format("{}d", (int)(deltaInDays));
+                this->sScoreTime = fmt::format("{}d", deltaInDays);
             else if(deltaInHours >= 1)
-                this->sScoreTime = fmt::format("{}h", (int)(deltaInHours));
+                this->sScoreTime = fmt::format("{}h", deltaInHours);
             else if(deltaInMinutes > 0)
-                this->sScoreTime = fmt::format("{}m", (int)(deltaInMinutes));
+                this->sScoreTime = fmt::format("{}m", deltaInMinutes);
             else
-                this->sScoreTime = fmt::format("{}s", (int)(deltaInSeconds));
+                this->sScoreTime = fmt::format("{}s", deltaInSeconds);
         } else {
             this->iScoreUnixTimestamp = 0;
 
