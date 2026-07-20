@@ -16,6 +16,8 @@ DiscordActivity create_base_activity() { return DiscordActivity{}; }
 
 #include <discord_rpc.h>
 
+#include <tuple>
+
 #include "ConVar.h"
 #include "Engine.h"
 #include "Logging.h"
@@ -109,7 +111,8 @@ state: {:s}
 details: {:s}
 timestamps: {{ start: {:d}, end: {:d} }}
 assets: {{ large_image: {:s}, large_text: {:s}, small_image: {:s}, small_text: {:s} }}
-party: {{ id: {:s}, size: {{ current_size: {:d}, max_size: {:d} }} }})",
+party: {{ id: {:s}, size: {{ current_size: {:d}, max_size: {:d} }} }}
+buttons: {{ [{:s}]({:s}), [{:s}]({:s}) }})",
                std::string_view{&activity.state[0]},               //
                std::string_view{&activity.details[0]},             //
                activity.timestamps.start,                          //
@@ -120,7 +123,11 @@ party: {{ id: {:s}, size: {{ current_size: {:d}, max_size: {:d} }} }})",
                std::string_view{&activity.assets.small_text[0]},   //
                std::string_view{&activity.party.id[0]},            //
                activity.party.size.current_size,                   //
-               activity.party.size.max_size                        //
+               activity.party.size.max_size,                       //
+               std::string_view{&activity.buttons[0].label[0]},    //
+               std::string_view{&activity.buttons[0].url[0]},      //
+               std::string_view{&activity.buttons[1].label[0]},    //
+               std::string_view{&activity.buttons[1].url[0]}       //
         );
     }
 
@@ -136,6 +143,19 @@ party: {{ id: {:s}, size: {{ current_size: {:d}, max_size: {:d} }} }})",
     presence.partyId = &activity.party.id[0];
     presence.partySize = activity.party.size.current_size;
     presence.partyMax = activity.party.size.max_size;
+
+    // the lib serializes this synchronously and stops at the first empty label, so a
+    // stack-local sentinel-terminated array is fine
+    std::array<DiscordButton, std::tuple_size_v<decltype(activity.buttons)> + 1> buttons{};
+    size_t numButtons = 0;
+    for(const auto& btn : activity.buttons) {
+        if(btn.label[0] != '\0' && btn.url[0] != '\0') {
+            buttons[numButtons++] = {.label = &btn.label[0], .url = &btn.url[0]};
+        }
+    }
+    if(numButtons > 0) {
+        presence.buttons = buttons.data();
+    }
 
     Discord_UpdatePresence(&presence);
 }

@@ -28,6 +28,11 @@ struct DiscordActivity {
             int max_size{0};
         } size{};
     } party{};
+    struct Button {
+        std::array<char, 128> label{};  // discord limit: 32 chars
+        std::array<char, 512> url{};    // discord limit: 512 chars
+    };
+    std::array<Button, 2> buttons{};  // discord shows at most 2; empty label == unused slot
 };
 
 namespace DiscRPC {

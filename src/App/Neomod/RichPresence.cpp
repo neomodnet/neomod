@@ -85,21 +85,33 @@ void set_activity_with_image(DiscordActivity& to_set) {
     to_set.assets.small_image = {};
     to_set.assets.small_text = {};
 
-    if(bg_visible && (listening || playing)) {
+    if(listening || playing) {
         const bool online = BanchoState::is_online();
         const std::string endpoint = online ? BanchoState::endpoint : "ppy.sh";
-        const std::string server_icon_url = online ? BanchoState::server_icon_url : "";
-
         const char* scheme = cv::use_https.getBool() ? "https://" : "http://";
-        const std::string url = fmt::format("{:s}b.{:s}/thumb/{:d}l.jpg", scheme, endpoint, map->getSetID());
-        strncpy(&to_set.assets.large_image[0], url.c_str(), 127);
 
-        if(server_icon_url.length() > 0 && cv::main_menu_use_server_logo.getBool()) {
-            strncpy(&to_set.assets.small_image[0], server_icon_url.c_str(), 127);
-            strncpy(&to_set.assets.small_text[0], endpoint.c_str(), 127);
-        } else {
-            to_set.assets.small_image = {PACKAGE_NAME "_icon"};
-            to_set.assets.small_text = {};
+        if(bg_visible) {
+            const std::string server_icon_url = online ? BanchoState::server_icon_url : "";
+
+            const std::string url = fmt::format("{:s}b.{:s}/thumb/{:d}l.jpg", scheme, endpoint, map->getSetID());
+            strncpy(&to_set.assets.large_image[0], url.c_str(), 127);
+
+            if(server_icon_url.length() > 0 && cv::main_menu_use_server_logo.getBool()) {
+                strncpy(&to_set.assets.small_image[0], server_icon_url.c_str(), 127);
+                strncpy(&to_set.assets.small_text[0], endpoint.c_str(), 127);
+            } else {
+                to_set.assets.small_image = {PACKAGE_NAME "_icon"};
+                to_set.assets.small_text = {};
+            }
+        }
+
+        if(auto map_id = map->getID(); map_id > 0) {
+            auto& btn = to_set.buttons[0];
+            // shouldn't be translated (we don't know what language other users' discord clients are in...)
+            // TODO: same applies for all other strings here?
+            btn.label = {"View beatmap"};
+            const std::string map_url = fmt::format("{:s}osu.{:s}/b/{:d}", scheme, endpoint, map_id);
+            strncpy(btn.url.data(), map_url.c_str(), btn.url.size() - 1);
         }
     }
 
