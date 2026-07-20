@@ -147,7 +147,7 @@ class Environment {
 
     static const std::string &getExeFolder();
 
-    static void openURLInDefaultBrowser(std::string_view url) noexcept;
+    void openURLInDefaultBrowser(std::string_view url, bool preventFocusSteal = false) noexcept;
 
     // user
     [[nodiscard]] std::string_view getUsername() const noexcept;

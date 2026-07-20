@@ -49,6 +49,8 @@ static ConVar mouse_to_cmd("mouse_to", CLIENT | NOLOAD | NOSAVE);
 static ConVar mouse_down_cmd("mouse_down", CLIENT | NOLOAD | NOSAVE);
 static ConVar mouse_up_cmd("mouse_up", CLIENT | NOLOAD | NOSAVE);
 static ConVar mouse_wheel_cmd("mouse_wheel", CLIENT | NOLOAD | NOSAVE);
+static ConVar window_draw_while_occluded("window_draw_while_occluded", false, CLIENT,
+                                         "whether to keep drawing while occluded & in fullscreen & unfocused");
 }  // namespace cv
 
 // for sending keys synthetically from console
@@ -701,10 +703,23 @@ SDL_AppResult SDLMain::iterate() {
         m_engine->onUpdate();
     }
 
+    bool occludedUnfocusedFullscreen = false;
+    {
+        using enum WinFlags;
+        using namespace flags::operators;
+        occludedUnfocusedFullscreen =
+            flags::has<F_FULLSCREEN | F_OCCLUDED>(m_winflags) && !flags::has<F_INPUT_FOCUS | F_MOUSE_FOCUS>(m_winflags);
+    }
+
     // draw
-    // (always draw in headless to make it more realistic/representative)
-    if(isHeadless() || (!winMinimized() && !m_bRestoreFullscreen)) {
-        m_engine->onPaint();
+    {
+        const bool skipDraw = !isHeadless() &&  // always draw in headless to make it more realistic/representative
+                              ((winMinimized() || m_bRestoreFullscreen) ||  // skip if minimized
+                               // e.g. fullscreen window on "another workspace"
+                               (!cv::window_draw_while_occluded.getBool() && occludedUnfocusedFullscreen));
+        if(!skipDraw) {
+            m_engine->onPaint();
+        }
     }
 
     if constexpr(!Env::cfg(FEAT::MAINCB))  // main callbacks use SDL iteration rate to limit fps
@@ -714,7 +729,7 @@ SDL_AppResult SDLMain::iterate() {
             VPROF_BUDGET("FPSLimiter", VPROF_BUDGETGROUP_SLEEP);
 
             // if minimized or unfocused, use BG fps, otherwise use fps_max (if 0 it's unlimited)
-            const bool minimizedOrUnfocused = winMinimized() || !winFocused();
+            const bool minimizedOrUnfocused = winMinimized() || !winFocused() || occludedUnfocusedFullscreen;
             const bool inActiveGameplay = !minimizedOrUnfocused && (app && app->isInGameplay());
             const int targetFPS =
                 minimizedOrUnfocused ? m_iFpsMaxBG : (inActiveGameplay ? m_iFpsMax : cv::fps_max_menu.getInt());

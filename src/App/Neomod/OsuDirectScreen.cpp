@@ -160,7 +160,8 @@ void OnlineMapListing::onMouseUpInside(bool left, bool /*right*/) {
         const auto scheme = cv::use_https.getBool() ? "https://"sv : "http://"sv;
         const auto url = fmt::format("{}osu.{}/s/{}", scheme, BanchoState::endpoint, this->meta.set_id);
         debugLog("opening map link {:s}", url);
-        env->openURLInDefaultBrowser(url);
+        ui->getNotificationOverlay()->addNotification("Opening browser, please wait ...", 0xffffffff, false, 0.75f);
+        env->openURLInDefaultBrowser(url, /*preventFocusSteal=*/true);
     }
 
     this->mbtndown_coords[!left] = NO_MOUSEDOWN;
