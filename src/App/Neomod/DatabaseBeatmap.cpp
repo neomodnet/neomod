@@ -866,18 +866,6 @@ DatabaseBeatmap::LoadError DatabaseBeatmap::calculateSliderTimesClicksTicks(
     return r;
 }
 
-#ifndef BUILD_TOOLS_ONLY
-
-DatabaseBeatmap::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(std::string_view osuFilePath, float AR,
-                                                                               float CS, float speedMultiplier,
-                                                                               const Sync::stop_token &dead) {
-    // load primitive arrays
-    PRIMITIVE_CONTAINER c = loadPrimitiveObjects(osuFilePath, dead);
-    return loadDifficultyHitObjects(c, AR, CS, speedMultiplier, dead);
-}
-
-#endif
-
 template <HitObjectContainer C>
 void DatabaseBeatmap::calculateStacks(const ObjectGetter<C> &getObj, uSz numObjects, float AR, int beatmapVersion,
                                       float stackLeniency) {
@@ -997,8 +985,18 @@ void DatabaseBeatmap::calculateStacks(const ObjectGetter<C> &getObj, uSz numObje
 
 // explicit instantiations
 template void DatabaseBeatmap::calculateStacks(const ObjectGetter<DifficultyHitObject> &, uSz, float, int, float);
+
 #ifndef BUILD_TOOLS_ONLY
 template void DatabaseBeatmap::calculateStacks(const ObjectGetter<HitObject> &, uSz, float, int, float);
+
+DatabaseBeatmap::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(std::string_view osuFilePath, float AR,
+                                                                               float CS, float speedMultiplier,
+                                                                               const Sync::stop_token &dead) {
+    // load primitive arrays
+    PRIMITIVE_CONTAINER c = loadPrimitiveObjects(osuFilePath, dead);
+    return loadDifficultyHitObjects(c, AR, CS, speedMultiplier, dead);
+}
+
 #endif
 
 DatabaseBeatmap::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(PRIMITIVE_CONTAINER &c, float AR,

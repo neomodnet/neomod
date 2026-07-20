@@ -693,13 +693,6 @@ AS_IF([test -n "$WASM_CC"], [
     ])
 ])
 
-AS_IF([test "$host_cpu" = "x86_64" && test -z "$LLVMMINGW" && test -z "$WASM_CC"], [
-    # this is only possible on x86_64, and not with llvm-mingw or wasm
-    # faster tls access
-    CFLAGS="$CFLAGS -mtls-dialect=gnu2"
-    CXXFLAGS="$CXXFLAGS -mtls-dialect=gnu2"
-])
-
 AS_CASE(["$host_cpu"],
   [i[[3456789]]86*], [host_cpu=i686]
 )
@@ -1083,10 +1076,6 @@ AS_IF([test "$host_cpu" != "i686" && test -z "$WASM_CC"], [
 CPPFLAGS="$CPPFLAGS -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64"
 AS_IF([test -z "$WASM_CC"], [
     COMMON_FLAGS="$COMMON_FLAGS -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64 -pipe -ffunction-sections -fdata-sections -fwrapv -fno-strict-aliasing -pthread"
-    # -ftls-model=initial-exec is not supported on macOS
-    AS_IF([test "$SYSNAME" != "macos"], [
-        COMMON_FLAGS="$COMMON_FLAGS -ftls-model=initial-exec"
-    ])
     LDFLAGS="$LDFLAGS -pthread"
     # --disable-static builds deps as shared libs under $(DEPS_PREFIX)/lib with @rpath/$ORIGIN
     # install names; add a build-tree rpath so dep configure test programs (and the in-tree
@@ -1176,6 +1165,18 @@ AS_IF([test -z "$WASM_CC" && test -z "$_is_linux_libcpp" && test "$SYSNAME" != "
     # the default static libc++ build does not work with -fno-exceptions
     # (also not supported with macos libc++)
     LDFLAGS="$LDFLAGS -static-libstdc++ -static-libgcc"
+])
+
+AS_IF([test -z "$WASM_CC"], [
+    # check for faster tls model flags support
+    AX_CHECK_COMPILE_FLAG([-mtls-dialect=gnu2],[
+        CXXFLAGS="$CXXFLAGS -mtls-dialect=gnu2"
+        CFLAGS="$CFLAGS -mtls-dialect=gnu2"
+    ])
+    AX_CHECK_COMPILE_FLAG([-ftls-model=initial-exec],[
+        CXXFLAGS="$CXXFLAGS -ftls-model=initial-exec"
+        CFLAGS="$CFLAGS -ftls-model=initial-exec"
+    ])
 ])
 
 # set default arch flags

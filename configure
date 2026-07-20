@@ -8282,16 +8282,6 @@ fi
 
 fi
 
-if test "$host_cpu" = "x86_64" && test -z "$LLVMMINGW" && test -z "$WASM_CC"
-then :
-
-    # this is only possible on x86_64, and not with llvm-mingw or wasm
-    # faster tls access
-    CFLAGS="$CFLAGS -mtls-dialect=gnu2"
-    CXXFLAGS="$CXXFLAGS -mtls-dialect=gnu2"
-
-fi
-
 case "$host_cpu" in #(
   i[3456789]86*) :
     host_cpu=i686
@@ -10698,13 +10688,6 @@ if test -z "$WASM_CC"
 then :
 
     COMMON_FLAGS="$COMMON_FLAGS -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64 -pipe -ffunction-sections -fdata-sections -fwrapv -fno-strict-aliasing -pthread"
-    # -ftls-model=initial-exec is not supported on macOS
-    if test "$SYSNAME" != "macos"
-then :
-
-        COMMON_FLAGS="$COMMON_FLAGS -ftls-model=initial-exec"
-
-fi
     LDFLAGS="$LDFLAGS -pthread"
     # --disable-static builds deps as shared libs under $(DEPS_PREFIX)/lib with @rpath/$ORIGIN
     # install names; add a build-tree rpath so dep configure test programs (and the in-tree
@@ -11058,6 +11041,107 @@ then :
     # the default static libc++ build does not work with -fno-exceptions
     # (also not supported with macos libc++)
     LDFLAGS="$LDFLAGS -static-libstdc++ -static-libgcc"
+
+fi
+
+if test -z "$WASM_CC"
+then :
+
+    # check for faster tls model flags support
+    { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking whether the C++ compiler accepts -mtls-dialect=gnu2" >&5
+printf %s "checking whether the C++ compiler accepts -mtls-dialect=gnu2... " >&6; }
+if test ${ax_cv_check_cxxflags___mtls_dialect_gnu2+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e)
+  ax_check_save_flags=$CXXFLAGS
+  if test x"$GXX" = xyes ; then
+    add_gnu_werror="-Werror"
+  fi
+  CXXFLAGS="$CXXFLAGS  -mtls-dialect=gnu2 $add_gnu_werror"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main (void)
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_compile "$LINENO"
+then :
+  ax_cv_check_cxxflags___mtls_dialect_gnu2=yes
+else case e in #(
+  e) ax_cv_check_cxxflags___mtls_dialect_gnu2=no ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+  CXXFLAGS=$ax_check_save_flags ;;
+esac
+fi
+{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: $ax_cv_check_cxxflags___mtls_dialect_gnu2" >&5
+printf '%s\n' "$ax_cv_check_cxxflags___mtls_dialect_gnu2" >&6; }
+if test "x$ax_cv_check_cxxflags___mtls_dialect_gnu2" = xyes
+then :
+
+        CXXFLAGS="$CXXFLAGS -mtls-dialect=gnu2"
+        CFLAGS="$CFLAGS -mtls-dialect=gnu2"
+
+else case e in #(
+  e) : ;;
+esac
+fi
+
+    { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking whether the C++ compiler accepts -ftls-model=initial-exec" >&5
+printf %s "checking whether the C++ compiler accepts -ftls-model=initial-exec... " >&6; }
+if test ${ax_cv_check_cxxflags___ftls_model_initial_exec+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e)
+  ax_check_save_flags=$CXXFLAGS
+  if test x"$GXX" = xyes ; then
+    add_gnu_werror="-Werror"
+  fi
+  CXXFLAGS="$CXXFLAGS  -ftls-model=initial-exec $add_gnu_werror"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main (void)
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_compile "$LINENO"
+then :
+  ax_cv_check_cxxflags___ftls_model_initial_exec=yes
+else case e in #(
+  e) ax_cv_check_cxxflags___ftls_model_initial_exec=no ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+  CXXFLAGS=$ax_check_save_flags ;;
+esac
+fi
+{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: $ax_cv_check_cxxflags___ftls_model_initial_exec" >&5
+printf '%s\n' "$ax_cv_check_cxxflags___ftls_model_initial_exec" >&6; }
+if test "x$ax_cv_check_cxxflags___ftls_model_initial_exec" = xyes
+then :
+
+        CXXFLAGS="$CXXFLAGS -ftls-model=initial-exec"
+        CFLAGS="$CFLAGS -ftls-model=initial-exec"
+
+else case e in #(
+  e) : ;;
+esac
+fi
+
 
 fi
 
