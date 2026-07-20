@@ -60,8 +60,13 @@ using BeatmapDifficulty = DatabaseBeatmap;
 using BeatmapSet = DatabaseBeatmap;
 using DiffContainer = std::vector<std::unique_ptr<BeatmapDifficulty>>;
 
+#ifndef BUILD_TOOLS_ONLY
 template <typename T>
 concept HitObjectContainer = std::is_same_v<T, neomod::DiffCalc::DifficultyHitObject> || std::is_same_v<T, HitObject>;
+#else
+template <typename T>
+concept HitObjectContainer = std::is_same_v<T, neomod::DiffCalc::DifficultyHitObject>;
+#endif
 
 namespace DBType = neomod::DatabaseBeatmapTypes;
 
@@ -240,8 +245,7 @@ class DatabaseBeatmap final {
     DatabaseBeatmap() = delete;
     ~DatabaseBeatmap() = default;
 
-    DatabaseBeatmap(const std::string &filePath, const std::string &folder, BeatmapType type);  // beatmap difficulty
-    DatabaseBeatmap(std::unique_ptr<char[]> filePath, std::unique_ptr<char[]> folder,
+    DatabaseBeatmap(std::string filePath, std::string folder,
                     BeatmapType type);  // beatmap difficulty
     DatabaseBeatmap(std::unique_ptr<DiffContainer> &&difficulties,
                     BeatmapType type);  // beatmapset
@@ -296,12 +300,8 @@ class DatabaseBeatmap final {
     inline void setLocalOffset(i16 localOffset) { this->iLocalOffset = localOffset; }
     inline void setOnlineOffset(i16 onlineOffset) { this->iOnlineOffset = onlineOffset; }
 
-    [[nodiscard]] inline std::string_view getFolder() const {
-        return this->sFolder ? std::string_view{this->sFolder.get()} : ""sv;
-    }
-    [[nodiscard]] inline std::string_view getFilePath() const {
-        return this->sFilePath ? std::string_view{this->sFilePath.get()} : ""sv;
-    }
+    [[nodiscard]] inline std::string_view getFolder() const { return this->sFolder; }
+    [[nodiscard]] inline std::string_view getFilePath() const { return this->sFilePath; }
 
     template <typename T = BeatmapDifficulty>
     [[nodiscard]] inline const std::vector<std::unique_ptr<T>> &getDifficulties() const
@@ -327,51 +327,31 @@ class DatabaseBeatmap final {
     [[nodiscard]] inline int getSetID() const { return this->iSetID; }
 
     [[nodiscard]] inline std::string_view getTitle() const {
-        if(this->sTitleUnicode && prefer_cjk_names()) {
-            return std::string_view{this->sTitleUnicode.get()};
+        if(this->has_unicode_title && prefer_cjk_names()) {
+            return this->sTitleUnicode;
         } else {
             return this->getTitleLatin();
         }
     }
-    [[nodiscard]] inline std::string_view getTitleLatin() const {
-        return this->sTitle ? std::string_view{this->sTitle.get()} : ""sv;
-    }
-    [[nodiscard]] inline std::string_view getTitleUnicode() const {
-        return this->sTitleUnicode ? std::string_view{this->sTitleUnicode.get()} : ""sv;
-    }
+    [[nodiscard]] inline std::string_view getTitleLatin() const { return this->sTitle; }
+    [[nodiscard]] inline std::string_view getTitleUnicode() const { return this->sTitleUnicode; }
 
     [[nodiscard]] inline std::string_view getArtist() const {
-        if(this->sArtistUnicode && prefer_cjk_names()) {
-            return std::string_view{this->sArtistUnicode.get()};
+        if(this->has_unicode_artist && prefer_cjk_names()) {
+            return this->sArtistUnicode;
         } else {
             return this->getArtistLatin();
         }
     }
-    [[nodiscard]] inline std::string_view getArtistLatin() const {
-        return this->sArtist ? std::string_view{this->sArtist.get()} : ""sv;
-    }
-    [[nodiscard]] inline std::string_view getArtistUnicode() const {
-        return this->sArtistUnicode ? std::string_view{this->sArtistUnicode.get()} : ""sv;
-    }
+    [[nodiscard]] inline std::string_view getArtistLatin() const { return this->sArtist; }
+    [[nodiscard]] inline std::string_view getArtistUnicode() const { return this->sArtistUnicode; }
 
-    [[nodiscard]] inline std::string_view getCreator() const {
-        return this->sCreator ? std::string_view{this->sCreator.get()} : ""sv;
-    }
-    [[nodiscard]] inline std::string_view getDifficultyName() const {
-        return this->sDifficultyName ? std::string_view{this->sDifficultyName.get()} : ""sv;
-    }
-    [[nodiscard]] inline std::string_view getSource() const {
-        return this->sSource ? std::string_view{this->sSource.get()} : ""sv;
-    }
-    [[nodiscard]] inline std::string_view getTags() const {
-        return this->sTags ? std::string_view{this->sTags.get()} : ""sv;
-    }
-    [[nodiscard]] inline std::string_view getBackgroundImageFileName() const {
-        return this->sBackgroundImageFileName ? std::string_view{this->sBackgroundImageFileName.get()} : ""sv;
-    }
-    [[nodiscard]] inline std::string_view getAudioFileName() const {
-        return this->sAudioFileName ? std::string_view{this->sAudioFileName.get()} : ""sv;
-    }
+    [[nodiscard]] inline std::string_view getCreator() const { return this->sCreator; }
+    [[nodiscard]] inline std::string_view getDifficultyName() const { return this->sDifficultyName; }
+    [[nodiscard]] inline std::string_view getSource() const { return this->sSource; }
+    [[nodiscard]] inline std::string_view getTags() const { return this->sTags; }
+    [[nodiscard]] inline std::string_view getBackgroundImageFileName() const { return this->sBackgroundImageFileName; }
+    [[nodiscard]] inline std::string_view getAudioFileName() const { return this->sAudioFileName; }
 
     [[nodiscard]] inline u32 getLengthMS() const { return this->iLengthMS; }
     [[nodiscard]] inline int getPreviewTime() const { return this->iPreviewTime; }
@@ -390,7 +370,7 @@ class DatabaseBeatmap final {
     }
 
     using MapFileReadDoneCallback = std::function<void(std::vector<u8>)>;  // == AsyncIOHandler::ReadCallback
-    bool getMapFileAsync(MapFileReadDoneCallback data_callback);
+    [[nodiscard]] bool getMapFileAsync(MapFileReadDoneCallback data_callback) const;
 
     [[nodiscard]] std::string getFullSoundFilePath() const;
     [[nodiscard]] std::string getFullBackgroundImageFilePath() const;
@@ -450,8 +430,8 @@ class DatabaseBeatmap final {
 
     // redundant data (technically contained in metadata, but precomputed anyway)
 
-    std::unique_ptr<char[]> sFolder;    // path to folder containing .osu file (e.g. "/path/to/beatmapfolder/")
-    std::unique_ptr<char[]> sFilePath;  // path to .osu file (e.g. "/path/to/beatmapfolder/beatmap.osu")
+    std::string sFolder;    // path to folder containing .osu file (e.g. "/path/to/beatmapfolder/")
+    std::string sFilePath;  // path to .osu file (e.g. "/path/to/beatmapfolder/beatmap.osu")
 
    public:
     // raw metadata
@@ -459,18 +439,18 @@ class DatabaseBeatmap final {
 
    private:
     // if there is no unicode representation, they remain NULL
-    std::unique_ptr<char[]> sTitle;
-    std::unique_ptr<char[]> sTitleUnicode{nullptr};
-    std::unique_ptr<char[]> sArtist;
-    std::unique_ptr<char[]> sArtistUnicode{nullptr};
+    std::string sTitle;
+    std::string sTitleUnicode;
+    std::string sArtist;
+    std::string sArtistUnicode;
 
    public:
-    std::unique_ptr<char[]> sCreator;
-    std::unique_ptr<char[]> sDifficultyName;  // difficulty name ("Version")
-    std::unique_ptr<char[]> sSource;          // only used by search
-    std::unique_ptr<char[]> sTags;            // only used by search
-    std::unique_ptr<char[]> sBackgroundImageFileName;
-    std::unique_ptr<char[]> sAudioFileName;
+    std::string sCreator;
+    std::string sDifficultyName;  // difficulty name ("Version")
+    std::string sSource;          // only used by search
+    std::string sTags;            // only used by search
+    std::string sBackgroundImageFileName;
+    std::string sAudioFileName;
 
     int iID{0};  // online ID, if uploaded
     u32 iLengthMS{0};
@@ -521,6 +501,10 @@ class DatabaseBeatmap final {
 
     bool do_not_store{false};
     bool draw_background{true};
+
+   private:
+    bool has_unicode_title{false};
+    bool has_unicode_artist{false};
 
     // class internal data (custom)
 

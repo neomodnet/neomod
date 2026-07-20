@@ -112,13 +112,10 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT::LOAD_GAMEPLAY_RESULT(DatabaseBeatmap::LOA
 DatabaseBeatmap::LOAD_GAMEPLAY_RESULT &DatabaseBeatmap::LOAD_GAMEPLAY_RESULT::operator=(
     DatabaseBeatmap::LOAD_GAMEPLAY_RESULT &&) noexcept = default;
 
-DatabaseBeatmap::DatabaseBeatmap(std::unique_ptr<char[]> filePath, std::unique_ptr<char[]> folder, BeatmapType type)
+DatabaseBeatmap::DatabaseBeatmap(std::string filePath, std::string folder, BeatmapType type)
     : sFolder(std::move(folder)), sFilePath(std::move(filePath)), type(type) {
     this->iVersion = cv::beatmap_version.getInt();
 }
-
-DatabaseBeatmap::DatabaseBeatmap(const std::string &filePath, const std::string &folder, BeatmapType type)
-    : DatabaseBeatmap(SString::strcpy_u(filePath), SString::strcpy_u(folder), type) {}
 
 DatabaseBeatmap::DatabaseBeatmap(std::unique_ptr<DiffContainer> &&difficulties, BeatmapType type)
     : DatabaseBeatmap("", "", type) {
@@ -135,14 +132,16 @@ DatabaseBeatmap::DatabaseBeatmap(std::unique_ptr<DiffContainer> &&difficulties, 
 
     // set representative values for this container (i.e. use values from first difficulty)
     const auto &firstDiff = *diffs[0];
-    this->sFolder = SString::strcpy_u(firstDiff.sFolder.get());
+    this->sFolder = firstDiff.sFolder;
 
-    this->sTitle = SString::strcpy_u(firstDiff.sTitle.get());
-    this->sTitleUnicode = SString::strcpy_u(firstDiff.sTitleUnicode.get());
-    this->sArtist = SString::strcpy_u(firstDiff.sArtist.get());
-    this->sArtistUnicode = SString::strcpy_u(firstDiff.sArtistUnicode.get());
-    this->sCreator = SString::strcpy_u(firstDiff.sCreator.get());
-    this->sBackgroundImageFileName = SString::strcpy_u(firstDiff.sBackgroundImageFileName.get());
+    this->sTitle = firstDiff.sTitle;
+    this->sTitleUnicode = firstDiff.sTitleUnicode;
+    this->has_unicode_title = firstDiff.has_unicode_title;
+    this->sArtist = firstDiff.sArtist;
+    this->sArtistUnicode = firstDiff.sArtistUnicode;
+    this->has_unicode_artist = firstDiff.has_unicode_artist;
+    this->sCreator = firstDiff.sCreator;
+    this->sBackgroundImageFileName = firstDiff.sBackgroundImageFileName;
     this->iSetID = firstDiff.iSetID;
 
     // also calculate largest representative values
@@ -909,7 +908,8 @@ void DatabaseBeatmap::calculateStacks(const ObjectGetter<C> &getObj, uSz numObje
 
                     if(isSpinnerN) continue;
 
-                    if((f32)objectI->getClickTime() - (approachTime * stackLeniency) > (f32)(objectN->getEndTime())) break;
+                    if((f32)objectI->getClickTime() - (approachTime * stackLeniency) > (f32)(objectN->getEndTime()))
+                        break;
 
                     vec2 objectNEndPosition = objectN->getOriginalRawPosAt(objectN->getEndTime());
                     if(objectN->getDuration() != 0 &&
@@ -940,7 +940,8 @@ void DatabaseBeatmap::calculateStacks(const ObjectGetter<C> &getObj, uSz numObje
 
                     if(isSpinnerN) continue;
 
-                    if((f32)objectI->getClickTime() - (approachTime * stackLeniency) > (f32)objectN->getClickTime()) break;
+                    if((f32)objectI->getClickTime() - (approachTime * stackLeniency) > (f32)objectN->getClickTime())
+                        break;
 
                     if(vec::length(
                            ((objectN->getDuration() != 0 ? objectN->getOriginalRawPosAt(objectN->getEndTime())
@@ -996,7 +997,9 @@ void DatabaseBeatmap::calculateStacks(const ObjectGetter<C> &getObj, uSz numObje
 
 // explicit instantiations
 template void DatabaseBeatmap::calculateStacks(const ObjectGetter<DifficultyHitObject> &, uSz, float, int, float);
+#ifndef BUILD_TOOLS_ONLY
 template void DatabaseBeatmap::calculateStacks(const ObjectGetter<HitObject> &, uSz, float, int, float);
+#endif
 
 DatabaseBeatmap::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(PRIMITIVE_CONTAINER &c, float AR,
                                                                                float CS, float speedMultiplier,
@@ -1262,7 +1265,7 @@ f32 DatabaseBeatmap::getStarRating(u8 idx) const {
     return ret;
 }
 
-bool DatabaseBeatmap::getMapFileAsync(MapFileReadDoneCallback data_callback) {
+bool DatabaseBeatmap::getMapFileAsync(MapFileReadDoneCallback data_callback) const {
     // don't want to include AsyncIOHandler.h in DatabaseBeatmap.h
     static_assert(std::is_same_v<MapFileReadDoneCallback, AsyncIOHandler::ReadCallback>);
     if(!Environment::fileExists(this->getFilePath())) return false;
@@ -1326,6 +1329,8 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
     this->timingpoints.clear();
 
     std::vector<TIMINGPOINT> tempTimingpoints;
+    std::string tempArtistUnicode;
+    std::string tempTitleUnicode;
 
     // load metadata
     bool foundAR = false;
@@ -1392,9 +1397,9 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
 
             case Metadata: {
                 PARSE_LINE("Title", ':', &this->sTitle);
-                PARSE_LINE("TitleUnicode", ':', &this->sTitleUnicode);
+                PARSE_LINE("TitleUnicode", ':', &tempTitleUnicode);
                 PARSE_LINE("Artist", ':', &this->sArtist);
-                PARSE_LINE("ArtistUnicode", ':', &this->sArtistUnicode);
+                PARSE_LINE("ArtistUnicode", ':', &tempArtistUnicode);
                 PARSE_LINE("Creator", ':', &this->sCreator);
                 PARSE_LINE("Version", ':', &this->sDifficultyName);
                 PARSE_LINE("Source", ':', &this->sSource);
@@ -1422,7 +1427,7 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
                 // short-circuit if we already have a stored filename
                 bool haveFilename = this->getBackgroundImageFileName().length() > 2;
 
-                std::unique_ptr<char[]> bgstr;
+                std::string bgstr;
                 i64 type{-1};
                 if(!haveFilename &&
                    Parsing::parse(curLine, &type, ',', Parsing::skip<i64> /* skip start time */, ',', &bgstr) &&
@@ -1444,11 +1449,19 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
         }
     }
 
-    if(this->sTitleUnicode && SString::is_wspace_only(this->getTitleUnicode())) {
-        this->sTitleUnicode.reset();
+    if(!SString::is_wspace_only(tempTitleUnicode)) {
+        this->sTitleUnicode = std::move(tempTitleUnicode);
+        this->has_unicode_title = true;
+    } else {
+        this->sTitleUnicode.clear();
+        this->has_unicode_title = false;
     }
-    if(this->sArtistUnicode && SString::is_wspace_only(this->getArtistUnicode())) {
-        this->sArtistUnicode.reset();
+    if(!SString::is_wspace_only(tempArtistUnicode)) {
+        this->sArtistUnicode = std::move(tempArtistUnicode);
+        this->has_unicode_artist = true;
+    } else {
+        this->sArtistUnicode.clear();
+        this->has_unicode_artist = false;
     }
 
     // general sanity checks

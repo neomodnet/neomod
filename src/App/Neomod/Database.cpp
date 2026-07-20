@@ -1223,15 +1223,15 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
 
                     i32 iID = neomod_maps.read<i32>();
                     i32 iSetID = set_id;
-                    auto sTitle = neomod_maps.read_cstring();
-                    auto sAudioFileName = neomod_maps.read_cstring();
+                    auto sTitle = neomod_maps.read_string();
+                    auto sAudioFileName = neomod_maps.read_string();
                     i32 iLengthMS = neomod_maps.read<i32>();
                     f32 fStackLeniency = neomod_maps.read<f32>();
-                    auto sArtist = neomod_maps.read_cstring();
-                    auto sCreator = neomod_maps.read_cstring();
-                    auto sDifficultyName = neomod_maps.read_cstring();
-                    auto sSource = neomod_maps.read_cstring();
-                    auto sTags = neomod_maps.read_cstring();
+                    auto sArtist = neomod_maps.read_string();
+                    auto sCreator = neomod_maps.read_string();
+                    auto sDifficultyName = neomod_maps.read_string();
+                    auto sSource = neomod_maps.read_string();
+                    auto sTags = neomod_maps.read_string();
 
                     MD5Hash diff_hash;
                     // TODO: properly validate and skip beatmaps with invalid hashes
@@ -1288,22 +1288,20 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                         loudness = neomod_maps.read<f32>();
                     }
 
-                    std::unique_ptr<char[]> sTitleUnicode;
-                    std::unique_ptr<char[]> sArtistUnicode;
+                    std::string sTitleUnicode;
+                    std::string sArtistUnicode;
                     if(version >= 20250801) {
-                        neomod_maps.read_cstring(sTitleUnicode);
-                        neomod_maps.read_cstring(sArtistUnicode);
+                        neomod_maps.read_string(sTitleUnicode);
+                        neomod_maps.read_string(sArtistUnicode);
                     }
 
-                    const bool bEmptyTitleUnicode =
-                        !sTitleUnicode || SString::is_wspace_only(std::string_view{sTitleUnicode.get()});
-                    const bool bEmptyArtistUnicode =
-                        !sArtistUnicode || SString::is_wspace_only(std::string_view{sArtistUnicode.get()});
+                    const bool bEmptyTitleUnicode = sTitleUnicode.empty() || SString::is_wspace_only(sTitleUnicode);
+                    const bool bEmptyArtistUnicode = sArtistUnicode.empty() || SString::is_wspace_only(sArtistUnicode);
 
                     // we cache the background image filename in the database past this version
-                    std::unique_ptr<char[]> sBackgroundImageFileName;
+                    std::string sBackgroundImageFileName;
                     if(version >= 20251009) {
-                        neomod_maps.read_cstring(sBackgroundImageFileName);
+                        neomod_maps.read_string(sBackgroundImageFileName);
                     }
 
                     // prior versions did not store PPv2 version, so there was no way to know if the maps needed pp recalc
@@ -1398,9 +1396,11 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
 
                     if(!bEmptyTitleUnicode) {
                         diff->sTitleUnicode = std::move(sTitleUnicode);
+                        diff->has_unicode_title = true;
                     }
                     if(!bEmptyArtistUnicode) {
                         diff->sArtistUnicode = std::move(sArtistUnicode);
+                        diff->has_unicode_artist = true;
                     }
 
                     diff->sBackgroundImageFileName = std::move(sBackgroundImageFileName);
@@ -1765,23 +1765,25 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                     auto map = std::make_unique<BeatmapDifficulty>(std::move(dotosu_fullpath), std::move(beatmap_dir),
                                                                    DatabaseBeatmap::BeatmapType::PEPPY_DIFFICULTY);
 
-                    map->sTitle = SString::strcpy_u(song_title);
+                    map->sTitle = std::move(song_title);
                     if(!SString::is_wspace_only(unicode_song_title)) {
-                        map->sTitleUnicode = SString::strcpy_u(unicode_song_title);
+                        map->sTitleUnicode = std::move(unicode_song_title);
+                        map->has_unicode_title = true;
                     }
-                    map->sAudioFileName = SString::strcpy_u(audio_filename);
+                    map->sAudioFileName = std::move(audio_filename);
                     map->iLengthMS = duration;
 
                     map->fStackLeniency = stack_leniency;
 
-                    map->sArtist = SString::strcpy_u(artist_name);
+                    map->sArtist = std::move(artist_name);
                     if(!SString::is_wspace_only(unicode_artist_name)) {
-                        map->sArtistUnicode = SString::strcpy_u(unicode_artist_name);
+                        map->sArtistUnicode = std::move(unicode_artist_name);
+                        map->has_unicode_artist = true;
                     }
-                    map->sCreator = SString::strcpy_u(creator_name);
-                    map->sDifficultyName = SString::strcpy_u(diff_name);
-                    map->sSource = SString::strcpy_u(song_source);
-                    map->sTags = SString::strcpy_u(song_tags);
+                    map->sCreator = std::move(creator_name);
+                    map->sDifficultyName = std::move(diff_name);
+                    map->sSource = std::move(song_source);
+                    map->sTags = std::move(song_tags);
                     map->writeMD5(md5hash);
                     map->iID = beatmap_id;
                     map->iSetID = beatmapset_id;
@@ -1827,7 +1829,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                         diffp->ppv2Version = override_.ppv2_version;
                         diffp->loudness = override_.loudness;
                         diffp->draw_background = override_.draw_background;
-                        diffp->sBackgroundImageFileName = SString::strcpy_u(override_.background_image_filename);
+                        diffp->sBackgroundImageFileName = override_.background_image_filename;
                         if(override_.loudness != 0.f) {
                             loudness_found = true;
                         }
