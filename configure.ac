@@ -1509,8 +1509,8 @@ AS_IF([test "x$enable_werror" != "xno"], [
 ])
 
 # silence useless error with llvm 23 (happens when compiling PCH)
-AX_CHECK_COMPILE_FLAG([-Wunused-template], [
-    NEOMOD_COMPFLAGS="$NEOMOD_COMPFLAGS -Wunused-template"
+AX_CHECK_COMPILE_FLAG([-Wno-unused-template], [
+    NEOMOD_CXXFLAGS="$NEOMOD_CXXFLAGS -Wno-unused-template"
 ])
 
 # common flags
