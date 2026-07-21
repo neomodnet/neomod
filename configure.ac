@@ -1508,6 +1508,11 @@ AS_IF([test "x$enable_werror" != "xno"], [
     NEOMOD_COMPFLAGS="$_tmp_werror_flags $NEOMOD_COMPFLAGS"
 ])
 
+# silence useless error with llvm 23 (happens when compiling PCH)
+AX_CHECK_COMPILE_FLAG([-Wunused-template], [
+    NEOMOD_COMPFLAGS="$NEOMOD_COMPFLAGS -Wunused-template"
+])
+
 # common flags
 NEOMOD_COMPFLAGS="$NEOMOD_COMPFLAGS -Wall -Wextra -Wno-sign-compare -Wunused-parameter -Wdeprecated-declarations -Wno-error=deprecated-declarations"
 
