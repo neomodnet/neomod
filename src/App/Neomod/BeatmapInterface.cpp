@@ -2772,9 +2772,7 @@ void BeatmapInterface::update2() {
     // interpolate clicks that occurred between the last update and now
     // (except if we are paused)
     if(!isIdlePaused && !this->is_watching && !BanchoState::spectating && !this->clicks.empty()) {
-        const u64 timeSinceLastUpdate = currentUpdateTime - lastUpdateTime;
-
-        if(timeSinceLastUpdate > 0) {
+        if(const u64 timeSinceLastUpdate = currentUpdateTime - lastUpdateTime; timeSinceLastUpdate > 0) {
             for(auto &click : this->clicks) {
                 // how long after the last music update did this click occur?
                 const u64 clickDeltaSinceLastUpdate = click.timestampNS - lastUpdateTime;
@@ -3078,8 +3076,8 @@ void BeatmapInterface::update2() {
             const bool isCurrentHitObjectASliderAndHasItsStartCircleFinishedBeforeClickEvents =
                 (currentSliderPointer != nullptr && currentSliderPointer->isStartCircleFinished());
             const bool isCurrentHitObjectFinishedBeforeClickEvents = curHobj->isFinished();
-            {
-                if(this->clicks.size() > 0) curHobj->onClickEvent(this->clicks);
+            if(!this->clicks.empty()) {
+                curHobj->onClickEvent(this->clicks);
             }
             const bool isCurrentHitObjectFinishedAfterClickEvents = curHobj->isFinished();
             const bool isCurrentHitObjectASliderAndHasItsStartCircleFinishedAfterClickEvents =

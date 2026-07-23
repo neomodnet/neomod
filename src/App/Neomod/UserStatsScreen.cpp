@@ -28,15 +28,18 @@
 
 UserStatsScreen::UserStatsScreen() : ScreenBackable() {
     m_userCard = new UserCard(0);
+    m_userCard->setVisible(false);
     this->addBaseUIElement(m_userCard);
 
     m_contextMenu = std::make_unique<UIContextMenu>();
-    m_contextMenu->setVisible(true);
+    m_contextMenu->setVisible(false);
+    m_contextMenu->setVisible2(false);
 
     m_scores = new CBaseUIScrollView();
     m_scores->setBackgroundColor(0xff222222);
     m_scores->setHorizontalScrolling(false);
     m_scores->setVerticalScrolling(true);
+    m_scores->setVisible(false);
     this->addBaseUIElement(m_scores);
 }
 
@@ -60,7 +63,9 @@ void UserStatsScreen::updateInput(CBaseUIEventCtx &c) {
 
 CBaseUIContainer *UserStatsScreen::setVisible(bool visible) {
     if(visible == this->isVisible()) return this;
-
+    m_userCard->setVisible(visible);
+    m_contextMenu->setVisible(visible);
+    m_scores->setVisible(visible);
     ScreenBackable::setVisible(visible);
 
     if(this->isVisible()) {
