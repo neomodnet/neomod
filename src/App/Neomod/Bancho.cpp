@@ -35,6 +35,7 @@
 #include "UI.h"
 #include "Database.h"
 #include "DatabaseBeatmap.h"
+#include "RichPresence.h"
 
 #ifdef MCENGINE_PLATFORM_WINDOWS
 
@@ -146,6 +147,7 @@ void BanchoState::update_online_status(OnlineStatus new_status) {
         }
 
         ui->getOptionsOverlay()->scheduleLayoutUpdate();
+        RichPresence::refreshStatus();
     }
 }
 
