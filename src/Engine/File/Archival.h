@@ -126,7 +126,9 @@ class Archive {
     class Writer {
         NOCOPY_NOMOVE(Writer)
        public:
-        explicit Writer(Format format = Format::ZIP, int compressionLevel = COMPRESSION_DEFAULT);
+        explicit Writer(std::string_view hdrCharset);
+        explicit Writer(Format format = Format::ZIP, int compressionLevel = COMPRESSION_DEFAULT,
+                        std::string_view hdrCharset = {});
         ~Writer() = default;
 
         // add a single file from disk; fails if diskPath is a directory
@@ -169,5 +171,6 @@ class Archive {
         int compressionLevel;
         int threads;
         Format format;
+        std::string sHdrCharset;  // empty = libarchive default
     };
 };

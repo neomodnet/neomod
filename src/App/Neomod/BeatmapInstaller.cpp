@@ -171,7 +171,6 @@ bool write_entries_to_dir(const std::vector<Archive::Entry>& entries, std::strin
 }
 
 // osu! always stores .osz entry names as Shift-JIS (CP932)
-// TODO: should we be exporting them like that too?
 constexpr std::string_view ARCHIVE_CHARSET{"CP932"};
 
 }  // namespace

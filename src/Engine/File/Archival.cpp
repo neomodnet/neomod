@@ -391,10 +391,17 @@ bool Archive::Reader::isPathSafe(std::string_view path) { return path.find("..")
 // Archive::Writer implementation
 //------------------------------------------------------------------------------
 
-Archive::Writer::Writer(Format format, int compressionLevel)
+Archive::Writer::Writer(std::string_view hdrCharset)
+    : compressionLevel(COMPRESSION_DEFAULT),
+      threads(std::clamp<int>(cv::archive_threads.getInt(), 0, McThread::get_logical_cpu_count())),
+      format(Format::ZIP),
+      sHdrCharset(hdrCharset) {}
+
+Archive::Writer::Writer(Format format, int compressionLevel, std::string_view hdrCharset)
     : compressionLevel(compressionLevel),
       threads(std::clamp<int>(cv::archive_threads.getInt(), 0, McThread::get_logical_cpu_count())),
-      format(format) {}
+      format(format),
+      sHdrCharset(hdrCharset) {}
 
 std::string Archive::Writer::normalizePath(std::string_view path) {
     std::string ret{path};
@@ -562,6 +569,11 @@ bool Archive::Writer::addData(std::string_view archivePath, std::vector<u8>&& da
 bool Archive::Writer::configureArchive(struct archive* a) {
     int r{ARCHIVE_OK};
     std::string options;
+
+    // apply charset if requested
+    if(!this->sHdrCharset.empty()) {
+        options += fmt::format("hdrcharset={:s},", this->sHdrCharset);
+    }
 
     switch(this->format) {
         case Format::ZIP:

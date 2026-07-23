@@ -15,6 +15,10 @@
 
 namespace MapExporter {
 
+// osu! always stores .osz entry names as Shift-JIS (CP932)
+// (we also extract them with this codepage, osu!lazer and osu!stable both expect it)
+static constexpr std::string_view ARCHIVE_CHARSET{"CP932"};
+
 bool ExportContext::operator==(const ExportContext &o) const {
     return std::operator==(beatmap_folder_paths, o.beatmap_folder_paths) &&
            std::operator==(toplevel_archive_bundle, o.toplevel_archive_bundle);
@@ -128,7 +132,7 @@ Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, A
                 std::vector<std::string> exported;
                 for(const auto &folder : real_mapfolders) {
                     if(tok.stop_requested()) return finish();
-                    Archive::Writer ar;
+                    Archive::Writer ar(ARCHIVE_CHARSET);
                     if(!ar.addPath(folder, "", tok)) {
                         update_progress_stage1(folder);
                         continue;
@@ -180,7 +184,7 @@ Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, A
                     };
 
                     // re-compressing things we already compressed is a waste of resources
-                    Archive::Writer ar(Archive::Format::ZIP, Archive::COMPRESSION_STORE);
+                    Archive::Writer ar(Archive::Format::ZIP, Archive::COMPRESSION_STORE, ARCHIVE_CHARSET);
                     const std::string extSuffix{ar.getExtSuffix()};
 
                     size_t num_added = 0;
