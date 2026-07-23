@@ -15204,7 +15204,7 @@ CTRE_MIN_VERSION=3.10.0 # regex support that doesn't have exceptions FORCED enab
 CTRE_BUILD_VERSION=6225211806c48230e5d17a1e555ef69e7325051c # git as of Jan 28th, 2026
 
 # always build these from source if we want to use them
-SOLOUD_VERSION=4e13fffb0d46b5088fe75e9fcf4445aa8dc15e49
+SOLOUD_VERSION=e7a7b227e69f364135e2405d05d8d825fee07917
  # neoloud fork
 SOLOUD_PREFIX=$DEPS_PREFIX
 
