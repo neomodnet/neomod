@@ -63,6 +63,7 @@ InfoLabel::InfoLabel(f32 xPos, f32 yPos, f32 xSize, f32 ySize, std::string name)
     this->iOnlineOffset = 0;
 
     this->iBeatmapId = -1;
+    this->iBeatmapSetId = -1;
 }
 
 void InfoLabel::draw() {
@@ -273,6 +274,7 @@ f32 InfoLabel::getTitleFontRatio() const { return (f32)this->titleFont->getSize(
 
 void InfoLabel::setFromBeatmap(const DatabaseBeatmap *map) {
     this->iBeatmapId = map->getID();
+    this->iBeatmapSetId = map->getSetID();
 
     this->setArtist(map->getArtist());
     this->setTitle(map->getTitle());

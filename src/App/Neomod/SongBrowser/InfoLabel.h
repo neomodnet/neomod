@@ -42,6 +42,7 @@ class InfoLabel final : public CBaseUIButton {
     [[nodiscard]] f32 getMinimumHeight() const;
 
     [[nodiscard]] i32 getBeatmapID() const { return this->iBeatmapId; }
+    [[nodiscard]] i32 getBeatmapSetID() const { return this->iBeatmapSetId; }
 
    private:
     void updateScaling();
@@ -85,4 +86,5 @@ class InfoLabel final : public CBaseUIButton {
 
     // custom
     i32 iBeatmapId;
+    i32 iBeatmapSetId;
 };

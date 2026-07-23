@@ -105,12 +105,20 @@ void set_activity_with_image(DiscordActivity& to_set) {
             }
         }
 
-        if(auto map_id = map->getID(); map_id > 0) {
+        const i32 map_id = map->getID();
+        const i32 set_id = map->getSetID();
+        if((map_id > 0) || (set_id > 0)) {
             auto& btn = to_set.buttons[0];
             // shouldn't be translated (we don't know what language other users' discord clients are in...)
             // TODO: same applies for all other strings here?
             btn.label = {"View beatmap"};
-            const std::string map_url = fmt::format("{:s}osu.{:s}/b/{:d}", scheme, endpoint, map_id);
+
+            const bool use_set_id = map_id <= 0;
+            const i32 real_id = use_set_id ? set_id : map_id;
+            const auto b_or_s_endpoint = use_set_id ? "s" : "b";
+
+            const std::string map_url =
+                fmt::format("{:s}osu.{:s}/{:s}/{:d}", scheme, endpoint, b_or_s_endpoint, real_id);
             strncpy(btn.url.data(), map_url.c_str(), btn.url.size() - 1);
         }
     }

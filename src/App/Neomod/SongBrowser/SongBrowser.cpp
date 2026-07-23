@@ -1452,7 +1452,7 @@ void SongBrowser::onDifficultySelected(DatabaseBeatmap *map, bool play) {
     this->rebuildScoreButtons();
 
     // update web button
-    this->webButton->setVisible(this->songInfo->getBeatmapID() > 0);
+    this->webButton->setVisible((this->songInfo->getBeatmapID() > 0) || (this->songInfo->getBeatmapSetID() > 0));
 }
 
 class SongBrowser::BeatmapLoadingOverlay final : public LoadingScreen {
@@ -2903,10 +2903,16 @@ void SongBrowser::onSortScoresChange(std::string_view /*text*/, int id) {
 }
 
 void SongBrowser::onWebClicked(CBaseUIButton * /*button*/) {
-    if(this->songInfo->getBeatmapID() > 0) {
-        auto scheme = cv::use_https.getBool() ? "https://" : "http://";
-        auto endpoint = BanchoState::is_online() ? BanchoState::endpoint : "ppy.sh";
-        env->openURLInDefaultBrowser(fmt::format("{}osu.{}/b/{}", scheme, endpoint, this->songInfo->getBeatmapID()));
+    const i32 map_id = this->songInfo->getBeatmapID();
+    const i32 set_id = this->songInfo->getBeatmapSetID();
+    if((map_id > 0) || (set_id > 0)) {
+        const bool use_set_id = map_id <= 0;
+        const i32 real_id = use_set_id ? set_id : map_id;
+        const auto b_or_s_endpoint = use_set_id ? "s" : "b";
+
+        const auto scheme = cv::use_https.getBool() ? "https://" : "http://";
+        const auto endpoint = BanchoState::is_online() ? BanchoState::endpoint : "ppy.sh";
+        env->openURLInDefaultBrowser(fmt::format("{:s}osu.{:s}/{:s}/{:d}", scheme, endpoint, b_or_s_endpoint, real_id));
         ui->getNotificationOverlay()->addNotification(_("Opening browser, please wait ..."), 0xffffffff, false, 0.75f);
     }
 }
