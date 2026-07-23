@@ -78,6 +78,7 @@ FinishedScore parse_score(const char *score_line) {
     return score;
 }
 
+// NOTE: also updates local beatmap ID and beatmapset ID if they were missing in our local beatmap
 void process_leaderboard_response(const MD5Hash beatmap_hash, std::string body_str) {
     // Don't update the leaderboard while playing, that's weird
     if(osu->isInPlayMode()) return;
@@ -133,6 +134,14 @@ void process_leaderboard_response(const MD5Hash beatmap_hash, std::string body_s
         map->setOnlineOffset(info.online_offset);
         if(previous_offset != info.online_offset) {
             db->update_overrides(map);
+        }
+
+        // for now, only override local state if we didn't already have something valid
+        if(info.beatmap_id > 0 && map->getID() <= 0) {
+            map->setMapID((i32)info.beatmap_id);
+        }
+        if(info.beatmap_set_id > 0 && map->getSetID() <= 0) {
+            map->setMapsetID((i32)info.beatmap_set_id);
         }
     }
 

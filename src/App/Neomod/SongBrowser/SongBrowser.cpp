@@ -2315,6 +2315,12 @@ void SongBrowser::onGotNewLeaderboard(const MD5Hash &lbHash) {
     // skip rebuild requests if we have switched off of the map in the meantime
     if(map->getMD5() != lbHash) return;
 
+    // update song info and web button if we got a new map(set) id on leaderboard response
+    if((this->songInfo->getBeatmapID() != map->getID()) || (this->songInfo->getBeatmapSetID() != map->getSetID())) {
+        this->songInfo->setFromBeatmap(map);
+        this->webButton->setVisible((this->songInfo->getBeatmapID() > 0) || (this->songInfo->getBeatmapSetID() > 0));
+    }
+
     this->rebuildScoreButtons();
 }
 
