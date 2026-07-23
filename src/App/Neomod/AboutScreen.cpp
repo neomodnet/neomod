@@ -62,6 +62,7 @@ AboutScreen::AboutScreen() : ScreenBackable() {
     v43_12.title = "43.12 (" CHANGELOG_TIMESTAMP ")";
     v43_12.changes = {
         R"(- Added "View beatmap" button to Discord RPC panel)",
+        R"(- Added "creator=" beatmap search filter in song browser)",
         R"(- Changed default renderer to SDL_gpu (D3D12 on Windows, Vulkan on Linux))",
         R"(  - On Windows, Vulkan (-sdlgpu vulkan) and D3D11 (-dx11) are also available)",
         R"(  - Switch back to OpenGL by appending -opengl to launch arguments)",

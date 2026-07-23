@@ -664,7 +664,7 @@ void ScoreButton::onUseModsClicked() {
     // TODO (ugly): allow global hp drain disable to override score mods
     using namespace flags::operators;
     if(cv::drain_disabled.getBool()) {
-        actual.flags |= ~ModFlags::NoHP;
+        actual.flags |= ModFlags::NoHP;
     }
     Replay::Mods::use(actual);
     soundEngine->play(osu->getSkin()->s_check_on);
