@@ -7,4 +7,7 @@
 /* YYYY-MM-DD , to use in AboutScreen.cpp instead of __DATE__ (which is e.g. Dec 25 2025) */
 #define CHANGELOG_TIMESTAMP "@CHANGELOG_TIMESTAMP@"
 
+/* un-cached PACKAGE_VERSION to work around PCH/ccache ignoring version bumps */
+#define PACKAGE_VERSION_UNCACHED "@PACKAGE_VERSION_UNCACHED@"
+
 #endif /* BUILD_TIMESTAMP_H */

@@ -5,6 +5,7 @@
 #include "ConsoleBox.h"
 #include "Thread.h"
 #include "Environment.h"
+#include "build_timestamp.h"
 
 // for SDL_CleanupTLS
 #include <SDL3/SDL_thread.h>
@@ -57,7 +58,7 @@
 // e.g. ./logs/
 #define LOGFILE_LOCATION MCENGINE_DATA_DIR "logs/"
 // e.g. ./logs/neomod-linux-x64-dev-40.03.log
-#define _LOGFILE_BASENAME LOGFILE_LOCATION PACKAGE_NAME "-" OS_NAME "-" RELEASE_IDENTIFIER "-" PACKAGE_VERSION
+#define _LOGFILE_BASENAME LOGFILE_LOCATION PACKAGE_NAME "-" OS_NAME "-" RELEASE_IDENTIFIER "-" PACKAGE_VERSION_UNCACHED
 #define LOGFILE_NAME _LOGFILE_BASENAME ".log"
 #define LOGFILE_NAME_NETWORK _LOGFILE_BASENAME "-network.log"
 
@@ -446,7 +447,7 @@ void init(bool create_console) noexcept {
             freopen_s(&fp, "CONOUT$", "w", stdout);
             freopen_s(&fp, "CONOUT$", "w", stderr);
 
-            SetConsoleTitleW(L"" PACKAGE_NAME L" " PACKAGE_VERSION L" console output");
+            SetConsoleTitleW(L"" PACKAGE_NAME L" " PACKAGE_VERSION_UNCACHED L" console output");
 
             SetConsoleOutputCP(65001 /*CP_UTF8*/);
         }

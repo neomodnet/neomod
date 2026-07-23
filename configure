@@ -1001,6 +1001,7 @@ build_cpu
 build
 CHANGELOG_TIMESTAMP
 BUILD_TIMESTAMP
+PACKAGE_VERSION_UNCACHED
 ECHO_T
 ECHO_N
 ECHO_C
@@ -3199,8 +3200,8 @@ CI="${CI:-"${GITHUB_ACTIONS}"}"
 
 
 
-
-printf '%s\n' "#define NEOMOD_VERSION PACKAGE_VERSION" >>confdefs.h
+# un-cached PACKAGE_VERSION to work around PCH/ccache ignoring version bumps
+PACKAGE_VERSION_UNCACHED=$PACKAGE_VERSION
 
 
 _tstamp=$(TZ=UTC date +%y%m%d%H%M)

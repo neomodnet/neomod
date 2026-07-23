@@ -22,7 +22,8 @@ AH_BOTTOM([
 #endif
 ])
 
-AC_DEFINE_UNQUOTED([NEOMOD_VERSION], [PACKAGE_VERSION], [Defined to the version of neomod being built.])
+# un-cached PACKAGE_VERSION to work around PCH/ccache ignoring version bumps
+AC_SUBST([PACKAGE_VERSION_UNCACHED], [$PACKAGE_VERSION])
 
 _tstamp=$(TZ=UTC date +%y%m%d%H%M)
 AC_SUBST([BUILD_TIMESTAMP], [$_tstamp])

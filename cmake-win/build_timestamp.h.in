@@ -6,4 +6,6 @@
 /* YYYY-MM-DD , to use in AboutScreen.cpp instead of __DATE__ (which is e.g. Dec 25 2025) */
 #define CHANGELOG_TIMESTAMP "@CHANGELOG_TIMESTAMP@"
 
+#define PACKAGE_VERSION_UNCACHED "@PROJECT_VERSION@"
+
 #endif /* BUILD_TIMESTAMP_H */

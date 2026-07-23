@@ -98,6 +98,7 @@ class ConVar;
 namespace cv {
 // special cased to improve dependency tracked rebuilds
 extern ConVar build_timestamp;
+extern ConVar version;
 namespace cmd {
 
 // Generic commands
@@ -272,9 +273,6 @@ CONVAR(r_sync_max_frames, 1, CLIENT,
        "maximum pre-rendered frames allowed in rendering pipeline");  // (a la "Max Prerendered Frames")
 CONVAR(alt_sleep, 0, CLIENT,
        "use an alternative sleep implementation (on Windows) for potentially more accurate frame limiting");
-
-// Constants
-CONVAR(version, PACKAGE_VERSION, CONSTANT);
 
 // Sanity checks
 CONVAR(r_drawstring_max_string_length, 16384, CLIENT,
