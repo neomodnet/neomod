@@ -36,7 +36,7 @@ enum class OPID : uint8_t { EQ, LT, GT, LE, GE, NE };
 inline constexpr struct Operator {
     std::string_view str;
     OPID id;
-} operators[]{
+} MATCH_OPERATORS[]{
     {"<=", OPID::LE}, {">=", OPID::GE}, {"<", OPID::LT}, {">", OPID::GT},
     {"!=", OPID::NE}, {"==", OPID::EQ}, {"=", OPID::EQ},
 };
@@ -56,32 +56,34 @@ enum class KWID : uint8_t {
     SPINNERS,
     LENGTH,
     STARS,
-    CREATOR
+    STR_CREATOR,
+    STR_ARTIST
 };
 inline constexpr struct Keyword {
     std::string_view str;
     KWID id;
-} keywords[]{{"ar", KWID::AR},
-             {"cs", KWID::CS},
-             {"od", KWID::OD},
-             {"hp", KWID::HP},
-             {"bpm", KWID::BPM},
-             {"opm", KWID::OPM},
-             {"cpm", KWID::CPM},
-             {"spm", KWID::SPM},
-             {"object", KWID::OBJECTS},
-             {"objects", KWID::OBJECTS},
-             {"circle", KWID::CIRCLES},
-             {"circles", KWID::CIRCLES},
-             {"slider", KWID::SLIDERS},
-             {"sliders", KWID::SLIDERS},
-             {"spinner", KWID::SPINNERS},
-             {"spinners", KWID::SPINNERS},
-             {"length", KWID::LENGTH},
-             {"len", KWID::LENGTH},
-             {"stars", KWID::STARS},
-             {"star", KWID::STARS},
-             {"creator", KWID::CREATOR}};
+} MATCH_KEYWORDS[]{{"ar", KWID::AR},
+                   {"cs", KWID::CS},
+                   {"od", KWID::OD},
+                   {"hp", KWID::HP},
+                   {"bpm", KWID::BPM},
+                   {"opm", KWID::OPM},
+                   {"cpm", KWID::CPM},
+                   {"spm", KWID::SPM},
+                   {"object", KWID::OBJECTS},
+                   {"objects", KWID::OBJECTS},
+                   {"circle", KWID::CIRCLES},
+                   {"circles", KWID::CIRCLES},
+                   {"slider", KWID::SLIDERS},
+                   {"sliders", KWID::SLIDERS},
+                   {"spinner", KWID::SPINNERS},
+                   {"spinners", KWID::SPINNERS},
+                   {"length", KWID::LENGTH},
+                   {"len", KWID::LENGTH},
+                   {"stars", KWID::STARS},
+                   {"star", KWID::STARS},
+                   {"creator", KWID::STR_CREATOR},
+                   {"artist", KWID::STR_ARTIST}};
 
 // a single parsed "<keyword><op><value>" filter, e.g. "ar>=9" or "creator=foo".
 struct Expression {
@@ -89,7 +91,7 @@ struct Expression {
     OPID op;
     float value{0.0f};  // numeric right-hand side (stays 0 if it wasn't a number)
     bool valueIsPercent{false};
-    std::string text;  // raw right-hand side, for the string-valued CREATOR keyword
+    std::string text;  // raw right-hand side, for the string-valued keywords (CREATOR/ARTIST)
 };
 
 // a parsed search string: stat filters plus free-text needles (already lowercased and deduplicated).
@@ -103,7 +105,7 @@ struct Query {
 // interpret one whitespace-delimited token as a keyword expression,
 // or return nullopt if it's just free text.
 static std::optional<Expression> parse_expression(std::string_view token) {
-    for(const auto &[op_str, op_id] : operators) {
+    for(const auto &[op_str, op_id] : MATCH_OPERATORS) {
         if(!token.contains(op_str)) continue;
 
         // the operator must split the token into exactly two non-empty sides;
@@ -111,7 +113,7 @@ static std::optional<Expression> parse_expression(std::string_view token) {
         const auto sides = SString::split(token, op_str);
         if(sides.size() != 2 || sides[0].empty() || sides[1].empty()) return std::nullopt;
 
-        for(const auto &[kw_str, kw_id] : keywords) {
+        for(const auto &[kw_str, kw_id] : MATCH_KEYWORDS) {
             if(kw_str != sides[0]) continue;
 
             const std::string_view rhs = sides[1];
@@ -250,8 +252,11 @@ static bool eval_expression(const Expression &expr, const DatabaseBeatmap *diff,
             // snapshotted on the main thread at collection time (see SearchEntry)
             lhs = std::round(stars * 100.0f) / 100.0f;  // 2 decimal places
             break;
-        case CREATOR:
+        case STR_CREATOR:
             lhs_text = diff->getCreator();
+            break;
+        case STR_ARTIST:
+            lhs_text = diff->getArtistLatin();
             break;
     }
 
