@@ -235,6 +235,12 @@ void AboutScreen::buildTab(Tab tab) {
             this->buildTextLines(page, "licenses");
             break;
     }
+
+    // bottom scroll padding, grown to fit the back button in layoutTab()
+    page.spacer = new CBaseUILabel(0, 0, 1, 0, "", "");
+    page.spacer->setDrawBackground(false);
+    page.spacer->setDrawFrame(false);
+    page.view->container.addBaseUIElement(page.spacer);
 }
 
 void AboutScreen::buildTextLines(TabPage &page, std::string_view embedKey) {
@@ -360,10 +366,13 @@ void AboutScreen::layoutTab(Tab tab) {
             yCounter += 65 * dpiScale;
         }
     } else {
-        // NOTE: licenses.txt intentionally includes a few blank lines at the end for padding
-        //       so the back button doesn't cover the last lines
         layoutLines(page.lines, yCounter);
     }
+
+    // bottom scroll padding: always leave enough room to scroll the last line clear of the back
+    // button, which is drawn over the bottom of the page
+    page.spacer->setSizeY(std::max(240.0f * dpiScale, this->backButton->getSize().y + 40.0f * dpiScale));
+    page.spacer->setRelPos(0, yCounter);
 
     page.view->setScrollSizeToContent(15 * dpiScale);
 }

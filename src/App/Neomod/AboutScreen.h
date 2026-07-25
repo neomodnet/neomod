@@ -51,6 +51,7 @@ class AboutScreen final : public ScreenBackable {
         CBaseUIScrollView *view{nullptr};  // owned by us
         CBaseUIButton *button{nullptr};    // owned by us
         CBaseUILabel *header{nullptr};     // owned by view->container
+        CBaseUILabel *spacer{nullptr};     // owned by view->container
         std::vector<CBaseUIButton *> lines;
         bool built{false};
     };
