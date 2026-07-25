@@ -33,7 +33,7 @@ CBaseUIContainer *CBaseUIContainer::addBaseUIElement(CBaseUIElement *element, ve
     return this->addBaseUIElement(element, pos.x, pos.y);
 }
 CBaseUIContainer *CBaseUIContainer::addBaseUIElements(const std::vector<CBaseUIElement *> &elements) {
-    return this->addBaseUIElements(std::span{elements.begin(), elements.end()});
+    return this->addBaseUIElements(std::span{elements.data(), elements.size()});
 }
 CBaseUIContainer *CBaseUIContainer::addBaseUIElementBack(CBaseUIElement *element, vec2 pos) {
     return this->addBaseUIElementBack(element, pos.x, pos.y);
