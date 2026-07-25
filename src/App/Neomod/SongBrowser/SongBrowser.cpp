@@ -3299,15 +3299,15 @@ void SongBrowser::onSongButtonContextMenu(SongButton *songButton, std::string_vi
     }
 
     if(updateUI) {
+        const i32 prevScrollPosY = (i32)this->carousel->getRelPosY();  // usability
+        const auto previouslySelectedCollectionName =
+            (this->selectionPreviousCollectionButton != nullptr
+                 ? this->selectionPreviousCollectionButton->getCollectionName()
+                 : "");  // usability
+
         this->recreateCollectionsButtons();
         // only change carousel state if we're in collections
         if(this->getGroupingMode() == GroupType::COLLECTIONS) {
-            const i32 prevScrollPosY = (i32)this->carousel->getRelPosY();  // usability
-            const auto previouslySelectedCollectionName =
-                (this->selectionPreviousCollectionButton != nullptr
-                     ? this->selectionPreviousCollectionButton->getCollectionName()
-                     : "");  // usability
-
             this->rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(
                 false, false);  // (last false = skipping rebuildSongButtons() here)
             this->bSongButtonsNeedSorting = true;
