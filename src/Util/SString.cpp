@@ -27,14 +27,14 @@ static_assert(strcase_equal("Hello", "hello"));
 static_assert(alnum_cmp3("!!cat", "Cat...") == 0);
 static_assert(alnum_comp("cat", "category"));  // shorter alnum run first
 
-void trim_inplace(std::string& str) {
+void trim_inplace(std::string& str) noexcept {
     if(str.empty()) return;
     str.erase(0, str.find_first_not_of(" \t\r\n"));
     str.erase(str.find_last_not_of(" \t\r\n") + 1);
 }
 
 // adjusts the view to exclude leading/trailing whitespace
-void trim_inplace(std::string_view& str) {
+void trim_inplace(std::string_view& str) noexcept {
     if(str.empty()) return;
     size_t start = str.find_first_not_of(" \t\r\n");
     if(start == std::string_view::npos) {
@@ -45,35 +45,35 @@ void trim_inplace(std::string_view& str) {
     str = str.substr(start, end - start + 1);
 }
 
-bool contains_ncase(const std::string_view haystack, const std::string_view needle) {
+bool contains_ncase(const std::string_view haystack, const std::string_view needle) noexcept {
     return !haystack.empty() && !std::ranges::search(haystack, needle, [](unsigned char ch1, unsigned char ch2) {
                                      return ascii_tolower(ch1) == ascii_tolower(ch2);
                                  }).empty();
 }
 
-bool is_wspace_only(const std::string_view str) {
+bool is_wspace_only(const std::string_view str) noexcept {
     return str.empty() || std::ranges::all_of(str, [](unsigned char c) { return std::isspace(c) != 0; });
 }
 
-bool is_comment(const std::string_view str, const std::string_view token) {
+bool is_comment(const std::string_view str, const std::string_view token) noexcept {
     size_t start = str.find_first_not_of(" \t\r\n");
     if(start == std::string_view::npos) return false;
     return str.substr(start).starts_with(token);
 }
 
-void lower_inplace(std::string& str) {
+void lower_inplace(std::string& str) noexcept {
     if(str.empty()) return;
     std::ranges::transform(str, str.begin(), [](unsigned char c) { return ascii_tolower(c); });
 }
 
-std::string to_lower(const std::string_view str) {
+std::string to_lower(const std::string_view str) noexcept {
     std::string lstr{str.data(), str.length()};
     if(str.empty()) return lstr;
     lower_inplace(lstr);
     return lstr;
 }
 
-std::unique_ptr<char[]> strcpy_u(std::string_view sv) {
+std::unique_ptr<char[]> strcpy_u(std::string_view sv) noexcept {
     if(sv.empty()) return nullptr;
 
     const size_t len = sv.length();
@@ -84,7 +84,7 @@ std::unique_ptr<char[]> strcpy_u(std::string_view sv) {
     return ret;
 }
 
-std::unique_ptr<char[]> strcpy_u(const char* data) {
+std::unique_ptr<char[]> strcpy_u(const char* data) noexcept {
     if(!data) return nullptr;
 
     const size_t len = std::strlen(data);
@@ -96,7 +96,7 @@ std::unique_ptr<char[]> strcpy_u(const char* data) {
 }
 
 template <typename R, typename S, split_ret_enabled_t<R>, split_join_enabled_t<S>>
-void split(std::vector<R>& r, std::string_view s, S delim, size_t delim_len) {
+void split(std::vector<R>& r, std::string_view s, S delim, size_t delim_len) noexcept {
     r.clear();
 
     if(delim_len == 0) {
@@ -123,7 +123,7 @@ void split(std::vector<R>& r, std::string_view s, S delim, size_t delim_len) {
 
 // split a string by a delimiter
 template <typename R, typename S, split_ret_enabled_t<R>, split_join_enabled_t<S>>
-std::vector<R> split(std::string_view s, S delim) {
+std::vector<R> split(std::string_view s, S delim) noexcept {
     std::vector<R> r;
 
     size_t delim_len = 0;
@@ -149,27 +149,29 @@ std::vector<R> split(std::string_view s, S delim) {
 }
 
 // explicit instantiations
-template std::vector<std::string> split<std::string, char>(std::string_view, char);
-template std::vector<std::string> split<std::string, const char*>(std::string_view, const char*);
-template std::vector<std::string> split<std::string, std::string_view>(std::string_view, std::string_view);
+template std::vector<std::string> split<std::string, char>(std::string_view, char) noexcept;
+template std::vector<std::string> split<std::string, const char*>(std::string_view, const char*) noexcept;
+template std::vector<std::string> split<std::string, std::string_view>(std::string_view, std::string_view) noexcept;
 
-template std::vector<std::string_view> split<std::string_view, char>(std::string_view, char);
-template std::vector<std::string_view> split<std::string_view, const char*>(std::string_view, const char*);
-template std::vector<std::string_view> split<std::string_view, std::string_view>(std::string_view, std::string_view);
+template std::vector<std::string_view> split<std::string_view, char>(std::string_view, char) noexcept;
+template std::vector<std::string_view> split<std::string_view, const char*>(std::string_view, const char*) noexcept;
+template std::vector<std::string_view> split<std::string_view, std::string_view>(std::string_view,
+                                                                                 std::string_view) noexcept;
 
-template void split<std::string, char>(std::vector<std::string>&, std::string_view, char, size_t);
-template void split<std::string, const char*>(std::vector<std::string>&, std::string_view, const char*, size_t);
+template void split<std::string, char>(std::vector<std::string>&, std::string_view, char, size_t) noexcept;
+template void split<std::string, const char*>(std::vector<std::string>&, std::string_view, const char*,
+                                              size_t) noexcept;
 template void split<std::string, std::string_view>(std::vector<std::string>&, std::string_view, std::string_view,
-                                                   size_t);
+                                                   size_t) noexcept;
 
-template void split<std::string_view, char>(std::vector<std::string_view>&, std::string_view, char, size_t);
+template void split<std::string_view, char>(std::vector<std::string_view>&, std::string_view, char, size_t) noexcept;
 template void split<std::string_view, const char*>(std::vector<std::string_view>&, std::string_view, const char*,
-                                                   size_t);
+                                                   size_t) noexcept;
 template void split<std::string_view, std::string_view>(std::vector<std::string_view>&, std::string_view,
-                                                        std::string_view, size_t);
+                                                        std::string_view, size_t) noexcept;
 
 template <typename R, split_ret_enabled_t<R>>
-void split_newlines(std::vector<R>& r, std::string_view s) {
+void split_newlines(std::vector<R>& r, std::string_view s) noexcept {
     r.clear();
 
     size_t i = 0, j = 0;
@@ -199,7 +201,7 @@ void split_newlines(std::vector<R>& r, std::string_view s) {
 }
 
 template <typename R, split_ret_enabled_t<R>>
-std::vector<R> split_newlines(std::string_view s) {
+std::vector<R> split_newlines(std::string_view s) noexcept {
     std::vector<R> r;
     size_t count = std::ranges::count(s, '\n');
     r.reserve(count + 1);
@@ -208,14 +210,14 @@ std::vector<R> split_newlines(std::string_view s) {
     return r;
 }
 
-template std::vector<std::string> split_newlines<std::string>(std::string_view);
-template std::vector<std::string_view> split_newlines<std::string_view>(std::string_view);
+template std::vector<std::string> split_newlines<std::string>(std::string_view) noexcept;
+template std::vector<std::string_view> split_newlines<std::string_view>(std::string_view) noexcept;
 
-template void split_newlines<std::string>(std::vector<std::string>&, std::string_view);
-template void split_newlines<std::string_view>(std::vector<std::string_view>&, std::string_view);
+template void split_newlines<std::string>(std::vector<std::string>&, std::string_view) noexcept;
+template void split_newlines<std::string_view>(std::vector<std::string_view>&, std::string_view) noexcept;
 
 template <typename S, split_join_enabled_t<S>>
-std::string join(std::span<const std::string> strings, S delim) {
+std::string join(std::span<const std::string> strings, S delim) noexcept {
     if(strings.empty()) return {};
 
     std::string result = strings[0];
@@ -229,13 +231,13 @@ std::string join(std::span<const std::string> strings, S delim) {
 }
 
 // explicit instantiations
-template std::string join<char>(std::span<const std::string>, char);
-template std::string join<const char*>(std::span<const std::string>, const char*);
-template std::string join<std::string_view>(std::span<const std::string>, std::string_view);
+template std::string join<char>(std::span<const std::string>, char) noexcept;
+template std::string join<const char*>(std::span<const std::string>, const char*) noexcept;
+template std::string join<std::string_view>(std::span<const std::string>, std::string_view) noexcept;
 
 #ifndef BUILD_TOOLS_ONLY
 template <Integral T>
-std::string thousands(T n) {
+std::string thousands(T n) noexcept {
     // I don't know how to check for support for the ' format specifier,
     // but we know it's broken on these platforms at least.
 #if !defined(__GLIBCXX__) || defined(__EMSCRIPTEN__)
@@ -258,10 +260,10 @@ std::string thousands(T n) {
 #endif
 }
 
-template std::string thousands(int64_t n);
-template std::string thousands(uint64_t n);
-template std::string thousands(int32_t n);
-template std::string thousands(uint32_t n);
+template std::string thousands(int64_t n) noexcept;
+template std::string thousands(uint64_t n) noexcept;
+template std::string thousands(int32_t n) noexcept;
+template std::string thousands(uint32_t n) noexcept;
 #endif
 
 }  // namespace SString

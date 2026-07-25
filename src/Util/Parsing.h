@@ -49,13 +49,13 @@ concept parseable =
 
 // defined in Parsing.cpp with explicit instantiations for the parseable set (compile time reduction)
 template <parseable T>
-const char* parse_str(const char* begin, const char* end, T* arg);
+const char* parse_str(const char* begin, const char* end, T* arg) noexcept;
 
 // base case for recursive parse_impl
-inline const char* parse_impl(const char* begin, const char* /* end */) { return begin; }
+inline const char* parse_impl(const char* begin, const char* /* end */) noexcept { return begin; }
 
 template <typename T, typename... Extra>
-const char* parse_impl(const char* begin, const char* end, T arg, Extra... extra) {
+const char* parse_impl(const char* begin, const char* end, T arg, Extra... extra) noexcept {
     // always skip whitespace (unless we actually want to split by it)
     if constexpr(!std::is_same_v<T, sig_whitespace_t> && !is_skip_v<T>) {
         while(begin < end && (*begin == ' ' || *begin == '\t')) begin++;
@@ -105,7 +105,7 @@ const char* parse_impl(const char* begin, const char* end, T arg, Extra... extra
 }  // namespace detail
 
 template <typename S = const char*, typename T, typename... Extra>
-bool parse(S str, T arg, Extra... extra)
+bool parse(S str, T arg, Extra... extra) noexcept
     requires(std::is_same_v<std::decay_t<S>, std::string> || std::is_same_v<std::decay_t<S>, std::string_view> ||
              std::is_same_v<std::decay_t<S>, const char*>)
 {
@@ -128,7 +128,7 @@ bool parse(S str, T arg, Extra... extra)
 
 // Since strtok_r SUCKS I'll just make my own
 // Returns the token start, and edits str to after the token end (unless '\0').
-inline char* strtok_x(char d, char** str) {
+inline char* strtok_x(char d, char** str) noexcept {
     char* old = *str;
     while(**str != '\0' && **str != d) {
         (*str)++;
@@ -143,7 +143,7 @@ inline char* strtok_x(char d, char** str) {
 // _s for "safe"
 // does not modify "inout" unless parsing succeeded
 template <typename T>
-inline bool strto_s(std::string_view str, T& inout) {
+inline bool strto_s(std::string_view str, T& inout) noexcept {
     if(unlikely(str.empty())) return false;
 
     // from cppreference: "leading whitespace is not ignored."
@@ -207,13 +207,13 @@ inline bool strto_s(std::string_view str, T& inout) {
 
 // same as e.g. strtol if you never checked errno anyways but supports non-cstrings
 template <typename T>
-inline T strto(std::string_view str) {
+inline T strto(std::string_view str) noexcept {
     T ret{};
     (void)strto_s(str, ret);
     return ret;
 }
 
 // this is commonly used in a few places to parse some arbitrary width x height string, might as well make it a function
-std::optional<ivec2> parse_resolution(std::string_view width_x_height);
+std::optional<ivec2> parse_resolution(std::string_view width_x_height) noexcept;
 
 }  // namespace Parsing

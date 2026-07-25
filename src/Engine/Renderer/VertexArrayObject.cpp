@@ -21,7 +21,7 @@ void VertexArrayObject::destroy() {
     this->bHasTexcoords = false;
 }
 
-void VertexArrayObject::clear() {
+void VertexArrayObject::clear() noexcept {
     this->iNumVertices = this->vertices.size();
     this->bHasTexcoords = !this->texcoords.empty();
     this->vertices.clear();
@@ -71,7 +71,9 @@ void VertexArrayObject::addTexcoords(std::span<const vec2> texcoords) noexcept {
     Mc::ranges::append(this->texcoords, texcoords);
 }
 
-void VertexArrayObject::addNormals(std::span<const vec3> normals) noexcept { Mc::ranges::append(this->normals, normals); }
+void VertexArrayObject::addNormals(std::span<const vec3> normals) noexcept {
+    Mc::ranges::append(this->normals, normals);
+}
 
 void VertexArrayObject::addColors(std::span<const Color> colors) noexcept { Mc::ranges::append(this->colors, colors); }
 
@@ -85,7 +87,9 @@ void VertexArrayObject::setTexcoords(std::span<const vec2> texcoords) noexcept {
     this->bHasTexcoords = !this->texcoords.empty();
 }
 
-void VertexArrayObject::setNormals(std::span<const vec3> normals) noexcept { Mc::ranges::assign(this->normals, normals); }
+void VertexArrayObject::setNormals(std::span<const vec3> normals) noexcept {
+    Mc::ranges::assign(this->normals, normals);
+}
 
 void VertexArrayObject::setColors(std::span<const Color> colors) noexcept { Mc::ranges::assign(this->colors, colors); }
 
@@ -117,7 +121,9 @@ void VertexArrayObject::setNormals(const std::vector<vec3> &normals) noexcept {
     Mc::ranges::assign(this->normals, normals);
 }
 
-void VertexArrayObject::setColors(const std::vector<Color> &colors) noexcept { Mc::ranges::assign(this->colors, colors); }
+void VertexArrayObject::setColors(const std::vector<Color> &colors) noexcept {
+    Mc::ranges::assign(this->colors, colors);
+}
 
 void VertexArrayObject::setVertex(int index, vec2 v) noexcept {
     if(index < 0 || index > (this->vertices.size() - 1)) return;
@@ -159,7 +165,7 @@ void VertexArrayObject::reserve(size_t vertexCount) noexcept {
     this->texcoords.reserve(vertexCount);
 }
 
-int VertexArrayObject::nearestMultipleUp(int number, int multiple) {
+int VertexArrayObject::nearestMultipleUp(int number, int multiple) noexcept {
     if(multiple == 0) return number;
 
     int remainder = number % multiple;
@@ -168,7 +174,7 @@ int VertexArrayObject::nearestMultipleUp(int number, int multiple) {
     return number + multiple - remainder;
 }
 
-int VertexArrayObject::nearestMultipleDown(int number, int multiple) {
+int VertexArrayObject::nearestMultipleDown(int number, int multiple) noexcept {
     if(multiple == 0) return number;
 
     int remainder = number % multiple;

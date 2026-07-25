@@ -1,0 +1,55 @@
+# pins the aboutscreen tab strip: the screen always opens on the changelog with only that
+# page built (credits/licenses stay empty until their tab is picked, they're ~2100 labels
+# worth of embedded text), each tab swaps exactly one visible page, and a wheel over the
+# strip - which is not a scroll surface - is claimed screen-wide and forwarded to the active
+# page instead of falling through to the volume sink.
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+ui_trace 1
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+set_active_ui_screen aboutscreen
+@wait 10
+ui_assert screen_active aboutscreen 1
+ui_assert visible AboutScreen::changelogView 1
+ui_assert visible AboutScreen::creditsView 0
+ui_assert visible AboutScreen::licensesView 0
+# wheel over the strip band, left of the buttons: scrolls the changelog, volume stays put
+mouse_to 600 24
+@wait 3
+mouse_wheel -1
+@wait 3
+mouse_wheel -1
+@wait 10
+ui_assert visible volumeoverlay 0
+# licenses tab: its 2075 lines are built inside this click
+mouse_to 1200 24
+@wait 3
+mouse_down
+@wait 3
+mouse_up
+@wait 15
+ui_assert visible AboutScreen::licensesView 1
+ui_assert visible AboutScreen::changelogView 0
+# credits tab, still unbuilt until now
+mouse_to 1061 24
+@wait 3
+mouse_down
+@wait 3
+mouse_up
+@wait 15
+ui_assert visible AboutScreen::creditsView 1
+ui_assert visible AboutScreen::licensesView 0
+# backing out and re-entering lands on the changelog again
+sendkey Escape
+@wait 10
+ui_assert screen_active mainmenu 1
+set_active_ui_screen aboutscreen
+@wait 10
+ui_assert visible AboutScreen::changelogView 1
+ui_assert visible AboutScreen::creditsView 0
+exit

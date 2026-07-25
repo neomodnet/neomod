@@ -15,7 +15,7 @@ namespace Parsing {
 namespace detail {
 
 template <parseable T>
-const char* parse_str(const char* begin, const char* end, T* arg) {
+const char* parse_str(const char* begin, const char* end, T* arg) noexcept {
     if constexpr(std::is_same_v<T, char>) {
         if(begin >= end) return nullptr;
         *arg = *begin;
@@ -132,25 +132,25 @@ const char* parse_str(const char* begin, const char* end, T* arg) {
 }
 
 // the parseable set; keep in sync with the concept in Parsing.h
-template const char* parse_str<char>(const char*, const char*, char*);
-template const char* parse_str<bool>(const char*, const char*, bool*);
-template const char* parse_str<i8>(const char*, const char*, i8*);
-template const char* parse_str<u8>(const char*, const char*, u8*);
-template const char* parse_str<i32>(const char*, const char*, i32*);
-template const char* parse_str<u32>(const char*, const char*, u32*);
-template const char* parse_str<long>(const char*, const char*, long*);
-template const char* parse_str<unsigned long>(const char*, const char*, unsigned long*);
-template const char* parse_str<long long>(const char*, const char*, long long*);
-template const char* parse_str<unsigned long long>(const char*, const char*, unsigned long long*);
-template const char* parse_str<f32>(const char*, const char*, f32*);
-template const char* parse_str<f64>(const char*, const char*, f64*);
-template const char* parse_str<std::string>(const char*, const char*, std::string*);
-template const char* parse_str<std::unique_ptr<char[]>>(const char*, const char*, std::unique_ptr<char[]>*);
+template const char* parse_str<char>(const char*, const char*, char*) noexcept;
+template const char* parse_str<bool>(const char*, const char*, bool*) noexcept;
+template const char* parse_str<i8>(const char*, const char*, i8*) noexcept;
+template const char* parse_str<u8>(const char*, const char*, u8*) noexcept;
+template const char* parse_str<i32>(const char*, const char*, i32*) noexcept;
+template const char* parse_str<u32>(const char*, const char*, u32*) noexcept;
+template const char* parse_str<long>(const char*, const char*, long*) noexcept;
+template const char* parse_str<unsigned long>(const char*, const char*, unsigned long*) noexcept;
+template const char* parse_str<long long>(const char*, const char*, long long*) noexcept;
+template const char* parse_str<unsigned long long>(const char*, const char*, unsigned long long*) noexcept;
+template const char* parse_str<f32>(const char*, const char*, f32*) noexcept;
+template const char* parse_str<f64>(const char*, const char*, f64*) noexcept;
+template const char* parse_str<std::string>(const char*, const char*, std::string*) noexcept;
+template const char* parse_str<std::unique_ptr<char[]>>(const char*, const char*, std::unique_ptr<char[]>*) noexcept;
 
 }  // namespace detail
 // NOLINTEND(cppcoreguidelines-init-variables)
 
-std::optional<ivec2> parse_resolution(std::string_view width_x_height) {
+std::optional<ivec2> parse_resolution(std::string_view width_x_height) noexcept {
     // don't allow e.g. < 100x100 or > 9999x9999
     if(width_x_height.length() < 7 || width_x_height.length() > 9) {
         return std::nullopt;

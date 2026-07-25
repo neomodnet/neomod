@@ -66,7 +66,7 @@ struct Skin final {
     // custom
     void randomizeFilePath();
 
-    bool parseSkinINI(std::string filepath);
+    bool parseSkinINI(std::string_view filepath);
     void parseFallbackPrefixes(const std::string &iniPath);
     static void fixupPrefix(std::string &prefix, const std::string &baseDir);
 

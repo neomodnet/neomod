@@ -770,7 +770,7 @@ void Skin::reloadSounds() {
                                      cv::skin_async.getBool());
 }
 
-bool Skin::parseSkinINI(std::string filepath) {
+bool Skin::parseSkinINI(std::string_view filepath) {
     std::string fileContent;
 
     size_t fileSize{0};

@@ -48,7 +48,7 @@ std::pair<uSz, std::string> FastIFStream::open_file(const fs::path &read_path) n
 
 #ifdef MCENGINE_PLATFORM_WINDOWS
     HANDLE h = CreateFileW(read_path.wstring().c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
-                             FILE_ATTRIBUTE_NORMAL, nullptr);
+                           FILE_ATTRIBUTE_NORMAL, nullptr);
 
     if(h == INVALID_HANDLE_VALUE) {
         ret.second = fmt::format("open failed: {:#x}", GetLastError());
@@ -98,7 +98,7 @@ uSz FastIFStream::read_at(uSz offset, u8 *out, uSz n) noexcept {
         DWORD want = static_cast<DWORD>(std::min<uSz>(n - total, 0xFFFFFFFFu));
         DWORD got = 0;
         if(!ReadFile(this->handle, out + total, want, &got, &ov)) break;  // incl. ERROR_HANDLE_EOF
-        if(got == 0) break;                                                 // EOF
+        if(got == 0) break;                                               // EOF
         total += got;
     }
 #else

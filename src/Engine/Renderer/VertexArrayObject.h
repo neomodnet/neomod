@@ -18,7 +18,7 @@ class VertexArrayObject : public Resource {
         : Resource(VAO), primitive(primitive), usage(usage), bKeepInSystemMemory(keepInSystemMemory) {}
     ~VertexArrayObject() override = default;
 
-    void clear();
+    void clear() noexcept;
 
     void addVertex(vec3 v) noexcept;
     inline void addVertex(vec2 v) noexcept { return addVertex(vec3{v.x, v.y, 0.f}); }
@@ -73,18 +73,18 @@ class VertexArrayObject : public Resource {
     // optimization: pre-allocate space to avoid reallocations during batch operations
     void reserve(size_t vertexCount) noexcept;
 
-    [[nodiscard]] inline DrawPrimitive getPrimitive() const { return this->primitive; }
-    [[nodiscard]] inline DrawUsageType getUsage() const { return this->usage; }
+    [[nodiscard]] inline DrawPrimitive getPrimitive() const noexcept { return this->primitive; }
+    [[nodiscard]] inline DrawUsageType getUsage() const noexcept { return this->usage; }
 
-    [[nodiscard]] std::span<const vec3> getVertices() const { return {this->vertices.data(), this->vertices.size()}; }
-    [[nodiscard]] std::span<const vec2> getTexcoords() const {
+    [[nodiscard]] std::span<const vec3> getVertices() const noexcept { return {this->vertices.data(), this->vertices.size()}; }
+    [[nodiscard]] std::span<const vec2> getTexcoords() const noexcept {
         return {this->texcoords.data(), this->texcoords.size()};
     }
-    [[nodiscard]] std::span<const vec3> getNormals() const { return {this->normals.data(), this->normals.size()}; }
-    [[nodiscard]] std::span<const Color> getColors() const { return {this->colors.data(), this->colors.size()}; }
+    [[nodiscard]] std::span<const vec3> getNormals() const noexcept { return {this->normals.data(), this->normals.size()}; }
+    [[nodiscard]] std::span<const Color> getColors() const noexcept { return {this->colors.data(), this->colors.size()}; }
 
-    [[nodiscard]] inline unsigned int getNumVertices() const { return this->iNumVertices; }
-    [[nodiscard]] inline bool hasTexcoords() const { return this->bHasTexcoords || this->texcoords.size() > 0; }
+    [[nodiscard]] inline unsigned int getNumVertices() const noexcept { return this->iNumVertices; }
+    [[nodiscard]] inline bool hasTexcoords() const noexcept { return this->bHasTexcoords || this->texcoords.size() > 0; }
 
     virtual void draw() { assert(false); }  // implementation dependent (gl/dx11/etc.)
 
@@ -92,8 +92,8 @@ class VertexArrayObject : public Resource {
     [[nodiscard]] const VertexArrayObject *asVAO() const final { return this; }
 
    protected:
-    static int nearestMultipleUp(int number, int multiple);
-    static int nearestMultipleDown(int number, int multiple);
+    static int nearestMultipleUp(int number, int multiple) noexcept;
+    static int nearestMultipleDown(int number, int multiple) noexcept;
 
     void init() override;
     void initAsync() override;
