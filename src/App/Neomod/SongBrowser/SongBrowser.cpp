@@ -2987,12 +2987,10 @@ void SongBrowser::onSortClicked(CBaseUIButton *button) {
     this->contextMenu->setPos(button->getPos());
     this->contextMenu->setRelPos(button->getRelPos());
     this->contextMenu->begin((i32)button->getSize().x);
-    {
-        for(int stype = -1; const auto &sortmeth : SORTING_METHODS) {
-            ++stype;
-            CBaseUIButton *button = this->contextMenu->addButton(std::string{sortmeth.name}, stype);
-            if(stype == this->curSortMethod) button->setTextBrightColor(0xff00ff00);
-        }
+    for(int stype = -1; const auto &sortmeth : SORTING_METHODS) {
+        ++stype;
+        CBaseUIButton *button = this->contextMenu->addButton(std::string{sortmeth.name}, stype);
+        if(stype == this->curSortMethod) button->setTextBrightColor(0xff00ff00);
     }
     this->contextMenu->end(false, false);
     this->contextMenu->setClickCallback(SA::MakeDelegate<&SongBrowser::onSortChange>(this));
@@ -3301,25 +3299,27 @@ void SongBrowser::onSongButtonContextMenu(SongButton *songButton, std::string_vi
     }
 
     if(updateUI) {
-        const i32 prevScrollPosY = (i32)this->carousel->getRelPosY();  // usability
-        const auto previouslySelectedCollectionName =
-            (this->selectionPreviousCollectionButton != nullptr
-                 ? this->selectionPreviousCollectionButton->getCollectionName()
-                 : "");  // usability
-        {
-            this->recreateCollectionsButtons();
+        this->recreateCollectionsButtons();
+        // only change carousel state if we're in collections
+        if(this->getGroupingMode() == GroupType::COLLECTIONS) {
+            const i32 prevScrollPosY = (i32)this->carousel->getRelPosY();  // usability
+            const auto previouslySelectedCollectionName =
+                (this->selectionPreviousCollectionButton != nullptr
+                     ? this->selectionPreviousCollectionButton->getCollectionName()
+                     : "");  // usability
+
             this->rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(
                 false, false);  // (last false = skipping rebuildSongButtons() here)
             this->bSongButtonsNeedSorting = true;
             this->onSortChange("",
                                cv::songbrowser_sortingtype.getInt());  // (because this does the rebuildSongButtons())
-        }
-        if(previouslySelectedCollectionName.length() > 0) {
-            for(auto &collectionButton : this->collectionButtons) {
-                if(collectionButton->getCollectionName() == previouslySelectedCollectionName) {
-                    collectionButton->select();
-                    this->carousel->scrollToY(prevScrollPosY, false);
-                    break;
+            if(previouslySelectedCollectionName.length() > 0) {
+                for(auto &collectionButton : this->collectionButtons) {
+                    if(collectionButton->getCollectionName() == previouslySelectedCollectionName) {
+                        collectionButton->select();
+                        this->carousel->scrollToY(prevScrollPosY, false);
+                        break;
+                    }
                 }
             }
         }
