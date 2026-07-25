@@ -104,18 +104,13 @@ void Mouse::update() {
     this->vRawDelta = {0.f, 0.f};
     this->buttonsPressedMask = {};
 
-    auto [newRel, newAbs, pixelScale, needsClipping] = env->consumeCursorPositionCache();
+    auto [newRel, newAbs, isRaw, needsClipping] = env->consumeCursorPositionCache();
     if(vec::length(newRel) <= 0.) goto out;  // early return for no motion
 
     // vRawDelta doesn't include sensitivity or clipping, which is useful for fposu
     this->vRawDelta = newRel;
 
-    // correct SDL mouse events to match actual resolution
-    // TODO: this is fishy
-    newRel *= pixelScale;
-    newAbs *= pixelScale;
-
-    if(env->isOSMouseInputRaw()) {
+    if(isRaw) {
         // only relative input (raw) can have sensitivity
         newRel *= this->fSensitivity;
         // we only base the absolute position off of the relative motion for raw input

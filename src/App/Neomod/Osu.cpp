@@ -802,16 +802,10 @@ void Osu::update() {
         }
     }
 
-    // (must be before m_bFontReloadScheduled and m_bFireResolutionChangedScheduled are handled!)
-    if(this->last_res_change_req_src & R_DELAYED_DESYNC_FIX) {
-        this->last_res_change_req_src = (this->last_res_change_req_src & ~R_DELAYED_DESYNC_FIX) | R_MISC_MANUAL;
-        this->bFontReloadScheduled = true;
-    }
-
     // delayed font reloads (must be before layout updates!)
     if(this->bFontReloadScheduled) {
-        this->bFontReloadScheduled = false;
-        this->reloadFonts();
+        // doResolutionChange reloads fonts if DPI changed
+        this->last_res_change_req_src |= R_MISC_MANUAL;
     }
 
     // delayed layout updates
@@ -1571,7 +1565,6 @@ void Osu::doResolutionChange(vec2 newResolution, ResolutionRequestFlags src) {
     if(src & R_CV_LETTERBOXED_RES) req_srcstr += "convar (letterboxed_res);";
     if(src & R_CV_LETTERBOXING) req_srcstr += "convar (letterboxing);";
     if(src & R_CV_WINDOWED_RESOLUTION) req_srcstr += "convar (windowed_resolution);";
-    if(src & R_DELAYED_DESYNC_FIX) req_srcstr += "delayed desync fix;";
     if(src & R_MISC_MANUAL) req_srcstr += "misc/manual;";
     req_srcstr.pop_back();
 
@@ -1630,11 +1623,20 @@ void Osu::doResolutionChange(vec2 newResolution, ResolutionRequestFlags src) {
     this->internalRect = {vec2{}, newResolution};
 
     // update dpi specific engine globals
-    cv::ui_scrollview_scrollbarwidth.setValue(15.0f * Osu::getUIScale());  // not happy with this as a convar
+    const f32 newUIScale = Osu::getUIScale();
+    cv::ui_scrollview_scrollbarwidth.setValue(15.0f * newUIScale);  // not happy with this as a convar
 
     // skip rebuilding rendertargets if we didn't change resolution
     if(resolution_changed) {
         this->rebuildRenderTargets();
+    }
+
+    // a bit hacky, but detect resolution-specific-dpi-scaling changes and force a font reload
+    // (after updating internal resolution)
+    if(this->bFontReloadScheduled || (std::abs(newUIScale - this->prevUIScale) >= 0.00001f)) {
+        this->bFontReloadScheduled = false;
+        this->prevUIScale = newUIScale;
+        this->reloadFonts();
     }
 
     // always call onResolutionChange, since DPI changes cause layout changes
@@ -1648,18 +1650,6 @@ void Osu::doResolutionChange(vec2 newResolution, ResolutionRequestFlags src) {
 
     // cursor clipping
     this->updateConfineCursor();
-
-    // see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=323
-    struct LossyComparisonToFixExcessFPUPrecisionBugBecauseFuckYou {
-        static bool equalEpsilon(float f1, float f2) { return std::abs(f1 - f2) < 0.00001f; }
-    };
-
-    // a bit hacky, but detect resolution-specific-dpi-scaling changes and force a font and layout reload after a 1
-    // frame delay (1/2)
-    if(!LossyComparisonToFixExcessFPUPrecisionBugBecauseFuckYou::equalEpsilon(Osu::getUIScale(), this->prevUIScale)) {
-        this->prevUIScale = Osu::getUIScale();
-        this->last_res_change_req_src = R_DELAYED_DESYNC_FIX;
-    }
 }
 
 void Osu::onDPIChanged() {
@@ -2204,19 +2194,17 @@ float Osu::getUIScale(float osuSize) {
     }
 }
 
-float Osu::getUIScale() {
+float Osu::getUIScale() { return Osu::getUIScale(osu ? osu->getVirtScreenSize() : engine->getScreenSize()); }
+
+float Osu::getUIScale(vec2 resolution) {
     f32 scale = Osu::getRawUIScale();
 
     if(cv::ui_scale_to_dpi.getBool()) {
-        // if(env->getPixelDensity() >= 1.4f /* maybe make it configurable? idk what retina  */) {
-        //     scale *= env->getDPIScale();
-        // } else {
-        f32 w = osu ? osu->getVirtScreenWidth() : engine->getScreenWidth();
-        f32 h = osu ? osu->getVirtScreenHeight() : engine->getScreenHeight();
+        f32 w = resolution.x;
+        f32 h = resolution.y;
         if(w >= cv::ui_scale_to_dpi_minimum_width.getInt() && h >= cv::ui_scale_to_dpi_minimum_height.getInt()) {
             scale *= env->getDPIScale();
         }
-        // }
     }
 
     return scale;

@@ -505,28 +505,22 @@ SDL_AppResult SDLMain::handleEvent(SDL_Event *event) {
                     break;
 
                 case SDL_EVENT_WINDOW_MOUSE_ENTER:
-                    if(mouse) {
-                        if(!m_bVirtualMousePositionInitialized) {
-                            m_bVirtualMousePositionInitialized = true;
-                            mouse->onPosChange(getAsyncMousePos() * getPixelDensity());
-                        }
+                    if(!m_bVirtualMousePositionInitialized) {
+                        m_bVirtualMousePositionInitialized = true;
+                        mouse->onPosChange(getAsyncMousePos() * getPixelDensity());
                     }
                     m_bIsCursorInsideWindow = true;
                     if(m_bHideCursorPending) {
                         setCursorVisible(false);
                     }
                     // reconcile held buttons on mouse enter/exit
-                    if(mouse) {
-                        mouse->reset();
-                    }
+                    mouse->reset();
                     break;
 
                 case SDL_EVENT_WINDOW_MOUSE_LEAVE:
                     m_bIsCursorInsideWindow = false;
                     setCursorVisible(true);
-                    if(mouse) {
-                        mouse->reset();
-                    }
+                    mouse->reset();
                     break;
 
                 case SDL_EVENT_WINDOW_MINIMIZED:
@@ -574,6 +568,10 @@ SDL_AppResult SDLMain::handleEvent(SDL_Event *event) {
                             }
                         } else {
                             actualResize = vec2{(float)event->window.data1, (float)event->window.data2};
+                            if(type == SDL_EVENT_WINDOW_RESIZED) {
+                                // SDL_EVENT_WINDOW_RESIZED doesn't scale by pixel size, for some reason
+                                actualResize *= getPixelDensity();
+                            }
                         }
                         m_engine->requestResolutionChange(actualResize);
                         setFgFPS();
@@ -1116,6 +1114,10 @@ void SDLMain::onDPIChange() {
     const float oldPixelDensity = m_fPixelDensity;
     m_fDisplayScale = SDL_GetWindowDisplayScale(m_window);
     m_fPixelDensity = SDL_GetWindowPixelDensity(m_window);
+    // update cursor clip to account for dpi change
+    if(m_bCursorClipped) {
+        setCursorClip(true, m_cursorClipRect);
+    }
     if(m_engine && ((oldDispScale != m_fDisplayScale) || (oldPixelDensity != m_fPixelDensity))) {
         m_engine->onDPIChange();
     }

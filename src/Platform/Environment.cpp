@@ -1269,7 +1269,7 @@ int Environment::getDPI() const {
 
     float dpi = m_fDisplayScale * 96;
 
-    return std::clamp<int>((int)dpi, 96, 96 * 2);  // sanity clamp
+    return std::clamp<int>((int)dpi, 96, 96 * 4);  // sanity clamp
 }
 
 float Environment::getPixelDensity() const {
@@ -1359,7 +1359,13 @@ void Environment::setCursorVisible(bool visible) {
 void Environment::setCursorClip(bool clip, const McRect &rect) {
     m_cursorClipRect = rect;
     if(clip) {
-        const SDL_Rect sdlClip = McRectToSDLRect(rect);
+        const float pxd = getPixelDensity();
+        SDL_Rect sdlClip = McRectToSDLRect(rect);
+        // need to account for window pixel density when setting SDL mouse rect
+        sdlClip.x = (int)std::round((float)sdlClip.x / pxd);
+        sdlClip.y = (int)std::round((float)sdlClip.y / pxd);
+        sdlClip.w = (int)std::round((float)sdlClip.w / pxd);
+        sdlClip.h = (int)std::round((float)sdlClip.h / pxd);
         SDL_SetWindowMouseRect(m_window, &sdlClip);
         if(!(mouse && mouse->isRawInputWanted())) {
             // only grab if rawinput is disabled, we clip manually if rawinput is enabled
@@ -1609,7 +1615,9 @@ Environment::CursorPosition Environment::consumeCursorPositionCache() {
         if(m_bInjectedCursorDirty && vec::length(newRel) == 0.) newRel = {0.001, 0.001};
         m_bInjectedCursorDirty = false;
         m_vLastInjectedCursorPos = m_vInjectedCursorPos;
-        return CursorPosition{.rel = newRel, .abs = dvec2{m_vInjectedCursorPos}, .scale = 1.f, .needsClipping = false};
+        // TODO: do we need to scale by pixel density here too?
+        return CursorPosition{
+            .rel = newRel, .abs = dvec2{m_vInjectedCursorPos}, .isRelativeMode = false, .needsClipping = false};
     }
 
     float xRel{0.f}, yRel{0.f};
@@ -1642,11 +1650,16 @@ Environment::CursorPosition Environment::consumeCursorPositionCache() {
         m_vLastAbsPenPos = m_vCurrentAbsPenPos;
     }
 
-    const float scaleFactor = m_bForceAbsCursor ? 1.f : getPixelDensity();
     // if we're in raw input or forcing absolute cursor then SDL isn't clipping the motion for us
     const bool needsClipping = m_bForceAbsCursor || isOSMouseInputRaw();
-
-    return CursorPosition{.rel = newRel, .abs = newAbs, .scale = scaleFactor, .needsClipping = needsClipping};
+    const bool isRelative = !m_bForceAbsCursor && isOSMouseInputRaw();
+    if(!isRelative) {
+        // TODO: do absolute pen events need scaling??
+        const float scaleFactor = getPixelDensity();
+        newAbs *= scaleFactor;
+        newRel *= scaleFactor;
+    }
+    return CursorPosition{.rel = newRel, .abs = newAbs, .isRelativeMode = isRelative, .needsClipping = needsClipping};
 }
 
 void Environment::initCursors() {

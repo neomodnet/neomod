@@ -70,8 +70,7 @@ class Osu final : public App, public MouseListener, public TouchListener {
         R_CV_LETTERBOXED_RES =      1u << 3,
         R_CV_LETTERBOXING =         1u << 4,
         R_CV_WINDOWED_RESOLUTION =  1u << 5,
-        R_DELAYED_DESYNC_FIX =      1u << 6,
-        R_MISC_MANUAL =             1u << 7
+        R_MISC_MANUAL =             1u << 6
     };
     friend constexpr bool is_flag(Osu::ResolutionRequestFlags /**/);
 
@@ -263,6 +262,7 @@ class Osu final : public App, public MouseListener, public TouchListener {
     void onUserCardChange(std::string_view new_username);
 
    private:
+    static float getUIScale(vec2 resolution);
     float prevUIScale{1.f};  // hack-ish dpi change reload check
 
     void globalOnSetValueProtectedCallback();
