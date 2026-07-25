@@ -1,6 +1,5 @@
 // Copyright (c) 2025, WH, All rights reserved.
 #include "OpenGLSync.h"
-#include "Profiler.h"
 #if defined(MCENGINE_FEATURE_OPENGL) || defined(MCENGINE_FEATURE_GLES32)
 #include "OpenGLHeaders.h"
 

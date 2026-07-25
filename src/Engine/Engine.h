@@ -69,7 +69,6 @@ class Engine final : public KeyboardListener {
     void onMinimized();
     void onMaximized();
     void onRestored();
-    void onResolutionChange(vec2 newResolution);
     void onDPIChange();
     void onShutdown();
 
@@ -132,6 +131,8 @@ class Engine final : public KeyboardListener {
     [[nodiscard]] constexpr McFont *getConsoleFont() const { return this->consoleFont; }
 
    private:
+    void onResolutionChange(vec2 newResolution);
+
     void runtime_assert(bool cond, std::string_view reason);
 
     // input devices

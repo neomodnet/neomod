@@ -1,8 +1,11 @@
 // Copyright (c) 2020, PG, All rights reserved.
 #include "Profiler.h"
 
-#include "Engine.h"
+#include "BaseEnvironment.h"
+#include "Logging.h"
 #include "Timing.h"
+
+#include <cstring>
 
 ProfilerProfile g_profCurrentProfile(true);
 
@@ -26,6 +29,7 @@ ProfilerProfile::ProfilerProfile(bool manualStartViaMain) : root("Root", VPROF_B
     this->iEnabled = 0;
     this->bEnableScheduled = false;
     this->bAtRoot = true;
+    this->iUntrackedScopes = 0;
     this->curNode = &this->root;
 
     this->iNumGroups = 0;
@@ -77,22 +81,17 @@ double ProfilerProfile::sumTimes(const ProfilerNode *node, int groupID) const {
 }
 
 int ProfilerProfile::groupNameToID(const char *group) {
-    if(this->iNumGroups >= VPROF_MAX_NUM_BUDGETGROUPS) {
-        engine->showMessageErrorFatal("Engine", "Increase VPROF_MAX_NUM_BUDGETGROUPS");
-        engine->shutdown();
-        return -1;
+    for(int i = 0; i < this->iNumGroups; i++) {
+        if(strcmp(this->groups[i].name, group) == 0) return i;
     }
 
-    for(int i = 0; i < this->iNumGroups; i++) {
-        if(this->groups[i].name != nullptr && group != nullptr && strcmp(this->groups[i].name, group) == 0) return i;
-    }
+    // NOTE: this can run during static init (from ProfilerNode's constructor), so no logging/engine access here
+    if(this->iNumGroups >= VPROF_MAX_NUM_BUDGETGROUPS) return 0;  // out of groups, lump it in with the root group
 
     const int newID = this->iNumGroups;
     this->groups[this->iNumGroups++].name = group;
     return newID;
 }
-
-int ProfilerNode::s_iNodeCounter = 0;
 
 ProfilerNode::ProfilerNode() : ProfilerNode(nullptr, nullptr, nullptr) {}
 
@@ -111,7 +110,8 @@ void ProfilerNode::constructor(const char *name, const char *group, ProfilerNode
     this->fTimeCurrentFrame = 0.0;
     this->fTimeLastFrame = 0.0;
 
-    this->iGroupID = (s_iNodeCounter++ > 0 ? g_profCurrentProfile.groupNameToID(group) : 0);
+    // NOTE: unused nodes in the pool are default constructed with no name/group, don't register those
+    this->iGroupID = (group != nullptr ? g_profCurrentProfile.groupNameToID(group) : 0);
 }
 
 void ProfilerNode::enterScope() {
@@ -141,9 +141,12 @@ ProfilerNode *ProfilerNode::getSubNode(const char *name, const char *group) {
 
     // "add" new node
     if(g_profCurrentProfile.iNumNodes >= VPROF_MAX_NUM_NODES) {
-        engine->showMessageErrorFatal("Engine", "Increase VPROF_MAX_NUM_NODES");
-        engine->shutdown();
-        return nullptr;
+        static bool warned = false;
+        if(!warned) {
+            warned = true;
+            debugLog("out of profiler nodes (increase VPROF_MAX_NUM_NODES), \"{}\" will not be tracked", name);
+        }
+        return nullptr;  // caller (ProfilerProfile::enterScope()) stops tracking until this scope is exited again
     }
 
     ProfilerNode *node = &(g_profCurrentProfile.nodes[g_profCurrentProfile.iNumNodes++]);

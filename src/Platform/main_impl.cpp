@@ -192,6 +192,9 @@ void SDLMain::mouse_wheel(std::string_view args) {
     handleEvent(&ev);
 }
 
+// TODO: is this needed on linux too?
+static constexpr const bool USE_LIVE_RESIZE_CALLBACK{Env::cfg(OS::WINDOWS | OS::MAC) && !Env::cfg(FEAT::MAINCB)};
+
 SDLMain::SDLMain(const Mc::AppDescriptor &appDesc)
     : Environment(appDesc), m_gpuConfigurator(std::make_unique<GPUDriverConfigurator>()) {
     // the reason we set up GPUDriverConfigurator here is because some things it does might need to happen before the window itself is created
@@ -217,7 +220,7 @@ SDLMain::~SDLMain() {
     cv::mouse_up_cmd.reset();
     cv::mouse_wheel_cmd.reset();
 
-    if constexpr(Env::cfg(OS::WINDOWS) && !Env::cfg(FEAT::MAINCB)) {
+    if constexpr(USE_LIVE_RESIZE_CALLBACK) {
         SDL_RemoveEventWatch(SDLMain::resizeCallback, this);
     }
 
@@ -278,8 +281,12 @@ bool SDLMain::resizeCallback(void *userdata, SDL_Event *event) {
     assert(main_ptr->m_engine);
     main_ptr->updateWindowSizeCache();
 
-    main_ptr->m_engine->requestResolutionChange(main_ptr->getWindowSize());
-    main_ptr->iterate();
+    {
+        // this runs a whole frame from inside SDL_PumpEvents(), keep it out of the profiler tree
+        VPROF_SCOPE_BARRIER();
+        main_ptr->m_engine->requestResolutionChange(main_ptr->getWindowSize());
+        main_ptr->iterate();
+    }
 
     return false;
 }
@@ -364,7 +371,7 @@ SDL_AppResult SDLMain::initialize() {
     SDL_SetWindowKeyboardGrab(m_window, false);  // this allows windows key and such to work
 
     // set up live-resize event callback
-    if constexpr(Env::cfg(OS::WINDOWS) && !Env::cfg(FEAT::MAINCB)) {
+    if constexpr(USE_LIVE_RESIZE_CALLBACK) {
         SDL_AddEventWatch(SDLMain::resizeCallback, this);
     }
 
@@ -589,9 +596,10 @@ SDL_AppResult SDLMain::handleEvent(SDL_Event *event) {
                     break;
 
                 case SDL_EVENT_WINDOW_EXPOSED: {
-                    if constexpr(Env::cfg(OS::WINDOWS)) {
+                    if constexpr(Env::cfg(OS::WINDOWS | OS::MAC)) {
                         if(event->window.data1 == 1 /* live resize event */ && !winMinimized() &&
                            !m_bRestoreFullscreen) {
+                            VPROF_SCOPE_BARRIER();  // same as in resizeCallback(), we're inside the event scopes here
                             m_engine->requestResolutionChange(getWindowSize());
                             iterate();
                             break;

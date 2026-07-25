@@ -18,6 +18,7 @@
 
 #define VPROF_ENTER_SCOPE(name, group) g_profCurrentProfile.enterScope(name, group)
 #define VPROF_EXIT_SCOPE() g_profCurrentProfile.exitScope()
+#define VPROF_SCOPE_BARRIER() ProfilerScopeBarrier ProfBarrier_;
 
 #define VPROF_BUDGETGROUP_ROOT "Root"
 #define VPROF_BUDGETGROUP_SLEEP "Sleep"
@@ -100,8 +101,6 @@ class ProfilerNode {
 
     ProfilerNode *getSubNode(const char *name, const char *group);
 
-    static int s_iNodeCounter;
-
     const char *name;
     int iGroupID;
 
@@ -153,9 +152,23 @@ class ProfilerProfile {
     }
 
     inline void enterScope(const char *name, const char *group) {
+        // an enclosing scope isn't being tracked, so just keep the depth up to date (nothing else may be touched here,
+        // otherwise the matching exitScope() calls would desync the tree)
+        if(this->iUntrackedScopes > 0) {
+            this->iUntrackedScopes++;
+            return;
+        }
+
         if((this->iEnabled != 0 && !this->bEnableScheduled) || !this->bAtRoot) {
-            if(name != this->curNode->name)  // NOTE: pointer comparison
-                this->curNode = this->curNode->getSubNode(name, group);
+            if(name != this->curNode->name) {  // NOTE: pointer comparison
+                ProfilerNode *subNode = this->curNode->getSubNode(name, group);
+                if(subNode == nullptr) {  // out of nodes, don't track this scope (nor anything below it)
+                    this->iUntrackedScopes = 1;
+                    return;
+                }
+
+                this->curNode = subNode;
+            }
 
             this->curNode->enterScope();
 
@@ -164,12 +177,27 @@ class ProfilerProfile {
     }
 
     inline void exitScope() {
+        if(this->iUntrackedScopes > 0) {
+            this->iUntrackedScopes--;
+            return;
+        }
+
         if(!this->bAtRoot || (this->iEnabled != 0 && !this->bEnableScheduled)) {
             if(!this->bAtRoot && this->curNode->exitScope()) this->curNode = this->curNode->parent;
 
             this->bAtRoot = (this->curNode == &this->root);
         }
     }
+
+    // stops the profiler from tracking anything until the returned depth is handed back to endUntrackedScope()
+    // (see ProfilerScopeBarrier)
+    [[nodiscard]] inline int beginUntrackedScope() {
+        const int prevUntrackedScopes = this->iUntrackedScopes;
+        this->iUntrackedScopes = 1;
+        return prevUntrackedScopes;
+    }
+
+    inline void endUntrackedScope(int prevUntrackedScopes) { this->iUntrackedScopes = prevUntrackedScopes; }
 
     [[nodiscard]] inline bool isEnabled() const { return (this->iEnabled != 0 || this->bEnableScheduled); }
     [[nodiscard]] inline bool isAtRoot() const { return this->bAtRoot; }
@@ -201,6 +229,7 @@ class ProfilerProfile {
     int iEnabled;
     bool bEnableScheduled;
     bool bAtRoot;
+    int iUntrackedScopes;  // how deep we currently are inside a scope which is not part of the tree
     ProfilerNode root;
     ProfilerNode *curNode;
 
@@ -213,4 +242,13 @@ extern ProfilerProfile g_profCurrentProfile;
 struct ProfilerScope {
     inline ProfilerScope(const char *name, const char *group) { g_profCurrentProfile.enterScope(name, group); }
     inline ~ProfilerScope() { g_profCurrentProfile.exitScope(); }
+};
+
+// blocks the profiler from tracking anything entered below it, and restores the previous state when it goes out of scope.
+struct ProfilerScopeBarrier {
+    inline ProfilerScopeBarrier() : iPrevUntrackedScopes(g_profCurrentProfile.beginUntrackedScope()) {}
+    inline ~ProfilerScopeBarrier() { g_profCurrentProfile.endUntrackedScope(this->iPrevUntrackedScopes); }
+
+   private:
+    int iPrevUntrackedScopes;
 };

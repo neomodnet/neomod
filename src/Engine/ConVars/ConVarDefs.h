@@ -300,7 +300,8 @@ CONVAR(interpolate_music_pos, 2L, CLIENT | SKINS | SERVER,
 CONVAR(language, "en"sv, CLIENT | SKINS | SERVER, "display language used by the game" I18N_LOAD_CB);
 CONVAR(minimize_on_focus_lost_if_borderless_windowed_fullscreen, false, CLIENT | SKINS | SERVER);
 CONVAR(minimize_on_focus_lost_if_fullscreen, true, CLIENT | SKINS | SERVER);
-CONVAR(mouse_raw_input, false, CLIENT | SKINS | SERVER);
+CONVAR(mouse_raw_input, Env::cfg(OS::MAC) ? true : false,
+       CLIENT | SKINS | SERVER);  // non-raw-input behaves horribly on macos
 CONVAR(keyboard_raw_input, false, CLIENT | SKINS | SERVER,
        "listen to keyboard input on a separate thread (Windows only)");
 CONVAR(mouse_sensitivity, 1.0f, CLIENT | SKINS | SERVER);
