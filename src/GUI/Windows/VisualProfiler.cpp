@@ -121,135 +121,130 @@ void VisualProfiler::draw() {
     if(displayMode != INFO_BLADE_DISPLAY_MODE::DEFAULT) {
         McFont *textFont = this->font;
         float textScale = 1.0f;
-        {
-            switch(displayMode) {
-                case INFO_BLADE_DISPLAY_MODE::GPU_INFO: {
-                    const int vramTotalMB = g->getVRAMTotal() / 1024;
-                    const int vramRemainingMB = g->getVRAMRemaining() / 1024;
+        switch(displayMode) {
+            using enum INFO_BLADE_DISPLAY_MODE;
+            case GPU_INFO: {
+                const int vramTotalMB = g->getVRAMTotal() / 1024;
+                const int vramRemainingMB = g->getVRAMRemaining() / 1024;
 
-                    addTextLine(fmt::format("GPU Vendor: {:s}"_cf, g->getVendor()), textFont, this->textLines);
-                    addTextLine(fmt::format("Model: {:s}"_cf, g->getModel()), textFont, this->textLines);
-                    addTextLine(fmt::format("Version: {:s}"_cf, g->getVersion()), textFont, this->textLines);
-                    addTextLine(
-                        fmt::format("Resolution: {:d} x {:d}"_cf, (int)g->getResolution().x, (int)g->getResolution().y),
-                        textFont, this->textLines);
-                    addTextLine(fmt::format("NativeRes: {:d} x {:d}"_cf, (int)env->getNativeScreenSize().x,
-                                            (int)env->getNativeScreenSize().y),
-                                textFont, this->textLines);
-                    addTextLine(fmt::format("Env Pixel Density: {:f}"_cf, env->getPixelDensity()), textFont,
-                                this->textLines);
-                    addTextLine(fmt::format("Env DPI Scale: {:f}"_cf, env->getDPIScale()), textFont, this->textLines);
-                    addTextLine(fmt::format("Env DPI: {:d}"_cf, (int)env->getDPI()), textFont, this->textLines);
-                    addTextLine(fmt::format("Renderer: {:s}"_cf, g->getName()), textFont, this->textLines);  //
-                    addTextLine(fmt::format("VRAM: {:d} MB / {:d} MB"_cf, vramRemainingMB, vramTotalMB), textFont,
-                                this->textLines);
-                } break;
+                addTextLine(fmt::format("GPU Vendor: {:s}"_cf, g->getVendor()), textFont, this->textLines);
+                addTextLine(fmt::format("Model: {:s}"_cf, g->getModel()), textFont, this->textLines);
+                addTextLine(fmt::format("Version: {:s}"_cf, g->getVersion()), textFont, this->textLines);
+                addTextLine(
+                    fmt::format("Resolution: {:d} x {:d}"_cf, (int)g->getResolution().x, (int)g->getResolution().y),
+                    textFont, this->textLines);
+                addTextLine(fmt::format("NativeRes: {:d} x {:d}"_cf, (int)env->getNativeScreenSize().x,
+                                        (int)env->getNativeScreenSize().y),
+                            textFont, this->textLines);
+                addTextLine(fmt::format("Env Pixel Density: {:f}"_cf, env->getPixelDensity()), textFont,
+                            this->textLines);
+                addTextLine(fmt::format("Env DPI Scale: {:f}"_cf, env->getDPIScale()), textFont, this->textLines);
+                addTextLine(fmt::format("Env DPI: {:d}"_cf, (int)env->getDPI()), textFont, this->textLines);
+                addTextLine(fmt::format("Renderer: {:s}"_cf, g->getName()), textFont, this->textLines);  //
+                addTextLine(fmt::format("VRAM: {:d} MB / {:d} MB"_cf, vramRemainingMB, vramTotalMB), textFont,
+                            this->textLines);
+            } break;
 
-                case INFO_BLADE_DISPLAY_MODE::CPU_RAM_INFO: {
-                    textFont = this->fontConsole;
-                    textScale = std::round(env->getDPIScale() + 0.255f);
+            case CPU_RAM_INFO: {
+                textFont = this->fontConsole;
+                textScale = std::round(env->getDPIScale() + 0.255f);
 
-                    const auto &[minfo, cinfo] = this->infoGatherer->getLatest();
+                const auto &[minfo, cinfo] = this->infoGatherer->getLatest();
 
-                    addTextLine("CPU info:", {}, textFont, this->textLines);
+                addTextLine("CPU info:", {}, textFont, this->textLines);
 
-                    addTextLine("Threads:", fmt::format("{:d}"_cf, cinfo.threadCount), textFont, this->textLines);
+                addTextLine("Threads:", fmt::format("{:d}"_cf, cinfo.threadCount), textFont, this->textLines);
 
-                    addTextLine("CPU Usage:", fmt::format("{:.2f}%"_cf, cinfo.cpuUsage), textFont, this->textLines);
-                    addTextLine("CPU Time (usr):", fmt::format("{:.2f}s"_cf, cinfo.userTime), textFont,
-                                this->textLines);
-                    addTextLine("CPU Time (krnl):", fmt::format("{:.2f}s"_cf, cinfo.kernelTime), textFont,
-                                this->textLines);
+                addTextLine("CPU Usage:", fmt::format("{:.2f}%"_cf, cinfo.cpuUsage), textFont, this->textLines);
+                addTextLine("CPU Time (usr):", fmt::format("{:.2f}s"_cf, cinfo.userTime), textFont, this->textLines);
+                addTextLine("CPU Time (krnl):", fmt::format("{:.2f}s"_cf, cinfo.kernelTime), textFont, this->textLines);
 
-                    addTextLine("CTXT (Vol.):", fmt::format("{:d}"_cf, cinfo.voluntaryCtxSwitches), textFont,
-                                this->textLines);
-                    addTextLine("CTXT (Invol.):", fmt::format("{:d}"_cf, cinfo.involuntaryCtxSwitches), textFont,
-                                this->textLines);
+                addTextLine("CTXT (Vol.):", fmt::format("{:d}"_cf, cinfo.voluntaryCtxSwitches), textFont,
+                            this->textLines);
+                addTextLine("CTXT (Invol.):", fmt::format("{:d}"_cf, cinfo.involuntaryCtxSwitches), textFont,
+                            this->textLines);
 
-                    addTextLine({}, textFont, this->textLines);
+                addTextLine({}, textFont, this->textLines);
 
-                    addTextLine("RAM info:", {}, textFont, this->textLines);
-                    addTextLine("Total Physical:", fmt::format("{:d}MB"_cf, minfo.totalPhysical / (1024UL * 1024)),
-                                textFont, this->textLines);
-                    addTextLine("Avail Physical:", fmt::format("{:d}MB"_cf, minfo.availPhysical / (1024UL * 1024)),
-                                textFont, this->textLines);
-                    addTextLine("Total Virtual:", fmt::format("{:d}MB"_cf, minfo.totalVirtual / (1024UL * 1024)),
-                                textFont, this->textLines);
-                    addTextLine("Usage (RSS):", fmt::format("{:d}MB"_cf, minfo.currentRSS / (1024UL * 1024)), textFont,
-                                this->textLines);
-                    addTextLine("Peak RSS:", fmt::format("{:d}MB"_cf, minfo.peakRSS / (1024UL * 1024)), textFont,
-                                this->textLines);
+                addTextLine("RAM info:", {}, textFont, this->textLines);
+                addTextLine("Total Physical:", fmt::format("{:d}MB"_cf, minfo.totalPhysical / (1024UL * 1024)),
+                            textFont, this->textLines);
+                addTextLine("Avail Physical:", fmt::format("{:d}MB"_cf, minfo.availPhysical / (1024UL * 1024)),
+                            textFont, this->textLines);
+                addTextLine("Total Virtual:", fmt::format("{:d}MB"_cf, minfo.totalVirtual / (1024UL * 1024)), textFont,
+                            this->textLines);
+                addTextLine("Usage (RSS):", fmt::format("{:d}MB"_cf, minfo.currentRSS / (1024UL * 1024)), textFont,
+                            this->textLines);
+                addTextLine("Peak RSS:", fmt::format("{:d}MB"_cf, minfo.peakRSS / (1024UL * 1024)), textFont,
+                            this->textLines);
 
-                    addTextLine("Virtual:", fmt::format("{:d}MB"_cf, minfo.virtualSize / (1024UL * 1024)), textFont,
-                                this->textLines);
-                    addTextLine("Private:", fmt::format("{:d}MB"_cf, minfo.privateBytes / (1024UL * 1024)), textFont,
-                                this->textLines);
-                    addTextLine("Shared:", fmt::format("{:d}MB"_cf, minfo.sharedBytes / (1024UL * 1024)), textFont,
-                                this->textLines);
+                addTextLine("Virtual:", fmt::format("{:d}MB"_cf, minfo.virtualSize / (1024UL * 1024)), textFont,
+                            this->textLines);
+                addTextLine("Private:", fmt::format("{:d}MB"_cf, minfo.privateBytes / (1024UL * 1024)), textFont,
+                            this->textLines);
+                addTextLine("Shared:", fmt::format("{:d}MB"_cf, minfo.sharedBytes / (1024UL * 1024)), textFont,
+                            this->textLines);
 
-                    addTextLine("Page Faults:", fmt::format("{:d}"_cf, minfo.pageFaults), textFont, this->textLines);
-                } break;
+                addTextLine("Page Faults:", fmt::format("{:d}"_cf, minfo.pageFaults), textFont, this->textLines);
+            } break;
 
-                case INFO_BLADE_DISPLAY_MODE::ENGINE_INFO: {
-                    textFont = this->fontConsole;
-                    textScale = std::round(env->getDPIScale() + 0.255f);
+            case ENGINE_INFO: {
+                textFont = this->fontConsole;
+                textScale = std::round(env->getDPIScale() + 0.255f);
 
-                    const double time = engine->getTime();
-                    const vec2 envMousePos = env->getMousePos();
+                const double time = engine->getTime();
+                const vec2 envMousePos = env->getMousePos();
 
-                    addTextLine(fmt::format("Platform: {:s}"_cf, RuntimePlatform::current_string()), textFont,
+                addTextLine(fmt::format("Platform: {:s}"_cf, RuntimePlatform::current_string()), textFont,
+                            this->textLines);
+                addTextLine("Compiler: " MC_COMPILERSTR, textFont, this->textLines);
+                addTextLine(fmt::format("ConVars: {:d}"_cf, cvars().getNumConVars()), textFont, this->textLines);
+                addTextLine(fmt::format("Monitor: [{:d}] of {:d}"_cf, env->getMonitor(), env->getMonitors().size()),
+                            textFont, this->textLines);
+                addTextLine(fmt::format("Env Mouse Pos: {:d} x {:d}"_cf, (int)envMousePos.x, (int)envMousePos.y),
+                            textFont, this->textLines);
+                addTextLine(fmt::format("Mouse Input Grabbed: {}"_cf, env->isMouseInputGrabbed()), textFont,
+                            this->textLines);
+                addTextLine(fmt::format("Raw Mouse Input: {}"_cf, env->isOSMouseInputRaw()), textFont, this->textLines);
+                addTextLine(fmt::format("Keyboard Input Grabbed: {}"_cf, env->isKeyboardInputGrabbed()), textFont,
+                            this->textLines);
+                if constexpr(Env::cfg(OS::WINDOWS)) {
+                    addTextLine(fmt::format("Raw Keyboard Input: {}"_cf, env->isOSKeyboardInputRaw()), textFont,
                                 this->textLines);
-                    addTextLine("Compiler: " MC_COMPILERSTR, textFont, this->textLines);
-                    addTextLine(fmt::format("ConVars: {:d}"_cf, cvars().getNumConVars()), textFont, this->textLines);
-                    addTextLine(fmt::format("Monitor: [{:d}] of {:d}"_cf, env->getMonitor(), env->getMonitors().size()),
-                                textFont, this->textLines);
-                    addTextLine(fmt::format("Env Mouse Pos: {:d} x {:d}"_cf, (int)envMousePos.x, (int)envMousePos.y),
-                                textFont, this->textLines);
-                    addTextLine(fmt::format("Mouse Input Grabbed: {}"_cf, env->isMouseInputGrabbed()), textFont,
-                                this->textLines);
-                    addTextLine(fmt::format("Raw Mouse Input: {}"_cf, env->isOSMouseInputRaw()), textFont,
-                                this->textLines);
-                    addTextLine(fmt::format("Keyboard Input Grabbed: {}"_cf, env->isKeyboardInputGrabbed()), textFont,
-                                this->textLines);
-                    if constexpr(Env::cfg(OS::WINDOWS)) {
-                        addTextLine(fmt::format("Raw Keyboard Input: {}"_cf, env->isOSKeyboardInputRaw()), textFont,
-                                    this->textLines);
-                    }
-                    addTextLine(fmt::format("Sound Device: {:s}"_cf, soundEngine->getOutputDeviceName()), textFont,
-                                this->textLines);
-                    addTextLine(fmt::format("Sound Volume: {:f}"_cf, soundEngine->getVolume()), textFont,
-                                this->textLines);
-                    addTextLine(fmt::format("Pool: {:d} threads, {:d} pending"_cf, Async::get_thread_count(),
-                                            AsyncPool::get().pending_count()),
-                                textFont, this->textLines);
-                    addTextLine(fmt::format("RM InFlight: {:d}, DestroyQ: {:d}"_cf, resourceManager->getNumInFlight(),
-                                            resourceManager->getNumAsyncDestroyQueue()),
-                                textFont, this->textLines);
-                    addTextLine(fmt::format("RM Named Resources: {:d}"_cf, resourceManager->getResources().size()),
-                                textFont, this->textLines);
-                    addTextLine(fmt::format("Animations: {:d}"_cf, anim::getNumActiveAnimations()), textFont,
-                                this->textLines);
-                    addTextLine(fmt::format("Frame: {:d}"_cf, engine->getFrameCount()), textFont, this->textLines);
-                    addTextLine(fmt::format("Time: {:f}"_cf, time), textFont, this->textLines);
+                }
+                addTextLine(fmt::format("Sound Device: {:s}"_cf, soundEngine->getOutputDeviceName()), textFont,
+                            this->textLines);
+                addTextLine(fmt::format("Sound Volume: {:f}"_cf, soundEngine->getVolume()), textFont, this->textLines);
+                addTextLine(fmt::format("Pool: {:d} threads, {:d} pending"_cf, Async::get_thread_count(),
+                                        AsyncPool::get().pending_count()),
+                            textFont, this->textLines);
+                addTextLine(fmt::format("RM InFlight: {:d}, DestroyQ: {:d}"_cf, resourceManager->getNumInFlight(),
+                                        resourceManager->getNumAsyncDestroyQueue()),
+                            textFont, this->textLines);
+                addTextLine(fmt::format("RM Named Resources: {:d}"_cf, resourceManager->getResources().size()),
+                            textFont, this->textLines);
+                addTextLine(fmt::format("Animations: {:d}"_cf, anim::getNumActiveAnimations()), textFont,
+                            this->textLines);
+                addTextLine(fmt::format("Frame: {:d}"_cf, engine->getFrameCount()), textFont, this->textLines);
+                addTextLine(fmt::format("Time: {:f}"_cf, time), textFont, this->textLines);
 
-                    for(const auto &engineTextLine : this->engineTextLines) {
-                        addTextLine(engineTextLine, textFont, this->textLines);
-                    }
-                } break;
+                for(const auto &engineTextLine : this->engineTextLines) {
+                    addTextLine(engineTextLine, textFont, this->textLines);
+                }
+            } break;
 
-                case INFO_BLADE_DISPLAY_MODE::APP_INFO: {
-                    textFont = this->fontConsole;
-                    textScale = std::round(env->getDPIScale() + 0.255f);
+            case APP_INFO: {
+                textFont = this->fontConsole;
+                textScale = std::round(env->getDPIScale() + 0.255f);
 
-                    for(const auto &appTextLine : this->appTextLines) {
-                        addTextLine(appTextLine, textFont, this->textLines);
-                    }
+                for(const auto &appTextLine : this->appTextLines) {
+                    addTextLine(appTextLine, textFont, this->textLines);
+                }
 
-                    if(this->appTextLines.size() < 1) addTextLine("(Empty)", textFont, this->textLines);
-                } break;
-                default:
-                    break;
-            }
+                if(this->appTextLines.size() < 1) addTextLine("(Empty)", textFont, this->textLines);
+            } break;
+            default:
+                break;
         }
 
         if(this->textLines.size() > 0) {
@@ -281,22 +276,24 @@ void VisualProfiler::draw() {
                 g->scale(textScale, textScale);
                 g->translate(-margin, (int)(textFont->getHeight() * textScale + margin));
 
+                const TextFX textFX{.col_text = textColor,
+                                    .offs_px = std::round((float)std::max(env->getDPI(), textFont->getDPI()) / 96.0f)};
                 for(size_t i = 0; i < this->textLines.size(); i++) {
                     if(i > 0) g->translate(0, (int)(textFont->getHeight() * textScale * 1.5f));
                     g->pushTransform();
                     {
                         const int leftTrans = engine->getScreenWidth() - largestLineWidth;
                         g->translate(leftTrans, 0);
-                        if(!this->textLines[i].textLeftAligned.empty())
-                            g->drawString(
-                                textFont, this->textLines[i].textLeftAligned,
-                                TextFX{.col_text = textColor, .offs_px = std::round(1.f * env->getDPIScale())});
+                        if(const auto &leftText = this->textLines[i].textLeftAligned; !leftText.empty()) {
+                            g->drawString(textFont, leftText, textFX);
+                        }
 
-                        const int rightTrans =
-                            (engine->getScreenWidth() - (this->textLines[i].widthRight * textScale)) - leftTrans;
-                        g->translate(rightTrans, 0);
-                        g->drawString(textFont, this->textLines[i].textRightAligned,
-                                      TextFX{.col_text = textColor, .offs_px = std::round(1.f * env->getDPIScale())});
+                        if(const auto &rightText = this->textLines[i].textRightAligned; !rightText.empty()) {
+                            const int rightTrans =
+                                (engine->getScreenWidth() - (this->textLines[i].widthRight * textScale)) - leftTrans;
+                            g->translate(rightTrans, 0);
+                            g->drawString(textFont, rightText, textFX);
+                        }
                     }
                     g->popTransform();
                 }
@@ -366,7 +363,7 @@ void VisualProfiler::draw() {
                         .col_text = 0xffcccccc,
                         .offs_px = 0.f,
                         .col_outline = 0xdd111111,
-                        .outline_px = 1.f * env->getDPIScale(),
+                        .outline_px = std::round((float)std::max(env->getDPI(), this->font->getDPI()) / 96.0f),
                     };
                 }
 
@@ -440,10 +437,10 @@ void VisualProfiler::draw() {
             g->pushTransform();
             {
                 g->translate((int)(xPos + margin), (int)(yPos + this->font->getHeight() + margin));
-                g->drawString(this->font, fmt::format("{:g} ms"_cf, cv::vprof_graph_range_max.getFloat()), TextFX{});
+                g->drawString(this->font, fmt::format("{:g} ms"_cf, cv::vprof_graph_range_max.getFloat()));
 
                 g->translate(0, (int)(height - this->font->getHeight() - 2 * margin));
-                g->drawString(this->font, "0 ms", TextFX{});
+                g->drawString(this->font, "0 ms");
             }
             g->popTransform();
 
@@ -459,7 +456,8 @@ void VisualProfiler::draw() {
                     g->translate(-stringWidth, 0);
                     g->drawString(
                         this->font, this->groups[i].name,
-                        TextFX{.col_text = this->groups[i].color, .offs_px = std::round(1.f * env->getDPIScale())});
+                        TextFX{.col_text = this->groups[i].color,
+                               .offs_px = std::round((float)std::max(env->getDPI(), this->font->getDPI()) / 96.0f)});
                     g->translate(stringWidth, (int)(-this->font->getHeight() - padding));
                 }
             }
