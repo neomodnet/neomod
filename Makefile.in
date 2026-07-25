@@ -1593,11 +1593,11 @@ INSTALL_LIB_DEPS = $(am__append_13) $(am__append_17) $(am__append_20) \
 	$(am__append_54) $(am__append_57) $(am__append_60) \
 	$(am__append_65) $(am__append_68) $(am__append_71) \
 	$(am__append_74) $(am__append_77)
-CACERT_INCDIR := $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)/certbundle
-PKG_CONFIG_PLUS_BUNDLED_OSSL = $(PKG_CONFIG) $(am__append_4)
 
 # NOTE: curl 8.18.0 is the last version that supported windows XP, so we use that for windows 32bit compat builds
 CURL_VERSION_REAL := $(if $(ubercompat),8.18.0,$(CURL_VERSION))
+CACERT_INCDIR := $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)/certbundle
+PKG_CONFIG_PLUS_BUNDLED_OSSL = $(PKG_CONFIG) $(am__append_4)
 
 # use prebuilt binaries
 @BUILD_CURL_TRUE@lb := (

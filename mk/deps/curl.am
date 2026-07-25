@@ -1,9 +1,9 @@
+# NOTE: curl 8.18.0 is the last version that supported windows XP, so we use that for windows 32bit compat builds
+CURL_VERSION_REAL := $(if $(ubercompat),8.18.0,$(CURL_VERSION))
+
 CACERT_INCDIR := $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)/certbundle
 
 PKG_CONFIG_PLUS_BUNDLED_OSSL = $(PKG_CONFIG)
-
-# NOTE: curl 8.18.0 is the last version that supported windows XP, so we use that for windows 32bit compat builds
-CURL_VERSION_REAL := $(if $(ubercompat),8.18.0,$(CURL_VERSION))
 
 $(CACERT_INCDIR)/cacert.pem:
 	$(MKDIR_P) $(CACERT_INCDIR) && \

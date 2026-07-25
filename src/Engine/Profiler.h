@@ -179,12 +179,12 @@ class ProfilerProfile {
 
     [[nodiscard]] inline const ProfilerNode *getRoot() const { return &this->root; }
 
-    inline const char *getGroupName(int groupID) {
+    [[nodiscard]] inline const char *getGroupName(int groupID) const {
         return this->groups[groupID < 0 ? 0 : (groupID > this->iNumGroups - 1 ? this->iNumGroups - 1 : groupID)].name;
     }
 
-    double sumTimes(int groupID);
-    double sumTimes(ProfilerNode *node, int groupID);
+    [[nodiscard]] inline double sumTimes(int groupID) const { return this->sumTimes(&this->root, groupID); };
+    [[nodiscard]] double sumTimes(const ProfilerNode *node, int groupID) const;
 
    private:
     struct BUDGETGROUP {
@@ -210,8 +210,7 @@ class ProfilerProfile {
 
 extern ProfilerProfile g_profCurrentProfile;
 
-class ProfilerScope {
-   public:
+struct ProfilerScope {
     inline ProfilerScope(const char *name, const char *group) { g_profCurrentProfile.enterScope(name, group); }
     inline ~ProfilerScope() { g_profCurrentProfile.exitScope(); }
 };

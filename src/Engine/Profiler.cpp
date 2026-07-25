@@ -51,14 +51,12 @@ ProfilerProfile::ProfilerProfile(bool manualStartViaMain) : root("Root", VPROF_B
     this->groupNameToID(VPROF_BUDGETGROUP_DRAW_SWAPBUFFERS);
 }
 
-double ProfilerProfile::sumTimes(int groupID) { return this->sumTimes(&this->root, groupID); }
-
-double ProfilerProfile::sumTimes(ProfilerNode *node, int groupID) {
+double ProfilerProfile::sumTimes(const ProfilerNode *node, int groupID) const {
     if(node == nullptr) return 0.0;
 
     double sum = 0.0;
 
-    ProfilerNode *sibling = node;
+    const ProfilerNode *sibling = node;
     while(sibling != nullptr) {
         if(sibling->iGroupID == groupID) {
             if(sibling == &this->root)
