@@ -314,6 +314,7 @@ INSTALL_LIB_DEPS =
 include $(top_srcdir)/mk/deps/curl.am
 
 if BUILD_MIMALLOC
+MIMALLOC_TLS_FLAGS =
 if WIN_PLATFORM
 MIMALLOC_REDIRECT_DLL_NAME := mimalloc-redirect$(if $(filter i686,$(host_cpu)),32,$(if $(filter aarch64,$(host_cpu)),-arm64,))
 MIMALLOC_DYNAMIC_LIBS := -L$(DEPS_PREFIX)/bin -L$(DEPS_PREFIX)/lib -Wl,--whole-archive -Wl,--undefined=mi_redirect_enable -l:$(MIMALLOC_REDIRECT_DLL_NAME).lib -Wl,--no-whole-archive -lmimalloc -l$(MIMALLOC_REDIRECT_DLL_NAME) -l:libmimalloc.dll.a
@@ -322,6 +323,10 @@ MIMALLOC_OVERRIDE_DEP := $(DEPS_PREFIX)/mimalloc/mimalloc_new_delete.cpp
 $(MIMALLOC_OVERRIDE_DEP): $(DEPS_PREFIX)/mimalloc-$(MIMALLOC_VERSION).built
 	@( printf '%s\n%s\n%s' "#include \"mimalloc-new-delete.h\"" "extern \"C\" { __declspec(dllimport) bool mi_redirect_enable(void); }" "void __attribute__((used)) *pmi_redirect_enable = (void*)&mi_redirect_enable;" ) > $(MIMALLOC_OVERRIDE_DEP)
 else
+if MACOS_PLATFORM
+# workaround for https://github.com/microsoft/mimalloc/issues/1333
+MIMALLOC_TLS_FLAGS += -DMI_TLS_MODEL_DYNAMIC_PTHREADS=1
+endif
 MIMALLOC_REDIRECT_DLL_NAME :=
 MIMALLOC_DYNAMIC_LIBS :=
 MIMALLOC_OBJ := $(DEPS_PREFIX)/lib/mimalloc$(if $(ENABLE_ASAN),-asan-debug,$(if $(ENABLE_DEBUG),-debug,)).o
@@ -338,10 +343,10 @@ $(DEPS_PREFIX)/mimalloc-$(MIMALLOC_VERSION).built: $(DEPS_CACHE)/mimalloc-$(MIMA
 	env PKG_CONFIG="$(PKG_CONFIG)" \
 		LDFLAGS="$(LDFLAGS) $(WINPTHREAD_LDFLAGS) -xnone" $(CMAKE_CONF_PFX) $(CMAKE) -S ../.. -B . -G "$(CMAKE_GEN)" \
 		-D CMAKE_C_COMPILER="$(CC)" \
-		-D CMAKE_C_FLAGS_RELEASE="$(CFLAGS) -Wno-array-bounds" \
-		-D CMAKE_C_FLAGS_DEBUG="$(CFLAGS) -Wno-array-bounds" \
-		-D CMAKE_CXX_FLAGS_RELEASE="$(CXXFLAGS) -xc++ -Wno-array-bounds" \
-		-D CMAKE_CXX_FLAGS_DEBUG="$(CXXFLAGS) -xc++ -Wno-array-bounds" \
+		-D CMAKE_C_FLAGS_RELEASE="$(CFLAGS) -Wno-array-bounds $(MIMALLOC_TLS_FLAGS)" \
+		-D CMAKE_C_FLAGS_DEBUG="$(CFLAGS) -Wno-array-bounds $(MIMALLOC_TLS_FLAGS)" \
+		-D CMAKE_CXX_FLAGS_RELEASE="$(CXXFLAGS) -xc++ -Wno-array-bounds $(MIMALLOC_TLS_FLAGS)" \
+		-D CMAKE_CXX_FLAGS_DEBUG="$(CXXFLAGS) -xc++ -Wno-array-bounds $(MIMALLOC_TLS_FLAGS)" \
 		-D CMAKE_SYSTEM_NAME="$(CMAKE_SYSTEM_NAME)" \
 		-D CMAKE_SYSTEM_PROCESSOR="$(host_cpu)" \
 		-D CMAKE_CXX_COMPILER="$(CXX)" \
