@@ -126,7 +126,7 @@ void VertexArrayObject::setColors(const std::vector<Color> &colors) noexcept {
 }
 
 void VertexArrayObject::setVertex(int index, vec2 v) noexcept {
-    if(index < 0 || index > (this->vertices.size() - 1)) return;
+    if(index < 0 || static_cast<size_t>(index) >= this->vertices.size()) return;
 
     this->vertices[index] = vec3{v.x, v.y, 0.f};
 
@@ -134,7 +134,7 @@ void VertexArrayObject::setVertex(int index, vec2 v) noexcept {
 }
 
 void VertexArrayObject::setVertex(int index, vec3 v) noexcept {
-    if(index < 0 || index > (this->vertices.size() - 1)) return;
+    if(index < 0 || static_cast<size_t>(index) >= this->vertices.size()) return;
 
     this->vertices[index] = v;
 
@@ -142,7 +142,7 @@ void VertexArrayObject::setVertex(int index, vec3 v) noexcept {
 }
 
 void VertexArrayObject::setColor(int index, Color color) noexcept {
-    if(index < 0 || index > (this->colors.size() - 1)) return;
+    if(index < 0 || static_cast<size_t>(index) >= this->colors.size()) return;
 
     this->colors[index] = color;
 

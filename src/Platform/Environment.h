@@ -175,7 +175,7 @@ class Environment {
     [[nodiscard]] static std::vector<std::string> getFilesInFolder(std::string_view folder) noexcept;
     [[nodiscard]] static std::vector<std::string> getFoldersInFolder(std::string_view folder) noexcept;
     [[nodiscard]] static std::vector<std::string> getEntriesInFolder(std::string_view folder) noexcept;
-    [[nodiscard]] static std::vector<std::string> getLogicalDrives();
+    [[nodiscard]] static std::vector<std::string> getLogicalDrives() noexcept;
     // returns an absolute (i.e. fully-qualified) filesystem path
     [[nodiscard]] static std::string getFolderFromFilePath(std::string_view filepath) noexcept;
     [[nodiscard]] static std::string getFileExtensionFromFilePath(std::string_view filepath) noexcept;

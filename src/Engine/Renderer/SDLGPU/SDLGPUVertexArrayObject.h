@@ -42,11 +42,26 @@ class SDLGPUVertexArrayObject final : public VertexArrayObject {
     void destroy() override;
 
    private:
+    // pushes setVertex()/setColor() modifications of an already baked vao back to the gpu
+    void uploadPartialUpdates();
+
     SDLGPUInterface *m_gpu;
     SDL_GPUDevice *m_device;
 
     std::vector<SDLGPUSimpleVertex> m_convertedVertices;
+
+    // half open range of converted vertices to re-upload in one copy
+    struct DirtyRun {
+        u32 start;
+        u32 end;
+    };
+
+    // scratch buffers for partial updates, kept alive to avoid reallocating them every update
+    std::vector<u32> m_dirtyIndices;
+    std::vector<DirtyRun> m_dirtyRuns;
+
     SDL_GPUBuffer *m_vertexBuffer{nullptr};
+    u32 m_vertexBufferSize{0};
     DrawPrimitive m_convertedPrimitive;
 };
 

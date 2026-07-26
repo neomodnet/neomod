@@ -629,7 +629,7 @@ std::string Environment::getFileExtensionFromFilePath(std::string_view filepath)
 }
 
 // sadly, sdl doesn't give a way to do this
-std::vector<std::string> Environment::getLogicalDrives() {
+std::vector<std::string> Environment::getLogicalDrives() noexcept {
     std::vector<std::string> drives{};
 
     if constexpr(!Env::cfg(OS::WINDOWS)) {

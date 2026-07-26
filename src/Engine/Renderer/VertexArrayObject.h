@@ -41,7 +41,7 @@ class VertexArrayObject : public Resource {
     void addColors(std::vector<Color> color) noexcept;
     void addColors(std::span<const Color> color) noexcept;
 
-    // NOTE/TODO: this is "broken" for baked VAOs + primitives which need to be converted on non-GL backends (e.g. quads->triangles)
+    // NOTE/TODO: this is "broken" for baked VAOs + primitives which need to be converted on DirectX11 (e.g. quads->triangles)
     void setVertex(int index, vec2 v) noexcept;
     void setVertex(int index, vec3 v) noexcept;
     inline void setVertex(int index, float x, float y, float z = 0.f) noexcept {
