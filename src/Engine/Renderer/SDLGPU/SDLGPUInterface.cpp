@@ -9,6 +9,7 @@
 #ifdef MCENGINE_FEATURE_SDLGPU
 
 #include <SDL3/SDL_gpu.h>
+#include <SDL3/SDL_hints.h>
 
 #include "SDLGPUInterface.h"
 
@@ -91,38 +92,79 @@ bool SDLGPUInterface::init() {
 
     // create GPU device
     // on windows, try D3D12 (DXIL) first, then fall back to vulkan (SPIRV)
-    std::vector<std::pair<std::string, unsigned int>> initOrder;
+    // on macOS, try Metal (MSL) first, then fall back to vulkan
+    struct SDLGPUBackend {
+        enum : u8 { METAL, DIRECT3D12, VULKAN } type;
+        // clang-format off
+        [[nodiscard]] const char *shaderPropString() const { switch(type) {
+                case METAL:      return SDL_PROP_GPU_DEVICE_CREATE_SHADERS_MSL_BOOLEAN;
+                case DIRECT3D12: return SDL_PROP_GPU_DEVICE_CREATE_SHADERS_DXIL_BOOLEAN;
+                case VULKAN:     return SDL_PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN; } }
+        [[nodiscard]] const char *name() const { switch(type) {
+                case METAL:      return "metal";
+                case DIRECT3D12: return "direct3d12";
+                case VULKAN:     return "vulkan"; } }
+        // clang-format on
+    };
+    std::vector<SDLGPUBackend> initOrder;
     const bool metalAvailable = drivers.contains("metal");
     const bool vkAvailable = drivers.contains("vulkan");
     const bool d3dAvailable = drivers.contains("direct3d12");
     if(metalAvailable) {
-        initOrder.emplace_back("Metal", SDL_GPU_SHADERFORMAT_MSL);
+        initOrder.emplace_back(SDLGPUBackend::METAL);
     }
     if(d3dAvailable) {
-        initOrder.emplace_back("D3D12", SDL_GPU_SHADERFORMAT_DXIL);
+        initOrder.emplace_back(SDLGPUBackend::DIRECT3D12);
     }
     if(vkAvailable) {
-        initOrder.emplace_back("Vulkan", SDL_GPU_SHADERFORMAT_SPIRV);
+        initOrder.emplace_back(SDLGPUBackend::VULKAN);
     }
     if(initOrder.empty()) {
         debugLog("SDLGPUInterface: No compatible drivers available!");
         return false;
     }
 
-    if constexpr(Env::cfg(OS::WINDOWS)) {
-        if(vkAvailable && d3dAvailable) {
-            // prefer vulkan over d3d12 if explicitly requested with e.g. "-sdlgpu vulkan"
-            if(Mc::LaunchArgs::has_arg(Mc::LaunchArgs::REND_SDLGPU_VK)) {
-                initOrder[0].swap(initOrder[1]);
+    if constexpr(Env::cfg(OS::WINDOWS | OS::MAC)) {
+        if(vkAvailable && (d3dAvailable || metalAvailable) && Mc::LaunchArgs::has_arg(Mc::LaunchArgs::REND_SDLGPU_VK)) {
+            // prefer vulkan over d3d12/metal if explicitly requested with e.g. "-sdlgpu vulkan"
+            auto temp = initOrder[1];
+            initOrder[1] = initOrder[0];
+            initOrder[0] = temp;
+            if constexpr(Env::cfg(OS::MAC)) {
+                const char *vkLoaderLib = "/opt/homebrew/lib/libvulkan.dylib";
+                if(Environment::fileExists(vkLoaderLib)) {
+                    SDL_SetHintWithPriority(SDL_HINT_VULKAN_LIBRARY, vkLoaderLib, SDL_HINT_NORMAL);
+                }
+                // try to automatically use kosmickrisp if it exists
+                const char *kosmicKrispICD = "/opt/homebrew/share/vulkan/icd.d/kosmickrisp_mesa_icd.aarch64.json";
+                if(Environment::fileExists(kosmicKrispICD)) {
+                    // don't override env var if already set, just add the file to the end of the path
+                    std::string value = Environment::getEnvVariable("VK_DRIVER_FILES");
+                    if(!value.empty()) {
+                        value.append(":");
+                    }
+                    value.append(kosmicKrispICD);
+                    Environment::setEnvVariable("VK_DRIVER_FILES", value);
+                }
             }
         }
     }
 
-    if(!(m_device = SDL_CreateGPUDevice(initOrder[0].second, DEBUG_SDLGPU, nullptr))) {
+    static constexpr const auto tryInit = [](SDLGPUBackend backend) -> SDL_GPUDevice * {
+        const SDL_PropertiesID props = SDL_CreateProperties();
+        assert(props > 0);
+        SDL_SetStringProperty(props, SDL_PROP_GPU_DEVICE_CREATE_NAME_STRING, backend.name());
+        SDL_SetBooleanProperty(props, backend.shaderPropString(), true);
+        SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOLEAN, DEBUG_SDLGPU);
+        SDL_GPUDevice *ret = SDL_CreateGPUDeviceWithProperties(props);
+        SDL_DestroyProperties(props);
+        return ret;
+    };
+    if(!(m_device = tryInit(initOrder[0]))) {
         if(initOrder.size() > 1) {
-            debugLog("SDLGPUInterface: {} unavailable ({}), trying {}...", initOrder[0].first, SDL_GetError(),
-                     initOrder[1].first);
-            if(!(m_device = SDL_CreateGPUDevice(initOrder[1].second, DEBUG_SDLGPU, nullptr))) {
+            debugLog("SDLGPUInterface: {} unavailable ({}), trying {}...", initOrder[0].name(), SDL_GetError(),
+                     initOrder[1].name());
+            if(!(m_device = tryInit(initOrder[1]))) {
                 debugLog("SDLGPUInterface: Failed to create GPU device: {}", SDL_GetError());
                 return false;
             }
