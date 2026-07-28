@@ -34,6 +34,7 @@
 #include "binary_embed.h"
 
 #include <cstring>
+#include <utility>
 
 #define DEBUG_SDLGPU false
 
@@ -99,26 +100,20 @@ bool SDLGPUInterface::init() {
         [[nodiscard]] const char *shaderPropString() const { switch(type) {
                 case METAL:      return SDL_PROP_GPU_DEVICE_CREATE_SHADERS_MSL_BOOLEAN;
                 case DIRECT3D12: return SDL_PROP_GPU_DEVICE_CREATE_SHADERS_DXIL_BOOLEAN;
-                case VULKAN:     return SDL_PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN; } }
+                case VULKAN:     return SDL_PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN; } std::unreachable(); }
         [[nodiscard]] const char *name() const { switch(type) {
                 case METAL:      return "metal";
                 case DIRECT3D12: return "direct3d12";
-                case VULKAN:     return "vulkan"; } }
+                case VULKAN:     return "vulkan"; } std::unreachable(); }
         // clang-format on
     };
     std::vector<SDLGPUBackend> initOrder;
     const bool metalAvailable = drivers.contains("metal");
     const bool vkAvailable = drivers.contains("vulkan");
     const bool d3dAvailable = drivers.contains("direct3d12");
-    if(metalAvailable) {
-        initOrder.emplace_back(SDLGPUBackend::METAL);
-    }
-    if(d3dAvailable) {
-        initOrder.emplace_back(SDLGPUBackend::DIRECT3D12);
-    }
-    if(vkAvailable) {
-        initOrder.emplace_back(SDLGPUBackend::VULKAN);
-    }
+    if(metalAvailable) initOrder.emplace_back(SDLGPUBackend::METAL);
+    if(d3dAvailable) initOrder.emplace_back(SDLGPUBackend::DIRECT3D12);
+    if(vkAvailable) initOrder.emplace_back(SDLGPUBackend::VULKAN);
     if(initOrder.empty()) {
         debugLog("SDLGPUInterface: No compatible drivers available!");
         return false;
@@ -140,9 +135,7 @@ bool SDLGPUInterface::init() {
                 if(Environment::fileExists(kosmicKrispICD)) {
                     // don't override env var if already set, just add the file to the end of the path
                     std::string value = Environment::getEnvVariable("VK_DRIVER_FILES");
-                    if(!value.empty()) {
-                        value.append(":");
-                    }
+                    if(!value.empty()) value.append(":");
                     value.append(kosmicKrispICD);
                     Environment::setEnvVariable("VK_DRIVER_FILES", value);
                 }
