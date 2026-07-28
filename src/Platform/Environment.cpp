@@ -171,11 +171,19 @@ Environment::Environment(const Mc::AppDescriptor &appDesc)
         } else if(Env::cfg(REND::GL | REND::GLES32) && (wants_gl || !Env::cfg(REND::DX11 | REND::SDLGPU))) {
             m_renderer = Env::cfg(REND::GLES32) ? GLES : GL;
         } else {
-            // default for multiple renderers (sdlgpu->dx11->gl)
-            m_renderer = Env::cfg(REND::SDLGPU)   ? SDLGPU
-                         : Env::cfg(REND::DX11)   ? DX11
-                         : Env::cfg(REND::GLES32) ? GLES
-                                                  : GL;
+            // defaults for multiple renderers and no commandline arguments specified
+            if(RuntimePlatform::current() & RuntimePlatform::WIN_WINE) {
+                // special case wine to prefer opengl over sdl_gpu (d3d12 translation is higher overhead than opengl)
+                m_renderer = Env::cfg(REND::GL)       ? GL
+                             : Env::cfg(REND::DX11)   ? DX11
+                             : Env::cfg(REND::SDLGPU) ? SDLGPU
+                                                      : GLES;
+            } else {
+                m_renderer = Env::cfg(REND::SDLGPU)   ? SDLGPU
+                             : Env::cfg(REND::DX11)   ? DX11
+                             : Env::cfg(REND::GLES32) ? GLES
+                                                      : GL;
+            }
         }
     }
 
