@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - master
+      - v43.11-mimalloc-backport
     paths-ignore:
       - 'cmake-win/**/*'
       - 'tools/**/*'
