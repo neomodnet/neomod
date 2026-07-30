@@ -498,7 +498,7 @@ void HUD::drawCursor(vec2 pos, f32 alphaMultiplier, bool secondTrail, bool updat
     g->popTransform();
 
     // draw cursor middle
-    if(skin->i_cursor_middle != MISSING_TEXTURE) {
+    if(skin->useSmoothCursorTrail()) {
         g->setColor(Color(0xffffffff).setA(cv::cursor_alpha.getFloat() * alphaMultiplier));
 
         g->pushTransform();
@@ -536,7 +536,7 @@ void HUD::drawCursorTrailInt(Shader *trailShader, CursorTrail &trail, vec2 pos, 
     const auto &trailImage = osu->getSkin()->i_cursor_trail;
     const f64 timeNow = engine->getTime();
 
-    if(cv::draw_cursor_trail.getBool() && trailImage->isReady()) {
+    if(cv::draw_cursor_trail.getBool() && trailImage->isGPUReady()) {
         const bool smoothCursorTrail =
             osu->getSkin()->useSmoothCursorTrail() || cv::cursor_trail_smooth_force.getBool();
 
@@ -624,6 +624,7 @@ void HUD::drawCursorTrailInt(Shader *trailShader, CursorTrail &trail, vec2 pos, 
 
 void HUD::drawCursorTrailRaw(f32 alpha, vec2 pos) {
     const auto &trailImage = osu->getSkin()->i_cursor_trail;
+    if(trailImage == MISSING_TEXTURE || !trailImage->isGPUReady()) return;
     const f32 scale = HUD::getCursorTrailScaleFactor();
     const f32 animatedScale =
         scale *
