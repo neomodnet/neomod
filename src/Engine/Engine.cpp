@@ -443,7 +443,7 @@ void Engine::onUpdate() {
 
         {
             VPROF_BUDGET("AnimationHandler::update", VPROF_BUDGETGROUP_UPDATE);
-            anim::update();
+            anim::update(this->dFrameTime);
         }
 
         // dispatch events + update gui

@@ -4,8 +4,8 @@
 #include "noinclude.h"
 
 #include "ConVar.h"
-#include "Engine.h"
 #include "Logging.h"
+#include "Vectors.h"
 
 #include <algorithm>
 
@@ -370,8 +370,7 @@ void clearAll() {
     pool<f64>.clearAnims();
 }
 
-void update() {
-    const f64 frameTime = engine->getFrameTime();
+void update(f64 frameTime) {
     pool<f32>.update(static_cast<f32>(frameTime));
     pool<f64>.update(frameTime);
 

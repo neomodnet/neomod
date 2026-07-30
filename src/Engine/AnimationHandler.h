@@ -112,7 +112,7 @@ struct AnimVec2D {
 // --- engine-level functions ---
 
 // called by engine once per frame, after updating time
-void update();
+void update(f64 frameTime);
 void clearAll();  // called when shutting down, for safety
 
 [[nodiscard]] uSz getNumActiveAnimations();
