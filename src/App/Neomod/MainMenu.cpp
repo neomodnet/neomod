@@ -1648,8 +1648,11 @@ void MainMenu::onPlayButtonPressed() {
     ui->getOptionsOverlay()->setVisible(false);
     ui->setScreen(ui->getSongBrowser());
 
-    soundEngine->play(osu->getSkin()->s_menu_hit);
-    soundEngine->play(osu->getSkin()->s_click_sp);
+    const auto *skin = osu->getSkin();
+    soundEngine->play(skin->s_menu_hit);
+    if(skin->s_click_sp != skin->s_menu_hit) {
+        soundEngine->play(skin->s_click_sp);
+    }
 }
 
 void MainMenu::onMultiplayerButtonPressed() {
@@ -1660,8 +1663,12 @@ void MainMenu::onMultiplayerButtonPressed() {
     }
 
     ui->setScreen(ui->getLobby());
-    soundEngine->play(osu->getSkin()->s_menu_hit);
-    soundEngine->play(osu->getSkin()->s_click_mp);
+
+    const auto *skin = osu->getSkin();
+    soundEngine->play(skin->s_menu_hit);
+    if(skin->s_click_mp != skin->s_menu_hit) {
+        soundEngine->play(skin->s_click_mp);
+    }
 }
 
 void MainMenu::onOptionsButtonPressed() {

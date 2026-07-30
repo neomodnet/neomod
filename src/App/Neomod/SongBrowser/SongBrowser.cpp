@@ -748,8 +748,9 @@ void SongBrowser::draw() {
 }
 
 void SongBrowser::drawStrainGraphOverlay() {
-    const std::vector<f64> &aimStrains = osu->getMapInterface()->getWholeMapPPInfo().aimStrains;
-    const std::vector<f64> &speedStrains = osu->getMapInterface()->getWholeMapPPInfo().speedStrains;
+    const auto &wholePP =  osu->getMapInterface()->getWholeMapPPInfo();
+    const std::vector<f64> &aimStrains = wholePP.aimStrains;
+    const std::vector<f64> &speedStrains = wholePP.speedStrains;
     const f32 speedMultiplier = osu->getMapInterface()->getSpeedMultiplier();
 
     if(aimStrains.size() > 0 && aimStrains.size() == speedStrains.size()) {
