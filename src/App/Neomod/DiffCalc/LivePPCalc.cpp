@@ -24,8 +24,6 @@ struct LivePPCalc::LivePPCalcImpl {
         AsyncPPC::pp_res res{};
         i32 calc_index{-1};
     };
-    uwu::lazy_promise<std::function<LazyPPRes()>> m_calc_inst{{}};
-
     BeatmapInterface *m_bmi;  // parent instance
 
     f32 m_live_stars{0.f};
@@ -92,6 +90,8 @@ struct LivePPCalc::LivePPCalcImpl {
             return c;
         }
     };
+
+    uwu::lazy_promise<std::function<LazyPPRes()>> m_calc_inst{{}};
 
     LivePPCalcImpl() = delete;
     LivePPCalcImpl(BeatmapInterface *parent) : m_bmi(parent) {}

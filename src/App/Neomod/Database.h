@@ -113,10 +113,7 @@ class Database final {
     // loose .osz import counters for the loading overlay; total stays 0 when nothing is being imported
     [[nodiscard]] inline u32 getImportDone() const { return this->import_done.load(std::memory_order_acquire); }
     [[nodiscard]] inline u32 getImportTotal() const { return this->import_total.load(std::memory_order_acquire); }
-    [[nodiscard]] inline bool isCancelled() const {
-        return this->load_interrupted.load(std::memory_order_acquire) ||
-               (this->db_load_handle.valid() && this->db_load_handle.stop.stop_requested());
-    }
+    [[nodiscard]] inline bool isCancelled() const { return this->load_interrupted.load(std::memory_order_acquire); }
     [[nodiscard]] inline bool isLoading() const {
         float progress = this->getProgress();
         return progress > 0.f && progress < 1.f;

@@ -334,8 +334,8 @@ void Database::destroyLoader() {
     VolNormalization::flush_priority();
 
     directoryWatcher->stop_watching(NEOMOD_MAPS_PATH "/");
-    this->db_load_handle.cancel();
     this->load_interrupted.store(true, std::memory_order_release);  // for subroutines (loadMaps, etc.)
+    this->db_load_handle.cancel();
     if(this->db_load_handle.valid()) this->db_load_handle.wait();
     logIf(cv::debug_db.getBool() || cv::debug_async_db.getBool(), "done");
 }
