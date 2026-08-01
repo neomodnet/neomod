@@ -3202,8 +3202,7 @@ void SongBrowser::onSongButtonContextMenu(SongButton *songButton, std::string_vi
                         beatmapSetHashes.push_back(i->getDatabaseBeatmap()->getMD5());
                     }
                 } else {
-                    const BeatmapSet *mapset = db->getBeatmapSet(songButton->getDatabaseBeatmap()->getSetID());
-                    if(mapset != nullptr) {
+                    if(const BeatmapSet *mapset = db->getBeatmapSet(songButton->getDatabaseBeatmap()->getSetID())) {
                         const auto &diffs = mapset->getDifficulties();
                         for(const auto &diff : diffs) {
                             beatmapSetHashes.push_back(diff->getMD5());

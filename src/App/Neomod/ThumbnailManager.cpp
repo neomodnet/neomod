@@ -14,6 +14,9 @@
 #include "Thread.h"
 #include "Timing.h"
 
+#define WANT_PDQSORT
+#include "Sorting.h"
+
 #include <sys/stat.h>
 
 ThumbnailManager::ThumbnailManager() = default;
@@ -70,8 +73,11 @@ void ThumbnailManager::update() {
 
     // sort by priority: items that had try_get_image called recently come first
     // TODO: much slower than you'd think due to the images map lookup in the comparison
-    std::ranges::stable_sort(this->load_queue, [this](const ThumbIdentifier& a, const ThumbIdentifier& b) {
-        return this->images[a].last_access_time > this->images[b].last_access_time;
+    srt::pdqsort(this->load_queue, [&images = this->images](const ThumbIdentifier& a, const ThumbIdentifier& b) {
+        const auto& a_it = images.find(a);
+        const auto& b_it = images.find(b);
+        assert(a_it != images.end() && b_it != images.end());
+        return a_it->second.last_access_time > b_it->second.last_access_time;
     });
 
     for(uSz i = 0, num_checked = 0; num_checked < ELEMS_TO_CHECK && i < this->load_queue.size(); ++num_checked, ++i) {

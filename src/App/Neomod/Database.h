@@ -121,9 +121,9 @@ class Database final {
     [[nodiscard]] inline bool isFinished() const { return (this->getProgress() >= 1.0f); }
     [[nodiscard]] inline bool foundChanges() const { return this->raw_found_changes; }
 
-    BeatmapDifficulty *getBeatmapDifficulty(const MD5Hash &md5hash);
-    BeatmapDifficulty *getBeatmapDifficulty(i32 map_id);
-    BeatmapSet *getBeatmapSet(i32 set_id);
+    BeatmapDifficulty *getBeatmapDifficulty(const MD5Hash &md5hash) const;
+    BeatmapDifficulty *getBeatmapDifficulty(i32 map_id) const;
+    BeatmapSet *getBeatmapSet(i32 set_id) const;
     [[nodiscard]] inline const std::vector<std::unique_ptr<BeatmapSet>> &getBeatmapSets() const {
         return this->beatmapsets;
     }
@@ -250,7 +250,7 @@ class Database final {
     // this vector owns all loaded beatmapsets, raw beatmapset pointers are assumed not ownable
     std::vector<std::unique_ptr<BeatmapSet>> beatmapsets;
 
-    Sync::shared_mutex beatmap_difficulties_mtx;
+    mutable Sync::shared_mutex beatmap_difficulties_mtx;
     Hash::flat::map<MD5Hash, BeatmapDifficulty *> beatmap_difficulties;
 
     bool neomod_maps_loaded{false};

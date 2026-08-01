@@ -83,12 +83,13 @@ class OnlineMapListing : public CBaseUIContainer {
     std::string full_title;
     ThumbIdentifier thumb_id;
 
-    f32 creator_width{0.f};
-
     // "+N more" overflow indicator (drawn by the card itself, not a child element)
     std::string overflow_indicator_str;               // empty => no overflow
     std::vector<std::string> overflow_tooltip_lines;  // hidden diff names (icon-tooltip format)
     McRect overflow_indicator_relrect;                // card-relative draw + hit rect
+
+    f32 creator_width{0.f};
+    bool installed{false};  // cached installed state
 };
 
 OnlineMapListing::OnlineMapListing(Downloader::BeatmapSetMetadata meta)
@@ -131,14 +132,12 @@ void OnlineMapListing::onMouseUpInside(bool left, bool /*right*/) {
     this->click_anim.set(0.0f, 0.15f, anim::QuadInOut);
 
     if(left) {
-        const bool installed = db->getBeatmapSet(this->meta.set_id) != nullptr;
-        if(installed) {
+        if(const auto* set = db->getBeatmapSet(this->meta.set_id) /*installed*/) {
             // Select map, or go to song browser if already selected
-            if(osu->getMapInterface()->getBeatmap()->getSetID() == this->meta.set_id) {
+            if(const auto* current_map = osu->getMapInterface()->getBeatmap();
+               current_map && current_map->getSetID() == this->meta.set_id) {
                 ui->setScreen(ui->getSongBrowser());
             } else {
-                const auto set = db->getBeatmapSet(this->meta.set_id);
-                if(!set) return;  // probably unreachable
                 const auto& diffs = set->getDifficulties();
                 if(diffs.empty()) return;  // surely unreachable
                 ui->getSongBrowser()->onDifficultySelected(diffs[0].get(), false);
@@ -368,17 +367,21 @@ void OnlineMapListing::draw() {
     const vec2 progress_size = {this->getSize().x - map_bg_size.x, this->getSize().y};
     const f32 alpha = std::min(0.25f + this->hover_anim + this->click_anim, 1.f);
 
-    const bool installed = db->getBeatmapSet(this->meta.set_id) != nullptr;
-    const auto install_state = osu->getBeatmapInstaller()->get_state(this->meta.set_id);
-    const bool failed = !installed && install_state.stage == MapInstallStage::Failed;
-    const bool downloading = !installed && !failed && [stg = install_state.stage]() -> bool {
+    f32 download_progress = 0.f;
+    bool failed = false;
+    bool downloading = false;
+
+    // cache installation state
+    if(!this->installed && !(this->installed = !!db->getBeatmapSet(this->meta.set_id))) {
         using enum MapInstallStage;
         using namespace flags::operators;
-        return !!(stg & (Queued | Downloading | Extracting | Installing));
-    }();
-
-    // To show we're downloading, always draw at least 5%
-    const f32 download_progress = downloading ? std::max(0.05f, install_state.progress) : 0.f;
+        const auto install_state = osu->getBeatmapInstaller()->get_state(this->meta.set_id);
+        failed = install_state.stage == MapInstallStage::Failed;
+        if((downloading = !failed && !!(install_state.stage & (Queued | Downloading | Extracting | Installing)))) {
+            // To show we're downloading, always draw at least 5%
+            download_progress = std::max(0.05f, install_state.progress);
+        }
+    }
 
     g->pushClipRect(McRect(pos_counter, progress_size));
     {
@@ -390,7 +393,7 @@ void OnlineMapListing::draw() {
 
         // Background
         Color color = rgb(255, 255, 255);
-        if(installed)
+        if(this->installed)
             color = rgb(0, 150, 0);
         else if(failed)
             color = rgb(200, 0, 0);
@@ -711,7 +714,7 @@ void OsuDirectScreen::search(std::string_view query) {
             const bool success = Parsing::strto_s(set_lines[0], nb_results);
             if(!success || nb_results <= 0) {
                 // HACK: reached end of results (or errored), prevent further requests
-                this->last_search_time = 9999999.9;
+                this->last_search_time = HUGE_VAL;
 
                 if(nb_results == -1 && set_lines.size() >= 2) {
                     // Relay server's error message to the player
@@ -731,7 +734,10 @@ void OsuDirectScreen::search(std::string_view query) {
 
             this->onResolutionChange(osu->getVirtScreenSize());
         } else {
-            // TODO: handle failure
+            // HACK: reached end of results (or errored), prevent further (polled) requests
+            this->last_search_time = HUGE_VAL;
+            debugLog("Server returned error fetching beatmaps: {}", response.error_msg);
+            // TODO: handle failure (better)
         }
     });
 }

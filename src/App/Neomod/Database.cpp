@@ -966,7 +966,7 @@ int Database::getLevelForScore(u64 score, int maxLevel) {
     }
 }
 
-BeatmapDifficulty *Database::getBeatmapDifficulty(const MD5Hash &md5hash) {
+BeatmapDifficulty *Database::getBeatmapDifficulty(const MD5Hash &md5hash) const {
     if(this->isLoading()) {
         debugLog("we are loading, progress {}, not returning a BeatmapDifficulty*", this->getProgress());
         return nullptr;
@@ -981,7 +981,7 @@ BeatmapDifficulty *Database::getBeatmapDifficulty(const MD5Hash &md5hash) {
     }
 }
 
-BeatmapDifficulty *Database::getBeatmapDifficulty(i32 map_id) {
+BeatmapDifficulty *Database::getBeatmapDifficulty(i32 map_id) const {
     if(this->isLoading()) {
         debugLog("we are loading, progress {}, not returning a BeatmapDifficulty*", this->getProgress());
         return nullptr;
@@ -997,7 +997,7 @@ BeatmapDifficulty *Database::getBeatmapDifficulty(i32 map_id) {
     return nullptr;
 }
 
-BeatmapSet *Database::getBeatmapSet(i32 set_id) {
+BeatmapSet *Database::getBeatmapSet(i32 set_id) const {
     if(this->isLoading()) {
         debugLog("we are loading, progress {}, not returning a BeatmapSet*", this->getProgress());
         return nullptr;

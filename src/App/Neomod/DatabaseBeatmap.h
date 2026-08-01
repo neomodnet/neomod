@@ -308,14 +308,9 @@ class DatabaseBeatmap final {
     [[nodiscard]] inline std::string_view getFolder() const { return this->sFolder; }
     [[nodiscard]] inline std::string_view getFilePath() const { return this->sFilePath; }
 
-    template <typename T = BeatmapDifficulty>
-    [[nodiscard]] inline const std::vector<std::unique_ptr<T>> &getDifficulties() const
-        requires(std::is_same_v<std::remove_cv_t<T>, BeatmapDifficulty>)
-    {
-        static std::vector<std::unique_ptr<T>> empty;
-        return this->difficulties == nullptr
-                   ? empty
-                   : reinterpret_cast<const std::vector<std::unique_ptr<T>> &>(*this->difficulties);
+    [[nodiscard]] inline const DiffContainer &getDifficulties() const {
+        static DiffContainer empty;
+        return this->difficulties == nullptr ? empty : *this->difficulties;
     }
 
     [[nodiscard]] inline BeatmapSet *getParentSet() const { return this->parentSet; }
