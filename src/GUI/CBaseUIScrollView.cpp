@@ -57,6 +57,9 @@ void ScrollContainer::tick() {
     // carousels hold thousands of elements
     CBaseUIElement::tick();
 
+    // propagate container visibility to children
+    if(!this->isVisible()) return;
+
     this->invalidateUpdate = false;
 
     for(auto *e : this->vVisibleElements) {

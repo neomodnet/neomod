@@ -15,10 +15,8 @@
 
 namespace CBaseUIDebug {
 namespace {
-bool dumpElems{false};
 int traceLvl{0};
 }  // namespace
-void onDumpElemsChangeCallback(float newvalue) { dumpElems = !!static_cast<int>(newvalue); }
 void onTraceChangeCallback(float newvalue) { traceLvl = static_cast<int>(newvalue); }
 
 int traceLevel() { return traceLvl; }
@@ -194,10 +192,6 @@ void CBaseUIElement::requestFocus() { CBaseUIDispatch::setFocus(this); }
 
 bool CBaseUIElement::isFocused() { return CBaseUIDispatch::getFocus() == this; }
 
-void CBaseUIElement::tick() {
-    if(unlikely(CBaseUIDebug::dumpElems)) this->dumpElem();
-}
-
 // pass A of the two-pass mouse model (pass B is CBaseUIDispatch::dispatchEvents): this walk does NOT
 // deliver clicks. it registers hit candidates, resolves hover LOSS (gain is deferred to pass B) and
 // broadcasts outside-downs. see the model overview atop CBaseUIDispatch.h.
@@ -273,26 +267,6 @@ void CBaseUIElement::updateInput(CBaseUIEventCtx &c) {
     }
 
     c.currentHitTier -= this->bDrawsOnTop;
-}
-
-void CBaseUIElement::dumpElem() const {
-    using namespace CBaseUIDebug;
-    u64 currentFrame = engine->getFrameCount();
-    logRaw(R"(==== UI ELEMENT {:p} DEBUG ====
-frame:              {}
-sName:              {}
-bVisible:           {}
-bActive:            {}
-bBusy:              {}
-bEnabled:           {}
-bMouseInside:       {}
-bHandleLeftMouse:   {}
-bHandleRightMouse:  {}
-rect:               {}
-relRect:            {}
-==== END UI ELEMENT DEBUG ====)",
-           fmt::ptr(this), currentFrame, this->getName(), this->bVisible, this->bActive, this->bBusy, this->bEnabled,
-           this->bMouseInside, this->bHandleLeftMouse, this->bHandleRightMouse, this->rect, this->relRect);
 }
 
 std::span<CBaseUIElement *const> CBaseUIElement::getAllChildren() const { return {}; }

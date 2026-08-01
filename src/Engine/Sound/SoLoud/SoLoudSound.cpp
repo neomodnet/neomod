@@ -264,23 +264,8 @@ void SoLoudSound::setLoop(bool loop) {
     }
 }
 
-f64 SoLoudSound::getPositionPct() const {
-    if(!this->isReady() || !this->audioSource || !this->handle) return 0.0f;
-
-    const f64 streamLengthInSeconds = getSourceLengthInSeconds();
-    if(streamLengthInSeconds <= 0.0) return 0.0f;
-
-    const f64 streamPositionInSeconds = getStreamPositionInSeconds();
-
-    // update interped state while we're at it
-    this->interpolator.update(streamPositionInSeconds, Timing::getTimeReal(), getSpeed(), isLooped(),
-                              static_cast<u32>(std::round(streamLengthInSeconds * 1000.0)), isPlaying());
-
-    return std::clamp<f64>(streamPositionInSeconds / streamLengthInSeconds, 0.0f, 1.0f);
-}
-
 i32 SoLoudSound::getRateBasedStreamDelayMS() const {
-    if(!this->isReady() || !this->bStream || !this->audioSource || !this->handle) return 0;
+    if(!this->isReady() || !this->bStream || !this->audioSource) return 0;
 
     const auto *strm = static_cast<SoLoud::SLFXStream *>(this->audioSource.get());
     return static_cast<i32>(std::round(strm->getInternalLatency() * 1000.0));

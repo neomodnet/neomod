@@ -360,10 +360,9 @@ void SkinImage::update(float speedMultiplier, bool useEngineTimeForAnimations, i
 
     m_impl->iCurMusicPos = curMusicPos;
 
+    const f64 fpsOverride = cv::skin_animation_fps_override.getFloat();
     const f64 frameDurationInSeconds =
-        (cv::skin_animation_fps_override.getFloat() > 0.0f ? (1.0f / cv::skin_animation_fps_override.getFloat())
-                                                           : m_impl->fFrameDuration) /
-        speedMultiplier;
+        (fpsOverride > 0.0f ? (1.0f / fpsOverride) : m_impl->fFrameDuration) / speedMultiplier;
     if(frameDurationInSeconds == 0.f) {
         m_impl->iFrameCounter = 0;
         m_impl->iFrameCounterUnclamped = 0;

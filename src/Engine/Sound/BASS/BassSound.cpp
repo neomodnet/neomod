@@ -302,13 +302,6 @@ void BassSound::setLoop(bool loop) {
     BASS_ChannelFlags(this->srchandle, this->bIsLooped ? BASS_SAMPLE_LOOP : 0, BASS_SAMPLE_LOOP);
 }
 
-f64 BassSound::getPositionPct() const {
-    const u64 length = this->getLengthUS();
-    if(length == 0) return 0.;
-
-    return (f64)this->getPositionUS() / (f64)length;
-}
-
 u64 BassSound::getPositionUS() const {
     if(!this->isReady()) return 0;
     assert(this->bStream);  // can't call getPositionMS() on a sample

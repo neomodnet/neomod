@@ -72,7 +72,6 @@ extern void set_current_thread_prio(Priority /**/);
 }  // namespace McThread
 
 namespace CBaseUIDebug {
-extern void onDumpElemsChangeCallback(float newvalue);
 extern void onTraceChangeCallback(float newvalue);
 }  // namespace CBaseUIDebug
 
@@ -195,7 +194,7 @@ CONVAR(debug_engine, false, CLIENT);
 CONVAR(debug_fixed_frametime, 0.0f, CLIENT | NOLOAD | NOSAVE,
        "advance engine time by a fixed step per frame instead of wall clock (deterministic headless testing), 0 = "
        "disabled, set once at startup");
-CONVAR(debug_ui, false, CLIENT, CFUNC(CBaseUIDebug::onDumpElemsChangeCallback));
+CONVAR(debug_ui, false, CLIENT | HIDDEN);  // currently not hooked up to anything
 CONVAR(ui_trace, 0, CLIENT | NOLOAD | NOSAVE,
        "log synthesized UI events for scripted testing (1 = inside events + hover, 2 = also outside events)",
        CFUNC(CBaseUIDebug::onTraceChangeCallback));

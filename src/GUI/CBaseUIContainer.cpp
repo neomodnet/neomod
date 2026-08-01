@@ -201,6 +201,9 @@ void CBaseUIContainer::draw_debug() {
 void CBaseUIContainer::tick() {
     CBaseUIElement::tick();
 
+    // propagate container visibility to children
+    if(!this->isVisible()) return;
+
     // NOTE: do NOT use a range-based for loop here, tick() might invalidate iterators by changing the container contents...
     const auto &elements = this->vElements;
     for(size_t i = 0; i < elements.size(); i++) {

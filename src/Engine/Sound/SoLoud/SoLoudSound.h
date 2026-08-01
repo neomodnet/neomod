@@ -35,7 +35,6 @@ class SoLoudSound final : public Sound {
     void setPan(float pan) override;
     void setLoop(bool loop) override;
 
-    f64 getPositionPct() const override;
     u64 getPositionUS() const override;
     u64 getLengthUS() const override;
     float getSpeed() const override;

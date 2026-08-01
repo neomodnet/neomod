@@ -6,6 +6,7 @@
 
 #include <unordered_map>
 #include <cmath>
+#include <algorithm>
 
 #define SOUND_TYPE(ClassName, TypeID, ParentClass)                      \
     static constexpr TypeId TYPE_ID = TypeID;                           \
@@ -60,7 +61,7 @@ class Sound : public Resource {
     void setBaseVolume(float volume);
     [[nodiscard]] constexpr float getBaseVolume() const { return this->fBaseVolume; }
 
-    virtual f64 getPositionPct() const = 0;
+    [[nodiscard]] f64 getPositionPct() const { return std::clamp<f64>(getPositionS() / getLengthS(), 0.0f, 1.0f); }
 
     virtual u64 getPositionUS() const = 0;
     inline u32 getPositionMS() const { return (this->getPositionUS() + 500) / 1000; }

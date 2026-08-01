@@ -20,7 +20,6 @@ struct State;
 
 // convar callbacks to avoid hammering atomic convar reads
 namespace CBaseUIDebug {
-void onDumpElemsChangeCallback(float newvalue);
 void onTraceChangeCallback(float newvalue);
 
 // element name for debug output: sName if set, demangled type name otherwise
@@ -84,7 +83,8 @@ class CBaseUIElement : public KeyboardListener {
     virtual void draw() = 0;
 
     // logic/animations/async polling; always runs, regardless of visibility or input consumption
-    virtual void tick();
+    // NOTE: invisible CBaseUIContainers do NOT tick() their children, for performance reasons
+    inline virtual void tick() {}
 
     // mouse input pass: hover + hit-candidate registration; gated and priority-ordered by the caller
     virtual void updateInput(CBaseUIEventCtx &c);
