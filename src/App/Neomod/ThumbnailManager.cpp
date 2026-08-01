@@ -16,6 +16,9 @@
 
 #include <sys/stat.h>
 
+ThumbnailManager::ThumbnailManager() = default;
+ThumbnailManager::~ThumbnailManager() { this->clear(); }
+
 const Image* ThumbnailManager::try_get_image(const ThumbIdentifier& identifier) {
     assert(McThread::is_main_thread());
 
@@ -66,6 +69,7 @@ void ThumbnailManager::update() {
     static constexpr const uSz ELEMS_TO_CHECK{4};
 
     // sort by priority: items that had try_get_image called recently come first
+    // TODO: much slower than you'd think due to the images map lookup in the comparison
     std::ranges::stable_sort(this->load_queue, [this](const ThumbIdentifier& a, const ThumbIdentifier& b) {
         return this->images[a].last_access_time > this->images[b].last_access_time;
     });
@@ -75,6 +79,8 @@ void ThumbnailManager::update() {
 
         bool exists_on_disk = false;
         struct stat64 attr;  // NOLINT(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
+        // TODO: slow, stat call on every load on main thread
+        // our only saving grace is that this is not called during gameplay
         if(File::stat_c(identifier.save_path.c_str(), &attr) == 0) {
             time_t now = time(nullptr);
             struct tm expiration_date;  // NOLINT(cppcoreguidelines-pro-type-member-init,hicpp-member-init)

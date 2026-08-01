@@ -123,12 +123,11 @@ Engine::Engine() {
         this->runtime_assert(!!g, "Graphics failed to initialize!");
         // TODO: transparent fallback like SoundEngine
         if constexpr(Env::cfg(OS::WINDOWS)) {
-            this->runtime_assert(
-                g->init(),
-                fmt::format(
-                    R"({:s} failed to initialize!\nTry running with "-opengl" or "-dx11" added to\nthe "Target:" field in a shortcut to)" PACKAGE_NAME
-                    ".",
-                    g->getName()));
+            this->runtime_assert(g->init(), fmt::format(
+                                                R"({:s} failed to initialize!
+Try running with "-opengl" or "-dx11" added to
+the "Target:" field in a shortcut to)" PACKAGE_NAME ".",
+                                                g->getName()));
         } else {
             this->runtime_assert(
                 g->init(),

@@ -11,7 +11,6 @@
 #include "Thread.h"
 #include "Timing.h"
 #include "Logging.h"
-#include "SyncOnce.h"
 #include "SyncJthread.h"
 #include "SyncCV.h"
 #include "SyncMutex.h"
@@ -33,9 +32,12 @@
 
 #include <atomic>
 #include <deque>
+#include <vector>
 #include <unordered_map>
+#include <memory>
 #include <utility>
 
+namespace VolNormalization {
 namespace {
 // the audio backend in use is fixed at startup (the soundEngine can be restarted but never
 // swapped between BASS and SoLoud), so each worker picks its backend once and caches it.
@@ -208,9 +210,7 @@ bool process_one(DatabaseBeatmap *map, WorkerCtx &ctx) {
     return true;
 }
 
-}  // namespace
-
-struct VolNormalization::LoudnessCalcThread {
+struct LoudnessCalcThread {
     NOCOPY_NOMOVE(LoudnessCalcThread)
    public:
     std::atomic<u32> nb_computed{0};
@@ -253,7 +253,7 @@ struct VolNormalization::LoudnessCalcThread {
 // persistent priority worker: a single long-lived thread that serves one-off requests
 // queued by request_priority(). bypasses shouldPauseBGThreads() since these are on the
 // critical path of "user clicks map -> hears music".
-struct VolNormalization::PriorityWorker {
+struct PriorityWorker {
     NOCOPY_NOMOVE(PriorityWorker)
    public:
     PriorityWorker() : thr([this](const Sync::stop_token &stoken) { return this->run(stoken); }) {}
@@ -313,32 +313,39 @@ struct VolNormalization::PriorityWorker {
     }
 };
 
-void VolNormalization::loudness_cb() {
+std::vector<std::unique_ptr<LoudnessCalcThread>> s_threads;
+std::unique_ptr<PriorityWorker> s_prio{nullptr};
+
+}  // namespace
+
+void loudness_cb(float new_value) {
+    const bool new_bool = !!static_cast<int>(new_value);
+
     // Restart loudness calc.
     VolNormalization::abort();
-    if(db && cv::normalize_loudness.getBool()) {
-        VolNormalization::start_calc(db->loudness_to_calc);
+    if(db && new_bool) {
+        start_calc(db->loudness_to_calc);
     }
 }
 
-u32 VolNormalization::get_computed_instance() {
+u32 get_computed() {
     u32 x = 0;
-    for(const auto &thr : this->threads) {
+    for(const auto &thr : s_threads) {
         x += thr->nb_computed.load(std::memory_order_acquire);
     }
     return x;
 }
 
-u32 VolNormalization::get_total_instance() {
+u32 get_total() {
     u32 x = 0;
-    for(const auto &thr : this->threads) {
+    for(const auto &thr : s_threads) {
         x += thr->nb_total.load(std::memory_order_acquire);
     }
     return x;
 }
 
-void VolNormalization::start_calc_instance(const std::vector<DatabaseBeatmap *> &maps_to_calc) {
-    this->abort_instance();
+void start_calc(std::span<DatabaseBeatmap *const> maps_to_calc) {
+    VolNormalization::abort();
     if(maps_to_calc.empty()) return;
     if(!cv::normalize_loudness.getBool()) return;
 
@@ -346,7 +353,7 @@ void VolNormalization::start_calc_instance(const std::vector<DatabaseBeatmap *> 
     // (due to diffs in a beatmapset sharing the same audio file)
     std::unordered_map<std::string, std::vector<DatabaseBeatmap *>> by_file;
     by_file.reserve(maps_to_calc.size());
-    for(auto map : maps_to_calc) {
+    for(auto *map : maps_to_calc) {
         by_file[map->getFullSoundFilePath()].push_back(map);
     }
 
@@ -379,41 +386,29 @@ void VolNormalization::start_calc_instance(const std::vector<DatabaseBeatmap *> 
         }
         it += cur_chunk_size;
 
-        this->threads.emplace_back(std::make_unique<LoudnessCalcThread>(std::move(chunk)));
+        s_threads.emplace_back(std::make_unique<LoudnessCalcThread>(std::move(chunk)));
     }
 }
 
-void VolNormalization::abort_instance() { this->threads.clear(); }
+void abort() { s_threads.clear(); }
 
-void VolNormalization::request_priority_instance(DatabaseBeatmap *map) {
+void request_priority(DatabaseBeatmap *map) {
     if(!map) return;
     if(!cv::normalize_loudness.getBool()) return;
-    if(!this->prio) {
-        this->prio = std::make_unique<PriorityWorker>();
+    if(!s_prio) {
+        s_prio = std::make_unique<PriorityWorker>();
     }
-    this->prio->enqueue(map);
+    s_prio->enqueue(map);
 }
 
-void VolNormalization::flush_priority_instance() {
-    if(this->prio) this->prio->drop_pending();
+void flush_priority() {
+    if(s_prio) s_prio->drop_pending();
 }
 
-void VolNormalization::shutdown_instance() {
-    this->abort_instance();
-    this->prio.reset();
-}
-
-VolNormalization::~VolNormalization() {
+void shutdown() {
+    VolNormalization::abort();
+    s_prio.reset();
     cv::loudness_calc_threads.removeAllCallbacks();
-    // only clean up this instance's resources
-    this->shutdown_instance();
 }
 
-VolNormalization &VolNormalization::get_instance() {
-    static VolNormalization instance;
-    static Sync::once_flag once;
-
-    Sync::call_once(once, []() { cv::loudness_calc_threads.setCallback(CFUNC(VolNormalization::loudness_cb)); });
-
-    return instance;
-}
+}  // namespace VolNormalization

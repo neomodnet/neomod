@@ -39,6 +39,10 @@ namespace Spectating {
 extern void start_by_username(std::string_view username);
 }
 
+namespace VolNormalization {
+extern void loudness_cb(float new_value);
+}
+
 #else
 #define CONVAR(name, ...) extern ConVar _CV(name)
 #endif
@@ -800,7 +804,8 @@ CONVAR(letterboxing_offset_x, 0.0f, CLIENT | SKINS | SERVER);
 CONVAR(letterboxing_offset_y, 0.0f, CLIENT | SKINS | SERVER);
 CONVAR(load_beatmap_background_images, true, CLIENT | SKINS | SERVER);
 CONVAR(nightcore_enjoyer, false, CLIENT | SKINS | SERVER);
-CONVAR(normalize_loudness, true, CLIENT | SKINS | SERVER, "normalize loudness across songs");
+CONVAR(normalize_loudness, true, CLIENT | SKINS | SERVER, "normalize loudness across songs",
+       CFUNC(VolNormalization::loudness_cb));
 CONVAR(notelock_stable_tolerance2b, 3, CLIENT | SERVER | PROTECTED | GAMEPLAY,
        "time tolerance in milliseconds to allow hitting simultaneous objects close "
        "together (e.g. circle at end of slider)");

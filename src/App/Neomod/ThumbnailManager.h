@@ -37,8 +37,8 @@ struct hash<ThumbIdentifier> : ::ankerl::unordered_dense::hash<ThumbIdentifier> 
 class ThumbnailManager final {
     NOCOPY_NOMOVE(ThumbnailManager)
    public:
-    ThumbnailManager() { this->load_queue.reserve(128); };
-    ~ThumbnailManager() { this->clear(); }
+    ThumbnailManager();
+    ~ThumbnailManager();
 
     // this is run during Osu::update(), while not in unpaused gameplay
     void update();
@@ -62,6 +62,7 @@ class ThumbnailManager final {
     // will be unloaded (by priority of access time) to keep VRAM/RAM usage sustainable
     struct ThumbEntry {
         u32 refcount{0};
+        bool has_loaded{false};
         double last_access_time{
             0.0};               // timestamp of last try_get_image call; used for queue priority and VRAM eviction
         std::string file_path;  // empty until downloaded/found on disk
