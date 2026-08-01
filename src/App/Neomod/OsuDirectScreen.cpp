@@ -55,6 +55,7 @@ class OnlineMapListing : public CBaseUIContainer {
     explicit OnlineMapListing(Downloader::BeatmapSetMetadata meta);
     ~OnlineMapListing() override;
 
+    void tick() override;
     void draw() override;
     void updateInput(CBaseUIEventCtx& c) override;
 
@@ -88,8 +89,10 @@ class OnlineMapListing : public CBaseUIContainer {
     std::vector<std::string> overflow_tooltip_lines;  // hidden diff names (icon-tooltip format)
     McRect overflow_indicator_relrect;                // card-relative draw + hit rect
 
+    f64 last_database_check_time{0.f};
     f32 creator_width{0.f};
-    bool installed{false};  // cached installed state
+    BeatmapInstaller::State download_state;
+    bool database_presence{false};  // cached database state
 };
 
 OnlineMapListing::OnlineMapListing(Downloader::BeatmapSetMetadata meta)
@@ -170,6 +173,33 @@ void OnlineMapListing::onMouseUpOutside(bool left, bool /*right*/) { this->mbtnd
 
 void OnlineMapListing::onMouseInside() { this->hover_anim.set(0.25f, 0.15f, anim::QuadInOut); }
 void OnlineMapListing::onMouseOutside() { this->hover_anim.set(0.f, 0.15f, anim::QuadInOut); }
+
+void OnlineMapListing::tick() {
+    CBaseUIContainer::tick();
+    if(!this->isVisible()) return;
+
+    // throttle database checks (beatmaps may have been installed through means other than
+    // downloading it, so we have to check the db to reconcile the state)
+    if(!this->database_presence) {
+        if(const f64 now = engine->getTime(); this->last_database_check_time + 1. < now) {
+            this->last_database_check_time = now;
+            this->database_presence = !!db->getBeatmapSet(this->meta.set_id);
+        }
+    }
+
+    if(!this->database_presence) {
+        using enum MapInstallStage;
+        using namespace flags::operators;
+        this->download_state = osu->getBeatmapInstaller()->get_state(this->meta.set_id);
+        if(this->download_state.stage == Done) {
+            this->database_presence = true;
+        } else if(this->download_state.stage != Failed &&
+                  (this->download_state.progress == 1. || !!(this->download_state.stage & (Extracting | Installing)))) {
+            // poll for database presence immediately
+            this->last_database_check_time = 0.;
+        }
+    }
+}
 
 void OnlineMapListing::updateInput(CBaseUIEventCtx& c) {
     CBaseUIContainer::updateInput(c);
@@ -368,18 +398,20 @@ void OnlineMapListing::draw() {
     const f32 alpha = std::min(0.25f + this->hover_anim + this->click_anim, 1.f);
 
     f32 download_progress = 0.f;
+    const bool installed = this->database_presence;
     bool failed = false;
     bool downloading = false;
 
-    // cache installation state
-    if(!this->installed && !(this->installed = !!db->getBeatmapSet(this->meta.set_id))) {
+    if(!installed) {
         using enum MapInstallStage;
         using namespace flags::operators;
-        const auto install_state = osu->getBeatmapInstaller()->get_state(this->meta.set_id);
-        failed = install_state.stage == MapInstallStage::Failed;
-        if((downloading = !failed && !!(install_state.stage & (Queued | Downloading | Extracting | Installing)))) {
-            // To show we're downloading, always draw at least 5%
-            download_progress = std::max(0.05f, install_state.progress);
+        failed = this->download_state.stage == MapInstallStage::Failed;
+        if(!failed) {
+            downloading = !!(this->download_state.stage & (Queued | Downloading | Extracting | Installing));
+            if(downloading) {
+                // To show we're downloading, always draw at least 5%
+                download_progress = std::max(0.05f, this->download_state.progress);
+            }
         }
     }
 
@@ -393,7 +425,7 @@ void OnlineMapListing::draw() {
 
         // Background
         Color color = rgb(255, 255, 255);
-        if(this->installed)
+        if(installed)
             color = rgb(0, 150, 0);
         else if(failed)
             color = rgb(200, 0, 0);
