@@ -138,13 +138,21 @@ void ThumbnailManager::request_image(const ThumbIdentifier& identifier) {
 
 void ThumbnailManager::discard_image(const ThumbIdentifier& identifier) {
     assert(McThread::is_main_thread());
-    const u32 current_refcount = --this->images[identifier].refcount;
+    auto image_it = this->images.find(identifier);
+    assert(image_it != this->images.end());
+    auto& thumb_entry = image_it->second;
+
+    const u32 current_refcount = --thumb_entry.refcount;
     logIfCV(debug_thumbs, "current refcount for {} is {}", identifier.id, current_refcount);
 
     if(current_refcount == 0) {
-        // dequeue if it's waiting to be loaded, that's all
+        // dequeue if it's waiting to be loaded
         if(std::erase(this->load_queue, identifier) > 0) {
             logIfCV(debug_thumbs, "removed {} from load queue", identifier.id);
+            if(thumb_entry.dl_handle) {
+                logIfCV(debug_thumbs, "cancelled in-progress download for {}", identifier.id);
+                Downloader::abort_download(thumb_entry.dl_handle);
+            }
         }
     }
 }
@@ -217,6 +225,7 @@ bool ThumbnailManager::download_image(const ThumbIdentifier& identifier) {
 
 void ThumbnailManager::clear() {
     for(auto& [identifier, entry] : this->images) {
+        Downloader::abort_download(entry.dl_handle);
         if(entry.image) {
             resourceManager->destroyResource(entry.image);
         }
