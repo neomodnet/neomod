@@ -154,6 +154,7 @@ BeatmapInterface::BeatmapInterface() : AbstractBeatmapInterface(), ppv2_calc(thi
 BeatmapInterface::~BeatmapInterface() { this->unloadObjects(); }
 
 void BeatmapInterface::drawDebug() {
+    if(!this->beatmap) return;
     static constexpr Color shadowColor = argb(255, 0, 0, 0);
     static constexpr Color textColor = argb(255, 255, 232, 255);
 

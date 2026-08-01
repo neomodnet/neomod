@@ -748,7 +748,7 @@ void SongBrowser::draw() {
 }
 
 void SongBrowser::drawStrainGraphOverlay() {
-    const auto &wholePP =  osu->getMapInterface()->getWholeMapPPInfo();
+    const auto &wholePP = osu->getMapInterface()->getWholeMapPPInfo();
     const std::vector<f64> &aimStrains = wholePP.aimStrains;
     const std::vector<f64> &speedStrains = wholePP.speedStrains;
     const f32 speedMultiplier = osu->getMapInterface()->getSpeedMultiplier();
@@ -1557,6 +1557,7 @@ void SongBrowser::refreshBeatmaps(UIScreen *next_screen) {
     this->checkHandleKillBackgroundSearchMatcher();
 
     // clear beatmap interface to lose any potential stale references
+    VolNormalization::flush_priority();  // it may be calculating on preloaded maps
     osu->reloadMapInterface();
     ui->getMainMenu()->clearPreloadedMaps();
 
