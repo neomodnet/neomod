@@ -26,6 +26,7 @@ class BeatmapInterface;
 class LiveScore;
 class UpdateHandler;
 class UserCard;
+class Database;
 struct FinishedScore;
 
 namespace LegacyReplay {
@@ -276,6 +277,9 @@ class Osu final : public App, public MouseListener, public TouchListener {
     std::unique_ptr<Replay::Mods> previous_mods{nullptr};  // XXX: hacky and out of place
 
    private:
+    // database instance
+    std::unique_ptr<Database> db_memb{nullptr};
+
     // user interface
     friend struct UI;
     std::unique_ptr<UI> ui_memb{nullptr};

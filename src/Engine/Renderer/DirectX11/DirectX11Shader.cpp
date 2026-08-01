@@ -155,7 +155,7 @@ void DirectX11Shader::destroy() {
 }
 
 void DirectX11Shader::enable() {
-    auto *dx11 = static_cast<DirectX11Interface *>(g.get());
+    auto *dx11 = static_cast<DirectX11Interface *>(g);
     if(!this->isReady() || dx11->getActiveShader() == this) return;
 
     auto *context = dx11->getDeviceContext();
@@ -190,7 +190,7 @@ void DirectX11Shader::enable() {
 }
 
 void DirectX11Shader::disable() {
-    auto *dx11 = static_cast<DirectX11Interface *>(g.get());
+    auto *dx11 = static_cast<DirectX11Interface *>(g);
     if(!this->isReady() || dx11->getActiveShader() != this || !this->bStateBackedUp) return;
 
     auto *context = dx11->getDeviceContext();
@@ -287,7 +287,7 @@ void DirectX11Shader::onJustBeforeDraw() {
 
     // lazy update uniforms
     if(!this->bConstantBuffersUpToDate) {
-        auto *dx11 = static_cast<DirectX11Interface *>(g.get());
+        auto *dx11 = static_cast<DirectX11Interface *>(g);
 
         for(auto &cb : this->constantBuffers) {
             if(cb.buffer == nullptr || cb.cpuData.empty()) continue;
@@ -396,7 +396,7 @@ bool DirectX11Shader::loadLibs() {
 }
 
 bool DirectX11Shader::reflectConstantBuffers(ID3DBlob *blob, Stage stage) {
-    auto *dx11 = static_cast<DirectX11Interface *>(g.get());
+    auto *dx11 = static_cast<DirectX11Interface *>(g);
 
     D3D_Reflection *refl = nullptr;
     if(FAILED(s_d3dReflectFunc(getBlobBufferPointer(blob), getBlobBufferSize(blob), s_IID_ID3D11ShaderReflection,
@@ -488,7 +488,7 @@ bool DirectX11Shader::reflectConstantBuffers(ID3DBlob *blob, Stage stage) {
 bool DirectX11Shader::compile(const std::string &vertexShader, const std::string &fragmentShader) {
     if(vertexShader.length() < 1 || fragmentShader.length() < 1) return false;
 
-    auto *dx11 = static_cast<DirectX11Interface *>(g.get());
+    auto *dx11 = static_cast<DirectX11Interface *>(g);
 
     const char *vsProfile =
         (dx11->getDevice()->GetFeatureLevel() >= D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_11_0 ? "vs_5_0" : "vs_4_0");

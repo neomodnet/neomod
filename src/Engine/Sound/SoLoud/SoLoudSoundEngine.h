@@ -78,7 +78,7 @@ class SoLoudSoundEngine final : public SoundEngine {
 };
 
 // raw pointer access to the s_SLInstance singleton, for SoLoudSound to use
-extern std::unique_ptr<SoLoud::Soloud> soloud;
+extern SoLoud::Soloud *soloud;
 
 #endif
 #endif

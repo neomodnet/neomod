@@ -17,7 +17,7 @@ class SLFXStream;
 }  // namespace SoLoud
 
 // defined in SoLoudSoundEngine, soloud instance singleton pointer
-extern std::unique_ptr<SoLoud::Soloud> soloud;
+extern SoLoud::Soloud *soloud;
 
 class SoLoudSound final : public Sound {
     NOCOPY_NOMOVE(SoLoudSound)

@@ -177,17 +177,19 @@ class Engine final : public KeyboardListener {
     std::unique_ptr<Mc::ConsoleReader> consoleReader{nullptr};
 };
 
-extern std::unique_ptr<Mouse> mouse;
-extern std::unique_ptr<Touch> touch;
-extern std::unique_ptr<Keyboard> keyboard;
-extern std::unique_ptr<App> app;
-extern std::unique_ptr<Graphics> g;
-extern std::unique_ptr<SoundEngine> soundEngine;
-extern std::unique_ptr<ResourceManager> resourceManager;
-extern std::unique_ptr<NetworkHandler> networkHandler;
-extern std::unique_ptr<AsyncIOHandler> io;
-extern std::unique_ptr<DirectoryWatcher> directoryWatcher;
+// engine-owned subsystems, exposed as globals for less annoying access
+extern Mouse *mouse;
+extern Touch *touch;
+extern Keyboard *keyboard;
+extern App *app;
+extern Graphics *g;
+extern SoundEngine *soundEngine;
+extern ResourceManager *resourceManager;
+extern NetworkHandler *networkHandler;
+extern AsyncIOHandler *io;
+extern DirectoryWatcher *directoryWatcher;
 
+// owned by initialization layer (Environment)
 extern Engine *engine;
 
 void _restart();

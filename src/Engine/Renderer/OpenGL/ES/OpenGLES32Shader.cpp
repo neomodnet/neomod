@@ -50,7 +50,7 @@ void OpenGLES32Shader::init() { this->setReady(this->compile(m_sVsh, m_sFsh, tru
 void OpenGLES32Shader::initAsync() { this->setAsyncReady(true); }
 
 void OpenGLES32Shader::destroy() {
-    auto *gles32 = static_cast<OpenGLES32Interface *>(g.get());
+    auto *gles32 = static_cast<OpenGLES32Interface *>(g);
     if(gles32 != nullptr) gles32->unregisterShader(this);
 
     if(m_iProgram != 0) glDeleteProgram(m_iProgram);

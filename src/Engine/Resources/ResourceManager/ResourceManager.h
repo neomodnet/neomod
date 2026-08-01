@@ -153,6 +153,6 @@ class ResourceManager final {
 };
 
 // define/managed in Engine.cpp, declared here for convenience
-extern std::unique_ptr<ResourceManager> resourceManager;
+extern ResourceManager *resourceManager;
 
 #endif

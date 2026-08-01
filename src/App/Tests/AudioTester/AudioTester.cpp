@@ -173,7 +173,7 @@ AudioTesterImpl::AudioTesterImpl() {
 
     // ultra hacky
     if(soundEngine && soundEngine->getTypeId() == SoundEngine::SOLOUD) {
-        m_soloud = static_cast<SoLoudSoundEngine *>(soundEngine.get());
+        m_soloud = static_cast<SoLoudSoundEngine *>(soundEngine);
 
         m_bass = new BassSoundEngine();
         if(!m_bass || !m_bass->succeeded()) {
@@ -182,7 +182,7 @@ AudioTesterImpl::AudioTesterImpl() {
             return;
         }
     } else {
-        m_bass = static_cast<BassSoundEngine *>(soundEngine.get());
+        m_bass = static_cast<BassSoundEngine *>(soundEngine);
         if(!m_bass || !m_bass->succeeded()) {
             debugLog("BASS failed to initialize");
             return;

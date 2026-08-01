@@ -45,7 +45,7 @@ using BeatmapSet = DatabaseBeatmap;
 
 class Database;
 // global for convenience, created in osu constructor, destroyed in osu constructor
-extern std::unique_ptr<Database> db;
+extern Database *db;
 
 // Field ordering matters here
 #pragma pack(push, 1)

@@ -137,4 +137,4 @@ class SoundEngine {
 };
 
 // define/managed in Engine.cpp, declared here for convenience
-extern std::unique_ptr<SoundEngine> soundEngine;
+extern SoundEngine *soundEngine;

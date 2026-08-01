@@ -248,8 +248,8 @@ Osu::Osu()
     this->frameBuffer2 = resourceManager->createRenderTarget(0, 0, 64, 64);
 
     // load a few select subsystems very early
-    db = std::make_unique<Database>();  // global database instance
-    this->ui_memb = std::make_unique<UI>();
+    this->db_memb = std::make_unique<Database>();  // global database instance (sets global "db" pointer in ctor)
+    this->ui_memb = std::make_unique<UI>();        // sets global "ui" pointer in ctor
     this->updateHandler = std::make_unique<UpdateHandler>();
     this->thumbnailManager = std::make_unique<ThumbnailManager>();
     this->beatmapInstaller = std::make_unique<BeatmapInstaller>();
@@ -483,7 +483,9 @@ Osu::~Osu() {
     this->bUILoaded = false;
     this->ui_memb.reset();  // destroy ui layers
     ui = nullptr;
-    db.reset();  // shutdown db
+    // shutdown db
+    this->db_memb.reset();  // shutdown db
+    db = nullptr;
 
     // remove the static callbacks
     cvars().setCVSubmittableCheckFunc({});
@@ -2310,14 +2312,14 @@ void Osu::setupAudio() {
         soundEngine->updateOutputDevices(true);
         soundEngine->initializeOutputDevice(soundEngine->getWantedDevice());
         cv::snd_output_device.setValue(soundEngine->getOutputDeviceName());
-        cv::snd_freq.setCallback(SA::MakeDelegate<&SoundEngine::onFreqChanged>(soundEngine.get()));
-        cv::cmd::snd_restart.setCallback(SA::MakeDelegate<&SoundEngine::restart>(soundEngine.get()));
-        cv::win_snd_wasapi_exclusive.setCallback(SA::MakeDelegate<&SoundEngine::onParamChanged>(soundEngine.get()));
-        cv::win_snd_wasapi_buffer_size.setCallback(SA::MakeDelegate<&SoundEngine::onParamChanged>(soundEngine.get()));
-        cv::win_snd_wasapi_period_size.setCallback(SA::MakeDelegate<&SoundEngine::onParamChanged>(soundEngine.get()));
+        cv::snd_freq.setCallback(SA::MakeDelegate<&SoundEngine::onFreqChanged>(soundEngine));
+        cv::cmd::snd_restart.setCallback(SA::MakeDelegate<&SoundEngine::restart>(soundEngine));
+        cv::win_snd_wasapi_exclusive.setCallback(SA::MakeDelegate<&SoundEngine::onParamChanged>(soundEngine));
+        cv::win_snd_wasapi_buffer_size.setCallback(SA::MakeDelegate<&SoundEngine::onParamChanged>(soundEngine));
+        cv::win_snd_wasapi_period_size.setCallback(SA::MakeDelegate<&SoundEngine::onParamChanged>(soundEngine));
         cv::win_snd_wasapi_event_callbacks.setCallback(
-            SA::MakeDelegate<&SoundEngine::onParamChanged>(soundEngine.get()));
-        cv::asio_buffer_size.setCallback(SA::MakeDelegate<&SoundEngine::onParamChanged>(soundEngine.get()));
+            SA::MakeDelegate<&SoundEngine::onParamChanged>(soundEngine));
+        cv::asio_buffer_size.setCallback(SA::MakeDelegate<&SoundEngine::onParamChanged>(soundEngine));
         cv::snd_output_device.setCallback(
             []() -> void { osu && osu->UIReady() ? ui->getOptionsOverlay()->scheduleLayoutUpdate() : (void)0; });
     }

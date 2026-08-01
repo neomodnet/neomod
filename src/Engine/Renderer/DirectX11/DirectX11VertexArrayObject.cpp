@@ -22,8 +22,8 @@ DirectX11VertexArrayObject::DirectX11VertexArrayObject(DrawPrimitive primitive, 
 void DirectX11VertexArrayObject::init() {
     if(!this->isAsyncReady() || this->vertices.size() < 2) return;
 
-    auto* device = static_cast<DirectX11Interface*>(g.get())->getDevice();
-    auto* context = static_cast<DirectX11Interface*>(g.get())->getDeviceContext();
+    auto* device = static_cast<DirectX11Interface*>(g)->getDevice();
+    auto* context = static_cast<DirectX11Interface*>(g)->getDeviceContext();
 
     if(this->isReady()) {
         const D3D11_USAGE usage = (D3D11_USAGE)usageToDirectX(this->usage);
@@ -291,7 +291,7 @@ void DirectX11VertexArrayObject::draw() {
 
     if(start > end || std::abs(end - start) == 0) return;
 
-    auto* context = static_cast<DirectX11Interface*>(g.get())->getDeviceContext();
+    auto* context = static_cast<DirectX11Interface*>(g)->getDeviceContext();
 
     // draw it
     {

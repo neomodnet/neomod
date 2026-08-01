@@ -43,7 +43,7 @@
 
 using namespace neomod;
 
-std::unique_ptr<Database> db = nullptr;
+Database *db{nullptr};
 
 bool Database::sortScoreByScore(const FinishedScore &a, const FinishedScore &b) {
     if(a.score != b.score) return a.score > b.score;
@@ -376,6 +376,8 @@ bool Database::migrate_neosu_to_neomod() {
 }
 
 Database::Database() : importTimer(std::make_unique<Timer>()) {
+    assert(!db);
+    db = this;  // set global db pointer (we are a single instance owned by Osu)
     // convar callback
     cv::cmd::save.setCallback(SA::MakeDelegate<&Database::save>(this));
 }
@@ -2720,8 +2722,8 @@ std::unique_ptr<BeatmapSet> Database::loadRawBeatmap(std::string_view beatmapPat
     for(const auto &beatmapFile : beatmapFiles) {
         if(!beatmapFile.ends_with(".osu")) continue;
 
-        const std::string fullFilePath = fmt::format("{:s}{:s}", beatmapPath, beatmapFile);
-        auto map = std::make_unique<BeatmapDifficulty>(fullFilePath, beatmapPath, difficultyType);
+        std::string fullFilePath = fmt::format("{:s}{:s}", beatmapPath, beatmapFile);
+        auto map = std::make_unique<BeatmapDifficulty>(std::move(fullFilePath), beatmapPath, difficultyType);
         auto res = map->loadMetadata();
         if(!res.error.errc) {
             diffs->push_back(std::move(map));

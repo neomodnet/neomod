@@ -258,38 +258,36 @@ void Environment::update() {
     // m_bIsCursorInsideWindow = winFocused() && m_engine->getScreenRect().contains(getMousePos());
 }
 
-std::unique_ptr<Graphics> Environment::createRenderer() {
+Graphics *Environment::createRenderer() {
 #if defined(MCENGINE_PLATFORM_WASM)
-    if(m_bHeadless) return std::make_unique<NullGraphics>();
+    if(m_bHeadless) return new NullGraphics();
 #endif
 #ifdef MCENGINE_FEATURE_DIRECTX11
     if(usingDX11())  // only if specified on the command line, for now
-        return std::make_unique<DirectX11Interface>(Env::cfg(OS::WINDOWS) ? getHwnd()
-                                                                          : reinterpret_cast<HWND>(m_window));
+        return new DirectX11Interface(Env::cfg(OS::WINDOWS) ? getHwnd() : reinterpret_cast<HWND>(m_window));
     else {
 #endif
 #ifdef MCENGINE_FEATURE_SDLGPU
         if(usingSDLGPU())
-            return std::make_unique<SDLGPUInterface>(m_window);
+            return new SDLGPUInterface(m_window);
         else {
 #endif
 #ifdef MCENGINE_FEATURE_OPENGL
-            return std::make_unique<OpenGLInterface>(m_window);
+            return new OpenGLInterface(m_window);
 #endif
 #ifdef MCENGINE_FEATURE_GLES32
-            return std::make_unique<OpenGLES32Interface>(m_window);
+            return new OpenGLES32Interface(m_window);
 #endif
 
 #ifdef MCENGINE_FEATURE_SDLGPU
             // unreachable, but compiler complains
-            return std::make_unique<SDLGPUInterface>(m_window);
+            return new SDLGPUInterface(m_window);
         }
 #endif
 
 #ifdef MCENGINE_FEATURE_DIRECTX11
         // same, but for dx11 only
-        return std::make_unique<DirectX11Interface>(Env::cfg(OS::WINDOWS) ? getHwnd()
-                                                                          : reinterpret_cast<HWND>(m_window));
+        return new DirectX11Interface(Env::cfg(OS::WINDOWS) ? getHwnd() : reinterpret_cast<HWND>(m_window));
     }
 #endif
 }
@@ -1374,16 +1372,18 @@ void Environment::setCursorClip(bool clip, const McRect &rect) {
         sdlClip.y = (int)std::round((float)sdlClip.y / pxd);
         sdlClip.w = (int)std::round((float)sdlClip.w / pxd);
         sdlClip.h = (int)std::round((float)sdlClip.h / pxd);
-        SDL_SetWindowMouseRect(m_window, &sdlClip);
-        if(!(mouse && mouse->isRawInputWanted())) {
-            // only grab if rawinput is disabled, we clip manually if rawinput is enabled
-            SDL_SetWindowMouseGrab(m_window, true);
+        if(SDL_SetWindowMouseRect(m_window, &sdlClip)) {
+            if(!(mouse && mouse->isRawInputWanted())) {
+                // only grab if rawinput is disabled, we clip manually if rawinput is enabled
+                SDL_SetWindowMouseGrab(m_window, true);
+            }
+            m_bCursorClipped = true;
         }
-        m_bCursorClipped = true;
     } else {
-        m_bCursorClipped = false;
-        SDL_SetWindowMouseRect(m_window, nullptr);
-        SDL_SetWindowMouseGrab(m_window, false);
+        if(SDL_SetWindowMouseRect(m_window, nullptr)) {
+            SDL_SetWindowMouseGrab(m_window, false);
+            m_bCursorClipped = false;
+        }
     }
 }
 

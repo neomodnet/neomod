@@ -41,16 +41,16 @@
 
 Image *MISSING_TEXTURE{nullptr};
 
-std::unique_ptr<Mouse> mouse{nullptr};
-std::unique_ptr<Touch> touch{nullptr};
-std::unique_ptr<Keyboard> keyboard{nullptr};
-std::unique_ptr<App> app{nullptr};
-std::unique_ptr<Graphics> g{nullptr};
-std::unique_ptr<SoundEngine> soundEngine{nullptr};
-std::unique_ptr<ResourceManager> resourceManager{nullptr};
-std::unique_ptr<NetworkHandler> networkHandler{nullptr};
-std::unique_ptr<AsyncIOHandler> io{nullptr};
-std::unique_ptr<DirectoryWatcher> directoryWatcher{nullptr};
+Mouse *mouse{nullptr};
+Touch *touch{nullptr};
+Keyboard *keyboard{nullptr};
+App *app{nullptr};
+Graphics *g{nullptr};
+SoundEngine *soundEngine{nullptr};
+ResourceManager *resourceManager{nullptr};
+NetworkHandler *networkHandler{nullptr};
+AsyncIOHandler *io{nullptr};
+DirectoryWatcher *directoryWatcher{nullptr};
 
 Mc::atomic_sharedptr<ConsoleBox> Engine::consoleBox{nullptr};
 
@@ -62,7 +62,7 @@ Engine::Engine() {
     crypto::init();
 
     // always keep a dummy App() alive so we don't have to null-check for "app" inside engine code
-    app.reset(new App());
+    app = new App();
 
     this->guiContainer = nullptr;
     this->visualProfiler = nullptr;
@@ -95,8 +95,8 @@ Engine::Engine() {
     debugLog("Engine: Initializing subsystems ...");
     {
         // async io
-        io = std::make_unique<AsyncIOHandler>();
-        directoryWatcher = std::make_unique<DirectoryWatcher>();
+        io = new AsyncIOHandler();
+        directoryWatcher = new DirectoryWatcher();
         this->runtime_assert(!!io && io->succeeded() && !!directoryWatcher, "I/O subsystem failed to initialize!");
 
         // shared freetype init
@@ -104,18 +104,18 @@ Engine::Engine() {
 
         // input devices
         // put mouse before keyboard in inputDevices, so that mouse position is updated before relaying keyboard/mouse events
-        mouse = std::make_unique<Mouse>();
+        mouse = new Mouse();
         this->runtime_assert(!!mouse, "Mouse failed to initialize!");
-        this->inputDevices.push_back(mouse.get());
-        this->mice.push_back(mouse.get());
+        this->inputDevices.push_back(mouse);
+        this->mice.push_back(mouse);
 
-        touch = std::make_unique<Touch>();
-        this->runtime_assert(!!touch, "Mouse failed to initialize!");
+        touch = new Touch();
+        this->runtime_assert(!!touch, "Touch failed to initialize!");
 
-        keyboard = std::make_unique<Keyboard>();
+        keyboard = new Keyboard();
         this->runtime_assert(!!keyboard, "Keyboard failed to initialize!");
-        this->inputDevices.push_back(keyboard.get());
-        this->keyboards.push_back(keyboard.get());
+        this->inputDevices.push_back(keyboard);
+        this->keyboards.push_back(keyboard);
 
         // create graphics through environment
         g = env->createRenderer();
@@ -138,13 +138,13 @@ Engine::Engine() {
         }
 
         // make unique_ptrs for the rest
-        networkHandler = std::make_unique<NetworkHandler>();
+        networkHandler = new NetworkHandler();
         this->runtime_assert(!!networkHandler, "Network handler failed to initialize!");
 
-        soundEngine.reset(SoundEngine::initialize());
+        soundEngine = SoundEngine::initialize();
         this->runtime_assert(!!soundEngine && soundEngine->succeeded(), "Sound engine failed to initialize!");
 
-        resourceManager = std::make_unique<ResourceManager>();
+        resourceManager = new ResourceManager();
         this->runtime_assert(!!resourceManager, "Resource manager menu failed to initialize!");
         resourceManager->setSyncLoadMaxBatchSize(512);  // this decays back down to a small number quickly by itself
 
@@ -169,7 +169,9 @@ Engine::~Engine() {
 
     // reset() all global unique_ptrs
     debugLog("Engine: Freeing app...");
-    app.reset(new App());  // re-create a dummy app and delete it again at the end
+    SAFE_DELETE(app);
+    app =
+        new App();  // re-create a dummy app and delete it again at the end (paranoia, just in case something tries to dereference app in its destructor)
 
     debugLog("Engine: Freeing engine GUI...");
     if(const auto &cbox = Engine::consoleBox.load(std::memory_order_acquire); cbox != nullptr) {
@@ -196,53 +198,48 @@ Engine::~Engine() {
     anim::clearAll();
 
     debugLog("Engine: Freeing resource manager...");
-    resourceManager.reset();
+    SAFE_DELETE(resourceManager);
+    MISSING_TEXTURE = nullptr;
 
     debugLog("Engine: Stopping threads...");
     AsyncPool::get().shutdown();
 
     debugLog("Engine: Freeing Sound...");
-    soundEngine.reset();
+    SAFE_DELETE(soundEngine);
 
     debugLog("Engine: Freeing network handler...");
-    networkHandler.reset();
+    SAFE_DELETE(networkHandler);
 
     debugLog("Engine: Freeing graphics...");
-    g.reset();
+    SAFE_DELETE(g);
 
     debugLog("Engine: Freeing input devices...");
-    // first remove the mouse and keyboard from the input devices
-    std::erase_if(this->inputDevices,
-                  [](InputDevice *device) { return device == mouse.get() || device == keyboard.get(); });
-
-    // delete remaining input devices (if any)
-    for(auto *device : this->inputDevices) {
-        delete device;
+    // delete input devices
+    for(auto &device : this->inputDevices) {
+        SAFE_DELETE(device);
     }
-
-    // TODO: make touch an input device
-    touch.reset();
-
     this->inputDevices.clear();
     this->mice.clear();
     this->keyboards.clear();
 
-    // reset the global unique_ptrs
-    mouse.reset();
-    keyboard.reset();
+    mouse = nullptr;
+    keyboard = nullptr;
+
+    // TODO: make touch an input device
+    SAFE_DELETE(touch);
 
     debugLog("Engine: Freeing fonts...");
     McFont::cleanupSharedResources();
 
     debugLog("Engine: Stopping I/O subsystem...");
-    directoryWatcher.reset();
+    SAFE_DELETE(directoryWatcher);
 
     io->cleanup();
-    io.reset();
+    SAFE_DELETE(io);
 
     debugLog("Engine: Goodbye.");
 
-    app.reset();  // delete the dummy App() for real
+    SAFE_DELETE(app);  // delete the dummy App() for real
     engine = nullptr;
 }
 
@@ -268,7 +265,7 @@ bool Engine::loadApp() {
         MISSING_TEXTURE->load();
 
         // create engine gui
-        this->guiContainer = new CBaseUIContainer(0, 0, engine->getScreenWidth(), engine->getScreenHeight(), "");
+        this->guiContainer = new CBaseUIContainer(0, 0, this->getScreenWidth(), this->getScreenHeight(), "");
         Engine::consoleBox.store(std::make_shared<ConsoleBox>(), std::memory_order_release);
         this->guiContainer->addBaseUIElement(Engine::consoleBox.load(std::memory_order_acquire).get());
         this->visualProfiler = new VisualProfiler();
@@ -294,18 +291,23 @@ bool Engine::loadApp() {
 #ifdef MCENGINE_TESTS
         {
             const auto testApp = Mc::LaunchArgs::has_arg(Mc::LaunchArgs::MODE_TESTAPP);
-            app = std::make_unique<AppRunner>(testApp.has_value(), testApp.value_or(""));
+            // keep old dummy global "app" alive during ctor so that "app" can still be safely dereferenced during new construction
+            auto *new_app = new AppRunner(testApp.has_value(), testApp.value_or(""));
+            SAFE_DELETE(app);
+            app = new_app;
         }
 #else
         if(const auto &defaultApp = Mc::getDefaultAppDescriptor(); !!defaultApp.create) {
-            app.reset(defaultApp.create());
+            auto *new_app = defaultApp.create();
+            SAFE_DELETE(app);
+            app = new_app;
         }
 #endif  // MCENGINE_TESTS
         this->runtime_assert(!!app, "App failed to initialize!");
 #endif  // BUILD_TOOLS_ONLY
 
         // start listening to the default keyboard input
-        keyboard->addListener(app.get());
+        keyboard->addListener(app);
 
         // start stdin reader for headless/console mode
         if(env->isHeadless() || Mc::LaunchArgs::has_arg(Mc::LaunchArgs::MODE_CONSOLE)) {
@@ -492,7 +494,7 @@ void Engine::onFocusGained() {
         device->reset();
     }
 
-    if(soundEngine) soundEngine->onFocusGained();  // switch shared->exclusive if applicable
+    soundEngine->onFocusGained();  // switch shared->exclusive if applicable
     app->onFocusGained();
 }
 
@@ -503,7 +505,7 @@ void Engine::onFocusLost() {
         device->reset();
     }
 
-    if(soundEngine) soundEngine->onFocusLost();  // switch exclusive->shared if applicable
+    soundEngine->onFocusLost();  // switch exclusive->shared if applicable
     app->onFocusLost();
 
     // auto minimize on certain conditions
@@ -524,7 +526,7 @@ void Engine::onMaximized() { logIfCV(debug_engine, "(Engine) called"); }
 void Engine::onRestored() {
     logIfCV(debug_engine, "(Engine) called");
 
-    if(g) g->onRestored();
+    g->onRestored();
     app->onRestored();
 }
 
@@ -548,7 +550,7 @@ void Engine::onResolutionChange(vec2 newResolution) {
     }
 
     // update everything
-    if(g) g->onResolutionChange(newResolution);
+    g->onResolutionChange(newResolution);
     app->onResolutionChanged(newResolution);
 }
 

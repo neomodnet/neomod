@@ -294,7 +294,7 @@ void SkinImage::draw(vec2 pos, float scale, float brightness, bool animated) con
                 g->drawVAO(&quadVAO);
 
                 if(brightness > 0.f) {
-                    draw_bright_quad(g.get(), &quadVAO, brightness);
+                    draw_bright_quad(g, &quadVAO, brightness);
                 }
             }
             img->unbind();
@@ -346,7 +346,7 @@ void SkinImage::drawRaw(vec2 pos, float scale, AnchorPoint anchor, float brightn
                 g->drawVAO(&quadVAO);
 
                 if(brightness > 0.f) {
-                    draw_bright_quad(g.get(), &quadVAO, brightness);
+                    draw_bright_quad(g, &quadVAO, brightness);
                 }
             }
             img->unbind();

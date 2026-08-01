@@ -102,7 +102,7 @@ class Environment {
     void update();
 
     // engine/factory
-    std::unique_ptr<Graphics> createRenderer();
+    Graphics *createRenderer();
 
     [[nodiscard]] constexpr forceinline bool usingNullGraphics() const {
         return m_renderer == RuntimeRenderer::NULLGRAPHICS;

@@ -46,4 +46,4 @@ class DirectoryWatcher {
     StaticPImpl<DirWatcherImpl, 256> pImpl;
 };
 
-extern std::unique_ptr<DirectoryWatcher> directoryWatcher;
+extern DirectoryWatcher *directoryWatcher;

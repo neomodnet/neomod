@@ -53,4 +53,4 @@ class AsyncIOHandler final {
 #endif
 };
 
-extern std::unique_ptr<AsyncIOHandler> io;
+extern AsyncIOHandler *io;

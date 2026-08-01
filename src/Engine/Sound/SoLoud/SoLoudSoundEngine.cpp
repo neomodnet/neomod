@@ -26,7 +26,7 @@
 #include <SDL3/SDL_hints.h>
 #include <SDL3/SDL_audio.h>
 
-std::unique_ptr<SoLoud::Soloud> soloud{nullptr};
+SoLoud::Soloud *soloud{nullptr};
 
 // factory
 Sound *SoLoudSoundEngine::createSound(std::string filepath, bool stream, bool overlayable, bool loop) {
@@ -93,7 +93,7 @@ SoLoudSoundEngine::SoLoudSoundEngine() : SoundEngine() {
     }
 #endif
     if(!soloud) {
-        soloud = std::make_unique<SoLoud::Soloud>();
+        soloud = new SoLoud::Soloud();
     }
 
     cv::snd_freq.setValue(SoLoud::Soloud::AUTO);  // let it be auto-negotiated (the snd_freq callback will adjust if
@@ -510,7 +510,7 @@ void SoLoudSoundEngine::allowInternalCallbacks() {
     static auto backendSwitchCB = [](std::string_view arg) -> void {
         if(!soundEngine || soundEngine->getTypeId() != SndEngineType::SOLOUD) return;
 
-        auto *enginePtr = static_cast<SoLoudSoundEngine *>(soundEngine.get());
+        auto *enginePtr = static_cast<SoLoudSoundEngine *>(soundEngine);
         const auto curDriver = enginePtr->getOutputDriverType();
 
         const bool nowSDL = SString::contains_ncase(arg, "sdl"sv);
@@ -569,7 +569,7 @@ SoLoudSoundEngine::~SoLoudSoundEngine() {
     if(soloud && this->isReady()) {
         soloud->deinit();
     }
-    soloud.reset();
+    SAFE_DELETE(soloud);
     cv::snd_freq.reset();
     cv::cmd::snd_restart.reset();
     cv::snd_soloud_backend.reset();

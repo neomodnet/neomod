@@ -169,7 +169,7 @@ void OpenGLES32VertexArrayObject::draw() {
         return;
     }
 
-    auto *gles32 = static_cast<OpenGLES32Interface *>(g.get());
+    auto *gles32 = static_cast<OpenGLES32Interface *>(g);
 
     // configure shader state for our vertex attributes
     if(m_iNumColors > 0) {

@@ -3724,7 +3724,7 @@ void OptionsOverlayImpl::setupASIOClampedChangeCallback() {
 #if defined(MCENGINE_PLATFORM_WINDOWS) && defined(MCENGINE_FEATURE_BASS)
     if(soundEngine->getTypeId() != SoundEngine::SndEngineType::BASS) return;
 
-    static_cast<BassSoundEngine *>(soundEngine.get())
+    static_cast<BassSoundEngine *>(soundEngine)
         ->setOnASIOBufferChangeCB(
             [asioBufSizeSlider = &this->asioBufferSizeSlider](const BASS_ASIO_INFO &info) -> void {
                 if(!asioBufSizeSlider || !*asioBufSizeSlider) return;

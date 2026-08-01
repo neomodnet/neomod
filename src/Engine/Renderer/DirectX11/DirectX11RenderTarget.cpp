@@ -36,7 +36,7 @@ void DirectX11RenderTarget::init() {
 
     HRESULT hr;
 
-    auto* device = static_cast<DirectX11Interface*>(g.get())->getDevice();
+    auto* device = static_cast<DirectX11Interface*>(g)->getDevice();
 
     // create color texture
     D3D11_TEXTURE2D_DESC colorTextureDesc;
@@ -157,7 +157,7 @@ void DirectX11RenderTarget::destroy() {
 void DirectX11RenderTarget::enable() {
     if(!this->isReady()) return;
 
-    auto* context = static_cast<DirectX11Interface*>(g.get())->getDeviceContext();
+    auto* context = static_cast<DirectX11Interface*>(g)->getDeviceContext();
 
     // backup
     // HACKHACK: slow af
@@ -186,7 +186,7 @@ void DirectX11RenderTarget::disable() {
     // restore
     // HACKHACK: slow af
     {
-        static_cast<DirectX11Interface*>(g.get())->getDeviceContext()->OMSetRenderTargets(
+        static_cast<DirectX11Interface*>(g)->getDeviceContext()->OMSetRenderTargets(
             1, &this->prevRenderTargetView, this->prevDepthStencilView);
 
         // refcount
@@ -207,7 +207,7 @@ void DirectX11RenderTarget::disable() {
 void DirectX11RenderTarget::bind(unsigned int textureUnit) {
     if(!this->isReady()) return;
 
-    auto* dx11 = static_cast<DirectX11Interface*>(g.get());
+    auto* dx11 = static_cast<DirectX11Interface*>(g);
     auto* context = dx11->getDeviceContext();
 
     this->iTextureUnitBackup = textureUnit;
@@ -229,7 +229,7 @@ void DirectX11RenderTarget::unbind() {
     // restore
     // HACKHACK: slow af
     {
-        static_cast<DirectX11Interface*>(g.get())->getDeviceContext()->PSSetShaderResources(
+        static_cast<DirectX11Interface*>(g)->getDeviceContext()->PSSetShaderResources(
             this->iTextureUnitBackup, 1, &this->prevShaderResourceView);
 
         // refcount

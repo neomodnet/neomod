@@ -2760,13 +2760,13 @@ void HUD::updateScoringMetric() {
         u32 sortIndex = cv::songbrowser_scores_sortingtype.getInt();
         if(sortIndex < ui->getSongBrowser()->SCORE_SORTING_METHODS.size()) {
             auto sort = ui->getSongBrowser()->SCORE_SORTING_METHODS[sortIndex];
-            if(sort.comparator == db->sortScoreByAccuracy) {
+            if(sort.comparator == Database::sortScoreByAccuracy) {
                 this->scoring_metric = WinCondition::ACCURACY;
-            } else if(sort.comparator == db->sortScoreByCombo) {
+            } else if(sort.comparator == Database::sortScoreByCombo) {
                 this->scoring_metric = WinCondition::MAX_COMBO;
-            } else if(sort.comparator == db->sortScoreByMisses) {
+            } else if(sort.comparator == Database::sortScoreByMisses) {
                 this->scoring_metric = WinCondition::MISSES;
-            } else if(sort.comparator == db->sortScoreByPP) {
+            } else if(sort.comparator == Database::sortScoreByPP) {
                 this->scoring_metric = WinCondition::PP;
             }
         }

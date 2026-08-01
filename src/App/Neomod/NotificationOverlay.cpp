@@ -129,7 +129,7 @@ void ToastElement::draw() {
 
     // border
     g->setColor(Color(this->isMouseInside() ? rgb(255, 255, 255) : this->frameColor).setA(alpha));
-    draw_border_rect(g.get(), this->getPos(), this->getSize(), Osu::getUIScale());
+    draw_border_rect(g, this->getPos(), this->getSize(), Osu::getUIScale());
 
     // text
     f32 y = this->getPos().y;

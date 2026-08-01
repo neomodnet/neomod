@@ -72,8 +72,8 @@ void DirectX11Image::init() {
 
     HRESULT hr;
 
-    auto* device = static_cast<DirectX11Interface*>(g.get())->getDevice();
-    auto* context = static_cast<DirectX11Interface*>(g.get())->getDeviceContext();
+    auto* device = static_cast<DirectX11Interface*>(g)->getDevice();
+    auto* context = static_cast<DirectX11Interface*>(g)->getDeviceContext();
 
     // cap to 32px smallest mipmap (same as OpenGL)
     const UINT maxDim = (UINT)std::max(this->iWidth, this->iHeight);
@@ -280,7 +280,7 @@ void DirectX11Image::bind(unsigned int textureUnit) const {
 
     this->iTextureUnitBackup = textureUnit;
 
-    auto* dx11 = static_cast<DirectX11Interface*>(g.get());
+    auto* dx11 = static_cast<DirectX11Interface*>(g);
     auto* context = dx11->getDeviceContext();
     // backup
     // HACKHACK: slow af
@@ -306,7 +306,7 @@ void DirectX11Image::unbind() const {
     // restore
     // HACKHACK: slow af
     {
-        static_cast<DirectX11Interface*>(g.get())->getDeviceContext()->PSSetShaderResources(
+        static_cast<DirectX11Interface*>(g)->getDeviceContext()->PSSetShaderResources(
             this->iTextureUnitBackup, 1, &this->prevShaderResourceView);
 
         // refcount
@@ -368,7 +368,7 @@ void DirectX11Image::createOrUpdateSampler() {
         this->samplerState = nullptr;
     }
 
-    static_cast<DirectX11Interface*>(g.get())->getDevice()->CreateSamplerState(&this->samplerDesc, &this->samplerState);
+    static_cast<DirectX11Interface*>(g)->getDevice()->CreateSamplerState(&this->samplerDesc, &this->samplerState);
 }
 
 #endif

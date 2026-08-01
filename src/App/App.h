@@ -94,6 +94,6 @@ class App : public KeyboardListener {
     virtual void showNotification(const NotificationInfo& /*info*/) {}
 };
 
-extern std::unique_ptr<App> app;
+extern App *app;
 
 #endif

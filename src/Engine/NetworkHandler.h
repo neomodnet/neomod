@@ -173,4 +173,4 @@ class NetworkHandler {
 }  // namespace Mc::Net
 
 using Mc::Net::NetworkHandler;
-extern std::unique_ptr<NetworkHandler> networkHandler;
+extern NetworkHandler *networkHandler;
