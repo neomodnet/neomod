@@ -38,36 +38,30 @@
 #include "fmt/ranges.h"
 #include "Timing.h"
 
-#define DBGTIME(amt__, ...)                                                                                          \
-    do {                                                                                                             \
-        static_assert((uint32_t)1000 > 0 && (uint32_t)1000 <= 4096);                                                 \
-        static thread_local std::array<double, (uint32_t)1000> lasttms__{};                                          \
-        static thread_local uint32_t lti__ = 0;                                                                      \
-        static thread_local double overall_max__ = 0.0;                                                              \
-        const double before__ = Timing::getTimeReal();                                                               \
-        do {                                                                                                         \
-            __VA_ARGS__;                                                                                             \
-        } while(false);                                                                                              \
-        const double after__ = Timing::getTimeReal();                                                                \
-        lasttms__[lti__ % (uint32_t)1000] = after__ - before__;                                                      \
-        if(!(++lti__ % (uint32_t)1000)) {                                                                            \
-            lti__ = 0;                                                                                               \
-            auto current_max__ = std::ranges::max(lasttms__);                                                        \
-            if(current_max__ > overall_max__) overall_max__ = current_max__;                                         \
-            Logger::_detail::logRaw_int((Logger::CHAN_DEFAULT), Logger::_detail::log_level::info,                    \
-                                        ("\n\tTIME FOR: "                                                            \
-                                         "this->cached_stream_position = soloud->getStreamPosition(this->handle)")); \
-            Logger::_detail::logRaw_int(                                                                             \
-                (Logger::CHAN_DEFAULT), Logger::_detail::log_level::info,                                            \
-                fmt::format(("\tmax overall: {:.8f}"                                                                 \
-                             "\n\taverage: {:.4f} min: {:.4f} max: {:.4f}"                                           \
-                             "\n\tpast "                                                                             \
-                             "1000"                                                                                  \
-                             " times:"                                                                               \
-                             "\n\t[ {:.4f} ]"),                                                                      \
-                            overall_max__, std::reduce(lasttms__.begin(), lasttms__.end(), 0.0) / ((uint32_t)1000),  \
-                            std::ranges::min(lasttms__), current_max__, fmt::join(lasttms__, ", ")));                \
-        }                                                                                                            \
+#define DBGTIME(amt__, ...)                                                  \
+    do {                                                                     \
+        static_assert((uint32_t)amt__ > 0 && (uint32_t)amt__ <= 4096);       \
+        static thread_local std::array<double, (uint32_t)amt__> lasttms__{}; \
+        static thread_local uint32_t lti__ = 0;                              \
+        static thread_local double overall_max__ = 0.0;                      \
+        const double before__ = Timing::getTimeReal();                       \
+        do {                                                                 \
+            __VA_ARGS__;                                                     \
+        } while(false);                                                      \
+        const double after__ = Timing::getTimeReal();                        \
+        lasttms__[lti__ % (uint32_t)amt__] = after__ - before__;             \
+        if(!(++lti__ % (uint32_t)amt__)) {                                   \
+            lti__ = 0;                                                       \
+            auto current_max__ = std::ranges::max(lasttms__);                \
+            if(current_max__ > overall_max__) overall_max__ = current_max__; \
+            logRaw("\n\tTIME FOR: " #__VA_ARGS__);                           \
+            logRaw("\tmax overall: {:.8f}" \
+                 "\n\taverage: {:.4f} min: {:.4f} max: {:.4f}" \
+                 "\n\tpast " MC_STRINGIZE(__amt__) " times:" \
+                                                   "\n\t[ {:.4f} ]", \
+                            overall_max__, std::reduce(lasttms__.begin(), lasttms__.end(), 0.0) / ((uint32_t)amt__),  \
+                            std::ranges::min(lasttms__), current_max__, fmt::join(lasttms__, ", "));                                 \
+        }                                                                    \
     } while(false);
 
 #define VPROF_MAX_NUM_BUDGETGROUPS 128

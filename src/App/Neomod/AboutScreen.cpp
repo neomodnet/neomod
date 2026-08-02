@@ -246,8 +246,7 @@ void AboutScreen::buildTab(Tab tab) {
 void AboutScreen::buildTextLines(TabPage &page, std::string_view embedKey) {
     assert(ALL_BINMAP.contains(embedKey));
 
-    std::vector<std::string> textLines;
-    SString::split_newlines(textLines, ALL_BINMAP.at(embedKey));
+    auto textLines = SString::split_newlines<std::string>(ALL_BINMAP.at(embedKey));
 
     page.lines.reserve(textLines.size());
     for(auto &line : textLines) {
