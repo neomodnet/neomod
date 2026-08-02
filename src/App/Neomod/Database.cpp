@@ -337,6 +337,10 @@ void Database::destroyLoader() {
     this->load_interrupted.store(true, std::memory_order_release);  // for subroutines (loadMaps, etc.)
     this->db_load_handle.cancel();
     if(this->db_load_handle.valid()) this->db_load_handle.wait();
+
+    // reset cancellation state after we waited for the load task
+    this->load_interrupted.store(false, std::memory_order_release);
+
     logIf(cv::debug_db.getBool() || cv::debug_async_db.getBool(), "done");
 }
 

@@ -710,10 +710,10 @@ void HUD::drawFps() {
     }
 
     fps = std::round(fps);
-    const std::string fpsString = fmt::format("{} fps", (i32)(fps));
+    const std::string fpsString = fmt::format("{} fps"_cf, (i32)(fps));
 
     const double frametime_ms = old_worst_frametime * 1000.0;
-    const std::string msString = fmt::format("{:.{}f} ms", frametime_ms, frametime_ms < 0.1 ? 2 : 1);
+    const std::string msString = fmt::format("{:.{}f} ms"_cf, frametime_ms, frametime_ms < 0.1 ? 2 : 1);
 
     const f32 dpiScale = Osu::getUIScale();
 
@@ -1056,21 +1056,21 @@ void HUD::drawHPBar(double health, f32 alpha, f32 breakAnim) {
     const vec2 breakAnimOffset = vec2(0, -20.0f * breakAnim) * ratio;
 
     // lerp color depending on health
+    Color healthColor{0xffffffff};
     if(useNewDefault) {
         if(health < 0.2) {
             const f32 factor = std::max(0.0, (0.2 - health) / 0.2);
             const f32 value = std::lerp(0.0f, 1.0f, factor);
-            g->setColor(argb(1.0f, value, 0.0f, 0.0f));
+            healthColor = argb(1.0f, value, 0.0f, 0.0f);
         } else if(health < 0.5) {
             const f32 factor = std::max(0.0, (0.5 - health) / 0.5);
             const f32 value = std::lerp(1.0f, 0.0f, factor);
-            g->setColor(argb(1.0f, value, value, value));
-        } else
-            g->setColor(0xffffffff);
-    } else
-        g->setColor(0xffffffff);
+            healthColor = argb(1.0f, value, value, value);
+        }
+    }
+    if(breakAnim != 0.0f || alpha != 1.0f) healthColor.setA(alpha * (1.0f - breakAnim));
 
-    if(breakAnim != 0.0f || alpha != 1.0f) g->setAlpha(alpha * (1.0f - breakAnim));
+    g->setColor(healthColor);
 
     // draw health bar fill
     {

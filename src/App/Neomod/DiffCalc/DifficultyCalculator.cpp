@@ -142,7 +142,7 @@ static f64 adjustOverallDifficultyByClockRate(f64 OD, f64 clockRate);
 }  // namespace
 
 // computed by the star calc (calculateStarDiffForHitObjects), never set by the loader/DifficultHitObject ctor.
-// IMPORTANT: resetComputedFields() below must reset every field in this section, keep the two in sync!
+// IMPORTANT: resetFields() below must reset every field in this section, keep the two in sync!
 struct DifficultyHitObject::Computed {
     // star calc methods, these operate on the computed fields below
     [[nodiscard]] inline const DifficultyHitObject *get_previous(i32 backwardsIdx) const {
