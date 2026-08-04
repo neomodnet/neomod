@@ -337,10 +337,6 @@ void Database::destroyLoader() {
     this->load_interrupted.store(true, std::memory_order_release);  // for subroutines (loadMaps, etc.)
     this->db_load_handle.cancel();
     if(this->db_load_handle.valid()) this->db_load_handle.wait();
-
-    // reset cancellation state after we waited for the load task
-    this->load_interrupted.store(false, std::memory_order_release);
-
     logIf(cv::debug_db.getBool() || cv::debug_async_db.getBool(), "done");
 }
 
@@ -1138,6 +1134,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
     u32 nb_neomod_maps = 0;
     u32 nb_peppy_maps = 0;
     u32 nb_overrides = 0;
+    bool neomod_maps_loaded = false;
 
     // Load neomod map database
     {
@@ -1500,7 +1497,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
             }
         }
         this->bytes_processed += neomod_maps.get_total_size();
-        this->neomod_maps_loaded = true;
+        neomod_maps_loaded = true;
     }
 
     // load peppy maps
@@ -1888,6 +1885,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 }
             }
         }
+        this->neomod_maps_loaded = neomod_maps_loaded;
     } else {
         Sync::unique_lock lock(this->beatmap_difficulties_mtx);
 
