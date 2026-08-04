@@ -140,11 +140,9 @@ $(DEPS_CACHE)/rapidjson-$(RAPIDJSON_COMMIT).tar.gz:
 
 # --with-ffmpeg
 # if changing build params, to invalidate .built stamps (without updating version)
-FFMPEG_EPOCH := 5
-# newer releases are broken for windows xp
-FFMPEG_VERSION_REAL := $(if $(ubercompat),2456a39581c3388bcf6f61c66aef36a887537c23,$(FFMPEG_VERSION))
-FFMPEG_URL := $(if $(ubercompat),https://github.com/FFmpeg/FFmpeg/archive/$(FFMPEG_VERSION_REAL).tar.gz,https://ffmpeg.org/releases/ffmpeg-$(FFMPEG_VERSION_REAL).tar.xz)
-FFMPEG_TARBALL := $(if $(ubercompat),ffmpeg-$(FFMPEG_VERSION_REAL).tar.gz,ffmpeg-$(FFMPEG_VERSION_REAL).tar.xz)
+FFMPEG_EPOCH := 1
+FFMPEG_URL := https://ffmpeg.org/releases/ffmpeg-$(FFMPEG_VERSION).tar.xz
+FFMPEG_TARBALL := ffmpeg-$(FFMPEG_VERSION).tar.xz
 
 $(DEPS_CACHE)/$(FFMPEG_TARBALL):
 	$(MKDIR_P) $(DEPS_CACHE)
@@ -465,7 +463,7 @@ AUDIO_LIBS += $(shell $(PKG_CONFIG) --libs soloud) $(shell $(PKG_CONFIG) --libs 
 SOLOUD_FFMPEG_DEP =
 
 if USE_FFMPEG
-SOLOUD_FFMPEG_DEP += $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION_REAL)-$(FFMPEG_EPOCH).built
+SOLOUD_FFMPEG_DEP += $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION)-$(FFMPEG_EPOCH).built
 
 FFMPEG_INCFLAG := -I$(DEPS_PREFIX)/include
 FFMPEG_LIBDIR := $(DEPS_PREFIX)/lib
@@ -494,7 +492,7 @@ FFMPEG_EXTRA_FLAGS += -fvisibility=default  # because it's shared (wouldn't be a
 
 AUDIO_CFLAGS += $(FFMPEG_INCFLAG)  # so we find our build of ffmpeg's headers for FFmpegLoader
 
-$(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION_REAL)-$(FFMPEG_EPOCH).built: $(DEPS_CACHE)/$(FFMPEG_TARBALL) $(DEPS_PREFIX)/winpthread-noversion.built
+$(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION)-$(FFMPEG_EPOCH).built: $(DEPS_CACHE)/$(FFMPEG_TARBALL) $(DEPS_PREFIX)/winpthread-noversion.built
 	rm -rf $(DEPS_PREFIX)/ffmpeg
 	$(MKDIR_P) $(DEPS_PREFIX)/ffmpeg/build $(DEPS_PREFIX)/lib/pkgconfig
 	$(TAR) xf $(DEPS_CACHE)/$(FFMPEG_TARBALL) -C $(DEPS_PREFIX)/ffmpeg --strip-components=1 && \
@@ -506,7 +504,7 @@ $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION_REAL)-$(FFMPEG_EPOCH).built: $(DEPS_CACHE
 	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
 	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install
 	touch $@
-INSTALL_LIB_DEPS += $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION_REAL)-$(FFMPEG_EPOCH).built
+INSTALL_LIB_DEPS += $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION)-$(FFMPEG_EPOCH).built
 endif # USE_FFMPEG
 
 $(DEPS_PREFIX)/SoLoud-$(SOLOUD_VERSION).built: $(DEPS_CACHE)/SoLoud-$(SOLOUD_VERSION).tar.gz $(SOLOUD_FFMPEG_DEP) $(DEPS_PREFIX)/SDL3-$(SDL3_VERSION).built $(DEPS_PREFIX)/mpg123-$(MPG123_VERSION).built
@@ -1385,7 +1383,7 @@ BUILT_SOURCES := \
 	$(DEPS_PREFIX)/libacl-$(LIBACL_VERSION).built \
 	$(DEPS_PREFIX)/curl-$(CURL_VERSION_REAL).built \
 	$(CACERT_DOWNLOAD_DEP) \
-	$(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION_REAL)-$(FFMPEG_EPOCH).built
+	$(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION)-$(FFMPEG_EPOCH).built
 
 # --- pch setup section (TODO: move flags to configure to check for support instead of hardcoding here) ---
 if BUILD_PCH

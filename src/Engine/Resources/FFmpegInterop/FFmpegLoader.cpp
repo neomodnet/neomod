@@ -195,7 +195,7 @@ bool init_internal() {
     FFmpegFuncset { .bare_libname = #libname, .libhandle_ref = &ld_ctx().libname##_handle, .libversion = (ver) }
     // Versions of FFmpeg libraries which expose an API that's compatible with what we actually need (tested working)
     // clang-format off
-    const std::array<std::array<FFmpegFuncset, 4>, 2> supported_ffmpeg_version_sets{
+    const std::array<std::array<FFmpegFuncset, 4>, 3> supported_ffmpeg_version_sets{
         {{ // FFmpeg 7.1
         FUNCSETDEF(avutil, 59),   //
         FUNCSETDEF(swscale, 8),   //
@@ -206,6 +206,11 @@ bool init_internal() {
         FUNCSETDEF(swscale, 9),   //
         FUNCSETDEF(avcodec, 62),  //
         FUNCSETDEF(avformat, 62), //
+        }, { // FFmpeg 9.0
+        FUNCSETDEF(avutil, 61),   //
+        FUNCSETDEF(swscale, 10),  //
+        FUNCSETDEF(avcodec, 63),  //
+        FUNCSETDEF(avformat, 63), //
         }}};
     // clang-format on
 #undef FUNCSETDEF

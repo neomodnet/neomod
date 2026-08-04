@@ -1679,7 +1679,7 @@ CTRE_MIN_VERSION=3.10.0 # regex support that doesn't have exceptions FORCED enab
 CTRE_BUILD_VERSION=6225211806c48230e5d17a1e555ef69e7325051c # git as of Jan 28th, 2026
 
 # always build these from source if we want to use them
-AC_SUBST([SOLOUD_VERSION], [44771866397c50820cfdd4ffdddcd1c3cc4241ef]) # neoloud fork
+AC_SUBST([SOLOUD_VERSION], [b33140321da683d94d01c02e9a3965c36d20f9c2]) # neoloud fork
 AC_SUBST([SOLOUD_PREFIX],[$DEPS_PREFIX])
 AC_SUBST([SOUNDTOUCH_VERSION], [b8e2a5f3f04483691962ab1a36ffa166abdcd675])
 AC_SUBST([SOUNDTOUCH_PREFIX],[$DEPS_PREFIX])
@@ -1690,7 +1690,7 @@ AC_SUBST([GLM_VERSION], [1.0.3])
 # pre-built, used for soloud
 # NOTE: the links are not stable across architectures, so this is more of a symbolic version than anything
 # (needs manual url changes in Makefile.am)
-AC_SUBST([FFMPEG_VERSION], [8.0])
+AC_SUBST([FFMPEG_VERSION], [9.0])
 
 AC_SUBST([DISCORDRPC_COMMIT], [deedb52ce511728458641783cb6d80c7bbdde38c]) # harmonytf/discord-rpc
 AC_SUBST([RAPIDJSON_COMMIT], [8261c1ddf43f10de00fd8c9a67811d1486b2c784]) # required by discord-rpc, header-only

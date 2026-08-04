@@ -118,9 +118,9 @@ bin_PROGRAMS = neomod$(EXEEXT)
 @BUILD_MPG123_TRUE@am__append_19 = $(DEPS_PREFIX)/mpg123-$(MPG123_VERSION).built
 @USE_SOLOUD_TRUE@am__append_20 = $(shell $(PKG_CONFIG) --cflags soloud) $(shell $(PKG_CONFIG) --cflags soundtouch) $(MPG123_CFLAGS) -DST_NO_EXCEPTION_HANDLING
 @USE_SOLOUD_TRUE@am__append_21 = $(shell $(PKG_CONFIG) --libs soloud) $(shell $(PKG_CONFIG) --libs soundtouch) $(MPG123_LIBS)
-@USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@am__append_22 = $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION_REAL)-$(FFMPEG_EPOCH).built
+@USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@am__append_22 = $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION)-$(FFMPEG_EPOCH).built
 @USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@am__append_23 = $(FFMPEG_INCFLAG)  # so we find our build of ffmpeg's headers for FFmpegLoader
-@USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@am__append_24 = $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION_REAL)-$(FFMPEG_EPOCH).built
+@USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@am__append_24 = $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION)-$(FFMPEG_EPOCH).built
 @USE_SOLOUD_TRUE@am__append_25 = $(DEPS_PREFIX)/SoLoud-$(SOLOUD_VERSION).built $(DEPS_PREFIX)/SoundTouch-$(SOUNDTOUCH_VERSION).built
 @MACOS_PLATFORM_TRUE@@USE_DISCORDRPC_TRUE@am__append_26 = -framework AppKit
 @USE_DISCORDRPC_TRUE@@WIN_PLATFORM_TRUE@am__append_27 = -lpsapi -ladvapi32
@@ -1566,11 +1566,9 @@ CURLCOMMAND = $(CURLBIN) -fsSLo $@ --retry 3 --retry-delay 5 --retry-all-errors 
 
 # --with-ffmpeg
 # if changing build params, to invalidate .built stamps (without updating version)
-FFMPEG_EPOCH := 5
-# newer releases are broken for windows xp
-FFMPEG_VERSION_REAL := $(if $(ubercompat),2456a39581c3388bcf6f61c66aef36a887537c23,$(FFMPEG_VERSION))
-FFMPEG_URL := $(if $(ubercompat),https://github.com/FFmpeg/FFmpeg/archive/$(FFMPEG_VERSION_REAL).tar.gz,https://ffmpeg.org/releases/ffmpeg-$(FFMPEG_VERSION_REAL).tar.xz)
-FFMPEG_TARBALL := $(if $(ubercompat),ffmpeg-$(FFMPEG_VERSION_REAL).tar.gz,ffmpeg-$(FFMPEG_VERSION_REAL).tar.xz)
+FFMPEG_EPOCH := 1
+FFMPEG_URL := https://ffmpeg.org/releases/ffmpeg-$(FFMPEG_VERSION).tar.xz
+FFMPEG_TARBALL := ffmpeg-$(FFMPEG_VERSION).tar.xz
 
 # TEMPTEMP: beatmap pack for WASM demo (pre-extracted)
 # this is going through the "osu! stable raw load" path for database loading,
@@ -1818,7 +1816,7 @@ BUILT_SOURCES := \
 	$(DEPS_PREFIX)/libacl-$(LIBACL_VERSION).built \
 	$(DEPS_PREFIX)/curl-$(CURL_VERSION_REAL).built \
 	$(CACERT_DOWNLOAD_DEP) \
-	$(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION_REAL)-$(FFMPEG_EPOCH).built
+	$(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION)-$(FFMPEG_EPOCH).built
 
 
 # --- pch setup section (TODO: move flags to configure to check for support instead of hardcoding here) ---
@@ -8012,7 +8010,7 @@ $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)-macosaarch64.source: $(DEPS_CACHE)/curl-
 @BUILD_MPG123_TRUE@	$(PKG_CONFIG) --exists --print-errors libmpg123
 @BUILD_MPG123_TRUE@	touch $@
 
-@USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@$(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION_REAL)-$(FFMPEG_EPOCH).built: $(DEPS_CACHE)/$(FFMPEG_TARBALL) $(DEPS_PREFIX)/winpthread-noversion.built
+@USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@$(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION)-$(FFMPEG_EPOCH).built: $(DEPS_CACHE)/$(FFMPEG_TARBALL) $(DEPS_PREFIX)/winpthread-noversion.built
 @USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@	rm -rf $(DEPS_PREFIX)/ffmpeg
 @USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@	$(MKDIR_P) $(DEPS_PREFIX)/ffmpeg/build $(DEPS_PREFIX)/lib/pkgconfig
 @USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@	$(TAR) xf $(DEPS_CACHE)/$(FFMPEG_TARBALL) -C $(DEPS_PREFIX)/ffmpeg --strip-components=1 && \
