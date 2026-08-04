@@ -1887,6 +1887,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
         }
         this->neomod_maps_loaded = neomod_maps_loaded;
     } else {
+        this->neomod_maps_loaded = false;
         Sync::unique_lock lock(this->beatmap_difficulties_mtx);
 
         this->beatmap_difficulties.clear();

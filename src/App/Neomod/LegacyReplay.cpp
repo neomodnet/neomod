@@ -25,7 +25,9 @@
 #include "Parsing.h"
 #include "Logging.h"
 #include "UI.h"
+#include "Replay.h"
 
+#include <optional>
 #include <cstdlib>
 #include <string>
 
@@ -163,8 +165,32 @@ std::vector<u8> compress_frames(const std::vector<Frame>& frames) {
     return compressed;
 }
 
+namespace {
+struct Info {
+    u8 gamemode;
+    u32 osu_version;
+    MD5Hash map_md5;
+    std::string username;
+    MD5Hash replay_md5;
+    int num300s;
+    int num100s;
+    int num50s;
+    int numGekis;
+    int numKatus;
+    int numMisses;
+    i32 score;
+    int comboMax;
+    bool perfect;
+    LegacyFlags mod_flags;
+    std::string life_bar_graph;
+    i64 timestamp;
+    std::vector<Frame> frames;
+    i64 bancho_score_id = 0;
+    std::optional<Replay::Mods> neomod_mods;
+};
+
 Info from_bytes(const u8* data, uSz s_data) {
-    Info info;
+    Info info{};
 
     Packet replay;
     replay.memory = (u8*)data;
@@ -209,10 +235,17 @@ Info from_bytes(const u8* data, uSz s_data) {
 
     // XXX: handle lazer replay data (versions 30000001 to 30000016)
 
-    // TODO: handle neomod replay data (versions 40000000+)
+    // handle neomod mods
+    if(info.osu_version >= 40000000) {
+        auto mods = Replay::Mods::unpack(replay);
+        // Packet::read pins pos to size+1 on overrun, so this detects a truncated/absent block
+        if(replay.pos <= replay.size) info.neomod_mods = mods;
+        // cvar snapshot (u32 count + strings) not currently read (see NOTE in Database::addScore)
+    }
 
     return info;
 }
+}  // namespace
 
 bool load_osr(std::string_view osr_path, FinishedScore& score_out) {
     uSz file_size = 0;
@@ -228,14 +261,14 @@ bool load_osr(std::string_view osr_path, FinishedScore& score_out) {
     if(info.frames.empty()) return false;
 
     score_out.replay = info.frames;
-    score_out.mods = Replay::Mods::from_legacy(info.mod_flags);
+    score_out.mods = info.neomod_mods.value_or(Replay::Mods::from_legacy(info.mod_flags));
     score_out.num300s = info.num300s;
     score_out.num100s = info.num100s;
     score_out.num50s = info.num50s;
     score_out.numGekis = info.numGekis;
     score_out.numKatus = info.numKatus;
     score_out.numMisses = info.numMisses;
-    score_out.score = info.score;
+    score_out.score = (u32)info.score;
     score_out.playerName = info.username;
     score_out.beatmap_hash = info.map_md5;
     score_out.perfect = info.perfect;

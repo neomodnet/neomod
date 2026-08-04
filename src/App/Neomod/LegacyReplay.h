@@ -43,32 +43,9 @@ struct BEATMAP_VALUES {
     float csDifficultyMultiplier;
 };
 
-struct Info {
-    u8 gamemode;
-    u32 osu_version;
-    MD5Hash map_md5;
-    std::string username;
-    MD5Hash replay_md5;
-    int num300s;
-    int num100s;
-    int num50s;
-    int numGekis;
-    int numKatus;
-    int numMisses;
-    i32 score;
-    int comboMax;
-    bool perfect;
-    LegacyFlags mod_flags;
-    std::string life_bar_graph;
-    i64 timestamp;
-    std::vector<Frame> frames;
-    i64 bancho_score_id = 0;
-};
-
 BEATMAP_VALUES getBeatmapValuesForModsLegacy(LegacyFlags modsLegacy, float legacyAR, float legacyCS, float legacyOD,
                                              float legacyHP);
 
-Info from_bytes(const u8* data, uSz s_data);
 std::vector<Frame> get_frames(const u8* replay_data, uSz replay_size);
 std::vector<u8> compress_frames(const std::vector<Frame>& frames);
 bool load_from_disk(FinishedScore& score, bool update_db);
