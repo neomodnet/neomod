@@ -37,20 +37,14 @@ namespace Spectating {
 static i32 current_map_id = 0;
 static CONSTINIT MapFetcher map_fetcher;
 
-// TODO @kiwec: test that those bugs have been fixed
-
 // TODO @kiwec: buglist
-// - lagspike every second DURING GAMEPLAY!
-// - fps dumping to 0 when spectating
-//   - during map download
-//   - at end of a map?
-// - retrying after score doesn't work
-// - retrying after death doesn't work
-// - teleporting to ranking screen when user is not playing or just started map
-// - cursor "times out" randomly during gameplay
-// - pause -> retry results in buffering, then chainmiss for like 10 seconds
-//   - with buffer 5000, we start 12 seconds behind, and skip the start of the map :(
-// - when seeking or initially spectating, all hitobjects before first replay frame should be ignored
+// - map download doesn't work before db is loaded
+// - when starting to spectate mid-play, we get chainmiss for a second
+// - actions such as death are instant when they should happen relative to the scoreframe time (eg spec_buffer later)
+// - sometimes if guy switches to non-downloaded map, spectating still starts, but on wrong map
+// - spectator screen ui is laggy
+// - lagspikes during gameplay
+// - spec_buffer should be dynamic instead of a cvar
 
 #define INIT_LABEL(label_name, default_text, is_big)                      \
     do {                                                                  \
@@ -156,15 +150,13 @@ SpectatorScreen::SpectatorScreen() {
 void SpectatorScreen::tick() {
     UIScreen::tick();
 
-    // HACK: "spectator screen" is just an overlay with higher priority than most screens
-    this->bVisible = BanchoState::spectating && !osu->isInPlayMode() && !ui->getRankingScreen()->isVisible();
-
     if(!BanchoState::spectating) return;
 
     // Control client state
     // XXX: should use map_md5 instead of map_id
     const UserInfo *user_info = BANCHO::User::get_user_info(BanchoState::spectated_player_id, true);
     if(user_info->map_id == -1 || user_info->map_id == 0) {
+        current_map_id = 0;
         if(osu->isInPlayMode()) {
             osu->getMapInterface()->stop(true);
         }

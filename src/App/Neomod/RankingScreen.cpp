@@ -565,6 +565,8 @@ void RankingScreen::onBack() {
 
         // Since we prevented on_map_change() from running while the ranking screen was visible, run it now.
         ui->getRoomScreen()->on_map_change();
+    } else if(BanchoState::spectating) {
+        ui->setScreen(ui->getSpectatorScreen());
     } else {
         ui->setScreen(ui->getSongBrowser());
     }

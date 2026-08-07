@@ -26,6 +26,7 @@
 #include "GameRules.h"
 #include "HUD.h"
 #include "HitObjects.h"
+#include "i18n.h"
 #include "LegacyReplay.h"
 #include "Logging.h"
 #include "MainMenu.h"
@@ -1099,10 +1100,6 @@ void BeatmapInterface::seekMS(u32 ms) {
         this->onModUpdate(false, false);
     }
 
-    if(BanchoState::spectating) {
-        debugLog("After seeking, we are now {:d}ms behind the player.", this->last_frame_ms - (i32)ms);
-    }
-
     if(this->is_watching) {
         // When seeking backwards, restart simulation from beginning
         if(std::cmp_less(ms, this->iCurMusicPos)) {
@@ -1695,7 +1692,12 @@ void BeatmapInterface::unloadMusic() {
 }
 
 void BeatmapInterface::unloadObjects() {
+    this->resetLiveStarsTasks();
     this->currentHitObject = nullptr;
+    this->iCurrentHitObjectIndex = 0;
+    this->iCurrentNumCircles = 0;
+    this->iCurrentNumSliders = 0;
+    this->iCurrentNumSpinners = 0;
     this->hitobjects.clear();
     this->hitobjectsSortedByEndTime.clear();
     this->misaimObjects.clear();
@@ -1774,19 +1776,31 @@ void BeatmapInterface::draw() {
     // draw loading circle
     if(this->isLoading()) {
         if(this->isBuffering()) {
-            f32 leeway = std::clamp<i32>(this->last_frame_ms - this->iCurMusicPos, 0, cv::spec_buffer.getInt());
-            f32 pct = leeway / (cv::spec_buffer.getFloat()) * 100.f;
-            auto loadingMessage = fmt::format("Buffering ... ({:.2f}%)", pct);
+            i32 leeway = std::min(this->getSpectatingLeeway(), cv::spec_buffer.getInt());
+            f32 pct = (f32)leeway / (cv::spec_buffer.getFloat()) * 100.f;
+            std::string loadingMessage = _("Buffering ...");
+            if(pct > 0.f) {
+                loadingMessage.append(fmt::format(" ({:.2f}%)", pct));
+            }
+
+            // show "paused" rather than "buffering" when applicable.
+            // note that depending on server implementation, there are cases where we can miss the unpause packet.
+            // we would then show "paused" while buffering even though they aren't actually paused, but it is what it is...
+            if(this->spectate_pause) {
+                auto info = BANCHO::User::get_user_info(BanchoState::spectated_player_id);
+                loadingMessage = tformat("{} has paused", info->name.c_str());
+            }
+
             ui->getHUD()->drawLoadingSmall(loadingMessage);
 
             // draw the rest of the playfield while buffering/paused
         } else if(BanchoState::is_playing_a_multi_map() && !this->all_players_loaded) {
-            ui->getHUD()->drawLoadingSmall("Waiting for players ...");
+            ui->getHUD()->drawLoadingSmall(_("Waiting for players ..."));
 
             // only start drawing the rest of the playfield if everything has loaded
             return;
         } else {
-            ui->getHUD()->drawLoadingSmall("Loading ...");
+            ui->getHUD()->drawLoadingSmall(_("Loading ..."));
 
             // only start drawing the rest of the playfield if everything has loaded
             return;
@@ -1837,13 +1851,6 @@ void BeatmapInterface::draw() {
 
     // draw continue overlay (moved from HUD to draw properly in FPoSu)
     if(this->isContinueScheduled() && !this->isPaused() && cv::draw_continue.getBool()) this->drawContinue();
-
-    // draw spectator pause message
-    if(this->spectate_pause) {
-        auto info = BANCHO::User::get_user_info(BanchoState::spectated_player_id);
-        auto pause_msg = fmt::format("{} has paused", info->name.c_str());
-        ui->getHUD()->drawLoadingSmall(pause_msg);
-    }
 
     // debug stuff
     if(cv::debug_hiterrorbar_misaims.getBool()) {
@@ -2687,19 +2694,6 @@ void BeatmapInterface::update2() {
         }
     }
 
-    if(BanchoState::spectating) {
-        if(this->spectate_pause && !this->bFailed && this->music->isPlaying()) {
-            soundEngine->pause(this->music);
-            this->bIsPlaying = false;
-            this->bIsPaused = true;
-        }
-        if(!this->spectate_pause && this->bIsPaused) {
-            soundEngine->play(this->music);
-            this->bIsPlaying = true;
-            this->bIsPaused = false;
-        }
-    }
-
     // only continue updating hitobjects etc. if we have loaded everything
     if(this->isLoading()) return;
 
@@ -2761,10 +2755,10 @@ void BeatmapInterface::update2() {
     }
 
     // Make sure we're not too far behind the liveplay
-    if(BanchoState::spectating) {
-        if(this->iCurMusicPos + (2 * cv::spec_buffer.getInt()) < this->last_frame_ms) {
-            i32 target = this->last_frame_ms - cv::spec_buffer.getInt();
-            debugLog("We're {:d}ms behind, seeking to catch up to player...", this->last_frame_ms - this->iCurMusicPos);
+    if(BanchoState::spectating && !this->spectated_replay.empty()) {
+        if(this->getSpectatingLeeway() > 2 * cv::spec_buffer.getInt()) {
+            i32 target = this->spectated_replay.back().cur_music_pos - cv::spec_buffer.getInt();
+            debugLog("We're {:d}ms behind, seeking to catch up to player...", target - this->iCurMusicPos);
             this->seekMS(std::max(0, target));
             return;
         }
@@ -3629,11 +3623,16 @@ const AsyncPPC::pp_res &BeatmapInterface::getWholeMapPPInfo() const {
     return this->full_ppinfo;
 }
 
+i32 BeatmapInterface::getSpectatingLeeway() const {
+    if(this->spectated_replay.empty()) return 0;
+    return std::max(0, this->spectated_replay.back().cur_music_pos - this->iCurMusicPos);
+}
+
 // HACK: Updates buffering state and pauses/unpauses the music!
 bool BeatmapInterface::isBuffering() {
     if(!BanchoState::spectating) return false;
 
-    i32 leeway = this->last_frame_ms - this->iCurMusicPos;
+    i32 leeway = this->getSpectatingLeeway();
     if(this->is_buffering) {
         // Make sure music is actually paused
         if(this->music->isPlaying()) {
@@ -3643,8 +3642,7 @@ bool BeatmapInterface::isBuffering() {
         }
 
         if(leeway >= cv::spec_buffer.getInt()) {
-            debugLog("UNPAUSING: leeway: {:d}, last_event: {:d}, last_frame: {:d}", leeway, this->iCurMusicPos,
-                     this->last_frame_ms);
+            debugLog("UNPAUSING: leeway: {:d}, iCurMusicPos: {:d}", leeway, this->iCurMusicPos);
             soundEngine->play(this->music);
             this->bIsPlaying = true;
             this->bIsPaused = false;
@@ -3655,9 +3653,8 @@ bool BeatmapInterface::isBuffering() {
             this->hitobjectsSortedByEndTime.size() > 0 ? this->hitobjectsSortedByEndTime.back() : nullptr;
         bool is_finished = lastHitObject != nullptr && lastHitObject->isFinished();
 
-        if(leeway < 0 && !is_finished) {
-            debugLog("PAUSING: leeway: {:d}, last_event: {:d}, last_frame: {:d}", leeway, this->iCurMusicPos,
-                     this->last_frame_ms);
+        if(leeway <= 0 && !is_finished) {
+            debugLog("PAUSING: leeway: {:d}, iCurMusicPos: {:d}", leeway, this->iCurMusicPos);
             soundEngine->pause(this->music);
             this->bIsPlaying = false;
             this->bIsPaused = true;

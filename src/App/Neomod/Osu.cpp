@@ -1506,7 +1506,11 @@ void Osu::onPlayEnd(const FinishedScore &score, bool quit) {
     }
 
     if(quit && !Osu::isKioskMode()) {
-        ui->setScreen(ui->getSongBrowser());
+        if(BanchoState::spectating) {
+            ui->setScreen(ui->getSpectatorScreen());
+        } else {
+            ui->setScreen(ui->getSongBrowser());
+        }
     } else {
         ui->getRankingScreen()->setScore(score);
         ui->setScreen(ui->getRankingScreen());
@@ -2317,8 +2321,7 @@ void Osu::setupAudio() {
         cv::win_snd_wasapi_exclusive.setCallback(SA::MakeDelegate<&SoundEngine::onParamChanged>(soundEngine));
         cv::win_snd_wasapi_buffer_size.setCallback(SA::MakeDelegate<&SoundEngine::onParamChanged>(soundEngine));
         cv::win_snd_wasapi_period_size.setCallback(SA::MakeDelegate<&SoundEngine::onParamChanged>(soundEngine));
-        cv::win_snd_wasapi_event_callbacks.setCallback(
-            SA::MakeDelegate<&SoundEngine::onParamChanged>(soundEngine));
+        cv::win_snd_wasapi_event_callbacks.setCallback(SA::MakeDelegate<&SoundEngine::onParamChanged>(soundEngine));
         cv::asio_buffer_size.setCallback(SA::MakeDelegate<&SoundEngine::onParamChanged>(soundEngine));
         cv::snd_output_device.setCallback(
             []() -> void { osu && osu->UIReady() ? ui->getOptionsOverlay()->scheduleLayoutUpdate() : (void)0; });
