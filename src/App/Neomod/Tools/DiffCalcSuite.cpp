@@ -216,6 +216,7 @@ CalcSnapshot calcOnce(DatabaseBeatmap::LOAD_DIFFOBJ_RESULT &loaded, const Crossc
                                                .relax = flags::has<ModFlags::Relax>(setup.modFlags),
                                                .autopilot = autopilot,
                                                .touchDevice = flags::has<ModFlags::TouchDevice>(setup.modFlags),
+                                               .flashlight = flags::has<ModFlags::Flashlight>(setup.modFlags),
                                                .speedMultiplier = setup.speedMultiplier,
                                                .breakDuration = loaded.totalBreakDuration,
                                                .playableLength = loaded.playableLength};
@@ -526,7 +527,10 @@ int runCrosscheck(const std::vector<std::string> &argv) {
             (void)calcOnce(reference, odSetup, -1, &reference.strainState);
             const CalcSnapshot odReference = calcOnce(reference, odSetup, -1, nullptr);
             check(label, "od-recompute", odReference, odRecomputed);
-            if(computeRuns && !reused.strainState.matches(setup.CS, odSetup.odOverride, cfg.speed, autopilot)) {
+            if(computeRuns && !reused.strainState.matches(setup.CS, odSetup.odOverride, setup.AR, cfg.speed,
+                                                          flags::has<ModFlags::Relax>(setup.modFlags), autopilot,
+                                                          flags::has<ModFlags::TouchDevice>(setup.modFlags),
+                                                          flags::has<ModFlags::Flashlight>(setup.modFlags))) {
                 fixtureFailures++;
                 std::cout << "FAIL " << fixture << ' ' << label
                           << " state-key: strainState does not record the recomputed od\n";
@@ -538,7 +542,10 @@ int runCrosscheck(const std::vector<std::string> &argv) {
             const CalcSnapshot apRecomputed = calcOnce(reused, apSetup, -1, &reused.strainState);
             const CalcSnapshot apReference = calcOnce(reference, apSetup, -1, nullptr);
             check(label, "ap-recompute", apReference, apRecomputed);
-            if(computeRuns && !reused.strainState.matches(setup.CS, odSetup.odOverride, cfg.speed, !autopilot)) {
+            if(computeRuns && !reused.strainState.matches(setup.CS, odSetup.odOverride, setup.AR, cfg.speed,
+                                                          flags::has<ModFlags::Relax>(setup.modFlags), !autopilot,
+                                                          flags::has<ModFlags::TouchDevice>(setup.modFlags),
+                                                          flags::has<ModFlags::Flashlight>(setup.modFlags))) {
                 fixtureFailures++;
                 std::cout << "FAIL " << fixture << ' ' << label
                           << " state-key: strainState does not record the recomputed autopilot\n";

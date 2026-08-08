@@ -54,13 +54,30 @@ struct Skills {
     enum Skill : u8 { SPEED, AIM_SLIDERS, AIM_NO_SLIDERS, NUM_SKILLS };
 };
 
-inline constexpr const f64 performance_base_multiplier = 1.14;  // keep final pp normalized across changes
+inline constexpr const f64 performance_base_multiplier = 1.12;  // keep final pp normalized across changes
 
 // see https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Speed.cs
 // see https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Aim.cs
 
-// how much strains decay per interval (if the previous interval's peak strains after applying decay are still higher than the current one's, they will be used as the peak strains).
-inline constexpr const f64 decay_base[Skills::NUM_SKILLS] = {0.3, 0.15, 0.15};
+// normalized EMA decay bases per skill (strain = strain * decay + noteDiff * (1 - decay))
+inline constexpr const f64 decay_base[Skills::NUM_SKILLS] = {0.3, 0.2, 0.2};
+
+// per-map constants shared by every strain evaluator (mod effects are per-note now)
+struct StrainEvalContext {
+    f64 hitWindow300{};        // rate-adjusted, == lazer HitWindowGreat
+    f64 circleRadius{};        // real (unnormalized) circle radius in osu!pixels
+    f64 smallCircleBonus{1.};  // max(1, 1 + (30 - radius) / 70)
+    f64 odScalingAimFl{1.};    // 0.985 + OD^2 / 4000 (per-note OD scaling for aim + flashlight)
+    f64 odScalingReading{1.};  // 0.825 + OD^2.2 / 1125
+    f64 preemptRaw{};          // beatmap-time preempt from AR (OpacityAt domain)
+    f64 preemptAdjusted{};     // rate-adjusted preempt (lazer Preempt)
+    f64 fadeInRaw{};           // 400 * min(1, preemptRaw / 450), beatmap-time
+
+    bool relax{false};
+    bool autopilot{false};
+    bool touchDevice{false};
+    bool flashlight{false};
+};
 
 inline constexpr const f64 DIFFCALC_EPSILON = 1e-32;
 
@@ -117,13 +134,7 @@ class DifficultyHitObject {
         return std::max(0, endTime - time);
     }
 
-    void calculate_strains(const DifficultyHitObject &prev, const DifficultyHitObject *next, f64 hitWindow300,
-                           bool autopilotNerf, f64 smallCircleBonus);
-    void calculate_strain(const DifficultyHitObject &prev, const DifficultyHitObject *next, f64 hitWindow300,
-                          bool autopilotNerf, f64 smallCircleBonus, const Skills::Skill dtype);
-    f64 spacing_weight2(const Skills::Skill diff_type, const DifficultyHitObject &prev, const DifficultyHitObject *next,
-                        f64 hitWindow300, bool autopilotNerf, f64 smallCircleBonus);
-    [[nodiscard]] f64 get_doubletapness(const DifficultyHitObject *next, f64 hitWindow300) const;
+    void calculate_strains(const DifficultyHitObject &prev, const StrainEvalContext &ctx);
 
    public:
     // circles (base)
@@ -155,7 +166,7 @@ class DifficultyHitObject {
     // ============================================================================================================== //
     // computed by the star calc (calculateStarDiffForHitObjects), never set by the loader/ctor.
     struct Computed;
-    StaticPImpl<Computed, 184> c;
+    StaticPImpl<Computed, 216> c;
 };
 
 // This struct is the core data computed by difficulty calculation and used in performance calculation
@@ -169,6 +180,11 @@ struct DifficultyAttributes {
 
     f64 SpeedDifficulty{0.};
     f64 SpeedNoteCount{0.};
+
+    f64 ReadingDifficulty{0.};
+    f64 ReadingDifficultNoteCount{0.};
+
+    f64 FlashlightDifficulty{0.};
 
     f64 SliderFactor{0.};
 
@@ -200,20 +216,24 @@ struct BeatmapDiffcalcData {
     f32 CS{5.f}, HP{5.f}, AR{5.f}, OD{5.f};
 
     // Relevant mods
-    bool hidden{false}, relax{false}, autopilot{false}, touchDevice{false};
+    bool hidden{false}, relax{false}, autopilot{false}, touchDevice{false}, flashlight{false};
     f32 speedMultiplier{1.f};
 
     u32 breakDuration{0};
     u32 playableLength{0};
 };
 
-// raw difficulty values before the final rating transform (computeAimRating/computeSpeedRating).
-// identical between hidden and non-hidden for the same strains, so can be reused
-// to avoid redundant calculate_difficulty calls for HD pairs.
+// raw difficulty values before the final rating transform. the hidden-dependent skills carry
+// both variants so recomputeStarRating stays pure math for HD pairs (no strain recompute).
+// the flashlight values are only filled when the flashlight flag was set for the calculation.
 struct RawDifficultyValues {
     f64 aimNoSliders{0.};
     f64 aim{0.};
     f64 speed{0.};
+    f64 readingNoHidden{0.};
+    f64 readingHidden{0.};
+    f64 flashlightNoHidden{0.};
+    f64 flashlightHidden{0.};
 };
 
 struct StarCalcParams {

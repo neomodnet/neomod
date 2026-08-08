@@ -559,6 +559,7 @@ OneMapResult computeOneConfig(DatabaseBeatmap::PRIMITIVE_CONTAINER &primitives, 
                                                .relax = flags::has<ModFlags::Relax>(modFlags),
                                                .autopilot = flags::has<ModFlags::Autopilot>(modFlags),
                                                .touchDevice = flags::has<ModFlags::TouchDevice>(modFlags),
+                                               .flashlight = flags::has<ModFlags::Flashlight>(modFlags),
                                                .speedMultiplier = speedMultiplier,
                                                .breakDuration = diffResult.totalBreakDuration,
                                                .playableLength = diffResult.playableLength};
@@ -650,27 +651,32 @@ OneMapResult computeOneMap(const std::string &osuFilePath, ModFlags modFlags, fl
 std::string jsonDifficultyAttributes(const DiffCalc::DifficultyAttributes &attrs) {
     // exhaustive: this structured binding fails to compile when DifficultyAttributes gains or
     // loses a field, extend the json below when it does
-    const auto &[aimDifficulty, aimDifficultSliderCount, speedDifficulty, speedNoteCount, sliderFactor,
-                 aimTopWeightedSliderFactor, speedTopWeightedSliderFactor, aimDifficultStrainCount,
-                 speedDifficultStrainCount, nestedScorePerObject, legacyScoreBaseMultiplier, sliderCount,
-                 maximumLegacyComboScore, approachRate, overallDifficulty] = attrs;
+    const auto &[aimDifficulty, aimDifficultSliderCount, speedDifficulty, speedNoteCount, readingDifficulty,
+                 readingDifficultNoteCount, flashlightDifficulty, sliderFactor, aimTopWeightedSliderFactor,
+                 speedTopWeightedSliderFactor, aimDifficultStrainCount, speedDifficultStrainCount, nestedScorePerObject,
+                 legacyScoreBaseMultiplier, sliderCount, maximumLegacyComboScore, approachRate, overallDifficulty] =
+        attrs;
     return std::format(
         R"({{"aimDifficulty":{},"aimDifficultSliderCount":{},"speedDifficulty":{},"speedNoteCount":{},)"
+        R"("readingDifficulty":{},"readingDifficultNoteCount":{},"flashlightDifficulty":{},)"
         R"("sliderFactor":{},"aimTopWeightedSliderFactor":{},"speedTopWeightedSliderFactor":{},)"
         R"("aimDifficultStrainCount":{},"speedDifficultStrainCount":{},"nestedScorePerObject":{},)"
         R"("legacyScoreBaseMultiplier":{},"sliderCount":{},"maximumLegacyComboScore":{},"approachRate":{},)"
         R"("overallDifficulty":{}}})",
         jnum(aimDifficulty), jnum(aimDifficultSliderCount), jnum(speedDifficulty), jnum(speedNoteCount),
-        jnum(sliderFactor), jnum(aimTopWeightedSliderFactor), jnum(speedTopWeightedSliderFactor),
-        jnum(aimDifficultStrainCount), jnum(speedDifficultStrainCount), jnum(nestedScorePerObject),
-        jnum(legacyScoreBaseMultiplier), sliderCount, maximumLegacyComboScore, jnum(approachRate),
-        jnum(overallDifficulty));
+        jnum(readingDifficulty), jnum(readingDifficultNoteCount), jnum(flashlightDifficulty), jnum(sliderFactor),
+        jnum(aimTopWeightedSliderFactor), jnum(speedTopWeightedSliderFactor), jnum(aimDifficultStrainCount),
+        jnum(speedDifficultStrainCount), jnum(nestedScorePerObject), jnum(legacyScoreBaseMultiplier), sliderCount,
+        maximumLegacyComboScore, jnum(approachRate), jnum(overallDifficulty));
 }
 
 std::string jsonRawDifficultyValues(const DiffCalc::RawDifficultyValues &raw) {
     // exhaustive, same idea as jsonDifficultyAttributes
-    const auto &[aimNoSliders, aim, speed] = raw;
-    return std::format(R"({{"aimNoSliders":{},"aim":{},"speed":{}}})", jnum(aimNoSliders), jnum(aim), jnum(speed));
+    const auto &[aimNoSliders, aim, speed, readingNoHidden, readingHidden, flashlightNoHidden, flashlightHidden] = raw;
+    return std::format(R"({{"aimNoSliders":{},"aim":{},"speed":{},"readingNoHidden":{},"readingHidden":{},)"
+                       R"("flashlightNoHidden":{},"flashlightHidden":{}}})",
+                       jnum(aimNoSliders), jnum(aim), jnum(speed), jnum(readingNoHidden), jnum(readingHidden),
+                       jnum(flashlightNoHidden), jnum(flashlightHidden));
 }
 
 std::string writeJsonLine(const OneMapResult &r, bool dumpStrains) {
