@@ -21,6 +21,7 @@ struct Skin;
 class Resource;
 class HitObject;
 class DatabaseBeatmap;
+class SpectatorScreen;
 class SimulatedBeatmapInterface;
 struct LiveReplayFrame;
 struct ScoreFrame;
@@ -62,9 +63,6 @@ class BeatmapInterface final : public AbstractBeatmapInterface {
     // does things which needed to wait until loading finished, even outside of play mode (called by Osu::update)
     void checkHandleAsyncMusicLoadFinish();
     [[nodiscard]] inline bool isMusicLoadHandled() const { return this->bIsAsyncMusicLoadHandled; }
-
-    // HACK: Updates buffering state and pauses/unpauses the music!
-    bool isBuffering();
 
     // Returns true if we're loading or waiting on other players
     bool isLoading();
@@ -196,6 +194,7 @@ class BeatmapInterface final : public AbstractBeatmapInterface {
     u16 spectator_sequence = 0;
 
     // spectating (live)
+    friend class SpectatorScreen;
     [[nodiscard]] i32 getSpectatingLeeway() const;
     std::vector<ScoreFrame> score_frames;
     bool is_buffering = false;

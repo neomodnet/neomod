@@ -1777,7 +1777,7 @@ void BeatmapInterface::draw() {
 
     // draw loading circle
     if(this->isLoading()) {
-        if(this->isBuffering()) {
+        if(this->is_buffering) {
             i32 leeway = std::min(this->getSpectatingLeeway(), cv::spec_buffer.getInt());
             f32 pct = (f32)leeway / (cv::spec_buffer.getFloat()) * 100.f;
             std::string loadingMessage = _("Buffering ...");
@@ -3630,55 +3630,8 @@ i32 BeatmapInterface::getSpectatingLeeway() const {
     return std::max(0, this->spectated_replay.back().cur_music_pos - this->iCurMusicPos);
 }
 
-// HACK: Updates buffering state, pauses/unpauses the music, starts the fail animation or even unloads the map!
-bool BeatmapInterface::isBuffering() {
-    if(!BanchoState::spectating) return false;
-
-    i32 leeway = this->getSpectatingLeeway();
-    if(leeway <= 0 && this->spectate_quit) {
-        this->stop(true);
-        return true;  // returning TRUE to end update loop early (since we did just unload stuff...)
-    }
-    if(leeway <= 0 && this->spectate_fail) {
-        this->fail(true);
-        return false;
-    }
-
-    if(this->is_buffering) {
-        // Make sure music is actually paused
-        if(this->music->isPlaying()) {
-            soundEngine->pause(this->music);
-            this->bIsPlaying = false;
-            this->bIsPaused = true;
-        }
-
-        if(leeway >= cv::spec_buffer.getInt()) {
-            debugLog("UNPAUSING: leeway: {:d}, iCurMusicPos: {:d}", leeway, this->iCurMusicPos);
-            soundEngine->play(this->music);
-            this->bIsPlaying = true;
-            this->bIsPaused = false;
-            this->is_buffering = false;
-        }
-    } else {
-        HitObject *lastHitObject =
-            this->hitobjectsSortedByEndTime.size() > 0 ? this->hitobjectsSortedByEndTime.back() : nullptr;
-        bool is_finished = lastHitObject != nullptr && lastHitObject->isFinished();
-
-        if(leeway <= 0 && !is_finished) {
-            debugLog("PAUSING: leeway: {:d}, iCurMusicPos: {:d}", leeway, this->iCurMusicPos);
-            soundEngine->pause(this->music);
-            this->bIsPlaying = false;
-            this->bIsPaused = true;
-            this->is_buffering = true;
-        }
-    }
-
-    return this->is_buffering;
-}
-
-// TODO: make isBuffering const
 bool BeatmapInterface::isLoading() {
-    return (this->isActuallyLoading() || this->isBuffering() ||
+    return (this->isActuallyLoading() || this->is_buffering ||
             (BanchoState::is_playing_a_multi_map() && !this->all_players_loaded));
 }
 

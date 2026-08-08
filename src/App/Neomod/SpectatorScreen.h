@@ -2,6 +2,8 @@
 // Copyright (c) 2024, kiwec, All rights reserved.
 
 #include "types.h"
+#include "BanchoProtocol.h"
+#include "LegacyReplay.h"
 #include "UIScreen.h"
 
 class McFont;
@@ -10,6 +12,15 @@ class CBaseUILabel;
 class UserCard;
 class CBaseUIScrollView;
 class UIButton;
+
+struct RemotePlayerUpdate {
+    LiveReplayAction action;
+    i32 music_pos;
+    i32 map_id;
+    MD5Hash map_md5;
+    ScoreFrame score;
+    std::vector<LegacyReplay::Frame> replay_frames;
+};
 
 class SpectatorScreen final : public UIScreen {
    public:
@@ -20,10 +31,15 @@ class SpectatorScreen final : public UIScreen {
     void draw() override;
     void onKeyDown(KeyboardEvent& e) override;
     void onStopSpectatingClicked();
+    void handleFrameBundle(Packet& packet);
 
     UserCard* userCard = nullptr;
 
    private:
+    void controlClientState();
+
+    std::vector<RemotePlayerUpdate> player_updates;
+
     McFont* font = nullptr;
     McFont* lfont = nullptr;
     PauseButton* pauseButton = nullptr;

@@ -5,13 +5,16 @@
 #include "BackgroundImageHandler.h"
 #include "Bancho.h"
 #include "BanchoNetworking.h"
+#include "BanchoProtocol.h"
 #include "BanchoUsers.h"
 #include "BeatmapInterface.h"
 #include "Database.h"
+#include "DatabaseBeatmap.h"
 #include "CBaseUILabel.h"
 #include "OsuConVars.h"
 #include "MapFetcher.h"
 #include "ModSelector.h"
+#include "HitObjects.h"
 #include "i18n.h"
 #include "KeyBindings.h"
 #include "Lobby.h"
@@ -24,6 +27,7 @@
 #include "RoomScreen.h"
 #include "Skin.h"
 #include "SongBrowser.h"
+#include "Sound.h"
 #include "SoundEngine.h"
 #include "UI.h"
 #include "UIButton.h"
@@ -35,11 +39,10 @@ using namespace Spectating;
 namespace Spectating {
 
 static i32 current_map_id = 0;
+static MD5Hash current_map_md5;
 static CONSTINIT MapFetcher map_fetcher;
 
 // TODO @kiwec: buglist
-// - spectator screen ui is laggy
-// - lagspikes during gameplay
 // - spec_buffer should be dynamic instead of a cvar
 
 #define INIT_LABEL(label_name, default_text, is_big)                      \
@@ -66,6 +69,7 @@ void start(int user_id) {
     BanchoState::spectating = true;
     BanchoState::spectated_player_id = user_id;
     current_map_id = 0;
+    current_map_md5.clear();
     map_fetcher.clear();
 
     if(!db->isFinished() || db->isCancelled()) {
@@ -103,6 +107,7 @@ void stop() {
     BanchoState::spectating = false;
     BanchoState::spectated_player_id = 0;
     current_map_id = 0;
+    current_map_md5.clear();
     map_fetcher.clear();
 
     Packet packet;
@@ -148,15 +153,11 @@ SpectatorScreen::SpectatorScreen() {
     this->addBaseUIElement(this->stop_btn);
 }
 
-// NOTE: We use this to control client state, even when the spectator screen isn't visible.
-void SpectatorScreen::tick() {
-    UIScreen::tick();
-
+void SpectatorScreen::controlClientState() {
     if(!BanchoState::spectating) return;
 
     const bool can_load_maps = db->isFinished() && !db->isCancelled();
 
-    // Control client state
     // XXX: should use map_md5 instead of map_id
     const UserInfo *user_info = BANCHO::User::get_user_info(BanchoState::spectated_player_id, true);
     if(osu->isInPlayMode() && user_info->map_id != current_map_id) {
@@ -165,6 +166,7 @@ void SpectatorScreen::tick() {
     }
     if(user_info->map_id == -1 || user_info->map_id == 0) {
         current_map_id = 0;
+        current_map_md5.clear();
     } else if(user_info->mode == GameMode::STANDARD && user_info->map_id != current_map_id && can_load_maps) {
         // drive the spectated user's map through the fetcher (retargeting is implicit when they
         // change maps under us); start spectating once it lands.
@@ -172,6 +174,7 @@ void SpectatorScreen::tick() {
         if(map_fetcher.tick().status == MapFetcher::Status::Found && !osu->isInPlayMode()) {
             auto *diff = map_fetcher.result();
             current_map_id = user_info->map_id;
+            current_map_md5 = user_info->map_md5;
             map_fetcher.clear();
             ui->setScreen(ui->getSpectatorScreen());
             ui->getSongBrowser()->onDifficultySelected(diff, false);
@@ -180,13 +183,112 @@ void SpectatorScreen::tick() {
         // failure is handled by the status text below
     }
 
-    // Update spectator screen UI
+    auto *map_iface = osu->getMapInterface();
+
+    for(auto update : this->player_updates) {
+        // TODO: blindly pushing frames to map_iface is wrong. same for score_frames below.
+        //       the remote player might have already restarted or changed map, in which case
+        //       we're just pushing frames to oblivion since they will get cleared on map start.
+        //       this causes us to miss the first few seconds of frames on every map (!!!)
+        for(auto frame : update.replay_frames) {
+            map_iface->spectated_replay.push_back(frame);
+        }
+        map_iface->score_frames.push_back(update.score);
+
+        if(osu->isInPlayMode()) {
+            switch(update.action) {
+                using enum LiveReplayAction;
+                case NEW_SONG: {
+                    // TODO: also trigger this if packet.time < iCurMusicPos, or implement better auto-seeking
+                    //       since we can miss the NEW_SONG packet and neomod clients can freely seek back/forwards
+                    map_iface->spectate_fail = false;
+                    map_iface->spectate_pause = false;
+                    map_iface->spectate_quit = false;
+                    map_iface->score_frames.clear();
+                    map_iface->restart(true);
+                    map_iface->update();
+                } break;
+                case SKIP: {
+                    // skip once we reach an empty section large enough to skip
+                    map_iface->skipEmptySection();
+                } break;
+                case FAIL: {
+                    // fail once we reach end of map_iface->spectated_replay
+                    map_iface->spectate_fail = true;
+                } break;
+                case PAUSE: {
+                    // pause once we reach end of map_iface->spectated_replay
+                    map_iface->spectate_pause = true;
+                } break;
+                case UNPAUSE: {
+                    map_iface->spectate_pause = false;
+                } break;
+                // nothing
+                case NONE:
+                case COMPLETION:
+                case SONG_SELECT:
+                case WATCHING_OTHER:
+                case MAX_ACTION:
+                    break;
+            }
+        }
+    }
+    this->player_updates.clear();
+
+    if(osu->isInPlayMode()) {
+        i32 leeway = map_iface->getSpectatingLeeway();
+        if(leeway <= 0 && map_iface->spectate_quit) {
+            map_iface->stop(true);
+            return;
+        }
+        if(leeway <= 0 && map_iface->spectate_fail) {
+            map_iface->fail(true);
+            return;
+        }
+
+        if(map_iface->is_buffering) {
+            // Make sure music is actually paused
+            if(map_iface->music->isPlaying()) {
+                soundEngine->pause(map_iface->music);
+                map_iface->bIsPlaying = false;
+                map_iface->bIsPaused = true;
+            }
+
+            if(leeway >= cv::spec_buffer.getInt()) {
+                debugLog("UNPAUSING: leeway: {:d}, iCurMusicPos: {:d}", leeway, map_iface->iCurMusicPos);
+                soundEngine->play(map_iface->music);
+                map_iface->bIsPlaying = true;
+                map_iface->bIsPaused = false;
+                map_iface->is_buffering = false;
+            }
+        } else {
+            HitObject *lastHitObject =
+                map_iface->hitobjectsSortedByEndTime.size() > 0 ? map_iface->hitobjectsSortedByEndTime.back() : nullptr;
+            bool is_finished = lastHitObject != nullptr && lastHitObject->isFinished();
+
+            if(leeway <= 0 && !is_finished) {
+                debugLog("PAUSING: leeway: {:d}, iCurMusicPos: {:d}", leeway, map_iface->iCurMusicPos);
+                soundEngine->pause(map_iface->music);
+                map_iface->bIsPlaying = false;
+                map_iface->bIsPaused = true;
+                map_iface->is_buffering = true;
+            }
+        }
+    }
+}
+
+void SpectatorScreen::tick() {
+    UIScreen::tick();
+    this->controlClientState();
+    if(!this->isVisible()) return;
+
     static i32 last_player_id = 0;
     if(BanchoState::spectated_player_id != last_player_id) {
         this->userCard->setID(BanchoState::spectated_player_id);
         last_player_id = BanchoState::spectated_player_id;
     }
 
+    const UserInfo *user_info = BANCHO::User::get_user_info(BanchoState::spectated_player_id, true);
     this->spectating->setText(tformat("Spectating {:s}", user_info->name));
 
     {
@@ -205,7 +307,7 @@ void SpectatorScreen::tick() {
     } else if(user_info->map_id != -1 && user_info->map_id != 0) {
         if(user_info->map_id != current_map_id) {
             const auto &fs = map_fetcher.state();
-            if(!can_load_maps) {
+            if(!db->isFinished() || db->isCancelled()) {
                 // this text shouldn't be visible, it's a failsafe in case we fucked up the complex db loading logic
                 this->status->setText(tformat("Database not loaded, cannot install map"));
             } else if(fs.status == MapFetcher::Status::NotFound) {
@@ -260,7 +362,6 @@ void SpectatorScreen::tick() {
 }
 
 void SpectatorScreen::updateInput(CBaseUIEventCtx &c) {
-    // bVisible is computed in tick(), which ran earlier this frame
     if(this->isVisible()) {
         UIScreen::updateInput(c);
     }
@@ -289,3 +390,56 @@ void SpectatorScreen::onKeyDown(KeyboardEvent &key) {
 }
 
 void SpectatorScreen::onStopSpectatingClicked() { Spectating::stop(); }
+
+void SpectatorScreen::handleFrameBundle(Packet &packet) {
+    if(!BanchoState::spectating) return;
+
+    UserInfo *info = BANCHO::User::get_user_info(BanchoState::spectated_player_id, true);
+    auto *map_iface = osu->getMapInterface();
+
+    RemotePlayerUpdate update;
+    update.map_id = info->map_id;
+    update.map_md5 = info->map_md5;
+
+    update.music_pos = -1000;
+    if(map_iface->beatmap && map_iface->beatmap->getMD5() == update.map_md5 && !map_iface->spectated_replay.empty()) {
+        update.music_pos = map_iface->spectated_replay.back().cur_music_pos;
+    }
+
+    i32 extra = packet.read<i32>();
+    (void)extra;  // this is mania seed or something we can't use
+
+    u16 nb_frames = packet.read<u16>();
+    for(u16 i = 0; i < nb_frames; i++) {
+        auto frame = packet.read<LiveReplayFrame>();
+        update.replay_frames.push_back(LegacyReplay::Frame{
+            .cur_music_pos = frame.time,
+            .milliseconds_since_last_frame = 0,  // set below
+            .x = frame.mouse_x,
+            .y = frame.mouse_y,
+            .key_flags = frame.key_flags,
+        });
+    }
+
+    auto action = (LiveReplayAction)packet.read<u8>();
+    info->spec_action = action;
+    update.action = action;
+
+    update.score = packet.read<ScoreFrame>();
+
+    auto sequence = packet.read<u16>();
+    (void)sequence;  // don't know how to use this
+
+    // some clients send frames in the wrong order, so we're correcting it here.
+    std::ranges::sort(update.replay_frames, [](const LegacyReplay::Frame &a, const LegacyReplay::Frame &b) {
+        return a.cur_music_pos < b.cur_music_pos;
+    });
+
+    for(auto &frame : update.replay_frames) {
+        frame.milliseconds_since_last_frame = frame.cur_music_pos - update.music_pos;
+        update.music_pos = frame.cur_music_pos;
+        update.replay_frames.push_back(frame);
+    }
+
+    this->player_updates.push_back(update);
+}
