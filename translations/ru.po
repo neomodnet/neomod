@@ -101,6 +101,25 @@ msgstr "Импортирован набор карт #{:d}"
 msgid "Downloaded beatmapset #{:d}"
 msgstr "Скачан набор карт #{:d}"
 
+#: src/App/Neomod/BeatmapInterface.cpp
+msgid "Buffering ..."
+msgstr ""
+
+#: src/App/Neomod/BeatmapInterface.cpp
+#, c++-format
+msgid "{} has paused"
+msgstr ""
+
+#: src/App/Neomod/BeatmapInterface.cpp
+#, fuzzy
+msgid "Waiting for players ..."
+msgstr "Ожидание браузера..."
+
+#: src/App/Neomod/BeatmapInterface.cpp
+#, fuzzy
+msgid "Loading ..."
+msgstr "Загрузка..."
+
 #: src/App/Neomod/Chat.cpp
 msgid "You are not listening to anything."
 msgstr "Вы ничего не слушаете."

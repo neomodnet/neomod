@@ -76,6 +76,23 @@ msgstr ""
 msgid "Downloaded beatmapset #{:d}"
 msgstr ""
 
+#: src/App/Neomod/BeatmapInterface.cpp
+msgid "Buffering ..."
+msgstr ""
+
+#: src/App/Neomod/BeatmapInterface.cpp
+#, c++-format
+msgid "{} has paused"
+msgstr ""
+
+#: src/App/Neomod/BeatmapInterface.cpp
+msgid "Waiting for players ..."
+msgstr ""
+
+#: src/App/Neomod/BeatmapInterface.cpp
+msgid "Loading ..."
+msgstr ""
+
 #: src/App/Neomod/Chat.cpp
 msgid "You are not listening to anything."
 msgstr ""

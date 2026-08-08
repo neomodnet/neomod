@@ -196,7 +196,7 @@ class BeatmapInterface final : public AbstractBeatmapInterface {
     u16 spectator_sequence = 0;
 
     // spectating (live)
-    [[nodiscard]] inline i32 getSpectatingLeeway() const;
+    [[nodiscard]] i32 getSpectatingLeeway() const;
     std::vector<ScoreFrame> score_frames;
     bool is_buffering = false;
     bool spectate_pause = false;  // the player we're spectating has paused

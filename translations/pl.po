@@ -104,6 +104,25 @@ msgstr "Pobrano zestaw beatmap #{:d}"
 msgid "Downloaded beatmapset #{:d}"
 msgstr "Pobrano zestaw beatmap #{:d}"
 
+#: src/App/Neomod/BeatmapInterface.cpp
+msgid "Buffering ..."
+msgstr ""
+
+#: src/App/Neomod/BeatmapInterface.cpp
+#, c++-format
+msgid "{} has paused"
+msgstr ""
+
+#: src/App/Neomod/BeatmapInterface.cpp
+#, fuzzy
+msgid "Waiting for players ..."
+msgstr "Oczekiwanie na przeglądarkę..."
+
+#: src/App/Neomod/BeatmapInterface.cpp
+#, fuzzy
+msgid "Loading ..."
+msgstr "Wczytywanie..."
+
 #: src/App/Neomod/Chat.cpp
 msgid "You are not listening to anything."
 msgstr "Niczego nie słuchasz."

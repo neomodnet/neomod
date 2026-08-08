@@ -104,6 +104,25 @@ msgstr "ビートマップセット #{:d} をダウンロードしました"
 msgid "Downloaded beatmapset #{:d}"
 msgstr "ビートマップセット #{:d} をダウンロードしました"
 
+#: src/App/Neomod/BeatmapInterface.cpp
+msgid "Buffering ..."
+msgstr ""
+
+#: src/App/Neomod/BeatmapInterface.cpp
+#, c++-format
+msgid "{} has paused"
+msgstr ""
+
+#: src/App/Neomod/BeatmapInterface.cpp
+#, fuzzy
+msgid "Waiting for players ..."
+msgstr "ブラウザを待機中..."
+
+#: src/App/Neomod/BeatmapInterface.cpp
+#, fuzzy
+msgid "Loading ..."
+msgstr "読み込み中..."
+
 #: src/App/Neomod/Chat.cpp
 msgid "You are not listening to anything."
 msgstr "何も聴いていません。"
