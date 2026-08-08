@@ -54,5 +54,20 @@ target_link_libraries(diffcalc PRIVATE ${GLM_TARGET})
 target_precompile_headers(diffcalc PRIVATE pch.h)
 
 if(MSVC)
-    target_compile_options(diffcalc PRIVATE /utf-8)
+    string(REGEX REPLACE "/EH[^ ]*" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    target_compile_options(diffcalc PRIVATE
+        "/Zc:preprocessor"
+        "/Zc:__cplusplus"
+        "/utf-8"
+        "/EHs-c-"
+    )
+    target_compile_definitions(diffcalc PRIVATE
+        _HAS_EXCEPTIONS=0
+        _UNICODE
+        UNICODE=1
+    )
+else()
+    target_compile_options(diffcalc PRIVATE
+        -fno-exceptions
+    )
 endif()

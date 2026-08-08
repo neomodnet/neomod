@@ -20,6 +20,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <utility>
 
 using namespace neomod;
 
@@ -160,6 +161,66 @@ std::string modsStringFromMods(ModFlags mods, float speed) {
     return modsString;
 }
 
+// inverse of modsStringFromMods, keep the two in sync
+std::pair<ModFlags, float> modStringToModFlag(std::string_view CSVs) {
+    using enum ModFlags;
+    using namespace flags::operators;
+
+    ModFlags retFlags = None;
+    float retSpeed = 1.0f;
+    for(const auto modString : SString::split(SString::to_lower(CSVs), ',')) {
+        if(modString == "nf") {
+            retFlags |= NoFail;
+        } else if(modString == "ez") {
+            retFlags |= Easy;
+        } else if(modString == "td") {
+            retFlags |= TouchDevice;
+        } else if(modString == "hd") {
+            retFlags |= Hidden;
+        } else if(modString == "hr") {
+            retFlags |= HardRock;
+        } else if(modString == "fr") {
+            retFlags |= FreezeFrame;
+        } else if(modString == "tc") {
+            retFlags |= Traceable;
+        } else if(modString == "sd") {
+            retFlags |= SuddenDeath;
+        } else if(modString == "dt") {
+            retSpeed = 1.5f;
+        } else if(modString == "nc") {
+            retFlags |= NoPitchCorrection;
+            retSpeed = 1.5f;  // nightcore is doubletime + pitch
+        } else if(modString == "dks") {
+            retFlags |= DKS;
+        } else if(modString == "relax" || modString == "rx") {
+            retFlags |= Relax;
+        } else if(modString == "ht") {
+            retSpeed = 0.75f;
+        } else if(modString == "fl") {
+            retFlags |= Flashlight;
+        } else if(modString == "so") {
+            retFlags |= SpunOut;
+        } else if(modString == "ap") {
+            retFlags |= Autopilot;
+        } else if(modString == "pf") {
+            retFlags |= Perfect;
+        } else if(modString == "v2") {
+            retFlags |= ScoreV2;
+        } else if(modString == "target") {
+            retFlags |= Target;
+        } else if(modString == "mirror") {
+            retFlags |= MirrorHorizontal;  // modsStringFromMods prints "Mirror" for either axis
+        } else if(modString == "fposu") {
+            retFlags |= FPoSu;
+        } else if(modString == "1k") {
+            retFlags |= Singletap;
+        } else if(modString == "4k") {
+            retFlags |= NoKeylock;
+        }
+    }
+    return {retFlags, retSpeed};
+}
+
 }  // namespace
 
 #ifdef BUILD_TOOLS_ONLY
@@ -174,9 +235,11 @@ int entrypoint(int argc_, char *argv_[]) {
 #ifdef BUILD_TOOLS_ONLY
     // lazy
     argv.insert(argv.begin() + 1, "-");
-    constexpr std::string_view usage = "<osu_file> [speed] [mod flags bitmask (0xHEX)]";
+    constexpr std::string_view usage =
+        "<osu_file> [speed] [[mod flags bitmask (0xHEX)] OR [comma separated mods (HR,NF)]]";
 #else
-    constexpr std::string_view usage = "-diffcalc <osu_file> [speed] [mod flags bitmask (0xHEX)]";
+    constexpr std::string_view usage =
+        "-diffcalc <osu_file> [speed] [[mod flags bitmask (0xHEX)] OR [comma separated mods (HR,NF)]]";
 #endif
 
     size_t argc = argv.size();
@@ -208,25 +271,43 @@ int entrypoint(int argc_, char *argv_[]) {
         return 1;
     }
 
+    bool hadStandaloneSpeed = false;
     float speedMultiplier = 1.0f;
     if(argc > 3) {
         std::string_view cur{argv[3]};
         float speedTemp = 1.f;
         auto [ptr, ec] = std::from_chars(cur.data(), cur.data() + cur.size(), speedTemp);
-        if(ec == std::errc() && speedTemp >= 0.01f && speedTemp <= 3.f) speedMultiplier = speedTemp;
+        // require the whole argument to be consumed, otherwise a mod string like "1K" parses as 1.0
+        if(ec == std::errc() && ptr == cur.data() + cur.size() && speedTemp >= 0.01f && speedTemp <= 3.f) {
+            hadStandaloneSpeed = true;
+            speedMultiplier = speedTemp;
+        }
     }
 
     ModFlags modFlags = {};
-    if(argc > 4) {
+    const size_t modsArgsPos = hadStandaloneSpeed ? 4 : 3;
+    const bool hasPossibleModsArgs = argc > modsArgsPos;
+    bool hasHexFlags = false;
+    if(hasPossibleModsArgs) {
         int base = 10;
         uint64_t flagsValue = 0;
-        std::string_view cur{argv[4]};
+        std::string_view cur{argv[modsArgsPos]};
         if(cur.starts_with("0x") || cur.starts_with("0X")) {
             base = 16;
             cur = cur.substr(2);
+            hasHexFlags = true;
         }
         auto [ptr, ec] = std::from_chars(cur.data(), cur.data() + cur.size(), flagsValue, base);
-        if(ec == std::errc()) modFlags = static_cast<ModFlags>(flagsValue);
+        // require the whole argument to be consumed, otherwise a mod string like "4K" parses as 4
+        if(ec == std::errc() && ptr == cur.data() + cur.size()) modFlags = static_cast<ModFlags>(flagsValue);
+    }
+    // try parsing as CSVs
+    if(hasPossibleModsArgs && !hasHexFlags && modFlags == ModFlags{}) {
+        const auto [parsedFlags, parsedDTorHTSpeed] = modStringToModFlag(argv[modsArgsPos]);
+        modFlags = parsedFlags;
+        if(!hadStandaloneSpeed) {
+            speedMultiplier = parsedDTorHTSpeed;
+        }
     }
 
     // load difficulty hitobjects for star calculation
