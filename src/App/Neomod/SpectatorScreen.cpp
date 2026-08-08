@@ -38,7 +38,6 @@ static i32 current_map_id = 0;
 static CONSTINIT MapFetcher map_fetcher;
 
 // TODO @kiwec: buglist
-// - map download doesn't work before db is loaded
 // - when starting to spectate mid-play, we get chainmiss for a second
 // - actions such as death are instant when they should happen relative to the scoreframe time (eg spec_buffer later)
 // - sometimes if guy switches to non-downloaded map, spectating still starts, but on wrong map
@@ -72,7 +71,13 @@ void start(int user_id) {
     current_map_id = 0;
     map_fetcher.clear();
 
-    ui->setScreen(ui->getSpectatorScreen());
+    if(!db->isFinished() || db->isCancelled()) {
+        // TODO: what happens if user cancels db load? probably nothing good...
+        ui->getSongBrowser()->refreshBeatmaps(/*next_screen=*/ui->getSpectatorScreen());
+    } else {
+        ui->setScreen(ui->getSpectatorScreen());
+    }
+
     soundEngine->play(osu->getSkin()->s_menu_hit);
 }
 
@@ -152,6 +157,8 @@ void SpectatorScreen::tick() {
 
     if(!BanchoState::spectating) return;
 
+    const bool can_load_maps = db->isFinished() && !db->isCancelled();
+
     // Control client state
     // XXX: should use map_md5 instead of map_id
     const UserInfo *user_info = BANCHO::User::get_user_info(BanchoState::spectated_player_id, true);
@@ -160,7 +167,7 @@ void SpectatorScreen::tick() {
         if(osu->isInPlayMode()) {
             osu->getMapInterface()->stop(true);
         }
-    } else if(user_info->mode == GameMode::STANDARD && user_info->map_id != current_map_id) {
+    } else if(user_info->mode == GameMode::STANDARD && user_info->map_id != current_map_id && can_load_maps) {
         // drive the spectated user's map through the fetcher (retargeting is implicit when they
         // change maps under us); start spectating once it lands.
         map_fetcher.target_map(user_info->map_id, user_info->map_md5);
@@ -200,8 +207,13 @@ void SpectatorScreen::tick() {
     } else if(user_info->map_id != -1 && user_info->map_id != 0) {
         if(user_info->map_id != current_map_id) {
             const auto &fs = map_fetcher.state();
-            if(fs.status == MapFetcher::Status::NotFound) {
+            if(!can_load_maps) {
+                // this text shouldn't be visible, it's a failsafe in case we fucked up the complex db loading logic
+                this->status->setText(tformat("Database not loaded, cannot install map"));
+            } else if(fs.status == MapFetcher::Status::NotFound) {
+                // TODO: more detailed error message
                 this->status->setText(tformat("Failed to download Beatmap #{:d} :(", user_info->map_id));
+
                 if(user_info->map_id != this->last_failed_map) {
                     Packet packet;
                     packet.id = OUTP_CANT_SPECTATE;
