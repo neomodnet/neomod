@@ -99,22 +99,20 @@ msgstr "Mapset #{:d} téléchargé"
 
 #: src/App/Neomod/BeatmapInterface.cpp
 msgid "Buffering ..."
-msgstr ""
+msgstr "Chargement ..."
 
 #: src/App/Neomod/BeatmapInterface.cpp
 #, c++-format
 msgid "{} has paused"
-msgstr ""
+msgstr "{} a mis le jeu en pause"
 
 #: src/App/Neomod/BeatmapInterface.cpp
-#, fuzzy
 msgid "Waiting for players ..."
-msgstr "En attente du navigateur..."
+msgstr "En attente des joueurs..."
 
 #: src/App/Neomod/BeatmapInterface.cpp
-#, fuzzy
 msgid "Loading ..."
-msgstr "Chargement en cours..."
+msgstr "Chargement ..."
 
 #: src/App/Neomod/Chat.cpp
 msgid "You are not listening to anything."

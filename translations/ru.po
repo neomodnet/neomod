@@ -111,12 +111,10 @@ msgid "{} has paused"
 msgstr ""
 
 #: src/App/Neomod/BeatmapInterface.cpp
-#, fuzzy
 msgid "Waiting for players ..."
-msgstr "Ожидание браузера..."
+msgstr ""
 
 #: src/App/Neomod/BeatmapInterface.cpp
-#, fuzzy
 msgid "Loading ..."
 msgstr "Загрузка..."
 

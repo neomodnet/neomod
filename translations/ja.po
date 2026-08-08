@@ -114,14 +114,12 @@ msgid "{} has paused"
 msgstr ""
 
 #: src/App/Neomod/BeatmapInterface.cpp
-#, fuzzy
 msgid "Waiting for players ..."
-msgstr "ブラウザを待機中..."
+msgstr ""
 
 #: src/App/Neomod/BeatmapInterface.cpp
-#, fuzzy
 msgid "Loading ..."
-msgstr "読み込み中..."
+msgstr ""
 
 #: src/App/Neomod/Chat.cpp
 msgid "You are not listening to anything."

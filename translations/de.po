@@ -73,7 +73,7 @@ msgstr "No Fail"
 #: src/App/Neomod/BeatmapInstallOverlay.cpp
 #, fuzzy
 msgid "Installing..."
-msgstr "Laden..."
+msgstr "Wird installiert..."
 
 #: src/App/Neomod/BeatmapInstallOverlay.cpp
 #, fuzzy
@@ -87,7 +87,7 @@ msgstr ""
 #: src/App/Neomod/BeatmapInstaller.cpp
 #, fuzzy, c++-format
 msgid "Failed to import {}"
-msgstr "Laden der Map fehlgeschlagen"
+msgstr "Fehler beim Importieren von {}"
 
 #: src/App/Neomod/BeatmapInstaller.cpp
 #, c++-format
@@ -114,12 +114,10 @@ msgid "{} has paused"
 msgstr ""
 
 #: src/App/Neomod/BeatmapInterface.cpp
-#, fuzzy
 msgid "Waiting for players ..."
-msgstr "Warte auf Browser..."
+msgstr "Warte auf Spieler..."
 
 #: src/App/Neomod/BeatmapInterface.cpp
-#, fuzzy
 msgid "Loading ..."
 msgstr "Laden..."
 
