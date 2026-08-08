@@ -5,6 +5,7 @@
 
 #include "DiffCalcToolShared.h"
 #include "ModFlags.h"
+#include "SString.h"
 
 #include <algorithm>
 #include <array>
@@ -130,13 +131,13 @@ bool parseFlatJson(std::string_view line, std::vector<std::pair<std::string, std
 
 // relTol <= 0 means exact. strings, bools and integer-form numbers always compare exactly,
 // float-form numbers use a relative tolerance with a small absolute floor.
-bool valuesEqual(const std::string &a, const std::string &b, double relTol) {
+bool valuesEqual(std::string_view a, std::string_view b, double relTol) {
     if(a == b) return true;
     if(relTol <= 0.0) return false;
     if(a.starts_with('"') || b.starts_with('"') || a == "true" || a == "false" || b == "true" || b == "false")
         return false;
     // "-0" only ever comes from float formatting, let it take the float path (vs an integer "0")
-    auto isIntForm = [](const std::string &v) { return v != "-0" && v.find_first_of(".eE") == std::string::npos; };
+    auto isIntForm = [](std::string_view v) { return v != "-0" && v.find_first_of(".eE") == std::string::npos; };
     if(isIntForm(a) && isIntForm(b)) return false;
     double da = 0.0;
     double db = 0.0;
@@ -150,9 +151,11 @@ struct LineDiff {
     std::string field, expected, got;
 };
 
-std::string truncated(const std::string &s) { return s.length() > 60 ? s.substr(0, 57) + "..." : s; }
+std::string truncated(std::string_view s) {
+    return s.length() > 60 ? std::format("{:s}...", s.substr(0, 57)) : std::string{s};
+}
 
-std::optional<LineDiff> compareLine(const std::string &goldenLine, const std::string &actualLine, double relTol) {
+std::optional<LineDiff> compareLine(std::string_view goldenLine, std::string_view actualLine, double relTol) {
     if(goldenLine == actualLine) return std::nullopt;
 
     std::vector<std::pair<std::string, std::string>> golden;
@@ -174,19 +177,7 @@ std::optional<LineDiff> compareLine(const std::string &goldenLine, const std::st
     return std::nullopt;
 }
 
-std::vector<std::string> splitLines(const std::string &block) {
-    std::vector<std::string> lines;
-    size_t start = 0;
-    while(start < block.size()) {
-        size_t end = block.find('\n', start);
-        if(end == std::string::npos) end = block.size();
-        lines.emplace_back(block.substr(start, end - start));
-        start = end + 1;
-    }
-    return lines;
-}
-
-// crosscheck helpers: one full star calc captured for bit-exact comparison. attrs/raw reuse the
+// crosscheck helpers: one full star calc captured for comparison. attrs/raw reuse the
 // exhaustive json serializers so a new field can never silently escape the comparison.
 struct CalcSnapshot {
     double stars{};
@@ -239,7 +230,7 @@ std::optional<LineDiff> compareSnapshots(const CalcSnapshot &expected, const Cal
         return LineDiff{
             .field = "stars", .expected = std::format("{}", expected.stars), .got = std::format("{}", got.stars)};
 
-    // bit-exact via the shortest-round-trip serializers, field-level message via the flat parser
+    // direct comparison via the shortest-round-trip serializers, field-level message via the flat parser
     const std::string expectedAttrs = jsonDifficultyAttributes(expected.attrs);
     const std::string gotAttrs = jsonDifficultyAttributes(got.attrs);
     if(expectedAttrs != gotAttrs) {
@@ -292,14 +283,14 @@ int runSuiteTest(const std::vector<std::string> &argv) {
     };
 
     for(size_t i = 3; i < argv.size(); i++) {
-        const std::string &arg = argv[i];
+        std::string_view arg = argv[i];
         const bool hasValue = (i + 1) < argv.size();
         if(arg == "--suite" && hasValue) {
             suiteDir = argv[++i];
         } else if(arg == "--record") {
             record = true;
         } else if(arg == "--tolerance" && hasValue) {
-            const std::string &token = argv[++i];
+            std::string_view token = argv[++i];
             auto [ptr, ec] = std::from_chars(token.data(), token.data() + token.size(), tolerance);
             if(ec != std::errc() || ptr != token.data() + token.size() || tolerance <= 0.0)
                 return argError(std::format("invalid tolerance '{}'", token));
@@ -330,11 +321,11 @@ int runSuiteTest(const std::vector<std::string> &argv) {
     int passed = 0;
     int failed = 0;
     size_t recordedLines = 0;
-    for(const std::string &fixture : fixtures) {
+    for(const auto &fixture : fixtures) {
         const std::string stem = fixture.substr(0, fixture.length() - 4);
         const fs::path goldenFile = goldenDir / (stem + ".jsonl");
         const std::string block = processMapForBatch((mapsDir / fixture).string(), fixture, configs);
-        const std::vector<std::string> lines = splitLines(block);
+        const std::vector<std::string_view> lines = SString::split_newlines(block);
 
         if(record) {
             std::ofstream out(goldenFile, std::ios::out | std::ios::binary | std::ios::trunc);
@@ -437,7 +428,7 @@ int runCrosscheck(const std::vector<std::string> &argv) {
     };
 
     for(size_t i = 3; i < argv.size(); i++) {
-        const std::string &arg = argv[i];
+        std::string_view arg = argv[i];
         if(arg == "--suite" && (i + 1) < argv.size()) {
             suiteDir = argv[++i];
         } else {
@@ -454,7 +445,7 @@ int runCrosscheck(const std::vector<std::string> &argv) {
     int passed = 0;
     int failed = 0;
     int skipped = 0;
-    for(const std::string &fixture : fixtures) {
+    for(const auto &fixture : fixtures) {
         DatabaseBeatmap::PRIMITIVE_CONTAINER primitives;
         std::string loadError;
         if(loadPrimitivesFromPath((mapsDir / fixture).string(), primitives, loadError) !=
@@ -466,7 +457,7 @@ int runCrosscheck(const std::vector<std::string> &argv) {
         const bool bigMap = primitives.sliders.size() > 5000;
 
         int fixtureFailures = 0;
-        auto check = [&fixture, &fixtureFailures](const std::string &label, std::string_view checkName,
+        auto check = [&fixture, &fixtureFailures](std::string_view label, std::string_view checkName,
                                                   const CalcSnapshot &expected, const CalcSnapshot &got) {
             const auto diff = compareSnapshots(expected, got);
             if(!diff.has_value()) return;

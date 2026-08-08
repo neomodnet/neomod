@@ -49,38 +49,6 @@ using DatabaseBeatmapTypes::SLIDER_SCORING_TIME;
 // for forward declaration
 extern const u32 PP_ALGORITHM_VERSION;
 
-struct Skills {
-    // NOLINTNEXTLINE(cppcoreguidelines-use-enum-class)
-    enum Skill : u8 { SPEED, AIM_SLIDERS, AIM_NO_SLIDERS, NUM_SKILLS };
-};
-
-inline constexpr const f64 performance_base_multiplier = 1.12;  // keep final pp normalized across changes
-
-// see https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Speed.cs
-// see https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Aim.cs
-
-// normalized EMA decay bases per skill (strain = strain * decay + noteDiff * (1 - decay))
-inline constexpr const f64 decay_base[Skills::NUM_SKILLS] = {0.3, 0.2, 0.2};
-
-// per-map constants shared by every strain evaluator (mod effects are per-note now)
-struct StrainEvalContext {
-    f64 hitWindow300{};        // rate-adjusted, == lazer HitWindowGreat
-    f64 circleRadius{};        // real (unnormalized) circle radius in osu!pixels
-    f64 smallCircleBonus{1.};  // max(1, 1 + (30 - radius) / 70)
-    f64 odScalingAimFl{1.};    // 0.985 + OD^2 / 4000 (per-note OD scaling for aim + flashlight)
-    f64 odScalingReading{1.};  // 0.825 + OD^2.2 / 1125
-    f64 preemptRaw{};          // beatmap-time preempt from AR (OpacityAt domain)
-    f64 preemptAdjusted{};     // rate-adjusted preempt (lazer Preempt)
-    f64 fadeInRaw{};           // 400 * min(1, preemptRaw / 450), beatmap-time
-
-    bool relax{false};
-    bool autopilot{false};
-    bool touchDevice{false};
-    bool flashlight{false};
-};
-
-inline constexpr const f64 DIFFCALC_EPSILON = 1e-32;
-
 // a parsed hitobject plus the per-object difficulty data computed from it by the star calc.
 // the parsed part is filled by DatabaseBeatmap::loadDifficultyHitObjects, the computed part is
 // roughly equivalent to lazer's OsuDifficultyHitObject (+ a per-object slice of the skill state).
@@ -133,8 +101,6 @@ class DifficultyHitObject {
         // (MSVC std::clamp doesn't like when MAX < MIN)
         return std::max(0, endTime - time);
     }
-
-    void calculate_strains(const DifficultyHitObject &prev, const StrainEvalContext &ctx);
 
    public:
     // circles (base)

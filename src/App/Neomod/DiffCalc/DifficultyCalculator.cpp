@@ -11,6 +11,7 @@
 #include <utility>
 #include <cstring>
 #include <type_traits>
+#include <span>
 
 #ifndef BUILD_TOOLS_ONLY
 #include "OsuConVars.h"
@@ -20,11 +21,6 @@
 #define SLIDER_END_INSIDE_CHECK_OFFSET (f64) cv::slider_end_inside_check_offset.getInt()
 
 #define FORMAT_STRING_ fmt::format
-
-#define WANT_SPREADSORT
-#include "Sorting.h"
-
-#define SPREADSORT_RANGE srt::spreadsort
 
 #else
 
@@ -39,8 +35,6 @@
 #include <algorithm>
 #define FORMAT_STRING_ std::format
 
-#define SPREADSORT_RANGE std::ranges::sort
-
 #endif
 
 namespace neomod::DiffCalc {
@@ -49,27 +43,49 @@ const u32 PP_ALGORITHM_VERSION{20260706};
 
 namespace {
 // internal helper utils (forward decls)
-struct ScoreData {
-    ModFlags modFlags;
-    f64 accuracy;
-    i32 countGreat;
-    i32 countOk;
-    i32 countMeh;
-    i32 countMiss;
-    i32 totalHits;
-    i32 totalSuccessfulHits;
-    i32 beatmapMaxCombo;
-    i32 scoreMaxCombo;
-    i32 amountHitObjectsWithAccuracy;
-    u32 legacyTotalScore;
+
+struct Skills {
+    // NOLINTNEXTLINE(cppcoreguidelines-use-enum-class)
+    enum Skill : u8 { SPEED, AIM_SLIDERS, AIM_NO_SLIDERS, NUM_SKILLS };
 };
+
+inline constexpr const f64 performance_base_multiplier = 1.12;  // keep final pp normalized across changes
+
+// see https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Speed.cs
+// see https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Aim.cs
+
+// normalized EMA decay bases per skill (strain = strain * decay + noteDiff * (1 - decay))
+inline constexpr const f64 decay_base[Skills::NUM_SKILLS] = {0.3, 0.2, 0.2};
 
 static void calculateScoreV1Attributes(DifficultyAttributes &attributes, const BeatmapDiffcalcData &beatmapData,
                                        i32 upToObjectIndex);
 static f64 calculateScoreV1SpinnerScore(f64 spinnerDuration);
 
+// per-map constants shared by every strain evaluator (mod effects are per-note now)
+struct StrainEvalContext {
+    f64 hitWindow300{};             // rate-adjusted, == lazer HitWindowGreat
+    f64 circleRadius{};             // real (unnormalized) circle radius in osu!pixels
+    f64 smallCircleBonus{1.};       // max(1, 1 + (30 - radius) / 70)
+    f64 smallCircleBonusSqrt{1.};   // sqrt(smallCircleBonus) (flow aim)
+    f64 smallCircleBonusPow15{1.};  // smallCircleBonus^1.5 (agility)
+    f64 odScalingAimFl{1.};         // 0.985 + OD^2 / 4000 (per-note OD scaling for aim + flashlight)
+    f64 odScalingReading{1.};       // 0.825 + OD^2.2 / 1125
+    f64 preemptRaw{};               // beatmap-time preempt from AR (OpacityAt domain)
+    f64 preemptAdjusted{};          // rate-adjusted preempt (lazer Preempt)
+    f64 fadeInRaw{};                // 400 * min(1, preemptRaw / 450), beatmap-time
+
+    bool relax{false};
+    bool autopilot{false};
+    bool touchDevice{false};
+    bool flashlight{false};
+};
+
+static void calculate_strains(DifficultyHitObject &cur, const DifficultyHitObject &prev, const StrainEvalContext &ctx);
+
 // per-note strain evaluators (lazer Evaluators/*), definitions below the strain pass
-static f64 evaluate_aim_difficulty_of(const DifficultyHitObject &cur, bool withSliders, const StrainEvalContext &ctx);
+static f64 evaluate_aim_difficulty_of(const DifficultyHitObject &cur, bool withSliders, f64 agilityDifficultyRaw,
+                                      const StrainEvalContext &ctx);
+static f64 evaluate_agility_of(const DifficultyHitObject &cur, const StrainEvalContext &ctx);
 static f64 evaluate_speed_difficulty_of(const DifficultyHitObject &cur, const StrainEvalContext &ctx);
 static f64 evaluate_rhythm_of(const DifficultyHitObject &cur, const StrainEvalContext &ctx);
 static f64 calculate_double_tap_feasibility(const DifficultyHitObject &cur, const DifficultyHitObject *next,
@@ -110,6 +126,21 @@ static f64 count_top_weighted_speed_strains(const DifficultyHitObject *dobjects,
                                             f64 objectWeightSum);
 static f64 count_top_weighted_speed_sliders(const DifficultyHitObject *dobjects, uSz dobjectCount, f64 difficultyValue,
                                             f64 objectWeightSum);
+
+struct ScoreData {
+    ModFlags modFlags;
+    f64 accuracy;
+    i32 countGreat;
+    i32 countOk;
+    i32 countMeh;
+    i32 countMiss;
+    i32 totalHits;
+    i32 totalSuccessfulHits;
+    i32 beatmapMaxCombo;
+    i32 scoreMaxCombo;
+    i32 amountHitObjectsWithAccuracy;
+    u32 legacyTotalScore;
+};
 
 // Skill values calculation
 static f64 computeAimValue(const ScoreData &score, const DifficultyAttributes &attributes, f64 effectiveMissCount,
@@ -475,6 +506,123 @@ f32 DifficultyHitObject::getT(i32 pos, bool raw) const {
     }
 }
 
+namespace {
+// see https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Preprocessing/OsuDifficultyHitObject.cs
+
+namespace DistanceCalc {
+static void computeSliderCursorPosition(DifficultyHitObject &slider, f32 circleRadius) {
+    if(slider.c->lazyCalcFinished || slider.curve == nullptr) return;
+
+    // NOTE: lazer won't load sliders above a certain length, but mcosu will
+    // this isn't entirely accurate to how lazer does it (as that skips loading the object entirely),
+    // but this is a good middle ground for maps that aren't completely aspire and still have relatively normal star counts on lazer
+    // see: DJ Noriken - Stargazer feat. YUC'e (PSYQUI Remix) (Hishiro Chizuru) [Starg-Azer isn't so great? Are you kidding me?]
+    if(IGNORE_CLAMPED_SLIDERS) {
+        if(slider.curve->getPixelLength() >= SLIDER_CURVE_MAX_LENGTH) return;
+    }
+
+    // NOTE: although this looks like a duplicate of the end tick time, this really does have a noticeable impact on some maps due to precision issues
+    // see: Ocelot - KAEDE (Hollow Wings) [EX EX]
+    const f64 tailLeniency = SLIDER_END_INSIDE_CHECK_OFFSET;
+    const f64 totalDuration = (f64)slider.spanDuration * slider.repeats;
+    f64 trackingEndTime = (f64)slider.time + std::max(totalDuration - tailLeniency, totalDuration / 2.0);
+
+    // NOTE: lazer has logic to reorder the last slider tick if it happens after trackingEndTime here, which already happens in mcosu
+
+    slider.c->lazyTravelTime = trackingEndTime - (f64)slider.time;
+
+    f64 endTimeMin = slider.c->lazyTravelTime / slider.spanDuration;
+    if(std::fmod(endTimeMin, 2.0) >= 1.0)
+        endTimeMin = 1.0 - std::fmod(endTimeMin, 1.0);
+    else
+        endTimeMin = std::fmod(endTimeMin, 1.0);
+
+    slider.c->lazyEndPos = slider.curvePointAt((f32)endTimeMin);
+
+    vec2 cursor_pos = slider.pos;
+    f64 scaling_factor = 50.0 / circleRadius;
+
+    for(uSz i = 0; i < slider.scoringTimes.size(); i++) {
+        vec2 diff;
+
+        if(slider.scoringTimes[i].type == SLIDER_SCORING_TIME::TYPE::END) {
+            // NOTE: In lazer, the position of the slider end is at the visual end, but the time is at the scoring end
+            diff = slider.curvePointAt(slider.repeats % 2 ? 1.0 : 0.0) - cursor_pos;
+        } else {
+            f64 progress =
+                (std::clamp<f32>(slider.scoringTimes[i].time - (f32)slider.time, 0.0f, (f32)slider.getDuration())) /
+                slider.spanDuration;
+            if(std::fmod(progress, 2.0) >= 1.0)
+                progress = 1.0 - std::fmod(progress, 1.0);
+            else
+                progress = std::fmod(progress, 1.0);
+
+            diff = slider.curvePointAt((f32)progress) - cursor_pos;
+        }
+
+        f64 diff_len = scaling_factor * vec::length(diff);
+
+        f64 req_diff = 90.0;
+
+        if(i == slider.scoringTimes.size() - 1) {
+            // Slider end
+            vec2 lazy_diff = slider.c->lazyEndPos - cursor_pos;
+            if(vec::length(lazy_diff) < vec::length(diff)) diff = lazy_diff;
+            diff_len = scaling_factor * vec::length(diff);
+        } else if(slider.scoringTimes[i].type == SLIDER_SCORING_TIME::TYPE::REPEAT) {
+            // Slider repeat
+            req_diff = 50.0;
+        }
+
+        if(diff_len > req_diff) {
+            cursor_pos += (diff * (f32)((diff_len - req_diff) / diff_len));
+            diff_len *= (diff_len - req_diff) / diff_len;
+            slider.c->lazyTravelDist += diff_len;
+        }
+
+        if(i == slider.scoringTimes.size() - 1) slider.c->lazyEndPos = cursor_pos;
+    }
+
+    slider.c->lazyCalcFinished = true;
+}
+
+static vec2 getEndCursorPosition(DifficultyHitObject &hitObject, f32 circleRadius) {
+    if(hitObject.type == DifficultyHitObject::TYPE::SLIDER) {
+        computeSliderCursorPosition(hitObject, circleRadius);
+        return hitObject.c->lazyEndPos;  // (lazyEndPos is reset to pos before every full computation)
+    }
+
+    return hitObject.pos;
+}
+
+// lazer NestedHitObjects[^2] (second-to-last nested object, head included); our
+// scoringTimes exclude the head, so this is scoringTimes[n-2] or the head itself
+static vec2 getSecondToLastNestedPosition(const DifficultyHitObject &slider) {
+    if(slider.scoringTimes.size() < 2 || slider.curve == nullptr) return slider.pos;
+
+    const auto &scoringTime = slider.scoringTimes[slider.scoringTimes.size() - 2];
+    f64 progress =
+        (std::clamp<f32>(scoringTime.time - (f32)slider.time, 0.0f, (f32)slider.getDuration())) / slider.spanDuration;
+    if(std::fmod(progress, 2.0) >= 1.0)
+        progress = 1.0 - std::fmod(progress, 1.0);
+    else
+        progress = std::fmod(progress, 1.0);
+
+    return slider.curvePointAt((f32)progress);
+}
+
+static f64 calcAngleBetween(vec2 currentPosition, vec2 lastPosition, vec2 lastLastPosition) {
+    const vec2 v1 = lastLastPosition - lastPosition;
+    const vec2 v2 = currentPosition - lastPosition;
+
+    const f64 dot = vec::dot(v1, v2);
+    const f64 det = (v1.x * v2.y) - (v1.y * v2.x);
+
+    return std::fabs(std::atan2(det, dot));
+}
+}  // namespace DistanceCalc
+}  // namespace
+
 f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
     // NOTE: osu always returns 0 stars for beatmaps with only 1 object, except if that object is a slider
     if(params.beatmapData.sortedHitObjects.size() < 2) {
@@ -503,124 +651,6 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
 
     // handle high CS bonus
     f64 smallCircleBonus = std::max(1.0, 1.0 + (30.0 - circleRadiusInOsuPixels) / 70.0);
-
-    // ****************************************************************************************************************************************** //
-
-    // see https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Preprocessing/OsuDifficultyHitObject.cs
-
-    class DistanceCalc {
-       public:
-        static void computeSliderCursorPosition(DifficultyHitObject &slider, f32 circleRadius) {
-            if(slider.c->lazyCalcFinished || slider.curve == nullptr) return;
-
-            // NOTE: lazer won't load sliders above a certain length, but mcosu will
-            // this isn't entirely accurate to how lazer does it (as that skips loading the object entirely),
-            // but this is a good middle ground for maps that aren't completely aspire and still have relatively normal star counts on lazer
-            // see: DJ Noriken - Stargazer feat. YUC'e (PSYQUI Remix) (Hishiro Chizuru) [Starg-Azer isn't so great? Are you kidding me?]
-            if(IGNORE_CLAMPED_SLIDERS) {
-                if(slider.curve->getPixelLength() >= SLIDER_CURVE_MAX_LENGTH) return;
-            }
-
-            // NOTE: although this looks like a duplicate of the end tick time, this really does have a noticeable impact on some maps due to precision issues
-            // see: Ocelot - KAEDE (Hollow Wings) [EX EX]
-            const f64 tailLeniency = SLIDER_END_INSIDE_CHECK_OFFSET;
-            const f64 totalDuration = (f64)slider.spanDuration * slider.repeats;
-            f64 trackingEndTime = (f64)slider.time + std::max(totalDuration - tailLeniency, totalDuration / 2.0);
-
-            // NOTE: lazer has logic to reorder the last slider tick if it happens after trackingEndTime here, which already happens in mcosu
-
-            slider.c->lazyTravelTime = trackingEndTime - (f64)slider.time;
-
-            f64 endTimeMin = slider.c->lazyTravelTime / slider.spanDuration;
-            if(std::fmod(endTimeMin, 2.0) >= 1.0)
-                endTimeMin = 1.0 - std::fmod(endTimeMin, 1.0);
-            else
-                endTimeMin = std::fmod(endTimeMin, 1.0);
-
-            slider.c->lazyEndPos = slider.curvePointAt((f32)endTimeMin);
-
-            vec2 cursor_pos = slider.pos;
-            f64 scaling_factor = 50.0 / circleRadius;
-
-            for(uSz i = 0; i < slider.scoringTimes.size(); i++) {
-                vec2 diff;
-
-                if(slider.scoringTimes[i].type == SLIDER_SCORING_TIME::TYPE::END) {
-                    // NOTE: In lazer, the position of the slider end is at the visual end, but the time is at the scoring end
-                    diff = slider.curvePointAt(slider.repeats % 2 ? 1.0 : 0.0) - cursor_pos;
-                } else {
-                    f64 progress = (std::clamp<f32>(slider.scoringTimes[i].time - (f32)slider.time, 0.0f,
-                                                    (f32)slider.getDuration())) /
-                                   slider.spanDuration;
-                    if(std::fmod(progress, 2.0) >= 1.0)
-                        progress = 1.0 - std::fmod(progress, 1.0);
-                    else
-                        progress = std::fmod(progress, 1.0);
-
-                    diff = slider.curvePointAt((f32)progress) - cursor_pos;
-                }
-
-                f64 diff_len = scaling_factor * vec::length(diff);
-
-                f64 req_diff = 90.0;
-
-                if(i == slider.scoringTimes.size() - 1) {
-                    // Slider end
-                    vec2 lazy_diff = slider.c->lazyEndPos - cursor_pos;
-                    if(vec::length(lazy_diff) < vec::length(diff)) diff = lazy_diff;
-                    diff_len = scaling_factor * vec::length(diff);
-                } else if(slider.scoringTimes[i].type == SLIDER_SCORING_TIME::TYPE::REPEAT) {
-                    // Slider repeat
-                    req_diff = 50.0;
-                }
-
-                if(diff_len > req_diff) {
-                    cursor_pos += (diff * (f32)((diff_len - req_diff) / diff_len));
-                    diff_len *= (diff_len - req_diff) / diff_len;
-                    slider.c->lazyTravelDist += diff_len;
-                }
-
-                if(i == slider.scoringTimes.size() - 1) slider.c->lazyEndPos = cursor_pos;
-            }
-
-            slider.c->lazyCalcFinished = true;
-        }
-
-        static vec2 getEndCursorPosition(DifficultyHitObject &hitObject, f32 circleRadius) {
-            if(hitObject.type == DifficultyHitObject::TYPE::SLIDER) {
-                computeSliderCursorPosition(hitObject, circleRadius);
-                return hitObject.c->lazyEndPos;  // (lazyEndPos is reset to pos before every full computation)
-            }
-
-            return hitObject.pos;
-        }
-
-        // lazer NestedHitObjects[^2] (second-to-last nested object, head included); our
-        // scoringTimes exclude the head, so this is scoringTimes[n-2] or the head itself
-        static vec2 getSecondToLastNestedPosition(const DifficultyHitObject &slider) {
-            if(slider.scoringTimes.size() < 2 || slider.curve == nullptr) return slider.pos;
-
-            const auto &scoringTime = slider.scoringTimes[slider.scoringTimes.size() - 2];
-            f64 progress = (std::clamp<f32>(scoringTime.time - (f32)slider.time, 0.0f, (f32)slider.getDuration())) /
-                           slider.spanDuration;
-            if(std::fmod(progress, 2.0) >= 1.0)
-                progress = 1.0 - std::fmod(progress, 1.0);
-            else
-                progress = std::fmod(progress, 1.0);
-
-            return slider.curvePointAt((f32)progress);
-        }
-
-        static f64 calcAngleBetween(vec2 currentPosition, vec2 lastPosition, vec2 lastLastPosition) {
-            const vec2 v1 = lastLastPosition - lastPosition;
-            const vec2 v2 = currentPosition - lastPosition;
-
-            const f64 dot = vec::dot(v1, v2);
-            const f64 det = (v1.x * v2.y) - (v1.y * v2.x);
-
-            return std::fabs(std::atan2(det, dot));
-        }
-    };
 
     // ****************************************************************************************************************************************** //
 
@@ -773,6 +803,8 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
             .hitWindow300 = hitWindow300,
             .circleRadius = (f64)circleRadiusInOsuPixels,
             .smallCircleBonus = smallCircleBonus,
+            .smallCircleBonusSqrt = std::sqrt(smallCircleBonus),
+            .smallCircleBonusPow15 = std::pow(smallCircleBonus, 1.5),
             .odScalingAimFl = 0.985 + powi(std::max(0.0, perObjectOD), 2) / 4000.0,
             .odScalingReading = 0.825 + std::pow(std::max(0.0, perObjectOD), 2.2) / 1125.0,
             .preemptRaw = preemptRaw,
@@ -786,7 +818,7 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
 
         for(uSz i = 1; i < numObjects; i++)  // NOTE: start at 1
         {
-            diffObjects[i].calculate_strains(diffObjects[i - 1], ctx);
+            calculate_strains(diffObjects[i], diffObjects[i - 1], ctx);
         }
 
         // everything was computed without cancellation, remember what for
@@ -1131,54 +1163,60 @@ legacyTotalScore: {})",
 }
 
 // Implementation details below
+namespace {
 
 // one skill pass per object, in list order (lazer DifficultyCalculator processes every skill
 // per object before moving on; the recorded per-object values here are lazer's
 // Skill.ObjectDifficulties, aggregated later by calculate_*_difficulty)
-void DifficultyHitObject::calculate_strains(const DifficultyHitObject &prev, const StrainEvalContext &ctx) {
-    const i32 time_elapsed = time - prev.time;
+static void calculate_strains(DifficultyHitObject &cur, const DifficultyHitObject &prev, const StrainEvalContext &ctx) {
+    const i32 time_elapsed = cur.time - prev.time;
 
     // update our delta time
-    c->deltaTime = (f64)time_elapsed;
-    c->strainTime = (f64)std::max(time_elapsed, 25);  // == lazer AdjustedDeltaTime
+    cur.c->deltaTime = (f64)time_elapsed;
+    cur.c->strainTime = (f64)std::max(time_elapsed, 25);  // == lazer AdjustedDeltaTime
 
     // aim, both variants (lazer Aim.StrainValueAt): normalized EMA on AdjustedDeltaTime.
     // with autopilot lazer returns 0 before ever touching the running strain
-    for(const Skills::Skill dtype : {Skills::AIM_SLIDERS, Skills::AIM_NO_SLIDERS}) {
-        if(ctx.autopilot) {
-            c->strains[dtype] = 0.0;
-            continue;
-        }
+    if(ctx.autopilot) {
+        cur.c->strains[Skills::AIM_SLIDERS] = 0.0;
+        cur.c->strains[Skills::AIM_NO_SLIDERS] = 0.0;
+    } else {
+        // agility doesn't depend on the slider variant, evaluate it once for both
+        const f64 agilityDifficultyRaw = evaluate_agility_of(cur, ctx);
 
-        const f64 decay = strainDecay(dtype, c->strainTime);
-        c->strains[dtype] = prev.c->strains[dtype] * decay +
-                            evaluate_aim_difficulty_of(*this, dtype == Skills::AIM_SLIDERS, ctx) * (1.0 - decay);
+        for(const Skills::Skill dtype : {Skills::AIM_SLIDERS, Skills::AIM_NO_SLIDERS}) {
+            const f64 decay = strainDecay(dtype, cur.c->strainTime);
+            cur.c->strains[dtype] =
+                prev.c->strains[dtype] * decay +
+                evaluate_aim_difficulty_of(cur, dtype == Skills::AIM_SLIDERS, agilityDifficultyRaw, ctx) *
+                    (1.0 - decay);
+        }
     }
 
     // speed (lazer Speed.ObjectDifficultyOf): with relax lazer returns 0 before ever touching
     // the running strain. the recorded per-object value is strain * rhythm (get_strain)
     if(ctx.relax) {
-        c->strains[Skills::SPEED] = 0.0;
-        c->rhythm = 0.0;
+        cur.c->strains[Skills::SPEED] = 0.0;
+        cur.c->rhythm = 0.0;
     } else {
-        const f64 skill_multiplier = 1.16;
+        constexpr f64 skill_multiplier = 1.16;
 
-        f64 speedDifficulty = evaluate_speed_difficulty_of(*this, ctx);
+        f64 speedDifficulty = evaluate_speed_difficulty_of(cur, ctx);
         if(ctx.autopilot) speedDifficulty *= 0.5;
 
-        const f64 decay = strainDecay(Skills::SPEED, c->strainTime);
-        c->strains[Skills::SPEED] =
+        const f64 decay = strainDecay(Skills::SPEED, cur.c->strainTime);
+        cur.c->strains[Skills::SPEED] =
             prev.c->strains[Skills::SPEED] * decay + speedDifficulty * (1.0 - decay) * skill_multiplier;
 
-        c->rhythm = evaluate_rhythm_of(*this, ctx);
+        cur.c->rhythm = evaluate_rhythm_of(cur, ctx);
     }
 
     // reading (lazer Reading.ObjectDifficultyOf): normalized EMA on the RAW delta time (decay
     // can be 1.0 for simultaneous objects, lazer allows this), both hidden variants
     {
-        const f64 skill_multiplier = 2.5;
+        constexpr f64 skill_multiplier = 2.5;
 
-        const auto readingDifficulty = evaluate_reading_difficulty_of(*this, ctx);
+        const auto readingDifficulty = evaluate_reading_difficulty_of(cur, ctx);
 
         // per-note mod adjustments + OD scaling (lazer Reading.calculateAdjustedDifficulty)
         const auto adjust = [&ctx](f64 difficulty) {
@@ -1188,10 +1226,10 @@ void DifficultyHitObject::calculate_strains(const DifficultyHitObject &prev, con
             return difficulty * ctx.odScalingReading;
         };
 
-        const f64 decay = std::pow(0.8, c->deltaTime / 1000.0);
-        c->readingStrainNoHidden = prev.c->readingStrainNoHidden * decay +
-                                   adjust(readingDifficulty.noHidden) * (1.0 - decay) * skill_multiplier;
-        c->readingStrainHidden =
+        const f64 decay = std::pow(0.8, cur.c->deltaTime / 1000.0);
+        cur.c->readingStrainNoHidden = prev.c->readingStrainNoHidden * decay +
+                                       adjust(readingDifficulty.noHidden) * (1.0 - decay) * skill_multiplier;
+        cur.c->readingStrainHidden =
             prev.c->readingStrainHidden * decay + adjust(readingDifficulty.hidden) * (1.0 - decay) * skill_multiplier;
     }
 
@@ -1201,7 +1239,7 @@ void DifficultyHitObject::calculate_strains(const DifficultyHitObject &prev, con
     if(ctx.flashlight) {
         const f64 skill_multiplier = 0.058;
 
-        const auto flashlightDifficulty = evaluate_flashlight_difficulty_of(*this, ctx);
+        const auto flashlightDifficulty = evaluate_flashlight_difficulty_of(cur, ctx);
 
         // per-note mod adjustments + OD scaling (lazer Flashlight.calculateAdjustedDifficulty)
         const auto adjust = [&ctx](f64 difficulty) {
@@ -1211,21 +1249,13 @@ void DifficultyHitObject::calculate_strains(const DifficultyHitObject &prev, con
             return difficulty * ctx.odScalingAimFl;
         };
 
-        const f64 decay = std::pow(0.15, c->deltaTime / 1000.0);
-        c->flashlightStrainNoHidden =
+        const f64 decay = std::pow(0.15, cur.c->deltaTime / 1000.0);
+        cur.c->flashlightStrainNoHidden =
             prev.c->flashlightStrainNoHidden * decay + adjust(flashlightDifficulty.noHidden) * skill_multiplier;
-        c->flashlightStrainHidden =
+        cur.c->flashlightStrainHidden =
             prev.c->flashlightStrainHidden * decay + adjust(flashlightDifficulty.hidden) * skill_multiplier;
     }
 }
-
-namespace {
-
-// one strain section of variable length (lazer VariableLengthStrainSkill.StrainPeak)
-struct StrainPeak {
-    f64 value;
-    f64 sectionLength;
-};
 
 // see DifficultyValue() @ https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Aim.cs
 // see https://github.com/ppy/osu/blob/master/osu.Game/Rulesets/Difficulty/Skills/VariableLengthStrainSkill.cs
@@ -1239,6 +1269,12 @@ f64 calculate_aim_difficulty(const Skills::Skill type, const DifficultyHitObject
     // this is trimmed (the trim is part of the value, don't "improve" it)
     static constexpr f64 max_stored_length = 11.0 / (1.0 - decay_weight);
 
+    // one strain section of variable length (lazer VariableLengthStrainSkill.StrainPeak)
+    struct StrainPeak {
+        f64 value;
+        f64 sectionLength;
+    };
+
     if(dobjectCount < 2) return 0.0;
 
     static constexpr auto byValueDesc = [](const StrainPeak &a, const StrainPeak &b) -> bool {
@@ -1248,13 +1284,20 @@ f64 calculate_aim_difficulty(const Skills::Skill type, const DifficultyHitObject
     std::vector<StrainPeak> peaks;  // kept sorted by value descending (lazer AddInPlace)
     f64 totalLength = 0.0;
 
+    // TODO: very slow
     const auto insertSorted = [&peaks](StrainPeak peak) {
         peaks.insert(std::ranges::upper_bound(peaks, peak, byValueDesc), peak);
     };
 
     // stores previous strains so a high-strain object followed by lower ones still fills the
     // gap sections with its decaying influence instead of a harsh drop-off
-    std::vector<std::pair<f64, f64>> queuedStrains;  // (strain, startTime), consumed FIFO
+    struct QueuedStrain {
+        f64 strain;
+        f64 startTime;
+    };
+    // consumed FIFO from queuedHead (instead of popping the front) to keep consumption O(1)
+    std::vector<QueuedStrain> queuedStrains;
+    uSz queuedHead = 0;
 
     f64 curPeak = 0.0;
     f64 curBegin = 0.0;
@@ -1294,9 +1337,8 @@ f64 calculate_aim_difficulty(const Skills::Skill type, const DifficultyHitObject
             saveCurrentPeak(curEnd - curBegin);
             curBegin = curEnd;
 
-            if(!queuedStrains.empty()) {
-                const auto [queuedStrain, queuedStart] = queuedStrains.front();
-                queuedStrains.erase(queuedStrains.begin());
+            if(queuedHead < queuedStrains.size()) {
+                const auto [queuedStrain, queuedStart] = queuedStrains[queuedHead++];
 
                 // the section ends max_section_length after the queued strain, so a queued
                 // strain gets its own section if the gap to the current object is large enough
@@ -1311,13 +1353,14 @@ f64 calculate_aim_difficulty(const Skills::Skill type, const DifficultyHitObject
         if(strain > curPeak) {
             // begin a new peak: nothing in the queue can contribute anymore
             queuedStrains.clear();
+            queuedHead = 0;
             saveCurrentPeak(time - curBegin);
 
             curBegin = time;
             curEnd = curBegin + max_section_length;
             curPeak = strain;
         } else {
-            while(!queuedStrains.empty() && queuedStrains.back().first < strain) queuedStrains.pop_back();
+            while(queuedStrains.size() > queuedHead && queuedStrains.back().strain < strain) queuedStrains.pop_back();
             queuedStrains.emplace_back(strain, time);
         }
     }
@@ -1379,7 +1422,7 @@ f64 calculate_aim_difficulty(const Skills::Skill type, const DifficultyHitObject
 // see https://github.com/ppy/osu/blob/master/osu.Game/Rulesets/Difficulty/Skills/HarmonicSkill.cs
 // harmonic weighted sum over the sorted per-object difficulties; every note contributes.
 // objectWeightSum is needed by the top-weighted counts and must come from this same sum.
-f64 harmonic_difficulty_sum(std::vector<f64> &difficulties, f64 harmonicScale, f64 decayExponent,
+f64 harmonic_difficulty_sum(std::span<f64> difficulties, f64 harmonicScale, f64 decayExponent,
                             f64 &outObjectWeightSum) {
     outObjectWeightSum = 0.0;
 
@@ -1936,8 +1979,7 @@ f64 snap_vector_angle_repetition(const DifficultyHitObject &cur, const Difficult
     return powi(baseNerf + (1.0 - baseNerf) * vectorRepetition * maximum_vector_influence * stackFactor, 2);
 }
 
-f64 evaluate_snap_aim_of(const DifficultyHitObject &cur, bool withSliderTravelDistance,
-                         const StrainEvalContext & /*ctx*/, f64 smallCircleBonus) {
+f64 evaluate_snap_aim_of(const DifficultyHitObject &cur, bool withSliderTravelDistance, const StrainEvalContext &ctx) {
     if(cur.type == DifficultyHitObject::TYPE::SPINNER || cur.c->index <= 1) return 0.0;
 
     const DifficultyHitObject &last = *cur.c->get_previous(0);
@@ -2067,7 +2109,7 @@ f64 evaluate_snap_aim_of(const DifficultyHitObject &cur, bool withSliderTravelDi
     }
 
     // apply high circle size bonus
-    snapDifficulty *= smallCircleBonus;
+    snapDifficulty *= ctx.smallCircleBonus;
 
     // having less time to strain-recover is harder (normalized EMA has no time scaling anymore)
     snapDifficulty *= 1.0 / (1.0 - std::pow(0.03, std::pow(cur.c->strainTime / 1000.0, 0.65)));
@@ -2082,8 +2124,7 @@ f64 flow_overlap_factor(const DifficultyHitObject &first, const DifficultyHitObj
 }
 
 // "flow aim": the player doesn't stop their cursor on every object and instead flows through them
-f64 evaluate_flow_aim_of(const DifficultyHitObject &cur, bool withSliderTravelDistance, const StrainEvalContext &ctx,
-                         f64 smallCircleBonus) {
+f64 evaluate_flow_aim_of(const DifficultyHitObject &cur, bool withSliderTravelDistance, const StrainEvalContext &ctx) {
     if(cur.type == DifficultyHitObject::TYPE::SPINNER || cur.c->index <= 1) return 0.0;
 
     const DifficultyHitObject &last = *cur.c->get_previous(0);
@@ -2110,7 +2151,7 @@ f64 evaluate_flow_aim_of(const DifficultyHitObject &cur, bool withSliderTravelDi
 
     // apply high circle size bonus to the base velocity, reduced because the bonus was made for
     // an evaluator with a different d/t scaling
-    flowDifficulty *= std::sqrt(smallCircleBonus);
+    flowDifficulty *= ctx.smallCircleBonusSqrt;
 
     // rhythm changes are harder to flow
     flowDifficulty *= 1.0 + std::min(0.25, powi((std::max(cur.c->strainTime, last.c->strainTime) -
@@ -2172,7 +2213,7 @@ f64 evaluate_flow_aim_of(const DifficultyHitObject &cur, bool withSliderTravelDi
 }
 
 // https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Evaluators/Aim/AgilityEvaluator.cs
-f64 evaluate_agility_of(const DifficultyHitObject &cur, f64 smallCircleBonus) {
+f64 evaluate_agility_of(const DifficultyHitObject &cur, const StrainEvalContext &ctx) {
     if(cur.type == DifficultyHitObject::TYPE::SPINNER) return 0.0;
 
     static constexpr f64 distance_cap = 100.0 * 1.2;  // 1.2 circles distance between centers
@@ -2186,7 +2227,7 @@ f64 evaluate_agility_of(const DifficultyHitObject &cur, f64 smallCircleBonus) {
 
     f64 agilityDifficulty = distanceScaled * 1000.0 / cur.c->strainTime;
 
-    agilityDifficulty *= std::pow(smallCircleBonus, 1.5);
+    agilityDifficulty *= ctx.smallCircleBonusPow15;
 
     // having less time to strain-recover is harder (normalized EMA has no time scaling anymore)
     agilityDifficulty *= 1.0 / (1.0 - std::pow(0.2, cur.c->strainTime / 1000.0));
@@ -2206,17 +2247,19 @@ f64 snap_flow_probability(f64 ratio) {
 
 // https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Aim.cs
 // per-note aim difficulty: snap/agility/flow blended by the probability of the player
-// snapping vs flowing the pattern, with per-note mod adjustments
-f64 evaluate_aim_difficulty_of(const DifficultyHitObject &cur, bool withSliders, const StrainEvalContext &ctx) {
+// snapping vs flowing the pattern, with per-note mod adjustments. the agility difficulty is
+// passed in because it doesn't depend on withSliders (the caller evaluates both variants)
+f64 evaluate_aim_difficulty_of(const DifficultyHitObject &cur, bool withSliders, f64 agilityDifficultyRaw,
+                               const StrainEvalContext &ctx) {
     static constexpr f64 skill_multiplier_snap = 70.9;
     static constexpr f64 skill_multiplier_agility = 2.35;
     static constexpr f64 skill_multiplier_flow = 242.0;
     static constexpr f64 skill_multiplier_total = 1.12;
     static constexpr f64 combined_snap_norm_exponent = 1.2;
 
-    f64 snapDifficulty = evaluate_snap_aim_of(cur, withSliders, ctx, ctx.smallCircleBonus) * skill_multiplier_snap;
-    const f64 agilityDifficulty = evaluate_agility_of(cur, ctx.smallCircleBonus) * skill_multiplier_agility;
-    f64 flowDifficulty = evaluate_flow_aim_of(cur, withSliders, ctx, ctx.smallCircleBonus) * skill_multiplier_flow;
+    f64 snapDifficulty = evaluate_snap_aim_of(cur, withSliders, ctx) * skill_multiplier_snap;
+    const f64 agilityDifficulty = agilityDifficultyRaw * skill_multiplier_agility;
+    f64 flowDifficulty = evaluate_flow_aim_of(cur, withSliders, ctx) * skill_multiplier_flow;
 
     // snap by itself doesn't have enough difficulty to be above flow on streams; agility
     // measures the rate of cursor velocity changes while snapping, so snapping every circle on

@@ -31,6 +31,7 @@
 #include <thread>
 #include <vector>
 #include <utility>
+#include <type_traits>
 
 #if defined(__SSE__) || (defined(_M_IX86_FP) && (_M_IX86_FP > 0))
 // check if x86 for sse include
@@ -105,15 +106,11 @@ struct LiteFile {
     }
 };
 
-// json helpers: shortest round-trip float formatting (std::to_chars underneath, string equality
-// implies bit equality), nan/inf as quoted strings to stay valid json
-std::string jnum(double v) {
-    if(!std::isfinite(v)) return std::format("\"{}\"", v);
-    return std::format("{}", v);
-}
-
-std::string jnum(float v) {
-    if(!std::isfinite(v)) return std::format("\"{}\"", v);
+// json helpers: shortest round-trip float formatting, nan/inf as quoted strings to stay valid json
+template <typename T>
+    requires(std::is_floating_point_v<T>)
+std::string jnum(T v) {
+    if(!std::isfinite(v)) return std::format(R"("{}")", v);
     return std::format("{}", v);
 }
 
@@ -165,16 +162,17 @@ std::string jsonPPv2CalcParams(const DiffCalc::PPv2CalcParams &pars) {
 // output results (with round-trip float precision, for exact comparisons between builds)
 void printHumanText(const OneMapResult &r) {
     switch(r.errorStage) {
-        case OneMapResult::ErrorStage::READ_FILE:
+        using enum OneMapResult::ErrorStage;
+        case READ_FILE:
             std::cerr << "error: could not read file " << r.map << '\n';
             return;
-        case OneMapResult::ErrorStage::PRIMITIVES:
+        case PRIMITIVES:
             std::cerr << "error loading beatmap primitives: " << r.error << '\n';
             return;
-        case OneMapResult::ErrorStage::DIFFOBJECTS:
+        case DIFFOBJECTS:
             std::cerr << "error loading difficulty objects: " << r.error << '\n';
             return;
-        case OneMapResult::ErrorStage::NONE:
+        case NONE:
             break;
     }
 
@@ -257,7 +255,7 @@ int runBatch(const std::vector<std::string> &argv) {
     };
 
     for(size_t i = 3; i < argv.size(); i++) {
-        const std::string &arg = argv[i];
+        std::string_view arg = argv[i];
         const bool hasValue = (i + 1) < argv.size();
         if(arg == "-") {
             stdinList = true;
@@ -280,7 +278,7 @@ int runBatch(const std::vector<std::string> &argv) {
                 speeds.push_back(speed);
             }
         } else if(arg == "--jobs" && hasValue) {
-            const std::string &token = argv[++i];
+            std::string_view token = argv[++i];
             auto [ptr, ec] = std::from_chars(token.data(), token.data() + token.size(), jobs);
             if(ec != std::errc() || ptr != token.data() + token.size() || jobs < 1)
                 return argError(std::format("invalid job count '{}'", token));
@@ -495,11 +493,11 @@ std::pair<ModFlags, float> modStringToModFlag(std::string_view CSVs) {
     return {retFlags, retSpeed};
 }
 
-OneMapResult::ErrorStage loadPrimitivesFromPath(const std::string &path, DatabaseBeatmap::PRIMITIVE_CONTAINER &out,
+OneMapResult::ErrorStage loadPrimitivesFromPath(std::string_view path, DatabaseBeatmap::PRIMITIVE_CONTAINER &out,
                                                 std::string &error) {
     std::vector<uint8_t> fileBuffer;
     {
-        LiteFile file(path);
+        LiteFile file(std::string{path});
         if(!file.canRead() || (file.getFileSize() == 0)) {
             error = "could not read file";
             return OneMapResult::ErrorStage::READ_FILE;
@@ -518,7 +516,7 @@ OneMapResult::ErrorStage loadPrimitivesFromPath(const std::string &path, Databas
 
 // star calc + pp for one already-loaded map with one (mods, speed) config. the container can be
 // reused across configs (slider times are only computed once), same as the game's mod sweeps.
-OneMapResult computeOneConfig(DatabaseBeatmap::PRIMITIVE_CONTAINER &primitives, const std::string &mapIdentity,
+OneMapResult computeOneConfig(DatabaseBeatmap::PRIMITIVE_CONTAINER &primitives, std::string_view mapIdentity,
                               ModFlags modFlags, float speedMultiplier) {
     OneMapResult r{};
     r.map = mapIdentity;
@@ -635,7 +633,7 @@ OneMapResult computeOneConfig(DatabaseBeatmap::PRIMITIVE_CONTAINER &primitives, 
     return r;
 }
 
-OneMapResult computeOneMap(const std::string &osuFilePath, ModFlags modFlags, float speedMultiplier) {
+OneMapResult computeOneMap(std::string_view osuFilePath, ModFlags modFlags, float speedMultiplier) {
     DatabaseBeatmap::PRIMITIVE_CONTAINER primitives;
     std::string error;
     const OneMapResult::ErrorStage errorStage = loadPrimitivesFromPath(osuFilePath, primitives, error);
@@ -757,7 +755,7 @@ std::string writeJsonLine(const OneMapResult &r, bool dumpStrains) {
 // all config lines for one map, in config order. the primitives container is loaded once and
 // reused for every config. identity is what ends up in the "map" field (batch passes the input
 // path, the test suite passes the bare filename so goldens are location independent).
-std::string processMapForBatch(const std::string &path, const std::string &identity,
+std::string processMapForBatch(std::string_view path, std::string_view identity,
                                const std::vector<BatchConfig> &configs) {
     DatabaseBeatmap::PRIMITIVE_CONTAINER primitives;
     std::string error;
@@ -818,7 +816,7 @@ int entrypoint(int argc_, char *argv_[]) {
     // pull out flag-style args first so the positional parsing below is unaffected by them
     bool jsonOutput = false;
     bool dumpStrains = false;
-    std::erase_if(argv, [&](const std::string &arg) {
+    std::erase_if(argv, [&](std::string_view arg) {
         if(arg == "--json") {
             jsonOutput = true;
             return true;

@@ -68,20 +68,20 @@ struct OneMapResult {
 };
 
 // reads and parses the .osu file; on failure returns the failed stage and fills error
-OneMapResult::ErrorStage loadPrimitivesFromPath(const std::string &path, DatabaseBeatmap::PRIMITIVE_CONTAINER &out,
+OneMapResult::ErrorStage loadPrimitivesFromPath(std::string_view path, DatabaseBeatmap::PRIMITIVE_CONTAINER &out,
                                                 std::string &error);
 
 // star calc + pp for one already-loaded map with one (mods, speed) config. the container can be
 // reused across configs (slider times are only computed once), same as the game's mod sweeps.
-OneMapResult computeOneConfig(DatabaseBeatmap::PRIMITIVE_CONTAINER &primitives, const std::string &mapIdentity,
+OneMapResult computeOneConfig(DatabaseBeatmap::PRIMITIVE_CONTAINER &primitives, std::string_view mapIdentity,
                               ModFlags modFlags, float speedMultiplier);
 
-OneMapResult computeOneMap(const std::string &osuFilePath, ModFlags modFlags, float speedMultiplier);
+OneMapResult computeOneMap(std::string_view osuFilePath, ModFlags modFlags, float speedMultiplier);
 
 std::string writeJsonLine(const OneMapResult &r, bool dumpStrains);
 
 // exhaustive per-field serializers (compile error when the structs gain/lose fields), also used
-// by the crosscheck mode for bit-exact comparisons with field-level diff messages
+// by the crosscheck mode for comparisons with field-level diff messages
 std::string jsonDifficultyAttributes(const DiffCalc::DifficultyAttributes &attrs);
 std::string jsonRawDifficultyValues(const DiffCalc::RawDifficultyValues &raw);
 
@@ -93,7 +93,7 @@ struct BatchConfig {
 // all config lines for one map, in config order. the primitives container is loaded once and
 // reused for every config. identity is what ends up in the "map" field (batch passes the input
 // path, the test suite passes the bare filename so goldens are location independent).
-std::string processMapForBatch(const std::string &path, const std::string &identity,
+std::string processMapForBatch(std::string_view path, std::string_view identity,
                                const std::vector<BatchConfig> &configs);
 
 // "test" subcommand (DiffCalcSuite.cpp): fixture maps x fixed config matrix vs golden jsonl files
