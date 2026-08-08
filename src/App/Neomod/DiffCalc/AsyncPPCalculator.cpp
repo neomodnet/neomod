@@ -39,6 +39,7 @@ struct info_cache {
     bool td{};
     bool hd{};
     bool ap{};
+    bool fl{};
 
     // Results
     pp_res info{};
@@ -47,7 +48,8 @@ struct info_cache {
     [[nodiscard]] bool matches(f32 spd, f32 ar, f32 hp, f32 cs, f32 od, ModFlags flags) const {
         return speed == spd && AR == ar && HP == hp && CS == cs && OD == od &&
                rx == flags::has<ModFlags::Relax>(flags) && td == flags::has<ModFlags::TouchDevice>(flags) &&
-               hd == flags::has<ModFlags::Hidden>(flags) && ap == flags::has<ModFlags::Autopilot>(flags);
+               hd == flags::has<ModFlags::Hidden>(flags) && ap == flags::has<ModFlags::Autopilot>(flags) &&
+               fl == flags::has<ModFlags::Flashlight>(flags);
     }
 };
 
@@ -198,7 +200,8 @@ void drain_work(const std::shared_ptr<calc_session>& s, const Sync::stop_token& 
                                 .rx = flags::has<ModFlags::Relax>(rqt.modFlags),
                                 .td = flags::has<ModFlags::TouchDevice>(rqt.modFlags),
                                 .hd = flags::has<ModFlags::Hidden>(rqt.modFlags),
-                                .ap = flags::has<ModFlags::Autopilot>(rqt.modFlags)};
+                                .ap = flags::has<ModFlags::Autopilot>(rqt.modFlags),
+                                .fl = flags::has<ModFlags::Flashlight>(rqt.modFlags)};
 
             DiffCalc::BeatmapDiffcalcData diffcalcData{.sortedHitObjects = computed_ho->diffres.diffobjects,
                                                        .CS = new_info.CS,
@@ -209,6 +212,7 @@ void drain_work(const std::shared_ptr<calc_session>& s, const Sync::stop_token& 
                                                        .relax = new_info.rx,
                                                        .autopilot = new_info.ap,
                                                        .touchDevice = new_info.td,
+                                                       .flashlight = new_info.fl,
                                                        .speedMultiplier = new_info.speed,
                                                        .breakDuration = computed_ho->diffres.totalBreakDuration,
                                                        .playableLength = computed_ho->diffres.playableLength};

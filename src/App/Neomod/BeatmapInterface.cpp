@@ -3829,6 +3829,7 @@ FinishedScore BeatmapInterface::saveAndSubmitScore(bool quit) {
     const bool hidden = osu->getModHD();
     const bool touchDevice = osu->getModTD();
     const bool autopilot = osu->getModAutopilot();
+    const bool flashlight = osu->getModFlashlight();
 
     const u32 breakDuration = this->getBreakDurationTotal();
     const u32 playableLength = this->getLengthPlayable();
@@ -3844,6 +3845,7 @@ FinishedScore BeatmapInterface::saveAndSubmitScore(bool quit) {
                                                .relax = relax,
                                                .autopilot = autopilot,
                                                .touchDevice = touchDevice,
+                                               .flashlight = flashlight,
                                                .speedMultiplier = speedMultiplier,
                                                .breakDuration = breakDuration,
                                                .playableLength = playableLength};

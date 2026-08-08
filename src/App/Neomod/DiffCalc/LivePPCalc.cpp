@@ -152,6 +152,7 @@ struct LivePPCalc::LivePPCalcImpl {
             const bool td = flags::has<ModFlags::TouchDevice>(p.mods.flags);
             const bool hidden = flags::has<ModFlags::Hidden>(p.mods.flags);
             const bool autopilot = flags::has<ModFlags::Autopilot>(p.mods.flags);
+            const bool flashlight = flags::has<ModFlags::Flashlight>(p.mods.flags);
             const bool modAuto = flags::has<ModFlags::Autoplay>(p.mods.flags);
 
             DiffCalc::BeatmapDiffcalcData diffcalcData{.sortedHitObjects = diffres.diffobjects,
@@ -163,6 +164,7 @@ struct LivePPCalc::LivePPCalcImpl {
                                                        .relax = relax,
                                                        .autopilot = autopilot,
                                                        .touchDevice = td,
+                                                       .flashlight = flashlight,
                                                        .speedMultiplier = p.speed_multiplier,
                                                        .breakDuration = diffres.totalBreakDuration,
                                                        .playableLength = diffres.playableLength};

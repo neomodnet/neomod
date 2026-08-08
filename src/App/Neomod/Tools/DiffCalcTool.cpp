@@ -186,6 +186,10 @@ void printHumanText(const OneMapResult &r) {
     std::cout << "  aimNoSliders: " << r.raw.aimNoSliders << '\n';
     std::cout << "  aim: " << r.raw.aim << '\n';
     std::cout << "  speed: " << r.raw.speed << '\n';
+    std::cout << "  readingNoHidden: " << r.raw.readingNoHidden << '\n';
+    std::cout << "  readingHidden: " << r.raw.readingHidden << '\n';
+    std::cout << "  flashlightNoHidden: " << r.raw.flashlightNoHidden << '\n';
+    std::cout << "  flashlightHidden: " << r.raw.flashlightHidden << '\n';
     {
         // strain digests (count + order-dependent sum), enough to pin the section strain outputs
         double aimStrainSum = 0.0;

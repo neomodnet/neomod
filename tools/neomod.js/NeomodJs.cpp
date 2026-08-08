@@ -127,6 +127,7 @@ struct Beatmap {
                                                    .relax = flags::has<ModFlags::Relax>(mods.flags),
                                                    .autopilot = flags::has<ModFlags::Autopilot>(mods.flags),
                                                    .touchDevice = flags::has<ModFlags::TouchDevice>(mods.flags),
+                                                   .flashlight = flags::has<ModFlags::Flashlight>(mods.flags),
                                                    .speedMultiplier = mods.speed,
                                                    .breakDuration = diffResult.totalBreakDuration,
                                                    .playableLength = diffResult.playableLength};
