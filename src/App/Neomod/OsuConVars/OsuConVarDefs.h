@@ -3,6 +3,8 @@
 
 // put osu-related convars in this file (NOT ConVarDefs.h)
 
+#include "DiffCalcDefaults.h"
+
 // ########################################################################################################################
 // # this first part is just to allow for proper code completion when editing this file
 // ########################################################################################################################
@@ -385,8 +387,8 @@ CONVAR(hud_statistics_ur_offset_x, 0.0f, CLIENT | SKINS | SERVER);
 CONVAR(hud_statistics_ur_offset_y, 0.0f, CLIENT | SKINS | SERVER);
 CONVAR(hud_volume_duration, 1.0f, CLIENT | SKINS | SERVER);
 CONVAR(hud_volume_size_multiplier, 1.5f, CLIENT | SKINS | SERVER);
-CONVAR(playfield_border_bottom_percent, 0.0834f, CLIENT | SERVER | GAMEPLAY);
-CONVAR(playfield_border_top_percent, 0.117f, CLIENT | SERVER | GAMEPLAY);
+CONVAR(playfield_border_bottom_percent, defaults::playfield_border_bottom_percent, CLIENT | SERVER | GAMEPLAY);
+CONVAR(playfield_border_top_percent, defaults::playfield_border_top_percent, CLIENT | SERVER | GAMEPLAY);
 CONVAR(playfield_mirror_horizontal, false, CLIENT | SERVER | GAMEPLAY);
 CONVAR(playfield_mirror_vertical, false, CLIENT | SERVER | GAMEPLAY);
 CONVAR(playfield_rotation, 0.f, CLIENT | SERVER | PROTECTED | GAMEPLAY,
@@ -462,7 +464,7 @@ CONVAR(mod_fadingcursor, false, CLIENT | SERVER | PROTECTED | GAMEPLAY);
 CONVAR(mod_fadingcursor_combo, 50.0f, CLIENT | SERVER | GAMEPLAY);
 CONVAR(mod_fposu, false, CLIENT | SERVER | GAMEPLAY);
 CONVAR(mod_fposu_sound_panning, false, CLIENT, "see sound_panning");
-CONVAR(mod_fps, false, CLIENT | SERVER | GAMEPLAY);
+CONVAR(mod_fps, defaults::mod_fps, CLIENT | SERVER | GAMEPLAY);
 CONVAR(mod_fps_sound_panning, false, CLIENT, "see sound_panning");
 CONVAR(mod_fullalternate, false, CLIENT | SERVER | GAMEPLAY);
 CONVAR(mod_halfwindow, false, CLIENT | SERVER | PROTECTED | GAMEPLAY);
@@ -484,8 +486,8 @@ CONVAR(mod_mafham_render_chunksize, 15, CLIENT | SERVER | GAMEPLAY,
        "rendering across many frames to minimize lag)");
 CONVAR(mod_mafham_render_livesize, 25, CLIENT | SERVER | GAMEPLAY,
        "render this many hitobjects without any scene buffering, higher = more lag but more up-to-date scene");
-CONVAR(mod_millhioref, false, CLIENT | SERVER | PROTECTED | GAMEPLAY);
-CONVAR(mod_millhioref_multiplier, 2.0f, CLIENT | SERVER | GAMEPLAY);
+CONVAR(mod_millhioref, defaults::mod_millhioref, CLIENT | SERVER | PROTECTED | GAMEPLAY);
+CONVAR(mod_millhioref_multiplier, defaults::mod_millhioref_multiplier, CLIENT | SERVER | GAMEPLAY);
 CONVAR(mod_ming3012, false, CLIENT | SERVER | GAMEPLAY);
 CONVAR(mod_minimize, false, CLIENT | SERVER | PROTECTED | GAMEPLAY);
 CONVAR(mod_minimize_multiplier, 0.5f, CLIENT | SERVER | PROTECTED | GAMEPLAY);
@@ -516,9 +518,9 @@ CONVAR(mod_freeze_frame, false, CLIENT | SERVER | PROTECTED | GAMEPLAY);
 
 // Important gameplay values
 CONVAR(animation_speed_override, -1.0f, CLIENT | SERVER | PROTECTED | GAMEPLAY);
-CONVAR(approachtime_max, 450, CLIENT | SERVER | PROTECTED | GAMEPLAY);
-CONVAR(approachtime_mid, 1200, CLIENT | SERVER | PROTECTED | GAMEPLAY);
-CONVAR(approachtime_min, 1800, CLIENT | SERVER | PROTECTED | GAMEPLAY);
+CONVAR(approachtime_max, defaults::approachtime_max, CLIENT | SERVER | PROTECTED | GAMEPLAY);
+CONVAR(approachtime_mid, defaults::approachtime_mid, CLIENT | SERVER | PROTECTED | GAMEPLAY);
+CONVAR(approachtime_min, defaults::approachtime_min, CLIENT | SERVER | PROTECTED | GAMEPLAY);
 CONVAR(cs_cap_sanity, true, CLIENT | SERVER | PROTECTED | GAMEPLAY);
 CONVAR(skip_time, 5000.0f, CLIENT | SERVER | PROTECTED | GAMEPLAY,
        "Timeframe in ms within a beatmap which allows skipping if it doesn't contain any hitobjects");
@@ -553,28 +555,30 @@ CONVAR(background_image_eviction_delay_frames, 60, CLIENT,
        "how many vsync frames to keep stale background images in the cache before deleting them");
 CONVAR(background_image_loading_delay, 0.075f, CLIENT,
        "how many seconds to wait until loading background images for visible beatmaps starts");
-CONVAR(slider_curve_points_separation, 2.5f, CLIENT,  // NOTE: adjusted by options_slider_quality
+CONVAR(slider_curve_points_separation, defaults::slider_curve_points_separation,
+       CLIENT,  // NOTE: adjusted by options_slider_quality
        "slider body curve approximation step width in osu!pixels, don't set this lower than around 1.5");
 
 // Sanity checks/limits
 CONVAR(
-    beatmap_max_num_hitobjects, 40000, CLIENT | PROTECTED | GAMEPLAY,
+    beatmap_max_num_hitobjects, defaults::beatmap_max_num_hitobjects, CLIENT | PROTECTED | GAMEPLAY,
     "maximum number of total allowed hitobjects per beatmap (prevent crashing on deliberate game-breaking beatmaps)");
-CONVAR(beatmap_max_num_slider_scoringtimes, 32768, CLIENT | PROTECTED | GAMEPLAY,
+CONVAR(beatmap_max_num_slider_scoringtimes, defaults::beatmap_max_num_slider_scoringtimes,
+       CLIENT | PROTECTED | GAMEPLAY,
        "maximum number of slider score increase events allowed per slider "
        "(prevent crashing on deliberate game-breaking beatmaps)");
-CONVAR(slider_curve_max_length, 65536.f / 2.f, CLIENT | PROTECTED | GAMEPLAY,
+CONVAR(slider_curve_max_length, defaults::slider_curve_max_length, CLIENT | PROTECTED | GAMEPLAY,
        "maximum slider length in osu!pixels (i.e. pixelLength). also used to clamp all "
        "(control-)point coordinates to sane values.");
-CONVAR(slider_curve_max_points, 9999.0f, CLIENT | PROTECTED | GAMEPLAY,
+CONVAR(slider_curve_max_points, defaults::slider_curve_max_points, CLIENT | PROTECTED | GAMEPLAY,
        "maximum number of allowed interpolated curve points. quality will be forced to go "
        "down if a slider has more steps than this");
-CONVAR(slider_end_inside_check_offset, 36, CLIENT | PROTECTED | GAMEPLAY,
+CONVAR(slider_end_inside_check_offset, defaults::slider_end_inside_check_offset, CLIENT | PROTECTED | GAMEPLAY,
        "offset in milliseconds going backwards from the end point, at which \"being "
        "inside the slider\" is checked. (osu bullshit behavior)");
-CONVAR(slider_max_repeats, 9000, CLIENT | PROTECTED | GAMEPLAY,
+CONVAR(slider_max_repeats, defaults::slider_max_repeats, CLIENT | PROTECTED | GAMEPLAY,
        "maximum number of repeats allowed per slider (clamp range)");
-CONVAR(slider_max_ticks, 2048, CLIENT | PROTECTED | GAMEPLAY,
+CONVAR(slider_max_ticks, defaults::slider_max_ticks, CLIENT | PROTECTED | GAMEPLAY,
        "maximum number of ticks allowed per slider (clamp range)");
 CONVAR(beatmap_version, 128, CLIENT,
        "maximum supported .osu file version, above this will simply not load (this was 14 but got "
@@ -756,9 +760,12 @@ CONVAR(fposu_zoom_sensitivity_ratio, 1.0f, CLIENT | SKINS | SERVER,
 CONVAR(fposu_zoom_toggle, false, CLIENT | SKINS | SERVER, "whether the zoom key acts as a toggle");
 CONVAR(hiterrorbar_misaims, true, CLIENT | SKINS | SERVER);
 CONVAR(hiterrorbar_misses, true, CLIENT | SKINS | SERVER);
-CONVAR(hitobject_fade_in_time, 400, CLIENT | SERVER | PROTECTED | GAMEPLAY, "in milliseconds (!)");
-CONVAR(hitobject_fade_out_time, 0.293f, CLIENT | SERVER | PROTECTED | GAMEPLAY, "in seconds (!)");
-CONVAR(hitobject_fade_out_time_speed_multiplier_min, 0.5f, CLIENT | SERVER | PROTECTED | GAMEPLAY,
+CONVAR(hitobject_fade_in_time, defaults::hitobject_fade_in_time, CLIENT | SERVER | PROTECTED | GAMEPLAY,
+       "in milliseconds (!)");
+CONVAR(hitobject_fade_out_time, defaults::hitobject_fade_out_time, CLIENT | SERVER | PROTECTED | GAMEPLAY,
+       "in seconds (!)");
+CONVAR(hitobject_fade_out_time_speed_multiplier_min, defaults::hitobject_fade_out_time_speed_multiplier_min,
+       CLIENT | SERVER | PROTECTED | GAMEPLAY,
        "The minimum multiplication factor allowed for the speed multiplier influencing the fadeout duration");
 CONVAR(hitobject_hittable_dim, true, CLIENT | SKINS | SERVER,
        "whether to dim objects not yet within the miss-range (when they can't even be missed yet)");
@@ -946,11 +953,12 @@ CONVAR(spec_share_map, true, CLIENT | SKINS | SERVER, "automatically send curren
 CONVAR(spinner_fade_out_time_multiplier, 0.7f, CLIENT | SKINS | SERVER);
 CONVAR(spinner_use_ar_fadein, false, CLIENT | SKINS | SERVER,
        "whether spinners should fade in with AR (same as circles), or with hardcoded 400 ms fadein time (osu!default)");
-CONVAR(stars_ignore_clamped_sliders, true, CLIENT | SKINS | SERVER,
+CONVAR(stars_ignore_clamped_sliders, defaults::stars_ignore_clamped_sliders, CLIENT | SKINS | SERVER,
        "skips processing sliders limited by slider_curve_max_length");
-CONVAR(stars_slider_curve_points_separation, 20.0f, CLIENT | SKINS | SERVER,
+CONVAR(stars_slider_curve_points_separation, defaults::stars_slider_curve_points_separation, CLIENT | SKINS | SERVER,
        "massively reduce curve accuracy for star calculations to save memory/performance");
-CONVAR(stars_stacking, true, CLIENT | SKINS | SERVER, "respect hitobject stacking before calculating stars/pp");
+CONVAR(stars_stacking, defaults::stars_stacking, CLIENT | SKINS | SERVER,
+       "respect hitobject stacking before calculating stars/pp");
 CONVAR(start_first_main_menu_song_at_preview_point, false, CLIENT);
 CONVAR(submit_after_pause, true, CLIENT | SERVER);
 CONVAR(submit_scores, false, CLIENT | SERVER);

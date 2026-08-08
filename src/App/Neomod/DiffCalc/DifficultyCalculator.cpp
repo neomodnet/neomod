@@ -28,10 +28,12 @@
 
 #else
 
-#define STARS_SLIDER_CURVE_POINTS_SEPARATION 20.f
-#define IGNORE_CLAMPED_SLIDERS true
-#define SLIDER_CURVE_MAX_LENGTH 32768.f
-#define SLIDER_END_INSIDE_CHECK_OFFSET 36.
+#include "OsuConVars/DiffCalcDefaults.h"
+
+#define STARS_SLIDER_CURVE_POINTS_SEPARATION cv::defaults::stars_slider_curve_points_separation
+#define IGNORE_CLAMPED_SLIDERS cv::defaults::stars_ignore_clamped_sliders
+#define SLIDER_CURVE_MAX_LENGTH cv::defaults::slider_curve_max_length
+#define SLIDER_END_INSIDE_CHECK_OFFSET (f64) cv::defaults::slider_end_inside_check_offset
 
 #include <print>
 #include <algorithm>

@@ -287,6 +287,7 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/base64.cpp \
 	src/App/Neomod/SongBrowser/VolNormalization.cpp \
 	src/App/Neomod/SpectatorScreen.cpp \
 	src/App/Neomod/ThumbnailManager.cpp \
+	src/App/Neomod/Tools/DiffCalcSuite.cpp \
 	src/App/Neomod/Tools/DiffCalcTool.cpp \
 	src/App/Neomod/TooltipOverlay.cpp src/App/Neomod/UI.cpp \
 	src/App/Neomod/UIAvatar.cpp src/App/Neomod/UIBackButton.cpp \
@@ -532,6 +533,7 @@ am_neomod_OBJECTS = libraries/neomod-MD5.$(OBJEXT) \
 	src/App/Neomod/SongBrowser/neomod-VolNormalization.$(OBJEXT) \
 	src/App/Neomod/neomod-SpectatorScreen.$(OBJEXT) \
 	src/App/Neomod/neomod-ThumbnailManager.$(OBJEXT) \
+	src/App/Neomod/Tools/neomod-DiffCalcSuite.$(OBJEXT) \
 	src/App/Neomod/Tools/neomod-DiffCalcTool.$(OBJEXT) \
 	src/App/Neomod/neomod-TooltipOverlay.$(OBJEXT) \
 	src/App/Neomod/neomod-UI.$(OBJEXT) \
@@ -783,6 +785,7 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/App/Neomod/SongBrowser/$(DEPDIR)/neomod-SongButton.Po \
 	src/App/Neomod/SongBrowser/$(DEPDIR)/neomod-SongDifficultyButton.Po \
 	src/App/Neomod/SongBrowser/$(DEPDIR)/neomod-VolNormalization.Po \
+	src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcSuite.Po \
 	src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcTool.Po \
 	src/App/Tests/$(DEPDIR)/neomod-AsyncPoolTest.Po \
 	src/App/Tests/$(DEPDIR)/neomod-NetworkTest.Po \
@@ -1469,6 +1472,7 @@ neomod_SOURCES = libraries/MD5.cpp libraries/base64.cpp \
 	src/App/Neomod/SongBrowser/VolNormalization.cpp \
 	src/App/Neomod/SpectatorScreen.cpp \
 	src/App/Neomod/ThumbnailManager.cpp \
+	src/App/Neomod/Tools/DiffCalcSuite.cpp \
 	src/App/Neomod/Tools/DiffCalcTool.cpp \
 	src/App/Neomod/TooltipOverlay.cpp src/App/Neomod/UI.cpp \
 	src/App/Neomod/UIAvatar.cpp src/App/Neomod/UIBackButton.cpp \
@@ -2363,6 +2367,9 @@ src/App/Neomod/Tools/$(am__dirstamp):
 src/App/Neomod/Tools/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) src/App/Neomod/Tools/$(DEPDIR)
 	@: >>src/App/Neomod/Tools/$(DEPDIR)/$(am__dirstamp)
+src/App/Neomod/Tools/neomod-DiffCalcSuite.$(OBJEXT):  \
+	src/App/Neomod/Tools/$(am__dirstamp) \
+	src/App/Neomod/Tools/$(DEPDIR)/$(am__dirstamp)
 src/App/Neomod/Tools/neomod-DiffCalcTool.$(OBJEXT):  \
 	src/App/Neomod/Tools/$(am__dirstamp) \
 	src/App/Neomod/Tools/$(DEPDIR)/$(am__dirstamp)
@@ -3142,6 +3149,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/SongBrowser/$(DEPDIR)/neomod-SongButton.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/SongBrowser/$(DEPDIR)/neomod-SongDifficultyButton.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/SongBrowser/$(DEPDIR)/neomod-VolNormalization.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcSuite.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcTool.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/$(DEPDIR)/neomod-AsyncPoolTest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/$(DEPDIR)/neomod-NetworkTest.Po@am__quote@ # am--include-marker
@@ -4530,6 +4538,20 @@ src/App/Neomod/neomod-ThumbnailManager.obj: src/App/Neomod/ThumbnailManager.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/ThumbnailManager.cpp' object='src/App/Neomod/neomod-ThumbnailManager.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-ThumbnailManager.obj `if test -f 'src/App/Neomod/ThumbnailManager.cpp'; then $(CYGPATH_W) 'src/App/Neomod/ThumbnailManager.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/ThumbnailManager.cpp'; fi`
+
+src/App/Neomod/Tools/neomod-DiffCalcSuite.o: src/App/Neomod/Tools/DiffCalcSuite.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/Tools/neomod-DiffCalcSuite.o -MD -MP -MF src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcSuite.Tpo -c -o src/App/Neomod/Tools/neomod-DiffCalcSuite.o `test -f 'src/App/Neomod/Tools/DiffCalcSuite.cpp' || echo '$(srcdir)/'`src/App/Neomod/Tools/DiffCalcSuite.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcSuite.Tpo src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcSuite.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/Tools/DiffCalcSuite.cpp' object='src/App/Neomod/Tools/neomod-DiffCalcSuite.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/Tools/neomod-DiffCalcSuite.o `test -f 'src/App/Neomod/Tools/DiffCalcSuite.cpp' || echo '$(srcdir)/'`src/App/Neomod/Tools/DiffCalcSuite.cpp
+
+src/App/Neomod/Tools/neomod-DiffCalcSuite.obj: src/App/Neomod/Tools/DiffCalcSuite.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/Tools/neomod-DiffCalcSuite.obj -MD -MP -MF src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcSuite.Tpo -c -o src/App/Neomod/Tools/neomod-DiffCalcSuite.obj `if test -f 'src/App/Neomod/Tools/DiffCalcSuite.cpp'; then $(CYGPATH_W) 'src/App/Neomod/Tools/DiffCalcSuite.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/Tools/DiffCalcSuite.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcSuite.Tpo src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcSuite.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/Tools/DiffCalcSuite.cpp' object='src/App/Neomod/Tools/neomod-DiffCalcSuite.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/Tools/neomod-DiffCalcSuite.obj `if test -f 'src/App/Neomod/Tools/DiffCalcSuite.cpp'; then $(CYGPATH_W) 'src/App/Neomod/Tools/DiffCalcSuite.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/Tools/DiffCalcSuite.cpp'; fi`
 
 src/App/Neomod/Tools/neomod-DiffCalcTool.o: src/App/Neomod/Tools/DiffCalcTool.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/Tools/neomod-DiffCalcTool.o -MD -MP -MF src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcTool.Tpo -c -o src/App/Neomod/Tools/neomod-DiffCalcTool.o `test -f 'src/App/Neomod/Tools/DiffCalcTool.cpp' || echo '$(srcdir)/'`src/App/Neomod/Tools/DiffCalcTool.cpp
@@ -7107,6 +7129,7 @@ distclean: distclean-am
 	-rm -f src/App/Neomod/SongBrowser/$(DEPDIR)/neomod-SongButton.Po
 	-rm -f src/App/Neomod/SongBrowser/$(DEPDIR)/neomod-SongDifficultyButton.Po
 	-rm -f src/App/Neomod/SongBrowser/$(DEPDIR)/neomod-VolNormalization.Po
+	-rm -f src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcSuite.Po
 	-rm -f src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcTool.Po
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-AsyncPoolTest.Po
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-NetworkTest.Po
@@ -7392,6 +7415,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/App/Neomod/SongBrowser/$(DEPDIR)/neomod-SongButton.Po
 	-rm -f src/App/Neomod/SongBrowser/$(DEPDIR)/neomod-SongDifficultyButton.Po
 	-rm -f src/App/Neomod/SongBrowser/$(DEPDIR)/neomod-VolNormalization.Po
+	-rm -f src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcSuite.Po
 	-rm -f src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcTool.Po
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-AsyncPoolTest.Po
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-NetworkTest.Po

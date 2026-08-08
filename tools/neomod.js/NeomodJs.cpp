@@ -5,55 +5,26 @@
 #include "DatabaseBeatmap.h"
 #include "DifficultyCalculator.h"
 #include "ModFlags.h"
-#include "Parsing.h"
 #include "Replay.h"
 #include "score.h"
-#include "SString.h"
 
 using namespace emscripten;
 using namespace neomod;
 
 struct Beatmap {
     Beatmap(std::string osu_bytes) {
-        auto lines = SString::split_newlines(osu_bytes);
-
-        // Simplified parsing of difficulty settings (from DiffCalcTool.cpp)
-        bool foundAR = false;
-        bool inDifficulty = false;
-        for(auto line : lines) {
-            if(line.empty() || SString::is_comment(line)) continue;
-
-            if(line.contains("[Difficulty]")) {
-                inDifficulty = true;
-                continue;
-            }
-
-            if(line.starts_with('[') && inDifficulty) {
-                break;
-            }
-
-            if(inDifficulty) {
-                Parsing::parse(line, "CircleSize", ':', &this->CS);
-                if(Parsing::parse(line, "ApproachRate", ':', &this->AR)) {
-                    foundAR = true;
-                }
-                Parsing::parse(line, "HPDrainRate", ':', &this->HP);
-                Parsing::parse(line, "OverallDifficulty", ':', &this->OD);
-            }
-        }
-
-        // old beatmaps: AR = OD
-        if(!foundAR) {
-            this->AR = this->OD;
-        }
-
-        // Load primitive hitobjects
+        // Load primitive hitobjects (also parses the [Difficulty] settings, incl. AR = OD fallback)
         std::vector<uint8_t> osu_file(osu_bytes.begin(), osu_bytes.end());
         this->primitives = DatabaseBeatmap::loadPrimitiveObjectsFromData(osu_file, "memory.osu");
         if(this->primitives.error.errc) {
             this->error_msg = primitives.error.error_string();
             return;
         }
+
+        this->AR = this->primitives.AR;
+        this->CS = this->primitives.CS;
+        this->OD = this->primitives.OD;
+        this->HP = this->primitives.HP;
 
         this->loaded_successfully = true;
 

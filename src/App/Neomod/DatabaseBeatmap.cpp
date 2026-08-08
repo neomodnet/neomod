@@ -57,13 +57,15 @@ enum class HitObjectType : uint8_t {
     SPINNER,
 };
 
-#define BEATMAP_MAX_NUM_HITOBJECTS (u32)40000
-#define BEATMAP_MAX_NUM_SLIDER_SCORINGTIMES (i32)32768
-#define SLIDER_CURVE_MAX_LENGTH (65536.f / 2.f)
-#define SLIDER_END_INSIDE_CHECK_OFFSET (i32)36
-#define SLIDER_MAX_REPEATS (i32)9000
-#define SLIDER_MAX_TICKS (i32)2048
-#define STARS_STACKING true
+#include "OsuConVars/DiffCalcDefaults.h"
+
+#define BEATMAP_MAX_NUM_HITOBJECTS (u32) cv::defaults::beatmap_max_num_hitobjects
+#define BEATMAP_MAX_NUM_SLIDER_SCORINGTIMES (i32) cv::defaults::beatmap_max_num_slider_scoringtimes
+#define SLIDER_CURVE_MAX_LENGTH cv::defaults::slider_curve_max_length
+#define SLIDER_END_INSIDE_CHECK_OFFSET (i32) cv::defaults::slider_end_inside_check_offset
+#define SLIDER_MAX_REPEATS (i32) cv::defaults::slider_max_repeats
+#define SLIDER_MAX_TICKS (i32) cv::defaults::slider_max_ticks
+#define STARS_STACKING cv::defaults::stars_stacking
 
 #define rgb(r, g, b) ((Color)((((255) & 0xff) << 24) | (((r) & 0xff) << 16) | (((g) & 0xff) << 8) | ((b) & 0xff)))
 
@@ -369,6 +371,7 @@ DatabaseBeatmap::PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjectsFromDa
     int colorCounter = 1;
     int colorOffset = 0;
     int comboNumber = 1;
+    bool foundAR = false;
     BlockId curBlock{BlockId::Sentinel};
 
     std::vector<MetadataBlock> blocksUnseen{metadataBlocks.begin(), metadataBlocks.end()};
@@ -430,6 +433,13 @@ DatabaseBeatmap::PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjectsFromDa
             }
 
             case Difficulty: {
+                if(Parsing::parse(curLine, "CircleSize", ':', &c.CS)) break;
+                if(Parsing::parse(curLine, "ApproachRate", ':', &c.AR)) {
+                    foundAR = true;
+                    break;
+                }
+                if(Parsing::parse(curLine, "HPDrainRate", ':', &c.HP)) break;
+                if(Parsing::parse(curLine, "OverallDifficulty", ':', &c.OD)) break;
                 if(Parsing::parse(curLine, "SliderMultiplier", ':', &c.sliderMultiplier)) break;
                 if(Parsing::parse(curLine, "SliderTickRate", ':', &c.sliderTickRate)) break;
                 break;
@@ -685,6 +695,9 @@ DatabaseBeatmap::PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjectsFromDa
             }
         }
     }
+
+    // special case: old beatmaps have AR = OD, there is no ApproachRate stored
+    if(!foundAR) c.AR = c.OD;
 
     // late bail if too many hitobjects would run out of memory and crash
     if(c.getNumObjects() > BEATMAP_MAX_NUM_HITOBJECTS) {

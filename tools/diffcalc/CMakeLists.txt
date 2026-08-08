@@ -37,6 +37,7 @@ add_executable(diffcalc
     "${NEOMOD_SRC}/App/Neomod/DiffCalc/DifficultyCalculator.cpp"
     "${NEOMOD_SRC}/App/Neomod/GameRules.cpp"
     "${NEOMOD_SRC}/App/Neomod/SliderCurves.cpp"
+    "${NEOMOD_SRC}/App/Neomod/Tools/DiffCalcSuite.cpp"
     "${NEOMOD_SRC}/App/Neomod/Tools/DiffCalcTool.cpp"
     "${NEOMOD_SRC}/Util/Parsing.cpp"
     "${NEOMOD_SRC}/Util/SString.cpp"

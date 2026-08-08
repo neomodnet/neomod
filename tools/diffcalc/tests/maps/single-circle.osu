@@ -1,0 +1,26 @@
+osu file format v14
+
+[General]
+AudioFilename: audio.mp3
+StackLeniency: 0.7
+Mode: 0
+
+[Metadata]
+Title:single circle
+Artist:diffcalc suite
+Creator:neomod
+Version:fixture
+
+[Difficulty]
+HPDrainRate:5
+CircleSize:4
+OverallDifficulty:8
+ApproachRate:9
+SliderMultiplier:1.4
+SliderTickRate:1
+
+[TimingPoints]
+0,500,4,2,0,60,1,0
+
+[HitObjects]
+256,192,1000,5,0,0:0:0:0:
