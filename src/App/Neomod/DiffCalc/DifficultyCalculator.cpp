@@ -178,10 +178,19 @@ struct DifficultyHitObject::Computed {
 
     f64 angle{std::numeric_limits<f64>::quiet_NaN()};  // precalc
 
+    // angle of the current-1 -> current vector, normalized so symmetrical vectors in any axis
+    // compare equal (lazer NormalisedVectorAngle); NaN when lazer would have null
+    f64 normalisedVectorAngle{std::numeric_limits<f64>::quiet_NaN()};  // precalc
+
+    f64 jumpDistance{0.};         // precalc (start->start distance, lazer JumpDistance)
     f64 lazyJumpDistance{0.};     // precalc
     f64 minimumJumpDistance{0.};  // precalc
     f64 minimumJumpTime{0.};      // precalc
     f64 travelDistance{0.};       // precalc
+
+    // time between the previous object's end and this object's start, min 25ms
+    // (lazer LastObjectEndDeltaTime; falls back to the start->start delta for the first pair)
+    f64 lastObjectEndDeltaTime{0.};  // precalc
 
     f64 deltaTime{0.};   // strain temp
     f64 strainTime{0.};  // strain temp
@@ -212,10 +221,13 @@ struct DifficultyHitObject::Computed {
         rhythm = 0.;
         norm_start = parent->pos * radiusScalingFactor;
         angle = std::numeric_limits<f64>::quiet_NaN();
+        normalisedVectorAngle = std::numeric_limits<f64>::quiet_NaN();
+        jumpDistance = 0.;
         lazyJumpDistance = 0.;
         minimumJumpDistance = 0.;
         minimumJumpTime = 0.;
         travelDistance = 0.;
+        lastObjectEndDeltaTime = 0.;
         deltaTime = 0.;
         strainTime = 0.;
         lazyEndPos = parent->pos;
@@ -535,6 +547,11 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
                 DifficultyHitObject &cur = diffObjects[i];
                 DifficultyHitObject &prev1 = diffObjects[i - 1];
 
+                // (the first pair has no previous difficulty object in lazer, so it falls back to
+                // the min-clamped start->start delta there)
+                cur.c->lastObjectEndDeltaTime = (i == 1) ? std::max((f64)(cur.time - prev1.time), 25.0)
+                                                         : std::max((f64)(cur.time - prev1.endTime), 25.0);
+
                 // MCKAY:
                 {
                     // delay curve creation to when it's needed (1)
@@ -558,6 +575,7 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
                 const vec2 lastCursorPosition = DistanceCalc::getEndCursorPosition(prev1, circleRadiusInOsuPixels);
 
                 f64 cur_strain_time = (f64)std::max(cur.time - prev1.time, 25);  // strainTime isn't initialized here
+                cur.c->jumpDistance = vec::length(prev1.pos - cur.pos) * radius_scaling_factor;
                 cur.c->lazyJumpDistance = vec::length(cur.c->norm_start - lastCursorPosition * radius_scaling_factor);
                 cur.c->minimumJumpDistance = cur.c->lazyJumpDistance;
                 cur.c->minimumJumpTime = cur_strain_time;
@@ -604,6 +622,19 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
                     const f64 det = (v1.x * v2.y) - (v1.y * v2.x);
 
                     cur.c->angle = std::fabs(std::atan2(det, dot));
+
+                    // lazer semantics: the vector vertex moves to the previous slider's head when
+                    // it has travel, and lazer only has a lastlast *difficulty* object from the
+                    // fourth hitobject on (i > 2). unused by the current algorithm, filled for the
+                    // upcoming port.
+                    if(i > 2) {
+                        const vec2 nvaLastCursor =
+                            (prev1.type == DifficultyHitObject::TYPE::SLIDER && prev1.c->travelDistance > 0.0)
+                                ? prev1.pos
+                                : lastCursorPosition;
+                        const vec2 v = cur.pos - nvaLastCursor;
+                        cur.c->normalisedVectorAngle = std::atan2(std::fabs(v.y), std::fabs(v.x));
+                    }
                 }
             }
         }

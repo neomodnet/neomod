@@ -155,7 +155,7 @@ class DifficultyHitObject {
     // ============================================================================================================== //
     // computed by the star calc (calculateStarDiffForHitObjects), never set by the loader/ctor.
     struct Computed;
-    StaticPImpl<Computed, 160> c;
+    StaticPImpl<Computed, 184> c;
 };
 
 // This struct is the core data computed by difficulty calculation and used in performance calculation
