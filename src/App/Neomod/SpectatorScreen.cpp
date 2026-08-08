@@ -38,8 +38,6 @@ using namespace Spectating;
 
 namespace Spectating {
 
-static i32 current_map_id = 0;
-static MD5Hash current_map_md5;
 static CONSTINIT MapFetcher map_fetcher;
 
 #define INIT_LABEL(label_name, default_text, is_big)                      \
@@ -65,8 +63,6 @@ void start(int user_id) {
 
     BanchoState::spectating = true;
     BanchoState::spectated_player_id = user_id;
-    current_map_id = 0;
-    current_map_md5.clear();
     map_fetcher.clear();
 
     if(!db->isFinished() || db->isCancelled()) {
@@ -104,8 +100,6 @@ void stop() {
     BanchoState::fellow_spectators.clear();
     BanchoState::spectating = false;
     BanchoState::spectated_player_id = 0;
-    current_map_id = 0;
-    current_map_md5.clear();
     map_fetcher.clear();
 
     Packet packet;
@@ -155,99 +149,35 @@ void SpectatorScreen::controlClientState() {
     if(!BanchoState::spectating) return;
 
     const bool can_load_maps = db->isFinished() && !db->isCancelled();
-
-    // XXX: should use map_md5 instead of map_id
-    const UserInfo *user_info = BANCHO::User::get_user_info(BanchoState::spectated_player_id, true);
-    if(osu->isInPlayMode() && user_info->map_id != current_map_id) {
-        // quit once we reach end of map_iface->spectated_replay
-        osu->getMapInterface()->spectate_quit = true;
-    }
-    if(user_info->map_id == -1 || user_info->map_id == 0) {
-        current_map_id = 0;
-        current_map_md5.clear();
-    } else if(user_info->mode == GameMode::STANDARD && user_info->map_id != current_map_id && can_load_maps) {
-        // drive the spectated user's map through the fetcher (retargeting is implicit when they
-        // change maps under us); start spectating once it lands.
-        map_fetcher.target_map(user_info->map_id, user_info->map_md5);
-        if(map_fetcher.tick().status == MapFetcher::Status::Found && !osu->isInPlayMode()) {
-            auto *diff = map_fetcher.result();
-            current_map_id = user_info->map_id;
-            current_map_md5 = user_info->map_md5;
-            map_fetcher.clear();
-            ui->setScreen(ui->getSpectatorScreen());
-            ui->getSongBrowser()->onDifficultySelected(diff, false);
-            osu->getMapInterface()->spectate();
-        }
-    }
-
     auto *map_iface = osu->getMapInterface();
 
-    for(auto update : this->player_updates) {
-        // TODO: blindly pushing frames to map_iface is wrong. same for score_frames below.
-        //       the remote player might have already restarted or changed map, in which case
-        //       we're just pushing frames to oblivion since they will get cleared on map start.
-        //       this causes us to miss the first few seconds of frames on every map (!!!)
-        for(auto frame : update.replay_frames) {
-            map_iface->spectated_replay.push_back(frame);
-        }
-        map_iface->score_frames.push_back(update.score);
+    // while in play mode, push all gameplay frames to map_iface
+    // a "gameplay" frame is any frame that doesn't require us to do an action (such as seeking or dying)
+    if(osu->isInPlayMode()) {
+        i32 last_music_pos = -1000;
+        if(!map_iface->spectated_replay.empty()) last_music_pos = map_iface->spectated_replay.back().cur_music_pos;
 
-        if(osu->isInPlayMode()) {
-            switch(update.action) {
-                using enum LiveReplayAction;
-                case NEW_SONG: {
-                    // TODO: also trigger this if packet.time < iCurMusicPos, or implement better auto-seeking
-                    //       since we can miss the NEW_SONG packet and neomod clients can freely seek back/forwards
-                    map_iface->spectate_fail = false;
-                    map_iface->spectate_pause = false;
-                    map_iface->spectate_quit = false;
-                    map_iface->score_frames.clear();
-                    map_iface->restart(true);
-                    map_iface->update();
-                } break;
-                case SKIP: {
-                    // skip once we reach an empty section large enough to skip
-                    map_iface->skipEmptySection();
-                } break;
-                case FAIL: {
-                    // fail once we reach end of map_iface->spectated_replay
-                    map_iface->spectate_fail = true;
-                } break;
-                case PAUSE: {
-                    // pause once we reach end of map_iface->spectated_replay
-                    map_iface->spectate_pause = true;
-                } break;
-                case UNPAUSE: {
-                    map_iface->spectate_pause = false;
-                } break;
-                // nothing
-                case NONE:
-                case COMPLETION:
-                case SONG_SELECT:
-                case WATCHING_OTHER:
-                case MAX_ACTION:
-                    break;
+        auto it =
+            std::find_if(this->player_updates.begin(), this->player_updates.end(), [&](const RemotePlayerUpdate &u) {
+                return u.music_pos < last_music_pos || u.map_id != map_iface->beatmap->getID() ||
+                       u.action != LiveReplayAction::NONE;
+            });
+        for(auto u = this->player_updates.begin(); u != it; u++) {
+            for(auto frame : u->replay_frames) {
+                map_iface->spectated_replay.push_back(frame);
             }
+            map_iface->score_frames.push_back(u->score);
         }
+        this->player_updates.erase(this->player_updates.begin(), it);
     }
-    this->player_updates.clear();
 
+    // gameplay buffer management & auto-seek (forwards only)
+    // TODO: instead of using cv::spec_buffer, we should dynamically change the buffer size
+    //       based on network ping & jitter (or even simply just expanding it when buffering)
     if(osu->isInPlayMode()) {
         i32 leeway = map_iface->getSpectatingLeeway();
-        if(leeway <= 0 && map_iface->spectate_quit) {
-            map_iface->stop(true);
-            return;
-        }
-        if(leeway <= 0 && map_iface->spectate_fail) {
-            map_iface->fail(true);
-            return;
-        }
-
-        // TODO: instead of using cv::spec_buffer, we should dynamically change the buffer size
-        //       based on network ping & jitter (or even simply just expanding it when buffering)
-
         if(map_iface->is_buffering) {
-            // Make sure music is actually paused
+            // make sure music is actually paused
             if(map_iface->music->isPlaying()) {
                 soundEngine->pause(map_iface->music);
                 map_iface->bIsPlaying = false;
@@ -278,13 +208,105 @@ void SpectatorScreen::controlClientState() {
         // make sure we're not too far behind the liveplay
         if(!map_iface->spectated_replay.empty()) {
             if(leeway > 2 * cv::spec_buffer.getInt()) {
-                i32 target = map_iface->spectated_replay.back().cur_music_pos - cv::spec_buffer.getInt();
+                i32 target = std::max(map_iface->spectated_replay.front().cur_music_pos,
+                                      map_iface->spectated_replay.back().cur_music_pos - cv::spec_buffer.getInt());
                 debugLog("We're {:d}ms behind, seeking to catch up to player...", target - map_iface->iCurMusicPos);
+                map_iface->bTempSeekNF = true;
                 map_iface->seekMS(std::max(0, target));
                 return;
             }
         }
     }
+
+    // wait until we empty the replay buffer before doing anything
+    // ...unless we are buffering, or else we could get stuck waiting for frames which will never come
+    if(map_iface->getSpectatingLeeway() > 0 && !map_iface->is_buffering) return;
+
+    // clear all frames that aren't from the remote player's current map
+    // (so we can be sure that user_info->map_id is our target)
+    UserInfo *user_info = BANCHO::User::get_user_info(BanchoState::spectated_player_id, true);
+    auto it = std::find_if(this->player_updates.begin(), this->player_updates.end(),
+                           [&](const RemotePlayerUpdate &u) { return u.map_id == user_info->map_id; });
+    this->player_updates.erase(this->player_updates.begin(), it);
+
+    // check if we need to switch map
+    if(can_load_maps && (map_iface->beatmap == nullptr || map_iface->beatmap->getID() != user_info->map_id)) {
+        if(osu->isInPlayMode()) {
+            // this will also send us back to the spectator screen, if user quits the map
+            map_iface->stop(true);
+        }
+
+        // drive the spectated user's map through the fetcher (retargeting is implicit when they
+        // change maps under us); start spectating once it lands.
+        map_fetcher.target_map(user_info->map_id, user_info->map_md5);
+        if(map_fetcher.tick().status == MapFetcher::Status::Found) {
+            auto *diff = map_fetcher.result();
+            map_fetcher.clear();
+            ui->getSongBrowser()->onDifficultySelected(diff, false);
+            osu->getMapInterface()->spectate();
+        }
+    }
+
+    // we'll assume we are in gameplay and only process 1 non-standard frame per tick for sanity
+    if(!osu->isInPlayMode()) return;
+    if(this->player_updates.empty()) return;
+    const auto &update = this->player_updates[0];
+
+    // check if we need to seek backwards
+    i32 last_music_pos = -1000;
+    if(!map_iface->spectated_replay.empty()) last_music_pos = map_iface->spectated_replay.back().cur_music_pos;
+    if(update.music_pos < last_music_pos) {
+        i32 target = update.music_pos - cv::spec_buffer.getInt();
+        if(target <= 0) {
+            debugLog("Remote player seeked to {:d}ms, restarting map", update.music_pos);
+            map_iface->spectated_replay.clear();
+            map_iface->score_frames.clear();
+            map_iface->is_buffering = true;
+            map_iface->restart(true);
+        } else {
+            debugLog("Remote player seeked backwards, seeking to {:d}ms", target);
+            map_iface->bTempSeekNF = true;
+            map_iface->seekMS(target);
+        }
+
+        this->player_updates.erase(this->player_updates.begin());
+        return;
+    }
+
+    // process gameplay actions
+    switch(update.action) {
+        using enum LiveReplayAction;
+        case NONE: {
+            // don't delete this frame!
+            return;
+        }
+        case SKIP: {
+            map_iface->skipEmptySection();
+            break;
+        }
+        case FAIL: {
+            map_iface->fail(true);
+            break;
+        }
+        case PAUSE: {
+            map_iface->spectate_pause = true;
+            break;
+        }
+        case UNPAUSE: {
+            map_iface->spectate_pause = false;
+            break;
+        }
+        case WATCHING_OTHER:  // fallthrough
+        case SONG_SELECT: {
+            // some servers do a little too much caching, let's kick ourselves off the map
+            user_info->map_id = 0;
+            user_info->map_md5.clear();
+            break;
+        }
+        default:
+            break;
+    }
+    this->player_updates.erase(this->player_updates.begin());
 }
 
 void SpectatorScreen::tick() {
@@ -315,24 +337,23 @@ void SpectatorScreen::tick() {
     if(user_info->mode != GameMode::STANDARD) {
         this->status->setText(tformat("{:s} is playing minigames", user_info->name));
     } else if(user_info->map_id != -1 && user_info->map_id != 0) {
-        if(user_info->map_id != current_map_id) {
-            const auto &fs = map_fetcher.state();
-            if(!db->isFinished() || db->isCancelled()) {
-                // this text shouldn't be visible, it's a failsafe in case we fucked up the complex db loading logic
-                this->status->setText(tformat("Database not loaded, cannot install map"));
-            } else if(fs.status == MapFetcher::Status::NotFound) {
-                // TODO: more detailed error message
-                this->status->setText(tformat("Failed to download Beatmap #{:d} :(", user_info->map_id));
+        const auto &fs = map_fetcher.state();
+        if(!db->isFinished() || db->isCancelled()) {
+            // this text shouldn't be visible, it's a failsafe in case we fucked up the complex db loading logic
+            this->status->setText(tformat("Database not loaded, cannot install map"));
+        } else if(fs.status == MapFetcher::Status::NotFound) {
+            // TODO: more detailed error message
+            this->status->setText(tformat("Failed to download Beatmap #{:d} :(", user_info->map_id));
 
-                if(user_info->map_id != this->last_failed_map) {
-                    Packet packet;
-                    packet.id = OUTP_CANT_SPECTATE;
-                    BANCHO::Net::send_packet(packet);
-                    this->last_failed_map = user_info->map_id;
-                }
-            } else {
-                this->status->setText(tformat("Downloading map... {:.2f}%", fs.progress * 100.f));
+            if(user_info->map_id != this->last_failed_map) {
+                Packet packet;
+                packet.id = OUTP_CANT_SPECTATE;
+                BANCHO::Net::send_packet(packet);
+                this->last_failed_map = user_info->map_id;
             }
+        } else if(fs.status == MapFetcher::Status::Working) {
+            // map download overlay already shows download progress
+            this->status->setText(_("Downloading map..."));
         }
     }
 
@@ -412,7 +433,7 @@ void SpectatorScreen::handleFrameBundle(Packet &packet) {
     update.map_md5 = info->map_md5;
 
     update.music_pos = -1000;
-    if(map_iface->beatmap && map_iface->beatmap->getMD5() == update.map_md5 && !map_iface->spectated_replay.empty()) {
+    if(map_iface->beatmap && map_iface->beatmap->getID() == update.map_id && !map_iface->spectated_replay.empty()) {
         update.music_pos = map_iface->spectated_replay.back().cur_music_pos;
     }
 

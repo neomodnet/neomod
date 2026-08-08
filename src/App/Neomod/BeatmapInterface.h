@@ -199,8 +199,6 @@ class BeatmapInterface final : public AbstractBeatmapInterface {
     std::vector<ScoreFrame> score_frames;
     bool is_buffering = false;
     bool spectate_pause = false;  // the player we're spectating has paused
-    bool spectate_fail = false;   // the player we're spectating has failed
-    bool spectate_quit = false;   // the player we're spectating has quit or switched map
 
     // multiplayer
     bool all_players_loaded = false;

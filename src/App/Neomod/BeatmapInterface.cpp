@@ -700,9 +700,7 @@ bool BeatmapInterface::start() {
     }
 
     this->music->setLoop(false);
-    this->spectate_fail = false;
     this->spectate_pause = false;
-    this->spectate_quit = false;
     this->bIsPaused = false;
     this->bContinueScheduled = false;
 

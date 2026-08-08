@@ -977,7 +977,6 @@ CONVAR(user_include_relax_and_autopilot_for_stats, false, CLIENT | SKINS | SERVE
 CONVAR(user_switcher_include_legacy_scores_for_names, true, CLIENT | SKINS);
 
 // Unfinished features
-CONVAR(enable_spectating, false, CLIENT);
 CONVAR(allow_mp_invites, true, CLIENT, "allow multiplayer game invites from all users");
 CONVAR(allow_stranger_dms, true, CLIENT, "allow private messages from non-friends");
 CONVAR(ignore_beatmap_samples, false, CLIENT | SERVER, "ignore beatmap hitsounds");

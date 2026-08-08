@@ -127,12 +127,10 @@ void UIUserContextMenuScreen::open(i32 user_id, bool is_song_browser_button) {
             this->menu->addButton("Add as friend", UA_ADD_FRIEND);
         }
 
-        if(cv::enable_spectating.getBool()) {
-            if(BanchoState::spectated_player_id == user_id) {
-                menu->addButton("Stop spectating", UA_TOGGLE_SPECTATE);
-            } else {
-                menu->addButton("Spectate", UA_TOGGLE_SPECTATE);
-            }
+        if(BanchoState::spectated_player_id == user_id) {
+            menu->addButton("Stop spectating", UA_TOGGLE_SPECTATE);
+        } else {
+            menu->addButton("Spectate", UA_TOGGLE_SPECTATE);
         }
     }
 

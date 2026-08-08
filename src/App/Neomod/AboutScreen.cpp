@@ -405,6 +405,7 @@ void AboutScreen::buildChangelog() {
         R"(- Added "View beatmap" button to Discord RPC panel)",
         R"(- Added "creator=" beatmap search filter in song browser)",
         R"(- Added "Change online settings" as a user button dropdown option)",
+        R"(- Added "Spectate" as a user button dropdown option)",
         R"(- Changed default renderer to SDL_gpu (D3D12 on Windows, Vulkan on Linux))",
         R"(  - On Windows, Vulkan (-sdlgpu vulkan) and D3D11 (-dx11) are also available)",
         R"(  - Switch back to OpenGL by appending -opengl to launch arguments)",
@@ -1036,7 +1037,6 @@ void AboutScreen::buildChangelog() {
         R"(- Fixed rate change slider having a much smaller range than it should)",
         R"(- Fixed leaderboard scores showing the wrong AR/OD for non-HT/DT rate-changed plays)",
         R"(- Updated osu! version to b20250702.1)",
-        // Spectating is not included in this release (feature cvar: cv::enable_spectating)
     };
     changelogs.push_back(std::move(v38_00));
 
