@@ -406,21 +406,13 @@ void BanchoState::handle_packet(Packet &packet) {
                 u16 nb_frames = packet.read<u16>();
                 for(u16 i = 0; i < nb_frames; i++) {
                     auto frame = packet.read<LiveReplayFrame>();
-
-                    if(frame.time < last_frame_ms || frame.mouse_x < 0 || frame.mouse_x > 512 || frame.mouse_y < 0 ||
-                       frame.mouse_y > 384) {
-                        // TODO: don't ignore these frames (careful about frame.time < last_frame_ms)
-                        debugLog("WEIRD FRAME: time {:d}, x {:f}, y {:f}, padding {}, keys {}", frame.time,
-                                 frame.mouse_x, frame.mouse_y, frame.padding, frame.key_flags);
-                    } else {
-                        sorted_frames.push_back(LegacyReplay::Frame{
-                            .cur_music_pos = frame.time,
-                            .milliseconds_since_last_frame = 0,  // set below
-                            .x = frame.mouse_x,
-                            .y = frame.mouse_y,
-                            .key_flags = frame.key_flags,
-                        });
-                    }
+                    sorted_frames.push_back(LegacyReplay::Frame{
+                        .cur_music_pos = frame.time,
+                        .milliseconds_since_last_frame = 0,  // set below
+                        .x = frame.mouse_x,
+                        .y = frame.mouse_y,
+                        .key_flags = frame.key_flags,
+                    });
                 }
 
                 // NOTE: Server can send frames in the wrong order. So we're correcting it here.
