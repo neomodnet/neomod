@@ -1117,6 +1117,12 @@ void BeatmapInterface::seekMS(u32 ms) {
         }
         this->bTempSeekNF = true;
     }
+
+    // clear outgoing spectator frames so that neomod clients are able to tell when we seek backwards
+    // (since frame order isn't kept within a frame bundle, but packet order should remain the same)
+    if(!this->frame_batch.empty()) {
+        this->broadcast_spectator_frames();
+    }
 }
 
 u32 BeatmapInterface::getTime() const {
@@ -2754,16 +2760,6 @@ void BeatmapInterface::update2() {
     if(this->iCurMusicPosWithOffsets >= 0) {
         this->cur_timing_info =
             this->beatmap->getTimingInfoForTime(this->iCurMusicPosWithOffsets + cv::timingpoints_offset.getInt());
-    }
-
-    // Make sure we're not too far behind the liveplay
-    if(BanchoState::spectating && !this->spectated_replay.empty()) {
-        if(this->getSpectatingLeeway() > 2 * cv::spec_buffer.getInt()) {
-            i32 target = this->spectated_replay.back().cur_music_pos - cv::spec_buffer.getInt();
-            debugLog("We're {:d}ms behind, seeking to catch up to player...", target - this->iCurMusicPos);
-            this->seekMS(std::max(0, target));
-            return;
-        }
     }
 
     // interpolate clicks that occurred between the last update and now

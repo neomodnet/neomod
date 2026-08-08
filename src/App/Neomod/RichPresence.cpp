@@ -245,6 +245,8 @@ void onMainMenu() {
 }
 
 void onSongBrowser() {
+    if(BanchoState::spectating) return;
+
     last_callback = MusicDependentCallback::ON_SONGBROWSER;
     auto activity = DiscRPC::create_base_activity();
 

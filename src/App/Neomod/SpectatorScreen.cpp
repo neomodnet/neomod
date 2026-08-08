@@ -42,9 +42,6 @@ static i32 current_map_id = 0;
 static MD5Hash current_map_md5;
 static CONSTINIT MapFetcher map_fetcher;
 
-// TODO @kiwec: buglist
-// - spec_buffer should be dynamic instead of a cvar
-
 #define INIT_LABEL(label_name, default_text, is_big)                      \
     do {                                                                  \
         label_name = new CBaseUILabel(0, 0, 0, 0, "label", default_text); \
@@ -104,6 +101,7 @@ void stop() {
     auto notif = tformat("Stopped spectating {:s}", user_info->name);
     ui->getNotificationOverlay()->addToast(notif, INFO_TOAST);
 
+    BanchoState::fellow_spectators.clear();
     BanchoState::spectating = false;
     BanchoState::spectated_player_id = 0;
     current_map_id = 0;
@@ -180,7 +178,6 @@ void SpectatorScreen::controlClientState() {
             ui->getSongBrowser()->onDifficultySelected(diff, false);
             osu->getMapInterface()->spectate();
         }
-        // failure is handled by the status text below
     }
 
     auto *map_iface = osu->getMapInterface();
@@ -246,6 +243,9 @@ void SpectatorScreen::controlClientState() {
             return;
         }
 
+        // TODO: instead of using cv::spec_buffer, we should dynamically change the buffer size
+        //       based on network ping & jitter (or even simply just expanding it when buffering)
+
         if(map_iface->is_buffering) {
             // Make sure music is actually paused
             if(map_iface->music->isPlaying()) {
@@ -272,6 +272,16 @@ void SpectatorScreen::controlClientState() {
                 map_iface->bIsPlaying = false;
                 map_iface->bIsPaused = true;
                 map_iface->is_buffering = true;
+            }
+        }
+
+        // make sure we're not too far behind the liveplay
+        if(!map_iface->spectated_replay.empty()) {
+            if(leeway > 2 * cv::spec_buffer.getInt()) {
+                i32 target = map_iface->spectated_replay.back().cur_music_pos - cv::spec_buffer.getInt();
+                debugLog("We're {:d}ms behind, seeking to catch up to player...", target - map_iface->iCurMusicPos);
+                map_iface->seekMS(std::max(0, target));
+                return;
             }
         }
     }
@@ -412,6 +422,11 @@ void SpectatorScreen::handleFrameBundle(Packet &packet) {
     u16 nb_frames = packet.read<u16>();
     for(u16 i = 0; i < nb_frames; i++) {
         auto frame = packet.read<LiveReplayFrame>();
+
+        // stable sometimes sends frames with a huge negative time value. probably some magic number,
+        // but i have no idea how to parse it, so let's ignore it just like the sequence number.
+        if(frame.time < -1000) continue;
+
         update.replay_frames.push_back(LegacyReplay::Frame{
             .cur_music_pos = frame.time,
             .milliseconds_since_last_frame = 0,  // set below
@@ -435,10 +450,10 @@ void SpectatorScreen::handleFrameBundle(Packet &packet) {
         return a.cur_music_pos < b.cur_music_pos;
     });
 
+    // fix milliseconds_since_last_frame and update.music_pos
     for(auto &frame : update.replay_frames) {
-        frame.milliseconds_since_last_frame = frame.cur_music_pos - update.music_pos;
+        frame.milliseconds_since_last_frame = std::max(0, frame.cur_music_pos - update.music_pos);
         update.music_pos = frame.cur_music_pos;
-        update.replay_frames.push_back(frame);
     }
 
     this->player_updates.push_back(update);
