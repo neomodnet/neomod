@@ -67,7 +67,37 @@ if(MSVC)
         UNICODE=1
     )
 else()
+    # Disable exceptions and minimize code bloat
     target_compile_options(diffcalc PRIVATE
         -fno-exceptions
+        -fno-rtti
     )
+
+    include(CheckCXXCompilerFlag)
+    check_cxx_compiler_flag("-fno-unwind-tables" COMPILER_SUPPORTS_NO_UNWIND_TABLES)
+    if(COMPILER_SUPPORTS_NO_UNWIND_TABLES)
+        target_compile_options(diffcalc PRIVATE -fno-unwind-tables)
+    endif()
+
+    check_cxx_compiler_flag("-ffunction-sections -fdata-sections" COMPILER_SUPPORTS_SECTIONS)
+    if(COMPILER_SUPPORTS_SECTIONS)
+        include(CheckLinkerFlag)
+        check_linker_flag(CXX "LINKER:--gc-sections" LINKER_HAS_GC_SECTIONS)
+        if(NOT LINKER_HAS_GC_SECTIONS)
+            check_linker_flag(CXX "LINKER:-dead_strip" LINKER_HAS_DEAD_STRIP)
+            if(LINKER_HAS_DEAD_STRIP)
+                target_compile_options(diffcalc PRIVATE -ffunction-sections -fdata-sections)
+                target_link_options(diffcalc PRIVATE LINKER:-dead_strip)
+            endif()
+        else()
+            target_compile_options(diffcalc PRIVATE -ffunction-sections -fdata-sections)
+            target_link_options(diffcalc PRIVATE LINKER:--gc-sections)
+        endif()
+    endif()
+endif()
+
+include(CheckIPOSupported)
+check_ipo_supported(RESULT TOOLCHAIN_SUPPORTS_IPO)
+if(TOOLCHAIN_SUPPORTS_IPO)
+    set_property(TARGET diffcalc PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()

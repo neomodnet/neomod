@@ -22,9 +22,43 @@
 #include <vector>
 #include <utility>
 
+#if defined(__SSE__) || (defined(_M_IX86_FP) && (_M_IX86_FP > 0))
+// check if x86 for sse include
+#include <xmmintrin.h>
+#endif
+
+#include <cfloat>  // for _controlfp
+
 using namespace neomod;
 
 namespace {  // static
+
+// copied from src/Engine/Thread.cpp, use the same FPU register tweaks as the main neomod build
+void initFPUFlags() {
+#ifdef _MCW_DN
+    // flush denormals
+    _controlfp(_DN_FLUSH, _MCW_DN);
+#endif
+
+#if defined(__SSE__) || (defined(_M_IX86_FP) && (_M_IX86_FP > 0))
+    // denorm clear to zero (CTZ) and denorms are zero (DAZ) for x86 sse
+    _mm_setcsr(_mm_getcsr() | 0x8040);
+#elif !(defined(_MSC_VER) && !defined(__clang__))  // idk how to do this with msvc and no inline assembly
+// flush-to-zero for arm
+// arm32
+#if defined(__arm__) || defined(_ARM_)
+    __asm__ __volatile__("vmsr fpscr,%0" ::"r"(1 << 24));
+#endif
+// arm64
+#if defined(_ARM64_) || defined(__aarch64__) || defined(__arm64__)
+    uint64_t fpcr;  // NOLINT
+    __asm__ __volatile__("mrs %0, fpcr" : "=r"(fpcr));
+    fpcr |= (1ULL << 24);  // FZ
+    __asm__ __volatile__("msr fpcr, %0" : : "r"(fpcr));
+#endif
+
+#endif  // !(defined(_MSC_VER) && !defined(__clang__))
+}
 
 struct LiteFile {
     std::ifstream m_ifstream;
@@ -249,19 +283,25 @@ int entrypoint(int argc_, char *argv_[]) {
         return 1;
     }
 
+    // for consistency with the neomod build, set the same FPU registers/state
+    initFPUFlags();
+
     std::string osuFilePath = argv[2];
 
-    LiteFile file(osuFilePath);
-    if(!file.canRead() || (file.getFileSize() == 0)) {
-        std::cerr << "error: could not read file" << osuFilePath << '\n';
-        return 1;
-    }
-
-    // parse difficulty settings from file
-    BeatmapSettings settings = parseDifficultySettings(file);
-
+    BeatmapSettings settings{};
     std::vector<uint8_t> fileBuffer;
-    file.readToVector(fileBuffer);
+    {
+        LiteFile file(osuFilePath);
+        if(!file.canRead() || (file.getFileSize() == 0)) {
+            std::cerr << "error: could not read file" << osuFilePath << '\n';
+            return 1;
+        }
+
+        // parse difficulty settings from file
+        settings = parseDifficultySettings(file);
+        file.readToVector(fileBuffer);
+        // don't need to keep the file open anymore
+    }
 
     // load primitive hitobjects
     DatabaseBeatmap::PRIMITIVE_CONTAINER primitives =
@@ -271,42 +311,44 @@ int entrypoint(int argc_, char *argv_[]) {
         return 1;
     }
 
-    bool hadStandaloneSpeed = false;
-    float speedMultiplier = 1.0f;
-    if(argc > 3) {
-        std::string_view cur{argv[3]};
-        float speedTemp = 1.f;
-        auto [ptr, ec] = std::from_chars(cur.data(), cur.data() + cur.size(), speedTemp);
-        // require the whole argument to be consumed, otherwise a mod string like "1K" parses as 1.0
-        if(ec == std::errc() && ptr == cur.data() + cur.size() && speedTemp >= 0.01f && speedTemp <= 3.f) {
-            hadStandaloneSpeed = true;
-            speedMultiplier = speedTemp;
-        }
-    }
-
     ModFlags modFlags = {};
-    const size_t modsArgsPos = hadStandaloneSpeed ? 4 : 3;
-    const bool hasPossibleModsArgs = argc > modsArgsPos;
-    bool hasHexFlags = false;
-    if(hasPossibleModsArgs) {
-        int base = 10;
-        uint64_t flagsValue = 0;
-        std::string_view cur{argv[modsArgsPos]};
-        if(cur.starts_with("0x") || cur.starts_with("0X")) {
-            base = 16;
-            cur = cur.substr(2);
-            hasHexFlags = true;
+    float speedMultiplier = 1.0f;
+    {
+        bool hadStandaloneSpeed = false;
+        if(argc > 3) {
+            std::string_view cur{argv[3]};
+            float speedTemp = 1.f;
+            auto [ptr, ec] = std::from_chars(cur.data(), cur.data() + cur.size(), speedTemp);
+            // require the whole argument to be consumed, otherwise a mod string like "1K" parses as 1.0
+            if(ec == std::errc() && ptr == cur.data() + cur.size() && speedTemp >= 0.01f && speedTemp <= 3.f) {
+                hadStandaloneSpeed = true;
+                speedMultiplier = speedTemp;
+            }
         }
-        auto [ptr, ec] = std::from_chars(cur.data(), cur.data() + cur.size(), flagsValue, base);
-        // require the whole argument to be consumed, otherwise a mod string like "4K" parses as 4
-        if(ec == std::errc() && ptr == cur.data() + cur.size()) modFlags = static_cast<ModFlags>(flagsValue);
-    }
-    // try parsing as CSVs
-    if(hasPossibleModsArgs && !hasHexFlags && modFlags == ModFlags{}) {
-        const auto [parsedFlags, parsedDTorHTSpeed] = modStringToModFlag(argv[modsArgsPos]);
-        modFlags = parsedFlags;
-        if(!hadStandaloneSpeed) {
-            speedMultiplier = parsedDTorHTSpeed;
+
+        const size_t modsArgsPos = hadStandaloneSpeed ? 4 : 3;
+        const bool hasPossibleModsArgs = argc > modsArgsPos;
+        bool hasHexFlags = false;
+        if(hasPossibleModsArgs) {
+            int base = 10;
+            uint64_t flagsValue = 0;
+            std::string_view cur{argv[modsArgsPos]};
+            if(cur.starts_with("0x") || cur.starts_with("0X")) {
+                base = 16;
+                cur = cur.substr(2);
+                hasHexFlags = true;
+            }
+            auto [ptr, ec] = std::from_chars(cur.data(), cur.data() + cur.size(), flagsValue, base);
+            // require the whole argument to be consumed, otherwise a mod string like "4K" parses as 4
+            if(ec == std::errc() && ptr == cur.data() + cur.size()) modFlags = static_cast<ModFlags>(flagsValue);
+        }
+        // try parsing as CSVs
+        if(hasPossibleModsArgs && !hasHexFlags && modFlags == ModFlags{}) {
+            const auto [parsedFlags, parsedDTorHTSpeed] = modStringToModFlag(argv[modsArgsPos]);
+            modFlags = parsedFlags;
+            if(!hadStandaloneSpeed) {
+                speedMultiplier = parsedDTorHTSpeed;
+            }
         }
     }
 
