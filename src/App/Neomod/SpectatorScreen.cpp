@@ -38,9 +38,6 @@ static i32 current_map_id = 0;
 static CONSTINIT MapFetcher map_fetcher;
 
 // TODO @kiwec: buglist
-// - when starting to spectate mid-play, we get chainmiss for a second
-// - actions such as death are instant when they should happen relative to the scoreframe time (eg spec_buffer later)
-// - sometimes if guy switches to non-downloaded map, spectating still starts, but on wrong map
 // - spectator screen ui is laggy
 // - lagspikes during gameplay
 // - spec_buffer should be dynamic instead of a cvar
@@ -162,16 +159,17 @@ void SpectatorScreen::tick() {
     // Control client state
     // XXX: should use map_md5 instead of map_id
     const UserInfo *user_info = BANCHO::User::get_user_info(BanchoState::spectated_player_id, true);
+    if(osu->isInPlayMode() && user_info->map_id != current_map_id) {
+        // quit once we reach end of map_iface->spectated_replay
+        osu->getMapInterface()->spectate_quit = true;
+    }
     if(user_info->map_id == -1 || user_info->map_id == 0) {
         current_map_id = 0;
-        if(osu->isInPlayMode()) {
-            osu->getMapInterface()->stop(true);
-        }
     } else if(user_info->mode == GameMode::STANDARD && user_info->map_id != current_map_id && can_load_maps) {
         // drive the spectated user's map through the fetcher (retargeting is implicit when they
         // change maps under us); start spectating once it lands.
         map_fetcher.target_map(user_info->map_id, user_info->map_md5);
-        if(map_fetcher.tick().status == MapFetcher::Status::Found) {
+        if(map_fetcher.tick().status == MapFetcher::Status::Found && !osu->isInPlayMode()) {
             auto *diff = map_fetcher.result();
             current_map_id = user_info->map_id;
             map_fetcher.clear();

@@ -700,7 +700,9 @@ bool BeatmapInterface::start() {
     }
 
     this->music->setLoop(false);
+    this->spectate_fail = false;
     this->spectate_pause = false;
+    this->spectate_quit = false;
     this->bIsPaused = false;
     this->bContinueScheduled = false;
 
@@ -3628,11 +3630,20 @@ i32 BeatmapInterface::getSpectatingLeeway() const {
     return std::max(0, this->spectated_replay.back().cur_music_pos - this->iCurMusicPos);
 }
 
-// HACK: Updates buffering state and pauses/unpauses the music!
+// HACK: Updates buffering state, pauses/unpauses the music, starts the fail animation or even unloads the map!
 bool BeatmapInterface::isBuffering() {
     if(!BanchoState::spectating) return false;
 
     i32 leeway = this->getSpectatingLeeway();
+    if(leeway <= 0 && this->spectate_quit) {
+        this->stop(true);
+        return true;  // returning TRUE to end update loop early (since we did just unload stuff...)
+    }
+    if(leeway <= 0 && this->spectate_fail) {
+        this->fail(true);
+        return false;
+    }
+
     if(this->is_buffering) {
         // Make sure music is actually paused
         if(this->music->isPlaying()) {

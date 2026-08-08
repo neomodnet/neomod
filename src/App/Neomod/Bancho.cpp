@@ -409,6 +409,7 @@ void BanchoState::handle_packet(Packet &packet) {
 
                     if(frame.time < last_frame_ms || frame.mouse_x < 0 || frame.mouse_x > 512 || frame.mouse_y < 0 ||
                        frame.mouse_y > 384) {
+                        // TODO: don't ignore these frames (careful about frame.time < last_frame_ms)
                         debugLog("WEIRD FRAME: time {:d}, x {:f}, y {:f}, padding {}, keys {}", frame.time,
                                  frame.mouse_x, frame.mouse_y, frame.padding, frame.key_flags);
                     } else {
@@ -429,6 +430,11 @@ void BanchoState::handle_packet(Packet &packet) {
                 for(auto &frame : sorted_frames) {
                     frame.milliseconds_since_last_frame = frame.cur_music_pos - last_frame_ms;
                     last_frame_ms = frame.cur_music_pos;
+
+                    // TODO: blindly pushing frames to map_iface is wrong. same for score_frames below.
+                    //       the remote player might have already restarted or changed map, in which case
+                    //       we're just pushing frames to oblivion since they will get cleared on map start.
+                    //       this causes us to miss the first few seconds of frames on every map (!!!)
                     map_iface->spectated_replay.push_back(frame);
                 }
 
@@ -439,29 +445,34 @@ void BanchoState::handle_packet(Packet &packet) {
                     switch(action) {
                         using enum LiveReplayAction;
                         case NEW_SONG: {
+                            // TODO: also trigger this if packet.time < iCurMusicPos, or implement better auto-seeking
+                            //       since we can miss the NEW_SONG packet and neomod clients can freely seek back/forwards
+                            map_iface->spectate_fail = false;
+                            map_iface->spectate_pause = false;
+                            map_iface->spectate_quit = false;
+                            map_iface->score_frames.clear();
                             map_iface->restart(true);
                             map_iface->update();
                         } break;
                         case SKIP: {
+                            // skip once we reach an empty section large enough to skip
                             map_iface->skipEmptySection();
                         } break;
                         case FAIL: {
-                            map_iface->fail(true);
+                            // fail once we reach end of map_iface->spectated_replay
+                            map_iface->spectate_fail = true;
                         } break;
                         case PAUSE: {
+                            // pause once we reach end of map_iface->spectated_replay
                             map_iface->spectate_pause = true;
                         } break;
                         case UNPAUSE: {
                             map_iface->spectate_pause = false;
                         } break;
-                        case SONG_SELECT: {
-                            info->map_id = 0;
-                            info->map_md5 = MD5Hash();
-                            map_iface->stop(true);
-                        } break;
                         // nothing
                         case NONE:
                         case COMPLETION:
+                        case SONG_SELECT:
                         case WATCHING_OTHER:
                         case MAX_ACTION:
                             break;
