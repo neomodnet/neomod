@@ -567,6 +567,40 @@ int runCrosscheck(const std::vector<std::string> &argv) {
                                       : "== pass-2 (deferred curve alloc did not shift values here)")
                           << '\n';
             }
+
+            // (e) offset invariance: shifting the whole map in time must not change the star
+            // rating, since every aggregation is anchored to object times now (variable-length
+            // aim sections, harmonic sums, object-relative reading windows). the flashlight
+            // skill keeps a fixed 400ms wall-clock grid so FL configs are exempt, and non-1.0
+            // rates would reintroduce i32 rounding differences in the shifted times.
+            // tolerance instead of exactness because slider scoring times are f32: large
+            // offsets change their sub-ms rounding, which feeds slider travel values.
+            if(cfg.speed == 1.0f && !flags::has<ModFlags::Flashlight>(setup.modFlags)) {
+                for(const i32 offset : {1, 401, 10007}) {
+                    DatabaseBeatmap::PRIMITIVE_CONTAINER shifted = primitives;
+                    for(auto &h : shifted.hitcircles) h.time += offset;
+                    for(auto &s : shifted.sliders) {
+                        s.time += offset;
+                        for(auto &st : s.scoringTimesForStarCalc) st.time += (float)offset;
+                    }
+                    for(auto &s : shifted.spinners) {
+                        s.time += offset;
+                        s.endTime += offset;
+                    }
+
+                    auto shiftedLoad =
+                        DatabaseBeatmap::loadDifficultyHitObjects(shifted, primitives.AR, primitives.CS, cfg.speed);
+                    const CalcSnapshot shiftedCalc = calcOnce(shiftedLoad, setup, -1, nullptr);
+
+                    const double relDiff =
+                        std::fabs(shiftedCalc.stars - pass1.stars) / std::max(std::fabs(pass1.stars), 1e-12);
+                    if(relDiff > 1e-5) {
+                        fixtureFailures++;
+                        std::cout << "FAIL " << fixture << ' ' << label << " offset-invariance@+" << offset
+                                  << "ms: expected " << pass1.stars << " got " << shiftedCalc.stars << '\n';
+                    }
+                }
+            }
         }
 
         if(fixtureFailures == 0) {
