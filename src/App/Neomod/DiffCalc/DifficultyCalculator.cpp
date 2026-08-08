@@ -44,8 +44,8 @@
 #endif
 
 namespace neomod::DiffCalc {
-// NOTE: bumped version from 20251007 because of a bug in the first implementation with mcosu-imported scores
-const u32 PP_ALGORITHM_VERSION{20251008};
+// see https://github.com/ppy/osu/pull/37850
+const u32 PP_ALGORITHM_VERSION{20260706};
 
 namespace {
 // internal helper utils (forward decls)
