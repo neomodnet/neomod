@@ -192,6 +192,7 @@ neomod_SOURCES = \
 	src/App/Neomod/SongBrowser/VolNormalization.cpp \
 	src/App/Neomod/SpectatorScreen.cpp \
 	src/App/Neomod/ThumbnailManager.cpp \
+	src/App/Neomod/Tools/DiffCalcSuite.cpp \
 	src/App/Neomod/Tools/DiffCalcTool.cpp \
 	src/App/Neomod/TooltipOverlay.cpp \
 	src/App/Neomod/UI.cpp \

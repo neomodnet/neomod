@@ -82,7 +82,7 @@ namespace {
 struct ModParams {
     f32 ar{5.f}, cs{5.f}, od{5.f}, hp{5.f};
     f32 speed{1.f};
-    bool hd{false}, rx{false}, ap{false}, td{false};
+    bool hd{false}, rx{false}, ap{false}, td{false}, fl{false};
 
     bool operator==(const ModParams&) const = default;
 };
@@ -97,6 +97,7 @@ struct ModParamsHash {
         h ^= (p.rx ? 1 : 0) << 5;
         h ^= (p.ap ? 1 : 0) << 6;
         h ^= (p.td ? 1 : 0) << 7;
+        h ^= (p.fl ? 1 : 0) << 8;
         return h;
     }
 };
@@ -182,6 +183,7 @@ void process_score_group(const BeatmapDifficulty* map, const ModParams& params, 
                                                 .relax = params.rx,
                                                 .autopilot = params.ap,
                                                 .touchDevice = params.td,
+                                                .flashlight = params.fl,
                                                 .speedMultiplier = params.speed,
                                                 .breakDuration = diffres.totalBreakDuration,
                                                 .playableLength = diffres.playableLength};
@@ -295,6 +297,7 @@ void build_work_queue(const Sync::stop_token& stoken) {
                 sw.params.rx = score.mods.has(ModFlags::Relax);
                 sw.params.ap = score.mods.has(ModFlags::Autopilot);
                 sw.params.td = score.mods.has(ModFlags::TouchDevice);
+                sw.params.fl = score.mods.has(ModFlags::Flashlight);
 
                 item.scores.push_back(std::move(sw));
                 score_count++;

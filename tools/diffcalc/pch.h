@@ -14,8 +14,10 @@
 #include <atomic>
 #include <cassert>
 #include <cctype>
+#include <cfloat>
 #include <charconv>
 #include <cmath>
+#include <condition_variable>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
@@ -28,12 +30,14 @@
 #include <iterator>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <print>
 #include <span>
 #include <stop_token>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <type_traits>
 #include <unordered_map>
 #include <utility>

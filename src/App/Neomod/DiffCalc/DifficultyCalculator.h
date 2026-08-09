@@ -1,5 +1,5 @@
 #pragma once
-// Copyright (c) 2019, PG & Francesco149 & Khangaroo & Givikap120, All rights reserved.
+// Copyright (c) 2019, PG & Francesco149 & Khangaroo & Givikap120, 2026, WH, All rights reserved.
 
 #if __has_include("config.h")
 #include "config.h"
@@ -48,21 +48,6 @@ using DatabaseBeatmapTypes::SLIDER_SCORING_TIME;
 
 // for forward declaration
 extern const u32 PP_ALGORITHM_VERSION;
-
-struct Skills {
-    // NOLINTNEXTLINE(cppcoreguidelines-use-enum-class)
-    enum Skill : u8 { SPEED, AIM_SLIDERS, AIM_NO_SLIDERS, NUM_SKILLS };
-};
-
-inline constexpr const f64 performance_base_multiplier = 1.14;  // keep final pp normalized across changes
-
-// see https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Speed.cs
-// see https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Aim.cs
-
-// how much strains decay per interval (if the previous interval's peak strains after applying decay are still higher than the current one's, they will be used as the peak strains).
-inline constexpr const f64 decay_base[Skills::NUM_SKILLS] = {0.3, 0.15, 0.15};
-
-inline constexpr const f64 DIFFCALC_EPSILON = 1e-32;
 
 // a parsed hitobject plus the per-object difficulty data computed from it by the star calc.
 // the parsed part is filled by DatabaseBeatmap::loadDifficultyHitObjects, the computed part is
@@ -117,14 +102,6 @@ class DifficultyHitObject {
         return std::max(0, endTime - time);
     }
 
-    void calculate_strains(const DifficultyHitObject &prev, const DifficultyHitObject *next, f64 hitWindow300,
-                           bool autopilotNerf, f64 smallCircleBonus);
-    void calculate_strain(const DifficultyHitObject &prev, const DifficultyHitObject *next, f64 hitWindow300,
-                          bool autopilotNerf, f64 smallCircleBonus, const Skills::Skill dtype);
-    f64 spacing_weight2(const Skills::Skill diff_type, const DifficultyHitObject &prev, const DifficultyHitObject *next,
-                        f64 hitWindow300, bool autopilotNerf, f64 smallCircleBonus);
-    [[nodiscard]] f64 get_doubletapness(const DifficultyHitObject *next, f64 hitWindow300) const;
-
    public:
     // circles (base)
     vec2 pos;
@@ -155,7 +132,7 @@ class DifficultyHitObject {
     // ============================================================================================================== //
     // computed by the star calc (calculateStarDiffForHitObjects), never set by the loader/ctor.
     struct Computed;
-    StaticPImpl<Computed, 160> c;
+    StaticPImpl<Computed, 216> c;
 };
 
 // This struct is the core data computed by difficulty calculation and used in performance calculation
@@ -169,6 +146,11 @@ struct DifficultyAttributes {
 
     f64 SpeedDifficulty{0.};
     f64 SpeedNoteCount{0.};
+
+    f64 ReadingDifficulty{0.};
+    f64 ReadingDifficultNoteCount{0.};
+
+    f64 FlashlightDifficulty{0.};
 
     f64 SliderFactor{0.};
 
@@ -200,20 +182,24 @@ struct BeatmapDiffcalcData {
     f32 CS{5.f}, HP{5.f}, AR{5.f}, OD{5.f};
 
     // Relevant mods
-    bool hidden{false}, relax{false}, autopilot{false}, touchDevice{false};
+    bool hidden{false}, relax{false}, autopilot{false}, touchDevice{false}, flashlight{false};
     f32 speedMultiplier{1.f};
 
     u32 breakDuration{0};
     u32 playableLength{0};
 };
 
-// raw difficulty values before the final rating transform (computeAimRating/computeSpeedRating).
-// identical between hidden and non-hidden for the same strains, so can be reused
-// to avoid redundant calculate_difficulty calls for HD pairs.
+// raw difficulty values before the final rating transform. the hidden-dependent skills carry
+// both variants so recomputeStarRating stays pure math for HD pairs (no strain recompute).
+// the flashlight values are only filled when the flashlight flag was set for the calculation.
 struct RawDifficultyValues {
     f64 aimNoSliders{0.};
     f64 aim{0.};
     f64 speed{0.};
+    f64 readingNoHidden{0.};
+    f64 readingHidden{0.};
+    f64 flashlightNoHidden{0.};
+    f64 flashlightHidden{0.};
 };
 
 struct StarCalcParams {

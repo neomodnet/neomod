@@ -16,9 +16,10 @@
 #define SLIDER_CURVE_MAX_POINTS cv::slider_curve_max_points.getVal<u32>()
 #else
 #include <print>
-#define SLIDER_CURVE_POINTS_SEPARATION 2.5f
-#define SLIDER_CURVE_MAX_LENGTH 32768.f
-#define SLIDER_CURVE_MAX_POINTS 9999U
+#include "OsuConVars/DiffCalcDefaults.h"
+#define SLIDER_CURVE_POINTS_SEPARATION cv::defaults::slider_curve_points_separation
+#define SLIDER_CURVE_MAX_LENGTH cv::defaults::slider_curve_max_length
+#define SLIDER_CURVE_MAX_POINTS (u32) cv::defaults::slider_curve_max_points
 #define debugLog(...) std::println(__VA_ARGS__)
 #endif
 

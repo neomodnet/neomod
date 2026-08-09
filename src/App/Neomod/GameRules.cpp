@@ -40,17 +40,19 @@ extern ConVar playfield_border_top_percent;
 
 #else
 
-#define APPROACHTIME_MAX 450.f
-#define APPROACHTIME_MID 1200.f
-#define APPROACHTIME_MIN 1800.f
-#define HITOBJECT_FADE_IN_TIME 400
-#define HITOBJECT_FADE_OUT_TIME_SPEED_MULTIPLIER_MIN 0.5f
-#define HITOBJECT_FADE_OUT_TIME 0.293f
-#define MOD_FPS false
-#define MOD_MILLHIOREF_MULTIPLIER 2.0f
-#define MOD_MILLHIOREF false
-#define PLAYFIELD_BORDER_BOTTOM_PERCENT 0.0834f
-#define PLAYFIELD_BORDER_TOP_PERCENT 0.117f
+#include "OsuConVars/DiffCalcDefaults.h"
+
+#define APPROACHTIME_MAX (float)cv::defaults::approachtime_max
+#define APPROACHTIME_MID (float)cv::defaults::approachtime_mid
+#define APPROACHTIME_MIN (float)cv::defaults::approachtime_min
+#define HITOBJECT_FADE_IN_TIME cv::defaults::hitobject_fade_in_time
+#define HITOBJECT_FADE_OUT_TIME_SPEED_MULTIPLIER_MIN cv::defaults::hitobject_fade_out_time_speed_multiplier_min
+#define HITOBJECT_FADE_OUT_TIME cv::defaults::hitobject_fade_out_time
+#define MOD_FPS cv::defaults::mod_fps
+#define MOD_MILLHIOREF_MULTIPLIER cv::defaults::mod_millhioref_multiplier
+#define MOD_MILLHIOREF cv::defaults::mod_millhioref
+#define PLAYFIELD_BORDER_BOTTOM_PERCENT cv::defaults::playfield_border_bottom_percent
+#define PLAYFIELD_BORDER_TOP_PERCENT cv::defaults::playfield_border_top_percent
 
 #define OSU_RES vec2{640.0f, 480.0f}
 

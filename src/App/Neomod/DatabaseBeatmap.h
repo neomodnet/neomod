@@ -182,6 +182,12 @@ class DatabaseBeatmap final {
         f32 sliderMultiplier{1.f};
         f32 sliderTickRate{1.f};
 
+        // [Difficulty] settings (old maps without an ApproachRate entry get AR = OD)
+        f32 AR{5.f};
+        f32 CS{5.f};
+        f32 OD{5.f};
+        f32 HP{5.f};
+
         [[nodiscard]] inline u32 getNumObjects() const { return hitcircles.size() + sliders.size() + spinners.size(); }
 
         u32 totalBreakDuration{0};
