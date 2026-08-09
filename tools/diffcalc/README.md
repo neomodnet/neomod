@@ -30,7 +30,7 @@ automatically.
 Text output is stable across versions (it is byte-compared against old builds during refactors).
 JSON floats use shortest-round-trip formatting (`std::to_chars`): string equality is bit
 equality. Schema (stable key order): identity (`schema`/`algo`/`map`/`mods`/`flags`/`speed`),
-`beatmap` (parsed settings + counts + combo + length), `stars`, `attrs` (all
+`beatmap` (difficulty settings with HR/EZ applied + counts + combo + length), `stars`, `attrs` (all
 `DifficultyAttributes` fields, exhaustively - adding a field without serializing it is a compile
 error), `raw` (pre-transform difficulty values), `strains` (count/sum/max digests per skill),
 `pp` (four deterministic score states: `ss`, `imperfect`, `lowAcc`, `mcosuImperfect`),
@@ -87,11 +87,10 @@ differences, e.g. wasm differs around the 9th significant digit). Failures name 
 config and dotted field: `FAIL 2785319.osu HD,HR@1 attrs.aimDifficulty: expected X got Y`.
 
 Algorithm changes are expected to fail the suite until re-recorded together with a
-`PP_ALGORITHM_VERSION` bump; the golden diff is part of the review. Two pinned semantics to
-keep in mind when reading values: the tool feeds file CS/AR/OD/HP straight into the calculation
-(HR/EZ only reach the pp multipliers; the in-game CS/AR/OD adjustment happens in
-`BeatmapInterface`), and single-shot values are McKay pass-1 (the DB batch loops store pass-2,
-which differs on >5000-slider maps).
+`PP_ALGORITHM_VERSION` bump; the golden diff is part of the review. HR/EZ apply the in-game
+CS/AR/OD/HP adjustment (`Mods::get_naive_*`) before calculation. One pinned semantic to keep
+in mind when reading values: single-shot values are McKay pass-1 (the DB batch loops store
+pass-2, which differs on >5000-slider maps).
 
 ### Fixtures (`tests/maps/`)
 

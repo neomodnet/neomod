@@ -11,6 +11,7 @@
 #include "DiffCalcToolShared.h"
 #include "DifficultyCalculator.h"
 #include "ModFlags.h"
+#include "Replay.h"
 #include "SString.h"
 
 #include <iostream>
@@ -522,10 +523,12 @@ OneMapResult computeOneConfig(DatabaseBeatmap::PRIMITIVE_CONTAINER &primitives, 
     r.map = mapIdentity;
     r.modFlags = modFlags;
     r.speedMultiplier = speedMultiplier;
-    r.AR = primitives.AR;
-    r.CS = primitives.CS;
-    r.OD = primitives.OD;
-    r.HP = primitives.HP;
+    // HR/EZ adjust CS/AR/OD/HP the same way the game does before requesting a calc
+    const Replay::Mods mods{.flags = modFlags, .speed = speedMultiplier};
+    r.AR = mods.get_naive_ar(primitives.AR);
+    r.CS = mods.get_naive_cs(primitives.CS);
+    r.OD = mods.get_naive_od(primitives.OD);
+    r.HP = mods.get_naive_hp(primitives.HP);
 
     r.version = primitives.version;
     r.stackLeniency = primitives.stackLeniency;

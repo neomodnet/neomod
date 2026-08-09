@@ -5,6 +5,7 @@
 
 #include "DiffCalcToolShared.h"
 #include "ModFlags.h"
+#include "Replay.h"
 #include "SString.h"
 
 #include <algorithm>
@@ -27,8 +28,8 @@ using namespace neomod::DiffCalcTool;
 
 namespace {  // static
 
-// fixed config matrix for the golden suite. covers every star-calc-relevant flag (HD/RX/AP/TD),
-// the pp-only mods (HR/EZ/FL and combinations), dt/ht rates and a non-standard rate.
+// fixed config matrix for the golden suite. covers every star-calc-relevant flag (HD/RX/AP/TD/FL),
+// the stat-adjusting mods (HR/EZ) and combinations, dt/ht rates and a non-standard rate.
 // changing this table invalidates the goldens, re-record and review the diff.
 struct TestConfig {
     std::string_view mods;  // modStringToModFlag CSV form, empty = nomod
@@ -468,16 +469,18 @@ int runCrosscheck(const std::vector<std::string> &argv) {
 
         for(const TestConfig &cfg : CROSSCHECK_CONFIGS) {
             const std::string label = configLabel(cfg);
-            const CrosscheckSetup setup{.AR = primitives.AR,
-                                        .CS = primitives.CS,
-                                        .OD = primitives.OD,
-                                        .HP = primitives.HP,
-                                        .modFlags = modStringToModFlag(cfg.mods).first,
+            const ModFlags modFlags = modStringToModFlag(cfg.mods).first;
+            const Replay::Mods mods{.flags = modFlags, .speed = cfg.speed};
+            const CrosscheckSetup setup{.AR = mods.get_naive_ar(primitives.AR),
+                                        .CS = mods.get_naive_cs(primitives.CS),
+                                        .OD = mods.get_naive_od(primitives.OD),
+                                        .HP = mods.get_naive_hp(primitives.HP),
+                                        .modFlags = modFlags,
                                         .speedMultiplier = cfg.speed};
             const bool autopilot = flags::has<ModFlags::Autopilot>(setup.modFlags);
 
-            auto load = [&primitives, &cfg]() {
-                return DatabaseBeatmap::loadDifficultyHitObjects(primitives, primitives.AR, primitives.CS, cfg.speed);
+            auto load = [&primitives, &setup, &cfg]() {
+                return DatabaseBeatmap::loadDifficultyHitObjects(primitives, setup.AR, setup.CS, cfg.speed);
             };
 
             // (a) same-key skip == fresh compute (both pass-1)
@@ -580,7 +583,7 @@ int runCrosscheck(const std::vector<std::string> &argv) {
                     }
 
                     auto shiftedLoad =
-                        DatabaseBeatmap::loadDifficultyHitObjects(shifted, primitives.AR, primitives.CS, cfg.speed);
+                        DatabaseBeatmap::loadDifficultyHitObjects(shifted, setup.AR, setup.CS, cfg.speed);
                     const CalcSnapshot shiftedCalc = calcOnce(shiftedLoad, setup, -1, nullptr);
 
                     const double relDiff =

@@ -46,7 +46,8 @@ struct OneMapResult {
     ErrorStage errorStage{ErrorStage::NONE};
     std::string error;
 
-    // [Difficulty] settings as parsed into the PRIMITIVE_CONTAINER (incl. the AR = OD fallback)
+    // effective [Difficulty] settings for this config: the parsed values (incl. the AR = OD
+    // fallback) with HR/EZ applied via Mods::get_naive_*, same as the game's calc requests
     float AR{5.f}, CS{5.f}, OD{5.f}, HP{5.f};
     int version{14};
     float stackLeniency{.7f};
