@@ -2300,8 +2300,12 @@ f64 opacity_at(const DifficultyHitObject &obj, f64 rawTime, bool hidden, const S
     const f64 fadeInStartTime = (f64)obj.baseTime - ctx.preemptRaw;
 
     if(hidden) {
-        // taken from OsuModHidden (fade out starts after the fade in, over 30% of the preempt)
-        const f64 fadeOutStartTime = (f64)obj.baseTime - ctx.preemptRaw + ctx.fadeInRaw;
+        // taken from OsuModHidden: the fade out starts after the fade in, over 30% of the preempt.
+        // the HD beatmap transform shortens TimeFadeIn to 0.4 * preempt for everything except
+        // sliders (which keep the default duration to match stable), and lazer's OpacityAt sees
+        // that adjusted value here while the fade in itself still uses the unadjusted duration
+        const f64 hiddenFadeIn = obj.isSlider() ? ctx.fadeInRaw : 0.4 * ctx.preemptRaw;
+        const f64 fadeOutStartTime = (f64)obj.baseTime - ctx.preemptRaw + hiddenFadeIn;
         const f64 fadeOutDuration = ctx.preemptRaw * 0.3;
 
         return std::min(std::clamp((rawTime - fadeInStartTime) / ctx.fadeInRaw, 0.0, 1.0),
