@@ -1,5 +1,5 @@
 #pragma once
-// Copyright (c) 2019, PG & Francesco149 & Khangaroo & Givikap120, All rights reserved.
+// Copyright (c) 2019, PG & Francesco149 & Khangaroo & Givikap120, 2026, WH, All rights reserved.
 
 #if __has_include("config.h")
 #include "config.h"

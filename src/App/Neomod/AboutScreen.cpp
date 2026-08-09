@@ -402,6 +402,8 @@ void AboutScreen::buildChangelog() {
     CHANGELOG v43_12;
     v43_12.title = "43.12 (" CHANGELOG_TIMESTAMP ")";
     v43_12.changes = {
+        R"(- Updated difficulty/PPv2 calculation algorithm to 20260706 (latest))",
+        R"(  - See https://osu.ppy.sh/home/news/2026-07-03-performance-points-star-rating-updates)",
         R"(- Added "View beatmap" button to Discord RPC panel)",
         R"(- Added "creator=" beatmap search filter in song browser)",
         R"(- Added "Change online settings" as a user button dropdown option)",
