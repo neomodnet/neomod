@@ -112,10 +112,10 @@ void split(std::vector<R>& r, std::string_view s, S delim, size_t delim_len) noe
     size_t i = 0, j = 0;
     if constexpr(std::is_same_v<std::decay_t<R>, std::string>) {
         while((j = s.find(delim, i)) != s.npos) r.emplace_back(s, i, j - i), i = j + delim_len;
-        r.emplace_back(s, i, s.size() - i);
+        if(i < s.size()) r.emplace_back(s, i, s.size() - i);
     } else {  // string_view
         while((j = s.find(delim, i)) != s.npos) r.emplace_back(s.substr(i, j - i)), i = j + delim_len;
-        r.emplace_back(s.substr(i));
+        if(i < s.size()) r.emplace_back(s.substr(i));
     }
 
     return;
@@ -191,10 +191,12 @@ void split_newlines(std::vector<R>& r, std::string_view s) noexcept {
     size_t end = s.size();
     if(end > i && s[end - 1] == '\r') end--;
 
-    if constexpr(std::is_same_v<std::decay_t<R>, std::string>) {
-        r.emplace_back(s, i, end - i);
-    } else {
-        r.emplace_back(s.substr(i, end - i));
+    if(i < end) {
+        if constexpr(std::is_same_v<std::decay_t<R>, std::string>) {
+            r.emplace_back(s, i, end - i);
+        } else {
+            r.emplace_back(s.substr(i, end - i));
+        }
     }
 
     return;
