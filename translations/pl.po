@@ -369,11 +369,11 @@ msgstr "(Opcjonalnie, automatycznie przy zamknięciu karty.)"
 msgid "Checking for updates ..."
 msgstr "Sprawdzanie aktualizacji ..."
 
-#: src/App/Neomod/MainMenu.cpp src/App/Neomod/RichPresence.cpp
+#: src/App/Neomod/MainMenu.cpp
 msgid "Singleplayer"
 msgstr "Jeden gracz"
 
-#: src/App/Neomod/MainMenu.cpp src/App/Neomod/RichPresence.cpp
+#: src/App/Neomod/MainMenu.cpp
 msgid "Multiplayer"
 msgstr "Wielu graczy"
 
@@ -3018,43 +3018,6 @@ msgstr "Mody: "
 msgid "You achieved the #{} score on local rankings!"
 msgstr "Osiągnąłeś #{} miejsce w lokalnym rankingu!"
 
-#: src/App/Neomod/RichPresence.cpp
-msgid "No map selected"
-msgstr "Nie wybrano mapy"
-
-#: src/App/Neomod/RichPresence.cpp
-msgid "Main Menu"
-msgstr "Menu główne"
-
-#: src/App/Neomod/RichPresence.cpp
-msgid "Main menu"
-msgstr "Menu główne"
-
-#: src/App/Neomod/RichPresence.cpp
-msgid "Picking a map"
-msgstr "Wybiera mapę"
-
-#: src/App/Neomod/RichPresence.cpp
-msgid "Song selection"
-msgstr "Wybór utworu"
-
-#: src/App/Neomod/RichPresence.cpp
-msgid "Playing in a lobby"
-msgstr "Gra w poczekalni"
-
-#: src/App/Neomod/RichPresence.cpp src/App/Neomod/SpectatorScreen.cpp
-#, c++-format
-msgid "Spectating {:s}"
-msgstr "Oglądanie {:s}"
-
-#: src/App/Neomod/RichPresence.cpp src/App/Neomod/SpectatorScreen.cpp
-msgid "Spectating"
-msgstr "Ogląda"
-
-#: src/App/Neomod/RichPresence.cpp
-msgid "Playing Solo"
-msgstr "Gra Solo"
-
 #: src/App/Neomod/RoomScreen.cpp
 msgid "Multiplayer room"
 msgstr "Pokój wieloosobowy"
@@ -3455,12 +3418,21 @@ msgid "Stopped spectating {:s}"
 msgstr "Przestano oglądać {:s}"
 
 #: src/App/Neomod/SpectatorScreen.cpp
+msgid "Spectating"
+msgstr "Ogląda"
+
+#: src/App/Neomod/SpectatorScreen.cpp
 msgid "..."
 msgstr "..."
 
 #: src/App/Neomod/SpectatorScreen.cpp
 msgid "Stop spectating"
 msgstr "Przestań oglądać"
+
+#: src/App/Neomod/SpectatorScreen.cpp
+#, c++-format
+msgid "Spectating {:s}"
+msgstr "Oglądanie {:s}"
 
 #: src/App/Neomod/SpectatorScreen.cpp
 msgid "AFK"
@@ -3486,8 +3458,13 @@ msgstr "{:s} gra w minigry"
 
 #: src/App/Neomod/SpectatorScreen.cpp
 #, c++-format
-msgid "Downloading map... {:.2f}%"
-msgstr "Pobieranie mapy... {:.2f}%"
+msgid "Database not loaded, cannot install map"
+msgstr ""
+
+#: src/App/Neomod/SpectatorScreen.cpp
+#, fuzzy
+msgid "Downloading map..."
+msgstr "Pobieranie ..."
 
 #: src/App/Neomod/UISearchOverlay.cpp
 msgid "Search: "

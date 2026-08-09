@@ -341,11 +341,11 @@ msgstr ""
 msgid "Checking for updates ..."
 msgstr ""
 
-#: src/App/Neomod/MainMenu.cpp src/App/Neomod/RichPresence.cpp
+#: src/App/Neomod/MainMenu.cpp
 msgid "Singleplayer"
 msgstr ""
 
-#: src/App/Neomod/MainMenu.cpp src/App/Neomod/RichPresence.cpp
+#: src/App/Neomod/MainMenu.cpp
 msgid "Multiplayer"
 msgstr ""
 
@@ -2859,43 +2859,6 @@ msgstr ""
 msgid "You achieved the #{} score on local rankings!"
 msgstr ""
 
-#: src/App/Neomod/RichPresence.cpp
-msgid "No map selected"
-msgstr ""
-
-#: src/App/Neomod/RichPresence.cpp
-msgid "Main Menu"
-msgstr ""
-
-#: src/App/Neomod/RichPresence.cpp
-msgid "Main menu"
-msgstr ""
-
-#: src/App/Neomod/RichPresence.cpp
-msgid "Picking a map"
-msgstr ""
-
-#: src/App/Neomod/RichPresence.cpp
-msgid "Song selection"
-msgstr ""
-
-#: src/App/Neomod/RichPresence.cpp
-msgid "Playing in a lobby"
-msgstr ""
-
-#: src/App/Neomod/RichPresence.cpp src/App/Neomod/SpectatorScreen.cpp
-#, c++-format
-msgid "Spectating {:s}"
-msgstr ""
-
-#: src/App/Neomod/RichPresence.cpp src/App/Neomod/SpectatorScreen.cpp
-msgid "Spectating"
-msgstr ""
-
-#: src/App/Neomod/RichPresence.cpp
-msgid "Playing Solo"
-msgstr ""
-
 #: src/App/Neomod/RoomScreen.cpp
 msgid "Multiplayer room"
 msgstr ""
@@ -3296,11 +3259,20 @@ msgid "Stopped spectating {:s}"
 msgstr ""
 
 #: src/App/Neomod/SpectatorScreen.cpp
+msgid "Spectating"
+msgstr ""
+
+#: src/App/Neomod/SpectatorScreen.cpp
 msgid "..."
 msgstr ""
 
 #: src/App/Neomod/SpectatorScreen.cpp
 msgid "Stop spectating"
+msgstr ""
+
+#: src/App/Neomod/SpectatorScreen.cpp
+#, c++-format
+msgid "Spectating {:s}"
 msgstr ""
 
 #: src/App/Neomod/SpectatorScreen.cpp
@@ -3327,7 +3299,11 @@ msgstr ""
 
 #: src/App/Neomod/SpectatorScreen.cpp
 #, c++-format
-msgid "Downloading map... {:.2f}%"
+msgid "Database not loaded, cannot install map"
+msgstr ""
+
+#: src/App/Neomod/SpectatorScreen.cpp
+msgid "Downloading map..."
 msgstr ""
 
 #: src/App/Neomod/UISearchOverlay.cpp
