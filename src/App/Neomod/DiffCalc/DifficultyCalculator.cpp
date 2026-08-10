@@ -1936,8 +1936,8 @@ f64 evaluate_rhythm_of(const DifficultyHitObject &cur, const StrainEvalContext &
 }
 
 // https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Evaluators/Aim/SnapAimEvaluator.cs
-forceinline f64 calc_angle_wideness(f64 angle) { return smoothstep(angle, 40.0 * (PI / 180.0), 140.0 * (PI / 180.0)); }
-forceinline f64 calc_angle_acuteness(f64 angle) { return smoothstep(angle, 140.0 * (PI / 180.0), 40.0 * (PI / 180.0)); }
+forceinline f64 calc_angle_wideness(f64 angle) { return smoothstep(angle, 40.0 * PIOVER180, 140.0 * PIOVER180); }
+forceinline f64 calc_angle_acuteness(f64 angle) { return smoothstep(angle, 140.0 * PIOVER180, 40.0 * PIOVER180); }
 
 f64 snap_vector_angle_repetition(const DifficultyHitObject &cur, const DifficultyHitObject &previous) {
     if(std::isnan(cur.c->angle) || std::isnan(previous.c->angle)) return 1.0;
@@ -1962,7 +1962,7 @@ f64 snap_vector_angle_repetition(const DifficultyHitObject &cur, const Difficult
             const f64 angleDifference = std::abs(cur.c->normalisedVectorAngle - prevObj->c->normalisedVectorAngle);
             // constants need to be precise so that values stay within the range of 0 and 1,
             // https://www.desmos.com/calculator/a8jesv5sv2
-            constantAngleCount += std::cos(8.0 * std::min(11.25 * (PI / 180.0), angleDifference));
+            constantAngleCount += std::cos(8.0 * std::min(11.25 * PIOVER180, angleDifference));
         }
     }
 
@@ -1971,7 +1971,7 @@ f64 snap_vector_angle_repetition(const DifficultyHitObject &cur, const Difficult
     const f64 stackFactor = smootherStep(cur.c->lazyJumpDistance, 0.0, 100.0);
 
     const f64 angleDifferenceAdjusted =
-        std::cos(2.0 * std::min(45.0 * (PI / 180.0), std::abs(cur.c->angle - previous.c->angle) * stackFactor));
+        std::cos(2.0 * std::min(45.0 * PIOVER180, std::abs(cur.c->angle - previous.c->angle) * stackFactor));
 
     const f64 baseNerf =
         1.0 - maximum_repetition_nerf * calc_angle_acuteness(previous.c->angle) * angleDifferenceAdjusted;
@@ -2071,10 +2071,10 @@ f64 evaluate_snap_aim_of(const DifficultyHitObject &cur, bool withSliderTravelDi
         // https://www.desmos.com/calculator/dp0v0nvowc
         const f64 wiggleBonus = velocityInfluence * smootherStep(currDistance, radius, diameter) *
                                 std::pow(reverseLerp(currDistance, diameter * 3.0, diameter), 1.8) *
-                                smootherStep(currAngle, 110.0 * (PI / 180.0), 60.0 * (PI / 180.0)) *
+                                smootherStep(currAngle, 110.0 * PIOVER180, 60.0 * PIOVER180) *
                                 smootherStep(prevDistance, radius, diameter) *
                                 std::pow(reverseLerp(prevDistance, diameter * 3.0, diameter), 1.8) *
-                                smootherStep(lastAngle, 110.0 * (PI / 180.0), 60.0 * (PI / 180.0));
+                                smootherStep(lastAngle, 110.0 * PIOVER180, 60.0 * PIOVER180);
 
         snapDifficulty += wiggleBonus * wiggle_multiplier;
     }
@@ -2420,7 +2420,7 @@ f64 reading_constant_angle_nerf(const DifficultyHitObject &cur) {
             const f64 stackFactor = smootherStep(loopObj->c->lazyJumpDistance, 0.0, 50.0);
 
             constantAngleCount +=
-                std::cos(3.0 * std::min(30.0 * (PI / 180.0),
+                std::cos(3.0 * std::min(30.0 * PIOVER180,
                                         std::min(angleDifference, angleDifferenceAlternating) * stackFactor)) *
                 longIntervalFactor;
         }
