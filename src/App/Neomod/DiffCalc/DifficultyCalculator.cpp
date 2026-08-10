@@ -674,8 +674,6 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
     if(!reuseComputedFields) {
         // full (re)computation, start from a clean slate
         for(uSz i = 0; i < numObjects; i++) {
-            if(params.cancelCheck.stop_requested()) return 0.0;
-
             diffObjects[i].c->resetFields(&diffObjects[i], diffObjects, (i32)numObjects, (i32)i, radius_scaling_factor);
         }
     }
@@ -684,7 +682,7 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
     if(!reuseComputedFields) {
         const f32 starsSliderCurvePointsSeparation = STARS_SLIDER_CURVE_POINTS_SEPARATION;
         for(uSz i = 0; i < numObjects; i++) {
-            if(params.cancelCheck.stop_requested()) return 0.0;
+            if(!(i % 64) && params.cancelCheck.stop_requested()) return 0.0;
 
             // see setDistances() @ https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Preprocessing/OsuDifficultyHitObject.cs
 
@@ -816,8 +814,8 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
             .flashlight = params.beatmapData.flashlight,
         };
 
-        for(uSz i = 1; i < numObjects; i++)  // NOTE: start at 1
-        {
+        for(uSz i = 1; i < numObjects; i++) {  // NOTE: start at 1
+            if(!(i % 64) && params.cancelCheck.stop_requested()) return 0.0;
             calculate_strains(diffObjects[i], diffObjects[i - 1], ctx);
         }
 
