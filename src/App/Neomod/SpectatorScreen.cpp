@@ -13,7 +13,6 @@
 #include "CBaseUILabel.h"
 #include "OsuConVars.h"
 #include "MapFetcher.h"
-#include "ModSelector.h"
 #include "HitObjects.h"
 #include "i18n.h"
 #include "KeyBindings.h"

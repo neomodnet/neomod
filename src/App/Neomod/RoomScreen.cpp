@@ -557,9 +557,6 @@ void RoomScreen::ragequit(bool play_sound) {
     packet.id = OUTP_EXIT_ROOM;
     BANCHO::Net::send_packet(packet);
 
-    ui->getModSelector()->resetMods();
-    ui->getModSelector()->updateButtons();
-
     BanchoState::room = Room();
     ui->setScreen(ui->getLobby());
     ui->getChat()->removeChannel("#multiplayer");
@@ -647,8 +644,7 @@ void RoomScreen::on_room_joined(const Room &room) {
 
     *osu->previous_mods = Replay::Mods::from_cvars();
 
-    ui->getModSelector()->resetMods();
-    ui->getModSelector()->enableModsFromFlags(BanchoState::room.mods);
+    Replay::Mods::use(Replay::Mods::from_legacy(BanchoState::room.mods));
     cv::mod_no_pausing.setValue(true);
 }
 
@@ -703,9 +699,8 @@ void RoomScreen::on_room_updated(const Room &room) {
         // Force close mod selector if host disabled freemods
         ui->getModSelector()->close(true);
     }
-    ui->getModSelector()->updateButtons();
-    ui->getModSelector()->resetMods();
-    ui->getModSelector()->enableModsFromFlags(BanchoState::room.mods | player_slot->mods);
+    Replay::Mods::use(Replay::Mods::from_legacy(BanchoState::room.mods | player_slot->mods));
+    cv::mod_no_pausing.setValue(true);
 
     this->updateLayout(osu->getVirtScreenSize());
 }
@@ -720,8 +715,7 @@ void RoomScreen::on_match_started(const Room &room) {
     // Re-apply mods to make sure we are in sync (instant abort->start edge case)
     for(auto &slot : BanchoState::room.slots) {
         if(slot.player_id != BanchoState::get_uid()) continue;
-        ui->getModSelector()->resetMods();
-        ui->getModSelector()->enableModsFromFlags(BanchoState::room.mods | slot.mods);
+        Replay::Mods::use(Replay::Mods::from_legacy(BanchoState::room.mods | slot.mods));
         cv::mod_no_pausing.setValue(true);
         break;
     }

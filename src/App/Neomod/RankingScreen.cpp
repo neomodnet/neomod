@@ -23,7 +23,6 @@
 #include "Keyboard.h"
 #include "LegacyReplay.h"
 #include "MakeDelegateWrapper.h"
-#include "ModSelector.h"
 #include "Mouse.h"
 #include "OptionsOverlay.h"
 #include "Osu.h"

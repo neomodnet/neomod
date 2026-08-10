@@ -174,21 +174,24 @@ void UIModSelectorModButton::setBaseScale(float xScale, float yScale) {
     }
 }
 
-void UIModSelectorModButton::setOn(bool on, bool silent) {
+// horrible multi-purpose function. we should get rid of write_cvars path entirely
+void UIModSelectorModButton::setOn(bool on, bool silent, bool write_cvars) {
     if(!this->bAvailable) return;
 
     bool prevState = this->bOn;
     this->bOn = on;
 
     // Disable all states except current
-    for(int i = 0; i < this->states.size(); i++) {
-        if(i == this->iState) {
-            if(this->states[i].cvar->getBool() != on) {
-                this->states[i].cvar->setValue(on);
-            }
-        } else {
-            if(this->states[i].cvar->getBool()) {
-                this->states[i].cvar->setValue(false);
+    if(write_cvars) {
+        for(int i = 0; i < this->states.size(); i++) {
+            if(i == this->iState) {
+                if(this->states[i].cvar->getBool() != on) {
+                    this->states[i].cvar->setValue(on);
+                }
+            } else {
+                if(this->states[i].cvar->getBool()) {
+                    this->states[i].cvar->setValue(false);
+                }
             }
         }
     }
@@ -219,7 +222,9 @@ void UIModSelectorModButton::setOn(bool on, bool silent) {
     // ModSelector::onCheckboxChange
     // Replay::Mods::use
     // OptionsOverlayImpl::onModChangingToggle
-    osu->updateMods();
+    if(write_cvars) {
+        osu->updateMods();
+    }
 
     constexpr float animationDuration = 0.05f;
 

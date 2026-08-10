@@ -43,8 +43,8 @@ class ModSelector final : public UIScreen {
     void toggleAuto();
     void resetModsUserInitiated();
     void resetMods();
+    void useCurrentMods();
     [[nodiscard]] LegacyFlags getModFlags() const;
-    void enableModsFromFlags(LegacyFlags flags);
 
     [[nodiscard]] bool isInCompactMode() const;
     [[nodiscard]] bool isCSOverrideSliderActive() const;
@@ -80,8 +80,8 @@ class ModSelector final : public UIScreen {
     };
 
     const OVERRIDE_SLIDER addOverrideSlider(OvrSliderType typeEnum, const std::string &text,
-                                                const std::string &labelText, ConVar *cvar, float min, float max,
-                                                const std::string &tooltipText = {}, ConVar *lockCvar = nullptr);
+                                            const std::string &labelText, ConVar *cvar, float min, float max,
+                                            const std::string &tooltipText = {}, ConVar *lockCvar = nullptr);
     void onOverrideSliderChange(CBaseUISlider *slider);
     void onOverrideSliderLockChange(CBaseUICheckbox *checkbox);
     std::string getOverrideSliderLabelText(const OVERRIDE_SLIDER &s, bool active) const;

@@ -12,7 +12,6 @@
 #include "Environment.h"
 #include "OsuKeyBinds.h"
 #include "Keyboard.h"
-#include "ModSelector.h"
 #include "ModFPoSu3DModels.h"
 #include "Mouse.h"
 #include "OptionsOverlay.h"

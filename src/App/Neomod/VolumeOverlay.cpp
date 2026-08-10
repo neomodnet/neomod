@@ -14,7 +14,6 @@
 #include "OsuKeyBinds.h"
 #include "KeyBindings.h"
 #include "OptionsOverlay.h"
-#include "ModSelector.h"
 #include "UIContextMenu.h"
 #include "CBaseUIDispatch.h"
 #include "Environment.h"

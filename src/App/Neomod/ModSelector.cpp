@@ -1212,7 +1212,7 @@ void ModSelector::resetModsUserInitiated() {
         BANCHO::Net::send_packet(packet);
 
         // Don't wait on server response to update UI
-        this->enableModsFromFlags(minimum_mods);
+        Replay::Mods::use(Replay::Mods::from_legacy(minimum_mods));
     }
 
     if(BanchoState::is_online()) {
@@ -1257,39 +1257,51 @@ LegacyFlags ModSelector::getModFlags() const {
     return mods.to_legacy();
 }
 
-void ModSelector::enableModsFromFlags(LegacyFlags flags) {
-    using namespace flags::operators;
-
-    if(flags::any<LegacyFlags::DoubleTime | LegacyFlags::Nightcore>(flags)) {
-        cv::speed_override.setValue(1.5f);
-    } else if(flags::has<LegacyFlags::HalfTime>(flags)) {
-        cv::speed_override.setValue(0.75f);
-    } else {
-        cv::speed_override.setValue(-1.f);
-    }
-
-    cv::mod_suddendeath.setValue(false);
-    cv::mod_perfect.setValue(false);
-    if(flags::has<LegacyFlags::Perfect>(flags)) {
+// Updates the UI to match current game state (does not change any convars)
+void ModSelector::useCurrentMods() {
+    if(cv::mod_perfect.getBool()) {
         this->modButtonSDPF->setState(1);
-        this->modButtonSDPF->setOn(true, true);
-    } else if(flags::has<LegacyFlags::SuddenDeath>(flags)) {
+        this->modButtonSDPF->setOn(true, true, false);
+    } else if(cv::mod_suddendeath.getBool()) {
         this->modButtonSDPF->setState(0);
-        this->modButtonSDPF->setOn(true, true);
+        this->modButtonSDPF->setOn(true, true, false);
+    } else {
+        this->modButtonSDPF->setOn(false, true, false);
     }
 
-    this->modButtonNF->setOn(flags::has<LegacyFlags::NoFail>(flags), true);
-    this->modButtonEZ->setOn(flags::has<LegacyFlags::Easy>(flags), true);
-    this->modButtonHD->setOn(flags::has<LegacyFlags::Hidden>(flags), true);
-    this->modButtonHR->setOn(flags::has<LegacyFlags::HardRock>(flags), true);
-    this->modButtonRX->setOn(flags::has<LegacyFlags::Relax>(flags), true);
-    this->modButtonSO->setOn(flags::has<LegacyFlags::SpunOut>(flags), true);
-    this->modButtonAP->setOn(flags::has<LegacyFlags::Autopilot>(flags), true);
-    this->modButtonTGT->setOn(flags::has<LegacyFlags::Target>(flags), true);
-    this->modButtonFL->setOn(flags::has<LegacyFlags::Flashlight>(flags), true);
-    this->modButtonSV2->setOn(flags::has<LegacyFlags::ScoreV2>(flags), true);
+    this->modButtonNF->setOn(cv::mod_nofail.getBool(), true, false);
+    this->modButtonEZ->setOn(cv::mod_easy.getBool(), true, false);
+    this->modButtonHD->setOn(cv::mod_hidden.getBool(), true, false);
+    this->modButtonHR->setOn(cv::mod_hardrock.getBool(), true, false);
+    this->modButtonRX->setOn(cv::mod_relax.getBool(), true, false);
+    this->modButtonSO->setOn(cv::mod_spunout.getBool(), true, false);
+    this->modButtonAP->setOn(cv::mod_autopilot.getBool(), true, false);
+    this->modButtonTGT->setOn(cv::mod_target.getBool(), true, false);
+    this->modButtonFL->setOn(cv::mod_flashlight.getBool(), true, false);
+    this->modButtonSV2->setOn(cv::mod_scorev2.getBool(), true, false);
 
-    osu->updateMods();
+    f32 speed = cv::speed_override.getFloat();
+    cv::mod_doubletime_dummy.setValue(speed == 1.5f, false);
+    this->getGridButton(ModSelector::DT_POS)->setOn(speed == 1.5f, true, false);
+    cv::mod_halftime_dummy.setValue(speed == 0.75f, false);
+    this->getGridButton(ModSelector::HT_POS)->setOn(speed == 0.75f, true, false);
+
+    this->ARLock->setChecked(cv::ar_override_lock.getBool(), false);
+    this->ODLock->setChecked(cv::od_override_lock.getBool(), false);
+
+    for(const auto &overrideSlider : this->overrideSliders) {
+        overrideSlider.slider->setValue(overrideSlider.slider->getMin(), false, false);
+    }
+    // ('+ 1.f' to compensate for turn-off area of the override sliders)
+    this->speedSlider->setValue(speed + 1.f, false, false);
+    if(cv::cs_override.getFloat() > 0.f) this->CSSlider->setValue(cv::cs_override.getFloat() + 1.f, false, false);
+    if(cv::ar_override.getFloat() > 0.f) this->ARSlider->setValue(cv::ar_override.getFloat() + 1.f, false, false);
+    if(cv::od_override.getFloat() > 0.f) this->ODSlider->setValue(cv::od_override.getFloat() + 1.f, false, false);
+    if(cv::hp_override.getFloat() > 0.f) this->HPSlider->setValue(cv::hp_override.getFloat() + 1.f, false, false);
+
+    this->updateScoreMultiplierLabelText();
+    this->updateOverrideSliderLabels();
+    this->updateExperimentalButtons();
 }
 
 void ModSelector::close(bool force) {

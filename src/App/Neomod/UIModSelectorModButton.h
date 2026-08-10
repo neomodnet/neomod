@@ -35,10 +35,10 @@ class UIModSelectorModButton final : public CBaseUIButton {
     [[nodiscard]] inline bool isOn() const { return this->bOn; }
     void onFocusStolen() override;
 
-    // this was not supposed to be a public function
-    void setOn(bool on, bool silent = false);
-
    private:
+    friend class ModSelector;  // just for setOn()
+    void setOn(bool on, bool silent = false, bool write_cvars = true);
+
     [[nodiscard]] const SkinImage *getActiveSkinImage() const;
     ModSelector *osuModSelector;
 

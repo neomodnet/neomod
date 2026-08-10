@@ -369,17 +369,7 @@ void Mods::use(const Mods &mods) {
     cv::speed_override.setValue(speed_override);
 
     // Update mod selector UI
-    mod_selector->enableModsFromFlags(mods.to_legacy());
-    cv::speed_override.setValue(speed_override);  // enableModsFromFlags() edits cv::speed_override
-    mod_selector->ARLock->setChecked(flags::has<AROverrideLock>(mods.flags));
-    mod_selector->ODLock->setChecked(flags::has<ODOverrideLock>(mods.flags));
-    mod_selector->speedSlider->setValue(mods.speed, false, false);
-    mod_selector->CSSlider->setValue(mods.cs_override, false, false);
-    mod_selector->ARSlider->setValue(mods.ar_override, false, false);
-    mod_selector->ODSlider->setValue(mods.od_override, false, false);
-    mod_selector->HPSlider->setValue(mods.hp_override, false, false);
-    mod_selector->updateOverrideSliderLabels();
-    mod_selector->updateExperimentalButtons();
+    mod_selector->useCurrentMods();
 
     // FIXME: this is already called like 5 times from the previous calls
     osu->updateMods();

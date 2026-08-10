@@ -9,7 +9,6 @@
 #include "DatabaseBeatmap.h"
 #include "Engine.h"
 #include "HUD.h"
-#include "ModSelector.h"
 #include "OptionsOverlay.h"
 #include "Osu.h"
 #include "Graphics.h"

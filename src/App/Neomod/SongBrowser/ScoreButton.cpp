@@ -20,7 +20,6 @@
 #include "MakeDelegateWrapper.h"
 #include "Keyboard.h"
 #include "LegacyReplay.h"
-#include "ModSelector.h"
 #include "Mouse.h"
 #include "Osu.h"
 #include "Timing.h"
