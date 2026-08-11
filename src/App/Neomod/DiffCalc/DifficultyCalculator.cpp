@@ -156,7 +156,7 @@ static f64 computeFlashlightValue(const ScoreData &score, const DifficultyAttrib
 
 // miss penalty assumes that a player will miss on the hardest parts of a map, so the amount of
 // relatively difficult sections adjusts it to be more punishing on maps with fewer hard sections
-static forceinline INLINE_BODY f64 calculateMissPenalty(f64 missCount, f64 difficultStrainCount) {
+static inline f64 calculateMissPenalty(f64 missCount, f64 difficultStrainCount) {
     return 0.93 / (missCount / (4.0 * std::log(std::max(1.0, difficultStrainCount))) + 1.0);
 }
 
@@ -186,39 +186,37 @@ static f64 calculateStarRatingFromRatings(f64 aimRating, f64 speedRating, f64 re
 // helper functions
 static f64 erf(f64 x);
 static f64 erfInv(f64 x);
-static forceinline INLINE_BODY f64 reverseLerp(f64 x, f64 start, f64 end) {
+static inline f64 reverseLerp(f64 x, f64 start, f64 end) {
     return std::clamp<f64>((x - start) / (end - start), 0.0, 1.0);
 }
-static forceinline INLINE_BODY f64 smoothstep(f64 x, f64 start, f64 end) {
+static inline f64 smoothstep(f64 x, f64 start, f64 end) {
     x = reverseLerp(x, start, end);
     return x * x * (3.0 - 2.0 * x);
 }
-static forceinline INLINE_BODY f64 smootherStep(f64 x, f64 start, f64 end) {
+static inline f64 smootherStep(f64 x, f64 start, f64 end) {
     x = reverseLerp(x, start, end);
     return x * x * x * (x * (x * 6.0 - 15.0) + 10.0);
 }
 // 1 at x = 0.5, smoothly falling to 0 at x = 0 and x = 1 (lazer single-arg SmoothstepBellCurve)
-static forceinline INLINE_BODY f64 smoothstepBellCurve(f64 x) {
+static inline f64 smoothstepBellCurve(f64 x) {
     x = 0.5 - std::abs(x - 0.5);
     x = std::clamp(x * 2.0, 0.0, 1.0);
     return x * x * (3.0 - 2.0 * x);
 }
-static forceinline INLINE_BODY f64 logistic(f64 x, f64 midpointOffset, f64 multiplier, f64 maxValue = 1.0) {
+static inline f64 logistic(f64 x, f64 midpointOffset, f64 multiplier, f64 maxValue = 1.0) {
     return maxValue / (1 + std::exp(multiplier * (midpointOffset - x)));
 }
 // single-exponent overload (lazer DiffUtils.Logistic(exponent, maxValue))
-static forceinline INLINE_BODY f64 logisticExp(f64 exponent, f64 maxValue = 1.0) {
-    return maxValue / (1 + std::exp(exponent));
-}
+static inline f64 logisticExp(f64 exponent, f64 maxValue = 1.0) { return maxValue / (1 + std::exp(exponent)); }
 // p-norm (lazer DiffUtils.Norm)
-static forceinline INLINE_BODY f64 norm(f64 p, std::initializer_list<f64> values) {
+static inline f64 norm(f64 p, std::initializer_list<f64> values) {
     f64 sum = 0.0;
     for(const f64 x : values) sum += std::pow(x, p);
     return std::pow(sum, 1.0 / p);
 }
 // small integer exponents are repeated multiplication upstream (lazer DiffUtils.Pow(double, int)),
 // replicate exactly for determinism
-static forceinline INLINE_BODY f64 powi(f64 x, i32 exponent) {
+static inline f64 powi(f64 x, i32 exponent) {
     switch(exponent) {
         case 0:
             return 1.0;
@@ -237,28 +235,18 @@ static forceinline INLINE_BODY f64 powi(f64 x, i32 exponent) {
     }
 }
 // 4 * d^3, shared by aim (on the rating), speed and reading (lazer HarmonicSkill/OsuPerformanceCalculator.DifficultyToPerformance)
-static forceinline INLINE_BODY f64 difficultyToPerformance(f64 difficulty) { return 4.0 * powi(difficulty, 3); }
+static inline f64 difficultyToPerformance(f64 difficulty) { return 4.0 * powi(difficulty, 3); }
 // 25 * d^2 (lazer Flashlight.DifficultyToPerformance)
-static forceinline INLINE_BODY f64 flashlightDifficultyToPerformance(f64 difficulty) {
-    return 25.0 * powi(difficulty, 2);
-}
+static inline f64 flashlightDifficultyToPerformance(f64 difficulty) { return 25.0 * powi(difficulty, 2); }
 
-static forceinline INLINE_BODY f64 strainDecay(Skills::Skill dtype, f64 ms) {
-    return std::pow(decay_base[dtype], ms / 1000.0);
-}
+static inline f64 strainDecay(Skills::Skill dtype, f64 ms) { return std::pow(decay_base[dtype], ms / 1000.0); }
 
 // Adjust hitwindows to match lazer
-static forceinline INLINE_BODY f64 adjustHitWindow(f64 hitwindow) { return std::floor(hitwindow) - 0.5; }
+static inline f64 adjustHitWindow(f64 hitwindow) { return std::floor(hitwindow) - 0.5; }
 
-static forceinline INLINE_BODY f64 odToGreatWindowMS(f64 OD) {
-    return GameRules::mapDifficultyRange<f64>(OD, 80.0, 50.0, 20.0);
-}
-static forceinline INLINE_BODY f64 odToOkWindowMS(f64 OD) {
-    return GameRules::mapDifficultyRange<f64>(OD, 140.0, 100.0, 60.0);
-}
-static forceinline INLINE_BODY f64 odToMehWindowMS(f64 OD) {
-    return GameRules::mapDifficultyRange<f64>(OD, 200.0, 150.0, 100.0);
-}
+static inline f64 odToGreatWindowMS(f64 OD) { return GameRules::mapDifficultyRange<f64>(OD, 80.0, 50.0, 20.0); }
+static inline f64 odToOkWindowMS(f64 OD) { return GameRules::mapDifficultyRange<f64>(OD, 140.0, 100.0, 60.0); }
+static inline f64 odToMehWindowMS(f64 OD) { return GameRules::mapDifficultyRange<f64>(OD, 200.0, 150.0, 100.0); }
 
 // Lazer formula for adjusting OD by clock rate
 static f64 adjustOverallDifficultyByClockRate(f64 OD, f64 clockRate);
@@ -1762,7 +1750,7 @@ f64 evaluate_speed_difficulty_of(const DifficultyHitObject &cur, const StrainEva
 }
 
 // https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Evaluators/Speed/RhythmEvaluator.cs
-forceinline f64 rhythm_effective_difficulty(f64 deltaDifferenceRatio) {
+inline f64 rhythm_effective_difficulty(f64 deltaDifferenceRatio) {
     static constexpr f64 rhythm_ratio_difficulty_multiplier = 26.0;
 
     // take only the fractional part of the value since we're only interested in punishing multiples
@@ -1951,8 +1939,8 @@ f64 evaluate_rhythm_of(const DifficultyHitObject &cur, const StrainEvalContext &
 }
 
 // https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Evaluators/Aim/SnapAimEvaluator.cs
-forceinline f64 calc_angle_wideness(f64 angle) { return smoothstep(angle, 40.0 * PIOVER180, 140.0 * PIOVER180); }
-forceinline f64 calc_angle_acuteness(f64 angle) { return smoothstep(angle, 140.0 * PIOVER180, 40.0 * PIOVER180); }
+inline f64 calc_angle_wideness(f64 angle) { return smoothstep(angle, 40.0 * PIOVER180, 140.0 * PIOVER180); }
+inline f64 calc_angle_acuteness(f64 angle) { return smoothstep(angle, 140.0 * PIOVER180, 40.0 * PIOVER180); }
 
 f64 snap_vector_angle_repetition(const DifficultyHitObject &cur, const DifficultyHitObject &previous) {
     if(std::isnan(cur.c->angle) || std::isnan(previous.c->angle)) return 1.0;
@@ -2335,7 +2323,7 @@ static constexpr f64 reading_window_size = 3000.0;                  // 3 seconds
 static constexpr f64 reading_distance_influence_threshold = 150.0;  // 1.5 circles distance between centers
 
 // nerf for objects that are very distant in time, affecting reading less
-forceinline f64 reading_time_nerf(f64 deltaTime) {
+inline f64 reading_time_nerf(f64 deltaTime) {
     return std::clamp(2.0 - deltaTime / (reading_window_size / 2.0), 0.0, 1.0);
 }
 

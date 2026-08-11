@@ -77,7 +77,7 @@ constexpr inline float odTo300HitWindowMS(float OD) {
 // 1200 ms -> AR 5
 template <typename T>
     requires(std::is_same_v<T, float> || std::is_same_v<T, double>)
-constexpr inline float mapDifficultyRangeInv(T val, T min, T mid, T max) {
+constexpr inline T mapDifficultyRangeInv(T val, T min, T mid, T max) {
     constexpr const T MIDDLE{5};
     if(val == mid)
         return MIDDLE;
