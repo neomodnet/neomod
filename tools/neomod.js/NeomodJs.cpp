@@ -8,14 +8,16 @@
 #include "Replay.h"
 #include "score.h"
 
+#include <span>
+
 using namespace emscripten;
 using namespace neomod;
 
 struct Beatmap {
     Beatmap(std::string osu_bytes) {
         // Load primitive hitobjects (also parses the [Difficulty] settings, incl. AR = OD fallback)
-        std::vector<uint8_t> osu_file(osu_bytes.begin(), osu_bytes.end());
-        this->primitives = DatabaseBeatmap::loadPrimitiveObjectsFromData(osu_file, "memory.osu");
+        this->primitives = DatabaseBeatmap::loadPrimitiveObjectsFromData(
+            std::span{reinterpret_cast<const u8*>(osu_bytes.data()), osu_bytes.size()}, "memory.osu");
         if(this->primitives.error.errc) {
             this->error_msg = primitives.error.error_string();
             return;

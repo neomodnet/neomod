@@ -338,12 +338,12 @@ DatabaseBeatmap::PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjects(std::
 
 #endif  // BUILD_TOOLS_ONLY
 
-DatabaseBeatmap::PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjectsFromData(const std::vector<u8> &fileBuffer,
+static CONSTINIT thread_local std::vector<std::string_view> spbuf1, spbuf2, spbuf3, spbuf4, spbuf5,
+    hitsamplebuf;  // to avoid reallocations; "spbuf" == SString::split buffer
+
+DatabaseBeatmap::PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
                                                                                    std::string_view osuFilePath,
                                                                                    const Sync::stop_token &dead) {
-    thread_local std::vector<std::string_view> spbuf1, spbuf2, spbuf3, spbuf4, spbuf5,
-        hitsamplebuf;  // to avoid reallocations; "spbuf" == SString::split buffer
-
     PRIMITIVE_CONTAINER c{};
 
     if(dead.stop_requested()) {

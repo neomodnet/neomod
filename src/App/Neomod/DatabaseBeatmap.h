@@ -35,6 +35,7 @@ using Color = uint32_t;
 #include <string_view>
 #include <memory>
 #include <functional>
+#include <span>
 
 using std::string_view_literals::operator""sv;
 using std::string_literals::operator""s;
@@ -227,8 +228,7 @@ class DatabaseBeatmap final {
                                                         float speedMultiplier, bool hardRock,
                                                         const Sync::stop_token &dead = alwaysFalseStopPred);
 
-    static PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(const std::vector<u8> &fileData,
-                                                            std::string_view osuFilePath,
+    static PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileData, std::string_view osuFilePath,
                                                             const Sync::stop_token &dead = alwaysFalseStopPred);
     static LoadError calculateSliderTimesClicksTicks(int beatmapVersion, std::vector<DBType::SLIDER> &sliders,
                                                      FixedSizeArray<DBType::TIMINGPOINT> &timingpoints,
