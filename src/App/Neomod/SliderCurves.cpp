@@ -197,11 +197,7 @@ void SCEDMBuilder::build(std::vector<vec2> &curvePointsOut, f32 &startAngleOut, 
     // resample: for each equal-distance step, find the two raw points that straddle it and interpolate
     for(i64 i = 0; i < (nCurve + 1LL); i++) {
         const f32 temp_dist = (f32)((f32)i * pixelLength) / (f32)nCurve;
-        const f32 prefDistance =
-            /*trunc*/ (f32)(i32)((std::isfinite(temp_dist) && temp_dist >= (f32)(std::numeric_limits<i32>::min()) &&
-                                  temp_dist <= (f32)(std::numeric_limits<i32>::max()))
-                                     ? temp_dist
-                                     : 0.f);
+        const f32 prefDistance = std::isfinite(temp_dist) ? temp_dist : 0.f;
 
         while(distanceAt < prefDistance) {
             lastDistanceAt = distanceAt;

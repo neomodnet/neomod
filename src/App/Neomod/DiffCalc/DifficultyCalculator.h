@@ -87,7 +87,7 @@ class DifficultyHitObject {
     DifficultyHitObject &operator=(const DifficultyHitObject &dobj) = delete;
     DifficultyHitObject &operator=(DifficultyHitObject &&dobj) noexcept;
 
-    void updateStackPosition(f32 stackOffset);
+    void updateStackPosition(f32 stackOffset, bool hardRock);
 
     // returns stacked curve position (applies stack offset derived from pos vs originalPos)
     [[nodiscard]] vec2 curvePointAt(f32 t) const;
@@ -181,12 +181,15 @@ struct BeatmapDiffcalcData {
     // Basic attributes, they're NOT adjusted by rate
     f32 CS{5.f}, HP{5.f}, AR{5.f}, OD{5.f};
 
+    // raw file values: the scorev1 base multiplier reads the original beatmap in lazer, so it
+    // ignores HR/EZ/override-adjusted stats
+    f32 fileCS{5.f}, fileHP{5.f}, fileOD{5.f};
+
     // Relevant mods
     bool hidden{false}, relax{false}, autopilot{false}, touchDevice{false}, flashlight{false};
     f32 speedMultiplier{1.f};
 
     u32 breakDuration{0};
-    u32 playableLength{0};
 };
 
 // raw difficulty values before the final rating transform. the hidden-dependent skills carry

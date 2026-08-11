@@ -3830,25 +3830,27 @@ FinishedScore BeatmapInterface::saveAndSubmitScore(bool quit) {
     const bool touchDevice = osu->getModTD();
     const bool autopilot = osu->getModAutopilot();
     const bool flashlight = osu->getModFlashlight();
+    const bool hardRock = osu->getModHR();
 
     const u32 breakDuration = this->getBreakDurationTotal();
-    const u32 playableLength = this->getLengthPlayable();
 
-    auto diffres = DatabaseBeatmap::loadDifficultyHitObjects(osuFilePath, AR, CS, speedMultiplier);
+    auto diffres = DatabaseBeatmap::loadDifficultyHitObjects(osuFilePath, AR, CS, speedMultiplier, hardRock);
 
     DiffCalc::BeatmapDiffcalcData diffcalcData{.sortedHitObjects = diffres.diffobjects,
                                                .CS = CS,
                                                .HP = HP,
                                                .AR = AR,
                                                .OD = OD,
+                                               .fileCS = diffres.fileCS,
+                                               .fileHP = diffres.fileHP,
+                                               .fileOD = diffres.fileOD,
                                                .hidden = hidden,
                                                .relax = relax,
                                                .autopilot = autopilot,
                                                .touchDevice = touchDevice,
                                                .flashlight = flashlight,
                                                .speedMultiplier = speedMultiplier,
-                                               .breakDuration = breakDuration,
-                                               .playableLength = playableLength};
+                                               .breakDuration = breakDuration};
 
     DiffCalc::DifficultyAttributes diffAttributesOut{};
 

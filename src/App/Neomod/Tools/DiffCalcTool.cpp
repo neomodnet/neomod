@@ -540,8 +540,8 @@ OneMapResult computeOneConfig(DatabaseBeatmap::PRIMITIVE_CONTAINER &primitives, 
     r.numObjects = primitives.getNumObjects();
 
     // load difficulty hitobjects for star calculation
-    DatabaseBeatmap::LOAD_DIFFOBJ_RESULT diffResult =
-        DatabaseBeatmap::loadDifficultyHitObjects(primitives, r.AR, r.CS, speedMultiplier);
+    DatabaseBeatmap::LOAD_DIFFOBJ_RESULT diffResult = DatabaseBeatmap::loadDifficultyHitObjects(
+        primitives, r.AR, r.CS, speedMultiplier, flags::has<ModFlags::HardRock>(modFlags));
 
     if(diffResult.error.errc) {
         r.errorStage = OneMapResult::ErrorStage::DIFFOBJECTS;
@@ -551,7 +551,7 @@ OneMapResult computeOneConfig(DatabaseBeatmap::PRIMITIVE_CONTAINER &primitives, 
 
     r.maxCombo = diffResult.getTotalMaxCombo();
     r.maxComboAtMid = diffResult.getMaxComboAtIndex(primitives.getNumObjects() / 2);
-    r.playableLength = diffResult.playableLength;
+    r.playableLength = (u32)(diffResult.diffobjects.back().baseEndTime - diffResult.diffobjects[0].baseTime);
     r.breakDuration = diffResult.totalBreakDuration;
 
     // calculate star rating
@@ -560,14 +560,16 @@ OneMapResult computeOneConfig(DatabaseBeatmap::PRIMITIVE_CONTAINER &primitives, 
                                                .HP = r.HP,
                                                .AR = r.AR,
                                                .OD = r.OD,
+                                               .fileCS = diffResult.fileCS,
+                                               .fileHP = diffResult.fileHP,
+                                               .fileOD = diffResult.fileOD,
                                                .hidden = flags::has<ModFlags::Hidden>(modFlags),
                                                .relax = flags::has<ModFlags::Relax>(modFlags),
                                                .autopilot = flags::has<ModFlags::Autopilot>(modFlags),
                                                .touchDevice = flags::has<ModFlags::TouchDevice>(modFlags),
                                                .flashlight = flags::has<ModFlags::Flashlight>(modFlags),
                                                .speedMultiplier = speedMultiplier,
-                                               .breakDuration = diffResult.totalBreakDuration,
-                                               .playableLength = diffResult.playableLength};
+                                               .breakDuration = diffResult.totalBreakDuration};
 
     DiffCalc::StarCalcParams starParams{
         .outAttributes = r.attrs,

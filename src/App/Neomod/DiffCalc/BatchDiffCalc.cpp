@@ -83,6 +83,7 @@ struct ModParams {
     f32 ar{5.f}, cs{5.f}, od{5.f}, hp{5.f};
     f32 speed{1.f};
     bool hd{false}, rx{false}, ap{false}, td{false}, fl{false};
+    bool hr{false};  // stacking offset direction (lazer stacks the flipped beatmap)
 
     bool operator==(const ModParams&) const = default;
 };
@@ -98,6 +99,7 @@ struct ModParamsHash {
         h ^= (p.ap ? 1 : 0) << 6;
         h ^= (p.td ? 1 : 0) << 7;
         h ^= (p.fl ? 1 : 0) << 8;
+        h ^= (p.hr ? 1 : 0) << 9;
         return h;
     }
 };
@@ -163,7 +165,8 @@ void process_score_group(const BeatmapDifficulty* map, const ModParams& params, 
                          DatabaseBeatmap::PRIMITIVE_CONTAINER& primitives, const Sync::stop_token& stoken) {
     if(scores.empty()) return;
 
-    auto diffres = DatabaseBeatmap::loadDifficultyHitObjects(primitives, params.ar, params.cs, params.speed, stoken);
+    auto diffres =
+        DatabaseBeatmap::loadDifficultyHitObjects(primitives, params.ar, params.cs, params.speed, params.hr, stoken);
     if(stoken.stop_requested()) return;
     if(diffres.error.errc) {
         const u32 item_failed_scores = scores.size();
@@ -179,14 +182,16 @@ void process_score_group(const BeatmapDifficulty* map, const ModParams& params, 
                                                 .HP = params.hp,
                                                 .AR = params.ar,
                                                 .OD = params.od,
+                                                .fileCS = diffres.fileCS,
+                                                .fileHP = diffres.fileHP,
+                                                .fileOD = diffres.fileOD,
                                                 .hidden = params.hd,
                                                 .relax = params.rx,
                                                 .autopilot = params.ap,
                                                 .touchDevice = params.td,
                                                 .flashlight = params.fl,
                                                 .speedMultiplier = params.speed,
-                                                .breakDuration = diffres.totalBreakDuration,
-                                                .playableLength = diffres.playableLength};
+                                                .breakDuration = diffres.totalBreakDuration};
 
     DiffCalc::DifficultyAttributes attributes{};
 
@@ -298,6 +303,7 @@ void build_work_queue(const Sync::stop_token& stoken) {
                 sw.params.ap = score.mods.has(ModFlags::Autopilot);
                 sw.params.td = score.mods.has(ModFlags::TouchDevice);
                 sw.params.fl = score.mods.has(ModFlags::Flashlight);
+                sw.params.hr = score.mods.has(ModFlags::HardRock);
 
                 item.scores.push_back(std::move(sw));
                 score_count++;
@@ -362,11 +368,12 @@ void process_work_item(WorkItem& item, const Sync::stop_token& stoken, WorkerCon
             f32 cs_mul;
             // mod combo indices: [hidden=false, hidden=true]
             u8 combo_idx[2];
+            bool hr;  // stacking offset direction
         };
         static constexpr std::array VARIANTS{
-            ArCsVariant{1.0f, 1.0f, {0, 2}},  // BASE: None(0), HD(2)
-            ArCsVariant{1.4f, 1.3f, {1, 4}},  // HR: HR(1), HD|HR(4)
-            ArCsVariant{0.5f, 0.5f, {3, 5}},  // EZ: EZ(3), HD|EZ(5)
+            ArCsVariant{1.0f, 1.0f, {0, 2}, false},  // BASE: None(0), HD(2)
+            ArCsVariant{1.4f, 1.3f, {1, 4}, true},   // HR: HR(1), HD|HR(4)
+            ArCsVariant{0.5f, 0.5f, {3, 5}, false},  // EZ: EZ(3), HD|EZ(5)
         };
 
         for(const auto& var : VARIANTS) {
@@ -381,11 +388,13 @@ void process_work_item(WorkItem& item, const Sync::stop_token& stoken, WorkerCon
             // object construction, sorting, and stacking are all speed-independent;
             // only the timing fields need rescaling per speed. slider timing is
             // calculated once (sliderTimesCalculated flag on primitives).
-            auto diffres = DatabaseBeatmap::loadDifficultyHitObjects(primitives, ar, cs, 1.0f, stoken);
+            auto diffres = DatabaseBeatmap::loadDifficultyHitObjects(primitives, ar, cs, 1.0f, var.hr, stoken);
             if(stoken.stop_requested()) return;
 
             if(&var == &VARIANTS[0]) {
-                result.length_ms = diffres.playableLength;
+                result.length_ms = diffres.diffobjects.empty()
+                                       ? 0
+                                       : (u32)(diffres.diffobjects.back().baseEndTime - diffres.diffobjects[0].baseTime);
             }
 
             if(diffres.error.errc) {
@@ -439,13 +448,15 @@ void process_work_item(WorkItem& item, const Sync::stop_token& stoken, WorkerCon
                                                                 .HP = hp,
                                                                 .AR = ar,
                                                                 .OD = od,
+                                                                .fileCS = diffres.fileCS,
+                                                                .fileHP = diffres.fileHP,
+                                                                .fileOD = diffres.fileOD,
                                                                 .hidden = false,
                                                                 .relax = false,
                                                                 .autopilot = false,
                                                                 .touchDevice = false,
                                                                 .speedMultiplier = speed,
-                                                                .breakDuration = primitives.totalBreakDuration,
-                                                                .playableLength = diffres.playableLength};
+                                                                .breakDuration = primitives.totalBreakDuration};
 
                     DiffCalc::DifficultyAttributes attributes{};
                     DiffCalc::RawDifficultyValues raw_diff{};

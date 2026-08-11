@@ -204,14 +204,16 @@ CalcSnapshot calcOnce(DatabaseBeatmap::LOAD_DIFFOBJ_RESULT &loaded, const Crossc
                                                .HP = setup.HP,
                                                .AR = setup.AR,
                                                .OD = setup.odOverride < 0.f ? setup.OD : setup.odOverride,
+                                               .fileCS = loaded.fileCS,
+                                               .fileHP = loaded.fileHP,
+                                               .fileOD = loaded.fileOD,
                                                .hidden = flags::has<ModFlags::Hidden>(setup.modFlags),
                                                .relax = flags::has<ModFlags::Relax>(setup.modFlags),
                                                .autopilot = autopilot,
                                                .touchDevice = flags::has<ModFlags::TouchDevice>(setup.modFlags),
                                                .flashlight = flags::has<ModFlags::Flashlight>(setup.modFlags),
                                                .speedMultiplier = setup.speedMultiplier,
-                                               .breakDuration = loaded.totalBreakDuration,
-                                               .playableLength = loaded.playableLength};
+                                               .breakDuration = loaded.totalBreakDuration};
     DiffCalc::StarCalcParams starParams{
         .outAttributes = snap.attrs,
         .beatmapData = diffcalcData,
@@ -480,7 +482,8 @@ int runCrosscheck(const std::vector<std::string> &argv) {
             const bool autopilot = flags::has<ModFlags::Autopilot>(setup.modFlags);
 
             auto load = [&primitives, &setup, &cfg]() {
-                return DatabaseBeatmap::loadDifficultyHitObjects(primitives, setup.AR, setup.CS, cfg.speed);
+                return DatabaseBeatmap::loadDifficultyHitObjects(primitives, setup.AR, setup.CS, cfg.speed,
+                                                                 flags::has<ModFlags::HardRock>(setup.modFlags));
             };
 
             // (a) same-key skip == fresh compute (both pass-1)
@@ -582,8 +585,8 @@ int runCrosscheck(const std::vector<std::string> &argv) {
                         s.endTime += offset;
                     }
 
-                    auto shiftedLoad =
-                        DatabaseBeatmap::loadDifficultyHitObjects(shifted, setup.AR, setup.CS, cfg.speed);
+                    auto shiftedLoad = DatabaseBeatmap::loadDifficultyHitObjects(
+                        shifted, setup.AR, setup.CS, cfg.speed, flags::has<ModFlags::HardRock>(setup.modFlags));
                     const CalcSnapshot shiftedCalc = calcOnce(shiftedLoad, setup, -1, nullptr);
 
                     const double relDiff =

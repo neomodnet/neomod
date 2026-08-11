@@ -68,6 +68,16 @@ Then before the change: `diffcalc batch --list corpus.txt -o baseline.jsonl`; af
 `diffcalc batch --list corpus.txt -o after.jsonl && cmp baseline.jsonl after.jsonl`. Same
 compiler and build config for both runs.
 
+### Ground truth (lazer parity)
+
+The calculation was cross-validated (2026-08-11, algo 20260811) against the real lazer code via
+[osu-native](https://github.com/7mochi/osu-native) (NativeAOT build of `ppy.osu.Game 2026.730.0`):
+star/attribute medians agree to ~4e-5 at rate 1.0 over a 17.5k-map std corpus, and the pp
+calculator is bit-exact given equal attributes. Known residual divergences: non-1.0 rates
+(median ~2e-3 at 1.5x; our rate-divided object times truncate to integer ms where lazer keeps
+doubles), sub-pixel slider path approximation on threshold-straddling notes, aspire/2B maps,
+and mania/taiko files parsed as std.
+
 ## Golden test suite
 
 Run from the repo root (the default `--suite` is `tools/diffcalc/tests`):

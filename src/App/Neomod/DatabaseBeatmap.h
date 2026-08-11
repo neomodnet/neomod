@@ -156,8 +156,11 @@ class DatabaseBeatmap final {
         // with, invalid on a fresh load. pass to StarCalcParams::strainState to reuse them.
         neomod::DiffCalc::StrainComputeState strainState{};
 
-        u32 playableLength{0};
         u32 totalBreakDuration{0};
+
+        // raw file difficulty values (the scorev1 base multiplier ignores mod-adjusted stats)
+        f32 fileCS{5.f}, fileHP{5.f}, fileOD{5.f};
+
         LoadError error;
 
         [[nodiscard]] u32 getTotalMaxCombo() const { return maxComboAtIndex.back(); }
@@ -206,7 +209,7 @@ class DatabaseBeatmap final {
 
 #ifndef BUILD_TOOLS_ONLY  // pass data/primitives directly for tools build
     static LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(std::string_view osuFilePath, float AR, float CS,
-                                                        float speedMultiplier,
+                                                        float speedMultiplier, bool hardRock,
                                                         const Sync::stop_token &dead = alwaysFalseStopPred);
 
     static PRIMITIVE_CONTAINER loadPrimitiveObjects(std::string_view osuFilePath,
@@ -221,7 +224,7 @@ class DatabaseBeatmap final {
                                 float stackLeniency);
 
     static LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(PRIMITIVE_CONTAINER &c, float AR, float CS,
-                                                        float speedMultiplier,
+                                                        float speedMultiplier, bool hardRock,
                                                         const Sync::stop_token &dead = alwaysFalseStopPred);
 
     static PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(const std::vector<u8> &fileData,

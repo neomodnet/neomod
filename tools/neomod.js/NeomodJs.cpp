@@ -111,7 +111,8 @@ struct Beatmap {
 
     bool use_mods(Replay::Mods mods) {
         auto diffResult = DatabaseBeatmap::loadDifficultyHitObjects(this->primitives, mods.get_naive_ar(this->AR),
-                                                                    mods.get_naive_cs(this->CS), mods.speed);
+                                                                    mods.get_naive_cs(this->CS), mods.speed,
+                                                                    flags::has<ModFlags::HardRock>(mods.flags));
         if(diffResult.error.errc) {
             this->loaded_successfully = false;
             this->error_msg = diffResult.error.error_string();
@@ -123,14 +124,16 @@ struct Beatmap {
                                                    .HP = mods.get_naive_hp(this->HP),
                                                    .AR = mods.get_naive_ar(this->AR),
                                                    .OD = mods.get_naive_od(this->OD),
+                                                   .fileCS = diffResult.fileCS,
+                                                   .fileHP = diffResult.fileHP,
+                                                   .fileOD = diffResult.fileOD,
                                                    .hidden = flags::has<ModFlags::Hidden>(mods.flags),
                                                    .relax = flags::has<ModFlags::Relax>(mods.flags),
                                                    .autopilot = flags::has<ModFlags::Autopilot>(mods.flags),
                                                    .touchDevice = flags::has<ModFlags::TouchDevice>(mods.flags),
                                                    .flashlight = flags::has<ModFlags::Flashlight>(mods.flags),
                                                    .speedMultiplier = mods.speed,
-                                                   .breakDuration = diffResult.totalBreakDuration,
-                                                   .playableLength = diffResult.playableLength};
+                                                   .breakDuration = diffResult.totalBreakDuration};
 
         this->difficulty_attributes = DiffCalc::DifficultyAttributes{};
         DiffCalc::StarCalcParams starParams{

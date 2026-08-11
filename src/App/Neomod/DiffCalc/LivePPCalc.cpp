@@ -59,6 +59,7 @@ struct LivePPCalc::LivePPCalcImpl {
         std::string path{""};
         f32 AR{0.f}, CS{0.f};
         f32 speed_multiplier{0.f};
+        bool hardRock{false};  // stacking offset direction
         DatabaseBeatmap::LOAD_DIFFOBJ_RESULT diffres{};
     } m_param_cache;
 
@@ -76,16 +77,19 @@ struct LivePPCalc::LivePPCalcImpl {
         // to avoid rebuilding diffres unless something changes
         // (the star calc detects OD/autopilot changes itself via diffres.strainState)
         [[nodiscard]] LazyCalcParamCache &get_latest_cached(LazyCalcParamCache &c) const {
+            const bool hardRock = flags::has<ModFlags::HardRock>(this->mods.flags);
+
             // rebuild as necessary
             if(c.path != this->osufile_path || c.AR != this->AR || c.CS != this->CS ||
-               c.speed_multiplier != this->speed_multiplier) {
+               c.speed_multiplier != this->speed_multiplier || c.hardRock != hardRock) {
                 c.path = this->osufile_path;
                 c.AR = this->AR;
                 c.CS = this->CS;
                 c.speed_multiplier = this->speed_multiplier;
+                c.hardRock = hardRock;
                 // get new diffres
                 c.diffres = DatabaseBeatmap::loadDifficultyHitObjects(this->osufile_path, this->AR, this->CS,
-                                                                      this->speed_multiplier);
+                                                                      this->speed_multiplier, hardRock);
             }
             return c;
         }
@@ -160,14 +164,16 @@ struct LivePPCalc::LivePPCalcImpl {
                                                        .HP = p.HP,
                                                        .AR = p.AR,
                                                        .OD = p.OD,
+                                                       .fileCS = diffres.fileCS,
+                                                       .fileHP = diffres.fileHP,
+                                                       .fileOD = diffres.fileOD,
                                                        .hidden = hidden,
                                                        .relax = relax,
                                                        .autopilot = autopilot,
                                                        .touchDevice = td,
                                                        .flashlight = flashlight,
                                                        .speedMultiplier = p.speed_multiplier,
-                                                       .breakDuration = diffres.totalBreakDuration,
-                                                       .playableLength = diffres.playableLength};
+                                                       .breakDuration = diffres.totalBreakDuration};
 
             DiffCalc::DifficultyAttributes diffattrsOut{};
 

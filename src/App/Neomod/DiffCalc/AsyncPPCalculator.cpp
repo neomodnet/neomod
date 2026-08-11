@@ -21,11 +21,14 @@ struct hitobject_cache {
     f32 speed{};
     f32 AR{};
     f32 CS{};
+    bool hardRock{};  // stacking offset direction (not implied by CS: overrides can alias)
 
     // Results
     DatabaseBeatmap::LOAD_DIFFOBJ_RESULT diffres{};
 
-    [[nodiscard]] bool matches(f32 spd, f32 ar, f32 cs) const { return speed == spd && AR == ar && CS == cs; }
+    [[nodiscard]] bool matches(f32 spd, f32 ar, f32 cs, bool hr) const {
+        return speed == spd && AR == ar && CS == cs && hardRock == hr;
+    }
 };
 
 struct info_cache {
@@ -40,6 +43,7 @@ struct info_cache {
     bool hd{};
     bool ap{};
     bool fl{};
+    bool hr{};  // stacking offset direction (not implied by CS: overrides can alias)
 
     // Results
     pp_res info{};
@@ -49,7 +53,7 @@ struct info_cache {
         return speed == spd && AR == ar && HP == hp && CS == cs && OD == od &&
                rx == flags::has<ModFlags::Relax>(flags) && td == flags::has<ModFlags::TouchDevice>(flags) &&
                hd == flags::has<ModFlags::Hidden>(flags) && ap == flags::has<ModFlags::Autopilot>(flags) &&
-               fl == flags::has<ModFlags::Flashlight>(flags);
+               fl == flags::has<ModFlags::Flashlight>(flags) && hr == flags::has<ModFlags::HardRock>(flags);
     }
 };
 
@@ -147,9 +151,10 @@ void drain_work(const std::shared_ptr<calc_session>& s, const Sync::stop_token& 
         if(stoken.stop_requested()) return;
 
         // find or compute hitobjects
+        const bool rqtHardRock = flags::has<ModFlags::HardRock>(rqt.modFlags);
         hitobject_cache* computed_ho = nullptr;
         for(auto& ho : s->ho_cache) {
-            if(ho.matches(rqt.speedOverride, rqt.AR, rqt.CS)) {
+            if(ho.matches(rqt.speedOverride, rqt.AR, rqt.CS, rqtHardRock)) {
                 computed_ho = &ho;
                 break;
             }
@@ -160,10 +165,11 @@ void drain_work(const std::shared_ptr<calc_session>& s, const Sync::stop_token& 
                 .speed = rqt.speedOverride,
                 .AR = rqt.AR,
                 .CS = rqt.CS,
+                .hardRock = rqtHardRock,
             };
 
-            new_ho.diffres =
-                DatabaseBeatmap::loadDifficultyHitObjects(s->osuFilePath, rqt.AR, rqt.CS, rqt.speedOverride, stoken);
+            new_ho.diffres = DatabaseBeatmap::loadDifficultyHitObjects(s->osuFilePath, rqt.AR, rqt.CS,
+                                                                       rqt.speedOverride, rqtHardRock, stoken);
 
             if(stoken.stop_requested()) return;
 
@@ -208,14 +214,16 @@ void drain_work(const std::shared_ptr<calc_session>& s, const Sync::stop_token& 
                                                        .HP = new_info.HP,
                                                        .AR = new_info.AR,
                                                        .OD = new_info.OD,
+                                                       .fileCS = computed_ho->diffres.fileCS,
+                                                       .fileHP = computed_ho->diffres.fileHP,
+                                                       .fileOD = computed_ho->diffres.fileOD,
                                                        .hidden = new_info.hd,
                                                        .relax = new_info.rx,
                                                        .autopilot = new_info.ap,
                                                        .touchDevice = new_info.td,
                                                        .flashlight = new_info.fl,
                                                        .speedMultiplier = new_info.speed,
-                                                       .breakDuration = computed_ho->diffres.totalBreakDuration,
-                                                       .playableLength = computed_ho->diffres.playableLength};
+                                                       .breakDuration = computed_ho->diffres.totalBreakDuration};
 
             // mod combos that don't affect strains (HD/RX/TD/HP toggles) reuse the shared vector's
             // computed fields and skip the whole preprocessing+strain pass.

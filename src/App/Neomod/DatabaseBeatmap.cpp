@@ -1004,16 +1004,18 @@ template void DatabaseBeatmap::calculateStacks(const ObjectGetter<HitObject> &, 
 
 DatabaseBeatmap::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(std::string_view osuFilePath, float AR,
                                                                                float CS, float speedMultiplier,
+                                                                               bool hardRock,
                                                                                const Sync::stop_token &dead) {
     // load primitive arrays
     PRIMITIVE_CONTAINER c = loadPrimitiveObjects(osuFilePath, dead);
-    return loadDifficultyHitObjects(c, AR, CS, speedMultiplier, dead);
+    return loadDifficultyHitObjects(c, AR, CS, speedMultiplier, hardRock, dead);
 }
 
 #endif
 
 DatabaseBeatmap::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(PRIMITIVE_CONTAINER &c, float AR,
                                                                                float CS, float speedMultiplier,
+                                                                               bool hardRock,
                                                                                const Sync::stop_token &dead) {
     LOAD_DIFFOBJ_RESULT result{};
 
@@ -1028,6 +1030,11 @@ DatabaseBeatmap::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(P
 
     // save break duration (for pp calc)
     result.totalBreakDuration = c.totalBreakDuration;
+
+    // save raw file stats (the scorev1 base multiplier is mod-independent)
+    result.fileCS = c.CS;
+    result.fileHP = c.HP;
+    result.fileOD = c.OD;
 
     // calculate sliderTimes, and build slider clicks and ticks (only if not already done)
     if(!c.sliderTimesCalculated) {
@@ -1108,8 +1115,7 @@ DatabaseBeatmap::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(P
                 return result;
             }
 
-            if(result.diffobjects[i].curve && result.diffobjects[i].stack != 0)
-                result.diffobjects[i].updateStackPosition(stackOffset);
+            if(result.diffobjects[i].stack != 0) result.diffobjects[i].updateStackPosition(stackOffset, hardRock);
         }
     }
 
@@ -1130,11 +1136,6 @@ DatabaseBeatmap::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(P
                 scoringTime.time = ((f64)scoringTime.time * invSpeedMultiplier);
             }
         }
-    }
-
-    // calculate playable length (for pp calc)
-    if(!result.diffobjects.empty()) {
-        result.playableLength = (u32)(result.diffobjects.back().baseEndTime - result.diffobjects[0].baseTime);
     }
 
     // calculate cumulative max combo per object

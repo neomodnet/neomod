@@ -39,7 +39,8 @@
 
 namespace neomod::DiffCalc {
 // see https://github.com/ppy/osu/pull/37850
-const u32 PP_ALGORITHM_VERSION{20260706};
+// NOTE: updated to 20260811 to force recalc over initial implementation divergences
+const u32 PP_ALGORITHM_VERSION{20260811};
 
 namespace {
 // internal helper utils (forward decls)
@@ -246,8 +247,18 @@ static forceinline INLINE_BODY f64 strainDecay(Skills::Skill dtype, f64 ms) {
     return std::pow(decay_base[dtype], ms / 1000.0);
 }
 
-// Adjust hitwindow to match lazer
+// Adjust hitwindows to match lazer
 static forceinline INLINE_BODY f64 adjustHitWindow(f64 hitwindow) { return std::floor(hitwindow) - 0.5; }
+
+static forceinline INLINE_BODY f64 odToGreatWindowMS(f64 OD) {
+    return GameRules::mapDifficultyRange<f64>(OD, 80.0, 50.0, 20.0);
+}
+static forceinline INLINE_BODY f64 odToOkWindowMS(f64 OD) {
+    return GameRules::mapDifficultyRange<f64>(OD, 140.0, 100.0, 60.0);
+}
+static forceinline INLINE_BODY f64 odToMehWindowMS(f64 OD) {
+    return GameRules::mapDifficultyRange<f64>(OD, 200.0, 150.0, 100.0);
+}
 
 // Lazer formula for adjusting OD by clock rate
 static f64 adjustOverallDifficultyByClockRate(f64 OD, f64 clockRate);
@@ -468,8 +479,8 @@ DifficultyHitObject &DifficultyHitObject::operator=(DifficultyHitObject &&dobj) 
     return *this;
 }
 
-void DifficultyHitObject::updateStackPosition(f32 stackOffset) {
-    pos = originalPos - vec2((f32)stack * stackOffset, (f32)stack * stackOffset);
+void DifficultyHitObject::updateStackPosition(f32 stackOffset, bool hardRock) {
+    pos = originalPos - vec2((f32)stack * stackOffset, (f32)stack * stackOffset * (hardRock ? -1.0f : 1.0f));
 }
 
 vec2 DifficultyHitObject::curvePointAt(f32 t) const { return curve->pointAt(t) - (originalPos - pos); }
@@ -634,8 +645,8 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
     // NOTE: clamped CS because McOsu allows CS > ~12.1429 (at which point the diameter becomes negative)
     f32 circleRadiusInOsuPixels =
         64.0f * GameRules::getRawHitCircleScale(std::clamp<f32>(params.beatmapData.CS, 0.0f, 12.142f));
-    const f64 hitWindow300 = 2.0 * adjustHitWindow(GameRules::odTo300HitWindowMS(params.beatmapData.OD)) /
-                             params.beatmapData.speedMultiplier;
+    const f64 hitWindow300 =
+        2.0 * adjustHitWindow(odToGreatWindowMS(params.beatmapData.OD)) / params.beatmapData.speedMultiplier;
 
     // ****************************************************************************************************************************************** //
 
@@ -795,7 +806,11 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
         // OverallDifficulty, which is the same for every object here (uniform hit windows)
         const f64 perObjectOD =
             adjustOverallDifficultyByClockRate(params.beatmapData.OD, params.beatmapData.speedMultiplier);
-        const f64 preemptRaw = (f64)GameRules::arToMilliseconds(params.beatmapData.AR);
+        // f64 mapping for the same reason as the od windows (lazer maps DifficultyRange in
+        // double on the float ar value)
+        const f64 preemptRaw = GameRules::mapDifficultyRange<f64>(
+            (f64)params.beatmapData.AR, (f64)GameRules::getMinApproachTime(), (f64)GameRules::getMidApproachTime(),
+            (f64)GameRules::getMaxApproachTime());
 
         const StrainEvalContext ctx{
             .hitWindow300 = hitWindow300,
@@ -2648,17 +2663,25 @@ void calculateScoreV1Attributes(DifficultyAttributes &attributes, const BeatmapD
 
             sliderScore += amountOfBigTicks * bigTickScore + amountOfSmallTicks * smallTickScore;
         } else if(hitObject.type == DifficultyHitObject::TYPE::SPINNER)
-            spinnerScore += calculateScoreV1SpinnerScore(hitObject.baseEndTime - hitObject.baseTime);
+            // lazer's decoder clamps aspire spinners to a non-negative duration
+            spinnerScore += calculateScoreV1SpinnerScore(std::max(0, hitObject.baseEndTime - hitObject.baseTime));
     }
 
     attributes.NestedScorePerObject = (sliderScore + spinnerScore) / (f64)std::max(upToObjectIndex, 1);
 
     // Legacy score base multiplier
-    const u32 breakTimeMS = b.breakDuration;
-    const u32 drainLength = std::max(b.playableLength - std::min(breakTimeMS, b.playableLength), (u32)1000) / 1000;
-    attributes.LegacyScoreBaseMultiplier = (i32)std::round(
-        (b.CS + b.HP + b.OD + std::clamp<f32>((f32)b.sortedHitObjects.size() / (f32)drainLength * 8.0f, 0.0f, 16.0f)) /
-        38.0f * 5.0f);
+    // lazer computes this from the ORIGINAL beatmap: file CS/HP/OD (mod-independent) and the
+    // raw first-to-last start time span (no floor, truncating division, 0 => ratio 16). stable
+    // rounded on the x87 FPU (lazer emulates it with decimal); f64 + round-half-even
+    // (nearbyint) only differs on exact .5 ties, which f32 file values essentially never hit
+    i32 drainLength = 0;
+    if(!b.sortedHitObjects.empty())
+        drainLength =
+            (b.sortedHitObjects.back().baseTime - b.sortedHitObjects[0].baseTime - (i32)b.breakDuration) / 1000;
+    const f64 objectToDrainRatio =
+        drainLength != 0 ? std::clamp((f64)b.sortedHitObjects.size() / drainLength * 8.0, 0.0, 16.0) : 16.0;
+    attributes.LegacyScoreBaseMultiplier =
+        (i32)std::nearbyint(((f64)b.fileHP + (f64)b.fileOD + (f64)b.fileCS + objectToDrainRatio) / 38.0 * 5.0);
 
     // Maximum combo score
     const f64 score_increase = 300.;
@@ -2676,9 +2699,9 @@ void calculateScoreV1Attributes(DifficultyAttributes &attributes, const BeatmapD
             combo++;
         }
 
-        if(combo > 0) {
+        if(combo > 1) {
             attributes.MaximumLegacyComboScore +=
-                (u32)(combo * (score_increase / 25. * attributes.LegacyScoreBaseMultiplier));
+                (u32)((combo - 1) * (score_increase / 25. * attributes.LegacyScoreBaseMultiplier));
         }
 
         // We have already increased combo for slider
@@ -2908,12 +2931,9 @@ f64 calculateDeviation(const DifficultyAttributes &attributes, f64 timescale, f6
                        f64 relevantCountOk, f64 relevantCountMeh) {
     if(relevantCountGreat + relevantCountOk + relevantCountMeh <= 0.0) return std::numeric_limits<f64>::quiet_NaN();
 
-    const f64 greatHitWindow =
-        adjustHitWindow(GameRules::odTo300HitWindowMS((f32)attributes.OverallDifficulty)) / timescale;
-    const f64 okHitWindow =
-        adjustHitWindow(GameRules::odTo100HitWindowMS((f32)attributes.OverallDifficulty)) / timescale;
-    const f64 mehHitWindow =
-        adjustHitWindow(GameRules::odTo50HitWindowMS((f32)attributes.OverallDifficulty)) / timescale;
+    const f64 greatHitWindow = adjustHitWindow(odToGreatWindowMS(attributes.OverallDifficulty)) / timescale;
+    const f64 okHitWindow = adjustHitWindow(odToOkWindowMS(attributes.OverallDifficulty)) / timescale;
+    const f64 mehHitWindow = adjustHitWindow(odToMehWindowMS(attributes.OverallDifficulty)) / timescale;
 
     static constexpr const f64 z = 2.32634787404;
     static constexpr const f64 sqrt2 = std::numbers::sqrt2;
@@ -3102,7 +3122,7 @@ f64 calculateStarRatingFromRatings(f64 aimRating, f64 speedRating, f64 readingRa
 }
 
 f64 adjustOverallDifficultyByClockRate(f64 OD, f64 clockRate) {
-    return (79.5 - (adjustHitWindow(GameRules::odTo300HitWindowMS((f32)OD)) / clockRate)) / 6.0;
+    return (79.5 - (adjustHitWindow(odToGreatWindowMS(OD)) / clockRate)) / 6.0;
 }
 
 f64 erf(f64 x) {
