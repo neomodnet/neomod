@@ -10,7 +10,7 @@ namespace cv::defaults {
 inline constexpr int approachtime_max = 450;
 inline constexpr int approachtime_mid = 1200;
 inline constexpr int approachtime_min = 1800;
-inline constexpr int beatmap_max_num_hitobjects = 40000;
+inline constexpr int beatmap_max_num_hitobjects = 100000;
 inline constexpr int beatmap_max_num_slider_scoringtimes = 32768;
 inline constexpr int hitobject_fade_in_time = 400;
 inline constexpr float hitobject_fade_out_time = 0.293f;
