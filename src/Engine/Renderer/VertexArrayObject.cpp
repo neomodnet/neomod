@@ -19,11 +19,13 @@ void VertexArrayObject::destroy() {
 
     this->iNumVertices = 0;
     this->bHasTexcoords = false;
+    this->bHasColors = false;
 }
 
 void VertexArrayObject::clear() noexcept {
     this->iNumVertices = this->vertices.size();
     this->bHasTexcoords = !this->texcoords.empty();
+    this->bHasColors = !this->colors.empty();
     this->vertices.clear();
     this->texcoords.clear();
     this->normals.clear();

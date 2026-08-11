@@ -21,8 +21,8 @@ struct pp_res {
     f64 difficult_speed_strains{0.0};
     f64 pp{-1.0};
 
-    std::vector<f64> aimStrains{};
-    std::vector<f64> speedStrains{};
+    std::vector<f32> aimStrains{};
+    std::vector<f32> speedStrains{};
 
     bool operator==(const pp_res&) const = default;
 };

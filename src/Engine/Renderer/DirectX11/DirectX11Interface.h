@@ -169,6 +169,11 @@ class DirectX11Interface final : public ModernGraphicsShared {
     // batched vertex upload and drawing
     void uploadAndDrawVertexBatch(D3D_PRIMITIVE_TOPOLOGY topology);
 
+    // default shader uniform state (misc = texturing/inversion/colorless flags, col = m_color, lazily synced)
+    void updateMiscUniform();
+    void setDrawColorless(bool colorless);
+    void syncColUniform();
+
    private:
     // state and initialization settings
     static constexpr size_t MAX_VERTEX_BUFFER_VERTS{16384};
@@ -283,6 +288,8 @@ class DirectX11Interface final : public ModernGraphicsShared {
     bool bVSync{false};
     bool bColorInversion{false};
     bool bTexturingEnabled{false};
+    bool bDrawColorless{false};
+    bool bColUniformDirty{true};
     bool bWasMinimized{false};  // hack?
     const bool bFlipping;
     const UINT swapChainCreateFlags;

@@ -8,6 +8,7 @@
 #include "MapExporter.h"
 #include "MapFetcher.h"
 #include "ScreenBackable.h"
+#include "StrainGraph.h"
 
 #include <memory>
 #include <optional>
@@ -278,6 +279,7 @@ class SongBrowser final : public ScreenBackable {
     CollBtnContainer *getCollectionButtonsForGroup(GroupType group);
 
     void drawStrainGraphOverlay();
+    StrainGraph strainGraph;
 
     GroupType curGroup{GroupType::NO_GROUPING};
     SortType curSortMethod{SortType::ARTIST};

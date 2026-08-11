@@ -2029,85 +2029,13 @@ void HUD::drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 
 
     // draw strain graph
     if(cv::draw_scrubbing_timeline_strain_graph.getBool()) {
+        const f32 offsetX = (f32)beatmapStartTimePlayable / (f32)endTimeMS * (f32)osu->getVirtScreenWidth();
+        const f32 strainHeight = cv::hud_scrubbing_timeline_strains_height.getFloat() * dpiScale;
+        const f32 alpha = cv::hud_scrubbing_timeline_strains_alpha.getFloat() * (f32)galpha;
+
         const auto &ppInfo = osu->getMapInterface()->getWholeMapPPInfo();
-        const std::vector<f64> &aimStrains = ppInfo.aimStrains;
-        const std::vector<f64> &speedStrains = ppInfo.speedStrains;
-
-        const u32 nb_strains = aimStrains.size();
-        if(aimStrains.size() > 0 && aimStrains.size() == speedStrains.size()) {
-            // get highest strain values for normalization
-            f64 highestAimStrain = 0.0;
-            f64 highestSpeedStrain = 0.0;
-            f64 highestStrain = 0.0;
-            i32 highestStrainIndex = -1;
-            for(i32 i = 0; i < aimStrains.size(); i++) {
-                const f64 aimStrain = aimStrains[i];
-                const f64 speedStrain = speedStrains[i];
-                const f64 strain = aimStrain + speedStrain;
-
-                if(strain > highestStrain) {
-                    highestStrain = strain;
-                    highestStrainIndex = i;
-                }
-                if(aimStrain > highestAimStrain) highestAimStrain = aimStrain;
-                if(speedStrain > highestSpeedStrain) highestSpeedStrain = speedStrain;
-            }
-
-            // draw strain bar graph
-            if(highestAimStrain > 0.0 && highestSpeedStrain > 0.0 && highestStrain > 0.0) {
-                const f32 offsetX = (f32)beatmapStartTimePlayable / (f32)endTimeMS * (f32)osu->getVirtScreenWidth();
-                const f32 drawable_area = (f32)osu->getVirtScreenWidth() - offsetX;
-                const f32 strainWidth = drawable_area / (f32)nb_strains;
-                const f32 strainHeightMultiplier = cv::hud_scrubbing_timeline_strains_height.getFloat() * dpiScale;
-
-                const f32 alpha = cv::hud_scrubbing_timeline_strains_alpha.getFloat() * galpha;
-
-                const Color aimStrainColor = RGB_CV_TO_COL(hud_scrubbing_timeline_strains_aim_color).setA(alpha);
-                const Color speedStrainColor = RGB_CV_TO_COL(hud_scrubbing_timeline_strains_speed_color).setA(alpha);
-
-                g->setDepthBuffer(true);
-                for(i32 i = 0; i < aimStrains.size(); i++) {
-                    const f64 aimStrain = (aimStrains[i]) / highestStrain;
-                    const f64 speedStrain = (speedStrains[i]) / highestStrain;
-                    // const f64 strain = (aimStrains[i] + speedStrains[i]) / highestStrain;
-
-                    const f64 aimStrainHeight = aimStrain * strainHeightMultiplier;
-                    const f64 speedStrainHeight = speedStrain * strainHeightMultiplier;
-                    // const f64 strainHeight = strain * strainHeightMultiplier;
-
-                    g->setColor(aimStrainColor);
-                    g->fillRect(i * strainWidth + offsetX, cursorPos.y - aimStrainHeight,
-                                std::max(1.0f, std::round(strainWidth + 0.5f)), aimStrainHeight);
-
-                    g->setColor(speedStrainColor);
-                    g->fillRect(i * strainWidth + offsetX, cursorPos.y - aimStrainHeight - speedStrainHeight,
-                                std::max(1.0f, std::round(strainWidth + 0.5f)), speedStrainHeight + 1);
-                }
-                g->setDepthBuffer(false);
-
-                // highlight highest total strain value (+- section block)
-                if(highestStrainIndex > -1) {
-                    const f64 aimStrain = (aimStrains[highestStrainIndex]) / highestStrain;
-                    const f64 speedStrain = (speedStrains[highestStrainIndex]) / highestStrain;
-                    // const f64 strain = (aimStrains[i] + speedStrains[i]) / highestStrain;
-
-                    const f64 aimStrainHeight = aimStrain * strainHeightMultiplier;
-                    const f64 speedStrainHeight = speedStrain * strainHeightMultiplier;
-                    // const f64 strainHeight = strain * strainHeightMultiplier;
-
-                    const vec2 topLeftCenter = vec2(highestStrainIndex * strainWidth + offsetX + strainWidth / 2.0f,
-                                                    cursorPos.y - aimStrainHeight - speedStrainHeight);
-
-                    const f32 margin = 5.0f * dpiScale;
-
-                    g->setColor(Color(0xffffffff).setA(alpha));
-
-                    g->drawRect(topLeftCenter.x - margin * strainWidth, topLeftCenter.y - margin * strainWidth,
-                                strainWidth * 2 * margin,
-                                aimStrainHeight + speedStrainHeight + 2 * margin * strainWidth);
-                }
-            }
-        }
+        this->strainGraph.draw(ppInfo.aimStrains, ppInfo.speedStrains, ppInfo.total_stars, vec2(offsetX, cursorPos.y),
+                               (f32)osu->getVirtScreenWidth() - offsetX, strainHeight, alpha);
     }
 
     // breaks

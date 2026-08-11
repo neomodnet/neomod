@@ -3,6 +3,7 @@
 #include "AnimationHandler.h"
 #include "UIScreen.h"
 #include "MD5Hash.h"
+#include "StrainGraph.h"
 #include "types.h"
 
 #include <memory>
@@ -217,8 +218,8 @@ class HUD final : public UIScreen {
     void drawClock(f32 percent, bool waiting);
     static void drawStatistics(const HUDStats &stats);
     void drawTargetHeatmap(f32 hitcircleDiameter);
-    static void drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 beatmapStartTimePlayable,
-                                      f32 beatmapPercentFinishedPlayable, const std::vector<BREAK> &breaks);
+    void drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 beatmapStartTimePlayable,
+                               f32 beatmapPercentFinishedPlayable, const std::vector<BREAK> &breaks);
     void drawInputOverlay(i32 numK1, i32 numK2, i32 numM1, i32 numM2);
     void drawInputOverlayTrail(f32 xStart, f32 yStart, f32 oScale, f32 scale);
     void updateInputOverlayDemo();
@@ -251,6 +252,9 @@ class HUD final : public UIScreen {
 
     // hit error bar
     std::vector<HITERROR> hiterrors;
+
+    // scrubbing timeline
+    StrainGraph strainGraph;
 
     // inputoverlay / key overlay
     enum InputOverlayKey : u8 {

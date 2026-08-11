@@ -112,8 +112,10 @@ static f64 calculate_speed_difficulty(const DifficultyHitObject *dobjects, uSz d
 static f64 calculate_reading_difficulty(const DifficultyHitObject *dobjects, uSz dobjectCount, bool hidden,
                                         f64 &outDifficultNoteCount);
 static f64 calculate_flashlight_difficulty(const DifficultyHitObject *dobjects, uSz dobjectCount, bool hidden);
-static std::vector<f64> build_fixed_strain_sections(const DifficultyHitObject *dobjects, uSz dobjectCount,
-                                                    f64 decayBase, f64 (*strainOf)(const DifficultyHitObject &));
+template <typename T>
+    requires(std::is_same_v<T, float> || std::is_same_v<T, double>)
+static std::vector<T> build_fixed_strain_sections(const DifficultyHitObject *dobjects, uSz dobjectCount, f64 decayBase,
+                                                  f64 (*strainOf)(const DifficultyHitObject &));
 
 // per-object weighted counts (lazer Count*/Relevant*/GetDifficultSliders)
 static f64 count_top_weighted_strains_geometric(const DifficultyHitObject *dobjects, uSz dobjectCount,
@@ -893,15 +895,16 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
 
     // strain graph export (display only): fixed 400ms bucketed per-object strain peaks, both
     // series share the same section grid so they always have equal sizes
+    // NOTE: using floats here to reduce memory usage
     if(params.outAimStrains != nullptr) {
-        *params.outAimStrains =
-            build_fixed_strain_sections(diffObjects, numDiffObjects, decay_base[Skills::AIM_SLIDERS],
-                                        [](const DifficultyHitObject &o) { return o.c->strains[Skills::AIM_SLIDERS]; });
+        *params.outAimStrains = build_fixed_strain_sections<f32>(
+            diffObjects, numDiffObjects, decay_base[Skills::AIM_SLIDERS],
+            [](const DifficultyHitObject &o) { return o.c->strains[Skills::AIM_SLIDERS]; });
     }
     if(params.outSpeedStrains != nullptr) {
-        *params.outSpeedStrains =
-            build_fixed_strain_sections(diffObjects, numDiffObjects, decay_base[Skills::SPEED],
-                                        [](const DifficultyHitObject &o) { return o.c->get_strain(Skills::SPEED); });
+        *params.outSpeedStrains = build_fixed_strain_sections<f32>(
+            diffObjects, numDiffObjects, decay_base[Skills::SPEED],
+            [](const DifficultyHitObject &o) { return o.c->get_strain(Skills::SPEED); });
     }
 
     if(params.outRawDifficulty) {
@@ -1517,11 +1520,13 @@ f64 calculate_reading_difficulty(const DifficultyHitObject *dobjects, uSz dobjec
 
 // fixed 400ms section peaks over the recorded per-object strains (lazer StrainSkill); used by
 // the flashlight skill and the strain-graph export
-std::vector<f64> build_fixed_strain_sections(const DifficultyHitObject *dobjects, uSz dobjectCount, f64 decayBase,
-                                             f64 (*strainOf)(const DifficultyHitObject &)) {
+template <typename T>
+    requires(std::is_same_v<T, float> || std::is_same_v<T, double>)
+std::vector<T> build_fixed_strain_sections(const DifficultyHitObject *dobjects, uSz dobjectCount, f64 decayBase,
+                                           f64 (*strainOf)(const DifficultyHitObject &)) {
     static constexpr f64 strain_step = 400.0;
 
-    std::vector<f64> highestStrains;
+    std::vector<T> highestStrains;
     if(dobjectCount < 2) return highestStrains;
 
     // the first lazer object begins with an incremented section end
@@ -1533,7 +1538,7 @@ std::vector<f64> build_fixed_strain_sections(const DifficultyHitObject *dobjects
 
         // make previous peak strain decay until the current object
         while(cur.time > interval_end) {
-            highestStrains.push_back(max_strain);
+            highestStrains.push_back((T)max_strain);
 
             // skip calculating strain decay for very long breaks (e.g. beatmap upload size limit hack diffs)
             const f64 strainDelta = interval_end - (f64)dobjects[i - 1].time;
@@ -1549,7 +1554,7 @@ std::vector<f64> build_fixed_strain_sections(const DifficultyHitObject *dobjects
     }
 
     // the peak strain will not be saved for the last section in the above loop
-    highestStrains.push_back(max_strain);
+    highestStrains.push_back((T)max_strain);
 
     return highestStrains;
 }
@@ -1558,7 +1563,7 @@ std::vector<f64> build_fixed_strain_sections(const DifficultyHitObject *dobjects
 // plain sum of the fixed 400ms section peaks, scaled by a length factor (shorter maps have a
 // higher ratio of 0 combo/100 combo flashlight radius)
 f64 calculate_flashlight_difficulty(const DifficultyHitObject *dobjects, uSz dobjectCount, bool hidden) {
-    const std::vector<f64> peaks = build_fixed_strain_sections(
+    const std::vector<f64> peaks = build_fixed_strain_sections<f64>(
         dobjects, dobjectCount, 0.15,
         hidden ? +[](const DifficultyHitObject &o) { return o.c->flashlightStrainHidden; }
                : +[](const DifficultyHitObject &o) { return o.c->flashlightStrainNoHidden; });

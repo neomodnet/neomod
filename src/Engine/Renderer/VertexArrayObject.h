@@ -76,15 +76,24 @@ class VertexArrayObject : public Resource {
     [[nodiscard]] inline DrawPrimitive getPrimitive() const noexcept { return this->primitive; }
     [[nodiscard]] inline DrawUsageType getUsage() const noexcept { return this->usage; }
 
-    [[nodiscard]] std::span<const vec3> getVertices() const noexcept { return {this->vertices.data(), this->vertices.size()}; }
+    [[nodiscard]] std::span<const vec3> getVertices() const noexcept {
+        return {this->vertices.data(), this->vertices.size()};
+    }
     [[nodiscard]] std::span<const vec2> getTexcoords() const noexcept {
         return {this->texcoords.data(), this->texcoords.size()};
     }
-    [[nodiscard]] std::span<const vec3> getNormals() const noexcept { return {this->normals.data(), this->normals.size()}; }
-    [[nodiscard]] std::span<const Color> getColors() const noexcept { return {this->colors.data(), this->colors.size()}; }
+    [[nodiscard]] std::span<const vec3> getNormals() const noexcept {
+        return {this->normals.data(), this->normals.size()};
+    }
+    [[nodiscard]] std::span<const Color> getColors() const noexcept {
+        return {this->colors.data(), this->colors.size()};
+    }
 
     [[nodiscard]] inline unsigned int getNumVertices() const noexcept { return this->iNumVertices; }
-    [[nodiscard]] inline bool hasTexcoords() const noexcept { return this->bHasTexcoords || this->texcoords.size() > 0; }
+    [[nodiscard]] inline bool hasTexcoords() const noexcept {
+        return this->bHasTexcoords || this->texcoords.size() > 0;
+    }
+    [[nodiscard]] inline bool hasColors() const noexcept { return this->bHasColors || this->colors.size() > 0; }
 
     virtual void draw() { assert(false); }  // implementation dependent (gl/dx11/etc.)
 
@@ -118,6 +127,7 @@ class VertexArrayObject : public Resource {
     DrawUsageType usage;
     bool bKeepInSystemMemory;
     bool bHasTexcoords{false};
+    bool bHasColors{false};
 };
 
 #endif

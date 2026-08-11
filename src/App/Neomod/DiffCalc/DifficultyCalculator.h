@@ -209,8 +209,8 @@ struct StarCalcParams {
     DifficultyAttributes &outAttributes;
     const BeatmapDiffcalcData &beatmapData;
 
-    std::vector<f64> *outAimStrains;
-    std::vector<f64> *outSpeedStrains;
+    std::vector<f32> *outAimStrains;
+    std::vector<f32> *outSpeedStrains;
     i32 upToObjectIndex{-1};
 
     // cancellation

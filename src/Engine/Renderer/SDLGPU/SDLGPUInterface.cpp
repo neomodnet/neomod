@@ -658,20 +658,13 @@ void SDLGPUInterface::clearDepthBuffer() {
 void SDLGPUInterface::setColor(Color color) {
     if(m_data->color == color) return;
     m_data->color = color;
-
-    if(m_texturingEnabled) {
-        m_defaultShader->setUniform4f("col", color.Rf(), color.Gf(), color.Bf(), color.Af());
-    }
+    m_colUniformDirty = true;  // pushed lazily by syncColUniform() when a draw actually reads it
 }
 
 void SDLGPUInterface::setAlpha(float alpha) {
     if(m_data->color.a == Colors::to_byte(alpha)) return;
     m_data->color.setA(alpha);
-
-    if(m_texturingEnabled) {
-        m_defaultShader->setUniform4f("col", m_data->color.Rf(), m_data->color.Gf(), m_data->color.Bf(),
-                                      m_data->color.Af());
-    }
+    m_colUniformDirty = true;
 }
 
 // 2d resource drawing
@@ -780,6 +773,11 @@ void SDLGPUInterface::drawVAO(VertexArrayObject *vao) {
 
     // if baked, record draw through the deferred system (vao->draw() calls recordBakedDraw)
     if(vao->isReady()) {
+        const bool textured = vao->hasTexcoords();
+        const bool colorless = !vao->hasColors();
+        this->setTexturing(textured);  // like the immediate path below (misc.x would be stale otherwise)
+        this->setDrawColorless(colorless);
+        if(textured || colorless) this->syncColUniform();
         vao->draw();
         return;
     }
@@ -800,7 +798,8 @@ void SDLGPUInterface::drawVAO(VertexArrayObject *vao) {
 
     // convert per-vertex colors from packed Color to vec4.
     // when textured with no per-vertex colors, use white (col uniform provides m_color).
-    // when non-textured with no per-vertex colors, use m_color directly (col uniform unused).
+    // when non-textured with no per-vertex colors, the default shader reads the col uniform (misc.z is set);
+    // m_color is still written into the vertices for custom shaders which read fragColor directly.
     static std::vector<vec4> colors;
     if(vcolors.empty()) {
         const vec4 c = hasTexcoords0
@@ -824,6 +823,8 @@ void SDLGPUInterface::drawVAO(VertexArrayObject *vao) {
 
     // set primitive type and texturing
     this->setTexturing(hasTexcoords0);
+    this->setDrawColorless(vcolors.empty());
+    if(hasTexcoords0 || vcolors.empty()) this->syncColUniform();
 
     if(const SDLGPUPrimitiveType gpuPrimitive = primitiveToSDLGPUPrimitive(srcPrimitive);
        gpuPrimitive != m_currentPrimitiveType) {
@@ -1576,11 +1577,27 @@ void SDLGPUInterface::setTexturing(bool enabled, bool force) {
     if(!force && enabled == m_texturingEnabled) return;
 
     m_texturingEnabled = enabled;
-    m_defaultShader->setUniform4f("misc", enabled ? 1.f : 0.f, m_colorInversion ? 1.f : 0.f, 0.f, 0.f);
-    if(enabled) {
-        m_defaultShader->setUniform4f("col", m_data->color.Rf(), m_data->color.Gf(), m_data->color.Bf(),
-                                      m_data->color.Af());
-    }
+    this->updateMiscUniform();
+}
+
+void SDLGPUInterface::updateMiscUniform() {
+    m_defaultShader->setUniform4f("misc", m_texturingEnabled ? 1.f : 0.f, m_colorInversion ? 1.f : 0.f,
+                                  m_drawColorless ? 1.f : 0.f, 0.f);
+}
+
+void SDLGPUInterface::setDrawColorless(bool colorless) {
+    if(colorless == m_drawColorless) return;
+
+    m_drawColorless = colorless;
+    this->updateMiscUniform();
+}
+
+void SDLGPUInterface::syncColUniform() {
+    if(!m_colUniformDirty) return;
+
+    m_colUniformDirty = false;
+    m_defaultShader->setUniform4f("col", m_data->color.Rf(), m_data->color.Gf(), m_data->color.Bf(),
+                                  m_data->color.Af());
 }
 
 // shader switching

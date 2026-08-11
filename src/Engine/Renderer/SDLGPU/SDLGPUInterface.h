@@ -189,6 +189,11 @@ class SDLGPUInterface final : public ModernGraphicsShared {
     void recordDraw(SDL_GPUBuffer *bakedBuffer, u32 vertexOffset, u32 vertexCount);
     bool createDepthTexture(u32 width, u32 height);
 
+    // default shader uniform state (misc = texturing/inversion/colorless flags, col = m_color, lazily synced)
+    void updateMiscUniform();
+    void setDrawColorless(bool colorless);
+    void syncColUniform();
+
     void initSmoothClipShader();
     void onFramecountNumChanged(float maxFramesInFlight);
 
@@ -350,6 +355,8 @@ class SDLGPUInterface final : public ModernGraphicsShared {
     int m_maxFrameLatency{Env::cfg(OS::MAC) ? 2 : 1};
     bool m_texturingEnabled{false};
     bool m_colorInversion{false};
+    bool m_drawColorless{false};
+    bool m_colUniformDirty{true};
     bool m_vsyncEnabled{false};
 
     // cached present mode support (queried once at init)

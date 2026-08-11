@@ -60,7 +60,7 @@ struct OneMapResult {
     double totalStars{};
     DiffCalc::DifficultyAttributes attrs{};
     DiffCalc::RawDifficultyValues raw{};
-    std::vector<double> aimStrains{}, speedStrains{};
+    std::vector<float> aimStrains{}, speedStrains{};
 
     double ppSS{}, ppImperfect{}, ppLowAcc{}, ppMcosuImperfect{};
     DiffCalc::PPv2CalcParams ssParams{};  // post-calculatePPv2 (resolved -1 sentinels, adjusted AR/OD)

@@ -191,6 +191,7 @@ neomod_SOURCES = \
 	src/App/Neomod/SongBrowser/SongDifficultyButton.cpp \
 	src/App/Neomod/SongBrowser/VolNormalization.cpp \
 	src/App/Neomod/SpectatorScreen.cpp \
+	src/App/Neomod/StrainGraph.cpp \
 	src/App/Neomod/ThumbnailManager.cpp \
 	src/App/Neomod/Tools/DiffCalcSuite.cpp \
 	src/App/Neomod/Tools/DiffCalcTool.cpp \

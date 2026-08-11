@@ -286,6 +286,7 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/base64.cpp \
 	src/App/Neomod/SongBrowser/SongDifficultyButton.cpp \
 	src/App/Neomod/SongBrowser/VolNormalization.cpp \
 	src/App/Neomod/SpectatorScreen.cpp \
+	src/App/Neomod/StrainGraph.cpp \
 	src/App/Neomod/ThumbnailManager.cpp \
 	src/App/Neomod/Tools/DiffCalcSuite.cpp \
 	src/App/Neomod/Tools/DiffCalcTool.cpp \
@@ -532,6 +533,7 @@ am_neomod_OBJECTS = libraries/neomod-MD5.$(OBJEXT) \
 	src/App/Neomod/SongBrowser/neomod-SongDifficultyButton.$(OBJEXT) \
 	src/App/Neomod/SongBrowser/neomod-VolNormalization.$(OBJEXT) \
 	src/App/Neomod/neomod-SpectatorScreen.$(OBJEXT) \
+	src/App/Neomod/neomod-StrainGraph.$(OBJEXT) \
 	src/App/Neomod/neomod-ThumbnailManager.$(OBJEXT) \
 	src/App/Neomod/Tools/neomod-DiffCalcSuite.$(OBJEXT) \
 	src/App/Neomod/Tools/neomod-DiffCalcTool.$(OBJEXT) \
@@ -740,6 +742,7 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/App/Neomod/$(DEPDIR)/neomod-SliderCurves.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-SliderRenderer.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-SpectatorScreen.Po \
+	src/App/Neomod/$(DEPDIR)/neomod-StrainGraph.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-ThumbnailManager.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-TooltipOverlay.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-UI.Po \
@@ -1471,6 +1474,7 @@ neomod_SOURCES = libraries/MD5.cpp libraries/base64.cpp \
 	src/App/Neomod/SongBrowser/SongDifficultyButton.cpp \
 	src/App/Neomod/SongBrowser/VolNormalization.cpp \
 	src/App/Neomod/SpectatorScreen.cpp \
+	src/App/Neomod/StrainGraph.cpp \
 	src/App/Neomod/ThumbnailManager.cpp \
 	src/App/Neomod/Tools/DiffCalcSuite.cpp \
 	src/App/Neomod/Tools/DiffCalcTool.cpp \
@@ -2358,6 +2362,9 @@ src/App/Neomod/SongBrowser/neomod-VolNormalization.$(OBJEXT):  \
 src/App/Neomod/neomod-SpectatorScreen.$(OBJEXT):  \
 	src/App/Neomod/$(am__dirstamp) \
 	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
+src/App/Neomod/neomod-StrainGraph.$(OBJEXT):  \
+	src/App/Neomod/$(am__dirstamp) \
+	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
 src/App/Neomod/neomod-ThumbnailManager.$(OBJEXT):  \
 	src/App/Neomod/$(am__dirstamp) \
 	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
@@ -3104,6 +3111,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-SliderCurves.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-SliderRenderer.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-SpectatorScreen.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-StrainGraph.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-ThumbnailManager.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-TooltipOverlay.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-UI.Po@am__quote@ # am--include-marker
@@ -4524,6 +4532,20 @@ src/App/Neomod/neomod-SpectatorScreen.obj: src/App/Neomod/SpectatorScreen.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/SpectatorScreen.cpp' object='src/App/Neomod/neomod-SpectatorScreen.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-SpectatorScreen.obj `if test -f 'src/App/Neomod/SpectatorScreen.cpp'; then $(CYGPATH_W) 'src/App/Neomod/SpectatorScreen.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/SpectatorScreen.cpp'; fi`
+
+src/App/Neomod/neomod-StrainGraph.o: src/App/Neomod/StrainGraph.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-StrainGraph.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-StrainGraph.Tpo -c -o src/App/Neomod/neomod-StrainGraph.o `test -f 'src/App/Neomod/StrainGraph.cpp' || echo '$(srcdir)/'`src/App/Neomod/StrainGraph.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-StrainGraph.Tpo src/App/Neomod/$(DEPDIR)/neomod-StrainGraph.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/StrainGraph.cpp' object='src/App/Neomod/neomod-StrainGraph.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-StrainGraph.o `test -f 'src/App/Neomod/StrainGraph.cpp' || echo '$(srcdir)/'`src/App/Neomod/StrainGraph.cpp
+
+src/App/Neomod/neomod-StrainGraph.obj: src/App/Neomod/StrainGraph.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-StrainGraph.obj -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-StrainGraph.Tpo -c -o src/App/Neomod/neomod-StrainGraph.obj `if test -f 'src/App/Neomod/StrainGraph.cpp'; then $(CYGPATH_W) 'src/App/Neomod/StrainGraph.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/StrainGraph.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-StrainGraph.Tpo src/App/Neomod/$(DEPDIR)/neomod-StrainGraph.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/StrainGraph.cpp' object='src/App/Neomod/neomod-StrainGraph.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-StrainGraph.obj `if test -f 'src/App/Neomod/StrainGraph.cpp'; then $(CYGPATH_W) 'src/App/Neomod/StrainGraph.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/StrainGraph.cpp'; fi`
 
 src/App/Neomod/neomod-ThumbnailManager.o: src/App/Neomod/ThumbnailManager.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-ThumbnailManager.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-ThumbnailManager.Tpo -c -o src/App/Neomod/neomod-ThumbnailManager.o `test -f 'src/App/Neomod/ThumbnailManager.cpp' || echo '$(srcdir)/'`src/App/Neomod/ThumbnailManager.cpp
@@ -7084,6 +7106,7 @@ distclean: distclean-am
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-SliderCurves.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-SliderRenderer.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-SpectatorScreen.Po
+	-rm -f src/App/Neomod/$(DEPDIR)/neomod-StrainGraph.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-ThumbnailManager.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-TooltipOverlay.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-UI.Po
@@ -7370,6 +7393,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-SliderCurves.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-SliderRenderer.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-SpectatorScreen.Po
+	-rm -f src/App/Neomod/$(DEPDIR)/neomod-StrainGraph.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-ThumbnailManager.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-TooltipOverlay.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-UI.Po

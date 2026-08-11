@@ -21,3 +21,4 @@ libraries/glad/KHR/khrplatform.h generated
 libraries/glad/glad.cpp generated
 libraries/glad/glad.h generated
 
+tools/diffcalc/tests/golden/* generated

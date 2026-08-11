@@ -184,7 +184,7 @@ struct CalcSnapshot {
     double stars{};
     DiffCalc::DifficultyAttributes attrs{};
     DiffCalc::RawDifficultyValues raw{};
-    std::vector<double> aimStrains{}, speedStrains{};
+    std::vector<float> aimStrains{}, speedStrains{};
 };
 
 struct CrosscheckSetup {
@@ -249,8 +249,8 @@ std::optional<LineDiff> compareSnapshots(const CalcSnapshot &expected, const Cal
             return LineDiff{.field = "raw." + diff->field, .expected = diff->expected, .got = diff->got};
     }
 
-    auto compareStrains = [](std::string_view name, const std::vector<double> &e,
-                             const std::vector<double> &g) -> std::optional<LineDiff> {
+    auto compareStrains = [](std::string_view name, const std::vector<float> &e,
+                             const std::vector<float> &g) -> std::optional<LineDiff> {
         if(e.size() != g.size())
             return LineDiff{.field = std::format("{}.count", name),
                             .expected = std::format("{}", e.size()),

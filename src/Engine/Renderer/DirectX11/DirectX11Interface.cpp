@@ -437,10 +437,7 @@ void DirectX11Interface::setColor(Color color) {
     if(m_data->color == color) return;
 
     m_data->color = color;
-    if(this->bTexturingEnabled) {
-        this->shaderTexturedGeneric->setUniform4f("col", m_data->color.Rf(), m_data->color.Gf(), m_data->color.Bf(),
-                                                  m_data->color.Af());
-    }
+    this->bColUniformDirty = true;  // pushed lazily by syncColUniform() when a draw actually reads it
 }
 
 void DirectX11Interface::setAlpha(float alpha) {
@@ -456,6 +453,8 @@ void DirectX11Interface::drawPixel(int x, int y) {
     this->updateTransform();
 
     this->setTexturing(false);  // disable texturing
+    this->setDrawColorless(true);
+    this->syncColUniform();
 
     // build directx vertices
     this->vertices.clear();
@@ -585,6 +584,12 @@ void DirectX11Interface::drawVAO(VertexArrayObject *vao) {
 
     // if baked, then we can directly draw the buffer
     if(vao->isReady()) {
+        const bool textured = vao->hasTexcoords();
+        const bool colorless = !vao->hasColors();
+        this->setTexturing(textured);  // like the immediate path below (misc.x would be stale otherwise)
+        this->setDrawColorless(colorless);
+        if(textured || colorless) this->syncColUniform();
+
         // shader update
         if(this->activeShader) this->activeShader->onJustBeforeDraw();
 
@@ -701,7 +706,8 @@ void DirectX11Interface::drawVAO(VertexArrayObject *vao) {
         const size_t maxTexcoords0Index = (hasTexcoords0 ? finalTexcoords.size() - 1 : 0);
 
         // textured draws with no per-vertex colors use white (the col uniform carries m_color); non-textured
-        // draws use m_color directly (the col uniform is unused)
+        // colorless draws read the col uniform in the default shader (misc.z is set below), but m_color is
+        // still written into the vertices for custom shaders which read the vertex color directly
         const vec4 color = hasTexcoords0
                                ? vec4(1.f, 1.f, 1.f, 1.f)
                                : vec4(m_data->color.Rf(), m_data->color.Gf(), m_data->color.Bf(), m_data->color.Af());
@@ -721,6 +727,8 @@ void DirectX11Interface::drawVAO(VertexArrayObject *vao) {
 
     // upload and draw, batching if necessary
     this->setTexturing(hasTexcoords0);
+    this->setDrawColorless(finalColors.empty());
+    if(hasTexcoords0 || finalColors.empty()) this->syncColUniform();
     this->uploadAndDrawVertexBatch((D3D_PRIMITIVE_TOPOLOGY)primitiveToDirectX(primitive));
 }
 
@@ -1201,12 +1209,27 @@ void DirectX11Interface::setTexturing(bool enabled, bool force) {
     if(!force && enabled == this->bTexturingEnabled) return;
 
     this->bTexturingEnabled = enabled;
-    this->shaderTexturedGeneric->setUniform4f("misc", enabled ? 1.f : 0.f, this->bColorInversion ? 1.f : 0.f, 0.f, 0.f);
-    if(enabled) {
-        // re-apply the current color: setColor skips the col uniform while texturing is off, so refresh it here
-        this->shaderTexturedGeneric->setUniform4f("col", m_data->color.Rf(), m_data->color.Gf(), m_data->color.Bf(),
-                                                  m_data->color.Af());
-    }
+    this->updateMiscUniform();
+}
+
+void DirectX11Interface::updateMiscUniform() {
+    this->shaderTexturedGeneric->setUniform4f("misc", this->bTexturingEnabled ? 1.f : 0.f,
+                                              this->bColorInversion ? 1.f : 0.f, this->bDrawColorless ? 1.f : 0.f, 0.f);
+}
+
+void DirectX11Interface::setDrawColorless(bool colorless) {
+    if(colorless == this->bDrawColorless) return;
+
+    this->bDrawColorless = colorless;
+    this->updateMiscUniform();
+}
+
+void DirectX11Interface::syncColUniform() {
+    if(!this->bColUniformDirty) return;
+
+    this->bColUniformDirty = false;
+    this->shaderTexturedGeneric->setUniform4f("col", m_data->color.Rf(), m_data->color.Gf(), m_data->color.Bf(),
+                                              m_data->color.Af());
 }
 
 Image *DirectX11Interface::createImage(std::string filePath, bool mipmapped, bool keepInSystemMemory) {
