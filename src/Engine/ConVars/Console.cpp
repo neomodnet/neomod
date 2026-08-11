@@ -131,11 +131,7 @@ void Console::execConfigFile(std::string_view filename_view) {
         std::vector<std::string> cmds;
         for(auto line = configFile.readLine(); !line.empty() || configFile.canRead(); line = configFile.readLine()) {
             // only process non-empty lines
-            if(!line.empty()) {
-                // handle comments - find "//" and remove everything after
-                const auto commentIndex = line.find("//");
-                if(commentIndex != std::string::npos) line.erase(commentIndex, line.length() - commentIndex);
-
+            if(!line.empty() && !SString::is_comment(line) && !SString::is_comment(line, "#")) {
                 // McOsu used to prefix all convars with "osu_". Maybe it made sense when McEngine was
                 // a separate thing, but in neomod everything is related to osu anyway, so it's redundant.
                 // So, to avoid breaking old configs, we're removing the prefix for (almost) all convars here.
@@ -144,7 +140,7 @@ void Console::execConfigFile(std::string_view filename_view) {
                     needs_write = !is_absolute;  // DON'T OVERWRITE CONFIGS COMING FROM OTHER INSTALLATIONS!!!
                 }
 
-                // add command (original adds all processed lines, even if they become empty after comment removal)
+                // add command
                 cmds.push_back(line);
             }
 
