@@ -1,6 +1,6 @@
-CXX = emcc
-CXXFLAGS = -O3 -std=c++23 -DBUILD_TOOLS_ONLY
-LDFLAGS = -lembind -s WASM=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s SINGLE_FILE=0 -s ALLOW_MEMORY_GROWTH=1 -s IMPORTED_MEMORY=1
+CXX = em++
+CXXFLAGS = -DBUILD_TOOLS_ONLY -Os -std=c++23 -ffunction-sections -fdata-sections -fno-exceptions -fno-unwind-tables -flto=thin
+LDFLAGS = -Wl,--gc-sections -lembind -s WASM=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s SINGLE_FILE=0 -s ALLOW_MEMORY_GROWTH=1 -s IMPORTED_MEMORY=1
 
 SRCDIR = ../../src
 INCLUDES = -I$(SRCDIR)/App/Neomod -I$(SRCDIR)/App/Neomod/DiffCalc -I$(SRCDIR)/Util
