@@ -367,6 +367,8 @@ DatabaseBeatmap::PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjectsFromDa
     std::vector<TIMINGPOINT> tempTimingpoints;
 
     // load the actual beatmap
+    u8 gamemode{(u8)-1};  // ignore non-standard gamemodes for now
+
     int hitobjectsWithoutSpinnerCounter = 0;
     int colorCounter = 1;
     int colorOffset = 0;
@@ -416,6 +418,12 @@ DatabaseBeatmap::PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjectsFromDa
 
             case General: {
                 std::string sampleSet;
+                if(gamemode == (u8)-1) {
+                    if(Parsing::parse(curLine, "Mode", ':', &gamemode) && gamemode != 0) {
+                        c.error.errc = LoadError::NON_STD_GAMEMODE;
+                        return c;
+                    }
+                }
                 if(Parsing::parse(curLine, "SampleSet", ':', &sampleSet)) {
                     SString::lower_inplace(sampleSet);
                     if(sampleSet == "normal") {
