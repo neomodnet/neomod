@@ -27,8 +27,10 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <filesystem>
 #include <numeric>
 #include <set>
+#include <system_error>
 #include <utility>
 #include <cassert>
 #include <map>
@@ -1542,40 +1544,173 @@ bool loadFallbackFont(const std::string &fontPath, bool isSystemFont) {
 }
 
 void discoverSystemFallbacks() {
+    // each entry is one slot in the fallback priority order: knownPaths are the usual exact
+    // locations (checked directly, cheap), scanNames are filenames matched by a recursive scan
+    // of scanRoots which only runs for slots where no knownPath existed 
+    // (this runs on the main thread, so avoid scanning whole font directories when the usual locations are populated)
+    struct SystemFontSpec {
+        std::vector<std::string> knownPaths;
+        std::vector<std::string> scanNames;
+    };
+
+    std::vector<SystemFontSpec> wantedFonts;
+    std::vector<std::string> scanRoots;
+
 #ifdef MCENGINE_PLATFORM_WINDOWS
     std::string windir;
     windir.resize(MAX_PATH + 1);
     const size_t ret = GetWindowsDirectoryA(windir.data(), MAX_PATH);
     if(ret <= 0) return;
     windir.resize(ret);
+    const std::string fontsDir = windir + "\\Fonts\\";
 
-    std::vector<std::string> systemFonts = {
-        windir + "\\Fonts\\arial.ttf",
-        windir + "\\Fonts\\msyh.ttc",      // Microsoft YaHei (Chinese)
-        windir + "\\Fonts\\malgun.ttf",    // Malgun Gothic (Korean)
-        windir + "\\Fonts\\meiryo.ttc",    // Meiryo (Japanese)
-        windir + "\\Fonts\\seguiemj.ttf",  // Segoe UI Emoji
-        windir + "\\Fonts\\seguisym.ttf"   // Segoe UI Symbol
+    wantedFonts = {
+        {.knownPaths = {fontsDir + "arial.ttf"}, .scanNames = {"arial.ttf"}},
+        // Meiryo (Japanese), Yu Gothic as alternative (Meiryo is an optional language pack component on Win10+)
+        {.knownPaths = {fontsDir + "meiryo.ttc", fontsDir + "YuGothM.ttc"}, .scanNames = {"meiryo.ttc", "YuGothM.ttc"}},
+        // Microsoft YaHei (Chinese)
+        {.knownPaths = {fontsDir + "msyh.ttc"}, .scanNames = {"msyh.ttc", "msyh.ttf"}},
+        // Malgun Gothic (Korean)
+        {.knownPaths = {fontsDir + "malgun.ttf"}, .scanNames = {"malgun.ttf"}},
+        // Segoe UI Emoji
+        {.knownPaths = {fontsDir + "seguiemj.ttf"}, .scanNames = {"seguiemj.ttf"}},
+        // Segoe UI Symbol
+        {.knownPaths = {fontsDir + "seguisym.ttf"}, .scanNames = {"seguisym.ttf"}},
     };
+    scanRoots = {windir + "\\Fonts"};
+    // per-user installed fonts
+    if(const std::string localAppData = Environment::getEnvVariable("LOCALAPPDATA"); !localAppData.empty())
+        scanRoots.push_back(localAppData + "\\Microsoft\\Windows\\Fonts");
+#elif defined(MCENGINE_PLATFORM_MACOS)
+    // /System/Library/Fonts lives on the sealed system volume, so the known paths are reliable
+    // (APFS name lookups are normalization-insensitive, so NFC literals resolve to the NFD names on disk).
+    wantedFonts = {
+        // Hiragino Kaku Gothic (Japanese)
+        {.knownPaths = {"/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc"}, .scanNames = {}},
+        // Hiragino Sans GB / Heiti (Chinese)
+        {.knownPaths = {"/System/Library/Fonts/Hiragino Sans GB.ttc", "/System/Library/Fonts/STHeiti Light.ttc"},
+         .scanNames = {"Hiragino Sans GB.ttc", "STHeiti Light.ttc"}},
+        // Apple SD Gothic Neo (Korean)
+        {.knownPaths = {"/System/Library/Fonts/AppleSDGothicNeo.ttc"},
+         .scanNames = {"AppleSDGothicNeo.ttc", "AppleGothic.ttf"}},
+        // Arial Unicode (broad coverage catch-all for other scripts)
+        {.knownPaths = {"/System/Library/Fonts/Supplemental/Arial Unicode.ttf", "/Library/Fonts/Arial Unicode.ttf"},
+         .scanNames = {"Arial Unicode.ttf"}},
+        // Apple Symbols (misc symbols)
+        {.knownPaths = {"/System/Library/Fonts/Apple Symbols.ttf"}, .scanNames = {"Apple Symbols.ttf"}},
+    };
+    scanRoots = {"/System/Library/Fonts", "/Library/Fonts"};
+    if(const std::string home = Environment::getEnvVariable("HOME"); !home.empty())
+        scanRoots.push_back(home + "/Library/Fonts");
 #elif defined(MCENGINE_PLATFORM_LINUX)
-    // linux system fonts (common locations)
-    std::vector<std::string> systemFonts = {"/usr/share/fonts/TTF/dejavu/DejaVuSans.ttf",
-                                            "/usr/share/fonts/TTF/DejaVuSans.ttf",
-                                            "/usr/share/fonts/TTF/liberation/LiberationSans-Regular.ttf",
-                                            "/usr/share/fonts/liberation/LiberationSans-Regular.ttf",
-                                            "/usr/share/fonts/noto/NotoSans-Regular.ttf",
-                                            "/usr/share/fonts/noto/NotoSansCJK-Regular.ttc",
-                                            "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
-                                            "/usr/share/fonts/noto-emoji/NotoColorEmoji.ttf",
-                                            "/usr/share/fonts/TTF/noto/NotoColorEmoji.ttf"};
+    // common locations across distro layouts (arch/fedora-style TTF/, debian-style truetype/ + opentype/)
+    wantedFonts = {
+        // DejaVu Sans
+        {.knownPaths = {"/usr/share/fonts/TTF/dejavu/DejaVuSans.ttf", "/usr/share/fonts/TTF/DejaVuSans.ttf",
+                        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"},
+         .scanNames = {"DejaVuSans.ttf"}},
+        // Liberation Sans
+        {.knownPaths = {"/usr/share/fonts/TTF/liberation/LiberationSans-Regular.ttf",
+                        "/usr/share/fonts/liberation/LiberationSans-Regular.ttf",
+                        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"},
+         .scanNames = {"LiberationSans-Regular.ttf"}},
+        // Noto Sans
+        {.knownPaths = {"/usr/share/fonts/noto/NotoSans-Regular.ttf",
+                        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf"},
+         .scanNames = {"NotoSans-Regular.ttf"}},
+        // Noto Sans CJK
+        {.knownPaths = {"/usr/share/fonts/noto/NotoSansCJK-Regular.ttc",
+                        "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+                        "/usr/share/fonts/noto-cjk/NotoSansCJK-VF.ttc",
+                        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"},
+         .scanNames = {"NotoSansCJK-Regular.ttc", "NotoSansCJK-VF.ttc", "NotoSansCJKjp-Regular.otf"}},
+        // Noto Color Emoji
+        {.knownPaths = {"/usr/share/fonts/noto-emoji/NotoColorEmoji.ttf",
+                        "/usr/share/fonts/TTF/noto/NotoColorEmoji.ttf",
+                        "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf"},
+         .scanNames = {"NotoColorEmoji.ttf"}},
+    };
+    scanRoots = {"/usr/share/fonts", "/usr/local/share/fonts"};
+    if(const std::string home = Environment::getEnvVariable("HOME"); !home.empty()) {
+        scanRoots.push_back(home + "/.local/share/fonts");
+        scanRoots.push_back(home + "/.fonts");
+    }
 #else  // TODO: loading WOFF fonts in wasm? idk
-    std::vector<std::string> systemFonts;
     return;
 #endif
 
-    for(auto &fontPath : systemFonts) {
-        if(File::existsCaseInsensitive(fontPath) == File::FILETYPE::FILE) {
-            loadFallbackFont(fontPath.c_str(), true);
+    // check the known locations first
+    std::vector<std::string> resolved(wantedFonts.size());
+    bool anyMissing = false;
+    for(size_t i = 0; i < wantedFonts.size(); i++) {
+        for(auto &fontPath : wantedFonts[i].knownPaths) {
+            if(File::existsCaseInsensitive(fontPath) == File::FILETYPE::FILE) {
+                resolved[i] = fontPath;
+                break;
+            }
+        }
+        anyMissing = anyMissing || (resolved[i].empty() && !wantedFonts[i].scanNames.empty());
+    }
+
+    // scan the font directories for anything not found at its usual location
+    if(anyMissing) {
+        namespace fs = std::filesystem;
+
+        Hash::unstable_ncase_stringmap<std::string> wantedNames;  // filename -> full path once found
+        for(size_t i = 0; i < wantedFonts.size(); i++) {
+            if(!resolved[i].empty()) continue;
+            for(const auto &name : wantedFonts[i].scanNames) {
+                wantedNames.try_emplace(name);
+            }
+        }
+
+        size_t remaining = wantedNames.size();
+        for(const auto &root : scanRoots) {
+            if(remaining == 0) break;
+            std::error_code ec;
+            for(auto it = fs::recursive_directory_iterator(
+                    File::getFsPath(root),
+                    fs::directory_options::skip_permission_denied | fs::directory_options::follow_directory_symlink,
+                    ec);
+                remaining > 0 && it != fs::recursive_directory_iterator{}; it.increment(ec)) {
+                if(it.depth() >= 3)
+                    it.disable_recursion_pending();  // font dirs are shallow, also bounds symlink cycles
+
+                std::string filename;
+                if constexpr(Env::cfg(OS::WINDOWS)) {
+                    filename = UniString::to_utf8(it->path().filename().wstring());
+                } else {
+                    filename = it->path().filename().string();
+                }
+
+                const auto found = wantedNames.find(filename);
+                if(found == wantedNames.end() || !found->second.empty()) continue;
+                if(!fs::is_regular_file(it->status(ec))) continue;  // status() follows symlinks
+
+                if constexpr(Env::cfg(OS::WINDOWS)) {
+                    found->second = UniString::to_utf8(it->path().wstring());
+                } else {
+                    found->second = it->path().string();
+                }
+                remaining--;
+            }
+        }
+
+        for(size_t i = 0; i < wantedFonts.size(); i++) {
+            if(!resolved[i].empty()) continue;
+            for(const auto &name : wantedFonts[i].scanNames) {
+                if(const auto found = wantedNames.find(name); found != wantedNames.end() && !found->second.empty()) {
+                    resolved[i] = found->second;
+                    break;
+                }
+            }
+        }
+    }
+
+    // load in declaration order, so that the fallback lookup priority stays consistent
+    for(const auto &fontPath : resolved) {
+        if(!fontPath.empty() && loadFallbackFont(fontPath, true)) {
+            debugLog("Loaded system fallback font: {:s}", fontPath);
         }
     }
 }
