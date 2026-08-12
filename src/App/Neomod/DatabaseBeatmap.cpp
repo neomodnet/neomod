@@ -893,7 +893,7 @@ void DatabaseBeatmap::calculateStacks(const ObjectGetter<C> &getObj, uSz numObje
     constexpr float STACK_LENIENCE = 3.f;
     const float approachTime = GameRules::getApproachTimeForStacking(AR);
 
-    if(beatmapVersion) {
+    if(beatmapVersion > 5) {
         // peppy's algorithm
         // https://gist.github.com/peppy/1167470
 
