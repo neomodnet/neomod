@@ -1,0 +1,21 @@
+diff --git a/src/alloc.c b/src/alloc.c
+index b3b1860..a467c84 100644
+--- a/src/alloc.c
++++ b/src/alloc.c
+@@ -707,12 +707,16 @@ static bool mi_try_new_handler(bool nothrow) {
+     return true;
+   }
+   else {
++    #if defined(_CPPUNWIND) || defined(__cpp_exceptions)
+     try {
+       h();
+     }
+     catch(...) {     // swallow std::bad_alloc
+       return false;  // stop trying
+     }
++    #else
++    h();
++    #endif
+     return true;
+   }
+ }

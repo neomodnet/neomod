@@ -7960,6 +7960,7 @@ $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)-macosaarch64.source: $(DEPS_CACHE)/curl-
 @BUILD_MIMALLOC_TRUE@	$(TAR) xf $(DEPS_CACHE)/mimalloc-$(MIMALLOC_VERSION).tar.gz -C $(DEPS_PREFIX)/mimalloc --strip-components=1 && \
 @BUILD_MIMALLOC_TRUE@	cd $(DEPS_PREFIX)/mimalloc && \
 @BUILD_MIMALLOC_TRUE@	patch -Np1<$(BUILD_MISCDIR)/mimalloc-munlock-before-decommit.patch && \
+@BUILD_MIMALLOC_TRUE@	patch -Np1<$(BUILD_MISCDIR)/mimalloc-guard-try-except.patch && \
 @BUILD_MIMALLOC_TRUE@	$(MKDIR_P) $(DEPS_PREFIX)/mimalloc/out/"$(if $(ENABLE_DEBUG),debug,release)" && \
 @BUILD_MIMALLOC_TRUE@	cd $(DEPS_PREFIX)/mimalloc/out/"$(if $(ENABLE_DEBUG),debug,release)" && \
 @BUILD_MIMALLOC_TRUE@	env PKG_CONFIG="$(PKG_CONFIG)" \

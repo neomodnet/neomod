@@ -331,6 +331,7 @@ $(DEPS_PREFIX)/mimalloc-$(MIMALLOC_VERSION).built: $(DEPS_CACHE)/mimalloc-$(MIMA
 	$(TAR) xf $(DEPS_CACHE)/mimalloc-$(MIMALLOC_VERSION).tar.gz -C $(DEPS_PREFIX)/mimalloc --strip-components=1 && \
 	cd $(DEPS_PREFIX)/mimalloc && \
 	patch -Np1<$(BUILD_MISCDIR)/mimalloc-munlock-before-decommit.patch && \
+	patch -Np1<$(BUILD_MISCDIR)/mimalloc-guard-try-except.patch && \
 	$(MKDIR_P) $(DEPS_PREFIX)/mimalloc/out/"$(if $(ENABLE_DEBUG),debug,release)" && \
 	cd $(DEPS_PREFIX)/mimalloc/out/"$(if $(ENABLE_DEBUG),debug,release)" && \
 	env PKG_CONFIG="$(PKG_CONFIG)" \
