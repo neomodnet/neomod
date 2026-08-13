@@ -7918,13 +7918,15 @@ $(CACERT_INCDIR)/cacert.pem:
 
 # only the app needs libcrypto primitives and only curl needs libssl, so strip everything else
 # (-fPIC because the static libs also get linked into shared libarchive in non-static builds)
+# -Os appended (overrides the release -O3) to match the old static-curl prebuilts: the crypto
+# hot paths are perlasm and ignore -O, while -O3(+LTO) here costs ~1MB of final binary size
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@$(DEPS_PREFIX)/openssl-$(OPENSSL_VERSION).built: $(DEPS_CACHE)/openssl-$(OPENSSL_VERSION).tar.gz
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	rm -rf $(DEPS_PREFIX)/openssl
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(MKDIR_P) $(DEPS_PREFIX)/openssl $(DEPS_PREFIX)/lib/pkgconfig
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(TAR) xf $(DEPS_CACHE)/openssl-$(OPENSSL_VERSION).tar.gz -C $(DEPS_PREFIX)/openssl --strip-components=1 && \
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	cd $(DEPS_PREFIX)/openssl && \
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	RANLIB="$(RANLIB)" AR="$(AR)" CC="$(CC)" CXX="$(CXX)" \
-@BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" \
+@BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	CFLAGS="$(CFLAGS) -Os" CXXFLAGS="$(CXXFLAGS) -Os" LDFLAGS="$(LDFLAGS)" \
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(CONFIGURE_PFX) ./Configure $(OPENSSL_TARGET) --prefix="$(DEPS_PREFIX)" --libdir=lib --openssldir="$(DEPS_PREFIX)/ssl" \
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@		no-shared threads no-tests no-apps no-docs no-module no-comp no-legacy \
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@		$(OPENSSL_EC_FLAG) $(if $(filter windows,$(SYSNAME)),,-fPIC) && \
@@ -7987,7 +7989,7 @@ $(CACERT_INCDIR)/cacert.pem:
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@		--disable-docs --disable-manual \
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@		--without-ca-bundle --without-ca-path --without-ca-fallback \
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@		RANLIB="$(RANLIB)" AR="$(AR)" CC="$(CC)" CXX="$(CXX)" LD="$(LD)" \
-@BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@		CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" && \
+@BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@		CFLAGS="$(CFLAGS) -Os" CXXFLAGS="$(CXXFLAGS) -Os" LDFLAGS="$(LDFLAGS)" && \
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) -C lib && \
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) -C lib install && \
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) -C include install && \

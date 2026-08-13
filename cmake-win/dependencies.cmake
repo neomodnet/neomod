@@ -113,10 +113,10 @@ set(CTRE_URL "https://github.com/hanickadot/compile-time-regular-expressions/arc
 set(CTRE_HASH "SHA512=7633ac6297e61e1f2f59468b0eeb29d8f010dc069b0e866d261744cfa0a772c7ac2ae4818bb563cd578db5a1d86bc37f12aa9cddc87d551cba2942239ab09c87")
 set_download_name("ctre" "${CTRE_VERSION}" "${CTRE_URL}")
 
-set(CURL_VERSION "8.19.0")
+set(CURL_VERSION "8.21.0")
 string(REPLACE "." "_" _curl_ver_temp "${CURL_VERSION}")
 set(CURL_URL "https://github.com/curl/curl/releases/download/curl-${_curl_ver_temp}/curl-${CURL_VERSION}.tar.gz")
-set(CURL_HASH "SHA512=745572f0cb9096ff88f737392d1ac25052fc8cff6c35bd09f970301e5e211e3b113f6c184ab2a5ae8c64ab989a9b1fdd6cbcb5d85a0b01d525706124c3ec1e4b")
+set(CURL_HASH "SHA512=1a1c88d7e52200d0a8879f61868accd7eb7edacb730e09db8e1f741535e9906005c897c2ce39b562c20e1b3ef2c84512f5b4fda9aa50c67e2364c473d15a1f65")
 set_download_name("curl" "${CURL_VERSION}" "${CURL_URL}")
 unset(_curl_ver_temp)
 

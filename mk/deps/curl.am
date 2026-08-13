@@ -74,13 +74,15 @@ OPENSSL_EC_FLAG := $(if $(filter x86_64 aarch64,$(host_cpu)),enable-ec_nistp_64_
 
 # only the app needs libcrypto primitives and only curl needs libssl, so strip everything else
 # (-fPIC because the static libs also get linked into shared libarchive in non-static builds)
+# -Os appended (overrides the release -O3) to match the old static-curl prebuilts: the crypto
+# hot paths are perlasm and ignore -O, while -O3(+LTO) here costs ~1MB of final binary size
 $(DEPS_PREFIX)/openssl-$(OPENSSL_VERSION).built: $(DEPS_CACHE)/openssl-$(OPENSSL_VERSION).tar.gz
 	rm -rf $(DEPS_PREFIX)/openssl
 	$(MKDIR_P) $(DEPS_PREFIX)/openssl $(DEPS_PREFIX)/lib/pkgconfig
 	$(TAR) xf $(DEPS_CACHE)/openssl-$(OPENSSL_VERSION).tar.gz -C $(DEPS_PREFIX)/openssl --strip-components=1 && \
 	cd $(DEPS_PREFIX)/openssl && \
 	RANLIB="$(RANLIB)" AR="$(AR)" CC="$(CC)" CXX="$(CXX)" \
-	CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" \
+	CFLAGS="$(CFLAGS) -Os" CXXFLAGS="$(CXXFLAGS) -Os" LDFLAGS="$(LDFLAGS)" \
 	$(CONFIGURE_PFX) ./Configure $(OPENSSL_TARGET) --prefix="$(DEPS_PREFIX)" --libdir=lib --openssldir="$(DEPS_PREFIX)/ssl" \
 		no-shared threads no-tests no-apps no-docs no-module no-comp no-legacy \
 		$(OPENSSL_EC_FLAG) $(if $(filter windows,$(SYSNAME)),,-fPIC) && \
@@ -143,7 +145,7 @@ $(DEPS_PREFIX)/curl-$(CURL_VERSION_REAL).built: $(DEPS_CACHE)/curl-$(CURL_VERSIO
 		--disable-docs --disable-manual \
 		--without-ca-bundle --without-ca-path --without-ca-fallback \
 		RANLIB="$(RANLIB)" AR="$(AR)" CC="$(CC)" CXX="$(CXX)" LD="$(LD)" \
-		CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" && \
+		CFLAGS="$(CFLAGS) -Os" CXXFLAGS="$(CXXFLAGS) -Os" LDFLAGS="$(LDFLAGS)" && \
 	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) -C lib && \
 	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) -C lib install && \
 	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) -C include install && \
