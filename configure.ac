@@ -1665,8 +1665,10 @@ LIBARCHIVE_BUILD_VERSION=3.8.8
 LIBACL_MIN_VERSION=2.3.1
 LIBACL_BUILD_VERSION=2.3.2
 CURL_MIN_VERSION=8.16.0 # due to websocket things, only very recent curl works
-CURL_BUILD_VERSION=8.19.0
+CURL_BUILD_VERSION=8.21.0
 OPENSSL_MIN_VERSION=3.0.0 # only for --enable-system-deps
+OPENSSL_BUILD_VERSION=4.0.1
+ZSTD_BUILD_VERSION=1.5.7 # built alongside curl/openssl, used by libarchive
 MPG123_MIN_VERSION=1.30.0
 MPG123_BUILD_VERSION=4080a897fca4f6923641588dce91da613193c888 # git mirror, latest as of Jun 10th, 2026 (1.33.6)
 SPDLOG_MIN_VERSION=1.15.0
@@ -1880,18 +1882,26 @@ AS_IF([test "x$have_curl" != "xyes"], [
         # WASM doesn't use curl (browser networking goes through emscripten fetch API)
         have_curl="not required"
         have_openssl="not required"
-    ], [
-        # other platforms download prebuilt curl with OpenSSL
+    ], [test -n "$ubercompat"], [
+        # windows XP compat keeps the frozen prebuilt curl 8.18.0 bundle (with OpenSSL);
+        # a modern openssl can't target XP so there's no from-source path for it
         have_curl="download"
+        have_openssl="download"
+    ], [
+        # other platforms build curl (with OpenSSL and zstd) from source
+        have_curl="build from source"
+        have_openssl="build from source"
     ])
 ])
 CURL_VERSION=$CURL_BUILD_VERSION
 CURL_PREFIX="${DEPS_PREFIX}"
 AC_SUBST([CURL_VERSION])
 AC_SUBST([CURL_PREFIX])
+AC_SUBST([OPENSSL_VERSION], [$OPENSSL_BUILD_VERSION])
+AC_SUBST([ZSTD_VERSION], [$ZSTD_BUILD_VERSION])
 
-# if we are using the prebuilt curl (with bundled OpenSSL), we don't need libcrypto from the system
-AS_IF([test "x$have_curl" = "xdownload" || test "x$have_openssl" = "xyes"], [
+# if we are using the bundled curl (with bundled OpenSSL), we don't need libcrypto from the system
+AS_IF([test "x$have_curl" = "xdownload" || test "x$have_curl" = "xbuild from source" || test "x$have_openssl" = "xyes"], [
     AC_DEFINE([USE_OPENSSL], [1], [Defined if OpenSSL cryptographic primitives are available.])
 ])
 
@@ -1936,6 +1946,7 @@ AM_CONDITIONAL([BUILD_SIMDUTF], [test "x$have_simdutf" != "xyes"])
 AM_CONDITIONAL([BUILD_CTRE], [test "x$have_ctre" != "xyes"])
 AM_CONDITIONAL([BUILD_LIBACL], [test "x$have_libacl" = "xbuild from source"])
 AM_CONDITIONAL([BUILD_CURL], [test "x$have_curl" != "xyes" && test "x$have_curl" != "xnot required"])
+AM_CONDITIONAL([UBERCOMPAT], [test -n "$ubercompat"])
 AM_CONDITIONAL([BUILD_MPG123], [test "$with_soloud" = "yes" && test "x$have_mpg123" != "xyes"])
 AM_CONDITIONAL([BUILD_SPDLOG], [test "x$have_spdlog" != "xyes"])
 AM_CONDITIONAL([BUILD_NSYNC], [test "x$have_nsync" = "xbuild from source"])
@@ -2050,8 +2061,8 @@ Dependencies:
     freetype2:          ${have_freetype2-build from source}
     brotli:             ${have_brotli-build from source}
     fmt:                ${have_fmt-build from source}
-    curl:               ${have_curl-download}
-    openssl:            ${have_openssl-download}
+    curl:               ${have_curl-build from source}
+    openssl:            ${have_openssl-build from source}
     liblzma:            ${have_liblzma-build from source}
     libiconv:           ${have_libiconv-build from source}
     libarchive:         ${have_libarchive-build from source}

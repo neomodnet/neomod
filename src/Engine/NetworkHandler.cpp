@@ -552,6 +552,8 @@ void NetworkImpl::Request::setupCurlHandle() {
     this->easy_handle.setopt(CURLOPT_SSL_VERIFYPEER, cv::ssl_verify.getBool() ? 1L : 0L);
     this->easy_handle.setopt(CURLOPT_NOSIGNAL, 1L);
     this->easy_handle.setopt(CURLOPT_FAILONERROR, 1L);  // fail on HTTP responses >= 400
+    // "" = offer every encoding this libcurl build supports (gzip/br/zstd) and decode transparently
+    this->easy_handle.setopt(CURLOPT_ACCEPT_ENCODING, "");
 
     if(!this->options.user_agent.empty()) {
         this->easy_handle.setopt(CURLOPT_USERAGENT, this->options.user_agent.c_str());

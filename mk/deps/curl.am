@@ -1,4 +1,6 @@
-# NOTE: curl 8.18.0 is the last version that supported windows XP, so we use that for windows 32bit compat builds
+# NOTE: curl 8.18.0 is the last version that supported windows XP, so the windows 32bit compat
+# build keeps downloading that frozen prebuilt static-curl bundle instead of building from source
+# (a modern openssl can't target XP, so there's no reasonable from-source path for it)
 CURL_VERSION_REAL := $(if $(ubercompat),8.18.0,$(CURL_VERSION))
 
 CACERT_INCDIR := $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)/certbundle
@@ -9,36 +11,14 @@ $(CACERT_INCDIR)/cacert.pem:
 	$(MKDIR_P) $(CACERT_INCDIR) && \
 	$(CURLCOMMAND) "https://curl.se/ca/cacert.pem" || { rm -f $@; exit 1; }
 
-# architecture-specific download targets
+if BUILD_CURL
+if UBERCOMPAT
+
+# use the prebuilt bundle (only ever windows i686, see configure.ac)
 $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)/curl-windowsi686.tar.xz:
 	$(MKDIR_P) $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL) && \
 	$(CURLCOMMAND) "https://github.com/whrvt/static-curl/releases/download/$(CURL_VERSION_REAL)/curl-windows-i686-dev-$(CURL_VERSION_REAL).tar.xz" || { rm -f $@; exit 1; }
 
-$(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)/curl-windowsx86_64.tar.xz:
-	$(MKDIR_P) $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL) && \
-	$(CURLCOMMAND) "https://github.com/whrvt/static-curl/releases/download/$(CURL_VERSION_REAL)/curl-windows-x86_64-dev-$(CURL_VERSION_REAL).tar.xz" || { rm -f $@; exit 1; }
-
-$(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)/curl-windowsaarch64.tar.xz:
-	$(MKDIR_P) $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL) && \
-	$(CURLCOMMAND) "https://github.com/stunnel/static-curl/releases/download/$(CURL_VERSION_REAL)/curl-windows-aarch64-dev-$(CURL_VERSION_REAL).tar.xz" || { rm -f $@; exit 1; }
-
-$(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)/curl-linuxi686.tar.xz:
-	$(MKDIR_P) $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL) && \
-	$(CURLCOMMAND) "https://github.com/whrvt/static-curl/releases/download/$(CURL_VERSION_REAL)/curl-linux-i686-dev-$(CURL_VERSION_REAL).tar.xz" || { rm -f $@; exit 1; }
-
-$(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)/curl-linuxx86_64.tar.xz:
-	$(MKDIR_P) $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL) && \
-	$(CURLCOMMAND) "https://github.com/whrvt/static-curl/releases/download/$(CURL_VERSION_REAL)/curl-linux-x86_64-dev-$(CURL_VERSION_REAL).tar.xz" || { rm -f $@; exit 1; }
-
-$(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)/curl-linuxaarch64.tar.xz:
-	$(MKDIR_P) $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL) && \
-	$(CURLCOMMAND) "https://github.com/whrvt/static-curl/releases/download/$(CURL_VERSION_REAL)/curl-linux-aarch64-dev-$(CURL_VERSION_REAL).tar.xz" || { rm -f $@; exit 1; }
-
-$(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)/curl-macosaarch64.tar.xz:
-	$(MKDIR_P) $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL) && \
-	$(CURLCOMMAND) "https://github.com/stunnel/static-curl/releases/download/$(CURL_VERSION_REAL)/curl-macos-arm64-dev-$(CURL_VERSION_REAL).tar.xz" || { rm -f $@; exit 1; }
-
-# architecture-specific extraction targets
 $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)-windowsi686.source: $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)/curl-windowsi686.tar.xz
 	cd $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL) && \
 	rm -rf windowsi686 && \
@@ -47,86 +27,138 @@ $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)-windowsi686.source: $(DEPS_CACHE)/curl-$
 	rm -rf windowsi686/lib/*zlib*.a windowsi686/lib/*libz.*a windowsi686/lib/*brotli*.a
 	touch $@
 
-$(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)-windowsx86_64.source: $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)/curl-windowsx86_64.tar.xz
-	cd $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL) && \
-	rm -rf windowsx86_64 && \
-	$(MKDIR_P) windowsx86_64 && $(TAR) xf curl-windowsx86_64.tar.xz -C windowsx86_64 --strip-components=1 --wildcards --no-anchored \
-		include lib/'*'.a lib64/'*'.a lib64/pkgconfig/'*' && \
-	mv windowsx86_64/lib64/* windowsx86_64/lib/ && \
-	rm -rf windowsx86_64/lib/*zlib*.a windowsx86_64/lib/*libz.*a windowsx86_64/lib/*brotli*.a
-	touch $@
-
-$(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)-windowsaarch64.source: $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)/curl-windowsaarch64.tar.xz
-	cd $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL) && \
-	rm -rf windowsaarch64 && \
-	$(MKDIR_P) windowsaarch64 && $(TAR) xf curl-windowsaarch64.tar.xz -C windowsaarch64 --strip-components=1 --wildcards --no-anchored \
-		include lib/'*'.a lib-arm64/'*'.a lib-arm64/pkgconfig/'*' && \
-	mv windowsaarch64/lib-arm64/* windowsaarch64/lib/ && \
-	rm -rf windowsaarch64/lib/*zlib*.a windowsaarch64/lib/*libz.*a windowsaarch64/lib/*brotli*.a
-	touch $@
-
-$(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)-linuxi686.source: $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)/curl-linuxi686.tar.xz
-	cd $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL) && \
-	rm -rf linuxi686 && \
-	$(MKDIR_P) linuxi686 && $(TAR) xf curl-linuxi686.tar.xz -C linuxi686 --strip-components=1 --wildcards --no-anchored \
-		include lib/'*'.a lib/pkgconfig/'*'ssl'*' lib/pkgconfig/'*'crypto'*' && \
-	rm -rf linuxi686/lib/libz.a linuxi686/lib/*brotli*.a
-	touch $@
-
-$(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)-linuxx86_64.source: $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)/curl-linuxx86_64.tar.xz
-	cd $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL) && \
-	rm -rf linuxx86_64 && \
-	$(MKDIR_P) linuxx86_64 && $(TAR) xf curl-linuxx86_64.tar.xz -C linuxx86_64 --strip-components=1 --wildcards --no-anchored \
-		include lib/'*'.a lib64/'*'.a lib64/pkgconfig/'*' && \
-	mv linuxx86_64/lib64/* linuxx86_64/lib/ && \
-	rm -rf linuxx86_64/lib/libz.a linuxx86_64/lib/*brotli*.a
-	touch $@
-
-$(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)-linuxaarch64.source: $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)/curl-linuxaarch64.tar.xz
-	cd $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL) && \
-	rm -rf linuxaarch64 && \
-	$(MKDIR_P) linuxaarch64 && $(TAR) xf curl-linuxaarch64.tar.xz -C linuxaarch64 --strip-components=1 --wildcards --no-anchored \
-		include lib/'*'.a lib/pkgconfig/'*'ssl'*' lib/pkgconfig/'*'crypto'*' && \
-	rm -rf linuxaarch64/lib/libz.a linuxaarch64/lib/*brotli*.a
-	touch $@
-
-$(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)-macosaarch64.source: $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)/curl-macosaarch64.tar.xz
-	cd $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL) && \
-	rm -rf macosaarch64 && \
-	$(MKDIR_P) macosaarch64 && $(TAR) xf curl-macosaarch64.tar.xz -C macosaarch64 --strip-components=1 --wildcards --no-anchored \
-		include lib/'*'.a lib/pkgconfig/'*'ssl'*' lib/pkgconfig/'*'crypto'*' && \
-	rm -rf macosaarch64/lib/libz.a macosaarch64/lib/*brotli*.a
-	touch $@
-
-if BUILD_CURL
-
-# use prebuilt binaries
 lb := (
 lbq := '('
 rb := )
 rbq := ')'
 
-# use prebuilt binaries
-CURL_INCLUDEDIR := $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)/$(SYSNAME)$(host_cpu)/include
-CURL_LIBDIR := $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)/$(SYSNAME)$(host_cpu)/lib
+CURL_INCLUDEDIR := $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)/windowsi686/include
+CURL_LIBDIR := $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)/windowsi686/lib
 CURL_CFLAGS += -I$(CURL_INCLUDEDIR) -DWITH_GZFILEOP -DCURL_STATICLIB
 CURL_LIBS += -L$(CURL_LIBDIR) $(shell find $(CURL_LIBDIR) -mindepth 1 -maxdepth 1 -type f -not $(lbq) -name '*dll*' $(rbq) -execdir printf '%s ' '{''}' ';' | $(SED) -e 's|\./||g' -e 's|lib|-l|g' -e 's|\.a||g')
+CURL_LIBS += -lws2_32 -lwldap32 -lcrypt32 -lsecur32 -liphlpapi
 
 PKG_CONFIG_PLUS_BUNDLED_OSSL += --with-path=$(CURL_LIBDIR)/pkgconfig
 OPENSSL_CFLAGS += -I$(CURL_INCLUDEDIR) $(shell $(PKG_CONFIG_PLUS_BUNDLED_OSSL) --cflags openssl)
 OPENSSL_LIBS += -L$(CURL_LIBDIR) $(shell $(PKG_CONFIG_PLUS_BUNDLED_OSSL) --libs openssl)
 
-if WIN_PLATFORM
-CURL_LIBS += -lws2_32 -lwldap32 -lcrypt32 -lsecur32 -liphlpapi
-if !WIN32_PLATFORM
-CURL_LIBS += -lbcrypt
-endif
-else
-CURL_LIBS += -ldl -pthread -lc
-endif
-$(DEPS_PREFIX)/curl-$(CURL_VERSION_REAL).built: $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)-$(SYSNAME)$(host_cpu).source
+$(DEPS_PREFIX)/curl-$(CURL_VERSION_REAL).built: $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL)-windowsi686.source
 	$(MKDIR_P) $(DEPS_PREFIX)
 	touch $@
+
+else # !UBERCOMPAT
+
+# build curl + openssl from source; zstd rides along because libarchive links it whenever the
+# bundled openssl is present (this used to be provided by the prebuilt static-curl bundle)
+$(DEPS_CACHE)/openssl-$(OPENSSL_VERSION).tar.gz:
+	$(MKDIR_P) $(DEPS_CACHE)
+	$(CURLCOMMAND) "https://github.com/openssl/openssl/releases/download/openssl-$(OPENSSL_VERSION)/openssl-$(OPENSSL_VERSION).tar.gz" || { rm -f $@; exit 1; }
+
+$(DEPS_CACHE)/zstd-$(ZSTD_VERSION).tar.gz:
+	$(MKDIR_P) $(DEPS_CACHE)
+	$(CURLCOMMAND) "https://github.com/facebook/zstd/releases/download/v$(ZSTD_VERSION)/zstd-$(ZSTD_VERSION).tar.gz" || { rm -f $@; exit 1; }
+
+$(DEPS_CACHE)/curl-$(CURL_VERSION_REAL).tar.xz:
+	$(MKDIR_P) $(DEPS_CACHE)
+	$(CURLCOMMAND) "https://curl.se/download/curl-$(CURL_VERSION_REAL).tar.xz" || \
+			$(CURLCOMMAND) "https://github.com/curl/curl/releases/download/curl-$(subst .,_,$(CURL_VERSION_REAL))/curl-$(CURL_VERSION_REAL).tar.xz" || { rm -f $@; exit 1; }
+
+# openssl has its own configuration system with explicit target names
+# (windows i686 is always ubercompat, so no mingw/i686 mapping is needed here)
+OPENSSL_TARGET := $(if $(filter windows,$(SYSNAME)),$(if $(filter x86_64,$(host_cpu)),mingw64,mingwarm64),$\
+$(if $(filter macos,$(SYSNAME)),darwin64-$(subst aarch64,arm64,$(host_cpu))-cc,$\
+$(if $(filter i686,$(host_cpu)),linux-x86,linux-$(host_cpu))))
+
+# faster nistp implementation on 64bit (matches what the static-curl project enables)
+OPENSSL_EC_FLAG := $(if $(filter x86_64 aarch64,$(host_cpu)),enable-ec_nistp_64_gcc_128,)
+
+# only the app needs libcrypto primitives and only curl needs libssl, so strip everything else
+# (-fPIC because the static libs also get linked into shared libarchive in non-static builds)
+$(DEPS_PREFIX)/openssl-$(OPENSSL_VERSION).built: $(DEPS_CACHE)/openssl-$(OPENSSL_VERSION).tar.gz
+	rm -rf $(DEPS_PREFIX)/openssl
+	$(MKDIR_P) $(DEPS_PREFIX)/openssl $(DEPS_PREFIX)/lib/pkgconfig
+	$(TAR) xf $(DEPS_CACHE)/openssl-$(OPENSSL_VERSION).tar.gz -C $(DEPS_PREFIX)/openssl --strip-components=1 && \
+	cd $(DEPS_PREFIX)/openssl && \
+	RANLIB="$(RANLIB)" AR="$(AR)" CC="$(CC)" CXX="$(CXX)" \
+	CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" \
+	$(CONFIGURE_PFX) ./Configure $(OPENSSL_TARGET) --prefix="$(DEPS_PREFIX)" --libdir=lib --openssldir="$(DEPS_PREFIX)/ssl" \
+		no-shared threads no-tests no-apps no-docs no-module no-comp no-legacy \
+		$(OPENSSL_EC_FLAG) $(if $(filter windows,$(SYSNAME)),,-fPIC) && \
+	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
+	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install_sw
+	$(PKG_CONFIG) --exists --print-errors openssl libssl libcrypto
+	touch $@
+
+$(DEPS_PREFIX)/zstd-$(ZSTD_VERSION).built: $(DEPS_CACHE)/zstd-$(ZSTD_VERSION).tar.gz
+	rm -rf $(DEPS_PREFIX)/zstd
+	$(MKDIR_P) $(DEPS_PREFIX)/zstd $(DEPS_PREFIX)/lib/pkgconfig
+	$(TAR) xf $(DEPS_CACHE)/zstd-$(ZSTD_VERSION).tar.gz -C $(DEPS_PREFIX)/zstd --strip-components=1 && \
+	cd $(DEPS_PREFIX)/zstd && \
+	PKG_CONFIG="$(PKG_CONFIG)" LDFLAGS="$(LDFLAGS)" CC="$(CC)" CXX="$(CXX)" \
+	$(CMAKE_CONF_PFX) $(CMAKE) -S build/cmake -B build/cmake/out -G "$(CMAKE_GEN)" \
+		-D CMAKE_BUILD_TYPE="$(if $(ENABLE_DEBUG),Debug,Release)" \
+		-D CMAKE_INSTALL_PREFIX="$(DEPS_PREFIX)" \
+		-D CMAKE_SYSTEM_NAME="$(CMAKE_SYSTEM_NAME)" \
+		-D CMAKE_SYSTEM_PROCESSOR="$(host_cpu)" \
+		-D CMAKE_C_COMPILER="$(CC)" \
+		-D CMAKE_C_FLAGS_RELEASE="$(CFLAGS)" \
+		-D CMAKE_C_FLAGS_DEBUG="$(CFLAGS)" \
+		$(CMAKERCOPT) $(CMAKEIDOPT) \
+		$(CMAKE_AR_RANLIB_FLAGS) \
+		-D CMAKE_POSITION_INDEPENDENT_CODE=ON \
+		-D ZSTD_BUILD_STATIC=ON \
+		-D ZSTD_BUILD_SHARED=OFF \
+		-D ZSTD_BUILD_PROGRAMS=OFF \
+		-D ZSTD_BUILD_TESTS=OFF \
+		-D ZSTD_LEGACY_SUPPORT=OFF && \
+	$(CMAKE) --build build/cmake/out "$(CMAKEPAROPT)" && \
+	$(CMAKE) --install build/cmake/out
+	$(PKG_CONFIG) --exists --print-errors libzstd
+	touch $@
+
+# minimal libcurl for what the engine actually uses (see NetworkHandler.cpp): http(s) + ws(s),
+# openssl backend with CAINFO_BLOB, mime for score submission, verbose for the debug callback,
+# zlib/brotli/zstd content decoding (all three libs are in-tree anyway, and NetworkHandler
+# sets CURLOPT_ACCEPT_ENCODING); proxy support kept for users behind one
+# no configure switch exists to skip the curl tool, so build/install lib+include+pkgconfig only
+# (headers normally install through the top-level install-data-hook, hence the explicit -C include)
+$(DEPS_PREFIX)/curl-$(CURL_VERSION_REAL).built: $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL).tar.xz $(DEPS_PREFIX)/openssl-$(OPENSSL_VERSION).built \
+											$(DEPS_PREFIX)/zstd-$(ZSTD_VERSION).built $(DEPS_PREFIX)/zlib-$(ZLIB_VERSION).built \
+											$(DEPS_PREFIX)/brotli-$(BROTLI_VERSION).built
+	rm -rf $(DEPS_PREFIX)/curl
+	$(MKDIR_P) $(DEPS_PREFIX)/curl/build $(DEPS_PREFIX)/lib/pkgconfig
+	$(TAR) xf $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL).tar.xz -C $(DEPS_PREFIX)/curl --strip-components=1 && \
+	cd $(DEPS_PREFIX)/curl/build && \
+	PKG_CONFIG="$(PKG_CONFIG)" \
+	$(CONFIGURE_PFX) ../configure $(LT_GNU_LD_CACHE) --host=$(host) --build=$(build) --prefix="$(DEPS_PREFIX)" \
+		--enable-static --disable-shared $(LT_WITH_GNU_LD) \
+		--with-openssl --with-zlib --with-brotli --with-zstd \
+		--without-libpsl --without-libidn2 --without-nghttp2 --without-libgsasl \
+		--enable-websockets --enable-ipv6 --enable-mime --enable-verbose --enable-threaded-resolver \
+		--disable-ftp --disable-file --disable-ldap --disable-ldaps --disable-rtsp --disable-dict \
+		--disable-telnet --disable-tftp --disable-pop3 --disable-imap --disable-smb --disable-smtp \
+		--disable-gopher --disable-mqtt --disable-ipfs --disable-alt-svc --disable-hsts --disable-doh \
+		--disable-netrc --disable-cookies --disable-ntlm --disable-kerberos-auth --disable-negotiate-auth \
+		--disable-aws --disable-tls-srp --disable-unix-sockets --disable-sspi --disable-form-api \
+		--disable-docs --disable-manual \
+		--without-ca-bundle --without-ca-path --without-ca-fallback \
+		RANLIB="$(RANLIB)" AR="$(AR)" CC="$(CC)" CXX="$(CXX)" LD="$(LD)" \
+		CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" && \
+	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) -C lib && \
+	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) -C lib install && \
+	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) -C include install && \
+	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install-pkgconfigDATA
+	$(PKG_CONFIG) --exists --print-errors libcurl
+	touch $@
+
+CURL_CFLAGS += -DWITH_GZFILEOP -DCURL_STATICLIB $(shell $(PKG_CONFIG) --cflags libcurl)
+# explicit --static because libcurl/openssl are always built static here, even when the
+# other deps are shared (the wrapper only adds --static for fully static builds)
+CURL_LIBS += $(shell $(PKG_CONFIG) --static --libs libcurl)
+OPENSSL_CFLAGS += -I$(DEPS_PREFIX)/include $(shell $(PKG_CONFIG) --cflags openssl)
+OPENSSL_LIBS += -L$(DEPS_PREFIX)/lib $(shell $(PKG_CONFIG) --static --libs openssl)
+
+endif # UBERCOMPAT
 else # from host
 CURL_CFLAGS += $(OPENSSL_CFLAGS)
 CURL_LIBS += $(OPENSSL_LIBS)
@@ -137,4 +169,3 @@ CACERT_DOWNLOAD_DEP := $(CACERT_INCDIR)/cacert.pem
 else
 CACERT_DOWNLOAD_DEP :=
 endif
-

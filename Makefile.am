@@ -1130,14 +1130,15 @@ $(DEPS_PREFIX)/libacl-$(LIBACL_VERSION).built: $(DEPS_CACHE)/libacl-$(LIBACL_VER
 INSTALL_LIB_DEPS += $(DEPS_PREFIX)/libacl-$(LIBACL_VERSION).built
 endif # BUILD_LIBACL
 
-# ugly hack to make pkg-config/libarchive find the bundled openssl libs
-# NOTE: if we have bundled openssl, then this assumes we also have zstd libs (since the static-curl project builds that and provides the static archive)
+# PKG_CONFIG_PLUS_BUNDLED_OSSL only differs from PKG_CONFIG for the xp-compat prebuilt curl bundle (see mk/deps/curl.am)
+# NOTE: if we have bundled openssl, then this assumes we also have zstd libs (built alongside curl, or shipped in the xp-compat prebuilt bundle)
 LIBARCHIVE_CFLAGS += $(shell $(PKG_CONFIG_PLUS_BUNDLED_OSSL) --cflags libarchive)
 LIBARCHIVE_LIBS += $(shell $(PKG_CONFIG_PLUS_BUNDLED_OSSL) --libs libarchive)
 # gettext records a static-only libiconv by absolute path in libarchive's global LIBS, and emscripten's
 # libtool then bakes that whole .a into the static libarchive.a (a nested archive that corrupts it). rewrite
 # LIBS to the -l form; iconv is still linked via libarchive_la_LIBADD = $(LTLIBICONV).
 $(DEPS_PREFIX)/libarchive-$(LIBARCHIVE_VERSION).built: $(DEPS_CACHE)/libarchive-$(LIBARCHIVE_VERSION).tar.gz $(DEPS_PREFIX)/curl-$(CURL_VERSION_REAL).built \
+											$(DEPS_PREFIX)/zstd-$(ZSTD_VERSION).built \
 											$(DEPS_PREFIX)/libacl-$(LIBACL_VERSION).built $(DEPS_PREFIX)/liblzma-$(LZMA_VERSION).built \
 											$(DEPS_PREFIX)/bzip2-$(BZIP2_VERSION).built $(DEPS_PREFIX)/zlib-$(ZLIB_VERSION).built \
 											$(DEPS_PREFIX)/libiconv-$(LIBICONV_VERSION).built

@@ -23,6 +23,7 @@
 # if using a different port: run the server on it and add -testarg:base_url http://127.0.0.1:<port>
 # (8423 is just default)
 
+import gzip
 import sys
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -47,13 +48,15 @@ class Handler(BaseHTTPRequestHandler):
         except (ConnectionResetError, BrokenPipeError):
             pass
 
-    def _send(self, code, body=b""):
+    def _send(self, code, body=b"", encoding=None):
         self.send_response(code)
         # ACAO on every response (including 404) so the browser can read the status cross-origin
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Private-Network", "true")  # Chrome PNA preflight insurance
         self.send_header("Cache-Control", "no-store")  # force a real network hit every time
         self.send_header("Content-Type", "text/plain")
+        if encoding:
+            self.send_header("Content-Encoding", encoding)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         if body:
@@ -65,7 +68,13 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = self.path.split("?", 1)[0]
         if path == "/ok":
-            self._send(200, BODY_OK)
+            # gzip when the client offers it, so transparent decoding is exercised end-to-end:
+            # the body assertions in NetworkTest fail if the client returns the raw compressed bytes
+            # (native curl offers gzip via CURLOPT_ACCEPT_ENCODING, browsers always offer it)
+            if "gzip" in self.headers.get("Accept-Encoding", ""):
+                self._send(200, gzip.compress(BODY_OK), encoding="gzip")
+            else:
+                self._send(200, BODY_OK)
         elif path == "/slow":
             time.sleep(1.0)  # stay in flight long enough to be cancelled mid-transfer, even at 60Hz
             self._send(200, b"slow ok\n")

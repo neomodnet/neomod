@@ -694,6 +694,8 @@ BUILD_SPDLOG_FALSE
 BUILD_SPDLOG_TRUE
 BUILD_MPG123_FALSE
 BUILD_MPG123_TRUE
+UBERCOMPAT_FALSE
+UBERCOMPAT_TRUE
 BUILD_CURL_FALSE
 BUILD_CURL_TRUE
 BUILD_LIBACL_FALSE
@@ -732,6 +734,8 @@ SPDLOG_PREFIX
 SPDLOG_VERSION
 MPG123_PREFIX
 MPG123_VERSION
+ZSTD_VERSION
+OPENSSL_VERSION
 CURL_PREFIX
 CURL_VERSION
 LIBACL_PREFIX
@@ -15191,8 +15195,10 @@ LIBARCHIVE_BUILD_VERSION=3.8.8
 LIBACL_MIN_VERSION=2.3.1
 LIBACL_BUILD_VERSION=2.3.2
 CURL_MIN_VERSION=8.16.0 # due to websocket things, only very recent curl works
-CURL_BUILD_VERSION=8.19.0
+CURL_BUILD_VERSION=8.21.0
 OPENSSL_MIN_VERSION=3.0.0 # only for --enable-system-deps
+OPENSSL_BUILD_VERSION=4.0.1
+ZSTD_BUILD_VERSION=1.5.7 # built alongside curl/openssl, used by libarchive
 MPG123_MIN_VERSION=1.30.0
 MPG123_BUILD_VERSION=4080a897fca4f6923641588dce91da613193c888 # git mirror, latest as of Jun 10th, 2026 (1.33.6)
 SPDLOG_MIN_VERSION=1.15.0
@@ -18647,10 +18653,19 @@ then :
         have_curl="not required"
         have_openssl="not required"
 
+elif test -n "$ubercompat"
+then :
+
+        # windows XP compat keeps the frozen prebuilt curl 8.18.0 bundle (with OpenSSL);
+        # a modern openssl can't target XP so there's no from-source path for it
+        have_curl="download"
+        have_openssl="download"
+
 else case e in #(
   e)
-        # other platforms download prebuilt curl with OpenSSL
-        have_curl="download"
+        # other platforms build curl (with OpenSSL and zstd) from source
+        have_curl="build from source"
+        have_openssl="build from source"
      ;;
 esac
 fi
@@ -18660,9 +18675,13 @@ CURL_VERSION=$CURL_BUILD_VERSION
 CURL_PREFIX="${DEPS_PREFIX}"
 
 
+OPENSSL_VERSION=$OPENSSL_BUILD_VERSION
 
-# if we are using the prebuilt curl (with bundled OpenSSL), we don't need libcrypto from the system
-if test "x$have_curl" = "xdownload" || test "x$have_openssl" = "xyes"
+ZSTD_VERSION=$ZSTD_BUILD_VERSION
+
+
+# if we are using the bundled curl (with bundled OpenSSL), we don't need libcrypto from the system
+if test "x$have_curl" = "xdownload" || test "x$have_curl" = "xbuild from source" || test "x$have_openssl" = "xyes"
 then :
 
 
@@ -18835,6 +18854,14 @@ fi
 else
   BUILD_CURL_TRUE='#'
   BUILD_CURL_FALSE=
+fi
+
+ if test -n "$ubercompat"; then
+  UBERCOMPAT_TRUE=
+  UBERCOMPAT_FALSE='#'
+else
+  UBERCOMPAT_TRUE='#'
+  UBERCOMPAT_FALSE=
 fi
 
  if test "$with_soloud" = "yes" && test "x$have_mpg123" != "xyes"; then
@@ -19302,6 +19329,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${BUILD_CURL_TRUE}" && test -z "${BUILD_CURL_FALSE}"; then
   as_fn_error $? "conditional \"BUILD_CURL\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${UBERCOMPAT_TRUE}" && test -z "${UBERCOMPAT_FALSE}"; then
+  as_fn_error $? "conditional \"UBERCOMPAT\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${BUILD_MPG123_TRUE}" && test -z "${BUILD_MPG123_FALSE}"; then
@@ -20807,8 +20838,8 @@ Dependencies:
     freetype2:          ${have_freetype2-build from source}
     brotli:             ${have_brotli-build from source}
     fmt:                ${have_fmt-build from source}
-    curl:               ${have_curl-download}
-    openssl:            ${have_openssl-download}
+    curl:               ${have_curl-build from source}
+    openssl:            ${have_openssl-build from source}
     liblzma:            ${have_liblzma-build from source}
     libiconv:           ${have_libiconv-build from source}
     libarchive:         ${have_libarchive-build from source}
@@ -20870,8 +20901,8 @@ Dependencies:
     freetype2:          ${have_freetype2-build from source}
     brotli:             ${have_brotli-build from source}
     fmt:                ${have_fmt-build from source}
-    curl:               ${have_curl-download}
-    openssl:            ${have_openssl-download}
+    curl:               ${have_curl-build from source}
+    openssl:            ${have_openssl-build from source}
     liblzma:            ${have_liblzma-build from source}
     libiconv:           ${have_libiconv-build from source}
     libarchive:         ${have_libarchive-build from source}
