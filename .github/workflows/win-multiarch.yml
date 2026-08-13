@@ -71,7 +71,7 @@ jobs:
         with:
           path: |
             build-aux/cache
-          key: tarballs-win-${{ matrix.arch }}-${{ hashFiles('configure.ac', 'Makefile.am') }}
+          key: tarballs-win-${{ matrix.arch }}-${{ hashFiles('configure.ac', 'Makefile.am', 'mk/**') }}
           restore-keys: |
             tarballs-win-${{ matrix.arch }}-
             tarballs-win-
@@ -81,7 +81,7 @@ jobs:
         with:
           path: |
             build-out/build/deps
-          key: deps-win-${{ matrix.arch }}-${{ hashFiles('configure.ac', 'Makefile.am') }}
+          key: deps-win-${{ matrix.arch }}-${{ hashFiles('configure.ac', 'Makefile.am', 'mk/**') }}
           restore-keys: |
             deps-win-${{ matrix.arch }}-
 

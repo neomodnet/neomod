@@ -53,7 +53,7 @@ jobs:
         with:
           path: |
             build-aux/cache
-          key: tarballs-web-wasm32-${{ hashFiles('configure.ac', 'Makefile.am') }}
+          key: tarballs-web-wasm32-${{ hashFiles('configure.ac', 'Makefile.am', 'mk/**') }}
           restore-keys: |
             tarballs-web-wasm32-
 
@@ -62,7 +62,7 @@ jobs:
         with:
           path: |
             build-out/build/deps
-          key: deps-web-wasm32-${{ hashFiles('configure.ac', 'Makefile.am') }}
+          key: deps-web-wasm32-${{ hashFiles('configure.ac', 'Makefile.am', 'mk/**') }}
           restore-keys: |
             deps-web-wasm32-
 

@@ -1153,7 +1153,7 @@ $(DEPS_PREFIX)/libarchive-$(LIBARCHIVE_VERSION).built: $(DEPS_CACHE)/libarchive-
 	$(CONFIGURE_PFX) ../configure $(LT_GNU_LD_CACHE) --host=$(host) --build=$(build) --prefix="$(DEPS_PREFIX)" \
 		$(if $(STATICBUILD),--enable-static --disable-shared,--enable-shared --disable-static) \
 		--disable-tools --disable-tests $(LT_WITH_GNU_LD) --disable-bsdtar --disable-bsdcat --disable-bsdcpio \
-		--disable-bsdunzip --without-xml2 --without-expat $(if $(OPENSSL_CFLAGS),--with-openssl --with-zstd,--without-openssl --without-zstd) \
+		--disable-bsdunzip --without-xml2 --without-expat $(if $(strip $(OPENSSL_CFLAGS)),--with-openssl --with-zstd,--without-openssl --without-zstd) \
 		--without-nettle --without-mbedtls --without-lzo2 --without-lz4 --with-iconv \
 		$(if $(LIBICONV_PREFIX),--with-libiconv-prefix="$(LIBICONV_PREFIX)",--without-libiconv-prefix) \
 		--without-libb2 --with-lzma --with-zlib --with-bz2lib \

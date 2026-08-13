@@ -8605,7 +8605,7 @@ $(CACERT_INCDIR)/cacert.pem:
 @BUILD_LIBARCHIVE_TRUE@	$(CONFIGURE_PFX) ../configure $(LT_GNU_LD_CACHE) --host=$(host) --build=$(build) --prefix="$(DEPS_PREFIX)" \
 @BUILD_LIBARCHIVE_TRUE@		$(if $(STATICBUILD),--enable-static --disable-shared,--enable-shared --disable-static) \
 @BUILD_LIBARCHIVE_TRUE@		--disable-tools --disable-tests $(LT_WITH_GNU_LD) --disable-bsdtar --disable-bsdcat --disable-bsdcpio \
-@BUILD_LIBARCHIVE_TRUE@		--disable-bsdunzip --without-xml2 --without-expat $(if $(OPENSSL_CFLAGS),--with-openssl --with-zstd,--without-openssl --without-zstd) \
+@BUILD_LIBARCHIVE_TRUE@		--disable-bsdunzip --without-xml2 --without-expat $(if $(strip $(OPENSSL_CFLAGS)),--with-openssl --with-zstd,--without-openssl --without-zstd) \
 @BUILD_LIBARCHIVE_TRUE@		--without-nettle --without-mbedtls --without-lzo2 --without-lz4 --with-iconv \
 @BUILD_LIBARCHIVE_TRUE@		$(if $(LIBICONV_PREFIX),--with-libiconv-prefix="$(LIBICONV_PREFIX)",--without-libiconv-prefix) \
 @BUILD_LIBARCHIVE_TRUE@		--without-libb2 --with-lzma --with-zlib --with-bz2lib \

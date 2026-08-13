@@ -48,7 +48,7 @@ jobs:
         with:
           path: |
             build-aux/cache
-          key: tarballs-linux-aarch64-${{ hashFiles('configure.ac', 'Makefile.am') }}
+          key: tarballs-linux-aarch64-${{ hashFiles('configure.ac', 'Makefile.am', 'mk/**') }}
           restore-keys: |
             tarballs-linux-aarch64-
             tarballs-linux-
@@ -58,7 +58,7 @@ jobs:
         with:
           path: |
             build-out/build/deps
-          key: deps-linux-aarch64-${{ hashFiles('configure.ac', 'Makefile.am') }}
+          key: deps-linux-aarch64-${{ hashFiles('configure.ac', 'Makefile.am', 'mk/**') }}
           restore-keys: |
             deps-linux-aarch64-
 
