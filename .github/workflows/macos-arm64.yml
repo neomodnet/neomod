@@ -1,0 +1,108 @@
+name: macos-arm64
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - 'cmake-win/**/*'
+      - 'tools/**/*'
+      - '**/*.md'
+      - '.clangd-template'
+      - '.gitignore'
+      - '.git-blame-ignore-revs'
+  pull_request:
+    branches:
+      - master
+    paths-ignore:
+      - 'cmake-win/**/*'
+      - 'tools/**/*'
+      - '**/*.md'
+      - '.clangd-template'
+      - '.gitignore'
+      - '.git-blame-ignore-revs'
+  workflow_dispatch:
+
+env:
+  CCACHE_DIR: /tmp/.ccache
+  HOMEBREW_NO_AUTO_UPDATE: 1
+  HOMEBREW_NO_ASK: 1
+  HOMEBREW_NO_INSTALL_CLEANUP: 1
+  HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: 1
+
+jobs:
+  build:
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: .
+
+    steps:
+      - uses: actions/checkout@v6.0.1
+
+      # macOS runners can't use docker containers, so install the toolchain via brew instead
+      # (compiler is Homebrew LLVM, configure prefers /opt/homebrew/opt/llvm/bin)
+      # skipped under local `act` runs, which expect an already-provisioned host
+      - name: Install build dependencies
+        if: ${{ !env.ACT }}
+        run: |
+          brew install llvm make autoconf automake libtool autoconf-archive pkgconf \
+            cmake ninja meson nasm gnu-sed gnu-tar coreutils gettext \
+            shaderc spirv-cross ccache
+
+      - name: Set up build directory
+        run: |
+          mkdir -p "$(pwd)"/build-out/build
+          mkdir -p "$(pwd)"/build-out/.ltocache-clang
+          mkdir -p ${{ env.CCACHE_DIR }}
+
+      - name: Cache dependency tarballs
+        uses: actions/cache@v5.0.1
+        with:
+          path: |
+            build-aux/cache
+          key: tarballs-macos-arm64-${{ hashFiles('configure.ac', 'Makefile.am', 'mk/**') }}
+          restore-keys: |
+            tarballs-macos-arm64-
+
+      - name: Cache built dependencies
+        uses: actions/cache@v5.0.1
+        with:
+          path: |
+            build-out/build/deps
+          key: deps-macos-arm64-${{ hashFiles('configure.ac', 'Makefile.am', 'mk/**') }}
+          restore-keys: |
+            deps-macos-arm64-
+
+      - name: ccache
+        uses: actions/cache@v5.0.1
+        with:
+          path: |
+            ${{ env.CCACHE_DIR }}
+            build-out/.ltocache-clang
+          key: ccache-macos-arm64-${{ github.sha }}
+          restore-keys: |
+            ccache-macos-arm64-
+
+      - name: Building neomod
+        run: |
+          ./autogen.sh
+          export MAKEFLAGS="-j$(sysctl -n hw.ncpu)"
+          export CCACHE_DIR="${{ env.CCACHE_DIR }}"
+          cd build-out && \
+          ../configure --disable-tests --with-renderer=opengl,sdlgpu \
+            ${{ (github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/dev') && '--disable-strip' || '' }} && \
+          gmake install
+
+      - name: Package artifacts (fix symlinks)
+        run: |
+          cd build-out
+          zip -r -y -8 bin.zip ./dist/neomod.app
+          rm -rf dist/*
+          mv bin.zip dist/
+
+      # skipped under `act`: its artifact server doesn't speak the v6 upload protocol yet
+      - uses: actions/upload-artifact@v6.0.0
+        if: ${{ !env.ACT }}
+        with:
+          name: neomod-macos-arm64
+          path: build-out/dist
