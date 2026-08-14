@@ -837,6 +837,7 @@ CONVAR(options_slider_preview_use_legacy_renderer, false, CLIENT,
        "apparently newer AMD drivers with old gpus are crashing here with the legacy renderer? was just me being lazy "
        "anyway, so now there is a vao render path as it should be");
 CONVAR(options_slider_quality, 0.0f, CLIENT | SKINS | SERVER);
+CONVAR(options_reset_search_on_close, true, CLIENT);
 CONVAR(pause_anim_duration, 0.15f, CLIENT | SKINS | SERVER);
 CONVAR(pause_dim_alpha, 0.58f, CLIENT | SKINS | SERVER);
 CONVAR(pause_dim_background, true, CLIENT | SKINS | SERVER);

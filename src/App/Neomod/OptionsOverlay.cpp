@@ -194,6 +194,8 @@ struct OptionsOverlayImpl final {
     // categories
     void onCategoryClicked(CategoryButton *button);
 
+    void resetSearch();
+
     // reset
     void onResetUpdate(ResetButton *button);
     void onResetClicked(ResetButton *button);
@@ -2450,6 +2452,10 @@ void OptionsOverlayImpl::setVisibleInt(bool visible, bool fromOnBack) {
         this->updateLayout();
     } else {
         this->contextMenu->setVisible2(false);
+        if(cv::options_reset_search_on_close.getBool()) {
+            // reset search
+            this->resetSearch();
+        }
     }
 
     // usability: auto scroll to fposu settings if opening options while in fposu gamemode
@@ -3877,10 +3883,14 @@ void OptionsOverlayImpl::onHighQualitySlidersConVarChange(float newValue) {
     }
 }
 
-void OptionsOverlayImpl::onCategoryClicked(CategoryButton *button) {
-    // reset search
+void OptionsOverlayImpl::resetSearch() {
     this->sSearchString.clear();
     this->scheduleSearchUpdate();
+}
+
+void OptionsOverlayImpl::onCategoryClicked(CategoryButton *button) {
+    // reset search
+    this->resetSearch();
 
     // scroll to category
     this->options->scrollToElement(button->getSection(), 0, 100 * Osu::getUIScale());

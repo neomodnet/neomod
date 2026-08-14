@@ -412,6 +412,7 @@ void AboutScreen::buildChangelog() {
         R"(  - On Windows, Vulkan (-sdlgpu vulkan) and D3D11 (-dx11) are also available)",
         R"(  - Switch back to OpenGL by appending -opengl to launch arguments)",
         R"(  (TODO: document this better/add auto-fallback before release))",
+        R"(- Added "options_reset_search_on_close" ConVar and functionality)",
         R"(- Exposed period size adjustment for SoLoud's MiniAudio backend ("Lower Latency" option in options menu))",
         R"(- Fixed song browser group/sorting button dropdown focus)",
     };
