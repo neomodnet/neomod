@@ -1265,7 +1265,10 @@ static void calculate_strains(DifficultyHitObject &cur, const DifficultyHitObjec
 // see https://github.com/ppy/osu/blob/master/osu.Game/Rulesets/Difficulty/Skills/VariableLengthStrainSkill.cs
 // rebuilds the variable-length strain sections from the recorded per-object strains in one
 // forward pass (equivalent to lazer's incremental ProcessInternal + provisional final peak),
-// then reduces the top strains and takes the continuous geometric integral
+// then reduces the top strains and takes the continuous geometric integral. lazer keeps the
+// sections in a list insertion-sorted by value (AddInPlace); a single buffer used as a
+// min-heap while the pass runs reproduces its evictions and final order exactly (see seq)
+// without shifting elements on every insert
 f64 calculate_aim_difficulty(const Skills::Skill type, const DifficultyHitObject *dobjects, uSz dobjectCount) {
     if(dobjectCount < 2) return 0.0;
 
@@ -1275,114 +1278,120 @@ f64 calculate_aim_difficulty(const Skills::Skill type, const DifficultyHitObject
     // this is trimmed (the trim is part of the value, don't "improve" it)
     static constexpr f64 max_stored_length = 11.0 / (1.0 - decay_weight);
 
-    // one strain section of variable length (lazer VariableLengthStrainSkill.StrainPeak)
+    // one strain section of variable length (lazer VariableLengthStrainSkill.StrainPeak); seq
+    // keeps equal values in insertion order so the eviction choice and every ordering below
+    // match lazer's insertion-sorted list and stable LINQ sorts
     struct StrainPeak {
         f64 value;
         f64 sectionLength;
+        u32 seq;
     };
 
-    static constexpr auto byValueDesc = [](const StrainPeak &a, const StrainPeak &b) -> bool {
-        return a.value > b.value;
+    // strict total order: value descending, ties in insertion order (upper_bound inserts equal
+    // values after existing ones, and evictions take the list back, i.e. the newest tie)
+    static constexpr auto byValueDescStable = [](const StrainPeak &a, const StrainPeak &b) -> bool {
+        return a.value != b.value ? a.value > b.value : a.seq < b.seq;
     };
 
-    // TODO: three temporary vectors is insane
-    std::vector<StrainPeak> strains;
+    std::vector<StrainPeak> strains;  // min-heap on byValueDescStable during the pass (front = next eviction)
+    u32 seq = 0;
     {
-        std::vector<StrainPeak> peaks;  // kept sorted by value descending (lazer AddInPlace)
-        {
-            // TODO: very slow
-            const auto insertSorted = [&peaks](StrainPeak peak) {
-                peaks.insert(std::ranges::upper_bound(peaks, peak, byValueDesc), peak);
-            };
-            // stores previous strains so a high-strain object followed by lower ones still fills the
-            // gap sections with its decaying influence instead of a harsh drop-off
-            struct QueuedStrain {
-                f64 strain;
-                f64 startTime;
-            };
-            // consumed FIFO from queuedHead (instead of popping the front) to keep consumption O(1)
-            std::vector<QueuedStrain> queuedStrains;
-            uSz queuedHead = 0;
+        // indices of objects whose strains are queued so a high-strain object followed by lower
+        // ones still fills the gap sections with its decaying influence instead of a harsh
+        // drop-off; consumed FIFO from queuedHead (instead of popping the front) to keep
+        // consumption O(1)
+        std::vector<u32> queuedStrains;
+        uSz queuedHead = 0;
 
-            f64 curPeak = 0.0;
-            f64 curBegin = 0.0;
-            f64 curEnd = 0.0;
+        f64 curPeak = 0.0;
+        f64 curBegin = 0.0;
+        f64 curEnd = 0.0;
 
-            f64 totalLength = 0.0;
+        f64 totalLength = 0.0;
 
-            const auto saveCurrentPeak = [&](f64 sectionLength) {
-                insertSorted(StrainPeak{.value = curPeak, .sectionLength = std::round(sectionLength)});
-                totalLength += sectionLength;
+        const auto saveCurrentPeak = [&](f64 sectionLength) {
+            const StrainPeak peak{.value = curPeak, .sectionLength = std::round(sectionLength), .seq = seq++};
+            totalLength += sectionLength;
 
-                // remove sections from the back (smallest values) once they can't contribute anymore
-                while(totalLength > max_stored_length * max_section_length) {
-                    totalLength -= peaks.back().sectionLength;
-                    peaks.pop_back();
-                }
-            };
+            if(totalLength > max_stored_length * max_section_length && !strains.empty() &&
+               byValueDescStable(strains.front(), peak)) {
+                // the container spills over and the new section ranks last, so it would be the
+                // first eviction below; skip the push + re-pop (the common case on long maps)
+                totalLength -= peak.sectionLength;
+            } else {
+                strains.push_back(peak);
+                std::ranges::push_heap(strains, byValueDescStable);
+            }
 
-            for(uSz i = 1; i < dobjectCount; i++) {
-                const f64 time = (f64)dobjects[i].time;
-                const f64 strain = dobjects[i].c->strains[type];
+            // remove the smallest sections once they can't contribute anymore
+            while(totalLength > max_stored_length * max_section_length) {
+                std::ranges::pop_heap(strains, byValueDescStable);
+                totalLength -= strains.back().sectionLength;
+                strains.pop_back();
+            }
+        };
 
-                if(i == 1) {
-                    // first lazer object: set up the first section to end max_section_length after it
-                    curBegin = time;
-                    curEnd = curBegin + max_section_length;
-                    curPeak = strain;
-                    continue;
-                }
+        for(uSz i = 1; i < dobjectCount; i++) {
+            const f64 time = (f64)dobjects[i].time;
+            const f64 strain = dobjects[i].c->strains[type];
 
-                const f64 prevTime = (f64)dobjects[i - 1].time;
-                const f64 prevStrain = dobjects[i - 1].c->strains[type];
-                // CalculateInitialStrain: the running strain decayed from the previous object to the
-                // given section start
-                const auto initialStrain = [&](f64 t) { return prevStrain * strainDecay(type, t - prevTime); };
+            if(i == 1) {
+                // first lazer object: set up the first section to end max_section_length after it
+                curBegin = time;
+                curEnd = curBegin + max_section_length;
+                curPeak = strain;
+                continue;
+            }
 
-                // backfillPeaks: fill the space between the current section end and this object
-                while(time > curEnd) {
-                    saveCurrentPeak(curEnd - curBegin);
-                    curBegin = curEnd;
+            const f64 prevTime = (f64)dobjects[i - 1].time;
+            const f64 prevStrain = dobjects[i - 1].c->strains[type];
+            // CalculateInitialStrain: the running strain decayed from the previous object to the
+            // given section start
+            const auto initialStrain = [&](f64 t) { return prevStrain * strainDecay(type, t - prevTime); };
 
-                    if(queuedHead < queuedStrains.size()) {
-                        const auto [queuedStrain, queuedStart] = queuedStrains[queuedHead++];
+            // backfillPeaks: fill the space between the current section end and this object
+            while(time > curEnd) {
+                saveCurrentPeak(curEnd - curBegin);
+                curBegin = curEnd;
 
-                        // the section ends max_section_length after the queued strain, so a queued
-                        // strain gets its own section if the gap to the current object is large enough
-                        curEnd = queuedStart + max_section_length;
-                        curPeak = std::max(initialStrain(curBegin), queuedStrain);
-                    } else {
-                        curEnd = curBegin + max_section_length;
-                        curPeak = initialStrain(curBegin);
-                    }
-                }
+                if(queuedHead < queuedStrains.size()) {
+                    const auto &queued = dobjects[queuedStrains[queuedHead++]];
 
-                if(strain > curPeak) {
-                    // begin a new peak: nothing in the queue can contribute anymore
-                    queuedStrains.clear();
-                    queuedHead = 0;
-                    saveCurrentPeak(time - curBegin);
-
-                    curBegin = time;
-                    curEnd = curBegin + max_section_length;
-                    curPeak = strain;
+                    // the section ends max_section_length after the queued strain, so a queued
+                    // strain gets its own section if the gap to the current object is large enough
+                    curEnd = (f64)queued.time + max_section_length;
+                    curPeak = std::max(initialStrain(curBegin), queued.c->strains[type]);
                 } else {
-                    while(queuedStrains.size() > queuedHead && queuedStrains.back().strain < strain)
-                        queuedStrains.pop_back();
-                    queuedStrains.emplace_back(strain, time);
+                    curEnd = curBegin + max_section_length;
+                    curPeak = initialStrain(curBegin);
                 }
             }
 
-            // the provisional final peak (GetCurrentStrainPeaks); plain insert, no length accounting
-            insertSorted(StrainPeak{.value = curPeak, .sectionLength = std::round(curEnd - curBegin)});
+            if(strain > curPeak) {
+                // begin a new peak: nothing in the queue can contribute anymore
+                queuedStrains.clear();
+                queuedHead = 0;
+                saveCurrentPeak(time - curBegin);
+
+                curBegin = time;
+                curEnd = curBegin + max_section_length;
+                curPeak = strain;
+            } else {
+                while(queuedStrains.size() > queuedHead && dobjects[queuedStrains.back()].c->strains[type] < strain)
+                    queuedStrains.pop_back();
+                queuedStrains.push_back((u32)i);
+            }
         }
 
-        // build final non-zero strains
-        strains.reserve(peaks.size());
-        for(const auto &peak : peaks) {
-            if(peak.value > 0.0) strains.push_back(peak);
-        }
+        // the provisional final peak (GetCurrentStrainPeaks); no length accounting, and no heap
+        // fixup needed since the buffer gets fully sorted next
+        strains.push_back(StrainPeak{.value = curPeak, .sectionLength = std::round(curEnd - curBegin), .seq = seq++});
     }
+
+    // the exact order the insertion-sorted list ends up with; zero-value sections sort to the
+    // tail, drop them
+    std::ranges::sort(strains, byValueDescStable);
+    while(!strains.empty() && !(strains.back().value > 0.0)) strains.pop_back();
 
     // getReducedStrainPeaks: chop the top strains within the first 4000ms of cumulative section
     // time into 20ms chunks with a log10-lerp reduction, then re-sort
@@ -1392,6 +1401,7 @@ f64 calculate_aim_difficulty(const Skills::Skill type, const DifficultyHitObject
 
     f64 time = 0.0;
     uSz skipCount = 0;
+    uSz chunkStart = strains.size();
 
     while(strains.size() > skipCount && time < reduced_section_time) {
         const StrainPeak strain = strains[skipCount];  // copy, the vector is appended to below
@@ -1404,25 +1414,37 @@ f64 calculate_aim_difficulty(const Skills::Skill type, const DifficultyHitObject
                 std::log10(std::lerp(1.0, 10.0, std::clamp<f64>((time + addedTime) / reduced_section_time, 0.0, 1.0)));
             strains.push_back(
                 StrainPeak{.value = strain.value * std::lerp(reduced_strain_baseline, 1.0, scale),
-                           .sectionLength = std::round(std::min(chunk_size, strain.sectionLength - addedTime))});
+                           .sectionLength = std::round(std::min(chunk_size, strain.sectionLength - addedTime)),
+                           .seq = seq++});
         }
 
         time += strain.sectionLength;
         skipCount++;
     }
 
-    // the first skipCount entries were replaced by their chunks; sort the rest descending
-    // (stable, matching LINQ OrderByDescending tie behavior)
-    std::stable_sort(strains.begin() + (sSz)skipCount, strains.end(), byValueDesc);
+    // maps with under 4s of stored sections spill into the chunks themselves above (they get
+    // re-reduced); either way [skipCount, chunkStart) is the still-sorted remainder of the
+    // sections and [chunkStart, end) the chunks in generation order, so only the chunks need
+    // sorting and the weighted sum below merges the two sorted ranges on the fly instead of
+    // re-sorting everything (seq keeps the LINQ OrderByDescending tie behavior: sections
+    // before equal-valued chunks, chunks among themselves in generation order)
+    chunkStart = std::max(chunkStart, skipCount);
+    std::ranges::sort(strains.begin() + (sSz)chunkStart, strains.end(), byValueDescStable);
 
     // continuous weighted sum: weight = integral of decay_weight^x over the section, with time
     // in units of max_section_length
     f64 difficulty = 0.0;
     f64 t = 0.0;
 
-    for(uSz i = skipCount; i < strains.size(); i++) {
-        const f64 t1 = t + strains[i].sectionLength / max_section_length;
-        difficulty += strains[i].value * (std::pow(decay_weight, t) - std::pow(decay_weight, t1));
+    uSz sectionIdx = skipCount;
+    uSz chunkIdx = chunkStart;
+    while(sectionIdx < chunkStart || chunkIdx < strains.size()) {
+        const bool takeSection = sectionIdx < chunkStart && (chunkIdx >= strains.size() ||
+                                                             byValueDescStable(strains[sectionIdx], strains[chunkIdx]));
+        const StrainPeak &strain = strains[takeSection ? sectionIdx++ : chunkIdx++];
+
+        const f64 t1 = t + strain.sectionLength / max_section_length;
+        difficulty += strain.value * (std::pow(decay_weight, t) - std::pow(decay_weight, t1));
         t = t1;
     }
 

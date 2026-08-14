@@ -59,6 +59,7 @@ The golden suite is small; refactors that must not change values are additionall
 a large local corpus (not in the repo). One-time extraction from a directory of `.osz` sets:
 
 ```sh
+mkdir -p corpus  # unzip -d does not create the parent directory
 find "/path/to/osz-collection" -name '*.osz' -print0 | xargs -0 -P 8 -n 1 sh -c \
   'unzip -j -o -qq "$0" "*.osu" -d "corpus/$(basename "$0" .osz)"'
 find corpus -name '*.osu' | LC_ALL=C sort > corpus.txt
