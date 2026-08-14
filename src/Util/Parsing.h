@@ -140,6 +140,13 @@ inline char* strtok_x(char d, char** str) noexcept {
     return old;
 }
 
+// float/double parsing backed by fast_float (see Parsing.cpp), with std::from_chars semantics
+// (std's own floating-point from_chars is unavailable before macOS 26's libc++)
+std::from_chars_result from_chars(const char* first, const char* last, f32& value,
+                                  std::chars_format fmt = std::chars_format::general) noexcept;
+std::from_chars_result from_chars(const char* first, const char* last, f64& value,
+                                  std::chars_format fmt = std::chars_format::general) noexcept;
+
 // _s for "safe"
 // does not modify "inout" unless parsing succeeded
 template <typename T>
@@ -190,7 +197,7 @@ inline bool strto_s(std::string_view str, T& inout) noexcept {
         }
         reterr = ec;
     } else if constexpr(std::is_floating_point_v<std::decay_t<T>>) {
-        auto [_, ec] = std::from_chars(begin, end, retval, floatfmt);
+        auto [_, ec] = Parsing::from_chars(begin, end, retval, floatfmt);
         reterr = ec;
     } else {
         auto [_, ec] = std::from_chars(begin, end, retval, base);

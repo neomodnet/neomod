@@ -10,6 +10,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 cmake_path(SET NEOMOD_SRC NORMALIZE "${CMAKE_CURRENT_SOURCE_DIR}/../../src")
+cmake_path(SET NEOMOD_LIBS NORMALIZE "${CMAKE_CURRENT_SOURCE_DIR}/../../libraries")
 
 # GLM: prefer an installed copy (vcpkg, homebrew, distro), otherwise fetch it
 find_package(glm CONFIG QUIET)
@@ -51,6 +52,7 @@ target_include_directories(diffcalc PRIVATE
     "${NEOMOD_SRC}/App/Neomod"
     "${NEOMOD_SRC}/App/Neomod/DiffCalc"
     "${NEOMOD_SRC}/Util"
+    "${NEOMOD_LIBS}"
 )
 target_link_libraries(diffcalc PRIVATE ${GLM_TARGET})
 target_precompile_headers(diffcalc PRIVATE pch.h)

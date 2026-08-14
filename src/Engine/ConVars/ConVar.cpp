@@ -2,6 +2,7 @@
 #include "ConVar.h"
 #include "ConVarHandler.h"
 
+#include "Parsing.h"
 #include "SString.h"
 
 #include "build_timestamp.h"
@@ -222,7 +223,7 @@ void ConVar::setDefaultString(std::string_view defaultValue) {
 
     // also try to parse default float from the default string
     double dbl{};
-    const auto [ptr, err] = std::from_chars(defaultValue.data(), defaultValue.data() + defaultValue.size(), dbl);
+    const auto [ptr, err] = Parsing::from_chars(defaultValue.data(), defaultValue.data() + defaultValue.size(), dbl);
     if(err == std::errc()) this->dDefaultValue = dbl;
 
     if(this->isFlagSet(cv::PROTECTED)) {
@@ -239,7 +240,7 @@ void ConVar::setValueImpl(double newDouble, bool doCallback, CvarEditor editor) 
 
 void ConVar::setValueImpl(std::string newString, bool doCallback, CvarEditor editor) {
     double dbl{this->dDefaultValue};
-    const auto [ptr, err] = std::from_chars(newString.data(), newString.data() + newString.size(), dbl);
+    const auto [ptr, err] = Parsing::from_chars(newString.data(), newString.data() + newString.size(), dbl);
     (void)ptr;
     if(err != std::errc()) {
         // older builds saved bool convars as "true"/"false", accept those too, but normalize the

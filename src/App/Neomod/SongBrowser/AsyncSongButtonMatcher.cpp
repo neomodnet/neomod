@@ -2,6 +2,7 @@
 #include "AsyncSongButtonMatcher.h"
 
 #include "AsyncPool.h"
+#include "Parsing.h"
 #include "SString.h"
 
 #include "SongButton.h"
@@ -126,7 +127,7 @@ static std::optional<Expression> parse_expression(std::string_view token) {
                             .text = std::string{rhs}};
 
             const std::string_view number = expr.valueIsPercent ? rhs.substr(0, percent) : rhs;
-            std::from_chars(number.data(), number.data() + number.size(), expr.value);  // leaves 0 on failure
+            Parsing::from_chars(number.data(), number.data() + number.size(), expr.value);  // leaves 0 on failure
 
             return expr;
         }

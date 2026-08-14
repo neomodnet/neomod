@@ -24,6 +24,8 @@ on:
 
 env:
   CCACHE_DIR: /tmp/.ccache
+  # explicit macOS support floor; without this the runner's OS version decides it
+  MACOSX_DEPLOYMENT_TARGET: "15.0"
   HOMEBREW_NO_AUTO_UPDATE: 1
   HOMEBREW_NO_ASK: 1
   HOMEBREW_NO_INSTALL_CLEANUP: 1

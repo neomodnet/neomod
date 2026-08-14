@@ -65,5 +65,6 @@ Bundled in-tree libraries:
 - demoji (William Horvath) - MIT
 - MD5.c (RSA Data Security, Inc.) - RSA MD5 license
 - sha256 (https://github.com/LekKit/sha256) - MIT
+- fast_float (https://github.com/fastfloat/fast_float) - Apache 2.0 / MIT / BSL-1.0
 
 If you haven't been credited, please contact us!

@@ -1,5 +1,3 @@
-AM_MAKEFLAGS := $(MAKEFLAGS)
-
 # third-party m4 macros (e.g. AX_CHECK_COMPILE_FLAG) are vendored in m4/ so that
 # building doesn't require autoconf-archive to be installed on the system
 ACLOCAL_AMFLAGS = -I m4
@@ -450,8 +448,8 @@ $(DEPS_PREFIX)/mpg123-$(MPG123_VERSION).built: $(DEPS_CACHE)/mpg123-$(MPG123_VER
 		$(CONFIGURE_PFX) ../configure $(LT_GNU_LD_CACHE) --host=$(host) --prefix="$(DEPS_PREFIX)" $(if $(STATICBUILD),--enable-static --disable-shared,--enable-shared --disable-static) \
 		--disable-components --enable-libmpg123 --with-audio=dummy --disable-modules \
 		RANLIB="$(RANLIB)" AR="$(AR)" CC="$(CC)" CXX="$(CXX)" LD="$(LD)" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" && \
-	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
-	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install
+	$(MAKE_PFX) $(MAKE) && \
+	$(MAKE_PFX) $(MAKE) install
 	$(PKG_CONFIG) --exists --print-errors libmpg123
 	touch $@
 INSTALL_LIB_DEPS += $(DEPS_PREFIX)/mpg123-$(MPG123_VERSION).built
@@ -502,8 +500,8 @@ $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION)-$(FFMPEG_EPOCH).built: $(DEPS_CACHE)/$(F
 	cd $(DEPS_PREFIX)/ffmpeg/build && \
 	{ CFLAGS="$(CFLAGS) $(FFMPEG_EXTRA_FLAGS)" CXXFLAGS="$(CXXFLAGS) $(FFMPEG_EXTRA_FLAGS)" LDFLAGS="$(LDFLAGS) $(WINPTHREAD_LDFLAGS) $(FFMPEG_EXTRA_FLAGS)" \
 		$(CONFIGURE_PFX) ../configure $(FFMPEG_CONFIGURE_FLAGS) || cat ffbuild/config.log ; } && \
-	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
-	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install
+	$(MAKE_PFX) $(MAKE) && \
+	$(MAKE_PFX) $(MAKE) install
 	touch $@
 INSTALL_LIB_DEPS += $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION)-$(FFMPEG_EPOCH).built
 endif # USE_FFMPEG
@@ -704,8 +702,8 @@ $(DEPS_PREFIX)/libpng-$(LIBPNG_VERSION).built: $(DEPS_PREFIX)/zlib-$(ZLIB_VERSIO
 		--disable-tools --disable-tests $(LT_WITH_GNU_LD) --enable-hardware-optimizations=on \
 			CC="$(CC) $(ZLIB_CFLAGS)" RANLIB="$(RANLIB)" AR="$(AR)" CXX="$(CXX)" LD="$(LD)" \
 			CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS) $(ZLIB_LIBS)" && \
-	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
-	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install
+	$(MAKE_PFX) $(MAKE) && \
+	$(MAKE_PFX) $(MAKE) install
 	$(PKG_CONFIG) --exists --print-errors libpng
 	touch $@
 INSTALL_LIB_DEPS += $(DEPS_PREFIX)/libpng-$(LIBPNG_VERSION).built
@@ -720,7 +718,7 @@ $(DEPS_PREFIX)/bzip2-$(BZIP2_VERSION).built: $(DEPS_CACHE)/bzip2-$(BZIP2_VERSION
 	$(TAR) xf $(DEPS_CACHE)/bzip2-$(BZIP2_VERSION).tar.gz -C $(DEPS_PREFIX)/bzip2 --strip-components=1 && \
 	cd $(DEPS_PREFIX)/bzip2 && \
 	$(if $(STATICBUILD),true,$(if $(filter mingw%,$(host_os)),cp $(BUILD_MISCDIR)/libbz2-Makefile-mingw ./,$(if $(filter darwin%,$(host_os)),cp $(BUILD_MISCDIR)/libbz2-Makefile-macos ./,true))) && \
-	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) PREFIX="$(DEPS_PREFIX)" RANLIB="$(RANLIB)" AR="$(AR)" CC="$(CC)" CXX="$(CXX)" LD="$(LD)" CFLAGS="$(CFLAGS) $(if $(STATICBUILD),,-fPIC)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS) $(if $(STATICBUILD),,-fPIC)" \
+	$(MAKE_PFX) $(MAKE) PREFIX="$(DEPS_PREFIX)" RANLIB="$(RANLIB)" AR="$(AR)" CC="$(CC)" CXX="$(CXX)" LD="$(LD)" CFLAGS="$(CFLAGS) $(if $(STATICBUILD),,-fPIC)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS) $(if $(STATICBUILD),,-fPIC)" \
 		$(if $(STATICBUILD),"libbz2.a",$(if $(filter mingw%,$(host_os)),-f libbz2-Makefile-mingw install,$(if $(filter darwin%,$(host_os)),-f libbz2-Makefile-macos,-f Makefile-libbz2_so))) && \
 	cp -f bzlib.h $(DEPS_PREFIX)/include/ && \
 	test -f $(DEPS_PREFIX)/lib/pkgconfig/bzip2.pc || { cp -f $(if $(STATICBUILD),"libbz2.a",libbz2*$(DLLEXT)*) $(DEPS_PREFIX)/lib/ && \
@@ -756,7 +754,7 @@ $(DEPS_PREFIX)/zlib-$(ZLIB_VERSION).built: $(DEPS_CACHE)/zlib-$(ZLIB_VERSION).ta
 		CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" \
 			$(CONFIGURE_PFX) ../configure --zlib-compat --prefix="$(DEPS_PREFIX)" $(if $(STATICBUILD),--static,) \
 				$(if $(WASM_CC),--without-optimizations,) && \
-	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install && \
+	$(MAKE_PFX) $(MAKE) install && \
 	$(SED) -i 's|sharedlibdir=.*|sharedlibdir=$${libdir}|' $(DEPS_PREFIX)/lib/pkgconfig/zlib.pc && \
 	$(PKG_CONFIG) --exists --print-errors zlib
 	touch $@
@@ -959,8 +957,8 @@ $(DEPS_PREFIX)/freetype-$(FREETYPE2_VERSION).built: $(DEPS_PREFIX)/brotli-$(BROT
 		-e 's|.*#.*define FT_CONFIG_OPTION_USE_PNG.*|#define FT_CONFIG_OPTION_USE_PNG|' \
 		-e 's|.*#.*define FT_CONFIG_OPTION_USE_BROTLI.*|#define FT_CONFIG_OPTION_USE_BROTLI|' \
 		builds/unix/ftoption.h && \
-	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
-	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install
+	$(MAKE_PFX) $(MAKE) && \
+	$(MAKE_PFX) $(MAKE) install
 	$(PKG_CONFIG) --exists --print-errors freetype2
 	touch $@
 endif # WASM_PLATFORM
@@ -1101,8 +1099,8 @@ $(DEPS_PREFIX)/libiconv-$(LIBICONV_VERSION).built: $(DEPS_CACHE)/libiconv-$(LIBI
 		--disable-tools --disable-tests --disable-rpath --enable-threads=posix $(LT_WITH_GNU_LD) \
 			CC="$(CC)" RANLIB="$(RANLIB)" AR="$(AR)" CXX="$(CXX)" LD="$(LD)" \
 			CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" WINDRES="$(WINDRES)" && \
-	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
-	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install
+	$(MAKE_PFX) $(MAKE) && \
+	$(MAKE_PFX) $(MAKE) install
 	test -f $(DEPS_PREFIX)/lib/*iconv$(if $(STATICBUILD),.a,$(DLLEXT))*
 	touch $@
 INSTALL_LIB_DEPS += $(DEPS_PREFIX)/libiconv-$(LIBICONV_VERSION).built
@@ -1123,8 +1121,8 @@ $(DEPS_PREFIX)/libacl-$(LIBACL_VERSION).built: $(DEPS_CACHE)/libacl-$(LIBACL_VER
 	$(CONFIGURE_PFX) ../configure $(LT_GNU_LD_CACHE) --host=$(host) --build=$(build) --prefix="$(DEPS_PREFIX)" \
 		$(if $(STATICBUILD),--enable-static --disable-shared,--enable-shared --disable-static) \
 		CC="$(CC)" RANLIB="$(RANLIB)" AR="$(AR)" CXX="$(CXX)" LD="$(LD)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" && \
-	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
-	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install
+	$(MAKE_PFX) $(MAKE) && \
+	$(MAKE_PFX) $(MAKE) install
 	$(PKG_CONFIG) --exists --print-errors libacl
 	touch $@
 INSTALL_LIB_DEPS += $(DEPS_PREFIX)/libacl-$(LIBACL_VERSION).built
@@ -1160,8 +1158,8 @@ $(DEPS_PREFIX)/libarchive-$(LIBARCHIVE_VERSION).built: $(DEPS_CACHE)/libarchive-
 		CC="$(CC)" RANLIB="$(RANLIB)" AR="$(AR)" CXX="$(CXX)" LD="$(LD)" \
 		CFLAGS="$(CFLAGS) -I$(DEPS_PREFIX)/include $(OPENSSL_CFLAGS) $(LIBACL_CFLAGS) $(LZMA_CFLAGS) $(BZIP2_CFLAGS) $(ZLIB_CFLAGS) -D_POSIX_C_SOURCE" \
 		LDFLAGS="$(LDFLAGS) -L$(DEPS_PREFIX)/lib $(OPENSSL_LIBS) $(LIBACL_LIBS) $(LZMA_LIBS) $(BZIP2_LIBS) $(ZLIB_LIBS)" && \
-	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
-	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install
+	$(MAKE_PFX) $(MAKE) && \
+	$(MAKE_PFX) $(MAKE) install
 	$(PKG_CONFIG_PLUS_BUNDLED_OSSL) --exists --print-errors libarchive
 	touch $@
 INSTALL_LIB_DEPS += $(DEPS_PREFIX)/libarchive-$(LIBARCHIVE_VERSION).built

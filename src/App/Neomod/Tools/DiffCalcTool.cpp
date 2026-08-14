@@ -11,6 +11,7 @@
 #include "DiffCalcToolShared.h"
 #include "DifficultyCalculator.h"
 #include "ModFlags.h"
+#include "Parsing.h"
 #include "Replay.h"
 #include "SString.h"
 
@@ -273,7 +274,7 @@ int runBatch(const std::vector<std::string> &argv) {
             speeds.clear();
             for(const auto token : SString::split(argv[++i], ',')) {
                 float speed = 0.f;
-                auto [ptr, ec] = std::from_chars(token.data(), token.data() + token.size(), speed);
+                auto [ptr, ec] = Parsing::from_chars(token.data(), token.data() + token.size(), speed);
                 if(ec != std::errc() || ptr != token.data() + token.size() || speed < 0.01f || speed > 3.f)
                     return argError(std::format("invalid speed '{}' (expected 0.01-3)", token));
                 speeds.push_back(speed);
@@ -853,7 +854,7 @@ int entrypoint(int argc_, char *argv_[]) {
         if(argc > 3) {
             std::string_view cur{argv[3]};
             float speedTemp = 1.f;
-            auto [ptr, ec] = std::from_chars(cur.data(), cur.data() + cur.size(), speedTemp);
+            auto [ptr, ec] = Parsing::from_chars(cur.data(), cur.data() + cur.size(), speedTemp);
             // require the whole argument to be consumed, otherwise a mod string like "1K" parses as 1.0
             if(ec == std::errc() && ptr == cur.data() + cur.size() && speedTemp >= 0.01f && speedTemp <= 3.f) {
                 hadStandaloneSpeed = true;

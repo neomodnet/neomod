@@ -5,6 +5,7 @@
 
 #include "DiffCalcToolShared.h"
 #include "ModFlags.h"
+#include "Parsing.h"
 #include "Replay.h"
 #include "SString.h"
 
@@ -142,8 +143,8 @@ bool valuesEqual(std::string_view a, std::string_view b, double relTol) {
     if(isIntForm(a) && isIntForm(b)) return false;
     double da = 0.0;
     double db = 0.0;
-    auto ra = std::from_chars(a.data(), a.data() + a.size(), da);
-    auto rb = std::from_chars(b.data(), b.data() + b.size(), db);
+    auto ra = Parsing::from_chars(a.data(), a.data() + a.size(), da);
+    auto rb = Parsing::from_chars(b.data(), b.data() + b.size(), db);
     if(ra.ec != std::errc() || rb.ec != std::errc()) return false;
     return std::fabs(da - db) <= std::max(relTol * std::max(std::fabs(da), std::fabs(db)), 1e-12);
 }
@@ -294,7 +295,7 @@ int runSuiteTest(const std::vector<std::string> &argv) {
             record = true;
         } else if(arg == "--tolerance" && hasValue) {
             std::string_view token = argv[++i];
-            auto [ptr, ec] = std::from_chars(token.data(), token.data() + token.size(), tolerance);
+            auto [ptr, ec] = Parsing::from_chars(token.data(), token.data() + token.size(), tolerance);
             if(ec != std::errc() || ptr != token.data() + token.size() || tolerance <= 0.0)
                 return argError(std::format("invalid tolerance '{}'", token));
         } else {

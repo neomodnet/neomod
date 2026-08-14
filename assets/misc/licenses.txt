@@ -1935,6 +1935,7 @@ Used by the following dependencies:
 - sha256 (https://github.com/LekKit/sha256)
 - stb_image.h (https://github.com/nothings/stb) [MIT option]
 - simdutf (https://github.com/simdutf/simdutf) [MIT option]
+- fast_float (https://github.com/fastfloat/fast_float) [MIT option]
 
 ============================================================
 

@@ -86,8 +86,8 @@ $(DEPS_PREFIX)/openssl-$(OPENSSL_VERSION).built: $(DEPS_CACHE)/openssl-$(OPENSSL
 	$(CONFIGURE_PFX) ./Configure $(OPENSSL_TARGET) --prefix="$(DEPS_PREFIX)" --libdir=lib --openssldir="$(DEPS_PREFIX)/ssl" \
 		no-shared threads no-tests no-apps no-docs no-module no-comp no-legacy \
 		$(OPENSSL_EC_FLAG) $(if $(filter windows,$(SYSNAME)),,-fPIC) && \
-	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
-	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install_sw
+	$(MAKE_PFX) $(MAKE) && \
+	$(MAKE_PFX) $(MAKE) install_sw
 	$(PKG_CONFIG) --exists --print-errors openssl libssl libcrypto
 	touch $@
 
@@ -146,10 +146,10 @@ $(DEPS_PREFIX)/curl-$(CURL_VERSION_REAL).built: $(DEPS_CACHE)/curl-$(CURL_VERSIO
 		--without-ca-bundle --without-ca-path --without-ca-fallback \
 		RANLIB="$(RANLIB)" AR="$(AR)" CC="$(CC)" CXX="$(CXX)" LD="$(LD)" \
 		CFLAGS="$(CFLAGS) -Os" CXXFLAGS="$(CXXFLAGS) -Os" LDFLAGS="$(LDFLAGS)" && \
-	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) -C lib && \
-	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) -C lib install && \
-	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) -C include install && \
-	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install-pkgconfigDATA
+	$(MAKE_PFX) $(MAKE) -C lib && \
+	$(MAKE_PFX) $(MAKE) -C lib install && \
+	$(MAKE_PFX) $(MAKE) -C include install && \
+	$(MAKE_PFX) $(MAKE) install-pkgconfigDATA
 	$(PKG_CONFIG) --exists --print-errors libcurl
 	touch $@
 

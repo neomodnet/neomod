@@ -1337,7 +1337,6 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 ubercompat = @ubercompat@
 with_ffmpeg = @with_ffmpeg@
-AM_MAKEFLAGS := $(MAKEFLAGS)
 
 # third-party m4 macros (e.g. AX_CHECK_COMPILE_FLAG) are vendored in m4/ so that
 # building doesn't require autoconf-archive to be installed on the system
@@ -7930,8 +7929,8 @@ $(CACERT_INCDIR)/cacert.pem:
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(CONFIGURE_PFX) ./Configure $(OPENSSL_TARGET) --prefix="$(DEPS_PREFIX)" --libdir=lib --openssldir="$(DEPS_PREFIX)/ssl" \
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@		no-shared threads no-tests no-apps no-docs no-module no-comp no-legacy \
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@		$(OPENSSL_EC_FLAG) $(if $(filter windows,$(SYSNAME)),,-fPIC) && \
-@BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
-@BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install_sw
+@BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(MAKE_PFX) $(MAKE) && \
+@BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(MAKE_PFX) $(MAKE) install_sw
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(PKG_CONFIG) --exists --print-errors openssl libssl libcrypto
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	touch $@
 
@@ -7990,10 +7989,10 @@ $(CACERT_INCDIR)/cacert.pem:
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@		--without-ca-bundle --without-ca-path --without-ca-fallback \
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@		RANLIB="$(RANLIB)" AR="$(AR)" CC="$(CC)" CXX="$(CXX)" LD="$(LD)" \
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@		CFLAGS="$(CFLAGS) -Os" CXXFLAGS="$(CXXFLAGS) -Os" LDFLAGS="$(LDFLAGS)" && \
-@BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) -C lib && \
-@BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) -C lib install && \
-@BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) -C include install && \
-@BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install-pkgconfigDATA
+@BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(MAKE_PFX) $(MAKE) -C lib && \
+@BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(MAKE_PFX) $(MAKE) -C lib install && \
+@BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(MAKE_PFX) $(MAKE) -C include install && \
+@BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(MAKE_PFX) $(MAKE) install-pkgconfigDATA
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(PKG_CONFIG) --exists --print-errors libcurl
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	touch $@
 @BUILD_MIMALLOC_TRUE@@WIN_PLATFORM_TRUE@$(MIMALLOC_OVERRIDE_DEP): $(DEPS_PREFIX)/mimalloc-$(MIMALLOC_VERSION).built
@@ -8098,8 +8097,8 @@ $(CACERT_INCDIR)/cacert.pem:
 @BUILD_MPG123_TRUE@		$(CONFIGURE_PFX) ../configure $(LT_GNU_LD_CACHE) --host=$(host) --prefix="$(DEPS_PREFIX)" $(if $(STATICBUILD),--enable-static --disable-shared,--enable-shared --disable-static) \
 @BUILD_MPG123_TRUE@		--disable-components --enable-libmpg123 --with-audio=dummy --disable-modules \
 @BUILD_MPG123_TRUE@		RANLIB="$(RANLIB)" AR="$(AR)" CC="$(CC)" CXX="$(CXX)" LD="$(LD)" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" && \
-@BUILD_MPG123_TRUE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
-@BUILD_MPG123_TRUE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install
+@BUILD_MPG123_TRUE@	$(MAKE_PFX) $(MAKE) && \
+@BUILD_MPG123_TRUE@	$(MAKE_PFX) $(MAKE) install
 @BUILD_MPG123_TRUE@	$(PKG_CONFIG) --exists --print-errors libmpg123
 @BUILD_MPG123_TRUE@	touch $@
 
@@ -8112,8 +8111,8 @@ $(CACERT_INCDIR)/cacert.pem:
 @USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@	cd $(DEPS_PREFIX)/ffmpeg/build && \
 @USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@	{ CFLAGS="$(CFLAGS) $(FFMPEG_EXTRA_FLAGS)" CXXFLAGS="$(CXXFLAGS) $(FFMPEG_EXTRA_FLAGS)" LDFLAGS="$(LDFLAGS) $(WINPTHREAD_LDFLAGS) $(FFMPEG_EXTRA_FLAGS)" \
 @USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@		$(CONFIGURE_PFX) ../configure $(FFMPEG_CONFIGURE_FLAGS) || cat ffbuild/config.log ; } && \
-@USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
-@USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install
+@USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@	$(MAKE_PFX) $(MAKE) && \
+@USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@	$(MAKE_PFX) $(MAKE) install
 @USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@	touch $@
 
 @USE_SOLOUD_TRUE@$(DEPS_PREFIX)/SoLoud-$(SOLOUD_VERSION).built: $(DEPS_CACHE)/SoLoud-$(SOLOUD_VERSION).tar.gz $(SOLOUD_FFMPEG_DEP) $(DEPS_PREFIX)/SDL3-$(SDL3_VERSION).built $(DEPS_PREFIX)/mpg123-$(MPG123_VERSION).built
@@ -8267,8 +8266,8 @@ $(CACERT_INCDIR)/cacert.pem:
 @BUILD_LIBPNG_TRUE@		--disable-tools --disable-tests $(LT_WITH_GNU_LD) --enable-hardware-optimizations=on \
 @BUILD_LIBPNG_TRUE@			CC="$(CC) $(ZLIB_CFLAGS)" RANLIB="$(RANLIB)" AR="$(AR)" CXX="$(CXX)" LD="$(LD)" \
 @BUILD_LIBPNG_TRUE@			CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS) $(ZLIB_LIBS)" && \
-@BUILD_LIBPNG_TRUE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
-@BUILD_LIBPNG_TRUE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install
+@BUILD_LIBPNG_TRUE@	$(MAKE_PFX) $(MAKE) && \
+@BUILD_LIBPNG_TRUE@	$(MAKE_PFX) $(MAKE) install
 @BUILD_LIBPNG_TRUE@	$(PKG_CONFIG) --exists --print-errors libpng
 @BUILD_LIBPNG_TRUE@	touch $@
 @BUILD_BZIP2_TRUE@$(DEPS_PREFIX)/bzip2-$(BZIP2_VERSION).built: $(DEPS_CACHE)/bzip2-$(BZIP2_VERSION).tar.gz
@@ -8277,7 +8276,7 @@ $(CACERT_INCDIR)/cacert.pem:
 @BUILD_BZIP2_TRUE@	$(TAR) xf $(DEPS_CACHE)/bzip2-$(BZIP2_VERSION).tar.gz -C $(DEPS_PREFIX)/bzip2 --strip-components=1 && \
 @BUILD_BZIP2_TRUE@	cd $(DEPS_PREFIX)/bzip2 && \
 @BUILD_BZIP2_TRUE@	$(if $(STATICBUILD),true,$(if $(filter mingw%,$(host_os)),cp $(BUILD_MISCDIR)/libbz2-Makefile-mingw ./,$(if $(filter darwin%,$(host_os)),cp $(BUILD_MISCDIR)/libbz2-Makefile-macos ./,true))) && \
-@BUILD_BZIP2_TRUE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) PREFIX="$(DEPS_PREFIX)" RANLIB="$(RANLIB)" AR="$(AR)" CC="$(CC)" CXX="$(CXX)" LD="$(LD)" CFLAGS="$(CFLAGS) $(if $(STATICBUILD),,-fPIC)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS) $(if $(STATICBUILD),,-fPIC)" \
+@BUILD_BZIP2_TRUE@	$(MAKE_PFX) $(MAKE) PREFIX="$(DEPS_PREFIX)" RANLIB="$(RANLIB)" AR="$(AR)" CC="$(CC)" CXX="$(CXX)" LD="$(LD)" CFLAGS="$(CFLAGS) $(if $(STATICBUILD),,-fPIC)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS) $(if $(STATICBUILD),,-fPIC)" \
 @BUILD_BZIP2_TRUE@		$(if $(STATICBUILD),"libbz2.a",$(if $(filter mingw%,$(host_os)),-f libbz2-Makefile-mingw install,$(if $(filter darwin%,$(host_os)),-f libbz2-Makefile-macos,-f Makefile-libbz2_so))) && \
 @BUILD_BZIP2_TRUE@	cp -f bzlib.h $(DEPS_PREFIX)/include/ && \
 @BUILD_BZIP2_TRUE@	test -f $(DEPS_PREFIX)/lib/pkgconfig/bzip2.pc || { cp -f $(if $(STATICBUILD),"libbz2.a",libbz2*$(DLLEXT)*) $(DEPS_PREFIX)/lib/ && \
@@ -8307,7 +8306,7 @@ $(CACERT_INCDIR)/cacert.pem:
 @BUILD_ZLIB_TRUE@		CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" \
 @BUILD_ZLIB_TRUE@			$(CONFIGURE_PFX) ../configure --zlib-compat --prefix="$(DEPS_PREFIX)" $(if $(STATICBUILD),--static,) \
 @BUILD_ZLIB_TRUE@				$(if $(WASM_CC),--without-optimizations,) && \
-@BUILD_ZLIB_TRUE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install && \
+@BUILD_ZLIB_TRUE@	$(MAKE_PFX) $(MAKE) install && \
 @BUILD_ZLIB_TRUE@	$(SED) -i 's|sharedlibdir=.*|sharedlibdir=$${libdir}|' $(DEPS_PREFIX)/lib/pkgconfig/zlib.pc && \
 @BUILD_ZLIB_TRUE@	$(PKG_CONFIG) --exists --print-errors zlib
 @BUILD_ZLIB_TRUE@	touch $@
@@ -8466,8 +8465,8 @@ $(CACERT_INCDIR)/cacert.pem:
 @BUILD_FREETYPE2_TRUE@@WASM_PLATFORM_FALSE@		-e 's|.*#.*define FT_CONFIG_OPTION_USE_PNG.*|#define FT_CONFIG_OPTION_USE_PNG|' \
 @BUILD_FREETYPE2_TRUE@@WASM_PLATFORM_FALSE@		-e 's|.*#.*define FT_CONFIG_OPTION_USE_BROTLI.*|#define FT_CONFIG_OPTION_USE_BROTLI|' \
 @BUILD_FREETYPE2_TRUE@@WASM_PLATFORM_FALSE@		builds/unix/ftoption.h && \
-@BUILD_FREETYPE2_TRUE@@WASM_PLATFORM_FALSE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
-@BUILD_FREETYPE2_TRUE@@WASM_PLATFORM_FALSE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install
+@BUILD_FREETYPE2_TRUE@@WASM_PLATFORM_FALSE@	$(MAKE_PFX) $(MAKE) && \
+@BUILD_FREETYPE2_TRUE@@WASM_PLATFORM_FALSE@	$(MAKE_PFX) $(MAKE) install
 @BUILD_FREETYPE2_TRUE@@WASM_PLATFORM_FALSE@	$(PKG_CONFIG) --exists --print-errors freetype2
 @BUILD_FREETYPE2_TRUE@@WASM_PLATFORM_FALSE@	touch $@
 @BUILD_SIMDUTF_TRUE@$(DEPS_PREFIX)/simdutf-$(SIMDUTF_VERSION).built: $(DEPS_CACHE)/simdutf-$(SIMDUTF_VERSION).tar.gz
@@ -8571,8 +8570,8 @@ $(CACERT_INCDIR)/cacert.pem:
 @BUILD_LIBICONV_TRUE@		--disable-tools --disable-tests --disable-rpath --enable-threads=posix $(LT_WITH_GNU_LD) \
 @BUILD_LIBICONV_TRUE@			CC="$(CC)" RANLIB="$(RANLIB)" AR="$(AR)" CXX="$(CXX)" LD="$(LD)" \
 @BUILD_LIBICONV_TRUE@			CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" WINDRES="$(WINDRES)" && \
-@BUILD_LIBICONV_TRUE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
-@BUILD_LIBICONV_TRUE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install
+@BUILD_LIBICONV_TRUE@	$(MAKE_PFX) $(MAKE) && \
+@BUILD_LIBICONV_TRUE@	$(MAKE_PFX) $(MAKE) install
 @BUILD_LIBICONV_TRUE@	test -f $(DEPS_PREFIX)/lib/*iconv$(if $(STATICBUILD),.a,$(DLLEXT))*
 @BUILD_LIBICONV_TRUE@	touch $@
 @BUILD_LIBACL_TRUE@@BUILD_LIBARCHIVE_TRUE@$(DEPS_PREFIX)/libacl-$(LIBACL_VERSION).built: $(DEPS_CACHE)/libacl-$(LIBACL_VERSION).tar.xz
@@ -8584,8 +8583,8 @@ $(CACERT_INCDIR)/cacert.pem:
 @BUILD_LIBACL_TRUE@@BUILD_LIBARCHIVE_TRUE@	$(CONFIGURE_PFX) ../configure $(LT_GNU_LD_CACHE) --host=$(host) --build=$(build) --prefix="$(DEPS_PREFIX)" \
 @BUILD_LIBACL_TRUE@@BUILD_LIBARCHIVE_TRUE@		$(if $(STATICBUILD),--enable-static --disable-shared,--enable-shared --disable-static) \
 @BUILD_LIBACL_TRUE@@BUILD_LIBARCHIVE_TRUE@		CC="$(CC)" RANLIB="$(RANLIB)" AR="$(AR)" CXX="$(CXX)" LD="$(LD)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" && \
-@BUILD_LIBACL_TRUE@@BUILD_LIBARCHIVE_TRUE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
-@BUILD_LIBACL_TRUE@@BUILD_LIBARCHIVE_TRUE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install
+@BUILD_LIBACL_TRUE@@BUILD_LIBARCHIVE_TRUE@	$(MAKE_PFX) $(MAKE) && \
+@BUILD_LIBACL_TRUE@@BUILD_LIBARCHIVE_TRUE@	$(MAKE_PFX) $(MAKE) install
 @BUILD_LIBACL_TRUE@@BUILD_LIBARCHIVE_TRUE@	$(PKG_CONFIG) --exists --print-errors libacl
 @BUILD_LIBACL_TRUE@@BUILD_LIBARCHIVE_TRUE@	touch $@
 # gettext records a static-only libiconv by absolute path in libarchive's global LIBS, and emscripten's
@@ -8614,8 +8613,8 @@ $(CACERT_INCDIR)/cacert.pem:
 @BUILD_LIBARCHIVE_TRUE@		CC="$(CC)" RANLIB="$(RANLIB)" AR="$(AR)" CXX="$(CXX)" LD="$(LD)" \
 @BUILD_LIBARCHIVE_TRUE@		CFLAGS="$(CFLAGS) -I$(DEPS_PREFIX)/include $(OPENSSL_CFLAGS) $(LIBACL_CFLAGS) $(LZMA_CFLAGS) $(BZIP2_CFLAGS) $(ZLIB_CFLAGS) -D_POSIX_C_SOURCE" \
 @BUILD_LIBARCHIVE_TRUE@		LDFLAGS="$(LDFLAGS) -L$(DEPS_PREFIX)/lib $(OPENSSL_LIBS) $(LIBACL_LIBS) $(LZMA_LIBS) $(BZIP2_LIBS) $(ZLIB_LIBS)" && \
-@BUILD_LIBARCHIVE_TRUE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) && \
-@BUILD_LIBARCHIVE_TRUE@	$(MAKE_PFX) $(MAKE) $(MAKEFLAGS) install
+@BUILD_LIBARCHIVE_TRUE@	$(MAKE_PFX) $(MAKE) && \
+@BUILD_LIBARCHIVE_TRUE@	$(MAKE_PFX) $(MAKE) install
 @BUILD_LIBARCHIVE_TRUE@	$(PKG_CONFIG_PLUS_BUNDLED_OSSL) --exists --print-errors libarchive
 @BUILD_LIBARCHIVE_TRUE@	touch $@
 

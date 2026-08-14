@@ -9,6 +9,15 @@
 #include <string>
 #include <string_view>
 
+#include "fast_float/fast_float.h"
+
+// std's floating-point from_chars needs runtime support that's only available in macOS 26+'s
+// libc++; hex floats (which fast_float doesn't implement) go through strtof_l/strtod_l there
+#if defined(_LIBCPP_AVAILABILITY_HAS_FROM_CHARS_FLOATING_POINT) && !_LIBCPP_AVAILABILITY_HAS_FROM_CHARS_FLOATING_POINT
+#include <cerrno>
+#include <xlocale.h>
+#endif
+
 namespace Parsing {
 
 // NOLINTBEGIN(cppcoreguidelines-init-variables)
@@ -34,13 +43,13 @@ const char* parse_str(const char* begin, const char* end, T* arg) noexcept {
         return ptr;
     } else if constexpr(std::is_same_v<T, f32>) {
         f32 f;
-        auto [ptr, ec] = std::from_chars(begin, end, f);
+        auto [ptr, ec] = Parsing::from_chars(begin, end, f);
         if(ec != std::errc()) return nullptr;
         *arg = f;
         return ptr;
     } else if constexpr(std::is_same_v<T, f64>) {
         f64 d;
-        auto [ptr, ec] = std::from_chars(begin, end, d);
+        auto [ptr, ec] = Parsing::from_chars(begin, end, d);
         if(ec != std::errc()) return nullptr;
         *arg = d;
         return ptr;
@@ -181,6 +190,62 @@ std::optional<ivec2> parse_resolution(std::string_view width_x_height) noexcept 
 
     // success
     return ivec2{width, height};
+}
+
+namespace {
+
+template <typename T>
+std::from_chars_result fp_from_chars(const char* first, const char* last, T& value, std::chars_format fmt) noexcept {
+    if(likely(fmt != std::chars_format::hex)) {
+        // the enumerator values differ between std::chars_format and fast_float::chars_format
+        auto ffmt = fmt == std::chars_format::scientific ? fast_float::chars_format::scientific
+                    : fmt == std::chars_format::fixed    ? fast_float::chars_format::fixed
+                                                         : fast_float::chars_format::general;
+        // parse into a temporary: std::from_chars leaves the output unmodified unless parsing
+        // fully succeeded, but fast_float writes ±inf/±0 on out-of-range inputs
+        T tmp;
+        auto res = fast_float::from_chars(first, last, tmp, ffmt);
+        if(res.ec == std::errc()) value = tmp;
+        return {.ptr = res.ptr, .ec = res.ec};
+    }
+
+#if defined(_LIBCPP_AVAILABILITY_HAS_FROM_CHARS_FLOATING_POINT) && !_LIBCPP_AVAILABILITY_HAS_FROM_CHARS_FLOATING_POINT
+    // hex floats via strtof_l/strtod_l, which expect null termination and a "0x" prefix
+    // behind the sign (which std::from_chars input lacks)
+    const bool neg = first < last && *first == '-';
+    std::string buf(neg ? "-0x" : "0x");
+    buf.append(neg ? first + 1 : first, last);
+
+    errno = 0;
+    char* endp = nullptr;
+    T res;
+    // the _l convenience functions use the C locale when passed LC_C_LOCALE (NULL), see xlocale(3)
+    if constexpr(std::is_same_v<T, f32>)
+        res = strtof_l(buf.c_str(), &endp, LC_C_LOCALE);
+    else
+        res = strtod_l(buf.c_str(), &endp, LC_C_LOCALE);
+
+    const char* payload = buf.c_str() + (neg ? 3 : 2);
+    if(endp <= payload) return {.ptr = first, .ec = std::errc::invalid_argument};
+
+    const char* ptr = first + (neg ? 1 : 0) + (endp - payload);
+    if(errno == ERANGE) return {.ptr = ptr, .ec = std::errc::result_out_of_range};
+
+    value = res;
+    return {.ptr = ptr, .ec = std::errc()};
+#else
+    return std::from_chars(first, last, value, fmt);
+#endif
+}
+
+}  // namespace
+
+std::from_chars_result from_chars(const char* first, const char* last, f32& value, std::chars_format fmt) noexcept {
+    return fp_from_chars(first, last, value, fmt);
+}
+
+std::from_chars_result from_chars(const char* first, const char* last, f64& value, std::chars_format fmt) noexcept {
+    return fp_from_chars(first, last, value, fmt);
 }
 
 }  // namespace Parsing
