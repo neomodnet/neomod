@@ -1124,7 +1124,7 @@ f64 getScoreV1ScoreMultiplier(ModFlags flags, f64 speedOverride, bool mcosu) {
 std::string PPv2CalcParamsToString(const PPv2CalcParams &pars) {
     const auto &attrs = pars.attributes;
     return FORMAT_STRING_(
-        R"(pars.attrs.AimDifficulty: {}
+        R"(attrs.AimDifficulty: {}
 attrs.AimDifficultSliderCount: {}
 attrs.SpeedDifficulty: {}
 attrs.SpeedNoteCount: {}
@@ -1973,6 +1973,12 @@ f64 evaluate_rhythm_of(const DifficultyHitObject &cur, const StrainEvalContext &
 inline f64 calc_angle_wideness(f64 angle) { return smoothstep(angle, 40.0 * PIOVER180, 140.0 * PIOVER180); }
 inline f64 calc_angle_acuteness(f64 angle) { return smoothstep(angle, 140.0 * PIOVER180, 40.0 * PIOVER180); }
 
+// the capped-angle cos sites below (8 * 11.25, 2 * 45 and 3 * 30 degrees) all saturate at
+// exactly pi/2 in doubles, where cos is this one tiny constant (not 0.0, since pi/2 itself
+// isn't representable); the caps are hit for the majority of objects on typical maps, so the
+// hot loops branch to the constant instead of calling cos
+static constexpr f64 cos_at_cap = 6.123233995736766e-17; /*std::cos(8.0 * (11.25 * PIOVER180))*/
+
 f64 snap_vector_angle_repetition(const DifficultyHitObject &cur, const DifficultyHitObject &previous) {
     if(std::isnan(cur.c->angle) || std::isnan(previous.c->angle)) return 1.0;
 
@@ -1996,7 +2002,7 @@ f64 snap_vector_angle_repetition(const DifficultyHitObject &cur, const Difficult
             const f64 angleDifference = std::abs(cur.c->normalisedVectorAngle - prevObj->c->normalisedVectorAngle);
             // constants need to be precise so that values stay within the range of 0 and 1,
             // https://www.desmos.com/calculator/a8jesv5sv2
-            constantAngleCount += std::cos(8.0 * std::min(11.25 * PIOVER180, angleDifference));
+            constantAngleCount += angleDifference < 11.25 * PIOVER180 ? std::cos(8.0 * angleDifference) : cos_at_cap;
         }
     }
 
@@ -2004,8 +2010,9 @@ f64 snap_vector_angle_repetition(const DifficultyHitObject &cur, const Difficult
 
     const f64 stackFactor = smootherStep(cur.c->lazyJumpDistance, 0.0, 100.0);
 
+    const f64 stackedAngleDifference = std::abs(cur.c->angle - previous.c->angle) * stackFactor;
     const f64 angleDifferenceAdjusted =
-        std::cos(2.0 * std::min(45.0 * PIOVER180, std::abs(cur.c->angle - previous.c->angle) * stackFactor));
+        stackedAngleDifference < 45.0 * PIOVER180 ? std::cos(2.0 * stackedAngleDifference) : cos_at_cap;
 
     const f64 baseNerf =
         1.0 - maximum_repetition_nerf * calc_angle_acuteness(previous.c->angle) * angleDifferenceAdjusted;
@@ -2452,11 +2459,17 @@ f64 reading_constant_angle_nerf(const DifficultyHitObject &cur) {
             }
 
             const f64 stackFactor = smootherStep(loopObj->c->lazyJumpDistance, 0.0, 50.0);
+            const f64 stackedAngleDifference = std::min(angleDifference, angleDifferenceAlternating) * stackFactor;
 
-            constantAngleCount +=
-                std::cos(3.0 * std::min(30.0 * PIOVER180,
-                                        std::min(angleDifference, angleDifferenceAlternating) * stackFactor)) *
-                longIntervalFactor;
+            // cos(0) == 1.0 exactly (stacked notes and repeated angles), see cos_at_cap for the other end
+            constantAngleCount += (stackedAngleDifference == 0.0               ? 1.0
+                                   : stackedAngleDifference < 30.0 * PIOVER180 ? std::cos(3.0 * stackedAngleDifference)
+                                                                               : cos_at_cap) *
+                                  longIntervalFactor;
+
+            // every term is >= 0, so once the count reaches 10 the 0.2 clamp below pins the
+            // result and the rest of the window can't change it
+            if(constantAngleCount >= 10.0) break;
         }
 
         currentTimeGap = (f64)(cur.time - loopObj->time);
