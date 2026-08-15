@@ -165,6 +165,7 @@ void DatabaseBeatmap::updateRepresentativeValues() noexcept {
     this->iMaxBPM = 0;
     this->iMostCommonBPM = 0;
     this->last_modification_time = 0;
+    this->last_play_time = 0;
 
     for(const auto &diff : diffs) {
         if(diff->getLengthMS() > this->iLengthMS) this->iLengthMS = diff->getLengthMS();
@@ -177,6 +178,7 @@ void DatabaseBeatmap::updateRepresentativeValues() noexcept {
         if(diff->getMostCommonBPM() > this->iMostCommonBPM) this->iMostCommonBPM = diff->getMostCommonBPM();
         if(diff->last_modification_time > this->last_modification_time)
             this->last_modification_time = diff->last_modification_time;
+        if(diff->last_play_time > this->last_play_time) this->last_play_time = diff->last_play_time;
     }
 }
 

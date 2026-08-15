@@ -406,6 +406,7 @@ void AboutScreen::buildChangelog() {
         R"(  - See https://osu.ppy.sh/home/news/2026-07-03-performance-points-star-rating-updates)",
         R"(- Added "View beatmap" button to Discord RPC panel)",
         R"(- Added "creator=" beatmap search filter in song browser)",
+        R"(- Added "By Date Played" as a map ordering option)",
         R"(- Added "Change online settings" as a user button dropdown option)",
         R"(- Added "Spectate" as a user button dropdown option)",
         R"(- Changed default renderer to SDL_gpu (D3D12 on Windows, Vulkan on Linux))",

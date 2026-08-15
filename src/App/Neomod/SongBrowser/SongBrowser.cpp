@@ -276,6 +276,16 @@ bool SongBrowser::sort_by_date_added(SongButton const *a, SongButton const *b) {
     return time1 > time2;
 }
 
+bool SongBrowser::sort_by_date_played(SongButton const *a, SongButton const *b) {
+    const auto *aPtr = a->getDatabaseBeatmap(), *bPtr = b->getDatabaseBeatmap();
+    if((aPtr == nullptr) || (bPtr == nullptr)) return (aPtr == nullptr) < (bPtr == nullptr);
+
+    i64 time1 = aPtr->last_play_time;
+    i64 time2 = bPtr->last_play_time;
+    if(time1 == time2) return sort_by_difficulty(a, b);
+    return time1 > time2;
+}
+
 bool SongBrowser::sort_by_grade(SongButton const *a, SongButton const *b) {
     if(a->getGrade() == b->getGrade()) return sort_by_difficulty(a, b);
     return a->getGrade() < b->getGrade();
@@ -318,14 +328,15 @@ SongBrowser::GlobalSongBrowserCtorDtor::~GlobalSongBrowserCtorDtor() {
 }
 
 SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
-    this->SORTING_METHODS = {{{_("By Artist"), sort_by_artist},          //
-                              {_("By BPM"), sort_by_bpm},                //
-                              {_("By Creator"), sort_by_creator},        //
-                              {_("By Date Added"), sort_by_date_added},  //
-                              {_("By Difficulty"), sort_by_difficulty},  //
-                              {_("By Length"), sort_by_length},          //
-                              {_("By Title"), sort_by_title},            //
-                              {_("By Rank Achieved"), sort_by_grade}}};
+    this->MAP_SORTING_METHODS = {{{_("By Artist"), sort_by_artist},          //
+                                  {_("By BPM"), sort_by_bpm},                //
+                                  {_("By Creator"), sort_by_creator},        //
+                                  {_("By Date Added"), sort_by_date_added},  //
+                                  {_("By Difficulty"), sort_by_difficulty},  //
+                                  {_("By Length"), sort_by_length},          //
+                                  {_("By Title"), sort_by_title},            //
+                                  {_("By Rank Achieved"), sort_by_grade},    //
+                                  {_("By Date Played"), sort_by_date_played}}};
     this->GROUP_NAMES = {{_("By Artist"),      //
                           _("By BPM"),         //
                           _("By Creator"),     //
@@ -349,7 +360,7 @@ SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
             for(int i = 0; i < methods.size(); ++i)
                 if(str == methods[i].name) return (void)cvar.setValue(i);
         };
-        remap(cv::songbrowser_sortingtype, SORTING_METHODS);
+        remap(cv::songbrowser_sortingtype, MAP_SORTING_METHODS);
         remap(cv::songbrowser_scores_sortingtype, SCORE_SORTING_METHODS);
     }
 
@@ -1341,6 +1352,14 @@ void SongBrowser::onDifficultySelected(DatabaseBeatmap *map, bool play) {
 
         // start playing
         if(play) {
+            map->last_play_time = time(nullptr);
+            if(this->curSortMethod == SortTypes::DATEPLAYED) {
+                // force resort
+                // XXX: slow!
+                this->curSortMethod = SortTypes::MAX;
+                this->rebuildAfterGroupOrSortChange(this->curGroup, SortTypes::DATEPLAYED);
+            }
+
             if(BanchoState::is_in_a_multi_room()) {
                 ui->getRoomScreen()->set_current_map(map);
                 ui->setScreen(ui->getRoomScreen());
@@ -2900,11 +2919,23 @@ void SongBrowser::onSortClicked(CBaseUIButton *button) {
     this->contextMenu->setPos(button->getPos());
     this->contextMenu->setRelPos(button->getRelPos());
     this->contextMenu->begin((i32)button->getSize().x);
-    for(int stype = -1; const auto &sortmeth : SORTING_METHODS) {
-        ++stype;
-        CBaseUIButton *button = this->contextMenu->addButton(std::string{sortmeth.name}, stype);
-        if(stype == this->curSortMethod) button->setTextBrightColor(0xff00ff00);
+
+    // Order the map sorting methods by name but keep the same sort_id
+    std::vector<std::string> sorting_names;
+    for(const auto &sortmeth : MAP_SORTING_METHODS) {
+        sorting_names.push_back(std::string{sortmeth.name});
     }
+    std::ranges::sort(sorting_names, SString::strcase_comp);
+    for(const auto &name : sorting_names) {
+        for(int stype = -1; const auto &sortmeth : MAP_SORTING_METHODS) {
+            ++stype;
+            if(name == sortmeth.name) {
+                CBaseUIButton *button = this->contextMenu->addButton(name, stype);
+                if(stype == this->curSortMethod) button->setTextBrightColor(0xff00ff00);
+            }
+        }
+    }
+
     this->contextMenu->end(false, false);
     this->contextMenu->setClickCallback(SA::MakeDelegate<&SongBrowser::onSortChange>(this));
 }
@@ -2913,8 +2944,7 @@ void SongBrowser::onSortChange(std::string_view /*text*/, int id) {
     auto sort_id = this->curSortMethod;
     if(id >= 0 && id < SortType::MAX) sort_id = (SortType)id;
 
-    SORTING_METHOD newMethod = SORTING_METHODS[sort_id];
-
+    MAP_SORTING_METHOD newMethod = MAP_SORTING_METHODS[sort_id];
     const bool sortChanged = sort_id != this->curSortMethod;
 
     this->sortButton->setText(std::string{newMethod.name});
@@ -2950,6 +2980,7 @@ void SongBrowser::rebucketDifficultyCollections() {
 }
 
 void SongBrowser::rebuildAfterGroupOrSortChange(GroupType group, const std::optional<SortType> &sortMethod) {
+    // TODO: with "No Grouping", some sorting methods randomly fail...?
     const SortType newSortMethod = sortMethod.value_or(this->curSortMethod);
     const bool sortingChanged = this->curSortMethod != newSortMethod;
     const bool groupingChanged = this->curGroup != group;
@@ -2977,7 +3008,7 @@ void SongBrowser::rebuildAfterGroupOrSortChange(GroupType group, const std::opti
             }
         }
         // the master button list should be sorted for all groupings
-        srt::pdqsort(this->parentButtons, SORTING_METHODS[this->curSortMethod].comparator);
+        srt::pdqsort(this->parentButtons, MAP_SORTING_METHODS[this->curSortMethod].comparator);
         this->bSongButtonsNeedSorting = false;
     }
 
@@ -3023,7 +3054,7 @@ void SongBrowser::rebuildAfterGroupOrSortChange(GroupType group, const std::opti
                 for(const auto &button : *collBtns) {
                     auto &children = button->getChildren();
                     if(!children.empty()) {
-                        srt::pdqsort(children, SORTING_METHODS[this->curSortMethod].comparator);
+                        srt::pdqsort(children, MAP_SORTING_METHODS[this->curSortMethod].comparator);
                         button->setChildren(children);
                     }
                 }

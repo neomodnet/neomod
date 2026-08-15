@@ -445,6 +445,7 @@ class DatabaseBeatmap final {
    public:
     // raw metadata
     i64 last_modification_time{0};
+    i64 last_play_time{0};
 
    private:
     // if there is no unicode representation, they remain NULL

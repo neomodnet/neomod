@@ -52,7 +52,7 @@ struct alignas(sizeof(void *) * 2) MD5Hash;
 #endif
 
 namespace SortTypes {
-enum type : i8 { ARTIST, BPM, CREATOR, DATEADDED, DIFFICULTY, LENGTH, TITLE, RANKACHIEVED, MAX };
+enum type : i8 { ARTIST, BPM, CREATOR, DATEADDED, DIFFICULTY, LENGTH, TITLE, RANKACHIEVED, DATEPLAYED, MAX };
 };
 
 namespace GroupTypes {
@@ -89,6 +89,7 @@ class SongBrowser final : public ScreenBackable {
     static bool sort_by_bpm(SongButton const *a, SongButton const *b);
     static bool sort_by_creator(SongButton const *a, SongButton const *b);
     static bool sort_by_date_added(SongButton const *a, SongButton const *b);
+    static bool sort_by_date_played(SongButton const *a, SongButton const *b);
     static bool sort_by_grade(SongButton const *a, SongButton const *b);
     static bool sort_by_length(SongButton const *a, SongButton const *b);
     static bool sort_by_title(SongButton const *a, SongButton const *b);
@@ -193,13 +194,13 @@ class SongBrowser final : public ScreenBackable {
     [[nodiscard]] SongDifficultyButton *getDiffButtonByHash(const MD5Hash &diff_hash) const;
 
     // Map sorting/filtering
-    using SORTING_COMPARATOR = bool (*)(const SongButton *a, const SongButton *b);
-    struct SORTING_METHOD {
+    using MAP_SORTING_COMPARATOR = bool (*)(const SongButton *a, const SongButton *b);
+    struct MAP_SORTING_METHOD {
         std::string_view name;
-        SORTING_COMPARATOR comparator;
+        MAP_SORTING_COMPARATOR comparator;
     };
 
-    std::array<SORTING_METHOD, SortType::MAX> SORTING_METHODS;
+    std::array<MAP_SORTING_METHOD, SortType::MAX> MAP_SORTING_METHODS;
     std::array<std::string_view, GroupType::MAX> GROUP_NAMES;
 
     // Score sorting

@@ -1875,6 +1875,23 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
     if(!this->isCancelled()) {
         this->beatmapsets = std::move(temp_loading_beatmapsets);
 
+        // calculate last played tms for each diff
+        // (we always load scores before maps, and this is fast enough to process on the fly)
+        {
+            Sync::unique_lock diff_lock(this->beatmap_difficulties_mtx);
+
+            for(const auto &[hash, diff] : this->beatmap_difficulties) {
+                const auto &map_scores = this->scores.find(hash);
+                if(map_scores == this->scores.end()) continue;
+
+                for(const auto &score : map_scores->second) {
+                    if(score.unixTimestamp > diff->last_play_time) {
+                        diff->last_play_time = score.unixTimestamp;
+                    }
+                }
+            }
+        }
+
         // link each diff's star_ratings pointer to its entry in the star_ratings map
         {
             Sync::shared_lock sr_lock(this->star_ratings_mtx);
