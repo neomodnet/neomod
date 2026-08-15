@@ -24,6 +24,7 @@ using namespace neomod::sbr;
 CollectionButton::CollectionButton(float xPos, float yPos, float xSize, float ySize, std::string name,
                                    std::string collectionName, std::vector<SongButton *> children)
     : CarouselButton(xPos, yPos, xSize, ySize, std::move(name)), sCollectionName(std::move(collectionName)) {
+    this->btnType = CarouselButtonType::COLLECTION_BUTTON;
     this->setChildren(std::move(children));
 
     this->fTitleScale = 0.35f;

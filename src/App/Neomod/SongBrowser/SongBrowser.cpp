@@ -1778,7 +1778,7 @@ bool SongBrowser::scrollToBestButton() {
         if(best->isSearchMatch()) this->scrollToSongButton(best, false, true);
         return best->isSearchMatch();
     } else {
-        if(best->isType<CollectionButton>()) {
+        if(best->btnType == CarouselButtonType::COLLECTION_BUTTON) {
             // nothing better to do
             if(best->isSearchMatch()) {
                 this->scrollToSongButton(best);
@@ -1924,11 +1924,10 @@ void SongBrowser::rebuildSongButtons() {
 
         button->resetAnimations();
 
-        // if it's a collection button, recount the number of search-matching children
-        // to use as a label
-        if(auto *collBtn = button->as<CollectionButton>(); !!collBtn) {
+        // if it's a collection button, recount the number of search-matching children to use as a label
+        if(button->btnType == CarouselButtonType::COLLECTION_BUTTON) {
             i32 numVisibleDescendants = 0;
-            for(const auto *c : collBtn->getChildren()) {
+            for(const auto *c : button->getChildren()) {
                 const auto &childrenChildren = c->getChildren();
                 if(childrenChildren.size() > 0) {
                     for(auto cc : childrenChildren) {
@@ -1937,6 +1936,8 @@ void SongBrowser::rebuildSongButtons() {
                 } else if(c->isSearchMatch())
                     numVisibleDescendants++;
             }
+            auto *collBtn = button->as<CollectionButton>();
+            assert(collBtn != nullptr);
             collBtn->setNumVisibleChildren(numVisibleDescendants);
         }
 
@@ -1997,6 +1998,45 @@ void SongBrowser::rebuildSongButtons() {
     this->updateSongButtonLayout();
 }
 
+void SongBrowser::partiallyUpdateSongButtonLayout(const std::vector<CarouselButton *> &btns, f32 y) {
+    bool isSelected = false;
+    bool inOpenCollection = false;
+    for(auto *carouselButton : btns) {
+        // depending on the object type, layout differently
+        const bool isDiffButton = carouselButton->btnType == CarouselButtonType::SONG_BUTTON;
+        const bool isCollectionButton = carouselButton->btnType == CarouselButtonType::COLLECTION_BUTTON;
+        bool isIndependentDiffButton = false;
+        if(isDiffButton) {
+            const auto *diffButtonPointer = carouselButton->as<SongDifficultyButton>();  // XXX: slow
+            if(diffButtonPointer) isIndependentDiffButton = diffButtonPointer->isIndependentDiffButton();
+        }
+
+        // give selected items & diffs a bit more spacing, to make them stand out
+        if(((carouselButton->isSelected() && !isCollectionButton) || isSelected ||
+            (isDiffButton && !isIndependentDiffButton)))
+            y += carouselButton->getSize().y * 0.1f;
+
+        isSelected = carouselButton->isSelected() || (isDiffButton && !isIndependentDiffButton);
+
+        // give collections a bit more spacing at start & end
+        if((carouselButton->isSelected() && isCollectionButton)) y += carouselButton->getSize().y * 0.2f;
+        if(inOpenCollection && isCollectionButton && !carouselButton->isSelected())
+            y += carouselButton->getSize().y * 0.2f;
+        if(isCollectionButton) {
+            if(carouselButton->isSelected())
+                inOpenCollection = true;
+            else
+                inOpenCollection = false;
+        }
+
+        carouselButton->setTargetRelPosY(y);
+        carouselButton->updateLayoutEx();
+
+        y += carouselButton->getActualSize().y;
+    }
+    this->carousel->setScrollSizeToContent((i32)(this->carousel->getSize().y / 2));
+}
+
 void SongBrowser::updateSongButtonLayout() {
     // this rebuilds the entire songButton layout (songButtons in relation to others)
     // only the y axis is set, because the x axis is constantly animated and handled within the button classes
@@ -2008,40 +2048,7 @@ void SongBrowser::updateSongButtonLayout() {
     f32 yCounter = this->carousel->getSize().y / 4;
     if(elements.size() <= 1) yCounter = this->carousel->getSize().y / 2;
 
-    bool isSelected = false;
-    bool inOpenCollection = false;
-    for(auto *carouselButton : elements) {
-        const auto *diffButtonPointer = carouselButton->as<SongDifficultyButton>();
-
-        // depending on the object type, layout differently
-        const bool isDiffButton = diffButtonPointer != nullptr;
-        const bool isCollectionButton = !isDiffButton && carouselButton->isType<CollectionButton>();
-        const bool isIndependentDiffButton = isDiffButton && diffButtonPointer->isIndependentDiffButton();
-
-        // give selected items & diffs a bit more spacing, to make them stand out
-        if(((carouselButton->isSelected() && !isCollectionButton) || isSelected ||
-            (isDiffButton && !isIndependentDiffButton)))
-            yCounter += carouselButton->getSize().y * 0.1f;
-
-        isSelected = carouselButton->isSelected() || (isDiffButton && !isIndependentDiffButton);
-
-        // give collections a bit more spacing at start & end
-        if((carouselButton->isSelected() && isCollectionButton)) yCounter += carouselButton->getSize().y * 0.2f;
-        if(inOpenCollection && isCollectionButton && !carouselButton->isSelected())
-            yCounter += carouselButton->getSize().y * 0.2f;
-        if(isCollectionButton) {
-            if(carouselButton->isSelected())
-                inOpenCollection = true;
-            else
-                inOpenCollection = false;
-        }
-
-        carouselButton->setTargetRelPosY(yCounter);
-        carouselButton->updateLayoutEx();
-
-        yCounter += carouselButton->getActualSize().y;
-    }
-    this->carousel->setScrollSizeToContent((i32)(this->carousel->getSize().y / 2));
+    this->partiallyUpdateSongButtonLayout(elements, yCounter);
 }
 
 SongBrowser::SetVisibility SongBrowser::getSetVisibility(const SongButton *parent) const {
@@ -3377,13 +3384,16 @@ void SongBrowser::selectRandomBeatmap() {
 
     std::vector<SongButton *> songButtons;
     for(auto element : elements) {
-        auto *songButtonPointer = element->as<SongButton>();
-        auto *songDifficultyButtonPointer = element->as<SongDifficultyButton>();
+        if(element->btnType != CarouselButtonType::SONG_BUTTON) continue;
 
-        if(songButtonPointer != nullptr &&
-           (songDifficultyButtonPointer == nullptr ||
-            songDifficultyButtonPointer->isIndependentDiffButton()))  // only allow songbuttons or independent diffs
+        auto *songButtonPointer = element->as<SongButton>();
+        assert(songButtonPointer != nullptr);
+        auto *songDifficultyButtonPointer = element->as<SongDifficultyButton>();  // XXX: slow
+
+        // only allow songbuttons or independent diffs
+        if(songDifficultyButtonPointer == nullptr || songDifficultyButtonPointer->isIndependentDiffButton()) {
             songButtons.push_back(songButtonPointer);
+        }
     }
 
     if(songButtons.size() < 1) return;

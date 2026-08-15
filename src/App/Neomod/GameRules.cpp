@@ -33,7 +33,7 @@ extern ConVar playfield_border_top_percent;
 #define PLAYFIELD_BORDER_BOTTOM_PERCENT cv::playfield_border_bottom_percent.getFloat()
 #define PLAYFIELD_BORDER_TOP_PERCENT cv::playfield_border_top_percent.getFloat()
 
-#define OSU_RES osu ? osu->getVirtScreenSize() : Osu::osuBaseResolution
+#define OSU_RES likely(osu) ? osu->getVirtScreenSize() : Osu::osuBaseResolution
 
 #define BEATMAP_SPEED(map__) map__->getSpeedMultiplier()
 #define BEATMAP_OD(map__) map__->getOD()

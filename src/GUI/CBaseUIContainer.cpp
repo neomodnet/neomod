@@ -237,7 +237,10 @@ void CBaseUIContainer::update_pos() {
 
     MC_UNR_cnt(32) for(auto *e : this->vElements) {
         const vec2 newPos{thisPos + e->getRelPos()};
-        if(std::abs(newPos.x - e->getPos().x) > 0.1f || std::abs(newPos.y - e->getPos().y) > 0.1f) {
+        const vec2 oldPos{e->getPos()};
+        const float dx = newPos.x - oldPos.x;
+        const float dy = newPos.y - oldPos.y;
+        if(dx < -0.1f || dx > 0.1f || dy < -0.1f || dy > 0.1f) {
             e->rect.setPos(newPos);
             e->onMoved();
         }

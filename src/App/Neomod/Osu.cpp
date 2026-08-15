@@ -7,6 +7,7 @@
 #include "Bancho.h"
 #include "BanchoNetworking.h"
 #include "BeatmapInterface.h"
+#include "CarouselButton.h"
 #include "CBaseUIScrollView.h"
 #include "CBaseUISlider.h"
 #include "CBaseUITextbox.h"
@@ -1632,6 +1633,9 @@ void Osu::doResolutionChange(vec2 newResolution, ResolutionRequestFlags src) {
     const f32 newUIScale = Osu::getUIScale();
     cv::ui_scrollview_scrollbarwidth.setValue(15.0f * newUIScale);  // not happy with this as a convar
 
+    // TODO: move this somewhere saner
+    CarouselButton::updateResolution();
+
     // skip rebuilding rendertargets if we didn't change resolution
     if(resolution_changed) {
         this->rebuildRenderTargets();
@@ -2156,7 +2160,7 @@ float Osu::getImageScaleToFillResolution(const Image *img, vec2 resolution) {
 }
 
 float Osu::getRectScale(vec2 size, float osuSize) {
-    auto screen = osu ? osu->getVirtScreenSize() : engine->getScreenSize();
+    auto screen = likely(osu) ? osu->getVirtScreenSize() : engine->getScreenSize();
     if(screen.x * 3 > screen.y * 4) {
         // Reduce width to fit 4:3
         screen.x = screen.y * 4 / 3;
@@ -2177,7 +2181,7 @@ float Osu::getImageScale(const Image *img, float osuSize) {
 float Osu::getUIScale(float osuSize) {
     // return osuSize * Osu::getImageScaleToFitResolution(Osu::osuBaseResolution, osu->getVirtScreenSize());
 
-    auto screen = osu ? osu->getVirtScreenSize() : engine->getScreenSize();
+    auto screen = likely(osu) ? osu->getVirtScreenSize() : engine->getScreenSize();
     if(screen.x * 3 > screen.y * 4) {
         return osuSize * screen.y / Osu::osuBaseResolution.y;
     } else {
@@ -2185,7 +2189,7 @@ float Osu::getUIScale(float osuSize) {
     }
 }
 
-float Osu::getUIScale() { return Osu::getUIScale(osu ? osu->getVirtScreenSize() : engine->getScreenSize()); }
+float Osu::getUIScale() { return Osu::getUIScale(likely(osu) ? osu->getVirtScreenSize() : engine->getScreenSize()); }
 
 float Osu::getUIScale(vec2 resolution) {
     f32 scale = Osu::getRawUIScale();

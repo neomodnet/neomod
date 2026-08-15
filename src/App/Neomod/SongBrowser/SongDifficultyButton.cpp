@@ -257,11 +257,12 @@ void SongDifficultyButton::updateGrade() {
     }
 }
 
+// TODO: this uses ~17% of updateSongButtonLayout frame time due to SongDifficultyButton casts
 bool SongDifficultyButton::isIndependentDiffButton() const {
     if(!this->parentSongButton->isSelected()) return true;
 
     // TODO: this logic is very weird and only works "accidentally";
-    // you'd think returning true IFF (sibling->isSearchMatch() && sibling == this) would be enough,
+    // you'd think returning true IF (sibling->isSearchMatch() && sibling == this) would be enough,
     // but it doesn't work as expected...
 
     // check if this is the only visible sibling

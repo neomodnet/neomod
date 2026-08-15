@@ -143,11 +143,9 @@ void BeatmapCarousel::onKeyDown(KeyboardEvent &key) {
 
             nextButton->select({.noSelectBottomChild = true});
 
-            auto *songButton = nextButton->as<SongButton>();
-
             // if this is a song button, select top child
-            if(songButton != nullptr) {
-                const auto &children = songButton->getChildren();
+            if(nextButton->btnType == CarouselButtonType::SONG_BUTTON) {
+                const auto &children = nextButton->getChildren();
                 if(children.size() > 0 && !children[0]->isSelected())
                     children[0]->select({.noSelectBottomChild = true, .parentUnselected = true});
             }
@@ -167,16 +165,16 @@ void BeatmapCarousel::onKeyDown(KeyboardEvent &key) {
             auto *nextButton = elements[nextSelectionIndex];
 
             nextButton->select();
-            const bool isCollectionButton = nextButton->isType<CollectionButton>();
+            const bool isCollectionButton = nextButton->btnType == CarouselButtonType::COLLECTION_BUTTON;
 
             // automatically open collection on top of this one and go to bottom child
             if(isCollectionButton && nextSelectionIndex - 1 > -1) {
                 nextSelectionIndex = nextSelectionIndex - 1;
-                auto *nextCollectionButton = elements[nextSelectionIndex]->as<CollectionButton>();
-                if(nextCollectionButton != nullptr) {
-                    nextCollectionButton->select();
 
-                    const auto &children = nextCollectionButton->getChildren();
+                if(elements[nextSelectionIndex]->btnType == CarouselButtonType::COLLECTION_BUTTON) {
+                    elements[nextSelectionIndex]->select();
+
+                    const auto &children = elements[nextSelectionIndex]->getChildren();
                     if(children.size() > 0 && !children.back()->isSelected()) children.back()->select();
                 }
             }
@@ -190,26 +188,25 @@ void BeatmapCarousel::onKeyDown(KeyboardEvent &key) {
 
         bool foundSelected = false;
         for(sSz i = elements.size() - 1; i >= 0; i--) {
-            const auto *diffButtonPointer = elements[i]->as<const SongDifficultyButton>();
-            const auto *collectionButtonPointer = elements[i]->as<const CollectionButton>();
+            const bool isDiffButton = elements[i]->btnType == CarouselButtonType::SONG_BUTTON;
+            const bool isCollectionButton = elements[i]->btnType == CarouselButtonType::COLLECTION_BUTTON;
+            bool isSongDifficultyButtonAndNotIndependent = false;
+            if(isDiffButton) {
+                const auto *songDiffBtn = elements[i]->as<const SongDifficultyButton>();
+                isSongDifficultyButtonAndNotIndependent =
+                    (songDiffBtn != nullptr) && !songDiffBtn->isIndependentDiffButton();
+            }
 
-            auto *button = elements[i]->as<CarouselButton>();
-            const bool isSongDifficultyButtonAndNotIndependent =
-                (diffButtonPointer != nullptr && !diffButtonPointer->isIndependentDiffButton());
-
-            if(foundSelected && button != nullptr && !button->isSelected() &&
-               !isSongDifficultyButtonAndNotIndependent && (!jumpToNextGroup || collectionButtonPointer != nullptr)) {
+            if(foundSelected && !elements[i]->isSelected() && !isSongDifficultyButtonAndNotIndependent &&
+               (!jumpToNextGroup || isCollectionButton)) {
                 g_songbrowser->bNextScrollToSongButtonJumpFixUseScrollSizeDelta = true;
                 {
-                    button->select();
+                    elements[i]->select();
 
-                    if(!jumpToNextGroup || collectionButtonPointer == nullptr) {
+                    if(isCollectionButton) {
                         // automatically open collection below and go to bottom child
-                        auto *collectionButton = elements[i]->as<CollectionButton>();
-                        if(collectionButton != nullptr) {
-                            const auto &children = collectionButton->getChildren();
-                            if(children.size() > 0 && !children.back()->isSelected()) children.back()->select();
-                        }
+                        const auto &children = elements[i]->getChildren();
+                        if(children.size() > 0 && !children.back()->isSelected()) children.back()->select();
                     }
                 }
                 g_songbrowser->bNextScrollToSongButtonJumpFixUseScrollSizeDelta = false;
@@ -217,7 +214,7 @@ void BeatmapCarousel::onKeyDown(KeyboardEvent &key) {
                 break;
             }
 
-            if(button != nullptr && button->isSelected()) foundSelected = true;
+            if(elements[i]->isSelected()) foundSelected = true;
         }
     }
 
@@ -234,16 +231,18 @@ void BeatmapCarousel::onKeyDown(KeyboardEvent &key) {
 
         if(selectedIndex > -1) {
             for(size_t i = selectedIndex; i < elements.size(); i++) {
-                const auto *diffButtonPointer = elements[i]->as<const SongDifficultyButton>();
-                const auto *collectionButtonPointer = elements[i]->as<const CollectionButton>();
+                const bool isDiffButton = elements[i]->btnType == CarouselButtonType::SONG_BUTTON;
+                const bool isCollectionButton = elements[i]->btnType == CarouselButtonType::COLLECTION_BUTTON;
+                bool isSongDifficultyButtonAndNotIndependent = false;
+                if(isDiffButton) {
+                    const auto *songDiffBtn = elements[i]->as<const SongDifficultyButton>();
+                    isSongDifficultyButtonAndNotIndependent =
+                        (songDiffBtn != nullptr) && !songDiffBtn->isIndependentDiffButton();
+                }
 
-                auto *button = elements[i]->as<CarouselButton>();
-                const bool isSongDifficultyButtonAndNotIndependent =
-                    (diffButtonPointer != nullptr && !diffButtonPointer->isIndependentDiffButton());
-
-                if(button != nullptr && !button->isSelected() && !isSongDifficultyButtonAndNotIndependent &&
-                   (!jumpToNextGroup || collectionButtonPointer != nullptr)) {
-                    button->select();
+                if(!elements[i]->isSelected() && !isSongDifficultyButtonAndNotIndependent &&
+                   (!jumpToNextGroup || isCollectionButton)) {
+                    elements[i]->select();
                     break;
                 }
             }
@@ -257,13 +256,9 @@ void BeatmapCarousel::onKeyDown(KeyboardEvent &key) {
     // NOTE: only closing works atm (no "focus" state on buttons yet)
     if((key == KEY_ENTER || key == KEY_NUMPAD_ENTER) && keyboard->isShiftDown()) {
         for(auto element : elements) {
-            const auto *collectionButtonPointer = element->as<const CollectionButton>();
-
-            auto *button = element->as<CarouselButton>();
-
-            if(collectionButtonPointer != nullptr && button != nullptr && button->isSelected()) {
-                button->select();  // deselect
-                g_songbrowser->scrollToSongButton(button);
+            if(element->btnType == CarouselButtonType::COLLECTION_BUTTON && element->isSelected()) {
+                element->select();  // deselect
+                g_songbrowser->scrollToSongButton(element);
                 break;
             }
         }

@@ -33,7 +33,9 @@ using namespace neomod::sbr;
 
 // passthrough for SongDifficultyButton
 SongButton::SongButton(float xPos, float yPos, float xSize, float ySize)
-    : CarouselButton(xPos, yPos, xSize, ySize, nullptr), grade(ScoreGrade::N) {}
+    : CarouselButton(xPos, yPos, xSize, ySize, nullptr), grade(ScoreGrade::N) {
+    this->btnType = CarouselButtonType::SONG_BUTTON;
+}
 
 SongButton::SongButton(float xPos, float yPos, float xSize, float ySize, BeatmapSet *beatmapSet)
     : SongButton(xPos, yPos, xSize, ySize) {
@@ -292,8 +294,8 @@ void SongButton::onSelected(bool wasSelected, SelOpts opts) {
     // resort children (since they might have been updated in the meantime)
     if(this->sortChildren()) {
         // update button positions so the resort is actually applied
-        // XXX: we shouldn't be updating ALL of the buttons
-        g_songbrowser->updateSongButtonLayout();
+        g_songbrowser->partiallyUpdateSongButtonLayout(
+            reinterpret_cast<std::vector<CarouselButton *> &>(this->children), this->fTargetRelPosY);
     }
 
     // update grade on children if necessary

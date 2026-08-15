@@ -30,34 +30,28 @@ using namespace neomod::sbr;
 CarouselButton::CarouselButton(float xPos, float yPos, float xSize, float ySize, std::nullptr_t nullp)
     : CBaseUIButton(nullp, xPos, yPos, xSize, ySize) {
     this->setHandleRightMouse(true);
-
     this->font = osu->getSongBrowserFont();
-
     this->bVisible = false;
-
     this->fTargetRelPosY = yPos;
-
-    const float scale = Osu::getUIScale(baseOsuPixelsScale);
-    actualScaledOffsetWithMargin = vec::ceil(vec2{(int)marginPixelsX, (int)(marginPixelsY)} * scale);
-    this->rect.setSize(vec::ceil(baseSize * scale));
+    this->rect.setSize(CarouselButton::scaledBaseSize);
 }
 
 CarouselButton::CarouselButton(float xPos, float yPos, float xSize, float ySize, std::string name)
     : CBaseUIButton(xPos, yPos, xSize, ySize, std::move(name)) {
     this->setHandleRightMouse(true);
-
     this->font = osu->getSongBrowserFont();
-
     this->bVisible = false;
-
     this->fTargetRelPosY = yPos;
-
-    const float scale = Osu::getUIScale(baseOsuPixelsScale);
-    actualScaledOffsetWithMargin = vec::ceil(vec2{(int)marginPixelsX, (int)(marginPixelsY)} * scale);
-    this->rect.setSize(vec::ceil(baseSize * scale));
+    this->rect.setSize(CarouselButton::scaledBaseSize);
 }
 
 CarouselButton::~CarouselButton() { this->deleteAnimations(); }
+
+void CarouselButton::updateResolution() {
+    currentUIScale = Osu::getUIScale(baseOsuPixelsScale);
+    actualScaledOffsetWithMargin = vec::ceil(vec2{(int)marginPixelsX, (int)(marginPixelsY)} * currentUIScale);
+    scaledBaseSize = vec::ceil(baseSize * currentUIScale);
+}
 
 void CarouselButton::deleteAnimations() {
     this->fCenterOffsetAnimation.stop();
@@ -137,14 +131,11 @@ void CarouselButton::updateInput(CBaseUIEventCtx &c) {
 void CarouselButton::updateLayoutEx() {
     // these should barely ever change but we have no way to detect that as of now
     {
-        const float scale = Osu::getUIScale(baseOsuPixelsScale);
-
-        actualScaledOffsetWithMargin = vec::ceil(vec2{(int)marginPixelsX, (int)(marginPixelsY)} * scale);
-        this->setSize(vec::ceil(baseSize * scale));
+        this->setSize(CarouselButton::scaledBaseSize);
 
         // complete BS sizing/rounding/etc.
         // it seems that osu stable also doesn't scale these images in any way, though
-        bgImageScale = (scale + 0.005f /* ??? */) / (osu->getSkin()->i_menu_button_bg.scale());
+        bgImageScale = (CarouselButton::currentUIScale + 0.005f /* ??? */) / (osu->getSkin()->i_menu_button_bg.scale());
     }
 
     if(this->bVisible) {  // lag prevention (animationHandler overflow)
@@ -186,7 +177,7 @@ void CarouselButton::updateLayoutEx() {
         // to the right than would be necessary, to make animations work better on lower resolutions (would otherwise
         // hit the left edge too early)
         // NOTE @spec: this 0.91 and 0.09 relationship is extremely important for the actual offset amount somehow
-        const float buttonWidthCompensation = std::max(g_carousel->getSize().x - this->getActualSize().x * 0.91f, 0.0f);
+        const float buttonWidthCompensation = std::max(g_carousel->getSize().x - this->getActualWidth() * 0.91f, 0.0f);
         minOffset += buttonWidthCompensation;
     }
 
@@ -199,7 +190,7 @@ void CarouselButton::updateLayoutEx() {
     offsetX = std::clamp<float>(
         offsetX, 0.0f,
         g_carousel->getSize().x -
-            this->getActualSize().x * 0.09f);  // WARNING: hardcoded to match 0.91f above for buttonWidthCompensation
+            this->getActualWidth() * 0.09f);  // WARNING: hardcoded to match 0.91f above for buttonWidthCompensation
 
     this->setRelPosX(offsetX);
     this->setRelPosY(this->fTargetRelPosY + this->getSize().y * 0.125f * this->fHoverMoveAwayAnimation);

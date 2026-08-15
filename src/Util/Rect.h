@@ -49,34 +49,34 @@ class McRectBase {
     [[nodiscard]] Vec getMax() const;
 
     // get
-    [[nodiscard]] const Vec &getPos() const;
-    [[nodiscard]] const Vec &getMin() const;
-    [[nodiscard]] const Vec &getSize() const;
+    [[nodiscard]] const Vec &getPos() const { return this->vMin; }
+    [[nodiscard]] const Vec &getMin() const { return this->vMin; }
+    [[nodiscard]] const Vec &getSize() const { return this->vSize; }
 
-    [[nodiscard]] const scalar &getX() const;
-    [[nodiscard]] const scalar &getY() const;
-    [[nodiscard]] const scalar &getMinX() const;
-    [[nodiscard]] const scalar &getMinY() const;
+    [[nodiscard]] const scalar &getX() const { return this->vMin.x; }
+    [[nodiscard]] const scalar &getY() const { return this->vMin.y; }
+    [[nodiscard]] const scalar &getMinX() const { return this->vMin.x; }
+    [[nodiscard]] const scalar &getMinY() const { return this->vMin.y; }
 
-    [[nodiscard]] scalar getMaxX() const;
-    [[nodiscard]] scalar getMaxY() const;
+    [[nodiscard]] scalar getMaxX() const { return this->vMin.x + this->vSize.x; }
+    [[nodiscard]] scalar getMaxY() const { return this->vMin.y + this->vSize.y; }
 
-    [[nodiscard]] const scalar &getWidth() const;
-    [[nodiscard]] const scalar &getHeight() const;
+    [[nodiscard]] const scalar &getWidth() const { return this->vSize.x; }
+    [[nodiscard]] const scalar &getHeight() const { return this->vSize.y; }
 
     // set
-    void setMin(Vec min);
-    void setMax(Vec max);
-    void setMinX(scalar minx);
-    void setMinY(scalar miny);
-    void setMaxX(scalar maxx);
-    void setMaxY(scalar maxy);
-    void setPos(Vec pos);
-    void setPosX(scalar posx);
-    void setPosY(scalar posy);
-    void setSize(Vec size);
-    void setWidth(scalar width);
-    void setHeight(scalar height);
+    void setMin(Vec min) { this->vMin = min; }
+    void setMax(Vec max) { this->vSize = max - this->vMin; }
+    void setMinX(scalar minx) { this->vMin.x = minx; }
+    void setMinY(scalar miny) { this->vMin.y = miny; }
+    void setMaxX(scalar maxx) { this->vSize.x = maxx - this->vMin.x; }
+    void setMaxY(scalar maxy) { this->vSize.y = maxy - this->vMin.y; }
+    void setPos(Vec pos) { this->vMin = pos; }
+    void setPosX(scalar posx) { this->vMin.x = posx; }
+    void setPosY(scalar posy) { this->vMin.y = posy; }
+    void setSize(Vec size) { this->vSize = size; }
+    void setWidth(scalar width) { this->vSize.x = width; }
+    void setHeight(scalar height) { this->vSize.y = height; }
 
     [[nodiscard]] bool operator==(const McRectBase &rhs) const;
 

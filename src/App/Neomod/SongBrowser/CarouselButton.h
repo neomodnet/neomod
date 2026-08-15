@@ -12,15 +12,16 @@ class SongBrowser;
 class SongButton;
 class UIContextMenu;
 
+enum class CarouselButtonType : u8 {
+    COLLECTION_BUTTON,
+    SONG_BUTTON,
+};
+
 class CarouselButton : public CBaseUIButton {
     NOCOPY_NOMOVE(CarouselButton)
    public:
     // RTTI helpers (TODO: ugly and slow to use RTTI for such a fundamental thing)
 
-    template <typename T>
-    [[nodiscard]] constexpr forceinline bool isType() const {
-        return !!dynamic_cast<const T *>(this);
-    }
     template <typename T>
     constexpr forceinline T *as() {
         return dynamic_cast<T *>(this);
@@ -74,6 +75,9 @@ class CarouselButton : public CBaseUIButton {
         this->bIsSearchMatch.store(isSearchMatch, std::memory_order_relaxed);
     }
 
+    [[nodiscard]] inline float getActualWidth() const {
+        return this->getSize().x - 2.f * actualScaledOffsetWithMargin.x;
+    }
     [[nodiscard]] inline vec2 getActualSize() const { return this->getSize() - 2.f * actualScaledOffsetWithMargin; }
     [[nodiscard]] inline vec2 getActualPos() const { return this->getPos() + actualScaledOffsetWithMargin; }
     [[nodiscard]] inline std::vector<SongButton *> &getChildren() { return this->children; }
@@ -86,6 +90,10 @@ class CarouselButton : public CBaseUIButton {
     [[nodiscard]] inline bool isSelected() const { return this->bSelected; }
     [[nodiscard]] inline bool isHiddenIfSelected() const { return this->bHideIfSelected; }
     [[nodiscard]] inline bool isSearchMatch() const { return this->bIsSearchMatch.load(std::memory_order_relaxed); }
+
+    // rebuildSongButtons optimizations
+    CarouselButtonType btnType;
+    static void updateResolution();
 
    protected:
     [[nodiscard]] bool childrenNeedSorting() const;
@@ -112,8 +120,10 @@ class CarouselButton : public CBaseUIButton {
 
     // dynamic but shared
     static inline vec2 actualScaledOffsetWithMargin{vec2((int)(marginPixelsX), (int)(marginPixelsY))};
+    static inline vec2 scaledBaseSize{vec2(1.f, 1.f)};
     static inline float lastHoverSoundTime{0.f};
     static inline float bgImageScale{1.f};
+    static inline float currentUIScale{1.f};
 
     std::vector<SongButton *> children;
 
