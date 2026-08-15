@@ -2005,11 +2005,7 @@ void SongBrowser::partiallyUpdateSongButtonLayout(const std::vector<CarouselButt
         // depending on the object type, layout differently
         const bool isDiffButton = carouselButton->btnType == CarouselButtonType::SONG_BUTTON;
         const bool isCollectionButton = carouselButton->btnType == CarouselButtonType::COLLECTION_BUTTON;
-        bool isIndependentDiffButton = false;
-        if(isDiffButton) {
-            const auto *diffButtonPointer = carouselButton->as<SongDifficultyButton>();  // XXX: slow
-            if(diffButtonPointer) isIndependentDiffButton = diffButtonPointer->isIndependentDiffButton();
-        }
+        const bool isIndependentDiffButton = isDiffButton && carouselButton->isIndependentDiffButton();
 
         // give selected items & diffs a bit more spacing, to make them stand out
         if(((carouselButton->isSelected() && !isCollectionButton) || isSelected ||
@@ -3382,17 +3378,11 @@ void SongBrowser::selectRandomBeatmap() {
     // filter songbuttons or independent diffs
     const auto &elements{this->carousel->container.getElementsAs<CarouselButton>()};
 
-    std::vector<SongButton *> songButtons;
+    std::vector<CarouselButton *> songButtons;
     for(auto element : elements) {
         if(element->btnType != CarouselButtonType::SONG_BUTTON) continue;
-
-        auto *songButtonPointer = element->as<SongButton>();
-        assert(songButtonPointer != nullptr);
-        auto *songDifficultyButtonPointer = element->as<SongDifficultyButton>();  // XXX: slow
-
-        // only allow songbuttons or independent diffs
-        if(songDifficultyButtonPointer == nullptr || songDifficultyButtonPointer->isIndependentDiffButton()) {
-            songButtons.push_back(songButtonPointer);
+        if(element->isIndependentDiffButton()) {
+            songButtons.push_back(element);
         }
     }
 

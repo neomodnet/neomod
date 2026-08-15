@@ -94,6 +94,7 @@ class CarouselButton : public CBaseUIButton {
     // rebuildSongButtons optimizations
     CarouselButtonType btnType;
     static void updateResolution();
+    [[nodiscard]] bool isIndependentDiffButton() const;
 
    protected:
     [[nodiscard]] bool childrenNeedSorting() const;
@@ -126,6 +127,9 @@ class CarouselButton : public CBaseUIButton {
     static inline float currentUIScale{1.f};
 
     std::vector<SongButton *> children;
+
+    // used to avoid an expensive cast. should only be used by SongDifficultyButton
+    SongButton *parentSongButton{nullptr};
 
     float fTargetRelPosY;
     float fOffsetPercent{0.f};

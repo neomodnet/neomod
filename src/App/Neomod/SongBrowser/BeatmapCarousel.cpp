@@ -190,12 +190,8 @@ void BeatmapCarousel::onKeyDown(KeyboardEvent &key) {
         for(sSz i = elements.size() - 1; i >= 0; i--) {
             const bool isDiffButton = elements[i]->btnType == CarouselButtonType::SONG_BUTTON;
             const bool isCollectionButton = elements[i]->btnType == CarouselButtonType::COLLECTION_BUTTON;
-            bool isSongDifficultyButtonAndNotIndependent = false;
-            if(isDiffButton) {
-                const auto *songDiffBtn = elements[i]->as<const SongDifficultyButton>();
-                isSongDifficultyButtonAndNotIndependent =
-                    (songDiffBtn != nullptr) && !songDiffBtn->isIndependentDiffButton();
-            }
+            const bool isSongDifficultyButtonAndNotIndependent =
+                isDiffButton && !elements[i]->isIndependentDiffButton();
 
             if(foundSelected && !elements[i]->isSelected() && !isSongDifficultyButtonAndNotIndependent &&
                (!jumpToNextGroup || isCollectionButton)) {
@@ -233,12 +229,8 @@ void BeatmapCarousel::onKeyDown(KeyboardEvent &key) {
             for(size_t i = selectedIndex; i < elements.size(); i++) {
                 const bool isDiffButton = elements[i]->btnType == CarouselButtonType::SONG_BUTTON;
                 const bool isCollectionButton = elements[i]->btnType == CarouselButtonType::COLLECTION_BUTTON;
-                bool isSongDifficultyButtonAndNotIndependent = false;
-                if(isDiffButton) {
-                    const auto *songDiffBtn = elements[i]->as<const SongDifficultyButton>();
-                    isSongDifficultyButtonAndNotIndependent =
-                        (songDiffBtn != nullptr) && !songDiffBtn->isIndependentDiffButton();
-                }
+                const bool isSongDifficultyButtonAndNotIndependent =
+                    isDiffButton && !elements[i]->isIndependentDiffButton();
 
                 if(!elements[i]->isSelected() && !isSongDifficultyButtonAndNotIndependent &&
                    (!jumpToNextGroup || isCollectionButton)) {

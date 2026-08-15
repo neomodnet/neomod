@@ -7,6 +7,7 @@
 #include "Logging.h"
 #include "SongBrowser.h"
 #include "BeatmapCarousel.h"
+#include "SongDifficultyButton.h"
 // ---
 
 #include "AnimationHandler.h"
@@ -359,3 +360,25 @@ bool CarouselButton::childrenNeedSorting() const {
 
 Color CarouselButton::getActiveBackgroundColor() const { return ARGB_CV_TO_COL(songbrowser_button_active_color); }
 Color CarouselButton::getInactiveBackgroundColor() const { return ARGB_CV_TO_COL(songbrowser_button_inactive_color); }
+
+bool CarouselButton::isIndependentDiffButton() const {
+    if(!this->parentSongButton || !this->parentSongButton->isSelected()) return true;
+
+    const auto *songDiffBtn = this->as<const SongDifficultyButton>();
+    assert(songDiffBtn != nullptr);  // only SongDifficultyButtons have parentSongButton set
+
+    // TODO: this logic is very weird and only works "accidentally";
+    // you'd think returning true IF (sibling->isSearchMatch() && sibling == this) would be enough,
+    // but it doesn't work as expected...
+
+    // check if this is the only visible sibling
+    int visibleSiblings = 0;
+    for(const auto *sibling : songDiffBtn->getSiblingsAndSelf()) {
+        if(sibling->isSearchMatch()) {
+            visibleSiblings++;
+            if(visibleSiblings > 1) return false;  // early exit
+        }
+    }
+
+    return (visibleSiblings == 1);
+}

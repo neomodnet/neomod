@@ -35,14 +35,10 @@ class SongDifficultyButton final : public SongButton {
         return reinterpret_cast<const std::vector<SongDifficultyButton *> &>(this->parentSongButton->getChildren());
     }
 
-    [[nodiscard]] bool isIndependentDiffButton() const;
-
    private:
     void onSelected(bool wasSelected, SelOpts opts) override;
     void updateOffsetAnimation();
     static constexpr const float fDiffScale{0.18f};
-
-    SongButton *parentSongButton;
 
     AnimFloat fOffsetPercentAnim;
 
