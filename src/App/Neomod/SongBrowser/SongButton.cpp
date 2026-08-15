@@ -33,9 +33,7 @@ using namespace neomod::sbr;
 
 // passthrough for SongDifficultyButton
 SongButton::SongButton(float xPos, float yPos, float xSize, float ySize)
-    : CarouselButton(xPos, yPos, xSize, ySize, nullptr), grade(ScoreGrade::N) {
-    this->btnType = CarouselButtonType::SONG_BUTTON;
-}
+    : CarouselButton(xPos, yPos, xSize, ySize, nullptr), grade(ScoreGrade::N) {}
 
 SongButton::SongButton(float xPos, float yPos, float xSize, float ySize, BeatmapSet *beatmapSet)
     : SongButton(xPos, yPos, xSize, ySize) {

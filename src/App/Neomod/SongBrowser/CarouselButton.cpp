@@ -365,7 +365,7 @@ bool CarouselButton::isIndependentDiffButton() const {
     assert(songDiffBtn != nullptr);  // only SongDifficultyButtons have parentSongButton set
 
     // TODO: this logic is very weird and only works "accidentally";
-    // you'd think returning true IF (sibling->isSearchMatch() && sibling == this) would be enough,
+    // you'd think returning true IFF (sibling->isSearchMatch() && sibling == this) would be enough,
     // but it doesn't work as expected...
 
     // check if this is the only visible sibling

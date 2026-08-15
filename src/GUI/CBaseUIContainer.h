@@ -22,6 +22,9 @@ class CBaseUIContainer : public CBaseUIElement {
     void onKeyDown(KeyboardEvent &e) override;
     void onChar(KeyboardEvent &e) override;
 
+    // just add to container without setting position
+    inline CBaseUIContainer *addBaseUIElementRaw(CBaseUIElement *element) { this->vElements.push_back(element); return this; }
+
     CBaseUIContainer *addBaseUIElement(CBaseUIElement *element, float xPos, float yPos);
     CBaseUIContainer *addBaseUIElement(CBaseUIElement *element, vec2 pos);
     CBaseUIContainer *addBaseUIElement(CBaseUIElement *element);
@@ -55,7 +58,6 @@ class CBaseUIContainer : public CBaseUIElement {
     void update_pos();
 
     [[nodiscard]] forceinline const std::vector<CBaseUIElement *> &getElements() const { return this->vElements; }
-    [[nodiscard]] forceinline std::vector<CBaseUIElement *> &getElementsRaw() { return this->vElements; }
 
     // don't use this blindly, make sure that you haven't added anything that isn't compatible with T to the container!
     template <typename T>

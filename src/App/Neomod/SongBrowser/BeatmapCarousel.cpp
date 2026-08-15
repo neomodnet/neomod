@@ -144,7 +144,7 @@ void BeatmapCarousel::onKeyDown(KeyboardEvent &key) {
             nextButton->select({.noSelectBottomChild = true});
 
             // if this is a song button, select top child
-            if(nextButton->btnType == CarouselButtonType::SONG_BUTTON) {
+            if(nextButton->isType<SongButton>()) {
                 const auto &children = nextButton->getChildren();
                 if(children.size() > 0 && !children[0]->isSelected())
                     children[0]->select({.noSelectBottomChild = true, .parentUnselected = true});
@@ -165,13 +165,13 @@ void BeatmapCarousel::onKeyDown(KeyboardEvent &key) {
             auto *nextButton = elements[nextSelectionIndex];
 
             nextButton->select();
-            const bool isCollectionButton = nextButton->btnType == CarouselButtonType::COLLECTION_BUTTON;
+            const bool isCollectionButton = nextButton->isType<CollectionButton>();
 
             // automatically open collection on top of this one and go to bottom child
             if(isCollectionButton && nextSelectionIndex - 1 > -1) {
                 nextSelectionIndex = nextSelectionIndex - 1;
 
-                if(elements[nextSelectionIndex]->btnType == CarouselButtonType::COLLECTION_BUTTON) {
+                if(elements[nextSelectionIndex]->isType<CollectionButton>()) {
                     elements[nextSelectionIndex]->select();
 
                     const auto &children = elements[nextSelectionIndex]->getChildren();
@@ -187,9 +187,9 @@ void BeatmapCarousel::onKeyDown(KeyboardEvent &key) {
         const bool jumpToNextGroup = keyboard->isShiftDown();
 
         bool foundSelected = false;
-        for(sSz i = elements.size() - 1; i >= 0; i--) {
-            const bool isDiffButton = elements[i]->btnType == CarouselButtonType::SONG_BUTTON;
-            const bool isCollectionButton = elements[i]->btnType == CarouselButtonType::COLLECTION_BUTTON;
+        for(sSz i = static_cast<sSz>(elements.size()) - 1; i >= 0; i--) {
+            const bool isDiffButton = elements[i]->isType<SongButton>();
+            const bool isCollectionButton = elements[i]->isType<CollectionButton>();
             const bool isSongDifficultyButtonAndNotIndependent =
                 isDiffButton && !elements[i]->isIndependentDiffButton();
 
@@ -227,8 +227,8 @@ void BeatmapCarousel::onKeyDown(KeyboardEvent &key) {
 
         if(selectedIndex > -1) {
             for(size_t i = selectedIndex; i < elements.size(); i++) {
-                const bool isDiffButton = elements[i]->btnType == CarouselButtonType::SONG_BUTTON;
-                const bool isCollectionButton = elements[i]->btnType == CarouselButtonType::COLLECTION_BUTTON;
+                const bool isDiffButton = elements[i]->isType<SongButton>();
+                const bool isCollectionButton = elements[i]->isType<CollectionButton>();
                 const bool isSongDifficultyButtonAndNotIndependent =
                     isDiffButton && !elements[i]->isIndependentDiffButton();
 
@@ -241,14 +241,14 @@ void BeatmapCarousel::onKeyDown(KeyboardEvent &key) {
         }
     }
 
-    if(key == KEY_PAGEUP) this->scrollY(this->getSize().y);
-    if(key == KEY_PAGEDOWN) this->scrollY(-this->getSize().y);
+    if(key == KEY_PAGEUP) this->scrollY(static_cast<int>(this->getSize().y));
+    if(key == KEY_PAGEDOWN) this->scrollY(static_cast<int>(-this->getSize().y));
 
     // group open/close
     // NOTE: only closing works atm (no "focus" state on buttons yet)
     if((key == KEY_ENTER || key == KEY_NUMPAD_ENTER) && keyboard->isShiftDown()) {
         for(auto element : elements) {
-            if(element->btnType == CarouselButtonType::COLLECTION_BUTTON && element->isSelected()) {
+            if(element->isType<CollectionButton>() && element->isSelected()) {
                 element->select();  // deselect
                 g_songbrowser->scrollToSongButton(element);
                 break;

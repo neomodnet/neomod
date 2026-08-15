@@ -12,16 +12,14 @@ class SongBrowser;
 class SongButton;
 class UIContextMenu;
 
-enum class CarouselButtonType : u8 {
-    COLLECTION_BUTTON,
-    SONG_BUTTON,
-};
-
 class CarouselButton : public CBaseUIButton {
     NOCOPY_NOMOVE(CarouselButton)
    public:
     // RTTI helpers (TODO: ugly and slow to use RTTI for such a fundamental thing)
-
+    template <typename T>
+    [[nodiscard]] constexpr forceinline bool isType() const {
+        return !!dynamic_cast<const T *>(this);
+    }
     template <typename T>
     constexpr forceinline T *as() {
         return dynamic_cast<T *>(this);
@@ -92,7 +90,6 @@ class CarouselButton : public CBaseUIButton {
     [[nodiscard]] inline bool isSearchMatch() const { return this->bIsSearchMatch.load(std::memory_order_relaxed); }
 
     // rebuildSongButtons optimizations
-    CarouselButtonType btnType;
     static void updateResolution();
     [[nodiscard]] bool isIndependentDiffButton() const;
 

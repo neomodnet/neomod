@@ -1778,7 +1778,7 @@ bool SongBrowser::scrollToBestButton() {
         if(best->isSearchMatch()) this->scrollToSongButton(best, false, true);
         return best->isSearchMatch();
     } else {
-        if(best->btnType == CarouselButtonType::COLLECTION_BUTTON) {
+        if(best->isType<CollectionButton>()) {
             // nothing better to do
             if(best->isSearchMatch()) {
                 this->scrollToSongButton(best);
@@ -1922,13 +1922,13 @@ void SongBrowser::rebuildSongButtons() {
     for(CarouselButton *button : this->visibleSongButtons) {
         if(likely(!button->isSelected() || !button->isHiddenIfSelected())) {
             // perf: not using addBaseUIElement(), we will set pos in updateSongButtonLayout
-            this->carousel->container.getElementsRaw().push_back(button);
+            this->carousel->container.addBaseUIElementRaw(button);
         }
 
         button->resetAnimations();
 
         // if it's a collection button, recount the number of search-matching children to use as a label
-        if(button->btnType == CarouselButtonType::COLLECTION_BUTTON) {
+        if(button->isType<CollectionButton>()) {
             i32 numVisibleDescendants = 0;
             for(const auto *c : button->getChildren()) {
                 const auto &childrenChildren = c->getChildren();
@@ -1970,7 +1970,7 @@ void SongBrowser::rebuildSongButtons() {
                             if(child->isSearchMatch()) {
                                 addedSingleChild = true;
                                 // perf: not using addBaseUIElement(), we will set pos in updateSongButtonLayout
-                                this->carousel->container.getElementsRaw().push_back(child);
+                                this->carousel->container.addBaseUIElementRaw(child);
 
                                 child->resetAnimations();
                                 break;  // only one visible child
@@ -1978,7 +1978,7 @@ void SongBrowser::rebuildSongButtons() {
                         }
                     } else {
                         // perf: not using addBaseUIElement(), we will set pos in updateSongButtonLayout
-                        this->carousel->container.getElementsRaw().push_back(button2);
+                        this->carousel->container.addBaseUIElementRaw(button2);
                     }
                 }
 
@@ -1992,7 +1992,7 @@ void SongBrowser::rebuildSongButtons() {
 
                         if(!(button3->isSelected() && button3->isHiddenIfSelected()))
                             // perf: not using addBaseUIElement(), we will set pos in updateSongButtonLayout
-                            this->carousel->container.getElementsRaw().push_back(button3);
+                            this->carousel->container.addBaseUIElementRaw(button3);
 
                         button3->resetAnimations();
                     }
@@ -2009,8 +2009,8 @@ void SongBrowser::partiallyUpdateSongButtonLayout(const std::vector<CarouselButt
     bool inOpenCollection = false;
     for(auto *carouselButton : btns) {
         // depending on the object type, layout differently
-        const bool isDiffButton = carouselButton->btnType == CarouselButtonType::SONG_BUTTON;
-        const bool isCollectionButton = carouselButton->btnType == CarouselButtonType::COLLECTION_BUTTON;
+        const bool isDiffButton = carouselButton->isType<SongButton>();
+        const bool isCollectionButton = carouselButton->isType<CollectionButton>();
         const bool isIndependentDiffButton = isDiffButton && carouselButton->isIndependentDiffButton();
 
         // give selected items & diffs a bit more spacing, to make them stand out
@@ -3386,8 +3386,8 @@ void SongBrowser::selectRandomBeatmap() {
 
     std::vector<CarouselButton *> songButtons;
     songButtons.reserve(elements.size());
-    for(auto element : elements) {
-        if(element->btnType != CarouselButtonType::SONG_BUTTON) continue;
+    for(auto *element : elements) {
+        if(!element->isType<SongButton>()) continue;
         if(element->isIndependentDiffButton()) {
             songButtons.push_back(element);
         }
