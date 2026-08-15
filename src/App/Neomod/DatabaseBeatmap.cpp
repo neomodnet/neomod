@@ -46,8 +46,9 @@
 
 #else
 
-#include <print>
-#define debugLog(...) std::println(__VA_ARGS__)
+#include <format>
+#include <cstdio>
+#define debugLog(...) printf("%s\n", std::format(__VA_ARGS__).c_str())
 
 #define PDQSORT_RANGE std::ranges::sort
 

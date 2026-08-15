@@ -78,6 +78,8 @@ else()
     )
 
     include(CheckCXXCompilerFlag)
+    include(CheckLinkerFlag)
+
     check_cxx_compiler_flag("-fno-unwind-tables" COMPILER_SUPPORTS_NO_UNWIND_TABLES)
     if(COMPILER_SUPPORTS_NO_UNWIND_TABLES)
         target_compile_options(diffcalc PRIVATE -fno-unwind-tables)
@@ -97,6 +99,12 @@ else()
             target_compile_options(diffcalc PRIVATE -ffunction-sections -fdata-sections)
             target_link_options(diffcalc PRIVATE LINKER:--gc-sections)
         endif()
+    endif()
+
+    # Prefer self-contained binaries
+    check_linker_flag(CXX "-static" LINKER_SUPPORTS_STATIC)
+    if(LINKER_SUPPORTS_STATIC)
+        target_link_options(diffcalc PRIVATE -static)
     endif()
 endif()
 

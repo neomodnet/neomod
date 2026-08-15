@@ -15,12 +15,14 @@
 #define SLIDER_CURVE_MAX_LENGTH cv::slider_curve_max_length.getFloat()
 #define SLIDER_CURVE_MAX_POINTS cv::slider_curve_max_points.getVal<u32>()
 #else
-#include <print>
 #include "OsuConVars/DiffCalcDefaults.h"
 #define SLIDER_CURVE_POINTS_SEPARATION cv::defaults::slider_curve_points_separation
 #define SLIDER_CURVE_MAX_LENGTH cv::defaults::slider_curve_max_length
 #define SLIDER_CURVE_MAX_POINTS (u32) cv::defaults::slider_curve_max_points
-#define debugLog(...) std::println(__VA_ARGS__)
+
+#include <format>
+#include <cstdio>
+#define debugLog(...) printf("%s\n", std::format(__VA_ARGS__).c_str())
 #endif
 
 namespace neomod {
