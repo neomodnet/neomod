@@ -1669,6 +1669,7 @@ CURL_BUILD_VERSION=8.21.0
 OPENSSL_MIN_VERSION=3.0.0 # only for --enable-system-deps
 OPENSSL_BUILD_VERSION=4.0.1
 ZSTD_BUILD_VERSION=1.5.7 # built alongside curl/openssl, used by libarchive
+NGHTTP2_BUILD_VERSION=1.70.0 # built alongside curl, for HTTP/2 support
 MPG123_MIN_VERSION=1.30.0
 MPG123_BUILD_VERSION=4080a897fca4f6923641588dce91da613193c888 # git mirror, latest as of Jun 10th, 2026 (1.33.6)
 SPDLOG_MIN_VERSION=1.15.0
@@ -1899,6 +1900,7 @@ AC_SUBST([CURL_VERSION])
 AC_SUBST([CURL_PREFIX])
 AC_SUBST([OPENSSL_VERSION], [$OPENSSL_BUILD_VERSION])
 AC_SUBST([ZSTD_VERSION], [$ZSTD_BUILD_VERSION])
+AC_SUBST([NGHTTP2_VERSION], [$NGHTTP2_BUILD_VERSION])
 
 # if we are using the bundled curl (with bundled OpenSSL), we don't need libcrypto from the system
 AS_IF([test "x$have_curl" = "xdownload" || test "x$have_curl" = "xbuild from source" || test "x$have_openssl" = "xyes"], [

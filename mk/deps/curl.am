@@ -48,8 +48,8 @@ $(DEPS_PREFIX)/curl-$(CURL_VERSION_REAL).built: $(DEPS_CACHE)/curl-$(CURL_VERSIO
 
 else # !UBERCOMPAT
 
-# build curl + openssl from source; zstd rides along because libarchive links it whenever the
-# bundled openssl is present (this used to be provided by the prebuilt static-curl bundle)
+# build curl + openssl (+ nghttp2 for http/2) from source
+# (also zstd to match the static-curl build, which libarchive also makes use of if available)
 $(DEPS_CACHE)/openssl-$(OPENSSL_VERSION).tar.gz:
 	$(MKDIR_P) $(DEPS_CACHE)
 	$(CURLCOMMAND) "https://github.com/openssl/openssl/releases/download/openssl-$(OPENSSL_VERSION)/openssl-$(OPENSSL_VERSION).tar.gz" || { rm -f $@; exit 1; }
@@ -57,6 +57,10 @@ $(DEPS_CACHE)/openssl-$(OPENSSL_VERSION).tar.gz:
 $(DEPS_CACHE)/zstd-$(ZSTD_VERSION).tar.gz:
 	$(MKDIR_P) $(DEPS_CACHE)
 	$(CURLCOMMAND) "https://github.com/facebook/zstd/releases/download/v$(ZSTD_VERSION)/zstd-$(ZSTD_VERSION).tar.gz" || { rm -f $@; exit 1; }
+
+$(DEPS_CACHE)/nghttp2-$(NGHTTP2_VERSION).tar.xz:
+	$(MKDIR_P) $(DEPS_CACHE)
+	$(CURLCOMMAND) "https://github.com/nghttp2/nghttp2/releases/download/v$(NGHTTP2_VERSION)/nghttp2-$(NGHTTP2_VERSION).tar.xz" || { rm -f $@; exit 1; }
 
 $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL).tar.xz:
 	$(MKDIR_P) $(DEPS_CACHE)
@@ -118,15 +122,32 @@ $(DEPS_PREFIX)/zstd-$(ZSTD_VERSION).built: $(DEPS_CACHE)/zstd-$(ZSTD_VERSION).ta
 	$(PKG_CONFIG) --exists --print-errors libzstd
 	touch $@
 
+# http/2 frame layer for curl, lib-only (skips the apps and their extra deps)
+$(DEPS_PREFIX)/nghttp2-$(NGHTTP2_VERSION).built: $(DEPS_CACHE)/nghttp2-$(NGHTTP2_VERSION).tar.xz
+	rm -rf $(DEPS_PREFIX)/nghttp2
+	$(MKDIR_P) $(DEPS_PREFIX)/nghttp2/build $(DEPS_PREFIX)/lib/pkgconfig
+	$(TAR) xf $(DEPS_CACHE)/nghttp2-$(NGHTTP2_VERSION).tar.xz -C $(DEPS_PREFIX)/nghttp2 --strip-components=1 && \
+	cd $(DEPS_PREFIX)/nghttp2/build && \
+	PKG_CONFIG="$(PKG_CONFIG)" \
+	$(CONFIGURE_PFX) ../configure $(LT_GNU_LD_CACHE) --host=$(host) --build=$(build) --prefix="$(DEPS_PREFIX)" \
+		--enable-lib-only --enable-static --disable-shared $(LT_WITH_GNU_LD) \
+		RANLIB="$(RANLIB)" AR="$(AR)" CC="$(CC)" CXX="$(CXX)" LD="$(LD)" \
+		CFLAGS="$(CFLAGS) -Os" CXXFLAGS="$(CXXFLAGS) -Os" LDFLAGS="$(LDFLAGS)" && \
+	$(MAKE_PFX) $(MAKE) && \
+	$(MAKE_PFX) $(MAKE) install
+	$(PKG_CONFIG) --exists --print-errors libnghttp2
+	touch $@
+
 # minimal libcurl for what the engine actually uses (see NetworkHandler.cpp): http(s) + ws(s),
-# openssl backend with CAINFO_BLOB, mime for score submission, verbose for the debug callback,
-# zlib/brotli/zstd content decoding (all three libs are in-tree anyway, and NetworkHandler
-# sets CURLOPT_ACCEPT_ENCODING); proxy support kept for users behind one
-# no configure switch exists to skip the curl tool, so build/install lib+include+pkgconfig only
-# (headers normally install through the top-level install-data-hook, hence the explicit -C include)
+# openssl backend with CAINFO_BLOB (plus native OS store / system CAPATH layered in at runtime;
+# apple-sectrust enables the macOS keychain fallback verification), http/2 via nghttp2,
+# mime for score submission, verbose for the debug callback, zlib/brotli/zstd content decoding
+# (all three libs are in-tree anyway, and NetworkHandler sets CURLOPT_ACCEPT_ENCODING);
+# proxy support kept for users behind one
+# (-DNGHTTP2_STATICLIB: our nghttp2 is static-only, and its header defaults to dllimport on windows)
 $(DEPS_PREFIX)/curl-$(CURL_VERSION_REAL).built: $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL).tar.xz $(DEPS_PREFIX)/openssl-$(OPENSSL_VERSION).built \
 											$(DEPS_PREFIX)/zstd-$(ZSTD_VERSION).built $(DEPS_PREFIX)/zlib-$(ZLIB_VERSION).built \
-											$(DEPS_PREFIX)/brotli-$(BROTLI_VERSION).built
+											$(DEPS_PREFIX)/brotli-$(BROTLI_VERSION).built $(DEPS_PREFIX)/nghttp2-$(NGHTTP2_VERSION).built
 	rm -rf $(DEPS_PREFIX)/curl
 	$(MKDIR_P) $(DEPS_PREFIX)/curl/build $(DEPS_PREFIX)/lib/pkgconfig
 	$(TAR) xf $(DEPS_CACHE)/curl-$(CURL_VERSION_REAL).tar.xz -C $(DEPS_PREFIX)/curl --strip-components=1 && \
@@ -134,8 +155,9 @@ $(DEPS_PREFIX)/curl-$(CURL_VERSION_REAL).built: $(DEPS_CACHE)/curl-$(CURL_VERSIO
 	PKG_CONFIG="$(PKG_CONFIG)" \
 	$(CONFIGURE_PFX) ../configure $(LT_GNU_LD_CACHE) --host=$(host) --build=$(build) --prefix="$(DEPS_PREFIX)" \
 		--enable-static --disable-shared $(LT_WITH_GNU_LD) \
-		--with-openssl --with-zlib --with-brotli --with-zstd \
-		--without-libpsl --without-libidn2 --without-nghttp2 --without-libgsasl \
+		--with-openssl --with-zlib --with-brotli --with-zstd --with-nghttp2 \
+		$(if $(filter macos,$(SYSNAME)),--with-apple-sectrust) \
+		--without-libpsl --without-libidn2 --without-libgsasl \
 		--enable-websockets --enable-ipv6 --enable-mime --enable-verbose --enable-threaded-resolver \
 		--disable-ftp --disable-file --disable-ldap --disable-ldaps --disable-rtsp --disable-dict \
 		--disable-telnet --disable-tftp --disable-pop3 --disable-imap --disable-smb --disable-smtp \
@@ -145,7 +167,7 @@ $(DEPS_PREFIX)/curl-$(CURL_VERSION_REAL).built: $(DEPS_CACHE)/curl-$(CURL_VERSIO
 		--disable-docs --disable-manual \
 		--without-ca-bundle --without-ca-path --without-ca-fallback \
 		RANLIB="$(RANLIB)" AR="$(AR)" CC="$(CC)" CXX="$(CXX)" LD="$(LD)" \
-		CFLAGS="$(CFLAGS) -Os" CXXFLAGS="$(CXXFLAGS) -Os" LDFLAGS="$(LDFLAGS)" && \
+		CFLAGS="$(CFLAGS) -Os -DNGHTTP2_STATICLIB" CXXFLAGS="$(CXXFLAGS) -Os" LDFLAGS="$(LDFLAGS)" && \
 	$(MAKE_PFX) $(MAKE) -C lib && \
 	$(MAKE_PFX) $(MAKE) -C lib install && \
 	$(MAKE_PFX) $(MAKE) -C include install && \

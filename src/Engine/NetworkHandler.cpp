@@ -18,6 +18,7 @@
 #include "binary_embed.h"
 #include <curl/curl.h>
 
+#include <cstdlib>
 #include <utility>
 #include <queue>
 #include <atomic>
@@ -154,6 +155,7 @@ struct NetworkImpl {
         CurlEasy easy_handle;
         CurlSlist headers_list;
         CurlMime mime;
+        char error_buf[CURL_ERROR_SIZE]{};
 
         // for websocket requests
         std::shared_ptr<WSInstance> websocket;
@@ -416,7 +418,9 @@ void NetworkImpl::processCompletedRequests() {
         if(msg->data.result == CURLE_OK || msg->data.result == CURLE_HTTP_RETURNED_ERROR) {
             request->response.error_msg = "HTTP " + std::to_string(request->response.response_code);
         } else {
-            request->response.error_msg = curl_easy_strerror(msg->data.result);
+            // prefer the detailed per-transfer message when curl set one
+            request->response.error_msg =
+                request->error_buf[0] ? std::data(request->error_buf) : curl_easy_strerror(msg->data.result);
         }
 
         if(request->websocket) {
@@ -506,6 +510,39 @@ namespace {  // static
 // curl_ca_embed included from binary_embed.h
 struct curl_blob cert_blob{
     .data = (void*)curl_ca_embed, .len = (size_t)curl_ca_embed_size(), .flags = CURL_BLOB_NOCOPY};
+
+// trust anchor layering (prefer system CA root store over bundle for future-proofing)
+struct CATrustConfig {
+    std::string cainfo;  // explicit override; replaces the embedded blob
+    std::string capath;
+    CATrustConfig() {
+        for(const char* var : {"CURL_CA_BUNDLE", "SSL_CERT_FILE"}) {
+            if(const char* file = getenv(var); file && *file) {
+                this->cainfo = file;
+                break;
+            }
+        }
+        if(const char* dir = getenv("SSL_CERT_DIR"); dir && *dir) {
+            this->capath = dir;
+        }
+#ifdef MCENGINE_PLATFORM_LINUX
+        if(this->capath.empty()) {
+            // openssl-style hashed cert dirs, as maintained by the usual distro trust stores
+            for(const char* dir : {"/etc/ssl/certs", "/etc/pki/ca-trust/extracted/pem/directory-hash"}) {
+                if(access(dir, R_OK) == 0) {
+                    this->capath = dir;
+                    break;
+                }
+            }
+        }
+#endif
+    }
+};
+
+const CATrustConfig &get_ca_trust() {
+    static const CATrustConfig ca_trust{};
+    return ca_trust;
+}
 }  // namespace
 #endif
 
@@ -554,6 +591,21 @@ void NetworkImpl::Request::setupCurlHandle() {
     this->easy_handle.setopt(CURLOPT_FAILONERROR, 1L);  // fail on HTTP responses >= 400
     // "" = offer every encoding this libcurl build supports (gzip/br/zstd) and decode transparently
     this->easy_handle.setopt(CURLOPT_ACCEPT_ENCODING, "");
+    this->easy_handle.setopt(CURLOPT_ERRORBUFFER, std::data(this->error_buf));  // detailed failure messages
+    // bigger transfer buffer than the 16KB default (fewer write callbacks on fast map downloads)
+    this->easy_handle.setopt(CURLOPT_BUFFERSIZE, 256L * 1024L);
+    // detect connections dropped without a FIN/RST (NATs love silently eating idle websockets)
+    this->easy_handle.setopt(CURLOPT_TCP_KEEPALIVE, 1L);
+    this->easy_handle.setopt(CURLOPT_TCP_KEEPIDLE, 60L);
+    this->easy_handle.setopt(CURLOPT_TCP_KEEPINTVL, 60L);
+    if(!this->websocket) {
+        // abort transfers that fully stall instead of waiting out the absolute timeout
+        // (websockets are idle-by-design, so no low-speed limit for them)
+        this->easy_handle.setopt(CURLOPT_LOW_SPEED_LIMIT, 1L);
+        this->easy_handle.setopt(CURLOPT_LOW_SPEED_TIME, 30L);
+        // let parallel same-host requests share one http/2 connection instead of opening one each
+        this->easy_handle.setopt(CURLOPT_PIPEWAIT, 1L);
+    }
 
     if(!this->options.user_agent.empty()) {
         this->easy_handle.setopt(CURLOPT_USERAGENT, this->options.user_agent.c_str());
@@ -564,7 +616,17 @@ void NetworkImpl::Request::setupCurlHandle() {
     }
 
 #ifndef _MSC_VER
-    this->easy_handle.setopt(CURLOPT_CAINFO_BLOB, &cert_blob);
+    // layered trust anchors (see CATrustConfig)
+    this->easy_handle.setopt(CURLOPT_SSL_OPTIONS, static_cast<long>(CURLSSLOPT_NATIVE_CA));
+    const auto &ca_trust = get_ca_trust();
+    if(ca_trust.cainfo.empty()) {
+        this->easy_handle.setopt(CURLOPT_CAINFO_BLOB, &cert_blob);
+    } else {
+        this->easy_handle.setopt(CURLOPT_CAINFO, ca_trust.cainfo.c_str());
+    }
+    if(!ca_trust.capath.empty()) {
+        this->easy_handle.setopt(CURLOPT_CAPATH, ca_trust.capath.c_str());
+    }
 #endif
 
     // setup headers
