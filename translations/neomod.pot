@@ -3078,6 +3078,10 @@ msgid "By Rank Achieved"
 msgstr ""
 
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
+msgid "By Date Played"
+msgstr ""
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "By Date"
 msgstr ""
 

@@ -3234,6 +3234,11 @@ msgid "By Rank Achieved"
 msgstr "По Полученному рангу"
 
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
+#, fuzzy
+msgid "By Date Played"
+msgstr "По Дате добавления"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "By Date"
 msgstr "По Дате"
 

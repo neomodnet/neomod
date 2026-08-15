@@ -1352,12 +1352,16 @@ void SongBrowser::onDifficultySelected(DatabaseBeatmap *map, bool play) {
 
         // start playing
         if(play) {
-            map->last_play_time = time(nullptr);
-            if(this->curSortMethod == SortTypes::DATEPLAYED) {
+            const auto unixTime = time(nullptr);
+            // TODO: this isn't stored in the database, so it will only be reloaded if we actually submit a score
+            map->last_play_time = unixTime;
+            if(auto *set = map->getParentSet()) {
+                set->last_play_time = unixTime;
+            }
+            if(this->curSortMethod == SortType::DATEPLAYED) {
                 // force resort
                 // XXX: slow!
-                this->curSortMethod = SortTypes::MAX;
-                this->rebuildAfterGroupOrSortChange(this->curGroup, SortTypes::DATEPLAYED);
+                this->bSongButtonsNeedSorting = true;
             }
 
             if(BanchoState::is_in_a_multi_room()) {
@@ -2921,16 +2925,17 @@ void SongBrowser::onSortClicked(CBaseUIButton *button) {
     this->contextMenu->begin((i32)button->getSize().x);
 
     // Order the map sorting methods by name but keep the same sort_id
-    std::vector<std::string> sorting_names;
-    for(const auto &sortmeth : MAP_SORTING_METHODS) {
-        sorting_names.push_back(std::string{sortmeth.name});
+    std::array<std::string_view, SortType::MAX> sorting_names;
+    for(int i = -1; const auto &sortmeth : MAP_SORTING_METHODS) {
+        ++i;
+        sorting_names[i] = sortmeth.name;
     }
     std::ranges::sort(sorting_names, SString::strcase_comp);
     for(const auto &name : sorting_names) {
         for(int stype = -1; const auto &sortmeth : MAP_SORTING_METHODS) {
             ++stype;
             if(name == sortmeth.name) {
-                CBaseUIButton *button = this->contextMenu->addButton(name, stype);
+                CBaseUIButton *button = this->contextMenu->addButton(std::string{name}, stype);
                 if(stype == this->curSortMethod) button->setTextBrightColor(0xff00ff00);
             }
         }
@@ -2996,8 +3001,9 @@ void SongBrowser::rebuildAfterGroupOrSortChange(GroupType group, const std::opti
     this->curGroup = group;
     this->curSortMethod = newSortMethod;
     this->lastDiffSortModIndex = StarPrecalc::active_idx;
+    const bool forceSort = this->bSongButtonsNeedSorting;
 
-    if(this->bSongButtonsNeedSorting || sortingChanged || diffSortChanged) {
+    if(forceSort || sortingChanged || diffSortChanged) {
         // lazy update grade
         if(this->curSortMethod == SortType::RANKACHIEVED) {
             for(SongButton *songButton : this->parentButtons) {
@@ -3050,7 +3056,7 @@ void SongBrowser::rebuildAfterGroupOrSortChange(GroupType group, const std::opti
                 this->visibleSongButtons.push_back(unq.get());
             }
 
-            if(groupingChanged || sortingChanged || diffSortChanged) {
+            if(forceSort || groupingChanged || sortingChanged || diffSortChanged) {
                 for(const auto &button : *collBtns) {
                     auto &children = button->getChildren();
                     if(!children.empty()) {

@@ -1877,16 +1877,22 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
 
         // calculate last played tms for each diff
         // (we always load scores before maps, and this is fast enough to process on the fly)
+        // TODO: should instead store last play time in beatmap database, since this can only count scores which we have a score on!
         {
             Sync::unique_lock diff_lock(this->beatmap_difficulties_mtx);
+            Sync::shared_lock score_lock(this->scores_mtx);
 
             for(const auto &[hash, diff] : this->beatmap_difficulties) {
                 const auto &map_scores = this->scores.find(hash);
                 if(map_scores == this->scores.end()) continue;
 
                 for(const auto &score : map_scores->second) {
-                    if(score.unixTimestamp > diff->last_play_time) {
-                        diff->last_play_time = score.unixTimestamp;
+                    if(diff->last_play_time < score.unixTimestamp) {
+                        diff->last_play_time = static_cast<i64>(score.unixTimestamp);
+                        if(auto *set = diff->getParentSet();  // should be assert...
+                           set && set->last_play_time < diff->last_play_time) {
+                            set->last_play_time = diff->last_play_time;
+                        }
                     }
                 }
             }

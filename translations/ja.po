@@ -3220,6 +3220,11 @@ msgid "By Rank Achieved"
 msgstr "達成ランク別"
 
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
+#, fuzzy
+msgid "By Date Played"
+msgstr "追加日別"
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "By Date"
 msgstr "日付別"
 
