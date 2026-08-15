@@ -1877,7 +1877,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
 
         // calculate last played tms for each diff
         // (we always load scores before maps, and this is fast enough to process on the fly)
-        // TODO: should instead store last play time in beatmap database, since this can only count scores which we have a score on!
+        // TODO: should instead store last play time in beatmap database, since this can only count maps which we have a score on!
         {
             Sync::unique_lock diff_lock(this->beatmap_difficulties_mtx);
             Sync::shared_lock score_lock(this->scores_mtx);
