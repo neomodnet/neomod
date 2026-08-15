@@ -52,6 +52,10 @@ void CarouselButton::updateResolution() {
     currentUIScale = Osu::getUIScale(baseOsuPixelsScale);
     actualScaledOffsetWithMargin = vec::ceil(vec2{(int)marginPixelsX, (int)(marginPixelsY)} * currentUIScale);
     scaledBaseSize = vec::ceil(baseSize * currentUIScale);
+
+    // complete BS sizing/rounding/etc.
+    // it seems that osu stable also doesn't scale these images in any way, though
+    bgImageScale = (CarouselButton::currentUIScale + 0.005f /* ??? */) / (osu->getSkin()->i_menu_button_bg.scale());
 }
 
 void CarouselButton::deleteAnimations() {
@@ -130,19 +134,10 @@ void CarouselButton::updateInput(CBaseUIEventCtx &c) {
 }
 
 void CarouselButton::updateLayoutEx() {
-    // these should barely ever change but we have no way to detect that as of now
-    {
-        this->setSize(CarouselButton::scaledBaseSize);
-
-        // complete BS sizing/rounding/etc.
-        // it seems that osu stable also doesn't scale these images in any way, though
-        bgImageScale = (CarouselButton::currentUIScale + 0.005f /* ??? */) / (osu->getSkin()->i_menu_button_bg.scale());
-    }
-
     if(this->bVisible) {  // lag prevention (animationHandler overflow)
         const float centerOffsetAnimationTarget =
             ((cv::songbrowser_button_anim_y_curve.getBool() && !g_carousel->isScrollingFast())
-                 ? 1.0f - std::clamp<float>(std::abs((this->getPos().y + (this->getSize().y / 2) -
+                 ? 1.0f - std::clamp<float>(std::abs((this->getPos().y + (CarouselButton::scaledBaseSize.y / 2) -
                                                       g_carousel->getPos().y - g_carousel->getSize().y / 2) /
                                                      (g_carousel->getSize().y / 2)),
                                             0.0f, 1.0f)
@@ -172,15 +167,14 @@ void CarouselButton::updateLayoutEx() {
     // this is the minimum offset necessary to not clip into the score scrollview (including all possible max animations
     // which can push us to the left, worst case)
     float minOffset = g_carousel->getSize().x * (percentCenterOffsetAnimation + percentHoverOffsetAnimation);
-    {
-        // also respect the width of the button image: push to the right until the edge of the button image can never be
-        // visible even if all animations are fully active the 0.91f here heuristically pushes the buttons a bit further
-        // to the right than would be necessary, to make animations work better on lower resolutions (would otherwise
-        // hit the left edge too early)
-        // NOTE @spec: this 0.91 and 0.09 relationship is extremely important for the actual offset amount somehow
-        const float buttonWidthCompensation = std::max(g_carousel->getSize().x - this->getActualWidth() * 0.91f, 0.0f);
-        minOffset += buttonWidthCompensation;
-    }
+
+    // also respect the width of the button image: push to the right until the edge of the button image can never be
+    // visible even if all animations are fully active the 0.91f here heuristically pushes the buttons a bit further
+    // to the right than would be necessary, to make animations work better on lower resolutions (would otherwise
+    // hit the left edge too early)
+    // NOTE @spec: this 0.91 and 0.09 relationship is extremely important for the actual offset amount somehow
+    const float buttonWidthCompensation = std::max(g_carousel->getSize().x - this->getActualWidth() * 0.91f, 0.0f);
+    minOffset += buttonWidthCompensation;
 
     float offsetX =
         minOffset - g_carousel->getSize().x *
@@ -194,8 +188,11 @@ void CarouselButton::updateLayoutEx() {
             this->getActualWidth() * 0.09f);  // WARNING: hardcoded to match 0.91f above for buttonWidthCompensation
 
     this->setRelPosX(offsetX);
-    this->setRelPosY(this->fTargetRelPosY + this->getSize().y * 0.125f * this->fHoverMoveAwayAnimation);
-    this->setPos(g_carousel->container.getPos() + this->getRelPos());
+    this->setRelPosY(this->fTargetRelPosY + CarouselButton::scaledBaseSize.y * 0.125f * this->fHoverMoveAwayAnimation);
+
+    // using setRect instead of setPos/setSize to avoid expensive comparisons
+    // (which do nothing since CarouselButtons don't use onResized/onMoved)
+    this->setRect(McRect{g_carousel->container.getPos() + this->getRelPos(), CarouselButton::scaledBaseSize});
 }
 
 CarouselButton *CarouselButton::setVisible(bool visible) {

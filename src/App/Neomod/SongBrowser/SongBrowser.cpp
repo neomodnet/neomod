@@ -1920,7 +1920,10 @@ void SongBrowser::rebuildSongButtons() {
 
     // NOTE: currently supports 3 depth layers (collection > beatmap > diffs)
     for(CarouselButton *button : this->visibleSongButtons) {
-        if(!(button->isSelected() && button->isHiddenIfSelected())) this->carousel->container.addBaseUIElement(button);
+        if(likely(!button->isSelected() || !button->isHiddenIfSelected())) {
+            // perf: not using addBaseUIElement(), we will set pos in updateSongButtonLayout
+            this->carousel->container.getElementsRaw().push_back(button);
+        }
 
         button->resetAnimations();
 
@@ -1966,14 +1969,16 @@ void SongBrowser::rebuildSongButtons() {
                         for(auto *child : button2->getChildren()) {
                             if(child->isSearchMatch()) {
                                 addedSingleChild = true;
-                                this->carousel->container.addBaseUIElement(child);
+                                // perf: not using addBaseUIElement(), we will set pos in updateSongButtonLayout
+                                this->carousel->container.getElementsRaw().push_back(child);
 
                                 child->resetAnimations();
                                 break;  // only one visible child
                             }
                         }
                     } else {
-                        this->carousel->container.addBaseUIElement(button2);
+                        // perf: not using addBaseUIElement(), we will set pos in updateSongButtonLayout
+                        this->carousel->container.getElementsRaw().push_back(button2);
                     }
                 }
 
@@ -1986,7 +1991,8 @@ void SongBrowser::rebuildSongButtons() {
                         if(this->bInSearch && !button3->isSearchMatch()) continue;
 
                         if(!(button3->isSelected() && button3->isHiddenIfSelected()))
-                            this->carousel->container.addBaseUIElement(button3);
+                            // perf: not using addBaseUIElement(), we will set pos in updateSongButtonLayout
+                            this->carousel->container.getElementsRaw().push_back(button3);
 
                         button3->resetAnimations();
                     }
@@ -3379,6 +3385,7 @@ void SongBrowser::selectRandomBeatmap() {
     const auto &elements{this->carousel->container.getElementsAs<CarouselButton>()};
 
     std::vector<CarouselButton *> songButtons;
+    songButtons.reserve(elements.size());
     for(auto element : elements) {
         if(element->btnType != CarouselButtonType::SONG_BUTTON) continue;
         if(element->isIndependentDiffButton()) {

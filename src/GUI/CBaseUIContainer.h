@@ -55,6 +55,7 @@ class CBaseUIContainer : public CBaseUIElement {
     void update_pos();
 
     [[nodiscard]] forceinline const std::vector<CBaseUIElement *> &getElements() const { return this->vElements; }
+    [[nodiscard]] forceinline std::vector<CBaseUIElement *> &getElementsRaw() { return this->vElements; }
 
     // don't use this blindly, make sure that you haven't added anything that isn't compatible with T to the container!
     template <typename T>
