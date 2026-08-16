@@ -280,8 +280,8 @@ bool SongBrowser::sort_by_date_played(SongButton const *a, SongButton const *b) 
     const auto *aPtr = a->getDatabaseBeatmap(), *bPtr = b->getDatabaseBeatmap();
     if((aPtr == nullptr) || (bPtr == nullptr)) return (aPtr == nullptr) < (bPtr == nullptr);
 
-    i64 time1 = aPtr->last_play_time;
-    i64 time2 = bPtr->last_play_time;
+    i64 time1 = aPtr->getLastPlayTime();
+    i64 time2 = bPtr->getLastPlayTime();
     if(time1 == time2) return sort_by_difficulty(a, b);
     return time1 > time2;
 }
@@ -1352,12 +1352,9 @@ void SongBrowser::onDifficultySelected(DatabaseBeatmap *map, bool play) {
 
         // start playing
         if(play) {
-            const auto unixTime = time(nullptr);
-            // TODO: this isn't stored in the database, so it will only be reloaded if we actually submit a score
-            map->last_play_time = unixTime;
-            if(auto *set = map->getParentSet()) {
-                set->last_play_time = unixTime;
-            }
+            // update last play time (TODO: should this only be stored if a certain amount of playtime is reached?)
+            map->setLastPlayTime((i64)time(nullptr));
+            db->update_overrides(map);  // save peppy overrides
             if(this->curSortMethod == SortType::DATEPLAYED) {
                 // force resort
                 // XXX: slow!

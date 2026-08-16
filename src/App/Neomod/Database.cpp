@@ -1208,7 +1208,9 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                         if(version >= 20251225) {  // ppv2 version
                             neomod_maps.skip<u32>();
                         }
-
+                        if(version >= 20260816) {  // last played
+                            neomod_maps.skip<i64>();
+                        }
                         logIfCV(debug_db, "skipped iSetID==-1 beatmap with hash {} load idx: {},{}", md5, i, j);
                     }
                     continue;
@@ -1313,6 +1315,11 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                         ppv2Version = neomod_maps.read<u32>();
                     }
 
+                    i64 last_played = 0;
+                    if(version >= 20260816) {
+                        last_played = neomod_maps.read<i64>();
+                    }
+
                     // Fixup a bug with certain bleeding edge commits ~December 2025,
                     // where the osu_filename was saved as just the folder name itself...
                     if(osu_filename.empty() || osu_filename == mapset_path) {
@@ -1378,6 +1385,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                     diff->fSliderMultiplier = (f32)fSliderMultiplier;
                     diff->iPreviewTime = (i32)iPreviewTime;
                     diff->last_modification_time = last_modification_time;
+                    diff->last_play_time = last_played;
                     diff->iLocalOffset = iLocalOffset;
                     diff->iOnlineOffset = iOnlineOffset;
                     diff->iNumCircles = iNumCircles;
@@ -1461,6 +1469,9 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                     }
                     if(version >= 20251225) {
                         over.ppv2_version = neomod_maps.read<u32>();
+                    }
+                    if(version >= 20260816) {
+                        over.last_played = neomod_maps.read<i64>();
                     }
                     this->peppy_overrides[map_md5] = over;
                 }
@@ -1696,8 +1707,15 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
 
                 i16 offset_online = dbr.read<i16>();
                 dbr.skip_string();  // song title font
-                /*bool unplayed = */ dbr.skip<u8>();
-                /*i64 lastTimePlayed = */ dbr.skip<u64>();
+                const bool unplayed = !!dbr.read<u8>();
+                i64 last_played = 0;
+                if(!unplayed) {
+                    const i64 last_played_dotnet_ticks = dbr.read<i64>();
+                    last_played =
+                        (last_played_dotnet_ticks - LegacyReplay::UNIX_EPOCH_TICKS) / LegacyReplay::TICKS_PER_SECOND;
+                } else {
+                    dbr.skip<i64>();
+                }
                 /*bool isOsz2 = */ dbr.skip<u8>();
 
                 // somehow, some beatmaps may have spaces at the start/end of their
@@ -1802,6 +1820,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
 
                     map->iPreviewTime = preview_time;
                     map->last_modification_time = last_modification_time;
+                    map->last_play_time = last_played;
 
                     map->iNumCircles = nb_circles;
                     map->iNumSliders = nb_sliders;
@@ -1830,6 +1849,9 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                         diffp->iOnlineOffset = override_.online_offset;
                         diffp->fStarsNomod = override_.star_rating;
                         diffp->ppv2Version = override_.ppv2_version;
+                        if(diffp->last_play_time < override_.last_played) {
+                            diffp->last_play_time = override_.last_played;
+                        }
                         diffp->loudness = override_.loudness;
                         diffp->draw_background = override_.draw_background;
                         diffp->sBackgroundImageFileName = override_.background_image_filename;
@@ -1877,7 +1899,6 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
 
         // calculate last played tms for each diff
         // (we always load scores before maps, and this is fast enough to process on the fly)
-        // TODO: should instead store last play time in beatmap database, since this can only count maps which we have a score on!
         {
             Sync::unique_lock diff_lock(this->beatmap_difficulties_mtx);
             Sync::shared_lock score_lock(this->scores_mtx);
@@ -1886,14 +1907,15 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 const auto &map_scores = this->scores.find(hash);
                 if(map_scores == this->scores.end()) continue;
 
+                u64 most_recently_played_timestamp = 0;
                 for(const auto &score : map_scores->second) {
-                    if(diff->last_play_time < score.unixTimestamp) {
-                        diff->last_play_time = static_cast<i64>(score.unixTimestamp);
-                        if(auto *set = diff->getParentSet();  // should be assert...
-                           set && set->last_play_time < diff->last_play_time) {
-                            set->last_play_time = diff->last_play_time;
-                        }
+                    // FIXME: this counts scores coming from players other than the user, if they've downloaded a replay!
+                    if(most_recently_played_timestamp < score.unixTimestamp) {
+                        most_recently_played_timestamp = score.unixTimestamp;
                     }
+                }
+                if(diff->getLastPlayTime() < most_recently_played_timestamp) {
+                    diff->setLastPlayTime(static_cast<i64>(most_recently_played_timestamp));
                 }
             }
         }
@@ -2005,6 +2027,7 @@ void Database::saveMaps() {
             maps.write_string(diff->getArtistUnicode());
             maps.write_string(diff->getBackgroundImageFileName());
             maps.write<u32>(diff->ppv2Version);
+            maps.write<i64>(diff->last_play_time);
 
             nb_diffs_saved++;
         }
@@ -2046,6 +2069,7 @@ void Database::saveMaps() {
         maps.write<u8>(override_.draw_background);
         maps.write_string(override_.background_image_filename);
         maps.write<u32>(override_.ppv2_version);
+        maps.write<i64>(override_.last_played);
 
         nb_overrides++;
     }

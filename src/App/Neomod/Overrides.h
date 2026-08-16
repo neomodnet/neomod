@@ -6,6 +6,7 @@
 
 struct MapOverrides {
     std::string background_image_filename;
+    i64 last_played = 0;
     u32 ppv2_version = 0;
     f32 star_rating = 0.0;
     f32 loudness = 0.f;

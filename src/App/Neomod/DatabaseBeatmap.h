@@ -314,6 +314,12 @@ class DatabaseBeatmap final {
         if(this->parentSet) this->parentSet->setMapsetID(id);
     }
 
+    inline i64 getLastPlayTime() const { return this->last_play_time; }
+    inline void setLastPlayTime(i64 time) {
+        this->last_play_time = time;
+        if(this->parentSet && this->parentSet->last_play_time < time) this->parentSet->last_play_time = time;
+    }
+
     [[nodiscard]] inline std::string_view getFolder() const { return this->sFolder; }
     [[nodiscard]] inline std::string_view getFilePath() const { return this->sFilePath; }
 
@@ -445,9 +451,10 @@ class DatabaseBeatmap final {
    public:
     // raw metadata
     i64 last_modification_time{0};
-    i64 last_play_time{0};
 
    private:
+    i64 last_play_time{0};
+
     // if there is no unicode representation, they remain NULL
     std::string sTitle;
     std::string sTitleUnicode;

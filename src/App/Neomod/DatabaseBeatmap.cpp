@@ -1719,6 +1719,7 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(BeatmapDiffi
 
 MapOverrides DatabaseBeatmap::get_overrides() const {
     return {.background_image_filename{this->getBackgroundImageFileName()},
+            .last_played = this->last_play_time,
             .ppv2_version = this->ppv2Version,
             .star_rating = this->fStarsNomod,
             .loudness = this->loudness.load(std::memory_order_relaxed),

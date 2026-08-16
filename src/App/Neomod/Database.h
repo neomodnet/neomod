@@ -40,7 +40,7 @@ class DatabaseBeatmap;
 using BeatmapDifficulty = DatabaseBeatmap;
 using BeatmapSet = DatabaseBeatmap;
 
-#define NEOMOD_MAPS_DB_VERSION 20260202
+#define NEOMOD_MAPS_DB_VERSION 20260816
 #define NEOMOD_SCORE_DB_VERSION 20240725
 
 class Database;
