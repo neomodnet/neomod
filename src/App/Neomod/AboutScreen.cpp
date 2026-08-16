@@ -399,8 +399,15 @@ void AboutScreen::onChangeClicked(CBaseUIButton *button) {
 void AboutScreen::buildChangelog() {
     std::vector<CHANGELOG> changelogs;
 
+    CHANGELOG v43_13;
+    v43_13.title = "43.13 (" CHANGELOG_TIMESTAMP ")";
+    v43_13.changes = {
+        R"()",
+    };
+    changelogs.push_back(v43_13);
+
     CHANGELOG v43_12;
-    v43_12.title = "43.12 (" CHANGELOG_TIMESTAMP ")";
+    v43_12.title = "43.12 (2026-08-15)";
     v43_12.changes = {
         R"(- Updated difficulty/PPv2 calculation algorithm to 20260706 (latest))",
         R"(  - See https://osu.ppy.sh/home/news/2026-07-03-performance-points-star-rating-updates)",
