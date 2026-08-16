@@ -28,12 +28,12 @@
 #include <algorithm>
 
 namespace {
-constexpr const Color highlightColor = argb(255, 0, 255, 0);
-constexpr const Color defaultColor = argb(255, 255, 255, 255);
+constexpr const Color HIGHLIGHT_COLOR = argb(255, 0, 255, 0);
+constexpr const Color DEFAULT_COLOR = argb(255, 255, 255, 255);
 
 // tab strip metrics, in unscaled units
-constexpr const float tabMargin = 10.0f;
-constexpr const float tabHeight = 30.0f;
+constexpr const float TAB_MARGIN = 10.0f;
+constexpr const float TAB_HEIGHT = 30.0f;
 
 class ChangelogLabel final : public CBaseUIButton {
     NOCOPY_NOMOVE(ChangelogLabel)
@@ -206,7 +206,7 @@ void AboutScreen::setActiveTab(Tab tab) {
 
     for(size_t i = 0; i < NUM_TABS; i++) {
         const bool active = (i == static_cast<size_t>(tab));
-        this->tabs[i].button->setTextBrightColor(active ? highlightColor : defaultColor);
+        this->tabs[i].button->setTextBrightColor(active ? HIGHLIGHT_COLOR : DEFAULT_COLOR);
         this->tabs[i].view->setVisible(active);
     }
 }
@@ -305,8 +305,8 @@ void AboutScreen::updateLayout() {
     ScreenBackable::updateLayout();
 
     const float dpiScale = Osu::getUIScale();
-    const float margin = tabMargin * dpiScale;
-    const float stripHeight = tabHeight * dpiScale;
+    const float margin = TAB_MARGIN * dpiScale;
+    const float stripHeight = TAB_HEIGHT * dpiScale;
     const float stripBottom = 2 * margin + stripHeight;
 
     this->setSize(osu->getVirtScreenSize() + vec2(2, 2));
@@ -404,7 +404,7 @@ void AboutScreen::buildChangelog() {
     v43_13.changes = {
         R"()",
     };
-    changelogs.push_back(v43_13);
+    changelogs.push_back(std::move(v43_13));
 
     CHANGELOG v43_12;
     v43_12.title = "43.12 (2026-08-15)";

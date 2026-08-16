@@ -73,13 +73,13 @@ FinishedScore parse_score(const char *score_line) {
 
     // Mark as a player. Setting this also makes the has_user_info check pass,
     // which unlocks context menu actions such as sending private messages.
-    user->privileges |= 1;
+    user->privileges |= (u8)Privileges::PLAYER;
 
     return score;
 }
 
 // NOTE: also updates local beatmap ID and beatmapset ID if they were missing in our local beatmap
-void process_leaderboard_response(const MD5Hash beatmap_hash, std::string body_str) {
+void process_leaderboard_response(const MD5Hash &beatmap_hash, std::string body_str) {
     // Don't update the leaderboard while playing, that's weird
     if(osu->isInPlayMode()) return;
 

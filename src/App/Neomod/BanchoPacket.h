@@ -4,6 +4,7 @@
 #include "types.h"
 
 #include <cstdlib>
+#include <cassert>
 
 struct Packet {
     u16 id{0};
@@ -13,11 +14,14 @@ struct Packet {
 
     void reserve(u32 newsize) {
         if(newsize <= this->size) return;
-        this->memory = (u8 *)realloc(this->memory, newsize);
+        auto *temp = static_cast<u8 *>(realloc(this->memory, newsize));
+        assert(temp && "realloc failed");
+        if(!temp) return;
+        this->memory = temp;
         this->size = newsize;
     }
 
-    void read_bytes(u8 *bytes, size_t n);
+    [[nodiscard]] uSz read_bytes(u8 *bytes, size_t n);
     [[nodiscard]] u32 read_uleb128();
     [[nodiscard]] std::string read_stdstring();
     [[nodiscard]] MD5String read_hash_chars();
@@ -56,11 +60,11 @@ struct Packet {
         this->write_string_nonnull(strview.data(), strview.length());
     }
 
-    void write_bytes(u8 *bytes, size_t n);
+    void write_bytes(const u8 *bytes, size_t n);
 
     template <typename T>
     void write(T t) {
-        this->write_bytes((u8 *)&t, sizeof(T));
+        this->write_bytes((const u8 *)&t, sizeof(T));
     }
 
    private:

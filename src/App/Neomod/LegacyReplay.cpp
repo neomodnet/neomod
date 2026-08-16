@@ -222,8 +222,9 @@ Info from_bytes(const u8* data, uSz s_data) {
     i32 replay_size = replay.read<i32>();
     if(replay_size <= 0) return info;
     auto replay_data = new u8[replay_size];
-    replay.read_bytes(replay_data, replay_size);
-    info.frames = get_frames(replay_data, replay_size);
+    if(replay.read_bytes(replay_data, replay_size) > 0) {
+        info.frames = get_frames(replay_data, replay_size);
+    }
     delete[] replay_data;
 
     // https://github.com/ppy/osu/blob/a0e300c3/osu.Game/Scoring/Legacy/LegacyScoreDecoder.cs

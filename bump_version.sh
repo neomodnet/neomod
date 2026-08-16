@@ -11,7 +11,7 @@ trap 'popd >/dev/null' EXIT
 
 VERSION="$1"                 # 39.03
 VERSION_RC="${VERSION//./,}" # 39,03
-VERSION_RC="${VERSION_RC//,0/,}" # 39,3 (don't start a group 0)
+VERSION_RC="${VERSION_RC//,0/,}" # 39,3 (don't start a group with 0 (octal))
 VERSION_CL="${VERSION//./_}" # 39_03
 LASTDATE="$(TZ=UTC date +%Y-%m-%d)"
 
@@ -42,4 +42,4 @@ autoconf
     v$VERSION_CL.changes = {\\
         R\"()\",\\
     };\\
-    changelogs.push_back(v$VERSION_CL);" src/App/Neomod/AboutScreen.cpp
+    changelogs.push_back(std::move(v$VERSION_CL));" src/App/Neomod/AboutScreen.cpp
