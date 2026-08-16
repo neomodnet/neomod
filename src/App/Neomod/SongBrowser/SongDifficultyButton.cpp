@@ -240,20 +240,24 @@ void SongDifficultyButton::updateGrade() {
     }
     this->bUpdateGradeScheduled = false;
 
-    Sync::shared_lock lock(db->scores_mtx);
-    const auto& dbScoreIt = db->getScores().find(this->databaseBeatmap->getMD5());
-    if(dbScoreIt == db->getScores().end()) {
-        return;
-    }
+    ScoreGrade maxGrade{ScoreGrade::N};
+    {
+        Sync::shared_lock lock(db->scores_mtx);
+        const auto& dbScoreIt = db->getScores().find(this->databaseBeatmap->getMD5());
+        if(dbScoreIt == db->getScores().end()) {
+            return;
+        }
 
-    for(const auto& score : dbScoreIt->second) {
-        if(score.grade < this->grade) {
-            this->grade = score.grade;
-
-            if(this->parentSongButton->getGrade() > this->grade) {
-                this->parentSongButton->setGrade(this->grade);
+        for(const auto& score : dbScoreIt->second) {
+            if(score.grade < maxGrade) {
+                maxGrade = score.grade;
             }
         }
+    }
+
+    this->grade = maxGrade;
+    if(this->parentSongButton->getGrade() > maxGrade) {
+        this->parentSongButton->setGrade(maxGrade);
     }
 }
 
