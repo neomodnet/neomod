@@ -324,7 +324,7 @@ add_external_project(soloud
     CMAKE_ARGS
         ${EXTERNAL_PROJECT_CMAKE_ARGS}
         -DSOLOUD_WITH_SDL3=ON
-        -DSOLOUD_WITH_MPG123=ON
+        -DSOLOUD_WITH_LIBMPG123=ON
         -DSOLOUD_WITH_FFMPEG=OFF # way too lazy
         -DPKG_CONFIG_ARGN="--msvc-syntax"
     BUILD_COMMAND cmake --build <BINARY_DIR> --config ${CMAKE_BUILD_TYPE} --parallel ${CPU_COUNT}

@@ -1073,49 +1073,47 @@ void SDLMain::configureEvents() {
     cv::use_ime.setCallback(SA::MakeDelegate<&SDLMain::onUseIMEChange>(this));
 }
 
-void SDLMain::setupLogging() {
-    static SDL_LogOutputFunction SDLLogCB = +[](void *, int category, SDL_LogPriority, const char *message) -> void {
-        const char *catStr = "???";
-        switch(category) {
-            case SDL_LOG_CATEGORY_APPLICATION:
-                catStr = "APP";
-                break;
-            case SDL_LOG_CATEGORY_ERROR:
-                catStr = "ERR";
-                break;
-            case SDL_LOG_CATEGORY_SYSTEM:
-                catStr = "SYS";
-                break;
-            case SDL_LOG_CATEGORY_AUDIO:
-                catStr = "AUD";
-                break;
-            case SDL_LOG_CATEGORY_VIDEO:
-                catStr = "VID";
-                break;
-            case SDL_LOG_CATEGORY_RENDER:
-                catStr = "REN";
-                break;
-            case SDL_LOG_CATEGORY_INPUT:
-                catStr = "INP";
-                break;
-            case SDL_LOG_CATEGORY_CUSTOM:
-                catStr = "USR";
-                break;
-            default:
-                break;
-        }
+static void sdl_log_callback(void * /*userdata*/, int category, SDL_LogPriority /*priority*/, const char *message) {
+    const char *catStr = "???";
+    switch(category) {
+        case SDL_LOG_CATEGORY_APPLICATION:
+            catStr = "APP";
+            break;
+        case SDL_LOG_CATEGORY_ERROR:
+            catStr = "ERR";
+            break;
+        case SDL_LOG_CATEGORY_SYSTEM:
+            catStr = "SYS";
+            break;
+        case SDL_LOG_CATEGORY_AUDIO:
+            catStr = "AUD";
+            break;
+        case SDL_LOG_CATEGORY_VIDEO:
+            catStr = "VID";
+            break;
+        case SDL_LOG_CATEGORY_RENDER:
+            catStr = "REN";
+            break;
+        case SDL_LOG_CATEGORY_INPUT:
+            catStr = "INP";
+            break;
+        case SDL_LOG_CATEGORY_CUSTOM:
+            catStr = "USR";
+            break;
+        default:
+            break;
+    }
 
-        // avoid stray newlines
-        std::string formatted = fmt::format("SDL[{}]: {}"_cf, catStr, message);
-        while(formatted.back() == '\r' || formatted.back() == '\n') {
-            formatted.pop_back();
-        }
+    // avoid stray newlines
+    std::string formatted = fmt::format("SDL[{}]: {}"_cf, catStr, message);
+    while(formatted.back() == '\r' || formatted.back() == '\n') {
+        formatted.pop_back();
+    }
 
-        logRaw(formatted);
-    };
+    logRaw(formatted);
+};
 
-    SDL_SetLogOutputFunction(SDLLogCB, nullptr);
-}
+void SDLMain::setupLogging() { SDL_SetLogOutputFunction(sdl_log_callback, nullptr); }
 
 void SDLMain::onDPIChange() {
     const float oldDispScale = m_fDisplayScale;

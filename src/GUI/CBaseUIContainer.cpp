@@ -29,6 +29,12 @@ void CBaseUIContainer::freeElements() {
 // invalidate children without freeing memory
 void CBaseUIContainer::invalidate() { this->vElements.clear(); }
 
+CBaseUIContainer *CBaseUIContainer::addBaseUIElementRaw(CBaseUIElement *element) {
+    assert(!!element && "tried to insert NULL element");
+    this->vElements.push_back(element);
+    return this;
+}
+
 CBaseUIContainer *CBaseUIContainer::addBaseUIElement(CBaseUIElement *element, vec2 pos) {
     return this->addBaseUIElement(element, pos.x, pos.y);
 }
@@ -40,7 +46,7 @@ CBaseUIContainer *CBaseUIContainer::addBaseUIElementBack(CBaseUIElement *element
 }
 
 CBaseUIContainer *CBaseUIContainer::addBaseUIElement(CBaseUIElement *element, float xPos, float yPos) {
-    if(element == nullptr) return this;
+    assert(!!element && "tried to insert NULL element");
 
     element->setRelPos(xPos, yPos);
     element->setPos(this->rect.getPos() + element->relRect.getPos());
@@ -50,7 +56,7 @@ CBaseUIContainer *CBaseUIContainer::addBaseUIElement(CBaseUIElement *element, fl
 }
 
 CBaseUIContainer *CBaseUIContainer::addBaseUIElement(CBaseUIElement *element) {
-    if(element == nullptr) return this;
+    assert(!!element && "tried to insert NULL element");
 
     element->relRect.setPos(element->rect.getPos());
     element->setPos(this->rect.getPos() + element->relRect.getPos());
@@ -77,7 +83,7 @@ CBaseUIContainer *CBaseUIContainer::addBaseUIElements(std::span<CBaseUIElement *
 }
 
 CBaseUIContainer *CBaseUIContainer::addBaseUIElementBack(CBaseUIElement *element, float xPos, float yPos) {
-    if(element == nullptr) return this;
+    assert(!!element && "tried to insert NULL element");
 
     element->setRelPos(xPos, yPos);
     element->setPos(this->rect.getPos() + element->relRect.getPos());
@@ -87,7 +93,7 @@ CBaseUIContainer *CBaseUIContainer::addBaseUIElementBack(CBaseUIElement *element
 }
 
 CBaseUIContainer *CBaseUIContainer::addBaseUIElementBack(CBaseUIElement *element) {
-    if(element == nullptr) return this;
+    assert(!!element && "tried to insert NULL element");
 
     element->relRect.setPos(element->rect.getPos());
     element->setPos(this->rect.getPos() + element->relRect.getPos());

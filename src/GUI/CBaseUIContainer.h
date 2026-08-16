@@ -23,7 +23,7 @@ class CBaseUIContainer : public CBaseUIElement {
     void onChar(KeyboardEvent &e) override;
 
     // just add to container without setting position
-    inline CBaseUIContainer *addBaseUIElementRaw(CBaseUIElement *element) { this->vElements.push_back(element); return this; }
+    CBaseUIContainer *addBaseUIElementRaw(CBaseUIElement *element);
 
     CBaseUIContainer *addBaseUIElement(CBaseUIElement *element, float xPos, float yPos);
     CBaseUIContainer *addBaseUIElement(CBaseUIElement *element, vec2 pos);
