@@ -4,7 +4,7 @@ BIN="${BIN:-"/opt/msvc/bin/x64"}"
 
 export PATH="${BIN}:${PATH}"
 
-ENV="$BIN/msvcenv.sh"
+ENV="$(command -v msvcenv.sh)"
 if [ ! -f "$ENV" ]; then
 	printf '%s' "$ENV doesn't exist, install msvc headers and set BIN" && exit 1
 else
@@ -39,7 +39,7 @@ export WINEBUILD=1
 exit_cleanup() {
 	$WINESERVER -k9
 	# these just stay alive forever as zombies due to a known wine bug w/ MSVC and parallel jobs :/
-	for pid in $(pgrep -wf 'cl.exe'); do kill -SIGKILL "$pid"; done
+	pkill -9 -f '\.exe'
 }
 
 doit() {
