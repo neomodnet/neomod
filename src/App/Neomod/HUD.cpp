@@ -529,8 +529,6 @@ void HUD::drawCursorTrail(vec2 pos, f32 alphaMultiplier, bool secondTrail) {
                              alphaMultiplier, fposuTrailJumpFix);
 }
 
-static CONSTINIT std::array<vec2, 4> defaultQuadTexcoords{vec2{0, 0}, {1, 0}, {1, 1}, {0, 1}};
-
 void HUD::drawCursorTrailInt(Shader *trailShader, CursorTrail &trail, vec2 pos, f32 alphaMultiplier,
                              bool emptyTrailFrame) {
     const auto &trailImage = osu->getSkin()->i_cursor_trail;
@@ -557,6 +555,8 @@ void HUD::drawCursorTrailInt(Shader *trailShader, CursorTrail &trail, vec2 pos, 
         sSz i = static_cast<sSz>(trail.size()) - 1;
 
         if(smoothCursorTrail) {
+            static constexpr const std::array<vec2, 4> defaultQuadTexcoords{vec2{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+
             VertexArrayObject &vao = *this->cursorTrailVAO;
             vao.reserve((i + 1) * 4);
 
@@ -658,27 +658,26 @@ void HUD::drawCursorRipples() {
     const f32 fadeDuration = std::max(
         cv::cursor_ripple_duration.getFloat() - cv::cursor_ripple_anim_start_fadeout_delay.getFloat(), 0.0001f);
 
-    if(cv::cursor_ripple_additive.getBool()) g->setBlendMode(DrawBlendMode::ADDITIVE);
+    const bool isAdditive = cv::cursor_ripple_additive.getBool();
+    if(isAdditive) g->setBlendMode(DrawBlendMode::ADDITIVE);
 
     g->setColor(RGB_CV_TO_COL(cursor_ripple_tint));
     cursorRipple->bind();
-    {
-        for(auto r : this->cursorRipples) {
-            const f32 animPercent = 1.0f - std::clamp<f32>((r.time - engine->getTime()) / duration, 0.0f, 1.0f);
-            const f32 fadePercent = 1.0f - std::clamp<f32>((r.time - engine->getTime()) / fadeDuration, 0.0f, 1.0f);
+    for(auto r : this->cursorRipples) {
+        const f32 animPercent = 1.0f - std::clamp<f32>((r.time - engine->getTime()) / duration, 0.0f, 1.0f);
+        const f32 fadePercent = 1.0f - std::clamp<f32>((r.time - engine->getTime()) / fadeDuration, 0.0f, 1.0f);
 
-            const f32 scale =
-                std::lerp(cv::cursor_ripple_anim_start_scale.getFloat(), cv::cursor_ripple_anim_end_scale.getFloat(),
-                          1.0f - (1.0f - animPercent) * (1.0f - animPercent));  // quad out
+        const f32 scale =
+            std::lerp(cv::cursor_ripple_anim_start_scale.getFloat(), cv::cursor_ripple_anim_end_scale.getFloat(),
+                      1.0f - (1.0f - animPercent) * (1.0f - animPercent));  // quad out
 
-            g->setAlpha(cv::cursor_ripple_alpha.getFloat() * (1.0f - fadePercent));
-            g->drawQuad(r.pos.x - normalizedWidth * scale / 2, r.pos.y - normalizedHeight * scale / 2,
-                        normalizedWidth * scale, normalizedHeight * scale);
-        }
+        g->setAlpha(cv::cursor_ripple_alpha.getFloat() * (1.0f - fadePercent));
+        g->drawQuad(r.pos.x - normalizedWidth * scale / 2, r.pos.y - normalizedHeight * scale / 2,
+                    normalizedWidth * scale, normalizedHeight * scale);
     }
     cursorRipple->unbind();
 
-    if(cv::cursor_ripple_additive.getBool()) g->setBlendMode(DrawBlendMode::ALPHA);
+    if(isAdditive) g->setBlendMode(DrawBlendMode::ALPHA);
 }
 
 void HUD::drawFps() {
@@ -710,10 +709,10 @@ void HUD::drawFps() {
     }
 
     fps = std::round(fps);
-    const std::string fpsString = fmt::format("{} fps"_cf, (i32)(fps));
+    const std::string fpsString = fmt::format("{} fps", (i32)(fps));
 
     const double frametime_ms = old_worst_frametime * 1000.0;
-    const std::string msString = fmt::format("{:.{}f} ms"_cf, frametime_ms, frametime_ms < 0.1 ? 2 : 1);
+    const std::string msString = fmt::format("{:.{}f} ms", frametime_ms, frametime_ms < 0.1 ? 2 : 1);
 
     const f32 dpiScale = Osu::getUIScale();
 
@@ -1378,14 +1377,15 @@ std::span<const SCORE_ENTRY> HUD::updateAndGetCurrentScores() {
             playerScoreEntry.name = BanchoState::get_username();
             playerScoreEntry.player_id = BanchoState::get_uid();
         }
+        const auto &playerScore = *osu->getScore();
         playerScoreEntry.entry_id = 0;
-        playerScoreEntry.currentCombo = osu->getScore()->getCombo();
-        playerScoreEntry.maxCombo = osu->getScore()->getComboMax();
-        playerScoreEntry.score = osu->getScore()->getScore();
+        playerScoreEntry.currentCombo = playerScore.getCombo();
+        playerScoreEntry.maxCombo = playerScore.getComboMax();
+        playerScoreEntry.score = playerScore.getScore();
         playerScoreEntry.pp = std::max(0.f, osu->getMapInterface()->live_pp());
-        playerScoreEntry.misses = osu->getScore()->getNumMisses();
-        playerScoreEntry.accuracy = osu->getScore()->getAccuracy();
-        playerScoreEntry.dead = osu->getScore()->isDead();
+        playerScoreEntry.misses = playerScore.getNumMisses();
+        playerScoreEntry.accuracy = playerScore.getAccuracy();
+        playerScoreEntry.dead = playerScore.isDead();
         playerScoreEntry.highlight = true;
         this->scores_cache.push_back(std::move(playerScoreEntry));
         nb_slots++;
@@ -2400,10 +2400,10 @@ void HUD::drawInputOverlay(i32 numK1, i32 numK2, i32 numM1, i32 numM2) {
 
     // keys
     {
-        const f32 textFontHeightPercent = 0.3f;
-        const Color colorIdle = argb(255, 255, 255, 255);
-        const Color colorKeyboard = argb(255, 255, 222, 0);
-        const Color colorMouse = argb(255, 248, 0, 158);
+        constexpr f32 textFontHeightPercent = 0.3f;
+        constexpr Color colorIdle = argb(255, 255, 255, 255);
+        constexpr Color colorKeyboard = argb(255, 255, 222, 0);
+        constexpr Color colorMouse = argb(255, 248, 0, 158);
 
         struct {
             i32 key;

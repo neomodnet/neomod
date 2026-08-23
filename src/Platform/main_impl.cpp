@@ -396,7 +396,7 @@ SDL_AppResult SDLMain::handleEvent(SDL_Event *event) {
         if(size_t logsz = std::min(logBuf.size(),
                                    static_cast<size_t>(SDL_GetEventDescription(event, logBuf.data(), logBuf.size())));
            logsz > 0) {
-            logRaw("[handleEvent] frame: {}; event: {}"_cf, m_engine->getFrameCount(),
+            logRaw("[handleEvent] frame: {}; event: {}", m_engine->getFrameCount(),
                    std::string_view{logBuf.data(), logsz});
         }
     }
@@ -1105,7 +1105,7 @@ static void sdl_log_callback(void * /*userdata*/, int category, SDL_LogPriority 
     }
 
     // avoid stray newlines
-    std::string formatted = fmt::format("SDL[{}]: {}"_cf, catStr, message);
+    std::string formatted = fmt::format("SDL[{}]: {}", catStr, message);
     while(formatted.back() == '\r' || formatted.back() == '\n') {
         formatted.pop_back();
     }

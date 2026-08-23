@@ -6,7 +6,6 @@
 
 #ifndef BUILD_TOOLS_ONLY
 #include "fmt/format.h"
-#include "fmt/compile.h"
 #endif
 
 template <typename Vec = vec2>
@@ -116,9 +115,9 @@ struct formatter<McRectBase<Vec>> {
     template <typename FormatContext>
     auto format(const McRectBase<Vec> &r, FormatContext &ctx) const {
         if constexpr(std::is_floating_point_v<typename McRectBase<Vec>::scalar>) {
-            return format_to(ctx.out(), "({:.2f},{:.2f}): {:.2f}x{:.2f}"_cf, r.vMin.x, r.vMin.y, r.vSize.x, r.vSize.y);
+            return format_to(ctx.out(), "({:.2f},{:.2f}): {:.2f}x{:.2f}", r.vMin.x, r.vMin.y, r.vSize.x, r.vSize.y);
         } else {
-            return format_to(ctx.out(), "({},{}): {}x{}"_cf, r.vMin.x, r.vMin.y, r.vSize.x, r.vSize.y);
+            return format_to(ctx.out(), "({},{}): {}x{}", r.vMin.x, r.vMin.y, r.vSize.x, r.vSize.y);
         }
     }
 };

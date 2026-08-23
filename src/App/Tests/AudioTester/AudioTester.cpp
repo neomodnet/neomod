@@ -857,10 +857,10 @@ void AudioTesterImpl::drawCorrelation(float startY) {
                 const bool altGood = std::abs(r.altAvgErrorMS) < 5.0;
                 const bool alt2Good = std::abs(r.alt2AvgErrorMS) < 5.0;
 
-                auto line = fmt::format(
-                    "{:.2f}x | {:>+7.2f} ({:>5.1f}) | {:>+6.2f} ({:>4.1f}) | {:>+6.2f} ({:>4.1f}) | {:.3f}"_cf, r.speed,
-                    r.avgErrorMS, r.maxAbsErrorMS, r.altAvgErrorMS, r.altMaxAbsErrorMS, r.alt2AvgErrorMS,
-                    r.alt2MaxAbsErrorMS, r.avgCorrelation);
+                auto line =
+                    fmt::format("{:.2f}x | {:>+7.2f} ({:>5.1f}) | {:>+6.2f} ({:>4.1f}) | {:>+6.2f} ({:>4.1f}) | {:.3f}",
+                                r.speed, r.avgErrorMS, r.maxAbsErrorMS, r.altAvgErrorMS, r.altMaxAbsErrorMS,
+                                r.alt2AvgErrorMS, r.alt2MaxAbsErrorMS, r.avgCorrelation);
 
                 g->setColor(alt2Good ? 0xff88ff88 : altGood ? 0xffffffff : 0xffff8888);
                 g->drawString(font, line);
@@ -895,7 +895,7 @@ void AudioTesterImpl::drawBassComparison(float startY) {
         } else if(!m_compDone) {
             g->setColor(0xffffff66);
             if(m_compSpeedIdx < static_cast<int>(std::size(COMP_SPEEDS))) {
-                auto status = fmt::format("Testing speed {:.2f}x ({:d}/{:d})... {:s}"_cf, COMP_SPEEDS[m_compSpeedIdx],
+                auto status = fmt::format("Testing speed {:.2f}x ({:d}/{:d})... {:s}", COMP_SPEEDS[m_compSpeedIdx],
                                           m_compSpeedIdx + 1, static_cast<int>(std::size(COMP_SPEEDS)),
                                           m_compState == COMP_WARMUP ? "warming up" : "sampling");
                 g->drawString(font, status);
@@ -948,9 +948,9 @@ void AudioTesterImpl::drawBassComparison(float startY) {
                 const double errorMs = hasImpulse ? std::abs(baselined - impulseBaselined) * 1000.0 : -1.0;
 
                 auto line =
-                    fmt::format("{:.2f}x | {:>+8.2f}ms  | {:>+7.2f}ms  | {:>+7.2f}ms | {:s}"_cf, cr.speed,
+                    fmt::format("{:.2f}x | {:>+8.2f}ms  | {:>+7.2f}ms  | {:>+7.2f}ms | {:s}", cr.speed,
                                 cr.avgDiffS * 1000.0, baselined * 1000.0, hasImpulse ? impulseBaselined * 1000.0 : 0.0,
-                                hasImpulse ? (errorMs < 3.0 ? "OK" : fmt::format("{:.1f}ms off"_cf, errorMs)) : "N/A");
+                                hasImpulse ? (errorMs < 3.0 ? "OK" : fmt::format("{:.1f}ms off", errorMs)) : "N/A");
 
                 g->setColor((!hasImpulse || errorMs < 3.0) ? 0xffffffff : 0xffff8888);
                 g->drawString(font, line);
@@ -959,8 +959,8 @@ void AudioTesterImpl::drawBassComparison(float startY) {
 
             g->translate(0, lineH * 0.5f);
             g->setColor(0xffaaaaaa);
-            g->drawString(
-                font, fmt::format("Baseline (1.0x raw diff): {:>+.2f}ms | Press B to re-run"_cf, baseline * 1000.0));
+            g->drawString(font,
+                          fmt::format("Baseline (1.0x raw diff): {:>+.2f}ms | Press B to re-run", baseline * 1000.0));
             g->translate(0, lineH);
             g->drawString(font, "Baselined = raw diff minus 1.0x constant | Impulse = impulse test relative to 1.0x");
         }
@@ -999,14 +999,15 @@ void AudioTesterImpl::draw() {
 
             for(const auto &r : m_results) {
                 if(r.impulsesMeasured == 0) {
-                    auto line = fmt::format("{:.2f}x | (no impulses detected)"_cf, r.speed);
+                    auto line = fmt::format("{:.2f}x | (no impulses detected)", r.speed);
                     g->setColor(0xffff6666);
                     g->drawString(font, line);
                     g->setColor(0xffffffff);
                 } else {
                     const double jitterMs = (r.maxOffsetS - r.minOffsetS) * 1000.0;
                     auto line = fmt::format(
-                        "{:.2f}x | {:>+7.2f}ms | {:>6.2f}ms  | {:>2d}/{:d} | {:>+7.1f}ms | {:>+7.1f}ms | {:>+7.1f}ms | {:>+7.1f}ms | {:>5d}   | {:>5d} | {:>5d}"_cf,
+                        "{:.2f}x | {:>+7.2f}ms | {:>6.2f}ms  | {:>2d}/{:d} | {:>+7.1f}ms | {:>+7.1f}ms | {:>+7.1f}ms | "
+                        "{:>+7.1f}ms | {:>5d}   | {:>5d} | {:>5d}",
                         r.speed, r.avgOffsetS * 1000.0, jitterMs, r.impulsesMeasured,
                         static_cast<int>((SIGNAL_DURATION_S - FIRST_IMPULSE_S) / IMPULSE_SPACING_S), r.strat1 * 1000.0,
                         r.strat1n * 1000.0, r.strat2 * 1000.0, r.strat2n * 1000.0, r.initialLatency, r.inputSequence,

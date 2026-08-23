@@ -37,8 +37,8 @@ using Color = uint32_t;
 #include <functional>
 #include <span>
 
-using std::string_view_literals::operator""sv;
-using std::string_literals::operator""s;
+using namespace std::string_view_literals;
+using namespace std::string_literals;
 
 // purpose:
 // 1) contain all infos which are ALWAYS kept in memory for beatmaps

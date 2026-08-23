@@ -188,6 +188,8 @@ int get_plural(int n) {
 static_assert(std::ranges::is_sorted(TRANSLATABLE_STRINGS),
               "TRANSLATABLE_STRINGS must be sorted (string_index relies on binary search)");
 
+std::span<const Language> get_available_languages() { return {std::data(LANGUAGES), std::size(LANGUAGES)}; }
+
 void load(std::string_view locale) {
     // The translations[], current_language, and current_plural_form globals are read
     // unsynchronized by every _() / tformat() call across all threads. This is safe only

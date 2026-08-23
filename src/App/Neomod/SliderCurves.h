@@ -40,9 +40,7 @@ class SliderCurve final {
     [[nodiscard]] inline f32 getStartAngle() const { return m_startAngle; }
     [[nodiscard]] inline f32 getEndAngle() const { return m_endAngle; }
 
-    [[nodiscard]] inline std::span<const vec2> getPoints() const {
-        return m_curvePoints;
-    }  // NOTE: not adjusted for stacking/HR
+    [[nodiscard]] std::span<const vec2> getPoints() const;  // NOTE: not adjusted for stacking/HR
 
     [[nodiscard]] inline f32 getPixelLength() const { return m_pixelLength; }
 

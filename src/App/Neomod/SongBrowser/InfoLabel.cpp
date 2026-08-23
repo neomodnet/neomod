@@ -27,9 +27,6 @@
 #include "TooltipOverlay.h"
 #include "UI.h"
 
-using fmt::literals::operator""_cf;
-using fmt::literals::operator""_a;
-
 InfoLabel::InfoLabel(f32 xPos, f32 yPos, f32 xSize, f32 ySize, std::string name)
     : CBaseUIButton(xPos, yPos, xSize, ySize, std::move(name), "") {
     // font for non-title parts (song info)
@@ -79,8 +76,8 @@ void InfoLabel::draw() {
     }
 
     // build strings
-    const std::string titleText{fmt::format("{:s} - {:s} [{:s}]"_cf, this->sArtist, this->sTitle, this->sDiff)};
-    const std::string subTitleText{fmt::format("Mapped by {:s}"_cf, this->sMapper)};
+    const std::string titleText{fmt::format("{:s} - {:s} [{:s}]", this->sArtist, this->sTitle, this->sDiff)};
+    const std::string subTitleText{fmt::format("Mapped by {:s}", this->sMapper)};
 
     const std::string songInfoText{this->buildSongInfoString()};
     const std::string diffInfoText{this->buildDiffInfoString()};
@@ -195,13 +192,12 @@ void InfoLabel::updateInput(CBaseUIEventCtx &c) {
         auto *tooltipOverlay{ui->getTooltipOverlay()};
         tooltipOverlay->begin();
         {
-            tooltipOverlay->addLine(fmt::format("Approach time: {:.2f}ms"_cf, approachTimeRoundedCompensated));
-            tooltipOverlay->addLine(fmt::format("300: +-{:.2f}ms"_cf, hitWindow300RoundedCompensated));
-            tooltipOverlay->addLine(fmt::format("100: +-{:.2f}ms"_cf, hitWindow100RoundedCompensated));
-            tooltipOverlay->addLine(fmt::format(" 50: +-{:.2f}ms"_cf, hitWindow50RoundedCompensated));
-            tooltipOverlay->addLine(
-                fmt::format("Spinner difficulty: {:.2f}"_cf, GameRules::getSpinnerSpinsPerSecond(pf)));
-            tooltipOverlay->addLine(fmt::format("Hit object radius: {:.2f}"_cf, hitobjectRadiusRoundedCompensated));
+            tooltipOverlay->addLine(fmt::format("Approach time: {:.2f}ms", approachTimeRoundedCompensated));
+            tooltipOverlay->addLine(fmt::format("300: +-{:.2f}ms", hitWindow300RoundedCompensated));
+            tooltipOverlay->addLine(fmt::format("100: +-{:.2f}ms", hitWindow100RoundedCompensated));
+            tooltipOverlay->addLine(fmt::format(" 50: +-{:.2f}ms", hitWindow50RoundedCompensated));
+            tooltipOverlay->addLine(fmt::format("Spinner difficulty: {:.2f}", GameRules::getSpinnerSpinsPerSecond(pf)));
+            tooltipOverlay->addLine(fmt::format("Hit object radius: {:.2f}", hitobjectRadiusRoundedCompensated));
 
             if(bmDiff2 != nullptr) {
                 i32 numObjects{bmDiff2->getNumObjects()};
@@ -218,20 +214,19 @@ void InfoLabel::updateInput(CBaseUIEventCtx &c) {
                     spm = static_cast<f32>(numSliders) / durMinutes;
                 }
 
-                tooltipOverlay->addLine(fmt::format("Circles: {:d}, Sliders: {:d}, Spinners: {:d}"_cf, numCircles,
+                tooltipOverlay->addLine(fmt::format("Circles: {:d}, Sliders: {:d}, Spinners: {:d}", numCircles,
                                                     numSliders, std::max(0, numObjects - numCircles - numSliders)));
-                tooltipOverlay->addLine(
-                    fmt::format("OPM: {:d}, CPM: {:d}, SPM: {:d}"_cf, (i32)opm, (i32)cpm, (i32)spm));
-                tooltipOverlay->addLine(fmt::format("ID: {:d}, SetID: {:d}"_cf, bmDiff2->getID(), bmDiff2->getSetID()));
-                tooltipOverlay->addLine(fmt::format("MD5: {:s}"_cf, bmDiff2->getMD5()));
+                tooltipOverlay->addLine(fmt::format("OPM: {:d}, CPM: {:d}, SPM: {:d}", (i32)opm, (i32)cpm, (i32)spm));
+                tooltipOverlay->addLine(fmt::format("ID: {:d}, SetID: {:d}", bmDiff2->getID(), bmDiff2->getSetID()));
+                tooltipOverlay->addLine(fmt::format("MD5: {:s}", bmDiff2->getMD5()));
                 // mostly for debugging
                 if(keyboard->isShiftDown()) {
-                    tooltipOverlay->addLine(fmt::format("Title: {:s}"_cf, bmDiff2->getTitleLatin()));
-                    tooltipOverlay->addLine(fmt::format("TitleUnicode: {:s}"_cf, bmDiff2->getTitleUnicode()));
-                    tooltipOverlay->addLine(fmt::format("Artist: {:s}"_cf, bmDiff2->getArtistLatin()));
-                    tooltipOverlay->addLine(fmt::format("ArtistUnicode: {:s}"_cf, bmDiff2->getArtistUnicode()));
+                    tooltipOverlay->addLine(fmt::format("Title: {:s}", bmDiff2->getTitleLatin()));
+                    tooltipOverlay->addLine(fmt::format("TitleUnicode: {:s}", bmDiff2->getTitleUnicode()));
+                    tooltipOverlay->addLine(fmt::format("Artist: {:s}", bmDiff2->getArtistLatin()));
+                    tooltipOverlay->addLine(fmt::format("ArtistUnicode: {:s}", bmDiff2->getArtistUnicode()));
                     tooltipOverlay->addLine(
-                        fmt::format("Loudness: {:.2f}"_cf, bmDiff2->loudness.load(std::memory_order_relaxed)));
+                        fmt::format("Loudness: {:.2f}", bmDiff2->loudness.load(std::memory_order_relaxed)));
                     // extra verbose
                     if(keyboard->isControlDown()) {
                         tooltipOverlay->addLine(fmt::format("Active precalc: {:#02x}={:s}", StarPrecalc::active_idx,

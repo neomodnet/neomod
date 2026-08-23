@@ -20,9 +20,6 @@
 
 #include <cstring>
 
-using fmt::literals::operator""_cf;
-using fmt::literals::operator""_a;
-
 namespace cv {
 static ConVar vprof_sysinfo_refresh_interval("vprof_sysinfo_refresh_interval", 0.5f, CLIENT);
 static ConVar vprof_details_textoutline(
@@ -127,21 +124,20 @@ void VisualProfiler::draw() {
                 const int vramTotalMB = g->getVRAMTotal() / 1024;
                 const int vramRemainingMB = g->getVRAMRemaining() / 1024;
 
-                addTextLine(fmt::format("GPU Vendor: {:s}"_cf, g->getVendor()), textFont, this->textLines);
-                addTextLine(fmt::format("Model: {:s}"_cf, g->getModel()), textFont, this->textLines);
-                addTextLine(fmt::format("Version: {:s}"_cf, g->getVersion()), textFont, this->textLines);
+                addTextLine(fmt::format("GPU Vendor: {:s}", g->getVendor()), textFont, this->textLines);
+                addTextLine(fmt::format("Model: {:s}", g->getModel()), textFont, this->textLines);
+                addTextLine(fmt::format("Version: {:s}", g->getVersion()), textFont, this->textLines);
                 addTextLine(
-                    fmt::format("Resolution: {:d} x {:d}"_cf, (int)g->getResolution().x, (int)g->getResolution().y),
+                    fmt::format("Resolution: {:d} x {:d}", (int)g->getResolution().x, (int)g->getResolution().y),
                     textFont, this->textLines);
-                addTextLine(fmt::format("NativeRes: {:d} x {:d}"_cf, (int)env->getNativeScreenSize().x,
+                addTextLine(fmt::format("NativeRes: {:d} x {:d}", (int)env->getNativeScreenSize().x,
                                         (int)env->getNativeScreenSize().y),
                             textFont, this->textLines);
-                addTextLine(fmt::format("Env Pixel Density: {:f}"_cf, env->getPixelDensity()), textFont,
-                            this->textLines);
-                addTextLine(fmt::format("Env DPI Scale: {:f}"_cf, env->getDPIScale()), textFont, this->textLines);
-                addTextLine(fmt::format("Env DPI: {:d}"_cf, (int)env->getDPI()), textFont, this->textLines);
-                addTextLine(fmt::format("Renderer: {:s}"_cf, g->getName()), textFont, this->textLines);  //
-                addTextLine(fmt::format("VRAM: {:d} MB / {:d} MB"_cf, vramRemainingMB, vramTotalMB), textFont,
+                addTextLine(fmt::format("Env Pixel Density: {:f}", env->getPixelDensity()), textFont, this->textLines);
+                addTextLine(fmt::format("Env DPI Scale: {:f}", env->getDPIScale()), textFont, this->textLines);
+                addTextLine(fmt::format("Env DPI: {:d}", (int)env->getDPI()), textFont, this->textLines);
+                addTextLine(fmt::format("Renderer: {:s}", g->getName()), textFont, this->textLines);  //
+                addTextLine(fmt::format("VRAM: {:d} MB / {:d} MB", vramRemainingMB, vramTotalMB), textFont,
                             this->textLines);
             } break;
 
@@ -153,39 +149,38 @@ void VisualProfiler::draw() {
 
                 addTextLine("CPU info:", {}, textFont, this->textLines);
 
-                addTextLine("Threads:", fmt::format("{:d}"_cf, cinfo.threadCount), textFont, this->textLines);
+                addTextLine("Threads:", fmt::format("{:d}", cinfo.threadCount), textFont, this->textLines);
 
-                addTextLine("CPU Usage:", fmt::format("{:.2f}%"_cf, cinfo.cpuUsage), textFont, this->textLines);
-                addTextLine("CPU Time (usr):", fmt::format("{:.2f}s"_cf, cinfo.userTime), textFont, this->textLines);
-                addTextLine("CPU Time (krnl):", fmt::format("{:.2f}s"_cf, cinfo.kernelTime), textFont, this->textLines);
+                addTextLine("CPU Usage:", fmt::format("{:.2f}%", cinfo.cpuUsage), textFont, this->textLines);
+                addTextLine("CPU Time (usr):", fmt::format("{:.2f}s", cinfo.userTime), textFont, this->textLines);
+                addTextLine("CPU Time (krnl):", fmt::format("{:.2f}s", cinfo.kernelTime), textFont, this->textLines);
 
-                addTextLine("CTXT (Vol.):", fmt::format("{:d}"_cf, cinfo.voluntaryCtxSwitches), textFont,
-                            this->textLines);
-                addTextLine("CTXT (Invol.):", fmt::format("{:d}"_cf, cinfo.involuntaryCtxSwitches), textFont,
+                addTextLine("CTXT (Vol.):", fmt::format("{:d}", cinfo.voluntaryCtxSwitches), textFont, this->textLines);
+                addTextLine("CTXT (Invol.):", fmt::format("{:d}", cinfo.involuntaryCtxSwitches), textFont,
                             this->textLines);
 
                 addTextLine({}, textFont, this->textLines);
 
                 addTextLine("RAM info:", {}, textFont, this->textLines);
-                addTextLine("Total Physical:", fmt::format("{:d}MB"_cf, minfo.totalPhysical / (1024UL * 1024)),
-                            textFont, this->textLines);
-                addTextLine("Avail Physical:", fmt::format("{:d}MB"_cf, minfo.availPhysical / (1024UL * 1024)),
-                            textFont, this->textLines);
-                addTextLine("Total Virtual:", fmt::format("{:d}MB"_cf, minfo.totalVirtual / (1024UL * 1024)), textFont,
+                addTextLine("Total Physical:", fmt::format("{:d}MB", minfo.totalPhysical / (1024UL * 1024)), textFont,
                             this->textLines);
-                addTextLine("Usage (RSS):", fmt::format("{:d}MB"_cf, minfo.currentRSS / (1024UL * 1024)), textFont,
+                addTextLine("Avail Physical:", fmt::format("{:d}MB", minfo.availPhysical / (1024UL * 1024)), textFont,
                             this->textLines);
-                addTextLine("Peak RSS:", fmt::format("{:d}MB"_cf, minfo.peakRSS / (1024UL * 1024)), textFont,
+                addTextLine("Total Virtual:", fmt::format("{:d}MB", minfo.totalVirtual / (1024UL * 1024)), textFont,
                             this->textLines);
-
-                addTextLine("Virtual:", fmt::format("{:d}MB"_cf, minfo.virtualSize / (1024UL * 1024)), textFont,
+                addTextLine("Usage (RSS):", fmt::format("{:d}MB", minfo.currentRSS / (1024UL * 1024)), textFont,
                             this->textLines);
-                addTextLine("Private:", fmt::format("{:d}MB"_cf, minfo.privateBytes / (1024UL * 1024)), textFont,
-                            this->textLines);
-                addTextLine("Shared:", fmt::format("{:d}MB"_cf, minfo.sharedBytes / (1024UL * 1024)), textFont,
+                addTextLine("Peak RSS:", fmt::format("{:d}MB", minfo.peakRSS / (1024UL * 1024)), textFont,
                             this->textLines);
 
-                addTextLine("Page Faults:", fmt::format("{:d}"_cf, minfo.pageFaults), textFont, this->textLines);
+                addTextLine("Virtual:", fmt::format("{:d}MB", minfo.virtualSize / (1024UL * 1024)), textFont,
+                            this->textLines);
+                addTextLine("Private:", fmt::format("{:d}MB", minfo.privateBytes / (1024UL * 1024)), textFont,
+                            this->textLines);
+                addTextLine("Shared:", fmt::format("{:d}MB", minfo.sharedBytes / (1024UL * 1024)), textFont,
+                            this->textLines);
+
+                addTextLine("Page Faults:", fmt::format("{:d}", minfo.pageFaults), textFont, this->textLines);
             } break;
 
             case ENGINE_INFO: {
@@ -195,38 +190,37 @@ void VisualProfiler::draw() {
                 const double time = engine->getTime();
                 const vec2 envMousePos = env->getMousePos();
 
-                addTextLine(fmt::format("Platform: {:s}"_cf, RuntimePlatform::current_string()), textFont,
+                addTextLine(fmt::format("Platform: {:s}", RuntimePlatform::current_string()), textFont,
                             this->textLines);
                 addTextLine("Compiler: " MC_COMPILERSTR, textFont, this->textLines);
-                addTextLine(fmt::format("ConVars: {:d}"_cf, cvars().getNumConVars()), textFont, this->textLines);
-                addTextLine(fmt::format("Monitor: [{:d}] of {:d}"_cf, env->getMonitor(), env->getMonitors().size()),
+                addTextLine(fmt::format("ConVars: {:d}", cvars().getNumConVars()), textFont, this->textLines);
+                addTextLine(fmt::format("Monitor: [{:d}] of {:d}", env->getMonitor(), env->getMonitors().size()),
                             textFont, this->textLines);
-                addTextLine(fmt::format("Env Mouse Pos: {:d} x {:d}"_cf, (int)envMousePos.x, (int)envMousePos.y),
-                            textFont, this->textLines);
-                addTextLine(fmt::format("Mouse Input Grabbed: {}"_cf, env->isMouseInputGrabbed()), textFont,
+                addTextLine(fmt::format("Env Mouse Pos: {:d} x {:d}", (int)envMousePos.x, (int)envMousePos.y), textFont,
                             this->textLines);
-                addTextLine(fmt::format("Raw Mouse Input: {}"_cf, env->isOSMouseInputRaw()), textFont, this->textLines);
-                addTextLine(fmt::format("Keyboard Input Grabbed: {}"_cf, env->isKeyboardInputGrabbed()), textFont,
+                addTextLine(fmt::format("Mouse Input Grabbed: {}", env->isMouseInputGrabbed()), textFont,
+                            this->textLines);
+                addTextLine(fmt::format("Raw Mouse Input: {}", env->isOSMouseInputRaw()), textFont, this->textLines);
+                addTextLine(fmt::format("Keyboard Input Grabbed: {}", env->isKeyboardInputGrabbed()), textFont,
                             this->textLines);
                 if constexpr(Env::cfg(OS::WINDOWS)) {
-                    addTextLine(fmt::format("Raw Keyboard Input: {}"_cf, env->isOSKeyboardInputRaw()), textFont,
+                    addTextLine(fmt::format("Raw Keyboard Input: {}", env->isOSKeyboardInputRaw()), textFont,
                                 this->textLines);
                 }
-                addTextLine(fmt::format("Sound Device: {:s}"_cf, soundEngine->getOutputDeviceName()), textFont,
+                addTextLine(fmt::format("Sound Device: {:s}", soundEngine->getOutputDeviceName()), textFont,
                             this->textLines);
-                addTextLine(fmt::format("Sound Volume: {:f}"_cf, soundEngine->getVolume()), textFont, this->textLines);
-                addTextLine(fmt::format("Pool: {:d} threads, {:d} pending"_cf, Async::get_thread_count(),
+                addTextLine(fmt::format("Sound Volume: {:f}", soundEngine->getVolume()), textFont, this->textLines);
+                addTextLine(fmt::format("Pool: {:d} threads, {:d} pending", Async::get_thread_count(),
                                         AsyncPool::get().pending_count()),
                             textFont, this->textLines);
-                addTextLine(fmt::format("RM InFlight: {:d}, DestroyQ: {:d}"_cf, resourceManager->getNumInFlight(),
+                addTextLine(fmt::format("RM InFlight: {:d}, DestroyQ: {:d}", resourceManager->getNumInFlight(),
                                         resourceManager->getNumAsyncDestroyQueue()),
                             textFont, this->textLines);
-                addTextLine(fmt::format("RM Named Resources: {:d}"_cf, resourceManager->getResources().size()),
-                            textFont, this->textLines);
-                addTextLine(fmt::format("Animations: {:d}"_cf, anim::getNumActiveAnimations()), textFont,
+                addTextLine(fmt::format("RM Named Resources: {:d}", resourceManager->getResources().size()), textFont,
                             this->textLines);
-                addTextLine(fmt::format("Frame: {:d}"_cf, engine->getFrameCount()), textFont, this->textLines);
-                addTextLine(fmt::format("Time: {:f}"_cf, time), textFont, this->textLines);
+                addTextLine(fmt::format("Animations: {:d}", anim::getNumActiveAnimations()), textFont, this->textLines);
+                addTextLine(fmt::format("Frame: {:d}", engine->getFrameCount()), textFont, this->textLines);
+                addTextLine(fmt::format("Time: {:f}", time), textFont, this->textLines);
 
                 for(const auto &engineTextLine : this->engineTextLines) {
                     addTextLine(engineTextLine, textFont, this->textLines);
@@ -315,10 +309,10 @@ void VisualProfiler::draw() {
         {
             g->translate(0, this->font->getHeight());
 
-            g->drawString(this->font, fmt::format("{:d} nodes"_cf, this->profile->getNumNodes()));
+            g->drawString(this->font, fmt::format("{:d} nodes", this->profile->getNumNodes()));
             g->translate(0, this->font->getHeight() * 1.5f);
 
-            g->drawString(this->font, fmt::format("{:d} groups"_cf, this->profile->getNumGroups()));
+            g->drawString(this->font, fmt::format("{:d} groups", this->profile->getNumGroups()));
             g->translate(0, this->font->getHeight() * 1.5f);
 
             g->drawString(this->font, "----------------------------------------------------");
@@ -329,7 +323,7 @@ void VisualProfiler::draw() {
                 {
                     g->translate(this->font->getHeight() * 3 * (this->nodes[i].depth - 1), 0);
                     g->drawString(this->font,
-                                  fmt::format("[{:s}] - {:s} = {:f} ms"_cf, this->nodes[i].node->getName(),
+                                  fmt::format("[{:s}] - {:s} = {:f} ms", this->nodes[i].node->getName(),
                                               this->profile->getGroupName(this->nodes[i].node->getGroupID()),
                                               this->nodes[i].node->getTimeLastFrame() * 1000.0));
                 }
@@ -345,7 +339,7 @@ void VisualProfiler::draw() {
                 const char *groupName = this->profile->getGroupName(i);
                 const double sum = this->profile->sumTimes(i);
 
-                g->drawString(this->font, fmt::format("{:s} = {:f} ms"_cf, groupName, sum * 1000.0));
+                g->drawString(this->font, fmt::format("{:s} = {:f} ms", groupName, sum * 1000.0));
                 g->translate(0, this->font->getHeight() * 1.5f);
             }
         }
@@ -376,7 +370,7 @@ void VisualProfiler::draw() {
                         g->pushTransform();
                         {
                             const std::string text =
-                                fmt::format("[{:s}] - {:s} = {:f} ms"_cf, this->spikeNodes[i].node.node->getName(),
+                                fmt::format("[{:s}] - {:s} = {:f} ms", this->spikeNodes[i].node.node->getName(),
                                             this->profile->getGroupName(this->spikeNodes[i].node.node->getGroupID()),
                                             this->spikeNodes[i].timeLastFrame * 1000.0);
 
@@ -437,7 +431,7 @@ void VisualProfiler::draw() {
             g->pushTransform();
             {
                 g->translate((int)(xPos + margin), (int)(yPos + this->font->getHeight() + margin));
-                g->drawString(this->font, fmt::format("{:g} ms"_cf, cv::vprof_graph_range_max.getFloat()));
+                g->drawString(this->font, fmt::format("{:g} ms", cv::vprof_graph_range_max.getFloat()));
 
                 g->translate(0, (int)(height - this->font->getHeight() - 2 * margin));
                 g->drawString(this->font, "0 ms");
@@ -476,8 +470,7 @@ void VisualProfiler::draw() {
                         g->translate((int)(xPos + margin), (int)(yPos - 2 * margin));
                         /// g->drawString(fmt::format("[{:s}] = {:g} ms", this->spike.node.node->getName(),
                         /// m_spike.timeLastFrame * 1000.0), TextShadow{.textColor = this->groups[m_spike.node.node->getGroupID()].color});
-                        g->drawString(this->font,
-                                      fmt::format("Spike = {:g} ms"_cf, this->spike.timeLastFrame * 1000.0));
+                        g->drawString(this->font, fmt::format("Spike = {:g} ms", this->spike.timeLastFrame * 1000.0));
                     }
                     g->popTransform();
                 }

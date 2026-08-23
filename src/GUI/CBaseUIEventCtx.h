@@ -57,7 +57,6 @@ struct CBaseUIEventCtx {
     struct HitPathScope {
         NOCOPY_NOMOVE(HitPathScope)
        public:
-        // out-of-line on purpose, to avoid instantiating vector push_back in every including TU
         HitPathScope(CBaseUIEventCtx &ctx, CBaseUIElement *elem);
         ~HitPathScope();
 

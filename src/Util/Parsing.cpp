@@ -248,4 +248,79 @@ std::from_chars_result from_chars(const char* first, const char* last, f64& valu
     return fp_from_chars(first, last, value, fmt);
 }
 
+template <strto_parseable T>
+bool strto_s(std::string_view str, T& inout) noexcept {
+    if(unlikely(str.empty())) return false;
+
+    // from cppreference: "leading whitespace is not ignored."
+    // this is different behavior from C strtol, so trim it to have matching/predictable behavior
+    SString::trim_inplace(str);
+
+    // if it was only whitespace, nothing to do
+    if(unlikely(str.empty())) return false;
+
+    T retval = inout;
+
+    std::errc reterr = std::errc::invalid_argument;
+    std::chars_format floatfmt = std::chars_format::general;
+    int base = 10;
+
+    // if we were given hex characters as input, we have to manually change the base to 16
+    // (std::from_chars doesn't do this automatically)
+    // this is not likely across our expected inputs, though, so mark it as such
+    if(size_t len = str.length(); len >= 2 && unlikely(str[0] == '0' && (str[1] == 'x' || str[1] == 'X'))) {
+        // if the string was literally just "0x" and nothing else, the input is malformed
+        if(unlikely(len == 2)) return false;
+
+        base = 16;
+        floatfmt = std::chars_format::hex;
+        str = str.substr(2);
+    }
+
+    const char* begin{str.data()};
+    const char* end{str.data() + str.size()};
+    if constexpr(std::is_same_v<T, bool>) {
+        long temp{};
+        auto [_, ec] = std::from_chars(begin, end, temp, base);
+        retval = (temp != 0) && ec == std::errc();
+        reterr = ec;
+    } else if constexpr(std::is_same_v<T, u8>) {
+        u32 temp{};
+        auto [_, ec] = std::from_chars(begin, end, temp, base);
+        if(ec == std::errc()) {
+            if(temp < 256) {
+                retval = static_cast<u8>(temp);
+            } else {
+                ec = std::errc::result_out_of_range;
+            }
+        }
+        reterr = ec;
+    } else if constexpr(std::is_floating_point_v<std::decay_t<T>>) {
+        auto [_, ec] = Parsing::from_chars(begin, end, retval, floatfmt);
+        reterr = ec;
+    } else {
+        auto [_, ec] = std::from_chars(begin, end, retval, base);
+        reterr = ec;
+    }
+
+    if(reterr == std::errc()) {
+        inout = retval;
+        return true;
+    }
+
+    return false;
+}
+
+template bool strto_s<bool>(std::string_view, bool&) noexcept;
+template bool strto_s<i8>(std::string_view, i8&) noexcept;
+template bool strto_s<u8>(std::string_view, u8&) noexcept;
+template bool strto_s<i32>(std::string_view, i32&) noexcept;
+template bool strto_s<u32>(std::string_view, u32&) noexcept;
+template bool strto_s<long>(std::string_view, long&) noexcept;
+template bool strto_s<unsigned long>(std::string_view, unsigned long&) noexcept;
+template bool strto_s<long long>(std::string_view, long long&) noexcept;
+template bool strto_s<unsigned long long>(std::string_view, unsigned long long&) noexcept;
+template bool strto_s<f32>(std::string_view, f32&) noexcept;
+template bool strto_s<f64>(std::string_view, f64&) noexcept;
+
 }  // namespace Parsing

@@ -72,14 +72,7 @@ class AsyncPool final {
         using T = std::invoke_result_t<F>;
         auto task = std::make_unique<Task<T>>(std::forward<F>(func));
         auto future = Async::Future<T>(task->get_future());
-
-        {
-            Sync::scoped_lock lock(m_workMutex);
-            queue_for(lane).push(std::move(task));
-        }
-        m_pending.fetch_add(1, std::memory_order_relaxed);
-        notify_for(lane);
-
+        enqueue(std::move(task), lane);
         return future;
     }
 
@@ -87,13 +80,7 @@ class AsyncPool final {
     template <typename F>
     void dispatch(F&& func, Lane lane = Lane::Foreground) {
         auto task = std::make_unique<FireAndForgetTask>(std::forward<F>(func));
-
-        {
-            Sync::scoped_lock lock(m_workMutex);
-            queue_for(lane).push(std::move(task));
-        }
-        m_pending.fetch_add(1, std::memory_order_relaxed);
-        notify_for(lane);
+        enqueue(std::move(task), lane);
     }
 
     // queue a callback to run on the main thread during the next Engine::onUpdate()
@@ -115,19 +102,7 @@ class AsyncPool final {
     void fg_worker_loop(size_t index) noexcept;
     void bg_worker_loop(size_t index) noexcept;
 
-    std::queue<std::unique_ptr<TaskBase>>& queue_for(Lane lane) {
-        return lane == Lane::Foreground ? m_fgQueue : m_bgQueue;
-    }
-
-    void notify_for(Lane lane) {
-        if(lane == Lane::Foreground) {
-            m_fgCV.notify_one();
-        } else {
-            // wake a bg thread, and also a fg thread so it can work-steal
-            m_bgCV.notify_one();
-            m_fgCV.notify_one();
-        }
-    }
+    void enqueue(std::unique_ptr<TaskBase> task, Lane lane);
 
     std::queue<std::unique_ptr<TaskBase>> m_fgQueue;
     std::queue<std::unique_ptr<TaskBase>> m_bgQueue;

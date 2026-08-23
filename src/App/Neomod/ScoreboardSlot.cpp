@@ -14,9 +14,6 @@
 #include "UIAvatar.h"
 #include "Graphics.h"
 
-using fmt::literals::operator""_cf;
-using fmt::literals::operator""_a;
-
 ScoreboardSlot::ScoreboardSlot(const SCORE_ENTRY &score, int index, bool use_dummy_avatar, int override_is_friend) {
     if(!use_dummy_avatar) {
         this->avatar = std::make_unique<UIAvatar>(nullptr, score.player_id, 0.f, 0.f, 0.f, 0.f);
@@ -104,9 +101,11 @@ void ScoreboardSlot::draw(WinCondition scoring_metric, float override_alpha) {
     // Draw index
     g->pushTransform();
     {
-        const std::string indexString = fmt::format("{:d}"_cf, this->index + 1);
+        const std::string indexString = fmt::format("{:d}", this->index + 1);
         const float scale = (avatar_height / font_bold->getHeight()) * 0.5f;
-        const TextFX indexShadow{.col_text = Color(0xffffffff).setA(0.7f * alpha), .col_shadow = Color(0xff000000).setA(0.3f * alpha), .offs_px = 0.5f};
+        const TextFX indexShadow{.col_text = Color(0xffffffff).setA(0.7f * alpha),
+                                 .col_shadow = Color(0xff000000).setA(0.3f * alpha),
+                                 .offs_px = 0.5f};
 
         g->scale(scale, scale);
 
@@ -178,13 +177,13 @@ void ScoreboardSlot::draw(WinCondition scoring_metric, float override_alpha) {
         switch(scoring_metric) {
             case WinCondition::ACCURACY: {
                 wincond_based_coltype = COMBOACC;
-                wincond_based_scoretext = fmt::format("{:.2f}%"_cf, this->score.accuracy * 100.0f);
+                wincond_based_scoretext = fmt::format("{:.2f}%", this->score.accuracy * 100.0f);
             } break;
             case WinCondition::MISSES: {
-                wincond_based_scoretext = fmt::format("{:d} misses"_cf, this->score.misses);
+                wincond_based_scoretext = fmt::format("{:d} misses", this->score.misses);
             } break;
             case WinCondition::PP: {
-                wincond_based_scoretext = fmt::format("{:.2f}pp"_cf, this->score.pp);
+                wincond_based_scoretext = fmt::format("{:.2f}pp", this->score.pp);
             } break;
             // other conditions fall through to scorev1
             default: {

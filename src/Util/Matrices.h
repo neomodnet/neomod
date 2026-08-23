@@ -19,15 +19,13 @@
 
 #include "Vectors.h"
 
-#include "fmt/ostream.h"
-#include <cmath>
 #include "glm/gtc/matrix_inverse.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/mat2x2.hpp"
 #include "glm/mat3x3.hpp"
 #include "glm/mat4x4.hpp"
-#include <iomanip>
-#include <iostream>
+
+#include <cmath>
 
 inline constexpr float MATRIX_FLOAT_EPSILON = 0.00001f;
 
@@ -145,7 +143,6 @@ struct Matrix2 : public glm::mat2 {
     friend Matrix2 operator-(const Matrix2& m);
     friend Matrix2 operator*(float scalar, const Matrix2& m);
     friend vec2 operator*(const vec2& vec, const Matrix2& m);
-    friend std::ostream& operator<<(std::ostream& os, const Matrix2& m);
 };
 
 inline Matrix2 operator-(const Matrix2& m) { return {-static_cast<const glm::mat2&>(m)}; }
@@ -155,14 +152,6 @@ inline Matrix2 operator*(float s, const Matrix2& m) { return {s * static_cast<co
 inline vec2 operator*(const vec2& v, const Matrix2& m) {
     glm::vec2 result = static_cast<const glm::vec2&>(v) * static_cast<const glm::mat2&>(m);
     return {result};
-}
-
-inline std::ostream& operator<<(std::ostream& os, const Matrix2& m) {
-    os << std::fixed << std::setprecision(5);
-    os << "[" << std::setw(10) << m[0] << " " << std::setw(10) << m[2] << "]\n"
-       << "[" << std::setw(10) << m[1] << " " << std::setw(10) << m[3] << "]\n";
-    os << std::resetiosflags(std::ios_base::fixed | std::ios_base::floatfield);
-    return os;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -283,7 +272,6 @@ struct Matrix3 : public glm::mat3 {
     friend Matrix3 operator-(const Matrix3& m);
     friend Matrix3 operator*(float scalar, const Matrix3& m);
     friend vec3 operator*(const vec3& vec, const Matrix3& m);
-    friend std::ostream& operator<<(std::ostream& os, const Matrix3& m);
 };
 
 inline Matrix3 operator-(const Matrix3& m) { return {-static_cast<const glm::mat3&>(m)}; }
@@ -293,15 +281,6 @@ inline Matrix3 operator*(float s, const Matrix3& m) { return {s * static_cast<co
 inline vec3 operator*(const vec3& v, const Matrix3& m) {
     glm::vec3 result = static_cast<const glm::vec3&>(v) * static_cast<const glm::mat3&>(m);
     return {result};
-}
-
-inline std::ostream& operator<<(std::ostream& os, const Matrix3& m) {
-    os << std::fixed << std::setprecision(5);
-    os << "[" << std::setw(10) << m[0] << " " << std::setw(10) << m[3] << " " << std::setw(10) << m[6] << "]\n"
-       << "[" << std::setw(10) << m[1] << " " << std::setw(10) << m[4] << " " << std::setw(10) << m[7] << "]\n"
-       << "[" << std::setw(10) << m[2] << " " << std::setw(10) << m[5] << " " << std::setw(10) << m[8] << "]\n";
-    os << std::resetiosflags(std::ios_base::fixed | std::ios_base::floatfield);
-    return os;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -462,7 +441,7 @@ struct Matrix4 : public glm::mat4 {
     Matrix4& rotate(float angle, float x, float y, float z) {
         float c = std::cos(vec::radians(angle));  // cosine
         float s = std::sin(vec::radians(angle));  // sine
-        float c1 = 1.0f - c;                  // 1 - c
+        float c1 = 1.0f - c;                      // 1 - c
 
         float* m = &static_cast<glm::mat4&>(*this)[0][0];
         float m0 = m[0], m4 = m[4], m8 = m[8], m12 = m[12], m1 = m[1], m5 = m[5], m9 = m[9], m13 = m[13], m2 = m[2],
@@ -621,7 +600,6 @@ struct Matrix4 : public glm::mat4 {
     friend Matrix4 operator*(float scalar, const Matrix4& m);
     friend vec3 operator*(const vec3& vec, const Matrix4& m);
     friend vec4 operator*(const vec4& vec, const Matrix4& m);
-    friend std::ostream& operator<<(std::ostream& os, const Matrix4& m);
 };
 
 inline Matrix4 operator-(const Matrix4& m) { return {-static_cast<const glm::mat4&>(m)}; }
@@ -639,60 +617,24 @@ inline vec3 operator*(const vec3& v, const Matrix4& m) {
     return {result.x, result.y, result.z};
 }
 
-inline std::ostream& operator<<(std::ostream& os, const Matrix4& m) {
-    os << std::fixed << std::setprecision(5);
-    os << "[" << std::setw(10) << m[0] << " " << std::setw(10) << m[4] << " " << std::setw(10) << m[8] << " "
-       << std::setw(10) << m[12] << "]\n"
-       << "[" << std::setw(10) << m[1] << " " << std::setw(10) << m[5] << " " << std::setw(10) << m[9] << " "
-       << std::setw(10) << m[13] << "]\n"
-       << "[" << std::setw(10) << m[2] << " " << std::setw(10) << m[6] << " " << std::setw(10) << m[10] << " "
-       << std::setw(10) << m[14] << "]\n"
-       << "[" << std::setw(10) << m[3] << " " << std::setw(10) << m[7] << " " << std::setw(10) << m[11] << " "
-       << std::setw(10) << m[15] << "]\n";
-    os << std::resetiosflags(std::ios_base::fixed | std::ios_base::floatfield);
-    return os;
-}
-
 namespace fmt {
 template <>
 struct formatter<Matrix2> {
-    template <typename ParseContext>
-    constexpr auto parse(ParseContext& ctx) const {
-        return ctx.begin();
-    }
-
-    template <typename FormatContext>
-    auto format(const Matrix2& r, FormatContext& ctx) const {
-        return format_to(ctx.out(), "{}"_cf, fmt::streamed(r));
-    }
+    constexpr auto parse(format_parse_context& ctx) const { return ctx.begin(); }
+    format_context::iterator format(const Matrix2& m, format_context& ctx) const;
 };
 
 template <>
 struct formatter<Matrix3> {
-    template <typename ParseContext>
-    constexpr auto parse(ParseContext& ctx) const {
-        return ctx.begin();
-    }
-
-    template <typename FormatContext>
-    auto format(const Matrix3& r, FormatContext& ctx) const {
-        return format_to(ctx.out(), "{}"_cf, fmt::streamed(r));
-    }
+    constexpr auto parse(format_parse_context& ctx) const { return ctx.begin(); }
+    format_context::iterator format(const Matrix3& m, format_context& ctx) const;
 };
 
 template <>
 struct formatter<Matrix4> {
-    template <typename ParseContext>
-    constexpr auto parse(ParseContext& ctx) const {
-        return ctx.begin();
-    }
-
-    template <typename FormatContext>
-    auto format(const Matrix4& r, FormatContext& ctx) const {
-        return format_to(ctx.out(), "{}"_cf, fmt::streamed(r));
-    }
+    constexpr auto parse(format_parse_context& ctx) const { return ctx.begin(); }
+    format_context::iterator format(const Matrix4& m, format_context& ctx) const;
 };
 }  // namespace fmt
-
 
 #endif

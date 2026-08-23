@@ -8,8 +8,8 @@
 #include <string_view>
 #include <memory>
 
-using std::string_view_literals::operator""sv;
-using std::string_literals::operator""s;
+using namespace std::string_view_literals;
+using namespace std::string_literals;
 
 class ConVar;
 

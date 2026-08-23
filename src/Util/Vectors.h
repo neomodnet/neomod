@@ -13,7 +13,6 @@
 
 #ifndef BUILD_TOOLS_ONLY  // avoid an unnecessary dependency on fmt when building tools only
 #include "fmt/format.h"
-#include "fmt/compile.h"
 #endif
 
 // typedefs
@@ -103,11 +102,11 @@ struct float_vec_formatter {
     template <typename FormatContext>
     auto format(const Vec& p, FormatContext& ctx) const {
         if constexpr(N == 2) {
-            return format_to(ctx.out(), "({:.2f}, {:.2f})"_cf, p.x, p.y);
+            return format_to(ctx.out(), "({:.2f}, {:.2f})", p.x, p.y);
         } else if constexpr(N == 3) {
-            return format_to(ctx.out(), "({:.2f}, {:.2f}, {:.2f})"_cf, p.x, p.y, p.z);
+            return format_to(ctx.out(), "({:.2f}, {:.2f}, {:.2f})", p.x, p.y, p.z);
         } else {
-            return format_to(ctx.out(), "({:.2f}, {:.2f}, {:.2f}, {:.2f})"_cf, p.x, p.y, p.z, p.w);
+            return format_to(ctx.out(), "({:.2f}, {:.2f}, {:.2f}, {:.2f})", p.x, p.y, p.z, p.w);
         }
     }
 };
@@ -122,11 +121,11 @@ struct int_vec_formatter {
     template <typename FormatContext>
     auto format(const Vec& p, FormatContext& ctx) const {
         if constexpr(N == 2) {
-            return format_to(ctx.out(), "({}, {})"_cf, p.x, p.y);
+            return format_to(ctx.out(), "({}, {})", p.x, p.y);
         } else if constexpr(N == 3) {
-            return format_to(ctx.out(), "({}, {}, {})"_cf, p.x, p.y, p.z);
+            return format_to(ctx.out(), "({}, {}, {})", p.x, p.y, p.z);
         } else {
-            return format_to(ctx.out(), "({}, {}, {}, {})"_cf, p.x, p.y, p.z, p.w);
+            return format_to(ctx.out(), "({}, {}, {}, {})", p.x, p.y, p.z, p.w);
         }
     }
 };

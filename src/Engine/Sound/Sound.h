@@ -118,9 +118,7 @@ class Sound : public Resource {
 
     // currently playing sound instances (updates cache)
     const std::unordered_map<SOUNDHANDLE, PlaybackParams> &getActiveHandles();
-    inline void addActiveInstance(SOUNDHANDLE handle, PlaybackParams instance) {
-        this->activeHandleCache[handle] = instance;
-    }
+    void addActiveInstance(SOUNDHANDLE handle, PlaybackParams instance);
 
     mutable PlaybackInterpolator interpolator;
 

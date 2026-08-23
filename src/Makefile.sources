@@ -292,6 +292,7 @@ neomod_SOURCES = \
 	src/Platform/main_impl.cpp \
 	src/Util/ACFParser.cpp \
 	src/Util/MD5Hash.cpp \
+	src/Util/Matrices.cpp \
 	src/Util/Parsing.cpp \
 	src/Util/Quaternion.cpp \
 	src/Util/Rect.cpp \

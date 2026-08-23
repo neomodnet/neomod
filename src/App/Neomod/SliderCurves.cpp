@@ -619,6 +619,8 @@ SliderCurve::SliderCurve(SLIDERCURVETYPE ctorType, std::span<const vec2> control
     }
 }
 
+std::span<const vec2> SliderCurve::getPoints() const { return m_curvePoints; }
+
 vec2 SliderCurve::pointAt(f32 t) const {
     if(m_type != CIRCULAR /* BEZIER || CATMULL */) {
         if(m_curvePoints.size() < 1) return {0.f, 0.f};

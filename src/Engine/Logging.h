@@ -4,10 +4,6 @@
 #include "BaseEnvironment.h"
 
 #include "fmt/format.h"
-#include "fmt/compile.h"
-
-using fmt::literals::operator""_cf;
-using fmt::literals::operator""_a;
 
 #include <string_view>
 #include <cassert>

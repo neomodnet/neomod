@@ -88,6 +88,10 @@ const std::unordered_map<SOUNDHANDLE, PlaybackParams>& Sound::getActiveHandles()
     return this->activeHandleCache;
 }
 
+void Sound::addActiveInstance(SOUNDHANDLE handle, PlaybackParams instance) {
+    this->activeHandleCache[handle] = instance;
+}
+
 void Sound::setBaseVolume(float volume) {
     this->fBaseVolume = std::clamp<float>(volume, 0.0f, 2.0f);
 

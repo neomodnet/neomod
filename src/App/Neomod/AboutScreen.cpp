@@ -5,22 +5,19 @@
 #include "CBaseUIContainer.h"
 #include "CBaseUILabel.h"
 #include "CBaseUIScrollView.h"
-#include "Engine.h"
-#include "HUD.h"
-#include "i18n.h"
 #include "Logging.h"
-#include "MainMenu.h"
 #include "NotificationOverlay.h"
 #include "Parsing.h"
 #include "UIBackButton.h"
 #include "UIButtonRounded.h"
 #include "Osu.h"
-#include "SoundEngine.h"
 #include "Graphics.h"
 #include "Environment.h"
 #include "MakeDelegateWrapper.h"
 #include "UI.h"
 #include "ConVar.h"
+
+#include "i18n.h"
 
 #include "binary_embed.h"
 #include "build_timestamp.h"
@@ -376,7 +373,7 @@ void AboutScreen::layoutTab(Tab tab) {
     page.view->setScrollSizeToContent(15 * dpiScale);
 }
 
-void AboutScreen::onBack() { ui->setScreen(ui->getMainMenu()); }
+void AboutScreen::onBack() { ui->setScreen(ui->getMainMenuBase()); }
 
 void AboutScreen::onChangeClicked(CBaseUIButton *button) {
     const std::string changeTextMaybeContainingClickableURL{button->getText()};

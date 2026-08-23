@@ -34,7 +34,6 @@
 // we use fmt pre-compiled but the headers are still pretty template-heavy
 #ifndef BUILD_TOOLS_ONLY
 #include "fmt/format.h"
-#include "fmt/compile.h"
 #include "fmt/ostream.h"
 #include "fmt/chrono.h"
 #include "fmt/ranges.h"

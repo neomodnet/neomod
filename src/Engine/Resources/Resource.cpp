@@ -33,8 +33,8 @@ Resource::Resource(Type resType, std::string filepath, bool doFilesystemExistenc
     }
 
     // give it a more descriptive debug identifier
-    this->sDebugIdentifier = fmt::format("{:8p}:{:s}:name=<none>:postinit=false:filepath={:s}:found={}"_cf,
-                                         fmt::ptr(this), this->typeToString(), this->sFilePath,
+    this->sDebugIdentifier = fmt::format("{:8p}:{:s}:name=<none>:postinit=false:filepath={:s}:found={}", fmt::ptr(this),
+                                         this->typeToString(), this->sFilePath,
                                          exists == -1  ? "unknown"
                                          : exists == 1 ? "true"
                                                        : "false");
@@ -52,11 +52,11 @@ void Resource::setName(std::string_view name) {
     // don't re-check filesystem status, for performance, just check if the last debug identifier had found=y
     // (the debug string doesn't have to be 100% accurate, use a proper debugger for that)
     if(!this->sFilePath.empty()) {
-        this->sDebugIdentifier = fmt::format("{:8p}:{:s}:name={:s}:postinit=true:filepath={:s}:{}"_cf, fmt::ptr(this),
+        this->sDebugIdentifier = fmt::format("{:8p}:{:s}:name={:s}:postinit=true:filepath={:s}:{}", fmt::ptr(this),
                                              this->typeToString(), this->sName, this->sFilePath,
                                              this->sDebugIdentifier.substr(this->sDebugIdentifier.find("found=")));
     } else {
-        this->sDebugIdentifier = fmt::format("{:8p}:{:s}:name={:s}:postinit=true:filepath=<none>"_cf, fmt::ptr(this),
+        this->sDebugIdentifier = fmt::format("{:8p}:{:s}:name={:s}:postinit=true:filepath=<none>", fmt::ptr(this),
                                              this->typeToString(), this->sName);
     }
 }

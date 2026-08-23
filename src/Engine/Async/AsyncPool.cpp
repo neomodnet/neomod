@@ -44,6 +44,21 @@ void AsyncPool::shutdown() {
     m_bgThreads.clear();
 }
 
+void AsyncPool::enqueue(std::unique_ptr<TaskBase> task, Lane lane) {
+    {
+        Sync::scoped_lock lock(m_workMutex);
+        (lane == Lane::Foreground ? m_fgQueue : m_bgQueue).push(std::move(task));
+    }
+    m_pending.fetch_add(1, std::memory_order_relaxed);
+    if(lane == Lane::Foreground) {
+        m_fgCV.notify_one();
+    } else {
+        // wake a bg thread, and also a fg thread so it can work-steal
+        m_bgCV.notify_one();
+        m_fgCV.notify_one();
+    }
+}
+
 void AsyncPool::fg_worker_loop(size_t index) noexcept {
     {
         const std::string thread_name = fmt::format("async_fg_{}", index);
