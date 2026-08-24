@@ -80,6 +80,7 @@ TEST_SOURCES := \
 	src/App/Tests/AsyncPoolTest.cpp \
 	src/App/Tests/AudioTester/AudioTester.cpp \
 	src/App/Tests/BaseFrameworkTest/BaseFrameworkTest.cpp \
+	src/App/Tests/CryptoTest.cpp \
 	src/App/Tests/EmojiRenderTest/EmojiRenderTest.cpp \
 	src/App/Tests/Neomod/HitSoundTest.cpp \
 	src/App/Tests/Neomod/SkinLoadTest.cpp \
@@ -105,7 +106,6 @@ endif
 
 neomod_SOURCES = \
 	libraries/MD5.cpp \
-	libraries/base64.cpp \
 	libraries/demoji.c \
 	libraries/neotrace/src/backend_emscripten.cpp \
 	libraries/neotrace/src/capture_execinfo.cpp \

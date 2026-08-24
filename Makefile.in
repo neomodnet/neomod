@@ -230,8 +230,7 @@ CONFIG_CLEAN_FILES = src/build_timestamp.h
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
-am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/base64.cpp \
-	libraries/demoji.c \
+am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	libraries/neotrace/src/backend_emscripten.cpp \
 	libraries/neotrace/src/capture_execinfo.cpp \
 	libraries/neotrace/src/capture_unwind.cpp \
@@ -406,6 +405,7 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/base64.cpp \
 	src/App/Tests/AsyncPoolTest.cpp \
 	src/App/Tests/AudioTester/AudioTester.cpp \
 	src/App/Tests/BaseFrameworkTest/BaseFrameworkTest.cpp \
+	src/App/Tests/CryptoTest.cpp \
 	src/App/Tests/EmojiRenderTest/EmojiRenderTest.cpp \
 	src/App/Tests/Neomod/HitSoundTest.cpp \
 	src/App/Tests/Neomod/SkinLoadTest.cpp \
@@ -450,6 +450,7 @@ am__dirstamp = $(am__leading_dot)dirstamp
 @BUILD_TESTS_TRUE@am__objects_11 = src/App/Tests/neomod-AsyncPoolTest.$(OBJEXT) \
 @BUILD_TESTS_TRUE@	src/App/Tests/AudioTester/neomod-AudioTester.$(OBJEXT) \
 @BUILD_TESTS_TRUE@	src/App/Tests/BaseFrameworkTest/neomod-BaseFrameworkTest.$(OBJEXT) \
+@BUILD_TESTS_TRUE@	src/App/Tests/neomod-CryptoTest.$(OBJEXT) \
 @BUILD_TESTS_TRUE@	src/App/Tests/EmojiRenderTest/neomod-EmojiRenderTest.$(OBJEXT) \
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/neomod-HitSoundTest.$(OBJEXT) \
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/neomod-SkinLoadTest.$(OBJEXT) \
@@ -459,7 +460,6 @@ am__objects_12 = $(builddir)/gen/neomod-binary_embed.$(OBJEXT)
 @BUILD_MIMALLOC_TRUE@@WIN_PLATFORM_TRUE@am__objects_13 = $(DEPS_PREFIX)/mimalloc/neomod-mimalloc_new_delete.$(OBJEXT)
 @WIN_PLATFORM_TRUE@am__objects_14 = $(am__objects_13)
 am_neomod_OBJECTS = libraries/neomod-MD5.$(OBJEXT) \
-	libraries/neomod-base64.$(OBJEXT) \
 	libraries/neomod-demoji.$(OBJEXT) \
 	libraries/neotrace/src/neomod-backend_emscripten.$(OBJEXT) \
 	libraries/neotrace/src/neomod-capture_execinfo.$(OBJEXT) \
@@ -684,7 +684,6 @@ am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_delete.Po \
 	$(builddir)/gen/$(DEPDIR)/neomod-binary_embed.Po \
 	libraries/$(DEPDIR)/neomod-MD5.Po \
-	libraries/$(DEPDIR)/neomod-base64.Po \
 	libraries/$(DEPDIR)/neomod-demoji.Po \
 	libraries/$(DEPDIR)/neomod-sha256.Po \
 	libraries/glad/$(DEPDIR)/neomod-glad_egl.Po \
@@ -804,6 +803,7 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcSuite.Po \
 	src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcTool.Po \
 	src/App/Tests/$(DEPDIR)/neomod-AsyncPoolTest.Po \
+	src/App/Tests/$(DEPDIR)/neomod-CryptoTest.Po \
 	src/App/Tests/$(DEPDIR)/neomod-NetworkTest.Po \
 	src/App/Tests/AudioTester/$(DEPDIR)/neomod-AudioTester.Po \
 	src/App/Tests/BaseFrameworkTest/$(DEPDIR)/neomod-BaseFrameworkTest.Po \
@@ -1406,6 +1406,7 @@ PATH := $(DEPS_PREFIX):$(shell echo $$PATH)
 @BUILD_TESTS_TRUE@	src/App/Tests/AsyncPoolTest.cpp \
 @BUILD_TESTS_TRUE@	src/App/Tests/AudioTester/AudioTester.cpp \
 @BUILD_TESTS_TRUE@	src/App/Tests/BaseFrameworkTest/BaseFrameworkTest.cpp \
+@BUILD_TESTS_TRUE@	src/App/Tests/CryptoTest.cpp \
 @BUILD_TESTS_TRUE@	src/App/Tests/EmojiRenderTest/EmojiRenderTest.cpp \
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/HitSoundTest.cpp \
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/SkinLoadTest.cpp \
@@ -1423,8 +1424,7 @@ PATH := $(DEPS_PREFIX):$(shell echo $$PATH)
 @USE_OPENGL_TRUE@@WASM_PLATFORM_FALSE@	libraries/glad/glad_gl.cpp \
 @USE_OPENGL_TRUE@@WASM_PLATFORM_FALSE@	$(NULL)
 
-neomod_SOURCES = libraries/MD5.cpp libraries/base64.cpp \
-	libraries/demoji.c \
+neomod_SOURCES = libraries/MD5.cpp libraries/demoji.c \
 	libraries/neotrace/src/backend_emscripten.cpp \
 	libraries/neotrace/src/capture_execinfo.cpp \
 	libraries/neotrace/src/capture_unwind.cpp \
@@ -2103,8 +2103,6 @@ libraries/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) libraries/$(DEPDIR)
 	@: >>libraries/$(DEPDIR)/$(am__dirstamp)
 libraries/neomod-MD5.$(OBJEXT): libraries/$(am__dirstamp) \
-	libraries/$(DEPDIR)/$(am__dirstamp)
-libraries/neomod-base64.$(OBJEXT): libraries/$(am__dirstamp) \
 	libraries/$(DEPDIR)/$(am__dirstamp)
 libraries/neomod-demoji.$(OBJEXT): libraries/$(am__dirstamp) \
 	libraries/$(DEPDIR)/$(am__dirstamp)
@@ -2968,6 +2966,9 @@ src/App/Tests/BaseFrameworkTest/$(DEPDIR)/$(am__dirstamp):
 src/App/Tests/BaseFrameworkTest/neomod-BaseFrameworkTest.$(OBJEXT):  \
 	src/App/Tests/BaseFrameworkTest/$(am__dirstamp) \
 	src/App/Tests/BaseFrameworkTest/$(DEPDIR)/$(am__dirstamp)
+src/App/Tests/neomod-CryptoTest.$(OBJEXT):  \
+	src/App/Tests/$(am__dirstamp) \
+	src/App/Tests/$(DEPDIR)/$(am__dirstamp)
 src/App/Tests/EmojiRenderTest/$(am__dirstamp):
 	@$(MKDIR_P) src/App/Tests/EmojiRenderTest
 	@: >>src/App/Tests/EmojiRenderTest/$(am__dirstamp)
@@ -3068,7 +3069,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@$(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_delete.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@$(builddir)/gen/$(DEPDIR)/neomod-binary_embed.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@libraries/$(DEPDIR)/neomod-MD5.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@libraries/$(DEPDIR)/neomod-base64.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@libraries/$(DEPDIR)/neomod-demoji.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@libraries/$(DEPDIR)/neomod-sha256.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@libraries/glad/$(DEPDIR)/neomod-glad_egl.Po@am__quote@ # am--include-marker
@@ -3188,6 +3188,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcSuite.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcTool.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/$(DEPDIR)/neomod-AsyncPoolTest.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/$(DEPDIR)/neomod-CryptoTest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/$(DEPDIR)/neomod-NetworkTest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/AudioTester/$(DEPDIR)/neomod-AudioTester.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/BaseFrameworkTest/$(DEPDIR)/neomod-BaseFrameworkTest.Po@am__quote@ # am--include-marker
@@ -3371,20 +3372,6 @@ libraries/neomod-MD5.obj: libraries/MD5.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='libraries/MD5.cpp' object='libraries/neomod-MD5.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o libraries/neomod-MD5.obj `if test -f 'libraries/MD5.cpp'; then $(CYGPATH_W) 'libraries/MD5.cpp'; else $(CYGPATH_W) '$(srcdir)/libraries/MD5.cpp'; fi`
-
-libraries/neomod-base64.o: libraries/base64.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT libraries/neomod-base64.o -MD -MP -MF libraries/$(DEPDIR)/neomod-base64.Tpo -c -o libraries/neomod-base64.o `test -f 'libraries/base64.cpp' || echo '$(srcdir)/'`libraries/base64.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) libraries/$(DEPDIR)/neomod-base64.Tpo libraries/$(DEPDIR)/neomod-base64.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='libraries/base64.cpp' object='libraries/neomod-base64.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o libraries/neomod-base64.o `test -f 'libraries/base64.cpp' || echo '$(srcdir)/'`libraries/base64.cpp
-
-libraries/neomod-base64.obj: libraries/base64.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT libraries/neomod-base64.obj -MD -MP -MF libraries/$(DEPDIR)/neomod-base64.Tpo -c -o libraries/neomod-base64.obj `if test -f 'libraries/base64.cpp'; then $(CYGPATH_W) 'libraries/base64.cpp'; else $(CYGPATH_W) '$(srcdir)/libraries/base64.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) libraries/$(DEPDIR)/neomod-base64.Tpo libraries/$(DEPDIR)/neomod-base64.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='libraries/base64.cpp' object='libraries/neomod-base64.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o libraries/neomod-base64.obj `if test -f 'libraries/base64.cpp'; then $(CYGPATH_W) 'libraries/base64.cpp'; else $(CYGPATH_W) '$(srcdir)/libraries/base64.cpp'; fi`
 
 libraries/neotrace/src/neomod-backend_emscripten.o: libraries/neotrace/src/backend_emscripten.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT libraries/neotrace/src/neomod-backend_emscripten.o -MD -MP -MF libraries/neotrace/src/$(DEPDIR)/neomod-backend_emscripten.Tpo -c -o libraries/neotrace/src/neomod-backend_emscripten.o `test -f 'libraries/neotrace/src/backend_emscripten.cpp' || echo '$(srcdir)/'`libraries/neotrace/src/backend_emscripten.cpp
@@ -6606,6 +6593,20 @@ src/App/Tests/BaseFrameworkTest/neomod-BaseFrameworkTest.obj: src/App/Tests/Base
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Tests/BaseFrameworkTest/neomod-BaseFrameworkTest.obj `if test -f 'src/App/Tests/BaseFrameworkTest/BaseFrameworkTest.cpp'; then $(CYGPATH_W) 'src/App/Tests/BaseFrameworkTest/BaseFrameworkTest.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Tests/BaseFrameworkTest/BaseFrameworkTest.cpp'; fi`
 
+src/App/Tests/neomod-CryptoTest.o: src/App/Tests/CryptoTest.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Tests/neomod-CryptoTest.o -MD -MP -MF src/App/Tests/$(DEPDIR)/neomod-CryptoTest.Tpo -c -o src/App/Tests/neomod-CryptoTest.o `test -f 'src/App/Tests/CryptoTest.cpp' || echo '$(srcdir)/'`src/App/Tests/CryptoTest.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Tests/$(DEPDIR)/neomod-CryptoTest.Tpo src/App/Tests/$(DEPDIR)/neomod-CryptoTest.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Tests/CryptoTest.cpp' object='src/App/Tests/neomod-CryptoTest.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Tests/neomod-CryptoTest.o `test -f 'src/App/Tests/CryptoTest.cpp' || echo '$(srcdir)/'`src/App/Tests/CryptoTest.cpp
+
+src/App/Tests/neomod-CryptoTest.obj: src/App/Tests/CryptoTest.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Tests/neomod-CryptoTest.obj -MD -MP -MF src/App/Tests/$(DEPDIR)/neomod-CryptoTest.Tpo -c -o src/App/Tests/neomod-CryptoTest.obj `if test -f 'src/App/Tests/CryptoTest.cpp'; then $(CYGPATH_W) 'src/App/Tests/CryptoTest.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Tests/CryptoTest.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Tests/$(DEPDIR)/neomod-CryptoTest.Tpo src/App/Tests/$(DEPDIR)/neomod-CryptoTest.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Tests/CryptoTest.cpp' object='src/App/Tests/neomod-CryptoTest.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Tests/neomod-CryptoTest.obj `if test -f 'src/App/Tests/CryptoTest.cpp'; then $(CYGPATH_W) 'src/App/Tests/CryptoTest.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Tests/CryptoTest.cpp'; fi`
+
 src/App/Tests/EmojiRenderTest/neomod-EmojiRenderTest.o: src/App/Tests/EmojiRenderTest/EmojiRenderTest.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Tests/EmojiRenderTest/neomod-EmojiRenderTest.o -MD -MP -MF src/App/Tests/EmojiRenderTest/$(DEPDIR)/neomod-EmojiRenderTest.Tpo -c -o src/App/Tests/EmojiRenderTest/neomod-EmojiRenderTest.o `test -f 'src/App/Tests/EmojiRenderTest/EmojiRenderTest.cpp' || echo '$(srcdir)/'`src/App/Tests/EmojiRenderTest/EmojiRenderTest.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Tests/EmojiRenderTest/$(DEPDIR)/neomod-EmojiRenderTest.Tpo src/App/Tests/EmojiRenderTest/$(DEPDIR)/neomod-EmojiRenderTest.Po
@@ -7078,7 +7079,6 @@ distclean: distclean-am
 	-rm -f $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_delete.Po
 	-rm -f $(builddir)/gen/$(DEPDIR)/neomod-binary_embed.Po
 	-rm -f libraries/$(DEPDIR)/neomod-MD5.Po
-	-rm -f libraries/$(DEPDIR)/neomod-base64.Po
 	-rm -f libraries/$(DEPDIR)/neomod-demoji.Po
 	-rm -f libraries/$(DEPDIR)/neomod-sha256.Po
 	-rm -f libraries/glad/$(DEPDIR)/neomod-glad_egl.Po
@@ -7198,6 +7198,7 @@ distclean: distclean-am
 	-rm -f src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcSuite.Po
 	-rm -f src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcTool.Po
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-AsyncPoolTest.Po
+	-rm -f src/App/Tests/$(DEPDIR)/neomod-CryptoTest.Po
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-NetworkTest.Po
 	-rm -f src/App/Tests/AudioTester/$(DEPDIR)/neomod-AudioTester.Po
 	-rm -f src/App/Tests/BaseFrameworkTest/$(DEPDIR)/neomod-BaseFrameworkTest.Po
@@ -7366,7 +7367,6 @@ maintainer-clean: maintainer-clean-am
 	-rm -f $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_delete.Po
 	-rm -f $(builddir)/gen/$(DEPDIR)/neomod-binary_embed.Po
 	-rm -f libraries/$(DEPDIR)/neomod-MD5.Po
-	-rm -f libraries/$(DEPDIR)/neomod-base64.Po
 	-rm -f libraries/$(DEPDIR)/neomod-demoji.Po
 	-rm -f libraries/$(DEPDIR)/neomod-sha256.Po
 	-rm -f libraries/glad/$(DEPDIR)/neomod-glad_egl.Po
@@ -7486,6 +7486,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcSuite.Po
 	-rm -f src/App/Neomod/Tools/$(DEPDIR)/neomod-DiffCalcTool.Po
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-AsyncPoolTest.Po
+	-rm -f src/App/Tests/$(DEPDIR)/neomod-CryptoTest.Po
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-NetworkTest.Po
 	-rm -f src/App/Tests/AudioTester/$(DEPDIR)/neomod-AudioTester.Po
 	-rm -f src/App/Tests/BaseFrameworkTest/$(DEPDIR)/neomod-BaseFrameworkTest.Po

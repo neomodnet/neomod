@@ -314,7 +314,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 Used by the following dependencies:
 - libjpeg-turbo (https://github.com/libjpeg-turbo/libjpeg-turbo) [BSD-3-Clause modification license]
-- base64 (Jouni Malinen, https://w1.fi/) [BSD license]
 
 ============================================================
 

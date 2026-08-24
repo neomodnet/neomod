@@ -299,7 +299,7 @@ bool save_osr(const FinishedScore& score, std::span<const std::string> additiona
     }
 
     auto compressed_replay = LegacyReplay::compress_frames(score.replay);
-    auto compressed_replay_hash = crypto::hash::md5_hex(compressed_replay.data(), compressed_replay.size());
+    const MD5String compressed_replay_hash{crypto::hash::md5(compressed_replay)};
 
     osr.write<u8>(0);          // ruleset
     osr.write<u32>(40000000);  // osu_version (30m+ is lazer-specific, 40m+ is neomod-specific)

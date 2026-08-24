@@ -2,10 +2,17 @@
 #pragma once
 
 #include "types.h"
-#include <string>
-#include <vector>
+#include "MD5Hash.h"
 
-struct MD5String;
+#include <array>
+#include <concepts>
+#include <optional>
+#include <ranges>
+#include <span>
+#include <string>
+#include <string_view>
+#include <type_traits>
+#include <vector>
 
 namespace crypto {
 
@@ -20,79 +27,44 @@ i64 prand() noexcept;
 }  // namespace prng
 
 namespace rng {
-void get_bytes(u8* out, size_t s_out);
+// fill with cryptographically secure random bytes
+void get_bytes(std::span<u8> out);
 
 // generate a random integral value
-template <typename T = u64>
-T get_rand() {
-    static_assert(std::is_integral_v<T>, "T must be an integral type");
+template <std::integral T = u64>
+    requires(!std::same_as<T, bool>)
+[[nodiscard]] T get_rand() {
     T result;
-    get_bytes(reinterpret_cast<u8*>(&result), sizeof(T));
+    get_bytes(std::span{reinterpret_cast<u8*>(&result), sizeof(T)});
     return result;
 }
 
-// fill an array with random bytes
-template <typename T, std::size_t N>
-void get_rand(std::array<T, N>& arr) {
-    static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable");
-    get_bytes(reinterpret_cast<u8*>(arr.data()), sizeof(T) * N);
+// fill a contiguous container/array of trivially copyable elements with random bytes
+template <std::ranges::contiguous_range R>
+    requires std::ranges::sized_range<R> && std::is_trivially_copyable_v<std::ranges::range_value_t<R>> &&
+             std::ranges::output_range<R, std::ranges::range_value_t<R>>
+void get_rand(R& out) {
+    get_bytes(std::span{reinterpret_cast<u8*>(std::ranges::data(out)),
+                        std::ranges::size(out) * sizeof(std::ranges::range_value_t<R>)});
 }
-
-template <typename T, std::size_t N>
-void get_rand(T (&arr)[N]) {
-    static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable");
-    get_bytes(reinterpret_cast<u8*>(arr), sizeof(T) * N);
-}
-
-// fill a vector with random bytes
-template <typename T>
-void get_rand(std::vector<T>& vec) {
-    static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable");
-    if(!vec.empty()) {
-        get_bytes(reinterpret_cast<u8*>(vec.data()), vec.size() * sizeof(T));
-    }
-}
-
 }  // namespace rng
 
 namespace hash {
-void sha256(const void* data, size_t size, u8* hash);
-void md5(const void* data, size_t size, u8* hash);
+[[nodiscard]] MD5Hash md5(std::span<const u8> data);
+[[nodiscard]] MD5Hash md5(std::string_view data);
+[[nodiscard]] std::array<u8, 32> sha256(std::span<const u8> data);
+[[nodiscard]] std::array<u8, 32> sha256(std::string_view data);
 
-// takes a file directly
-void sha256_f(std::string_view file_path, u8* hash);
-void md5_f(std::string_view file_path, u8* hash);
-
-// computes digest and returns a 32-wide array of chars of the hex
-MD5String md5_hex(const u8* msg, size_t msg_len);
-
+// hash a file in chunks without loading it entirely into memory (nullopt if it couldn't be read)
+[[nodiscard]] std::optional<MD5Hash> md5_file(std::string_view file_path);
+[[nodiscard]] std::optional<std::array<u8, 32>> sha256_file(std::string_view file_path);
 }  // namespace hash
 
 namespace conv {
-std::string encode64(const u8* src, size_t len);
-
-template <size_t N>
-std::string encode64(const std::array<u8, N>& src) {
-    return encode64(src.data(), N);
-}
-
-std::vector<u8> decode64(std::string_view src);
-
-template <size_t N>
-std::string encodehex(const std::array<u8, N>& src) {
-    const char* hex_chars = "0123456789abcdef";
-
-    std::string out;
-    out.reserve(N * 2);
-
-    for(u8 byte : src) {
-        out.push_back(hex_chars[byte >> 4]);
-        out.push_back(hex_chars[byte & 0x0F]);
-    }
-
-    return out;
-}
-
+[[nodiscard]] std::string encode64(std::span<const u8> src);
+// empty if src isn't valid (padded) base64
+[[nodiscard]] std::vector<u8> decode64(std::string_view src);
+[[nodiscard]] std::string encodehex(std::span<const u8> src);
 }  // namespace conv
 
 }  // namespace crypto

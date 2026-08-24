@@ -61,7 +61,6 @@ Bundled in-tree libraries:
 - boost/sort (https://www.boost.org/) - Boost Software License 1.0
 - unordered_dense (ankerl) (https://github.com/martinus/unordered_dense) - MIT
 - delegatesv2 (https://sakryukov.github.io/publications/2017-02-13.The-Impossibly-Fast-C++Delegates-Fixed.html) - MIT
-- base64 (https://w1.fi/) - BSD license
 - demoji (William Horvath) - MIT
 - MD5.c (RSA Data Security, Inc.) - RSA MD5 license
 - sha256 (https://github.com/LekKit/sha256) - MIT

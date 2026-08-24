@@ -851,7 +851,7 @@ void BanchoState::handle_packet(Packet &packet) {
                     debugLog("Failed to get map file data for md5: {} path: {}", md5, file_path);
                     return;
                 }
-                const MD5String md5_check = crypto::hash::md5_hex(osu_file.data(), osu_file.size());
+                const MD5String md5_check = crypto::hash::md5(osu_file);
                 if(md5 != md5_check) {
                     debugLog("After loading map {}, we got different md5 {}!", md5, md5_check);
                     return;
@@ -917,21 +917,18 @@ std::string BanchoState::build_login_packet() {
     // Don't dox the user's city
     req.append("0|");
 
-    const char *osu_path = Environment::getPathToSelf().c_str();
-    MD5String osu_path_md5 = crypto::hash::md5_hex(reinterpret_cast<const u8 *>(osu_path), strlen(osu_path));
+    MD5String osu_path_md5 = crypto::hash::md5(Environment::getPathToSelf());
 
     // XXX: Should get MAC addresses from network adapters
     // NOTE: Not sure how the MD5 is computed - does it include final "." ?
     constexpr const char *adapters = "runningunderwine";
-    MD5String adapters_md5 = crypto::hash::md5_hex(reinterpret_cast<const u8 *>(adapters), strlen(adapters));
+    MD5String adapters_md5 = crypto::hash::md5(adapters);
 
     // XXX: Should remove '|' from the disk UUID just to be safe
-    MD5String disk_md5 = crypto::hash::md5_hex(reinterpret_cast<const u8 *>(BanchoState::get_disk_uuid().c_str()),
-                                               BanchoState::get_disk_uuid().length());
+    MD5String disk_md5 = crypto::hash::md5(BanchoState::get_disk_uuid());
 
     // XXX: Not implemented, I'm lazy so just reusing disk signature
-    MD5String install_md5 = crypto::hash::md5_hex(reinterpret_cast<const u8 *>(BanchoState::get_install_id().c_str()),
-                                                  BanchoState::get_install_id().length());
+    MD5String install_md5 = crypto::hash::md5(BanchoState::get_install_id());
 
     BanchoState::client_hashes =
         fmt::format("{:s}:{:s}:{:s}:{:s}:{:s}:", osu_path_md5, adapters, adapters_md5, install_md5, disk_md5);

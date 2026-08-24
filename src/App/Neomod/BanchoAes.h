@@ -3,6 +3,10 @@
 
 #include "types.h"
 
+#include <span>
+#include <string_view>
+#include <vector>
+
 namespace BANCHO::AES {
-u8 *encrypt(const u8 *iv, u8 *msg, std::size_t s_msg, std::size_t *s_out);
+std::vector<u8> encrypt(std::span<const u8, 32> iv, std::string_view msg);
 }

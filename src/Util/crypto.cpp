@@ -1,17 +1,17 @@
 // Copyright (c) 2025, WH & 2025, kiwec, All rights reserved.
 #include "crypto.h"
 #include "sha256.h"            // vendored library
-#include "base64.h"            // vendored library
 #include "MD5.h"               // vendored library
 #include "ByteBufferedFile.h"  // for file hashing functions
-#include "MD5Hash.h"
 #include "BaseEnvironment.h"
+#include "noinclude.h"
 
-#include <vector>
-#include <cstring>
-#include <cerrno>
-#include <random>
 #include <algorithm>
+#include <cerrno>
+#include <cstdlib>
+#include <cstring>
+#include <limits>
+#include <random>
 
 #ifdef USE_OPENSSL
 #include <openssl/rand.h>
@@ -31,19 +31,16 @@
 namespace crypto {
 namespace {
 // we will call init() in the Engine ctor which will seed it properly
-// NOLINTNEXTLINE(cert-msc51-cpp, cert-msc32-c)
+// NOLINTNEXTLINE(bugprone-random-generator-seed, cert-msc51-cpp, cert-msc32-c)
 std::mt19937_64 rngalg;
 
-std::uniform_int_distribution<i64> rngdist;
+std::uniform_int_distribution<i64> rngdist{0, prng::PRAND_MAX};
 }  // namespace
 
 void init() noexcept {
-    // initialize uniform int distribution range
-    rngdist.param(std::uniform_int_distribution<i64>::param_type{0, crypto::prng::PRAND_MAX});
-
     // seed with true random (seed C rand() here as well)
-    srand(crypto::rng::get_rand<u32>());
-    rngalg.seed(crypto::rng::get_rand<u64>());
+    srand(rng::get_rand<u32>());
+    rngalg.seed(rng::get_rand<u64>());
 }
 
 namespace prng {
@@ -52,9 +49,12 @@ i64 prand() noexcept { return rngdist(rngalg); }
 
 namespace rng {
 
-void get_bytes(u8* out, std::size_t s_out) {
+void get_bytes(std::span<u8> out) {
+    if(out.empty()) return;
+
 #ifdef USE_OPENSSL
-    if(RAND_bytes(out, static_cast<i32>(s_out)) == 1) {
+    if(out.size() <= static_cast<size_t>(std::numeric_limits<int>::max()) &&
+       RAND_bytes(out.data(), static_cast<int>(out.size())) == 1) {
         return;
     }
 #endif
@@ -66,7 +66,7 @@ void get_bytes(u8* out, std::size_t s_out) {
         fubar_abort();
     }
 
-    if(!CryptGenRandom(hCryptProv, s_out, out)) {
+    if(!CryptGenRandom(hCryptProv, static_cast<DWORD>(out.size()), out.data())) {
         CryptReleaseContext(hCryptProv, 0);
         // failed to generate random bytes, nope out
         fubar_abort();
@@ -74,21 +74,19 @@ void get_bytes(u8* out, std::size_t s_out) {
 
     CryptReleaseContext(hCryptProv, 0);
 #elif __APPLE__
-    arc4random_buf(out, s_out);
+    arc4random_buf(out.data(), out.size());
 #elif defined(__EMSCRIPTEN__)
     // emscripten provides getentropy (max 256 bytes per call)
-    size_t offset = 0;
-    while(offset < s_out) {
-        size_t chunk = std::min(s_out - offset, size_t{256});
-        if(getentropy(out + offset, chunk) != 0) {
+    while(!out.empty()) {
+        const size_t chunk = std::min(out.size(), size_t{256});
+        if(getentropy(out.data(), chunk) != 0) {
             fubar_abort();
         }
-        offset += chunk;
+        out = out.subspan(chunk);
     }
 #else
-    size_t offset = 0;
-    while(offset < s_out) {
-        ssize_t ret = getrandom(out + offset, s_out - offset, 0);
+    while(!out.empty()) {
+        const ssize_t ret = getrandom(out.data(), out.size(), 0);
         if(ret < 0) {
             if(errno == EINTR) {
                 continue;  // interrupted by signal, retry
@@ -96,7 +94,7 @@ void get_bytes(u8* out, std::size_t s_out) {
             // failed, nope out
             fubar_abort();
         }
-        offset += static_cast<size_t>(ret);
+        out = out.subspan(static_cast<size_t>(ret));
     }
 #endif
 }
@@ -104,191 +102,229 @@ void get_bytes(u8* out, std::size_t s_out) {
 }  // namespace rng
 
 namespace hash {
-void sha256(const void* data, size_t size, u8* hash) {
-#ifdef USE_OPENSSL
-    unsigned int hash_len;
-    if(EVP_Digest(data, size, hash, &hash_len, EVP_sha256(), nullptr) == 1) {
-        return;
-    }
-#endif
+namespace {
+constexpr size_t FILE_CHUNK_SIZE{32768};
 
-    // fallback to vendored library
-    sha256_easy_hash(data, size, hash);
-}
+// streaming digest contexts sharing one update()/finalize() interface,
+// so that the one-shot and file hashing paths are only written once
 
-void md5(const void* data, size_t size, u8* hash) {
-#ifdef USE_OPENSSL
-    unsigned int hash_len;
-    if(EVP_Digest(data, size, hash, &hash_len, EVP_md5(), nullptr) == 1) {
-        return;
-    }
-#endif
-
-    // fallback to vendored library
+struct MD5Vendored {
     MD5 hasher;
-    hasher.update(static_cast<const unsigned char*>(data), size);
-    hasher.finalize();
-    std::memcpy(hash, hasher.getDigest(), 16);
-}
 
-void sha256_f(std::string_view file_path, u8* hash) {
-    constexpr size_t CHUNK_SIZE{32768};
-    std::array<u8, CHUNK_SIZE> buffer{};
-    size_t bytes_read{0};
+    void update(std::span<const u8> data) {
+        // the vendored implementation takes 32-bit lengths
+        while(!data.empty()) {
+            const auto chunk =
+                static_cast<MD5::size_type>(std::min<size_t>(data.size(), std::numeric_limits<MD5::size_type>::max()));
+            hasher.update(data.data(), chunk);
+            data = data.subspan(chunk);
+        }
+    }
+
+    MD5Hash finalize() {
+        MD5Hash out;
+        hasher.finalize();
+        std::memcpy(out.data(), hasher.getDigest(), out.size());
+        return out;
+    }
+};
+
+struct SHA256Vendored {
+    sha256_buff buff{};
+
+    SHA256Vendored() { sha256_init(&buff); }
+
+    void update(std::span<const u8> data) {
+        if(!data.empty()) sha256_update(&buff, data.data(), data.size());
+    }
+
+    std::array<u8, 32> finalize() {
+        std::array<u8, 32> out{};
+        sha256_finalize(&buff);
+        sha256_read(&buff, out.data());
+        return out;
+    }
+};
+
+struct MD5Algo {
+    using Digest = MD5Hash;
+    using Vendored = MD5Vendored;
+#ifdef USE_OPENSSL
+    static const EVP_MD* evp() { return EVP_md5(); }
+#endif
+};
+
+struct SHA256Algo {
+    using Digest = std::array<u8, 32>;
+    using Vendored = SHA256Vendored;
+#ifdef USE_OPENSSL
+    static const EVP_MD* evp() { return EVP_sha256(); }
+#endif
+};
 
 #ifdef USE_OPENSSL
-    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
-    if(ctx && EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) == 1) {
-        ByteBufferedFile::Reader reader(file_path);
-        if(reader.good()) {
-            bool success = true;
+class EVPDigest {
+    NOCOPY_NOMOVE(EVPDigest)
+   public:
+    explicit EVPDigest(const EVP_MD* md) : ctx(EVP_MD_CTX_new()), ok(ctx && EVP_DigestInit_ex(ctx, md, nullptr) == 1) {}
+    ~EVPDigest() { EVP_MD_CTX_free(ctx); }
 
-            while(reader.good() && (bytes_read = reader.read_bytes(buffer.data(), CHUNK_SIZE)) > 0) {
-                if(EVP_DigestUpdate(ctx, buffer.data(), bytes_read) != 1) {
-                    success = false;
-                    break;
-                }
-            }
+    [[nodiscard]] bool good() const { return ok; }
 
-            if(success && reader.good()) {
-                unsigned int hash_len = 0;
-                if(EVP_DigestFinal_ex(ctx, hash, &hash_len) == 1) {
-                    EVP_MD_CTX_free(ctx);
-                    return;
-                }
-            }
+    void update(std::span<const u8> data) {
+        if(data.empty()) return;
+        ok = ok && EVP_DigestUpdate(ctx, data.data(), data.size()) == 1;
+    }
+
+    [[nodiscard]] bool finalize(std::span<u8> out) {
+        unsigned int len{0};
+        return ok && EVP_DigestFinal_ex(ctx, out.data(), &len) == 1 && len == out.size();
+    }
+
+   private:
+    EVP_MD_CTX* ctx;
+    bool ok;
+};
+#endif
+
+// feed(digest) pushes the entire input through the given digest context, returning false if it couldn't be read
+template <typename Algo, typename Feed>
+std::optional<typename Algo::Digest> compute(const Feed& feed) {
+#ifdef USE_OPENSSL
+    {
+        EVPDigest evp{Algo::evp()};
+        if(evp.good()) {
+            if(!feed(evp)) return std::nullopt;
+            typename Algo::Digest digest{};
+            if(evp.finalize(digest)) return digest;
         }
-        EVP_MD_CTX_free(ctx);
+        // openssl failed somewhere, retry with the vendored implementation
     }
 #endif
 
-    // fallback to vendored library
-    struct sha256_buff buff;
-    sha256_init(&buff);
-
-    ByteBufferedFile::Reader reader(file_path);
-    if(reader.good()) {
-        while(reader.good() && (bytes_read = reader.read_bytes(buffer.data(), CHUNK_SIZE)) > 0) {
-            sha256_update(&buff, buffer.data(), bytes_read);
-        }
-    }
-
-    sha256_finalize(&buff);
-    sha256_read(&buff, hash);
+    typename Algo::Vendored vendored;
+    if(!feed(vendored)) return std::nullopt;
+    return vendored.finalize();
 }
 
-void md5_f(std::string_view file_path, u8* hash) {
-    constexpr size_t CHUNK_SIZE{32768};
-    std::array<u8, CHUNK_SIZE> buffer{};
-    size_t bytes_read{0};
+template <typename Algo>
+typename Algo::Digest hash_bytes(std::span<const u8> data) {
+    // can't fail: in-memory input has no read errors and the vendored fallback always succeeds
+    return *compute<Algo>([data](auto& digest) {
+        digest.update(data);
+        return true;
+    });
+}
 
-#ifdef USE_OPENSSL
-    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
-    if(ctx && EVP_DigestInit_ex(ctx, EVP_md5(), nullptr) == 1) {
+template <typename Algo>
+std::optional<typename Algo::Digest> hash_file(std::string_view file_path) {
+    return compute<Algo>([file_path](auto& digest) {
         ByteBufferedFile::Reader reader(file_path);
-        if(reader.good()) {
-            bool success = true;
+        if(!reader.good()) return false;
 
-            while(reader.good() && (bytes_read = reader.read_bytes(buffer.data(), CHUNK_SIZE)) > 0) {
-                if(EVP_DigestUpdate(ctx, buffer.data(), bytes_read) != 1) {
-                    success = false;
-                    break;
-                }
-            }
-
-            if(success && reader.good()) {
-                unsigned int hash_len;
-                if(EVP_DigestFinal_ex(ctx, hash, &hash_len) == 1) {
-                    EVP_MD_CTX_free(ctx);
-                    return;
-                }
-            }
+        std::array<u8, FILE_CHUNK_SIZE> buffer{};
+        while(reader.good()) {
+            const size_t bytes_read = reader.read_bytes(buffer.data(), buffer.size());
+            if(bytes_read == 0) break;
+            digest.update(std::span{buffer}.first(bytes_read));
         }
-        EVP_MD_CTX_free(ctx);
-    }
-#endif
-
-    // fallback to vendored library
-    MD5 hasher;
-    ByteBufferedFile::Reader reader(file_path);
-    if(reader.good()) {
-        while(reader.good() && (bytes_read = reader.read_bytes(buffer.data(), CHUNK_SIZE)) > 0) {
-            hasher.update(buffer.data(), bytes_read);
-        }
-    }
-
-    hasher.finalize();
-    std::memcpy(hash, hasher.getDigest(), 16);
+        return reader.good();
+    });
 }
 
-MD5String md5_hex(const u8* msg, size_t msg_len) {
-    MD5Hash hash_bytes;
-    crypto::hash::md5(msg, msg_len, hash_bytes.data());
+std::span<const u8> as_bytes(std::string_view str) { return {reinterpret_cast<const u8*>(str.data()), str.size()}; }
+}  // namespace
 
-    return MD5String{hash_bytes};
-}
+MD5Hash md5(std::span<const u8> data) { return hash_bytes<MD5Algo>(data); }
+MD5Hash md5(std::string_view data) { return md5(as_bytes(data)); }
+
+std::array<u8, 32> sha256(std::span<const u8> data) { return hash_bytes<SHA256Algo>(data); }
+std::array<u8, 32> sha256(std::string_view data) { return sha256(as_bytes(data)); }
+
+std::optional<MD5Hash> md5_file(std::string_view file_path) { return hash_file<MD5Algo>(file_path); }
+std::optional<std::array<u8, 32>> sha256_file(std::string_view file_path) { return hash_file<SHA256Algo>(file_path); }
 
 }  // namespace hash
 
 namespace conv {
-std::string encode64(const u8* src, size_t len) {
-#ifdef USE_OPENSSL
-    // calculate output size: base64 encoding produces 4 chars for every 3 input bytes
-    size_t encoded_len = 4 * ((len + 2) / 3);
-    std::vector<u8> temp(encoded_len + 1);
+namespace {
+constexpr std::string_view BASE64_ALPHABET{"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"};
+constexpr std::string_view HEX_ALPHABET{"0123456789abcdef"};
+}  // namespace
 
-    size_t actual_len = EVP_EncodeBlock(temp.data(), src, static_cast<int>(len));
-    if(actual_len > 0) {
-        return std::string{reinterpret_cast<const char*>(temp.data()), actual_len};
-    }
-#endif
+std::string encode64(std::span<const u8> src) {
+    std::string out;
+    out.reserve(((src.size() + 2) / 3) * 4);
 
-    // fallback to vendored library
-    size_t out_len;
-    u8* result = base64_encode(src, len, &out_len);
-    if(result) {
-        std::string res{reinterpret_cast<const char*>(result), out_len};
-        delete[] result;
-        return res;
+    size_t i = 0;
+    for(; i + 3 <= src.size(); i += 3) {
+        const u32 triple = (u32{src[i]} << 16) | (u32{src[i + 1]} << 8) | u32{src[i + 2]};
+        out.push_back(BASE64_ALPHABET[(triple >> 18) & 0x3F]);
+        out.push_back(BASE64_ALPHABET[(triple >> 12) & 0x3F]);
+        out.push_back(BASE64_ALPHABET[(triple >> 6) & 0x3F]);
+        out.push_back(BASE64_ALPHABET[triple & 0x3F]);
     }
 
-    return "";
+    // 1 or 2 trailing bytes, padded with '='
+    if(const size_t remaining = src.size() - i; remaining > 0) {
+        const u32 triple = (u32{src[i]} << 16) | (remaining == 2 ? u32{src[i + 1]} << 8 : 0u);
+        out.push_back(BASE64_ALPHABET[(triple >> 18) & 0x3F]);
+        out.push_back(BASE64_ALPHABET[(triple >> 12) & 0x3F]);
+        out.push_back(remaining == 2 ? BASE64_ALPHABET[(triple >> 6) & 0x3F] : '=');
+        out.push_back('=');
+    }
+
+    return out;
 }
 
-std::vector<u8> decode64(std::string_view srcParam) {
-    const u8* src = (u8*)srcParam.data();
-    size_t len = srcParam.length();
-
-#ifdef USE_OPENSSL
-    // calculate maximum output size
-    size_t max_decoded_len = (len * 3) / 4 + 1;
-    std::vector<u8> temp(max_decoded_len);
-
-    int actual_len = EVP_DecodeBlock(temp.data(), src, len);
-    if(actual_len >= 0) {
-        // EVP_DecodeBlock doesn't account for padding, need to adjust
-        int padding = 0;
-        if(len >= 2) {
-            if(src[len - 1] == '=') padding++;
-            if(src[len - 2] == '=') padding++;
+std::vector<u8> decode64(std::string_view src) {
+    static constexpr auto lookup = [] {
+        std::array<u8, 256> table{};
+        table.fill(0xFF);
+        for(size_t i = 0; i < BASE64_ALPHABET.size(); i++) {
+            table[static_cast<u8>(BASE64_ALPHABET[i])] = static_cast<u8>(i);
         }
-        actual_len -= padding;
+        return table;
+    }();
 
-        temp.resize(static_cast<size_t>(actual_len));
-        return temp;
+    if(src.empty() || src.size() % 4 != 0) return {};
+
+    // '=' is only valid as (up to two) trailing padding characters
+    size_t padding = 0;
+    while(padding < 2 && src[src.size() - 1 - padding] == '=') padding++;
+    src.remove_suffix(padding);
+
+    std::vector<u8> out;
+    out.reserve(src.size() * 6 / 8);
+
+    u32 acc = 0;
+    u32 bits = 0;
+    for(const char c : src) {
+        const u8 sextet = lookup[static_cast<u8>(c)];
+        if(sextet == 0xFF) return {};
+
+        acc = (acc << 6) | sextet;
+        bits += 6;
+        if(bits >= 8) {
+            bits -= 8;
+            out.push_back(static_cast<u8>(acc >> bits));
+            acc &= (1u << bits) - 1;
+        }
     }
-#endif
 
-    // fallback to vendored library
-    size_t out_len;
-    u8* result = base64_decode(src, len, &out_len);
-    if(result) {
-        std::vector<u8> vec(result, result + out_len);
-        delete[] result;
-        return vec;
+    return out;
+}
+
+std::string encodehex(std::span<const u8> src) {
+    std::string out;
+    out.reserve(src.size() * 2);
+
+    for(const u8 byte : src) {
+        out.push_back(HEX_ALPHABET[byte >> 4]);
+        out.push_back(HEX_ALPHABET[byte & 0x0F]);
     }
 
-    return {};
+    return out;
 }
 }  // namespace conv
 

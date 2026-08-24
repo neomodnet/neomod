@@ -113,11 +113,9 @@ void UpdateHandler::onVersionCheckComplete(std::string_view response, bool succe
 
     // XXX: Blocking file read
     if(!online_update_hash.empty() && Environment::fileExists(NEOMOD_DATA_DIR "update.zip")) {
-        std::array<u8, 32> file_hash{};
-        crypto::hash::sha256_f(NEOMOD_DATA_DIR "update.zip", file_hash.data());
-        auto downloaded_update_hash = crypto::conv::encodehex(file_hash);
-        if(downloaded_update_hash == online_update_hash) {
-            debugLog("UpdateHandler: Update already downloaded (hash = {})", downloaded_update_hash);
+        const auto file_hash = crypto::hash::sha256_file(NEOMOD_DATA_DIR "update.zip");
+        if(file_hash && crypto::conv::encodehex(*file_hash) == online_update_hash) {
+            debugLog("UpdateHandler: Update already downloaded (hash = {})", online_update_hash);
             this->status = STATUS_DOWNLOAD_COMPLETE;
             return;
         }
@@ -158,9 +156,7 @@ void UpdateHandler::onDownloadComplete(std::span<const u8> data, bool success, s
         return;
     }
 
-    std::array<u8, 32> file_hash{};
-    crypto::hash::sha256(data.data(), data.size(), file_hash.data());
-    auto downloaded_update_hash = crypto::conv::encodehex(file_hash);
+    auto downloaded_update_hash = crypto::conv::encodehex(crypto::hash::sha256(data));
     if(!hash.empty() && downloaded_update_hash != hash) {
         debugLog("UpdateHandler ERROR: downloaded file hash does not match! {} != {}", downloaded_update_hash, hash);
         this->status = STATUS_ERROR;

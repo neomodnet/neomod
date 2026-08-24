@@ -2,14 +2,17 @@
 
 // AES with 32-byte key size and 32-byte block size.
 // Full of magic values (as usual in crypto), but this will never get edited again.
+#include <algorithm>
 #include <cstring>
 
 #include "noinclude.h"
 #include "BanchoNetworking.h"
 #include "BanchoAes.h"
 
-
 namespace {  // static
+
+using AESKey = std::array<std::array<u32, 8>, 15>;
+
 u8 r_con[] = {1,  2,  4,   8,  16,  32,  64, 128, 27,  54,  108, 216, 171, 77,  154,
               47, 94, 188, 99, 198, 151, 53, 106, 212, 179, 125, 250, 239, 197, 145};
 u8 S[] = {99,  124, 119, 123, 242, 107, 111, 197, 48,  1,   103, 43,  254, 215, 171, 118, 202, 130, 201, 125, 250, 89,
@@ -141,15 +144,8 @@ u32 T4[] = {1667474886, 2088535288, 2004326894, 2071694838, 4075949567, 18022230
             218961690,  3217021541, 3873845719, 1111672452, 1751693520, 1094828930, 2576986153, 757954394,  252645662,
             2964376443, 1414855848, 3149649517, 370555436};
 
-u32 **aes_init_key(u8 *key) {
-    u32 **k_e = new u32 *[15];
-    for(int i = 0; i < 15; i++) {
-        k_e[i] = new u32[8];
-        for(int j = 0; j < 8; j++) {
-            k_e[i][j] = 0;
-        }
-    }
-
+AESKey aes_init_key(std::span<const u8> key) {
+    AESKey k_e{};
     u32 tk[8];
     for(int i = 0; i < 8; i++) {
         tk[i] = (key[i * 4] << 24) | (key[i * 4 + 1] << 16) | (key[i * 4 + 2] << 8) | (key[i * 4 + 3]);
@@ -195,14 +191,7 @@ u32 **aes_init_key(u8 *key) {
     return k_e;
 }
 
-void aes_free_key(u32 **key) {
-    for(int i = 0; i < 15; i++) {
-        delete key[i];
-    }
-    delete[] key;
-}
-
-void aes_encrypt_block(u8 *in, u8 *out, u32 **k_e) {
+void aes_encrypt_block(u8 *in, u8 *out, const AESKey &k_e) {
     u32 a[8];
     u32 b[8];
     for(int i = 0; i < 8; i++) {
@@ -231,41 +220,35 @@ void aes_encrypt_block(u8 *in, u8 *out, u32 **k_e) {
 }  // namespace
 
 namespace BANCHO::AES {
-u8 *encrypt(const u8 *iv, u8 *msg, size_t s_msg, size_t *s_out) {
-    constexpr const char *key_str = "osu!-scoreburgr---------" MC_STRINGIZE(OSU_VERSION_DATEONLY);
-    u32 **key = aes_init_key((u8 *)key_str);
+std::vector<u8> encrypt(std::span<const u8, 32> iv, std::string_view msg) {
+    constexpr std::string_view key_str = "osu!-scoreburgr---------" MC_STRINGIZE(OSU_VERSION_DATEONLY);
+    const auto key = aes_init_key(std::span<const u8>{reinterpret_cast<const u8 *>(key_str.data()), key_str.size()});
 
-    int bytes_encrypted = 0;
-    int bytes_to_encrypt = s_msg;
-    u8 padding = (32 - (bytes_to_encrypt % 32));
+    const u8 padding = static_cast<u8>(32 - (msg.size() % 32));
+    std::vector<u8> out(msg.size() + padding);
 
-    *s_out = bytes_to_encrypt + padding;
-    u8 *out = new u8[*s_out];
-
-    int keep_going = 1;
+    const u8 *prev_block = iv.data();
+    size_t offset = 0;
+    bool keep_going = true;
     while(keep_going) {
-        u8 block[32] = {0};
+        u8 block[32]{};
 
-        int nb = bytes_to_encrypt > 32 ? 32 : bytes_to_encrypt;
-        memcpy(block, msg, nb);
+        const size_t nb = std::min<size_t>(msg.size() - offset, 32);
+        if(nb > 0) memcpy(block, msg.data() + offset, nb);
         if(nb < 32) {
             memset(block + nb, padding, padding);
-            keep_going = 0;
+            keep_going = false;
         }
 
         for(int i = 0; i < 32; i++) {
-            block[i] = block[i] ^ iv[i];
+            block[i] = block[i] ^ prev_block[i];
         }
 
-        aes_encrypt_block(block, &out[bytes_encrypted], key);
-        iv = &out[bytes_encrypted];
-
-        bytes_encrypted += nb;
-        bytes_to_encrypt -= nb;
-        msg += 32;
+        aes_encrypt_block(block, &out[offset], key);
+        prev_block = &out[offset];
+        offset += nb;
     }
 
-    aes_free_key(key);
     return out;
 }
 }  // namespace BANCHO::AES

@@ -3403,7 +3403,7 @@ void OptionsOverlayImpl::onLogInClicked(bool left, bool right) {
             BanchoState::game_endpoint = "c." + BanchoState::endpoint;
 
             crypto::rng::get_rand(BanchoState::oauth_verifier);
-            crypto::hash::sha256(&BanchoState::oauth_verifier[0], 32, &BanchoState::oauth_challenge[0]);
+            BanchoState::oauth_challenge = crypto::hash::sha256(BanchoState::oauth_verifier);
 
             auto challenge_b64 = Mc::Net::urlEncode(crypto::conv::encode64(BanchoState::oauth_challenge));
             auto scheme = cv::use_https.getBool() ? "https://" : "http://";

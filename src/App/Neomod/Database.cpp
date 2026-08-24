@@ -1112,8 +1112,8 @@ MD5Hash Database::recalcMD5(std::string osu_path) {
     // "temporary" fix (extremely rare edge case so maybe it's not that important)
     MD5Hash md5digest;
     if(Environment::fileExists(osu_path)) {
-        crypto::hash::md5_f(osu_path, md5digest.data());
-        if(!md5digest.empty()) {
+        if(const auto hash = crypto::hash::md5_file(osu_path)) {
+            md5digest = *hash;
             logIfCV(debug_db, "Manually calculated hash {} for {}", md5digest, osu_path);
         } else {
             logIfCV(debug_db, "Failed to recalculate corrupt hash {}", osu_path);

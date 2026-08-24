@@ -80,7 +80,7 @@ struct ALIGNED_TO(sizeof(void *) * 2) MD5Hash final : public std::array<MD5Byte,
     [[nodiscard]] constexpr size_t length() const { return this->size(); }
 
     [[nodiscard]] constexpr inline MD5String to_chars() const { return MD5String{*this}; }
-    [[nodiscard]] inline bool operator==(const std::string &other) const { return this->to_chars().string() == other; }
+    [[nodiscard]] inline bool operator==(std::string_view other) const { return this->to_chars().string() == other; }
 
     inline void clear() { std::memset(this->data(), 0, this->size() * sizeof(MD5Byte)); }
 

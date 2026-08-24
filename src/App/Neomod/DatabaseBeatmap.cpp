@@ -1339,13 +1339,7 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
 
     // compute MD5 hash (very slow)
     if(compute_md5 && !this->md5_init.load(std::memory_order_acquire)) {
-        MD5Hash out;
-        crypto::hash::md5(fileBuffer.data(), fileBuffer.size(), out.data());
-        if(!out.empty()) {
-            this->writeMD5(out);
-        } else {
-            debugLog("WARNING: failed to compute MD5 for {}", this->getFilePath());
-        }
+        this->writeMD5(crypto::hash::md5(fileBuffer));
     }
 
     // reset

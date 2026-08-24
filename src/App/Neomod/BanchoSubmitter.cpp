@@ -18,6 +18,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <span>
 #include <vector>
 
 namespace BANCHO::Net {
@@ -91,11 +92,7 @@ void submit_score(FinishedScore score) {
     });
 
     {
-        size_t s_client_hashes_encrypted = 0;
-        u8 *client_hashes_encrypted =
-            BANCHO::AES::encrypt(iv.data(), (u8 *)BanchoState::client_hashes.c_str(),
-                                 BanchoState::client_hashes.length(), &s_client_hashes_encrypted);
-        auto client_hashes_b64 = crypto::conv::encode64(client_hashes_encrypted, s_client_hashes_encrypted);
+        auto client_hashes_b64 = crypto::conv::encode64(BANCHO::AES::encrypt(iv, BanchoState::client_hashes));
         options.mime_parts.push_back({
             .name = "s",
             .data = {client_hashes_b64.begin(), client_hashes_b64.end()},
@@ -139,7 +136,7 @@ void submit_score(FinishedScore score) {
             idiot_check.append(fmt::format("0{}{}", OSU_VERSION_DATEONLY, score_time.data()));
             idiot_check.append(BanchoState::client_hashes);
 
-            auto idiot_hash = crypto::hash::md5_hex((u8 *)idiot_check.data(), idiot_check.size());
+            const MD5String idiot_hash{crypto::hash::md5(idiot_check)};
             score_data.append(":");
             score_data.append(idiot_hash.string());
         }
@@ -159,11 +156,7 @@ void submit_score(FinishedScore score) {
         score_data.append(fmt::format(":{}", score_time.data()));
         score_data.append(":mcosu");  // anticheat flags
 
-        size_t s_score_data_encrypted = 0;
-        u8 *score_data_encrypted =
-            BANCHO::AES::encrypt(iv.data(), (u8 *)score_data.data(), score_data.size(), &s_score_data_encrypted);
-        auto score_data_b64 = crypto::conv::encode64(score_data_encrypted, s_score_data_encrypted);
-        delete[] score_data_encrypted;
+        auto score_data_b64 = crypto::conv::encode64(BANCHO::AES::encrypt(iv, score_data));
         options.mime_parts.push_back({
             .name = "score",
             .data = {score_data_b64.begin(), score_data_b64.end()},
@@ -187,7 +180,8 @@ void submit_score(FinishedScore score) {
     {
         Packet packet;
         Replay::Mods::pack_and_write(packet, score.mods);
-        auto mods_data_b64 = crypto::conv::encode64(packet.memory, packet.pos);
+        auto mods_data_b64 = crypto::conv::encode64(std::span{packet.memory, packet.pos});
+        free(packet.memory);
 
         options.mime_parts.push_back({
             .name = PACKAGE_NAME "-mods",

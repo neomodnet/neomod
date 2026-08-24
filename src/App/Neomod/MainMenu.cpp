@@ -236,8 +236,7 @@ bool is_updating_from_old_version() {
     }
     if(version < 39.00) {
         if(!cv::mp_password.getString().empty()) {
-            const char *plaintext_pw{cv::mp_password.getString().c_str()};
-            const auto hash{crypto::hash::md5_hex((u8 *)plaintext_pw, strlen(plaintext_pw))};
+            const MD5String hash{crypto::hash::md5(cv::mp_password.getString())};
             cv::mp_password_md5.setValue(hash.string());
             cv::mp_password.setValue("");
             shouldSave = true;

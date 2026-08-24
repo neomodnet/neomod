@@ -487,8 +487,7 @@ void BanchoState::reconnect() {
 
     // XXX: Put this in cv::mp_password callback?
     if(!cv::mp_password.getString().empty()) {
-        const char *password = cv::mp_password.getString().c_str();
-        const auto hash{crypto::hash::md5_hex(reinterpret_cast<const u8 *>(password), strlen(password))};
+        const MD5String hash{crypto::hash::md5(cv::mp_password.getString())};
         cv::mp_password_md5.setValue(hash.string());
         cv::mp_password.setValue("");
     }
