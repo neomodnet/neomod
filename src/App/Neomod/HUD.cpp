@@ -864,7 +864,8 @@ void HUD::drawPlayfieldBorder(vec2 playfieldCenter, vec2 playfieldSize, f32 hitc
 }
 
 void HUD::drawLoadingSmall(std::string_view text) {
-    const f32 scale = Osu::getImageScale(osu->getSkin()->i_loading_spinner, 29);
+    const auto &loading_spinner = osu->getSkin()->i_loading_spinner;
+    const f32 scale = Osu::getImageScale(loading_spinner, 29);
 
     g->setColor(0xffffffff);
     g->pushTransform();
@@ -872,11 +873,11 @@ void HUD::drawLoadingSmall(std::string_view text) {
         g->rotate((f32)std::fmod(engine->getTime(), 2.) * 180.f, 0, 0, 1);
         g->scale(scale, scale);
         g->translate(osu->getVirtScreenWidth() / 2.f, osu->getVirtScreenHeight() / 2.f);
-        g->drawImage(osu->getSkin()->i_loading_spinner);
+        g->drawImage(loading_spinner);
     }
     g->popTransform();
 
-    const f32 &spinner_height = osu->getSkin()->i_loading_spinner.getHeight() * scale;
+    const f32 &spinner_height = loading_spinner.getHeight() * scale;
     g->setColor(0x44ffffff);
     g->pushTransform();
     {
@@ -935,9 +936,10 @@ void HUD::drawComboSimple(i32 combo, f32 scale) {
         HUD::drawNumberWithSkinDigits({.number = (u64)combo, .scale = scale, .combo = true});
 
         // draw 'x' at the end
-        if(osu->getSkin()->i_combo_x != MISSING_TEXTURE) {
-            g->translate(osu->getSkin()->i_combo_x.getWidth() * 0.5f * scale, 0);
-            g->drawImage(osu->getSkin()->i_combo_x);
+        const auto &comboX = osu->getSkin()->i_combo_x;
+        if(comboX != MISSING_TEXTURE) {
+            g->translate(comboX.getWidth() * 0.5f * scale, 0);
+            g->drawImage(comboX);
         }
     }
     g->popTransform();
@@ -946,25 +948,26 @@ void HUD::drawComboSimple(i32 combo, f32 scale) {
 void HUD::drawCombo(i32 combo) {
     g->setColor(0xffffffff);
 
-    const i32 offset = 5;
+    constexpr i32 offset = 5;
 
     // draw back (anim)
+    const auto &combo0Img = osu->getSkin()->i_combos[0];
     f32 animScaleMultiplier = 1.0f + this->fComboAnim2 * cv::combo_anim2_size.getFloat();
-    f32 scale = Osu::getImageScale(osu->getSkin()->i_combos[0], 32) * animScaleMultiplier * cv::hud_scale.getFloat() *
+    f32 scale = Osu::getImageScale(combo0Img, 32) * animScaleMultiplier * cv::hud_scale.getFloat() *
                 cv::hud_combo_scale.getFloat();
     if(this->fComboAnim2 > 0.01f) {
         g->setAlpha(this->fComboAnim2 * 0.65f);
         g->pushTransform();
         {
             g->scale(scale, scale);
-            g->translate(offset, osu->getVirtScreenHeight() - osu->getSkin()->i_combos[0]->getHeight() * scale / 2.0f,
-                         0.0f);
+            g->translate(offset, osu->getVirtScreenHeight() - combo0Img->getHeight() * scale / 2.0f, 0.0f);
             HUD::drawNumberWithSkinDigits({.number = (u64)combo, .scale = scale, .combo = true});
 
             // draw 'x' at the end
-            if(osu->getSkin()->i_combo_x != MISSING_TEXTURE) {
-                g->translate(osu->getSkin()->i_combo_x.getWidth() * 0.5f * scale, 0);
-                g->drawImage(osu->getSkin()->i_combo_x);
+            const auto &comboX = osu->getSkin()->i_combo_x;
+            if(comboX != MISSING_TEXTURE) {
+                g->translate(comboX.getWidth() * 0.5f * scale, 0);
+                g->drawImage(comboX);
             }
         }
         g->popTransform();
@@ -974,19 +977,19 @@ void HUD::drawCombo(i32 combo) {
     g->setAlpha(1.0f);
     const f32 animPercent = (this->fComboAnim1 < 1.0f ? this->fComboAnim1 : 2.0f - this->fComboAnim1);
     animScaleMultiplier = 1.0f + (0.5f * animPercent * animPercent) * cv::combo_anim1_size.getFloat();
-    scale = Osu::getImageScale(osu->getSkin()->i_combos[0], 32) * animScaleMultiplier * cv::hud_scale.getFloat() *
+    scale = Osu::getImageScale(combo0Img, 32) * animScaleMultiplier * cv::hud_scale.getFloat() *
             cv::hud_combo_scale.getFloat();
     g->pushTransform();
     {
         g->scale(scale, scale);
-        g->translate(offset, osu->getVirtScreenHeight() - osu->getSkin()->i_combos[0]->getHeight() * scale / 2.0f,
-                     0.0f);
+        g->translate(offset, osu->getVirtScreenHeight() - combo0Img->getHeight() * scale / 2.0f, 0.0f);
         HUD::drawNumberWithSkinDigits({.number = (u64)combo, .scale = scale, .combo = true});
 
         // draw 'x' at the end
-        if(osu->getSkin()->i_combo_x != MISSING_TEXTURE) {
-            g->translate(osu->getSkin()->i_combo_x.getWidth() * 0.5f * scale, 0);
-            g->drawImage(osu->getSkin()->i_combo_x);
+        const auto &comboX = osu->getSkin()->i_combo_x;
+        if(comboX != MISSING_TEXTURE) {
+            g->translate(comboX.getWidth() * 0.5f * scale, 0);
+            g->drawImage(comboX);
         }
     }
     g->popTransform();

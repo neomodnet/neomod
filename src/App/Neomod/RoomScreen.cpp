@@ -780,7 +780,7 @@ FinishedScore RoomScreen::get_approximate_score() {
 
         score.mods = Replay::Mods::from_legacy(slot.mods);
         score.passed = !slot.died;
-        score.unixTimestamp = slot.last_update_tms;
+        score.unix_timestamp = slot.last_update_tms;
         score.num300s = slot.num300;
         score.num100s = slot.num100;
         score.num50s = slot.num50;

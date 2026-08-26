@@ -233,7 +233,7 @@ class Database final {
     bool addScoreRaw(const FinishedScore &score);
     // returns position of existing score in the scores[hash] array if found, -1 otherwise
     // this isn't completely accurate but allows skipping importing some duplicate entries early from dbs
-    int isScoreAlreadyInDB(const MD5Hash &map_hash, u64 unix_timestamp, const std::string &playerName);
+    int isScoreAlreadyInDB(const MD5Hash &map_hash, i64 unix_timestamp, const std::string &playerName);
 
     static MD5Hash recalcMD5(std::string osu_path);
 

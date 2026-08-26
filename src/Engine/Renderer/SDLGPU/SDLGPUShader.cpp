@@ -288,8 +288,8 @@ bool SDLGPUShader::parseShaderPack(SDL_GPUDevice *device, const u8 *data, size_t
 }
 
 // GLSL uniform block parsing
-
-u32 SDLGPUShader::typeSize(std::string_view typeName) {
+namespace {
+u32 type_size(std::string_view typeName) {
     if(typeName == "float" || typeName == "int" || typeName == "uint" || typeName == "bool") return 4;
     if(typeName == "vec2" || typeName == "ivec2" || typeName == "uvec2") return 8;
     if(typeName == "vec3" || typeName == "ivec3" || typeName == "uvec3") return 12;
@@ -300,7 +300,7 @@ u32 SDLGPUShader::typeSize(std::string_view typeName) {
     return 4;
 }
 
-u32 SDLGPUShader::typeAlignment(std::string_view typeName) {
+u32 type_alignment(std::string_view typeName) {
     if(typeName == "float" || typeName == "int" || typeName == "uint" || typeName == "bool") return 4;
     if(typeName == "vec2" || typeName == "ivec2" || typeName == "uvec2") return 8;
     if(typeName == "vec3" || typeName == "ivec3" || typeName == "uvec3") return 16;
@@ -309,10 +309,11 @@ u32 SDLGPUShader::typeAlignment(std::string_view typeName) {
     return 4;
 }
 
-u32 SDLGPUShader::computeStd140Offset(u32 currentOffset, std::string_view typeName) {
-    u32 align = typeAlignment(typeName);
+u32 compute_std140_offset(u32 currentOffset, std::string_view typeName) {
+    u32 align = type_alignment(typeName);
     return (currentOffset + align - 1) & ~(align - 1);
 }
+}  // namespace
 
 std::vector<SDLGPUShader::UniformBlock> SDLGPUShader::parseUniformBlocks(const std::string &glsl) {
     std::vector<UniformBlock> ret;
@@ -345,8 +346,8 @@ std::vector<SDLGPUShader::UniformBlock> SDLGPUShader::parseUniformBlocks(const s
         u32 totalOffset = 0;
         for(auto varMatch : ctre::search_all<varPat>(blockBody)) {
             auto typeName = varMatch.get<1>().to_view();
-            u32 alignedOffset = computeStd140Offset(totalOffset, typeName);
-            totalOffset = alignedOffset + typeSize(typeName);
+            u32 alignedOffset = compute_std140_offset(totalOffset, typeName);
+            totalOffset = alignedOffset + type_size(typeName);
         }
         totalOffset = (totalOffset + 15) & ~15u;  // std140 struct alignment
         block.buffer = FixedSizeArray<u8>{totalOffset, {/*zero*/}};
@@ -358,8 +359,8 @@ std::vector<SDLGPUShader::UniformBlock> SDLGPUShader::parseUniformBlocks(const s
             auto typeName = varMatch.get<1>().to_view();
             auto varName = varMatch.get<2>().to_view();
 
-            u32 alignedOffset = computeStd140Offset(currentOffset, typeName);
-            u32 size = typeSize(typeName);
+            u32 alignedOffset = compute_std140_offset(currentOffset, typeName);
+            u32 size = type_size(typeName);
             currentOffset = alignedOffset + size;
 
             if(varName.starts_with("_pad"sv)) continue;

@@ -47,7 +47,7 @@ inline std::string_view comboBasedSuffix(bool perfect, bool FC) { return perfect
 
 std::string ScoreButton::recentScoreIconString;
 
-u64 ScoreButton::getScoreUnixTimestamp() const { return this->storedScore->unixTimestamp; }
+u64 ScoreButton::getScoreUnixTimestamp() const { return this->storedScore->unix_timestamp; }
 u64 ScoreButton::getScoreScore() const { return this->storedScore->score; }
 
 ScoreButton::ScoreButton(UIContextMenu *contextMenu, float xPos, float yPos, float xSize, float ySize, STYLE style)
@@ -789,14 +789,14 @@ void ScoreButton::setScore(const FinishedScore &newscore, const DatabaseBeatmap 
     }
 
     struct tm tm;
-    std::time_t timestamp = sc.unixTimestamp;
+    std::time_t timestamp = sc.unix_timestamp;
     localtime_x(&timestamp, &tm);
 
     std::array<char, 64> dateString{};
     const size_t written = std::strftime(dateString.data(), dateString.size(), "%d-%b-%y %H:%M:%S", &tm);
 
     this->sScoreDateTime = std::string{dateString.data(), written};
-    this->iScoreUnixTimestamp = sc.unixTimestamp;
+    this->iScoreUnixTimestamp = sc.unix_timestamp;
 
     std::string achievedOn = "Achieved on ";
     achievedOn.append(this->sScoreDateTime);

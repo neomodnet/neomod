@@ -113,7 +113,7 @@ static CONSTINIT VertexArrayObject rectVAO{};
 
 void RenderTarget::drawRect(int x, int y, int width, int height) {
     if(!this->bReady) {
-        logIfCV(debug_rt, "WARNING: RenderTarget is not ready!\n");
+        logIfCV(debug_rt, "WARNING: RenderTarget is not ready!");
         return;
     }
 

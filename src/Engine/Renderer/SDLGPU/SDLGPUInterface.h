@@ -417,6 +417,8 @@ class SDLGPUInterface final : public ModernGraphicsShared {
     // (is 512MB too much? eh, if you're using this renderer you probably have a good enough GPU, dunno how to query this)
     static constexpr u32 POOL_MIN_LOG2 = 2;      // 4 bytes (1x1 RGBA)
     static constexpr u32 POOL_NUM_CLASSES = 27;  // 2^2 .. 2^28 (256MB)
+    static_assert(2 << (POOL_NUM_CLASSES + 1) == UPLOAD_POOL_BUDGET);
+
     Sync::mutex m_uploadTransferPoolMutex;
     std::array<std::vector<SDL_GPUTransferBuffer *>, POOL_NUM_CLASSES> m_uploadTransferPool{};
     u32 m_uploadTransferPoolBytes{0};

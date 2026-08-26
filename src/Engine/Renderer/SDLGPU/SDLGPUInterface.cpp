@@ -205,12 +205,9 @@ bool SDLGPUInterface::init() {
 
     // create default shader
     {
-        const auto vshPack =
-            std::string(reinterpret_cast<const char *>(VK_default_vsh), static_cast<uSz>(VK_default_vsh_size()));
-        const auto fshPack =
-            std::string(reinterpret_cast<const char *>(VK_default_fsh), static_cast<uSz>(VK_default_fsh_size()));
-
-        m_defaultShader.reset(static_cast<SDLGPUShader *>(createShaderFromSource(vshPack, fshPack)));
+        m_defaultShader.reset(static_cast<SDLGPUShader *>(createShaderFromSource(
+            std::string(reinterpret_cast<const char *>(VK_default_vsh), static_cast<uSz>(VK_default_vsh_size())),
+            std::string(reinterpret_cast<const char *>(VK_default_fsh), static_cast<uSz>(VK_default_fsh_size())))));
         m_defaultShader->loadAsync();
         m_defaultShader->load();
 

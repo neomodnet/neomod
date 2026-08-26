@@ -74,7 +74,7 @@ void get_bytes(std::span<u8> out) {
     }
 
     CryptReleaseContext(hCryptProv, 0);
-#elif __APPLE__
+#elif defined(__APPLE__)
     arc4random_buf(out.data(), out.size());
 #elif defined(__EMSCRIPTEN__)
     // emscripten provides getentropy (max 256 bytes per call)

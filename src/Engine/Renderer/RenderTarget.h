@@ -14,7 +14,7 @@ class RenderTarget : public Resource {
     NOCOPY_NOMOVE(RenderTarget)
    public:
     RenderTarget(int x, int y, int width, int height,
-                 MultisampleType multiSampleType = MultisampleType{0});
+                 MultisampleType multiSampleType = MultisampleType::X0);
     ~RenderTarget() override;
 
     virtual void draw(int x, int y);

@@ -47,7 +47,7 @@ Database *db{nullptr};
 
 bool Database::sortScoreByScore(const FinishedScore &a, const FinishedScore &b) {
     if(a.score != b.score) return a.score > b.score;
-    if(a.unixTimestamp != b.unixTimestamp) return a.unixTimestamp > b.unixTimestamp;
+    if(a.unix_timestamp != b.unix_timestamp) return a.unix_timestamp > b.unix_timestamp;
     if(a.player_id != b.player_id) return a.player_id > b.player_id;
     if(a.play_time_ms != b.play_time_ms) return a.play_time_ms > b.play_time_ms;
     return false;  // equivalent
@@ -56,14 +56,14 @@ bool Database::sortScoreByScore(const FinishedScore &a, const FinishedScore &b) 
 bool Database::sortScoreByCombo(const FinishedScore &a, const FinishedScore &b) {
     if(a.comboMax != b.comboMax) return a.comboMax > b.comboMax;
     if(a.score != b.score) return a.score > b.score;
-    if(a.unixTimestamp != b.unixTimestamp) return a.unixTimestamp > b.unixTimestamp;
+    if(a.unix_timestamp != b.unix_timestamp) return a.unix_timestamp > b.unix_timestamp;
     if(a.player_id != b.player_id) return a.player_id > b.player_id;
     if(a.play_time_ms != b.play_time_ms) return a.play_time_ms > b.play_time_ms;
     return false;  // equivalent
 }
 
 bool Database::sortScoreByDate(const FinishedScore &a, const FinishedScore &b) {
-    if(a.unixTimestamp != b.unixTimestamp) return a.unixTimestamp > b.unixTimestamp;
+    if(a.unix_timestamp != b.unix_timestamp) return a.unix_timestamp > b.unix_timestamp;
     if(a.player_id != b.player_id) return a.player_id > b.player_id;
     if(a.play_time_ms != b.play_time_ms) return a.play_time_ms > b.play_time_ms;
     return false;  // equivalent
@@ -72,7 +72,7 @@ bool Database::sortScoreByDate(const FinishedScore &a, const FinishedScore &b) {
 bool Database::sortScoreByMisses(const FinishedScore &a, const FinishedScore &b) {
     if(a.numMisses != b.numMisses) return a.numMisses < b.numMisses;
     if(a.score != b.score) return a.score > b.score;
-    if(a.unixTimestamp != b.unixTimestamp) return a.unixTimestamp > b.unixTimestamp;
+    if(a.unix_timestamp != b.unix_timestamp) return a.unix_timestamp > b.unix_timestamp;
     if(a.player_id != b.player_id) return a.player_id > b.player_id;
     if(a.play_time_ms != b.play_time_ms) return a.play_time_ms > b.play_time_ms;
     return false;  // equivalent
@@ -83,7 +83,7 @@ bool Database::sortScoreByAccuracy(const FinishedScore &a, const FinishedScore &
     auto b_acc = LiveScore::calculateAccuracy(b.num300s, b.num100s, b.num50s, b.numMisses);
     if(a_acc != b_acc) return a_acc > b_acc;
     if(a.score != b.score) return a.score > b.score;
-    if(a.unixTimestamp != b.unixTimestamp) return a.unixTimestamp > b.unixTimestamp;
+    if(a.unix_timestamp != b.unix_timestamp) return a.unix_timestamp > b.unix_timestamp;
     if(a.player_id != b.player_id) return a.player_id > b.player_id;
     if(a.play_time_ms != b.play_time_ms) return a.play_time_ms > b.play_time_ms;
     return false;  // equivalent
@@ -94,7 +94,7 @@ bool Database::sortScoreByPP(const FinishedScore &a, const FinishedScore &b) {
     auto b_pp = std::max(b.get_pp() * 1000.0, 0.0);
     if(a_pp != b_pp) return a_pp > b_pp;
     if(a.score != b.score) return a.score > b.score;
-    if(a.unixTimestamp != b.unixTimestamp) return a.unixTimestamp > b.unixTimestamp;
+    if(a.unix_timestamp != b.unix_timestamp) return a.unix_timestamp > b.unix_timestamp;
     if(a.player_id != b.player_id) return a.player_id > b.player_id;
     if(a.play_time_ms != b.play_time_ms) return a.play_time_ms > b.play_time_ms;
     return false;  // equivalent
@@ -612,7 +612,7 @@ void Database::importLooseOsz() {
     }
     if(oszs.empty()) return;
 
-    debugLog("Importing {:d} loose .osz file(s) from {}", oszs.size(), NEOMOD_MAPS_PATH "/");
+    debugLog("Importing {:d} loose .osz file(s) from " NEOMOD_MAPS_PATH "/", oszs.size());
 
     // the .osz aren't in loadMaps' byte budget, so the percentage stays pinned near 0.99 throughout
     // this loop; the import count surfaced via getImportDone()/getImportTotal() is the user's actual
@@ -691,7 +691,7 @@ bool Database::addScore(const FinishedScore &score) {
     return added;
 }
 
-int Database::isScoreAlreadyInDB(const MD5Hash &map_hash, u64 unix_timestamp, const std::string &playerName) {
+int Database::isScoreAlreadyInDB(const MD5Hash &map_hash, i64 unix_timestamp, const std::string &playerName) {
     Sync::shared_lock lock(this->scores_mtx);
 
     // operator[] might add a new entry
@@ -700,7 +700,7 @@ int Database::isScoreAlreadyInDB(const MD5Hash &map_hash, u64 unix_timestamp, co
 
     for(int existing_pos = -1; const auto &existing : scoreit->second) {
         existing_pos++;
-        if(existing.unixTimestamp == unix_timestamp && existing.playerName == playerName) {
+        if(existing.unix_timestamp == unix_timestamp && existing.playerName == playerName) {
             // Score has already been added
             return existing_pos;
         }
@@ -715,7 +715,7 @@ bool Database::addScoreRaw(const FinishedScore &score) {
     int existing_pos{-1};
     bool overwrite{false};
 
-    if((existing_pos = this->isScoreAlreadyInDB(score.beatmap_hash, score.unixTimestamp, score.playerName)) >= 0) {
+    if((existing_pos = this->isScoreAlreadyInDB(score.beatmap_hash, score.unix_timestamp, score.playerName)) >= 0) {
         // a bit hacky, but allow overwriting mcosu scores with peppy/neomod scores
         // otherwise scores imported to mcosu from stable will be marked as "from mcosu"
         // which we consider to never have a replay available
@@ -1907,15 +1907,15 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 const auto &map_scores = this->scores.find(hash);
                 if(map_scores == this->scores.end()) continue;
 
-                u64 most_recently_played_timestamp = 0;
+                i64 most_recently_played_timestamp = 0;
                 for(const auto &score : map_scores->second) {
                     // FIXME: this counts scores coming from players other than the user, if they've downloaded a replay!
-                    if(most_recently_played_timestamp < score.unixTimestamp) {
-                        most_recently_played_timestamp = score.unixTimestamp;
+                    if(most_recently_played_timestamp < score.unix_timestamp) {
+                        most_recently_played_timestamp = score.unix_timestamp;
                     }
                 }
                 if(diff->getLastPlayTime() < most_recently_played_timestamp) {
-                    diff->setLastPlayTime(static_cast<i64>(most_recently_played_timestamp));
+                    diff->setLastPlayTime(most_recently_played_timestamp);
                 }
             }
         }
@@ -2228,7 +2228,7 @@ void Database::loadScores(std::string_view dbPath) {
             sc.mods = Replay::Mods::unpack(dbr);
             sc.score = dbr.read<u64>();
             sc.spinner_bonus = dbr.read<u64>();
-            sc.unixTimestamp = dbr.read<u64>();
+            sc.unix_timestamp = dbr.read<i64>();
             sc.player_id = dbr.read<i32>();
             dbr.read_string(sc.playerName);
             sc.grade = (ScoreGrade)dbr.read<u8>();
@@ -2236,7 +2236,7 @@ void Database::loadScores(std::string_view dbPath) {
             dbr.read_string(sc.client);
             dbr.read_string(sc.server);
             sc.bancho_score_id = dbr.read<i64>();
-            sc.peppy_replay_tms = dbr.read<u64>();
+            sc.peppy_replay_tms = dbr.read<i64>();
 
             sc.num300s = dbr.read<u16>();
             sc.num100s = dbr.read<u16>();
@@ -2312,7 +2312,7 @@ void Database::loadOldMcNeomodScores(std::string_view dbPath) {
 
                 FinishedScore sc;
 
-                sc.unixTimestamp = dbr.read<u64>();
+                sc.unix_timestamp = dbr.read<i64>();
                 dbr.read_string(sc.playerName);
                 sc.num300s = dbr.read<u16>();
                 sc.num100s = dbr.read<u16>();
@@ -2421,9 +2421,9 @@ void Database::loadOldMcNeomodScores(std::string_view dbPath) {
                 if(db_version == 20210103 && scoreVersion > 20190103) {
                     /* isImportedLegacyScore = */ dbr.skip<uint8_t>();  // too lazy to handle this logic
                 }
-                const auto unixTimestamp = dbr.read<uint64_t>();
+                auto unixTimestamp = dbr.read<uint64_t>();
                 const std::string playerName{dbr.read_string()};
-                if(this->isScoreAlreadyInDB(md5hash, unixTimestamp, playerName) >= 0) {
+                if(this->isScoreAlreadyInDB(md5hash, static_cast<int64_t>(unixTimestamp), playerName) >= 0) {
                     u32 bytesToSkipUntilNextScore = 0;
                     bytesToSkipUntilNextScore +=
                         (sizeof(uint16_t) * 8) + (sizeof(int64_t)) + (sizeof(int32_t)) + (sizeof(f32) * 12);
@@ -2482,7 +2482,7 @@ void Database::loadOldMcNeomodScores(std::string_view dbPath) {
                 {
                     FinishedScore sc;
 
-                    sc.unixTimestamp = unixTimestamp;
+                    sc.unix_timestamp = static_cast<int64_t>(unixTimestamp);
 
                     // default
                     sc.playerName = playerName;
@@ -2622,8 +2622,8 @@ void Database::loadPeppyScores(std::string_view dbPath) {
 
             dbr.skip_string();  // hp graph
 
-            u64 full_tms = dbr.read<u64>();
-            sc.unixTimestamp = (full_tms - LegacyReplay::UNIX_EPOCH_TICKS) / LegacyReplay::TICKS_PER_SECOND;
+            const i64 full_tms = dbr.read<i64>();
+            sc.unix_timestamp = (full_tms - LegacyReplay::UNIX_EPOCH_TICKS) / LegacyReplay::TICKS_PER_SECOND;
             sc.peppy_replay_tms = full_tms - 504911232000000000;
 
             // Always -1, but let's skip it properly just in case
@@ -2717,7 +2717,7 @@ void Database::saveScores() {
             Replay::Mods::pack_and_write(dbr, score.mods);
             dbr.write<u64>(score.score);
             dbr.write<u64>(score.spinner_bonus);
-            dbr.write<u64>(score.unixTimestamp);
+            dbr.write<i64>(score.unix_timestamp);
             dbr.write<i32>(score.player_id);
             dbr.write_string(score.playerName);
             dbr.write<u8>((u8)score.grade);
@@ -2725,7 +2725,7 @@ void Database::saveScores() {
             dbr.write_string(score.client);
             dbr.write_string(score.server);
             dbr.write<i64>(score.bancho_score_id);
-            dbr.write<u64>(score.peppy_replay_tms);
+            dbr.write<i64>(score.peppy_replay_tms);
 
             dbr.write<u16>(score.num300s);
             dbr.write<u16>(score.num100s);

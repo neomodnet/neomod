@@ -31,7 +31,7 @@ enum class ScoreGrade : uint8_t {
 
 struct FinishedScore final {
     [[nodiscard]] inline bool operator==(const FinishedScore &c) const {
-        return unixTimestamp == c.unixTimestamp &&      //
+        return unix_timestamp == c.unix_timestamp &&      //
                score == c.score &&                      //
                mods == c.mods &&                        //
                beatmap_hash == c.beatmap_hash &&        //
@@ -63,7 +63,7 @@ struct FinishedScore final {
 
     u64 score = 0;
     u64 spinner_bonus = 0;
-    u64 unixTimestamp = 0;
+    i64 unix_timestamp = 0;
     u64 play_time_ms = 0;
 
     std::string playerName;
@@ -73,7 +73,7 @@ struct FinishedScore final {
 
     // Only present in scores parsed from osu!.db, aka "peppy" replays
     // So it will always be 0 in mcosu/neomod scores, or in online scores
-    u64 peppy_replay_tms = 0;
+    i64 peppy_replay_tms = 0;
 
     i64 bancho_score_id = 0;
 
@@ -143,7 +143,7 @@ struct hash<FinishedScore> {
 
         auto combine = [&h](u64 v) { h ^= v + 0x9e3779b9 + (h << 6) + (h >> 2); };
 
-        combine(s.unixTimestamp);
+        combine(s.unix_timestamp);
         combine(static_cast<u64>(s.mods.flags));
         combine(s.score);
         combine(static_cast<u64>(s.bancho_score_id));

@@ -93,10 +93,6 @@ class SDLGPUShader final : public Shader {
 
     static std::vector<UniformBlock> parseUniformBlocks(const std::string &glsl);
 
-    static u32 computeStd140Offset(u32 currentOffset, std::string_view typeName);
-    static u32 typeSize(std::string_view typeName);
-    static u32 typeAlignment(std::string_view typeName);
-
     SDLGPUInterface *m_gpu;
     SDL_GPUDevice *m_device;
 

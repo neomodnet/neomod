@@ -434,7 +434,7 @@ void RankingScreen::setScore(const FinishedScore &newscore) {
     m_impl->bIsUnranked = false;
 
     struct tm tm;
-    std::time_t timestamp = sc.unixTimestamp;
+    std::time_t timestamp = sc.unix_timestamp;
     localtime_x(&timestamp, &tm);
 
     std::array<char, 64> dateString{};

@@ -79,7 +79,7 @@ void submit_score(FinishedScore score) {
         .data = {password.begin(), password.end()},
     });
 
-    const std::string osu_version = MC_STRINGIZE(OSU_VERSION_DATEONLY);
+    constexpr std::string_view osu_version = MC_STRINGIZE(OSU_VERSION_DATEONLY);
     options.mime_parts.push_back({
         .name = "osuver",
         .data = {osu_version.begin(), osu_version.end()},
@@ -111,7 +111,7 @@ void submit_score(FinishedScore score) {
         }
 
         struct tm timeinfo;
-        std::time_t timestamp = score.unixTimestamp;
+        std::time_t timestamp = score.unix_timestamp;
         localtime_x(&timestamp, &timeinfo);
 
         std::array<char, 80> score_time{};

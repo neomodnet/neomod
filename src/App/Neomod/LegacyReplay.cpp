@@ -274,7 +274,7 @@ bool load_osr(std::string_view osr_path, FinishedScore& score_out) {
     score_out.beatmap_hash = info.map_md5;
     score_out.perfect = info.perfect;
     score_out.comboMax = info.comboMax;
-    score_out.unixTimestamp = info.timestamp;
+    score_out.unix_timestamp = info.timestamp;
     score_out.bancho_score_id = info.bancho_score_id;
 
     // Prevent saving score to db
@@ -291,7 +291,7 @@ bool save_osr(const FinishedScore& score, std::span<const std::string> additiona
     }
 
     const std::string osr_path =
-        fmt::format(NEOMOD_REPLAYS_PATH "/{}/{}-{}.osr", score.server, score.player_id, score.unixTimestamp);
+        fmt::format(NEOMOD_REPLAYS_PATH "/{}/{}-{}.osr", score.server, score.player_id, score.unix_timestamp);
     ByteBufferedFile::Writer osr(osr_path);
     if(!osr.good()) {
         debugLog("Cannot save replay to {}: {}", osr_path, osr.error());
@@ -317,7 +317,7 @@ bool save_osr(const FinishedScore& score, std::span<const std::string> additiona
     osr.write<u8>(score.perfect);
     osr.write<u32>((u32)score.mods.to_legacy());
     osr.write_string(""sv);  // life_bar_graph
-    osr.write<i64>((i64)score.unixTimestamp * TICKS_PER_SECOND + UNIX_EPOCH_TICKS);
+    osr.write<i64>((i64)score.unix_timestamp * TICKS_PER_SECOND + UNIX_EPOCH_TICKS);
     osr.write<i32>((i32)compressed_replay.size());
     osr.write_bytes(compressed_replay.data(), compressed_replay.size());
     osr.write<i64>(score.bancho_score_id);
@@ -377,19 +377,19 @@ bool load_from_disk(FinishedScore& score, bool update_db) {
                                                       score.beatmap_hash, score.peppy_replay_tms)
                                         : ""s),
             // neomod 43.09+
-            (score.server.empty() ? fmt::format(NEOMOD_REPLAYS_PATH "/{}-{}.osr", score.player_id, score.unixTimestamp)
+            (score.server.empty() ? fmt::format(NEOMOD_REPLAYS_PATH "/{}-{}.osr", score.player_id, score.unix_timestamp)
                                   : fmt::format(NEOMOD_REPLAYS_PATH "/{}/{}-{}.osr", score.server, score.player_id,
-                                                score.unixTimestamp))}) {
+                                                score.unix_timestamp))}) {
         if(osr.empty()) continue;
         if((succeeded = load_osr(osr, score))) break;
     }
 
     if(!succeeded) {
         // neomod (legacy)
-        for(const auto& raw : std::array{(fmt::format(NEOMOD_REPLAYS_PATH "/{}.replay.lzma", score.unixTimestamp)),
+        for(const auto& raw : std::array{(fmt::format(NEOMOD_REPLAYS_PATH "/{}.replay.lzma", score.unix_timestamp)),
                                          (score.server.empty() ? ""s
                                                                : fmt::format(NEOMOD_REPLAYS_PATH "/{}/{}.replay.lzma",
-                                                                             score.server, score.unixTimestamp))}) {
+                                                                             score.server, score.unix_timestamp))}) {
             if(raw.empty()) continue;
             if((succeeded = load_raw(raw, score))) break;
         }

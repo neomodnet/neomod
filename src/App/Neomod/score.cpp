@@ -577,7 +577,7 @@ std::string FinishedScore::dbgstr() const {
     bool ragequit: {}
     bool is_online_score: {}
     bool is_online_replay_available: {})",
-        beatmap_hash, fmt::underlying(mods.flags), fmt::ptr(map), score, spinner_bonus, unixTimestamp, play_time_ms,
+        beatmap_hash, fmt::underlying(mods.flags), fmt::ptr(map), score, spinner_bonus, unix_timestamp, play_time_ms,
         playerName, client, server, replay.size(), peppy_replay_tms, bancho_score_id, player_id, num300s, num100s,
         num50s, numGekis, numKatus, numMisses, comboMax, ppv2_version, ppv2_score, ppv2_total_stars, ppv2_aim_stars,
         ppv2_speed_stars, numSliderBreaks, unstableRate, hitErrorAvgMin, hitErrorAvgMax, maxPossibleCombo,

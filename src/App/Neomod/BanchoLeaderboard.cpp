@@ -52,7 +52,7 @@ FinishedScore parse_score(const char *score_line) {
     score.perfect = Parsing::strto<bool>(tokens[10]);
     score.mods = Replay::Mods::from_legacy(static_cast<LegacyFlags>(Parsing::strto<u32>(tokens[11])));
     score.player_id = Parsing::strto<i32>(tokens[12]);
-    score.unixTimestamp = Parsing::strto<u64>(tokens[14]);
+    score.unix_timestamp = Parsing::strto<u64>(tokens[14]);
     score.is_online_replay_available = Parsing::strto<bool>(tokens[15]);
 
     if(tokens.size() > 16) {
