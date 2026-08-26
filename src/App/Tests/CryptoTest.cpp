@@ -4,6 +4,7 @@
 #include "TestMacros.h"
 #include "Engine.h"
 #include "Environment.h"
+#include "MD5Hash.h"
 #include "crypto.h"
 
 #include <algorithm>

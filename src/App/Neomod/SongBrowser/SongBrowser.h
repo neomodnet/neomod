@@ -42,13 +42,13 @@ class ConVar;
 struct FinishedScore;
 
 #ifndef UTIL_MD5HASH_H
-
 #if defined(__GNUC__) && !defined(__clang__) && (defined(__MINGW32__) || defined(__MINGW64__))
+struct MD5String;
 struct MD5Hash;
 #else
 struct alignas(sizeof(void *) * 2) MD5Hash;
+struct alignas(sizeof(void *) * 2) MD5String;
 #endif
-
 #endif
 
 namespace SortTypes {

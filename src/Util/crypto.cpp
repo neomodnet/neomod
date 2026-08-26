@@ -1,10 +1,11 @@
 // Copyright (c) 2025, WH & 2025, kiwec, All rights reserved.
 #include "crypto.h"
+#include "noinclude.h"
 #include "sha256.h"            // vendored library
 #include "MD5.h"               // vendored library
 #include "ByteBufferedFile.h"  // for file hashing functions
 #include "BaseEnvironment.h"
-#include "noinclude.h"
+#include "MD5Hash.h"
 
 #include <algorithm>
 #include <cerrno>

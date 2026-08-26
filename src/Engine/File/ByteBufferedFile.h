@@ -2,6 +2,9 @@
 #pragma once
 #include "config.h"
 
+#include "noinclude.h"
+#include "types.h"
+
 #include <cassert>
 #include <cstring>
 #include <string>
@@ -10,11 +13,15 @@
 #include <filesystem>
 #include <fstream>
 
-#include "noinclude.h"
-#include "types.h"
-
+#ifndef UTIL_MD5HASH_H
+#if defined(__GNUC__) && !defined(__clang__) && (defined(__MINGW32__) || defined(__MINGW64__))
 struct MD5String;
 struct MD5Hash;
+#else
+struct alignas(sizeof(void *) * 2) MD5Hash;
+struct alignas(sizeof(void *) * 2) MD5String;
+#endif
+#endif
 
 // don't do something stupid like:
 // Writer("pathA");

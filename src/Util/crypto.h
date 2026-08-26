@@ -2,7 +2,6 @@
 #pragma once
 
 #include "types.h"
-#include "MD5Hash.h"
 
 #include <array>
 #include <concepts>
@@ -14,6 +13,14 @@
 #include <type_traits>
 #include <vector>
 
+#ifndef UTIL_MD5HASH_H
+#if defined(__GNUC__) && !defined(__clang__) && (defined(__MINGW32__) || defined(__MINGW64__))
+struct MD5Hash;
+#else
+struct alignas(sizeof(void*) * 2) MD5Hash;
+#endif
+#endif
+
 namespace crypto {
 
 // call once to seed random number generators
@@ -23,7 +30,7 @@ namespace prng {
 // pseudorandom numbers
 inline constexpr const i64 PRAND_MAX{9223372036854775807 /* INT64_MAX */};
 // like C rand() but uses a properly-seeded mt19937_64 under the hood
-i64 prand() noexcept;
+[[nodiscard]] i64 prand() noexcept;
 }  // namespace prng
 
 namespace rng {
@@ -69,5 +76,4 @@ namespace conv {
 
 }  // namespace crypto
 
-using crypto::prng::prand;
-using crypto::prng::PRAND_MAX;
+using namespace crypto::prng;
