@@ -1995,11 +1995,11 @@ void Database::saveMaps() {
         for(const auto &diff : beatmap->getDifficulties()) {
             maps.write_string(env->getFileNameFromFilePath(diff->getFilePath()));
             maps.write<i32>(diff->iID);
-            maps.write_string(diff->getTitle());
+            maps.write_string(diff->getTitleLatin());
             maps.write_string(diff->getAudioFileName());
             maps.write<i32>((i32)diff->iLengthMS);  // TODO: weird casting
             maps.write<f32>(diff->fStackLeniency);
-            maps.write_string(diff->getArtist());
+            maps.write_string(diff->getArtistLatin());
             maps.write_string(diff->getCreator());
             maps.write_string(diff->getDifficultyName());
             maps.write_string(diff->getSource());
