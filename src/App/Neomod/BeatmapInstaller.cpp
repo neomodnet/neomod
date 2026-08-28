@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <filesystem>
 #include <optional>
 
 namespace {  // internal utils
@@ -328,6 +329,9 @@ std::string BeatmapInstaller::read_and_extract_osz(std::string_view path) {
 
 struct BeatmapInstaller::BMInstallerImpl final {
     std::vector<Entry> entries;  // typically <= 5 entries, so linear scans throughout
+    // maps/ folders as the last import left them, so the directory watcher's event for that extraction can be
+    // told from a later change (see claim())
+    Hash::unstable_stringmap<std::filesystem::file_time_type> settled;
     u32 next_uid{1};
 };
 
@@ -444,9 +448,20 @@ std::vector<BeatmapInstaller::EntryView> BeatmapInstaller::snapshot() const {
     return out;
 }
 
-bool BeatmapInstaller::is_installing(std::string_view folder) const {
-    return std::ranges::any_of(
-        m->entries, [folder](const Entry& e) { return e.stage == MapInstallStage::Installing && e.folder == folder; });
+BeatmapInstaller::FolderClaim BeatmapInstaller::claim(std::string_view folder) {
+    if(std::ranges::any_of(m->entries, [folder](const Entry& e) {
+           return e.stage == MapInstallStage::Installing && e.folder == folder;
+       })) {
+        return FolderClaim::InFlight;
+    }
+    auto it = m->settled.find(folder);
+    if(it == m->settled.end()) return FolderClaim::Unclaimed;
+
+    std::error_code ec;
+    const auto now = std::filesystem::last_write_time(File::getFsPath(NEOMOD_MAPS_PATH "/" + std::string{folder}), ec);
+    const bool untouched = !ec && now == it->second;
+    m->settled.erase(it);  // whatever happens to the folder next is a change to what the import left
+    return untouched ? FolderClaim::Settled : FolderClaim::Unclaimed;
 }
 
 bool BeatmapInstaller::has_pending() const {
@@ -542,6 +557,10 @@ void BeatmapInstaller::update() {
                     e.stage = Done;
                     e.finished_time = now;
                     if(e.is_local() && e.delete_after) env->deleteFile(e.osz_path);
+                    std::error_code ec;
+                    const auto mtime =
+                        std::filesystem::last_write_time(File::getFsPath(NEOMOD_MAPS_PATH "/" + e.folder), ec);
+                    if(!ec) m->settled[e.folder] = mtime;
                     on_done(*r, e);
                 }
                 break;

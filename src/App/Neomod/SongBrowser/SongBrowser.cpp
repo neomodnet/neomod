@@ -844,9 +844,16 @@ void SongBrowser::tick() {
             for(auto it = this->changedMapFolders.begin(); it != this->changedMapFolders.end();) {
                 using enum Database::ReconcileResult::Outcome;
                 const std::string &rel = *it;
-                // a folder the installer is still registering is its business; the event waits and checks it after
-                if(osu->getBeatmapInstaller()->is_installing(rel)) {
+                // the installer registers what it extracts itself: the event waits while that's underway, and is
+                // dropped when the folder is still exactly as the import left it (the event was the extraction)
+                const auto claim = osu->getBeatmapInstaller()->claim(rel);
+                if(claim == BeatmapInstaller::FolderClaim::InFlight) {
                     ++it;
+                    continue;
+                }
+                if(claim == BeatmapInstaller::FolderClaim::Settled) {
+                    logIfCV(debug_db, "[DirectoryWatcher] maps/{}: the installer's own extraction", rel);
+                    it = this->changedMapFolders.erase(it);
                     continue;
                 }
                 const auto r =
