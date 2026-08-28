@@ -7721,7 +7721,8 @@ $(DEPS_CACHE)/libarchive-$(LIBARCHIVE_VERSION).tar.gz:
 # always needed (if not on host)
 $(DEPS_CACHE)/libiconv-$(LIBICONV_VERSION).tar.gz:
 	$(MKDIR_P) $(DEPS_CACHE)
-	$(CURLCOMMAND) "https://ftp.gnu.org/gnu/libiconv/libiconv-$(LIBICONV_VERSION).tar.gz" || { rm -f $@; exit 1; }
+	$(CURLCOMMAND) "https://ftp.gnu.org/gnu/libiconv/libiconv-$(LIBICONV_VERSION).tar.gz" || \
+			$(CURLCOMMAND) "https://mirrors.kernel.org/gnu/libiconv/libiconv-$(LIBICONV_VERSION).tar.gz" || { rm -f $@; exit 1; }
 
 # needed for libarchive on linux (if not on host)
 $(DEPS_CACHE)/libacl-$(LIBACL_VERSION).tar.xz:

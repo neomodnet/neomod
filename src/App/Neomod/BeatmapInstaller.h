@@ -37,16 +37,16 @@ class BeatmapInstaller final {
     // Utils: //
     ////////////
 
-    // extract a .osz already in memory: resolves the beatmapset id from the archive (or, failing
-    // that, a leading number in osz_name), extracts into maps/<id>/, and returns the resolved id
-    // (-1 if none).
-    static i32 resolve_and_extract_osz(std::span<const u8> data, std::string_view osz_name);
+    // extract a .osz already in memory into maps/<folder>/ and return that folder name (relative to maps/,
+    // "" on failure). the folder is the one of the already-installed set with the same id (which is how new
+    // or updated difficulties end up next to the existing ones), else a new osu!stable-style
+    // "<setid> Artist - Title" (the .osz stem for local files). a set id isn't required: it comes from
+    // set_id_override (downloads), else the archive's .osu files, else a leading number in osz_name.
+    static std::string resolve_and_extract_osz(std::span<const u8> data, std::string_view osz_name,
+                                               i32 set_id_override = -1);
 
-    // same as resolve_and_extract osz but reading from a path on disk instead of directly from memory
-    static i32 read_and_extract_osz(std::string_view path);
-
-    // extract an archive whose beatmapset id is already known, into map_dir.
-    static bool extract_beatmapset(std::span<const u8> data, const std::string& map_dir);
+    // same as resolve_and_extract_osz but reading from a path on disk instead of directly from memory
+    static std::string read_and_extract_osz(std::string_view path);
 
     // how long to keep Failed entries around so listings can render the red state
     static constexpr f64 FAILED_ENTRY_TTL_S = 60.0;

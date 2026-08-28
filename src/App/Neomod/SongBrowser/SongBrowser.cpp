@@ -837,6 +837,31 @@ void SongBrowser::tick() {
             db->batch_diffcalc_pending = false;
             BatchDiffCalc::start_calc();
         }
+
+        // set folders the directory watcher saw change: sync the db and the carousel with them (not mid-play,
+        // where a removed/replaced selection would unload the map being played)
+        if(!this->changedMapFolders.empty() && this->bInitializedBeatmaps) {
+            for(const auto &rel : this->changedMapFolders) {
+                using enum Database::ReconcileResult::Outcome;
+                const auto r =
+                    db->reconcileFolder(Database::MapRoot::Neomod, rel, Database::ReconcileMode::PerFile, -1, nullptr);
+                if(r.outcome == Created) {
+                    this->addBeatmapSet(r.set);
+                } else if(r.outcome == Updated) {
+                    this->replaceBeatmapSet(r.replaced, r.set);
+                } else if(r.outcome == Removed) {
+                    this->removeBeatmapSet(r.replaced);
+                } else {
+                    continue;
+                }
+                logRaw("[DirectoryWatcher] maps/{}: {} (+{} -{})", rel,
+                       r.outcome == Created   ? "created"
+                       : r.outcome == Updated ? "updated"
+                                              : "removed",
+                       r.added, r.removed);
+            }
+            this->changedMapFolders.clear();
+        }
     }
 
     if(!this->bVisible) return;
@@ -1055,7 +1080,7 @@ void SongBrowser::onKeyDown(KeyboardEvent &key) {
         BottomBar::press_button(BottomBar::OPTIONS);
     }
 
-    if(key == KEY_F5) this->refreshBeatmaps();
+    if(key == KEY_F5) this->refreshBeatmaps(this, /*full_rescan=*/true);
 
     this->carousel->onKeyDown(key);
     //if (key.isConsumed()) return;
@@ -1116,7 +1141,7 @@ CBaseUIContainer *SongBrowser::setVisible(bool visible) {
 
     // Load DB if we haven't attempted yet
     if(visible && this->parentButtons.size() == 0 && !db->isFinished()) {
-        this->refreshBeatmaps();
+        this->refreshBeatmaps(this);
         return this;
     }
 
@@ -1406,33 +1431,20 @@ class SongBrowser::BeatmapLoadingOverlay final : public LoadingScreen {
 
     f32 updateProgress() override {
         if(!db->isFinished()) {
-            db->update();  // raw load logic
+            db->update();  // finishes the load (onDBLoadComplete) once the loader thread is done
         }
         return db->getProgress();
     }
 
-    void drawProgress() override {
-        LoadingScreen::drawProgress();
-
-        // loose .osz imports aren't part of the byte-based percentage, so without this the bar just
-        // sits pinned near the end with no sign of progress while a big drop extracts. surface the count.
-        const u32 total = db->getImportTotal();
-        if(total == 0) return;
-
-        auto *font = osu->getSubTitleFont();
-        const f32 shadowOffset = std::round(1.0f * Osu::getUIScale());
-        const std::string msg = tformat("Importing beatmaps ({:d}/{:d})", db->getImportDone(), total);
-
-        g->setColor(0xffffffff);
-        g->pushTransform();
-        {
-            g->translate(
-                (f32)(i32)((f32)osu->getVirtScreenWidth() / 2 - font->getStringWidth(msg) / 2),
-                (f32)(i32)((f32)osu->getVirtScreenHeight() - 15 - font->getHeight() - 5.0f * Osu::getUIScale()));
-            g->drawString(font, msg,
-                          TextFX{.col_text = rgb(255, 255, 255), .col_shadow = rgb(0, 0, 0), .offs_px = shadowOffset});
-        }
-        g->popTransform();
+    [[nodiscard]] std::string getProgressMessage() const override {
+        // the percentage only covers the database files; the .osz import and folder passes that follow would
+        // sit at 99% with no sign of progress, so show their counts instead
+        const u32 total = db->getStageTotal();
+        if(total == 0) return LoadingScreen::getProgressMessage();
+        const u32 done = db->getStageDone();
+        return db->getLoadStage() == Database::LoadStage::ScanningFolders
+                   ? tformat("Scanning beatmap folders ({:d}/{:d})", done, total)
+                   : tformat("Importing beatmaps ({:d}/{:d})", done, total);
     }
 
     void finish() override {
@@ -1461,9 +1473,7 @@ class SongBrowser::BeatmapLoadingOverlay final : public LoadingScreen {
     BGImageHandler *bgih;
 };
 
-void SongBrowser::refreshBeatmaps() { return this->refreshBeatmaps(this); }
-
-void SongBrowser::refreshBeatmaps(UIScreen *next_screen) {
+void SongBrowser::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
     if(osu->isInPlayMode()) return;
 
     if(!!this->loadingOverlay) {
@@ -1518,6 +1528,7 @@ void SongBrowser::refreshBeatmaps(UIScreen *next_screen) {
 
     this->visibleSongButtons.clear();
     this->previousRandomBeatmaps.clear();
+    this->changedMapFolders.clear();  // the reload covers them
 
     this->contextMenu->setVisible2(false);
 
@@ -1539,7 +1550,7 @@ void SongBrowser::refreshBeatmaps(UIScreen *next_screen) {
     this->loadingOverlay = loading_screen.get();
 
     // start loading
-    db->load();
+    db->load(full_rescan);
 
     // make sure whatever was visible is hidden until loading finishes
     ui->hide();
@@ -1677,6 +1688,100 @@ void SongBrowser::addBeatmapSet(BeatmapSet *mapset, bool initialSongBrowserLoad)
             }
 
             this->lengthCollectionButtons[btnIdx]->addChild(diff_btn);
+        }
+    }
+}
+
+void SongBrowser::unlinkBeatmapSet(const BeatmapSet *set) {
+    auto btn_it = std::ranges::find(this->parentButtons, set, &SongButton::getDatabaseBeatmap);
+    if(btn_it == this->parentButtons.end()) return;
+    SongButton *btn = *btn_it;
+
+    // nothing may hold button pointers across the delete below
+    this->checkHandleKillBackgroundSearchMatcher();
+    this->contextMenu->setVisible2(false);
+
+    auto forget = [](auto *&ptr, const CarouselButton *b) {
+        if(ptr == b) ptr = nullptr;
+    };
+    auto unlink = [](CollBtnContainer &group, SongButton *b) {
+        for(auto &cbtn : group) std::erase(cbtn->getChildren(), b);
+    };
+
+    // the alphanumeric groups hold the parent, the difficulty/bpm/length groups hold the diffs
+    forget(this->selectedButton, btn);
+    forget(this->selectionPreviousSongButton, btn);
+    unlink(this->artistCollectionButtons, btn);
+    unlink(this->creatorCollectionButtons, btn);
+    unlink(this->titleCollectionButtons, btn);
+    std::erase(this->visibleSongButtons, btn);
+
+    for(SongButton *child : btn->getChildren()) {
+        forget(this->selectedButton, child);
+        forget(this->selectionPreviousSongDiffButton, child);
+        this->hashToDiffButton->erase(child->getDatabaseBeatmap()->getMD5());
+        unlink(this->difficultyCollectionButtons, child);
+        unlink(this->bpmCollectionButtons, child);
+        unlink(this->lengthCollectionButtons, child);
+        std::erase(this->visibleSongButtons, child);
+    }
+    std::erase_if(this->previousRandomBeatmaps,
+                  [set](const DatabaseBeatmap *m) { return m == set || m->getParentSet() == set; });
+
+    this->parentButtons.erase(btn_it);
+    this->carousel->invalidate();
+    delete btn;  // deletes its difficulty buttons too
+}
+
+// after a set's buttons were added/removed at runtime: user collections are derived from hashToDiffButton and
+// the visible list/carousel/difficulty buckets from the containers, so rebuild them (keeping the open collection)
+void SongBrowser::rebuildAfterSetChange() {
+    const std::string open_collection{this->selectionPreviousCollectionButton != nullptr
+                                          ? this->selectionPreviousCollectionButton->getCollectionName()
+                                          : ""};
+    this->recreateCollectionsButtons();
+    this->bSongButtonsNeedSorting = true;
+    this->rebuildAfterGroupOrSortChange(this->curGroup);
+
+    if(!open_collection.empty() && this->curGroup == GroupType::COLLECTIONS) {
+        for(auto &collectionButton : this->collectionButtons) {
+            if(collectionButton->getCollectionName() == open_collection) {
+                collectionButton->select();
+                break;
+            }
+        }
+    }
+}
+
+void SongBrowser::removeBeatmapSet(const BeatmapSet *set) {
+    if(!this->bInitializedBeatmaps) return;
+
+    // the loaded map's object outlives its set, its button doesn't
+    const DatabaseBeatmap *cur = osu->getMapInterface()->getBeatmap();
+    const bool selected_inside = cur && cur->getParentSet() == set;
+
+    this->unlinkBeatmapSet(set);
+    this->rebuildAfterSetChange();
+    if(selected_inside) this->selectRandomBeatmap();
+}
+
+void SongBrowser::replaceBeatmapSet(const BeatmapSet *old_set, BeatmapSet *new_set) {
+    if(!this->bInitializedBeatmaps) return;
+
+    // surviving difficulties keep their objects (already re-parented to new_set), so a selected one stays valid
+    // and only needs its new button selected; a dropped one falls back to the set
+    const DatabaseBeatmap *cur = osu->getMapInterface()->getBeatmap();
+    const bool selected_inside = cur && (cur->getParentSet() == old_set || cur->getParentSet() == new_set);
+
+    this->unlinkBeatmapSet(old_set);
+    this->addBeatmapSet(new_set);
+    this->rebuildAfterSetChange();
+
+    if(selected_inside) {
+        if(cur->getParentSet() == new_set) {
+            this->selectSelectedBeatmapSongButton();
+        } else {
+            this->selectBeatmapset(new_set);
         }
     }
 }
@@ -2581,7 +2686,20 @@ void SongBrowser::onDatabaseLoadingFinished() {
     debugLog("Took {} seconds.", t.getElapsedTime());
 
     // Watch for new maps now
-    directoryWatcher->watch_directory(NEOMOD_MAPS_PATH "/", [](const FileChangeEvent &ev) {
+    directoryWatcher->watch_directory(NEOMOD_MAPS_PATH "/", [this](const FileChangeEvent &ev) {
+        // a set folder dropped in (or changed, or removed) while running: remembered for tick(), which syncs the
+        // db and the carousel with it once that's safe. the event only fires once the folder's mtime has
+        // settled, and reconciling is idempotent, so the installer's own extractions are harmless repeats. a
+        // deletion can't be stat'ed (so on windows it isn't known to be a folder), reconciling a name that
+        // isn't a set folder (a deleted .osz) is a no-op
+        if(ev.is_dir || ev.type == FileChangeType::DELETED) {
+            std::string_view rel{ev.path};
+            while(rel.ends_with('/') || rel.ends_with('\\')) rel.remove_suffix(1);
+            if(const auto sep = rel.find_last_of("/\\"); sep != std::string_view::npos) rel = rel.substr(sep + 1);
+            this->changedMapFolders.emplace(rel);
+            return;
+        }
+
         if(ev.type != FileChangeType::CREATED) return;
         if(SString::to_lower(env->getFileExtensionFromFilePath(ev.path)) != "osz") return;
         logRaw("[DirectoryWatcher] Importing new beatmap {}", ev.path);
@@ -3156,11 +3274,11 @@ void SongBrowser::onSongButtonContextMenu(SongButton *songButton, std::string_vi
                         beatmapSetHashes.push_back(i->getDatabaseBeatmap()->getMD5());
                     }
                 } else {
-                    if(const BeatmapSet *mapset = db->getBeatmapSet(songButton->getDatabaseBeatmap()->getSetID())) {
-                        const auto &diffs = mapset->getDifficulties();
-                        for(const auto &diff : diffs) {
-                            beatmapSetHashes.push_back(diff->getMD5());
-                        }
+                    // a childless button is an independent diff button, its set is the diff's parent
+                    const DatabaseBeatmap *bm = songButton->getDatabaseBeatmap();
+                    const BeatmapSet *mapset = bm->getParentSet() ? bm->getParentSet() : bm;
+                    for(const auto &diff : mapset->getDifficulties()) {
+                        beatmapSetHashes.push_back(diff->getMD5());
                     }
                 }
             }
@@ -3485,7 +3603,7 @@ void SongBrowser::recreateCollectionsButtons() {
         if(coll_maps.empty()) continue;
 
         std::vector<SongButton *> folder;
-        Hash::flat::set<u32> matched_sets;
+        Hash::flat::set<const BeatmapSet *> matched_sets;
         std::vector<SongDifficultyButton *> matching_diffs;
 
         for(const auto &map_hash : coll_maps) {
@@ -3507,9 +3625,8 @@ void SongBrowser::recreateCollectionsButtons() {
                 }
             }
 
-            const i32 set_id = diff_btn->getDatabaseBeatmap()->getSetID();
-
-            if(auto [_, inserted] = matched_sets.insert(set_id); !inserted) {
+            // by parent set, not set id: every unsubmitted set shares id -1
+            if(auto [_, inserted] = matched_sets.insert(diff_btn->getDatabaseBeatmap()->getParentSet()); !inserted) {
                 // We already added the maps from this set to the collection!
                 continue;
             }

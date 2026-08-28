@@ -31,6 +31,10 @@ void LoadingScreen::drawBackground() {
     g->fillRect(0, 0, osu->getVirtScreenWidth(), osu->getVirtScreenHeight());
 }
 
+std::string LoadingScreen::getProgressMessage() const {
+    return tformat("Loading ... ({:d} %)", (int)(this->progress * 100.0f));
+}
+
 void LoadingScreen::drawProgress() {
     g->setColor(0xffffffff);
 
@@ -38,7 +42,7 @@ void LoadingScreen::drawProgress() {
     const f32 shadowOffset = std::round(1.0f * Osu::getUIScale());
 
     // progress message
-    const std::string loadingMessage = tformat("Loading ... ({:d} %)", (int)(this->progress * 100.0f));
+    const std::string loadingMessage = this->getProgressMessage();
     g->pushTransform();
     {
         g->translate((int)(osu->getVirtScreenWidth() / 2 - font->getStringWidth(loadingMessage) / 2),

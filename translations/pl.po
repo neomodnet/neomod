@@ -85,6 +85,21 @@ msgid "Queued"
 msgstr ""
 
 #: src/App/Neomod/BeatmapInstaller.cpp
+#, c++-format
+msgid "{} is already installed"
+msgstr ""
+
+#: src/App/Neomod/BeatmapInstaller.cpp
+#, c++-format
+msgid "Beatmapset #{:d} is already installed"
+msgstr ""
+
+#: src/App/Neomod/BeatmapInstaller.cpp
+#, c++-format
+msgid "Downloaded beatmapset #{:d}"
+msgstr "Pobrano zestaw beatmap #{:d}"
+
+#: src/App/Neomod/BeatmapInstaller.cpp
 #, fuzzy, c++-format
 msgid "Failed to import {}"
 msgstr "Nie udało się załadować mapy"
@@ -93,16 +108,6 @@ msgstr "Nie udało się załadować mapy"
 #, c++-format
 msgid "Failed to download beatmapset #{:d} :("
 msgstr "Nie udało się pobrać zestawu beatmap #{:d} :("
-
-#: src/App/Neomod/BeatmapInstaller.cpp
-#, fuzzy, c++-format
-msgid "Imported beatmapset #{:d}"
-msgstr "Pobrano zestaw beatmap #{:d}"
-
-#: src/App/Neomod/BeatmapInstaller.cpp
-#, c++-format
-msgid "Downloaded beatmapset #{:d}"
-msgstr "Pobrano zestaw beatmap #{:d}"
 
 #: src/App/Neomod/BeatmapInterface.cpp
 msgid "Buffering ..."
@@ -194,6 +199,21 @@ msgstr "Musisz się zalogować, aby czatować!"
 #: src/App/Neomod/Chat.cpp
 msgid "Type in the channel you want to join (e.g. '#osu'):"
 msgstr "Wpisz kanał, do którego chcesz dołączyć (np. '#osu'):"
+
+#: src/App/Neomod/Database.cpp
+#, c++-format
+msgid "Added {:d} new beatmapset(s)."
+msgstr ""
+
+#: src/App/Neomod/Database.cpp
+#, fuzzy
+msgid "No new beatmaps detected."
+msgstr "Nie wybrano mapy"
+
+#: src/App/Neomod/Database.cpp
+#, c++-format
+msgid "{} was written by a newer version, ignoring it"
+msgstr ""
 
 #: src/App/Neomod/HUD.cpp
 #, c++-format
@@ -3325,6 +3345,11 @@ msgstr "Zestaw beatmap nie ma poziomów trudności"
 #, c++-format
 msgid "Failed to find Beatmap #{:d} :("
 msgstr "Nie udało się znaleźć Beatmapy #{:d} :("
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp
+#, fuzzy, c++-format
+msgid "Scanning beatmap folders ({:d}/{:d})"
+msgstr "Wymuś start ({:d}/{:d})"
 
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
 #, fuzzy, c++-format

@@ -83,6 +83,21 @@ msgstr "В очереди"
 
 #: src/App/Neomod/BeatmapInstaller.cpp
 #, c++-format
+msgid "{} is already installed"
+msgstr ""
+
+#: src/App/Neomod/BeatmapInstaller.cpp
+#, c++-format
+msgid "Beatmapset #{:d} is already installed"
+msgstr ""
+
+#: src/App/Neomod/BeatmapInstaller.cpp
+#, c++-format
+msgid "Downloaded beatmapset #{:d}"
+msgstr "Скачан набор карт #{:d}"
+
+#: src/App/Neomod/BeatmapInstaller.cpp
+#, c++-format
 msgid "Failed to import {}"
 msgstr "Не удалось импортировать {}"
 
@@ -90,16 +105,6 @@ msgstr "Не удалось импортировать {}"
 #, c++-format
 msgid "Failed to download beatmapset #{:d} :("
 msgstr "Не удалось скачать набор карт #{:d} :("
-
-#: src/App/Neomod/BeatmapInstaller.cpp
-#, c++-format
-msgid "Imported beatmapset #{:d}"
-msgstr "Импортирован набор карт #{:d}"
-
-#: src/App/Neomod/BeatmapInstaller.cpp
-#, c++-format
-msgid "Downloaded beatmapset #{:d}"
-msgstr "Скачан набор карт #{:d}"
 
 #: src/App/Neomod/BeatmapInterface.cpp
 msgid "Buffering ..."
@@ -191,6 +196,21 @@ msgstr "Необходимо войти в аккаунт, чтобы испол
 #: src/App/Neomod/Chat.cpp
 msgid "Type in the channel you want to join (e.g. '#osu'):"
 msgstr "Введите название канала (например, '#osu'):"
+
+#: src/App/Neomod/Database.cpp
+#, c++-format
+msgid "Added {:d} new beatmapset(s)."
+msgstr ""
+
+#: src/App/Neomod/Database.cpp
+#, fuzzy
+msgid "No new beatmaps detected."
+msgstr "Карта не выбрана"
+
+#: src/App/Neomod/Database.cpp
+#, c++-format
+msgid "{} was written by a newer version, ignoring it"
+msgstr ""
 
 #: src/App/Neomod/HUD.cpp
 #, c++-format
@@ -3322,6 +3342,11 @@ msgstr "В этом мапсете нет сложностей"
 #, c++-format
 msgid "Failed to find Beatmap #{:d} :("
 msgstr "Не удалось найти Карту #{:d} :("
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp
+#, fuzzy, c++-format
+msgid "Scanning beatmap folders ({:d}/{:d})"
+msgstr "Принудительный старт ({:d}/{:d})"
 
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
 #, fuzzy, c++-format

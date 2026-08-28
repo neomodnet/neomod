@@ -41,7 +41,6 @@ void MapFetcher::clear() {
     this->set_id_hint = 0;
     this->found = nullptr;
     this->in_flight = false;
-    this->transferred = false;
     this->st = {};
 }
 
@@ -84,24 +83,18 @@ const MapFetcher::State &MapFetcher::tick() {
     }
     if(inst.stage != None) {
         this->in_flight = true;
-        if(inst.stage == Downloading) this->transferred = true;
         this->st.progress = inst.progress;
         return this->st;
     }
 
     // nothing tracked for this set right now. if we previously watched an entry, that install
-    // completed (Done entries are erased immediately) without our target appearing in the db:
-    // - it actually transferred -> the server's version of the set doesn't contain the target, and
-    //   downloading the same bytes again won't change that: give up.
-    // - it was satisfied from disk (or we missed the lifecycle while our screen wasn't ticking) ->
-    //   one real download may still help, and the installer will skip its disk rung this time
-    //   since the set is now in the db.
+    // completed (Done entries are erased immediately) without our target appearing in the db: the
+    // server's version of the set doesn't contain the target, and downloading the same bytes again
+    // won't change that, so give up.
     if(this->in_flight) {
         this->in_flight = false;
-        if(this->transferred) {
-            this->st = {.status = Status::NotFound, .why = Why::Mismatch, .progress = 0.f};
-            return this->st;
-        }
+        this->st = {.status = Status::NotFound, .why = Why::Mismatch, .progress = 0.f};
+        return this->st;
     }
 
     osu->getBeatmapInstaller()->enqueue(this->set_id, /*auto_select=*/false);

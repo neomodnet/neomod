@@ -1,0 +1,23 @@
+# pins raw-folder import (#174): a beatmapset folder without any set id dropped into maps/
+# (run.py provisions "uitest idless set" from the directive below and removes it afterwards)
+# must come up in the carousel after the db's startup pass, and survive an F5 rescan
+# uitest-maps: uitest idless set|-1|2
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+ui_trace 1
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen songbrowser
+@wait 300
+ui_assert screen_active songbrowser 1
+ui_assert exists SongDifficultyButton 1
+sendkey F5
+@wait 300
+ui_assert screen_active songbrowser 1
+ui_assert exists SongDifficultyButton 1
+exit

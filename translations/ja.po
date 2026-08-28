@@ -85,6 +85,21 @@ msgid "Queued"
 msgstr ""
 
 #: src/App/Neomod/BeatmapInstaller.cpp
+#, c++-format
+msgid "{} is already installed"
+msgstr ""
+
+#: src/App/Neomod/BeatmapInstaller.cpp
+#, c++-format
+msgid "Beatmapset #{:d} is already installed"
+msgstr ""
+
+#: src/App/Neomod/BeatmapInstaller.cpp
+#, c++-format
+msgid "Downloaded beatmapset #{:d}"
+msgstr "ビートマップセット #{:d} をダウンロードしました"
+
+#: src/App/Neomod/BeatmapInstaller.cpp
 #, fuzzy, c++-format
 msgid "Failed to import {}"
 msgstr "マップの読み込みに失敗しました"
@@ -93,16 +108,6 @@ msgstr "マップの読み込みに失敗しました"
 #, c++-format
 msgid "Failed to download beatmapset #{:d} :("
 msgstr "ビートマップセット #{:d} のダウンロードに失敗しました :("
-
-#: src/App/Neomod/BeatmapInstaller.cpp
-#, fuzzy, c++-format
-msgid "Imported beatmapset #{:d}"
-msgstr "ビートマップセット #{:d} をダウンロードしました"
-
-#: src/App/Neomod/BeatmapInstaller.cpp
-#, c++-format
-msgid "Downloaded beatmapset #{:d}"
-msgstr "ビートマップセット #{:d} をダウンロードしました"
 
 #: src/App/Neomod/BeatmapInterface.cpp
 msgid "Buffering ..."
@@ -194,6 +199,21 @@ msgstr "チャットするにはログインが必要です！"
 #: src/App/Neomod/Chat.cpp
 msgid "Type in the channel you want to join (e.g. '#osu'):"
 msgstr "参加したいチャンネルを入力してください（例: '#osu'）:"
+
+#: src/App/Neomod/Database.cpp
+#, c++-format
+msgid "Added {:d} new beatmapset(s)."
+msgstr ""
+
+#: src/App/Neomod/Database.cpp
+#, fuzzy
+msgid "No new beatmaps detected."
+msgstr "マップが選択されていません"
+
+#: src/App/Neomod/Database.cpp
+#, c++-format
+msgid "{} was written by a newer version, ignoring it"
+msgstr ""
 
 #: src/App/Neomod/HUD.cpp
 #, c++-format
@@ -3308,6 +3328,11 @@ msgstr "ビートマップセットに難易度がありません"
 #, c++-format
 msgid "Failed to find Beatmap #{:d} :("
 msgstr "ビートマップ #{:d} が見つかりませんでした :("
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp
+#, fuzzy, c++-format
+msgid "Scanning beatmap folders ({:d}/{:d})"
+msgstr "強制スタート ({:d}/{:d})"
 
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
 #, fuzzy, c++-format

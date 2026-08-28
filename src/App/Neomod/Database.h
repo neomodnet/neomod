@@ -39,8 +39,9 @@ class ConVar;
 class DatabaseBeatmap;
 using BeatmapDifficulty = DatabaseBeatmap;
 using BeatmapSet = DatabaseBeatmap;
+using DiffContainer = std::vector<std::unique_ptr<BeatmapDifficulty>>;
 
-#define NEOMOD_MAPS_DB_VERSION 20260816
+#define NEOMOD_MAPS_DB_VERSION 20260829
 #define NEOMOD_SCORE_DB_VERSION 20240725
 
 class Database;
@@ -89,12 +90,37 @@ class Database final {
 
     void update();
 
-    void load();
+    // full_rescan: stat every .osu of every maps/ folder instead of trusting unchanged folder mtimes (F5)
+    void load(bool full_rescan = false);
     void cancel();
     void save();
 
-    std::pair<BeatmapSet *, bool /*added*/> addBeatmapSet(std::string_view beatmapFolderPath, i32 set_id_override = -1,
-                                                          bool is_peppy = false);
+    // where set folders live: the maps/ drop-zone, or the osu!stable songs folder when it's loaded raw
+    // (no osu!.db as its source)
+    enum class MapRoot : u8 { Neomod, Peppy };
+
+    enum class ReconcileMode : u8 {
+        TrustFolderMtime,  // startup: an unchanged folder mtime means no per-file io at all
+        PerFile,           // F5: stat every .osu, parse only those whose mtime moved
+        ForceParse,        // installer: re-parse every .osu (files just written can share the record's second)
+    };
+    struct ReconcileResult {
+        enum class Outcome : u8 { Unchanged, Created, Updated, Removed, Failed };
+        Outcome outcome{Outcome::Unchanged};
+        BeatmapSet *set{nullptr};       // live set for the folder afterwards (nullptr: Removed/Failed/no unique diffs)
+        BeatmapSet *replaced{nullptr};  // tombstoned predecessor (Updated/Removed), valid until the next load()
+        BeatmapSet *dedup_owner{nullptr};  // set owning the first duplicate diff seen (where "already installed" lives)
+        u16 added{0}, removed{0}, parsed{0};
+    };
+    // syncs <root>/<rel_folder>/ against the db (osu!stable's F5, for one folder): new .osu files are parsed,
+    // changed ones re-parsed, vanished ones dropped, everything else is kept as-is. preparsed optionally holds
+    // already-parsed diffs of the folder (so unknown folders can be parsed in parallel beforehand).
+    // set_id_override > 0 is stamped onto the result (downloads know their id even if the .osu files don't).
+    // loader thread during load(), main thread afterwards, never both.
+    // limits: folder mtimes move on entry add/remove/rename but not on in-place rewrites (PerFile catches those),
+    // and a rewrite within the same second as the recorded mtime is missed (same as stable)
+    ReconcileResult reconcileFolder(MapRoot root, std::string_view rel_folder, ReconcileMode mode, i32 set_id_override,
+                                    std::unique_ptr<DiffContainer> preparsed);
 
     // returns true if adding succeeded
     bool addScore(const FinishedScore &score);
@@ -109,21 +135,31 @@ class Database final {
     static u64 getRequiredScoreForLevel(int level);
     static int getLevelForScore(u64 score, int maxLevel = 120);
 
+    // the percentage is byte-based over the database files; the loader's passes over the set folders that
+    // follow (loose .osz extraction, then the folder reconcile) count items instead
+    enum class LoadStage : u8 { ReadingDatabases, ImportingOsz, ScanningFolders };
     [[nodiscard]] inline float getProgress() const { return this->loading_progress.load(std::memory_order_acquire); }
-    // loose .osz import counters for the loading overlay; total stays 0 when nothing is being imported
-    [[nodiscard]] inline u32 getImportDone() const { return this->import_done.load(std::memory_order_acquire); }
-    [[nodiscard]] inline u32 getImportTotal() const { return this->import_total.load(std::memory_order_acquire); }
+    [[nodiscard]] inline LoadStage getLoadStage() const { return this->load_stage.load(std::memory_order_acquire); }
+    // per-item counters of the current stage for the loading overlay; total stays 0 while there's nothing to count
+    [[nodiscard]] inline u32 getStageDone() const { return this->stage_done.load(std::memory_order_acquire); }
+    [[nodiscard]] inline u32 getStageTotal() const { return this->stage_total.load(std::memory_order_acquire); }
     [[nodiscard]] inline bool isCancelled() const { return this->load_interrupted.load(std::memory_order_acquire); }
     [[nodiscard]] inline bool isLoading() const {
         float progress = this->getProgress();
         return progress > 0.f && progress < 1.f;
     }
     [[nodiscard]] inline bool isFinished() const { return (this->getProgress() >= 1.0f); }
-    [[nodiscard]] inline bool foundChanges() const { return this->raw_found_changes; }
 
     BeatmapDifficulty *getBeatmapDifficulty(const MD5Hash &md5hash) const;
     BeatmapDifficulty *getBeatmapDifficulty(i32 map_id) const;
+    // nullptr for set_id <= 0 (unsubmitted sets have no usable id); prefers a maps/ set over an osu!stable one
     BeatmapSet *getBeatmapSet(i32 set_id) const;
+    // relative maps/ folder of the set with this id ("" if none). unlike the pointer-returning getters this is
+    // safe to call from worker threads (copy under the shared lock, no loading gate)
+    std::string getBeatmapSetFolder(i32 set_id) const;
+    // stamps a (newly learned) online set id onto a map's set (or the set itself) and all of its difficulties,
+    // keeping the id index in sync
+    void updateSetID(DatabaseBeatmap *map, i32 new_id);
     [[nodiscard]] inline const std::vector<std::unique_ptr<BeatmapSet>> &getBeatmapSets() const {
         return this->beatmapsets;
     }
@@ -168,7 +204,14 @@ class Database final {
     friend void Collections::save_collections_async();
     friend class DatabaseBeatmap;
 
-    void scheduleLoadRaw();
+    // diffs a root's folders against its records: parses unknown folders (in parallel), drops vanished ones and
+    // reconciles the known ones (all of them when per_file, otherwise only those whose folder mtime moved).
+    // returns how many sets were created
+    u32 reconcileRoot(MapRoot root, const Sync::stop_token &tok, bool per_file);
+    [[nodiscard]] std::string rootPath(MapRoot root) const;  // with trailing slash
+
+    // parses every .osu directly inside a set folder (shared by loadRawBeatmap and the maps/ rescan)
+    static std::unique_ptr<DiffContainer> parseFolderDiffs(std::string_view folder_path, bool is_peppy);
 
     // for updating scores externally
     friend struct BatchDiffCalc::internal;
@@ -203,11 +246,10 @@ class Database final {
     u64 total_bytes{0};
     std::atomic<float> loading_progress{0.f};
 
-    // loose .osz import progress for the loading overlay. written by the loader thread in
-    // importLooseOsz, read by the main-thread overlay via getImportDone()/getImportTotal(). total
-    // stays 0 when there's nothing to import.
-    std::atomic<u32> import_done{0};
-    std::atomic<u32> import_total{0};
+    // written by the loader thread (importLooseOsz, reconcileRoot), read by the main-thread overlay
+    std::atomic<LoadStage> load_stage{LoadStage::ReadingDatabases};
+    std::atomic<u32> stage_done{0};
+    std::atomic<u32> stage_total{0};
 
     std::vector<std::string> extern_db_paths_to_import;
     // copy so that more can be added without thread races during loading
@@ -241,17 +283,38 @@ class Database final {
     Async::Future<void> score_save_future;
 
     std::unique_ptr<Timing::Timer> importTimer;
-    bool is_first_load{true};      // only load differences after first raw load
-    bool raw_found_changes{true};  // for total refresh detection of raw loading
 
-    // global
-    u32 num_beatmaps_to_load{0};
     std::atomic<bool> load_interrupted{false};
     // this vector owns all loaded beatmapsets, raw beatmapset pointers are assumed not ownable
     std::vector<std::unique_ptr<BeatmapSet>> beatmapsets;
 
+    // guards beatmap_difficulties, neomod_folders, sets_by_id and the destruction of beatmapsets/graveyard elements
     mutable Sync::shared_mutex beatmap_difficulties_mtx;
     Hash::flat::map<MD5Hash, BeatmapDifficulty *> beatmap_difficulties;
+
+    struct FolderRecord {
+        i64 mtime{0};  // st_mtime of the set folder when it was last verified, 0 = never
+        // nullptr = known folder without unique diffs (recorded so it isn't re-parsed every load)
+        BeatmapSet *set{nullptr};
+    };
+    // a set is identified by its folder (any name); the online set id is just metadata.
+    // key: folder name relative to the root, no trailing slash. peppy_folders only exists while the osu!stable
+    // songs folder is loaded raw (osu!.db, when readable, is authoritative for it and isn't persisted here)
+    Hash::unstable_stringmap<FolderRecord> neomod_folders;
+    Hash::unstable_stringmap<FolderRecord> peppy_folders;
+    [[nodiscard]] Hash::unstable_stringmap<FolderRecord> &folderIndex(MapRoot root) {
+        return root == MapRoot::Neomod ? this->neomod_folders : this->peppy_folders;
+    }
+    // online set id -> sets with that id (maps/ and osu!stable), ids > 0 only, in registration order
+    Hash::flat::map<i32, std::vector<BeatmapSet *>> sets_by_id;
+    // sets replaced/removed at runtime: kept alive so raw pointers held by calc queues/scores/screens stay valid,
+    // freed by the next startLoader()
+    std::vector<std::unique_ptr<BeatmapSet>> graveyard;
+
+    // sets_by_id registration, caller holds the beatmap_difficulties_mtx unique lock.
+    // unindexSet returns whether the set was indexed
+    void indexSet(BeatmapSet *set);
+    bool unindexSet(BeatmapSet *set);
 
     bool neomod_maps_loaded{false};
 
@@ -267,14 +330,9 @@ class Database final {
         .totalScore = 0,
     };
 
-    std::string raw_load_osu_song_folder;
-    std::vector<std::string> raw_loaded_beatmap_folders;
-    std::vector<std::string> raw_load_beatmap_folders;
-
-    // raw load
-    u32 cur_raw_load_idx{0};
+    // the osu!stable songs folder is loaded from its folders (like maps/) when osu!.db isn't the source for it
     bool needs_raw_load{false};
-    bool raw_load_scheduled{false};
-    bool raw_load_is_neomod{
-        false};  // if we're raw loading from the local neomod folder instead of the osu!stable song folder
+    std::string peppy_root;   // that folder, captured on the main thread for the loader
+    bool full_rescan{false};  // set by load(), consumed by the loader
+    u32 rescan_created{0};    // sets created by the last load's reconcile passes
 };

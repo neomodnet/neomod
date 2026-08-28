@@ -14,9 +14,13 @@ the binary is autodiscovered as the most recently built <repo>/*/dist/bin-*/neom
 import argparse
 import difflib
 import os
+import re
+import shlex
+import shutil
 import subprocess
 import sys
 import wave
+import zipfile
 from pathlib import Path
 
 import pixelprobe
@@ -52,7 +56,7 @@ def find_binary(explicit):
     return chosen
 
 
-def beatmap(title, version, audio, n_objects):
+def beatmap(title, version, audio, n_objects, set_id=-1):
     """minimal v14 .osu: metadata + n_objects evenly-spaced circles (500ms apart)."""
     lines = [
         "osu file format v14",
@@ -67,7 +71,7 @@ def beatmap(title, version, audio, n_objects):
         "Creator:uitest",
         f"Version:{version}",
         "BeatmapID:0",
-        "BeatmapSetID:-1",
+        f"BeatmapSetID:{set_id}",
         "",
         "[Difficulty]",
         "HPDrainRate:5",
@@ -87,6 +91,33 @@ def beatmap(title, version, audio, n_objects):
         lines.append(f"256,192,{t},1,0,0:0:0:0:")
         t += 500
     return "\n".join(lines) + "\n"
+
+
+def maps_set(bindir, folder, set_id, n_diffs):
+    """a raw beatmapset folder in the binary's maps/ drop-zone (metadata-only diffs), for the
+    '# uitest-maps:' directive; run_one removes it again after the script."""
+    d = bindir / "maps" / folder
+    d.mkdir(parents=True, exist_ok=True)
+    for i in range(1, n_diffs + 1):
+        (d / f"diff{i:02d}.osu").write_text(
+            beatmap(f"UITest {folder}", f"diff {i:02d}", "none.mp3", i, set_id)
+        )
+    return d
+
+
+def script_directives(text):
+    """'# uitest-<key>: <value>' lines in a script's leading comment block:
+    maps: '<folder>|<set_id>|<n_diffs>' provisions maps/<folder>/ before the run (removed after)
+    args: extra binary argv (e.g. an .osz path relative to the bin dir, imported like a drag/drop)
+    cleanup: a maps/<folder> the script is expected to create, removed after the run"""
+    out = {}
+    for ln in text.splitlines():
+        if not ln.startswith("#"):
+            break
+        m = re.match(r"#\s*uitest-(\w+):\s*(.*)", ln)
+        if m:
+            out.setdefault(m.group(1), []).append(m.group(2).strip())
+    return out
 
 
 def provision_fixtures(bindir):
@@ -125,6 +156,21 @@ def provision_fixtures(bindir):
             w.writeframes(b"\x00\x00" * (8000 * 35))
         (play_songs / "play.osu").write_text(beatmap("UITest Play", "play", "silence.wav", 60))
 
+    # .osz import fixtures (passed to the binary via '# uitest-args:', i.e. the drag/drop path):
+    # a set with an id, the same set with one more diff (merges into the installed folder), and a
+    # set without any id (unsubmitted-style, named after the file)
+    imports = bindir / "uitest_import"
+    if not imports.is_dir():
+        imports.mkdir()
+        for name, set_id, diffs, title in (
+            ("set123.osz", 123, (1, 2), "UITest Set123"),
+            ("set123_extra.osz", 123, (1, 2, 3), "UITest Set123"),
+            ("idless.osz", -1, (1, 2), "UITest Idless"),
+        ):
+            with zipfile.ZipFile(imports / name, "w", zipfile.ZIP_DEFLATED) as z:
+                for i in diffs:
+                    z.writestr(f"diff{i:02d}.osu", beatmap(title, f"diff {i:02d}", "none.mp3", i, set_id))
+
 
 def run_one(name, binary, bindir, record):
     """run one script; print its result line(s); return True if it passed/recorded."""
@@ -139,15 +185,30 @@ def run_one(name, binary, bindir, record):
     # binary must run from its install dir (assets are relative). ui_validate_ticks is injected
     # into the script's frame-0 batch (same frame as the preamble, so traces don't shift): every
     # screen must be ticked every frame (debug builds)
+    text = script.read_text()
+    directives = script_directives(text)
+    fixture_dirs = []
+    for spec in directives.get("maps", []):
+        folder, set_id, n_diffs = (s.strip() for s in spec.split("|"))
+        fixture_dirs.append(maps_set(bindir, folder, int(set_id), int(n_diffs)))
+    extra_args = [a for spec in directives.get("args", []) for a in shlex.split(spec)]
+
     proc = subprocess.run(
-        [f"./{binary.name}", "-headless"],
+        [f"./{binary.name}", "-headless", *extra_args],
         cwd=bindir,
-        input="ui_validate_ticks 1\n" + script.read_text(),
+        input="ui_validate_ticks 1\n" + text,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
     )
     log = proc.stdout
+
+    # maps/ fixtures and imports must not leak into the next script's carousel (the db's startup
+    # pass drops their records on the next boot)
+    for d in fixture_dirs:
+        shutil.rmtree(d, ignore_errors=True)
+    for folder in directives.get("cleanup", []):
+        shutil.rmtree(bindir / "maps" / folder, ignore_errors=True)
 
     reasons = []
     if proc.returncode != 0:

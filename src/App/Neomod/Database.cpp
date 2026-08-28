@@ -32,6 +32,7 @@
 #include "Environment.h"
 #include "MakeDelegateWrapper.h"
 #include "Hashing.h"
+#include "i18n.h"
 
 #include "fmt/chrono.h"
 
@@ -225,16 +226,19 @@ bool Database::isOsuDBReadable(std::string_view peppy_db_path) {
 void Database::onDBLoadComplete() {
     logIf(cv::debug_db.getBool() || cv::debug_async_db.getBool(), "(onDBLoadComplete) start");
 
-    if(this->needs_raw_load) {
-        this->scheduleLoadRaw();
-    } else {
-        // signal that we are done
-        this->loading_progress = 1.0f;
+    // signal that we are done
+    this->loading_progress = 1.0f;
 
-        // will find maps/scores needing recalc dynamically
-        BatchDiffCalc::start_calc();
-        VolNormalization::start_calc(this->loudness_to_calc);
+    if(this->full_rescan) {
+        ui->getNotificationOverlay()->addNotification(
+            this->rescan_created > 0 ? tformat("Added {:d} new beatmapset(s).", this->rescan_created)
+                                     : std::string{_("No new beatmaps detected.")},
+            0xff00ff00);
     }
+
+    // will find maps/scores needing recalc dynamically
+    BatchDiffCalc::start_calc();
+    VolNormalization::start_calc(this->loudness_to_calc);
 
     logIf(cv::debug_db.getBool() || cv::debug_async_db.getBool(), "(onDBLoadComplete) done");
 }
@@ -243,27 +247,25 @@ void Database::startLoader() {
     logIf(cv::debug_db.getBool() || cv::debug_async_db.getBool(), "start");
     this->destroyLoader();
 
-    // only clear diffs/sets for full reloads (only handled for raw re-loading atm)
-    // const bool lastLoadWasRaw{this->needs_raw_load};
-    // TODO: fix delta load logic
-    // TODO: raw loading from other folders
-    // TODO: new cvar like "force raw load"
-    const bool songsFolderExists = Environment::directoryExists(Database::getOsuSongsFolder());
-    this->needs_raw_load = songsFolderExists &&
+    this->peppy_root = Database::getOsuSongsFolder();
+    this->needs_raw_load = Environment::directoryExists(this->peppy_root) &&
                            (!cv::database_enabled.getBool() || !isOsuDBReadable(getDBPath(DatabaseType::STABLE_MAPS)));
-    // const bool nextLoadIsRaw{this->needs_raw_load};
+    this->rescan_created = 0;
 
-    this->is_first_load = true;
-
-    this->import_done.store(0, std::memory_order_release);
-    this->import_total.store(0, std::memory_order_release);
+    this->load_stage.store(LoadStage::ReadingDatabases, std::memory_order_release);
+    this->stage_done.store(0, std::memory_order_release);
+    this->stage_total.store(0, std::memory_order_release);
 
     this->loudness_to_calc.clear();
     {
         Sync::unique_lock lock(this->beatmap_difficulties_mtx);
         this->beatmap_difficulties.clear();
+        this->neomod_folders.clear();
+        this->peppy_folders.clear();
+        this->sets_by_id.clear();
+        this->beatmapsets.clear();
+        this->graveyard.clear();
     }
-    this->beatmapsets.clear();
 
     // append, the copy will only be cleared if loading them succeeded
     Mc::ranges::append(this->extern_db_paths_to_import_async_copy, std::move(this->extern_db_paths_to_import));
@@ -297,12 +299,19 @@ void Database::startLoader() {
                 this->importLooseOsz();
                 if(tok.stop_requested()) goto done;
 
-                // loaded after raw load otherwise
-                if(!this->needs_raw_load) {
-                    Collections::load_all(this->database_files[MCNEOMOD_COLLECTIONS],
-                                          this->database_files[STABLE_COLLECTIONS]);
+                // pick up whatever is on disk that the db doesn't know about yet (and drop what's gone)
+                this->rescan_created = this->reconcileRoot(MapRoot::Neomod, tok, this->full_rescan);
+                if(tok.stop_requested()) goto done;
+                // osu!stable's Songs/ is only walked when osu!.db isn't the source for it; with a readable
+                // osu!.db its contents are taken as-is (never a folder scan)
+                if(this->needs_raw_load) {
+                    this->rescan_created += this->reconcileRoot(MapRoot::Peppy, tok, this->full_rescan);
                     if(tok.stop_requested()) goto done;
                 }
+
+                Collections::load_all(this->database_files[MCNEOMOD_COLLECTIONS],
+                                      this->database_files[STABLE_COLLECTIONS]);
+                if(tok.stop_requested()) goto done;
             }
 
             // .db files that were dropped on the main window
@@ -395,8 +404,12 @@ Database::~Database() {
     {
         Sync::unique_lock lock(this->beatmap_difficulties_mtx);
         this->beatmap_difficulties.clear();
+        this->neomod_folders.clear();
+        this->peppy_folders.clear();
+        this->sets_by_id.clear();
+        this->beatmapsets.clear();
+        this->graveyard.clear();
     }
-    this->beatmapsets.clear();
 
     Collections::unload_all();
 }
@@ -407,76 +420,12 @@ void Database::update() {
         this->db_load_handle.get();
         this->onDBLoadComplete();
     }
-
-    // loadRaw() logic
-    if(this->raw_load_scheduled) {
-        Timer t;
-
-        while(t.getElapsedTime() < 0.033f) {
-            if(this->isCancelled()) break;  // cancellation point
-
-            if(this->raw_load_beatmap_folders.size() > 0 &&
-               this->cur_raw_load_idx < this->raw_load_beatmap_folders.size()) {
-                std::string curBeatmap = this->raw_load_beatmap_folders[this->cur_raw_load_idx++];
-                this->raw_loaded_beatmap_folders.push_back(
-                    curBeatmap);  // for future incremental loads, so that we know what's been loaded already
-
-                std::string fullBeatmapPath = this->raw_load_osu_song_folder;
-                fullBeatmapPath.append(curBeatmap);
-                fullBeatmapPath.append("/");
-
-                this->addBeatmapSet(fullBeatmapPath,           //
-                                    -1,                        // no set id override
-                                    !this->raw_load_is_neomod  // is_peppy
-                );
-            }
-
-            // update progress
-            this->loading_progress = (float)this->cur_raw_load_idx / (float)this->num_beatmaps_to_load;
-
-            // check if we are finished
-            if(this->cur_raw_load_idx >= this->num_beatmaps_to_load ||
-               std::cmp_greater(this->cur_raw_load_idx, (this->raw_load_beatmap_folders.size() - 1))) {
-                this->raw_load_beatmap_folders.clear();
-                this->raw_load_scheduled = false;
-
-                this->importTimer->update();
-
-                debugLog("Refresh finished, added {} beatmaps in {:f} seconds.", this->beatmapsets.size(),
-                         this->importTimer->getElapsedTime());
-
-                Collections::load_all(this->database_files[DatabaseType::MCNEOMOD_COLLECTIONS],
-                                      this->database_files[DatabaseType::STABLE_COLLECTIONS]);
-
-                // for all diffs within the set with fStarsNomod <= 0.f (peppy difficulties needing recalc)
-                for(auto &set : this->beatmapsets) {
-                    for(auto &diff : set->getDifficulties()) {
-                        if(diff->fStarsNomod < 0.f) {
-                            diff->fStarsNomod *= -1.f;
-                        }
-                    }
-                }
-                // clang-format on
-                this->loading_progress = 1.0f;
-
-                // will find maps/scores needing recalc dynamically
-                BatchDiffCalc::start_calc();
-                VolNormalization::start_calc(this->loudness_to_calc);
-
-                break;
-            }
-
-            t.update();
-        }
-    }
 }
 
-void Database::load() {
+void Database::load(bool full_rescan) {
+    this->full_rescan = full_rescan;
     this->load_interrupted = false;
     this->loading_progress = 0.0f;
-
-    // reset scheduled logic
-    this->raw_load_scheduled = false;
 
     this->startLoader();
 }
@@ -486,7 +435,6 @@ void Database::cancel() {
     this->destroyLoader();
 
     this->loading_progress = 1.0f;  // force finished
-    this->raw_found_changes = true;
 }
 
 void Database::save() {
@@ -495,115 +443,12 @@ void Database::save() {
     this->saveScores();
 }
 
-// NOTE: Should currently only be used for neomod beatmapsets! e.g. from maps/ folder
-//       See loadRawBeatmap()
-//       (unless is_peppy is specified, in which case we're loading a raw osu folder and not saving the things we loaded)
-std::pair<BeatmapSet *, bool /*added*/> Database::addBeatmapSet(std::string_view beatmapFolderPath, i32 set_id_override,
-                                                                bool is_peppy) {
-    std::unique_ptr<BeatmapSet> mapset = loadRawBeatmap(beatmapFolderPath, is_peppy);
-    if(mapset == nullptr) return {};
-
-    BeatmapSet *raw_mapset = mapset.get();
-
-    const i32 real_set_id = set_id_override != -1 ? set_id_override : mapset->iSetID;
-
-    // an existing set that already owns one of our diffs (matched by MD5 below); used to return the real
-    // owner if every diff turns out to be a duplicate.
-    BeatmapSet *dedup_parent = nullptr;
-    {
-        // deduplicate diffs
-        // TODO: this will disallow adding a neomod beatmapset if we already have a peppy beatmapset that is the same (and vice versa)!
-        Sync::unique_lock lock(this->beatmap_difficulties_mtx);
-        for(auto diffit = mapset->difficulties->begin(); diffit != mapset->difficulties->end();) {
-            const auto &diff = *diffit;
-            auto [existingit, inserted] = this->beatmap_difficulties.try_emplace(diff->getMD5(), diff.get());
-            if(!inserted) {
-                // update the existing diff's filename (believe the new one over an existing one, which may no longer exist!)
-                BeatmapDifficulty *collision = existingit->second;
-                collision->sFilePath = std::move(diff->sFilePath);
-
-                // also update the existing set's id if we just learned a real one (from an override or the .osu itself)
-                BeatmapSet *diffparent = collision->parentSet;
-                dedup_parent = diffparent;
-                if(const i32 old_set_id = diffparent->iSetID; old_set_id == -1 && real_set_id > 0) {
-                    logIfCV(debug_db, "updating old set {} id {} -> {}", diffparent->getFolder(), old_set_id,
-                            real_set_id);
-                    diffparent->iSetID = real_set_id;
-                    for(auto &existingdiff : diffparent->getDifficulties()) {
-                        existingdiff->iSetID = real_set_id;
-                    }
-                }
-                logIfCV(debug_db, "skipping raw {} (already in beatmap_difficulties), current size: {}", diff->getMD5(),
-                        this->beatmap_difficulties.size());
-                diffit = mapset->difficulties->erase(diffit);
-            } else {
-                logIfCV(debug_db, "adding raw {} to beatmap_difficulties, current size: {}", diff->getMD5(),
-                        this->beatmap_difficulties.size());
-                ++diffit;
-            }
-        }
-    }
-
-    if(mapset->difficulties->empty()) {
-        debugLog("WARNING: didn't add new mapset {} id {}, only had duplicate difficulties!", mapset->getFolder(),
-                 real_set_id);
-
-        // every diff was a duplicate, so dedup_parent points at the existing set that owns them. its set
-        // id may differ from real_set_id (e.g. the same map present as both a peppy and a neomod set, per
-        // the TODO above), which is why we return the matched parent rather than re-searching by id.
-        return {dedup_parent, false};
-    }
-
-    // Some beatmaps don't provide beatmap/beatmapset IDs in the .osu files
-    // But we know the beatmapset ID because we just downloaded it!
-    if(set_id_override != -1) {
-        mapset->iSetID = set_id_override;
-        for(auto &diff : mapset->getDifficulties()) {
-            diff->iSetID = set_id_override;
-        }
-    }
-
-    this->beatmapsets.push_back(std::move(mapset));
-
-    // kick off loudness for the freshly added diffs. BatchDiffCalc finds maps needing diffcalc
-    // dynamically, but VolNormalization::start_calc only ever processes the explicit loudness_to_calc
-    // vector, so imports have to funnel their diffs into it themselves or never get calculated.
-    if(this->isFinished()) {
-        this->batch_diffcalc_pending = true;  // picked up by SongBrowser::update
-
-        // post-load import: the batch loudness pass already ran, so request priority calc now so the
-        // map has correct loudness by the time the user previews it.
-        for(const auto &diff : raw_mapset->getDifficulties()) {
-            VolNormalization::request_priority(diff.get());
-        }
-
-        // saveMaps already guards itself by this->isFinished(), but putting it here for clarity anyways
-        // NOTE: this should be removed, only done as a "hack" to prevent corrupt database/folder state
-        // (which loading from raw folders would fix in a better way)
-        // (mainly relevant on WASM where it's more likely that the page might be unloaded before we successfully saved on shutdown)
-        if(cv::maps_save_immediately.getBool()) {
-            this->saveMaps();
-        }
-    } else {
-        // pre-finish import (raw load / loose .osz on the loader thread): the priority worker won't run
-        // until after load and these never pass through loadMaps' db-read path (which is what normally
-        // populates loudness_to_calc), so add them for the batch start_calc at load completion. without
-        // this their loudness stays 0 until a restart re-reads them from the db.
-        for(const auto &diff : raw_mapset->getDifficulties()) {
-            this->loudness_to_calc.push_back(diff.get());
-        }
-    }
-
-    return {raw_mapset, true};
-}
-
 // uses BeatmapInstaller's static .osz read + extract helper; kept as a separate loader-stage import
 // because it runs before the installer and song browser exist.
 void Database::importLooseOsz() {
-    // import any loose .osz files sitting in the maps/ drop-zone (dropped in while the game was closed).
-    // runs on the loader thread before the song browser builds its buttons, so these maps are part of
-    // the initial listing. isFinished() is still false here, so addBeatmapSet won't notify the
-    // not-yet-built song browser, and appending to beatmapsets is safe (same thread as loadMaps).
+    // extract any loose .osz files sitting in the maps/ drop-zone (dropped in while the game was closed).
+    // runs on the loader thread right before reconcileRoot, which then imports the extracted folders
+    // like any other unknown folder, so these maps are part of the initial listing.
 
     std::vector<std::string> oszs;
     for(auto &file : env->getFilesInFolder(NEOMOD_MAPS_PATH "/")) {
@@ -615,40 +460,41 @@ void Database::importLooseOsz() {
     debugLog("Importing {:d} loose .osz file(s) from " NEOMOD_MAPS_PATH "/", oszs.size());
 
     // the .osz aren't in loadMaps' byte budget, so the percentage stays pinned near 0.99 throughout
-    // this loop; the import count surfaced via getImportDone()/getImportTotal() is the user's actual
+    // this loop; the import count surfaced via getStageDone()/getStageTotal() is the user's actual
     // progress signal.
-    this->import_total.store(static_cast<u32>(oszs.size()), std::memory_order_release);
+    this->load_stage.store(LoadStage::ImportingOsz, std::memory_order_release);
+    this->stage_total.store(static_cast<u32>(oszs.size()), std::memory_order_release);
 
-    // extraction (read + decompress + write) is ~99% of per-map cost and independent per file, so fan it
-    // out across the async pool while addBeatmapSet stays serial on this loader thread (it appends to
-    // beatmapsets / loudness_to_calc, which mustn't be touched concurrently). a bounded sliding window
-    // keeps at most window_size extractions in flight, so a huge drop can't pile up extracted folders on
-    // disk faster than the imports that delete each source .osz.
+    // extraction (read + decompress + write) is independent per file, so fan it out across the async pool.
+    // a bounded sliding window keeps at most window_size extractions in flight, so a huge drop can't pile
+    // up extracted folders on disk faster than this loop deletes the source .osz files.
     // (this loader is itself a pool task, but blocking on these sub-tasks is deadlock-free: the pool has
     // >= 2 threads, fg threads work-steal bg tasks, and read_and_extract_osz never re-enters the pool.)
     const uSz window_size = std::min<uSz>(std::clamp<uSz>(Async::get_thread_count(), 4, 16), oszs.size());
 
     auto submit_extract = [](const std::string &osz_name) {
         return Async::submit(
-            [path = NEOMOD_MAPS_PATH "/" + osz_name]() -> i32 { return BeatmapInstaller::read_and_extract_osz(path); },
+            [path = NEOMOD_MAPS_PATH "/" + osz_name]() -> std::string {
+                return BeatmapInstaller::read_and_extract_osz(path);
+            },
             Lane::Background);
     };
 
-    std::vector<Async::Future<i32>> window(window_size);
+    std::vector<Async::Future<std::string>> window(window_size);
     for(uSz i = 0; i < window_size; i++) window[i] = submit_extract(oszs[i]);
 
     for(uSz i = 0; i < oszs.size(); i++) {
         if(this->isCancelled()) return;  // abandons in-flight extracts; harmless, re-imported next run
 
         // window[i % window_size] holds oszs[i]'s extraction (primed above, then refilled in order)
-        const i32 set_id = window[i % window_size].get();
+        const std::string folder = window[i % window_size].get();
         const std::string path = NEOMOD_MAPS_PATH "/" + oszs[i];
-        if(set_id > 0 && this->addBeatmapSet(fmt::format(NEOMOD_MAPS_PATH "/{}/", set_id), set_id).first != nullptr) {
+        if(!folder.empty()) {
             env->deleteFile(path);
         } else {
-            debugLog("Failed to import loose .osz {}", path);
+            debugLog("Failed to extract loose .osz {}", path);
         }
-        this->import_done.store(static_cast<u32>(i + 1), std::memory_order_release);
+        this->stage_done.store(static_cast<u32>(i + 1), std::memory_order_release);
 
         if(const uSz next = i + window_size; next < oszs.size()) window[i % window_size] = submit_extract(oszs[next]);
     }
@@ -998,18 +844,74 @@ BeatmapDifficulty *Database::getBeatmapDifficulty(i32 map_id) const {
 }
 
 BeatmapSet *Database::getBeatmapSet(i32 set_id) const {
+    if(set_id <= 0) return nullptr;
     if(this->isLoading()) {
         debugLog("we are loading, progress {}, not returning a BeatmapSet*", this->getProgress());
         return nullptr;
     }
 
-    for(const auto &beatmap : this->beatmapsets) {
-        if(beatmap->getSetID() == set_id) {
-            return beatmap.get();
-        }
+    Sync::shared_lock lock(this->beatmap_difficulties_mtx);
+    auto it = this->sets_by_id.find(set_id);
+    if(it == this->sets_by_id.end() || it->second.empty()) return nullptr;
+
+    for(BeatmapSet *set : it->second) {
+        if(set->type == DatabaseBeatmap::BeatmapType::NEOMOD_BEATMAPSET) return set;
+    }
+    return it->second.front();
+}
+
+namespace {
+std::string rel_folder_of(std::string_view folder_path) {
+    // maps/ sets live directly under NEOMOD_MAPS_PATH, so the folder name is the last path component
+    while(folder_path.ends_with('/') || folder_path.ends_with('\\')) folder_path.remove_suffix(1);
+    const auto sep = folder_path.find_last_of("/\\");
+    return std::string{sep == std::string_view::npos ? folder_path : folder_path.substr(sep + 1)};
+}
+}  // namespace
+
+std::string Database::getBeatmapSetFolder(i32 set_id) const {
+    if(set_id <= 0) return {};
+
+    Sync::shared_lock lock(this->beatmap_difficulties_mtx);
+    auto it = this->sets_by_id.find(set_id);
+    if(it == this->sets_by_id.end()) return {};
+
+    for(const BeatmapSet *set : it->second) {
+        if(set->type == DatabaseBeatmap::BeatmapType::NEOMOD_BEATMAPSET) return rel_folder_of(set->getFolder());
+    }
+    return {};
+}
+
+void Database::updateSetID(DatabaseBeatmap *map, i32 new_id) {
+    BeatmapSet *set = map->getParentSet() ? map->getParentSet() : map;
+    if(set->iSetID == new_id) return;
+
+    Sync::unique_lock lock(this->beatmap_difficulties_mtx);
+    // only db-owned sets live in the index (the main menu's preloaded sets don't)
+    const bool indexed = set->iSetID > 0 ? this->unindexSet(set)
+                                         : std::ranges::any_of(this->beatmapsets,
+                                                               [set](const auto &owned) { return owned.get() == set; });
+
+    set->iSetID = new_id;
+    for(auto &diff : set->getDifficulties()) {
+        diff->iSetID = new_id;
     }
 
-    return nullptr;
+    if(indexed) this->indexSet(set);
+}
+
+void Database::indexSet(BeatmapSet *set) {
+    if(set->iSetID > 0) this->sets_by_id[set->iSetID].push_back(set);
+}
+
+bool Database::unindexSet(BeatmapSet *set) {
+    if(set->iSetID <= 0) return false;
+    auto it = this->sets_by_id.find(set->iSetID);
+    if(it == this->sets_by_id.end()) return false;
+
+    const bool found = std::erase(it->second, set) > 0;
+    if(it->second.empty()) this->sets_by_id.erase(it);
+    return found;
 }
 
 void Database::addPathToImport(std::string_view dbPath) { this->extern_db_paths_to_import.emplace_back(dbPath); }
@@ -1033,77 +935,6 @@ std::string Database::getOsuSongsFolder() {
     }
 
     return songs_dir;
-}
-
-void Database::scheduleLoadRaw() {
-    {
-        std::string folderToLoadFrom = Database::getOsuSongsFolder();
-        std::vector<std::string> foldersInFolder = Environment::getFoldersInFolder(folderToLoadFrom);
-
-        // TODO
-        if(false && (!(File::exists(folderToLoadFrom) == File::FILETYPE::FOLDER) ||  //
-                     foldersInFolder.empty())) {
-            folderToLoadFrom = NEOMOD_MAPS_PATH "/";
-            foldersInFolder = Environment::getFoldersInFolder(folderToLoadFrom);
-
-            debugLog("Loading raw beatmaps from folders in {} (no osu!stable maps found)", folderToLoadFrom);
-            this->raw_load_is_neomod = true;
-        } else {
-            debugLog("Loading raw beatmaps from folders in {}", folderToLoadFrom);
-            this->raw_load_is_neomod = false;
-        }
-
-        this->raw_load_osu_song_folder = std::move(folderToLoadFrom);
-        this->raw_load_beatmap_folders = std::move(foldersInFolder);
-    }
-
-    this->num_beatmaps_to_load = this->raw_load_beatmap_folders.size();
-
-    // if this isn't the first load, only load the differences
-    if(!this->is_first_load) {
-        std::vector<std::string> toLoad;
-        for(uSz i = 0; i < this->num_beatmaps_to_load; i++) {
-            bool alreadyLoaded = false;
-            for(const auto &rawBeatmapFolder : this->raw_loaded_beatmap_folders) {
-                if(this->raw_load_beatmap_folders[i] == rawBeatmapFolder) {
-                    alreadyLoaded = true;
-                    break;
-                }
-            }
-
-            if(!alreadyLoaded) toLoad.push_back(this->raw_load_beatmap_folders[i]);
-        }
-
-        // only load differences
-        this->raw_load_beatmap_folders = toLoad;
-        this->num_beatmaps_to_load = this->raw_load_beatmap_folders.size();
-
-        debugLog("Database: Found {} new/changed beatmaps.", this->num_beatmaps_to_load);
-
-        this->raw_found_changes = this->num_beatmaps_to_load > 0;
-        if(this->raw_found_changes)
-            ui->getNotificationOverlay()->addNotification(
-                fmt::format("Adding {:d} new beatmap{}.", this->num_beatmaps_to_load,
-                            this->num_beatmaps_to_load == 1 ? "" : "s"),
-                0xff00ff00);
-        else
-            ui->getNotificationOverlay()->addNotification("No new beatmaps detected.", 0xff00ff00);
-    }
-
-    debugLog("Database: Building beatmap database ...");
-    debugLog("Database: Found {} folders to load.", this->raw_load_beatmap_folders.size());
-
-    // only start loading if we have something to load
-    if(this->raw_load_beatmap_folders.size() > 0) {
-        this->loading_progress = 0.0f;
-        this->cur_raw_load_idx = 0;
-
-        this->raw_load_scheduled = true;
-        this->importTimer->start();
-    } else
-        this->loading_progress = 1.0f;
-
-    this->is_first_load = false;
 }
 
 MD5Hash Database::recalcMD5(std::string osu_path) {
@@ -1135,13 +966,23 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
     u32 nb_peppy_maps = 0;
     u32 nb_overrides = 0;
     bool neomod_maps_loaded = false;
+    u32 num_beatmaps_to_load = 0;  // osu!.db entries
 
     // Load neomod map database
     {
         ByteBufferedFile::Reader neomod_maps(neomod_maps_path);
+        bool version_ok = true;
         if(neomod_maps.get_total_size() > 0) {
             u32 version = neomod_maps.read<u32>();
-            if(version < NEOMOD_MAPS_DB_VERSION) {
+            version_ok = version <= NEOMOD_MAPS_DB_VERSION;
+            if(!version_ok) {
+                // written by a newer build: don't guess at the layout. neomod_maps_loaded stays false so that
+                // saveMaps won't overwrite the file with something that build can't read
+                debugLog("{} version {} is newer than this build's {}, ignoring it", neomod_maps_path, version,
+                         NEOMOD_MAPS_DB_VERSION);
+                ui->getNotificationOverlay()->addToast(
+                    tformat("{} was written by a newer version, ignoring it", neomod_maps_path), ERROR_TOAST);
+            } else if(version < NEOMOD_MAPS_DB_VERSION) {
                 // Reading from older database version: backup just in case
                 auto backup_path =
                     fmt::format("{}.{}-{:%F}", neomod_maps_path, version, fmt::gmtime(std::time(nullptr)));
@@ -1151,7 +992,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 }
             }
 
-            u32 nb_sets = neomod_maps.read<u32>();
+            u32 nb_sets = version_ok ? neomod_maps.read<u32>() : 0;
             for(uSz i = 0; i < nb_sets; i++) {
                 if(this->isCancelled()) break;  // cancellation point
 
@@ -1159,12 +1000,24 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 f64 progress_float = (f64)progress_bytes / (f64)this->total_bytes;
                 this->loading_progress = (f32)std::clamp(progress_float, 0.01, 0.99);
 
+                std::string rel_folder;
+                i64 folder_mtime = 0;
+                MapRoot root = MapRoot::Neomod;
+                if(version >= 20260828) {
+                    neomod_maps.read_string(rel_folder);
+                    folder_mtime = neomod_maps.read<i64>();
+                    if(version >= 20260829) root = neomod_maps.read<u8>() == 1 ? MapRoot::Peppy : MapRoot::Neomod;
+                }
                 i32 set_id = neomod_maps.read<i32>();
                 u16 nb_diffs = neomod_maps.read<u16>();
 
+                // pre-20260828 sets were always stored in maps/<set_id>/, later ones record their folder
+                if(version < 20260828) rel_folder = fmt::to_string(set_id);
+
                 // NOTE: Ignoring mapsets with ID -1, since we most likely saved them in the correct folder,
                 //       but mistakenly set their ID to -1 (because the ID was missing from the .osu file).
-                if(set_id == -1) {
+                //       (pre-20260828 files only: their folder is unknown, the startup rescan finds it on disk)
+                if(version < 20260828 && set_id == -1) {
                     for(u16 j = 0; j < nb_diffs; j++) {
                         neomod_maps.skip_string();  // osu_filename
                         neomod_maps.skip<i32>();    // iID
@@ -1217,7 +1070,10 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 }
 
                 auto diffs = std::make_unique<DiffContainer>();
-                std::string mapset_path = fmt::format(NEOMOD_MAPS_PATH "/{}/", set_id);
+                const std::string mapset_path = this->rootPath(root) + rel_folder + "/";
+                using enum DatabaseBeatmap::BeatmapType;
+                const auto diff_type = root == MapRoot::Peppy ? PEPPY_DIFFICULTY : NEOMOD_DIFFICULTY;
+                const auto set_type = root == MapRoot::Peppy ? PEPPY_BEATMAPSET : NEOMOD_BEATMAPSET;
 
                 for(u16 j = 0; j < nb_diffs; j++) {
                     if(this->isCancelled()) {  // cancellation point
@@ -1363,8 +1219,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                         diff_hash = recalcMD5(mapset_path + osu_filename);
                     }
 
-                    auto diff = std::make_unique<BeatmapDifficulty>(mapset_path + osu_filename, mapset_path,
-                                                                    DatabaseBeatmap::BeatmapType::NEOMOD_DIFFICULTY);
+                    auto diff = std::make_unique<BeatmapDifficulty>(mapset_path + osu_filename, mapset_path, diff_type);
 
                     diff->iID = iID;
                     diff->iSetID = iSetID;
@@ -1399,11 +1254,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
 
                     diff->draw_background = draw_background;
 
-                    if(loudness == 0.f) {
-                        this->loudness_to_calc.push_back(diff.get());
-                    } else {
-                        diff->loudness = loudness;
-                    }
+                    diff->loudness = loudness;
 
                     if(!bEmptyTitleUnicode) {
                         diff->sTitleUnicode = std::move(sTitleUnicode);
@@ -1418,25 +1269,36 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
 
                     diff->ppv2Version = ppv2Version;
 
-                    {
-                        Sync::unique_lock lock(this->beatmap_difficulties_mtx);
-                        this->beatmap_difficulties[diff_hash] = diff.get();
-                    }
                     diffs->push_back(std::move(diff));
-                    nb_neomod_maps++;
                 }
 
-                if(diffs && !diffs->empty()) {
-                    auto set =
-                        std::make_unique<BeatmapSet>(std::move(diffs), DatabaseBeatmap::BeatmapType::NEOMOD_BEATMAPSET);
-                    temp_loading_beatmapsets.push_back(std::move(set));
+                // songs folder records only matter while osu!.db isn't its source; otherwise they're stale and
+                // get dropped by the next save
+                if(root == MapRoot::Peppy && !this->needs_raw_load) continue;
 
-                    // NOTE: Don't add neomod sets to beatmapSets since they're already processed
-                    // Adding them would create duplicate ownership of the diffs vector
+                BeatmapSet *set_ptr = nullptr;
+                if(diffs && !diffs->empty()) {
+                    auto set = std::make_unique<BeatmapSet>(std::move(diffs), set_type);
+                    set_ptr = set.get();
+                    temp_loading_beatmapsets.push_back(std::move(set));
+                }
+                {
+                    Sync::unique_lock lock(this->beatmap_difficulties_mtx);
+                    if(set_ptr) {
+                        for(const auto &diff : set_ptr->getDifficulties()) {
+                            this->beatmap_difficulties[diff->getMD5()] = diff.get();
+                            if(diff->loudness.load(std::memory_order_acquire) == 0.f) {
+                                this->loudness_to_calc.push_back(diff.get());
+                            }
+                        }
+                        this->indexSet(set_ptr);
+                        (root == MapRoot::Peppy ? nb_peppy_maps : nb_neomod_maps) += set_ptr->getDifficulties().size();
+                    }
+                    this->folderIndex(root)[rel_folder] = {.mtime = folder_mtime, .set = set_ptr};
                 }
             }
 
-            if(version >= 20240812) {
+            if(version_ok && version >= 20240812) {
                 nb_overrides = neomod_maps.read<u32>();
                 Sync::unique_lock lock(this->peppy_overrides_mtx);
                 for(uSz i = 0; i < nb_overrides; i++) {
@@ -1478,7 +1340,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
             }
 
             // star ratings section
-            if(version >= 20260202) {
+            if(version_ok && version >= 20260202) {
                 const uSz stored_speeds = neomod_maps.read<u8>();
                 const uSz stored_combos = neomod_maps.read<u8>();
                 const u32 nb_star_entries = neomod_maps.read<u32>();
@@ -1508,7 +1370,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
             }
         }
         this->bytes_processed += neomod_maps.get_total_size();
-        neomod_maps_loaded = true;
+        neomod_maps_loaded = version_ok;
     }
 
     // load peppy maps
@@ -1528,10 +1390,10 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
             dbr.skip<u8>();
             dbr.skip<u64>() /* timestamp */;
             std::string player_name = dbr.read_string();
-            this->num_beatmaps_to_load = dbr.read<u32>();
+            num_beatmaps_to_load = dbr.read<u32>();
 
             debugLog("Database: version = {:d}, folderCount = {:d}, playerName = {:s}, numDiffs = {:d}", osu_db_version,
-                     osu_db_folder_count, player_name, this->num_beatmaps_to_load);
+                     osu_db_folder_count, player_name, num_beatmaps_to_load);
 
             // hard cap upper db version
             if(osu_db_version > cv::database_version.getVal<u32>() && !cv::database_ignore_version.getBool()) {
@@ -1550,7 +1412,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
             std::vector<BPMCalc::BPMTuple> bpm_calculation_buffer;
             std::vector<DB_TIMINGPOINT> timing_points_buffer;
 
-            for(uSz i = 0; i < this->num_beatmaps_to_load; i++) {
+            for(uSz i = 0; i < num_beatmaps_to_load; i++) {
                 if(this->isCancelled()) break;  // cancellation point
 
                 // update progress (another thread checks if progress >= 1.f to know when we're done)
@@ -1582,8 +1444,8 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 MD5Hash md5hash;
                 (void)dbr.read_hash_chars(md5hash);  // TODO: validate
 
-                logIfCV(debug_db, "Reading osu!.db beatmap {:d}/{:d} md5hash {} ...", (i + 1),
-                        this->num_beatmaps_to_load, md5hash);
+                logIfCV(debug_db, "Reading osu!.db beatmap {:d}/{:d} md5hash {} ...", (i + 1), num_beatmaps_to_load,
+                        md5hash);
 
                 bool overrides_found = false;
                 MapOverrides override_;
@@ -1883,10 +1745,12 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
             if(!this->isCancelled()) {
                 // create BeatmapSets from the collected diff containers
                 temp_loading_beatmapsets.reserve(temp_loading_beatmapsets.size() + sid_or_folder_to_diffcont.size());
+                Sync::unique_lock lock(this->beatmap_difficulties_mtx);
                 for(auto &[_, cont] : sid_or_folder_to_diffcont) {
                     assert(cont && !cont->empty());
                     temp_loading_beatmapsets.emplace_back(
                         new BeatmapSet(std::move(cont), DatabaseBeatmap::BeatmapType::PEPPY_BEATMAPSET));
+                    this->indexSet(temp_loading_beatmapsets.back().get());
                 }
             }
         }
@@ -1936,6 +1800,9 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
         Sync::unique_lock lock(this->beatmap_difficulties_mtx);
 
         this->beatmap_difficulties.clear();
+        this->neomod_folders.clear();
+        this->peppy_folders.clear();
+        this->sets_by_id.clear();
         this->loudness_to_calc.clear();
         this->beatmapsets.clear();
     }
@@ -1947,7 +1814,8 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
 }
 
 void Database::saveMaps() {
-    if(this->beatmapsets.empty() || this->isLoading() || this->isCancelled()) {
+    if((this->beatmapsets.empty() && this->neomod_folders.empty() && this->peppy_folders.empty()) ||
+       this->isLoading() || this->isCancelled()) {
         return;
     }
 
@@ -1968,70 +1836,66 @@ void Database::saveMaps() {
         return;
     }
 
-    // collect neomod-only sets here
-    std::vector<BeatmapSet *> temp_neomod_sets;
-    Hash::flat::set<std::string> folders_already_added;
-    for(const auto &mapset : this->beatmapsets) {
-        if(mapset->type == DatabaseBeatmap::BeatmapType::NEOMOD_BEATMAPSET) {
-            // don't add duplicate entries
-            // kind of a hack, we shouldn't have added duplicates to beatmapsets in the first place
-            // this happens because addBeatmapSet doesn't check if we already have it
-            // TODO: may no longer be necessary since addBeatmapSet now does have deduplication logic
-            if(auto [_, newly_inserted] = folders_already_added.insert(mapset->getFolder()); newly_inserted) {
-                temp_neomod_sets.push_back(mapset.get());
-            }
-        }
-    }
-
     maps.write<u32>(NEOMOD_MAPS_DB_VERSION);
 
-    // Save neomod-downloaded maps
+    // one record per known folder, maps/ always and the raw-loaded songs folder while it's the source for it (a
+    // folder without a set is still recorded, so that a folder full of duplicates isn't re-parsed on every load)
     u32 nb_diffs_saved = 0;
-    maps.write<u32>(temp_neomod_sets.size());
-    for(BeatmapSet *beatmap : temp_neomod_sets) {
-        maps.write<i32>(beatmap->getSetID());
-        maps.write<u16>(beatmap->getDifficulties().size());
+    Sync::shared_lock diff_lock(this->beatmap_difficulties_mtx);
+    maps.write<u32>(this->neomod_folders.size() + (this->needs_raw_load ? this->peppy_folders.size() : 0));
+    auto write_records = [&](const Hash::unstable_stringmap<FolderRecord> &records, MapRoot root) {
+        for(const auto &[rel_folder, rec] : records) {
+            maps.write_string(rel_folder);
+            maps.write<i64>(rec.mtime);
+            maps.write<u8>(root == MapRoot::Peppy ? 1 : 0);
+            maps.write<i32>(rec.set ? rec.set->getSetID() : -1);
+            maps.write<u16>(rec.set ? rec.set->getDifficulties().size() : 0);
+            if(!rec.set) continue;
 
-        for(const auto &diff : beatmap->getDifficulties()) {
-            maps.write_string(env->getFileNameFromFilePath(diff->getFilePath()));
-            maps.write<i32>(diff->iID);
-            maps.write_string(diff->getTitleLatin());
-            maps.write_string(diff->getAudioFileName());
-            maps.write<i32>((i32)diff->iLengthMS);  // TODO: weird casting
-            maps.write<f32>(diff->fStackLeniency);
-            maps.write_string(diff->getArtistLatin());
-            maps.write_string(diff->getCreator());
-            maps.write_string(diff->getDifficultyName());
-            maps.write_string(diff->getSource());
-            maps.write_string(diff->getTags());
-            maps.write_hash_digest(diff->getMD5());
-            maps.write<f32>(diff->fAR);
-            maps.write<f32>(diff->fCS);
-            maps.write<f32>(diff->fHP);
-            maps.write<f32>(diff->fOD);
-            maps.write<f64>(diff->fSliderMultiplier);
-            maps.write<u32>(diff->iPreviewTime);
-            maps.write<i64>(diff->last_modification_time);
-            maps.write<i16>(diff->iLocalOffset);
-            maps.write<i16>(diff->iOnlineOffset);
-            maps.write<u16>(diff->iNumCircles);
-            maps.write<u16>(diff->iNumSliders);
-            maps.write<u16>(diff->iNumSpinners);
-            maps.write<f64>(diff->fStarsNomod);
-            maps.write<i32>(diff->iMinBPM);
-            maps.write<i32>(diff->iMaxBPM);
-            maps.write<i32>(diff->iMostCommonBPM);
-            maps.write<u8>(diff->draw_background);
-            maps.write<f32>(diff->loudness.load(std::memory_order_acquire));
-            maps.write_string(diff->getTitleUnicode());
-            maps.write_string(diff->getArtistUnicode());
-            maps.write_string(diff->getBackgroundImageFileName());
-            maps.write<u32>(diff->ppv2Version);
-            maps.write<i64>(diff->last_play_time);
+            for(const auto &diff : rec.set->getDifficulties()) {
+                maps.write_string(env->getFileNameFromFilePath(diff->getFilePath()));
+                maps.write<i32>(diff->iID);
+                maps.write_string(diff->getTitleLatin());
+                maps.write_string(diff->getAudioFileName());
+                maps.write<i32>((i32)diff->iLengthMS);  // TODO: weird casting
+                maps.write<f32>(diff->fStackLeniency);
+                maps.write_string(diff->getArtistLatin());
+                maps.write_string(diff->getCreator());
+                maps.write_string(diff->getDifficultyName());
+                maps.write_string(diff->getSource());
+                maps.write_string(diff->getTags());
+                maps.write_hash_digest(diff->getMD5());
+                maps.write<f32>(diff->fAR);
+                maps.write<f32>(diff->fCS);
+                maps.write<f32>(diff->fHP);
+                maps.write<f32>(diff->fOD);
+                maps.write<f64>(diff->fSliderMultiplier);
+                maps.write<u32>(diff->iPreviewTime);
+                maps.write<i64>(diff->last_modification_time);
+                maps.write<i16>(diff->iLocalOffset);
+                maps.write<i16>(diff->iOnlineOffset);
+                maps.write<u16>(diff->iNumCircles);
+                maps.write<u16>(diff->iNumSliders);
+                maps.write<u16>(diff->iNumSpinners);
+                maps.write<f64>(diff->fStarsNomod);
+                maps.write<i32>(diff->iMinBPM);
+                maps.write<i32>(diff->iMaxBPM);
+                maps.write<i32>(diff->iMostCommonBPM);
+                maps.write<u8>(diff->draw_background);
+                maps.write<f32>(diff->loudness.load(std::memory_order_acquire));
+                maps.write_string(diff->getTitleUnicode());
+                maps.write_string(diff->getArtistUnicode());
+                maps.write_string(diff->getBackgroundImageFileName());
+                maps.write<u32>(diff->ppv2Version);
+                maps.write<i64>(diff->last_play_time);
 
-            nb_diffs_saved++;
+                nb_diffs_saved++;
+            }
         }
-    }
+    };
+    write_records(this->neomod_folders, MapRoot::Neomod);
+    if(this->needs_raw_load) write_records(this->peppy_folders, MapRoot::Peppy);
+    diff_lock.unlock();
 
     Hash::flat::map<MD5Hash, MapOverrides> real_overrides;
 
@@ -2754,26 +2618,57 @@ void Database::saveScores() {
     debugLog("Saved {:d} scores in {:f} seconds.", nb_scores, (Timing::getTimeReal() - startTime));
 }
 
-std::unique_ptr<BeatmapSet> Database::loadRawBeatmap(std::string_view beatmapPathUnsanitized, bool is_peppy) {
-    // this should never happen but guard against it anyways
-    // (lots of things expect beatmapPath to end with a path separator, if it doesn't, things would blow up in weird ways)
-    const std::string beatmapPath{beatmapPathUnsanitized.ends_with('/') ? beatmapPathUnsanitized
-                                                                        : fmt::format("{:s}/", beatmapPathUnsanitized)};
+namespace {
+// osu!stable accepts any casing of the extension
+bool is_osu_file(std::string_view name) {
+    return name.size() > 4 && SString::strcase_equal(name.substr(name.size() - 4), ".osu");
+}
+
+i64 file_mtime(const std::string &path) {
+    struct stat64 st{};
+    return File::stat_c(path.c_str(), &st) == 0 ? static_cast<i64>(st.st_mtime) : 0;
+}
+
+// 0 if the folder doesn't exist (the trailing separator is stripped, _wstat64 rejects it on directories)
+i64 folder_mtime(std::string_view folder) {
+    std::string path{folder};
+    while(path.size() > 1 && (path.back() == '/' || path.back() == '\\')) path.pop_back();
+    return file_mtime(path);
+}
+
+std::string_view outcome_name(Database::ReconcileResult::Outcome outcome) {
+    switch(outcome) {
+        using enum Database::ReconcileResult::Outcome;
+        case Unchanged:
+            return "unchanged";
+        case Created:
+            return "created";
+        case Updated:
+            return "updated";
+        case Removed:
+            return "removed";
+        case Failed:
+            return "failed";
+    }
+    std::unreachable();
+    return "?";
+}
+}  // namespace
+
+std::unique_ptr<DiffContainer> Database::parseFolderDiffs(std::string_view folder_path, bool is_peppy) {
+    // (lots of things expect the folder to end with a path separator, if it doesn't, things would blow up in weird ways)
+    const std::string beatmapPath{folder_path.ends_with('/') ? folder_path : fmt::format("{:s}/", folder_path)};
     logIfCV(debug_db, "beatmap path: {:s}", beatmapPath);
 
-    auto diffs = std::make_unique<DiffContainer>();
-
     using enum DatabaseBeatmap::BeatmapType;
-    auto difficultyType = is_peppy ? PEPPY_DIFFICULTY : NEOMOD_DIFFICULTY;
+    const auto difficultyType = is_peppy ? PEPPY_DIFFICULTY : NEOMOD_DIFFICULTY;
 
-    // try loading all diffs
+    auto diffs = std::make_unique<DiffContainer>();
     DatabaseBeatmap::LoadError lastError;
-    std::vector<std::string> beatmapFiles = env->getFilesInFolder(beatmapPath);
-    for(const auto &beatmapFile : beatmapFiles) {
-        if(!beatmapFile.ends_with(".osu")) continue;
+    for(const auto &beatmapFile : env->getFilesInFolder(beatmapPath)) {
+        if(!is_osu_file(beatmapFile)) continue;
 
-        std::string fullFilePath = fmt::format("{:s}{:s}", beatmapPath, beatmapFile);
-        auto map = std::make_unique<BeatmapDifficulty>(std::move(fullFilePath), beatmapPath, difficultyType);
+        auto map = std::make_unique<BeatmapDifficulty>(beatmapPath + beatmapFile, beatmapPath, difficultyType);
         auto res = map->loadMetadata();
         if(!res.error.errc) {
             diffs->push_back(std::move(map));
@@ -2783,17 +2678,404 @@ std::unique_ptr<BeatmapSet> Database::loadRawBeatmap(std::string_view beatmapPat
         }
     }
 
-    std::unique_ptr<BeatmapSet> set{nullptr};
-    if(diffs && !diffs->empty()) {
-        auto setType = is_peppy ? PEPPY_BEATMAPSET : NEOMOD_BEATMAPSET;
-        set = std::make_unique<BeatmapSet>(std::move(diffs), setType);
-    }
-
-    if(!set && lastError.errc) {
+    if(diffs->empty() && lastError.errc) {
         debugLog("Couldn't load beatmapset {}: {}", beatmapPath, lastError.error_string());
     }
+    return diffs;
+}
 
-    return set;
+std::unique_ptr<BeatmapSet> Database::loadRawBeatmap(std::string_view beatmapPath, bool is_peppy) {
+    auto diffs = parseFolderDiffs(beatmapPath, is_peppy);
+    if(diffs->empty()) return nullptr;
+
+    using enum DatabaseBeatmap::BeatmapType;
+    return std::make_unique<BeatmapSet>(std::move(diffs), is_peppy ? PEPPY_BEATMAPSET : NEOMOD_BEATMAPSET);
+}
+
+Database::ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_folder, ReconcileMode mode,
+                                                    i32 set_id_override, std::unique_ptr<DiffContainer> preparsed) {
+    using enum ReconcileResult::Outcome;
+    ReconcileResult res;
+
+    const std::string abs_folder = this->rootPath(root) + std::string{rel_folder} + "/";
+    auto &folders = this->folderIndex(root);
+    using enum DatabaseBeatmap::BeatmapType;
+    const i64 dir_mtime = folder_mtime(abs_folder);
+
+    // snapshot the record (the map may rehash while this folder is being worked on)
+    bool known = false;
+    FolderRecord rec;
+    {
+        Sync::shared_lock lock(this->beatmap_difficulties_mtx);
+        if(auto it = folders.find(rel_folder); it != folders.end()) {
+            known = true;
+            rec = it->second;
+        }
+    }
+    BeatmapSet *old = rec.set;
+
+    // retires a set: its remaining diffs leave the md5 index and the set itself moves from beatmapsets into the
+    // graveyard (raw pointers to it and its diffs stay valid until the next load). caller holds the unique lock
+    auto tombstone = [this](BeatmapSet *set) {
+        for(const auto &diff : set->getDifficulties()) {
+            if(auto it = this->beatmap_difficulties.find(diff->getMD5());
+               it != this->beatmap_difficulties.end() && it->second == diff.get()) {
+                this->beatmap_difficulties.erase(it);
+            }
+        }
+        this->unindexSet(set);
+        if(auto it = std::ranges::find_if(this->beatmapsets, [set](const auto &owned) { return owned.get() == set; });
+           it != this->beatmapsets.end()) {
+            this->graveyard.push_back(std::move(*it));
+            this->beatmapsets.erase(it);
+        }
+    };
+
+    if(dir_mtime == 0) {  // the folder is gone
+        if(!known) {
+            res.outcome = Failed;
+            return res;
+        }
+        Sync::unique_lock lock(this->beatmap_difficulties_mtx);
+        if(old) {
+            res.removed = static_cast<u16>(old->getDifficulties().size());
+            tombstone(old);
+        }
+        folders.erase(folders.find(rel_folder));
+        res.outcome = Removed;
+        res.replaced = old;
+        logIfCV(debug_db, "reconcile {}: removed (-{})", rel_folder, res.removed);
+        return res;
+    }
+
+    if(known && mode == ReconcileMode::TrustFolderMtime && rec.mtime != 0 && rec.mtime == dir_mtime) {
+        res.set = old;
+        return res;  // unchanged without touching a single file
+    }
+
+    std::vector<std::string> osu_files;
+    for(auto &name : env->getFilesInFolder(abs_folder)) {
+        if(is_osu_file(name)) osu_files.push_back(std::move(name));
+    }
+    std::ranges::sort(osu_files);
+
+    Hash::unstable_stringmap<BeatmapDifficulty *> old_by_name;
+    if(old) {
+        for(const auto &diff : old->getDifficulties()) {
+            old_by_name.emplace(Environment::getFileNameFromFilePath(diff->getFilePath()), diff.get());
+        }
+    }
+    Hash::unstable_stringmap<uSz> preparsed_by_name;
+    if(preparsed) {
+        for(uSz i = 0; i < preparsed->size(); i++) {
+            preparsed_by_name.emplace(Environment::getFileNameFromFilePath((*preparsed)[i]->getFilePath()), i);
+        }
+    }
+
+    // the folder's diffs in on-disk order: a surviving object of the old set, or a freshly parsed one
+    struct Slot {
+        BeatmapDifficulty *existing{nullptr};
+        std::unique_ptr<BeatmapDifficulty> parsed{};
+    };
+    std::vector<Slot> slots;
+    Hash::flat::set<BeatmapDifficulty *> kept;  // old diffs that survive (under their own or a new name)
+    Hash::flat::set<MD5Hash> fresh_md5s;
+
+    for(const auto &name : osu_files) {
+        const std::string path = abs_folder + name;
+        const i64 mtime = file_mtime(path);
+        if(mtime == 0) continue;  // unreadable
+
+        BeatmapDifficulty *existing = nullptr;
+        if(auto it = old_by_name.find(name); it != old_by_name.end()) existing = it->second;
+
+        if(existing && mode != ReconcileMode::ForceParse) {
+            // never verified (pre-20260828 record): trust it and just stamp the mtime, no parse
+            if(existing->last_modification_time <= 0) existing->last_modification_time = mtime;
+            if(existing->last_modification_time == mtime) {
+                slots.push_back({.existing = existing});
+                kept.insert(existing);
+                continue;
+            }
+        }
+
+        std::unique_ptr<BeatmapDifficulty> diff;
+        if(auto it = preparsed_by_name.find(name); it != preparsed_by_name.end()) {
+            diff = std::move((*preparsed)[it->second]);
+            res.parsed++;  // parsed ahead of time, still counts
+        } else {
+            diff = std::make_unique<BeatmapDifficulty>(path, abs_folder,
+                                                       root == MapRoot::Peppy ? PEPPY_DIFFICULTY : NEOMOD_DIFFICULTY);
+            res.parsed++;
+            if(auto r = diff->loadMetadata(); r.error.errc) {
+                logIfCV(debug_db, "reconcile {}: couldn't load {}: {}", rel_folder, name, r.error.error_string());
+                continue;  // a stale record for it (if any) is dropped below
+            }
+        }
+
+        if(existing && existing->getMD5() == diff->getMD5()) {
+            // touched but same content: keep the object, take the new mtime
+            existing->last_modification_time = diff->last_modification_time;
+            slots.push_back({.existing = existing});
+            kept.insert(existing);
+            continue;
+        }
+
+        if(fresh_md5s.contains(diff->getMD5())) {
+            logIfCV(debug_db, "reconcile {}: {} duplicates another new file in the folder", rel_folder, name);
+            continue;
+        }
+
+        BeatmapDifficulty *owner = nullptr;
+        {
+            Sync::shared_lock lock(this->beatmap_difficulties_mtx);
+            if(auto it = this->beatmap_difficulties.find(diff->getMD5()); it != this->beatmap_difficulties.end()) {
+                owner = it->second;
+            }
+        }
+        if(!owner) {
+            fresh_md5s.insert(diff->getMD5());
+            slots.push_back({.parsed = std::move(diff)});
+            continue;
+        }
+
+        if(Environment::fileExists(owner->getFilePath())) {
+            // a copy of a map that still exists elsewhere (or twice in this folder): the first one wins
+            if(!res.dedup_owner) res.dedup_owner = owner->getParentSet();
+            logIfCV(debug_db, "reconcile {}: {} duplicates {}", rel_folder, name, owner->getFilePath());
+        } else if(old && owner->getParentSet() == old) {
+            // same content under a new name in this folder (rename): keep the object, repoint it
+            owner->sFilePath = path;
+            owner->last_modification_time = diff->last_modification_time;
+            slots.push_back({.existing = owner});
+            kept.insert(owner);
+        } else {
+            // the owner's file is gone (moved here): the hash follows the file. the stale object stays in its
+            // own set until that folder is reconciled (diffs never move between live sets)
+            {
+                Sync::unique_lock lock(this->beatmap_difficulties_mtx);
+                this->beatmap_difficulties.erase(diff->getMD5());
+            }
+            fresh_md5s.insert(diff->getMD5());
+            slots.push_back({.parsed = std::move(diff)});
+        }
+    }
+
+    std::vector<BeatmapDifficulty *> dropped;
+    if(old) {
+        for(const auto &diff : old->getDifficulties()) {
+            if(!kept.contains(diff.get())) dropped.push_back(diff.get());
+        }
+    }
+    res.removed = static_cast<u16>(dropped.size());
+    for(const auto &slot : slots) {
+        if(slot.parsed) res.added++;
+    }
+
+    if(res.added == 0 && dropped.empty()) {
+        {
+            Sync::unique_lock lock(this->beatmap_difficulties_mtx);
+            folders[std::string{rel_folder}] = {.mtime = dir_mtime, .set = old};
+        }
+        if(old) old->updateRepresentativeValues();  // mtimes may have moved
+        res.set = old;
+        // a new folder with nothing but duplicates (or nothing loadable at all) is recorded so it isn't re-parsed
+        res.outcome = (old || res.dedup_owner) ? Unchanged : Failed;
+        if(res.parsed > 0 || !old) {
+            logIfCV(debug_db, "reconcile {}: {} (parsed {})", rel_folder, outcome_name(res.outcome), res.parsed);
+        }
+        return res;
+    }
+
+    auto container = std::make_unique<DiffContainer>();
+    std::vector<BeatmapDifficulty *> fresh;
+    for(auto &slot : slots) {
+        if(slot.parsed) {
+            fresh.push_back(slot.parsed.get());
+            container->push_back(std::move(slot.parsed));
+        } else {
+            // the surviving object moves over as-is (same address: every raw pointer to it stays valid)
+            auto &old_diffs = *old->difficulties;
+            auto it = std::ranges::find_if(old_diffs, [&](const auto &p) { return p.get() == slot.existing; });
+            assert(it != old_diffs.end());
+            container->push_back(std::move(*it));
+        }
+    }
+    // the tombstone keeps only what was dropped (compacted: nothing may ever see a null diff in a set)
+    if(old) std::erase_if(*old->difficulties, [](const auto &p) { return p == nullptr; });
+
+    if(container->empty()) {
+        Sync::unique_lock lock(this->beatmap_difficulties_mtx);
+        if(old) tombstone(old);
+        folders[std::string{rel_folder}] = {.mtime = dir_mtime, .set = nullptr};
+        res.outcome = old ? Removed : Failed;
+        res.replaced = old;
+        logIfCV(debug_db, "reconcile {}: {} (-{}, parsed {})", rel_folder, outcome_name(res.outcome), res.removed,
+                res.parsed);
+        return res;
+    }
+
+    auto new_set = std::make_unique<BeatmapSet>(std::move(container),
+                                                root == MapRoot::Peppy ? PEPPY_BEATMAPSET : NEOMOD_BEATMAPSET);
+    BeatmapSet *set = new_set.get();
+
+    // set id: the download's, else what the old set already knew, else whatever a diff declares, else a leading
+    // number in the folder name (osu!stable's "<setid> Artist - Title" convention)
+    i32 set_id = set_id_override;
+    if(set_id <= 0 && old) set_id = old->getSetID();
+    if(set_id <= 0) {
+        for(const auto &diff : set->getDifficulties()) {
+            if(diff->iSetID > 0) {
+                set_id = diff->iSetID;
+                break;
+            }
+        }
+    }
+    if(set_id <= 0 && !rel_folder.empty() && std::isdigit(static_cast<unsigned char>(rel_folder.front()))) {
+        i32 parsed_id = -1;
+        if(Parsing::parse(rel_folder, &parsed_id) && parsed_id > 0) set_id = parsed_id;
+    }
+    if(set_id > 0) {
+        set->iSetID = set_id;
+        for(const auto &diff : set->getDifficulties()) {
+            if(diff->iSetID <= 0) diff->iSetID = set_id;
+        }
+    }
+
+    {
+        Sync::unique_lock lock(this->beatmap_difficulties_mtx);
+        for(BeatmapDifficulty *diff : fresh) this->beatmap_difficulties[diff->getMD5()] = diff;
+        if(old) tombstone(old);  // only the dropped diffs are left in it
+        this->indexSet(set);
+        this->beatmapsets.push_back(std::move(new_set));
+        folders[std::string{rel_folder}] = {.mtime = dir_mtime, .set = set};
+    }
+
+    // what loadMaps does for db-loaded diffs after the fact
+    {
+        Sync::shared_lock sr_lock(this->star_ratings_mtx);
+        for(BeatmapDifficulty *diff : fresh) {
+            if(auto it = this->star_ratings.find(diff->getMD5()); it != this->star_ratings.end()) {
+                diff->star_ratings = it->second.get();
+            }
+        }
+    }
+    {
+        Sync::shared_lock score_lock(this->scores_mtx);
+        for(BeatmapDifficulty *diff : fresh) {
+            auto it = this->scores.find(diff->getMD5());
+            if(it == this->scores.end()) continue;
+            for(const auto &score : it->second) {
+                if(diff->getLastPlayTime() < score.unix_timestamp) diff->setLastPlayTime(score.unix_timestamp);
+            }
+        }
+    }
+    if(this->isFinished()) {
+        // post-load import: the batch passes already ran, so request the calcs explicitly
+        this->batch_diffcalc_pending = true;  // picked up by SongBrowser::update
+        for(BeatmapDifficulty *diff : fresh) VolNormalization::request_priority(diff);
+    } else {
+        for(BeatmapDifficulty *diff : fresh) this->loudness_to_calc.push_back(diff);
+    }
+
+    res.set = set;
+    res.replaced = old;
+    res.outcome = old ? Updated : Created;
+    logIfCV(debug_db, "reconcile {}: {} (+{} -{}, parsed {})", rel_folder, outcome_name(res.outcome), res.added,
+            res.removed, res.parsed);
+    return res;
+}
+
+u32 Database::reconcileRoot(MapRoot root, const Sync::stop_token &tok, bool per_file) {
+    using enum ReconcileResult::Outcome;
+    Timer t;
+    t.start();
+
+    const std::string root_path = this->rootPath(root);
+    std::vector<std::string> on_disk = Environment::getFoldersInFolder(root_path);
+    Hash::flat::set<std::string_view> on_disk_set(on_disk.begin(), on_disk.end());
+
+    // snapshot the known folders (reconcileFolder mutates the map)
+    std::vector<std::string> known;
+    {
+        Sync::shared_lock lock(this->beatmap_difficulties_mtx);
+        const auto &folders = this->folderIndex(root);
+        known.reserve(folders.size());
+        for(const auto &[rel, _] : folders) known.push_back(rel);
+    }
+    Hash::flat::set<std::string_view> known_set(known.begin(), known.end());
+
+    u32 n_removed = 0, n_updated = 0, n_created = 0, n_parsed = 0;
+
+    // this pass isn't in the loading percentage's byte budget: the overlay counts folders instead (the vanished,
+    // the unknown and the known ones, once each)
+    u32 n_gone = 0;
+    for(const auto &rel : known) n_gone += !on_disk_set.contains(rel);
+    u32 done = 0;
+    this->load_stage.store(LoadStage::ScanningFolders, std::memory_order_release);
+    this->stage_done.store(0, std::memory_order_release);
+    this->stage_total.store(n_gone + static_cast<u32>(on_disk.size()), std::memory_order_release);
+
+    // vanished folders first, so a renamed folder is a plain remove + create
+    for(const auto &rel : known) {
+        if(on_disk_set.contains(rel)) continue;
+        if(tok.stop_requested()) return n_created;
+        n_removed += this->reconcileFolder(root, rel, ReconcileMode::TrustFolderMtime, -1, nullptr).outcome == Removed;
+        this->stage_done.store(++done, std::memory_order_release);
+    }
+
+    // unknown folders are parsed in parallel (same bounded window and deadlock-freedom argument as importLooseOsz)
+    std::vector<std::string> unknown;
+    for(const auto &name : on_disk) {
+        if(!known_set.contains(name)) unknown.push_back(name);
+    }
+    if(!unknown.empty()) {
+        const uSz window_size = std::min<uSz>(std::clamp<uSz>(Async::get_thread_count(), 4, 16), unknown.size());
+        auto submit_parse = [&root_path, root](const std::string &rel) {
+            return Async::submit(
+                [path = root_path + rel + "/", root] { return parseFolderDiffs(path, root == MapRoot::Peppy); },
+                Lane::Background);
+        };
+        std::vector<Async::Future<std::unique_ptr<DiffContainer>>> window(window_size);
+        for(uSz i = 0; i < window_size; i++) window[i] = submit_parse(unknown[i]);
+
+        for(uSz i = 0; i < unknown.size(); i++) {
+            if(tok.stop_requested())
+                return n_created;  // in-flight parses are abandoned, their folders are picked up next time
+
+            const auto r = this->reconcileFolder(root, unknown[i], ReconcileMode::TrustFolderMtime, -1,
+                                                 window[i % window_size].get());
+            n_created += r.outcome == Created;
+            n_parsed += r.parsed;
+            this->stage_done.store(++done, std::memory_order_release);
+
+            if(const uSz next = i + window_size; next < unknown.size()) {
+                window[i % window_size] = submit_parse(unknown[next]);
+            }
+        }
+    }
+
+    for(const auto &name : on_disk) {
+        if(!known_set.contains(name)) continue;
+        if(tok.stop_requested()) return n_created;
+        const auto r = this->reconcileFolder(
+            root, name, per_file ? ReconcileMode::PerFile : ReconcileMode::TrustFolderMtime, -1, nullptr);
+        n_updated += r.outcome == Updated || r.outcome == Removed;
+        n_parsed += r.parsed;
+        this->stage_done.store(++done, std::memory_order_release);
+    }
+
+    t.update();
+    debugLog(
+        "{} {}: {} folders on disk, {} known, {} removed, {} updated, {} new ({} created), {} diffs parsed in "
+        "{:.3f}s",
+        root_path, per_file ? "rescan" : "startup pass", on_disk.size(), known.size(), n_removed, n_updated,
+        unknown.size(), n_created, n_parsed, t.getElapsedTime());
+    return n_created;
+}
+
+std::string Database::rootPath(MapRoot root) const {
+    return root == MapRoot::Neomod ? std::string{NEOMOD_MAPS_PATH "/"} : this->peppy_root;
 }
 
 void Database::update_overrides(const BeatmapDifficulty *diff) {

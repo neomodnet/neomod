@@ -22,69 +22,86 @@
 #include "UI.h"
 
 #include <cctype>
+#include <optional>
 
 namespace {  // internal utils
 
 // one queued import. two kinds share the stage machine, discriminated by is_local():
 // - download: set_id known up front, dl_handle drives Queued/Downloading; the fetched bytes
 //   then ride extract_future through Extracting like a local import
-// - local .osz: osz_path set, extract_future also resolves set_id (-1 until then)
+// - local .osz: osz_path set; only the archive knows its set id (and it may not have one at all)
 struct Entry {
     u32 uid{0};
     i32 set_id{-1};
     std::string display_name;
     Downloader::DownloadHandle dl_handle;
     std::string osz_path;
-    Async::Future<i32> extract_future;  // resolved set_id (>0) on success, <= 0 on failure
+    std::string folder;                         // maps/ folder the archive was extracted into (relative)
+    Async::Future<std::string> extract_future;  // that folder on success, empty on failure
     MapInstallStage stage{MapInstallStage::Queued};
     f32 progress{0.f};
     bool auto_select{false};
     bool delete_after{false};
-    // download whose Installing attempt sources a pre-existing maps/<set_id>/ folder instead of a
-    // fresh extraction; a failed import escalates to a real download instead of failing the entry
-    bool from_disk{false};
     f64 finished_time{0.0};
 
     [[nodiscard]] bool is_local() const { return !this->osz_path.empty(); }
 };
 
-// result of try_import(): set/imported are valid only when ready == true. ready == false means the
-// db is mid-(re)build and the caller should retry next tick (addBeatmapSet would race the loader).
-struct ImportResult {
-    BeatmapSet* set{nullptr};
-    bool imported{false};
-    bool ready{false};
-};
+// shared Installing-stage tail for downloads and local imports: imports the already-extracted folder
+// once it's safe to. nullopt means the caller should retry next tick: the db is mid-(re)build
+// (reconciling then would race the loader thread), or a map is being played (an updated/removed
+// selection would unload it).
+std::optional<Database::ReconcileResult> try_import(const Entry& e) {
+    if(!db->isFinished() || db->isCancelled() || osu->isInPlayMode()) return std::nullopt;
 
-// shared Installing-stage tail for downloads and local imports: imports the already-extracted
-// maps/<set_id>/ folder once the db is idle.
-ImportResult try_import(i32 set_id) {
-    // db->isFinished() drops below 1 during a refresh; importing then would race the loader thread
-    // appending to beatmapsets, so wait for it to settle (the caller retries next tick).
-    if(!db->isFinished() || db->isCancelled()) return {};
-
-    auto [set, added] = db->addBeatmapSet(fmt::format(NEOMOD_MAPS_PATH "/{}/", set_id), set_id);
-    return {set, added, true};
+    // force a parse: the files were just written, so their mtimes can match a stale record's second.
+    // a download stamps its id onto diffs that don't declare one
+    return db->reconcileFolder(Database::MapRoot::Neomod, e.folder, Database::ReconcileMode::ForceParse,
+                               e.is_local() ? -1 : e.set_id, nullptr);
 }
 
-void on_done(BeatmapSet* set, i32 set_id, bool added, bool auto_select) {
-    // we may have added a duplicate
-    debugLog("Finished installing beatmapset {:d}{:s}", set_id, !added ? " (duplicate)" : "");
-    if(added) {
-        ui->getSongBrowser()->addBeatmapSet(set);
+void on_done(const Database::ReconcileResult& r, const Entry& e) {
+    using enum Database::ReconcileResult::Outcome;
+    auto* sb = ui->getSongBrowser();
+    auto* toasts = ui->getNotificationOverlay();
+
+    // the set to navigate to: the folder's, or the one that already owns these diffs
+    BeatmapSet* set = r.set ? r.set : r.dedup_owner;
+    debugLog("Finished installing {} into maps/{}/: {} (+{:d} -{:d})",
+             e.is_local() ? e.display_name : fmt::format("beatmapset #{:d}", e.set_id), e.folder,
+             r.outcome == Created   ? "created"
+             : r.outcome == Updated ? "updated"
+                                    : "already installed",
+             r.added, r.removed);
+
+    switch(r.outcome) {
+        case Created:
+            sb->addBeatmapSet(r.set);
+            break;
+        case Updated:
+            sb->replaceBeatmapSet(r.replaced, r.set);
+            break;
+        default:  // nothing the db didn't already have
+            toasts->addToast(e.is_local() ? tformat("{} is already installed", e.display_name)
+                                          : tformat("Beatmapset #{:d} is already installed", e.set_id),
+                             INFO_TOAST);
+            break;
+    }
+    if(!e.is_local() && r.outcome != Unchanged) {
+        toasts->addToast(tformat("Downloaded beatmapset #{:d}", e.set_id), SUCCESS_TOAST);
     }
 
-    if(auto_select) {
+    if(e.auto_select && set) {
         const auto& diffs = set->getDifficulties();
-        assert(!diffs.empty());  // if we successfully added it, we must have difficulties!
+        assert(!diffs.empty());
 
         // TODO: spaghetti
         // (onDifficultySelected just plays music, i.e. we can call it when we are still in online beatmaps screen)
         // otherwise actually select it
         if(ui->getActiveScreen() == ui->getSongBrowserBase()) {
-            ui->getSongBrowser()->selectBeatmapset(set);
+            sb->selectBeatmapset(set);
         } else {
-            ui->getSongBrowser()->onDifficultySelected(diffs[0].get(), false);
+            sb->onDifficultySelected(diffs[0].get(), false);
         }
     }
 }
@@ -102,8 +119,15 @@ void fail_entry(Entry& e, f64 now) {
 
 // .osz extraction primitives (shared with Database::importLooseOsz via read_and_extract_osz)
 
-i32 get_beatmapset_id_from_osu_file(std::string_view file) {
-    i32 set_id = -1;
+struct OszMeta {
+    i32 set_id{-1};
+    std::string artist;
+    std::string title;
+};
+
+// the [Metadata] of one .osu: enough to know the set and to name its folder
+OszMeta parse_osz_meta(std::string_view file) {
+    OszMeta meta;
     bool inMetadata = false;
 
     for(const auto line : SString::split_newlines(file)) {
@@ -112,18 +136,56 @@ i32 get_beatmapset_id_from_osu_file(std::string_view file) {
             inMetadata = true;
             continue;
         }
-        if(line.starts_with('[') && inMetadata) {
-            break;
-        }
-        if(inMetadata) {
-            if(Parsing::parse(line, "BeatmapSetID", ':', &set_id)) {
-                return set_id;
-            }
-            continue;
-        }
+        if(!inMetadata) continue;
+        if(line.starts_with('[')) break;
+
+        if(Parsing::parse(line, "Artist", ':', &meta.artist)) continue;
+        if(Parsing::parse(line, "Title", ':', &meta.title)) continue;
+        Parsing::parse(line, "BeatmapSetID", ':', &meta.set_id);
     }
 
-    return -1;
+    return meta;
+}
+
+// something every filesystem the maps/ folder could end up on accepts
+std::string sanitize_folder_name(std::string_view name) {
+    std::string out;
+    out.reserve(name.size());
+    for(const char c : name) {
+        const bool bad =
+            std::string_view{"\\/:*?\"<>|"}.contains(c) || static_cast<unsigned char>(c) < 0x20 || c == 0x7f;
+        out.push_back(bad ? '_' : c);
+    }
+    auto trim_ends = [&out] {
+        while(!out.empty() && out.front() == ' ') out.erase(0, 1);
+        while(!out.empty() && (out.back() == ' ' || out.back() == '.')) out.pop_back();  // windows
+    };
+    trim_ends();
+    if(out.size() > 200) {  // cap the length without splitting a utf-8 sequence
+        uSz cut = 200;
+        while(cut > 0 && (static_cast<unsigned char>(out[cut]) & 0xC0) == 0x80) cut--;
+        out.resize(cut);
+        trim_ends();
+    }
+    return out;
+}
+
+// where a set lives under maps/: the only place that decides folder names. an installed set (by id) keeps
+// its folder, which is how new or updated difficulties end up next to the existing ones; everything else
+// gets osu!stable's "<setid> Artist - Title" (a local file's own stem already has that shape if it came
+// from the website, and is whatever the user named it otherwise). "" if nothing usable is known
+std::string target_folder_name(i32 set_id, std::string_view osz_stem, const OszMeta& meta) {
+    if(set_id > 0) {
+        if(std::string existing = db->getBeatmapSetFolder(set_id); !existing.empty()) return existing;
+    }
+
+    std::string name = sanitize_folder_name(osz_stem);
+    if(name.empty() && (!meta.artist.empty() || !meta.title.empty())) {
+        name = sanitize_folder_name(set_id > 0 ? fmt::format("{} {} - {}", set_id, meta.artist, meta.title)
+                                               : fmt::format("{} - {}", meta.artist, meta.title));
+    }
+    if(name.empty() && set_id > 0) name = fmt::to_string(set_id);
+    return name;
 }
 
 // write already-decompressed archive entries into map_dir, creating parent directories as needed.
@@ -161,7 +223,7 @@ bool write_entries_to_dir(const std::vector<Archive::Entry>& entries, std::strin
     }
 
     // if we created the destination just now but then wrote nothing into it, don't leave an empty
-    // maps/<id>/ behind
+    // folder behind
     if(!wrote_any && !existed) {
         // no-op if it doesnt exist
         env->deletePathsRecursive(base);
@@ -177,42 +239,25 @@ constexpr std::string_view ARCHIVE_CHARSET{"CP932"};
 
 // static helpers
 
-bool BeatmapInstaller::extract_beatmapset(std::span<const u8> data, const std::string& map_dir) {
-    debugLog("Extracting beatmapset ({:d} bytes)", data.size());
-
-    Archive::Reader archive(data, ARCHIVE_CHARSET);
-    if(!archive.isValid()) {
-        debugLog("Failed to open .osz file");
-        return false;
-    }
-
-    auto entries = archive.getAllEntries();
-    if(entries.empty()) {
-        debugLog(".osz file is empty!");
-        return false;
-    }
-
-    return write_entries_to_dir(entries, map_dir);
-}
-
-i32 BeatmapInstaller::resolve_and_extract_osz(std::span<const u8> data, std::string_view osz_name) {
+std::string BeatmapInstaller::resolve_and_extract_osz(std::span<const u8> data, std::string_view osz_name,
+                                                      i32 set_id_override) {
     debugLog("Reading beatmapset {:s} ({:d} bytes)", osz_name, data.size());
 
     Archive::Reader archive(data, ARCHIVE_CHARSET);
     if(!archive.isValid()) {
         debugLog("Failed to open .osz file");
-        return -1;
+        return {};
     }
 
     auto entries = archive.getAllEntries();
     if(entries.empty()) {
         debugLog(".osz file is empty!");
-        return -1;
+        return {};
     }
 
-    // single decompression pass: the entries are already in memory, so resolve the set id from the
-    // first .osu that declares one and then write those same buffers to disk without re-extracting.
-    i32 set_id = -1;
+    // single decompression pass: the entries are already in memory, so read the metadata off the first .osu
+    // (and the set id off the first one that declares it) and then write those same buffers to disk
+    OszMeta meta;
     for(const auto& entry : entries) {
         if(entry.isDirectory()) continue;
         if(!entry.getFilename().ends_with(".osu")) continue;
@@ -220,35 +265,46 @@ i32 BeatmapInstaller::resolve_and_extract_osz(std::span<const u8> data, std::str
         const auto& osu_data = entry.getUncompressedData();
         if(osu_data.empty()) continue;
 
-        set_id = get_beatmapset_id_from_osu_file(
-            std::string_view{reinterpret_cast<const char*>(osu_data.data()), osu_data.size()});
-        if(set_id > 0) break;
+        OszMeta parsed =
+            parse_osz_meta(std::string_view{reinterpret_cast<const char*>(osu_data.data()), osu_data.size()});
+        if(meta.artist.empty() && meta.title.empty()) {
+            meta.artist = std::move(parsed.artist);
+            meta.title = std::move(parsed.title);
+        }
+        if(parsed.set_id > 0) {
+            meta.set_id = parsed.set_id;
+            break;
+        }
     }
 
+    i32 set_id = set_id_override > 0 ? set_id_override : meta.set_id;
     // fallback: a leading number in the filename, e.g. "12345 Artist - Title.osz"
     if(set_id <= 0 && !osz_name.empty() && std::isdigit(static_cast<unsigned char>(osz_name.front()))) {
         i32 parsed = -1;
-        if(Parsing::parse(osz_name, &parsed)) set_id = parsed;
+        if(Parsing::parse(osz_name, &parsed) && parsed > 0) set_id = parsed;
     }
-    // ids must be > 0; without this an id of 0 (e.g. "BeatmapSetID:0" or a filename like "0 foo.osz")
-    // would extract into maps/0/ and then be treated as a failure by every caller, orphaning the folder
-    if(set_id <= 0) return -1;
 
-    if(!write_entries_to_dir(entries, fmt::format(NEOMOD_MAPS_PATH "/{}/", set_id))) {
-        return -1;
+    std::string_view stem = osz_name;
+    if(stem.size() > 4 && SString::strcase_equal(stem.substr(stem.size() - 4), ".osz")) stem.remove_suffix(4);
+
+    std::string folder = target_folder_name(set_id, stem, meta);
+    if(folder.empty()) {
+        debugLog("No usable name for the beatmapset folder of {:s}", osz_name);
+        return {};
     }
-    return set_id;
+    if(!write_entries_to_dir(entries, fmt::format(NEOMOD_MAPS_PATH "/{}/", folder))) return {};
+    return folder;
 }
 
-i32 BeatmapInstaller::read_and_extract_osz(std::string_view path) {
+std::string BeatmapInstaller::read_and_extract_osz(std::string_view path) {
     std::unique_ptr<u8[]> osz_data;
     uSz filesize = 0;
     {
         File osz(path);
         filesize = osz.getFileSize();
-        if(!osz.canRead() || !filesize) return -1;
+        if(!osz.canRead() || !filesize) return {};
         osz_data = osz.takeFileBuffer();
-        if(!osz_data.get()) return -1;
+        if(!osz_data.get()) return {};
     }
     return resolve_and_extract_osz({osz_data.get(), filesize}, Environment::getFileNameFromFilePath(path));
 }
@@ -339,8 +395,8 @@ void BeatmapInstaller::cancel_entry(u32 uid) {
     for(auto it = m->entries.begin(); it != m->entries.end(); ++it) {
         if(it->uid != uid) continue;
         // aborts the transfer (if still downloading); an in-flight extract future is simply
-        // abandoned (a finished extraction leaves maps/<id>/ orphaned, same as quitting mid-extract,
-        // and a local source .osz stays put for a later import pass)
+        // abandoned (a finished extraction leaves its folder for the next db rescan to pick up, same as
+        // quitting mid-extract, and a local source .osz stays put for a later import pass)
         Downloader::abort_download(it->dl_handle);
         m->entries.erase(it);
         return;
@@ -395,35 +451,32 @@ void BeatmapInstaller::update() {
             case Queued:
                 if(e.is_local()) {
                     // read + decompress + extract on a worker so the main thread never blocks on it.
+                    // the target folder depends on what the db knows, so wait until it's loaded
+                    if(!db->isFinished() || db->isCancelled()) break;
                     e.extract_future = Async::submit(
-                        [path = e.osz_path]() -> i32 { return read_and_extract_osz(path); }, Lane::Background);
+                        [path = e.osz_path]() -> std::string { return read_and_extract_osz(path); }, Lane::Background);
                     e.stage = Extracting;
                     break;
-                } else {  // trying to download, check disk first
-                    // if the db doesn't know this set but maps/<set_id>/ already exists
-                    // (crash before a db save, deleted db, ...), try importing it as-is before spending
-                    // a transfer; "Installing"/try_import is the oracle for whether the folder is actually usable,
-                    // which will upgrade it back to a real download if it isn't (empty, partial, garbage).
-                    // if the db DOES have the set, the enqueuer wants bytes the db doesn't have (e.g.
-                    // an updated version (TODO!)), so always download. db busy => can't know, just download.
-                    if(db->isFinished() && !db->isCancelled() && db->getBeatmapSet(e.set_id) == nullptr &&
-                       env->directoryExists(fmt::format(NEOMOD_MAPS_PATH "/{}/", e.set_id))) {
-                        e.from_disk = true;
-                        e.stage = Installing;
-                        break;
-                    }
                 }
+                // a download always transfers: if the db has the set, the enqueuer wants bytes it doesn't have
+                // (an updated version), which then land in the set's existing folder
                 [[fallthrough]];
             case Downloading: {
                 // download_beatmapset lazily creates the handle on first call (when e.dl_handle is null),
                 // then on each subsequent call polls completion.
                 const bool ready = Downloader::download_beatmapset(static_cast<u32>(e.set_id), e.dl_handle);
                 if(ready) {
+                    // the target folder depends on what the db knows, so hold the bytes until it's loaded
+                    if(!db->isFinished() || db->isCancelled()) {
+                        e.progress = 1.f;
+                        e.stage = Downloading;
+                        break;
+                    }
                     // bytes arrived: from here on a download is just a local import whose .osz is
-                    // already in memory. decompress on a worker, into the folder whose id we know.
+                    // already in memory. decompress on a worker, into the folder of the id we know.
                     e.extract_future = Async::submit(
-                        [data = e.dl_handle.take_data(), set_id = e.set_id]() -> i32 {
-                            return extract_beatmapset(data, fmt::format(NEOMOD_MAPS_PATH "/{}/", set_id)) ? set_id : -1;
+                        [data = e.dl_handle.take_data(), set_id = e.set_id]() -> std::string {
+                            return resolve_and_extract_osz(data, "", set_id);
                         },
                         Lane::Background);
                     e.dl_handle.reset();
@@ -444,42 +497,31 @@ void BeatmapInstaller::update() {
 
             case Extracting: {
                 if(!e.extract_future.is_ready()) break;
-                // <= 0 means extraction failed; leave set_id alone (a download knows its real id,
-                // which fail() puts in the toast)
-                if(const i32 resolved = e.extract_future.get(); resolved <= 0) {
+                if(std::string folder = e.extract_future.get(); folder.empty()) {
                     fail_entry(e, now);
                 } else {
-                    e.set_id = resolved;
+                    e.folder = std::move(folder);
                     e.stage = Installing;
                 }
                 break;
             }
 
             case Installing: {
-                auto [set, imported, ready] = try_import(e.set_id);
-                if(!ready) break;  // db busy/rebuilding; retry next tick
+                const auto r = try_import(e);
+                if(!r) break;  // db busy/rebuilding; retry next tick
 
-                if(set == nullptr) {
-                    if(e.from_disk) {
-                        // the re-extraction will overwrite the potentially corrupt folder we had
-                        debugLog("maps/{:d}/ exists but isn't importable, downloading instead", e.set_id);
-                        e.from_disk = false;
-                        e.stage = Downloading;
-                        break;
+                if(!r->set && !r->dedup_owner) {
+                    // nothing loadable in the folder: an installed set whose files the archive overwrote is
+                    // gone from the db too
+                    if(r->outcome == Database::ReconcileResult::Outcome::Removed) {
+                        ui->getSongBrowser()->removeBeatmapSet(r->replaced);
                     }
                     fail_entry(e, now);
                 } else {
                     e.stage = Done;
                     e.finished_time = now;
-                    if(e.is_local()) {
-                        if(e.delete_after) env->deleteFile(e.osz_path);
-                    } else {
-                        ui->getNotificationOverlay()->addToast(e.from_disk
-                                                                   ? tformat("Imported beatmapset #{:d}", e.set_id)
-                                                                   : tformat("Downloaded beatmapset #{:d}", e.set_id),
-                                                               SUCCESS_TOAST);
-                    }
-                    on_done(set, e.set_id, imported, e.auto_select);
+                    if(e.is_local() && e.delete_after) env->deleteFile(e.osz_path);
+                    on_done(*r, e);
                 }
                 break;
             }

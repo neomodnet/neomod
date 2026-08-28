@@ -58,22 +58,27 @@ msgstr ""
 
 #: src/App/Neomod/BeatmapInstaller.cpp
 #, c++-format
+msgid "{} is already installed"
+msgstr ""
+
+#: src/App/Neomod/BeatmapInstaller.cpp
+#, c++-format
+msgid "Beatmapset #{:d} is already installed"
+msgstr ""
+
+#: src/App/Neomod/BeatmapInstaller.cpp
+#, c++-format
+msgid "Downloaded beatmapset #{:d}"
+msgstr ""
+
+#: src/App/Neomod/BeatmapInstaller.cpp
+#, c++-format
 msgid "Failed to import {}"
 msgstr ""
 
 #: src/App/Neomod/BeatmapInstaller.cpp
 #, c++-format
 msgid "Failed to download beatmapset #{:d} :("
-msgstr ""
-
-#: src/App/Neomod/BeatmapInstaller.cpp
-#, c++-format
-msgid "Imported beatmapset #{:d}"
-msgstr ""
-
-#: src/App/Neomod/BeatmapInstaller.cpp
-#, c++-format
-msgid "Downloaded beatmapset #{:d}"
 msgstr ""
 
 #: src/App/Neomod/BeatmapInterface.cpp
@@ -165,6 +170,20 @@ msgstr ""
 
 #: src/App/Neomod/Chat.cpp
 msgid "Type in the channel you want to join (e.g. '#osu'):"
+msgstr ""
+
+#: src/App/Neomod/Database.cpp
+#, c++-format
+msgid "Added {:d} new beatmapset(s)."
+msgstr ""
+
+#: src/App/Neomod/Database.cpp
+msgid "No new beatmaps detected."
+msgstr ""
+
+#: src/App/Neomod/Database.cpp
+#, c++-format
+msgid "{} was written by a newer version, ignoring it"
 msgstr ""
 
 #: src/App/Neomod/HUD.cpp
@@ -3164,6 +3183,11 @@ msgstr ""
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
 #, c++-format
 msgid "Failed to find Beatmap #{:d} :("
+msgstr ""
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp
+#, c++-format
+msgid "Scanning beatmap folders ({:d}/{:d})"
 msgstr ""
 
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp

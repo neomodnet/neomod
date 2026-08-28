@@ -1,0 +1,22 @@
+# pins .osz import without a beatmapset id: uitest_import/idless.osz (run.py generates it, no
+# BeatmapSetID anywhere) is passed on the command line like a drag/drop, gets extracted into
+# maps/idless/ (the file's stem) once the db is loaded, and auto-selects, so a difficulty button
+# must exist in the carousel afterwards. run.py removes maps/idless/ after the run
+# uitest-args: uitest_import/idless.osz
+# uitest-cleanup: idless
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+ui_trace 1
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen songbrowser
+@wait 300
+@wait_secs 3
+ui_assert screen_active songbrowser 1
+ui_assert exists SongDifficultyButton 1
+exit

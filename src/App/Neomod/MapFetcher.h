@@ -64,6 +64,5 @@ class MapFetcher final {
     i32 set_id_hint{0};
     DatabaseBeatmap *found{nullptr};
     State st{};
-    bool in_flight{false};    // an installer entry for set_id existed on a previous tick
-    bool transferred{false};  // ... and it was at some point observed actually downloading
+    bool in_flight{false};  // an installer entry for set_id existed on a previous tick
 };

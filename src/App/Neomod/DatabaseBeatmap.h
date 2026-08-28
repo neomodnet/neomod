@@ -309,10 +309,6 @@ class DatabaseBeatmap final {
     inline void setLocalOffset(i16 localOffset) { this->iLocalOffset = localOffset; }
     inline void setOnlineOffset(i16 onlineOffset) { this->iOnlineOffset = onlineOffset; }
     inline void setMapID(i32 id) { this->iID = id; }
-    inline void setMapsetID(i32 id) {
-        this->iSetID = id;
-        if(this->parentSet) this->parentSet->setMapsetID(id);
-    }
 
     inline i64 getLastPlayTime() const { return this->last_play_time; }
     inline void setLastPlayTime(i64 time) {

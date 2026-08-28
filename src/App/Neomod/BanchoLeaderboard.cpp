@@ -141,7 +141,7 @@ void process_leaderboard_response(const MD5Hash &beatmap_hash, std::string body_
             map->setMapID((i32)info.beatmap_id);
         }
         if(info.beatmap_set_id > 0 && map->getSetID() <= 0) {
-            map->setMapsetID((i32)info.beatmap_set_id);
+            db->updateSetID(map, (i32)info.beatmap_set_id);
         }
     }
 

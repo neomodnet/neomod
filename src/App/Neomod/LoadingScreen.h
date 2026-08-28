@@ -4,6 +4,7 @@
 #include "UIScreen.h"
 
 #include <functional>
+#include <string>
 
 class LoadingScreen;
 class Image;
@@ -35,6 +36,8 @@ class LoadingScreen : public UIOverlay {
     virtual void drawBackground();
     virtual void drawProgress();
     virtual void drawLoadingSpinner();
+    // the status line drawProgress shows
+    [[nodiscard]] virtual std::string getProgressMessage() const;
 
     virtual f32 updateProgress() { return this->progress; }
     virtual void finish() { this->progress = 1.f; }

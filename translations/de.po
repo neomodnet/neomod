@@ -85,6 +85,21 @@ msgid "Queued"
 msgstr ""
 
 #: src/App/Neomod/BeatmapInstaller.cpp
+#, c++-format
+msgid "{} is already installed"
+msgstr ""
+
+#: src/App/Neomod/BeatmapInstaller.cpp
+#, c++-format
+msgid "Beatmapset #{:d} is already installed"
+msgstr ""
+
+#: src/App/Neomod/BeatmapInstaller.cpp
+#, c++-format
+msgid "Downloaded beatmapset #{:d}"
+msgstr "Beatmapset #{:d} heruntergeladen"
+
+#: src/App/Neomod/BeatmapInstaller.cpp
 #, fuzzy, c++-format
 msgid "Failed to import {}"
 msgstr "Fehler beim Importieren von {}"
@@ -93,16 +108,6 @@ msgstr "Fehler beim Importieren von {}"
 #, c++-format
 msgid "Failed to download beatmapset #{:d} :("
 msgstr "Herunterladen von Beatmapset #{:d} fehlgeschlagen :("
-
-#: src/App/Neomod/BeatmapInstaller.cpp
-#, fuzzy, c++-format
-msgid "Imported beatmapset #{:d}"
-msgstr "Beatmapset #{:d} heruntergeladen"
-
-#: src/App/Neomod/BeatmapInstaller.cpp
-#, c++-format
-msgid "Downloaded beatmapset #{:d}"
-msgstr "Beatmapset #{:d} heruntergeladen"
 
 #: src/App/Neomod/BeatmapInterface.cpp
 msgid "Buffering ..."
@@ -194,6 +199,21 @@ msgstr "Du musst dich anmelden, um zu chatten!"
 #: src/App/Neomod/Chat.cpp
 msgid "Type in the channel you want to join (e.g. '#osu'):"
 msgstr "Gib den Kanal ein, dem du beitreten möchtest (z. B. '#osu'):"
+
+#: src/App/Neomod/Database.cpp
+#, c++-format
+msgid "Added {:d} new beatmapset(s)."
+msgstr ""
+
+#: src/App/Neomod/Database.cpp
+#, fuzzy
+msgid "No new beatmaps detected."
+msgstr "Keine Map ausgewählt"
+
+#: src/App/Neomod/Database.cpp
+#, c++-format
+msgid "{} was written by a newer version, ignoring it"
+msgstr ""
 
 #: src/App/Neomod/HUD.cpp
 #, c++-format
@@ -3308,6 +3328,11 @@ msgstr "Beatmapset hat keine Schwierigkeitsgrade"
 #, c++-format
 msgid "Failed to find Beatmap #{:d} :("
 msgstr "Konnte Beatmap #{:d} nicht finden :("
+
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp
+#, fuzzy, c++-format
+msgid "Scanning beatmap folders ({:d}/{:d})"
+msgstr "Start erzwingen ({:d}/{:d})"
 
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
 #, fuzzy, c++-format
