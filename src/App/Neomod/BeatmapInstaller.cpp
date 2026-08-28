@@ -21,10 +21,24 @@
 #include "SString.h"
 #include "UI.h"
 
+#include <algorithm>
 #include <cctype>
 #include <optional>
 
 namespace {  // internal utils
+
+// what an extraction worker hands back: the maps/ folder the archive went into (empty on failure) and that
+// folder's diffs, parsed right there so the main-thread import only has to match them against the db
+struct Extracted {
+    std::string folder;
+    std::unique_ptr<DiffContainer> diffs{};
+};
+
+Extracted parse_extracted(std::string folder) {
+    Extracted out{.folder = std::move(folder)};
+    if(!out.folder.empty()) out.diffs = Database::parseFolderDiffs(NEOMOD_MAPS_PATH "/" + out.folder + "/", false);
+    return out;
+}
 
 // one queued import. two kinds share the stage machine, discriminated by is_local():
 // - download: set_id known up front, dl_handle drives Queued/Downloading; the fetched bytes
@@ -36,8 +50,9 @@ struct Entry {
     std::string display_name;
     Downloader::DownloadHandle dl_handle;
     std::string osz_path;
-    std::string folder;                         // maps/ folder the archive was extracted into (relative)
-    Async::Future<std::string> extract_future;  // that folder on success, empty on failure
+    std::string folder;                    // maps/ folder the archive was extracted into (relative)
+    std::unique_ptr<DiffContainer> diffs;  // its .osu files, parsed by the extraction worker, consumed by the import
+    Async::Future<Extracted> extract_future;
     MapInstallStage stage{MapInstallStage::Queued};
     f32 progress{0.f};
     bool auto_select{false};
@@ -51,13 +66,13 @@ struct Entry {
 // once it's safe to. nullopt means the caller should retry next tick: the db is mid-(re)build
 // (reconciling then would race the loader thread), or a map is being played (an updated/removed
 // selection would unload it).
-std::optional<Database::ReconcileResult> try_import(const Entry& e) {
+std::optional<Database::ReconcileResult> try_import(Entry& e) {
     if(!db->isFinished() || db->isCancelled() || osu->isInPlayMode()) return std::nullopt;
 
-    // force a parse: the files were just written, so their mtimes can match a stale record's second.
-    // a download stamps its id onto diffs that don't declare one
-    return db->reconcileFolder(Database::MapRoot::Neomod, e.folder, Database::ReconcileMode::ForceParse,
-                               e.is_local() ? -1 : e.set_id, nullptr);
+    // the worker's parse stands in for the listing, so the files are matched by content (their mtimes could
+    // share a stale record's second). a download stamps its id onto diffs that don't declare one
+    return db->reconcileFolder(Database::MapRoot::Neomod, e.folder, Database::ReconcileMode::PerFile,
+                               e.is_local() ? -1 : e.set_id, std::move(e.diffs));
 }
 
 void on_done(const Database::ReconcileResult& r, const Entry& e) {
@@ -429,6 +444,11 @@ std::vector<BeatmapInstaller::EntryView> BeatmapInstaller::snapshot() const {
     return out;
 }
 
+bool BeatmapInstaller::is_installing(std::string_view folder) const {
+    return std::ranges::any_of(
+        m->entries, [folder](const Entry& e) { return e.stage == MapInstallStage::Installing && e.folder == folder; });
+}
+
 bool BeatmapInstaller::has_pending() const {
     using enum MapInstallStage;
     for(const Entry& e : m->entries) {
@@ -454,7 +474,7 @@ void BeatmapInstaller::update() {
                     // the target folder depends on what the db knows, so wait until it's loaded
                     if(!db->isFinished() || db->isCancelled()) break;
                     e.extract_future = Async::submit(
-                        [path = e.osz_path]() -> std::string { return read_and_extract_osz(path); }, Lane::Background);
+                        [path = e.osz_path] { return parse_extracted(read_and_extract_osz(path)); }, Lane::Background);
                     e.stage = Extracting;
                     break;
                 }
@@ -475,8 +495,8 @@ void BeatmapInstaller::update() {
                     // bytes arrived: from here on a download is just a local import whose .osz is
                     // already in memory. decompress on a worker, into the folder of the id we know.
                     e.extract_future = Async::submit(
-                        [data = e.dl_handle.take_data(), set_id = e.set_id]() -> std::string {
-                            return resolve_and_extract_osz(data, "", set_id);
+                        [data = e.dl_handle.take_data(), set_id = e.set_id] {
+                            return parse_extracted(resolve_and_extract_osz(data, "", set_id));
                         },
                         Lane::Background);
                     e.dl_handle.reset();
@@ -497,10 +517,11 @@ void BeatmapInstaller::update() {
 
             case Extracting: {
                 if(!e.extract_future.is_ready()) break;
-                if(std::string folder = e.extract_future.get(); folder.empty()) {
+                if(Extracted x = e.extract_future.get(); x.folder.empty()) {
                     fail_entry(e, now);
                 } else {
-                    e.folder = std::move(folder);
+                    e.folder = std::move(x.folder);
+                    e.diffs = std::move(x.diffs);
                     e.stage = Installing;
                 }
                 break;

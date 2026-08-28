@@ -100,6 +100,9 @@ class BeatmapInstaller final {
     // true while any entry is still working toward an import (not yet Done/Failed). callers poll this
     // to tell "still installing, keep waiting" apart from "nothing left that could land in the db".
     [[nodiscard]] bool has_pending() const;
+    // true while an import has written maps/<folder> and is about to register it (the directory watcher leaves
+    // such a folder to the installer)
+    [[nodiscard]] bool is_installing(std::string_view folder) const;
 
    private:
     struct BMInstallerImpl;

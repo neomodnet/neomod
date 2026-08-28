@@ -2695,11 +2695,11 @@ std::unique_ptr<BeatmapSet> Database::loadRawBeatmap(std::string_view beatmapPat
 Database::ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_folder, ReconcileMode mode,
                                                     i32 set_id_override, std::unique_ptr<DiffContainer> preparsed) {
     using enum ReconcileResult::Outcome;
+    using enum DatabaseBeatmap::BeatmapType;
     ReconcileResult res;
 
     const std::string abs_folder = this->rootPath(root) + std::string{rel_folder} + "/";
     auto &folders = this->folderIndex(root);
-    using enum DatabaseBeatmap::BeatmapType;
     const i64 dir_mtime = folder_mtime(abs_folder);
 
     // snapshot the record (the map may rehash while this folder is being worked on)
@@ -2753,126 +2753,106 @@ Database::ReconcileResult Database::reconcileFolder(MapRoot root, std::string_vi
         return res;  // unchanged without touching a single file
     }
 
-    std::vector<std::string> osu_files;
-    for(auto &name : env->getFilesInFolder(abs_folder)) {
-        if(is_osu_file(name)) osu_files.push_back(std::move(name));
-    }
-    std::ranges::sort(osu_files);
-
-    Hash::unstable_stringmap<BeatmapDifficulty *> old_by_name;
-    if(old) {
-        for(const auto &diff : old->getDifficulties()) {
-            old_by_name.emplace(Environment::getFileNameFromFilePath(diff->getFilePath()), diff.get());
-        }
-    }
-    Hash::unstable_stringmap<uSz> preparsed_by_name;
-    if(preparsed) {
-        for(uSz i = 0; i < preparsed->size(); i++) {
-            preparsed_by_name.emplace(Environment::getFileNameFromFilePath((*preparsed)[i]->getFilePath()), i);
-        }
-    }
-
-    // the folder's diffs in on-disk order: a surviving object of the old set, or a freshly parsed one
+    // one per .osu file in the folder: what represents it in the rebuilt set is either an old object of this set
+    // that survives, or a fresh parse. neither = unloadable, or a copy of a map that's already there
     struct Slot {
-        BeatmapDifficulty *existing{nullptr};
+        std::string path;
+        BeatmapDifficulty *kept{nullptr};
         std::unique_ptr<BeatmapDifficulty> parsed{};
+        BeatmapDifficulty *owner{nullptr};  // what the md5 index has under parsed's hash
     };
     std::vector<Slot> slots;
-    Hash::flat::set<BeatmapDifficulty *> kept;  // old diffs that survive (under their own or a new name)
-    Hash::flat::set<MD5Hash> fresh_md5s;
 
-    for(const auto &name : osu_files) {
-        const std::string path = abs_folder + name;
-        const i64 mtime = file_mtime(path);
-        if(mtime == 0) continue;  // unreadable
-
-        BeatmapDifficulty *existing = nullptr;
-        if(auto it = old_by_name.find(name); it != old_by_name.end()) existing = it->second;
-
-        if(existing && mode != ReconcileMode::ForceParse) {
-            // never verified (pre-20260828 record): trust it and just stamp the mtime, no parse
-            if(existing->last_modification_time <= 0) existing->last_modification_time = mtime;
-            if(existing->last_modification_time == mtime) {
-                slots.push_back({.existing = existing});
-                kept.insert(existing);
-                continue;
-            }
+    if(preparsed) {
+        // the caller listed and parsed the folder already (on a worker thread, say): every file is matched by
+        // content below
+        res.parsed = static_cast<u16>(preparsed->size());
+        for(auto &diff : *preparsed) {
+            slots.push_back({.path = std::string{diff->getFilePath()}, .parsed = std::move(diff)});
         }
-
-        std::unique_ptr<BeatmapDifficulty> diff;
-        if(auto it = preparsed_by_name.find(name); it != preparsed_by_name.end()) {
-            diff = std::move((*preparsed)[it->second]);
-            res.parsed++;  // parsed ahead of time, still counts
-        } else {
-            diff = std::make_unique<BeatmapDifficulty>(path, abs_folder,
-                                                       root == MapRoot::Peppy ? PEPPY_DIFFICULTY : NEOMOD_DIFFICULTY);
+    } else {
+        // 1. an old object keeps its file without it being opened if the mtime didn't move since it was verified
+        //    (a record from before mtimes were verified is trusted and stamped)
+        for(auto &name : env->getFilesInFolder(abs_folder)) {
+            if(!is_osu_file(name)) continue;
+            Slot slot{.path = abs_folder + name};
+            const i64 mtime = file_mtime(slot.path);
+            if(mtime == 0) continue;  // unreadable
+            if(old) {
+                const auto &old_diffs = old->getDifficulties();
+                if(auto it = std::ranges::find(old_diffs, std::string_view{slot.path}, &DatabaseBeatmap::getFilePath);
+                   it != old_diffs.end()) {
+                    if((*it)->last_modification_time <= 0) (*it)->last_modification_time = mtime;
+                    if((*it)->last_modification_time == mtime) slot.kept = it->get();
+                }
+            }
+            slots.push_back(std::move(slot));
+        }
+        // 2. everything else is parsed
+        for(auto &slot : slots) {
+            if(slot.kept) continue;
+            slot.parsed = std::make_unique<BeatmapDifficulty>(
+                slot.path, abs_folder, root == MapRoot::Peppy ? PEPPY_DIFFICULTY : NEOMOD_DIFFICULTY);
             res.parsed++;
-            if(auto r = diff->loadMetadata(); r.error.errc) {
-                logIfCV(debug_db, "reconcile {}: couldn't load {}: {}", rel_folder, name, r.error.error_string());
-                continue;  // a stale record for it (if any) is dropped below
+            if(auto r = slot.parsed->loadMetadata(); r.error.errc) {
+                logIfCV(debug_db, "reconcile {}: couldn't load {}: {}", rel_folder,
+                        Environment::getFileNameFromFilePath(slot.path), r.error.error_string());
+                slot.parsed.reset();  // a stale record for it (if any) is dropped below
             }
         }
+    }
+    std::ranges::sort(slots, {}, &Slot::path);
 
-        if(existing && existing->getMD5() == diff->getMD5()) {
-            // touched but same content: keep the object, take the new mtime
-            existing->last_modification_time = diff->last_modification_time;
-            slots.push_back({.existing = existing});
-            kept.insert(existing);
-            continue;
-        }
-
-        if(fresh_md5s.contains(diff->getMD5())) {
-            logIfCV(debug_db, "reconcile {}: {} duplicates another new file in the folder", rel_folder, name);
-            continue;
-        }
-
-        BeatmapDifficulty *owner = nullptr;
-        {
-            Sync::shared_lock lock(this->beatmap_difficulties_mtx);
-            if(auto it = this->beatmap_difficulties.find(diff->getMD5()); it != this->beatmap_difficulties.end()) {
-                owner = it->second;
+    // 3. the hash decides what a parsed file is: one index lookup each under the lock, then the decisions (which
+    //    may stat other folders) without it
+    {
+        Sync::shared_lock lock(this->beatmap_difficulties_mtx);
+        for(auto &slot : slots) {
+            if(!slot.parsed) continue;
+            if(auto it = this->beatmap_difficulties.find(slot.parsed->getMD5());
+               it != this->beatmap_difficulties.end()) {
+                slot.owner = it->second;
             }
         }
-        if(!owner) {
-            fresh_md5s.insert(diff->getMD5());
-            slots.push_back({.parsed = std::move(diff)});
-            continue;
-        }
+    }
+    for(uSz i = 0; i < slots.size(); i++) {
+        Slot &slot = slots[i];
+        if(!slot.parsed) continue;
+        BeatmapDifficulty *owner = slot.owner;
+        auto name = [&slot] { return Environment::getFileNameFromFilePath(slot.path); };
 
-        if(Environment::fileExists(owner->getFilePath())) {
-            // a copy of a map that still exists elsewhere (or twice in this folder): the first one wins
+        if(owner && old && owner->getParentSet() == old) {
+            if(std::ranges::any_of(slots, [owner](const Slot &s) { return s.kept == owner; })) {
+                // a second copy of a map this folder still has: the first one wins
+                logIfCV(debug_db, "reconcile {}: {} duplicates {}", rel_folder, name(), owner->getFilePath());
+            } else {
+                // the set's own content under a new name (or with a new mtime): the old object follows the file
+                owner->sFilePath = slot.path;
+                owner->last_modification_time = slot.parsed->last_modification_time;
+                slot.kept = owner;
+            }
+            slot.parsed.reset();
+        } else if(owner && Environment::fileExists(owner->getFilePath())) {
+            // a copy of a map that still exists elsewhere: the first one wins
             if(!res.dedup_owner) res.dedup_owner = owner->getParentSet();
-            logIfCV(debug_db, "reconcile {}: {} duplicates {}", rel_folder, name, owner->getFilePath());
-        } else if(old && owner->getParentSet() == old) {
-            // same content under a new name in this folder (rename): keep the object, repoint it
-            owner->sFilePath = path;
-            owner->last_modification_time = diff->last_modification_time;
-            slots.push_back({.existing = owner});
-            kept.insert(owner);
-        } else {
-            // the owner's file is gone (moved here): the hash follows the file. the stale object stays in its
-            // own set until that folder is reconciled (diffs never move between live sets)
-            {
-                Sync::unique_lock lock(this->beatmap_difficulties_mtx);
-                this->beatmap_difficulties.erase(diff->getMD5());
-            }
-            fresh_md5s.insert(diff->getMD5());
-            slots.push_back({.parsed = std::move(diff)});
+            logIfCV(debug_db, "reconcile {}: {} duplicates {}", rel_folder, name(), owner->getFilePath());
+            slot.parsed.reset();
+        } else if(std::ranges::any_of(slots.begin(), slots.begin() + static_cast<sSz>(i), [&slot](const Slot &s) {
+                      return s.parsed && s.parsed->getMD5() == slot.parsed->getMD5();
+                  })) {
+            logIfCV(debug_db, "reconcile {}: {} duplicates another new file in the folder", rel_folder, name());
+            slot.parsed.reset();
         }
+        // otherwise it's new here: nothing has this content, or the owner's file is gone (the map moved here; the
+        // index entry is retargeted below, the stale object stays in its own set until that folder is reconciled)
     }
 
-    std::vector<BeatmapDifficulty *> dropped;
-    if(old) {
-        for(const auto &diff : old->getDifficulties()) {
-            if(!kept.contains(diff.get())) dropped.push_back(diff.get());
-        }
-    }
-    res.removed = static_cast<u16>(dropped.size());
-    for(const auto &slot : slots) {
-        if(slot.parsed) res.added++;
-    }
+    const uSz n_old = old ? old->getDifficulties().size() : 0;
+    const uSz n_kept = std::ranges::count_if(slots, [](const Slot &s) { return s.kept != nullptr; });
+    res.added = static_cast<u16>(std::ranges::count_if(slots, [](const Slot &s) { return s.parsed != nullptr; }));
+    res.removed = static_cast<u16>(n_old - n_kept);
 
-    if(res.added == 0 && dropped.empty()) {
+    if(res.added == 0 && res.removed == 0) {
         {
             Sync::unique_lock lock(this->beatmap_difficulties_mtx);
             folders[std::string{rel_folder}] = {.mtime = dir_mtime, .set = old};
@@ -2887,21 +2867,21 @@ Database::ReconcileResult Database::reconcileFolder(MapRoot root, std::string_vi
         return res;
     }
 
+    // 4. the rebuilt set: survivors move over as-is (same address, so every raw pointer to them stays valid), the
+    //    tombstone keeps only what was dropped (compacted: nothing may ever see a null diff in a set)
     auto container = std::make_unique<DiffContainer>();
     std::vector<BeatmapDifficulty *> fresh;
     for(auto &slot : slots) {
         if(slot.parsed) {
             fresh.push_back(slot.parsed.get());
             container->push_back(std::move(slot.parsed));
-        } else {
-            // the surviving object moves over as-is (same address: every raw pointer to it stays valid)
+        } else if(slot.kept) {
             auto &old_diffs = *old->difficulties;
-            auto it = std::ranges::find_if(old_diffs, [&](const auto &p) { return p.get() == slot.existing; });
+            auto it = std::ranges::find_if(old_diffs, [&slot](const auto &p) { return p.get() == slot.kept; });
             assert(it != old_diffs.end());
             container->push_back(std::move(*it));
         }
     }
-    // the tombstone keeps only what was dropped (compacted: nothing may ever see a null diff in a set)
     if(old) std::erase_if(*old->difficulties, [](const auto &p) { return p == nullptr; });
 
     if(container->empty()) {

@@ -841,8 +841,14 @@ void SongBrowser::tick() {
         // set folders the directory watcher saw change: sync the db and the carousel with them (not mid-play,
         // where a removed/replaced selection would unload the map being played)
         if(!this->changedMapFolders.empty() && this->bInitializedBeatmaps) {
-            for(const auto &rel : this->changedMapFolders) {
+            for(auto it = this->changedMapFolders.begin(); it != this->changedMapFolders.end();) {
                 using enum Database::ReconcileResult::Outcome;
+                const std::string &rel = *it;
+                // a folder the installer is still registering is its business; the event waits and checks it after
+                if(osu->getBeatmapInstaller()->is_installing(rel)) {
+                    ++it;
+                    continue;
+                }
                 const auto r =
                     db->reconcileFolder(Database::MapRoot::Neomod, rel, Database::ReconcileMode::PerFile, -1, nullptr);
                 if(r.outcome == Created) {
@@ -851,16 +857,16 @@ void SongBrowser::tick() {
                     this->replaceBeatmapSet(r.replaced, r.set);
                 } else if(r.outcome == Removed) {
                     this->removeBeatmapSet(r.replaced);
-                } else {
-                    continue;
                 }
-                logRaw("[DirectoryWatcher] maps/{}: {} (+{} -{})", rel,
-                       r.outcome == Created   ? "created"
-                       : r.outcome == Updated ? "updated"
-                                              : "removed",
-                       r.added, r.removed);
+                if(r.outcome == Created || r.outcome == Updated || r.outcome == Removed) {
+                    logRaw("[DirectoryWatcher] maps/{}: {} (+{} -{})", rel,
+                           r.outcome == Created   ? "created"
+                           : r.outcome == Updated ? "updated"
+                                                  : "removed",
+                           r.added, r.removed);
+                }
+                it = this->changedMapFolders.erase(it);
             }
-            this->changedMapFolders.clear();
         }
     }
 

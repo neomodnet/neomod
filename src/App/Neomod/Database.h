@@ -101,8 +101,7 @@ class Database final {
 
     enum class ReconcileMode : u8 {
         TrustFolderMtime,  // startup: an unchanged folder mtime means no per-file io at all
-        PerFile,           // F5: stat every .osu, parse only those whose mtime moved
-        ForceParse,        // installer: re-parse every .osu (files just written can share the record's second)
+        PerFile,           // F5, watcher, installer: check every .osu
     };
     struct ReconcileResult {
         enum class Outcome : u8 { Unchanged, Created, Updated, Removed, Failed };
@@ -113,12 +112,13 @@ class Database final {
         u16 added{0}, removed{0}, parsed{0};
     };
     // syncs <root>/<rel_folder>/ against the db (osu!stable's F5, for one folder): new .osu files are parsed,
-    // changed ones re-parsed, vanished ones dropped, everything else is kept as-is. preparsed optionally holds
-    // already-parsed diffs of the folder (so unknown folders can be parsed in parallel beforehand).
-    // set_id_override > 0 is stamped onto the result (downloads know their id even if the .osu files don't).
-    // loader thread during load(), main thread afterwards, never both.
+    // changed ones re-parsed, vanished ones dropped, everything else is kept as-is. preparsed stands in for the
+    // listing and the parsing: the folder's diffs as parseFolderDiffs returns them (so a worker thread can do
+    // that part); those are matched by content, never by mtime. set_id_override > 0 is stamped onto the result
+    // (downloads know their id even if the .osu files don't). loader thread during load(), main thread
+    // afterwards, never both.
     // limits: folder mtimes move on entry add/remove/rename but not on in-place rewrites (PerFile catches those),
-    // and a rewrite within the same second as the recorded mtime is missed (same as stable)
+    // and without preparsed a rewrite within the same second as the recorded mtime is missed (same as stable)
     ReconcileResult reconcileFolder(MapRoot root, std::string_view rel_folder, ReconcileMode mode, i32 set_id_override,
                                     std::unique_ptr<DiffContainer> preparsed);
 
@@ -172,6 +172,9 @@ class Database final {
 
     // only used for raw loading without db
     static std::unique_ptr<BeatmapSet> loadRawBeatmap(std::string_view beatmapPath, bool is_peppy = false);
+    // parses every .osu directly inside a set folder (what loadRawBeatmap, the maps/ rescan and the installer's
+    // extraction worker build sets from); safe on any thread
+    static std::unique_ptr<DiffContainer> parseFolderDiffs(std::string_view folder_path, bool is_peppy);
 
     void addPathToImport(std::string_view dbPath);
 
@@ -209,9 +212,6 @@ class Database final {
     // returns how many sets were created
     u32 reconcileRoot(MapRoot root, const Sync::stop_token &tok, bool per_file);
     [[nodiscard]] std::string rootPath(MapRoot root) const;  // with trailing slash
-
-    // parses every .osu directly inside a set folder (shared by loadRawBeatmap and the maps/ rescan)
-    static std::unique_ptr<DiffContainer> parseFolderDiffs(std::string_view folder_path, bool is_peppy);
 
     // for updating scores externally
     friend struct BatchDiffCalc::internal;
