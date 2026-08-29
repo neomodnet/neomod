@@ -37,14 +37,14 @@ class DirectoryCache final {
    public:
     DirectoryCache() = default;
 
-    // directory entry type
+    // what a lookup resolves to: the entry's actual name on disk, and its type
     struct EntryPair {
         std::string name;
         File::FILETYPE type;
     };
 
     struct DirectoryEntry {
-        Hash::unstable_ncase_stringmap<EntryPair> files;
+        Hash::unstable_ncase_stringmap<File::FILETYPE> files;  // keyed by the actual filename
         chrono::steady_clock::time_point lastCacheAccess;
         fs::file_time_type lastModified;
     };
@@ -81,21 +81,10 @@ class DirectoryCache final {
             newEntry.lastModified = fs::last_write_time(dirPath, ec);
 
             // scan directory and populate cache
-            for(auto it = fs::directory_iterator(dirPath, ec); it != fs::directory_iterator{}; it.increment(ec)) {
-                const auto &dirEntry = *it;
-
-                std::string filename(dirEntry.path().filename().string());
-                File::FILETYPE type = File::FILETYPE::OTHER;
-
-                if(dirEntry.is_regular_file(ec))
-                    type = File::FILETYPE::FILE;
-                else if(dirEntry.is_directory(ec))
-                    type = File::FILETYPE::FOLDER;
-
-                ec = {};
-
-                // store both the actual filename and its type
-                newEntry.files[filename] = {filename, type};
+            std::vector<File::DirEntry> listing;
+            File::getDirectoryEntries(dirKey, File::DirContents::ALL, listing, /*withMetadata=*/false);
+            for(auto &dirEntry : listing) {
+                newEntry.files[std::move(dirEntry.name)] = dirEntry.type;
             }
 
             // insert into cache
@@ -110,7 +99,7 @@ class DirectoryCache final {
 
         // find the case-insensitive match
         auto fileIt = entry->files.find(filename);
-        if(fileIt != entry->files.end()) return fileIt->second;
+        if(fileIt != entry->files.end()) return {fileIt->first, fileIt->second};
 
         return {{}, File::FILETYPE::NONE};
     }
@@ -157,14 +146,37 @@ class DirectoryCache final {
 
 }  // namespace
 
-// NOLINTBEGIN(cppcoreguidelines-missing-std-forward)
-
 //------------------------------------------------------------------------------
 // directory queries
 //------------------------------------------------------------------------------
 // each platform provides enumerate_directory(path, types, withMetadata, sink): the listing filtered by types, handed
-// to sink(File::DirEntry &&) one entry at a time (. and .. skipped). withMetadata fills in mtime/size, which costs a
+// to sink(File::DirEntry) one entry at a time (. and .. skipped). withMetadata fills in mtime/size, which costs a
 // stat per entry where the listing itself doesn't carry them
+
+namespace {
+// needed for MSVC
+#if !defined(S_ISREG) && defined(S_IFMT) && defined(S_IFREG)
+#define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+#endif
+#if !defined(S_ISDIR) && defined(S_IFMT) && defined(S_IFDIR)
+#define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+#endif
+
+File::FILETYPE type_from_stat(const struct stat64 &st) {
+    using enum File::FILETYPE;
+    if(S_ISDIR(st.st_mode)) return FOLDER;
+    if(S_ISREG(st.st_mode)) return FILE;
+
+#ifdef S_ISLNK
+    if(S_ISLNK(st.st_mode)) {
+        logIfCV(debug_file, "WARNING: file is symlink (unfollowed, unknown type)");
+    }
+#endif
+
+    return OTHER;
+}
+
+}  // namespace
 
 #ifndef MCENGINE_PLATFORM_WINDOWS
 namespace {
@@ -188,7 +200,7 @@ u32 stat_to_nsec_mtime(const struct stat64 &st) noexcept {
 namespace {
 template <typename Sink>
 bool enumerate_directory(std::string_view pathToEnumView, File::DirContents types, bool withMetadata,
-                         Sink &&sink) noexcept {
+                         const Sink &sink) noexcept {
     using namespace flags::operators;
     const bool wantDirectories = !!(types & File::DirContents::DIRECTORIES);
     const bool wantFiles = !!(types & File::DirContents::FILES);
@@ -207,7 +219,7 @@ bool enumerate_directory(std::string_view pathToEnumView, File::DirContents type
         return false;
     }
 
-    struct dirent64 *entry;
+    struct dirent64 *entry;  // NOLINT
     while((entry = readdir64(dir)) != nullptr) {
         const char *name = &entry->d_name[0];
 
@@ -218,22 +230,25 @@ bool enumerate_directory(std::string_view pathToEnumView, File::DirContents type
 
         // d_type is supported on most linux filesystems (ext4, xfs, btrfs, etc)
         // but may be DT_UNKNOWN on network filesystems
-        struct stat64 st;
+        struct stat64 st;  // NOLINT
         bool stated = false;
-        bool isDir;
+        File::FILETYPE type;  // NOLINT
         if(entry->d_type != DT_UNKNOWN && entry->d_type != DT_LNK) {
-            isDir = (entry->d_type == DT_DIR);
+            type = entry->d_type == DT_DIR   ? File::FILETYPE::FOLDER
+                   : entry->d_type == DT_REG ? File::FILETYPE::FILE
+                                             : File::FILETYPE::OTHER;
         } else {
             // fallback for filesystems that don't populate d_type (and for symlinks, which count as what they point
             // at). relative to the open directory, so there's no path walk per entry
             if(fstatat64(fd, name, &st, 0) != 0) continue;  // gone in the meantime, or a dangling symlink
             stated = true;
-            isDir = S_ISDIR(st.st_mode);
+            type = type_from_stat(st);
         }
 
+        const bool isDir = type == File::FILETYPE::FOLDER;
         if(!((wantDirectories && isDir) || (wantFiles && !isDir))) continue;
 
-        File::DirEntry out{.name = name, .type = isDir ? File::FILETYPE::FOLDER : File::FILETYPE::FILE};
+        File::DirEntry out{.name = name, .type = type};
         if(withMetadata) {
             if(!stated && fstatat64(fd, name, &st, 0) != 0) continue;
             out.mtime = static_cast<i64>(st.st_mtime);
@@ -626,7 +641,7 @@ bool try_load_NTQDF() noexcept {
 }
 
 template <typename Sink>
-bool readdir_NTAPI(const std::wstring &dirPath, File::DirContents types, bool withMetadata, Sink &&sink) noexcept {
+bool readdir_NTAPI(const std::wstring &dirPath, File::DirContents types, bool withMetadata, const Sink &sink) noexcept {
     using enum File::DirContents;
     using namespace flags::operators;
     const bool wantDirectories = !!(types & DIRECTORIES);
@@ -720,7 +735,7 @@ bool readdir_NTAPI(const std::wstring &dirPath, File::DirContents types, bool wi
 }
 
 template <typename Sink>
-bool readdir_Win32(std::string_view pathToEnum, File::DirContents types, bool withMetadata, Sink &&sink) noexcept {
+bool readdir_Win32(std::string_view pathToEnum, File::DirContents types, bool withMetadata, const Sink &sink) noexcept {
     using enum File::DirContents;
     using namespace flags::operators;
     const bool wantDirectories = !!(types & DIRECTORIES);
@@ -781,7 +796,7 @@ bool readdir_Win32(std::string_view pathToEnum, File::DirContents types, bool wi
 // windows impl
 template <typename Sink>
 bool enumerate_directory(std::string_view pathToEnum, File::DirContents types, bool withMetadata,
-                         Sink &&sink) noexcept {
+                         const Sink &sink) noexcept {
     if(try_load_NTQDF()) {
         return readdir_NTAPI(adjust_path_(pathToEnum, true), types, withMetadata, sink);
     }
@@ -797,7 +812,7 @@ namespace {
 // for getting files in folder/ folders in folder (generic implementation)
 template <typename Sink>
 bool enumerate_directory(std::string_view pathToEnum, File::DirContents types, bool withMetadata,
-                         Sink &&sink) noexcept {
+                         const Sink &sink) noexcept {
     using namespace flags::operators;
     const bool wantDirectories = !!(types & File::DirContents::DIRECTORIES);
     const bool wantFiles = !!(types & File::DirContents::FILES);
@@ -806,13 +821,17 @@ bool enumerate_directory(std::string_view pathToEnum, File::DirContents types, b
     std::error_code ec;
     for(auto it = fs::directory_iterator(pathToEnum, ec); it != fs::directory_iterator{}; it.increment(ec)) {
         const auto &entry = *it;
-        auto fileType = entry.status(ec).type();
-        const bool isDir = fileType == fs::file_type::directory;
+        std::error_code statusEc;
+        const auto fileType = entry.status(statusEc).type();
+        if(statusEc || fileType == fs::file_type::not_found) continue;  // gone in the meantime, or a dangling symlink
 
-        if(!((wantFiles && fileType == fs::file_type::regular) || (wantDirectories && isDir))) continue;
+        const File::FILETYPE type = fileType == fs::file_type::directory ? File::FILETYPE::FOLDER
+                                    : fileType == fs::file_type::regular ? File::FILETYPE::FILE
+                                                                         : File::FILETYPE::OTHER;
+        const bool isDir = type == File::FILETYPE::FOLDER;
+        if(!((wantDirectories && isDir) || (wantFiles && !isDir))) continue;
 
-        File::DirEntry out{.name = entry.path().filename().generic_string(),
-                           .type = isDir ? File::FILETYPE::FOLDER : File::FILETYPE::FILE};
+        File::DirEntry out{.name = entry.path().filename().generic_string(), .type = type};
         if(withMetadata) {
             struct stat64 st{};
             if(File::stat_c(entry.path().string().c_str(), &st) != 0) continue;
@@ -838,49 +857,20 @@ bool enumerate_directory(std::string_view pathToEnum, File::DirContents types, b
 bool File::getDirectoryEntries(std::string_view toEnumerate, DirContents types,
                                std::vector<std::string> &utf8NamesOut) noexcept {
     if(toEnumerate.empty()) return false;
-    return enumerate_directory(
-        toEnumerate, types, false,
-        [&utf8NamesOut](DirEntry &&entry) -> void /* NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved) */
-        { utf8NamesOut.push_back(std::move(entry.name)); });
+    return enumerate_directory(toEnumerate, types, false,
+                               [&utf8NamesOut](DirEntry entry) { utf8NamesOut.push_back(std::move(entry.name)); });
 }
 
-bool File::getDirectoryEntries(std::string_view toEnumerate, DirContents types,
-                               std::vector<DirEntry> &entriesOut) noexcept {
+bool File::getDirectoryEntries(std::string_view toEnumerate, DirContents types, std::vector<DirEntry> &entriesOut,
+                               bool withMetadata) noexcept {
     if(toEnumerate.empty()) return false;
-    return enumerate_directory(toEnumerate, types, true,
-                               [&entriesOut](DirEntry &&entry) { entriesOut.push_back(std::move(entry)); });
+    return enumerate_directory(toEnumerate, types, withMetadata,
+                               [&entriesOut](DirEntry entry) { entriesOut.push_back(std::move(entry)); });
 }
-
-// NOLINTEND(cppcoreguidelines-missing-std-forward)
 
 #ifndef MCENGINE_PLATFORM_WINDOWS
 #define adjust_path(dummy__) dummy__
 #endif
-
-namespace {
-// needed for MSVC
-#if !defined(S_ISREG) && defined(S_IFMT) && defined(S_IFREG)
-#define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
-#endif
-#if !defined(S_ISDIR) && defined(S_IFMT) && defined(S_IFDIR)
-#define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
-#endif
-
-File::FILETYPE type_from_stat(const struct stat64 &st) {
-    using enum File::FILETYPE;
-    if(S_ISDIR(st.st_mode)) return FOLDER;
-    if(S_ISREG(st.st_mode)) return FILE;
-
-#ifdef S_ISLNK
-    if(S_ISLNK(st.st_mode)) {
-        logIfCV(debug_file, "WARNING: file is symlink (unfollowed, unknown type)");
-    }
-#endif
-
-    return OTHER;
-}
-
-}  // namespace
 
 //------------------------------------------------------------------------------
 // path resolution methods
