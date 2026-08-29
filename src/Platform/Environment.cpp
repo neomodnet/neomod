@@ -1335,6 +1335,8 @@ void Environment::setRawKeyboardInput(bool raw) {
 bool Environment::isCursorVisible() const { return SDL_CursorVisible(); }
 
 void Environment::setCursorVisible(bool visible) {
+    if(m_bHeadless) return;
+
     if(visible) {
         m_bHideCursorPending = false;
         // disable rawinput (allow regular mouse movement)
@@ -1364,6 +1366,8 @@ void Environment::setCursorVisible(bool visible) {
 
 void Environment::setCursorClip(bool clip, const McRect &rect) {
     m_cursorClipRect = rect;
+    if(m_bHeadless) return;
+
     if(clip) {
         const float pxd = getPixelDensity();
         SDL_Rect sdlClip = McRectToSDLRect(rect);
@@ -1388,8 +1392,9 @@ void Environment::setCursorClip(bool clip, const McRect &rect) {
 }
 
 void Environment::setOSMousePos(vec2 pos) {
-    SDL_WarpMouseInWindow(m_window, pos.x, pos.y);
     m_vLastAbsMousePos = pos;
+    if(m_bHeadless) return;
+    SDL_WarpMouseInWindow(m_window, pos.x, pos.y);
 }
 
 std::string Environment::scanCodeToString(SCANCODE scanCode) const {
