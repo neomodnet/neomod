@@ -2625,16 +2625,12 @@ bool is_osu_file(std::string_view name) {
     return name.size() > 4 && SString::strcase_equal(name.substr(name.size() - 4), ".osu");
 }
 
-i64 file_mtime(const std::string &path) {
-    struct stat64 st{};
-    return File::stat_c(path.c_str(), &st) == 0 ? static_cast<i64>(st.st_mtime) : 0;
-}
-
-// 0 if the folder doesn't exist (the trailing separator is stripped, _wstat64 rejects it on directories)
+// 0 if the folder doesn't exist (without the trailing separator, not every stat accepts one on directories)
 i64 folder_mtime(std::string_view folder) {
     std::string path{folder};
     while(path.size() > 1 && (path.back() == '/' || path.back() == '\\')) path.pop_back();
-    return file_mtime(path);
+    struct stat64 st{};
+    return File::stat_c(path.c_str(), &st) == 0 ? static_cast<i64>(st.st_mtime) : 0;
 }
 
 }  // namespace
@@ -2695,14 +2691,15 @@ std::unique_ptr<BeatmapSet> Database::loadRawBeatmap(std::string_view beatmapPat
 }
 
 ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_folder, ReconcileMode mode,
-                                          i32 set_id_override, std::unique_ptr<DiffContainer> preparsed) {
+                                          i32 set_id_override, std::unique_ptr<DiffContainer> preparsed,
+                                          i64 dir_mtime) {
     using enum ReconcileResult::Outcome;
     using enum DatabaseBeatmap::BeatmapType;
     ReconcileResult res;
 
     const std::string abs_folder = this->rootPath(root) + std::string{rel_folder} + "/";
     auto &folders = this->folderIndex(root);
-    const i64 dir_mtime = folder_mtime(abs_folder);
+    if(dir_mtime == 0) dir_mtime = folder_mtime(abs_folder);
 
     // snapshot the record (the map may rehash while this folder is being worked on)
     bool known = false;
@@ -2775,17 +2772,17 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
     } else {
         // 1. an old object keeps its file without it being opened if the mtime didn't move since it was verified
         //    (a record from before mtimes were verified is trusted and stamped)
-        for(auto &name : env->getFilesInFolder(abs_folder)) {
-            if(!is_osu_file(name)) continue;
-            Slot slot{.path = abs_folder + name};
-            const i64 mtime = file_mtime(slot.path);
-            if(mtime == 0) continue;  // unreadable
+        std::vector<File::DirEntry> files;
+        File::getDirectoryEntries(abs_folder, File::DirContents::FILES, files);
+        for(auto &file : files) {
+            if(!is_osu_file(file.name)) continue;
+            Slot slot{.path = abs_folder + file.name};
             if(old) {
                 const auto &old_diffs = old->getDifficulties();
                 if(auto it = std::ranges::find(old_diffs, std::string_view{slot.path}, &DatabaseBeatmap::getFilePath);
                    it != old_diffs.end()) {
-                    if((*it)->last_modification_time <= 0) (*it)->last_modification_time = mtime;
-                    if((*it)->last_modification_time == mtime) slot.kept = it->get();
+                    if((*it)->last_modification_time <= 0) (*it)->last_modification_time = file.mtime;
+                    if((*it)->last_modification_time == file.mtime) slot.kept = it->get();
                 }
             }
             slots.push_back(std::move(slot));
@@ -2973,9 +2970,14 @@ u32 Database::reconcileRoot(MapRoot root, const Sync::stop_token &tok, bool per_
     Timer t;
     t.start();
 
+    // the listing's mtimes are what the records get: a folder that changes between this listing and its
+    // reconcile is verified again next time (the other way around could record a change the parse didn't see)
     const std::string root_path = this->rootPath(root);
-    std::vector<std::string> on_disk = Environment::getFoldersInFolder(root_path);
-    Hash::flat::set<std::string_view> on_disk_set(on_disk.begin(), on_disk.end());
+    std::vector<File::DirEntry> on_disk;
+    File::getDirectoryEntries(root_path, File::DirContents::DIRECTORIES, on_disk);
+    Hash::flat::set<std::string_view> on_disk_set;
+    on_disk_set.reserve(on_disk.size());
+    for(const auto &e : on_disk) on_disk_set.insert(e.name);
 
     // snapshot the known folders (reconcileFolder mutates the map)
     std::vector<std::string> known;
@@ -3007,41 +3009,41 @@ u32 Database::reconcileRoot(MapRoot root, const Sync::stop_token &tok, bool per_
     }
 
     // unknown folders are parsed in parallel (same bounded window and deadlock-freedom argument as importLooseOsz)
-    std::vector<std::string> unknown;
-    for(const auto &name : on_disk) {
-        if(!known_set.contains(name)) unknown.push_back(name);
+    std::vector<const File::DirEntry *> unknown;
+    for(const auto &e : on_disk) {
+        if(!known_set.contains(e.name)) unknown.push_back(&e);
     }
     if(!unknown.empty()) {
         const uSz window_size = std::min<uSz>(std::clamp<uSz>(Async::get_thread_count(), 4, 16), unknown.size());
-        auto submit_parse = [&root_path, root](const std::string &rel) {
+        auto submit_parse = [&root_path, root](const File::DirEntry &e) {
             return Async::submit(
-                [path = root_path + rel + "/", root] { return parseFolderDiffs(path, root == MapRoot::Peppy); },
+                [path = root_path + e.name + "/", root] { return parseFolderDiffs(path, root == MapRoot::Peppy); },
                 Lane::Background);
         };
         std::vector<Async::Future<std::unique_ptr<DiffContainer>>> window(window_size);
-        for(uSz i = 0; i < window_size; i++) window[i] = submit_parse(unknown[i]);
+        for(uSz i = 0; i < window_size; i++) window[i] = submit_parse(*unknown[i]);
 
         for(uSz i = 0; i < unknown.size(); i++) {
             if(tok.stop_requested())
                 return n_created;  // in-flight parses are abandoned, their folders are picked up next time
 
-            const auto r = this->reconcileFolder(root, unknown[i], ReconcileMode::TrustFolderMtime, -1,
-                                                 window[i % window_size].get());
+            const auto r = this->reconcileFolder(root, unknown[i]->name, ReconcileMode::TrustFolderMtime, -1,
+                                                 window[i % window_size].get(), unknown[i]->mtime);
             n_created += r.outcome == Created;
             n_parsed += r.parsed;
             this->stage_done.store(++done, std::memory_order_release);
 
             if(const uSz next = i + window_size; next < unknown.size()) {
-                window[i % window_size] = submit_parse(unknown[next]);
+                window[i % window_size] = submit_parse(*unknown[next]);
             }
         }
     }
 
-    for(const auto &name : on_disk) {
-        if(!known_set.contains(name)) continue;
+    for(const auto &e : on_disk) {
+        if(!known_set.contains(e.name)) continue;
         if(tok.stop_requested()) return n_created;
         const auto r = this->reconcileFolder(
-            root, name, per_file ? ReconcileMode::PerFile : ReconcileMode::TrustFolderMtime, -1, nullptr);
+            root, e.name, per_file ? ReconcileMode::PerFile : ReconcileMode::TrustFolderMtime, -1, nullptr, e.mtime);
         n_updated += r.outcome == Updated || r.outcome == Removed;
         n_parsed += r.parsed;
         this->stage_done.store(++done, std::memory_order_release);

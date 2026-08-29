@@ -1,6 +1,7 @@
 // Copyright (c) 2025 kiwec, All rights reserved.
 #include "DirectoryWatcher.h"
 
+#include "File.h"
 #include "Logging.h"
 #include "Thread.h"
 #include "Hashing.h"
@@ -9,6 +10,7 @@
 #include "SyncMutex.h"
 
 #include <algorithm>
+#include <filesystem>
 #include <utility>
 #include <vector>
 #include <atomic>
@@ -61,6 +63,9 @@ struct DirWatcherImpl {
         UnconfirmedEvent(FileChangeEvent fevent) : UnconfirmedEvent() { this->event = std::move(fevent); }
         FileChangeEvent event{};
         u8 stable_checks{0};  // consecutive checks where timestamp was stable
+#ifdef MCENGINE_PLATFORM_WINDOWS
+        fs::file_time_type last_write{};  // what the timestamp was at the last check
+#endif
     };
 
     Sync::mutex directories_mtx;
@@ -301,9 +306,8 @@ struct DirWatcherImpl {
                     // Handle deletions immediately
                     if(ec || (file_status.type() != fs::file_type::regular && !is_dir)) {
                         if(notify->Action == FILE_ACTION_REMOVED || notify->Action == FILE_ACTION_RENAMED_OLD_NAME) {
-                            this->queue_finished_event(state.cb, FileChangeEvent{.path = std_filepath,
-                                                                                 .type = FileChangeType::DELETED,
-                                                                                 .tms = fs::file_time_type{}});
+                            this->queue_finished_event(
+                                state.cb, FileChangeEvent{.path = std_filepath, .type = FileChangeType::DELETED});
                             state.unconfirmed_events.erase(std_filepath);
                         }
                     } else {
@@ -323,12 +327,13 @@ struct DirWatcherImpl {
                                 if(existing.event.type != FileChangeType::CREATED) {
                                     existing.event.type = change_type;
                                 }
-                                existing.event.tms = file_time;
+                                existing.last_write = file_time;
                                 existing.stable_checks = 0;
                             } else {
                                 // New unconfirmed event
-                                state.unconfirmed_events[std_filepath] = UnconfirmedEvent(
-                                    {.path = std_filepath, .type = change_type, .tms = file_time, .is_dir = is_dir});
+                                auto& unconfirmed = state.unconfirmed_events[std_filepath] =
+                                    UnconfirmedEvent({.path = std_filepath, .type = change_type, .is_dir = is_dir});
+                                unconfirmed.last_write = file_time;
                             }
                         }
                     }
@@ -354,7 +359,7 @@ struct DirWatcherImpl {
                     }
 
                     // Check if timestamp is stable
-                    if(current_time == unconfirmed.event.tms) {
+                    if(current_time == unconfirmed.last_write) {
                         unconfirmed.stable_checks++;
 
                         // Only confirm after 2+ consecutive stable checks
@@ -364,7 +369,7 @@ struct DirWatcherImpl {
                         }
                     } else {
                         // Timestamp changed, reset counter and update
-                        unconfirmed.event.tms = current_time;
+                        unconfirmed.last_write = current_time;
                         unconfirmed.stable_checks = 0;
                     }
                 }
@@ -387,7 +392,8 @@ struct DirWatcherImpl {
     void notify_thread() {}
 
     struct Stamp {
-        fs::file_time_type mtime{};
+        i64 mtime{0};
+        u32 mtime_nsec{0};
         bool is_dir{false};
         bool operator==(const Stamp&) const = default;
     };
@@ -418,17 +424,15 @@ struct DirWatcherImpl {
         static auto getFileTimes = [](const std::string& dir_path) -> Hash::stable_stringmap<Stamp> {
             Hash::stable_stringmap<Stamp> files;
 
-            std::error_code ec;
-            for(auto it = fs::directory_iterator(dir_path, ec); it != fs::directory_iterator{}; it.increment(ec)) {
-                const auto& entry = *it;
-                // files and direct subdirectories: a directory's mtime moves while entries are being added to it,
-                // so a folder being copied in debounces just like a file being written
-                const bool is_dir = entry.is_directory(ec);
-                if(!is_dir && !entry.is_regular_file(ec)) continue;
-
-                auto time = fs::last_write_time(entry, ec);
-                if(ec) continue;
-                files[entry.path().string()] = {.mtime = time, .is_dir = is_dir};
+            // files and direct subdirectories: a directory's mtime moves while entries are being added to it,
+            // so a folder being copied in debounces just like a file being written. the listing carries the
+            // mtimes, so nothing is stat'ed by path
+            std::vector<File::DirEntry> entries;
+            File::getDirectoryEntries(dir_path, File::DirContents::ALL, entries);
+            for(const auto& entry : entries) {
+                files[dir_path + entry.name] = {.mtime = entry.mtime,
+                                                .mtime_nsec = entry.mtime_nsec,
+                                                .is_dir = entry.type == File::FILETYPE::FOLDER};
             }
 
             return files;
@@ -493,49 +497,45 @@ struct DirWatcherImpl {
                 auto latest_files = getFileTimes(path);
 
                 // Deletions
-                for(auto& [file, tms] : state.files) {
+                for(auto& [file, stamp] : state.files) {
                     if(!latest_files.contains(file)) {
                         // drop any pending unconfirmed event for it, like the windows path does
                         state.unconfirmed_events.erase(file);
                         this->queue_finished_event(
                             state.cb,
-                            FileChangeEvent{
-                                .path = file, .type = FileChangeType::DELETED, .tms = tms.mtime, .is_dir = tms.is_dir});
+                            FileChangeEvent{.path = file, .type = FileChangeType::DELETED, .is_dir = stamp.is_dir});
                         continue;
                     }
                 }
 
-                for(auto& [file, tms] : latest_files) {
+                for(auto& [file, stamp] : latest_files) {
                     // Creations
                     if(!state.files.contains(file)) {
-                        state.unconfirmed_events[file] = UnconfirmedEvent(
-                            {.path = file, .type = FileChangeType::CREATED, .tms = tms.mtime, .is_dir = tms.is_dir});
+                        state.unconfirmed_events[file] =
+                            UnconfirmedEvent({.path = file, .type = FileChangeType::CREATED, .is_dir = stamp.is_dir});
 
                         continue;
                     }
 
                     // Modifications
-                    if(state.files[file] != tms) {
+                    if(state.files[file] != stamp) {
                         auto it = state.unconfirmed_events.find(file);
                         if(it != state.unconfirmed_events.end()) {
                             auto& existing = it->second;
-                            // Update timestamp and reset stability, but preserve CREATED type
+                            // Reset stability, but preserve CREATED type
                             if(existing.event.type != FileChangeType::CREATED) {
                                 existing.event.type = FileChangeType::MODIFIED;
                             }
-                            existing.event.tms = tms.mtime;
                             existing.stable_checks = 0;
                         } else {
-                            state.unconfirmed_events[file] = UnconfirmedEvent({.path = file,
-                                                                               .type = FileChangeType::MODIFIED,
-                                                                               .tms = tms.mtime,
-                                                                               .is_dir = tms.is_dir});
+                            state.unconfirmed_events[file] = UnconfirmedEvent(
+                                {.path = file, .type = FileChangeType::MODIFIED, .is_dir = stamp.is_dir});
                         }
                         continue;
                     }
 
                     // Finalization check (timestamp stable)
-                    if(state.files[file] == tms) {
+                    if(state.files[file] == stamp) {
                         auto it = state.unconfirmed_events.find(file);
                         if(it != state.unconfirmed_events.end()) {
                             auto& existing = it->second;

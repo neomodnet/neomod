@@ -5,8 +5,8 @@
 #include "types.h"
 #include "StaticPImpl.h"
 
-#include <filesystem>
 #include <functional>
+#include <string>
 
 enum class FileChangeType : u8 {
     CREATED,
@@ -17,7 +17,6 @@ enum class FileChangeType : u8 {
 struct FileChangeEvent {
     std::string path;
     FileChangeType type;
-    std::filesystem::file_time_type tms;
     bool is_dir{false};  // a direct subdirectory (one level, its mtime moves when entries inside it change)
 };
 

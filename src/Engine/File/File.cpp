@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cerrno>
 #include <chrono>
 #include <filesystem>
 #include <utility>
@@ -81,7 +82,7 @@ class DirectoryCache final {
 
             // scan directory and populate cache
             for(auto it = fs::directory_iterator(dirPath, ec); it != fs::directory_iterator{}; it.increment(ec)) {
-                const auto& dirEntry = *it;
+                const auto &dirEntry = *it;
 
                 std::string filename(dirEntry.path().filename().string());
                 File::FILETYPE type = File::FILETYPE::OTHER;
@@ -156,9 +157,26 @@ class DirectoryCache final {
 
 }  // namespace
 
+// NOLINTBEGIN(cppcoreguidelines-missing-std-forward)
+
 //------------------------------------------------------------------------------
 // directory queries
 //------------------------------------------------------------------------------
+// each platform provides enumerate_directory(path, types, withMetadata, sink): the listing filtered by types, handed
+// to sink(File::DirEntry &&) one entry at a time (. and .. skipped). withMetadata fills in mtime/size, which costs a
+// stat per entry where the listing itself doesn't carry them
+
+#ifndef MCENGINE_PLATFORM_WINDOWS
+namespace {
+u32 stat_to_nsec_mtime(const struct stat64 &st) noexcept {
+#ifdef MCENGINE_PLATFORM_MACOS
+    return static_cast<u32>(st.st_mtimespec.tv_nsec);
+#else
+    return static_cast<u32>(st.st_mtim.tv_nsec);
+#endif
+}
+}  // namespace
+#endif
 
 #if ((defined(MCENGINE_PLATFORM_MACOS) || defined(MCENGINE_PLATFORM_LINUX)) && defined(_GNU_SOURCE)) || \
     ((defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 200809L)) || defined(_ATFILE_SOURCE))
@@ -167,13 +185,13 @@ class DirectoryCache final {
 #include <fcntl.h>
 #include <unistd.h>
 
-bool File::getDirectoryEntries(std::string_view pathToEnumView, DirContents types,
-                               std::vector<std::string> &utf8NamesOut) noexcept {
-    if(pathToEnumView.empty()) return false;
-
+namespace {
+template <typename Sink>
+bool enumerate_directory(std::string_view pathToEnumView, File::DirContents types, bool withMetadata,
+                         Sink &&sink) noexcept {
     using namespace flags::operators;
-    const bool wantDirectories = !!(types & DirContents::DIRECTORIES);
-    const bool wantFiles = !!(types & DirContents::FILES);
+    const bool wantDirectories = !!(types & File::DirContents::DIRECTORIES);
+    const bool wantFiles = !!(types & File::DirContents::FILES);
 
     const std::string pathToEnum{pathToEnumView};
     const int fd = openat64(AT_FDCWD, pathToEnum.c_str(), O_RDONLY | O_CLOEXEC | O_DIRECTORY);
@@ -189,8 +207,6 @@ bool File::getDirectoryEntries(std::string_view pathToEnumView, DirContents type
         return false;
     }
 
-    utf8NamesOut.reserve(512);
-
     struct dirent64 *entry;
     while((entry = readdir64(dir)) != nullptr) {
         const char *name = &entry->d_name[0];
@@ -202,24 +218,36 @@ bool File::getDirectoryEntries(std::string_view pathToEnumView, DirContents type
 
         // d_type is supported on most linux filesystems (ext4, xfs, btrfs, etc)
         // but may be DT_UNKNOWN on network filesystems
+        struct stat64 st;
+        bool stated = false;
         bool isDir;
-        if(entry->d_type != DT_UNKNOWN) {
+        if(entry->d_type != DT_UNKNOWN && entry->d_type != DT_LNK) {
             isDir = (entry->d_type == DT_DIR);
         } else {
-            // fallback for filesystems that don't populate d_type
-            struct stat64 st;
-            isDir = (fstatat64(fd, name, &st, 0) == 0 && S_ISDIR(st.st_mode));
+            // fallback for filesystems that don't populate d_type (and for symlinks, which count as what they point
+            // at). relative to the open directory, so there's no path walk per entry
+            if(fstatat64(fd, name, &st, 0) != 0) continue;  // gone in the meantime, or a dangling symlink
+            stated = true;
+            isDir = S_ISDIR(st.st_mode);
         }
 
-        if((wantDirectories && isDir) || (wantFiles && !isDir)) {
-            utf8NamesOut.emplace_back(name);
+        if(!((wantDirectories && isDir) || (wantFiles && !isDir))) continue;
+
+        File::DirEntry out{.name = name, .type = isDir ? File::FILETYPE::FOLDER : File::FILETYPE::FILE};
+        if(withMetadata) {
+            if(!stated && fstatat64(fd, name, &st, 0) != 0) continue;
+            out.mtime = static_cast<i64>(st.st_mtime);
+            out.mtime_nsec = stat_to_nsec_mtime(st);
+            out.size = isDir ? 0 : static_cast<u64>(st.st_size);
         }
+        sink(std::move(out));
     }
 
     closedir(dir);  // also closes fd
 
     return true;
 }
+}  // namespace
 
 #elif defined(MCENGINE_PLATFORM_WINDOWS)  // the win32 api is just WAY faster for this than std::filesystem
 
@@ -232,6 +260,7 @@ bool File::getDirectoryEntries(std::string_view pathToEnumView, DirContents type
 #include <heapapi.h>
 #include <errhandlingapi.h>
 #include <handleapi.h>
+#include <winerror.h>
 
 #include <string>
 namespace {
@@ -247,7 +276,7 @@ using wine_get_dos_file_name_t = LPWSTR CDECL(LPCSTR);
 wine_get_dos_file_name_t *pwine_get_dos_file_name{nullptr};
 bool tried_load_wine_func{false};
 
-void normalizeWideSlashes(std::wstring &str, wchar_t oldSlash, wchar_t newSlash) noexcept {
+void normalize_wide_slashes(std::wstring &str, wchar_t oldSlash, wchar_t newSlash) noexcept {
     std::ranges::replace(str, oldSlash, newSlash);
 
     bool prev = false;
@@ -258,7 +287,7 @@ void normalizeWideSlashes(std::wstring &str, wchar_t oldSlash, wchar_t newSlash)
     });
 }
 
-forceinline std::wstring adjustPath_(std::string_view filepathNarrow, bool forceLongPath) noexcept {
+std::wstring adjust_path_(std::string_view filepathNarrow, bool forceLongPath) noexcept {
     static constexpr const std::wstring_view extPrefix{LR"(\\?\)"sv};
     static constexpr const std::wstring_view devicePrefix{LR"(\\.\)"sv};
     static constexpr const std::wstring_view extUncPrefix{LR"(\\?\UNC\)"sv};
@@ -334,7 +363,7 @@ forceinline std::wstring adjustPath_(std::string_view filepathNarrow, bool force
     }
 
     std::wstring path{filepath.substr(stripLen)};
-    normalizeWideSlashes(path, L'/', L'\\');
+    normalize_wide_slashes(path, L'/', L'\\');
 
     if(resolveAbsolute) {
         DWORD len = GetFullPathNameW(path.c_str(), 0, nullptr, nullptr);
@@ -369,7 +398,7 @@ forceinline std::wstring adjustPath_(std::string_view filepathNarrow, bool force
     return outputPrefix + path;
 }
 
-std::wstring adjustPath(std::string_view filepath) noexcept {
+std::wstring adjust_path(std::string_view filepath) noexcept {
     if(!std_filesystem_supports_long_paths) return UniString::to_wide(filepath);
 
     Sync::call_once(long_path_check, []() {
@@ -381,7 +410,7 @@ std::wstring adjustPath(std::string_view filepath) noexcept {
         }
 
         std::string narrowPath{UniString::to_utf8(std::wstring_view{buf.data(), length})};
-        std::wstring wPath = adjustPath_(narrowPath, false);
+        std::wstring wPath = adjust_path_(narrowPath, false);
 
         if(wPath.length() == 0) {
             std_filesystem_supports_long_paths = false;
@@ -402,7 +431,7 @@ std::wstring adjustPath(std::string_view filepath) noexcept {
         return UniString::to_wide(filepath);
     }
 
-    return adjustPath_(filepath, false);
+    return adjust_path_(filepath, false);
 }
 
 #ifndef FILE_FLAG_BACKUP_SEMANTICS
@@ -412,6 +441,87 @@ std::wstring adjustPath(std::string_view filepath) noexcept {
 #ifndef FILE_LIST_DIRECTORY
 #define FILE_LIST_DIRECTORY 0x0001
 #endif
+
+// a filetime (100ns intervals since 1601) as unix seconds + the sub-second remainder, straight from utc
+struct UnixTime {
+    i64 sec;
+    u32 nsec;
+};
+
+UnixTime file_time_to_unix(i64 fileTime) noexcept {
+    const i64 t = fileTime - 116444736000000000LL;
+    i64 sec = t / 10000000LL;
+    i64 rem = t % 10000000LL;
+    if(rem < 0) {  // (a pre-1970 timestamp)
+        sec--;
+        rem += 10000000LL;
+    }
+    return {.sec = sec, .nsec = static_cast<u32>(rem * 100)};
+}
+
+i64 file_time_to_int(const FILETIME &ft) noexcept {
+    return static_cast<i64>((static_cast<u64>(ft.dwHighDateTime) << 32) | ft.dwLowDateTime);
+}
+
+// the attributes of what a path points at (symlinks/junctions are followed, like stat() does)
+bool get_attributes_w(const wchar_t *path, WIN32_FILE_ATTRIBUTE_DATA &data) noexcept {
+    if(!GetFileAttributesExW(path, GetFileExInfoStandard, &data)) return false;
+    if(!(data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)) return true;
+
+    HANDLE handle = CreateFileW(path, FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+    if(handle == INVALID_HANDLE_VALUE /* NOLINT */) return false;
+    BY_HANDLE_FILE_INFORMATION info;
+    const bool ok = GetFileInformationByHandle(handle, &info);
+    CloseHandle(handle);
+    if(!ok) return false;
+
+    data.dwFileAttributes = info.dwFileAttributes;
+    data.ftCreationTime = info.ftCreationTime;
+    data.ftLastAccessTime = info.ftLastAccessTime;
+    data.ftLastWriteTime = info.ftLastWriteTime;
+    data.nFileSizeHigh = info.nFileSizeHigh;
+    data.nFileSizeLow = info.nFileSizeLow;
+    return true;
+}
+
+// stat64 from the win32 attributes
+int stat_w(const wchar_t *path, struct stat64 *st) noexcept {
+    WIN32_FILE_ATTRIBUTE_DATA data;
+    if(!get_attributes_w(path, data)) {
+        const DWORD err = GetLastError();
+        errno =
+            (err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND || err == ERROR_INVALID_NAME) ? ENOENT : EACCES;
+        return -1;
+    }
+    *st = {};
+    st->st_mode = (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? _S_IFDIR : _S_IFREG;
+    st->st_size = static_cast<decltype(st->st_size)>((static_cast<u64>(data.nFileSizeHigh) << 32) | data.nFileSizeLow);
+    st->st_mtime = file_time_to_unix(file_time_to_int(data.ftLastWriteTime)).sec;
+    st->st_atime = file_time_to_unix(file_time_to_int(data.ftLastAccessTime)).sec;
+    st->st_ctime = file_time_to_unix(file_time_to_int(data.ftCreationTime)).sec;  // (what the crt puts there)
+    return 0;
+}
+
+// the metadata a listing carries for an entry. a listing only describes a link itself, so the target's is looked up
+// for those
+void set_listed_metadata(File::DirEntry &out, DWORD attrs, i64 writeTime, u64 size, std::wstring_view dirPath,
+                         std::wstring_view name) noexcept {
+    if(attrs & FILE_ATTRIBUTE_REPARSE_POINT) {
+        std::wstring target{dirPath};
+        if(!target.ends_with(L'\\') && !target.ends_with(L'/')) target.push_back(L'\\');
+        target.append(name);
+        if(WIN32_FILE_ATTRIBUTE_DATA data; get_attributes_w(target.c_str(), data)) {
+            attrs = data.dwFileAttributes;
+            writeTime = file_time_to_int(data.ftLastWriteTime);
+            size = (static_cast<u64>(data.nFileSizeHigh) << 32) | data.nFileSizeLow;
+        }
+    }
+    const auto [sec, nsec] = file_time_to_unix(writeTime);
+    out.mtime = sec;
+    out.mtime_nsec = nsec;
+    out.size = (attrs & FILE_ATTRIBUTE_DIRECTORY) ? 0 : size;
+}
 
 // reference:
 // https://github.com/xfeeefeee/node-windows-readdir-fast/blob/main/readdirFast.cc
@@ -474,7 +584,7 @@ NtQueryDirectoryFile_t *pNtQueryDirectoryFile{nullptr};
 Sync::once_flag ntqdf_loaded_once;
 bool ntqdf_available{false};
 
-bool tryLoadNTQDF() noexcept {
+bool try_load_NTQDF() noexcept {
     Sync::call_once(ntqdf_loaded_once, []() {
         auto *ntdll_handle{reinterpret_cast<dynutils::lib_obj *>(GetModuleHandle(TEXT("ntdll.dll")))};
         if(ntdll_handle) {
@@ -515,8 +625,8 @@ bool tryLoadNTQDF() noexcept {
     return ntqdf_available;
 }
 
-bool readdirNTAPI(const std::wstring &dirPath, File::DirContents types,
-                  std::vector<std::string> &utf8NamesOut) noexcept {
+template <typename Sink>
+bool readdir_NTAPI(const std::wstring &dirPath, File::DirContents types, bool withMetadata, Sink &&sink) noexcept {
     using enum File::DirContents;
     using namespace flags::operators;
     const bool wantDirectories = !!(types & DIRECTORIES);
@@ -559,8 +669,6 @@ bool readdirNTAPI(const std::wstring &dirPath, File::DirContents types,
         return false;
     }
 
-    utf8NamesOut.reserve(512);
-
     for(;;) {
         auto *entry = reinterpret_cast<FILE_DIRECTORY_INFORMATION *>(buffer);
         for(;;) {
@@ -573,7 +681,13 @@ bool readdirNTAPI(const std::wstring &dirPath, File::DirContents types,
             if(!isDot) {
                 const bool isDir = !!(entry->FileAttributes & FILE_ATTRIBUTE_DIRECTORY);
                 if((wantDirectories && isDir) || (wantFiles && !isDir)) {
-                    utf8NamesOut.push_back(UniString::to_utf8(std::wstring_view{name, cchName}));
+                    File::DirEntry out{.name = UniString::to_utf8(std::wstring_view{name, cchName}),
+                                       .type = isDir ? File::FILETYPE::FOLDER : File::FILETYPE::FILE};
+                    if(withMetadata) {
+                        set_listed_metadata(out, entry->FileAttributes, entry->LastWriteTime.QuadPart,
+                                            static_cast<u64>(entry->EndOfFile.QuadPart), dirPath, {name, cchName});
+                    }
+                    sink(std::move(out));
                 }
             }
 
@@ -605,8 +719,8 @@ bool readdirNTAPI(const std::wstring &dirPath, File::DirContents types,
     return true;
 }
 
-bool readdirWin32(std::string_view pathToEnum, File::DirContents types,
-                  std::vector<std::string> &utf8NamesOut) noexcept {
+template <typename Sink>
+bool readdir_Win32(std::string_view pathToEnum, File::DirContents types, bool withMetadata, Sink &&sink) noexcept {
     using enum File::DirContents;
     using namespace flags::operators;
     const bool wantDirectories = !!(types & DIRECTORIES);
@@ -629,13 +743,11 @@ bool readdirWin32(std::string_view pathToEnum, File::DirContents types,
         }
         folder.append(endSep);
     }
-    folder.append(L"*.*");
+    const std::wstring pattern{folder + L"*.*"};
 
     WIN32_FIND_DATAW data{};
-    HANDLE handle = FindFirstFileW(folder.c_str(), &data);
+    HANDLE handle = FindFirstFileW(pattern.c_str(), &data);
     if(handle != INVALID_HANDLE_VALUE /* NOLINT */) {
-        utf8NamesOut.reserve(512);
-
         do {
             const wchar_t *wFilename = &data.cFileName[0];
             const size_t length = std::wcslen(wFilename);
@@ -647,7 +759,14 @@ bool readdirWin32(std::string_view pathToEnum, File::DirContents types,
 
             const bool isDir = !!(data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
             if((wantDirectories && isDir) || (wantFiles && !isDir)) {
-                utf8NamesOut.push_back(UniString::to_utf8(std::wstring_view{wFilename, length}));
+                File::DirEntry out{.name = UniString::to_utf8(std::wstring_view{wFilename, length}),
+                                   .type = isDir ? File::FILETYPE::FOLDER : File::FILETYPE::FILE};
+                if(withMetadata) {
+                    set_listed_metadata(out, data.dwFileAttributes, file_time_to_int(data.ftLastWriteTime),
+                                        (static_cast<u64>(data.nFileSizeHigh) << 32) | data.nFileSizeLow, folder,
+                                        {wFilename, length});
+                }
+                sink(std::move(out));
             }
         } while(FindNextFileW(handle, &data));
 
@@ -659,56 +778,83 @@ bool readdirWin32(std::string_view pathToEnum, File::DirContents types,
     return true;
 }
 
-}  // namespace
-
 // windows impl
-bool File::getDirectoryEntries(std::string_view pathToEnum, DirContents types,
-                               std::vector<std::string> &utf8NamesOut) noexcept {
-    if(pathToEnum.empty()) return false;
-
-    if(tryLoadNTQDF()) {
-        return readdirNTAPI(adjustPath_(pathToEnum, true), types, utf8NamesOut);
+template <typename Sink>
+bool enumerate_directory(std::string_view pathToEnum, File::DirContents types, bool withMetadata,
+                         Sink &&sink) noexcept {
+    if(try_load_NTQDF()) {
+        return readdir_NTAPI(adjust_path_(pathToEnum, true), types, withMetadata, sink);
     }
 
-    return readdirWin32(pathToEnum, types, utf8NamesOut);
+    return readdir_Win32(pathToEnum, types, withMetadata, sink);
 }
+
+}  // namespace
 
 #else
 
-// for getting files in folder/ folders in folder
-bool File::getDirectoryEntries(std::string_view pathToEnum, DirContents types,
-                               std::vector<std::string> &utf8NamesOut) noexcept {
-    if(pathToEnum.empty()) return false;
-
+namespace {
+// for getting files in folder/ folders in folder (generic implementation)
+template <typename Sink>
+bool enumerate_directory(std::string_view pathToEnum, File::DirContents types, bool withMetadata,
+                         Sink &&sink) noexcept {
     using namespace flags::operators;
-    const bool wantDirectories = !!(types & DirContents::DIRECTORIES);
-    const bool wantFiles = !!(types & DirContents::FILES);
+    const bool wantDirectories = !!(types & File::DirContents::DIRECTORIES);
+    const bool wantFiles = !!(types & File::DirContents::FILES);
 
-    utf8NamesOut.reserve(512);
-
+    bool listedAny = false;
     std::error_code ec;
     for(auto it = fs::directory_iterator(pathToEnum, ec); it != fs::directory_iterator{}; it.increment(ec)) {
-        const auto& entry = *it;
+        const auto &entry = *it;
         auto fileType = entry.status(ec).type();
+        const bool isDir = fileType == fs::file_type::directory;
 
-        if((wantFiles && fileType == fs::file_type::regular) ||
-           (wantDirectories && fileType == fs::file_type::directory)) {
-            utf8NamesOut.emplace_back(entry.path().filename().generic_string());
+        if(!((wantFiles && fileType == fs::file_type::regular) || (wantDirectories && isDir))) continue;
+
+        File::DirEntry out{.name = entry.path().filename().generic_string(),
+                           .type = isDir ? File::FILETYPE::FOLDER : File::FILETYPE::FILE};
+        if(withMetadata) {
+            struct stat64 st{};
+            if(File::stat_c(entry.path().string().c_str(), &st) != 0) continue;
+            out.mtime = static_cast<i64>(st.st_mtime);
+            out.mtime_nsec = stat_to_nsec_mtime(st);
+            out.size = isDir ? 0 : static_cast<u64>(st.st_size);
         }
+        sink(std::move(out));
+        listedAny = true;
     }
 
-    if(ec && utf8NamesOut.empty()) {
+    if(ec && !listedAny) {
         debugLog("Failed to enumerate directory: {}", ec.message());
         return false;
     }
 
     return true;
 }
+}  // namespace
 
 #endif  // MCENGINE_PLATFORM_WINDOWS
 
+bool File::getDirectoryEntries(std::string_view toEnumerate, DirContents types,
+                               std::vector<std::string> &utf8NamesOut) noexcept {
+    if(toEnumerate.empty()) return false;
+    return enumerate_directory(
+        toEnumerate, types, false,
+        [&utf8NamesOut](DirEntry &&entry) -> void /* NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved) */
+        { utf8NamesOut.push_back(std::move(entry.name)); });
+}
+
+bool File::getDirectoryEntries(std::string_view toEnumerate, DirContents types,
+                               std::vector<DirEntry> &entriesOut) noexcept {
+    if(toEnumerate.empty()) return false;
+    return enumerate_directory(toEnumerate, types, true,
+                               [&entriesOut](DirEntry &&entry) { entriesOut.push_back(std::move(entry)); });
+}
+
+// NOLINTEND(cppcoreguidelines-missing-std-forward)
+
 #ifndef MCENGINE_PLATFORM_WINDOWS
-#define adjustPath(dummy__) dummy__
+#define adjust_path(dummy__) dummy__
 #endif
 
 namespace {
@@ -720,7 +866,7 @@ namespace {
 #define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
 #endif
 
-File::FILETYPE typeFromStat(const struct stat64 &st) {
+File::FILETYPE type_from_stat(const struct stat64 &st) {
     using enum File::FILETYPE;
     if(S_ISDIR(st.st_mode)) return FOLDER;
     if(S_ISREG(st.st_mode)) return FILE;
@@ -812,7 +958,7 @@ File::FILETYPE File::exists(std::string_view filePath, const fs::path &path) {
         return MAYBE_INSENSITIVE;
     }
 
-    return typeFromStat(tempst);
+    return type_from_stat(tempst);
 #endif
 }
 
@@ -830,7 +976,7 @@ void File::normalizeSlashes(std::string &str, unsigned char oldSlash, unsigned c
 fs::path File::getFsPath(std::string_view utf8path) {
     if(utf8path.empty()) return fs::path{};
 #ifdef MCENGINE_PLATFORM_WINDOWS
-    return fs::path{adjustPath(utf8path)};
+    return fs::path{adjust_path(utf8path)};
 #else
     return fs::path{utf8path};
 #endif
@@ -839,7 +985,7 @@ fs::path File::getFsPath(std::string_view utf8path) {
 FILE *File::fopen_c(const char *__restrict utf8filename, const char *__restrict modes) noexcept {
 #ifdef MCENGINE_PLATFORM_WINDOWS
     if(utf8filename == nullptr || utf8filename[0] == '\0') return nullptr;
-    const std::wstring wideFilename{adjustPath(std::string_view{utf8filename})};
+    const std::wstring wideFilename{adjust_path(std::string_view{utf8filename})};
     const std::wstring wideModes{UniString::to_wide(std::string_view{modes})};
     return _wfopen(wideFilename.c_str(), wideModes.c_str());
 #else
@@ -853,8 +999,8 @@ int File::stat_c(const char *__restrict utf8filename, struct stat64 *__restrict 
         errno = EINVAL;
         return -1;
     }
-    const std::wstring wideFilename{adjustPath(std::string_view{utf8filename})};
-    return _wstat64(wideFilename.c_str(), buffer);
+    const std::wstring wideFilename{adjust_path(std::string_view{utf8filename})};
+    return stat_w(wideFilename.c_str(), buffer);
 #else
     return stat64(utf8filename, buffer);
 #endif
@@ -900,7 +1046,7 @@ bool File::openForReading() {
     // get file stats
     // not using the stat_c helper because that would do redundant path conversion/validation
 #ifdef MCENGINE_PLATFORM_WINDOWS
-    statRet = _wstat64(this->fsPath.wstring().c_str(), &this->fsstat);
+    statRet = stat_w(this->fsPath.c_str(), &this->fsstat);
     if(statRet == 0) {
         // convert fs::path back to utf8
         this->sFilePath = UniString::to_utf8(this->fsPath.wstring());
@@ -924,7 +1070,7 @@ bool File::openForReading() {
     }
 
     // get type from stat
-    if(typeFromStat(this->fsstat) != FILETYPE::FILE) {
+    if(type_from_stat(this->fsstat) != FILETYPE::FILE) {
         logIfCV(debug_file, "File Error: Path {:s} {:s}", this->sFilePath, "is not a file");
         return false;
     }

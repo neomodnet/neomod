@@ -108,6 +108,18 @@ class File {
     static bool getDirectoryEntries(std::string_view toEnumerate, DirContents types,
                                     std::vector<std::string> &utf8NamesOut) noexcept;
 
+    // same, with the metadata the listing itself provides (free on windows, one fstatat per entry elsewhere), so
+    // callers that need it don't have to stat every entry by path again. symlinks count as what they point at
+    struct DirEntry {
+        std::string name;
+        FILETYPE type{FILETYPE::NONE};  // FOLDER, or FILE for anything that isn't a directory
+        i64 mtime{0};                   // unix timestamp in seconds, like getModificationTime()
+        u32 mtime_nsec{0};              // its sub-second part (0 on filesystems without one)
+        u64 size{0};                    // in bytes (files only)
+    };
+    static bool getDirectoryEntries(std::string_view toEnumerate, DirContents types,
+                                    std::vector<DirEntry> &entriesOut) noexcept;
+
     // fs::path works differently depending on the type of string it was constructed with
     // so use this to get a unicode-constructed path on windows (convert), utf8 otherwise (passthrough)
     [[nodiscard]] static std::filesystem::path getFsPath(std::string_view utf8path);
@@ -115,7 +127,8 @@ class File {
     // passthrough to "_wfopen" on Windows, "fopen" otherwise
     [[nodiscard]] static FILE *fopen_c(const char *__restrict utf8filename, const char *__restrict modes) noexcept;
 
-    // passthrough to "_wstat64" on Windows, "stat64" otherwise
+    // stat64, via the win32 file attributes on Windows (mode/size/times only; the timestamps convert straight from
+    // utc there, matching what getDirectoryEntries reports)
     [[nodiscard]] static int stat_c(const char *__restrict utf8filename, struct stat64 *__restrict buffer) noexcept;
 
     // copy file from source to destination, overwriting if exists
