@@ -115,9 +115,9 @@ msgid "Couldn't delete {}"
 msgstr ""
 
 #: src/App/Neomod/BeatmapInstaller.cpp
-#, fuzzy, c++-format
+#, c++-format
 msgid "Deleted {}"
-msgstr "Wybrane mody"
+msgstr ""
 
 #: src/App/Neomod/BeatmapInterface.cpp
 msgid "Buffering ..."
@@ -216,9 +216,8 @@ msgid "Added {:d} new beatmapset(s)."
 msgstr ""
 
 #: src/App/Neomod/Database.cpp
-#, fuzzy
 msgid "No new beatmaps detected."
-msgstr "Nie wybrano mapy"
+msgstr ""
 
 #: src/App/Neomod/Database.cpp
 #, c++-format
@@ -3357,14 +3356,14 @@ msgid "Failed to find Beatmap #{:d} :("
 msgstr "Nie udało się znaleźć Beatmapy #{:d} :("
 
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
-#, fuzzy, c++-format
+#, c++-format
 msgid "Scanning beatmap folders ({:d}/{:d})"
-msgstr "Wymuś start ({:d}/{:d})"
+msgstr ""
 
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
-#, fuzzy, c++-format
+#, c++-format
 msgid "Importing beatmaps ({:d}/{:d})"
-msgstr "Wymuś start ({:d}/{:d})"
+msgstr ""
 
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "0-9"
