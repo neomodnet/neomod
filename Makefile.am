@@ -390,6 +390,7 @@ $(DEPS_PREFIX)/SDL3-$(SDL3_VERSION).built: $(DEPS_CACHE)/SDL3-$(SDL3_VERSION).ta
 	$(SED) -i 's|KMSDRM_gbm_surface_release_buffer.*next_bo.*|//\0|' src/video/kmsdrm/SDL_kmsdrmvideo.c && \
 	patch -Np1<$(BUILD_MISCDIR)/SDL3-PR14048-emscripten-clipboard.patch && \
 	patch -Np1<$(BUILD_MISCDIR)/SDL3-IS15656-D3D12-latency-poc.patch && \
+	patch -Np1<$(BUILD_MISCDIR)/SDL3-PR16213-fence-races.patch && \
 	PKG_CONFIG="$(PKG_CONFIG)" LDFLAGS="$(LDFLAGS) $(if $(SDL3_STATIC),,$(SDL3_EXTRALIBS))" CC="$(CC)" CXX="$(CXX)" \
 	$(CMAKE_CONF_PFX) $(CMAKE) -S . -B build -G "$(CMAKE_GEN)" \
 		-D CMAKE_BUILD_TYPE="$(if $(ENABLE_DEBUG),Debug,Release)" \
