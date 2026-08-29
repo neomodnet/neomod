@@ -110,7 +110,7 @@ class File {
 
     // same, with what the listing itself knows about each entry, so callers don't have to stat every entry by path
     // again. symlinks count as what they point at. the type is always free; withMetadata fills in mtime/size, which
-    // is free on windows and one fstatat per entry elsewhere
+    // is free on windows, one syscall per few hundred entries on macos, and one fstatat per entry elsewhere
     struct DirEntry {
         std::string name;
         FILETYPE type{FILETYPE::NONE};  // FOLDER, FILE, or OTHER (fifos, sockets, ...; those are listed under FILES)

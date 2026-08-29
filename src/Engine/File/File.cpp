@@ -197,7 +197,94 @@ u32 stat_to_nsec_mtime(const struct stat64 &st) noexcept {
 #include <fcntl.h>
 #include <unistd.h>
 
+#ifdef MCENGINE_PLATFORM_MACOS
+#include <sys/attr.h>
+#include <sys/vnode.h>
+#endif
+
 namespace {
+#ifdef MCENGINE_PLATFORM_MACOS
+// the listing with names, types, mtimes and sizes already attached, hundreds of entries per syscall instead of an
+// fstatat per entry. false if the filesystem doesn't support it (the first call fails, nothing consumed)
+template <typename Sink>
+bool enumerate_directory_bulk(int fd, bool wantDirectories, bool wantFiles, const Sink &sink) noexcept {
+    attrlist attrs{};
+    attrs.bitmapcount = ATTR_BIT_MAP_COUNT;
+    attrs.commonattr = ATTR_CMN_RETURNED_ATTRS | ATTR_CMN_NAME | ATTR_CMN_OBJTYPE | ATTR_CMN_MODTIME;
+    attrs.fileattr = ATTR_FILE_DATALENGTH;
+
+    alignas(8) char buffer[64 * 1024];
+    for(bool first = true;; first = false) {
+        const int count = getattrlistbulk(fd, &attrs, &buffer[0], sizeof(buffer), 0);
+        if(count < 0) {
+            if(first) return false;
+            debugLog("getattrlistbulk failed: {}", strerror(errno));
+            return true;  // what was listed so far stands, like readdir stopping early
+        }
+        if(count == 0) return true;
+
+        // packed records: u32 length, an attribute_set_t of what's present, then those attributes in bit order (the
+        // name as an attrreference_t to a nul-terminated string). 4-byte aligned, so everything is read by memcpy
+        const char *record = &buffer[0];
+        for(int i = 0; i < count; i++) {
+            const char *p = record;
+            u32 length;  // NOLINT
+            std::memcpy(&length, p, sizeof(length));
+            p += sizeof(length);
+            record += length;
+
+            attribute_set_t returned;
+            std::memcpy(&returned, p, sizeof(returned));
+            p += sizeof(returned);
+            if(!(returned.commonattr & ATTR_CMN_NAME)) continue;
+
+            attrreference_t nameRef;
+            std::memcpy(&nameRef, p, sizeof(nameRef));
+            const char *name = p + nameRef.attr_dataoffset;  // (relative to the reference itself)
+            const uSz nameLength = nameRef.attr_length > 0 ? nameRef.attr_length - 1 : 0;  // (counts the nul)
+            p += sizeof(nameRef);
+
+            fsobj_type_t objType = VNON;
+            if(returned.commonattr & ATTR_CMN_OBJTYPE) {
+                std::memcpy(&objType, p, sizeof(objType));
+                p += sizeof(objType);
+            }
+            timespec modTime{};
+            if(returned.commonattr & ATTR_CMN_MODTIME) {
+                std::memcpy(&modTime, p, sizeof(modTime));
+                p += sizeof(modTime);
+            }
+            off_t size = 0;  // (only files have one)
+            if(returned.fileattr & ATTR_FILE_DATALENGTH) {
+                std::memcpy(&size, p, sizeof(size));
+            }
+
+            File::FILETYPE type = objType == VDIR   ? File::FILETYPE::FOLDER
+                                  : objType == VREG ? File::FILETYPE::FILE
+                                                    : File::FILETYPE::OTHER;
+            if(objType == VLNK || !(returned.commonattr & ATTR_CMN_OBJTYPE) ||
+               !(returned.commonattr & ATTR_CMN_MODTIME)) {
+                // what was listed is the link itself, and symlinks count as what they point at
+                struct stat64 st;                               // NOLINT
+                if(fstatat64(fd, name, &st, 0) != 0) continue;  // dangling
+                type = type_from_stat(st);
+                modTime = st.st_mtimespec;
+                size = st.st_size;
+            }
+
+            const bool isDir = type == File::FILETYPE::FOLDER;
+            if(!((wantDirectories && isDir) || (wantFiles && !isDir))) continue;
+
+            sink(File::DirEntry{.name = std::string{name, nameLength},
+                                .type = type,
+                                .mtime = static_cast<i64>(modTime.tv_sec),
+                                .mtime_nsec = static_cast<u32>(modTime.tv_nsec),
+                                .size = isDir ? 0 : static_cast<u64>(size)});
+        }
+    }
+}
+#endif
+
 template <typename Sink>
 bool enumerate_directory(std::string_view pathToEnumView, File::DirContents types, bool withMetadata,
                          const Sink &sink) noexcept {
@@ -211,6 +298,13 @@ bool enumerate_directory(std::string_view pathToEnumView, File::DirContents type
         debugLog("openat64 failed on {}: {}", pathToEnum, strerror(errno));
         return false;
     }
+
+#ifdef MCENGINE_PLATFORM_MACOS
+    if(withMetadata && enumerate_directory_bulk(fd, wantDirectories, wantFiles, sink)) {
+        close(fd);
+        return true;
+    }
+#endif
 
     DIR *dir = fdopendir(fd);
     if(!dir) {
