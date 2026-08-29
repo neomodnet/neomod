@@ -101,9 +101,9 @@ class BeatmapInstaller final {
     // to tell "still installing, keep waiting" apart from "nothing left that could land in the db".
     [[nodiscard]] bool has_pending() const;
     // how a maps/<folder> change the directory watcher reports relates to the installer's own writes: InFlight
-    // while an import is between extracting into the folder and registering it (leave the event to the installer),
-    // Settled when the folder is exactly as the last import left it (the event was that extraction, there's
-    // nothing to do; the claim is forgotten once asked), else Unclaimed
+    // while an import is extracting (into a folder only known once that's done) or registering what it extracted
+    // (leave the event to the installer), Settled when the folder is exactly as the last import left it (the
+    // event was that extraction, there's nothing to do; the claim is forgotten once asked), else Unclaimed
     enum class FolderClaim : u8 { Unclaimed, InFlight, Settled };
     [[nodiscard]] FolderClaim claim(std::string_view folder);
 

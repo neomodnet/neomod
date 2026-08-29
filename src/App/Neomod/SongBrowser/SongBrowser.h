@@ -17,6 +17,7 @@
 
 class BeatmapCarousel;
 class Database;
+struct ReconcileResult;
 class DatabaseBeatmap;
 typedef DatabaseBeatmap BeatmapDifficulty;
 typedef DatabaseBeatmap BeatmapSet;
@@ -167,12 +168,9 @@ class SongBrowser final : public ScreenBackable {
     // reloads the database and rebuilds everything. full_rescan (F5) also stats every .osu of every set folder
     // instead of trusting unchanged folder mtimes
     void refreshBeatmaps(UIScreen *next_screen, bool full_rescan = false);
-    void addBeatmapSet(BeatmapSet *beatmap, bool initialSongBrowserLoad = false);
-    // unlinks the set's buttons from every container and deletes them (the db side has already happened);
-    // if the loaded map was in the set, a random one is selected instead
-    void removeBeatmapSet(const BeatmapSet *set);
-    // a set the db updated in place (new/changed/removed difficulties): swap its buttons, keep the selection
-    void replaceBeatmapSet(const BeatmapSet *old_set, BeatmapSet *new_set);
+    // the carousel follows the db: mirrors what a Database::reconcileFolder did to a set (created, updated in
+    // place, removed) onto its buttons, keeping the selection where possible
+    void applyReconcile(const ReconcileResult &r);
 
     void requestNextScrollToSongButtonJumpFix(SongDifficultyButton *diffButton);
     [[nodiscard]] bool isButtonVisible(CarouselButton *songButton) const;
@@ -283,6 +281,12 @@ class SongBrowser final : public ScreenBackable {
     // returns true if we drew anything
     bool drawBeatmapOrMenuBackground();
 
+    void addBeatmapSet(BeatmapSet *beatmap, bool initialSongBrowserLoad = false);
+    // unlinks the set's buttons from every container and deletes them (the db side has already happened);
+    // if the loaded map was in the set, a random one is selected instead
+    void removeBeatmapSet(const BeatmapSet *set);
+    // a set the db updated in place (new/changed/removed difficulties): swap its buttons, keep the selection
+    void replaceBeatmapSet(const BeatmapSet *old_set, BeatmapSet *new_set);
     void unlinkBeatmapSet(const BeatmapSet *set);
     void rebuildAfterSetChange();
     // maps/ folders the directory watcher saw change, synced with the db and the carousel in tick()

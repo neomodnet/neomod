@@ -852,7 +852,7 @@ BeatmapSet *Database::getBeatmapSet(i32 set_id) const {
 
     Sync::shared_lock lock(this->beatmap_difficulties_mtx);
     auto it = this->sets_by_id.find(set_id);
-    if(it == this->sets_by_id.end() || it->second.empty()) return nullptr;
+    if(it == this->sets_by_id.end()) return nullptr;
 
     for(BeatmapSet *set : it->second) {
         if(set->type == DatabaseBeatmap::BeatmapType::NEOMOD_BEATMAPSET) return set;
@@ -884,20 +884,21 @@ std::string Database::getBeatmapSetFolder(i32 set_id) const {
 
 void Database::updateSetID(DatabaseBeatmap *map, i32 new_id) {
     BeatmapSet *set = map->getParentSet() ? map->getParentSet() : map;
-    if(set->iSetID == new_id) return;
 
     Sync::unique_lock lock(this->beatmap_difficulties_mtx);
-    // only db-owned sets live in the index (the main menu's preloaded sets don't)
-    const bool indexed = set->iSetID > 0 ? this->unindexSet(set)
-                                         : std::ranges::any_of(this->beatmapsets,
-                                                               [set](const auto &owned) { return owned.get() == set; });
-
-    set->iSetID = new_id;
+    if(set->iSetID != new_id) {
+        // only db-owned sets live in the index (the main menu's preloaded sets don't)
+        const bool indexed =
+            set->iSetID > 0
+                ? this->unindexSet(set)
+                : std::ranges::any_of(this->beatmapsets, [set](const auto &owned) { return owned.get() == set; });
+        set->iSetID = new_id;
+        if(indexed) this->indexSet(set);
+    }
+    // a set's id is its first difficulty's, so a sibling can still lack it when the set doesn't
     for(auto &diff : set->getDifficulties()) {
         diff->iSetID = new_id;
     }
-
-    if(indexed) this->indexSet(set);
 }
 
 void Database::indexSet(BeatmapSet *set) {
@@ -1003,21 +1004,21 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 std::string rel_folder;
                 i64 folder_mtime = 0;
                 MapRoot root = MapRoot::Neomod;
-                if(version >= 20260828) {
+                if(version >= 20260829) {
                     neomod_maps.read_string(rel_folder);
                     folder_mtime = neomod_maps.read<i64>();
-                    if(version >= 20260829) root = neomod_maps.read<u8>() == 1 ? MapRoot::Peppy : MapRoot::Neomod;
+                    root = neomod_maps.read<u8>() == 1 ? MapRoot::Peppy : MapRoot::Neomod;
                 }
                 i32 set_id = neomod_maps.read<i32>();
                 u16 nb_diffs = neomod_maps.read<u16>();
 
-                // pre-20260828 sets were always stored in maps/<set_id>/, later ones record their folder
-                if(version < 20260828) rel_folder = fmt::to_string(set_id);
+                // pre-20260829 sets were always stored in maps/<set_id>/, later ones record their folder
+                if(version < 20260829) rel_folder = fmt::to_string(set_id);
 
                 // NOTE: Ignoring mapsets with ID -1, since we most likely saved them in the correct folder,
                 //       but mistakenly set their ID to -1 (because the ID was missing from the .osu file).
-                //       (pre-20260828 files only: their folder is unknown, the startup rescan finds it on disk)
-                if(version < 20260828 && set_id == -1) {
+                //       (pre-20260829 files only: their folder is unknown, the startup rescan finds it on disk)
+                if(version < 20260829 && set_id == -1) {
                     for(u16 j = 0; j < nb_diffs; j++) {
                         neomod_maps.skip_string();  // osu_filename
                         neomod_maps.skip<i32>();    // iID
@@ -1842,7 +1843,7 @@ void Database::saveMaps() {
     // folder without a set is still recorded, so that a folder full of duplicates isn't re-parsed on every load)
     u32 nb_diffs_saved = 0;
     Sync::shared_lock diff_lock(this->beatmap_difficulties_mtx);
-    maps.write<u32>(this->neomod_folders.size() + (this->needs_raw_load ? this->peppy_folders.size() : 0));
+    maps.write<u32>(this->neomod_folders.size() + this->peppy_folders.size());
     auto write_records = [&](const Hash::unstable_stringmap<FolderRecord> &records, MapRoot root) {
         for(const auto &[rel_folder, rec] : records) {
             maps.write_string(rel_folder);
@@ -1894,7 +1895,7 @@ void Database::saveMaps() {
         }
     };
     write_records(this->neomod_folders, MapRoot::Neomod);
-    if(this->needs_raw_load) write_records(this->peppy_folders, MapRoot::Peppy);
+    write_records(this->peppy_folders, MapRoot::Peppy);  // empty unless the songs folder is loaded raw
     diff_lock.unlock();
 
     Hash::flat::map<MD5Hash, MapOverrides> real_overrides;
@@ -2636,9 +2637,11 @@ i64 folder_mtime(std::string_view folder) {
     return file_mtime(path);
 }
 
-std::string_view outcome_name(Database::ReconcileResult::Outcome outcome) {
-    switch(outcome) {
-        using enum Database::ReconcileResult::Outcome;
+}  // namespace
+
+std::string_view ReconcileResult::outcomeName() const {
+    switch(this->outcome) {
+        using enum Outcome;
         case Unchanged:
             return "unchanged";
         case Created:
@@ -2653,7 +2656,6 @@ std::string_view outcome_name(Database::ReconcileResult::Outcome outcome) {
     std::unreachable();
     return "?";
 }
-}  // namespace
 
 std::unique_ptr<DiffContainer> Database::parseFolderDiffs(std::string_view folder_path, bool is_peppy) {
     // (lots of things expect the folder to end with a path separator, if it doesn't, things would blow up in weird ways)
@@ -2692,8 +2694,8 @@ std::unique_ptr<BeatmapSet> Database::loadRawBeatmap(std::string_view beatmapPat
     return std::make_unique<BeatmapSet>(std::move(diffs), is_peppy ? PEPPY_BEATMAPSET : NEOMOD_BEATMAPSET);
 }
 
-Database::ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_folder, ReconcileMode mode,
-                                                    i32 set_id_override, std::unique_ptr<DiffContainer> preparsed) {
+ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_folder, ReconcileMode mode,
+                                          i32 set_id_override, std::unique_ptr<DiffContainer> preparsed) {
     using enum ReconcileResult::Outcome;
     using enum DatabaseBeatmap::BeatmapType;
     ReconcileResult res;
@@ -2737,14 +2739,14 @@ Database::ReconcileResult Database::reconcileFolder(MapRoot root, std::string_vi
             return res;
         }
         Sync::unique_lock lock(this->beatmap_difficulties_mtx);
-        if(old) {
+        folders.erase(folders.find(rel_folder));
+        if(old) {  // (a known folder without a set leaves nothing behind: Unchanged)
             res.removed = static_cast<u16>(old->getDifficulties().size());
             tombstone(old);
+            res.outcome = Removed;
+            res.replaced = old;
+            logIfCV(debug_db, "reconcile {}: removed (-{})", rel_folder, res.removed);
         }
-        folders.erase(folders.find(rel_folder));
-        res.outcome = Removed;
-        res.replaced = old;
-        logIfCV(debug_db, "reconcile {}: removed (-{})", rel_folder, res.removed);
         return res;
     }
 
@@ -2862,7 +2864,7 @@ Database::ReconcileResult Database::reconcileFolder(MapRoot root, std::string_vi
         // a new folder with nothing but duplicates (or nothing loadable at all) is recorded so it isn't re-parsed
         res.outcome = (old || res.dedup_owner) ? Unchanged : Failed;
         if(res.parsed > 0 || !old) {
-            logIfCV(debug_db, "reconcile {}: {} (parsed {})", rel_folder, outcome_name(res.outcome), res.parsed);
+            logIfCV(debug_db, "reconcile {}: {} (parsed {})", rel_folder, res.outcomeName(), res.parsed);
         }
         return res;
     }
@@ -2884,14 +2886,14 @@ Database::ReconcileResult Database::reconcileFolder(MapRoot root, std::string_vi
     }
     if(old) std::erase_if(*old->difficulties, [](const auto &p) { return p == nullptr; });
 
-    if(container->empty()) {
+    if(container->empty()) {  // nothing kept and nothing new past the unchanged early-out: the old set lost everything
+        assert(old);
         Sync::unique_lock lock(this->beatmap_difficulties_mtx);
-        if(old) tombstone(old);
+        tombstone(old);
         folders[std::string{rel_folder}] = {.mtime = dir_mtime, .set = nullptr};
-        res.outcome = old ? Removed : Failed;
+        res.outcome = Removed;
         res.replaced = old;
-        logIfCV(debug_db, "reconcile {}: {} (-{}, parsed {})", rel_folder, outcome_name(res.outcome), res.removed,
-                res.parsed);
+        logIfCV(debug_db, "reconcile {}: {} (-{}, parsed {})", rel_folder, res.outcomeName(), res.removed, res.parsed);
         return res;
     }
 
@@ -2961,8 +2963,8 @@ Database::ReconcileResult Database::reconcileFolder(MapRoot root, std::string_vi
     res.set = set;
     res.replaced = old;
     res.outcome = old ? Updated : Created;
-    logIfCV(debug_db, "reconcile {}: {} (+{} -{}, parsed {})", rel_folder, outcome_name(res.outcome), res.added,
-            res.removed, res.parsed);
+    logIfCV(debug_db, "reconcile {}: {} (+{} -{}, parsed {})", rel_folder, res.outcomeName(), res.added, res.removed,
+            res.parsed);
     return res;
 }
 

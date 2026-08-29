@@ -842,7 +842,7 @@ void SongBrowser::tick() {
         // where a removed/replaced selection would unload the map being played)
         if(!this->changedMapFolders.empty() && this->bInitializedBeatmaps) {
             for(auto it = this->changedMapFolders.begin(); it != this->changedMapFolders.end();) {
-                using enum Database::ReconcileResult::Outcome;
+                using enum ReconcileResult::Outcome;
                 const std::string &rel = *it;
                 // the installer registers what it extracts itself: the event waits while that's underway, and is
                 // dropped when the folder is still exactly as the import left it (the event was the extraction)
@@ -858,19 +858,9 @@ void SongBrowser::tick() {
                 }
                 const auto r =
                     db->reconcileFolder(Database::MapRoot::Neomod, rel, Database::ReconcileMode::PerFile, -1, nullptr);
-                if(r.outcome == Created) {
-                    this->addBeatmapSet(r.set);
-                } else if(r.outcome == Updated) {
-                    this->replaceBeatmapSet(r.replaced, r.set);
-                } else if(r.outcome == Removed) {
-                    this->removeBeatmapSet(r.replaced);
-                }
-                if(r.outcome == Created || r.outcome == Updated || r.outcome == Removed) {
-                    logRaw("[DirectoryWatcher] maps/{}: {} (+{} -{})", rel,
-                           r.outcome == Created   ? "created"
-                           : r.outcome == Updated ? "updated"
-                                                  : "removed",
-                           r.added, r.removed);
+                this->applyReconcile(r);
+                if(r.outcome != Unchanged && r.outcome != Failed) {
+                    logRaw("[DirectoryWatcher] maps/{}: {} (+{} -{})", rel, r.outcomeName(), r.added, r.removed);
                 }
                 it = this->changedMapFolders.erase(it);
             }
@@ -1766,6 +1756,24 @@ void SongBrowser::rebuildAfterSetChange() {
     }
 }
 
+void SongBrowser::applyReconcile(const ReconcileResult &r) {
+    switch(r.outcome) {
+        using enum ReconcileResult::Outcome;
+        case Created:
+            this->addBeatmapSet(r.set);
+            break;
+        case Updated:
+            this->replaceBeatmapSet(r.replaced, r.set);
+            break;
+        case Removed:
+            this->removeBeatmapSet(r.replaced);
+            break;
+        case Unchanged:
+        case Failed:
+            break;
+    }
+}
+
 void SongBrowser::removeBeatmapSet(const BeatmapSet *set) {
     if(!this->bInitializedBeatmaps) return;
 
@@ -2619,8 +2627,8 @@ void SongBrowser::initializeGroupingButtons() {
 }
 
 void SongBrowser::onDatabaseLoadingFinished() {
-    // loose .osz files dropped into maps/ were already extracted + imported by the loader stage
-    // (Database::importLooseOsz), so by the time we get here the database already contains them.
+    // loose .osz files dropped into maps/ were already extracted (Database::importLooseOsz) and imported
+    // (Database::reconcileRoot) by the loader, so by the time we get here the database already contains them.
 
     Timer t;
     t.start();
@@ -2706,10 +2714,7 @@ void SongBrowser::onDatabaseLoadingFinished() {
         // deletion can't be stat'ed (so on windows it isn't known to be a folder), reconciling a name that
         // isn't a set folder (a deleted .osz) is a no-op
         if(ev.is_dir || ev.type == FileChangeType::DELETED) {
-            std::string_view rel{ev.path};
-            while(rel.ends_with('/') || rel.ends_with('\\')) rel.remove_suffix(1);
-            if(const auto sep = rel.find_last_of("/\\"); sep != std::string_view::npos) rel = rel.substr(sep + 1);
-            this->changedMapFolders.emplace(rel);
+            this->changedMapFolders.emplace(Environment::getFileNameFromFilePath(ev.path));
             return;
         }
 

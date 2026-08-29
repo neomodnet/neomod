@@ -41,6 +41,17 @@ using BeatmapDifficulty = DatabaseBeatmap;
 using BeatmapSet = DatabaseBeatmap;
 using DiffContainer = std::vector<std::unique_ptr<BeatmapDifficulty>>;
 
+// what Database::reconcileFolder did to one set folder
+struct ReconcileResult {
+    enum class Outcome : u8 { Unchanged, Created, Updated, Removed, Failed };
+    Outcome outcome{Outcome::Unchanged};
+    BeatmapSet *set{nullptr};          // live set for the folder afterwards (nullptr: Removed/Failed/no unique diffs)
+    BeatmapSet *replaced{nullptr};     // tombstoned predecessor (Updated/Removed), valid until the next load()
+    BeatmapSet *dedup_owner{nullptr};  // set owning the first duplicate diff seen (where "already installed" lives)
+    u16 added{0}, removed{0}, parsed{0};
+    [[nodiscard]] std::string_view outcomeName() const;
+};
+
 #define NEOMOD_MAPS_DB_VERSION 20260829
 #define NEOMOD_SCORE_DB_VERSION 20240725
 
@@ -102,14 +113,6 @@ class Database final {
     enum class ReconcileMode : u8 {
         TrustFolderMtime,  // startup: an unchanged folder mtime means no per-file io at all
         PerFile,           // F5, watcher, installer: check every .osu
-    };
-    struct ReconcileResult {
-        enum class Outcome : u8 { Unchanged, Created, Updated, Removed, Failed };
-        Outcome outcome{Outcome::Unchanged};
-        BeatmapSet *set{nullptr};       // live set for the folder afterwards (nullptr: Removed/Failed/no unique diffs)
-        BeatmapSet *replaced{nullptr};  // tombstoned predecessor (Updated/Removed), valid until the next load()
-        BeatmapSet *dedup_owner{nullptr};  // set owning the first duplicate diff seen (where "already installed" lives)
-        u16 added{0}, removed{0}, parsed{0};
     };
     // syncs <root>/<rel_folder>/ against the db (osu!stable's F5, for one folder): new .osu files are parsed,
     // changed ones re-parsed, vanished ones dropped, everything else is kept as-is. preparsed stands in for the

@@ -67,7 +67,7 @@ struct Entry {
 // once it's safe to. nullopt means the caller should retry next tick: the db is mid-(re)build
 // (reconciling then would race the loader thread), or a map is being played (an updated/removed
 // selection would unload it).
-std::optional<Database::ReconcileResult> try_import(Entry& e) {
+std::optional<ReconcileResult> try_import(Entry& e) {
     if(!db->isFinished() || db->isCancelled() || osu->isInPlayMode()) return std::nullopt;
 
     // the worker's parse stands in for the listing, so the files are matched by content (their mtimes could
@@ -76,32 +76,22 @@ std::optional<Database::ReconcileResult> try_import(Entry& e) {
                                e.is_local() ? -1 : e.set_id, std::move(e.diffs));
 }
 
-void on_done(const Database::ReconcileResult& r, const Entry& e) {
-    using enum Database::ReconcileResult::Outcome;
+// toasts + auto-select for a finished import (the song browser has already been synced with r)
+void on_done(const ReconcileResult& r, const Entry& e) {
+    using enum ReconcileResult::Outcome;
     auto* sb = ui->getSongBrowser();
     auto* toasts = ui->getNotificationOverlay();
 
     // the set to navigate to: the folder's, or the one that already owns these diffs
     BeatmapSet* set = r.set ? r.set : r.dedup_owner;
     debugLog("Finished installing {} into maps/{}/: {} (+{:d} -{:d})",
-             e.is_local() ? e.display_name : fmt::format("beatmapset #{:d}", e.set_id), e.folder,
-             r.outcome == Created   ? "created"
-             : r.outcome == Updated ? "updated"
-                                    : "already installed",
+             e.is_local() ? e.display_name : fmt::format("beatmapset #{:d}", e.set_id), e.folder, r.outcomeName(),
              r.added, r.removed);
 
-    switch(r.outcome) {
-        case Created:
-            sb->addBeatmapSet(r.set);
-            break;
-        case Updated:
-            sb->replaceBeatmapSet(r.replaced, r.set);
-            break;
-        default:  // nothing the db didn't already have
-            toasts->addToast(e.is_local() ? tformat("{} is already installed", e.display_name)
-                                          : tformat("Beatmapset #{:d} is already installed", e.set_id),
-                             INFO_TOAST);
-            break;
+    if(r.outcome != Created && r.outcome != Updated) {  // nothing the db didn't already have
+        toasts->addToast(e.is_local() ? tformat("{} is already installed", e.display_name)
+                                      : tformat("Beatmapset #{:d} is already installed", e.set_id),
+                         INFO_TOAST);
     }
     if(!e.is_local() && r.outcome != Unchanged) {
         toasts->addToast(tformat("Downloaded beatmapset #{:d}", e.set_id), SUCCESS_TOAST);
@@ -276,7 +266,8 @@ std::string BeatmapInstaller::resolve_and_extract_osz(std::span<const u8> data, 
     OszMeta meta;
     for(const auto& entry : entries) {
         if(entry.isDirectory()) continue;
-        if(!entry.getFilename().ends_with(".osu")) continue;
+        const std::string_view name = entry.getFilename();
+        if(name.size() <= 4 || !SString::strcase_equal(name.substr(name.size() - 4), ".osu")) continue;
 
         const auto& osu_data = entry.getUncompressedData();
         if(osu_data.empty()) continue;
@@ -449,8 +440,10 @@ std::vector<BeatmapInstaller::EntryView> BeatmapInstaller::snapshot() const {
 }
 
 BeatmapInstaller::FolderClaim BeatmapInstaller::claim(std::string_view folder) {
+    // an extraction's folder isn't known until the worker is done with it, so every event waits for those
     if(std::ranges::any_of(m->entries, [folder](const Entry& e) {
-           return e.stage == MapInstallStage::Installing && e.folder == folder;
+           return e.stage == MapInstallStage::Extracting ||
+                  (e.stage == MapInstallStage::Installing && e.folder == folder);
        })) {
         return FolderClaim::InFlight;
     }
@@ -546,12 +539,10 @@ void BeatmapInstaller::update() {
                 const auto r = try_import(e);
                 if(!r) break;  // db busy/rebuilding; retry next tick
 
+                // the carousel follows the db whatever the outcome (an archive can overwrite an installed set's
+                // files with nothing loadable, which removes the set)
+                ui->getSongBrowser()->applyReconcile(*r);
                 if(!r->set && !r->dedup_owner) {
-                    // nothing loadable in the folder: an installed set whose files the archive overwrote is
-                    // gone from the db too
-                    if(r->outcome == Database::ReconcileResult::Outcome::Removed) {
-                        ui->getSongBrowser()->removeBeatmapSet(r->replaced);
-                    }
                     fail_entry(e, now);
                 } else {
                     e.stage = Done;
