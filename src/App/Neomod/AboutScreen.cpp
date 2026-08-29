@@ -399,7 +399,10 @@ void AboutScreen::buildChangelog() {
     CHANGELOG v43_13;
     v43_13.title = "43.13 (" CHANGELOG_TIMESTAMP ")";
     v43_13.changes = {
-        R"()",
+        R"(- Improved beatmap import/storage capabilities)",
+        R"(  - Unsubmitted beatmaps (no beatmapset ID) can now be imported)",
+        R"(  - Song browser will now reflect the contents of the maps/ folder more closely (i.e. adding/removing folders and .osu files))",
+        R"(  - Expect a longer initial database load when first updating to this version)",
     };
     changelogs.push_back(std::move(v43_13));
 
