@@ -277,6 +277,10 @@ void Database::startLoader() {
     this->db_load_handle = Async::submit_cancellable(
         [this](const Sync::stop_token &tok) {
             logIf(cv::debug_db.getBool() || cv::debug_async_db.getBool(), "(db loader async) start");
+            bool cancelled = true;
+
+            Timer load_timer;
+            load_timer.start();
 
             this->findDatabases();
 
@@ -296,7 +300,7 @@ void Database::startLoader() {
 
                 // extract + import any loose .osz files dropped into maps/ before handing off to the
                 // song browser, so they're part of the initial listing.
-                this->importLooseOsz();
+                this->importLooseOsz(tok);
                 if(tok.stop_requested()) goto done;
 
                 // pick up whatever is on disk that the db doesn't know about yet (and drop what's gone)
@@ -322,8 +326,11 @@ void Database::startLoader() {
             // only clear this after we have actually loaded them
             this->extern_db_paths_to_import_async_copy.clear();
             this->external_databases.clear();
-
+            cancelled = false;
         done:
+            load_timer.update();
+            debugLog("{:s}loading everything took {:f} seconds", cancelled ? "(cancelled) " : "",
+                     load_timer.getElapsedTime());
             logIf(cv::debug_db.getBool() || cv::debug_async_db.getBool(), "(db loader async) done");
         },
         Lane::Background);
@@ -384,7 +391,7 @@ bool Database::migrate_neosu_to_neomod() {
     return scores_migrated || maps_migrated;
 }
 
-Database::Database() : importTimer(std::make_unique<Timer>()) {
+Database::Database() {
     assert(!db);
     db = this;  // set global db pointer (we are a single instance owned by Osu)
     // convar callback
@@ -445,7 +452,7 @@ void Database::save() {
 
 // uses BeatmapInstaller's static .osz read + extract helper; kept as a separate loader-stage import
 // because it runs before the installer and song browser exist.
-void Database::importLooseOsz() {
+void Database::importLooseOsz(const Sync::stop_token &tok) {
     // extract any loose .osz files sitting in the maps/ drop-zone (dropped in while the game was closed).
     // runs on the loader thread right before reconcileRoot, which then imports the extracted folders
     // like any other unknown folder, so these maps are part of the initial listing.
@@ -484,7 +491,7 @@ void Database::importLooseOsz() {
     for(uSz i = 0; i < window_size; i++) window[i] = submit_extract(oszs[i]);
 
     for(uSz i = 0; i < oszs.size(); i++) {
-        if(this->isCancelled()) return;  // abandons in-flight extracts; harmless, re-imported next run
+        if(tok.stop_requested()) return;  // abandons in-flight extracts; harmless, re-imported next run
 
         // window[i % window_size] holds oszs[i]'s extraction (primed above, then refilled in order)
         const std::string folder = window[i % window_size].get();
@@ -958,7 +965,8 @@ MD5Hash Database::recalcMD5(std::string osu_path) {
 }
 
 void Database::loadMaps(std::string_view neomod_maps_path, std::string_view peppy_db_path) {
-    this->importTimer->start();
+    Timer importTimer;
+    importTimer.start();
 
     // staging buffer, moved into Database::beatmapsets when async load finishes
     std::vector<std::unique_ptr<BeatmapSet>> temp_loading_beatmapsets;
@@ -1808,9 +1816,9 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
         this->beatmapsets.clear();
     }
 
-    this->importTimer->update();
+    importTimer.update();
     debugLog("peppy+neomod maps: loading took {:f} seconds ({:d} peppy, {:d} neomod, {:d} maps total)",
-             this->importTimer->getElapsedTime(), nb_peppy_maps, nb_neomod_maps, nb_peppy_maps + nb_neomod_maps);
+             importTimer.getElapsedTime(), nb_peppy_maps, nb_neomod_maps, nb_peppy_maps + nb_neomod_maps);
     debugLog("Found {:d} overrides; {:d} maps need loudness recalc", nb_overrides, this->loudness_to_calc.size());
 }
 

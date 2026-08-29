@@ -13,9 +13,6 @@
 #include <set>
 #include <span>
 
-namespace Timing {
-class Timer;
-}
 namespace Collections {
 class Collection;
 
@@ -270,7 +267,7 @@ class Database final {
     bool importDatabase(const std::pair<DatabaseType, std::string> &db_pair);
     void loadMaps(std::string_view neomod_maps_path, std::string_view peppy_db_path);
     // extract + import loose .osz files from the maps/ drop-zone during the loader's run (before buttons build)
-    void importLooseOsz();
+    void importLooseOsz(const Sync::stop_token &tok);
     void loadScores(std::string_view dbPath);
     void loadOldMcNeomodScores(std::string_view dbPath);
     void loadPeppyScores(std::string_view dbPath);
@@ -285,8 +282,6 @@ class Database final {
 
     Async::CancellableHandle<void> db_load_handle;
     Async::Future<void> score_save_future;
-
-    std::unique_ptr<Timing::Timer> importTimer;
 
     std::atomic<bool> load_interrupted{false};
     // this vector owns all loaded beatmapsets, raw beatmapset pointers are assumed not ownable
