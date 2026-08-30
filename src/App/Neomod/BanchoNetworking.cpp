@@ -129,8 +129,7 @@ void attempt_logging_in() {
         }
 
         // Update auth token
-        auto cho_token_it = response.headers.find("cho-token");
-        if(cho_token_it != response.headers.end()) {
+        if(const auto &cho_token_it = response.headers.find("cho-token"); cho_token_it != response.headers.end()) {
             auth_token = cho_token_it->second;
 
             // Emscripten seems to add a space at the start of the header... This is obviously wrong.
@@ -141,12 +140,12 @@ void attempt_logging_in() {
             use_websockets = cv::prefer_websockets.getBool();
         }
 
-        auto features_it = response.headers.find("x-mcosu-features");
-        if(features_it != response.headers.end()) {
-            if(strstr(features_it->second.c_str(), "submit=0") != nullptr) {
+        if(const auto &features_it = response.headers.find("x-mcosu-features"); features_it != response.headers.end()) {
+            const auto &mcosu_features = features_it->second;
+            if(mcosu_features.contains("submit=0")) {
                 BanchoState::score_submission_policy = ServerPolicy::NO;
                 debugLog("Server doesn't want score submission. :(");
-            } else if(strstr(features_it->second.c_str(), "submit=1") != nullptr) {
+            } else if(mcosu_features.contains("submit=1")) {
                 BanchoState::score_submission_policy = ServerPolicy::YES;
                 debugLog("Server wants score submission! :D");
             }
