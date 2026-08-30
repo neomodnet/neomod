@@ -1677,7 +1677,7 @@ SPDLOG_BUILD_VERSION=1.17.0
 NSYNC_MIN_VERSION=1.29.2
 NSYNC_BUILD_VERSION=1.30.0
 SIMDUTF_MIN_VERSION=7.0.0
-SIMDUTF_BUILD_VERSION=9.0.0 # fast and correct utf conversion utilities
+SIMDUTF_BUILD_VERSION=9.1.0 # fast and correct utf conversion utilities
 CTRE_MIN_VERSION=3.10.0 # regex support that doesn't have exceptions FORCED enabled
 CTRE_BUILD_VERSION=6225211806c48230e5d17a1e555ef69e7325051c # git as of Jan 28th, 2026
 
