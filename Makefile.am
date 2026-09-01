@@ -1169,10 +1169,13 @@ endif # BUILD_LIBARCHIVE
 
 if BUILD_WINPTHREAD_NOVERSION
 # strip version.o from winpthread to avoid it overwriting neomod_resource contents
+# also strip arm64ec members (otherwise it would break with --whole-archive)
 $(DEPS_PREFIX)/winpthread-noversion.built: | $(DEPS_PREFIX)
 	$(MKDIR_P) $(DEPS_PREFIX)/lib
 	cp "$(WINPTHREAD_ORIG)" $(DEPS_PREFIX)/lib/libwinpthread_noversion.a
 	$(AR) -d $(DEPS_PREFIX)/lib/libwinpthread_noversion.a version.o
+	arm64ec_objs=$$($(AR) t $(DEPS_PREFIX)/lib/libwinpthread_noversion.a | $(GREP) '^obj\.arm64ec/' || :); \
+	test -z "$$arm64ec_objs" || $(AR) -dP $(DEPS_PREFIX)/lib/libwinpthread_noversion.a $$arm64ec_objs
 	touch $@
 endif # BUILD_WINPTHREAD_NOVERSION
 

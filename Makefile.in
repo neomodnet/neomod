@@ -8667,10 +8667,13 @@ $(CACERT_INCDIR)/cacert.pem:
 @BUILD_LIBARCHIVE_TRUE@	touch $@
 
 # strip version.o from winpthread to avoid it overwriting neomod_resource contents
+# also strip arm64ec members (otherwise it would break with --whole-archive)
 @BUILD_WINPTHREAD_NOVERSION_TRUE@$(DEPS_PREFIX)/winpthread-noversion.built: | $(DEPS_PREFIX)
 @BUILD_WINPTHREAD_NOVERSION_TRUE@	$(MKDIR_P) $(DEPS_PREFIX)/lib
 @BUILD_WINPTHREAD_NOVERSION_TRUE@	cp "$(WINPTHREAD_ORIG)" $(DEPS_PREFIX)/lib/libwinpthread_noversion.a
 @BUILD_WINPTHREAD_NOVERSION_TRUE@	$(AR) -d $(DEPS_PREFIX)/lib/libwinpthread_noversion.a version.o
+@BUILD_WINPTHREAD_NOVERSION_TRUE@	arm64ec_objs=$$($(AR) t $(DEPS_PREFIX)/lib/libwinpthread_noversion.a | $(GREP) '^obj\.arm64ec/' || :); \
+@BUILD_WINPTHREAD_NOVERSION_TRUE@	test -z "$$arm64ec_objs" || $(AR) -dP $(DEPS_PREFIX)/lib/libwinpthread_noversion.a $$arm64ec_objs
 @BUILD_WINPTHREAD_NOVERSION_TRUE@	touch $@
 
 @ENABLE_I18N_TRUE@$(GEN_TRANSLATIONS_STAMP): $(TRANSLATION_SCRIPT) $(TRANSLATION_SRCS) $(PO_FILES)
