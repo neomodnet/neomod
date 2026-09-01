@@ -16,21 +16,21 @@
 #include "Engine.h"
 #include "ModSelector.h"
 #include "Parsing.h"
+#include "SString.h"
 #include "SongBrowser/SongBrowser.h"
 #include "UI.h"
 #include "crypto.h"
 #include "Logging.h"
 #include "i18n.h"
 
-#include <cstdlib>
-#include <cstring>
+#include <string_view>
 #include <vector>
 
 namespace {  // static namespace
 // armed per fetch so selecting a different map cancels the stale leaderboard request
 Sync::stop_source fetch_cancel;
 
-FinishedScore parse_score(const char *score_line) {
+FinishedScore parse_score(std::string_view score_line) {
     FinishedScore score;
     score.client = "peppy-unknown";
     score.server = BanchoState::endpoint;
@@ -79,7 +79,7 @@ FinishedScore parse_score(const char *score_line) {
 }
 
 // NOTE: also updates local beatmap ID and beatmapset ID if they were missing in our local beatmap
-void process_leaderboard_response(const MD5Hash &beatmap_hash, std::string body_str) {
+void process_leaderboard_response(const MD5Hash &beatmap_hash, std::string_view body) {
     // Don't update the leaderboard while playing, that's weird
     if(osu->isInPlayMode()) return;
 
@@ -89,49 +89,34 @@ void process_leaderboard_response(const MD5Hash &beatmap_hash, std::string body_
     BANCHO::Leaderboard::OnlineMapInfo info{};
     std::vector<FinishedScore> scores;
 
-    body_str.push_back('\0');
-    char *body = (char *)body_str.c_str();
+    // line 0: ranked_status|server_has_osz2|beatmap_id|beatmap_set_id|nb_scores|fa_track_id|fa_license_text
+    // line 1: online_offset
+    // line 2: map_name
+    // line 3: user_ratings (no longer used)
+    // line 4: pb_score
+    // lines 5+: leaderboard scores
+    const std::vector<std::string_view> lines = SString::split(body, '\n');
+    const auto line_at = [&lines](size_t i) { return i < lines.size() ? lines[i] : std::string_view{}; };
 
-    char *ranked_status = Parsing::strtok_x('|', &body);
-    info.ranked_status = Parsing::strto<i32>(ranked_status);
+    const std::vector<std::string_view> info_tokens = SString::split(line_at(0), '|');
+    const auto info_at = [&info_tokens](size_t i) {
+        return i < info_tokens.size() ? info_tokens[i] : std::string_view{};
+    };
 
-    char *server_has_osz2 = Parsing::strtok_x('|', &body);
-    info.server_has_osz2 = !strcmp(server_has_osz2, "true");
-
-    char *beatmap_id = Parsing::strtok_x('|', &body);
-    info.beatmap_id = Parsing::strto<u32>(beatmap_id);
-
-    char *beatmap_set_id = Parsing::strtok_x('|', &body);
-    info.beatmap_set_id = Parsing::strto<u32>(beatmap_set_id);
-
-    char *nb_scores = Parsing::strtok_x('|', &body);
-    info.nb_scores = Parsing::strto<i32>(nb_scores);
-
-    char *fa_track_id = Parsing::strtok_x('|', &body);
-    (void)fa_track_id;
-
-    char *fa_license_text = Parsing::strtok_x('\n', &body);
-    (void)fa_license_text;
-
-    char *online_offset = Parsing::strtok_x('\n', &body);
-    info.online_offset = Parsing::strto<i32>(online_offset);
-
-    char *map_name = Parsing::strtok_x('\n', &body);
-    (void)map_name;
-
-    char *user_ratings = Parsing::strtok_x('\n', &body);
-    (void)user_ratings;  // no longer used
-
-    char *pb_score = Parsing::strtok_x('\n', &body);
-    (void)pb_score;
+    info.ranked_status = Parsing::strto<i32>(info_at(0));
+    info.server_has_osz2 = info_at(1) == "true";
+    info.beatmap_id = Parsing::strto<u32>(info_at(2));
+    info.beatmap_set_id = Parsing::strto<u32>(info_at(3));
+    info.nb_scores = Parsing::strto<i32>(info_at(4));
+    info.online_offset = Parsing::strto<i32>(line_at(1));
 
     // XXX: We should also separately display either the "personal best" the server sent us,
     //      or the local best, depending on which score is better.
     debugLog("Received online leaderboard for Beatmap ID {:d}", info.beatmap_id);
     auto map = db->getBeatmapDifficulty(beatmap_hash);
     if(map) {
-        const i16 previous_offset = map->getOnlineOffset();
-        map->setOnlineOffset(info.online_offset);
+        const i16 previous_offset = (i16)map->getOnlineOffset();
+        map->setOnlineOffset((i16)info.online_offset);
         if(previous_offset != info.online_offset) {
             db->update_overrides(map);
         }
@@ -145,9 +130,9 @@ void process_leaderboard_response(const MD5Hash &beatmap_hash, std::string body_
         }
     }
 
-    char *score_line = nullptr;
-    while((score_line = Parsing::strtok_x('\n', &body))[0] != '\0') {
-        FinishedScore score = parse_score(score_line);
+    for(size_t i = 5; i < lines.size(); i++) {
+        if(lines[i].empty()) continue;
+        FinishedScore score = parse_score(lines[i]);
         score.beatmap_hash = beatmap_hash;
         score.map = map;
         scores.push_back(std::move(score));
@@ -168,7 +153,7 @@ void fetch_online_scores(const DatabaseBeatmap *beatmap) {
     url.append("&h=");
 
     // TODO: avoid needing to pull in translations here (use numeric id)
-    const std::string user_type = cv::songbrowser_scores_filteringtype.getString();
+    const std::string &user_type = cv::songbrowser_scores_filteringtype.getString();
     char lb_type = '1';  // Global / default
     if(user_type == _("Global")) {
         // (already set)
@@ -212,8 +197,7 @@ void fetch_online_scores(const DatabaseBeatmap *beatmap) {
 
     networkHandler->httpRequestAsync(url, std::move(options), [map_md5](const Mc::Net::Response &response) {
         if(response.success) {
-            // TODO: avoid strtok_x (needs copy)
-            process_leaderboard_response(map_md5, std::string{response.text()});
+            process_leaderboard_response(map_md5, response.text());
         } else {
             debugLog("Leaderboard request failed: {}", response.error_msg);
             db->getOnlineScores()[map_md5] = std::vector<FinishedScore>();

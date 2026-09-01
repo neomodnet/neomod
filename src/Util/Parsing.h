@@ -126,20 +126,6 @@ bool parse(S str, T arg, Extra... extra) noexcept
 
 // NOLINTEND(cppcoreguidelines-init-variables)
 
-// Since strtok_r SUCKS I'll just make my own
-// Returns the token start, and edits str to after the token end (unless '\0').
-inline char* strtok_x(char d, char** str) noexcept {
-    char* old = *str;
-    while(**str != '\0' && **str != d) {
-        (*str)++;
-    }
-    if(**str != '\0') {
-        **str = '\0';
-        (*str)++;
-    }
-    return old;
-}
-
 // float/double parsing backed by fast_float (see Parsing.cpp), with std::from_chars semantics
 // (std's own floating-point from_chars is unavailable before macOS 26's libc++)
 std::from_chars_result from_chars(const char* first, const char* last, f32& value,

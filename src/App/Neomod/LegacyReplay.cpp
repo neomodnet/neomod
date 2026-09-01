@@ -23,6 +23,7 @@
 #include "SongBrowser.h"
 #include "score.h"
 #include "Parsing.h"
+#include "SString.h"
 #include "Logging.h"
 #include "UI.h"
 #include "Replay.h"
@@ -30,6 +31,7 @@
 #include <optional>
 #include <cstdlib>
 #include <string>
+#include <string_view>
 
 namespace LegacyReplay {
 
@@ -88,24 +90,14 @@ std::vector<Frame> get_frames(const u8* replay_data, uSz replay_size) {
 
         output.write_bytes(outbuf.data(), outbuf.size() - strm.avail_out);
     } while(strm.avail_out == 0);
-    output.write<u8>('\0');
 
-    {
-        char* line = (char*)output.memory;
-        while(*line) {
+    if(output.memory != nullptr) {
+        const std::string_view data{(const char*)output.memory, output.pos};
+        for(const std::string_view frame_str : SString::split(data, ',')) {
             Frame frame;
-
-            char* ms = Parsing::strtok_x('|', &line);
-            frame.milliseconds_since_last_frame = Parsing::strto<i32>(ms);
-
-            char* x = Parsing::strtok_x('|', &line);
-            frame.x = Parsing::strto<f32>(x);
-
-            char* y = Parsing::strtok_x('|', &line);
-            frame.y = Parsing::strto<f32>(y);
-
-            char* flags = Parsing::strtok_x(',', &line);
-            frame.key_flags = Parsing::strto<u8>(flags);
+            if(!Parsing::parse(frame_str, &frame.milliseconds_since_last_frame, '|', &frame.x, '|', &frame.y, '|',
+                               &frame.key_flags))
+                continue;
 
             if(frame.milliseconds_since_last_frame != -12345) {
                 cur_music_pos += frame.milliseconds_since_last_frame;
