@@ -29,8 +29,8 @@
 #include "Replay.h"
 
 #include <optional>
-#include <cstdlib>
 #include <string>
+#include <span>
 #include <string_view>
 
 namespace LegacyReplay {
@@ -62,9 +62,10 @@ BEATMAP_VALUES getBeatmapValuesForModsLegacy(LegacyFlags modsLegacy, float legac
     return v;
 }
 
-std::vector<Frame> get_frames(const u8* replay_data, uSz replay_size) {
+namespace {
+std::vector<Frame> get_frames(std::span<const u8> replay_data) {
     std::vector<Frame> replay_frames;
-    if(replay_size <= 0) return replay_frames;
+    if(replay_data.size() <= 0) return replay_frames;
 
     lzma_stream strm = LZMA_STREAM_INIT;
     lzma_ret ret = lzma_alone_decoder(&strm, UINT64_MAX);
@@ -75,9 +76,22 @@ std::vector<Frame> get_frames(const u8* replay_data, uSz replay_size) {
 
     i32 cur_music_pos = 0;
     std::array<u8, BUFSIZ> outbuf;
-    Packet output;
-    strm.next_in = replay_data;
-    strm.avail_in = replay_size;
+    std::string pending;  // partial frame entry carried across chunk boundaries
+    const auto parse_entry = [&cur_music_pos, &replay_frames](std::string_view frame_str) {
+        Frame frame;
+        if(!Parsing::parse(frame_str, &frame.milliseconds_since_last_frame, '|', &frame.x, '|', &frame.y, '|',
+                           &frame.key_flags))
+            return;
+
+        if(frame.milliseconds_since_last_frame != -12345) {
+            cur_music_pos += frame.milliseconds_since_last_frame;
+            frame.cur_music_pos = cur_music_pos;
+            replay_frames.push_back(frame);
+        }
+    };
+
+    strm.next_in = replay_data.data();
+    strm.avail_in = replay_data.size();
     do {
         strm.next_out = outbuf.data();
         strm.avail_out = outbuf.size();
@@ -85,33 +99,33 @@ std::vector<Frame> get_frames(const u8* replay_data, uSz replay_size) {
         ret = lzma_code(&strm, LZMA_FINISH);
         if(ret != LZMA_OK && ret != LZMA_STREAM_END) {
             debugLog("Decompression error ({:d})", static_cast<unsigned int>(ret));
+            replay_frames.clear();
             goto end;
         }
 
-        output.write_bytes(outbuf.data(), outbuf.size() - strm.avail_out);
-    } while(strm.avail_out == 0);
-
-    if(output.memory != nullptr) {
-        const std::string_view data{(const char*)output.memory, output.pos};
-        for(const std::string_view frame_str : SString::split(data, ',')) {
-            Frame frame;
-            if(!Parsing::parse(frame_str, &frame.milliseconds_since_last_frame, '|', &frame.x, '|', &frame.y, '|',
-                               &frame.key_flags))
-                continue;
-
-            if(frame.milliseconds_since_last_frame != -12345) {
-                cur_music_pos += frame.milliseconds_since_last_frame;
-                frame.cur_music_pos = cur_music_pos;
-                replay_frames.push_back(frame);
+        // parse the complete (comma-terminated) frame entries of this chunk as they arrive
+        std::string_view chunk{(const char*)outbuf.data(), outbuf.size() - strm.avail_out};
+        for(size_t comma = chunk.find(','); comma != std::string_view::npos; comma = chunk.find(',')) {
+            std::string_view entry = chunk.substr(0, comma);
+            if(!pending.empty()) {
+                pending.append(entry);
+                entry = pending;
             }
+            parse_entry(entry);
+            pending.clear();
+            chunk.remove_prefix(comma + 1);
         }
-    }
+        pending.append(chunk);
+    } while(ret != LZMA_STREAM_END && strm.avail_out == 0);
+
+    // tolerate a final entry without the trailing comma
+    if(!pending.empty()) parse_entry(pending);
 
 end:
-    free(output.memory);
     lzma_end(&strm);
     return replay_frames;
 }
+}  // namespace
 
 std::vector<u8> compress_frames(const std::vector<Frame>& frames) {
     lzma_stream stream = LZMA_STREAM_INIT;
@@ -181,12 +195,12 @@ struct Info {
     std::optional<Replay::Mods> neomod_mods;
 };
 
-Info from_bytes(const u8* data, uSz s_data) {
+Info from_bytes(std::span<const u8> data) {
     Info info{};
 
     Packet replay;
-    replay.memory = (u8*)data;
-    replay.size = s_data;
+    replay.memory = (u8*)data.data();
+    replay.size = data.size();
 
     info.gamemode = replay.read<u8>();
     if(info.gamemode != 0) {
@@ -213,11 +227,12 @@ Info from_bytes(const u8* data, uSz s_data) {
 
     i32 replay_size = replay.read<i32>();
     if(replay_size <= 0) return info;
-    auto replay_data = new u8[replay_size];
-    if(replay.read_bytes(replay_data, replay_size) > 0) {
-        info.frames = get_frames(replay_data, replay_size);
+    if(replay.pos + (uSz)replay_size > replay.size) {
+        replay.pos = replay.size + 1;  // keep the Packet::read* overrun convention for the reads below
+    } else {
+        info.frames = get_frames(data.subspan(replay.pos, (uSz)replay_size));
+        replay.pos += (uSz)replay_size;
     }
-    delete[] replay_data;
 
     // https://github.com/ppy/osu/blob/a0e300c3/osu.Game/Scoring/Legacy/LegacyScoreDecoder.cs
     if(info.osu_version >= 20140721) {
@@ -250,7 +265,7 @@ bool load_osr(std::string_view osr_path, FinishedScore& score_out) {
         if(!buffer) return false;
     }
 
-    auto info = from_bytes(buffer.get(), file_size);
+    auto info = from_bytes({buffer.get(), file_size});
     if(info.frames.empty()) return false;
 
     score_out.replay = info.frames;
@@ -341,7 +356,7 @@ bool load_raw(std::string_view lzma_path, FinishedScore& score_out) {
         if(!buffer) return false;
     }
 
-    score_out.replay = get_frames(buffer.get(), file_size);
+    score_out.replay = get_frames({buffer.get(), file_size});
     return !score_out.replay.empty();
 }
 
@@ -443,7 +458,7 @@ void load_and_watch(FinishedScore score) {
         }
 
         // Unzip replay frames from server response
-        score.replay = get_frames(response.body.data(), response.body.size());
+        score.replay = get_frames({response.body.data(), response.body.size()});
         if(!score.replay.empty()) {
             // Save it to disk (XXX: blocking main thread)
             save_osr(score);

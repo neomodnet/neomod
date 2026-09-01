@@ -46,7 +46,6 @@ struct BEATMAP_VALUES {
 BEATMAP_VALUES getBeatmapValuesForModsLegacy(LegacyFlags modsLegacy, float legacyAR, float legacyCS, float legacyOD,
                                              float legacyHP);
 
-std::vector<Frame> get_frames(const u8* replay_data, uSz replay_size);
 std::vector<u8> compress_frames(const std::vector<Frame>& frames);
 bool load_from_disk(FinishedScore& score, bool update_db);
 bool load_osr(std::string_view osr_path, FinishedScore& score_out);
