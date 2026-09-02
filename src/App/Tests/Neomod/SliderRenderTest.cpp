@@ -24,7 +24,9 @@ using namespace neomod;
 
 SliderRenderTest::SliderRenderTest() { rebuildBattery(); }
 
-SliderRenderTest::~SliderRenderTest() = default;
+SliderRenderTest::~SliderRenderTest() {
+    if(m_sliderRT) resourceManager->destroyResource(m_sliderRT);
+}
 
 void SliderRenderTest::rebuildBattery() {
     const int W = engine->getScreenWidth();
@@ -157,7 +159,9 @@ void SliderRenderTest::drawSlider(const TestSlider &s, f32 from, f32 to, vec2 of
         .rt = m_sliderRT,
         .skinSettings = {},
         .vao = s.vao.get(),
-        .bounds = vec4{s.bounds.x + offset.x, s.bounds.y + offset.y, s.bounds.z + offset.x, s.bounds.w + offset.y},
+        .bounds = m_useBounds
+                      ? vec4{s.bounds.x + offset.x, s.bounds.y + offset.y, s.bounds.z + offset.x, s.bounds.w + offset.y}
+                      : vec4{},
         .alwaysPoints = caps,
         .translation = offset,
         .scale = 1.0f,
@@ -197,37 +201,39 @@ void SliderRenderTest::draw() {
     g->pushTransform();
     {
         g->translate(12, font->getHeight() + 10);
-        g->drawString(
-            font, fmt::format("{}  sep={:.2f}  body verts={}  draws={}  frame={:.2f}ms{}{}",
-                              SliderRenderer::usingSDF() ? "SDF body" : "CONE body",
-                              cv::slider_curve_points_separation.getFloat(), m_totalVerts, drawn,
-                              engine->getFrameTime() * 1000.0,
-                              m_stressCount > 0 ? fmt::format("  STRESS x{}", m_stressCount) : "",
-                              m_solo >= 0 && !m_sliders.empty() ? fmt::format("  SOLO:{}", m_sliders[0].name) : ""));
+        g->drawString(font,
+                      fmt::format("{}  sep={:.2f}  body verts={}  draws={}  frame={:.2f}ms{}{}{}",
+                                  SliderRenderer::usingSDF() ? "SDF body" : "CONE body",
+                                  cv::slider_curve_points_separation.getFloat(), m_totalVerts, drawn,
+                                  engine->getFrameTime() * 1000.0,
+                                  m_stressCount > 0 ? fmt::format("  STRESS x{}", m_stressCount) : "",
+                                  m_solo >= 0 && !m_sliders.empty() ? fmt::format("  SOLO:{}", m_sliders[0].name) : "",
+                                  m_useBounds ? "" : "  FULL-RT COMPOSITE"));
     }
     g->popTransform();
     g->pushTransform();
     {
         g->translate(12, (f32)engine->getScreenHeight() - font->getHeight());
         g->drawString(font,
-                      "[S] snake   [T] stress   [C] SDF/cone   [Z] solo-zoom   cvars: slider_body_sdf, "
-                      "slider_curve_points_separation");
+                      "[S] snake   [T] stress   [C] SDF/cone   [Z] solo-zoom   [B] composite bounds   cvars: "
+                      "slider_body_sdf, slider_curve_points_separation");
     }
     g->popTransform();
 
     // headless perf readout: getFrameTime() reflects real CPU+GPU work when the swapchain isn't blocking
     const bool sdf = SliderRenderer::usingSDF();
-    if(sdf != m_perfLastSDF || m_stressCount != m_perfLastStress) {
+    if(sdf != m_perfLastSDF || m_stressCount != m_perfLastStress || m_useBounds != m_perfLastBounds) {
         m_perfAccum = 0.0;
         m_perfFrames = 0;
         m_perfLastSDF = sdf;
         m_perfLastStress = m_stressCount;
+        m_perfLastBounds = m_useBounds;
     }
     m_perfAccum += engine->getFrameTime();
     if(++m_perfFrames >= 100) {
-        logRaw("[perf] {:<4} sep={:.2f} stress=x{:<2} draws={:<4} avg={:.3f} ms ({} frames)", sdf ? "SDF" : "CONE",
-               cv::slider_curve_points_separation.getFloat(), m_stressCount, drawn,
-               (m_perfAccum / (f64)m_perfFrames) * 1000.0, m_perfFrames);
+        logRaw("[perf] {:<4} sep={:.2f} stress=x{:<2} draws={:<4} bounds={} avg={:.3f} ms ({} frames)",
+               sdf ? "SDF" : "CONE", cv::slider_curve_points_separation.getFloat(), m_stressCount, drawn,
+               m_useBounds ? "bbox" : "full", (m_perfAccum / (f64)m_perfFrames) * 1000.0, m_perfFrames);
         m_perfAccum = 0.0;
         m_perfFrames = 0;
     }
@@ -251,6 +257,9 @@ void SliderRenderTest::onKeyDown(KeyboardEvent &e) {
         e.consume();
     } else if(sc == KEY_C) {
         cv::slider_body_sdf.setValue(!cv::slider_body_sdf.getBool());
+        e.consume();
+    } else if(sc == KEY_B) {
+        m_useBounds = !m_useBounds;
         e.consume();
     } else if(sc == KEY_Z) {  // cycle solo-zoom: grid -> shape0 -> ... -> shapeN -> grid
         m_solo = m_solo + 1 >= m_numShapes ? -1 : m_solo + 1;

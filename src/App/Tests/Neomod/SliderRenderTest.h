@@ -21,7 +21,7 @@ namespace Mc::Tests {
 // and draws them through the real SliderRenderer path, so the analytic SDF vs cone-disc body mesh can be
 // compared visually (screenshot) and for performance (frame time under stress) by toggling the
 // slider_body_sdf / slider_curve_points_separation convars.
-// keys: S snake, T cycle stress-tile, C toggle SDF/cone, Z cycle solo-zoom
+// keys: S snake, T cycle stress-tile, C toggle SDF/cone, Z cycle solo-zoom, B toggle composite bounds
 class SliderRenderTest : public App {
     NOCOPY_NOMOVE(SliderRenderTest)
    public:
@@ -59,8 +59,9 @@ class SliderRenderTest : public App {
     vec2 m_lastScreen{0.0f};
 
     bool m_animateSnake{false};
-    int m_stressCount{0};  // 0 = off; otherwise N overlapping copies per shape (fragment-bound overdraw stress)
-    int m_solo{-1};        // -1 = grid of all shapes; >=0 = render only that shape, zoomed to fill the screen
+    int m_stressCount{0};    // 0 = off; otherwise N overlapping copies per shape (fragment-bound overdraw stress)
+    int m_solo{-1};          // -1 = grid of all shapes; >=0 = render only that shape, zoomed to fill the screen
+    bool m_useBounds{true};  // false = composite the whole RT instead of the body bbox (what the bounds opt saves)
     f32 m_hitcircleDiameter{70.0f};
     int m_numShapes{0};  // set by rebuildBattery
 
@@ -70,6 +71,7 @@ class SliderRenderTest : public App {
     int m_perfFrames{0};
     bool m_perfLastSDF{false};
     int m_perfLastStress{-1};
+    bool m_perfLastBounds{true};
 };
 
 }  // namespace Mc::Tests
