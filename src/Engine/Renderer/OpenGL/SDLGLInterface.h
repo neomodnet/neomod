@@ -74,6 +74,9 @@ class SDLGLInterface : public GLGraphicsBackend {
 
     [[nodiscard]] bool hasFlippedTextureOrigin() const override { return true; }
 
+    // 1x1 transparent texture, bound in place of entirely transparent images (which are never uploaded)
+    [[nodiscard]] inline GLuint getTransparentTexture() const { return this->transparentTexture; }
+
     static void setGLLog(bool on);
 
     // debugging
@@ -93,6 +96,8 @@ class SDLGLInterface : public GLGraphicsBackend {
     static void dumpGLContextInfo();
 
     SDL_Window *window;
+
+    GLuint transparentTexture{0};
 
     // frame queue management
     std::unique_ptr<OpenGLSync> syncobj;

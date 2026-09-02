@@ -161,7 +161,7 @@ void SDLGPUImage::destroy() {
 }
 
 void SDLGPUImage::bind(unsigned int /*textureUnit*/) const {
-    if(!m_gpu || !m_device || !this->isGPUReady()) return;
+    if(!m_gpu || !m_device || !this->isReady()) return;
 
     // save current binding for nested bind/unbind support
     m_prevTexture = m_gpu->getBoundTexture();
@@ -173,7 +173,7 @@ void SDLGPUImage::bind(unsigned int /*textureUnit*/) const {
 }
 
 void SDLGPUImage::unbind() const {
-    if(!m_gpu || !m_device || !this->isGPUReady()) return;
+    if(!m_gpu || !m_device || !this->isReady()) return;
 
     m_gpu->setBoundTexture(m_prevTexture);
     m_gpu->setBoundSampler(m_prevSampler);

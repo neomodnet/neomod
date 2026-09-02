@@ -276,7 +276,7 @@ void DirectX11Image::deleteDX() {
 }
 
 void DirectX11Image::bind(unsigned int textureUnit) const {
-    if(!this->isGPUReady()) return;
+    if(!this->isReady()) return;
 
     this->iTextureUnitBackup = textureUnit;
 
@@ -301,13 +301,13 @@ void DirectX11Image::bind(unsigned int textureUnit) const {
 }
 
 void DirectX11Image::unbind() const {
-    if(!this->isGPUReady()) return;
+    if(!this->isReady()) return;
 
     // restore
     // HACKHACK: slow af
     {
-        static_cast<DirectX11Interface*>(g)->getDeviceContext()->PSSetShaderResources(
-            this->iTextureUnitBackup, 1, &this->prevShaderResourceView);
+        static_cast<DirectX11Interface*>(g)->getDeviceContext()->PSSetShaderResources(this->iTextureUnitBackup, 1,
+                                                                                      &this->prevShaderResourceView);
 
         // refcount
         {

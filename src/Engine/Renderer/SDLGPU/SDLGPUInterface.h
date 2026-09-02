@@ -364,7 +364,8 @@ class SDLGPUInterface final : public ModernGraphicsShared {
     bool m_supportsImmediate{false};
     bool m_supportsMailbox{false};
 
-    // 1x1 white dummy texture+sampler (bound when texturing is disabled)
+    // 1x1 transparent black dummy texture+sampler (bound when no texture is, i.e. texturing disabled or entirely
+    // transparent images)
     SDL_GPUTexture *m_dummyTexture{nullptr};
     SDL_GPUSampler *m_dummySampler{nullptr};
 

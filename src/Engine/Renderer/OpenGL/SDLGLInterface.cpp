@@ -118,10 +118,24 @@ bool SDLGLInterface::init() {
 #endif  // MCENGINE_PLATFORM_WASM
     this->syncobj = std::make_unique<OpenGLSync>();
 
+    if(success) {
+        // entirely transparent images are never uploaded, binding them samples this instead of whatever was bound before
+        const u32 noColor = 0x00000000;
+        glGenTextures(1, &this->transparentTexture);
+        glBindTexture(GL_TEXTURE_2D, this->transparentTexture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, &noColor);
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+
     return success;
 }
 
-SDLGLInterface::~SDLGLInterface() { unload(); }
+SDLGLInterface::~SDLGLInterface() {
+    if(this->transparentTexture != 0) glDeleteTextures(1, &this->transparentTexture);
+    unload();
+}
 
 void SDLGLInterface::beginScene() {
     // block on frame queue (if enabled)

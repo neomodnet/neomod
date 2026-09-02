@@ -11,6 +11,7 @@
 #include "Logging.h"
 
 #include "OpenGLHeaders.h"
+#include "SDLGLInterface.h"
 
 OpenGLImage::~OpenGLImage() {
     this->destroy();
@@ -165,15 +166,17 @@ void OpenGLImage::deleteGL() {
 }
 
 void OpenGLImage::bind(unsigned int textureUnit) const {
-    if(!this->isGPUReady()) return;
+    if(!this->isReady()) return;
 
     this->iTextureUnitBackup = textureUnit;
 
     // switch texture units before enabling+binding
     glActiveTexture(GL_TEXTURE0 + textureUnit);
 
-    // set texture
-    glBindTexture(GL_TEXTURE_2D, this->GLTexture);
+    // set texture (entirely transparent images were never uploaded, bind the shared transparent texture in their place)
+    glBindTexture(GL_TEXTURE_2D, this->bLoadedImageEntirelyTransparent
+                                     ? static_cast<SDLGLInterface *>(g)->getTransparentTexture()
+                                     : this->GLTexture);
 
     // FFP compatibility (part 2)
     if constexpr(Env::cfg(REND::GL)) {
@@ -182,7 +185,7 @@ void OpenGLImage::bind(unsigned int textureUnit) const {
 }
 
 void OpenGLImage::unbind() const {
-    if(!this->isGPUReady() || !cv::r_gl_image_unbind.getBool()) return;
+    if(!this->isReady() || !cv::r_gl_image_unbind.getBool()) return;
 
     // restore texture unit (just in case) and set to no texture
     glActiveTexture(GL_TEXTURE0 + this->iTextureUnitBackup);

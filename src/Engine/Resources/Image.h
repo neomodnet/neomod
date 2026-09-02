@@ -82,7 +82,9 @@ class Image : public Resource {
     // all images are converted to RGBA
     static constexpr const u8 NUM_CHANNELS{4};
 
-    // used by renderer backends
+    // whether the image is loaded and backed by an actual gpu texture (entirely transparent images are never uploaded)
+    // bind() works either way (transparent images bind a backend placeholder that samples as nothing), so this is only
+    // useful for skipping draws entirely
     [[nodiscard]] inline bool isGPUReady() const { return this->isReady() && !this->bLoadedImageEntirelyTransparent; }
 
    protected:
