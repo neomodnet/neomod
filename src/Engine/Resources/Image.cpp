@@ -13,7 +13,6 @@
 #include "Logging.h"
 #include "ConVar.h"
 #include "Graphics.h"
-#include "AsyncPool.h"
 #include "Vectors.h"
 
 #include <png.h>

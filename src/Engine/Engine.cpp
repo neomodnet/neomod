@@ -201,7 +201,7 @@ Engine::~Engine() {
     MISSING_TEXTURE = nullptr;
 
     debugLog("Engine: Stopping threads...");
-    AsyncPool::get().shutdown();
+    Async::shutdown();
 
     debugLog("Engine: Freeing Sound...");
     SAFE_DELETE(soundEngine);

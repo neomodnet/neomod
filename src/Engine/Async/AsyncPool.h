@@ -1,174 +1,95 @@
 // Copyright (c) 2026, WH, All rights reserved.
 #pragma once
 
-#include "noinclude.h"
-#include "types.h"
-
+#include "AsyncTypes.h"
+#include "AsyncFuture.h"
 #include "AsyncCancellable.h"
-#include "AsyncChannel.h"
 
-#include "SyncMutex.h"
-#include "SyncCV.h"
-#include "SyncJthread.h"
-
-#include <queue>
-#include <functional>
-#include <memory>
-#include <vector>
-#include <atomic>
-#include <type_traits>
+#include <cassert>
 #include <tuple>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
-// type-erased task hierarchy
-class AsyncPool final {
-    NOCOPY_NOMOVE(AsyncPool)
-
-    struct TaskBase {
-        NOCOPY_NOMOVE(TaskBase)
-       public:
-        TaskBase() noexcept = default;
-        virtual ~TaskBase() noexcept = default;
-        virtual void execute() noexcept = 0;
-    };
-
-    template <typename T>
-    struct Task final : TaskBase {
-        std::function<T()> work;
-        std::promise<T> promise;
-
-        Task(std::function<T()> w) noexcept : work(std::move(w)) {}
-
-        void execute() noexcept override {
-            if constexpr(std::is_void_v<T>) {
-                this->work();
-                this->promise.set_value();
-            } else {
-                this->promise.set_value(this->work());
-            }
-        }
-
-        std::future<T> get_future() { return this->promise.get_future(); }
-    };
-
-    struct FireAndForgetTask final : TaskBase {
-        std::function<void()> work;
-
-        FireAndForgetTask(std::function<void()> w) noexcept : work(std::move(w)) {}
-
-        void execute() noexcept override { this->work(); }
-    };
-
-    explicit AsyncPool(size_t thread_count);
-
-   public:
-    static AsyncPool& get();  // single instance
-
-    AsyncPool() = delete;
-    ~AsyncPool();
-
-    // submit work, get a future back
-    template <typename F>
-    auto submit(F&& func, Lane lane = Lane::Foreground) -> Async::Future<std::invoke_result_t<F>> {
-        using T = std::invoke_result_t<F>;
-        auto task = std::make_unique<Task<T>>(std::forward<F>(func));
-        auto future = Async::Future<T>(task->get_future());
-        enqueue(std::move(task), lane);
-        return future;
-    }
-
-    // fire-and-forget (no promise/future overhead)
-    template <typename F>
-    void dispatch(F&& func, Lane lane = Lane::Foreground) {
-        auto task = std::make_unique<FireAndForgetTask>(std::forward<F>(func));
-        enqueue(std::move(task), lane);
-    }
-
-    // queue a callback to run on the main thread during the next Engine::onUpdate()
-    void queue_main(std::function<void()> fn) { m_mainQueue.push(std::move(fn)); }
-
-    // drain and execute all queued main-thread callbacks. called from Engine::onUpdate().
-    void update() {
-        auto items = m_mainQueue.drain();
-        for(auto& fn : items) fn();
-    }
-
-    // stop accepting work, join all threads
-    void shutdown();
-
-    [[nodiscard]] size_t thread_count() const noexcept { return m_fgThreads.size() + m_bgThreads.size(); }
-    [[nodiscard]] size_t pending_count() const noexcept { return m_pending.load(std::memory_order_relaxed); }
-
-   private:
-    void fg_worker_loop(size_t index) noexcept;
-    void bg_worker_loop(size_t index) noexcept;
-
-    void enqueue(std::unique_ptr<TaskBase> task, Lane lane);
-
-    std::queue<std::unique_ptr<TaskBase>> m_fgQueue;
-    std::queue<std::unique_ptr<TaskBase>> m_bgQueue;
-    Sync::mutex m_workMutex;
-    Sync::condition_variable m_fgCV;
-    Sync::condition_variable m_bgCV;
-    std::atomic<size_t> m_pending{0};
-
-    std::vector<Sync::jthread> m_fgThreads;
-    std::vector<Sync::jthread> m_bgThreads;
-    bool m_shutdown{false};
-
-    Async::Channel<std::function<void()>> m_mainQueue;
-};
-
-// ---------------------------------------------------------------------------
-// free-function API
-// ---------------------------------------------------------------------------
+// fixed-size worker pool with two lanes: Foreground for short/frame-adjacent work, Background for long-running
+// work. fg workers also take bg work, but at least half of them always stay free for fg tasks; bg workers never
+// take fg work. waiting on a future from a pool thread runs other queued tasks in the meantime, so tasks may
+// block on their own sub-tasks. continuations (Future::then etc.) never occupy a thread while pending.
 namespace Async {
 
-inline size_t get_thread_count() { return AsyncPool::get().thread_count(); }
+[[nodiscard]] size_t get_thread_count() noexcept;
+[[nodiscard]] size_t pending_count() noexcept;  // queued, not yet started
 
+// run the main-thread continuations that became ready since the last call (Engine::onUpdate)
+void update();
+// finish all queued work and join the workers. anything submitted afterwards runs inline on the caller.
+void shutdown();
+
+// submit work, get a future back
 template <typename F>
-auto submit(F&& f, Lane lane = Lane::Foreground) -> Future<std::invoke_result_t<F>> {
-    return AsyncPool::get().submit(std::forward<F>(f), lane);
+auto submit(F &&f, Lane lane = Lane::Foreground) -> Future<std::invoke_result_t<F>> {
+    auto *task = detail::make_task(std::forward<F>(f), lane);
+    task->add_ref();  // the future's
+    detail::enqueue(task);
+    return detail::FutureAccess::adopt(task);
 }
 
+// fire-and-forget
 template <typename F>
-void dispatch(F&& f, Lane lane = Lane::Foreground) {
-    AsyncPool::get().dispatch(std::forward<F>(f), lane);
+void dispatch(F &&f, Lane lane = Lane::Foreground) {
+    detail::enqueue(detail::make_task(std::forward<F>(f), lane));
 }
 
-// cancellable submit: composes submit() with a stop_source.
-// the callable receives a const Sync::stop_token& and should check stop_requested() periodically.
+// run f on the main thread during the next Async::update()
 template <typename F>
-auto submit_cancellable(F&& f, Lane lane = Lane::Foreground)
-    -> CancellableHandle<std::invoke_result_t<F, const Sync::stop_token&>> {
-    using T = std::invoke_result_t<F, const Sync::stop_token&>;
+void queue_main(F &&f) {
+    detail::enqueue(detail::make_task(std::forward<F>(f), Lane::Foreground, true));
+}
+
+// cancellable submit: the callable receives a const Sync::stop_token& and should check stop_requested()
+// periodically. cancelling before the task starts skips it entirely (its result is default-constructed).
+template <typename F>
+auto submit_cancellable(F &&f, Lane lane = Lane::Foreground)
+    -> CancellableHandle<std::invoke_result_t<F, const Sync::stop_token &>> {
+    using T = std::invoke_result_t<F, const Sync::stop_token &>;
+    static_assert(std::is_void_v<T> || std::is_default_constructible_v<T>,
+                  "a task cancelled before it starts yields a default-constructed result");
 
     Sync::stop_source source;
-    auto token = source.get_token();
-
-    auto future = AsyncPool::get().submit(
-        [func = std::forward<F>(f), tok = std::move(token)]() mutable -> T { return func(tok); }, lane);
+    auto future = submit(
+        [func = std::forward<F>(f), tok = source.get_token()]() mutable -> T {
+            // cancelled after being taken off the queue, before starting
+            if(tok.stop_requested()) {
+                if constexpr(std::is_void_v<T>) {
+                    return;
+                } else {
+                    return T{};
+                }
+            }
+            return func(tok);
+        },
+        lane);
 
     return CancellableHandle<T>(std::move(future), std::move(source));
 }
-
-inline void queue_main(std::function<void()> fn) { AsyncPool::get().queue_main(std::move(fn)); }
-inline void update() { AsyncPool::get().update(); }
 
 // ---------------------------------------------------------------------------
 // make_ready_future: create a future that is immediately ready
 // ---------------------------------------------------------------------------
 
 template <typename T>
-Future<T> make_ready_future(T&& value) {
-    std::promise<T> p;
-    p.set_value(std::forward<T>(value));
-    return Future<T>(p.get_future());
+Future<std::decay_t<T>> make_ready_future(T &&value) {
+    auto *task = detail::make_task([v = std::forward<T>(value)]() mutable { return std::move(v); }, Lane::Foreground);
+    task->execute();
+    task->complete();
+    return detail::FutureAccess::adopt(task);  // the execution ref becomes the future's
 }
 
 inline Future<void> make_ready_future() {
-    std::promise<void> p;
-    p.set_value();
-    return Future<void>(p.get_future());
+    auto *task = detail::make_task([] {}, Lane::Foreground);
+    task->execute();
+    task->complete();
+    return detail::FutureAccess::adopt(task);
 }
 
 // ---------------------------------------------------------------------------
@@ -176,12 +97,12 @@ inline Future<void> make_ready_future() {
 // ---------------------------------------------------------------------------
 
 template <typename T>
-void wait_all(std::vector<Future<T>>& futures) {
-    for(auto& f : futures) f.wait();
+void wait_all(std::vector<Future<T>> &futures) {
+    for(auto &f : futures) f.wait();
 }
 
 template <typename... Ts>
-void wait_all(Future<Ts>&... futures) {
+void wait_all(Future<Ts> &...futures) {
     (futures.wait(), ...);
 }
 
@@ -189,97 +110,95 @@ void wait_all(Future<Ts>&... futures) {
 // when_all: compose multiple futures into one
 // ---------------------------------------------------------------------------
 
+namespace detail {
+
+template <typename T, typename Fn>
+void for_each_future(std::vector<Future<T>> &futures, Fn fn) {
+    for(auto &f : futures) fn(f);
+}
+template <typename... Ts, typename Fn>
+void for_each_future(std::tuple<Future<Ts>...> &futures, Fn fn) {
+    std::apply([&fn](auto &...f) { (fn(f), ...); }, futures);
+}
+
+// the results of a group of completed futures (none of the get()s block)
+template <typename T>
+    requires(!std::is_void_v<T>)
+std::vector<T> collect_results(std::vector<Future<T>> &futures) {
+    std::vector<T> results;
+    results.reserve(futures.size());
+    for(auto &f : futures) results.push_back(f.get());
+    return results;
+}
+inline void collect_results(std::vector<Future<void>> &futures) {
+    for(auto &f : futures) f.get();
+}
+template <typename... Ts>
+std::tuple<Ts...> collect_results(std::tuple<Future<Ts>...> &futures) {
+    return std::apply([](auto &...f) { return std::make_tuple(f.get()...); }, futures);
+}
+
+// owns a group of futures and completes with their collected results once the last of them has
+template <typename Inputs>
+class WhenAll final : public State<decltype(collect_results(std::declval<Inputs &>()))> {
+    using R = decltype(collect_results(std::declval<Inputs &>()));
+
+   public:
+    WhenAll(Inputs inputs, Lane lane) : State<R>(lane, false), m_inputs(std::move(inputs)) {}
+
+    // register on every input. the last one to complete fires this (start() itself, if there are none)
+    void start() noexcept {
+        for_each_future(m_inputs, [this](auto &f) {
+            assert(f.valid() && "when_all() on an invalid future");
+            m_remaining.fetch_add(1, std::memory_order_relaxed);
+            FutureAccess::state(f)->set_continuation(this);
+        });
+        fire();
+    }
+
+    void execute() noexcept override {
+        if constexpr(std::is_void_v<R>) {
+            collect_results(m_inputs);
+        } else {
+            this->m_value.emplace(collect_results(m_inputs));
+        }
+    }
+
+    void fire() noexcept override {
+        if(m_remaining.fetch_sub(1, std::memory_order_acq_rel) == 1) State<R>::fire();
+    }
+
+   private:
+    Inputs m_inputs;
+    std::atomic<u32> m_remaining{1};  // inputs still pending, plus one held by start() until all are registered
+};
+
+template <typename Inputs>
+auto when_all(Inputs inputs, Lane lane) {
+    auto *task = new WhenAll<Inputs>(std::move(inputs), lane);
+    task->add_ref();  // the future's
+    task->start();
+    return FutureAccess::adopt(task);
+}
+
+}  // namespace detail
+
 // homogeneous vector of non-void futures
 template <typename T>
     requires(!std::is_void_v<T>)
-auto when_all(std::vector<Future<T>>&& futures) -> Future<std::vector<T>> {
-    // shared_ptr makes the lambda copyable for std::function (Future is move-only).
-    // the bridging task blocks one pool thread while iterating; acceptable for realistic usage.
-    auto sf = std::make_shared<std::vector<Future<T>>>(std::move(futures));
-    return submit([sf]() -> std::vector<T> {
-        std::vector<T> results;
-        results.reserve(sf->size());
-        for(auto& f : *sf) results.push_back(f.get());
-        return results;
-    });
+auto when_all(std::vector<Future<T>> &&futures, Lane lane = Lane::Foreground) -> Future<std::vector<T>> {
+    return detail::when_all(std::move(futures), lane);
 }
 
 // homogeneous vector of void futures
-auto when_all(std::vector<Future<void>>&& futures) -> Future<void>;
+inline auto when_all(std::vector<Future<void>> &&futures, Lane lane = Lane::Foreground) -> Future<void> {
+    return detail::when_all(std::move(futures), lane);
+}
 
 // heterogeneous variadic (different types, all non-void)
 template <typename T1, typename T2, typename... Rest>
-auto when_all(Future<T1>&& f1, Future<T2>&& f2, Future<Rest>&&... rest) -> Future<std::tuple<T1, T2, Rest...>> {
-    auto sf = std::make_shared<std::tuple<Future<T1>, Future<T2>, Future<Rest>...>>(std::move(f1), std::move(f2),
-                                                                                    std::move(rest)...);
-    return submit([sf]() -> std::tuple<T1, T2, Rest...> {
-        return std::apply([](auto&... fs) { return std::make_tuple(fs.get()...); }, *sf);
-    });
-}
-
-// ---------------------------------------------------------------------------
-// Future<T> continuation implementations (declared in AsyncFuture.h)
-// ---------------------------------------------------------------------------
-
-template <typename T>
-template <typename Cb>
-auto Future<T>::then(Cb&& cb, Lane lane) -> Future<detail::then_result_t<T, Cb>> {
-    // wrap in shared_ptr so the lambda is copyable (std::future is move-only)
-    auto sf = std::make_shared<std::future<T>>(std::move(m_future));
-    if constexpr(std::is_void_v<T>) {
-        return Async::submit(
-            [sf, c = std::forward<Cb>(cb)]() mutable {
-                sf->get();
-                return c();
-            },
-            lane);
-    } else {
-        return Async::submit([sf, c = std::forward<Cb>(cb)]() mutable { return c(sf->get()); }, lane);
-    }
-}
-
-template <typename T>
-template <typename Cb>
-Future<void> Future<T>::then_on_main(Cb&& cb) {
-    auto sf = std::make_shared<std::future<T>>(std::move(m_future));
-    return Async::submit([sf, c = std::forward<Cb>(cb)]() mutable {
-        if constexpr(std::is_void_v<T>) {
-            sf->get();
-            Async::queue_main([c = std::move(c)]() mutable { c(); });
-        } else {
-            auto val = sf->get();
-            Async::queue_main([c = std::move(c), v = std::move(val)]() mutable { c(std::move(v)); });
-        }
-    });
-}
-
-// ---------------------------------------------------------------------------
-// CancellableHandle<T>::then_on_main (declared in AsyncCancellable.h)
-// ---------------------------------------------------------------------------
-
-template <typename T>
-template <typename Cb>
-CancellableHandle<void> CancellableHandle<T>::then_on_main(Cb&& cb) {
-    auto sf = std::make_shared<std::future<T>>(std::move(this->m_future));
-    // move stop_source out; the original handle becomes inert
-    // (its destructor's cancel() is a no-op on a moved-from stop_source)
-    auto captured_stop = std::move(this->stop);
-    auto stop_copy = captured_stop;  // shared with the bridging lambda
-
-    auto future = Async::submit([sf, c = std::forward<Cb>(cb), s = stop_copy]() mutable {
-        if constexpr(std::is_void_v<T>) {
-            sf->get();
-            auto status = s.stop_requested() ? Status::cancelled : Status::completed;
-            Async::queue_main([c = std::move(c), status]() mutable { c(Result<void>{status}); });
-        } else {
-            auto val = sf->get();
-            auto status = s.stop_requested() ? Status::cancelled : Status::completed;
-            Async::queue_main(
-                [c = std::move(c), v = std::move(val), status]() mutable { c(Result<T>{std::move(v), status}); });
-        }
-    });
-
-    return CancellableHandle<void>(std::move(future), std::move(captured_stop));
+auto when_all(Future<T1> &&f1, Future<T2> &&f2, Future<Rest> &&...rest) -> Future<std::tuple<T1, T2, Rest...>> {
+    return detail::when_all(std::make_tuple(std::move(f1), std::move(f2), std::move(rest)...), Lane::Foreground);
 }
 
 }  // namespace Async

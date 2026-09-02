@@ -3,6 +3,8 @@
 #include "App.h"
 #include "AsyncPool.h"
 
+#include <vector>
+
 namespace Mc::Tests {
 
 class AsyncPoolTest : public App {
@@ -15,6 +17,7 @@ class AsyncPoolTest : public App {
 
    private:
     void runSyncTests();
+    void startStressTest();
     void finish();
 
     int m_passes = 0;
@@ -41,12 +44,16 @@ class AsyncPoolTest : public App {
         // cancellable auto-cancel on destroy
         WAIT_AUTO_CANCEL,
         TEST_AUTO_CANCEL,
+        // every worker blocked in a nested wait or a continuation at once
+        WAIT_STRESS,
+        TEST_STRESS,
 
         DONE
     };
     Phase m_phase{SYNC_TESTS};
 
     // async test state: handles kept alive across frames, results set by continuations
+    Async::Future<int> m_thenOnMainChain;
     Async::Future<void> m_asyncHandle;
     Async::CancellableHandle<void> m_cancelHandle;
     int m_thenOnMainResult{0};
@@ -54,6 +61,12 @@ class AsyncPoolTest : public App {
     Async::Result<int> m_cancelCompletedResult{0, Async::Status::cancelled};
     Async::Result<void> m_cancelCancelledResult{Async::Status::completed};
     Async::Result<void> m_autoCancelResult{Async::Status::completed};
+
+    std::vector<Async::Future<int>> m_stressLoaders;
+    std::vector<Async::Future<void>> m_stressConts;
+    int m_stressWindow{0};
+    int m_stressContSum{0};
+    u64 m_stressStartMS{0};
 };
 
 }  // namespace Mc::Tests

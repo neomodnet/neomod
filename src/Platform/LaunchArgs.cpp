@@ -116,6 +116,8 @@ std::optional<std::string> has_arg(ArgSwitch arg_switch) noexcept {
             return find_switch({"-nodpi"});
         case MISC_NO_FPU:
             return find_switch({"-nofpu"});
+        case MISC_ASYNC_THREADS:
+            return find_switch({"-async_threads"});
     }
     return std::nullopt;
 }

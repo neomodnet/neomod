@@ -211,7 +211,7 @@ void VisualProfiler::draw() {
                             this->textLines);
                 addTextLine(fmt::format("Sound Volume: {:f}", soundEngine->getVolume()), textFont, this->textLines);
                 addTextLine(fmt::format("Pool: {:d} threads, {:d} pending", Async::get_thread_count(),
-                                        AsyncPool::get().pending_count()),
+                                        Async::pending_count()),
                             textFont, this->textLines);
                 addTextLine(fmt::format("RM InFlight: {:d}, DestroyQ: {:d}", resourceManager->getNumInFlight(),
                                         resourceManager->getNumAsyncDestroyQueue()),

@@ -1,85 +1,92 @@
 // Copyright (c) 2026, WH, All rights reserved.
 #pragma once
 
-#include "noinclude.h"
-#include "config.h"
-#include "AsyncTypes.h"
+#include "AsyncState.h"
 
-#include <chrono>
-#include <future>
-#include <memory>
+#include <cassert>
 #include <type_traits>
-
-#ifdef MCENGINE_PLATFORM_WASM
-extern "C" void emscripten_main_thread_process_queued_calls(void);
-namespace McThread {
-bool is_main_thread() noexcept;
-}
-#endif
+#include <utility>
 
 namespace Async {
 
 namespace detail {
-template <typename T, typename Cb>
-struct then_result {
-    using type = std::invoke_result_t<Cb, T>;
-};
-template <typename Cb>
-struct then_result<void, Cb> {
-    using type = std::invoke_result_t<Cb>;
-};
-template <typename T, typename Cb>
-using then_result_t = typename then_result<T, Cb>::type;
-}  // namespace detail
+struct FutureAccess;
+}
 
+// the result of a task submitted to the pool. move-only; get() and then() consume it.
 template <typename T>
 class Future {
+    static_assert(!std::is_reference_v<T>, "Future of a reference type is not supported");
+
    public:
     Future() noexcept = default;
     ~Future() = default;
-    explicit Future(std::future<T>&& f) noexcept : m_future(std::move(f)) {}
 
-    Future(const Future&) = delete;
-    Future& operator=(const Future&) = delete;
-    Future(Future&&) noexcept = default;
-    Future& operator=(Future&&) noexcept = default;
+    Future(const Future &) = delete;
+    Future &operator=(const Future &) = delete;
+    Future(Future &&) noexcept = default;
+    Future &operator=(Future &&) noexcept = default;
 
-    [[nodiscard]] bool valid() const noexcept { return m_future.valid(); }
+    [[nodiscard]] bool valid() const noexcept { return static_cast<bool>(m_state); }
+    [[nodiscard]] bool is_ready() const noexcept { return m_state && m_state->done(); }
 
-    [[nodiscard]] bool is_ready() const {
-        return m_future.valid() && m_future.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+    // block until ready. from a pool thread this runs other queued tasks in the meantime.
+    void wait() const noexcept {
+        assert(valid() && "wait() on an invalid future");
+        if(m_state) m_state->wait();
     }
 
-    T get() { return m_future.get(); }
-
-    void wait() const {
-#ifdef MCENGINE_PLATFORM_WASM
-        // on WASM, a blocking wait on the main thread can deadlock if the worker needs to proxy calls back.
-        // drain the pthreads proxy queue while spinning so those calls can complete.
-        if(McThread::is_main_thread()) {
-            while(m_future.wait_for(std::chrono::milliseconds(1)) != std::future_status::ready) {
-                emscripten_main_thread_process_queued_calls();
-            }
-            return;
-        }
-#endif
-        m_future.wait();
+    // block until ready, then hand out the result; the future is invalid afterwards
+    T get() noexcept {
+        assert(valid() && "get() on an invalid future");
+        detail::Ref<detail::State<T>> state = std::move(m_state);
+        state->wait();
+        if constexpr(!std::is_void_v<T>) return state->take();
     }
 
-    // continuation: runs cb(result) on a pool thread, returns Future<U>.
-    // consumes this future (valid() == false after call).
-    // note: the bridging task blocks a pool thread while waiting on this future.
-    // declared here, defined in AsyncPool.h (needs Async::submit).
+    // continuation: cb(result) runs on a pool thread once this completes; returns the future of its result.
+    // consumes this future. no thread is blocked in the meantime.
     template <typename Cb>
-    auto then(Cb&& cb, Lane lane = Lane::Foreground) -> Future<detail::then_result_t<T, Cb>>;
+    auto then(Cb &&cb, Lane lane = Lane::Foreground) -> Future<detail::then_result_t<T, Cb>> {
+        assert(valid() && "then() on an invalid future");
+        return Future<detail::then_result_t<T, Cb>>(
+            detail::continue_with(std::move(m_state), std::forward<Cb>(cb), lane, false));
+    }
 
-    // continuation: queues cb(result) for the next main-thread update tick.
-    // consumes this future. returned Future<void> represents "cb was queued" (not "cb has run").
+    // continuation: cb(result) runs on the main thread during Async::update() once this completes.
+    // consumes this future. the returned future is ready once cb has run, so never wait() on it from the
+    // main thread (asserts), and from a pool task only while the main thread keeps updating.
     template <typename Cb>
-    Future<void> then_on_main(Cb&& cb);
+    auto then_on_main(Cb &&cb) -> Future<detail::then_result_t<T, Cb>> {
+        assert(valid() && "then_on_main() on an invalid future");
+        return Future<detail::then_result_t<T, Cb>>(
+            detail::continue_with(std::move(m_state), std::forward<Cb>(cb), Lane::Foreground, true));
+    }
 
    protected:
-    std::future<T> m_future;
+    template <typename>
+    friend class Future;
+    friend struct detail::FutureAccess;
+
+    explicit Future(detail::State<T> *state) noexcept : m_state(state) {}  // adopts one reference
+
+    detail::Ref<detail::State<T>> m_state;
 };
+
+namespace detail {
+
+// the pool's side of a Future: wrapping a state, and getting at the state of a future handed back in
+struct FutureAccess {
+    template <typename T>
+    static Future<T> adopt(State<T> *state) noexcept {
+        return Future<T>(state);
+    }
+    template <typename T>
+    static State<T> *state(const Future<T> &future) noexcept {
+        return future.m_state.get();
+    }
+};
+
+}  // namespace detail
 
 }  // namespace Async

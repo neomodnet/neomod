@@ -17,7 +17,7 @@ class NetworkTest final : public App {
     struct NetworkTestImpl;
 
    private:
-    StaticPImpl<NetworkTestImpl, 1024> m;
+    StaticPImpl<NetworkTestImpl, 1056> m;
 };
 
 }  // namespace Mc::Tests

@@ -45,7 +45,7 @@ Extracted parse_extracted(std::string folder) {
 
 // one queued import. two kinds share the stage machine, discriminated by is_local():
 // - download: set_id known up front, dl_handle drives Queued/Downloading; the fetched bytes
-//   then ride extract_future through Extracting like a local import
+//   then use the extract_handle through Extracting like a local import
 // - local .osz: osz_path set; only the archive knows its set id (and it may not have one at all)
 struct Entry {
     u32 uid{0};
@@ -55,7 +55,7 @@ struct Entry {
     std::string osz_path;
     std::string folder;                    // maps/ folder the archive was extracted into (relative)
     std::unique_ptr<DiffContainer> diffs;  // its .osu files, parsed by the extraction worker, consumed by the import
-    Async::Future<Extracted> extract_future;
+    Async::CancellableHandle<Extracted> extract_handle;  // dropping the entry drops a still-queued extraction with it
     MapInstallStage stage{MapInstallStage::Queued};
     f32 progress{0.f};
     bool auto_select{false};
@@ -405,9 +405,9 @@ void BeatmapInstaller::cancel(i32 set_id) {
 void BeatmapInstaller::cancel_entry(u32 uid) {
     for(auto it = m->entries.begin(); it != m->entries.end(); ++it) {
         if(it->uid != uid) continue;
-        // aborts the transfer (if still downloading); an in-flight extract future is simply
-        // abandoned (a finished extraction leaves its folder for the next db rescan to pick up, same as
-        // quitting mid-extract, and a local source .osz stays put for a later import pass)
+        // aborts the transfer (if still downloading); a still-queued extraction is dropped with the entry, a
+        // running one finishes and leaves its folder for the next db rescan to pick up (same as quitting
+        // mid-extract), and a local source .osz stays put for a later import pass
         Downloader::abort_download(it->dl_handle);
         m->entries.erase(it);
         return;
@@ -471,6 +471,12 @@ void BeatmapInstaller::update() {
 
     const f64 now = engine->getTime();
 
+    // extraction is bounded: a bulk drop (or a burst of downloads) would otherwise fill the pool's bg queue
+    // ahead of everything else submitted to it
+    const size_t max_extracting = std::clamp<size_t>(Async::get_thread_count(), 2, 16);
+    size_t extracting = 0;
+    for(const Entry& e : m->entries) extracting += e.stage == MapInstallStage::Extracting;
+
     for(auto it = m->entries.begin(); it != m->entries.end();) {
         Entry& e = *it;
         bool severed = false;
@@ -481,10 +487,14 @@ void BeatmapInstaller::update() {
                 if(e.is_local()) {
                     // read + decompress + extract on a worker so the main thread never blocks on it.
                     // the target folder depends on what the db knows, so wait until it's loaded
-                    if(!db->isFinished() || db->isCancelled()) break;
-                    e.extract_future = Async::submit(
-                        [path = e.osz_path] { return parse_extracted(read_and_extract_osz(path)); }, Lane::Background);
+                    if(!db->isFinished() || db->isCancelled() || extracting >= max_extracting) break;
+                    e.extract_handle = Async::submit_cancellable(
+                        [path = e.osz_path](const Sync::stop_token&) {
+                            return parse_extracted(read_and_extract_osz(path));
+                        },
+                        Lane::Background);
                     e.stage = Extracting;
+                    extracting++;
                     break;
                 }
                 // a download always transfers: if the db has the set, the enqueuer wants bytes it doesn't have
@@ -496,21 +506,23 @@ void BeatmapInstaller::update() {
                 const bool ready = Downloader::download_beatmapset(static_cast<u32>(e.set_id), e.dl_handle);
                 if(ready) {
                     // the target folder depends on what the db knows, so hold the bytes until it's loaded
-                    if(!db->isFinished() || db->isCancelled()) {
+                    // (and until an extraction slot is free)
+                    if(!db->isFinished() || db->isCancelled() || extracting >= max_extracting) {
                         e.progress = 1.f;
                         e.stage = Downloading;
                         break;
                     }
                     // bytes arrived: from here on a download is just a local import whose .osz is
                     // already in memory. decompress on a worker, into the folder of the id we know.
-                    e.extract_future = Async::submit(
-                        [data = e.dl_handle.take_data(), set_id = e.set_id] {
+                    e.extract_handle = Async::submit_cancellable(
+                        [data = e.dl_handle.take_data(), set_id = e.set_id](const Sync::stop_token&) {
                             return parse_extracted(resolve_and_extract_osz(data, "", set_id));
                         },
                         Lane::Background);
                     e.dl_handle.reset();
                     e.progress = 1.f;
                     e.stage = Extracting;
+                    extracting++;
                 } else if(e.dl_handle.failed()) {
                     fail_entry(e, now);
                 } else if(e.dl_handle.cancelled()) {
@@ -525,8 +537,9 @@ void BeatmapInstaller::update() {
             }
 
             case Extracting: {
-                if(!e.extract_future.is_ready()) break;
-                if(Extracted x = e.extract_future.get(); x.folder.empty()) {
+                if(!e.extract_handle.is_ready()) break;
+                extracting--;
+                if(Extracted x = e.extract_handle.get(); x.folder.empty()) {
                     fail_entry(e, now);
                 } else {
                     e.folder = std::move(x.folder);

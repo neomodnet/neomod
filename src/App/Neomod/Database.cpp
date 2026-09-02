@@ -475,8 +475,8 @@ void Database::importLooseOsz(const Sync::stop_token &tok) {
     // extraction (read + decompress + write) is independent per file, so fan it out across the async pool.
     // a bounded sliding window keeps at most window_size extractions in flight, so a huge drop can't pile
     // up extracted folders on disk faster than this loop deletes the source .osz files.
-    // (this loader is itself a pool task, but blocking on these sub-tasks is deadlock-free: the pool has
-    // >= 2 threads, fg threads work-steal bg tasks, and read_and_extract_osz never re-enters the pool.)
+    // (this loader is itself a pool task; waiting on the window from a pool thread runs queued tasks, its own
+    // sub-tasks included, so it can't wedge the pool.)
     const uSz window_size = std::min<uSz>(std::clamp<uSz>(Async::get_thread_count(), 4, 16), oszs.size());
 
     auto submit_extract = [](const std::string &osz_name) {
@@ -3016,7 +3016,7 @@ u32 Database::reconcileRoot(MapRoot root, const Sync::stop_token &tok, bool per_
         this->stage_done.store(++done, std::memory_order_release);
     }
 
-    // unknown folders are parsed in parallel (same bounded window and deadlock-freedom argument as importLooseOsz)
+    // unknown folders are parsed in parallel (same bounded window as importLooseOsz)
     std::vector<const File::DirEntry *> unknown;
     for(const auto &e : on_disk) {
         if(!known_set.contains(e.name)) unknown.push_back(&e);

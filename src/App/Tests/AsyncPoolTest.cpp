@@ -6,7 +6,9 @@
 #include "Engine.h"
 #include "Timing.h"
 
+#include <algorithm>
 #include <atomic>
+#include <memory>
 #include <string>
 #include <tuple>
 
@@ -18,19 +20,25 @@ void AsyncPoolTest::update() {
     switch(m_phase) {
         case SYNC_TESTS:
             runSyncTests();
-            // set up first async test: then_on_main basic
-            m_asyncHandle = Async::submit([] { return 42; }).then_on_main([this](int x) { m_thenOnMainResult = x; });
+            // set up first async test: then_on_main basic, its result flowing on into a pool continuation
+            m_thenOnMainChain = Async::submit([] { return 42; })
+                                    .then_on_main([this](int x) {
+                                        m_thenOnMainResult = x;
+                                        return x + 1;
+                                    })
+                                    .then([](int x) { return x * 2; });
             m_phase = WAIT_THEN_ON_MAIN;
             return;
 
         case WAIT_THEN_ON_MAIN:
-            if(m_thenOnMainResult == 0) return;
+            if(!m_thenOnMainChain.is_ready()) return;
             m_phase = TEST_THEN_ON_MAIN;
             [[fallthrough]];
 
         case TEST_THEN_ON_MAIN:
             TEST_SECTION("then_on_main basic");
             TEST_ASSERT_EQ(m_thenOnMainResult, 42, "then_on_main delivers result to main thread");
+            TEST_ASSERT_EQ(m_thenOnMainChain.get(), 86, "then_on_main result flows into a pool continuation");
             // set up next: then_on_main void
             m_asyncHandle = Async::submit([] {}).then_on_main([this]() { m_thenOnMainVoidCalled = true; });
             m_phase = WAIT_THEN_ON_MAIN_VOID;
@@ -44,6 +52,7 @@ void AsyncPoolTest::update() {
         case TEST_THEN_ON_MAIN_VOID:
             TEST_SECTION("then_on_main void");
             TEST_ASSERT(m_thenOnMainVoidCalled, "then_on_main fires for void task");
+            TEST_ASSERT(m_asyncHandle.is_ready(), "then_on_main future is ready once the callback ran");
             // set up next: cancellable then_on_main (completed)
             m_cancelHandle = Async::submit_cancellable([](const Sync::stop_token&) {
                                  return 99;
@@ -98,11 +107,72 @@ void AsyncPoolTest::update() {
         case TEST_AUTO_CANCEL:
             TEST_SECTION("cancellable then_on_main auto-cancel on destroy");
             TEST_ASSERT(!m_autoCancelResult.ok(), "auto-cancel on destroy reports cancelled");
+            startStressTest();
+            m_phase = WAIT_STRESS;
+            return;
+
+        case WAIT_STRESS: {
+            const bool loadersDone = std::ranges::all_of(m_stressLoaders, [](const auto& f) { return f.is_ready(); });
+            const bool contsDone = std::ranges::all_of(m_stressConts, [](const auto& f) { return f.is_ready(); });
+            if(!(loadersDone && contsDone) && Timing::getTicksMS() - m_stressStartMS < 10000) return;
+            m_phase = TEST_STRESS;
+            [[fallthrough]];
+        }
+
+        case TEST_STRESS: {
+            TEST_SECTION("nested waits + continuations on every worker");
+            bool loadersDone = true, loadersCorrect = true;
+            for(auto& f : m_stressLoaders) {
+                if(!f.is_ready()) {
+                    loadersDone = false;
+                } else if(f.get() != m_stressWindow) {
+                    loadersCorrect = false;
+                }
+            }
+            const bool contsDone = std::ranges::all_of(m_stressConts, [](const auto& f) { return f.is_ready(); });
+            TEST_ASSERT(loadersDone, "tasks waiting on their sub-tasks all completed (no wedge)");
+            TEST_ASSERT(loadersCorrect, "sub-task results were collected correctly");
+            TEST_ASSERT(contsDone, "continuation chains all completed (no wedge)");
+            TEST_ASSERT_EQ(m_stressContSum, 2 * (int)m_stressLoaders.size(), "then + then_on_main chains delivered");
             finish();
             return;
+        }
 
         case DONE:
             return;
+    }
+}
+
+void AsyncPoolTest::startStressTest() {
+    // bg workers inside a task that blocks on a window of its own sub-tasks (Database::importLooseOsz),
+    // fg workers inside continuation bridges (screenshot: submit(Background).then_on_main).
+    // one of each per thread, all must finish.
+    const size_t n = Async::get_thread_count();
+    m_stressWindow = std::clamp<int>(static_cast<int>(n), 4, 16);
+    m_stressStartMS = Timing::getTicksMS();
+    m_stressLoaders.reserve(n);
+    m_stressConts.reserve(n);
+    for(size_t i = 0; i < n; i++) {
+        m_stressLoaders.push_back(Async::submit(
+            [window = m_stressWindow] {
+                std::vector<Async::Future<int>> w;
+                w.reserve(window);
+                for(int j = 0; j < window; j++) {
+                    w.push_back(Async::submit(
+                        [] {
+                            Timing::sleepMS(5);
+                            return 1;
+                        },
+                        Lane::Background));
+                }
+                int sum = 0;
+                for(auto& f : w) sum += f.get();
+                return sum;
+            },
+            Lane::Background));
+        m_stressConts.push_back(Async::submit([] { return 1; }, Lane::Background)
+                                    .then([](int x) { return x + 1; })
+                                    .then_on_main([this](int x) { m_stressContSum += x; }));
     }
 }
 
@@ -121,18 +191,28 @@ void AsyncPoolTest::runSyncTests() {
         TEST_ASSERT(future.valid() == false, "void future consumed after get");
     }
 
+    TEST_SECTION("move-only capture");
+    {
+        auto future = Async::submit([p = std::make_unique<int>(7)] { return *p; });
+        TEST_ASSERT_EQ(future.get(), 7, "task with a move-only capture runs");
+    }
+
+    TEST_SECTION("move-only result");
+    {
+        auto future = Async::submit([] { return std::make_unique<int>(11); });
+        auto p = future.get();
+        TEST_ASSERT(p && *p == 11, "move-only result is handed out");
+    }
+
     TEST_SECTION("dispatch");
     {
         std::atomic<bool> flag{false};
         Async::dispatch([&flag] { flag.store(true, std::memory_order_release); });
 
-        // spin briefly waiting for the flag
-        // FIXME: flaky (depending on os scheduling order and how fast the loop completes...)
-        bool stored{true};
-        for(int i = 0; i < 100000 && !(stored = flag.load(std::memory_order_acquire)); i++) {
-            Timing::tinyYield();
-        }
-        TEST_ASSERT(stored, "dispatch ran the task");
+        // nothing to wait on, so poll (bounded by time rather than iterations: a worker wake-up can take a while)
+        const u64 deadline = Timing::getTicksMS() + 1000;
+        while(!flag.load(std::memory_order_acquire) && Timing::getTicksMS() < deadline) Timing::tinyYield();
+        TEST_ASSERT(flag.load(std::memory_order_acquire), "dispatch ran the task");
     }
 
     TEST_SECTION("multiple submits");
@@ -162,7 +242,17 @@ void AsyncPoolTest::runSyncTests() {
 
     TEST_SECTION("thread_count");
     {
-        TEST_ASSERT(Async::get_thread_count() >= 1, "pool has at least 1 thread");
+        TEST_ASSERT(Async::get_thread_count() >= 2, "pool has at least 2 threads");
+    }
+
+    TEST_SECTION("wait from inside a task");
+    {
+        // a task blocking on its own sub-task: the waiting worker runs queued tasks meanwhile
+        auto future = Async::submit([] {
+            auto inner = Async::submit([] { return 5; });
+            return inner.get() + 1;
+        });
+        TEST_ASSERT_EQ(future.get(), 6, "nested wait completes");
     }
 
     TEST_SECTION("submit_cancellable");
@@ -183,6 +273,40 @@ void AsyncPoolTest::runSyncTests() {
         TEST_ASSERT(exited.load(std::memory_order_acquire), "cancellable task observed stop and exited");
     }
 
+    TEST_SECTION("cancel a queued task");
+    {
+        // fill every worker and the bg queue, then cancel a task that is still queued behind all of it
+        const size_t n = Async::get_thread_count() * 2;
+        std::vector<Async::Future<void>> fill;
+        fill.reserve(n);
+        for(size_t i = 0; i < n; i++) fill.push_back(Async::submit([] { Timing::sleepMS(40); }, Lane::Background));
+
+        std::atomic<bool> ran{false};
+        auto handle = Async::submit_cancellable(
+            [&ran](const Sync::stop_token&) { ran.store(true, std::memory_order_release); }, Lane::Background);
+        const u64 t0 = Timing::getTicksMS();
+        handle.cancel();
+        handle.wait();
+        const u64 elapsed = Timing::getTicksMS() - t0;
+        TEST_ASSERT(handle.is_ready(), "cancelled queued task is complete");
+        TEST_ASSERT(!ran.load(std::memory_order_acquire), "cancelled queued task never ran");
+        TEST_ASSERT(elapsed < 30, "cancel() + wait() on a queued task doesn't wait for the backlog");
+        Async::wait_all(fill);
+    }
+
+    TEST_SECTION("cancel a queued task with a result");
+    {
+        const size_t n = Async::get_thread_count() * 2;
+        std::vector<Async::Future<void>> fill;
+        fill.reserve(n);
+        for(size_t i = 0; i < n; i++) fill.push_back(Async::submit([] { Timing::sleepMS(20); }, Lane::Background));
+        auto handle =
+            Async::submit_cancellable([](const Sync::stop_token&) { return std::string("ran"); }, Lane::Background);
+        handle.cancel();
+        TEST_ASSERT(handle.get().empty(), "cancelled queued task yields a default-constructed result");
+        Async::wait_all(fill);
+    }
+
     TEST_SECTION("background lane submit");
     {
         auto future = Async::submit([] { return 99; }, Lane::Background);
@@ -195,32 +319,23 @@ void AsyncPoolTest::runSyncTests() {
         std::atomic<bool> flag{false};
         Async::dispatch([&flag] { flag.store(true, std::memory_order_release); }, Lane::Background);
 
-        for(int i = 0; i < 10000 && !flag.load(std::memory_order_acquire); i++) {
-            Timing::tinyYield();
-        }
+        const u64 deadline = Timing::getTicksMS() + 1000;
+        while(!flag.load(std::memory_order_acquire) && Timing::getTicksMS() < deadline) Timing::tinyYield();
         TEST_ASSERT(flag.load(std::memory_order_acquire), "background dispatch ran the task");
     }
 
-    TEST_SECTION("work stealing");
+    TEST_SECTION("fg workers take bg work");
     {
         // submit enough background tasks to exceed bg thread count;
-        // foreground threads should steal and help complete them
+        // foreground threads should help complete them
         constexpr int N = 16;
         std::atomic<int> count{0};
         Async::Future<void> futures[N];
-        for(int i = 0; i < N; i++) {
-            futures[i] = Async::submit([&count] { count.fetch_add(1, std::memory_order_relaxed); }, Lane::Background);
+        for(auto& f : futures) {
+            f = Async::submit([&count] { count.fetch_add(1, std::memory_order_relaxed); }, Lane::Background);
         }
-
-        for(int i = 0; i < N; i++) {
-            futures[i].wait();
-        }
-        TEST_ASSERT_EQ(count.load(std::memory_order_relaxed), N, "all background tasks completed (work stealing)");
-    }
-
-    TEST_SECTION("thread_count >= 2");
-    {
-        TEST_ASSERT(Async::get_thread_count() >= 2, "pool has at least 2 threads");
+        for(auto& f : futures) f.wait();
+        TEST_ASSERT_EQ(count.load(std::memory_order_relaxed), N, "all background tasks completed");
     }
 
     TEST_SECTION("channel push + drain");
@@ -268,9 +383,7 @@ void AsyncPoolTest::runSyncTests() {
             });
         }
 
-        for(int p = 0; p < NUM_PRODUCERS; p++) {
-            producers[p].wait();
-        }
+        for(auto& f : producers) f.wait();
 
         auto items = ch.drain();
         TEST_ASSERT_EQ((int)items.size(), N * NUM_PRODUCERS, "all items from all producers received");
@@ -301,9 +414,8 @@ void AsyncPoolTest::runSyncTests() {
             // handle goes out of scope here; destructor signals cancel but does not block
         }
         // task should observe the stop and exit on its own
-        for(int i = 0; i < 10000 && !exited.load(std::memory_order_acquire); i++) {
-            Timing::tinyYield();
-        }
+        const u64 deadline = Timing::getTicksMS() + 1000;
+        while(!exited.load(std::memory_order_acquire) && Timing::getTicksMS() < deadline) Timing::tinyYield();
         TEST_ASSERT(exited.load(std::memory_order_acquire), "handle destructor signalled cancel");
     }
 
@@ -329,6 +441,18 @@ void AsyncPoolTest::runSyncTests() {
             Async::submit([] { return 2; }).then([](int x) { return x + 3; }).then([](int x) { return x * 10; });
         future.wait();
         TEST_ASSERT_EQ(future.get(), 50, "chained then produces correct result");
+    }
+
+    TEST_SECTION("then on a ready future");
+    {
+        auto future = Async::make_ready_future(4).then([](int x) { return x * x; }, Lane::Background);
+        TEST_ASSERT_EQ(future.get(), 16, "continuation registered after completion still runs");
+    }
+
+    TEST_SECTION("then with a move-only capture");
+    {
+        auto future = Async::submit([] { return 3; }).then([p = std::make_unique<int>(4)](int x) { return x * *p; });
+        TEST_ASSERT_EQ(future.get(), 12, "continuation with a move-only capture runs");
     }
 
     TEST_SECTION("when_all vector");
@@ -359,6 +483,23 @@ void AsyncPoolTest::runSyncTests() {
         all.wait();
         all.get();
         TEST_ASSERT_EQ(count.load(std::memory_order_relaxed), 4, "when_all void completes all tasks");
+    }
+
+    TEST_SECTION("when_all vector move-only");
+    {
+        std::vector<Async::Future<std::unique_ptr<int>>> futures(3);
+        for(int i = 0; i < 3; i++) {
+            futures[i] = Async::submit([i] { return std::make_unique<int>(i); });
+        }
+        auto results = Async::when_all(std::move(futures)).get();
+        TEST_ASSERT(results.size() == 3 && *results[0] == 0 && *results[1] == 1 && *results[2] == 2,
+                    "when_all collects move-only results");
+    }
+
+    TEST_SECTION("when_all empty");
+    {
+        auto all = Async::when_all(std::vector<Async::Future<int>>{});
+        TEST_ASSERT(all.get().empty(), "when_all of nothing completes");
     }
 
     TEST_SECTION("when_all variadic");
@@ -401,6 +542,13 @@ void AsyncPoolTest::runSyncTests() {
         auto future = Async::make_ready_future(42);
         TEST_ASSERT(future.is_ready(), "make_ready_future is immediately ready");
         TEST_ASSERT_EQ(future.get(), 42, "make_ready_future has correct value");
+    }
+
+    TEST_SECTION("make_ready_future from lvalue");
+    {
+        std::string s = "abc";
+        Async::Future<std::string> future = Async::make_ready_future(s);
+        TEST_ASSERT(future.get() == "abc", "make_ready_future decays its argument");
     }
 
     TEST_SECTION("make_ready_future void");
