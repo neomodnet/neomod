@@ -101,8 +101,8 @@ void submit_score(FinishedScore score) {
 
     {
         std::string score_data;
-        MD5String md5str = score.map->getMD5().to_chars();
-        score_data.append(md5str.string());
+        score_data.append(beatmap_hash_str.string());
+        assert(!score.map || score.map->getMD5().to_chars() == beatmap_hash_str);
 
         if(BanchoState::is_oauth) {
             score_data.append(":$token");
@@ -121,7 +121,7 @@ void submit_score(FinishedScore score) {
             auto idiot_check = fmt::format("chickenmcnuggets{}", score.num300s + score.num100s);
             idiot_check.append(fmt::format("o15{}{}", score.num50s, score.numGekis));
             idiot_check.append(fmt::format("smustard{}{}", score.numKatus, score.numMisses));
-            idiot_check.append(fmt::format("uu{}", md5str.string()));
+            idiot_check.append(fmt::format("uu{}", beatmap_hash_str.string()));
             idiot_check.append(fmt::format("{}{}", score.comboMax, score.perfect ? "True" : "False"));
 
             if(BanchoState::is_oauth) {
@@ -173,7 +173,7 @@ void submit_score(FinishedScore score) {
         options.mime_parts.push_back({
             .filename = "replay",
             .name = "score",
-            .data = compressed_data,
+            .data{std::move(compressed_data)},
         });
     }
 
