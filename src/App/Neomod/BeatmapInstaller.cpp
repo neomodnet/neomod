@@ -27,6 +27,8 @@
 #include <optional>
 
 namespace {  // internal utils
+using namespace std::string_view_literals;
+namespace fs = std::filesystem;
 
 // what an extraction worker hands back: the maps/ folder the archive went into (empty on failure) and that
 // folder's diffs, parsed right there so the main-thread import only has to match them against the db
@@ -158,8 +160,7 @@ std::string sanitize_folder_name(std::string_view name) {
     std::string out;
     out.reserve(name.size());
     for(const char c : name) {
-        const bool bad =
-            std::string_view{"\\/:*?\"<>|"}.contains(c) || static_cast<unsigned char>(c) < 0x20 || c == 0x7f;
+        const bool bad = "\\/:*?\"<>|"sv.contains(c) || static_cast<unsigned char>(c) < 0x20 || c == 0x7f;
         out.push_back(bad ? '_' : c);
     }
     auto trim_ends = [&out] {
@@ -322,7 +323,7 @@ struct BeatmapInstaller::BMInstallerImpl final {
     std::vector<Entry> entries;  // typically <= 5 entries, so linear scans throughout
     // maps/ folders as the last import left them, so the directory watcher's event for that extraction can be
     // told from a later change (see claim())
-    Hash::unstable_stringmap<std::filesystem::file_time_type> settled;
+    Hash::unstable_stringmap<fs::file_time_type> settled;
     u32 next_uid{1};
 };
 
@@ -451,7 +452,7 @@ BeatmapInstaller::FolderClaim BeatmapInstaller::claim(std::string_view folder) {
     if(it == m->settled.end()) return FolderClaim::Unclaimed;
 
     std::error_code ec;
-    const auto now = std::filesystem::last_write_time(File::getFsPath(NEOMOD_MAPS_PATH "/" + std::string{folder}), ec);
+    const auto now = fs::last_write_time(File::getFsPath(NEOMOD_MAPS_PATH "/" + std::string{folder}), ec);
     const bool untouched = !ec && now == it->second;
     m->settled.erase(it);  // whatever happens to the folder next is a change to what the import left
     return untouched ? FolderClaim::Settled : FolderClaim::Unclaimed;
@@ -549,8 +550,7 @@ void BeatmapInstaller::update() {
                     e.finished_time = now;
                     if(e.is_local() && e.delete_after) env->deleteFile(e.osz_path);
                     std::error_code ec;
-                    const auto mtime =
-                        std::filesystem::last_write_time(File::getFsPath(NEOMOD_MAPS_PATH "/" + e.folder), ec);
+                    const auto mtime = fs::last_write_time(File::getFsPath(NEOMOD_MAPS_PATH "/" + e.folder), ec);
                     if(!ec) m->settled[e.folder] = mtime;
                     on_done(*r, e);
                 }
