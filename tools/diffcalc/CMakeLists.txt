@@ -70,6 +70,8 @@ if(MSVC)
         _UNICODE
         UNICODE=1
     )
+    # Prefer static
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 else()
     # Disable exceptions and minimize code bloat
     target_compile_options(diffcalc PRIVATE
