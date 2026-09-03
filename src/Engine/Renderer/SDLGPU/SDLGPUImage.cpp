@@ -285,8 +285,7 @@ void SDLGPUImage::uploadPixelData() {
 
         // wait for the upload to complete on this thread so the transfer buffer is
         // genuinely idle when returned to the pool
-        auto *fence = SDL_SubmitGPUCommandBufferAndAcquireFence(cmdBuf);
-        if(fence) {
+        if(auto *fence = SDL_SubmitGPUCommandBufferAndAcquireFence(cmdBuf)) {
             SDL_WaitForGPUFences(m_device, false, &fence, 1);
             SDL_ReleaseGPUFence(m_device, fence);
         }
@@ -337,7 +336,7 @@ void SDLGPUImage::createOrUpdateSampler() {
         *m_lastSamplerCreateInfo = samplerInfo;
     }
 
-    m_sampler = SDL_CreateGPUSampler(m_device, &*m_lastSamplerCreateInfo);
+    m_sampler = SDL_CreateGPUSampler(m_device, m_lastSamplerCreateInfo.get());
 }
 
 #endif
