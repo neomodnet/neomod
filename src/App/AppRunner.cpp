@@ -39,11 +39,11 @@ AppRunner::~AppRunner() {
     mouse->removeListener(this);
 }
 
-void AppRunner::launchApp(const char *name) {
+void AppRunner::launchApp(std::string_view name) {
     m_activeApp.reset();
 
     for(const auto &entry : getAllAppDescriptors()) {
-        if(std::strcmp(name, entry.name) == 0) {
+        if(name == entry.name) {
             if(Env::cfg(BUILD::DEBUG)) {
                 debugLog("launching app: {:s}", name);
             }

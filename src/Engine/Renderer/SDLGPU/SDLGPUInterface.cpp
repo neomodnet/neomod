@@ -57,6 +57,10 @@ SDLGPUInterface::~SDLGPUInterface() {
             m_cmdBuf = nullptr;
         }
 
+        for(auto &parked : m_parkedUploadBuffers) {
+            SDL_ReleaseGPUFence(m_device, parked.fence);
+            SDL_ReleaseGPUTransferBuffer(m_device, parked.buf);
+        }
         for(auto &bucket : m_uploadTransferPool) {
             for(auto *buf : bucket) SDL_ReleaseGPUTransferBuffer(m_device, buf);
         }
@@ -1678,6 +1682,23 @@ SDL_GPUTransferBuffer *SDLGPUInterface::acquireUploadTransferBuffer(u32 minSize,
     {
         const Sync::scoped_lock lock(m_uploadTransferPoolMutex);
 
+        // sweep parked buffers whose uploads have finished back into the pool
+        std::erase_if(m_parkedUploadBuffers, [this](ParkedUploadBuffer &parked) {
+            if(parked.fence) {
+                if(!SDL_QueryGPUFence(m_device, parked.fence)) return false;
+                SDL_ReleaseGPUFence(m_device, parked.fence);
+            }
+            const u32 parkedClassIdx = std::countr_zero(parked.size) - POOL_MIN_LOG2;
+            if(parkedClassIdx < POOL_NUM_CLASSES && m_uploadTransferPoolBytes + parked.size <= UPLOAD_POOL_BUDGET) {
+                m_uploadTransferPool[parkedClassIdx].push_back(parked.buf);
+                m_uploadTransferPoolBytes += parked.size;
+            } else {
+                // bucket full or over budget, so just release directly
+                SDL_ReleaseGPUTransferBuffer(m_device, parked.buf);
+            }
+            return true;
+        });
+
         // try exact class first, then scan upward for the smallest usable buffer
         for(u32 i = classIdx; i < POOL_NUM_CLASSES; i++) {
             auto &bucket = m_uploadTransferPool[i];
@@ -1701,26 +1722,10 @@ SDL_GPUTransferBuffer *SDLGPUInterface::acquireUploadTransferBuffer(u32 minSize,
     return SDL_CreateGPUTransferBuffer(m_device, &tbInfo);
 }
 
-void SDLGPUInterface::releaseUploadTransferBuffer(SDL_GPUTransferBuffer *&bufArg, u32 &sizeArg) {
-    auto *buf = bufArg;
-    const u32 size = sizeArg;
-    bufArg = nullptr;
-    sizeArg = 0;
-
-    const u32 classIdx = std::countr_zero(size) - POOL_MIN_LOG2;
-
-    {
-        const Sync::scoped_lock lock(m_uploadTransferPoolMutex);
-
-        if(classIdx < POOL_NUM_CLASSES && m_uploadTransferPoolBytes + size <= UPLOAD_POOL_BUDGET) {
-            m_uploadTransferPool[classIdx].push_back(buf);
-            m_uploadTransferPoolBytes += size;
-            return;
-        }
-    }
-
-    // bucket full or over budget, so just release directly
-    SDL_ReleaseGPUTransferBuffer(m_device, buf);
+void SDLGPUInterface::releaseUploadTransferBuffer(SDL_GPUTransferBuffer *&buf, u32 &size, SDL_GPUFence *fence) {
+    const Sync::scoped_lock lock(m_uploadTransferPoolMutex);
+    m_parkedUploadBuffers.push_back(
+        {.fence = fence, .buf = std::exchange(buf, nullptr), .size = std::exchange(size, 0)});
 }
 
 // util

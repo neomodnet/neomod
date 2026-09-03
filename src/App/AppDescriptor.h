@@ -5,11 +5,12 @@
 #define APPDESCRIPTOR_H
 
 #include <span>
+#include <string_view>
 
 class App;
 namespace Mc {
 struct AppDescriptor {
-    const char *name{nullptr};
+    std::string_view name{};
     App *(*create)(){nullptr};
     // null = use base Environment::Interop (no-op)
     void *(*createInterop)(void *env){nullptr};

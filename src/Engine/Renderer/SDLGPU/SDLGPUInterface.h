@@ -38,6 +38,7 @@ typedef struct SDL_GPURenderPass SDL_GPURenderPass;
 typedef struct SDL_GPUGraphicsPipeline SDL_GPUGraphicsPipeline;
 typedef struct SDL_GPUBuffer SDL_GPUBuffer;
 typedef struct SDL_GPUTransferBuffer SDL_GPUTransferBuffer;
+typedef struct SDL_GPUFence SDL_GPUFence;
 typedef struct SDL_GPUShader SDL_GPUShader;
 
 // can't forward declare unsized enums, these correspond to the SDL_ prefixed enums of the same name
@@ -165,11 +166,13 @@ class SDLGPUInterface final : public ModernGraphicsShared {
     [[nodiscard]] inline SDLGPUShader *getActiveShader() const { return m_activeShader; }
     void clearActiveShader(SDLGPUShader *shader);
 
-    // shared upload transfer buffer pool (loader threads acquire, main thread releases)
+    // shared upload transfer buffer pool (any thread may acquire/release, acquired buffers are always idle)
     // outAllocSize receives the actual allocation size of the returned buffer (for passing back to release)
     SDL_GPUTransferBuffer *acquireUploadTransferBuffer(u32 minSize, u32 &outAllocSize);
-    // arguments are zeroed
-    void releaseUploadTransferBuffer(SDL_GPUTransferBuffer *&buf, u32 &size);
+    // fence: acquired when submitting the command buffer that reads from buf (null if nothing was submitted). the
+    // pool takes ownership and parks the buffer until the fence signals, so the caller never waits on the GPU.
+    // buf and size are zeroed
+    void releaseUploadTransferBuffer(SDL_GPUTransferBuffer *&buf, u32 &size, SDL_GPUFence *fence = nullptr);
 
     // 4 == SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM
     static constexpr SDLGPUTextureFormat DEFAULT_TEXTURE_FORMAT{4};
@@ -423,6 +426,14 @@ class SDLGPUInterface final : public ModernGraphicsShared {
     Sync::mutex m_uploadTransferPoolMutex;
     std::array<std::vector<SDL_GPUTransferBuffer *>, POOL_NUM_CLASSES> m_uploadTransferPool{};
     u32 m_uploadTransferPoolBytes{0};
+
+    // released buffers waiting for their upload to finish, swept back into the pool by the next acquire
+    struct ParkedUploadBuffer {
+        SDL_GPUFence *fence;
+        SDL_GPUTransferBuffer *buf;
+        u32 size;
+    };
+    std::vector<ParkedUploadBuffer> m_parkedUploadBuffers;
 
     // stats
     int m_statsNumDrawCalls{0};

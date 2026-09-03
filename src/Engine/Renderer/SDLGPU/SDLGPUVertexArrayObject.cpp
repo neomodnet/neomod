@@ -259,17 +259,18 @@ void SDLGPUVertexArrayObject::init() {
         m_convertedVertices.resize(numVerts);
         interleave(m_convertedVertices.data());
 
-        if(void *mapped = SDL_MapGPUTransferBuffer(m_device, transferBuffer, true)) {
+        if(void *mapped = SDL_MapGPUTransferBuffer(m_device, transferBuffer, false)) {
             std::memcpy(mapped, m_convertedVertices.data(), bufSize);
             SDL_UnmapGPUTransferBuffer(m_device, transferBuffer);
         }
     } else {
-        if(void *mapped = SDL_MapGPUTransferBuffer(m_device, transferBuffer, true)) {
+        if(void *mapped = SDL_MapGPUTransferBuffer(m_device, transferBuffer, false)) {
             interleave(static_cast<SDLGPUSimpleVertex *>(mapped));
             SDL_UnmapGPUTransferBuffer(m_device, transferBuffer);
         }
     }
 
+    SDL_GPUFence *fence = nullptr;
     if(auto *cmdBuf = SDL_AcquireGPUCommandBuffer(m_device)) {
         if(auto *copyPass = SDL_BeginGPUCopyPass(cmdBuf)) {
             SDL_GPUTransferBufferLocation src{.transfer_buffer = transferBuffer, .offset = 0};
@@ -277,10 +278,10 @@ void SDLGPUVertexArrayObject::init() {
             SDL_UploadToGPUBuffer(copyPass, &src, &dst, this->bKeepInSystemMemory);
             SDL_EndGPUCopyPass(copyPass);
         }
-        SDL_SubmitGPUCommandBuffer(cmdBuf);
+        fence = SDL_SubmitGPUCommandBufferAndAcquireFence(cmdBuf);
     }
 
-    m_gpu->releaseUploadTransferBuffer(transferBuffer, pooledSize);
+    m_gpu->releaseUploadTransferBuffer(transferBuffer, pooledSize, fence);
 
     // free system memory
     if(!this->bKeepInSystemMemory) {
@@ -386,7 +387,7 @@ void SDLGPUVertexArrayObject::uploadPartialUpdates() {
         return;
     }
 
-    void *mapped = SDL_MapGPUTransferBuffer(m_device, transferBuffer, true);
+    void *mapped = SDL_MapGPUTransferBuffer(m_device, transferBuffer, false);
     if(!mapped) {
         m_gpu->releaseUploadTransferBuffer(transferBuffer, pooledSize);
         return;
@@ -405,6 +406,7 @@ void SDLGPUVertexArrayObject::uploadPartialUpdates() {
     }
     SDL_UnmapGPUTransferBuffer(m_device, transferBuffer);
 
+    SDL_GPUFence *fence = nullptr;
     if(auto *cmdBuf = SDL_AcquireGPUCommandBuffer(m_device)) {
         if(auto *copyPass = SDL_BeginGPUCopyPass(cmdBuf)) {
             if(fullUpload) {
@@ -425,10 +427,10 @@ void SDLGPUVertexArrayObject::uploadPartialUpdates() {
             }
             SDL_EndGPUCopyPass(copyPass);
         }
-        SDL_SubmitGPUCommandBuffer(cmdBuf);
+        fence = SDL_SubmitGPUCommandBufferAndAcquireFence(cmdBuf);
     }
 
-    m_gpu->releaseUploadTransferBuffer(transferBuffer, pooledSize);
+    m_gpu->releaseUploadTransferBuffer(transferBuffer, pooledSize, fence);
 }
 
 void SDLGPUVertexArrayObject::initAsync() { this->setAsyncReady(true); }

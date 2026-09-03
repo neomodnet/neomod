@@ -148,8 +148,8 @@ ImageDecodeResult Image::decodePNGFromMemory(const u8 *inData, u64 size) {
         return INTERRUPTED;
     }
 
-    i32 outWidth = static_cast<i32>(tempOutWidth);
-    i32 outHeight = static_cast<i32>(tempOutHeight);
+    const i32 outWidth = static_cast<i32>(tempOutWidth);
+    const i32 outHeight = static_cast<i32>(tempOutHeight);
 
     png_byte color_type = png_get_color_type(png_ptr, info_ptr);
     png_byte bit_depth = png_get_bit_depth(png_ptr, info_ptr);

@@ -50,7 +50,7 @@ class AppRunner final : public App, public MouseListener {
     void showNotification(const NotificationInfo &info) override;
 
    private:
-    void launchApp(const char *name);
+    void launchApp(std::string_view name);
     void returnToMenu();
 
     std::unique_ptr<App> m_activeApp;

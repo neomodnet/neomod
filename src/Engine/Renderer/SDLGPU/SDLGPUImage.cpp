@@ -241,8 +241,8 @@ void SDLGPUImage::uploadPixelData() {
     SDL_UnmapGPUTransferBuffer(m_device, transferBuf);
 
     // upload via copy pass, then generate mipmaps
-    auto *cmdBuf = SDL_AcquireGPUCommandBuffer(m_device);
-    if(cmdBuf) {
+    SDL_GPUFence *fence = nullptr;
+    if(auto *cmdBuf = SDL_AcquireGPUCommandBuffer(m_device)) {
         auto *copyPass = SDL_BeginGPUCopyPass(cmdBuf);
         if(copyPass) {
             if(fullImage) {
@@ -283,15 +283,11 @@ void SDLGPUImage::uploadPixelData() {
             SDL_GenerateMipmapsForGPUTexture(cmdBuf, m_texture);
         }
 
-        // wait for the upload to complete on this thread so the transfer buffer is
-        // genuinely idle when returned to the pool
-        if(auto *fence = SDL_SubmitGPUCommandBufferAndAcquireFence(cmdBuf)) {
-            SDL_WaitForGPUFences(m_device, false, &fence, 1);
-            SDL_ReleaseGPUFence(m_device, fence);
-        }
+        // the pool parks the transfer buffer until this fence signals, so there's no need to wait for the upload here
+        fence = SDL_SubmitGPUCommandBufferAndAcquireFence(cmdBuf);
     }
 
-    m_gpu->releaseUploadTransferBuffer(transferBuf, poolBufSize);
+    m_gpu->releaseUploadTransferBuffer(transferBuf, poolBufSize, fence);
 }
 
 void SDLGPUImage::createOrUpdateSampler() {
