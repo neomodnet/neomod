@@ -403,6 +403,7 @@ void AboutScreen::buildChangelog() {
         R"(  - Unsubmitted beatmaps (no beatmapset ID) can now be imported)",
         R"(  - Song browser will now reflect the contents of the maps/ folder more closely (i.e. adding/removing folders and .osu files))",
         R"(  - Expect a longer initial database load when first updating to this version)",
+        R"(- Added a proper console window (Shift+F1))",
     };
     changelogs.push_back(std::move(v43_13));
 
