@@ -293,6 +293,8 @@ CONVAR(console_overlay_timeout, 8.0f, CLIENT | SKINS | SERVER,
 CONVAR(console_scrollback_lines, 2000, CLIENT | SKINS, "max number of log lines kept for the console window");
 CONVAR(console_style, 1, CLIENT | SKINS,
        "console display style (0 = quake-style overlay, 1 = source-style window)");  // callback set in Engine
+CONVAR(console_window_alpha, 0.8f, CLIENT | SKINS,
+       "opacity of the console window's background (the text stays opaque)");
 CONVAR(consolebox_draw_helptext, true, CLIENT | SKINS | SERVER, "whether convar suggestions also draw their helptext");
 CONVAR(consolebox_draw_preview, true, CLIENT | SKINS | SERVER,
        "whether the textbox shows the topmost suggestion while typing");

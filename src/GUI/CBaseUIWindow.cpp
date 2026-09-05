@@ -102,20 +102,15 @@ void CBaseUIWindow::draw() {
     // draw window contents
     g->pushClipRect(McRect(this->getPos().x + 1, this->getPos().y + 2, this->getSize().x - 1, this->getSize().y - 1));
     {
-        // draw main container
-        g->pushClipRect(
-            McRect(this->getPos().x + 1, this->getPos().y + 2, this->getSize().x - 1, this->getSize().y - 1));
+        // draw main container (clipped to below the title bar: the background is filled once, above, so that it
+        // can be translucent)
+        g->pushClipRect(McRect(this->getPos().x + 1, this->getPos().y + this->iTitleBarHeight, this->getSize().x - 1,
+                               this->getSize().y - this->iTitleBarHeight));
         {
             this->container->draw();
             this->drawCustomContent();
         }
         g->popClipRect();
-
-        // draw title bar background
-        if(this->bDrawBackground && !this->bRoundedRectangle) {
-            g->setColor(this->backgroundColor);
-            g->fillRect(this->getPos().x, this->getPos().y, this->getSize().x, this->iTitleBarHeight);
-        }
 
         // draw title bar line
         if(this->bDrawTitleBarLine) {

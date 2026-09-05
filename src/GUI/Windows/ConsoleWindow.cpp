@@ -14,6 +14,7 @@
 #include "Keyboard.h"
 #include "Mouse.h"
 #include "UniString.h"
+#include "MakeDelegateWrapper.h"
 
 #include <algorithm>
 #include <cmath>
@@ -30,7 +31,7 @@ class ConsoleLogView final : public CBaseUIScrollView {
         : CBaseUIScrollView(xPos, yPos, xSize, ySize, std::move(name)),
           font(engine->getConsoleFont()),
           fLastHeight(ySize) {
-        this->setDrawBackground(false);  // drawn in draw() underneath the text, the base only adds frame + scrollbar
+        this->setDrawBackground(false);  // the window body shows through, the base only adds the frame + scrollbar
         this->setHorizontalScrolling(false);
         this->setVerticalScrolling(true);
     }
@@ -120,9 +121,6 @@ class ConsoleLogView final : public CBaseUIScrollView {
 
 void ConsoleLogView::draw() {
     if(!this->isVisible()) return;
-
-    g->setColor(this->backgroundColor);
-    g->fillRect(this->getPos(), this->getSize());
 
     const float scale = this->getTextScale();
     const float lineHeight = this->getLineHeight();
@@ -412,7 +410,9 @@ ConsoleWindow::ConsoleWindow() : CBaseUIWindow(0, 0, 100, 100, "consolewindow") 
 
     CBaseUIContainer *content = this->getContainer();
 
-    // added in draw order: the suggestion popup overlaps the log and must draw (and hit-test) above everything
+    // added in draw order: the suggestion popup overlaps the log and must draw (and hit-test) above everything.
+    // the window body is the only background under them (translucent, see tick()); only the popup, which overlays
+    // the log text, fills its own
     this->logView = new ConsoleLogView(0, 0, 0, 0, "consolewindow_log");
     content->addBaseUIElement(this->logView);
 
@@ -421,19 +421,32 @@ ConsoleWindow::ConsoleWindow() : CBaseUIWindow(0, 0, 100, 100, "consolewindow") 
 
     this->input = new ConsoleTextbox(0, 0, 0, 0, "consolewindow_input", this->suggestions);
     this->input->setFont(engine->getDefaultFont());
-    this->input->setDrawBackground(true);
+    this->input->setDrawBackground(false);
     content->addBaseUIElement(this->input);
 
     this->submitButton = new CBaseUIButton(0, 0, 0, 0, "consolewindow_submit", "Submit");
+    this->submitButton->setDrawBackground(false);
     this->submitButton->setClickCallback([this]() -> void { this->input->submit(); });
     content->addBaseUIElement(this->submitButton);
 
     content->addBaseUIElement(this->suggestions);
 
     this->layout();
+
+    cv::console_window_alpha.setCallback(SA::MakeDelegate<&ConsoleWindow::onAlphaChangedCallback>(this));
+    this->onAlphaChangedCallback(cv::console_window_alpha.getFloat());
 }
 
-ConsoleWindow::~ConsoleWindow() = default;
+ConsoleWindow::~ConsoleWindow() { cv::console_window_alpha.removeAllCallbacks(); }
+
+void ConsoleWindow::onAlphaChangedCallback(float newValue) {
+    const float clamped = std::clamp(newValue, 0.001f, 1.f);
+    if(clamped != newValue) {
+        cv::console_window_alpha.setValue(clamped, false);
+    }
+    // the body's opacity is the user's (the text, the frames and the popup are not affected)
+    this->setBackgroundColor(Color(0xff000000).setA(clamped));
+}
 
 void ConsoleWindow::tick() {
     if(!this->isVisible()) return;
@@ -441,6 +454,7 @@ void ConsoleWindow::tick() {
     CBaseUIWindow::tick();
 
     // the popup's height follows the matches as they are typed, its bottom edge stays above the input box
+    // TODO: avoid doing this every frame maybe
     this->placeSuggestions();
 }
 

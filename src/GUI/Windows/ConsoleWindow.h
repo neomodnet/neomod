@@ -30,6 +30,7 @@ class ConsoleWindow final : public CBaseUIWindow {
    private:
     void layout();
     void placeSuggestions();
+    void onAlphaChangedCallback(float newValue);
 
     // owned by the window's content container
     ConsoleLogView *logView;
