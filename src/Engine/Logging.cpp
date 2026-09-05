@@ -286,6 +286,19 @@ void logRaw_int(uint8_t channel, log_level::level_enum lvl, std::string_view str
     }
 }
 
+void logFmt_int(uint8_t channel, std::source_location loc, log_level::level_enum lvl, fmt::string_view fmt,
+                fmt::format_args args) noexcept {
+    fmt::memory_buffer buf;
+    fmt::vformat_to(fmt::appender(buf), fmt, args);
+    log_int(channel, loc, lvl, std::string_view{buf.data(), buf.size()});
+}
+
+void logRawFmt_int(uint8_t channel, log_level::level_enum lvl, fmt::string_view fmt, fmt::format_args args) noexcept {
+    fmt::memory_buffer buf;
+    fmt::vformat_to(fmt::appender(buf), fmt, args);
+    logRaw_int(channel, lvl, std::string_view{buf.data(), buf.size()});
+}
+
 }  // namespace _detail
 using namespace _detail;
 
@@ -293,31 +306,9 @@ namespace {  // static
 // implementation of ConsoleSink
 class ConsoleSink final : public spdlog::sinks::base_sink<custom_spdmtx> {
    private:
-    // circular buffer for batching console messages
-    // size is a tradeoff for efficiency vs console update latency
-    static constexpr size_t CONSOLE_BUFFER_SIZE{64};
-
-    std::array<std::string, CONSOLE_BUFFER_SIZE> message_buffer_{};
-    size_t buffer_head_{0};   // next write position
-    size_t buffer_count_{0};  // current number of messages
-
     // separate formatters for different logger types
     // the base class has a "formatter_" member which we can use as the main formatter
     std::unique_ptr<spdlog::pattern_formatter> raw_formatter_{nullptr};
-
-    // Console::log is thread-safe, batched console updates for better performance
-    // TODO: implement color
-    inline void flush_buffer_to_console() noexcept {
-        if(buffer_count_ == 0) return;
-
-        // print messages in order (handling wrap-around)
-        size_t read_pos{(buffer_head_ + CONSOLE_BUFFER_SIZE - buffer_count_) % CONSOLE_BUFFER_SIZE};
-        for(size_t i = 0; i < buffer_count_; ++i) {
-            Console::log(message_buffer_[read_pos]);
-            read_pos = (read_pos + 1) % CONSOLE_BUFFER_SIZE;
-        }
-        buffer_count_ = 0;
-    }
 
    public:
     ConsoleSink() noexcept {
@@ -332,6 +323,8 @@ class ConsoleSink final : public spdlog::sinks::base_sink<custom_spdmtx> {
     }
 
    protected:
+    // every line goes straight to the engine console (Console::log is thread-safe, it only queues the line)
+    // TODO: implement color
     inline void sink_it_(const spdlog::details::log_msg &msg) noexcept override {
         spdlog::memory_buf_t formatted;
 
@@ -349,19 +342,9 @@ class ConsoleSink final : public spdlog::sinks::base_sink<custom_spdmtx> {
             --end_pos;
         }
 
-        message_buffer_[buffer_head_] = std::string{formatted.data(), end_pos};
-        buffer_head_ = (buffer_head_ + 1) % CONSOLE_BUFFER_SIZE;
-
-        if(buffer_count_ < CONSOLE_BUFFER_SIZE) {
-            ++buffer_count_;
-        }
-
-        // flush when buffer is full to avoid losing messages
-        if(buffer_count_ == CONSOLE_BUFFER_SIZE) {
-            flush_buffer_to_console();
-        }
+        Console::log(std::string_view{formatted.data(), end_pos});
     }
-    inline void flush_() noexcept override { flush_buffer_to_console(); }
+    inline void flush_() noexcept override {}
 };
 
 // with basic_file_sink, it seems that multiple different sinks to the same file aren't properly synchronized (on Linux at least)

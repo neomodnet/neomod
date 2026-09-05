@@ -10,14 +10,12 @@
 #include <source_location>
 // #include <functional>
 
-// helper macros to allow using a single string directly or a format string with args
-#define _logFmtStart fmt::format(
-#define _logFmtEnd(...) , __VA_ARGS__)
+// the macros take either a single string directly or a format string with args (see Logger::_detail::log_int)
 
 // main context-aware logging macro
 #define logChannel(chan__, str__, ...)                                                                    \
     Logger::_detail::log_int((chan__), std::source_location::current(), Logger::_detail::log_level::info, \
-                             __VA_OPT__(_logFmtStart)(str__) __VA_OPT__(_logFmtEnd(__VA_ARGS__)))
+                             (str__)__VA_OPT__(, ) __VA_ARGS__)
 
 #define debugLog(str__, ...) logChannel(Logger::CHAN_DEFAULT, str__ __VA_OPT__(, ) __VA_ARGS__)
 
@@ -28,9 +26,8 @@
 #define logIfCV(cvar__, ...) logIf(cv::cvar__.getBool(), __VA_ARGS__)
 
 // raw logging without any context
-#define logRawChannel(chan__, str__, ...)                                   \
-    Logger::_detail::logRaw_int((chan__), Logger::_detail::log_level::info, \
-                                __VA_OPT__(_logFmtStart)(str__) __VA_OPT__(_logFmtEnd(__VA_ARGS__)))
+#define logRawChannel(chan__, str__, ...) \
+    Logger::_detail::logRaw_int((chan__), Logger::_detail::log_level::info, (str__)__VA_OPT__(, ) __VA_ARGS__)
 
 #define logRaw(str__, ...) logRawChannel(Logger::CHAN_DEFAULT, str__ __VA_OPT__(, ) __VA_ARGS__)
 
@@ -67,6 +64,24 @@ enum level_enum : int { trace = 0, debug = 1, info = 2, warn = 3, err = 4, criti
 
 void log_int(uint8_t log_channel, std::source_location loc, log_level::level_enum lvl, std::string_view str) noexcept;
 void logRaw_int(uint8_t log_channel, log_level::level_enum lvl, std::string_view str) noexcept;
+
+void logFmt_int(uint8_t log_channel, std::source_location loc, log_level::level_enum lvl, fmt::string_view fmt,
+                fmt::format_args args) noexcept;
+void logRawFmt_int(uint8_t log_channel, log_level::level_enum lvl, fmt::string_view fmt,
+                   fmt::format_args args) noexcept;
+
+template <typename... Args>
+    requires(sizeof...(Args) > 0)
+void log_int(uint8_t log_channel, std::source_location loc, log_level::level_enum lvl, fmt::format_string<Args...> fmt,
+             const Args &...args) noexcept {
+    logFmt_int(log_channel, loc, lvl, fmt.str, fmt::make_format_args(args...));
+}
+template <typename... Args>
+    requires(sizeof...(Args) > 0)
+void logRaw_int(uint8_t log_channel, log_level::level_enum lvl, fmt::format_string<Args...> fmt,
+                const Args &...args) noexcept {
+    logRawFmt_int(log_channel, lvl, fmt.str, fmt::make_format_args(args...));
+}
 }  // namespace _detail
 
 // Logger::init() is called immediately after main()

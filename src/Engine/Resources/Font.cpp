@@ -256,6 +256,7 @@ struct McFontImpl final {
 
     // Public util
     [[nodiscard]] std::vector<std::string> wrap(std::string_view text, f64 max_width) const;
+    [[nodiscard]] uSz hitTest(std::string_view text, float x) const;
     [[nodiscard]] std::string ellipsize(std::string_view text, f64 max_width) const;
 
    private:
@@ -359,6 +360,7 @@ float McFont::getStringHeight(std::string_view text) const { return pImpl->getSt
 std::vector<std::string> McFont::wrap(std::string_view text, f64 max_width) const {
     return pImpl->wrap(text, max_width);
 }
+uSz McFont::hitTest(std::string_view text, float x) const { return pImpl->hitTest(text, x); }
 std::string McFont::ellipsize(std::string_view text, f64 max_width) const { return pImpl->ellipsize(text, max_width); }
 ////////////////////////////////////////////////////////////////////////////////////
 // Public passthroughs end, implementation begins
@@ -791,6 +793,19 @@ std::vector<std::string> McFontImpl::wrap(std::string_view text, f64 max_width) 
     lines[line].append(word);
 
     return lines;
+}
+
+uSz McFontImpl::hitTest(std::string_view text, float x) const {
+    float width = 0.f;  // of the text before the current glyph
+    const auto codepoints = UniString::codepoints(text);
+    const auto begin = codepoints.begin();
+    for(auto it = begin; it != codepoints.end(); ++it) {
+        const float glyphWidth = getGlyphWidth(*it);
+        // left of this glyph's midpoint: the boundary before it is the nearest one
+        if(x < width + glyphWidth / 2) return static_cast<uSz>(it.pos - begin.pos);
+        width += glyphWidth;
+    }
+    return text.length();
 }
 
 std::string McFontImpl::ellipsize(std::string_view text, f64 max_width) const {
@@ -1546,7 +1561,7 @@ bool loadFallbackFont(const std::string &fontPath, bool isSystemFont) {
 void discoverSystemFallbacks() {
     // each entry is one slot in the fallback priority order: knownPaths are the usual exact
     // locations (checked directly, cheap), scanNames are filenames matched by a recursive scan
-    // of scanRoots which only runs for slots where no knownPath existed 
+    // of scanRoots which only runs for slots where no knownPath existed
     // (this runs on the main thread, so avoid scanning whole font directories when the usual locations are populated)
     struct SystemFontSpec {
         std::vector<std::string> knownPaths;

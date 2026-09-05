@@ -3,11 +3,10 @@
 
 #include "AnimationHandler.h"
 #include "CBaseUIElement.h"
-#include "Console.h"
+#include "types.h"
 
 #include <array>
 #include <memory>
-#include <vector>
 
 class McFont;
 class ConsoleTextbox;
@@ -57,11 +56,11 @@ class ConsoleBox : public CBaseUIElement {
     bool bConsoleAnimateIn{false};
     bool bConsoleAnimateOut{false};
 
-    // the overlay shows the newest scrollback entries until they fade out
+    // the overlay shows the scrollback from entry iOverlayFirst on (at most console_overlay_lines of it) until it
+    // fades out; iLogSequence is the end of the scrollback it last saw
     float fLogTime{0.f};
     AnimFloat fLogYPos;
-    std::vector<Console::LogEntry> log_entries;
+    u64 iOverlayFirst{0};
     u64 iLogSequence{0};
-    u64 iLogClearGeneration{0};
     McFont *logFont;
 };

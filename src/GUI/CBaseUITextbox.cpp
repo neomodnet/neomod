@@ -168,17 +168,8 @@ void CBaseUITextbox::updateInput(CBaseUIEventCtx &c) {
 
 // find the codepoint boundary closest to the mouse position
 int CBaseUITextbox::hitTestCaret(std::string_view vt, int mx) const {
-    int result = 0;
-    uSz prev = 0;
-    for(uSz i = 0;;) {
-        const float prevGlyphWidth = (prev < i) ? this->font->getStringWidth(vt.substr(prev, i - prev)) / 2 : 0;
-        if(mx >= this->font->getStringWidth(vt.substr(0, i)) + this->iTextAddX + this->fTextScrollAddX - prevGlyphWidth)
-            result = i;
-        if(i >= vt.length()) break;
-        prev = i;
-        i = UniString::next(vt, i);
-    }
-    return result;
+    // mx is relative to the box, the text starts iTextAddX + fTextScrollAddX into it
+    return static_cast<int>(this->font->hitTest(vt, static_cast<float>(mx - this->iTextAddX) - this->fTextScrollAddX));
 }
 
 void CBaseUITextbox::onCapturedMouseMove() {

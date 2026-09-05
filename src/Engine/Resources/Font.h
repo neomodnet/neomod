@@ -65,6 +65,10 @@ class McFont final : public Resource {
     // return "text" broken up into a vector of strings which are wrapped at word boundaries, with each fitting within max_width
     [[nodiscard]] std::vector<std::string> wrap(std::string_view text, f64 max_width) const;
 
+    // return the byte offset of the codepoint boundary in "text" nearest to x (pixels from the start of the text), i.e.
+    // where a caret goes for a pointer at x: the boundary after a glyph is taken once x is past that glyph's midpoint
+    [[nodiscard]] uSz hitTest(std::string_view text, float x) const;
+
     // return a representation of "text" which fits within max_width, possibly truncated with ... appended
     [[nodiscard]] std::string ellipsize(std::string_view text, f64 max_width) const;
 

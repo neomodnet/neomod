@@ -460,6 +460,8 @@ void Engine::onUpdate() {
         {
             VPROF_BUDGET("GUI::update", VPROF_BUDGETGROUP_UPDATE);
             if(this->guiContainer) {
+                Console::updateLog();  // the console views pick the new lines up as they tick
+
                 // the engine gui is laid out in window pixels, the app's pointer mapping does not apply to it
                 const Mouse::RealPosScope realPos(mouse);
                 this->guiContainer->tick();

@@ -11,17 +11,23 @@
 #include "SyncMutex.h"
 
 #include <algorithm>
-#include <atomic>
 #include <cassert>
 #include <deque>
+#include <span>
+#include <utility>
+#include <vector>
 
 namespace {
-// log scrollback, appended from the logger thread and polled by the console views on the main thread
-Sync::mutex s_logMutex;
+// log lines waiting to be moved into the scrollback: the only log state shared between threads, appended by the
+// logger thread (Console::log) and swapped out by the main thread (Console::updateLog)
+Sync::mutex s_pendingLogMutex;
+std::deque<Console::LogEntry> s_pendingLog;
+
+// the scrollback (main thread only)
 std::deque<Console::LogEntry> s_logEntries;
-u64 s_logFirst{0};              // sequence of s_logEntries.front() (guarded by s_logMutex)
-std::atomic<u64> s_logNext{0};  // sequence the next entry gets
-std::atomic<u64> s_logClearGeneration{0};
+std::deque<Console::LogEntry> s_incomingLog;  // swap target for s_pendingLog, kept around so its blocks get reused
+u64 s_logFirst{0};                            // sequence of s_logEntries.front()
+u64 s_logNext{0};                             // sequence the next entry gets
 
 // command history (main thread only)
 std::vector<std::string> s_history;
@@ -188,26 +194,36 @@ void Console::execConfigFile(std::string_view filename_view) {
 void Console::log(std::string_view text, Color color) {
     assert(!text.ends_with('\n') && !text.ends_with('\r') && "Console log strings can't end with a newline.");
 
-    const auto maxLines = static_cast<size_t>(std::max(1, cv::console_scrollback_lines.getInt()));
-
-    Sync::scoped_lock lock(s_logMutex);
-
-    const auto push = [color](std::string_view line) {
-        s_logEntries.emplace_back(std::string{line}, color);
-        s_logNext.fetch_add(1, std::memory_order_release);
-    };
-
-    // split on any newlines inside the string
+    // split on any newlines inside the string (before taking the lock, so the main thread's poll finds it free)
+    std::vector<std::string_view> split;
+    std::span<const std::string_view> lines{&text, 1};
     if(text.find('\n') != std::string_view::npos) {
-        auto lines = SString::split_newlines(text);
-        for(auto &line : lines) {
-            SString::trim_inplace(line);
-            if(!line.empty()) push(line);
-        }
-    } else {
-        push(text);
+        SString::split_newlines(split, text);
+        for(auto &line : split) SString::trim_inplace(line);
+        std::erase_if(split, [](std::string_view line) { return line.empty(); });
+        lines = split;
     }
 
+    const auto maxLines = static_cast<size_t>(std::max(1, cv::console_scrollback_lines.getInt()));
+
+    Sync::scoped_lock lock(s_pendingLogMutex);
+    for(const auto line : lines) s_pendingLog.emplace_back(std::string{line}, color);
+    // bounded like the scrollback, for when the main thread is away for a while
+    while(s_pendingLog.size() > maxLines) s_pendingLog.pop_front();
+}
+
+void Console::updateLog() {
+    // the logger thread may be mid-append; rather than wait for it, the batch is picked up next frame
+    if(!s_pendingLogMutex.try_lock()) return;
+    s_incomingLog.swap(s_pendingLog);
+    s_pendingLogMutex.unlock();
+    if(s_incomingLog.empty()) return;
+
+    for(auto &entry : s_incomingLog) s_logEntries.push_back(std::move(entry));
+    s_logNext += s_incomingLog.size();
+    s_incomingLog.clear();
+
+    const auto maxLines = static_cast<size_t>(std::max(1, cv::console_scrollback_lines.getInt()));
     while(s_logEntries.size() > maxLines) {
         s_logEntries.pop_front();
         ++s_logFirst;
@@ -215,21 +231,17 @@ void Console::log(std::string_view text, Color color) {
 }
 
 void Console::clearLog() {
-    Sync::scoped_lock lock(s_logMutex);
+    // takes what was logged until now along (as far as it can be picked up without waiting)
+    updateLog();
     s_logEntries.clear();
-    s_logFirst = s_logNext.load(std::memory_order_acquire);
-    s_logClearGeneration.fetch_add(1, std::memory_order_release);
+    s_logFirst = s_logNext;
 }
 
-u64 Console::getLogSequence() { return s_logNext.load(std::memory_order_acquire); }
+Console::LogRange Console::getLogRange() { return {.first = s_logFirst, .next = s_logNext}; }
 
-u64 Console::getLogClearGeneration() { return s_logClearGeneration.load(std::memory_order_acquire); }
-
-Console::LogRange Console::copyLogSince(u64 fromSeq, std::vector<LogEntry> &out) {
-    Sync::scoped_lock lock(s_logMutex);
-    const u64 next = s_logFirst + s_logEntries.size();
-    for(u64 seq = std::max(fromSeq, s_logFirst); seq < next; ++seq) out.push_back(s_logEntries[seq - s_logFirst]);
-    return {.first = s_logFirst, .next = next};
+const Console::LogEntry &Console::getLogEntry(u64 seq) {
+    assert(seq >= s_logFirst && seq < s_logNext);
+    return s_logEntries[seq - s_logFirst];
 }
 
 void Console::submit(std::string_view command) {

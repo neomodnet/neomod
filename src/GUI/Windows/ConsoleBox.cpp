@@ -7,6 +7,7 @@
 
 #include "AnimationHandler.h"
 #include "ConVar.h"
+#include "Console.h"
 #include "ConsoleWidgets.h"
 #include "Engine.h"
 #include "Font.h"
@@ -75,6 +76,12 @@ void ConsoleBox::drawLogOverlay() {
 
     const int shadowOffset = 1 * logScale;
 
+    // the newest entries since the overlay was last emptied, at most console_overlay_lines of them
+    const Console::LogRange range = Console::getLogRange();
+    const auto maxLines = static_cast<u64>(std::max(0, cv::console_overlay_lines.getInt()));
+    const u64 first = std::max({this->iOverlayFirst, range.first, range.next - std::min(maxLines, range.next)});
+    if(first >= range.next) return;
+
     g->setColor(0xff000000);
     const float alpha =
         1.0f - (this->fLogYPos / (this->logFont->getHeight() * (cv::console_overlay_lines.getInt() + 1)));
@@ -84,9 +91,9 @@ void ConsoleBox::drawLogOverlay() {
     {
         g->scale(logScale, logScale);
         g->translate(2 * logScale + shadowOffset, -this->fLogYPos + shadowOffset);
-        for(size_t i = 0; i < this->log_entries.size(); i++) {
-            g->translate(0, (int)((this->logFont->getHeight() + (i == 0 ? 0 : 2) + 1) * logScale));
-            g->drawString(this->logFont, this->log_entries[i].text);
+        for(u64 seq = first; seq < range.next; seq++) {
+            g->translate(0, (int)((this->logFont->getHeight() + (seq == first ? 0 : 2) + 1) * logScale));
+            g->drawString(this->logFont, Console::getLogEntry(seq).text);
         }
     }
     g->popTransform();
@@ -98,11 +105,12 @@ void ConsoleBox::drawLogOverlay() {
     {
         g->scale(logScale, logScale);
         g->translate(2 * logScale, -this->fLogYPos);
-        for(size_t i = 0; i < this->log_entries.size(); i++) {
-            g->translate(0, (int)((this->logFont->getHeight() + (i == 0 ? 0 : 2) + 1) * logScale));
-            g->setColor(Color(this->log_entries[i].color).setA(alpha));
+        for(u64 seq = first; seq < range.next; seq++) {
+            const Console::LogEntry &entry = Console::getLogEntry(seq);
+            g->translate(0, (int)((this->logFont->getHeight() + (seq == first ? 0 : 2) + 1) * logScale));
+            g->setColor(Color(entry.color).setA(alpha));
 
-            g->drawString(this->logFont, this->log_entries[i].text);
+            g->drawString(this->logFont, entry.text);
         }
     }
     g->popTransform();
@@ -123,26 +131,12 @@ void ConsoleBox::tick() {
     this->textbox->tick();
     this->suggestion->tick();
 
-    // pull new scrollback entries into the overlay
-    if(const u64 clearGeneration = Console::getLogClearGeneration(); clearGeneration != this->iLogClearGeneration) {
-        this->iLogClearGeneration = clearGeneration;
-        this->log_entries.clear();
-    }
-    if(Console::getLogSequence() != this->iLogSequence) {
-        const size_t oldCount = this->log_entries.size();
-        this->iLogSequence = Console::copyLogSince(this->iLogSequence, this->log_entries).next;
-
-        if(this->log_entries.size() != oldCount) {
-            const auto maxLines = cv::console_overlay_lines.getVal<size_t>();
-            if(this->log_entries.size() > maxLines)
-                this->log_entries.erase(this->log_entries.begin(),
-                                        this->log_entries.begin() + (this->log_entries.size() - maxLines));
-
-            // (re)start the fade timeout
-            this->fLogYPos.stop();
-            this->fLogYPos = 0.f;
-            this->fLogTime = engine->getTime() + cv::console_overlay_timeout.getFloat();
-        }
+    // new scrollback entries (re)start the overlay's fade timeout
+    if(const Console::LogRange range = Console::getLogRange(); range.next != this->iLogSequence) {
+        this->iLogSequence = range.next;
+        this->fLogYPos.stop();
+        this->fLogYPos = 0.f;
+        this->fLogTime = engine->getTime() + cv::console_overlay_timeout.getFloat();
     }
 
     if(this->bConsoleAnimateOnce) {
@@ -195,7 +189,7 @@ void ConsoleBox::tick() {
                                anim::QuadInOut);
 
         if(this->fLogYPos >= this->logFont->getHeight() * (cv::console_overlay_lines.getInt() + 1))
-            this->log_entries.clear();
+            this->iOverlayFirst = this->iLogSequence;  // faded out: nothing shows until the next entry
     }
 }
 

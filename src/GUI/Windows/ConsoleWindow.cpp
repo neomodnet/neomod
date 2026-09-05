@@ -13,7 +13,6 @@
 #include "Graphics.h"
 #include "Keyboard.h"
 #include "Mouse.h"
-#include "UniString.h"
 #include "MakeDelegateWrapper.h"
 
 #include <algorithm>
@@ -79,9 +78,9 @@ class ConsoleLogView final : public CBaseUIScrollView {
         f64 fraction;
     };
 
-    void rewrap();
-    void append(const std::vector<Console::LogEntry> &entries, Console::LogRange range);
-    void wrapInto(const std::vector<Console::LogEntry> &entries, u64 firstSeq);
+    void rewrap(Console::LogRange range);
+    void append(Console::LogRange range);
+    void wrapInto(u64 fromSeq, u64 toSeq);
     void updateScrollSize();
     [[nodiscard]] Anchor captureAnchor(f64 viewHeight) const;
     void applyAnchor(const Anchor &anchor);
@@ -104,12 +103,10 @@ class ConsoleLogView final : public CBaseUIScrollView {
     }
 
     std::deque<Line> lines;
-    std::vector<Console::LogEntry> scratch;
     McFont *font;
     float fWrapWidth{-1.f};
     f64 fLastHeight;
-    u64 iLogSequence{0};
-    u64 iLogClearGeneration{0};
+    Console::LogRange logRange{.first = 0, .next = 0};  // the scrollback range the lines were built from
     bool bRewrapPending{true};
     Anchor pendingAnchor{.atBottom = true, .entrySeq = 0, .subLine = 0, .fraction = 0.};
 
@@ -171,20 +168,12 @@ void ConsoleLogView::draw() {
 void ConsoleLogView::tick() {
     CBaseUIScrollView::tick();
 
-    if(const u64 clearGeneration = Console::getLogClearGeneration(); clearGeneration != this->iLogClearGeneration) {
-        this->iLogClearGeneration = clearGeneration;
-        this->lines.clear();
-        this->clearSelection();
-        this->updateScrollSize();
-    }
-
-    if(this->bRewrapPending) {
-        this->rewrap();
-    } else if(Console::getLogSequence() != this->iLogSequence) {
-        this->scratch.clear();
-        const Console::LogRange range = Console::copyLogSince(this->iLogSequence, this->scratch);
-        this->append(this->scratch, range);
-    }
+    // the range moves at its end for new entries and at its start when old ones fall out (or on clear)
+    const Console::LogRange range = Console::getLogRange();
+    if(this->bRewrapPending)
+        this->rewrap(range);
+    else if(range.first != this->logRange.first || range.next != this->logRange.next)
+        this->append(range);
 }
 
 void ConsoleLogView::updateInput(CBaseUIEventCtx &c) {
@@ -218,23 +207,19 @@ void ConsoleLogView::onResized() {
         this->applyAnchor(anchor);
 }
 
-void ConsoleLogView::rewrap() {
+void ConsoleLogView::rewrap(Console::LogRange range) {
     this->bRewrapPending = false;
     this->fWrapWidth = this->getSize().x;
 
     this->lines.clear();
     this->clearSelection();
-    this->scratch.clear();
-    const Console::LogRange range = Console::copyLogSince(0, this->scratch);
-    this->iLogSequence = range.next;
-    this->wrapInto(this->scratch, range.first);
+    this->wrapInto(range.first, range.next);
+    this->logRange = range;
     this->updateScrollSize();
     this->applyAnchor(this->pendingAnchor);
 }
 
-void ConsoleLogView::append(const std::vector<Console::LogEntry> &entries, Console::LogRange range) {
-    this->iLogSequence = range.next;
-
+void ConsoleLogView::append(Console::LogRange range) {
     const bool wasAtBottom = this->isAtBottom();
 
     // entries older than the retained range fell out of the scrollback: the selection slides along
@@ -252,25 +237,26 @@ void ConsoleLogView::append(const std::vector<Console::LogEntry> &entries, Conso
         }
     }
 
-    this->wrapInto(entries, range.next - entries.size());
+    const bool appended = range.next > this->logRange.next;
+    this->wrapInto(std::max(this->logRange.next, range.first), range.next);
+    this->logRange = range;
     this->updateScrollSize();
 
     // follow the newest line unless the user scrolled up (then the dropped rows must not shift the view)
-    if(wasAtBottom && !entries.empty())
+    if(wasAtBottom && appended)
         this->scrollToY(-(int)this->vScrollSize.y, false);
-    else if(dropped > 0)
+    else if(dropped > 0 && !this->lines.empty())
         this->scrollToY((int)(this->vScrollPos.y + dropped * this->getLineHeight()), false);
 }
 
-void ConsoleLogView::wrapInto(const std::vector<Console::LogEntry> &entries, u64 firstSeq) {
+void ConsoleLogView::wrapInto(u64 fromSeq, u64 toSeq) {
     const float scale = this->getTextScale();
     const f64 maxWidth =
         std::max(1.f, this->getSize().x - 4 * scale - cv::ui_scrollview_scrollbarwidth.getFloat()) / scale;
-    u64 seq = firstSeq;
-    for(const auto &entry : entries) {
+    for(u64 seq = fromSeq; seq < toSeq; seq++) {
+        const Console::LogEntry &entry = Console::getLogEntry(seq);
         for(auto &text : this->font->wrap(entry.text, maxWidth))
             this->lines.push_back({.text = std::move(text), .color = entry.color, .entrySeq = seq});
-        seq++;
     }
 }
 
@@ -329,19 +315,8 @@ ConsoleLogView::TextPos ConsoleLogView::hitTest(vec2 pos) const {
         return {.line = this->lines.size() - 1, .byte = this->lines.back().text.size()};
 
     const size_t lineIndex = static_cast<size_t>(row);
-    const std::string_view text = this->lines[lineIndex].text;
-
-    // the codepoint boundary nearest to the pointer (same rule as CBaseUITextbox::hitTestCaret)
     const float mx = (pos.x - this->getTextLeft()) / this->getTextScale();
-    size_t byte = 0;
-    for(size_t i = 0, prev = 0;;) {
-        const float prevGlyphHalf = (prev < i) ? this->font->getStringWidth(text.substr(prev, i - prev)) / 2 : 0.f;
-        if(mx >= this->font->getStringWidth(text.substr(0, i)) - prevGlyphHalf) byte = i;
-        if(i >= text.length()) break;
-        prev = i;
-        i = UniString::next(text, i);
-    }
-    return {.line = lineIndex, .byte = byte};
+    return {.line = lineIndex, .byte = this->font->hitTest(this->lines[lineIndex].text, mx)};
 }
 
 std::string ConsoleLogView::getSelectedText() const {
@@ -454,7 +429,6 @@ void ConsoleWindow::tick() {
     CBaseUIWindow::tick();
 
     // the popup's height follows the matches as they are typed, its bottom edge stays above the input box
-    // TODO: avoid doing this every frame maybe
     this->placeSuggestions();
 }
 
@@ -542,13 +516,17 @@ void ConsoleWindow::layout() {
 
     this->suggestions->setRelPosX(margin);
     this->suggestions->setSizeX(inputWidth);
+    this->getContainer()->update_pos();
 
     this->placeSuggestions();
 }
 
 void ConsoleWindow::placeSuggestions() {
-    // right above the input box, growing upward over the bottom of the log
+    // right above the input box, growing upward over the bottom of the log (a no-op unless the popup's height or
+    // the input box moved, so calling this every tick costs a compare)
     const float gap = 4 * env->getDPIScale();
-    this->suggestions->setRelPosY(this->input->getRelPos().y - gap - this->suggestions->getSize().y);
+    const float y = this->input->getRelPos().y - gap - this->suggestions->getSize().y;
+    if(y == this->suggestions->getRelPos().y) return;
+    this->suggestions->setRelPosY(y);
     this->getContainer()->update_pos();
 }

@@ -9,7 +9,8 @@
 #include <vector>
 
 // command processing plus the state every console view shares (log scrollback, command history, suggestions)
-// the log side is thread-safe: the logger thread appends at any time, the views poll it from the main thread
+// the logger thread hands over log lines at any time (log()), the main thread moves them into the scrollback once per
+// frame (updateLog()) and the views read it from there, without any locking
 class Console {
    public:
     static bool processCommand(std::string_view command, bool fromFile = false);
@@ -27,17 +28,20 @@ class Console {
         u64 next;
     };
 
-    // newlines must be stripped before being sent here (see Logging.cpp), embedded newlines split into multiple entries
+    // any thread. newlines must be stripped before being sent here (see Logging.cpp), embedded newlines split into
+    // multiple entries
     static void log(std::string_view text, Color color = 0xffffffff);
-    static void clearLog();
 
-    // one per appended entry, so views only copy when it moved
-    [[nodiscard]] static u64 getLogSequence();
-    // bumped by clearLog(), so views drop their own copies
-    [[nodiscard]] static u64 getLogClearGeneration();
-    // appends the retained entries with a sequence >= fromSeq to out (oldest first); entries older than the
-    // returned range's first have been dropped from the scrollback
-    static LogRange copyLogSince(u64 fromSeq, std::vector<LogEntry> &out);
+    // everything below is main thread only
+
+    // moves the lines logged since the last call into the scrollback (the engine calls it before the views tick).
+    // never waits for the logger thread: a batch it is still appending to is picked up next frame
+    static void updateLog();
+    static void clearLog();
+    // one sequence per appended entry, so views only re-read when it moved; clearLog() moves first up to next
+    [[nodiscard]] static LogRange getLogRange();
+    // seq must be inside getLogRange(); the reference is valid until the next updateLog()/clearLog()
+    [[nodiscard]] static const LogEntry &getLogEntry(u64 seq);
 
     // command history
     // history push + processCommand + log flush (an empty command only resets the history selection)
