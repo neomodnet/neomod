@@ -5,7 +5,8 @@
 # not traverse; the engine root is dispatched BEFORE the app root, so an active console
 # textbox eats chars first). the behavior must hold across the mechanism swap:
 #   - type into the focused app prompt_input -> "a"
-#   - open the console (Shift+F1): now chars land in the console, prompt_input stays "a"
+#   - open the quake console (console_style 0 + Shift+F1): now chars land in the console,
+#     prompt_input stays "a"
 #     (the console root out-prioritizes the still-active app box = today's dual-active mess
 #     P4's single pointer tidies, but the user-facing char-landing is identical)
 #   - click prompt_input again -> app steals focus back across roots -> "c" -> "ac"
@@ -18,6 +19,7 @@ ui_scale_to_dpi 0
 windowed_resolution 1280x720
 mouse_to 10 10
 @wait 20
+console_style 0
 ui_prompt test
 @wait 5
 sendtext a

@@ -361,6 +361,8 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	src/GUI/CBaseUIScrollView.cpp src/GUI/CBaseUISlider.cpp \
 	src/GUI/CBaseUITextbox.cpp src/GUI/CBaseUIWindow.cpp \
 	src/GUI/Windows/ConsoleBox.cpp \
+	src/GUI/Windows/ConsoleWidgets.cpp \
+	src/GUI/Windows/ConsoleWindow.cpp \
 	src/GUI/Windows/VisualProfiler.cpp \
 	src/Platform/Environment.cpp \
 	src/Platform/GPUDriverConfigurator.cpp \
@@ -637,6 +639,8 @@ am_neomod_OBJECTS = libraries/neomod-MD5.$(OBJEXT) \
 	src/GUI/neomod-CBaseUITextbox.$(OBJEXT) \
 	src/GUI/neomod-CBaseUIWindow.$(OBJEXT) \
 	src/GUI/Windows/neomod-ConsoleBox.$(OBJEXT) \
+	src/GUI/Windows/neomod-ConsoleWidgets.$(OBJEXT) \
+	src/GUI/Windows/neomod-ConsoleWindow.$(OBJEXT) \
 	src/GUI/Windows/neomod-VisualProfiler.$(OBJEXT) \
 	src/Platform/neomod-Environment.$(OBJEXT) \
 	src/Platform/neomod-GPUDriverConfigurator.$(OBJEXT) \
@@ -901,6 +905,8 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/GUI/$(DEPDIR)/neomod-CBaseUITextbox.Po \
 	src/GUI/$(DEPDIR)/neomod-CBaseUIWindow.Po \
 	src/GUI/Windows/$(DEPDIR)/neomod-ConsoleBox.Po \
+	src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWidgets.Po \
+	src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWindow.Po \
 	src/GUI/Windows/$(DEPDIR)/neomod-VisualProfiler.Po \
 	src/Platform/$(DEPDIR)/neomod-Environment.Po \
 	src/Platform/$(DEPDIR)/neomod-GPUDriverConfigurator.Po \
@@ -1555,6 +1561,8 @@ neomod_SOURCES = libraries/MD5.cpp libraries/demoji.c \
 	src/GUI/CBaseUIScrollView.cpp src/GUI/CBaseUISlider.cpp \
 	src/GUI/CBaseUITextbox.cpp src/GUI/CBaseUIWindow.cpp \
 	src/GUI/Windows/ConsoleBox.cpp \
+	src/GUI/Windows/ConsoleWidgets.cpp \
+	src/GUI/Windows/ConsoleWindow.cpp \
 	src/GUI/Windows/VisualProfiler.cpp \
 	src/Platform/Environment.cpp \
 	src/Platform/GPUDriverConfigurator.cpp \
@@ -2721,6 +2729,12 @@ src/GUI/Windows/$(DEPDIR)/$(am__dirstamp):
 src/GUI/Windows/neomod-ConsoleBox.$(OBJEXT):  \
 	src/GUI/Windows/$(am__dirstamp) \
 	src/GUI/Windows/$(DEPDIR)/$(am__dirstamp)
+src/GUI/Windows/neomod-ConsoleWidgets.$(OBJEXT):  \
+	src/GUI/Windows/$(am__dirstamp) \
+	src/GUI/Windows/$(DEPDIR)/$(am__dirstamp)
+src/GUI/Windows/neomod-ConsoleWindow.$(OBJEXT):  \
+	src/GUI/Windows/$(am__dirstamp) \
+	src/GUI/Windows/$(DEPDIR)/$(am__dirstamp)
 src/GUI/Windows/neomod-VisualProfiler.$(OBJEXT):  \
 	src/GUI/Windows/$(am__dirstamp) \
 	src/GUI/Windows/$(DEPDIR)/$(am__dirstamp)
@@ -3286,6 +3300,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUITextbox.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUIWindow.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/Windows/$(DEPDIR)/neomod-ConsoleBox.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWidgets.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWindow.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/Windows/$(DEPDIR)/neomod-VisualProfiler.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/Platform/$(DEPDIR)/neomod-Environment.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/Platform/$(DEPDIR)/neomod-GPUDriverConfigurator.Po@am__quote@ # am--include-marker
@@ -5837,6 +5853,34 @@ src/GUI/Windows/neomod-ConsoleBox.obj: src/GUI/Windows/ConsoleBox.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/GUI/Windows/neomod-ConsoleBox.obj `if test -f 'src/GUI/Windows/ConsoleBox.cpp'; then $(CYGPATH_W) 'src/GUI/Windows/ConsoleBox.cpp'; else $(CYGPATH_W) '$(srcdir)/src/GUI/Windows/ConsoleBox.cpp'; fi`
 
+src/GUI/Windows/neomod-ConsoleWidgets.o: src/GUI/Windows/ConsoleWidgets.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/GUI/Windows/neomod-ConsoleWidgets.o -MD -MP -MF src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWidgets.Tpo -c -o src/GUI/Windows/neomod-ConsoleWidgets.o `test -f 'src/GUI/Windows/ConsoleWidgets.cpp' || echo '$(srcdir)/'`src/GUI/Windows/ConsoleWidgets.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWidgets.Tpo src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWidgets.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/GUI/Windows/ConsoleWidgets.cpp' object='src/GUI/Windows/neomod-ConsoleWidgets.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/GUI/Windows/neomod-ConsoleWidgets.o `test -f 'src/GUI/Windows/ConsoleWidgets.cpp' || echo '$(srcdir)/'`src/GUI/Windows/ConsoleWidgets.cpp
+
+src/GUI/Windows/neomod-ConsoleWidgets.obj: src/GUI/Windows/ConsoleWidgets.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/GUI/Windows/neomod-ConsoleWidgets.obj -MD -MP -MF src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWidgets.Tpo -c -o src/GUI/Windows/neomod-ConsoleWidgets.obj `if test -f 'src/GUI/Windows/ConsoleWidgets.cpp'; then $(CYGPATH_W) 'src/GUI/Windows/ConsoleWidgets.cpp'; else $(CYGPATH_W) '$(srcdir)/src/GUI/Windows/ConsoleWidgets.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWidgets.Tpo src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWidgets.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/GUI/Windows/ConsoleWidgets.cpp' object='src/GUI/Windows/neomod-ConsoleWidgets.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/GUI/Windows/neomod-ConsoleWidgets.obj `if test -f 'src/GUI/Windows/ConsoleWidgets.cpp'; then $(CYGPATH_W) 'src/GUI/Windows/ConsoleWidgets.cpp'; else $(CYGPATH_W) '$(srcdir)/src/GUI/Windows/ConsoleWidgets.cpp'; fi`
+
+src/GUI/Windows/neomod-ConsoleWindow.o: src/GUI/Windows/ConsoleWindow.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/GUI/Windows/neomod-ConsoleWindow.o -MD -MP -MF src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWindow.Tpo -c -o src/GUI/Windows/neomod-ConsoleWindow.o `test -f 'src/GUI/Windows/ConsoleWindow.cpp' || echo '$(srcdir)/'`src/GUI/Windows/ConsoleWindow.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWindow.Tpo src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWindow.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/GUI/Windows/ConsoleWindow.cpp' object='src/GUI/Windows/neomod-ConsoleWindow.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/GUI/Windows/neomod-ConsoleWindow.o `test -f 'src/GUI/Windows/ConsoleWindow.cpp' || echo '$(srcdir)/'`src/GUI/Windows/ConsoleWindow.cpp
+
+src/GUI/Windows/neomod-ConsoleWindow.obj: src/GUI/Windows/ConsoleWindow.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/GUI/Windows/neomod-ConsoleWindow.obj -MD -MP -MF src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWindow.Tpo -c -o src/GUI/Windows/neomod-ConsoleWindow.obj `if test -f 'src/GUI/Windows/ConsoleWindow.cpp'; then $(CYGPATH_W) 'src/GUI/Windows/ConsoleWindow.cpp'; else $(CYGPATH_W) '$(srcdir)/src/GUI/Windows/ConsoleWindow.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWindow.Tpo src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWindow.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/GUI/Windows/ConsoleWindow.cpp' object='src/GUI/Windows/neomod-ConsoleWindow.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/GUI/Windows/neomod-ConsoleWindow.obj `if test -f 'src/GUI/Windows/ConsoleWindow.cpp'; then $(CYGPATH_W) 'src/GUI/Windows/ConsoleWindow.cpp'; else $(CYGPATH_W) '$(srcdir)/src/GUI/Windows/ConsoleWindow.cpp'; fi`
+
 src/GUI/Windows/neomod-VisualProfiler.o: src/GUI/Windows/VisualProfiler.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/GUI/Windows/neomod-VisualProfiler.o -MD -MP -MF src/GUI/Windows/$(DEPDIR)/neomod-VisualProfiler.Tpo -c -o src/GUI/Windows/neomod-VisualProfiler.o `test -f 'src/GUI/Windows/VisualProfiler.cpp' || echo '$(srcdir)/'`src/GUI/Windows/VisualProfiler.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/GUI/Windows/$(DEPDIR)/neomod-VisualProfiler.Tpo src/GUI/Windows/$(DEPDIR)/neomod-VisualProfiler.Po
@@ -7296,6 +7340,8 @@ distclean: distclean-am
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUITextbox.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIWindow.Po
 	-rm -f src/GUI/Windows/$(DEPDIR)/neomod-ConsoleBox.Po
+	-rm -f src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWidgets.Po
+	-rm -f src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWindow.Po
 	-rm -f src/GUI/Windows/$(DEPDIR)/neomod-VisualProfiler.Po
 	-rm -f src/Platform/$(DEPDIR)/neomod-Environment.Po
 	-rm -f src/Platform/$(DEPDIR)/neomod-GPUDriverConfigurator.Po
@@ -7584,6 +7630,8 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUITextbox.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIWindow.Po
 	-rm -f src/GUI/Windows/$(DEPDIR)/neomod-ConsoleBox.Po
+	-rm -f src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWidgets.Po
+	-rm -f src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWindow.Po
 	-rm -f src/GUI/Windows/$(DEPDIR)/neomod-VisualProfiler.Po
 	-rm -f src/Platform/$(DEPDIR)/neomod-Environment.Po
 	-rm -f src/Platform/$(DEPDIR)/neomod-GPUDriverConfigurator.Po

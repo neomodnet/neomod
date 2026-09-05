@@ -8,6 +8,25 @@
 #include "Engine.h"
 #include "File.h"
 #include "Logging.h"
+#include "SyncMutex.h"
+
+#include <algorithm>
+#include <atomic>
+#include <cassert>
+#include <deque>
+
+namespace {
+// log scrollback, appended from the logger thread and polled by the console views on the main thread
+Sync::mutex s_logMutex;
+std::deque<Console::LogEntry> s_logEntries;
+u64 s_logFirst{0};              // sequence of s_logEntries.front() (guarded by s_logMutex)
+std::atomic<u64> s_logNext{0};  // sequence the next entry gets
+std::atomic<u64> s_logClearGeneration{0};
+
+// command history (main thread only)
+std::vector<std::string> s_history;
+int s_historySelection{-1};
+}  // namespace
 
 bool Console::processCommand(std::string_view command, bool fromFile) {
     if(command.length() < 1) return false;
@@ -164,4 +183,99 @@ void Console::execConfigFile(std::string_view filename_view) {
             }
         });
     }
+}
+
+void Console::log(std::string_view text, Color color) {
+    assert(!text.ends_with('\n') && !text.ends_with('\r') && "Console log strings can't end with a newline.");
+
+    const auto maxLines = static_cast<size_t>(std::max(1, cv::console_scrollback_lines.getInt()));
+
+    Sync::scoped_lock lock(s_logMutex);
+
+    const auto push = [color](std::string_view line) {
+        s_logEntries.emplace_back(std::string{line}, color);
+        s_logNext.fetch_add(1, std::memory_order_release);
+    };
+
+    // split on any newlines inside the string
+    if(text.find('\n') != std::string_view::npos) {
+        auto lines = SString::split_newlines(text);
+        for(auto &line : lines) {
+            SString::trim_inplace(line);
+            if(!line.empty()) push(line);
+        }
+    } else {
+        push(text);
+    }
+
+    while(s_logEntries.size() > maxLines) {
+        s_logEntries.pop_front();
+        ++s_logFirst;
+    }
+}
+
+void Console::clearLog() {
+    Sync::scoped_lock lock(s_logMutex);
+    s_logEntries.clear();
+    s_logFirst = s_logNext.load(std::memory_order_acquire);
+    s_logClearGeneration.fetch_add(1, std::memory_order_release);
+}
+
+u64 Console::getLogSequence() { return s_logNext.load(std::memory_order_acquire); }
+
+u64 Console::getLogClearGeneration() { return s_logClearGeneration.load(std::memory_order_acquire); }
+
+Console::LogRange Console::copyLogSince(u64 fromSeq, std::vector<LogEntry> &out) {
+    Sync::scoped_lock lock(s_logMutex);
+    const u64 next = s_logFirst + s_logEntries.size();
+    for(u64 seq = std::max(fromSeq, s_logFirst); seq < next; ++seq) out.push_back(s_logEntries[seq - s_logFirst]);
+    return {.first = s_logFirst, .next = next};
+}
+
+void Console::submit(std::string_view command) {
+    s_historySelection = -1;
+    if(command.empty()) return;
+
+    s_history.emplace_back(command);
+    processCommand(command);
+    Logger::flush();  // make sure it's output immediately
+}
+
+std::string_view Console::cycleHistory(int dir) {
+    if(s_history.empty()) return {};
+
+    const int size = static_cast<int>(s_history.size());
+    if(dir > 0)
+        s_historySelection = (s_historySelection > size - 2) ? 0 : s_historySelection + 1;
+    else
+        s_historySelection = (s_historySelection < 1) ? size - 1 : s_historySelection - 1;
+
+    return s_history[s_historySelection];
+}
+
+std::vector<Console::Suggestion> Console::getSuggestions(std::string_view input) {
+    std::vector<Suggestion> suggestions;
+    for(const auto *var : cvars().getConVarByLetter(input)) {
+        std::string display{var->getName()};
+        if(var->canHaveValue()) {
+            switch(var->getType()) {
+                using enum ConVar::CONVAR_TYPE;
+                case BOOL:
+                    display.append(fmt::format(" {}", (int)var->getBool()));
+                    break;
+                case INT:
+                    display.append(fmt::format(" {}", var->getInt()));
+                    break;
+                case FLOAT:
+                    display.append(fmt::format(" {:g}", var->getFloat()));
+                    break;
+                case STRING:
+                    display.append(" ");
+                    display.append(var->getString());
+                    break;
+            }
+        }
+        suggestions.push_back({.command = var->getName(), .display = std::move(display), .help = var->getHelpstring()});
+    }
+    return suggestions;
 }

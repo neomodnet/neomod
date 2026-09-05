@@ -1,6 +1,7 @@
 // Copyright (c) 2011, PG & 2025, WH & 2025, kiwec, All rights reserved.
 #include "ConVarHandler.h"
 #include "ConVar.h"
+#include "Console.h"
 
 #include "AsyncIOHandler.h"
 #include "Logging.h"

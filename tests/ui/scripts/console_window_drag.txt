@@ -1,0 +1,63 @@
+# moving and resizing the console window with the mouse. at 1280x720 the window opens at
+# (256,162,768,396) with a 52px title bar; a title-bar drag by (+100,+75) puts it at (356,237),
+# a bottom-right corner drag by (+60,+60) grows it to 828x456. pinned via hover probes at points
+# that are inside exactly one of the before/after rects. the main menu cube (396,117,486,486)
+# lies under the drag path and must never gain hover while the window holds the pointer.
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+ui_trace 1
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 20
+console_style 1
+sendkey Left Shift down
+sendkey F1
+sendkey Left Shift up
+@wait 30
+ui_assert visible consolewindow 1
+mouse_to 1100 600
+@wait 3
+ui_assert hovered consolewindow 0
+# drag the title bar
+mouse_to 500 185
+@wait 3
+ui_assert mouse_at 500 185 2
+ui_assert hovered mainmenu_cube 0
+mouse_down
+@wait 3
+ui_assert hovered mainmenu_cube 0
+mouse_to 600 260
+@wait 3
+ui_assert hovered mainmenu_cube 0
+mouse_up
+@wait 3
+ui_assert hovered mainmenu_cube 0
+mouse_to 1100 600
+@wait 3
+ui_assert hovered consolewindow 1
+mouse_to 300 200
+@wait 3
+ui_assert hovered consolewindow 0
+# resize from the bottom-right corner
+mouse_to 1121 630
+@wait 3
+ui_assert hovered consolewindow 1
+mouse_down
+@wait 3
+mouse_to 1181 690
+@wait 3
+mouse_up
+@wait 3
+mouse_to 1150 680
+@wait 3
+ui_assert hovered consolewindow 1
+take_screenshot screenshots/uitest_console_window_drag.png
+@wait 3
+sendkey Escape
+@wait 30
+ui_assert visible consolewindow 0
+@wait 2
+exit

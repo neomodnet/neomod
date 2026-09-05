@@ -65,8 +65,8 @@ struct State final {
     // the single focused element across both roots; element dtors and stealFocus() clear it
     CBaseUIElement *focused{nullptr};
 
-    // per-frame hover resolution: hoverClaimed is set by whichever root hovered something first
-    // (engine before app), so a lower root suppresses its hover when an upper root already has it
+    // per-frame hover resolution: the first root that hovers something claims the pointer for the
+    // frame (engine before app), so a lower root suppresses its hover when an upper root already has it
     u64 lastHoverFrame{0};
     bool hoverClaimed{false};
 
@@ -259,8 +259,12 @@ void State::resolveHover(CBaseUIEventCtx &c, Root root) {
 
     // a held capture freezes hover GAINS for its own root: nothing beneath the captor gains (the
     // captor keeps the hover it had at the down; losing-on-rect-leave is handled in updateInput).
-    // leaving the candidates untouched keeps the gesture's hover state from churning.
-    if(this->captor != nullptr && this->captorRoot == root) return;
+    // leaving the candidates untouched keeps the gesture's hover state from churning. the engine
+    // root's capture still claims the pointer, so the app beneath a dragged window retracts
+    if(this->captor != nullptr && this->captorRoot == root) {
+        if(root == Root::ENGINE) this->hoverClaimed = true;
+        return;
+    }
 
     // the hovered set = the top-most candidate (+ its ancestor path), the same ranking the button
     // targeting uses. an upper root that already claimed hover (the engine console draws on top)

@@ -1,0 +1,132 @@
+# the suggestion popup follows the input text in both console styles: typing opens it, deleting the
+# text (one character at a time, or all at once) closes it, a history recall leaves it closed until
+# the next edit, clicking a suggestion completes it and closes it, a press anywhere else dismisses
+# it (source engine style). (tab completion + hidden after submit are pinned by console_window_basic)
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+ui_trace 1
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 20
+console_style 1
+sendkey Left Shift down
+sendkey F1
+sendkey Left Shift up
+@wait 30
+ui_assert visible consolewindow 1
+sendtext console_sty
+@wait 3
+ui_assert visible consolewindow_suggestions 1
+# a press elsewhere (here: on the log) dismisses the popup, the input keeps the keyboard, the next
+# edit brings the popup back
+mouse_to 640 300
+@wait 3
+mouse_down
+@wait 3
+mouse_up
+@wait 3
+ui_assert visible consolewindow_suggestions 0
+ui_assert active consolewindow_input 1
+sendkey Backspace
+@wait 3
+ui_assert visible consolewindow_suggestions 1
+sendkey Backspace
+sendkey Backspace
+sendkey Backspace
+sendkey Backspace
+sendkey Backspace
+sendkey Backspace
+sendkey Backspace
+sendkey Backspace
+sendkey Backspace
+sendkey Backspace
+@wait 3
+ui_assert visible consolewindow_suggestions 0
+sendtext x
+@wait 3
+ui_assert text consolewindow_input x
+sendkey Backspace
+@wait 3
+# select all + backspace
+sendtext console_sty
+@wait 3
+ui_assert visible consolewindow_suggestions 1
+sendkey Left Ctrl down
+sendkey A
+sendkey Left Ctrl up
+sendkey Backspace
+@wait 3
+ui_assert visible consolewindow_suggestions 0
+# up recalls the last command without a popup; editing it brings the popup back
+sendtext clear
+sendkey Return
+@wait 5
+sendkey Up
+@wait 3
+ui_assert text consolewindow_input clear
+ui_assert visible consolewindow_suggestions 0
+sendkey Backspace
+@wait 3
+ui_assert text consolewindow_input clea
+ui_assert visible consolewindow_suggestions 1
+# clicking a suggestion completes it (with a trailing space, proven by the value submitted after it)
+# and closes the popup
+sendkey Left Ctrl down
+sendkey A
+sendkey Left Ctrl up
+sendtext console_sty
+@wait 3
+ui_assert visible consolewindow_suggestions 1
+mouse_to 300 460
+@wait 3
+ui_assert hovered console_style 1
+mouse_down
+@wait 3
+mouse_up
+@wait 3
+ui_assert visible consolewindow_suggestions 0
+sendtext 0
+sendkey Return
+@wait 30
+# the quake-style box shares the input widget
+ui_assert visible consolewindow 0
+ui_assert visible consoleboxtextbox 1
+sendtext console_sty
+@wait 3
+ui_assert visible consoleboxsuggestion 1
+# a press outside (on the game) drops the keyboard and the popup, a press on the box takes it back
+mouse_to 100 500
+@wait 3
+mouse_down
+@wait 3
+mouse_up
+@wait 3
+ui_assert visible consoleboxsuggestion 0
+ui_assert active consoleboxtextbox 0
+mouse_to 640 680
+@wait 3
+mouse_down
+@wait 3
+mouse_up
+@wait 3
+ui_assert active consoleboxtextbox 1
+sendkey Backspace
+@wait 3
+ui_assert visible consoleboxsuggestion 1
+sendkey Backspace
+sendkey Backspace
+sendkey Backspace
+sendkey Backspace
+sendkey Backspace
+sendkey Backspace
+sendkey Backspace
+sendkey Backspace
+sendkey Backspace
+sendkey Backspace
+@wait 3
+ui_assert visible consoleboxsuggestion 0
+@wait 2
+exit

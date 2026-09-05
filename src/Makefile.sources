@@ -283,6 +283,8 @@ neomod_SOURCES = \
 	src/GUI/CBaseUITextbox.cpp \
 	src/GUI/CBaseUIWindow.cpp \
 	src/GUI/Windows/ConsoleBox.cpp \
+	src/GUI/Windows/ConsoleWidgets.cpp \
+	src/GUI/Windows/ConsoleWindow.cpp \
 	src/GUI/Windows/VisualProfiler.cpp \
 	src/Platform/Environment.cpp \
 	src/Platform/GPUDriverConfigurator.cpp \

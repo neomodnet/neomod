@@ -244,6 +244,10 @@ void Mouse::onButtonChange_internal(ButtonEvent &ev) {
 
 void Mouse::setPos(vec2 newPos) { this->vPos = newPos; }
 
+Mouse::RealPosScope::RealPosScope(Mouse *m) : m(m), bPrevious(m->bRealPos) { m->bRealPos = true; }
+
+Mouse::RealPosScope::~RealPosScope() { m->bRealPos = this->bPrevious; }
+
 void Mouse::setOffset(vec2 offset) {
     vec2 oldOffset = this->vOffset;
     this->vOffset = offset;

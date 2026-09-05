@@ -1,8 +1,9 @@
 // Copyright (c) 2025-2026, WH, All rights reserved.
 #include "Logging.h"
 
-#include "Engine.h"
-#include "ConsoleBox.h"
+#include "Console.h"
+#include "EngineConfig.h"
+#include "SyncMutex.h"
 #include "Thread.h"
 #include "Environment.h"
 #include "build_timestamp.h"
@@ -288,8 +289,9 @@ void logRaw_int(uint8_t channel, log_level::level_enum lvl, std::string_view str
 }  // namespace _detail
 using namespace _detail;
 
-// implementation of ConsoleBoxSink
-class ConsoleBoxSink final : public spdlog::sinks::base_sink<custom_spdmtx> {
+namespace {  // static
+// implementation of ConsoleSink
+class ConsoleSink final : public spdlog::sinks::base_sink<custom_spdmtx> {
    private:
     // circular buffer for batching console messages
     // size is a tradeoff for efficiency vs console update latency
@@ -303,32 +305,22 @@ class ConsoleBoxSink final : public spdlog::sinks::base_sink<custom_spdmtx> {
     // the base class has a "formatter_" member which we can use as the main formatter
     std::unique_ptr<spdlog::pattern_formatter> raw_formatter_{nullptr};
 
-    // ConsoleBox::log is thread-safe, batched console updates for better performance
+    // Console::log is thread-safe, batched console updates for better performance
     // TODO: implement color
     inline void flush_buffer_to_console() noexcept {
         if(buffer_count_ == 0) return;
 
-        std::shared_ptr<ConsoleBox> cbox{Engine::getConsoleBox()};
-        if(unlikely(!cbox)) {
-            // should only be possible briefly on startup/shutdown
-            return;
-        }
-
         // print messages in order (handling wrap-around)
         size_t read_pos{(buffer_head_ + CONSOLE_BUFFER_SIZE - buffer_count_) % CONSOLE_BUFFER_SIZE};
-        {
-            // hold the lock outside the loop, so we don't continuously acquire and release it for each log call
-            Sync::unique_lock lock(cbox->logMutex);
-            for(size_t i = 0; i < buffer_count_; ++i) {
-                cbox->log(message_buffer_[read_pos]);
-                read_pos = (read_pos + 1) % CONSOLE_BUFFER_SIZE;
-            }
+        for(size_t i = 0; i < buffer_count_; ++i) {
+            Console::log(message_buffer_[read_pos]);
+            read_pos = (read_pos + 1) % CONSOLE_BUFFER_SIZE;
         }
         buffer_count_ = 0;
     }
 
    public:
-    ConsoleBoxSink() noexcept {
+    ConsoleSink() noexcept {
         // create separate formatters for different logger types
         // also, don't auto-append newlines, each console log is already on a new line
         auto tempformatter = std::make_unique<spdlog::pattern_formatter>(spdlog::pattern_time_type::local, "");
@@ -372,10 +364,9 @@ class ConsoleBoxSink final : public spdlog::sinks::base_sink<custom_spdmtx> {
     inline void flush_() noexcept override { flush_buffer_to_console(); }
 };
 
-namespace {  // static
 // with basic_file_sink, it seems that multiple different sinks to the same file aren't properly synchronized (on Linux at least)
 // so the pattern of using 2 loggers and 2 sinks doesn't quite work
-// not a huge issue, we can just do a similar thing to ConsoleBoxSink to use a different formatter based on the logger name,
+// not a huge issue, we can just do a similar thing to ConsoleSink to use a different formatter based on the logger name,
 // and register it with both loggers
 
 // annoyingly, though, basic_file_sink is marked final, so it can't be overridden (we just have to reimplement it entirely :/)
@@ -477,7 +468,7 @@ void init(bool create_console) noexcept {
         });
 
     // engine console sink handles its own formatting
-    auto engine_console_sink{std::make_shared<ConsoleBoxSink>()};
+    auto engine_console_sink{std::make_shared<ConsoleSink>()};
 
     // default debugLog sink
 #ifdef MCENGINE_PLATFORM_WINDOWS
@@ -506,7 +497,7 @@ void init(bool create_console) noexcept {
 
     // add file sinks if directory is writable
     if(log_to_file) {
-        // similar to the ConsoleBoxSink, the logger source determines the output pattern
+        // similar to the ConsoleSink, the logger source determines the output pattern
         auto file_sink{std::make_shared<DualPatternFileSink>(LOGFILE_NAME, true /* overwrite */)};
 
         main_sinks.push_back(file_sink);

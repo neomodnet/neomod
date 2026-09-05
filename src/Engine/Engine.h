@@ -8,7 +8,6 @@
 
 #include "Rect.h"
 #include "KeyboardListener.h"
-#include "AtomicSharedPtr.h"
 #include "Vectors.h"
 
 #include <vector>
@@ -47,6 +46,7 @@ class MouseSink;
 }
 class VisualProfiler;
 class ConsoleBox;
+class ConsoleWindow;
 class Console;
 class Image;
 
@@ -122,10 +122,9 @@ class Engine final : public KeyboardListener {
     [[nodiscard]] constexpr bool isDrawing() const { return this->bDrawing; }
 
     // debugging/console
-    [[nodiscard]] static inline std::shared_ptr<ConsoleBox> getConsoleBox() {
-        return Engine::consoleBox.load(std::memory_order_acquire);
-    }
     [[nodiscard]] constexpr CBaseUIContainer *getGUI() const { return this->guiContainer; }
+    // either console style is showing (the app defers its cursor handling to the console while it is)
+    [[nodiscard]] bool isConsoleOpen() const;
 
     [[nodiscard]] constexpr McFont *getDefaultFont() const { return this->defaultFont; }
     [[nodiscard]] constexpr McFont *getConsoleFont() const { return this->consoleFont; }
@@ -160,7 +159,13 @@ class Engine final : public KeyboardListener {
     // engine gui, mostly for debugging
     CBaseUIContainer *guiContainer;
     VisualProfiler *visualProfiler;
-    static Mc::atomic_sharedptr<ConsoleBox> consoleBox;
+
+    // both console styles exist side by side, cv::console_style picks the one that opens
+    ConsoleBox *consoleBox{nullptr};
+    ConsoleWindow *consoleWindow{nullptr};
+    void toggleConsole();
+    void showConsole();
+    void onConsoleStyleChanged(float newVal);
 
     // UI mouse routing sink
     std::unique_ptr<CBaseUIDispatch::MouseSink> uiMouseSink{nullptr};

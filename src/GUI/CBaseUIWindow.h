@@ -1,16 +1,18 @@
 #pragma once
 // Copyright (c) 2014, PG, All rights reserved.
-#include "AnimationHandler.h"
 #include "CBaseUIElement.h"
 #include "Color.h"
+
+#include <array>
+#include <memory>
 
 class CBaseUIButton;
 class CBaseUIContainer;
 
-class RenderTarget;
 class McFont;
 
 class CBaseUIWindow : public CBaseUIElement {
+    NOCOPY_NOMOVE(CBaseUIWindow)
    public:
     CBaseUIWindow(float xPos = 0, float yPos = 0, float xSize = 0, float ySize = 0, std::string name = {});
     ~CBaseUIWindow() override;
@@ -27,11 +29,6 @@ class CBaseUIWindow : public CBaseUIElement {
     // actions
     void close();
     void open();
-
-    void minimize();
-
-    // BETA: mimic native window
-    CBaseUIWindow *enableCoherenceMode();
 
     // set
     CBaseUIWindow *setSizeToContent(int horizontalBorderSize = 1, int verticalBorderSize = 1);
@@ -97,8 +94,8 @@ class CBaseUIWindow : public CBaseUIElement {
     bool isActive() override;
     [[nodiscard]] inline bool isMoving() const { return this->bMoving; }
     [[nodiscard]] inline bool isResizing() const { return this->bResizing; }
-    [[nodiscard]] inline CBaseUIContainer *getContainer() const { return this->container; }
-    [[nodiscard]] inline CBaseUIContainer *getTitleBarContainer() const { return this->titleBarContainer; }
+    [[nodiscard]] inline CBaseUIContainer *getContainer() const { return this->container.get(); }
+    [[nodiscard]] inline CBaseUIContainer *getTitleBarContainer() const { return this->titleBarContainer.get(); }
     inline int getTitleBarHeight() { return this->iTitleBarHeight; }
 
     // events
@@ -106,7 +103,9 @@ class CBaseUIWindow : public CBaseUIElement {
     void onMouseUpInside(bool left = true, bool right = false) override;
     void onMouseUpOutside(bool left = true, bool right = false) override;
     void onMouseCancel() override;
+    void onMouseOutside() override;
     void onCapturedMouseMove() override;
+    bool onWheel(int deltaVertical, int deltaHorizontal) override;
 
     void onMoved() override;
     void onResized() override;
@@ -116,30 +115,32 @@ class CBaseUIWindow : public CBaseUIElement {
     void onEnabled() override;
     void onDisabled() override;
 
+    [[nodiscard]] std::span<CBaseUIElement *const> getAllChildren() const override { return this->children; }
+
    protected:
     void updateTitleBarMetrics();
-    void udpateResizeAndMoveLogic(bool captureMouse);
+    void updateResizeAndMoveLogic(bool captureMouse);
     void updateWindowLogic();
 
-    virtual void onClosed();
+    virtual void onClosed() { ; }
 
     inline CBaseUIButton *getCloseButton() { return this->closeButton; }
-    inline CBaseUIButton *getMinimizeButton() { return this->minimizeButton; }
 
    private:
-    CBaseUIButton *closeButton;
-    CBaseUIButton *minimizeButton;
-
-    // main container
-    CBaseUIContainer *container;
-
     // title bar
-    CBaseUIContainer *titleBarContainer;
+    std::unique_ptr<CBaseUIContainer> titleBarContainer;
+    CBaseUIButton *closeButton;  // owned by the title bar container
     McFont *titleFont;
     std::string sTitle;
     float fTitleFontWidth;
     float fTitleFontHeight;
     int iTitleBarHeight;
+
+    // main container
+    std::unique_ptr<CBaseUIContainer> container;
+
+    // title bar + main container, for tree walkers
+    std::array<CBaseUIElement *, 2> children{};
 
     // resizing
     vec2 vResizeLimit{0.f};
@@ -156,10 +157,6 @@ class CBaseUIWindow : public CBaseUIElement {
     Color backgroundColor;
     Color titleColor;
 
-    // window properties
-
-    AnimFloat fAnimation;
-
     enum class RESIZETYPE : uint8_t {
         UNKNOWN = 0,
         TOPLEFT = 1,
@@ -174,10 +171,7 @@ class CBaseUIWindow : public CBaseUIElement {
 
     RESIZETYPE iResizeType : 4;
 
-    bool bIsOpen;
-    bool bAnimIn;
     bool bResizeable;
-    bool bCoherenceMode;
 
     bool bDrawFrame;
     bool bDrawBackground;

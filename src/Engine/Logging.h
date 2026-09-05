@@ -56,8 +56,6 @@ enum Channel : uint8_t {
     CHAN_DEFAULT = CHAN_APP | CHAN_ENGINE
 };
 
-class ConsoleBoxSink;
-
 namespace _detail {
 
 // copied from spdlog, don't want to include it here

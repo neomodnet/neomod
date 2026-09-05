@@ -16,7 +16,6 @@
 #include "ConVarHandler.h"
 #include "MakeDelegateWrapper.h"
 #include "Console.h"
-#include "ConsoleBox.h"
 #include "Database.h"
 #include "DatabaseBeatmap.h"
 #include "DirectoryWatcher.h"
@@ -174,7 +173,6 @@ Osu::Osu()
     Environment::createDirectory(NEOMOD_SCREENSHOTS_PATH);
     Environment::createDirectory(NEOMOD_SKINS_PATH);
 
-    engine->getConsoleBox()->setRequireShiftToActivate(true);
     mouse->addListener(this);
     touch->addListener(this);
 
@@ -1997,10 +1995,12 @@ void Osu::updateCursorVisibility() {
                            BanchoState::spectating);
     bool desired_vis = forced_visible;
 
-    // if it's not forced visible, check whether it's inside the internal window
+    // if it's not forced visible, check whether it's inside the internal window. the engine console
+    // relies on the os cursor (text/resize cursors) for as long as it is open: showing it only over
+    // the console would flap raw input on every hover change
     if(!forced_visible) {
         const bool internal_contains_mouse = this->internalRect.contains(mouse->getPos());
-        if(internal_contains_mouse) {
+        if(internal_contains_mouse && !engine->isConsoleOpen()) {
             desired_vis = false;
         } else {
             desired_vis = true;

@@ -1,17 +1,15 @@
 // Copyright (c) 2014, PG, All rights reserved.
 #include "CBaseUIWindow.h"
 
+#include <algorithm>
 #include <utility>
 
-#include "AnimationHandler.h"
 #include "CBaseUIButton.h"
 #include "CBaseUIContainer.h"
-#include "ConVar.h"
 #include "Cursors.h"
 #include "Engine.h"
 #include "Environment.h"
 #include "Mouse.h"
-#include "RenderTarget.h"
 #include "ResourceManager.h"
 #include "Font.h"
 #include "MakeDelegateWrapper.h"
@@ -22,7 +20,6 @@ CBaseUIWindow::CBaseUIWindow(float xPos, float yPos, float xSize, float ySize, s
     const float dpiScale = env->getDPIScale();
 
     int titleBarButtonSize = 13 * dpiScale;
-    int titleBarButtonGap = 6 * dpiScale;
 
     // titlebar
     this->bDrawTitleBarLine = true;
@@ -30,8 +27,8 @@ CBaseUIWindow::CBaseUIWindow(float xPos, float yPos, float xSize, float ySize, s
     this->iTitleBarHeight = this->titleFont->getHeight() + 12 * dpiScale;
     if(this->iTitleBarHeight < titleBarButtonSize) this->iTitleBarHeight = titleBarButtonSize + 4 * dpiScale;
 
-    this->titleBarContainer = new CBaseUIContainer(this->getPos().x, this->getPos().y, this->getSize().x,
-                                                   this->iTitleBarHeight, "titlebarcontainer");
+    this->titleBarContainer = std::make_unique<CBaseUIContainer>(this->getPos().x, this->getPos().y, this->getSize().x,
+                                                                 this->iTitleBarHeight, "titlebarcontainer");
 
     this->closeButton = new CBaseUIButton(
         this->getSize().x - titleBarButtonSize - (this->iTitleBarHeight - titleBarButtonSize) / 2.0f,
@@ -39,21 +36,13 @@ CBaseUIWindow::CBaseUIWindow(float xPos, float yPos, float xSize, float ySize, s
     this->closeButton->setClickCallback(SA::MakeDelegate<&CBaseUIWindow::close>(this));
     this->closeButton->setDrawFrame(false);
 
-    this->minimizeButton = new CBaseUIButton(
-        this->getSize().x - titleBarButtonSize * 2 - (this->iTitleBarHeight - titleBarButtonSize) / 2.0f -
-            titleBarButtonGap,
-        this->iTitleBarHeight / 2.0f - titleBarButtonSize / 2.0f, titleBarButtonSize, titleBarButtonSize, "", "");
-    this->minimizeButton->setVisible(false);
-    this->minimizeButton->setDrawFrame(false);
-    this->minimizeButton->setClickCallback(SA::MakeDelegate<&CBaseUIWindow::minimize>(this));
-
-    this->titleBarContainer->addBaseUIElement(this->minimizeButton);
     this->titleBarContainer->addBaseUIElement(this->closeButton);
 
     // main container
-    this->container = new CBaseUIContainer(this->getPos().x, this->getPos().y + this->titleBarContainer->getSize().y,
-                                           this->getSize().x, this->getSize().y - this->titleBarContainer->getSize().y,
-                                           "maincontainer");
+    this->container = std::make_unique<CBaseUIContainer>(
+        this->getPos().x, this->getPos().y + this->titleBarContainer->getSize().y, this->getSize().x,
+        this->getSize().y - this->titleBarContainer->getSize().y, "maincontainer");
+    this->children = {this->titleBarContainer.get(), this->container.get()};
 
     // colors
     this->frameColor = 0xffffffff;
@@ -69,17 +58,13 @@ CBaseUIWindow::CBaseUIWindow(float xPos, float yPos, float xSize, float ySize, s
     this->iResizeType = RESIZETYPE::UNKNOWN;
 
     // window properties
-    this->bIsOpen = false;
-    this->bAnimIn = false;
     this->bResizeable = true;
-    this->bCoherenceMode = false;
-    this->fAnimation = 0.0f;
 
     this->bDrawFrame = true;
     this->bDrawBackground = true;
     this->bRoundedRectangle = false;
 
-    this->setTitle(name);
+    this->setTitle(this->sName);
     this->setVisible(false);
 
     // for very small resolutions on engine start
@@ -88,152 +73,91 @@ CBaseUIWindow::CBaseUIWindow(float xPos, float yPos, float xSize, float ySize, s
     }
 }
 
-CBaseUIWindow::~CBaseUIWindow() {
-    /// SAFE_DELETE(this->shadow);
-    SAFE_DELETE(this->container);
-    SAFE_DELETE(this->titleBarContainer);
-}
+CBaseUIWindow::~CBaseUIWindow() = default;
 
 void CBaseUIWindow::draw() {
     if(!this->bVisible) return;
 
-    // TODO: structure
-    /*
-    if (!anim::isAnimating(&m_fAnimation))
-            m_shadow->draw();
-    else
-    {
-            m_shadow->setColor(argb((int)((this->fAnimation)*255.0f), 255, 255, 255));
+    // draw background
+    if(this->bDrawBackground) {
+        g->setColor(this->backgroundColor);
 
-            // HACKHACK: shadows can't render inside a 3DScene
-            m_shadow->renderOffscreen();
-
-            g->push3DScene(McRect(this->getPos(), this->getSize()));
-                    g->rotate3DScene(0, (this->bAnimIn ? -1 : 1) * (1-m_fAnimation)*10, 0);
-                    g->translate3DScene(0, 0, -(1-m_fAnimation)*100);
-                    m_shadow->draw();
-            g->pop3DScene();
+        if(this->bRoundedRectangle) {
+            g->fillRoundedRect(this->getPos(), this->getSize() + 1.f, 6);
+        } else
+            g->fillRect(this->getPos(), this->getSize() + 1.f);
     }
-    */
 
-    // draw window
-    // if (anim::isAnimating(&m_fAnimation) && !m_bCoherenceMode)
-    //	m_rt->enable();
+    // draw frame
+    if(this->bDrawFrame) {
+        if(this->frameDarkColor != 0 || this->frameBrightColor != 0)
+            g->drawRect(this->getPos(), this->getSize(), this->frameDarkColor, this->frameBrightColor,
+                        this->frameBrightColor, this->frameDarkColor);
+        else {
+            g->setColor(this->frameColor);
+            g->drawRect(this->getPos(), this->getSize());
+        }
+    }
 
+    // draw window contents
+    g->pushClipRect(McRect(this->getPos().x + 1, this->getPos().y + 2, this->getSize().x - 1, this->getSize().y - 1));
     {
-        // draw background
-        if(this->bDrawBackground) {
-            g->setColor(this->backgroundColor);
-
-            if(this->bRoundedRectangle) {
-                // int border = 0;
-                g->fillRoundedRect(this->getPos(), this->getSize() + 1.f, 6);
-            } else
-                g->fillRect(this->getPos(), this->getSize() + 1.f);
-        }
-
-        // draw frame
-        if(this->bDrawFrame) {
-            if(this->frameDarkColor != 0 || this->frameBrightColor != 0)
-                g->drawRect(this->getPos(), this->getSize(), this->frameDarkColor, this->frameBrightColor,
-                            this->frameBrightColor, this->frameDarkColor);
-            else {
-                g->setColor(/*m_bEnabled ? 0xffffff00 : */ this->frameColor);
-                g->drawRect(this->getPos(), this->getSize());
-            }
-        }
-
-        // draw window contents
+        // draw main container
         g->pushClipRect(
             McRect(this->getPos().x + 1, this->getPos().y + 2, this->getSize().x - 1, this->getSize().y - 1));
         {
-            // draw main container
-            g->pushClipRect(
-                McRect(this->getPos().x + 1, this->getPos().y + 2, this->getSize().x - 1, this->getSize().y - 1));
-            {
-                this->container->draw();
-                this->drawCustomContent();
-            }
-            g->popClipRect();
-
-            // draw title bar background
-            if(this->bDrawBackground && !this->bRoundedRectangle) {
-                g->setColor(this->backgroundColor);
-                g->fillRect(this->getPos().x, this->getPos().y, this->getSize().x, this->iTitleBarHeight);
-            }
-
-            // draw title bar line
-            if(this->bDrawTitleBarLine) {
-                g->setColor(this->frameColor);
-                g->drawLine(this->getPos().x, this->getPos().y + this->iTitleBarHeight,
-                            this->getPos().x + this->getSize().x, this->getPos().y + this->iTitleBarHeight);
-            }
-
-            // draw title
-            g->setColor(this->titleColor);
-            g->pushTransform();
-            {
-                g->translate((int)(this->getPos().x + this->getSize().x / 2.0f - this->fTitleFontWidth / 2.0f),
-                             (int)(this->getPos().y + this->fTitleFontHeight / 2.0f + this->iTitleBarHeight / 2.0f));
-                g->drawString(this->titleFont, this->sTitle);
-            }
-            g->popTransform();
-
-            // draw title bar container
-            g->pushClipRect(
-                McRect(this->getPos().x + 1, this->getPos().y + 2, this->getSize().x - 1, this->iTitleBarHeight));
-            {
-                this->titleBarContainer->draw();
-            }
-            g->popClipRect();
-
-            // draw close button 'x'
-            g->setColor(this->closeButton->getFrameColor());
-            g->drawLine(this->closeButton->getPos().x + 1, this->closeButton->getPos().y + 1,
-                        this->closeButton->getPos().x + this->closeButton->getSize().x,
-                        this->closeButton->getPos().y + this->closeButton->getSize().y);
-            g->drawLine(this->closeButton->getPos().x + 1,
-                        this->closeButton->getPos().y + this->closeButton->getSize().y - 1,
-                        this->closeButton->getPos().x + this->closeButton->getSize().x, this->closeButton->getPos().y);
-
-            // draw minimize button '_'
-            if(this->minimizeButton->isVisible()) {
-                g->setColor(this->minimizeButton->getFrameColor());
-                g->drawLine(this->minimizeButton->getPos().x + 2,
-                            this->minimizeButton->getPos().y + this->minimizeButton->getSize().y - 2,
-                            this->minimizeButton->getPos().x + this->minimizeButton->getSize().x - 1,
-                            this->minimizeButton->getPos().y + this->minimizeButton->getSize().y - 2);
-            }
+            this->container->draw();
+            this->drawCustomContent();
         }
         g->popClipRect();
+
+        // draw title bar background
+        if(this->bDrawBackground && !this->bRoundedRectangle) {
+            g->setColor(this->backgroundColor);
+            g->fillRect(this->getPos().x, this->getPos().y, this->getSize().x, this->iTitleBarHeight);
+        }
+
+        // draw title bar line
+        if(this->bDrawTitleBarLine) {
+            g->setColor(this->frameColor);
+            g->drawLine(this->getPos().x, this->getPos().y + this->iTitleBarHeight,
+                        this->getPos().x + this->getSize().x, this->getPos().y + this->iTitleBarHeight);
+        }
+
+        // draw title
+        g->setColor(this->titleColor);
+        g->pushTransform();
+        {
+            g->translate((int)(this->getPos().x + this->getSize().x / 2.0f - this->fTitleFontWidth / 2.0f),
+                         (int)(this->getPos().y + this->fTitleFontHeight / 2.0f + this->iTitleBarHeight / 2.0f));
+            g->drawString(this->titleFont, this->sTitle);
+        }
+        g->popTransform();
+
+        // draw title bar container
+        g->pushClipRect(
+            McRect(this->getPos().x + 1, this->getPos().y + 2, this->getSize().x - 1, this->iTitleBarHeight));
+        {
+            this->titleBarContainer->draw();
+        }
+        g->popClipRect();
+
+        // draw close button 'x'
+        g->setColor(this->closeButton->getFrameColor());
+        g->drawLine(this->closeButton->getPos().x + 1, this->closeButton->getPos().y + 1,
+                    this->closeButton->getPos().x + this->closeButton->getSize().x,
+                    this->closeButton->getPos().y + this->closeButton->getSize().y);
+        g->drawLine(this->closeButton->getPos().x + 1,
+                    this->closeButton->getPos().y + this->closeButton->getSize().y - 1,
+                    this->closeButton->getPos().x + this->closeButton->getSize().x, this->closeButton->getPos().y);
     }
-
-    // TODO: structure
-    if(this->fAnimation.animating() && !this->bCoherenceMode) {
-        /*
-        m_rt->disable();
-
-
-        m_rt->setColor(argb((int)(this->fAnimation*255.0f), 255, 255, 255));
-
-        g->push3DScene(McRect(this->getPos(), this->getSize()));
-                g->rotate3DScene((this->bAnimIn ? -1 : 1) * (1-m_fAnimation)*10, 0, 0);
-                g->translate3DScene(0, 0, -(1-m_fAnimation)*100);
-                m_rt->draw(this->getPos().x, this->getPos().y);
-        g->pop3DScene();
-        */
-    }
+    g->popClipRect();
 }
 
 void CBaseUIWindow::tick() {
     CBaseUIElement::tick();
     this->titleBarContainer->tick();
     this->container->tick();
-
-    if(!this->bVisible) return;
-
-    // after the close animation is finished, set invisible
-    if(this->fAnimation == 0.0f && this->bVisible) this->setVisible(false);
 }
 
 void CBaseUIWindow::updateInput(CBaseUIEventCtx &c) {
@@ -355,13 +279,11 @@ CBaseUIWindow *CBaseUIWindow::setTitle(std::string text) {
 void CBaseUIWindow::updateWindowLogic() {
     // handle resize & move cursor
     if(!this->titleBarContainer->isBusy() && !this->container->isBusy() && !this->bResizing && !this->bMoving) {
-        if(!mouse->isLeftDown()) this->udpateResizeAndMoveLogic(false);
+        if(!mouse->isLeftDown()) this->updateResizeAndMoveLogic(false);
     }
 }
 
-void CBaseUIWindow::udpateResizeAndMoveLogic(bool captureMouse) {
-    if(this->bCoherenceMode) return;  // NOTE: resizing in coherence mode is handled in main_Windows.cpp
-
+void CBaseUIWindow::updateResizeAndMoveLogic(bool captureMouse) {
     // backup
     this->vLastSize = this->getSize();
     this->vMousePosBackup = mouse->getPos();
@@ -419,6 +341,11 @@ void CBaseUIWindow::udpateResizeAndMoveLogic(bool captureMouse) {
             if(captureMouse) this->iResizeType = RESIZETYPE::TOP;
 
             env->setCursor(CURSORTYPE::CURSOR_SIZE_V);
+        } else if(const CURSORTYPE cursor = env->getCursor();
+                  cursor >= CURSORTYPE::CURSOR_SIZE_H && cursor <= CURSORTYPE::CURSOR_SIZE_VH) {
+            // back over the body: the resize cursor from the handles must not stick (children set
+            // their own, e.g. the textbox's text cursor, after this probe)
+            env->setCursor(CURSORTYPE::CURSOR_NORMAL);
         }
     }
 
@@ -433,30 +360,16 @@ void CBaseUIWindow::udpateResizeAndMoveLogic(bool captureMouse) {
 }
 
 void CBaseUIWindow::close() {
-    if(this->fAnimation.animating()) return;
+    if(!this->bVisible) return;
 
-    this->bAnimIn = false;
-    this->fAnimation = 1.0f;
-    this->fAnimation.set(0.0f, cv::ui_window_animspeed.getFloat(), anim::QuadInOut);
-
+    this->setVisible(false);
     this->onClosed();
 }
 
 void CBaseUIWindow::open() {
-    if(this->fAnimation.animating() || this->bVisible) return;
+    if(this->bVisible) return;
 
     this->setVisible(true);
-
-    if(!this->bCoherenceMode) {
-        this->bAnimIn = true;
-        this->fAnimation = 0.001f;
-        this->fAnimation.set(1.0f, cv::ui_window_animspeed.getFloat(), anim::QuadOut);
-    } else
-        this->fAnimation = 1.0f;
-}
-
-void CBaseUIWindow::minimize() {
-    if(this->bCoherenceMode) env->minimizeWindow();
 }
 
 CBaseUIWindow *CBaseUIWindow::setSizeToContent(int horizontalBorderSize, int verticalBorderSize) {
@@ -478,20 +391,9 @@ CBaseUIWindow *CBaseUIWindow::setSizeToContent(int horizontalBorderSize, int ver
     return this;
 }
 
-CBaseUIWindow *CBaseUIWindow::enableCoherenceMode() {
-    this->bCoherenceMode = true;
-
-    this->minimizeButton->setVisible(true);
-    this->setPos(0, 0);
-    this->setSize(engine->getScreenWidth() - 1, engine->getScreenHeight() - 1);
-    /// env->setWindowSize(this->getSize().x+1, this->getSize().y+1);
-
-    return this;
-}
-
 void CBaseUIWindow::onMouseDownInside(bool /*left*/, bool /*right*/) {
     this->bBusy = true;
-    this->udpateResizeAndMoveLogic(true);
+    this->updateResizeAndMoveLogic(true);
     // a started move/resize follows the cursor via captured moves and may leave the rect freely
     if(this->bResizing || this->bMoving) this->lockCapture();
 }
@@ -514,13 +416,22 @@ void CBaseUIWindow::onMouseCancel() {
     this->bMoving = false;
 }
 
+void CBaseUIWindow::onMouseOutside() {
+    CBaseUIElement::onMouseOutside();
+    // a resize cursor from the frame handles must not follow the pointer out of the window
+    if(!this->bResizing) env->setCursor(CURSORTYPE::CURSOR_NORMAL);
+}
+
+bool CBaseUIWindow::onWheel(int /*deltaVertical*/, int /*deltaHorizontal*/) {
+    // a window is an opaque surface: a wheel over its frame must not scroll whatever lies beneath
+    // (scrollable children are visited after us, so they still get first refusal)
+    return true;
+}
+
 void CBaseUIWindow::updateTitleBarMetrics() {
     this->closeButton->setRelPos(this->getSize().x - this->closeButton->getSize().x -
                                      (this->iTitleBarHeight - this->closeButton->getSize().x) / 2.0f,
                                  this->iTitleBarHeight / 2.0f - this->closeButton->getSize().y / 2.0f);
-    this->minimizeButton->setRelPos(this->getSize().x - this->minimizeButton->getSize().x * 2 -
-                                        (this->iTitleBarHeight - this->minimizeButton->getSize().x) / 2.0f - 6,
-                                    this->iTitleBarHeight / 2.0f - this->minimizeButton->getSize().y / 2.0f);
 
     this->fTitleFontWidth = this->titleFont->getStringWidth(this->sTitle);
     this->fTitleFontHeight = this->titleFont->getHeight();
@@ -532,24 +443,19 @@ void CBaseUIWindow::onMoved() {
     this->container->setPos(this->getPos().x, this->getPos().y + this->titleBarContainer->getSize().y);
 
     this->updateTitleBarMetrics();
-
-    // if (!m_bCoherenceMode)
-    //	m_rt->setPos(this->getPos());
-    /// m_shadow->setPos(this->getPos().x-m_shadow->getRadius(), this->getPos().y-m_shadow->getRadius());
 }
 
 void CBaseUIWindow::onResized() {
     this->updateTitleBarMetrics();
 
     this->container->setSize(this->getSize().x, this->getSize().y - this->titleBarContainer->getSize().y);
-
-    // if (!m_bCoherenceMode)
-    //	m_rt->rebuild(this->getPos().x, this->getPos().y, this->getSize().x+1, this->getSize().y+1);
-    /// m_shadow->setSize(this->getSize().x+m_shadow->getRadius()*2, this->getSize().y+m_shadow->getRadius()*2+4);
 }
 
 void CBaseUIWindow::onResolutionChange(vec2 newResolution) {
-    if(this->bCoherenceMode) this->setSize(newResolution.x - 1, newResolution.y - 1);
+    // keep the window on screen
+    this->setSize(std::min(this->getSize().x, newResolution.x), std::min(this->getSize().y, newResolution.y));
+    this->setPos(std::clamp(this->getPos().x, 0.f, newResolution.x - this->getSize().x),
+                 std::clamp(this->getPos().y, 0.f, newResolution.y - this->getSize().y));
 }
 
 void CBaseUIWindow::onEnabled() {
@@ -561,10 +467,6 @@ void CBaseUIWindow::onDisabled() {
     this->bBusy = false;
     this->container->setEnabled(false);
     this->titleBarContainer->setEnabled(false);
-}
-
-void CBaseUIWindow::onClosed() {
-    if(this->bCoherenceMode) engine->shutdown();
 }
 
 bool CBaseUIWindow::isBusy() {

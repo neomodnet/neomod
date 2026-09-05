@@ -1,0 +1,34 @@
+# console_style switches between the quake-style box and the source-style window, and changing it
+# from inside an open console moves the console over to the new style right away.
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+ui_trace 1
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 20
+console_style 0
+sendkey Left Shift down
+sendkey F1
+sendkey Left Shift up
+@wait 30
+ui_assert visible consoleboxtextbox 1
+ui_assert visible consolewindow 0
+sendtext console_style 1
+sendkey Return
+@wait 30
+ui_assert visible consoleboxtextbox 0
+ui_assert visible consolewindow 1
+sendtext console_style 0
+sendkey Return
+@wait 30
+ui_assert visible consolewindow 0
+ui_assert visible consoleboxtextbox 1
+# F1 without shift closes an open console
+sendkey F1
+@wait 30
+ui_assert visible consoleboxtextbox 0
+@wait 2
+exit

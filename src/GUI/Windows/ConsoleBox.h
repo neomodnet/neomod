@@ -3,20 +3,17 @@
 
 #include "AnimationHandler.h"
 #include "CBaseUIElement.h"
-#include "SyncMutex.h"
-#include "Color.h"
+#include "Console.h"
 
-#include <atomic>
+#include <array>
 #include <memory>
-namespace Logger {
-class ConsoleBoxSink;
-}
-class CBaseUITextbox;
-class CBaseUIButton;
-class CBaseUIScrollView;
-class McFont;
-class ConsoleBoxTextbox;
+#include <vector>
 
+class McFont;
+class ConsoleTextbox;
+class ConsoleSuggestionList;
+
+// quake style console: a textbox sliding in at the bottom of the screen, plus the fading log overlay
 class ConsoleBox : public CBaseUIElement {
     NOCOPY_NOMOVE(ConsoleBox)
    public:
@@ -33,78 +30,38 @@ class ConsoleBox : public CBaseUIElement {
 
     void onResolutionChange(vec2 newResolution);
 
-    void processCommand(std::string_view command);
-
-    // set
-    void setRequireShiftToActivate(bool requireShiftToActivate) {
-        this->bRequireShiftToActivate = requireShiftToActivate;
-    }
+    // returns false while an open/close animation blocks the toggle
+    bool toggle();
+    void show();
+    void hide();
+    [[nodiscard]] bool isOpen() const;
 
     // get
     bool isBusy() override;
     bool isActive() override;
 
-   private:
-    friend class Logger::ConsoleBoxSink;
-    void log(std::string_view text, Color textColor = 0xffffffff);
-
-    struct LOG_ENTRY {
-        std::string text;
-        Color textColor;
-    };
+    [[nodiscard]] std::span<CBaseUIElement *const> getAllChildren() const override { return this->children; }
 
    private:
-    // callback
-    inline void clear() { this->bClearPending = true; }
-
-    void onSuggestionClicked(CBaseUIButton *suggestion);
-
-    void addSuggestion(std::string text, std::string_view helpText, std::string_view command);
-    void clearSuggestions();
-
-    void show();
-    void toggle(KeyboardEvent &e);
-
     float getAnimTargetY();
 
     float getDPIScale();
 
-    void processPendingLogAnimations();
+    std::unique_ptr<ConsoleTextbox> textbox{nullptr};
+    std::unique_ptr<ConsoleSuggestionList> suggestion{nullptr};
+    std::array<CBaseUIElement *, 2> children{};  // for tree walkers
 
-    int iSuggestionCount{0};
-    int iSelectedSuggestion{-1};  // for up/down buttons
-
-    std::unique_ptr<ConsoleBoxTextbox> textbox{nullptr};
-    std::unique_ptr<CBaseUIScrollView> suggestion{nullptr};
-    std::vector<CBaseUIButton *> vSuggestionButtons;
-    float fSuggestionY{0.f};
-
-    bool bRequireShiftToActivate{false};
     bool bConsoleAnimateOnce{false};  // set to true for on-launch anim in
     float fConsoleDelay;
     AnimFloat fConsoleAnimation;
     bool bConsoleAnimateIn{false};
     bool bConsoleAnimateOut{false};
 
-    bool bSuggestionAnimateIn{false};
-    bool bSuggestionAnimateOut{false};
-    float fSuggestionAnimation{0.f};
-
+    // the overlay shows the newest scrollback entries until they fade out
     float fLogTime{0.f};
     AnimFloat fLogYPos;
-    std::vector<LOG_ENTRY> log_entries;
+    std::vector<Console::LogEntry> log_entries;
+    u64 iLogSequence{0};
+    u64 iLogClearGeneration{0};
     McFont *logFont;
-
-    std::vector<std::string> commandHistory;
-    int iSelectedHistory{-1};
-    bool bClearPending{false};
-
-    Sync::mutex logMutex;
-
-    // thread-safe log animation state
-    std::atomic<bool> bLogAnimationResetPending{false};
-    std::atomic<float> fPendingLogTime{0.f};
-    std::atomic<bool> bForceLogVisible{
-        false};  // needed as an "ohshit" when a ton of lines are added in a single frame after
-                 // the log has been hidden already
 };

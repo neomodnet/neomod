@@ -101,6 +101,13 @@ void UIDebug::debugDumpScreens() {
 void UIDebug::debugDumpElements(std::string_view screenName) {
     std::string lowerName = SString::to_lower(screenName);
     SString::trim_inplace(lowerName);
+    if(lowerName == "engine"sv) {
+        // the engine gui root (console, profiler) lives outside the screen table
+        logRaw("==== UI DUMP engine frame={} ====", engine->getFrameCount());
+        dumpElementTree(engine->getGUI(), 0);
+        logRaw("==== END UI DUMP ====");
+        return;
+    }
     UIScreen *screen = lowerName.empty() ? m_ui->active_screen : this->findScreenByName(lowerName);
     if(!screen) {
         logRaw("ui_dump: unknown screen '{}'", screenName);
@@ -183,6 +190,7 @@ void UIDebug::debugAssert(std::string_view args) {
             if((elem = findElementByName(overlay, parts[1])) != nullptr) break;
         }
     }
+    if(!elem) elem = findElementByName(engine->getGUI(), parts[1]);
 
     if(pred == "exists"sv) {
         const bool actual = (elem != nullptr);

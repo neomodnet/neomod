@@ -25,6 +25,11 @@ struct dummyGraphics {
 };
 dummyGraphics *g;
 
+struct Console {
+    static void execConfigFile(std::string_view /*filename*/) { ; }
+    static void clearLog() { ; }
+};
+
 namespace ConVarHandler::ConVarBuiltins {
 extern void find(std::string_view args);
 extern void help(std::string_view args);
@@ -104,11 +109,11 @@ namespace cmd {
 CONVAR(crash, CLIENT | HIDDEN | NOLOAD | NOSAVE, SA::delegate<void()>::template create<fubar_abort_>());  // debug
 CONVAR(borderless, CLIENT, CFUNC(_borderless));
 CONVAR(center, CLIENT, CFUNC(_center));
-CONVAR(clear, NOLOAD);
+CONVAR(clear, NOLOAD, CFUNC(Console::clearLog));
 CONVAR(dpiinfo, CLIENT, CFUNC(_dpiinfo));
 CONVAR(dumpcommands, CLIENT, CFUNC(ConVarHandler::ConVarBuiltins::dumpcommands));
 CONVAR(errortest, CLIENT, CFUNC(_errortest));
-CONVAR(exec, CLIENT | NOLOAD);  // set in ConsoleBox
+CONVAR(exec, CLIENT | NOLOAD, CFUNC(Console::execConfigFile));
 CONVAR(find, CLIENT, CFUNC(ConVarHandler::ConVarBuiltins::find));
 CONVAR(focus, CLIENT, CFUNC(_focus));
 CONVAR(help, CLIENT, CFUNC(ConVarHandler::ConVarBuiltins::help));
@@ -118,7 +123,7 @@ CONVAR(minimize, CLIENT, CFUNC(_minimize));
 CONVAR(printsize, CLIENT, CFUNC(_printsize));
 CONVAR(resizable_toggle, CLIENT, CFUNC(_toggleresizable));
 CONVAR(restart, CLIENT, CFUNC(_restart));
-CONVAR(showconsolebox);
+CONVAR(showconsolebox);  // callback set in Engine
 CONVAR(snd_restart);
 CONVAR(take_screenshot, CLIENT | NOLOAD | NOSAVE,
        [](std::string_view args) -> void { g ? g->takeScreenshot(args) : (void)0; });
@@ -285,7 +290,9 @@ CONVAR(console_overlay_lines, 12, CLIENT | SKINS | SERVER, "max number of lines 
 CONVAR(console_overlay_scale, 1.0f, CLIENT | SKINS | SERVER, "log text size multiplier");
 CONVAR(console_overlay_timeout, 8.0f, CLIENT | SKINS | SERVER,
        "how long to wait before fading out visible console log lines (0 = never fade out)");
-CONVAR(consolebox_animspeed, 12.0f, CLIENT | SKINS | SERVER);
+CONVAR(console_scrollback_lines, 2000, CLIENT | SKINS, "max number of log lines kept for the console window");
+CONVAR(console_style, 1, CLIENT | SKINS,
+       "console display style (0 = quake-style overlay, 1 = source-style window)");  // callback set in Engine
 CONVAR(consolebox_draw_helptext, true, CLIENT | SKINS | SERVER, "whether convar suggestions also draw their helptext");
 CONVAR(consolebox_draw_preview, true, CLIENT | SKINS | SERVER,
        "whether the textbox shows the topmost suggestion while typing");
@@ -323,7 +330,6 @@ CONVAR(ui_scrollview_scrollbarwidth, 15.0f, CLIENT | SKINS | SERVER);
 CONVAR(ui_textbox_caret_blink_time, 0.5f, CLIENT | SKINS | SERVER);
 CONVAR(ui_textbox_text_offset_x, 3, CLIENT | SKINS | SERVER);
 CONVAR(use_ime, true, CLIENT, "enable the use of the OS IME window for editing text");
-CONVAR(ui_window_animspeed, 0.29f, CLIENT | SKINS | SERVER);
 CONVAR(vsync, false, CLIENT);  // callback set in Graphics.cpp
 CONVAR(archive_threads, 1, CLIENT, "default number of threads to use for compressing archives");
 // this is not windows-only anymore, just keeping it with the "win_" prefix to not break old configs

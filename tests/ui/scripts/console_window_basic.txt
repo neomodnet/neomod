@@ -1,0 +1,46 @@
+# source-style console window (console_style 1): opens on shift+F1 centered at 60% x 55% of the
+# screen, runs a submitted command, keeps keyboard focus on its input box after submit, completes
+# a convar name with Tab, and closes on Escape.
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+ui_trace 1
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 20
+console_style 1
+sendkey Left Shift down
+sendkey F1
+sendkey Left Shift up
+@wait 30
+ui_assert visible consolewindow 1
+ui_assert visible consolewindow_input 1
+sendtext console_overlay_timeout 9
+sendkey Return
+@wait 5
+ui_assert convar console_overlay_timeout 9
+sendtext x
+@wait 3
+ui_assert text consolewindow_input x
+sendkey Backspace
+@wait 3
+# tab completion: the top suggestion is applied to the input box (with a trailing space)
+sendtext console_scrollback_l
+@wait 3
+ui_assert visible consolewindow_suggestions 1
+sendkey Tab
+@wait 3
+sendtext 1500
+sendkey Return
+@wait 5
+ui_assert convar console_scrollback_lines 1500
+ui_assert visible consolewindow_suggestions 0
+take_screenshot screenshots/uitest_console_window_basic.png
+@wait 3
+sendkey Escape
+@wait 30
+ui_assert visible consolewindow 0
+@wait 2
+exit

@@ -16,6 +16,7 @@
 #include "ConVar.h"
 #include "Graphics.h"
 #include "ConsoleBox.h"
+#include "ConsoleWindow.h"
 #include "DirectoryWatcher.h"
 #include "DiscordInterface.h"
 #include "Keyboard.h"
@@ -51,8 +52,6 @@ ResourceManager *resourceManager{nullptr};
 NetworkHandler *networkHandler{nullptr};
 AsyncIOHandler *io{nullptr};
 DirectoryWatcher *directoryWatcher{nullptr};
-
-Mc::atomic_sharedptr<ConsoleBox> Engine::consoleBox{nullptr};
 
 Engine *engine{nullptr};
 Engine::Engine() {
@@ -173,18 +172,6 @@ Engine::~Engine() {
         new App();  // re-create a dummy app and delete it again at the end (paranoia, just in case something tries to dereference app in its destructor)
 
     debugLog("Engine: Freeing engine GUI...");
-    if(const auto &cbox = Engine::consoleBox.load(std::memory_order_acquire); cbox != nullptr) {
-        // don't allow CBaseUI to delete it, it might still be in use (being flushed) by Logger
-        this->guiContainer->removeBaseUIElement(cbox.get());
-    }
-
-    // sanity, wait until logger has stopped logging messages to console box before continuing to delete uiDispatch
-    // (this is spaghetti but should prevent the need to null-check uiDispatcher)
-    {
-        auto cbox = Engine::consoleBox.load(std::memory_order_acquire);
-        Engine::consoleBox.store(nullptr, std::memory_order_release);
-        while(cbox.use_count() > 1) Timing::sleep(0);
-    }
     SAFE_DELETE(this->guiContainer);
 
     if(mouse) mouse->removeListener(this->uiMouseSink.get());
@@ -265,10 +252,20 @@ bool Engine::loadApp() {
 
         // create engine gui
         this->guiContainer = new CBaseUIContainer(0, 0, this->getScreenWidth(), this->getScreenHeight(), "");
-        Engine::consoleBox.store(std::make_shared<ConsoleBox>(), std::memory_order_release);
-        this->guiContainer->addBaseUIElement(Engine::consoleBox.load(std::memory_order_acquire).get());
+        this->consoleBox = new ConsoleBox();
+        this->guiContainer->addBaseUIElement(this->consoleBox);
+        this->consoleWindow = new ConsoleWindow();
+        this->guiContainer->addBaseUIElement(this->consoleWindow);
         this->visualProfiler = new VisualProfiler();
         this->guiContainer->addBaseUIElement(this->visualProfiler);
+
+        cv::cmd::showconsolebox.setCallback(SA::MakeDelegate<&Engine::showConsole>(this));
+        cv::console_style.setCallback(SA::MakeDelegate<&Engine::onConsoleStyleChanged>(this));
+
+        if constexpr(Env::cfg(BUILD::DEBUG)) {
+            // don't allow this to run in release builds, because it happens before client protection mechanisms are set up
+            Console::execConfigFile("autoexec.cfg");
+        }
 
         // (engine hardcoded hotkeys come first, then engine gui)
         keyboard->addListener(this->guiContainer, true);
@@ -336,7 +333,10 @@ void Engine::onPaint() {
                 app->draw();
             }
 
-            if(this->guiContainer) this->guiContainer->draw();
+            if(this->guiContainer) {
+                const Mouse::RealPosScope realPos(mouse);
+                this->guiContainer->draw();
+            }
 
             // debug input devices
             for(auto *inputDevice : this->inputDevices) {
@@ -458,6 +458,8 @@ void Engine::onUpdate() {
         {
             VPROF_BUDGET("GUI::update", VPROF_BUDGETGROUP_UPDATE);
             if(this->guiContainer) {
+                // the engine gui is laid out in window pixels, the app's pointer mapping does not apply to it
+                const Mouse::RealPosScope realPos(mouse);
                 this->guiContainer->tick();
                 CBaseUIEventCtx c;
                 this->guiContainer->updateInput(c);
@@ -544,9 +546,8 @@ void Engine::onResolutionChange(vec2 newResolution) {
     this->screenRect = {vec2{}, newResolution};
 
     if(this->guiContainer) this->guiContainer->setSize(newResolution.x, newResolution.y);
-    if(const auto &cbox = Engine::consoleBox.load(std::memory_order_relaxed); cbox != nullptr) {
-        cbox->onResolutionChange(newResolution);
-    }
+    if(this->consoleBox) this->consoleBox->onResolutionChange(newResolution);
+    if(this->consoleWindow) this->consoleWindow->onResolutionChange(newResolution);
 
     // update everything
     g->onResolutionChange(newResolution);
@@ -594,6 +595,42 @@ void Engine::onKeyDown(KeyboardEvent &e) {
                 this->visualProfiler->incrementInfoBladeDisplayMode();
             e.consume();
         }
+    }
+
+    // shift+F1 opens the console, F1 closes an open one (the quake box's open/close animation swallows the press)
+    if(keyCode == KEY_F1 && (keyboard->isShiftDown() || this->isConsoleOpen())) {
+        this->toggleConsole();
+        e.consume();
+    }
+}
+
+bool Engine::isConsoleOpen() const { return this->consoleBox->isOpen() || this->consoleWindow->isVisible(); }
+
+void Engine::toggleConsole() {
+    if(this->consoleBox->isOpen())
+        this->consoleBox->toggle();
+    else if(this->consoleWindow->isVisible() || cv::console_style.getInt() == 1)
+        this->consoleWindow->toggle();
+    else
+        this->consoleBox->toggle();
+}
+
+void Engine::showConsole() {
+    if(cv::console_style.getInt() == 1)
+        this->consoleWindow->show();
+    else
+        this->consoleBox->show();
+}
+
+void Engine::onConsoleStyleChanged(float newVal) {
+    // switching styles while a console is open moves it over to the new one
+    const bool window = static_cast<int>(newVal) == 1;
+    if(window && this->consoleBox->isOpen()) {
+        this->consoleBox->hide();
+        this->consoleWindow->show();
+    } else if(!window && this->consoleWindow->isVisible()) {
+        this->consoleWindow->close();
+        this->consoleBox->show();
     }
 }
 

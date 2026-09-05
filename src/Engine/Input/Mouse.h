@@ -37,8 +37,24 @@ class Mouse final : public InputDevice {
     void setOffset(vec2 offset);
     inline void setScale(vec2 scale) { this->vScale = scale; }
 
+    // the app maps the pointer into its own space (setOffset, letterboxing); the engine gui is laid out in
+    // window pixels, so the engine runs its root inside this scope, where getPos() reports getRealPos()
+    class RealPosScope {
+        NOCOPY_NOMOVE(RealPosScope)
+       public:
+        RealPosScope() = delete;
+        RealPosScope(Mouse *m);
+        ~RealPosScope();
+
+       private:
+        Mouse *m;
+        bool bPrevious;
+    };
+
     // state getters
-    [[nodiscard]] constexpr forceinline vec2 getPos() const { return this->vPos; }
+    [[nodiscard]] constexpr forceinline vec2 getPos() const {
+        return this->bRealPos ? vec2{this->vPosWithoutOffsets} : this->vPos;
+    }
     [[nodiscard]] constexpr forceinline vec2 getRealPos() const { return this->vPosWithoutOffsets; }
     [[nodiscard]] constexpr forceinline vec2 getDelta() const { return this->vDelta; }
     [[nodiscard]] constexpr forceinline vec2 getRawDelta() const { return this->vRawDelta; }
@@ -117,6 +133,7 @@ class Mouse final : public InputDevice {
 
     // mode tracking
     bool bIsRawInputDesired{false};  // whether the user wants raw (relative) input
+    bool bRealPos{false};            // getPos() bypasses the offset (RealPosScope)
     float fSensitivity{1.0f};
 
     // button state (using our internal button index)
