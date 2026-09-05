@@ -401,6 +401,7 @@ void AboutScreen::buildChangelog() {
     v43_13.changes = {
         R"(- Improved beatmap import/storage capabilities)",
         R"(  - Unsubmitted beatmaps (no beatmapset ID) can now be imported)",
+        R"(  - Allows for deleting beatmap(set)s by right clicking in song browser)",
         R"(  - Song browser will now reflect the contents of the maps/ folder more closely (i.e. adding/removing folders and .osu files))",
         R"(  - Expect a longer initial database load when first updating to this version)",
         R"(- Added a proper console window (Shift+F1))",

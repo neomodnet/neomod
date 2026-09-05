@@ -4,6 +4,7 @@
 
 #include "Archival.h"
 #include "AsyncPool.h"
+#include "BeatmapInterface.h"
 #include "Database.h"
 #include "DatabaseBeatmap.h"
 #include "DownloadHandle.h"
@@ -242,6 +243,14 @@ bool write_entries_to_dir(const std::vector<Archive::Entry>& entries, std::strin
 // osu! always stores .osz entry names as Shift-JIS (CP932)
 constexpr std::string_view ARCHIVE_CHARSET{"CP932"};
 
+// maps/<folder> as the directory watcher would see it right now, for telling its events apart from the
+// installer's own writes (see claim()): the mtime, or a sentinel for a folder that isn't there (an uninstall)
+fs::file_time_type folder_state(std::string_view folder) {
+    std::error_code ec;
+    const auto mtime = fs::last_write_time(File::getFsPath(NEOMOD_MAPS_PATH "/" + std::string{folder}), ec);
+    return ec ? fs::file_time_type::min() : mtime;
+}
+
 }  // namespace
 
 // static helpers
@@ -321,8 +330,8 @@ std::string BeatmapInstaller::read_and_extract_osz(std::string_view path) {
 
 struct BeatmapInstaller::BMInstallerImpl final {
     std::vector<Entry> entries;  // typically <= 5 entries, so linear scans throughout
-    // maps/ folders as the last import left them, so the directory watcher's event for that extraction can be
-    // told from a later change (see claim())
+    // maps/ folders as the last import or uninstall left them, so the directory watcher's event for that write
+    // can be told from a later change (see claim())
     Hash::unstable_stringmap<fs::file_time_type> settled;
     u32 next_uid{1};
 };
@@ -451,11 +460,55 @@ BeatmapInstaller::FolderClaim BeatmapInstaller::claim(std::string_view folder) {
     auto it = m->settled.find(folder);
     if(it == m->settled.end()) return FolderClaim::Unclaimed;
 
-    std::error_code ec;
-    const auto now = fs::last_write_time(File::getFsPath(NEOMOD_MAPS_PATH "/" + std::string{folder}), ec);
-    const bool untouched = !ec && now == it->second;
-    m->settled.erase(it);  // whatever happens to the folder next is a change to what the import left
+    const bool untouched = folder_state(folder) == it->second;
+    m->settled.erase(it);  // whatever happens to the folder next is a change to what the installer left
     return untouched ? FolderClaim::Settled : FolderClaim::Unclaimed;
+}
+
+void BeatmapInstaller::uninstall(const DatabaseBeatmap* map, bool whole_set) {
+    const BeatmapSet* set = map->getParentSet() ? map->getParentSet() : map;
+    // the song browser greys the menu items out for osu!stable sets, and nothing here touches that folder either
+    if(set->type != DatabaseBeatmap::BeatmapType::NEOMOD_BEATMAPSET) return;
+    if(!db->isFinished() || db->isCancelled() || osu->isInPlayMode()) return;  // (see try_import)
+
+    // maps/ sets live directly under NEOMOD_MAPS_PATH, the only place this ever deletes from
+    std::string_view rel_view = set->getFolder();
+    if(!rel_view.starts_with(NEOMOD_MAPS_PATH "/")) return;
+    rel_view.remove_prefix(std::string_view{NEOMOD_MAPS_PATH "/"}.size());
+    while(rel_view.ends_with('/')) rel_view.remove_suffix(1);
+    if(rel_view.empty() || rel_view.contains('/')) return;
+    const std::string rel{rel_view};
+
+    // the last difficulty takes the folder with it (as in osu!stable; a folder of nothing but audio and
+    // backgrounds would only be litter)
+    whole_set = whole_set || map == set || set->getDifficulties().size() <= 1;
+    const std::string name =
+        whole_set ? fmt::format("{} - {}", set->getArtist(), set->getTitle())
+                  : fmt::format("{} - {} [{}]", map->getArtist(), map->getTitle(), map->getDifficultyName());
+    const std::string path = whole_set ? NEOMOD_MAPS_PATH "/" + rel : std::string{map->getFilePath()};
+
+    // the preview music streams from the folder, and an open file can't be deleted on windows
+    auto* iface = osu->getMapInterface();
+    if(whole_set && iface->getBeatmap() && (iface->getBeatmap() == set || iface->getBeatmap()->getParentSet() == set)) {
+        iface->unloadMusic();
+    }
+
+    if(whole_set) {
+        env->deletePathsRecursive(path, 8);  // storyboards nest their assets a few folders deep
+    } else {
+        env->deleteFile(path);
+    }
+    const bool gone = whole_set ? !env->directoryExists(path) : !env->fileExists(path);
+
+    // the db and the carousel follow whatever is left on disk, and the directory watcher's event for this
+    // write is recognized by claim()
+    const auto r = db->reconcileFolder(Database::MapRoot::Neomod, rel, Database::ReconcileMode::PerFile, -1, nullptr);
+    ui->getSongBrowser()->applyReconcile(r);
+    m->settled[rel] = folder_state(rel);
+
+    debugLog("Uninstalled {} from maps/{}/: {} (-{:d})", name, rel, r.outcomeName(), r.removed);
+    ui->getNotificationOverlay()->addToast(gone ? tformat("Deleted {}", name) : tformat("Couldn't delete {}", name),
+                                           gone ? SUCCESS_TOAST : ERROR_TOAST);
 }
 
 bool BeatmapInstaller::has_pending() const {
@@ -562,9 +615,7 @@ void BeatmapInstaller::update() {
                     e.stage = Done;
                     e.finished_time = now;
                     if(e.is_local() && e.delete_after) env->deleteFile(e.osz_path);
-                    std::error_code ec;
-                    const auto mtime = fs::last_write_time(File::getFsPath(NEOMOD_MAPS_PATH "/" + e.folder), ec);
-                    if(!ec) m->settled[e.folder] = mtime;
+                    m->settled[e.folder] = folder_state(e.folder);
                     on_done(*r, e);
                 }
                 break;

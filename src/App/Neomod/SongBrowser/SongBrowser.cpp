@@ -844,15 +844,16 @@ void SongBrowser::tick() {
             for(auto it = this->changedMapFolders.begin(); it != this->changedMapFolders.end();) {
                 using enum ReconcileResult::Outcome;
                 const std::string &rel = *it;
-                // the installer registers what it extracts itself: the event waits while that's underway, and is
-                // dropped when the folder is still exactly as the import left it (the event was the extraction)
+                // the installer registers its own writes (imports, uninstalls) itself: the event waits while an
+                // import is underway, and is dropped when the folder is still exactly as the installer left it
+                // (the event was that write)
                 const auto claim = osu->getBeatmapInstaller()->claim(rel);
                 if(claim == BeatmapInstaller::FolderClaim::InFlight) {
                     ++it;
                     continue;
                 }
                 if(claim == BeatmapInstaller::FolderClaim::Settled) {
-                    logIfCV(debug_db, "[DirectoryWatcher] maps/{}: the installer's own extraction", rel);
+                    logIfCV(debug_db, "[DirectoryWatcher] maps/{}: the installer's own write", rel);
                     it = this->changedMapFolders.erase(it);
                     continue;
                 }
@@ -1696,7 +1697,7 @@ void SongBrowser::addBeatmapSet(BeatmapSet *mapset, bool initialSongBrowserLoad)
 }
 
 void SongBrowser::unlinkBeatmapSet(const BeatmapSet *set) {
-    auto btn_it = std::ranges::find(this->parentButtons, set, &SongButton::getDatabaseBeatmap);
+    auto btn_it = std::ranges::find(this->parentButtons, set, &SongButton::getBeatmapSet);
     if(btn_it == this->parentButtons.end()) return;
     SongButton *btn = *btn_it;
 
@@ -2709,10 +2710,9 @@ void SongBrowser::onDatabaseLoadingFinished() {
     // Watch for new maps now
     directoryWatcher->watch_directory(NEOMOD_MAPS_PATH "/", [this](const FileChangeEvent &ev) {
         // a set folder dropped in (or changed, or removed) while running: remembered for tick(), which syncs the
-        // db and the carousel with it once that's safe. the event only fires once the folder's mtime has
-        // settled, and reconciling is idempotent, so the installer's own extractions are harmless repeats. a
-        // deletion can't be stat'ed (so on windows it isn't known to be a folder), reconciling a name that
-        // isn't a set folder (a deleted .osz) is a no-op
+        // db and the carousel with it once that's safe, and tells the installer's own writes (imports,
+        // uninstalls) apart from real changes. a deletion can't be stat'ed (so on windows it isn't known to be
+        // a folder), reconciling a name that isn't a set folder (a deleted .osz) is a no-op
         if(ev.is_dir || ev.type == FileChangeType::DELETED) {
             this->changedMapFolders.emplace(Environment::getFileNameFromFilePath(ev.path));
             return;
@@ -3386,6 +3386,10 @@ void SongBrowser::onSongButtonContextMenu(SongButton *songButton, std::string_vi
             std::string folder{songButton->getDatabaseBeatmap()->getFolder()};
             auto ctx = MapExporter::ExportContext{{folder}, "", BottomBar::update_export_progress_cb};
             this->startExport(std::move(ctx));
+        } else if(id == 6 || id == 7) {  // delete beatmap (6) / beatmapset (7) from disk
+            assert(songButton->getDatabaseBeatmap());
+            // NOTE: this deletes songButton (and its siblings) along with the set's buttons
+            osu->getBeatmapInstaller()->uninstall(songButton->getDatabaseBeatmap(), id == 7);
         }
     }
 

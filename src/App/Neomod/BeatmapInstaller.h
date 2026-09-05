@@ -100,10 +100,16 @@ class BeatmapInstaller final {
     // true while any entry is still working toward an import (not yet Done/Failed). callers poll this
     // to tell "still installing, keep waiting" apart from "nothing left that could land in the db".
     [[nodiscard]] bool has_pending() const;
+    // deletes a maps/ set's folder from disk (or just one difficulty's .osu file; the folder anyway when that
+    // was the set's last one) and syncs the db and the carousel with it right away, like a manual deletion
+    // followed by an F5 of that folder. osu!stable sets are never touched. main thread, outside of gameplay
+    void uninstall(const DatabaseBeatmap* map, bool whole_set);
+
     // how a maps/<folder> change the directory watcher reports relates to the installer's own writes: InFlight
     // while an import is extracting (into a folder only known once that's done) or registering what it extracted
-    // (leave the event to the installer), Settled when the folder is exactly as the last import left it (the
-    // event was that extraction, there's nothing to do; the claim is forgotten once asked), else Unclaimed
+    // (leave the event to the installer), Settled when the folder is exactly as the last import or uninstall
+    // left it, a folder that's still gone included (the event was that write, there's nothing to do; the claim
+    // is forgotten once asked), else Unclaimed
     enum class FolderClaim : u8 { Unclaimed, InFlight, Settled };
     [[nodiscard]] FolderClaim claim(std::string_view folder);
 

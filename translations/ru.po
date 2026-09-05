@@ -106,6 +106,16 @@ msgstr "Не удалось импортировать {}"
 msgid "Failed to download beatmapset #{:d} :("
 msgstr "Не удалось скачать набор карт #{:d} :("
 
+#: src/App/Neomod/BeatmapInstaller.cpp
+#, c++-format
+msgid "Couldn't delete {}"
+msgstr ""
+
+#: src/App/Neomod/BeatmapInstaller.cpp
+#, fuzzy, c++-format
+msgid "Deleted {}"
+msgstr "Выбранные моды"
+
 #: src/App/Neomod/BeatmapInterface.cpp
 msgid "Buffering ..."
 msgstr ""

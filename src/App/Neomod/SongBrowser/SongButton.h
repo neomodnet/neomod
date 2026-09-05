@@ -36,6 +36,9 @@ class SongButton : public CarouselButton {
     virtual void updateGrade() { ; }
 
     [[nodiscard]] const DatabaseBeatmap *getDatabaseBeatmap() const override { return this->databaseBeatmap; }
+    // the set a parent button was built for (nullptr for difficulty buttons). unlike databaseBeatmap, which
+    // tick() repoints at the representative difficulty, this identifies the set for as long as the button lives
+    [[nodiscard]] inline const BeatmapSet *getBeatmapSet() const { return this->beatmapSet; }
     [[nodiscard]] inline ScoreGrade getGrade() const { return this->grade; }
     inline void setGrade(ScoreGrade grade) { this->grade = grade; }
 
@@ -48,6 +51,7 @@ class SongButton : public CarouselButton {
     void onContextMenu(std::string_view text, int id = -1);
     void onAddToCollectionConfirmed(std::string_view text, int id = -1);
     void onCreateNewCollectionConfirmed(std::string_view text, int id = -1);
+    void onDeleteBeatmapConfirmed(std::string_view text, int id = -1);
 
     void drawBeatmapBackgroundThumbnail(const Image *image);
     void drawGrade();
@@ -58,6 +62,7 @@ class SongButton : public CarouselButton {
     float calculateGradeWidth();
 
     DatabaseBeatmap *databaseBeatmap{nullptr};
+    const BeatmapSet *beatmapSet{nullptr};
 
     // defaults
     static constexpr const float fTextSpacingScale{0.075f};

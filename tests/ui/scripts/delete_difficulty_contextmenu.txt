@@ -1,0 +1,54 @@
+# pins the song button context menu's "[-] Delete Beatmap" item (one difficulty): run.py provisions a
+# two-difficulty maps/ set from the directive below, the bottom button ("diff 02", the harder one) is
+# right-clicked (menu geometry as in delete_beatmapset_contextmenu), the item is picked and confirmed
+# with "Yes". the set itself must survive with its other difficulty; the type-to-search filter tells
+# the two apart, since a non-matching button leaves the carousel's element tree entirely
+# uitest-maps: uitest delete set|-1|2
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+ui_trace 1
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen songbrowser
+@wait 300
+ui_assert screen_active songbrowser 1
+ui_assert exists SongDifficultyButton 1
+mouse_to 1033 327
+@wait 2
+ui_assert mouse_at 1033 327 4
+mouse_down right
+@wait 1
+mouse_up right
+@wait 3
+ui_assert visible songbrowser_contextmenu 1
+mouse_to 1116 584
+@wait 2
+mouse_down
+@wait 1
+mouse_up
+@wait 3
+ui_assert visible songbrowser_contextmenu 1
+mouse_to 1100 431
+@wait 2
+mouse_down
+@wait 1
+mouse_up
+@wait 5
+ui_assert visible songbrowser_contextmenu 0
+ui_assert exists SongDifficultyButton 1
+@sleep 1500
+@wait 20
+sendtext 02
+@wait 60
+ui_assert exists SongDifficultyButton 0
+sendkey Escape
+@wait 5
+sendtext 01
+@wait 60
+ui_assert exists SongDifficultyButton 1
+exit

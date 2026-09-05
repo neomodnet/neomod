@@ -102,6 +102,16 @@ msgstr "Échec du chargement de la map"
 msgid "Failed to download beatmapset #{:d} :("
 msgstr "Échec du téléchargement du mapset #{:d} :("
 
+#: src/App/Neomod/BeatmapInstaller.cpp
+#, c++-format
+msgid "Couldn't delete {}"
+msgstr ""
+
+#: src/App/Neomod/BeatmapInstaller.cpp
+#, fuzzy, c++-format
+msgid "Deleted {}"
+msgstr "Mods sélectionnés"
+
 #: src/App/Neomod/BeatmapInterface.cpp
 msgid "Buffering ..."
 msgstr "Chargement ..."

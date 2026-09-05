@@ -1,0 +1,48 @@
+# pins the song button context menu's "[-Set] Delete Beatmapset" item: run.py provisions the maps/ set
+# from the directive below, the bottom difficulty button is right-clicked (the menu clamps to the right
+# screen edge, its 38px rows start at click+(9,10)), the item is picked, "Really delete this beatmapset?"
+# is answered with "Yes", and the set's buttons must be gone from the carousel right away. the directory
+# watcher (wall-time polling, hence the @sleep) then reports the deleted folder, which the installer's
+# claim() recognizes as its own write: nothing may change after that either
+# uitest-maps: uitest delete set|-1|2
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+ui_trace 1
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen songbrowser
+@wait 300
+ui_assert screen_active songbrowser 1
+ui_assert exists SongDifficultyButton 1
+mouse_to 1033 327
+@wait 2
+ui_assert mouse_at 1033 327 4
+mouse_down right
+@wait 1
+mouse_up right
+@wait 3
+ui_assert visible songbrowser_contextmenu 1
+mouse_to 1116 622
+@wait 2
+mouse_down
+@wait 1
+mouse_up
+@wait 3
+ui_assert visible songbrowser_contextmenu 1
+mouse_to 1100 431
+@wait 2
+mouse_down
+@wait 1
+mouse_up
+@wait 5
+ui_assert visible songbrowser_contextmenu 0
+ui_assert exists SongDifficultyButton 0
+@sleep 1500
+@wait 20
+ui_assert exists SongDifficultyButton 0
+exit

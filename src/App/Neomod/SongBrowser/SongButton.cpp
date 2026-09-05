@@ -40,6 +40,7 @@ SongButton::SongButton(float xPos, float yPos, float xSize, float ySize, Beatmap
     assert(beatmapSet && !beatmapSet->getDifficulties().empty());
 
     this->databaseBeatmap = beatmapSet;
+    this->beatmapSet = beatmapSet;
 
     // settings
     this->setHideIfSelected(true);
@@ -354,7 +355,32 @@ void SongButton::triggerContextMenu(vec2 pos) {
         spacer->setTextColor(0xff888888);
         spacer->setTextDarkColor(0xff000000);
 
-        if(this->databaseBeatmap) cmenu->addButtonJustified("[=] Export Beatmapset", TEXT_JUSTIFICATION::LEFT, 5);
+        if(this->databaseBeatmap) {
+            cmenu->addButtonJustified("[=] Export Beatmapset", TEXT_JUSTIFICATION::LEFT, 5);
+
+            spacer = cmenu->addButtonJustified("---", TEXT_JUSTIFICATION::CENTERED);
+            spacer->setEnabled(false);
+            spacer->setTextColor(0xff888888);
+            spacer->setTextDarkColor(0xff000000);
+
+            // the osu!stable songs folder is osu!stable's to manage: its sets get the items, greyed out
+            const BeatmapSet *set =
+                this->databaseBeatmap->getParentSet() ? this->databaseBeatmap->getParentSet() : this->databaseBeatmap;
+            const bool deletable = set->type == DatabaseBeatmap::BeatmapType::NEOMOD_BEATMAPSET;
+            auto grey_out = [](CBaseUIButton *button) {
+                button->setEnabled(false);
+                button->setTextColor(0xff888888);
+                button->setTextDarkColor(0xff000000);
+            };
+
+            // (a childless button stands for a single difficulty, a parent button for its set)
+            if(this->children.empty()) {
+                auto *button = cmenu->addButtonJustified("[-] Delete Beatmap", TEXT_JUSTIFICATION::LEFT, 6);
+                if(!deletable) grey_out(button);
+            }
+            auto *button = cmenu->addButtonJustified("[-Set] Delete Beatmapset", TEXT_JUSTIFICATION::LEFT, 7);
+            if(!deletable) grey_out(button);
+        }
     }
     cmenu->end(false, false);
     cmenu->setClickCallback(SA::MakeDelegate<&SongButton::onContextMenu>(this));
@@ -424,6 +450,28 @@ void SongButton::onContextMenu(std::string_view text, int id) {
         // 4 = remove set from collection
         // 5 = export beatmapset
         g_songbrowser->onSongButtonContextMenu(this, text, id);
+    } else if(id == 6 || id == 7) {
+        // 6 = delete beatmap (from disk)
+        // 7 = delete beatmapset (from disk)
+        cmenu->begin(0, true);
+        {
+            cmenu
+                ->addButtonJustified(id == 6 ? "Really delete this beatmap?" : "Really delete this beatmapset?",
+                                     TEXT_JUSTIFICATION::LEFT)
+                ->setEnabled(false);
+
+            CBaseUIButton *spacer = cmenu->addButtonJustified("---", TEXT_JUSTIFICATION::CENTERED);
+            spacer->setEnabled(false);
+            spacer->setTextColor(0xff888888);
+            spacer->setTextDarkColor(0xff000000);
+
+            cmenu->addButtonJustified("Yes", TEXT_JUSTIFICATION::LEFT, id);
+            cmenu->addButtonJustified("No", TEXT_JUSTIFICATION::LEFT);
+        }
+        cmenu->end(false, false);
+        cmenu->setClickCallback(SA::MakeDelegate<&SongButton::onDeleteBeatmapConfirmed>(this));
+        cmenu->clampToRightScreenEdge();
+        cmenu->clampToBottomScreenEdge();
     }
 }
 
@@ -466,6 +514,13 @@ void SongButton::onAddToCollectionConfirmed(std::string_view text, int id) {
 void SongButton::onCreateNewCollectionConfirmed(std::string_view text, int id) {
     if(id == -2 || id == -4) {
         // just forward it
+        g_songbrowser->onSongButtonContextMenu(this, text, id);
+    }
+}
+
+void SongButton::onDeleteBeatmapConfirmed(std::string_view text, int id) {
+    // ("No" carries no id.) NOTE: deleting removes this button, so nothing may touch it after the call
+    if(id == 6 || id == 7) {
         g_songbrowser->onSongButtonContextMenu(this, text, id);
     }
 }
