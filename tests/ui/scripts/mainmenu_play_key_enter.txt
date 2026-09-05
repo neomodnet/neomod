@@ -1,0 +1,29 @@
+# the keydown half of UI::hiddenAtPress on the PLAYABLE fixture: Enter on the expanded
+# mainmenu opens the songbrowser (2nd visit, bVisible flips immediately), and the same
+# keydown used to continue below MainMenu into SongBrowser::onKeyDown -> the carousel's
+# Enter = playSelectedDifficulty, starting the selected map straight from the mainmenu.
+# NO ui_trace (see play_modselector_dance: play-start timing is not sim-deterministic), so
+# this is assertion-only: the songbrowser must still be visible after the wait (in-play would
+# hide it under the gameplay composite).
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mod_nofail 1
+mouse_to 10 10
+@wait 30
+osu_folder uitest_osu_folder_play
+set_active_ui_screen songbrowser
+@wait 300
+ui_assert screen_active songbrowser 1
+sendkey Escape
+@wait 5
+ui_assert screen_active mainmenu 1
+sendkey Return
+@wait 5
+ui_assert visible mainmenu_singleplayer 1
+sendkey Return
+@wait_secs 5
+ui_assert screen_active songbrowser 1
+ui_assert visible songbrowser 1
+exit

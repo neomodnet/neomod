@@ -363,7 +363,9 @@ forceinline void traceKeyConsumed(std::string_view evt, CBaseUIElement *consumer
 
 // key routing walks the same top -> bottom layer order as the input pass; the first
 // consumer ends the walk, and a visible modal layer floors it (keys it declined die
-// there instead of reaching the layers beneath)
+// there instead of reaching the layers beneath). layers hidden when the press began
+// (hiddenAtPress) are skipped but still floor; extra overlays aren't filtered (nothing
+// pushes one from a key)
 void UI::routeKey(KeyboardEvent &e, void (CBaseUIElement::*handler)(KeyboardEvent &), std::string_view traceName) {
     if(e.isConsumed()) return;
 
@@ -382,17 +384,24 @@ void UI::routeKey(KeyboardEvent &e, void (CBaseUIElement::*handler)(KeyboardEven
             }
         }
 
-        auto *screen = this->screens[LAYER_ORDER[li]];
-        (screen->*handler)(e);
-        if(e.isConsumed()) {
-            traceKeyConsumed(traceName, screen);
-            return;
+        const size_t si = LAYER_ORDER[li];
+        auto *screen = this->screens[si];
+        if(!this->hiddenAtPress[si]) {
+            (screen->*handler)(e);
+            if(e.isConsumed()) {
+                traceKeyConsumed(traceName, screen);
+                return;
+            }
         }
         if(screen->isModal() && screen->isVisible()) return;
     }
 }
 
 void UI::onKeyDown(KeyboardEvent &key) {
+    // a repeat continues the press, it keeps the snapshot from the first keydown
+    if(!key.isRepeat()) {
+        for(size_t i = 0; i < NUM_SCREENS; ++i) this->hiddenAtPress[i] = !this->screens[i]->isVisible();
+    }
     this->routeKey(key, &CBaseUIElement::onKeyDown, "keydown");
     // arrow-bound volume is the global fallback gesture (mirrors the dispatch wheel sink): offered
     // the keydown only when no layer above consumed it - a hovered slider's left/right, a screen
@@ -405,7 +414,10 @@ void UI::onKeyDown(KeyboardEvent &key) {
     }
 }
 
-void UI::onKeyUp(KeyboardEvent &key) { this->routeKey(key, &CBaseUIElement::onKeyUp, "keyup"); }
+void UI::onKeyUp(KeyboardEvent &key) {
+    this->routeKey(key, &CBaseUIElement::onKeyUp, "keyup");
+    this->hiddenAtPress.reset();
+}
 
 void UI::onChar(KeyboardEvent &e) { this->routeKey(e, &CBaseUIElement::onChar, "char"); }
 

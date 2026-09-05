@@ -2,7 +2,11 @@
 # two-difficulty maps/ set from the directive below, the bottom button ("diff 02", the harder one) is
 # right-clicked (menu geometry as in delete_beatmapset_contextmenu), the item is picked and confirmed
 # with "Yes". the set itself must survive with its other difficulty; the type-to-search filter tells
-# the two apart, since a non-matching button leaves the carousel's element tree entirely
+# the two apart, since a non-matching button leaves the carousel's element tree entirely. the
+# carousel is filtered to the fixture before the right-click (see delete_beatmapset_contextmenu) and
+# the diff checks keep that scope, so a stray set in the live bindir's maps/ can neither shift the
+# geometry nor match "02"/"01"; the mouse is parked at (10,10) before those checks so the carousel
+# relayouts between searches (the Escape-clear briefly shows everything) leave no hover events
 # uitest-maps: uitest delete set|-1|2
 options_save_on_back 0
 debug_fixed_frametime 0.0166667
@@ -17,6 +21,9 @@ osu_folder uitest_osu_folder
 set_active_ui_screen songbrowser
 @wait 300
 ui_assert screen_active songbrowser 1
+ui_assert exists SongDifficultyButton 1
+sendtext uitest delete set
+@wait 60
 ui_assert exists SongDifficultyButton 1
 mouse_to 1033 327
 @wait 2
@@ -41,14 +48,18 @@ mouse_up
 @wait 5
 ui_assert visible songbrowser_contextmenu 0
 ui_assert exists SongDifficultyButton 1
+mouse_to 10 10
+@wait 2
 @sleep 1500
 @wait 20
-sendtext 02
+sendkey Escape
+@wait 5
+sendtext uitest delete set 02
 @wait 60
 ui_assert exists SongDifficultyButton 0
 sendkey Escape
 @wait 5
-sendtext 01
+sendtext uitest delete set 01
 @wait 60
 ui_assert exists SongDifficultyButton 1
 exit

@@ -1,0 +1,37 @@
+# pins UI::hiddenAtPress: the P that opens the songbrowser from the mainmenu (2nd visit, so
+# setVisible flips bVisible immediately instead of detouring through refreshBeatmaps) must not
+# also reach the songbrowser. its keydown walk continued below MainMenu (which does not
+# consume) into the now-visible SongBrowser (consumed_by=SongBrowser in the old trace), and
+# the press's char event landed in the type-to-search (SongBrowser::onChar). the down/text/up
+# split mirrors the real SDL order (text before the release; a plain sendkey would release
+# first and drop the snapshot). same Escape discrimination as type_to_search_songbrowser: with
+# an EMPTY search the first Escape runs onBack and leaves to the mainmenu; a typed "p" would
+# have absorbed it as "clear search".
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+ui_trace 1
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen songbrowser
+@wait 300
+ui_assert screen_active songbrowser 1
+sendkey Escape
+@wait 5
+ui_assert screen_active mainmenu 1
+sendkey P
+@wait 5
+ui_assert visible mainmenu_singleplayer 1
+sendkey P down
+sendtext p
+sendkey P up
+@wait 5
+ui_assert screen_active songbrowser 1
+sendkey Escape
+@wait 5
+ui_assert screen_active mainmenu 1
+exit

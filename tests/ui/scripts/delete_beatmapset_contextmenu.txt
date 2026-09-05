@@ -3,7 +3,10 @@
 # screen edge, its 38px rows start at click+(9,10)), the item is picked, "Really delete this beatmapset?"
 # is answered with "Yes", and the set's buttons must be gone from the carousel right away. the directory
 # watcher (wall-time polling, hence the @sleep) then reports the deleted folder, which the installer's
-# claim() recognizes as its own write: nothing may change after that either
+# claim() recognizes as its own write: nothing may change after that either. the carousel is
+# type-to-search filtered to the fixture first: any other set in the live bindir's maps/ would
+# otherwise take the boot selection and shift the geometry, and the click would delete THAT set
+# (the filtered single set auto-selects, so its two buttons sit at the (717,190)/(706,279) rects)
 # uitest-maps: uitest delete set|-1|2
 options_save_on_back 0
 debug_fixed_frametime 0.0166667
@@ -18,6 +21,9 @@ osu_folder uitest_osu_folder
 set_active_ui_screen songbrowser
 @wait 300
 ui_assert screen_active songbrowser 1
+ui_assert exists SongDifficultyButton 1
+sendtext uitest delete set
+@wait 60
 ui_assert exists SongDifficultyButton 1
 mouse_to 1033 327
 @wait 2
