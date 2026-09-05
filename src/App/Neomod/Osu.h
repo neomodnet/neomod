@@ -228,7 +228,7 @@ class Osu final : public App, public MouseListener, public TouchListener {
     void updateMods();
     void updateCursorVisibility();
     void updateConfineCursor();
-    void updateMouseSettings();
+    void updateMouseViewport();
     void updateWindowsKeyDisable();
 
     // im not sure why this is a change callback but im too scared to change it at this point

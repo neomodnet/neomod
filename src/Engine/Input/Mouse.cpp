@@ -15,6 +15,7 @@ Mouse::Mouse() : InputDevice(), vPos(env->getMousePos()), vPosWithoutOffsets(thi
     this->bIsRawInputDesired = cv::mouse_raw_input.getBool();
     cv::mouse_raw_input.setCallback(SA::MakeDelegate<&Mouse::onRawInputChanged>(this));
     cv::mouse_sensitivity.setCallback(SA::MakeDelegate<&Mouse::onSensitivityChanged>(this));
+    env->setRawMouseInput(this->bIsRawInputDesired);
 }
 
 void Mouse::reset() {
@@ -51,11 +52,10 @@ void Mouse::draw() {
         g->drawRect(cursorClip.getMinX(), cursorClip.getMinY(), cursorClip.getWidth() - 1, cursorClip.getHeight() - 1);
     }
 
-    // green = scaled & offset virtual area
-    const vec2 scaledOffset = this->vOffset;
-    const vec2 scaledEngineScreenSize = engine->getScreenSize() * this->vScale;
+    // green = app viewport
+    const McRect viewport = this->getAppViewport();
     g->setColor(0xff00ff00);
-    g->drawRect(-scaledOffset.x, -scaledOffset.y, scaledEngineScreenSize.x, scaledEngineScreenSize.y);
+    g->drawRect(viewport.getMinX(), viewport.getMinY(), viewport.getWidth(), viewport.getHeight());
 }
 
 void Mouse::drawDebug() {
@@ -190,10 +190,13 @@ void Mouse::resetWheelDelta() {
 
 void Mouse::onPosChange(dvec2 pos) {
     this->vPosWithoutOffsets = pos;
-    this->vPos = (dvec2{this->vOffset} + pos);
+    this->vPos = vec2{pos} - this->appViewport.getMin();
 
     // notify environment of the virtual cursor position
     env->updateCachedMousePos(this->vPosWithoutOffsets);
+
+    // the os cursor only hides over the viewport
+    this->applyCursorPolicy();
 }
 
 void Mouse::onWheelVertical(int delta) {
@@ -242,19 +245,51 @@ void Mouse::onButtonChange_internal(ButtonEvent &ev) {
     }
 }
 
-void Mouse::setPos(vec2 newPos) { this->vPos = newPos; }
+void Mouse::setPos(vec2 newPos) { this->onPosChange(dvec2{newPos + this->appViewport.getMin()}); }
 
-Mouse::RealPosScope::RealPosScope(Mouse *m) : m(m), bPrevious(m->bRealPos) { m->bRealPos = true; }
+void Mouse::setAppViewport(const McRect &viewport) {
+    this->appViewport = viewport;
+    this->vPos = vec2{this->vPosWithoutOffsets} - viewport.getMin();
+    this->applyCursorPolicy();
+}
+
+McRect Mouse::getAppViewport() const {
+    return this->appViewport.getSize() == vec2{} ? engine->getScreenRect() : this->appViewport;
+}
+
+Mouse::RealPosScope::RealPosScope(Mouse *m_) : m(m_), bPrevious(m_->bRealPos) { m_->bRealPos = true; }
 
 Mouse::RealPosScope::~RealPosScope() { m->bRealPos = this->bPrevious; }
 
-void Mouse::setOffset(vec2 offset) {
-    vec2 oldOffset = this->vOffset;
-    this->vOffset = offset;
+void Mouse::setAppCursorHidden(bool hidden) {
+    if(this->bAppCursorHidden == hidden) return;
+    this->bAppCursorHidden = hidden;
+    this->applyCursorPolicy();
+}
 
-    // update position to maintain visual position after offset change
-    vec2 posAdjustment = this->vOffset - oldOffset;
-    this->vPos += posAdjustment;
+void Mouse::setAppCursorConfined(bool confined) {
+    if(this->bAppCursorConfined == confined) return;
+    this->bAppCursorConfined = confined;
+    this->applyCursorPolicy();
+}
+
+void Mouse::setOSCursorRequired(bool required) {
+    if(this->bOSCursorRequired == required) return;
+    this->bOSCursorRequired = required;
+    this->applyCursorPolicy();
+}
+
+void Mouse::applyCursorPolicy() {
+    const McRect viewport = this->getAppViewport();
+    const bool overViewport = viewport.contains(vec2{this->vPosWithoutOffsets});
+    env->setCursorVisible(this->bOSCursorRequired || !this->bAppCursorHidden || !overViewport);
+    env->setCursorClip(this->bAppCursorConfined && !this->bOSCursorRequired, viewport);
+}
+
+void Mouse::setRawInputOverride(bool forced) {
+    if(this->bRawInputOverride == forced) return;
+    this->bRawInputOverride = forced;
+    env->setRawMouseInput(this->bIsRawInputDesired || this->bRawInputOverride);
 }
 
 void Mouse::addListener(MouseListener *mouseListener, bool insertOnTop) {
@@ -273,9 +308,7 @@ void Mouse::removeListener(MouseListener *mouseListener) { std::erase(this->list
 
 void Mouse::onRawInputChanged(float newval) {
     this->bIsRawInputDesired = !!static_cast<int>(newval);
-    env->setRawMouseInput(
-        this->bIsRawInputDesired);  // request environment to change the real OS cursor state (may or may
-                                    // not take effect immediately)
+    env->setRawMouseInput(this->bIsRawInputDesired || this->bRawInputOverride);
 
     // non-rawinput with sensitivity != 1 is unsupported
     if(!this->bIsRawInputDesired && (this->fSensitivity < 0.999f || this->fSensitivity > 1.001f)) {

@@ -450,6 +450,8 @@ void Engine::onUpdate() {
         // dispatch events + update gui
         {
             VPROF_BUDGET("InputDevices::update", VPROF_BUDGETGROUP_UPDATE);
+            // the console needs the os cursor (text/resize cursors, and it may sit outside the app's viewport)
+            mouse->setOSCursorRequired(this->isConsoleOpen());
             for(auto *inputDevice : this->inputDevices) {
                 inputDevice->update();
             }
@@ -604,7 +606,10 @@ void Engine::onKeyDown(KeyboardEvent &e) {
     }
 }
 
-bool Engine::isConsoleOpen() const { return this->consoleBox->isOpen() || this->consoleWindow->isVisible(); }
+bool Engine::isConsoleOpen() const {
+    return (this->consoleBox && this->consoleBox->isOpen()) ||
+           (this->consoleWindow && this->consoleWindow->isVisible());
+}
 
 void Engine::toggleConsole() {
     if(this->consoleBox->isOpen())

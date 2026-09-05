@@ -16,6 +16,7 @@
 #include "Logging.h"
 #include "Mouse.h"
 #include "Engine.h"
+#include "Environment.h"
 #include "Osu.h"
 #include "Graphics.h"
 
@@ -73,9 +74,8 @@ CBaseUIElement *findElementByName(CBaseUIElement *e, std::string_view name) {
 
 void UIDebug::debugDumpScreens() {
     logRaw("==== UI SCREENS frame={} ====", engine->getFrameCount());
-    logRaw("engineScreen={} gResolution={} virtScreen={} mousePos={} mouseOffset={} mouseScale={}",
-           engine->getScreenSize(), g->getResolution(), osu->getVirtScreenSize(), mouse->getPos(), mouse->getOffset(),
-           mouse->getScale());
+    logRaw("engineScreen={} gResolution={} virtScreen={} mousePos={} mouseViewport={}", engine->getScreenSize(),
+           g->getResolution(), osu->getVirtScreenSize(), mouse->getPos(), mouse->getAppViewport());
     // flags: M = modal, C = closeOnScreenSwitch
     for(size_t i = 0; i < m_ui->screens.size(); ++i) {
         auto *s = m_ui->screens[i];
@@ -124,6 +124,7 @@ void UIDebug::debugAssert(std::string_view args) {
     // ui_assert text <name> <expected>
     // ui_assert convar <name> <expected>
     // ui_assert mouse_at <x> <y> <tolerance>
+    // ui_assert os_cursor <visible|clipped> <0|1>
     auto parts = SString::split(args, ' ');
     std::erase_if(parts, [](std::string_view p) { return p.empty(); });
 
@@ -148,6 +149,23 @@ void UIDebug::debugAssert(std::string_view args) {
             logRaw("UITEST OK mouse_at ({}, {}) actual={}", x, y, mp);
         else
             logRaw("UITEST FAIL mouse_at expected=({}, {}) tol={} actual={}", x, y, tol, mp);
+        return;
+    }
+
+    if(pred == "os_cursor"sv) {
+        // the os cursor state the engine settled on (headless keeps the state without an actual cursor)
+        const bool expected = Parsing::strto<int>(parts[2]) != 0;
+        bool actual{};
+        if(parts[1] == "visible"sv)
+            actual = env->isCursorVisible();
+        else if(parts[1] == "clipped"sv)
+            actual = env->isCursorClipped();
+        else {
+            logRaw("UITEST FAIL os_cursor {} (unknown state, expected visible|clipped)", parts[1]);
+            return;
+        }
+        logRaw("UITEST {} os_cursor {} expected={:d} actual={:d}", actual == expected ? "OK" : "FAIL", parts[1],
+               expected, actual);
         return;
     }
 

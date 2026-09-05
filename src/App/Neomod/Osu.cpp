@@ -443,8 +443,6 @@ void Osu::doDeferredInitTasks() {
             if(extracted) env->deleteFile(ev.path);
         });
     }
-
-    env->setCursorVisible(!this->internalRect.contains(mouse->getPos()));
 }
 
 Osu::~Osu() {
@@ -452,9 +450,10 @@ Osu::~Osu() {
     {
         mouse->removeListener(this);
         // another piece of global state, don't forget!
-        // this entire mouse offset/scale handling being done in-app instead of in-engine causes more trouble than it's worth
-        mouse->setOffset({0.f, 0.f});
-        mouse->setScale({1.f, 1.f});
+        mouse->setAppViewport({});
+        mouse->setAppCursorHidden(false);
+        mouse->setAppCursorConfined(false);
+        mouse->setRawInputOverride(false);
     }
 
     touch->removeListener(this);
@@ -515,10 +514,6 @@ Osu::~Osu() {
     this->frameBuffer = nullptr;
     resourceManager->destroyResource(this->frameBuffer2, ResourceDestroyFlags::RDF_FORCE_BLOCKING);
     this->frameBuffer2 = nullptr;
-
-    // release cursor
-    env->setCursorClip(false, {});
-    env->setCursorVisible(true);
 
     // remove any convar callbacks we set here (to allow some degree of re-entrancy)
     {
@@ -1653,8 +1648,7 @@ void Osu::doResolutionChange(vec2 newResolution, ResolutionRequestFlags src) {
     // update fposu projection matrix
     this->fposu->onResolutionChange(this->getVirtScreenSize());
 
-    // mouse scale/offset
-    this->updateMouseSettings();
+    this->updateMouseViewport();
 
     // cursor clipping
     this->updateConfineCursor();
@@ -1710,22 +1704,16 @@ void Osu::reloadFonts() {
     }
 }
 
-void Osu::updateMouseSettings() {
-    // mouse scaling & offset
-    vec2 offset = vec2(0, 0);
-    vec2 scale = vec2(1, 1);
+void Osu::updateMouseViewport() {
+    // the window rect the internal resolution is drawn into (see the letterboxed backbuffer draw in UI::draw)
+    McRect viewport{vec2{}, this->getVirtScreenSize()};
     if((g->getResolution() != this->getVirtScreenSize()) && cv::letterboxing.getBool()) {
-        offset = -vec2((engine->getScreenWidth() / 2.f - this->internalRect.getWidth() / 2.f) *
-                           (1.0f + cv::letterboxing_offset_x.getFloat()),
-                       (engine->getScreenHeight() / 2.f - this->internalRect.getHeight() / 2.f) *
-                           (1.0f + cv::letterboxing_offset_y.getFloat()));
-
-        scale = this->internalRect.getSize() / engine->getScreenSize();
+        viewport.setPos((engine->getScreenSize() - this->getVirtScreenSize()) / 2.f *
+                        vec2{1.0f + cv::letterboxing_offset_x.getFloat(), 1.0f + cv::letterboxing_offset_y.getFloat()});
     }
 
-    mouse->setOffset(offset);
-    mouse->setScale(scale);
-    logIf(cv::debug_mouse.getBool() || cv::debug_osu.getBool(), "offset {} scale {}", offset, scale);
+    mouse->setAppViewport(viewport);
+    logIf(cv::debug_mouse.getBool() || cv::debug_osu.getBool(), "viewport {}", viewport);
 }
 
 void Osu::updateWindowsKeyDisable() {
@@ -1980,44 +1968,20 @@ void Osu::onLetterboxingChange(float oldValue, float newValue) {
     }
 }
 
-// Here, "cursor" is the Windows mouse cursor, not the game cursor
+// Here, "cursor" is the OS mouse cursor, not the game cursor: the game cursor replaces it over the game, unless
+// the game cursor isn't following the player (autoplay/autopilot, replays, spectating)
 void Osu::updateCursorVisibility() {
     if(!this->UIReady()) return;
 
-    if(!env->isCursorInWindow()) {
-        return;  // don't do anything
-    }
-
-    const bool currently_visible = env->isCursorVisible();
-
-    bool forced_visible = this->isInPlayMode() && !this->map_iface->isPaused() &&
-                          (cv::mod_autoplay.getBool() || cv::mod_autopilot.getBool() || this->map_iface->is_watching ||
-                           BanchoState::spectating);
-    bool desired_vis = forced_visible;
-
-    // if it's not forced visible, check whether it's inside the internal window. the engine console
-    // relies on the os cursor (text/resize cursors) for as long as it is open: showing it only over
-    // the console would flap raw input on every hover change
-    if(!forced_visible) {
-        const bool internal_contains_mouse = this->internalRect.contains(mouse->getPos());
-        if(internal_contains_mouse && !engine->isConsoleOpen()) {
-            desired_vis = false;
-        } else {
-            desired_vis = true;
-        }
-    }
-
-    // only change if it's different from the current mouse state
-    if(desired_vis != currently_visible) {
-        logIfCV(debug_mouse, "current: {} desired: {}", currently_visible, desired_vis);
-        env->setCursorVisible(desired_vis);
-    }
+    const bool forced_visible = this->isInPlayMode() && !this->map_iface->isPaused() &&
+                                (cv::mod_autoplay.getBool() || cv::mod_autopilot.getBool() ||
+                                 this->map_iface->is_watching || BanchoState::spectating);
+    mouse->setAppCursorHidden(!forced_visible);
 }
 
 void Osu::updateConfineCursor() {
     if(!this->UIReady()) return;
 
-    McRect clip{};
     const bool is_fullscreen = env->winFullscreened();
     const bool playing = this->isInPlayMode();
     // we need relative mode (rawinput) for fposu without absolute mode
@@ -2036,13 +2000,9 @@ void Osu::updateConfineCursor() {
                                   BanchoState::spectating;                                          //
 
     const bool confine_cursor = might_confine && !force_no_confine;
-    if(confine_cursor) {
-        clip = McRect{-mouse->getOffset(), this->getVirtScreenSize()};
-    }
+    logIfCV(debug_mouse, "confined: {}", confine_cursor);
 
-    logIfCV(debug_mouse, "confined: {}, cliprect: {}", confine_cursor, clip);
-
-    env->setCursorClip(confine_cursor, clip);
+    mouse->setAppCursorConfined(confine_cursor);
 }
 
 // needs a separate fromMouse parameter, since M1/M2 might be bound to keyboard keys too
@@ -2124,10 +2084,7 @@ void Osu::onGameplayKey(GameplayKeys key_flag, bool down, u64 timestamp, bool fr
     }
 }
 
-void Osu::onLetterboxingOffsetChange() {
-    this->updateMouseSettings();
-    this->updateConfineCursor();
-}
+void Osu::onLetterboxingOffsetChange() { this->updateMouseViewport(); }
 
 void Osu::onUserCardChange(std::string_view new_username) {
     // NOTE: force update options textbox to avoid shutdown inconsistency

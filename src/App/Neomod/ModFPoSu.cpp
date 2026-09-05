@@ -516,29 +516,17 @@ void ModFPoSu::FPoSuImpl::handleZoomedChange() {
 }
 
 void ModFPoSu::FPoSuImpl::handleInputOverrides(bool rawDeltasRequired) {
-    if(mouse->isRawInputWanted() == true) {
-        return;  // nothing to do if user desired state is already raw (no override required)
+    if(rawDeltasRequired && !mouse->isRawInputWanted() && !this->bAlreadyWarnedAboutRawInputOverride) {
+        this->bAlreadyWarnedAboutRawInputOverride = true;
+        ui->getNotificationOverlay()->addToast(
+            R"(Forced raw input. Enable "Tablet/Absolute Mode" if you're using a tablet!)", INFO_TOAST);
     }
-
-    // otherwise, cv::mouse_raw_input == false so we need to enable raw input at the backend level
-    if(env->isOSMouseInputRaw() != rawDeltasRequired) {
-        if(rawDeltasRequired && !this->bAlreadyWarnedAboutRawInputOverride) {
-            this->bAlreadyWarnedAboutRawInputOverride = true;
-            ui->getNotificationOverlay()->addToast(
-                R"(Forced raw input. Enable "Tablet/Absolute Mode" if you're using a tablet!)", INFO_TOAST);
-        }
-        env->setRawMouseInput(rawDeltasRequired);
-    }
+    mouse->setRawInputOverride(rawDeltasRequired);
 }
 
 void ModFPoSu::FPoSuImpl::setMousePosCompensated(vec2 newMousePos) {
     this->handleInputOverrides(true);  // outside of absolute mode, we need raw mouse deltas
-
-    // NOTE: letterboxing uses Mouse::setOffset() to offset the virtual engine cursor coordinate system, so we have to
-    // respect that when setting a new (absolute) position
-    newMousePos -= mouse->getOffset();
-
-    mouse->onPosChange(newMousePos);
+    mouse->setPos(newMousePos);
 }
 
 vec2 ModFPoSu::FPoSuImpl::intersectRayMesh(vec3 pos, vec3 dir) {

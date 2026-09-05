@@ -135,8 +135,10 @@ Environment::Environment(const Mc::AppDescriptor &appDesc)
     m_sAppDataPath = {};
 
     m_bIsCursorInsideWindow = true;
+    m_bCursorVisibleWanted = true;
+    m_bCursorClipWanted = false;
+    m_bRawMouseWanted = false;
     m_bCursorClipped = false;
-    m_bHideCursorPending = false;
     m_cursorType = CURSORTYPE::CURSOR_NORMAL;
 
     // lazy init
@@ -1295,30 +1297,9 @@ void Environment::setCursor(CURSORTYPE cur) {
 }
 
 void Environment::setRawMouseInput(bool raw) {
-    if(raw == SDL_GetWindowRelativeMouseMode(m_window)) {
-        // nothing to do
-        goto done;
-    }
-
-    if(!raw && mouse) {
-        // need to manually set the cursor position if we're disabling raw input
-        // NOTE (TODO?): un-applying pixel density scale here to re-convert to desktop coords, see Mouse::update
-        setOSMousePos(mouse->getRealPos() / getPixelDensity());
-    }
-
-    if(!SDL_SetWindowRelativeMouseMode(m_window, raw)) {
-        debugLog("FIXME (handle error): SDL_SetWindowRelativeMouseMode failed: {:s}", SDL_GetError());
-        raw = !raw;
-    }
-
-done:
-    if(raw && !!(m_winflags & WinFlags::F_MOUSE_GRABBED)) {
-        // release grab if we enabled raw input
-        SDL_SetWindowMouseGrab(m_window, false);
-    }
-
-    // update MOUSE_RELATIVE_MODE flags
-    m_winflags = static_cast<WinFlags>(SDL_GetWindowFlags(m_window));
+    if(m_bRawMouseWanted == raw) return;
+    m_bRawMouseWanted = raw;
+    applyCursorState();
 }
 
 void Environment::setRawKeyboardInput(bool raw) {
@@ -1335,60 +1316,70 @@ void Environment::setRawKeyboardInput(bool raw) {
 bool Environment::isCursorVisible() const { return SDL_CursorVisible(); }
 
 void Environment::setCursorVisible(bool visible) {
-    if(m_bHeadless) return;
-
-    if(visible) {
-        m_bHideCursorPending = false;
-        // disable rawinput (allow regular mouse movement)
-        setRawMouseInput(false);
-        SDL_SetWindowMouseGrab(m_window, false);  // release grab
-        SDL_ShowCursor();
-    } else {
-        // wait for cursor to enter the window before hiding (during event collection)
-        if(!m_bIsCursorInsideWindow) {
-            m_bHideCursorPending = true;
-            return;
-        }
-        m_bHideCursorPending = false;
-        if(!cv::debug_draw_hardware_cursor.getBool()) {
-            SDL_HideCursor();
-        }
-        setCursor(CURSORTYPE::CURSOR_NORMAL);
-
-        if(mouse && mouse->isRawInputWanted()) {  // re-enable rawinput
-            setRawMouseInput(true);
-        } else if(isCursorClipped()) {
-            // regrab if clipped
-            SDL_SetWindowMouseGrab(m_window, true);
-        }
-    }
+    if(m_bCursorVisibleWanted == visible) return;
+    m_bCursorVisibleWanted = visible;
+    applyCursorState();
 }
 
 void Environment::setCursorClip(bool clip, const McRect &rect) {
-    m_cursorClipRect = rect;
-    if(m_bHeadless) return;
+    if(m_bCursorClipWanted == clip && (!clip || m_cursorClipRect == rect)) return;
+    m_bCursorClipWanted = clip;
+    m_cursorClipRect = clip ? rect : McRect{};
+    applyCursorState();
+}
 
-    if(clip) {
-        const float pxd = getPixelDensity();
-        SDL_Rect sdlClip = McRectToSDLRect(rect);
+void Environment::applyCursorState() {
+    const bool visible = m_bCursorVisibleWanted || !m_bIsCursorInsideWindow;
+    const bool relative = m_bRawMouseWanted && !visible;
+    bool clipped = m_bCursorClipWanted;
+
+    if(m_bHeadless) {
+        // no os cursor to drive, but the state stays observable (SDL_CursorVisible) for scripted tests
+        m_bCursorClipped = clipped;
+        if(m_window) {
+            if(visible)
+                SDL_ShowCursor();
+            else
+                SDL_HideCursor();
+        }
+        return;
+    }
+
+    if(relative != SDL_GetWindowRelativeMouseMode(m_window)) {
+        // leaving relative mode: put the os cursor where the virtual one is first (in relative mode the warp only
+        // updates sdl's idea of the position, which is where sdl moves the cursor once relative mode ends)
+        // NOTE (TODO?): un-applying pixel density scale here to re-convert to desktop coords, see Mouse::update
+        if(!relative && mouse && m_bIsCursorInsideWindow) setOSMousePos(mouse->getRealPos() / getPixelDensity());
+        if(!SDL_SetWindowRelativeMouseMode(m_window, relative)) {
+            debugLog("FIXME (handle error): SDL_SetWindowRelativeMouseMode failed: {:s}", SDL_GetError());
+        }
+    }
+
+    if(clipped) {
         // need to account for window pixel density when setting SDL mouse rect
+        const float pxd = getPixelDensity();
+        SDL_Rect sdlClip = McRectToSDLRect(m_cursorClipRect);
         sdlClip.x = (int)std::round((float)sdlClip.x / pxd);
         sdlClip.y = (int)std::round((float)sdlClip.y / pxd);
         sdlClip.w = (int)std::round((float)sdlClip.w / pxd);
         sdlClip.h = (int)std::round((float)sdlClip.h / pxd);
-        if(SDL_SetWindowMouseRect(m_window, &sdlClip)) {
-            if(!(mouse && mouse->isRawInputWanted())) {
-                // only grab if rawinput is disabled, we clip manually if rawinput is enabled
-                SDL_SetWindowMouseGrab(m_window, true);
-            }
-            m_bCursorClipped = true;
-        }
+        clipped = SDL_SetWindowMouseRect(m_window, &sdlClip);
     } else {
-        if(SDL_SetWindowMouseRect(m_window, nullptr)) {
-            SDL_SetWindowMouseGrab(m_window, false);
-            m_bCursorClipped = false;
-        }
+        SDL_SetWindowMouseRect(m_window, nullptr);
     }
+    m_bCursorClipped = clipped;
+    // we clip manually in relative mode (Mouse::update), which grabs on its own
+    SDL_SetWindowMouseGrab(m_window, clipped && !SDL_GetWindowRelativeMouseMode(m_window));
+
+    if(visible || cv::debug_draw_hardware_cursor.getBool()) {
+        SDL_ShowCursor();
+    } else {
+        SDL_HideCursor();
+    }
+    // a widget's cursor shape must not come back with the cursor
+    if(!visible) setCursor(CURSORTYPE::CURSOR_NORMAL);
+
+    m_winflags = static_cast<WinFlags>(SDL_GetWindowFlags(m_window));
 }
 
 void Environment::setOSMousePos(vec2 pos) {
@@ -1451,12 +1442,7 @@ void Environment::listenToTextInput(bool listen) {
 void Environment::onDebugDrawHardwareCursorChange(float newValue) {
     const bool enable = !!static_cast<int>(newValue);
     SDL_SetHintWithPriority(SDL_HINT_MOUSE_RELATIVE_CURSOR_VISIBLE, enable ? "1" : "0", SDL_HINT_NORMAL);
-
-    if(enable) {
-        SDL_ShowCursor();
-    } else if(isOSMouseInputRaw() || isMouseInputGrabbed()) {
-        SDL_HideCursor();
-    }
+    applyCursorState();
 }
 
 void Environment::onUseIMEChange(float newValue) {
@@ -1475,6 +1461,8 @@ void Environment::onUseIMEChange(float newValue) {
 
 // called by event loop on display or window events
 void Environment::updateWindowSizeCache() {
+    if(!m_window) return;
+
     int width{320}, height{240};
     auto func = m_bDPIOverride ? SDL_GetWindowSize : SDL_GetWindowSizeInPixels;
     if(!func(m_window, &width, &height)) {
@@ -1487,8 +1475,8 @@ void Environment::updateWindowSizeCache() {
 
 // called by event loop on display or window events
 void Environment::updateWindowStateCache() {
+    if(!m_window) return;
     // update window flags
-    assert(m_window);
     m_winflags = static_cast<WinFlags>(SDL_GetWindowFlags(m_window));
 
     // update window pos

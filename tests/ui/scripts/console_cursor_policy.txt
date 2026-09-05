@@ -1,0 +1,38 @@
+# os cursor policy around the engine console: the app hides the os cursor over its viewport (the
+# skin cursor replaces it); an open console needs the os cursor, so it shows everywhere (and the
+# app's confinement is released, not observable here: a headless window is never focused, so the
+# app never asks to confine), and the app's policy resumes on close. both console styles are covered.
+# headless keeps the policy state without an actual cursor.
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+ui_trace 1
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 640 360
+@wait 20
+ui_assert os_cursor visible 0
+console_style 1
+sendkey Left Shift down
+sendkey F1
+sendkey Left Shift up
+@wait 5
+ui_assert visible consolewindow 1
+ui_assert os_cursor visible 1
+sendkey Escape
+@wait 5
+ui_assert visible consolewindow 0
+ui_assert os_cursor visible 0
+console_style 0
+sendkey Left Shift down
+sendkey F1
+sendkey Left Shift up
+@wait 30
+ui_assert visible consoleboxtextbox 1
+ui_assert os_cursor visible 1
+sendkey Escape
+@wait 30
+ui_assert visible consoleboxtextbox 0
+ui_assert os_cursor visible 0
+exit

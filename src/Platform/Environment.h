@@ -283,9 +283,11 @@ class Environment {
     }
 
     void setCursor(CURSORTYPE cur);
+    // the os cursor state the engine wants (composed in Mouse::applyCursorPolicy); applyCursorState() reconciles
+    // sdl with it and with the window state, so these are safe to call at any time and in any order
     void setCursorVisible(bool visible);
     void setCursorClip(bool clip, const McRect &rect);
-    void setRawMouseInput(bool raw);  // enable/disable OS-level rawinput
+    void setRawMouseInput(bool raw);
 
     void setOSMousePos(vec2 pos);
     inline void setOSMousePos(float x, float y) { setOSMousePos(vec2{x, y}); }
@@ -395,6 +397,11 @@ class Environment {
 
     CursorPosition consumeCursorPositionCache();
 
+    // derives the sdl cursor state from the wanted state and the window state: the cursor can only hide while it
+    // is over the window, relative mode only runs while it is hidden, and the explicit grab backs the confinement
+    // rect outside relative mode (which grabs on its own). idempotent, re-run on window enter/leave and dpi changes
+    void applyCursorState();
+
     // allow Mouse to update the cached environment position post-sensitivity/clipping
     // the difference between setOSMousePos and this is that it doesn't actually warp the OS cursor
     inline void updateCachedMousePos(vec2 pos) { m_vLastAbsMousePos = pos; }
@@ -422,8 +429,11 @@ class Environment {
     bool m_bInjectedCursorDirty{true};  // dirty to initialize mouse cursor pos
 
     bool m_bIsCursorInsideWindow;
-    bool m_bCursorClipped;
-    bool m_bHideCursorPending;
+    // wanted state (setCursorVisible/setCursorClip/setRawMouseInput)
+    bool m_bCursorVisibleWanted;
+    bool m_bCursorClipWanted;
+    bool m_bRawMouseWanted;
+    bool m_bCursorClipped;  // the rect is applied
     McRect m_cursorClipRect;
     CURSORTYPE m_cursorType;
     std::array<SDL_Cursor *, (size_t)CURSORTYPE::CURSORTYPE_MAX> m_cursorIcons;

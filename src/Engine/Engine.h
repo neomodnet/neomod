@@ -123,8 +123,6 @@ class Engine final : public KeyboardListener {
 
     // debugging/console
     [[nodiscard]] constexpr CBaseUIContainer *getGUI() const { return this->guiContainer; }
-    // either console style is showing (the app defers its cursor handling to the console while it is)
-    [[nodiscard]] bool isConsoleOpen() const;
 
     [[nodiscard]] constexpr McFont *getDefaultFont() const { return this->defaultFont; }
     [[nodiscard]] constexpr McFont *getConsoleFont() const { return this->consoleFont; }
@@ -163,6 +161,7 @@ class Engine final : public KeyboardListener {
     // both console styles exist side by side, cv::console_style picks the one that opens
     ConsoleBox *consoleBox{nullptr};
     ConsoleWindow *consoleWindow{nullptr};
+    [[nodiscard]] bool isConsoleOpen() const;  // either style
     void toggleConsole();
     void showConsole();
     void onConsoleStyleChanged(float newVal);

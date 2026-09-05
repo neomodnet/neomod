@@ -517,16 +517,14 @@ SDL_AppResult SDLMain::handleEvent(SDL_Event *event) {
                         mouse->onPosChange(getAsyncMousePos() * getPixelDensity());
                     }
                     m_bIsCursorInsideWindow = true;
-                    if(m_bHideCursorPending) {
-                        setCursorVisible(false);
-                    }
+                    applyCursorState();  // a hide that had to wait for the cursor to arrive
                     // reconcile held buttons on mouse enter/exit
                     mouse->reset();
                     break;
 
                 case SDL_EVENT_WINDOW_MOUSE_LEAVE:
                     m_bIsCursorInsideWindow = false;
-                    setCursorVisible(true);
+                    applyCursorState();  // the cursor shows (and relative mode ends) while it is away
                     mouse->reset();
                     break;
 
@@ -1120,10 +1118,7 @@ void SDLMain::onDPIChange() {
     const float oldPixelDensity = m_fPixelDensity;
     m_fDisplayScale = SDL_GetWindowDisplayScale(m_window);
     m_fPixelDensity = SDL_GetWindowPixelDensity(m_window);
-    // update cursor clip to account for dpi change
-    if(m_bCursorClipped) {
-        setCursorClip(true, m_cursorClipRect);
-    }
+    applyCursorState();  // the cursor clip is set in desktop points
     if(m_engine && ((oldDispScale != m_fDisplayScale) || (oldPixelDensity != m_fPixelDensity))) {
         m_engine->onDPIChange();
     }
