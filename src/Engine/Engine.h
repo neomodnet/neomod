@@ -47,7 +47,6 @@ class MouseSink;
 class VisualProfiler;
 class ConsoleBox;
 class ConsoleWindow;
-class Console;
 class Image;
 
 class Engine final : public KeyboardListener {

@@ -17,24 +17,25 @@
 #include <utility>
 #include <vector>
 
+namespace Console {
 namespace {
 // log lines waiting to be moved into the scrollback: the only log state shared between threads, appended by the
 // logger thread (Console::log) and swapped out by the main thread (Console::updateLog)
 Sync::mutex s_pendingLogMutex;
-std::deque<Console::LogEntry> s_pendingLog;
+std::deque<LogEntry> s_pendingLog;
 
 // the scrollback (main thread only)
-std::deque<Console::LogEntry> s_logEntries;
-std::deque<Console::LogEntry> s_incomingLog;  // swap target for s_pendingLog, kept around so its blocks get reused
-u64 s_logFirst{0};                            // sequence of s_logEntries.front()
-u64 s_logNext{0};                             // sequence the next entry gets
+std::deque<LogEntry> s_logEntries;
+std::deque<LogEntry> s_incomingLog;  // swap target for s_pendingLog, kept around so its blocks get reused
+u64 s_logFirst{0};                   // sequence of s_logEntries.front()
+u64 s_logNext{0};                    // sequence the next entry gets
 
 // command history (main thread only)
 std::vector<std::string> s_history;
 int s_historySelection{-1};
 }  // namespace
 
-bool Console::processCommand(std::string_view command, bool fromFile) {
+bool processCommand(std::string_view command, bool fromFile) {
     if(command.length() < 1) return false;
 
     // remove whitespace from beginning/end of string
@@ -128,7 +129,7 @@ bool Console::processCommand(std::string_view command, bool fromFile) {
 }
 
 // TODO: move this bullshit osu_ prefix rewriting out of engine code or preferably dont do it at all
-void Console::execConfigFile(std::string_view filename_view) {
+void execConfigFile(std::string_view filename_view) {
     if(filename_view.empty()) return;
     std::string filename{filename_view};
     File::normalizeSlashes(filename);
@@ -191,7 +192,7 @@ void Console::execConfigFile(std::string_view filename_view) {
     }
 }
 
-void Console::log(std::string_view text, Color color) {
+void log(std::string_view text, Color color) {
     assert(!text.ends_with('\n') && !text.ends_with('\r') && "Console log strings can't end with a newline.");
 
     // split on any newlines inside the string (before taking the lock, so the main thread's poll finds it free)
@@ -212,7 +213,7 @@ void Console::log(std::string_view text, Color color) {
     while(s_pendingLog.size() > maxLines) s_pendingLog.pop_front();
 }
 
-void Console::updateLog() {
+void updateLog() {
     // the logger thread may be mid-append; rather than wait for it, the batch is picked up next frame
     if(!s_pendingLogMutex.try_lock()) return;
     s_incomingLog.swap(s_pendingLog);
@@ -230,21 +231,21 @@ void Console::updateLog() {
     }
 }
 
-void Console::clearLog() {
+void clearLog() {
     // takes what was logged until now along (as far as it can be picked up without waiting)
     updateLog();
     s_logEntries.clear();
     s_logFirst = s_logNext;
 }
 
-Console::LogRange Console::getLogRange() { return {.first = s_logFirst, .next = s_logNext}; }
+LogRange getLogRange() { return {.first = s_logFirst, .next = s_logNext}; }
 
-const Console::LogEntry &Console::getLogEntry(u64 seq) {
+const LogEntry &getLogEntry(u64 seq) {
     assert(seq >= s_logFirst && seq < s_logNext);
     return s_logEntries[seq - s_logFirst];
 }
 
-void Console::submit(std::string_view command) {
+void submit(std::string_view command) {
     s_historySelection = -1;
     if(command.empty()) return;
 
@@ -253,7 +254,7 @@ void Console::submit(std::string_view command) {
     Logger::flush();  // make sure it's output immediately
 }
 
-std::string_view Console::cycleHistory(int dir) {
+std::string_view cycleHistory(int dir) {
     if(s_history.empty()) return {};
 
     const int size = static_cast<int>(s_history.size());
@@ -265,7 +266,7 @@ std::string_view Console::cycleHistory(int dir) {
     return s_history[s_historySelection];
 }
 
-std::vector<Console::Suggestion> Console::getSuggestions(std::string_view input) {
+std::vector<Suggestion> getSuggestions(std::string_view input) {
     std::vector<Suggestion> suggestions;
     for(const auto *var : cvars().getConVarByLetter(input)) {
         std::string display{var->getName()};
@@ -291,3 +292,4 @@ std::vector<Console::Suggestion> Console::getSuggestions(std::string_view input)
     }
     return suggestions;
 }
+}  // namespace Console
