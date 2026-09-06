@@ -1497,9 +1497,9 @@ void Environment::updateWindowStateCache() {
     bool found = false;
     if(const SDL_DisplayID di = SDL_GetDisplayForWindow(m_window)) {
         const float scale = getPixelDensity();
-        // fullscreen is currently buggy on mac, don't make other platforms shittier just because macos is finnicky
-        const bool useWindowedBounds = Env::cfg(OS::MAC);  // || winFullscreened();
-        if(useWindowedBounds) {
+        // this seems to do more harm than good on some platforms, leave it macos/wasm-only for now
+        constexpr bool useUsableBounds = Env::cfg(OS::MAC | OS::WASM);  // || winFullscreened();
+        if(useUsableBounds) {
             // GetDisplayUsableBounds in windowed
             SDL_Rect bounds{};
             if(SDL_GetDisplayUsableBounds(di, &bounds)) {
