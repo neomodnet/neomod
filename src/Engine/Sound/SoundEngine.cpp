@@ -105,3 +105,31 @@ SoundEngine::OUTPUT_DEVICE SoundEngine::getDefaultDevice() {
         .driver = OutputDriver::NONE,
     };
 }
+
+float SoundEngine::ASIO_Clamp(long minSize, long maxSize, long defaultSize, long granularity, long wantedSize) {
+    if(wantedSize == -1) return defaultSize;
+    if(wantedSize < minSize) return minSize;
+    if(wantedSize > maxSize) return maxSize;
+    if(granularity == 0) return wantedSize;
+
+    if(granularity == -1) {
+        // Buffer lengths are only allowed in powers of 2
+        for(int oksize = minSize; oksize <= maxSize; oksize *= 2) {
+            if(oksize == wantedSize) {
+                return wantedSize;
+            } else if(oksize > wantedSize) {
+                oksize /= 2;
+                return oksize;
+            }
+        }
+
+        // Unreachable
+        return defaultSize;
+    } else {
+        // Buffer lengths are only allowed in multiples of info.bufgran
+        wantedSize -= minSize;
+        wantedSize = (wantedSize / granularity) * granularity;  // hopefully not optimized out
+        wantedSize += minSize;
+        return wantedSize;
+    }
+}

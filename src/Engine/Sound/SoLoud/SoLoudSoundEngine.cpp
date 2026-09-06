@@ -315,6 +315,19 @@ void SoLoudSoundEngine::stop(Sound *snd) {
     soloudSound->handle = 0;
 }
 
+bool SoLoudSoundEngine::isASIO() {
+    return this->currentOutputDevice.driver == OutputDriver::SOLOUD_MA &&
+           this->currentOutputDevice.name.ends_with(" (ASIO)");
+}
+
+ASIOBufferLimits SoLoudSoundEngine::getASIOBufferLimits() {
+    ASIOBufferLimits limits;
+    soloud->getBufferSizes(&limits.minSize, &limits.maxSize, &limits.preferredSize, &limits.granularity);
+    return limits;
+}
+
+void SoLoudSoundEngine::openControlPanel() { soloud->openControlPanel(); }
+
 void SoLoudSoundEngine::setOutputDeviceByName(std::string_view desiredDeviceName) {
     for(const auto &device : this->outputDevices) {
         if(device.name == desiredDeviceName) {
@@ -506,6 +519,7 @@ void SoLoudSoundEngine::allowInternalCallbacks() {
     // convar callbacks
     cv::snd_freq.setCallback(SA::MakeDelegate<&SoLoudSoundEngine::restart>(this));
     cv::cmd::snd_restart.setCallback(SA::MakeDelegate<&SoLoudSoundEngine::restart>(this));
+    cv::asio_buffer_size.setCallback(SA::MakeDelegate<&SoLoudSoundEngine::restart>(this));
 
     static auto backendSwitchCB = [](std::string_view arg) -> void {
         if(!soundEngine || soundEngine->getTypeId() != SndEngineType::SOLOUD) return;
@@ -726,6 +740,10 @@ bool SoLoudSoundEngine::initializeOutputDevice(const OUTPUT_DEVICE &device) {
                                          : cv::snd_soloud_buffer.getVal<unsigned int>());
     if(bufferSize > 2048) bufferSize = SoLoud::Soloud::AUTO;
 
+    if(device.name.ends_with(" (ASIO)") && cv::asio_buffer_size.getInt() > 0) {
+        bufferSize = cv::asio_buffer_size.getInt();
+    }
+
     // use stereo output
     constexpr unsigned int channels = 2;
 
@@ -780,15 +798,15 @@ bool SoLoudSoundEngine::initializeOutputDevice(const OUTPUT_DEVICE &device) {
             }
         }
 
-        if(desiredDev.id != this->currentOutputDevice.id && this->outputDevices.size() > 1 &&
-           this->mSoloudDevices[desiredDev.id].identifier !=
-               this->mSoloudDevices[this->currentOutputDevice.id].identifier) {
-            // set the actual desired device, after we enumerated things
-            if(soloud->setDevice(&this->mSoloudDevices[desiredDev.id].identifier[0]) != SoLoud::SO_NO_ERROR) {
-                // reset to default
-                debugLog("resetting to default, setting to {} failed", desiredDev.name);
-                this->currentOutputDevice = desiredDev = this->outputDevices[0];
-                soloud->setDevice(&this->mSoloudDevices[desiredDev.id].identifier[0]);
+        if(desiredDev.id >= 0 && this->mSoloudDevices.contains(desiredDev.id)) {
+            const auto &soloudDev = this->mSoloudDevices.at(desiredDev.id);
+            if(soloudDev.identifier != this->mSoloudDevices[-1].identifier) {
+                // set the actual desired device, after we enumerated things
+                if(soloud->setDevice(&soloudDev.identifier[0]) != SoLoud::SO_NO_ERROR) {
+                    debugLog("resetting to default, setting to {} failed", desiredDev.name);
+                    desiredDev = this->getDefaultDevice();
+                    soloud->setDevice(&this->mSoloudDevices[desiredDev.id].identifier[0]);
+                }
             }
         }
 
@@ -832,6 +850,12 @@ bool SoLoudSoundEngine::initializeOutputDevice(const OUTPUT_DEVICE &device) {
     }
 
     this->updateLastDevice();
+
+    // TODO: this is weird and ugly and barely necessary, but lazy to figure out a proper solution for now
+    if(this->isASIO() && this->asio_buffer_change_cb) {
+        this->asio_buffer_change_cb(this->getASIOBufferLimits());
+    }
+
     this->bWasBackendEverReady = true;
 
     // it's 0.95 by default, for some reason

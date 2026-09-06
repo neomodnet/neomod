@@ -323,6 +323,7 @@ add_external_project(soloud
     DEPENDS sdl3_external mpg123_external
     CMAKE_ARGS
         ${EXTERNAL_PROJECT_CMAKE_ARGS}
+        -DSOLOUD_WITH_ASIO=ON
         -DSOLOUD_WITH_SDL3=ON
         -DSOLOUD_WITH_LIBMPG123=ON
         -DSOLOUD_WITH_FFMPEG=OFF # way too lazy

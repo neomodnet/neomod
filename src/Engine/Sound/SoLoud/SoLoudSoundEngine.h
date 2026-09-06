@@ -38,6 +38,10 @@ class SoLoudSoundEngine final : public SoundEngine {
 
     inline bool isReady() override { return this->bReady; }
 
+    bool isASIO() override;
+    ASIOBufferLimits getASIOBufferLimits() override;
+    void openControlPanel() override;
+
     void setOutputDevice(const OUTPUT_DEVICE &device) override;
     void setMasterVolume(f32 volume) override;
 

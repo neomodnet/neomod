@@ -22,37 +22,6 @@ Sound *BassSoundEngine::createSound(std::string filepath, bool stream, bool over
     return new BassSound(std::move(filepath), stream, overlayable, loop);
 }
 
-#ifdef MCENGINE_PLATFORM_WINDOWS
-
-uint32_t BassSoundEngine::ASIO_clamp(const BASS_ASIO_INFO &info, uint32_t buflen) {
-    if(buflen == (uint32_t)-1) return info.bufpref;
-    if(buflen < info.bufmin) return info.bufmin;
-    if(buflen > info.bufmax) return info.bufmax;
-    if(info.bufgran == 0) return buflen;
-
-    if(info.bufgran == -1) {
-        // Buffer lengths are only allowed in powers of 2
-        for(int oksize = info.bufmin; oksize <= info.bufmax; oksize *= 2) {
-            if(oksize == buflen) {
-                return buflen;
-            } else if(oksize > buflen) {
-                oksize /= 2;
-                return oksize;
-            }
-        }
-
-        // Unreachable
-        return info.bufpref;
-    } else {
-        // Buffer lengths are only allowed in multiples of info.bufgran
-        buflen -= info.bufmin;
-        buflen = (buflen / info.bufgran) * info.bufgran;
-        buflen += info.bufmin;
-        return buflen;
-    }
-}
-#endif
-
 BassSoundEngine::BassSoundEngine() : SoundEngine() {
     if(!BassManager::init())  // this checks the library versions as well
     {
@@ -329,11 +298,15 @@ bool BassSoundEngine::initializeOutputDevice(const SoundEngine::OUTPUT_DEVICE &d
 
         BASS_ASIO_INFO info{};
         BASS_ASIO_GetInfo(&info);
-        auto bufsize = cv::asio_buffer_size.getVal<u32>();
-        bufsize = ASIO_clamp(info, bufsize);
+        long bufsize = cv::asio_buffer_size.getInt();
+        bufsize = this->ASIO_Clamp(info.bufmin, info.bufmax, info.bufpref, info.bufgran, bufsize);
 
         // TODO: this is weird and ugly and barely necessary, but lazy to figure out a proper solution for now
-        if(this->asio_buffer_change_cb) this->asio_buffer_change_cb(info);
+        if(this->asio_buffer_change_cb) {
+            this->asio_buffer_change_cb(ASIOBufferLimits{static_cast<long>(info.bufmin), static_cast<long>(info.bufmax),
+                                                         static_cast<long>(info.bufpref),
+                                                         static_cast<long>(info.bufgran)});
+        }
 
         if(!BASS_ASIO_ChannelEnableBASS(false, 0, this->g_bassOutputMixer, true)) {
             this->ready_since = -1.0;
@@ -599,6 +572,23 @@ bool BassSoundEngine::isReady() {
 
 bool BassSoundEngine::hasExclusiveOutput() {
     return this->isASIO() || (this->isWASAPI() && cv::win_snd_wasapi_exclusive.getBool());
+}
+
+ASIOBufferLimits BassSoundEngine::getASIOBufferLimits() {
+    BASS_ASIO_INFO info{};
+    BASS_ASIO_GetInfo(&info);
+    return ASIOBufferLimits{
+        .minSize = static_cast<long>(info.bufmin),
+        .maxSize = static_cast<long>(info.bufmax),
+        .preferredSize = static_cast<long>(info.bufpref),
+        .granularity = static_cast<long>(info.bufgran),
+    };
+}
+
+void BassSoundEngine::openControlPanel() {
+#if defined(MCENGINE_PLATFORM_WINDOWS) && defined(MCENGINE_FEATURE_BASS)
+    BASS_ASIO_ControlPanel();
+#endif
 }
 
 void BassSoundEngine::setOutputDevice(const SoundEngine::OUTPUT_DEVICE &device) {

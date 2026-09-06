@@ -399,6 +399,8 @@ void AboutScreen::buildChangelog() {
     CHANGELOG v43_13;
     v43_13.title = "43.13 (" CHANGELOG_TIMESTAMP ")";
     v43_13.changes = {
+        R"(- Added ASIO support for SoLoud's MiniAudio backend)",
+        R"(  - If you were previously using BASSASIO, try SoLoud and give feedback on latency/stability!)",
         R"(- Improved beatmap import/storage capabilities)",
         R"(  - Unsubmitted beatmaps (no beatmapset ID) can now be imported)",
         R"(  - Allows for deleting beatmap(set)s by right clicking in song browser)",
