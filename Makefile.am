@@ -115,7 +115,7 @@ $(DEPS_CACHE)/mimalloc-$(MIMALLOC_VERSION).tar.gz:
 # --with-audio=soloud
 $(DEPS_CACHE)/SoLoud-$(SOLOUD_VERSION).tar.gz:
 	$(MKDIR_P) $(DEPS_CACHE)
-	$(CURLCOMMAND) "https://github.com/neomodnet/neoloud/archive/$(SOLOUD_VERSION).tar.gz" || { rm -f $@; exit 1; }
+	$(CURLCOMMAND) "https://github.com/kiwec/neoloud/archive/refs/heads/asio.tar.gz" || { rm -f $@; exit 1; }
 
 # --with-audio=soloud (mp3 decoding)
 $(DEPS_CACHE)/mpg123-$(MPG123_VERSION).tar.gz:
@@ -507,11 +507,6 @@ $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION)-$(FFMPEG_EPOCH).built: $(DEPS_CACHE)/$(F
 INSTALL_LIB_DEPS += $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION)-$(FFMPEG_EPOCH).built
 endif # USE_FFMPEG
 
-SOLOUD_WIN_FLAGS =
-if WIN_PLATFORM
-SOLOUD_WIN_FLAGS += -DSOLOUD_WITH_ASIO=ON
-endif
-
 $(DEPS_PREFIX)/SoLoud-$(SOLOUD_VERSION).built: $(DEPS_CACHE)/SoLoud-$(SOLOUD_VERSION).tar.gz $(SOLOUD_FFMPEG_DEP) $(DEPS_PREFIX)/SDL3-$(SDL3_VERSION).built $(DEPS_PREFIX)/mpg123-$(MPG123_VERSION).built
 	rm -rf $(DEPS_PREFIX)/SoLoud
 	$(MKDIR_P) $(DEPS_PREFIX) $(DEPS_PREFIX)/include $(DEPS_PREFIX)/lib/pkgconfig $(DEPS_PREFIX)/SoLoud/build
@@ -531,7 +526,7 @@ $(DEPS_PREFIX)/SoLoud-$(SOLOUD_VERSION).built: $(DEPS_CACHE)/SoLoud-$(SOLOUD_VER
 		-D CMAKE_CXX_FLAGS_DEBUG="-DMA_ENABLE_AUDIO_WORKLETS=1 $(FFMPEG_INCFLAG) $(CXXFLAGS)" \
 		$(CMAKERCOPT) $(CMAKEIDOPT) \
 		$(CMAKE_AR_RANLIB_FLAGS) \
-		$(SOLOUD_WIN_FLAGS) \
+		-D SOLOUD_WITH_ASIO=$(if $(filter mingw%,$(host_os)),ON,OFF) \
 		-D BUILD_SHARED_LIBS="$(if $(STATICBUILD),OFF,ON)" && \
 	$(CMAKE) --build build "$(CMAKEPAROPT)" && \
 	$(CMAKE) --install build
