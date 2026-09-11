@@ -706,12 +706,12 @@ void SoLoudSoundEngine::updateOutputDevices(bool printInfo) {
         const bool asio = (slDevice.backend == Soloud::ASIO);
 
         if(printInfo) {
-            debugLog("SoundEngine: Device {}: {}{} (Default: {:s})", d, &slDevice.name[0], asio ? " [ASIO]" : "",
+            debugLog("SoundEngine: Device {}: {}{} (Default: {:s})", d, &slDevice.name[0], asio ? " (ASIO)" : "",
                      slDevice.isDefault ? "Yes" : "No");
         }
 
         std::string originalDeviceName{&slDevice.name[0]};
-        if(asio) originalDeviceName.append(" [ASIO]");  // (also keeps it apart from the same device's WASAPI entries)
+        if(asio) originalDeviceName.append(" (ASIO)");  // (also keeps it apart from the same device's WASAPI entries)
 
         OUTPUT_DEVICE soundDevice;
         soundDevice.id = asio ? nextAsioId++ : d;
