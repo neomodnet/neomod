@@ -1468,7 +1468,7 @@ class SongBrowser::BeatmapLoadingOverlay final : public LoadingScreen {
         this->sbr->loadingOverlay = nullptr;
 
         // finish loading
-        this->sbr->onDatabaseLoadingFinished();
+        this->sbr->onDatabaseLoadingFinished(/*isNextScreenSongBrowser=*/this->getParent() == this->sbr);
 
         // kill ourselves
         auto tmp = ui->popOverlay(this);
@@ -2630,7 +2630,7 @@ void SongBrowser::initializeGroupingButtons() {
 #undef MKCBTN
 }
 
-void SongBrowser::onDatabaseLoadingFinished() {
+void SongBrowser::onDatabaseLoadingFinished(bool isNextScreenSongBrowser) {
     // loose .osz files dropped into maps/ were already extracted (Database::importLooseOsz) and imported
     // (Database::reconcileRoot) by the loader, so by the time we get here the database already contains them.
 
@@ -2677,6 +2677,15 @@ void SongBrowser::onDatabaseLoadingFinished() {
         this->onSearchUpdate();
     }
 
+    // necessary long variable name to document spaghetti songbrowser database load
+    // maybe not actually resulting in songbrowser being opened after this function is called
+    bool wasMusicPausedBeforeSongBrowserLoadAndNextScreenIsntSongbrowser = false;
+    if(!isNextScreenSongBrowser) {
+        if(auto *music = resourceManager->getSound("BEATMAP_MUSIC"); music && !music->isPlaying()) {
+            wasMusicPausedBeforeSongBrowserLoadAndNextScreenIsntSongbrowser = true;
+        }
+    }
+
     // ugly hack to transition from preloaded main menu beatmap to database-loaded beatmap without pausing music
     {
         DatabaseBeatmap *reselectMap = nullptr;
@@ -2705,6 +2714,9 @@ void SongBrowser::onDatabaseLoadingFinished() {
     if(Sound *music = osu->getMapInterface()->getMusic()) {
         // make sure we loop the music, since if we're carrying over from main menu it was set to not-loop
         music->setLoop(cv::beatmap_preview_music_loop.getBool());
+        if(wasMusicPausedBeforeSongBrowserLoadAndNextScreenIsntSongbrowser) {
+            soundEngine->pause(music);
+        }
     }
 
     t.update();

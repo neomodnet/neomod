@@ -241,9 +241,6 @@ class SongBrowser final : public ScreenBackable {
     void scheduleSearchUpdate(bool immediately = false);
     void checkHandleKillBackgroundSearchMatcher();
 
-    void initializeGroupingButtons();
-    void onDatabaseLoadingFinished();
-
     void onSearchUpdate();
     void rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(bool scrollToTop,
                                                                        bool doRebuildSongButtons = true);
@@ -278,6 +275,9 @@ class SongBrowser final : public ScreenBackable {
 
     // TODO: make more stuff private
    private:
+    void initializeGroupingButtons();
+    void onDatabaseLoadingFinished(bool isNextScreenSongBrowser);
+
     // returns true if we drew anything
     bool drawBeatmapOrMenuBackground();
 
