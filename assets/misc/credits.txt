@@ -43,8 +43,8 @@ External libraries (downloaded/built from source):
 - nsync (https://github.com/google/nsync) - Apache 2.0
 - mimalloc (https://github.com/microsoft/mimalloc) - MIT
 - SoLoud (neoloud fork) (https://github.com/neomodnet/neoloud) - zlib license
+- Signalsmith Stretch + signalsmith-linear (https://github.com/Signalsmith-Audio/signalsmith-stretch) - MIT
 - mpg123 (https://github.com/madebr/mpg123) - LGPLv2.1+
-- SoundTouch (https://codeberg.org/soundtouch/soundtouch) - LGPLv2.1+
 - FFmpeg (https://ffmpeg.org) - LGPLv2.1+ / GPLv2+
 - discord-rpc (https://github.com/harmonytf/discord-rpc) - MIT
 - rapidjson (https://github.com/Tencent/rapidjson) - MIT

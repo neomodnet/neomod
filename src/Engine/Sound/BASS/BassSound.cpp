@@ -74,7 +74,6 @@ void BassSound::initAsync() {
             // set initial value
             currentTransposerAlgorithm = getTransposerValForString(cv::snd_rate_transpose_algorithm.getString());
 
-            // SoLoudFX.cpp uses a change callback, so these dont conflict
             cv::snd_rate_transpose_algorithm.setCallback([](std::string_view newv) {
                 currentTransposerAlgorithm = getTransposerValForString(std::string{newv});
             });
@@ -101,7 +100,7 @@ void BassSound::initAsync() {
             return;
         }
 
-        // copied from SoLoudFX.cpp
+        // SoundTouch (BASS_FX tempo) settings
         BASS_ChannelSetAttribute(this->srchandle, BASS_ATTRIB_TEMPO_OPTION_USE_AA_FILTER, 1.f);
         BASS_ChannelSetAttribute(this->srchandle, BASS_ATTRIB_TEMPO_OPTION_AA_FILTER_LENGTH, 64.f);
         BASS_ChannelSetAttribute(this->srchandle, BASS_ATTRIB_TEMPO_OPTION_USE_QUICKALGO, 0.f);

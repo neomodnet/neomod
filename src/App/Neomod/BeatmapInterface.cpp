@@ -2516,9 +2516,6 @@ i32 BeatmapInterface::convertRawToOffsetMusicPos(i32 rawPos) const {
     ret += (i32)((cv::universal_offset.getFloat() + cv::universal_offset_hardcoded_blamepeppy.getFloat()) *
                  this->getSpeedMultiplier());
     ret += cv::universal_offset_norate.getInt();
-    if(this->music) {
-        ret -= this->music->getRateBasedStreamDelayMS();
-    }
     if(this->beatmap) {
         ret -= this->beatmap->getLocalOffset();
         ret -= this->beatmap->getOnlineOffset();

@@ -48,7 +48,6 @@ endif
 
 if USE_SOLOUD
 SOLOUD_SOURCES := \
-	src/Engine/Sound/SoLoud/SoLoudFX.cpp \
 	src/Engine/Sound/SoLoud/SoLoudSound.cpp \
 	src/Engine/Sound/SoLoud/SoLoudSoundEngine.cpp \
 	$(NULL)

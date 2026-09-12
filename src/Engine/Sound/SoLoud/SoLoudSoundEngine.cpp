@@ -248,8 +248,7 @@ bool SoLoudSoundEngine::playSound(SoLoudSound *soloudSound, f32 pan, f32 pitch, 
     SOUNDHANDLE handle = 0;
 
     if(soloudSound->bStream) {
-        // streaming audio (music) - play SLFXStream directly (it handles SoundTouch internally)
-        // start it at 0 volume and fade it in when we play it (to avoid clicks/pops)
+        // streaming audio (music) - start it at 0 volume and fade it in when we play it (to avoid clicks/pops)
         handle = soloud->play(*soloudSound->audioSource, 0, pan, true /* paused */);
         if(handle)
             // protect the music channel (don't let it get interrupted when many sounds play back at once)
@@ -258,7 +257,7 @@ bool SoLoudSoundEngine::playSound(SoLoudSound *soloudSound, f32 pan, f32 pitch, 
             // buzzsliders can cause glitches in music playback
             soloud->setProtectVoice(handle, true);
     } else {
-        // non-streams don't go through the SoLoudFX wrapper
+        // samples start at their final volume
         handle = soloud->play(*soloudSound->audioSource, soloudSound->fBaseVolume * playVolume, pan, true /* paused */);
     }
 
@@ -295,7 +294,7 @@ bool SoLoudSoundEngine::playSound(SoLoudSound *soloudSound, f32 pan, f32 pitch, 
         // the new voice starts at the engine defaults (file rate, speed 1)
         soloudSound->applyVoiceRate();
 
-        logIf(debug, "SoLoudSoundEngine: {} streaming audio through SLFXStream with speed={:f}, pitch={:f}",
+        logIf(debug, "SoLoudSoundEngine: {} streaming audio with speed={:f}, pitch={:f}",
               startPaused ? "enqueuing" : "playing", soloudSound->getSpeed(), soloudSound->getPitch());
     }
 

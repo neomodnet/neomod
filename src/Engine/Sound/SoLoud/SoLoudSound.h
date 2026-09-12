@@ -13,7 +13,6 @@
 namespace SoLoud {
 class Soloud;
 class AudioSource;
-class SLFXStream;
 }  // namespace SoLoud
 
 // defined in SoLoudSoundEngine, soloud instance singleton pointer
@@ -40,9 +39,6 @@ class SoLoudSound final : public Sound {
     float getSpeed() const override;
     float getPitch() const override;
 
-    // i.e. we are hearing audio Xms later than if we had no rate changing filter applied
-    i32 getRateBasedStreamDelayMS() const override;
-
     inline float getFrequency() const override { return this->fFrequency; }
 
     bool isPlaying() const override;
@@ -61,10 +57,10 @@ class SoLoudSound final : public Sound {
    private:
     SOUNDHANDLE getHandle();
 
-    // push the sound's speed/frequency and the SoundTouch tempo onto the active voice (streams only)
+    // push the sound's speed/pitch/frequency onto the active voice (streams only)
     void applyVoiceRate();
 
-    // helpers to access Wav/SLFXStream internals
+    // helpers to access Wav/WavStream internals
     [[nodiscard]] double getSourceLengthInSeconds() const;
     [[nodiscard]] double getStreamPositionInSeconds() const;
 
@@ -72,7 +68,7 @@ class SoLoudSound final : public Sound {
     float fFrequency{44100.0f};  // sample rate in Hz
 
     // SoLoud-specific members
-    std::unique_ptr<SoLoud::AudioSource> audioSource{nullptr};  // base class pointer, could be either SLFXStream or Wav
+    std::unique_ptr<SoLoud::AudioSource> audioSource{nullptr};  // base class pointer, could be either WavStream or Wav
     SOUNDHANDLE handle{0};                                      // most recently played instance of this sound
 
     // these are some caching workarounds for limitations of the main soloud instance running on the main thread

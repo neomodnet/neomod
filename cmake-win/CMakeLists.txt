@@ -309,16 +309,6 @@ add_external_project(mpg123
     BUILD_COMMAND cmake --build <BINARY_DIR> --config ${CMAKE_BUILD_TYPE} --parallel ${CPU_COUNT}
 )
 
-add_external_project(soundtouch
-    CMAKE_ARGS
-        ${EXTERNAL_PROJECT_CMAKE_ARGS}
-        -DST_NO_EXCEPTION_HANDLING=1
-        -DSOUNDSTRETCH=OFF
-        -DSOUNDTOUCH_DLL=OFF
-        -DOPENMP=OFF
-    BUILD_COMMAND cmake --build <BINARY_DIR> --config ${CMAKE_BUILD_TYPE} --parallel ${CPU_COUNT}
-)
-
 add_external_project(soloud
     DEPENDS sdl3_external mpg123_external
     CMAKE_ARGS
@@ -519,7 +509,6 @@ ExternalProject_Add(neomod_main
         libarchive_external
         curl_external
         mpg123_external
-        soundtouch_external
         soloud_external
         nsync_external
         simdutf_external

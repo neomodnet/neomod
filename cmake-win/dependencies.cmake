@@ -88,14 +88,9 @@ set(MPG123_URL "https://github.com/madebr/mpg123/archive/${MPG123_VERSION}.tar.g
 set(MPG123_HASH "SHA512=e4ac2504d610e1660d3f2008f5a6460d1ed18d4f9658ba0a6a30c356bae6d4ed03f62947c4186b66be8749fd200a85e4ce33229aaa6126ec10fb9bd14bdabb5e")
 set_download_name("mpg123" "${MPG123_VERSION}" "${MPG123_URL}")
 
-set(SOUNDTOUCH_VERSION "2.4.0")
-set(SOUNDTOUCH_URL "https://codeberg.org/soundtouch/soundtouch/archive/${SOUNDTOUCH_VERSION}.tar.gz")
-set(SOUNDTOUCH_HASH "SHA512=97e4afcce100f210d89c665dd83f4eaa7b0bec88ba35ba1cf29729e9260d143a5c0f89156646c4dddc83030c5f6b8493c6abc1a82bfba52ed6a87929c8e0fdea")
-set_download_name("soundtouch" "${SOUNDTOUCH_VERSION}" "${SOUNDTOUCH_URL}")
-
-set(SOLOUD_VERSION "a92bd051d1edb7bc104288706e83127bdb2d8732")
+set(SOLOUD_VERSION "4abbb9ba689cd3bc001158fda605959dccfcd71a")
 set(SOLOUD_URL "https://github.com/neomodnet/neoloud/archive/${SOLOUD_VERSION}.tar.gz")
-set(SOLOUD_HASH "SHA512=09e81e4e9c61c5b649ee64c7560d32523b43aac2845a1d885d7473779a987db38e0948f4ce62cfb043eddef489ecc8af83c76be68a31ffd2351762b4b225f3ce")
+set(SOLOUD_HASH "SHA512=689ffd1a240a0b4fdd3e06988a439782d1bbfa6f83d5f5f6aee64b5cdd373bb519bc448e01623ea12544d4ae30a597fc47011f5b1650221d30cf65d1cec66a92")
 set_download_name("soloud" "${SOLOUD_VERSION}" "${SOLOUD_URL}")
 
 set(NSYNC_VERSION "1.30.0")

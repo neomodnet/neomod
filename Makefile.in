@@ -128,12 +128,12 @@ bin_PROGRAMS = neomod$(EXEEXT)
 @BUILD_MPG123_TRUE@am__append_18 = $(shell $(PKG_CONFIG) --cflags libmpg123)
 @BUILD_MPG123_TRUE@am__append_19 = $(shell $(PKG_CONFIG) --libs libmpg123)
 @BUILD_MPG123_TRUE@am__append_20 = $(DEPS_PREFIX)/mpg123-$(MPG123_VERSION).built
-@USE_SOLOUD_TRUE@am__append_21 = $(shell $(PKG_CONFIG) --cflags soloud) $(shell $(PKG_CONFIG) --cflags soundtouch) $(MPG123_CFLAGS) -DST_NO_EXCEPTION_HANDLING
-@USE_SOLOUD_TRUE@am__append_22 = $(shell $(PKG_CONFIG) --libs soloud) $(shell $(PKG_CONFIG) --libs soundtouch) $(MPG123_LIBS)
+@USE_SOLOUD_TRUE@am__append_21 = $(shell $(PKG_CONFIG) --cflags soloud) $(MPG123_CFLAGS)
+@USE_SOLOUD_TRUE@am__append_22 = $(shell $(PKG_CONFIG) --libs soloud) $(MPG123_LIBS)
 @USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@am__append_23 = $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION)-$(FFMPEG_EPOCH).built
 @USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@am__append_24 = $(FFMPEG_INCFLAG)  # so we find our build of ffmpeg's headers for FFmpegLoader
 @USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@am__append_25 = $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION)-$(FFMPEG_EPOCH).built
-@USE_SOLOUD_TRUE@am__append_26 = $(DEPS_PREFIX)/SoLoud-$(SOLOUD_VERSION).built $(DEPS_PREFIX)/SoundTouch-$(SOUNDTOUCH_VERSION).built
+@USE_SOLOUD_TRUE@am__append_26 = $(DEPS_PREFIX)/SoLoud-$(SOLOUD_VERSION).built
 @MACOS_PLATFORM_TRUE@@USE_DISCORDRPC_TRUE@am__append_27 = -framework AppKit
 @USE_DISCORDRPC_TRUE@@WIN_PLATFORM_TRUE@am__append_28 = -lpsapi -ladvapi32
 @USE_DISCORDRPC_TRUE@am__append_29 = $(DEPS_PREFIX)/discord-rpc-$(DISCORDRPC_COMMIT).built
@@ -395,7 +395,6 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	src/Engine/Renderer/SDLGPU/SDLGPUShader.cpp \
 	src/Engine/Renderer/SDLGPU/SDLGPUVertexArrayObject.cpp \
 	libraries/glad/glad_egl.cpp libraries/glad/glad_gl.cpp \
-	src/Engine/Sound/SoLoud/SoLoudFX.cpp \
 	src/Engine/Sound/SoLoud/SoLoudSound.cpp \
 	src/Engine/Sound/SoLoud/SoLoudSoundEngine.cpp \
 	src/Engine/Sound/BASS/BassManager.cpp \
@@ -440,8 +439,7 @@ am__dirstamp = $(am__leading_dot)dirstamp
 @USE_OPENGLES_FALSE@@USE_OPENGL_TRUE@@WASM_PLATFORM_FALSE@	libraries/glad/neomod-glad_gl.$(OBJEXT)
 @USE_OPENGLES_TRUE@@WASM_PLATFORM_FALSE@am__objects_6 = libraries/glad/neomod-glad_egl.$(OBJEXT) \
 @USE_OPENGLES_TRUE@@WASM_PLATFORM_FALSE@	libraries/glad/neomod-glad_gl.$(OBJEXT)
-@USE_SOLOUD_TRUE@am__objects_7 = src/Engine/Sound/SoLoud/neomod-SoLoudFX.$(OBJEXT) \
-@USE_SOLOUD_TRUE@	src/Engine/Sound/SoLoud/neomod-SoLoudSound.$(OBJEXT) \
+@USE_SOLOUD_TRUE@am__objects_7 = src/Engine/Sound/SoLoud/neomod-SoLoudSound.$(OBJEXT) \
 @USE_SOLOUD_TRUE@	src/Engine/Sound/SoLoud/neomod-SoLoudSoundEngine.$(OBJEXT)
 @USE_BASS_TRUE@am__objects_8 = src/Engine/Sound/BASS/neomod-BassManager.$(OBJEXT) \
 @USE_BASS_TRUE@	src/Engine/Sound/BASS/neomod-BassSound.$(OBJEXT) \
@@ -888,7 +886,6 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/Engine/Sound/BASS/$(DEPDIR)/neomod-BassManager.Po \
 	src/Engine/Sound/BASS/$(DEPDIR)/neomod-BassSound.Po \
 	src/Engine/Sound/BASS/$(DEPDIR)/neomod-BassSoundEngine.Po \
-	src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudFX.Po \
 	src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudSound.Po \
 	src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudSoundEngine.Po \
 	src/GUI/$(DEPDIR)/neomod-CBaseUIButton.Po \
@@ -1243,8 +1240,6 @@ SIMDUTF_PREFIX = @SIMDUTF_PREFIX@
 SIMDUTF_VERSION = @SIMDUTF_VERSION@
 SOLOUD_PREFIX = @SOLOUD_PREFIX@
 SOLOUD_VERSION = @SOLOUD_VERSION@
-SOUNDTOUCH_PREFIX = @SOUNDTOUCH_PREFIX@
-SOUNDTOUCH_VERSION = @SOUNDTOUCH_VERSION@
 SPDLOG_CFLAGS = @SPDLOG_CFLAGS@ -USPDLOG_SHARED_LIB \
 	-USPDLOG_COMPILED_LIB -DSPDLOG_NO_EXCEPTIONS \
 	-DSPDLOG_FMT_EXTERNAL $(am__append_51)
@@ -1388,7 +1383,6 @@ PATH := $(DEPS_PREFIX):$(shell echo $$PATH)
 @USE_SDLGPU_TRUE@	$(NULL)
 
 @USE_SOLOUD_TRUE@SOLOUD_SOURCES := \
-@USE_SOLOUD_TRUE@	src/Engine/Sound/SoLoud/SoLoudFX.cpp \
 @USE_SOLOUD_TRUE@	src/Engine/Sound/SoLoud/SoLoudSound.cpp \
 @USE_SOLOUD_TRUE@	src/Engine/Sound/SoLoud/SoLoudSoundEngine.cpp \
 @USE_SOLOUD_TRUE@	$(NULL)
@@ -1847,7 +1841,6 @@ BUILT_SOURCES := \
 	$(DEPS_PREFIX)/freetype-$(FREETYPE2_VERSION).built \
 	$(DEPS_PREFIX)/glm-$(GLM_VERSION).built \
 	$(DEPS_PREFIX)/SoLoud-$(SOLOUD_VERSION).built \
-	$(DEPS_PREFIX)/SoundTouch-$(SOUNDTOUCH_VERSION).built \
 	$(DEPS_PREFIX)/mpg123-$(MPG123_VERSION).built \
 	$(DEPS_PREFIX)/discord-rpc-$(DISCORDRPC_COMMIT).built \
 	$(DEPS_PREFIX)/liblzma-$(LZMA_VERSION).built \
@@ -2908,9 +2901,6 @@ src/Engine/Sound/SoLoud/$(am__dirstamp):
 src/Engine/Sound/SoLoud/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) src/Engine/Sound/SoLoud/$(DEPDIR)
 	@: >>src/Engine/Sound/SoLoud/$(DEPDIR)/$(am__dirstamp)
-src/Engine/Sound/SoLoud/neomod-SoLoudFX.$(OBJEXT):  \
-	src/Engine/Sound/SoLoud/$(am__dirstamp) \
-	src/Engine/Sound/SoLoud/$(DEPDIR)/$(am__dirstamp)
 src/Engine/Sound/SoLoud/neomod-SoLoudSound.$(OBJEXT):  \
 	src/Engine/Sound/SoLoud/$(am__dirstamp) \
 	src/Engine/Sound/SoLoud/$(DEPDIR)/$(am__dirstamp)
@@ -3283,7 +3273,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/Engine/Sound/BASS/$(DEPDIR)/neomod-BassManager.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/Engine/Sound/BASS/$(DEPDIR)/neomod-BassSound.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/Engine/Sound/BASS/$(DEPDIR)/neomod-BassSoundEngine.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudFX.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudSound.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudSoundEngine.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUIButton.Po@am__quote@ # am--include-marker
@@ -6469,20 +6458,6 @@ libraries/glad/neomod-glad_gl.obj: libraries/glad/glad_gl.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o libraries/glad/neomod-glad_gl.obj `if test -f 'libraries/glad/glad_gl.cpp'; then $(CYGPATH_W) 'libraries/glad/glad_gl.cpp'; else $(CYGPATH_W) '$(srcdir)/libraries/glad/glad_gl.cpp'; fi`
 
-src/Engine/Sound/SoLoud/neomod-SoLoudFX.o: src/Engine/Sound/SoLoud/SoLoudFX.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/Engine/Sound/SoLoud/neomod-SoLoudFX.o -MD -MP -MF src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudFX.Tpo -c -o src/Engine/Sound/SoLoud/neomod-SoLoudFX.o `test -f 'src/Engine/Sound/SoLoud/SoLoudFX.cpp' || echo '$(srcdir)/'`src/Engine/Sound/SoLoud/SoLoudFX.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudFX.Tpo src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudFX.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/Engine/Sound/SoLoud/SoLoudFX.cpp' object='src/Engine/Sound/SoLoud/neomod-SoLoudFX.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/Engine/Sound/SoLoud/neomod-SoLoudFX.o `test -f 'src/Engine/Sound/SoLoud/SoLoudFX.cpp' || echo '$(srcdir)/'`src/Engine/Sound/SoLoud/SoLoudFX.cpp
-
-src/Engine/Sound/SoLoud/neomod-SoLoudFX.obj: src/Engine/Sound/SoLoud/SoLoudFX.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/Engine/Sound/SoLoud/neomod-SoLoudFX.obj -MD -MP -MF src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudFX.Tpo -c -o src/Engine/Sound/SoLoud/neomod-SoLoudFX.obj `if test -f 'src/Engine/Sound/SoLoud/SoLoudFX.cpp'; then $(CYGPATH_W) 'src/Engine/Sound/SoLoud/SoLoudFX.cpp'; else $(CYGPATH_W) '$(srcdir)/src/Engine/Sound/SoLoud/SoLoudFX.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudFX.Tpo src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudFX.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/Engine/Sound/SoLoud/SoLoudFX.cpp' object='src/Engine/Sound/SoLoud/neomod-SoLoudFX.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/Engine/Sound/SoLoud/neomod-SoLoudFX.obj `if test -f 'src/Engine/Sound/SoLoud/SoLoudFX.cpp'; then $(CYGPATH_W) 'src/Engine/Sound/SoLoud/SoLoudFX.cpp'; else $(CYGPATH_W) '$(srcdir)/src/Engine/Sound/SoLoud/SoLoudFX.cpp'; fi`
-
 src/Engine/Sound/SoLoud/neomod-SoLoudSound.o: src/Engine/Sound/SoLoud/SoLoudSound.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/Engine/Sound/SoLoud/neomod-SoLoudSound.o -MD -MP -MF src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudSound.Tpo -c -o src/Engine/Sound/SoLoud/neomod-SoLoudSound.o `test -f 'src/Engine/Sound/SoLoud/SoLoudSound.cpp' || echo '$(srcdir)/'`src/Engine/Sound/SoLoud/SoLoudSound.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudSound.Tpo src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudSound.Po
@@ -7323,7 +7298,6 @@ distclean: distclean-am
 	-rm -f src/Engine/Sound/BASS/$(DEPDIR)/neomod-BassManager.Po
 	-rm -f src/Engine/Sound/BASS/$(DEPDIR)/neomod-BassSound.Po
 	-rm -f src/Engine/Sound/BASS/$(DEPDIR)/neomod-BassSoundEngine.Po
-	-rm -f src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudFX.Po
 	-rm -f src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudSound.Po
 	-rm -f src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudSoundEngine.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIButton.Po
@@ -7613,7 +7587,6 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/Engine/Sound/BASS/$(DEPDIR)/neomod-BassManager.Po
 	-rm -f src/Engine/Sound/BASS/$(DEPDIR)/neomod-BassSound.Po
 	-rm -f src/Engine/Sound/BASS/$(DEPDIR)/neomod-BassSoundEngine.Po
-	-rm -f src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudFX.Po
 	-rm -f src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudSound.Po
 	-rm -f src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudSoundEngine.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIButton.Po
@@ -7797,11 +7770,6 @@ $(DEPS_CACHE)/SoLoud-$(SOLOUD_VERSION).tar.gz:
 $(DEPS_CACHE)/mpg123-$(MPG123_VERSION).tar.gz:
 	$(MKDIR_P) $(DEPS_CACHE)
 	$(CURLCOMMAND) "https://github.com/madebr/mpg123/archive/$(MPG123_VERSION).tar.gz" || { rm -f $@; exit 1; }
-
-# --with-audio=soloud (pitch shifting, currently done in-engine instead of in SoLoud itself)
-$(DEPS_CACHE)/SoundTouch-$(SOUNDTOUCH_VERSION).tar.gz:
-	$(MKDIR_P) $(DEPS_CACHE)
-	$(CURLCOMMAND) "https://codeberg.org/soundtouch/soundtouch/archive/$(SOUNDTOUCH_VERSION).tar.gz" || { rm -f $@; exit 1; }
 
 # --with-discord
 $(DEPS_CACHE)/discord-rpc-$(DISCORDRPC_COMMIT).tar.gz:
@@ -8234,37 +8202,6 @@ $(CACERT_INCDIR)/cacert.pem:
 @USE_SOLOUD_TRUE@	$(CMAKE) --build build "$(CMAKEPAROPT)" && \
 @USE_SOLOUD_TRUE@	$(CMAKE) --install build
 @USE_SOLOUD_TRUE@	$(PKG_CONFIG) --env-only --modversion --print-errors soloud # since we never accept system SoLoud, use --modversion instead of --exists to find sdl3/mpg123 from the system
-@USE_SOLOUD_TRUE@	touch $@
-
-@USE_SOLOUD_TRUE@$(DEPS_PREFIX)/SoundTouch-$(SOUNDTOUCH_VERSION).built: $(DEPS_CACHE)/SoundTouch-$(SOUNDTOUCH_VERSION).tar.gz
-@USE_SOLOUD_TRUE@	rm -rf $(DEPS_PREFIX)/SoundTouch
-@USE_SOLOUD_TRUE@	$(MKDIR_P) $(DEPS_PREFIX) $(DEPS_PREFIX)/include $(DEPS_PREFIX)/lib/pkgconfig $(DEPS_PREFIX)/SoundTouch/build
-@USE_SOLOUD_TRUE@	$(TAR) xf $(DEPS_CACHE)/SoundTouch-$(SOUNDTOUCH_VERSION).tar.gz -C $(DEPS_PREFIX)/SoundTouch --strip-components=1 && \
-@USE_SOLOUD_TRUE@	cd $(DEPS_PREFIX)/SoundTouch && \
-@USE_SOLOUD_TRUE@	patch -Np1<$(BUILD_MISCDIR)/SoundTouch-AVX-patches.patch && \
-@USE_SOLOUD_TRUE@	$(SED) -i -e 's|MAX_BPM_VALID 190|MAX_BPM_VALID 1000|' -e 's|MAX_BPM_RANGE 200|MAX_BPM_RANGE 300|' include/BPMDetect.h && \
-@USE_SOLOUD_TRUE@	PKG_CONFIG="$(PKG_CONFIG)" LDFLAGS="$(LDFLAGS)" CC="$(CC)" CXX="$(CXX)" \
-@USE_SOLOUD_TRUE@	$(CMAKE_CONF_PFX) $(CMAKE) -S . -B build -G "$(CMAKE_GEN)" \
-@USE_SOLOUD_TRUE@		-D CMAKE_BUILD_TYPE="$(if $(ENABLE_DEBUG),Debug,Release)" \
-@USE_SOLOUD_TRUE@		-D CMAKE_INSTALL_PREFIX="$(DEPS_PREFIX)" \
-@USE_SOLOUD_TRUE@		-D CMAKE_SYSTEM_NAME="$(CMAKE_SYSTEM_NAME)" \
-@USE_SOLOUD_TRUE@		-D CMAKE_SYSTEM_PROCESSOR="$(host_cpu)" \
-@USE_SOLOUD_TRUE@		-D CMAKE_C_COMPILER="$(CC)" \
-@USE_SOLOUD_TRUE@		-D CMAKE_C_FLAGS_RELEASE="$(CFLAGS) -DST_NO_EXCEPTION_HANDLING" \
-@USE_SOLOUD_TRUE@		-D CMAKE_C_FLAGS_DEBUG="$(CFLAGS) -DST_NO_EXCEPTION_HANDLING" \
-@USE_SOLOUD_TRUE@		-D CMAKE_CXX_COMPILER="$(CXX)" \
-@USE_SOLOUD_TRUE@		-D CMAKE_CXX_FLAGS_RELEASE="$(CXXFLAGS) -DST_NO_EXCEPTION_HANDLING" \
-@USE_SOLOUD_TRUE@		-D CMAKE_CXX_FLAGS_DEBUG="$(CXXFLAGS) -DST_NO_EXCEPTION_HANDLING" \
-@USE_SOLOUD_TRUE@		$(CMAKERCOPT) $(CMAKEIDOPT) \
-@USE_SOLOUD_TRUE@		$(CMAKE_AR_RANLIB_FLAGS) \
-@USE_SOLOUD_TRUE@		-D SOUNDSTRETCH=OFF \
-@USE_SOLOUD_TRUE@		-D SOUNDTOUCH_DLL=OFF \
-@USE_SOLOUD_TRUE@		-D OPENMP=OFF \
-@USE_SOLOUD_TRUE@		-D BUILD_SHARED_LIBS="$(if $(STATICBUILD),OFF,ON)" && \
-@USE_SOLOUD_TRUE@	$(CMAKE) --build build "$(CMAKEPAROPT)" && \
-@USE_SOLOUD_TRUE@	$(CMAKE) --install build
-@USE_SOLOUD_TRUE@	rm -rf $(DEPS_PREFIX)/lib/*SoundTouch$(if $(STATICBUILD),$(DLLEXT),.a)*
-@USE_SOLOUD_TRUE@	$(PKG_CONFIG) --env-only --modversion --print-errors soundtouch
 @USE_SOLOUD_TRUE@	touch $@
 
 @USE_DISCORDRPC_TRUE@$(DEPS_PREFIX)/discord-rpc-$(DISCORDRPC_COMMIT).built: $(DEPS_CACHE)/discord-rpc-$(DISCORDRPC_COMMIT).tar.gz $(DEPS_CACHE)/rapidjson-$(RAPIDJSON_COMMIT).tar.gz
@@ -8900,7 +8837,6 @@ compile-commands: $(abs_top_srcdir)/.clangd
 @WASM_PLATFORM_FALSE@@WINSHARED_DLLS_NEEDED_TRUE@@WIN_PLATFORM_TRUE@	@$(CP_INSTALL) $(WINSHARED_DLLS) "$(DESTDIR)$(bindir)/$(LIBDEST)"
 @USE_BASS_TRUE@@WASM_PLATFORM_FALSE@	@$(CP_INSTALL) $(BASS_INSTALL_LIBS) "$(DESTDIR)$(bindir)/$(LIBDEST)"
 @USE_SOLOUD_TRUE@@WASM_PLATFORM_FALSE@	$(if $(STATICBUILD),,@$(CP_INSTALL) "$(SOLOUD_PREFIX)/lib"/*$(LIBPREFIX)soloud*$(DLLEXT)* "$(DESTDIR)$(bindir)/$(LIBDEST)")
-@USE_SOLOUD_TRUE@@WASM_PLATFORM_FALSE@	$(if $(STATICBUILD),,@$(CP_INSTALL) "$(SOUNDTOUCH_PREFIX)/lib"/*$(LIBPREFIX)SoundTouch*$(DLLEXT)* "$(DESTDIR)$(bindir)/$(LIBDEST)")
 @USE_FFMPEG_TRUE@@USE_SOLOUD_TRUE@@WASM_PLATFORM_FALSE@	@find $(DEPS_PREFIX)/lib $(DEPS_PREFIX)/bin '(' -name '*avutil*' -o -name '*avcodec*' -o -name '*avformat*' -o -name '*swresample*' -o -name '*swscale*' ')' -a '(' -name '*'$(DLLEXT) -o -name '*.so.*' ')' -exec $(CP_INSTALL) '{}' "$(DESTDIR)$(bindir)/" ';' 2>/dev/null || true
 @BUILD_MPG123_TRUE@@USE_SOLOUD_TRUE@@WASM_PLATFORM_FALSE@	$(if $(STATICBUILD),,@`find $(MPG123_PREFIX) -not -path '*.dSYM/*' '(' -iname '*mpg*'$(DLLEXT) -o -iname '*mpg*''.so.*' ')' -exec $(CP_INSTALL) '{''}' "$(DESTDIR)$(bindir)/$(LIBDEST)" ';'`)
 @USE_DISCORDRPC_TRUE@@WASM_PLATFORM_FALSE@	$(if $(STATICBUILD),,@find $(DEPS_PREFIX) -not -path '*.dSYM/*' '(' -iname '*discord-rpc*'$(DLLEXT) -o -iname '*discord-rpc*''.so.*' ')' -a -not -iname '*.dll.a' -exec $(CP_INSTALL) '{''}' "$(DESTDIR)$(bindir)/$(LIBDEST)" ';')

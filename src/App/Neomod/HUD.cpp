@@ -1804,14 +1804,12 @@ void HUD::drawStatistics(const HUDStats &s) {
             (i32)((cv::universal_offset.getFloat() + cv::universal_offset_hardcoded_blamepeppy.getFloat()) *
                   bmi->getSpeedMultiplier());
         const i32 uniUnscaled = cv::universal_offset_norate.getInt();
-        const i32 inherent = bmi->getMusic()->getRateBasedStreamDelayMS();
         const i32 local = bmi->getBeatmap()->getLocalOffset();
         const i32 online = bmi->getBeatmap()->getOnlineOffset();
-        const i32 total = uniScaled + uniUnscaled - inherent - local - online;
-        return fmt::format("strt: {} off: {}ms ((({}peppy+{}us)*{:.1f}spd)+{}uu-{}auto-{}l-{}lo)",
-                           cv::snd_soloud_offset_compensation_strategy.getInt(), total,
+        const i32 total = uniScaled + uniUnscaled - local - online;
+        return fmt::format("off: {}ms ((({}peppy+{}us)*{:.1f}spd)+{}uu-{}l-{}lo)", total,
                            cv::universal_offset_hardcoded_blamepeppy.getFloat(), cv::universal_offset.getFloat(),
-                           bmi->getSpeedMultiplier(), uniUnscaled, inherent, local, online);
+                           bmi->getSpeedMultiplier(), uniUnscaled, local, online);
     };
 
     McFont *font = osu->getTitleFont();

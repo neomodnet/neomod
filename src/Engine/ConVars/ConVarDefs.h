@@ -158,9 +158,6 @@ CONVAR(snd_force_load_unknown, false, CLIENT, "force loading of assumed invalid 
 CONVAR(snd_freq, 44100, CLIENT | NOSAVE, "output sampling rate in Hz");
 CONVAR(snd_soloud_buffer, 0, CLIENT | NOSAVE, "SoLoud audio device buffer size (recommended to leave this on 0/auto)");
 CONVAR(snd_soloud_backend, "MiniAudio"sv, CLIENT, R"(SoLoud backend, "MiniAudio" or "SDL3" (MiniAudio is default))");
-CONVAR(snd_soloud_offset_compensation_strategy, 1, CLIENT,
-       R"(For debugging: 0 = naive (no auto offset), 1 and 2 are slightly different WSOLA pipeline model variants)");
-
 CONVAR(snd_sanity_simultaneous_limit, 128, CLIENT | NOSAVE,
        "The maximum number of overlayable sounds that are allowed to be active at once");
 CONVAR(snd_soloud_resampler, "linear", CLIENT,
@@ -171,7 +168,7 @@ CONVAR(snd_soloud_prefer_ffmpeg, 0, CLIENT,
 CONVAR(snd_soloud_prefer_exclusive, false, CLIENT, "try initializing in exclusive mode first for MiniAudio on Windows");
 CONVAR(snd_soloud_num_periods, 3, CLIENT, "fewer periods = lower end-to-end latency");
 CONVAR(snd_rate_transpose_algorithm, "cubic", CLIENT,
-       "rate changing algorithm to use. \"linear\", \"cubic\", or \"shannon\" (in order of increasing "
+       "rate changing algorithm to use (BASS only). \"linear\", \"cubic\", or \"shannon\" (in order of increasing "
        "quality/cpu usage)");
 CONVAR(snd_disable_exclusive_unfocused, true, CLIENT,
        "disable WASAPI exclusive mode when losing focus (currently SoLoud+MiniAudio only)");
