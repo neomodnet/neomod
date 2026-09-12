@@ -1671,7 +1671,7 @@ OPENSSL_BUILD_VERSION=4.0.1
 ZSTD_BUILD_VERSION=1.5.7 # built alongside curl/openssl, used by libarchive
 NGHTTP2_BUILD_VERSION=1.70.0 # built alongside curl, for HTTP/2 support
 MPG123_MIN_VERSION=1.30.0
-MPG123_BUILD_VERSION=4080a897fca4f6923641588dce91da613193c888 # git mirror, latest as of Jun 10th, 2026 (1.33.6)
+MPG123_BUILD_VERSION=f6c19f46031088efc8d0e5b83305a6f36ceceb65 # git mirror, latest as of Sep 12th, 2026 (1.34.0)
 SPDLOG_MIN_VERSION=1.15.0
 SPDLOG_BUILD_VERSION=1.17.0
 NSYNC_MIN_VERSION=1.29.2
@@ -1682,7 +1682,7 @@ CTRE_MIN_VERSION=3.10.0 # regex support that doesn't have exceptions FORCED enab
 CTRE_BUILD_VERSION=6225211806c48230e5d17a1e555ef69e7325051c # git as of Jan 28th, 2026
 
 # always build these from source if we want to use them
-AC_SUBST([SOLOUD_VERSION], [b9a025894f12081324e6db97dc1d9ce395ba9e04]) # neoloud fork
+AC_SUBST([SOLOUD_VERSION], [1.3.2]) # neoloud fork
 AC_SUBST([SOLOUD_PREFIX],[$DEPS_PREFIX])
 AC_SUBST([SOUNDTOUCH_VERSION], [b8e2a5f3f04483691962ab1a36ffa166abdcd675])
 AC_SUBST([SOUNDTOUCH_PREFIX],[$DEPS_PREFIX])

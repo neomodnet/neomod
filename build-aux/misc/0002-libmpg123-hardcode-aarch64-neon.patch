@@ -8,7 +8,7 @@ index 8d0249a..1ab3853 100644
  
 +#ifndef __aarch64__
 +
- #ifndef _M_ARM
+ #ifndef _WIN32
  static sigjmp_buf jmpbuf;
  #else
 @@ -34,9 +36,14 @@ static void mpg123_arm_catch_sigill(int sig)
@@ -19,11 +19,11 @@ index 8d0249a..1ab3853 100644
 +
  unsigned int INT123_getcpuflags(struct cpuflags* cf)
  {
--#ifndef _M_ARM
+-#ifndef _WIN32
 +#ifdef __aarch64__
 +	cf->has_neon = 1;
 +	return 0;
-+#elif !defined(_M_ARM)
++#elif !defined(_WIN32)
  	struct sigaction act, act_old;
  	act.sa_handler = mpg123_arm_catch_sigill;
  	act.sa_flags = SA_RESTART;
