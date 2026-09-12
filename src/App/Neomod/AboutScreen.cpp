@@ -408,6 +408,7 @@ void AboutScreen::buildChangelog() {
         R"(  - Expect a longer initial database load when first updating to this version)",
         R"(- Added a proper console window (Shift+F1))",
         R"(- Fixed spinner skinning issues, mostly)",
+        R"(- Fixed offset issues on SoLoud after seeking/looping music)",
         R"(- Fixed "P"/"Enter" on main menu also being typed search or starting the selected map)",
         R"(- Updated osu! version to b20260711.1)",
     };
