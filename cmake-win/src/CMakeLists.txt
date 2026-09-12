@@ -32,10 +32,6 @@ if(NOT DEPS_INSTALL_DIR)
     set(DEPS_INSTALL_DIR "${CMAKE_BINARY_DIR}/../deps/install")
 endif()
 
-# soundtouch's cmake interface is broken and cmake complains about a non-existent directory
-make_directory(${DEPS_INSTALL_DIR}/COMPONENT)
-make_directory(${DEPS_INSTALL_DIR}/SoundTouch)
-
 # Dependencies cache directory (passed from superbuild)
 if(NOT DEPS_CACHE)
     set(DEPS_CACHE "${CMAKE_BINARY_DIR}/../depcache")
@@ -111,7 +107,6 @@ find_package(Freetype REQUIRED)
 find_package(LibLZMA REQUIRED)
 find_package(CURL REQUIRED)
 find_package(MPG123 REQUIRED)
-find_package(SoundTouch REQUIRED)
 find_package(SoLoud REQUIRED)
 find_package(simdutf REQUIRED)
 find_package(ctre REQUIRED)
@@ -259,7 +254,6 @@ target_include_directories(neomod PRIVATE
     ${BASS_CACHE_DIR}/bassasio/include
     ${BASS_CACHE_DIR}/basswasapi/include
     ${DEPS_INSTALL_DIR}/include
-    ${DEPS_INSTALL_DIR}/include/soundtouch # thanks...
     ${BZIP2_STATIC_INCLUDE_DIRS}
     ${LIBARCHIVE_STATIC_INCLUDE_DIRS}
     ${PC_BROTLIDEC_STATIC_INCLUDE_DIRS}
@@ -296,7 +290,6 @@ target_compile_definitions(neomod PRIVATE
     GLM_ENABLE_EXPERIMENTAL
     FMT_USE_EXCEPTIONS=0
     _HAS_EXCEPTIONS=0
-    ST_NO_EXCEPTION_HANDLING=1
     SOLOUD_NO_ASSERTS=1
     _UNICODE
     UNICODE=1
@@ -344,7 +337,6 @@ target_link_libraries(neomod PRIVATE
     spdlog::spdlog_header_only
     LibLZMA::LibLZMA
     CURL::libcurl
-    SoundTouch::SoundTouch
     SoLoud::soloud
     MPG123::libmpg123
     simdutf::simdutf

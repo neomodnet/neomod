@@ -122,11 +122,6 @@ $(DEPS_CACHE)/mpg123-$(MPG123_VERSION).tar.gz:
 	$(MKDIR_P) $(DEPS_CACHE)
 	$(CURLCOMMAND) "https://github.com/madebr/mpg123/archive/$(MPG123_VERSION).tar.gz" || { rm -f $@; exit 1; }
 
-# --with-audio=soloud (pitch shifting, currently done in-engine instead of in SoLoud itself)
-$(DEPS_CACHE)/SoundTouch-$(SOUNDTOUCH_VERSION).tar.gz:
-	$(MKDIR_P) $(DEPS_CACHE)
-	$(CURLCOMMAND) "https://codeberg.org/soundtouch/soundtouch/archive/$(SOUNDTOUCH_VERSION).tar.gz" || { rm -f $@; exit 1; }
-
 # --with-discord
 $(DEPS_CACHE)/discord-rpc-$(DISCORDRPC_COMMIT).tar.gz:
 	$(MKDIR_P) $(DEPS_CACHE)
@@ -457,8 +452,8 @@ INSTALL_LIB_DEPS += $(DEPS_PREFIX)/mpg123-$(MPG123_VERSION).built
 endif # BUILD_MPG123
 
 if USE_SOLOUD
-AUDIO_CFLAGS += $(shell $(PKG_CONFIG) --cflags soloud) $(shell $(PKG_CONFIG) --cflags soundtouch) $(MPG123_CFLAGS) -DST_NO_EXCEPTION_HANDLING
-AUDIO_LIBS += $(shell $(PKG_CONFIG) --libs soloud) $(shell $(PKG_CONFIG) --libs soundtouch) $(MPG123_LIBS)
+AUDIO_CFLAGS += $(shell $(PKG_CONFIG) --cflags soloud) $(MPG123_CFLAGS)
+AUDIO_LIBS += $(shell $(PKG_CONFIG) --libs soloud) $(MPG123_LIBS)
 
 SOLOUD_FFMPEG_DEP =
 
@@ -533,37 +528,7 @@ $(DEPS_PREFIX)/SoLoud-$(SOLOUD_VERSION).built: $(DEPS_CACHE)/SoLoud-$(SOLOUD_VER
 	$(PKG_CONFIG) --env-only --modversion --print-errors soloud # since we never accept system SoLoud, use --modversion instead of --exists to find sdl3/mpg123 from the system
 	touch $@
 
-$(DEPS_PREFIX)/SoundTouch-$(SOUNDTOUCH_VERSION).built: $(DEPS_CACHE)/SoundTouch-$(SOUNDTOUCH_VERSION).tar.gz
-	rm -rf $(DEPS_PREFIX)/SoundTouch
-	$(MKDIR_P) $(DEPS_PREFIX) $(DEPS_PREFIX)/include $(DEPS_PREFIX)/lib/pkgconfig $(DEPS_PREFIX)/SoundTouch/build
-	$(TAR) xf $(DEPS_CACHE)/SoundTouch-$(SOUNDTOUCH_VERSION).tar.gz -C $(DEPS_PREFIX)/SoundTouch --strip-components=1 && \
-	cd $(DEPS_PREFIX)/SoundTouch && \
-	patch -Np1<$(BUILD_MISCDIR)/SoundTouch-AVX-patches.patch && \
-	$(SED) -i -e 's|MAX_BPM_VALID 190|MAX_BPM_VALID 1000|' -e 's|MAX_BPM_RANGE 200|MAX_BPM_RANGE 300|' include/BPMDetect.h && \
-	PKG_CONFIG="$(PKG_CONFIG)" LDFLAGS="$(LDFLAGS)" CC="$(CC)" CXX="$(CXX)" \
-	$(CMAKE_CONF_PFX) $(CMAKE) -S . -B build -G "$(CMAKE_GEN)" \
-		-D CMAKE_BUILD_TYPE="$(if $(ENABLE_DEBUG),Debug,Release)" \
-		-D CMAKE_INSTALL_PREFIX="$(DEPS_PREFIX)" \
-		-D CMAKE_SYSTEM_NAME="$(CMAKE_SYSTEM_NAME)" \
-		-D CMAKE_SYSTEM_PROCESSOR="$(host_cpu)" \
-		-D CMAKE_C_COMPILER="$(CC)" \
-		-D CMAKE_C_FLAGS_RELEASE="$(CFLAGS) -DST_NO_EXCEPTION_HANDLING" \
-		-D CMAKE_C_FLAGS_DEBUG="$(CFLAGS) -DST_NO_EXCEPTION_HANDLING" \
-		-D CMAKE_CXX_COMPILER="$(CXX)" \
-		-D CMAKE_CXX_FLAGS_RELEASE="$(CXXFLAGS) -DST_NO_EXCEPTION_HANDLING" \
-		-D CMAKE_CXX_FLAGS_DEBUG="$(CXXFLAGS) -DST_NO_EXCEPTION_HANDLING" \
-		$(CMAKERCOPT) $(CMAKEIDOPT) \
-		$(CMAKE_AR_RANLIB_FLAGS) \
-		-D SOUNDSTRETCH=OFF \
-		-D SOUNDTOUCH_DLL=OFF \
-		-D OPENMP=OFF \
-		-D BUILD_SHARED_LIBS="$(if $(STATICBUILD),OFF,ON)" && \
-	$(CMAKE) --build build "$(CMAKEPAROPT)" && \
-	$(CMAKE) --install build
-	rm -rf $(DEPS_PREFIX)/lib/*SoundTouch$(if $(STATICBUILD),$(DLLEXT),.a)*
-	$(PKG_CONFIG) --env-only --modversion --print-errors soundtouch
-	touch $@
-INSTALL_LIB_DEPS += $(DEPS_PREFIX)/SoLoud-$(SOLOUD_VERSION).built $(DEPS_PREFIX)/SoundTouch-$(SOUNDTOUCH_VERSION).built
+INSTALL_LIB_DEPS += $(DEPS_PREFIX)/SoLoud-$(SOLOUD_VERSION).built
 endif # USE_SOLOUD
 
 if USE_DISCORDRPC
@@ -1377,7 +1342,6 @@ BUILT_SOURCES := \
 	$(DEPS_PREFIX)/freetype-$(FREETYPE2_VERSION).built \
 	$(DEPS_PREFIX)/glm-$(GLM_VERSION).built \
 	$(DEPS_PREFIX)/SoLoud-$(SOLOUD_VERSION).built \
-	$(DEPS_PREFIX)/SoundTouch-$(SOUNDTOUCH_VERSION).built \
 	$(DEPS_PREFIX)/mpg123-$(MPG123_VERSION).built \
 	$(DEPS_PREFIX)/discord-rpc-$(DISCORDRPC_COMMIT).built \
 	$(DEPS_PREFIX)/liblzma-$(LZMA_VERSION).built \
@@ -1688,7 +1652,6 @@ if USE_BASS
 endif
 if USE_SOLOUD
 	$(if $(STATICBUILD),,@$(CP_INSTALL) "$(SOLOUD_PREFIX)/lib"/*$(LIBPREFIX)soloud*$(DLLEXT)* "$(DESTDIR)$(bindir)/$(LIBDEST)")
-	$(if $(STATICBUILD),,@$(CP_INSTALL) "$(SOUNDTOUCH_PREFIX)/lib"/*$(LIBPREFIX)SoundTouch*$(DLLEXT)* "$(DESTDIR)$(bindir)/$(LIBDEST)")
 if USE_FFMPEG
 	@find $(DEPS_PREFIX)/lib $(DEPS_PREFIX)/bin '(' -name '*avutil*' -o -name '*avcodec*' -o -name '*avformat*' -o -name '*swresample*' -o -name '*swscale*' ')' -a '(' -name '*'$(DLLEXT) -o -name '*.so.*' ')' -exec $(CP_INSTALL) '{}' "$(DESTDIR)$(bindir)/" ';' 2>/dev/null || true
 endif

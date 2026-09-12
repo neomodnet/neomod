@@ -5,7 +5,6 @@
 #ifdef MCENGINE_FEATURE_SOLOUD
 #include "SoLoudSound.h"
 
-#include "SoLoudFX.h"
 #include "SoLoudSoundEngine.h"
 
 #include "ConVar.h"
@@ -15,8 +14,42 @@
 #include "Logging.h"
 #include "Timing.h"
 
+#include "soloud.h"
 #include "soloud_file.h"
 #include "soloud_wav.h"
+#include "soloud_wavstream.h"
+
+#include <algorithm>
+#include <cmath>
+#include <utility>
+
+// streams need the voice's built-in time-stretch stage (setTempo/setPitchShift)
+static_assert(SOLOUD_VERSION >= 202609, "neomod needs a neoloud with the built-in time-stretch stage");
+
+namespace {
+// the stage's priming buffer and per-seek decoding grow with the tempo, so past this the resampler carries the rest of
+// the speed (and the pitch stops being compensated)
+constexpr float MAX_TEMPO = 4.f;
+
+// WavStream::mFiletype as a name, for the debug log
+const char *decoderName(SoLoud::WAVSTREAM_FILETYPE filetype) {
+    switch(filetype) {
+        case SoLoud::WAVSTREAM_WAV:
+            return "dr_wav";
+        case SoLoud::WAVSTREAM_OGG:
+            return "dr_ogg";
+        case SoLoud::WAVSTREAM_FLAC:
+            return "dr_flac";
+        case SoLoud::WAVSTREAM_MPG123:
+            return "libmpg123";
+        case SoLoud::WAVSTREAM_DRMP3:
+            return "dr_mp3";
+        case SoLoud::WAVSTREAM_FFMPEG:
+            return "ffmpeg";
+    }
+    return "unknown";
+}
+}  // namespace
 
 SoLoudSound::SoLoudSound(std::string filepath, bool stream, bool overlayable, bool loop)
     : Sound(std::move(filepath), stream, overlayable, loop) {}
@@ -38,12 +71,20 @@ void SoLoudSound::initAsync() {
     // clean up any previous instance
     this->audioSource.reset();
 
+    // both source types read the whole file into memory up front (streams are decoded from there), so it doesn't have
+    // to stay open, and the wide path conversion happens once in fopen_c
+    SoLoud::DiskFile df(File::fopen_c(this->sFilePath.c_str(), "rb"));
+    if(!df.getFilePtr()) {
+        debugLog("Sound Error: couldn't open file {:s}", this->sFilePath);
+        return;
+    }
+
     // create the appropriate audio source based on streaming flag
     SoLoud::result result = SoLoud::SO_NO_ERROR;
     if(this->bStream) {
-        // use SLFXStream for streaming audio (music, etc.) includes rate/pitch processing like BASS_FX_TempoCreate
-        auto *stream = new SoLoud::SLFXStream(cv::snd_soloud_prefer_ffmpeg.getInt() > 0);
-        result = stream->loadToMem(this->sFilePath.c_str());
+        // use WavStream for streaming audio (music, etc.), the voice's time-stretch stage handles speed/pitch changes
+        auto *stream = new SoLoud::WavStream(cv::snd_soloud_prefer_ffmpeg.getInt() > 0);
+        result = stream->loadFileToMem(&df);
 
         if(result == SoLoud::SO_NO_ERROR) {
             this->audioSource.reset(stream);
@@ -53,27 +94,17 @@ void SoLoudSound::initAsync() {
                 true, false);  // keep ticking the sound if it goes to 0 volume, and don't kill it
 
             logIfCV(debug_snd,
-                    "SoLoudSound: Created SLFXStream for {:s} with speed={:f}, pitch={:f}, looping={:s}, "
-                    "decoder={:s}",
+                    "SoLoudSound: Created WavStream for {:s} with speed={:f}, pitch={:f}, looping={:s}, decoder={:s}",
                     this->sFilePath, this->fSpeed, this->fPitch, this->bIsLooped ? "true" : "false",
-                    stream->getDecoder());
+                    decoderName(stream->mFiletype));
         } else {
             delete stream;
-            debugLog("Sound Error: SLFXStream::load() error {} on file {:s}", result, this->sFilePath);
+            debugLog("Sound Error: SoLoud::WavStream::loadFileToMem() error {} on file {:s}", result, this->sFilePath);
             return;
         }
     } else {
-        SoLoud::DiskFile df(File::fopen_c(this->sFilePath.c_str(), "rb"));
-
-        if(!df.getFilePtr()) {  // fopen failed
-            debugLog("Sound Error: SoLoud::Wav::load() error {} on file {:s}", result, this->sFilePath);
-            return;
-        }
-
         // use Wav for non-streaming audio (hit sounds, effects, etc.)
         auto *wav = new SoLoud::Wav(cv::snd_soloud_prefer_ffmpeg.getInt() > 1);
-        // the file's contents are immediately read into an internal buffer, so we don't have to leave it open
-        // this is untrue for streams, but the SLFXStream wrapper handles wide path conversion internally
         result = wav->loadFile(&df);
 
         if(result == SoLoud::SO_NO_ERROR) {
@@ -84,7 +115,7 @@ void SoLoudSound::initAsync() {
                 true, true);  // keep ticking the sound if it goes to 0 volume, but do kill it if necessary
         } else {
             delete wav;
-            debugLog("Sound Error: SoLoud::Wav::load() error {} on file {:s}", result, this->sFilePath);
+            debugLog("Sound Error: SoLoud::Wav::loadFile() error {} on file {:s}", result, this->sFilePath);
             return;
         }
     }
@@ -98,19 +129,23 @@ void SoLoudSound::initAsync() {
 
 SOUNDHANDLE SoLoudSound::getHandle() { return this->handle; }
 
-// the engine describes a voice as a stream of mBaseSamplerate frames per second of source audio, played at the
-// relative play speed: seek targets and getStreamPosition() are source seconds, and the position advances by what
-// the resampler consumes. SoundTouch's output at tempo T already covers T source frames per frame, so the voice's
-// base rate is the file rate over the tempo, and the frequency (sample rate) override is just a further speed
-// multiplier on top of fSpeed
+// a voice plays its source through the resampler (relative play speed: speed and pitch together) and, once engaged,
+// through the time-stretch stage (tempo with the pitch kept, plus an independent pitch shift). with pitch compensation
+// the stage carries the speed and the pitch and the resampler only applies the frequency override, without it the
+// resampler carries everything. the engine's position accounting covers both, so getStreamPosition() is exact at any
+// speed, there is no latency to model and nothing to re-seek when the speed changes
 void SoLoudSound::applyVoiceRate() {
     if(!this->bStream || !this->audioSource || !this->handle) return;
 
-    const float baseRate = this->audioSource->mBaseSamplerate;
-    const float tempo = static_cast<SoLoud::SLFXStream *>(this->audioSource.get())->getSpeedFactor();
+    const bool compensatePitch = cv::snd_speed_compensate_pitch.getBool();
+    const float tempo = compensatePitch ? std::min(this->fSpeed, MAX_TEMPO) : 1.f;
+    // Sound's pitch is on BASS_FX's scale (1.0 = unchanged, 1/60 per semitone), the stage takes a frequency factor
+    const float pitchShift = compensatePitch ? std::exp2((this->fPitch - 1.f) * 60.f / 12.f) : 1.f;
 
-    soloud->setSamplerate(this->handle, baseRate / tempo);
-    soloud->setRelativePlaySpeed(this->handle, this->fSpeed * this->fFrequency / baseRate);
+    soloud->setTempo(this->handle, tempo);
+    soloud->setPitchShift(this->handle, pitchShift);
+    soloud->setRelativePlaySpeed(this->handle,
+                                 (this->fSpeed / tempo) * this->fFrequency / this->audioSource->mBaseSamplerate);
 }
 
 void SoLoudSound::destroy() {
@@ -180,38 +215,15 @@ void SoLoudSound::setSpeed(float speed) {
 
     speed = std::clamp<float>(speed, 0.05f, 50.0f);
 
-    auto *filteredStream = static_cast<SoLoud::SLFXStream *>(this->audioSource.get());
+    const float previousSpeed = std::exchange(this->fSpeed, speed);
 
-    const float previousSpeed = this->fSpeed;
-    this->fSpeed = speed;
-
-    // with pitch compensation SoundTouch time-stretches and the voice plays its output as-is, without it SoundTouch
-    // passes the audio through and the voice resamples it (so the pitch follows the speed)
-    const bool compensatePitch = cv::snd_speed_compensate_pitch.getBool();
-    const float tempo = compensatePitch ? speed : 1.f;
-    const bool tempoChanged = filteredStream->getSpeedFactor() != tempo;
-    if(!tempoChanged && speed == previousSpeed) return;
-
-    // make sure the filter pitch is reset as well for uncompensated playback
-    if(!compensatePitch && filteredStream->getPitchFactor() != 1.f) this->setPitch(1.f);
-
-    if(tempoChanged) {
-        // SoundTouch and the voice still hold audio at the old tempo, which the voice's position accounting can't
-        // tell apart from the new one (see applyVoiceRate). re-seeking to the frame that was about to play drops it
-        // and applies the new tempo from the first sample after the seek (see SoundTouchFilterInstance::reSynchronize)
-        const double position = soloud->getStreamPosition(this->handle);
-        filteredStream->setSpeedFactor(tempo);
-        this->applyVoiceRate();
-        soloud->seek(this->handle, position);
-
-        this->force_sync_position_next = true;
-        this->interpolator.reset(position, Timing::getTimeReal(), speed);
-    } else {
-        this->applyVoiceRate();
-    }
+    // always pushed, since the speed can stay the same while snd_speed_compensate_pitch changed (unchanged values are
+    // free to re-apply, only toggling the compensation costs a seek to drop/re-engage the stage). the voice's position
+    // stays continuous through a tempo change, so nothing else needs resetting
+    this->applyVoiceRate();
 
     logIfCV(debug_snd, "SoLoudSound: Speed change ({:s}compensated pitch) {:s}: {:f}->{:f}",
-            compensatePitch ? "" : "un-", this->sFilePath, previousSpeed, speed);
+            cv::snd_speed_compensate_pitch.getBool() ? "" : "un-", this->sFilePath, previousSpeed, speed);
 }
 
 void SoLoudSound::setPitch(float pitch) {
@@ -226,18 +238,11 @@ void SoLoudSound::setPitch(float pitch) {
 
     pitch = std::clamp<float>(pitch, 0.0f, 2.0f);
 
-    auto *filteredStream = static_cast<SoLoud::SLFXStream *>(this->audioSource.get());
+    const float previousPitch = std::exchange(this->fPitch, pitch);
+    this->applyVoiceRate();
 
-    // this should technically be == fPitch, but get it/update it from the source directly just in case
-    const float previousPitch = (this->fPitch = filteredStream->getPitchFactor());
-    if(previousPitch != pitch) {
-        this->fPitch = pitch;
-
-        // update the SLFXStream parameters
-        filteredStream->setPitchFactor(this->fPitch);
-
-        logIfCV(debug_snd, "SoLoudSound: Pitch change {:s}: {:f}->{:f}", this->sFilePath, previousPitch, this->fPitch);
-    }
+    if(previousPitch != pitch)
+        logIfCV(debug_snd, "SoLoudSound: Pitch change {:s}: {:f}->{:f}", this->sFilePath, previousPitch, pitch);
 }
 
 void SoLoudSound::setFrequency(float frequency) {
@@ -282,13 +287,6 @@ void SoLoudSound::setLoop(bool loop) {
     if(this->handle != 0) {
         soloud->setLooping(this->handle, loop);
     }
-}
-
-i32 SoLoudSound::getRateBasedStreamDelayMS() const {
-    if(!this->isReady() || !this->bStream || !this->audioSource) return 0;
-
-    const auto *strm = static_cast<SoLoud::SLFXStream *>(this->audioSource.get());
-    return static_cast<i32>(std::round(strm->getInternalLatency() * 1000.0));
 }
 
 u64 SoLoudSound::getPositionUS() const {
@@ -372,7 +370,7 @@ double SoLoudSound::getStreamPositionInSeconds() const {
 double SoLoudSound::getSourceLengthInSeconds() const {
     if(!this->audioSource) return 0.0;
     if(this->bStream)
-        return static_cast<SoLoud::SLFXStream *>(this->audioSource.get())->getLength();
+        return static_cast<SoLoud::WavStream *>(this->audioSource.get())->getLength();
     else
         return static_cast<SoLoud::Wav *>(this->audioSource.get())->getLength();
 }

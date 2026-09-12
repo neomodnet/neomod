@@ -815,8 +815,6 @@ FFMPEG_VERSION
 GLM_VERSION
 MIMALLOC_PREFIX
 MIMALLOC_VERSION
-SOUNDTOUCH_PREFIX
-SOUNDTOUCH_VERSION
 SOLOUD_PREFIX
 SOLOUD_VERSION
 VKD3D_LIBS
@@ -12137,7 +12135,7 @@ then :
         # CXXFLAGS="$CXXFLAGS -D_GLIBCXX_DEBUG"
 
 fi
-    # assertions breaks in a couple places due to calling malloc/free in the soloud mixer (inside SoundTouch)
+    # assertions breaks in a couple places due to calling malloc/free in the soloud mixer
     # hopefully it's not fatal to ignore...
     # AS_IF([test -n "$WASM_CC"], [
     #     NEOMOD_COMPFLAGS="$NEOMOD_COMPFLAGS -sASSERTIONS"
@@ -15213,13 +15211,9 @@ CTRE_MIN_VERSION=3.10.0 # regex support that doesn't have exceptions FORCED enab
 CTRE_BUILD_VERSION=6225211806c48230e5d17a1e555ef69e7325051c # git as of Jan 28th, 2026
 
 # always build these from source if we want to use them
-SOLOUD_VERSION=a92bd051d1edb7bc104288706e83127bdb2d8732
+SOLOUD_VERSION=4abbb9ba689cd3bc001158fda605959dccfcd71a
  # neoloud fork
 SOLOUD_PREFIX=$DEPS_PREFIX
-
-SOUNDTOUCH_VERSION=b8e2a5f3f04483691962ab1a36ffa166abdcd675
-
-SOUNDTOUCH_PREFIX=$DEPS_PREFIX
 
 MIMALLOC_VERSION=v3.4.5
 
