@@ -11,6 +11,7 @@
 #include "SyncOnce.h"
 
 #include <algorithm>
+#include <cmath>
 
 #include "soloud_error.h"
 #include "soloud_wavstream.h"
@@ -325,9 +326,6 @@ SoundTouchFilterInstance::SoundTouchFilterInstance(SLFXStream *aParent)
             mChannels = mParent->mChannels;
             mBaseSamplerate = mParent->mBaseSamplerate;
             mFlags = mParent->mFlags;
-            mSetRelativePlaySpeed = mParent->mSpeedFactor;
-            mOverallRelativePlaySpeed = mParent->mSpeedFactor;
-
             ST_DEBUG_LOG("SoundTouchFilterInstance: Creating with {:d} channels at {:f} Hz, mFlags={:x}", mChannels,
                          mBaseSamplerate, mFlags);
 
@@ -463,40 +461,7 @@ unsigned int SoundTouchFilterInstance::getAudio(float *aBuffer, unsigned int aSa
             mSoundTouch->getInputOutputSampleRatio());
 
     // update SoundTouch parameters if they've changed, after the last getAudio chunk has played out with the old speed
-    bool updatePitchOrSpeed = false;
-    const bool compensatePitch = cv::snd_speed_compensate_pitch.getBool();
-    {
-        Sync::scoped_lock lock{mSettingUpdateMutex};
-        if(mNeedsSettingUpdate || (mSetRelativePlaySpeed != mOverallRelativePlaySpeed) ||
-           (compensatePitch && (mSetRelativePlaySpeed != mSoundTouchSpeed))) {
-            updatePitchOrSpeed = true;
-            mNeedsSettingUpdate = false;
-        }
-    }
-
-    if(updatePitchOrSpeed) {
-        ST_DEBUG_LOG("(Deferred) Updating speed: {:f}->{:f}, pitch: {:f}->{:f}", mSoundTouchSpeed,
-                     mParent->mSpeedFactor, mSoundTouchPitch, mParent->mPitchFactor);
-
-        mSoundTouchSpeed = mParent->mSpeedFactor;
-        mSoundTouchPitch = mParent->mPitchFactor;
-
-        // actually update the parameters
-        mSoundTouch->setTempo(mSoundTouchSpeed);
-        // convert to semitones
-        float pitchSemitones = (mSoundTouchPitch - 1.0f) * 60.0f;
-        mSoundTouch->setPitchSemiTones(pitchSemitones);
-
-        // SoLoud AudioStreamInstance inherited, allows the main SoLoud mixer to advance the mStreamPosition by the correct proportional amount
-        if(compensatePitch) {
-            mSetRelativePlaySpeed = mOverallRelativePlaySpeed = mSoundTouchSpeed;
-        } else if(mSoundTouchSpeed != 1.f) {
-            // this should not be possible here
-            debugLog("DEBUG: we are not compensating pitch, but mSoundTouchSpeed ({}) != 1.0!", mSoundTouchSpeed);
-        }
-
-        updateSTLatency();
-    }
+    applySettingUpdate();
 
     if(logThisCall) ST_DEBUG_LOG("=== End of getAudio [{:}] ===", mProcessingCounter);
 
@@ -557,6 +522,30 @@ void SoundTouchFilterInstance::requestSettingUpdate(float speed, float pitch) {
     if(mSoundTouchSpeed != speed || mSoundTouchPitch != pitch) mNeedsSettingUpdate = true;
 }
 
+void SoundTouchFilterInstance::applySettingUpdate() {
+    if(!mSoundTouch) return;
+
+    {
+        Sync::scoped_lock lock{mSettingUpdateMutex};
+        if(!mNeedsSettingUpdate) return;
+        mNeedsSettingUpdate = false;
+    }
+
+    ST_DEBUG_LOG("(Deferred) Updating speed: {:f}->{:f}, pitch: {:f}->{:f}", mSoundTouchSpeed, mParent->mSpeedFactor,
+                 mSoundTouchPitch, mParent->mPitchFactor);
+
+    mSoundTouchSpeed = mParent->mSpeedFactor;
+    mSoundTouchPitch = mParent->mPitchFactor;
+
+    // actually update the parameters
+    mSoundTouch->setTempo(mSoundTouchSpeed);
+    // convert to semitones
+    float pitchSemitones = (mSoundTouchPitch - 1.0f) * 60.0f;
+    mSoundTouch->setPitchSemiTones(pitchSemitones);
+
+    updateSTLatency();
+}
+
 time SoundTouchFilterInstance::getInternalLatency() const { return mSTLatencySeconds.load(std::memory_order_acquire); }
 
 void SoundTouchFilterInstance::ensureBufferSize(unsigned int samples) {
@@ -607,10 +596,17 @@ unsigned int SoundTouchFilterInstance::feedSoundTouch(unsigned int targetBufferL
     ensureBufferSize(chunkSize);
     ensureInterleavedBufferSize(chunkSize);
 
-    constexpr const unsigned int MAX_CHUNKS = 32;
+    // bound the work per call by the input that could possibly be needed:
+    // - priming SoundTouch (it outputs nothing before mSTInitialLatency input samples, e.g. right after a seek cleared it),
+    // - the input for the requested output,
+    // - and a chunk of slack.
+    const unsigned int maxInputSamples =
+        mSTInitialLatency +
+        static_cast<unsigned int>(std::ceil(targetBufferLevel / mSoundTouch->getInputOutputSampleRatio())) + chunkSize;
+    unsigned int samplesFed = 0;
     unsigned int chunksProcessed = 0;
 
-    while(currentSamples < targetBufferLevel && !mSourceInstance->hasEnded() && chunksProcessed < MAX_CHUNKS) {
+    while(currentSamples < targetBufferLevel && !mSourceInstance->hasEnded() && samplesFed < maxInputSamples) {
         unsigned int samplesRead = mSourceInstance->getAudio(mBuffer.mData, chunkSize, mBufferSize);
 
         if(samplesRead == 0)  // no more data available
@@ -630,6 +626,7 @@ unsigned int SoundTouchFilterInstance::feedSoundTouch(unsigned int targetBufferL
         mSoundTouch->putSamples(mInterleavedBuffer.mData, samplesRead);
 
         currentSamples = mSoundTouch->numSamples();
+        samplesFed += samplesRead;
         chunksProcessed++;
 
         if(logThis) ST_DEBUG_LOG("After chunk {:}: SoundTouch has {:} samples", chunksProcessed, currentSamples);
@@ -682,18 +679,16 @@ void SoundTouchFilterInstance::updateSTLatency() {
 }
 
 void SoundTouchFilterInstance::reSynchronize() {
-    // clear SoundTouch buffers to reset its internal state
+    // clear SoundTouch buffers to reset its internal state, and apply a pending speed/pitch change right away
     if(mSoundTouch) {
         mSoundTouch->clear();
-        updateSTLatency();
+        applySettingUpdate();
     }
 
     if(mSourceInstance) {
-        // update the position tracking. without this, SoLoud wouldn't know that "we" (as in, this voice handle) has manually had its stream position/time changed
-        // like on seek/rewind. normally, mStreamPosition and mStreamTime are advanced by SoLoud in the internal mixing function for all voices, so we only have to
-        // take care to manually update it when seek/rewind are performed on the underlying stream.
+        // the engine points mStreamPosition at the source's read cursor before a seek and expects it to be left at
+        // the new position afterwards (see Soloud::seek), which for us is wherever the source stream actually landed
         mStreamPosition = mSourceInstance->mStreamPosition;
-        mStreamTime = mSourceInstance->mStreamTime;
     }
 }
 

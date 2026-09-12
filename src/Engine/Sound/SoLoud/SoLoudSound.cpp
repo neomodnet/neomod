@@ -98,6 +98,21 @@ void SoLoudSound::initAsync() {
 
 SOUNDHANDLE SoLoudSound::getHandle() { return this->handle; }
 
+// the engine describes a voice as a stream of mBaseSamplerate frames per second of source audio, played at the
+// relative play speed: seek targets and getStreamPosition() are source seconds, and the position advances by what
+// the resampler consumes. SoundTouch's output at tempo T already covers T source frames per frame, so the voice's
+// base rate is the file rate over the tempo, and the frequency (sample rate) override is just a further speed
+// multiplier on top of fSpeed
+void SoLoudSound::applyVoiceRate() {
+    if(!this->bStream || !this->audioSource || !this->handle) return;
+
+    const float baseRate = this->audioSource->mBaseSamplerate;
+    const float tempo = static_cast<SoLoud::SLFXStream *>(this->audioSource.get())->getSpeedFactor();
+
+    soloud->setSamplerate(this->handle, baseRate / tempo);
+    soloud->setRelativePlaySpeed(this->handle, this->fSpeed * this->fFrequency / baseRate);
+}
+
 void SoLoudSound::destroy() {
     if(!this->isAsyncReady()) {
         this->interruptLoad();
@@ -167,32 +182,36 @@ void SoLoudSound::setSpeed(float speed) {
 
     auto *filteredStream = static_cast<SoLoud::SLFXStream *>(this->audioSource.get());
 
-    const float filteredSpeed = filteredStream->getSpeedFactor();
     const float previousSpeed = this->fSpeed;
     this->fSpeed = speed;
 
-    if(cv::snd_speed_compensate_pitch.getBool()) {
-        if(speed != filteredSpeed) {
-            // update the SLFXStream parameters
-            filteredStream->setSpeedFactor(speed);
-            logIfCV(debug_snd, "SoLoudSound: Speed change (compensated pitch) {:s}: {:f}->{:f}", this->sFilePath,
-                    previousSpeed, speed);
-        }
+    // with pitch compensation SoundTouch time-stretches and the voice plays its output as-is, without it SoundTouch
+    // passes the audio through and the voice resamples it (so the pitch follows the speed)
+    const bool compensatePitch = cv::snd_speed_compensate_pitch.getBool();
+    const float tempo = compensatePitch ? speed : 1.f;
+    const bool tempoChanged = filteredStream->getSpeedFactor() != tempo;
+    if(!tempoChanged && speed == previousSpeed) return;
+
+    // make sure the filter pitch is reset as well for uncompensated playback
+    if(!compensatePitch && filteredStream->getPitchFactor() != 1.f) this->setPitch(1.f);
+
+    if(tempoChanged) {
+        // SoundTouch and the voice still hold audio at the old tempo, which the voice's position accounting can't
+        // tell apart from the new one (see applyVoiceRate). re-seeking to the frame that was about to play drops it
+        // and applies the new tempo from the first sample after the seek (see SoundTouchFilterInstance::reSynchronize)
+        const double position = soloud->getStreamPosition(this->handle);
+        filteredStream->setSpeedFactor(tempo);
+        this->applyVoiceRate();
+        soloud->seek(this->handle, position);
+
+        this->force_sync_position_next = true;
+        this->interpolator.reset(position, Timing::getTimeReal(), speed);
     } else {
-        const float soloudSpeed = soloud->getRelativePlaySpeed(this->handle);
-        if(filteredSpeed != 1.f) {
-            // make sure the filter speed/pitch is reset, set the relative play speed directly for uncompensated playback
-            filteredStream->setSpeedFactor(1.f);
-            this->setPitch(1.f);
-        }
-
-        if(speed != soloudSpeed) {
-            soloud->setRelativePlaySpeed(this->handle, speed);
-
-            logIfCV(debug_snd, "SoLoudSound: Speed change (un-compensated pitch) {:s}: {:f}->{:f}", this->sFilePath,
-                    previousSpeed, speed);
-        }
+        this->applyVoiceRate();
     }
+
+    logIfCV(debug_snd, "SoLoudSound: Speed change ({:s}compensated pitch) {:s}: {:f}->{:f}",
+            compensatePitch ? "" : "un-", this->sFilePath, previousSpeed, speed);
 }
 
 void SoLoudSound::setPitch(float pitch) {
@@ -229,12 +248,13 @@ void SoLoudSound::setFrequency(float frequency) {
     this->fFrequency =
         (frequency > 99.0f ? std::clamp<float>(frequency, 100.0f, 100000.0f) : this->audioSource->mBaseSamplerate);
 
-    logIfCV(debug_snd, "SoLoudSound: Freq change {:s}: {:f}->{:f} (base: {} speed: {} effective: {})", this->sFilePath,
-            previousFreq, this->fFrequency, this->audioSource->mBaseSamplerate, this->fSpeed,
-            this->fFrequency / this->fSpeed);
+    logIfCV(debug_snd, "SoLoudSound: Freq change {:s}: {:f}->{:f} (base: {} speed: {})", this->sFilePath, previousFreq,
+            this->fFrequency, this->audioSource->mBaseSamplerate, this->fSpeed);
 
-    // need to account for speed
-    soloud->setSamplerate(this->handle, this->fFrequency / this->fSpeed);
+    if(this->bStream)
+        this->applyVoiceRate();
+    else
+        soloud->setSamplerate(this->handle, this->fFrequency);
 }
 
 void SoLoudSound::setPan(float pan) {

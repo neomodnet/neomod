@@ -70,6 +70,8 @@ private:
 	void updateSTLatency();
 
 	void requestSettingUpdate(float speed, float pitch);
+	// apply a requested speed/pitch change to SoundTouch (only with the audio mutex held, i.e. from getAudio or a seek)
+	void applySettingUpdate();
 
 	// member variables
 	SLFXStream *mParent;                                  // parent filter

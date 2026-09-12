@@ -61,6 +61,9 @@ class SoLoudSound final : public Sound {
    private:
     SOUNDHANDLE getHandle();
 
+    // push the sound's speed/frequency and the SoundTouch tempo onto the active voice (streams only)
+    void applyVoiceRate();
+
     // helpers to access Wav/SLFXStream internals
     [[nodiscard]] double getSourceLengthInSeconds() const;
     [[nodiscard]] double getStreamPositionInSeconds() const;

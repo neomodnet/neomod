@@ -292,6 +292,8 @@ bool SoLoudSoundEngine::playSound(SoLoudSound *soloudSound, f32 pan, f32 pitch, 
         // FIXME: sanity reset for streams
         soloudSound->setPitch(pitch);
         soloudSound->setPan(pan);
+        // the new voice starts at the engine defaults (file rate, speed 1)
+        soloudSound->applyVoiceRate();
 
         logIf(debug, "SoLoudSoundEngine: {} streaming audio through SLFXStream with speed={:f}, pitch={:f}",
               startPaused ? "enqueuing" : "playing", soloudSound->getSpeed(), soloudSound->getPitch());
