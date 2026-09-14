@@ -67,6 +67,7 @@ release/
 .DS_Store
 
 compile_commands.json
+*.compdb
 core
 
 # NOTE: ignore these in .git/info/exclude if you want to ignore them locally

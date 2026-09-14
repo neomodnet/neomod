@@ -271,9 +271,6 @@ AC_PROG_LIB_TOOLIZE
 AC_PROG_PYTHON
 AC_SUBST([PYTHON])
 
-AC_CHECK_PROG([BEAR], [bear], [bear])
-AC_SUBST([BEAR])
-
 AC_CHECK_PROG([WINE], [wine], [wine]) # this feels stupid, but i wanna make a shortcut from outside a windows environment to add "-sound xyz" for non-default audio subsystems
 AC_SUBST([WINE])
 
@@ -762,14 +759,16 @@ __EOF__
 ], [linux-gnu], [
 
     AS_IF([test "$host_cpu" = "i686"], [
+        cc_real="$CC -m32"
+        cxx_real="$CXX -m32"
         cat > "$PWD/build/$target-$CC" <<EOF
 #!/usr/bin/env bash
-$CC -m32 "\$@"
+$cc_real "\$@"
 EOF
         chmod +x "$PWD/build/$target-$CC"
         cat > "$PWD/build/$target-$CXX" <<EOF
 #!/usr/bin/env bash
-$CXX -m32 "\$@"
+$cxx_real "\$@"
 EOF
         chmod +x "$PWD/build/$target-$CXX"
         AS_IF([test "x$enable_clang" = "xyes"], [
@@ -781,14 +780,16 @@ EOF
         NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -no-pie"
         AC_SUBST([NASMOBJ],[elf32])
     ],[
+        cc_real="$CC"
+        cxx_real="$CXX"
         cat > "$PWD/build/$target-$CC" <<EOF
 #!/usr/bin/env bash
-$CC "\$@"
+$cc_real "\$@"
 EOF
         chmod +x "$PWD/build/$target-$CC"
         cat > "$PWD/build/$target-$CXX" <<EOF
 #!/usr/bin/env bash
-$CXX "\$@"
+$cxx_real "\$@"
 EOF
         chmod +x "$PWD/build/$target-$CXX"
         AC_SUBST([NASMOBJ],[elf64])
@@ -819,6 +820,8 @@ __EOF__
 
     AC_PATH_PROG([CC_FOUND], [$CC], [], [$HOMEBREW_PREFIX/opt/llvm/bin:$PATH])
     AC_PATH_PROG([CXX_FOUND], [$CXX], [], [$HOMEBREW_PREFIX/opt/llvm/bin:$PATH])
+    cc_real="$CC_FOUND"
+    cxx_real="$CXX_FOUND"
 
     cat > "$PWD/build/$target-$CC" <<EOF
 #!/usr/bin/env bash
@@ -909,15 +912,15 @@ AS_IF([test "$SYSNAME" = "macos"],
 
 AC_CHECK_PROG([CCACHE], [ccache], [ccache])
 
-# we already set $CC and $CXX to absolute paths in the build/$arch-{$CC,$CXX} wrappers
-# for linux and macOS, so AC_PATH_PROG doesn't work for that (and isn't needed anyways)
-# this is done mostly for mingw targets so that configure --host=x86_64-w64-mingw32 --enable-clang
-# saves the full path to the llvm-mingw compiler, in case $PATH changes for future compiles
+# CC_REAL/CXX_REAL are the compilers that ccache gets to run (and that end up in compile_commands.json)
+# for linux and macOS, that's what the build/$target-{$CC,$CXX} wrappers were written around above
+# (AC_PATH_PROG can't see through those wrappers, and $CC may have picked up -std= flags since)
+# for mingw targets, save the full path (e.g. to the llvm-mingw compiler) in case $PATH changes for future compiles
 # for wasm, emconfigure sets CC/CXX to full paths already
 AS_CASE(["$host_os"],
 [linux-gnu|darwin*], [
-    AS_VAR_SET([CC_REAL], ["${CC%% *}"])
-    AS_VAR_SET([CXX_REAL], ["${CXX%% *}"])
+    AS_VAR_SET([CC_REAL], ["$cc_real"])
+    AS_VAR_SET([CXX_REAL], ["$cxx_real"])
 ], [*], [
     AS_IF([test -n "$WASM_CC"], [
         AS_VAR_SET([CC_REAL], [$CC])

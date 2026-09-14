@@ -1028,7 +1028,6 @@ AUTOHEADER = @AUTOHEADER@
 AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
 BASS_VERSION = @BASS_VERSION@
-BEAR = @BEAR@
 BROTLICOMMON_CFLAGS = @BROTLICOMMON_CFLAGS@
 BROTLICOMMON_LIBS = @BROTLICOMMON_LIBS@
 BROTLIDEC_CFLAGS = @BROTLIDEC_CFLAGS@
@@ -1962,6 +1961,14 @@ neomod_LDFLAGS := \
 # extracted maps dependency (only applicable for wasm but avoids += (slow))
 EXTRA_neomod_DEPENDENCIES := $(EXTRACTED_MAPS_DEP) $(WASM_POLYFILL_DEP)
 @WIN_PLATFORM_TRUE@neomod_LDADD = neomod_resource.o $(WINPTHREAD_LDFLAGS)
+
+# `make compile-commands`: build the objects with CC/CXX replaced by gen_compdb.py, which records each compilation in a
+# <object>.compdb fragment (kept, so later runs only build what is new; objects without one are removed first), then
+# combine the fragments into compile_commands.json and point $(top_srcdir)/.clangd at it. normal builds are unaffected.
+# run `make clean` first for a from-scratch database (e.g. after reconfiguring with different flags).
+# BUILT_SOURCES are built separately first (with the real CC/CXX), due to weird interactions with sub-makes and parallel jobs
+COMPDB_FRAGMENTS = $(addsuffix .compdb,$(PCH_OUTPUT) $(neomod_OBJECTS))
+COMPDB_RECORD = $(PYTHON) $(srcdir)/build-aux/gen_compdb.py record
 @MACOS_PLATFORM_FALSE@@WIN_PLATFORM_FALSE@LIBDEST = lib/
 @MACOS_PLATFORM_FALSE@@WIN_PLATFORM_TRUE@LIBDEST = 
 
@@ -7661,7 +7668,8 @@ maintainer-clean-am: distclean-am maintainer-clean-generic \
 
 mostlyclean: mostlyclean-am
 
-mostlyclean-am: mostlyclean-compile mostlyclean-generic
+mostlyclean-am: mostlyclean-compile mostlyclean-generic \
+	mostlyclean-local
 
 pdf: pdf-am
 
@@ -7691,9 +7699,9 @@ uninstall-am: uninstall-binPROGRAMS uninstall-local
 	install-pdf-am install-ps install-ps-am install-strip \
 	installcheck installcheck-am installdirs maintainer-clean \
 	maintainer-clean-generic maintainer-clean-local mostlyclean \
-	mostlyclean-compile mostlyclean-generic pdf pdf-am ps ps-am \
-	tags tags-am uninstall uninstall-am uninstall-binPROGRAMS \
-	uninstall-local
+	mostlyclean-compile mostlyclean-generic mostlyclean-local pdf \
+	pdf-am ps ps-am tags tags-am uninstall uninstall-am \
+	uninstall-binPROGRAMS uninstall-local
 
 .PRECIOUS: Makefile
 
@@ -8753,86 +8761,13 @@ $(neomod_OBJECTS): $(BUILT_SOURCES) $(PCH_OUTPUT) | $(EMBED_OUTPUT) $(TRANSLATIO
 # windows icon/resource things
 @WIN_PLATFORM_TRUE@neomod_resource.o: $(srcdir)/$(ASSETS_DIR)/resource.rc $(srcdir)/$(ASSETS_DIR)/neomod.manifest $(srcdir)/$(ASSETS_DIR)/icon.ico
 @WIN_PLATFORM_TRUE@	$(WINDRES) -I $(srcdir)/$(ASSETS_DIR) -i $(srcdir)/$(ASSETS_DIR)/resource.rc -o neomod_resource.o
-
-# clang's -MJ flag instead (emits compile_commands fragments) and concatenate them at the end
-# this is more reliable than bear, which gets easily confused by compiler wrappers
-@CLANG_BUILD_TRUE@compile_commands.json: mostlyclean-compile
-@CLANG_BUILD_TRUE@	$(MAKE_PFX) $(MAKE) $(AM_MAKEFLAGS) $(BUILT_SOURCES) && \
-@CLANG_BUILD_TRUE@	$(MAKE_PFX) $(MAKE) $(AM_MAKEFLAGS) 'CFLAGS=$(CFLAGS) -MJ$$@.compdb' 'CXXFLAGS=$(CXXFLAGS) -MJ$$@.compdb' $(neomod_OBJECTS) $(neomod_DEPENDENCIES) $(EXTRA_neomod_DEPENDENCIES) && \
-@CLANG_BUILD_TRUE@	$(PYTHON) $(srcdir)/build-aux/gen_compdb.py --strip-pch --delete -o $@ .
-@CLANG_BUILD_FALSE@bear-check-version:
-@CLANG_BUILD_FALSE@	@$(BEAR) --version || { echo bear is unavailable to generate a compile_commands.json, install bear && exit 1; }
-@CLANG_BUILD_FALSE@	@if [ `$(BEAR) --version | cut -d' ' -f2 | cut -d'.' -f1` -ge 4 ]; then { \
-@CLANG_BUILD_FALSE@	  echo "bear 4.0 support is broken, downgrade to bear 3.x" && exit 1; \
-@CLANG_BUILD_FALSE@	}; else { \
-@CLANG_BUILD_FALSE@	  exit 0; \
-@CLANG_BUILD_FALSE@	}; fi
-
-@CLANG_BUILD_FALSE@bear.cfg: bear-check-version
-@CLANG_BUILD_FALSE@	@(echo '{'; \
-@CLANG_BUILD_FALSE@	  echo '"compilation": {'; \
-@CLANG_BUILD_FALSE@	  echo '"compilers_to_recognize": ['; \
-@CLANG_BUILD_FALSE@	  echo '{'; \
-@CLANG_BUILD_FALSE@	  echo '"executable": "emcc"'; \
-@CLANG_BUILD_FALSE@	  echo '},'; \
-@CLANG_BUILD_FALSE@	  echo '{'; \
-@CLANG_BUILD_FALSE@	  echo '"executable": "em++"'; \
-@CLANG_BUILD_FALSE@	  echo '},'; \
-@CLANG_BUILD_FALSE@	  echo '{'; \
-@CLANG_BUILD_FALSE@	  echo '"executable": "$(CC_REAL)"'; \
-@CLANG_BUILD_FALSE@	  echo '},'; \
-@CLANG_BUILD_FALSE@	  echo '{'; \
-@CLANG_BUILD_FALSE@	  echo '"executable": "$(CXX_REAL)"'; \
-@CLANG_BUILD_FALSE@	  echo '}'; \
-@CLANG_BUILD_FALSE@	  echo '],'; \
-@CLANG_BUILD_FALSE@	  echo '"compilers_to_exclude": ["$(CXX)", "$(CC)"]'; \
-@CLANG_BUILD_FALSE@	  echo '}'; \
-@CLANG_BUILD_FALSE@	  echo '}' ) > bear.cfg
-
-# bear 4.0 is BROKEN and i have no idea what the hell it wants
-# this is what i had for future reference when it becomes unbroken
-#	  echo 'schema: "4.0"'; \
-#	  echo 'compilers:'; \
-#	  echo '  - path: $(CXX)'; \
-#	  echo '    ignore: true'; \
-#	  echo '  - path: $(CC)'; \
-#	  echo '    ignore: true'; \
-#	  echo '  - path: $(CXX_REAL)'; \
-#	  echo '    ignore: false'; \
-#	  echo '    as: $(if $(findstring yes,$(CLANG)),clang,gcc)'; \
-#	  echo '  - path: $(CC_REAL)'; \
-#	  echo '    ignore: false'; \
-#	  echo '    as: $(if $(findstring yes,$(CLANG)),clang,gcc)' ; } > bear.cfg; fi
-
-# need to manually make sure BUILT_SOURCES (dependencies) are fully built before building the main neomod objects, due to weird
-# interactions with sub-makes and parallel jobs
-# also run an extra step to exclude PCH flags
-# this is so that you avoid missing includes when it's already in the PCH and clangd then thinks it's already included
-@CLANG_BUILD_FALSE@compile_commands.json: bear.cfg mostlyclean-compile
-@CLANG_BUILD_FALSE@	$(BEAR) --config bear.cfg --append -- $(MAKE_PFX) $(MAKE) $(AM_MAKEFLAGS) $(BUILT_SOURCES) && \
-@CLANG_BUILD_FALSE@	$(BEAR) --config bear.cfg --append -- $(MAKE_PFX) $(MAKE) $(AM_MAKEFLAGS) $(neomod_OBJECTS) $(neomod_DEPENDENCIES) $(EXTRA_neomod_DEPENDENCIES) && \
-@CLANG_BUILD_FALSE@	$(SED) -i '/"-include",/{N;/"\.\/pch\.h",/d;}' $@
-
-$(abs_top_srcdir)/.clangd: compile_commands.json
-	@if [ -f $@ ]; then { \
-		if $(GREP) -q "CompilationDatabase:" $@; then { \
-			$(SED) -i 's|CompilationDatabase:.*|CompilationDatabase: $(shell $(REALPATH) --relative-to=$(abs_top_srcdir) $(CURDIR))|g' $@; \
-		}; else { \
-			echo "CompileFlags:" >> $@; \
-			echo "    CompilationDatabase: $(shell $(REALPATH) --relative-to=$(abs_top_srcdir) $(CURDIR))" >> $@; \
-		}; fi; \
-	}; else { \
-		echo "CompileFlags:" > $@; \
-		echo "    Add: [-D_CLANGD]" >> $@; \
-		echo "    BuiltinHeaders: QueryDriver" >> $@; \
-		echo "    CompilationDatabase: $(shell $(REALPATH) --relative-to=$(abs_top_srcdir) $(CURDIR))" >> $@; \
-		echo "" >> $@; \
-		echo "InlayHints:" >> $@; \
-		echo "    Enabled: No" >> $@; \
-	}; fi
-
-# `make compile-commands` to generate a compile_commands.json database
-compile-commands: $(abs_top_srcdir)/.clangd
+compile-commands:
+	@for f in $(COMPDB_FRAGMENTS); do test -f $$f || rm -f $${f%.compdb}; done
+	$(MAKE_PFX) $(MAKE) $(AM_MAKEFLAGS) $(BUILT_SOURCES) && \
+	$(MAKE_PFX) $(MAKE) $(AM_MAKEFLAGS) 'CC=$(COMPDB_RECORD) --compiler "$(CC_REAL)" -- $(CC)' 'CXX=$(COMPDB_RECORD) --compiler "$(CXX_REAL)" -- $(CXX)' \
+		$(PCH_OUTPUT) $(neomod_OBJECTS) && \
+	$(PYTHON) $(srcdir)/build-aux/gen_compdb.py --strip-pch -o compile_commands.json \
+		--clangd $(abs_top_srcdir)/.clangd --clangd-template $(srcdir)/.clangd-template $(COMPDB_FRAGMENTS)
 
 @WASM_PLATFORM_TRUE@$(DESTDIR)$(bindir)/%: % | install-dirs
 @WASM_PLATFORM_TRUE@	$(INSTALL) -Dm 644 $< $@
@@ -8987,6 +8922,9 @@ uninstall-local:
 	-rm -f $(INSTALL_STAMPS) .install-state
 
 # cleanup targets
+mostlyclean-local:
+	-rm -f $(COMPDB_FRAGMENTS)
+
 clean-local:
 	rm -rf $(builddir)/build/obj
 	rm -f $(PROGRAMS)
@@ -8996,7 +8934,7 @@ clean-deps:
 
 clean-dep-cache:
 	rm -rf $(DEPS_CACHE)
-.PHONY: clean-deps clean-dep-cache install-libs install-dirs bear-check-version FORCE
+.PHONY: clean-deps clean-dep-cache install-libs install-dirs compile-commands FORCE
 
 maintainer-clean-local: clean-deps clean-dep-cache
 

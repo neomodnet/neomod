@@ -1499,88 +1499,20 @@ neomod_resource.o: $(srcdir)/$(ASSETS_DIR)/resource.rc $(srcdir)/$(ASSETS_DIR)/n
 neomod_LDADD = neomod_resource.o $(WINPTHREAD_LDFLAGS)
 endif
 
-if CLANG_BUILD
-# clang's -MJ flag instead (emits compile_commands fragments) and concatenate them at the end
-# this is more reliable than bear, which gets easily confused by compiler wrappers
-compile_commands.json: mostlyclean-compile
+# `make compile-commands`: build the objects with CC/CXX replaced by gen_compdb.py, which records each compilation in a
+# <object>.compdb fragment (kept, so later runs only build what is new; objects without one are removed first), then
+# combine the fragments into compile_commands.json and point $(top_srcdir)/.clangd at it. normal builds are unaffected.
+# run `make clean` first for a from-scratch database (e.g. after reconfiguring with different flags).
+# BUILT_SOURCES are built separately first (with the real CC/CXX), due to weird interactions with sub-makes and parallel jobs
+COMPDB_FRAGMENTS = $(addsuffix .compdb,$(PCH_OUTPUT) $(neomod_OBJECTS))
+COMPDB_RECORD = $(PYTHON) $(srcdir)/build-aux/gen_compdb.py record
+compile-commands:
+	@for f in $(COMPDB_FRAGMENTS); do test -f $$f || rm -f $${f%.compdb}; done
 	$(MAKE_PFX) $(MAKE) $(AM_MAKEFLAGS) $(BUILT_SOURCES) && \
-	$(MAKE_PFX) $(MAKE) $(AM_MAKEFLAGS) 'CFLAGS=$(CFLAGS) -MJ$$@.compdb' 'CXXFLAGS=$(CXXFLAGS) -MJ$$@.compdb' $(neomod_OBJECTS) $(neomod_DEPENDENCIES) $(EXTRA_neomod_DEPENDENCIES) && \
-	$(PYTHON) $(srcdir)/build-aux/gen_compdb.py --strip-pch --delete -o $@ .
-else
-bear-check-version:
-	@$(BEAR) --version || { echo bear is unavailable to generate a compile_commands.json, install bear && exit 1; }
-	@if [ `$(BEAR) --version | cut -d' ' -f2 | cut -d'.' -f1` -ge 4 ]; then { \
-	  echo "bear 4.0 support is broken, downgrade to bear 3.x" && exit 1; \
-	}; else { \
-	  exit 0; \
-	}; fi
-
-bear.cfg: bear-check-version
-	@(echo '{'; \
-	  echo '"compilation": {'; \
-	  echo '"compilers_to_recognize": ['; \
-	  echo '{'; \
-	  echo '"executable": "emcc"'; \
-	  echo '},'; \
-	  echo '{'; \
-	  echo '"executable": "em++"'; \
-	  echo '},'; \
-	  echo '{'; \
-	  echo '"executable": "$(CC_REAL)"'; \
-	  echo '},'; \
-	  echo '{'; \
-	  echo '"executable": "$(CXX_REAL)"'; \
-	  echo '}'; \
-	  echo '],'; \
-	  echo '"compilers_to_exclude": ["$(CXX)", "$(CC)"]'; \
-	  echo '}'; \
-	  echo '}' ) > bear.cfg
-
-# bear 4.0 is BROKEN and i have no idea what the hell it wants
-# this is what i had for future reference when it becomes unbroken
-#	  echo 'schema: "4.0"'; \
-#	  echo 'compilers:'; \
-#	  echo '  - path: $(CXX)'; \
-#	  echo '    ignore: true'; \
-#	  echo '  - path: $(CC)'; \
-#	  echo '    ignore: true'; \
-#	  echo '  - path: $(CXX_REAL)'; \
-#	  echo '    ignore: false'; \
-#	  echo '    as: $(if $(findstring yes,$(CLANG)),clang,gcc)'; \
-#	  echo '  - path: $(CC_REAL)'; \
-#	  echo '    ignore: false'; \
-#	  echo '    as: $(if $(findstring yes,$(CLANG)),clang,gcc)' ; } > bear.cfg; fi
-
-# need to manually make sure BUILT_SOURCES (dependencies) are fully built before building the main neomod objects, due to weird
-# interactions with sub-makes and parallel jobs
-# also run an extra step to exclude PCH flags
-# this is so that you avoid missing includes when it's already in the PCH and clangd then thinks it's already included
-compile_commands.json: bear.cfg mostlyclean-compile
-	$(BEAR) --config bear.cfg --append -- $(MAKE_PFX) $(MAKE) $(AM_MAKEFLAGS) $(BUILT_SOURCES) && \
-	$(BEAR) --config bear.cfg --append -- $(MAKE_PFX) $(MAKE) $(AM_MAKEFLAGS) $(neomod_OBJECTS) $(neomod_DEPENDENCIES) $(EXTRA_neomod_DEPENDENCIES) && \
-	$(SED) -i '/"-include",/{N;/"\.\/pch\.h",/d;}' $@
-endif
-
-$(abs_top_srcdir)/.clangd: compile_commands.json
-	@if [ -f $@ ]; then { \
-		if $(GREP) -q "CompilationDatabase:" $@; then { \
-			$(SED) -i 's|CompilationDatabase:.*|CompilationDatabase: $(shell $(REALPATH) --relative-to=$(abs_top_srcdir) $(CURDIR))|g' $@; \
-		}; else { \
-			echo "CompileFlags:" >> $@; \
-			echo "    CompilationDatabase: $(shell $(REALPATH) --relative-to=$(abs_top_srcdir) $(CURDIR))" >> $@; \
-		}; fi; \
-	}; else { \
-		echo "CompileFlags:" > $@; \
-		echo "    Add: [-D_CLANGD]" >> $@; \
-		echo "    BuiltinHeaders: QueryDriver" >> $@; \
-		echo "    CompilationDatabase: $(shell $(REALPATH) --relative-to=$(abs_top_srcdir) $(CURDIR))" >> $@; \
-		echo "" >> $@; \
-		echo "InlayHints:" >> $@; \
-		echo "    Enabled: No" >> $@; \
-	}; fi
-
-# `make compile-commands` to generate a compile_commands.json database
-compile-commands: $(abs_top_srcdir)/.clangd
+	$(MAKE_PFX) $(MAKE) $(AM_MAKEFLAGS) 'CC=$(COMPDB_RECORD) --compiler "$(CC_REAL)" -- $(CC)' 'CXX=$(COMPDB_RECORD) --compiler "$(CXX_REAL)" -- $(CXX)' \
+		$(PCH_OUTPUT) $(neomod_OBJECTS) && \
+	$(PYTHON) $(srcdir)/build-aux/gen_compdb.py --strip-pch -o compile_commands.json \
+		--clangd $(abs_top_srcdir)/.clangd --clangd-template $(srcdir)/.clangd-template $(COMPDB_FRAGMENTS)
 
 # windows' loader has no concept of rpaths (so keep all built/required libs in the same level as the main exe)
 # otherwise we can tuck them away neatly in lib/ (besides ffmpeg, for self-inflicted reasons (dlopen in SoLoud, which won't find stuff in rpath))
@@ -1870,6 +1802,9 @@ endif
 	-rm -f $(INSTALL_STAMPS) .install-state
 
 # cleanup targets
+mostlyclean-local:
+	-rm -f $(COMPDB_FRAGMENTS)
+
 clean-local:
 	rm -rf $(builddir)/build/obj
 	rm -f $(PROGRAMS)
@@ -1879,7 +1814,7 @@ clean-deps:
 
 clean-dep-cache:
 	rm -rf $(DEPS_CACHE)
-.PHONY: clean-deps clean-dep-cache install-libs install-dirs bear-check-version FORCE
+.PHONY: clean-deps clean-dep-cache install-libs install-dirs compile-commands FORCE
 
 maintainer-clean-local: clean-deps clean-dep-cache
 

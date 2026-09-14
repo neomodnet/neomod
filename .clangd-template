@@ -1,4 +1,5 @@
-# Not required, but recommended for development (rename to .clangd and replace CompilationDatabase with your build subfolder)
+# Not required, but recommended for development (rename to .clangd and replace CompilationDatabase with your build subfolder,
+# or just run `make compile-commands` in your build subfolder, which does that for you)
 
 CompileFlags:
     Add: [-ferror-limit=0, -Wno-sign-compare, -Wno-c23-extensions, -D_CLANGD]
