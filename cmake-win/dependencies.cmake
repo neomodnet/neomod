@@ -88,9 +88,9 @@ set(MPG123_URL "https://github.com/madebr/mpg123/archive/${MPG123_VERSION}.tar.g
 set(MPG123_HASH "SHA512=e4ac2504d610e1660d3f2008f5a6460d1ed18d4f9658ba0a6a30c356bae6d4ed03f62947c4186b66be8749fd200a85e4ce33229aaa6126ec10fb9bd14bdabb5e")
 set_download_name("mpg123" "${MPG123_VERSION}" "${MPG123_URL}")
 
-set(SOLOUD_VERSION "4abbb9ba689cd3bc001158fda605959dccfcd71a")
+set(SOLOUD_VERSION "3192c0e7f1f90cf33889ca56c4c218b3077a4343")
 set(SOLOUD_URL "https://github.com/neomodnet/neoloud/archive/${SOLOUD_VERSION}.tar.gz")
-set(SOLOUD_HASH "SHA512=689ffd1a240a0b4fdd3e06988a439782d1bbfa6f83d5f5f6aee64b5cdd373bb519bc448e01623ea12544d4ae30a597fc47011f5b1650221d30cf65d1cec66a92")
+set(SOLOUD_HASH "SHA512=26f4309bfab91dbfbbdb4f09a639fc9264e0e8f532c33947cc79e460e7cd2c1f4fb83c3f09172bb8cf79104d3ef7a04484884ff40d8afdca0ed261fc660be85c")
 set_download_name("soloud" "${SOLOUD_VERSION}" "${SOLOUD_URL}")
 
 set(NSYNC_VERSION "1.30.0")
