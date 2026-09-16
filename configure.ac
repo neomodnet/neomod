@@ -1691,7 +1691,7 @@ CTRE_MIN_VERSION=3.10.0 # regex support that doesn't have exceptions FORCED enab
 CTRE_BUILD_VERSION=6225211806c48230e5d17a1e555ef69e7325051c # git as of Jan 28th, 2026
 
 # always build these from source if we want to use them
-AC_SUBST([SOLOUD_VERSION], [3192c0e7f1f90cf33889ca56c4c218b3077a4343]) # neoloud fork
+AC_SUBST([SOLOUD_VERSION], [519b7c64c0d5e5f0a5580db4986af30e673793f0]) # neoloud fork
 AC_SUBST([SOLOUD_PREFIX],[$DEPS_PREFIX])
 AC_SUBST([MIMALLOC_VERSION], [v3.4.5])
 AC_SUBST([MIMALLOC_PREFIX],[$DEPS_PREFIX])
