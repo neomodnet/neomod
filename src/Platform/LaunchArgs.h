@@ -50,7 +50,8 @@ enum ArgSwitch : unsigned char {
     SND_BASS,
     SND_SOLOUD,
     // startup modes
-    MODE_CONSOLE,   // -console (stdin command processing with a visible window)
+    MODE_CONSOLE,   // -console (stdin command processing with a visible window; windows: also opens a console window
+                    // for stdio, unless it was redirected)
     MODE_DIFFCALC,  // -diffcalc (run the standalone difficulty calculator tool and exit)
     MODE_TESTAPP,   // -testapp <name> (launch the given test app instead of the main game)
     MODE_MULTI,     // -multi (allow running alongside an already-running instance)

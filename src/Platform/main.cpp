@@ -30,12 +30,6 @@
 #include "environment_private.h"
 #include "AppDescriptor.h"
 
-#if defined(_WIN32)
-#include "WinDebloatDefs.h"
-#include <consoleapi2.h>  // for SetConsoleOutputCP
-#include <processenv.h>   // for GetCommandLine
-#endif
-
 #include <locale>
 #include <clocale>
 
@@ -147,10 +141,6 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 // actual main/init, called once
 MAIN_FUNC /* int argc, char *argv[] */
 {
-#if defined(_WIN32) && defined(_DEBUG)  // only debug allocates a console immediately
-    SetConsoleOutputCP(65001 /*CP_UTF8*/);
-#endif
-
 // set locale for e.g. fmt::format("{:L}") to work as expected without explicitly setting it
 #if (defined(__MINGW32__) || defined(__MINGW64__)) && defined(__GLIBCXX__)
     // MinGW's libstdc++ locale support is broken (only "C" locale works).

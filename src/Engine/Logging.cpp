@@ -14,7 +14,10 @@
 
 #ifdef MCENGINE_PLATFORM_WINDOWS
 #include "WinDebloatDefs.h"
+#include "RuntimePlatform.h"
 #include <io.h>
+// for the console ctrl handler
+#include <SDL3/SDL_events.h>
 #else
 #include <unistd.h>
 #endif
@@ -75,6 +78,23 @@ bool s_log_initialized{false};
 
 #ifdef MCENGINE_PLATFORM_WINDOWS
 bool s_created_console{false};
+// restored on shutdown, since an attached console outlives us
+UINT s_prev_console_output_cp{0};
+UINT s_prev_console_input_cp{0};
+
+// ctrl+c/ctrl+break, or the console window being closed (also logoff/shutdown)
+BOOL WINAPI console_ctrl_handler(DWORD ctrl_type) {
+    // request a normal shutdown (like SDL's SIGINT/SIGTERM handlers do on posix), instead of letting the default
+    // handler terminate the process on the spot
+    SDL_Event event{};
+    event.quit = {.type = SDL_EVENT_QUIT, .reserved = {}, .timestamp = 0 /* filled in by SDL */};
+    if(!SDL_PushEvent(&event)) return FALSE;  // no event queue (yet/anymore), fall through to the default handler
+    // for anything but ctrl+c/break, the process is terminated as soon as this returns, so stall this
+    // (system-created) thread instead; the main thread exits the process once it's done shutting down
+    // (or we get killed after the system-imposed timeout of a few seconds, whichever comes first)
+    if(ctrl_type != CTRL_C_EVENT && ctrl_type != CTRL_BREAK_EVENT) Sleep(INFINITE);
+    return TRUE;
+}
 #endif
 
 // workaround for really odd internal template decisions in spdlog...
@@ -405,23 +425,50 @@ void init(bool create_console) noexcept {
     if(s_log_initialized) return;
 
 #ifdef MCENGINE_PLATFORM_WINDOWS
-    // when the spdlog::sinks::wincolor_stdout_sink is created, it checks GetStdHandle(STD_OUTPUT_HANDLE) at initialization
-    // so, create a console, such that GetStdHandle(STD_OUTPUT_HANDLE) returns a handle to it
-    // this might be desirable on release builds, which are linked against the "windows" subsystem
-    // (which don't create a console when opening the app)
-    if(create_console && isatty(fileno(stdout)) == 0 /* don't create console if we're already in one */) {
-        // allocate a new console window
-        if((s_created_console = AllocConsole())) {
-            // redirect stdout/stderr to the new console
+    // release builds are linked against the "windows" subsystem, so they start without a console, and without any std
+    // handles at all unless the parent redirected them (e.g. `neomod -console > log.txt`, or a script piped into
+    // `neomod -headless`), which leaves stdin/stdout/stderr unusable
+    // this needs to be sorted out before the spdlog::sinks::wincolor_stdout_sink is created below, since that takes
+    // GetStdHandle(STD_OUTPUT_HANDLE) at initialization and writes to it directly
+    if(create_console) {
+        // whatever the parent set up (redirects/pipes, or inherited console handles) is left alone, a new console
+        // window is only opened if there's nothing at all
+        // (attaching to the parent's console with AttachConsole(ATTACH_PARENT_PROCESS) instead was tried and rejected:
+        // cmd doesn't wait for windows-subsystem processes, so its prompt comes back immediately and typed input is
+        // split between cmd and our stdin reader)
+        bool have_any = false;
+        for(const DWORD id : {STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE}) {
+            const HANDLE h = GetStdHandle(id);
+            have_any |= (h != nullptr && h != INVALID_HANDLE_VALUE && GetFileType(h) != FILE_TYPE_UNKNOWN);
+        }
+        if(!have_any && (s_created_console = AllocConsole())) {
+            // AllocConsole already points the std handles (which is what spdlog writes to) at the new console, but the
+            // crt streams still need to be reopened on it
             // using freopen is the simplest approach that works with both C and C++ streams
             FILE *fp = nullptr;
+            freopen_s(&fp, "CONIN$", "r", stdin);
             freopen_s(&fp, "CONOUT$", "w", stdout);
             freopen_s(&fp, "CONOUT$", "w", stderr);
 
             SetConsoleTitleW(L"" PACKAGE_NAME L" " PACKAGE_VERSION_UNCACHED L" console output");
-
-            SetConsoleOutputCP(65001 /*CP_UTF8*/);
         }
+    }
+
+    // (fails without an attached console, e.g. when everything was redirected to files/pipes)
+    if((s_prev_console_output_cp = GetConsoleOutputCP()) != 0) {
+#ifndef CP_UTF8
+#define CP_UTF8 65001
+#endif
+        // all of our output is utf-8
+        SetConsoleOutputCP(CP_UTF8);
+        // same for typed input, but reading utf-8 console input through ReadFile (which is what the crt's stdin does)
+        // was broken before windows 10: non-ascii lines came back as 0 bytes, i.e. EOF for the stdin reader
+        if(RuntimePlatform::current() & (RuntimePlatform::WIN_10 | RuntimePlatform::WIN_11)) {
+            s_prev_console_input_cp = GetConsoleCP();
+            SetConsoleCP(CP_UTF8);
+        }
+        // ctrl+c/break and closing the console window would otherwise just terminate the process
+        SetConsoleCtrlHandler(console_ctrl_handler, TRUE);
     }
 #else
     (void)create_console;  // it's not as big of a commotion on platforms outside of windows
@@ -552,6 +599,14 @@ void shutdown() noexcept {
     spdlog::shutdown();
 
 #ifdef MCENGINE_PLATFORM_WINDOWS
+    if(s_prev_console_input_cp != 0) {
+        SetConsoleCP(s_prev_console_input_cp);
+        s_prev_console_input_cp = 0;
+    }
+    if(s_prev_console_output_cp != 0) {
+        SetConsoleOutputCP(s_prev_console_output_cp);
+        s_prev_console_output_cp = 0;
+    }
     if(s_created_console) {
         FreeConsole();
         s_created_console = false;
