@@ -24,8 +24,7 @@ For an example of a GCC (Linux) build on Debian, see the [Linux](https://github.
 
 For an example of a MinGW-GCC build on Arch Linux, see the [Windows](https://github.com/neomodnet/neomod/blob/master/.github/workflows/win-multiarch.yml) Actions workflow.
 
-These should help with finding a few obscure autotools-related packages that you might not have installed.
-
+Also note: you can run the `make compile-commands` target from your build folder to set up a `compile_commands.json` database compatible with `clangd`.
 ---
 
 For debugging convenience, you can also do an **MSVC** build with **CMake** on **Windows**, by running `buildwin64.bat` in `cmake-win`. For this to work properly, a couple prerequisites you'll need:
