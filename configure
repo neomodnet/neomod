@@ -12268,6 +12268,14 @@ then :
 then :
 
             _clang_lto_flags="$_clang_lto_flags -fwhole-program-vtables"
+            # bug in llvm-mingw clang driver causes -fwhole-program-vtables to miscompile things without this additional flag
+            # clang-cl already sets this for /MT builds so it seems like an oversight
+            if test "$host_os" = "mingw32"
+then :
+
+                _clang_lto_flags="$_clang_lto_flags -Xclang -flto-visibility-public-std"
+
+fi
 
 fi
         as_CACHEVAR=`printf '%s\n' "ax_cv_check_ldflags__$_clang_lto_flags" | sed "$as_sed_sh"`

@@ -25,10 +25,10 @@ struct dummyGraphics {
 };
 dummyGraphics *g;
 
-struct Console {
-    static void execConfigFile(std::string_view /*filename*/) { ; }
-    static void clearLog() { ; }
-};
+namespace Console {
+extern void execConfigFile(std::string_view /*filename*/);
+extern void clearLog();
+}  // namespace Console
 
 namespace ConVarHandler::ConVarBuiltins {
 extern void find(std::string_view args);

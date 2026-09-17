@@ -1387,6 +1387,11 @@ AS_IF([test "x$enable_lto" != "xno"], [
         # -fwhole-program-vtables causes LTO unit splitting issues with emscripten
         AS_IF([test -z "$WASM_CC"], [
             _clang_lto_flags="$_clang_lto_flags -fwhole-program-vtables"
+            # bug in llvm-mingw clang driver causes -fwhole-program-vtables to miscompile things without this additional flag
+            # clang-cl already sets this for /MT builds so it seems like an oversight
+            AS_IF([test "$host_os" = "mingw32"], [
+                _clang_lto_flags="$_clang_lto_flags -Xclang -flto-visibility-public-std"
+            ])
         ])
         AX_CHECK_LINK_FLAG([$_clang_lto_flags], [
             CXXFLAGS="$CXXFLAGS $_clang_lto_flags"
