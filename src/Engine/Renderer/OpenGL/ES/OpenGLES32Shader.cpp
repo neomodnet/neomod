@@ -18,20 +18,6 @@
 #include "OpenGLES32Interface.h"
 #include "OpenGLStateCache.h"
 
-OpenGLES32Shader::OpenGLES32Shader(const std::string &shader, [[maybe_unused]] bool source) : Shader() {
-    SHADER_PARSE_RESULT parsedVertexShader = parseShaderFromString("OpenGLES32Interface::VertexShader", shader);
-    SHADER_PARSE_RESULT parsedFragmentShader = parseShaderFromString("OpenGLES32Interface::FragmentShader", shader);
-
-    m_sVsh = parsedVertexShader.source;
-    m_sFsh = parsedFragmentShader.source;
-
-    m_iProgram = 0;
-    m_iVertexShader = 0;
-    m_iFragmentShader = 0;
-
-    m_iProgramBackup = 0;
-}
-
 OpenGLES32Shader::OpenGLES32Shader(const std::string &vertexShader, const std::string &fragmentShader,
                                    [[maybe_unused]] bool source)
     : Shader() {
@@ -73,7 +59,7 @@ void OpenGLES32Shader::enable() {
         return;
 
     // use the state cache instead of querying gl directly
-    m_iProgramBackup = static_cast<int>(GLStateCache::getCurrentProgram());
+    m_iProgramBackup = currentProgram;
     glUseProgram(m_iProgram);
 
     // update cache
@@ -262,12 +248,9 @@ int OpenGLES32Shader::createShaderFromString(const std::string &shaderSource, in
 
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &ret);
         if(ret > 0) {
-            char *errorLog = new char[ret];
-            {
-                glGetShaderInfoLog(shader, ret, &ret, errorLog);
-                logRaw("{}", errorLog);
-            }
-            delete[] errorLog;
+            std::string errorLog(static_cast<size_t>(ret), '\0');
+            glGetShaderInfoLog(shader, ret, &ret, errorLog.data());
+            logRaw(errorLog);
         }
 
         debugLog("-----------------------------------------------------------------");

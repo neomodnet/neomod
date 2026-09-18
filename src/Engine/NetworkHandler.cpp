@@ -539,7 +539,7 @@ struct CATrustConfig {
     }
 };
 
-const CATrustConfig &get_ca_trust() {
+const CATrustConfig& get_ca_trust() {
     static const CATrustConfig ca_trust{};
     return ca_trust;
 }
@@ -547,7 +547,7 @@ const CATrustConfig &get_ca_trust() {
 #endif
 
 namespace {
-int curlDebugCallback(CURL* /*handle*/, curl_infotype type, char* data, size_t size, void* /*userdata*/) {
+int debug_callback_curl(CURL* /*handle*/, curl_infotype type, char* data, size_t size, void* /*userdata*/) {
     if(!cv::debug_network.getBool()) return 0;  // no thanks
 
     // skip raw data (binary, potentially large)
@@ -576,7 +576,7 @@ void NetworkImpl::Request::setupCurlHandle() {
     // always enable verbose, filter it out in the callback if we have debug_network disabled
     // (can't easily update verbose mode for existing handles)
     this->easy_handle.setopt(CURLOPT_VERBOSE, 1L);
-    this->easy_handle.setopt(CURLOPT_DEBUGFUNCTION, curlDebugCallback);
+    this->easy_handle.setopt(CURLOPT_DEBUGFUNCTION, debug_callback_curl);
 
     this->easy_handle.setopt(CURLOPT_URL, this->url.c_str());
     this->easy_handle.setopt(CURLOPT_CONNECTTIMEOUT, this->options.connect_timeout);
@@ -618,7 +618,7 @@ void NetworkImpl::Request::setupCurlHandle() {
 #ifndef _MSC_VER
     // layered trust anchors (see CATrustConfig)
     this->easy_handle.setopt(CURLOPT_SSL_OPTIONS, static_cast<long>(CURLSSLOPT_NATIVE_CA));
-    const auto &ca_trust = get_ca_trust();
+    const auto& ca_trust = get_ca_trust();
     if(ca_trust.cainfo.empty()) {
         this->easy_handle.setopt(CURLOPT_CAINFO_BLOB, &cert_blob);
     } else {
@@ -723,7 +723,7 @@ size_t NetworkImpl::headerCallback(char* buffer, size_t size, size_t nitems, voi
         SString::trim_inplace(key);
         SString::trim_inplace(value);
 
-        request->response.headers[key] = value;
+        request->response.headers[key] = std::move(value);
     }
 
     return real_size;

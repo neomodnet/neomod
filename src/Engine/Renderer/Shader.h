@@ -55,14 +55,6 @@ class Shader : public Resource {
 
     virtual void writeUniform(std::string_view name, UniformType type, const void *const data, unsigned int dataSize) = 0;
 
-    struct SHADER_PARSE_RESULT {
-        std::string source;
-        std::vector<std::string> descs;
-    };
-
-    SHADER_PARSE_RESULT parseShaderFromString(const std::string &graphicsInterfaceAndShaderTypePrefix,
-                                              const std::string &shaderSource);
-
    private:
     // clang-format off
     static inline constexpr std::array<float, 16> initCachedMVP{

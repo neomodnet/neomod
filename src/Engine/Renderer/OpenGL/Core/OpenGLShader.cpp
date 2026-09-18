@@ -279,10 +279,9 @@ int OpenGLShader::createShaderFromString(const std::string &shaderSource, int sh
         MCglGetObjectParameteriv(shader, GL_OBJECT_INFO_LOG_LENGTH_ARB, &returnValue);
 
         if(returnValue > 0) {
-            char *errorLog = new char[returnValue];
-            MCglGetInfoLog(shader, returnValue, &returnValue, errorLog);
-            logRaw("{}", errorLog);
-            delete[] errorLog;
+            std::string errorLog(static_cast<size_t>(returnValue), '\0');
+            MCglGetInfoLog(shader, returnValue, &returnValue, errorLog.data());
+            logRaw(errorLog);
         }
 
         debugLog("--------------------------------------------------------------");

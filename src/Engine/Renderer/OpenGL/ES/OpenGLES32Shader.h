@@ -19,8 +19,7 @@
 class OpenGLES32Shader final : public Shader {
     NOCOPY_NOMOVE(OpenGLES32Shader)
    public:
-    OpenGLES32Shader(const std::string &shader, bool source);
-    OpenGLES32Shader(const std::string &vertexShader, const std::string &fragmentShader, bool source);  // DEPRECATED
+    OpenGLES32Shader(const std::string &vertexShader, const std::string &fragmentShader, bool source);
     ~OpenGLES32Shader() override { destroy(); }
 
     void enable() override;
