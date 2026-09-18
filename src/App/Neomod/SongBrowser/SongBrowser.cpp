@@ -72,6 +72,7 @@
 #include "OsuKeyBinds.h"
 
 #include <algorithm>
+#include <cmath>
 #include <memory>
 #include <charconv>
 #include <cwctype>
@@ -1129,8 +1130,30 @@ void SongBrowser::onChar(KeyboardEvent &e) {
 }
 
 void SongBrowser::onResolutionChange(vec2 newResolution) {
+    // button sizes are rounded to whole pixels for the current resolution, so relaying them out moves the content by
+    // (size delta * number of buttons above it), while the scroll position is an absolute offset into that content:
+    // keep the button closest to the carousel's center at the same relative height instead
+    const auto centerY = [](const CBaseUIElement *e) -> f64 { return e->getRelPos().y + e->getSize().y / 2; };
+
+    const CBaseUIElement *anchor = nullptr;
+    f64 anchorPct = 0.0;
+    if(const auto &elements = this->carousel->container.getElements();
+       !elements.empty() && this->carousel->getSize().y > 0) {
+        const f64 viewCenterY = this->carousel->getSize().y / 2 - this->carousel->getRelPosY();
+        anchor = *std::ranges::min_element(elements, {},
+                                           [&](const CBaseUIElement *e) { return std::abs(centerY(e) - viewCenterY); });
+        anchorPct = (centerY(anchor) + this->carousel->getRelPosY()) / this->carousel->getSize().y;
+        // a centered button was scrolled to: keep it exactly centered, the whole-pixel scroll position would
+        // otherwise let it drift over many small resizes
+        if(std::abs(anchorPct - 0.5) * this->carousel->getSize().y < 1.0) anchorPct = 0.5;
+    }
+
     CarouselButton::updateResolution();
     ScreenBackable::onResolutionChange(newResolution);
+
+    if(anchor) {
+        this->carousel->scrollToY((i32)std::round(anchorPct * this->carousel->getSize().y - centerY(anchor)), false);
+    }
 }
 
 [[nodiscard]] std::span<CBaseUIElement *const> SongBrowser::getAllChildren() const {
@@ -2135,6 +2158,8 @@ void SongBrowser::rebuildSongButtons() {
 }
 
 void SongBrowser::partiallyUpdateSongButtonLayout(const std::vector<CarouselButton *> &btns, f32 y) {
+    const f32 buttonHeight = CarouselButton::getScaledBaseSize().y;
+
     bool isSelected = false;
     bool inOpenCollection = false;
     for(auto *carouselButton : btns) {
@@ -2146,14 +2171,13 @@ void SongBrowser::partiallyUpdateSongButtonLayout(const std::vector<CarouselButt
         // give selected items & diffs a bit more spacing, to make them stand out
         if(((carouselButton->isSelected() && !isCollectionButton) || isSelected ||
             (isDiffButton && !isIndependentDiffButton)))
-            y += carouselButton->getSize().y * 0.1f;
+            y += buttonHeight * 0.1f;
 
         isSelected = carouselButton->isSelected() || (isDiffButton && !isIndependentDiffButton);
 
         // give collections a bit more spacing at start & end
-        if((carouselButton->isSelected() && isCollectionButton)) y += carouselButton->getSize().y * 0.2f;
-        if(inOpenCollection && isCollectionButton && !carouselButton->isSelected())
-            y += carouselButton->getSize().y * 0.2f;
+        if((carouselButton->isSelected() && isCollectionButton)) y += buttonHeight * 0.2f;
+        if(inOpenCollection && isCollectionButton && !carouselButton->isSelected()) y += buttonHeight * 0.2f;
         if(isCollectionButton) {
             if(carouselButton->isSelected())
                 inOpenCollection = true;

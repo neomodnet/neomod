@@ -91,6 +91,7 @@ class CarouselButton : public CBaseUIButton {
 
     // rebuildSongButtons optimizations
     static void updateResolution();
+    [[nodiscard]] static inline vec2 getScaledBaseSize() { return scaledBaseSize; }
     [[nodiscard]] bool isIndependentDiffButton() const;
 
    protected:
