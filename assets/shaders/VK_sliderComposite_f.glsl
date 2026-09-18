@@ -18,7 +18,7 @@ layout(std140, set = 3, binding = 0) uniform FragParams {
     float _pad3;
     vec3 colBody;
     float _pad4;
-};
+} fu;
 
 const float defaultTransitionSize = 0.011;
 const float defaultBorderSize = 0.11;
@@ -48,32 +48,32 @@ void main() {
     // analytically round at any tessellation density.
     float radial = texture(tex0, tex_coord).r;
 
-    float borderSize = (defaultBorderSize + borderFeather) * borderSizeMultiplier;
-    float transitionSize = defaultTransitionSize + borderFeather;
+    float borderSize = (defaultBorderSize + fu.borderFeather) * fu.borderSizeMultiplier;
+    float transitionSize = defaultTransitionSize + fu.borderFeather;
 
     // output var
     vec4 out_color = vec4(0.0);
 
     // dynamic color calculations
-    vec4 borderColor = vec4(colBorder.x, colBorder.y, colBorder.z, 1.0);
-    vec4 bodyColor = vec4(colBody.x, colBody.y, colBody.z, 0.7 * bodyAlphaMultiplier);
+    vec4 borderColor = vec4(fu.colBorder.x, fu.colBorder.y, fu.colBorder.z, 1.0);
+    vec4 bodyColor = vec4(fu.colBody.x, fu.colBody.y, fu.colBody.z, 0.7 * fu.bodyAlphaMultiplier);
     vec4 outerShadowColor = vec4(0, 0, 0, 0.25);
     vec4 innerBodyColor = getInnerBodyColor(bodyColor);
     vec4 outerBodyColor = getOuterBodyColor(bodyColor);
 
-    innerBodyColor.rgb *= bodyColorSaturation;
-    outerBodyColor.rgb *= bodyColorSaturation;
+    innerBodyColor.rgb *= fu.bodyColorSaturation;
+    outerBodyColor.rgb *= fu.bodyColorSaturation;
 
     // osu!next style color modifications
-    if (style == 1) {
-        outerBodyColor.rgb = bodyColor.rgb * bodyColorSaturation;
-        outerBodyColor.a = 1.0 * bodyAlphaMultiplier;
-        innerBodyColor.rgb = bodyColor.rgb * 0.5 * bodyColorSaturation;
+    if (fu.style == 1) {
+        outerBodyColor.rgb = bodyColor.rgb * fu.bodyColorSaturation;
+        outerBodyColor.a = 1.0 * fu.bodyAlphaMultiplier;
+        innerBodyColor.rgb = bodyColor.rgb * 0.5 * fu.bodyColorSaturation;
         innerBodyColor.a = 0.0;
     }
 
     // a bit of a hack, but better than rough edges
-    if (borderSizeMultiplier < 0.01)
+    if (fu.borderSizeMultiplier < 0.01)
         borderColor = outerShadowColor;
 
     // conditional variant
@@ -105,7 +105,7 @@ void main() {
     }
 
     // the slider's overall fade percent
-    out_color.a *= alphaMultiplier;
+    out_color.a *= fu.alphaMultiplier;
 
     outColor = out_color;
 }

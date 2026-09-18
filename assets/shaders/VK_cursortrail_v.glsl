@@ -9,10 +9,10 @@ layout(location = 1) out float vtx_alpha;
 
 layout(set = 1, binding = 0) uniform VertexUniforms {
     mat4 mvp;
-};
+} vu;
 
 void main() {
-    gl_Position = mvp * vec4(inPos.xy, 0.0, 1.0);
+    gl_Position = vu.mvp * vec4(inPos.xy, 0.0, 1.0);
     tex_coord = inTex;
     vtx_alpha = inPos.z;
 }

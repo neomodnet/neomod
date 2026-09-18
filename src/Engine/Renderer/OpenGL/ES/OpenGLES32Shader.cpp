@@ -218,10 +218,31 @@ bool OpenGLES32Shader::compile(const std::string &vertexShader, const std::strin
         return false;
     }
 
+    // the canonical uniform blocks are plain structs in this dialect, so their members are named like "fu.col";
+    // cache them under the member name so lookups match the engine's setUniform("col") names
+    GLint numUniforms = 0, maxNameLength = 0;
+    glGetProgramiv(m_iProgram, GL_ACTIVE_UNIFORMS, &numUniforms);
+    glGetProgramiv(m_iProgram, GL_ACTIVE_UNIFORM_MAX_LENGTH, &maxNameLength);
+    std::string uniformName(maxNameLength, '\0');
+    for(GLint i = 0; i < numUniforms; i++) {
+        GLsizei nameLength = 0;
+        GLint size = 0;
+        GLenum type = 0;
+        glGetActiveUniform(m_iProgram, i, maxNameLength, &nameLength, &size, &type, uniformName.data());
+
+        const int id = glGetUniformLocation(m_iProgram, uniformName.c_str());
+        if(id == -1) continue;
+
+        std::string_view memberName{uniformName.data(), static_cast<size_t>(nameLength)};
+        if(const size_t dot = memberName.find('.'); dot != std::string_view::npos) memberName.remove_prefix(dot + 1);
+        if(memberName.ends_with("[0]"sv)) memberName.remove_suffix(3);
+        m_uniformLocationCache.emplace(memberName, id);
+    }
+
     return true;
 }
 
-int OpenGLES32Shader::createShaderFromString(std::string shaderSource, int shaderType) {
+int OpenGLES32Shader::createShaderFromString(const std::string &shaderSource, int shaderType) {
     const GLint shader = glCreateShader(shaderType);
 
     if(shader == 0) {
@@ -230,11 +251,6 @@ int OpenGLES32Shader::createShaderFromString(std::string shaderSource, int shade
     }
 
     // compile shader
-    size_t pos = shaderSource.find("{RUNTIME_VERSION}"sv);
-    if(pos != std::string::npos) {
-        shaderSource.replace(pos, "{RUNTIME_VERSION}"sv.length(), "100");
-    }
-
     const char *shaderSourceChar = shaderSource.c_str();
     glShaderSource(shader, 1, &shaderSourceChar, nullptr);
     glCompileShader(shader);

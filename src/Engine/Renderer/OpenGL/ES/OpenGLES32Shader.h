@@ -40,7 +40,7 @@ class OpenGLES32Shader final : public Shader {
 
    private:
     bool compile(const std::string &vertexShader, const std::string &fragmentShader, bool source);
-    int createShaderFromString(std::string shaderSource, int shaderType);
+    int createShaderFromString(const std::string &shaderSource, int shaderType);
     int createShaderFromFile(const std::string &fileName, int shaderType);
     int getAndCacheUniformLocation(std::string_view name);
 

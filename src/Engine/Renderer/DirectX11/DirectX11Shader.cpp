@@ -441,14 +441,10 @@ bool DirectX11Shader::reflectConstantBuffers(ID3DBlob *blob, Stage stage) {
             if(varRefl == nullptr || FAILED(varRefl->lpVtbl->GetDesc(varRefl, &varDesc)) || varDesc.Name == nullptr)
                 continue;
 
-            // spirv-cross prefixes anonymous-block members with the block's SPIR-V id (e.g. "_19_mvp");
+            // spirv-cross prefixes block members with the block's instance name (e.g. "vu_mvp");
             // strip that so lookups match the engine's setUniform("mvp") names
             std::string_view varName{varDesc.Name};
-            if(varName.size() > 1 && varName[0] == '_') {
-                size_t i = 1;
-                while(i < varName.size() && varName[i] >= '0' && varName[i] <= '9') i++;
-                if(i > 1 && i < varName.size() && varName[i] == '_') varName.remove_prefix(i + 1);
-            }
+            if(varName.starts_with(stage == Stage::VERTEX ? "vu_"sv : "fu_"sv)) varName.remove_prefix(3);
 
             this->uniformLocationCache[std::string{varName}] =
                 CACHE_ENTRY{bufferIndex, varDesc.StartOffset, varDesc.Size};

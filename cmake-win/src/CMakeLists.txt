@@ -138,7 +138,6 @@ pkg_check_modules(PC_BROTLIDEC REQUIRED libbrotlidec)
 set(EMBED_SCRIPT "${CMAKE_SOURCE_DIR}/../../build-aux/gen_binary_embed.py")
 set(EMBED_MANIFESTS
     "${CMAKE_SOURCE_DIR}/../../assets/binary/misc_embed.manifest"
-    "${CMAKE_SOURCE_DIR}/../../assets/binary/gl_shaders_embed.manifest"
 )
 set(EMBED_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/gen")
 set(EMBED_SOURCE "${EMBED_OUTPUT_DIR}/binary_embed.asm")
@@ -163,7 +162,7 @@ endforeach()
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
-# the DX11 HLSL and SDL_gpu .shdpk packs are generated from the canonical VK_*.glsl (mirrors the autotools build);
+# the DX11 HLSL, SDL_gpu .shdpk packs and OpenGL GLSL are generated from the canonical VK_*.glsl (mirrors the autotools build);
 # requires glslc/glslangValidator + spirv-cross + dxc (e.g. from the Vulkan SDK) on PATH
 find_program(GLSLC_EXECUTABLE NAMES glslc glslangValidator)
 find_program(SPIRV_CROSS_EXECUTABLE NAMES spirv-cross)
@@ -177,11 +176,12 @@ set(SHADER_SRC_DIR "${CMAKE_SOURCE_DIR}/../../assets/shaders")
 set(SHADER_GEN_DIR "${EMBED_OUTPUT_DIR}/shaders")
 set(DX11_SHADER_MANIFEST "${SHADER_GEN_DIR}/dx11_shaders.manifest")
 set(SDLGPU_SHADER_MANIFEST "${SHADER_GEN_DIR}/sdlgpu_shaders.manifest")
+set(GL_SHADER_MANIFEST "${SHADER_GEN_DIR}/gl_shaders.manifest")
 file(GLOB VK_SHADER_INPUTS "${SHADER_SRC_DIR}/VK_*_v.glsl" "${SHADER_SRC_DIR}/VK_*_f.glsl")
 
-# one pack run produces both backends' outputs (dxc is only used for the shdpk's D3D12 DXIL section)
+# one pack run produces every backend's outputs (dxc is only used for the shdpk's D3D12 DXIL section)
 add_custom_command(
-    OUTPUT ${DX11_SHADER_MANIFEST} ${SDLGPU_SHADER_MANIFEST}
+    OUTPUT ${DX11_SHADER_MANIFEST} ${SDLGPU_SHADER_MANIFEST} ${GL_SHADER_MANIFEST}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADER_GEN_DIR}
     COMMAND ${Python3_EXECUTABLE} ${SHADER_PACK_SCRIPT}
         --shader-dir ${SHADER_SRC_DIR}
@@ -189,11 +189,13 @@ add_custom_command(
         --manifest ${SDLGPU_SHADER_MANIFEST}
         --dx11-manifest ${DX11_SHADER_MANIFEST}
         --dx11-output-dir ${SHADER_GEN_DIR}
+        --gl-manifest ${GL_SHADER_MANIFEST}
+        --gl-dialect legacy
         --glslc ${GLSLC_EXECUTABLE}
         --spirv-cross ${SPIRV_CROSS_EXECUTABLE}
         --dxc ${DXC_EXECUTABLE}
     DEPENDS ${SHADER_PACK_SCRIPT} ${VK_SHADER_INPUTS}
-    COMMENT "Generating DX11 SM5.0 HLSL and SDL_gpu .shdpk packs from canonical VK_*.glsl"
+    COMMENT "Generating DX11 SM5.0 HLSL, SDL_gpu .shdpk packs and OpenGL GLSL from canonical VK_*.glsl"
 )
 
 # the generated shader manifests hold absolute paths, so they're passed via -F (build manifest, no base-dir prepend)
@@ -201,8 +203,8 @@ add_custom_command(
     OUTPUT ${EMBED_SOURCE} ${EMBED_HEADER}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${EMBED_OUTPUT_DIR}
     COMMAND ${Python3_EXECUTABLE} ${EMBED_SCRIPT}
-        -t nasm -b "${CMAKE_SOURCE_DIR}/../.." ${EMBED_MANIFEST_FLAGS} -F ${DX11_SHADER_MANIFEST} -F ${SDLGPU_SHADER_MANIFEST} ${EMBED_SOURCE}
-    DEPENDS ${EMBED_SCRIPT} ${EMBED_MANIFESTS} ${EMBED_FILE_DEPS} ${DX11_SHADER_MANIFEST} ${SDLGPU_SHADER_MANIFEST}
+        -t nasm -b "${CMAKE_SOURCE_DIR}/../.." ${EMBED_MANIFEST_FLAGS} -F ${DX11_SHADER_MANIFEST} -F ${SDLGPU_SHADER_MANIFEST} -F ${GL_SHADER_MANIFEST} ${EMBED_SOURCE}
+    DEPENDS ${EMBED_SCRIPT} ${EMBED_MANIFESTS} ${EMBED_FILE_DEPS} ${DX11_SHADER_MANIFEST} ${SDLGPU_SHADER_MANIFEST} ${GL_SHADER_MANIFEST}
     COMMENT "Generating binary embed NASM source"
 )
 

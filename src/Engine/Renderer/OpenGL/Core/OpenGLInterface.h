@@ -9,9 +9,12 @@
 #include "SDLGLInterface.h"
 
 class Image;
+class OpenGLShader;
 
 class OpenGLInterface final : public SDLGLInterface {
     NOCOPY_NOMOVE(OpenGLInterface)
+    friend class OpenGLShader;
+
    public:
     OpenGLInterface() = delete;
     OpenGLInterface(void *window);
@@ -97,6 +100,10 @@ class OpenGLInterface final : public SDLGLInterface {
     std::vector<u8> getScreenshot(bool withAlpha = false) final;
 
    private:
+    // the shaders take the mvp as a uniform instead of reading the fixed-function matrices
+    // (declared before any owned shader: their destruction still reads this)
+    OpenGLShader *activeShader{nullptr};
+
     std::unique_ptr<Shader> smoothClipShader{nullptr};
     void initSmoothClipShader();
 

@@ -450,7 +450,8 @@ void OpenGLInterface::drawImage(const Image *image, AnchorPoint anchor, float ed
         this->smoothClipShader->setUniform2f("rect_min", clipMinX, clipMinY);
         this->smoothClipShader->setUniform2f("rect_max", clipMaxX, clipMaxY);
         this->smoothClipShader->setUniform1f("edge_softness", edgeSoftness);
-        //this->smoothClipShader->setUniform1i("texture", 0);
+        this->smoothClipShader->setUniform4f("col", m_data->color.Rf(), m_data->color.Gf(), m_data->color.Bf(),
+                                             m_data->color.Af());
     }
 
     image->bind();
@@ -786,6 +787,8 @@ void OpenGLInterface::onTransformUpdate() {
 
     glMatrixMode(GL_MODELVIEW);
     glLoadMatrixf(m_data->worldMatrix.get());
+
+    if(this->activeShader) this->activeShader->setMVP(m_data->MP);
 }
 
 void OpenGLInterface::initSmoothClipShader() {

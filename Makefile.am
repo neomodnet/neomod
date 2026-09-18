@@ -1150,7 +1150,7 @@ endif # BUILD_WINPTHREAD_NOVERSION
 
 EMBED_SCRIPT := $(srcdir)/build-aux/gen_binary_embed.py
 EMBED_OUTPUT := $(builddir)/gen/binary_embed.cpp
-# EMBED_MANIFESTS / BUILD_EMBED_MANIFESTS are set by configure based on --with-renderer selection.
+# EMBED_MANIFESTS / BUILD_EMBED_MANIFESTS are set by configure.
 # -f manifests have $(srcdir) prepended to their entries; -F manifests don't.
 EMBED_MANIFEST_FLAGS := $(foreach m,$(EMBED_MANIFESTS),-f $(m)) \
                         $(foreach m,$(BUILD_EMBED_MANIFESTS),-F $(m))
@@ -1214,10 +1214,8 @@ TRANSLATIONS_LOCALE_MANIFEST :=
 endif # ENABLE_I18N
 
 #####################################################################################################################################################
-## SHADER GENERATION (canonical VK_*.glsl → SPIR-V → SDL_gpu .shdpk packs and/or DX11 SM5.0 .hlsl)
+## SHADER GENERATION (canonical VK_*.glsl → SPIR-V → SDL_gpu .shdpk packs, DX11 SM5.0 .hlsl and/or OpenGL .glsl)
 #####################################################################################################################################################
-
-if USE_SHADERGEN
 
 # pipeline-wide: the canonical VK_*.glsl are compiled to SPIR-V (glslc) then transpiled (spirv-cross)
 # into whatever each enabled backend needs - see build-aux/pack_shaders.py
@@ -1267,6 +1265,23 @@ DX11_EMBED_DEPS :=
 DX11_EMBED_MANIFEST_FLAG :=
 endif # USE_DX11
 
+if USE_GL
+# OpenGL: emit GLSL in the dialect of the enabled GL backend (compiled by the driver at runtime)
+GL_SHADER_MANIFEST := $(SHADER_GEN_DIR)/gl_shaders.manifest
+if USE_OPENGLES
+GL_SHADER_DIALECT := es
+else
+GL_SHADER_DIALECT := legacy
+endif
+GL_PACK_ARGS := --gl-manifest $(GL_SHADER_MANIFEST) --gl-dialect $(GL_SHADER_DIALECT)
+GL_EMBED_DEPS := $(GL_SHADER_MANIFEST)
+GL_EMBED_MANIFEST_FLAG := -F $(GL_SHADER_MANIFEST)
+else # !USE_GL
+GL_PACK_ARGS :=
+GL_EMBED_DEPS :=
+GL_EMBED_MANIFEST_FLAG :=
+endif # USE_GL
+
 # one pack run produces every enabled backend's outputs; the stamp is the single target and the
 # manifests + packed/transpiled files are its side effects (the embed depfile lists them)
 $(SHADER_GEN_STAMP): $(SDLGPU_DXC_DEP) $(SHADER_GLSL_INPUTS) $(SHADER_PACK_SCRIPT)
@@ -1276,32 +1291,25 @@ $(SHADER_GEN_STAMP): $(SDLGPU_DXC_DEP) $(SHADER_GLSL_INPUTS) $(SHADER_PACK_SCRIP
 		--output-dir $(SHADER_GEN_DIR) \
 		$(SDLGPU_PACK_ARGS) \
 		$(DX11_PACK_ARGS) \
+		$(GL_PACK_ARGS) \
 		$(SHADER_GLSLC_FLAG) \
 		$(SHADER_SPIRV_CROSS_FLAG) \
 		$(SDLGPU_DXC_FLAG)
 	@touch $@
 
-$(SDLGPU_SHADER_MANIFEST) $(DX11_SHADER_MANIFEST): $(SHADER_GEN_STAMP) ;
+$(SDLGPU_SHADER_MANIFEST) $(DX11_SHADER_MANIFEST) $(GL_SHADER_MANIFEST): $(SHADER_GEN_STAMP) ;
 $(SHADER_GEN_DIR)/%.shdpk: $(SHADER_GEN_STAMP) ;
 $(SHADER_GEN_DIR)/%.hlsl: $(SHADER_GEN_STAMP) ;
-
-else # !USE_SHADERGEN
-
-SDLGPU_EMBED_DEPS :=
-SDLGPU_EMBED_MANIFEST_FLAG :=
-DX11_EMBED_DEPS :=
-DX11_EMBED_MANIFEST_FLAG :=
-
-endif # USE_SHADERGEN
+$(SHADER_GEN_DIR)/%.glsl: $(SHADER_GEN_STAMP) ;
 
 # content-based stamp: only updates (and triggers re-embed) when the manifest list actually changes
 EMBED_CONFIG_STAMP := $(builddir)/gen/.embed_config
-EMBED_FULL_MANIFEST_FLAGS := $(EMBED_MANIFEST_FLAGS) $(SDLGPU_EMBED_MANIFEST_FLAG) $(DX11_EMBED_MANIFEST_FLAG)
+EMBED_FULL_MANIFEST_FLAGS := $(EMBED_MANIFEST_FLAGS) $(SDLGPU_EMBED_MANIFEST_FLAG) $(DX11_EMBED_MANIFEST_FLAG) $(GL_EMBED_MANIFEST_FLAG)
 $(EMBED_CONFIG_STAMP): FORCE
 	@$(MKDIR_P) $(dir $@)
 	@echo '$(EMBED_FULL_MANIFEST_FLAGS)' | cmp -s - $@ || echo '$(EMBED_FULL_MANIFEST_FLAGS)' > $@
 
-$(EMBED_OUTPUT): $(EMBED_SCRIPT) $(EMBED_MANIFESTS) $(BUILD_EMBED_MANIFESTS) $(EMBED_CACERT_DEPS) $(SDLGPU_EMBED_DEPS) $(DX11_EMBED_DEPS) $(EMBED_CONFIG_STAMP) $(MO_FILES)
+$(EMBED_OUTPUT): $(EMBED_SCRIPT) $(EMBED_MANIFESTS) $(BUILD_EMBED_MANIFESTS) $(EMBED_CACERT_DEPS) $(SDLGPU_EMBED_DEPS) $(DX11_EMBED_DEPS) $(GL_EMBED_DEPS) $(EMBED_CONFIG_STAMP) $(MO_FILES)
 	$(MKDIR_P) $(dir $@)
 	$(PYTHON) $(EMBED_SCRIPT) -t $(EMBED_TYPE) -b $(srcdir) -d $(EMBED_DEPFILE) $(EMBED_FULL_MANIFEST_FLAGS) $@ \
 		$(EMBED_CACERT_ARGS)
@@ -1311,8 +1319,9 @@ $(EMBED_OUTPUT): $(EMBED_SCRIPT) $(EMBED_MANIFESTS) $(BUILD_EMBED_MANIFESTS) $(E
 neomod_SOURCES += $(EMBED_OUTPUT)
 CLEANFILES += $(EMBED_OUTPUT) $(builddir)/gen/binary_embed.h $(EMBED_DEPFILE) $(EMBED_CONFIG_STAMP) \
 	$(builddir)/gen/shaders/*.shdpk $(builddir)/gen/shaders/*.spv $(builddir)/gen/shaders/*.dxil \
-	$(builddir)/gen/shaders/*.hlsl $(builddir)/gen/shaders/*.msl \
+	$(builddir)/gen/shaders/*.hlsl $(builddir)/gen/shaders/*.msl $(builddir)/gen/shaders/*.glsl \
 	$(builddir)/gen/shaders/sdlgpu_shaders.manifest $(builddir)/gen/shaders/dx11_shaders.manifest \
+	$(builddir)/gen/shaders/gl_shaders.manifest \
 	$(builddir)/gen/shaders/.pack_stamp $(builddir)/gen/shaders/.stamp \
 	$(GEN_TRANSLATIONS_STAMP) $(TRANSLATIONS_HEADER) $(TRANSLATIONS_LOCALE_MANIFEST) $(MO_FILES)
 

@@ -666,8 +666,6 @@ USE_DISCORDRPC_FALSE
 USE_DISCORDRPC_TRUE
 DOWNLOAD_DXC_FALSE
 DOWNLOAD_DXC_TRUE
-USE_SHADERGEN_FALSE
-USE_SHADERGEN_TRUE
 USE_SDLGPU_FALSE
 USE_SDLGPU_TRUE
 USE_DX11_FALSE
@@ -6096,11 +6094,11 @@ rm -f conftest.sed_test conftest.sed_teste
 
 
 # needed for building SPIR-V shaders (the canonical GLSL source is compiled to SPIR-V,
-# then transpiled to HLSL/MSL via spirv-cross)
+# then transpiled to GLSL/HLSL/MSL via spirv-cross)
 # tries glslc first (from shaderc), falls back to glslangValidator (from glslang-tools)
 
 
-# needed for transpiling the compiled SPIR-V to HLSL and MSL, so each shader is
+# needed for transpiling the compiled SPIR-V to GLSL, HLSL and MSL, so each shader is
 # authored once in GLSL instead of separately per backend (from SPIRV-Cross)
 
 
@@ -7795,11 +7793,8 @@ else case e in #(
 esac
 fi
 
-# the DX11 and SDL_gpu backends both derive their shaders from the canonical VK_*.glsl, so both need
-# glslc (GLSL->SPIR-V) + spirv-cross (SPIR-V->HLSL/MSL); require them whenever either backend is enabled
-if test "x$use_sdlgpu" = "xyes" || test "x$use_dx11" = "xyes"
-then :
-
+# every backend derives its shaders from the canonical VK_*.glsl, so they all need
+# glslc (GLSL->SPIR-V) + spirv-cross (SPIR-V->GLSL/HLSL/MSL)
 
     # Extract the first word of "glslc", so it can be a program name with args.
 set dummy glslc; ac_word=$2
@@ -7938,18 +7933,16 @@ fi
 
 
 
-    if test -z "$GLSLC"
+if test -z "$GLSLC"
 then :
 
-        as_fn_error $? "neither glslc nor glslangValidator found - required for compiling GLSL shaders to SPIR-V" "$LINENO" 5
+    as_fn_error $? "neither glslc nor glslangValidator found - required for compiling GLSL shaders to SPIR-V" "$LINENO" 5
 
 fi
-    if test -z "$SPIRV_CROSS"
+if test -z "$SPIRV_CROSS"
 then :
 
-        as_fn_error $? "spirv-cross not found - required for transpiling shaders to HLSL/MSL (try: brew install spirv-cross, or apt install spirv-cross)" "$LINENO" 5
-
-fi
+    as_fn_error $? "spirv-cross not found - required for transpiling shaders to GLSL/HLSL/MSL (try: brew install spirv-cross, or apt install spirv-cross)" "$LINENO" 5
 
 fi
 
@@ -8026,21 +8019,15 @@ else case e in #(
 esac
 fi
 
-# build the list of binary embed manifests based on renderer selection.
+# the static binary embed manifests.
 # EMBED_MANIFESTS: srcdir-anchored manifests, consumed via gen_binary_embed.py -f (paths
 #   prepended with --base-dir=$(srcdir)).
 # BUILD_EMBED_MANIFESTS: build-tree manifests with absolute paths, consumed via -F (no
 #   base-dir prepend) so out-of-source builds work.
 EMBED_MANIFESTS="\$(srcdir)/\$(ASSETS_DIR)/binary/misc_embed.manifest"
 BUILD_EMBED_MANIFESTS="\$(builddir)/gen/locale_embed.manifest"
-if test "x$use_opengl" = "xyes" || test "x$use_opengles32" = "xyes"
-then :
-
-    EMBED_MANIFESTS="$EMBED_MANIFESTS \$(srcdir)/\$(ASSETS_DIR)/binary/gl_shaders_embed.manifest"
-
-fi
-# SDL_gpu (.shdpk) and DX11 (.hlsl) shaders are both generated from the canonical VK_*.glsl and embedded
-# via build manifests produced by pack_shaders.py (see Makefile.am), not through a static manifest.
+# SDL_gpu (.shdpk), DX11 (.hlsl) and OpenGL (.glsl) shaders are all generated from the canonical VK_*.glsl and
+# embedded via build manifests produced by pack_shaders.py (see Makefile.am), not through a static manifest.
 
 
 
@@ -13501,7 +13488,7 @@ BUNDLED_INCLUDES="-I\$(srcdir)/libraries -I\$(srcdir)/libraries/delegatesv2 -I\$
 
 { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking for shaders in $srcdir/$ASSETS_DIR/shaders" >&5
 printf %s "checking for shaders in $srcdir/$ASSETS_DIR/shaders... " >&6; }
-if test -f "$srcdir/$ASSETS_DIR/shaders/GL_slider_f.glsl"
+if test -f "$srcdir/$ASSETS_DIR/shaders/VK_slider_f.glsl"
 then :
 
     { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: yes" >&5
@@ -18949,15 +18936,6 @@ else
   USE_SDLGPU_FALSE=
 fi
 
-# the shader generator (pack_shaders.py) runs whenever DX11 or SDL_gpu is enabled
- if test "$use_sdlgpu" = "yes" || test "$use_dx11" = "yes"; then
-  USE_SHADERGEN_TRUE=
-  USE_SHADERGEN_FALSE='#'
-else
-  USE_SHADERGEN_TRUE='#'
-  USE_SHADERGEN_FALSE=
-fi
-
  if test -z "$DXC" && test "$host_os" = "mingw32" && test "$use_sdlgpu" = "yes"; then
   DOWNLOAD_DXC_TRUE=
   DOWNLOAD_DXC_FALSE='#'
@@ -19362,10 +19340,6 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${USE_SDLGPU_TRUE}" && test -z "${USE_SDLGPU_FALSE}"; then
   as_fn_error $? "conditional \"USE_SDLGPU\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
-if test -z "${USE_SHADERGEN_TRUE}" && test -z "${USE_SHADERGEN_FALSE}"; then
-  as_fn_error $? "conditional \"USE_SHADERGEN\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${DOWNLOAD_DXC_TRUE}" && test -z "${DOWNLOAD_DXC_FALSE}"; then

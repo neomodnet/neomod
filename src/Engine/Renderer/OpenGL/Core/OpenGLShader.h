@@ -29,7 +29,7 @@ class OpenGLShader final : public Shader {
 
    private:
     bool compile(const std::string &vertexShader, const std::string &fragmentShader, bool source);
-    int createShaderFromString(std::string shaderSource, int shaderType);
+    int createShaderFromString(const std::string &shaderSource, int shaderType);
     int createShaderFromFile(const std::string &fileName, int shaderType);
 
     int getAttribLocation(std::string_view name);
@@ -44,6 +44,7 @@ class OpenGLShader final : public Shader {
     unsigned int iProgram;
 
     unsigned int iProgramBackup;
+    OpenGLShader *activeShaderBackup{nullptr};
 
     Hash::unstable_stringmap<int> uniformLocationCache;
 };

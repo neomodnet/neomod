@@ -4,15 +4,28 @@
 #
 # Finds VK_*_{v,f}.glsl in --shader-dir (the single canonical source) and
 # compiles each to SPIR-V via glslc or glslangValidator. From that SPIR-V,
-# spirv-cross transpiles the per-backend formats. Two independent outputs,
-# both selectable via their --manifest flag (at least one is required):
+# spirv-cross transpiles the per-backend formats. Three independent outputs,
+# all selectable via their --manifest flag (at least one is required):
 #   --manifest      SDL_gpu .shdpk packs (GLSL source + SPIR-V + HLSL->DXIL + MSL)
 #   --dx11-manifest standalone DX11 SM5.0 .hlsl (D3DCompile'd at runtime; no dxc)
-# All generated HLSL/MSL/DXIL are derived, not authored.
+#   --gl-manifest   OpenGL .glsl in the --gl-dialect of the enabled GL backend
+#                   (legacy: GLSL 1.10 reading the fixed-function vertex inputs, es: GLSL ES 1.00)
+# All generated GLSL/HLSL/MSL/DXIL are derived, not authored.
+#
+# What the backends rely on in a canonical shader (Vulkan GLSL 450):
+#   - vertex inputs are declared in full and named exactly
+#       layout(location = 0) in vec3 inPos; layout(location = 1) in vec4 inCol; layout(location = 2) in vec2 inTex;
+#     (DX11 reflects its input layout from them, the legacy GL remap matches them by name)
+#   - uniform blocks have an instance name, "vu" in the vertex stage (set = 1) and "fu" in the fragment stage
+#     (set = 3); the engine sets uniforms by member name, so member names are unique across both blocks
+#   - the texture is "layout(set = 2, binding = 0) uniform sampler2D tex0;"
+#   - the code stays within what GLSL 1.10 / GLSL ES 1.00 can express (spirv-cross fails the build otherwise)
+#   - gl_FragCoord keeps the origin of whichever backend runs the shader (see Graphics::hasFlippedTextureOrigin())
 #
 # Usage:
 #   pack_shaders.py --shader-dir <dir> --output-dir <dir> --manifest <file> [--glslc <path>] [--dxc <path>] [--spirv-cross <path>]
 #   pack_shaders.py --shader-dir <dir> --output-dir <dir> --dx11-manifest <file> --glslc <path> --spirv-cross <path>
+#   pack_shaders.py --shader-dir <dir> --output-dir <dir> --gl-manifest <file> --gl-dialect <legacy|es> --glslc <path> --spirv-cross <path>
 #
 # .shdpk format:
 #   [4B] magic "SGSH"
@@ -124,6 +137,56 @@ def transpile_msl(spirv_cross, spv_path, msl_path, stage):
     return True
 
 
+# GLSL dialect of each OpenGL backend
+GL_DIALECT_FLAGS = {
+    'legacy': ['--no-es', '--version', '110', '--no-420pack-extension'],
+    'es': ['--es', '--version', '100'],
+}
+
+# how each OpenGL backend feeds the canonical vertex inputs (location 0/1/2 = inPos/inCol/inTex):
+# the legacy backend draws through the fixed-function arrays and glBegin, so its inputs are the matching built-ins
+# (spirv-cross emits a remap target verbatim, hence the swizzles to keep the declared widths);
+# the ES backend binds generic attributes by name
+GL_VERTEX_INPUT_FLAGS = {
+    'legacy': ['--remap', 'inPos', 'gl_Vertex.xyz', '3',
+               '--remap', 'inCol', 'gl_Color', '4',
+               '--remap', 'inTex', 'gl_MultiTexCoord0.xy', '2'],
+    'es': ['--rename-interface-variable', 'in', '0', 'position',
+           '--rename-interface-variable', 'in', '1', 'vcolor',
+           '--rename-interface-variable', 'in', '2', 'uv'],
+}
+
+# these dialects link varyings by name where every other backend links by location,
+# so name both sides after the location
+GL_VARYING_LOCATIONS = 8
+
+
+def transpile_glsl(spirv_cross, spv_path, glsl_path, dialect, stage):
+    """Transpile SPIR-V to OpenGL GLSL via spirv-cross. Returns True on success."""
+    os.makedirs(os.path.dirname(glsl_path) or '.', exist_ok=True)
+    cmd = [spirv_cross, spv_path, *GL_DIALECT_FLAGS[dialect], '--output', glsl_path]
+    if stage == 'v':
+        cmd += GL_VERTEX_INPUT_FLAGS[dialect]
+    for location in range(GL_VARYING_LOCATIONS):
+        cmd += ['--rename-interface-variable', 'out' if stage == 'v' else 'in', str(location), f'v{location}']
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f'spirv-cross (GLSL) failed for {spv_path}:', file=sys.stderr)
+        print(result.stderr, file=sys.stderr)
+        return False
+
+    # --remap matches inputs by name, so one that isn't named like the canonical inputs stays a generic attribute,
+    # which the legacy backend never feeds
+    if dialect == 'legacy' and stage == 'v':
+        with open(glsl_path, 'r') as f:
+            leftover = re.findall(r'^attribute\s.*$', f.read(), re.MULTILINE)
+        if leftover:
+            print(f'{spv_path}: vertex inputs must be named inPos/inCol/inTex, found: {"; ".join(leftover)}',
+                  file=sys.stderr)
+            return False
+    return True
+
+
 def find_shaders(shader_dir):
     """Find all VK_*_{v,f}.glsl files. Returns list of (name, stage, path)."""
     pattern = os.path.join(shader_dir, 'VK_*_[vf].glsl')
@@ -146,19 +209,27 @@ def main():
                         help='Output manifest for the generated DX11 SM5.0 HLSL; omit to skip DX11 output')
     parser.add_argument('--dx11-output-dir', dest='dx11_output_dir', default=None,
                         help='Output directory for the generated DX11 .hlsl files (defaults to --output-dir)')
+    parser.add_argument('--gl-manifest', dest='gl_manifest', default=None,
+                        help='Output manifest for the generated OpenGL GLSL; omit to skip OpenGL output')
+    parser.add_argument('--gl-dialect', dest='gl_dialect', choices=sorted(GL_DIALECT_FLAGS), default=None,
+                        help='GLSL dialect of the enabled OpenGL backend (required with --gl-manifest)')
     parser.add_argument('--glslc', default=None, help='Path to glslc (optional; SPIR-V is skipped if not provided)')
     parser.add_argument('--dxc', default=None, help='Path to dxc (optional, for HLSL->DXIL)')
     parser.add_argument('--spirv-cross', dest='spirv_cross', default=None,
-                        help='Path to spirv-cross (optional; transpiles SPIR-V to HLSL/MSL)')
+                        help='Path to spirv-cross (optional; transpiles SPIR-V to GLSL/HLSL/MSL)')
     args = parser.parse_args()
 
-    if not args.manifest and not args.dx11_manifest:
-        print('error: at least one of --manifest or --dx11-manifest is required', file=sys.stderr)
+    if not args.manifest and not args.dx11_manifest and not args.gl_manifest:
+        print('error: at least one of --manifest, --dx11-manifest or --gl-manifest is required', file=sys.stderr)
         sys.exit(1)
 
-    # DX11 HLSL is transpiled from SPIR-V, so it needs both glslc (SPIR-V) and spirv-cross
-    if args.dx11_manifest and not (args.glslc and args.spirv_cross):
-        print('error: --dx11-manifest requires both --glslc and --spirv-cross', file=sys.stderr)
+    # DX11 HLSL and OpenGL GLSL are transpiled from SPIR-V, so they need both glslc (SPIR-V) and spirv-cross
+    if (args.dx11_manifest or args.gl_manifest) and not (args.glslc and args.spirv_cross):
+        print('error: --dx11-manifest and --gl-manifest require both --glslc and --spirv-cross', file=sys.stderr)
+        sys.exit(1)
+
+    if args.gl_manifest and not args.gl_dialect:
+        print('error: --gl-manifest requires --gl-dialect', file=sys.stderr)
         sys.exit(1)
 
     dx11_output_dir = args.dx11_output_dir or args.output_dir
@@ -170,6 +241,7 @@ def main():
 
     shdpk_manifest_lines = ['# Auto-generated by pack_shaders.py - do not edit']
     dx11_manifest_lines = ['# Auto-generated by pack_shaders.py - do not edit']
+    gl_manifest_lines = ['# Auto-generated by pack_shaders.py - do not edit']
     ok = True
 
     for name, stage, glsl_path in shaders:
@@ -229,6 +301,14 @@ def main():
                 continue
             dx11_manifest_lines.append(f'DX11_{name}_{stage}sh : {dx11_hlsl_path}')
 
+        # OpenGL backends: GLSL transpiled from the same SPIR-V, compiled by the driver at runtime
+        if args.gl_manifest:
+            gl_glsl_path = os.path.join(args.output_dir, f'GL_{name}_{stage}.glsl')
+            if not transpile_glsl(args.spirv_cross, spv_path, gl_glsl_path, args.gl_dialect, stage):
+                ok = False
+                continue
+            gl_manifest_lines.append(f'GL_{name}_{stage}sh : {gl_glsl_path}')
+
     if not ok:
         sys.exit(1)
 
@@ -240,6 +320,10 @@ def main():
         os.makedirs(os.path.dirname(args.dx11_manifest) or '.', exist_ok=True)
         with open(args.dx11_manifest, 'w') as f:
             f.write('\n'.join(dx11_manifest_lines) + '\n')
+    if args.gl_manifest:
+        os.makedirs(os.path.dirname(args.gl_manifest) or '.', exist_ok=True)
+        with open(args.gl_manifest, 'w') as f:
+            f.write('\n'.join(gl_manifest_lines) + '\n')
 
 
 if __name__ == '__main__':

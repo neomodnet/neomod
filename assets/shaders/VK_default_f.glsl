@@ -10,17 +10,17 @@ layout(set = 2, binding = 0) uniform sampler2D tex0;
 layout(set = 3, binding = 0) uniform FragUniforms {
     vec4 misc; // x = texturing enabled, y = color inversion, z = colorless vao (use col instead of vertex color), w = unused
     vec4 col;  // global color (m_color)
-};
+} fu;
 
 void main() {
     vec4 result;
-    if (misc.x > 0.5) {
-        result = texture(tex0, fragTexcoord) * col * fragColor;
+    if (fu.misc.x > 0.5) {
+        result = texture(tex0, fragTexcoord) * fu.col * fragColor;
     } else {
-        result = (misc.z > 0.5) ? col : fragColor;
+        result = (fu.misc.z > 0.5) ? fu.col : fragColor;
     }
 
-    if (misc.y > 0.5) {
+    if (fu.misc.y > 0.5) {
         result.rgb = vec3(1.0) - result.rgb;
     }
 

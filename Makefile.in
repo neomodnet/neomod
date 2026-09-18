@@ -197,7 +197,7 @@ bin_PROGRAMS = neomod$(EXEEXT)
 @BUILD_LIBARCHIVE_TRUE@am__append_75 = $(shell $(PKG_CONFIG_PLUS_BUNDLED_OSSL) --cflags libarchive)
 @BUILD_LIBARCHIVE_TRUE@am__append_76 = $(shell $(PKG_CONFIG_PLUS_BUNDLED_OSSL) --libs libarchive)
 @BUILD_LIBARCHIVE_TRUE@am__append_77 = $(DEPS_PREFIX)/libarchive-$(LIBARCHIVE_VERSION).built
-@DOWNLOAD_DXC_TRUE@@USE_SDLGPU_TRUE@@USE_SHADERGEN_TRUE@am__append_78 = --dxc $(DEPS_CACHE)/linux_dxc_2025_07_14/bin/dxc
+@DOWNLOAD_DXC_TRUE@@USE_SDLGPU_TRUE@am__append_78 = --dxc $(DEPS_CACHE)/linux_dxc_2025_07_14/bin/dxc
 @BUILD_PCH_TRUE@@CLANG_BUILD_FALSE@am__append_79 = -fpch-preprocess
 @BUILD_PCH_TRUE@am__append_80 = $(PCH_OUTPUT) $(PCH_DEPS)
 
@@ -1580,9 +1580,10 @@ CLEANFILES = $(EMBED_OUTPUT) $(builddir)/gen/binary_embed.h \
 	$(EMBED_DEPFILE) $(EMBED_CONFIG_STAMP) \
 	$(builddir)/gen/shaders/*.shdpk $(builddir)/gen/shaders/*.spv \
 	$(builddir)/gen/shaders/*.dxil $(builddir)/gen/shaders/*.hlsl \
-	$(builddir)/gen/shaders/*.msl \
+	$(builddir)/gen/shaders/*.msl $(builddir)/gen/shaders/*.glsl \
 	$(builddir)/gen/shaders/sdlgpu_shaders.manifest \
 	$(builddir)/gen/shaders/dx11_shaders.manifest \
+	$(builddir)/gen/shaders/gl_shaders.manifest \
 	$(builddir)/gen/shaders/.pack_stamp \
 	$(builddir)/gen/shaders/.stamp $(GEN_TRANSLATIONS_STAMP) \
 	$(TRANSLATIONS_HEADER) $(TRANSLATIONS_LOCALE_MANIFEST) \
@@ -1734,7 +1735,7 @@ LIBICONV_LIBS := -liconv $(am__append_70)
 #####################################################################################################################################################
 EMBED_SCRIPT := $(srcdir)/build-aux/gen_binary_embed.py
 EMBED_OUTPUT := $(builddir)/gen/binary_embed.cpp
-# EMBED_MANIFESTS / BUILD_EMBED_MANIFESTS are set by configure based on --with-renderer selection.
+# EMBED_MANIFESTS / BUILD_EMBED_MANIFESTS are set by configure.
 # -f manifests have $(srcdir) prepended to their entries; -F manifests don't.
 EMBED_MANIFEST_FLAGS := $(foreach m,$(EMBED_MANIFESTS),-f $(m)) \
                         $(foreach m,$(BUILD_EMBED_MANIFESTS),-F $(m))
@@ -1779,45 +1780,51 @@ EMBED_DEPFILE := $(builddir)/gen/binary_embed.d
 
 # pipeline-wide: the canonical VK_*.glsl are compiled to SPIR-V (glslc) then transpiled (spirv-cross)
 # into whatever each enabled backend needs - see build-aux/pack_shaders.py
-@USE_SHADERGEN_TRUE@SHADER_PACK_SCRIPT := $(srcdir)/build-aux/pack_shaders.py
-@USE_SHADERGEN_TRUE@SHADER_GEN_DIR := $(builddir)/gen/shaders
-@USE_SHADERGEN_TRUE@SHADER_GLSL_INPUTS := $(wildcard $(srcdir)/$(ASSETS_DIR)/shaders/VK_*_[vf].glsl)
-@USE_SHADERGEN_TRUE@SHADER_GEN_STAMP := $(SHADER_GEN_DIR)/.pack_stamp
-@USE_SHADERGEN_TRUE@SHADER_GLSLC_FLAG := $(if $(GLSLC),--glslc $(GLSLC),)
-@USE_SHADERGEN_TRUE@SHADER_SPIRV_CROSS_FLAG := $(if $(SPIRV_CROSS),--spirv-cross $(SPIRV_CROSS),)
+SHADER_PACK_SCRIPT := $(srcdir)/build-aux/pack_shaders.py
+SHADER_GEN_DIR := $(builddir)/gen/shaders
+SHADER_GLSL_INPUTS := $(wildcard $(srcdir)/$(ASSETS_DIR)/shaders/VK_*_[vf].glsl)
+SHADER_GEN_STAMP := $(SHADER_GEN_DIR)/.pack_stamp
+SHADER_GLSLC_FLAG := $(if $(GLSLC),--glslc $(GLSLC),)
+SHADER_SPIRV_CROSS_FLAG := $(if $(SPIRV_CROSS),--spirv-cross $(SPIRV_CROSS),)
 
 # SDL_gpu: pack GLSL + SPIR-V + (HLSL->DXIL) + MSL into .shdpk; dxc is only needed here (D3D12 DXIL)
-@USE_SDLGPU_TRUE@@USE_SHADERGEN_TRUE@SDLGPU_SHADER_MANIFEST := $(SHADER_GEN_DIR)/sdlgpu_shaders.manifest
-@USE_SDLGPU_FALSE@@USE_SHADERGEN_TRUE@SDLGPU_PACK_ARGS := 
-@USE_SDLGPU_TRUE@@USE_SHADERGEN_TRUE@SDLGPU_PACK_ARGS := --manifest $(SDLGPU_SHADER_MANIFEST)
-@USE_SDLGPU_FALSE@@USE_SHADERGEN_TRUE@SDLGPU_EMBED_DEPS := 
-@USE_SDLGPU_TRUE@@USE_SHADERGEN_TRUE@SDLGPU_EMBED_DEPS := $(SDLGPU_SHADER_MANIFEST)
-@USE_SHADERGEN_FALSE@SDLGPU_EMBED_DEPS := 
-@USE_SDLGPU_FALSE@@USE_SHADERGEN_TRUE@SDLGPU_EMBED_MANIFEST_FLAG := 
-@USE_SDLGPU_TRUE@@USE_SHADERGEN_TRUE@SDLGPU_EMBED_MANIFEST_FLAG := -F $(SDLGPU_SHADER_MANIFEST)
-@USE_SHADERGEN_FALSE@SDLGPU_EMBED_MANIFEST_FLAG := 
-@USE_SDLGPU_FALSE@@USE_SHADERGEN_TRUE@SDLGPU_DXC_FLAG := 
-@USE_SDLGPU_TRUE@@USE_SHADERGEN_TRUE@SDLGPU_DXC_FLAG := $(if \
-@USE_SDLGPU_TRUE@@USE_SHADERGEN_TRUE@	$(DXC),--dxc $(DXC),) \
-@USE_SDLGPU_TRUE@@USE_SHADERGEN_TRUE@	$(am__append_78)
-@DOWNLOAD_DXC_FALSE@@USE_SDLGPU_TRUE@@USE_SHADERGEN_TRUE@SDLGPU_DXC_DEP := 
-@DOWNLOAD_DXC_TRUE@@USE_SDLGPU_TRUE@@USE_SHADERGEN_TRUE@SDLGPU_DXC_DEP := $(DEPS_CACHE)/linux_dxc_2025_07_14.x86_64.source
-@USE_SDLGPU_FALSE@@USE_SHADERGEN_TRUE@SDLGPU_DXC_DEP := 
+@USE_SDLGPU_TRUE@SDLGPU_SHADER_MANIFEST := $(SHADER_GEN_DIR)/sdlgpu_shaders.manifest
+@USE_SDLGPU_FALSE@SDLGPU_PACK_ARGS := 
+@USE_SDLGPU_TRUE@SDLGPU_PACK_ARGS := --manifest $(SDLGPU_SHADER_MANIFEST)
+@USE_SDLGPU_FALSE@SDLGPU_EMBED_DEPS := 
+@USE_SDLGPU_TRUE@SDLGPU_EMBED_DEPS := $(SDLGPU_SHADER_MANIFEST)
+@USE_SDLGPU_FALSE@SDLGPU_EMBED_MANIFEST_FLAG := 
+@USE_SDLGPU_TRUE@SDLGPU_EMBED_MANIFEST_FLAG := -F $(SDLGPU_SHADER_MANIFEST)
+@USE_SDLGPU_FALSE@SDLGPU_DXC_FLAG := 
+@USE_SDLGPU_TRUE@SDLGPU_DXC_FLAG := $(if $(DXC),--dxc $(DXC),) \
+@USE_SDLGPU_TRUE@	$(am__append_78)
+@DOWNLOAD_DXC_FALSE@@USE_SDLGPU_TRUE@SDLGPU_DXC_DEP := 
+@DOWNLOAD_DXC_TRUE@@USE_SDLGPU_TRUE@SDLGPU_DXC_DEP := $(DEPS_CACHE)/linux_dxc_2025_07_14.x86_64.source
+@USE_SDLGPU_FALSE@SDLGPU_DXC_DEP := 
 
 # DX11: emit SM5.0 HLSL (D3DCompile'd at runtime; no dxc), embedded via a generated build manifest
-@USE_DX11_TRUE@@USE_SHADERGEN_TRUE@DX11_SHADER_MANIFEST := $(SHADER_GEN_DIR)/dx11_shaders.manifest
-@USE_DX11_FALSE@@USE_SHADERGEN_TRUE@DX11_PACK_ARGS := 
-@USE_DX11_TRUE@@USE_SHADERGEN_TRUE@DX11_PACK_ARGS := --dx11-manifest $(DX11_SHADER_MANIFEST) --dx11-output-dir $(SHADER_GEN_DIR)
-@USE_DX11_FALSE@@USE_SHADERGEN_TRUE@DX11_EMBED_DEPS := 
-@USE_DX11_TRUE@@USE_SHADERGEN_TRUE@DX11_EMBED_DEPS := $(DX11_SHADER_MANIFEST)
-@USE_SHADERGEN_FALSE@DX11_EMBED_DEPS := 
-@USE_DX11_FALSE@@USE_SHADERGEN_TRUE@DX11_EMBED_MANIFEST_FLAG := 
-@USE_DX11_TRUE@@USE_SHADERGEN_TRUE@DX11_EMBED_MANIFEST_FLAG := -F $(DX11_SHADER_MANIFEST)
-@USE_SHADERGEN_FALSE@DX11_EMBED_MANIFEST_FLAG := 
+@USE_DX11_TRUE@DX11_SHADER_MANIFEST := $(SHADER_GEN_DIR)/dx11_shaders.manifest
+@USE_DX11_FALSE@DX11_PACK_ARGS := 
+@USE_DX11_TRUE@DX11_PACK_ARGS := --dx11-manifest $(DX11_SHADER_MANIFEST) --dx11-output-dir $(SHADER_GEN_DIR)
+@USE_DX11_FALSE@DX11_EMBED_DEPS := 
+@USE_DX11_TRUE@DX11_EMBED_DEPS := $(DX11_SHADER_MANIFEST)
+@USE_DX11_FALSE@DX11_EMBED_MANIFEST_FLAG := 
+@USE_DX11_TRUE@DX11_EMBED_MANIFEST_FLAG := -F $(DX11_SHADER_MANIFEST)
+
+# OpenGL: emit GLSL in the dialect of the enabled GL backend (compiled by the driver at runtime)
+@USE_GL_TRUE@GL_SHADER_MANIFEST := $(SHADER_GEN_DIR)/gl_shaders.manifest
+@USE_GL_TRUE@@USE_OPENGLES_FALSE@GL_SHADER_DIALECT := legacy
+@USE_GL_TRUE@@USE_OPENGLES_TRUE@GL_SHADER_DIALECT := es
+@USE_GL_FALSE@GL_PACK_ARGS := 
+@USE_GL_TRUE@GL_PACK_ARGS := --gl-manifest $(GL_SHADER_MANIFEST) --gl-dialect $(GL_SHADER_DIALECT)
+@USE_GL_FALSE@GL_EMBED_DEPS := 
+@USE_GL_TRUE@GL_EMBED_DEPS := $(GL_SHADER_MANIFEST)
+@USE_GL_FALSE@GL_EMBED_MANIFEST_FLAG := 
+@USE_GL_TRUE@GL_EMBED_MANIFEST_FLAG := -F $(GL_SHADER_MANIFEST)
 
 # content-based stamp: only updates (and triggers re-embed) when the manifest list actually changes
 EMBED_CONFIG_STAMP := $(builddir)/gen/.embed_config
-EMBED_FULL_MANIFEST_FLAGS := $(EMBED_MANIFEST_FLAGS) $(SDLGPU_EMBED_MANIFEST_FLAG) $(DX11_EMBED_MANIFEST_FLAG)
+EMBED_FULL_MANIFEST_FLAGS := $(EMBED_MANIFEST_FLAGS) $(SDLGPU_EMBED_MANIFEST_FLAG) $(DX11_EMBED_MANIFEST_FLAG) $(GL_EMBED_MANIFEST_FLAG)
 
 #####################################################################################################################################################
 #####################################################################################################################################################
@@ -8707,34 +8714,36 @@ $(CACERT_INCDIR)/cacert.pem:
 @ENABLE_I18N_TRUE@$(builddir)/gen/%.mo: $(GEN_TRANSLATIONS_STAMP) ;
 @ENABLE_I18N_TRUE@$(TRANSLATIONS_HEADER): $(GEN_TRANSLATIONS_STAMP) ;
 @ENABLE_I18N_TRUE@$(TRANSLATIONS_LOCALE_MANIFEST): $(GEN_TRANSLATIONS_STAMP) ;
-@DOWNLOAD_DXC_TRUE@@USE_SDLGPU_TRUE@@USE_SHADERGEN_TRUE@$(DEPS_CACHE)/linux_dxc_2025_07_14.x86_64.source: $(DEPS_CACHE)/linux_dxc_2025_07_14.x86_64.tar.gz
-@DOWNLOAD_DXC_TRUE@@USE_SDLGPU_TRUE@@USE_SHADERGEN_TRUE@	$(MKDIR_P) $(DEPS_CACHE)/linux_dxc_2025_07_14 && \
-@DOWNLOAD_DXC_TRUE@@USE_SDLGPU_TRUE@@USE_SHADERGEN_TRUE@	$(TAR) xf $(DEPS_CACHE)/linux_dxc_2025_07_14.x86_64.tar.gz -C $(DEPS_CACHE)/linux_dxc_2025_07_14 --strip-components=1 && \
-@DOWNLOAD_DXC_TRUE@@USE_SDLGPU_TRUE@@USE_SHADERGEN_TRUE@	test -f $(DEPS_CACHE)/linux_dxc_2025_07_14/bin/dxc && \
-@DOWNLOAD_DXC_TRUE@@USE_SDLGPU_TRUE@@USE_SHADERGEN_TRUE@	touch $@
+@DOWNLOAD_DXC_TRUE@@USE_SDLGPU_TRUE@$(DEPS_CACHE)/linux_dxc_2025_07_14.x86_64.source: $(DEPS_CACHE)/linux_dxc_2025_07_14.x86_64.tar.gz
+@DOWNLOAD_DXC_TRUE@@USE_SDLGPU_TRUE@	$(MKDIR_P) $(DEPS_CACHE)/linux_dxc_2025_07_14 && \
+@DOWNLOAD_DXC_TRUE@@USE_SDLGPU_TRUE@	$(TAR) xf $(DEPS_CACHE)/linux_dxc_2025_07_14.x86_64.tar.gz -C $(DEPS_CACHE)/linux_dxc_2025_07_14 --strip-components=1 && \
+@DOWNLOAD_DXC_TRUE@@USE_SDLGPU_TRUE@	test -f $(DEPS_CACHE)/linux_dxc_2025_07_14/bin/dxc && \
+@DOWNLOAD_DXC_TRUE@@USE_SDLGPU_TRUE@	touch $@
 
 # one pack run produces every enabled backend's outputs; the stamp is the single target and the
 # manifests + packed/transpiled files are its side effects (the embed depfile lists them)
-@USE_SHADERGEN_TRUE@$(SHADER_GEN_STAMP): $(SDLGPU_DXC_DEP) $(SHADER_GLSL_INPUTS) $(SHADER_PACK_SCRIPT)
-@USE_SHADERGEN_TRUE@	$(MKDIR_P) $(SHADER_GEN_DIR)
-@USE_SHADERGEN_TRUE@	$(PYTHON) $(SHADER_PACK_SCRIPT) \
-@USE_SHADERGEN_TRUE@		--shader-dir $(srcdir)/$(ASSETS_DIR)/shaders \
-@USE_SHADERGEN_TRUE@		--output-dir $(SHADER_GEN_DIR) \
-@USE_SHADERGEN_TRUE@		$(SDLGPU_PACK_ARGS) \
-@USE_SHADERGEN_TRUE@		$(DX11_PACK_ARGS) \
-@USE_SHADERGEN_TRUE@		$(SHADER_GLSLC_FLAG) \
-@USE_SHADERGEN_TRUE@		$(SHADER_SPIRV_CROSS_FLAG) \
-@USE_SHADERGEN_TRUE@		$(SDLGPU_DXC_FLAG)
-@USE_SHADERGEN_TRUE@	@touch $@
+$(SHADER_GEN_STAMP): $(SDLGPU_DXC_DEP) $(SHADER_GLSL_INPUTS) $(SHADER_PACK_SCRIPT)
+	$(MKDIR_P) $(SHADER_GEN_DIR)
+	$(PYTHON) $(SHADER_PACK_SCRIPT) \
+		--shader-dir $(srcdir)/$(ASSETS_DIR)/shaders \
+		--output-dir $(SHADER_GEN_DIR) \
+		$(SDLGPU_PACK_ARGS) \
+		$(DX11_PACK_ARGS) \
+		$(GL_PACK_ARGS) \
+		$(SHADER_GLSLC_FLAG) \
+		$(SHADER_SPIRV_CROSS_FLAG) \
+		$(SDLGPU_DXC_FLAG)
+	@touch $@
 
-@USE_SHADERGEN_TRUE@$(SDLGPU_SHADER_MANIFEST) $(DX11_SHADER_MANIFEST): $(SHADER_GEN_STAMP) ;
-@USE_SHADERGEN_TRUE@$(SHADER_GEN_DIR)/%.shdpk: $(SHADER_GEN_STAMP) ;
-@USE_SHADERGEN_TRUE@$(SHADER_GEN_DIR)/%.hlsl: $(SHADER_GEN_STAMP) ;
+$(SDLGPU_SHADER_MANIFEST) $(DX11_SHADER_MANIFEST) $(GL_SHADER_MANIFEST): $(SHADER_GEN_STAMP) ;
+$(SHADER_GEN_DIR)/%.shdpk: $(SHADER_GEN_STAMP) ;
+$(SHADER_GEN_DIR)/%.hlsl: $(SHADER_GEN_STAMP) ;
+$(SHADER_GEN_DIR)/%.glsl: $(SHADER_GEN_STAMP) ;
 $(EMBED_CONFIG_STAMP): FORCE
 	@$(MKDIR_P) $(dir $@)
 	@echo '$(EMBED_FULL_MANIFEST_FLAGS)' | cmp -s - $@ || echo '$(EMBED_FULL_MANIFEST_FLAGS)' > $@
 
-$(EMBED_OUTPUT): $(EMBED_SCRIPT) $(EMBED_MANIFESTS) $(BUILD_EMBED_MANIFESTS) $(EMBED_CACERT_DEPS) $(SDLGPU_EMBED_DEPS) $(DX11_EMBED_DEPS) $(EMBED_CONFIG_STAMP) $(MO_FILES)
+$(EMBED_OUTPUT): $(EMBED_SCRIPT) $(EMBED_MANIFESTS) $(BUILD_EMBED_MANIFESTS) $(EMBED_CACERT_DEPS) $(SDLGPU_EMBED_DEPS) $(DX11_EMBED_DEPS) $(GL_EMBED_DEPS) $(EMBED_CONFIG_STAMP) $(MO_FILES)
 	$(MKDIR_P) $(dir $@)
 	$(PYTHON) $(EMBED_SCRIPT) -t $(EMBED_TYPE) -b $(srcdir) -d $(EMBED_DEPFILE) $(EMBED_FULL_MANIFEST_FLAGS) $@ \
 		$(EMBED_CACERT_ARGS)

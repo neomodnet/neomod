@@ -8,9 +8,9 @@ layout(location = 0) out vec2 tex_coord;
 
 layout(set = 1, binding = 0) uniform VertexUniforms {
     mat4 mvp;
-};
+} vu;
 
 void main() {
-    gl_Position = mvp * vec4(inPos, 1.0);
+    gl_Position = vu.mvp * vec4(inPos, 1.0);
     tex_coord = inTex;
 }

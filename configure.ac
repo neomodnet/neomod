@@ -239,7 +239,7 @@ AC_DEFUN([AC_PROG_GETTEXT_TOOLS], [
 ])
 
 # needed for building SPIR-V shaders (the canonical GLSL source is compiled to SPIR-V,
-# then transpiled to HLSL/MSL via spirv-cross)
+# then transpiled to GLSL/HLSL/MSL via spirv-cross)
 # tries glslc first (from shaderc), falls back to glslangValidator (from glslang-tools)
 AC_DEFUN([AC_PROG_GLSLC], [
     AC_CHECK_PROG([GLSLC], [glslc], [glslc])
@@ -251,7 +251,7 @@ AC_DEFUN([AC_PROG_GLSLC], [
     fi
 ])
 
-# needed for transpiling the compiled SPIR-V to HLSL and MSL, so each shader is
+# needed for transpiling the compiled SPIR-V to GLSL, HLSL and MSL, so each shader is
 # authored once in GLSL instead of separately per backend (from SPIRV-Cross)
 AC_DEFUN([AC_PROG_SPIRV_CROSS], [
     AC_CHECK_PROG([SPIRV_CROSS], [spirv-cross], [spirv-cross])
@@ -520,17 +520,15 @@ AS_IF([test "x$use_dx11" = "xyes" ], [
     use_dx11=no
 ])
 
-# the DX11 and SDL_gpu backends both derive their shaders from the canonical VK_*.glsl, so both need
-# glslc (GLSL->SPIR-V) + spirv-cross (SPIR-V->HLSL/MSL); require them whenever either backend is enabled
-AS_IF([test "x$use_sdlgpu" = "xyes" || test "x$use_dx11" = "xyes"], [
-    AC_PROG_GLSLC
-    AC_PROG_SPIRV_CROSS
-    AS_IF([test -z "$GLSLC"], [
-        AC_MSG_ERROR([neither glslc nor glslangValidator found - required for compiling GLSL shaders to SPIR-V])
-    ])
-    AS_IF([test -z "$SPIRV_CROSS"], [
-        AC_MSG_ERROR([spirv-cross not found - required for transpiling shaders to HLSL/MSL (try: brew install spirv-cross, or apt install spirv-cross)])
-    ])
+# every backend derives its shaders from the canonical VK_*.glsl, so they all need
+# glslc (GLSL->SPIR-V) + spirv-cross (SPIR-V->GLSL/HLSL/MSL)
+AC_PROG_GLSLC
+AC_PROG_SPIRV_CROSS
+AS_IF([test -z "$GLSLC"], [
+    AC_MSG_ERROR([neither glslc nor glslangValidator found - required for compiling GLSL shaders to SPIR-V])
+])
+AS_IF([test -z "$SPIRV_CROSS"], [
+    AC_MSG_ERROR([spirv-cross not found - required for transpiling shaders to GLSL/HLSL/MSL (try: brew install spirv-cross, or apt install spirv-cross)])
 ])
 
 AS_IF([test "x$use_sdlgpu" = "xyes"], [
@@ -550,18 +548,15 @@ AS_IF([test "x$use_sdlgpu" = "xyes"], [
     use_sdlgpu=no
 ])
 
-# build the list of binary embed manifests based on renderer selection.
+# the static binary embed manifests.
 # EMBED_MANIFESTS: srcdir-anchored manifests, consumed via gen_binary_embed.py -f (paths
 #   prepended with --base-dir=$(srcdir)).
 # BUILD_EMBED_MANIFESTS: build-tree manifests with absolute paths, consumed via -F (no
 #   base-dir prepend) so out-of-source builds work.
 EMBED_MANIFESTS="\$(srcdir)/\$(ASSETS_DIR)/binary/misc_embed.manifest"
 BUILD_EMBED_MANIFESTS="\$(builddir)/gen/locale_embed.manifest"
-AS_IF([test "x$use_opengl" = "xyes" || test "x$use_opengles32" = "xyes"], [
-    EMBED_MANIFESTS="$EMBED_MANIFESTS \$(srcdir)/\$(ASSETS_DIR)/binary/gl_shaders_embed.manifest"
-])
-# SDL_gpu (.shdpk) and DX11 (.hlsl) shaders are both generated from the canonical VK_*.glsl and embedded
-# via build manifests produced by pack_shaders.py (see Makefile.am), not through a static manifest.
+# SDL_gpu (.shdpk), DX11 (.hlsl) and OpenGL (.glsl) shaders are all generated from the canonical VK_*.glsl and
+# embedded via build manifests produced by pack_shaders.py (see Makefile.am), not through a static manifest.
 AC_SUBST([EMBED_MANIFESTS])
 AC_SUBST([BUILD_EMBED_MANIFESTS])
 
@@ -1563,7 +1558,7 @@ BUNDLED_INCLUDES="-I\$(srcdir)/libraries -I\$(srcdir)/libraries/delegatesv2 -I\$
 AC_SUBST([BUNDLED_INCLUDES])
 
 AC_MSG_CHECKING([for shaders in $srcdir/$ASSETS_DIR/shaders])
-AS_IF([test -f "$srcdir/$ASSETS_DIR/shaders/GL_slider_f.glsl"], [
+AS_IF([test -f "$srcdir/$ASSETS_DIR/shaders/VK_slider_f.glsl"], [
     AC_MSG_RESULT([yes])
 ], [
     AC_MSG_RESULT([no])
@@ -1978,8 +1973,6 @@ AM_CONDITIONAL([USE_OPENGL], [test "$use_opengl" = "yes"])
 AM_CONDITIONAL([USE_OPENGLES], [test "$use_opengles32" = "yes"])
 AM_CONDITIONAL([USE_DX11], [test "$use_dx11" = "yes"])
 AM_CONDITIONAL([USE_SDLGPU], [test "$use_sdlgpu" = "yes"])
-# the shader generator (pack_shaders.py) runs whenever DX11 or SDL_gpu is enabled
-AM_CONDITIONAL([USE_SHADERGEN], [test "$use_sdlgpu" = "yes" || test "$use_dx11" = "yes"])
 AM_CONDITIONAL([DOWNLOAD_DXC], [test -z "$DXC" && test "$host_os" = "mingw32" && test "$use_sdlgpu" = "yes"])
 AM_CONDITIONAL([USE_DISCORDRPC], [test "$with_discord" = "yes"])
 AM_CONDITIONAL([ENABLE_I18N], [test "x$with_i18n" = "xyes"])

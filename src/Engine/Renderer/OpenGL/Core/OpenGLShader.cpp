@@ -5,6 +5,7 @@
 #include "OpenGLShader.h"
 
 #include "OpenGLHeaders.h"
+#include "OpenGLInterface.h"
 #include "OpenGLStateCache.h"
 
 #include "ConVar.h"
@@ -74,6 +75,9 @@ void OpenGLShader::init() {
 void OpenGLShader::initAsync() { this->setAsyncReady(true); }
 
 void OpenGLShader::destroy() {
+    if(auto *gl = static_cast<OpenGLInterface *>(g); gl != nullptr && gl->activeShader == this)
+        gl->activeShader = nullptr;
+
     if(this->iProgram != 0) MCglDeleteObject(this->iProgram);
     if(this->iFragmentShader != 0) MCglDeleteObject(this->iFragmentShader);
     if(this->iVertexShader != 0) MCglDeleteObject(this->iVertexShader);
@@ -96,6 +100,14 @@ void OpenGLShader::enable() {
     this->iProgramBackup = currentProgram;
     MCglUseProgramObject(this->iProgram);
     GLStateCache::setCurrentProgram(this->iProgram);
+
+    auto *gl = static_cast<OpenGLInterface *>(g);
+    this->activeShaderBackup = gl->activeShader;
+    gl->activeShader = this;
+
+    // the newly activated shader may not have the current MVP if no transform
+    // change occurred since it was last active
+    this->setMVP(g->getMVP());
 }
 
 void OpenGLShader::disable() {
@@ -105,6 +117,8 @@ void OpenGLShader::disable() {
 
     // update cache
     GLStateCache::setCurrentProgram(this->iProgramBackup);
+
+    static_cast<OpenGLInterface *>(g)->activeShader = this->activeShaderBackup;
 }
 
 void OpenGLShader::writeUniform(std::string_view name, UniformType type, const void *const data, u32 dataSize) {
@@ -219,19 +233,36 @@ bool OpenGLShader::compile(const std::string &vertexShader, const std::string &f
         return false;
     }
 
+    // the canonical uniform blocks are plain structs in this dialect, so their members are named like "fu.col";
+    // cache them under the member name so lookups match the engine's setUniform("col") names
+    GLint numUniforms = 0, maxNameLength = 0;
+    glGetProgramiv(this->iProgram, GL_ACTIVE_UNIFORMS, &numUniforms);
+    glGetProgramiv(this->iProgram, GL_ACTIVE_UNIFORM_MAX_LENGTH, &maxNameLength);
+    std::string uniformName(maxNameLength, '\0');
+    for(GLint i = 0; i < numUniforms; i++) {
+        GLsizei nameLength = 0;
+        GLint size = 0;
+        GLenum type = 0;
+        glGetActiveUniform(this->iProgram, i, maxNameLength, &nameLength, &size, &type, uniformName.data());
+
+        const int id = MCglGetUniformLocation(this->iProgram, uniformName.c_str());
+        if(id == -1) continue;
+
+        std::string_view memberName{uniformName.data(), static_cast<size_t>(nameLength)};
+        if(const size_t dot = memberName.find('.'); dot != std::string_view::npos) memberName.remove_prefix(dot + 1);
+        if(memberName.ends_with("[0]"sv)) memberName.remove_suffix(3);
+        this->uniformLocationCache.emplace(memberName, id);
+    }
+
     return true;
 }
 
-int OpenGLShader::createShaderFromString(std::string shaderSource, int shaderType) {
+int OpenGLShader::createShaderFromString(const std::string &shaderSource, int shaderType) {
     const auto shader = MCglCreateShaderObject(shaderType);
 
     if(shader == 0) {
         engine->showMessageError("OpenGLShader Error", "Couldn't glCreateShaderObjectARB()");
         return 0;
-    }
-
-    if(size_t pos = shaderSource.find("{RUNTIME_VERSION}"sv); pos != std::string::npos) {
-        shaderSource.replace(pos, "{RUNTIME_VERSION}"sv.length(), "110");
     }
 
     // compile shader
