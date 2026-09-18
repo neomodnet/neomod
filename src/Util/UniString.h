@@ -11,8 +11,11 @@ namespace UniString {
 [[nodiscard]] uSz num_codepoints(std::u16string_view utf16) noexcept;
 [[nodiscard]] uSz num_codepoints(std::u32string_view utf32) noexcept;
 
+// decode text of unknown encoding (BOM, otherwise a heuristic guess) to UTF-8, e.g. file contents
 [[nodiscard]] std::string to_utf8(const char *arbitrarily_encoded_data, uSz size) noexcept;
-[[nodiscard]] std::string to_utf8(std::string_view maybe_utf8) noexcept;
+[[nodiscard]] std::string to_utf8(std::string_view arbitrarily_encoded_data) noexcept;
+// replace invalid UTF-8 sequences with U+FFFD (the codepoint iterators below assume valid input), for untrusted UTF-8
+[[nodiscard]] std::string sanitize_utf8(std::string utf8) noexcept;
 [[nodiscard]] std::string to_utf8(std::u16string_view utf16) noexcept;
 [[nodiscard]] std::string to_utf8(std::u32string_view utf32) noexcept;
 

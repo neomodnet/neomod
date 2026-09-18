@@ -10,6 +10,7 @@
 #include <cassert>
 #include <string_view>
 #include <string>
+#include <utility>
 
 uSz Packet::read_bytes(u8 *bytes, size_t n) {
     if(this->pos + n > this->size) {
@@ -46,8 +47,8 @@ std::string Packet::read_stdstring() {
         out.resize_and_overwrite(
             len, [this](char *data, uSz size) -> uSz { return this->read_bytes(reinterpret_cast<u8 *>(data), size); });
 
-        // convert arbitrary bytes to valid utf (sanity)
-        return UniString::to_utf8(out);
+        // assume utf-8, but make sure it's valid (sanity)
+        return UniString::sanitize_utf8(std::move(out));
     } else {
         return {};
     }
