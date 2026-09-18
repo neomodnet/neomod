@@ -193,7 +193,7 @@ CONVAR(debug_network, false, CLIENT);
 CONVAR(debug_anim, false, CLIENT, CFUNC(AnimationHandler::onDebugAnimChange));
 CONVAR(debug_box_shadows, false, CLIENT);
 CONVAR(debug_engine, false, CLIENT);
-CONVAR(debug_fixed_frametime, 0.0f, CLIENT | NOLOAD | NOSAVE,
+CONVAR(debug_fixed_frametime, 0.0f, CLIENT | NOLOAD | NOSAVE | PROTECTED | GAMEPLAY,
        "advance engine time by a fixed step per frame instead of wall clock (deterministic headless testing), 0 = "
        "disabled, set once at startup");
 CONVAR(debug_ui, false, CLIENT | HIDDEN);  // currently not hooked up to anything

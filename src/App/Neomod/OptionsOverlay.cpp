@@ -431,7 +431,7 @@ class ResetButton final : public CBaseUIButton {
 
     OptionsElement *elemContainer;
 
-   private:
+   protected:
     void onClicked(bool left = true, bool right = false) override {
         if(this->isAvailable()) CBaseUIButton::onClicked(left, right);
     }
@@ -446,6 +446,7 @@ class ResetButton final : public CBaseUIButton {
         this->fAnim.set(0.0f, this->fAnim * 0.15f, anim::QuadOut);
     }
 
+   private:
     AnimFloat fAnim;
 };
 
@@ -553,6 +554,7 @@ class SkinPreviewElement final : public CBaseUIElement {
         }
     }
 
+   protected:
     void onMouseUpInside(bool /*left*/, bool /*right*/) override {
         this->iMode++;
         this->iMode = this->iMode % 3;
@@ -752,12 +754,13 @@ class OptionsMenuKeyBindLabel final : public CBaseUILabel {
     void setTextColorBound(Color textColorBound) { this->textColorBound = textColorBound; }
     void setTextColorUnbound(Color textColorUnbound) { this->textColorUnbound = textColorUnbound; }
 
-   private:
+   protected:
     void onMouseUpInside(bool left, bool right) override {
         CBaseUILabel::onMouseUpInside(left, right);
         this->bindButton->click(left, right);
     }
 
+   private:
     OsuKeyBinds::Bind *bind;
     CBaseUIButton *bindButton;
 
