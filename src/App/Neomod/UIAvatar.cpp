@@ -9,6 +9,7 @@
 #include "Osu.h"
 #include "UI.h"
 #include "Graphics.h"
+#include "Image.h"
 #include "UIUserContextMenu.h"
 #include "MakeDelegateWrapper.h"
 
