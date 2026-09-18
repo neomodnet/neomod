@@ -76,7 +76,8 @@ Diagnostics:
     'modernize-use-designated-initializers',
     'cppcoreguidelines-pro-bounds-avoid-unchecked-container-access',
     'misc-use-anonymous-namespace',
-    'hicpp-no-assembler']
+    'hicpp-no-assembler',
+    'modernize-use-integer-sign-comparison']
 
 InlayHints:
     Enabled: No
