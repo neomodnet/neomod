@@ -103,6 +103,21 @@ std::string_view ConVar::typeToString(CONVAR_TYPE type) {
     return ""sv;
 }
 
+std::string_view ConVar::editorToString(CvarEditor editor) {
+    switch(editor) {
+        using enum CvarEditor;
+        case CLIENT:
+            return "client"sv;
+        case SERVER:
+            return "server"sv;
+        case SKIN:
+            return "skin"sv;
+    }
+
+    std::unreachable();
+    return ""sv;
+}
+
 std::string ConVar::flagsToString(uint8_t flags) {
     if(flags == 0) {
         return "no flags";
@@ -159,9 +174,8 @@ void ConVar::resolve() {
 }
 
 void ConVar::valueChanged() const {
-    static constexpr std::array masterNames{"client"sv, "server"sv, "skin"sv};
     logIfCV(debug_cv, "{:s} = {:s} ({:s})", this->sName, this->isFlagSet(cv::HIDDEN) ? "..." : this->getString(),
-            masterNames[static_cast<size_t>(this->master)]);
+            this->isLocked() ? "lock"sv : ConVar::editorToString(this->master));
 
     if(const auto onValueChanged = cvars().policy.onValueChanged; onValueChanged) onValueChanged(*this);
 }
@@ -200,7 +214,8 @@ void ConVar::notifyIfChanged(const Value &old, bool callbacks) {
 }
 
 void ConVar::setServerProtected(CvarProtection policy) {
-    if(policy == this->serverProtectionPolicy) return;
+    // (commands have no value that could be protected: the lock would keep the client from running them)
+    if(!this->bCanHaveValue || policy == this->serverProtectionPolicy) return;
 
     this->change([&] { this->serverProtectionPolicy = policy; });
 }

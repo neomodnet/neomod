@@ -130,8 +130,10 @@ bool processCommand(std::string_view command, bool fromFile) {
             logMessage.append(" : ");
             logMessage.append(var->getString());
             if(result == CvarSetResult::MASKED) {
-                logMessage.append(fmt::format(" (forced by the {:s}, \"{:s}\" is kept for later)",
-                                              var->getMaster() == CvarEditor::SKIN ? "skin" : "server", commandValue));
+                const std::string why =
+                    var->isLocked() ? "locked"s
+                                    : fmt::format("forced by the {:s}", ConVar::editorToString(var->getMaster()));
+                logMessage.append(fmt::format(" ({:s}, \"{:s}\" is kept for later)", why, commandValue));
             }
         }
 

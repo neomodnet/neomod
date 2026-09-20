@@ -3958,7 +3958,8 @@ void OptionsOverlayImpl::pushForcedCvarTooltipIfHovered() {
             ttoverlay->begin();
             switch(e->cvar->getMaster()) {
                 case CvarEditor::SERVER:
-                    ttoverlay->addLine(_("This setting is forced by the server."));
+                    ttoverlay->addLine(e->cvar->isLocked() ? _("This setting is locked in multiplayer rooms.")
+                                                           : _("This setting is forced by the server."));
                     break;
                 case CvarEditor::SKIN:
                     ttoverlay->addLine(_("This setting is forced by the current skin."));

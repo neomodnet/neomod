@@ -28,7 +28,7 @@ enum CvarFlags : uint8_t {
     // Modifiable by clients
     CLIENT = (1 << 0),
 
-    // Modifiable by servers, OR by offline clients
+    // Modifiable by servers
     SERVER = (1 << 1),
 
     // Modifiable by skins
@@ -145,6 +145,7 @@ class ConVar {
    public:
     // utils
     static std::string_view typeToString(CONVAR_TYPE type);
+    static std::string_view editorToString(CvarEditor editor);
     static std::string flagsToString(uint8_t flags);
 
    public:
@@ -339,9 +340,6 @@ class ConVar {
     [[nodiscard]] forceinline std::string_view getName() const { return this->sName; }
     [[nodiscard]] forceinline CONVAR_TYPE getType() const { return this->type; }
     [[nodiscard]] forceinline uint8_t getFlags() const { return this->iFlags; }
-
-    // who the current value comes from (SERVER also while the protection lock is what decides it)
-    [[nodiscard]] forceinline CvarEditor getMaster() const { return this->master; }
     [[nodiscard]] forceinline bool canHaveValue() const { return this->bCanHaveValue; }
 
     [[nodiscard]] bool hasSingleArgCallback() const;
@@ -351,6 +349,11 @@ class ConVar {
         assert(McThread::is_main_thread() && "convars belong to the main thread");
         return this->sameValue(*this->effectiveValue, this->defaultValue);
     }
+
+    // who the current value comes from (SERVER also while the protection lock is what decides it: see isLocked())
+    [[nodiscard]] forceinline CvarEditor getMaster() const { return this->master; }
+    // whether the protection lock is what decides the value: it is the default then, not something the server has set
+    [[nodiscard]] inline bool isLocked() const { return this->master == CvarEditor::SERVER && !this->serverValue; }
 
     // the client's own value, no matter what is overriding it at the moment (or standing in for it, during a
     // session): this (and not what the getters above return) is what belongs into the client's config

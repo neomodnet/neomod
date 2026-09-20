@@ -2882,6 +2882,10 @@ msgid "Press {:d} more time to confirm!"
 msgstr "Naciśnij jeszcze {:d} raz by potwierdzić!"
 
 #: src/App/Neomod/OptionsOverlay.cpp
+msgid "This setting is locked in multiplayer rooms."
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "This setting is forced by the server."
 msgstr "To ustawienie jest wymuszone przez serwer."
 

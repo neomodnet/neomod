@@ -422,8 +422,9 @@ CONVAR(mod_perfect, false, CLIENT | SERVER | GAMEPLAY);
 // speed_override: Even though it isn't PROTECTED, only (0.75, 1.0, 1.5) are allowed on bancho servers.
 CONVAR(speed_override, -1.0f, CLIENT | SERVER | GAMEPLAY);
 // mod_*time_dummy: These don't affect gameplay, but edit speed_override.
-CONVAR(mod_doubletime_dummy, false, CLIENT | SKINS | SERVER);
-CONVAR(mod_halftime_dummy, false, CLIENT | SKINS | SERVER);
+// (the mod selector's DT/HT buttons: their callbacks set speed_override as the client, so nobody else gets to set them)
+CONVAR(mod_doubletime_dummy, false, CLIENT);
+CONVAR(mod_halftime_dummy, false, CLIENT);
 
 // Non-vanilla mods
 CONVAR(ar_override, -1.0f, CLIENT | SERVER | PROTECTED | GAMEPLAY,
@@ -952,11 +953,11 @@ CONVAR(spec_share_map, true, CLIENT | SKINS | SERVER, "automatically send curren
 CONVAR(spinner_fade_out_time_multiplier, 0.7f, CLIENT | SKINS | SERVER);
 CONVAR(spinner_use_ar_fadein, false, CLIENT | SKINS | SERVER,
        "whether spinners should fade in with AR (same as circles), or with hardcoded 400 ms fadein time (osu!default)");
-CONVAR(stars_ignore_clamped_sliders, defaults::stars_ignore_clamped_sliders, CLIENT | SKINS | SERVER,
+CONVAR(stars_ignore_clamped_sliders, defaults::stars_ignore_clamped_sliders, CLIENT | SERVER,
        "skips processing sliders limited by slider_curve_max_length");
-CONVAR(stars_slider_curve_points_separation, defaults::stars_slider_curve_points_separation, CLIENT | SKINS | SERVER,
+CONVAR(stars_slider_curve_points_separation, defaults::stars_slider_curve_points_separation, CLIENT | SERVER,
        "massively reduce curve accuracy for star calculations to save memory/performance");
-CONVAR(stars_stacking, defaults::stars_stacking, CLIENT | SKINS | SERVER,
+CONVAR(stars_stacking, defaults::stars_stacking, CLIENT | SERVER,
        "respect hitobject stacking before calculating stars/pp");
 CONVAR(start_first_main_menu_song_at_preview_point, false, CLIENT);
 CONVAR(submit_after_pause, true, CLIENT | SERVER);

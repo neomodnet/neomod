@@ -341,6 +341,7 @@ void ConVarTest::testProtectionLock() {
     TEST_ASSERT_EQ(t_protected.getFloat(), 0.0f, "locked protected convar reads as its default");
     TEST_ASSERT_EQ(t_protected.getString(), "0", "locked protected convar reads as its default, string view");
     TEST_ASSERT(t_protected.getMaster() == CvarEditor::SERVER, "a locked convar isn't the client's");
+    TEST_ASSERT(t_protected.isLocked() && !t_layered.isLocked(), "...which is the lock's doing, for protected convars");
     TEST_ASSERT(s_protectedChange.calls == callsBefore + 1, "locking runs callbacks of convars it changes");
     TEST_ASSERT(s_protectedChange.oldValue == 45.0f && s_protectedChange.newValue == 0.0f,
                 "locking, callback old/new values");
@@ -357,13 +358,16 @@ void ConVarTest::testProtectionLock() {
 
     t_protected.setValue(90.0f, true, CvarEditor::SERVER);
     TEST_ASSERT_EQ(t_protected.getFloat(), 90.0f, "server value beats the lock");
+    TEST_ASSERT(t_protected.getMaster() == CvarEditor::SERVER && !t_protected.isLocked(),
+                "...which makes it the server's doing");
     t_protected.clearValue(CvarEditor::SERVER);
     TEST_ASSERT_EQ(t_protected.getFloat(), 0.0f, "locked again without the server value");
 
     callsBefore = s_protectedChange.calls;
     setLocked(false);
     TEST_ASSERT_EQ(t_protected.getFloat(), 50.0f, "the client value written under the lock applies once unlocked");
-    TEST_ASSERT(t_protected.getMaster() == CvarEditor::CLIENT, "unlocked convar is the client's again");
+    TEST_ASSERT(t_protected.getMaster() == CvarEditor::CLIENT && !t_protected.isLocked(),
+                "unlocked convar is the client's again");
     TEST_ASSERT(s_protectedChange.calls == callsBefore + 1, "unlocking runs callbacks of convars it changes");
 
     // a skin must not be able to get around the lock
@@ -720,6 +724,16 @@ void ConVarTest::testCommands() {
     const int callsBefore = s_cmdCalls;
     t_cmd.clearValue(CvarEditor::CLIENT);
     TEST_ASSERT_EQ(s_cmdCalls, callsBefore, "clearing a command's (nonexistent) value doesn't run it");
+
+    // ...nor one that could be protected: the lock would keep the client from running it, and having run it would
+    // count as a protected convar that isn't at its default
+    t_cmd.setServerProtected(CvarProtection::PROTECTED);
+    TEST_ASSERT(!t_cmd.isProtected(), "the server can't protect a command");
+    setLocked(true);
+    t_cmd.setValue("under the lock");
+    TEST_ASSERT_EQ(s_cmdArgs, "under the lock", "the protection lock doesn't keep commands from running");
+    TEST_ASSERT(cvars().areProtectedCvarsDefault(), "...and they don't count as protected convars");
+    setLocked(false);
 }
 
 void ConVarTest::testConsole() {
