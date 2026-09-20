@@ -10,6 +10,7 @@
 
 #include "fmt/format.h"
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <charconv>
@@ -208,7 +209,7 @@ void ConVar::setServerProtected(CvarProtection policy) {
 void ConVar::setDefaultDouble(double newDefault) {
     // (the default is what a locked protected convar reads as)
     const Value old = this->snapshot();
-    this->defaultValue = {.d = newDefault, .s = fmt::format("{:g}", newDefault)};
+    this->defaultValue = this->makeValue(newDefault);
     this->resolve();
     this->notifyIfChanged(old);
 }
@@ -226,11 +227,22 @@ void ConVar::setDefaultString(std::string_view newDefault) {
     this->notifyIfChanged(old);
 }
 
+ConVar::Value ConVar::makeValue(double dbl) const {
+    dbl = std::clamp(dbl, this->range.min, this->range.max);
+    return {.d = dbl, .s = fmt::format("{:g}", dbl)};
+}
+
+ConVar::Value ConVar::makeValue(double dbl, std::string_view text) const {
+    // (text stays as it was typed, unless it isn't what the value is)
+    if(dbl < this->range.min || dbl > this->range.max) return this->makeValue(dbl);
+    return {.d = dbl, .s = std::string{text}};
+}
+
 // typed setValue impls — header dispatcher (setValue<T>) routes here based on T category.
 // Each just computes the (double, std::string) representation and hands off to setValueInt.
 
 CvarSetResult ConVar::setValueImpl(double newDouble, bool doCallback, CvarEditor editor) {
-    return this->setValueInt(newDouble, fmt::format("{:g}", newDouble), doCallback, editor);
+    return this->setValueInt(this->makeValue(newDouble), doCallback, editor);
 }
 
 bool ConVar::parseValue(std::string_view &text, double &dbl) const {
@@ -263,7 +275,7 @@ CvarSetResult ConVar::setValueImpl(std::string_view newString, bool doCallback, 
     double dbl{};
     if(!this->parseValue(newString, dbl)) return CvarSetResult::INVALID;
 
-    return this->setValueInt(dbl, std::string{newString}, doCallback, editor);
+    return this->setValueInt(this->makeValue(dbl, newString), doCallback, editor);
 }
 
 CvarSetResult ConVar::checkWrite(CvarEditor editor) const {
@@ -291,7 +303,7 @@ void ConVar::store(CvarEditor editor, Value value) {
 }
 
 // central store-and-dispatch. handles flag gating, the app's policy, value store, exec/change callbacks.
-CvarSetResult ConVar::setValueInt(double newDouble, std::string newString, bool doCallback, CvarEditor editor) {
+CvarSetResult ConVar::setValueInt(Value newValue, bool doCallback, CvarEditor editor) {
     if(const CvarSetResult refused = this->checkWrite(editor); refused != CvarSetResult::APPLIED) return refused;
 
     // backup old values for callbacks
@@ -303,12 +315,12 @@ CvarSetResult ConVar::setValueInt(double newDouble, std::string newString, bool 
 
     // (see isDefault() about which representation counts)
     const bool sameValue =
-        (this->type == CONVAR_TYPE::STRING) ? (this->getString() == newString) : (oldDouble == newDouble);
+        (this->type == CONVAR_TYPE::STRING) ? (this->getString() == newValue.s) : (oldDouble == newValue.d);
 
     // commands have no value that could be overridden: whoever is allowed to call them just runs them
     if(!this->bCanHaveValue) editor = CvarEditor::CLIENT;
 
-    this->store(editor, {.d = newDouble, .s = std::move(newString)});
+    this->store(editor, std::move(newValue));
     this->resolve();
 
     // a write below whatever decides the value right now (a skin/server value, the protection lock) is kept for
@@ -327,7 +339,7 @@ void ConVar::clearValue(CvarEditor editor) {
 
     // a regular write, with everything that comes with one
     if(editor == CvarEditor::CLIENT) {
-        this->setValueInt(this->defaultValue.d, this->defaultValue.s, true, editor);
+        this->setValueInt(this->defaultValue, true, editor);
         return;
     }
 
@@ -442,6 +454,8 @@ void ConVar::initValueImpl(std::string_view v, uint8_t flags) {
 }
 
 void ConVar::initValueInt(Value value, uint8_t flags) {
+    assert(value.d >= this->range.min && value.d <= this->range.max &&
+           "a convar's default has to be inside of its range");
     this->bCanHaveValue = true;
     this->iFlags = flags;
     this->defaultValue = std::move(value);

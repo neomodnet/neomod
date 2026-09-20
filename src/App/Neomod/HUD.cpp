@@ -99,7 +99,6 @@ void HUD::CursorTrail::clear() { head = tail = count = 0; }
 
 // cv::cursor_trail_max_size callback
 void HUD::onCursorTrailMaxChange() {
-    cv::cursor_trail_max_size.setValue(std::clamp(cv::cursor_trail_max_size.getInt(), 1, 16384), false);
     this->cursorTrailVAO->clear();
 
     this->cursorTrail = CursorTrail{};

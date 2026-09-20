@@ -415,12 +415,8 @@ ConsoleWindow::ConsoleWindow() : CBaseUIWindow(0, 0, 100, 100, "consolewindow") 
 ConsoleWindow::~ConsoleWindow() { cv::console_window_alpha.removeAllCallbacks(); }
 
 void ConsoleWindow::onAlphaChangedCallback(float newValue) {
-    const float clamped = std::clamp(newValue, 0.001f, 1.f);
-    if(clamped != newValue) {
-        cv::console_window_alpha.setValue(clamped, false);
-    }
     // the body's opacity is the user's (the text, the frames and the popup are not affected)
-    this->setBackgroundColor(Color(0xff000000).setA(clamped));
+    this->setBackgroundColor(Color(0xff000000).setA(newValue));
 }
 
 void ConsoleWindow::tick() {

@@ -151,7 +151,7 @@ std::vector<CvarSetResult> ConVarHandler::setLayer(CvarEditor editor,
             kept.push_back(cv);
             if(results[i] == CvarSetResult::APPLIED) changed.emplace_back(cv, cv->snapshot());
         }
-        if(results[i] == CvarSetResult::APPLIED) cv->store(editor, {.d = dbl, .s = std::string{text}});
+        if(results[i] == CvarSetResult::APPLIED) cv->store(editor, cv->makeValue(dbl, text));
     }
 
     for(auto *cv : this->vConVarArray) {

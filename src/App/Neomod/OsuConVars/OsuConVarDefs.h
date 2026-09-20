@@ -554,7 +554,8 @@ CONVAR(background_image_loading_delay, 0.075f, CLIENT,
        "how many seconds to wait until loading background images for visible beatmaps starts");
 CONVAR(slider_curve_points_separation, defaults::slider_curve_points_separation,
        CLIENT,  // NOTE: adjusted by options_slider_quality
-       "slider body curve approximation step width in osu!pixels, don't set this lower than around 1.5");
+       "slider body curve approximation step width in osu!pixels, don't set this lower than around 1.5",
+       Range{1., 2.5});
 
 // Sanity checks/limits
 CONVAR(
@@ -660,7 +661,7 @@ CONVAR(cursor_trail_expand, true, CLIENT | SKINS | SERVER,
        "if \"CursorExpand: 1\" in your skin.ini, whether the trail should then also expand or not");
 CONVAR(cursor_trail_length, 0.17f, CLIENT | SKINS | SERVER, "how long unsmooth cursortrails should be, in seconds");
 CONVAR(cursor_trail_max_size, 2048, CLIENT | SKINS | SERVER,
-       "maximum number of rendered trail images, array size limit");
+       "maximum number of rendered trail images, array size limit", Range{1, 16384});
 CONVAR(cursor_trail_scale, 1.0f, CLIENT | SKINS | SERVER);
 CONVAR(cursor_trail_smooth_div, 4.0f, CLIENT | SKINS | SERVER,
        "divide the cursortrail.png image size by this much, for determining the distance to the next trail image");

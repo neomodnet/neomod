@@ -9,6 +9,7 @@
 
 #include <atomic>
 #include <cassert>
+#include <limits>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -52,6 +53,12 @@ enum CvarFlags : uint8_t {
     // Mark the variable as intended for use only inside engine code
     // NOTE: This is intended to be used without any other flags
     CONSTANT = HIDDEN | NOLOAD | NOSAVE,
+};
+
+// the values a numeric convar can take: whatever gets set (by anyone) ends up inside of it
+struct Range {
+    double min;
+    double max;
 };
 
 namespace detail {
@@ -187,6 +194,25 @@ class ConVar {
         this->addConVar();
     }
 
+    template <typename T>
+    neverinline explicit ConVar(const char *name, T &&defaultValue, uint8_t flags, const char *helpString,
+                                cv::Range range)
+        requires std::is_arithmetic_v<std::decay_t<T>>
+        : sName(name), sHelpString(helpString), range(range) {
+        this->setupValue(std::forward<T>(defaultValue), flags);
+        this->addConVar();
+    }
+
+    template <typename T, typename Callback>
+    neverinline explicit ConVar(const char *name, T &&defaultValue, uint8_t flags, const char *helpString,
+                                cv::Range range, Callback &&callback)
+        requires std::is_arithmetic_v<std::decay_t<T>> && cv::detail::CallbackAny<Callback>
+        : sName(name), sHelpString(helpString), range(range) {
+        this->setupValue(std::forward<T>(defaultValue), flags);
+        this->setCallback(std::forward<Callback>(callback));
+        this->addConVar();
+    }
+
     template <typename T, typename Callback>
     neverinline explicit ConVar(const char *name, T &&defaultValue, uint8_t flags, Callback &&callback)
         requires(!std::is_same_v<std::decay_t<T>, const char *>) && cv::detail::CallbackAny<Callback>
@@ -311,6 +337,7 @@ class ConVar {
     [[nodiscard]] forceinline bool get() const { return !!static_cast<int>(this->getDouble()); }
     [[nodiscard]] forceinline float getFloat() const { return static_cast<float>(this->getDouble()); }
 
+    [[nodiscard]] forceinline cv::Range getRange() const { return this->range; }
     [[nodiscard]] forceinline std::string_view getHelpstring() const { return this->sHelpString; }
     [[nodiscard]] forceinline std::string_view getName() const { return this->sName; }
     [[nodiscard]] forceinline CONVAR_TYPE getType() const { return this->type; }
@@ -418,6 +445,10 @@ class ConVar {
     // numeric view of text (which gets normalized for bool convars), false if this convar can't take it (see setValue())
     [[nodiscard]] bool parseValue(std::string_view &text, double &dbl) const;
 
+    // what a number (that parseValue() may have gotten out of text) is as a value of this convar: inside of its range
+    [[nodiscard]] Value makeValue(double dbl) const;
+    [[nodiscard]] Value makeValue(double dbl, std::string_view text) const;
+
     // whether an editor gets to write at all, asked before anything changes (APPLIED: nothing against it)
     [[nodiscard]] CvarSetResult checkWrite(CvarEditor editor) const;
 
@@ -425,7 +456,7 @@ class ConVar {
     void store(CvarEditor editor, Value value);
 
     // central store-and-dispatch routine called by both setValueImpl overloads
-    CvarSetResult setValueInt(double newDouble, std::string newString, bool doCallback, CvarEditor editor);
+    CvarSetResult setValueInt(Value newValue, bool doCallback, CvarEditor editor);
 
     // recomputes what the getters return: the only place that picks between the default/client/skin/server values.
     // has to run after every change to something it looks at (setValueInt does for writes, everything else
@@ -447,6 +478,8 @@ class ConVar {
 
     std::string_view sName;
     std::string_view sHelpString;
+
+    cv::Range range{.min = -std::numeric_limits<double>::infinity(), .max = std::numeric_limits<double>::infinity()};
 
     Value defaultValue{};
     Value clientValue{};

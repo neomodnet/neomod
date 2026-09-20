@@ -193,12 +193,6 @@ Osu::Osu()
         if(osu && osu->UIReady()) ui->getOptionsOverlay()->updateOsuFolderTextbox(normalized);
     });
 
-    // clamp to sane range
-    cv::slider_curve_points_separation.setCallback([](float /*oldValue*/, float newValue) -> void {
-        newValue = std::clamp(newValue, 1.0f, 2.5f);
-        cv::slider_curve_points_separation.setValue(newValue, false);
-    });
-
     // rebuild when toggled mid-gameplay (both of these change whether slider bodies bake SDF or cone meshes)
     static const auto sliderBodyMeshCvarCallback = [](float oldValue, float newValue) -> void {
         if(osu && osu->isInPlayMode() && osu->getMapInterface())
@@ -508,7 +502,6 @@ Osu::~Osu() {
         cv::confine_cursor_fullscreen.removeAllCallbacks();
         cv::confine_cursor_never.removeAllCallbacks();
         cv::osu_folder.removeAllCallbacks();
-        cv::slider_curve_points_separation.removeAllCallbacks();
         cv::slider_body_sdf.removeAllCallbacks();
         cv::slider_use_gradient_image.removeAllCallbacks();
         cv::skin.removeAllCallbacks();

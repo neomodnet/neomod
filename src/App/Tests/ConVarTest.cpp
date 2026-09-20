@@ -36,6 +36,11 @@ ConVar t_protectedSkin("cvtest_protected_skin", false, cv::CLIENT | cv::SKINS | 
 ConVar t_gameplay("cvtest_gameplay", 0.0f, cv::CLIENT | cv::SERVER | cv::GAMEPLAY | TESTONLY);
 
 ConVar t_callbacks("cvtest_callbacks", 1.0f, cv::CLIENT | TESTONLY);
+ConVar t_ranged("cvtest_ranged", 5.0f, cv::CLIENT | cv::SKINS | cv::SERVER | TESTONLY, "", cv::Range{1., 10.});
+
+float s_rangedCallbackValue{0.f};
+ConVar t_rangedCallback("cvtest_ranged_callback", 5.0f, cv::CLIENT | TESTONLY, "", cv::Range{1., 10.},
+                        [](float newValue) -> void { s_rangedCallbackValue = newValue; });
 
 std::string s_cmdArgs;
 int s_cmdCalls{0};
@@ -116,6 +121,7 @@ void ConVarTest::update() {
     this->testDefaults();
     this->testCommands();
     this->testSetLayer();
+    this->testRange();
     this->testThreads();
 
     TEST_PRINT_RESULTS("ConVarTest");
@@ -792,6 +798,54 @@ void ConVarTest::testSetLayer() {
     t_string.removeAllCallbacks();
     t_layered.setValue(1.0f);
     t_string.setValue("abc");
+}
+
+void ConVarTest::testRange() {
+    TEST_SECTION("ranges");
+
+    TEST_ASSERT(t_ranged.getRange().min == 1. && t_ranged.getRange().max == 10., "a convar knows its range");
+    TEST_ASSERT(t_float.getRange().min < -1e300 && t_float.getRange().max > 1e300, "...which is everything by default");
+
+    s_cbFloat = 0.f;
+    t_ranged.setCallback([](float newValue) -> void { s_cbFloat = newValue; });
+
+    t_ranged.setValue(7.5f);
+    TEST_ASSERT_EQ(t_ranged.getFloat(), 7.5f, "a value inside of the range is what it is");
+    TEST_ASSERT(t_ranged.setValue(50.0f) == CvarSetResult::APPLIED, "a value outside of the range still gets set");
+    TEST_ASSERT_EQ(t_ranged.getFloat(), 10.0f, "...as the closest one inside of it");
+    TEST_ASSERT_EQ(t_ranged.getString(), "10", "...string view");
+    TEST_ASSERT_EQ(s_cbFloat, 10.0f, "callbacks get the value that was set, not the one that was asked for");
+    t_ranged.setValue(-3);
+    TEST_ASSERT_EQ(t_ranged.getFloat(), 1.0f, "below the range");
+
+    TEST_ASSERT(t_ranged.setValue("999") == CvarSetResult::APPLIED, "text outside of the range is valid text");
+    TEST_ASSERT(t_ranged.getFloat() == 10.0f && t_ranged.getString() == "10", "text outside of the range");
+    t_ranged.setValue("7.50");
+    TEST_ASSERT(t_ranged.getFloat() == 7.5f && t_ranged.getString() == "7.50",
+                "text inside of the range stays as typed");
+
+    // nobody gets around it
+    t_ranged.setValue(99.0f, true, CvarEditor::SKIN);
+    TEST_ASSERT_EQ(t_ranged.getFloat(), 10.0f, "a skin's value ends up inside of the range");
+    TEST_ASSERT_EQ(t_ranged.getClientString(), "7.50", "...without touching the client's");
+    t_ranged.setValue(-99.0f, true, CvarEditor::SERVER);
+    TEST_ASSERT_EQ(t_ranged.getFloat(), 1.0f, "a server's value ends up inside of the range");
+    cvars().clearLayer(CvarEditor::SERVER);
+    cvars().setLayer(CvarEditor::SKIN, std::vector<std::pair<ConVar *, std::string>>{{&t_ranged, "1e9"}});
+    TEST_ASSERT(t_ranged.getFloat() == 10.0f && t_ranged.getString() == "10", "values set as a layer do too");
+    cvars().clearLayer(CvarEditor::SKIN);
+
+    t_ranged.setDefaultDouble(50.0);
+    TEST_ASSERT_EQ(t_ranged.getDefaultDouble(), 10.0, "a new default ends up inside of the range");
+    t_ranged.setDefaultDouble(5.0);
+
+    t_rangedCallback.setValue(50.0f);
+    TEST_ASSERT(t_rangedCallback.getFloat() == 10.0f && s_rangedCallbackValue == 10.0f,
+                "a convar can be made with a range and a callback");
+
+    t_ranged.removeAllCallbacks();
+    t_ranged.setValue(5.0f);
+    t_rangedCallback.setValue(5.0f);
 }
 
 void ConVarTest::testThreads() {
