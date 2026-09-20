@@ -331,7 +331,6 @@ bool SDLGPUInterface::init() {
     } else {
         // only set callbacks/values on this if we succeeded
         cv::r_sync_max_frames.setDefaultDouble(m_maxFrameLatency);
-        cv::r_sync_max_frames.setValue(m_maxFrameLatency);
         cv::r_sync_max_frames.setCallback(SA::MakeDelegate<&SDLGPUInterface::onFramecountNumChanged>(this));
     }
 

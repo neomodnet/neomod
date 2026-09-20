@@ -85,8 +85,7 @@ SoLoudSoundEngine::SoLoudSoundEngine() : SoundEngine() {
         soloud = new SoLoud::Soloud();
     }
 
-    cv::snd_freq.setValue(SoLoud::Soloud::AUTO);  // let it be auto-negotiated (the snd_freq callback will adjust if
-                                                  // needed, if this is manually set in a config)
+    // let it be auto-negotiated (the snd_freq callback will adjust if needed, if this is manually set in a config)
     cv::snd_freq.setDefaultDouble(SoLoud::Soloud::AUTO);
 
     this->iMaxActiveVoices =

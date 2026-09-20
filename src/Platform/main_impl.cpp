@@ -924,18 +924,17 @@ bool SDLMain::createWindow() {
 
         // also set fps_max to 4x the refresh rate
         cv::fps_max.setDefaultDouble(fourxhz);
-        cv::fps_max.setValue(fourxhz);
         cv::fps_max_menu.setDefaultDouble(hz);
-        cv::fps_max_menu.setValue(hz);
     } else {
         cv::fps_max.setDefaultDouble(0.);
-        cv::fps_max.setValue(0.);
         cv::fps_max_menu.setDefaultDouble(0.);
-        cv::fps_max_menu.setValue(0.);
 
         // set it to 0
         SDL_SetHint(SDL_HINT_MAIN_CALLBACK_RATE, "0");
     }
+
+    // (m_iFpsMax only hears about fps_max through its callback, which a default that is what it was doesn't run)
+    fps_max_callback(cv::fps_max.getFloat());
 
     // init dpi
     m_fDisplayScale = SDL_GetWindowDisplayScale(m_window);
@@ -979,10 +978,9 @@ void SDLMain::calibrateDisplayHzWASM() {
                 const auto hz = std::round(m_fDisplayHz);
                 const auto fourxhz = std::round(std::clamp<float>(hz * 4.0f, hz, 1000.0f));
 
+                // (what the player has set stays what it is)
                 cv::fps_max.setDefaultDouble(fourxhz);
-                cv::fps_max.setValue(fourxhz);
                 cv::fps_max_menu.setDefaultDouble(hz);
-                cv::fps_max_menu.setValue(hz);
                 setFgFPS();
             }
         }

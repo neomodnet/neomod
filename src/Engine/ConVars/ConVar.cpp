@@ -131,8 +131,9 @@ void ConVar::resolve() {
     // (every change to a convar's value ends up here)
     assert(McThread::is_main_thread() && "convars can only be changed on the main thread");
 
-    // server > protection lock > skin > client (whose value has a stand-in during a session)
-    const Value *value = this->sessionValue ? this->sessionValue.get() : &this->clientValue;
+    // server > protection lock > skin > client (whose value has a stand-in during a session) > default
+    const Value *value = &this->defaultValue;
+    if(const auto &client = this->layer(CvarEditor::CLIENT); client) value = client.get();
     this->master = CvarEditor::CLIENT;
     if(this->serverValue) {
         value = this->serverValue.get();
@@ -179,11 +180,13 @@ void ConVar::reresolve() {
 }
 
 bool ConVar::setInSession(bool inSession) {
-    if(inSession == !!this->sessionValue || !this->bCanHaveValue) return false;
+    if(inSession == this->bInSession || !this->bCanHaveValue) return false;
 
     this->change([&] {
+        this->bInSession = inSession;
+
         // (the stand-in starts out as what the client's value is: a session that begins changes nothing)
-        if(inSession) this->sessionValue = std::make_unique<Value>(this->clientValue);
+        if(inSession && this->clientValue) this->sessionValue = std::make_unique<Value>(*this->clientValue);
         if(!inSession) this->sessionValue.reset();
     });
     return true;
@@ -278,9 +281,7 @@ CvarSetResult ConVar::checkWrite(CvarEditor editor) const {
 }
 
 void ConVar::store(CvarEditor editor, Value value) {
-    if(editor == CvarEditor::CLIENT) {
-        (this->sessionValue ? *this->sessionValue : this->clientValue) = std::move(value);
-    } else if(auto &layer = this->layer(editor); layer) {
+    if(auto &layer = this->layer(editor); layer) {
         *layer = std::move(value);
     } else {
         layer = std::make_unique<Value>(std::move(value));
@@ -325,11 +326,8 @@ CvarSetResult ConVar::setValueInt(Value newValue, bool doCallback, CvarEditor ed
 void ConVar::clearValue(CvarEditor editor) {
     if(!this->bCanHaveValue) return;
 
-    // a regular write, with everything that comes with one
-    if(editor == CvarEditor::CLIENT) {
-        this->setValueInt(this->defaultValue, true, editor);
-        return;
-    }
+    // (a skin's/the server's value going away is nothing to ask anyone about: they are gone, or done with it)
+    if(editor == CvarEditor::CLIENT && this->checkWrite(editor) != CvarSetResult::APPLIED) return;
 
     auto &layer = this->layer(editor);
     if(!layer) return;
@@ -411,8 +409,8 @@ void ConVar::setCallbackImpl(DoubleChangeCB cb) {
     this->changeCallback.kind = CallbackKind::DoubleChange;
 }
 
-// typed init impls used by value ctors. each sets type/flags + default value, which is also what the client's
-// value starts out as.
+// typed init impls used by value ctors. each sets type/flags + default value, which is what the convar is until the
+// client (or anyone else) sets it.
 
 void ConVar::initValueImpl(bool v, uint8_t flags) {
     this->type = CONVAR_TYPE::BOOL;
@@ -442,7 +440,6 @@ void ConVar::initValueInt(Value value, uint8_t flags) {
     this->bCanHaveValue = true;
     this->iFlags = flags;
     this->defaultValue = std::move(value);
-    this->clientValue = this->defaultValue;
 }
 
 // typed init impls used by callback-only ctors. flags get NOSAVE forced on, and type is

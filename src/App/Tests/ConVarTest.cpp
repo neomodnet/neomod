@@ -296,7 +296,7 @@ void ConVarTest::testLayers() {
     TEST_ASSERT(t_layered.isDefault() && !t_layered.isClientDefault(), "skin value == default over a client value");
     t_layered.clearValue(CvarEditor::SKIN);
 
-    // clearing the client's value is a regular write of the default
+    // without the client's value, the default is what is left
     callsBefore = s_layeredChange.calls;
     t_layered.clearValue(CvarEditor::CLIENT);
     TEST_ASSERT(t_layered.isDefault() && t_layered.isClientDefault(), "cleared client value is the default");
@@ -653,6 +653,46 @@ void ConVarTest::testDefaults() {
     t_protected.setDefaultDouble(0.0);
     setLocked(false);
     t_protected.setValue(0.0f);
+
+    // a convar is its default for as long as the client hasn't set it, which goes for a new default as well: what
+    // the default really is may only be known at runtime (the refresh rate, the native resolution...)
+    s_cbChange = {};
+    t_callbacks.setCallback([](float oldValue, float newValue) -> void {
+        s_cbChange.calls++;
+        s_cbChange.oldValue = oldValue;
+        s_cbChange.newValue = newValue;
+    });
+    t_callbacks.clearValue(CvarEditor::CLIENT);
+    s_cbChange.calls = 0;
+    s_changes = 0;
+    t_callbacks.setDefaultDouble(4.0);
+    TEST_ASSERT_EQ(t_callbacks.getFloat(), 4.0f, "a convar that the client hasn't set follows its default");
+    TEST_ASSERT(s_cbChange.calls == 1 && s_cbChange.oldValue == 1.0f && s_cbChange.newValue == 4.0f && s_changes == 1,
+                "...which is a change like any other");
+    TEST_ASSERT(t_callbacks.isDefault() && t_callbacks.isClientDefault() && t_callbacks.getClientString() == "4",
+                "...and nothing for the config");
+
+    t_callbacks.setValue(2.0f);
+    t_callbacks.setDefaultDouble(1.0);
+    TEST_ASSERT(t_callbacks.getFloat() == 2.0f && !t_callbacks.isClientDefault(), "one that it has set stays");
+    t_callbacks.setValue(1.0f);
+    t_callbacks.setDefaultDouble(3.0);
+    TEST_ASSERT_EQ(t_callbacks.getFloat(), 1.0f, "...also if what it got set to is what the default was");
+
+    // the client's value can go away again
+    s_vetoed = &t_callbacks;
+    t_callbacks.clearValue(CvarEditor::CLIENT);
+    TEST_ASSERT_EQ(t_callbacks.getFloat(), 1.0f, "the app gets asked about the client's value going away");
+    s_vetoed = nullptr;
+    s_cbChange.calls = 0;
+    t_callbacks.clearValue(CvarEditor::CLIENT);
+    TEST_ASSERT(t_callbacks.getFloat() == 3.0f && s_cbChange.calls == 1, "without it, the default is back");
+    t_callbacks.clearValue(CvarEditor::CLIENT);
+    TEST_ASSERT_EQ(s_cbChange.calls, 1, "...once");
+    t_callbacks.setDefaultDouble(1.0);
+    TEST_ASSERT_EQ(t_callbacks.getFloat(), 1.0f, "...to be followed again");
+
+    t_callbacks.removeAllCallbacks();
 }
 
 void ConVarTest::testCommands() {
@@ -935,6 +975,14 @@ void ConVarTest::testSession() {
     TEST_ASSERT(t_layered.getFloat() == 1.0f && t_layered.getClientString() == "1.25",
                 "clearing the client's value during a session is a write like any other");
 
+    // a convar that the client hasn't set can be part of a session like any other
+    t_bool.clearValue(CvarEditor::CLIENT);
+    cvars().beginSession(std::array{&t_bool});
+    TEST_ASSERT(t_bool.getBool() && t_bool.isDefault(), "a convar without a value of the client's, during a session");
+    t_bool.setValue(false);
+    TEST_ASSERT(!t_bool.getBool() && t_bool.isClientDefault() && t_bool.getClientString() == "1",
+                "...still has none of the client's own after a write");
+
     // adding to a session that is going on keeps what it has so far
     t_layered.setValue(2.5f);
     cvars().beginSession(std::array{&t_layered, &t_int});
@@ -956,11 +1004,12 @@ void ConVarTest::testSession() {
     TEST_ASSERT(!cvars().isInSession(), "the session is over");
     TEST_ASSERT(t_layered.getFloat() == 1.25f && t_string.getString() == "own" && t_int.getInt() == 9,
                 "the client's own values are back");
+    TEST_ASSERT(t_bool.getBool() && t_bool.isClientDefault(), "...or the default, for what it hasn't set");
     TEST_ASSERT(s_layeredChange.calls == callsBefore + 1 && s_layeredChange.oldValue == 2.5f &&
                     s_layeredChange.newValue == 1.25f,
                 "...with callbacks for what changed");
     TEST_ASSERT_EQ(s_stringSeenByCallback, "own", "...once all of them are back");
-    TEST_ASSERT_EQ(s_changes, 3, "...and the app hears about each of them");
+    TEST_ASSERT_EQ(s_changes, 4, "...and the app hears about each of them");
     t_layered.setValue(1.75f);
     TEST_ASSERT_EQ(t_layered.getClientString(), "1.75", "writes are the client's own again");
 

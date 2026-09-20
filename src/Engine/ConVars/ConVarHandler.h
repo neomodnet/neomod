@@ -55,12 +55,12 @@ class ConVarHandler {
     [[nodiscard]] forceinline bool isProtectionEnforced() const { return this->bProtectionEnforced; }
 
     // ConVar::clearValue() for every convar: forgets everything a skin/the server has set, which for the server
-    // includes what it has protected/unprotected
+    // includes what it has protected/unprotected (or everything the client has: every convar is back at its default)
     void clearLayer(CvarEditor editor);
 
     // a session is a time during which what the client sets some convars to isn't meant to last, like the mods of a
     // multiplayer room or of a replay: from beginSession() to endSession(), the client's writes to the given convars
-    // go to a stand-in for its value (which starts out as a copy of it, and is what gets read instead). the value
+    // go to a stand-in for its value (which starts out the same, and is what gets read instead). the value
     // itself stays what ConVar::getClientString() and with that configs get to see, and it is back in effect
     // afterwards, as one change for all of them. sessions don't nest: beginning one during another adds to it
     void beginSession(std::span<ConVar *const> convars);

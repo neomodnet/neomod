@@ -265,7 +265,8 @@ class ConVar {
             return this->setValueImpl(std::string_view{value}, doCallback, editor);
     }
 
-    // takes the skin's/the server's value away again (the client's can't go away: it gets set back to the default)
+    // takes an editor's value away again, so that what is below it shows: for the client's that is the default.
+    // (the client taking its own value away is its doing like a write is, and gets refused like one: see setValue())
     void clearValue(CvarEditor editor);
 
     // generic callback setter that auto-detects callback type
@@ -308,6 +309,7 @@ class ConVar {
     [[nodiscard]] inline double getDefaultDouble() const { return this->defaultValue.d; }
     [[nodiscard]] inline const std::string &getDefaultString() const { return this->defaultValue.s; }
 
+    // (a convar follows its default for as long as the client hasn't set it)
     void setDefaultDouble(double newDefault);
     void setDefaultString(std::string_view newDefault);
 
@@ -354,9 +356,11 @@ class ConVar {
     // session): this (and not what the getters above return) is what belongs into the client's config
     [[nodiscard]] inline const std::string &getClientString() const {
         assert(McThread::is_main_thread() && "string convars can only be read on the main thread");
-        return this->clientValue.s;
+        return (this->clientValue ? *this->clientValue : this->defaultValue).s;
     }
-    [[nodiscard]] inline bool isClientDefault() const { return this->sameValue(this->clientValue, this->defaultValue); }
+    [[nodiscard]] inline bool isClientDefault() const {
+        return !this->clientValue || this->sameValue(*this->clientValue, this->defaultValue);
+    }
 
     void setServerProtected(CvarProtection policy);
 
@@ -446,10 +450,11 @@ class ConVar {
     // whether an editor gets to write at all, asked before anything changes (APPLIED: nothing against it)
     [[nodiscard]] CvarSetResult checkWrite(CvarEditor editor) const;
 
-    // where a skin's/the server's value goes (null while it hasn't set one)
+    // where an editor's value goes (null while it hasn't set one). during a session, the client's goes to the stand-in
     [[nodiscard]] inline std::unique_ptr<Value> &layer(CvarEditor editor) {
-        assert(editor != CvarEditor::CLIENT && "the client's value isn't one that comes and goes");
-        return editor == CvarEditor::SKIN ? this->skinValue : this->serverValue;
+        if(editor == CvarEditor::SKIN) return this->skinValue;
+        if(editor == CvarEditor::SERVER) return this->serverValue;
+        return this->bInSession ? this->sessionValue : this->clientValue;
     }
 
     // puts a value where that editor's go, for the next resolve() to pick up
@@ -493,7 +498,7 @@ class ConVar {
     cv::Range range{.min = -std::numeric_limits<double>::infinity(), .max = std::numeric_limits<double>::infinity()};
 
     Value defaultValue{};
-    Value clientValue{};
+    std::unique_ptr<Value> clientValue{nullptr};   // null while the client hasn't set this convar
     std::unique_ptr<Value> sessionValue{nullptr};  // what the client sets during a session, instead of clientValue
     std::unique_ptr<Value> skinValue{nullptr};     // null if the skin doesn't set this convar
     std::unique_ptr<Value> serverValue{nullptr};   // ditto for the server
@@ -509,6 +514,7 @@ class ConVar {
     uint8_t iFlags{0};
 
     bool bCanHaveValue{false};
+    bool bInSession{false};            // whether sessionValue is what stands in for clientValue
     bool bProtectedNonDefault{false};  // what ConVarHandler keeps count of (kept up to date by resolve())
 };
 

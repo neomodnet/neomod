@@ -2506,6 +2506,10 @@ void OptionsOverlayImpl::updateLayout() {
             else if(limits->granularity == -1)
                 keyDelta = static_cast<float>(limits->minSize);  // powers of two
             this->asioBufferSizeSlider->setKeyDelta(keyDelta);
+
+            // (this "default" is where the reset button goes, not what the convar is while the player hasn't set it:
+            // following it would mean a restart of the sound engine, so what it is gets written down first)
+            cv::asio_buffer_size.setValue(cv::asio_buffer_size.getDouble(), false);
             cv::asio_buffer_size.setDefaultDouble(limits->preferredSize);
         }
     }

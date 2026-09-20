@@ -153,14 +153,11 @@ Osu::Osu()
     {
         const auto def_res = env->getNativeScreenSize();
         std::string def_res_str = fmt::format("{:.0f}x{:.0f}", def_res.x, def_res.y);
-        cv::resolution.setValue(def_res_str);
         cv::resolution.setDefaultString(def_res_str);
-        cv::letterboxed_resolution.setValue(def_res_str);
         cv::letterboxed_resolution.setDefaultString(def_res_str);
 
         const auto def_windowed_res = env->getWindowSize();
         std::string def_windowed_res_str = fmt::format("{:.0f}x{:.0f}", def_windowed_res.x, def_windowed_res.y);
-        cv::windowed_resolution.setValue(def_windowed_res_str);
         cv::windowed_resolution.setDefaultString(def_windowed_res_str);
     }
 

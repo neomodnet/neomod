@@ -138,12 +138,6 @@ void ConVarHandler::setProtectionEnforced(bool enforced) {
 }
 
 void ConVarHandler::clearLayer(CvarEditor editor) {
-    // (nothing gets taken away here, these are regular writes)
-    if(editor == CvarEditor::CLIENT) {
-        for(auto *cv : this->vConVarArray) cv->clearValue(editor);
-        return;
-    }
-
     this->change([&] {
         for(auto *cv : this->vConVarArray) {
             cv->clearValue(editor);

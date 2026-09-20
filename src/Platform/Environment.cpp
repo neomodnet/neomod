@@ -192,7 +192,6 @@ Environment::Environment(const Mc::AppDescriptor &appDesc)
     {
         // initialize default language instead of always using "en"
         auto defaultLanguage = getDefaultLocale();
-        cv::language.setValue(defaultLanguage);
         cv::language.setDefaultString(defaultLanguage);
     }
 
