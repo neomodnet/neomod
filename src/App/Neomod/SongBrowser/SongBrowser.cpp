@@ -1324,47 +1324,23 @@ void SongBrowser::onSelectionChange(CarouselButton *button, bool rebuild) {
 
     // try to avoid rebuilding by going through some cases we know can be skipped,
     // in increasingly expensive order (as long as it's still worth it vs rebuilding)
+    // (no logic for collection buttons, it's not worth it)
     bool doUpdateLayout = false;
 
-    int once = 0;
-    while(!once++ && rebuild) {
-        if(colBtnPtr) break;  // no logic for collection buttons, it's not worth it
-        // check old and new difficulty selections
-        if(prevSelDiffBtn && diffBtnPtr) {
-            if(prevSelDiffBtn == diffBtnPtr) {
-                rebuild = false;
-                break;
-            }
-            const auto &prevSiblings = prevSelDiffBtn->getSiblingsAndSelf();
-            const auto &newSiblings = diffBtnPtr->getSiblingsAndSelf();
-            if(&prevSiblings == &newSiblings) {
-                // NOTE: pointer comparison
-                // skip rebuilding if we merely selected a sibling difficulty button
-                rebuild = false;
-                break;
-            }
-            if(prevSiblings.size() == 1 && prevSiblings.size() == newSiblings.size()) {
-                // if the new and old diffs are both single-children, no rebuild necessary
-                rebuild = false;
-                break;
-            }
-        }
-        // check old and new parent selections
-        // NOTE: using previously selected difficulty because previously selected song button has already been updated at this point...
-        if(prevSelDiffBtn && songButtonPtr) {
-            SongButton *oldParentPtr = prevSelDiffBtn->getParentSongButton();
-            SongButton *newParentPtr = !diffBtnPtr ? songButtonPtr : diffBtnPtr->getParentSongButton();
+    // check old and new parent selections
+    // NOTE: using previously selected difficulty because previously selected song button has already been updated at this point...
+    if(rebuild && prevSelDiffBtn && songButtonPtr) {
+        SongButton *oldParentPtr = prevSelDiffBtn->getParentSongButton();
+        SongButton *newParentPtr = !diffBtnPtr ? songButtonPtr : diffBtnPtr->getParentSongButton();
 
-            if(oldParentPtr == newParentPtr) {
-                rebuild = false;
-                break;
-            }
-
-            if(&oldParentPtr->getChildren() == &newParentPtr->getChildren()) {
-                rebuild = false;
-                break;
-            }
-
+        if(oldParentPtr == newParentPtr) {
+            // skip rebuilding if we merely selected a sibling difficulty button
+            rebuild = false;
+            // the difficulties of an expanded set are spaced the same no matter which one of them is selected, but a
+            // set's only visible difficulty gets its spacing from being selected
+            doUpdateLayout =
+                prevSelDiffBtn != diffBtnPtr && this->getSetVisibility(newParentPtr) != SetVisibility::SHOW_PARENT;
+        } else {
             // if we got here, a slightly more expensive check: skip if the visibility of both buttons are the same
             const SetVisibility oldVis = this->getSetVisibility(oldParentPtr);
             const SetVisibility newVis = this->getSetVisibility(newParentPtr);
@@ -1385,7 +1361,6 @@ void SongBrowser::onSelectionChange(CarouselButton *button, bool rebuild) {
                 // sadly, we still need to update layout (cheaper than full rebuild though)
                 // this is because Y coordinates change depending on selection state and depend on all surrounding buttons
                 doUpdateLayout = true;
-                break;
             }
         }
     }
