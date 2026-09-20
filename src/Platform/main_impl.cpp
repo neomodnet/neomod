@@ -212,14 +212,14 @@ SDLMain::SDLMain(const Mc::AppDescriptor &appDesc)
 }
 
 SDLMain::~SDLMain() {
-    cv::fps_max.reset();
-    cv::fps_max_background.reset();
-    cv::sendkey_cmd.reset();
-    cv::sendtext_cmd.reset();
-    cv::mouse_to_cmd.reset();
-    cv::mouse_down_cmd.reset();
-    cv::mouse_up_cmd.reset();
-    cv::mouse_wheel_cmd.reset();
+    cv::fps_max.removeAllCallbacks();
+    cv::fps_max_background.removeAllCallbacks();
+    cv::sendkey_cmd.removeAllCallbacks();
+    cv::sendtext_cmd.removeAllCallbacks();
+    cv::mouse_to_cmd.removeAllCallbacks();
+    cv::mouse_down_cmd.removeAllCallbacks();
+    cv::mouse_up_cmd.removeAllCallbacks();
+    cv::mouse_wheel_cmd.removeAllCallbacks();
 
     if constexpr(USE_LIVE_RESIZE_CALLBACK) {
         SDL_RemoveEventWatch(SDLMain::resizeCallback, this);

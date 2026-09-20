@@ -73,7 +73,7 @@ bool processCommand(std::string_view command, bool fromFile) {
     }
 
     // get convar
-    ConVar *var = cvars().getConVarByName(commandName, false);
+    ConVar *var = cvars().getConVarByName(commandName);
     if(!var) {
         debugLog("Unknown command: {:s}", commandName);
         return false;

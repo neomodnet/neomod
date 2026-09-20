@@ -143,7 +143,7 @@ HUD::HUD() : UIScreen() {
     this->fKiScaleAnim = 0.8f;
 }
 
-HUD::~HUD() { cv::cursor_trail_max_size.reset(); }
+HUD::~HUD() { cv::cursor_trail_max_size.removeAllCallbacks(); }
 
 void HUD::draw() {
     auto *pf = osu->getMapInterface();

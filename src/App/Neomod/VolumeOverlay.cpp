@@ -66,10 +66,10 @@ VolumeOverlay::VolumeOverlay() : UIScreen() {
 }
 
 VolumeOverlay::~VolumeOverlay() {
-    cv::volume_master.reset();
-    cv::volume_effects.reset();
-    cv::volume_music.reset();
-    cv::hud_volume_size_multiplier.reset();
+    cv::volume_master.removeAllCallbacks();
+    cv::volume_effects.removeAllCallbacks();
+    cv::volume_music.removeAllCallbacks();
+    cv::hud_volume_size_multiplier.removeAllCallbacks();
 }
 
 void VolumeOverlay::animate() {

@@ -163,33 +163,32 @@ void BanchoState::initialize_neomod_server_session() {
 
     // clang-format off
     const auto to_unprotect = {
-        "ar_override", "ar_override_lock", "ar_overridenegative",
-        "cs_override", "cs_overridenegative",
-        "hp_override",
-        "mod_actual_flashlight",
-        "mod_artimewarp", "mod_artimewarp_multiplier",
-        "mod_arwobble", "mod_arwobble_interval", "mod_arwobble_strength",
-        "mod_fadingcursor",
-        "mod_fposu", "mod_fposu_sound_panning",
-        "mod_fps", "mod_fps_sound_panning",
-        "mod_jigsaw1", "mod_jigsaw2", "mod_jigsaw_followcircle_radius_factor",
-        "mod_mafham", "mod_mafham_ignore_hittable_dim",
-        "mod_mafham_render_chunksize", "mod_mafham_render_livesize",
-        "mod_millhioref",
-        "mod_minimize", "mod_minimize_multiplier",
-        "mod_reverse_sliders",
-        "mod_shirone", "mod_shirone_combo",
-        "mod_strict_tracking",
-        "mod_timewarp", "mod_timewarp_multiplier",
-        "mod_wobble", "mod_wobble2",
-        "mod_wobble_frequency", "mod_wobble_rotation_speed", "mod_wobble_strength",
-        "mod_fullalternate", "mod_singletap", "mod_no_keylock", "notelock_type",
-        "mod_dks", "mod_freeze_frame"
+        &cv::ar_override, &cv::ar_override_lock, &cv::ar_overridenegative,
+        &cv::cs_override, &cv::cs_overridenegative,
+        &cv::hp_override,
+        &cv::mod_actual_flashlight,
+        &cv::mod_artimewarp, &cv::mod_artimewarp_multiplier,
+        &cv::mod_arwobble, &cv::mod_arwobble_interval, &cv::mod_arwobble_strength,
+        &cv::mod_fadingcursor,
+        &cv::mod_fposu, &cv::mod_fposu_sound_panning,
+        &cv::mod_fps, &cv::mod_fps_sound_panning,
+        &cv::mod_jigsaw1, &cv::mod_jigsaw2, &cv::mod_jigsaw_followcircle_radius_factor,
+        &cv::mod_mafham, &cv::mod_mafham_ignore_hittable_dim,
+        &cv::mod_mafham_render_chunksize, &cv::mod_mafham_render_livesize,
+        &cv::mod_millhioref,
+        &cv::mod_minimize, &cv::mod_minimize_multiplier,
+        &cv::mod_reverse_sliders,
+        &cv::mod_shirone, &cv::mod_shirone_combo,
+        &cv::mod_strict_tracking,
+        &cv::mod_timewarp, &cv::mod_timewarp_multiplier,
+        &cv::mod_wobble, &cv::mod_wobble2,
+        &cv::mod_wobble_frequency, &cv::mod_wobble_rotation_speed, &cv::mod_wobble_strength,
+        &cv::mod_fullalternate, &cv::mod_singletap, &cv::mod_no_keylock, &cv::notelock_type,
+        &cv::mod_dks, &cv::mod_freeze_frame
     };
     // clang-format on
 
-    for(auto name : to_unprotect) {
-        auto cvar = cvars().getConVarByName(name);
+    for(auto *cvar : to_unprotect) {
         cvar->setServerProtected(CvarProtection::UNPROTECTED);
     }
 }
@@ -778,7 +777,7 @@ void BanchoState::handle_packet(Packet &packet) {
             u16 nb_variables = packet.read<u16>();
             for(u16 i = 0; i < nb_variables; i++) {
                 auto name = packet.read_stdstring();
-                auto cvar = cvars().getConVarByName(name, false);
+                auto cvar = cvars().getConVarByName(name);
                 if(cvar) {
                     cvar->setServerProtected(CvarProtection::PROTECTED);
                 } else {
@@ -793,7 +792,7 @@ void BanchoState::handle_packet(Packet &packet) {
             u16 nb_variables = packet.read<u16>();
             for(u16 i = 0; i < nb_variables; i++) {
                 auto name = packet.read_stdstring();
-                auto cvar = cvars().getConVarByName(name, false);
+                auto cvar = cvars().getConVarByName(name);
                 if(cvar) {
                     cvar->setServerProtected(CvarProtection::UNPROTECTED);
                 } else {
@@ -809,7 +808,7 @@ void BanchoState::handle_packet(Packet &packet) {
             for(u16 i = 0; i < nb_variables; i++) {
                 auto name = packet.read_stdstring();
                 auto val = packet.read_stdstring();
-                auto cvar = cvars().getConVarByName(name, false);
+                auto cvar = cvars().getConVarByName(name);
                 if(!cvar) {
                     debugLog("Server wanted to set cvar '{}' to '{}', but it doesn't exist!", name, val);
                 } else if(const auto result = cvar->setValue(val, true, CvarEditor::SERVER);
@@ -829,7 +828,7 @@ void BanchoState::handle_packet(Packet &packet) {
             u16 nb_variables = packet.read<u16>();
             for(u16 i = 0; i < nb_variables; i++) {
                 auto name = packet.read_stdstring();
-                auto cvar = cvars().getConVarByName(name, false);
+                auto cvar = cvars().getConVarByName(name);
                 if(cvar) {
                     cvar->clearValue(CvarEditor::SERVER);
                 } else {

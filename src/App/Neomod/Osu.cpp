@@ -495,44 +495,44 @@ Osu::~Osu() {
 
     // remove any convar callbacks we set here (to allow some degree of re-entrancy)
     {
-        cv::resolution.reset();
-        cv::letterboxed_resolution.reset();
-        cv::windowed_resolution.reset();
-        cv::animation_speed_override.reset();
-        cv::ui_scale.reset();
-        cv::ui_scale_to_dpi.reset();
-        cv::letterboxing.reset();
-        cv::letterboxing_offset_x.reset();
-        cv::letterboxing_offset_y.reset();
-        cv::confine_cursor_windowed.reset();
-        cv::confine_cursor_fullscreen.reset();
-        cv::confine_cursor_never.reset();
-        cv::osu_folder.reset();
-        cv::slider_curve_points_separation.reset();
-        cv::slider_body_sdf.reset();
-        cv::slider_use_gradient_image.reset();
-        cv::skin.reset();
-        cv::skin_reload.reset();
-        cv::mod_mafham.reset();
-        cv::mod_fposu.reset();
-        cv::playfield_mirror_horizontal.reset();
-        cv::playfield_mirror_vertical.reset();
-        cv::playfield_rotation.reset();
-        cv::speed_override.reset();
-        cv::mod_doubletime_dummy.reset();
-        cv::mod_halftime_dummy.reset();
-        cv::draw_songbrowser_thumbnails.reset();
-        cv::bleedingedge.reset();
-        cv::mod_fullalternate.reset();
-        cv::mod_singletap.reset();
-        cv::mod_no_keylock.reset();
-        cv::win_snd_wasapi_exclusive.reset();
-        cv::win_snd_wasapi_buffer_size.reset();
-        cv::win_snd_wasapi_period_size.reset();
-        cv::win_snd_wasapi_event_callbacks.reset();
-        cv::asio_buffer_size.reset();
-        cv::snd_freq.reset();
-        cv::snd_output_device.reset();
+        cv::resolution.removeAllCallbacks();
+        cv::letterboxed_resolution.removeAllCallbacks();
+        cv::windowed_resolution.removeAllCallbacks();
+        cv::animation_speed_override.removeAllCallbacks();
+        cv::ui_scale.removeAllCallbacks();
+        cv::ui_scale_to_dpi.removeAllCallbacks();
+        cv::letterboxing.removeAllCallbacks();
+        cv::letterboxing_offset_x.removeAllCallbacks();
+        cv::letterboxing_offset_y.removeAllCallbacks();
+        cv::confine_cursor_windowed.removeAllCallbacks();
+        cv::confine_cursor_fullscreen.removeAllCallbacks();
+        cv::confine_cursor_never.removeAllCallbacks();
+        cv::osu_folder.removeAllCallbacks();
+        cv::slider_curve_points_separation.removeAllCallbacks();
+        cv::slider_body_sdf.removeAllCallbacks();
+        cv::slider_use_gradient_image.removeAllCallbacks();
+        cv::skin.removeAllCallbacks();
+        cv::skin_reload.removeAllCallbacks();
+        cv::mod_mafham.removeAllCallbacks();
+        cv::mod_fposu.removeAllCallbacks();
+        cv::playfield_mirror_horizontal.removeAllCallbacks();
+        cv::playfield_mirror_vertical.removeAllCallbacks();
+        cv::playfield_rotation.removeAllCallbacks();
+        cv::speed_override.removeAllCallbacks();
+        cv::mod_doubletime_dummy.removeAllCallbacks();
+        cv::mod_halftime_dummy.removeAllCallbacks();
+        cv::draw_songbrowser_thumbnails.removeAllCallbacks();
+        cv::bleedingedge.removeAllCallbacks();
+        cv::mod_fullalternate.removeAllCallbacks();
+        cv::mod_singletap.removeAllCallbacks();
+        cv::mod_no_keylock.removeAllCallbacks();
+        cv::win_snd_wasapi_exclusive.removeAllCallbacks();
+        cv::win_snd_wasapi_buffer_size.removeAllCallbacks();
+        cv::win_snd_wasapi_period_size.removeAllCallbacks();
+        cv::win_snd_wasapi_event_callbacks.removeAllCallbacks();
+        cv::asio_buffer_size.removeAllCallbacks();
+        cv::snd_freq.removeAllCallbacks();
+        cv::snd_output_device.removeAllCallbacks();
     }
     // "osu" will be set to null when global_osu_ is deleted (at the end of all automatically deleted members)
 }
@@ -1842,6 +1842,10 @@ bool Osu::onShutdown() {
 
     this->saveEverything();
     BanchoState::disconnect(true);
+
+    // the process may go on without us (the app selection screen of test builds): like what the server had set, what
+    // the skin had set isn't for whichever app comes next
+    cvars().clearLayer(CvarEditor::SKIN);
 
     return true;
 }

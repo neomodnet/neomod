@@ -931,7 +931,7 @@ bool Skin::parseSkinINI(std::string_view filepath, std::vector<std::pair<ConVar 
 
                 // (only collected here: load() applies them)
                 if(Parsing::parse(curLine.substr(0, pos), &name) && Parsing::parse(curLine.substr(pos + 1), &value)) {
-                    auto *cvar = cvars().getConVarByName(name, false);
+                    auto *cvar = cvars().getConVarByName(name);
                     if(cvar) {
                         convarValues.emplace_back(cvar, std::move(value));
                     } else {

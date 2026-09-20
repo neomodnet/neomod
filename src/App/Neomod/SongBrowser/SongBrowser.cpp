@@ -569,7 +569,7 @@ SongBrowser::~SongBrowser() {
     SAFE_DELETE(this->topbarRight);
     SAFE_DELETE(this->scoreBrowser);
 
-    cv::songbrowser_search_hardcoded_filter.reset();
+    cv::songbrowser_search_hardcoded_filter.removeAllCallbacks();
 }
 
 bool SongBrowser::drawBeatmapOrMenuBackground() {

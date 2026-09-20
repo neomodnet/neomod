@@ -29,33 +29,10 @@ ConVarHandler::ConVarHandler() {
     this->vConVarMap.reserve(1024);
 }
 
-ConVar *ConVarHandler::getConVar_int(std::string_view name) const {
+ConVar *ConVarHandler::getConVarByName(std::string_view name) const {
     auto it = this->vConVarMap.find(name);
     if(it != this->vConVarMap.end()) return it->second;
     return nullptr;
-}
-
-// public
-static ConVar _emptyDummyConVar(
-    "emptyDummyConVar", 42.0f, cv::CLIENT | cv::HIDDEN | cv::NOLOAD | cv::NOSAVE,
-    "this placeholder convar is returned by ConVarHandler::getConVarByName() if no matching convar is found");
-
-ConVar *ConVarHandler::getConVarByName(std::string_view name, bool warnIfNotFound) const {
-    ConVar *found = this->getConVar_int(name);
-    if(found) return found;
-
-    if(warnIfNotFound) {
-        std::string errormsg = "ENGINE: ConVar \"";
-        errormsg.append(name);
-        errormsg.append("\" does not exist...");
-        logRaw("{:s}", errormsg);
-        engine->showMessageWarning("Engine Error", errormsg.c_str());
-    }
-
-    if(!warnIfNotFound)
-        return nullptr;
-    else
-        return &_emptyDummyConVar;
 }
 
 std::vector<ConVar *> ConVarHandler::getConVarByLetter(std::string_view letters) const {

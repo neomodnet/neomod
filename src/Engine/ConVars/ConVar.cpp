@@ -490,15 +490,6 @@ void ConVar::removeAllCallbacks() {
     this->removeChangeCallback();
 }
 
-void ConVar::reset() {
-    this->removeAllCallbacks();
-
-    this->skinValue.reset();
-    this->serverValue.reset();
-    this->serverProtectionPolicy = CvarProtection::DEFAULT;
-    this->resolve();
-}
-
 bool ConVar::hasAnyNonVoidCallback() const {
     using enum CallbackKind;
     auto kind = this->callback.kind;

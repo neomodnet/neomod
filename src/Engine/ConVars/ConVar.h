@@ -277,7 +277,6 @@ class ConVar {
     void removeCallback();
     void removeChangeCallback();
     void removeAllCallbacks();
-    void reset();
 
     // get
     template <typename T = int>

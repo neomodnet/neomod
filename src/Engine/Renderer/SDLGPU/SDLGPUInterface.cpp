@@ -49,7 +49,7 @@ SDLGPUInterface::SDLGPUInterface(SDL_Window *window)
       m_isHeadless(env->isHeadless()) {}
 
 SDLGPUInterface::~SDLGPUInterface() {
-    cv::r_sync_max_frames.reset();  // release callback
+    cv::r_sync_max_frames.removeAllCallbacks();  // release callback
 
     if(m_device) {
         SDL_WaitForGPUIdle(m_device);

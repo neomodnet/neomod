@@ -235,12 +235,12 @@ Environment::Environment(const Mc::AppDescriptor &appDesc)
 }
 
 Environment::~Environment() {
-    cv::debug_env.reset();
-    cv::monitor.reset();
-    cv::keyboard_raw_input.reset();
-    cv::debug_draw_hardware_cursor.reset();
-    cv::setenv.reset();
-    cv::getenv.reset();
+    cv::debug_env.removeAllCallbacks();
+    cv::monitor.removeAllCallbacks();
+    cv::keyboard_raw_input.removeAllCallbacks();
+    cv::debug_draw_hardware_cursor.removeAllCallbacks();
+    cv::setenv.removeAllCallbacks();
+    cv::getenv.removeAllCallbacks();
 
     for(auto &sdl_cur : m_cursorIcons) {
         if(sdl_cur) {

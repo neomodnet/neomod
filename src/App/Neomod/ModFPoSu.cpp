@@ -136,15 +136,15 @@ ModFPoSu::~ModFPoSu() {
     resourceManager->destroyResource(m_impl->vaoCube);
     resourceManager->destroyResource(m_impl->vao);
 
-    cv::fposu_curved.reset();
-    cv::fposu_distance.reset();
-    cv::fposu_noclip.reset();
+    cv::fposu_curved.removeAllCallbacks();
+    cv::fposu_distance.removeAllCallbacks();
+    cv::fposu_noclip.removeAllCallbacks();
 
-    cv::fposu_fov.reset();
-    cv::fposu_vertical_fov.reset();
-    cv::fposu_zoom_fov.reset();
+    cv::fposu_fov.removeAllCallbacks();
+    cv::fposu_vertical_fov.removeAllCallbacks();
+    cv::fposu_zoom_fov.removeAllCallbacks();
 
-    cv::fposu_cube_size.reset();
+    cv::fposu_cube_size.removeAllCallbacks();
 }
 
 namespace {

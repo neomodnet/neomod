@@ -412,8 +412,8 @@ MainMenu::MainMenu() : UIScreen() {
 }
 
 MainMenu::~MainMenu() {
-    cv::main_menu_tips.reset();
-    cv::adblock.reset();
+    cv::main_menu_tips.removeAllCallbacks();
+    cv::adblock.removeAllCallbacks();
     mouse->removeListener(this);
 
     this->clearPreloadedMaps();

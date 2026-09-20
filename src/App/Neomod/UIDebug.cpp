@@ -170,7 +170,7 @@ void UIDebug::debugAssert(std::string_view args) {
     }
 
     if(pred == "convar"sv) {
-        ConVar *var = cvars().getConVarByName(parts[1], false);
+        ConVar *var = cvars().getConVarByName(parts[1]);
         if(!var) {
             logRaw("UITEST FAIL convar {} (not found)", parts[1]);
             return;

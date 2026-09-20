@@ -26,16 +26,11 @@ class ConVarHandler {
     ~ConVarHandler() = default;
 
     [[nodiscard]] forceinline const std::vector<ConVar *> &getConVarArray() const { return this->vConVarArray; }
-    [[nodiscard]] forceinline const Hash::unstable_stringmap<ConVar *> &getConVarMap() const {
-        return this->vConVarMap;
-    }
-    [[nodiscard]] forceinline const ConVar *getConVar(std::string_view name) const {
-        return static_cast<const ConVar *>(getConVar_int(name));
-    }
 
     [[nodiscard]] forceinline size_t getNumConVars() const { return getConVarArray().size(); }
 
-    [[nodiscard]] ConVar *getConVarByName(std::string_view name, bool warnIfNotFound = true) const;
+    // (nullptr if there is no such convar)
+    [[nodiscard]] ConVar *getConVarByName(std::string_view name) const;
     [[nodiscard]] std::vector<ConVar *> getConVarByLetter(std::string_view letters) const;
 
     // whether every protected convar is at its default value, and the ones that aren't
@@ -78,8 +73,6 @@ class ConVarHandler {
     int iNumProtectedNonDefault{0};
     std::vector<ConVar *> vConVarArray;
     Hash::unstable_stringmap<ConVar *> vConVarMap;
-
-    [[nodiscard]] ConVar *getConVar_int(std::string_view name) const;
 };
 
 extern ConVarHandler &cvars();
