@@ -77,7 +77,9 @@ CArgs get_c() noexcept {
 std::optional<std::string> has_arg(ArgSwitch arg_switch) noexcept {
     switch(arg_switch) {
         case REND_HEADLESS:
-            return find_switch({"-headless"});
+            return find_switch({"-headless", "-headless-audio"});
+        case REND_HEADLESS_AUDIO:
+            return find_switch({"-headless-audio"});
         case REND_GL:
             return find_switch({"-gl", "-opengl"});
         case REND_DX11:

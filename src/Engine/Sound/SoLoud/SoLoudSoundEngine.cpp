@@ -65,35 +65,22 @@ unsigned int SoLoudSoundEngine::getResamplerFromCV() {
     return resampler;
 }
 
+static void soloud_log_cb(const char *message, void * /*userdata*/) {
+    const bool printLog = !Environment::getEnvVariable("SOLOUD_DEBUG").empty() || cv::debug_snd.getBool();
+    if(printLog) {  // otherwise just throw the message away
+        // avoid stray newlines
+        size_t end_pos = message ? strlen(message) : 0;
+        while(end_pos > 0 && (message[end_pos - 1] == '\r' || message[end_pos - 1] == '\n')) {
+            --end_pos;
+        }
+        logRaw(std::string_view(message, end_pos));
+    }
+}
+
 SoLoudSoundEngine::SoLoudSoundEngine() : SoundEngine() {
-    // in WASM headless, use no-op audio backends (because Node.js doesn't have audio)
-#ifdef MCENGINE_PLATFORM_WASM
-    if(env->isHeadless()) {
-        cv::snd_soloud_backend.setValue("SDL3", false);
-        setenv("SOLOUD_MINIAUDIO_DRIVER", "null", 1);
-    }
-#endif
-
-#if SOLOUD_VERSION >= 202512
-    {
-        static SoLoud::logFunctionType SoLoudLogCB = +[](const char *message, void * /*userdata*/) -> void {
-            if(!Environment::getEnvVariable("SOLOUD_DEBUG").empty() ||
-               cv::debug_snd.getBool()) {  // otherwise just throw the message away
-                // avoid stray newlines
-                size_t end_pos = message ? strlen(message) : 0;
-                while(end_pos > 0 && (message[end_pos - 1] == '\r' || message[end_pos - 1] == '\n')) {
-                    --end_pos;
-                }
-
-                logRaw(std::string_view(message, end_pos));
-            }
-        };
-
-        // both the same for now
-        SoLoud::setStdoutLogFunction(SoLoudLogCB, nullptr);
-        SoLoud::setStderrLogFunction(SoLoudLogCB, nullptr);
-    }
-#endif
+    // both the same for now
+    SoLoud::setStdoutLogFunction(soloud_log_cb, nullptr);
+    SoLoud::setStderrLogFunction(soloud_log_cb, nullptr);
     if(!soloud) {
         soloud = new SoLoud::Soloud();
     }

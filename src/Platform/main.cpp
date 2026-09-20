@@ -32,6 +32,7 @@
 
 #include <locale>
 #include <clocale>
+#include <cstdlib>
 
 #ifdef MCENGINE_PLATFORM_WASM
 #include <emscripten/emscripten.h>
@@ -263,10 +264,8 @@ MAIN_FUNC /* int argc, char *argv[] */
 
     if(headless) {
         // use a video driver that doesn't need a real display
-        // (also used for macOS since the offscreen GL driver doesn't work there)
         if constexpr(Env::cfg(OS::WASM)) {
             SDL_SetHintWithPriority(SDL_HINT_VIDEO_DRIVER, "dummy", SDL_HINT_OVERRIDE);
-            SDL_SetHintWithPriority(SDL_HINT_AUDIO_DRIVER, "dummy", SDL_HINT_OVERRIDE);
         } else {
             // don't use offscreen for SDL_gpu headless, that would attempt to initialize a bunch of
             // offscreen openGL stuff we don't want
@@ -275,6 +274,14 @@ MAIN_FUNC /* int argc, char *argv[] */
             if(using_opengl) {
                 SDL_SetHintWithPriority(SDL_HINT_VIDEO_DRIVER, "offscreen", SDL_HINT_OVERRIDE);
             }
+        }
+        if(Env::cfg(OS::WASM) || !has_arg(REND_HEADLESS_AUDIO)) {
+            // silence audio output in headless unless -headless-audio is passed
+            // (or we are running in headless WASM, since node.js doesn't have audio)
+            // TODO: another cleaner solution that works with SoLoud ASIO and BASS
+            // (this is just the easiest override for default config headless testing)
+            SDL_SetHintWithPriority(SDL_HINT_AUDIO_DRIVER, "dummy", SDL_HINT_NORMAL);
+            Environment::setEnvVariable("SOLOUD_MINIAUDIO_DRIVER", "null", false);
         }
     }
 

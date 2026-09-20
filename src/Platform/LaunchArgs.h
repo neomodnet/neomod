@@ -39,13 +39,14 @@ struct CArgs {
 // currently valid/parsed arguments, so that they aren't spread everywhere around the codebase
 enum ArgSwitch : unsigned char {
     // renderer selection
-    REND_HEADLESS,      // -headless (no visible window, offscreen/dummy video driver, stdin command processing)
-    REND_GL,            // -gl, -opengl
-    REND_DX11,          // -dx11, -directx
-    REND_SDLGPU,        // -sdlgpu, -gpu
-    REND_SDLGPU_D3D12,  // -sdlgpu/-gpu with a value matching d3d/dx
-    REND_SDLGPU_VK,     // -sdlgpu/-gpu with a value matching vk/vulkan
-    REND_SDLGPU_MTL,    // -sdlgpu/-gpu with a value matching mtl/metal
+    REND_HEADLESS,        // -headless (no visible window, offscreen/dummy video driver, stdin command processing)
+    REND_HEADLESS_AUDIO,  // -headless-audio (same as -headless, but don't force a dummy audio backend)
+    REND_GL,              // -gl, -opengl
+    REND_DX11,            // -dx11, -directx
+    REND_SDLGPU,          // -sdlgpu, -gpu
+    REND_SDLGPU_D3D12,    // -sdlgpu/-gpu with a value matching d3d/dx
+    REND_SDLGPU_VK,       // -sdlgpu/-gpu with a value matching vk/vulkan
+    REND_SDLGPU_MTL,      // -sdlgpu/-gpu with a value matching mtl/metal
     // audio backend selection (values of -sound)
     SND_BASS,
     SND_SOLOUD,
