@@ -1589,13 +1589,13 @@ msgid ""
 msgstr ""
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Sort Skins Alphabetically"
+msgid "Let Skins Change Settings"
 msgstr ""
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid ""
-"Less like stable, but useful if you don't\n"
-"like obnoxious skin names floating to the top."
+"Skins can come with settings of their own ([neomod] section in skin.ini).\n"
+"While such a skin is in use, those settings can't be changed here."
 msgstr ""
 
 #: src/App/Neomod/OptionsOverlay.cpp
@@ -2734,6 +2734,11 @@ msgstr ""
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "This setting is forced by the current skin."
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
+#, c++-format
+msgid "(turn off \"{}\" in the skin options to change it)"
 msgstr ""
 
 #: src/App/Neomod/OptionsOverlay.cpp

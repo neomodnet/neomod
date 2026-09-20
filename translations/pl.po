@@ -1689,16 +1689,14 @@ msgstr ""
 "Użyj \"skin_export\", by wyeksportować aktualny skin."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Sort Skins Alphabetically"
-msgstr "Sortuj Skiny Alfabetycznie"
+msgid "Let Skins Change Settings"
+msgstr ""
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid ""
-"Less like stable, but useful if you don't\n"
-"like obnoxious skin names floating to the top."
+"Skins can come with settings of their own ([neomod] section in skin.ini).\n"
+"While such a skin is in use, those settings can't be changed here."
 msgstr ""
-"Mniej przypomina wersję stable, ale przydatne jeśli nie\n"
-"lubisz uciążliwych nazw skinów pływających na górze."
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Number Scale:"
@@ -2892,6 +2890,11 @@ msgstr "To ustawienie jest wymuszone przez serwer."
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "This setting is forced by the current skin."
 msgstr "To ustawienie jest wymuszone przez aktualny skin."
+
+#: src/App/Neomod/OptionsOverlay.cpp
+#, c++-format
+msgid "(turn off \"{}\" in the skin options to change it)"
+msgstr ""
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "All settings have been reset."

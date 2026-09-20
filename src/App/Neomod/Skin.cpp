@@ -290,6 +290,11 @@ void Skin::load() {
     // reload) isn't touched. this happens here and not once the skin is in use, since the rest of the load depends on
     // some of them (skin_hd, skin_mipmaps, ...)
     {
+        if(!convarValues.empty() && !cv::skin_allow_convars.getBool()) {
+            debugLog("Skin wants to set {} cvars, which skin_allow_convars is keeping it from.", convarValues.size());
+            convarValues.clear();
+        }
+
         const auto results = cvars().setLayer(CvarEditor::SKIN, convarValues);
         for(size_t i = 0; i < results.size(); i++) {
             const auto &[cvar, value] = convarValues[i];

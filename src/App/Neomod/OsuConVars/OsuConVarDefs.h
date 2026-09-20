@@ -874,6 +874,9 @@ CONVAR(show_approach_circle_on_first_hidden_object, true, CLIENT | SKINS | SERVE
 CONVAR(simulate_replays, false, CLIENT | SKINS | SERVER, "experimental \"improved\" replay playback");
 CONVAR(skin, "default"sv, CLIENT | SERVER);
 CONVAR(skin_fallback, ""sv, CLIENT | SERVER, "fallback skin for missing elements");
+// (the player's say about what skins get to do, so nothing for a skin or a server to set)
+CONVAR(skin_allow_convars, true, CLIENT,
+       "whether skins get to change settings, through the [neomod] section of their skin.ini");
 CONVAR(skin_animation_force, false, CLIENT | SKINS | SERVER);
 CONVAR(skin_animation_fps_override, -1.0f, CLIENT | SKINS | SERVER);
 CONVAR(skin_async, true, CLIENT | SKINS | SERVER, "load in background without blocking");

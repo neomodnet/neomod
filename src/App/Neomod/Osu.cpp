@@ -263,6 +263,15 @@ Osu::Osu()
     // no callback for skin_fallback: it's read on-demand by onSkinChange.
     // to apply a new fallback, change skin or use skin_reload.
     cv::skin_reload.setCallback(SA::MakeDelegate<&Osu::onSkinReload>(this));
+    cv::skin_allow_convars.setCallback([](float oldValue, float newValue) -> void {
+        if(oldValue == newValue) return;
+
+        // what the skin has set goes away right here: a reload may not happen (another skin could still be loading),
+        // and settings staying out of reach after this got turned off is the one thing that must not happen.
+        // the reload is for everything else: a skin's convars get applied while it loads, some are about how it does
+        if(newValue == 0.f) cvars().clearLayer(CvarEditor::SKIN);
+        osu->reloadSkin();
+    });
     // Initialize skin after sound engine has started, or else sounds won't load properly
     this->onSkinChange(cv::skin.getString());
 
@@ -502,6 +511,7 @@ Osu::~Osu() {
         cv::slider_use_gradient_image.removeAllCallbacks();
         cv::skin.removeAllCallbacks();
         cv::skin_reload.removeAllCallbacks();
+        cv::skin_allow_convars.removeAllCallbacks();
         cv::mod_mafham.removeAllCallbacks();
         cv::mod_fposu.removeAllCallbacks();
         cv::playfield_mirror_horizontal.removeAllCallbacks();

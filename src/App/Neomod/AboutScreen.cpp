@@ -401,6 +401,7 @@ void AboutScreen::buildChangelog() {
     v43_14.title = "43.14 (" CHANGELOG_TIMESTAMP ")";
     v43_14.changes = {
         R"(- Fixed startup crashing in some cases)",
+        R"(- Allowed force disabling skins from setting convars)",
     };
     changelogs.push_back(std::move(v43_14));
 

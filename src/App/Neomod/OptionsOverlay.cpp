@@ -1424,9 +1424,10 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
         skinRandomBtn->setColor(0xff003947);
     }
     this->addSpacer();
-    this->addCheckbox(_("Sort Skins Alphabetically"),
-                      _("Less like stable, but useful if you don't\nlike obnoxious skin names floating to the top."),
-                      &cv::sort_skins_cleaned);
+    this->addCheckbox(_("Let Skins Change Settings"),
+                      _("Skins can come with settings of their own ([neomod] section in skin.ini).\nWhile such a "
+                        "skin is in use, those settings can't be changed here."),
+                      &cv::skin_allow_convars);
     CBaseUISlider *numberScaleSlider =
         this->addSlider(_("Number Scale:"), 0.01f, 3.0f, &cv::number_scale_multiplier, 135.0f);
     numberScaleSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
@@ -3963,6 +3964,8 @@ void OptionsOverlayImpl::pushForcedCvarTooltipIfHovered() {
                     break;
                 case CvarEditor::SKIN:
                     ttoverlay->addLine(_("This setting is forced by the current skin."));
+                    ttoverlay->addLine(
+                        tformat("(turn off \"{}\" in the skin options to change it)", _("Let Skins Change Settings")));
                     break;
                 case CvarEditor::CLIENT:
                     break;  // unreachable: cvarLocked implies non-CLIENT master
