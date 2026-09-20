@@ -22,6 +22,7 @@ class ConVarTest : public App {
     void testProtectedDefaults();
     void testDefaults();
     void testCommands();
+    void testConsole();
     void testSetLayer();
     void testRange();
     void testSession();

@@ -84,8 +84,9 @@ bool processCommand(std::string_view command, bool fromFile) {
     }
 
     // set new value (this handles all callbacks internally)
+    // (a command's name by itself runs it without arguments, a convar's just asks about it: see below)
     auto result = CvarSetResult::APPLIED;
-    if(commandValue.length() > 0) {
+    if(commandValue.length() > 0 || !var->canHaveValue()) {
         result = var->setValue(commandValue);
         if(result == CvarSetResult::INVALID) {
             debugLog("{:s}: \"{:s}\" is not a valid {:s} value", commandName, commandValue,
@@ -93,14 +94,10 @@ bool processCommand(std::string_view command, bool fromFile) {
             return false;
         }
         if(result == CvarSetResult::DENIED || result == CvarSetResult::VETOED) {
-            debugLog("{:s} can't be changed {:s}", commandName,
+            debugLog("{:s} can't be {:s} {:s}", commandName, var->canHaveValue() ? "changed" : "run",
                      result == CvarSetResult::DENIED ? "by the client" : "right now");
             return false;
         }
-    } else {
-        var->exec();
-        var->execArgs("");
-        var->execFloat(var->getFloat());
     }
 
     // log

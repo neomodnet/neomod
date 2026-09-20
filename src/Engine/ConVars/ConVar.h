@@ -250,12 +250,6 @@ class ConVar {
         this->addConVar();
     }
 
-    // callbacks
-    void exec();
-    void execArgs(std::string_view args);
-    void execFloat(float args);
-    void execDouble(double args);
-
     // every editor has a value of its own: the server's beats the skin's, which beats the client's (see resolve()).
     // not every text is something a convar can be set to: numeric ones only take numbers (and bool ones
     // "true"/"false"). anything else leaves the convar alone and is INVALID, which is for whoever lets text in from
@@ -348,7 +342,6 @@ class ConVar {
     [[nodiscard]] forceinline CvarEditor getMaster() const { return this->master; }
     [[nodiscard]] forceinline bool canHaveValue() const { return this->bCanHaveValue; }
 
-    [[nodiscard]] bool hasAnyNonVoidCallback() const;
     [[nodiscard]] bool hasSingleArgCallback() const;
 
     [[nodiscard]] inline bool isFlagSet(uint8_t flag) const { return ((this->iFlags & flag) == flag); }

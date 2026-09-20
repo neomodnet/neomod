@@ -4,6 +4,7 @@
 #include "TestMacros.h"
 #include "ConVar.h"
 #include "ConVarHandler.h"
+#include "Console.h"
 #include "BaseEnvironment.h"
 #include "Engine.h"
 #include "SyncJthread.h"
@@ -49,6 +50,9 @@ ConVar t_cmd("cvtest_cmd", cv::CLIENT | cv::SERVER | TESTONLY, [](std::string_vi
     s_cmdCalls++;
     s_cmdArgs = args;
 });
+
+int s_serverCmdCalls{0};
+ConVar t_serverCmd("cvtest_servercmd", cv::SERVER | TESTONLY, []() -> void { s_serverCmdCalls++; });
 
 // stand-ins for the policy the app normally provides (see Osu's global* callbacks)
 bool s_gateOpen{true};  // "not in a multiplayer match": gameplay convars may be changed
@@ -121,6 +125,7 @@ void ConVarTest::update() {
     this->testProtectedDefaults();
     this->testDefaults();
     this->testCommands();
+    this->testConsole();
     this->testSetLayer();
     this->testRange();
     this->testSession();
@@ -658,14 +663,11 @@ void ConVarTest::testCommands() {
     TEST_ASSERT(t_float.canHaveValue(), "a convar made from a default value is not a command");
 
     s_cmdCalls = 0;
-    t_cmd.exec();
-    TEST_ASSERT_EQ(s_cmdCalls, 0, "exec only runs void callbacks");
-    t_cmd.execArgs("one two");
-    TEST_ASSERT_EQ(s_cmdCalls, 1, "execArgs runs a string callback");
-    TEST_ASSERT_EQ(s_cmdArgs, "one two", "execArgs passes the arguments");
-    t_cmd.setValue("three");
-    TEST_ASSERT_EQ(s_cmdCalls, 2, "setting a command runs it");
-    TEST_ASSERT_EQ(s_cmdArgs, "three", "setting a command passes the value as arguments");
+    t_cmd.setValue("one two");
+    TEST_ASSERT_EQ(s_cmdCalls, 1, "setting a command runs it");
+    TEST_ASSERT_EQ(s_cmdArgs, "one two", "setting a command passes the value as arguments");
+    t_cmd.setValue("");
+    TEST_ASSERT(s_cmdCalls == 2 && s_cmdArgs.empty(), "...of which there don't have to be any");
 
     // a command has no value the server could override: the client can still run it after the server did
     t_cmd.setValue("from server", true, CvarEditor::SERVER);
@@ -678,6 +680,41 @@ void ConVarTest::testCommands() {
     const int callsBefore = s_cmdCalls;
     t_cmd.clearValue(CvarEditor::CLIENT);
     TEST_ASSERT_EQ(s_cmdCalls, callsBefore, "clearing a command's (nonexistent) value doesn't run it");
+}
+
+void ConVarTest::testConsole() {
+    TEST_SECTION("console");
+
+    // a convar's name by itself asks about it, which is nothing that its callbacks have to hear about
+    s_cbVoidCalls = 0;
+    t_callbacks.setCallback([]() -> void { s_cbVoidCalls++; });
+    TEST_ASSERT(Console::processCommand("cvtest_callbacks"), "a convar's name by itself is a command");
+    TEST_ASSERT_EQ(s_cbVoidCalls, 0, "...that doesn't run its callbacks");
+    Console::processCommand("cvtest_callbacks 2.5");
+    TEST_ASSERT(s_cbVoidCalls == 1 && t_callbacks.getFloat() == 2.5f, "setting it does");
+    TEST_ASSERT(!Console::processCommand("cvtest_callbacks garbage") && t_callbacks.getFloat() == 2.5f,
+                "invalid text is refused");
+
+    // a command's name by itself runs it, which is a write like any other: whoever isn't allowed to doesn't get to
+    int callsBefore = s_cmdCalls;
+    Console::processCommand("cvtest_cmd");
+    TEST_ASSERT(s_cmdCalls == callsBefore + 1 && s_cmdArgs.empty(), "a command's name by itself runs it");
+    Console::processCommand("cvtest_cmd some arguments");
+    TEST_ASSERT(s_cmdCalls == callsBefore + 2 && s_cmdArgs == "some arguments", "a command with arguments");
+
+    s_vetoed = &t_cmd;
+    TEST_ASSERT(!Console::processCommand("cvtest_cmd") && s_cmdCalls == callsBefore + 2,
+                "the app can veto a command that gets run by its name alone");
+    s_vetoed = nullptr;
+
+    s_serverCmdCalls = 0;
+    TEST_ASSERT(!Console::processCommand("cvtest_servercmd") && s_serverCmdCalls == 0,
+                "the client can't run a command without CLIENT by its name alone");
+    t_serverCmd.setValue("", true, CvarEditor::SERVER);
+    TEST_ASSERT_EQ(s_serverCmdCalls, 1, "(the server can)");
+
+    t_callbacks.removeAllCallbacks();
+    t_callbacks.setValue(1.0f);
 }
 
 void ConVarTest::testSetLayer() {

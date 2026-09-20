@@ -106,7 +106,7 @@ namespace cmd {
 CONVAR(crash, CLIENT | HIDDEN | NOLOAD | NOSAVE, SA::delegate<void()>::template create<fubar_abort_>());  // debug
 CONVAR(borderless, CLIENT, CFUNC(_borderless));
 CONVAR(center, CLIENT, CFUNC(_center));
-CONVAR(clear, NOLOAD, CFUNC(Console::clearLog));
+CONVAR(clear, CLIENT | NOLOAD, CFUNC(Console::clearLog));
 CONVAR(dpiinfo, CLIENT, CFUNC(_dpiinfo));
 CONVAR(dumpcommands, CLIENT, CFUNC(ConVarHandler::ConVarBuiltins::dumpcommands));
 CONVAR(errortest, CLIENT, CFUNC(_errortest));

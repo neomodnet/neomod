@@ -127,30 +127,6 @@ std::string ConVar::flagsToString(uint8_t flags) {
     return string;
 }
 
-void ConVar::exec() {
-    if(this->callback.kind == CallbackKind::Void) {
-        (*std::launder(reinterpret_cast<VoidCB *>(&this->callback.storage[0])))();
-    }
-}
-
-void ConVar::execArgs(std::string_view args) {
-    if(this->callback.kind == CallbackKind::String) {
-        (*std::launder(reinterpret_cast<StringCB *>(&this->callback.storage[0])))(args);
-    }
-}
-
-void ConVar::execFloat(float args) {
-    if(this->callback.kind == CallbackKind::Float) {
-        (*std::launder(reinterpret_cast<FloatCB *>(&this->callback.storage[0])))(args);
-    }
-}
-
-void ConVar::execDouble(double args) {
-    if(this->callback.kind == CallbackKind::Double) {
-        (*std::launder(reinterpret_cast<DoubleCB *>(&this->callback.storage[0])))(args);
-    }
-}
-
 void ConVar::resolve() {
     // (every change to a convar's value ends up here)
     assert(McThread::is_main_thread() && "convars can only be changed on the main thread");
@@ -509,12 +485,6 @@ void ConVar::removeChangeCallback() {
 void ConVar::removeAllCallbacks() {
     this->removeCallback();
     this->removeChangeCallback();
-}
-
-bool ConVar::hasAnyNonVoidCallback() const {
-    using enum CallbackKind;
-    auto kind = this->callback.kind;
-    return kind != None && kind != Void;
 }
 
 bool ConVar::hasSingleArgCallback() const {
