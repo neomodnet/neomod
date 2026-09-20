@@ -807,6 +807,14 @@ class CategoryButton final : public CBaseUIButton {
     bool bActiveCategory;
 };
 
+// for writing the state of a widget to its convar: while something else decides the convar's value (a skin, the
+// server, a multiplayer room), its widgets only get to show that value, which must not become the client's own.
+// returns whether the convar is what the widget says now
+template <typename T>
+bool setFromWidget(ConVar *cvar, const T &value) {
+    return cvar->getMaster() == CvarEditor::CLIENT && cvar->setValue(value) == CvarSetResult::APPLIED;
+}
+
 }  // namespace
 
 OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) {
@@ -2174,8 +2182,8 @@ void OptionsOverlayImpl::updateInput(CBaseUIEventCtx &c) {
         if(!this->letterboxingOffsetXSlider->isActive() && !this->letterboxingOffsetYSlider->isActive()) {
             this->bLetterboxingOffsetUpdateScheduled = false;
 
-            cv::letterboxing_offset_x.setValue(this->letterboxingOffsetXSlider->getFloat());
-            cv::letterboxing_offset_y.setValue(this->letterboxingOffsetYSlider->getFloat());
+            setFromWidget(&cv::letterboxing_offset_x, this->letterboxingOffsetXSlider->getFloat());
+            setFromWidget(&cv::letterboxing_offset_y, this->letterboxingOffsetYSlider->getFloat());
 
             // and update reset buttons as usual
             this->onResetUpdate(this->letterboxingOffsetResetButton);
@@ -2194,7 +2202,7 @@ void OptionsOverlayImpl::updateInput(CBaseUIEventCtx &c) {
 
             const float oldUIScale = Osu::getUIScale();
 
-            cv::ui_scale.setValue(this->uiScaleSlider->getFloat());
+            setFromWidget(&cv::ui_scale, this->uiScaleSlider->getFloat());
 
             const float newUIScale = Osu::getUIScale();
 
@@ -2211,7 +2219,7 @@ void OptionsOverlayImpl::updateInput(CBaseUIEventCtx &c) {
         if(!this->asioBufferSizeSlider->isActive()) {
             this->bASIOBufferChangeScheduled = false;
 
-            cv::asio_buffer_size.setValue(this->asioBufferSizeSlider->getFloat());
+            setFromWidget(&cv::asio_buffer_size, this->asioBufferSizeSlider->getFloat());
 
             // and update reset buttons as usual
             this->onResetUpdate(this->asioBufferSizeResetButton);
@@ -2223,7 +2231,7 @@ void OptionsOverlayImpl::updateInput(CBaseUIEventCtx &c) {
             if(!this->wasapiBufferSizeSlider->isActive()) {
                 this->bWASAPIBufferChangeScheduled = false;
 
-                cv::win_snd_wasapi_buffer_size.setValue(this->wasapiBufferSizeSlider->getFloat());
+                setFromWidget(&cv::win_snd_wasapi_buffer_size, this->wasapiBufferSizeSlider->getFloat());
 
                 // and update reset buttons as usual
                 this->onResetUpdate(this->wasapiBufferSizeResetButton);
@@ -2235,7 +2243,7 @@ void OptionsOverlayImpl::updateInput(CBaseUIEventCtx &c) {
                 this->bWASAPIPeriodChangeScheduled = false;
 
                 // ignore if event callback mode is enabled
-                cv::win_snd_wasapi_period_size.setValue(this->wasapiPeriodSizeSlider->getFloat());
+                setFromWidget(&cv::win_snd_wasapi_period_size, this->wasapiPeriodSizeSlider->getFloat());
 
                 // and update reset buttons as usual
                 this->onResetUpdate(this->wasapiPeriodSizeResetButton);
@@ -3034,9 +3042,8 @@ void OptionsOverlayImpl::updateFposuDPI() {
             value.push_back(text[i]);
     }
 
-    // not a number: show what it still is instead
-    if(cv::fposu_mouse_dpi.setValue(value) == CvarSetResult::INVALID)
-        this->dpiTextbox->setText(cv::fposu_mouse_dpi.getString());
+    // not a number (or not the player's to set right now): show what it still is instead
+    if(!setFromWidget(&cv::fposu_mouse_dpi, value)) this->dpiTextbox->setText(cv::fposu_mouse_dpi.getString());
 }
 
 void OptionsOverlayImpl::updateFposuCMper360() {
@@ -3053,8 +3060,7 @@ void OptionsOverlayImpl::updateFposuCMper360() {
             value.push_back(text[i]);
     }
 
-    if(cv::fposu_mouse_cm_360.setValue(value) == CvarSetResult::INVALID)
-        this->cm360Textbox->setText(cv::fposu_mouse_cm_360.getString());
+    if(!setFromWidget(&cv::fposu_mouse_cm_360, value)) this->cm360Textbox->setText(cv::fposu_mouse_cm_360.getString());
 }
 
 void OptionsOverlayImpl::updateSkinNameLabel() {
@@ -3130,7 +3136,7 @@ void OptionsOverlayImpl::onDPIScalingChange(CBaseUICheckbox *checkbox) {
     if(const auto &it = this->uiToOptElemMap.find(checkbox);
        it != this->uiToOptElemMap.end() && (element = it->second)) {
         const float prevUIScale = Osu::getUIScale();
-        cv::ui_scale_to_dpi.setValue(checkbox->isChecked());
+        setFromWidget(&cv::ui_scale_to_dpi, checkbox->isChecked());
 
         this->onResetUpdate(element->resetButton.get());
 
@@ -3489,7 +3495,7 @@ void OptionsOverlayImpl::onCheckboxChange(CBaseUICheckbox *checkbox) {
     if(const auto &it = this->uiToOptElemMap.find(checkbox);
        it != this->uiToOptElemMap.end() && (element = it->second)) {
         if(element->cvar) {
-            element->cvar->setValue(checkbox->isChecked());
+            setFromWidget(element->cvar, checkbox->isChecked());
         }
 
         this->onResetUpdate(element->resetButton.get());
@@ -3499,7 +3505,7 @@ void OptionsOverlayImpl::onCheckboxChange(CBaseUICheckbox *checkbox) {
 void OptionsOverlayImpl::onSliderChange(CBaseUISlider *slider) {
     OptionsElement *element = nullptr;
     if(const auto &it = this->uiToOptElemMap.find(slider); it != this->uiToOptElemMap.end() && (element = it->second)) {
-        element->cvar->setValue(std::round(slider->getFloat() * 100.0f) / 100.0f);  // round to 2 decimal places
+        setFromWidget(element->cvar, std::round(slider->getFloat() * 100.0f) / 100.0f);  // round to 2 decimal places
         if(element->baseElems.size() == 3) {
             auto *labelPointer = dynamic_cast<CBaseUILabel *>(element->baseElems[2].get());
             labelPointer->setText(element->cvar->getString());
@@ -3514,13 +3520,13 @@ void OptionsOverlayImpl::onFPSSliderChange(CBaseUISlider *slider) {
     OptionsElement *element = nullptr;
     if(const auto &it = this->uiToOptElemMap.find(slider); it != this->uiToOptElemMap.end() && (element = it->second)) {
         if(slider->getFloat() < 60.f) {
-            element->cvar->setValue(0.f);
+            setFromWidget(element->cvar, 0.f);
             if(element->baseElems.size() == 3) {
                 auto *labelPointer = dynamic_cast<CBaseUILabel *>(element->baseElems[2].get());
                 labelPointer->setText("∞"s);
             }
         } else {
-            element->cvar->setValue(std::round(slider->getFloat()));  // round to int
+            setFromWidget(element->cvar, std::round(slider->getFloat()));  // round to int
             if(element->baseElems.size() == 3) {
                 auto *labelPointer = dynamic_cast<CBaseUILabel *>(element->baseElems[2].get());
                 labelPointer->setText(element->cvar->getString());
@@ -3535,7 +3541,7 @@ void OptionsOverlayImpl::onFPSSliderChange(CBaseUISlider *slider) {
 void OptionsOverlayImpl::onSliderChangeOneDecimalPlace(CBaseUISlider *slider) {
     OptionsElement *element = nullptr;
     if(const auto &it = this->uiToOptElemMap.find(slider); it != this->uiToOptElemMap.end() && (element = it->second)) {
-        element->cvar->setValue(std::round(slider->getFloat() * 10.0f) / 10.0f);  // round to 1 decimal place
+        setFromWidget(element->cvar, std::round(slider->getFloat() * 10.0f) / 10.0f);  // round to 1 decimal place
         if(element->baseElems.size() == 3) {
             auto *labelPointer = dynamic_cast<CBaseUILabel *>(element->baseElems[2].get());
             labelPointer->setText(element->cvar->getString());
@@ -3549,7 +3555,7 @@ void OptionsOverlayImpl::onSliderChangeOneDecimalPlace(CBaseUISlider *slider) {
 void OptionsOverlayImpl::onSliderChangeTwoDecimalPlaces(CBaseUISlider *slider) {
     OptionsElement *element = nullptr;
     if(const auto &it = this->uiToOptElemMap.find(slider); it != this->uiToOptElemMap.end() && (element = it->second)) {
-        element->cvar->setValue(std::round(slider->getFloat() * 100.0f) / 100.0f);  // round to 2 decimal places
+        setFromWidget(element->cvar, std::round(slider->getFloat() * 100.0f) / 100.0f);  // round to 2 decimal places
         if(element->baseElems.size() == 3) {
             auto *labelPointer = dynamic_cast<CBaseUILabel *>(element->baseElems[2].get());
             labelPointer->setText(element->cvar->getString());
@@ -3563,7 +3569,7 @@ void OptionsOverlayImpl::onSliderChangeTwoDecimalPlaces(CBaseUISlider *slider) {
 void OptionsOverlayImpl::onSliderChangeOneDecimalPlaceMeters(CBaseUISlider *slider) {
     OptionsElement *element = nullptr;
     if(const auto &it = this->uiToOptElemMap.find(slider); it != this->uiToOptElemMap.end() && (element = it->second)) {
-        element->cvar->setValue(std::round(slider->getFloat() * 10.0f) / 10.0f);  // round to 1 decimal place
+        setFromWidget(element->cvar, std::round(slider->getFloat() * 10.0f) / 10.0f);  // round to 1 decimal place
         if(element->baseElems.size() == 3) {
             auto *labelPointer = dynamic_cast<CBaseUILabel *>(element->baseElems[2].get());
             labelPointer->setText(fmt::format("{:.1f} m", element->cvar->getFloat()));
@@ -3577,7 +3583,7 @@ void OptionsOverlayImpl::onSliderChangeOneDecimalPlaceMeters(CBaseUISlider *slid
 void OptionsOverlayImpl::onSliderChangeInt(CBaseUISlider *slider) {
     OptionsElement *element = nullptr;
     if(const auto &it = this->uiToOptElemMap.find(slider); it != this->uiToOptElemMap.end() && (element = it->second)) {
-        element->cvar->setValue(std::round(slider->getFloat()));  // round to int
+        setFromWidget(element->cvar, std::round(slider->getFloat()));  // round to int
         if(element->baseElems.size() == 3) {
             auto *labelPointer = dynamic_cast<CBaseUILabel *>(element->baseElems[2].get());
             labelPointer->setText(element->cvar->getString());
@@ -3591,7 +3597,7 @@ void OptionsOverlayImpl::onSliderChangeInt(CBaseUISlider *slider) {
 void OptionsOverlayImpl::onSliderChangeIntMS(CBaseUISlider *slider) {
     OptionsElement *element = nullptr;
     if(const auto &it = this->uiToOptElemMap.find(slider); it != this->uiToOptElemMap.end() && (element = it->second)) {
-        element->cvar->setValue(std::round(slider->getFloat()));  // round to int
+        setFromWidget(element->cvar, std::round(slider->getFloat()));  // round to int
         if(element->baseElems.size() == 3) {
             auto *labelPointer = dynamic_cast<CBaseUILabel *>(element->baseElems[2].get());
             std::string text = element->cvar->getString();
@@ -3607,7 +3613,7 @@ void OptionsOverlayImpl::onSliderChangeIntMS(CBaseUISlider *slider) {
 void OptionsOverlayImpl::onSliderChangeFloatMS(CBaseUISlider *slider) {
     OptionsElement *element = nullptr;
     if(const auto &it = this->uiToOptElemMap.find(slider); it != this->uiToOptElemMap.end() && (element = it->second)) {
-        element->cvar->setValue(slider->getFloat());
+        setFromWidget(element->cvar, slider->getFloat());
         if(element->baseElems.size() == 3) {
             auto *labelPointer = dynamic_cast<CBaseUILabel *>(element->baseElems[2].get());
             std::string text = fmt::format("{}", (int)std::round(element->cvar->getFloat() * 1000.0f));
@@ -3623,7 +3629,7 @@ void OptionsOverlayImpl::onSliderChangeFloatMS(CBaseUISlider *slider) {
 void OptionsOverlayImpl::onSliderChangePercent(CBaseUISlider *slider) {
     OptionsElement *element = nullptr;
     if(const auto &it = this->uiToOptElemMap.find(slider); it != this->uiToOptElemMap.end() && (element = it->second)) {
-        element->cvar->setValue(std::round(slider->getFloat() * 100.0f) / 100.0f);
+        setFromWidget(element->cvar, std::round(slider->getFloat() * 100.0f) / 100.0f);
         if(element->baseElems.size() == 3) {
             int percent = std::round(element->cvar->getFloat() * 100.0f);
 
@@ -3687,7 +3693,7 @@ void OptionsOverlayImpl::onKeyBindingsResetAllPressed(CBaseUIButton * /*button*/
 void OptionsOverlayImpl::onSliderChangeSliderQuality(CBaseUISlider *slider) {
     OptionsElement *element = nullptr;
     if(const auto &it = this->uiToOptElemMap.find(slider); it != this->uiToOptElemMap.end() && (element = it->second)) {
-        element->cvar->setValue(std::round(slider->getFloat() * 100.0f) / 100.0f);  // round to 2 decimal places
+        setFromWidget(element->cvar, std::round(slider->getFloat() * 100.0f) / 100.0f);  // round to 2 decimal places
         if(element->baseElems.size() == 3) {
             auto *labelPointer = dynamic_cast<CBaseUILabel *>(element->baseElems[2].get());
 
@@ -4399,9 +4405,10 @@ void OptionsOverlayImpl::save() {
 
     // Update windowed resolution now, so we're always saving the correct window size
     // (this function is also called on shutdown)
+    // (a window size that a skin/the server is forcing is not the client's to keep, though)
     const bool fs = env->winFullscreened();
     const bool fs_letterboxed = fs && cv::letterboxing.getBool();
-    if(!fs && !fs_letterboxed) {
+    if(!fs && !fs_letterboxed && cv::windowed_resolution.getMaster() == CvarEditor::CLIENT) {
         const auto res_str = fmt::format("{:d}x{:d}", (i32)env->getWindowSize().x, (i32)env->getWindowSize().y);
         cv::windowed_resolution.setValue(res_str, false);
     }
@@ -4470,10 +4477,11 @@ void OptionsOverlayImpl::save() {
             write_lines.append("\n\n");
         }
 
+        // (the client's own values: what a skin/the server/a multiplayer room is forcing right now isn't ours to keep)
         for(auto *convar : cvars().getConVarArray()) {
             if(!convar->canHaveValue() || convar->isFlagSet(cv::NOSAVE)) continue;
-            if(convar->isDefault()) continue;
-            write_lines.append(fmt::format("{} {}\n", convar->getName(), convar->getString()));
+            if(convar->isClientDefault()) continue;
+            write_lines.append(fmt::format("{} {}\n", convar->getName(), convar->getClientString()));
         }
 
         io->write(cfg_name, std::move(write_lines), wr_callback);

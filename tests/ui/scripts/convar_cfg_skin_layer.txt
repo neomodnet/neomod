@@ -1,15 +1,13 @@
 # values a skin forces must not end up in osu.cfg: what gets saved is the client's own value, no
-# matter what is overriding it at the time. the save runs on the effective values for now, so the
-# skin's fposu_fov replaces the client's, and hud_scale (forced to what happens to be its default)
-# loses its line altogether.
+# matter what is overriding it at the time. the save used to run on the effective values, so the
+# skin's fposu_fov replaced the client's, and hud_scale (forced to what happens to be its default)
+# lost its line altogether.
 # the save is async (read old cfg -> write), hence the @sleep/@wait pairs around it; the final
 # options_save_on_back 0 keeps the exit path from saving again.
 # uitest-datadir: fresh
 # uitest-file: skins/cvtest/skin.ini|[General]|Name: cvtest|Author: uitest||[neomod]|fposu_fov: 99|hud_scale: 1
 # uitest-cfg: fposu_fov 77
 # uitest-cfg: hud_scale 1.5
-# uitest-xfail: fposu_fov
-# uitest-xfail: hud_scale
 debug_fixed_frametime 0.0166667
 mouse_raw_input 0
 mouse_sensitivity 1
