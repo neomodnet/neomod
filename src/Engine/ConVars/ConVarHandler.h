@@ -34,11 +34,14 @@ class ConVarHandler {
     [[nodiscard]] ConVar *getConVarByName(std::string_view name, bool warnIfNotFound = true) const;
     [[nodiscard]] std::vector<ConVar *> getConVarByLetter(std::string_view letters) const;
 
+    // a score only gets submitted while every protected convar is at its default value
+    // (cheap enough to ask every frame: convars keep count of that whenever their value changes)
     [[nodiscard]] std::vector<ConVar *> getNonSubmittableCvars() const;
     [[nodiscard]] bool areAllCvarsSubmittable() const;
 
-    // HACKHACK: terrible API (currently necessary for making caching work 100% reliably)
-    void invalidateAllProtectedCaches();
+    // while enforced, protected convars read as their default value (unless the server sets them)
+    void setProtectionEnforced(bool enforced);
+    [[nodiscard]] forceinline bool isProtectionEnforced() const { return this->bProtectionEnforced; }
 
     void resetServerCvars();
     void resetSkinCvars();
@@ -53,6 +56,8 @@ class ConVarHandler {
     friend class ConVar;
 
     CVSubmittableCriteriaFunc areAllCvarsSubmittableExtraCheck{nullptr};
+    bool bProtectionEnforced{false};
+    int iNumNonSubmittable{0};
     std::vector<ConVar *> vConVarArray;
     Hash::unstable_stringmap<ConVar *> vConVarMap;
 

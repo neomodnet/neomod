@@ -7,6 +7,7 @@
 #include "Delegate.h"
 
 #include <atomic>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -112,6 +113,12 @@ class ConVar {
         alignas(VoidCB) unsigned char storage[sizeof(VoidCB)]{};
     };
 
+    // a value in both of its representations
+    struct Value final {
+        double d{0.0};
+        std::string s{};
+    };
+
     // ctor helper
     void addConVar();
 
@@ -126,7 +133,7 @@ class ConVar {
 
     // command-only constructor
     neverinline explicit ConVar(const char *name, uint8_t flags = cv::CLIENT)
-        : sName(name), sHelpString(""), sDefaultValue(name) {
+        : sName(name), sHelpString(""), defaultValue{.d = 0.0, .s = name} {
         this->type = CONVAR_TYPE::STRING;
         this->iFlags = cv::NOSAVE | flags;
         this->addConVar();
@@ -214,11 +221,11 @@ class ConVar {
     void setValue(T &&value, bool doCallback = true, CvarEditor editor = CvarEditor::CLIENT) {
         using D = std::decay_t<T>;
         // bool is convertible to double, so it flows through the numeric path and is stored as
-        // "1"/"0" like ints/floats; the std::string overload parses/normalizes "true"/"false" back
+        // "1"/"0" like ints/floats; the string overload parses/normalizes "true"/"false" back
         if constexpr(std::is_convertible_v<D, double>)
             this->setValueImpl(static_cast<double>(value), doCallback, editor);
         else
-            this->setValueImpl(std::string{std::forward<T>(value)}, doCallback, editor);
+            this->setValueImpl(std::string_view{value}, doCallback, editor);
     }
 
     // generic callback setter that auto-detects callback type
@@ -255,28 +262,20 @@ class ConVar {
     // get
     template <typename T = int>
     [[nodiscard]] inline T getDefaultVal() const {
-        return static_cast<T>(this->dDefaultValue);
+        return static_cast<T>(this->defaultValue.d);
     }
-    [[nodiscard]] inline float getDefaultFloat() const { return static_cast<float>(this->dDefaultValue); }
-    [[nodiscard]] inline double getDefaultDouble() const { return this->dDefaultValue; }
-    [[nodiscard]] inline const std::string &getDefaultString() const { return this->sDefaultValue; }
+    [[nodiscard]] inline float getDefaultFloat() const { return static_cast<float>(this->defaultValue.d); }
+    [[nodiscard]] inline double getDefaultDouble() const { return this->defaultValue.d; }
+    [[nodiscard]] inline const std::string &getDefaultString() const { return this->defaultValue.s; }
 
-    void setDefaultDouble(double defaultValue);
-    void setDefaultString(std::string_view defaultValue);
+    void setDefaultDouble(double newDefault);
+    void setDefaultString(std::string_view newDefault);
 
     std::string getFancyDefaultValue() const;
 
-    [[nodiscard]] inline double getDouble() const {
-        if(likely(this->bUseCachedDouble.load(std::memory_order_relaxed))) {
-            return this->dCachedReturnedDouble.load(std::memory_order_relaxed);
-        }
-        return this->getDoubleInt();
-    }
-    [[nodiscard]] inline const std::string &getString() const {
-        if(likely(this->bUseCachedString.load(std::memory_order_relaxed))) {
-            return *(this->sCachedReturnedString.load(std::memory_order_relaxed));
-        }
-        return this->getStringInt();
+    [[nodiscard]] forceinline double getDouble() const { return this->dValue.load(std::memory_order_relaxed); }
+    [[nodiscard]] forceinline const std::string &getString() const {
+        return *this->sValue.load(std::memory_order_relaxed);
     }
 
     template <typename T = int>
@@ -294,7 +293,8 @@ class ConVar {
     [[nodiscard]] forceinline CONVAR_TYPE getType() const { return this->type; }
     [[nodiscard]] forceinline uint8_t getFlags() const { return this->iFlags; }
 
-    [[nodiscard]] CvarEditor getMaster() const;
+    // who the current value comes from (SERVER also while the protection lock is what decides it)
+    [[nodiscard]] forceinline CvarEditor getMaster() const { return this->master; }
     [[nodiscard]] forceinline bool canHaveValue() const { return this->bCanHaveValue; }
 
     [[nodiscard]] bool hasAnyNonVoidCallback() const;
@@ -304,19 +304,16 @@ class ConVar {
     [[nodiscard]] inline bool isDefault() const {
         // a convar carries two representations (double + string), but (usually?) only one is authoritative per
         // type: the double for numeric convars, the string for STRING convars.
-        // the other is derived and can diverge (e.g. an unparseable/"true"/"false" string set on a numeric convar
-        // resets the double to default but leaves the raw text behind).
+        // the other is derived and can diverge (e.g. a numeric convar set from text keeps the text as it was typed,
+        // "1.50" next to a default string of "1.5").
         if(this->type == CONVAR_TYPE::STRING) return this->getString() == this->getDefaultString();
         return this->getDouble() == this->getDefaultDouble();
     }
 
-    void setServerProtected(CvarProtection policy) {
-        this->serverProtectionPolicy.store(policy, std::memory_order_release);
-        this->invalidateCache();
-    }
+    void setServerProtected(CvarProtection policy);
 
     [[nodiscard]] inline bool isProtected() const {
-        switch(this->serverProtectionPolicy.load(std::memory_order_acquire)) {
+        switch(this->serverProtectionPolicy) {
             case CvarProtection::DEFAULT:
                 return this->isFlagSet(cv::PROTECTED);
             case CvarProtection::PROTECTED:
@@ -330,9 +327,6 @@ class ConVar {
     // shared callbacks, app-defined
     static void setOnSetValueProtectedCallback(const VoidCB &callback);
 
-    using ProtectedCVGetCB = bool (*)(std::string_view cvarname);
-    static void setOnGetValueProtectedCallback(ProtectedCVGetCB func);
-
     using GameplayCVChangeCB = bool (*)(std::string_view cvarname, CvarEditor setterkind);
     static void setOnSetValueGameplayCallback(GameplayCVChangeCB func);
 
@@ -340,7 +334,7 @@ class ConVar {
     // typed setValue impls — public setValue<T> dispatches into these based on T category
     // (bool routes through the double overload; there's no dedicated bool string form)
     void setValueImpl(double newDouble, bool doCallback, CvarEditor editor);
-    void setValueImpl(std::string newString, bool doCallback, CvarEditor editor);
+    void setValueImpl(std::string_view newString, bool doCallback, CvarEditor editor);
 
     // typed setCallback impls — public setCallback<C> dispatches into these
     void setCallbackImpl(VoidCB cb);
@@ -386,72 +380,59 @@ class ConVar {
     void initValueImpl(int v, uint8_t flags);
     void initValueImpl(double v, uint8_t flags);
     void initValueImpl(std::string_view v, uint8_t flags);
+    void initValueInt(Value value, uint8_t flags);
 
     void initCmdCallbackImpl(uint8_t flags, VoidCB cb);
     void initCmdCallbackImpl(uint8_t flags, StringCB cb);
     void initCmdCallbackImpl(uint8_t flags, FloatCB cb);
     void initCmdCallbackImpl(uint8_t flags, DoubleCB cb);
 
-    // central store-and-dispatch routine called by all 3 setValueImpl overloads
+    // central store-and-dispatch routine called by both setValueImpl overloads
     void setValueInt(double newDouble, std::string newString, bool doCallback, CvarEditor editor);
 
-    [[nodiscard]] double getDoubleInt() const;
-    [[nodiscard]] const std::string &getStringInt() const;
+    // recomputes what the getters return: the only place that picks between the default/client/skin/server values.
+    // has to run after every change to something it looks at (setValueInt does for writes, everything else
+    // goes through snapshot() -> change -> resolve() -> notifyIfChanged())
+    void resolve();
 
-    inline void invalidateCache() {
-        // invalidate cache, after we stored new values
-        this->bUseCachedDouble.store(false, std::memory_order_release);
-        this->bUseCachedString.store(false, std::memory_order_release);
-    }
+    [[nodiscard]] Value snapshot() const { return {.d = this->getDouble(), .s = this->getString()}; }
+    void notifyIfChanged(const Value &old);
+    void runCallbacks(double oldDouble, std::string_view oldString);
 
    private:
     // static callbacks are shared across all convars
     // to call when a convar with PROTECTED flag has been changed
     static VoidCB onSetValueProtectedCallback;
 
-    // to call when a PROTECTED convar has getString or getValue called on it
-    // if the callback returns FALSE, the default value will be returned instead
-    // TODO/LOOK INTO: this is only called if it doesn't have a skin or server value, is that cheeseable?
-    static ProtectedCVGetCB onGetValueProtectedCallback;
-
     // to call when a GAMEPLAY convar is being changed
     // if the callback returns FALSE, the convar won't be changed
     static GameplayCVChangeCB onSetValueGameplayCallback;
 
+    // what the getters return, published by resolve() (first, so that a read only touches the start of the object)
+    // these are the only members other threads get to look at, everything below belongs to the main thread
+    std::atomic<double> dValue{0.0};
+    std::atomic<const std::string *> sValue{nullptr};
+
     std::string_view sName;
     std::string_view sHelpString;
 
-    std::string sDefaultValue{};
-    double dDefaultValue{0.0};
-
-    std::atomic<double> dClientValue{0.0};
-    std::string sClientValue{};
-
-    std::atomic<double> dSkinValue{0.0};
-    std::string sSkinValue{};
-
-    std::atomic<double> dServerValue{0.0};
-    std::string sServerValue{};
-
-    // just return cached values to avoid checking flags, unless something changed
-    mutable std::atomic<const std::string *> sCachedReturnedString{&sDefaultValue};
-    mutable std::atomic<double> dCachedReturnedDouble{0.};
+    Value defaultValue{};
+    Value clientValue{};
+    std::unique_ptr<Value> skinValue{nullptr};    // null if the skin doesn't set this convar
+    std::unique_ptr<Value> serverValue{nullptr};  // ditto for the server
 
     // callback storage (allow having 1 "change" callback and 1 single value (or void) callback)
     CallbackSlot callback;
     CallbackSlot changeCallback;
 
-    std::atomic<CvarProtection> serverProtectionPolicy{CvarProtection::DEFAULT};
+    CvarProtection serverProtectionPolicy{CvarProtection::DEFAULT};
+    CvarEditor master{CvarEditor::CLIENT};
 
     CONVAR_TYPE type{CONVAR_TYPE::FLOAT};
     uint8_t iFlags{0};
 
     bool bCanHaveValue{false};
-    std::atomic<bool> hasServerValue{false};
-    std::atomic<bool> hasSkinValue{false};
-
-    mutable std::atomic<bool> bUseCachedDouble{false};
-    mutable std::atomic<bool> bUseCachedString{false};
+    bool bNonSubmittable{false};  // protected and not at its default value (kept up to date by resolve())
 };
 
 #endif

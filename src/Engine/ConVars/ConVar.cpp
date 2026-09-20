@@ -2,6 +2,7 @@
 #include "ConVar.h"
 #include "ConVarHandler.h"
 
+#include "Logging.h"
 #include "Parsing.h"
 #include "SString.h"
 
@@ -51,14 +52,13 @@ ConVar::VoidCB ConVar::onSetValueProtectedCallback{};
 void ConVar::setOnSetValueProtectedCallback(const VoidCB &callback) { ConVar::onSetValueProtectedCallback = callback; }
 
 // ditto
-ConVar::ProtectedCVGetCB ConVar::onGetValueProtectedCallback{nullptr};
-void ConVar::setOnGetValueProtectedCallback(ProtectedCVGetCB func) { ConVar::onGetValueProtectedCallback = func; }
-
-// ditto
 ConVar::GameplayCVChangeCB ConVar::onSetValueGameplayCallback{nullptr};
 void ConVar::setOnSetValueGameplayCallback(GameplayCVChangeCB func) { ConVar::onSetValueGameplayCallback = func; }
 
 void ConVar::addConVar() {
+    // every ctor ends up here with its values in place: publish them for the getters
+    this->resolve();
+
     std::string_view name = this->getName();
 
     // osu_ prefix is deprecated.
@@ -78,13 +78,13 @@ std::string ConVar::getFancyDefaultValue() const {
     switch(this->getType()) {
         using enum CONVAR_TYPE;
         case BOOL:
-            return this->dDefaultValue == 0 ? "false" : "true";
+            return this->defaultValue.d == 0 ? "false" : "true";
         case INT:
-            return fmt::format("{:d}", (int)this->dDefaultValue);
+            return fmt::format("{:d}", (int)this->defaultValue.d);
         case FLOAT:
-            return fmt::format("{:g}", this->dDefaultValue);
+            return fmt::format("{:g}", this->defaultValue.d);
         case STRING: {
-            return fmt::format(R"("{:s}")", this->sDefaultValue);
+            return fmt::format(R"("{:s}")", this->defaultValue.s);
         }
     }
 
@@ -157,78 +157,72 @@ void ConVar::execDouble(double args) {
     }
 }
 
-CvarEditor ConVar::getMaster() const {
-    if((this->isFlagSet(cv::SERVER) && this->hasServerValue.load(std::memory_order_acquire)) ||
-       // (only for multiplayer rooms, see note on invalidateAllProtectedCaches below)
-       (this->isProtected() &&
-        (likely(!!ConVar::onGetValueProtectedCallback) && !ConVar::onGetValueProtectedCallback(this->sName)))) {
-        return CvarEditor::SERVER;
-    } else if(this->isFlagSet(cv::SKINS) && this->hasSkinValue.load(std::memory_order_acquire)) {
-        return CvarEditor::SKIN;
-    } else {
-        return CvarEditor::CLIENT;
+void ConVar::resolve() {
+    // server > protection lock > skin > client
+    const Value *value = &this->clientValue;
+    this->master = CvarEditor::CLIENT;
+    if(this->serverValue) {
+        value = this->serverValue.get();
+        this->master = CvarEditor::SERVER;
+    } else if(this->isProtected() && cvars().isProtectionEnforced()) {
+        // nobody but the server gets a say about protected convars while the lock is on
+        value = &this->defaultValue;
+        this->master = CvarEditor::SERVER;
+    } else if(this->skinValue) {
+        value = this->skinValue.get();
+        this->master = CvarEditor::SKIN;
+    }
+
+    this->sValue.store(&value->s, std::memory_order_release);
+    this->dValue.store(value->d, std::memory_order_release);
+
+    // keep count for ConVarHandler::areAllCvarsSubmittable()
+    if(const bool nonSubmittable = this->isProtected() && !this->isDefault(); nonSubmittable != this->bNonSubmittable) {
+        this->bNonSubmittable = nonSubmittable;
+        cvars().iNumNonSubmittable += nonSubmittable ? 1 : -1;
     }
 }
 
-double ConVar::getDoubleInt() const {
-    if(this->isFlagSet(cv::SERVER) && this->hasServerValue.load(std::memory_order_acquire)) {
-        this->dCachedReturnedDouble.store(this->dServerValue.load(std::memory_order_acquire),
-                                          std::memory_order_release);
-    } else if(this->isFlagSet(cv::SKINS) && this->hasSkinValue.load(std::memory_order_acquire)) {
-        this->dCachedReturnedDouble.store(this->dSkinValue.load(std::memory_order_acquire), std::memory_order_release);
-    } else if(this->isProtected() &&
-              (likely(!!ConVar::onGetValueProtectedCallback) && !ConVar::onGetValueProtectedCallback(this->sName))) {
-        // FIXME: this is unreliable since onGetValueProtectedCallback might change arbitrarily,
-        // need to invalidate cached state when that happens
-        // currently relying on a cvars().invalidateAllProtectedCaches "backdoor" (see Bancho.cpp),
-        // so the API user needs to know the implementation details or else they'll keep getting default values :)
-        this->dCachedReturnedDouble.store(this->dDefaultValue, std::memory_order_release);
-    } else {
-        this->dCachedReturnedDouble.store(this->dClientValue.load(std::memory_order_acquire),
-                                          std::memory_order_release);
+void ConVar::notifyIfChanged(const Value &old) {
+    // (see isDefault() about which representation counts)
+    const double newDouble = this->getDouble();
+    if(this->type == CONVAR_TYPE::STRING ? old.s == this->getString() : old.d == newDouble) return;
+
+    if(this->isProtected() && old.d != newDouble && likely(!!ConVar::onSetValueProtectedCallback)) {
+        ConVar::onSetValueProtectedCallback();
     }
 
-    this->bUseCachedDouble.store(true, std::memory_order_release);
-    return this->dCachedReturnedDouble.load(std::memory_order_acquire);
+    this->runCallbacks(old.d, old.s);
 }
 
-const std::string &ConVar::getStringInt() const {
-    if(this->isFlagSet(cv::SERVER) && this->hasServerValue.load(std::memory_order_acquire)) {
-        this->sCachedReturnedString.store(&this->sServerValue, std::memory_order_release);
-    } else if(this->isFlagSet(cv::SKINS) && this->hasSkinValue.load(std::memory_order_acquire)) {
-        this->sCachedReturnedString.store(&this->sSkinValue, std::memory_order_release);
-    } else if(this->isProtected() &&
-              (likely(!!ConVar::onGetValueProtectedCallback) && !ConVar::onGetValueProtectedCallback(this->sName))) {
-        this->sCachedReturnedString.store(&this->sDefaultValue, std::memory_order_release);
-    } else {
-        this->sCachedReturnedString.store(&this->sClientValue, std::memory_order_release);
-    }
+void ConVar::setServerProtected(CvarProtection policy) {
+    if(policy == this->serverProtectionPolicy) return;
 
-    this->bUseCachedString.store(true, std::memory_order_release);
-    return *(this->sCachedReturnedString.load(std::memory_order_acquire));
+    const Value old = this->snapshot();
+    this->serverProtectionPolicy = policy;
+    this->resolve();
+    this->notifyIfChanged(old);
 }
 
-void ConVar::setDefaultDouble(double defaultValue) {
-    this->dDefaultValue = defaultValue;
-    this->sDefaultValue = fmt::format("{:g}", defaultValue);
-
-    // FIXME: continued hacks from the protected value returning default value issue
-    if(this->isFlagSet(cv::PROTECTED)) {
-        this->invalidateCache();
-    }
+void ConVar::setDefaultDouble(double newDefault) {
+    // (the default is what a locked protected convar reads as)
+    const Value old = this->snapshot();
+    this->defaultValue = {.d = newDefault, .s = fmt::format("{:g}", newDefault)};
+    this->resolve();
+    this->notifyIfChanged(old);
 }
 
-void ConVar::setDefaultString(std::string_view defaultValue) {
-    this->sDefaultValue = defaultValue;
+void ConVar::setDefaultString(std::string_view newDefault) {
+    const Value old = this->snapshot();
+    this->defaultValue.s = newDefault;
 
     // also try to parse default float from the default string
     double dbl{};
-    const auto [ptr, err] = Parsing::from_chars(defaultValue.data(), defaultValue.data() + defaultValue.size(), dbl);
-    if(err == std::errc()) this->dDefaultValue = dbl;
+    const auto [ptr, err] = Parsing::from_chars(newDefault.data(), newDefault.data() + newDefault.size(), dbl);
+    if(err == std::errc()) this->defaultValue.d = dbl;
 
-    if(this->isFlagSet(cv::PROTECTED)) {
-        this->invalidateCache();
-    }
+    this->resolve();
+    this->notifyIfChanged(old);
 }
 
 // typed setValue impls — header dispatcher (setValue<T>) routes here based on T category.
@@ -238,26 +232,29 @@ void ConVar::setValueImpl(double newDouble, bool doCallback, CvarEditor editor) 
     this->setValueInt(newDouble, fmt::format("{:g}", newDouble), doCallback, editor);
 }
 
-void ConVar::setValueImpl(std::string newString, bool doCallback, CvarEditor editor) {
-    double dbl{this->dDefaultValue};
+void ConVar::setValueImpl(std::string_view newString, bool doCallback, CvarEditor editor) {
+    double dbl{this->defaultValue.d};
     const auto [ptr, err] = Parsing::from_chars(newString.data(), newString.data() + newString.size(), dbl);
     (void)ptr;
     if(err != std::errc()) {
         // older builds saved bool convars as "true"/"false", accept those too, but normalize the
         // stored string back to the canonical "1"/"0". otherwise a default-valued bool keeps the
         // textual "false" while its default string is "0", so isDefault() ("incorrectly") reports non-default
-        dbl = this->dDefaultValue;
-        if(this->type == CONVAR_TYPE::BOOL) {
-            if(SString::strcase_equal(newString, "true")) {
-                dbl = 1.0;
-                newString = "1";
-            } else if(SString::strcase_equal(newString, "false")) {
-                dbl = 0.0;
-                newString = "0";
-            }
+        if(this->type == CONVAR_TYPE::BOOL && SString::strcase_equal(newString, "true")) {
+            dbl = 1.0;
+            newString = "1";
+        } else if(this->type == CONVAR_TYPE::BOOL && SString::strcase_equal(newString, "false")) {
+            dbl = 0.0;
+            newString = "0";
+        } else if(this->type == CONVAR_TYPE::STRING) {
+            // only numeric convars need their text to be a number
+            dbl = this->defaultValue.d;
+        } else {
+            debugLog("{:s}: \"{:s}\" is not a number", this->sName, newString);
+            return;
         }
     }
-    this->setValueInt(dbl, std::move(newString), doCallback, editor);
+    this->setValueInt(dbl, std::string{newString}, doCallback, editor);
 }
 
 // central store-and-dispatch. handles flag gating, value store, protected/exec/change callbacks.
@@ -274,43 +271,42 @@ void ConVar::setValueInt(double newDouble, std::string newString, bool doCallbac
     }
 
     // backup old values for callbacks
-    double oldDouble{this->getDoubleInt()};
+    const double oldDouble{this->getDouble()};
     std::string oldString;
-    std::string_view newStringStored;  // minor optimization to avoid copying (points to field we moved into)
-    if(doCallback) {
-        oldString = this->getStringInt();
+    if(doCallback && this->changeCallback.kind == CallbackKind::StringChange) {
+        oldString = this->getString();
     }
+
+    // commands have no value that could be overridden: whoever is allowed to call them just runs them
+    if(!this->bCanHaveValue) editor = CvarEditor::CLIENT;
 
     // store new values
-    switch(editor) {
-        using enum CvarEditor;
-        case CLIENT: {
-            this->dClientValue.store(newDouble, std::memory_order_release);
-            newStringStored = (this->sClientValue = std::move(newString));
-            break;
-        }
-        case SKIN: {
-            this->dSkinValue.store(newDouble, std::memory_order_release);
-            newStringStored = (this->sSkinValue = std::move(newString));
-            this->hasSkinValue.store(true, std::memory_order_release);
-            break;
-        }
-        case SERVER: {
-            this->dServerValue.store(newDouble, std::memory_order_release);
-            newStringStored = (this->sServerValue = std::move(newString));
-            this->hasServerValue.store(true, std::memory_order_release);
-            break;
-        }
+    // (an existing skin/server value is assigned in place: the getters may be pointing at it)
+    Value newValue{.d = newDouble, .s = std::move(newString)};
+    if(editor == CvarEditor::CLIENT) {
+        this->clientValue = std::move(newValue);
+    } else if(auto &layer = (editor == CvarEditor::SKIN) ? this->skinValue : this->serverValue; layer) {
+        *layer = std::move(newValue);
+    } else {
+        layer = std::make_unique<Value>(std::move(newValue));
     }
 
-    this->invalidateCache();
+    this->resolve();
 
     // run protected value change cb
-    if(this->isProtected() && oldDouble != newDouble && likely(!!ConVar::onSetValueProtectedCallback)) {
+    if(this->isProtected() && oldDouble != this->getDouble() && likely(!!ConVar::onSetValueProtectedCallback)) {
         ConVar::onSetValueProtectedCallback();
     }
 
-    if(!doCallback) return;
+    // a write below whatever decides the value right now (a skin/server value, the protection lock) is kept for
+    // later, but it changes nothing anyone could see: callbacks hear about it if and when it becomes the value
+    if(!doCallback || this->master != editor) return;
+
+    this->runCallbacks(oldDouble, oldString);
+}
+
+void ConVar::runCallbacks(double oldDouble, std::string_view oldString) {
+    const double newDouble{this->getDouble()};
 
     // dispatch exec callback (kind=None just falls through)
     switch(this->callback.kind) {
@@ -319,7 +315,7 @@ void ConVar::setValueInt(double newDouble, std::string newString, bool doCallbac
             (*std::launder(reinterpret_cast<VoidCB *>(&this->callback.storage[0])))();
             break;
         case String:
-            (*std::launder(reinterpret_cast<StringCB *>(&this->callback.storage[0])))(newStringStored);
+            (*std::launder(reinterpret_cast<StringCB *>(&this->callback.storage[0])))(this->getString());
             break;
         case Float:
             (*std::launder(reinterpret_cast<FloatCB *>(&this->callback.storage[0])))(static_cast<float>(newDouble));
@@ -336,7 +332,7 @@ void ConVar::setValueInt(double newDouble, std::string newString, bool doCallbac
         using enum CallbackKind;
         case StringChange:
             (*std::launder(reinterpret_cast<StringChangeCB *>(&this->changeCallback.storage[0])))(oldString,
-                                                                                                  newStringStored);
+                                                                                                  this->getString());
             break;
         case FloatChange:
             (*std::launder(reinterpret_cast<FloatChangeCB *>(&this->changeCallback.storage[0])))(
@@ -383,59 +379,38 @@ void ConVar::setCallbackImpl(DoubleChangeCB cb) {
     this->changeCallback.kind = CallbackKind::DoubleChange;
 }
 
-// typed init impls used by value ctors. each sets type/flags + default value, then copies
-// defaults to all 3 editor slots (client/skin/server).
+// typed init impls used by value ctors. each sets type/flags + default value, which is also what the client's
+// value starts out as.
 
 void ConVar::initValueImpl(bool v, uint8_t flags) {
-    this->bCanHaveValue = true;
-    this->iFlags = flags;
     this->type = CONVAR_TYPE::BOOL;
-    this->setDefaultDouble(v ? 1.0 : 0.0);
-    this->sClientValue = this->sDefaultValue;
-    this->sSkinValue = this->sDefaultValue;
-    this->sServerValue = this->sDefaultValue;
-    this->dClientValue.store(this->dDefaultValue, std::memory_order_relaxed);
-    this->dSkinValue.store(this->dDefaultValue, std::memory_order_relaxed);
-    this->dServerValue.store(this->dDefaultValue, std::memory_order_relaxed);
+    this->initValueInt({.d = v ? 1.0 : 0.0, .s = v ? "1" : "0"}, flags);
 }
 
 void ConVar::initValueImpl(int v, uint8_t flags) {
-    this->bCanHaveValue = true;
-    this->iFlags = flags;
     this->type = CONVAR_TYPE::INT;
-    this->setDefaultDouble(static_cast<double>(v));
-    this->sClientValue = this->sDefaultValue;
-    this->sSkinValue = this->sDefaultValue;
-    this->sServerValue = this->sDefaultValue;
-    this->dClientValue.store(this->dDefaultValue, std::memory_order_relaxed);
-    this->dSkinValue.store(this->dDefaultValue, std::memory_order_relaxed);
-    this->dServerValue.store(this->dDefaultValue, std::memory_order_relaxed);
+    this->initValueInt({.d = static_cast<double>(v), .s = fmt::format("{:g}", static_cast<double>(v))}, flags);
 }
 
 void ConVar::initValueImpl(double v, uint8_t flags) {
-    this->bCanHaveValue = true;
-    this->iFlags = flags;
     this->type = CONVAR_TYPE::FLOAT;
-    this->setDefaultDouble(v);
-    this->sClientValue = this->sDefaultValue;
-    this->sSkinValue = this->sDefaultValue;
-    this->sServerValue = this->sDefaultValue;
-    this->dClientValue.store(this->dDefaultValue, std::memory_order_relaxed);
-    this->dSkinValue.store(this->dDefaultValue, std::memory_order_relaxed);
-    this->dServerValue.store(this->dDefaultValue, std::memory_order_relaxed);
+    this->initValueInt({.d = v, .s = fmt::format("{:g}", v)}, flags);
 }
 
 void ConVar::initValueImpl(std::string_view v, uint8_t flags) {
+    this->type = CONVAR_TYPE::STRING;
+
+    // also try to parse default float from the default string
+    double dbl{0.0};
+    const auto [ptr, err] = Parsing::from_chars(v.data(), v.data() + v.size(), dbl);
+    this->initValueInt({.d = err == std::errc() ? dbl : 0.0, .s = std::string{v}}, flags);
+}
+
+void ConVar::initValueInt(Value value, uint8_t flags) {
     this->bCanHaveValue = true;
     this->iFlags = flags;
-    this->type = CONVAR_TYPE::STRING;
-    this->setDefaultString(v);
-    this->sClientValue = this->sDefaultValue;
-    this->sSkinValue = this->sDefaultValue;
-    this->sServerValue = this->sDefaultValue;
-    this->dClientValue.store(this->dDefaultValue, std::memory_order_relaxed);
-    this->dSkinValue.store(this->dDefaultValue, std::memory_order_relaxed);
-    this->dServerValue.store(this->dDefaultValue, std::memory_order_relaxed);
+    this->defaultValue = std::move(value);
+    this->clientValue = this->defaultValue;
 }
 
 // typed init impls used by callback-only ctors. flags get NOSAVE forced on, and type is
@@ -478,10 +453,12 @@ void ConVar::removeAllCallbacks() {
 
 void ConVar::reset() {
     this->removeAllCallbacks();
-    this->invalidateCache();
-    this->hasServerValue = false;
-    this->hasSkinValue = false;
-    this->setServerProtected(CvarProtection::DEFAULT);
+
+    // (the old values have to outlive the getters pointing at them)
+    const auto oldSkinValue = std::move(this->skinValue);
+    const auto oldServerValue = std::move(this->serverValue);
+    this->serverProtectionPolicy = CvarProtection::DEFAULT;
+    this->resolve();
 }
 
 bool ConVar::hasAnyNonVoidCallback() const {

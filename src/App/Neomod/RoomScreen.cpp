@@ -23,6 +23,7 @@
 #include "CBaseUITextbox.h"
 #include "Chat.h"
 #include "OsuConVars.h"
+#include "ConVarHandler.h"
 #include "Database.h"
 #include "MakeDelegateWrapper.h"
 #include "HUD.h"
@@ -558,6 +559,7 @@ void RoomScreen::ragequit(bool play_sound) {
     BANCHO::Net::send_packet(packet);
 
     BanchoState::room = Room();
+    cvars().setProtectionEnforced(false);
     ui->setScreen(BanchoState::is_online() ? ui->getLobbyBase() : ui->getMainMenuBase());
     ui->getChat()->removeChannel("#multiplayer");
     ui->getChat()->updateVisibility();
@@ -619,6 +621,10 @@ void RoomScreen::on_map_change() {
 
 void RoomScreen::on_room_joined(const Room &room) {
     BanchoState::room = room;
+
+    // protected convars read as their default for as long as we are in the room
+    cvars().setProtectionEnforced(true);
+
     debugLog("Joined room #{:d}\nPlayers:", room.id);
     for(auto &slot : room.slots) {
         if(slot.has_player()) {

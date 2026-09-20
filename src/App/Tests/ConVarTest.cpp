@@ -34,13 +34,12 @@ ConVar t_callbacks("cvtest_callbacks", 1.0f, cv::CLIENT | TESTONLY);
 
 std::string s_cmdArgs;
 int s_cmdCalls{0};
-ConVar t_cmd("cvtest_cmd", cv::CLIENT | TESTONLY, [](std::string_view args) -> void {
+ConVar t_cmd("cvtest_cmd", cv::CLIENT | cv::SERVER | TESTONLY, [](std::string_view args) -> void {
     s_cmdCalls++;
     s_cmdArgs = args;
 });
 
 // stand-ins for the policy the app normally provides (see Osu's globalOn* callbacks)
-bool s_locked{false};   // "in a multiplayer room": protected convars read as their default
 bool s_gateOpen{true};  // "not in a multiplayer match": gameplay convars may be changed
 int s_gateCalls{0};
 std::string s_gateLastName;
@@ -48,10 +47,8 @@ CvarEditor s_gateLastEditor{CvarEditor::CLIENT};
 int s_protectedChanges{0};
 bool s_extraSubmittable{true};
 
-void setLocked(bool locked) {
-    s_locked = locked;
-    cvars().invalidateAllProtectedCaches();
-}
+// "in a multiplayer room": protected convars read as their default
+void setLocked(bool locked) { cvars().setProtectionEnforced(locked); }
 
 struct ChangeRecord {
     int calls{0};
@@ -76,7 +73,6 @@ bool isNonSubmittable(const ConVar &cvar) { return std::ranges::contains(cvars()
 ConVarTest::ConVarTest() {
     logRaw("ConVarTest created");
 
-    ConVar::setOnGetValueProtectedCallback([](std::string_view /*name*/) -> bool { return !s_locked; });
     ConVar::setOnSetValueGameplayCallback([](std::string_view name, CvarEditor editor) -> bool {
         s_gateCalls++;
         s_gateLastName = name;
@@ -93,7 +89,6 @@ ConVarTest::~ConVarTest() {
     cvars().setCVSubmittableCheckFunc({});
     ConVar::setOnSetValueProtectedCallback({});
     ConVar::setOnSetValueGameplayCallback({});
-    ConVar::setOnGetValueProtectedCallback({});
 }
 
 void ConVarTest::update() {
@@ -165,8 +160,8 @@ void ConVarTest::testTypesAndParsing() {
     // unparseable text must not silently turn a numeric convar into its default with garbage as its string
     t_float.setValue(2.5f);
     t_float.setValue("garbage");
-    TEST_TODO TEST_ASSERT(t_float.getFloat() == 2.5f, "unparseable text leaves a numeric convar's value alone");
-    TEST_TODO TEST_ASSERT(t_float.getString() == "2.5", "unparseable text leaves a numeric convar's string alone");
+    TEST_ASSERT(t_float.getFloat() == 2.5f, "unparseable text leaves a numeric convar's value alone");
+    TEST_ASSERT(t_float.getString() == "2.5", "unparseable text leaves a numeric convar's string alone");
     t_float.setValue(1.0f);
     t_int.setValue(5);
     t_string.setValue("abc");
@@ -223,23 +218,23 @@ void ConVarTest::testLayers() {
     t_layered.setValue(2.0f);
     TEST_ASSERT_EQ(t_layered.getFloat(), 1.75f, "masked client write doesn't change the effective value");
     TEST_ASSERT(t_layered.getMaster() == CvarEditor::SERVER, "masked client write doesn't change the master");
-    TEST_TODO TEST_ASSERT_EQ(s_layeredChange.calls, callsBefore, "masked client write doesn't run callbacks");
+    TEST_ASSERT_EQ(s_layeredChange.calls, callsBefore, "masked client write doesn't run callbacks");
 
     callsBefore = s_layeredChange.calls;
     TEST_ASSERT(cvars().removeServerValue("cvtest_layered"), "removeServerValue finds the convar");
     TEST_ASSERT_EQ(t_layered.getFloat(), 1.5f, "skin value is effective again without the server value");
     TEST_ASSERT(t_layered.getMaster() == CvarEditor::SKIN, "skin is the master again");
-    TEST_TODO TEST_ASSERT(s_layeredChange.calls == callsBefore + 1, "removing a server value runs callbacks");
-    TEST_TODO TEST_ASSERT(s_layeredChange.oldValue == 1.75f && s_layeredChange.newValue == 1.5f,
-                          "removing a server value, callback old/new values");
+    TEST_ASSERT(s_layeredChange.calls == callsBefore + 1, "removing a server value runs callbacks");
+    TEST_ASSERT(s_layeredChange.oldValue == 1.75f && s_layeredChange.newValue == 1.5f,
+                "removing a server value, callback old/new values");
 
     callsBefore = s_layeredChange.calls;
     cvars().resetSkinCvars();
     TEST_ASSERT_EQ(t_layered.getFloat(), 2.0f, "the masked client write is effective once the overrides are gone");
     TEST_ASSERT(t_layered.getMaster() == CvarEditor::CLIENT, "client is the master again");
-    TEST_TODO TEST_ASSERT(s_layeredChange.calls == callsBefore + 1, "removing a skin value runs callbacks");
-    TEST_TODO TEST_ASSERT(s_layeredChange.oldValue == 1.5f && s_layeredChange.newValue == 2.0f,
-                          "removing a skin value, callback old/new values");
+    TEST_ASSERT(s_layeredChange.calls == callsBefore + 1, "removing a skin value runs callbacks");
+    TEST_ASSERT(s_layeredChange.oldValue == 1.5f && s_layeredChange.newValue == 2.0f,
+                "removing a skin value, callback old/new values");
 
     callsBefore = s_layeredChange.calls;
     cvars().resetSkinCvars();
@@ -282,9 +277,9 @@ void ConVarTest::testProtectionLock() {
     TEST_ASSERT_EQ(t_protected.getFloat(), 0.0f, "locked protected convar reads as its default");
     TEST_ASSERT_EQ(t_protected.getString(), "0", "locked protected convar reads as its default, string view");
     TEST_ASSERT(t_protected.getMaster() == CvarEditor::SERVER, "a locked convar isn't the client's");
-    TEST_TODO TEST_ASSERT(s_protectedChange.calls == callsBefore + 1, "locking runs callbacks of convars it changes");
-    TEST_TODO TEST_ASSERT(s_protectedChange.oldValue == 45.0f && s_protectedChange.newValue == 0.0f,
-                          "locking, callback old/new values");
+    TEST_ASSERT(s_protectedChange.calls == callsBefore + 1, "locking runs callbacks of convars it changes");
+    TEST_ASSERT(s_protectedChange.oldValue == 45.0f && s_protectedChange.newValue == 0.0f,
+                "locking, callback old/new values");
 
     // a client write under the lock is masked like one below a skin/server value: kept for later, and nobody
     // hears about it (it doesn't make the score unsubmittable either, nothing changed)
@@ -292,8 +287,8 @@ void ConVarTest::testProtectionLock() {
     s_protectedChanges = 0;
     t_protected.setValue(50.0f);
     TEST_ASSERT_EQ(t_protected.getFloat(), 0.0f, "client write doesn't get through the lock");
-    TEST_TODO TEST_ASSERT_EQ(s_protectedChange.calls, callsBefore, "client write under the lock doesn't run callbacks");
-    TEST_TODO TEST_ASSERT_EQ(s_protectedChanges, 0, "client write under the lock doesn't notify the app");
+    TEST_ASSERT_EQ(s_protectedChange.calls, callsBefore, "client write under the lock doesn't run callbacks");
+    TEST_ASSERT_EQ(s_protectedChanges, 0, "client write under the lock doesn't notify the app");
 
     t_protected.setValue(90.0f, true, CvarEditor::SERVER);
     TEST_ASSERT_EQ(t_protected.getFloat(), 90.0f, "server value beats the lock");
@@ -304,14 +299,14 @@ void ConVarTest::testProtectionLock() {
     setLocked(false);
     TEST_ASSERT_EQ(t_protected.getFloat(), 50.0f, "the client value written under the lock applies once unlocked");
     TEST_ASSERT(t_protected.getMaster() == CvarEditor::CLIENT, "unlocked convar is the client's again");
-    TEST_TODO TEST_ASSERT(s_protectedChange.calls == callsBefore + 1, "unlocking runs callbacks of convars it changes");
+    TEST_ASSERT(s_protectedChange.calls == callsBefore + 1, "unlocking runs callbacks of convars it changes");
 
     // a skin must not be able to get around the lock
     t_protectedSkin.setValue(true, true, CvarEditor::SKIN);
     TEST_ASSERT(t_protectedSkin.getBool(), "skin value on a protected convar is effective while unlocked");
     setLocked(true);
     TEST_ASSERT(t_protectedSkin.getMaster() == CvarEditor::SERVER, "lock beats the skin value, master");
-    TEST_TODO TEST_ASSERT(!t_protectedSkin.getBool(), "lock beats the skin value");
+    TEST_ASSERT(!t_protectedSkin.getBool(), "lock beats the skin value");
     setLocked(false);
     TEST_ASSERT(t_protectedSkin.getBool(), "skin value is back after unlocking");
     cvars().resetSkinCvars();
@@ -329,7 +324,7 @@ void ConVarTest::testProtectionLock() {
     TEST_ASSERT(t_layered.isProtected(), "server can protect a convar without the flag");
     TEST_ASSERT_EQ(t_layered.getFloat(), 1.25f, "server-protected convar reads normally while unlocked");
     setLocked(true);
-    TEST_TODO TEST_ASSERT(t_layered.getFloat() == 1.0f, "server-protected convar reads as its default once locked");
+    TEST_ASSERT(t_layered.getFloat() == 1.0f, "server-protected convar reads as its default once locked");
 
     cvars().resetServerCvars();
     TEST_ASSERT(t_protected.isProtected() && !t_layered.isProtected(),
@@ -485,6 +480,27 @@ void ConVarTest::testSubmittable() {
     t_layered.setValue(1.0f);
     TEST_ASSERT(cvars().areAllCvarsSubmittable(), "everything is submittable again");
 
+    // anything that can change what a protected convar reads as has to keep the answer up to date
+    t_protectedSkin.setValue(true, true, CvarEditor::SKIN);
+    TEST_ASSERT(!cvars().areAllCvarsSubmittable(), "a skin value on a protected convar is not submittable");
+    setLocked(true);
+    TEST_ASSERT(cvars().areAllCvarsSubmittable(), "...unless the lock hides it");
+    setLocked(false);
+    cvars().resetSkinCvars();
+    TEST_ASSERT(cvars().areAllCvarsSubmittable(), "submittable again without the skin value");
+
+    t_protected.setValue(45.0f, true, CvarEditor::SERVER);
+    TEST_ASSERT(!cvars().areAllCvarsSubmittable(), "a server value on a protected convar is not submittable");
+    t_protected.setDefaultDouble(45.0);
+    TEST_ASSERT(cvars().areAllCvarsSubmittable(), "a changed default counts");
+    t_protected.setDefaultDouble(0.0);
+    TEST_ASSERT(!cvars().areAllCvarsSubmittable(), "a changed default counts, back");
+    t_protected.setServerProtected(CvarProtection::UNPROTECTED);
+    TEST_ASSERT(cvars().areAllCvarsSubmittable(), "unprotecting a changed convar makes it submittable");
+    cvars().resetServerCvars();
+    TEST_ASSERT(cvars().areAllCvarsSubmittable() && cvars().getNonSubmittableCvars().empty(),
+                "submittable again without anything from the server");
+
     s_extraSubmittable = false;
     TEST_ASSERT(!cvars().areAllCvarsSubmittable(), "the app's extra check can veto");
     s_extraSubmittable = true;
@@ -534,6 +550,15 @@ void ConVarTest::testCommands() {
     t_cmd.setValue("three");
     TEST_ASSERT_EQ(s_cmdCalls, 2, "setting a command runs it");
     TEST_ASSERT_EQ(s_cmdArgs, "three", "setting a command passes the value as arguments");
+
+    // a command has no value the server could override: the client can still run it after the server did
+    t_cmd.setValue("from server", true, CvarEditor::SERVER);
+    TEST_ASSERT_EQ(s_cmdArgs, "from server", "server can run a SERVER command");
+    t_cmd.setValue("from client");
+    TEST_ASSERT_EQ(s_cmdArgs, "from client", "client can run a command after the server did");
+    TEST_ASSERT(t_cmd.getMaster() == CvarEditor::CLIENT, "commands don't get a master");
+    t_cmd.setValue("skin", true, CvarEditor::SKIN);
+    TEST_ASSERT_EQ(s_cmdArgs, "from client", "skin can't run a command without SKINS");
 }
 
 }  // namespace Mc::Tests

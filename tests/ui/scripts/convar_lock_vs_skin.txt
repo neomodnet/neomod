@@ -1,9 +1,8 @@
 # a skin must not be able to get around the multiplayer room lock on protected convars: a
 # skin.ini value is fine outside of a room, but inside the convar has to read as its default
-# (only the server gets to override that). for now the skin value is looked at before the lock.
+# (only the server gets to override that).
 # uitest-datadir: fresh
 # uitest-file: skins/cvtest/skin.ini|[General]|Name: cvtest|Author: uitest||[neomod]|mod_dks: 1
-# uitest-xfail: convar mod_dks expected='0'
 options_save_on_back 0
 debug_fixed_frametime 0.0166667
 mouse_raw_input 0

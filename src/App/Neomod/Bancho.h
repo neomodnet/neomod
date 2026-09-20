@@ -121,6 +121,5 @@ struct BanchoState final {
 
     static std::atomic<i32> user_id;
     static OnlineStatus online_status;
-    static bool was_in_a_multi_room;
     static bool nonsubmittable_notification_clicked;
 };

@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <unordered_set>
+#include <utility>
 
 // singleton init
 ConVarHandler &cvars() {
@@ -39,11 +40,11 @@ ConVar *ConVarHandler::getConVar_int(std::string_view name) const {
 }
 
 // public
-ConVar *ConVarHandler::getConVarByName(std::string_view name, bool warnIfNotFound) const {
-    static ConVar _emptyDummyConVar(
-        "emptyDummyConVar", 42.0f, cv::CLIENT,
-        "this placeholder convar is returned by cvars().getConVarByName() if no matching convar is found");
+static ConVar _emptyDummyConVar(
+    "emptyDummyConVar", 42.0f, cv::CLIENT | cv::HIDDEN | cv::NOLOAD | cv::NOSAVE,
+    "this placeholder convar is returned by ConVarHandler::getConVarByName() if no matching convar is found");
 
+ConVar *ConVarHandler::getConVarByName(std::string_view name, bool warnIfNotFound) const {
     ConVar *found = this->getConVar_int(name);
     if(found) return found;
 
@@ -105,7 +106,7 @@ std::vector<ConVar *> ConVarHandler::getNonSubmittableCvars() const {
     std::vector<ConVar *> list;
 
     for(auto *cv : this->vConVarArray) {
-        if(!cv->isProtected() || cv->isDefault()) continue;
+        if(!cv->bNonSubmittable) continue;
 
         list.push_back(cv);
     }
@@ -114,7 +115,7 @@ std::vector<ConVar *> ConVarHandler::getNonSubmittableCvars() const {
 }
 
 bool ConVarHandler::areAllCvarsSubmittable() const {
-    if(!this->getNonSubmittableCvars().empty()) return false;
+    if(this->iNumNonSubmittable > 0) return false;
 
     if(!!this->areAllCvarsSubmittableExtraCheck) {
         return this->areAllCvarsSubmittableExtraCheck();
@@ -123,32 +124,59 @@ bool ConVarHandler::areAllCvarsSubmittable() const {
     return true;
 }
 
-void ConVarHandler::invalidateAllProtectedCaches() {
-    for(auto *cv : this->getConVarArray()) {
-        if(cv->isFlagSet(cv::PROTECTED)) cv->invalidateCache();
+// the changes below apply to many convars at once: every one of them gets published before any callback runs,
+// so that callbacks never get to see a half-applied state
+
+void ConVarHandler::setProtectionEnforced(bool enforced) {
+    if(enforced == this->bProtectionEnforced) return;
+    this->bProtectionEnforced = enforced;
+
+    std::vector<std::pair<ConVar *, ConVar::Value>> changed;
+    for(auto *cv : this->vConVarArray) {
+        if(!cv->isProtected()) continue;
+        changed.emplace_back(cv, cv->snapshot());
+        cv->resolve();
     }
+    logIfCV(debug_cv, "protection lock {:s} for {:d} protected convars", enforced ? "on" : "off", changed.size());
+    for(const auto &[cv, old] : changed) cv->notifyIfChanged(old);
 }
 
 void ConVarHandler::resetServerCvars() {
-    for(auto *cv : this->getConVarArray()) {
-        cv->hasServerValue.store(false, std::memory_order_release);
-        cv->setServerProtected(CvarProtection::DEFAULT);
-        cv->invalidateCache();
+    std::vector<std::pair<ConVar *, ConVar::Value>> changed;
+    for(auto *cv : this->vConVarArray) {
+        if(!cv->serverValue && cv->serverProtectionPolicy == CvarProtection::DEFAULT) continue;
+        changed.emplace_back(cv, cv->snapshot());
+
+        // (the old value has to outlive the getters pointing at it)
+        const auto oldServerValue = std::move(cv->serverValue);
+        cv->serverProtectionPolicy = CvarProtection::DEFAULT;
+        cv->resolve();
     }
+    for(const auto &[cv, old] : changed) cv->notifyIfChanged(old);
 }
 
 void ConVarHandler::resetSkinCvars() {
-    for(auto *cv : this->getConVarArray()) {
-        cv->hasSkinValue.store(false, std::memory_order_release);
-        cv->invalidateCache();
+    std::vector<std::pair<ConVar *, ConVar::Value>> changed;
+    for(auto *cv : this->vConVarArray) {
+        if(!cv->skinValue) continue;
+        changed.emplace_back(cv, cv->snapshot());
+
+        const auto oldSkinValue = std::move(cv->skinValue);
+        cv->resolve();
     }
+    for(const auto &[cv, old] : changed) cv->notifyIfChanged(old);
 }
 
 bool ConVarHandler::removeServerValue(std::string_view cvarName) {
     ConVar *cvarToChange = this->getConVar_int(cvarName);
     if(!cvarToChange) return false;
-    cvarToChange->hasServerValue.store(false, std::memory_order_release);
-    cvarToChange->invalidateCache();
+
+    if(cvarToChange->serverValue) {
+        const ConVar::Value old = cvarToChange->snapshot();
+        const auto oldServerValue = std::move(cvarToChange->serverValue);
+        cvarToChange->resolve();
+        cvarToChange->notifyIfChanged(old);
+    }
     return true;
 }
 

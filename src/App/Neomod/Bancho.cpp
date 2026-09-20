@@ -97,22 +97,13 @@ bool BanchoState::print_new_channels{true};
 std::string BanchoState::disk_uuid;
 
 std::atomic<i32> BanchoState::user_id{0};
-bool BanchoState::was_in_a_multi_room{false};
 
 OnlineStatus BanchoState::online_status{OnlineStatus::LOGGED_OUT};
 bool BanchoState::nonsubmittable_notification_clicked{false};
 
 /*###################################################################################################*/
 
-bool BanchoState::is_in_a_multi_room() {
-    const bool now_multi = room.nb_players > 0;
-    if(was_in_a_multi_room != now_multi) {
-        was_in_a_multi_room = now_multi;
-        // temporary... hopefully
-        cvars().invalidateAllProtectedCaches();
-    }
-    return now_multi;
-}
+bool BanchoState::is_in_a_multi_room() { return room.nb_players > 0; }
 
 void BanchoState::set_uid(i32 new_uid) {
     const i32 old_uid = get_uid();

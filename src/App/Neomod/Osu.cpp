@@ -92,15 +92,6 @@ void Osu::globalOnSetValueProtectedCallback() {
     }
 }
 
-// prevents getting changed protected convars while in a multi lobby
-bool Osu::globalOnGetValueProtectedCallback(std::string_view cvarname) {
-    if(BanchoState::is_in_a_multi_room()) {
-        logIfCV(debug_cv, "Returning default value for {:s}, currently in a multi room.", cvarname);
-        return false;
-    }
-    return true;
-}
-
 // prevents changing gameplay convars while playing multi and disables score submission
 bool Osu::globalOnSetValueGameplayCallback(std::string_view cvarname, CvarEditor setterkind) {
     // Only SERVER can edit GAMEPLAY cvars during multiplayer matches
@@ -148,8 +139,6 @@ Osu::Osu()
       score(std::make_unique<LiveScore>(false)) {
     // global cvar callbacks will be removed in destructor
     ConVar::setOnSetValueProtectedCallback(SA::MakeDelegate<&Osu::globalOnSetValueProtectedCallback>(this));
-
-    ConVar::setOnGetValueProtectedCallback(Osu::globalOnGetValueProtectedCallback);
 
     ConVar::setOnSetValueGameplayCallback(Osu::globalOnSetValueGameplayCallback);
 
@@ -495,7 +484,6 @@ Osu::~Osu() {
     // remove the static callbacks
     cvars().setCVSubmittableCheckFunc({});
     ConVar::setOnSetValueGameplayCallback({});
-    ConVar::setOnGetValueProtectedCallback({});
     ConVar::setOnSetValueProtectedCallback({});
 
     // destroy all skin sounds (and potentially loading skin), then skin
