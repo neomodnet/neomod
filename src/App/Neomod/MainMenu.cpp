@@ -1219,7 +1219,7 @@ void MainMenu::tick() {
             this->serverIconDL.reset();
             if(!data.empty()) {
                 io->write(icon_path, std::move(data), [icon_path](bool success) {
-                    if(success) {
+                    if(success && !engine->isShuttingDown()) {
                         resourceManager->requestNextLoadAsync();
                         BanchoState::server_icon = resourceManager->loadImageAbs(icon_path, icon_path);
                     }
