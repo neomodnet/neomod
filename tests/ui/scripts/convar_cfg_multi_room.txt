@@ -1,0 +1,34 @@
+# a config saved from inside a multiplayer room has to keep the client's protected convars: they
+# only READ as their default in there. the save runs on the effective values for now, so the line
+# gets dropped from osu.cfg (and stays lost if the game doesn't get to re-save outside of the room).
+# the save is async (read old cfg -> write), hence the @sleep/@wait pairs around it; the final
+# options_save_on_back 0 keeps the exit path from saving again after the room is gone.
+# uitest-datadir: fresh
+# uitest-cfg: playfield_rotation 45
+# uitest-xfail: playfield_rotation
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+@sleep 200
+@wait 5
+playfield_rotation 45
+ui_assert convar playfield_rotation 45
+debug_fake_room
+@wait 20
+ui_assert screen_active room 1
+ui_assert convar playfield_rotation 0
+set_active_ui_screen optionsoverlay
+@wait 20
+ui_assert visible optionsoverlay 1
+sendkey Escape
+@wait 5
+@sleep 200
+@wait 5
+@sleep 200
+@wait 5
+options_save_on_back 0
+exit

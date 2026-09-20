@@ -1,0 +1,38 @@
+# a value forced by a skin must not leak into the client's own value through the options menu: with
+# the options open, the ui scale slider follows the skin's ui_scale and then writes it right back as
+# the client, so for now the skin's value sticks around after switching back to the default skin.
+# songbrowser_button_active_color_a has no options element: it going back to its default shows that
+# the default skin did get loaded (a skin change is ignored while another skin is still loading,
+# hence the @sleep/@wait pairs).
+# uitest-datadir: fresh
+# uitest-file: skins/cvtest/skin.ini|[General]|Name: cvtest|Author: uitest||[neomod]|ui_scale: 1.25|songbrowser_button_active_color_a: 100
+# uitest-xfail: convar ui_scale expected='1'
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+set_active_ui_screen optionsoverlay
+@wait 30
+ui_assert visible optionsoverlay 1
+skin cvtest
+@wait 5
+ui_assert convar ui_scale 1.25
+ui_assert convar songbrowser_button_active_color_a 100
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+skin default
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+ui_assert convar songbrowser_button_active_color_a 230
+ui_assert convar ui_scale 1
+exit

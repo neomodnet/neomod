@@ -13,6 +13,8 @@ the binary is autodiscovered as the most recently built <repo>/*/dist/bin-*/neom
 read-only fixtures (uitest_osu_folder*, uitest_import) live next to the binary, since the scripts
 reference them relative to it; everything the runs write (cfg, dbs, the maps/ drop-zone, skins,
 screenshots, logs) goes to out/data via -datadir, so no run touches the install dir's state.
+scripts that save a config or bring their own skin get a data dir of their own instead
+('# uitest-datadir: fresh').
 """
 
 import argparse
@@ -114,7 +116,14 @@ def script_directives(text):
     """'# uitest-<key>: <value>' lines in a script's leading comment block:
     maps: '<folder>|<set_id>|<n_diffs>' provisions maps/<folder>/ before the run (removed after)
     args: extra binary argv (e.g. an .osz path relative to the bin dir, imported like a drag/drop)
-    cleanup: a maps/<folder> the script is expected to create, removed after the run"""
+    cleanup: a maps/<folder> the script is expected to create, removed after the run
+    datadir: 'fresh' runs the script on an empty data dir of its own (out/data_<script>) instead of the
+             shared one, for scripts that write state the other scripts would boot into (e.g. osu.cfg)
+    file: '<path>|<line>|<line>...' writes a fixture file (relative to the data dir) before the run
+    cfg: '<convar> <value>' is what osu.cfg has to hold for the convar after the run ('-' = no line at all)
+    xfail: a known failure that planned work fixes: the script is reported as XFAIL as long as every
+           failed assert line contains (one of) the given text(s), any other failure still fails it, and
+           it fails once it passes (so the directive gets removed together with the fix)"""
     out = {}
     for ln in text.splitlines():
         if not ln.startswith("#"):
@@ -123,6 +132,25 @@ def script_directives(text):
         if m:
             out.setdefault(m.group(1), []).append(m.group(2).strip())
     return out
+
+
+def cfg_checks(datadir, specs):
+    """check the '# uitest-cfg:' expectations against the saved osu.cfg; returns CFG OK/FAIL log lines."""
+    saved = {}
+    cfg = datadir / "cfg" / "osu.cfg"
+    if cfg.is_file():
+        for ln in cfg.read_text().splitlines():
+            key, _, value = ln.strip().partition(" ")
+            if key and not key.startswith(("#", "//")):
+                saved[key] = value.strip()
+    lines = []
+    for spec in specs:
+        key, _, expected = spec.partition(" ")
+        expected = expected.strip()
+        actual = saved.get(key, "-")
+        result = "OK" if actual == expected else "FAIL"
+        lines.append(f"CFG {result} {key} expected='{expected}' actual='{actual}'")
+    return lines
 
 
 def provision_fixtures(bindir, datadir):
@@ -185,14 +213,22 @@ def run_one(name, binary, bindir, datadir, record):
     out_trace = OUT_DIR / f"{name}.trace"
     diff_path = OUT_DIR / f"{name}.trace.diff"
     golden = GOLDEN_DIR / f"{name}.trace"
-    shot = datadir / "screenshots" / f"uitest_{name}.png"
-    shot.unlink(missing_ok=True)
 
     # binary runs from its install dir (the read-only fixtures are relative to it), writes go to
     # the data dir. ui_validate_ticks is injected into the script's frame-0 batch (same frame as
     # the preamble, so traces don't shift): every screen must be ticked every frame (debug builds)
     text = script.read_text()
     directives = script_directives(text)
+    if "fresh" in directives.get("datadir", []):
+        datadir = OUT_DIR / f"data_{name}"
+        shutil.rmtree(datadir, ignore_errors=True)
+        datadir.mkdir()
+    for spec in directives.get("file", []):
+        path, *lines = spec.split("|")
+        (datadir / path.strip()).parent.mkdir(parents=True, exist_ok=True)
+        (datadir / path.strip()).write_text("\n".join(lines) + "\n")
+    shot = datadir / "screenshots" / f"uitest_{name}.png"
+    shot.unlink(missing_ok=True)
     fixture_dirs = []
     for spec in directives.get("maps", []):
         folder, set_id, n_diffs = (s.strip() for s in spec.split("|"))
@@ -216,11 +252,26 @@ def run_one(name, binary, bindir, datadir, record):
     for folder in directives.get("cleanup", []):
         shutil.rmtree(datadir / "maps" / folder, ignore_errors=True)
 
+    log += "".join(ln + "\n" for ln in cfg_checks(datadir, directives.get("cfg", [])))
+
     reasons = []
     if proc.returncode != 0:
         reasons.append(f"crash(rc={proc.returncode})")
     if "UITEST FAIL" in log:
         reasons.append("assert")
+    if "CFG FAIL" in log:
+        reasons.append("cfg")
+
+    # known failures: only the asserts the directive names may fail
+    xfail = directives.get("xfail", [])
+    failed_asserts = [ln for ln in log.splitlines() if "UITEST FAIL" in ln or "CFG FAIL" in ln]
+    if xfail and reasons and all(r in ("assert", "cfg") for r in reasons):
+        if all(any(x in ln for x in xfail) for ln in failed_asserts):
+            log_path.write_text(log)
+            print(f"XFAIL {name} ({len(failed_asserts)} known failing assert(s))")
+            return True
+    elif xfail and not reasons:
+        reasons.append("xpass: remove the uitest-xfail directive")
 
     trace = "".join(ln + "\n" for ln in log.splitlines() if ln.startswith("uitrace "))
     out_trace.write_text(trace)
@@ -277,7 +328,7 @@ def run_one(name, binary, bindir, datadir, record):
 
     print(f"FAIL {name} ({' '.join(reasons)}) -- see {log_path}")
     for ln in log.splitlines():
-        if "UITEST FAIL" in ln or "PROBE FAIL" in ln:
+        if "UITEST FAIL" in ln or "PROBE FAIL" in ln or "CFG FAIL" in ln:
             print(f"    {ln}")
     if diff_path.is_file():
         for ln in diff_path.read_text().splitlines()[:15]:
