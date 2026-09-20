@@ -1,0 +1,26 @@
+# disconnecting while in a multiplayer room has to leave the room as well: nobody else is going to
+# take us out of it once the server is gone. it used to stay set, so protected convars kept reading
+# as their default (playfield_rotation here) and the room's mods stayed on instead of the player's
+# own ones (mod_hidden here, the fake room has no mods) until another room was joined and left.
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+playfield_rotation 45
+mod_hidden 1
+debug_fake_room
+@wait 20
+ui_assert screen_active room 1
+ui_assert convar playfield_rotation 0
+ui_assert convar mod_hidden 0
+debug_fake_online 0
+@wait 20
+ui_assert screen_active mainmenu 1
+ui_assert visible room 0
+ui_assert convar playfield_rotation 45
+ui_assert convar mod_hidden 1
+exit

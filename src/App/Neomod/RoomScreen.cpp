@@ -548,7 +548,7 @@ void RoomScreen::updateLayout(vec2 newResolution) {
     this->slotlist->setScrollSizeToContent();
 }
 
-// Exit to main menu
+// Exit to the lobby (or to the main menu, without a server to be in a lobby of)
 void RoomScreen::ragequit(bool play_sound) {
     BanchoState::match_started = false;
     ui->getHUD()->updateScoringMetric();
@@ -558,7 +558,7 @@ void RoomScreen::ragequit(bool play_sound) {
     BANCHO::Net::send_packet(packet);
 
     BanchoState::room = Room();
-    ui->setScreen(ui->getLobby());
+    ui->setScreen(BanchoState::is_online() ? ui->getLobbyBase() : ui->getMainMenuBase());
     ui->getChat()->removeChannel("#multiplayer");
     ui->getChat()->updateVisibility();
 

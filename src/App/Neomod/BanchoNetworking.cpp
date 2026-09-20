@@ -467,6 +467,15 @@ void BanchoState::disconnect(bool shutdown) {
     ui->getChat()->onDisconnect();
     ui->getSongBrowser()->onFilterScoresChange("Local", SongBrowser::LOGIN_STATE_FILTER_ID);
 
+    // Nobody is going to take us out of a multiplayer match/room anymore
+    // (we're offline by now, so the packets this would send go nowhere, and no score gets submitted)
+    if(BanchoState::is_playing_a_multi_map() && osu->isInPlayMode()) {
+        osu->getMapInterface()->stop(true);
+    }
+    if(BanchoState::is_in_a_multi_room()) {
+        ui->getRoomScreen()->ragequit(false);
+    }
+
     // Exit out of any online-only screens
     if(UIScreen *s = ui->getActiveScreen(); (s == ui->getSpectatorScreenBase()) || (s == ui->getLobbyBase()) ||
                                             (s == ui->getOsuDirectScreenBase()) || (s == ui->getRoomScreenBase())) {
