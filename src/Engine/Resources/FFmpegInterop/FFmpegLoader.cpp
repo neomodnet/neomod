@@ -13,6 +13,8 @@
 
 #include "ConVar.h"
 
+#include <atomic>
+
 namespace Mc::FFmpeg {
 namespace funcs {
 // generate function pointer definitions
@@ -62,11 +64,17 @@ LoadContext &ld_ctx() {
     return ctx;
 }
 
+// what debug_ffmpeg asks for, kept by its callback: ffmpeg gets loaded and used on loader threads, which don't get to
+// read string convars
+std::atomic<int> log_level{AV_LOG_FATAL};
+std::atomic<bool> debug_enabled{false};
+
 int parse_log_level_from_string(std::string_view str) {
     constexpr bool is_debug = Env::cfg(BUILD::DEBUG);
 
-    // default for debug builds, 0 (effectively disabled besides crashes) otherwise
-    const int default_level = is_debug ? av_log_get_level() : 0;
+    // default for debug builds (ffmpeg's own, while it isn't loaded yet), 0 (effectively disabled besides crashes)
+    // otherwise
+    const int default_level = is_debug ? (av_log_get_level ? av_log_get_level() : AV_LOG_INFO) : 0;
 
     const std::string lowerstr = SString::to_lower(str);
     if(lowerstr.empty() || lowerstr == "0" || lowerstr == "false" || lowerstr == "none") return AV_LOG_QUIET;
@@ -91,8 +99,14 @@ int parse_log_level_from_string(std::string_view str) {
 namespace cv {
 ConVar debug_ffmpeg("debug_ffmpeg", "fatal", CLIENT,
                     "(0/empty/false/none);fatal;error;warn;info;verbose;debug;trace;max", [](std::string_view value) {
-                        if(Mc::FFmpeg::funcs::av_log_set_level) {
-                            Mc::FFmpeg::funcs::av_log_set_level(Mc::FFmpeg::parse_log_level_from_string(value));
+                        using namespace Mc::FFmpeg;
+                        const int level = parse_log_level_from_string(value);
+                        log_level.store(level, std::memory_order_release);
+                        debug_enabled.store(!debug_ffmpeg.isDefault() && !value.empty() && value != "0" &&
+                                                value != "none" && value != "false",
+                                            std::memory_order_release);
+                        if(funcs::av_log_set_level) {
+                            funcs::av_log_set_level(level);
                         }
                     });
 }  // namespace cv
@@ -241,7 +255,7 @@ bool init_internal() {
     }
 
     // set up log level + callback
-    av_log_set_level(parse_log_level_from_string(cv::debug_ffmpeg.getString()));
+    av_log_set_level(log_level.load(std::memory_order_acquire));
     av_log_set_callback(ff_log_callback);
 
     ld_ctx().error_string = "";
@@ -265,11 +279,7 @@ bool init() {
     return ffmpeg_available;
 }
 
-bool isDebugEnabled() {
-    if(cv::debug_ffmpeg.isDefault()) return false;
-    const auto &str = cv::debug_ffmpeg.getString();
-    return (!str.empty() && str != "0" && str != "none" && str != "false");
-}
+bool isDebugEnabled() { return debug_enabled.load(std::memory_order_relaxed); }
 
 }  // namespace Mc::FFmpeg
 

@@ -41,6 +41,10 @@ class BassSound final : public Sound {
     [[nodiscard]] bool isHandleValid(SOUNDHANDLE queryHandle) const override;
 
    private:
+    // makes streams follow snd_rate_transpose_algorithm (string convars and their callbacks are the main thread's,
+    // initAsync() isn't)
+    static void setupTransposerAlgorithm();
+
     SOUNDHANDLE getNewHandle();
 
     u64 paused_position_us{0};

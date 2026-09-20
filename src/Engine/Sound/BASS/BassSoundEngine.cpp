@@ -70,6 +70,8 @@ BassSoundEngine::BassSoundEngine() : SoundEngine() {
 
     // if set to 1, increases sample playback latency by 10 ms
     BASS_SetConfig(BASS_CONFIG_VISTA_TRUEPOS, 0);
+
+    BassSound::setupTransposerAlgorithm();
     this->currentOutputDevice = {
         .id = 0,
         .enabled = true,

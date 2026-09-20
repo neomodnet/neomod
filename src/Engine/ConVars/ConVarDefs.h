@@ -66,15 +66,12 @@ extern void _update();
 #define CONVAR(name, ...) ConVar _CV(name)(#name __VA_OPT__(, ) __VA_ARGS__)
 
 #include "BaseEnvironment.h"
+#include "Thread.h"
 #include <cstdlib>  // abort()
 
 namespace Profiling {
 extern void vprofToggleCB(float);
 }
-namespace McThread {
-enum Priority : unsigned char;
-extern void set_current_thread_prio(Priority /**/);
-}  // namespace McThread
 
 namespace CBaseUIDebug {
 extern void onTraceChangeCallback(float newvalue);

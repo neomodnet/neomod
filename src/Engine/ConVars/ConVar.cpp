@@ -158,6 +158,9 @@ void ConVar::execDouble(double args) {
 }
 
 void ConVar::resolve() {
+    // (every change to a convar's value ends up here)
+    assert(McThread::is_main_thread() && "convars can only be changed on the main thread");
+
     // server > protection lock > skin > client
     const Value *value = &this->clientValue;
     this->master = CvarEditor::CLIENT;
@@ -173,7 +176,7 @@ void ConVar::resolve() {
         this->master = CvarEditor::SKIN;
     }
 
-    this->sValue.store(&value->s, std::memory_order_release);
+    this->sValue = &value->s;
     this->dValue.store(value->d, std::memory_order_release);
 
     // keep count for ConVarHandler::areAllCvarsSubmittable()
@@ -282,7 +285,6 @@ CvarSetResult ConVar::setValueInt(double newDouble, std::string newString, bool 
     if(!this->bCanHaveValue) editor = CvarEditor::CLIENT;
 
     // store new values
-    // (an existing skin/server value is assigned in place: the getters may be pointing at it)
     Value newValue{.d = newDouble, .s = std::move(newString)};
     if(editor == CvarEditor::CLIENT) {
         this->clientValue = std::move(newValue);
@@ -319,9 +321,8 @@ void ConVar::clearValue(CvarEditor editor) {
     auto &layer = (editor == CvarEditor::SKIN) ? this->skinValue : this->serverValue;
     if(!layer) return;
 
-    // (the old value has to outlive the getters pointing at it)
     const Value old = this->snapshot();
-    const auto oldLayer = std::move(layer);
+    layer.reset();
     this->resolve();
     this->notifyIfChanged(old);
 }
@@ -463,10 +464,14 @@ void ConVar::initCmdCallbackImpl(uint8_t flags, DoubleCB cb) {
 }
 
 void ConVar::removeCallback() {
+    assert(McThread::is_main_thread() && "convars belong to the main thread");
     // delegate dtor is trivial; just clear the tag
     this->callback.kind = CallbackKind::None;
 }
-void ConVar::removeChangeCallback() { this->changeCallback.kind = CallbackKind::None; }
+void ConVar::removeChangeCallback() {
+    assert(McThread::is_main_thread() && "convars belong to the main thread");
+    this->changeCallback.kind = CallbackKind::None;
+}
 void ConVar::removeAllCallbacks() {
     this->removeCallback();
     this->removeChangeCallback();
@@ -475,9 +480,8 @@ void ConVar::removeAllCallbacks() {
 void ConVar::reset() {
     this->removeAllCallbacks();
 
-    // (the old values have to outlive the getters pointing at them)
-    const auto oldSkinValue = std::move(this->skinValue);
-    const auto oldServerValue = std::move(this->serverValue);
+    this->skinValue.reset();
+    this->serverValue.reset();
     this->serverProtectionPolicy = CvarProtection::DEFAULT;
     this->resolve();
 }

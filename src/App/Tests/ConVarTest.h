@@ -22,6 +22,7 @@ class ConVarTest : public App {
     void testSubmittable();
     void testDefaults();
     void testCommands();
+    void testThreads();
 
     int m_passes{0};
     int m_failures{0};

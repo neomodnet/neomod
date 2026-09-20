@@ -155,8 +155,7 @@ void ConVarHandler::clearLayer(CvarEditor editor) {
         if(!layer && !hasPolicy) continue;
         changed.emplace_back(cv, cv->snapshot());
 
-        // (the old value has to outlive the getters pointing at it)
-        const auto oldLayer = std::move(layer);
+        layer.reset();
         if(hasPolicy) cv->serverProtectionPolicy = CvarProtection::DEFAULT;
         cv->resolve();
     }

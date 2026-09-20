@@ -253,6 +253,25 @@ void Database::startLoader() {
                            (!cv::database_enabled.getBool() || !isOsuDBReadable(getDBPath(DatabaseType::STABLE_MAPS)));
     this->rescan_created = 0;
 
+    // add database paths to search during load
+    {
+        using enum DatabaseType;
+        this->database_files.clear();
+        this->database_files.emplace(STABLE_SCORES, getDBPath(STABLE_SCORES));
+        this->database_files.emplace(NEOMOD_SCORES, getDBPath(NEOMOD_SCORES));
+        this->database_files.emplace(MCNEOMOD_SCORES, getDBPath(MCNEOMOD_SCORES));  // mcneomod database
+
+        // ignore if explicitly disabled
+        if(cv::database_enabled.getBool()) {
+            this->database_files.emplace(STABLE_MAPS, getDBPath(STABLE_MAPS));
+        }
+
+        this->database_files.emplace(NEOMOD_MAPS, getDBPath(NEOMOD_MAPS));
+
+        this->database_files.emplace(STABLE_COLLECTIONS, getDBPath(STABLE_COLLECTIONS));
+        this->database_files.emplace(MCNEOMOD_COLLECTIONS, getDBPath(MCNEOMOD_COLLECTIONS));
+    }
+
     this->load_stage.store(LoadStage::ReadingDatabases, std::memory_order_release);
     this->stage_done.store(0, std::memory_order_release);
     this->stage_total.store(0, std::memory_order_release);
@@ -1386,7 +1405,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
 
     // load peppy maps
     if(!this->needs_raw_load) {
-        const std::string peppy_songfolder = Database::getOsuSongsFolder();
+        const std::string &peppy_songfolder = this->peppy_root;
         debugLog("Database: osu!stable song folder = {:s}", peppy_songfolder);
 
         // diffs grouped by beatmapset ID, or by folder for maps with an invalid (-1) set ID
@@ -1973,24 +1992,10 @@ void Database::saveMaps() {
 void Database::findDatabases() {
     this->bytes_processed = 0;
     this->total_bytes = 0;
-    this->database_files.clear();
     this->external_databases.clear();
 
+    // (database_files got filled in by startLoader())
     using enum DatabaseType;
-    this->database_files.emplace(STABLE_SCORES, getDBPath(STABLE_SCORES));
-    this->database_files.emplace(NEOMOD_SCORES, getDBPath(NEOMOD_SCORES));
-    this->database_files.emplace(MCNEOMOD_SCORES, getDBPath(MCNEOMOD_SCORES));  // mcneomod database
-
-    // ignore if explicitly disabled
-    if(cv::database_enabled.getBool()) {
-        this->database_files.emplace(STABLE_MAPS, getDBPath(STABLE_MAPS));
-    }
-
-    this->database_files.emplace(NEOMOD_MAPS, getDBPath(NEOMOD_MAPS));
-
-    this->database_files.emplace(STABLE_COLLECTIONS, getDBPath(STABLE_COLLECTIONS));
-    this->database_files.emplace(MCNEOMOD_COLLECTIONS, getDBPath(MCNEOMOD_COLLECTIONS));
-
     for(const auto &db_path : this->extern_db_paths_to_import_async_copy) {
         auto db_type = getDBType(db_path);
         if(db_type != INVALID_DB) {

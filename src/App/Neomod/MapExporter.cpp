@@ -41,10 +41,10 @@ std::string export_root() {
 }
 
 Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, Async::Channel<Notification> &out) {
+    // (the export folder is a string convar, which the task doesn't get to read)
     return Async::submit_cancellable(
-        [contexts = std::move(contexts), &out](const Sync::stop_token &tok) mutable -> void {
-            const std::string export_folder_top = export_root();
-
+        [contexts = std::move(contexts), &out, export_folder_top = export_root(),
+         default_export_folder = cv::export_folder.isDefault()](const Sync::stop_token &tok) mutable -> void {
             if(!Environment::directoryExists(export_folder_top)) {
                 if(!Environment::createDirectory(export_folder_top)) {
                     debugLog("Could not create folder {} for exporting into.");
@@ -215,7 +215,7 @@ Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, A
                     // clean up temp dir
                     // this is sketchy so i'll only delete if the export folder hasn't been changed,
                     // for now (TEMP)
-                    if(cv::export_folder.isDefault()) {
+                    if(default_export_folder) {
                         Environment::deletePathsRecursive(export_folder_sub);
                     }
                 } else if(single_archive) {

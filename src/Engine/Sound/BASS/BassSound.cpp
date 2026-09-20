@@ -4,6 +4,7 @@
 #ifdef MCENGINE_FEATURE_BASS
 
 #include <algorithm>
+#include <atomic>
 
 #include "BassManager.h"
 #include "ConVar.h"
@@ -13,11 +14,11 @@
 #include "Timing.h"
 #include "Logging.h"
 #include "SString.h"
-#include "SyncOnce.h"
 #include "UniString.h"
 
 namespace {  // static
-int currentTransposerAlgorithm{BASS_FX_TEMPO_ALGO_CUBIC};
+// snd_rate_transpose_algorithm, for the loader threads that streams get created on (see setupTransposerAlgorithm())
+std::atomic<int> currentTransposerAlgorithm{BASS_FX_TEMPO_ALGO_CUBIC};
 
 int getTransposerValForString(std::string str) {
     int ret = currentTransposerAlgorithm;
@@ -35,9 +36,15 @@ int getTransposerValForString(std::string str) {
 
     return ret;
 }
-
-Sync::once_flag transposerCallbackSet;
 }  // namespace
+
+void BassSound::setupTransposerAlgorithm() {
+    // set initial value
+    currentTransposerAlgorithm = getTransposerValForString(cv::snd_rate_transpose_algorithm.getString());
+
+    cv::snd_rate_transpose_algorithm.setCallback(
+        [](std::string_view newv) { currentTransposerAlgorithm = getTransposerValForString(std::string{newv}); });
+}
 
 void BassSound::init() {
     if(this->bIgnored || this->sFilePath.length() < 2 || !(this->isAsyncReady())) return;
@@ -70,15 +77,6 @@ void BassSound::initAsync() {
     UString file_path{this->sFilePath};
 
     if(this->bStream) {
-        Sync::call_once(transposerCallbackSet, []() -> void {
-            // set initial value
-            currentTransposerAlgorithm = getTransposerValForString(cv::snd_rate_transpose_algorithm.getString());
-
-            cv::snd_rate_transpose_algorithm.setCallback([](std::string_view newv) {
-                currentTransposerAlgorithm = getTransposerValForString(std::string{newv});
-            });
-        });
-
         u32 flags = BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT | BASS_STREAM_PRESCAN;
         if(cv::snd_async_buffer.getInt() > 0) flags |= BASS_ASYNCFILE;
         if constexpr(Env::cfg(OS::WINDOWS)) flags |= BASS_UNICODE;

@@ -5,9 +5,11 @@
 #include "ConVar.h"
 #include "ConVarHandler.h"
 #include "Engine.h"
+#include "SyncJthread.h"
 #include "types.h"
 
 #include <algorithm>
+#include <atomic>
 #include <initializer_list>
 #include <string>
 #include <string_view>
@@ -104,6 +106,7 @@ void ConVarTest::update() {
     this->testSubmittable();
     this->testDefaults();
     this->testCommands();
+    this->testThreads();
 
     TEST_PRINT_RESULTS("ConVarTest");
     engine->shutdown();
@@ -598,6 +601,58 @@ void ConVarTest::testCommands() {
     const int callsBefore = s_cmdCalls;
     t_cmd.clearValue(CvarEditor::CLIENT);
     TEST_ASSERT_EQ(s_cmdCalls, callsBefore, "clearing a command's (nonexistent) value doesn't run it");
+}
+
+void ConVarTest::testThreads() {
+    TEST_SECTION("threads");
+
+    // numbers can be read from any thread while the main thread changes the convar (in every way there is): a reader
+    // only ever sees values that were the convar's at some point, and it ends up with the last one
+    // (the latter is what the cache the getters used to fill in couldn't promise: a reader could put a stale value
+    // back into it after the write that should have replaced it)
+    std::atomic<bool> writerDone{false};
+    std::atomic<int> unexpectedReads{0};
+    std::atomic<u64> reads{0};
+    std::atomic<float> lastRead{0.f};
+    {
+        Sync::jthread reader([&](const Sync::stop_token & /*stoken*/) -> void {
+            bool lastRound = false;
+            while(true) {
+                lastRound = writerDone.load(std::memory_order_acquire);
+                const float plain = t_layered.getFloat();
+                const float locked = t_protected.getFloat();
+                if(!(plain >= 1.0f && plain <= 4.0f)) unexpectedReads.fetch_add(1, std::memory_order_relaxed);
+                if(!(locked == 0.0f || locked == 45.0f)) unexpectedReads.fetch_add(1, std::memory_order_relaxed);
+                reads.fetch_add(1, std::memory_order_relaxed);
+                if(lastRound) {
+                    lastRead.store(plain, std::memory_order_release);
+                    break;
+                }
+            }
+        });
+
+        t_protected.setValue(45.0f);
+        for(int i = 0; i < 20000; i++) {
+            t_layered.setValue(1.0f + static_cast<float>(i % 100) / 100.f);
+            if(i % 3 == 0) t_layered.setValue(2.5f, true, CvarEditor::SKIN);
+            if(i % 5 == 0) t_layered.setValue(3.5f, true, CvarEditor::SERVER);
+            if(i % 7 == 0) t_layered.clearValue(CvarEditor::SERVER);
+            if(i % 11 == 0) cvars().clearLayer(CvarEditor::SKIN);
+            if(i % 13 == 0) setLocked(i % 2 == 0);
+        }
+        cvars().clearLayer(CvarEditor::SERVER);
+        cvars().clearLayer(CvarEditor::SKIN);
+        setLocked(false);
+        t_layered.setValue(4.0f);
+        writerDone.store(true, std::memory_order_release);
+    }
+
+    TEST_ASSERT(reads.load() > 0, "the reader thread got to read");
+    TEST_ASSERT_EQ(unexpectedReads.load(), 0, "a reader on another thread only sees values that were set");
+    TEST_ASSERT_EQ(lastRead.load(), 4.0f, "a reader on another thread ends up with the last value");
+
+    t_layered.setValue(1.0f);
+    t_protected.setValue(0.0f);
 }
 
 }  // namespace Mc::Tests

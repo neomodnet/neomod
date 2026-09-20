@@ -5,8 +5,10 @@
 #include "BaseEnvironment.h"
 
 #include "Delegate.h"
+#include "Thread.h"
 
 #include <atomic>
+#include <cassert>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -249,6 +251,7 @@ class ConVar {
     void setCallback(Callback &&callback)
         requires cv::detail::CallbackAny<Callback>
     {
+        assert(McThread::is_main_thread() && "convars belong to the main thread");
         using D = std::decay_t<Callback>;
         if constexpr(is_cb_delegate<D>)
             this->setCallbackImpl(std::forward<Callback>(callback));
@@ -289,9 +292,13 @@ class ConVar {
 
     std::string getFancyDefaultValue() const;
 
+    // a convar belongs to the main thread, with one exception: its value as a number can be read from anywhere.
+    // (not as a string: that would be a reference to something the main thread may change or free at any time, so
+    // whatever else needs one has to be handed a copy)
     [[nodiscard]] forceinline double getDouble() const { return this->dValue.load(std::memory_order_relaxed); }
     [[nodiscard]] forceinline const std::string &getString() const {
-        return *this->sValue.load(std::memory_order_relaxed);
+        assert(McThread::is_main_thread() && "string convars can only be read on the main thread");
+        return *this->sValue;
     }
 
     template <typename T = int>
@@ -328,7 +335,10 @@ class ConVar {
 
     // the client's own value, no matter what is overriding it at the moment: this (and not what the getters above
     // return) is what belongs into the client's config
-    [[nodiscard]] inline const std::string &getClientString() const { return this->clientValue.s; }
+    [[nodiscard]] inline const std::string &getClientString() const {
+        assert(McThread::is_main_thread() && "string convars can only be read on the main thread");
+        return this->clientValue.s;
+    }
     [[nodiscard]] inline bool isClientDefault() const {
         if(this->type == CONVAR_TYPE::STRING) return this->clientValue.s == this->defaultValue.s;
         return this->clientValue.d == this->defaultValue.d;
@@ -433,9 +443,9 @@ class ConVar {
     static GameplayCVChangeCB onSetValueGameplayCallback;
 
     // what the getters return, published by resolve() (first, so that a read only touches the start of the object)
-    // these are the only members other threads get to look at, everything below belongs to the main thread
+    // dValue is the only member other threads get to look at
     std::atomic<double> dValue{0.0};
-    std::atomic<const std::string *> sValue{nullptr};
+    const std::string *sValue{nullptr};
 
     std::string_view sName;
     std::string_view sHelpString;
