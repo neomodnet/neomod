@@ -252,9 +252,9 @@ class ConVar {
     }
 
     // every editor has a value of its own: the server's beats the skin's, which beats the client's (see resolve()).
-    // not every text is something a convar can be set to: numeric ones only take numbers (and bool ones
-    // "true"/"false"). anything else leaves the convar alone and is INVALID, which is for whoever lets text in from
-    // outside to look at, since nobody else is able to tell anyone about it (debug_cv logs it as well)
+    // not every text is something a convar can be set to: numeric ones only take numbers, as all of the text (and bool
+    // ones "true"/"false"). anything else leaves the convar alone and is INVALID, which is for whoever lets text in
+    // from outside to look at, since nobody else is able to tell anyone about it (debug_cv logs it as well)
     template <typename T>
     CvarSetResult setValue(const T &value, bool doCallback = true, CvarEditor editor = CvarEditor::CLIENT) {
         using D = std::decay_t<T>;

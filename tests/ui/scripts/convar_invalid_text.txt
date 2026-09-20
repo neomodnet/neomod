@@ -1,6 +1,9 @@
 # text that isn't valid for a convar doesn't get set: ConVar::setValue says so, and whoever let the text
 # in (here: the console and a skin.ini) is who tells someone about it, once. the convar keeps its value,
-# and valid lines next to an invalid one still apply.
+# and valid lines next to an invalid one still apply. a number is all of the text ("88fov" isn't one),
+# except for a comment after it in a config, which isn't part of the value to begin with.
+# uitest-file: cfg/cvtest.cfg|// a config with comments|fposu_fov 66 // a comment|cursor_scale 1.25
+# uitest-log: 1 fposu_fov: "88fov" is not a valid float value
 # uitest-log: 1 fposu_fov: "garbage" is not a valid float value
 # uitest-log: 1 Skin wanted to set cvar 'fposu_fov' to 'garbage', but that's not a valid value for it!
 # uitest-datadir: fresh
@@ -16,6 +19,8 @@ mouse_to 10 10
 fposu_fov 77
 fposu_fov garbage
 ui_assert convar fposu_fov 77
+fposu_fov 88fov
+ui_assert convar fposu_fov 77
 draw_fps false
 ui_assert convar draw_fps 0
 draw_fps maybe
@@ -24,4 +29,7 @@ skin cvtest
 @wait 5
 ui_assert convar fposu_fov 77
 ui_assert convar hud_scale 1.5
+exec cvtest
+ui_assert convar fposu_fov 66
+ui_assert convar cursor_scale 1.25
 exit

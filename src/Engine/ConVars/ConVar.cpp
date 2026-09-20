@@ -247,9 +247,12 @@ CvarSetResult ConVar::setValueImpl(double newDouble, bool doCallback, CvarEditor
 
 std::optional<ConVar::Value> ConVar::makeValue(std::string_view text) const {
     double dbl{this->defaultValue.d};
-    const auto [ptr, err] = Parsing::from_chars(text.data(), text.data() + text.size(), dbl);
-    (void)ptr;
-    if(err != std::errc()) {
+    const char *const end = text.data() + text.size();
+    const auto [ptr, err] = Parsing::from_chars(text.data() /*NOLINT*/, end, dbl);
+
+    // a number is all of the text ("400dpi" isn't one), except for string convars: those just have a numeric view of
+    // their text if it starts with one
+    if(err != std::errc() || (ptr != end && this->type != CONVAR_TYPE::STRING)) {
         // older builds saved bool convars as "true"/"false", accept those too, but normalize the
         // stored string back to the canonical "1"/"0". otherwise a default-valued bool keeps the
         // textual "false" while its default string is "0", so isDefault() ("incorrectly") reports non-default

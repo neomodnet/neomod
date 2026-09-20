@@ -83,6 +83,15 @@ bool processCommand(std::string_view command, bool fromFile) {
         return false;
     }
 
+    // configs may have a comment after a value. only numbers get looked at for one, text may be anything (urls...)
+    if(fromFile && var->getType() != ConVar::CONVAR_TYPE::STRING) {
+        if(const size_t comment = commandValue.starts_with("//") ? 0 : commandValue.find(" //");
+           comment != std::string::npos) {
+            commandValue.erase(comment);
+            SString::trim_inplace(commandValue);
+        }
+    }
+
     // set new value (this handles all callbacks internally)
     // (a command's name by itself runs it without arguments, a convar's just asks about it: see below)
     auto result = CvarSetResult::APPLIED;

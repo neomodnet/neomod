@@ -51,6 +51,10 @@ ConVar t_cmd("cvtest_cmd", cv::CLIENT | cv::SERVER | TESTONLY, [](std::string_vi
     s_cmdArgs = args;
 });
 
+// (without NOLOAD, for what the console does with lines that come out of a config)
+ConVar t_loadable("cvtest_loadable", 1.0f, cv::CLIENT | cv::HIDDEN | cv::NOSAVE);
+ConVar t_loadableString("cvtest_loadable_string", "abc"sv, cv::CLIENT | cv::HIDDEN | cv::NOSAVE);
+
 int s_serverCmdCalls{0};
 ConVar t_serverCmd("cvtest_servercmd", cv::SERVER | TESTONLY, []() -> void { s_serverCmdCalls++; });
 
@@ -189,6 +193,9 @@ void ConVarTest::testTypesAndParsing() {
     TEST_ASSERT(t_float.setValue("2.5") == APPLIED && t_int.setValue("-7") == APPLIED,
                 "numbers are valid for numeric convars");
     TEST_ASSERT(t_float.setValue("garbage") == INVALID && t_int.setValue("") == INVALID, "anything else isn't");
+    TEST_ASSERT(t_float.setValue("400dpi") == INVALID && t_int.setValue("3 // three") == INVALID &&
+                    t_bool.setValue("1st") == INVALID,
+                "...which includes text that only starts with a number");
     TEST_ASSERT(t_float.getFloat() == 2.5f && t_float.getString() == "2.5" && t_int.getInt() == -7,
                 "invalid text leaves a numeric convar alone");
     TEST_ASSERT(
@@ -198,6 +205,8 @@ void ConVarTest::testTypesAndParsing() {
     TEST_ASSERT(t_float.setValue("true") == INVALID, "other numeric convars don't take true/false");
     TEST_ASSERT(t_string.setValue("garbage") == APPLIED && t_string.setValue("") == APPLIED,
                 "string convars take any text");
+    TEST_ASSERT(t_string.setValue("1920x1080") == APPLIED && t_string.getInt() == 1920,
+                "...with a numeric view of it, if it starts with a number");
     t_float.setDefaultString("garbage");
     TEST_ASSERT_EQ(t_float.getDefaultString(), "1", "invalid text doesn't become a numeric convar's default either");
 
@@ -760,6 +769,18 @@ void ConVarTest::testConsole() {
     TEST_ASSERT(!Console::processCommand("cvtest_cmd") && s_cmdCalls == callsBefore + 2,
                 "the app can veto a command that gets run by its name alone");
     s_vetoed = nullptr;
+
+    // lines out of a config may have a comment after a number. text may be anything, so it isn't looked at for one
+    TEST_ASSERT(Console::processCommand("cvtest_loadable 2.5 // a comment", true) && t_loadable.getFloat() == 2.5f &&
+                    t_loadable.getString() == "2.5",
+                "a comment after a number in a config isn't part of the value");
+    TEST_ASSERT(!Console::processCommand("cvtest_loadable 3.5 // a comment") && t_loadable.getFloat() == 2.5f,
+                "...which is for configs only");
+    Console::processCommand("cvtest_loadable_string http://localhost // not a comment", true);
+    TEST_ASSERT_EQ(t_loadableString.getString(), "http://localhost // not a comment",
+                   "text in a config stays what it is");
+    t_loadable.setValue(1.0f);
+    t_loadableString.setValue("abc");
 
     s_serverCmdCalls = 0;
     TEST_ASSERT(!Console::processCommand("cvtest_servercmd") && s_serverCmdCalls == 0,
