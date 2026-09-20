@@ -265,9 +265,23 @@ Osu::Osu()
     Console::execConfigFile("override");  // used for quickfixing live builds without redeploying/recompiling
 
     // if we don't have an osu.cfg, import
-    if(!Environment::fileExists(Mc::Paths::cfg() + "/osu.cfg")) {
-        SettingsImporter::import_from_mcosu();
-        SettingsImporter::import_from_osu_stable();
+    {
+        const std::string osu_cfg = Mc::Paths::cfg() + "/osu.cfg";
+        if(!Environment::fileExists(osu_cfg)) {
+            {
+                // make an empty temp file to avoid a boot loop if we crash during import
+                // (TODO: fix the crash...)
+                File cfg_tmp(osu_cfg, File::MODE::WRITE);
+                cfg_tmp.writeLine("\n");
+            }
+            bool imported_something = false;
+            imported_something |= SettingsImporter::import_from_mcosu();
+            imported_something |= SettingsImporter::import_from_osu_stable();
+            if(!imported_something) {
+                // we imported nothing, so delete the temp cfg
+                Environment::deleteFile(osu_cfg);
+            }
+        }
     }
 
     // don't allow empty osu_folder if it's still empty at this point
