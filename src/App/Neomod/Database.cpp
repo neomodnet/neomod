@@ -928,7 +928,8 @@ void Database::addPathToImport(std::string_view dbPath) { this->extern_db_paths_
 std::string Database::getOsuSongsFolder() {
     std::string songs_dir = cv::songs_folder.getString();
     if(songs_dir.empty()) {
-        cv::songs_folder.setValue(cv::songs_folder.getDefaultString());
+        songs_dir = cv::songs_folder.getDefaultString();
+        cv::songs_folder.setValue(songs_dir);
     }
     if(!songs_dir.ends_with('/') && !songs_dir.ends_with('\\')) {
         songs_dir.push_back('/');
