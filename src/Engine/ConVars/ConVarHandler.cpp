@@ -24,10 +24,18 @@ ConVarHandler &cvars() {
     return instance;
 }
 
+struct ConVarHandler::PendingChange {
+    ConVar *cvar;
+    ConVar::Value old;
+    bool callbacks;  // whether anything that happened to the convar wanted its callbacks to run
+};
+
 ConVarHandler::ConVarHandler() {
     this->vConVarArray.reserve(1024);
     this->vConVarMap.reserve(1024);
 }
+
+ConVarHandler::~ConVarHandler() = default;
 
 ConVar *ConVarHandler::getConVarByName(std::string_view name) const {
     auto it = this->vConVarMap.find(name);
@@ -87,21 +95,46 @@ std::vector<ConVar *> ConVarHandler::getNonDefaultProtectedCvars() const {
     return list;
 }
 
-// the changes below apply to many convars at once: every one of them gets published before any callback runs,
-// so that callbacks never get to see a half-applied state
+void ConVarHandler::beginChange() {
+    assert(McThread::is_main_thread() && "convars belong to the main thread");
+    this->iChangeDepth++;
+}
+
+void ConVarHandler::endChange() {
+    assert(this->iChangeDepth > 0);
+    if(--this->iChangeDepth > 0) return;
+
+    // everything is in place. the change is over before anyone hears about it, so that callbacks are free to change
+    // convars themselves (or to begin a change of their own)
+    const std::vector<PendingChange> pending = std::exchange(this->vPending, {});
+    for(const auto &[cv, old, callbacks] : pending) cv->notifyIfChanged(old, callbacks);
+}
+
+bool ConVarHandler::remember(ConVar &cvar, bool callbacks) {
+    if(this->iChangeDepth == 0) return false;
+
+    // (callbacks run if anything that happened to the convar wanted them to)
+    if(const auto it = std::ranges::find(this->vPending, &cvar, &PendingChange::cvar); it != this->vPending.end()) {
+        it->callbacks |= callbacks;
+    } else {
+        this->vPending.push_back({.cvar = &cvar, .old = *cvar.effectiveValue, .callbacks = callbacks});
+    }
+    return true;
+}
 
 void ConVarHandler::setProtectionEnforced(bool enforced) {
     if(enforced == this->bProtectionEnforced) return;
     this->bProtectionEnforced = enforced;
 
-    std::vector<std::pair<ConVar *, ConVar::Value>> changed;
-    for(auto *cv : this->vConVarArray) {
-        if(!cv->isProtected()) continue;
-        changed.emplace_back(cv, cv->snapshot());
-        cv->resolve();
-    }
-    logIfCV(debug_cv, "protection lock {:s} for {:d} protected convars", enforced ? "on" : "off", changed.size());
-    for(const auto &[cv, old] : changed) cv->notifyIfChanged(old);
+    this->change([&] {
+        size_t numProtected = 0;
+        for(auto *cv : this->vConVarArray) {
+            if(!cv->isProtected()) continue;
+            cv->reresolve();
+            numProtected++;
+        }
+        logIfCV(debug_cv, "protection lock {:s} for {:d} protected convars", enforced ? "on" : "off", numProtected);
+    });
 }
 
 void ConVarHandler::clearLayer(CvarEditor editor) {
@@ -111,41 +144,28 @@ void ConVarHandler::clearLayer(CvarEditor editor) {
         return;
     }
 
-    std::vector<std::pair<ConVar *, ConVar::Value>> changed;
-    for(auto *cv : this->vConVarArray) {
-        auto &layer = (editor == CvarEditor::SKIN) ? cv->skinValue : cv->serverValue;
-        const bool hasPolicy = (editor == CvarEditor::SERVER) && cv->serverProtectionPolicy != CvarProtection::DEFAULT;
-        if(!layer && !hasPolicy) continue;
-        changed.emplace_back(cv, cv->snapshot());
-
-        layer.reset();
-        if(hasPolicy) cv->serverProtectionPolicy = CvarProtection::DEFAULT;
-        cv->resolve();
-    }
-    for(const auto &[cv, old] : changed) cv->notifyIfChanged(old);
+    this->change([&] {
+        for(auto *cv : this->vConVarArray) {
+            cv->clearValue(editor);
+            if(editor == CvarEditor::SERVER) cv->setServerProtected(CvarProtection::DEFAULT);
+        }
+    });
 }
 
 void ConVarHandler::beginSession(std::span<ConVar *const> convars) {
-    for(auto *cv : convars) {
-        if(cv->sessionValue || !cv->bCanHaveValue) continue;
-
-        // (nothing to tell anyone about: it is the same value, from somewhere else)
-        cv->sessionValue = std::make_unique<ConVar::Value>(cv->clientValue);
-        cv->resolve();
-        this->vSessionConVars.push_back(cv);
-    }
+    // (nothing for anyone to hear about: the values are what they were, from somewhere else)
+    this->change([&] {
+        for(auto *cv : convars) {
+            if(cv->setInSession(true)) this->vSessionConVars.push_back(cv);
+        }
+    });
 }
 
 void ConVarHandler::endSession() {
-    std::vector<std::pair<ConVar *, ConVar::Value>> changed;
-    changed.reserve(this->vSessionConVars.size());
-    for(auto *cv : this->vSessionConVars) {
-        changed.emplace_back(cv, cv->snapshot());
-        cv->sessionValue.reset();
-        cv->resolve();
-    }
-    this->vSessionConVars.clear();
-    for(const auto &[cv, old] : changed) cv->notifyIfChanged(old);
+    this->change([&] {
+        for(auto *cv : this->vSessionConVars) cv->setInSession(false);
+        this->vSessionConVars.clear();
+    });
 }
 
 std::vector<CvarSetResult> ConVarHandler::setLayer(CvarEditor editor,
@@ -154,46 +174,24 @@ std::vector<CvarSetResult> ConVarHandler::setLayer(CvarEditor editor,
     assert(editor != CvarEditor::CLIENT && "the client's values don't get replaced as a whole");
     if(editor == CvarEditor::CLIENT) return results;
 
-    std::vector<ConVar *> kept;  // what stays (or becomes) set
-    std::vector<std::pair<ConVar *, ConVar::Value>> changed;
-    for(size_t i = 0; i < values.size(); i++) {
-        auto *cv = values[i].first;
-        if(!cv->bCanHaveValue) continue;  // (further down)
+    this->change([&] {
+        std::vector<ConVar *> kept;  // what stays (or becomes) set
+        for(size_t i = 0; i < values.size(); i++) {
+            auto *cv = values[i].first;
+            if(!cv->canHaveValue()) continue;  // (further down)
 
-        std::string_view text = values[i].second;
-        double dbl{};
-        if(!cv->parseValue(text, dbl)) {
-            results[i] = CvarSetResult::INVALID;
-            continue;
+            // (a vetoed write changes nothing, which includes not losing the value that may be there already)
+            results[i] = cv->setValue(values[i].second, true, editor);
+            if(results[i] != CvarSetResult::DENIED && results[i] != CvarSetResult::INVALID) kept.push_back(cv);
         }
 
-        // (a vetoed write changes nothing, which includes not losing the value that may be there already)
-        results[i] = cv->checkWrite(editor);
-        if(results[i] == CvarSetResult::DENIED) continue;
-        if(!std::ranges::contains(kept, cv)) {
-            kept.push_back(cv);
-            if(results[i] == CvarSetResult::APPLIED) changed.emplace_back(cv, cv->snapshot());
+        for(auto *cv : this->vConVarArray) {
+            if(cv->layer(editor) && !std::ranges::contains(kept, cv)) cv->clearValue(editor);
         }
-        if(results[i] == CvarSetResult::APPLIED) cv->store(editor, cv->makeValue(dbl, text));
-    }
-
-    for(auto *cv : this->vConVarArray) {
-        auto &layer = (editor == CvarEditor::SKIN) ? cv->skinValue : cv->serverValue;
-        if(!layer || std::ranges::contains(kept, cv)) continue;
-        changed.emplace_back(cv, cv->snapshot());
-        layer.reset();
-    }
-
-    for(const auto &[cv, old] : changed) cv->resolve();
-    for(size_t i = 0; i < values.size(); i++) {
-        if(results[i] == CvarSetResult::APPLIED && values[i].first->master != editor) {
-            results[i] = CvarSetResult::MASKED;
-        }
-    }
-    for(const auto &[cv, old] : changed) cv->notifyIfChanged(old);
+    });
 
     for(size_t i = 0; i < values.size(); i++) {
-        if(!values[i].first->bCanHaveValue) results[i] = values[i].first->setValue(values[i].second, true, editor);
+        if(!values[i].first->canHaveValue()) results[i] = values[i].first->setValue(values[i].second, true, editor);
     }
 
     return results;

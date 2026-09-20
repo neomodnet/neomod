@@ -11,6 +11,7 @@
 #include <cassert>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -324,7 +325,7 @@ class ConVar {
     [[nodiscard]] forceinline double getDouble() const { return this->dValue.load(std::memory_order_relaxed); }
     [[nodiscard]] forceinline const std::string &getString() const {
         assert(McThread::is_main_thread() && "string convars can only be read on the main thread");
-        return *this->sValue;
+        return this->effectiveValue->s;
     }
 
     template <typename T = int>
@@ -352,12 +353,8 @@ class ConVar {
 
     [[nodiscard]] inline bool isFlagSet(uint8_t flag) const { return ((this->iFlags & flag) == flag); }
     [[nodiscard]] inline bool isDefault() const {
-        // a convar carries two representations (double + string), but (usually?) only one is authoritative per
-        // type: the double for numeric convars, the string for STRING convars.
-        // the other is derived and can diverge (e.g. a numeric convar set from text keeps the text as it was typed,
-        // "1.50" next to a default string of "1.5").
-        if(this->type == CONVAR_TYPE::STRING) return this->getString() == this->getDefaultString();
-        return this->getDouble() == this->getDefaultDouble();
+        assert(McThread::is_main_thread() && "convars belong to the main thread");
+        return this->sameValue(*this->effectiveValue, this->defaultValue);
     }
 
     // the client's own value, no matter what is overriding it at the moment (or standing in for it, during a
@@ -366,10 +363,7 @@ class ConVar {
         assert(McThread::is_main_thread() && "string convars can only be read on the main thread");
         return this->clientValue.s;
     }
-    [[nodiscard]] inline bool isClientDefault() const {
-        if(this->type == CONVAR_TYPE::STRING) return this->clientValue.s == this->defaultValue.s;
-        return this->clientValue.d == this->defaultValue.d;
-    }
+    [[nodiscard]] inline bool isClientDefault() const { return this->sameValue(this->clientValue, this->defaultValue); }
 
     void setServerProtected(CvarProtection policy);
 
@@ -442,15 +436,28 @@ class ConVar {
     void initCmdCallbackImpl(uint8_t flags, FloatCB cb);
     void initCmdCallbackImpl(uint8_t flags, DoubleCB cb);
 
-    // numeric view of text (which gets normalized for bool convars), false if this convar can't take it (see setValue())
-    [[nodiscard]] bool parseValue(std::string_view &text, double &dbl) const;
-
-    // what a number (that parseValue() may have gotten out of text) is as a value of this convar: inside of its range
+    // what a number is as a value of this convar: inside of its range
     [[nodiscard]] Value makeValue(double dbl) const;
-    [[nodiscard]] Value makeValue(double dbl, std::string_view text) const;
+    // ditto for text, which stays as it was typed unless the range made another number out of it (nothing if this
+    // convar can't take it, see setValue())
+    [[nodiscard]] std::optional<Value> makeValue(std::string_view text) const;
+
+    // whether two values of this convar are the same one. a convar carries two representations (double + string), but
+    // only one is authoritative per type: the double for numeric convars, the string for STRING convars.
+    // the other is derived and can diverge (e.g. a numeric convar set from text keeps the text as it was typed,
+    // "1.50" next to a default string of "1.5").
+    [[nodiscard]] inline bool sameValue(const Value &a, const Value &b) const {
+        return this->type == CONVAR_TYPE::STRING ? a.s == b.s : a.d == b.d;
+    }
 
     // whether an editor gets to write at all, asked before anything changes (APPLIED: nothing against it)
     [[nodiscard]] CvarSetResult checkWrite(CvarEditor editor) const;
+
+    // where a skin's/the server's value goes (null while it hasn't set one)
+    [[nodiscard]] inline std::unique_ptr<Value> &layer(CvarEditor editor) {
+        assert(editor != CvarEditor::CLIENT && "the client's value isn't one that comes and goes");
+        return editor == CvarEditor::SKIN ? this->skinValue : this->serverValue;
+    }
 
     // puts a value where that editor's go, for the next resolve() to pick up
     void store(CvarEditor editor, Value value);
@@ -460,11 +467,22 @@ class ConVar {
 
     // recomputes what the getters return: the only place that picks between the default/client/skin/server values.
     // has to run after every change to something it looks at (setValueInt does for writes, everything else
-    // goes through snapshot() -> change -> resolve() -> notifyIfChanged())
+    // goes through change())
     void resolve();
 
-    [[nodiscard]] Value snapshot() const { return {.d = this->getDouble(), .s = this->getString()}; }
-    void notifyIfChanged(const Value &old);
+    // for changing something that resolve() looks at, as part of the change that is going on or as one of its own (see
+    // ConVarHandler::change()): whoever wants to know hears about it if the value is a different one by the end of that
+    template <typename Mutation>
+    void change(const Mutation &mutate);
+
+    // what resolve() looks at but isn't this convar's own to change (for ConVarHandler):
+    // the protection lock went on or off
+    void reresolve();
+    // a session begins or ends for this convar (see ConVarHandler::beginSession()), false if that is nothing new
+    bool setInSession(bool inSession);
+
+    // what the end of a change does for every convar that was part of it (old: what it was before)
+    void notifyIfChanged(const Value &old, bool callbacks);
 
     // the value is a different one now: the app's policy hears about it (before the convar's own callbacks)
     void valueChanged() const;
@@ -474,7 +492,7 @@ class ConVar {
     // what the getters return, published by resolve() (first, so that a read only touches the start of the object)
     // dValue is the only member other threads get to look at
     std::atomic<double> dValue{0.0};
-    const std::string *sValue{nullptr};
+    const Value *effectiveValue{nullptr};
 
     std::string_view sName;
     std::string_view sHelpString;

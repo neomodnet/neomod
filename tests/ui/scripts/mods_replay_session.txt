@@ -3,6 +3,12 @@
 # using a replay's mods resets everything the mod selector knows about, so mod_fadingcursor (which
 # Replay::Mods has no idea about) is off while watching: it used to stay off afterwards, along with
 # everything else that a copy of the player's mods can't hold.
+# using mods is one change: mod_nofail is part of both the player's mods and the replay's, so nothing
+# happens to it (it used to go off and back on with everything else), while mod_fadingcursor goes off
+# once and comes back once (debug_cv logs every change of a convar's value).
+# uitest-log: 0 mod_nofail =
+# uitest-log: 1 mod_fadingcursor = 0 (client)
+# uitest-log: 1 mod_fadingcursor = 1 (client)
 # assertion-only, like play_modselector_dance (audio decodes on wall-clock time, hence the @sleeps).
 # what escape does to the replay depends on that as well (it quits while the map is still waiting for
 # its music, and pauses afterwards), so the first 'exit' is what stops it: asking to quit during a
@@ -27,6 +33,7 @@ sendkey Escape
 @wait 12
 ui_assert visible pauseoverlay 1
 ui_assert convar mod_fadingcursor 1
+debug_cv 1
 sendkey F2
 @wait 5
 ui_assert visible pauseoverlay 0
@@ -39,6 +46,7 @@ ui_assert visible pauseoverlay 0
 ui_assert visible songbrowser 1
 ui_assert convar mod_nofail 1
 ui_assert convar mod_fadingcursor 1
+debug_cv 0
 mod_nofail 0
 mod_fadingcursor 0
 exit

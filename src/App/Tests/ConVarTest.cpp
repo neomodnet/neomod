@@ -124,6 +124,7 @@ void ConVarTest::update() {
     this->testSetLayer();
     this->testRange();
     this->testSession();
+    this->testChange();
     this->testThreads();
 
     TEST_PRINT_RESULTS("ConVarTest");
@@ -192,6 +193,8 @@ void ConVarTest::testTypesAndParsing() {
     TEST_ASSERT(t_float.setValue("true") == INVALID, "other numeric convars don't take true/false");
     TEST_ASSERT(t_string.setValue("garbage") == APPLIED && t_string.setValue("") == APPLIED,
                 "string convars take any text");
+    t_float.setDefaultString("garbage");
+    TEST_ASSERT_EQ(t_float.getDefaultString(), "1", "invalid text doesn't become a numeric convar's default either");
 
     t_float.setValue(1.0f);
     t_int.setValue(5);
@@ -940,6 +943,153 @@ void ConVarTest::testSession() {
     t_int.setValue(5);
 }
 
+void ConVarTest::testChange() {
+    TEST_SECTION("changes");
+    // (what the string convar read as when the callback ran: everything has to be in place by then)
+    static std::string s_stringSeenByCallback;
+    s_layeredChange = {};
+    t_layered.setCallback([](float oldValue, float newValue) -> void {
+        s_layeredChange.calls++;
+        s_layeredChange.oldValue = oldValue;
+        s_layeredChange.newValue = newValue;
+        s_stringSeenByCallback = t_string.getString();
+    });
+    t_layered.setValue(1.25f);
+    t_string.setValue("before");
+
+    // several things as one change: values are what they get set to right away, but nobody hears about it until the end
+    int callsBefore = s_layeredChange.calls;
+    s_changes = 0;
+    cvars().change([&] {
+        TEST_ASSERT(t_layered.setValue(1.5f) == CvarSetResult::APPLIED, "a write during a change is a regular write");
+        TEST_ASSERT_EQ(t_layered.getFloat(), 1.5f, "...that is in effect right away");
+        TEST_ASSERT(s_layeredChange.calls == callsBefore && s_changes == 0, "...without anyone hearing about it yet");
+        t_layered.setValue(1.75f);
+        t_string.setValue("after");
+    });
+    TEST_ASSERT_EQ(s_layeredChange.calls, callsBefore + 1, "callbacks run once when the change ends");
+    TEST_ASSERT(s_layeredChange.oldValue == 1.25f && s_layeredChange.newValue == 1.75f,
+                "...with the value from before the change and the one after it");
+    TEST_ASSERT_EQ(s_stringSeenByCallback, "after", "...once everything is in place");
+    TEST_ASSERT_EQ(s_changes, 2, "the app hears about each convar that changed once");
+
+    // whatever ends up as it was isn't a change (outside of one, a write of the same value does run callbacks)
+    callsBefore = s_layeredChange.calls;
+    s_changes = 0;
+    cvars().change([&] {
+        t_layered.setValue(3.0f);
+        t_layered.setValue(1.75f);
+        t_layered.setValue(2.0f, true, CvarEditor::SKIN);
+        t_layered.clearValue(CvarEditor::SKIN);
+        t_string.setValue("after");
+    });
+    TEST_ASSERT(s_layeredChange.calls == callsBefore && s_changes == 0, "a value that comes back isn't a change");
+    cvars().change([&] {
+        cvars().setLayer(CvarEditor::SKIN, std::vector<std::pair<ConVar *, std::string>>{{&t_layered, "2"}});
+        TEST_ASSERT_EQ(t_layered.getFloat(), 2.0f, "changes to many convars take part in the change that is going on");
+        cvars().clearLayer(CvarEditor::SKIN);
+    });
+    TEST_ASSERT(s_layeredChange.calls == callsBefore && s_changes == 0, "a layer that comes and goes isn't a change");
+
+    // doCallback
+    cvars().change([&] { t_layered.setValue(2.0f, false); });
+    TEST_ASSERT(s_layeredChange.calls == callsBefore && s_changes == 1,
+                "doCallback=false during a change: the app hears about it, callbacks don't");
+    cvars().change([&] {
+        t_layered.setValue(2.25f, false);
+        t_layered.setValue(2.5f);
+    });
+    TEST_ASSERT(s_layeredChange.calls == callsBefore + 1 && s_layeredChange.oldValue == 2.0f &&
+                    s_layeredChange.newValue == 2.5f,
+                "callbacks run if any of what happened during the change wanted them to");
+
+    // changes inside of changes
+    callsBefore = s_layeredChange.calls;
+    cvars().change([&] {
+        cvars().change([&] { t_layered.setValue(3.0f); });
+        TEST_ASSERT_EQ(s_layeredChange.calls, callsBefore, "a change inside of another one ends with that one");
+        t_layered.setValue(3.5f);
+    });
+    TEST_ASSERT(s_layeredChange.calls == callsBefore + 1 && s_layeredChange.oldValue == 2.5f &&
+                    s_layeredChange.newValue == 3.5f,
+                "...as part of it");
+
+    // writes get refused and masked as always
+    cvars().change([&] {
+        TEST_ASSERT(t_float.setValue(9.0f, true, CvarEditor::SKIN) == CvarSetResult::DENIED, "denied during a change");
+        s_vetoed = &t_layered;
+        TEST_ASSERT(t_layered.setValue(9.0f) == CvarSetResult::VETOED, "vetoed during a change");
+        s_vetoed = nullptr;
+        t_layered.setValue(1.5f, true, CvarEditor::SERVER);
+        TEST_ASSERT(t_layered.setValue(3.75f) == CvarSetResult::MASKED, "masked during a change");
+        TEST_ASSERT_EQ(t_layered.getFloat(), 1.5f, "...by what got set earlier in it");
+        t_layered.clearValue(CvarEditor::SERVER);
+    });
+    TEST_ASSERT(t_layered.getFloat() == 3.75f && s_layeredChange.oldValue == 3.5f && s_layeredChange.newValue == 3.75f,
+                "a write that isn't masked anymore by the end of the change is what changed the value");
+
+    // commands aren't values that change: they just run
+    const int cmdCalls = s_cmdCalls;
+    cvars().change([&] {
+        t_cmd.setValue("during a change");
+        TEST_ASSERT(s_cmdCalls == cmdCalls + 1 && s_cmdArgs == "during a change", "a command runs right away");
+    });
+    TEST_ASSERT_EQ(s_cmdCalls, cmdCalls + 1, "...and not again when the change ends");
+
+    // the change is over by the time anyone hears about it: callbacks are free to set convars, or to change several
+    t_layered.setCallback([](float /*oldValue*/, float newValue) -> void {
+        cvars().change([&] {
+            t_int.setValue(static_cast<int>(newValue));
+            t_string.setValue("from a callback");
+        });
+    });
+    static std::string s_stringFromCallback;
+    t_string.setCallback([](std::string_view newValue) -> void { s_stringFromCallback = newValue; });
+    cvars().change([&] { t_layered.setValue(7.0f); });
+    TEST_ASSERT(t_int.getInt() == 7 && s_stringFromCallback == "from a callback",
+                "a callback that runs when a change ends can begin one of its own");
+
+    // what this is for: things that only make sense together. leaving a multiplayer room takes the protection lock
+    // away and ends the session its mods were in. one after the other, those are two changes: what got set below the
+    // lock during the session is the value in between
+    s_protectedChange = {};
+    t_protected.setCallback([](float oldValue, float newValue) -> void {
+        s_protectedChange.calls++;
+        s_protectedChange.oldValue = oldValue;
+        s_protectedChange.newValue = newValue;
+    });
+    const auto enterRoom = []() -> void {
+        setLocked(true);
+        cvars().beginSession(std::array{&t_protected});
+        t_protected.setValue(45.0f);
+    };
+    enterRoom();
+    TEST_ASSERT(s_protectedChange.calls == 0 && t_protected.getFloat() == 0.0f, "(masked by the lock)");
+    setLocked(false);
+    cvars().endSession();
+    TEST_ASSERT(s_protectedChange.calls == 2 && s_protectedChange.oldValue == 45.0f,
+                "two changes, one after the other");
+
+    // as one change, nothing happened to a convar that is what it was before
+    enterRoom();
+    s_protectedChange = {};
+    s_changes = 0;
+    cvars().change([&] {
+        setLocked(false);
+        TEST_ASSERT_EQ(t_protected.getFloat(), 45.0f, "(what is in between is there to be read)");
+        cvars().endSession();
+    });
+    TEST_ASSERT(t_protected.getFloat() == 0.0f && s_protectedChange.calls == 0 && s_changes == 0,
+                "the lock going away and the session ending as one change");
+
+    t_layered.removeAllCallbacks();
+    t_string.removeAllCallbacks();
+    t_protected.removeAllCallbacks();
+    t_layered.setValue(1.0f);
+    t_string.setValue("abc");
+    t_int.setValue(5);
+}
+
 void ConVarTest::testThreads() {
     TEST_SECTION("threads");
 
@@ -976,6 +1126,12 @@ void ConVarTest::testThreads() {
             if(i % 7 == 0) t_layered.clearValue(CvarEditor::SERVER);
             if(i % 11 == 0) cvars().clearLayer(CvarEditor::SKIN);
             if(i % 13 == 0) setLocked(i % 2 == 0);
+            if(i % 17 == 0) {
+                cvars().change([] {
+                    t_layered.setValue(3.0f);
+                    t_layered.setValue(2.0f);
+                });
+            }
         }
         cvars().clearLayer(CvarEditor::SERVER);
         cvars().clearLayer(CvarEditor::SKIN);

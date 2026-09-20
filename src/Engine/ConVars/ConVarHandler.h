@@ -23,7 +23,7 @@ class ConVarHandler {
     struct ConVarBuiltins;
 
     ConVarHandler();
-    ~ConVarHandler() = default;
+    ~ConVarHandler();
 
     [[nodiscard]] forceinline const std::vector<ConVar *> &getConVarArray() const { return this->vConVarArray; }
 
@@ -37,6 +37,18 @@ class ConVarHandler {
     // (the former is cheap enough to ask every frame: convars keep count whenever their value changes)
     [[nodiscard]] forceinline bool areProtectedCvarsDefault() const { return this->iNumProtectedNonDefault == 0; }
     [[nodiscard]] std::vector<ConVar *> getNonDefaultProtectedCvars() const;
+
+    // several changes as one: while `changes` runs, convars take on their new values as always, but nobody hears about
+    // it until it is done. every convar whose value isn't what it was before then hears about that once, so callbacks
+    // never get to see a half-applied state, and whatever ends up as it was (a value that goes away and comes back, a
+    // write of the value it already had) isn't a change at all.
+    // everything below that changes many convars is one. inside of another one, a change is just part of that
+    template <typename Changes>
+    void change(const Changes &changes) {
+        this->beginChange();
+        changes();
+        this->endChange();
+    }
 
     // while enforced, protected convars read as their default value (unless the server sets them)
     void setProtectionEnforced(bool enforced);
@@ -77,11 +89,22 @@ class ConVarHandler {
    private:
     friend class ConVar;
 
+    // (see change())
+    void beginChange();
+    void endChange();
+
+    // keeps what a convar is, before something happens to it that is part of the change that is going on (unless that
+    // is kept already). false if there is no change going on
+    bool remember(ConVar &cvar, bool callbacks);
+    struct PendingChange;
+
     Policy policy;
     bool bProtectionEnforced{false};
     int iNumProtectedNonDefault{0};
+    int iChangeDepth{0};
     std::vector<ConVar *> vConVarArray;
     std::vector<ConVar *> vSessionConVars;
+    std::vector<PendingChange> vPending;  // who is part of the change that is going on, and what they were before
     Hash::unstable_stringmap<ConVar *> vConVarMap;
 };
 

@@ -370,12 +370,16 @@ static void for_each_mod_cv(const Mods &mods, const F &func) {
 // FIXME: this is pretty broken, it overrides beatmap values as "mods" if they weren't actually overridden
 // among other issues, like setting drain_disabled etc.
 void Mods::use(const Mods &mods) {
-    // Reset mod selector buttons and sliders
     const auto &mod_selector = ui->getModSelector();
-    mod_selector->resetMods();
 
-    // Set cvars
-    for_each_mod_cv(mods, [](ConVar &cvar, auto value) -> void { cvar.setValue(value); });
+    // (as one change: what is part of both the mods from before and the given ones doesn't go off and back on)
+    cvars().change([&] {
+        // Reset mod selector buttons and sliders
+        mod_selector->resetMods();
+
+        // Set cvars
+        for_each_mod_cv(mods, [](ConVar &cvar, auto value) -> void { cvar.setValue(value); });
+    });
 
     // Update mod selector UI
     mod_selector->useCurrentMods();

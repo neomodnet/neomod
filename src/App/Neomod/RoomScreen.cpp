@@ -559,12 +559,17 @@ void RoomScreen::ragequit(bool play_sound) {
     BANCHO::Net::send_packet(packet);
 
     BanchoState::room = Room();
-    cvars().setProtectionEnforced(false);
+
+    // the protection lock and the room's mods go away as one change: what got set below the lock while we were in
+    // here never was in effect, and doesn't get to be for the moment in between either
+    cvars().change([] {
+        cvars().setProtectionEnforced(false);
+        Replay::Mods::end_session();
+    });
+
     ui->setScreen(BanchoState::is_online() ? ui->getLobbyBase() : ui->getMainMenuBase());
     ui->getChat()->removeChannel("#multiplayer");
     ui->getChat()->updateVisibility();
-
-    Replay::Mods::end_session();
 
     if(play_sound) {
         soundEngine->play(osu->getSkin()->s_menu_back);
@@ -659,8 +664,10 @@ void RoomScreen::useRoomMods() {
         if(slot.player_id == BanchoState::get_uid()) mods |= slot.mods;
     }
 
-    Replay::Mods::use(Replay::Mods::from_legacy(mods));
-    cv::mod_no_pausing.setValue(true);
+    // (there is no pausing in multiplayer)
+    Replay::Mods room_mods = Replay::Mods::from_legacy(mods);
+    room_mods.flags |= ModFlags::NoPausing;
+    Replay::Mods::use(room_mods);
 }
 
 void RoomScreen::on_room_updated(const Room &room) {

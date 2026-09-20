@@ -2,6 +2,10 @@
 # stay untouched below them and are back afterwards, exactly. that includes what Replay::Mods has no
 # idea about but the mod selector resets along with everything else (mod_fadingcursor, which used to
 # be gone after a visit to a room), a custom speed, and mods that get changed from inside the room.
+# leaving takes the protection lock away and ends the session as one change: mod_mafham is protected, so
+# setting it in the room never was in effect, and it doesn't get to be for the moment in between either
+# (debug_cv logs every change of a convar's value).
+# uitest-log: 0 mod_mafham = 1
 options_save_on_back 0
 debug_fixed_frametime 0.0166667
 mouse_raw_input 0
@@ -14,6 +18,7 @@ mod_hidden 1
 mod_hardrock 1
 mod_fadingcursor 1
 speed_override 1.2
+debug_cv 1
 debug_fake_room
 @wait 20
 ui_assert screen_active room 1
@@ -27,6 +32,8 @@ mod_hidden 1
 mod_hidden 0
 ui_assert convar mod_easy 1
 ui_assert convar mod_hidden 0
+mod_mafham 1
+ui_assert convar mod_mafham 0
 debug_fake_online 0
 @wait 20
 ui_assert visible room 0
@@ -36,6 +43,8 @@ ui_assert convar mod_fadingcursor 1
 ui_assert convar speed_override 1.2
 ui_assert convar mod_easy 0
 ui_assert convar mod_no_pausing 0
+ui_assert convar mod_mafham 0
+debug_cv 0
 mod_hidden 0
 mod_hardrock 0
 mod_fadingcursor 0

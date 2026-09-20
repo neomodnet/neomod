@@ -170,7 +170,7 @@ void ConVar::resolve() {
         this->master = CvarEditor::SKIN;
     }
 
-    this->sValue = &value->s;
+    this->effectiveValue = value;
     this->dValue.store(value->d, std::memory_order_release);
 
     // keep count for ConVarHandler::areProtectedCvarsDefault()
@@ -189,53 +189,59 @@ void ConVar::valueChanged() const {
     if(const auto onValueChanged = cvars().policy.onValueChanged; onValueChanged) onValueChanged(*this);
 }
 
-void ConVar::notifyIfChanged(const Value &old) {
-    // (see isDefault() about which representation counts)
-    if(this->type == CONVAR_TYPE::STRING ? old.s == this->getString() : old.d == this->getDouble()) return;
+template <typename Mutation>
+void ConVar::change(const Mutation &mutate) {
+    cvars().change([&] {
+        cvars().remember(*this, true);
+        mutate();
+        this->resolve();
+    });
+}
+
+void ConVar::reresolve() {
+    this->change([] {});
+}
+
+bool ConVar::setInSession(bool inSession) {
+    if(inSession == !!this->sessionValue || !this->bCanHaveValue) return false;
+
+    this->change([&] {
+        // (the stand-in starts out as what the client's value is: a session that begins changes nothing)
+        if(inSession) this->sessionValue = std::make_unique<Value>(this->clientValue);
+        if(!inSession) this->sessionValue.reset();
+    });
+    return true;
+}
+
+void ConVar::notifyIfChanged(const Value &old, bool callbacks) {
+    if(this->sameValue(old, *this->effectiveValue)) return;
 
     this->valueChanged();
-    this->runCallbacks(old.d, old.s);
+    if(callbacks) this->runCallbacks(old.d, old.s);
 }
 
 void ConVar::setServerProtected(CvarProtection policy) {
     if(policy == this->serverProtectionPolicy) return;
 
-    const Value old = this->snapshot();
-    this->serverProtectionPolicy = policy;
-    this->resolve();
-    this->notifyIfChanged(old);
+    this->change([&] { this->serverProtectionPolicy = policy; });
 }
 
+// (the default is what a locked protected convar reads as)
+
 void ConVar::setDefaultDouble(double newDefault) {
-    // (the default is what a locked protected convar reads as)
-    const Value old = this->snapshot();
-    this->defaultValue = this->makeValue(newDefault);
-    this->resolve();
-    this->notifyIfChanged(old);
+    this->change([&] { this->defaultValue = this->makeValue(newDefault); });
 }
 
 void ConVar::setDefaultString(std::string_view newDefault) {
-    const Value old = this->snapshot();
-    this->defaultValue.s = newDefault;
+    auto value = this->makeValue(newDefault);
+    if(!value) return;
 
-    // also try to parse default float from the default string
-    double dbl{};
-    const auto [ptr, err] = Parsing::from_chars(newDefault.data(), newDefault.data() + newDefault.size(), dbl);
-    if(err == std::errc()) this->defaultValue.d = dbl;
-
-    this->resolve();
-    this->notifyIfChanged(old);
+    this->change([&] { this->defaultValue = std::move(*value); });
 }
 
 ConVar::Value ConVar::makeValue(double dbl) const {
     dbl = std::clamp(dbl, this->range.min, this->range.max);
     return {.d = dbl, .s = fmt::format("{:g}", dbl)};
-}
-
-ConVar::Value ConVar::makeValue(double dbl, std::string_view text) const {
-    // (text stays as it was typed, unless it isn't what the value is)
-    if(dbl < this->range.min || dbl > this->range.max) return this->makeValue(dbl);
-    return {.d = dbl, .s = std::string{text}};
 }
 
 // typed setValue impls — header dispatcher (setValue<T>) routes here based on T category.
@@ -245,37 +251,40 @@ CvarSetResult ConVar::setValueImpl(double newDouble, bool doCallback, CvarEditor
     return this->setValueInt(this->makeValue(newDouble), doCallback, editor);
 }
 
-bool ConVar::parseValue(std::string_view &text, double &dbl) const {
-    dbl = this->defaultValue.d;
+std::optional<ConVar::Value> ConVar::makeValue(std::string_view text) const {
+    double dbl{this->defaultValue.d};
     const auto [ptr, err] = Parsing::from_chars(text.data(), text.data() + text.size(), dbl);
     (void)ptr;
-    if(err == std::errc()) return true;
-
-    // older builds saved bool convars as "true"/"false", accept those too, but normalize the
-    // stored string back to the canonical "1"/"0". otherwise a default-valued bool keeps the
-    // textual "false" while its default string is "0", so isDefault() ("incorrectly") reports non-default
-    if(this->type == CONVAR_TYPE::BOOL && SString::strcase_equal(text, "true")) {
-        dbl = 1.0;
-        text = "1";
-    } else if(this->type == CONVAR_TYPE::BOOL && SString::strcase_equal(text, "false")) {
-        dbl = 0.0;
-        text = "0";
-    } else if(this->type == CONVAR_TYPE::STRING) {
-        // only numeric convars need their text to be a number
-        dbl = this->defaultValue.d;
-    } else {
-        logIfCV(debug_cv, "{:s}: \"{:s}\" is not a valid {:s} value", this->sName, text,
-                ConVar::typeToString(this->type));
-        return false;
+    if(err != std::errc()) {
+        // older builds saved bool convars as "true"/"false", accept those too, but normalize the
+        // stored string back to the canonical "1"/"0". otherwise a default-valued bool keeps the
+        // textual "false" while its default string is "0", so isDefault() ("incorrectly") reports non-default
+        if(this->type == CONVAR_TYPE::BOOL && SString::strcase_equal(text, "true")) {
+            dbl = 1.0;
+            text = "1";
+        } else if(this->type == CONVAR_TYPE::BOOL && SString::strcase_equal(text, "false")) {
+            dbl = 0.0;
+            text = "0";
+        } else if(this->type == CONVAR_TYPE::STRING) {
+            // only numeric convars need their text to be a number
+            dbl = this->defaultValue.d;
+        } else {
+            logIfCV(debug_cv, "{:s}: \"{:s}\" is not a valid {:s} value", this->sName, text,
+                    ConVar::typeToString(this->type));
+            return std::nullopt;
+        }
     }
-    return true;
+
+    // (text stays as it was typed, unless it isn't what the value is)
+    if(dbl < this->range.min || dbl > this->range.max) return this->makeValue(dbl);
+    return Value{.d = dbl, .s = std::string{text}};
 }
 
 CvarSetResult ConVar::setValueImpl(std::string_view newString, bool doCallback, CvarEditor editor) {
-    double dbl{};
-    if(!this->parseValue(newString, dbl)) return CvarSetResult::INVALID;
+    auto value = this->makeValue(newString);
+    if(!value) return CvarSetResult::INVALID;
 
-    return this->setValueInt(this->makeValue(dbl, newString), doCallback, editor);
+    return this->setValueInt(std::move(*value), doCallback, editor);
 }
 
 CvarSetResult ConVar::checkWrite(CvarEditor editor) const {
@@ -295,7 +304,7 @@ CvarSetResult ConVar::checkWrite(CvarEditor editor) const {
 void ConVar::store(CvarEditor editor, Value value) {
     if(editor == CvarEditor::CLIENT) {
         (this->sessionValue ? *this->sessionValue : this->clientValue) = std::move(value);
-    } else if(auto &layer = (editor == CvarEditor::SKIN) ? this->skinValue : this->serverValue; layer) {
+    } else if(auto &layer = this->layer(editor); layer) {
         *layer = std::move(value);
     } else {
         layer = std::make_unique<Value>(std::move(value));
@@ -306,19 +315,21 @@ void ConVar::store(CvarEditor editor, Value value) {
 CvarSetResult ConVar::setValueInt(Value newValue, bool doCallback, CvarEditor editor) {
     if(const CvarSetResult refused = this->checkWrite(editor); refused != CvarSetResult::APPLIED) return refused;
 
+    // commands have no value that could be overridden: whoever is allowed to call them just runs them
+    // (nor one that could change: they run right away, also during a ConVarHandler::change())
+    if(!this->bCanHaveValue) editor = CvarEditor::CLIENT;
+
+    // as part of a change, a write is one more thing that happens to the convar: what came of it is for the end of that
+    const bool deferred = this->bCanHaveValue && cvars().remember(*this, doCallback);
+
     // backup old values for callbacks
     const double oldDouble{this->getDouble()};
     std::string oldString;
-    if(doCallback && this->changeCallback.kind == CallbackKind::StringChange) {
+    if(!deferred && doCallback && this->changeCallback.kind == CallbackKind::StringChange) {
         oldString = this->getString();
     }
 
-    // (see isDefault() about which representation counts)
-    const bool sameValue =
-        (this->type == CONVAR_TYPE::STRING) ? (this->getString() == newValue.s) : (oldDouble == newValue.d);
-
-    // commands have no value that could be overridden: whoever is allowed to call them just runs them
-    if(!this->bCanHaveValue) editor = CvarEditor::CLIENT;
+    const bool unchanged = this->sameValue(*this->effectiveValue, newValue);
 
     this->store(editor, std::move(newValue));
     this->resolve();
@@ -326,9 +337,10 @@ CvarSetResult ConVar::setValueInt(Value newValue, bool doCallback, CvarEditor ed
     // a write below whatever decides the value right now (a skin/server value, the protection lock) is kept for
     // later, but it changes nothing anyone could see: callbacks hear about it if and when it becomes the value
     if(this->master != editor) return CvarSetResult::MASKED;
+    if(deferred) return CvarSetResult::APPLIED;
 
     // (the convar's own callbacks also get to hear about a write that went through without changing the value)
-    if(!sameValue && this->bCanHaveValue) this->valueChanged();
+    if(!unchanged && this->bCanHaveValue) this->valueChanged();
 
     if(doCallback) this->runCallbacks(oldDouble, oldString);
     return CvarSetResult::APPLIED;
@@ -343,13 +355,10 @@ void ConVar::clearValue(CvarEditor editor) {
         return;
     }
 
-    auto &layer = (editor == CvarEditor::SKIN) ? this->skinValue : this->serverValue;
+    auto &layer = this->layer(editor);
     if(!layer) return;
 
-    const Value old = this->snapshot();
-    layer.reset();
-    this->resolve();
-    this->notifyIfChanged(old);
+    this->change([&] { layer.reset(); });
 }
 
 void ConVar::runCallbacks(double oldDouble, std::string_view oldString) {
@@ -447,10 +456,8 @@ void ConVar::initValueImpl(double v, uint8_t flags) {
 void ConVar::initValueImpl(std::string_view v, uint8_t flags) {
     this->type = CONVAR_TYPE::STRING;
 
-    // also try to parse default float from the default string
-    double dbl{0.0};
-    const auto [ptr, err] = Parsing::from_chars(v.data(), v.data() + v.size(), dbl);
-    this->initValueInt({.d = err == std::errc() ? dbl : 0.0, .s = std::string{v}}, flags);
+    // (string convars take any text, with a numeric view of it if it happens to be a number)
+    this->initValueInt(*this->makeValue(v), flags);
 }
 
 void ConVar::initValueInt(Value value, uint8_t flags) {
