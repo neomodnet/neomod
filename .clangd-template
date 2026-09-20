@@ -20,6 +20,8 @@ Diagnostics:
     'google-*',
     'llvm*',
     'cert-err52-cpp',
+    'bugprone-assignment-in-selection-statement',
+    'cert-exp45-c',
     '*readability*',
     'cert-int09-c',
     'portability-no-assembler',
