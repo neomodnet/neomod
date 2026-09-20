@@ -47,14 +47,6 @@ ConVar build_timestamp("build_timestamp", BUILD_TIMESTAMP, CONSTANT);
 ConVar version("version", PACKAGE_VERSION_UNCACHED, CONSTANT);
 }  // namespace cv
 
-// set by app, shared across all convars, called when a protected convar changes
-ConVar::VoidCB ConVar::onSetValueProtectedCallback{};
-void ConVar::setOnSetValueProtectedCallback(const VoidCB &callback) { ConVar::onSetValueProtectedCallback = callback; }
-
-// ditto
-ConVar::GameplayCVChangeCB ConVar::onSetValueGameplayCallback{nullptr};
-void ConVar::setOnSetValueGameplayCallback(GameplayCVChangeCB func) { ConVar::onSetValueGameplayCallback = func; }
-
 void ConVar::addConVar() {
     // every ctor ends up here with its values in place: publish them for the getters
     this->resolve();
@@ -179,21 +171,19 @@ void ConVar::resolve() {
     this->sValue = &value->s;
     this->dValue.store(value->d, std::memory_order_release);
 
-    // keep count for ConVarHandler::areAllCvarsSubmittable()
-    if(const bool nonSubmittable = this->isProtected() && !this->isDefault(); nonSubmittable != this->bNonSubmittable) {
-        this->bNonSubmittable = nonSubmittable;
-        cvars().iNumNonSubmittable += nonSubmittable ? 1 : -1;
+    // keep count for ConVarHandler::areProtectedCvarsDefault()
+    if(const bool protectedNonDefault = this->isProtected() && !this->isDefault();
+       protectedNonDefault != this->bProtectedNonDefault) {
+        this->bProtectedNonDefault = protectedNonDefault;
+        cvars().iNumProtectedNonDefault += protectedNonDefault ? 1 : -1;
     }
 }
 
 void ConVar::notifyIfChanged(const Value &old) {
     // (see isDefault() about which representation counts)
-    const double newDouble = this->getDouble();
-    if(this->type == CONVAR_TYPE::STRING ? old.s == this->getString() : old.d == newDouble) return;
+    if(this->type == CONVAR_TYPE::STRING ? old.s == this->getString() : old.d == this->getDouble()) return;
 
-    if(this->isProtected() && old.d != newDouble && likely(!!ConVar::onSetValueProtectedCallback)) {
-        ConVar::onSetValueProtectedCallback();
-    }
+    if(const auto onValueChanged = cvars().policy.onValueChanged; onValueChanged) onValueChanged(*this);
 
     this->runCallbacks(old.d, old.s);
 }
@@ -261,16 +251,15 @@ CvarSetResult ConVar::setValueImpl(std::string_view newString, bool doCallback, 
     return this->setValueInt(dbl, std::string{newString}, doCallback, editor);
 }
 
-// central store-and-dispatch. handles flag gating, value store, protected/exec/change callbacks.
+// central store-and-dispatch. handles flag gating, the app's policy, value store, exec/change callbacks.
 CvarSetResult ConVar::setValueInt(double newDouble, std::string newString, bool doCallback, CvarEditor editor) {
     // editor must match a flag we accept
     if(editor == CvarEditor::CLIENT && !this->isFlagSet(cv::CLIENT)) return CvarSetResult::DENIED;
     if(editor == CvarEditor::SKIN && !this->isFlagSet(cv::SKINS)) return CvarSetResult::DENIED;
     if(editor == CvarEditor::SERVER && !this->isFlagSet(cv::SERVER)) return CvarSetResult::DENIED;
 
-    // gameplay gate: if flag set AND callback exists AND callback denies, skip
-    if(this->isFlagSet(cv::GAMEPLAY) && likely(!!ConVar::onSetValueGameplayCallback) &&
-       unlikely(!ConVar::onSetValueGameplayCallback(this->sName, editor))) {
+    // the app may have something against it
+    if(const auto allowWrite = cvars().policy.allowWrite; allowWrite && unlikely(!allowWrite(*this, editor))) {
         return CvarSetResult::VETOED;
     }
 
@@ -280,6 +269,10 @@ CvarSetResult ConVar::setValueInt(double newDouble, std::string newString, bool 
     if(doCallback && this->changeCallback.kind == CallbackKind::StringChange) {
         oldString = this->getString();
     }
+
+    // (see isDefault() about which representation counts)
+    const bool sameValue =
+        (this->type == CONVAR_TYPE::STRING) ? (this->getString() == newString) : (oldDouble == newDouble);
 
     // commands have no value that could be overridden: whoever is allowed to call them just runs them
     if(!this->bCanHaveValue) editor = CvarEditor::CLIENT;
@@ -296,14 +289,14 @@ CvarSetResult ConVar::setValueInt(double newDouble, std::string newString, bool 
 
     this->resolve();
 
-    // run protected value change cb
-    if(this->isProtected() && oldDouble != this->getDouble() && likely(!!ConVar::onSetValueProtectedCallback)) {
-        ConVar::onSetValueProtectedCallback();
-    }
-
     // a write below whatever decides the value right now (a skin/server value, the protection lock) is kept for
     // later, but it changes nothing anyone could see: callbacks hear about it if and when it becomes the value
     if(this->master != editor) return CvarSetResult::MASKED;
+
+    // (the convar's own callbacks also get to hear about a write that went through without changing the value)
+    if(const auto onValueChanged = cvars().policy.onValueChanged; onValueChanged && !sameValue && this->bCanHaveValue) {
+        onValueChanged(*this);
+    }
 
     if(doCallback) this->runCallbacks(oldDouble, oldString);
     return CvarSetResult::APPLIED;

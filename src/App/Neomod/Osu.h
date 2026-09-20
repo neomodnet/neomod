@@ -264,9 +264,9 @@ class Osu final : public App, public MouseListener, public TouchListener {
     static float getUIScale(vec2 resolution);
     float prevUIScale{1.f};  // hack-ish dpi change reload check
 
-    void globalOnSetValueProtectedCallback();
-    static bool globalOnSetValueGameplayCallback(std::string_view cvarname, CvarEditor setterkind);
-    static bool globalOnAreAllCvarsSubmittableCallback();
+    // (see ConVarHandler::Policy)
+    static bool globalAllowConVarWrite(const ConVar &cvar, CvarEditor editor);
+    static void globalOnConVarChange(const ConVar &cvar);
 
     // NOTE: unique_ptrs are destroyed in reverse order of declaration in header
 

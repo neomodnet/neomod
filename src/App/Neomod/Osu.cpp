@@ -85,46 +85,35 @@ using namespace flags::operators;
 
 Osu *osu{nullptr};
 
-// prevents score submission when/if a protected convar is changed during gameplay
-void Osu::globalOnSetValueProtectedCallback() {
-    if(likely(this->map_iface)) {
-        this->map_iface->is_submittable = false;
-    }
-}
-
-// prevents changing gameplay convars while playing multi and disables score submission
-bool Osu::globalOnSetValueGameplayCallback(std::string_view cvarname, CvarEditor setterkind) {
+// prevents changing gameplay convars while playing multi
+bool Osu::globalAllowConVarWrite(const ConVar &cvar, CvarEditor editor) {
     // Only SERVER can edit GAMEPLAY cvars during multiplayer matches
-    if(BanchoState::is_playing_a_multi_map() && setterkind != CvarEditor::SERVER) {
-        debugLog("Can't edit {:s} while in a multiplayer match.", cvarname);
+    if(cvar.isFlagSet(cv::GAMEPLAY) && BanchoState::is_playing_a_multi_map() && editor != CvarEditor::SERVER) {
+        debugLog("Can't edit {:s} while in a multiplayer match.", cvar.getName());
         return false;
     }
 
-    // Regardless of the editor, changing GAMEPLAY cvars in the middle of a map
-    // will result in an invalid replay. Set it as cheated so the score isn't saved.
-    if(osu->isInPlayMode()) {
-        debugLog("{:s} affects gameplay: won't submit score.", cvarname);
-    }
-    // maybe an impossible scenario for this to be NULL here but just checking anyways
-    if(auto *liveScore = osu->getScore(); !!liveScore) {
-        liveScore->setCheated();
-    }
-
     return true;
 }
 
-bool Osu::globalOnAreAllCvarsSubmittableCallback() {
-    // Also check for non-vanilla mod combinations here while we're at it
-    // We don't want to submit target scores, even though it's allowed in multiplayer
-    if(osu->getModTarget()) return false;
-
-    if(osu->getModEZ() && osu->getModHR()) return false;
-
-    if(!cv::sv_allow_speed_override.getBool()) {
-        f32 speed = cv::speed_override.getFloat();
-        if(speed != -1.f && speed != 0.75 && speed != 1.0 && speed != 1.5) return false;
+// disables score submission when a convar that scores depend on has changed, no matter what changed it
+void Osu::globalOnConVarChange(const ConVar &cvar) {
+    // prevents score submission when/if a protected convar is changed during gameplay
+    if(cvar.isProtected() && likely(osu->map_iface)) {
+        osu->map_iface->is_submittable = false;
     }
-    return true;
+
+    if(cvar.isFlagSet(cv::GAMEPLAY)) {
+        // Regardless of the editor, changing GAMEPLAY cvars in the middle of a map
+        // will result in an invalid replay. Set it as cheated so the score isn't saved.
+        if(osu->isInPlayMode()) {
+            debugLog("{:s} affects gameplay: won't submit score.", cvar.getName());
+        }
+        // maybe an impossible scenario for this to be NULL here but just checking anyways
+        if(auto *liveScore = osu->getScore(); !!liveScore) {
+            liveScore->setCheated();
+        }
+    }
 }
 
 Osu::GlobalOsuCtorDtorThing::GlobalOsuCtorDtorThing(Osu *optr) { osu = optr; }
@@ -138,11 +127,7 @@ Osu::Osu()
       map_iface(std::make_unique<BeatmapInterface>()),
       score(std::make_unique<LiveScore>(false)) {
     // global cvar callbacks will be removed in destructor
-    ConVar::setOnSetValueProtectedCallback(SA::MakeDelegate<&Osu::globalOnSetValueProtectedCallback>(this));
-
-    ConVar::setOnSetValueGameplayCallback(Osu::globalOnSetValueGameplayCallback);
-
-    cvars().setCVSubmittableCheckFunc(Osu::globalOnAreAllCvarsSubmittableCallback);
+    cvars().setPolicy({.allowWrite = Osu::globalAllowConVarWrite, .onValueChanged = Osu::globalOnConVarChange});
 
     // create cache dir, with migration for old versions
     {
@@ -481,10 +466,8 @@ Osu::~Osu() {
     this->db_memb.reset();  // shutdown db
     db = nullptr;
 
-    // remove the static callbacks
-    cvars().setCVSubmittableCheckFunc({});
-    ConVar::setOnSetValueGameplayCallback({});
-    ConVar::setOnSetValueProtectedCallback({});
+    // remove the global cvar callbacks
+    cvars().setPolicy({});
 
     // destroy all skin sounds (and potentially loading skin), then skin
     if(this->skinScheduledToLoad && this->skinScheduledToLoad != this->skin.get()) {

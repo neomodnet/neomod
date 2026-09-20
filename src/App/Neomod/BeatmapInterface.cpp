@@ -17,7 +17,6 @@
 #include "BeatmapInterface.h"
 #include "Chat.h"
 #include "OsuConVars.h"
-#include "ConVarHandler.h"
 #include "Timing.h"
 #include "Database.h"
 #include "DatabaseBeatmap.h"
@@ -1722,7 +1721,7 @@ void BeatmapInterface::resetHitObjects(i32 curPos) {
 }
 
 void BeatmapInterface::resetScore() {
-    this->is_submittable = cvars().areAllCvarsSubmittable();
+    this->is_submittable = BanchoState::are_settings_submittable();
 
     this->live_replay.clear();
     this->live_replay.push_back(LegacyReplay::Frame{

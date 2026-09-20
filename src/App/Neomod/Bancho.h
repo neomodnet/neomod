@@ -81,6 +81,9 @@ struct BanchoState final {
     [[nodiscard]] static inline bool is_playing_a_multi_map() { return match_started; }
     [[nodiscard]] static bool can_submit_scores();
 
+    // whether a score set with the current mods/settings would be one to submit
+    [[nodiscard]] static bool are_settings_submittable();
+
     [[nodiscard]] static inline OnlineStatus get_online_status() { return online_status; }
     [[nodiscard]] static inline bool is_online() {
         const i32 uid = user_id.load(std::memory_order_acquire);

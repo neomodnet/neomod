@@ -37,6 +37,7 @@ enum CvarFlags : uint8_t {
     PROTECTED = (1 << 3),
 
     // Scores won't submit if modified during gameplay
+    // (nothing the engine looks at: what it means is up to the app's ConVarHandler::Policy)
     GAMEPLAY = (1 << 4),
 
     // Hidden from console suggestions (e.g. for passwords or deprecated cvars)
@@ -74,7 +75,7 @@ enum class CvarSetResult : uint8_t {
     APPLIED,  // it is the convar's value now
     MASKED,   // kept for later: a skin's/the server's value or the protection lock decides the value right now
     DENIED,   // this editor isn't allowed to set the convar (see CvarFlags)
-    VETOED,   // the app refused the change (see setOnSetValueGameplayCallback)
+    VETOED,   // the app refused it (see ConVarHandler::Policy)
     INVALID,  // not something the convar can be set to (see setValue())
 };
 
@@ -358,12 +359,6 @@ class ConVar {
         }
     }
 
-    // shared callbacks, app-defined
-    static void setOnSetValueProtectedCallback(const VoidCB &callback);
-
-    using GameplayCVChangeCB = bool (*)(std::string_view cvarname, CvarEditor setterkind);
-    static void setOnSetValueGameplayCallback(GameplayCVChangeCB func);
-
    private:
     // typed setValue impls — public setValue<T> dispatches into these based on T category
     // (bool routes through the double overload; there's no dedicated bool string form)
@@ -434,14 +429,6 @@ class ConVar {
     void runCallbacks(double oldDouble, std::string_view oldString);
 
    private:
-    // static callbacks are shared across all convars
-    // to call when a convar with PROTECTED flag has been changed
-    static VoidCB onSetValueProtectedCallback;
-
-    // to call when a GAMEPLAY convar is being changed
-    // if the callback returns FALSE, the convar won't be changed
-    static GameplayCVChangeCB onSetValueGameplayCallback;
-
     // what the getters return, published by resolve() (first, so that a read only touches the start of the object)
     // dValue is the only member other threads get to look at
     std::atomic<double> dValue{0.0};
@@ -466,7 +453,7 @@ class ConVar {
     uint8_t iFlags{0};
 
     bool bCanHaveValue{false};
-    bool bNonSubmittable{false};  // protected and not at its default value (kept up to date by resolve())
+    bool bProtectedNonDefault{false};  // what ConVarHandler keeps count of (kept up to date by resolve())
 };
 
 #endif

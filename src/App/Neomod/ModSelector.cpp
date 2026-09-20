@@ -664,9 +664,10 @@ void ModSelector::tick() {
         return;
     }
 
-    this->nonSubmittableWarning->setVisible(BanchoState::can_submit_scores() && !cvars().areAllCvarsSubmittable());
+    this->nonSubmittableWarning->setVisible(BanchoState::can_submit_scores() &&
+                                            !BanchoState::are_settings_submittable());
     if(this->nonSubmittableWarning->isVisible() && this->nonSubmittableWarning->isMouseInside()) {
-        auto nonSubmittableCvars = cvars().getNonSubmittableCvars();
+        auto nonSubmittableCvars = cvars().getNonDefaultProtectedCvars();
         if(!nonSubmittableCvars.empty()) {
             TooltipOverlay *ttoverlay = ui->getTooltipOverlay();
             ttoverlay->begin();

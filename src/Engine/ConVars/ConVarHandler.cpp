@@ -29,10 +29,6 @@ ConVarHandler::ConVarHandler() {
     this->vConVarMap.reserve(1024);
 }
 
-void ConVarHandler::setCVSubmittableCheckFunc(CVSubmittableCriteriaFunc func) {
-    this->areAllCvarsSubmittableExtraCheck = func;
-}
-
 ConVar *ConVarHandler::getConVar_int(std::string_view name) const {
     auto it = this->vConVarMap.find(name);
     if(it != this->vConVarMap.end()) return it->second;
@@ -102,26 +98,16 @@ std::vector<ConVar *> ConVarHandler::getConVarByLetter(std::string_view letters)
     return matchingConVars;
 }
 
-std::vector<ConVar *> ConVarHandler::getNonSubmittableCvars() const {
+std::vector<ConVar *> ConVarHandler::getNonDefaultProtectedCvars() const {
     std::vector<ConVar *> list;
 
     for(auto *cv : this->vConVarArray) {
-        if(!cv->bNonSubmittable) continue;
+        if(!cv->bProtectedNonDefault) continue;
 
         list.push_back(cv);
     }
 
     return list;
-}
-
-bool ConVarHandler::areAllCvarsSubmittable() const {
-    if(this->iNumNonSubmittable > 0) return false;
-
-    if(!!this->areAllCvarsSubmittableExtraCheck) {
-        return this->areAllCvarsSubmittableExtraCheck();
-    }
-
-    return true;
 }
 
 // the changes below apply to many convars at once: every one of them gets published before any callback runs,

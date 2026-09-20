@@ -17,9 +17,9 @@ class ConVarTest : public App {
     void testPermissions();
     void testLayers();
     void testProtectionLock();
-    void testGameplayGate();
+    void testPolicy();
     void testCallbacks();
-    void testSubmittable();
+    void testProtectedDefaults();
     void testDefaults();
     void testCommands();
     void testThreads();

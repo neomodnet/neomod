@@ -194,11 +194,27 @@ void BanchoState::initialize_neomod_server_session() {
     }
 }
 
+bool BanchoState::are_settings_submittable() {
+    if(!cvars().areProtectedCvarsDefault()) return false;
+
+    // Also check for non-vanilla mod combinations here while we're at it
+    // We don't want to submit target scores, even though it's allowed in multiplayer
+    if(osu->getModTarget()) return false;
+
+    if(osu->getModEZ() && osu->getModHR()) return false;
+
+    if(!cv::sv_allow_speed_override.getBool()) {
+        f32 speed = cv::speed_override.getFloat();
+        if(speed != -1.f && speed != 0.75 && speed != 1.0 && speed != 1.5) return false;
+    }
+    return true;
+}
+
 void BanchoState::check_and_notify_nonsubmittable() {
     // if we go from having (all cvars submittable)->(NOT all cvars submittable),
     // clear the "clicked" flag, so it shows up again if they become non-submittable
     // again later due to an incompatible setting/mod change
-    const bool currently_submittable = cvars().areAllCvarsSubmittable();
+    const bool currently_submittable = BanchoState::are_settings_submittable();
     if(currently_submittable) {
         BanchoState::nonsubmittable_notification_clicked = false;
     }

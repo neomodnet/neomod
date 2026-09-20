@@ -41,13 +41,15 @@ ConVar t_cmd("cvtest_cmd", cv::CLIENT | cv::SERVER | TESTONLY, [](std::string_vi
     s_cmdArgs = args;
 });
 
-// stand-ins for the policy the app normally provides (see Osu's globalOn* callbacks)
+// stand-ins for the policy the app normally provides (see Osu's global* callbacks)
 bool s_gateOpen{true};  // "not in a multiplayer match": gameplay convars may be changed
 int s_gateCalls{0};
 std::string s_gateLastName;
 CvarEditor s_gateLastEditor{CvarEditor::CLIENT};
+const ConVar *s_vetoed{nullptr};
+int s_changes{0};
+std::string s_lastChanged;
 int s_protectedChanges{0};
-bool s_extraSubmittable{true};
 
 // "in a multiplayer room": protected convars read as their default
 void setLocked(bool locked) { cvars().setProtectionEnforced(locked); }
@@ -69,28 +71,32 @@ std::string s_cbString;
 std::string s_cbOldString;
 std::string s_cbNewString;
 
-bool isNonSubmittable(const ConVar &cvar) { return std::ranges::contains(cvars().getNonSubmittableCvars(), &cvar); }
+bool isNonDefaultProtected(const ConVar &cvar) {
+    return std::ranges::contains(cvars().getNonDefaultProtectedCvars(), &cvar);
+}
 }  // namespace
 
 ConVarTest::ConVarTest() {
     logRaw("ConVarTest created");
 
-    ConVar::setOnSetValueGameplayCallback([](std::string_view name, CvarEditor editor) -> bool {
-        s_gateCalls++;
-        s_gateLastName = name;
-        s_gateLastEditor = editor;
-        return s_gateOpen;
-    });
-    ConVar::setOnSetValueProtectedCallback(ConVar::VoidCB([]() -> void { s_protectedChanges++; }));
-    cvars().setCVSubmittableCheckFunc([]() -> bool { return s_extraSubmittable; });
+    cvars().setPolicy({.allowWrite = [](const ConVar &cvar, CvarEditor editor) -> bool {
+                           s_gateCalls++;
+                           s_gateLastName = cvar.getName();
+                           s_gateLastEditor = editor;
+                           if(&cvar == s_vetoed) return false;
+                           return s_gateOpen || !cvar.isFlagSet(cv::GAMEPLAY);
+                       },
+                       .onValueChanged = [](const ConVar &cvar) -> void {
+                           s_changes++;
+                           s_lastChanged = cvar.getName();
+                           if(cvar.isProtected()) s_protectedChanges++;
+                       }});
 }
 
 ConVarTest::~ConVarTest() {
     for(auto *cvar : {&t_layered, &t_protected, &t_callbacks, &t_string, &t_cmd}) cvar->removeAllCallbacks();
 
-    cvars().setCVSubmittableCheckFunc({});
-    ConVar::setOnSetValueProtectedCallback({});
-    ConVar::setOnSetValueGameplayCallback({});
+    cvars().setPolicy({});
 }
 
 void ConVarTest::update() {
@@ -101,9 +107,9 @@ void ConVarTest::update() {
     this->testPermissions();
     this->testLayers();
     this->testProtectionLock();
-    this->testGameplayGate();
+    this->testPolicy();
     this->testCallbacks();
-    this->testSubmittable();
+    this->testProtectedDefaults();
     this->testDefaults();
     this->testCommands();
     this->testThreads();
@@ -381,15 +387,19 @@ void ConVarTest::testProtectionLock() {
     t_protected.setValue(11.0f, false);
     TEST_ASSERT_EQ(s_protectedChanges, 2, "the notification doesn't depend on doCallback");
     t_layered.setValue(1.5f);
-    TEST_ASSERT_EQ(s_protectedChanges, 2, "changing an unprotected convar doesn't notify");
+    TEST_ASSERT_EQ(s_protectedChanges, 2, "a change to an unprotected convar isn't one to a protected convar");
+    t_layered.setServerProtected(CvarProtection::PROTECTED);
+    t_layered.setValue(1.75f);
+    TEST_ASSERT_EQ(s_protectedChanges, 3, "a convar the server protected counts as protected");
+    cvars().clearLayer(CvarEditor::SERVER);
 
     t_protected.removeAllCallbacks();
     t_protected.setValue(0.0f);
     t_layered.setValue(1.0f);
 }
 
-void ConVarTest::testGameplayGate() {
-    TEST_SECTION("gameplay gate");
+void ConVarTest::testPolicy() {
+    TEST_SECTION("app policy");
 
     s_gateCalls = 0;
     t_gameplay.setValue(1.0f);
@@ -410,12 +420,67 @@ void ConVarTest::testGameplayGate() {
     TEST_ASSERT_EQ(s_cbFloatCalls, 0, "rejected write doesn't run callbacks");
     s_gateOpen = true;
 
+    // which convars it cares about is up to the app: it gets asked about every write that the flags allow
     s_gateCalls = 0;
     t_float.setValue(2.0f);
-    TEST_ASSERT_EQ(s_gateCalls, 0, "gate isn't asked about convars without GAMEPLAY");
+    TEST_ASSERT_EQ(s_gateCalls, 1, "the app is asked about writes to any convar");
+    TEST_ASSERT(t_serverOnly.setValue(1) == CvarSetResult::DENIED && s_gateCalls == 1,
+                "the app isn't asked about a write that isn't allowed to begin with");
+    s_vetoed = &t_float;
+    TEST_ASSERT(t_float.setValue(3.0f) == CvarSetResult::VETOED, "the app can veto writes to any convar");
+    TEST_ASSERT_EQ(t_float.getFloat(), 2.0f, "vetoed write doesn't change the value");
+
+    // running a command is a write too
+    s_vetoed = &t_cmd;
+    int callsBefore = s_cmdCalls;
+    TEST_ASSERT(t_cmd.setValue("vetoed", true, CvarEditor::SERVER) == CvarSetResult::VETOED,
+                "the app can veto running a command");
+    TEST_ASSERT(s_gateLastEditor == CvarEditor::SERVER, "...and gets to know who wanted to run it");
+    TEST_ASSERT_EQ(s_cmdCalls, callsBefore, "vetoed command doesn't run");
+    s_vetoed = nullptr;
+
+    // the app gets told about every change of a convar's value, whatever caused it (and only about those)
+    s_changes = 0;
+    t_layered.setValue(1.25f);
+    TEST_ASSERT(s_changes == 1 && s_lastChanged == "cvtest_layered", "a write that changes the value is a change");
+    t_layered.setValue(1.25f);
+    t_layered.setValue("1.250");
+    TEST_ASSERT_EQ(s_changes, 1, "a write of the same value isn't");
+    t_layered.setValue(1.5f, false, CvarEditor::SKIN);
+    TEST_ASSERT_EQ(s_changes, 2, "a skin value taking over is (doCallback doesn't matter)");
+    t_layered.setValue(2.0f);
+    TEST_ASSERT_EQ(s_changes, 2, "a masked write isn't");
+    t_layered.clearValue(CvarEditor::SKIN);
+    TEST_ASSERT_EQ(s_changes, 3, "a skin value going away is");
+    t_layered.setValue(2.0f, true, CvarEditor::SKIN);
+    t_layered.clearValue(CvarEditor::SKIN);
+    TEST_ASSERT_EQ(s_changes, 3, "a skin value that is the client's value coming and going isn't");
+
+    t_string.setValue("other");
+    t_string.setValue("other");
+    TEST_ASSERT(s_changes == 4 && s_lastChanged == "cvtest_string", "string convars change with their text");
+
+    t_gameplay.setValue(5.0f);
+    s_changes = 0;
+    setLocked(true);
+    TEST_ASSERT_EQ(s_changes, 0, "the lock doesn't change convars that aren't protected");
+    t_protected.setValue(45.0f);
+    TEST_ASSERT_EQ(s_changes, 0, "...or protected ones through a write below it");
+    setLocked(false);
+    TEST_ASSERT(s_changes == 1 && s_lastChanged == "cvtest_protected", "unlocking changes what it was hiding");
+    t_protected.setDefaultDouble(45.0);
+    TEST_ASSERT_EQ(s_changes, 1, "a new default below the value isn't a change");
+    t_protected.setDefaultDouble(0.0);
+
+    callsBefore = s_changes;
+    t_cmd.setValue("not a value");
+    TEST_ASSERT_EQ(s_changes, callsBefore, "running a command isn't a change of value");
 
     t_gameplay.removeAllCallbacks();
     t_gameplay.setValue(0.0f);
+    t_protected.setValue(0.0f);
+    t_layered.setValue(1.0f);
+    t_string.setValue("abc");
     t_float.setValue(1.0f);
 }
 
@@ -495,54 +560,51 @@ void ConVarTest::testCallbacks() {
     t_string.setValue("abc");
 }
 
-void ConVarTest::testSubmittable() {
-    TEST_SECTION("submittable");
+void ConVarTest::testProtectedDefaults() {
+    TEST_SECTION("protected convars at their default");
 
-    TEST_ASSERT(!isNonSubmittable(t_protected), "default protected convar is submittable");
-    TEST_ASSERT(cvars().areAllCvarsSubmittable(), "everything is submittable to begin with");
+    TEST_ASSERT(!isNonDefaultProtected(t_protected), "a protected convar at its default isn't listed");
+    TEST_ASSERT(cvars().areProtectedCvarsDefault(), "every protected convar is at its default to begin with");
 
     t_protected.setValue(45.0f);
-    TEST_ASSERT(isNonSubmittable(t_protected), "changed protected convar is not submittable");
-    TEST_ASSERT(!cvars().areAllCvarsSubmittable(), "one changed protected convar makes everything unsubmittable");
+    TEST_ASSERT(isNonDefaultProtected(t_protected), "a changed protected convar is listed");
+    TEST_ASSERT(!cvars().areProtectedCvarsDefault(), "one changed protected convar is enough");
 
     setLocked(true);
-    TEST_ASSERT(!isNonSubmittable(t_protected), "locked protected convar reads as default, so it is submittable");
+    TEST_ASSERT(!isNonDefaultProtected(t_protected),
+                "a locked protected convar reads as its default, so it isn't listed");
     setLocked(false);
 
     t_layered.setValue(1.5f);
-    TEST_ASSERT(!isNonSubmittable(t_layered), "changed unprotected convar is submittable");
+    TEST_ASSERT(!isNonDefaultProtected(t_layered), "a changed unprotected convar isn't listed");
     t_layered.setServerProtected(CvarProtection::PROTECTED);
-    TEST_ASSERT(isNonSubmittable(t_layered), "changed server-protected convar is not submittable");
+    TEST_ASSERT(isNonDefaultProtected(t_layered), "a changed convar that the server protected is listed");
     cvars().clearLayer(CvarEditor::SERVER);
 
     t_protected.setValue(0.0f);
     t_layered.setValue(1.0f);
-    TEST_ASSERT(cvars().areAllCvarsSubmittable(), "everything is submittable again");
+    TEST_ASSERT(cvars().areProtectedCvarsDefault(), "every protected convar is at its default again");
 
     // anything that can change what a protected convar reads as has to keep the answer up to date
     t_protectedSkin.setValue(true, true, CvarEditor::SKIN);
-    TEST_ASSERT(!cvars().areAllCvarsSubmittable(), "a skin value on a protected convar is not submittable");
+    TEST_ASSERT(!cvars().areProtectedCvarsDefault(), "a skin value on a protected convar counts");
     setLocked(true);
-    TEST_ASSERT(cvars().areAllCvarsSubmittable(), "...unless the lock hides it");
+    TEST_ASSERT(cvars().areProtectedCvarsDefault(), "...unless the lock hides it");
     setLocked(false);
     t_protectedSkin.clearValue(CvarEditor::SKIN);
-    TEST_ASSERT(cvars().areAllCvarsSubmittable(), "submittable again without the skin value");
+    TEST_ASSERT(cvars().areProtectedCvarsDefault(), "...and doesn't without the skin value");
 
     t_protected.setValue(45.0f, true, CvarEditor::SERVER);
-    TEST_ASSERT(!cvars().areAllCvarsSubmittable(), "a server value on a protected convar is not submittable");
+    TEST_ASSERT(!cvars().areProtectedCvarsDefault(), "a server value on a protected convar counts");
     t_protected.setDefaultDouble(45.0);
-    TEST_ASSERT(cvars().areAllCvarsSubmittable(), "a changed default counts");
+    TEST_ASSERT(cvars().areProtectedCvarsDefault(), "a changed default counts");
     t_protected.setDefaultDouble(0.0);
-    TEST_ASSERT(!cvars().areAllCvarsSubmittable(), "a changed default counts, back");
+    TEST_ASSERT(!cvars().areProtectedCvarsDefault(), "a changed default counts, back");
     t_protected.setServerProtected(CvarProtection::UNPROTECTED);
-    TEST_ASSERT(cvars().areAllCvarsSubmittable(), "unprotecting a changed convar makes it submittable");
+    TEST_ASSERT(cvars().areProtectedCvarsDefault(), "a changed convar that the server unprotected doesn't count");
     cvars().clearLayer(CvarEditor::SERVER);
-    TEST_ASSERT(cvars().areAllCvarsSubmittable() && cvars().getNonSubmittableCvars().empty(),
-                "submittable again without anything from the server");
-
-    s_extraSubmittable = false;
-    TEST_ASSERT(!cvars().areAllCvarsSubmittable(), "the app's extra check can veto");
-    s_extraSubmittable = true;
+    TEST_ASSERT(cvars().areProtectedCvarsDefault() && cvars().getNonDefaultProtectedCvars().empty(),
+                "nothing left without anything from the server");
 }
 
 void ConVarTest::testDefaults() {
