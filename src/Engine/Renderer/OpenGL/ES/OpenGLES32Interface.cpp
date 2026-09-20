@@ -44,7 +44,7 @@ OpenGLES32Interface::OpenGLES32Interface(void *window)
     m_iVBOTexcolors = 0;
 
     // persistent vars
-    m_bAntiAliasing = true;
+    m_bAntiAliasing = false;
 }
 
 OpenGLES32Interface::~OpenGLES32Interface() {
@@ -73,6 +73,7 @@ bool OpenGLES32Interface::init() {
     // this is only here to work around bugs on windows anyways
 #ifndef MCENGINE_PLATFORM_WASM
     glDisable(GL_FRAMEBUFFER_SRGB);
+    glDisable(GL_MULTISAMPLE);  // on by default in gl, only wanted between setAntialiasing(true/false) pairs
 #endif
 
     // blending

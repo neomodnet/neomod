@@ -41,6 +41,7 @@ class AsyncIOHandler;
 class DirectoryWatcher;
 
 class CBaseUIContainer;
+struct CBaseUIEventCtx;
 namespace CBaseUIDispatch {
 class MouseSink;
 }
@@ -155,6 +156,7 @@ class Engine final : public KeyboardListener {
 
     // engine gui, mostly for debugging
     CBaseUIContainer *guiContainer;
+    std::unique_ptr<CBaseUIEventCtx> guiEventCtx{nullptr};  // kept across frames for its buffers
     VisualProfiler *visualProfiler;
 
     // both console styles exist side by side, cv::console_style picks the one that opens

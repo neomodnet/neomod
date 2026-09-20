@@ -54,6 +54,7 @@ bool OpenGLInterface::init() {
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_LIGHTING);
     glDisable(GL_FRAMEBUFFER_SRGB);
+    glDisable(GL_MULTISAMPLE);  // on by default in gl, only wanted between setAntialiasing(true/false) pairs
 
     // shading
     glShadeModel(GL_SMOOTH);

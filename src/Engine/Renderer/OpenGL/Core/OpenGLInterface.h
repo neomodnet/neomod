@@ -112,7 +112,7 @@ class OpenGLInterface final : public SDLGLInterface {
     vec2 vResolution{0.f};
 
     // persistent vars
-    bool bAntiAliasing{true};
+    bool bAntiAliasing{false};
     //float fZ{1};
     //float fClearZ{1};
 

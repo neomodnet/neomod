@@ -42,14 +42,14 @@ ConsoleBox::ConsoleBox() : CBaseUIElement(0, 0, 0, 0, ""), fConsoleDelay(engine-
 ConsoleBox::~ConsoleBox() = default;
 
 void ConsoleBox::draw() {
-    // HACKHACK: legacy OpenGL fix
-    g->setAntialiasing(false);
+    // the log overlay shows along with the box, or on its own with console_overlay
+    if(!cv::console_overlay.getBool() && !this->textbox->isVisible()) return;
 
     g->pushTransform();
     {
         if(mouse->isMiddleDown()) g->translate(0, mouse->getPos().y - engine->getScreenHeight());
 
-        if(cv::console_overlay.getBool() || this->textbox->isVisible()) this->drawLogOverlay();
+        this->drawLogOverlay();
 
         if(this->fConsoleAnimation.animating()) {
             g->push3DScene(McRect(this->textbox->getPos().x, this->textbox->getPos().y, this->textbox->getSize().x,
@@ -70,17 +70,17 @@ void ConsoleBox::draw() {
 }
 
 void ConsoleBox::drawLogOverlay() {
-    const float dpiScale = this->getDPIScale();
-
-    const float logScale = Mc::consoleLogScale(dpiScale);
-
-    const int shadowOffset = 1 * logScale;
-
     // the newest entries since the overlay was last emptied, at most console_overlay_lines of them
     const Console::LogRange range = Console::getLogRange();
     const auto maxLines = static_cast<u64>(std::max(0, cv::console_overlay_lines.getInt()));
     const u64 first = std::max({this->iOverlayFirst, range.first, range.next - std::min(maxLines, range.next)});
     if(first >= range.next) return;
+
+    const float dpiScale = this->getDPIScale();
+
+    const float logScale = Mc::consoleLogScale(dpiScale);
+
+    const int shadowOffset = 1 * logScale;
 
     g->setColor(0xff000000);
     const float alpha =
@@ -117,6 +117,9 @@ void ConsoleBox::drawLogOverlay() {
 }
 
 void ConsoleBox::updateInput(CBaseUIEventCtx &c) {
+    // the log overlay takes no input, so a closed box has nothing to hit
+    if(!this->textbox->isVisible()) return;
+
     // self before children: visit order doubles as hit-candidate priority (latest = top-most)
     CBaseUIElement::updateInput(c);
 
@@ -128,8 +131,12 @@ void ConsoleBox::updateInput(CBaseUIEventCtx &c) {
 
 void ConsoleBox::tick() {
     CBaseUIElement::tick();
-    this->textbox->tick();
-    this->suggestion->tick();
+
+    // the textbox stays visible from toggling in until the slide-out animation is over
+    if(this->textbox->isVisible()) {
+        this->textbox->tick();
+        this->suggestion->tick();
+    }
 
     // new scrollback entries (re)start the overlay's fade timeout
     if(const Console::LogRange range = Console::getLogRange(); range.next != this->iLogSequence) {
@@ -180,16 +187,18 @@ void ConsoleBox::tick() {
                                   std::min(this->suggestion->getCount(), 4) * this->suggestion->getRowHeight());
     }
 
-    // handle overlay animation and timeout
-    const bool forceVisible = cv::console_overlay_timeout.getFloat() == 0.f; /* infinite timeout */
+    // handle overlay animation and timeout, as long as there are entries left to fade out
+    if(this->iOverlayFirst != this->iLogSequence) {
+        const bool forceVisible = cv::console_overlay_timeout.getFloat() == 0.f; /* infinite timeout */
 
-    if(!forceVisible && engine->getTime() > this->fLogTime) {
-        if(!this->fLogYPos.animating() && this->fLogYPos == 0.0f)
-            this->fLogYPos.set(this->logFont->getHeight() * (cv::console_overlay_lines.getFloat() + 1), 0.5f,
-                               anim::QuadInOut);
+        if(!forceVisible && engine->getTime() > this->fLogTime) {
+            if(!this->fLogYPos.animating() && this->fLogYPos == 0.0f)
+                this->fLogYPos.set(this->logFont->getHeight() * (cv::console_overlay_lines.getFloat() + 1), 0.5f,
+                                   anim::QuadInOut);
 
-        if(this->fLogYPos >= this->logFont->getHeight() * (cv::console_overlay_lines.getInt() + 1))
-            this->iOverlayFirst = this->iLogSequence;  // faded out: nothing shows until the next entry
+            if(this->fLogYPos >= this->logFont->getHeight() * (cv::console_overlay_lines.getInt() + 1))
+                this->iOverlayFirst = this->iLogSequence;  // faded out: nothing shows until the next entry
+        }
     }
 }
 

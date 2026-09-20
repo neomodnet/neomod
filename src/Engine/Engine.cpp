@@ -252,6 +252,7 @@ bool Engine::loadApp() {
 
         // create engine gui
         this->guiContainer = new CBaseUIContainer(0, 0, this->getScreenWidth(), this->getScreenHeight(), "");
+        this->guiEventCtx = std::make_unique<CBaseUIEventCtx>();
         this->consoleBox = new ConsoleBox();
         this->guiContainer->addBaseUIElement(this->consoleBox);
         this->consoleWindow = new ConsoleWindow();
@@ -465,7 +466,8 @@ void Engine::onUpdate() {
                 // the engine gui is laid out in window pixels, the app's pointer mapping does not apply to it
                 const Mouse::RealPosScope realPos(mouse);
                 this->guiContainer->tick();
-                CBaseUIEventCtx c;
+                CBaseUIEventCtx &c{*this->guiEventCtx};
+                c.clear();
                 this->guiContainer->updateInput(c);
                 // engine root dispatches (and consumes) before the app root: it draws on top
                 CBaseUIDispatch::dispatchEvents(c, CBaseUIDispatch::Root::ENGINE);

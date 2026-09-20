@@ -2081,7 +2081,7 @@ void SongBrowser::rebuildSongButtons() {
         button->resetAnimations();
 
         // if it's a collection button, recount the number of search-matching children to use as a label
-        if(button->isType<CollectionButton>()) {
+        if(auto *collBtn = button->as<CollectionButton>()) {
             i32 numVisibleDescendants = 0;
             for(const auto *c : button->getChildren()) {
                 const auto &childrenChildren = c->getChildren();
@@ -2092,8 +2092,6 @@ void SongBrowser::rebuildSongButtons() {
                 } else if(c->isSearchMatch())
                     numVisibleDescendants++;
             }
-            auto *collBtn = button->as<CollectionButton>();
-            assert(collBtn != nullptr);
             collBtn->setNumVisibleChildren(numVisibleDescendants);
         }
 
