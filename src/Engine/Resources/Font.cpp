@@ -1808,6 +1808,7 @@ void McFont::cleanupSharedResources() {
 }
 
 void McFont::drawTextureAtlas() const {
+    if(!this->isReady()) return;
     // debug
     g->setColor((Color)-1);
     g->pushTransform();

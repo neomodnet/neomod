@@ -385,7 +385,7 @@ $(DEPS_PREFIX)/SDL3-$(SDL3_VERSION).built: $(DEPS_CACHE)/SDL3-$(SDL3_VERSION).ta
 	$(SED) -i 's|KMSDRM_gbm_surface_release_buffer.*next_bo.*|//\0|' src/video/kmsdrm/SDL_kmsdrmvideo.c && \
 	patch -Np1<$(BUILD_MISCDIR)/SDL3-PR14048-emscripten-clipboard.patch && \
 	patch -Np1<$(BUILD_MISCDIR)/SDL3-IS15656-D3D12-latency-poc.patch && \
-	PKG_CONFIG="$(PKG_CONFIG)" LDFLAGS="$(LDFLAGS) $(if $(SDL3_STATIC),,$(SDL3_EXTRALIBS))" CC="$(CC)" CXX="$(CXX)" \
+	PKG_CONFIG="$(PKG_CONFIG)" LDFLAGS="$(LDFLAGS) $(if $(SDL3_STATIC),,$(SDL3_EXTRALIBS))" CC="$(CC)" CXX="$(CXX)" OBJCFLAGS="$(OBJCFLAGS)" \
 	$(CMAKE_CONF_PFX) $(CMAKE) -S . -B build -G "$(CMAKE_GEN)" \
 		-D CMAKE_BUILD_TYPE="$(if $(ENABLE_DEBUG),Debug,Release)" \
 		$(if $(ENABLE_ASAN),-DSDL_ASAN=ON,) \
@@ -420,7 +420,9 @@ $(DEPS_PREFIX)/SDL3-$(SDL3_VERSION).built: $(DEPS_CACHE)/SDL3-$(SDL3_VERSION).ta
 		-D SDL_CCACHE="$(if $(filter ccache,$(CCACHE)),ON,OFF)" \
 		-D CMAKE_C_COMPILER="$(CC)" \
 		-D CMAKE_C_FLAGS_RELEASE="$(CFLAGS) -Wno-error=incompatible-pointer-types -DUSE_XINPUT2_KEYBOARD=1" \
-		-D CMAKE_C_FLAGS_DEBUG="$(CFLAGS) -Wno-error=incompatible-pointer-types -DUSE_XINPUT2_KEYBOARD=1" && \
+		-D CMAKE_C_FLAGS_DEBUG="$(CFLAGS) -Wno-error=incompatible-pointer-types -DUSE_XINPUT2_KEYBOARD=1" \
+		-D CMAKE_OBJC_FLAGS_RELEASE="$(CFLAGS)" \
+		-D CMAKE_OBJC_FLAGS_DEBUG="$(CFLAGS)" && \
 	$(CMAKE) --build build "$(CMAKEPAROPT)" && \
 	$(CMAKE) --install build
 	$(PKG_CONFIG) --exists --print-errors sdl3
@@ -494,7 +496,7 @@ $(DEPS_PREFIX)/ffmpeg-$(FFMPEG_VERSION)-$(FFMPEG_EPOCH).built: $(DEPS_CACHE)/$(F
 	$(if $(ubercompat),$(SED) -i -e "s|WC_ERR_INVALID_CHARS|0|" $(DEPS_PREFIX)/ffmpeg/libavutil/wchar_filename.h,true) && \
 	$(SED) -i -e 's|dlltool=.*|dlltool=$(DLLTOOL)|' $(DEPS_PREFIX)/ffmpeg/configure && \
 	cd $(DEPS_PREFIX)/ffmpeg/build && \
-	{ CFLAGS="$(CFLAGS) $(FFMPEG_EXTRA_FLAGS)" CXXFLAGS="$(CXXFLAGS) $(FFMPEG_EXTRA_FLAGS)" LDFLAGS="$(LDFLAGS) $(WINPTHREAD_LDFLAGS) $(FFMPEG_EXTRA_FLAGS)" \
+	{ CFLAGS="$(CFLAGS) $(FFMPEG_EXTRA_FLAGS)" CXXFLAGS="$(CXXFLAGS) $(FFMPEG_EXTRA_FLAGS)" OBJCFLAGS="$(OBJCFLAGS)" LDFLAGS="$(LDFLAGS) $(WINPTHREAD_LDFLAGS) $(FFMPEG_EXTRA_FLAGS)" \
 		$(CONFIGURE_PFX) ../configure $(FFMPEG_CONFIGURE_FLAGS) || cat ffbuild/config.log ; } && \
 	$(MAKE_PFX) $(MAKE) && \
 	$(MAKE_PFX) $(MAKE) install
@@ -541,6 +543,7 @@ if WIN_PLATFORM
 DISCORDRPC_LIBS += -lpsapi -ladvapi32
 endif
 
+# OBJCFLAGS go with the C flags because discord-rpc doesn't enable the OBJC language (discord_register_osx.m is built as C)
 $(DEPS_PREFIX)/discord-rpc-$(DISCORDRPC_COMMIT).built: $(DEPS_CACHE)/discord-rpc-$(DISCORDRPC_COMMIT).tar.gz $(DEPS_CACHE)/rapidjson-$(RAPIDJSON_COMMIT).tar.gz
 	rm -rf $(DEPS_PREFIX)/discord-rpc
 	$(MKDIR_P) $(DEPS_PREFIX)/discord-rpc/build
@@ -556,8 +559,8 @@ $(DEPS_PREFIX)/discord-rpc-$(DISCORDRPC_COMMIT).built: $(DEPS_CACHE)/discord-rpc
 		-D CMAKE_SYSTEM_PROCESSOR="$(host_cpu)" \
 		-D CMAKE_C_COMPILER="$(CC)" \
 		-D CMAKE_CXX_COMPILER="$(CXX)" \
-		-D CMAKE_C_FLAGS_RELEASE="$(CFLAGS)" \
-		-D CMAKE_C_FLAGS_DEBUG="$(CFLAGS)" \
+		-D CMAKE_C_FLAGS_RELEASE="$(CFLAGS) $(OBJCFLAGS)" \
+		-D CMAKE_C_FLAGS_DEBUG="$(CFLAGS) $(OBJCFLAGS)" \
 		-D CMAKE_CXX_FLAGS_RELEASE="$(CXXFLAGS)" \
 		-D CMAKE_CXX_FLAGS_DEBUG="$(CXXFLAGS)" \
 		$(CMAKERCOPT) $(CMAKEIDOPT) \

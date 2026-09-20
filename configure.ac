@@ -979,6 +979,44 @@ AS_IF([test -n "$LLD" && test "x$using_mold" != "xyes" && test "x$enable_clang" 
     ])
 ])
 
+# clang calls objc class methods through stubs (objc_msgSendClass$...) that the linker has to synthesize, going by
+# the apple ld version it assumes and not by -fuse-ld, and lld can't create them (as of llvm 23).
+# only turn them off if such a call really fails to link, so that the flag goes away by itself once it's not needed
+AC_ARG_VAR([OBJCFLAGS], [Objective C compiler flags])
+AS_IF([test "$SYSNAME" = "macos"], [
+    AC_MSG_CHECKING([for flags needed to link objc class method calls])
+    AC_LANG_PUSH([C])
+    _save_CFLAGS="$CFLAGS"
+    _save_LIBS="$LIBS"
+    LIBS="$LIBS -lobjc"
+    _objc_links=no
+    for _objc_stubs_flag in "" "-fno-objc-msgsend-class-selector-stubs"; do
+        CFLAGS="$_save_CFLAGS -x objective-c $_objc_stubs_flag"
+        AC_LINK_IFELSE([
+            AC_LANG_SOURCE([[
+__attribute__((objc_root_class))
+@interface ConfProbe
++ (int)value;
+@end
+@implementation ConfProbe
++ (int)value { return 0; }
+@end
+int main(void) { return [ConfProbe value]; }
+            ]])
+        ], [_objc_links=yes])
+        AS_IF([test "$_objc_links" = "yes"], [break])
+    done
+    CFLAGS="$_save_CFLAGS"
+    LIBS="$_save_LIBS"
+    AC_LANG_POP([C])
+    AS_IF([test "$_objc_links" = "yes"], [
+        AC_MSG_RESULT([${_objc_stubs_flag:-none}])
+        AS_IF([test -n "$_objc_stubs_flag"], [OBJCFLAGS="$OBJCFLAGS $_objc_stubs_flag"])
+    ], [
+        AC_MSG_RESULT([unknown])
+    ])
+])
+
 # putting this part here so that $CC is defined to the final value
 AS_IF([test "$host_os" = "mingw32"], [
     WINPTHREAD_LDFLAGS=""
