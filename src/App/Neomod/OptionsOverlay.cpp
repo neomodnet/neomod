@@ -3033,7 +3033,10 @@ void OptionsOverlayImpl::updateFposuDPI() {
         else
             value.push_back(text[i]);
     }
-    cv::fposu_mouse_dpi.setValue(value);
+
+    // not a number: show what it still is instead
+    if(cv::fposu_mouse_dpi.setValue(value) == CvarSetResult::INVALID)
+        this->dpiTextbox->setText(cv::fposu_mouse_dpi.getString());
 }
 
 void OptionsOverlayImpl::updateFposuCMper360() {
@@ -3049,7 +3052,9 @@ void OptionsOverlayImpl::updateFposuCMper360() {
         else
             value.push_back(text[i]);
     }
-    cv::fposu_mouse_cm_360.setValue(value);
+
+    if(cv::fposu_mouse_cm_360.setValue(value) == CvarSetResult::INVALID)
+        this->cm360Textbox->setText(cv::fposu_mouse_cm_360.getString());
 }
 
 void OptionsOverlayImpl::updateSkinNameLabel() {

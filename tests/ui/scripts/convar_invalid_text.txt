@@ -1,0 +1,25 @@
+# text that isn't valid for a convar doesn't get set: ConVar::setValue says so, and whoever let the text
+# in (here: the console and a skin.ini) is who tells someone about it, once. the convar keeps its value,
+# and valid lines next to an invalid one still apply.
+# uitest-datadir: fresh
+# uitest-file: skins/cvtest/skin.ini|[General]|Name: cvtest|Author: uitest||[neomod]|fposu_fov: garbage|hud_scale: 1.5
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+fposu_fov 77
+fposu_fov garbage
+ui_assert convar fposu_fov 77
+draw_fps false
+ui_assert convar draw_fps 0
+draw_fps maybe
+ui_assert convar draw_fps 0
+skin cvtest
+@wait 5
+ui_assert convar fposu_fov 77
+ui_assert convar hud_scale 1.5
+exit

@@ -228,11 +228,11 @@ void ConVar::setDefaultString(std::string_view newDefault) {
 // typed setValue impls — header dispatcher (setValue<T>) routes here based on T category.
 // Each just computes the (double, std::string) representation and hands off to setValueInt.
 
-void ConVar::setValueImpl(double newDouble, bool doCallback, CvarEditor editor) {
-    this->setValueInt(newDouble, fmt::format("{:g}", newDouble), doCallback, editor);
+CvarSetResult ConVar::setValueImpl(double newDouble, bool doCallback, CvarEditor editor) {
+    return this->setValueInt(newDouble, fmt::format("{:g}", newDouble), doCallback, editor);
 }
 
-void ConVar::setValueImpl(std::string_view newString, bool doCallback, CvarEditor editor) {
+CvarSetResult ConVar::setValueImpl(std::string_view newString, bool doCallback, CvarEditor editor) {
     double dbl{this->defaultValue.d};
     const auto [ptr, err] = Parsing::from_chars(newString.data(), newString.data() + newString.size(), dbl);
     (void)ptr;
@@ -250,24 +250,25 @@ void ConVar::setValueImpl(std::string_view newString, bool doCallback, CvarEdito
             // only numeric convars need their text to be a number
             dbl = this->defaultValue.d;
         } else {
-            debugLog("{:s}: \"{:s}\" is not a number", this->sName, newString);
-            return;
+            logIfCV(debug_cv, "{:s}: \"{:s}\" is not a valid {:s} value", this->sName, newString,
+                    ConVar::typeToString(this->type));
+            return CvarSetResult::INVALID;
         }
     }
-    this->setValueInt(dbl, std::string{newString}, doCallback, editor);
+    return this->setValueInt(dbl, std::string{newString}, doCallback, editor);
 }
 
 // central store-and-dispatch. handles flag gating, value store, protected/exec/change callbacks.
-void ConVar::setValueInt(double newDouble, std::string newString, bool doCallback, CvarEditor editor) {
+CvarSetResult ConVar::setValueInt(double newDouble, std::string newString, bool doCallback, CvarEditor editor) {
     // editor must match a flag we accept
-    if(editor == CvarEditor::CLIENT && !this->isFlagSet(cv::CLIENT)) return;
-    if(editor == CvarEditor::SKIN && !this->isFlagSet(cv::SKINS)) return;
-    if(editor == CvarEditor::SERVER && !this->isFlagSet(cv::SERVER)) return;
+    if(editor == CvarEditor::CLIENT && !this->isFlagSet(cv::CLIENT)) return CvarSetResult::DENIED;
+    if(editor == CvarEditor::SKIN && !this->isFlagSet(cv::SKINS)) return CvarSetResult::DENIED;
+    if(editor == CvarEditor::SERVER && !this->isFlagSet(cv::SERVER)) return CvarSetResult::DENIED;
 
     // gameplay gate: if flag set AND callback exists AND callback denies, skip
     if(this->isFlagSet(cv::GAMEPLAY) && likely(!!ConVar::onSetValueGameplayCallback) &&
        unlikely(!ConVar::onSetValueGameplayCallback(this->sName, editor))) {
-        return;
+        return CvarSetResult::VETOED;
     }
 
     // backup old values for callbacks
@@ -300,9 +301,29 @@ void ConVar::setValueInt(double newDouble, std::string newString, bool doCallbac
 
     // a write below whatever decides the value right now (a skin/server value, the protection lock) is kept for
     // later, but it changes nothing anyone could see: callbacks hear about it if and when it becomes the value
-    if(!doCallback || this->master != editor) return;
+    if(this->master != editor) return CvarSetResult::MASKED;
 
-    this->runCallbacks(oldDouble, oldString);
+    if(doCallback) this->runCallbacks(oldDouble, oldString);
+    return CvarSetResult::APPLIED;
+}
+
+void ConVar::clearValue(CvarEditor editor) {
+    if(!this->bCanHaveValue) return;
+
+    // a regular write, with everything that comes with one
+    if(editor == CvarEditor::CLIENT) {
+        this->setValueInt(this->defaultValue.d, this->defaultValue.s, true, editor);
+        return;
+    }
+
+    auto &layer = (editor == CvarEditor::SKIN) ? this->skinValue : this->serverValue;
+    if(!layer) return;
+
+    // (the old value has to outlive the getters pointing at it)
+    const Value old = this->snapshot();
+    const auto oldLayer = std::move(layer);
+    this->resolve();
+    this->notifyIfChanged(old);
 }
 
 void ConVar::runCallbacks(double oldDouble, std::string_view oldString) {

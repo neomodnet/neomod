@@ -12,6 +12,7 @@ using namespace std::string_view_literals;
 using namespace std::string_literals;
 
 class ConVar;
+enum class CvarEditor : uint8_t;
 
 class ConVarHandler {
     NOCOPY_NOMOVE(ConVarHandler)
@@ -43,10 +44,9 @@ class ConVarHandler {
     void setProtectionEnforced(bool enforced);
     [[nodiscard]] forceinline bool isProtectionEnforced() const { return this->bProtectionEnforced; }
 
-    void resetServerCvars();
-    void resetSkinCvars();
-
-    bool removeServerValue(std::string_view cvarName);
+    // ConVar::clearValue() for every convar: forgets everything a skin/the server has set, which for the server
+    // includes what it has protected/unprotected
+    void clearLayer(CvarEditor editor);
 
     // extra check run during areAllCvarsSubmittable
     using CVSubmittableCriteriaFunc = bool (*)();

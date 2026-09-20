@@ -278,11 +278,11 @@ void Skin::load() {
 
     bool parseSkinIni1Status = true;
     bool parseSkinIni2Status = true;
-    cvars().resetSkinCvars();
+    cvars().clearLayer(CvarEditor::SKIN);
     if(!this->parseSkinINI(this->skin_ini_path)) {
         parseSkinIni1Status = false;
         this->skin_ini_path = Mc::Paths::materials() + "/default/skin.ini";
-        cvars().resetSkinCvars();
+        cvars().clearLayer(CvarEditor::SKIN);
         parseSkinIni2Status = this->parseSkinINI(this->skin_ini_path);
     }
 
@@ -915,10 +915,17 @@ bool Skin::parseSkinINI(std::string_view filepath) {
                 // (and ideally, reload skin if any of them would affect the skin load (or parse neomod section early?))
                 if(Parsing::parse(curLine.substr(0, pos), &name) && Parsing::parse(curLine.substr(pos + 1), &value)) {
                     auto *cvar = cvars().getConVarByName(name, false);
-                    if(cvar) {
-                        cvar->setValue(value, true, CvarEditor::SKIN);
-                    } else {
+                    if(!cvar) {
                         debugLog("Skin wanted to set cvar '{}' to '{}', but it doesn't exist!", name, value);
+                    } else if(const auto result = cvar->setValue(value, true, CvarEditor::SKIN);
+                              result == CvarSetResult::INVALID) {
+                        debugLog("Skin wanted to set cvar '{}' to '{}', but that's not a valid value for it!", name,
+                                 value);
+                    } else if(result == CvarSetResult::DENIED) {
+                        debugLog("Skin wanted to set cvar '{}' to '{}', but skins can't change it!", name, value);
+                    } else if(result == CvarSetResult::VETOED) {
+                        debugLog("Skin wanted to set cvar '{}' to '{}', but it can't be changed right now!", name,
+                                 value);
                     }
                 }
 

@@ -794,22 +794,29 @@ void BanchoState::handle_packet(Packet &packet) {
                 auto name = packet.read_stdstring();
                 auto val = packet.read_stdstring();
                 auto cvar = cvars().getConVarByName(name, false);
-                if(cvar) {
-                    cvar->setValue(val, true, CvarEditor::SERVER);
-                } else {
+                if(!cvar) {
                     debugLog("Server wanted to set cvar '{}' to '{}', but it doesn't exist!", name, val);
+                } else if(const auto result = cvar->setValue(val, true, CvarEditor::SERVER);
+                          result == CvarSetResult::INVALID) {
+                    debugLog("Server wanted to set cvar '{}' to '{}', but that's not a valid value for it!", name, val);
+                } else if(result == CvarSetResult::DENIED) {
+                    debugLog("Server wanted to set cvar '{}' to '{}', but servers can't change it!", name, val);
+                } else if(result == CvarSetResult::VETOED) {
+                    debugLog("Server wanted to set cvar '{}' to '{}', but it can't be changed right now!", name, val);
                 }
             }
 
             break;
         }
 
-        // this should at least be in ConVarHandler...
         case INP_RESET_VALUES: {
             u16 nb_variables = packet.read<u16>();
             for(u16 i = 0; i < nb_variables; i++) {
                 auto name = packet.read_stdstring();
-                if(!cvars().removeServerValue(name)) {
+                auto cvar = cvars().getConVarByName(name, false);
+                if(cvar) {
+                    cvar->clearValue(CvarEditor::SERVER);
+                } else {
                     debugLog("Server wanted to reset cvar '{}', but it doesn't exist!", name);
                 }
             }

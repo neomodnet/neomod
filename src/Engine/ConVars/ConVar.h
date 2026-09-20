@@ -67,6 +67,15 @@ concept CallbackAny = CallbackCmd<C> || std::is_invocable_v<C, std::string_view,
 enum class CvarEditor : uint8_t { CLIENT, SERVER, SKIN };
 enum class CvarProtection : uint8_t { DEFAULT, PROTECTED, UNPROTECTED };
 
+// what became of a setValue()
+enum class CvarSetResult : uint8_t {
+    APPLIED,  // it is the convar's value now
+    MASKED,   // kept for later: a skin's/the server's value or the protection lock decides the value right now
+    DENIED,   // this editor isn't allowed to set the convar (see CvarFlags)
+    VETOED,   // the app refused the change (see setOnSetValueGameplayCallback)
+    INVALID,  // not something the convar can be set to (see setValue())
+};
+
 class ConVar {
     // convenience for "tricking" clangd/intellisense into allowing us to use a namespace for ConVarHandler in ConVarDefs.h
 #ifndef DEFINE_CONVARS
@@ -217,16 +226,23 @@ class ConVar {
     void execFloat(float args);
     void execDouble(double args);
 
+    // every editor has a value of its own: the server's beats the skin's, which beats the client's (see resolve()).
+    // not every text is something a convar can be set to: numeric ones only take numbers (and bool ones
+    // "true"/"false"). anything else leaves the convar alone and is INVALID, which is for whoever lets text in from
+    // outside to look at, since nobody else is able to tell anyone about it (debug_cv logs it as well)
     template <typename T>
-    void setValue(T &&value, bool doCallback = true, CvarEditor editor = CvarEditor::CLIENT) {
+    CvarSetResult setValue(const T &value, bool doCallback = true, CvarEditor editor = CvarEditor::CLIENT) {
         using D = std::decay_t<T>;
         // bool is convertible to double, so it flows through the numeric path and is stored as
         // "1"/"0" like ints/floats; the string overload parses/normalizes "true"/"false" back
         if constexpr(std::is_convertible_v<D, double>)
-            this->setValueImpl(static_cast<double>(value), doCallback, editor);
+            return this->setValueImpl(static_cast<double>(value), doCallback, editor);
         else
-            this->setValueImpl(std::string_view{value}, doCallback, editor);
+            return this->setValueImpl(std::string_view{value}, doCallback, editor);
     }
+
+    // takes the skin's/the server's value away again (the client's can't go away: it gets set back to the default)
+    void clearValue(CvarEditor editor);
 
     // generic callback setter that auto-detects callback type
     template <typename Callback>
@@ -310,6 +326,14 @@ class ConVar {
         return this->getDouble() == this->getDefaultDouble();
     }
 
+    // the client's own value, no matter what is overriding it at the moment: this (and not what the getters above
+    // return) is what belongs into the client's config
+    [[nodiscard]] inline const std::string &getClientString() const { return this->clientValue.s; }
+    [[nodiscard]] inline bool isClientDefault() const {
+        if(this->type == CONVAR_TYPE::STRING) return this->clientValue.s == this->defaultValue.s;
+        return this->clientValue.d == this->defaultValue.d;
+    }
+
     void setServerProtected(CvarProtection policy);
 
     [[nodiscard]] inline bool isProtected() const {
@@ -333,8 +357,8 @@ class ConVar {
    private:
     // typed setValue impls — public setValue<T> dispatches into these based on T category
     // (bool routes through the double overload; there's no dedicated bool string form)
-    void setValueImpl(double newDouble, bool doCallback, CvarEditor editor);
-    void setValueImpl(std::string_view newString, bool doCallback, CvarEditor editor);
+    CvarSetResult setValueImpl(double newDouble, bool doCallback, CvarEditor editor);
+    CvarSetResult setValueImpl(std::string_view newString, bool doCallback, CvarEditor editor);
 
     // typed setCallback impls — public setCallback<C> dispatches into these
     void setCallbackImpl(VoidCB cb);
@@ -388,7 +412,7 @@ class ConVar {
     void initCmdCallbackImpl(uint8_t flags, DoubleCB cb);
 
     // central store-and-dispatch routine called by both setValueImpl overloads
-    void setValueInt(double newDouble, std::string newString, bool doCallback, CvarEditor editor);
+    CvarSetResult setValueInt(double newDouble, std::string newString, bool doCallback, CvarEditor editor);
 
     // recomputes what the getters return: the only place that picks between the default/client/skin/server values.
     // has to run after every change to something it looks at (setValueInt does for writes, everything else

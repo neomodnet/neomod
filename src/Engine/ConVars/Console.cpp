@@ -84,8 +84,19 @@ bool processCommand(std::string_view command, bool fromFile) {
     }
 
     // set new value (this handles all callbacks internally)
+    auto result = CvarSetResult::APPLIED;
     if(commandValue.length() > 0) {
-        var->setValue(commandValue);
+        result = var->setValue(commandValue);
+        if(result == CvarSetResult::INVALID) {
+            debugLog("{:s}: \"{:s}\" is not a valid {:s} value", commandName, commandValue,
+                     ConVar::typeToString(var->getType()));
+            return false;
+        }
+        if(result == CvarSetResult::DENIED || result == CvarSetResult::VETOED) {
+            debugLog("{:s} can't be changed {:s}", commandName,
+                     result == CvarSetResult::DENIED ? "by the client" : "right now");
+            return false;
+        }
     } else {
         var->exec();
         var->execArgs("");
@@ -121,6 +132,11 @@ bool processCommand(std::string_view command, bool fromFile) {
             logMessage = commandName;
             logMessage.append(" : ");
             logMessage.append(var->getString());
+            if(result == CvarSetResult::MASKED) {
+                logMessage.append(fmt::format(" (forced by the {:s}, \"{:s}\" is kept for later)",
+                                              var->getMaster() == CvarEditor::SKIN ? "skin" : "server",
+                                              var->getClientString()));
+            }
         }
 
         if(logMessage.length() > 0 && doLog) debugLog("{:s}", logMessage);

@@ -141,43 +141,26 @@ void ConVarHandler::setProtectionEnforced(bool enforced) {
     for(const auto &[cv, old] : changed) cv->notifyIfChanged(old);
 }
 
-void ConVarHandler::resetServerCvars() {
+void ConVarHandler::clearLayer(CvarEditor editor) {
+    // (nothing gets taken away here, these are regular writes)
+    if(editor == CvarEditor::CLIENT) {
+        for(auto *cv : this->vConVarArray) cv->clearValue(editor);
+        return;
+    }
+
     std::vector<std::pair<ConVar *, ConVar::Value>> changed;
     for(auto *cv : this->vConVarArray) {
-        if(!cv->serverValue && cv->serverProtectionPolicy == CvarProtection::DEFAULT) continue;
+        auto &layer = (editor == CvarEditor::SKIN) ? cv->skinValue : cv->serverValue;
+        const bool hasPolicy = (editor == CvarEditor::SERVER) && cv->serverProtectionPolicy != CvarProtection::DEFAULT;
+        if(!layer && !hasPolicy) continue;
         changed.emplace_back(cv, cv->snapshot());
 
         // (the old value has to outlive the getters pointing at it)
-        const auto oldServerValue = std::move(cv->serverValue);
-        cv->serverProtectionPolicy = CvarProtection::DEFAULT;
+        const auto oldLayer = std::move(layer);
+        if(hasPolicy) cv->serverProtectionPolicy = CvarProtection::DEFAULT;
         cv->resolve();
     }
     for(const auto &[cv, old] : changed) cv->notifyIfChanged(old);
-}
-
-void ConVarHandler::resetSkinCvars() {
-    std::vector<std::pair<ConVar *, ConVar::Value>> changed;
-    for(auto *cv : this->vConVarArray) {
-        if(!cv->skinValue) continue;
-        changed.emplace_back(cv, cv->snapshot());
-
-        const auto oldSkinValue = std::move(cv->skinValue);
-        cv->resolve();
-    }
-    for(const auto &[cv, old] : changed) cv->notifyIfChanged(old);
-}
-
-bool ConVarHandler::removeServerValue(std::string_view cvarName) {
-    ConVar *cvarToChange = this->getConVar_int(cvarName);
-    if(!cvarToChange) return false;
-
-    if(cvarToChange->serverValue) {
-        const ConVar::Value old = cvarToChange->snapshot();
-        const auto oldServerValue = std::move(cvarToChange->serverValue);
-        cvarToChange->resolve();
-        cvarToChange->notifyIfChanged(old);
-    }
-    return true;
 }
 
 //*****************************//

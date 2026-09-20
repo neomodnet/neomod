@@ -396,7 +396,7 @@ void BanchoState::poll_login() {
 }
 
 void BanchoState::disconnect(bool shutdown) {
-    cvars().resetServerCvars();
+    cvars().clearLayer(CvarEditor::SERVER);
 
     // reset
     BanchoState::nonsubmittable_notification_clicked = false;
