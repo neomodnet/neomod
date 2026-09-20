@@ -69,6 +69,9 @@ class RoomScreen final : public UIScreen {
     void updateSettingsLayout(vec2 newResolution);
     void ragequit(bool play_sound = true);
 
+    // applies the mods of the room and of our slot in it
+    void useRoomMods();
+
     void on_map_change();
     void on_room_joined(const Room& room);
     void on_room_updated(const Room& room);

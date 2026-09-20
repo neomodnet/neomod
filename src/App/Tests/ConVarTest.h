@@ -24,6 +24,7 @@ class ConVarTest : public App {
     void testCommands();
     void testSetLayer();
     void testRange();
+    void testSession();
     void testThreads();
 
     int m_passes{0};

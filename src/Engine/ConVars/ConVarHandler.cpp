@@ -125,6 +125,29 @@ void ConVarHandler::clearLayer(CvarEditor editor) {
     for(const auto &[cv, old] : changed) cv->notifyIfChanged(old);
 }
 
+void ConVarHandler::beginSession(std::span<ConVar *const> convars) {
+    for(auto *cv : convars) {
+        if(cv->sessionValue || !cv->bCanHaveValue) continue;
+
+        // (nothing to tell anyone about: it is the same value, from somewhere else)
+        cv->sessionValue = std::make_unique<ConVar::Value>(cv->clientValue);
+        cv->resolve();
+        this->vSessionConVars.push_back(cv);
+    }
+}
+
+void ConVarHandler::endSession() {
+    std::vector<std::pair<ConVar *, ConVar::Value>> changed;
+    changed.reserve(this->vSessionConVars.size());
+    for(auto *cv : this->vSessionConVars) {
+        changed.emplace_back(cv, cv->snapshot());
+        cv->sessionValue.reset();
+        cv->resolve();
+    }
+    this->vSessionConVars.clear();
+    for(const auto &[cv, old] : changed) cv->notifyIfChanged(old);
+}
+
 std::vector<CvarSetResult> ConVarHandler::setLayer(CvarEditor editor,
                                                    std::span<const std::pair<ConVar *, std::string>> values) {
     std::vector<CvarSetResult> results(values.size(), CvarSetResult::DENIED);

@@ -60,6 +60,16 @@
 using namespace flags::operators;
 using namespace neomod;
 
+// the mods that came with what was being watched (a replay, a spectated player) go away with it: the player's own ones
+// are back, or the room's if it was watched from inside of one
+static void end_watched_mod_session() {
+    if(BanchoState::is_in_a_multi_room()) {
+        ui->getRoomScreen()->useRoomMods();
+    } else {
+        Replay::Mods::end_session();
+    }
+}
+
 BeatmapInterface::BeatmapInterface() : AbstractBeatmapInterface(), ppv2_calc(this) {
     // vars
     this->bIsPlaying = false;
@@ -482,17 +492,19 @@ bool BeatmapInterface::watch(const FinishedScore &score, u32 start_ms) {
     this->bContinueScheduled = false;
     this->unloadObjects();
 
-    *osu->previous_mods = Replay::Mods::from_cvars();
-
     osu->watched_user_name = score.playerName;
     osu->watched_user_id = score.player_id;
     this->replay_data = score;
     this->is_watching = true;
 
+    // the replay's mods are only for watching it (see stop())
+    Replay::Mods::begin_session();
     Replay::Mods::use(score.mods);
 
     if(!this->start()) {
         // Map failed to load
+        end_watched_mod_session();
+        this->is_watching = false;
         return false;
     }
 
@@ -526,16 +538,18 @@ bool BeatmapInterface::spectate() {
     osu->watched_user_id = BanchoState::spectated_player_id;
     osu->watched_user_name = user_info->name;
 
-    *osu->previous_mods = Replay::Mods::from_cvars();
-
     FinishedScore score;
     score.client = "peppy-unknown";
     score.server = BanchoState::endpoint;
     score.mods = Replay::Mods::from_legacy(user_info->mods);
+
+    // the spectated player's mods are only for watching them play (see stop())
+    Replay::Mods::begin_session();
     Replay::Mods::use(score.mods);
 
     if(!this->start()) {
         // Map failed to load
+        end_watched_mod_session();
         return false;
     }
 
@@ -948,8 +962,10 @@ void BeatmapInterface::stop(bool quit) {
         osu->bModAutoTemp = false;
     }
 
-    if(this->is_watching || BanchoState::spectating) {
-        Replay::Mods::use(*osu->previous_mods);
+    // (outside of a room there is nothing else that a session could be for, so whatever is left of one ends here as
+    // well: a disconnect while spectating doesn't get here as "spectating" anymore)
+    if(this->is_watching || BanchoState::spectating || !BanchoState::is_in_a_multi_room()) {
+        end_watched_mod_session();
     }
 
     this->is_watching = false;

@@ -3,11 +3,15 @@
 # got dropped from osu.cfg (and stayed lost if the game didn't get to re-save outside of the room).
 # drain_kill also has a checkbox in the options menu, which must not write the default it is showing
 # in there back as the client's value (the first visit to the options menu is what unchecks it).
+# the room's mods aren't the client's either: its own ones (mod_hidden) have to stay in the config,
+# and what the room turns on (mod_no_pausing) must not get into it.
 # the save is async (read old cfg -> write), hence the @sleep/@wait pairs around it; the final
 # options_save_on_back 0 keeps the exit path from saving again after the room is gone.
 # uitest-datadir: fresh
 # uitest-cfg: playfield_rotation 45
 # uitest-cfg: drain_kill 0
+# uitest-cfg: mod_hidden 1
+# uitest-cfg: mod_no_pausing -
 debug_fixed_frametime 0.0166667
 mouse_raw_input 0
 mouse_sensitivity 1
@@ -19,6 +23,7 @@ mouse_to 10 10
 @wait 5
 playfield_rotation 45
 drain_kill 0
+mod_hidden 1
 ui_assert convar playfield_rotation 45
 set_active_ui_screen optionsoverlay
 @wait 20
@@ -33,6 +38,8 @@ debug_fake_room
 ui_assert screen_active room 1
 ui_assert convar playfield_rotation 0
 ui_assert convar drain_kill 1
+ui_assert convar mod_hidden 0
+ui_assert convar mod_no_pausing 1
 set_active_ui_screen optionsoverlay
 @wait 20
 ui_assert visible optionsoverlay 1

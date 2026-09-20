@@ -32,10 +32,6 @@ enum KeyFlags : uint8_t;
 }
 using GameplayKeys = LegacyReplay::KeyFlags;
 
-namespace Replay {
-struct Mods;
-}
-
 #ifndef CONVAR_H
 enum class CvarEditor : uint8_t;
 #endif
@@ -270,10 +266,6 @@ class Osu final : public App, public MouseListener, public TouchListener {
 
     // NOTE: unique_ptrs are destroyed in reverse order of declaration in header
 
-   public:
-    std::unique_ptr<Replay::Mods> previous_mods{nullptr};  // XXX: hacky and out of place
-
-   private:
     // database instance
     std::unique_ptr<Database> db_memb{nullptr};
 

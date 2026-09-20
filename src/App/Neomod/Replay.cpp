@@ -8,6 +8,7 @@
 #include "BeatmapInterface.h"
 #include "CBaseUICheckbox.h"
 #include "CBaseUISlider.h"
+#include "ConVarHandler.h"
 #include "DatabaseBeatmap.h"
 #include "ModSelector.h"
 #include "OsuConVars.h"
@@ -281,17 +282,14 @@ Mods Mods::from_cvars() {
     return mods;
 }
 
-// FIXME: this is pretty broken, it overrides beatmap values as "mods" if they weren't actually overridden
-// among other issues, like setting drain_disabled etc.
-void Mods::use(const Mods &mods) {
+// every convar that mods are made of, with what the given mods want it to be
+// (one list for use() to set them and for begin_session() to know which ones there are)
+template <typename F>
+static void for_each_mod_cv(const Mods &mods, const F &func) {
     using enum ModFlags;
-    // Reset mod selector buttons and sliders
-    const auto &mod_selector = ui->getModSelector();
-    mod_selector->resetMods();
 
-    // Set cvars
-#define CVFROMFLAG(cvar__, mod__) cv::cvar__.setValue(flags::has<mod__>(mods.flags))
-#define CVFROMPROP(cvar__, modsetting__) cv::cvar__.setValue(mods.modsetting__)
+#define CVFROMFLAG(cvar__, mod__) func(cv::cvar__, flags::has<mod__>(mods.flags))
+#define CVFROMPROP(cvar__, modsetting__) func(cv::cvar__, mods.modsetting__)
 
     // FIXME: NoHP should not be changed here, it's a global option
     CVFROMFLAG(drain_disabled, NoHP);
@@ -356,22 +354,56 @@ void Mods::use(const Mods &mods) {
 #undef CVFROMFLAG
 
     if(flags::has<Autoplay>(mods.flags)) {
-        cv::mod_autoplay.setValue(true);
-        cv::mod_autopilot.setValue(false);
-        cv::mod_relax.setValue(false);
+        func(cv::mod_autoplay, true);
+        func(cv::mod_autopilot, false);
+        func(cv::mod_relax, false);
     } else {
-        cv::mod_autoplay.setValue(false);
-        cv::mod_autopilot.setValue(flags::has<Autopilot>(mods.flags));
-        cv::mod_relax.setValue(flags::has<Relax>(mods.flags));
+        func(cv::mod_autoplay, false);
+        func(cv::mod_autopilot, flags::has<Autopilot>(mods.flags));
+        func(cv::mod_relax, flags::has<Relax>(mods.flags));
     }
 
     f32 speed_override = mods.speed == 1.f ? -1.f : mods.speed;
-    cv::speed_override.setValue(speed_override);
+    func(cv::speed_override, speed_override);
+}
+
+// FIXME: this is pretty broken, it overrides beatmap values as "mods" if they weren't actually overridden
+// among other issues, like setting drain_disabled etc.
+void Mods::use(const Mods &mods) {
+    // Reset mod selector buttons and sliders
+    const auto &mod_selector = ui->getModSelector();
+    mod_selector->resetMods();
+
+    // Set cvars
+    for_each_mod_cv(mods, [](ConVar &cvar, auto value) -> void { cvar.setValue(value); });
 
     // Update mod selector UI
     mod_selector->useCurrentMods();
 
     // FIXME: this is already called like 5 times from the previous calls
+    osu->updateMods();
+}
+
+void Mods::begin_session() {
+    // everything that use() or the mod selector (which use() resets) can change
+    std::vector<ConVar *> convars = ui->getModSelector()->getModConVars();
+    for_each_mod_cv(Mods{}, [&convars](ConVar &cvar, auto /*value*/) -> void { convars.push_back(&cvar); });
+
+    // (these just mirror speed_override for the DT/HT buttons: useCurrentMods() keeps them in line, while having
+    // them go back by themselves would run their callbacks, which set speed_override)
+    std::erase_if(convars, [](const ConVar *cvar) {
+        return cvar == &cv::mod_doubletime_dummy || cvar == &cv::mod_halftime_dummy;
+    });
+
+    cvars().beginSession(convars);
+}
+
+void Mods::end_session() {
+    if(!cvars().isInSession()) return;
+    cvars().endSession();
+
+    // Update mod selector UI
+    ui->getModSelector()->useCurrentMods();
     osu->updateMods();
 }
 

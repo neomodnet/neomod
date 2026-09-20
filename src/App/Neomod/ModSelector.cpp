@@ -1258,34 +1258,42 @@ LegacyFlags ModSelector::getModFlags() const {
     return mods.to_legacy();
 }
 
+std::vector<ConVar *> ModSelector::getModConVars() const {
+    std::vector<ConVar *> convars;
+    for(const auto *modButton : this->modButtons) {
+        if(modButton == nullptr) continue;
+        for(const auto &state : modButton->states) {
+            if(state.cvar != nullptr) convars.push_back(state.cvar);
+        }
+    }
+    for(const auto &overrideSlider : this->overrideSliders) {
+        if(overrideSlider.cvar != nullptr) convars.push_back(overrideSlider.cvar);
+        if(overrideSlider.lockCvar != nullptr) convars.push_back(overrideSlider.lockCvar);
+    }
+    for(const auto &experimentalMod : this->experimentalMods) {
+        if(experimentalMod.cvar != nullptr) convars.push_back(experimentalMod.cvar);
+    }
+    return convars;
+}
+
 // Updates the UI to match current game state (does not change any convars)
 void ModSelector::useCurrentMods() {
-    if(cv::mod_perfect.getBool()) {
-        this->modButtonSDPF->setState(1);
-        this->modButtonSDPF->setOn(true, true, false);
-    } else if(cv::mod_suddendeath.getBool()) {
-        this->modButtonSDPF->setState(0);
-        this->modButtonSDPF->setOn(true, true, false);
-    } else {
-        this->modButtonSDPF->setOn(false, true, false);
-    }
-
-    this->modButtonNF->setOn(cv::mod_nofail.getBool(), true, false);
-    this->modButtonEZ->setOn(cv::mod_easy.getBool(), true, false);
-    this->modButtonHD->setOn(cv::mod_hidden.getBool(), true, false);
-    this->modButtonHR->setOn(cv::mod_hardrock.getBool(), true, false);
-    this->modButtonRX->setOn(cv::mod_relax.getBool(), true, false);
-    this->modButtonSO->setOn(cv::mod_spunout.getBool(), true, false);
-    this->modButtonAP->setOn(cv::mod_autopilot.getBool(), true, false);
-    this->modButtonTGT->setOn(cv::mod_target.getBool(), true, false);
-    this->modButtonFL->setOn(cv::mod_flashlight.getBool(), true, false);
-    this->modButtonSV2->setOn(cv::mod_scorev2.getBool(), true, false);
-
+    // (the DT/HT buttons' convars just mirror the speed)
     f32 speed = cv::speed_override.getFloat();
     cv::mod_doubletime_dummy.setValue(speed == 1.5f, false);
-    this->getGridButton(ModSelector::DT_POS)->setOn(speed == 1.5f, true, false);
     cv::mod_halftime_dummy.setValue(speed == 0.75f, false);
-    this->getGridButton(ModSelector::HT_POS)->setOn(speed == 0.75f, true, false);
+
+    // every mod button is on in the (last) state that has its convar on, e.g. PF instead of SD
+    for(auto *modButton : this->modButtons) {
+        if(modButton == nullptr || modButton->states.empty()) continue;
+
+        int state = -1;
+        for(int i = static_cast<int>(modButton->states.size()) - 1; i >= 0 && state < 0; i--) {
+            if(modButton->states[i].cvar != nullptr && modButton->states[i].cvar->getBool()) state = i;
+        }
+        if(state >= 0 && modButton->getState() != state) modButton->setState(state);
+        modButton->setOn(state >= 0, true, false);
+    }
 
     this->ARLock->setChecked(cv::ar_override_lock.getBool(), false);
     this->ODLock->setChecked(cv::od_override_lock.getBool(), false);

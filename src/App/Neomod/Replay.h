@@ -81,6 +81,13 @@ struct Mods {
     static Mods from_cvars();
     static void use(const Mods &mods);
 
+    // mods that aren't the player's own choice (a multiplayer room's, a watched replay's, a spectated player's) get
+    // used inside of a session (see ConVarHandler::beginSession()): what the player had selected before stays
+    // untouched below them, including in the config, and is back once the session ends.
+    // beginning a session during another one continues that one, ending one that isn't going on does nothing
+    static void begin_session();
+    static void end_session();
+
     // templated for either Packet or ByteBufferdFile::Reader/Writer
 
     template <GenericReader R>

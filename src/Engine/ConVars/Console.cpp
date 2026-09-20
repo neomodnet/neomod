@@ -134,8 +134,7 @@ bool processCommand(std::string_view command, bool fromFile) {
             logMessage.append(var->getString());
             if(result == CvarSetResult::MASKED) {
                 logMessage.append(fmt::format(" (forced by the {:s}, \"{:s}\" is kept for later)",
-                                              var->getMaster() == CvarEditor::SKIN ? "skin" : "server",
-                                              var->getClientString()));
+                                              var->getMaster() == CvarEditor::SKIN ? "skin" : "server", commandValue));
             }
         }
 

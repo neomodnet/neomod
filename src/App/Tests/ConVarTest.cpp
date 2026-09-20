@@ -10,6 +10,7 @@
 #include "types.h"
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <initializer_list>
 #include <string>
@@ -122,6 +123,7 @@ void ConVarTest::update() {
     this->testCommands();
     this->testSetLayer();
     this->testRange();
+    this->testSession();
     this->testThreads();
 
     TEST_PRINT_RESULTS("ConVarTest");
@@ -846,6 +848,96 @@ void ConVarTest::testRange() {
     t_ranged.removeAllCallbacks();
     t_ranged.setValue(5.0f);
     t_rangedCallback.setValue(5.0f);
+}
+
+void ConVarTest::testSession() {
+    TEST_SECTION("sessions");
+
+    s_layeredChange = {};
+    t_layered.setCallback([](float oldValue, float newValue) -> void {
+        s_layeredChange.calls++;
+        s_layeredChange.oldValue = oldValue;
+        s_layeredChange.newValue = newValue;
+    });
+    t_layered.setValue(1.25f);
+    t_string.setValue("own");
+    t_int.setValue(7);
+
+    // what the client sets during a session isn't meant to last (a multiplayer room's mods, a replay's...)
+    int callsBefore = s_layeredChange.calls;
+    s_changes = 0;
+    TEST_ASSERT(!cvars().isInSession(), "no session to begin with");
+    cvars().beginSession(std::array{&t_layered, &t_string, &t_cmd});
+    TEST_ASSERT(cvars().isInSession(), "a session has begun");
+    TEST_ASSERT(t_layered.getFloat() == 1.25f && t_string.getString() == "own", "beginning one changes no values");
+    TEST_ASSERT(s_layeredChange.calls == callsBefore && s_changes == 0, "...so nobody hears about anything");
+
+    TEST_ASSERT(t_layered.setValue(2.0f) == CvarSetResult::APPLIED, "a write during a session is a regular write");
+    t_string.setValue("session");
+    TEST_ASSERT(t_layered.getFloat() == 2.0f && t_string.getString() == "session", "...that is in effect");
+    TEST_ASSERT(s_layeredChange.calls == callsBefore + 1 && s_layeredChange.oldValue == 1.25f, "...with callbacks");
+    TEST_ASSERT(t_layered.getMaster() == CvarEditor::CLIENT, "...and it is still the client's convar");
+    TEST_ASSERT(t_layered.getClientString() == "1.25" && t_string.getClientString() == "own",
+                "the client's own value (what configs save) isn't touched");
+    t_layered.setValue(1.0f);
+    TEST_ASSERT(t_layered.isDefault() && !t_layered.isClientDefault(), "default during a session, not by itself");
+
+    t_int.setValue(9);
+    TEST_ASSERT_EQ(t_int.getClientString(), "9", "convars that aren't part of the session are written as always");
+
+    // everybody else still comes first
+    t_layered.setValue(1.5f, true, CvarEditor::SKIN);
+    TEST_ASSERT(t_layered.setValue(3.0f) == CvarSetResult::MASKED, "a skin value masks writes during a session too");
+    TEST_ASSERT_EQ(t_layered.getFloat(), 1.5f, "a skin value beats what is set during a session");
+    t_layered.clearValue(CvarEditor::SKIN);
+    TEST_ASSERT_EQ(t_layered.getFloat(), 3.0f, "...which is what is below it");
+    t_layered.clearValue(CvarEditor::CLIENT);
+    TEST_ASSERT(t_layered.getFloat() == 1.0f && t_layered.getClientString() == "1.25",
+                "clearing the client's value during a session is a write like any other");
+
+    // adding to a session that is going on keeps what it has so far
+    t_layered.setValue(2.5f);
+    cvars().beginSession(std::array{&t_layered, &t_int});
+    TEST_ASSERT(t_layered.getFloat() == 2.5f && t_layered.getClientString() == "1.25", "adding to a session, again");
+    t_int.setValue(11);
+    TEST_ASSERT(t_int.getInt() == 11 && t_int.getClientString() == "9", "adding to a session, new");
+
+    // the end: everything the client had set before is back, as one change
+    static std::string s_stringSeenByCallback;
+    t_layered.setCallback([](float oldValue, float newValue) -> void {
+        s_layeredChange.calls++;
+        s_layeredChange.oldValue = oldValue;
+        s_layeredChange.newValue = newValue;
+        s_stringSeenByCallback = t_string.getString();
+    });
+    callsBefore = s_layeredChange.calls;
+    s_changes = 0;
+    cvars().endSession();
+    TEST_ASSERT(!cvars().isInSession(), "the session is over");
+    TEST_ASSERT(t_layered.getFloat() == 1.25f && t_string.getString() == "own" && t_int.getInt() == 9,
+                "the client's own values are back");
+    TEST_ASSERT(s_layeredChange.calls == callsBefore + 1 && s_layeredChange.oldValue == 2.5f &&
+                    s_layeredChange.newValue == 1.25f,
+                "...with callbacks for what changed");
+    TEST_ASSERT_EQ(s_stringSeenByCallback, "own", "...once all of them are back");
+    TEST_ASSERT_EQ(s_changes, 3, "...and the app hears about each of them");
+    t_layered.setValue(1.75f);
+    TEST_ASSERT_EQ(t_layered.getClientString(), "1.75", "writes are the client's own again");
+
+    callsBefore = s_layeredChange.calls;
+    cvars().endSession();
+    TEST_ASSERT_EQ(s_layeredChange.calls, callsBefore, "ending a session that isn't going on does nothing");
+
+    // a session in which nothing got set
+    cvars().beginSession(std::array{&t_layered});
+    callsBefore = s_layeredChange.calls;
+    cvars().endSession();
+    TEST_ASSERT(t_layered.getFloat() == 1.75f && s_layeredChange.calls == callsBefore, "a session without writes");
+
+    t_layered.removeAllCallbacks();
+    t_layered.setValue(1.0f);
+    t_string.setValue("abc");
+    t_int.setValue(5);
 }
 
 void ConVarTest::testThreads() {

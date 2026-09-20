@@ -46,6 +46,9 @@ class ModSelector final : public UIScreen {
     void useCurrentMods();
     [[nodiscard]] LegacyFlags getModFlags() const;
 
+    // every convar that something in here sets (mod buttons, override sliders and their locks, experimental mods)
+    [[nodiscard]] std::vector<ConVar *> getModConVars() const;
+
     [[nodiscard]] bool isInCompactMode() const;
     [[nodiscard]] bool isCSOverrideSliderActive() const;
     bool isMouseInside() override;

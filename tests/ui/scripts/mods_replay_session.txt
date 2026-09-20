@@ -1,0 +1,44 @@
+# the mods of a replay are only in effect while it is being watched, here the instant replay (F2 from
+# the pause menu) of a play on the playable fixture (see play_modselector_dance about that one).
+# using a replay's mods resets everything the mod selector knows about, so mod_fadingcursor (which
+# Replay::Mods has no idea about) is off while watching: it used to stay off afterwards, along with
+# everything else that a copy of the player's mods can't hold.
+# assertion-only, like play_modselector_dance (audio decodes on wall-clock time, hence the @sleeps).
+# what escape does to the replay depends on that as well (it quits while the map is still waiting for
+# its music, and pauses afterwards), so the first 'exit' is what stops it: asking to quit during a
+# play only stops that play.
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mod_nofail 1
+mod_fadingcursor 1
+mouse_to 10 10
+@wait 30
+osu_folder uitest_osu_folder_play
+set_active_ui_screen songbrowser
+@wait 300
+sendkey Return
+@wait_secs 5
+ui_assert visible songbrowser 0
+@sleep 4000
+@wait 12
+sendkey Escape
+@wait 12
+ui_assert visible pauseoverlay 1
+ui_assert convar mod_fadingcursor 1
+sendkey F2
+@wait 5
+ui_assert visible pauseoverlay 0
+ui_assert convar mod_nofail 1
+ui_assert convar mod_fadingcursor 0
+exit
+@sleep 1000
+@wait 60
+ui_assert visible pauseoverlay 0
+ui_assert visible songbrowser 1
+ui_assert convar mod_nofail 1
+ui_assert convar mod_fadingcursor 1
+mod_nofail 0
+mod_fadingcursor 0
+exit

@@ -155,8 +155,8 @@ void ConVar::resolve() {
     // (every change to a convar's value ends up here)
     assert(McThread::is_main_thread() && "convars can only be changed on the main thread");
 
-    // server > protection lock > skin > client
-    const Value *value = &this->clientValue;
+    // server > protection lock > skin > client (whose value has a stand-in during a session)
+    const Value *value = this->sessionValue ? this->sessionValue.get() : &this->clientValue;
     this->master = CvarEditor::CLIENT;
     if(this->serverValue) {
         value = this->serverValue.get();
@@ -294,7 +294,7 @@ CvarSetResult ConVar::checkWrite(CvarEditor editor) const {
 
 void ConVar::store(CvarEditor editor, Value value) {
     if(editor == CvarEditor::CLIENT) {
-        this->clientValue = std::move(value);
+        (this->sessionValue ? *this->sessionValue : this->clientValue) = std::move(value);
     } else if(auto &layer = (editor == CvarEditor::SKIN) ? this->skinValue : this->serverValue; layer) {
         *layer = std::move(value);
     } else {

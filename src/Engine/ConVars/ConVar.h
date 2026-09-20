@@ -360,8 +360,8 @@ class ConVar {
         return this->getDouble() == this->getDefaultDouble();
     }
 
-    // the client's own value, no matter what is overriding it at the moment: this (and not what the getters above
-    // return) is what belongs into the client's config
+    // the client's own value, no matter what is overriding it at the moment (or standing in for it, during a
+    // session): this (and not what the getters above return) is what belongs into the client's config
     [[nodiscard]] inline const std::string &getClientString() const {
         assert(McThread::is_main_thread() && "string convars can only be read on the main thread");
         return this->clientValue.s;
@@ -483,8 +483,9 @@ class ConVar {
 
     Value defaultValue{};
     Value clientValue{};
-    std::unique_ptr<Value> skinValue{nullptr};    // null if the skin doesn't set this convar
-    std::unique_ptr<Value> serverValue{nullptr};  // ditto for the server
+    std::unique_ptr<Value> sessionValue{nullptr};  // what the client sets during a session, instead of clientValue
+    std::unique_ptr<Value> skinValue{nullptr};     // null if the skin doesn't set this convar
+    std::unique_ptr<Value> serverValue{nullptr};   // ditto for the server
 
     // callback storage (allow having 1 "change" callback and 1 single value (or void) callback)
     CallbackSlot callback;

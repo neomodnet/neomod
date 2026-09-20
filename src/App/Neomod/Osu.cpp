@@ -123,7 +123,6 @@ Osu::Osu()
     : App(),
       MouseListener(),
       global_osu_(this),
-      previous_mods(std::make_unique<Replay::Mods>()),
       map_iface(std::make_unique<BeatmapInterface>()),
       score(std::make_unique<LiveScore>(false)) {
     // global cvar callbacks will be removed in destructor
@@ -1837,8 +1836,9 @@ bool Osu::onShutdown() {
     BanchoState::disconnect(true);
 
     // the process may go on without us (the app selection screen of test builds): like what the server had set, what
-    // the skin had set isn't for whichever app comes next
+    // the skin had set isn't for whichever app comes next (nor are the mods of a replay that was still being watched)
     cvars().clearLayer(CvarEditor::SKIN);
+    Replay::Mods::end_session();
 
     return true;
 }

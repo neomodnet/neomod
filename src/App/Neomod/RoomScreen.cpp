@@ -564,7 +564,7 @@ void RoomScreen::ragequit(bool play_sound) {
     ui->getChat()->removeChannel("#multiplayer");
     ui->getChat()->updateVisibility();
 
-    Replay::Mods::use(*osu->previous_mods);
+    Replay::Mods::end_session();
 
     if(play_sound) {
         soundEngine->play(osu->getSkin()->s_menu_back);
@@ -648,9 +648,18 @@ void RoomScreen::on_room_joined(const Room &room) {
     RichPresence::onMultiplayerLobby();
     ui->getChat()->openChannel("#multiplayer");
 
-    *osu->previous_mods = Replay::Mods::from_cvars();
+    // the room's mods are only for as long as we are in here
+    Replay::Mods::begin_session();
+    this->useRoomMods();
+}
 
-    Replay::Mods::use(Replay::Mods::from_legacy(BanchoState::room.mods));
+void RoomScreen::useRoomMods() {
+    LegacyFlags mods = BanchoState::room.mods;
+    for(const auto &slot : BanchoState::room.slots) {
+        if(slot.player_id == BanchoState::get_uid()) mods |= slot.mods;
+    }
+
+    Replay::Mods::use(Replay::Mods::from_legacy(mods));
     cv::mod_no_pausing.setValue(true);
 }
 
@@ -705,8 +714,7 @@ void RoomScreen::on_room_updated(const Room &room) {
         // Force close mod selector if host disabled freemods
         ui->getModSelector()->close(true);
     }
-    Replay::Mods::use(Replay::Mods::from_legacy(BanchoState::room.mods | player_slot->mods));
-    cv::mod_no_pausing.setValue(true);
+    this->useRoomMods();
 
     this->updateLayout(osu->getVirtScreenSize());
 }
@@ -719,12 +727,7 @@ void RoomScreen::on_match_started(const Room &room) {
     }
 
     // Re-apply mods to make sure we are in sync (instant abort->start edge case)
-    for(auto &slot : BanchoState::room.slots) {
-        if(slot.player_id != BanchoState::get_uid()) continue;
-        Replay::Mods::use(Replay::Mods::from_legacy(BanchoState::room.mods | slot.mods));
-        cv::mod_no_pausing.setValue(true);
-        break;
-    }
+    this->useRoomMods();
 
     this->last_packet_tms = time(nullptr);
 

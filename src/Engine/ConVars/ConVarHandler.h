@@ -46,6 +46,15 @@ class ConVarHandler {
     // includes what it has protected/unprotected
     void clearLayer(CvarEditor editor);
 
+    // a session is a time during which what the client sets some convars to isn't meant to last, like the mods of a
+    // multiplayer room or of a replay: from beginSession() to endSession(), the client's writes to the given convars
+    // go to a stand-in for its value (which starts out as a copy of it, and is what gets read instead). the value
+    // itself stays what ConVar::getClientString() and with that configs get to see, and it is back in effect
+    // afterwards, as one change for all of them. sessions don't nest: beginning one during another adds to it
+    void beginSession(std::span<ConVar *const> convars);
+    void endSession();
+    [[nodiscard]] forceinline bool isInSession() const { return !this->vSessionConVars.empty(); }
+
     // makes the given values everything that a skin/the server has set, as one change: values it had set before and
     // that aren't among them go away, and whatever ends up with the value it already had is left alone, so callbacks
     // only run for convars whose value actually changed (once everything is in place). commands among them get run
@@ -72,6 +81,7 @@ class ConVarHandler {
     bool bProtectionEnforced{false};
     int iNumProtectedNonDefault{0};
     std::vector<ConVar *> vConVarArray;
+    std::vector<ConVar *> vSessionConVars;
     Hash::unstable_stringmap<ConVar *> vConVarMap;
 };
 
