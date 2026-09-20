@@ -1867,10 +1867,11 @@ static std::string resolveSkinPath(std::string_view skinName) {
 }
 
 void Osu::onSkinChange(std::string_view newSkinName) {
-    if(this->skin) {
-        if(this->bSkinLoadScheduled || this->skinScheduledToLoad != nullptr) return;
-        if(newSkinName.length() < 1) return;
-    }
+    // (a skin applies its convars while it gets constructed, none of their callbacks get to start another load from
+    // in there)
+    if(this->bSkinLoadScheduled || this->skinScheduledToLoad != nullptr) return;
+    if(this->skin && newSkinName.length() < 1) return;
+    this->bSkinLoadScheduled = true;
 
     // resolve fallback skin path
     std::string fallbackDir;
@@ -1883,7 +1884,6 @@ void Osu::onSkinChange(std::string_view newSkinName) {
         this->skinScheduledToLoad =
             new Skin(std::string{newSkinName}, Mc::Paths::materials() + "/default/", std::move(fallbackDir));
         if(!this->skin) this->skin.reset(this->skinScheduledToLoad);
-        this->bSkinLoadScheduled = true;
         return;
     }
 
@@ -1892,8 +1892,6 @@ void Osu::onSkinChange(std::string_view newSkinName) {
 
     // initial load
     if(!this->skin) this->skin.reset(this->skinScheduledToLoad);
-
-    this->bSkinLoadScheduled = true;
 }
 
 void Osu::updateAnimationSpeed() {

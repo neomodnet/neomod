@@ -1,6 +1,8 @@
 # text that isn't valid for a convar doesn't get set: ConVar::setValue says so, and whoever let the text
 # in (here: the console and a skin.ini) is who tells someone about it, once. the convar keeps its value,
 # and valid lines next to an invalid one still apply.
+# uitest-log: 1 fposu_fov: "garbage" is not a valid float value
+# uitest-log: 1 Skin wanted to set cvar 'fposu_fov' to 'garbage', but that's not a valid value for it!
 # uitest-datadir: fresh
 # uitest-file: skins/cvtest/skin.ini|[General]|Name: cvtest|Author: uitest||[neomod]|fposu_fov: garbage|hud_scale: 1.5
 options_save_on_back 0

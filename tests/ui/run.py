@@ -121,6 +121,7 @@ def script_directives(text):
              shared one, for scripts that write state the other scripts would boot into (e.g. osu.cfg)
     file: '<path>|<line>|<line>...' writes a fixture file (relative to the data dir) before the run
     cfg: '<convar> <value>' is what osu.cfg has to hold for the convar after the run ('-' = no line at all)
+    log: '<count> <text>' is how many lines of the log have to contain the text (0 = none)
     xfail: a known failure that planned work fixes: the script is reported as XFAIL as long as every
            failed assert line contains (one of) the given text(s), any other failure still fails it, and
            it fails once it passes (so the directive gets removed together with the fix)"""
@@ -253,6 +254,11 @@ def run_one(name, binary, bindir, datadir, record):
         shutil.rmtree(datadir / "maps" / folder, ignore_errors=True)
 
     log += "".join(ln + "\n" for ln in cfg_checks(datadir, directives.get("cfg", [])))
+    game_lines = proc.stdout.splitlines()
+    for spec in directives.get("log", []):
+        count, text = spec.split(None, 1)
+        actual = sum(text in ln for ln in game_lines)
+        log += f"LOG {'OK' if actual == int(count) else 'FAIL'} '{text}' expected={count} actual={actual}\n"
 
     reasons = []
     if proc.returncode != 0:
@@ -261,6 +267,8 @@ def run_one(name, binary, bindir, datadir, record):
         reasons.append("assert")
     if "CFG FAIL" in log:
         reasons.append("cfg")
+    if "LOG FAIL" in log:
+        reasons.append("log")
 
     # known failures: only the asserts the directive names may fail
     xfail = directives.get("xfail", [])
@@ -328,7 +336,7 @@ def run_one(name, binary, bindir, datadir, record):
 
     print(f"FAIL {name} ({' '.join(reasons)}) -- see {log_path}")
     for ln in log.splitlines():
-        if "UITEST FAIL" in ln or "PROBE FAIL" in ln or "CFG FAIL" in ln:
+        if "UITEST FAIL" in ln or "PROBE FAIL" in ln or "CFG FAIL" in ln or "LOG FAIL" in ln:
             print(f"    {ln}")
     if diff_path.is_file():
         for ln in diff_path.read_text().splitlines()[:15]:

@@ -4,8 +4,10 @@
 #include "Hashing.h"
 
 #include <vector>
+#include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <memory>
 
 using namespace std::string_view_literals;
@@ -13,6 +15,7 @@ using namespace std::string_literals;
 
 class ConVar;
 enum class CvarEditor : uint8_t;
+enum class CvarSetResult : uint8_t;
 
 class ConVarHandler {
     NOCOPY_NOMOVE(ConVarHandler)
@@ -47,6 +50,13 @@ class ConVarHandler {
     // ConVar::clearValue() for every convar: forgets everything a skin/the server has set, which for the server
     // includes what it has protected/unprotected
     void clearLayer(CvarEditor editor);
+
+    // makes the given values everything that a skin/the server has set, as one change: values it had set before and
+    // that aren't among them go away, and whatever ends up with the value it already had is left alone, so callbacks
+    // only run for convars whose value actually changed (once everything is in place). commands among them get run
+    // after that, in order. returns what became of each entry
+    // (not for the client: its values aren't a set that comes and goes as a whole)
+    std::vector<CvarSetResult> setLayer(CvarEditor editor, std::span<const std::pair<ConVar *, std::string>> values);
 
     // the app's say in what happens to convars, which is where its anti-cheat rules go (both are optional)
     struct Policy {

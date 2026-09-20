@@ -1,0 +1,57 @@
+# a skin's convars replace the previous skin's as one change: reloading a skin changes nothing (its
+# values used to get taken away and put back, running every callback twice and looking like a change of
+# gameplay settings to the score), and switching to a skin that wants the same value for a convar leaves
+# that convar alone. debug_cv logs every change of a convar's value, which is what gets counted here:
+# ui_scale only changes when the first skin comes and when the last one goes, the other two convars
+# belong to one of the skins each.
+# (a skin change is ignored while another skin is still loading, hence the @sleep/@wait pairs)
+# uitest-datadir: fresh
+# uitest-file: skins/cvtest/skin.ini|[General]|Name: cvtest|Author: uitest||[neomod]|ui_scale: 1.25|songbrowser_button_active_color_a: 100
+# uitest-file: skins/cvtest2/skin.ini|[General]|Name: cvtest2|Author: uitest||[neomod]|ui_scale: 1.25|fposu_fov: 99
+# uitest-log: 1 ui_scale = 1.25 (skin)
+# uitest-log: 1 ui_scale = 1 (client)
+# uitest-log: 1 songbrowser_button_active_color_a = 100 (skin)
+# uitest-log: 1 songbrowser_button_active_color_a = 230 (client)
+# uitest-log: 1 fposu_fov = 99 (skin)
+# uitest-log: 1 fposu_fov = 103 (client)
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+debug_cv 1
+skin cvtest
+@wait 5
+ui_assert convar ui_scale 1.25
+ui_assert convar songbrowser_button_active_color_a 100
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+skin_reload
+@wait 5
+ui_assert convar ui_scale 1.25
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+skin cvtest2
+@wait 5
+ui_assert convar ui_scale 1.25
+ui_assert convar fposu_fov 99
+ui_assert convar songbrowser_button_active_color_a 230
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+skin default
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+ui_assert convar ui_scale 1
+ui_assert convar fposu_fov 103
+exit

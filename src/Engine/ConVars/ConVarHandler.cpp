@@ -148,6 +148,57 @@ void ConVarHandler::clearLayer(CvarEditor editor) {
     for(const auto &[cv, old] : changed) cv->notifyIfChanged(old);
 }
 
+std::vector<CvarSetResult> ConVarHandler::setLayer(CvarEditor editor,
+                                                   std::span<const std::pair<ConVar *, std::string>> values) {
+    std::vector<CvarSetResult> results(values.size(), CvarSetResult::DENIED);
+    assert(editor != CvarEditor::CLIENT && "the client's values don't get replaced as a whole");
+    if(editor == CvarEditor::CLIENT) return results;
+
+    std::vector<ConVar *> kept;  // what stays (or becomes) set
+    std::vector<std::pair<ConVar *, ConVar::Value>> changed;
+    for(size_t i = 0; i < values.size(); i++) {
+        auto *cv = values[i].first;
+        if(!cv->bCanHaveValue) continue;  // (further down)
+
+        std::string_view text = values[i].second;
+        double dbl{};
+        if(!cv->parseValue(text, dbl)) {
+            results[i] = CvarSetResult::INVALID;
+            continue;
+        }
+
+        // (a vetoed write changes nothing, which includes not losing the value that may be there already)
+        results[i] = cv->checkWrite(editor);
+        if(results[i] == CvarSetResult::DENIED) continue;
+        if(!std::ranges::contains(kept, cv)) {
+            kept.push_back(cv);
+            if(results[i] == CvarSetResult::APPLIED) changed.emplace_back(cv, cv->snapshot());
+        }
+        if(results[i] == CvarSetResult::APPLIED) cv->store(editor, {.d = dbl, .s = std::string{text}});
+    }
+
+    for(auto *cv : this->vConVarArray) {
+        auto &layer = (editor == CvarEditor::SKIN) ? cv->skinValue : cv->serverValue;
+        if(!layer || std::ranges::contains(kept, cv)) continue;
+        changed.emplace_back(cv, cv->snapshot());
+        layer.reset();
+    }
+
+    for(const auto &[cv, old] : changed) cv->resolve();
+    for(size_t i = 0; i < values.size(); i++) {
+        if(results[i] == CvarSetResult::APPLIED && values[i].first->master != editor) {
+            results[i] = CvarSetResult::MASKED;
+        }
+    }
+    for(const auto &[cv, old] : changed) cv->notifyIfChanged(old);
+
+    for(size_t i = 0; i < values.size(); i++) {
+        if(!values[i].first->bCanHaveValue) results[i] = values[i].first->setValue(values[i].second, true, editor);
+    }
+
+    return results;
+}
+
 //*****************************//
 //	ConVarHandler ConCommands  //
 //*****************************//

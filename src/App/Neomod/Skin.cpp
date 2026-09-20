@@ -278,12 +278,31 @@ void Skin::load() {
 
     bool parseSkinIni1Status = true;
     bool parseSkinIni2Status = true;
-    cvars().clearLayer(CvarEditor::SKIN);
-    if(!this->parseSkinINI(this->skin_ini_path)) {
+    std::vector<std::pair<ConVar *, std::string>> convarValues;
+    if(!this->parseSkinINI(this->skin_ini_path, convarValues)) {
         parseSkinIni1Status = false;
         this->skin_ini_path = Mc::Paths::materials() + "/default/skin.ini";
-        cvars().clearLayer(CvarEditor::SKIN);
-        parseSkinIni2Status = this->parseSkinINI(this->skin_ini_path);
+        convarValues.clear();
+        parseSkinIni2Status = this->parseSkinINI(this->skin_ini_path, convarValues);
+    }
+
+    // the skin's convars replace the previous skin's as one change, so that what stays the same (all of them, for a
+    // reload) isn't touched. this happens here and not once the skin is in use, since the rest of the load depends on
+    // some of them (skin_hd, skin_mipmaps, ...)
+    {
+        const auto results = cvars().setLayer(CvarEditor::SKIN, convarValues);
+        for(size_t i = 0; i < results.size(); i++) {
+            const auto &[cvar, value] = convarValues[i];
+            if(results[i] == CvarSetResult::INVALID) {
+                debugLog("Skin wanted to set cvar '{}' to '{}', but that's not a valid value for it!", cvar->getName(),
+                         value);
+            } else if(results[i] == CvarSetResult::DENIED) {
+                debugLog("Skin wanted to set cvar '{}' to '{}', but skins can't change it!", cvar->getName(), value);
+            } else if(results[i] == CvarSetResult::VETOED) {
+                debugLog("Skin wanted to set cvar '{}' to '{}', but it can't be changed right now!", cvar->getName(),
+                         value);
+            }
+        }
     }
 
     // parse fallback skin's skin.ini for prefix settings
@@ -771,7 +790,7 @@ void Skin::reloadSounds() {
                                      cv::skin_async.getBool());
 }
 
-bool Skin::parseSkinINI(std::string_view filepath) {
+bool Skin::parseSkinINI(std::string_view filepath, std::vector<std::pair<ConVar *, std::string>> &convarValues) {
     std::string fileContent;
 
     size_t fileSize{0};
@@ -910,22 +929,13 @@ bool Skin::parseSkinINI(std::string_view filepath) {
 
                 std::string name, value;
 
-                // XXX: shouldn't be setting cvars directly in parsing method
-                // TODO: collect cvars to set and set them after the skin has loaded
-                // (and ideally, reload skin if any of them would affect the skin load (or parse neomod section early?))
+                // (only collected here: load() applies them)
                 if(Parsing::parse(curLine.substr(0, pos), &name) && Parsing::parse(curLine.substr(pos + 1), &value)) {
                     auto *cvar = cvars().getConVarByName(name, false);
-                    if(!cvar) {
+                    if(cvar) {
+                        convarValues.emplace_back(cvar, std::move(value));
+                    } else {
                         debugLog("Skin wanted to set cvar '{}' to '{}', but it doesn't exist!", name, value);
-                    } else if(const auto result = cvar->setValue(value, true, CvarEditor::SKIN);
-                              result == CvarSetResult::INVALID) {
-                        debugLog("Skin wanted to set cvar '{}' to '{}', but that's not a valid value for it!", name,
-                                 value);
-                    } else if(result == CvarSetResult::DENIED) {
-                        debugLog("Skin wanted to set cvar '{}' to '{}', but skins can't change it!", name, value);
-                    } else if(result == CvarSetResult::VETOED) {
-                        debugLog("Skin wanted to set cvar '{}' to '{}', but it can't be changed right now!", name,
-                                 value);
                     }
                 }
 

@@ -66,7 +66,8 @@ struct Skin final {
     // custom
     void randomizeFilePath();
 
-    bool parseSkinINI(std::string_view filepath);
+    // (convarValues: what the [neomod] section wants convars to be, for load() to apply)
+    bool parseSkinINI(std::string_view filepath, std::vector<std::pair<ConVar *, std::string>> &convarValues);
     void parseFallbackPrefixes(const std::string &iniPath);
     static void fixupPrefix(std::string &prefix, const std::string &baseDir);
 
@@ -82,8 +83,7 @@ struct Skin final {
         LOOPING = (1 << 2),
         NO_DEFAULT = (1 << 3)  // don't fallback to default skin if missing
     };
-    void loadSound(Sound *&ref, const std::string &skinElementName, const std::string &resourceName,
-                   u8 flags = {});
+    void loadSound(Sound *&ref, const std::string &skinElementName, const std::string &resourceName, u8 flags = {});
 
     void load();
 

@@ -416,6 +416,15 @@ class ConVar {
     void initCmdCallbackImpl(uint8_t flags, FloatCB cb);
     void initCmdCallbackImpl(uint8_t flags, DoubleCB cb);
 
+    // numeric view of text (which gets normalized for bool convars), false if this convar can't take it (see setValue())
+    [[nodiscard]] bool parseValue(std::string_view &text, double &dbl) const;
+
+    // whether an editor gets to write at all, asked before anything changes (APPLIED: nothing against it)
+    [[nodiscard]] CvarSetResult checkWrite(CvarEditor editor) const;
+
+    // puts a value where that editor's go, for the next resolve() to pick up
+    void store(CvarEditor editor, Value value);
+
     // central store-and-dispatch routine called by both setValueImpl overloads
     CvarSetResult setValueInt(double newDouble, std::string newString, bool doCallback, CvarEditor editor);
 
@@ -426,6 +435,9 @@ class ConVar {
 
     [[nodiscard]] Value snapshot() const { return {.d = this->getDouble(), .s = this->getString()}; }
     void notifyIfChanged(const Value &old);
+
+    // the value is a different one now: the app's policy hears about it (before the convar's own callbacks)
+    void valueChanged() const;
     void runCallbacks(double oldDouble, std::string_view oldString);
 
    private:

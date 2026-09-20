@@ -22,6 +22,7 @@ class ConVarTest : public App {
     void testProtectedDefaults();
     void testDefaults();
     void testCommands();
+    void testSetLayer();
     void testThreads();
 
     int m_passes{0};

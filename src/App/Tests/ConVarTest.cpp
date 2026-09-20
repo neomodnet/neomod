@@ -4,6 +4,7 @@
 #include "TestMacros.h"
 #include "ConVar.h"
 #include "ConVarHandler.h"
+#include "BaseEnvironment.h"
 #include "Engine.h"
 #include "SyncJthread.h"
 #include "types.h"
@@ -13,6 +14,8 @@
 #include <initializer_list>
 #include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 namespace Mc::Tests {
 
@@ -112,6 +115,7 @@ void ConVarTest::update() {
     this->testProtectedDefaults();
     this->testDefaults();
     this->testCommands();
+    this->testSetLayer();
     this->testThreads();
 
     TEST_PRINT_RESULTS("ConVarTest");
@@ -663,6 +667,131 @@ void ConVarTest::testCommands() {
     const int callsBefore = s_cmdCalls;
     t_cmd.clearValue(CvarEditor::CLIENT);
     TEST_ASSERT_EQ(s_cmdCalls, callsBefore, "clearing a command's (nonexistent) value doesn't run it");
+}
+
+void ConVarTest::testSetLayer() {
+    TEST_SECTION("replacing a layer");
+    using Values = std::vector<std::pair<ConVar *, std::string>>;
+    using enum CvarSetResult;
+
+    // (what the string convar read as when the callback ran: everything has to be in place by then)
+    static std::string s_stringSeenByCallback;
+    s_layeredChange = {};
+    t_layered.setCallback([](float oldValue, float newValue) -> void {
+        s_layeredChange.calls++;
+        s_layeredChange.oldValue = oldValue;
+        s_layeredChange.newValue = newValue;
+        s_stringSeenByCallback = t_string.getString();
+    });
+    s_cbOldString.clear();
+    s_cbNewString.clear();
+    static int s_stringCalls{0};
+    s_stringCalls = 0;
+    t_string.setCallback([](std::string_view oldValue, std::string_view newValue) -> void {
+        s_stringCalls++;
+        s_cbOldString = oldValue;
+        s_cbNewString = newValue;
+    });
+
+    t_layered.setValue(1.25f);
+    t_string.setValue("client");
+    int layeredCalls = s_layeredChange.calls;
+    int stringCalls = s_stringCalls;
+
+    const Values first{{&t_layered, "1.5"}, {&t_string, "skin"}, {&t_float, "9"}};
+    auto results = cvars().setLayer(CvarEditor::SKIN, first);
+    TEST_ASSERT(results.size() == 3 && results[0] == APPLIED && results[1] == APPLIED, "values that get set");
+    TEST_ASSERT(results[2] == DENIED, "a convar without SKINS is denied");
+    TEST_ASSERT(t_layered.getFloat() == 1.5f && t_string.getString() == "skin" && t_float.getFloat() == 1.0f,
+                "the values are in place");
+    TEST_ASSERT(t_layered.getMaster() == CvarEditor::SKIN, "...as the skin's");
+    TEST_ASSERT(s_layeredChange.calls == layeredCalls + 1 && s_stringCalls == stringCalls + 1,
+                "callbacks of changed convars run once");
+    TEST_ASSERT(s_layeredChange.oldValue == 1.25f && s_layeredChange.newValue == 1.5f, "callback old/new values");
+    TEST_ASSERT_EQ(s_stringSeenByCallback, "skin", "callbacks run once everything is in place");
+
+    // the same values again (a skin reload): nothing changes, so nobody hears about anything
+    layeredCalls = s_layeredChange.calls;
+    stringCalls = s_stringCalls;
+    s_changes = 0;
+    results = cvars().setLayer(CvarEditor::SKIN, first);
+    TEST_ASSERT(results[0] == APPLIED && results[1] == APPLIED, "the same values again, results");
+    TEST_ASSERT(s_layeredChange.calls == layeredCalls && s_stringCalls == stringCalls,
+                "the same values again don't run callbacks");
+    TEST_ASSERT_EQ(s_changes, 0, "the same values again are no change for the app");
+
+    // other values (another skin): what is in both goes from one skin's value to the other's without a detour over
+    // the client's, what isn't set anymore goes back to whoever is next
+    const Values second{{&t_layered, "1.75"}, {&t_protectedSkin, "1"}};
+    results = cvars().setLayer(CvarEditor::SKIN, second);
+    TEST_ASSERT(t_layered.getFloat() == 1.75f && t_protectedSkin.getBool(), "the other values are in place");
+    TEST_ASSERT_EQ(t_string.getString(), "client", "a value that isn't set anymore is gone");
+    TEST_ASSERT(s_layeredChange.calls == layeredCalls + 1 && s_layeredChange.oldValue == 1.5f &&
+                    s_layeredChange.newValue == 1.75f,
+                "a value that is replaced changes once, from the old one to the new one");
+    TEST_ASSERT(s_stringCalls == stringCalls + 1 && s_cbOldString == "skin" && s_cbNewString == "client",
+                "a value that isn't set anymore changes once");
+    TEST_ASSERT_EQ(s_changes, 3, "the app hears about each of those once");
+
+    // a vetoed value doesn't get set, and what was there stays
+    s_vetoed = &t_layered;
+    results = cvars().setLayer(CvarEditor::SKIN, Values{{&t_layered, "2.5"}});
+    TEST_ASSERT(results[0] == VETOED, "the app can veto a value");
+    TEST_ASSERT_EQ(t_layered.getFloat(), 1.75f, "a vetoed value leaves the one that was there before alone");
+    TEST_ASSERT(!t_protectedSkin.getBool(), "...unlike leaving a value out");
+    s_vetoed = nullptr;
+
+    // below a server value
+    t_layered.setValue(3.0f, true, CvarEditor::SERVER);
+    layeredCalls = s_layeredChange.calls;
+    results = cvars().setLayer(CvarEditor::SKIN, Values{{&t_layered, "2.0"}, {&t_layered, "2.25"}});
+    TEST_ASSERT(results[0] == MASKED && results[1] == MASKED, "values below a server value are masked");
+    TEST_ASSERT(t_layered.getFloat() == 3.0f && s_layeredChange.calls == layeredCalls, "...and change nothing");
+    t_layered.clearValue(CvarEditor::SERVER);
+    TEST_ASSERT_EQ(t_layered.getFloat(), 2.25f, "the last one wins if a convar is in there more than once");
+
+    // commands get run once the values are in place
+    static float s_layeredSeenByCommand{0.f};
+    t_cmd.setCallback([](std::string_view args) -> void {
+        s_cmdCalls++;
+        s_cmdArgs = args;
+        s_layeredSeenByCommand = t_layered.getFloat();
+    });
+    int cmdCalls = s_cmdCalls;
+    results = cvars().setLayer(CvarEditor::SERVER, Values{{&t_cmd, "batched"}, {&t_layered, "4"}});
+    TEST_ASSERT(results[0] == APPLIED && results[1] == APPLIED, "a command among the values, results");
+    TEST_ASSERT(s_cmdCalls == cmdCalls + 1 && s_cmdArgs == "batched", "a command among the values gets run");
+    TEST_ASSERT_EQ(s_layeredSeenByCommand, 4.0f, "...after the values are in place");
+    TEST_ASSERT_EQ(t_layered.getFloat(), 4.0f, "server values are in place");
+    cvars().setLayer(CvarEditor::SERVER, {});
+
+    // no values at all
+    layeredCalls = s_layeredChange.calls;
+    results = cvars().setLayer(CvarEditor::SKIN, {});
+    TEST_ASSERT(results.empty() && t_layered.getFloat() == 1.25f, "an empty set removes everything");
+    TEST_ASSERT(s_layeredChange.calls == layeredCalls + 1, "...running callbacks");
+    TEST_ASSERT(t_layered.getMaster() == CvarEditor::CLIENT, "...and the client decides again");
+
+    // the values are text from outside
+    results = cvars().setLayer(CvarEditor::SKIN, Values{{&t_layered, "garbage"}, {&t_string, "fine"}});
+    TEST_ASSERT(results[0] == INVALID && results[1] == APPLIED, "invalid text doesn't get set, the rest does");
+    TEST_ASSERT(t_layered.getFloat() == 1.25f && t_string.getString() == "fine", "...as the values show");
+    cvars().setLayer(CvarEditor::SKIN, {});
+
+    // (debug builds assert)
+    if constexpr(!Env::cfg(BUILD::DEBUG)) {
+        results = cvars().setLayer(CvarEditor::CLIENT, Values{{&t_layered, "5"}});
+        TEST_ASSERT(results[0] == DENIED && t_layered.getFloat() == 1.25f, "the client's values can't be replaced");
+    }
+
+    t_cmd.setCallback([](std::string_view args) -> void {
+        s_cmdCalls++;
+        s_cmdArgs = args;
+    });
+    t_layered.removeAllCallbacks();
+    t_string.removeAllCallbacks();
+    t_layered.setValue(1.0f);
+    t_string.setValue("abc");
 }
 
 void ConVarTest::testThreads() {
