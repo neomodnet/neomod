@@ -6,7 +6,6 @@
 #include <string>
 
 class DatabaseBeatmap;
-struct Packet;
 
 namespace Downloader {
 
@@ -61,7 +60,5 @@ bool download_beatmapset(u32 set_id, DownloadHandle &handle);
 // - returns: positive set_id (resolved), 0 (still resolving / in flight), -1 (resolution failed).
 // Main-thread only.
 i32 resolve_beatmapset_id_for(i32 beatmap_id, i32 set_id_hint = 0);
-
-void process_beatmapset_info_response(const Packet &packet);
 
 }  // namespace Downloader

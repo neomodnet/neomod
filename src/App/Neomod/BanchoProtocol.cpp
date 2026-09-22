@@ -5,21 +5,19 @@
 #include "BeatmapInterface.h"
 #include "Osu.h"
 
-Room::Room(Packet &packet) {
+Room::Room(PacketReader &packet) {
     this->id = packet.read<u16>();
     this->in_progress = packet.read<u8>();
     this->match_type = packet.read<u8>();
     this->mods = packet.read<LegacyFlags>();
-    this->name = packet.read_stdstring();
+    this->name = packet.read_string();
 
-    this->has_password = packet.read<u8>() > 0;
-    if(this->has_password) {
-        // Discard password. It should be an empty string, but just in case, read it properly.
-        packet.pos--;
-        packet.skip_string();
-    }
+    // the password is a string whose presence marker doubles as the has_password flag. it should be empty, but skip
+    // whatever is there just in case
+    this->has_password = packet.peek<u8>() > 0;
+    packet.skip_string();
 
-    this->map_name = packet.read_stdstring();
+    this->map_name = packet.read_string();
     this->map_id = packet.read<i32>();
 
     this->map_md5 = packet.read_hash_chars();

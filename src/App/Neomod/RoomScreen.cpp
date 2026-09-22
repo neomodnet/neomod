@@ -750,7 +750,7 @@ void RoomScreen::on_match_started(const Room &room) {
     }
 }
 
-void RoomScreen::on_match_score_updated(Packet &packet) {
+void RoomScreen::on_match_score_updated(PacketReader &packet) {
     auto frame = packet.read<ScoreFrame>();
     if(frame.slot_id > 15) return;
 

@@ -5,8 +5,6 @@
 
 class DatabaseBeatmap;
 
-struct Packet;
-
 namespace BANCHO::Leaderboard {
 struct OnlineMapInfo {
     i32 ranked_status;

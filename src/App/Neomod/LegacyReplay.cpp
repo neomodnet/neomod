@@ -199,9 +199,7 @@ struct Info {
 Info from_bytes(std::span<const u8> data) {
     Info info{};
 
-    Packet replay;
-    replay.memory = (u8*)data.data();
-    replay.size = data.size();
+    PacketReader replay{data};
 
     info.gamemode = replay.read<u8>();
     if(info.gamemode != 0) {
@@ -211,7 +209,7 @@ Info from_bytes(std::span<const u8> data) {
 
     info.osu_version = replay.read<u32>();
     info.map_md5 = replay.read_hash_chars();
-    info.username = replay.read_stdstring();
+    info.username = replay.read_string();
     info.replay_md5 = replay.read_hash_chars();
     info.num300s = replay.read<u16>();
     info.num100s = replay.read<u16>();
@@ -223,17 +221,14 @@ Info from_bytes(std::span<const u8> data) {
     info.comboMax = replay.read<u16>();
     info.perfect = replay.read<u8>();
     info.mod_flags = replay.read<LegacyFlags>();
-    info.life_bar_graph = replay.read_stdstring();
+    info.life_bar_graph = replay.read_string();
     info.timestamp = (replay.read<i64>() - UNIX_EPOCH_TICKS) / TICKS_PER_SECOND;
 
     i32 replay_size = replay.read<i32>();
     if(replay_size <= 0) return info;
-    if(replay.pos + (uSz)replay_size > replay.size) {
-        replay.pos = replay.size + 1;  // keep the Packet::read* overrun convention for the reads below
-    } else {
-        info.frames = get_frames(data.subspan(replay.pos, (uSz)replay_size));
-        replay.pos += (uSz)replay_size;
-    }
+    const auto lzma_frames = replay.read_span((uSz)replay_size);
+    if(!replay.good()) return info;
+    info.frames = get_frames(lzma_frames);
 
     // https://github.com/ppy/osu/blob/a0e300c3/osu.Game/Scoring/Legacy/LegacyScoreDecoder.cs
     if(info.osu_version >= 20140721) {
@@ -247,8 +242,8 @@ Info from_bytes(std::span<const u8> data) {
     // handle neomod mods
     if(info.osu_version >= 40000000) {
         auto mods = Replay::Mods::unpack(replay);
-        // Packet::read pins pos to size+1 on overrun, so this detects a truncated/absent block
-        if(replay.pos <= replay.size) info.neomod_mods = mods;
+        // a truncated/absent block fails the reader
+        if(replay.good()) info.neomod_mods = mods;
         // cvar snapshot (u32 count + strings) not currently read (see NOTE in Database::addScore)
     }
 

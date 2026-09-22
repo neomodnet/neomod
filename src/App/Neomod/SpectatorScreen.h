@@ -31,7 +31,7 @@ class SpectatorScreen final : public UIScreen {
     void draw() override;
     void onKeyDown(KeyboardEvent& e) override;
     void onStopSpectatingClicked();
-    void handleFrameBundle(Packet& packet);
+    void handleFrameBundle(PacketReader& packet);
 
     UserCard* userCard = nullptr;
 

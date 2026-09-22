@@ -88,7 +88,7 @@ struct Mods {
     static void begin_session();
     static void end_session();
 
-    // templated for either Packet or ByteBufferdFile::Reader/Writer
+    // templated for either PacketReader/Packet or ByteBufferedFile::Reader/Writer
 
     template <GenericReader R>
     static Mods unpack(R &reader);

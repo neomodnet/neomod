@@ -225,7 +225,7 @@ void BanchoState::check_and_notify_nonsubmittable() {
     }
 }
 
-void BanchoState::handle_packet(Packet &packet) {
+void BanchoState::handle_packet(PacketReader &packet) {
     logIfCV(debug_network, "{:d} ({:s})", packet.id, IncomingPackets_to_string((IncomingPackets)packet.id));
 
     switch(packet.id) {
@@ -302,9 +302,9 @@ void BanchoState::handle_packet(Packet &packet) {
         }
 
         case INP_RECV_MESSAGE: {
-            std::string sender = packet.read_stdstring();
-            std::string text = packet.read_stdstring();
-            std::string recipient = packet.read_stdstring();
+            std::string sender = packet.read_string();
+            std::string text = packet.read_string();
+            std::string recipient = packet.read_string();
             i32 sender_id = packet.read<i32>();
 
             auto msg = ChatMessage{
@@ -339,7 +339,7 @@ void BanchoState::handle_packet(Packet &packet) {
             user->irc_user = is_irc_user;
             user->stats_tms = Timing::getTicksMS();
             user->action = action;
-            user->info_text = packet.read_stdstring();
+            user->info_text = packet.read_string();
             user->map_md5 = packet.read_hash_chars();
             user->mods = packet.read<LegacyFlags>();
             user->mode = (GameMode)packet.read<u8>();
@@ -365,7 +365,7 @@ void BanchoState::handle_packet(Packet &packet) {
 
         case INP_USER_LOGOUT: {
             i32 logged_out_id = packet.read<i32>();
-            packet.read<u8>();
+            packet.skip<u8>();
             if(logged_out_id == BanchoState::get_uid()) {
                 debugLog("Logged out.");
                 BanchoState::disconnect();
@@ -418,7 +418,7 @@ void BanchoState::handle_packet(Packet &packet) {
         }
 
         case INP_NOTIFICATION: {
-            std::string notification = packet.read_stdstring();
+            std::string notification = packet.read_string();
             // some servers do some BS with whitespace/padding
             // remove that but keep them on separate lines if they came in that way
             std::string cleaned_notification;
@@ -539,7 +539,7 @@ void BanchoState::handle_packet(Packet &packet) {
         }
 
         case INP_CHANNEL_JOIN_SUCCESS: {
-            std::string name = packet.read_stdstring();
+            std::string name = packet.read_string();
             auto msg = ChatMessage{
                 .tms = time(nullptr),
                 .author_id = 0,
@@ -552,29 +552,29 @@ void BanchoState::handle_packet(Packet &packet) {
         }
 
         case INP_CHANNEL_INFO: {
-            std::string channel_name = packet.read_stdstring();
-            std::string channel_topic = packet.read_stdstring();
+            std::string channel_name = packet.read_string();
+            std::string channel_topic = packet.read_string();
             i32 nb_members = packet.read<i32>();
             BanchoState::update_channel(channel_name, channel_topic, nb_members, false);
             break;
         }
 
         case INP_LEFT_CHANNEL: {
-            std::string name = packet.read_stdstring();
+            std::string name = packet.read_string();
             ui->getChat()->removeChannel(name);
             break;
         }
 
         case INP_CHANNEL_AUTO_JOIN: {
-            std::string channel_name = packet.read_stdstring();
-            std::string channel_topic = packet.read_stdstring();
+            std::string channel_name = packet.read_string();
+            std::string channel_topic = packet.read_string();
             i32 nb_members = packet.read<i32>();
             BanchoState::update_channel(channel_name, channel_topic, nb_members, true);
             break;
         }
 
         case INP_PRIVILEGES: {
-            packet.read<u32>();  // not using it for anything
+            packet.skip<u32>();  // not using it for anything
             break;
         }
 
@@ -602,7 +602,7 @@ void BanchoState::handle_packet(Packet &packet) {
         }
 
         case INP_MAIN_MENU_ICON: {
-            std::string icon = packet.read_stdstring();
+            std::string icon = packet.read_string();
             auto urls = SString::split(icon, '|');
             if(urls.size() == 2 && ((urls[0].starts_with("http://")) || urls[0].starts_with("https://"))) {
                 BanchoState::server_icon_url = urls[0];
@@ -629,7 +629,7 @@ void BanchoState::handle_packet(Packet &packet) {
             UserInfo *user = BANCHO::User::get_user_info(presence_user_id);
             user->irc_user = is_irc_user;
             user->has_presence = true;
-            user->name = packet.read_stdstring();
+            user->name = packet.read_string();
             user->utc_offset = packet.read<u8>();
             user->country = packet.read<u8>();
             user->privileges = packet.read<u8>();
@@ -681,7 +681,7 @@ void BanchoState::handle_packet(Packet &packet) {
         }
 
         case INP_ROOM_PASSWORD_CHANGED: {
-            std::string new_password = packet.read_stdstring();
+            std::string new_password = packet.read_string();
             debugLog("Room changed password to {:s}", new_password);
             BanchoState::room.password = new_password;
             break;
@@ -718,8 +718,8 @@ void BanchoState::handle_packet(Packet &packet) {
         case INP_USER_DM_BLOCKED: {
             packet.skip_string();
             packet.skip_string();
-            std::string blocked = packet.read_stdstring();
-            packet.read<u32>();
+            std::string blocked = packet.read_string();
+            packet.skip<u32>();
             debugLog("Blocked {:s}.", blocked);
             break;
         }
@@ -727,8 +727,8 @@ void BanchoState::handle_packet(Packet &packet) {
         case INP_TARGET_IS_SILENCED: {
             packet.skip_string();
             packet.skip_string();
-            std::string blocked = packet.read_stdstring();
-            packet.read<u32>();
+            std::string blocked = packet.read_string();
+            packet.skip<u32>();
             debugLog("Silenced {:s}.", blocked);
             break;
         }
@@ -755,7 +755,7 @@ void BanchoState::handle_packet(Packet &packet) {
             // not just for multiplayer matches or nonexisting "tournament" state.
             // Note that we don't go through the login process again, but just
             // reuse the existing login token.
-            BanchoState::game_endpoint = packet.read_stdstring();
+            BanchoState::game_endpoint = packet.read_string();
             BanchoState::reconnect_websocket();
             break;
         }
@@ -776,7 +776,7 @@ void BanchoState::handle_packet(Packet &packet) {
         case INP_PROTECT_VARIABLES: {
             u16 nb_variables = packet.read<u16>();
             for(u16 i = 0; i < nb_variables; i++) {
-                auto name = packet.read_stdstring();
+                auto name = packet.read_string();
                 auto cvar = cvars().getConVarByName(name);
                 if(cvar) {
                     cvar->setServerProtected(CvarProtection::PROTECTED);
@@ -791,7 +791,7 @@ void BanchoState::handle_packet(Packet &packet) {
         case INP_UNPROTECT_VARIABLES: {
             u16 nb_variables = packet.read<u16>();
             for(u16 i = 0; i < nb_variables; i++) {
-                auto name = packet.read_stdstring();
+                auto name = packet.read_string();
                 auto cvar = cvars().getConVarByName(name);
                 if(cvar) {
                     cvar->setServerProtected(CvarProtection::UNPROTECTED);
@@ -806,8 +806,8 @@ void BanchoState::handle_packet(Packet &packet) {
         case INP_FORCE_VALUES: {
             u16 nb_variables = packet.read<u16>();
             for(u16 i = 0; i < nb_variables; i++) {
-                auto name = packet.read_stdstring();
-                auto val = packet.read_stdstring();
+                auto name = packet.read_string();
+                auto val = packet.read_string();
                 auto cvar = cvars().getConVarByName(name);
                 if(!cvar) {
                     debugLog("Server wanted to set cvar '{}' to '{}', but it doesn't exist!", name, val);
@@ -827,7 +827,7 @@ void BanchoState::handle_packet(Packet &packet) {
         case INP_RESET_VALUES: {
             u16 nb_variables = packet.read<u16>();
             for(u16 i = 0; i < nb_variables; i++) {
-                auto name = packet.read_stdstring();
+                auto name = packet.read_string();
                 auto cvar = cvars().getConVarByName(name);
                 if(cvar) {
                     cvar->clearValue(CvarEditor::SERVER);
@@ -894,7 +894,7 @@ void BanchoState::handle_packet(Packet &packet) {
         }
 
         default: {
-            debugLog("Unknown packet ID {:d} ({:d} bytes)!", packet.id, packet.size);
+            debugLog("Unknown packet ID {:d} ({:d} bytes)!", packet.id, packet.size());
             break;
         }
     }

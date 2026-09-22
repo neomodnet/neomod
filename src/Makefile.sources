@@ -83,6 +83,7 @@ TEST_SOURCES := \
 	src/App/Tests/CryptoTest.cpp \
 	src/App/Tests/EmojiRenderTest/EmojiRenderTest.cpp \
 	src/App/Tests/Neomod/HitSoundTest.cpp \
+	src/App/Tests/Neomod/PacketTest.cpp \
 	src/App/Tests/Neomod/SkinLoadTest.cpp \
 	src/App/Tests/Neomod/SliderRenderTest.cpp \
 	src/App/Tests/NetworkTest.cpp \

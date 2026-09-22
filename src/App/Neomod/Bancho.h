@@ -64,7 +64,7 @@ struct BanchoState final {
     static Hash::unstable_stringmap<BanchoState::Channel *> chat_channels;
 
     // utils
-    static void handle_packet(Packet &packet);
+    static void handle_packet(PacketReader &packet);
     static std::string build_login_packet();
     static void update_online_status(OnlineStatus new_status);
     static void initialize_neomod_server_session();

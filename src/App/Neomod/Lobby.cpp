@@ -267,7 +267,7 @@ void Lobby::on_create_room_clicked() {
         BanchoState::room.map_id = map->getID();
     }
 
-    Packet packet = {0};
+    Packet packet;
     packet.id = OUTP_CREATE_ROOM;
     BanchoState::room.pack(packet);
     BANCHO::Net::send_packet(packet);

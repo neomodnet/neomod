@@ -31,7 +31,10 @@
 #include "Logging.h"
 #include "crypto.h"
 
+#include "fmt/ranges.h"
+
 #include <ctime>
+#include <utility>
 #include <vector>
 
 // Bancho protocol
@@ -39,6 +42,7 @@
 namespace BANCHO::Net {
 namespace {  // static namespace
 
+// the packets queued for the next request, already in wire form (see append_to_batch)
 Packet outgoing;
 u64 last_packet_ms{0};
 double seconds_between_pings{1.0};
@@ -52,12 +56,16 @@ double login_poll_timeout{-1.};
 // at most one login-related request is ever in flight at a time, so a single source suffices.
 Sync::stop_source login_cancel;
 
-void parse_packets(std::span<u8> packet_data) {
-    Packet batch = {
-        .memory = packet_data.data(),
-        .size = packet_data.size(),
-        .pos = 0,
-    };
+// the wire form of a packet: id, compression flag (never set), payload length, payload
+void append_to_batch(Packet &batch, const Packet &packet) {
+    batch.write<u16>(packet.id);
+    batch.write<u8>(0);
+    batch.write<u32>(packet.data.size());
+    batch.write_bytes(packet.data);
+}
+
+void parse_packets(std::span<const u8> packet_data) {
+    PacketReader batch{packet_data};
 
     // Treat packet_data as a PONG even if it's empty
     // For HTTP polling, this makes sense (bancho.py sends nothing to save bandwidth)
@@ -65,9 +73,9 @@ void parse_packets(std::span<u8> packet_data) {
     pong_expected_before = -1.0;
 
     // + 7 for packet header
-    while(batch.pos + 7 <= batch.size) {
+    while(batch.remaining() >= 7) {
         u16 packet_id = batch.read<u16>();
-        batch.pos++;  // skip compression flag
+        batch.skip<u8>();  // compression flag
         u32 packet_len = batch.read<u32>();
 
         if(packet_len > 10485760) {
@@ -75,22 +83,19 @@ void parse_packets(std::span<u8> packet_data) {
             break;
         }
 
-        if(batch.pos + packet_len > batch.size) break;
+        if(packet_len > batch.remaining()) break;
 
-        Packet incoming = {
-            .id = packet_id,
-            .memory = batch.memory + batch.pos,
-            .size = packet_len,
-            .pos = 0,
-        };
+        PacketReader incoming{batch.read_span(packet_len), packet_id};
         BanchoState::handle_packet(incoming);
-
-        // When we receive actual data, start polling fast again
-        if(incoming.id != INP_PONG) {
-            seconds_between_pings = 1.0;
+        if(!incoming.good()) {
+            logIfCV(debug_network, "{:d} ({:s}) was shorter than expected ({:d} bytes)", packet_id,
+                    IncomingPackets_to_string((IncomingPackets)packet_id), packet_len);
         }
 
-        batch.pos += packet_len;
+        // When we receive actual data, start polling fast again
+        if(packet_id != INP_PONG) {
+            seconds_between_pings = 1.0;
+        }
     }
 }
 
@@ -155,7 +160,7 @@ void attempt_logging_in() {
     });
 }
 
-void send_bancho_packet_http(Packet outgoing) {
+void send_bancho_packet_http(std::span<const u8> batch) {
     if(auth_token.empty()) return;
 
     Mc::Net::RequestOptions options{
@@ -168,7 +173,7 @@ void send_bancho_packet_http(Packet outgoing) {
     options.headers["osu-token"] = auth_token;
 
     // copy outgoing packet data for POST
-    options.post_data = std::string(reinterpret_cast<char *>(outgoing.memory), outgoing.pos);
+    options.post_data.assign(batch.begin(), batch.end());
 
     networkHandler->httpRequestAsync(BanchoState::game_endpoint, std::move(options), [](Mc::Net::Response response) {
         if(!response.success) {
@@ -180,7 +185,7 @@ void send_bancho_packet_http(Packet outgoing) {
     });
 }
 
-void send_bancho_packet_ws(Packet outgoing) {
+void send_bancho_packet_ws(std::span<const u8> batch) {
     if(auth_token.empty()) return;
 
     if(websocket == nullptr || websocket->status.load(std::memory_order_relaxed) == Mc::Net::WSStatus::DISCONNECTED) {
@@ -190,7 +195,7 @@ void send_bancho_packet_ws(Packet outgoing) {
         if(websocket && websocket->time_created + 5.0 > engine->getTime()) {
             // XXX: dropping websocket->out here
             use_websockets = false;
-            send_bancho_packet_http(outgoing);
+            send_bancho_packet_http(batch);
             return;
         }
 
@@ -203,10 +208,10 @@ void send_bancho_packet_ws(Packet outgoing) {
             websocket = nullptr;
             use_websockets = false;
         }
-        send_bancho_packet_http(outgoing);
+        send_bancho_packet_http(batch);
     } else {
         // enqueue packets to be sent
-        websocket->write({outgoing.memory, static_cast<size_t>(outgoing.pos)});
+        websocket->write(batch);
     }
 }
 
@@ -260,12 +265,10 @@ void update_networking() {
     //   If you're implementing a server, make sure to send PONGs when using CloudFlare
     //   to keep the connection open for longer.
     const bool should_ping = Timing::getTicksMS() - last_packet_ms > (u64)(seconds_between_pings * 1000);
-    if(should_ping && outgoing.pos == 0) {
+    if(should_ping && outgoing.data.empty()) {
         pong_expected_before = current_time + 10.0;
 
-        outgoing.write<u16>(OUTP_PING);
-        outgoing.write<u8>(0);
-        outgoing.write<u32>(0);
+        append_to_batch(outgoing, Packet{OUTP_PING});
 
         // Polling gets slower over time, but resets when we receive new data
         if(seconds_between_pings < 30.0) {
@@ -287,26 +290,22 @@ void update_networking() {
         }
     }
 
-    if(outgoing.pos > 0) {
+    if(!outgoing.data.empty()) {
         last_packet_ms = Timing::getTicksMS();
 
-        Packet out = outgoing;
-        outgoing = Packet();
+        Packet out = std::exchange(outgoing, {});
 
         if(cv::debug_network.getBool()) {
             // DEBUG: If we're not sending the right amount of bytes, bancho.py just
             // chugs along! To try to detect it faster, we'll send two packets per request.
-            out.write<u16>(OUTP_PING);
-            out.write<u8>(0);
-            out.write<u32>(0);
+            append_to_batch(out, Packet{OUTP_PING});
         }
 
         if(use_websockets) {
-            send_bancho_packet_ws(out);
+            send_bancho_packet_ws(out.data);
         } else {
-            send_bancho_packet_http(out);
+            send_bancho_packet_http(out.data);
         }
-        free(out.memory);
     }
 
     if(websocket) {
@@ -317,44 +316,22 @@ void update_networking() {
     }
 }
 
-void send_packet(Packet &packet) {
-    if(!BanchoState::is_online() || BanchoState::fake_online) {
-        // Don't queue any packets until we're logged in (or in a server-less fake session)
-        free(packet.memory);
-        packet.memory = nullptr;
-        packet.size = 0;
-        return;
-    }
+void send_packet(const Packet &packet) {
+    // Don't queue any packets until we're logged in (or in a server-less fake session)
+    if(!BanchoState::is_online() || BanchoState::fake_online) return;
 
-    logIfCV(debug_network, "{:d} ({:s})", packet.id, OutgoingPackets_to_string((OutgoingPackets)packet.id));
-
-    // debugLog("Sending packet of type {:}: ", packet.id);
-    // for (int i = 0; i < packet.pos; i++) {
-    //     logRaw("{:02x} ", packet.memory[i]);
-    // }
-    // logRaw("");
+    logIfCV(debug_network, "{:d} ({:s}): {:02x}", packet.id, OutgoingPackets_to_string((OutgoingPackets)packet.id),
+            fmt::join(packet.data, " "));
 
     // We're not sending it immediately, instead we just add it to the pile of
     // packets to send
-    outgoing.write<u16>(packet.id);
-    outgoing.write<u8>(0);
-    outgoing.write<u32>(packet.pos);
-
-    // Some packets have an empty payload
-    if(packet.memory != nullptr) {
-        outgoing.write_bytes(packet.memory, packet.pos);
-        free(packet.memory);
-    }
-
-    packet.memory = nullptr;
-    packet.size = 0;
+    append_to_batch(outgoing, packet);
 }
 
 void cleanup_networking() {
     // no thread to kill, just cleanup any remaining state
     auth_token = "";
-    free(outgoing.memory);
-    outgoing = Packet();
+    outgoing = {};
 }
 
 }  // namespace BANCHO::Net
@@ -404,14 +381,13 @@ void BanchoState::disconnect(bool shutdown) {
     // Logout
     // This is a blocking call, but we *do* want this to block when quitting the game.
     if(BanchoState::is_online() && !BANCHO::Net::auth_token.empty()) {
-        Packet packet;
-        packet.write<u16>(OUTP_LOGOUT);
-        packet.write<u8>(0);
-        packet.write<u32>(4);
-        packet.write<u32>(0);
+        Packet logout{OUTP_LOGOUT};
+        logout.write<u32>(0);
+        Packet batch;
+        BANCHO::Net::append_to_batch(batch, logout);
 
         Mc::Net::RequestOptions options{
-            .post_data = std::string(reinterpret_cast<char *>(packet.memory), packet.pos),
+            .post_data = std::string(batch.data.begin(), batch.data.end()),
             .user_agent = "osu!",
             .timeout = 5,
             .connect_timeout = 5,
@@ -429,16 +405,13 @@ void BanchoState::disconnect(bool shutdown) {
         } else {
             networkHandler->httpRequestAsync(BanchoState::game_endpoint, std::move(options));
         }
-
-        free(packet.memory);
     } else if(BanchoState::is_logging_in() || BanchoState::get_online_status() == OnlineStatus::POLLING) {
         // cancel the in-flight login/oauth-poll request directly; its callback won't run
         BANCHO::Net::login_cancel.request_stop();
         BANCHO::Net::login_poll_timeout = -1.;
     }
 
-    free(BANCHO::Net::outgoing.memory);
-    BANCHO::Net::outgoing = Packet();
+    BANCHO::Net::outgoing = {};
     if(BANCHO::Net::websocket)
         BANCHO::Net::websocket->status.store(Mc::Net::WSStatus::DISCONNECTED, std::memory_order_relaxed);
     BANCHO::Net::websocket = nullptr;
@@ -549,7 +522,7 @@ void BanchoState::reconnect_websocket() {
         new_websocket->write(BANCHO::Net::websocket->drain_output());
         BANCHO::Net::websocket->status.store(Mc::Net::WSStatus::DISCONNECTED, std::memory_order_relaxed);
     }
-    BANCHO::Net::websocket = new_websocket;
+    BANCHO::Net::websocket = std::move(new_websocket);
 }
 
 bool BanchoState::fake_online{false};

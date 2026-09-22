@@ -226,7 +226,7 @@ struct Slot {
 class Room {
    public:
     Room() = default;  // default-initialized room means we're not in multiplayer at the moment
-    Room(Packet &packet);
+    Room(PacketReader &packet);
 
     MD5Hash map_md5;
 
@@ -320,12 +320,4 @@ enum class LiveReplayAction : uint8_t {
     SONG_SELECT = 7,
     WATCHING_OTHER = 8,
     MAX_ACTION
-};
-
-struct LiveReplayBundle {
-    LiveReplayAction action{LiveReplayAction::NONE};
-    u16 nb_frames{0};
-    LiveReplayFrame *frames{nullptr};
-    ScoreFrame score;
-    u16 sequence{0};
 };

@@ -15,8 +15,8 @@ struct Packet;
 
 namespace BANCHO::Net {
 
-// Send a packet to Bancho. Do not free it after calling this.
-void send_packet(Packet& packet);
+// Queue a packet for the next request to Bancho (copies it, so the packet can be dropped or reused right after)
+void send_packet(const Packet& packet);
 
 // Process networking logic. Should be called regularly from main thread.
 void update_networking();

@@ -421,7 +421,7 @@ void SpectatorScreen::onKeyDown(KeyboardEvent &key) {
 
 void SpectatorScreen::onStopSpectatingClicked() { Spectating::stop(); }
 
-void SpectatorScreen::handleFrameBundle(Packet &packet) {
+void SpectatorScreen::handleFrameBundle(PacketReader &packet) {
     if(!BanchoState::spectating) return;
 
     UserInfo *info = BANCHO::User::get_user_info(BanchoState::spectated_player_id, true);

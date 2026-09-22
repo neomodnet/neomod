@@ -409,6 +409,7 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Tests/ConVarTest.cpp src/App/Tests/CryptoTest.cpp \
 	src/App/Tests/EmojiRenderTest/EmojiRenderTest.cpp \
 	src/App/Tests/Neomod/HitSoundTest.cpp \
+	src/App/Tests/Neomod/PacketTest.cpp \
 	src/App/Tests/Neomod/SkinLoadTest.cpp \
 	src/App/Tests/Neomod/SliderRenderTest.cpp \
 	src/App/Tests/NetworkTest.cpp $(builddir)/gen/binary_embed.cpp \
@@ -454,6 +455,7 @@ am__dirstamp = $(am__leading_dot)dirstamp
 @BUILD_TESTS_TRUE@	src/App/Tests/neomod-CryptoTest.$(OBJEXT) \
 @BUILD_TESTS_TRUE@	src/App/Tests/EmojiRenderTest/neomod-EmojiRenderTest.$(OBJEXT) \
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/neomod-HitSoundTest.$(OBJEXT) \
+@BUILD_TESTS_TRUE@	src/App/Tests/Neomod/neomod-PacketTest.$(OBJEXT) \
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/neomod-SkinLoadTest.$(OBJEXT) \
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/neomod-SliderRenderTest.$(OBJEXT) \
 @BUILD_TESTS_TRUE@	src/App/Tests/neomod-NetworkTest.$(OBJEXT)
@@ -814,6 +816,7 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/App/Tests/BaseFrameworkTest/$(DEPDIR)/neomod-BaseFrameworkTest.Po \
 	src/App/Tests/EmojiRenderTest/$(DEPDIR)/neomod-EmojiRenderTest.Po \
 	src/App/Tests/Neomod/$(DEPDIR)/neomod-HitSoundTest.Po \
+	src/App/Tests/Neomod/$(DEPDIR)/neomod-PacketTest.Po \
 	src/App/Tests/Neomod/$(DEPDIR)/neomod-SkinLoadTest.Po \
 	src/App/Tests/Neomod/$(DEPDIR)/neomod-SliderRenderTest.Po \
 	src/Engine/$(DEPDIR)/neomod-AnimationHandler.Po \
@@ -1424,6 +1427,7 @@ PATH := $(DEPS_PREFIX):$(shell echo $$PATH)
 @BUILD_TESTS_TRUE@	src/App/Tests/CryptoTest.cpp \
 @BUILD_TESTS_TRUE@	src/App/Tests/EmojiRenderTest/EmojiRenderTest.cpp \
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/HitSoundTest.cpp \
+@BUILD_TESTS_TRUE@	src/App/Tests/Neomod/PacketTest.cpp \
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/SkinLoadTest.cpp \
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/SliderRenderTest.cpp \
 @BUILD_TESTS_TRUE@	src/App/Tests/NetworkTest.cpp \
@@ -3034,6 +3038,9 @@ src/App/Tests/Neomod/$(DEPDIR)/$(am__dirstamp):
 src/App/Tests/Neomod/neomod-HitSoundTest.$(OBJEXT):  \
 	src/App/Tests/Neomod/$(am__dirstamp) \
 	src/App/Tests/Neomod/$(DEPDIR)/$(am__dirstamp)
+src/App/Tests/Neomod/neomod-PacketTest.$(OBJEXT):  \
+	src/App/Tests/Neomod/$(am__dirstamp) \
+	src/App/Tests/Neomod/$(DEPDIR)/$(am__dirstamp)
 src/App/Tests/Neomod/neomod-SkinLoadTest.$(OBJEXT):  \
 	src/App/Tests/Neomod/$(am__dirstamp) \
 	src/App/Tests/Neomod/$(DEPDIR)/$(am__dirstamp)
@@ -3242,6 +3249,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/BaseFrameworkTest/$(DEPDIR)/neomod-BaseFrameworkTest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/EmojiRenderTest/$(DEPDIR)/neomod-EmojiRenderTest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/Neomod/$(DEPDIR)/neomod-HitSoundTest.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/Neomod/$(DEPDIR)/neomod-PacketTest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/Neomod/$(DEPDIR)/neomod-SkinLoadTest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/Neomod/$(DEPDIR)/neomod-SliderRenderTest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/Engine/$(DEPDIR)/neomod-AnimationHandler.Po@am__quote@ # am--include-marker
@@ -6727,6 +6735,20 @@ src/App/Tests/Neomod/neomod-HitSoundTest.obj: src/App/Tests/Neomod/HitSoundTest.
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Tests/Neomod/neomod-HitSoundTest.obj `if test -f 'src/App/Tests/Neomod/HitSoundTest.cpp'; then $(CYGPATH_W) 'src/App/Tests/Neomod/HitSoundTest.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Tests/Neomod/HitSoundTest.cpp'; fi`
 
+src/App/Tests/Neomod/neomod-PacketTest.o: src/App/Tests/Neomod/PacketTest.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Tests/Neomod/neomod-PacketTest.o -MD -MP -MF src/App/Tests/Neomod/$(DEPDIR)/neomod-PacketTest.Tpo -c -o src/App/Tests/Neomod/neomod-PacketTest.o `test -f 'src/App/Tests/Neomod/PacketTest.cpp' || echo '$(srcdir)/'`src/App/Tests/Neomod/PacketTest.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Tests/Neomod/$(DEPDIR)/neomod-PacketTest.Tpo src/App/Tests/Neomod/$(DEPDIR)/neomod-PacketTest.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Tests/Neomod/PacketTest.cpp' object='src/App/Tests/Neomod/neomod-PacketTest.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Tests/Neomod/neomod-PacketTest.o `test -f 'src/App/Tests/Neomod/PacketTest.cpp' || echo '$(srcdir)/'`src/App/Tests/Neomod/PacketTest.cpp
+
+src/App/Tests/Neomod/neomod-PacketTest.obj: src/App/Tests/Neomod/PacketTest.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Tests/Neomod/neomod-PacketTest.obj -MD -MP -MF src/App/Tests/Neomod/$(DEPDIR)/neomod-PacketTest.Tpo -c -o src/App/Tests/Neomod/neomod-PacketTest.obj `if test -f 'src/App/Tests/Neomod/PacketTest.cpp'; then $(CYGPATH_W) 'src/App/Tests/Neomod/PacketTest.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Tests/Neomod/PacketTest.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Tests/Neomod/$(DEPDIR)/neomod-PacketTest.Tpo src/App/Tests/Neomod/$(DEPDIR)/neomod-PacketTest.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Tests/Neomod/PacketTest.cpp' object='src/App/Tests/Neomod/neomod-PacketTest.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Tests/Neomod/neomod-PacketTest.obj `if test -f 'src/App/Tests/Neomod/PacketTest.cpp'; then $(CYGPATH_W) 'src/App/Tests/Neomod/PacketTest.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Tests/Neomod/PacketTest.cpp'; fi`
+
 src/App/Tests/Neomod/neomod-SkinLoadTest.o: src/App/Tests/Neomod/SkinLoadTest.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Tests/Neomod/neomod-SkinLoadTest.o -MD -MP -MF src/App/Tests/Neomod/$(DEPDIR)/neomod-SkinLoadTest.Tpo -c -o src/App/Tests/Neomod/neomod-SkinLoadTest.o `test -f 'src/App/Tests/Neomod/SkinLoadTest.cpp' || echo '$(srcdir)/'`src/App/Tests/Neomod/SkinLoadTest.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Tests/Neomod/$(DEPDIR)/neomod-SkinLoadTest.Tpo src/App/Tests/Neomod/$(DEPDIR)/neomod-SkinLoadTest.Po
@@ -7342,6 +7364,7 @@ distclean: distclean-am
 	-rm -f src/App/Tests/BaseFrameworkTest/$(DEPDIR)/neomod-BaseFrameworkTest.Po
 	-rm -f src/App/Tests/EmojiRenderTest/$(DEPDIR)/neomod-EmojiRenderTest.Po
 	-rm -f src/App/Tests/Neomod/$(DEPDIR)/neomod-HitSoundTest.Po
+	-rm -f src/App/Tests/Neomod/$(DEPDIR)/neomod-PacketTest.Po
 	-rm -f src/App/Tests/Neomod/$(DEPDIR)/neomod-SkinLoadTest.Po
 	-rm -f src/App/Tests/Neomod/$(DEPDIR)/neomod-SliderRenderTest.Po
 	-rm -f src/Engine/$(DEPDIR)/neomod-AnimationHandler.Po
@@ -7633,6 +7656,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/App/Tests/BaseFrameworkTest/$(DEPDIR)/neomod-BaseFrameworkTest.Po
 	-rm -f src/App/Tests/EmojiRenderTest/$(DEPDIR)/neomod-EmojiRenderTest.Po
 	-rm -f src/App/Tests/Neomod/$(DEPDIR)/neomod-HitSoundTest.Po
+	-rm -f src/App/Tests/Neomod/$(DEPDIR)/neomod-PacketTest.Po
 	-rm -f src/App/Tests/Neomod/$(DEPDIR)/neomod-SkinLoadTest.Po
 	-rm -f src/App/Tests/Neomod/$(DEPDIR)/neomod-SliderRenderTest.Po
 	-rm -f src/Engine/$(DEPDIR)/neomod-AnimationHandler.Po

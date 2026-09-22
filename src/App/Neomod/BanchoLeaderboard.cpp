@@ -57,10 +57,7 @@ FinishedScore parse_score(std::string_view score_line) {
 
     if(tokens.size() > 16) {
         std::vector<u8> mod_bytes = crypto::conv::decode64(tokens[16]);
-        Packet mod_packet{
-            .memory = mod_bytes.data(),
-            .size = mod_bytes.size(),
-        };
+        PacketReader mod_packet{mod_bytes};
         score.mods = Replay::Mods::unpack(mod_packet);
     }
 

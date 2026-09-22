@@ -180,8 +180,7 @@ void submit_score(FinishedScore score) {
     {
         Packet packet;
         Replay::Mods::pack_and_write(packet, score.mods);
-        auto mods_data_b64 = crypto::conv::encode64(std::span{packet.memory, packet.pos});
-        free(packet.memory);
+        auto mods_data_b64 = crypto::conv::encode64(packet.data);
 
         options.mime_parts.push_back({
             .name = PACKAGE_NAME "-mods",

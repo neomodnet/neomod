@@ -499,7 +499,7 @@ void Mods::pack_and_write(W &writer, const Mods &mods) {
 
 // explicit instantiations
 template Mods Mods::unpack<ByteBufferedFile::Reader>(ByteBufferedFile::Reader &);
-template Mods Mods::unpack<Packet>(Packet &);
+template Mods Mods::unpack<PacketReader>(PacketReader &);
 
 template void Mods::pack_and_write<ByteBufferedFile::Writer>(ByteBufferedFile::Writer &, const Mods &);
 template void Mods::pack_and_write<Packet>(Packet &, const Mods &);
