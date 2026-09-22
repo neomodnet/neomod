@@ -29,6 +29,7 @@ class ConsoleLogView final : public CBaseUIScrollView {
     ConsoleLogView(float xPos, float yPos, float xSize, float ySize, std::string name)
         : CBaseUIScrollView(xPos, yPos, xSize, ySize, std::move(name)),
           font(engine->getConsoleFont()),
+          fSpaceWidth(this->font->getStringWidth(" ")),
           fLastHeight(ySize) {
         this->setDrawBackground(false);  // the window body shows through, the base only adds the frame + scrollbar
         this->setHorizontalScrolling(false);
@@ -60,14 +61,20 @@ class ConsoleLogView final : public CBaseUIScrollView {
     struct Line {
         std::string text;
         Color color;
+        float width;  // of the text, in font units
         u64 entrySeq;
     };
 
-    // a position in the wrapped text: line index + byte offset into that line
+    // a position in the wrapped text: line index + byte offset into that line (x = that boundary's offset in font
+    // units, derived from the two and only kept for drawing)
     struct TextPos {
         size_t line;
         size_t byte;
-        auto operator<=>(const TextPos &) const = default;
+        float x;
+        auto operator<=>(const TextPos &o) const {
+            return this->line != o.line ? this->line <=> o.line : this->byte <=> o.byte;
+        }
+        bool operator==(const TextPos &o) const { return this->line == o.line && this->byte == o.byte; }
     };
 
     // the line at the view's bottom edge, kept there across relayouts (by log entry, so it survives a re-wrap)
@@ -86,9 +93,6 @@ class ConsoleLogView final : public CBaseUIScrollView {
     void applyAnchor(const Anchor &anchor);
 
     [[nodiscard]] TextPos hitTest(vec2 pos) const;
-    [[nodiscard]] float getTextX(const Line &line, size_t byte) const {
-        return this->font->getStringWidth(std::string_view{line.text}.substr(0, byte));
-    }
     void clearSelection() { this->bHasSelection = this->bSelecting = false; }
 
     [[nodiscard]] float getTextScale() const { return Mc::consoleLogScale(env->getDPIScale()); }
@@ -104,6 +108,7 @@ class ConsoleLogView final : public CBaseUIScrollView {
 
     std::deque<Line> lines;
     McFont *font;
+    float fSpaceWidth;  // the selection's sliver past a line it continues from
     float fWrapWidth{-1.f};
     f64 fLastHeight;
     Console::LogRange logRange{.first = 0, .next = 0};  // the scrollback range the lines were built from
@@ -133,15 +138,15 @@ void ConsoleLogView::draw() {
     {
         const float x = this->getTextLeft();
 
-        // selection highlight behind the text, whole rows for the lines in between
+        // selection highlight behind the text, as wide as the selected characters; a line the selection
+        // continues past gets a space-wide sliver after its text for the newline (or wrap space) it copies
         if(this->hasSelection()) {
             const auto [from, to] = std::minmax(this->selAnchor, this->selHead);
-            const float rowWidth = (this->getSize().x - 4 * scale) / scale;
             g->setColor(0xff2a5a9a);
             for(size_t i = std::max(firstLine, from.line); i < lastLine && i <= to.line; i++) {
-                const Line &line = this->lines[i];
-                const float x0 = (i == from.line) ? this->getTextX(line, from.byte) : 0.f;
-                const float x1 = (i == to.line) ? this->getTextX(line, to.byte) : rowWidth;
+                const float x0 = (i == from.line) ? from.x : 0.f;
+                const float x1 = (i == to.line) ? to.x : this->lines[i].width + this->fSpaceWidth;
+                if(x1 <= x0) continue;  // the selection ends at the start of its last line
                 g->fillRect((int)(x + x0 * scale), (int)(top + i * lineHeight), (int)((x1 - x0) * scale),
                             (int)lineHeight);
             }
@@ -255,8 +260,10 @@ void ConsoleLogView::wrapInto(u64 fromSeq, u64 toSeq) {
         std::max(1.f, this->getSize().x - 4 * scale - cv::ui_scrollview_scrollbarwidth.getFloat()) / scale;
     for(u64 seq = fromSeq; seq < toSeq; seq++) {
         const Console::LogEntry &entry = Console::getLogEntry(seq);
-        for(auto &text : this->font->wrap(entry.text, maxWidth))
-            this->lines.push_back({.text = std::move(text), .color = entry.color, .entrySeq = seq});
+        for(auto &text : this->font->wrap(entry.text, maxWidth)) {
+            const float width = this->font->getStringWidth(text);
+            this->lines.push_back({.text = std::move(text), .color = entry.color, .width = width, .entrySeq = seq});
+        }
     }
 }
 
@@ -311,12 +318,17 @@ ConsoleLogView::TextPos ConsoleLogView::hitTest(vec2 pos) const {
 
     const f64 row = std::floor((pos.y - this->getContentTop()) / this->getLineHeight());
     if(row < 0.) return {};
-    if(row >= static_cast<f64>(this->lines.size()))
-        return {.line = this->lines.size() - 1, .byte = this->lines.back().text.size()};
+    if(row >= static_cast<f64>(this->lines.size())) {
+        const Line &last = this->lines.back();
+        return {.line = this->lines.size() - 1, .byte = last.text.size(), .x = last.width};
+    }
 
     const size_t lineIndex = static_cast<size_t>(row);
+    const Line &line = this->lines[lineIndex];
     const float mx = (pos.x - this->getTextLeft()) / this->getTextScale();
-    return {.line = lineIndex, .byte = this->font->hitTest(this->lines[lineIndex].text, mx)};
+    const size_t byte = this->font->hitTest(line.text, mx);
+    return {
+        .line = lineIndex, .byte = byte, .x = this->font->getStringWidth(std::string_view{line.text}.substr(0, byte))};
 }
 
 std::string ConsoleLogView::getSelectedText() const {
