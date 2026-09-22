@@ -1,5 +1,5 @@
 CXX = em++
-CXXFLAGS = -DBUILD_TOOLS_ONLY -Os -std=c++23 -ffunction-sections -fdata-sections -fno-exceptions -fno-unwind-tables -flto=thin
+CXXFLAGS = -DBUILD_TOOLS_ONLY -Os -std=c++23 -ffunction-sections -fdata-sections -fno-exceptions -fno-unwind-tables -msimd128 -mrelaxed-simd -ffp-contract=off -flto=thin
 LDFLAGS = -Wl,--gc-sections -lembind -s WASM=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s SINGLE_FILE=0 -s ALLOW_MEMORY_GROWTH=1 -s IMPORTED_MEMORY=1
 
 SRCDIR = ../../src

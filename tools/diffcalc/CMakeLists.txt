@@ -54,7 +54,8 @@ target_include_directories(diffcalc PRIVATE
     "${NEOMOD_SRC}/Util"
     "${NEOMOD_LIBS}"
 )
-target_link_libraries(diffcalc PRIVATE ${GLM_TARGET})
+find_package(Threads REQUIRED)  # batch mode workers
+target_link_libraries(diffcalc PRIVATE ${GLM_TARGET} Threads::Threads)
 target_precompile_headers(diffcalc PRIVATE pch.h)
 
 if(MSVC)
@@ -78,6 +79,10 @@ else()
         -fno-exceptions
         -fno-rtti
     )
+
+    # No fma contraction: the calculation has to produce the same values on every platform
+    # (the game build passes the same flag)
+    target_compile_options(diffcalc PRIVATE -ffp-contract=off)
 
     include(CheckCXXCompilerFlag)
     include(CheckLinkerFlag)

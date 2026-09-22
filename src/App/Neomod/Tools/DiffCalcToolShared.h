@@ -24,7 +24,7 @@ inline constexpr std::string_view USAGE_PREFIX = "";
 #else
 inline constexpr std::string_view USAGE_PREFIX = "-diffcalc ";
 #endif
-inline constexpr std::string_view USAGE_TEST = "test [--suite <dir>] [--record] [--tolerance <rel>]";
+inline constexpr std::string_view USAGE_TEST = "test [--suite <dir>] [--record] [--tolerance [<rel>]]";
 inline constexpr std::string_view USAGE_CROSSCHECK = "crosscheck [--suite <dir>]";
 
 // default fixture/golden location, relative to the repo root

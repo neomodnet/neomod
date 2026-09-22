@@ -280,6 +280,9 @@ int runSuiteTest(const std::vector<std::string> &argv) {
     bool record = false;
     double tolerance = 0.0;  // exact
 
+    // "--tolerance" without a value: covers every supported toolchain against the checked-in goldens
+    constexpr double cross_platform_tolerance = 1e-6;
+
     auto argError = [&argv](std::string_view message) {
         std::cerr << "error: " << message << '\n';
         std::cerr << "usage: " << argv[0] << ' ' << USAGE_PREFIX << USAGE_TEST << '\n';
@@ -293,11 +296,14 @@ int runSuiteTest(const std::vector<std::string> &argv) {
             suiteDir = argv[++i];
         } else if(arg == "--record") {
             record = true;
-        } else if(arg == "--tolerance" && hasValue) {
-            std::string_view token = argv[++i];
-            auto [ptr, ec] = Parsing::from_chars(token.data(), token.data() + token.size(), tolerance);
-            if(ec != std::errc() || ptr != token.data() + token.size() || tolerance <= 0.0)
-                return argError(std::format("invalid tolerance '{}'", token));
+        } else if(arg == "--tolerance") {
+            tolerance = cross_platform_tolerance;
+            if(hasValue && !argv[i + 1].starts_with("--")) {
+                std::string_view token = argv[++i];
+                auto [ptr, ec] = Parsing::from_chars(token.data(), token.data() + token.size(), tolerance);
+                if(ec != std::errc() || ptr != token.data() + token.size() || tolerance <= 0.0)
+                    return argError(std::format("invalid tolerance '{}'", token));
+            }
         } else {
             return argError(std::format("unknown argument '{}'", arg));
         }

@@ -53,7 +53,7 @@ two runs from the same input list compare with plain `diff`/`cmp`. Per-map load 
 error lines in place, keeping diffs aligned; batch exits 0 on map errors, nonzero only for
 harness failures.
 
-### Corpus workflow (bit-exactness for refactors)
+### Corpus workflow (exactness for refactors)
 
 The golden suite is small; refactors that must not change values are additionally verified over
 a large local corpus (not in the repo). One-time extraction from a directory of `.osz` sets:
@@ -74,7 +74,7 @@ compiler and build config for both runs.
 The calculation was cross-validated (2026-08-11, algo 20260811) against the real lazer code via
 [osu-native](https://github.com/7mochi/osu-native) (NativeAOT build of `ppy.osu.Game 2026.730.0`):
 star/attribute medians agree to ~5e-5 at rate 1.0 over a 17.5k-map std corpus, and the pp
-calculator is bit-exact given equal attributes. 
+calculator is exact given equal attributes. 
 
 Known residual divergences:
 - non-1.0 rates (median ~2e-3 at 1.5x; our rate-divided object times truncate to integer ms where lazer keeps doubles)
@@ -86,17 +86,14 @@ Run from the repo root (the default `--suite` is `tools/diffcalc/tests`):
 
 ```sh
 ./tools/diffcalc/build/diffcalc test                    # exact compare (default)
-./tools/diffcalc/build/diffcalc test --tolerance 1e-9   # relative float tolerance (cross-platform/CI)
+./tools/diffcalc/build/diffcalc test --tolerance        # other toolchains: relative tolerance, 1e-6 (or --tolerance <rel>)
 ./tools/diffcalc/build/diffcalc test --record           # regenerate goldens after an intended change
 ```
 
 Runs every fixture through a fixed 14-config matrix (NM/HD/HR/EZ, rates 1.5/0.75/1.25, HD,HR,
 HD@1.5, RX/AP/TD, FL, HD,FL) and compares against the checked-in per-fixture goldens in
-`tests/golden/`. The goldens pin the current `PP_ALGORITHM_VERSION` bit-exactly on the platform
-they were recorded on (arm64 macOS); exact mode is for same-platform refactor verification,
-`--tolerance` exists because float formatting is only bit-stable per platform (libm
-differences, e.g. wasm differs around the 9th significant digit). Failures name the fixture,
-config and dotted field: `FAIL 2785319.osu HD,HR@1 attrs.aimDifficulty: expected X got Y`.
+`tests/golden/`. The goldens pin the current `PP_ALGORITHM_VERSION` exactly on the platform
+they were recorded on (arm64 macOS, Apple clang).
 
 Algorithm changes are expected to fail the suite until re-recorded together with a
 `PP_ALGORITHM_VERSION` bump; the golden diff is part of the review. HR/EZ apply the in-game

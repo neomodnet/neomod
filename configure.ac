@@ -867,15 +867,17 @@ __EOF__
         LDFLAGS="$LDFLAGS -m32 -Wl,--large-address-aware"
         # xp
         win_subsystem_ver="5.01"
-        CPPFLAGS="$CPPFLAGS -DWINVER=0x0501 -D_WIN32_WINNT=0x0501 -D_WIN32_WINDOWS=0x0501 -D_WIN32_IE=0x0501"
-        CFLAGS="$CFLAGS -m32 -fno-omit-frame-pointer -momit-leaf-frame-pointer -DWINVER=0x0501 -D_WIN32_WINNT=0x0501 -D_WIN32_WINDOWS=0x0501 -D_WIN32_IE=0x0501 -msse -mfpmath=sse"
-        CXXFLAGS="$CXXFLAGS -m32 -fno-omit-frame-pointer -momit-leaf-frame-pointer -DWINVER=0x0501 -D_WIN32_WINNT=0x0501 -D_WIN32_WINDOWS=0x0501 -D_WIN32_IE=0x0501 -msse -mfpmath=sse"
+        winver_defines="-DWINVER=0x0501 -D_WIN32_WINNT=0x0501 -D_WIN32_WINDOWS=0x0501 -D_WIN32_IE=0x0501"
+        CPPFLAGS="$CPPFLAGS $winver_defines"
+        CFLAGS="$CFLAGS -m32 -fno-omit-frame-pointer -momit-leaf-frame-pointer $winver_defines"
+        CXXFLAGS="$CXXFLAGS -m32 -fno-omit-frame-pointer -momit-leaf-frame-pointer $winver_defines"
         AC_SUBST([NASMOBJ],[win32])
     ], [
         # win10
-        CPPFLAGS="$CPPFLAGS -DWINVER=0x0A00 -D_WIN32_WINNT=0x0A00 -D_WIN32_WINDOWS=0x0A00 -D_WIN32_IE=0x0A00"
-        CFLAGS="$CFLAGS -DWINVER=0x0A00 -D_WIN32_WINNT=0x0A00 -D_WIN32_WINDOWS=0x0A00 -D_WIN32_IE=0x0A00"
-        CXXFLAGS="$CXXFLAGS -DWINVER=0x0A00 -D_WIN32_WINNT=0x0A00 -D_WIN32_WINDOWS=0x0A00 -D_WIN32_IE=0x0A00"
+        winver_defines="-DWINVER=0x0A00 -D_WIN32_WINNT=0x0A00 -D_WIN32_WINDOWS=0x0A00 -D_WIN32_IE=0x0A00"
+        CPPFLAGS="$CPPFLAGS $winver_defines"
+        CFLAGS="$CFLAGS $winver_defines"
+        CXXFLAGS="$CXXFLAGS $winver_defines"
         AC_SUBST([NASMOBJ],[win64])
     ])
 
@@ -1222,6 +1224,12 @@ AS_IF([test -z "$WASM_CC"], [
     ])
 ])
 
+AS_IF([test "$host_cpu" = "i686"], [
+    # sse math instead of the x87 default: excess precision gives different results than every other target
+    CXXFLAGS="$CXXFLAGS -msse -msse2 -mfpmath=sse"
+    CFLAGS="$CFLAGS -msse -msse2 -mfpmath=sse"
+])
+
 # set default arch flags
 AS_IF([test "x$enable_native" != "xno"], [
     CXXFLAGS="$CXXFLAGS -march=native -mtune=native"
@@ -1563,6 +1571,9 @@ AX_CHECK_COMPILE_FLAG([-Wno-unused-template], [
 
 # common flags
 NEOMOD_COMPFLAGS="$NEOMOD_COMPFLAGS -Wall -Wextra -Wno-sign-compare -Wunused-parameter -Wdeprecated-declarations -Wno-error=deprecated-declarations"
+
+# make floating point calculations reproducible across compilers
+NEOMOD_COMPFLAGS="$NEOMOD_COMPFLAGS -ffp-contract=off"
 
 NEOMOD_CXXFLAGS="$NEOMOD_COMPFLAGS $NEOMOD_CXXFLAGS"
 NEOMOD_CFLAGS="$NEOMOD_COMPFLAGS $NEOMOD_CFLAGS"
