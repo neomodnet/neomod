@@ -10,6 +10,7 @@
 #include "CBaseUIButton.h"
 #include "CBaseUIContainer.h"
 #include "CBaseUILabel.h"
+#include "CBaseUISelectableTextView.h"
 #include "CBaseUITextbox.h"
 #include "Logging.h"
 #include "NetworkHandler.h"
@@ -55,13 +56,73 @@
 using namespace flags::operators;
 static McFont *chat_font = nullptr;
 
+// the message area of a channel: one label per fragment of a message (timestamp, name, text, link), laid out by
+// ChatChannel::add_message; the labels are the text runs, a message's first label starts a new line of the copied text
+class ChatLogView final : public CBaseUISelectableTextView {
+    NOCOPY_NOMOVE(ChatLogView)
+   public:
+    ChatLogView() : CBaseUISelectableTextView(0, 0, 0, 0, "") {
+        // the highlight goes between the background and the labels, so draw() fills the background itself
+        this->setDrawBackground(false);
+    }
+    ~ChatLogView() override = default;
+
+    void draw() override;
+    void freeElements() override;
+
+    // adds a label to the content as the next run; separator is what the copied text puts before its text
+    void addRun(CBaseUILabel *label, std::string_view separator);
+
+   protected:
+    [[nodiscard]] size_t getRunCount() const override { return this->runs.size(); }
+    [[nodiscard]] TextRun getRun(size_t index) const override;
+
+   private:
+    struct Run {
+        CBaseUILabel *label;  // owned by the container
+        std::string_view separator;
+    };
+    std::vector<Run> runs;
+};
+
+void ChatLogView::draw() {
+    if(!this->isVisible()) return;
+
+    g->setColor(this->backgroundColor);
+    g->fillRect(this->getPos(), this->getSize());
+    this->drawSelection();
+
+    CBaseUIScrollView::draw();
+}
+
+void ChatLogView::freeElements() {
+    this->runs.clear();
+    this->clearSelection();
+    CBaseUIScrollView::freeElements();
+}
+
+void ChatLogView::addRun(CBaseUILabel *label, std::string_view separator) {
+    this->container.addBaseUIElement(label);
+    this->runs.push_back({.label = label, .separator = separator});
+}
+
+ChatLogView::TextRun ChatLogView::getRun(size_t index) const {
+    const auto &[label, separator] = this->runs[index];
+    return {.text = label->getText(),
+            .font = label->getFont(),
+            .pos = label->getRelPos(),
+            .height = label->getSize().y,
+            .width = label->getStringWidth(),
+            .scale = 1.f,
+            .separator = separator};
+}
+
 ChatChannel::ChatChannel(Chat *chat, std::string name_arg) {
     this->chat = chat;
     this->name = std::move(name_arg);
 
-    this->ui = new CBaseUIScrollView(0, 0, 0, 0, "");
+    this->ui = new ChatLogView();
     this->ui->setDrawFrame(false);
-    this->ui->setDrawBackground(true);
     this->ui->setBackgroundColor(0xdd000000);
     this->ui->setHorizontalScrolling(false);
     this->ui->setDrawScrollbars(true);
@@ -111,7 +172,8 @@ void ChatChannel::add_message(ChatMessage msg) {
     auto *timestamp = new CBaseUILabel(x, this->y_total, time_width, line_height, "", timestamp_str);
     timestamp->setDrawFrame(false);
     timestamp->setDrawBackground(false);
-    this->ui->container.addBaseUIElement(timestamp);
+    timestamp->setHandleLeftMouse(false);  // a press on plain text selects (the view's), only names and links click
+    this->ui->addRun(timestamp, "\n");
     x += time_width;
 
     bool is_system_message = msg.author_name.length() == 0;
@@ -121,7 +183,7 @@ void ChatChannel::add_message(ChatMessage msg) {
         user_box->setTextColor(0xff2596be);
         user_box->setPos(x, this->y_total);
         user_box->setSize(name_width, line_height);
-        this->ui->container.addBaseUIElement(user_box);
+        this->ui->addRun(user_box, "");
         x += name_width;
 
         if(!is_action) {
@@ -233,11 +295,12 @@ void ChatChannel::add_message(ChatMessage msg) {
                     if(is_system_message) {
                         text->setTextColor(system_color);
                     }
-                    this->ui->container.addBaseUIElement(text);
+                    text->setHandleLeftMouse(false);
+                    this->ui->addRun(text, "");
                 } else {
                     auto *link = new ChatLink(x, this->y_total, line_width - x, line_height,
                                               std::string{fragment->getName()}, text_str);
-                    this->ui->container.addBaseUIElement(link);
+                    this->ui->addRun(link, "");
                 }
 
                 x = 10;
@@ -259,11 +322,12 @@ void ChatChannel::add_message(ChatMessage msg) {
             if(is_system_message) {
                 text->setTextColor(system_color);
             }
-            this->ui->container.addBaseUIElement(text);
+            text->setHandleLeftMouse(false);
+            this->ui->addRun(text, "");
         } else {
             auto *link =
                 new ChatLink(x, this->y_total, line_width - x, line_height, std::string{fragment->getName()}, text_str);
-            this->ui->container.addBaseUIElement(link);
+            this->ui->addRun(link, "");
         }
 
         x = line_width;
@@ -751,6 +815,14 @@ void Chat::onKeyDown(KeyboardEvent &key) {
 
         soundEngine->play(osu->getSkin()->s_click_button);
 
+        return;
+    }
+
+    // Ctrl+C: Copy a selection in the message area (unless the input box has its own selection to copy)
+    if(keyboard->isControlDown() && sc == KEY_C && this->selected_channel != nullptr &&
+       this->selected_channel->ui->hasSelection() && !this->input_box->hasSelectedText()) {
+        key.consume();
+        env->setClipBoardText(this->selected_channel->ui->getSelectedText());
         return;
     }
 
@@ -1305,8 +1377,8 @@ void Chat::onResolutionChange(vec2 newResolution) { this->updateLayout(newResolu
 
 bool Chat::isSmallChat() {
     if(ui->getRoomScreen() == nullptr || ui->getLobby() == nullptr || ui->getSongBrowser() == nullptr) return false;
-    bool sitting_in_room =
-        ui->getRoomScreen()->isVisible() && !ui->getSongBrowser()->isVisible() && !BanchoState::is_playing_a_multi_map();
+    bool sitting_in_room = ui->getRoomScreen()->isVisible() && !ui->getSongBrowser()->isVisible() &&
+                           !BanchoState::is_playing_a_multi_map();
     bool sitting_in_lobby = ui->getLobby()->isVisible();
     return sitting_in_room || sitting_in_lobby;
 }

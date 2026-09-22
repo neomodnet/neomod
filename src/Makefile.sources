@@ -280,6 +280,7 @@ neomod_SOURCES = \
 	src/GUI/CBaseUIImageButton.cpp \
 	src/GUI/CBaseUILabel.cpp \
 	src/GUI/CBaseUIScrollView.cpp \
+	src/GUI/CBaseUISelectableTextView.cpp \
 	src/GUI/CBaseUISlider.cpp \
 	src/GUI/CBaseUITextbox.cpp \
 	src/GUI/CBaseUIWindow.cpp \

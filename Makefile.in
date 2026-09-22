@@ -357,9 +357,10 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	src/GUI/CBaseUIDispatch.cpp src/GUI/CBaseUIElement.cpp \
 	src/GUI/CBaseUIEventCtx.cpp src/GUI/CBaseUIImage.cpp \
 	src/GUI/CBaseUIImageButton.cpp src/GUI/CBaseUILabel.cpp \
-	src/GUI/CBaseUIScrollView.cpp src/GUI/CBaseUISlider.cpp \
-	src/GUI/CBaseUITextbox.cpp src/GUI/CBaseUIWindow.cpp \
-	src/GUI/Windows/ConsoleBox.cpp \
+	src/GUI/CBaseUIScrollView.cpp \
+	src/GUI/CBaseUISelectableTextView.cpp \
+	src/GUI/CBaseUISlider.cpp src/GUI/CBaseUITextbox.cpp \
+	src/GUI/CBaseUIWindow.cpp src/GUI/Windows/ConsoleBox.cpp \
 	src/GUI/Windows/ConsoleWidgets.cpp \
 	src/GUI/Windows/ConsoleWindow.cpp \
 	src/GUI/Windows/VisualProfiler.cpp \
@@ -636,6 +637,7 @@ am_neomod_OBJECTS = libraries/neomod-MD5.$(OBJEXT) \
 	src/GUI/neomod-CBaseUIImageButton.$(OBJEXT) \
 	src/GUI/neomod-CBaseUILabel.$(OBJEXT) \
 	src/GUI/neomod-CBaseUIScrollView.$(OBJEXT) \
+	src/GUI/neomod-CBaseUISelectableTextView.$(OBJEXT) \
 	src/GUI/neomod-CBaseUISlider.$(OBJEXT) \
 	src/GUI/neomod-CBaseUITextbox.$(OBJEXT) \
 	src/GUI/neomod-CBaseUIWindow.$(OBJEXT) \
@@ -904,6 +906,7 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/GUI/$(DEPDIR)/neomod-CBaseUIImageButton.Po \
 	src/GUI/$(DEPDIR)/neomod-CBaseUILabel.Po \
 	src/GUI/$(DEPDIR)/neomod-CBaseUIScrollView.Po \
+	src/GUI/$(DEPDIR)/neomod-CBaseUISelectableTextView.Po \
 	src/GUI/$(DEPDIR)/neomod-CBaseUISlider.Po \
 	src/GUI/$(DEPDIR)/neomod-CBaseUITextbox.Po \
 	src/GUI/$(DEPDIR)/neomod-CBaseUIWindow.Po \
@@ -1571,9 +1574,10 @@ neomod_SOURCES = libraries/MD5.cpp libraries/demoji.c \
 	src/GUI/CBaseUIDispatch.cpp src/GUI/CBaseUIElement.cpp \
 	src/GUI/CBaseUIEventCtx.cpp src/GUI/CBaseUIImage.cpp \
 	src/GUI/CBaseUIImageButton.cpp src/GUI/CBaseUILabel.cpp \
-	src/GUI/CBaseUIScrollView.cpp src/GUI/CBaseUISlider.cpp \
-	src/GUI/CBaseUITextbox.cpp src/GUI/CBaseUIWindow.cpp \
-	src/GUI/Windows/ConsoleBox.cpp \
+	src/GUI/CBaseUIScrollView.cpp \
+	src/GUI/CBaseUISelectableTextView.cpp \
+	src/GUI/CBaseUISlider.cpp src/GUI/CBaseUITextbox.cpp \
+	src/GUI/CBaseUIWindow.cpp src/GUI/Windows/ConsoleBox.cpp \
 	src/GUI/Windows/ConsoleWidgets.cpp \
 	src/GUI/Windows/ConsoleWindow.cpp \
 	src/GUI/Windows/VisualProfiler.cpp \
@@ -2749,6 +2753,8 @@ src/GUI/neomod-CBaseUILabel.$(OBJEXT): src/GUI/$(am__dirstamp) \
 	src/GUI/$(DEPDIR)/$(am__dirstamp)
 src/GUI/neomod-CBaseUIScrollView.$(OBJEXT): src/GUI/$(am__dirstamp) \
 	src/GUI/$(DEPDIR)/$(am__dirstamp)
+src/GUI/neomod-CBaseUISelectableTextView.$(OBJEXT):  \
+	src/GUI/$(am__dirstamp) src/GUI/$(DEPDIR)/$(am__dirstamp)
 src/GUI/neomod-CBaseUISlider.$(OBJEXT): src/GUI/$(am__dirstamp) \
 	src/GUI/$(DEPDIR)/$(am__dirstamp)
 src/GUI/neomod-CBaseUITextbox.$(OBJEXT): src/GUI/$(am__dirstamp) \
@@ -3337,6 +3343,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUIImageButton.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUILabel.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUIScrollView.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUISelectableTextView.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUISlider.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUITextbox.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUIWindow.Po@am__quote@ # am--include-marker
@@ -5839,6 +5846,20 @@ src/GUI/neomod-CBaseUIScrollView.obj: src/GUI/CBaseUIScrollView.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/GUI/neomod-CBaseUIScrollView.obj `if test -f 'src/GUI/CBaseUIScrollView.cpp'; then $(CYGPATH_W) 'src/GUI/CBaseUIScrollView.cpp'; else $(CYGPATH_W) '$(srcdir)/src/GUI/CBaseUIScrollView.cpp'; fi`
 
+src/GUI/neomod-CBaseUISelectableTextView.o: src/GUI/CBaseUISelectableTextView.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/GUI/neomod-CBaseUISelectableTextView.o -MD -MP -MF src/GUI/$(DEPDIR)/neomod-CBaseUISelectableTextView.Tpo -c -o src/GUI/neomod-CBaseUISelectableTextView.o `test -f 'src/GUI/CBaseUISelectableTextView.cpp' || echo '$(srcdir)/'`src/GUI/CBaseUISelectableTextView.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/GUI/$(DEPDIR)/neomod-CBaseUISelectableTextView.Tpo src/GUI/$(DEPDIR)/neomod-CBaseUISelectableTextView.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/GUI/CBaseUISelectableTextView.cpp' object='src/GUI/neomod-CBaseUISelectableTextView.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/GUI/neomod-CBaseUISelectableTextView.o `test -f 'src/GUI/CBaseUISelectableTextView.cpp' || echo '$(srcdir)/'`src/GUI/CBaseUISelectableTextView.cpp
+
+src/GUI/neomod-CBaseUISelectableTextView.obj: src/GUI/CBaseUISelectableTextView.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/GUI/neomod-CBaseUISelectableTextView.obj -MD -MP -MF src/GUI/$(DEPDIR)/neomod-CBaseUISelectableTextView.Tpo -c -o src/GUI/neomod-CBaseUISelectableTextView.obj `if test -f 'src/GUI/CBaseUISelectableTextView.cpp'; then $(CYGPATH_W) 'src/GUI/CBaseUISelectableTextView.cpp'; else $(CYGPATH_W) '$(srcdir)/src/GUI/CBaseUISelectableTextView.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/GUI/$(DEPDIR)/neomod-CBaseUISelectableTextView.Tpo src/GUI/$(DEPDIR)/neomod-CBaseUISelectableTextView.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/GUI/CBaseUISelectableTextView.cpp' object='src/GUI/neomod-CBaseUISelectableTextView.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/GUI/neomod-CBaseUISelectableTextView.obj `if test -f 'src/GUI/CBaseUISelectableTextView.cpp'; then $(CYGPATH_W) 'src/GUI/CBaseUISelectableTextView.cpp'; else $(CYGPATH_W) '$(srcdir)/src/GUI/CBaseUISelectableTextView.cpp'; fi`
+
 src/GUI/neomod-CBaseUISlider.o: src/GUI/CBaseUISlider.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/GUI/neomod-CBaseUISlider.o -MD -MP -MF src/GUI/$(DEPDIR)/neomod-CBaseUISlider.Tpo -c -o src/GUI/neomod-CBaseUISlider.o `test -f 'src/GUI/CBaseUISlider.cpp' || echo '$(srcdir)/'`src/GUI/CBaseUISlider.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/GUI/$(DEPDIR)/neomod-CBaseUISlider.Tpo src/GUI/$(DEPDIR)/neomod-CBaseUISlider.Po
@@ -7452,6 +7473,7 @@ distclean: distclean-am
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIImageButton.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUILabel.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIScrollView.Po
+	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUISelectableTextView.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUISlider.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUITextbox.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIWindow.Po
@@ -7744,6 +7766,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIImageButton.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUILabel.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIScrollView.Po
+	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUISelectableTextView.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUISlider.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUITextbox.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIWindow.Po

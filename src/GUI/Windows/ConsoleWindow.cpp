@@ -3,7 +3,7 @@
 
 #include "CBaseUIButton.h"
 #include "CBaseUIContainer.h"
-#include "CBaseUIScrollView.h"
+#include "CBaseUISelectableTextView.h"
 #include "ConVar.h"
 #include "Console.h"
 #include "ConsoleWidgets.h"
@@ -17,19 +17,17 @@
 
 #include <algorithm>
 #include <cmath>
-#include <compare>
 #include <deque>
 #include <utility>
 
 // the scrollback: draws wrapped lines straight from its own copy of the log instead of holding one element per
-// line; scrolling/scrollbar/wheel come from the scrollview base, a drag over the text selects it (ctrl+c copies)
-class ConsoleLogView final : public CBaseUIScrollView {
+// line; scrolling/scrollbar/wheel and the drag-selection (ctrl+c copies, see ConsoleWindow) come from the bases
+class ConsoleLogView final : public CBaseUISelectableTextView {
     NOCOPY_NOMOVE(ConsoleLogView)
    public:
     ConsoleLogView(float xPos, float yPos, float xSize, float ySize, std::string name)
-        : CBaseUIScrollView(xPos, yPos, xSize, ySize, std::move(name)),
+        : CBaseUISelectableTextView(xPos, yPos, xSize, ySize, std::move(name)),
           font(engine->getConsoleFont()),
-          fSpaceWidth(this->font->getStringWidth(" ")),
           fLastHeight(ySize) {
         this->setDrawBackground(false);  // the window body shows through, the base only adds the frame + scrollbar
         this->setHorizontalScrolling(false);
@@ -39,23 +37,15 @@ class ConsoleLogView final : public CBaseUIScrollView {
 
     void draw() override;
     void tick() override;
-    void updateInput(CBaseUIEventCtx &c) override;
 
     void onResized() override;
 
     // dir > 0 = down
     void page(int dir) { this->scrollY(-dir * (int)this->getSize().y); }
 
-    [[nodiscard]] bool hasSelection() const { return this->bHasSelection && this->selAnchor != this->selHead; }
-    [[nodiscard]] std::string getSelectedText() const;
-
    protected:
-    void onMouseDownInside(bool left, bool right) override;
-    void onMouseUpInside(bool left, bool right) override;
-    void onMouseUpOutside(bool left, bool right) override;
-    void onMouseCancel() override;
-    void onMouseOutside() override;
-    void onCapturedMouseMove() override;
+    [[nodiscard]] size_t getRunCount() const override { return this->lines.size(); }
+    [[nodiscard]] TextRun getRun(size_t index) const override;
 
    private:
     struct Line {
@@ -63,18 +53,6 @@ class ConsoleLogView final : public CBaseUIScrollView {
         Color color;
         float width;  // of the text, in font units
         u64 entrySeq;
-    };
-
-    // a position in the wrapped text: line index + byte offset into that line (x = that boundary's offset in font
-    // units, derived from the two and only kept for drawing)
-    struct TextPos {
-        size_t line;
-        size_t byte;
-        float x;
-        auto operator<=>(const TextPos &o) const {
-            return this->line != o.line ? this->line <=> o.line : this->byte <=> o.byte;
-        }
-        bool operator==(const TextPos &o) const { return this->line == o.line && this->byte == o.byte; }
     };
 
     // the line at the view's bottom edge, kept there across relayouts (by log entry, so it survives a re-wrap)
@@ -92,33 +70,22 @@ class ConsoleLogView final : public CBaseUIScrollView {
     [[nodiscard]] Anchor captureAnchor(f64 viewHeight) const;
     void applyAnchor(const Anchor &anchor);
 
-    [[nodiscard]] TextPos hitTest(vec2 pos) const;
-    void clearSelection() { this->bHasSelection = this->bSelecting = false; }
-
     [[nodiscard]] float getTextScale() const { return Mc::consoleLogScale(env->getDPIScale()); }
     [[nodiscard]] float getLineHeight() const {
         return std::round((this->font->getHeight() + 3.f) * this->getTextScale());
     }
     [[nodiscard]] float getPadding() const { return 2.f * this->getTextScale(); }
-    [[nodiscard]] float getTextLeft() const { return this->getPos().x + 2 * this->getTextScale(); }
+    [[nodiscard]] float getTextLeft() const { return this->getContentOrigin().x + this->getPadding(); }
     // screen y of the first line
-    [[nodiscard]] float getContentTop() const {
-        return this->getPos().y + static_cast<float>(this->vScrollPos.y) + this->getPadding();
-    }
+    [[nodiscard]] float getContentTop() const { return this->getContentOrigin().y + this->getPadding(); }
 
     std::deque<Line> lines;
     McFont *font;
-    float fSpaceWidth;  // the selection's sliver past a line it continues from
     float fWrapWidth{-1.f};
     f64 fLastHeight;
     Console::LogRange logRange{.first = 0, .next = 0};  // the scrollback range the lines were built from
     bool bRewrapPending{true};
     Anchor pendingAnchor{.atBottom = true, .entrySeq = 0, .subLine = 0, .fraction = 0.};
-
-    TextPos selAnchor{};
-    TextPos selHead{};
-    bool bHasSelection{false};
-    bool bSelecting{false};
 };
 
 void ConsoleLogView::draw() {
@@ -134,24 +101,11 @@ void ConsoleLogView::draw() {
     const size_t lastLine = std::min(
         this->lines.size(), static_cast<size_t>(std::max(0.f, (this->getSize().y - scrollY) / lineHeight)) + 1);
 
+    this->drawSelection();
+
     g->pushClipRect(this->getClipRect());
     {
         const float x = this->getTextLeft();
-
-        // selection highlight behind the text, as wide as the selected characters; a line the selection
-        // continues past gets a space-wide sliver after its text for the newline (or wrap space) it copies
-        if(this->hasSelection()) {
-            const auto [from, to] = std::minmax(this->selAnchor, this->selHead);
-            g->setColor(0xff2a5a9a);
-            for(size_t i = std::max(firstLine, from.line); i < lastLine && i <= to.line; i++) {
-                const float x0 = (i == from.line) ? from.x : 0.f;
-                const float x1 = (i == to.line) ? to.x : this->lines[i].width + this->fSpaceWidth;
-                if(x1 <= x0) continue;  // the selection ends at the start of its last line
-                g->fillRect((int)(x + x0 * scale), (int)(top + i * lineHeight), (int)((x1 - x0) * scale),
-                            (int)lineHeight);
-            }
-        }
-
         const float firstBaseline = top + (this->font->getHeight() + 1) * scale;
         for(size_t i = firstLine; i < lastLine; i++) {
             const Line &line = this->lines[i];
@@ -179,22 +133,6 @@ void ConsoleLogView::tick() {
         this->rewrap(range);
     else if(range.first != this->logRange.first || range.next != this->logRange.next)
         this->append(range);
-}
-
-void ConsoleLogView::updateInput(CBaseUIEventCtx &c) {
-    CBaseUIScrollView::updateInput(c);
-
-    // text cursor over the text, the scrollbar keeps the arrow
-    if(this->isMouseInside()) {
-        const bool overScrollbar =
-            this->vScrollSize.y > this->getSize().y && this->verticalScrollbar.contains(mouse->getPos());
-        env->setCursor(overScrollbar ? CURSORTYPE::CURSOR_NORMAL : CURSORTYPE::CURSOR_TEXT);
-    }
-}
-
-void ConsoleLogView::onMouseOutside() {
-    CBaseUIScrollView::onMouseOutside();
-    env->setCursor(CURSORTYPE::CURSOR_NORMAL);
 }
 
 void ConsoleLogView::onResized() {
@@ -233,14 +171,7 @@ void ConsoleLogView::append(Console::LogRange range) {
         this->lines.pop_front();
         dropped++;
     }
-    if(dropped > 0 && this->bHasSelection) {
-        for(TextPos *pos : {&this->selAnchor, &this->selHead}) {
-            if(pos->line < dropped)
-                *pos = {};
-            else
-                pos->line -= dropped;
-        }
-    }
+    if(dropped > 0) this->shiftSelection(dropped);
 
     const bool appended = range.next > this->logRange.next;
     this->wrapInto(std::max(this->logRange.next, range.first), range.next);
@@ -313,83 +244,17 @@ void ConsoleLogView::applyAnchor(const Anchor &anchor) {
     this->scrollToY(static_cast<int>(std::round(this->getSize().y - bottomY)), false);
 }
 
-ConsoleLogView::TextPos ConsoleLogView::hitTest(vec2 pos) const {
-    if(this->lines.empty()) return {};
-
-    const f64 row = std::floor((pos.y - this->getContentTop()) / this->getLineHeight());
-    if(row < 0.) return {};
-    if(row >= static_cast<f64>(this->lines.size())) {
-        const Line &last = this->lines.back();
-        return {.line = this->lines.size() - 1, .byte = last.text.size(), .x = last.width};
-    }
-
-    const size_t lineIndex = static_cast<size_t>(row);
-    const Line &line = this->lines[lineIndex];
-    const float mx = (pos.x - this->getTextLeft()) / this->getTextScale();
-    const size_t byte = this->font->hitTest(line.text, mx);
-    return {
-        .line = lineIndex, .byte = byte, .x = this->font->getStringWidth(std::string_view{line.text}.substr(0, byte))};
-}
-
-std::string ConsoleLogView::getSelectedText() const {
-    if(!this->hasSelection()) return {};
-
-    const auto [from, to] = std::minmax(this->selAnchor, this->selHead);
-    std::string out;
-    for(size_t i = from.line; i <= to.line && i < this->lines.size(); i++) {
-        const Line &line = this->lines[i];
-        // a wrapped continuation of the same entry rejoins with the space the wrap dropped
-        if(i > from.line) out += (line.entrySeq == this->lines[i - 1].entrySeq) ? ' ' : '\n';
-        const size_t b0 = std::min((i == from.line) ? from.byte : 0, line.text.size());
-        const size_t b1 = std::min((i == to.line) ? to.byte : line.text.size(), line.text.size());
-        if(b1 > b0) out.append(line.text, b0, b1 - b0);
-    }
-    return out;
-}
-
-void ConsoleLogView::onMouseDownInside(bool left, bool /*right*/) {
-    if(!left) return;
-
-    // the scrollbar keeps its drag, a press on the text starts a selection instead of the base's drag-scroll
-    this->bBusy = true;
-    if(!this->tryBeginScrollbarDrag(mouse->getPos())) {
-        this->selAnchor = this->selHead = this->hitTest(mouse->getPos());
-        this->bHasSelection = true;
-        this->bSelecting = true;
-    }
-    this->lockCapture();
-}
-
-void ConsoleLogView::onMouseUpInside(bool left, bool right) {
-    CBaseUIScrollView::onMouseUpInside(left, right);
-    this->bSelecting = false;
-}
-
-void ConsoleLogView::onMouseUpOutside(bool left, bool right) {
-    CBaseUIScrollView::onMouseUpOutside(left, right);
-    this->bSelecting = false;
-}
-
-void ConsoleLogView::onMouseCancel() {
-    CBaseUIScrollView::onMouseCancel();
-    this->bSelecting = false;
-}
-
-void ConsoleLogView::onCapturedMouseMove() {
-    if(!this->bSelecting) {
-        CBaseUIScrollView::onCapturedMouseMove();  // scrollbar drag
-        return;
-    }
-
-    const vec2 pos = mouse->getPos();
-    this->selHead = this->hitTest(pos);
-
-    // dragging past the top/bottom edge scrolls the text along
-    const int step = std::max(1, (int)std::round(engine->getFrameTime() * 30. * this->getLineHeight()));
-    if(pos.y < this->getPos().y)
-        this->scrollY(step, false);
-    else if(pos.y > this->getPos().y + this->getSize().y)
-        this->scrollY(-step, false);
+ConsoleLogView::TextRun ConsoleLogView::getRun(size_t index) const {
+    const Line &line = this->lines[index];
+    // a wrapped continuation of the same entry rejoins with the space the wrap dropped
+    const bool continues = index > 0 && this->lines[index - 1].entrySeq == line.entrySeq;
+    return {.text = line.text,
+            .font = this->font,
+            .pos = {this->getPadding(), this->getPadding() + index * this->getLineHeight()},
+            .height = this->getLineHeight(),
+            .width = line.width,
+            .scale = this->getTextScale(),
+            .separator = continues ? " " : "\n"};
 }
 
 ConsoleWindow::ConsoleWindow() : CBaseUIWindow(0, 0, 100, 100, "consolewindow") {

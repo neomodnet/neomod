@@ -13,7 +13,7 @@ class CBaseUIScrollView : public CBaseUIElement {
     ~CBaseUIScrollView() override;
 
     void invalidate();
-    void freeElements();
+    virtual void freeElements();
 
     void draw() override;
     void tick() override;

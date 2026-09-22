@@ -335,7 +335,7 @@ void CBaseUITextbox::onKeyDown(KeyboardEvent &e) {
         } break;
 
         case KEY_C:
-            if(keyboard->isControlDown()) env->setClipBoardText(this->getSelectedText());
+            if(keyboard->isControlDown() && this->hasSelectedText()) env->setClipBoardText(this->getSelectedText());
             break;
 
         case KEY_V:

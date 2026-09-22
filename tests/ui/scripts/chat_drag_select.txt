@@ -1,0 +1,82 @@
+# drag-selecting text in the chat's message area (ChatLogView on CBaseUISelectableTextView): a press on plain
+# text selects from there, a press on a link (which keeps its click) selects once the drag passes the scroll
+# resistance, dragging past the view's top edge scrolls the text along (a row per 1/30 s; in a room the
+# fixed frametime is a locked PROTECTED convar, so that runs on wall time and the wait is a generous second),
+# ctrl+c copies the selection with a newline between messages. small-chat geometry at 1280x720 (see
+# chat_panel_keeps_focus): messages (0,504,768,186), 20px rows from y=512, text from x=10; the link label
+# "W" spans x 192..206 on the second row. debug_chat_message stamps its messages 00:00 (a local midnight) in
+# the debug_fake_room channel. assertion-only (no ui_trace, the room has async bits).
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+debug_fake_room
+@wait 60
+ui_assert visible chat 1
+debug_chat_message #multiplayer 0 first system line
+debug_chat_message #multiplayer 7 hello [osump://1/ W] world
+debug_chat_message #multiplayer 0 the last line
+@wait 10
+# whole rows: from the left margin of the first row down past the last row
+mouse_to 5 515
+@wait 3
+mouse_down
+@wait 3
+mouse_to 300 600
+@wait 3
+mouse_up
+@wait 3
+sendkey Left Ctrl down
+sendkey C
+sendkey Left Ctrl up
+@wait 3
+ui_assert clipboard 00:00 first system line\n00:00 User #7: hello W world\n00:00 the last line
+# a drag that starts on the link: past the resistance the link loses its press and the selection starts at it
+mouse_to 200 542
+@wait 3
+mouse_down
+@wait 3
+mouse_to 200 600
+@wait 3
+mouse_up
+@wait 3
+sendkey Left Ctrl down
+sendkey C
+sendkey Left Ctrl up
+@wait 3
+ui_assert clipboard W world\n00:00 the last line
+# more rows than fit (the view follows the newest): a drag from the last row up past the top edge scrolls the
+# text along until the first row is in view, and ends before the last row's text
+debug_chat_message #multiplayer 0 m1
+debug_chat_message #multiplayer 0 m2
+debug_chat_message #multiplayer 0 m3
+debug_chat_message #multiplayer 0 m4
+debug_chat_message #multiplayer 0 m5
+debug_chat_message #multiplayer 0 m6
+debug_chat_message #multiplayer 0 m7
+debug_chat_message #multiplayer 0 m8
+debug_chat_message #multiplayer 0 m9
+debug_chat_message #multiplayer 0 m10
+debug_chat_message #multiplayer 0 m11
+debug_chat_message #multiplayer 0 m12
+@wait 10
+mouse_to 5 675
+@wait 3
+mouse_down
+@wait 3
+mouse_to 5 500
+@wait_secs 1
+mouse_up
+@wait 3
+sendkey Left Ctrl down
+sendkey C
+sendkey Left Ctrl up
+@wait 3
+ui_assert clipboard 00:00 first system line\n00:00 User #7: hello W world\n00:00 the last line\n00:00 m1\n00:00 m2\n00:00 m3\n00:00 m4\n00:00 m5\n00:00 m6\n00:00 m7\n00:00 m8\n00:00 m9\n00:00 m10\n00:00 m11\n
+take_screenshot screenshots/uitest_chat_drag_select.png
+@wait 3
+exit

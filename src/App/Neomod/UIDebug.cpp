@@ -13,6 +13,8 @@
 #include "Parsing.h"
 #include "SString.h"
 #include "Bancho.h"
+#include "BanchoUsers.h"
+#include "Chat.h"
 #include "Logging.h"
 #include "Mouse.h"
 #include "Engine.h"
@@ -22,6 +24,7 @@
 
 #include <array>
 #include <cmath>
+#include <ctime>
 
 namespace cv {
 // callbacks only set after initialized
@@ -33,6 +36,7 @@ static ConVar ui_assert_cmd("ui_assert", CLIENT | NOLOAD | NOSAVE);
 static ConVar ui_prompt_cmd("ui_prompt", CLIENT | NOLOAD | NOSAVE);
 static ConVar debug_fake_online_cmd("debug_fake_online", CLIENT | NOLOAD | NOSAVE);
 static ConVar debug_fake_room_cmd("debug_fake_room", CLIENT | NOLOAD | NOSAVE);
+static ConVar debug_chat_message_cmd("debug_chat_message", CLIENT | NOLOAD | NOSAVE);
 }  // namespace cv
 
 UIScreen *UIDebug::findScreenByName(std::string_view lowerName) const {
@@ -125,8 +129,20 @@ void UIDebug::debugAssert(std::string_view args) {
     // ui_assert convar <name> <expected>
     // ui_assert mouse_at <x> <y> <tolerance>
     // ui_assert os_cursor <visible|clipped> <0|1>
+    // ui_assert clipboard <expected>
     auto parts = SString::split(args, ' ');
     std::erase_if(parts, [](std::string_view p) { return p.empty(); });
+
+    if(!parts.empty() && SString::to_lower(parts[0]) == "clipboard"sv) {
+        // the rest of the line, with \n standing for a newline
+        const auto textStart = args.find(' ');
+        std::string expected{textStart == std::string_view::npos ? std::string_view{} : args.substr(textStart + 1)};
+        for(size_t pos = 0; (pos = expected.find("\\n", pos)) != std::string::npos; pos++)
+            expected.replace(pos, 2, "\n");
+        const std::string_view actual = env->getClipBoardText();
+        logRaw("UITEST {} clipboard expected='{}' actual='{}'", actual == expected ? "OK" : "FAIL", expected, actual);
+        return;
+    }
 
     if(parts.size() < 3) {
         logRaw("UITEST FAIL ui_assert '{}' (usage: ui_assert <pred> <name> <0|1> | ui_assert mouse_at <x> <y> <tol>)",
@@ -268,6 +284,31 @@ void UIDebug::debugFakeOnline(std::string_view arg) {
 
 void UIDebug::debugFakeRoom() { BanchoState::fake_join_room(); }
 
+void UIDebug::debugChatMessage(std::string_view args) {
+    // debug_chat_message <channel> <author id> <text...>: a message as if received from the server (author 0 = a
+    // system message), timestamped at a local midnight so it reads 00:00 in any time zone
+    const auto channelEnd = args.find(' ');
+    const auto authorEnd = channelEnd == std::string_view::npos ? channelEnd : args.find(' ', channelEnd + 1);
+    if(authorEnd == std::string_view::npos) {
+        logRaw("UITEST FAIL debug_chat_message '{}' (usage: debug_chat_message <channel> <author id> <text>)", args);
+        return;
+    }
+    const auto authorId = Parsing::strto<i32>(args.substr(channelEnd + 1, authorEnd - channelEnd - 1));
+
+    struct tm midnight{};
+    midnight.tm_year = 70;
+    midnight.tm_mday = 2;
+    midnight.tm_isdst = -1;
+    m_ui->getChat()->addMessage(
+        std::string{args.substr(0, channelEnd)},
+        ChatMessage{
+            .tms = mktime(&midnight),
+            .author_id = authorId,
+            .author_name = authorId == 0 ? std::string{} : BANCHO::User::get_user_info(authorId)->name,
+            .text = std::string{args.substr(authorEnd + 1)},
+        });
+}
+
 UIDebug::UIDebug(UI *ui_parent) : m_ui(ui_parent) {
     cv::set_active_ui_screen.setCallback(SA::MakeDelegate<&UIDebug::setScreenByName>(this));
     cv::ui_screens_cmd.setCallback(SA::MakeDelegate<&UIDebug::debugDumpScreens>(this));
@@ -276,6 +317,7 @@ UIDebug::UIDebug(UI *ui_parent) : m_ui(ui_parent) {
     cv::ui_prompt_cmd.setCallback(SA::MakeDelegate<&UIDebug::debugPrompt>(this));
     cv::debug_fake_online_cmd.setCallback(SA::MakeDelegate<&UIDebug::debugFakeOnline>(this));
     cv::debug_fake_room_cmd.setCallback(SA::MakeDelegate<&UIDebug::debugFakeRoom>(this));
+    cv::debug_chat_message_cmd.setCallback(SA::MakeDelegate<&UIDebug::debugChatMessage>(this));
 }
 
 UIDebug::~UIDebug() {
@@ -286,4 +328,5 @@ UIDebug::~UIDebug() {
     cv::ui_prompt_cmd.removeAllCallbacks();
     cv::debug_fake_online_cmd.removeAllCallbacks();
     cv::debug_fake_room_cmd.removeAllCallbacks();
+    cv::debug_chat_message_cmd.removeAllCallbacks();
 }

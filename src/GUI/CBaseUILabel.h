@@ -90,6 +90,7 @@ class CBaseUILabel : public CBaseUIElement {
     [[nodiscard]] inline const TextFX &getTextFX() const { return this->tfx; }
     [[nodiscard]] inline McFont *getFont() const { return this->font; }
     [[nodiscard]] inline std::string_view getText() const { return this->sText; }
+    [[nodiscard]] inline float getStringWidth() const { return this->fStringWidth; }
 
     void onResized() override { this->updateStringMetrics(); }
 

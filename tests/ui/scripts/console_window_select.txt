@@ -1,0 +1,44 @@
+# drag-selecting the console window's log (ConsoleLogView on CBaseUISelectableTextView) and copying it with
+# ctrl+c: a press left of a line's text selects from its start, a drag ending below the log view ends the
+# selection at the last line's end and joins the lines with newlines. at 1280x720 the window opens at
+# (256,162,768,396), the log view spans y 227..492 and its last three lines (the echoed ones, nothing logs in
+# between) sit at y 414..486 with their text from x 268. assertion-only: the trace would log into the very
+# log being selected.
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 20
+console_style 1
+sendkey Left Shift down
+sendkey F1
+sendkey Left Shift up
+@wait 30
+ui_assert visible consolewindow 1
+echo alpha one
+echo beta two
+echo gamma three
+@wait 5
+mouse_to 270 430
+@wait 3
+mouse_down
+@wait 3
+mouse_to 700 500
+@wait 3
+mouse_up
+@wait 3
+sendkey Left Ctrl down
+sendkey C
+sendkey Left Ctrl up
+@wait 3
+ui_assert clipboard alpha one\nbeta two\ngamma three
+take_screenshot screenshots/uitest_console_window_select.png
+@wait 3
+sendkey Escape
+@wait 30
+ui_assert visible consolewindow 0
+@wait 2
+exit

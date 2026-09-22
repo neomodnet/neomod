@@ -8,6 +8,7 @@
 class CBaseUIButton;
 class McFont;
 class Chat;
+class ChatLogView;
 class UIButton;
 class UserCard2;
 
@@ -25,7 +26,7 @@ struct ChatChannel final {
     ~ChatChannel();
 
     Chat *chat;
-    CBaseUIScrollView *ui;
+    ChatLogView *ui;
     UIButton *btn;
     std::string name;
     std::vector<ChatMessage> messages;
