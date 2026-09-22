@@ -73,6 +73,10 @@ class ChatLogView final : public CBaseUISelectableTextView {
     // adds a label to the content as the next run; separator is what the copied text puts before its text
     void addRun(CBaseUILabel *label, std::string_view separator);
 
+    // prevent scroll fallthrough (should this be the normal scrollview behavior?)
+    // it seems surprising to change volume when the scroll surface isn't scrollable yet
+    bool onWheel(int deltaVertical, int deltaHorizontal) override;
+
    protected:
     [[nodiscard]] size_t getRunCount() const override { return this->runs.size(); }
     [[nodiscard]] TextRun getRun(size_t index) const override;
@@ -99,6 +103,14 @@ void ChatLogView::freeElements() {
     this->runs.clear();
     this->clearSelection();
     CBaseUIScrollView::freeElements();
+}
+
+bool ChatLogView::onWheel(int deltaVertical, int deltaHorizontal) {
+    // alt-wheel belongs to the app-level volume gesture
+    // HACK: this doesn't belong here???
+    if(this->bBlockScrolling || keyboard->isAltDown()) return false;
+    CBaseUISelectableTextView::onWheel(deltaVertical, deltaHorizontal);
+    return true;
 }
 
 void ChatLogView::addRun(CBaseUILabel *label, std::string_view separator) {
