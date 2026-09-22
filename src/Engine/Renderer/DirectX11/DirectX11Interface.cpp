@@ -206,8 +206,8 @@ bool DirectX11Interface::init() {
     this->deviceContext->OMSetBlendState(this->blendState, nullptr, D3D11_DEFAULT_SAMPLE_MASK);
 
     // create default shader
-    const auto vertexShader = std::string(reinterpret_cast<const char *>(DX11_default_vsh), DX11_default_vsh_size());
-    const auto pixelShader = std::string(reinterpret_cast<const char *>(DX11_default_fsh), DX11_default_fsh_size());
+    const auto vertexShader = std::string(reinterpret_cast<const char *>(DX11_default_vsh), DX11_default_vsh_size);
+    const auto pixelShader = std::string(reinterpret_cast<const char *>(DX11_default_fsh), DX11_default_fsh_size);
 
     this->shaderTexturedGeneric = static_cast<DirectX11Shader *>(createShaderFromSource(vertexShader, pixelShader));
     this->shaderTexturedGeneric->load();
@@ -1270,9 +1270,9 @@ void DirectX11Interface::initSmoothClipShader() {
 
     this->smoothClipShader.reset(
         this->createShaderFromSource(std::string(reinterpret_cast<const char *>(&DX11_smoothclip_vsh[0]),
-                                                 static_cast<size_t>(DX11_smoothclip_vsh_size())),
+                                                 static_cast<size_t>(DX11_smoothclip_vsh_size)),
                                      std::string(reinterpret_cast<const char *>(&DX11_smoothclip_fsh[0]),
-                                                 static_cast<size_t>(DX11_smoothclip_fsh_size()))));
+                                                 static_cast<size_t>(DX11_smoothclip_fsh_size))));
 
     if(this->smoothClipShader) {
         this->smoothClipShader->loadAsync();

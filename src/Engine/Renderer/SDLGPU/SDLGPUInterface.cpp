@@ -215,8 +215,8 @@ bool SDLGPUInterface::init() {
 
     // create default shader
     m_defaultShader.reset(static_cast<SDLGPUShader *>(createShaderFromSource(
-        std::string(reinterpret_cast<const char *>(VK_default_vsh), static_cast<uSz>(VK_default_vsh_size())),
-        std::string(reinterpret_cast<const char *>(VK_default_fsh), static_cast<uSz>(VK_default_fsh_size())))));
+        std::string(reinterpret_cast<const char *>(VK_default_vsh), static_cast<uSz>(VK_default_vsh_size)),
+        std::string(reinterpret_cast<const char *>(VK_default_fsh), static_cast<uSz>(VK_default_fsh_size)))));
     m_defaultShader->loadAsync();
     m_defaultShader->load();
 
@@ -1789,8 +1789,8 @@ void SDLGPUInterface::initSmoothClipShader() {
     if(m_smoothClipShader) return;
 
     m_smoothClipShader.reset(static_cast<SDLGPUShader *>(createShaderFromSource(
-        std::string(reinterpret_cast<const char *>(VK_smoothclip_vsh), static_cast<uSz>(VK_smoothclip_vsh_size())),
-        std::string(reinterpret_cast<const char *>(VK_smoothclip_fsh), static_cast<uSz>(VK_smoothclip_fsh_size())))));
+        std::string(reinterpret_cast<const char *>(VK_smoothclip_vsh), static_cast<uSz>(VK_smoothclip_vsh_size)),
+        std::string(reinterpret_cast<const char *>(VK_smoothclip_fsh), static_cast<uSz>(VK_smoothclip_fsh_size)))));
 
     if(m_smoothClipShader) {
         m_smoothClipShader->loadAsync();

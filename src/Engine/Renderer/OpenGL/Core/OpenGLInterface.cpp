@@ -795,11 +795,10 @@ void OpenGLInterface::onTransformUpdate() {
 void OpenGLInterface::initSmoothClipShader() {
     if(this->smoothClipShader != nullptr) return;
 
-    this->smoothClipShader.reset(
-        this->createShaderFromSource(std::string(reinterpret_cast<const char *>(&GL_smoothclip_vsh[0]),
-                                                 static_cast<size_t>(GL_smoothclip_vsh_size())),
-                                     std::string(reinterpret_cast<const char *>(&GL_smoothclip_fsh[0]),
-                                                 static_cast<size_t>(GL_smoothclip_fsh_size()))));
+    this->smoothClipShader.reset(this->createShaderFromSource(
+        std::string(reinterpret_cast<const char *>(&GL_smoothclip_vsh[0]), static_cast<size_t>(GL_smoothclip_vsh_size)),
+        std::string(reinterpret_cast<const char *>(&GL_smoothclip_fsh[0]),
+                    static_cast<size_t>(GL_smoothclip_fsh_size))));
 
     if(this->smoothClipShader != nullptr) {
         this->smoothClipShader->loadAsync();
