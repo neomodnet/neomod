@@ -2,6 +2,8 @@
 // Copyright (c) 2026, WH, All rights reserved.
 // enumeration of valid startup arguments that change persistent program behavior
 
+#include "config.h"
+
 #include <span>
 #include <unordered_map>
 #include <string>
@@ -21,6 +23,9 @@ void init(int argc, char *argv[]) noexcept;
 // 	auto outfile = args["-output"].value();
 // NOTE: switches (keys) are lowercased before being put into this, values are stored exactly as passed
 // (they may be case-sensitive names or file paths)
+// a switch only takes the argument after it as its value if that can be one: never for a switch that takes none, only
+// a plain word for one that takes a word (so a file or url after it stays an operand), and anything that doesn't start
+// with '-' for the rest (paths, and switches that aren't listed in LaunchArgs.cpp, like the -testarg:<name> ones)
 using ArgMap = std::unordered_map<std::string, std::optional<std::string>>;
 [[nodiscard]] const ArgMap &get_map() noexcept;
 
@@ -28,6 +33,18 @@ using ArgMap = std::unordered_map<std::string, std::optional<std::string>>;
 // NOTE: the program name is stored as the first element, but it may no longer point to the executable
 // if it was launched from a different directory initially (since we change the working directory to the exe root on startup)
 [[nodiscard]] std::span<const std::string> get_array() noexcept;
+
+// the known switches (the ones behind ArgSwitch), each followed by its value if it was given one, in get_array() order.
+// everything else is left out: the program name, operands (files or urls to open) and unknown switches.
+// relaunching in the same configuration (restart, "open with") passes exactly these
+[[nodiscard]] std::span<const std::string> get_switches() noexcept;
+
+#ifdef MCENGINE_PLATFORM_WINDOWS
+// get_switches() as a piece of a windows command line: each argument cut out of this process's own command line exactly
+// as it was written there, rather than quoted again. nullopt if that can't be done so that CommandLineToArgvW (which
+// built argv) reads back exactly these arguments, with room for more to follow
+[[nodiscard]] std::optional<std::string> get_switches_cmdline() noexcept;
+#endif
 
 // get the arguments exactly as they were passed into the program
 struct CArgs {
@@ -68,7 +85,8 @@ enum ArgSwitch : unsigned char {
     MISC_DATA_DIR,        // -datadir <path> (put all writable data, including cache and logs, under this directory)
 };
 
-// use this instead of manually querying the arg map (and add new arguments to the enum)
+// use this instead of manually querying the arg map (and add new arguments to the enum, and their switches to the
+// list in LaunchArgs.cpp)
 // returns nullopt if the switch isn't in effect, otherwise an engaged optional holding the switch's
 // value ("-aa 4" -> "4"), or an empty string if it was passed without a value
 // switches with multiple aliases return the value of the first alias that was passed with one,

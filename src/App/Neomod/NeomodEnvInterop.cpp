@@ -375,26 +375,21 @@ void NeomodEnvInterop::setup_system_integrations() {
         return;
     }
 
-    // Add current launch arguments, so doing "Open with -> neomod"
+    // Add current launch options, so doing "Open with -> neomod"
     // will always use the last launch options the player used.
-    std::vector<std::string> cmdline = []() -> auto {
-        auto temp{Mc::LaunchArgs::get_array()};
-        return std::vector<std::string>{temp.begin(), temp.end()};
-    }();
+    // (just the switches, not the files/links this launch was asked to open)
+    std::wstring command = L'"' + UniString::to_wide(Mc::Paths::exe()) + L'"';
+    if(const auto switches = Mc::LaunchArgs::get_switches_cmdline(); !switches) {
+        debugLog("Launch options not passed on to file associations: can't cut them out of the command line");
+    } else if(switches->contains('%')) {
+        // the shell would take it for one of its placeholders, like the "%1" below
+        debugLog("Launch options not passed on to file associations: they contain a '%'");
+    } else if(!switches->empty()) {
+        command += L' ' + UniString::to_wide(*switches);
+    }
+    command += LR"( "%1")";
 
-    assert(!cmdline.empty());
-    cmdline.erase(cmdline.begin());  // remove program name
-
-    const std::wstring uLaunchArgs{UniString::to_wide(SString::join(cmdline))};
-    const std::wstring uExePath{UniString::to_wide(Mc::Paths::exe())};
-
-    std::wstring command;
-    command.resize(uExePath.length() + uLaunchArgs.length() + 10);
-
-    swprintf_s(command.data(), command.size(), LR"("%s" %s "%%1")", uExePath.c_str(), uLaunchArgs.c_str());
-    command.shrink_to_fit();
-
-    RegSetValueExW(cmd_key, L"", 0, REG_SZ, (BYTE *)command.data(), command.size() * sizeof(wchar_t));
+    RegSetValueExW(cmd_key, L"", 0, REG_SZ, (const BYTE *)command.c_str(), (command.size() + 1) * sizeof(wchar_t));
     RegCloseKey(cmd_key);
 
     RegCloseKey(neomod_key);

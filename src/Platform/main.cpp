@@ -103,7 +103,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
     }
 #else
     if(restart) {
-        SDLMain::restart(Mc::LaunchArgs::get_array());
+        SDLMain::restart();
     }
     if constexpr(!Env::cfg(FEAT::MAINCB)) {
         SDL_Quit();
@@ -345,7 +345,7 @@ MAIN_FUNC /* int argc, char *argv[] */
 
             if(lppAgent.WantsRestart()) {
                 // XXX: Not sure if this works, but I don't think I'll be using live++ restart
-                SDLMain::restart(arg_cmdline);
+                SDLMain::restart();
                 lppAgent.Restart(lpp::LPP_RESTART_BEHAVIOUR_INSTANT_TERMINATION, 0u, nullptr);
             }
 #endif
@@ -358,7 +358,7 @@ MAIN_FUNC /* int argc, char *argv[] */
     // i don't think this is reachable, but whatever
     // (we should hit SDL_AppQuit before this)
     if(fmain.isRestartScheduled()) {
-        SDLMain::restart(Mc::LaunchArgs::get_array());
+        SDLMain::restart();
     }
 
 #ifdef WITH_LIVEPP

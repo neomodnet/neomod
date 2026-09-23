@@ -1140,20 +1140,31 @@ extern "C" SDL_DECLSPEC void SDLCALL SDL_UnregisterApp(void);
 extern "C" __declspec(dllimport) char *__stdcall GetCommandLineA(void);
 #endif
 
-void SDLMain::restart(std::span<const std::string> restartArgs) {
-    std::vector<const char *> restartArgsChar(restartArgs.size() + 1);
+void SDLMain::restart() {
+    // the same switches again, but not the operands (files/urls to open), which this run already handled
+    const auto switches = Mc::LaunchArgs::get_switches();
+    std::vector<const char *> restartArgsChar(switches.size() + 2);
 
     restartArgsChar.back() = nullptr;
     // use the fully qualified executable path as the first arg
     // (since if we were launched with a relative path outside the root dir then the relative path points somewhere else
     // after Paths::detail::init() changed the working directory)
     restartArgsChar.front() = Mc::Paths::exe().c_str();
-    if(restartArgs.size() > 1) {
-        for(int i = 1; const auto &arg : std::span{restartArgs.begin() + 1, restartArgs.end()}) {
-            restartArgsChar[i] = arg.c_str();
-            i++;
-        }
+    for(size_t i = 0; i < switches.size(); i++) {
+        restartArgsChar[i + 1] = switches[i].c_str();
     }
+
+#ifdef MCENGINE_PLATFORM_WINDOWS
+    // SDL would quote the args again, so pass the switches the way they were written on our own command line instead
+    // (or all of that, operands included, if they can't be cut out of it)
+    std::string wincmdline;
+    if(const auto switchesCmdline = Mc::LaunchArgs::get_switches_cmdline()) {
+        wincmdline = fmt::format(R"("{}")", Mc::Paths::exe());
+        if(!switchesCmdline->empty()) wincmdline += ' ' + *switchesCmdline;
+    } else if(const char *origCmdline = GetCommandLineA()) {
+        wincmdline = origCmdline;
+    }
+#endif
 
     if(cv::debug_env.getBool()) {
         std::string logString = "restart args: ";
@@ -1163,6 +1174,9 @@ void SDLMain::restart(std::span<const std::string> restartArgs) {
             if(!entry) continue;
             logString += fmt::format("({}):\n{}\n", i, entry);
         }
+#ifdef MCENGINE_PLATFORM_WINDOWS
+        logString += fmt::format("command line:\n{}\n", wincmdline);
+#endif
         logString.pop_back();
         logRaw(logString);
     }
@@ -1194,9 +1208,8 @@ void SDLMain::restart(std::span<const std::string> restartArgs) {
     }
 
 #ifdef MCENGINE_PLATFORM_WINDOWS
-    const char *wincmdline = GetCommandLineA();
-    if(wincmdline) {
-        SDL_SetStringProperty(restartprops, SDL_PROP_PROCESS_CREATE_CMDLINE_STRING, wincmdline);
+    if(!wincmdline.empty()) {
+        SDL_SetStringProperty(restartprops, SDL_PROP_PROCESS_CREATE_CMDLINE_STRING, wincmdline.c_str());
     }
     // so that handle_existing_window doesn't find the currently running instance by the class name
     SDL_UnregisterApp();
