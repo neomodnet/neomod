@@ -274,6 +274,7 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Neomod/OsuConVars/OsuConVars.cpp \
 	src/App/Neomod/OsuDirectScreen.cpp \
 	src/App/Neomod/OsuKeyBinds.cpp src/App/Neomod/PauseOverlay.cpp \
+	src/App/Neomod/PreviewTrackManager.cpp \
 	src/App/Neomod/PromptOverlay.cpp \
 	src/App/Neomod/RankingScreen.cpp src/App/Neomod/Replay.cpp \
 	src/App/Neomod/RichPresence.cpp src/App/Neomod/RoomScreen.cpp \
@@ -524,6 +525,7 @@ am_neomod_OBJECTS = libraries/neomod-MD5.$(OBJEXT) \
 	src/App/Neomod/neomod-OsuDirectScreen.$(OBJEXT) \
 	src/App/Neomod/neomod-OsuKeyBinds.$(OBJEXT) \
 	src/App/Neomod/neomod-PauseOverlay.$(OBJEXT) \
+	src/App/Neomod/neomod-PreviewTrackManager.$(OBJEXT) \
 	src/App/Neomod/neomod-PromptOverlay.$(OBJEXT) \
 	src/App/Neomod/neomod-RankingScreen.$(OBJEXT) \
 	src/App/Neomod/neomod-Replay.$(OBJEXT) \
@@ -748,6 +750,7 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/App/Neomod/$(DEPDIR)/neomod-OsuDirectScreen.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-OsuKeyBinds.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-PauseOverlay.Po \
+	src/App/Neomod/$(DEPDIR)/neomod-PreviewTrackManager.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-PromptOverlay.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-RankingScreen.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-Replay.Po \
@@ -1491,6 +1494,7 @@ neomod_SOURCES = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Neomod/OsuConVars/OsuConVars.cpp \
 	src/App/Neomod/OsuDirectScreen.cpp \
 	src/App/Neomod/OsuKeyBinds.cpp src/App/Neomod/PauseOverlay.cpp \
+	src/App/Neomod/PreviewTrackManager.cpp \
 	src/App/Neomod/PromptOverlay.cpp \
 	src/App/Neomod/RankingScreen.cpp src/App/Neomod/Replay.cpp \
 	src/App/Neomod/RichPresence.cpp src/App/Neomod/RoomScreen.cpp \
@@ -2353,6 +2357,9 @@ src/App/Neomod/neomod-OsuKeyBinds.$(OBJEXT):  \
 src/App/Neomod/neomod-PauseOverlay.$(OBJEXT):  \
 	src/App/Neomod/$(am__dirstamp) \
 	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
+src/App/Neomod/neomod-PreviewTrackManager.$(OBJEXT):  \
+	src/App/Neomod/$(am__dirstamp) \
+	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
 src/App/Neomod/neomod-PromptOverlay.$(OBJEXT):  \
 	src/App/Neomod/$(am__dirstamp) \
 	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
@@ -3185,6 +3192,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-OsuDirectScreen.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-OsuKeyBinds.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-PauseOverlay.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-PreviewTrackManager.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-PromptOverlay.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-RankingScreen.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-Replay.Po@am__quote@ # am--include-marker
@@ -4263,6 +4271,20 @@ src/App/Neomod/neomod-PauseOverlay.obj: src/App/Neomod/PauseOverlay.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/PauseOverlay.cpp' object='src/App/Neomod/neomod-PauseOverlay.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-PauseOverlay.obj `if test -f 'src/App/Neomod/PauseOverlay.cpp'; then $(CYGPATH_W) 'src/App/Neomod/PauseOverlay.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/PauseOverlay.cpp'; fi`
+
+src/App/Neomod/neomod-PreviewTrackManager.o: src/App/Neomod/PreviewTrackManager.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-PreviewTrackManager.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-PreviewTrackManager.Tpo -c -o src/App/Neomod/neomod-PreviewTrackManager.o `test -f 'src/App/Neomod/PreviewTrackManager.cpp' || echo '$(srcdir)/'`src/App/Neomod/PreviewTrackManager.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-PreviewTrackManager.Tpo src/App/Neomod/$(DEPDIR)/neomod-PreviewTrackManager.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/PreviewTrackManager.cpp' object='src/App/Neomod/neomod-PreviewTrackManager.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-PreviewTrackManager.o `test -f 'src/App/Neomod/PreviewTrackManager.cpp' || echo '$(srcdir)/'`src/App/Neomod/PreviewTrackManager.cpp
+
+src/App/Neomod/neomod-PreviewTrackManager.obj: src/App/Neomod/PreviewTrackManager.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-PreviewTrackManager.obj -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-PreviewTrackManager.Tpo -c -o src/App/Neomod/neomod-PreviewTrackManager.obj `if test -f 'src/App/Neomod/PreviewTrackManager.cpp'; then $(CYGPATH_W) 'src/App/Neomod/PreviewTrackManager.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/PreviewTrackManager.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-PreviewTrackManager.Tpo src/App/Neomod/$(DEPDIR)/neomod-PreviewTrackManager.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/PreviewTrackManager.cpp' object='src/App/Neomod/neomod-PreviewTrackManager.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-PreviewTrackManager.obj `if test -f 'src/App/Neomod/PreviewTrackManager.cpp'; then $(CYGPATH_W) 'src/App/Neomod/PreviewTrackManager.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/PreviewTrackManager.cpp'; fi`
 
 src/App/Neomod/neomod-PromptOverlay.o: src/App/Neomod/PromptOverlay.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-PromptOverlay.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-PromptOverlay.Tpo -c -o src/App/Neomod/neomod-PromptOverlay.o `test -f 'src/App/Neomod/PromptOverlay.cpp' || echo '$(srcdir)/'`src/App/Neomod/PromptOverlay.cpp
@@ -7315,6 +7337,7 @@ distclean: distclean-am
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-OsuDirectScreen.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-OsuKeyBinds.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-PauseOverlay.Po
+	-rm -f src/App/Neomod/$(DEPDIR)/neomod-PreviewTrackManager.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-PromptOverlay.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-RankingScreen.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-Replay.Po
@@ -7608,6 +7631,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-OsuDirectScreen.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-OsuKeyBinds.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-PauseOverlay.Po
+	-rm -f src/App/Neomod/$(DEPDIR)/neomod-PreviewTrackManager.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-PromptOverlay.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-RankingScreen.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-Replay.Po

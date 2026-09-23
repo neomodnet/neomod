@@ -121,6 +121,12 @@ class File {
     static bool getDirectoryEntries(std::string_view toEnumerate, DirContents types, std::vector<DirEntry> &entriesOut,
                                     bool withMetadata = true) noexcept;
 
+    // for cache directories: of the files in dir that managed() accepts (the rest are left alone), deletes the ones last
+    // modified more than maxAgeSeconds ago and then, counting from the newest, the ones past maxTotalBytes; returns the
+    // rest, newest first. lists and deletes on the calling thread, so run it off the main thread
+    static std::vector<DirEntry> pruneDirectory(std::string_view dir, bool (*managed)(std::string_view name),
+                                                i64 maxAgeSeconds, u64 maxTotalBytes = UINT64_MAX);
+
     // fs::path works differently depending on the type of string it was constructed with
     // so use this to get a unicode-constructed path on windows (convert), utf8 otherwise (passthrough)
     [[nodiscard]] static std::filesystem::path getFsPath(std::string_view utf8path);

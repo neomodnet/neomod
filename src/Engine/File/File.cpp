@@ -21,6 +21,7 @@
 #include <cassert>
 #include <cerrno>
 #include <chrono>
+#include <ctime>
 #include <filesystem>
 #include <utility>
 #include <vector>
@@ -960,6 +961,29 @@ bool File::getDirectoryEntries(std::string_view toEnumerate, DirContents types, 
     if(toEnumerate.empty()) return false;
     return enumerate_directory(toEnumerate, types, withMetadata,
                                [&entriesOut](DirEntry entry) { entriesOut.push_back(std::move(entry)); });
+}
+
+std::vector<File::DirEntry> File::pruneDirectory(std::string_view dir, bool (*managed)(std::string_view name),
+                                                 i64 maxAgeSeconds, u64 maxTotalBytes) {
+    std::vector<DirEntry> entries;
+    getDirectoryEntries(dir, DirContents::FILES, entries);
+    std::erase_if(entries,
+                  [managed](const DirEntry &entry) { return entry.type != FILETYPE::FILE || !managed(entry.name); });
+    srt::pdqsort(entries, [](const DirEntry &a, const DirEntry &b) { return a.mtime > b.mtime; });
+
+    const i64 now = time(nullptr);
+    u64 totalBytes = 0;
+    std::erase_if(entries, [&](const DirEntry &entry) {
+        const bool expired = now - entry.mtime > maxAgeSeconds;
+        // (the total keeps growing past the budget, so once over it, every older file goes as well)
+        if(!expired && (totalBytes += entry.size) <= maxTotalBytes) return false;
+
+        logIfCV(debug_cache, "evicting {}/{} ({})", dir, entry.name, expired ? "expired" : "over the size budget");
+        std::error_code ec;
+        fs::remove(getFsPath(std::string{dir} + '/' + entry.name), ec);
+        return true;
+    });
+    return entries;
 }
 
 #ifndef MCENGINE_PLATFORM_WINDOWS

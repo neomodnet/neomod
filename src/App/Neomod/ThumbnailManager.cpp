@@ -18,7 +18,6 @@
 #include "Thread.h"
 
 #include <algorithm>
-#include <ctime>
 #include <memory>
 #include <string_view>
 #include <vector>
@@ -70,7 +69,7 @@ struct ThumbnailManager::Impl final {
     // a cache directory (avatars/<endpoint>, thumbs/<endpoint>) is listed once, off the main thread: files past
     // CACHE_MAX_AGE_SECONDS get deleted, the names of the rest tell which entries are on disk
     struct CacheDir {
-        Async::Future<std::vector<std::string>> scan;
+        Async::Future<std::vector<File::DirEntry>> scan;
         Hash::flat::set<std::string, Hash::UnstableStringHash, std::equal_to<>> fresh_files;
         bool scanned{false};
     };
@@ -167,8 +166,8 @@ void ThumbnailManager::Impl::update() {
     // pick up finished directory listings
     for(auto& [dir, cache_dir] : this->cache_dirs) {
         if(!cache_dir.scanned && cache_dir.scan.is_ready()) {
-            for(auto& name : cache_dir.scan.get()) {
-                cache_dir.fresh_files.insert(std::move(name));
+            for(auto& entry : cache_dir.scan.get()) {
+                cache_dir.fresh_files.insert(std::move(entry.name));
             }
             cache_dir.scanned = true;
         }
@@ -357,26 +356,10 @@ ThumbnailManager::Impl::CacheDir& ThumbnailManager::Impl::cache_dir_for(std::str
     CacheDir& cache_dir = this->cache_dirs.try_emplace(std::string{dir}).first->second;
     cache_dir.scan = Async::submit(
         [dir = std::string{dir}] {
-            std::vector<File::DirEntry> entries;
-            File::getDirectoryEntries(dir, File::DirContents::FILES, entries);
-
-            const i64 now = time(nullptr);
-            std::vector<std::string> fresh;
-            fresh.reserve(entries.size());
-            for(auto& entry : entries) {
-                // only the id-named files are ours (the main menu keeps the server icon in the avatars dir (TODO: ???))
-                if(entry.type != File::FILETYPE::FILE ||
-                   entry.name.find_first_not_of("-0123456789") != std::string::npos) {
-                    continue;
-                }
-                if(now - entry.mtime > CACHE_MAX_AGE_SECONDS) {
-                    logIfCV(debug_thumbs, "evicting expired {}/{}", dir, entry.name);
-                    Environment::deleteFile(fmt::format("{}/{}", dir, entry.name));
-                    continue;
-                }
-                fresh.push_back(std::move(entry.name));
-            }
-            return fresh;
+            // only the id-named files are ours (the main menu keeps the server icon in the avatars dir (TODO: ???))
+            return File::pruneDirectory(
+                dir, [](std::string_view name) { return name.find_first_not_of("-0123456789") == name.npos; },
+                CACHE_MAX_AGE_SECONDS);
         },
         Lane::Background);
     return cache_dir;

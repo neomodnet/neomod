@@ -2,6 +2,7 @@
 #include "Osu.h"
 
 #include "BeatmapInstaller.h"
+#include "PreviewTrackManager.h"
 #include "ThumbnailManager.h"
 #include "BackgroundImageHandler.h"
 #include "Bancho.h"
@@ -212,7 +213,9 @@ Osu::Osu()
 
     // load a few select subsystems very early
     this->db_memb = std::make_unique<Database>();  // global database instance (sets global "db" pointer in ctor)
-    this->ui_memb = std::make_unique<UI>();        // sets global "ui" pointer in ctor
+    // (before the ui, whose volume overlay passes music volume changes on to it)
+    this->previewTrackManager = std::make_unique<PreviewTrackManager>();
+    this->ui_memb = std::make_unique<UI>();  // sets global "ui" pointer in ctor
     this->updateHandler = std::make_unique<UpdateHandler>();
     this->thumbnailManager = std::make_unique<ThumbnailManager>();
     this->beatmapInstaller = std::make_unique<BeatmapInstaller>();
@@ -603,6 +606,8 @@ void Osu::update() {
         }
     }
 
+    this->previewTrackManager->update();
+
     // does things which needed to wait until loading finished
     this->map_iface->checkHandleAsyncMusicLoadFinish();
 
@@ -938,6 +943,8 @@ void Osu::onKeyDown(KeyboardEvent &key) {
     // boss key (minimize + mute)
     if(key == binds::BOSS_KEY) {
         if(env->minimizeWindow()) {
+            // (this resumes the music a preview paused, which gets paused again below and comes back with the window)
+            this->previewTrackManager->stop();
             this->bWasBossKeyPaused = this->map_iface->isPreviewMusicPlaying();
             this->map_iface->pausePreviewMusic(false);
         }

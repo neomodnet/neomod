@@ -202,6 +202,7 @@ CONVAR(ui_validate_ticks, false, CLIENT | NOLOAD | NOSAVE,
 CONVAR(debug_env, false, CLIENT);
 CONVAR(debug_font, false, CLIENT);
 CONVAR(debug_file, false, CLIENT);
+CONVAR(debug_cache, false, CLIENT);
 CONVAR(debug_image, false, CLIENT | NOSAVE);
 CONVAR(debug_mouse, false, CLIENT | SERVER | PROTECTED | GAMEPLAY);
 CONVAR(debug_draw_hardware_cursor, false, CLIENT | NOSAVE);

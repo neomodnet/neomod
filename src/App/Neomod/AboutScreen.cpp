@@ -401,6 +401,8 @@ void AboutScreen::buildChangelog() {
     v43_14.title = "43.14 (" CHANGELOG_TIMESTAMP ")";
     v43_14.changes = {
         R"(- Added a preview panel to online beatmaps screen)",
+        R"(- Added audio previews to online beatmaps screen)",
+        R"(  - NOTE: You can disable them by setting "direct_autoplay_preview 0" if you really want to)",
         R"(- Exposed "direct_autoselect" behavior as a checkbox)",
         R"(- Fixed startup crashing in some cases)",
         R"(- Allowed force disabling skins from setting convars)",

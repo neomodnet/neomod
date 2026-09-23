@@ -18,6 +18,7 @@
 #include "CBaseUIDispatch.h"
 #include "Environment.h"
 #include "BeatmapInterface.h"
+#include "PreviewTrackManager.h"
 #include "Skin.h"
 
 VolumeOverlay::VolumeOverlay() : UIScreen() {
@@ -388,4 +389,5 @@ void VolumeOverlay::onMusicVolumeChange() {
     if(music != nullptr) {
         music->setBaseVolume(osu->getMapInterface()->getIdealVolume());
     }
+    osu->getPreviewTrackManager()->apply_music_volume();
 }

@@ -176,6 +176,11 @@ CONVAR(songbrowser_sortingtype, "By Date Added"sv, CLIENT | SKINS | SERVER);
 
 // Song browser (the online kind)
 CONVAR(direct_ranking_status_filter, 0, CLIENT | SKINS | SERVER);
+CONVAR(direct_autoselect, true, CLIENT, "auto-select and play downloaded beatmaps");
+// NOTE: this is because the preview music volume isn't normalized
+CONVAR(direct_preview_volume_multiplier, 0.55f, CLIENT, "volume_music multiplier");
+// TODO: make visible as an option somewhere
+CONVAR(direct_autoplay_preview, true, CLIENT, "preview beatmap music when selected");
 
 // Playfield
 CONVAR(background_alpha, 1.0f, CLIENT | SKINS | SERVER,

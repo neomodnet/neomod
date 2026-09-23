@@ -9,6 +9,7 @@
 #include "BeatmapInstaller.h"
 #include "BeatmapInterface.h"
 #include "CBaseUICheckbox.h"
+#include "CBaseUIElement.h"
 #include "CBaseUILabel.h"
 #include "CBaseUIScrollView.h"
 #include "CBaseUITextbox.h"
@@ -33,6 +34,7 @@
 #include "Osu.h"
 #include "OsuConVars.h"
 #include "OsuKeyBinds.h"
+#include "PreviewTrackManager.h"
 #include "RoomScreen.h"
 #include "Skin.h"
 #include "SongBrowser/SongBrowser.h"
@@ -49,10 +51,6 @@
 #include <charconv>
 #include <cmath>
 #include <optional>
-
-namespace cv {
-static ConVar direct_autoselect("direct_autoselect", true, CLIENT, "auto-select and play downloaded beatmaps");
-}
 
 namespace {
 
@@ -127,6 +125,28 @@ void SetInstallState::poll(i32 set_id) {
     }
 }
 
+// over the thumbnail in the preview panel: shows how the beatmapset's audio preview is doing, and plays or stops it
+class PreviewAudioToggle final : public CBaseUIElement {
+    NOCOPY_NOMOVE(PreviewAudioToggle)
+   public:
+    PreviewAudioToggle()
+        : CBaseUIElement(0, 0, 0, 0, "direct_preview_audio"),
+          play_glyph(UniString::to_utf8(std::u32string_view{&Icons::PLAY, 1})),
+          stop_glyph(UniString::to_utf8(std::u32string_view{&Icons::STOP, 1})) {}
+    ~PreviewAudioToggle() override = default;
+
+    i32 set_id{0};  // 0 while there's nothing to play (an installed set plays its own music instead)
+
+    void draw() override;
+
+   protected:
+    void onMouseUpInside(bool left = true, bool right = false) override;
+
+   private:
+    const std::string play_glyph;
+    const std::string stop_glyph;
+};
+
 }  // namespace
 
 // the details of the beatmapset last clicked in the results list and what can be done with it, or a hint on how to
@@ -176,6 +196,7 @@ class OnlineMapPreview final : public CBaseUIContainer {
     UIButton* primary_button;
     UIButton* page_button;
     UIButton* close_button;
+    PreviewAudioToggle* audio_toggle;
     PrimaryAction primary_action{PrimaryAction::NONE};
     f64 last_primary_click_time{-HUGE_VAL};
 
@@ -552,7 +573,78 @@ void OnlineMapListing::draw() {
     }
 }
 
+namespace {
+
+void PreviewAudioToggle::draw() {
+    if(!this->isVisible() || this->set_id == 0) return;
+
+    using State = PreviewTrackManager::State;
+    const PreviewTrackManager* previews = osu->getPreviewTrackManager();
+    const State state = previews->get_state(this->set_id);
+    const McRect& rect = this->getRect();
+    const f32 scale = Osu::getUIScale();
+
+    // a bar along the bottom edge, with the progress while it plays and a segment sweeping across while it loads
+    if(state == State::LOADING || state == State::PLAYING) {
+        const f32 bar_height = std::round(3.f * scale);
+        const McRect bar(rect.getX(), rect.getMaxY() - bar_height, rect.getWidth(), bar_height);
+        g->setColor(rgb(0, 0, 0).setA(0.5f));
+        g->fillRectf(bar.getX(), bar.getY(), bar.getWidth(), bar.getHeight());
+        g->setColor(rgb(255, 255, 255));
+        if(state == State::PLAYING) {
+            g->fillRectf(bar.getX(), bar.getY(), bar.getWidth() * previews->get_progress(), bar.getHeight());
+        } else {
+            const f32 segment_width = bar.getWidth() / 4.f;
+            const f32 sweep = (f32)std::fmod(engine->getTime(), 1.);
+            g->pushClipRect(bar);
+            g->fillRectf(bar.getX() - segment_width + (bar.getWidth() + segment_width) * sweep, bar.getY(),
+                         segment_width, bar.getHeight());
+            g->popClipRect();
+        }
+    }
+
+    // what a click would do
+    if(!this->isMouseInside() || state == State::UNAVAILABLE) return;
+
+    g->setColor(rgb(0, 0, 0).setA(0.4f));
+    g->fillRectf(rect.getX(), rect.getY(), rect.getWidth(), rect.getHeight());
+
+    const std::string_view glyph = state == State::NONE ? this->play_glyph : this->stop_glyph;
+
+    McFont* icon_font = osu->getFontIcons();
+    const f32 glyph_scale = rect.getHeight() * 0.3f / icon_font->getHeight();
+    g->pushTransform();
+    {
+        g->scale(glyph_scale, glyph_scale);
+        g->translate(std::round(rect.getCenter().x - icon_font->getStringWidth(glyph) * glyph_scale / 2.f),
+                     std::round(rect.getCenter().y + icon_font->getHeight() * glyph_scale / 2.f));
+        g->drawString(icon_font, glyph,
+                      TextFX{.col_text = rgb(255, 255, 255),
+                             .col_shadow = 0,
+                             .col_outline = rgb(40, 40, 40),
+                             .outline_px = 1.f * scale,
+                             .shadow_softness_px = 0.5f * scale});
+    }
+    g->popTransform();
+}
+
+void PreviewAudioToggle::onMouseUpInside(bool left, bool /*right*/) {
+    if(!left || this->set_id == 0) return;
+
+    auto* previews = osu->getPreviewTrackManager();
+    if(previews->get_state(this->set_id) == PreviewTrackManager::State::NONE) {
+        previews->play(this->set_id);
+    } else {
+        previews->stop();
+    }
+}
+
+}  // namespace
+
 OnlineMapPreview::OnlineMapPreview() : CBaseUIContainer(0, 0, 0, 0, "direct_preview") {
+    this->audio_toggle = new PreviewAudioToggle();
+    this->addBaseUIElement(this->audio_toggle);
+
     this->primary_button = new UIButton(0, 0, 0, 0, "direct_preview_primary", "");
     this->primary_button->setClickCallback([this]() {
         // a double click on "Download" must not cancel the download its first click started
@@ -594,7 +686,19 @@ void OnlineMapPreview::show(const Downloader::BeatmapSetMetadata& meta) {
 
     this->install = {};
     this->install.poll(meta.set_id);
-    if(this->install.installed) this->select_installed();
+    this->audio_toggle->set_id = this->install.installed ? 0 : meta.set_id;
+    auto* previews = osu->getPreviewTrackManager();
+    if(this->install.installed) {
+        // it plays its own music instead (selected first, so that stopping the preview doesn't resume the music it
+        // replaces in between)
+        this->select_installed();
+        previews->stop();
+    } else if(cv::direct_autoplay_preview.getBool()) {
+        previews->play(meta.set_id);
+    } else {
+        // (the previous set's preview stops, this one waits for a click on the thumbnail)
+        previews->stop();
+    }
 
     this->update_primary_button();
     this->layout();
@@ -603,6 +707,7 @@ void OnlineMapPreview::show(const Downloader::BeatmapSetMetadata& meta) {
 void OnlineMapPreview::clear() {
     if(!this->meta) return;
 
+    osu->getPreviewTrackManager()->stop();
     osu->getThumbnailManager()->discard_image(this->thumb_id);
     this->meta.reset();
 
@@ -642,6 +747,7 @@ void OnlineMapPreview::tick() {
     if(!this->isVisible() || !this->meta) return;
 
     this->install.poll(this->meta->set_id);
+    this->audio_toggle->set_id = this->install.installed ? 0 : this->meta->set_id;
     this->update_primary_button();
 }
 
@@ -703,6 +809,7 @@ void OnlineMapPreview::layout() {
         button->setSize(inner_w, button_h);
         button_y += button_h + button_gap;
     }
+    this->audio_toggle->setVisible(false);  // (put over the thumbnail below, if there is one)
     this->update_pos();
 
     this->text_runs.clear();
@@ -797,6 +904,11 @@ void OnlineMapPreview::layout() {
     if(thumb_h >= DEF_PREVIEW_MIN_THUMB_HEIGHT * scale) {
         this->thumb_relrect = McRect((size.x - thumb_h * 4.f / 3.f) / 2.f, pad, thumb_h * 4.f / 3.f, thumb_h);
         text_top += thumb_h + pad;
+
+        this->audio_toggle->setVisible(true);
+        this->audio_toggle->setRelPos(this->thumb_relrect.getPos());
+        this->audio_toggle->setSize(this->thumb_relrect.getSize());
+        this->update_pos();
     } else {
         this->thumb_relrect = {};
     }
