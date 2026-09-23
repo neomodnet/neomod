@@ -2887,6 +2887,10 @@ msgstr ""
 msgid "Only show ranked beatmaps"
 msgstr ""
 
+#: src/App/Neomod/OsuDirectScreen.cpp
+msgid "Auto-select downloaded beatmaps"
+msgstr ""
+
 #: src/App/Neomod/PauseOverlay.cpp
 msgid "Resume"
 msgstr ""

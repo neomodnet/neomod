@@ -943,13 +943,21 @@ OsuDirectScreen::OsuDirectScreen() {
     });
     this->addBaseUIElement(this->best_rated_btn);
 
-    this->ranked_only = new CBaseUICheckbox(0, 0, 0, 0, "", _("Only show ranked beatmaps"));
+    this->ranked_only = new CBaseUICheckbox(0, 0, 0, 0, "direct_ranked_only", _("Only show ranked beatmaps"));
     this->ranked_only->setDrawFrame(false);
     this->ranked_only->setDrawBackground(false);
     this->ranked_only->setChecked(cv::direct_ranking_status_filter.getVal<RankingStatusFilter>() ==
                                   RankingStatusFilter::RANKED);
     this->ranked_only->setChangeCallback(SA::MakeDelegate<&OsuDirectScreen::onRankedCheckboxChange>(this));
     this->addBaseUIElement(this->ranked_only);
+
+    this->auto_select = new CBaseUICheckbox(0, 0, 0, 0, "direct_autoselect", _("Auto-select downloaded beatmaps"));
+    this->auto_select->setDrawFrame(false);
+    this->auto_select->setDrawBackground(false);
+    this->auto_select->setChecked(cv::direct_autoselect.getBool());
+    this->auto_select->setChangeCallback(
+        [](CBaseUICheckbox* checkbox) { cv::direct_autoselect.setValue(checkbox->isChecked()); });
+    this->addBaseUIElement(this->auto_select);
 
     this->results = new CBaseUIScrollView();
     this->results->setBackgroundColor(0xaa000000);
@@ -961,6 +969,7 @@ OsuDirectScreen::OsuDirectScreen() {
     this->addBaseUIElement(this->preview);
 
     cv::direct_ranking_status_filter.setCallback(SA::MakeDelegate<&OsuDirectScreen::onRankedStatusCvarChange>(this));
+    cv::direct_autoselect.setCallback(SA::MakeDelegate<&OsuDirectScreen::onAutoSelectCvarChange>(this));
 }
 
 OsuDirectScreen::~OsuDirectScreen() {
@@ -968,6 +977,7 @@ OsuDirectScreen::~OsuDirectScreen() {
     this->search_cancel.request_stop();
 
     cv::direct_ranking_status_filter.removeAllCallbacks();
+    cv::direct_autoselect.removeAllCallbacks();
 }
 
 void OsuDirectScreen::onRankedCheckboxChange(CBaseUICheckbox* checkbox) {
@@ -992,6 +1002,10 @@ void OsuDirectScreen::onRankedStatusCvarChange(float oldValue, float newValue) {
 
     this->reset();
     this->search(this->current_query);
+}
+
+void OsuDirectScreen::onAutoSelectCvarChange() {
+    this->auto_select->setChecked(cv::direct_autoselect.getBool(), false);
 }
 
 CBaseUIContainer* OsuDirectScreen::setVisible(bool visible) {
@@ -1105,20 +1119,18 @@ void OsuDirectScreen::onResolutionChange(vec2 newResolution) {
     x = x_start;
     y += 50.f * scale;
 
-    // Search bar & buttons
-    this->search_bar->setRelPos(x, y);
-    this->search_bar->setSize(400.0f * scale, 40.0f * scale);
-    x += this->search_bar->getSize().x;
+    // Search bar & buttons, as wide as the results list (the search bar gets what the buttons leave)
     const f32 BUTTONS_MARGIN = 10.f * scale;
-    x += BUTTONS_MARGIN;
+    const f32 button_width = 150.f * scale;
+    this->search_bar->setRelPos(x, y);
+    this->search_bar->setSize(std::max(results_width - 2.f * (button_width + BUTTONS_MARGIN), button_width),
+                              40.0f * scale);
+    x += this->search_bar->getSize().x + BUTTONS_MARGIN;
     this->newest_btn->setRelPos(x, y);
-    this->newest_btn->setSize(150.f * scale, this->search_bar->getSize().y);
+    this->newest_btn->setSize(button_width, this->search_bar->getSize().y);
     x += this->newest_btn->getSize().x + BUTTONS_MARGIN;
     this->best_rated_btn->setRelPos(x, y);
-    this->best_rated_btn->setSize(150.f * scale, this->search_bar->getSize().y);
-    x += this->best_rated_btn->getSize().x + BUTTONS_MARGIN;
-    this->ranked_only->setRelPos(x, y);
-    this->ranked_only->setSize(40.f * scale, 40.f * scale);
+    this->best_rated_btn->setSize(button_width, this->search_bar->getSize().y);
     y += this->search_bar->getSize().y;
 
     // Results list
@@ -1150,10 +1162,26 @@ void OsuDirectScreen::onResolutionChange(vec2 newResolution) {
     this->preview->setSize(preview_width, preview_height);
     this->preview->onResolutionChange(newResolution);
 
+    // Checkboxes, stacked below the right end of the results list
+    const f32 checkbox_height = 40.f * scale;
+    f32 checkboxes_width = 0.f;
+    for(auto* checkbox : {this->ranked_only, this->auto_select}) {
+        checkbox->setSizeY(checkbox_height);
+        checkbox->setWidthToContent(0);
+        checkboxes_width = std::max(checkboxes_width, checkbox->getSize().x);
+    }
+    const f32 checkboxes_x = x + results_width - checkboxes_width;
+    const f32 checkboxes_y = y + this->results->getSize().y + 10.f * scale;
+    for(f32 checkbox_y = checkboxes_y; auto* checkbox : {this->ranked_only, this->auto_select}) {
+        checkbox->setRelPos(checkboxes_x, checkbox_y);
+        checkbox->setSizeX(checkboxes_width);
+        checkbox_y += checkbox_height;
+    }
+
+    // the loading spinner goes to their left, centered on the two of them
     const f32 spinner_size = (40.f * scale);
-    const f32 spinner_margin = spinner_size / 2.f;
-    this->spinner_pos.x = x + this->results->getSize().x - (spinner_size / 2.f);
-    this->spinner_pos.y = y + this->results->getSize().y + spinner_margin + (spinner_size / 2.f);
+    this->spinner_pos.x = checkboxes_x - (spinner_size / 2.f);
+    this->spinner_pos.y = checkboxes_y + checkbox_height;
 
     this->update_pos();
 }

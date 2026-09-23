@@ -3045,6 +3045,10 @@ msgstr "Лучшие карты"
 msgid "Only show ranked beatmaps"
 msgstr "Показывать только ранкнутые карты"
 
+#: src/App/Neomod/OsuDirectScreen.cpp
+msgid "Auto-select downloaded beatmaps"
+msgstr ""
+
 #: src/App/Neomod/PauseOverlay.cpp
 msgid "Resume"
 msgstr "Продолжить"

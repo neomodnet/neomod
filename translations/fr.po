@@ -3015,6 +3015,10 @@ msgstr "Maps populaires"
 msgid "Only show ranked beatmaps"
 msgstr "Afficher uniquement les beatmaps classées"
 
+#: src/App/Neomod/OsuDirectScreen.cpp
+msgid "Auto-select downloaded beatmaps"
+msgstr ""
+
 #: src/App/Neomod/PauseOverlay.cpp
 msgid "Resume"
 msgstr "Reprendre"
