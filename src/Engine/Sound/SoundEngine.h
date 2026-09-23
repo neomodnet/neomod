@@ -82,7 +82,6 @@ class SoundEngine {
     virtual void stop(Sound *snd) = 0;
 
     virtual bool isReady() = 0;
-    virtual bool hasExclusiveOutput() = 0;
 
     // buffer sizes (in sample frames) the current output device accepts, for drivers that expose them (ASIO)
     // granularity > 0 means steps of that many frames counted from the minimum, -1 means powers of two counted from the

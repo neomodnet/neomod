@@ -28,7 +28,6 @@ class BassSoundEngine final : public SoundEngine {
     void stop(Sound *snd) override;
 
     bool isReady() override;
-    bool hasExclusiveOutput() override;
 
     bool isASIO() override { return this->currentOutputDevice.driver == OutputDriver::BASS_ASIO; }
     std::optional<OutputBufferLimits> getOutputBufferLimits() override;
@@ -51,6 +50,8 @@ class BassSoundEngine final : public SoundEngine {
     bool init_bass_mixer(const OUTPUT_DEVICE &device);
 
     bool actuallyPlay(BassSound *bassSound, SOUNDHANDLE playHandle, u64 positionUS);
+
+    bool hasExclusiveOutput();
 
     double ready_since{-1.0};
     SOUNDHANDLE g_bassOutputMixer = 0;

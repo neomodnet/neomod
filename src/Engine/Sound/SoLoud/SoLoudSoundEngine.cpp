@@ -336,17 +336,6 @@ void SoLoudSoundEngine::stop(Sound *snd) {
     soloudSound->handle = 0;
 }
 
-bool SoLoudSoundEngine::hasExclusiveOutput() {
-    if(this->isASIO()) return true;
-
-    SoLoud::DeviceInfo currentDevice{};
-    if(this->isReady() && soloud->getCurrentDevice(&currentDevice) == SoLoud::SO_NO_ERROR) {
-        return currentDevice.isExclusive;
-    }
-
-    return false;
-}
-
 std::optional<SoundEngine::OutputBufferLimits> SoLoudSoundEngine::getOutputBufferLimits() {
     OutputBufferLimits limits{};
     if(!this->bReady || soloud->getBufferSizeLimits(&limits.minSize, &limits.maxSize, &limits.preferredSize,

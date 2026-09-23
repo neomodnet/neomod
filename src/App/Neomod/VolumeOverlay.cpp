@@ -320,15 +320,11 @@ bool VolumeOverlay::canChangeVolume() {
 }
 
 void VolumeOverlay::gainFocus() {
-    if(soundEngine->hasExclusiveOutput()) return;
-
     this->fVolumeInactiveToActiveAnim = 0.0f;
     this->fVolumeInactiveToActiveAnim.set(1.0f, 0.3f, anim::Linear, 0.1f);
 }
 
 void VolumeOverlay::loseFocus() {
-    if(soundEngine->hasExclusiveOutput()) return;
-
     this->bVolumeInactiveToActiveScheduled = true;
     this->fVolumeInactiveToActiveAnim.stop();
     this->fVolumeInactiveToActiveAnim = 0.0f;
