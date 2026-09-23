@@ -2960,23 +2960,20 @@ msgid "View beatmap page"
 msgstr ""
 
 #: src/App/Neomod/OsuDirectScreen.cpp
-#, fuzzy
 msgid "Close"
-msgstr "2. 閉じる"
+msgstr ""
 
 #: src/App/Neomod/OsuDirectScreen.cpp
-#, fuzzy
 msgid "Download"
-msgstr "マップをダウンロード"
+msgstr ""
 
 #: src/App/Neomod/OsuDirectScreen.cpp
 msgid "Cancel download"
 msgstr ""
 
 #: src/App/Neomod/OsuDirectScreen.cpp
-#, fuzzy
 msgid "Go to beatmap"
-msgstr "ビートマップ"
+msgstr ""
 
 #: src/App/Neomod/OsuDirectScreen.cpp
 msgid ""
@@ -3015,9 +3012,8 @@ msgid "Video"
 msgstr ""
 
 #: src/App/Neomod/OsuDirectScreen.cpp
-#, fuzzy
 msgid "Storyboard"
-msgstr "キーボード"
+msgstr ""
 
 #: src/App/Neomod/OsuDirectScreen.cpp
 msgid "Newest maps"

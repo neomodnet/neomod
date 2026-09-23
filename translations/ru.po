@@ -2974,23 +2974,20 @@ msgid "View beatmap page"
 msgstr ""
 
 #: src/App/Neomod/OsuDirectScreen.cpp
-#, fuzzy
 msgid "Close"
-msgstr "2. Закрыть"
+msgstr ""
 
 #: src/App/Neomod/OsuDirectScreen.cpp
-#, fuzzy
 msgid "Download"
-msgstr "Скачать карты"
+msgstr ""
 
 #: src/App/Neomod/OsuDirectScreen.cpp
 msgid "Cancel download"
 msgstr ""
 
 #: src/App/Neomod/OsuDirectScreen.cpp
-#, fuzzy
 msgid "Go to beatmap"
-msgstr "Карта"
+msgstr ""
 
 #: src/App/Neomod/OsuDirectScreen.cpp
 msgid ""
@@ -3029,9 +3026,8 @@ msgid "Video"
 msgstr ""
 
 #: src/App/Neomod/OsuDirectScreen.cpp
-#, fuzzy
 msgid "Storyboard"
-msgstr "Клавиатура"
+msgstr ""
 
 #: src/App/Neomod/OsuDirectScreen.cpp
 msgid "Newest maps"
