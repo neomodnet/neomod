@@ -12,8 +12,10 @@
 #include "SyncStoptoken.h"
 #include "Logging.h"
 
+#include <algorithm>
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <chrono>
 #include <utility>
@@ -82,8 +84,13 @@ class DownloadManager {
     Hash::unstable_stringmap<std::weak_ptr<Request>> queue;
     Hash::unstable_stringmap<std::chrono::steady_clock::time_point> per_host_retry_after;
 
+    // when update() checks the queue again, as no start, completion or cancel has to come along before then: the
+    // earliest time a queued request that didn't start yet (e.g. its host is still spaced out or rate limited) can
+    std::optional<std::chrono::steady_clock::time_point> next_check;
+
     void checkAndStartNextDownload() {
         // NOTE: this->queue_mutex should already be acquired here!
+        this->next_check.reset();
         if(this->shutting_down.load(std::memory_order_acquire)) return;
         if(this->queue.empty()) return;
 
@@ -98,15 +105,18 @@ class DownloadManager {
                 continue;
             }
 
-            if(!request) {
-                if(!locked->downloading.load(std::memory_order_acquire) &&
-                   !locked->completed.load(std::memory_order_acquire)) {
-                    if(!this->per_host_retry_after.contains(locked->host) ||
-                       this->per_host_retry_after[locked->host] <= now) {
-                        // TODO: prevent more than 1 simultaneous download per domain
-                        //       (currently can happen if downloads take more than 100ms)
-                        request = locked;
-                    }
+            if(!locked->downloading.load(std::memory_order_acquire) &&
+               !locked->completed.load(std::memory_order_acquire)) {
+                const auto retry_it = this->per_host_retry_after.find(locked->host);
+                const auto ready_at =
+                    retry_it == this->per_host_retry_after.end() ? now : std::max(now, retry_it->second);
+
+                if(!request && ready_at <= now) {
+                    // TODO: prevent more than 1 simultaneous download per domain
+                    //       (currently can happen if downloads take more than 100ms)
+                    request = locked;
+                } else if(!this->next_check || ready_at < *this->next_check) {
+                    this->next_check = ready_at;
                 }
             }
             ++it;
@@ -141,26 +151,23 @@ class DownloadManager {
         // update request with results
         {
             Sync::scoped_lock lock(request->data_mutex);
-            if(response.success) {
+            if(response.response_code == 429) {
+                // rate limited, reset and retry later (the network layer fails it like any other HTTP error status)
+                request->progress.store(0.0f, std::memory_order_release);
+
+                u32 seconds_to_wait = 5;
+                if(const auto& it = response.headers.find("retry-after"); it != response.headers.end()) {
+                    seconds_to_wait = Parsing::strto<u32>(it->second);
+                }
+
+                Sync::scoped_lock lock(this->queue_mutex);
+                this->per_host_retry_after[request->host] =
+                    std::chrono::steady_clock::now() + std::chrono::seconds(seconds_to_wait);
+            } else if(response.success) {
                 request->response_code.store(static_cast<int>(response.response_code), std::memory_order_release);
                 request->data = std::move(response.body);
-
-                if(response.response_code == 429) {
-                    // rate limited, reset and retry later
-                    request->progress.store(0.0f, std::memory_order_release);
-
-                    u32 seconds_to_wait = 5;
-                    if(response.headers.contains("retry-after")) {
-                        seconds_to_wait = Parsing::strto<u32>(response.headers["retry-after"]);
-                    }
-
-                    Sync::scoped_lock lock(this->queue_mutex);
-                    this->per_host_retry_after[request->host] =
-                        std::chrono::steady_clock::now() + std::chrono::seconds(seconds_to_wait);
-                } else {
-                    request->progress.store(1.f, std::memory_order_release);
-                    request->completed.store(true, std::memory_order_release);
-                }
+                request->progress.store(1.f, std::memory_order_release);
+                request->completed.store(true, std::memory_order_release);
             } else {
                 // TODO: forward network error message in response
                 debugLog("Failed to download {:s}: network error", request->url.c_str());
@@ -190,6 +197,13 @@ class DownloadManager {
                 if(auto req = weak.lock()) req->cancel_src.request_stop();
             }
             this->queue.clear();
+        }
+    }
+
+    void update() {
+        Sync::scoped_lock lock(this->queue_mutex);
+        if(this->next_check && *this->next_check <= std::chrono::steady_clock::now()) {
+            this->checkAndStartNextDownload();
         }
     }
 
@@ -228,11 +242,6 @@ class DownloadManager {
                 // weak_ptr expired, erase stale entry
                 this->queue.erase(it);
             } else {
-                // if we have been rate limited, we might need to resume downloads manually
-                if(!dl->downloading.load(std::memory_order_acquire)) {
-                    this->checkAndStartNextDownload();
-                }
-
                 return dl;
             }
         }
@@ -269,6 +278,10 @@ void abort_downloads() {
 void abort_download(DownloadHandle& handle) {
     if(handle && s_download_manager) s_download_manager->cancel(handle);
     handle.reset();
+}
+
+void update() {
+    if(s_download_manager) s_download_manager->update();
 }
 
 DownloadHandle download(std::string_view url) {
@@ -356,7 +369,7 @@ BeatmapSetMetadata parse_beatmapset_metadata(std::string_view server_response) {
     meta.creator = tokens[3];
     meta.ranking_status = Parsing::strto<u8>(tokens[4]);
     meta.avg_user_rating = Parsing::strto<f32>(tokens[5]);
-    meta.last_update = Parsing::strto<u64>(tokens[6]);  // TODO: incorrect?
+    meta.last_update = tokens[6];
     meta.set_id = Parsing::strto<i32>(tokens[7]);
 
     if(tokens.size() < 9) return meta;

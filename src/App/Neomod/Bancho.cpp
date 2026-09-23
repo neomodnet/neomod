@@ -136,6 +136,7 @@ void BanchoState::update_online_status(OnlineStatus new_status) {
 
             std::string thumbs_dir = fmt::format("{}/thumbs/{}", Mc::Paths::cache(), BanchoState::endpoint);
             Environment::createDirectory(thumbs_dir);
+            Environment::createDirectory(thumbs_dir + "/large");  // the osu!direct preview's large thumbnails
         }
 
         ui->getOptionsOverlay()->scheduleLayoutUpdate();

@@ -21,6 +21,8 @@
 #include "Graphics.h"
 #include "i18n.h"
 #include "Icons.h"
+#include "KeyBindings.h"
+#include "KeyboardEvent.h"
 #include "Logging.h"
 #include "MainMenu.h"
 #include "MakeDelegateWrapper.h"
@@ -30,30 +32,164 @@
 #include "OptionsOverlay.h"
 #include "Osu.h"
 #include "OsuConVars.h"
+#include "OsuKeyBinds.h"
 #include "RoomScreen.h"
 #include "Skin.h"
 #include "SongBrowser/SongBrowser.h"
+#include "SoundEngine.h"
 #include "SString.h"
 #include "TooltipOverlay.h"
 #include "UI.h"
 #include "UIButton.h"
 #include "UIIcon.h"
+#include "UniString.h"
 #include "DatabaseBeatmap.h"
 
 #include <algorithm>
 #include <charconv>
 #include <cmath>
+#include <optional>
 
 namespace cv {
 static ConVar direct_autoselect("direct_autoselect", true, CLIENT, "auto-select and play downloaded beatmaps");
 }
+
+namespace {
+
+// preview panel geometry, in virtual-screen pixels at scale=1 (multiplied by Osu::getUIScale())
+constexpr f32 DEF_PREVIEW_WIDTH{320.f};
+constexpr f32 DEF_PREVIEW_MAX_HEIGHT{720.f};
+constexpr f32 DEF_PREVIEW_MARGIN{16.f};  // to the right edge of the screen, and to the results list
+constexpr f32 DEF_PREVIEW_PAD{8.f};
+constexpr f32 DEF_PREVIEW_BUTTON_HEIGHT{36.f};
+constexpr f32 DEF_PREVIEW_BUTTON_GAP{6.f};
+constexpr f32 DEF_PREVIEW_MIN_THUMB_HEIGHT{64.f};    // below this, short screens go without the thumbnail
+constexpr f32 PREVIEW_MAX_SCREEN_WIDTH_RATIO{0.3f};  // leaves small windows room for the results list
+constexpr f32 PREVIEW_LINE_SPACING{1.5f};            // times the font height
+constexpr uSz PREVIEW_MIN_DIFFICULTY_LINES{3};       // kept free before the thumbnail gets any room
+
+// the listings show the small thumbnails, the preview the large ("l") ones, which get a cache directory of their own
+// since the thumbnail cache only keeps track of id-named files
+[[nodiscard]] ThumbIdentifier thumb_id_for(i32 set_id, bool large) {
+    return {.save_path = fmt::format("{}/thumbs/{}/{}{}", Mc::Paths::cache(), BanchoState::endpoint,
+                                     large ? "large/" : "", set_id),
+            .download_url = fmt::format("b.{}/thumb/{:d}{}.jpg", BanchoState::endpoint, set_id, large ? "l" : ""),
+            .id = set_id};
+}
+
+void open_beatmap_page(i32 set_id) {
+    const auto scheme = cv::use_https.getBool() ? "https://"sv : "http://"sv;
+    const auto url = fmt::format("{}osu.{}/s/{}", scheme, BanchoState::endpoint, set_id);
+    debugLog("opening map link {:s}", url);
+    ui->getNotificationOverlay()->addNotification(_("Opening browser, please wait ..."), 0xffffffff, false, 0.75f);
+    env->openURLInDefaultBrowser(url, /*preventFocusSteal=*/true);
+}
+
+// the server takes these queries as keywords, so they must not be translated
+constexpr std::string_view NEWEST_QUERY{"Newest"};
+constexpr std::string_view TOP_RATED_QUERY{"Top Rated"};
+
+// install state of one online beatmapset, poll() it once per tick
+struct SetInstallState {
+    BeatmapInstaller::State download;
+    f64 last_database_check_time{0.};
+    bool installed{false};
+
+    void poll(i32 set_id);
+
+    [[nodiscard]] bool in_flight() const {
+        using enum MapInstallStage;
+        using namespace flags::operators;
+        return !this->installed && !!(this->download.stage & (Queued | Downloading | Extracting | Installing));
+    }
+};
+
+void SetInstallState::poll(i32 set_id) {
+    if(this->installed) return;
+
+    // throttle database checks (beatmaps may have been installed through means other than
+    // downloading it, so we have to check the db to reconcile the state)
+    if(const f64 now = engine->getTime(); this->last_database_check_time + 1. < now) {
+        this->last_database_check_time = now;
+        this->installed = !!db->getBeatmapSet(set_id);
+        if(this->installed) return;
+    }
+
+    using enum MapInstallStage;
+    using namespace flags::operators;
+    this->download = osu->getBeatmapInstaller()->get_state(set_id);
+    if(this->download.stage == Done) {
+        this->installed = true;
+    } else if(this->download.stage != Failed &&
+              (this->download.progress == 1. || !!(this->download.stage & (Extracting | Installing)))) {
+        // poll for database presence immediately
+        this->last_database_check_time = 0.;
+    }
+}
+
+}  // namespace
+
+// the details of the beatmapset last clicked in the results list and what can be done with it, or a hint on how to
+// get there while there is none
+class OnlineMapPreview final : public CBaseUIContainer {
+    NOCOPY_NOMOVE(OnlineMapPreview)
+   public:
+    OnlineMapPreview();
+    ~OnlineMapPreview() override;
+
+    void show(const Downloader::BeatmapSetMetadata& meta);
+    void clear();
+    [[nodiscard]] bool is_showing(i32 set_id) const { return this->meta && this->meta->set_id == set_id; }
+
+    // goes to the set in the song browser if it's installed, otherwise downloads it (unless that's already underway)
+    void activate();
+
+    void tick() override;
+    void draw() override;
+    void onKeyDown(KeyboardEvent& e) override;
+
+    // NOT inherited, called manually
+    void onResolutionChange(vec2 newResolution);
+
+   private:
+    enum class PrimaryAction : u8 { NONE, DOWNLOAD, CANCEL_DOWNLOAD, GO_TO_BEATMAP };
+
+    // text drawn by draw(), positioned by layout()
+    struct TextRun {
+        McFont* font;
+        std::string text;
+        vec2 relpos;  // start of the baseline
+        Color color{rgb(255, 255, 255)};
+        Color outline{rgb(40, 40, 40)};
+        f32 scale{1.f};
+    };
+
+    void layout();
+    void update_primary_button();
+    void select_installed();
+
+    std::optional<Downloader::BeatmapSetMetadata> meta;
+    ThumbIdentifier thumb_id;
+    ThumbIdentifier small_thumb_id;  // the listing's, drawn until the large one is there
+    SetInstallState install;
+
+    UIButton* primary_button;
+    UIButton* page_button;
+    UIButton* close_button;
+    PrimaryAction primary_action{PrimaryAction::NONE};
+    f64 last_primary_click_time{-HUGE_VAL};
+
+    McRect thumb_relrect;
+    std::vector<TextRun> text_runs;
+    std::vector<f32> divider_ys;  // panel-relative
+};
 
 // represents: one single beatmapset element inside the OsuDirectScreen scrollview
 // it's a container because it contains UIIcons with tooltips for difficulties
 class OnlineMapListing : public CBaseUIContainer {
     NOCOPY_NOMOVE(OnlineMapListing)
    public:
-    explicit OnlineMapListing(Downloader::BeatmapSetMetadata meta);
+    OnlineMapListing(Downloader::BeatmapSetMetadata meta, OnlineMapPreview& preview);
     ~OnlineMapListing() override;
 
     void tick() override;
@@ -63,22 +199,16 @@ class OnlineMapListing : public CBaseUIContainer {
     // NOT inherited, called manually
     void onResolutionChange(vec2 newResolution);
 
-    // Overriding click detection because buttons don't work well in scrollviews
-    // Our custom behavior is "if clicked and cursor moved less than 5px"
    protected:
-    void onMouseDownInside(bool left = true, bool right = false) override;
     void onMouseUpInside(bool left = true, bool right = false) override;
-    void onMouseUpOutside(bool left = true, bool right = false) override;
     void onMouseInside() override;
     void onMouseOutside() override;
 
    private:
     McFont* font;
     Downloader::BeatmapSetMetadata meta;
+    OnlineMapPreview& preview;
 
-    // TODO: is this really necessary anymore?
-    static constexpr vec2 NO_MOUSEDOWN{-999.f, -999.f};
-    vec2 mbtndown_coords[2]{/*left*/ {NO_MOUSEDOWN}, /*right*/ {NO_MOUSEDOWN}};
     AnimFloat hover_anim;
     AnimFloat click_anim;
 
@@ -91,21 +221,15 @@ class OnlineMapListing : public CBaseUIContainer {
     std::vector<std::string> overflow_tooltip_lines;  // hidden diff names (icon-tooltip format)
     McRect overflow_indicator_relrect;                // card-relative draw + hit rect
 
-    f64 last_database_check_time{0.f};
     f32 creator_width{0.f};
-    BeatmapInstaller::State download_state;
-    bool database_presence{false};  // cached database state
+    SetInstallState install;
 };
 
-OnlineMapListing::OnlineMapListing(Downloader::BeatmapSetMetadata meta)
+OnlineMapListing::OnlineMapListing(Downloader::BeatmapSetMetadata meta, OnlineMapPreview& preview)
     : font(engine->getDefaultFont()),
       meta(std::move(meta)),
-      thumb_id(
-          {.save_path = fmt::format("{}/thumbs/{}/{}", Mc::Paths::cache(), BanchoState::endpoint, this->meta.set_id),
-           .download_url =
-               fmt::format("b.{}/thumb/{:d}.jpg", BanchoState::endpoint,
-                           this->meta.set_id),  // Also valid: "b.{}/thumb/{:d}l.jpg" ("l" stands for "large")
-           .id = this->meta.set_id}) {
+      preview(preview),
+      thumb_id(thumb_id_for(this->meta.set_id, false)) {
     // the card itself is the click surface: opt back into hit candidacy (container-self is
     // click-through by default since the single-target dispatch)
     this->bClickThroughSelf = false;
@@ -125,53 +249,20 @@ OnlineMapListing::OnlineMapListing(Downloader::BeatmapSetMetadata meta)
 
 OnlineMapListing::~OnlineMapListing() { osu->getThumbnailManager()->discard_image(this->thumb_id); }
 
-void OnlineMapListing::onMouseDownInside(bool left, bool /*right*/) { this->mbtndown_coords[!left] = mouse->getPos(); }
-
+// a left press that turns into a drag never gets here: the scrollview takes it over (cancelling it) past its resistance
 void OnlineMapListing::onMouseUpInside(bool left, bool /*right*/) {
-    if(const f32 distance = vec::distance(mouse->getPos(), this->mbtndown_coords[!left]); distance >= 5.f) {
-        this->mbtndown_coords[!left] = NO_MOUSEDOWN;
-        return;
-    }
-
     this->click_anim = 1.f;
     this->click_anim.set(0.0f, 0.15f, anim::QuadInOut);
 
-    if(left) {
-        if(const auto* set = db->getBeatmapSet(this->meta.set_id) /*installed*/) {
-            // Select map, or go to song browser if already selected
-            if(const auto* current_map = osu->getMapInterface()->getBeatmap();
-               current_map && current_map->getSetID() == this->meta.set_id) {
-                ui->setScreen(ui->getSongBrowser());
-            } else {
-                const auto& diffs = set->getDifficulties();
-                if(diffs.empty()) return;  // surely unreachable
-                ui->getSongBrowser()->onDifficultySelected(diffs[0].get(), false);
-            }
-        } else {
-            auto* installer = osu->getBeatmapInstaller();
-            const auto state = installer->get_state(this->meta.set_id);
-            // toggle: if already in flight (and not yet terminal), cancel; otherwise (re)enqueue
-            using enum MapInstallStage;
-            using namespace flags::operators;
-            if(!!(state.stage & (Queued | Downloading | Extracting | Installing))) {
-                installer->cancel(this->meta.set_id);
-            } else {
-                installer->enqueue(this->meta.set_id, cv::direct_autoselect.getBool(),
-                                   fmt::format("{} - {}", this->meta.artist, this->meta.title));
-            }
-        }
+    if(!left) return open_beatmap_page(this->meta.set_id);
+
+    // the first click shows the set in the preview, another one (e.g. the second half of a double click) acts on it
+    if(this->preview.is_showing(this->meta.set_id)) {
+        this->preview.activate();
     } else {
-        const auto scheme = cv::use_https.getBool() ? "https://"sv : "http://"sv;
-        const auto url = fmt::format("{}osu.{}/s/{}", scheme, BanchoState::endpoint, this->meta.set_id);
-        debugLog("opening map link {:s}", url);
-        ui->getNotificationOverlay()->addNotification("Opening browser, please wait ...", 0xffffffff, false, 0.75f);
-        env->openURLInDefaultBrowser(url, /*preventFocusSteal=*/true);
+        this->preview.show(this->meta);
     }
-
-    this->mbtndown_coords[!left] = NO_MOUSEDOWN;
 }
-
-void OnlineMapListing::onMouseUpOutside(bool left, bool /*right*/) { this->mbtndown_coords[!left] = NO_MOUSEDOWN; }
 
 void OnlineMapListing::onMouseInside() { this->hover_anim.set(0.25f, 0.15f, anim::QuadInOut); }
 void OnlineMapListing::onMouseOutside() { this->hover_anim.set(0.f, 0.15f, anim::QuadInOut); }
@@ -180,27 +271,7 @@ void OnlineMapListing::tick() {
     CBaseUIContainer::tick();
     if(!this->isVisible()) return;
 
-    // throttle database checks (beatmaps may have been installed through means other than
-    // downloading it, so we have to check the db to reconcile the state)
-    if(!this->database_presence) {
-        if(const f64 now = engine->getTime(); this->last_database_check_time + 1. < now) {
-            this->last_database_check_time = now;
-            this->database_presence = !!db->getBeatmapSet(this->meta.set_id);
-        }
-    }
-
-    if(!this->database_presence) {
-        using enum MapInstallStage;
-        using namespace flags::operators;
-        this->download_state = osu->getBeatmapInstaller()->get_state(this->meta.set_id);
-        if(this->download_state.stage == Done) {
-            this->database_presence = true;
-        } else if(this->download_state.stage != Failed &&
-                  (this->download_state.progress == 1. || !!(this->download_state.stage & (Extracting | Installing)))) {
-            // poll for database presence immediately
-            this->last_database_check_time = 0.;
-        }
-    }
+    this->install.poll(this->meta.set_id);
 }
 
 void OnlineMapListing::updateInput(CBaseUIEventCtx& c) {
@@ -400,21 +471,11 @@ void OnlineMapListing::draw() {
     const f32 alpha = std::min(0.25f + this->hover_anim + this->click_anim, 1.f);
 
     f32 download_progress = 0.f;
-    const bool installed = this->database_presence;
-    bool failed = false;
-    bool downloading = false;
-
-    if(!installed) {
-        using enum MapInstallStage;
-        using namespace flags::operators;
-        failed = this->download_state.stage == MapInstallStage::Failed;
-        if(!failed) {
-            downloading = !!(this->download_state.stage & (Queued | Downloading | Extracting | Installing));
-            if(downloading) {
-                // To show we're downloading, always draw at least 5%
-                download_progress = std::max(0.05f, this->download_state.progress);
-            }
-        }
+    const bool installed = this->install.installed;
+    const bool failed = !installed && this->install.download.stage == MapInstallStage::Failed;
+    if(this->install.in_flight()) {
+        // To show we're downloading, always draw at least 5%
+        download_progress = std::max(0.05f, this->install.download.progress);
     }
 
     g->pushClipRect(McRect(pos_counter, progress_size));
@@ -475,6 +536,385 @@ void OnlineMapListing::draw() {
         }
     }
     g->popClipRect();
+
+    // tie the card to the preview showing it
+    if(this->preview.is_showing(this->meta.set_id)) {
+        const f32 thickness = 2.f * Osu::getUIScale();
+        g->setColor(rgb(255, 255, 255));
+        g->drawRectf(Graphics::RectOptions{
+            .x = this->getPos().x + thickness / 2.f,
+            .y = this->getPos().y + thickness / 2.f,
+            .width = this->getSize().x - thickness,
+            .height = this->getSize().y - thickness,
+            .lineThickness = thickness,
+            .withColor = false,
+        });
+    }
+}
+
+OnlineMapPreview::OnlineMapPreview() : CBaseUIContainer(0, 0, 0, 0, "direct_preview") {
+    this->primary_button = new UIButton(0, 0, 0, 0, "direct_preview_primary", "");
+    this->primary_button->setClickCallback([this]() {
+        // a double click on "Download" must not cancel the download its first click started
+        const f64 now = engine->getTime();
+        if(now < this->last_primary_click_time + 0.5) return;
+        this->last_primary_click_time = now;
+
+        if(this->install.in_flight()) {
+            osu->getBeatmapInstaller()->cancel(this->meta->set_id);
+        } else {
+            this->activate();
+        }
+    });
+    this->addBaseUIElement(this->primary_button);
+
+    this->page_button = new UIButton(0, 0, 0, 0, "direct_preview_page", _("View beatmap page"));
+    this->page_button->setColor(0xff0c7c99);
+    this->page_button->setClickCallback([this]() { open_beatmap_page(this->meta->set_id); });
+    this->addBaseUIElement(this->page_button);
+
+    this->close_button = new UIButton(0, 0, 0, 0, "direct_preview_close", _("Close"));
+    this->close_button->setColor(0xff636363);
+    this->close_button->setClickCallback([this]() { this->clear(); });
+    this->addBaseUIElement(this->close_button);
+}
+
+OnlineMapPreview::~OnlineMapPreview() {
+    if(this->meta) osu->getThumbnailManager()->discard_image(this->thumb_id);
+}
+
+void OnlineMapPreview::show(const Downloader::BeatmapSetMetadata& meta) {
+    auto* thumbnails = osu->getThumbnailManager();
+    if(this->meta) thumbnails->discard_image(this->thumb_id);
+
+    this->meta = meta;
+    this->thumb_id = thumb_id_for(meta.set_id, true);
+    this->small_thumb_id = thumb_id_for(meta.set_id, false);
+    thumbnails->request_image(this->thumb_id);
+
+    this->install = {};
+    this->install.poll(meta.set_id);
+    if(this->install.installed) this->select_installed();
+
+    this->update_primary_button();
+    this->layout();
+}
+
+void OnlineMapPreview::clear() {
+    if(!this->meta) return;
+
+    osu->getThumbnailManager()->discard_image(this->thumb_id);
+    this->meta.reset();
+
+    this->update_primary_button();
+    this->layout();
+}
+
+void OnlineMapPreview::activate() {
+    if(!this->meta) return;
+
+    if(this->install.installed) {
+        this->select_installed();
+        ui->setScreen(ui->getSongBrowser());
+    } else if(!this->install.in_flight()) {
+        osu->getBeatmapInstaller()->enqueue(this->meta->set_id, cv::direct_autoselect.getBool(),
+                                            fmt::format("{} - {}", this->meta->artist, this->meta->title));
+    }
+}
+
+// selects the installed set like a click on it in the song browser would (which plays its music), unless it already
+// is the selected one
+void OnlineMapPreview::select_installed() {
+    if(const auto* current_map = osu->getMapInterface()->getBeatmap();
+       current_map && current_map->getSetID() == this->meta->set_id) {
+        return;
+    }
+
+    const auto* set = db->getBeatmapSet(this->meta->set_id);
+    if(!set) return;
+    const auto& diffs = set->getDifficulties();
+    if(diffs.empty()) return;  // surely unreachable
+    ui->getSongBrowser()->onDifficultySelected(diffs[0].get(), false);
+}
+
+void OnlineMapPreview::tick() {
+    CBaseUIContainer::tick();
+    if(!this->isVisible() || !this->meta) return;
+
+    this->install.poll(this->meta->set_id);
+    this->update_primary_button();
+}
+
+void OnlineMapPreview::update_primary_button() {
+    using enum PrimaryAction;
+    const PrimaryAction action = !this->meta                 ? NONE
+                                 : this->install.installed   ? GO_TO_BEATMAP
+                                 : this->install.in_flight() ? CANCEL_DOWNLOAD
+                                                             : DOWNLOAD;
+    if(action == this->primary_action) return;
+    this->primary_action = action;
+
+    switch(action) {
+        case DOWNLOAD:
+            this->primary_button->setText(_("Download"));
+            this->primary_button->setColor(0xff3ca84c);
+            break;
+        case CANCEL_DOWNLOAD:
+            this->primary_button->setText(_("Cancel download"));
+            this->primary_button->setColor(0xffc62b00);
+            break;
+        case GO_TO_BEATMAP:
+            this->primary_button->setText(_("Go to beatmap"));
+            this->primary_button->setColor(0xff3ca84c);
+            break;
+        case NONE:
+            break;
+    }
+}
+
+void OnlineMapPreview::onKeyDown(KeyboardEvent& e) {
+    CBaseUIContainer::onKeyDown(e);
+
+    // checked after the search bar, which takes every key while it's focused
+    if(e.isConsumed() || !this->meta) return;
+    if(e == KEY_ESCAPE || e == binds::GAME_PAUSE) {
+        soundEngine->play(osu->getSkin()->s_menu_back);
+        this->clear();
+        e.consume();
+    }
+}
+
+void OnlineMapPreview::onResolutionChange(vec2 /*newResolution*/) { this->layout(); }
+
+void OnlineMapPreview::layout() {
+    const f32 scale = Osu::getUIScale();
+    const vec2 size = this->getSize();
+    const f32 pad = DEF_PREVIEW_PAD * scale;
+    const f32 inner_w = std::max(0.f, size.x - 2.f * pad);
+    McFont* font = engine->getDefaultFont();
+
+    // buttons, stacked at the bottom
+    const f32 button_h = DEF_PREVIEW_BUTTON_HEIGHT * scale;
+    const f32 button_gap = DEF_PREVIEW_BUTTON_GAP * scale;
+    const f32 buttons_top = size.y - pad - 3.f * button_h - 2.f * button_gap;
+    for(f32 button_y = buttons_top; auto* button : {this->primary_button, this->page_button, this->close_button}) {
+        button->setVisible(this->meta.has_value());
+        button->setRelPos(pad, button_y);
+        button->setSize(inner_w, button_h);
+        button_y += button_h + button_gap;
+    }
+    this->update_pos();
+
+    this->text_runs.clear();
+    this->divider_ys.clear();
+
+    if(!this->meta) {
+        const std::vector<std::string> hint =
+            font->wrap(_("Click a beatmap to see its details.\nClick it again to download it."), inner_w);
+        const f32 line_advance = font->getHeight() * PREVIEW_LINE_SPACING;
+        f32 y = (size.y - (f32)hint.size() * line_advance) / 2.f;
+        for(const auto& line : hint) {
+            this->text_runs.push_back({.font = font,
+                                       .text = line,
+                                       .relpos = {(size.x - font->getStringWidth(line)) / 2.f, y + font->getHeight()},
+                                       .color = rgb(180, 180, 180)});
+            y += line_advance;
+        }
+        return;
+    }
+
+    const auto& meta = *this->meta;
+    const f32 content_bottom = buttons_top - pad;
+
+    // the text gets laid out from 0 first, since the thumbnail above it only gets the room that's left then
+    f32 y = 0.f;
+
+    // adds text wrapped to the inner width, the last of max_lines ellipsized if it doesn't fit
+    const auto add_text = [&](McFont* line_font, std::string_view text, uSz max_lines) {
+        std::vector<std::string> lines = line_font->wrap(text, inner_w);
+        if(lines.size() > max_lines) {
+            // the rest of the text, from where the last line starts (the lines may have dropped a space at the end)
+            std::string_view rest = text;
+            for(uSz i = 0; i + 1 < max_lines; ++i) {
+                rest.remove_prefix(std::min(lines[i].size(), rest.size()));
+                rest.remove_prefix(std::min(rest.find_first_not_of(' '), rest.size()));
+            }
+            lines.resize(max_lines);
+            lines.back() = line_font->ellipsize(rest, inner_w);
+        }
+        for(auto& line : lines) {
+            this->text_runs.push_back(
+                {.font = line_font, .text = std::move(line), .relpos = {pad, y + line_font->getHeight()}});
+            y += line_font->getHeight() * PREVIEW_LINE_SPACING;
+        }
+    };
+
+    add_text(osu->getSubTitleFont(), meta.title, 2);
+    if(!meta.artist.empty()) add_text(font, meta.artist, 1);
+    if(!meta.creator.empty()) add_text(font, tformat("Mapped by {:s}", meta.creator), 1);
+
+    std::vector<std::string> info;
+    switch(meta.ranking_status) {
+        case 0:
+            info.emplace_back(_("Pending"));
+            break;
+        case 1:
+            info.emplace_back(_("Ranked"));
+            break;
+        case 2:
+            info.emplace_back(_("Approved"));
+            break;
+        case 4:
+            info.emplace_back(_("Loved"));
+            break;
+        default:
+            // 3 is ambiguous: qualified for stable and bancho.py, but the pending/graveyard ones for titanic
+            break;
+    }
+    if(!meta.last_update.empty()) {
+        // the date part of whatever datetime format the server uses
+        info.push_back(tformat("Updated {:s}", meta.last_update.substr(0, meta.last_update.find_first_of("T "))));
+    }
+    if(meta.has_video) info.emplace_back(_("Video"));
+    if(meta.has_storyboard) info.emplace_back(_("Storyboard"));
+    if(!info.empty()) add_text(font, SString::join(info, " · "), 2);
+
+    // difficulties (only the standard ones, like the listing's icons)
+    std::vector<const Downloader::BeatmapMetadata*> diffs;
+    for(const auto& diff : meta.beatmaps) {
+        if(diff.mode == 0) diffs.push_back(&diff);
+    }
+    const f32 line_advance = font->getHeight() * PREVIEW_LINE_SPACING;
+
+    // thumbnail (4:3 like the thumbnails themselves), as big as the width and the room left after the text and a
+    // few difficulties allow
+    const uSz reserved_lines = diffs.size() > PREVIEW_MIN_DIFFICULTY_LINES
+                                   ? PREVIEW_MIN_DIFFICULTY_LINES + 1  // "+N more"
+                                   : diffs.size();
+    const f32 thumb_h =
+        std::min(inner_w * 3.f / 4.f, content_bottom - y - 3.f * pad - (f32)reserved_lines * line_advance);
+    f32 text_top = pad;
+    if(thumb_h >= DEF_PREVIEW_MIN_THUMB_HEIGHT * scale) {
+        this->thumb_relrect = McRect((size.x - thumb_h * 4.f / 3.f) / 2.f, pad, thumb_h * 4.f / 3.f, thumb_h);
+        text_top += thumb_h + pad;
+    } else {
+        this->thumb_relrect = {};
+    }
+    for(auto& run : this->text_runs) run.relpos.y += text_top;
+    y += text_top;
+
+    this->divider_ys.push_back(y);
+    y += pad;
+
+    // as many difficulties as fit above the buttons
+    McFont* icon_font = osu->getFontIcons();
+    const std::string icon = UniString::to_utf8(std::u32string_view{&Icons::CIRCLE, 1});
+    const f32 icon_scale = font->getHeight() / icon_font->getHeight();
+    const f32 text_indent = icon_font->getStringWidth(icon) * icon_scale + pad;
+
+    const f32 space = content_bottom - y;
+    const uSz fitting = space > 0.f ? (uSz)(space / line_advance) : 0;
+    const uSz shown = diffs.size() <= fitting ? diffs.size() : (fitting > 0 ? fitting - 1 : 0);
+    for(uSz i = 0; i < shown; ++i) {
+        const auto& diff = *diffs[i];
+        const Color color = diff.star_rating > 0.f ? get_difficulty_color(diff.star_rating) : rgb(255, 255, 255);
+        const f32 baseline = y + font->getHeight();
+        // same look as the listing's icons
+        this->text_runs.push_back({.font = icon_font,
+                                   .text = icon,
+                                   .relpos = {pad, baseline},
+                                   .color = color,
+                                   .outline = Colors::invert(color),
+                                   .scale = icon_scale});
+
+        // the star rating is a column on the right, so only ever the name gets cut off
+        f32 name_w = inner_w - text_indent;
+        if(diff.star_rating > 0.f) {
+            std::string stars = fmt::format("{:.2f} ⭐", diff.star_rating);
+            const f32 stars_w = font->getStringWidth(stars);
+            this->text_runs.push_back(
+                {.font = font, .text = std::move(stars), .relpos = {pad + inner_w - stars_w, baseline}});
+            name_w -= stars_w + pad;
+        }
+        this->text_runs.push_back(
+            {.font = font, .text = font->ellipsize(diff.diffname, name_w), .relpos = {pad + text_indent, baseline}});
+        y += line_advance;
+    }
+    if(shown < diffs.size() && fitting > 0) add_text(font, tformat("+{:d} more", diffs.size() - shown), 1);
+
+    // on screens too short for even the text, what doesn't fit goes
+    std::erase_if(this->text_runs, [content_bottom](const TextRun& run) { return run.relpos.y > content_bottom; });
+    std::erase_if(this->divider_ys, [content_bottom](f32 divider_y) { return divider_y > content_bottom; });
+    this->divider_ys.push_back(buttons_top - pad / 2.f);
+}
+
+void OnlineMapPreview::draw() {
+    if(!this->isVisible()) return;
+
+    const f32 scale = Osu::getUIScale();
+    const vec2 pos = this->getPos();
+    const vec2 size = this->getSize();
+
+    // panel background and border, like the install overlay's
+    g->setColor(rgb(15, 15, 15).setA(0.85f));
+    g->fillRect(static_cast<int>(pos.x), static_cast<int>(pos.y), static_cast<int>(size.x), static_cast<int>(size.y));
+    g->setColor(rgb(80, 80, 80));
+    g->drawRectf(Graphics::RectOptions{
+        .x = pos.x + scale / 2.f,
+        .y = pos.y + scale / 2.f,
+        .width = size.x - scale,
+        .height = size.y - scale,
+        .lineThickness = scale,
+        .withColor = false,
+    });
+
+    if(this->meta) {
+        if(this->thumb_relrect.getWidth() > 0.f) {
+            auto* thumbnails = osu->getThumbnailManager();
+            const McRect thumb_rect(pos + this->thumb_relrect.getPos(), this->thumb_relrect.getSize());
+            const Image* thumbnail = thumbnails->try_get_image(this->thumb_id);
+            if(!thumbnail) thumbnail = thumbnails->try_get_image(this->small_thumb_id);
+
+            if(thumbnail) {
+                const f32 thumb_scale = Osu::getImageScaleToFillResolution(thumbnail, thumb_rect.getSize());
+                g->pushClipRect(thumb_rect);
+                g->pushTransform();
+                g->setColor(0xffffffff);
+                g->scale(thumb_scale, thumb_scale);
+                g->translate(thumb_rect.getCenter());  // needs to be *after* scale
+                g->drawImage(thumbnail);
+                g->popTransform();
+                g->popClipRect();
+            } else {
+                g->setColor(Color(0x55000000));
+                g->fillRect(thumb_rect);
+            }
+        }
+
+        g->setColor(rgb(50, 50, 50).setA(0.85f));
+        const f32 pad = DEF_PREVIEW_PAD * scale;
+        for(const f32 divider_y : this->divider_ys) {
+            g->fillRect(static_cast<int>(pos.x + pad), static_cast<int>(pos.y + divider_y),
+                        static_cast<int>(size.x - 2.f * pad), 1);
+        }
+    }
+
+    for(const auto& run : this->text_runs) {
+        g->pushTransform();
+        {
+            g->scale(run.scale, run.scale);
+            g->translate(std::round(pos.x + run.relpos.x), std::round(pos.y + run.relpos.y));
+            g->drawString(run.font, run.text,
+                          TextFX{.col_text = run.color,
+                                 .col_shadow = 0,
+                                 .col_outline = run.outline,
+                                 .outline_px = 1.f * scale,
+                                 .shadow_softness_px = 0.5f * scale});
+        }
+        g->popTransform();
+    }
+
+    CBaseUIContainer::draw();  // buttons
 }
 
 OsuDirectScreen::OsuDirectScreen() {
@@ -491,7 +931,7 @@ OsuDirectScreen::OsuDirectScreen() {
     this->newest_btn->setColor(0xff88FF00);
     this->newest_btn->setClickCallback([this]() {
         this->reset();
-        this->search(_("Newest"));
+        this->search(NEWEST_QUERY);
     });
     this->addBaseUIElement(this->newest_btn);
 
@@ -499,7 +939,7 @@ OsuDirectScreen::OsuDirectScreen() {
     this->best_rated_btn->setColor(0xffFF006A);
     this->best_rated_btn->setClickCallback([this]() {
         this->reset();
-        this->search(_("Top Rated"));
+        this->search(TOP_RATED_QUERY);
     });
     this->addBaseUIElement(this->best_rated_btn);
 
@@ -516,6 +956,9 @@ OsuDirectScreen::OsuDirectScreen() {
     this->results->setHorizontalScrolling(false);
     this->results->setVerticalScrolling(true);
     this->addBaseUIElement(this->results);
+
+    this->preview = new OnlineMapPreview();
+    this->addBaseUIElement(this->preview);
 
     cv::direct_ranking_status_filter.setCallback(SA::MakeDelegate<&OsuDirectScreen::onRankedStatusCvarChange>(this));
 }
@@ -571,8 +1014,12 @@ CBaseUIContainer* OsuDirectScreen::setVisible(bool visible) {
         // ...which deletes map listings WHILE we are iterating map listings
         this->reset();
 
+        // the query starts out empty again like the search box (and gets searched again, see reset())
         this->search_bar->clear();
+        this->current_query.clear();
         this->search_bar->focus();
+    } else {
+        this->preview->clear();
     }
 
     return this;
@@ -649,8 +1096,12 @@ void OsuDirectScreen::onResolutionChange(vec2 newResolution) {
     this->title->setRelPos(x, y);
     y += this->title->getSize().y;
 
-    const f32 results_width = std::min(newResolution.x - 10.f * scale, 1024.f * scale);
-    const f32 x_start = (f32)osu->getVirtScreenWidth() / 2.f - results_width / 2.f;
+    // the results list stays centered unless that would put it under the preview's column
+    const f32 preview_width = std::min(DEF_PREVIEW_WIDTH * scale, newResolution.x * PREVIEW_MAX_SCREEN_WIDTH_RATIO);
+    const f32 preview_column = preview_width + 2.f * DEF_PREVIEW_MARGIN * scale;
+    const f32 results_width = std::min(newResolution.x - 10.f * scale - preview_column, 1024.f * scale);
+    const f32 x_start = std::min((f32)osu->getVirtScreenWidth() / 2.f - results_width / 2.f,
+                                 newResolution.x - preview_column - results_width);
     x = x_start;
     y += 50.f * scale;
 
@@ -692,6 +1143,13 @@ void OsuDirectScreen::onResolutionChange(vec2 newResolution) {
         this->results->container.update_pos();  // sigh...
     }
 
+    // Preview panel, vertically centered on the results list
+    const f32 preview_height = std::min(this->results->getSize().y, DEF_PREVIEW_MAX_HEIGHT * scale);
+    this->preview->setRelPos(newResolution.x - DEF_PREVIEW_MARGIN * scale - preview_width,
+                             y + (this->results->getSize().y - preview_height) / 2.f);
+    this->preview->setSize(preview_width, preview_height);
+    this->preview->onResolutionChange(newResolution);
+
     const f32 spinner_size = (40.f * scale);
     const f32 spinner_margin = spinner_size / 2.f;
     this->spinner_pos.x = x + this->results->getSize().x - (spinner_size / 2.f);
@@ -704,8 +1162,10 @@ void OsuDirectScreen::reset() {
     // cancel the in-flight request (if any) and immediately allow a new one
     this->search_cancel.request_stop();
     this->loading = false;
+    this->last_search_time = 0.0;  // (also if the old results ran out or failed, which stopped fetching more)
 
     // Clear search results
+    this->preview->clear();
     this->results->freeElements();
 
     // De-focus search bar (since we only reset() on user action)
@@ -719,8 +1179,10 @@ void OsuDirectScreen::search(std::string_view query) {
     // NOTE: implemented server-side for neomod.net, other servers still won't work
     const uSz offset = this->results->container.getElements().size();
     const i32 filter = cv::direct_ranking_status_filter.getInt();
+    // an empty search box shows the newest maps (like on stable)
+    const std::string_view server_query = query.empty() ? NEWEST_QUERY : query;
     std::string url = fmt::format("osu.{:s}/web/osu-search.php?m=0&r={:d}&q={:s}&p={:d}", BanchoState::endpoint, filter,
-                                  Mc::Net::urlEncode(query), offset);
+                                  Mc::Net::urlEncode(server_query), offset);
     BANCHO::Api::append_auth_params(url);
 
     Mc::Net::RequestOptions options{
@@ -730,7 +1192,7 @@ void OsuDirectScreen::search(std::string_view query) {
         .flags = Mc::Net::RequestOptions::FOLLOW_REDIRECTS,
     };
 
-    debugLog("Searching for maps matching \"{:s}\" (offset {:d})", query, offset);
+    debugLog("Searching for maps matching \"{:s}\" (offset {:d})", server_query, offset);
     this->search_cancel = {};
     options.cancel_token = this->search_cancel.get_token();
     this->current_query = query;
@@ -763,7 +1225,7 @@ void OsuDirectScreen::search(std::string_view query) {
                 auto meta = Downloader::parse_beatmapset_metadata(set_lines[i]);
                 if(meta.set_id == 0) continue;
 
-                this->results->container.addBaseUIElement(new OnlineMapListing(std::move(meta)));
+                this->results->container.addBaseUIElement(new OnlineMapListing(std::move(meta), *this->preview));
             }
 
             this->onResolutionChange(osu->getVirtScreenSize());

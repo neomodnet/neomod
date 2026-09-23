@@ -400,6 +400,7 @@ void AboutScreen::buildChangelog() {
     CHANGELOG v43_14;
     v43_14.title = "43.14 (" CHANGELOG_TIMESTAMP ")";
     v43_14.changes = {
+        R"(- Added a preview panel to online beatmaps screen)",
         R"(- Fixed startup crashing in some cases)",
         R"(- Allowed force disabling skins from setting convars)",
     };

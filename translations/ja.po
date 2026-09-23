@@ -2689,7 +2689,8 @@ msgstr "背景の不透明度"
 msgid "FPoSu - Mouse"
 msgstr "FPoSu - マウス"
 
-#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/SongBrowser/SongBrowser.cpp
+#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/OsuDirectScreen.cpp
+#: src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "Opening browser, please wait ..."
 msgstr "ブラウザを開いています、お待ちください..."
 
@@ -2955,20 +2956,76 @@ msgid "+{:d} more"
 msgstr ""
 
 #: src/App/Neomod/OsuDirectScreen.cpp
+msgid "View beatmap page"
+msgstr ""
+
+#: src/App/Neomod/OsuDirectScreen.cpp
+#, fuzzy
+msgid "Close"
+msgstr "2. 閉じる"
+
+#: src/App/Neomod/OsuDirectScreen.cpp
+#, fuzzy
+msgid "Download"
+msgstr "マップをダウンロード"
+
+#: src/App/Neomod/OsuDirectScreen.cpp
+msgid "Cancel download"
+msgstr ""
+
+#: src/App/Neomod/OsuDirectScreen.cpp
+#, fuzzy
+msgid "Go to beatmap"
+msgstr "ビートマップ"
+
+#: src/App/Neomod/OsuDirectScreen.cpp
+msgid ""
+"Click a beatmap to see its details.\n"
+"Click it again to download it."
+msgstr ""
+
+#: src/App/Neomod/OsuDirectScreen.cpp
+#, c++-format
+msgid "Mapped by {:s}"
+msgstr ""
+
+#: src/App/Neomod/OsuDirectScreen.cpp
+msgid "Pending"
+msgstr ""
+
+#: src/App/Neomod/OsuDirectScreen.cpp
+msgid "Ranked"
+msgstr ""
+
+#: src/App/Neomod/OsuDirectScreen.cpp
+msgid "Approved"
+msgstr ""
+
+#: src/App/Neomod/OsuDirectScreen.cpp
+msgid "Loved"
+msgstr ""
+
+#: src/App/Neomod/OsuDirectScreen.cpp
+#, c++-format
+msgid "Updated {:s}"
+msgstr ""
+
+#: src/App/Neomod/OsuDirectScreen.cpp
+msgid "Video"
+msgstr ""
+
+#: src/App/Neomod/OsuDirectScreen.cpp
+#, fuzzy
+msgid "Storyboard"
+msgstr "キーボード"
+
+#: src/App/Neomod/OsuDirectScreen.cpp
 msgid "Newest maps"
 msgstr "最新のマップ"
 
 #: src/App/Neomod/OsuDirectScreen.cpp
-msgid "Newest"
-msgstr "最新"
-
-#: src/App/Neomod/OsuDirectScreen.cpp
 msgid "Best maps"
 msgstr "ベストマップ"
-
-#: src/App/Neomod/OsuDirectScreen.cpp
-msgid "Top Rated"
-msgstr "高評価"
 
 #: src/App/Neomod/OsuDirectScreen.cpp
 msgid "Only show ranked beatmaps"

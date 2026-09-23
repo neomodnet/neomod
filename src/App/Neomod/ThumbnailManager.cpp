@@ -332,10 +332,9 @@ std::vector<u8> ThumbnailManager::Impl::download_image(const ThumbIdentifier& id
     }
 
     // TODO: only download a single (response_code == 404) result and share it
-    // (re)requesting the same url every poll is what gets a queued transfer started once the downloader's per-host
-    // spacing allows it: nothing else re-checks its queue in the meantime
     auto& dl = entry.dl_handle;
-    dl = Downloader::download(identifier.download_url);
+    // (a transfer aborted along with all others on a disconnect never completes, so that one gets requested anew)
+    if(!dl || dl.cancelled()) dl = Downloader::download(identifier.download_url);
     if(!dl.completed()) return {};
 
     std::vector<u8> data = (dl.failed() || dl.response_code() != 200) ? std::vector<u8>{} : dl.take_data();

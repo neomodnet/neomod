@@ -28,7 +28,7 @@ struct BeatmapSetMetadata {
     std::string creator{};
     u8 ranking_status{0};
     f32 avg_user_rating{10.0};
-    u64 last_update{0};  // TODO: wrong type?
+    std::string last_update{};  // a datetime, in whatever format the server uses
     i32 set_id{0};
     i32 topic_id{0};
     bool has_video{false};
@@ -46,6 +46,10 @@ void abort_downloads();
 // Cancel a single in-flight/queued download: aborts the transfer, drops the queue entry,
 // resets the passed handle, and lets the next queued download start.
 void abort_download(DownloadHandle &handle);
+
+// main thread, once per frame: starts the queued downloads that had to wait for their host (the spacing between two
+// downloads from the same host, or a rate limit) once it's ready for them
+void update();
 
 // Start an HTTP download. Deduplicates by URL.
 DownloadHandle download(std::string_view url);

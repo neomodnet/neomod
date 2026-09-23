@@ -564,6 +564,8 @@ void Osu::update() {
         this->doChangeFocus(focused);
     }
 
+    Downloader::update();
+
     // beatmap imports: local .osz files (drag-drop, file association, maps/ watcher) can arrive while
     // offline, so the installer must tick regardless of online status. download entries are only ever
     // enqueued from online UI (osu!direct/multiplayer/spectator), so ticking offline is harmless.

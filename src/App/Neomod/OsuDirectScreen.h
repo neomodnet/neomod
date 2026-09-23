@@ -16,6 +16,7 @@ class CBaseUIScrollView;
 class CBaseUITextbox;
 class UIButton;
 class OnlineMapListing;
+class OnlineMapPreview;
 
 class OsuDirectScreen final : public ScreenBackable {
     NOCOPY_NOMOVE(OsuDirectScreen)
@@ -43,8 +44,9 @@ class OsuDirectScreen final : public ScreenBackable {
     UIButton* best_rated_btn{nullptr};
     CBaseUICheckbox* ranked_only{nullptr};
     CBaseUIScrollView* results{nullptr};
+    OnlineMapPreview* preview{nullptr};
 
-    std::string current_query{"Newest"};
+    std::string current_query;
 
     vec2 spinner_pos{1.f, 1.f};  // init on onresolutionchange
 
