@@ -1478,8 +1478,6 @@ void Osu::openScoreScreenWhenReady(const FinishedScore &score) {
 }
 
 void Osu::onPlayEnd(const FinishedScore &score, bool quit) {
-    cv::snd_change_check_interval.setValue(cv::snd_change_check_interval.getDefaultFloat());
-
     if(!quit && cv::mod_endless.getBool()) {
         this->bScheduleEndlessModNextBeatmap = true;
         return;  // nothing more to do here

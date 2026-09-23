@@ -139,8 +139,6 @@ CONVAR(echo, CLIENT | SKINS | SERVER, CFUNC(ConVarHandler::ConVarBuiltins::echo)
 CONVAR(asio_buffer_size, -1, CLIENT, "buffer size in samples (usually 44100 samples per second)");
 CONVAR(asio_freq, 0, CLIENT, "preferred sample rate (0 means let the device decide)");
 CONVAR(snd_async_buffer, 65536, CLIENT, "BASS_CONFIG_ASYNCFILE_BUFFER length in bytes. Set to 0 to disable.");
-CONVAR(snd_change_check_interval, 0.5f, CLIENT,
-       "check for output device changes every this many seconds. 0 = disabled");
 CONVAR(snd_dev_buffer, 30, CLIENT, "BASS_CONFIG_DEV_BUFFER length in milliseconds");
 CONVAR(snd_dev_period, 10, CLIENT, "BASS_CONFIG_DEV_PERIOD length in milliseconds, or if negative then in samples");
 CONVAR(snd_output_device, "Default"sv, CLIENT);

@@ -733,8 +733,6 @@ bool BeatmapInterface::start() {
     this->bIsWaiting = true;
     this->fWaitTime = Timing::getTimeReal<f32>();
 
-    cv::snd_change_check_interval.setValue(0.0f);
-
     if(this->beatmap->getLocalOffset() != 0)
         ui->getNotificationOverlay()->addNotification(
             fmt::format("Using local beatmap offset ({} ms)", this->beatmap->getLocalOffset()), 0xffffffff, false,

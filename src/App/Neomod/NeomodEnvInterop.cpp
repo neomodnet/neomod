@@ -53,7 +53,7 @@ bool handle_osk(std::string_view osk_path, bool auto_select) {
     return true;
 }
 
-bool NeomodEnvInterop::handle_cmdline_args(std::span<const std::string> args) {
+bool NeomodEnvInterop::handle_cmdline_args(const std::span<const std::string> args) {
     if(!osu || !db) return false;
     using namespace neomod;
 
