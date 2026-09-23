@@ -8,7 +8,9 @@
 class ConVar;
 class DatabaseBeatmap;
 class AbstractBeatmapInterface;
+namespace neomod {
 class HitObject;
+}  // namespace neomod
 
 namespace LegacyReplay {
 struct Frame;
@@ -184,7 +186,7 @@ class LiveScore final {
     void reset();  // only Beatmap may call this function!
 
     // only Beatmap/SimulatedBeatmapInterface may call this function!
-    void addHitResult(AbstractBeatmapInterface *beatmap, HitObject *hitObject, LiveHitResult hit, i32 delta,
+    void addHitResult(AbstractBeatmapInterface *beatmap, neomod::HitObject *hitObject, LiveHitResult hit, i32 delta,
                       bool ignoreOnHitErrorBar, bool hitErrorBarOnly, bool ignoreCombo, bool ignoreScore);
 
     void addHitResultComboEnd(LiveHitResult hit);

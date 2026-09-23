@@ -8,8 +8,10 @@ struct Mods;
 }
 enum class LegacyFlags : u32;
 enum class LiveHitResult : uint8_t;
-
+namespace neomod {
 class HitObject;
+}  // namespace neomod
+
 class DatabaseBeatmap;
 using BeatmapDifficulty = DatabaseBeatmap;
 
@@ -20,7 +22,7 @@ class AbstractBeatmapInterface {
     AbstractBeatmapInterface() = default;
     virtual ~AbstractBeatmapInterface() = default;
 
-    virtual LiveHitResult addHitResult(HitObject *hitObject, LiveHitResult hit, i32 delta, bool isEndOfCombo = false,
+    virtual LiveHitResult addHitResult(neomod::HitObject *hitObject, LiveHitResult hit, i32 delta, bool isEndOfCombo = false,
                                        bool ignoreOnHitErrorBar = false, bool hitErrorBarOnly = false,
                                        bool ignoreCombo = false, bool ignoreScore = false,
                                        bool ignoreHealth = false) = 0;

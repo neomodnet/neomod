@@ -24,22 +24,20 @@ struct Skin;
 
 enum class LiveHitResult : uint8_t;
 
+namespace neomod {
+
+namespace HitSoundUtils {
+struct Set_Slider_Hit;
+}
+
 enum class HitObjectType : uint8_t {
     CIRCLE,
     SLIDER,
     SPINNER,
 };
 
-namespace neomod::HitSoundUtils {
-struct Set_Slider_Hit;
-}
-
 class HitObject {
    public:
-    using Set_Slider_Hit = neomod::HitSoundUtils::Set_Slider_Hit;
-    using DBHitSample = neomod::DatabaseBeatmapTypes::HITSAMPLE_BITS;
-    using SliderCurve = neomod::SliderCurve;
-
     // TEMP constructor helpers (DatabaseBeatmap::loadGameplay)
     void setIsEndOfCombo(bool end) { m_endOfCombo = end; }
     void setComboStartTime(i32 tms) { m_comboStartMS = tms; }
@@ -52,8 +50,8 @@ class HitObject {
                               LiveHitResult result, f32 animPercentInv, f32 hitDeltaRangePercent);
 
    protected:  // only constructable through subclasses
-    HitObject(i32 timeMS, DBHitSample samples, i32 comboNumber, bool isEndOfCombo, i32 colorCounter, i32 colorOffset,
-              AbstractBeatmapInterface *beatmap);
+    HitObject(i32 timeMS, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, i32 comboNumber, bool isEndOfCombo,
+              i32 colorCounter, i32 colorOffset, AbstractBeatmapInterface *beatmap);
 
    public:
     HitObject() = delete;
@@ -156,7 +154,7 @@ class HitObject {
     i32 m_fadeInTimeMS{0};  // extra time added before the approachTime to let the object smoothly become visible
     i32 m_autopilotDeltaMS{0};
 
-    DBHitSample m_hitSamples;
+    DatabaseBeatmapTypes::HITSAMPLE_BITS m_hitSamples;
     i32 m_colorCounter;
     i32 m_colorOffset;
 
@@ -222,8 +220,8 @@ class Circle final : public HitObject {
     Circle() = delete;
     ~Circle() override;
 
-    Circle(vec2 pos, i32 timeMS, DBHitSample samples, i32 comboNumber, bool isEndOfCombo, i32 colorCounter,
-           i32 colorOffset, AbstractBeatmapInterface *beatmap);
+    Circle(vec2 pos, i32 timeMS, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, i32 comboNumber, bool isEndOfCombo,
+           i32 colorCounter, i32 colorOffset, AbstractBeatmapInterface *beatmap);
 
     Circle(const Circle &) = delete;
     Circle &operator=(const Circle &) = delete;
@@ -278,7 +276,8 @@ class Slider final : public HitObject {
 
     Slider(neomod::SLIDERCURVETYPE stype, i32 repeat, f32 pixelLength, std::vector<vec2> points,
            const std::vector<f32> &ticks, f32 sliderTimeMS, f32 sliderTimeMSWithoutRepeats, i32 timeMS,
-           DBHitSample hoverSamples, std::vector<DBHitSample> edgeSamples, i32 comboNumber, bool isEndOfCombo,
+           DatabaseBeatmapTypes::HITSAMPLE_BITS hoverSamples,
+           std::vector<DatabaseBeatmapTypes::HITSAMPLE_BITS> edgeSamples, i32 comboNumber, bool isEndOfCombo,
            i32 colorCounter, i32 colorOffset, AbstractBeatmapInterface *beatmap);
 
     Slider(const Slider &) = delete;
@@ -347,8 +346,8 @@ class Slider final : public HitObject {
 
     std::vector<HitAnim> m_clickAnimations;
     std::vector<vec2> m_ctrlPoints;
-    std::vector<DBHitSample> m_edgeSamples;
-    std::vector<Set_Slider_Hit> m_lastSliderSampleSets;
+    std::vector<DatabaseBeatmapTypes::HITSAMPLE_BITS> m_edgeSamples;
+    std::vector<HitSoundUtils::Set_Slider_Hit> m_lastSliderSampleSets;
 
     std::vector<SLIDERTICK> m_ticks;  // ticks (drawing)
 
@@ -402,7 +401,7 @@ class Slider final : public HitObject {
 class Spinner final : public HitObject {
    public:
     Spinner() = delete;
-    Spinner(vec2 pos, i32 timeMS, DBHitSample samples, bool isEndOfCombo, i32 endTimeMS,
+    Spinner(vec2 pos, i32 timeMS, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, bool isEndOfCombo, i32 endTimeMS,
             AbstractBeatmapInterface *beatmap);
     ~Spinner() override;
 
@@ -454,3 +453,4 @@ class Spinner final : public HitObject {
     i32 m_bonusSpins{0};
     bool m_hitSuccess{false};  // non-miss result ("spinner-osu")
 };
+}  // namespace neomod

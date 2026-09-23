@@ -84,7 +84,7 @@ class SimulatedBeatmapInterface final : public AbstractBeatmapInterface {
     [[nodiscard]] DBBreak getBreakForTimeRange(i32 startMS, i32 positionMS, i32 endMS) const;
 
     // HitObject and other helper functions
-    LiveHitResult addHitResult(HitObject *hitObject, LiveHitResult hit, i32 delta, bool isEndOfCombo = false,
+    LiveHitResult addHitResult(neomod::HitObject *hitObject, LiveHitResult hit, i32 delta, bool isEndOfCombo = false,
                                 bool ignoreOnHitErrorBar = false, bool hitErrorBarOnly = false,
                                 bool ignoreCombo = false, bool ignoreScore = false, bool ignoreHealth = false) override;
     void addSliderBreak() override;
@@ -108,7 +108,7 @@ class SimulatedBeatmapInterface final : public AbstractBeatmapInterface {
     // breaks
     std::vector<DBBreak> breaks;
     bool bInBreak = false;
-    HitObject *currentHitObject = nullptr;
+    neomod::HitObject *currentHitObject = nullptr;
     i32 iNextHitObjectTime = 0;
     i32 iPreviousHitObjectTime = 0;
 
@@ -117,8 +117,8 @@ class SimulatedBeatmapInterface final : public AbstractBeatmapInterface {
     std::vector<Click> clicks;
 
     // hitobjects
-    std::vector<std::unique_ptr<HitObject>> hitobjects;
-    std::vector<HitObject *> hitobjectsSortedByEndTime;  // non-owning view of hitobjects data
+    std::vector<std::unique_ptr<neomod::HitObject>> hitobjects;
+    std::vector<neomod::HitObject *> hitobjectsSortedByEndTime;  // non-owning view of hitobjects data
 
     // statistics
     i32 iNPS;

@@ -47,7 +47,10 @@ using namespace std::string_literals;
 // 4) be a container for difficulties (all top level DatabaseBeatmap objects are containers)
 
 class AbstractBeatmapInterface;
+namespace neomod {
 class HitObject;
+}  // namespace neomod
+
 namespace neomod::DiffCalc {
 class DifficultyHitObject;
 }
@@ -63,7 +66,7 @@ using DiffContainer = std::vector<std::unique_ptr<BeatmapDifficulty>>;
 
 #ifndef BUILD_TOOLS_ONLY
 template <typename T>
-concept HitObjectContainer = std::is_same_v<T, neomod::DiffCalc::DifficultyHitObject> || std::is_same_v<T, HitObject>;
+concept HitObjectContainer = std::is_same_v<T, neomod::DiffCalc::DifficultyHitObject> || std::is_same_v<T, neomod::HitObject>;
 #else
 template <typename T>
 concept HitObjectContainer = std::is_same_v<T, neomod::DiffCalc::DifficultyHitObject>;
@@ -284,7 +287,7 @@ class DatabaseBeatmap final {
         LOAD_GAMEPLAY_RESULT(LOAD_GAMEPLAY_RESULT &&) noexcept;
         LOAD_GAMEPLAY_RESULT &operator=(LOAD_GAMEPLAY_RESULT &&) noexcept;
 
-        std::vector<std::unique_ptr<HitObject>> hitobjects;
+        std::vector<std::unique_ptr<neomod::HitObject>> hitobjects;
         std::vector<DBType::BREAK> breaks;
         std::vector<Color> combocolors;
 

@@ -10,21 +10,22 @@
 #include "Sound.h"
 
 namespace neomod::HitSoundUtils {
+using namespace DatabaseBeatmapTypes;
 
-u8 getNormalSet(DBHitSample info, const HitSoundContext &ctx) {
+u8 getNormalSet(HITSAMPLE_BITS info, const HitSoundContext &ctx) {
     if(ctx.forcedSampleSet > 0) return ctx.forcedSampleSet;
     if(info.normalSet != 0) return info.normalSet;
     if(ctx.timingPointSampleSet != 0) return ctx.timingPointSampleSet;
     return ctx.defaultSampleSet;
 }
 
-u8 getAdditionSet(DBHitSample info, const HitSoundContext &ctx) {
+u8 getAdditionSet(HITSAMPLE_BITS info, const HitSoundContext &ctx) {
     if(ctx.forcedSampleSet > 0) return ctx.forcedSampleSet;
     if(info.additionSet != 0) return info.additionSet;
     return getNormalSet(info, ctx);
 }
 
-f32 getVolume(DBHitSample info, const HitSoundContext &ctx, u8 hitSoundType, bool is_sliderslide) {
+f32 getVolume(HITSAMPLE_BITS info, const HitSoundContext &ctx, u8 hitSoundType, bool is_sliderslide) {
     f32 volume = 1.0f;
 
     // some hardcoded modifiers for hitcircle sounds
@@ -152,7 +153,7 @@ static constexpr u8 hitSoundToIndex(u8 hitSound) {
     }
 }
 
-std::vector<ResolvedHitSound> resolve(DBHitSample info, const HitSoundContext &ctx, bool is_sliderslide) {
+std::vector<ResolvedHitSound> resolve(HITSAMPLE_BITS info, const HitSoundContext &ctx, bool is_sliderslide) {
     std::vector<ResolvedHitSound> result;
 
     using HT = HitSoundType;
@@ -182,7 +183,7 @@ std::vector<ResolvedHitSound> resolve(DBHitSample info, const HitSoundContext &c
     return result;
 }
 
-ResolvedSliderTick resolveSliderTick(DBHitSample info, const HitSoundContext &ctx) {
+ResolvedSliderTick resolveSliderTick(HITSAMPLE_BITS info, const HitSoundContext &ctx) {
     // slider ticks use the normal sample set per osu! reference behavior
     const u8 set = getNormalSet(info, ctx);
     const u8 set_idx = sampleSetToIndex(set);
@@ -202,7 +203,7 @@ ResolvedSliderTick resolveSliderTick(DBHitSample info, const HitSoundContext &ct
 
 // global-dependent methods (delegate to pure versions)
 
-std::vector<Set_Slider_Hit> play(BeatmapInterface *pf, DBHitSample info, f32 pan, i32 delta, i32 play_time,
+std::vector<Set_Slider_Hit> play(BeatmapInterface *pf, HITSAMPLE_BITS info, f32 pan, i32 delta, i32 play_time,
                                  bool is_sliderslide) {
     assert(pf);
 

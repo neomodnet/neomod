@@ -38,6 +38,8 @@
 #include "Sound.h"
 #include "Graphics.h"
 
+using namespace neomod;
+
 // TODO:
 // NOLINTBEGIN(cppcoreguidelines-narrowing-conversions,bugprone-narrowing-conversions)
 

@@ -191,7 +191,7 @@ void SpectatorScreen::controlClientState() {
                 map_iface->is_buffering = false;
             }
         } else {
-            HitObject *lastHitObject =
+            neomod::HitObject *lastHitObject =
                 map_iface->hitobjectsSortedByEndTime.size() > 0 ? map_iface->hitobjectsSortedByEndTime.back() : nullptr;
             bool is_finished = lastHitObject != nullptr && lastHitObject->isFinished();
 

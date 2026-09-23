@@ -29,11 +29,8 @@
 #include "HitSounds.h"
 #include "crypto.h"
 
+namespace neomod {
 using namespace flags::operators;
-using namespace neomod;
-
-namespace HSUtils = neomod::HitSoundUtils;
-using HSUtils::HitSoundContext;
 
 void HitObject::drawHitResult(BeatmapInterface *pf, vec2 rawPos, LiveHitResult result, f32 animPercentInv,
                               f32 hitDeltaRangePercent) {
@@ -238,8 +235,8 @@ void HitObject::drawHitResult(const Skin *skin, f32 hitcircleDiameter, f32 rawHi
     g->popTransform();
 }
 
-HitObject::HitObject(i32 timeMS, DBHitSample samples, i32 comboNumber, bool isEndOfCombo, i32 colorCounter,
-                     i32 colorOffset, AbstractBeatmapInterface *pi)
+HitObject::HitObject(i32 timeMS, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, i32 comboNumber, bool isEndOfCombo,
+                     i32 colorCounter, i32 colorOffset, AbstractBeatmapInterface *pi)
     : m_pi(pi),
       m_pf(dynamic_cast<BeatmapInterface *>(pi)),  // should be NULL if SimulatedBeatmapInterface
       m_clickTimeMS(timeMS),
@@ -287,7 +284,7 @@ void HitObject::update(i32 curPosMS, f64 /*frame_time*/) {
     m_alphaForApproachCircle = 0.0f;
     m_hittableDimRGBColorMultiplierPct = 1.0f;
 
-    const auto mods = m_pi->getMods();
+    const auto &mods = m_pi->getMods();
 
     const f64 animationSpeedMultiplier = m_pi->getSpeedAdjustedAnimationSpeed();
     const i32 visibleTms = (mods.has(ModFlags::FreezeFrame) ? m_comboStartMS : m_clickTimeMS);
@@ -773,8 +770,8 @@ void Circle::drawHitCircleNumber(const Skin *skin, f32 numberScale, f32 overlapS
     g->popTransform();
 }
 
-Circle::Circle(vec2 pos, i32 timeMS, DBHitSample samples, i32 comboNumber, bool isEndOfCombo, i32 colorCounter,
-               i32 colorOffset, AbstractBeatmapInterface *pi)
+Circle::Circle(vec2 pos, i32 timeMS, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, i32 comboNumber, bool isEndOfCombo,
+               i32 colorCounter, i32 colorOffset, AbstractBeatmapInterface *pi)
     : HitObject(timeMS, samples, comboNumber, isEndOfCombo, colorCounter, colorOffset, pi),
       m_rawPos(pos),
       m_originalRawPos(m_rawPos) {
@@ -979,7 +976,7 @@ void Circle::onHit(LiveHitResult result, i32 delta, f32 targetDelta, f32 targetA
     if(m_pf != nullptr && result != LiveHitResult::HIT_MISS) {
         const vec2 osuCoords = m_pf->pixels2OsuCoords(m_pf->osuCoords2Pixels(m_rawPos));
         f32 pan = GameRules::osuCoords2Pan(osuCoords.x);
-        HSUtils::play(m_pf, m_hitSamples, pan, delta, m_clickTimeMS);
+        HitSoundUtils::play(m_pf, m_hitSamples, pan, delta, m_clickTimeMS);
 
         m_hitAnimation = 0.001f;  // quickfix for 1 frame missing images
         m_hitAnimation.set(1.0f, GameRules::getFadeOutTime(m_pi->getBaseAnimationSpeed()), anim::QuadOut);
@@ -1013,7 +1010,8 @@ vec2 Circle::getAutoCursorPos(i32 /*curPos*/) const { return m_pi->osuCoords2Pix
 
 Slider::Slider(SLIDERCURVETYPE stype, i32 repeat, f32 pixelLength, std::vector<vec2> points,
                const std::vector<f32> &ticks, f32 sliderTimeMS, f32 sliderTimeMSWithoutRepeats, i32 timeMS,
-               DBHitSample hoverSamples, std::vector<DBHitSample> edgeSamples, i32 comboNumber, bool isEndOfCombo,
+               DatabaseBeatmapTypes::HITSAMPLE_BITS hoverSamples,
+               std::vector<DatabaseBeatmapTypes::HITSAMPLE_BITS> edgeSamples, i32 comboNumber, bool isEndOfCombo,
                i32 colorCounter, i32 colorOffset, AbstractBeatmapInterface *pi)
     : HitObject(timeMS, hoverSamples, comboNumber, isEndOfCombo, colorCounter, colorOffset, pi),
       m_ctrlPoints(std::move(points)),
@@ -1536,7 +1534,7 @@ void Slider::update(i32 curPosMS, f64 frameTimeSecs) {
     if(m_pf != nullptr) {
         // stop slide sound while paused
         if(m_pf->isPaused() || !m_pf->isPlaying() || m_pf->hasFailed()) {
-            HSUtils::stopSliderSounds(m_pf, m_lastSliderSampleSets);
+            HitSoundUtils::stopSliderSounds(m_pf, m_lastSliderSampleSets);
         }
 
         // animations must be updated even if we are finished
@@ -1852,7 +1850,7 @@ void Slider::update(i32 curPosMS, f64 frameTimeSecs) {
             if(sliding) {
                 const vec2 osuCoords = m_pf->pixels2OsuCoords(m_pf->osuCoords2Pixels(m_curPointRaw));
                 f32 pan = GameRules::osuCoords2Pan(osuCoords.x);
-                m_lastSliderSampleSets = HSUtils::play(m_pf, m_hitSamples, pan, 0, -1, true);
+                m_lastSliderSampleSets = HitSoundUtils::play(m_pf, m_hitSamples, pan, 0, -1, true);
             } else if(!m_lastSliderSampleSets.empty()) {
                 // debugLog("not sliding, stopping");
                 // debugLog(
@@ -1862,7 +1860,7 @@ void Slider::update(i32 curPosMS, f64 frameTimeSecs) {
                 //     !!bStartFinished, !!bEndFinished, !!bCursorInside, iDelta,
                 //     isClickHeldSlider(), pf->isPaused(), pf->isWaiting(), pf->isPlaying(),
                 //     pf->bWasSeekFrame);
-                HSUtils::stopSliderSounds(m_pf, m_lastSliderSampleSets);
+                HitSoundUtils::stopSliderSounds(m_pf, m_lastSliderSampleSets);
                 m_lastSliderSampleSets.clear();
             }
         }
@@ -2041,9 +2039,9 @@ void Slider::onHit(LiveHitResult result, i32 delta, bool isEndCircle, f32 target
                 const vec2 osuCoords = m_pf->pixels2OsuCoords(m_pf->osuCoords2Pixels(m_curPointRaw));
                 const f32 pan = GameRules::osuCoords2Pan(osuCoords.x);
                 if(isEndCircle) {
-                    HSUtils::play(m_pf, m_edgeSamples.back(), pan, delta, getEndTime());
+                    HitSoundUtils::play(m_pf, m_edgeSamples.back(), pan, delta, getEndTime());
                 } else {
-                    HSUtils::play(m_pf, m_edgeSamples[0], pan, delta, m_clickTimeMS);
+                    HitSoundUtils::play(m_pf, m_edgeSamples[0], pan, delta, m_clickTimeMS);
                 }
             }
 
@@ -2068,7 +2066,7 @@ void Slider::onHit(LiveHitResult result, i32 delta, bool isEndCircle, f32 target
                                                  cv::slider_body_fade_out_time_multiplier.getFloat(),
                                              anim::QuadOut);
             // debugLog("stopping due to end body fadeout");
-            HSUtils::stopSliderSounds(m_pf, m_lastSliderSampleSets);
+            HitSoundUtils::stopSliderSounds(m_pf, m_lastSliderSampleSets);
         }
     }
 
@@ -2158,11 +2156,11 @@ void Slider::onRepeatHit(const SLIDERCLICK &click) {
         const uSz nb_edge_samples = m_edgeSamples.size();
         assert(nb_edge_samples > 0);
         if(std::cmp_less(m_curRepeatCounterForHitSounds + 1, nb_edge_samples)) {
-            HSUtils::play(m_pf, m_edgeSamples[m_curRepeatCounterForHitSounds], pan, 0, click.timeMS);
+            HitSoundUtils::play(m_pf, m_edgeSamples[m_curRepeatCounterForHitSounds], pan, 0, click.timeMS);
         } else {
             // We have more repeats than edge samples!
             // Just play whatever we can (either the last repeat sample, or the start sample)
-            HSUtils::play(m_pf, m_edgeSamples[nb_edge_samples - 2], pan, 0, click.timeMS);
+            HitSoundUtils::play(m_pf, m_edgeSamples[nb_edge_samples - 2], pan, 0, click.timeMS);
         }
 
         f32 animation_multiplier = m_pf->getSpeedAdjustedAnimationSpeed();
@@ -2228,7 +2226,7 @@ void Slider::onTickHit(const SLIDERCLICK &click) {
             const BeatmapDifficulty *beatmap = m_pf->getBeatmap();
             const auto ti = (click.timeMS != -1 && beatmap) ? beatmap->getTimingInfoForTime(click.timeMS)
                                                             : m_pf->getCurrentTimingInfo();
-            HitSoundContext ctx{
+            HitSoundUtils::HitSoundContext ctx{
                 .timingPointSampleSet = ti.sampleSet,
                 .timingPointVolume = ti.volume,
                 .defaultSampleSet = m_pf->getDefaultSampleSet(),
@@ -2238,7 +2236,7 @@ void Slider::onTickHit(const SLIDERCLICK &click) {
                 .boostVolume = false,  // unused by sliderticks
             };
 
-            if(const auto tick = HSUtils::resolveSliderTick(m_hitSamples, ctx);
+            if(const auto tick = HitSoundUtils::resolveSliderTick(m_hitSamples, ctx);
                tick.set < (i32)SLIDERTICK_SAMPLESET_METHODS.size()) {
                 if(Sound *skin_sound = skin->*SLIDERTICK_SAMPLESET_METHODS[tick.set]) {
                     const vec2 osuCoords = m_pf->pixels2OsuCoords(m_pf->osuCoords2Pixels(m_curPointRaw));
@@ -2285,7 +2283,7 @@ void Slider::onReset(i32 curPosMS) {
 
     if(m_pf != nullptr) {
         // debugLog("stopping due to onReset");
-        HSUtils::stopSliderSounds(m_pf, m_lastSliderSampleSets);
+        HitSoundUtils::stopSliderSounds(m_pf, m_lastSliderSampleSets);
 
         m_followCircleTickAnimationScale.stop();
         m_endSliderBodyFadeAnimation.stop();
@@ -2392,7 +2390,7 @@ bool Slider::isClickHeldSlider() const {
 
 static CONSTINIT VertexArrayObject spinnerMetreVAO{DrawPrimitive::QUADS};
 
-Spinner::Spinner(vec2 pos, i32 timeMS, DBHitSample samples, bool isEndOfCombo, i32 endTimeMS,
+Spinner::Spinner(vec2 pos, i32 timeMS, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, bool isEndOfCombo, i32 endTimeMS,
                  AbstractBeatmapInterface *pi)
     : HitObject(timeMS, samples, -1, isEndOfCombo, -1, -1, pi), m_rawPos(pos), m_originalRawPos(m_rawPos) {
     m_type = HitObjectType::SPINNER;
@@ -2856,7 +2854,7 @@ void Spinner::onHit() {
     if(m_pf != nullptr && result != LiveHitResult::HIT_MISS) {
         const vec2 osuCoords = m_pf->pixels2OsuCoords(m_pf->osuCoords2Pixels(m_rawPos));
         f32 pan = GameRules::osuCoords2Pan(osuCoords.x);
-        HSUtils::play(m_pf, m_hitSamples, pan, 0);
+        HitSoundUtils::play(m_pf, m_hitSamples, pan, 0);
     }
 
     // add it, and we are finished
@@ -2941,3 +2939,4 @@ vec2 Spinner::getAutoCursorPos(i32 curPosMS) const {
     f32 r = GameRules::getPlayfieldSize().y / 10.0f;  // XXX: slow?
     return vec2((f32)(actualPos.x + r * std::cos(angle)), (f32)(actualPos.y + r * std::sin(angle)));
 }
+}  // namespace neomod

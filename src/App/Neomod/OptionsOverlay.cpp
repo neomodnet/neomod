@@ -72,6 +72,8 @@
 #include <utility>
 
 namespace {
+using namespace neomod;
+
 class SliderPreviewElement;
 class SkinPreviewElement;
 class CategoryButton;

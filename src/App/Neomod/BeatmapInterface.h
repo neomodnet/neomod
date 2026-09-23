@@ -19,7 +19,10 @@ class Shader;
 class ConVar;
 struct Skin;
 class Resource;
+namespace neomod {
 class HitObject;
+}  // namespace neomod
+
 class DatabaseBeatmap;
 class SpectatorScreen;
 class SimulatedBeatmapInterface;
@@ -247,15 +250,15 @@ class BeatmapInterface final : public AbstractBeatmapInterface {
     [[nodiscard]] DBBreak getBreakForTimeRange(i64 startMS, i64 positionMS, i64 endMS) const;
 
     // HitObject and other helper functions
-    LiveHitResult addHitResult(HitObject *hitObject, LiveHitResult hit, i32 delta, bool isEndOfCombo = false,
+    LiveHitResult addHitResult(neomod::HitObject *hitObject, LiveHitResult hit, i32 delta, bool isEndOfCombo = false,
                                bool ignoreOnHitErrorBar = false, bool hitErrorBarOnly = false, bool ignoreCombo = false,
                                bool ignoreScore = false, bool ignoreHealth = false) override;
     void addSliderBreak() override;
     void addScorePoints(int points, bool isSpinner = false) override;
     void addHealth(f64 percent, bool isFromHitResult);
 
-    static bool sortHitObjectByStartTimeComp(HitObject const *a, HitObject const *b);
-    static bool sortHitObjectByEndTimeComp(HitObject const *a, HitObject const *b);
+    static bool sortHitObjectByStartTimeComp(neomod::HitObject const *a, neomod::HitObject const *b);
+    static bool sortHitObjectByEndTimeComp(neomod::HitObject const *a, neomod::HitObject const *b);
 
     void invalidateWholeMapPPInfo();
     [[nodiscard]] inline f32 live_pp() const { return this->ppv2_calc.get_pp(); }
@@ -329,7 +332,7 @@ class BeatmapInterface final : public AbstractBeatmapInterface {
     std::vector<DBBreak> breaks;
     AnimFloat fBreakBackgroundFade;
     bool bInBreak;
-    HitObject *currentHitObject;
+    neomod::HitObject *currentHitObject;
     i32 iNextHitObjectTime;
     i32 iPreviousHitObjectTime;
     i32 iPreviousSectionPassFailTime;
@@ -341,11 +344,11 @@ class BeatmapInterface final : public AbstractBeatmapInterface {
     std::vector<Click> all_clicks;
 
     // hitobjects
-    std::vector<std::unique_ptr<HitObject>> hitobjects;
+    std::vector<std::unique_ptr<neomod::HitObject>> hitobjects;
     // these are non-owning views of "hitobjects" in different arrangements
-    std::vector<HitObject *> hitobjectsSortedByEndTime;  // for hitObject->draw/draw2()
-    std::vector<HitObject *> nonSpinnerObjectsToDraw;    // for drawHitObjects, temp buffer
-    std::vector<HitObject *> misaimObjects;
+    std::vector<neomod::HitObject *> hitobjectsSortedByEndTime;  // for hitObject->draw/draw2()
+    std::vector<neomod::HitObject *> nonSpinnerObjectsToDraw;    // for drawHitObjects, temp buffer
+    std::vector<neomod::HitObject *> misaimObjects;
 
     // statistics
     int iNPS;

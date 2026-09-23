@@ -11,10 +11,6 @@
 class BeatmapInterface;
 
 namespace neomod::HitSoundUtils {
-using DBHitSample = DatabaseBeatmapTypes::HITSAMPLE_BITS;
-
-using DatabaseBeatmapTypes::HitSoundType;
-using DatabaseBeatmapTypes::SampleSetType;
 
 // all external state that hitsound resolution depends on, gathered from globals at the call site
 struct HitSoundContext {
@@ -49,18 +45,19 @@ struct Set_Slider_Hit {
     u8 hit;
 };
 
-std::vector<Set_Slider_Hit> play(BeatmapInterface *pf, DBHitSample info, f32 pan, i32 delta, i32 play_time = -1,
+std::vector<Set_Slider_Hit> play(BeatmapInterface *pf, DatabaseBeatmapTypes::HITSAMPLE_BITS info, f32 pan, i32 delta, i32 play_time = -1,
                                  bool is_sliderslide = false);
 
 void stopSliderSounds(BeatmapInterface *pf, const std::vector<Set_Slider_Hit> &specific_sets);
 
 // pure versions that take all dependencies as parameters
-[[nodiscard]] u8 getNormalSet(DBHitSample info, const HitSoundContext &ctx);
-[[nodiscard]] u8 getAdditionSet(DBHitSample info, const HitSoundContext &ctx);
-[[nodiscard]] f32 getVolume(DBHitSample info, const HitSoundContext &ctx, u8 hitSoundType, bool is_sliderslide);
+[[nodiscard]] u8 getNormalSet(DatabaseBeatmapTypes::HITSAMPLE_BITS info, const HitSoundContext &ctx);
+[[nodiscard]] u8 getAdditionSet(DatabaseBeatmapTypes::HITSAMPLE_BITS info, const HitSoundContext &ctx);
+[[nodiscard]] f32 getVolume(DatabaseBeatmapTypes::HITSAMPLE_BITS info, const HitSoundContext &ctx, u8 hitSoundType, bool is_sliderslide);
 
 // determines which sounds should be played without actually playing them
-[[nodiscard]] std::vector<ResolvedHitSound> resolve(DBHitSample info, const HitSoundContext &ctx, bool is_sliderslide);
+[[nodiscard]] std::vector<ResolvedHitSound> resolve(DatabaseBeatmapTypes::HITSAMPLE_BITS info, const HitSoundContext &ctx,
+                                                    bool is_sliderslide);
 
-[[nodiscard]] ResolvedSliderTick resolveSliderTick(DBHitSample info, const HitSoundContext &ctx);
+[[nodiscard]] ResolvedSliderTick resolveSliderTick(DatabaseBeatmapTypes::HITSAMPLE_BITS info, const HitSoundContext &ctx);
 }  // namespace neomod::HitSoundUtils

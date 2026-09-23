@@ -10,6 +10,8 @@
 #include "OsuConVars.h"
 #include "Timing.h"
 
+using namespace neomod;
+
 SimulatedBeatmapInterface::SimulatedBeatmapInterface(DatabaseBeatmap *map, const Replay::Mods &mods_)
     : AbstractBeatmapInterface() {
     this->beatmap = map;

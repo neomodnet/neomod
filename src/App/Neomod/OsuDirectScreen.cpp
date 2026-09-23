@@ -65,6 +65,7 @@ class OnlineMapListing : public CBaseUIContainer {
 
     // Overriding click detection because buttons don't work well in scrollviews
     // Our custom behavior is "if clicked and cursor moved less than 5px"
+   protected:
     void onMouseDownInside(bool left = true, bool right = false) override;
     void onMouseUpInside(bool left = true, bool right = false) override;
     void onMouseUpOutside(bool left = true, bool right = false) override;
