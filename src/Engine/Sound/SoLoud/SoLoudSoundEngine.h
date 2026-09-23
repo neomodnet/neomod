@@ -38,6 +38,7 @@ class SoLoudSoundEngine final : public SoundEngine {
     void stop(Sound *snd) override;
 
     inline bool isReady() override { return this->bReady; }
+    bool hasExclusiveOutput() override;
 
     inline bool isASIO() override { return this->currentOutputDevice.driver == OutputDriver::SOLOUD_ASIO; }
     // (main thread only: asio drivers refuse calls from any thread but the one that loaded them)
