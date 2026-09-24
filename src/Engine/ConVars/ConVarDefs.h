@@ -233,7 +233,6 @@ CONVAR(font_load_system, true, CLIENT, "try to load a similar system font if a g
 CONVAR(r_gl_image_unbind, false, CLIENT);
 CONVAR(r_gles_orphan_buffers, Env::cfg(OS::WASM) ? false : true, CLIENT,  // destroys WASM perf for some reason
        "reduce cpu/gpu synchronization by freeing buffer objects before modifying them");
-CONVAR(r_gl_rt_unbind, false, CLIENT);
 CONVAR(r_globaloffset_x, 0.0f, CLIENT | PROTECTED | GAMEPLAY);
 CONVAR(r_globaloffset_y, 0.0f, CLIENT | PROTECTED | GAMEPLAY);
 CONVAR(r_sync_debug, false, CLIENT | HIDDEN, "print debug information about sync objects");

@@ -196,6 +196,7 @@ void OpenGLRenderTarget::init() {
     }
 
     // reset bound texture and framebuffer
+    glBindTexture(GL_TEXTURE_2D, 0);
     GLStateCache::bindFramebuffer(0);
 
     this->setReady(true);
@@ -311,7 +312,7 @@ void OpenGLRenderTarget::bind(unsigned int textureUnit) {
 }
 
 void OpenGLRenderTarget::unbind() {
-    if(!this->isReady() || !cv::r_gl_rt_unbind.getBool()) return;
+    if(!this->isReady()) return;
 
     // restore texture unit (just in case) and set to no texture
     glActiveTexture(GL_TEXTURE0 + this->iTextureUnitBackup);
