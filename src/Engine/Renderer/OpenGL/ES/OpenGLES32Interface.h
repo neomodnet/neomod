@@ -122,6 +122,8 @@ class OpenGLES32Interface final : public SDLGLInterface {
     OpenGLES32Shader *m_shaderTexturedGeneric;
     std::vector<OpenGLES32Shader *> m_registeredShaders;
     int m_iShaderTexturedGenericPrevType;
+    Color m_shaderTexturedGenericPrevColor{0};
+    bool m_bShaderTexturedGenericPrevColorInversion{false};
     int m_iShaderTexturedGenericAttribPosition;
     int m_iShaderTexturedGenericAttribUV;
     int m_iShaderTexturedGenericAttribCol;

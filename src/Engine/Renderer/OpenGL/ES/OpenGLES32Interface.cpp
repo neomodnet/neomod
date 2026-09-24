@@ -191,9 +191,6 @@ void main() {
     glBufferData(GL_ARRAY_BUFFER, 16384 * sizeof(vec4), nullptr, GL_STREAM_DRAW);
     glEnableVertexAttribArray(m_iShaderTexturedGenericAttribCol);
 
-    // init
-    m_shaderTexturedGeneric->setUniform1f("inv", 0.f);
-
     // initialize the state cache
     GLStateCache::initialize();
 
@@ -245,15 +242,7 @@ void OpenGLES32Interface::endScene() {
 
 void OpenGLES32Interface::clearDepthBuffer() { glClear(GL_DEPTH_BUFFER_BIT); }
 
-void OpenGLES32Interface::setColor(Color color) {
-    if(color == m_data->color) return;
-    m_data->color = color;
-
-    if(m_shaderTexturedGeneric->isActive()) {
-        m_shaderTexturedGeneric->setUniform4f("col", color.Rf(), color.Gf(), color.Bf(),
-                                              color.Af());  // float components of color
-    }
-}
+void OpenGLES32Interface::setColor(Color color) { m_data->color = color; }
 
 void OpenGLES32Interface::setAlpha(float alpha) {
     setColor(rgba(m_data->color.Rf(), m_data->color.Gf(), m_data->color.Bf(), alpha));
@@ -399,12 +388,27 @@ void OpenGLES32Interface::drawVAO(VertexArrayObject *vao) {
 
     updateTransform();
 
+    // uniform writes only reach the bound program, so the default shader catches up on the current state here
+    const bool defaultShaderActive = m_shaderTexturedGeneric->isActive();
+    if(defaultShaderActive) {
+        m_shaderTexturedGeneric->setMVP(m_data->MP);
+        if(m_shaderTexturedGenericPrevColor != m_data->color) {
+            m_shaderTexturedGeneric->setUniform4f("col", m_data->color.Rf(), m_data->color.Gf(), m_data->color.Bf(),
+                                                  m_data->color.Af());
+            m_shaderTexturedGenericPrevColor = m_data->color;
+        }
+        if(m_bShaderTexturedGenericPrevColorInversion != m_bColorInversion) {
+            m_shaderTexturedGeneric->setUniform1f("inv", m_bColorInversion ? 1.0f : 0.0f);
+            m_bShaderTexturedGenericPrevColorInversion = m_bColorInversion;
+        }
+    }
+
     // if baked, then we can directly draw the buffer
     if(vao->isReady()) {
         auto *glvao = static_cast<OpenGLES32VertexArrayObject *>(vao);
 
         // configure shader
-        if(m_shaderTexturedGeneric->isActive()) {
+        if(defaultShaderActive) {
             // both texcoords and colors (e.g., text rendering)
             if(glvao->getNumTexcoords0() > 0 && glvao->getNumColors() > 0) {
                 if(m_iShaderTexturedGenericPrevType != 4) {
@@ -549,7 +553,7 @@ void OpenGLES32Interface::drawVAO(VertexArrayObject *vao) {
     }
 
     // configure shader
-    if(m_shaderTexturedGeneric->isActive()) {
+    if(defaultShaderActive) {
         // texcoords and colors (e.g., text rendering)
         if(finalTexcoords.size() > 0 && finalColors.size() > 0) {
             if(m_iShaderTexturedGenericPrevType != 4) {
@@ -673,14 +677,7 @@ void OpenGLES32Interface::setAlphaTestFunc(DrawCompareFunc /*alphaFunc*/, float 
 void OpenGLES32Interface::setAntialiasing(bool /*aa*/) {}
 #endif
 
-void OpenGLES32Interface::setColorInversion(bool enabled) {
-    if(m_bColorInversion == enabled) return;
-    m_bColorInversion = enabled;
-
-    if(m_shaderTexturedGeneric->isActive()) {
-        m_shaderTexturedGeneric->setUniform1f("inv", enabled ? 1.0f : 0.0f);
-    }
-}
+void OpenGLES32Interface::setColorInversion(bool enabled) { m_bColorInversion = enabled; }
 
 void OpenGLES32Interface::setWireframe(bool _) {
     // TODO
@@ -806,9 +803,6 @@ VertexArrayObject *OpenGLES32Interface::createVertexArrayObject(DrawPrimitive pr
 }
 
 void OpenGLES32Interface::onTransformUpdate() {
-    // always update default shader
-    if(m_shaderTexturedGeneric) m_shaderTexturedGeneric->setMVP(m_data->MP);
-
     // update all registered shaders, including the default one
     updateAllShaderTransforms();
 }
