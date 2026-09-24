@@ -1624,19 +1624,8 @@ void BeatmapInterface::loadMusic(bool reload, bool async) {
           "{}",
           reload, async, pathChanged, haveExistingMusic, musicAlreadyLoadedSuccessfully, skipLoading);
 
-    if(skipLoading) {
-        if(this->bIsWaitingForPreview && !resourceManager->isLoadingResource(this->music)) {
-            // manually handle preview play from selectBeatmap, since the callback won't be fired (was already)
-            this->bIsWaitingForPreview = false;
-            this->handlePreviewPlay();
-            if(!ui->getMainMenu()->isVisible() && db->isFinished()) {
-                loading_reselect_map.clear();
-            }
-            RichPresence::refreshStatus();
-        }
-        return;
-    }
-
+    // the music is handed over to the selected map by checkHandleAsyncMusicLoadFinish(), even if the file doesn't need
+    // loading: the map can still be missing its loudness (e.g. the db's copy of a preloaded main menu map)
     this->bIsAsyncMusicLoadHandled = false;
 
     // if normalization is enabled and we don't yet have loudness for this map, kick off a
@@ -1647,18 +1636,20 @@ void BeatmapInterface::loadMusic(bool reload, bool async) {
         VolNormalization::request_priority(this->beatmap);
     }
 
-    // load the song (again)
-    if(haveExistingMusic) {
-        // rebuild with new path
-        this->music->rebuild(newPath, async);
-    } else {
-        // fresh load
-        if(async) resourceManager->requestNextLoadAsync();
-        this->music = resourceManager->loadSoundAbs(newPath, "BEATMAP_MUSIC", true /* stream */, false, false);
+    if(!skipLoading) {
+        // load the song (again)
+        if(haveExistingMusic) {
+            // rebuild with new path
+            this->music->rebuild(newPath, async);
+        } else {
+            // fresh load
+            if(async) resourceManager->requestNextLoadAsync();
+            this->music = resourceManager->loadSoundAbs(newPath, "BEATMAP_MUSIC", true /* stream */, false, false);
+        }
     }
 
-    // for sync load it should be ready now (otherwise Osu::update will call checkHandleAsyncMusicLoadFinish during update() until it is loaded)
-    if(!async) {
+    // for sync load (or when nothing needed loading) it should be ready now (otherwise Osu::update will call checkHandleAsyncMusicLoadFinish during update() until it is loaded)
+    if(!async || skipLoading) {
         this->checkHandleAsyncMusicLoadFinish();
     }
 
@@ -1672,7 +1663,7 @@ void BeatmapInterface::checkHandleAsyncMusicLoadFinish() {
 
     // hold off until loudness has landed if normalization is currently enabled, so the song
     // doesn't briefly play at unnormalized volume. fallback_loudness is non-zero, so this
-    // never hangs: process_one() always writes a non-zero value (real or fallback).
+    // never hangs: the priority worker always writes a non-zero value (real or fallback).
     // re-checked each frame: toggling normalization off while waiting lets playback proceed.
     if(this->beatmap && cv::normalize_loudness.getBool() &&
        this->beatmap->loudness.load(std::memory_order_acquire) == 0.f) {
@@ -1681,11 +1672,12 @@ void BeatmapInterface::checkHandleAsyncMusicLoadFinish() {
 
     this->bIsAsyncMusicLoadHandled = true;
 
-    if(!this->music->isReady() || !soundEngine->enqueue(this->music)) {
+    // (a file that didn't need loading can still be playing, and BASS refuses to enqueue a playing stream)
+    if(!this->music->isReady() || (!this->music->isPlaying() && !soundEngine->enqueue(this->music))) {
         logIf(cv::debug_osu.getBool() || cv::debug_snd.getBool(), "failed to enqueue music at {}",
               this->music->getFilePath());
     } else {
-        // ready and enqueued
+        // ready and enqueued (or still playing)
         this->music->setBaseVolume(this->getIdealVolume());
         this->fMusicFrequencyBackup = this->music->getFrequency();
         this->setMusicSpeed(this->getSpeedMultiplier());
@@ -3640,7 +3632,9 @@ bool BeatmapInterface::isLoading() {
 }
 
 bool BeatmapInterface::isActuallyLoading() const {
-    return (!soundEngine->isReady() || !this->music->isAsyncReady() || this->bIsPreLoading);
+    // (the music handoff can still be waiting for the map's loudness, see checkHandleAsyncMusicLoadFinish())
+    return (!soundEngine->isReady() || !this->music->isAsyncReady() || !this->bIsAsyncMusicLoadHandled ||
+            this->bIsPreLoading);
 }
 
 vec2 BeatmapInterface::legacyPixels2RawPixels(vec2 coords) const {

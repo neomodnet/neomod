@@ -61,7 +61,9 @@ CONVAR(save, CLIENT);  // database save, callback set in Database
 
 // Audio
 CONVAR(loudness_calc_threads, 0.f, CLIENT, "0 = autodetect. do not use too many threads or your PC will explode");
-CONVAR(loudness_fallback, -12.f, CLIENT);
+// (stays below 0, which DatabaseBeatmap::loudness uses for "not calculated")
+CONVAR(loudness_fallback, -12.f, CLIENT, "loudness (LUFS) assumed for songs whose loudness can't be measured",
+       Range{-16., -1.});
 CONVAR(loudness_target, -14.f, CLIENT);
 CONVAR(sound_panning, true, CLIENT | SKINS | SERVER, "positional hitsound audio depending on the playfield position");
 CONVAR(sound_panning_multiplier, 1.0f, CLIENT | SKINS | SERVER,

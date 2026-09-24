@@ -365,7 +365,7 @@ void Database::destroyLoader() {
     BatchDiffCalc::abort_calc();
     AsyncPPC::set_map(nullptr);
     VolNormalization::abort();
-    // queued priority requests hold raw DatabaseBeatmap* pointers; drop them before the
+    // priority requests (queued or being calculated) hold raw DatabaseBeatmap* pointers; drop them before the
     // beatmap_difficulties wipe in startLoader makes them dangle.
     VolNormalization::flush_priority();
 

@@ -57,8 +57,8 @@ struct WorkerCtx {
 #endif
 };
 
-// one-shot per-worker setup: pick backend, refresh fallback from cvar, run BASS init if needed.
-// must be called once before the worker's first process_one() call.
+// one-shot per-worker setup: pick backend, run BASS init if needed.
+// must be called once before the worker's first calc_one() call.
 void init_worker_ctx(WorkerCtx &ctx) {
 #ifdef MCENGINE_FEATURE_BASS
     if(soundEngine->getTypeId() == SoundEngine::BASS) {
@@ -82,9 +82,8 @@ void init_worker_ctx(WorkerCtx &ctx) {
 }
 
 #ifdef MCENGINE_FEATURE_BASS
-// returns the integrated loudness (real or fallback). never returns 0.f so the caller's
-// atomic store unambiguously means "calculated".
-f32 calc_one_bass(DatabaseBeatmap *map, WorkerCtx &ctx, f32 fallback_loudness) {
+// returns the integrated loudness (real or fallback).
+f32 calc_one_bass(const std::string &song_path, WorkerCtx &ctx, f32 fallback_loudness) {
     struct UString {
         UString(std::string_view path) : narrow(path) {
             if constexpr(Env::cfg(OS::WINDOWS)) {
@@ -102,7 +101,6 @@ f32 calc_one_bass(DatabaseBeatmap *map, WorkerCtx &ctx, f32 fallback_loudness) {
         std::wstring wide;
     };
 
-    const std::string song_path = map->getFullSoundFilePath();
     if(song_path == ctx.last_song) {
         return ctx.last_loudness;
     }
@@ -149,8 +147,7 @@ f32 calc_one_bass(DatabaseBeatmap *map, WorkerCtx &ctx, f32 fallback_loudness) {
 #endif
 
 #ifdef MCENGINE_FEATURE_SOLOUD
-f32 calc_one_soloud(DatabaseBeatmap *map, WorkerCtx &ctx, f32 fallback_loudness) {
-    const std::string song_path = map->getFullSoundFilePath();
+f32 calc_one_soloud(const std::string &song_path, WorkerCtx &ctx, f32 fallback_loudness) {
     if(song_path == ctx.last_song) {
         return ctx.last_loudness;
     }
@@ -182,32 +179,31 @@ f32 calc_one_soloud(DatabaseBeatmap *map, WorkerCtx &ctx, f32 fallback_loudness)
 }
 #endif
 
-// process a single map: handles skip-if-done, backend dispatch, atomic store.
-// caller must have run init_worker_ctx(ctx) first. returns true if the map was actually
-// processed (vs. skipped because loudness was already set).
-bool process_one(DatabaseBeatmap *map, WorkerCtx &ctx) {
-    if(!map) return false;
-    if(map->loudness.load(std::memory_order_acquire) != 0.f) return false;
+// the integrated loudness of an audio file (real, or the fallback if it can't be measured). never returns 0.f, so
+// storing it in DatabaseBeatmap::loudness unambiguously means "calculated".
+// caller must have run init_worker_ctx(ctx) first.
+f32 calc_one(const std::string &song_path, WorkerCtx &ctx) {
+    f32 result = cv::loudness_fallback.getFloat();
 
-    f32 result = std::clamp<f32>(cv::loudness_fallback.getFloat(), -16.f, 0.f);
+    // (nothing to measure, and it would match a fresh worker's empty dedup cache)
+    if(song_path.empty()) return result;
 
     switch(ctx.backend) {
 #ifdef MCENGINE_FEATURE_BASS
         case Backend::BASS:
-            result = calc_one_bass(map, ctx, result);
+            result = calc_one_bass(song_path, ctx, result);
             break;
 #endif
 #ifdef MCENGINE_FEATURE_SOLOUD
         case Backend::SOLOUD:
-            result = calc_one_soloud(map, ctx, result);
+            result = calc_one_soloud(song_path, ctx, result);
             break;
 #endif
         default:
             break;
     }
 
-    map->loudness.store(result, std::memory_order_release);
-    return true;
+    return result;
 }
 
 struct LoudnessCalcThread {
@@ -242,7 +238,10 @@ struct LoudnessCalcThread {
 
             if(stoken.stop_requested()) return;
 
-            process_one(map, ctx);
+            // (abort() joins this thread before the maps can go away)
+            if(map->loudness.load(std::memory_order_acquire) == 0.f) {
+                map->loudness.store(calc_one(map->getFullSoundFilePath(), ctx), std::memory_order_release);
+            }
             this->nb_computed++;
         }
 
@@ -280,6 +279,8 @@ struct PriorityWorker {
         Sync::unique_lock lock(this->mtx);
         this->queue.clear();
         this->queued.clear();
+        // the calculation can't be interrupted, but its result is dropped
+        this->calculating = nullptr;
     }
 
    private:
@@ -287,6 +288,9 @@ struct PriorityWorker {
     Sync::stoppable_condvar cv;
     std::deque<DatabaseBeatmap *> queue;
     Hash::flat::set<DatabaseBeatmap *> queued;  // dedup against in-flight queue contents
+    // (the owners of requested maps call drop_pending() before freeing them, so a map is only known to be alive while
+    // it's queued or this, with mtx held)
+    DatabaseBeatmap *calculating{nullptr};
     Sync::jthread thr;
 
     void run(const Sync::stop_token &stoken) {
@@ -298,6 +302,7 @@ struct PriorityWorker {
 
         while(!stoken.stop_requested()) {
             DatabaseBeatmap *map = nullptr;
+            std::string song_path;
             {
                 Sync::unique_lock lock(this->mtx);
                 this->cv.wait(lock, stoken, [this] { return !this->queue.empty(); });
@@ -306,9 +311,19 @@ struct PriorityWorker {
                 map = this->queue.front();
                 this->queue.pop_front();
                 this->queued.erase(map);
+                if(map->loudness.load(std::memory_order_acquire) != 0.f) continue;
+
+                song_path = map->getFullSoundFilePath();
+                this->calculating = map;
             }
 
-            process_one(map, ctx);
+            // the map isn't touched during the calculation, it can be freed meanwhile
+            const f32 loudness = calc_one(song_path, ctx);
+
+            Sync::unique_lock lock(this->mtx);
+            if(std::exchange(this->calculating, nullptr) == map) {
+                map->loudness.store(loudness, std::memory_order_release);
+            }
         }
     }
 };

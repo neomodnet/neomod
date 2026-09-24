@@ -10,7 +10,7 @@ namespace VolNormalization {
 
 // start a batch calculation over the given maps. replaces any in-flight batch but
 // leaves the persistent priority worker and its queue untouched.
-void start_calc(std::span<DatabaseBeatmap *const> maps_to_calc);
+void start_calc(std::span<DatabaseBeatmap* const> maps_to_calc);
 
 u32 get_total();
 u32 get_computed();
@@ -23,8 +23,8 @@ void abort();
 // priority work bypasses shouldPauseBGThreads() so user-facing waits are short.
 void request_priority(DatabaseBeatmap* map);
 
-// drop pending priority requests without joining the worker. used by Database before tearing
-// down beatmap pointers on a reload (the queued raw pointers would dangle otherwise).
+// drop pending priority requests, and the result of the one being calculated, without waiting for the worker.
+// call before freeing maps that may have been requested (the worker holds raw pointers to them).
 void flush_priority();
 
 // full shutdown: abort batch and join the priority worker.

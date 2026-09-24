@@ -256,6 +256,11 @@ bool SoLoudSoundEngine::playSound(SoLoudSound *soloudSound, f32 pan, f32 pitch, 
     // store the handle and mark playback time
     soloudSound->handle = handle;
 
+    // invalidate caches (they still describe the previous voice, also when this one starts paused)
+    soloudSound->soloud_paused_handle_cache_time = 0.;
+    soloudSound->cached_pause_state = startPaused;
+    soloudSound->force_sync_position_next = true;
+
     PlaybackParams newInstance{.pan = pan, .pitch = pitch, .volume = playVolume};
     soloudSound->addActiveInstance(handle, newInstance);
 
@@ -299,11 +304,6 @@ bool SoLoudSoundEngine::playSound(SoLoudSound *soloudSound, f32 pan, f32 pitch, 
     // now unpause it
     soloud->setPause(handle, false);
     soloudSound->setLastPlayTime(engine->getTime());
-
-    // invalidate caches
-    soloudSound->soloud_paused_handle_cache_time = 0.;
-    soloudSound->cached_pause_state = false;
-    soloudSound->force_sync_position_next = true;
 
     return true;
 }
