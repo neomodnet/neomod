@@ -82,74 +82,29 @@ void ModernGraphicsShared::drawLinef(float x1, float y1, float x2, float y2) {
 }
 
 void ModernGraphicsShared::drawRectf(const RectOptions &opts) {
+    if(opts.cornerRadius <= 0.f) return Graphics::drawRectf(opts);
+
     this->updateTransform();
     this->setTexturing(false);
 
-    if(opts.cornerRadius > 0.f) {
-        // draw as a filled triangle strip to avoid line rasterization differences
-        // NOTE: GL_LINE_LOOP looks a lot cleaner than what seems to be possible with a LINE_STRIP in DX11/SDL_gpu,
-        // so GLES3.2 overrides this case
-        const float r = opts.cornerRadius;
-        const float x2 = opts.x + opts.width, y2 = opts.y + opts.height;
-        const float hw = opts.lineThickness / 2.f;
-        const float rInner = r - hw, rOuter = r + hw;
-        {
-            triStripVAO.clear();
-            addArcStripVertices(triStripVAO, opts.x + r, opts.y + r, rInner, rOuter, PI_F, 1.5f * PI_F);
-            addArcStripVertices(triStripVAO, x2 - r, opts.y + r, rInner, rOuter, 1.5f * PI_F, 2.f * PI_F);
-            addArcStripVertices(triStripVAO, x2 - r, y2 - r, rInner, rOuter, 0.f, 0.5f * PI_F);
-            addArcStripVertices(triStripVAO, opts.x + r, y2 - r, rInner, rOuter, 0.5f * PI_F, PI_F);
-            // close back to first vertex pair
-            triStripVAO.addVertex(opts.x - hw, opts.y + r);
-            triStripVAO.addVertex(opts.x + hw, opts.y + r);
-        }
-        this->drawVAO(&triStripVAO);
-        return;
+    // draw as a filled triangle strip to avoid line rasterization differences
+    // NOTE: GL_LINE_LOOP looks a lot cleaner than what seems to be possible with a LINE_STRIP in DX11/SDL_gpu,
+    // so GLES3.2 overrides this case
+    const float r = opts.cornerRadius;
+    const float x2 = opts.x + opts.width, y2 = opts.y + opts.height;
+    const float hw = opts.lineThickness / 2.f;
+    const float rInner = r - hw, rOuter = r + hw;
+    {
+        triStripVAO.clear();
+        addArcStripVertices(triStripVAO, opts.x + r, opts.y + r, rInner, rOuter, PI_F, 1.5f * PI_F);
+        addArcStripVertices(triStripVAO, x2 - r, opts.y + r, rInner, rOuter, 1.5f * PI_F, 2.f * PI_F);
+        addArcStripVertices(triStripVAO, x2 - r, y2 - r, rInner, rOuter, 0.f, 0.5f * PI_F);
+        addArcStripVertices(triStripVAO, opts.x + r, y2 - r, rInner, rOuter, 0.5f * PI_F, PI_F);
+        // close back to first vertex pair
+        triStripVAO.addVertex(opts.x - hw, opts.y + r);
+        triStripVAO.addVertex(opts.x + hw, opts.y + r);
     }
-
-    if(opts.lineThickness > 1.0f) {
-        const float halfThickness = opts.lineThickness * 0.5f;
-
-        if(opts.withColor) {
-            this->setColor(opts.top);
-            this->fillRectf(opts.x - halfThickness, opts.y - halfThickness, opts.width + opts.lineThickness,
-                            opts.lineThickness);
-            this->setColor(opts.bottom);
-            this->fillRectf(opts.x - halfThickness, opts.y + opts.height - halfThickness,
-                            opts.width + opts.lineThickness, opts.lineThickness);
-            this->setColor(opts.left);
-            this->fillRectf(opts.x - halfThickness, opts.y + halfThickness, opts.lineThickness,
-                            opts.height - opts.lineThickness);
-            this->setColor(opts.right);
-            this->fillRectf(opts.x + opts.width - halfThickness, opts.y + halfThickness, opts.lineThickness,
-                            opts.height - opts.lineThickness);
-        } else {
-            this->fillRectf(opts.x - halfThickness, opts.y - halfThickness, opts.width + opts.lineThickness,
-                            opts.lineThickness);
-            this->fillRectf(opts.x - halfThickness, opts.y + opts.height - halfThickness,
-                            opts.width + opts.lineThickness, opts.lineThickness);
-            this->fillRectf(opts.x - halfThickness, opts.y + halfThickness, opts.lineThickness,
-                            opts.height - opts.lineThickness);
-            this->fillRectf(opts.x + opts.width - halfThickness, opts.y + halfThickness, opts.lineThickness,
-                            opts.height - opts.lineThickness);
-        }
-    } else {
-        if(opts.withColor) {
-            this->setColor(opts.top);
-            this->drawLinef(opts.x, opts.y, opts.x + opts.width, opts.y);
-            this->setColor(opts.left);
-            this->drawLinef(opts.x, opts.y, opts.x, opts.y + opts.height);
-            this->setColor(opts.bottom);
-            this->drawLinef(opts.x, opts.y + opts.height, opts.x + opts.width, opts.y + opts.height + 0.5f);
-            this->setColor(opts.right);
-            this->drawLinef(opts.x + opts.width, opts.y, opts.x + opts.width, opts.y + opts.height + 0.5f);
-        } else {
-            this->drawLinef(opts.x, opts.y, opts.x + opts.width, opts.y);
-            this->drawLinef(opts.x, opts.y, opts.x, opts.y + opts.height);
-            this->drawLinef(opts.x, opts.y + opts.height, opts.x + opts.width, opts.y + opts.height + 0.5f);
-            this->drawLinef(opts.x + opts.width, opts.y, opts.x + opts.width, opts.y + opts.height + 0.5f);
-        }
-    }
+    this->drawVAO(&triStripVAO);
 }
 
 void ModernGraphicsShared::fillRectf(const FillRectOptions &opts) {

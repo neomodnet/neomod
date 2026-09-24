@@ -73,7 +73,9 @@ class Graphics {
     virtual void drawPixel(int x, int y) = 0;
     virtual void drawLinef(float x1, float y1, float x2, float y2) = 0;
 
-    virtual void drawRectf(const RectOptions &opt) = 0;  // this is the main drawrect function
+    // this is the main drawrect function. the base version only draws square corners: backends override it for
+    // cornerRadius > 0 and call it for everything else
+    virtual void drawRectf(const RectOptions &opt);
     virtual void fillRectf(const FillRectOptions &opt) = 0;
     virtual void drawArcf(float cx, float cy, float radius, float startAngle, float endAngle) = 0;
 

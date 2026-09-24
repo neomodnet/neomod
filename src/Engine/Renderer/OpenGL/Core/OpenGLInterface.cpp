@@ -208,6 +208,8 @@ inline void emitArcStripVertices(float cx, float cy, float rInner, float rOuter,
 }  // namespace
 
 void OpenGLInterface::drawRectf(const RectOptions &opts) {
+    if(opts.cornerRadius <= 0.f) return Graphics::drawRectf(opts);
+
     updateTransform();
 
     glDisable(GL_TEXTURE_2D);
@@ -217,66 +219,34 @@ void OpenGLInterface::drawRectf(const RectOptions &opts) {
         glLineWidth(opts.lineThickness);
     }
 
-    if(opts.cornerRadius > 0.f) {
-        const float r = opts.cornerRadius;
+    const float r = opts.cornerRadius;
 
-        if(opts.lineThickness > 1.f) {
-            // use triangle strip for thick lines to avoid join gaps
-            const float hw = opts.lineThickness / 2.f;
-            const float rInner = r - hw, rOuter = r + hw;
-            const float x2 = opts.x + opts.width, y2 = opts.y + opts.height;
-            glBegin(GL_TRIANGLE_STRIP);
-            {
-                emitArcStripVertices(opts.x + r, opts.y + r, rInner, rOuter, PI_F, 1.5f * PI_F);
-                emitArcStripVertices(x2 - r, opts.y + r, rInner, rOuter, 1.5f * PI_F, 2.f * PI_F);
-                emitArcStripVertices(x2 - r, y2 - r, rInner, rOuter, 0.f, 0.5f * PI_F);
-                emitArcStripVertices(opts.x + r, y2 - r, rInner, rOuter, 0.5f * PI_F, PI_F);
-                // close back to first vertex pair
-                glVertex2f(opts.x - hw, opts.y + r);
-                glVertex2f(opts.x + hw, opts.y + r);
-            }
-            glEnd();
-        } else {
-            glBegin(GL_LINE_LOOP);
-            {
-                emitArcVertices(opts.x + r, opts.y + r, r, PI_F, 1.5f * PI_F);
-                emitArcVertices(opts.x + opts.width - r, opts.y + r, r, 1.5f * PI_F, 2.f * PI_F);
-                emitArcVertices(opts.x + opts.width - r, opts.y + opts.height - r, r, 0.f, 0.5f * PI_F);
-                emitArcVertices(opts.x + r, opts.y + opts.height - r, r, 0.5f * PI_F, PI_F);
-            }
-            glEnd();
+    if(opts.lineThickness > 1.f) {
+        // use triangle strip for thick lines to avoid join gaps
+        const float hw = opts.lineThickness / 2.f;
+        const float rInner = r - hw, rOuter = r + hw;
+        const float x2 = opts.x + opts.width, y2 = opts.y + opts.height;
+        glBegin(GL_TRIANGLE_STRIP);
+        {
+            emitArcStripVertices(opts.x + r, opts.y + r, rInner, rOuter, PI_F, 1.5f * PI_F);
+            emitArcStripVertices(x2 - r, opts.y + r, rInner, rOuter, 1.5f * PI_F, 2.f * PI_F);
+            emitArcStripVertices(x2 - r, y2 - r, rInner, rOuter, 0.f, 0.5f * PI_F);
+            emitArcStripVertices(opts.x + r, y2 - r, rInner, rOuter, 0.5f * PI_F, PI_F);
+            // close back to first vertex pair
+            glVertex2f(opts.x - hw, opts.y + r);
+            glVertex2f(opts.x + hw, opts.y + r);
         }
-
-        if(opts.lineThickness != 1.0f) {
-            glLineWidth(1.0f);
-        }
-        return;
-    }
-
-    glBegin(opts.withColor ? GL_LINES : GL_LINE_LOOP);
-    if(opts.withColor) {
-        setColor(opts.top);
-        glVertex2f(opts.x, opts.y);
-        glVertex2f(opts.x + opts.width, opts.y);
-
-        setColor(opts.left);
-        glVertex2f(opts.x, opts.y + opts.height);
-        glVertex2f(opts.x, opts.y);
-
-        setColor(opts.bottom);
-        glVertex2f(opts.x + opts.width, opts.y + opts.height);
-        glVertex2f(opts.x, opts.y + opts.height);
-
-        setColor(opts.right);
-        glVertex2f(opts.x + opts.width, opts.y);
-        glVertex2f(opts.x + opts.width, opts.y + opts.height);
+        glEnd();
     } else {
-        glVertex2f(opts.x, opts.y);
-        glVertex2f(opts.x + opts.width, opts.y);
-        glVertex2f(opts.x + opts.width, opts.y + opts.height);
-        glVertex2f(opts.x, opts.y + opts.height);
+        glBegin(GL_LINE_LOOP);
+        {
+            emitArcVertices(opts.x + r, opts.y + r, r, PI_F, 1.5f * PI_F);
+            emitArcVertices(opts.x + opts.width - r, opts.y + r, r, 1.5f * PI_F, 2.f * PI_F);
+            emitArcVertices(opts.x + opts.width - r, opts.y + opts.height - r, r, 0.f, 0.5f * PI_F);
+            emitArcVertices(opts.x + r, opts.y + opts.height - r, r, 0.5f * PI_F, PI_F);
+        }
+        glEnd();
     }
-    glEnd();
 
     // restore line width
     if(opts.lineThickness != 1.0f) {

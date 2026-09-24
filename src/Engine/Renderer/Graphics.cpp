@@ -11,6 +11,7 @@
 
 #include "Graphics_private.h"
 
+#include <algorithm>
 #include <cmath>
 #include <utility>
 
@@ -115,6 +116,22 @@ bool Graphics::getBlending() const { return m_data->bBlendingEnabled; }
 void Graphics::setBlendMode(DrawBlendMode blendMode) { m_data->currentBlendMode = blendMode; }
 DrawBlendMode Graphics::getBlendMode() const { return m_data->currentBlendMode; }
 Color Graphics::getColor() const { return m_data->color; }
+
+void Graphics::drawRectf(const RectOptions &opts) {
+    // the edges are filled bands rather than lines to avoid different rasterization behavior across backends
+    const float t = std::max(opts.lineThickness, 1.f);  // a thinner band can miss every pixel center of an edge
+    const float ht = t / 2.f;
+    const float x = opts.x, y = opts.y, w = opts.width, h = opts.height;
+
+    if(opts.withColor) this->setColor(opts.top);
+    this->fillRectf(x - ht, y - ht, w, t);
+    if(opts.withColor) this->setColor(opts.left);
+    this->fillRectf(x - ht, y + ht, t, h);
+    if(opts.withColor) this->setColor(opts.bottom);
+    this->fillRectf(x + ht, y + h - ht, w, t);
+    if(opts.withColor) this->setColor(opts.right);
+    this->fillRectf(x + w - ht, y - ht, t, h);
+}
 
 void Graphics::pushTransform() {
     m_data->worldTransformStack.push_back(m_data->worldTransformStack.back());
