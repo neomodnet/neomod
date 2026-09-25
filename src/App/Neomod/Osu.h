@@ -132,6 +132,9 @@ class Osu final : public App, public MouseListener, public TouchListener {
 
     void reloadMapInterface();
     void reloadSkin() { this->onSkinReload(); }
+    // packs the current skin into an .osk in the exports folder (without blocking), and toasts about how it went.
+    // an empty name gets one made up
+    void exportSkin(std::string_view name = {});
     void saveEverything();
     void saveScreenshot();
 

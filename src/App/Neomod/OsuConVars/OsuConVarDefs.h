@@ -888,6 +888,9 @@ CONVAR(skin_animation_force, false, CLIENT | SKINS | SERVER);
 CONVAR(skin_animation_fps_override, -1.0f, CLIENT | SKINS | SERVER);
 CONVAR(skin_async, true, CLIENT | SKINS | SERVER, "load in background without blocking");
 CONVAR(skin_color_index_add, 0, CLIENT | SKINS | SERVER);
+CONVAR(skin_export, CLIENT | NOLOAD | NOSAVE);
+CONVAR(skin_export_include_default, false, CLIENT,
+       "skin_export also packs what the default skin fills in, for a skin that's complete on its own");
 CONVAR(skin_force_hitsound_sample_set, 0, CLIENT | SKINS | SERVER,
        "force a specific hitsound sample set to always be used regardless of what "
        "the beatmap says. 0 = disabled, 1 = normal, 2 = soft, 3 = drum.");

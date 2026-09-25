@@ -1642,8 +1642,18 @@ msgstr ""
 "Les éléments manquants utilisent celui-ci au lieu de \"default\"."
 
 #: src/App/Neomod/OptionsOverlay.cpp
+msgid "Export Skin"
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "Open current Skin folder"
 msgstr "Ouvrir le dossier du skin actuel"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid ""
+"Packs the current skin into an .osk file in the exports folder,\n"
+"together with whatever the fallback skin fills in."
+msgstr ""
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Random Skin"
@@ -2933,6 +2943,20 @@ msgstr ""
 #, fuzzy, c++-format
 msgid "Screenshot saved to {:s}"
 msgstr "Captures d'écran"
+
+#: src/App/Neomod/Osu.cpp
+#, fuzzy, c++-format
+msgid "Skin exported to {:s}"
+msgstr "Captures d'écran"
+
+#: src/App/Neomod/Osu.cpp
+msgid "Can't export the default skin."
+msgstr ""
+
+#: src/App/Neomod/Osu.cpp
+#, c++-format
+msgid "Couldn't export the skin to {:s}"
+msgstr ""
 
 #: src/App/Neomod/OsuDirectScreen.cpp
 #, c++-format

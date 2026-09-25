@@ -9,7 +9,7 @@
 #include "OptionsOverlay.h"
 #include "Osu.h"
 #include "RankingScreen.h"
-#include "Skin.h"
+#include "SkinArchive.h"
 #include "SongBrowser/SongBrowser.h"
 #include "UI.h"
 #include "score.h"
@@ -40,7 +40,7 @@ void *createInterop(void *void_envptr) {
 
 // drag-drop/file associations/registry stuff below
 bool handle_osk(std::string_view osk_path, bool auto_select) {
-    if(!ui || !osu || !Skin::unpack(osk_path)) return false;
+    if(!ui || !osu || !SkinArchive::unpack(osk_path, Mc::Paths::skins())) return false;
 
     if(auto_select) {
         auto folder_name = Environment::getFileNameFromFilePath(osk_path);

@@ -282,8 +282,8 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Neomod/ScreenBackable.cpp \
 	src/App/Neomod/SettingsImporter.cpp \
 	src/App/Neomod/SimulatedBeatmapInterface.cpp \
-	src/App/Neomod/Skin.cpp src/App/Neomod/SkinImage.cpp \
-	src/App/Neomod/SliderCurves.cpp \
+	src/App/Neomod/Skin.cpp src/App/Neomod/SkinArchive.cpp \
+	src/App/Neomod/SkinImage.cpp src/App/Neomod/SliderCurves.cpp \
 	src/App/Neomod/SliderRenderer.cpp \
 	src/App/Neomod/SongBrowser/AsyncSongButtonMatcher.cpp \
 	src/App/Neomod/SongBrowser/BeatmapCarousel.cpp \
@@ -536,6 +536,7 @@ am_neomod_OBJECTS = libraries/neomod-MD5.$(OBJEXT) \
 	src/App/Neomod/neomod-SettingsImporter.$(OBJEXT) \
 	src/App/Neomod/neomod-SimulatedBeatmapInterface.$(OBJEXT) \
 	src/App/Neomod/neomod-Skin.$(OBJEXT) \
+	src/App/Neomod/neomod-SkinArchive.$(OBJEXT) \
 	src/App/Neomod/neomod-SkinImage.$(OBJEXT) \
 	src/App/Neomod/neomod-SliderCurves.$(OBJEXT) \
 	src/App/Neomod/neomod-SliderRenderer.$(OBJEXT) \
@@ -761,6 +762,7 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/App/Neomod/$(DEPDIR)/neomod-SettingsImporter.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-SimulatedBeatmapInterface.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-Skin.Po \
+	src/App/Neomod/$(DEPDIR)/neomod-SkinArchive.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-SkinImage.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-SliderCurves.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-SliderRenderer.Po \
@@ -1502,8 +1504,8 @@ neomod_SOURCES = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Neomod/ScreenBackable.cpp \
 	src/App/Neomod/SettingsImporter.cpp \
 	src/App/Neomod/SimulatedBeatmapInterface.cpp \
-	src/App/Neomod/Skin.cpp src/App/Neomod/SkinImage.cpp \
-	src/App/Neomod/SliderCurves.cpp \
+	src/App/Neomod/Skin.cpp src/App/Neomod/SkinArchive.cpp \
+	src/App/Neomod/SkinImage.cpp src/App/Neomod/SliderCurves.cpp \
 	src/App/Neomod/SliderRenderer.cpp \
 	src/App/Neomod/SongBrowser/AsyncSongButtonMatcher.cpp \
 	src/App/Neomod/SongBrowser/BeatmapCarousel.cpp \
@@ -2389,6 +2391,9 @@ src/App/Neomod/neomod-SimulatedBeatmapInterface.$(OBJEXT):  \
 	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
 src/App/Neomod/neomod-Skin.$(OBJEXT): src/App/Neomod/$(am__dirstamp) \
 	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
+src/App/Neomod/neomod-SkinArchive.$(OBJEXT):  \
+	src/App/Neomod/$(am__dirstamp) \
+	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
 src/App/Neomod/neomod-SkinImage.$(OBJEXT):  \
 	src/App/Neomod/$(am__dirstamp) \
 	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
@@ -3203,6 +3208,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-SettingsImporter.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-SimulatedBeatmapInterface.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-Skin.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-SkinArchive.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-SkinImage.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-SliderCurves.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-SliderRenderer.Po@am__quote@ # am--include-marker
@@ -4425,6 +4431,20 @@ src/App/Neomod/neomod-Skin.obj: src/App/Neomod/Skin.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/Skin.cpp' object='src/App/Neomod/neomod-Skin.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-Skin.obj `if test -f 'src/App/Neomod/Skin.cpp'; then $(CYGPATH_W) 'src/App/Neomod/Skin.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/Skin.cpp'; fi`
+
+src/App/Neomod/neomod-SkinArchive.o: src/App/Neomod/SkinArchive.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-SkinArchive.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-SkinArchive.Tpo -c -o src/App/Neomod/neomod-SkinArchive.o `test -f 'src/App/Neomod/SkinArchive.cpp' || echo '$(srcdir)/'`src/App/Neomod/SkinArchive.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-SkinArchive.Tpo src/App/Neomod/$(DEPDIR)/neomod-SkinArchive.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/SkinArchive.cpp' object='src/App/Neomod/neomod-SkinArchive.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-SkinArchive.o `test -f 'src/App/Neomod/SkinArchive.cpp' || echo '$(srcdir)/'`src/App/Neomod/SkinArchive.cpp
+
+src/App/Neomod/neomod-SkinArchive.obj: src/App/Neomod/SkinArchive.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-SkinArchive.obj -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-SkinArchive.Tpo -c -o src/App/Neomod/neomod-SkinArchive.obj `if test -f 'src/App/Neomod/SkinArchive.cpp'; then $(CYGPATH_W) 'src/App/Neomod/SkinArchive.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/SkinArchive.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-SkinArchive.Tpo src/App/Neomod/$(DEPDIR)/neomod-SkinArchive.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/SkinArchive.cpp' object='src/App/Neomod/neomod-SkinArchive.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-SkinArchive.obj `if test -f 'src/App/Neomod/SkinArchive.cpp'; then $(CYGPATH_W) 'src/App/Neomod/SkinArchive.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/SkinArchive.cpp'; fi`
 
 src/App/Neomod/neomod-SkinImage.o: src/App/Neomod/SkinImage.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-SkinImage.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-SkinImage.Tpo -c -o src/App/Neomod/neomod-SkinImage.o `test -f 'src/App/Neomod/SkinImage.cpp' || echo '$(srcdir)/'`src/App/Neomod/SkinImage.cpp
@@ -7348,6 +7368,7 @@ distclean: distclean-am
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-SettingsImporter.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-SimulatedBeatmapInterface.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-Skin.Po
+	-rm -f src/App/Neomod/$(DEPDIR)/neomod-SkinArchive.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-SkinImage.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-SliderCurves.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-SliderRenderer.Po
@@ -7642,6 +7663,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-SettingsImporter.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-SimulatedBeatmapInterface.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-Skin.Po
+	-rm -f src/App/Neomod/$(DEPDIR)/neomod-SkinArchive.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-SkinImage.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-SliderCurves.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-SliderRenderer.Po

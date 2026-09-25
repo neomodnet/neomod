@@ -1401,8 +1401,16 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
             _("Shift-click a skin to set it as fallback.\nMissing elements fall back to it instead of \"default\"."));
 
         if constexpr(!Env::cfg(OS::WASM)) {
-            this->addButton(_("Open current Skin folder"))
+            OptionsElement *skinFolder = this->addButtonButton(_("Open current Skin folder"), _("Export Skin"));
+            static_cast<UIButton *>(skinFolder->baseElems[0].get())
                 ->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::openCurrentSkinFolder>(this));
+
+            auto *skinExportBtn = static_cast<UIButton *>(skinFolder->baseElems[1].get());
+            skinExportBtn->setName("options_skin_export");
+            skinExportBtn->setClickCallback(SA::MakeDelegate([]() -> void { osu->exportSkin(); }));
+            skinExportBtn->setTooltipText(
+                _("Packs the current skin into an .osk file in the exports folder,\ntogether with whatever the "
+                  "fallback skin fills in."));
         }
 
         OptionsElement *skinReload = this->addButtonButton(_("Reload Skin"), _("Random Skin"), &cv::skin);

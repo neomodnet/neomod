@@ -1,7 +1,6 @@
 // Copyright (c) 2015, PG, 2024-2025, kiwec, 2025-2026, WH, All rights reserved.
 #include "Skin.h"
 
-#include "Archival.h"
 #include "OsuConVars.h"
 #include "Font.h"
 #include "Sound.h"
@@ -21,102 +20,11 @@
 #include "Hashing.h"
 #include "Logging.h"
 #include "crypto.h"
-#include "ContainerRanges.h"
 #include "score.h"
 #include "UniString.h"
 
 #include <cstring>
 #include <utility>
-
-bool Skin::unpack(std::string_view filepath) {
-    auto skin_name = Environment::getFileNameFromFilePath(filepath);
-    debugLog("Extracting {:s}...", skin_name.c_str());
-    skin_name.erase(skin_name.size() - 4);  // remove .osk extension
-
-    auto skin_root = fmt::format("{}/{}/", Mc::Paths::skins(), skin_name);
-
-    std::unique_ptr<u8[]> fileBuffer;
-    size_t fileSize{0};
-    {
-        File file(filepath);
-        if(!file.canRead() || !(fileSize = file.getFileSize())) {
-            debugLog("Failed to read skin file {:s}", filepath);
-            return false;
-        }
-        fileBuffer = file.takeFileBuffer();
-        // close the file here
-    }
-
-    // osu! .osk entry names are Shift-JIS too (i think)
-    Archive::Reader archive({fileBuffer.get(), fileSize}, "CP932");
-    if(!archive.isValid()) {
-        debugLog("Failed to open .osk file");
-        return false;
-    }
-
-    auto entries = archive.getAllEntries();
-    if(entries.empty()) {
-        debugLog(".osk file is empty!");
-        return false;
-    }
-
-    // skins zipped as a folder instead of its contents would extract to skins/name/name/,
-    // so if every file lives under the same top-level folder, strip that folder while extracting
-    std::string common_root;
-    for(const auto &entry : entries) {
-        if(entry.isDirectory()) continue;
-
-        std::string filename = entry.getFilename();
-        File::normalizeSlashes(filename, '\\', '/');
-
-        const auto slash = filename.find('/');
-        const auto root =
-            (slash == std::string::npos) ? std::string_view{} : std::string_view{filename}.substr(0, slash);
-        if(root.empty() || (!common_root.empty() && common_root != root)) {
-            common_root.clear();
-            break;
-        }
-        common_root = root;
-    }
-
-    if(!Environment::directoryExists(skin_root)) {
-        Environment::createDirectory(skin_root);
-    }
-
-    for(const auto &entry : entries) {
-        if(entry.isDirectory()) continue;
-
-        std::string filename = entry.getFilename();
-        File::normalizeSlashes(filename, '\\', '/');
-        if(!common_root.empty()) filename.erase(0, common_root.size() + 1);
-
-        const auto folders = SString::split(filename, '/');
-        std::string file_path = skin_root;
-
-        for(const auto &folder : folders) {
-            if(!Environment::directoryExists(file_path)) {
-                Environment::createDirectory(file_path);
-            }
-
-            if(folder == "..") {
-                // security check: skip files with path traversal attempts
-                goto skip_file;
-            } else {
-                file_path.push_back('/');
-                file_path.append(folder);
-            }
-        }
-
-        if(!entry.extractToFile(file_path)) {
-            debugLog("Failed to extract skin file {:s}", filename.c_str());
-        }
-
-    skip_file:;
-        // when a file can't be extracted we just ignore it (as long as the archive is valid)
-    }
-
-    return true;
-}
 
 Skin::Skin(std::string name, std::string filepath, std::string fallbackDir)
     : name(std::move(name)),
@@ -135,8 +43,7 @@ Skin::Skin(std::string name, std::string filepath, std::string fallbackDir)
       c_input_overlay_text(0xff000000),
       // custom
       o_random(cv::skin_random.getBool()),
-      o_random_elements(cv::skin_random_elements.getBool()),
-      is_default(this->skin_dir.starts_with(Mc::Paths::materials() + "/default")) {
+      o_random_elements(cv::skin_random_elements.getBool()) {
     // load all files
     this->load();
 }
@@ -240,6 +147,8 @@ void Skin::load() {
             }
         }
     }
+    // (a random skin, or one made of random elements, isn't the default one even if that's the one selected)
+    this->is_default = !this->hasRandomElements() && this->skin_dir.starts_with(default_dir);
 
     // build the search directory list: [primary, fallback?, default?]
     this->search_dirs.clear();
@@ -284,6 +193,11 @@ void Skin::load() {
         this->skin_ini_path = Mc::Paths::materials() + "/default/skin.ini";
         convarValues.clear();
         parseSkinIni2Status = this->parseSkinINI(this->skin_ini_path, convarValues);
+    }
+    if(parseSkinIni1Status || parseSkinIni2Status) {
+        this->files_for_export.push_back({.dir = parseSkinIni1Status ? this->skin_dir : default_dir,
+                                          .path = this->skin_ini_path,
+                                          .name = "skin.ini"});
     }
 
     // the skin's convars replace the previous skin's as one change, so that what stays the same (all of them, for a
@@ -337,6 +251,16 @@ void Skin::load() {
     this->randomizeFilePath();
     this->createSkinImage(this->i_followpoint, "followpoint", vec2(16, 22), 64);
 
+    // (a digit that only the fallback skin's prefix has goes under the skin's own prefix in an export)
+    const auto loadFallbackPrefixDigit = [this](BasicSkinImage &ref, const std::string &fallbackPrefix,
+                                                const std::string &prefix, int i, const std::string &resName) {
+        const size_t recorded = this->files_for_export.size();
+        this->loadUnsizedImage(ref, fmt::format("{}-{}", fallbackPrefix, i), resName);
+        for(size_t f = recorded; f < this->files_for_export.size(); f++) {
+            this->files_for_export[f].name.replace(0, fallbackPrefix.size(), prefix);
+        }
+    };
+
     this->randomizeFilePath();
     {
         const std::string hitCirclePrefix = this->hitcircle_prefix.empty() ? "default" : this->hitcircle_prefix;
@@ -347,7 +271,7 @@ void Skin::load() {
             // try fallback skin's prefix if it differs from primary
             if(this->i_defaults[i].img == MISSING_TEXTURE && !fbHitCirclePrefix.empty() &&
                fbHitCirclePrefix != hitCirclePrefix)
-                this->loadUnsizedImage(this->i_defaults[i], fmt::format("{}-{}", fbHitCirclePrefix, i), resName);
+                loadFallbackPrefixDigit(this->i_defaults[i], fbHitCirclePrefix, hitCirclePrefix, i, resName);
             // special cases: fallback to default skin hitcircle numbers if the
             // defined prefix doesn't point to any valid files
             if(this->i_defaults[i].img == MISSING_TEXTURE)
@@ -364,7 +288,7 @@ void Skin::load() {
             this->loadUnsizedImage(this->i_scores[i], fmt::format("{}-{}", scorePrefix, i), resName);
             // try fallback skin's prefix if it differs from primary
             if(this->i_scores[i].img == MISSING_TEXTURE && !fbScorePrefix.empty() && fbScorePrefix != scorePrefix)
-                this->loadUnsizedImage(this->i_scores[i], fmt::format("{}-{}", fbScorePrefix, i), resName);
+                loadFallbackPrefixDigit(this->i_scores[i], fbScorePrefix, scorePrefix, i, resName);
             // fallback logic
             if(this->i_scores[i].img == MISSING_TEXTURE)
                 this->loadUnsizedImage(this->i_scores[i], fmt::format("score-{}", i), resName);
@@ -388,7 +312,7 @@ void Skin::load() {
             this->loadUnsizedImage(this->i_combos[i], fmt::format("{}-{}", comboPrefix, i), resName);
             // try fallback skin's prefix if it differs from primary
             if(this->i_combos[i].img == MISSING_TEXTURE && !fbComboPrefix.empty() && fbComboPrefix != comboPrefix)
-                this->loadUnsizedImage(this->i_combos[i], fmt::format("{}-{}", fbComboPrefix, i), resName);
+                loadFallbackPrefixDigit(this->i_combos[i], fbComboPrefix, comboPrefix, i, resName);
             // fallback logic
             if(this->i_combos[i].img == MISSING_TEXTURE)
                 this->loadUnsizedImage(this->i_combos[i], fmt::format("score-{}", i), resName);
@@ -529,7 +453,9 @@ void Skin::load() {
     {
         std::string origdir = this->search_dirs[0];
         this->search_dirs[0] = Mc::Paths::materials() + "/default/";
+        const size_t recorded = this->files_for_export.size();
         this->createSkinImage(this->i_menu_back2_DEFAULTSKIN, "menu-back", vec2(225, 87), 54);
+        this->files_for_export.resize(recorded);  // (not part of this skin)
         this->search_dirs[0] = std::move(origdir);
     }
     this->createSkinImage(this->i_menu_back2, "menu-back", vec2(225, 87), 54);
@@ -1050,7 +976,7 @@ Color Skin::getComboColorForCounter(int i, int offset) const {
 }
 
 void Skin::randomizeFilePath() {
-    if(this->o_random_elements && this->filepaths_for_random_skin.size() > 0)
+    if(this->hasRandomElements())
         this->search_dirs[0] = this->filepaths_for_random_skin[prand() % this->filepaths_for_random_skin.size()];
 }
 
@@ -1059,9 +985,7 @@ void Skin::createSkinImage(SkinImage &ref, const std::string &skinElementName, v
     assert(!ref.isReady());
 
     this->skin_images.push_back(&ref);
-    auto exportFiles =
-        ref.init(this, skinElementName, baseSizeForScaling2x, osuSize, animationSeparator, ignoreDefaultSkin);
-    Mc::ranges::append(this->filepaths_for_export, std::move(exportFiles));
+    ref.init(this, skinElementName, baseSizeForScaling2x, osuSize, animationSeparator, ignoreDefaultSkin);
 }
 
 void Skin::loadUnsizedImage(BasicSkinImage &ref, const std::string &skinElementName, const std::string &resourceName,
@@ -1077,6 +1001,7 @@ void Skin::loadUnsizedImage(BasicSkinImage &ref, const std::string &skinElementN
     const bool load_async = cv::skin_async.getBool();
 
     // forward iteration: first match wins
+    bool exported = false;
     for(size_t i = 0; i < n_dirs; i++) {
         const auto &dir = overrideDir.empty() ? this->search_dirs[i] : overrideDir;
 
@@ -1094,6 +1019,20 @@ void Skin::loadUnsizedImage(BasicSkinImage &ref, const std::string &skinElementN
         const bool exists_1x = Environment::fileExists(path_1x);
 
         if(!exists_2x && !exists_1x) continue;
+
+        // the first dir that has the image supplies it to an export, even if skin_hd makes it load from further down
+        // (what's always taken from the default skin isn't part of this one)
+        if(!exported && overrideDir.empty()) {
+            if(exists_2x) {
+                this->files_for_export.push_back(
+                    {.dir = dir, .path = path_2x, .name = fmt::format("{}@2x.{}", skinElementName, fileExtension)});
+            }
+            if(exists_1x) {
+                this->files_for_export.push_back(
+                    {.dir = dir, .path = path_1x, .name = fmt::format("{}.{}", skinElementName, fileExtension)});
+            }
+            exported = true;
+        }
 
         // only the built-in default dir (last entry for non-default skins) uses _DEFAULT naming;
         // primary and fallback dirs use unnamed resources tracked in this->resources.
@@ -1120,8 +1059,6 @@ void Skin::loadUnsizedImage(BasicSkinImage &ref, const std::string &skinElementN
         }
 
         if(loaded) {
-            if(exists_2x) this->filepaths_for_export.push_back(std::move(path_2x));
-            if(exists_1x) this->filepaths_for_export.push_back(std::move(path_1x));
             ref.is_default = is_cached_default;
 
             break;
@@ -1146,7 +1083,7 @@ void Skin::loadSound(Sound *&ref, const std::string &skinElementName, const std:
 
     // find first existing file with any supported audio extension
     auto find_sound_file = [](const std::string &dir, const std::string &name) -> std::string {
-        for(auto ext : {".wav", ".mp3", ".ogg", ".flac"}) {
+        for(const auto ext : SOUND_EXTENSIONS) {
             std::string path = dir;
             path.append(name);
             path.append(ext);
@@ -1162,6 +1099,9 @@ void Skin::loadSound(Sound *&ref, const std::string &skinElementName, const std:
 
         std::string path = find_sound_file(this->search_dirs[i], skinElementName);
         if(path.empty()) continue;
+        // (not the loaded sound's path: a rebuilt sound only takes on its new one once it has loaded)
+        this->files_for_export.push_back(
+            {.dir = this->search_dirs[i], .path = path, .name = skinElementName + path.substr(path.rfind('.'))});
 
         // only the built-in default dir (last entry for non-default skins) uses _DEFAULT naming.
         // compare against full search_dirs size, not n_dirs, since ignoreDefaultSkin truncates n_dirs
@@ -1204,7 +1144,6 @@ void Skin::loadSound(Sound *&ref, const std::string &skinElementName, const std:
         debugLog("Skin Warning: NULL sound {:s}!", skinElementName.c_str());
     } else {
         this->sounds.push_back(ref);
-        this->filepaths_for_export.push_back(ref->getFilePath());
     }
 
     return;

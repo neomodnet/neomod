@@ -55,6 +55,8 @@
 #include "RoomScreen.h"
 #include "Shader.h"
 #include "Skin.h"
+#include "SkinArchive.h"
+#include "MapExporter.h"
 #include "AsyncPPCalculator.h"
 #include "AsyncPool.h"
 #include "SongBrowser/VolNormalization.h"
@@ -266,6 +268,7 @@ Osu::Osu()
     // no callback for skin_fallback: it's read on-demand by onSkinChange.
     // to apply a new fallback, change skin or use skin_reload.
     cv::skin_reload.setCallback(SA::MakeDelegate<&Osu::onSkinReload>(this));
+    cv::skin_export.setCallback(SA::MakeDelegate<&Osu::exportSkin>(this));
     cv::skin_allow_convars.setCallback([](float oldValue, float newValue) -> void {
         if(oldValue == newValue) return;
 
@@ -514,6 +517,7 @@ Osu::~Osu() {
         cv::slider_use_gradient_image.removeAllCallbacks();
         cv::skin.removeAllCallbacks();
         cv::skin_reload.removeAllCallbacks();
+        cv::skin_export.removeAllCallbacks();
         cv::skin_allow_convars.removeAllCallbacks();
         cv::mod_mafham.removeAllCallbacks();
         cv::mod_fposu.removeAllCallbacks();
@@ -1860,6 +1864,32 @@ bool Osu::onShutdown() {
 void Osu::onSkinReload() {
     this->bSkinLoadWasReload = true;
     this->onSkinChange(cv::skin.getString());
+}
+
+void Osu::exportSkin(std::string_view name) {
+    // (a skin that's still loading has already found all of its files, and it's the one that got picked)
+    const Skin *skin = this->skinScheduledToLoad ? this->skinScheduledToLoad : this->skin.get();
+    if(!skin) return;
+
+    SkinArchive::submit_export(*skin, MapExporter::export_root() + "skins", std::string{name},
+                               cv::skin_export_include_default.getBool())
+        .then_on_main([](SkinArchive::ExportResult res) -> void {
+            if(!osu || !osu->UIReady()) return;
+            auto *notif = ui->getNotificationOverlay();
+            using enum SkinArchive::ExportResult::Status;
+            switch(res.status) {
+                case Exported:
+                    notif->addToast(tformat("Skin exported to {:s}", res.path), SUCCESS_TOAST,
+                                    [path = res.path] { env->openFileBrowser(path); });
+                    return;
+                case DefaultSkin:
+                    notif->addToast(_("Can't export the default skin."), ERROR_TOAST);
+                    return;
+                case Failed:
+                    notif->addToast(tformat("Couldn't export the skin to {:s}", res.path), ERROR_TOAST);
+                    return;
+            }
+        });
 }
 
 // resolve a skin name to its directory path

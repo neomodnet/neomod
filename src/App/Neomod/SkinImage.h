@@ -30,11 +30,9 @@ class SkinImage final {
     friend Skin;
     SkinImage();
 
-    // returns filepaths for export on first init
-    [[nodiscard]] std::vector<std::string> init(Skin* skin, const std::string& skinElementName,
-                                                vec2 baseSizeForScaling2x, f32 osuSize,
-                                                const std::string& animationSeparator = "-",
-                                                bool ignoreDefaultSkin = false);
+    // (adds the files it's made of to the skin's files_for_export)
+    void init(Skin* skin, const std::string& skinElementName, vec2 baseSizeForScaling2x, f32 osuSize,
+              const std::string& animationSeparator = "-", bool ignoreDefaultSkin = false);
 
     void destroy(bool everything = false);
 
@@ -93,9 +91,9 @@ class SkinImage final {
 
    private:
     bool load(Skin* skin, const std::string& skinElementName, const std::string& animationSeparator,
-              bool ignoreDefaultSkin, std::vector<std::string>& exportVec);
+              bool ignoreDefaultSkin);
     bool loadImage(Skin* skin, const std::string& skinElementName, bool ignoreDefaultSkin, bool animated,
-                   bool addToImages, std::vector<std::string>& exportVec);
+                   bool addToImages);
 
     [[nodiscard]] f32 getScale(bool animated = true) const;
     [[nodiscard]] f32 getImageScale(bool animated = true) const;

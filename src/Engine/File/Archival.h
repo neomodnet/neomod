@@ -126,6 +126,8 @@ class Archive {
     class Writer {
         NOCOPY_NOMOVE(Writer)
        public:
+        // hdrCharset: the charset entry names are stored in; if one of them can't be represented in it, the whole
+        // archive gets written with (flagged) UTF-8 names instead
         explicit Writer(std::string_view hdrCharset);
         explicit Writer(Format format = Format::ZIP, int compressionLevel = COMPRESSION_DEFAULT,
                         std::string_view hdrCharset = {});
@@ -160,7 +162,8 @@ class Archive {
         };
 
         bool configureArchive(struct archive* a);
-        bool writeEntries(struct archive* a, const Sync::stop_token& stopToken);
+        // ARCHIVE_OK, or what failed: a header that warns or fails usually has a name the requested charset can't hold
+        int writeEntries(struct archive* a, const Sync::stop_token& stopToken);
         bool addDirectoryRecursive(std::string_view diskDir, std::string_view archiveDir,
                                    const Sync::stop_token& stopToken);
 

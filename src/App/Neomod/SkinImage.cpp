@@ -45,18 +45,16 @@ struct SkinImage::SkinImageImpl {
 SkinImage::SkinImage() : m_impl() {}
 SkinImage::~SkinImage() { this->destroy(); }
 
-std::vector<std::string> SkinImage::init(Skin* skin, const std::string& skinElementName, vec2 baseSizeForScaling2x,
-                                         float osuSize, const std::string& animationSeparator, bool ignoreDefaultSkin) {
-    std::vector<std::string> toExport;
-
+void SkinImage::init(Skin* skin, const std::string& skinElementName, vec2 baseSizeForScaling2x, float osuSize,
+                     const std::string& animationSeparator, bool ignoreDefaultSkin) {
     m_impl->vBaseSizeForScaling2x = baseSizeForScaling2x;
     m_impl->fOsuSize = osuSize;
 
     // logic: first load user skin (true), and if no image could be found then load the default skin (false)
     // this is necessary so that all elements can be correctly overridden with a user skin (e.g. if the user skin only
     // has sliderb.png, but the default skin has sliderb0.png!)
-    if(!this->load(skin, skinElementName, animationSeparator, true, toExport)) {
-        if(!ignoreDefaultSkin) this->load(skin, skinElementName, animationSeparator, false, toExport);
+    if(!this->load(skin, skinElementName, animationSeparator, true)) {
+        if(!ignoreDefaultSkin) this->load(skin, skinElementName, animationSeparator, false);
     }
 
     if(m_impl->nonAnimatedImage.img != MISSING_TEXTURE) {
@@ -85,18 +83,16 @@ std::vector<std::string> SkinImage::init(Skin* skin, const std::string& skinElem
         m_impl->fFrameDuration = 1.0f / skin->anim_framerate;
     else if(m_impl->images.size() > 0)
         m_impl->fFrameDuration = 1.0f / (float)m_impl->images.size();
-
-    return toExport;
 }
 
 bool SkinImage::load(Skin* skin, const std::string& skinElementName, const std::string& animationSeparator,
-                     bool ignoreDefaultSkin, std::vector<std::string>& exportVec) {
+                     bool ignoreDefaultSkin) {
     std::string animatedSkinElementStartName = skinElementName;
     animatedSkinElementStartName.append(animationSeparator);
     animatedSkinElementStartName.append("0");
-    if(this->loadImage(skin, animatedSkinElementStartName, ignoreDefaultSkin, true, true,
-                       exportVec))  // try loading the first animated element (if this exists then we continue
-                                    // loading until the first missing frame)
+    if(this->loadImage(skin, animatedSkinElementStartName, ignoreDefaultSkin, true,
+                       true))  // try loading the first animated element (if this exists then we continue
+                               // loading until the first missing frame)
     {
         int frame = 1;
         while(true) {
@@ -104,7 +100,7 @@ bool SkinImage::load(Skin* skin, const std::string& skinElementName, const std::
             currentAnimatedSkinElementFrameName.append(animationSeparator);
             currentAnimatedSkinElementFrameName.append(std::to_string(frame));
 
-            if(!this->loadImage(skin, currentAnimatedSkinElementFrameName, ignoreDefaultSkin, true, true, exportVec))
+            if(!this->loadImage(skin, currentAnimatedSkinElementFrameName, ignoreDefaultSkin, true, true))
                 break;  // stop loading on the first missing frame
 
             frame++;
@@ -116,22 +112,23 @@ bool SkinImage::load(Skin* skin, const std::string& skinElementName, const std::
             }
         }
         // also try to load non-animated skin element, but don't add it to images
-        this->loadImage(skin, skinElementName, ignoreDefaultSkin, false, false, exportVec);
+        this->loadImage(skin, skinElementName, ignoreDefaultSkin, false, false);
     } else {
         // load non-animated skin element
-        this->loadImage(skin, skinElementName, ignoreDefaultSkin, false, true, exportVec);
+        this->loadImage(skin, skinElementName, ignoreDefaultSkin, false, true);
     }
 
     return m_impl->images.size() > 0;  // if any image was found
 }
 
 bool SkinImage::loadImage(Skin* skin, const std::string& skinElementName, bool ignoreDefaultSkin, bool animated,
-                          bool addToImages, std::vector<std::string>& exportVec) {
+                          bool addToImages) {
     const size_t n_dirs = ignoreDefaultSkin ? 1 : skin->search_dirs.size();
     const bool mipmapped = cv::skin_mipmaps.getBool();
     const bool tryHD = cv::skin_hd.getBool();
     const bool async = cv::skin_async.getBool();
 
+    bool exported = false;
     for(size_t i = 0; i < n_dirs; i++) {
         const auto& dir = skin->search_dirs[i];
 
@@ -149,6 +146,17 @@ bool SkinImage::loadImage(Skin* skin, const std::string& skinElementName, bool i
 
         if(!exists_2x && !exists_1x) continue;
 
+        // the first dir that has the image supplies it to an export, even if skin_hd makes it load from further down
+        if(!exported) {
+            if(exists_2x) {
+                skin->files_for_export.push_back({.dir = dir, .path = path_2x, .name = skinElementName + "@2x.png"});
+            }
+            if(exists_1x) {
+                skin->files_for_export.push_back({.dir = dir, .path = path_1x, .name = skinElementName + ".png"});
+            }
+            exported = true;
+        }
+
         // only the built-in default dir (last entry in the full search_dirs) counts as "from default"
         // compare against full size, not n_dirs, since ignoreDefaultSkin truncates the search
         if(!skin->is_default && i == skin->search_dirs.size() - 1) m_impl->bIsFromDefaultSkin = true;
@@ -163,12 +171,7 @@ bool SkinImage::loadImage(Skin* skin, const std::string& skinElementName, bool i
             image.scale = 2.0f;
 
             if(!animated) m_impl->nonAnimatedImage = image;
-
-            if(addToImages) {
-                m_impl->images.push_back(image);
-                exportVec.push_back(path_2x);
-                if(exists_1x) exportVec.push_back(path_1x);
-            }
+            if(addToImages) m_impl->images.push_back(image);
             return true;
         }
 
@@ -182,12 +185,7 @@ bool SkinImage::loadImage(Skin* skin, const std::string& skinElementName, bool i
             image.scale = 1.0f;
 
             if(!animated) m_impl->nonAnimatedImage = image;
-
-            if(addToImages) {
-                m_impl->images.push_back(image);
-                exportVec.push_back(path_1x);
-                if(exists_2x) exportVec.push_back(path_2x);
-            }
+            if(addToImages) m_impl->images.push_back(image);
             return true;
         }
     }

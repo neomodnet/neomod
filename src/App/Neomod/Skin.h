@@ -7,6 +7,8 @@
 #include "SkinImage.h"
 
 #include <array>
+#include <string>
+#include <string_view>
 #include <vector>
 
 class Image;
@@ -88,7 +90,8 @@ struct Skin final {
     void load();
 
    public:
-    static bool unpack(std::string_view filepath);
+    // the audio formats a sound element can come in, in the order they're looked for
+    static constexpr std::array<std::string_view, 4> SOUND_EXTENSIONS{".wav", ".mp3", ".ogg", ".flac"};
 
     Skin(std::string name, std::string filepath, std::string fallbackDir = "");
     inline ~Skin() { this->destroy(); }
@@ -124,6 +127,10 @@ struct Skin final {
     [[nodiscard]] const SkinImage &getGradeImageSmall(ScoreGrade grade) const;
 
     [[nodiscard]] inline bool useSmoothCursorTrail() const { return this->i_cursor_middle.img != MISSING_TEXTURE; }
+    // whether the elements come from random skins (skin_random_elements) instead of the skin's own folder
+    [[nodiscard]] inline bool hasRandomElements() const {
+        return this->o_random_elements && !this->filepaths_for_random_skin.empty();
+    }
 
     std::string name;           // the skin name by itself
     std::string skin_dir;       // fully qualified skin directory (e.g. /path/to/skins_directory/<name>/)
@@ -430,7 +437,14 @@ struct Skin final {
 
     // custom
     std::vector<std::string> filepaths_for_random_skin;
-    std::vector<std::string> filepaths_for_export;
+    // the files the elements (and skin.ini) were found in: all variants of an image, from the first search dir that has
+    // it. name is what a file is called in a skin that has everything in its own folder
+    struct ExportFile {
+        std::string dir;  // the search dir it's in
+        std::string path;
+        std::string name;
+    };
+    std::vector<ExportFile> files_for_export;
 
     std::string combo_prefix;
     std::string score_prefix;
@@ -468,5 +482,5 @@ struct Skin final {
     bool o_random_elements;
 
     bool is_ready{false};
-    bool is_default;
+    bool is_default{false};
 };

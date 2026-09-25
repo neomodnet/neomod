@@ -178,6 +178,7 @@ neomod_SOURCES = \
 	src/App/Neomod/SettingsImporter.cpp \
 	src/App/Neomod/SimulatedBeatmapInterface.cpp \
 	src/App/Neomod/Skin.cpp \
+	src/App/Neomod/SkinArchive.cpp \
 	src/App/Neomod/SkinImage.cpp \
 	src/App/Neomod/SliderCurves.cpp \
 	src/App/Neomod/SliderRenderer.cpp \

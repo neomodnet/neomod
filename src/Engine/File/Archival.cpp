@@ -1,9 +1,11 @@
 #include "Archival.h"
 
+#include "BaseEnvironment.h"
 #include "Environment.h"
 #include "File.h"
 #include "Logging.h"
 #include "SString.h"
+#include "UniString.h"
 #include "ConVar.h"
 #include "Thread.h"
 #include "ContainerRanges.h"
@@ -444,7 +446,8 @@ bool Archive::Writer::addFile(std::string_view diskPath, std::string_view archiv
     }
 
     File file(diskPath, File::MODE::READ);
-    if(!file.canRead()) {
+    // (an empty file opens with nothing to read, and gets added all the same)
+    if(!file.canRead() && (type != File::FILETYPE::FILE || file.getFileSize() != 0)) {
         logIfCV(debug_file, "failed to open file for reading: {:s}", diskPath);
         return false;
     }
@@ -691,7 +694,7 @@ bool Archive::Writer::configureArchive(struct archive* a) {
     return true;
 }
 
-bool Archive::Writer::writeEntries(struct archive* a, const Sync::stop_token& stopToken) {
+int Archive::Writer::writeEntries(struct archive* a, const Sync::stop_token& stopToken) {
     time_t now = std::time(nullptr);
     // libarchive has no native way to asynchronously cancel an operation, so write in chunks
     // so that we have a chance to do so
@@ -701,16 +704,21 @@ bool Archive::Writer::writeEntries(struct archive* a, const Sync::stop_token& st
         if(stopToken.stop_requested()) {
             logIfCV(debug_file, "write interrupted before entry '{:s}'", pending.archivePath.c_str());
             archive_write_fail(a);
-            return false;
+            return ARCHIVE_FATAL;
         }
 
         struct archive_entry* entry = archive_entry_new();
         if(!entry) {
             logIfCV(debug_file, "failed to create archive entry");
-            return false;
+            return ARCHIVE_FATAL;
         }
 
-        archive_entry_set_pathname_utf8(entry, pending.archivePath.c_str());
+        // (on windows, only a wide name gets converted to the header charset directly, not through the ansi code page)
+        if constexpr(Env::cfg(OS::WINDOWS)) {
+            archive_entry_copy_pathname_w(entry, UniString::to_wide(pending.archivePath).c_str());
+        } else {
+            archive_entry_set_pathname_utf8(entry, pending.archivePath.c_str());
+        }
         archive_entry_set_mtime(entry, now, 0);
 
         if(pending.isDirectory) {
@@ -728,7 +736,7 @@ bool Archive::Writer::writeEntries(struct archive* a, const Sync::stop_token& st
             logIfCV(debug_file, "failed to write header for '{:s}': {:s}", pending.archivePath.c_str(),
                     archive_error_string(a));
             archive_entry_free(entry);
-            return false;
+            return r;
         }
 
         if(!pending.isDirectory && !pending.data.empty()) {
@@ -740,7 +748,7 @@ bool Archive::Writer::writeEntries(struct archive* a, const Sync::stop_token& st
                     logIfCV(debug_file, "write interrupted during '{:s}'", pending.archivePath.c_str());
                     archive_entry_free(entry);
                     archive_write_fail(a);
-                    return false;
+                    return ARCHIVE_FATAL;
                 }
 
                 size_t toWrite = std::min(remaining, CHUNK_SIZE);
@@ -749,7 +757,7 @@ bool Archive::Writer::writeEntries(struct archive* a, const Sync::stop_token& st
                     logIfCV(debug_file, "failed to write data for '{:s}': {:s}", pending.archivePath.c_str(),
                             archive_error_string(a));
                     archive_entry_free(entry);
-                    return false;
+                    return ARCHIVE_FATAL;
                 }
                 ptr += written;
                 remaining -= static_cast<size_t>(written);
@@ -759,7 +767,7 @@ bool Archive::Writer::writeEntries(struct archive* a, const Sync::stop_token& st
         archive_entry_free(entry);
     }
 
-    return true;
+    return ARCHIVE_OK;
 }
 
 bool Archive::Writer::writeToFile(std::string outputPath, bool appendExtension, const Sync::stop_token& stopToken) {
@@ -790,7 +798,8 @@ bool Archive::Writer::writeToFile(std::string outputPath, bool appendExtension, 
         return false;
     }
 
-    bool success = writeEntries(a, stopToken);
+    const int written = writeEntries(a, stopToken);
+    bool success = written == ARCHIVE_OK;
 
     r = archive_write_close(a);
     if(r != ARCHIVE_OK) {
@@ -799,6 +808,12 @@ bool Archive::Writer::writeToFile(std::string outputPath, bool appendExtension, 
     }
 
     archive_write_free(a);
+
+    // a name the requested charset can't represent: write everything again with UTF-8 names
+    if((written == ARCHIVE_WARN || written == ARCHIVE_FAILED) && this->sHdrCharset != "UTF-8") {
+        this->sHdrCharset = "UTF-8";
+        return writeToFile(std::move(outputPath), false, stopToken);
+    }
     return success;
 }
 
@@ -844,8 +859,13 @@ std::vector<u8> Archive::Writer::writeToMemory(const Sync::stop_token& stopToken
         return {};
     }
 
-    if(!writeEntries(a, stopToken)) {
+    if(const int written = writeEntries(a, stopToken); written != ARCHIVE_OK) {
         archive_write_free(a);
+        // (see writeToFile)
+        if((written == ARCHIVE_WARN || written == ARCHIVE_FAILED) && this->sHdrCharset != "UTF-8") {
+            this->sHdrCharset = "UTF-8";
+            return writeToMemory(stopToken);
+        }
         return {};
     }
 

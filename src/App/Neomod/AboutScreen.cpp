@@ -403,6 +403,7 @@ void AboutScreen::buildChangelog() {
         R"(- Added a preview panel to online beatmaps screen)",
         R"(- Added audio previews to online beatmaps screen)",
         R"(  - NOTE: You can disable them by setting "direct_autoplay_preview 0" if you really want to)",
+        R"(- Added skin exporting ("Export Skin" in the skin options, or "skin_export" in the console))",
         R"(- Exposed "direct_autoselect" behavior as a checkbox)",
         R"(- Fixed startup crashing in some cases)",
         R"(- Allowed force disabling skins from setting convars)",
