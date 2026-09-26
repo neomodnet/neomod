@@ -236,8 +236,9 @@ def run_one(name, binary, bindir, datadir, record):
         fixture_dirs.append(maps_set(datadir, folder, int(set_id), int(n_diffs)))
     extra_args = [a for spec in directives.get("args", []) for a in shlex.split(spec)]
 
+    # -multi: without it, an already running instance takes the run (this one forwards its argv and exits)
     proc = subprocess.run(
-        [f"./{binary.name}", "-headless", "-datadir", str(datadir), *extra_args],
+        [f"./{binary.name}", "-headless", "-multi", "-datadir", str(datadir), *extra_args],
         cwd=bindir,
         input="ui_validate_ticks 1\n" + text,
         stdout=subprocess.PIPE,
