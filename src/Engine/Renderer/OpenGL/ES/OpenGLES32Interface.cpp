@@ -219,9 +219,6 @@ void OpenGLES32Interface::beginScene() {
     // glClearColor(0.9568f, 0.9686f, 0.9882f, 1);
     glClearColor(0, 0, 0, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-    // display any errors of previous frames
-    handleGLErrors();
 }
 
 void OpenGLES32Interface::endScene() {
@@ -805,12 +802,6 @@ VertexArrayObject *OpenGLES32Interface::createVertexArrayObject(DrawPrimitive pr
 void OpenGLES32Interface::onTransformUpdate() {
     // update all registered shaders, including the default one
     updateAllShaderTransforms();
-}
-
-void OpenGLES32Interface::handleGLErrors() {
-    // int error = glGetError();
-    // if (error != 0)
-    // 	debugLog("OpenGL Error: {} on frame {}\n", error, engine->getFrameCount());
 }
 
 void OpenGLES32Interface::registerShader(OpenGLES32Shader *shader) {

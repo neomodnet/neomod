@@ -145,6 +145,9 @@ void SDLGLInterface::beginScene() {
 }
 
 void SDLGLInterface::endScene() {
+    // log gl errors from the previous frame
+    this->handleGLErrors();
+
     SDL_GL_SwapWindow(this->window);
 
     // create sync obj for the gl commands this frame (if enabled)
@@ -154,6 +157,13 @@ void SDLGLInterface::endScene() {
     // last possible moment before acting on new user input for the next frame
     if(cv::r_gl_block_immediate.getBool()) {
         this->syncobj->begin();
+    }
+}
+
+void SDLGLInterface::handleGLErrors() {
+    if constexpr(Env::cfg(BUILD::DEBUG)) {
+        if(const auto error = glGetError(); error != 0)
+            debugLog("OpenGL Error: {} on frame {}", error, engine->getFrameCount());
     }
 }
 
@@ -249,25 +259,35 @@ std::string_view SDLGLInterface::getVersion() {
 }
 
 int SDLGLInterface::getVRAMTotal() {
-    static GLint totalMem[4]{-1, -1, -1, -1};
+    static bool unsupported = false;
+    static GLint totalMem[4]{};
 
-    if(totalMem[0] == -1) {
+    if(!unsupported && totalMem[0] == 0) {
         glGetIntegerv(GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX, totalMem);
-        if(!(totalMem[0] > 0 && glGetError() != GL_INVALID_ENUM)) totalMem[0] = 0;
+        if(glGetError() == GL_INVALID_ENUM) unsupported = true;
     }
     return totalMem[0];
 }
 
 int SDLGLInterface::getVRAMRemaining() {
-    GLint nvidiaMemory[4]{-1, -1, -1, -1};
-    GLint atiMemory[4]{-1, -1, -1, -1};
+    static bool unsupportedNVIDIA = false;
+    static bool unsupportedATI = false;
 
-    glGetIntegerv(GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX, nvidiaMemory);
+    if(!unsupportedNVIDIA) {
+        GLint nvidiaMemory[4]{-1, -1, -1, -1};
+        glGetIntegerv(GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX, nvidiaMemory);
+        if(nvidiaMemory[0] > 0) return nvidiaMemory[0];
+        if(glGetError() == GL_INVALID_ENUM) unsupportedNVIDIA = true;
+    }
 
-    if(nvidiaMemory[0] > 0) return nvidiaMemory[0];
+    if(!unsupportedATI) {
+        GLint atiMemory[4]{-1, -1, -1, -1};
+        glGetIntegerv(TEXTURE_FREE_MEMORY_ATI, atiMemory);
+        if(atiMemory[0] > 0) return atiMemory[0];
+        if(glGetError() == GL_INVALID_ENUM) unsupportedATI = true;
+    }
 
-    glGetIntegerv(TEXTURE_FREE_MEMORY_ATI, atiMemory);
-    return atiMemory[0];
+    return 0;
 }
 
 std::unordered_map<DrawPrimitive, int> SDLGLInterface::primitiveToOpenGLMap = {

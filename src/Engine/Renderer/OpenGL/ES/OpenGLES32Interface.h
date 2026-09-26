@@ -107,8 +107,6 @@ class OpenGLES32Interface final : public SDLGLInterface {
     void setTexturing(bool /*enabled*/, bool /*force*/) override { /*unused here*/ }
 
    private:
-    void handleGLErrors();
-
     void registerShader(OpenGLES32Shader *shader);
     void unregisterShader(OpenGLES32Shader *shader);
     void updateAllShaderTransforms();

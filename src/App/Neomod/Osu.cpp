@@ -1375,18 +1375,21 @@ void Osu::saveScreenshot() {
         Async::submit(
             [graphicsRes = g->getResolution(), internalRes, pixels = std::move(pixelData)]() -> SaveResult {
                 SaveResult ret;
-                if(!Environment::directoryExists(Mc::Paths::screenshots()) &&
-                   !Environment::createDirectory(Mc::Paths::screenshots())) {
-                    ret.error = "Error: Couldn't create screenshots folder.";
-                    return ret;
+                // the web version only keeps the encoded image, the player can't reach files in its filesystem
+                if constexpr(!Env::cfg(OS::WASM)) {
+                    if(!Environment::directoryExists(Mc::Paths::screenshots()) &&
+                       !Environment::createDirectory(Mc::Paths::screenshots())) {
+                        ret.error = "Error: Couldn't create screenshots folder.";
+                        return ret;
+                    }
+
+                    do {
+                        ret.savePath =
+                            fmt::format("{}/screenshot{}.png", Mc::Paths::screenshots(), screenshotNumber.fetch_add(1));
+                    } while(Environment::fileExists(ret.savePath));
                 }
 
                 ret.error = "Error: Couldn't grab a screenshot :(";  // default error
-
-                do {
-                    ret.savePath =
-                        fmt::format("{}/screenshot{}.png", Mc::Paths::screenshots(), screenshotNumber.fetch_add(1));
-                } while(Environment::fileExists(ret.savePath));
 
                 const f32 outerWidth = graphicsRes.x;
                 const f32 outerHeight = graphicsRes.y;
@@ -1434,18 +1437,20 @@ void Osu::saveScreenshot() {
                 auto pngData = Image::encodeToPNG(finalPixels, finalWidth, finalHeight, screenshotChannels);
                 if(pngData.empty()) return ret;
 
-                // write to file
-                debugLog("Saving image to {:s} ...", ret.savePath);
-                FILE *fp = File::fopen_c(ret.savePath.c_str(), "wb");
-                if(!fp) {
-                    ret.error = fmt::format("Screenshot error: Could not open file {:s} for writing", ret.savePath);
-                    return ret;
-                }
-                const bool ok = fwrite(pngData.data(), 1, pngData.size(), fp) == pngData.size();
-                fclose(fp);
-                if(!ok) {
-                    ret.error = fmt::format("Screenshot error: Failed to write to {:s}", ret.savePath);
-                    return ret;
+                if constexpr(!Env::cfg(OS::WASM)) {
+                    // write to file
+                    debugLog("Saving image to {:s} ...", ret.savePath);
+                    FILE *fp = File::fopen_c(ret.savePath.c_str(), "wb");
+                    if(!fp) {
+                        ret.error = fmt::format("Screenshot error: Could not open file {:s} for writing", ret.savePath);
+                        return ret;
+                    }
+                    const bool ok = fwrite(pngData.data(), 1, pngData.size(), fp) == pngData.size();
+                    fclose(fp);
+                    if(!ok) {
+                        ret.error = fmt::format("Screenshot error: Failed to write to {:s}", ret.savePath);
+                        return ret;
+                    }
                 }
                 ret.pngData = std::move(pngData);
                 return ret;
@@ -1457,6 +1462,16 @@ void Osu::saveScreenshot() {
                 auto *notif = ui->getNotificationOverlay();
                 if(pngData.empty()) {
                     notif->addNotification(std::move(error), 0xffff0000, false, 3.0f);
+                } else if constexpr(Env::cfg(OS::WASM)) {
+                    const bool copied = cv::screenshot_clipboard.getBool() && env->setClipBoardImage(pngData);
+                    // can't add a toast from inside a toast callback (the overlay holds its lock), so just log
+                    notif->addToast(copied ? _("Screenshot copied to clipboard (click to open in a new tab)")
+                                           : _("Screenshot taken (click to open in a new tab)"),
+                                    CHAT_TOAST, [png = std::move(pngData)] {
+                                        if(!env->openDataInDefaultBrowser(png, "image/png")) {
+                                            debugLog("couldn't open the screenshot in a new tab");
+                                        }
+                                    });
                 } else {
                     std::string toastString;
                     // put it in the clipboard as well

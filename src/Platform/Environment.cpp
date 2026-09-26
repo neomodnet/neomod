@@ -67,6 +67,7 @@
 #endif
 #elif defined(__EMSCRIPTEN__)
 // TODO (?)
+#include <emscripten/em_js.h>
 #endif
 
 #include <SDL3/SDL.h>
@@ -313,6 +314,28 @@ void Environment::openURLInDefaultBrowser(std::string_view url, bool /*preventFo
     if(!SDL_OpenURL(std::string{url}.c_str())) {
         debugLog("Failed to open URL: {:s}", SDL_GetError());
     }
+}
+
+#ifdef MCENGINE_PLATFORM_WASM
+// the object URL is never revoked, the new tab needs it for saving or reloading and it dies with this page anyways.
+// the slice copies out of the wasm heap, since Blob doesn't take views into a SharedArrayBuffer
+// clang-format off
+EM_JS(int, js_open_data_in_new_tab, (const void *data, size_t size, const char *mime, size_t mimeLen), {
+    var url = URL.createObjectURL(new Blob([HEAPU8.slice(data, data + size)], {type: UTF8ToString(mime, mimeLen)}));
+    if(window.open(url, "_blank")) return 1;
+    URL.revokeObjectURL(url);
+    return 0;
+});
+// clang-format on
+#endif
+
+bool Environment::openDataInDefaultBrowser([[maybe_unused]] std::span<const u8> data,
+                                           [[maybe_unused]] std::string_view mimeType) noexcept {
+#ifdef MCENGINE_PLATFORM_WASM
+    return js_open_data_in_new_tab(data.data(), data.size(), mimeType.data(), mimeType.size());
+#else
+    return false;
+#endif
 }
 
 std::string_view Environment::getUsername() const noexcept {

@@ -1917,7 +1917,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
                       _("Crop screenshots to the letterbox resolution,\nif letterboxing is enabled."),
                       &cv::crop_screenshots);
 
-    // in WASM, copying screenshots to the clipboard is the only way to access screenshots
+    // in WASM, screenshots aren't saved anywhere, the clipboard (and the screenshot toast) is how players get them
     if constexpr(!Env::cfg(OS::WASM)) {
         this->addCheckbox(_("Copy Screenshots to Clipboard"),
                           _("If screenshots should be copied to the system clipboard\nalong with saving them to the "

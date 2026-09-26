@@ -147,6 +147,9 @@ class Environment {
     static bool unsetEnvVariable(std::string_view varToUnset) noexcept;
 
     void openURLInDefaultBrowser(std::string_view url, bool preventFocusSteal = false) noexcept;
+    // opens in-memory file contents in a new browser tab, for platforms whose files the user can't reach (WASM)
+    // returns false if unsupported or blocked by the browser
+    bool openDataInDefaultBrowser(std::span<const u8> data, std::string_view mimeType) noexcept;
 
     // user
     [[nodiscard]] std::string_view getUsername() const noexcept;

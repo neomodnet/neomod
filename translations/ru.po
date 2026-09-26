@@ -2965,6 +2965,14 @@ msgid "Error: Couldn't grab a screenshot :("
 msgstr "Ошибка: Не удалось найти ни одного скина"
 
 #: src/App/Neomod/Osu.cpp
+msgid "Screenshot copied to clipboard (click to open in a new tab)"
+msgstr ""
+
+#: src/App/Neomod/Osu.cpp
+msgid "Screenshot taken (click to open in a new tab)"
+msgstr ""
+
+#: src/App/Neomod/Osu.cpp
 #, c++-format
 msgid "Screenshot copied to clipboard and saved to {:s}"
 msgstr ""

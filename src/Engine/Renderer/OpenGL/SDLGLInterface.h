@@ -95,6 +95,9 @@ class SDLGLInterface : public GLGraphicsBackend {
     static void unload();
     static void dumpGLContextInfo();
 
+    // drain gl error queue at the end of each frame
+    void handleGLErrors();
+
     SDL_Window *window;
 
     GLuint transparentTexture{0};
