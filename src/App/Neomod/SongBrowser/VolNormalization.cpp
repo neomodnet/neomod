@@ -258,8 +258,7 @@ struct PriorityWorker {
     PriorityWorker() : thr([this](const Sync::stop_token &stoken) { return this->run(stoken); }) {}
 
     // members are destroyed in reverse declaration order: thr first, whose destructor calls
-    // request_stop() + join(). stoppable_condvar's wait wakes natively on stop_request via the
-    // nsync stop_note, so no manual notify is needed.
+    // request_stop() + join(). the stop request wakes the stop_token wait, so no manual notify is needed.
     ~PriorityWorker() = default;
 
     void enqueue(DatabaseBeatmap *map) {
@@ -285,7 +284,7 @@ struct PriorityWorker {
 
    private:
     Sync::mutex mtx;
-    Sync::stoppable_condvar cv;
+    Sync::condition_variable_any cv;
     std::deque<DatabaseBeatmap *> queue;
     Hash::flat::set<DatabaseBeatmap *> queued;  // dedup against in-flight queue contents
     // (the owners of requested maps call drop_pending() before freeing them, so a map is only known to be alive while

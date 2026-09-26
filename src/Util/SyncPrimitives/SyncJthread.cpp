@@ -37,7 +37,10 @@ void sdl_jthread::join() {
     m_thread = nullptr;
 }
 
-void sdl_jthread::detach() { SDL_DetachThread(m_thread); }
+void sdl_jthread::detach() {
+    SDL_DetachThread(m_thread);
+    m_thread = nullptr;
+}
 
 sdl_jthread::id sdl_jthread::get_id() const noexcept { return SDL_GetThreadID(m_thread); }
 

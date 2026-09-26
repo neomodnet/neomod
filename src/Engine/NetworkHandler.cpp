@@ -145,6 +145,12 @@ struct NetworkImpl {
     NOCOPY_NOMOVE(NetworkImpl)
 
    public:
+    // a caller blocked in httpRequestSynchronous(), woken once its response is handed over
+    struct SyncWaiter {
+        Sync::condition_variable cv;
+        std::optional<Response> response;  // guarded by sync_requests_mutex
+    };
+
     // internal request structure
     struct Request {
         std::string url;
@@ -161,8 +167,7 @@ struct NetworkImpl {
         std::shared_ptr<WSInstance> websocket;
 
         // for sync requests
-        bool is_sync{false};
-        void* sync_id{nullptr};
+        SyncWaiter* sync_waiter{nullptr};
 
         // registered on the network thread for cancellable requests; wakes the poll when
         // cancellation is requested. the Request's address is stable (owned via unique_ptr),
@@ -255,10 +260,8 @@ struct NetworkImpl {
     Sync::mutex completed_requests_mutex;
     std::vector<CompletedRequest> completed_requests;
 
-    // sync request support
+    // guards SyncWaiter::response
     Sync::mutex sync_requests_mutex;
-    std::unordered_map<void*, Sync::condition_variable*> sync_request_cvs;
-    std::unordered_map<void*, Response> sync_responses;
 
     // curl_multi implementation
     CURLM* multi_handle{nullptr};
@@ -276,6 +279,7 @@ struct NetworkImpl {
     void processNewRequests();
     void processCancelledRequests();
     void processCompletedRequests();
+    void deliverResponse(Request& request);
     void websocketSend();
 
     static uSz headerCallback(char* buffer, uSz size, uSz nitems, void* userdata);
@@ -343,16 +347,13 @@ void NetworkImpl::processNewRequests() {
 
         // cancelled before it even started: don't open a connection, don't run the callback.
         // sync requests block their caller and ignore cancellation, so never drop one here (it would
-        // strand the waiting caller, who only wakes once a response lands in sync_responses).
-        if(!request->is_sync && request->options.cancel_token.stop_requested()) continue;
+        // strand the waiting caller, who only wakes once its response is delivered).
+        if(!request->sync_waiter && request->options.cancel_token.stop_requested()) continue;
 
         request->easy_handle.reset(curl_easy_init());
         if(!request->easy_handle) {
             request->response.success = false;
-            if(request->callback) {  // if there's no callback, don't put it in completed_requests
-                Sync::scoped_lock completed_lock{this->completed_requests_mutex};
-                this->completed_requests.emplace_back(std::move(request->callback), std::move(request->response));
-            }
+            deliverResponse(*request);
             continue;
         }
 
@@ -364,17 +365,14 @@ void NetworkImpl::processNewRequests() {
 
         // arm prompt cancellation. websockets manage their own teardown (shared_ptr + status), and
         // sync requests block their caller (cancelling would strand it), so neither registers a waker.
-        if(!request->websocket && !request->is_sync && request->options.cancel_token.stop_possible()) {
+        if(!request->websocket && !request->sync_waiter && request->options.cancel_token.stop_possible()) {
             request->cancel_waker.emplace(request->options.cancel_token, CurlMultiWaker{this->multi_handle});
         }
 
         CURLMcode mres = curl_multi_add_handle(this->multi_handle, request->easy_handle);
         if(mres != CURLM_OK) {
             request->response.success = false;
-            if(request->callback) {
-                Sync::scoped_lock completed_lock{this->completed_requests_mutex};
-                this->completed_requests.emplace_back(std::move(request->callback), std::move(request->response));
-            }
+            deliverResponse(*request);
             continue;
         }
 
@@ -387,7 +385,7 @@ void NetworkImpl::processNewRequests() {
 void NetworkImpl::processCancelledRequests() {
     for(auto it = this->active_requests.begin(); it != this->active_requests.end();) {
         auto& request = it->second;
-        if(!request->is_sync && request->options.cancel_token.stop_requested()) {
+        if(!request->sync_waiter && request->options.cancel_token.stop_requested()) {
             curl_multi_remove_handle(this->multi_handle, it->first);
             it = this->active_requests.erase(it);  // ~Request cleans up the easy handle and unregisters the waker
         } else {
@@ -431,22 +429,25 @@ void NetworkImpl::processCompletedRequests() {
             } else {
                 request->websocket->status.store(WSStatus::DISCONNECTED, std::memory_order_relaxed);
             }
-        } else if(request->is_sync) {
-            // handle sync request immediately
-            Sync::scoped_lock sync_lock{this->sync_requests_mutex};
-            this->sync_responses[request->sync_id] = request->response;
-            auto cv_it = this->sync_request_cvs.find(request->sync_id);
-            if(cv_it != this->sync_request_cvs.end()) {
-                cv_it->second->notify_one();
-            }
-        } else if(request->callback) {
-            // a cancel may have raced the natural completion: drop without delivering
-            if(request->options.cancel_token.stop_requested()) continue;
-            // defer async callback execution
-            Sync::scoped_lock completed_lock{this->completed_requests_mutex};
-            this->completed_requests.emplace_back(std::move(request->callback), std::move(request->response),
-                                                  request->options.cancel_token);
+        } else {
+            deliverResponse(*request);
         }
+    }
+}
+
+// hands a finished (or failed to start) request's response to its blocked caller, or queues its callback
+void NetworkImpl::deliverResponse(Request& request) {
+    if(request.sync_waiter) {
+        Sync::scoped_lock sync_lock{this->sync_requests_mutex};
+        request.sync_waiter->response = std::move(request.response);
+        request.sync_waiter->cv.notify_one();
+    } else if(request.callback) {
+        // a cancel may have raced the natural completion: drop without delivering
+        if(request.options.cancel_token.stop_requested()) return;
+        // defer async callback execution
+        Sync::scoped_lock completed_lock{this->completed_requests_mutex};
+        this->completed_requests.emplace_back(std::move(request.callback), std::move(request.response),
+                                              request.options.cancel_token);
     }
 }
 
@@ -815,22 +816,11 @@ Response NetworkImpl::httpRequestSynchronous(std::string_view url, RequestOption
     std::string urlWithScheme =
         schemePrepended ? std::string{url} : fmt::format("{}{}", cv::use_https.getBool() ? "https://" : "http://", url);
 
-    Response result;
-    Sync::condition_variable cv;
-    Sync::mutex cv_mutex;
-
-    void* sync_id = &cv;
-
-    // register sync request
-    {
-        Sync::scoped_lock lock{this->sync_requests_mutex};
-        this->sync_request_cvs[sync_id] = &cv;
-    }
+    SyncWaiter waiter;
 
     // create sync request
     auto request = std::make_unique<Request>(std::move(urlWithScheme), std::move(options));
-    request->is_sync = true;
-    request->sync_id = sync_id;
+    request->sync_waiter = &waiter;
 
     // submit request
     {
@@ -840,21 +830,9 @@ Response NetworkImpl::httpRequestSynchronous(std::string_view url, RequestOption
     curl_multi_wakeup(this->multi_handle);
 
     // wait for completion
-    Sync::unique_lock lock{cv_mutex};
-    cv.wait(lock, [&] {
-        Sync::scoped_lock sync_lock{this->sync_requests_mutex};
-        return this->sync_responses.find(sync_id) != this->sync_responses.end();
-    });
-
-    // get result and cleanup
-    {
-        Sync::scoped_lock sync_lock{this->sync_requests_mutex};
-        result = this->sync_responses[sync_id];
-        this->sync_responses.erase(sync_id);
-        this->sync_request_cvs.erase(sync_id);
-    }
-
-    return result;
+    Sync::unique_lock lock{this->sync_requests_mutex};
+    waiter.cv.wait(lock, [&] { return waiter.response.has_value(); });
+    return std::move(*waiter.response);
 }
 
 void NetworkImpl::setIPCSocket(int fd, IPCCallback callback) {

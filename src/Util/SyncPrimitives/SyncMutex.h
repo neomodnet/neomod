@@ -6,8 +6,8 @@
 
 #ifdef USE_NSYNC
 #include "nsync_mu.h"
-#include "nsync_mu_wait.h"
 
+#include <atomic>
 #include <thread>
 #include <cassert>
 
@@ -371,23 +371,13 @@ class scoped_lock<> {
 
 // ===================================================================
 // nsync_recursive_mutex_t: recursive mutex using nsync primitives
-// WARNING: this is not expected/tested to work correctly with condition variables (yet)
 // ===================================================================
 class nsync_recursive_mutex_t {
    private:
-    nsync_mu m_mutex{};
-    std::thread::id m_owner;
-    int m_count = 0;
-
-    struct condition_arg {
-        const nsync_recursive_mutex_t* self{nullptr};
-        std::thread::id requester;
-    };
-
-    static int is_available_or_owned_by_requester(const void* arg) {
-        const auto* carg = static_cast<const condition_arg*>(arg);
-        return (carg->self->m_owner == std::thread::id{} || carg->self->m_owner == carg->requester) ? 1 : 0;
-    }
+    nsync_mu m_mutex{};  // held for as long as a thread owns this
+    // relaxed is enough: only the owner stores its own id, and clears it before releasing m_mutex
+    std::atomic<std::thread::id> m_owner;
+    int m_count = 0;  // only accessed by the owner
 
    public:
     constexpr nsync_recursive_mutex_t() noexcept = default;
@@ -399,62 +389,34 @@ class nsync_recursive_mutex_t {
     nsync_recursive_mutex_t& operator=(nsync_recursive_mutex_t&&) = delete;
 
     void lock() {
-        nsync_mu_lock(&m_mutex);
-
-        auto current_id = std::this_thread::get_id();
-        condition_arg arg{this, current_id};
-
-        // wait until lock is either free or already owned by this thread
-        nsync_mu_wait(&m_mutex, &is_available_or_owned_by_requester, &arg, nullptr);
-
-        if(m_owner == std::thread::id{}) {
-            // lock was free, acquire it
-            m_owner = current_id;
-            m_count = 1;
-        } else {
-            // we already own it, increment recursion count
-            ++m_count;
+        const auto current_id = std::this_thread::get_id();
+        if(m_owner.load(std::memory_order_relaxed) != current_id) {
+            nsync_mu_lock(&m_mutex);
+            m_owner.store(current_id, std::memory_order_relaxed);
         }
-
-        nsync_mu_unlock(&m_mutex);
+        ++m_count;
     }
 
     bool try_lock() noexcept {
-        if(!nsync_mu_trylock(&m_mutex)) {
-            return false;
+        const auto current_id = std::this_thread::get_id();
+        if(m_owner.load(std::memory_order_relaxed) != current_id) {
+            if(!nsync_mu_trylock(&m_mutex)) {
+                return false;
+            }
+            m_owner.store(current_id, std::memory_order_relaxed);
         }
-
-        auto current_id = std::this_thread::get_id();
-
-        if(m_owner == std::thread::id{}) {
-            // lock is free, acquire it
-            m_owner = current_id;
-            m_count = 1;
-            nsync_mu_unlock(&m_mutex);
-            return true;
-        } else if(m_owner == current_id) {
-            // we already own it, increment recursion count
-            ++m_count;
-            nsync_mu_unlock(&m_mutex);
-            return true;
-        } else {
-            // someone else owns it
-            nsync_mu_unlock(&m_mutex);
-            return false;
-        }
+        ++m_count;
+        return true;
     }
 
     void unlock() {
-        nsync_mu_lock(&m_mutex);
+        assert((m_owner.load(std::memory_order_relaxed) == std::this_thread::get_id()) &&
+               "recursive_mutex::unlock: not owner");
 
-        assert((m_owner == std::this_thread::get_id()) && "recursive_mutex::unlock: not owner");
-
-        --m_count;
-        if(m_count == 0) {
-            m_owner = std::thread::id{};
+        if(--m_count == 0) {
+            m_owner.store(std::thread::id{}, std::memory_order_relaxed);
+            nsync_mu_unlock(&m_mutex);
         }
-
-        nsync_mu_unlock(&m_mutex);
     }
 
     // WARNING: this is not expected/tested to work correctly with condition variables

@@ -7,6 +7,7 @@
 #ifdef USE_NSYNC
 #include "nsync_once.h"
 
+#include <atomic>
 #include <tuple>
 #include <utility>
 #else
@@ -44,7 +45,7 @@ using once_flag = nsync_once_flag;
 template <typename Callable, typename... Args>
 void call_once(once_flag& flag, Callable&& f, Args&&... args) {
     // check if already completed (2)
-    if(flag.native_handle()->load(std::memory_order_relaxed) == 2) {
+    if(flag.native_handle()->load(std::memory_order_acquire) == 2) {
         return;
     }
 
