@@ -2953,9 +2953,9 @@ msgid "Screenshot saved to {:s}"
 msgstr "Captures d'écran"
 
 #: src/App/Neomod/Osu.cpp
-#, fuzzy, c++-format
+#, c++-format
 msgid "Skin exported to {:s}"
-msgstr "Captures d'écran"
+msgstr ""
 
 #: src/App/Neomod/Osu.cpp
 msgid "Can't export the default skin."
