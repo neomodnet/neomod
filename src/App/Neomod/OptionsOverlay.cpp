@@ -1568,9 +1568,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     this->addSubSection(_("Keys - Universal"), keyboardSectionTags);
     this->addKeyBindButton(_("Toggle chat"), &binds::TOGGLE_CHAT);
     this->addKeyBindButton(_("Toggle user list"), &binds::TOGGLE_EXTENDED_CHAT);
-    if(cv::enable_screenshots.getBool()) {
-        this->addKeyBindButton(_("Save Screenshot"), &binds::SAVE_SCREENSHOT);
-    }
+    this->addKeyBindButton(_("Save Screenshot"), &binds::SAVE_SCREENSHOT);
     this->addKeyBindButton(_("Increase Volume"), &binds::INCREASE_VOLUME);
     this->addKeyBindButton(_("Decrease Volume"), &binds::DECREASE_VOLUME);
     this->addKeyBindButton(_("Disable Mouse Buttons"), &binds::DISABLE_MOUSE_BUTTONS);
@@ -1909,16 +1907,18 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     this->addCheckbox(_("Draw 300s"), &cv::hitresult_draw_300s);
 
     auto *sectionMisc = this->addSection(_("Miscellaneous"));
-#ifndef MCENGINE_PLATFORM_WASM
-    this->addSubSection(_("Testing"));
-    this->addCheckbox(_("Use bleeding edge release stream"), &cv::bleedingedge);
-#endif
+    if constexpr(!Env::cfg(OS::WASM)) {
+        this->addSubSection(_("Testing"));
+        this->addCheckbox(_("Use bleeding edge release stream"), &cv::bleedingedge);
+    }
 
-    if(cv::enable_screenshots.getBool()) {  // TODO: why is this even a convar (its only used during constructor)
-        this->addSubSection(_("Screenshots"));
-        this->addCheckbox(_("Crop Screenshots"),
-                          _("Crop screenshots to the letterbox resolution,\nif letterboxing is enabled."),
-                          &cv::crop_screenshots);
+    this->addSubSection(_("Screenshots"));
+    this->addCheckbox(_("Crop Screenshots"),
+                      _("Crop screenshots to the letterbox resolution,\nif letterboxing is enabled."),
+                      &cv::crop_screenshots);
+
+    // in WASM, copying screenshots to the clipboard is the only way to access screenshots
+    if constexpr(!Env::cfg(OS::WASM)) {
         this->addCheckbox(_("Copy Screenshots to Clipboard"),
                           _("If screenshots should be copied to the system clipboard\nalong with saving them to the "
                             "screenshots/ folder."),
@@ -3520,7 +3520,8 @@ void OptionsOverlayImpl::onCheckboxChange(CBaseUICheckbox *checkbox) {
 void OptionsOverlayImpl::onSliderChange(CBaseUISlider *slider) {
     OptionsElement *element = nullptr;
     if(const auto &it = this->uiToOptElemMap.find(slider); it != this->uiToOptElemMap.end() && (element = it->second)) {
-        setFromWidget(element->cvar, std::round(slider->getFloat() * 100.0f) / 100.0f);  // round to 2 decimal places
+        setFromWidget(element->cvar,
+                      std::round(slider->getFloat() * 100.0f) / 100.0f);  // round to 2 decimal places
         if(element->baseElems.size() == 3) {
             auto *labelPointer = dynamic_cast<CBaseUILabel *>(element->baseElems[2].get());
             labelPointer->setText(element->cvar->getString());
@@ -3570,7 +3571,8 @@ void OptionsOverlayImpl::onSliderChangeOneDecimalPlace(CBaseUISlider *slider) {
 void OptionsOverlayImpl::onSliderChangeTwoDecimalPlaces(CBaseUISlider *slider) {
     OptionsElement *element = nullptr;
     if(const auto &it = this->uiToOptElemMap.find(slider); it != this->uiToOptElemMap.end() && (element = it->second)) {
-        setFromWidget(element->cvar, std::round(slider->getFloat() * 100.0f) / 100.0f);  // round to 2 decimal places
+        setFromWidget(element->cvar,
+                      std::round(slider->getFloat() * 100.0f) / 100.0f);  // round to 2 decimal places
         if(element->baseElems.size() == 3) {
             auto *labelPointer = dynamic_cast<CBaseUILabel *>(element->baseElems[2].get());
             labelPointer->setText(element->cvar->getString());
@@ -3708,7 +3710,8 @@ void OptionsOverlayImpl::onKeyBindingsResetAllPressed(CBaseUIButton * /*button*/
 void OptionsOverlayImpl::onSliderChangeSliderQuality(CBaseUISlider *slider) {
     OptionsElement *element = nullptr;
     if(const auto &it = this->uiToOptElemMap.find(slider); it != this->uiToOptElemMap.end() && (element = it->second)) {
-        setFromWidget(element->cvar, std::round(slider->getFloat() * 100.0f) / 100.0f);  // round to 2 decimal places
+        setFromWidget(element->cvar,
+                      std::round(slider->getFloat() * 100.0f) / 100.0f);  // round to 2 decimal places
         if(element->baseElems.size() == 3) {
             auto *labelPointer = dynamic_cast<CBaseUILabel *>(element->baseElems[2].get());
 

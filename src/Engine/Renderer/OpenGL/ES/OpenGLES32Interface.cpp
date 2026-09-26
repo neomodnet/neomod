@@ -698,10 +698,10 @@ std::vector<u8> OpenGLES32Interface::getScreenshot(bool withAlpha) {
 
     const u8 numChannels = withAlpha ? 4 : 3;
     const u32 numElements = width * height * numChannels;
-    const GLenum glFormat = withAlpha ? GL_RGBA : GL_RGB;
 
-    // buffer to read into
-    FixedSizeArray<u8> tempBuffer(numElements);
+    // GL_RGBA + GL_UNSIGNED_BYTE is the only read format ES guarantees for normalized color buffers (WebGL rejects
+    // GL_RGB), so always read 4 channels
+    FixedSizeArray<u8> tempBuffer(static_cast<size_t>(width) * height * 4);
 
     // prep framebuffer for reading
     GLint currentFramebuffer;
@@ -715,7 +715,7 @@ std::vector<u8> OpenGLES32Interface::getScreenshot(bool withAlpha) {
 
     // read
     GLenum error = GL_NO_ERROR;
-    glReadPixels(0, 0, width, height, glFormat, GL_UNSIGNED_BYTE, tempBuffer.data());
+    glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, tempBuffer.data());
 
     error = glGetError();
     if(error != GL_NO_ERROR) {
@@ -739,7 +739,7 @@ std::vector<u8> OpenGLES32Interface::getScreenshot(bool withAlpha) {
 
         size_t curSrc{0}, curDest{0};
         for(i32 x = 0; x < width; ++x) {
-            curSrc = (srcRow * width + x) * numChannels;
+            curSrc = (srcRow * width + x) * 4;
             curDest = (dstRow * width + x) * numChannels;
 
             result[curDest + 0] = tempBuffer[curSrc + 0];  // R

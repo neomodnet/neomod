@@ -1005,7 +1005,6 @@ CONVAR(ignore_beatmap_skins, false, CLIENT | SERVER, "ignore beatmap skins");
 CONVAR(draw_storyboard, true, CLIENT | SERVER);
 CONVAR(draw_video, true, CLIENT | SERVER);
 CONVAR(save_failed_scores, false, CLIENT | HIDDEN, "save scores locally, even if there was a fail");
-CONVAR(enable_screenshots, Env::cfg(OS::WASM) ? false : true, CLIENT | SKINS | SERVER);
 
 // NOLINTEND(misc-definitions-in-headers)
 

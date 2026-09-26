@@ -937,7 +937,7 @@ void Osu::onKeyDown(KeyboardEvent &key) {
     }
 
     // screenshots
-    if(key == binds::SAVE_SCREENSHOT && cv::enable_screenshots.getBool()) {
+    if(key == binds::SAVE_SCREENSHOT) {
         if(!key.isRepeat()) {
             this->saveScreenshot();
         }
@@ -1347,8 +1347,6 @@ void Osu::reloadMapInterface() { this->map_iface = std::make_unique<BeatmapInter
 
 void Osu::saveScreenshot() {
     static std::atomic<i32> screenshotNumber{0};
-
-    if(!cv::enable_screenshots.getBool()) return;
 
     constexpr u8 screenshotChannels{3};
 
