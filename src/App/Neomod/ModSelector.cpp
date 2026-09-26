@@ -976,7 +976,7 @@ void ModSelector::updateLayout() {
             ->setSizeToContent()
             ->setSize(vec2(osu->getVirtScreenWidth(), 30 * uiScale))
             ->setPos(
-                0, (this->nonSubmittableWarning->getPos().y + this->nonSubmittableWarning->getSize()).y + 20 * uiScale);
+                0, (this->nonSubmittableWarning->getPos().y + this->nonSubmittableWarning->getSize().y) + 20 * uiScale);
     } else  // compact in-beatmap mode
     {
         // mod grid buttons
