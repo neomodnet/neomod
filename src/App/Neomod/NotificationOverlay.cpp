@@ -57,7 +57,7 @@ void NotificationOverlay::onNotificationCallback(std::string_view args) {
     cv::cmd::notify.setValue("", false);
 }
 
-struct NotificationOverlay::Mutex : public Sync::mutex {};
+struct NotificationOverlay::Mutex : public Sync::recursive_mutex {};
 
 NotificationOverlay::NotificationOverlay() : UIScreen(), notifMtx(new Mutex()) {
     cv::cmd::toast.setCallback(SA::MakeDelegate<&NotificationOverlay::onToastCallback>(this));

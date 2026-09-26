@@ -1464,7 +1464,6 @@ void Osu::saveScreenshot() {
                     notif->addNotification(std::move(error), 0xffff0000, false, 3.0f);
                 } else if constexpr(Env::cfg(OS::WASM)) {
                     const bool copied = cv::screenshot_clipboard.getBool() && env->setClipBoardImage(pngData);
-                    // can't add a toast from inside a toast callback (the overlay holds its lock), so just log
                     notif->addToast(copied ? _("Screenshot copied to clipboard (click to open in a new tab)")
                                            : _("Screenshot taken (click to open in a new tab)"),
                                     CHAT_TOAST, [png = std::move(pngData)] {
