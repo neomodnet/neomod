@@ -41,7 +41,7 @@
 
 // print the call stack immediately
 #include "neotrace/neotrace.h"
-#define MC_DO_BACKTRACE logRaw(neotrace::to_string(neotrace::trace::current()));
+#define MC_DO_BACKTRACE() logRaw(neotrace::to_string(neotrace::trace::current()))
 
 // main Logger API
 namespace Logger {

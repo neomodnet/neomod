@@ -39,7 +39,7 @@ class delegate<RET(PARAMS...)> final : private delegate_base<RET(PARAMS...)> {
     bool operator==(void* ptr) const { return (ptr == nullptr) && this->isNull(); }     //operator ==
     bool operator!=(void* ptr) const { return (ptr != nullptr) || (!this->isNull()); }  //operator !=
 
-    delegate(const delegate& another) { another.invocation.Clone(invocation); }
+    delegate(const delegate& another) = default;
 
     template <typename LAMBDA>
     delegate(const LAMBDA& lambda) {
@@ -61,12 +61,7 @@ class delegate<RET(PARAMS...)> final : private delegate_base<RET(PARAMS...)> {
                     (!std::is_same_v<std::decay_t<LAMBDA>, delegate>)
     delegate(LAMBDA&& lambda) = delete;
 
-    delegate& operator=(const delegate& another) {
-        if(this != &another) {
-            another.invocation.Clone(invocation);
-        }
-        return *this;
-    }  //operator =
+    delegate& operator=(const delegate& another) = default;
 
     template <typename LAMBDA>  // template instantiation is not needed, will be deduced (inferred):
     delegate& operator=(const LAMBDA& instance) {
