@@ -52,6 +52,7 @@
 #include "Graphics.h"
 #include "crypto.h"
 #include "MainMenuTips.h"
+#include "MainMenuNowPlaying.h"
 
 #include <algorithm>
 #include <cmath>
@@ -375,9 +376,8 @@ MainMenu::MainMenu() : UIScreen() {
             ->setClickCallback(SA::MakeDelegate<&MainMenu::onSaveOrExitButtonPressed>(this));
     }
 
-    this->pauseButton = new PauseButton(0, 0, 0, 0, "mainmenu_pause", "");
-    this->pauseButton->setClickCallback(SA::MakeDelegate<&MainMenu::onPausePressed>(this));
-    this->addBaseUIElement(this->pauseButton);
+    this->nowPlaying = new mainmenu::NowPlaying(this);
+    this->addBaseUIElement(this->nowPlaying);
 
     this->onlineBeatmapsButton = new UIButtonVertical(0, 0, 0, 0, "mainmenu_online_beatmaps", _("Online Beatmaps"));
     this->onlineBeatmapsButton->setFont(osu->getSubTitleFont());
@@ -921,6 +921,7 @@ void MainMenu::drawMainButton() {
 void MainMenu::clearPreloadedMaps() {
     this->lastMap = nullptr;
     this->currentMap = nullptr;
+    this->previousPreloadedMaps.clear();
     this->preloadedMaps.clear();
 }
 
@@ -1167,9 +1168,7 @@ void MainMenu::tick() {
             break;
     }
 
-    // Update pause button and shuffle songs
-    this->pauseButton->setPaused(true);
-
+    // shuffle songs
     if(soundEngine->isReady()) {
         auto *map_iface = osu->getMapInterface();
         auto *music = map_iface->getMusic();
@@ -1186,8 +1185,6 @@ void MainMenu::tick() {
             if(!music->isReady() || music->isFinished()) {
                 this->selectRandomBeatmap();
             } else if(music->isPlaying()) {
-                this->pauseButton->setPaused(false);
-
                 // NOTE: We set this every frame, because music loading isn't instant
                 if(music->isLooped()) {
                     music->setLoop(false);
@@ -1247,8 +1244,11 @@ void MainMenu::updateInput(CBaseUIEventCtx &c) {
 
 void MainMenu::selectRandomBeatmap() {
     if(db->isFinished() && !db->getBeatmapSets().empty() && !ui->getSongBrowser()->parentButtons.empty()) {
-        ui->getSongBrowser()->selectRandomBeatmap();
-        RichPresence::onMainMenu();
+        if(ui->getSongBrowser()->selectRandomBeatmap()) {
+            RichPresence::onMainMenu();
+        } else {
+            this->restartMusic();
+        }
     } else {
         // Database is not loaded yet, load a random map and select it
         if(this->songsFolderHandle.valid()) {
@@ -1267,11 +1267,23 @@ void MainMenu::selectRandomBeatmap() {
             return;
         }
 
+        BeatmapDifficulty *previous = osu->getMapInterface()->getBeatmapMutable();
+        const uSz numFolders = this->songsFolderEntries.size();
+        if(numFolders == 1 && previous && previous->getFolder() == this->songsFolderEntries[0]) {
+            this->restartMusic();
+            return;
+        }
+
         osu->getMapInterface()->deselectBeatmap();
 
         constexpr int RETRY_SETS{10};
         for(int i = 0; i < RETRY_SETS; i++) {
-            const auto &mapset_folder = this->songsFolderEntries[prand() % this->songsFolderEntries.size()];
+            // another song than the one playing
+            uSz folderIndex = prand() % numFolders;
+            if(previous && previous->getFolder() == this->songsFolderEntries[folderIndex]) {
+                folderIndex = (folderIndex + 1 + prand() % (numFolders - 1)) % numFolders;
+            }
+            const auto &mapset_folder = this->songsFolderEntries[folderIndex];
             auto set = Database::loadRawBeatmap(mapset_folder);
             if(set == nullptr) {
                 // loadRawBeatmap will log failure with reason
@@ -1299,6 +1311,7 @@ void MainMenu::selectRandomBeatmap() {
             set->do_not_store = true;  // don't store in songbrowser f2 history
             candidate_diff->do_not_store = true;
 
+            if(previous && previous->do_not_store) this->previousPreloadedMaps.push_back(previous);
             ui->getSongBrowser()->onDifficultySelected(candidate_diff, false);
 
             RichPresence::onMainMenu();
@@ -1312,26 +1325,46 @@ void MainMenu::selectRandomBeatmap() {
     }
 }
 
+void MainMenu::selectPreviousRandomBeatmap() {
+    // (only one of the two histories has anything in it: the preloaded maps are gone once the database is loaded)
+    if(!this->previousPreloadedMaps.empty()) {
+        BeatmapDifficulty *previous = this->previousPreloadedMaps.back();
+        this->previousPreloadedMaps.pop_back();
+        ui->getSongBrowser()->onDifficultySelected(previous, false);
+    } else if(!ui->getSongBrowser()->selectPreviousRandomBeatmap()) {
+        this->restartMusic();
+        return;
+    }
+    RichPresence::onMainMenu();
+}
+
+void MainMenu::restartMusic() {
+    Sound *music = osu->getMapInterface()->getMusic();
+    if(!music || !music->isReady()) return;
+
+    if(!music->isPlaying()) soundEngine->play(music);
+    music->setPositionMS(0);
+}
+
 void MainMenu::onKeyDown(KeyboardEvent &e) {
     UIScreen::onKeyDown(e);  // only used for options menu
     if(!this->bVisible || e.isConsumed()) return;
 
     if(!ui->getOptionsOverlay()->isMouseInside()) {
         if(e == KEY_PREV || e == KEY_LEFT) {
-            ui->getSongBrowser()->selectPreviousRandomBeatmap();
-            RichPresence::onMainMenu();
+            this->selectPreviousRandomBeatmap();
         }
         if(e == KEY_NEXT || e == KEY_RIGHT || e == KEY_F2) {
             this->selectRandomBeatmap();
         }
         if(e == KEY_PLAYPAUSE || (e == KEY_PLAY && !osu->getMapInterface()->isPreviewMusicPlaying()) ||
            (e == KEY_STOP && osu->getMapInterface()->isPreviewMusicPlaying())) {
-            this->onPausePressed();
+            osu->getMapInterface()->pausePreviewMusic();
         }
     }
 
     if(e == KEY_C || e == KEY_F4) {
-        this->onPausePressed();
+        osu->getMapInterface()->pausePreviewMusic();
     }
 
     if(!this->menuElementsVisible) {
@@ -1436,9 +1469,8 @@ void MainMenu::updateLayout() {
     this->cube->setRelPos(this->vCenter - this->vSize / 2.0f - vec2((f32)this->centerOffsetAnim, 0.0f));
     this->cube->setSize(this->vSize);
 
-    this->pauseButton->setSize(30 * dpiScale, 30 * dpiScale);
-    this->pauseButton->setRelPos(screenSize.x - this->pauseButton->getSize().x * 2 - 10 * dpiScale,
-                                 this->pauseButton->getSize().y + 10 * dpiScale);
+    this->nowPlaying->updateLayout();
+    this->nowPlaying->setRelPos(screenSize.x - this->nowPlaying->getSize().x - 12 * dpiScale, 12 * dpiScale);
 
     this->updateAvailableButton->setSize(375 * dpiScale, 50 * dpiScale);
     this->updateAvailableButton->setPos(screenSize.x / 2 - this->updateAvailableButton->getSize().x / 2,
@@ -1720,17 +1752,6 @@ void MainMenu::onOnlineBeatmapsButtonPressed() {
     ui->setScreen(ui->getOsuDirectScreen());
 }
 
-void MainMenu::onPausePressed() {
-    if(osu->getMapInterface()->isPreviewMusicPlaying()) {
-        osu->getMapInterface()->pausePreviewMusic();
-    } else {
-        auto music = osu->getMapInterface()->getMusic();
-        if(music != nullptr) {
-            soundEngine->play(music);
-        }
-    }
-}
-
 void MainMenu::onUpdatePressed() {
     using enum UpdateHandler::STATUS;
     auto *updateHandler = osu->getUpdateHandler();
@@ -1755,71 +1776,6 @@ void MainMenu::onAdblockChangeCallback(float value) {
     this->discordButton->setVisible(!adblockEnabled);
     this->twitterButton->setVisible(!adblockEnabled);
 }
-
-void PauseButton::draw() {
-    int third = this->getSize().x / 3;
-
-    g->setColor(0xffffffff);
-
-    if(!this->isPaused) {
-        g->fillRect(this->getPos().x, this->getPos().y, third, this->getSize().y + 1);
-        g->fillRect(this->getPos().x + 2 * third, this->getPos().y, third, this->getSize().y + 1);
-    } else {
-        g->setColor(0xffffffff);
-        VertexArrayObject vao;
-
-        const int smoothPixels = 2;
-
-        // center triangle
-        vao.addVertex(this->getPos().x, this->getPos().y + smoothPixels);
-        vao.addColor(0xffffffff);
-        vao.addVertex(this->getPos().x + this->getSize().x, this->getPos().y + this->getSize().y / 2);
-        vao.addColor(0xffffffff);
-        vao.addVertex(this->getPos().x, this->getPos().y + this->getSize().y - smoothPixels);
-        vao.addColor(0xffffffff);
-
-        // top smooth
-        vao.addVertex(this->getPos().x, this->getPos().y + smoothPixels);
-        vao.addColor(0xffffffff);
-        vao.addVertex(this->getPos().x, this->getPos().y);
-        vao.addColor(0x00000000);
-        vao.addVertex(this->getPos().x + this->getSize().x, this->getPos().y + this->getSize().y / 2);
-        vao.addColor(0xffffffff);
-
-        vao.addVertex(this->getPos().x, this->getPos().y);
-        vao.addColor(0x00000000);
-        vao.addVertex(this->getPos().x + this->getSize().x, this->getPos().y + this->getSize().y / 2);
-        vao.addColor(0xffffffff);
-        vao.addVertex(this->getPos().x + this->getSize().x, this->getPos().y + this->getSize().y / 2 - smoothPixels);
-        vao.addColor(0x00000000);
-
-        // bottom smooth
-        vao.addVertex(this->getPos().x, this->getPos().y + this->getSize().y - smoothPixels);
-        vao.addColor(0xffffffff);
-        vao.addVertex(this->getPos().x, this->getPos().y + this->getSize().y);
-        vao.addColor(0x00000000);
-        vao.addVertex(this->getPos().x + this->getSize().x, this->getPos().y + this->getSize().y / 2);
-        vao.addColor(0xffffffff);
-
-        vao.addVertex(this->getPos().x, this->getPos().y + this->getSize().y);
-        vao.addColor(0x00000000);
-        vao.addVertex(this->getPos().x + this->getSize().x, this->getPos().y + this->getSize().y / 2);
-        vao.addColor(0xffffffff);
-        vao.addVertex(this->getPos().x + this->getSize().x, this->getPos().y + this->getSize().y / 2 + smoothPixels);
-        vao.addColor(0x00000000);
-
-        g->drawVAO(&vao);
-    }
-
-    // draw hover rects
-    g->setColor(this->frameColor);
-    const bool drawClickHeldRect = this->bActive && this->bEnabled;
-    const bool drawHoverRect =
-        !drawClickHeldRect && (this->bEnabled && this->isMouseInside() && (this->bActive || (!mouse->isLeftDown())));
-    if(drawHoverRect || drawClickHeldRect) {
-        this->drawHoverRect(3, drawClickHeldRect);
-    }
-};
 
 void MainMenu::submitSongsFolderEnum() {
     this->songsFolderPath = Database::getOsuSongsFolder();

@@ -32,7 +32,11 @@ inline constexpr char32_t UNLOCK{0xf09c};
 inline constexpr char32_t DISCORD{0xf2ef};
 inline constexpr char32_t TWITTER{0xf099};
 inline constexpr char32_t PLAY{0xf04b};
+inline constexpr char32_t PAUSE{0xf04c};
 inline constexpr char32_t STOP{0xf04d};
+inline constexpr char32_t STEP_BACKWARD{0xf048};
+inline constexpr char32_t STEP_FORWARD{0xf051};
+inline constexpr char32_t MUSIC{0xf001};
 
 inline constexpr const std::array icons{
     Z_UNKNOWN_CHAR,   //
@@ -61,7 +65,11 @@ inline constexpr const std::array icons{
     DISCORD,          //
     TWITTER,          //
     PLAY,             //
+    PAUSE,            //
     STOP,             //
+    STEP_BACKWARD,    //
+    STEP_FORWARD,     //
+    MUSIC,            //
 };
 
 };  // namespace Icons

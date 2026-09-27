@@ -153,6 +153,7 @@ neomod_SOURCES = \
 	src/App/Neomod/LoadingScreen.cpp \
 	src/App/Neomod/Lobby.cpp \
 	src/App/Neomod/MainMenu.cpp \
+	src/App/Neomod/MainMenuNowPlaying.cpp \
 	src/App/Neomod/MainMenuTips.cpp \
 	src/App/Neomod/MapExporter.cpp \
 	src/App/Neomod/MapFetcher.cpp \
@@ -209,6 +210,7 @@ neomod_SOURCES = \
 	src/App/Neomod/UIContextMenu.cpp \
 	src/App/Neomod/UIDebug.cpp \
 	src/App/Neomod/UIIcon.cpp \
+	src/App/Neomod/UIIconButton.cpp \
 	src/App/Neomod/UILabel.cpp \
 	src/App/Neomod/UIModSelectorModButton.cpp \
 	src/App/Neomod/UIPauseMenuButton.cpp \

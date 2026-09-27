@@ -1,0 +1,47 @@
+// Copyright (c) 2026, WH, All rights reserved.
+#pragma once
+
+#include "CBaseUIContainer.h"
+
+#include <string>
+
+class MainMenu;
+class UIIconButton;
+class PauseButton;
+class McFont;
+
+namespace neomod::mainmenu {
+
+// the main menu's music player: the song's artist and title (scrolling through it when it doesn't fit),
+// previous/play/next buttons and a seek bar
+class NowPlaying final : public CBaseUIContainer {
+    NOCOPY_NOMOVE(NowPlaying)
+   public:
+    NowPlaying(MainMenu *mm);
+    ~NowPlaying() override;
+
+    void draw() override;
+    void tick() override;
+
+    // sizes the panel for the current UI scale and lays out its buttons
+    void updateLayout();
+
+   private:
+    class SeekBar;
+
+    void drawTitle();
+    void drawTimes();
+
+    UIIconButton *prevButton;
+    PauseButton *pauseButton;
+    UIIconButton *nextButton;
+    SeekBar *seekBar;
+
+    McFont *font;
+    McFont *iconFont;
+
+    std::string title;
+    f64 titleChangeTime{0.};  // the marquee's time origin
+};
+
+}  // namespace neomod::mainmenu

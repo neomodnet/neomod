@@ -19,7 +19,6 @@
 #include "Lobby.h"
 #include "Logging.h"
 #include "MakeDelegateWrapper.h"
-#include "MainMenu.h"
 #include "NotificationOverlay.h"
 #include "PromptOverlay.h"
 #include "RankingScreen.h"
@@ -30,6 +29,7 @@
 #include "SoundEngine.h"
 #include "UI.h"
 #include "UIButton.h"
+#include "UIIconButton.h"
 #include "UserCard.h"
 #include "Engine.h"
 
@@ -105,7 +105,7 @@ void stop() {
     packet.id = OUTP_STOP_SPECTATING;
     BANCHO::Net::send_packet(packet);
 
-    ui->setScreen(ui->getMainMenu());
+    ui->setScreen(ui->getMainMenuBase());
     soundEngine->play(osu->getSkin()->s_menu_back);
 }
 
@@ -115,8 +115,8 @@ SpectatorScreen::SpectatorScreen() {
     this->font = engine->getDefaultFont();
     this->lfont = osu->getSubTitleFont();
 
-    this->pauseButton = new PauseButton(0, 0, 0, 0, "pause_btn", "");
-    this->pauseButton->setClickCallback([]() { ui->getMainMenu()->onPausePressed(); });
+    this->pauseButton = new PauseButton("pause_btn");
+    this->pauseButton->setIconHeight(0.8f);
     this->addBaseUIElement(this->pauseButton);
 
     this->background = new CBaseUIScrollView(0, 0, 0, 0, "spectator_bg");
@@ -364,7 +364,6 @@ void SpectatorScreen::tick() {
     this->pauseButton->setSize(30 * dpiScale, 30 * dpiScale);
     this->pauseButton->setPos(resolution.x - this->pauseButton->getSize().x * 2 - 10 * dpiScale,
                               this->pauseButton->getSize().y + 10 * dpiScale);
-    this->pauseButton->setPaused(!osu->getMapInterface()->isPreviewMusicPlaying());
 
     this->background->setSize(resolution.x * 0.6, resolution.y * 0.6 - 110 * dpiScale);
     auto bgsize = this->background->getSize();

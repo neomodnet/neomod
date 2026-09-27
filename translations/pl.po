@@ -461,6 +461,14 @@ msgstr "Musisz się zalogować, aby grać w trybie wieloosobowym!"
 msgid "You must log in to download beatmaps!"
 msgstr "Musisz się zalogować, aby pobierać beatmapy!"
 
+#: src/App/Neomod/MainMenuNowPlaying.cpp
+msgid "Previous song"
+msgstr ""
+
+#: src/App/Neomod/MainMenuNowPlaying.cpp
+msgid "Next song"
+msgstr ""
+
 #: src/App/Neomod/MainMenuTips.cpp
 msgid "Press Alt + Enter to toggle Fullscreen."
 msgstr "Naciśnij Alt + Enter, aby włączyć/wyłączyć pełny ekran."
@@ -3604,6 +3612,14 @@ msgstr ""
 #, fuzzy
 msgid "Downloading map..."
 msgstr "Pobieranie ..."
+
+#: src/App/Neomod/UIIconButton.cpp
+msgid "Play"
+msgstr ""
+
+#: src/App/Neomod/UIIconButton.cpp
+msgid "Pause"
+msgstr ""
 
 #: src/App/Neomod/UISearchOverlay.cpp
 msgid "Search: "

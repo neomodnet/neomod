@@ -210,9 +210,9 @@ void VisualProfiler::draw() {
                 addTextLine(fmt::format("Sound Device: {:s}", soundEngine->getOutputDeviceName()), textFont,
                             this->textLines);
                 addTextLine(fmt::format("Sound Volume: {:f}", soundEngine->getVolume()), textFont, this->textLines);
-                addTextLine(fmt::format("Pool: {:d} threads, {:d} pending", Async::get_thread_count(),
-                                        Async::pending_count()),
-                            textFont, this->textLines);
+                addTextLine(
+                    fmt::format("Pool: {:d} threads, {:d} pending", Async::get_thread_count(), Async::pending_count()),
+                    textFont, this->textLines);
                 addTextLine(fmt::format("RM InFlight: {:d}, DestroyQ: {:d}", resourceManager->getNumInFlight(),
                                         resourceManager->getNumAsyncDestroyQueue()),
                             textFont, this->textLines);
@@ -271,7 +271,7 @@ void VisualProfiler::draw() {
                 g->translate(-margin, (int)(textFont->getHeight() * textScale + margin));
 
                 const TextFX textFX{.col_text = textColor,
-                                    .offs_px = std::round((float)std::max(env->getDPI(), textFont->getDPI()) / 96.0f)};
+                                    .offs_px = std::round((float)std::min(env->getDPI(), textFont->getDPI()) / 96.0f)};
                 for(size_t i = 0; i < this->textLines.size(); i++) {
                     if(i > 0) g->translate(0, (int)(textFont->getHeight() * textScale * 1.5f));
                     g->pushTransform();
@@ -357,7 +357,7 @@ void VisualProfiler::draw() {
                         .col_text = 0xffcccccc,
                         .offs_px = 0.f,
                         .col_outline = 0xdd111111,
-                        .outline_px = std::round((float)std::max(env->getDPI(), this->font->getDPI()) / 96.0f),
+                        .outline_px = std::round((float)std::min(env->getDPI(), this->font->getDPI()) / 96.0f),
                     };
                 }
 
@@ -451,7 +451,7 @@ void VisualProfiler::draw() {
                     g->drawString(
                         this->font, this->groups[i].name,
                         TextFX{.col_text = this->groups[i].color,
-                               .offs_px = std::round((float)std::max(env->getDPI(), this->font->getDPI()) / 96.0f)});
+                               .offs_px = std::round((float)std::min(env->getDPI(), this->font->getDPI()) / 96.0f)});
                     g->translate(stringWidth, (int)(-this->font->getHeight() - padding));
                 }
             }

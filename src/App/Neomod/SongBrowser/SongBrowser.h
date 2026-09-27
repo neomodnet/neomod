@@ -159,7 +159,8 @@ class SongBrowser final : public ScreenBackable {
     void onCollectionButtonContextMenu(CollectionButton *collectionButton, std::string_view text, int id);
 
     void highlightScore(const FinishedScore &scoreToHighlight);
-    void selectRandomBeatmap();
+    // returns whether there was another song to select
+    bool selectRandomBeatmap();
     void playNextRandomBeatmap() {
         this->selectRandomBeatmap();
         this->playSelectedDifficulty();
@@ -270,7 +271,8 @@ class SongBrowser final : public ScreenBackable {
     void onScoreClicked(ScoreButton *button);
 
     void selectSongButton(CarouselButton *songButton);
-    void selectPreviousRandomBeatmap();
+    // returns whether there was a previous random beatmap to go back to
+    bool selectPreviousRandomBeatmap();
     void playSelectedDifficulty();
 
     // TODO: make more stuff private

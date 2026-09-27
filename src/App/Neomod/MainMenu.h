@@ -4,7 +4,6 @@
 
 #include "AnimationHandler.h"
 #include "AsyncCancellable.h"
-#include "CBaseUIButton.h"
 #include "DownloadHandle.h"
 #include "MouseListener.h"
 #include "UIScreen.h"
@@ -19,29 +18,18 @@ typedef DatabaseBeatmap BeatmapSet;
 
 namespace neomod::mainmenu {
 class WrappedText;
-}
+class NowPlaying;
+}  // namespace neomod::mainmenu
+class CBaseUIButton;
 class CBaseUILabel;
 class CBaseUIContainer;
 class UIButton;
 class UIButtonWithIcon;
 class UIButtonVertical;
 
-class PauseButton final : public CBaseUIButton {
-   public:
-    PauseButton(float xPos, float yPos, float xSize, float ySize, std::string name, std::string text)
-        : CBaseUIButton(xPos, yPos, xSize, ySize, std::move(name), std::move(text)) {}
-
-    void draw() override;
-    inline void setPaused(bool paused) { this->isPaused = paused; }
-
-   private:
-    bool isPaused{true};
-};
-
 class MainMenu final : public UIScreen, public MouseListener {
     NOCOPY_NOMOVE(MainMenu)
    public:
-    void onPausePressed();
     void onCubePressed();
 
     MainMenu();
@@ -52,7 +40,9 @@ class MainMenu final : public UIScreen, public MouseListener {
     void updateInput(CBaseUIEventCtx &c) override;
 
     void clearPreloadedMaps();
+    // both play the current song again when there's no other one to go to
     void selectRandomBeatmap();
+    void selectPreviousRandomBeatmap();
 
     void onKeyDown(KeyboardEvent &e) override;
 
@@ -76,6 +66,7 @@ class MainMenu final : public UIScreen, public MouseListener {
     void drawFriend(const McRect &mainButtonRect, float pulse, bool haveTimingpoints);
     std::pair<bool, float> getTimingpointPulseAmount();  // for main menu cube anim
     void updateLayout();
+    void restartMusic();
 
     void animMainButton();
     void animMainButtonBack();
@@ -109,7 +100,7 @@ class MainMenu final : public UIScreen, public MouseListener {
     CubeButton *cube;
     std::vector<MainButton *> menuElements;
 
-    PauseButton *pauseButton;
+    neomod::mainmenu::NowPlaying *nowPlaying;
     neomod::mainmenu::WrappedText *tipLabel{nullptr};
     std::unique_ptr<UIButton> updateAvailableButton{nullptr};
     UIButtonVertical *onlineBeatmapsButton{nullptr};
@@ -159,6 +150,8 @@ class MainMenu final : public UIScreen, public MouseListener {
     const DatabaseBeatmap *lastMap{nullptr};
     AnimFloat mapFadeAnim{1.f};
     std::vector<std::unique_ptr<BeatmapSet>> preloadedMaps;
+    // the preloaded difficulties that played before the current one, for going back while the database isn't loaded
+    std::vector<BeatmapDifficulty *> previousPreloadedMaps;
 
     // songs folder enumeration (for random beatmap before db loads)
     void submitSongsFolderEnum();

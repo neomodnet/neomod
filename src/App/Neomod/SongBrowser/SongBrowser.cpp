@@ -3532,79 +3532,59 @@ void SongBrowser::selectSongButton(CarouselButton *songButton) {
     }
 }
 
-void SongBrowser::selectRandomBeatmap() {
-    // filter songbuttons or independent diffs
+bool SongBrowser::selectRandomBeatmap() {
+    const DatabaseBeatmap *current = osu->getMapInterface()->getBeatmap();
+    const auto setOf = [](const DatabaseBeatmap *map) { return map->getParentSet() ? map->getParentSet() : map; };
+
+    // filter songbuttons or independent diffs, other than the current song's
     const auto &elements{this->carousel->container.getElementsAs<CarouselButton>()};
 
     std::vector<CarouselButton *> songButtons;
     songButtons.reserve(elements.size());
     for(auto *element : elements) {
-        if(!element->isType<SongButton>()) continue;
-        if(element->isIndependentDiffButton()) {
-            songButtons.push_back(element);
-        }
+        if(!element->isType<SongButton>() || !element->isIndependentDiffButton()) continue;
+        const DatabaseBeatmap *map = element->getDatabaseBeatmap();
+        if(current != nullptr && map != nullptr && setOf(map) == setOf(current)) continue;
+        songButtons.push_back(element);
     }
 
-    if(songButtons.size() < 1) return;
+    if(songButtons.empty()) return false;
 
-    if(songButtons.size() > 1) {
-        // remember previous
-        if(auto *beatmap = osu->getMapInterface()->getBeatmap(); beatmap != nullptr && !beatmap->do_not_store) {
-            this->previousRandomBeatmaps.push_back(beatmap);
-        }
+    // remember previous
+    if(current != nullptr && !current->do_not_store) {
+        this->previousRandomBeatmaps.push_back(current);
     }
 
-    size_t randomIndex = songButtons.size() == 1 ? 0 : (prand() % (songButtons.size() - 1));
-    auto *songButton = songButtons[randomIndex]->as<SongButton>();
-    this->selectSongButton(songButton);
+    this->selectSongButton(songButtons[songButtons.size() == 1 ? 0 : prand() % songButtons.size()]);
+    return true;
 }
 
-void SongBrowser::selectPreviousRandomBeatmap() {
-    if(this->previousRandomBeatmaps.size() > 0) {
-        const auto *currentRandomBeatmap = this->previousRandomBeatmaps.back();
-        if(this->previousRandomBeatmaps.size() > 1 && currentRandomBeatmap == osu->getMapInterface()->getBeatmap())
-            this->previousRandomBeatmaps.pop_back();  // deletes the current beatmap which may also be at the top (so
-                                                      // we don't switch to ourself)
+bool SongBrowser::selectPreviousRandomBeatmap() {
+    auto &history = this->previousRandomBeatmaps;
 
-        // filter songbuttons
-        const auto &elements{this->carousel->container.getElementsAs<CarouselButton>()};
+    // the current beatmap may also be at the top (so we don't switch to ourself)
+    while(!history.empty() && history.back() == osu->getMapInterface()->getBeatmap()) history.pop_back();
+    if(history.empty()) return false;
+    const DatabaseBeatmap *previousRandomBeatmap = history.back();
 
-        std::vector<SongButton *> songButtons;
-        for(auto *element : elements) {
-            auto *songButtonPointer = element->as<SongButton>();
+    // select it, if we can find it (and remove it from memory)
+    for(auto *element : this->carousel->container.getElementsAs<CarouselButton>()) {
+        auto *songButton = element->as<SongButton>();  // allow ALL songbuttons
+        if(songButton == nullptr) continue;
 
-            if(songButtonPointer != nullptr)  // allow ALL songbuttons
-                songButtons.push_back(songButtonPointer);
-        }
-
-        // select it, if we can find it (and remove it from memory)
-        bool foundIt = false;
-        const DatabaseBeatmap *previousRandomBeatmap = this->previousRandomBeatmaps.back();
-        for(auto *songButton : songButtons) {
-            if(songButton->getDatabaseBeatmap() != nullptr &&
-               songButton->getDatabaseBeatmap() == previousRandomBeatmap) {
-                this->previousRandomBeatmaps.pop_back();
-                this->selectSongButton(songButton);
-                foundIt = true;
-                break;
-            }
-
+        SongButton *found = songButton->getDatabaseBeatmap() == previousRandomBeatmap ? songButton : nullptr;
+        if(!found) {
             const auto &children = songButton->getChildren();
-            for(auto *c : children) {
-                if(c->getDatabaseBeatmap() == previousRandomBeatmap) {
-                    this->previousRandomBeatmaps.pop_back();
-                    this->selectSongButton(c);
-                    foundIt = true;
-                    break;
-                }
-            }
-
-            if(foundIt) break;
+            const auto it = std::ranges::find(children, previousRandomBeatmap, &SongButton::getDatabaseBeatmap);
+            if(it != children.end()) found = *it;
         }
-
-        // if we didn't find it then restore the current random beatmap, which got pop_back()'d above (shit logic)
-        if(!foundIt) this->previousRandomBeatmaps.push_back(currentRandomBeatmap);
+        if(found) {
+            history.pop_back();
+            this->selectSongButton(found);
+            return true;
+        }
     }
+    return false;
 }
 
 void SongBrowser::playSelectedDifficulty() {

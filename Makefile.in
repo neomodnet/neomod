@@ -264,9 +264,11 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Neomod/HUD.cpp src/App/Neomod/HitObjects.cpp \
 	src/App/Neomod/HitSounds.cpp src/App/Neomod/LegacyReplay.cpp \
 	src/App/Neomod/LoadingScreen.cpp src/App/Neomod/Lobby.cpp \
-	src/App/Neomod/MainMenu.cpp src/App/Neomod/MainMenuTips.cpp \
-	src/App/Neomod/MapExporter.cpp src/App/Neomod/MapFetcher.cpp \
-	src/App/Neomod/ModFPoSu.cpp src/App/Neomod/ModSelector.cpp \
+	src/App/Neomod/MainMenu.cpp \
+	src/App/Neomod/MainMenuNowPlaying.cpp \
+	src/App/Neomod/MainMenuTips.cpp src/App/Neomod/MapExporter.cpp \
+	src/App/Neomod/MapFetcher.cpp src/App/Neomod/ModFPoSu.cpp \
+	src/App/Neomod/ModSelector.cpp \
 	src/App/Neomod/NeomodEnvInterop.cpp \
 	src/App/Neomod/NeomodUrl.cpp \
 	src/App/Neomod/NotificationOverlay.cpp \
@@ -307,7 +309,7 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Neomod/UIButtonWithIcon.cpp \
 	src/App/Neomod/UICheckbox.cpp src/App/Neomod/UIContextMenu.cpp \
 	src/App/Neomod/UIDebug.cpp src/App/Neomod/UIIcon.cpp \
-	src/App/Neomod/UILabel.cpp \
+	src/App/Neomod/UIIconButton.cpp src/App/Neomod/UILabel.cpp \
 	src/App/Neomod/UIModSelectorModButton.cpp \
 	src/App/Neomod/UIPauseMenuButton.cpp \
 	src/App/Neomod/UIRankingScreenInfoLabel.cpp \
@@ -511,6 +513,7 @@ am_neomod_OBJECTS = libraries/neomod-MD5.$(OBJEXT) \
 	src/App/Neomod/neomod-LoadingScreen.$(OBJEXT) \
 	src/App/Neomod/neomod-Lobby.$(OBJEXT) \
 	src/App/Neomod/neomod-MainMenu.$(OBJEXT) \
+	src/App/Neomod/neomod-MainMenuNowPlaying.$(OBJEXT) \
 	src/App/Neomod/neomod-MainMenuTips.$(OBJEXT) \
 	src/App/Neomod/neomod-MapExporter.$(OBJEXT) \
 	src/App/Neomod/neomod-MapFetcher.$(OBJEXT) \
@@ -567,6 +570,7 @@ am_neomod_OBJECTS = libraries/neomod-MD5.$(OBJEXT) \
 	src/App/Neomod/neomod-UIContextMenu.$(OBJEXT) \
 	src/App/Neomod/neomod-UIDebug.$(OBJEXT) \
 	src/App/Neomod/neomod-UIIcon.$(OBJEXT) \
+	src/App/Neomod/neomod-UIIconButton.$(OBJEXT) \
 	src/App/Neomod/neomod-UILabel.$(OBJEXT) \
 	src/App/Neomod/neomod-UIModSelectorModButton.$(OBJEXT) \
 	src/App/Neomod/neomod-UIPauseMenuButton.$(OBJEXT) \
@@ -738,6 +742,7 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/App/Neomod/$(DEPDIR)/neomod-LoadingScreen.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-Lobby.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-MainMenu.Po \
+	src/App/Neomod/$(DEPDIR)/neomod-MainMenuNowPlaying.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-MainMenuTips.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-MapExporter.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-MapFetcher.Po \
@@ -780,6 +785,7 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/App/Neomod/$(DEPDIR)/neomod-UIContextMenu.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-UIDebug.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-UIIcon.Po \
+	src/App/Neomod/$(DEPDIR)/neomod-UIIconButton.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-UILabel.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-UIModSelectorModButton.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-UIPauseMenuButton.Po \
@@ -1486,9 +1492,11 @@ neomod_SOURCES = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Neomod/HUD.cpp src/App/Neomod/HitObjects.cpp \
 	src/App/Neomod/HitSounds.cpp src/App/Neomod/LegacyReplay.cpp \
 	src/App/Neomod/LoadingScreen.cpp src/App/Neomod/Lobby.cpp \
-	src/App/Neomod/MainMenu.cpp src/App/Neomod/MainMenuTips.cpp \
-	src/App/Neomod/MapExporter.cpp src/App/Neomod/MapFetcher.cpp \
-	src/App/Neomod/ModFPoSu.cpp src/App/Neomod/ModSelector.cpp \
+	src/App/Neomod/MainMenu.cpp \
+	src/App/Neomod/MainMenuNowPlaying.cpp \
+	src/App/Neomod/MainMenuTips.cpp src/App/Neomod/MapExporter.cpp \
+	src/App/Neomod/MapFetcher.cpp src/App/Neomod/ModFPoSu.cpp \
+	src/App/Neomod/ModSelector.cpp \
 	src/App/Neomod/NeomodEnvInterop.cpp \
 	src/App/Neomod/NeomodUrl.cpp \
 	src/App/Neomod/NotificationOverlay.cpp \
@@ -1529,7 +1537,7 @@ neomod_SOURCES = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Neomod/UIButtonWithIcon.cpp \
 	src/App/Neomod/UICheckbox.cpp src/App/Neomod/UIContextMenu.cpp \
 	src/App/Neomod/UIDebug.cpp src/App/Neomod/UIIcon.cpp \
-	src/App/Neomod/UILabel.cpp \
+	src/App/Neomod/UIIconButton.cpp src/App/Neomod/UILabel.cpp \
 	src/App/Neomod/UIModSelectorModButton.cpp \
 	src/App/Neomod/UIPauseMenuButton.cpp \
 	src/App/Neomod/UIRankingScreenInfoLabel.cpp \
@@ -2312,6 +2320,9 @@ src/App/Neomod/neomod-Lobby.$(OBJEXT): src/App/Neomod/$(am__dirstamp) \
 src/App/Neomod/neomod-MainMenu.$(OBJEXT):  \
 	src/App/Neomod/$(am__dirstamp) \
 	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
+src/App/Neomod/neomod-MainMenuNowPlaying.$(OBJEXT):  \
+	src/App/Neomod/$(am__dirstamp) \
+	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
 src/App/Neomod/neomod-MainMenuTips.$(OBJEXT):  \
 	src/App/Neomod/$(am__dirstamp) \
 	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
@@ -2493,6 +2504,9 @@ src/App/Neomod/neomod-UIDebug.$(OBJEXT):  \
 	src/App/Neomod/$(am__dirstamp) \
 	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
 src/App/Neomod/neomod-UIIcon.$(OBJEXT):  \
+	src/App/Neomod/$(am__dirstamp) \
+	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
+src/App/Neomod/neomod-UIIconButton.$(OBJEXT):  \
 	src/App/Neomod/$(am__dirstamp) \
 	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
 src/App/Neomod/neomod-UILabel.$(OBJEXT):  \
@@ -3184,6 +3198,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-LoadingScreen.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-Lobby.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-MainMenu.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-MainMenuNowPlaying.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-MainMenuTips.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-MapExporter.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-MapFetcher.Po@am__quote@ # am--include-marker
@@ -3226,6 +3241,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-UIContextMenu.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-UIDebug.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-UIIcon.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-UIIconButton.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-UILabel.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-UIModSelectorModButton.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-UIPauseMenuButton.Po@am__quote@ # am--include-marker
@@ -4082,6 +4098,20 @@ src/App/Neomod/neomod-MainMenu.obj: src/App/Neomod/MainMenu.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-MainMenu.obj `if test -f 'src/App/Neomod/MainMenu.cpp'; then $(CYGPATH_W) 'src/App/Neomod/MainMenu.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/MainMenu.cpp'; fi`
 
+src/App/Neomod/neomod-MainMenuNowPlaying.o: src/App/Neomod/MainMenuNowPlaying.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-MainMenuNowPlaying.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-MainMenuNowPlaying.Tpo -c -o src/App/Neomod/neomod-MainMenuNowPlaying.o `test -f 'src/App/Neomod/MainMenuNowPlaying.cpp' || echo '$(srcdir)/'`src/App/Neomod/MainMenuNowPlaying.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-MainMenuNowPlaying.Tpo src/App/Neomod/$(DEPDIR)/neomod-MainMenuNowPlaying.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/MainMenuNowPlaying.cpp' object='src/App/Neomod/neomod-MainMenuNowPlaying.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-MainMenuNowPlaying.o `test -f 'src/App/Neomod/MainMenuNowPlaying.cpp' || echo '$(srcdir)/'`src/App/Neomod/MainMenuNowPlaying.cpp
+
+src/App/Neomod/neomod-MainMenuNowPlaying.obj: src/App/Neomod/MainMenuNowPlaying.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-MainMenuNowPlaying.obj -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-MainMenuNowPlaying.Tpo -c -o src/App/Neomod/neomod-MainMenuNowPlaying.obj `if test -f 'src/App/Neomod/MainMenuNowPlaying.cpp'; then $(CYGPATH_W) 'src/App/Neomod/MainMenuNowPlaying.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/MainMenuNowPlaying.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-MainMenuNowPlaying.Tpo src/App/Neomod/$(DEPDIR)/neomod-MainMenuNowPlaying.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/MainMenuNowPlaying.cpp' object='src/App/Neomod/neomod-MainMenuNowPlaying.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-MainMenuNowPlaying.obj `if test -f 'src/App/Neomod/MainMenuNowPlaying.cpp'; then $(CYGPATH_W) 'src/App/Neomod/MainMenuNowPlaying.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/MainMenuNowPlaying.cpp'; fi`
+
 src/App/Neomod/neomod-MainMenuTips.o: src/App/Neomod/MainMenuTips.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-MainMenuTips.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-MainMenuTips.Tpo -c -o src/App/Neomod/neomod-MainMenuTips.o `test -f 'src/App/Neomod/MainMenuTips.cpp' || echo '$(srcdir)/'`src/App/Neomod/MainMenuTips.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-MainMenuTips.Tpo src/App/Neomod/$(DEPDIR)/neomod-MainMenuTips.Po
@@ -4865,6 +4895,20 @@ src/App/Neomod/neomod-UIIcon.obj: src/App/Neomod/UIIcon.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/UIIcon.cpp' object='src/App/Neomod/neomod-UIIcon.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-UIIcon.obj `if test -f 'src/App/Neomod/UIIcon.cpp'; then $(CYGPATH_W) 'src/App/Neomod/UIIcon.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/UIIcon.cpp'; fi`
+
+src/App/Neomod/neomod-UIIconButton.o: src/App/Neomod/UIIconButton.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-UIIconButton.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-UIIconButton.Tpo -c -o src/App/Neomod/neomod-UIIconButton.o `test -f 'src/App/Neomod/UIIconButton.cpp' || echo '$(srcdir)/'`src/App/Neomod/UIIconButton.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-UIIconButton.Tpo src/App/Neomod/$(DEPDIR)/neomod-UIIconButton.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/UIIconButton.cpp' object='src/App/Neomod/neomod-UIIconButton.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-UIIconButton.o `test -f 'src/App/Neomod/UIIconButton.cpp' || echo '$(srcdir)/'`src/App/Neomod/UIIconButton.cpp
+
+src/App/Neomod/neomod-UIIconButton.obj: src/App/Neomod/UIIconButton.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-UIIconButton.obj -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-UIIconButton.Tpo -c -o src/App/Neomod/neomod-UIIconButton.obj `if test -f 'src/App/Neomod/UIIconButton.cpp'; then $(CYGPATH_W) 'src/App/Neomod/UIIconButton.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/UIIconButton.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-UIIconButton.Tpo src/App/Neomod/$(DEPDIR)/neomod-UIIconButton.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/UIIconButton.cpp' object='src/App/Neomod/neomod-UIIconButton.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-UIIconButton.obj `if test -f 'src/App/Neomod/UIIconButton.cpp'; then $(CYGPATH_W) 'src/App/Neomod/UIIconButton.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/UIIconButton.cpp'; fi`
 
 src/App/Neomod/neomod-UILabel.o: src/App/Neomod/UILabel.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-UILabel.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-UILabel.Tpo -c -o src/App/Neomod/neomod-UILabel.o `test -f 'src/App/Neomod/UILabel.cpp' || echo '$(srcdir)/'`src/App/Neomod/UILabel.cpp
@@ -7344,6 +7388,7 @@ distclean: distclean-am
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-LoadingScreen.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-Lobby.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-MainMenu.Po
+	-rm -f src/App/Neomod/$(DEPDIR)/neomod-MainMenuNowPlaying.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-MainMenuTips.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-MapExporter.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-MapFetcher.Po
@@ -7386,6 +7431,7 @@ distclean: distclean-am
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-UIContextMenu.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-UIDebug.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-UIIcon.Po
+	-rm -f src/App/Neomod/$(DEPDIR)/neomod-UIIconButton.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-UILabel.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-UIModSelectorModButton.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-UIPauseMenuButton.Po
@@ -7639,6 +7685,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-LoadingScreen.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-Lobby.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-MainMenu.Po
+	-rm -f src/App/Neomod/$(DEPDIR)/neomod-MainMenuNowPlaying.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-MainMenuTips.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-MapExporter.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-MapFetcher.Po
@@ -7681,6 +7728,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-UIContextMenu.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-UIDebug.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-UIIcon.Po
+	-rm -f src/App/Neomod/$(DEPDIR)/neomod-UIIconButton.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-UILabel.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-UIModSelectorModButton.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-UIPauseMenuButton.Po

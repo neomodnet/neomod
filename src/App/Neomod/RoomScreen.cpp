@@ -29,7 +29,6 @@
 #include "HUD.h"
 #include "LegacyReplay.h"
 #include "Lobby.h"
-#include "MainMenu.h"
 #include "ModSelector.h"
 #include "NotificationOverlay.h"
 #include "OsuDirectScreen.h"
@@ -47,6 +46,7 @@
 #include "UIButton.h"
 #include "UICheckbox.h"
 #include "UIContextMenu.h"
+#include "UIIconButton.h"
 #include "UIUserContextMenu.h"
 #include "DatabaseBeatmap.h"
 
@@ -141,8 +141,8 @@ RoomScreen::RoomScreen() : UIScreen() {
     this->font = engine->getDefaultFont();
     this->lfont = osu->getSubTitleFont();
 
-    this->pauseButton = new PauseButton(0, 0, 0, 0, "pause_btn", "");
-    this->pauseButton->setClickCallback([]() { ui->getMainMenu()->onPausePressed(); });
+    this->pauseButton = new PauseButton("pause_btn");
+    this->pauseButton->setIconHeight(0.8f);
     this->addBaseUIElement(this->pauseButton);
 
     this->settings = new CBaseUIScrollView(0, 0, 0, 0, "room_settings");
@@ -302,8 +302,6 @@ void RoomScreen::tick() {
         // Update room name in rich presence info
         RichPresence::onMultiplayerLobby();
     }
-
-    this->pauseButton->setPaused(!osu->getMapInterface()->isPreviewMusicPlaying());
 }
 
 void RoomScreen::updateInput(CBaseUIEventCtx &c) {
@@ -584,7 +582,6 @@ void RoomScreen::on_map_change() {
     this->ready_btn->is_loading = true;
 
     // Deselect current map
-    this->pauseButton->setPaused(true);
     osu->getMapInterface()->deselectBeatmap();
 
     if(BanchoState::room.map_id == 0) {

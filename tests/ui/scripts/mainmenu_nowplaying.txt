@@ -1,0 +1,39 @@
+# pins the main menu's now playing panel: it shows up for the selected map, its buttons hit-test where they're
+# drawn, and the seek bar keeps its grab while the cursor leaves it (the drag keeps seeking until released)
+# uitest-maps: uitest nowplaying set|-1|1
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+ui_trace 1
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@sleep 300
+@wait 30
+@sleep 300
+@wait 30
+ui_assert visible mainmenu_nowplaying 1
+mouse_to 1059 68
+@wait 3
+ui_assert hovered mainmenu_prev 1
+mouse_to 1107 68
+@wait 3
+ui_assert hovered mainmenu_pause 1
+mouse_to 1155 68
+@wait 3
+ui_assert hovered mainmenu_next 1
+mouse_to 1107 93
+@wait 3
+ui_assert hovered mainmenu_seekbar 1
+mouse_down
+@wait 3
+ui_assert active mainmenu_seekbar 1
+mouse_to 1107 300
+@wait 3
+ui_assert active mainmenu_seekbar 1
+mouse_up
+@wait 3
+ui_assert active mainmenu_seekbar 0
+ui_assert hovered mainmenu_seekbar 0
+exit

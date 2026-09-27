@@ -458,6 +458,14 @@ msgstr "Необходимо войти в аккаунт, чтобы зайти
 msgid "You must log in to download beatmaps!"
 msgstr "Необходимо войти в актацию, чтобы скачивать карты!"
 
+#: src/App/Neomod/MainMenuNowPlaying.cpp
+msgid "Previous song"
+msgstr ""
+
+#: src/App/Neomod/MainMenuNowPlaying.cpp
+msgid "Next song"
+msgstr ""
+
 #: src/App/Neomod/MainMenuTips.cpp
 msgid "Press Alt + Enter to toggle Fullscreen."
 msgstr "Нажмите Alt + Enter для переключения полноэкранного режима."
@@ -3601,6 +3609,15 @@ msgstr ""
 #, fuzzy
 msgid "Downloading map..."
 msgstr "Скачивание ..."
+
+#: src/App/Neomod/UIIconButton.cpp
+msgid "Play"
+msgstr ""
+
+#: src/App/Neomod/UIIconButton.cpp
+#, fuzzy
+msgid "Pause"
+msgstr "Пауза"
 
 #: src/App/Neomod/UISearchOverlay.cpp
 msgid "Search: "
