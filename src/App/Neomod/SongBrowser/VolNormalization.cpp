@@ -422,7 +422,6 @@ void flush_priority() {
 void shutdown() {
     VolNormalization::abort();
     s_prio.reset();
-    cv::loudness_calc_threads.removeAllCallbacks();
 }
 
 }  // namespace VolNormalization

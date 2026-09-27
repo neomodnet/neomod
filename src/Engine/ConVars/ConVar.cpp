@@ -399,31 +399,31 @@ void ConVar::runCallbacks(double oldDouble, std::string_view oldString) {
 // lifetime explicitly before reusing the storage.
 
 void ConVar::setCallbackImpl(VoidCB cb) {
-    ::new(&this->callback.storage[0]) VoidCB(std::move(cb));
+    ::new(&this->callback.storage[0]) VoidCB(cb);
     this->callback.kind = CallbackKind::Void;
 }
 void ConVar::setCallbackImpl(StringCB cb) {
-    ::new(&this->callback.storage[0]) StringCB(std::move(cb));
+    ::new(&this->callback.storage[0]) StringCB(cb);
     this->callback.kind = CallbackKind::String;
 }
 void ConVar::setCallbackImpl(FloatCB cb) {
-    ::new(&this->callback.storage[0]) FloatCB(std::move(cb));
+    ::new(&this->callback.storage[0]) FloatCB(cb);
     this->callback.kind = CallbackKind::Float;
 }
 void ConVar::setCallbackImpl(DoubleCB cb) {
-    ::new(&this->callback.storage[0]) DoubleCB(std::move(cb));
+    ::new(&this->callback.storage[0]) DoubleCB(cb);
     this->callback.kind = CallbackKind::Double;
 }
 void ConVar::setCallbackImpl(StringChangeCB cb) {
-    ::new(&this->changeCallback.storage[0]) StringChangeCB(std::move(cb));
+    ::new(&this->changeCallback.storage[0]) StringChangeCB(cb);
     this->changeCallback.kind = CallbackKind::StringChange;
 }
 void ConVar::setCallbackImpl(FloatChangeCB cb) {
-    ::new(&this->changeCallback.storage[0]) FloatChangeCB(std::move(cb));
+    ::new(&this->changeCallback.storage[0]) FloatChangeCB(cb);
     this->changeCallback.kind = CallbackKind::FloatChange;
 }
 void ConVar::setCallbackImpl(DoubleChangeCB cb) {
-    ::new(&this->changeCallback.storage[0]) DoubleChangeCB(std::move(cb));
+    ::new(&this->changeCallback.storage[0]) DoubleChangeCB(cb);
     this->changeCallback.kind = CallbackKind::DoubleChange;
 }
 
@@ -466,25 +466,25 @@ void ConVar::initValueInt(Value value, uint8_t flags) {
 void ConVar::initCmdCallbackImpl(uint8_t flags, VoidCB cb) {
     this->iFlags = flags | cv::NOSAVE;
     this->type = CONVAR_TYPE::STRING;
-    ::new(&this->callback.storage[0]) VoidCB(std::move(cb));
+    ::new(&this->callback.storage[0]) VoidCB(cb);
     this->callback.kind = CallbackKind::Void;
 }
 void ConVar::initCmdCallbackImpl(uint8_t flags, StringCB cb) {
     this->iFlags = flags | cv::NOSAVE;
     this->type = CONVAR_TYPE::STRING;
-    ::new(&this->callback.storage[0]) StringCB(std::move(cb));
+    ::new(&this->callback.storage[0]) StringCB(cb);
     this->callback.kind = CallbackKind::String;
 }
 void ConVar::initCmdCallbackImpl(uint8_t flags, FloatCB cb) {
     this->iFlags = flags | cv::NOSAVE;
     this->type = CONVAR_TYPE::INT;
-    ::new(&this->callback.storage[0]) FloatCB(std::move(cb));
+    ::new(&this->callback.storage[0]) FloatCB(cb);
     this->callback.kind = CallbackKind::Float;
 }
 void ConVar::initCmdCallbackImpl(uint8_t flags, DoubleCB cb) {
     this->iFlags = flags | cv::NOSAVE;
     this->type = CONVAR_TYPE::INT;
-    ::new(&this->callback.storage[0]) DoubleCB(std::move(cb));
+    ::new(&this->callback.storage[0]) DoubleCB(cb);
     this->callback.kind = CallbackKind::Double;
 }
 

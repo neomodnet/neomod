@@ -27,7 +27,7 @@ namespace neomod::mainmenu {
 namespace {
 
 // panel geometry, in virtual-screen pixels at scale=1 (multiplied by Osu::getUIScale())
-constexpr f32 PANEL_WIDTH{320.f};
+constexpr f32 PANEL_MAX_WIDTH{400.f};
 constexpr f32 PAD{8.f};
 constexpr f32 TITLE_HEIGHT{32.f};  // with the progress line below it, all there is of the panel while it's collapsed
 constexpr f32 ICON_GAP{8.f};
@@ -248,7 +248,8 @@ void NowPlaying::tick() {
 
 void NowPlaying::updateLayout() {
     const f32 scale = Osu::getUIScale();
-    const f32 width = std::round(PANEL_WIDTH * scale);
+    const f32 width =
+        std::min(((f32)osu->getVirtScreenWidth() - (PAD * 2)) * scale, std::round(PANEL_MAX_WIDTH * scale));
     const f32 border = std::round(scale);
     const f32 titleHeight = std::round(TITLE_HEIGHT * scale);
     const f32 buttonHeight = std::round(BUTTON_HEIGHT * scale);
