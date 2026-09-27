@@ -462,6 +462,14 @@ msgid "You must log in to download beatmaps!"
 msgstr "Du musst dich anmelden, um Beatmaps herunterzuladen!"
 
 #: src/App/Neomod/MainMenuNowPlaying.cpp
+msgid "Collapse when idle"
+msgstr ""
+
+#: src/App/Neomod/MainMenuNowPlaying.cpp
+msgid "Keep expanded"
+msgstr ""
+
+#: src/App/Neomod/MainMenuNowPlaying.cpp
 msgid "Previous song"
 msgstr ""
 

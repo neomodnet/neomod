@@ -33,14 +33,16 @@ void UIIconButton::draw() {
     const f32 scale = height / glyphTop;
     const f32 alpha = this->bEnabled ? 0.75f + 0.25f * hover : 0.3f;
 
-    // the icons barely reach below the baseline, so centering the part above it centers the glyph
+    // the icons barely reach below the baseline, so the middle of the part above it is the glyph's center, which goes
+    // to the origin to be turned and then onto the button's center
     const std::string glyph = UniString::to_utf8(std::u32string_view{&this->icon, 1});
     const vec2 center = this->getRect().getCenter();
     g->pushTransform();
     {
         g->scale(scale, scale);
-        g->translate(std::round(center.x - this->font->getStringWidth(glyph) * scale / 2.f),
-                     std::round(center.y + height / 2.f));
+        g->translate(-std::round(this->font->getStringWidth(glyph) * scale / 2.f), std::round(height / 2.f));
+        g->rotate(this->iconRotation);
+        g->translate(std::round(center.x), std::round(center.y));
         g->drawString(this->font, glyph,
                       TextFX{.col_text = argb(alpha, 1.f, 1.f, 1.f),
                              .col_shadow = argb(alpha * 0.6f, 0.f, 0.f, 0.f),

@@ -11,6 +11,7 @@
 #include "MainMenu.h"
 #include "Mouse.h"
 #include "Osu.h"
+#include "OsuConVars.h"
 #include "Sound.h"
 #include "TooltipOverlay.h"
 #include "UI.h"
@@ -27,17 +28,20 @@ namespace {
 
 // panel geometry, in virtual-screen pixels at scale=1 (multiplied by Osu::getUIScale())
 constexpr f32 PANEL_WIDTH{320.f};
-constexpr f32 PAD{12.f};
-constexpr f32 CORNER_RADIUS{8.f};
-constexpr f32 TITLE_TOP{8.f};
-constexpr f32 TITLE_HEIGHT{30.f};
-constexpr f32 NOTE_GAP{8.f};
+constexpr f32 PAD{8.f};
+constexpr f32 TITLE_HEIGHT{32.f};  // all there is of the panel while it's collapsed
+constexpr f32 ICON_GAP{8.f};
+constexpr f32 PIN_WIDTH{28.f};
 constexpr f32 BUTTON_HEIGHT{36.f};
 constexpr f32 SIDE_BUTTON_WIDTH{44.f};
 constexpr f32 MAIN_BUTTON_WIDTH{52.f};
-constexpr f32 SEEK_HEIGHT{14.f};  // the clickable strip, the bar itself is SEEK_BAR_HEIGHT in its middle
+constexpr f32 SEEK_HEIGHT{14.f};  // the clickable strip along the bottom edge, the bar itself is at its bottom
 constexpr f32 SEEK_BAR_HEIGHT{5.f};
-constexpr f32 BOTTOM_PAD{6.f};
+constexpr f32 COLLAPSED_BAR_HEIGHT{2.f};
+
+// unless it's pinned open, the panel collapses into its title when left alone
+constexpr f64 EXPAND_LINGER{1.5};  // after the cursor left it
+constexpr f64 EXPAND_INTRO{8.};    // after the game started, so the controls don't stay a secret
 
 // a title too long for the panel rests at its start, then scrolls left until the copy following it took its place
 constexpr f64 MARQUEE_REST{3.};
@@ -55,11 +59,12 @@ std::string format_time(f64 secs) {
 
 }  // namespace
 
-// shows how far the song is and seeks it: a click jumps there, a drag moves the position along until released
+// shows how far the song is along the bottom edge and seeks it: a click jumps there, a drag moves the position along
+// until released. just a thin line while the panel is collapsed
 class NowPlaying::SeekBar final : public CBaseUIElement {
     NOCOPY_NOMOVE(SeekBar)
    public:
-    SeekBar() : CBaseUIElement(0, 0, 0, 0, "mainmenu_seekbar") {}
+    SeekBar(const NowPlaying &panel) : CBaseUIElement(0, 0, 0, 0, "mainmenu_seekbar"), panel(panel) {}
     ~SeekBar() override = default;
 
     void draw() override;
@@ -80,26 +85,24 @@ class NowPlaying::SeekBar final : public CBaseUIElement {
         return std::clamp((mouse->getPos().x - this->getPos().x) / this->getSize().x, 0.f, 1.f);
     }
     void seek() const;
+
+    const NowPlaying &panel;
 };
 
 void NowPlaying::SeekBar::draw() {
     if(!this->isVisible()) return;
 
     const f32 scale = Osu::getUIScale();
-    const f32 barHeight = std::round(SEEK_BAR_HEIGHT * scale);
+    const f32 barHeight =
+        std::round(std::lerp(COLLAPSED_BAR_HEIGHT, SEEK_BAR_HEIGHT, (f32)this->panel.expandAnim) * scale);
     const McRect &rect = this->getRect();
-    const f32 y = std::round(rect.getCenter().y - barHeight / 2.f);
-    const bool highlighted = this->isMouseInside() || this->bActive;
+    const f32 y = rect.getMaxY() - barHeight;
     const auto fill = [&](f32 width, f32 alpha) {
         g->setColor(argb(alpha, 1.f, 1.f, 1.f));
-        g->fillRectf({.x = rect.getX(),
-                      .y = y,
-                      .width = width,
-                      .height = barHeight,
-                      .cornerRadius = std::min(barHeight, width) / 2.f});
+        g->fillRectf(rect.getX(), y, width, barHeight);
     };
 
-    fill(rect.getWidth(), highlighted ? 0.35f : 0.25f);
+    fill(rect.getWidth(), this->isMouseInside() || this->bActive ? 0.3f : 0.15f);
 
     const Sound *music = osu->getMapInterface()->getMusic();
     if(!music || !music->isReady() || music->getLengthUS() == 0) return;
@@ -107,18 +110,7 @@ void NowPlaying::SeekBar::draw() {
     // how far a click would seek
     if(this->isMouseInside() && !this->bActive) fill(rect.getWidth() * this->getCursorPercent(), 0.25f);
 
-    const f32 fillWidth = rect.getWidth() * (f32)this->getShownPercent(*music);
-    fill(fillWidth, 0.9f);
-
-    if(highlighted) {
-        const f32 knob = std::round(barHeight * 2.2f);
-        g->setColor(argb(1.f, 1.f, 1.f, 1.f));
-        g->fillRectf({.x = std::round(rect.getX() + fillWidth - knob / 2.f),
-                      .y = std::round(rect.getCenter().y - knob / 2.f),
-                      .width = knob,
-                      .height = knob,
-                      .cornerRadius = knob / 2.f});
-    }
+    fill(rect.getWidth() * (f32)this->getShownPercent(*music), 0.9f);
 }
 
 void NowPlaying::SeekBar::updateInput(CBaseUIEventCtx &c) {
@@ -149,9 +141,45 @@ void NowPlaying::SeekBar::seek() const {
     music->setPositionS(this->getCursorPercent() * music->getLengthS());
 }
 
-NowPlaying::NowPlaying(MainMenu *mm) : CBaseUIContainer(0, 0, 0, 0, "mainmenu_nowplaying") {
+// pins the panel open (main_menu_music_controls_pinned): the pin stands upright while it's pinned and lies tilted while
+// the panel collapses by itself
+class NowPlaying::PinButton final : public UIIconButton {
+    NOCOPY_NOMOVE(PinButton)
+   public:
+    PinButton()
+        : UIIconButton(Icons::THUMB_TACK, "mainmenu_pin"), pinned(cv::main_menu_music_controls_pinned.getBool()) {
+        this->iconRotation = this->pinned ? 0.f : TILT;
+        this->tooltipText = tooltipFor(this->pinned);
+        this->setClickCallback(
+            [] { cv::main_menu_music_controls_pinned.setValue(!cv::main_menu_music_controls_pinned.getBool()); });
+    }
+    ~PinButton() override = default;
+
+    void tick() override {
+        UIIconButton::tick();
+
+        const bool pinned = cv::main_menu_music_controls_pinned.getBool();
+        if(pinned == this->pinned) return;
+        this->pinned = pinned;
+        this->iconRotation.set(pinned ? 0.f : TILT, 0.15f, anim::QuadOut);
+        this->tooltipText = tooltipFor(pinned);
+    }
+
+   private:
+    static constexpr f32 TILT{45.f};
+    static const char *tooltipFor(bool pinned) { return pinned ? _("Collapse when idle") : _("Keep expanded"); }
+
+    bool pinned;
+};
+
+NowPlaying::NowPlaying(MainMenu *mm)
+    : CBaseUIContainer(0, 0, 0, 0, "mainmenu_nowplaying"), expandedUntil(engine->getTime() + EXPAND_INTRO) {
     this->font = engine->getDefaultFont();
     this->iconFont = osu->getFontIcons();
+
+    this->pinButton = new PinButton();
+    this->pinButton->setIconHeight(0.45f);
+    this->addBaseUIElement(this->pinButton);
 
     this->prevButton = new UIIconButton(Icons::STEP_BACKWARD, "mainmenu_prev");
     this->prevButton->setIconHeight(0.5f)->setTooltipText(_("Previous song"));
@@ -167,7 +195,7 @@ NowPlaying::NowPlaying(MainMenu *mm) : CBaseUIContainer(0, 0, 0, 0, "mainmenu_no
     this->nextButton->setClickCallback([mm] { mm->selectRandomBeatmap(); });
     this->addBaseUIElement(this->nextButton);
 
-    this->seekBar = new SeekBar();
+    this->seekBar = new SeekBar(*this);
     this->addBaseUIElement(this->seekBar);
 }
 
@@ -182,24 +210,64 @@ void NowPlaying::tick() {
     std::string title = map ? fmt::format("{} - {}", map->getArtist(), map->getTitle()) : std::string{};
     if(title != this->title) {
         this->title = std::move(title);
-        this->titleChangeTime = engine->getTime();
+        this->marqueeTime = 0.;
+        this->marqueeScrollFinished = false;
+    }
+
+    const f64 now = engine->getTime();
+    if(this->isMouseInside() || this->seekBar->isActive()) {
+        this->expandedUntil = std::max(this->expandedUntil, now + EXPAND_LINGER);
+    }
+    const bool expand = cv::main_menu_music_controls_pinned.getBool() || now < this->expandedUntil;
+    if(expand != this->expanded) {
+        this->expanded = expand;
+        this->expandAnim.set(expand ? 1.f : 0.f, expand ? 0.15f : 0.25f, anim::QuadOut);
+    }
+
+    // the controls are only there while (partly) unrolled, and the seek bar only takes input once it's all the way
+    const bool unrolled = this->expandAnim > 0.f;
+    this->prevButton->setVisible(unrolled);
+    this->pauseButton->setVisible(unrolled);
+    this->nextButton->setVisible(unrolled);
+    this->seekBar->setEnabled(this->expandAnim >= 1.f);
+
+    // a long title keeps scrolling while the panel is expanded, but while it's collapsed only goes around once (per
+    // song, or after the panel was expanded) before it comes to rest at its start
+    if(this->expanded) this->marqueeScrollFinished = false;
+    if(!this->marqueeScrollFinished) {
+        const f32 scale = Osu::getUIScale();
+        const f64 cycle =
+            MARQUEE_REST + (this->font->getStringWidth(this->title) + MARQUEE_GAP * scale) / (MARQUEE_SPEED * scale);
+        this->marqueeTime += engine->getFrameTime();
+        if(this->marqueeTime >= cycle) {
+            this->marqueeScrollFinished = !this->expanded;
+            this->marqueeTime = this->marqueeScrollFinished ? 0. : this->marqueeTime - cycle;
+        }
     }
 }
 
 void NowPlaying::updateLayout() {
     const f32 scale = Osu::getUIScale();
-    const f32 buttonsY = (TITLE_TOP + TITLE_HEIGHT) * scale;
-    const f32 seekY = buttonsY + BUTTON_HEIGHT * scale;
-    this->setSize(PANEL_WIDTH * scale, seekY + (SEEK_HEIGHT + BOTTOM_PAD) * scale);
+    const f32 width = std::round(PANEL_WIDTH * scale);
+    const f32 border = std::round(scale);
+    const f32 titleHeight = std::round(TITLE_HEIGHT * scale);
+    const f32 buttonHeight = std::round(BUTTON_HEIGHT * scale);
+    const f32 seekHeight = std::round(SEEK_HEIGHT * scale);
+    this->setSize(width, std::round(titleHeight + (buttonHeight + seekHeight) * this->expandAnim));
 
-    const f32 center = this->getSize().x / 2.f;
-    const vec2 mainSize{MAIN_BUTTON_WIDTH * scale, BUTTON_HEIGHT * scale};
-    const vec2 sideSize{SIDE_BUTTON_WIDTH * scale, BUTTON_HEIGHT * scale};
-    this->pauseButton->setRelPos(center - mainSize.x / 2.f, buttonsY)->setSize(mainSize);
-    this->prevButton->setRelPos(center - mainSize.x / 2.f - sideSize.x, buttonsY)->setSize(sideSize);
-    this->nextButton->setRelPos(center + mainSize.x / 2.f, buttonsY)->setSize(sideSize);
+    const f32 pinWidth = std::round(PIN_WIDTH * scale);
+    this->pinButton->setRelPos(width - border - pinWidth, 0)->setSize(pinWidth, titleHeight);
 
-    this->seekBar->setRelPos(PAD * scale, seekY)->setSize(this->getSize().x - 2.f * PAD * scale, SEEK_HEIGHT * scale);
+    const f32 mainWidth = std::round(MAIN_BUTTON_WIDTH * scale);
+    const f32 sideWidth = std::round(SIDE_BUTTON_WIDTH * scale);
+    const f32 mainX = std::round((width - mainWidth) / 2.f);
+    this->pauseButton->setRelPos(mainX, titleHeight)->setSize(mainWidth, buttonHeight);
+    this->prevButton->setRelPos(mainX - sideWidth, titleHeight)->setSize(sideWidth, buttonHeight);
+    this->nextButton->setRelPos(mainX + mainWidth, titleHeight)->setSize(sideWidth, buttonHeight);
+
+    // the bottom edge moves down as the panel unrolls, and the seek bar with it
+    this->seekBar->setRelPos(border, this->getSize().y - border - seekHeight)
+        ->setSize(width - 2.f * border, seekHeight);
 
     this->update_pos();
 }
@@ -209,32 +277,40 @@ void NowPlaying::draw() {
 
     const f32 scale = Osu::getUIScale();
     const McRect &rect = this->getRect();
-    g->setColor(argb(0.45f, 0.f, 0.f, 0.f));
-    g->fillRectf({.x = rect.getX(),
-                  .y = rect.getY(),
-                  .width = rect.getWidth(),
-                  .height = rect.getHeight(),
-                  .cornerRadius = CORNER_RADIUS * scale});
-    g->setColor(argb(0.15f, 1.f, 1.f, 1.f));
+
+    // like the online beatmaps screen's preview panel
+    g->setColor(rgb(15, 15, 15).setA(0.85f));
+    g->fillRect(rect);
+    g->setColor(rgb(80, 80, 80));
     g->drawRectf(Graphics::RectOptions{.x = rect.getX() + scale / 2.f,
                                        .y = rect.getY() + scale / 2.f,
                                        .width = rect.getWidth() - scale,
                                        .height = rect.getHeight() - scale,
                                        .lineThickness = scale,
-                                       .cornerRadius = CORNER_RADIUS * scale});
+                                       .withColor = false});
 
-    this->drawTitle();
-    this->drawTimes();
+    // whatever isn't unrolled yet stays hidden
+    g->pushClipRect(rect);
+    {
+        g->setColor(rgb(50, 50, 50).setA(0.85f));
+        g->fillRect((int)(rect.getX() + PAD * scale), (int)(rect.getY() + std::round(TITLE_HEIGHT * scale)),
+                    (int)(rect.getWidth() - 2.f * PAD * scale), 1);
 
-    CBaseUIContainer::draw();
+        this->drawTitle();
+        this->drawTimes();
+        CBaseUIContainer::draw();
+    }
+    g->popClipRect();
 }
 
 void NowPlaying::drawTimes() {
+    if(this->expandAnim <= 0.f) return;
+
     const Sound *music = osu->getMapInterface()->getMusic();
     if(!music || !music->isReady() || music->getLengthUS() == 0) return;
 
     const f32 scale = Osu::getUIScale();
-    const f32 baseline = std::round(this->getPos().y + (TITLE_TOP + TITLE_HEIGHT + BUTTON_HEIGHT / 2.f) * scale +
+    const f32 baseline = std::round(this->getPos().y + std::round(TITLE_HEIGHT * scale) + BUTTON_HEIGHT * scale / 2.f +
                                     this->font->getHeight() * TIME_TEXT_SCALE / 2.f);
     const auto drawAt = [&](const std::string &text, f32 x) {
         g->pushTransform();
@@ -260,25 +336,19 @@ void NowPlaying::drawTitle() {
     if(this->title.empty()) return;
 
     const f32 scale = Osu::getUIScale();
-    const std::string note = UniString::to_utf8(std::u32string_view{&Icons::MUSIC, 1});
-    const f32 noteScale = this->font->getHeight() / this->iconFont->getGlyphHeight(Icons::MUSIC);
-    const f32 noteWidth = this->iconFont->getStringWidth(note) * noteScale;
-    const f32 noteGap = NOTE_GAP * scale;
-
     const f32 left = this->getPos().x + PAD * scale;
-    const f32 width = this->getSize().x - 2.f * PAD * scale;
     const f32 baseline =
-        std::round(this->getPos().y + (TITLE_TOP + TITLE_HEIGHT / 2.f) * scale + this->font->getHeight() / 2.f);
-    const f32 textWidth = this->font->getStringWidth(this->title);
+        std::round(this->getPos().y + std::round(TITLE_HEIGHT * scale) / 2.f + this->font->getHeight() / 2.f);
 
-    // the note and the title are centered together, unless the title has to scroll past the note
-    const bool fits = noteWidth + noteGap + textWidth <= width;
-    const f32 noteX = fits ? std::round(left + (width - noteWidth - noteGap - textWidth) / 2.f) : left;
+    // whether it plays, in front of the title
+    const char32_t state = osu->getMapInterface()->isPreviewMusicPlaying() ? Icons::MUSIC : Icons::PAUSE;
+    const std::string stateGlyph = UniString::to_utf8(std::u32string_view{&state, 1});
+    const f32 stateScale = this->font->getHeight() / this->iconFont->getGlyphHeight(state);
     g->pushTransform();
     {
-        g->scale(noteScale, noteScale);
-        g->translate(noteX, baseline);
-        g->drawString(this->iconFont, note,
+        g->scale(stateScale, stateScale);
+        g->translate(left, baseline);
+        g->drawString(this->iconFont, stateGlyph,
                       TextFX{.col_text = argb(0.7f, 1.f, 1.f, 1.f),
                              .col_shadow = argb(0.6f, 0.f, 0.f, 0.f),
                              .offs_px = std::round((f32)this->iconFont->getDPI() / 96.0f),
@@ -286,7 +356,9 @@ void NowPlaying::drawTitle() {
     }
     g->popTransform();
 
-    const f32 textX = noteX + noteWidth + noteGap;
+    const f32 textX = std::round(left + this->iconFont->getStringWidth(stateGlyph) * stateScale + ICON_GAP * scale);
+    const f32 right = this->getPos().x + this->pinButton->getRelPos().x;
+    const f32 textWidth = this->font->getStringWidth(this->title);
     const auto drawAt = [&](f32 x, f32 alpha) {
         g->pushTransform();
         {
@@ -300,15 +372,14 @@ void NowPlaying::drawTitle() {
         g->popTransform();
     };
 
-    if(fits) {
+    if(textX + textWidth <= right) {
         drawAt(textX, 1.f);
         return;
     }
 
-    const f32 speed = MARQUEE_SPEED * scale;
     const f32 period = textWidth + MARQUEE_GAP * scale;
-    const f64 t = std::fmod(engine->getTime() - this->titleChangeTime, MARQUEE_REST + period / speed);
-    const f32 offset = t < MARQUEE_REST ? 0.f : (f32)(t - MARQUEE_REST) * speed;
+    const f32 offset =
+        this->marqueeTime < MARQUEE_REST ? 0.f : (f32)(this->marqueeTime - MARQUEE_REST) * MARQUEE_SPEED * scale;
 
     const auto drawClipped = [&](f32 x0, f32 x1, f32 alpha) {
         x0 = std::round(x0);
@@ -323,7 +394,6 @@ void NowPlaying::drawTitle() {
 
     // rather than cutting glyphs off, the edges fade out in steps. on the left only while the title moves, and only
     // as far as it moved (so the start of either copy doesn't pop in or out of the fade)
-    const f32 right = left + width;
     const f32 fadeRight = MARQUEE_FADE * scale;
     const f32 fadeLeft = std::min({fadeRight, offset, period - offset});
     drawClipped(textX + fadeLeft, right - fadeRight, 1.f);

@@ -32,6 +32,7 @@ class UIIconButton : public CBaseUIButton {
 
     char32_t icon;
     f32 iconHeight{0.6f};
+    AnimFloat iconRotation{0.f};  // degrees, around the glyph's center
     std::string tooltipText;
     AnimFloat hoverAnim{0.f};
 };

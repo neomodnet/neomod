@@ -616,6 +616,7 @@ CONVAR(main_menu_startup_anim_duration, 0.5f, CLIENT | SKINS | SERVER);
 CONVAR(main_menu_use_server_logo, true, CLIENT | SKINS | SERVER);
 CONVAR(main_menu_last_tip_index, -1, CLIENT | HIDDEN);  // cache to avoid showing the same tip twice
 CONVAR(main_menu_tips, true, CLIENT | SKINS | SERVER, "show main menu tips");
+CONVAR(main_menu_music_controls_pinned, false, CLIENT, "keep the main menu's music controls expanded");
 
 // Not sorted
 CONVAR(diffcalc_threads, 0.f, CLIENT, "0 = autodetect");
