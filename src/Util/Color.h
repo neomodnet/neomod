@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <type_traits>
 
 static_assert(true);  // clangd breaks otherwise... lol
 
@@ -60,11 +61,16 @@ template <typename A, typename R, typename G, typename B>
 inline constexpr bool all_compatible_v = is_compatible_v<A, R> && is_compatible_v<A, G> && is_compatible_v<A, B> &&
                                          is_compatible_v<R, G> && is_compatible_v<R, B> && is_compatible_v<G, B>;
 
+// argb channels: all compatible, or a floating point alpha with integral rgb (argb(0.5f, 255, 0, 0))
+template <typename A, typename R, typename G, typename B>
+inline constexpr bool argb_compatible_v =
+    all_compatible_v<A, R, G, B> || (std::is_floating_point_v<A> && all_compatible_v<R, G, B, R>);
+
 forceinline constexpr Channel to_byte(Numeric auto value) {
     if constexpr(std::is_floating_point_v<decltype(value)>)
         return static_cast<Channel>(std::clamp<decltype(value)>(value, 0, 1) * 255);
     else
-        return static_cast<Channel>(std::clamp<Channel>(value, 0, 255));
+        return static_cast<Channel>(std::clamp<std::common_type_t<decltype(value), int>>(value, 0, 255));
 }
 }  // namespace Colors
 
@@ -110,14 +116,14 @@ struct alignas(u32) Color {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init, hicpp-member-init)
     constexpr Color(A a, R r, G g, B b)
         requires Colors::Numeric<A> && Colors::Numeric<R> && Colors::Numeric<G> && Colors::Numeric<B> &&
-                 Colors::all_compatible_v<A, R, G, B>
+                 Colors::argb_compatible_v<A, R, G, B>
         : data{(static_cast<u32>(Colors::to_byte(a)) << 24) | (static_cast<u32>(Colors::to_byte(r)) << 16) |
                (static_cast<u32>(Colors::to_byte(g)) << 8) | static_cast<u32>(Colors::to_byte(b))} {}
 
     template <typename A, typename R, typename G, typename B>
     constexpr Color(A a, R r, G g, B b)
         requires Colors::Numeric<A> && Colors::Numeric<R> && Colors::Numeric<G> && Colors::Numeric<B> &&
-                     (!Colors::all_compatible_v<A, R, G, B>)
+                     (!Colors::argb_compatible_v<A, R, G, B>)
     = delete; /* ("parameters should have compatible types"); */
 
     friend constexpr inline bool operator==(Color a, Color b) { return a.data == b.data; }
