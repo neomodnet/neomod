@@ -29,7 +29,7 @@ namespace {
 // panel geometry, in virtual-screen pixels at scale=1 (multiplied by Osu::getUIScale())
 constexpr f32 PANEL_WIDTH{320.f};
 constexpr f32 PAD{8.f};
-constexpr f32 TITLE_HEIGHT{32.f};  // all there is of the panel while it's collapsed
+constexpr f32 TITLE_HEIGHT{32.f};  // with the progress line below it, all there is of the panel while it's collapsed
 constexpr f32 ICON_GAP{8.f};
 constexpr f32 PIN_WIDTH{28.f};
 constexpr f32 BUTTON_HEIGHT{36.f};
@@ -253,7 +253,9 @@ void NowPlaying::updateLayout() {
     const f32 titleHeight = std::round(TITLE_HEIGHT * scale);
     const f32 buttonHeight = std::round(BUTTON_HEIGHT * scale);
     const f32 seekHeight = std::round(SEEK_HEIGHT * scale);
-    this->setSize(width, std::round(titleHeight + (buttonHeight + seekHeight) * this->expandAnim));
+    const f32 collapsedHeight = titleHeight + std::round(COLLAPSED_BAR_HEIGHT * scale);
+    this->setSize(
+        width, std::round(std::lerp(collapsedHeight, titleHeight + buttonHeight + seekHeight, (f32)this->expandAnim)));
 
     const f32 pinWidth = std::round(PIN_WIDTH * scale);
     this->pinButton->setRelPos(width - border - pinWidth, 0)->setSize(pinWidth, titleHeight);
@@ -292,9 +294,12 @@ void NowPlaying::draw() {
     // whatever isn't unrolled yet stays hidden
     g->pushClipRect(rect);
     {
-        g->setColor(rgb(50, 50, 50).setA(0.85f));
-        g->fillRect((int)(rect.getX() + PAD * scale), (int)(rect.getY() + std::round(TITLE_HEIGHT * scale)),
-                    (int)(rect.getWidth() - 2.f * PAD * scale), 1);
+        // fades in with the controls: while collapsed, the progress line takes its row
+        if(this->expandAnim > 0.f) {
+            g->setColor(rgb(50, 50, 50).setA(0.85f * this->expandAnim));
+            g->fillRect((int)(rect.getX() + PAD * scale), (int)(rect.getY() + std::round(TITLE_HEIGHT * scale)),
+                        (int)(rect.getWidth() - 2.f * PAD * scale), 1);
+        }
 
         this->drawTitle();
         this->drawTimes();
