@@ -1406,6 +1406,9 @@ bool Chat::isVisibilityForced() {
 }
 
 void Chat::updateVisibility() {
+    // the user list closes with the user's chat, so the lobby/room's forced-open chat doesn't bring it back
+    if(!this->user_wants_chat) this->user_list->setVisible(false);
+
     // the gameplay modselector doesn't dim the screen, and Osu's in-play F1 toggle is off while chat is visible
     auto *modselector = ui->getModSelector();
     const bool force_hide = !BanchoState::is_online() || ui->getOptionsOverlay()->isVisible() ||

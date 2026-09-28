@@ -1,0 +1,41 @@
+# the F9 user list belongs to the chat the player opened. closing that chat (F8/Escape) used to
+# leave the list's own visibility set, so the next chat to come up brought it back: entering the
+# multiplayer lobby opened its forced chat together with the user list. pins (as in stable, where
+# F8 reopens the chat without the list, and can only close the list while the lobby keeps chat up):
+#  - F9 then F8 in the main menu, then entering the lobby: only the chat comes up
+#  - F9 in the lobby shows the list, F8 there closes just the list and the chat stays
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+debug_fake_online 1
+@wait 10
+sendkey F9
+@wait 30
+ui_assert visible chat 1
+ui_assert visible chat_user_list 1
+sendkey F8
+@wait 30
+ui_assert visible chat 0
+# the first lobby visit loads the song database (async, wall clock)
+set_active_ui_screen lobby
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+ui_assert screen_active lobby 1
+ui_assert visible lobby 1
+ui_assert visible chat 1
+ui_assert visible chat_user_list 0
+sendkey F9
+@wait 10
+ui_assert visible chat_user_list 1
+sendkey F8
+@wait 10
+ui_assert visible chat 1
+ui_assert visible chat_user_list 0
+exit
