@@ -788,6 +788,9 @@ bool Environment::setClipBoardImage(std::vector<u8> pngData) {
 
 // static helper for class methods below (defaults to flags = error, modalWindow = null)
 void Environment::showDialog(const char *title, const char *message, unsigned int flags, void *modalWindow) {
+    // nobody is there to close it in headless mode (the callers log the message)
+    if(Mc::LaunchArgs::has_arg(Mc::LaunchArgs::REND_HEADLESS)) return;
+
     auto *actualWin{static_cast<SDL_Window *>(modalWindow)};
 
     bool wasFullscreen = false;
