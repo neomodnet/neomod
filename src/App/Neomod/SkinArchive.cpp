@@ -398,7 +398,7 @@ bool unpack(std::string_view osk_path, std::string_view skins_dir) {
 
         const auto folders = SString::split(filename, '/');
         // security check: skip files with path traversal attempts
-        if(std::ranges::contains(folders, std::string_view{".."})) continue;
+        if(std::ranges::contains(folders, ".."sv)) continue;
 
         std::string file_path = skin_root;
         for(const auto &folder : folders) {

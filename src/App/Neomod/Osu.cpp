@@ -168,7 +168,7 @@ Osu::Osu()
     cv::resolution.setCallback(SA::MakeDelegate<&Osu::onFSResChanged>(this));
     cv::letterboxed_resolution.setCallback(SA::MakeDelegate<&Osu::onFSLetterboxedResChanged>(this));
     cv::windowed_resolution.setCallback(SA::MakeDelegate<&Osu::onWindowedResolutionChanged>(this));
-    cv::animation_speed_override.setCallback(SA::MakeDelegate<&Osu::onAnimationSpeedChange>(this));
+    cv::animation_speed_override.setCallback(SA::MakeDelegate<&Osu::updateAnimationSpeed>(this));
     cv::ui_scale.setCallback(SA::MakeDelegate<&Osu::onUIScaleChange>(this));
     cv::ui_scale_to_dpi.setCallback(SA::MakeDelegate<&Osu::onUIScaleToDPIChange>(this));
     cv::letterboxing.setCallback(SA::MakeDelegate<&Osu::onLetterboxingChange>(this));
@@ -1907,7 +1907,7 @@ void Osu::exportSkin(std::string_view name) {
 // resolve a skin name to its directory path
 // tries neomod skins folder first, then osu! skins folder
 // returns empty string for "default" or empty name
-static std::string resolveSkinPath(std::string_view skinName) {
+static std::string resolve_skin_path(std::string_view skinName) {
     if(skinName.empty() || skinName == "default") return {};
 
     std::string neomodFolder = fmt::format("{}/{}/", Mc::Paths::skins(), skinName);
@@ -1930,7 +1930,7 @@ void Osu::onSkinChange(std::string_view newSkinName) {
     std::string fallbackDir;
     const auto &fallbackName = cv::skin_fallback.getString();
     if(!fallbackName.empty() && fallbackName != newSkinName && fallbackName != "default") {
-        fallbackDir = resolveSkinPath(fallbackName);
+        fallbackDir = resolve_skin_path(fallbackName);
     }
 
     if(newSkinName == "default") {
@@ -1940,7 +1940,7 @@ void Osu::onSkinChange(std::string_view newSkinName) {
         return;
     }
 
-    std::string skinDir = resolveSkinPath(newSkinName);
+    std::string skinDir = resolve_skin_path(newSkinName);
     this->skinScheduledToLoad = new Skin(std::string{newSkinName}, std::move(skinDir), std::move(fallbackDir));
 
     // initial load
@@ -1953,8 +1953,6 @@ void Osu::updateAnimationSpeed() {
         this->skin->anim_speed = (speed >= 0.01f ? speed : 0.0f);
     }
 }
-
-void Osu::onAnimationSpeedChange() { this->updateAnimationSpeed(); }
 
 void Osu::onSpeedChange(float speed) {
     this->map_iface->setMusicSpeed(speed >= 0.01f ? speed : this->map_iface->getSpeedMultiplier());
