@@ -19,6 +19,7 @@ if(typeof window === 'undefined') {
         body: { appendChild: noop },
     };
     globalThis.screen = { width: 1280, height: 720 };
+    globalThis.history = { replaceState: noop };
 
     // emrun's pre-js (injected after this file) checks `if(globalThis.window)`
     // and overrides Module['arguments'] with (empty) URL search params.
