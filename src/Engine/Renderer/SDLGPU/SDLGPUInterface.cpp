@@ -59,6 +59,7 @@ SDLGPUInterface::~SDLGPUInterface() {
             m_cmdBuf = nullptr;
         }
 
+        for(auto *fence : m_headlessFrameFences) SDL_ReleaseGPUFence(m_device, fence);
         for(auto &parked : m_parkedUploadBuffers) {
             SDL_ReleaseGPUFence(m_device, parked.fence);
             SDL_ReleaseGPUTransferBuffer(m_device, parked.buf);
@@ -654,9 +655,17 @@ void SDLGPUInterface::endScene() {
 
             SDL_BlitGPUTexture(m_cmdBuf, &blit);
         }
-    }
 
-    SDL_SubmitGPUCommandBuffer(m_cmdBuf);
+        SDL_SubmitGPUCommandBuffer(m_cmdBuf);
+    } else if(auto *fence = SDL_SubmitGPUCommandBufferAndAcquireFence(m_cmdBuf)) {
+        // no swapchain acquire to wait on, so limit the frames in flight here (or a slow GPU falls behind forever)
+        m_headlessFrameFences.push_back(fence);
+        while(m_headlessFrameFences.size() > static_cast<size_t>(m_maxFrameLatency)) {
+            SDL_WaitForGPUFences(m_device, true, m_headlessFrameFences.data(), 1);
+            SDL_ReleaseGPUFence(m_device, m_headlessFrameFences.front());
+            m_headlessFrameFences.erase(m_headlessFrameFences.begin());
+        }
+    }
 
     // acquire a new commandbuffer after submit (see SDL_render_gpu.c)
     m_cmdBuf = SDL_AcquireGPUCommandBuffer(m_device);

@@ -512,6 +512,7 @@ class SDLGPUInterface final : public ModernGraphicsShared {
 
     // headless mode cache
     bool m_isHeadless{false};
+    std::vector<SDL_GPUFence *> m_headlessFrameFences;  // oldest first, see endScene()
 };
 
 #endif
