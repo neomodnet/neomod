@@ -68,9 +68,10 @@ class UIDebug;
 //     spectatorscreen, songbrowser, osudirectscreen, lobby, aboutscreen, mainmenu), then hud
 //     (rank 10, drawn by the gameplay composite).
 //   OVERLAY band (ranks 11-20): occlusion matters here, so this order is important:
-//     11 pauseoverlay  12 modselector  13 chat  14 useractions  15 optionsoverlay
+//     11 pauseoverlay  12 chat  13 modselector  14 useractions  15 optionsoverlay
 //     16 promptoverlay  17 beatmapinstalloverlay  18 tooltipoverlay  19 volumeoverlay
 //     20 notificationoverlay
+//   chat < modselector/options: they cover the chat (the menu modselector leaves it up underneath, dimmed).
 //   notification > volume is deliberate: VolumeOverlay::onKeyDown is ungated (KEY_MUTE, volume
 //   binds) and must not eat keys ahead of notification's keybind capture. extra_overlays from
 //   pushOverlay splice in just below tooltipoverlay (see EXTRAS_SPLICE).
@@ -80,10 +81,10 @@ class UIDebug;
     X(20, UIF_DEFAULT,           NotificationOverlay,     notificationoverlay) \
     X(19, UIF_DEFAULT,           VolumeOverlay,           volumeoverlay) \
     X(16, UIF_MODAL | UIF_CLOSE, PromptOverlay,           promptoverlay) \
-    X(12, UIF_MODAL | UIF_CLOSE, ModSelector,             modselector) \
+    X(13, UIF_MODAL | UIF_CLOSE, ModSelector,             modselector) \
     X(14, UIF_DEFAULT,           UIUserContextMenuScreen, useractions) \
     X( 1, UIF_DEFAULT,           RoomScreen,              room) \
-    X(13, UIF_DEFAULT,           Chat,                    chat) \
+    X(12, UIF_DEFAULT,           Chat,                    chat) \
     X(15, UIF_CLOSE,             OptionsOverlay,          optionsoverlay) \
     X( 2, UIF_DEFAULT,           RankingScreen,           rankingscreen) \
     X( 3, UIF_DEFAULT,           UserStatsScreen,         userstatsscreen) \
@@ -134,7 +135,7 @@ struct UI final {
     // getX() returns the concrete type; getXBase() returns UIScreen* and is defined out-of-line in
     // UI.cpp, where the concrete types are complete (the derived->base conversion needs them).
     // NOLINTBEGIN(bugprone-macro-parentheses): Type is a type name, can't be parenthesized
-#define X(rank, F, Type, member)                                    \
+#define X(rank, F, Type, member)                                          \
     [[nodiscard]] inline Type* get##Type() const { return this->member; } \
     [[nodiscard]] UIScreen* get##Type##Base() const;
     UI_SCREEN_REGISTRY(X)

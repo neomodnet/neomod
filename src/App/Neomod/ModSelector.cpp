@@ -13,6 +13,7 @@
 #include "CBaseUILabel.h"
 #include "CBaseUIScrollView.h"
 #include "CBaseUISlider.h"
+#include "Chat.h"
 #include "ContainerRanges.h"
 #include "Logging.h"
 #include "OsuConVars.h"
@@ -852,6 +853,7 @@ CBaseUIContainer *ModSelector::setVisible(bool visible) {
     }
 
     this->bVisible = visible;
+    ui->getChat()->updateVisibility();
     return this;
 }
 

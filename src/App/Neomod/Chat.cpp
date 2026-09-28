@@ -1406,8 +1406,10 @@ bool Chat::isVisibilityForced() {
 }
 
 void Chat::updateVisibility() {
-    const bool force_hide =
-        !BanchoState::is_online() || ui->getOptionsOverlay()->isVisible() || ui->getModSelector()->isVisible();
+    // the gameplay modselector doesn't dim the screen, and Osu's in-play F1 toggle is off while chat is visible
+    auto *modselector = ui->getModSelector();
+    const bool force_hide = !BanchoState::is_online() || ui->getOptionsOverlay()->isVisible() ||
+                            (modselector->isVisible() && modselector->isInCompactMode());
     if(force_hide) {
         if(this->isVisible()) this->setVisible(false);
         return;

@@ -6,3 +6,5 @@
 0.689 0.219 365336 8
 # "Change password" button highlight (undimmed #ffffff)
 0.785 0.032 777777 8
+# chat "#multiplayer" tab (undimmed #696969): the chat stays up beneath the modselector and gets the same dim
+0.05 0.667 313131 8

@@ -6,9 +6,9 @@
 #    3.3): the room stays VISIBLE and ACTIVE beneath it (not a setScreen replace)
 #  - the 0x88000000 fullscreen dim darkens the room (pixel probe): isInCompactMode() is
 #    false outside play mode, so the room (not just play) gets the osu-style dim
-# F1 cannot be used to open the modselector here: chat is force-visible in a room and eats
-# every keystroke (the chat_focus_steal bug, see that pin), so the realistic click path is
-# used instead.
+#  - the room's force-visible chat stays up BENEATH the modselector, dimmed with the room (it
+#    used to draw over the mod grid and the reset/close buttons; pixel probe on its tab), and
+#    the modal takes the Escape that closes it
 options_save_on_back 0
 debug_fixed_frametime 0.0166667
 ui_trace 1
@@ -23,6 +23,7 @@ debug_fake_room
 ui_assert screen_active room 1
 ui_assert visible room 1
 ui_assert visible modselector 0
+ui_assert visible chat 1
 mouse_to 937 307
 @wait 5
 mouse_down
@@ -32,10 +33,15 @@ mouse_up
 ui_assert visible modselector 1
 ui_assert visible room 1
 ui_assert screen_active room 1
+ui_assert visible chat 1
 mouse_to 10 10
 # the room locks debug_fixed_frametime (PROTECTED) to 0, so frames run uncapped on the wall clock here:
 # wait out the 0.1 s open animation in time, not frames, or the dim gets captured mid-fade
 @wait_secs 0.5
 take_screenshot screenshots/uitest_roomscreen_modselector_overlay.png
 @wait 3
+sendkey Escape
+@wait 3
+ui_assert visible modselector 0
+ui_assert visible chat 1
 exit
