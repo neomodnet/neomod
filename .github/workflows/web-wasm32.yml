@@ -91,3 +91,8 @@ jobs:
         with:
           name: neomod-web-wasm32
           path: build-out/dist/bin-wasm32
+
+      # runs the build headless under node (without a renderer) and plays a map on autoplay, see tests/sanity/run.py
+      - name: Sanity test
+        timeout-minutes: 10
+        run: python3 tests/sanity/run.py build-out/dist/bin-wasm32/neomod.js

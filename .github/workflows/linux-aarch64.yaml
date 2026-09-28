@@ -95,3 +95,16 @@ jobs:
         with:
           name: neomod-linux-aarch64
           path: build-out/dist
+
+      # boots the packaged game headless and plays a map on autoplay, see tests/sanity/run.py
+      # (on lavapipe for the default SDL_gpu renderer and llvmpipe for OpenGL)
+      - name: Sanity test (SDL_gpu)
+        timeout-minutes: 10
+        run: |
+          apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends mesa-vulkan-drivers
+          mkdir sanity && unzip -q build-out/dist/bin.zip -d sanity
+          xvfb-run -a python3 tests/sanity/run.py sanity/dist/bin-aarch64/neomod
+
+      - name: Sanity test (OpenGL)
+        timeout-minutes: 10
+        run: python3 tests/sanity/run.py sanity/dist/bin-aarch64/neomod -- -opengl

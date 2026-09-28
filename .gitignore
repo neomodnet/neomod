@@ -65,6 +65,7 @@ release/
 .clangd
 .cache
 .DS_Store
+__pycache__
 
 compile_commands.json
 *.compdb

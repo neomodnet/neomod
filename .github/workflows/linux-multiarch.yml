@@ -103,3 +103,11 @@ jobs:
         with:
           name: neomod-linux-${{ matrix.arch }}
           path: build-out/dist
+
+      # boots the packaged game headless and plays a map on autoplay, see tests/sanity/run.py
+      # (OpenGL on llvmpipe only: this container's lavapipe is too old for SDL_gpu)
+      - name: Sanity test (OpenGL)
+        timeout-minutes: 10
+        run: |
+          mkdir sanity && unzip -q build-out/dist/bin.zip -d sanity
+          python3 tests/sanity/run.py sanity/dist/bin-*/neomod -- -opengl

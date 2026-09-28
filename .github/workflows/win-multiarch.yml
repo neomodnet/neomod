@@ -116,3 +116,43 @@ jobs:
         with:
           name: neomod-win-${{ matrix.arch }}
           path: build-out/dist
+
+  # boots each build headless on windows and plays a map on autoplay, see tests/sanity/run.py
+  # (the runners have no gpu, so the renderers run on WARP)
+  sanity-test:
+    needs: build
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-2025
+            bindir: bin-x86_64
+          - arch: x32
+            runner: windows-2025
+            bindir: bin-i686
+          - arch: arm64
+            runner: windows-11-arm
+            bindir: bin-aarch64
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v6.0.1
+        with:
+          sparse-checkout: tests/sanity
+
+      - uses: actions/download-artifact@v7.0.0
+        with:
+          name: neomod-win-${{ matrix.arch }}
+          path: artifact
+
+      - name: Sanity test (SDL_gpu)
+        timeout-minutes: 10
+        run: python tests/sanity/run.py artifact/${{ matrix.bindir }}/neomod.exe
+
+      - name: Sanity test (DirectX 11)
+        timeout-minutes: 10
+        run: python tests/sanity/run.py artifact/${{ matrix.bindir }}/neomod.exe -- -dx11

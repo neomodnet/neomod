@@ -1,0 +1,23 @@
+# stdin script for run.py (comment lines are dropped before it's piped in):
+# song browser (the first visit loads the beatmap database with the generated map), play the map on
+# autoplay up to the ranking screen, back to the song browser, open the options, quit.
+# the waits are generous wall-clock times, so slow runners with software rendering keep up
+mod_autoplay 1
+set_active_ui_screen songbrowser
+@wait_secs 3
+ui_assert exists SongDifficultyButton 1
+sendkey Return
+@wait_secs 3
+# while playing, the song browser stays the active screen but is hidden
+ui_assert visible songbrowser 0
+@wait_secs 11
+ui_assert screen_active rankingscreen 1
+take_screenshot screenshots/sanity.png
+@wait 3
+sendkey Escape
+@wait_secs 1
+ui_assert screen_active songbrowser 1
+set_active_ui_screen optionsoverlay
+@wait_secs 1
+ui_assert visible optionsoverlay 1
+exit
