@@ -2349,44 +2349,39 @@ void OptionsOverlayImpl::onKeyDown(KeyboardEvent &e) {
         }
     }
 
-    // searching text delete
-    if(!this->sSearchString.empty()) {
-        switch(e.getScanCode()) {
-            case KEY_DELETE:
-            case KEY_BACKSPACE: {
-                std::u32string uSearch{UniString::to_utf32(this->sSearchString)};
-                if(keyboard->isControlDown()) {
-                    // delete everything from the current caret position to the left, until after the first
-                    // non-space character (but including it)
-                    bool foundNonSpaceChar = false;
-                    while(!uSearch.empty()) {
-                        const auto &curChar = uSearch.back();
+    // searching text delete, with the keys the elements pass on (a focused textbox edits its own text)
+    if(!this->sSearchString.empty() && (e == KEY_DELETE || e == KEY_BACKSPACE || e == KEY_ESCAPE)) {
+        // not through ScreenBackable::onKeyDown, which would close the overlay on an Escape they pass on
+        parent->UIScreen::onKeyDown(e);
+        if(e.isConsumed()) return;
 
-                        const bool whitespace = std::iswspace(static_cast<wint_t>(curChar)) != 0;
-                        if(foundNonSpaceChar && whitespace) break;
+        if(e == KEY_ESCAPE) {
+            this->sSearchString.clear();
+        } else {
+            std::u32string uSearch{UniString::to_utf32(this->sSearchString)};
+            if(keyboard->isControlDown()) {
+                // delete everything from the current caret position to the left, until after the first
+                // non-space character (but including it)
+                bool foundNonSpaceChar = false;
+                while(!uSearch.empty()) {
+                    const auto &curChar = uSearch.back();
 
-                        if(!whitespace) foundNonSpaceChar = true;
+                    const bool whitespace = std::iswspace(static_cast<wint_t>(curChar)) != 0;
+                    if(foundNonSpaceChar && whitespace) break;
 
-                        uSearch.pop_back();
-                    }
-                } else {
+                    if(!whitespace) foundNonSpaceChar = true;
+
                     uSearch.pop_back();
                 }
-                this->sSearchString = UniString::to_utf8(uSearch);
-
-                e.consume();
-                this->scheduleSearchUpdate();
-                return;
+            } else {
+                uSearch.pop_back();
             }
-
-            case KEY_ESCAPE:
-                this->sSearchString.clear();
-                this->scheduleSearchUpdate();
-                e.consume();
-                return;
-            default:
-                break;
+            this->sSearchString = UniString::to_utf8(uSearch);
         }
+
+        e.consume();
+        this->scheduleSearchUpdate();
+        return;
     }
 
     parent->ScreenBackable::onKeyDown(e);

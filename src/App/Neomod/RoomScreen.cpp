@@ -315,6 +315,10 @@ void RoomScreen::updateInput(CBaseUIEventCtx &c) {
 void RoomScreen::onKeyDown(KeyboardEvent &key) {
     if(!this->bVisible) return;
 
+    // a focused room name box takes its keys first (its Escape only gives up the focus), an open dropdown its Escape
+    UIScreen::onKeyDown(key);
+    if(key.isConsumed()) return;
+
     if(key.getScanCode() == KEY_ESCAPE) {
         key.consume();
 
@@ -337,8 +341,6 @@ void RoomScreen::onKeyDown(KeyboardEvent &key) {
         }
         return;
     }
-
-    UIScreen::onKeyDown(key);
 }
 
 void RoomScreen::onKeyUp(KeyboardEvent &key) {

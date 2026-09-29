@@ -64,7 +64,8 @@ class CBaseUIContainer;
 //     over its area); drag / kinetic / scrollbar come for free via mouse capture.
 //   - Keyboard: override onKeyDown/onKeyUp/onChar. To be THE keyboard target (textbox), call
 //     requestFocus() on press and gate the handlers on isFocused() - the dispatcher keeps one
-//     focused element across both UI roots.
+//     focused element across both UI roots. A container offers a key to its focused child first,
+//     then to the others in order, until one consumes it.
 //
 //  Read but don't set: bMouseInside (hover), bActive (pressed/held while a button is down on us).
 //  Do set: bVisible, bEnabled, and bBusy for "mid-gesture" (queried via isBusy()). The keyboard

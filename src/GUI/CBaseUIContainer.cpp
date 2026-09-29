@@ -1,12 +1,16 @@
 // Copyright (c) 2011, PG, All rights reserved.
 #include "CBaseUIContainer.h"
 
+#include <algorithm>
 #include <utility>
+#include <vector>
 
 #include "Engine.h"
 #include "Logging.h"
 #include "Graphics.h"
+#include "CBaseUIDispatch.h"
 #include "ContainerRanges.h"
+#include "KeyboardEvent.h"
 
 CBaseUIContainer::CBaseUIContainer(float Xpos, float Ypos, float Xsize, float Ysize, std::string name)
     : CBaseUIElement(Xpos, Ypos, Xsize, Ysize, std::move(name)) {
@@ -253,27 +257,35 @@ void CBaseUIContainer::update_pos() {
     }
 }
 
-void CBaseUIContainer::onKeyUp(KeyboardEvent &e) {
-    if(!this->isVisible()) return;
+namespace {
+// offers a key event to the visible elements until one consumes it; the keyboard focus holder goes before its
+// siblings, so a hovered slider can't take the caret keys of a focused textbox next to it
+void forward_key(const std::vector<CBaseUIElement *> &elements, KeyboardEvent &e,
+                 void (CBaseUIElement::*handler)(KeyboardEvent &)) {
+    CBaseUIElement *focused = CBaseUIDispatch::getFocus();
+    if(focused != nullptr && !std::ranges::contains(elements, focused)) focused = nullptr;
+    if(focused != nullptr && focused->isVisible()) (focused->*handler)(e);
 
-    for(auto *elem : this->vElements) {
-        if(elem->isVisible()) elem->onKeyUp(e);
+    for(auto *elem : elements) {
+        if(e.isConsumed()) return;
+        if(elem != focused && elem->isVisible()) (elem->*handler)(e);
     }
 }
+}  // namespace
+
+void CBaseUIContainer::onKeyUp(KeyboardEvent &e) {
+    if(!this->isVisible()) return;
+    forward_key(this->vElements, e, &CBaseUIElement::onKeyUp);
+}
+
 void CBaseUIContainer::onKeyDown(KeyboardEvent &e) {
     if(!this->isVisible()) return;
-
-    for(auto *elem : this->vElements) {
-        if(elem->isVisible()) elem->onKeyDown(e);
-    }
+    forward_key(this->vElements, e, &CBaseUIElement::onKeyDown);
 }
 
 void CBaseUIContainer::onChar(KeyboardEvent &e) {
     if(!this->isVisible()) return;
-
-    for(auto *elem : this->vElements) {
-        if(elem->isVisible()) elem->onChar(e);
-    }
+    forward_key(this->vElements, e, &CBaseUIElement::onChar);
 }
 
 void CBaseUIContainer::onFocusStolen() {
