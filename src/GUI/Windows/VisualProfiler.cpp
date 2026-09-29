@@ -188,7 +188,7 @@ void VisualProfiler::draw() {
                 textScale = std::round(env->getDPIScale() + 0.255f);
 
                 const double time = engine->getTime();
-                const vec2 envMousePos = env->getMousePos();
+                const vec2 mousePos = mouse->getRealPos();
 
                 addTextLine(fmt::format("Platform: {:s}", RuntimePlatform::current_string()), textFont,
                             this->textLines);
@@ -196,7 +196,7 @@ void VisualProfiler::draw() {
                 addTextLine(fmt::format("ConVars: {:d}", cvars().getNumConVars()), textFont, this->textLines);
                 addTextLine(fmt::format("Monitor: [{:d}] of {:d}", env->getMonitor(), env->getMonitors().size()),
                             textFont, this->textLines);
-                addTextLine(fmt::format("Env Mouse Pos: {:d} x {:d}", (int)envMousePos.x, (int)envMousePos.y), textFont,
+                addTextLine(fmt::format("Mouse Pos: {:d} x {:d}", (int)mousePos.x, (int)mousePos.y), textFont,
                             this->textLines);
                 addTextLine(fmt::format("Mouse Input Grabbed: {}", env->isMouseInputGrabbed()), textFont,
                             this->textLines);

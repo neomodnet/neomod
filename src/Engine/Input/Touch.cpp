@@ -22,9 +22,7 @@ void Touch::addListener(TouchListener* listener, bool insertOnTop) {
 
 void Touch::removeListener(TouchListener* listener) { std::erase(this->listeners, listener); }
 
-static inline vec2 event_to_abs_touch(SDL_TouchFingerEvent* ev) {
-    return vec2(ev->x, ev->y) * env->getWindowSize() * env->getPixelDensity();
-}
+static inline vec2 event_to_abs_touch(SDL_TouchFingerEvent* ev) { return vec2(ev->x, ev->y) * env->getWindowSize(); }
 
 void Touch::onFingerDown(SDL_TouchFingerEvent* ev) {
     assert(ev->type == SDL_EVENT_FINGER_DOWN);

@@ -8,21 +8,25 @@
 #include "Rect.h"
 #include "Vectors.h"
 
+#include <optional>
 #include <vector>
 
 // the engine's pointer, in two coordinate spaces: getRealPos() is window pixels; the app renders its own coordinate
 // space into a viewport on the window (letterboxing) and getPos() is relative to that viewport (setAppViewport).
 // the engine gui is laid out in window pixels, so the engine runs it inside a RealPosScope, where getPos() reports
 // window pixels too.
-// the os cursor policy is composed here as well (applyCursorPolicy): the app draws its own cursor, so the os cursor
-// hides over the viewport, and it can be confined there; an engine gui that needs the os cursor (the console)
-// overrides both. the environment turns the result into the sdl state (Environment::applyCursorState).
+// the os mouse is polled every update (raw deltas in relative mode); absolute pointers (pens, touch) report where they
+// are through onPosChange instead, which applies right away and overrides the os mouse for that frame, so raw input
+// and sensitivity never apply to them.
+// the os cursor policy is composed here as well: the app draws its own cursor, so the os cursor hides over the
+// viewport, and it can be confined there; an engine gui that needs the os cursor (the console) overrides both. its
+// inputs are plain state, every update() ends by handing the result to the environment (applyCursorState).
 class Mouse final : public InputDevice {
     NOCOPY_NOMOVE(Mouse)
 
    public:
     Mouse();
-    ~Mouse() override = default;
+    ~Mouse() override;
 
     void reset() override;
     void draw() override;
@@ -35,7 +39,7 @@ class Mouse final : public InputDevice {
     void removeListener(MouseListener *mouseListener);
 
     // input handling
-    void onPosChange(dvec2 pos);  // window pixels
+    void onPosChange(dvec2 pos);  // window pixels; an absolute pointer is at pos
     void onWheelVertical(int delta);
     void onWheelHorizontal(int delta);
     void onButtonChange(ButtonEvent ev);
@@ -58,20 +62,22 @@ class Mouse final : public InputDevice {
     };
 
     // os cursor policy
-    void setAppCursorHidden(bool hidden);      // the app draws its own cursor: the os cursor hides over the viewport
-    void setAppCursorConfined(bool confined);  // the os cursor is confined to the viewport
-    void setOSCursorRequired(bool required);   // an engine gui needs the os cursor: visible, unconfined, absolute
+    // the app draws its own cursor: the os cursor hides over the viewport
+    void setAppCursorHidden(bool hidden) { this->bAppCursorHidden = hidden; }
+    // the os cursor is confined to the viewport
+    void setAppCursorConfined(bool confined) { this->bAppCursorConfined = confined; }
+    // an engine gui needs the os cursor: visible, unconfined, absolute
+    void setOSCursorRequired(bool required) { this->bOSCursorRequired = required; }
 
     // raw (relative) input runs while the os cursor is hidden if the user wants it (mouse_raw_input) or an app
     // feature needs raw deltas regardless of the setting (fposu)
-    void setRawInputOverride(bool forced);
+    void setRawInputOverride(bool forced) { this->bRawInputOverride = forced; }
 
     // state getters
     [[nodiscard]] constexpr forceinline vec2 getPos() const {
         return this->bRealPos ? vec2{this->vPosWithoutOffsets} : this->vPos;
     }
     [[nodiscard]] constexpr forceinline vec2 getRealPos() const { return this->vPosWithoutOffsets; }
-    [[nodiscard]] constexpr forceinline vec2 getDelta() const { return this->vDelta; }
     [[nodiscard]] constexpr forceinline vec2 getRawDelta() const { return this->vRawDelta; }
 
     [[nodiscard]] constexpr forceinline float getSensitivity() const { return this->fSensitivity; }
@@ -125,6 +131,11 @@ class Mouse final : public InputDevice {
 
     std::vector<FullEvent> eventQueue;
 
+    // absolute pointer samples: the latest one since the last update, and the vRawDelta baseline (os motion resets it)
+    std::optional<dvec2> newAbsolutePos;
+    std::optional<dvec2> lastAbsolutePos;
+
+    void applyPos(dvec2 pos);  // window pixels
     void onWheelVertical_internal(int delta);
     void onWheelHorizontal_internal(int delta);
     void onButtonChange_internal(ButtonEvent &ev);
@@ -133,13 +144,13 @@ class Mouse final : public InputDevice {
     void onSensitivityChanged(float newSens);
     void onRawInputChanged(float newVal);
 
-    // hands the os cursor state the current inputs call for to the environment
-    void applyCursorPolicy();
+    [[nodiscard]] constexpr bool isCursorConfined() const {
+        return this->bAppCursorConfined && !this->bOSCursorRequired;
+    }
 
     // position state
     vec2 vPos{0.f};                 // app space (window pixels relative to the viewport origin)
     dvec2 vPosWithoutOffsets{0.f};  // window pixels
-    vec2 vDelta{0.f};               // movement delta in the current frame
     vec2 vRawDelta{0.f};  // movement delta in the current frame, without consideration for clipping or sensitivity
 
     McRect appViewport{};  // window pixels; empty = the whole window

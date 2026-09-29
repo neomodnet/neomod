@@ -135,14 +135,8 @@ Environment::Environment(const Mc::AppDescriptor &appDesc)
     m_sAppDataPath = {};
 
     m_bIsCursorInsideWindow = true;
-    m_bCursorVisibleWanted = true;
-    m_bCursorClipWanted = false;
-    m_bRawMouseWanted = false;
     m_bCursorClipped = false;
     m_cursorType = CURSORTYPE::CURSOR_NORMAL;
-
-    // lazy init
-    m_vLastAbsMousePos = vec2{};
 
     m_sCurrClipboardText = {};
     // lazy init (with initMonitors)
@@ -296,7 +290,7 @@ Graphics *Environment::createRenderer() {
 void Environment::shutdown() {
     if(!isRunning()) return;
 
-    setRawMouseInput(false);
+    releaseCursor();
 
     SDL_Event event{};
     event.quit = {.type = SDL_EVENT_QUIT, .reserved = {}, .timestamp = Timing::getTicksNS()};
@@ -1217,12 +1211,6 @@ void Environment::setCursor(CURSORTYPE cur) {
     }
 }
 
-void Environment::setRawMouseInput(bool raw) {
-    if(m_bRawMouseWanted == raw) return;
-    m_bRawMouseWanted = raw;
-    applyCursorState();
-}
-
 void Environment::setRawKeyboardInput(bool raw) {
     if constexpr(!Env::cfg(OS::WINDOWS)) return;  // does not exist
 
@@ -1236,29 +1224,39 @@ void Environment::setRawKeyboardInput(bool raw) {
 
 bool Environment::isCursorVisible() const { return SDL_CursorVisible(); }
 
-void Environment::setCursorVisible(bool visible) {
-    if(m_bCursorVisibleWanted == visible) return;
-    m_bCursorVisibleWanted = visible;
-    applyCursorState();
-}
+bool Environment::isOSMouseInputRaw() const { return m_window && SDL_GetWindowRelativeMouseMode(m_window); }
 
-void Environment::setCursorClip(bool clip, const McRect &rect) {
-    if(m_bCursorClipWanted == clip && (!clip || m_cursorClipRect == rect)) return;
-    m_bCursorClipWanted = clip;
-    m_cursorClipRect = clip ? rect : McRect{};
-    applyCursorState();
-}
+bool Environment::isMouseInputGrabbed() const { return m_window && SDL_GetWindowMouseGrab(m_window); }
 
-void Environment::applyCursorState() {
-    const bool visible = m_bCursorVisibleWanted || !m_bIsCursorInsideWindow;
-    const bool relative = m_bRawMouseWanted && !visible;
-    bool clipped = m_bCursorClipWanted;
+void Environment::applyCursorState(const CursorState &wanted) {
+    m_cursorWanted = wanted;
+
+    SDL_Rect sdlClip{};
+    if(wanted.confined) {
+        // need to account for window pixel density when setting SDL mouse rect
+        const float pxd = getPixelDensity();
+        sdlClip = McRectToSDLRect(wanted.confineRect);
+        sdlClip.x = (int)std::round((float)sdlClip.x / pxd);
+        sdlClip.y = (int)std::round((float)sdlClip.y / pxd);
+        sdlClip.w = (int)std::round((float)sdlClip.w / pxd);
+        sdlClip.h = (int)std::round((float)sdlClip.h / pxd);
+    }
+    const bool visible = wanted.visible || !m_bIsCursorInsideWindow;
+    const AppliedCursorState next{
+        .confineRect = SDLRectToMcRect(sdlClip),
+        .confined = wanted.confined,
+        .visible = visible,
+        .shown = visible || cv::debug_draw_hardware_cursor.getBool(),
+        .relative = wanted.raw && !visible && (PENS_SURVIVE_RELATIVE_MODE || m_pensInProximity.empty()),
+    };
+    if(m_cursorApplied == next) return;
+    m_cursorApplied = next;
 
     if(m_bHeadless) {
         // no os cursor to drive, but the state stays observable (SDL_CursorVisible) for scripted tests
-        m_bCursorClipped = clipped;
+        m_bCursorClipped = next.confined;
         if(m_window) {
-            if(visible)
+            if(next.visible)
                 SDL_ShowCursor();
             else
                 SDL_HideCursor();
@@ -1266,48 +1264,38 @@ void Environment::applyCursorState() {
         return;
     }
 
-    if(relative != SDL_GetWindowRelativeMouseMode(m_window)) {
+    if(next.relative != SDL_GetWindowRelativeMouseMode(m_window)) {
         // leaving relative mode: put the os cursor where the virtual one is first (in relative mode the warp only
         // updates sdl's idea of the position, which is where sdl moves the cursor once relative mode ends)
         // NOTE (TODO?): un-applying pixel density scale here to re-convert to desktop coords, see Mouse::update
-        if(!relative && mouse && m_bIsCursorInsideWindow) setOSMousePos(mouse->getRealPos() / getPixelDensity());
-        if(!SDL_SetWindowRelativeMouseMode(m_window, relative)) {
+        if(!next.relative && m_bIsCursorInsideWindow) {
+            const vec2 desktopPos = wanted.pos / getPixelDensity();
+            SDL_WarpMouseInWindow(m_window, desktopPos.x, desktopPos.y);
+        }
+        if(!SDL_SetWindowRelativeMouseMode(m_window, next.relative)) {
             debugLog("FIXME (handle error): SDL_SetWindowRelativeMouseMode failed: {:s}", SDL_GetError());
         }
     }
 
-    if(clipped) {
-        // need to account for window pixel density when setting SDL mouse rect
-        const float pxd = getPixelDensity();
-        SDL_Rect sdlClip = McRectToSDLRect(m_cursorClipRect);
-        sdlClip.x = (int)std::round((float)sdlClip.x / pxd);
-        sdlClip.y = (int)std::round((float)sdlClip.y / pxd);
-        sdlClip.w = (int)std::round((float)sdlClip.w / pxd);
-        sdlClip.h = (int)std::round((float)sdlClip.h / pxd);
-        clipped = SDL_SetWindowMouseRect(m_window, &sdlClip);
+    if(next.confined) {
+        m_bCursorClipped = SDL_SetWindowMouseRect(m_window, &sdlClip);
     } else {
         SDL_SetWindowMouseRect(m_window, nullptr);
+        m_bCursorClipped = false;
     }
-    m_bCursorClipped = clipped;
     // we clip manually in relative mode (Mouse::update), which grabs on its own
-    SDL_SetWindowMouseGrab(m_window, clipped && !SDL_GetWindowRelativeMouseMode(m_window));
+    SDL_SetWindowMouseGrab(m_window, m_bCursorClipped && !SDL_GetWindowRelativeMouseMode(m_window));
 
-    if(visible || cv::debug_draw_hardware_cursor.getBool()) {
+    if(next.shown) {
         SDL_ShowCursor();
     } else {
         SDL_HideCursor();
     }
     // a widget's cursor shape must not come back with the cursor
-    if(!visible) setCursor(CURSORTYPE::CURSOR_NORMAL);
-
-    m_winflags = static_cast<WinFlags>(SDL_GetWindowFlags(m_window));
+    if(!next.visible) setCursor(CURSORTYPE::CURSOR_NORMAL);
 }
 
-void Environment::setOSMousePos(vec2 pos) {
-    m_vLastAbsMousePos = pos;
-    if(m_bHeadless) return;
-    SDL_WarpMouseInWindow(m_window, pos.x, pos.y);
-}
+void Environment::releaseCursor() { applyCursorState({.pos = m_cursorWanted.pos}); }
 
 std::string Environment::scanCodeToString(SCANCODE scanCode) const {
     const char *name = SDL_GetScancodeName((SDL_Scancode)scanCode);
@@ -1363,7 +1351,19 @@ void Environment::listenToTextInput(bool listen) {
 void Environment::onDebugDrawHardwareCursorChange(float newValue) {
     const bool enable = !!static_cast<int>(newValue);
     SDL_SetHintWithPriority(SDL_HINT_MOUSE_RELATIVE_CURSOR_VISIBLE, enable ? "1" : "0", SDL_HINT_NORMAL);
-    applyCursorState();
+}
+
+void Environment::onPenInputChange(float newValue) {
+    const bool enable = !!static_cast<int>(newValue);
+    for(const auto type : {SDL_EVENT_PEN_MOTION, SDL_EVENT_PEN_DOWN, SDL_EVENT_PEN_UP, SDL_EVENT_PEN_BUTTON_DOWN,
+                           SDL_EVENT_PEN_BUTTON_UP}) {
+        SDL_SetEventEnabled(type, enable);
+    }
+    if constexpr(!PENS_SURVIVE_RELATIVE_MODE) {
+        SDL_SetEventEnabled(SDL_EVENT_PEN_PROXIMITY_IN, enable);
+        SDL_SetEventEnabled(SDL_EVENT_PEN_PROXIMITY_OUT, enable);
+        if(!enable) m_pensInProximity.clear();
+    }
 }
 
 void Environment::onUseIMEChange(float newValue) {
@@ -1526,21 +1526,8 @@ vec2 Environment::getAsyncMousePos() const {
 }
 
 Environment::CursorPosition Environment::consumeCursorPositionCache() {
-    // synthetic cursor position injected via the mouse_to debug command is the only way to control the mouse in headless
-    if(m_bHeadless) {
-        dvec2 newRel{m_vInjectedCursorPos - m_vLastInjectedCursorPos};
-        // Mouse::update() skips position application on zero relative motion, so report a tiny
-        // delta when a freshly injected position equals the previous one
-        if(m_bInjectedCursorDirty && vec::length(newRel) == 0.) newRel = {0.001, 0.001};
-        m_bInjectedCursorDirty = false;
-        m_vLastInjectedCursorPos = m_vInjectedCursorPos;
-        // TODO: do we need to scale by pixel density here too?
-        return CursorPosition{
-            .rel = newRel, .abs = dvec2{m_vInjectedCursorPos}, .isRelativeMode = false, .needsClipping = false};
-    }
-
     float xRel{0.f}, yRel{0.f};
-    float x{m_vLastAbsMousePos.x}, y{m_vLastAbsMousePos.y};
+    float x{0.f}, y{0.f};
 
     // this gets zeroed on every call to it, which is why this function "consumes" data
     // both of these calls are only updated with the last SDL_PumpEvents call
@@ -1550,35 +1537,13 @@ Environment::CursorPosition Environment::consumeCursorPositionCache() {
     dvec2 newRel = {xRel, yRel};
     dvec2 newAbs = {x, y};
 
-    const bool hadRelative = vec::length(newRel) != 0.;
-    if(hadRelative) {
-        m_bForceAbsCursor = false;
-    }
-
-    // these pen events are manually tracked and updated in our event loop
-    if(m_vLastAbsPenPos != m_vCurrentAbsPenPos) {
-        // if SDL's relative pen motion tracking isn't working for whatever reason, and we had pen motion events, then use that
-        // otherwise trust what SDL is giving to us
-        if(!hadRelative) {
-            m_bForceAbsCursor = true;
-            newRel = m_vCurrentAbsPenPos - m_vLastAbsPenPos;
-            newAbs = m_vCurrentAbsPenPos;
-        }
-
-        // reset
-        m_vLastAbsPenPos = m_vCurrentAbsPenPos;
-    }
-
-    // if we're in raw input or forcing absolute cursor then SDL isn't clipping the motion for us
-    const bool needsClipping = m_bForceAbsCursor || isOSMouseInputRaw();
-    const bool isRelative = !m_bForceAbsCursor && isOSMouseInputRaw();
+    const bool isRelative = isOSMouseInputRaw();
     if(!isRelative) {
-        // TODO: do absolute pen events need scaling??
         const float scaleFactor = getPixelDensity();
         newAbs *= scaleFactor;
         newRel *= scaleFactor;
     }
-    return CursorPosition{.rel = newRel, .abs = newAbs, .isRelativeMode = isRelative, .needsClipping = needsClipping};
+    return CursorPosition{.rel = newRel, .abs = newAbs, .isRelativeMode = isRelative};
 }
 
 void Environment::initCursors() {

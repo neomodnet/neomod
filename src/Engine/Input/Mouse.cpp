@@ -10,18 +10,24 @@
 #include "Graphics.h"
 #include "Font.h"
 
-Mouse::Mouse() : InputDevice(), vPos(env->getMousePos()), vPosWithoutOffsets(this->vPos) {
+#include <algorithm>
+#include <utility>
+
+Mouse::Mouse() : InputDevice() {
     this->fSensitivity = cv::mouse_sensitivity.getFloat();
     this->bIsRawInputDesired = cv::mouse_raw_input.getBool();
     cv::mouse_raw_input.setCallback(SA::MakeDelegate<&Mouse::onRawInputChanged>(this));
     cv::mouse_sensitivity.setCallback(SA::MakeDelegate<&Mouse::onSensitivityChanged>(this));
-    env->setRawMouseInput(this->bIsRawInputDesired);
+}
+
+Mouse::~Mouse() {
+    cv::mouse_raw_input.removeAllCallbacks();
+    cv::mouse_sensitivity.removeAllCallbacks();
 }
 
 void Mouse::reset() {
     this->resetWheelDelta();
     this->buttonsHeldMask = env->getCurrentlyHeldMouseButtons();
-    this->vDelta = {0.f, 0.f};
     this->vRawDelta = {0.f, 0.f};
 }
 
@@ -37,23 +43,22 @@ void Mouse::draw() {
 
     // red rect = real cursor pos
     g->setColor(0xffff0000);
-    vec2 envPos = env->getMousePos();
-    g->drawRect(envPos.x - size / 2, envPos.y - size / 2, size, size);
+    const vec2 realPos = this->getRealPos();
+    g->drawRect(realPos.x - size / 2, realPos.y - size / 2, size, size);
 
     // green dot = asynchronous OS mouse pos
     g->setColor(rgb(0, 255, 0));
     vec2 truePos = env->getAsyncMousePos();
     g->fillRect(truePos.x - (size / 4) / 2, truePos.y - (size / 4) / 2, (size / 4), (size / 4));
 
-    // red = cursor clip
+    // red = cursor clip (the viewport)
+    const McRect viewport = this->getAppViewport();
     if(env->isCursorClipped()) {
         g->setColor(0xffff0000);
-        McRect cursorClip = env->getCursorClip();
-        g->drawRect(cursorClip.getMinX(), cursorClip.getMinY(), cursorClip.getWidth() - 1, cursorClip.getHeight() - 1);
+        g->drawRect(viewport.getMinX(), viewport.getMinY(), viewport.getWidth() - 1, viewport.getHeight() - 1);
     }
 
     // green = app viewport
-    const McRect viewport = this->getAppViewport();
     g->setColor(0xff00ff00);
     g->drawRect(viewport.getMinX(), viewport.getMinY(), viewport.getWidth(), viewport.getHeight());
 }
@@ -100,67 +105,51 @@ void Mouse::drawDebug() {
 }
 
 void Mouse::update() {
-    this->vDelta = {0.f, 0.f};
-    this->vRawDelta = {0.f, 0.f};
     this->buttonsPressedMask = {};
 
-    auto [newRel, newAbs, isRaw, needsClipping] = env->consumeCursorPositionCache();
-    if(vec::length(newRel) <= 0.) goto out;  // early return for no motion
-
+    dvec2 newPos = this->vPosWithoutOffsets;
     // vRawDelta doesn't include sensitivity or clipping, which is useful for fposu
-    this->vRawDelta = newRel;
+    dvec2 rawDelta{0.};
 
-    if(isRaw) {
-        // only relative input (raw) can have sensitivity
-        newRel *= this->fSensitivity;
-        // we only base the absolute position off of the relative motion for raw input
-        newAbs = this->vPosWithoutOffsets + newRel;
-    }
-
-    if(needsClipping) {
-        // apply clipping manually for rawinput, because it only clips the absolute position
-        // which is decoupled from the relative position in relative mode
-        // do this after applying sensitivity (if applicable)
-        McRect clipRect;
-        bool doClip = false;
-        if(env->isCursorClipped()) {
-            clipRect = env->getCursorClip();
-            doClip = true;
-        } else if(env->winFullscreened() && !env->isPointValid(env->getWindowPos() + vec2{newAbs})) {
-            // quickfix to avoid flashing cursor along the edges of the window when unconfined + in raw input
-            clipRect = engine->getScreenRect();
-            doClip = true;
-        }
-        if(doClip && !clipRect.contains(newAbs)) {
-            // re-calculate clamped cursor position
-            if(newAbs.x < clipRect.getMinX()) {
-                newAbs.x = clipRect.getMinX();
-            } else if(newAbs.x > clipRect.getMaxX()) {
-                newAbs.x = clipRect.getMaxX();
-            }
-            if(newAbs.y < clipRect.getMinY()) {
-                newAbs.y = clipRect.getMinY();
-            } else if(newAbs.y > clipRect.getMaxY()) {
-                newAbs.y = clipRect.getMaxY();
-            }
-            newRel = newAbs - this->vPosWithoutOffsets;
-            if(vec::length(newRel) == 0.f) {
-                goto out;  // early return for the trivial case (like if we're confined in a corner)
-            }
+    // an absolute sample owns its frame: os motion alongside it is mostly the same pen again (macOS relative mode)
+    const std::optional<dvec2> absolutePos = std::exchange(this->newAbsolutePos, std::nullopt);
+    const auto [rel, abs, isRaw] = env->consumeCursorPositionCache();
+    const bool hadMouseMotion = !absolutePos && vec::length(rel) > 0.;
+    const bool hadRawMotion = isRaw && hadMouseMotion;
+    if(absolutePos) {
+        if(this->lastAbsolutePos) rawDelta = *absolutePos - *this->lastAbsolutePos;
+        this->lastAbsolutePos = absolutePos;
+        newPos = *absolutePos;
+    } else if(hadMouseMotion) {
+        this->lastAbsolutePos.reset();
+        rawDelta = rel;
+        if(isRaw) {
+            // only relative input (raw) can have sensitivity
+            newPos += rel * (double)this->fSensitivity;
+        } else {
+            newPos = abs;
         }
     }
 
-    // if we got here, we have a motion delta to apply to the virtual cursor
+    // the os confines its own cursor, but neither raw motion nor absolute pointers
+    McRect clipRect;
+    bool doClip = false;
+    if((absolutePos || hadRawMotion) && this->isCursorConfined()) {
+        clipRect = this->getAppViewport();
+        doClip = true;
+    } else if(hadRawMotion && env->winFullscreened() && !env->isPointValid(env->getWindowPos() + vec2{newPos})) {
+        // quickfix to avoid flashing cursor along the edges of the window when unconfined + in raw input
+        clipRect = engine->getScreenRect();
+        doClip = true;
+    }
+    if(doClip) {
+        newPos.x = std::clamp<double>(newPos.x, clipRect.getMinX(), clipRect.getMaxX());
+        newPos.y = std::clamp<double>(newPos.y, clipRect.getMinY(), clipRect.getMaxY());
+    }
 
-    // vDelta includes transformations
-    this->vDelta = newRel;
+    this->vRawDelta = rawDelta;
+    if(newPos != this->vPosWithoutOffsets) this->applyPos(newPos);
 
-    // vPosWithoutOffsets should always match the post-transformation newAbs
-    this->vPosWithoutOffsets = newAbs;
-
-    this->onPosChange(this->vPosWithoutOffsets);
-
-out:
     // relay collected button/wheel events to listeners (after updating position)
     for(auto &fullEvent : this->eventQueue) {
         switch(fullEvent.type) {
@@ -178,6 +167,17 @@ out:
     this->eventQueue.clear();
 
     this->resetWheelDelta();
+
+    // the os cursor state this frame calls for, the only place it changes
+    const McRect viewport = this->getAppViewport();
+    env->applyCursorState({
+        .confineRect = viewport,
+        .pos = vec2{this->vPosWithoutOffsets},
+        .visible =
+            this->bOSCursorRequired || !this->bAppCursorHidden || !viewport.contains(vec2{this->vPosWithoutOffsets}),
+        .confined = this->isCursorConfined(),
+        .raw = this->bIsRawInputDesired || this->bRawInputOverride,
+    });
 }
 
 void Mouse::resetWheelDelta() {
@@ -189,14 +189,13 @@ void Mouse::resetWheelDelta() {
 }
 
 void Mouse::onPosChange(dvec2 pos) {
+    this->newAbsolutePos = pos;
+    this->applyPos(pos);
+}
+
+void Mouse::applyPos(dvec2 pos) {
     this->vPosWithoutOffsets = pos;
     this->vPos = vec2{pos} - this->appViewport.getMin();
-
-    // notify environment of the virtual cursor position
-    env->updateCachedMousePos(this->vPosWithoutOffsets);
-
-    // the os cursor only hides over the viewport
-    this->applyCursorPolicy();
 }
 
 void Mouse::onWheelVertical(int delta) {
@@ -245,12 +244,11 @@ void Mouse::onButtonChange_internal(ButtonEvent &ev) {
     }
 }
 
-void Mouse::setPos(vec2 newPos) { this->onPosChange(dvec2{newPos + this->appViewport.getMin()}); }
+void Mouse::setPos(vec2 newPos) { this->applyPos(dvec2{newPos + this->appViewport.getMin()}); }
 
 void Mouse::setAppViewport(const McRect &viewport) {
     this->appViewport = viewport;
     this->vPos = vec2{this->vPosWithoutOffsets} - viewport.getMin();
-    this->applyCursorPolicy();
 }
 
 McRect Mouse::getAppViewport() const {
@@ -260,37 +258,6 @@ McRect Mouse::getAppViewport() const {
 Mouse::RealPosScope::RealPosScope(Mouse *m_) : m(m_), bPrevious(m_->bRealPos) { m_->bRealPos = true; }
 
 Mouse::RealPosScope::~RealPosScope() { m->bRealPos = this->bPrevious; }
-
-void Mouse::setAppCursorHidden(bool hidden) {
-    if(this->bAppCursorHidden == hidden) return;
-    this->bAppCursorHidden = hidden;
-    this->applyCursorPolicy();
-}
-
-void Mouse::setAppCursorConfined(bool confined) {
-    if(this->bAppCursorConfined == confined) return;
-    this->bAppCursorConfined = confined;
-    this->applyCursorPolicy();
-}
-
-void Mouse::setOSCursorRequired(bool required) {
-    if(this->bOSCursorRequired == required) return;
-    this->bOSCursorRequired = required;
-    this->applyCursorPolicy();
-}
-
-void Mouse::applyCursorPolicy() {
-    const McRect viewport = this->getAppViewport();
-    const bool overViewport = viewport.contains(vec2{this->vPosWithoutOffsets});
-    env->setCursorVisible(this->bOSCursorRequired || !this->bAppCursorHidden || !overViewport);
-    env->setCursorClip(this->bAppCursorConfined && !this->bOSCursorRequired, viewport);
-}
-
-void Mouse::setRawInputOverride(bool forced) {
-    if(this->bRawInputOverride == forced) return;
-    this->bRawInputOverride = forced;
-    env->setRawMouseInput(this->bIsRawInputDesired || this->bRawInputOverride);
-}
 
 void Mouse::addListener(MouseListener *mouseListener, bool insertOnTop) {
     if(mouseListener == nullptr) {
@@ -308,7 +275,6 @@ void Mouse::removeListener(MouseListener *mouseListener) { std::erase(this->list
 
 void Mouse::onRawInputChanged(float newval) {
     this->bIsRawInputDesired = !!static_cast<int>(newval);
-    env->setRawMouseInput(this->bIsRawInputDesired || this->bRawInputOverride);
 
     // non-rawinput with sensitivity != 1 is unsupported
     if(!this->bIsRawInputDesired && (this->fSensitivity < 0.999f || this->fSensitivity > 1.001f)) {

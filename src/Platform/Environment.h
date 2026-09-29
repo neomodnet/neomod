@@ -13,6 +13,7 @@
 #include "Vectors.h"
 
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 #include <functional>
@@ -272,25 +273,11 @@ class Environment {
     [[nodiscard]] constexpr bool isCursorInWindow() const { return m_bIsCursorInsideWindow; }
     [[nodiscard]] bool isCursorVisible() const;
     [[nodiscard]] constexpr bool isCursorClipped() const { return m_bCursorClipped; }
-    [[nodiscard]] constexpr vec2 getMousePos() const { return m_vLastAbsMousePos; }
-    [[nodiscard]] forceinline const McRect &getCursorClip() const { return m_cursorClipRect; }
     [[nodiscard]] constexpr CURSORTYPE getCursor() const { return m_cursorType; }
-    [[nodiscard]] constexpr bool isOSMouseInputRaw() const {
-        return !m_bForceAbsCursor && flags::has<WinFlags::F_MOUSE_RELATIVE_MODE>(m_winflags);
-    }
-    [[nodiscard]] constexpr bool isMouseInputGrabbed() const {
-        return flags::has<WinFlags::F_MOUSE_GRABBED>(m_winflags);
-    }
+    [[nodiscard]] bool isOSMouseInputRaw() const;
+    [[nodiscard]] bool isMouseInputGrabbed() const;
 
     void setCursor(CURSORTYPE cur);
-    // the os cursor state the engine wants (composed in Mouse::applyCursorPolicy); applyCursorState() reconciles
-    // sdl with it and with the window state, so these are safe to call at any time and in any order
-    void setCursorVisible(bool visible);
-    void setCursorClip(bool clip, const McRect &rect);
-    void setRawMouseInput(bool raw);
-
-    void setOSMousePos(vec2 pos);
-    inline void setOSMousePos(float x, float y) { setOSMousePos(vec2{x, y}); }
 
     // keyboard
     [[nodiscard]] std::string scanCodeToString(SCANCODE scanCode) const;
@@ -384,55 +371,54 @@ class Environment {
         dvec2 abs;  // mouse absolute
         // if we are actually getting relative deltas or emulating them from absolute position changes
         bool isRelativeMode;
-        // if the cursor is already clipped to the clip rectangle or if it needs to be clipped manually
-        // (TODO: very ugly to be putting this here)
-        bool needsClipping;
     };
 
-    // enabled if we had pen events and no relative motion reported from SDL
-    // disabled once we receive relative motion events from SDL again
-    bool m_bForceAbsCursor{false};
-
+    // the os mouse; pens only show up in it as macOS relative motion (SDL_HINT_PEN_MOUSE_EVENTS is off)
     CursorPosition consumeCursorPositionCache();
 
-    // derives the sdl cursor state from the wanted state and the window state: the cursor can only hide while it
-    // is over the window, relative mode only runs while it is hidden, and the explicit grab backs the confinement
-    // rect outside relative mode (which grabs on its own). idempotent, re-run on window enter/leave and dpi changes
-    void applyCursorState();
+    // the os cursor state the engine wants, in window pixels
+    struct CursorState {
+        McRect confineRect{};  // used while confined
+        vec2 pos{};            // the virtual cursor: where the os cursor lands when relative mode ends
+        bool visible{true};    // the app draws its own cursor otherwise
+        bool confined{false};
+        bool raw{false};  // relative mode while hidden
+    };
 
-    // allow Mouse to update the cached environment position post-sensitivity/clipping
-    // the difference between setOSMousePos and this is that it doesn't actually warp the OS cursor
-    inline void updateCachedMousePos(vec2 pos) { m_vLastAbsMousePos = pos; }
+    // makes sdl follow the wanted state and the pointer facts below: the cursor can only hide while it is over the
+    // window, relative mode only runs while it is hidden (and no pen needs it off), and the explicit grab backs the
+    // confinement rect outside relative mode (which grabs on its own). meant to run every frame, which is when
+    // changed facts and dpi take effect; sdl is only touched when the result changes
+    void applyCursorState(const CursorState &wanted);
+    void releaseCursor();  // visible, unconfined and absolute, for shutting down
+
+    CursorState m_cursorWanted;
+    // what applyCursorState last handed to sdl (the confinement rect in desktop points)
+    struct AppliedCursorState {
+        McRect confineRect;
+        bool confined;
+        bool visible;
+        bool shown;  // visible or drawn anyway (debug_draw_hardware_cursor)
+        bool relative;
+        bool operator==(const AppliedCursorState &) const = default;
+    };
+    std::optional<AppliedCursorState> m_cursorApplied;
+
+    // pointer facts, recorded by the event loop
+    bool m_bIsCursorInsideWindow;
+    std::vector<uint32_t> m_pensInProximity;  // SDL_PenIDs, only tracked where pens don't survive relative mode
+
+    // emscripten passes pointer lock deltas as pen positions, and on macOS tablets are also reported as relative
+    // mouse motion (and may stop reporting positions while the cursor is dissociated): there, relative mode is off
+    // while a pen is in proximity
+    static constexpr bool PENS_SURVIVE_RELATIVE_MODE{!Env::cfg(OS::MAC | OS::WASM)};
 
     // this is basically to work around issues with wayland not providing a mouse position until the window is actually focused,
     // so we can't put the game cursor where the mouse is when the window opened until we get a mouse enter event
     // (a mouse enter event seems to just happen after some arbitrary time after creating the window...)
     bool m_bVirtualMousePositionInitialized{false};
 
-    // is used to track relative tablet motion, is zeroed after consumeMousePositionCache
-    // on some platforms, SDL automatically tracks relative motion deltas from absolute pen motion, but not others...
-    // so we'll do it manually in that case
-    vec2 m_vCurrentAbsPenPos{0.f, 0.f};
-    vec2 m_vLastAbsPenPos{0.f, 0.f};
-
-    vec2 m_vLastAbsMousePos{0.f, 0.f};
-
-    // synthetic cursor position for headless/scripted UI testing (mouse_to command)
-    inline void setInjectedCursorPos(vec2 pos) {
-        m_bInjectedCursorDirty = true;
-        m_vInjectedCursorPos = pos;
-    }
-    vec2 m_vInjectedCursorPos{0.f, 0.f};
-    vec2 m_vLastInjectedCursorPos{0.f, 0.f};
-    bool m_bInjectedCursorDirty{true};  // dirty to initialize mouse cursor pos
-
-    bool m_bIsCursorInsideWindow;
-    // wanted state (setCursorVisible/setCursorClip/setRawMouseInput)
-    bool m_bCursorVisibleWanted;
-    bool m_bCursorClipWanted;
-    bool m_bRawMouseWanted;
     bool m_bCursorClipped;  // the rect is applied
-    McRect m_cursorClipRect;
     CURSORTYPE m_cursorType;
     std::array<SDL_Cursor *, (size_t)CURSORTYPE::CURSORTYPE_MAX> m_cursorIcons;
 
@@ -448,6 +434,7 @@ class Environment {
         }
     }
     void onUseIMEChange(float newValue);
+    void onPenInputChange(float newValue);
     void onDebugDrawHardwareCursorChange(float newValue);
 
     bool m_bShouldListenToTextInput;

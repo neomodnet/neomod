@@ -70,7 +70,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
 
     auto *fmain = static_cast<SDLMain *>(appstate);
 
-    fmain->setCursorClip(false, {});  // release input devices
+    fmain->releaseCursor();  // release input devices
     fmain->setWindowsKeyDisabled(false);
 
     const bool restart = fmain->isRestartScheduled();

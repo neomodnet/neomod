@@ -1,0 +1,32 @@
+# pins pens as absolute pointers: pen_to/pen_down/pen_up send the SDL pen events a tablet does, the pen
+# places the cursor exactly (sub-pixel), the tip clicks like the left mouse button, and the mouse takes
+# over again once it moves.
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+ui_trace 1
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+pen_to 640.25 360.5
+# same frame: a sample applies right away (touch hands the position to gameplay keys inside the event)
+ui_assert mouse_at 640.25 360.5 0.001
+@wait 2
+ui_assert mouse_at 640.25 360.5 0.001
+pen_down
+@wait 3
+pen_up
+@wait 40
+pen_to 867 401
+@wait 3
+pen_down
+@wait 3
+pen_up
+@wait 30
+ui_assert visible optionsoverlay 1
+mouse_to 10 10
+@wait 2
+ui_assert mouse_at 10 10 0.001
+exit

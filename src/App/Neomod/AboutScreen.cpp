@@ -408,6 +408,9 @@ void AboutScreen::buildChangelog() {
         R"(- Exposed "direct_autoselect" behavior as a checkbox)",
         R"(- Fixed startup crashing in some cases)",
         R"(- Allowed force disabling skins from setting convars)",
+        R"(- Fixed tablets drifting or lagging behind the pen with "Raw Mouse Input" enabled)",
+        R"(- Fixed pen taps counting as touchscreen input (TD mod))",
+        R"(- Fixed pen side buttons not acting as mouse buttons)",
     };
     changelogs.push_back(std::move(v43_14));
 

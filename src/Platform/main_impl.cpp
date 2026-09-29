@@ -31,8 +31,13 @@
 #include "LaunchArgs.h"
 #include "Paths.h"
 
+#include <algorithm>
+#include <array>
+#include <vector>
+
 #ifdef MCENGINE_PLATFORM_WASM
 #include <emscripten/em_js.h>
+#include <emscripten/html5.h>
 
 // EM_ASM_INT doesn't work in CI, if you have too much time feel free to find out why
 EM_JS(int, js_get_canvas_width, (), { return document.getElementById('canvas').width; });
@@ -50,6 +55,9 @@ static ConVar mouse_to_cmd("mouse_to", CLIENT | NOLOAD | NOSAVE);
 static ConVar mouse_down_cmd("mouse_down", CLIENT | NOLOAD | NOSAVE);
 static ConVar mouse_up_cmd("mouse_up", CLIENT | NOLOAD | NOSAVE);
 static ConVar mouse_wheel_cmd("mouse_wheel", CLIENT | NOLOAD | NOSAVE);
+static ConVar pen_to_cmd("pen_to", CLIENT | NOLOAD | NOSAVE);
+static ConVar pen_down_cmd("pen_down", CLIENT | NOLOAD | NOSAVE);
+static ConVar pen_up_cmd("pen_up", CLIENT | NOLOAD | NOSAVE);
 static ConVar window_draw_while_occluded("window_draw_while_occluded", false, CLIENT,
                                          "whether to keep drawing while occluded & in fullscreen & unfocused");
 }  // namespace cv
@@ -143,14 +151,14 @@ void SDLMain::sendtext(std::string_view text) {
 }
 
 // for sending synthetic mouse input from console (headless/scripted UI testing)
-// NOTE: position injection latches for the session (real cursor state is ignored from then on)
+// NOTE: the position is an absolute pointer sample (window pixels), the real mouse takes over again when it moves
 void SDLMain::mouse_to(std::string_view args) {
     float x{}, y{};
     if(!Parsing::parse(args, &x, Parsing::SPC, &y)) {
         debugLog("usage: mouse_to <x> <y>");
         return;
     }
-    setInjectedCursorPos({x, y});
+    mouse->onPosChange({x, y});
 }
 
 void SDLMain::pushMouseButtonEvent(std::string_view btnName, bool down) {
@@ -193,6 +201,38 @@ void SDLMain::mouse_wheel(std::string_view args) {
     handleEvent(&ev);
 }
 
+// synthetic pen input, through the same events a tablet sends (window pixels, like mouse_to)
+static constexpr const SDL_PenID SYNTHETIC_PEN_ID{1};
+
+void SDLMain::pen_to(std::string_view args) {
+    float x{}, y{};
+    if(!Parsing::parse(args, &x, Parsing::SPC, &y)) {
+        debugLog("usage: pen_to <x> <y>");
+        return;
+    }
+    SDL_Event ev{};
+    ev.pmotion.type = SDL_EVENT_PEN_MOTION;
+    ev.pmotion.timestamp = Timing::getTicksNS();
+    ev.pmotion.windowID = m_windowID;
+    ev.pmotion.which = SYNTHETIC_PEN_ID;
+    ev.pmotion.x = x / getPixelDensity();
+    ev.pmotion.y = y / getPixelDensity();
+    handleEvent(&ev);
+}
+
+void SDLMain::pushPenTouchEvent(bool down) {
+    SDL_Event ev{};
+    ev.ptouch.type = down ? SDL_EVENT_PEN_DOWN : SDL_EVENT_PEN_UP;
+    ev.ptouch.timestamp = Timing::getTicksNS();
+    ev.ptouch.windowID = m_windowID;
+    ev.ptouch.which = SYNTHETIC_PEN_ID;
+    ev.ptouch.down = down;
+    handleEvent(&ev);
+}
+
+void SDLMain::pen_down(std::string_view /*args*/) { pushPenTouchEvent(true); }
+void SDLMain::pen_up(std::string_view /*args*/) { pushPenTouchEvent(false); }
+
 // TODO: is this needed on linux too?
 static constexpr const bool USE_LIVE_RESIZE_CALLBACK{Env::cfg(OS::WINDOWS | OS::MAC) && !Env::cfg(FEAT::MAINCB)};
 
@@ -209,6 +249,9 @@ SDLMain::SDLMain(const Mc::AppDescriptor &appDesc)
     cv::mouse_down_cmd.setCallback(SA::MakeDelegate<&SDLMain::mouse_down>(this));
     cv::mouse_up_cmd.setCallback(SA::MakeDelegate<&SDLMain::mouse_up>(this));
     cv::mouse_wheel_cmd.setCallback(SA::MakeDelegate<&SDLMain::mouse_wheel>(this));
+    cv::pen_to_cmd.setCallback(SA::MakeDelegate<&SDLMain::pen_to>(this));
+    cv::pen_down_cmd.setCallback(SA::MakeDelegate<&SDLMain::pen_down>(this));
+    cv::pen_up_cmd.setCallback(SA::MakeDelegate<&SDLMain::pen_up>(this));
 }
 
 SDLMain::~SDLMain() {
@@ -220,6 +263,10 @@ SDLMain::~SDLMain() {
     cv::mouse_down_cmd.removeAllCallbacks();
     cv::mouse_up_cmd.removeAllCallbacks();
     cv::mouse_wheel_cmd.removeAllCallbacks();
+    cv::pen_to_cmd.removeAllCallbacks();
+    cv::pen_down_cmd.removeAllCallbacks();
+    cv::pen_up_cmd.removeAllCallbacks();
+    cv::pen_input.removeAllCallbacks();
 
     if constexpr(USE_LIVE_RESIZE_CALLBACK) {
         SDL_RemoveEventWatch(SDLMain::resizeCallback, this);
@@ -363,7 +410,8 @@ SDL_AppResult SDLMain::initialize() {
         // NOTE (TODO?): about getPixelDensity(): see Mouse::update(), SDL seems to use inconsistent coordinate systems for mouse pos/window size/window pos
         // (at least on macOS with pixel density != 1)
         // also NOTE: this seems to not work on wayland, will be handled by the first SDL_EVENT_WINDOW_MOUSE_ENTER event
-        const vec2 realPos = getAsyncMousePos() * getPixelDensity();
+        m_bVirtualMousePositionInitialized = isHeadless();
+        const vec2 realPos = isHeadless() ? vec2{} : getAsyncMousePos() * getPixelDensity();
         mouse->onPosChange(realPos);
     }
 
@@ -518,14 +566,12 @@ SDL_AppResult SDLMain::handleEvent(SDL_Event *event) {
                         mouse->onPosChange(getAsyncMousePos() * getPixelDensity());
                     }
                     m_bIsCursorInsideWindow = true;
-                    applyCursorState();  // a hide that had to wait for the cursor to arrive
                     // reconcile held buttons on mouse enter/exit
                     mouse->reset();
                     break;
 
                 case SDL_EVENT_WINDOW_MOUSE_LEAVE:
                     m_bIsCursorInsideWindow = false;
-                    applyCursorState();  // the cursor shows (and relative mode ends) while it is away
                     mouse->reset();
                     break;
 
@@ -667,9 +713,47 @@ SDL_AppResult SDLMain::handleEvent(SDL_Event *event) {
                     static_cast<int>(120.f * (std::abs(wy) < 1.f ? (std::signbit(wy) ? -1.f : 1.f) : wy)));
             break;
 
-        case SDL_EVENT_PEN_MOTION:
-            m_vCurrentAbsPenPos = vec2{event->pmotion.x, event->pmotion.y};
+        // pens are absolute pointers whatever the mouse mode is (sdl's pen->mouse/touch emulation is off)
+        case SDL_EVENT_PEN_PROXIMITY_IN:
+            if(std::ranges::find(m_pensInProximity, event->pproximity.which) == m_pensInProximity.end()) {
+                m_pensInProximity.push_back(event->pproximity.which);
+            }
             break;
+
+        case SDL_EVENT_PEN_PROXIMITY_OUT:
+            std::erase(m_pensInProximity, event->pproximity.which);
+            break;
+
+        case SDL_EVENT_PEN_MOTION: {
+#ifdef MCENGINE_PLATFORM_WASM
+            // sdl passes pointer lock deltas as pen positions, the lock is on its way out (PENS_SURVIVE_RELATIVE_MODE)
+            if(EmscriptenPointerlockChangeEvent lock{};
+               emscripten_get_pointerlock_status(&lock) == EMSCRIPTEN_RESULT_SUCCESS && lock.isActive) {
+                break;
+            }
+#endif
+            const vec2 pos = vec2{event->pmotion.x, event->pmotion.y} * getPixelDensity();
+            // a pen over the window puts the pointer inside it too, sdl's window enter/leave events only follow the mouse
+            if(McRect{vec2{}, getWindowSize()}.contains(pos)) m_bIsCursorInsideWindow = true;
+            mouse->onPosChange(pos);
+        } break;
+
+        case SDL_EVENT_PEN_DOWN:
+        case SDL_EVENT_PEN_UP:
+            // the tip (or eraser) is the left button
+            mouse->onButtonChange({event->ptouch.timestamp, MouseButtonFlags::MF_LEFT, event->ptouch.down, false});
+            break;
+
+        case SDL_EVENT_PEN_BUTTON_DOWN:
+        case SDL_EVENT_PEN_BUTTON_UP: {
+            // same mapping as sdl's pen->mouse emulation: the barrel button is the right button
+            using enum MouseButtonFlags;
+            static constexpr std::array penButtons{MF_LEFT, MF_RIGHT, MF_MIDDLE, MF_X1, MF_X2};
+            if(event->pbutton.button < penButtons.size()) {
+                mouse->onButtonChange(
+                    {event->pbutton.timestamp, penButtons[event->pbutton.button], event->pbutton.down, false});
+            }
+        } break;
 
         // touch events
         // tracked separately from mouse events so we can tell which finger is pressing
@@ -874,6 +958,11 @@ bool SDLMain::createWindow() {
 
     SDL_SetHintWithPriority(SDL_HINT_MOUSE_RELATIVE_MODE_CENTER, "0", SDL_HINT_NORMAL);
     SDL_SetHintWithPriority(SDL_HINT_TOUCH_MOUSE_EVENTS, "0", SDL_HINT_NORMAL);
+    // pens only come through pen events: sdl's emulation would feed their positions into the (relative) mouse state
+    // and make pen taps look like a touchscreen. with it off, windows also reports absolute raw input (e.g. tablet
+    // drivers without windows ink) as pen motion instead of as relative motion that drops fast movements
+    SDL_SetHintWithPriority(SDL_HINT_PEN_MOUSE_EVENTS, "0", SDL_HINT_NORMAL);
+    SDL_SetHintWithPriority(SDL_HINT_PEN_TOUCH_EVENTS, "0", SDL_HINT_NORMAL);
     SDL_SetHintWithPriority(SDL_HINT_MOUSE_EMULATE_WARP_WITH_RELATIVE, "0", SDL_HINT_NORMAL);
     // don't conflict with our handling of it
     SDL_SetHintWithPriority(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0", SDL_HINT_NORMAL);
@@ -1043,21 +1132,12 @@ void SDLMain::configureEvents() {
     SDL_SetEventEnabled(SDL_EVENT_JOYSTICK_BATTERY_UPDATED, false);
     SDL_SetEventEnabled(SDL_EVENT_JOYSTICK_UPDATE_COMPLETE, false);
 
-    // pen
+    // pen (the rest is enabled by onPenInputChange)
     SDL_SetEventEnabled(SDL_EVENT_PEN_PROXIMITY_IN, false);
     SDL_SetEventEnabled(SDL_EVENT_PEN_PROXIMITY_OUT, false);
-    SDL_SetEventEnabled(SDL_EVENT_PEN_DOWN, false);
-    SDL_SetEventEnabled(SDL_EVENT_PEN_UP, false);
-    SDL_SetEventEnabled(SDL_EVENT_PEN_BUTTON_DOWN, false);
-    SDL_SetEventEnabled(SDL_EVENT_PEN_BUTTON_UP, false);
     SDL_SetEventEnabled(SDL_EVENT_PEN_AXIS, false);
-
-    // use pen motion events to track absolute cursor position
-    SDL_SetEventEnabled(SDL_EVENT_PEN_MOTION, true);
-
-    // allow callback to enable/disable pen input handling
-    cv::pen_input.setCallback(
-        [](float on) -> void { SDL_SetEventEnabled(SDL_EVENT_PEN_MOTION, !!static_cast<int>(on)); });
+    onPenInputChange(cv::pen_input.getFloat());
+    cv::pen_input.setCallback(SA::MakeDelegate<&SDLMain::onPenInputChange>(this));
 
     // touch
     SDL_SetEventEnabled(SDL_EVENT_FINGER_CANCELED, false);
@@ -1117,7 +1197,6 @@ void SDLMain::onDPIChange() {
     const float oldPixelDensity = m_fPixelDensity;
     m_fDisplayScale = SDL_GetWindowDisplayScale(m_window);
     m_fPixelDensity = SDL_GetWindowPixelDensity(m_window);
-    applyCursorState();  // the cursor clip is set in desktop points
     if(m_engine && ((oldDispScale != m_fDisplayScale) || (oldPixelDensity != m_fPixelDensity))) {
         m_engine->onDPIChange();
     }

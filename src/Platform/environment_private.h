@@ -70,6 +70,11 @@ class SDLMain final : public Environment {
     void mouse_up(std::string_view args);
     void mouse_wheel(std::string_view args);
 
+    void pushPenTouchEvent(bool down);
+    void pen_to(std::string_view args);
+    void pen_down(std::string_view args);
+    void pen_up(std::string_view args);
+
     // GL context (must be created early, during window creation)
     SDL_GLContext m_context{nullptr};
 
