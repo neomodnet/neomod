@@ -87,6 +87,7 @@ void Graphics::processPendingScreenshot() {
         if(callback) {
             callback(std::move(pixels));
         } else {
+            Environment::createDirectory(savePath.substr(0, savePath.find_last_of("/\\")));
             const auto res = this->getResolution();
             if(Image::saveToImage(pixels.data(), (i32)res.x, (i32)res.y, screenshot.withAlpha ? 4 : 3, savePath)) {
                 debugLog("saved to {}", savePath);
