@@ -830,30 +830,16 @@ bool readdir_NTAPI(const std::wstring &dirPath, File::DirContents types, bool wi
 }
 
 template <typename Sink>
-bool readdir_Win32(std::string_view pathToEnum, File::DirContents types, bool withMetadata, const Sink &sink) noexcept {
+bool readdir_Win32(const std::wstring &dirPath, File::DirContents types, bool withMetadata, const Sink &sink) noexcept {
     using enum File::DirContents;
     using namespace flags::operators;
     const bool wantDirectories = !!(types & DIRECTORIES);
     const bool wantFiles = !!(types & FILES);
 
-    std::wstring folder{UniString::to_wide(pathToEnum)};
-
     // Win32: needs path\*.* search pattern
-    // TODO: avoid this fragile bs
-    std::wstring endSep{L'/'};
-    std::wstring otherSep{L'\\'};
-    // for UNC/long paths, make sure we use a backslash as the last separator
-    if(folder.starts_with(LR"(\\?\)") || folder.starts_with(LR"(\\.\)")) {
-        endSep = L'\\';
-        otherSep = L'/';
-    }
-    if(!folder.ends_with(endSep)) {
-        if(folder.ends_with(otherSep)) {
-            folder.pop_back();
-        }
-        folder.append(endSep);
-    }
-    const std::wstring pattern{folder + L"*.*"};
+    std::wstring pattern{dirPath};
+    if(!pattern.ends_with(L'\\') && !pattern.ends_with(L'/')) pattern.push_back(L'\\');
+    pattern.append(L"*.*");
 
     WIN32_FIND_DATAW data{};
     HANDLE handle = FindFirstFileW(pattern.c_str(), &data);
@@ -873,7 +859,7 @@ bool readdir_Win32(std::string_view pathToEnum, File::DirContents types, bool wi
                                    .type = isDir ? File::FILETYPE::FOLDER : File::FILETYPE::FILE};
                 if(withMetadata) {
                     set_listed_metadata(out, data.dwFileAttributes, file_time_to_int(data.ftLastWriteTime),
-                                        (static_cast<u64>(data.nFileSizeHigh) << 32) | data.nFileSizeLow, folder,
+                                        (static_cast<u64>(data.nFileSizeHigh) << 32) | data.nFileSizeLow, dirPath,
                                         {wFilename, length});
                 }
                 sink(std::move(out));
@@ -892,11 +878,12 @@ bool readdir_Win32(std::string_view pathToEnum, File::DirContents types, bool wi
 template <typename Sink>
 bool enumerate_directory(std::string_view pathToEnum, File::DirContents types, bool withMetadata,
                          const Sink &sink) noexcept {
+    const std::wstring dirPath{adjust_path_(pathToEnum, true)};
     if(try_load_NTQDF()) {
-        return readdir_NTAPI(adjust_path_(pathToEnum, true), types, withMetadata, sink);
+        return readdir_NTAPI(dirPath, types, withMetadata, sink);
     }
 
-    return readdir_Win32(pathToEnum, types, withMetadata, sink);
+    return readdir_Win32(dirPath, types, withMetadata, sink);
 }
 
 }  // namespace
@@ -1418,3 +1405,56 @@ void File::flushToDisk() {
 void File::flushToDisk() {}
 
 #endif
+
+//------------------------------------------------------------------------------
+// MappedFile
+//------------------------------------------------------------------------------
+#ifdef MCENGINE_PLATFORM_WINDOWS
+#include <memoryapi.h>
+#else
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#endif
+
+MappedFile::MappedFile(std::string_view utf8path) {
+#ifdef MCENGINE_PLATFORM_WINDOWS
+    HANDLE file = CreateFileW(adjust_path(utf8path).c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+                              FILE_ATTRIBUTE_NORMAL, nullptr);
+    if(file == INVALID_HANDLE_VALUE) return;
+
+    LARGE_INTEGER size{};
+    if(GetFileSizeEx(file, &size) && size.QuadPart > 0 && std::in_range<uSz>(size.QuadPart)) {
+        if(HANDLE mapping = CreateFileMappingW(file, nullptr, PAGE_READONLY, 0, 0, nullptr)) {
+            // the view keeps the mapping and the file open
+            if(const void *base = MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, 0)) {
+                this->view = {static_cast<const u8 *>(base), static_cast<uSz>(size.QuadPart)};
+            }
+            CloseHandle(mapping);
+        }
+    }
+    CloseHandle(file);
+#else
+    const int fd = openat64(AT_FDCWD, std::string{utf8path}.c_str(), O_RDONLY | O_CLOEXEC);
+    if(fd == -1) return;
+
+    struct stat64 st{};
+    if(fstat64(fd, &st) == 0 && st.st_size > 0 && std::in_range<uSz>(st.st_size)) {
+        const auto size = static_cast<uSz>(st.st_size);
+        // the mapping keeps the file open
+        if(void *base = mmap(nullptr, size, PROT_READ, MAP_PRIVATE, fd, 0); base != MAP_FAILED) {
+            this->view = {static_cast<const u8 *>(base), size};
+        }
+    }
+    close(fd);
+#endif
+}
+
+MappedFile::~MappedFile() {
+    if(this->view.empty()) return;
+#ifdef MCENGINE_PLATFORM_WINDOWS
+    UnmapViewOfFile(this->view.data());
+#else
+    munmap(const_cast<u8 *>(this->view.data()), this->view.size());
+#endif
+}

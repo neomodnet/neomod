@@ -47,6 +47,9 @@
 #ifndef fstatat64
 #define fstatat64 fstatat
 #endif
+#ifndef fstat64
+#define fstat64 fstat
+#endif
 #endif
 
 class ConVar;
@@ -169,5 +172,20 @@ class File {
     bool bReady;
 };
 MAKE_FLAG_ENUM(File::DirContents)
+
+// a whole file mapped read-only into memory; the os pages it in as it's read, so large files cost little until used.
+// for handing files to libraries that read from a buffer instead of opening (unicode) paths themselves
+class MappedFile final {
+    NOCOPY_NOMOVE(MappedFile)
+   public:
+    explicit MappedFile(std::string_view utf8path);
+    ~MappedFile();
+
+    // empty if the file couldn't be opened or mapped
+    [[nodiscard]] inline std::span<const u8> data() const { return this->view; }
+
+   private:
+    std::span<const u8> view;
+};
 
 #endif

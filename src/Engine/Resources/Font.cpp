@@ -24,6 +24,7 @@
 #include "Hashing.h"
 #include "Graphics.h"
 #include "Shader.h"
+#include "Thread.h"
 #include "UniString.h"
 
 #include <algorithm>
@@ -108,11 +109,64 @@ struct LastSizedFTFace {
     [[nodiscard]] inline bool operator==(const LastSizedFTFace &) const = default;
 } s_lastSizedFace{};
 
+// one face per font file, shared by every font and fallback entry using that path
+// (each sizes it before use, see setFaceSize).
+// we map the file ourselves because freetype can't open non-ascii paths on windows
+struct SharedFace {
+    NOCOPY_NOMOVE(SharedFace)
+   public:
+    explicit SharedFace(std::string_view path) : file(path) {
+        const std::span<const u8> bytes = this->file.data();
+        if(bytes.empty() || !std::in_range<FT_Long>(bytes.size()) ||
+           FT_New_Memory_Face(s_sharedFtLibrary, bytes.data(), static_cast<FT_Long>(bytes.size()), 0, &this->face)) {
+            return;
+        }
+        if(FT_Select_Charmap(this->face, FT_ENCODING_UNICODE)) {
+            FT_Done_Face(this->face);
+            this->face = nullptr;
+        }
+    }
+    ~SharedFace() {
+        if(!this->face) return;
+        // a face opened later could get the same address
+        if(s_lastSizedFace.face == this->face) s_lastSizedFace = {};
+        FT_Done_Face(this->face);
+    }
+
+    MappedFile file;
+    FT_Face face{nullptr};
+    u32 refs{0};
+};
+
+// keyed by path, main thread only (like the rest of the shared freetype state)
+Hash::stable_stringmap<SharedFace> s_sharedFaces;
+
+// returns the face for the font file at path, opening it on first use; nullptr if it can't be loaded.
+// every face returned has to be given back with releaseFace(path)
+FT_Face acquireFace(const std::string &path) {
+    assert(McThread::is_main_thread() && "fonts share freetype faces, so they load on the main thread");
+
+    const auto it = s_sharedFaces.try_emplace(path, path).first;
+    if(!it->second.face) {
+        s_sharedFaces.erase(it);
+        return nullptr;
+    }
+    it->second.refs++;
+    return it->second.face;
+}
+
+// closes the face once nothing uses it anymore
+void releaseFace(const std::string &path) {
+    const auto it = s_sharedFaces.find(path);
+    assert(it != s_sharedFaces.end());
+    if(--it->second.refs == 0) s_sharedFaces.erase(it);
+}
+
 // text effect shader (shadow/outline in a single pass)
 Shader *s_textShader{nullptr};
 bool s_textShaderBroken{false};
 
-class TextVAO : public VertexArrayObject {
+class TextVAO final : public VertexArrayObject {
     MOVECONSTRUCTONLY(TextVAO)
    public:
     constexpr TextVAO(DrawPrimitive primitive = DrawPrimitive{2} /* TRIANGLES */,
@@ -198,8 +252,7 @@ struct McFontImpl final {
     // for strings too short or too long to bother with caching
     VerTexMetCacheEntry m_tempStringBuffer;
 
-    // per-instance freetype resources (only primary font face)
-    FT_Face m_ftFace;  // primary font face
+    FT_Face m_ftFace;  // primary font face (shared with every font loaded from the same file)
 
     int m_iFontSize;
     int m_iFontDPI;
@@ -215,7 +268,6 @@ struct McFontImpl final {
     uint64_t m_currentAtlasTime;                         // for LRU tracking
     bool m_bAtlasNeedsReload;                            // flag to batch atlas reloads
 
-    bool m_bFreeTypeInitialized;
     bool m_bAntialiasing;
     bool m_bHeightManuallySet{false};
 
@@ -265,7 +317,6 @@ struct McFontImpl final {
     void constructor(const std::span<const char32_t> &characters, int fontSize, bool antialiasing, int fontDPI);
 
     // Internal helper methods below here
-    bool initializeFreeType();
 
     // drawString helpers
     void drawStringShadered(VerTexMetCacheEntry &readyBuffer, const TextFX &effects) const;
@@ -286,7 +337,7 @@ struct McFontImpl final {
     bool loadGlyphDynamic(char32_t ch, FT_Face existingFace);
     bool loadGlyphMetrics(char32_t ch);
 
-    // loads glyph from face and converts to bitmap. Returns nullptr on failure.
+    // loads glyph from face (at this font's size) and converts to bitmap. Returns nullptr on failure.
     // if storeMetrics is true, stores metrics in m_mGlyphMetrics[ch].
     // caller is responsible for calling FT_Done_Glyph on returned glyph.
     FT_BitmapGlyph loadBitmapGlyph(char32_t ch, FT_Face face, bool storeMetrics);
@@ -393,9 +444,7 @@ void McFontImpl::constructor(const std::span<const char32_t> &characters, int fo
     m_iFontDPI = fontDPI;
     m_fHeight = 1.0f;
 
-    // per-instance freetype initialization state
     m_ftFace = nullptr;
-    m_bFreeTypeInitialized = false;
 
     // initialize dynamic atlas management
     m_staticRegionHeight = 0;
@@ -463,10 +512,11 @@ void McFontImpl::initAsync() {
     assert(s_sharedFtLibraryInitialized);
     assert(s_sharedFallbacksInitialized);
 
-    if(!initializeFreeType()) return;
-
-    // set font size for this instance's primary face
-    setFaceSize(m_ftFace);
+    m_ftFace = acquireFace(m_sActualFilePath);
+    if(!m_ftFace) {
+        engine->showMessageError("Font Error", "Couldn't load font file!");
+        return;
+    }
 
     m_mGlyphMetrics.reserve(m_vInitialGlyphs.size());
     // load metrics for all initial glyphs
@@ -490,15 +540,12 @@ void McFontImpl::initAsync() {
 }
 
 void McFontImpl::destroy() {
-    // only clean up per-instance resources (primary font face and atlas)
+    // only clean up per-instance resources (our reference to the primary font face, and the atlas)
     // shared resources are cleaned up separately via cleanupSharedResources()
 
-    if(m_bFreeTypeInitialized) {
-        if(m_ftFace) {
-            FT_Done_Face(m_ftFace);
-            m_ftFace = nullptr;
-        }
-        m_bFreeTypeInitialized = false;
+    if(m_ftFace) {
+        releaseFace(m_sActualFilePath);
+        m_ftFace = nullptr;
     }
     m_vStringCache.clear();
     m_vStringCache.resize(CACHED_STRINGS_PER_FONT);
@@ -867,7 +914,7 @@ const McFontImpl::GLYPH_METRICS &McFontImpl::getGlyphMetrics(char32_t ch) const 
 }
 
 bool McFontImpl::loadGlyphDynamic(char32_t ch, FT_Face existingFace) {
-    assert(m_bFreeTypeInitialized);
+    assert(m_ftFace);
 
     std::string debugstr;
     if(cv::r_debug_font_unicode.getBool()) {
@@ -895,9 +942,6 @@ bool McFontImpl::loadGlyphDynamic(char32_t ch, FT_Face existingFace) {
               "Font Info (for font resource {}): Using fallback font for character {} (from font {})",
               m_parent->getName(), debugstr, face->family_name);
     }
-
-    // ensure face size is set
-    setFaceSize(face);
 
     // load glyph once - store metrics only if this is a new glyph
     FT_BitmapGlyph bitmapGlyph = loadBitmapGlyph(ch, face, needMetrics);
@@ -1019,27 +1063,8 @@ void McFontImpl::initializeDynamicRegion(int atlasSize) {
 }
 
 // consolidated glyph processing methods
-bool McFontImpl::initializeFreeType() {
-    assert(s_sharedFtLibraryInitialized);
-
-    // load this font's primary face
-    if(FT_New_Face(s_sharedFtLibrary, m_sActualFilePath.c_str(), 0, &m_ftFace)) {
-        engine->showMessageError("Font Error", "Couldn't load font file!");
-        return false;
-    }
-
-    if(FT_Select_Charmap(m_ftFace, FT_ENCODING_UNICODE)) {
-        engine->showMessageError("Font Error", "FT_Select_Charmap() failed!");
-        FT_Done_Face(m_ftFace);
-        return false;
-    }
-
-    m_bFreeTypeInitialized = true;
-    return true;
-}
-
 bool McFontImpl::loadGlyphMetrics(char32_t ch) {
-    if(!m_bFreeTypeInitialized) return false;
+    if(!m_ftFace) return false;
 
     FT_Face face = getFontFaceForGlyph(ch);
     if(!face) return false;
@@ -1249,9 +1274,6 @@ bool McFontImpl::initializeAtlas() {
         const char32_t ch = rectsToChars[rect.id];
         const auto &metrics = *m_mGlyphMetrics[ch];
         if(metrics.face) {
-            // ensure face size is set
-            setFaceSize(metrics.face);
-
             // load bitmap (metrics already stored, so don't overwrite)
             FT_BitmapGlyph bitmapGlyph = loadBitmapGlyph(ch, metrics.face, false /*storeMetrics*/);
             if(bitmapGlyph) {
@@ -1315,6 +1337,9 @@ FT_Face McFontImpl::getFontFaceForGlyph(char32_t ch) {
 }
 
 FT_BitmapGlyph McFontImpl::loadBitmapGlyph(char32_t ch, FT_Face face, bool storeMetrics) {
+    // faces are shared by fonts of different sizes, so size it right before every load
+    setFaceSize(face);
+
     const bool isColorFace = FT_HAS_COLOR(face);
     FT_Int32 loadFlags = isColorFace ? FT_LOAD_COLOR : (m_bAntialiasing ? FT_LOAD_TARGET_NORMAL : FT_LOAD_TARGET_MONO);
 
@@ -1535,16 +1560,9 @@ void McFontImpl::setFaceSize(FT_Face face) {
 namespace {  // static namespace
 
 bool loadFallbackFont(const std::string &fontPath, bool isSystemFont) {
-    FT_Face face{};
-    if(FT_New_Face(s_sharedFtLibrary, fontPath.c_str(), 0, &face)) {
+    FT_Face face = acquireFace(fontPath);
+    if(!face) {
         logIfCV(r_debug_font_unicode, "Font Warning: Failed to load fallback font: {:s}", fontPath);
-        return false;
-    }
-
-    if(FT_Select_Charmap(face, FT_ENCODING_UNICODE)) {
-        logIfCV(r_debug_font_unicode, "Font Warning: Failed to select unicode charmap for fallback font: {:s}",
-                fontPath);
-        FT_Done_Face(face);
         return false;
     }
 
@@ -1573,11 +1591,12 @@ void discoverSystemFallbacks() {
     std::vector<std::string> scanRoots;
 
 #ifdef MCENGINE_PLATFORM_WINDOWS
-    std::string windir;
-    windir.resize(MAX_PATH + 1);
-    const size_t ret = GetWindowsDirectoryA(windir.data(), MAX_PATH);
+    std::wstring windirW;
+    windirW.resize(MAX_PATH + 1);
+    const size_t ret = GetWindowsDirectoryW(windirW.data(), MAX_PATH);
     if(ret <= 0) return;
-    windir.resize(ret);
+    windirW.resize(ret);
+    const std::string windir = UniString::to_utf8(windirW);
     const std::string fontsDir = windir + "\\Fonts\\";
 
     wantedFonts = {
@@ -1790,12 +1809,13 @@ bool McFont::initSharedResources() {
 
 void McFont::cleanupSharedResources() {
     // clean up shared fallback fonts
-    for(auto &fallbackFont : s_sharedFallbackFonts) {
-        if(fallbackFont.face) FT_Done_Face(fallbackFont.face);
+    for(const auto &fallbackFont : s_sharedFallbackFonts) {
+        releaseFace(fallbackFont.fontPath);
     }
     s_sharedFallbackFonts.clear();
-    s_sharedEmojiFace = nullptr;  // owned by s_sharedFallbackFonts, already freed above
+    s_sharedEmojiFace = nullptr;  // one of s_sharedFallbackFonts, already released above
     s_sharedFallbacksInitialized = false;
+    assert(s_sharedFaces.empty() && "a font outlived the resource manager");
 
     // clean up shared freetype library
     if(s_sharedFtLibraryInitialized) {
