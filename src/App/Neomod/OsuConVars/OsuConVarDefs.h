@@ -338,6 +338,8 @@ CONVAR(hud_scorebar_scale, 1.0f, CLIENT | SKINS | SERVER);
 CONVAR(hud_scoreboard_offset_y_percent, 0.11f, CLIENT | SKINS | SERVER);
 CONVAR(hud_scoreboard_scale, 1.0f, CLIENT | SKINS | SERVER);
 CONVAR(hud_scoreboard_use_menubuttonbackground, true, CLIENT | SKINS | SERVER);
+CONVAR(hud_scrubbing_timeline_replay_fadeout_time, 0.2, CLIENT | SKINS | SERVER,
+       "how fast the scrubbing timeline fades out when the mouse is idle while watching replays");
 CONVAR(hud_scrubbing_timeline_hover_tooltip_offset_multiplier, 1.0f, CLIENT | SKINS | SERVER);
 CONVAR(hud_scrubbing_timeline_strains_aim_color_b, 0, CLIENT | SKINS | SERVER);
 CONVAR(hud_scrubbing_timeline_strains_aim_color_g, 255, CLIENT | SKINS | SERVER);

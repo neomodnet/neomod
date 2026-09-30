@@ -257,6 +257,8 @@ class HUD final : public UIScreen {
 
     // scrubbing timeline
     StrainGraph strainGraph;
+    f64 fLastCursorMoveTime{0.};
+    vec2 lastCursorMovePos{};
 
     // inputoverlay / key overlay
     enum InputOverlayKey : u8 {

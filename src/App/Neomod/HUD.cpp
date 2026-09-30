@@ -2003,24 +2003,26 @@ void HUD::drawTargetHeatmap(f32 hitcircleDiameter) {
 
 void HUD::drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 beatmapStartTimePlayable,
                                 f32 beatmapPercentFinishedPlayable, const std::vector<BREAK> &breaks) {
-    static vec2 last_cursor_pos = mouse->getPos();
-    static f64 last_cursor_movement = engine->getTime();
     const vec2 new_cursor_pos = mouse->getPos();
-    const f64 new_cursor_movement = engine->getTime();
-    if(last_cursor_pos.x != new_cursor_pos.x || last_cursor_pos.y != new_cursor_pos.y) {
-        last_cursor_pos = new_cursor_pos;
-        last_cursor_movement = new_cursor_movement;
+    const f64 new_cursor_move_time = engine->getTime();
+    // small cursor movement deadzone
+    if(!McRect(this->lastCursorMovePos, vec2{6, 6}, /*isCentered=*/true).contains(new_cursor_pos)) {
+        this->lastCursorMovePos = new_cursor_pos;
+        this->fLastCursorMoveTime = new_cursor_move_time;
     }
 
     // Auto-hide scrubbing timeline when watching a replay
     f64 galpha = 1.0f;
     if(osu->getMapInterface()->is_watching) {
-        const f64 time_since_last_move = new_cursor_movement - (last_cursor_movement + 1.0f);
-        galpha = fmax(0.f, fmin(1.0f - time_since_last_move, 1.0f));
+        const f64 time_since_last_move =
+            new_cursor_move_time -
+            (this->fLastCursorMoveTime + cv::hud_scrubbing_timeline_replay_fadeout_time.getDouble());
+        // decay faster instead of taking 1 second to fully fade out
+        galpha = std::pow(std::max(0., std::min(1. - time_since_last_move, 1.)), 2.);
     }
 
     const f32 dpiScale = Osu::getUIScale();
-    const vec2 cursorPos{mouse->getPos().x, osu->getVirtScreenHeight() * 0.8f};
+    const vec2 cursorPos{new_cursor_pos.x, osu->getVirtScreenHeight() * 0.8f};
 
     const Color grey = 0xffbbbbbb;
     const Color greyTransparent = 0xbbbbbbbb;
