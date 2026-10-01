@@ -3253,21 +3253,6 @@ msgid "[no map] {}"
 msgstr "[pas de map] {}"
 
 #: src/App/Neomod/RoomScreen.cpp
-#, c++-format
-msgid "AR: {:.1f}, CS: {:.1f}, HP: {:.1f}, OD: {:.1f}"
-msgstr "AR: {:.1f}, CS: {:.1f}, HP: {:.1f}, OD: {:.1f}"
-
-#: src/App/Neomod/RoomScreen.cpp
-#, c++-format
-msgid "Length: {:d} seconds, BPM: {:d} ({:d} - {:d})"
-msgstr "Durée : {:d} secondes, BPM : {:d} ({:d} - {:d})"
-
-#: src/App/Neomod/RoomScreen.cpp
-#, c++-format
-msgid "Star rating: {:.2f}*"
-msgstr "Star rating : {:.2f}*"
-
-#: src/App/Neomod/RoomScreen.cpp
 msgid "Failed to load map"
 msgstr "Échec du chargement de la map"
 
@@ -3315,6 +3300,31 @@ msgstr "Calcul de l'intensité sonore ({}/{})..."
 #, c++-format
 msgid "Converting scores ({}/{}) ..."
 msgstr "Conversion des scores ({}/{})..."
+
+#: src/App/Neomod/SongBrowser/InfoLabel.cpp
+#, c++-format
+msgid "Length: {:02d}:{:02d} BPM: {} Objects: {}"
+msgstr ""
+
+#: src/App/Neomod/SongBrowser/InfoLabel.cpp
+#, c++-format
+msgid "Length: {:02d}:{:02d} BPM: {}-{} ({}) Objects: {}"
+msgstr ""
+
+#: src/App/Neomod/SongBrowser/InfoLabel.cpp
+#, c++-format
+msgid "CS:{:.3g} AR:{:.3g} OD:{:.3g} HP:{:.3g} Stars:{:.3g} ({}pp)"
+msgstr ""
+
+#: src/App/Neomod/SongBrowser/InfoLabel.cpp
+#, c++-format
+msgid "CS:{:.3g} AR:{:.3g} OD:{:.3g} HP:{:.3g} Stars:{:.3g} -> {:.3g} ({}pp)"
+msgstr ""
+
+#: src/App/Neomod/SongBrowser/InfoLabel.cpp
+#, c++-format
+msgid "CS:{:.3g} AR:{:.3g} OD:{:.3g} HP:{:.3g} Stars:{:.3g} * (??? pp)"
+msgstr ""
 
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "By Artist"

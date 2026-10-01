@@ -25,8 +25,9 @@ enum class MapInstallStage : u8 {
 };
 MAKE_FLAG_ENUM(MapInstallStage)
 
-// drives beatmapset import (downloaded sets and local .osz files) as a single async unit, decoupled
-// from any UI element. ticked from Osu::update().
+// drives beatmapset import (downloaded sets, local .osz files and the maps/ folders the directory watcher reports)
+// as a single async unit, decoupled from any UI element: parsing and difficulty calculation happen on a worker, so a
+// set is complete once it's in the db. ticked from Osu::update().
 class BeatmapInstaller final {
     NOCOPY_NOMOVE(BeatmapInstaller)
    public:
@@ -93,7 +94,7 @@ class BeatmapInstaller final {
 
     [[nodiscard]] State get_state(i32 set_id) const;
 
-    // copy of all current entries (typically <= 5), one row each.
+    // copy of all current downloads and .osz imports (typically <= 5), one row each.
     void snapshot(std::vector<EntryView>& out) const;  // "out" is immediately cleared
     [[nodiscard]] std::vector<EntryView> snapshot() const;
 
@@ -105,13 +106,10 @@ class BeatmapInstaller final {
     // followed by an F5 of that folder. osu!stable sets are never touched. main thread, outside of gameplay
     void uninstall(const DatabaseBeatmap* map, bool whole_set);
 
-    // how a maps/<folder> change the directory watcher reports relates to the installer's own writes: InFlight
-    // while an import is extracting (into a folder only known once that's done) or registering what it extracted
-    // (leave the event to the installer), Settled when the folder is exactly as the last import or uninstall
-    // left it, a folder that's still gone included (the event was that write, there's nothing to do; the claim
-    // is forgotten once asked), else Unclaimed
-    enum class FolderClaim : u8 { Unclaimed, InFlight, Settled };
-    [[nodiscard]] FolderClaim claim(std::string_view folder);
+    // a maps/ set folder the directory watcher saw change (added, edited or removed): synced with the db and the
+    // carousel like an import, once no import is writing or registering it. a folder that's exactly as the last
+    // import or uninstall left it (a deleted one included) was that write, which leaves nothing to do
+    void enqueue_folder(std::string folder);
 
    private:
     struct BMInstallerImpl;

@@ -117,7 +117,9 @@ class Database final {
     // that part); those are matched by content, never by mtime. set_id_override > 0 is stamped onto the result
     // (downloads know their id even if the .osu files don't). dir_mtime is the folder's mtime as the caller's
     // listing of the root reported it, 0 to stat it here. loader thread during load(), main thread afterwards,
-    // never both.
+    // never both. nothing here calculates difficulty: a load is followed by the batch pass, later imports calculate
+    // their diffs before passing them (BatchDiffCalc::calc_map/apply_results) and what they leave the batch (their
+    // scores, diffs parsed here) gets another pass.
     // limits: folder mtimes move on entry add/remove/rename but not on in-place rewrites (PerFile catches those),
     // and without preparsed a rewrite within the same second as the recorded mtime is missed (same as stable)
     ReconcileResult reconcileFolder(MapRoot root, std::string_view rel_folder, ReconcileMode mode, i32 set_id_override,

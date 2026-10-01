@@ -836,39 +836,10 @@ void SongBrowser::tick() {
             }
         }
 
-        // deferred batch calc for newly imported maps
+        // deferred batch calc for what newly imported maps left to do
         if(!BatchDiffCalc::running() && db->batch_diffcalc_pending) {
             db->batch_diffcalc_pending = false;
             BatchDiffCalc::start_calc();
-        }
-
-        // set folders the directory watcher saw change: sync the db and the carousel with them (not mid-play,
-        // where a removed/replaced selection would unload the map being played)
-        if(!this->changedMapFolders.empty() && this->bInitializedBeatmaps) {
-            for(auto it = this->changedMapFolders.begin(); it != this->changedMapFolders.end();) {
-                using enum ReconcileResult::Outcome;
-                const std::string &rel = *it;
-                // the installer registers its own writes (imports, uninstalls) itself: the event waits while an
-                // import is underway, and is dropped when the folder is still exactly as the installer left it
-                // (the event was that write)
-                const auto claim = osu->getBeatmapInstaller()->claim(rel);
-                if(claim == BeatmapInstaller::FolderClaim::InFlight) {
-                    ++it;
-                    continue;
-                }
-                if(claim == BeatmapInstaller::FolderClaim::Settled) {
-                    logIfCV(debug_db, "[DirectoryWatcher] maps/{}: the installer's own write", rel);
-                    it = this->changedMapFolders.erase(it);
-                    continue;
-                }
-                const auto r =
-                    db->reconcileFolder(Database::MapRoot::Neomod, rel, Database::ReconcileMode::PerFile, -1, nullptr);
-                this->applyReconcile(r);
-                if(r.outcome != Unchanged && r.outcome != Failed) {
-                    logRaw("[DirectoryWatcher] maps/{}: {} (+{} -{})", rel, r.outcomeName(), r.added, r.removed);
-                }
-                it = this->changedMapFolders.erase(it);
-            }
         }
     }
 
@@ -1536,7 +1507,6 @@ void SongBrowser::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
 
     this->visibleSongButtons.clear();
     this->previousRandomBeatmaps.clear();
-    this->changedMapFolders.clear();  // the reload covers them
 
     this->contextMenu->setVisible2(false);
 
@@ -2723,13 +2693,13 @@ void SongBrowser::onDatabaseLoadingFinished(bool isNextScreenSongBrowser) {
     debugLog("Took {} seconds.", t.getElapsedTime());
 
     // Watch for new maps now
-    directoryWatcher->watch_directory(Mc::Paths::maps() + "/", [this](const FileChangeEvent &ev) {
-        // a set folder dropped in (or changed, or removed) while running: remembered for tick(), which syncs the
-        // db and the carousel with it once that's safe, and tells the installer's own writes (imports,
-        // uninstalls) apart from real changes. a deletion can't be stat'ed (so on windows it isn't known to be
-        // a folder), reconciling a name that isn't a set folder (a deleted .osz) is a no-op
+    directoryWatcher->watch_directory(Mc::Paths::maps() + "/", [](const FileChangeEvent &ev) {
+        // a set folder dropped in (or changed, or removed) while running: the installer syncs the db and the
+        // carousel with it like with an import, and tells its own writes (imports, uninstalls) apart from real
+        // changes. a deletion can't be stat'ed (so on windows it isn't known to be a folder), reconciling a name
+        // that isn't a set folder (a deleted .osz) is a no-op
         if(ev.is_dir || ev.type == FileChangeType::DELETED) {
-            this->changedMapFolders.emplace(Environment::getFileNameFromFilePath(ev.path));
+            osu->getBeatmapInstaller()->enqueue_folder(Environment::getFileNameFromFilePath(ev.path));
             return;
         }
 

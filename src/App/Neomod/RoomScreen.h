@@ -67,6 +67,8 @@ class RoomScreen final : public UIScreen {
 
     void updateLayout(vec2 newResolution);
     void updateSettingsLayout(vec2 newResolution);
+    // the room's (selected) map's stats, with the mods in effect
+    void updateMapInfo();
     void ragequit(bool play_sound = true);
 
     // applies the mods of the room and of our slot in it
@@ -111,9 +113,8 @@ class RoomScreen final : public UIScreen {
     CBaseUILabel* win_condition{nullptr};
     UIButton* change_win_condition_btn{nullptr};
     CBaseUILabel* map_title{nullptr};
-    CBaseUILabel* map_attributes{nullptr};
-    CBaseUILabel* map_attributes2{nullptr};
-    CBaseUILabel* map_stars{nullptr};
+    CBaseUILabel* map_song_info{nullptr};
+    CBaseUILabel* map_diff_info{nullptr};
     UIButton* select_map_btn{nullptr};
     UIButton* online_maps_btn{nullptr};
     UIButton* select_mods_btn{nullptr};

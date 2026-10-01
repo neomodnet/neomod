@@ -16,6 +16,7 @@
 #include "Environment.h"
 #include "GameRules.h"
 #include "AsyncPPCalculator.h"
+#include "i18n.h"
 #include "Mouse.h"
 #include "NotificationOverlay.h"
 #include "OptionsOverlay.h"
@@ -44,18 +45,6 @@ InfoLabel::InfoLabel(f32 xPos, f32 yPos, f32 xSize, f32 ySize, std::string name)
     this->sDiff = "Difficulty";
     this->sMapper = "Mapper";
 
-    this->iLengthMS = 0;
-    this->iMinBPM = 0;
-    this->iMaxBPM = 0;
-    this->iMostCommonBPM = 0;
-    this->iNumObjects = 0;
-
-    this->fCS = 5.0f;
-    this->fAR = 5.0f;
-    this->fOD = 5.0f;
-    this->fHP = 5.0f;
-    this->fStarsNomod = 5.0f;
-
     this->iLocalOffset = 0;
     this->iOnlineOffset = 0;
 
@@ -77,7 +66,7 @@ void InfoLabel::draw() {
 
     // build strings
     const std::string titleText{fmt::format("{:s} - {:s} [{:s}]", this->sArtist, this->sTitle, this->sDiff)};
-    const std::string subTitleText{fmt::format("Mapped by {:s}", this->sMapper)};
+    const std::string subTitleText{tformat("Mapped by {:s}", this->sMapper)};
 
     const std::string songInfoText{this->buildSongInfoString()};
     const std::string diffInfoText{this->buildDiffInfoString()};
@@ -276,16 +265,6 @@ void InfoLabel::setFromBeatmap(const DatabaseBeatmap *map) {
     this->setDiff(map->getDifficultyName());
     this->setMapper(map->getCreator());
 
-    this->setLengthMS(map->getLengthMS());
-    this->setBPM(map->getMinBPM(), map->getMaxBPM(), map->getMostCommonBPM());
-    this->setNumObjects(map->getNumObjects());
-
-    this->setCS(map->getCS());
-    this->setAR(map->getAR());
-    this->setOD(map->getOD());
-    this->setHP(map->getHP());
-    this->setStarsNomod(map->getStarsNomod());
-
     this->setLocalOffset(map->getLocalOffset());
     this->setOnlineOffset(map->getOnlineOffset());
 }
@@ -310,28 +289,31 @@ void InfoLabel::setMapper(std::string_view mapper) {
     this->sMapper.assign(mapper);
 }
 
-std::string InfoLabel::buildSongInfoString() const {
-    const u32 lengthMS = this->iLengthMS;
-    const f32 speed = osu->getMapInterface()->getSpeedMultiplier();
+std::string InfoLabel::buildSongInfoString() {
+    const auto *pf = osu->getMapInterface();
+    const auto *map = pf->getBeatmap();
+    if(!map) return "";
 
-    const u32 fullSeconds = (lengthMS * (1.0 / speed)) / 1000.0;
+    const f32 speed = pf->getSpeedMultiplier();
+
+    const u32 fullSeconds = (map->getLengthMS() * (1.0 / speed)) / 1000.0;
     const i32 minutes = fullSeconds / 60;
     const i32 seconds = fullSeconds % 60;
 
-    const i32 minBPM = this->iMinBPM * speed;
-    const i32 maxBPM = this->iMaxBPM * speed;
-    const i32 mostCommonBPM = this->iMostCommonBPM * speed;
+    const i32 minBPM = map->getMinBPM() * speed;
+    const i32 maxBPM = map->getMaxBPM() * speed;
+    const i32 mostCommonBPM = map->getMostCommonBPM() * speed;
 
-    i32 numObjects = this->iNumObjects;
-    if(this->iMinBPM == this->iMaxBPM) {
-        return fmt::format("Length: {:02d}:{:02d} BPM: {} Objects: {}", minutes, seconds, maxBPM, numObjects);
+    const i32 numObjects = map->getNumObjects();
+    if(map->getMinBPM() == map->getMaxBPM()) {
+        return tformat("Length: {:02d}:{:02d} BPM: {} Objects: {}", minutes, seconds, maxBPM, numObjects);
     } else {
-        return fmt::format("Length: {:02d}:{:02d} BPM: {}-{} ({}) Objects: {}", minutes, seconds, minBPM, maxBPM,
-                           mostCommonBPM, numObjects);
+        return tformat("Length: {:02d}:{:02d} BPM: {}-{} ({}) Objects: {}", minutes, seconds, minBPM, maxBPM,
+                       mostCommonBPM, numObjects);
     }
 }
 
-std::string InfoLabel::buildDiffInfoString() const {
+std::string InfoLabel::buildDiffInfoString() {
     const auto *pf = osu->getMapInterface();
     const auto *map = pf->getBeatmap();
     if(!map) return "";
@@ -341,7 +323,7 @@ std::string InfoLabel::buildDiffInfoString() const {
     const f32 OD = pf->getOverallDifficultyForSpeedMultiplier();
     const f32 HP = pf->getHP();
 
-    const f32 nomodStars = this->fStarsNomod;
+    const f32 nomodStars = map->getStarsNomod();
     f32 modStars = nomodStars;
     f32 modPp = 0.f;
 
@@ -368,15 +350,15 @@ std::string InfoLabel::buildDiffInfoString() const {
                                 ? static_cast<i32>(modPp)
                                 : 0));
         if(starsAndModStarsAreEqual) {
-            finalString = fmt::format("CS:{:.3g} AR:{:.3g} OD:{:.3g} HP:{:.3g} Stars:{:.3g} ({}pp)", CS, AR, OD, HP,
-                                      nomodStars, clampedModPp);
+            finalString = tformat("CS:{:.3g} AR:{:.3g} OD:{:.3g} HP:{:.3g} Stars:{:.3g} ({}pp)", CS, AR, OD, HP,
+                                  nomodStars, clampedModPp);
         } else {
-            finalString = fmt::format("CS:{:.3g} AR:{:.3g} OD:{:.3g} HP:{:.3g} Stars:{:.3g} -> {:.3g} ({}pp)", CS, AR,
-                                      OD, HP, nomodStars, modStars, clampedModPp);
+            finalString = tformat("CS:{:.3g} AR:{:.3g} OD:{:.3g} HP:{:.3g} Stars:{:.3g} -> {:.3g} ({}pp)", CS, AR, OD,
+                                  HP, nomodStars, modStars, clampedModPp);
         }
     } else {
         finalString =
-            fmt::format("CS:{:.3g} AR:{:.3g} OD:{:.3g} HP:{:.3g} Stars:{:.3g} * (??? pp)", CS, AR, OD, HP, nomodStars);
+            tformat("CS:{:.3g} AR:{:.3g} OD:{:.3g} HP:{:.3g} Stars:{:.3g} * (??? pp)", CS, AR, OD, HP, nomodStars);
     }
 
     return finalString;

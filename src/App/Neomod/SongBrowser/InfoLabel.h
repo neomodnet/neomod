@@ -21,20 +21,6 @@ class InfoLabel final : public CBaseUIButton {
     void setDiff(std::string_view diff);
     void setMapper(std::string_view mapper);
 
-    inline void setLengthMS(u32 lengthMS) { this->iLengthMS = lengthMS; }
-    inline void setBPM(i32 minBPM, i32 maxBPM, i32 mostCommonBPM) {
-        this->iMinBPM = minBPM;
-        this->iMaxBPM = maxBPM;
-        this->iMostCommonBPM = mostCommonBPM;
-    }
-    inline void setNumObjects(i32 numObjects) { this->iNumObjects = numObjects; }
-
-    inline void setCS(f32 CS) { this->fCS = CS; }
-    inline void setAR(f32 AR) { this->fAR = AR; }
-    inline void setOD(f32 OD) { this->fOD = OD; }
-    inline void setHP(f32 HP) { this->fHP = HP; }
-    inline void setStarsNomod(f32 stars) { this->fStarsNomod = stars; }
-
     void setLocalOffset(i32 localOffset) { this->iLocalOffset = localOffset; }
     void setOnlineOffset(i32 onlineOffset) { this->iOnlineOffset = onlineOffset; }
 
@@ -44,12 +30,15 @@ class InfoLabel final : public CBaseUIButton {
     [[nodiscard]] i32 getBeatmapID() const { return this->iBeatmapId; }
     [[nodiscard]] i32 getBeatmapSetID() const { return this->iBeatmapSetId; }
 
+    // the selected map's length, BPM and object count, and its difficulty settings, star rating and pp, all with the
+    // mods in effect (speed included): what anything showing the selected map's stats should show ("" without one)
+    [[nodiscard]] static std::string buildSongInfoString();
+    [[nodiscard]] static std::string buildDiffInfoString();
+
    private:
     void updateScaling();
     [[nodiscard]] f32 getTitleFontRatio() const;
 
-    [[nodiscard]] std::string buildSongInfoString() const;
-    [[nodiscard]] std::string buildDiffInfoString() const;
     [[nodiscard]] std::string buildOffsetInfoString() const;
 
     McFont *titleFont;
@@ -68,18 +57,6 @@ class InfoLabel final : public CBaseUIButton {
     std::string sTitle;
     std::string sDiff;
     std::string sMapper;
-
-    u32 iLengthMS;
-    i32 iMinBPM;
-    i32 iMaxBPM;
-    i32 iMostCommonBPM;
-    i32 iNumObjects;
-
-    f32 fCS;
-    f32 fAR;
-    f32 fOD;
-    f32 fHP;
-    f32 fStarsNomod;
 
     i32 iLocalOffset;
     i32 iOnlineOffset;

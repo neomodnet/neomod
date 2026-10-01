@@ -1,0 +1,27 @@
+# DT clicked in a multiplayer room's mod selector stays on: the click applies the room's mods (ours included) again
+# right away, and that reset of the mod selector used to turn the DT button's convar off with a deferred callback that
+# undid the new speed. synthetic room (debug_fake_room, we're the host), F1 opens the mod selector, DT is grid
+# button (2,1); the room runs frames on the wall clock, hence @wait_secs for the open animation.
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+debug_fake_room
+@wait 20
+ui_assert screen_active room 1
+sendkey F1
+@wait_secs 1
+ui_assert visible modselector 1
+mouse_to 580 359
+@wait 3
+mouse_down
+@wait 3
+mouse_up
+@wait 10
+ui_assert convar speed_override 1.5
+ui_assert convar mod_doubletime_dummy 1
+exit

@@ -38,6 +38,7 @@
 #include "RichPresence.h"
 #include "Skin.h"
 #include "SkinImage.h"
+#include "SongBrowser/InfoLabel.h"
 #include "SongBrowser/SongBrowser.h"
 #include "SongBrowser/SongButton.h"
 #include "SpectatorScreen.h"
@@ -182,9 +183,8 @@ RoomScreen::RoomScreen() : UIScreen() {
     this->online_maps_btn->setClickCallback(SA::MakeDelegate<&RoomScreen::onDownloadMapsClicked>(this));
 
     INIT_LABEL(this->map_title, _("(no map selected)"), false);
-    INIT_LABEL(this->map_stars, "", false);
-    INIT_LABEL(this->map_attributes, "", false);
-    INIT_LABEL(this->map_attributes2, "", false);
+    INIT_LABEL(this->map_song_info, "", false);
+    INIT_LABEL(this->map_diff_info, "", false);
 
     INIT_LABEL(mods_label, _("Mods"), true);
     this->select_mods_btn = new UIButton(0, 0, 0, 0, "select_mods_btn", _("Select mods [F1]"));
@@ -238,9 +238,8 @@ RoomScreen::~RoomScreen() {
     SAFE_DELETE(this->win_condition);
     SAFE_DELETE(this->map_label);
     SAFE_DELETE(this->map_title);
-    SAFE_DELETE(this->map_stars);
-    SAFE_DELETE(this->map_attributes);
-    SAFE_DELETE(this->map_attributes2);
+    SAFE_DELETE(this->map_song_info);
+    SAFE_DELETE(this->map_diff_info);
     SAFE_DELETE(this->mods_label);
     SAFE_DELETE(this->freemod);
     SAFE_DELETE(this->no_mods_selected);
@@ -266,6 +265,9 @@ void RoomScreen::draw() {
         }
         this->map_title->setSizeToContent(0, 0);
         this->ready_btn->is_loading = true;
+    } else if(!this->ready_btn->is_loading) {
+        // (whenever the mods in effect change, and once their star rating's calculation is done)
+        this->updateMapInfo();
     }
 
     // XXX: Add convar for toggling room backgrounds
@@ -443,9 +445,8 @@ void RoomScreen::updateSettingsLayout(vec2 newResolution) {
     }
     ADD_ELEMENT(this->map_title);
     if(!this->ready_btn->is_loading) {
-        ADD_ELEMENT(this->map_stars);
-        ADD_ELEMENT(this->map_attributes);
-        ADD_ELEMENT(this->map_attributes2);
+        ADD_ELEMENT(this->map_song_info);
+        ADD_ELEMENT(this->map_diff_info);
     }
 
     // Mods
@@ -492,6 +493,17 @@ void RoomScreen::updateSettingsLayout(vec2 newResolution) {
     ADD_ELEMENT_WITH_PADDING(this->ready_btn, button_padding * 10, button_padding * 1.5);
 
     this->settings->setScrollSizeToContent();
+}
+
+void RoomScreen::updateMapInfo() {
+    const auto *map = osu->getMapInterface()->getBeatmap();
+    if(!map || map->getMD5() != BanchoState::room.map_md5) return;
+
+    const auto update = [](CBaseUILabel *label, std::string text) {
+        if(text != label->getText()) label->setText(std::move(text));
+    };
+    update(this->map_song_info, InfoLabel::buildSongInfoString());
+    update(this->map_diff_info, InfoLabel::buildDiffInfoString());
 }
 
 void RoomScreen::updateLayout(vec2 newResolution) {
@@ -596,18 +608,7 @@ void RoomScreen::on_map_change() {
             ui->getSongBrowser()->onDifficultySelected(beatmap, false);
             this->map_title->setText(BanchoState::room.map_name);
             this->map_title->setSizeToContent(0, 0);
-            auto attributes = tformat("AR: {:.1f}, CS: {:.1f}, HP: {:.1f}, OD: {:.1f}", beatmap->getAR(),
-                                      beatmap->getCS(), beatmap->getHP(), beatmap->getOD());
-            this->map_attributes->setText(attributes);
-            this->map_attributes->setSizeToContent(0, 0);
-            auto attributes2 = tformat("Length: {:d} seconds, BPM: {:d} ({:d} - {:d})", beatmap->getLengthMS() / 1000,
-                                       beatmap->getMostCommonBPM(), beatmap->getMinBPM(), beatmap->getMaxBPM());
-            this->map_attributes2->setText(attributes2);
-            this->map_attributes2->setSizeToContent(0, 0);
-
-            auto stars = tformat("Star rating: {:.2f}*", beatmap->getStarRating(StarPrecalc::active_idx));
-            this->map_stars->setText(stars);
-            this->map_stars->setSizeToContent(0, 0);
+            this->updateMapInfo();
             this->ready_btn->is_loading = false;
 
             Packet packet;

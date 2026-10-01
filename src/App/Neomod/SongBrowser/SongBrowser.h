@@ -291,8 +291,6 @@ class SongBrowser final : public ScreenBackable {
     void replaceBeatmapSet(const BeatmapSet *old_set, BeatmapSet *new_set);
     void unlinkBeatmapSet(const BeatmapSet *set);
     void rebuildAfterSetChange();
-    // maps/ folders the directory watcher saw change, synced with the db and the carousel in tick()
-    std::set<std::string> changedMapFolders;
 
     void rebuildScoreButtons();
     CollBtnContainer *getCollectionButtonsForGroup(GroupType group);

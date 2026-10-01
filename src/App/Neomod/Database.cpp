@@ -2954,19 +2954,25 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
             }
         }
     }
+    bool has_scores = false;
     {
         Sync::shared_lock score_lock(this->scores_mtx);
         for(BeatmapDifficulty *diff : fresh) {
             auto it = this->scores.find(diff->getMD5());
-            if(it == this->scores.end()) continue;
+            if(it == this->scores.end() || it->second.empty()) continue;
+            has_scores = true;
             for(const auto &score : it->second) {
                 if(diff->getLastPlayTime() < score.unix_timestamp) diff->setLastPlayTime(score.unix_timestamp);
             }
         }
     }
     if(this->isFinished()) {
-        // post-load import: the batch passes already ran, so request the calcs explicitly
-        this->batch_diffcalc_pending = true;  // picked up by SongBrowser::update
+        // post-load import: the batch passes already ran. an import calculates its diffs itself, which leaves the
+        // difficulty batch their scores (it had to skip those without the map) and diffs that were parsed right here
+        if(has_scores ||
+           std::ranges::any_of(fresh, [](const BeatmapDifficulty *diff) { return diff->ppv2Version == 0; })) {
+            this->batch_diffcalc_pending = true;  // picked up by SongBrowser::tick
+        }
         for(BeatmapDifficulty *diff : fresh) VolNormalization::request_priority(diff);
     } else {
         for(BeatmapDifficulty *diff : fresh) this->loudness_to_calc.push_back(diff);

@@ -1240,6 +1240,12 @@ void ModSelector::resetMods() {
         overrideSlider.slider->setValue(overrideSlider.slider->getMin(), this->bVisible);
     }
 
+    // the DT/HT buttons' convars only mirror the speed that was just reset: they go off with it instead of through
+    // their callbacks, which set the speed (inside a ConVarHandler::change() those run last, and would undo whatever
+    // speed is set after this reset)
+    cv::mod_doubletime_dummy.setValue(false, false);
+    cv::mod_halftime_dummy.setValue(false, false);
+
     for(auto *modButton : this->modButtons) {
         modButton->resetState();
     }

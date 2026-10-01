@@ -4,9 +4,11 @@
 
 #include "Archival.h"
 #include "AsyncPool.h"
+#include "Bancho.h"
 #include "BeatmapInterface.h"
 #include "Database.h"
 #include "DatabaseBeatmap.h"
+#include "DiffCalc/BatchDiffCalc.h"
 #include "DownloadHandle.h"
 #include "Downloader.h"
 #include "Engine.h"
@@ -16,6 +18,7 @@
 #include "Logging.h"
 #include "NotificationOverlay.h"
 #include "Osu.h"
+#include "OsuConVars.h"
 #include "Paths.h"
 #include "Parsing.h"
 #include "SongBrowser/SongBrowser.h"
@@ -31,24 +34,33 @@ namespace {  // internal utils
 using namespace std::string_view_literals;
 namespace fs = std::filesystem;
 
-// what an extraction worker hands back: the maps/ folder the archive went into (empty on failure) and that
-// folder's diffs, parsed right there so the main-thread import only has to match them against the db
+// what an extraction worker hands back: the maps/ folder the archive went into (empty on failure), that folder's
+// diffs, parsed right there, and their difficulty calculation, so the main-thread import only has to match them
+// against the db
 struct Extracted {
     std::string folder;
     std::unique_ptr<DiffContainer> diffs{};
+    std::vector<BatchDiffCalc::MapResult> calculated{};
 };
 
 Extracted parse_extracted(std::string folder) {
     Extracted out{.folder = std::move(folder)};
-    if(!out.folder.empty()) out.diffs = Database::parseFolderDiffs(Mc::Paths::maps() + "/" + out.folder + "/", false);
+    if(out.folder.empty()) return out;
+
+    out.diffs = Database::parseFolderDiffs(Mc::Paths::maps() + "/" + out.folder + "/", false);
+    out.calculated.reserve(out.diffs->size());
+    for(const auto& diff : *out.diffs) out.calculated.push_back(BatchDiffCalc::calc_map(diff.get()));
     return out;
 }
 
-// one queued import. two kinds share the stage machine, discriminated by is_local():
+// one queued import. three kinds share the stage machine:
 // - download: set_id known up front, dl_handle drives Queued/Downloading; the fetched bytes
 //   then use the extract_handle through Extracting like a local import
 // - local .osz: osz_path set; only the archive knows its set id (and it may not have one at all)
+// - folder: a maps/ folder the directory watcher reported; Extracting only parses it
 struct Entry {
+    enum class Kind : u8 { Download, Osz, Folder };
+    Kind kind{Kind::Download};
     u32 uid{0};
     i32 set_id{-1};
     std::string display_name;
@@ -56,22 +68,26 @@ struct Entry {
     std::string osz_path;
     std::string folder;                    // maps/ folder the archive was extracted into (relative)
     std::unique_ptr<DiffContainer> diffs;  // its .osu files, parsed by the extraction worker, consumed by the import
-    Async::CancellableHandle<Extracted> extract_handle;  // dropping the entry drops a still-queued extraction with it
+    std::vector<BatchDiffCalc::MapResult> calculated;  // the worker's difficulty calculation for diffs
+    Async::Future<Extracted> extract_handle;           // dropping the entry drops a still-queued extraction with it
     MapInstallStage stage{MapInstallStage::Queued};
     f32 progress{0.f};
     bool auto_select{false};
     bool delete_after{false};
     f64 finished_time{0.0};
 
-    [[nodiscard]] bool is_local() const { return !this->osz_path.empty(); }
+    [[nodiscard]] bool is_local() const { return this->kind == Kind::Osz; }
 };
 
-// shared Installing-stage tail for downloads and local imports: imports the already-extracted folder
-// once it's safe to. nullopt means the caller should retry next tick: the db is mid-(re)build
-// (reconciling then would race the loader thread), or a map is being played (an updated/removed
-// selection would unload it).
+// shared Installing-stage tail: imports the already-extracted (or watched) folder once it's safe to.
+// nullopt means the caller should retry next tick: the db is mid-(re)build (reconciling then would
+// race the loader thread), or a map is being played (an updated/removed selection would unload it).
 std::optional<ReconcileResult> try_import(Entry& e) {
     if(!db->isFinished() || db->isCancelled() || osu->isInPlayMode()) return std::nullopt;
+
+    // the diffs get what the worker calculated before they're registered: nothing ever sees them without it
+    BatchDiffCalc::apply_results(e.calculated);
+    e.calculated.clear();
 
     // the worker's parse stands in for the listing, so the files are matched by content (their mtimes could
     // share a stale record's second). a download stamps its id onto diffs that don't declare one
@@ -100,7 +116,10 @@ void on_done(const ReconcileResult& r, const Entry& e) {
         toasts->addToast(tformat("Downloaded beatmapset #{:d}", e.set_id), SUCCESS_TOAST);
     }
 
-    if(e.auto_select && set) {
+    // a multiplayer room's map and a spectated player's stay selected (their screens select those themselves)
+    const bool selection_taken =
+        BanchoState::spectating || (BanchoState::is_in_a_multi_room() && BanchoState::room.map_id > 0);
+    if(e.auto_select && set && !selection_taken) {
         const auto& diffs = set->getDifficulties();
         assert(!diffs.empty());
 
@@ -244,7 +263,7 @@ bool write_entries_to_dir(const std::vector<Archive::Entry>& entries, std::strin
 constexpr std::string_view ARCHIVE_CHARSET{"CP932"};
 
 // maps/<folder> as the directory watcher would see it right now, for telling its events apart from the
-// installer's own writes (see claim()): the mtime, or a sentinel for a folder that isn't there (an uninstall)
+// installer's own writes (see enqueue_folder()): the mtime, or a sentinel for a folder that isn't there (an uninstall)
 fs::file_time_type folder_state(std::string_view folder) {
     std::error_code ec;
     const auto mtime = fs::last_write_time(File::getFsPath(Mc::Paths::maps() + "/" + std::string{folder}), ec);
@@ -331,7 +350,7 @@ std::string BeatmapInstaller::read_and_extract_osz(std::string_view path) {
 struct BeatmapInstaller::BMInstallerImpl final {
     std::vector<Entry> entries;  // typically <= 5 entries, so linear scans throughout
     // maps/ folders as the last import or uninstall left them, so the directory watcher's event for that write
-    // can be told from a later change (see claim())
+    // can be told from a later change (see enqueue_folder())
     Hash::unstable_stringmap<fs::file_time_type> settled;
     u32 next_uid{1};
 };
@@ -387,6 +406,7 @@ void BeatmapInstaller::enqueue_local(std::string osz_path, bool auto_select, boo
     }
 
     Entry e;
+    e.kind = Entry::Kind::Osz;
     e.uid = m->next_uid++;
     e.osz_path = std::move(osz_path);
     e.display_name = Environment::getFileNameFromFilePath(e.osz_path);
@@ -398,6 +418,22 @@ void BeatmapInstaller::enqueue_local(std::string osz_path, bool auto_select, boo
     // but that currently never happens, and this is simpler than re-scanning it or adding more bookkeeping
     e.auto_select = auto_select && !any_local;
 
+    m->entries.push_back(std::move(e));
+}
+
+void BeatmapInstaller::enqueue_folder(std::string folder) {
+    // a queued pass lists the folder only once it runs, so one is enough; a change after a pass has started gets
+    // another one after it
+    if(std::ranges::any_of(m->entries, [&folder](const Entry& e) {
+           return e.kind == Entry::Kind::Folder && e.stage == MapInstallStage::Queued && e.folder == folder;
+       })) {
+        return;
+    }
+
+    Entry e;
+    e.kind = Entry::Kind::Folder;
+    e.uid = m->next_uid++;
+    e.folder = std::move(folder);
     m->entries.push_back(std::move(e));
 }
 
@@ -435,6 +471,7 @@ void BeatmapInstaller::snapshot(std::vector<BeatmapInstaller::EntryView>& out) c
     out.clear();
     out.reserve(m->entries.size());
     for(const Entry& e : m->entries) {
+        if(e.kind == Entry::Kind::Folder) continue;
         out.push_back({.uid = e.uid,
                        .set_id = e.set_id,
                        .stage = e.stage,
@@ -447,22 +484,6 @@ std::vector<BeatmapInstaller::EntryView> BeatmapInstaller::snapshot() const {
     std::vector<EntryView> out;
     snapshot(out);
     return out;
-}
-
-BeatmapInstaller::FolderClaim BeatmapInstaller::claim(std::string_view folder) {
-    // an extraction's folder isn't known until the worker is done with it, so every event waits for those
-    if(std::ranges::any_of(m->entries, [folder](const Entry& e) {
-           return e.stage == MapInstallStage::Extracting ||
-                  (e.stage == MapInstallStage::Installing && e.folder == folder);
-       })) {
-        return FolderClaim::InFlight;
-    }
-    auto it = m->settled.find(folder);
-    if(it == m->settled.end()) return FolderClaim::Unclaimed;
-
-    const bool untouched = folder_state(folder) == it->second;
-    m->settled.erase(it);  // whatever happens to the folder next is a change to what the installer left
-    return untouched ? FolderClaim::Settled : FolderClaim::Unclaimed;
 }
 
 void BeatmapInstaller::uninstall(const DatabaseBeatmap* map, bool whole_set) {
@@ -502,7 +523,7 @@ void BeatmapInstaller::uninstall(const DatabaseBeatmap* map, bool whole_set) {
     const bool gone = whole_set ? !env->directoryExists(path) : !env->fileExists(path);
 
     // the db and the carousel follow whatever is left on disk, and the directory watcher's event for this
-    // write is recognized by claim()
+    // write is recognized as such (see enqueue_folder())
     const auto r = db->reconcileFolder(Database::MapRoot::Neomod, rel, Database::ReconcileMode::PerFile, -1, nullptr);
     ui->getSongBrowser()->applyReconcile(r);
     m->settled[rel] = folder_state(rel);
@@ -538,15 +559,40 @@ void BeatmapInstaller::update() {
         switch(e.stage) {
             using enum MapInstallStage;
             case Queued:
+                if(e.kind == Entry::Kind::Folder) {
+                    // the folder may be one an import is writing (an extraction's folder isn't known until it's done)
+                    // or registering, or one an earlier pass is still on, so it waits for those. one that's exactly
+                    // as the last import or uninstall left it was that write: the watcher reported the installer's
+                    // own change
+                    if(!db->isFinished() || db->isCancelled() || extracting >= max_extracting ||
+                       std::ranges::any_of(m->entries, [&e](const Entry& o) {
+                           return (o.stage == Extracting && o.kind != Entry::Kind::Folder) ||
+                                  ((o.stage == Extracting || o.stage == Installing) && o.folder == e.folder);
+                       })) {
+                        break;
+                    }
+                    if(auto settled = m->settled.find(e.folder); settled != m->settled.end()) {
+                        const bool untouched = folder_state(e.folder) == settled->second;
+                        m->settled.erase(settled);  // whatever happens to the folder next is a change to what it left
+                        if(untouched) {
+                            logIfCV(debug_db, "[DirectoryWatcher] maps/{}: the installer's own write", e.folder);
+                            e.stage = Done;
+                            break;
+                        }
+                    }
+                    e.extract_handle =
+                        Async::submit([folder = e.folder]() { return parse_extracted(folder); }, Lane::Background);
+                    e.stage = Extracting;
+                    extracting++;
+                    break;
+                }
                 if(e.is_local()) {
                     // read + decompress + extract on a worker so the main thread never blocks on it.
                     // the target folder depends on what the db knows, so wait until it's loaded
                     if(!db->isFinished() || db->isCancelled() || extracting >= max_extracting) break;
-                    e.extract_handle = Async::submit_cancellable(
-                        [path = e.osz_path](const Sync::stop_token&) {
-                            return parse_extracted(read_and_extract_osz(path));
-                        },
-                        Lane::Background);
+                    e.extract_handle =
+                        Async::submit([path = e.osz_path]() { return parse_extracted(read_and_extract_osz(path)); },
+                                      Lane::Background);
                     e.stage = Extracting;
                     extracting++;
                     break;
@@ -568,8 +614,8 @@ void BeatmapInstaller::update() {
                     }
                     // bytes arrived: from here on a download is just a local import whose .osz is
                     // already in memory. decompress on a worker, into the folder of the id we know.
-                    e.extract_handle = Async::submit_cancellable(
-                        [data = e.dl_handle.take_data(), set_id = e.set_id](const Sync::stop_token&) {
+                    e.extract_handle = Async::submit(
+                        [data = e.dl_handle.take_data(), set_id = e.set_id]() {
                             return parse_extracted(resolve_and_extract_osz(data, "", set_id));
                         },
                         Lane::Background);
@@ -598,6 +644,7 @@ void BeatmapInstaller::update() {
                 } else {
                     e.folder = std::move(x.folder);
                     e.diffs = std::move(x.diffs);
+                    e.calculated = std::move(x.calculated);
                     e.stage = Installing;
                 }
                 break;
@@ -610,7 +657,16 @@ void BeatmapInstaller::update() {
                 // the carousel follows the db whatever the outcome (an archive can overwrite an installed set's
                 // files with nothing loadable, which removes the set)
                 ui->getSongBrowser()->applyReconcile(*r);
-                if(!r->set && !r->dedup_owner) {
+                if(e.kind == Entry::Kind::Folder) {
+                    // (whatever was done to the folder outside of the game: no toasts for that)
+                    if(r->outcome != ReconcileResult::Outcome::Unchanged &&
+                       r->outcome != ReconcileResult::Outcome::Failed) {
+                        logRaw("[DirectoryWatcher] maps/{}: {} (+{} -{})", e.folder, r->outcomeName(), r->added,
+                               r->removed);
+                    }
+                    e.stage = Done;
+                    e.finished_time = now;
+                } else if(!r->set && !r->dedup_owner) {
                     fail_entry(e, now);
                 } else {
                     e.stage = Done;

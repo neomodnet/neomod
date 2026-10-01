@@ -117,18 +117,6 @@ struct WorkItem {
     std::vector<ScoreWork> scores;
 };
 
-struct MapResult {
-    BeatmapDifficulty* map{};
-    u32 length_ms{};
-    u32 nb_circles{};
-    u32 nb_sliders{};
-    u32 nb_spinners{};
-    StarPrecalc::SRArray star_ratings{};
-    i32 min_bpm{};
-    i32 max_bpm{};
-    i32 avg_bpm{};
-};
-
 // per-thread mutable state for worker threads
 struct WorkerContext {
     std::vector<BPMCalc::BPMTuple> bpm_calc_buf;
@@ -324,6 +312,158 @@ void build_work_queue(const Sync::stop_token& stoken) {
     std::ranges::sort(work_queue, std::ranges::less{}, [](const auto& work) { return work.scores.empty(); });
 }
 
+// star ratings for every precalculated mod combination, length, object counts and BPM of one difficulty
+MapResult calc_map_attributes(BeatmapDifficulty* map, DatabaseBeatmap::PRIMITIVE_CONTAINER& primitives,
+                              const Sync::stop_token& stoken, WorkerContext& ctx) {
+    MapResult result{.map = map,
+                     .nb_circles = (u32)primitives.hitcircles.size(),
+                     .nb_sliders = (u32)primitives.sliders.size(),
+                     .nb_spinners = (u32)primitives.spinners.size()};
+
+    const f32 base_ar = map->getAR();
+    const f32 base_cs = map->getCS();
+    const f32 base_od = map->getOD();
+    const f32 base_hp = map->getHP();
+
+    // AR/CS/OD/HP variant: {multiplier for AR/OD/HP, multiplier for CS}
+    // BASE=nomod, HR=1.4x (CS=1.3x), EZ=0.5x
+    struct ArCsVariant {
+        f32 ar_od_hp_mul;
+        f32 cs_mul;
+        // mod combo indices: [hidden=false, hidden=true]
+        u8 combo_idx[2];
+        bool hr;  // stacking offset direction
+    };
+    static constexpr std::array VARIANTS{
+        ArCsVariant{1.0f, 1.0f, {0, 2}, false},  // BASE: None(0), HD(2)
+        ArCsVariant{1.4f, 1.3f, {1, 4}, true},   // HR: HR(1), HD|HR(4)
+        ArCsVariant{0.5f, 0.5f, {3, 5}, false},  // EZ: EZ(3), HD|EZ(5)
+    };
+
+    for(const auto& var : VARIANTS) {
+        if(stoken.stop_requested()) return result;
+
+        const f32 ar = std::clamp(base_ar * var.ar_od_hp_mul, 0.f, 10.f);
+        const f32 cs = std::clamp(base_cs * var.cs_mul, 0.f, 10.f);
+        const f32 od = std::clamp(base_od * var.ar_od_hp_mul, 0.f, 10.f);
+        const f32 hp = std::clamp(base_hp * var.ar_od_hp_mul, 0.f, 10.f);
+
+        // build DifficultyHitObjects once at speed=1.0 for this AR/CS variant.
+        // object construction, sorting, and stacking are all speed-independent;
+        // only the timing fields need rescaling per speed. slider timing is
+        // calculated once (sliderTimesCalculated flag on primitives).
+        auto diffres = DatabaseBeatmap::loadDifficultyHitObjects(primitives, ar, cs, 1.0f, var.hr, stoken);
+        if(stoken.stop_requested()) return result;
+
+        if(&var == &VARIANTS[0]) {
+            result.length_ms = diffres.diffobjects.empty()
+                                   ? 0
+                                   : (u32)(diffres.diffobjects.back().baseEndTime - diffres.diffobjects[0].baseTime);
+        }
+
+        if(diffres.error.errc) {
+            logFailure(diffres.error, "loadDifficultyHitObjects map hash: {} map path: {}", map->getMD5(),
+                       map->getFilePath());
+            continue;
+        }
+
+        // save base slider timing (overwritten by speed rescaling below).
+        // baseTime/baseEndTime are already preserved on DifficultyHitObject,
+        // but spanDuration and scoringTimes have no base counterpart.
+        ctx.base_span_durations.clear();
+        ctx.base_scoring_times.clear();
+        for(const auto& obj : diffres.diffobjects) {
+            if(obj.type == DifficultyHitObject::TYPE::SLIDER) {
+                ctx.base_span_durations.push_back(obj.spanDuration);
+                for(const auto& st : obj.scoringTimes) {
+                    ctx.base_scoring_times.push_back(st.time);
+                }
+            }
+        }
+
+        for(u8 speed_idx = 0; speed_idx < StarPrecalc::SPEEDS_NUM; speed_idx++) {
+            if(stoken.stop_requested()) return result;
+            const f32 speed = StarPrecalc::SPEEDS[speed_idx];
+            const f64 inv_speed = 1.0 / (f64)speed;
+
+            // rescale timing fields from base values for this speed
+            {
+                uSz si = 0, sti = 0;
+                for(auto& obj : diffres.diffobjects) {
+                    obj.time = (i32)((f64)obj.baseTime * inv_speed);
+                    obj.endTime = (i32)((f64)obj.baseEndTime * inv_speed);
+                    if(obj.type == DifficultyHitObject::TYPE::SLIDER) {
+                        obj.spanDuration = (f32)((f64)ctx.base_span_durations[si] * inv_speed);
+                        for(auto& st : obj.scoringTimes) {
+                            st.time = (f32)((f64)ctx.base_scoring_times[sti] * inv_speed);
+                            sti++;
+                        }
+                        si++;
+                    }
+                }
+            }
+
+            // HD=0: full calculation, saving raw difficulty values
+            {
+                const u8 flat_idx = speed_idx * StarPrecalc::NUM_MOD_COMBOS + var.combo_idx[0];
+
+                DiffCalc::BeatmapDiffcalcData diffcalc_data{.sortedHitObjects = diffres.diffobjects,
+                                                            .CS = cs,
+                                                            .HP = hp,
+                                                            .AR = ar,
+                                                            .OD = od,
+                                                            .fileCS = diffres.fileCS,
+                                                            .fileHP = diffres.fileHP,
+                                                            .fileOD = diffres.fileOD,
+                                                            .hidden = false,
+                                                            .relax = false,
+                                                            .autopilot = false,
+                                                            .touchDevice = false,
+                                                            .speedMultiplier = speed,
+                                                            .breakDuration = primitives.totalBreakDuration};
+
+                DiffCalc::DifficultyAttributes attributes{};
+                DiffCalc::RawDifficultyValues raw_diff{};
+
+                // NOTE: the speed component of diffres.strainState never matches here (the timing
+                // fields were just rescaled above), so this always recomputes, as it must
+                DiffCalc::StarCalcParams star_params{.outAttributes = attributes,
+                                                     .beatmapData = diffcalc_data,
+                                                     .outAimStrains = nullptr,
+                                                     .outSpeedStrains = nullptr,
+                                                     .upToObjectIndex = -1,
+                                                     .cancelCheck = stoken,
+                                                     .outRawDifficulty = &raw_diff,
+                                                     .strainState = &diffres.strainState};
+
+                result.star_ratings[flat_idx] = static_cast<f32>(DiffCalc::calculateStarDiffForHitObjects(star_params));
+
+                if(stoken.stop_requested()) return result;
+
+                // HD=1: recompute star rating from cached raw difficulty values.
+                // strains are identical (hidden only affects the final rating transform),
+                // so we skip the whole preprocessing, strain calc, and calculate_difficulty.
+                const u8 hd_flat_idx = speed_idx * StarPrecalc::NUM_MOD_COMBOS + var.combo_idx[1];
+                diffcalc_data.hidden = true;
+                result.star_ratings[hd_flat_idx] =
+                    static_cast<f32>(DiffCalc::recomputeStarRating(raw_diff, diffcalc_data));
+            }
+        }
+    }
+
+    if(stoken.stop_requested()) return result;
+
+    if(!primitives.timingpoints.empty()) {
+        ctx.bpm_calc_buf.resize(primitives.timingpoints.size());
+        BPMCalc::BPMInfo bpm = BPMCalc::getBPM(primitives.timingpoints, ctx.bpm_calc_buf);
+        result.min_bpm = bpm.min;
+        result.max_bpm = bpm.max;
+        result.avg_bpm = bpm.most_common;
+    }
+
+    return result;
+}
+
 void process_work_item(WorkItem& item, const Sync::stop_token& stoken, WorkerContext& ctx) {
     if(!item.map) {
         errored_count.fetch_add(1, std::memory_order_relaxed);
@@ -351,155 +491,11 @@ void process_work_item(WorkItem& item, const Sync::stop_token& stoken, WorkerCon
 
     // process map calculation (multi-mod star ratings, BPM, object counts)
     if(item.needs_map_calc) {
-        MapResult result{.map = item.map,
-                         .nb_circles = (u32)primitives.hitcircles.size(),
-                         .nb_sliders = (u32)primitives.sliders.size(),
-                         .nb_spinners = (u32)primitives.spinners.size()};
-
-        const f32 base_ar = item.map->getAR();
-        const f32 base_cs = item.map->getCS();
-        const f32 base_od = item.map->getOD();
-        const f32 base_hp = item.map->getHP();
-
-        // AR/CS/OD/HP variant: {multiplier for AR/OD/HP, multiplier for CS}
-        // BASE=nomod, HR=1.4x (CS=1.3x), EZ=0.5x
-        struct ArCsVariant {
-            f32 ar_od_hp_mul;
-            f32 cs_mul;
-            // mod combo indices: [hidden=false, hidden=true]
-            u8 combo_idx[2];
-            bool hr;  // stacking offset direction
-        };
-        static constexpr std::array VARIANTS{
-            ArCsVariant{1.0f, 1.0f, {0, 2}, false},  // BASE: None(0), HD(2)
-            ArCsVariant{1.4f, 1.3f, {1, 4}, true},   // HR: HR(1), HD|HR(4)
-            ArCsVariant{0.5f, 0.5f, {3, 5}, false},  // EZ: EZ(3), HD|EZ(5)
-        };
-
-        for(const auto& var : VARIANTS) {
-            if(stoken.stop_requested()) return;
-
-            const f32 ar = std::clamp(base_ar * var.ar_od_hp_mul, 0.f, 10.f);
-            const f32 cs = std::clamp(base_cs * var.cs_mul, 0.f, 10.f);
-            const f32 od = std::clamp(base_od * var.ar_od_hp_mul, 0.f, 10.f);
-            const f32 hp = std::clamp(base_hp * var.ar_od_hp_mul, 0.f, 10.f);
-
-            // build DifficultyHitObjects once at speed=1.0 for this AR/CS variant.
-            // object construction, sorting, and stacking are all speed-independent;
-            // only the timing fields need rescaling per speed. slider timing is
-            // calculated once (sliderTimesCalculated flag on primitives).
-            auto diffres = DatabaseBeatmap::loadDifficultyHitObjects(primitives, ar, cs, 1.0f, var.hr, stoken);
-            if(stoken.stop_requested()) return;
-
-            if(&var == &VARIANTS[0]) {
-                result.length_ms = diffres.diffobjects.empty()
-                                       ? 0
-                                       : (u32)(diffres.diffobjects.back().baseEndTime - diffres.diffobjects[0].baseTime);
-            }
-
-            if(diffres.error.errc) {
-                logFailure(diffres.error, "loadDifficultyHitObjects map hash: {} map path: {}", item.map->getMD5(),
-                           item.map->getFilePath());
-                continue;
-            }
-
-            // save base slider timing (overwritten by speed rescaling below).
-            // baseTime/baseEndTime are already preserved on DifficultyHitObject,
-            // but spanDuration and scoringTimes have no base counterpart.
-            ctx.base_span_durations.clear();
-            ctx.base_scoring_times.clear();
-            for(const auto& obj : diffres.diffobjects) {
-                if(obj.type == DifficultyHitObject::TYPE::SLIDER) {
-                    ctx.base_span_durations.push_back(obj.spanDuration);
-                    for(const auto& st : obj.scoringTimes) {
-                        ctx.base_scoring_times.push_back(st.time);
-                    }
-                }
-            }
-
-            for(u8 speed_idx = 0; speed_idx < StarPrecalc::SPEEDS_NUM; speed_idx++) {
-                if(stoken.stop_requested()) return;
-                const f32 speed = StarPrecalc::SPEEDS[speed_idx];
-                const f64 inv_speed = 1.0 / (f64)speed;
-
-                // rescale timing fields from base values for this speed
-                {
-                    uSz si = 0, sti = 0;
-                    for(auto& obj : diffres.diffobjects) {
-                        obj.time = (i32)((f64)obj.baseTime * inv_speed);
-                        obj.endTime = (i32)((f64)obj.baseEndTime * inv_speed);
-                        if(obj.type == DifficultyHitObject::TYPE::SLIDER) {
-                            obj.spanDuration = (f32)((f64)ctx.base_span_durations[si] * inv_speed);
-                            for(auto& st : obj.scoringTimes) {
-                                st.time = (f32)((f64)ctx.base_scoring_times[sti] * inv_speed);
-                                sti++;
-                            }
-                            si++;
-                        }
-                    }
-                }
-
-                // HD=0: full calculation, saving raw difficulty values
-                {
-                    const u8 flat_idx = speed_idx * StarPrecalc::NUM_MOD_COMBOS + var.combo_idx[0];
-
-                    DiffCalc::BeatmapDiffcalcData diffcalc_data{.sortedHitObjects = diffres.diffobjects,
-                                                                .CS = cs,
-                                                                .HP = hp,
-                                                                .AR = ar,
-                                                                .OD = od,
-                                                                .fileCS = diffres.fileCS,
-                                                                .fileHP = diffres.fileHP,
-                                                                .fileOD = diffres.fileOD,
-                                                                .hidden = false,
-                                                                .relax = false,
-                                                                .autopilot = false,
-                                                                .touchDevice = false,
-                                                                .speedMultiplier = speed,
-                                                                .breakDuration = primitives.totalBreakDuration};
-
-                    DiffCalc::DifficultyAttributes attributes{};
-                    DiffCalc::RawDifficultyValues raw_diff{};
-
-                    // NOTE: the speed component of diffres.strainState never matches here (the timing
-                    // fields were just rescaled above), so this always recomputes, as it must
-                    DiffCalc::StarCalcParams star_params{.outAttributes = attributes,
-                                                         .beatmapData = diffcalc_data,
-                                                         .outAimStrains = nullptr,
-                                                         .outSpeedStrains = nullptr,
-                                                         .upToObjectIndex = -1,
-                                                         .cancelCheck = stoken,
-                                                         .outRawDifficulty = &raw_diff,
-                                                         .strainState = &diffres.strainState};
-
-                    result.star_ratings[flat_idx] =
-                        static_cast<f32>(DiffCalc::calculateStarDiffForHitObjects(star_params));
-
-                    if(stoken.stop_requested()) return;
-
-                    // HD=1: recompute star rating from cached raw difficulty values.
-                    // strains are identical (hidden only affects the final rating transform),
-                    // so we skip the whole preprocessing, strain calc, and calculate_difficulty.
-                    const u8 hd_flat_idx = speed_idx * StarPrecalc::NUM_MOD_COMBOS + var.combo_idx[1];
-                    diffcalc_data.hidden = true;
-                    result.star_ratings[hd_flat_idx] =
-                        static_cast<f32>(DiffCalc::recomputeStarRating(raw_diff, diffcalc_data));
-                }
-            }
-        }
+        const MapResult result = calc_map_attributes(item.map, primitives, stoken, ctx);
+        if(stoken.stop_requested()) return;
 
         if(result.star_ratings[StarPrecalc::NOMOD_1X_INDEX] <= 0.f) {
             errored_count.fetch_add(1, std::memory_order_relaxed);
-        }
-
-        if(stoken.stop_requested()) return;
-
-        if(!primitives.timingpoints.empty()) {
-            ctx.bpm_calc_buf.resize(primitives.timingpoints.size());
-            BPMCalc::BPMInfo bpm = BPMCalc::getBPM(primitives.timingpoints, ctx.bpm_calc_buf);
-            result.min_bpm = bpm.min;
-            result.max_bpm = bpm.max;
-            result.avg_bpm = bpm.most_common;
         }
 
         {
@@ -686,10 +682,66 @@ struct {
 
 }  // namespace
 
+MapResult calc_map(BeatmapDifficulty* map) {
+    auto primitives = DatabaseBeatmap::loadPrimitiveObjects(map->getFilePath());
+    if(primitives.error.errc) {
+        logFailure(primitives.error, "loadPrimitiveObjects map hash: {} map path: {}", map->getMD5(),
+                   map->getFilePath());
+        return MapResult{.map = map};
+    }
+
+    WorkerContext ctx;
+    return calc_map_attributes(map, primitives, DatabaseBeatmap::alwaysFalseStopPred, ctx);
+}
+
+void apply_results(std::span<const MapResult> results) {
+    if(results.empty()) return;
+
+    auto& unique_parents = updbuf.unique_parents;
+    unique_parents.reserve(results.size());
+    {
+        Sync::unique_lock lock(db->peppy_overrides_mtx);
+        for(const auto& res : results) {
+            auto* map = res.map;
+            if(BeatmapSet* set = map->getParentSet()) unique_parents.insert(set);
+            // only override existing values if we got some non-zero result, otherwise use what's already there
+            map->iNumCircles = res.nb_circles > 0 ? (i32)res.nb_circles : map->iNumCircles;
+            map->iNumSliders = res.nb_sliders > 0 ? (i32)res.nb_sliders : map->iNumSliders;
+            map->iNumSpinners = res.nb_spinners > 0 ? (i32)res.nb_spinners : map->iNumSpinners;
+            map->iLengthMS = res.length_ms > 0 ? res.length_ms : map->iLengthMS;
+            if(const f32 calculated_sr = res.star_ratings[StarPrecalc::NOMOD_1X_INDEX]; calculated_sr > 0.f) {
+                map->fStarsNomod = calculated_sr;
+            }
+            map->iMinBPM = res.min_bpm != 0 ? res.min_bpm : map->iMinBPM;
+            map->iMaxBPM = res.max_bpm != 0 ? res.max_bpm : map->iMaxBPM;
+            map->iMostCommonBPM = res.avg_bpm != 0 ? res.avg_bpm : map->iMostCommonBPM;
+            map->ppv2Version = DiffCalc::PP_ALGORITHM_VERSION;
+            if(map->type == DatabaseBeatmap::BeatmapType::PEPPY_DIFFICULTY) {
+                db->peppy_overrides[map->getMD5()] = map->get_overrides();
+            }
+        }
+    }
+
+    {
+        Sync::unique_lock slk(db->star_ratings_mtx);
+        for(const auto& res : results) {
+            auto& ptr = db->star_ratings[res.map->getMD5()];
+            if(!ptr) ptr = std::make_unique<StarPrecalc::SRArray>();
+            *ptr = res.star_ratings;
+            res.map->star_ratings = ptr.get();
+        }
+    }
+
+    for(auto* set : unique_parents) {
+        set->updateRepresentativeValues();
+    }
+    unique_parents.clear();
+}
+
 bool update_mainthread() {
     if(!running()) return true;
 
-    auto& [pending_maps, pending_scores, unique_parents]{updbuf};
+    auto& [pending_maps, pending_scores, _]{updbuf};
 
     {
         Sync::unique_lock lock(results_mutex, Sync::try_to_lock);
@@ -701,47 +753,9 @@ bool update_mainthread() {
     }
 
     // apply map results
-    if(const uSz num_pending = pending_maps.size(); num_pending > 0) {
-        unique_parents.reserve(num_pending);
-        {
-            Sync::unique_lock lock(db->peppy_overrides_mtx);
-            for(const auto& res : pending_maps) {
-                auto* map = res.map;
-                unique_parents.insert(map->getParentSet());
-                // only override existing values if we got some non-zero result, otherwise use what's already there
-                map->iNumCircles = res.nb_circles > 0 ? (i32)res.nb_circles : map->iNumCircles;
-                map->iNumSliders = res.nb_sliders > 0 ? (i32)res.nb_sliders : map->iNumSliders;
-                map->iNumSpinners = res.nb_spinners > 0 ? (i32)res.nb_spinners : map->iNumSpinners;
-                map->iLengthMS = res.length_ms > 0 ? res.length_ms : map->iLengthMS;
-                if(const f32 calculated_sr = res.star_ratings[StarPrecalc::NOMOD_1X_INDEX]; calculated_sr > 0.f) {
-                    map->fStarsNomod = calculated_sr;
-                }
-                map->iMinBPM = res.min_bpm != 0 ? res.min_bpm : map->iMinBPM;
-                map->iMaxBPM = res.max_bpm != 0 ? res.max_bpm : map->iMaxBPM;
-                map->iMostCommonBPM = res.avg_bpm != 0 ? res.avg_bpm : map->iMostCommonBPM;
-                map->ppv2Version = DiffCalc::PP_ALGORITHM_VERSION;
-                if(map->type == DatabaseBeatmap::BeatmapType::PEPPY_DIFFICULTY) {
-                    db->peppy_overrides[map->getMD5()] = map->get_overrides();
-                }
-            }
-        }
-
-        {
-            Sync::unique_lock slk(db->star_ratings_mtx);
-            for(const auto& res : pending_maps) {
-                auto& ptr = db->star_ratings[res.map->getMD5()];
-                if(!ptr) ptr = std::make_unique<StarPrecalc::SRArray>();
-                *ptr = res.star_ratings;
-                res.map->star_ratings = ptr.get();
-            }
-        }
-
-        for(auto* set : unique_parents) {
-            set->updateRepresentativeValues();
-        }
-
+    if(!pending_maps.empty()) {
+        apply_results(pending_maps);
         pending_maps.clear();
-        unique_parents.clear();
     }
 
     // apply score results

@@ -2,8 +2,8 @@
 # from the directive below, the bottom difficulty button is right-clicked (the menu clamps to the right
 # screen edge, its 38px rows start at click+(9,10)), the item is picked, "Really delete this beatmapset?"
 # is answered with "Yes", and the set's buttons must be gone from the carousel right away. the directory
-# watcher (wall-time polling, hence the @sleep) then reports the deleted folder, which the installer's
-# claim() recognizes as its own write: nothing may change after that either. the carousel is
+# watcher (wall-time polling, hence the @sleep) then reports the deleted folder, which the installer
+# recognizes as its own write: nothing may change after that either. the carousel is
 # type-to-search filtered to the fixture first: any other set in the live bindir's maps/ would
 # otherwise take the boot selection and shift the geometry, and the click would delete THAT set
 # (the filtered single set auto-selects, so its two buttons sit at the (717,190)/(706,279) rects)
