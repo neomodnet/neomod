@@ -1102,17 +1102,10 @@ void Chat::addSystemMessage(std::string msg) {
 }
 
 void Chat::removeChannel(std::string_view channel_name) {
-    ChatChannel *chan = nullptr;
-    for(auto c : this->channels) {
-        if(c->name == channel_name) {
-            chan = c;
-            break;
-        }
-    }
+    auto it = std::ranges::find(this->channels, channel_name, &ChatChannel::name);
+    if(it == this->channels.end()) return;
 
-    if(chan == nullptr) return;
-
-    auto it = std::ranges::find(this->channels, chan);
+    ChatChannel *chan = *it;
     this->channels.erase(it);
     if(this->selected_channel == chan) {
         this->selected_channel = nullptr;
@@ -1374,8 +1367,8 @@ void Chat::onDisconnect() {
     }
     this->channels.clear();
 
-    for(const auto &chan : BanchoState::chat_channels) {
-        delete chan.second;
+    for(const auto &[_, chan] : BanchoState::chat_channels) {
+        delete chan;
     }
     BanchoState::chat_channels.clear();
 

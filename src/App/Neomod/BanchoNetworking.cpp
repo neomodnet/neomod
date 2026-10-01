@@ -16,7 +16,6 @@
 #include "File.h"
 #include "Image.h"
 #include "Lobby.h"
-#include "MainMenu.h"
 #include "NeomodUrl.h"
 #include "NetworkHandler.h"
 #include "OptionsOverlay.h"
@@ -452,7 +451,7 @@ void BanchoState::disconnect(bool shutdown) {
     // Exit out of any online-only screens
     if(UIScreen *s = ui->getActiveScreen(); (s == ui->getSpectatorScreenBase()) || (s == ui->getLobbyBase()) ||
                                             (s == ui->getOsuDirectScreenBase()) || (s == ui->getRoomScreenBase())) {
-        ui->setScreen(ui->getMainMenu());
+        ui->setScreen(ui->getMainMenuBase());
     }
 
     // consumers check for cancellation where relevant
