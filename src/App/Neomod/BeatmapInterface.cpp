@@ -729,8 +729,11 @@ bool BeatmapInterface::start() {
     this->iCurMusicPos = 0;
 
     // we are waiting for an asynchronous start of the beatmap in the next update()
+    // (from the beginning, even if the last play was quit while waiting for a quick restart)
     this->bIsPlaying = true;
     this->bIsWaiting = true;
+    this->bIsRestartScheduled = false;
+    this->bIsRestartScheduledQuick = false;
     this->fWaitTime = Timing::getTimeReal<f32>();
 
     if(this->beatmap->getLocalOffset() != 0)
@@ -758,7 +761,8 @@ bool BeatmapInterface::start() {
 void BeatmapInterface::restart(bool quick) {
     soundEngine->stop(this->getSkin()->s_fail);
 
-    if(!this->bIsWaiting) {
+    // (nothing has started yet while loading, so there is nothing to restart)
+    if(!this->bIsWaiting || !this->isLoading()) {
         this->bIsRestartScheduled = true;
         this->bIsRestartScheduledQuick = quick;
     } else if(this->bIsPaused && !BanchoState::spectating) {
