@@ -230,8 +230,8 @@ void SDLMain::pushPenTouchEvent(bool down) {
     handleEvent(&ev);
 }
 
-void SDLMain::pen_down(std::string_view /*args*/) { pushPenTouchEvent(true); }
-void SDLMain::pen_up(std::string_view /*args*/) { pushPenTouchEvent(false); }
+void SDLMain::pen_down() { pushPenTouchEvent(true); }
+void SDLMain::pen_up() { pushPenTouchEvent(false); }
 
 // TODO: is this needed on linux too?
 static constexpr const bool USE_LIVE_RESIZE_CALLBACK{Env::cfg(OS::WINDOWS | OS::MAC) && !Env::cfg(FEAT::MAINCB)};
@@ -240,8 +240,8 @@ SDLMain::SDLMain(const Mc::AppDescriptor &appDesc)
     : Environment(appDesc), m_gpuConfigurator(std::make_unique<GPUDriverConfigurator>()) {
     // the reason we set up GPUDriverConfigurator here is because some things it does might need to happen before the window itself is created
     // setup callbacks
-    cv::fps_max.setCallback(SA::MakeDelegate<&SDLMain::fps_max_callback>(this));
-    cv::fps_max_background.setCallback(SA::MakeDelegate<&SDLMain::fps_max_background_callback>(this));
+    cv::fps_max.setCallback(SA::MakeDelegate<&SDLMain::fpsMaxCallback>(this));
+    cv::fps_max_background.setCallback(SA::MakeDelegate<&SDLMain::fpsMaxBackgroundCallback>(this));
 
     cv::sendkey_cmd.setCallback(SA::MakeDelegate<&SDLMain::sendkey>(this));
     cv::sendtext_cmd.setCallback(SA::MakeDelegate<&SDLMain::sendtext>(this));
@@ -306,13 +306,13 @@ void SDLMain::setBgFPS() {
 }
 
 // convar change callbacks, to set app iteration rate
-void SDLMain::fps_max_callback(float newVal) {
+void SDLMain::fpsMaxCallback(float newVal) {
     int newFps = static_cast<int>(newVal);
     if((newFps == 0 || newFps >= 30)) m_iFpsMax = newFps;
     if(winFocused()) setFgFPS();
 }
 
-void SDLMain::fps_max_background_callback(float newVal) {
+void SDLMain::fpsMaxBackgroundCallback(float newVal) {
     int newFps = static_cast<int>(newVal);
     if(newFps >= 0) m_iFpsMaxBG = newFps;
     if(!winFocused()) setBgFPS();
@@ -831,8 +831,8 @@ SDL_AppResult SDLMain::iterate() {
 
 // window configuration
 static constexpr auto WINDOW_TITLE = PACKAGE_NAME;
-static constexpr auto WINDOW_WIDTH = 1280L;
-static constexpr auto WINDOW_HEIGHT = 720L;
+static constexpr auto WINDOW_WIDTH_DEFAULT = 1280L;
+static constexpr auto WINDOW_HEIGHT_DEFAULT = 720L;
 static constexpr auto WINDOW_WIDTH_MIN = 320;
 static constexpr auto WINDOW_HEIGHT_MIN = 240;
 
@@ -886,8 +886,25 @@ bool SDLMain::createWindow() {
         (usingGL() ? SDL_WINDOW_OPENGL : ((Env::cfg(OS::LINUX) && usingDX11()) ? SDL_WINDOW_VULKAN : 0LL));
 
     // limit default window size so it fits the screen
-    i32 windowCreateWidth = WINDOW_WIDTH;
-    i32 windowCreateHeight = WINDOW_HEIGHT;
+
+    [[maybe_unused]] bool hadArg = false;
+    i32 windowCreateWidth = WINDOW_WIDTH_DEFAULT;
+    i32 windowCreateHeight = WINDOW_HEIGHT_DEFAULT;
+    if(auto widthStr = Mc::LaunchArgs::has_arg(Mc::LaunchArgs::WIN_WIDTH)) {
+        if(i32 parsedWidth = Parsing::strto<i32>(widthStr.value());
+           parsedWidth > WINDOW_WIDTH_MIN && parsedWidth < 16384) {
+            hadArg = true;
+            windowCreateWidth = parsedWidth;
+        }
+    }
+    if(auto heightStr = Mc::LaunchArgs::has_arg(Mc::LaunchArgs::WIN_HEIGHT)) {
+        if(i32 parsedHeight = Parsing::strto<i32>(heightStr.value());
+           parsedHeight > WINDOW_HEIGHT_MIN && parsedHeight < 16384) {
+            hadArg = true;
+            windowCreateHeight = parsedHeight;
+        }
+    }
+
     SDL_DisplayID initDisplayID = SDL_GetPrimaryDisplay();
 
     // start on the highest refresh rate monitor for kmsdrm (or if the primary display couldn't be found)
@@ -899,8 +916,8 @@ bool SDLMain::createWindow() {
         std::unique_ptr<SDL_DisplayID[], decltype(&SDL_free)> ids{SDL_GetDisplays(&dispCount), &SDL_free};
         float maxHz = 0;
         for(int i = 0; i < dispCount; i++) {
-            const SDL_DisplayMode *currentDisplayMode = SDL_GetCurrentDisplayMode(ids[i]);
-            if(currentDisplayMode && currentDisplayMode->refresh_rate >= maxHz) {
+            if(const SDL_DisplayMode *currentDisplayMode = SDL_GetCurrentDisplayMode(ids[i]);
+               currentDisplayMode && currentDisplayMode->refresh_rate >= maxHz) {
                 maxHz = currentDisplayMode->refresh_rate;
                 initDisplayID = currentDisplayMode->displayID;
                 windowCreateWidth = currentDisplayMode->w;
@@ -908,8 +925,7 @@ bool SDLMain::createWindow() {
             }
         }
     } else {
-        const SDL_DisplayMode *dm = SDL_GetDesktopDisplayMode(initDisplayID);
-        if(dm) {
+        if(const SDL_DisplayMode *dm = SDL_GetDesktopDisplayMode(initDisplayID)) {
             if(dm->w < windowCreateWidth) windowCreateWidth = dm->w;
             if(dm->h < windowCreateHeight) windowCreateHeight = dm->h;
         }
@@ -921,13 +937,14 @@ bool SDLMain::createWindow() {
     //
     // By manually getting the attributes of the canvas element, we get the render size,
     // as opposed to the CSS size which is incorrect on HiDPI.
-    const i32 tempWidth = js_get_canvas_width();
-    const i32 tempHeight = js_get_canvas_height();
-
-    // emrun starts with 300x300
-    if(tempWidth > 480 && tempHeight > 320) {
-        windowCreateWidth = tempWidth;
-        windowCreateHeight = tempHeight;
+    if(!hadArg) {
+        const i32 tempWidth = js_get_canvas_width();
+        const i32 tempHeight = js_get_canvas_height();
+        // emrun starts with 300x300
+        if(tempWidth > 480 && tempHeight > 320) {
+            windowCreateWidth = tempWidth;
+            windowCreateHeight = tempHeight;
+        }
     }
 #endif
 
@@ -1023,7 +1040,7 @@ bool SDLMain::createWindow() {
     }
 
     // (m_iFpsMax only hears about fps_max through its callback, which a default that is what it was doesn't run)
-    fps_max_callback(cv::fps_max.getFloat());
+    fpsMaxCallback(cv::fps_max.getFloat());
 
     // init dpi
     m_fDisplayScale = SDL_GetWindowDisplayScale(m_window);

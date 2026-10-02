@@ -83,6 +83,9 @@ enum ArgSwitch : unsigned char {
     MISC_NO_FPU,          // -nofpu (don't change floating point behavior on thread init)
     MISC_ASYNC_THREADS,   // -async_threads <n> (override the async pool's worker thread count, for testing)
     MISC_DATA_DIR,        // -datadir <path> (put all writable data, including cache and logs, under this directory)
+    // window settings
+    WIN_WIDTH,  // -width, -w
+    WIN_HEIGHT  // -height, -h
 };
 
 // use this instead of manually querying the arg map (and add new arguments to the enum, and their switches to the

@@ -40,6 +40,7 @@ struct KnownSwitch {
 };
 
 // every switch has_arg() looks for
+// clang-format off
 constexpr auto KNOWN_SWITCHES = std::to_array<KnownSwitch>({
     {"-headless", Takes::NOTHING},   {"-headless-audio", Takes::NOTHING},
     {"-gl", Takes::NOTHING},         {"-opengl", Takes::NOTHING},
@@ -53,7 +54,10 @@ constexpr auto KNOWN_SWITCHES = std::to_array<KnownSwitch>({
     {"-exclusive", Takes::NOTHING},  {"-ime", Takes::NOTHING},
     {"-nodpi", Takes::NOTHING},      {"-nofpu", Takes::NOTHING},
     {"-async_threads", Takes::WORD}, {"-datadir", Takes::ANYTHING},
+    {"-w", Takes::WORD},             {"-width", Takes::WORD},
+    {"-h", Takes::WORD},             {"-height", Takes::WORD},
 });
+// clang-format on
 
 const KnownSwitch *find_known(std::string_view name) {
     const auto it = std::ranges::find(KNOWN_SWITCHES, name, &KnownSwitch::name);
@@ -240,6 +244,10 @@ std::optional<std::string> has_arg(ArgSwitch arg_switch) noexcept {
             return find_switch({"-async_threads"});
         case MISC_DATA_DIR:
             return find_switch({"-datadir"});
+        case WIN_WIDTH:
+            return find_switch({"-w", "-width"});
+        case WIN_HEIGHT:
+            return find_switch({"-h", "-height"});
     }
     return std::nullopt;
 }

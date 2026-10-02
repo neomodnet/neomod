@@ -43,8 +43,8 @@ class SDLMain final : public Environment {
     float queryDisplayHz();
 
     // callback handlers
-    void fps_max_callback(float newVal);
-    void fps_max_background_callback(float newVal);
+    void fpsMaxCallback(float newVal);
+    void fpsMaxBackgroundCallback(float newVal);
 
     // set iteration rate for callbacks
     void setFgFPS();
@@ -72,8 +72,8 @@ class SDLMain final : public Environment {
 
     void pushPenTouchEvent(bool down);
     void pen_to(std::string_view args);
-    void pen_down(std::string_view args);
-    void pen_up(std::string_view args);
+    void pen_down();
+    void pen_up();
 
     // GL context (must be created early, during window creation)
     SDL_GLContext m_context{nullptr};
