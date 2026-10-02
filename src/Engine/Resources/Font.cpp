@@ -74,11 +74,6 @@ constexpr const size_t MAX_ATLAS_SIZE{4096};
 
 constexpr const char32_t UNKNOWN_CHAR{U'?'};  // ASCII '?'
 
-// this is still a very conservative amount of memory
-constexpr const size_t CACHED_STRINGS_PER_FONT{Env::cfg(OS::WASM) ? 1024
-                                                                  : 4096};  // be more conservative in WASM (32bit)
-size_t stringToCacheIndex(std::string_view str) { return std::hash<std::string_view>{}(str) % CACHED_STRINGS_PER_FONT; }
-
 // other shared-across-instances things
 struct FallbackFont {
     std::string fontPath;
@@ -186,13 +181,14 @@ struct McFontImpl final {
    public:
     // Internal data structures and state
     struct GLYPH_METRICS {
-        FT_Face face;  // source font face (nullptr if glyph not supported)
-        unsigned int uvPixelsX, uvPixelsY;
-        unsigned int sizePixelsX, sizePixelsY;
-        int left, top, width, rows;
-        float advance_x;
-        bool inAtlas;  // whether UV coordinates are valid (glyph is rendered in atlas)
-        bool isColor;  // color bitmap glyph (e.g. emoji from CBDT font)
+        FT_Face face{nullptr};  // source font face (nullptr if glyph not supported)
+        unsigned int uvPixelsX{0}, uvPixelsY{0};
+        unsigned int sizePixelsX{0}, sizePixelsY{0};
+        int left{0}, top{0}, width{0}, rows{0};
+        float advance_x{0.f};
+        bool inAtlas{false};  // whether UV coordinates are valid (glyph is rendered in atlas)
+        bool isColor{false};  // color bitmap glyph (e.g. emoji from CBDT font)
+        int dynamicSlot{-1};  // index into m_dynamicSlots while the glyph is in one
     };
 
     // texture atlas dynamic slot management
@@ -203,54 +199,16 @@ struct McFontImpl final {
         bool occupied;
     };
 
-    struct VerTexMetCacheEntry final {
-        std::string string;
-        float cachedExpand{0.f};
-
-        void clear() {
-            string.clear();
-            cachedExpand = 0.f;
-            VAO.clear();
-            emojiVAO.clear();
-            metrics.clear();
-        }
-
-        std::vector<vec3> &getVerts() { return VAO.vertices; }
-        std::vector<vec2> &getTexcoords() { return VAO.texcoords; }
-        std::vector<const GLYPH_METRICS *> &getMetrics() { return metrics; }
-
-        [[nodiscard]] const std::vector<vec3> &getVerts() const { return VAO.vertices; }
-        [[nodiscard]] const std::vector<vec2> &getTexcoords() const { return VAO.texcoords; }
-        [[nodiscard]] const std::vector<const GLYPH_METRICS *> &getMetrics() const { return metrics; }
-
-        std::vector<vec3> &getEmojiVerts() { return emojiVAO.vertices; }
-        std::vector<vec2> &getEmojiTexcoords() { return emojiVAO.texcoords; }
-        [[nodiscard]] const std::vector<vec3> &getEmojiVerts() const { return emojiVAO.vertices; }
-        [[nodiscard]] const std::vector<vec2> &getEmojiTexcoords() const { return emojiVAO.texcoords; }
-
-        [[nodiscard]] VertexArrayObject *getVAO() { return &VAO; }
-        [[nodiscard]] VertexArrayObject *getEmojiVAO() { return &emojiVAO; }
-
-        [[nodiscard]] const VertexArrayObject *getVAO() const { return &VAO; }
-        [[nodiscard]] const VertexArrayObject *getEmojiVAO() const { return &emojiVAO; }
-
-       private:
-        TextVAO VAO{s_glyphPrimitive, DrawUsageType::DYNAMIC};
-        TextVAO emojiVAO{s_glyphPrimitive, DrawUsageType::DYNAMIC};
-        std::vector<const GLYPH_METRICS *> metrics{};
-    };
-
     std::string m_sActualFilePath;
 
     std::vector<char32_t> m_vInitialGlyphs;
-    std::unordered_map<char32_t, std::unique_ptr<GLYPH_METRICS>> m_mGlyphMetrics;
+    Hash::flat::map<char32_t, std::unique_ptr<GLYPH_METRICS>> m_mGlyphMetrics;
 
     std::unique_ptr<TextureAtlas> m_textureAtlas{nullptr};
 
-    // string caching
-    std::vector<VerTexMetCacheEntry> m_vStringCache{CACHED_STRINGS_PER_FONT};
-    // for strings too short or too long to bother with caching
-    VerTexMetCacheEntry m_tempStringBuffer;
+    // geometry of the string being drawn (color glyphs separately, they're drawn untinted)
+    TextVAO m_vao{s_glyphPrimitive, DrawUsageType::DYNAMIC};
+    TextVAO m_emojiVao{s_glyphPrimitive, DrawUsageType::DYNAMIC};
 
     FT_Face m_ftFace;  // primary font face (shared with every font loaded from the same file)
 
@@ -264,9 +222,8 @@ struct McFontImpl final {
     int m_dynamicRegionY;      // Y coordinate where dynamic region starts
     int m_slotsPerRow;         // number of slots per row in dynamic region
     std::vector<DynamicSlot> m_dynamicSlots;
-    std::unordered_map<char32_t, int> m_dynamicSlotMap;  // character -> slot index for O(1) lookup
-    uint64_t m_currentAtlasTime;                         // for LRU tracking
-    bool m_bAtlasNeedsReload;                            // flag to batch atlas reloads
+    uint64_t m_currentAtlasTime;  // for LRU tracking
+    bool m_bAtlasNeedsReload;     // flag to batch atlas reloads
 
     bool m_bAntialiasing;
     bool m_bHeightManuallySet{false};
@@ -319,13 +276,13 @@ struct McFontImpl final {
     // Internal helper methods below here
 
     // drawString helpers
-    void drawStringShadered(VerTexMetCacheEntry &readyBuffer, const TextFX &effects) const;
-    void drawStringPlain(VerTexMetCacheEntry &readyBuffer, std::optional<TextFX> effects) const;
+    void drawStringShadered(const TextFX &effects);
+    void drawStringPlain(std::optional<TextFX> effects);
 
     // atlas management methods
     int allocateDynamicSlot(char32_t ch);
 
-    void markSlotUsed(char32_t ch);
+    void markSlotUsed(const GLYPH_METRICS &gm);
 
     void initializeDynamicRegion(int atlasSize);
 
@@ -352,15 +309,15 @@ struct McFontImpl final {
     // fallback font management
     FT_Face getFontFaceForGlyph(char32_t ch);
 
-    // puts a glyph quad/tri into given vertex/texcoord buffer at startIndex.
+    // appends a glyph quad/tri to the given vertex/texcoord buffers.
     // expandRight/expandDown extend the quad into atlas padding for shadow/outline visibility.
     void buildGlyphGeometry(std::vector<vec3> &vertsOut, std::vector<vec2> &texcoordsOut, const GLYPH_METRICS &gm,
-                            float advanceX, size_t startIndex, float expandLeft = 0.f, float expandRight = 0.f,
-                            float expandUp = 0.f, float expandDown = 0.f);
+                            float advanceX, float expandLeft = 0.f, float expandRight = 0.f, float expandUp = 0.f,
+                            float expandDown = 0.f);
 
-    // builds full string geometry into buffer, including emoji overlay arrays.
-    void buildStringGeometry(VerTexMetCacheEntry &buffer, size_t maxGlyphs, float expandLeft = 0.f,
-                             float expandRight = 0.f, float expandUp = 0.f, float expandDown = 0.f);
+    // builds the string's geometry into m_vao and m_emojiVao
+    void buildStringGeometry(std::string_view text, float expandLeft = 0.f, float expandRight = 0.f,
+                             float expandUp = 0.f, float expandDown = 0.f);
 
     static std::unique_ptr<Channel[]> unpackMonoBitmap(const FT_Bitmap &bitmap);
 
@@ -547,12 +504,8 @@ void McFontImpl::destroy() {
         releaseFace(m_sActualFilePath);
         m_ftFace = nullptr;
     }
-    m_vStringCache.clear();
-    m_vStringCache.resize(CACHED_STRINGS_PER_FONT);
-
     m_mGlyphMetrics.clear();
     m_dynamicSlots.clear();
-    m_dynamicSlotMap.clear();
 
     if(!m_bHeightManuallySet) {
         m_fHeight = 1.0f;
@@ -561,7 +514,7 @@ void McFontImpl::destroy() {
     m_bAtlasNeedsReload = false;
 }
 
-void McFontImpl::drawStringShadered(VerTexMetCacheEntry &readyBuffer, const TextFX &sc) const {
+void McFontImpl::drawStringShadered(const TextFX &sc) {
     const float atlasW = static_cast<float>(m_textureAtlas->getAtlasImage()->getWidth());
     const float atlasH = static_cast<float>(m_textureAtlas->getAtlasImage()->getHeight());
 
@@ -575,26 +528,26 @@ void McFontImpl::drawStringShadered(VerTexMetCacheEntry &readyBuffer, const Text
                                sc.outline_px / atlasH);
     s_textShader->setUniform4f("params2", sc.shadow_softness_px / atlasW, sc.shadow_softness_px / atlasH, 0.f, 0.f);
 
-    if(!readyBuffer.getVerts().empty()) {
-        g->drawVAO(readyBuffer.getVAO());
+    if(!m_vao.vertices.empty()) {
+        g->drawVAO(&m_vao);
     }
 
-    if(!readyBuffer.getEmojiVerts().empty()) {
+    if(!m_emojiVao.vertices.empty()) {
         // emoji: use texture RGB directly (color glyphs), keep shadow/outline
         s_textShader->setUniform4f("col", 1.f, 1.f, 1.f, sc.col_text.Af());
         s_textShader->setUniform4f("params2", sc.shadow_softness_px / atlasW, sc.shadow_softness_px / atlasH, 1.f, 0.f);
-        g->drawVAO(readyBuffer.getEmojiVAO());
+        g->drawVAO(&m_emojiVao);
     }
 
     s_textShader->disable();
 }
 
-void McFontImpl::drawStringPlain(VerTexMetCacheEntry &readyBuffer, std::optional<TextFX> effects) const {
+void McFontImpl::drawStringPlain(std::optional<TextFX> effects) {
     const Color savedColor = g->getColor();
     const bool hasEffects = effects.has_value();
     const bool hasShadow = hasEffects && (effects->col_shadow.a > 0);
 
-    if(!readyBuffer.getVerts().empty()) {
+    if(!m_vao.vertices.empty()) {
         if(hasEffects) {
             const auto &fxConf = *effects;
             if(hasShadow) {
@@ -602,31 +555,31 @@ void McFontImpl::drawStringPlain(VerTexMetCacheEntry &readyBuffer, std::optional
 
                 g->translate(px, px);
                 g->setColor(fxConf.col_shadow);
-                g->drawVAO(readyBuffer.getVAO());
+                g->drawVAO(&m_vao);
                 g->translate(-px, -px);
             }
             g->setColor(fxConf.col_text);
         }
 
-        g->drawVAO(readyBuffer.getVAO());
+        g->drawVAO(&m_vao);
     }
 
     // emoji
-    if(!readyBuffer.getEmojiVerts().empty()) {
+    if(!m_emojiVao.vertices.empty()) {
         if(hasShadow) {
             const auto &shadowConf = *effects;
             const float px = shadowConf.offs_px;
 
             g->translate(px, px);
             g->setColor(shadowConf.col_shadow);
-            g->drawVAO(readyBuffer.getEmojiVAO());
+            g->drawVAO(&m_emojiVao);
             g->translate(-px, -px);
             g->setColor(argb(shadowConf.col_text.a, 255, 255, 255));
         } else {
             g->setColor(argb(savedColor.a, 255, 255, 255));
         }
 
-        g->drawVAO(readyBuffer.getEmojiVAO());
+        g->drawVAO(&m_emojiVao);
     }
 
     g->setColor(savedColor);
@@ -638,7 +591,7 @@ void McFontImpl::drawString(std::string_view text, std::optional<TextFX> effects
     const auto numCodepoints = UniString::num_codepoints(text);
     if(numCodepoints == 0 || numCodepoints > cv::r_drawstring_max_string_length.getInt()) return;
 
-    // compute directional expansion for shadow/outline effects (needed before cache check).
+    // compute directional expansion for shadow/outline effects.
     // shadow extends to the bottom-right only; outline extends in all directions.
     const bool hasEffects = effects.has_value();
     const bool hasShadowOrOutline = hasEffects && (effects->col_shadow.a > 0 || effects->col_outline.a > 0);
@@ -654,65 +607,8 @@ void McFontImpl::drawString(std::string_view text, std::optional<TextFX> effects
     const float expRight = std::max(shadowPx, clampedOutlineExpand);
     const float expUp = clampedOutlineExpand;
     const float expDown = std::max(shadowPx, clampedOutlineExpand);
-    // single value for cache comparison (sum of directional values)
-    const float expand = expLeft + expRight + expUp + expDown;
 
-    // cache entire strings' vertex/texcoord representations,
-    // and only do the minimal work necessary if needing to re-upload them to the texture atlas
-    const bool useCache = numCodepoints >= 8 && numCodepoints <= 384;  // arbitrary limits
-    VerTexMetCacheEntry &buffer = useCache ? m_vStringCache[stringToCacheIndex(text)] : m_tempStringBuffer;
-    if(useCache && buffer.string == text && buffer.cachedExpand == expand) {
-        const auto &metrics = buffer.getMetrics();
-
-        for(int i = 0; char32_t ch : UniString::codepoints(text)) {
-            const auto *gm = metrics[i++];
-            if(ch >= 128) {
-                if(!gm->inAtlas) {
-                    loadGlyphDynamic(ch, gm->face);
-                }
-                if(gm->face != m_ftFace) {
-                    markSlotUsed(ch);
-                }
-            } else if(ch >= 32) {
-                assert(gm->inAtlas);
-            }
-        }
-
-        if(m_bAtlasNeedsReload) {
-            size_t emojiStartIndex{0}, regularStartIndex{0};
-            float advanceX = 0.0f;
-            for(const GLYPH_METRICS *gm : metrics) {
-                if(gm->isColor) {
-                    buildGlyphGeometry(buffer.getEmojiVerts(), buffer.getEmojiTexcoords(), *gm, advanceX,
-                                       emojiStartIndex, expLeft, expRight, expUp, expDown);
-                    emojiStartIndex += s_vertsPerGlyph;
-                } else {
-                    buildGlyphGeometry(buffer.getVerts(), buffer.getTexcoords(), *gm, advanceX, regularStartIndex,
-                                       expLeft, expRight, expUp, expDown);
-                    regularStartIndex += s_vertsPerGlyph;
-                }
-                advanceX += gm->advance_x;
-            }
-            // these assertions should hold because we're reusing the same buffer
-            assert(emojiStartIndex == buffer.getEmojiVerts().size());
-            assert(regularStartIndex == buffer.getVerts().size());
-
-            m_textureAtlas->reloadAtlasImage();
-            m_bAtlasNeedsReload = false;
-        }
-    } else {
-        buffer.string = text;
-        buffer.cachedExpand = expand;
-
-        const size_t totalVerts = numCodepoints * s_vertsPerGlyph;
-        const size_t maxGlyphs = std::min(numCodepoints, (size_t)((double)totalVerts / (double)s_vertsPerGlyph));
-
-        buffer.getMetrics().resize(maxGlyphs);
-        buffer.getVAO()->clear();
-        buffer.getEmojiVAO()->clear();
-
-        buildStringGeometry(buffer, maxGlyphs, expLeft, expRight, expUp, expDown);
-    }
+    buildStringGeometry(text, expLeft, expRight, expUp, expDown);
 
     m_textureAtlas->getAtlasImage()->bind();
 
@@ -725,7 +621,7 @@ void McFontImpl::drawString(std::string_view text, std::optional<TextFX> effects
 
         if(s_textShader != nullptr && s_textShader->isReady()) {
             const auto &sc = *effects;
-            drawStringShadered(buffer, sc);
+            drawStringShadered(sc);
         } else {
             s_textShaderBroken = true;
             forceFallbackPath = true;
@@ -735,15 +631,11 @@ void McFontImpl::drawString(std::string_view text, std::optional<TextFX> effects
 
     if(forceFallbackPath || !hasShadowOrOutline) {
         // no effects (or fallback shadow)
-        drawStringPlain(buffer, effects);
+        drawStringPlain(effects);
     }
 
     if(cv::r_debug_drawstring_unbind.getBool()) {
         m_textureAtlas->getAtlasImage()->unbind();
-    }
-
-    if(!useCache) {
-        buffer.clear();
     }
 }
 
@@ -952,6 +844,7 @@ bool McFontImpl::loadGlyphDynamic(char32_t ch, FT_Face existingFace) {
     if(bitmap.width > 0 && bitmap.rows > 0) {
         int slotIndex = allocateDynamicSlot(ch);
         const DynamicSlot &slot = m_dynamicSlots[slotIndex];
+        m_mGlyphMetrics[ch]->dynamicSlot = slotIndex;
 
         const int maxSlotContent = getDynSlotSize() - TextureAtlas::ATLAS_PADDING;
         if(bitmap.width > maxSlotContent || bitmap.rows > maxSlotContent) {
@@ -987,7 +880,6 @@ int McFontImpl::allocateDynamicSlot(char32_t ch) {
             dynamicSlot.character = ch;
             dynamicSlot.lastUsed = m_currentAtlasTime;
             dynamicSlot.occupied = true;
-            m_dynamicSlotMap[ch] = static_cast<int>(i);
             return static_cast<int>(i);
         }
     }
@@ -1006,28 +898,25 @@ int McFontImpl::allocateDynamicSlot(char32_t ch) {
     // evict the LRU slot
     auto &dynamicLRUSlot = m_dynamicSlots[lruIndex];
     if(dynamicLRUSlot.character != 0) {
-        m_dynamicSlotMap.erase(dynamicLRUSlot.character);
-
         // mark evicted glyph as no longer in atlas, but preserve metrics for fast re-rendering
         const auto &it = m_mGlyphMetrics.find(dynamicLRUSlot.character);
         if(it != m_mGlyphMetrics.end()) {
             it->second->inAtlas = false;
+            it->second->dynamicSlot = -1;
         }
     }
 
     dynamicLRUSlot.character = ch;
     dynamicLRUSlot.lastUsed = m_currentAtlasTime;
     dynamicLRUSlot.occupied = true;
-    m_dynamicSlotMap[ch] = lruIndex;
 
     return lruIndex;
 }
 
-void McFontImpl::markSlotUsed(char32_t ch) {
-    const auto &it = m_dynamicSlotMap.find(ch);
-    if(it != m_dynamicSlotMap.end()) {
+void McFontImpl::markSlotUsed(const GLYPH_METRICS &gm) {
+    if(gm.dynamicSlot >= 0) {
         m_currentAtlasTime++;
-        m_dynamicSlots[it->second].lastUsed = m_currentAtlasTime;
+        m_dynamicSlots[gm.dynamicSlot].lastUsed = m_currentAtlasTime;
     }
 }
 
@@ -1043,7 +932,6 @@ void McFontImpl::initializeDynamicRegion(int atlasSize) {
 
     m_dynamicSlots.clear();
     m_dynamicSlots.reserve(totalSlots);
-    m_dynamicSlotMap.clear();
 
     for(int row = 0; row < slotsPerColumn; row++) {
         for(int col = 0; col < m_slotsPerRow; col++) {
@@ -1407,8 +1295,8 @@ FT_BitmapGlyph McFontImpl::loadBitmapGlyph(char32_t ch, FT_Face face, bool store
 }
 
 void McFontImpl::buildGlyphGeometry(std::vector<vec3> &vertsOut, std::vector<vec2> &texcoordsOut,
-                                    const GLYPH_METRICS &gm, float advanceX, size_t startIndex, float expandLeft,
-                                    float expandRight, float expandUp, float expandDown) {
+                                    const GLYPH_METRICS &gm, float advanceX, float expandLeft, float expandRight,
+                                    float expandUp, float expandDown) {
     const float atlasWidth{static_cast<float>(m_textureAtlas->getAtlasImage()->getWidth())};
     const float atlasHeight{static_cast<float>(m_textureAtlas->getAtlasImage()->getHeight())};
 
@@ -1441,74 +1329,33 @@ void McFontImpl::buildGlyphGeometry(std::vector<vec3> &vertsOut, std::vector<vec
 
     if(s_vertsPerGlyph > 4) {
         // triangles (quads would be expanded at submit time on gles/dx11)
-        // first triangle (bottom-left, top-left, top-right)
-        vertsOut[startIndex] = bottomLeft;
-        vertsOut[startIndex + 1] = topLeft;
-        vertsOut[startIndex + 2] = topRight;
-
-        texcoordsOut[startIndex] = texBottomLeft;
-        texcoordsOut[startIndex + 1] = texTopLeft;
-        texcoordsOut[startIndex + 2] = texTopRight;
-
-        // second triangle (bottom-left, top-right, bottom-right)
-        vertsOut[startIndex + 3] = bottomLeft;
-        vertsOut[startIndex + 4] = topRight;
-        vertsOut[startIndex + 5] = bottomRight;
-
-        texcoordsOut[startIndex + 3] = texBottomLeft;
-        texcoordsOut[startIndex + 4] = texTopRight;
-        texcoordsOut[startIndex + 5] = texBottomRight;
+        // first triangle (bottom-left, top-left, top-right), second triangle (bottom-left, top-right, bottom-right)
+        vertsOut.insert(vertsOut.end(), {bottomLeft, topLeft, topRight, bottomLeft, topRight, bottomRight});
+        texcoordsOut.insert(texcoordsOut.end(),
+                            {texBottomLeft, texTopLeft, texTopRight, texBottomLeft, texTopRight, texBottomRight});
     } else {
         // quads
-        vertsOut[startIndex] = bottomLeft;       // bottom-left
-        vertsOut[startIndex + 1] = topLeft;      // top-left
-        vertsOut[startIndex + 2] = topRight;     // top-right
-        vertsOut[startIndex + 3] = bottomRight;  // bottom-right
-
-        texcoordsOut[startIndex] = texBottomLeft;
-        texcoordsOut[startIndex + 1] = texTopLeft;
-        texcoordsOut[startIndex + 2] = texTopRight;
-        texcoordsOut[startIndex + 3] = texBottomRight;
+        vertsOut.insert(vertsOut.end(), {bottomLeft, topLeft, topRight, bottomRight});
+        texcoordsOut.insert(texcoordsOut.end(), {texBottomLeft, texTopLeft, texTopRight, texBottomRight});
     }
 
     return;
 }
 
-void McFontImpl::buildStringGeometry(VerTexMetCacheEntry &buffer, size_t maxGlyphs, float expandLeft, float expandRight,
-                                     float expandUp, float expandDown) {
-    auto &verts = buffer.getVerts();
-    auto &TCs = buffer.getTexcoords();
-    auto &emojiVerts = buffer.getEmojiVerts();
-    auto &emojiTCs = buffer.getEmojiTexcoords();
-    auto &metrics = buffer.getMetrics();
+void McFontImpl::buildStringGeometry(std::string_view text, float expandLeft, float expandRight, float expandUp,
+                                     float expandDown) {
+    m_vao.clear();
+    m_emojiVao.clear();
 
-    size_t emojiStartIndex{0}, regularStartIndex{0};
     float advanceX = 0.0f;
-    for(int i = -1; char32_t ch : UniString::codepoints(buffer.string)) {
-        ++i;
-        if(i >= maxGlyphs) break;
-
+    for(char32_t ch : UniString::codepoints(text)) {
         const GLYPH_METRICS &gm = getGlyphMetrics(ch);
-        if(gm.isColor) {
-            emojiVerts.resize(emojiVerts.size() + s_vertsPerGlyph);
-            emojiTCs.resize(emojiTCs.size() + s_vertsPerGlyph);
-            buildGlyphGeometry(emojiVerts, emojiTCs, gm, advanceX, emojiStartIndex, expandLeft, expandRight, expandUp,
-                               expandDown);
-            emojiStartIndex += s_vertsPerGlyph;
-        } else {
-            verts.resize(verts.size() + s_vertsPerGlyph);
-            TCs.resize(TCs.size() + s_vertsPerGlyph);
-            buildGlyphGeometry(verts, TCs, gm, advanceX, regularStartIndex, expandLeft, expandRight, expandUp,
-                               expandDown);
-            regularStartIndex += s_vertsPerGlyph;
-        }
-        advanceX += gm.advance_x;
-
         // mark dynamic slot as recently used (if this character is in a dynamic slot)
-        markSlotUsed(ch);
+        markSlotUsed(gm);
 
-        // add glyph metrics to out parameter
-        metrics[i] = &gm;
+        TextVAO &vao = gm.isColor ? m_emojiVao : m_vao;
+        buildGlyphGeometry(vao.vertices, vao.texcoords, gm, advanceX, expandLeft, expandRight, expandUp, expandDown);
+        advanceX += gm.advance_x;
     }
 
     // reload atlas if new glyphs were added to dynamic slots
