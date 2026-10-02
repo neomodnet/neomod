@@ -3046,7 +3046,7 @@ msgid ""
 "Click it again to download it."
 msgstr ""
 
-#: src/App/Neomod/OsuDirectScreen.cpp
+#: src/App/Neomod/OsuDirectScreen.cpp src/App/Neomod/SongBrowser/InfoLabel.cpp
 #, c++-format
 msgid "Mapped by {:s}"
 msgstr ""

@@ -1508,6 +1508,14 @@ void SongBrowser::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
     this->visibleSongButtons.clear();
     this->previousRandomBeatmaps.clear();
 
+    // the score buttons point at maps of the database being reloaded too, and nothing rebuilds them when the
+    // reselected map has no button afterwards: back to the empty list it starts out as
+    this->scoreBrowser->invalidate();
+    this->scoreBrowser->container.addBaseUIElement(this->scoreBrowserNoRecordsSetElement);
+    this->localBestContainer->invalidate();
+    this->localBestContainer->setVisible(false);
+    SAFE_DELETE(this->localBestButton);
+
     this->contextMenu->setVisible2(false);
 
     // clear potentially active search
@@ -1732,6 +1740,15 @@ void SongBrowser::rebuildAfterSetChange() {
 }
 
 void SongBrowser::applyReconcile(const ReconcileResult &r) {
+    // first, since their buttons still hold the md5s that this folder's take over
+    for(const auto &[gone, remainder] : r.moved_from) {
+        if(remainder) {
+            this->replaceBeatmapSet(gone, remainder);
+        } else {
+            this->removeBeatmapSet(gone);
+        }
+    }
+
     switch(r.outcome) {
         using enum ReconcileResult::Outcome;
         case Created:

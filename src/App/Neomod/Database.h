@@ -12,6 +12,8 @@
 #include <atomic>
 #include <set>
 #include <span>
+#include <utility>
+#include <vector>
 
 namespace Collections {
 class Collection;
@@ -45,6 +47,9 @@ struct ReconcileResult {
     BeatmapSet *set{nullptr};          // live set for the folder afterwards (nullptr: Removed/Failed/no unique diffs)
     BeatmapSet *replaced{nullptr};     // tombstoned predecessor (Updated/Removed), valid until the next load()
     BeatmapSet *dedup_owner{nullptr};  // set owning the first duplicate diff seen (where "already installed" lives)
+    // osu!.db sets that had maps which moved here (osu!stable's db keeps listing them until it rescans): each
+    // tombstoned, with its rebuilt remainder (nullptr: nothing left)
+    std::vector<std::pair<BeatmapSet *, BeatmapSet *>> moved_from;
     u16 added{0}, removed{0}, parsed{0};
     [[nodiscard]] std::string_view outcomeName() const;
 };

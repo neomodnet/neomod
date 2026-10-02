@@ -1655,6 +1655,23 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                     md5hash = recalcMD5(dotosu_fullpath);
                 }
 
+                // a map that a maps/ set has too stays there while that copy exists (moved there from the songs
+                // folder: osu!.db keeps the entry until osu!stable rescans), a vanished copy loses to this entry and
+                // the startup pass drops it
+                const BeatmapDifficulty *owner = nullptr;
+                {
+                    Sync::shared_lock lock(this->beatmap_difficulties_mtx);
+                    if(auto it = this->beatmap_difficulties.find(md5hash); it != this->beatmap_difficulties.end()) {
+                        owner = it->second;
+                    }
+                }
+                if(owner && owner->type == DatabaseBeatmap::BeatmapType::NEOMOD_DIFFICULTY &&
+                   Environment::fileExists(owner->getFilePath())) {
+                    logIfCV(debug_db, "skipping osu!.db entry {}, maps/ has it at {}", dotosu_fullpath,
+                            owner->getFilePath());
+                    continue;
+                }
+
                 // special case: legacy fallback behavior for invalid beatmapSetID, try to parse the ID from the path
                 if(beatmapset_id < 1 && beatmap_subfolder.length() > 0) {
                     size_t slash = beatmap_subfolder.find('/');
@@ -2858,7 +2875,8 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
             slot.parsed.reset();
         }
         // otherwise it's new here: nothing has this content, or the owner's file is gone (the map moved here; the
-        // index entry is retargeted below, the stale object stays in its own set until that folder is reconciled)
+        // index entry is retargeted below, the stale object stays in its own set until that folder is reconciled,
+        // or leaves it right away if that's an osu!.db set, which never is)
     }
 
     const uSz n_old = old ? old->getDifficulties().size() : 0;
@@ -2885,8 +2903,13 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
     //    tombstone keeps only what was dropped (compacted: nothing may ever see a null diff in a set)
     auto container = std::make_unique<DiffContainer>();
     std::vector<BeatmapDifficulty *> fresh;
+    std::vector<BeatmapDifficulty *> moved;  // stale osu!.db objects of maps that moved here
     for(auto &slot : slots) {
         if(slot.parsed) {
+            // (the songs folder's sets are osu!.db's unless it's loaded raw)
+            if(slot.owner && slot.owner->type == PEPPY_DIFFICULTY && !this->needs_raw_load) {
+                moved.push_back(slot.owner);
+            }
             fresh.push_back(slot.parsed.get());
             container->push_back(std::move(slot.parsed));
         } else if(slot.kept) {
@@ -2940,6 +2963,26 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
         Sync::unique_lock lock(this->beatmap_difficulties_mtx);
         for(BeatmapDifficulty *diff : fresh) this->beatmap_difficulties[diff->getMD5()] = diff;
         if(old) tombstone(old);  // only the dropped diffs are left in it
+        // an osu!.db set loses the moved ones too: tombstoned, and rebuilt from whatever else it has
+        while(!moved.empty()) {
+            BeatmapSet *stale = moved.back()->getParentSet();
+            auto rest = std::make_unique<DiffContainer>();
+            for(auto &diff : *stale->difficulties) {
+                if(!std::ranges::contains(moved, diff.get())) rest->push_back(std::move(diff));
+            }
+            std::erase_if(*stale->difficulties, [](const auto &p) { return p == nullptr; });
+            std::erase_if(moved, [stale](const BeatmapDifficulty *diff) { return diff->getParentSet() == stale; });
+
+            BeatmapSet *remainder = nullptr;
+            if(!rest->empty()) {
+                auto rebuilt = std::make_unique<BeatmapSet>(std::move(rest), PEPPY_BEATMAPSET);
+                remainder = rebuilt.get();
+                this->indexSet(remainder);
+                this->beatmapsets.push_back(std::move(rebuilt));
+            }
+            tombstone(stale);
+            res.moved_from.emplace_back(stale, remainder);
+        }
         this->indexSet(set);
         this->beatmapsets.push_back(std::move(new_set));
         folders[std::string{rel_folder}] = {.mtime = dir_mtime, .set = set};
@@ -2983,6 +3026,10 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
     res.outcome = old ? Updated : Created;
     logIfCV(debug_db, "reconcile {}: {} (+{} -{}, parsed {})", rel_folder, res.outcomeName(), res.added, res.removed,
             res.parsed);
+    for(const auto &[gone, remainder] : res.moved_from) {
+        logIfCV(debug_db, "reconcile {}: moved here from osu!.db's {} ({})", rel_folder, gone->getFolder(),
+                remainder ? "rest kept" : "nothing left");
+    }
     return res;
 }
 
