@@ -23,7 +23,8 @@ enum class Claim : u8 {
 [[nodiscard]] Claim claim(std::string_view name, std::span<const std::string> args, bool forward) noexcept;
 
 // the launches forwarded since the last call, oldest first, each with the arguments it was handed over with
-// (possibly none, e.g. a plain launch that just asks the instance to come to the front)
+// (possibly none, e.g. a plain launch that just asks the instance to come to the front). never waits for the thread
+// receiving them: a launch it's queueing right then comes with a later call
 [[nodiscard]] std::vector<std::vector<std::string>> take_forwarded() noexcept;
 
 // gives the name up (e.g. before starting the next instance of this program on a restart)

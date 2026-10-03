@@ -33,6 +33,7 @@ void release() noexcept {}
 #include <utility>
 
 #ifdef MCENGINE_PLATFORM_WINDOWS
+#include "RuntimePlatform.h"
 #include "UniString.h"
 
 #include "WinDebloatDefs.h"
@@ -54,8 +55,8 @@ void release() noexcept {}
 namespace Mc::SingleInstance {
 namespace {
 
-// a launch on the wire: the payload size as a u32, then each argument followed by a null.
-// the instance answers with one byte once it has queued the launch
+// a launch on the wire: the payload size as a u32, then each argument followed by a null. on windows the instance first
+// greets each launch with its process id, which the launch needs to let it come to the front
 constexpr u32 MAX_PAYLOAD_SIZE{1u << 20};
 // how long a launch keeps trying to reach the instance, and how long the instance waits for one launch's data
 constexpr u64 FORWARD_TIMEOUT_MS{5000};
@@ -111,7 +112,8 @@ bool finish_io(HANDLE h, OVERLAPPED &ov, BOOL started, DWORD timeout_ms, HANDLE 
     if(!started && GetLastError() != ERROR_IO_PENDING) return false;
     const std::array waits{ov.hEvent, stop_event};
     if(WaitForMultipleObjects(stop_event ? 2 : 1, waits.data(), FALSE, timeout_ms) != WAIT_OBJECT_0) {
-        CancelIoEx(h, &ov);
+        // all of a handle's i/o comes from one thread here, so CancelIoEx (vista+) isn't needed
+        CancelIo(h);
         GetOverlappedResult(h, &ov, transferred, TRUE);
         return false;
     }
@@ -159,8 +161,10 @@ struct Listener {
    private:
     void serve(const Sync::stop_token &stop) {
         McThread::set_current_thread_name("instance_ipc");
+        McThread::set_current_thread_prio(McThread::Priority::LOW);
         Sync::stop_callback wake(stop, [this] { SetEvent(this->stop_event); });
 
+        const DWORD pid = GetCurrentProcessId();
         std::vector<char> payload;
         while(!stop.stop_requested()) {
             OVERLAPPED ov{};
@@ -177,18 +181,17 @@ struct Listener {
                 }
             }
 
+            // the launch reads the greeting before it sends anything, so disconnecting after the payload throws
+            // nothing unread away
             u32 size = 0;
-            if(read_exact(this->pipe, this->io_event, reinterpret_cast<char *>(&size), sizeof(size), RECEIVE_TIMEOUT_MS,
+            if(write_all(this->pipe, this->io_event, reinterpret_cast<const char *>(&pid), sizeof(pid),
+                         RECEIVE_TIMEOUT_MS, this->stop_event) &&
+               read_exact(this->pipe, this->io_event, reinterpret_cast<char *>(&size), sizeof(size), RECEIVE_TIMEOUT_MS,
                           this->stop_event) &&
                size <= MAX_PAYLOAD_SIZE) {
                 payload.resize(size);
                 if(read_exact(this->pipe, this->io_event, payload.data(), size, RECEIVE_TIMEOUT_MS, this->stop_event)) {
                     receive(payload);
-                    const char ack = 1;
-                    write_all(this->pipe, this->io_event, &ack, 1, RECEIVE_TIMEOUT_MS, this->stop_event);
-                    // disconnecting throws away whatever the launch hasn't read yet, so wait for it to hang up
-                    char eof = 0;
-                    read_exact(this->pipe, this->io_event, &eof, 1, RECEIVE_TIMEOUT_MS, this->stop_event);
                 }
             }
             DisconnectNamedPipe(this->pipe);
@@ -204,10 +207,12 @@ struct Listener {
 Listener *s_listener{nullptr};
 
 Attempt try_own(const Endpoint &pipe_name) {
+    // windows xp doesn't support PIPE_REJECT_REMOTE_CLIENTS yet
+    const DWORD reject_remote = (RuntimePlatform::current() & RuntimePlatform::WIN_XP) ? 0 : PIPE_REJECT_REMOTE_CLIENTS;
     // creating the first instance of a pipe name only succeeds for one process, until all its handles are closed
-    HANDLE pipe = CreateNamedPipeW(
-        pipe_name.c_str(), PIPE_ACCESS_DUPLEX | FILE_FLAG_FIRST_PIPE_INSTANCE | FILE_FLAG_OVERLAPPED,
-        PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS, 1, 4096, 4096, 0, nullptr);
+    HANDLE pipe =
+        CreateNamedPipeW(pipe_name.c_str(), PIPE_ACCESS_DUPLEX | FILE_FLAG_FIRST_PIPE_INSTANCE | FILE_FLAG_OVERLAPPED,
+                         PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | reject_remote, 1, 4096, 4096, 0, nullptr);
     if(pipe == INVALID_HANDLE_VALUE) {
         const DWORD err = GetLastError();
         if(err == ERROR_ACCESS_DENIED || err == ERROR_PIPE_BUSY) return Attempt::TAKEN;
@@ -234,18 +239,15 @@ Delivery deliver(const Endpoint &pipe_name, std::span<const char> msg, u64 deadl
         return Delivery::FAILED;
     }
 
-    // it's the one that should come to the front, and only a process the user just started may decide that
-    if(ULONG pid = 0; GetNamedPipeServerProcessId(pipe, &pid)) {
-        AllowSetForegroundWindow(pid);
-    }
-
     HANDLE event = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     Delivery result = Delivery::RETRY;
-    if(write_all(pipe, event, msg.data(), static_cast<DWORD>(msg.size()), static_cast<DWORD>(remaining_ms(deadline)),
-                 nullptr)) {
-        result = Delivery::DELIVERED;
-        if(char ack = 0; !read_exact(pipe, event, &ack, 1, static_cast<DWORD>(remaining_ms(deadline)), nullptr)) {
-            debugLog("the running instance didn't confirm the launch");
+    if(DWORD pid = 0; read_exact(pipe, event, reinterpret_cast<char *>(&pid), sizeof(pid),
+                                 static_cast<DWORD>(remaining_ms(deadline)), nullptr)) {
+        // the instance should come to the front, and only a process the user just started may allow that
+        AllowSetForegroundWindow(pid);
+        if(write_all(pipe, event, msg.data(), static_cast<DWORD>(msg.size()),
+                     static_cast<DWORD>(remaining_ms(deadline)), nullptr)) {
+            result = Delivery::DELIVERED;
         }
     }
     CloseHandle(event);
@@ -363,6 +365,7 @@ struct Listener {
    private:
     void serve(const Sync::stop_token &stop) {
         McThread::set_current_thread_name("instance_ipc");
+        McThread::set_current_thread_prio(McThread::Priority::LOW);
         Sync::stop_callback wake_cb(stop, [this] {
             const char b = 0;
             (void)!write(this->wake[1], &b, 1);
@@ -389,10 +392,6 @@ struct Listener {
             fcntl(client, F_SETFD, FD_CLOEXEC);
             // macos hands out accepted sockets non-blocking like the listening one
             fcntl(client, F_SETFL, fcntl(client, F_GETFL) & ~O_NONBLOCK);
-#ifdef SO_NOSIGPIPE
-            const int one = 1;
-            setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof(one));
-#endif
             set_timeouts(client, RECEIVE_TIMEOUT_MS);
 
             u32 size = 0;
@@ -400,8 +399,6 @@ struct Listener {
                 payload.resize(size);
                 if(recv_exact(client, payload.data(), size)) {
                     receive(payload);
-                    const char ack = 1;
-                    send_all(client, &ack, 1);
                 }
             }
             close(client);
@@ -487,9 +484,6 @@ Delivery deliver(const Endpoint &ep, std::span<const char> msg, u64 deadline) {
         }
     } else if(send_all(sock, msg.data(), msg.size())) {
         result = Delivery::DELIVERED;
-        if(char ack = 0; !recv_exact(sock, &ack, 1)) {
-            debugLog("the running instance didn't confirm the launch");
-        }
     }
     close(sock);
     return result;
@@ -537,7 +531,8 @@ Claim claim(std::string_view name, std::span<const std::string> args, bool forwa
 }
 
 std::vector<std::vector<std::string>> take_forwarded() noexcept {
-    Sync::scoped_lock lock{s_forwarded_mutex};
+    Sync::unique_lock lock{s_forwarded_mutex, Sync::try_to_lock};
+    if(!lock.owns_lock()) return {};
     return std::exchange(s_forwarded, {});
 }
 
