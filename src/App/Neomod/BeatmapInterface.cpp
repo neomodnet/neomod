@@ -1610,25 +1610,17 @@ void BeatmapInterface::loadMusic(bool reload, bool async) {
         this->music = resourceManager->getSound("BEATMAP_MUSIC");
     }
 
-    const std::string oldPath =
-        this->music ? this->music->getFilePath() : "";  // NOTE: possibly racy if currently being async (re)loaded
     const std::string &newPath = beatmapSoundPath;
 
-    const bool pathChanged = newPath != oldPath;
     const bool haveExistingMusic = !!this->music;
     const bool musicAlreadyLoadedSuccessfully = haveExistingMusic && this->music->isReady();
 
-    // we can skip if the path didn't change and we already loaded
-    // also skip if we have async music being loaded and we are async
-    const bool skipLoading = !reload &&                          //
-                             !pathChanged &&                     //
-                             (musicAlreadyLoadedSuccessfully ||  //
-                              (async && haveExistingMusic && resourceManager->isLoadingResource(this->music)));
+    // we can skip if we already loaded this path (a load in flight only shows its path in getFilePath() once done)
+    const bool skipLoading = !reload && musicAlreadyLoadedSuccessfully && newPath == this->music->getFilePath();
 
     logIf(cv::debug_osu.getBool() || cv::debug_snd.getBool(),
-          "reload: {} async: {} path changed: {} existing music: {} existing music loaded successfully: {} skipping: "
-          "{}",
-          reload, async, pathChanged, haveExistingMusic, musicAlreadyLoadedSuccessfully, skipLoading);
+          "reload: {} async: {} existing music: {} existing music loaded successfully: {} skipping: {}", reload, async,
+          haveExistingMusic, musicAlreadyLoadedSuccessfully, skipLoading);
 
     // the music is handed over to the selected map by checkHandleAsyncMusicLoadFinish(), even if the file doesn't need
     // loading: the map can still be missing its loudness (e.g. the db's copy of a preloaded main menu map)
