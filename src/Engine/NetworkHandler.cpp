@@ -24,11 +24,6 @@
 #include <atomic>
 #include <optional>
 
-#if defined(MCENGINE_PLATFORM_LINUX) || defined(MCENGINE_PLATFORM_MACOS)
-#include <sys/socket.h>
-#include <unistd.h>
-#endif
-
 namespace Mc::Net {
 
 std::string urlEncode(std::string_view unencodedString) noexcept {
@@ -228,13 +223,6 @@ struct NetworkImpl {
         }
 
         curl_global_cleanup();
-
-#if defined(MCENGINE_PLATFORM_LINUX) || defined(MCENGINE_PLATFORM_MACOS)
-        // close IPC socket so restart works (this instance is gone)
-        if(int sock = this->ipc_socket_fd.load(std::memory_order_acquire); sock != -1) {
-            close(sock);
-        }
-#endif
     }
 
     // public interface methods (passthroughs)
@@ -267,15 +255,6 @@ struct NetworkImpl {
     CURLM* multi_handle{nullptr};
     Sync::jthread network_thread;
 
-    // IPC socket for instance detection (Linux/macOS)
-    std::atomic<int> ipc_socket_fd{-1};
-    IPCCallback ipc_callback;
-    Sync::mutex ipc_mutex;
-    std::vector<std::vector<std::string>> pending_ipc_messages;
-
-    void setIPCSocket(int fd, IPCCallback callback);
-    void handleIPCConnection(int ipc_fd);
-
     void processNewRequests();
     void processCancelledRequests();
     void processCompletedRequests();
@@ -296,10 +275,6 @@ void NetworkImpl::threadLoopFunc(const Sync::stop_token& stopToken) {
 
     Sync::stop_callback stop_cb(stopToken, [this] { curl_multi_wakeup(this->multi_handle); });
 
-#if defined(MCENGINE_PLATFORM_LINUX) || defined(MCENGINE_PLATFORM_MACOS)
-    int ipc_socket_local = -1;
-#endif
-
     while(!stopToken.stop_requested()) {
         processNewRequests();
         processCancelledRequests();
@@ -316,25 +291,10 @@ void NetworkImpl::threadLoopFunc(const Sync::stop_token& stopToken) {
             processCompletedRequests();
         }
 
-        // wait for activity on curl handles (including websockets) and IPC socket;
+        // wait for activity on curl handles (including websockets);
         // woken by curl_multi_wakeup() when new requests are submitted
         int numfds = 0;
-#if defined(MCENGINE_PLATFORM_LINUX) || defined(MCENGINE_PLATFORM_MACOS)
-        curl_waitfd ipc_fd{};
-        if(ipc_socket_local == -1) {
-            ipc_socket_local = this->ipc_socket_fd.load(std::memory_order_acquire);
-        }
-        if(ipc_socket_local >= 0) {
-            ipc_fd = {.fd = (curl_socket_t)ipc_socket_local, .events = CURL_WAIT_POLLIN, .revents = {}};
-        }
-        const int nfds = (ipc_socket_local >= 0);
-        curl_multi_poll(this->multi_handle, nfds ? &ipc_fd : nullptr, nfds, 60000, &numfds);
-        if(nfds && (ipc_fd.revents & CURL_WAIT_POLLIN)) {
-            handleIPCConnection(ipc_socket_local);
-        }
-#else
         curl_multi_poll(this->multi_handle, nullptr, 0, 60000, &numfds);
-#endif
     }
 }
 
@@ -731,19 +691,6 @@ size_t NetworkImpl::headerCallback(char* buffer, size_t size, size_t nitems, voi
 
 // Callbacks will all be run on the main thread, in engine->update()
 void NetworkImpl::update() {
-    // process IPC messages
-    if(this->ipc_callback) {
-        std::vector<std::vector<std::string>> messages;
-        {
-            Sync::scoped_lock lock{this->ipc_mutex};
-            messages = std::move(this->pending_ipc_messages);
-            this->pending_ipc_messages.clear();
-        }
-        for(auto& args : messages) {
-            this->ipc_callback(std::move(args));
-        }
-    }
-
     // process completed HTTP requests
     {
         std::vector<CompletedRequest> responses_to_handle;
@@ -835,56 +782,6 @@ Response NetworkImpl::httpRequestSynchronous(std::string_view url, RequestOption
     return std::move(*waiter.response);
 }
 
-void NetworkImpl::setIPCSocket(int fd, IPCCallback callback) {
-    this->ipc_socket_fd.store(fd, std::memory_order_release);
-    this->ipc_callback = std::move(callback);
-    curl_multi_wakeup(this->multi_handle);
-}
-
-void NetworkImpl::handleIPCConnection([[maybe_unused]] int ipc_fd) {
-#if defined(MCENGINE_PLATFORM_LINUX) || defined(MCENGINE_PLATFORM_MACOS)
-    int client_fd = accept(ipc_fd, nullptr, nullptr);
-    if(client_fd < 0) return;
-
-    // read the data: format is [total_size:4 bytes][null-separated strings]
-    u32 total_size = 0;
-    ssize_t n = recv(client_fd, &total_size, sizeof(total_size), MSG_WAITALL);
-    if(n != sizeof(total_size) || total_size == 0 || total_size > 4096) {
-        close(client_fd);
-        return;
-    }
-
-    std::vector<char> buffer(total_size);
-    n = recv(client_fd, buffer.data(), total_size, MSG_WAITALL);
-    if(n != static_cast<ssize_t>(total_size)) {
-        close(client_fd);
-        return;
-    }
-
-    // send acknowledgment
-    char ack = 1;
-    send(client_fd, &ack, 1, 0);
-    close(client_fd);
-
-    // parse null-separated strings
-    std::vector<std::string> args;
-    const char* start = buffer.data();
-    const char* end = buffer.data() + buffer.size();
-    while(start < end) {
-        size_t len = strnlen(start, end - start);
-        if(len > 0) {
-            args.emplace_back(start, len);
-        }
-        start += len + 1;
-    }
-
-    if(!args.empty()) {
-        Sync::scoped_lock lock{this->ipc_mutex};
-        this->pending_ipc_messages.push_back(std::move(args));
-    }
-#endif
-}
-
 // passthrough to implementation ctor/dtor
 NetworkHandler::NetworkHandler() : pImpl() {}
 NetworkHandler::~NetworkHandler() = default;
@@ -900,8 +797,6 @@ void NetworkHandler::httpRequestAsync(std::string_view url, RequestOptions optio
 std::shared_ptr<WSInstance> NetworkHandler::initWebsocket(std::string_view url, const WSOptions& options) {
     return pImpl->initWebsocket(url, options);
 }
-
-void NetworkHandler::setIPCSocket(int fd, IPCCallback callback) { return pImpl->setIPCSocket(fd, std::move(callback)); }
 
 void NetworkHandler::update() { return pImpl->update(); }
 

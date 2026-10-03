@@ -133,7 +133,6 @@ struct Response {
 };
 
 using AsyncCallback = std::function<void(Response response)>;
-using IPCCallback = std::function<void(std::vector<std::string>)>;
 
 // NOTE: do not prepend url with https:// or http:// (or wss:// ws:// for initWebsocket), this will be auto-prepended depending on the use_https ConVar
 class NetworkHandler {
@@ -153,9 +152,6 @@ class NetworkHandler {
     // (should be able to just choose the implementation based off of http(s):// or ws(s):// protocol prefix)
     std::shared_ptr<WSInstance> initWebsocket(std::string_view url, const WSOptions& options);
 
-    // IPC socket for instance detection (Linux)
-    void setIPCSocket(int fd, IPCCallback callback);
-
    private:
     // callback update tick
     friend class ::Engine;
@@ -173,4 +169,4 @@ class NetworkHandler {
 }  // namespace Mc::Net
 
 using Mc::Net::NetworkHandler;
-extern NetworkHandler *networkHandler;
+extern NetworkHandler* networkHandler;

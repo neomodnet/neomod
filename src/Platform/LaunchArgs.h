@@ -39,6 +39,10 @@ using ArgMap = std::unordered_map<std::string, std::optional<std::string>>;
 // relaunching in the same configuration (restart, "open with") passes exactly these
 [[nodiscard]] std::span<const std::string> get_switches() noexcept;
 
+// the operands: the files or urls this launch was asked to open, i.e. every argument after the program name that is
+// neither a switch nor a switch's value
+[[nodiscard]] std::span<const std::string> get_operands() noexcept;
+
 #ifdef MCENGINE_PLATFORM_WINDOWS
 // get_switches() as a piece of a windows command line: each argument cut out of this process's own command line exactly
 // as it was written there, rather than quoted again. nullopt if that can't be done so that CommandLineToArgvW (which

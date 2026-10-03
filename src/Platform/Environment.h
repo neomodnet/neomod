@@ -19,6 +19,7 @@
 #include <functional>
 #include <array>
 #include <span>
+#include <string>
 
 typedef uint32_t SDL_WindowID;
 typedef struct SDL_Window SDL_Window;
@@ -31,9 +32,6 @@ class Engine;
 namespace Mc {
 struct AppDescriptor;
 void initEnvBlock();
-namespace LaunchArgs {
-extern std::span<const std::string> get_array() noexcept;
-}
 }  // namespace Mc
 
 class Environment;
@@ -80,16 +78,10 @@ class Environment {
     struct Interop {
         NOCOPY_NOMOVE(Interop)
        public:
-        Interop() = delete;
-        Interop(Environment *env_ptr) : env_p(env_ptr) {}
-        virtual ~Interop() { env_p = nullptr; }
-        // handle initial program startup args
-        bool handle_cmdline_args() { return handle_cmdline_args(Mc::LaunchArgs::get_array()); }
+        Interop() = default;
+        virtual ~Interop() = default;
 
-        virtual bool handle_cmdline_args(std::span<const std::string> /*args*/) { return true; }
         virtual void setup_system_integrations() {}
-
-        Environment *env_p;
     };
 
    protected:
@@ -138,6 +130,10 @@ class Environment {
     [[nodiscard]] inline bool isRestartScheduled() const { return m_bIsRestartScheduled; }
     [[nodiscard]] inline bool isHeadless() const { return m_bHeadless; }
     [[nodiscard]] inline Interop &getEnvInterop() { return *m_interop; }
+
+    // files and urls this process was asked to open, oldest first: its own launch's operands, those of launches
+    // handed over by later ones (see SingleInstance.h) and drag-and-drop. the app takes them once it can handle them
+    [[nodiscard]] std::vector<std::string> takeOpenRequests();
 
     // i.e. getenv()
     // isUnset is an out variable, if the variable was unset it will be set to true
@@ -317,6 +313,8 @@ class Environment {
 
     bool m_bRestoreFullscreen;
     bool m_bMinimizeSupported;
+
+    std::vector<std::string> m_vOpenRequests;
 
     // cache
     mutable std::string m_sUsername;

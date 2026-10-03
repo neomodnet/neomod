@@ -370,7 +370,8 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	src/Platform/Environment.cpp \
 	src/Platform/GPUDriverConfigurator.cpp \
 	src/Platform/LaunchArgs.cpp src/Platform/Paths.cpp \
-	src/Platform/RuntimePlatform.cpp src/Platform/main.cpp \
+	src/Platform/RuntimePlatform.cpp \
+	src/Platform/SingleInstance.cpp src/Platform/main.cpp \
 	src/Platform/main_impl.cpp src/Util/ACFParser.cpp \
 	src/Util/MD5Hash.cpp src/Util/Matrices.cpp \
 	src/Util/Parsing.cpp src/Util/Quaternion.cpp src/Util/Rect.cpp \
@@ -657,6 +658,7 @@ am_neomod_OBJECTS = libraries/neomod-MD5.$(OBJEXT) \
 	src/Platform/neomod-LaunchArgs.$(OBJEXT) \
 	src/Platform/neomod-Paths.$(OBJEXT) \
 	src/Platform/neomod-RuntimePlatform.$(OBJEXT) \
+	src/Platform/neomod-SingleInstance.$(OBJEXT) \
 	src/Platform/neomod-main.$(OBJEXT) \
 	src/Platform/neomod-main_impl.$(OBJEXT) \
 	src/Util/neomod-ACFParser.$(OBJEXT) \
@@ -930,6 +932,7 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/Platform/$(DEPDIR)/neomod-LaunchArgs.Po \
 	src/Platform/$(DEPDIR)/neomod-Paths.Po \
 	src/Platform/$(DEPDIR)/neomod-RuntimePlatform.Po \
+	src/Platform/$(DEPDIR)/neomod-SingleInstance.Po \
 	src/Platform/$(DEPDIR)/neomod-main.Po \
 	src/Platform/$(DEPDIR)/neomod-main_impl.Po \
 	src/Platform/Windows/$(DEPDIR)/neomod-CrashHandler.Po \
@@ -1598,7 +1601,8 @@ neomod_SOURCES = libraries/MD5.cpp libraries/demoji.c \
 	src/Platform/Environment.cpp \
 	src/Platform/GPUDriverConfigurator.cpp \
 	src/Platform/LaunchArgs.cpp src/Platform/Paths.cpp \
-	src/Platform/RuntimePlatform.cpp src/Platform/main.cpp \
+	src/Platform/RuntimePlatform.cpp \
+	src/Platform/SingleInstance.cpp src/Platform/main.cpp \
 	src/Platform/main_impl.cpp src/Util/ACFParser.cpp \
 	src/Util/MD5Hash.cpp src/Util/Matrices.cpp \
 	src/Util/Parsing.cpp src/Util/Quaternion.cpp src/Util/Rect.cpp \
@@ -2825,6 +2829,9 @@ src/Platform/neomod-Paths.$(OBJEXT): src/Platform/$(am__dirstamp) \
 src/Platform/neomod-RuntimePlatform.$(OBJEXT):  \
 	src/Platform/$(am__dirstamp) \
 	src/Platform/$(DEPDIR)/$(am__dirstamp)
+src/Platform/neomod-SingleInstance.$(OBJEXT):  \
+	src/Platform/$(am__dirstamp) \
+	src/Platform/$(DEPDIR)/$(am__dirstamp)
 src/Platform/neomod-main.$(OBJEXT): src/Platform/$(am__dirstamp) \
 	src/Platform/$(DEPDIR)/$(am__dirstamp)
 src/Platform/neomod-main_impl.$(OBJEXT): src/Platform/$(am__dirstamp) \
@@ -3386,6 +3393,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/Platform/$(DEPDIR)/neomod-LaunchArgs.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/Platform/$(DEPDIR)/neomod-Paths.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/Platform/$(DEPDIR)/neomod-RuntimePlatform.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/Platform/$(DEPDIR)/neomod-SingleInstance.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/Platform/$(DEPDIR)/neomod-main.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/Platform/$(DEPDIR)/neomod-main_impl.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/Platform/Windows/$(DEPDIR)/neomod-CrashHandler.Po@am__quote@ # am--include-marker
@@ -6114,6 +6122,20 @@ src/Platform/neomod-RuntimePlatform.obj: src/Platform/RuntimePlatform.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/Platform/neomod-RuntimePlatform.obj `if test -f 'src/Platform/RuntimePlatform.cpp'; then $(CYGPATH_W) 'src/Platform/RuntimePlatform.cpp'; else $(CYGPATH_W) '$(srcdir)/src/Platform/RuntimePlatform.cpp'; fi`
 
+src/Platform/neomod-SingleInstance.o: src/Platform/SingleInstance.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/Platform/neomod-SingleInstance.o -MD -MP -MF src/Platform/$(DEPDIR)/neomod-SingleInstance.Tpo -c -o src/Platform/neomod-SingleInstance.o `test -f 'src/Platform/SingleInstance.cpp' || echo '$(srcdir)/'`src/Platform/SingleInstance.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/Platform/$(DEPDIR)/neomod-SingleInstance.Tpo src/Platform/$(DEPDIR)/neomod-SingleInstance.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/Platform/SingleInstance.cpp' object='src/Platform/neomod-SingleInstance.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/Platform/neomod-SingleInstance.o `test -f 'src/Platform/SingleInstance.cpp' || echo '$(srcdir)/'`src/Platform/SingleInstance.cpp
+
+src/Platform/neomod-SingleInstance.obj: src/Platform/SingleInstance.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/Platform/neomod-SingleInstance.obj -MD -MP -MF src/Platform/$(DEPDIR)/neomod-SingleInstance.Tpo -c -o src/Platform/neomod-SingleInstance.obj `if test -f 'src/Platform/SingleInstance.cpp'; then $(CYGPATH_W) 'src/Platform/SingleInstance.cpp'; else $(CYGPATH_W) '$(srcdir)/src/Platform/SingleInstance.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/Platform/$(DEPDIR)/neomod-SingleInstance.Tpo src/Platform/$(DEPDIR)/neomod-SingleInstance.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/Platform/SingleInstance.cpp' object='src/Platform/neomod-SingleInstance.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/Platform/neomod-SingleInstance.obj `if test -f 'src/Platform/SingleInstance.cpp'; then $(CYGPATH_W) 'src/Platform/SingleInstance.cpp'; else $(CYGPATH_W) '$(srcdir)/src/Platform/SingleInstance.cpp'; fi`
+
 src/Platform/neomod-main.o: src/Platform/main.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/Platform/neomod-main.o -MD -MP -MF src/Platform/$(DEPDIR)/neomod-main.Tpo -c -o src/Platform/neomod-main.o `test -f 'src/Platform/main.cpp' || echo '$(srcdir)/'`src/Platform/main.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/Platform/$(DEPDIR)/neomod-main.Tpo src/Platform/$(DEPDIR)/neomod-main.Po
@@ -7576,6 +7598,7 @@ distclean: distclean-am
 	-rm -f src/Platform/$(DEPDIR)/neomod-LaunchArgs.Po
 	-rm -f src/Platform/$(DEPDIR)/neomod-Paths.Po
 	-rm -f src/Platform/$(DEPDIR)/neomod-RuntimePlatform.Po
+	-rm -f src/Platform/$(DEPDIR)/neomod-SingleInstance.Po
 	-rm -f src/Platform/$(DEPDIR)/neomod-main.Po
 	-rm -f src/Platform/$(DEPDIR)/neomod-main_impl.Po
 	-rm -f src/Platform/Windows/$(DEPDIR)/neomod-CrashHandler.Po
@@ -7873,6 +7896,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/Platform/$(DEPDIR)/neomod-LaunchArgs.Po
 	-rm -f src/Platform/$(DEPDIR)/neomod-Paths.Po
 	-rm -f src/Platform/$(DEPDIR)/neomod-RuntimePlatform.Po
+	-rm -f src/Platform/$(DEPDIR)/neomod-SingleInstance.Po
 	-rm -f src/Platform/$(DEPDIR)/neomod-main.Po
 	-rm -f src/Platform/$(DEPDIR)/neomod-main_impl.Po
 	-rm -f src/Platform/Windows/$(DEPDIR)/neomod-CrashHandler.Po

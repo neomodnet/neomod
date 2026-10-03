@@ -400,9 +400,6 @@ void Osu::doDeferredInitTasks() {
         }
     }
 
-    // now handle commandline arguments after we have loaded everything
-    env->getEnvInterop().handle_cmdline_args();
-
     // extract osks & watch for osks to extract
     {
         const auto osks = env->getFilesInFolder(Mc::Paths::skins() + "/");
@@ -554,6 +551,10 @@ void Osu::update() {
         this->doDeferredInitTasks();
     }
 
+    if(const auto requests = env->takeOpenRequests(); !requests.empty()) {
+        neomod::handle_open_requests(requests);
+    }
+
     // reconcile focus
     if(unlikely(this->focusChangePending != -1)) {
         const bool focused = this->focusChangePending > 0;
@@ -573,7 +574,7 @@ void Osu::update() {
         // a score opened from the command line (e.g. the website's score-preview link) can't show its
         // ranking screen until its beatmap is in the db: the map may still be installing from a .osz
         // passed alongside it, or the db may still be (re)loading, both of which finish asynchronously
-        // after handle_cmdline_args returns. poll until the map lands, or until nothing is left that
+        // after handle_open_requests returns. poll until the map lands, or until nothing is left that
         // could produce it (db settled and the installer idle).
         if(this->pendingScoreOpen && db->isFinished() && !db->isCancelled()) {
             if(BeatmapDifficulty *map = db->getBeatmapDifficulty(this->pendingScoreOpen->beatmap_hash)) {

@@ -17,6 +17,7 @@
 
 #include "UniString.h"
 #include "LaunchArgs.h"
+#include "SingleInstance.h"
 
 #include "AppDescriptor.h"
 
@@ -43,6 +44,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <iterator>
 #include <utility>
 #include <string>
 #include <sstream>
@@ -99,7 +101,7 @@ struct Environment::EnvironmentImpl {
 };
 
 Environment::Environment(const Mc::AppDescriptor &appDesc)
-    : m_interop(appDesc.createInterop ? static_cast<Interop *>(appDesc.createInterop(this)) : new Interop(this)),
+    : m_interop(appDesc.createInterop ? static_cast<Interop *>(appDesc.createInterop(this)) : new Interop()),
       m_impl(),
       m_cursorIcons(/*lazy init*/) {
     env = this;
@@ -117,6 +119,9 @@ Environment::Environment(const Mc::AppDescriptor &appDesc)
     m_bRunning = true;
     m_bIsRestartScheduled = false;
     m_bHeadless = has_arg(REND_HEADLESS).has_value();
+
+    const auto operands = Mc::LaunchArgs::get_operands();
+    m_vOpenRequests.assign(operands.begin(), operands.end());
 
     m_fDisplayHz = 360.0f;
     m_fDisplayHzSecs = 1.0f / m_fDisplayHz;
@@ -247,11 +252,22 @@ Environment::~Environment() {
     env = nullptr;
 }
 
-// well this doesn't do much atm... called at the end of engine->onUpdate
+// called at the end of engine->onUpdate
 void Environment::update() {
     // should be handled by the event loop
     // m_bIsCursorInsideWindow = winFocused() && m_engine->getScreenRect().contains(getMousePos());
+
+    // another launch of this program wants us instead, maybe just to come to the front
+    if(auto forwarded = Mc::SingleInstance::take_forwarded(); !forwarded.empty()) {
+        for(auto &launch : forwarded) {
+            m_vOpenRequests.insert(m_vOpenRequests.end(), std::make_move_iterator(launch.begin()),
+                                   std::make_move_iterator(launch.end()));
+        }
+        restoreWindow();
+    }
 }
+
+std::vector<std::string> Environment::takeOpenRequests() { return std::exchange(m_vOpenRequests, {}); }
 
 Graphics *Environment::createRenderer() {
 #if defined(MCENGINE_PLATFORM_WASM)

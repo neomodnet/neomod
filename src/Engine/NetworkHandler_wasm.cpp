@@ -611,9 +611,6 @@ std::shared_ptr<WSInstance> NetworkHandler::initWebsocket(std::string_view url, 
     return pImpl->initWebsocket(url, options);
 }
 
-// no-op
-void NetworkHandler::setIPCSocket(int /*fd*/, IPCCallback /*callback*/) {}
-
 void NetworkHandler::update() { pImpl->update(); }
 
 }  // namespace Mc::Net

@@ -25,6 +25,7 @@ ArgMap s_map;
 std::vector<std::string> s_array;
 std::vector<std::string> s_switches;
 std::vector<size_t> s_switch_indices;  // where s_switches are in s_array
+std::vector<std::string> s_operands;
 const char *const *s_original_argv{nullptr};
 
 // what a switch takes as its value from the argument after it
@@ -131,6 +132,7 @@ void init(int argc, char *argv[]) noexcept {
             }
         } else {
             s_map[arg] = std::nullopt;
+            s_operands.push_back(std::move(arg));
         }
     }
 
@@ -143,6 +145,8 @@ const ArgMap &get_map() noexcept { return s_map; }
 std::span<const std::string> get_array() noexcept { return {s_array.data(), s_array.size()}; }
 
 std::span<const std::string> get_switches() noexcept { return s_switches; }
+
+std::span<const std::string> get_operands() noexcept { return s_operands; }
 
 #ifdef MCENGINE_PLATFORM_WINDOWS
 std::optional<std::string> get_switches_cmdline() noexcept {

@@ -14,8 +14,8 @@ struct AppDescriptor {
     App *(*create)(){nullptr};
     // null = use base Environment::Interop (no-op)
     void *(*createInterop)(void *env){nullptr};
-    // null = skip existing-window check
-    void (*handleExistingWindow)(int argc, char *argv[]){nullptr};
+    // only one instance runs per user session, later launches hand it their arguments (see SingleInstance.h)
+    bool singleInstance{false};
 };
 
 // implemented in AppRegistry.cpp

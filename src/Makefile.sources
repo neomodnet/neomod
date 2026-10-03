@@ -297,6 +297,7 @@ neomod_SOURCES = \
 	src/Platform/LaunchArgs.cpp \
 	src/Platform/Paths.cpp \
 	src/Platform/RuntimePlatform.cpp \
+	src/Platform/SingleInstance.cpp \
 	src/Platform/main.cpp \
 	src/Platform/main_impl.cpp \
 	src/Util/ACFParser.cpp \

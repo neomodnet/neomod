@@ -26,6 +26,7 @@
 #include "File.h"
 #include "LaunchArgs.h"
 #include "Paths.h"
+#include "SingleInstance.h"
 
 #include "environment_private.h"
 #include "AppDescriptor.h"
@@ -93,6 +94,9 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
 
     // flush IDBFS to IndexedDB after config/scores have been saved (only does anything on WASM)
     File::flushToDisk();
+
+    // launches from now on start a new instance instead of being handed to this one
+    Mc::SingleInstance::release();
 
 #ifdef MCENGINE_PLATFORM_WASM
     if(restart) {
@@ -192,14 +196,15 @@ MAIN_FUNC /* int argc, char *argv[] */
 
     assert(appDesc);
 
-    // for the neomod (default) implementation, this checks if an existing instance is running, and if it is,
-    // sends it a message (with the current argc+argv) and quits the current instance (so we might never proceed further in this process)
-    if(appDesc->handleExistingWindow) {
-        appDesc->handleExistingWindow(argc, argv);
-    }
-
     // explicitly initialize environment block before SDL tries to
     Mc::initEnvBlock();
+
+    // if an instance of this app is already running, hand it our arguments and quit (-multi starts another one)
+    if(appDesc->singleInstance &&
+       Mc::SingleInstance::claim(appDesc->name, Mc::LaunchArgs::get_operands(), !has_arg(MODE_MULTI)) ==
+           Mc::SingleInstance::Claim::FORWARDED) {
+        std::exit(0);
+    }
 
 #ifdef MCENGINE_PLATFORM_WINDOWS
     CrashHandler::init();
@@ -229,7 +234,6 @@ MAIN_FUNC /* int argc, char *argv[] */
         constexpr int CS_BYTEALIGNCLIENT_ = 0x1000;
         constexpr int CS_BYTEALIGNWINDOW_ = 0x2000;
 
-        // required for handle_existing_window to find this running instance
         SDL_RegisterApp(PACKAGE_NAME, CS_BYTEALIGNCLIENT_ | CS_BYTEALIGNWINDOW_, nullptr);
     }
 #endif

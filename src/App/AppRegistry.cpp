@@ -24,7 +24,7 @@
 namespace Mc {
 
 static constexpr std::array sDescriptors{
-    AppDescriptor{PACKAGE_NAME, [] -> App * { return new Osu(); }, neomod::createInterop, neomod::handleExistingWindow},
+    AppDescriptor{PACKAGE_NAME, [] -> App * { return new Osu(); }, neomod::createInterop, true},
     AppDescriptor{"BaseFrameworkTest", [] -> App * { return new Mc::Tests::BaseFrameworkTest(); }},
     AppDescriptor{"AudioTester", [] -> App * { return new Mc::Tests::AudioTester(); }},
     AppDescriptor{"HitSoundTest", [] -> App * { return new Mc::Tests::HitSoundTest(); }},
@@ -43,7 +43,7 @@ static constexpr std::array sDescriptors{
 namespace Mc {
 
 static constexpr std::array sDescriptors{
-    AppDescriptor{PACKAGE_NAME, [] -> App * { return new Osu(); }, neomod::createInterop, neomod::handleExistingWindow},
+    AppDescriptor{PACKAGE_NAME, [] -> App * { return new Osu(); }, neomod::createInterop, true},
 };
 
 #endif  // MCENGINE_TESTS

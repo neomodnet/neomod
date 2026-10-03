@@ -30,9 +30,11 @@
 #include "Touch.h"
 #include "LaunchArgs.h"
 #include "Paths.h"
+#include "SingleInstance.h"
 
 #include <algorithm>
 #include <array>
+#include <iterator>
 #include <vector>
 
 #ifdef MCENGINE_PLATFORM_WASM
@@ -476,7 +478,8 @@ SDL_AppResult SDLMain::handleEvent(SDL_Event *event) {
                     m_vDroppedData.clear();
                 } break;
                 case SDL_EVENT_DROP_COMPLETE: {
-                    m_interop->handle_cmdline_args(m_vDroppedData);
+                    m_vOpenRequests.insert(m_vOpenRequests.end(), std::make_move_iterator(m_vDroppedData.begin()),
+                                           std::make_move_iterator(m_vDroppedData.end()));
                     m_vDroppedData.clear();
                 } break;
                 case SDL_EVENT_DROP_TEXT:
@@ -1229,14 +1232,14 @@ void SDLMain::shutdown(SDL_AppResult result) {
 }
 
 #if defined(MCENGINE_PLATFORM_WINDOWS)
-#if !defined(SDL_main_h_)
-extern "C" SDL_DECLSPEC void SDLCALL SDL_UnregisterApp(void);
-#endif
 // avoid including windows.h here for 1 function
 extern "C" __declspec(dllimport) char *__stdcall GetCommandLineA(void);
 #endif
 
 void SDLMain::restart() {
+    // the next instance would hand its arguments to this one otherwise
+    Mc::SingleInstance::release();
+
     // the same switches again, but not the operands (files/urls to open), which this run already handled
     const auto switches = Mc::LaunchArgs::get_switches();
     std::vector<const char *> restartArgsChar(switches.size() + 2);
@@ -1307,8 +1310,6 @@ void SDLMain::restart() {
     if(!wincmdline.empty()) {
         SDL_SetStringProperty(restartprops, SDL_PROP_PROCESS_CREATE_CMDLINE_STRING, wincmdline.c_str());
     }
-    // so that handle_existing_window doesn't find the currently running instance by the class name
-    SDL_UnregisterApp();
 #endif
 
     if(!SDL_CreateProcessWithProperties(restartprops)) {
