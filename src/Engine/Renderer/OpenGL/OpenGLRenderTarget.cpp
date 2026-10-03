@@ -218,7 +218,7 @@ void OpenGLRenderTarget::destroy() {
     this->iResolveFrameBuffer = 0;
 }
 
-void OpenGLRenderTarget::enable() {
+void OpenGLRenderTarget::enable(bool clear) {
     if(!this->isReady()) return;
 
     // use the state cache instead of querying OpenGL directly
@@ -237,17 +237,11 @@ void OpenGLRenderTarget::enable() {
     // update cache
     GLStateCache::setViewport(newViewport);
 
+    if(!clear) return;
+
     if(iHaveGLInvalidateFramebuffer) {
-        if(this->bClearColorOnDraw && this->bClearDepthOnDraw) {
-            constexpr GLenum attachments[] = {GL_COLOR_ATTACHMENT0, GL_DEPTH_ATTACHMENT};
-            glInvalidateFramebuffer(GL_FRAMEBUFFER, 2, attachments);
-        } else if(this->bClearColorOnDraw) {
-            constexpr GLenum attachment = GL_COLOR_ATTACHMENT0;
-            glInvalidateFramebuffer(GL_FRAMEBUFFER, 1, &attachment);
-        } else if(this->bClearDepthOnDraw) {
-            constexpr GLenum attachment = GL_DEPTH_ATTACHMENT;
-            glInvalidateFramebuffer(GL_FRAMEBUFFER, 1, &attachment);
-        }
+        constexpr GLenum attachments[] = {GL_COLOR_ATTACHMENT0, GL_DEPTH_ATTACHMENT};
+        glInvalidateFramebuffer(GL_FRAMEBUFFER, 2, attachments);
     }
 
     // clear
@@ -256,9 +250,7 @@ void OpenGLRenderTarget::enable() {
     else
         glClearColor(this->clearColor.Rf(), this->clearColor.Gf(), this->clearColor.Bf(), this->clearColor.Af());
 
-    if(this->bClearColorOnDraw || this->bClearDepthOnDraw)
-        glClear((this->bClearColorOnDraw ? GL_COLOR_BUFFER_BIT : 0) |
-                (this->bClearDepthOnDraw ? GL_DEPTH_BUFFER_BIT : 0));
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void OpenGLRenderTarget::disable() {

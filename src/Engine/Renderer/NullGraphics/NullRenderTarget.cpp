@@ -4,7 +4,7 @@
 NullRenderTarget::NullRenderTarget(int x, int y, int width, int height, MultisampleType multiSampleType)
     : RenderTarget(x, y, width, height, multiSampleType) {}
 
-void NullRenderTarget::enable() {}
+void NullRenderTarget::enable(bool /*clear*/) {}
 void NullRenderTarget::disable() {}
 void NullRenderTarget::bind(unsigned int /*textureUnit*/) {}
 void NullRenderTarget::unbind() {}

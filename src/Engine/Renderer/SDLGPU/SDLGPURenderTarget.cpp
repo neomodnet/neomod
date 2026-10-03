@@ -142,7 +142,7 @@ void SDLGPURenderTarget::destroy() {
     m_gpu->releaseTexture(m_colorTexture);
 }
 
-void SDLGPURenderTarget::enable() {
+void SDLGPURenderTarget::enable(bool clear) {
     if(unlikely(!m_gpu || !m_device || !this->isReady())) return;
 
     Color clearCol = this->clearColor;
@@ -154,7 +154,7 @@ void SDLGPURenderTarget::enable() {
     SDL_GPUTexture *resolveTex = m_msaaTexture ? m_colorTexture : nullptr;
 
     // NOTE: we currently always implicitly use SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM for the format
-    m_gpu->pushRenderTarget(renderTex, m_depthTexture, this->bClearColorOnDraw, clearCol, resolveTex, m_sampleCount);
+    m_gpu->pushRenderTarget(renderTex, m_depthTexture, clear, clearCol, resolveTex, m_sampleCount);
 }
 
 void SDLGPURenderTarget::disable() {

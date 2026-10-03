@@ -2305,10 +2305,7 @@ void BeatmapInterface::drawHitObjects() {
         if(shouldRenderChunk) {
             this->bInMafhamRenderChunk = true;
 
-            this->mafhamActiveRenderTarget->setClearColorOnDraw(this->iMafhamHitObjectRenderIndex == 0);
-            this->mafhamActiveRenderTarget->setClearDepthOnDraw(this->iMafhamHitObjectRenderIndex == 0);
-
-            this->mafhamActiveRenderTarget->enable();
+            this->mafhamActiveRenderTarget->enable(/*clear=*/this->iMafhamHitObjectRenderIndex == 0);
             {
                 g->setBlendMode(DrawBlendMode::PREMUL_ALPHA);
                 {

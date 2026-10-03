@@ -7,7 +7,7 @@ class NullRenderTarget : public RenderTarget {
    public:
     NullRenderTarget(int x, int y, int width, int height, MultisampleType multiSampleType = MultisampleType{0});
 
-    void enable() override;
+    void enable(bool clear) override;
     void disable() override;
     void bind(unsigned int textureUnit = 0) override;
     void unbind() override;

@@ -471,9 +471,7 @@ void draw(const DrawLegacyParams &p) {
 }
 
 void draw(const DrawVAOParams &p) {
-    if((cv::slider_alpha_multiplier.getFloat() <= 0.0f && p.doDrawSliderFrameBufferToScreen) ||
-       (p.alpha <= 0.0f && p.doDrawSliderFrameBufferToScreen) || p.vao == nullptr)
-        return;
+    if(cv::slider_alpha_multiplier.getFloat() <= 0.0f || p.alpha <= 0.0f || p.vao == nullptr) return;
 
     checkUpdateVars(p.hitcircleDiameter);
 
@@ -483,28 +481,37 @@ void draw(const DrawVAOParams &p) {
         return;
     }
 
+    // the area the composite reads: the curve's bounds padded by the body radius, or the whole target without them
+    i32 minX = 0, minY = 0, maxX = (i32)p.screenRect.x, maxY = (i32)p.screenRect.y;
+    if(p.bounds != vec4{}) {
+        const f32 pad = p.hitcircleDiameter / 2.0f + 2.0f;  // + pixel fudge
+        minX = (i32)std::floor(std::clamp(p.bounds.x - pad, 0.0f, p.screenRect.x));
+        minY = (i32)std::floor(std::clamp(p.bounds.y - pad, 0.0f, p.screenRect.y));
+        maxX = (i32)std::ceil(std::clamp(p.bounds.z + pad, 0.0f, p.screenRect.x));
+        maxY = (i32)std::ceil(std::clamp(p.bounds.w + pad, 0.0f, p.screenRect.y));
+        if(minX >= maxX || minY >= maxY) return;  // entirely off-screen
+    }
+
     // bake and draw key off the same global mode: the cvar callbacks (see Osu.cpp) rebake every slider VAO
     // when it flips, so a baked mesh never meets the wrong pipeline. the per-frame legacy path (dynamic mods)
     // always renders cone discs and uses s_BLEND_SHADER directly
     const bool sdf = usingSDF();
 
-    // reset
-    s_fBoundingBoxMinX = (std::numeric_limits<f32>::max)();
-    s_fBoundingBoxMaxX = 0.0f;
-    s_fBoundingBoxMinY = (std::numeric_limits<f32>::max)();
-    s_fBoundingBoxMaxY = 0.0f;
-
     // draw entire slider into framebuffer
     if(sdf) {
-        // accumulate the body's distance field: each primitive MAX-blends its radial gradient, so the union
-        // needs no depth buffer at all and self-overlapping geometry (retraced/aspire curves stack thousands
-        // of blocks on the same pixels) costs only trivial blended fills. the expensive gradient shading runs
-        // exactly once per covered pixel in the composite draw below.
-        g->setBlending(true);
-        g->setBlendMode(DrawBlendMode::MAX);
+        p.rt->enable(/*clear=*/false);
         {
-            if(p.doEnableRenderTarget) p.rt->enable();
+            // only the composite area has to start out empty
+            g->setBlending(false);
+            g->setColor(0);
+            g->fillRect(minX, minY, maxX - minX, maxY - minY);
+            g->setBlending(true);
 
+            // accumulate the body's distance field: each primitive MAX-blends its radial gradient, so the union
+            // needs no depth buffer at all and self-overlapping geometry (retraced/aspire curves stack thousands
+            // of blocks on the same pixels) costs only trivial blended fills. the expensive gradient shading runs
+            // exactly once per covered pixel in the composite draw below.
+            g->setBlendMode(DrawBlendMode::MAX);
             s_FIELD_SHADER->enable();
 
             // draw curve mesh
@@ -526,16 +533,15 @@ void draw(const DrawVAOParams &p) {
                                         0, p.alwaysPoints.size());
 
             s_FIELD_SHADER->disable();
-
-            if(p.doDisableRenderTarget) p.rt->disable();
+            g->setBlendMode(DrawBlendMode::ALPHA);
         }
-        g->setBlendMode(DrawBlendMode::ALPHA);
+        p.rt->disable();
     } else {
         // legacy cone discs: the opaque draw under GL_LESS resolves the self-overlap in the depth buffer
         g->setDepthBuffer(true);
         g->setBlending(false);
         {
-            if(p.doEnableRenderTarget) p.rt->enable();
+            p.rt->enable();
 
             const Image *gradient = nullptr;
             const bool useGradientImage = p.skinSettings.i_slider_gradient && cv::slider_use_gradient_image.getBool();
@@ -567,43 +573,23 @@ void draw(const DrawVAOParams &p) {
                 gradient->unbind();
             }
 
-            if(p.doDisableRenderTarget) p.rt->disable();
+            p.rt->disable();
         }
         g->setBlending(true);
         g->setDepthBuffer(false);
     }
 
-    // optional bounds performance optimization to reduce rt blending overdraw
-    if(p.bounds != vec4{}) {
-        const f32 pixelFudge = 2.0f;
-        s_fBoundingBoxMinX = std::max(0.0f, p.bounds.x - p.hitcircleDiameter / 2.0f - pixelFudge);
-        s_fBoundingBoxMaxX = std::min(p.screenRect.x, p.bounds.z + p.hitcircleDiameter / 2.0f + pixelFudge);
-        s_fBoundingBoxMinY = std::max(0.0f, p.bounds.y - p.hitcircleDiameter / 2.0f - pixelFudge);
-        s_fBoundingBoxMaxY = std::min(p.screenRect.y, p.bounds.w + p.hitcircleDiameter / 2.0f + pixelFudge);
+    if(sdf) {
+        // shade the accumulated field while compositing it to the screen: colors are only needed here, and
+        // the slider's fade rides along as a uniform instead of the framebuffer color modulation
+        preDrawColorSetup(s_COMPOSITE_SHADER, p.skinSettings, nullptr, p.sliderTimeForRainbow, p.colorRGBMultiplier,
+                          p.undimmedColor);
+        s_COMPOSITE_SHADER->setUniform1f("alphaMultiplier", p.alpha * cv::slider_alpha_multiplier.getFloat());
+        p.rt->drawRect(minX, minY, maxX - minX, maxY - minY);
+        s_COMPOSITE_SHADER->disable();
     } else {
-        s_fBoundingBoxMinX = 0.0f;
-        s_fBoundingBoxMaxX = p.screenRect.x;
-        s_fBoundingBoxMinY = 0.0f;
-        s_fBoundingBoxMaxY = p.screenRect.y;
-    }
-
-    if(p.doDrawSliderFrameBufferToScreen) {
-        if(sdf) {
-            // shade the accumulated field while compositing it to the screen: colors are only needed here, and
-            // the slider's fade rides along as a uniform instead of the framebuffer color modulation
-            preDrawColorSetup(s_COMPOSITE_SHADER, p.skinSettings, nullptr, p.sliderTimeForRainbow, p.colorRGBMultiplier,
-                              p.undimmedColor);
-            s_COMPOSITE_SHADER->setUniform1f("alphaMultiplier", p.alpha * cv::slider_alpha_multiplier.getFloat());
-            p.rt->drawRect((i32)s_fBoundingBoxMinX, (i32)s_fBoundingBoxMinY,
-                           (i32)(s_fBoundingBoxMaxX - s_fBoundingBoxMinX),
-                           (i32)(s_fBoundingBoxMaxY - s_fBoundingBoxMinY));
-            s_COMPOSITE_SHADER->disable();
-        } else {
-            p.rt->setColor(argb(p.alpha * cv::slider_alpha_multiplier.getFloat(), 1.0f, 1.0f, 1.0f));
-            p.rt->drawRect((i32)s_fBoundingBoxMinX, (i32)s_fBoundingBoxMinY,
-                           (i32)(s_fBoundingBoxMaxX - s_fBoundingBoxMinX),
-                           (i32)(s_fBoundingBoxMaxY - s_fBoundingBoxMinY));
-        }
+        p.rt->setColor(argb(p.alpha * cv::slider_alpha_multiplier.getFloat(), 1.0f, 1.0f, 1.0f));
+        p.rt->drawRect(minX, minY, maxX - minX, maxY - minY);
     }
 }
 

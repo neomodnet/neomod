@@ -52,7 +52,7 @@ struct DrawVAOParams final {
     RenderTarget *rt;
     SkinSettings skinSettings;
     VertexArrayObject *vao;
-    vec4 bounds;
+    vec4 bounds;  // the curve's screen-space AABB (minX, minY, maxX, maxY), {} = the whole target
     std::span<const vec2> alwaysPoints;
     vec2 translation;
     f32 scale;
@@ -63,9 +63,6 @@ struct DrawVAOParams final {
     f32 colorRGBMultiplier = 1.0f;
     f32 alpha = 1.0f;
     i32 sliderTimeForRainbow = 0;
-    bool doEnableRenderTarget = true;
-    bool doDisableRenderTarget = true;
-    bool doDrawSliderFrameBufferToScreen = true;
 };
 
 void draw(const DrawVAOParams &p);

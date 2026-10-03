@@ -33,7 +33,7 @@ class DirectX11RenderTarget final : public RenderTarget {
     DirectX11RenderTarget(int x, int y, int width, int height, MultisampleType multiSampleType = MultisampleType{0});
     ~DirectX11RenderTarget() override { destroy(); }
 
-    void enable() override;
+    void enable(bool clear) override;
     void disable() override;
 
     void bind(unsigned int textureUnit = 0) override;

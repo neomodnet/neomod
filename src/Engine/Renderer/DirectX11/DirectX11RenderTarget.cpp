@@ -154,7 +154,7 @@ void DirectX11RenderTarget::destroy() {
     this->renderTexture = nullptr;
 }
 
-void DirectX11RenderTarget::enable() {
+void DirectX11RenderTarget::enable(bool clear) {
     if(!this->isReady()) return;
 
     auto* context = static_cast<DirectX11Interface*>(g)->getDeviceContext();
@@ -167,17 +167,17 @@ void DirectX11RenderTarget::enable() {
 
     context->OMSetRenderTargets(1, &this->renderTargetView, this->depthStencilView);
 
+    if(!clear) return;
+
     // clear
     Color clearColor = this->clearColor;
     if(cv::debug_rt.getBool()) clearColor = argb(0.5f, 0.0f, 0.5f, 0.0f);
 
     float fClearColor[4] = {clearColor.Rf(), clearColor.Gf(), clearColor.Bf(), clearColor.Af()};
 
-    if(this->bClearColorOnDraw) context->ClearRenderTargetView(this->renderTargetView, fClearColor);
-
-    if(this->bClearDepthOnDraw)
-        context->ClearDepthStencilView(this->depthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f,
-                                       0);  // yes, the 1.0f is correct
+    context->ClearRenderTargetView(this->renderTargetView, fClearColor);
+    context->ClearDepthStencilView(this->depthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f,
+                                   0);  // yes, the 1.0f is correct
 }
 
 void DirectX11RenderTarget::disable() {
@@ -186,8 +186,8 @@ void DirectX11RenderTarget::disable() {
     // restore
     // HACKHACK: slow af
     {
-        static_cast<DirectX11Interface*>(g)->getDeviceContext()->OMSetRenderTargets(
-            1, &this->prevRenderTargetView, this->prevDepthStencilView);
+        static_cast<DirectX11Interface*>(g)->getDeviceContext()->OMSetRenderTargets(1, &this->prevRenderTargetView,
+                                                                                    this->prevDepthStencilView);
 
         // refcount
         {
@@ -229,8 +229,8 @@ void DirectX11RenderTarget::unbind() {
     // restore
     // HACKHACK: slow af
     {
-        static_cast<DirectX11Interface*>(g)->getDeviceContext()->PSSetShaderResources(
-            this->iTextureUnitBackup, 1, &this->prevShaderResourceView);
+        static_cast<DirectX11Interface*>(g)->getDeviceContext()->PSSetShaderResources(this->iTextureUnitBackup, 1,
+                                                                                      &this->prevShaderResourceView);
 
         // refcount
         {

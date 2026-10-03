@@ -13,15 +13,15 @@ class ConVar;
 class RenderTarget : public Resource {
     NOCOPY_NOMOVE(RenderTarget)
    public:
-    RenderTarget(int x, int y, int width, int height,
-                 MultisampleType multiSampleType = MultisampleType::X0);
+    RenderTarget(int x, int y, int width, int height, MultisampleType multiSampleType = MultisampleType::X0);
     ~RenderTarget() override;
 
     virtual void draw(int x, int y);
     virtual void draw(int x, int y, int width, int height);
     virtual void drawRect(int x, int y, int width, int height);
 
-    virtual void enable() = 0;
+    // clear = false keeps the previous contents, for callers that clear just the region they read back
+    virtual void enable(bool clear = true) = 0;
     virtual void disable() = 0;
 
     virtual void bind(unsigned int textureUnit = 0) = 0;
@@ -40,8 +40,6 @@ class RenderTarget : public Resource {
     void setPos(vec2 pos) { this->vPos = pos; }
     void setColor(Color color) { this->color = color; }
     void setClearColor(Color clearColor) { this->clearColor = clearColor; }
-    void setClearColorOnDraw(bool clearColorOnDraw) { this->bClearColorOnDraw = clearColorOnDraw; }
-    void setClearDepthOnDraw(bool clearDepthOnDraw) { this->bClearDepthOnDraw = clearDepthOnDraw; }
 
     // get
     [[nodiscard]] float getWidth() const { return this->vSize.x; }
@@ -73,7 +71,4 @@ class RenderTarget : public Resource {
     Color clearColor{0};
 
     MultisampleType multiSampleType;
-
-    bool bClearColorOnDraw{true};
-    bool bClearDepthOnDraw{true};
 };

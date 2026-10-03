@@ -16,7 +16,7 @@ class OpenGLRenderTarget final : public RenderTarget {
         : RenderTarget(x, y, width, height, multiSampleType) {}
     ~OpenGLRenderTarget() override { destroy(); }
 
-    void enable() override;
+    void enable(bool clear) override;
     void disable() override;
 
     void bind(unsigned int textureUnit = 0) override;

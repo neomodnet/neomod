@@ -162,7 +162,7 @@ class SDLGPUInterface final : public ModernGraphicsShared {
     void releaseSampler(SDL_GPUSampler *&sampler);
 
     // render target support
-    void pushRenderTarget(SDL_GPUTexture *colorTex, SDL_GPUTexture *depthTex, bool clearColor, Color clearCol,
+    void pushRenderTarget(SDL_GPUTexture *colorTex, SDL_GPUTexture *depthTex, bool doClear, Color clearCol,
                           SDL_GPUTexture *resolveTex = nullptr, SDLGPUSampleCount sampleCount = 0);
     void popRenderTarget();
 
