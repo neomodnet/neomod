@@ -24,6 +24,11 @@
 #include <atomic>
 #include <optional>
 
+#if defined(MCENGINE_PLATFORM_LINUX)
+#include <sys/socket.h>
+#include <unistd.h>
+#endif
+
 namespace Mc::Net {
 
 std::string urlEncode(std::string_view unencodedString) noexcept {
