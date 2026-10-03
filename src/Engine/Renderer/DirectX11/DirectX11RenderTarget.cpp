@@ -12,9 +12,12 @@
 
 #include "Engine.h"
 #include "ConVar.h"
+#include "Graphics.h"
 #include "Logging.h"
 
 #include "DirectX11Interface.h"
+
+#include <cassert>
 
 DirectX11RenderTarget::DirectX11RenderTarget(int x, int y, int width, int height, MultisampleType multiSampleType)
     : RenderTarget(x, y, width, height, multiSampleType) {
@@ -23,6 +26,7 @@ DirectX11RenderTarget::DirectX11RenderTarget(int x, int y, int width, int height
     this->renderTargetView = nullptr;
     this->depthStencilView = nullptr;
     this->shaderResourceView = nullptr;
+    this->samplerState = nullptr;
 
     this->prevRenderTargetView = nullptr;
     this->prevDepthStencilView = nullptr;
@@ -131,12 +135,32 @@ void DirectX11RenderTarget::init() {
         return;
     }
 
+    // create sampler for reading this RT as a texture
+    D3D11_SAMPLER_DESC samplerDesc{};
+    {
+        samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+        samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+        samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+        samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+        samplerDesc.MaxAnisotropy = 1;
+        samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+        samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
+    }
+    hr = device->CreateSamplerState(&samplerDesc, &this->samplerState);
+    if(FAILED(hr)) {
+        engine->showMessageErrorFatal("RenderTarget Error", fmt::format("Couldn't CreateSamplerState({}, {:x}, {:x})!",
+                                                                        hr, hr, MAKE_DXGI_HRESULT(hr)));
+        return;
+    }
+
     this->setReady(true);
 }
 
 void DirectX11RenderTarget::initAsync() { this->setAsyncReady(true); }
 
 void DirectX11RenderTarget::destroy() {
+    if(this->samplerState != nullptr) this->samplerState->Release();
+
     if(this->shaderResourceView != nullptr) this->shaderResourceView->Release();
 
     if(this->depthStencilView != nullptr) this->depthStencilView->Release();
@@ -147,6 +171,7 @@ void DirectX11RenderTarget::destroy() {
 
     if(this->renderTexture != nullptr) this->renderTexture->Release();
 
+    this->samplerState = nullptr;
     this->shaderResourceView = nullptr;
     this->depthStencilView = nullptr;
     this->renderTargetView = nullptr;
@@ -206,6 +231,7 @@ void DirectX11RenderTarget::disable() {
 
 void DirectX11RenderTarget::bind(unsigned int textureUnit) {
     if(!this->isReady()) return;
+    assert(textureUnit < Graphics::MAX_TEXTURE_UNITS);
 
     auto* dx11 = static_cast<DirectX11Interface*>(g);
     auto* context = dx11->getDeviceContext();
@@ -219,8 +245,9 @@ void DirectX11RenderTarget::bind(unsigned int textureUnit) {
     }
 
     context->PSSetShaderResources(textureUnit, 1, &this->shaderResourceView);
+    context->PSSetSamplers(textureUnit, 1, &this->samplerState);
 
-    dx11->setTexturing(true);  // enable texturing
+    if(textureUnit == 0) dx11->setTexturing(true);  // enable texturing (the default shader only samples unit 0)
 }
 
 void DirectX11RenderTarget::unbind() {

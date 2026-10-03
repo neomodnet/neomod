@@ -720,8 +720,6 @@ CONVAR(followpoints_prevfadetime, 400.0f, CLIENT | SERVER | GAMEPLAY);
 CONVAR(followpoints_scale_multiplier, 1.0f, CLIENT | SERVER | GAMEPLAY);
 CONVAR(followpoints_separation_multiplier, 1.0f, CLIENT | SERVER | GAMEPLAY);
 CONVAR(force_oauth, false, CLIENT, "always display oauth login button instead of password field");
-CONVAR(force_legacy_slider_renderer, false, CLIENT | SKINS | SERVER,
-       "on some older machines, this may be faster than vertexbuffers");
 CONVAR(fposu_3d_skybox, true, CLIENT | SKINS | SERVER);
 CONVAR(fposu_3d_skybox_size, 450.0f, CLIENT | SKINS | SERVER);
 CONVAR(fposu_absolute_mode, false, CLIENT | SKINS | SERVER);
@@ -842,9 +840,6 @@ CONVAR(timingpoints_offset, 5.0f, CLIENT,
        "(hitsounds) of the current frame");
 CONVAR(options_high_quality_sliders, false, CLIENT | SKINS | SERVER);
 CONVAR(options_save_on_back, true, CLIENT | SKINS | SERVER);
-CONVAR(options_slider_preview_use_legacy_renderer, false, CLIENT,
-       "apparently newer AMD drivers with old gpus are crashing here with the legacy renderer? was just me being lazy "
-       "anyway, so now there is a vao render path as it should be");
 CONVAR(options_slider_quality, 0.0f, CLIENT | SKINS | SERVER);
 CONVAR(options_reset_search_on_close, true, CLIENT);
 CONVAR(pause_anim_duration, 0.15f, CLIENT | SKINS | SERVER);
@@ -922,10 +917,6 @@ CONVAR(slider_body_lazer_fadeout_style, true, CLIENT | SKINS | SERVER,
        "out the last remaining part of the body (instead of vanishing instantly)");
 CONVAR(slider_body_smoothsnake, true, CLIENT | SKINS | SERVER,
        "draw 1 extra interpolated circle mesh at the start & end of every slider for extra smooth snaking/shrinking");
-CONVAR(slider_body_sdf, true, CLIENT | SKINS | SERVER,
-       "render slider bodies as an analytic distance-field mesh (exact, low-overdraw, smooth at any quality) instead."
-       " auto-falls-back to cone mesh if slider_use_gradient_image is used");
-CONVAR(slider_body_unit_circle_subdivisions, 42, CLIENT | SKINS | SERVER);
 CONVAR(slider_border_feather, 0.0f, CLIENT | SKINS | SERVER, CFUNC(SliderRenderer::onUniformConfigChanged));
 CONVAR(slider_border_size_multiplier, 1.0f, CLIENT | SKINS | SERVER, CFUNC(SliderRenderer::onUniformConfigChanged));
 CONVAR(slider_border_tint_combo_color, false, CLIENT | SKINS | SERVER);
@@ -941,10 +932,6 @@ CONVAR(slider_followcircle_fadeout_scale, 0.8f, CLIENT | SKINS | SERVER);
 CONVAR(slider_followcircle_fadeout_scale_time, 0.25f, CLIENT | SKINS | SERVER);
 CONVAR(slider_followcircle_tick_pulse_scale, 0.1f, CLIENT | SKINS | SERVER);
 CONVAR(slider_followcircle_tick_pulse_time, 0.2f, CLIENT | SKINS | SERVER);
-CONVAR(
-    slider_legacy_use_baked_vao, false, CLIENT | SKINS | SERVER,
-    "use baked cone mesh instead of raw mesh for legacy slider renderer (disabled by default because usually slower on "
-    "very old gpus even though it should not be)");
 CONVAR(slider_osu_next_style, false, CLIENT | SKINS | SERVER, CFUNC(SliderRenderer::onUniformConfigChanged));
 CONVAR(slider_rainbow, false, CLIENT | SKINS | SERVER);
 CONVAR(slider_reverse_arrow_alpha_multiplier, 1.0f, CLIENT | SKINS | SERVER);

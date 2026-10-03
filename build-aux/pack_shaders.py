@@ -18,7 +18,8 @@
 #     (DX11 reflects its input layout from them, the legacy GL remap matches them by name)
 #   - uniform blocks have an instance name, "vu" in the vertex stage (set = 1) and "fu" in the fragment stage
 #     (set = 3); the engine sets uniforms by member name, so member names are unique across both blocks
-#   - the texture is "layout(set = 2, binding = 0) uniform sampler2D tex0;"
+#   - textures are "layout(set = 2, binding = N) uniform sampler2D texN;", N counting up from 0 for each texture unit
+#     (see Graphics::MAX_TEXTURE_UNITS); the GL dialects drop the binding, so the GL backends find the unit by name
 #   - the code stays within what GLSL 1.10 / GLSL ES 1.00 can express (spirv-cross fails the build otherwise)
 #   - gl_FragCoord keeps the origin of whichever backend runs the shader (see Graphics::hasFlippedTextureOrigin())
 #
@@ -187,6 +188,21 @@ def transpile_glsl(spirv_cross, spv_path, glsl_path, dialect, stage):
     return True
 
 
+def check_samplers(glsl_path):
+    """Check that the samplers are named after their binding (texN), N counting up from 0. Returns True if they are."""
+    with open(glsl_path, 'r') as f:
+        decls = re.findall(r'layout\s*\(([^)]*)\)\s*uniform\s+\w*sampler\w*\s+(\w+)', f.read())
+    found = []
+    for layout, name in decls:
+        binding = re.search(r'\bbinding\s*=\s*(\d+)', layout)
+        found.append((int(binding.group(1)) if binding else -1, name))
+    if sorted(found) != [(n, f'tex{n}') for n in range(len(found))]:
+        print(f'{glsl_path}: samplers must be declared as "layout(set = 2, binding = N) uniform sampler2D texN" with N '
+              f'counting up from 0, found: {decls}', file=sys.stderr)
+        return False
+    return True
+
+
 def find_shaders(shader_dir):
     """Find all VK_*_{v,f}.glsl files. Returns list of (name, stage, path)."""
     pattern = os.path.join(shader_dir, 'VK_*_[vf].glsl')
@@ -245,6 +261,10 @@ def main():
     ok = True
 
     for name, stage, glsl_path in shaders:
+        if not check_samplers(glsl_path):
+            ok = False
+            continue
+
         # compile GLSL -> SPIR-V once (the single source for every transpiled format)
         spv_path = None
         if args.glslc:

@@ -8,8 +8,11 @@
 #include "OpenGLStateCache.h"
 #include "ConVar.h"
 #include "Engine.h"
+#include "Graphics.h"
 #include "VertexArrayObject.h"
 #include "Logging.h"
+
+#include <cassert>
 
 int OpenGLRenderTarget::iMaxMultiSamples{-1};
 int OpenGLRenderTarget::iHaveGLInvalidateFramebuffer{Env::cfg(OS::WASM) ? 1 : -1};
@@ -287,6 +290,7 @@ void OpenGLRenderTarget::disable() {
 
 void OpenGLRenderTarget::bind(unsigned int textureUnit) {
     if(!this->isReady()) return;
+    assert(textureUnit < Graphics::MAX_TEXTURE_UNITS);
 
     this->iTextureUnitBackup = textureUnit;
 
@@ -299,6 +303,13 @@ void OpenGLRenderTarget::bind(unsigned int textureUnit) {
     } else {
         glBindTexture(GL_TEXTURE_2D, this->iRenderTexture);
     }
+
+    // the other units only feed shaders (see OpenGLImage::bind())
+    if(textureUnit != 0) {
+        glActiveTexture(GL_TEXTURE0);
+        return;
+    }
+
     // needed for legacy FFP renderer support (OpenGLInterface)
     if constexpr(Env::cfg(REND::GL)) glEnable(GL_TEXTURE_2D);
 }

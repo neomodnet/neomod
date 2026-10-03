@@ -18,6 +18,7 @@ layout(std140, set = 3, binding = 0) uniform FragParams {
     float _pad3;
     vec3 colBody;
     float _pad4;
+    vec4 channel;  // which of tex0's channels holds this slider's field
 } fu;
 
 const float defaultTransitionSize = 0.011;
@@ -46,7 +47,7 @@ void main() {
     // primitive, but resolved to the nearest curve feature. shading it here runs the gradient once per pixel
     // no matter how much the body geometry self-overlaps, and radial ramping to 0 keeps the silhouette
     // analytically round at any tessellation density.
-    float radial = texture(tex0, tex_coord).r;
+    float radial = dot(texture(tex0, tex_coord), fu.channel);
 
     float borderSize = (defaultBorderSize + fu.borderFeather) * fu.borderSizeMultiplier;
     float transitionSize = defaultTransitionSize + fu.borderFeather;

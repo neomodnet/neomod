@@ -7,14 +7,16 @@
 #include "Color.h"
 #include "DatabaseBeatmapTypes.h"
 #include "SliderCurves.h"
+#include "SliderRenderer.h"
 
+#include <optional>
+#include <utility>
 #include <vector>
 #include <memory>
 
 class ConVar;
 class ModFPoSu;
 class SkinImage;
-class VertexArrayObject;
 class Image;
 class AbstractBeatmapInterface;
 class BeatmapInterface;
@@ -259,7 +261,7 @@ class Circle final : public HitObject {
     f32 m_shakeAnimation{0.f};
 };
 
-class Slider final : public HitObject {
+class Slider final : public HitObject, public SliderRenderer::BodySource {
    public:
     struct SLIDERCLICK {
         i32 timeMS;
@@ -306,6 +308,9 @@ class Slider final : public HitObject {
 
     void rebuildVertexBuffer(bool useRawCoords = false) override;
 
+    // the live body, or the one fading out after the end
+    [[nodiscard]] std::optional<SliderRenderer::Body> getBody() const override;
+
     [[nodiscard]] inline bool isStartCircleFinished() const { return m_startFinished; }
     [[nodiscard]] inline i32 getRepeat() const { return m_repeat; }
     [[nodiscard]] inline const std::vector<vec2> &getRawPoints() const { return m_ctrlPoints; }
@@ -315,7 +320,10 @@ class Slider final : public HitObject {
    private:
     void drawStartCircle(f32 alpha);
     void drawEndCircle(f32 alpha, f32 sliderSnake);
-    void drawBody(f32 alpha, f32 from, f32 to);
+
+    [[nodiscard]] SliderRenderer::Body makeBody(f32 alpha, f32 from, f32 to) const;
+    // the drawn part of the curve while snaking in or shrinking
+    [[nodiscard]] std::pair<f32, f32> getSnakeRange() const;
 
     void updateAnimations(i32 curPosMS);
 
@@ -354,7 +362,7 @@ class Slider final : public HitObject {
     // TEMP: auto cursordance
     std::vector<SLIDERCLICK> m_clicks;  // repeats (type 0) + ticks (type 1)
 
-    std::unique_ptr<VertexArrayObject> m_vao{nullptr};
+    SliderRenderer::Mesh m_mesh;
 
     SliderCurve m_curve;
 

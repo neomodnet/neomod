@@ -60,6 +60,7 @@ class SDLGPUImage final : public Image {
     // beginScene() clears the bound state so stale pointers never survive across frames)
     mutable SDL_GPUTexture *m_prevTexture{nullptr};
     mutable SDL_GPUSampler *m_prevSampler{nullptr};
+    mutable unsigned int m_boundUnit{0};
 
     std::unique_ptr<SDL_GPUSamplerCreateInfo> m_lastSamplerCreateInfo{nullptr};
 };

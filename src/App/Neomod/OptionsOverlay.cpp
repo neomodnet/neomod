@@ -66,6 +66,7 @@
 #include <cwctype>
 #include <algorithm>
 #include <atomic>
+#include <optional>
 #include <utility>
 
 #include <atomic>
@@ -566,7 +567,7 @@ class SkinPreviewElement final : public CBaseUIElement {
     int iMode;
 };
 
-class SliderPreviewElement final : public CBaseUIElement {
+class SliderPreviewElement final : public CBaseUIElement, public SliderRenderer::BodySource {
    public:
     SliderPreviewElement(float xPos, float yPos, float xSize, float ySize, std::string name)
         : CBaseUIElement(xPos, yPos, xSize, ySize, std::move(name)) {}
@@ -574,7 +575,7 @@ class SliderPreviewElement final : public CBaseUIElement {
     void draw() override {
         if(!this->bVisible) return;
 
-        const float hitcircleDiameter = this->getSize().y * 0.5f;
+        const float hitcircleDiameter = this->getHitcircleDiameter();
         const float numberScale = (hitcircleDiameter / (160.0f * (osu->getSkin()->i_defaults[1].scale()))) * 1 *
                                   cv::number_scale_multiplier.getFloat();
         const float overlapScale = (hitcircleDiameter / (160.0f)) * 1 * cv::number_scale_multiplier.getFloat();
@@ -592,12 +593,7 @@ class SliderPreviewElement final : public CBaseUIElement {
         const int numPoints = length;
         const float pointDist = length / numPoints;
 
-        static std::vector<vec2> emptyVector;
         std::vector<vec2> points;
-
-        const bool useLegacyRenderer =
-            (cv::options_slider_preview_use_legacy_renderer.getBool() || cv::force_legacy_slider_renderer.getBool());
-
         for(int i = 0; i < numPoints; i++) {
             int heightAdd = i;
             if(i > numPoints / 2) heightAdd = numPoints - i;
@@ -607,9 +603,8 @@ class SliderPreviewElement final : public CBaseUIElement {
             temp *= temp;
             heightAddPercent = 1.0f - temp;
 
-            points.emplace_back((useLegacyRenderer ? this->getPos().x : 0) + hitcircleDiameter / 2 + i * pointDist,
-                                (useLegacyRenderer ? this->getPos().y : 0) + this->getSize().y / 2 -
-                                    hitcircleDiameter / 3 +
+            points.emplace_back(hitcircleDiameter / 2 + i * pointDist,
+                                this->getSize().y / 2 - hitcircleDiameter / 3 +
                                     heightAddPercent * (this->getSize().y / 2 - hitcircleDiameter / 2));
         }
 
@@ -621,12 +616,10 @@ class SliderPreviewElement final : public CBaseUIElement {
                 const int colorOffset = 0;
                 const float colorRGBMultiplier = 1.0f;
 
-                Circle::drawCircle(osu->getSkin(),
-                                   points[numPoints / 2] + (!useLegacyRenderer ? this->getPos() : vec2(0, 0)),
-                                   hitcircleDiameter, numberScale, overlapScale, number, colorCounter, colorOffset,
-                                   colorRGBMultiplier, approachScale, approachAlpha, approachAlpha, true, false);
-                Circle::drawApproachCircle(osu->getSkin(),
-                                           points[numPoints / 2] + (!useLegacyRenderer ? this->getPos() : vec2(0, 0)),
+                Circle::drawCircle(osu->getSkin(), points[numPoints / 2] + this->getPos(), hitcircleDiameter,
+                                   numberScale, overlapScale, number, colorCounter, colorOffset, colorRGBMultiplier,
+                                   approachScale, approachAlpha, approachAlpha, true, false);
+                Circle::drawApproachCircle(osu->getSkin(), points[numPoints / 2] + this->getPos(),
                                            osu->getSkin()->getComboColorForCounter(420, 0), hitcircleDiameter,
                                            approachScale, approachCircleAlpha, false, false);
             }
@@ -636,44 +629,17 @@ class SliderPreviewElement final : public CBaseUIElement {
                 // recursive shared usage of the same RenderTarget is invalid, therefore we block slider rendering while
                 // the options menu is animating
                 if(this->bDrawSliderHack) {
-                    if(useLegacyRenderer)
-                        SliderRenderer::draw(SliderRenderer::DrawLegacyParams{
-                            .screenRect = osu->getVirtScreenSize(),
-                            .rt = osu->getSliderFrameBuffer(),
-                            .skinSettings = {osu->getSkin()},
-                            .points = points,
-                            .alwaysPoints = emptyVector,
-                            .hitcircleDiameter = hitcircleDiameter,
-                            .from = 0,
-                            .to = 1,
-                            .undimmedColor = osu->getSkin()->getComboColorForCounter(420, 0)});
-                    else {
-                        // (lazy generate vao; also regenerate when the SDF/cone mode changed since the last bake)
-                        if(!this->vao || length != this->fPrevLength ||
-                           this->bPrevSDFMode != SliderRenderer::usingSDF()) {
-                            this->fPrevLength = length;
-                            this->bPrevSDFMode = SliderRenderer::usingSDF();
+                    // (lazy generate mesh)
+                    if(!this->mesh.vao || length != this->fPrevLength) {
+                        this->fPrevLength = length;
 
-                            debugLog("Regenerating options menu slider preview vao ...");
+                        debugLog("Regenerating options menu slider preview mesh ...");
 
-                            this->vao = SliderRenderer::generateVAO(osu->getVirtScreenSize(), points, hitcircleDiameter,
-                                                                    vec3{}, false);
-                        }
-                        vec4 emptyBounds{};
-                        SliderRenderer::draw(SliderRenderer::DrawVAOParams{
-                            .screenRect = osu->getVirtScreenSize(),
-                            .rt = osu->getSliderFrameBuffer(),
-                            .skinSettings = {osu->getSkin()},
-                            .vao = this->vao.get(),
-                            .bounds = emptyBounds,
-                            .alwaysPoints = emptyVector,
-                            .translation = this->getPos(),
-                            .scale = 1,
-                            .hitcircleDiameter = hitcircleDiameter,
-                            .from = 0,
-                            .to = 1,
-                            .undimmedColor = osu->getSkin()->getComboColorForCounter(420, 0)});
+                        this->mesh =
+                            SliderRenderer::generateMesh(osu->getVirtScreenSize(), points, hitcircleDiameter, false);
                     }
+                    const SliderRenderer::Batch batch{osu->getSliderFrameBuffer()};
+                    SliderRenderer::draw(*this);
                 }
             }
 
@@ -684,22 +650,30 @@ class SliderPreviewElement final : public CBaseUIElement {
                 const int colorOffset = 0;
                 const float colorRGBMultiplier = 1.0f;
 
-                Circle::drawSliderStartCircle(
-                    osu->getSkin(), points[0] + (!useLegacyRenderer ? this->getPos() : vec2(0, 0)), hitcircleDiameter,
-                    numberScale, overlapScale, number, colorCounter, colorOffset, colorRGBMultiplier);
-                Circle::drawSliderEndCircle(osu->getSkin(),
-                                            points.back() + (!useLegacyRenderer ? this->getPos() : vec2(0, 0)),
-                                            hitcircleDiameter, numberScale, overlapScale, number, colorCounter,
-                                            colorOffset, colorRGBMultiplier, 1.0f, 1.0f, 0.0f, false, false);
+                Circle::drawSliderStartCircle(osu->getSkin(), points[0] + this->getPos(), hitcircleDiameter,
+                                              numberScale, overlapScale, number, colorCounter, colorOffset,
+                                              colorRGBMultiplier);
+                Circle::drawSliderEndCircle(osu->getSkin(), points.back() + this->getPos(), hitcircleDiameter,
+                                            numberScale, overlapScale, number, colorCounter, colorOffset,
+                                            colorRGBMultiplier, 1.0f, 1.0f, 0.0f, false, false);
             }
         }
+    }
+
+    [[nodiscard]] std::optional<SliderRenderer::Body> getBody() const override {
+        return SliderRenderer::Body{.mesh = &this->mesh,
+                                    .translation = this->getPos(),
+                                    .hitcircleDiameter = this->getHitcircleDiameter(),
+                                    .skinSettings = {osu->getSkin()},
+                                    .undimmedColor = osu->getSkin()->getComboColorForCounter(420, 0)};
     }
 
     void setDrawSliderHack(bool drawSliderHack) { this->bDrawSliderHack = drawSliderHack; }
 
    private:
-    std::unique_ptr<VertexArrayObject> vao{nullptr};
-    bool bPrevSDFMode{false};  // SliderRenderer::usingSDF() at bake time (rebake trigger)
+    [[nodiscard]] float getHitcircleDiameter() const { return this->getSize().y * 0.5f; }
+
+    SliderRenderer::Mesh mesh;
     float fPrevLength{0.f};
     bool bDrawSliderHack{true};
 };
@@ -1146,11 +1120,6 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
                         "performance a tiny bit, since there will be less to draw overall."),
                       &cv::slider_shrink);
     this->addSpacer();
-    this->addCheckbox(
-        _("Legacy Slider Renderer (!)"),
-        _("WARNING: Only try enabling this on shitty old computers!\nMay or may not improve fps while few "
-          "sliders are visible.\nGuaranteed lower fps while many sliders are visible!"),
-        &cv::force_legacy_slider_renderer);
     this->addCheckbox(_("Higher Quality Sliders (!)"),
                       _("Disable this if your fps drop too low while sliders are visible."),
                       &cv::options_high_quality_sliders)
@@ -1488,7 +1457,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     this->addSlider(_("Slider Body Saturation"), 0.0f, 1.0f, &cv::slider_body_color_saturation, 200.0f, true);
     this->addCheckbox(
         _("Use slidergradient.png"),
-        _("Enabling this will improve performance,\nbut also block all dynamic slider (color/border) features."),
+        _("This will block all dynamic slider (color/border) features,\nbut is more easily customizable."),
         &cv::slider_use_gradient_image);
     this->addCheckbox(_("Use osu!lazer Slider Style"),
                       _("Only really looks good if your skin doesn't \"SliderTrackOverride\" too dark."),

@@ -14,10 +14,12 @@
 
 #include "ConVar.h"
 #include "Engine.h"
+#include "Graphics.h"
 #include "Logging.h"
 
 #include "SDLGPUInterface.h"
 
+#include <cassert>
 #include <cstring>
 
 namespace {
@@ -160,23 +162,25 @@ void SDLGPUImage::destroy() {
     }
 }
 
-void SDLGPUImage::bind(unsigned int /*textureUnit*/) const {
+void SDLGPUImage::bind(unsigned int textureUnit) const {
     if(!m_gpu || !m_device || !this->isReady()) return;
+    assert(textureUnit < Graphics::MAX_TEXTURE_UNITS);
 
     // save current binding for nested bind/unbind support
-    m_prevTexture = m_gpu->getBoundTexture();
-    m_prevSampler = m_gpu->getBoundSampler();
+    m_boundUnit = textureUnit;
+    m_prevTexture = m_gpu->getBoundTexture(textureUnit);
+    m_prevSampler = m_gpu->getBoundSampler(textureUnit);
 
-    m_gpu->setBoundTexture(m_texture);
-    m_gpu->setBoundSampler(m_sampler);
+    m_gpu->setBoundTexture(textureUnit, m_texture);
+    m_gpu->setBoundSampler(textureUnit, m_sampler);
     m_gpu->setTexturing(true);
 }
 
 void SDLGPUImage::unbind() const {
     if(!m_gpu || !m_device || !this->isReady()) return;
 
-    m_gpu->setBoundTexture(m_prevTexture);
-    m_gpu->setBoundSampler(m_prevSampler);
+    m_gpu->setBoundTexture(m_boundUnit, m_prevTexture);
+    m_gpu->setBoundSampler(m_boundUnit, m_prevSampler);
 }
 
 void SDLGPUImage::setFilterMode(TextureFilterMode newFilterMode) {

@@ -146,16 +146,20 @@ class SDLGPUInterface final : public ModernGraphicsShared {
                                                bool keepInSystemMemory) override;
 
     // sdlgpu-specific accessors
-    // texture binding state (set by SDLGPUImage::bind/unbind)
+    // texture binding state per texture unit (set by SDLGPUImage/SDLGPURenderTarget::bind/unbind)
     // atomic because releaseTexture/releaseSampler may be called from loader threads
-    [[nodiscard]] inline SDL_GPUTexture *getBoundTexture() const {
-        return m_boundTexture.load(std::memory_order_relaxed);
+    [[nodiscard]] inline SDL_GPUTexture *getBoundTexture(u32 unit) const {
+        return m_boundTextures[unit].load(std::memory_order_relaxed);
     }
-    [[nodiscard]] inline SDL_GPUSampler *getBoundSampler() const {
-        return m_boundSampler.load(std::memory_order_relaxed);
+    [[nodiscard]] inline SDL_GPUSampler *getBoundSampler(u32 unit) const {
+        return m_boundSamplers[unit].load(std::memory_order_relaxed);
     }
-    inline void setBoundTexture(SDL_GPUTexture *tex) { m_boundTexture.store(tex, std::memory_order_relaxed); }
-    inline void setBoundSampler(SDL_GPUSampler *sampler) { m_boundSampler.store(sampler, std::memory_order_relaxed); }
+    inline void setBoundTexture(u32 unit, SDL_GPUTexture *tex) {
+        m_boundTextures[unit].store(tex, std::memory_order_relaxed);
+    }
+    inline void setBoundSampler(u32 unit, SDL_GPUSampler *sampler) {
+        m_boundSamplers[unit].store(sampler, std::memory_order_relaxed);
+    }
 
     // release a texture/sampler and clear the bound state if it matches
     void releaseTexture(SDL_GPUTexture *&tex);
@@ -343,6 +347,13 @@ class SDLGPUInterface final : public ModernGraphicsShared {
         }
     };
 
+    struct TextureBinding {
+        SDL_GPUTexture *texture;
+        SDL_GPUSampler *sampler;
+
+        [[nodiscard]] bool operator==(const TextureBinding &) const = default;
+    };
+
     // deferred draw batching
     struct DrawCommand {
         // vertex range for baked draws. immediate draws reference their index chunks instead and get their index
@@ -356,8 +367,8 @@ class SDLGPUInterface final : public ModernGraphicsShared {
 
         SDL_GPUGraphicsPipeline *pipeline;
 
-        SDL_GPUTexture *texture;
-        SDL_GPUSampler *sampler;
+        // one per texture unit the shader samples, null after those
+        std::array<TextureBinding, MAX_TEXTURE_UNITS> textures;
 
         // viewport
         Viewport viewport;
@@ -440,10 +451,10 @@ class SDLGPUInterface final : public ModernGraphicsShared {
     SDL_GPUTexture *m_whiteTexture{nullptr};
     SDL_GPUSampler *m_dummySampler{nullptr};
 
-    // currently bound texture+sampler (set by SDLGPUImage)
+    // currently bound texture+sampler per texture unit (set by SDLGPUImage/SDLGPURenderTarget)
     // atomic: releaseTexture/releaseSampler may CAS from loader threads
-    std::atomic<SDL_GPUTexture *> m_boundTexture{nullptr};
-    std::atomic<SDL_GPUSampler *> m_boundSampler{nullptr};
+    std::array<std::atomic<SDL_GPUTexture *>, MAX_TEXTURE_UNITS> m_boundTextures{};
+    std::array<std::atomic<SDL_GPUSampler *>, MAX_TEXTURE_UNITS> m_boundSamplers{};
 
     // stacks
     std::vector<McRect> m_clipRectStack;

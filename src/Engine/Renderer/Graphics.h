@@ -50,6 +50,10 @@ class Graphics {
         bool withAlpha;
     };
 
+    // how many textures a draw can sample: Image/RenderTarget::bind(unit) take a unit below this, which shaders read
+    // as "layout(set = 2, binding = unit) uniform sampler2D tex<unit>"
+    static constexpr u32 MAX_TEXTURE_UNITS{4};
+
    public:
     friend class Engine;
 

@@ -192,14 +192,6 @@ Osu::Osu()
         if(osu && osu->UIReady()) ui->getOptionsOverlay()->updateOsuFolderTextbox(normalized);
     });
 
-    // rebuild when toggled mid-gameplay (both of these change whether slider bodies bake SDF or cone meshes)
-    static const auto sliderBodyMeshCvarCallback = [](float oldValue, float newValue) -> void {
-        if(osu && osu->isInPlayMode() && osu->getMapInterface())
-            osu->getMapInterface()->onSliderSDFCvarChange(oldValue, newValue);
-    };
-    cv::slider_body_sdf.setCallback(sliderBodyMeshCvarCallback);
-    cv::slider_use_gradient_image.setCallback(sliderBodyMeshCvarCallback);
-
     // renderer
     this->internalRect = engine->getScreenRect();
 
@@ -513,8 +505,6 @@ Osu::~Osu() {
         cv::confine_cursor_fullscreen.removeAllCallbacks();
         cv::confine_cursor_never.removeAllCallbacks();
         cv::osu_folder.removeAllCallbacks();
-        cv::slider_body_sdf.removeAllCallbacks();
-        cv::slider_use_gradient_image.removeAllCallbacks();
         cv::skin.removeAllCallbacks();
         cv::skin_reload.removeAllCallbacks();
         cv::skin_export.removeAllCallbacks();
@@ -1545,9 +1535,9 @@ float Osu::getAnimationSpeedMultiplier() const {
     return animationSpeedMultiplier;
 }
 
-bool Osu::shouldFallBackToLegacySliderRenderer() const {
-    return cv::force_legacy_slider_renderer.getBool() || cv::mod_wobble.getBool() || cv::mod_wobble2.getBool() ||
-           cv::mod_minimize.getBool() || ui->getModSelector()->isCSOverrideSliderActive()
+bool Osu::slidersRenderDynamically() const {
+    return cv::mod_wobble.getBool() || cv::mod_wobble2.getBool() || cv::mod_minimize.getBool() ||
+           ui->getModSelector()->isCSOverrideSliderActive()
         /* || (this->osu_playfield_rotation->getFloat() < -0.01f || m_osu_playfield_rotation->getFloat() > 0.01f)*/;
 }
 

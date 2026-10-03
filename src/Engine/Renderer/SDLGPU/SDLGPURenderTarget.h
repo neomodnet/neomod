@@ -57,6 +57,7 @@ class SDLGPURenderTarget final : public RenderTarget {
     // saved bound state for nested bind/unbind (see SDLGPUImage.h comment)
     mutable SDL_GPUTexture *m_prevTexture{nullptr};
     mutable SDL_GPUSampler *m_prevSampler{nullptr};
+    unsigned int m_boundUnit{0};
 };
 
 #endif

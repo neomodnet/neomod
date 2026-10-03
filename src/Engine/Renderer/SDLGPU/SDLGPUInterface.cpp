@@ -582,11 +582,13 @@ void SDLGPUInterface::beginScene() {
     // clear deferred draw state
     resetPendingDraws();
 
-    // clear bound texture/sampler so stale pointers from the previous frame
+    // clear bound textures/samplers so stale pointers from the previous frame
     // don't leak into this frame's draw commands (resources may have been
     // reloaded/destroyed during onUpdate)
-    setBoundTexture(nullptr);
-    setBoundSampler(nullptr);
+    for(u32 unit = 0; unit < MAX_TEXTURE_UNITS; unit++) {
+        setBoundTexture(unit, nullptr);
+        setBoundSampler(unit, nullptr);
+    }
     setActiveShader(m_defaultShader.get());
     addRenderPassBoundary();
     m_renderPass = nullptr;
@@ -1010,20 +1012,17 @@ void SDLGPUInterface::recordDraw(SDL_GPUBuffer *bakedBuffer, u32 first, u32 coun
         }
     }
 
-    // snapshot texture binding (single load per atomic to avoid TOCTOU). a textured draw without a bound texture
-    // (entirely transparent image) samples the transparent dummy, untextured draws sample white
-    SDL_GPUTexture *texture = m_whiteTexture;
-    SDL_GPUSampler *sampler = m_dummySampler;
-    if(textured) {
-        auto *boundTex = getBoundTexture();
-        auto *boundSam = getBoundSampler();
-        if(boundTex && boundSam) {
-            texture = boundTex;
-            sampler = boundSam;
-        } else {
-            texture = m_dummyTexture;
-        }
-    }
+    // snapshot the texture bindings (single load per atomic to avoid TOCTOU). a unit without a bound texture (entirely
+    // transparent image) samples the transparent dummy, untextured draws sample white on unit 0
+    const auto boundOrDummy = [this](u32 unit) -> TextureBinding {
+        auto *boundTex = getBoundTexture(unit);
+        auto *boundSam = getBoundSampler(unit);
+        if(boundTex && boundSam) return {.texture = boundTex, .sampler = boundSam};
+        return {.texture = m_dummyTexture, .sampler = m_dummySampler};
+    };
+    std::array<TextureBinding, MAX_TEXTURE_UNITS> textures{};
+    textures[0] = textured ? boundOrDummy(0) : TextureBinding{.texture = m_whiteTexture, .sampler = m_dummySampler};
+    for(u32 unit = 1; unit < m_activeShader->getNumFragmentSamplers(); unit++) textures[unit] = boundOrDummy(unit);
 
     // snapshot scissor
     Scissor scissor{};
@@ -1059,7 +1058,7 @@ void SDLGPUInterface::recordDraw(SDL_GPUBuffer *bakedBuffer, u32 first, u32 coun
     }
 
     const auto compatible = [&](const DrawCommand &c) {
-        return !c.bakedBuffer && c.pipeline == m_currentPipeline && c.texture == texture && c.sampler == sampler &&
+        return !c.bakedBuffer && c.pipeline == m_currentPipeline && c.textures == textures &&
                c.uniformFirst == m_lastSnapshotFirst && c.uniformCount == m_lastSnapshotCount &&
                c.viewport == m_viewport && c.stencilRef == stencilRef && c.scissorEnabled == m_scissorEnabled &&
                (!m_scissorEnabled || c.scissor == scissor);
@@ -1116,8 +1115,7 @@ void SDLGPUInterface::recordDraw(SDL_GPUBuffer *bakedBuffer, u32 first, u32 coun
         .lastChunk = chunk,
         .bakedBuffer = bakedBuffer,
         .pipeline = m_currentPipeline,
-        .texture = texture,
-        .sampler = sampler,
+        .textures = textures,
         .viewport = m_viewport,
         .scissor = scissor,
         .bounds = bounds,
@@ -1294,8 +1292,7 @@ void SDLGPUInterface::flushDrawCommands() {
 
         // replay draw commands for this render pass, tracking last-bound state to skip redundant binds
         SDL_GPUGraphicsPipeline *lastPipeline = nullptr;
-        SDL_GPUTexture *lastTexture = nullptr;
-        SDL_GPUSampler *lastSampler = nullptr;
+        std::array<TextureBinding, MAX_TEXTURE_UNITS> lastTextures{};
         SDL_GPUBuffer *lastVertexBuffer = nullptr;
         bool indexBufferBound = false;
         Viewport lastViewport{.pos = {-1.f, -1.f}, .size = {-1.f, -1.f}};
@@ -1365,14 +1362,16 @@ void SDLGPUInterface::flushDrawCommands() {
                 lastUniformFirst = cmd.uniformFirst;
             }
 
-            // bind texture/sampler
-            if(cmd.texture != lastTexture || cmd.sampler != lastSampler) {
-                SDL_GPUTextureSamplerBinding texBinding{};
-                texBinding.texture = cmd.texture;
-                texBinding.sampler = cmd.sampler;
-                SDL_BindGPUFragmentSamplers(m_renderPass, 0, &texBinding, 1);
-                lastTexture = cmd.texture;
-                lastSampler = cmd.sampler;
+            // bind textures/samplers
+            if(cmd.textures != lastTextures) {
+                std::array<SDL_GPUTextureSamplerBinding, MAX_TEXTURE_UNITS> texBindings{};
+                u32 numTexBindings = 0;
+                for(; numTexBindings < MAX_TEXTURE_UNITS && cmd.textures[numTexBindings].texture; numTexBindings++) {
+                    texBindings[numTexBindings].texture = cmd.textures[numTexBindings].texture;
+                    texBindings[numTexBindings].sampler = cmd.textures[numTexBindings].sampler;
+                }
+                SDL_BindGPUFragmentSamplers(m_renderPass, 0, texBindings.data(), numTexBindings);
+                lastTextures = cmd.textures;
             }
 
             // bind vertex buffer (plus the index buffer for immediate draws) and draw
@@ -1839,16 +1838,20 @@ VertexArrayObject *SDLGPUInterface::createVertexArrayObject(DrawPrimitive primit
 
 void SDLGPUInterface::releaseTexture(SDL_GPUTexture *&tex) {
     if(!tex) return;
-    auto *expected = tex;
-    m_boundTexture.compare_exchange_strong(expected, nullptr, std::memory_order_relaxed);
+    for(auto &bound : m_boundTextures) {
+        auto *expected = tex;
+        bound.compare_exchange_strong(expected, nullptr, std::memory_order_relaxed);
+    }
     SDL_ReleaseGPUTexture(m_device, tex);
     tex = nullptr;
 }
 
 void SDLGPUInterface::releaseSampler(SDL_GPUSampler *&sampler) {
     if(!sampler) return;
-    auto *expected = sampler;
-    m_boundSampler.compare_exchange_strong(expected, nullptr, std::memory_order_relaxed);
+    for(auto &bound : m_boundSamplers) {
+        auto *expected = sampler;
+        bound.compare_exchange_strong(expected, nullptr, std::memory_order_relaxed);
+    }
     SDL_ReleaseGPUSampler(m_device, sampler);
     sampler = nullptr;
 }

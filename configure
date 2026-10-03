@@ -13589,7 +13589,7 @@ BUNDLED_INCLUDES="-I\$(srcdir)/libraries -I\$(srcdir)/libraries/delegatesv2 -I\$
 
 { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking for shaders in $srcdir/$ASSETS_DIR/shaders" >&5
 printf %s "checking for shaders in $srcdir/$ASSETS_DIR/shaders... " >&6; }
-if test -f "$srcdir/$ASSETS_DIR/shaders/VK_slider_f.glsl"
+if test -f "$srcdir/$ASSETS_DIR/shaders/VK_default_f.glsl"
 then :
 
     { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: yes" >&5

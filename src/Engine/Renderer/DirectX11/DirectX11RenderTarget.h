@@ -53,6 +53,7 @@ class DirectX11RenderTarget final : public RenderTarget {
     ID3D11RenderTargetView *renderTargetView;
     ID3D11DepthStencilView *depthStencilView;
     ID3D11ShaderResourceView *shaderResourceView;
+    ID3D11SamplerState *samplerState;
 
     ID3D11RenderTargetView *prevRenderTargetView;
     ID3D11DepthStencilView *prevDepthStencilView;

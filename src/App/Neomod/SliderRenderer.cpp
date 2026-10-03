@@ -4,18 +4,23 @@
 #include "OsuConVars.h"
 #include "Engine.h"
 #include "GameRules.h"
+#include "Image.h"
 #include "RenderTarget.h"
 #include "ResourceManager.h"
-#include "Environment.h"
 #include "Shader.h"
 #include "Skin.h"
 #include "VertexArrayObject.h"
 #include "Logging.h"
 #include "Graphics.h"
+#include "Matrices.h"
+#include "Rect.h"
 
 #include <algorithm>
+#include <array>
+#include <bit>
 #include <cmath>
 #include <limits>
+#include <utility>
 #include <vector>
 #include <cassert>
 
@@ -23,35 +28,215 @@ namespace SliderRenderer {
 
 namespace {  // static namespace
 
-Shader *s_BLEND_SHADER{nullptr};
 Shader *s_FIELD_SHADER{nullptr};      // accumulates the body's distance field into the framebuffer (MAX blend)
 Shader *s_COMPOSITE_SHADER{nullptr};  // shades the accumulated field once per pixel while drawing it to screen
-f32 s_UNIT_CIRCLE_VAO_DIAMETER{0.0f};
-
-// base mesh
-f32 s_MESH_CENTER_HEIGHT{0.5f};     // Camera::buildMatrixOrtho2D() uses -1 to 1 for zn/zf, so don't make this too high
-i32 s_UNIT_CIRCLE_SUBDIVISIONS{0};  // see slider_body_unit_circle_subdivisions now
+Shader *s_GRADIENT_SHADER{nullptr};   // the same with the skin's slidergradient.png (slider_use_gradient_image)
 
 // analytic SDF body: each kept curve point emits one equal-size block = a slab quad (6 verts) + a cap/join fan
 // (SDF_FAN_SLICES triangles). these must stay in lockstep: if VERTS_PER_SDF_BLOCK doesn't match the emitted count,
 // setDrawPercent() snake-snapping rounds the draw range to the wrong boundary and clips the static end cap
 constexpr i32 SDF_FAN_SLICES{4};
 constexpr i32 VERTS_PER_SDF_BLOCK{6 + SDF_FAN_SLICES * 3};
-std::vector<f32> s_UNIT_CIRCLE;
-// managed by RM (renderer-bound baking)
-VertexArrayObject *s_UNIT_CIRCLE_VAO_BAKED{nullptr};
 
-// unbaked, basic VAO containers
-static CONSTINIT VertexArrayObject s_UNIT_CIRCLE_VAO{DrawPrimitive::TRIANGLE_FAN};
-static CONSTINIT VertexArrayObject s_UNIT_CIRCLE_VAO_TRIANGLES{DrawPrimitive::TRIANGLES};
-// SDF snake-head disc: a centered 2r quad whose corner texcoords (+/-1) make length(texcoord) the radial distance
-static CONSTINIT VertexArrayObject s_UNIT_DISC_QUAD_SDF{DrawPrimitive::TRIANGLES};
+// SDF disc (snake heads, per-point bodies): a centered 2r quad whose corner texcoords (+/-1) make length(texcoord) the
+// radial distance, matching the baked body's encoding
+static CONSTINIT VertexArrayObject s_DISC_QUAD_SDF{DrawPrimitive::TRIANGLES};
+f32 s_DISC_QUAD_RADIUS{0.0f};
 
-// tiny rendering optimization for RenderTarget
-f32 s_fBoundingBoxMinX{(std::numeric_limits<f32>::max)()};
-f32 s_fBoundingBoxMaxX{0.0f};
-f32 s_fBoundingBoxMinY{(std::numeric_limits<f32>::max)()};
-f32 s_fBoundingBoxMaxY{0.0f};
+bool visible(const Body &b) {
+    return cv::slider_alpha_multiplier.getFloat() > 0.0f && b.alpha > 0.0f && (b.mesh == nullptr || b.mesh->vao);
+}
+
+// debug modes draw the shape directly, without a field
+bool debug_drawn(const Body &b) {
+    return b.mesh ? cv::slider_debug_draw_square_vao.getBool() : cv::slider_debug_draw.getBool();
+}
+
+// [first, last) of the points the body draws
+std::pair<uSz, uSz> drawn_points(const Body &b) {
+    const uSz n = b.points.size();
+    return {std::clamp<uSz>((uSz)std::round((f64)n * b.from), 0UZ, n),
+            std::clamp<uSz>((uSz)std::round((f64)n * b.to), 0UZ, n)};
+}
+
+// fuck oob sliders
+bool is_offscreen(vec2 point, f32 radius, vec2 target) {
+    return point.x < -radius * 2 || point.x > target.x + radius * 2 || point.y < -radius * 2 ||
+           point.y > target.y + radius * 2;
+}
+
+// what draw() composites: everything the body's field can cover, clamped to the target
+McIRect composite_area(const Body &b, vec2 target) {
+    vec2 lo{(std::numeric_limits<f32>::max)()}, hi{std::numeric_limits<f32>::lowest()};
+    if(b.mesh && b.mesh->bounds.x <= b.mesh->bounds.z) {
+        const vec2 corner0 = vec2{b.mesh->bounds.x, b.mesh->bounds.y} * b.scale + b.translation;
+        const vec2 corner1 = vec2{b.mesh->bounds.z, b.mesh->bounds.w} * b.scale + b.translation;
+        lo = vec::min(corner0, corner1);
+        hi = vec::max(corner0, corner1);
+    }
+    const f32 radius = b.hitcircleDiameter / 2.0f;
+    const auto addDisc = [&](vec2 point) {
+        if(is_offscreen(point, radius, target)) return;
+        lo = vec::min(lo, point - radius);
+        hi = vec::max(hi, point + radius);
+    };
+    const auto [first, last] = drawn_points(b);
+    for(uSz i = first; i < last; ++i) addDisc(b.points[i]);
+    for(const vec2 point : b.alwaysPoints) addDisc(point);
+
+    const f32 pixelFudge = 2.0f;
+    const i32 minX = (i32)std::floor(std::clamp(lo.x - pixelFudge, 0.0f, target.x));
+    const i32 minY = (i32)std::floor(std::clamp(lo.y - pixelFudge, 0.0f, target.y));
+    const i32 maxX = (i32)std::ceil(std::clamp(hi.x + pixelFudge, 0.0f, target.x));
+    const i32 maxY = (i32)std::ceil(std::clamp(hi.y + pixelFudge, 0.0f, target.y));
+    return {minX, minY, maxX - minX, maxY - minY};
+}
+
+void draw_discs(std::span<const vec2> points, f32 radius, vec2 target) {
+    if(radius != s_DISC_QUAD_RADIUS) {
+        s_DISC_QUAD_RADIUS = radius;
+        s_DISC_QUAD_SDF.clear();
+        const std::array<vec2, 4> corners{vec2{-1, -1}, vec2{-1, 1}, vec2{1, 1}, vec2{1, -1}};
+        for(i32 k : std::array<i32, 6>{0, 1, 2, 0, 2, 3}) {
+            s_DISC_QUAD_SDF.addVertex(corners[k] * radius);
+            s_DISC_QUAD_SDF.addTexcoord(corners[k]);
+        }
+    }
+
+    g->pushTransform();
+    {
+        // now, translate and draw the disc for every curve point
+        vec2 prev{0.0f};
+        for(const vec2 point : points) {
+            if(is_offscreen(point, radius, target)) continue;
+
+            g->translate(point.x - prev.x, point.y - prev.y, 0);
+            g->drawVAO(&s_DISC_QUAD_SDF);
+
+            prev = point;
+        }
+    }
+    g->popTransform();
+}
+
+// draws the body's geometry into its field
+void draw_shape(const Body &b, vec2 target) {
+    const f32 radius = b.hitcircleDiameter / 2.0f;
+    if(b.mesh) {
+        b.mesh->vao->setDrawPercent(b.from, b.to, VERTS_PER_SDF_BLOCK);
+        g->pushTransform();
+        {
+            g->scale(b.scale, b.scale);
+            g->translate(b.translation.x, b.translation.y);
+            /// g->scale(scaleToApplyAfterTranslationX, scaleToApplyAfterTranslationY); // aspire slider
+            /// distortions
+
+            g->drawVAO(b.mesh->vao.get());
+        }
+        g->popTransform();
+    } else {
+        const auto [first, last] = drawn_points(b);
+        draw_discs(b.points.subspan(first, last - first), radius, target);
+    }
+
+    // the moving snake ends: discs with the same texcoord encoding as the rest
+    if(!b.alwaysPoints.empty()) draw_discs(b.alwaysPoints, radius, target);
+}
+
+static CONSTINIT VertexArrayObject s_quadDebugVAO{DrawPrimitive::QUADS};
+
+// draws a hitcircle image at every drawn point, or the mesh (of squares when baked in debug mode)
+void draw_debug(const Body &b) {
+    const Image *hitcircleImage = b.skinSettings.i_hitcircle;
+    const Color dimmedColor = Colors::scale(b.undimmedColor, b.colorRGBMultiplier);
+
+    g->setColor(Color(dimmedColor).setA(b.alpha * cv::slider_alpha_multiplier.getFloat()));
+
+    if(hitcircleImage) hitcircleImage->bind();
+    g->pushTransform();
+    if(b.mesh) {
+        b.mesh->vao->setDrawPercent(b.from, b.to, 6);  // HACKHACK: hardcoded magic number
+
+        g->scale(b.scale, b.scale);
+        g->translate(b.translation.x, b.translation.y);
+
+        g->drawVAO(b.mesh->vao.get());
+    } else {
+        f32 circleImageScale = b.hitcircleDiameter;
+        f32 width{0.f}, height{0.f};
+        if(hitcircleImage) {
+            circleImageScale /= (f32)hitcircleImage->getWidth();
+            width = (f32)hitcircleImage->getWidth();
+            height = (f32)hitcircleImage->getHeight();
+        }
+
+        const f32 circleImageScaleInv = (1.0f / circleImageScale);
+
+        const f32 x = (-width / 2.0f);
+        const f32 y = (-height / 2.0f);
+        const f32 z = -1.0f;
+
+        g->scale(circleImageScale, circleImageScale);
+
+        const auto [first, last] = drawn_points(b);
+        for(uSz i = first; i < last; i++) {
+            const vec2 point = b.points[i] * circleImageScaleInv;
+
+            s_quadDebugVAO.clear();
+            {
+                s_quadDebugVAO.addTexcoord(0, 0);
+                s_quadDebugVAO.addVertex(point.x + x, point.y + y, z);
+
+                s_quadDebugVAO.addTexcoord(0, 1);
+                s_quadDebugVAO.addVertex(point.x + x, point.y + y + height, z);
+
+                s_quadDebugVAO.addTexcoord(1, 1);
+                s_quadDebugVAO.addVertex(point.x + x + width, point.y + y + height, z);
+
+                s_quadDebugVAO.addTexcoord(1, 0);
+                s_quadDebugVAO.addVertex(point.x + x + width, point.y + y, z);
+            }
+            g->drawVAO(&s_quadDebugVAO);
+        }
+    }
+    g->popTransform();
+    if(hitcircleImage) hitcircleImage->unbind();
+}
+
+Color get_rainbow_color(i32 rainbowTime, f32 initOffset) {
+    const f64 frequency = .3f;
+    const f64 time = engine->getTime() * 20.;
+
+    const Channel red = (Channel)(std::sin(frequency * (time * initOffset) + 0 + rainbowTime) * 127.) + 128;
+    const Channel green = (Channel)(std::sin(frequency * (time * initOffset) + 2 + rainbowTime) * 127.) + 128;
+    const Channel blue = (Channel)(std::sin(frequency * (time * initOffset) + 4 + rainbowTime) * 127.) + 128;
+
+    return rgb(red, green, blue);
+}
+
+forceinline Color get_body_color(const SkinSettings &settings, bool doRainbow, i32 rainbowTime, f32 colorRGBMultiplier,
+                                 Color undimmedColor) {
+    if(doRainbow) {
+        return get_rainbow_color(rainbowTime, 1.5f);
+    } else {
+        const Color undimmedBodyColor =
+            settings.o_slider_track_overridden ? settings.c_slider_track_override : undimmedColor;
+
+        return Colors::scale(undimmedBodyColor, colorRGBMultiplier);
+    }
+}
+
+forceinline Color get_border_color(const SkinSettings &settings, bool doRainbow, i32 rainbowTime,
+                                   f32 colorRGBMultiplier, Color undimmedColor) {
+    if(doRainbow) {
+        return get_rainbow_color(rainbowTime, 1.f);
+    } else {
+        const Color undimmedBorderColor =
+            cv::slider_border_tint_combo_color.getBool() ? undimmedColor : settings.c_slider_border;
+
+        return Colors::scale(undimmedBorderColor, colorRGBMultiplier);
+    }
+}
 
 struct UniformCache {
     // convar-dependent settings (updated by convar callbacks)
@@ -66,79 +251,223 @@ struct UniformCache {
     Color lastBodyColor{0};
 
     bool needsConfigUpdate{true};  // for convar-based uniforms
-
-    Shader *cacheShader{nullptr};  // which program the cached values were applied to (switching forces a re-push)
 };
 
 static CONSTINIT UniformCache s_uniformCache{};
 
 // helper function to update color uniforms (after ->enable-ing the shader)
-void updateColorUniforms(Shader *shader, Color borderColor, Color bodyColor);
+void update_shader_color_uniforms(Shader *shader, Color borderColor, Color bodyColor) {
+    assert(!!shader);
+    if(s_uniformCache.lastBorderColor != borderColor) {
+        shader->setUniform3f("colBorder", borderColor.Rf(), borderColor.Gf(), borderColor.Bf());
+        s_uniformCache.lastBorderColor = borderColor;
+    }
+
+    if(s_uniformCache.lastBodyColor != bodyColor) {
+        shader->setUniform3f("colBody", bodyColor.Rf(), bodyColor.Gf(), bodyColor.Bf());
+        s_uniformCache.lastBodyColor = bodyColor;
+    }
+}
+
 // check if convar-dependent uniforms need to be updated (after ->enable-ing the shader)
-void updateConfigUniforms(Shader *shader);
+void update_shader_config_uniforms(Shader *shader) {
+    assert(!!shader);
+    if(!s_uniformCache.needsConfigUpdate) return;
 
-// forward decls
-void drawDebugLegacy(const Image *hitcircleImage, std::span<const vec2> points, f32 hitcircleDiameter,
-                     Color undimmedColor, f32 colorRGBMultiplier, f32 alpha, uSz drawFromIndex, uSz drawUpToIndex);
-void drawDebugVAO(const Image *hitcircleImage, VertexArrayObject *vao, vec2 translation, f32 scale, f32 from, f32 to,
-                  Color undimmedColor, f32 colorRGBMultiplier, f32 alpha);
+    const i32 newStyle = cv::slider_osu_next_style.getBool() ? 1 : 0;
+    const f32 newBodyAlpha = cv::slider_body_alpha_multiplier.getFloat();
+    const f32 newBodySat = cv::slider_body_color_saturation.getFloat();
+    const f32 newBorderSize = cv::slider_border_size_multiplier.getFloat();
+    const f32 newBorderFeather = cv::slider_border_feather.getFloat();
 
-void drawFillSliderBodyPeppy(vec2 screen, std::span<const vec2> points, VertexArrayObject *circleMesh, f32 radius,
-                             uSz drawFromIndex, uSz drawUpToIndex);
-void checkUpdateVars(f32 hitcircleDiameter);
+    if(s_uniformCache.style != newStyle) {
+        shader->setUniform1i("style", newStyle);
+        s_uniformCache.style = newStyle;
+    }
 
-Color getRainbowColor(i32 rainbowTime, f32 initOffset) {
-    const f64 frequency = .3f;
-    const f64 time = engine->getTime() * 20.;
+    if(s_uniformCache.bodyAlphaMultiplier != newBodyAlpha) {
+        shader->setUniform1f("bodyAlphaMultiplier", newBodyAlpha);
+        s_uniformCache.bodyAlphaMultiplier = newBodyAlpha;
+    }
 
-    const Channel red = (Channel)(std::sin(frequency * (time * initOffset) + 0 + rainbowTime) * 127.) + 128;
-    const Channel green = (Channel)(std::sin(frequency * (time * initOffset) + 2 + rainbowTime) * 127.) + 128;
-    const Channel blue = (Channel)(std::sin(frequency * (time * initOffset) + 4 + rainbowTime) * 127.) + 128;
+    if(s_uniformCache.bodyColorSaturation != newBodySat) {
+        shader->setUniform1f("bodyColorSaturation", newBodySat);
+        s_uniformCache.bodyColorSaturation = newBodySat;
+    }
 
-    return rgb(red, green, blue);
+    if(s_uniformCache.borderSizeMultiplier != newBorderSize) {
+        shader->setUniform1f("borderSizeMultiplier", newBorderSize);
+        s_uniformCache.borderSizeMultiplier = newBorderSize;
+    }
+
+    if(s_uniformCache.borderFeather != newBorderFeather) {
+        shader->setUniform1f("borderFeather", newBorderFeather);
+        s_uniformCache.borderFeather = newBorderFeather;
+    }
+
+    s_uniformCache.needsConfigUpdate = false;
 }
 
-forceinline Color getBodyColor(const SkinSettings &settings, bool doRainbow, i32 rainbowTime, f32 colorRGBMultiplier,
-                               Color undimmedColor) {
-    if(doRainbow) {
-        return getRainbowColor(rainbowTime, 1.5f);
-    } else {
-        const Color undimmedBodyColor =
-            settings.o_slider_track_overridden ? settings.c_slider_track_override : undimmedColor;
-
-        return Colors::scale(undimmedBodyColor, colorRGBMultiplier);
-    }
+void set_shader_channel_uniform(Shader *shader, u8 channel) {
+    shader->setUniform4f("channel", channel == 0 ? 1.0f : 0.0f, channel == 1 ? 1.0f : 0.0f, channel == 2 ? 1.0f : 0.0f,
+                         channel == 3 ? 1.0f : 0.0f);
 }
 
-forceinline Color getBorderColor(const SkinSettings &settings, bool doRainbow, i32 rainbowTime, f32 colorRGBMultiplier,
-                                 Color undimmedColor) {
-    if(doRainbow) {
-        return getRainbowColor(rainbowTime, 1.f);
-    } else {
-        const Color undimmedBorderColor =
-            cv::slider_border_tint_combo_color.getBool() ? undimmedColor : settings.c_slider_border;
+// a body whose field renders in the active batch. sources reuse the buffers behind their spans, so its points are
+// copied to the batch (see bodyOf())
+struct Entry {
+    const BodySource *source;
+    Body body;  // without its spans
+    uSz pointsAt;
+    uSz numPoints;
+    uSz numAlwaysPoints;
+    McIRect area;   // what its composite covers
+    u8 channel{0};  // the render target channel its field goes into
+};
 
-        return Colors::scale(undimmedBorderColor, colorRGBMultiplier);
-    }
+// the active Batch, kept around for the capacity
+struct BatchState {
+    RenderTarget *rt{nullptr};
+    std::vector<Entry> entries;  // queue order
+    std::vector<vec2> points;
+    // entries[residentBegin, residentEnd) have their fields in rt, the ones after are pending
+    uSz residentBegin{0};
+    uSz residentEnd{0};
+};
+BatchState s_batch;
+
+// nullopt when the body's field would be entirely off-screen
+std::optional<Entry> make_entry(const BodySource &source, const Body &b) {
+    const McIRect area = composite_area(b, s_batch.rt->getSize());
+    if(area.getWidth() <= 0 || area.getHeight() <= 0) return std::nullopt;
+
+    Entry entry{.source = &source,
+                .body = b,
+                .pointsAt = s_batch.points.size(),
+                .numPoints = b.points.size(),
+                .numAlwaysPoints = b.alwaysPoints.size(),
+                .area = area};
+    entry.body.points = {};
+    entry.body.alwaysPoints = {};
+    s_batch.points.insert(s_batch.points.end(), b.points.begin(), b.points.end());
+    s_batch.points.insert(s_batch.points.end(), b.alwaysPoints.begin(), b.alwaysPoints.end());
+    return entry;
 }
 
-forceinline void preDrawColorSetup(Shader *shader, const SkinSettings &settings, const Image *gradient, i32 sliderTime,
-                                   f32 colorRGBMultiplier, Color undimmedColor) {
-    if(gradient) {
-        // this only affects the gradient image if used (meaning shaders
-        // either don't work or are disabled on purpose)
-        g->setColor(argb(1.0f, colorRGBMultiplier, colorRGBMultiplier, colorRGBMultiplier));
-        gradient->bind();
-    } else {
-        const bool doRainbow = cv::slider_rainbow.getBool();
+Body body_of(const Entry &entry) {
+    Body b = entry.body;
+    b.points = {s_batch.points.data() + entry.pointsAt, entry.numPoints};
+    b.alwaysPoints = {s_batch.points.data() + entry.pointsAt + entry.numPoints, entry.numAlwaysPoints};
+    return b;
+}
 
-        const Color borderColor = getBorderColor(settings, doRainbow, sliderTime, colorRGBMultiplier, undimmedColor);
-        const Color bodyColor = getBodyColor(settings, doRainbow, sliderTime, colorRGBMultiplier, undimmedColor);
+// the index of the source's entry in [from, to), to when there's none
+uSz find_entry(const BodySource &source, uSz from, uSz to) {
+    while(from < to && s_batch.entries[from].source != &source) ++from;
+    return from;
+}
 
-        shader->enable();
-        updateConfigUniforms(shader);
-        updateColorUniforms(shader, borderColor, bodyColor);
+// gives the entries from first on their channels until one doesn't fit, returns its index: overlapping fields need
+// different channels
+uSz assign_channels(uSz first) {
+    uSz end = first;
+    for(; end < s_batch.entries.size(); ++end) {
+        Entry &entry = s_batch.entries[end];
+
+        u32 taken = 0;
+        for(uSz i = first; i < end; ++i)
+            if(s_batch.entries[i].area.intersects(entry.area)) taken |= 1u << s_batch.entries[i].channel;
+
+        const u32 free = ~taken & 0xfu;
+        if(free == 0) break;
+        entry.channel = (u8)std::countr_zero(free);
     }
+    return end;
+}
+
+// renders the fields of the entries from first on, as many as fit into one pass
+void render_fields(uSz first) {
+    s_batch.residentBegin = first;
+    s_batch.residentEnd = assign_channels(first);
+
+    const vec2 target = s_batch.rt->getSize();
+    const bool blending = g->getBlending();
+    const DrawBlendMode blendMode = g->getBlendMode();
+    g->pushTransform();
+    {
+        // the bodies' own transforms place them, wherever draw() was called from
+        Matrix4 identity;
+        g->setWorldMatrix(identity);
+
+        s_batch.rt->enable(/*clear=*/false);
+
+        // only the composite areas have to start out empty: clearing the whole target instead makes tile-based GPUs
+        // clear and store every tile of it
+        g->setBlending(false);
+        g->setColor(0);
+        for(uSz i = first; i < s_batch.residentEnd; ++i) {
+            const McIRect &area = s_batch.entries[i].area;
+            g->fillRect(area.getX(), area.getY(), area.getWidth(), area.getHeight());
+        }
+        g->setBlending(true);
+
+        // accumulate the distance fields: each primitive MAX-blends its radial gradient into its body's channel, so
+        // the union needs no depth buffer at all and self-overlapping geometry (retraced/aspire curves stack
+        // thousands of blocks on the same pixels) costs only trivial blended fills. the expensive gradient shading
+        // runs exactly once per covered pixel in composite().
+        g->setBlendMode(DrawBlendMode::MAX);
+        s_FIELD_SHADER->enable();
+        for(uSz i = first; i < s_batch.residentEnd; ++i) {
+            set_shader_channel_uniform(s_FIELD_SHADER, s_batch.entries[i].channel);
+            draw_shape(body_of(s_batch.entries[i]), target);
+        }
+        s_FIELD_SHADER->disable();
+
+        s_batch.rt->disable();
+    }
+    g->popTransform();
+    g->setBlending(blending);
+    g->setBlendMode(blendMode);
+}
+
+// shades the accumulated field while compositing it: colors are only needed here, and the body's fade rides along as a
+// uniform instead of the framebuffer color modulation
+void composite(const Entry &entry) {
+    const Body &b = entry.body;
+    const McIRect &area = entry.area;
+    const f32 alpha = b.alpha * cv::slider_alpha_multiplier.getFloat();
+
+    // the gradient image takes the place of the dynamic colors and border
+    if(const Image *gradient = b.skinSettings.i_slider_gradient;
+       cv::slider_use_gradient_image.getBool() && gradient && gradient->isReady()) {
+        s_GRADIENT_SHADER->enable();
+        {
+            s_GRADIENT_SHADER->setUniform1f("colorRGBMultiplier", b.colorRGBMultiplier);
+            s_GRADIENT_SHADER->setUniform1f("alphaMultiplier", alpha);
+            set_shader_channel_uniform(s_GRADIENT_SHADER, entry.channel);
+            gradient->bind(1);  // tex1, drawRect() binds the field to unit 0
+            s_batch.rt->drawRect(area.getX(), area.getY(), area.getWidth(), area.getHeight());
+            gradient->unbind();
+        }
+        s_GRADIENT_SHADER->disable();
+        return;
+    }
+
+    const bool doRainbow = cv::slider_rainbow.getBool();
+    const Color borderColor =
+        get_border_color(b.skinSettings, doRainbow, b.sliderTimeForRainbow, b.colorRGBMultiplier, b.undimmedColor);
+    const Color bodyColor =
+        get_body_color(b.skinSettings, doRainbow, b.sliderTimeForRainbow, b.colorRGBMultiplier, b.undimmedColor);
+
+    s_COMPOSITE_SHADER->enable();
+    {
+        update_shader_config_uniforms(s_COMPOSITE_SHADER);
+        update_shader_color_uniforms(s_COMPOSITE_SHADER, borderColor, bodyColor);
+        s_COMPOSITE_SHADER->setUniform1f("alphaMultiplier", alpha);
+        set_shader_channel_uniform(s_COMPOSITE_SHADER, entry.channel);
+        s_batch.rt->drawRect(area.getX(), area.getY(), area.getWidth(), area.getHeight());
+    }
+    s_COMPOSITE_SHADER->disable();
 }
 
 }  // namespace
@@ -156,20 +485,19 @@ SkinSettings::SkinSettings(const Skin *skin) {
 // invalidate config uniforms (convar callbacks)
 void onUniformConfigChanged() { s_uniformCache.needsConfigUpdate = true; }
 
-bool usingSDF() {
-    // the gradient image path colors the body by texturing the cone mesh fixed-function (no shader), which the
-    // field/composite split can't reproduce, so it forces the cone fallback. a failed shader compile falls back
-    // the same way via isReady().
-    return cv::slider_body_sdf.getBool() && !cv::slider_use_gradient_image.getBool() && s_FIELD_SHADER &&
-           s_FIELD_SHADER->isReady() && s_COMPOSITE_SHADER && s_COMPOSITE_SHADER->isReady();
-}
+Mesh generateMesh(vec2 screenRect, std::span<const vec2> points, f32 hitcircleDiameter, bool skipOOBPoints) {
+    Mesh mesh{.vao{g->createVertexArrayObject(DrawPrimitive::TRIANGLES, DrawUsageType::STATIC,
+                                              /*keepInSystemMemory=*/false)}};
+    VertexArrayObject *vao = mesh.vao.get();
 
-std::unique_ptr<VertexArrayObject> generateVAO(vec2 screenRect, std::span<const vec2> points, f32 hitcircleDiameter,
-                                               vec3 translation, bool skipOOBPoints) {
-    std::unique_ptr<VertexArrayObject> vao{
-        g->createVertexArrayObject(DrawPrimitive::TRIANGLES, DrawUsageType::STATIC, /*keepInSystemMemory=*/false)};
-
-    checkUpdateVars(hitcircleDiameter);
+    // every point's disc, the skipped OOB ones too: the slab of the point after one still reaches back to it
+    const f32 radius = hitcircleDiameter / 2.0f;
+    mesh.bounds = {(std::numeric_limits<f32>::max)(), (std::numeric_limits<f32>::max)(),
+                   std::numeric_limits<f32>::lowest(), std::numeric_limits<f32>::lowest()};
+    for(const vec2 point : points) {
+        mesh.bounds = {std::min(mesh.bounds.x, point.x - radius), std::min(mesh.bounds.y, point.y - radius),
+                       std::max(mesh.bounds.z, point.x + radius), std::max(mesh.bounds.w, point.y + radius)};
+    }
 
     const vec4 bounds{
         -hitcircleDiameter - GameRules::OSU_COORD_WIDTH * 2,                // x = minX
@@ -182,8 +510,6 @@ std::unique_ptr<VertexArrayObject> generateVAO(vec2 screenRect, std::span<const 
         return point.x < bounds.x || point.x > bounds.y || point.y < bounds.z || point.y > bounds.w;
     };
 
-    const bool useSDF = !cv::slider_debug_draw_square_vao.getBool() && !points.empty() && usingSDF();
-
     if(cv::slider_debug_draw_square_vao.getBool()) {  // debug
         const vec3 xOffset = vec3(hitcircleDiameter, 0, 0);
         const vec3 yOffset = vec3(0, hitcircleDiameter, 0);
@@ -191,7 +517,7 @@ std::unique_ptr<VertexArrayObject> generateVAO(vec2 screenRect, std::span<const 
         for(const auto &point : points) {
             if(skipOOBPoints && isOOB(point)) continue;
 
-            const vec3 topLeft = vec3(point.x, point.y, 0) - xOffset / 2.0f - yOffset / 2.0f + translation;
+            const vec3 topLeft = vec3(point.x, point.y, 0) - xOffset / 2.0f - yOffset / 2.0f;
             const vec3 topRight = topLeft + xOffset;
             const vec3 bottomLeft = topLeft + yOffset;
             const vec3 bottomRight = bottomLeft + xOffset;
@@ -209,7 +535,7 @@ std::unique_ptr<VertexArrayObject> generateVAO(vec2 screenRect, std::span<const 
                                                   vec2{1, 1},  //
                                                   vec2{1, 0}});
         }
-    } else if(useSDF) {  // analytic distance-field body (regular fast path)
+    } else {  // analytic distance-field body
         // render the body as an exact distance field instead of stamping a full cone disc at every curve point
         // (massive overdraw: neighboring radius-r discs sit only ~2.5 osu!px apart). each primitive's texcoord
         // carries (fragment - nearest curve feature)/r; the sliderField shader emits that feature's radial
@@ -271,7 +597,7 @@ std::unique_ptr<VertexArrayObject> generateVAO(vec2 screenRect, std::span<const 
         meshTCs.reserve(VERTS_PER_SDF_BLOCK * keptPoints);
 
         const auto emitVert = [&](vec2 p, vec2 tc) {
-            meshVerts.emplace_back(p.x + translation.x, p.y + translation.y, translation.z);
+            meshVerts.emplace_back(p.x, p.y, 0.0f);
             meshTCs.emplace_back(tc);
         };
 
@@ -323,9 +649,9 @@ std::unique_ptr<VertexArrayObject> generateVAO(vec2 screenRect, std::span<const 
         // one block per kept input point: the slab of the segment arriving at the point + the fan rounding it
         for(uSz i = 0; i < n; ++i) {
             // dropping a far-offscreen block desyncs the percent -> block snapping from the caller's snake
-            // mapping just like the cone path dropping its discs, but only on the same broken/aspire maps,
-            // where baking + transforming millions of offscreen blocks every frame is the greater evil (the
-            // OOB bounds are generous enough that a cut end can never reach the viewport)
+            // mapping, but only on broken/aspire maps, where baking + transforming millions of offscreen blocks
+            // every frame is the greater evil (the OOB bounds are generous enough that a cut end can never reach
+            // the viewport)
             if(skipOOBPoints && isOOB(points[i])) continue;
 
             const vec2 seg = i >= 1 ? points[i] - points[i - 1] : vec2{0.0f, 0.0f};
@@ -363,32 +689,6 @@ std::unique_ptr<VertexArrayObject> generateVAO(vec2 screenRect, std::span<const 
 
         vao->setVertices(std::move(meshVerts));
         vao->setTexcoords(std::move(meshTCs));
-    } else {  // legacy cone discs (one full cone per curve point)
-        const std::span<const vec3> triangleMeshVerts = s_UNIT_CIRCLE_VAO_TRIANGLES.getVertices();
-        const std::span<const vec2> triangleMeshTCs = s_UNIT_CIRCLE_VAO_TRIANGLES.getTexcoords();
-        std::vector<vec2> tempTexCoords{triangleMeshTCs.size() * points.size()};
-        std::vector<vec3> tempMeshVerts{triangleMeshVerts.size() * points.size()};
-
-        uSz tempMeshVertOffset = 0;
-        uSz tempMeshTCOffset = 0;
-        for(const auto &point : points) {
-            if(skipOOBPoints && isOOB(point)) continue;
-
-            for(const auto &meshVertex : triangleMeshVerts) {
-                tempMeshVerts[tempMeshVertOffset++] = (meshVertex + vec3(point.x, point.y, 0) + translation);
-            }
-            std::memcpy(&tempTexCoords[tempMeshTCOffset], triangleMeshTCs.data(),
-                        triangleMeshTCs.size() * sizeof(decltype(tempTexCoords)::value_type));
-            tempMeshTCOffset += triangleMeshTCs.size();
-        }
-
-        // resize to post-OOB-clipped amount
-        tempMeshVerts.resize(tempMeshVertOffset);
-        tempMeshVerts.shrink_to_fit();
-        tempTexCoords.resize(tempMeshTCOffset);
-        tempTexCoords.shrink_to_fit();
-        vao->setVertices(std::move(tempMeshVerts));
-        vao->setTexcoords(std::move(tempTexCoords));
     }
 
     if(vao->getNumVertices() > 0) {
@@ -398,491 +698,58 @@ std::unique_ptr<VertexArrayObject> generateVAO(vec2 screenRect, std::span<const 
         debugLog("ERROR: Zero triangles!");
     }
 
-    return vao;
+    return mesh;
 }
 
-void draw(const DrawLegacyParams &p) {
-    if(cv::slider_alpha_multiplier.getFloat() <= 0.0f || p.alpha <= 0.0f) return;
+Batch::Batch(RenderTarget *rt) {
+    assert(s_batch.rt == nullptr && "nested SliderRenderer::Batch");
+    s_batch.rt = rt;
 
-    checkUpdateVars(p.hitcircleDiameter);
-
-    const uSz drawFromIndex = std::clamp<uSz>((uSz)std::round((f64)p.points.size() * p.from), 0UZ, p.points.size());
-    const uSz drawUpToIndex = std::clamp<uSz>((uSz)std::round((f64)p.points.size() * p.to), 0UZ, p.points.size());
-
-    // debug sliders
-    if(cv::slider_debug_draw.getBool()) {
-        drawDebugLegacy(p.skinSettings.i_hitcircle, p.points, p.hitcircleDiameter, p.undimmedColor,
-                        p.colorRGBMultiplier, p.alpha, drawFromIndex, drawUpToIndex);
-        return;  // nothing more to draw here
-    }
-
-    // reset
-    s_fBoundingBoxMinX = (std::numeric_limits<f32>::max)();
-    s_fBoundingBoxMaxX = 0.0f;
-    s_fBoundingBoxMinY = (std::numeric_limits<f32>::max)();
-    s_fBoundingBoxMaxY = 0.0f;
-
-    // draw entire slider into framebuffer
-    g->setDepthBuffer(true);
-    g->setBlending(false);
-    {
-        p.rt->enable();
-        {
-            const Image *gradient = nullptr;
-            const bool useGradientImage = p.skinSettings.i_slider_gradient && cv::slider_use_gradient_image.getBool();
-            if(useGradientImage) {
-                gradient = p.skinSettings.i_slider_gradient;
-            }
-            // legacy/dynamic-mod path always renders cone discs, so use the cone shader
-            preDrawColorSetup(s_BLEND_SHADER, p.skinSettings, gradient, p.sliderTimeForRainbow, p.colorRGBMultiplier,
-                              p.undimmedColor);
-
-            // draw curve mesh
-            drawFillSliderBodyPeppy(
-                p.screenRect, p.points,
-                (cv::slider_legacy_use_baked_vao.getBool() ? s_UNIT_CIRCLE_VAO_BAKED : &s_UNIT_CIRCLE_VAO),
-                p.hitcircleDiameter / 2.0f, drawFromIndex, drawUpToIndex);
-
-            if(p.alwaysPoints.size() > 0)
-                drawFillSliderBodyPeppy(p.screenRect, p.alwaysPoints, s_UNIT_CIRCLE_VAO_BAKED,
-                                        p.hitcircleDiameter / 2.0f, 0, p.alwaysPoints.size());
-
-            if(!useGradientImage) {
-                s_BLEND_SHADER->disable();
-            } else {
-                gradient->unbind();
-            }
-        }
-        p.rt->disable();
-    }
-    g->setBlending(true);
-    g->setDepthBuffer(false);
-
-    // now draw the slider to the screen (with alpha blending enabled again)
-    const f32 pixelFudge = 2.0f;
-    s_fBoundingBoxMinX -= pixelFudge;
-    s_fBoundingBoxMaxX += pixelFudge;
-    s_fBoundingBoxMinY -= pixelFudge;
-    s_fBoundingBoxMaxY += pixelFudge;
-
-    p.rt->setColor(argb(p.alpha * cv::slider_alpha_multiplier.getFloat(), 1.0f, 1.0f, 1.0f));
-    p.rt->drawRect((i32)s_fBoundingBoxMinX, (i32)s_fBoundingBoxMinY, (i32)(s_fBoundingBoxMaxX - s_fBoundingBoxMinX),
-                   (i32)(s_fBoundingBoxMaxY - s_fBoundingBoxMinY));
-}
-
-void draw(const DrawVAOParams &p) {
-    if(cv::slider_alpha_multiplier.getFloat() <= 0.0f || p.alpha <= 0.0f || p.vao == nullptr) return;
-
-    checkUpdateVars(p.hitcircleDiameter);
-
-    if(cv::slider_debug_draw_square_vao.getBool()) {
-        drawDebugVAO(p.skinSettings.i_hitcircle, p.vao, p.translation, p.scale, p.from, p.to, p.undimmedColor,
-                     p.colorRGBMultiplier, p.alpha);
-        return;
-    }
-
-    // the area the composite reads: the curve's bounds padded by the body radius, or the whole target without them
-    i32 minX = 0, minY = 0, maxX = (i32)p.screenRect.x, maxY = (i32)p.screenRect.y;
-    if(p.bounds != vec4{}) {
-        const f32 pad = p.hitcircleDiameter / 2.0f + 2.0f;  // + pixel fudge
-        minX = (i32)std::floor(std::clamp(p.bounds.x - pad, 0.0f, p.screenRect.x));
-        minY = (i32)std::floor(std::clamp(p.bounds.y - pad, 0.0f, p.screenRect.y));
-        maxX = (i32)std::ceil(std::clamp(p.bounds.z + pad, 0.0f, p.screenRect.x));
-        maxY = (i32)std::ceil(std::clamp(p.bounds.w + pad, 0.0f, p.screenRect.y));
-        if(minX >= maxX || minY >= maxY) return;  // entirely off-screen
-    }
-
-    // bake and draw key off the same global mode: the cvar callbacks (see Osu.cpp) rebake every slider VAO
-    // when it flips, so a baked mesh never meets the wrong pipeline. the per-frame legacy path (dynamic mods)
-    // always renders cone discs and uses s_BLEND_SHADER directly
-    const bool sdf = usingSDF();
-
-    // draw entire slider into framebuffer
-    if(sdf) {
-        p.rt->enable(/*clear=*/false);
-        {
-            // only the composite area has to start out empty
-            g->setBlending(false);
-            g->setColor(0);
-            g->fillRect(minX, minY, maxX - minX, maxY - minY);
-            g->setBlending(true);
-
-            // accumulate the body's distance field: each primitive MAX-blends its radial gradient, so the union
-            // needs no depth buffer at all and self-overlapping geometry (retraced/aspire curves stack thousands
-            // of blocks on the same pixels) costs only trivial blended fills. the expensive gradient shading runs
-            // exactly once per covered pixel in the composite draw below.
-            g->setBlendMode(DrawBlendMode::MAX);
-            s_FIELD_SHADER->enable();
-
-            // draw curve mesh
-            p.vao->setDrawPercent(p.from, p.to, VERTS_PER_SDF_BLOCK);
-            g->pushTransform();
-            {
-                g->scale(p.scale, p.scale);
-                g->translate(p.translation.x, p.translation.y);
-                /// g->scale(scaleToApplyAfterTranslationX, scaleToApplyAfterTranslationY); // aspire slider
-                /// distortions
-
-                g->drawVAO(p.vao);
-            }
-            g->popTransform();
-
-            // the moving snake head: a disc-quad with the same texcoord encoding as the baked body
-            if(p.alwaysPoints.size() > 0)
-                drawFillSliderBodyPeppy(p.screenRect, p.alwaysPoints, &s_UNIT_DISC_QUAD_SDF, p.hitcircleDiameter / 2.0f,
-                                        0, p.alwaysPoints.size());
-
-            s_FIELD_SHADER->disable();
-            g->setBlendMode(DrawBlendMode::ALPHA);
-        }
-        p.rt->disable();
-    } else {
-        // legacy cone discs: the opaque draw under GL_LESS resolves the self-overlap in the depth buffer
-        g->setDepthBuffer(true);
-        g->setBlending(false);
-        {
-            p.rt->enable();
-
-            const Image *gradient = nullptr;
-            const bool useGradientImage = p.skinSettings.i_slider_gradient && cv::slider_use_gradient_image.getBool();
-            if(useGradientImage) {
-                gradient = p.skinSettings.i_slider_gradient;
-            }
-            // enables shader if gradient is not being used
-            preDrawColorSetup(s_BLEND_SHADER, p.skinSettings, gradient, p.sliderTimeForRainbow, p.colorRGBMultiplier,
-                              p.undimmedColor);
-
-            // draw curve mesh
-            p.vao->setDrawPercent(p.from, p.to, (i32)s_UNIT_CIRCLE_VAO_TRIANGLES.getVertices().size());
-            g->pushTransform();
-            {
-                g->scale(p.scale, p.scale);
-                g->translate(p.translation.x, p.translation.y);
-
-                g->drawVAO(p.vao);
-            }
-            g->popTransform();
-
-            if(p.alwaysPoints.size() > 0)
-                drawFillSliderBodyPeppy(p.screenRect, p.alwaysPoints, s_UNIT_CIRCLE_VAO_BAKED,
-                                        p.hitcircleDiameter / 2.0f, 0, p.alwaysPoints.size());
-
-            if(!useGradientImage) {
-                s_BLEND_SHADER->disable();
-            } else {
-                gradient->unbind();
-            }
-
-            p.rt->disable();
-        }
-        g->setBlending(true);
-        g->setDepthBuffer(false);
-    }
-
-    if(sdf) {
-        // shade the accumulated field while compositing it to the screen: colors are only needed here, and
-        // the slider's fade rides along as a uniform instead of the framebuffer color modulation
-        preDrawColorSetup(s_COMPOSITE_SHADER, p.skinSettings, nullptr, p.sliderTimeForRainbow, p.colorRGBMultiplier,
-                          p.undimmedColor);
-        s_COMPOSITE_SHADER->setUniform1f("alphaMultiplier", p.alpha * cv::slider_alpha_multiplier.getFloat());
-        p.rt->drawRect(minX, minY, maxX - minX, maxY - minY);
-        s_COMPOSITE_SHADER->disable();
-    } else {
-        p.rt->setColor(argb(p.alpha * cv::slider_alpha_multiplier.getFloat(), 1.0f, 1.0f, 1.0f));
-        p.rt->drawRect(minX, minY, maxX - minX, maxY - minY);
-    }
-}
-
-namespace {  // static
-
-void drawFillSliderBodyPeppy(vec2 screen, std::span<const vec2> points, VertexArrayObject *circleMesh, f32 radius,
-                             uSz drawFromIndex, uSz drawUpToIndex) {
-    g->pushTransform();
-    {
-        // now, translate and draw the master vao for every curve point
-        f32 startX = 0.0f;
-        f32 startY = 0.0f;
-        for(uSz i = drawFromIndex; i < drawUpToIndex; ++i) {
-            const f32 x = points[i].x;
-            const f32 y = points[i].y;
-
-            // fuck oob sliders
-            if(x < -radius * 2 || x > screen.x + radius * 2 || y < -radius * 2 || y > screen.y + radius * 2) continue;
-
-            g->translate(x - startX, y - startY, 0);
-            g->drawVAO(circleMesh);
-
-            startX = x;
-            startY = y;
-
-            if(x - radius < s_fBoundingBoxMinX) s_fBoundingBoxMinX = x - radius;
-            if(x + radius > s_fBoundingBoxMaxX) s_fBoundingBoxMaxX = x + radius;
-            if(y - radius < s_fBoundingBoxMinY) s_fBoundingBoxMinY = y - radius;
-            if(y + radius > s_fBoundingBoxMaxY) s_fBoundingBoxMaxY = y + radius;
-        }
-    }
-    g->popTransform();
-}
-
-void checkUpdateVars(f32 hitcircleDiameter) {
-    // static globals
-
-    if(!env->usingGL()) {
-        // NOTE: compensate for zn/zf Camera::buildMatrixOrtho2DDXLH() differences compared to OpenGL
-        if(s_MESH_CENTER_HEIGHT > 0.0f) s_MESH_CENTER_HEIGHT = -s_MESH_CENTER_HEIGHT;
-    }
-
-    // build shaders and circle mesh. the cone shader serves the legacy/dynamic-mod path and the cone fallback
-    if(s_BLEND_SHADER == nullptr)  // only do this once
-        s_BLEND_SHADER = resourceManager->createShaderAuto("slider");
     if(s_FIELD_SHADER == nullptr) s_FIELD_SHADER = resourceManager->createShaderAuto("sliderField");
     if(s_COMPOSITE_SHADER == nullptr) s_COMPOSITE_SHADER = resourceManager->createShaderAuto("sliderComposite");
+    if(s_GRADIENT_SHADER == nullptr) s_GRADIENT_SHADER = resourceManager->createShaderAuto("sliderGradient");
+}
 
-    const i32 subdivisions = cv::slider_body_unit_circle_subdivisions.getInt();
-    if(subdivisions != s_UNIT_CIRCLE_SUBDIVISIONS) {
-        s_UNIT_CIRCLE_SUBDIVISIONS = subdivisions;
+Batch::~Batch() {
+    s_batch.rt = nullptr;
+    s_batch.entries.clear();
+    s_batch.points.clear();
+    s_batch.residentBegin = s_batch.residentEnd = 0;
+}
 
-        // build unit cone
-        {
-            s_UNIT_CIRCLE.clear();
+void Batch::queue(const BodySource &source) {
+    // draw() asks again for the bodies that aren't queued here: debug bodies draw without a field
+    const std::optional<Body> body = source.getBody();
+    if(!body || !visible(*body) || debug_drawn(*body)) return;
 
-            // tip of the cone
-            // texture coordinates
-            s_UNIT_CIRCLE.push_back(1.0f);
-            s_UNIT_CIRCLE.push_back(0.0f);
+    if(const std::optional<Entry> entry = make_entry(source, *body)) s_batch.entries.push_back(*entry);
+}
 
-            // position
-            s_UNIT_CIRCLE.push_back(0.0f);
-            s_UNIT_CIRCLE.push_back(0.0f);
-            s_UNIT_CIRCLE.push_back(s_MESH_CENTER_HEIGHT);
+void draw(const BodySource &source) {
+    assert(s_batch.rt != nullptr && "SliderRenderer::draw() outside of a Batch");
+    if(s_batch.rt == nullptr) return;
 
-            for(i32 j = 0; j < subdivisions; ++j) {
-                const f32 phase = (f32)j * PI_F * 2.0f / (f32)subdivisions;
-
-                // texture coordinates
-                s_UNIT_CIRCLE.push_back(0.0f);
-                s_UNIT_CIRCLE.push_back(0.0f);
-
-                // positon
-                s_UNIT_CIRCLE.push_back((f32)std::sin(phase));
-                s_UNIT_CIRCLE.push_back((f32)std::cos(phase));
-                s_UNIT_CIRCLE.push_back(0.0f);
+    std::vector<Entry> &entries = s_batch.entries;
+    uSz i = find_entry(source, s_batch.residentBegin, s_batch.residentEnd);
+    if(i == s_batch.residentEnd) {
+        // its field renders now, with the ones queued after it. an unqueued body goes in front of them
+        i = find_entry(source, s_batch.residentEnd, entries.size());
+        if(i == entries.size()) {
+            const std::optional<Body> body = source.getBody();
+            if(!body || !visible(*body)) return;
+            if(debug_drawn(*body)) {
+                draw_debug(*body);
+                return;
             }
 
-            // texture coordinates
-            s_UNIT_CIRCLE.push_back(0.0f);
-            s_UNIT_CIRCLE.push_back(0.0f);
-
-            // positon
-            s_UNIT_CIRCLE.push_back((f32)std::sin(0.0f));
-            s_UNIT_CIRCLE.push_back((f32)std::cos(0.0f));
-            s_UNIT_CIRCLE.push_back(0.0f);
+            const std::optional<Entry> entry = make_entry(source, *body);
+            if(!entry) return;
+            i = s_batch.residentEnd;
+            entries.insert(entries.begin() + (sSz)i, *entry);
         }
+        render_fields(i);
     }
-
-    // build vaos
-    if(s_UNIT_CIRCLE_VAO_BAKED == nullptr)
-        s_UNIT_CIRCLE_VAO_BAKED = resourceManager->createVertexArrayObject(DrawPrimitive::TRIANGLE_FAN);
-
-    // (re-)generate master circle mesh (centered) if the size changed
-    // dynamic mods like minimize or wobble have to use the legacy renderer anyway, since the slider shape may change
-    // every frame
-    if(hitcircleDiameter != s_UNIT_CIRCLE_VAO_DIAMETER) {
-        const f32 radius = hitcircleDiameter / 2.0f;
-
-        s_UNIT_CIRCLE_VAO_BAKED->release();
-
-        // triangle fan
-        s_UNIT_CIRCLE_VAO_DIAMETER = hitcircleDiameter;
-        s_UNIT_CIRCLE_VAO.clear();
-        for(i32 i = 0; i < s_UNIT_CIRCLE.size() / 5; i++) {
-            vec3 vertexPos = vec3((radius * s_UNIT_CIRCLE[i * 5 + 2]), (radius * s_UNIT_CIRCLE[i * 5 + 3]),
-                                  s_UNIT_CIRCLE[i * 5 + 4]);
-            vec2 vertexTexcoord = vec2(s_UNIT_CIRCLE[i * 5 + 0], s_UNIT_CIRCLE[i * 5 + 1]);
-
-            s_UNIT_CIRCLE_VAO.addVertex(vertexPos);
-            s_UNIT_CIRCLE_VAO.addTexcoord(vertexTexcoord);
-
-            s_UNIT_CIRCLE_VAO_BAKED->addVertex(vertexPos);
-            s_UNIT_CIRCLE_VAO_BAKED->addTexcoord(vertexTexcoord);
-        }
-
-        resourceManager->loadResource(s_UNIT_CIRCLE_VAO_BAKED);
-
-        // pure triangles (needed for VertexArrayObject, because we can't merge multiple triangle fan meshes into one
-        // VertexArrayObject)
-        s_UNIT_CIRCLE_VAO_TRIANGLES.clear();
-        vec3 startVertex =
-            vec3((radius * s_UNIT_CIRCLE[0 * 5 + 2]), (radius * s_UNIT_CIRCLE[0 * 5 + 3]), s_UNIT_CIRCLE[0 * 5 + 4]);
-        vec2 startUV = vec2(s_UNIT_CIRCLE[0 * 5 + 0], s_UNIT_CIRCLE[0 * 5 + 1]);
-        for(i32 i = 1; i < s_UNIT_CIRCLE.size() / 5 - 1; i++) {
-            // center
-            s_UNIT_CIRCLE_VAO_TRIANGLES.addVertex(startVertex);
-            s_UNIT_CIRCLE_VAO_TRIANGLES.addTexcoord(startUV);
-
-            // pizza slice edge 1
-            s_UNIT_CIRCLE_VAO_TRIANGLES.addVertex(vec3((radius * s_UNIT_CIRCLE[i * 5 + 2]),
-                                                       (radius * s_UNIT_CIRCLE[i * 5 + 3]), s_UNIT_CIRCLE[i * 5 + 4]));
-            s_UNIT_CIRCLE_VAO_TRIANGLES.addTexcoord(vec2(s_UNIT_CIRCLE[i * 5 + 0], s_UNIT_CIRCLE[i * 5 + 1]));
-
-            // pizza slice edge 2
-            s_UNIT_CIRCLE_VAO_TRIANGLES.addVertex(vec3((radius * s_UNIT_CIRCLE[(i + 1) * 5 + 2]),
-                                                       (radius * s_UNIT_CIRCLE[(i + 1) * 5 + 3]),
-                                                       s_UNIT_CIRCLE[(i + 1) * 5 + 4]));
-            s_UNIT_CIRCLE_VAO_TRIANGLES.addTexcoord(
-                vec2(s_UNIT_CIRCLE[(i + 1) * 5 + 0], s_UNIT_CIRCLE[(i + 1) * 5 + 1]));
-        }
-
-        // SDF snake-head disc: a centered 2r quad; corner texcoords (+/-1) make length(texcoord) the radial
-        // distance, so the sliderField shader renders it as an exact disc that matches the baked body's encoding
-        s_UNIT_DISC_QUAD_SDF.clear();
-        {
-            const std::array<vec2, 4> corners{vec2{-1, -1}, vec2{-1, 1}, vec2{1, 1}, vec2{1, -1}};
-            for(i32 k : std::array<i32, 6>{0, 1, 2, 0, 2, 3}) {
-                s_UNIT_DISC_QUAD_SDF.addVertex(vec3{corners[k].x * radius, corners[k].y * radius, 0.0f});
-                s_UNIT_DISC_QUAD_SDF.addTexcoord(corners[k]);
-            }
-        }
-    }
+    composite(entries[i]);
 }
-
-// helper function to update color uniforms
-void updateColorUniforms(Shader *shader, Color borderColor, Color bodyColor) {
-    assert(!!shader);
-    if(s_uniformCache.lastBorderColor != borderColor) {
-        shader->setUniform3f("colBorder", borderColor.Rf(), borderColor.Gf(), borderColor.Bf());
-        s_uniformCache.lastBorderColor = borderColor;
-    }
-
-    if(s_uniformCache.lastBodyColor != bodyColor) {
-        shader->setUniform3f("colBody", bodyColor.Rf(), bodyColor.Gf(), bodyColor.Bf());
-        s_uniformCache.lastBodyColor = bodyColor;
-    }
-}
-
-void updateConfigUniforms(Shader *shader) {
-    assert(!!shader);
-    // a program switch (cone <-> SDF) leaves the new program's uniforms unset, so force a full re-push
-    if(s_uniformCache.cacheShader != shader) {
-        s_uniformCache = UniformCache{};
-        s_uniformCache.cacheShader = shader;
-    } else if(!s_uniformCache.needsConfigUpdate) {
-        return;
-    }
-
-    const i32 newStyle = cv::slider_osu_next_style.getBool() ? 1 : 0;
-    const f32 newBodyAlpha = cv::slider_body_alpha_multiplier.getFloat();
-    const f32 newBodySat = cv::slider_body_color_saturation.getFloat();
-    const f32 newBorderSize = cv::slider_border_size_multiplier.getFloat();
-    const f32 newBorderFeather = cv::slider_border_feather.getFloat();
-
-    if(s_uniformCache.style != newStyle) {
-        shader->setUniform1i("style", newStyle);
-        s_uniformCache.style = newStyle;
-    }
-
-    if(s_uniformCache.bodyAlphaMultiplier != newBodyAlpha) {
-        shader->setUniform1f("bodyAlphaMultiplier", newBodyAlpha);
-        s_uniformCache.bodyAlphaMultiplier = newBodyAlpha;
-    }
-
-    if(s_uniformCache.bodyColorSaturation != newBodySat) {
-        shader->setUniform1f("bodyColorSaturation", newBodySat);
-        s_uniformCache.bodyColorSaturation = newBodySat;
-    }
-
-    if(s_uniformCache.borderSizeMultiplier != newBorderSize) {
-        shader->setUniform1f("borderSizeMultiplier", newBorderSize);
-        s_uniformCache.borderSizeMultiplier = newBorderSize;
-    }
-
-    if(s_uniformCache.borderFeather != newBorderFeather) {
-        shader->setUniform1f("borderFeather", newBorderFeather);
-        s_uniformCache.borderFeather = newBorderFeather;
-    }
-
-    s_uniformCache.needsConfigUpdate = false;
-}
-
-static CONSTINIT VertexArrayObject quadDebugVAO{DrawPrimitive::QUADS};
-
-void drawDebugLegacy(const Image *hitcircleImage, std::span<const vec2> points, f32 hitcircleDiameter,
-                     Color undimmedColor, f32 colorRGBMultiplier, f32 alpha, uSz drawFromIndex, uSz drawUpToIndex) {
-    f32 circleImageScale = hitcircleDiameter;
-    f32 width{0.f}, height{0.f};
-    if(hitcircleImage) {
-        circleImageScale /= (f32)hitcircleImage->getWidth();
-        width = (f32)hitcircleImage->getWidth();
-        height = (f32)hitcircleImage->getHeight();
-    }
-
-    const f32 circleImageScaleInv = (1.0f / circleImageScale);
-
-    const f32 x = (-width / 2.0f);
-    const f32 y = (-height / 2.0f);
-    const f32 z = -1.0f;
-
-    g->pushTransform();
-    {
-        g->scale(circleImageScale, circleImageScale);
-
-        const Color dimmedColor = Colors::scale(undimmedColor, colorRGBMultiplier);
-
-        g->setColor(Color(dimmedColor).setA(alpha * cv::slider_alpha_multiplier.getFloat()));
-
-        if(hitcircleImage) hitcircleImage->bind();
-        {
-            for(uSz i = drawFromIndex; i < drawUpToIndex; i++) {
-                const vec2 point = points[i] * circleImageScaleInv;
-
-                quadDebugVAO.clear();
-                {
-                    quadDebugVAO.addTexcoord(0, 0);
-                    quadDebugVAO.addVertex(point.x + x, point.y + y, z);
-
-                    quadDebugVAO.addTexcoord(0, 1);
-                    quadDebugVAO.addVertex(point.x + x, point.y + y + height, z);
-
-                    quadDebugVAO.addTexcoord(1, 1);
-                    quadDebugVAO.addVertex(point.x + x + width, point.y + y + height, z);
-
-                    quadDebugVAO.addTexcoord(1, 0);
-                    quadDebugVAO.addVertex(point.x + x + width, point.y + y, z);
-                }
-                g->drawVAO(&quadDebugVAO);
-            }
-        }
-        if(hitcircleImage) hitcircleImage->unbind();
-    }
-    g->popTransform();
-    return;
-}
-
-void drawDebugVAO(const Image *hitcircleImage, VertexArrayObject *vao, vec2 translation, f32 scale, f32 from, f32 to,
-                  Color undimmedColor, f32 colorRGBMultiplier, f32 alpha) {
-    const Color dimmedColor = Colors::scale(undimmedColor, colorRGBMultiplier);
-
-    g->setColor(Color(dimmedColor).setA(alpha * cv::slider_alpha_multiplier.getFloat()));
-
-    if(hitcircleImage) hitcircleImage->bind();
-
-    vao->setDrawPercent(from, to, 6);  // HACKHACK: hardcoded magic number
-    {
-        g->pushTransform();
-        {
-            g->scale(scale, scale);
-            g->translate(translation.x, translation.y);
-
-            g->drawVAO(vao);
-        }
-        g->popTransform();
-    }
-
-    if(hitcircleImage) hitcircleImage->unbind();
-
-    return;
-}
-
-}  // namespace
 
 }  // namespace SliderRenderer

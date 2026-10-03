@@ -18,6 +18,8 @@
 #include "OpenGLES32Interface.h"
 #include "OpenGLStateCache.h"
 
+#include <charconv>
+
 OpenGLES32Shader::OpenGLES32Shader(const std::string &vertexShader, const std::string &fragmentShader,
                                    [[maybe_unused]] bool source)
     : Shader() {
@@ -210,6 +212,7 @@ bool OpenGLES32Shader::compile(const std::string &vertexShader, const std::strin
     glGetProgramiv(m_iProgram, GL_ACTIVE_UNIFORMS, &numUniforms);
     glGetProgramiv(m_iProgram, GL_ACTIVE_UNIFORM_MAX_LENGTH, &maxNameLength);
     std::string uniformName(maxNameLength, '\0');
+    GLint prevProgram = -1;
     for(GLint i = 0; i < numUniforms; i++) {
         GLsizei nameLength = 0;
         GLint size = 0;
@@ -223,7 +226,21 @@ bool OpenGLES32Shader::compile(const std::string &vertexShader, const std::strin
         if(const size_t dot = memberName.find('.'); dot != std::string_view::npos) memberName.remove_prefix(dot + 1);
         if(memberName.ends_with("[0]"sv)) memberName.remove_suffix(3);
         m_uniformLocationCache.emplace(memberName, id);
+
+        // this dialect drops the sampler bindings, so the canonical texN gets unit N here (samplers start on unit 0).
+        // the default shader compiles before the state cache knows the current program, so ask gl for it
+        int unit = 0;
+        if(type == GL_SAMPLER_2D && memberName.starts_with("tex"sv) &&
+           std::from_chars(memberName.data() + 3, memberName.data() + memberName.size(), unit).ec == std::errc{} &&
+           unit != 0) {
+            if(prevProgram == -1) {
+                glGetIntegerv(GL_CURRENT_PROGRAM, &prevProgram);
+                glUseProgram(m_iProgram);
+            }
+            glUniform1i(id, unit);
+        }
     }
+    if(prevProgram != -1) glUseProgram(static_cast<GLuint>(prevProgram));
 
     return true;
 }

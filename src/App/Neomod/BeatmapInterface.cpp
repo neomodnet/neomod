@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <chrono>
 #include <limits>
+#include <span>
 #include <utility>
 
 #include "Environment.h"
@@ -46,6 +47,7 @@
 #include "RenderTarget.h"
 #include "Skin.h"
 #include "SkinImage.h"
+#include "SliderRenderer.h"
 #include "AsyncPPCalculator.h"
 #include "SongBrowser/SongBrowser.h"
 #include "SongBrowser/VolNormalization.h"
@@ -2236,8 +2238,16 @@ void BeatmapInterface::drawHitObjects() {
     const i32 pvs = this->getPVS();
     const bool usePVS = cv::pvs.getBool();
 
+    // the slider bodies are queued before any of the objects is drawn, so their fields render together
+    const auto drawObjects = [](std::span<HitObject *const> objects) {
+        SliderRenderer::Batch sliderBodies{osu->getSliderFrameBuffer()};
+        for(const HitObject *obj : objects)
+            if(obj->isSlider()) sliderBodies.queue(*static_cast<const Slider *>(obj));
+        for(HitObject *obj : objects) obj->draw();
+    };
+
     if(!cv::mod_mafham.getBool()) {
-        this->nonSpinnerObjectsToDraw.clear();
+        this->objectsToDraw.clear();
         i32 mostDistantEndTimeDrawn = 0;
 
         for(sSz i = static_cast<sSz>(this->hitobjectsSortedByEndTime.size()) - 1; i >= 0; i--) {
@@ -2260,14 +2270,12 @@ void BeatmapInterface::drawHitObjects() {
             if(obj->getType() == HitObjectType::SPINNER) {
                 obj->draw();
             } else {
-                this->nonSpinnerObjectsToDraw.push_back(obj);
+                this->objectsToDraw.push_back(obj);
             }
         }
 
         // draw non-spinners after
-        for(auto *obj : this->nonSpinnerObjectsToDraw) {
-            obj->draw();
-        }
+        drawObjects(this->objectsToDraw);
 
         // this avoids PVS culling objects which are overlapped before the end of other objects, like circles appearing before
         // sliders are finished causing the initial slider approach circle to not be drawn
@@ -2288,8 +2296,6 @@ void BeatmapInterface::drawHitObjects() {
 
             obj->draw2();
         }
-
-        this->nonSpinnerObjectsToDraw.clear();
     } else {
         const int mafhamRenderLiveSize = cv::mod_mafham_render_livesize.getInt();
 
@@ -2303,45 +2309,47 @@ void BeatmapInterface::drawHitObjects() {
         bool shouldRenderChunk =
             this->iMafhamHitObjectRenderIndex < this->hitobjectsSortedByEndTime.size() && shouldDrawBuffer;
         if(shouldRenderChunk) {
+            const bool firstChunk = this->iMafhamHitObjectRenderIndex == 0;
+
+            this->objectsToDraw.clear();
+            int chunkCounter = 0;
+            for(int i = this->hitobjectsSortedByEndTime.size() - 1 - this->iMafhamHitObjectRenderIndex; i >= 0;
+                i--, this->iMafhamHitObjectRenderIndex++) {
+                chunkCounter++;
+                if(chunkCounter > cv::mod_mafham_render_chunksize.getInt())
+                    break;  // continue chunk render in next frame
+
+                if(i <= this->iCurrentHitObjectIndex + mafhamRenderLiveSize)  // skip live objects
+                {
+                    this->iMafhamHitObjectRenderIndex = this->hitobjectsSortedByEndTime.size();  // stop chunk render
+                    break;
+                }
+
+                // PVS optimization (reversed)
+                if(usePVS) {
+                    if(this->hitobjectsSortedByEndTime[i]->isFinished() &&
+                       (curPos - pvs > this->hitobjectsSortedByEndTime[i]->getClickTime() +
+                                           this->hitobjectsSortedByEndTime[i]->getDuration()))  // past objects
+                    {
+                        this->iMafhamHitObjectRenderIndex =
+                            this->hitobjectsSortedByEndTime.size();  // stop chunk render
+                        break;
+                    }
+                    if(this->hitobjectsSortedByEndTime[i]->getClickTime() > curPos + pvs)  // future objects
+                        continue;
+                }
+
+                this->objectsToDraw.push_back(this->hitobjectsSortedByEndTime[i]);
+
+                this->iMafhamActiveRenderHitObjectIndex = i;
+            }
+
             this->bInMafhamRenderChunk = true;
 
-            this->mafhamActiveRenderTarget->enable(/*clear=*/this->iMafhamHitObjectRenderIndex == 0);
+            this->mafhamActiveRenderTarget->enable(/*clear=*/firstChunk);
             {
                 g->setBlendMode(DrawBlendMode::PREMUL_ALPHA);
-                {
-                    int chunkCounter = 0;
-                    for(int i = this->hitobjectsSortedByEndTime.size() - 1 - this->iMafhamHitObjectRenderIndex; i >= 0;
-                        i--, this->iMafhamHitObjectRenderIndex++) {
-                        chunkCounter++;
-                        if(chunkCounter > cv::mod_mafham_render_chunksize.getInt())
-                            break;  // continue chunk render in next frame
-
-                        if(i <= this->iCurrentHitObjectIndex + mafhamRenderLiveSize)  // skip live objects
-                        {
-                            this->iMafhamHitObjectRenderIndex =
-                                this->hitobjectsSortedByEndTime.size();  // stop chunk render
-                            break;
-                        }
-
-                        // PVS optimization (reversed)
-                        if(usePVS) {
-                            if(this->hitobjectsSortedByEndTime[i]->isFinished() &&
-                               (curPos - pvs > this->hitobjectsSortedByEndTime[i]->getClickTime() +
-                                                   this->hitobjectsSortedByEndTime[i]->getDuration()))  // past objects
-                            {
-                                this->iMafhamHitObjectRenderIndex =
-                                    this->hitobjectsSortedByEndTime.size();  // stop chunk render
-                                break;
-                            }
-                            if(this->hitobjectsSortedByEndTime[i]->getClickTime() > curPos + pvs)  // future objects
-                                continue;
-                        }
-
-                        this->hitobjectsSortedByEndTime[i]->draw();
-
-                        this->iMafhamActiveRenderHitObjectIndex = i;
-                    }
-                }
+                drawObjects(this->objectsToDraw);
                 g->setBlendMode(DrawBlendMode::ALPHA);
             }
             this->mafhamActiveRenderTarget->disable();
@@ -2376,6 +2384,7 @@ void BeatmapInterface::drawHitObjects() {
 
         // draw live hitobjects (also, code duplication yay)
         {
+            this->objectsToDraw.clear();
             for(int i = this->hitobjectsSortedByEndTime.size() - 1; i >= 0; i--) {
                 // PVS optimization (reversed)
                 if(usePVS) {
@@ -2391,8 +2400,9 @@ void BeatmapInterface::drawHitObjects() {
                    (i > this->iMafhamFinishedRenderHitObjectIndex - 1 && shouldDrawBuffer))  // skip non-live objects
                     continue;
 
-                this->hitobjectsSortedByEndTime[i]->draw();
+                this->objectsToDraw.push_back(this->hitobjectsSortedByEndTime[i]);
             }
+            drawObjects(this->objectsToDraw);
 
             for(int i = 0; i < this->hitobjectsSortedByEndTime.size(); i++) {
                 // PVS optimization
@@ -4220,12 +4230,6 @@ void BeatmapInterface::updateHitobjectMetrics() {
                cv::mod_jigsaw_followcircle_radius_factor.getFloat() * followcircle_size_multiplier)
             : followcircle_size_multiplier;
     this->fSliderFollowCircleDiameter = this->fHitcircleDiameter * sliderFollowCircleDiameterMultiplier;
-}
-
-void BeatmapInterface::onSliderSDFCvarChange(float oldVal, float newVal) {
-    if(oldVal == newVal) return;
-    if(this->hitobjects.empty()) return;
-    this->updateSliderVertexBuffers();
 }
 
 void BeatmapInterface::updateSliderVertexBuffers() {

@@ -1607,7 +1607,7 @@ BUNDLED_INCLUDES="-I\$(srcdir)/libraries -I\$(srcdir)/libraries/delegatesv2 -I\$
 AC_SUBST([BUNDLED_INCLUDES])
 
 AC_MSG_CHECKING([for shaders in $srcdir/$ASSETS_DIR/shaders])
-AS_IF([test -f "$srcdir/$ASSETS_DIR/shaders/VK_slider_f.glsl"], [
+AS_IF([test -f "$srcdir/$ASSETS_DIR/shaders/VK_default_f.glsl"], [
     AC_MSG_RESULT([yes])
 ], [
     AC_MSG_RESULT([no])

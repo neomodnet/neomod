@@ -1430,20 +1430,6 @@ msgstr ""
 "全体的に描画するものが少なくなるため、パフォーマンスがわずかに向上する場合があります。"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Legacy Slider Renderer (!)"
-msgstr "旧式スライダーレンダラー (!)"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid ""
-"WARNING: Only try enabling this on shitty old computers!\n"
-"May or may not improve fps while few sliders are visible.\n"
-"Guaranteed lower fps while many sliders are visible!"
-msgstr ""
-"警告: これは非常に古いPCでのみ有効にしてみてください！\n"
-"表示されるスライダーが少ない場合はFPSが向上する可能性がありますが、\n"
-"多くのスライダーが表示される場合は確実にFPSが低下します！"
-
-#: src/App/Neomod/OptionsOverlay.cpp
 msgid "Higher Quality Sliders (!)"
 msgstr "高品質なスライダー (!)"
 
@@ -1839,11 +1825,9 @@ msgstr "slidergradient.png を使用する"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid ""
-"Enabling this will improve performance,\n"
-"but also block all dynamic slider (color/border) features."
+"This will block all dynamic slider (color/border) features,\n"
+"but is more easily customizable."
 msgstr ""
-"これを有効にするとパフォーマンスが向上しますが、\n"
-"動的なスライダー（色/境界線）機能もすべてブロックされます。"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Use osu!lazer Slider Style"

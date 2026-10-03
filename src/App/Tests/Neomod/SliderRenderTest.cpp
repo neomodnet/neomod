@@ -2,11 +2,14 @@
 #include "SliderRenderTest.h"
 
 #include "Engine.h"
+#include "Environment.h"
 #include "ResourceManager.h"
 #include "Graphics.h"
 #include "Font.h"
 #include "VertexArrayObject.h"
 #include "RenderTarget.h"
+#include "Image.h"
+#include "ConVar.h"
 #include "OsuConVars.h"
 #include "KeyboardEvent.h"
 #include "KeyBindings.h"
@@ -18,14 +21,88 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <numeric>
 
 namespace Mc::Tests {
 using namespace neomod;
 
-SliderRenderTest::SliderRenderTest() { rebuildBattery(); }
+namespace {
+// keeps the scene convars out of configs and console suggestions
+constexpr u8 TESTONLY = cv::HIDDEN | cv::NOLOAD | cv::NOSAVE;
+
+ConVar srt_copies("srt_copies", 1, cv::CLIENT | TESTONLY,
+                  "copies of every shape (a few px apart, so they overlap), each one drawn as its own slider",
+                  cv::Range{1., 1000.});
+ConVar srt_solo("srt_solo", -1, cv::CLIENT | TESTONLY,
+                "-1 = grid of all shapes, otherwise only that shape, zoomed to fill the screen");
+ConVar srt_diameter("srt_diameter", 70.0f, cv::CLIENT | TESTONLY,
+                    "body diameter in px (solo-zoom scales it up together with the path)", cv::Range{4., 1024.});
+ConVar srt_snake("srt_snake", 1.0f, cv::CLIENT | TESTONLY,
+                 "the drawn part of every body (a disc rounds off its snaking end), -1 animates it",
+                 cv::Range{-1., 1.});
+ConVar srt_points("srt_points", false, cv::CLIENT | TESTONLY,
+                  "draw the bodies from their screen-space points, a disc each, like sliders that change shape every "
+                  "frame (wobble, minimize)");
+ConVar srt_batch("srt_batch", true, cv::CLIENT | TESTONLY,
+                 "queue every body before drawing, so their fields render together (off: a field pass per body)");
+ConVar srt_poison("srt_poison", false, cv::CLIENT | TESTONLY,
+                  "fill the render target with a full field in every channel first: whatever a composite reads "
+                  "without its field pass having cleared it shows up as body");
+
+struct BenchScene {
+    const char *name;
+    int solo;
+    int copies;
+    f32 diameter;
+};
+// x8 -> x24 gives the cost of one more small slider, d200 is about CS4 at 1440p, solo wobble is field overdraw
+constexpr std::array<BenchScene, 6> BENCH{{
+    {"grid x1", -1, 1, 70.0f},
+    {"grid x8", -1, 8, 70.0f},
+    {"grid x24", -1, 24, 70.0f},
+    {"grid x8 d200", -1, 8, 200.0f},
+    {"solo straight x8", 0, 8, 70.0f},
+    {"solo wobble x8", 6, 8, 70.0f},
+}};
+constexpr int BENCH_WARMUP_FRAMES = 30;
+constexpr int BENCH_FRAMES = 200;
+
+f64 median(std::vector<f64> v) {
+    if(v.empty()) return 0.0;
+    std::ranges::nth_element(v, v.begin() + (std::ptrdiff_t)(v.size() / 2));
+    return v[v.size() / 2];
+}
+
+f64 mean(const std::vector<f64> &v) { return v.empty() ? 0.0 : std::reduce(v.begin(), v.end()) / (f64)v.size(); }
+
+}  // namespace
+
+std::optional<SliderRenderer::Body> SliderRenderTest::TestBody::getBody() const {
+    SliderRenderer::Body b = body;
+    b.points = points;
+    b.alwaysPoints = caps;
+    return b;
+}
+
+SliderRenderTest::SliderRenderTest() {
+    m_gradient = resourceManager->loadImage("default/slidergradient.png", "SRT_SLIDERGRADIENT");
+    rebuildBattery();
+}
 
 SliderRenderTest::~SliderRenderTest() {
     if(m_sliderRT) resourceManager->destroyResource(m_sliderRT);
+    if(m_gradient) resourceManager->destroyResource(m_gradient);
+}
+
+SliderRenderTest::Scene SliderRenderTest::currentScene() const {
+    return {.copies = srt_copies.getInt(),
+            .solo = srt_solo.getInt(),
+            .diameter = srt_diameter.getFloat(),
+            .snake = srt_snake.getFloat(),
+            .points = srt_points.getBool(),
+            .batch = srt_batch.getBool(),
+            .poison = srt_poison.getBool(),
+            .gradient = cv::slider_use_gradient_image.getBool()};
 }
 
 void SliderRenderTest::rebuildBattery() {
@@ -70,10 +147,12 @@ void SliderRenderTest::rebuildBattery() {
 
     m_numShapes = (int)shapes.size();
 
-    // grid uses a gameplay-ish 70px body; solo true-zooms one shape (body + path scaled together, preserving the
+    // grid uses a gameplay-ish body; solo true-zooms one shape (body + path scaled together, preserving the
     // real body/path-extent ratio) so it nearly fills the screen and any seam cracks become visible.
-    const bool solo = m_solo >= 0 && m_solo < m_numShapes;
-    m_hitcircleDiameter = 70.0f;
+    const int soloShape = srt_solo.getInt();
+    const bool solo = soloShape >= 0 && soloShape < m_numShapes;
+    const f32 diameter = srt_diameter.getFloat();
+    m_hitcircleDiameter = diameter;
 
     const int cols = solo ? 1 : 4, rows = solo ? 1 : 2;
     const f32 cellW = (f32)W / (f32)cols, cellH = (f32)H / (f32)rows;
@@ -81,7 +160,7 @@ void SliderRenderTest::rebuildBattery() {
                                               0xffcc66ff, 0xff44ddee, 0xffff55aa};
 
     for(uSz i = 0; i < shapes.size(); ++i) {
-        if(solo && (int)i != m_solo) continue;
+        if(solo && (int)i != soloShape) continue;
         const ShapeDef &shape = shapes[i];
 
         // approximate the slider length from the control polyline (good enough for a synthetic test)
@@ -104,9 +183,9 @@ void SliderRenderTest::rebuildBattery() {
 
         f32 scale = 1.0f;
         if(solo) {
-            const f32 z = std::min(((f32)W - 80.0f) / (lsize.x + 70.0f), ((f32)H - 80.0f) / (lsize.y + 70.0f));
+            const f32 z = std::min(((f32)W - 80.0f) / (lsize.x + diameter), ((f32)H - 80.0f) / (lsize.y + diameter));
             scale = std::clamp(z, 1.0f, 400.0f);
-            m_hitcircleDiameter = 70.0f * scale;  // true zoom: body scales with the path
+            m_hitcircleDiameter = diameter * scale;  // true zoom: body scales with the path
         } else {
             const f32 pad = m_hitcircleDiameter + 40.0f;  // leave room for the body radius + a margin
             scale = std::clamp(std::min((cellW - pad) / lsize.x, (cellH - pad) / lsize.y), 0.25f, 4.0f);
@@ -120,80 +199,76 @@ void SliderRenderTest::rebuildBattery() {
         s.name = shape.name;
         s.color = palette[i % palette.size()];
         s.screenPoints.reserve(local.size());
-        vec2 smin{(f32)W, (f32)H}, smax{0.0f, 0.0f};
-        for(const vec2 &p : local) {
-            const vec2 sp = cellCenter + (p - lcenter) * scale;
-            s.screenPoints.push_back(sp);
-            smin = vec::min(smin, sp);
-            smax = vec::max(smax, sp);
-        }
-        s.bounds = vec4{smin.x, smin.y, smax.x, smax.y};
+        for(const vec2 &p : local) s.screenPoints.push_back(cellCenter + (p - lcenter) * scale);
 
-        s.vao = SliderRenderer::generateVAO(engine->getScreenSize(), s.screenPoints, m_hitcircleDiameter, vec3{0.0f},
-                                            /*skipOOBPoints=*/false);
-        if(s.vao) m_totalVerts += s.vao->getNumVertices();
+        s.mesh = SliderRenderer::generateMesh(engine->getScreenSize(), s.screenPoints, m_hitcircleDiameter,
+                                              /*skipOOBPoints=*/false);
+        m_totalVerts += s.mesh.vao->getNumVertices();
         m_sliders.push_back(std::move(s));
     }
 
-    // read the effective mode last: the generateVAO calls above create the shaders on the very first run
-    m_lastSDF = SliderRenderer::usingSDF();
     m_lastSeparation = cv::slider_curve_points_separation.getFloat();
     m_lastScreen = engine->getScreenSize();
-}
-
-void SliderRenderTest::drawSlider(const TestSlider &s, f32 from, f32 to, vec2 offset) {
-    if(s.vao == nullptr || s.screenPoints.size() < 2) return;
-
-    // the static curve ends are rounded by caps baked into the body mesh; only the moving snake/shrink head
-    // needs a separate disc cap here (mirrors how Slider::drawBody relies on the smoothsnake alwaysPoint)
-    const f32 lastIdx = (f32)(s.screenPoints.size() - 1);
-    const auto capAt = [&](f32 t) -> vec2 {
-        return s.screenPoints[(uSz)std::clamp(std::round(t * lastIdx), 0.0f, lastIdx)] + offset;
-    };
-    std::vector<vec2> caps;
-    if(from > 0.0f) caps.push_back(capAt(from));
-    if(to < 1.0f) caps.push_back(capAt(to));
-
-    SliderRenderer::draw(SliderRenderer::DrawVAOParams{
-        .screenRect = engine->getScreenSize(),
-        .rt = m_sliderRT,
-        .skinSettings = {},
-        .vao = s.vao.get(),
-        .bounds = m_useBounds
-                      ? vec4{s.bounds.x + offset.x, s.bounds.y + offset.y, s.bounds.z + offset.x, s.bounds.w + offset.y}
-                      : vec4{},
-        .alwaysPoints = caps,
-        .translation = offset,
-        .scale = 1.0f,
-        .hitcircleDiameter = m_hitcircleDiameter,
-        .from = from,
-        .to = to,
-        .undimmedColor = s.color,
-        .colorRGBMultiplier = 1.0f,
-        .alpha = 1.0f,
-    });
+    m_lastSolo = soloShape;
+    m_lastDiameter = diameter;
 }
 
 void SliderRenderTest::draw() {
     g->setColor(0xff202028);
     g->fillRect(0, 0, engine->getScreenWidth(), engine->getScreenHeight());
 
-    f32 from = 0.0f, to = 1.0f;
-    if(m_animateSnake) to = std::clamp((f32)std::fmod(engine->getTime(), 3.0) / 1.5f, 0.0f, 1.0f);
+    const Scene scene = currentScene();
+    const f32 from = 0.0f;
+    const f32 to =
+        scene.snake < 0.0f ? std::clamp((f32)std::fmod(engine->getTime(), 3.0) / 1.5f, 0.0f, 1.0f) : scene.snake;
 
-    int drawn = 0;
+    if(scene.poison) {
+        m_sliderRT->enable(/*clear=*/false);
+        g->setBlending(false);
+        g->setColor(0xffffffff);
+        g->fillRect(0, 0, (int)m_sliderRT->getWidth(), (int)m_sliderRT->getHeight());
+        g->setBlending(true);
+        m_sliderRT->disable();
+    }
+
+    SliderRenderer::SkinSettings skinSettings;
+    skinSettings.i_slider_gradient = m_gradient;
+
+    // every copy of every shape is a slider of its own
+    m_bodies.clear();
     for(const TestSlider &s : m_sliders) {
-        if(m_stressCount > 0) {
-            for(int k = 0; k < m_stressCount; ++k) {
-                const int gx = (k % 4) - 2, gy = (k / 4) - 1;  // small grid of overlapping copies
-                drawSlider(s, from, to, vec2{(f32)gx * 9.0f, (f32)gy * 9.0f});
-                ++drawn;
-            }
-        } else {
-            drawSlider(s, from, to, vec2{0.0f});
-            ++drawn;
+        if(s.screenPoints.size() < 2) continue;
+        // the static curve ends are rounded by caps baked into the body mesh; only the moving snake/shrink head
+        // needs a separate disc cap here (mirrors how Slider::makeBody relies on the smoothsnake alwaysPoint)
+        const f32 lastIdx = (f32)(s.screenPoints.size() - 1);
+        for(int k = 0; k < scene.copies; ++k) {
+            const int gx = (k % 4) - 2, gy = (k / 4) - 1;  // small grid of overlapping copies
+            const vec2 offset = scene.copies > 1 ? vec2{(f32)gx * 9.0f, (f32)gy * 9.0f} : vec2{0.0f};
+            const auto capAt = [&](f32 t) -> vec2 {
+                return s.screenPoints[(uSz)std::clamp(std::round(t * lastIdx), 0.0f, lastIdx)] + offset;
+            };
+
+            TestBody &body = m_bodies.emplace_back();
+            if(from > 0.0f) body.caps.push_back(capAt(from));
+            if(to < 1.0f) body.caps.push_back(capAt(to));
+            if(scene.points)
+                for(const vec2 &p : s.screenPoints) body.points.push_back(p + offset);
+            body.body = {.mesh = scene.points ? nullptr : &s.mesh,
+                         .translation = scene.points ? vec2{0.0f} : offset,
+                         .hitcircleDiameter = m_hitcircleDiameter,
+                         .from = from,
+                         .to = to,
+                         .skinSettings = skinSettings,
+                         .undimmedColor = s.color};
         }
     }
+    {
+        SliderRenderer::Batch batch{m_sliderRT};
+        if(scene.batch)
+            for(const TestBody &body : m_bodies) batch.queue(body);
+        for(const TestBody &body : m_bodies) SliderRenderer::draw(body);
+    }
+    const uSz drawn = m_bodies.size();
 
     // HUD
     McFont *font = engine->getDefaultFont();
@@ -201,47 +276,83 @@ void SliderRenderTest::draw() {
     g->pushTransform();
     {
         g->translate(12, font->getHeight() + 10);
-        g->drawString(font,
-                      fmt::format("{}  sep={:.2f}  body verts={}  draws={}  frame={:.2f}ms{}{}{}",
-                                  SliderRenderer::usingSDF() ? "SDF body" : "CONE body",
-                                  cv::slider_curve_points_separation.getFloat(), m_totalVerts, drawn,
-                                  engine->getFrameTime() * 1000.0,
-                                  m_stressCount > 0 ? fmt::format("  STRESS x{}", m_stressCount) : "",
-                                  m_solo >= 0 && !m_sliders.empty() ? fmt::format("  SOLO:{}", m_sliders[0].name) : "",
-                                  m_useBounds ? "" : "  FULL-RT COMPOSITE"));
+        g->drawString(
+            font, fmt::format("sep={:.2f}  d={:.0f}  copies={}  body verts={}  draws={}  frame={:.2f}ms{}{}{}{}{}{}",
+                              cv::slider_curve_points_separation.getFloat(), m_hitcircleDiameter, scene.copies,
+                              m_totalVerts, drawn, engine->getFrameTime() * 1000.0,
+                              scene.solo >= 0 && !m_sliders.empty() ? fmt::format("  SOLO:{}", m_sliders[0].name) : "",
+                              scene.points ? "  POINTS" : "", scene.batch ? "" : "  UNBATCHED",
+                              scene.poison ? "  POISONED RT" : "", scene.gradient ? "  GRADIENT" : "",
+                              m_benchScene >= 0 ? fmt::format("  BENCH {}/{}", m_benchScene + 1, BENCH.size()) : ""));
     }
     g->popTransform();
     g->pushTransform();
     {
         g->translate(12, (f32)engine->getScreenHeight() - font->getHeight());
         g->drawString(font,
-                      "[S] snake   [T] stress   [C] SDF/cone   [Z] solo-zoom   [B] composite bounds   cvars: "
-                      "slider_body_sdf, slider_curve_points_separation");
+                      "[S] snake   [T] copies   [Z] solo-zoom   [B] batching   [G] gradient   [P] benchmark   "
+                      "cvars: srt_copies, srt_solo, srt_diameter, slider_curve_points_separation");
     }
     g->popTransform();
 
     // headless perf readout: getFrameTime() reflects real CPU+GPU work when the swapchain isn't blocking
-    const bool sdf = SliderRenderer::usingSDF();
-    if(sdf != m_perfLastSDF || m_stressCount != m_perfLastStress || m_useBounds != m_perfLastBounds) {
-        m_perfAccum = 0.0;
-        m_perfFrames = 0;
-        m_perfLastSDF = sdf;
-        m_perfLastStress = m_stressCount;
-        m_perfLastBounds = m_useBounds;
+    if(m_benchScene >= 0) {
+        benchFrame(engine->getFrameTime());
+        return;
     }
-    m_perfAccum += engine->getFrameTime();
-    if(++m_perfFrames >= 100) {
-        logRaw("[perf] {:<4} sep={:.2f} stress=x{:<2} draws={:<4} bounds={} avg={:.3f} ms ({} frames)",
-               sdf ? "SDF" : "CONE", cv::slider_curve_points_separation.getFloat(), m_stressCount, drawn,
-               m_useBounds ? "bbox" : "full", (m_perfAccum / (f64)m_perfFrames) * 1000.0, m_perfFrames);
-        m_perfAccum = 0.0;
-        m_perfFrames = 0;
+    if(scene != m_perfScene) {
+        m_perfFrames.clear();
+        m_perfScene = scene;
+    }
+    m_perfFrames.push_back(engine->getFrameTime());
+    if(m_perfFrames.size() >= 100) {
+        logRaw(
+            "[perf] sep={:.2f} d={:<4.0f} copies={:<3} solo={:<2} draws={:<4} batch={}{}{}{} median={:.3f} ms "
+            "mean={:.3f} ms ({} frames)",
+            cv::slider_curve_points_separation.getFloat(), m_hitcircleDiameter, scene.copies, scene.solo, drawn,
+            scene.batch ? "on" : "off", scene.points ? " points" : "", scene.poison ? " poisoned" : "",
+            scene.gradient ? " gradient" : "", median(m_perfFrames) * 1000.0, mean(m_perfFrames) * 1000.0,
+            m_perfFrames.size());
+        m_perfFrames.clear();
     }
 }
 
+void SliderRenderTest::benchFrame(f64 frameTime) {
+    // the first frames of a scene include its rebuild and the render pipeline refilling
+    if(++m_benchFrame > BENCH_WARMUP_FRAMES) m_benchFrames.push_back(frameTime);
+    if((int)m_benchFrames.size() < BENCH_FRAMES) return;
+
+    const auto &[sliders, med] =
+        m_benchResults.emplace_back((int)m_sliders.size() * srt_copies.getInt(), median(m_benchFrames));
+    logRaw("[bench] {:<18} sliders={:<4} median={:.3f} ms mean={:.3f} ms", BENCH[m_benchScene].name, sliders,
+           med * 1000.0, mean(m_benchFrames) * 1000.0);
+    m_benchFrame = 0;
+    m_benchFrames.clear();
+
+    if(++m_benchScene < (int)BENCH.size()) {
+        srt_solo.setValue(BENCH[m_benchScene].solo);
+        srt_copies.setValue(BENCH[m_benchScene].copies);
+        srt_diameter.setValue(BENCH[m_benchScene].diameter);
+        return;
+    }
+
+    // grid x8 -> x24
+    const auto &[n8, t8] = m_benchResults[1];
+    const auto &[n24, t24] = m_benchResults[2];
+    logRaw("[bench] one more 70px slider: {:.1f} us", (t24 - t8) / (f64)(n24 - n8) * 1e6);
+    m_benchScene = -1;
+    srt_copies.setValue(m_benchRestore.copies);
+    srt_solo.setValue(m_benchRestore.solo);
+    srt_diameter.setValue(m_benchRestore.diameter);
+    srt_snake.setValue(m_benchRestore.snake);
+    srt_points.setValue(m_benchRestore.points);
+    srt_poison.setValue(m_benchRestore.poison);
+    if(env->isHeadless()) engine->shutdown();
+}
+
 void SliderRenderTest::update() {
-    if(m_sliders.empty() || SliderRenderer::usingSDF() != m_lastSDF ||
-       cv::slider_curve_points_separation.getFloat() != m_lastSeparation ||
+    if(m_sliders.empty() || cv::slider_curve_points_separation.getFloat() != m_lastSeparation ||
+       srt_solo.getInt() != m_lastSolo || srt_diameter.getFloat() != m_lastDiameter ||
        engine->getScreenSize().x != m_lastScreen.x || engine->getScreenSize().y != m_lastScreen.y) {
         rebuildBattery();
     }
@@ -250,30 +361,44 @@ void SliderRenderTest::update() {
 void SliderRenderTest::onKeyDown(KeyboardEvent &e) {
     const SCANCODE sc = e.getScanCode();
     if(sc == KEY_S) {
-        m_animateSnake = !m_animateSnake;
+        srt_snake.setValue(srt_snake.getFloat() < 0.0f ? 1.0f : -1.0f);
         e.consume();
-    } else if(sc == KEY_T) {  // cycle overdraw stress: off -> 8 -> 24 overlapping copies per shape
-        m_stressCount = m_stressCount == 0 ? 8 : (m_stressCount == 8 ? 24 : 0);
-        e.consume();
-    } else if(sc == KEY_C) {
-        cv::slider_body_sdf.setValue(!cv::slider_body_sdf.getBool());
+    } else if(sc == KEY_T) {  // cycle overdraw stress: 1 -> 8 -> 24 overlapping copies per shape
+        const int copies = srt_copies.getInt();
+        srt_copies.setValue(copies == 1 ? 8 : (copies == 8 ? 24 : 1));
         e.consume();
     } else if(sc == KEY_B) {
-        m_useBounds = !m_useBounds;
+        srt_batch.setValue(!srt_batch.getBool());
+        e.consume();
+    } else if(sc == KEY_G) {
+        cv::slider_use_gradient_image.setValue(!cv::slider_use_gradient_image.getBool());
         e.consume();
     } else if(sc == KEY_Z) {  // cycle solo-zoom: grid -> shape0 -> ... -> shapeN -> grid
-        m_solo = m_solo + 1 >= m_numShapes ? -1 : m_solo + 1;
-        rebuildBattery();
+        const int solo = srt_solo.getInt();
+        srt_solo.setValue(solo + 1 >= m_numShapes ? -1 : solo + 1);
+        e.consume();
+    } else if(sc == KEY_P) {  // benchmark: prints [bench] lines, quits afterwards when headless
+        if(m_benchScene < 0) {
+            logRaw("[bench] {}x{}, sep={:.2f}", engine->getScreenWidth(), engine->getScreenHeight(),
+                   cv::slider_curve_points_separation.getFloat());
+            m_benchRestore = currentScene();
+            m_benchResults.clear();
+            m_benchScene = 0;
+            srt_solo.setValue(BENCH[0].solo);
+            srt_copies.setValue(BENCH[0].copies);
+            srt_diameter.setValue(BENCH[0].diameter);
+            srt_snake.setValue(1.0f);
+            srt_points.setValue(false);
+            srt_poison.setValue(false);
+        }
         e.consume();
     } else if(sc >= KEY_1 && sc <= KEY_0) {
         static_assert((int)KEY_1 + 9 == (int)KEY_0);
         const int shape = (int)sc - (int)KEY_1;
         if(shape == 9 /*KEY_0*/) {
-            m_solo = -1;
-            rebuildBattery();
+            srt_solo.setValue(-1);
         } else if(shape >= 0 && shape < m_numShapes) {
-            m_solo = shape;
-            rebuildBattery();
+            srt_solo.setValue(shape);
         }
         e.consume();
     }

@@ -3,11 +3,13 @@
 
 #if defined(MCENGINE_FEATURE_OPENGL) || defined(MCENGINE_FEATURE_GLES32)
 
+#include <cassert>
 #include <utility>
 
 #include "Engine.h"
 #include "ConVar.h"
 #include "File.h"
+#include "Graphics.h"
 #include "Logging.h"
 
 #include "OpenGLHeaders.h"
@@ -167,6 +169,7 @@ void OpenGLImage::deleteGL() {
 
 void OpenGLImage::bind(unsigned int textureUnit) const {
     if(!this->isReady()) return;
+    assert(textureUnit < Graphics::MAX_TEXTURE_UNITS);
 
     this->iTextureUnitBackup = textureUnit;
 
@@ -177,6 +180,12 @@ void OpenGLImage::bind(unsigned int textureUnit) const {
     glBindTexture(GL_TEXTURE_2D, this->bLoadedImageEntirelyTransparent
                                      ? static_cast<SDLGLInterface *>(g)->getTransparentTexture()
                                      : this->GLTexture);
+
+    // the other units only feed shaders: everything else binds, uploads and toggles GL_TEXTURE_2D on unit 0
+    if(textureUnit != 0) {
+        glActiveTexture(GL_TEXTURE0);
+        return;
+    }
 
     // FFP compatibility (part 2)
     if constexpr(Env::cfg(REND::GL)) {

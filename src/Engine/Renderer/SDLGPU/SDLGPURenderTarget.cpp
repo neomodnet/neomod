@@ -14,9 +14,12 @@
 
 #include "ConVar.h"
 #include "Engine.h"
+#include "Graphics.h"
 #include "Logging.h"
 
 #include "SDLGPUInterface.h"
+
+#include <cassert>
 
 SDLGPURenderTarget::SDLGPURenderTarget(SDLGPUInterface *gpu, SDL_GPUDevice *device, int x, int y, int width, int height,
                                        MultisampleType multiSampleType)
@@ -163,23 +166,25 @@ void SDLGPURenderTarget::disable() {
     m_gpu->popRenderTarget();
 }
 
-void SDLGPURenderTarget::bind(unsigned int /*textureUnit*/) {
+void SDLGPURenderTarget::bind(unsigned int textureUnit) {
     if(unlikely(!m_gpu || !m_device || !this->isReady())) return;
+    assert(textureUnit < Graphics::MAX_TEXTURE_UNITS);
 
     // save current binding for nested bind/unbind support
-    m_prevTexture = m_gpu->getBoundTexture();
-    m_prevSampler = m_gpu->getBoundSampler();
+    m_boundUnit = textureUnit;
+    m_prevTexture = m_gpu->getBoundTexture(textureUnit);
+    m_prevSampler = m_gpu->getBoundSampler(textureUnit);
 
-    m_gpu->setBoundTexture(m_colorTexture);
-    m_gpu->setBoundSampler(m_sampler);
+    m_gpu->setBoundTexture(textureUnit, m_colorTexture);
+    m_gpu->setBoundSampler(textureUnit, m_sampler);
     m_gpu->setTexturing(true);
 }
 
 void SDLGPURenderTarget::unbind() {
     if(unlikely(!m_gpu || !m_device || !this->isReady())) return;
 
-    m_gpu->setBoundTexture(m_prevTexture);
-    m_gpu->setBoundSampler(m_prevSampler);
+    m_gpu->setBoundTexture(m_boundUnit, m_prevTexture);
+    m_gpu->setBoundSampler(m_boundUnit, m_prevSampler);
 }
 
 #endif

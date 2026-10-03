@@ -11,9 +11,12 @@
 
 #include "Engine.h"
 #include "ConVar.h"
+#include "Graphics.h"
 #include "Logging.h"
 
 #include "DirectX11Interface.h"
+
+#include <cassert>
 
 DirectX11Image::DirectX11Image(std::string filepath, bool mipmapped, bool keepInSystemMemory)
     : Image(std::move(filepath), mipmapped, keepInSystemMemory), samplerDesc() {
@@ -277,6 +280,7 @@ void DirectX11Image::deleteDX() {
 
 void DirectX11Image::bind(unsigned int textureUnit) const {
     if(!this->isReady()) return;
+    assert(textureUnit < Graphics::MAX_TEXTURE_UNITS);
 
     this->iTextureUnitBackup = textureUnit;
 
@@ -297,7 +301,7 @@ void DirectX11Image::bind(unsigned int textureUnit) const {
     context->PSSetSamplers(textureUnit, 1, &this->samplerState);
 
     // HACKHACK: TEMP:
-    dx11->setTexturing(true);  // enable texturing
+    if(textureUnit == 0) dx11->setTexturing(true);  // enable texturing (the default shader only samples unit 0)
 }
 
 void DirectX11Image::unbind() const {

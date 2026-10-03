@@ -1087,23 +1087,15 @@ void Slider::draw() {
     const bool hd = flags::has<ModFlags::Hidden>(curGameplayFlags);
     const bool tc = flags::has<ModFlags::Traceable>(curGameplayFlags);
 
+    SliderRenderer::draw(*this);
+
     const bool isCompletelyFinished = m_startFinished && m_endFinished && m_finished;
     if((m_visible || (m_startFinished && !m_finished)) &&
        !isCompletelyFinished)  // extra possibility to avoid flicker between HitObject::m_bVisible delay and the
                                // fadeout animation below this if block
     {
         const f32 alpha = (cv::mod_hd_slider_fast_fade.getBool() ? m_alpha : m_bodyAlpha);
-        f32 sliderSnake = (cv::snaking_sliders.getBool()) ? m_sliderSnakePercent : 1.0f;
-
-        // shrinking sliders
-        f32 sliderSnakeStart = 0.0f;
-        if(cv::slider_shrink.getBool() && m_reverseArrowPos == 0) {
-            sliderSnakeStart = (m_inReverse ? 0.0f : m_slidePct);
-            if(m_inReverse) sliderSnake = m_slidePct;
-        }
-
-        // draw slider body
-        if(alpha > 0.0f && cv::slider_draw_body.getBool()) drawBody(alpha, sliderSnakeStart, sliderSnake);
+        const f32 sliderSnake = getSnakeRange().second;
 
         // draw slider ticks
         Color tickColor = 0xffffffff;
@@ -1223,24 +1215,8 @@ void Slider::draw() {
         }
     }
 
-    // slider body fade animation, draw start/end circle hit animation
-    const bool instafade_slider_body = cv::instafade_sliders.getBool();
+    // draw start/end circle hit animation
     const bool instafade_slider_head = cv::instafade.getBool();
-
-    const bool slider_fading_out = m_endSliderBodyFadeAnimation > 0.0f && m_endSliderBodyFadeAnimation != 1.0f;
-
-    if(!hd && !instafade_slider_body && slider_fading_out) {
-        alwaysPointsBuf.clear();
-        alwaysPointsBuf.push_back(m_pf->osuCoords2Pixels(curvePointAt(m_slidePct)));
-        if(!cv::slider_shrink.getBool())
-            drawBody(1.0f - m_endSliderBodyFadeAnimation, 0, 1);
-        else if(cv::slider_body_lazer_fadeout_style.getBool())
-            SliderRenderer::draw(SliderRenderer::DrawLegacyParams{
-                osu->getVirtScreenSize(), osu->getSliderFrameBuffer(), SliderRenderer::SkinSettings{m_pf->getSkin()},
-                /*points=*/{}, alwaysPointsBuf, m_pf->fHitcircleDiameter, 0.0f, 0.0f,
-                m_pf->getSkin()->getComboColorForCounter(m_colorCounter, m_colorOffset), 1.0f,
-                1.0f - m_endSliderBodyFadeAnimation, m_clickTimeMS});
-    }
 
     const bool do_endhit_animations = !tc && !hd && !instafade_slider_head;  // no animations with traceable/hidden here
     const bool do_starthit_animations = do_endhit_animations && cv::slider_sliderhead_fadeout.getBool();
@@ -1447,7 +1423,40 @@ void Slider::drawEndCircle(f32 alpha, f32 sliderSnake) {
                                 m_hittableDimRGBColorMultiplierPct, 1.0f, alpha, 0.0f, false, false);
 }
 
-void Slider::drawBody(f32 alpha, f32 from, f32 to) {
+std::optional<SliderRenderer::Body> Slider::getBody() const {
+    if(m_ctrlPoints.size() <= 0) return std::nullopt;
+
+    const bool isCompletelyFinished = m_startFinished && m_endFinished && m_finished;
+    if((m_visible || (m_startFinished && !m_finished)) && !isCompletelyFinished) {
+        const f32 alpha = (cv::mod_hd_slider_fast_fade.getBool() ? m_alpha : m_bodyAlpha);
+        if(alpha <= 0.0f || !cv::slider_draw_body.getBool()) return std::nullopt;
+
+        const auto [from, to] = getSnakeRange();
+        return makeBody(alpha, from, to);
+    }
+
+    // fading out after the end hit (which finishes the slider, so never together with the live body above)
+    const bool slider_fading_out = m_endSliderBodyFadeAnimation > 0.0f && m_endSliderBodyFadeAnimation != 1.0f;
+    if(flags::has<ModFlags::Hidden>(m_pf->getMods().flags) || cv::instafade_sliders.getBool() || !slider_fading_out)
+        return std::nullopt;
+
+    if(!cv::slider_shrink.getBool()) return makeBody(1.0f - m_endSliderBodyFadeAnimation, 0, 1);
+    if(!cv::slider_body_lazer_fadeout_style.getBool()) return std::nullopt;
+
+    alwaysPointsBuf.clear();
+    alwaysPointsBuf.push_back(m_pf->osuCoords2Pixels(curvePointAt(m_slidePct)));
+    return SliderRenderer::Body{
+        .alwaysPoints = alwaysPointsBuf,
+        .hitcircleDiameter = m_pf->fHitcircleDiameter,
+        .from = 0.0f,
+        .to = 0.0f,
+        .skinSettings = {m_pf->getSkin()},
+        .undimmedColor = m_pf->getSkin()->getComboColorForCounter(m_colorCounter, m_colorOffset),
+        .alpha = 1.0f - m_endSliderBodyFadeAnimation,
+        .sliderTimeForRainbow = m_clickTimeMS};
+}
+
+SliderRenderer::Body Slider::makeBody(f32 alpha, f32 from, f32 to) const {
     alwaysPointsBuf.clear();
     // smooth begin/end while snaking/shrinking
     if(cv::slider_body_smoothsnake.getBool()) {
@@ -1462,70 +1471,51 @@ void Slider::drawBody(f32 alpha, f32 from, f32 to) {
                 m_pf->osuCoords2Pixels(curvePointAt(m_sliderSnakePercent)));  // snakeoutpoint (only while snaking out)
     }
 
-    const Color undimmedComboColor = m_pf->getSkin()->getComboColorForCounter(m_colorCounter, m_colorOffset);
+    SliderRenderer::Body body{.alwaysPoints = alwaysPointsBuf,
+                              .hitcircleDiameter = m_pf->fHitcircleDiameter,
+                              .from = from,
+                              .to = to,
+                              .skinSettings = {m_pf->getSkin()},
+                              .undimmedColor = m_pf->getSkin()->getComboColorForCounter(m_colorCounter, m_colorOffset),
+                              .colorRGBMultiplier = m_hittableDimRGBColorMultiplierPct,
+                              .alpha = alpha,
+                              .sliderTimeForRainbow = m_clickTimeMS};
 
-    if(osu->shouldFallBackToLegacySliderRenderer()) {
+    if(osu->slidersRenderDynamically()) {
+        // peppy sliders: the shape changes every frame
         legacyScreenPointsBuf.clear();
         Mc::ranges::assign(legacyScreenPointsBuf, m_curve.getPoints());
         for(auto &screenPoint : legacyScreenPointsBuf) {
             screenPoint = m_pf->osuCoords2Pixels(screenPoint - m_stackOffset);
         }
-
-        // peppy sliders
-        SliderRenderer::draw(SliderRenderer::DrawLegacyParams{.screenRect = osu->getVirtScreenSize(),
-                                                              .rt = osu->getSliderFrameBuffer(),
-                                                              .skinSettings = {m_pf->getSkin()},
-                                                              .points = legacyScreenPointsBuf,
-                                                              .alwaysPoints = alwaysPointsBuf,
-                                                              .hitcircleDiameter = m_pf->fHitcircleDiameter,
-                                                              .from = from,
-                                                              .to = to,
-                                                              .undimmedColor = undimmedComboColor,
-                                                              .colorRGBMultiplier = m_hittableDimRGBColorMultiplierPct,
-                                                              .alpha = alpha,
-                                                              .sliderTimeForRainbow = m_clickTimeMS});
+        body.points = legacyScreenPointsBuf;
     } else {
         // vertex buffered sliders
         // as the base mesh is centered at (0, 0, 0) and in raw osu coordinates, we have to scale and translate it to
         // make it fit the actual desktop playfield
-        const f32 scale = GameRules::getPlayfieldScaleFactor();
-        vec2 translation = GameRules::getPlayfieldCenter();
+        body.mesh = &m_mesh;
+        body.scale = GameRules::getPlayfieldScaleFactor();
+        body.translation = GameRules::getPlayfieldCenter();
 
         if(m_pf->hasFailed())
-            translation = m_pf->osuCoords2Pixels(vec2(GameRules::OSU_COORD_WIDTH / 2, GameRules::OSU_COORD_HEIGHT / 2));
+            body.translation =
+                m_pf->osuCoords2Pixels(vec2(GameRules::OSU_COORD_WIDTH / 2, GameRules::OSU_COORD_HEIGHT / 2));
 
-        if(cv::mod_fps.getBool()) translation += m_pf->getFirstPersonCursorDelta();
-
-        vec4 bounds = m_curve.getBounds();
-        bounds.x -= m_stackOffset.x;
-        bounds.y -= m_stackOffset.y;
-        bounds.z -= m_stackOffset.x;
-        bounds.w -= m_stackOffset.y;
-        vec2 minBounds = m_pf->legacyPixels2RawPixels(m_pf->osuCoords2LegacyPixels(vec2(bounds.x, bounds.y)));
-        vec2 maxBounds = m_pf->legacyPixels2RawPixels(m_pf->osuCoords2LegacyPixels(vec2(bounds.z, bounds.w)));
-
-        if(minBounds.x > maxBounds.x) std::swap(minBounds.x, maxBounds.x);
-        if(minBounds.y > maxBounds.y) std::swap(minBounds.y, maxBounds.y);
-
-        minBounds += translation;
-        maxBounds += translation;
-
-        SliderRenderer::draw(SliderRenderer::DrawVAOParams{.screenRect = osu->getVirtScreenSize(),
-                                                           .rt = osu->getSliderFrameBuffer(),
-                                                           .skinSettings = {m_pf->getSkin()},
-                                                           .vao = m_vao.get(),
-                                                           .bounds = vec4{minBounds, maxBounds},
-                                                           .alwaysPoints = alwaysPointsBuf,
-                                                           .translation = translation,
-                                                           .scale = scale,
-                                                           .hitcircleDiameter = m_pf->fHitcircleDiameter,
-                                                           .from = from,
-                                                           .to = to,
-                                                           .undimmedColor = undimmedComboColor,
-                                                           .colorRGBMultiplier = m_hittableDimRGBColorMultiplierPct,
-                                                           .alpha = alpha,
-                                                           .sliderTimeForRainbow = m_clickTimeMS});
+        if(cv::mod_fps.getBool()) body.translation += m_pf->getFirstPersonCursorDelta();
     }
+    return body;
+}
+
+std::pair<f32, f32> Slider::getSnakeRange() const {
+    f32 from = 0.0f;
+    f32 to = cv::snaking_sliders.getBool() ? m_sliderSnakePercent : 1.0f;
+
+    // shrinking sliders
+    if(cv::slider_shrink.getBool() && m_reverseArrowPos == 0) {
+        from = m_inReverse ? 0.0f : m_slidePct;
+        if(m_inReverse) to = m_slidePct;
+    }
+    return {from, to};
 }
 
 void Slider::update(i32 curPosMS, f64 frameTimeSecs) {
@@ -2367,8 +2357,8 @@ void Slider::rebuildVertexBuffer(bool useRawCoords) {
     } else {
         for(auto &p : osuCoordPoints) p = m_pi->osuCoords2LegacyPixels(p - m_stackOffset);
     }
-    m_vao = SliderRenderer::generateVAO(osu->getVirtScreenSize(), osuCoordPoints, m_pi->fRawHitcircleDiameter,
-                                        /*translation=*/vec3{}, /*skipOOBPoints=*/true);
+    m_mesh = SliderRenderer::generateMesh(osu->getVirtScreenSize(), osuCoordPoints, m_pi->fRawHitcircleDiameter,
+                                          /*skipOOBPoints=*/true);
 }
 
 Slider::~Slider() { onReset(0); }

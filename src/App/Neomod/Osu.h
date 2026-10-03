@@ -220,7 +220,7 @@ class Osu final : public App, public MouseListener, public TouchListener {
     // .osz passed alongside the replay, or the db may still be loading. polled in update().
     void openScoreScreenWhenReady(const FinishedScore &score);
 
-    [[nodiscard]] bool shouldFallBackToLegacySliderRenderer()
+    [[nodiscard]] bool slidersRenderDynamically()
         const;  // certain mods or actions require Sliders to render dynamically
                 // (e.g. wobble or the CS override slider)
 

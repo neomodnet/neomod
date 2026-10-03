@@ -14,6 +14,7 @@
 #include "Matrices.h"
 #include "File.h"
 
+#include <charconv>
 #include <fstream>
 
 static inline void glDeleteObject_wrapper(GLuint obj) {
@@ -239,6 +240,7 @@ bool OpenGLShader::compile(const std::string &vertexShader, const std::string &f
     glGetProgramiv(this->iProgram, GL_ACTIVE_UNIFORMS, &numUniforms);
     glGetProgramiv(this->iProgram, GL_ACTIVE_UNIFORM_MAX_LENGTH, &maxNameLength);
     std::string uniformName(maxNameLength, '\0');
+    GLint prevProgram = -1;
     for(GLint i = 0; i < numUniforms; i++) {
         GLsizei nameLength = 0;
         GLint size = 0;
@@ -252,7 +254,20 @@ bool OpenGLShader::compile(const std::string &vertexShader, const std::string &f
         if(const size_t dot = memberName.find('.'); dot != std::string_view::npos) memberName.remove_prefix(dot + 1);
         if(memberName.ends_with("[0]"sv)) memberName.remove_suffix(3);
         this->uniformLocationCache.emplace(memberName, id);
+
+        // this dialect drops the sampler bindings, so the canonical texN gets unit N here (samplers start on unit 0)
+        int unit = 0;
+        if(type == GL_SAMPLER_2D && memberName.starts_with("tex"sv) &&
+           std::from_chars(memberName.data() + 3, memberName.data() + memberName.size(), unit).ec == std::errc{} &&
+           unit != 0) {
+            if(prevProgram == -1) {
+                glGetIntegerv(GL_CURRENT_PROGRAM, &prevProgram);
+                MCglUseProgramObject(this->iProgram);
+            }
+            MCglUniform1i(id, unit);
+        }
     }
+    if(prevProgram != -1) MCglUseProgramObject(static_cast<GLuint>(prevProgram));
 
     return true;
 }

@@ -24,6 +24,8 @@
 
 #include "ctre.hpp"
 
+#include <algorithm>
+#include <cassert>
 #include <charconv>
 #include <cstring>
 
@@ -87,6 +89,8 @@ void SDLGPUShader::init() {
         for([[maybe_unused]] auto _ : ctre::search_all<samplerPat>(vshGlsl)) vertexNumSamplers++;
         for([[maybe_unused]] auto _ : ctre::search_all<samplerPat>(fshGlsl)) fragmentNumSamplers++;
     }
+    assert(fragmentNumSamplers <= Graphics::MAX_TEXTURE_UNITS);
+    m_numFragmentSamplers = std::min(fragmentNumSamplers, Graphics::MAX_TEXTURE_UNITS);
 
     // count uniform buffers from blocks
     for(auto &block : m_uniformBlocks) {

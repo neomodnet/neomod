@@ -80,6 +80,9 @@ class SDLGPUShader final : public Shader {
         u32 binding;
     };
 
+    // the texture units the fragment stage samples (tex0 up to this)
+    [[nodiscard]] u32 getNumFragmentSamplers() const { return m_numFragmentSamplers; }
+
     // access uniform blocks for snapshotting into deferred draw commands
     [[nodiscard]] const FixedSizeArray<UniformBlock> &getUniformBlocks() const { return m_uniformBlocks; }
     // bumped whenever a uniform value actually changes, so the interface can reuse its previous snapshot
@@ -104,6 +107,7 @@ class SDLGPUShader final : public Shader {
     SDLGPUShader *m_lastActiveShader{nullptr};  // for restore, to allow nested shaders to restore last enabled shader
     SDL_GPUShader *m_gpuVertexShader{nullptr};
     SDL_GPUShader *m_gpuFragmentShader{nullptr};
+    u32 m_numFragmentSamplers{0};
 
     // uniform blocks parsed from GLSL (fragment stage only for custom shaders)
     // index 0 = vertex uniforms (set=1), rest = fragment uniform blocks
