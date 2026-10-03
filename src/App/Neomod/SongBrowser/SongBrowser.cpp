@@ -2904,14 +2904,12 @@ void SongBrowser::rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(
     if(doRebuildSongButtons) this->rebuildSongButtons();
 
     // scroll to top search result, or auto select the only result
-    if(scrollToTop) {
-        if(this->visibleSongButtons.size() > 1) {
-            // scroll to the currently selected button if it's a search match, otherwise the first one
-            if(!this->scrollToBestButton()) {
-                this->scrollToSongButton(this->visibleSongButtons[0]);
-            }
-        } else if(this->visibleSongButtons.size() > 0) {
+    if(scrollToTop && !this->visibleSongButtons.empty()) {
+        if(this->visibleSongButtons.size() == 1 && !this->visibleSongButtons[0]->isSelected()) {
             this->selectSongButton(this->visibleSongButtons[0]);
+        } else if(!this->scrollToBestButton()) {
+            // scroll to the currently selected button if it's a search match, otherwise the first one
+            this->scrollToSongButton(this->visibleSongButtons[0]);
         }
     }
 }
