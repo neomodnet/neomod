@@ -32,6 +32,13 @@ Shader *s_FIELD_SHADER{nullptr};      // accumulates the body's distance field i
 Shader *s_COMPOSITE_SHADER{nullptr};  // shades the accumulated field once per pixel while drawing it to screen
 Shader *s_GRADIENT_SHADER{nullptr};   // the same with the skin's slidergradient.png (slider_use_gradient_image)
 
+// compiling them can take long enough to drop frames, so the first baked mesh creates them ahead of the first draw
+void load_shaders() {
+    if(s_FIELD_SHADER == nullptr) s_FIELD_SHADER = resourceManager->createShaderAuto("sliderField");
+    if(s_COMPOSITE_SHADER == nullptr) s_COMPOSITE_SHADER = resourceManager->createShaderAuto("sliderComposite");
+    if(s_GRADIENT_SHADER == nullptr) s_GRADIENT_SHADER = resourceManager->createShaderAuto("sliderGradient");
+}
+
 // analytic SDF body: each kept curve point emits one equal-size block = a slab quad (6 verts) + a cap/join fan
 // (SDF_FAN_SLICES triangles). these must stay in lockstep: if VERTS_PER_SDF_BLOCK doesn't match the emitted count,
 // setDrawPercent() snake-snapping rounds the draw range to the wrong boundary and clips the static end cap
@@ -387,6 +394,8 @@ uSz assign_channels(uSz first) {
 
 // renders the fields of the entries from first on, as many as fit into one pass
 void render_fields(uSz first) {
+    load_shaders();  // in case no mesh was baked before
+
     s_batch.residentBegin = first;
     s_batch.residentEnd = assign_channels(first);
 
@@ -486,6 +495,8 @@ SkinSettings::SkinSettings(const Skin *skin) {
 void onUniformConfigChanged() { s_uniformCache.needsConfigUpdate = true; }
 
 Mesh generateMesh(vec2 screenRect, std::span<const vec2> points, f32 hitcircleDiameter, bool skipOOBPoints) {
+    load_shaders();
+
     Mesh mesh{.vao{g->createVertexArrayObject(DrawPrimitive::TRIANGLES, DrawUsageType::STATIC,
                                               /*keepInSystemMemory=*/false)}};
     VertexArrayObject *vao = mesh.vao.get();
@@ -704,10 +715,6 @@ Mesh generateMesh(vec2 screenRect, std::span<const vec2> points, f32 hitcircleDi
 Batch::Batch(RenderTarget *rt) {
     assert(s_batch.rt == nullptr && "nested SliderRenderer::Batch");
     s_batch.rt = rt;
-
-    if(s_FIELD_SHADER == nullptr) s_FIELD_SHADER = resourceManager->createShaderAuto("sliderField");
-    if(s_COMPOSITE_SHADER == nullptr) s_COMPOSITE_SHADER = resourceManager->createShaderAuto("sliderComposite");
-    if(s_GRADIENT_SHADER == nullptr) s_GRADIENT_SHADER = resourceManager->createShaderAuto("sliderGradient");
 }
 
 Batch::~Batch() {
