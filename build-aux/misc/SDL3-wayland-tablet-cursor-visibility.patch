@@ -1,0 +1,31 @@
+From: William Horvath <william@horvath.blog>
+Subject: [PATCH] wayland: Respect cursor visibility for tablet tools in ShowCursor
+
+Wayland_ShowCursor set mouse->cur_cursor on tablet tools regardless of the
+cursor passed in, so SDL_HideCursor() never hid the cursor of a tool that
+was already in proximity; only the next proximity-in applied it.
+---
+--- a/src/video/wayland/SDL_waylandmouse.c
++++ b/src/video/wayland/SDL_waylandmouse.c
+@@ -1133,16 +1133,12 @@
+ 
+         SDL_WaylandPenTool *tool;
+         wl_list_for_each(tool, &seat->tablet.tool_list, link) {
+-            obj.wl_tool = tool->wltool;
+-            obj.is_pointer = false;
+-
+-            /* The current cursor is explicitly set on tablet tools, as there may be no pointer device, or
+-             * the pointer may not have focus, which would instead cause the default cursor to be set.
++            /* The cursor is derived from the mouse state for tablet tools, as there may be no pointer device, or
++             * the pointer may not have focus, which would instead cause the default cursor to be set (and the
++             * cursor passed in here would not reflect a hidden cursor).
+              */
+-            if (tool->focus && (!mouse->focus || mouse->focus->internal == tool->focus)) {
+-                Wayland_CursorStateSetCursor(&tool->cursor_state, &obj, tool->focus, tool->proximity_serial, mouse->cur_cursor);
+-            } else if (!tool->focus) {
+-                Wayland_CursorStateResetCursor(&tool->cursor_state);
++            if (!tool->focus || !mouse->focus || mouse->focus->internal == tool->focus) {
++                Wayland_TabletToolUpdateCursor(tool);
+             }
+         }
+     }
