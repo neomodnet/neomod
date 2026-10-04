@@ -26,13 +26,13 @@ ui_assert visible mainmenu_pin 1
 mouse_to 1100 28
 @wait 30
 ui_assert visible mainmenu_pause 1
-mouse_to 1059 62
+mouse_to 1019 62
 @wait 3
 ui_assert hovered mainmenu_prev 1
-mouse_to 1107 62
+mouse_to 1067 62
 @wait 3
 ui_assert hovered mainmenu_pause 1
-mouse_to 1155 62
+mouse_to 1115 62
 @wait 3
 ui_assert hovered mainmenu_next 1
 mouse_to 1107 86
