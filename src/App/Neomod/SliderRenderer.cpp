@@ -316,8 +316,8 @@ void update_shader_config_uniforms(Shader *shader) {
 }
 
 void set_shader_channel_uniform(Shader *shader, u8 channel) {
-    shader->setUniform4f("channel", channel == 0 ? 1.0f : 0.0f, channel == 1 ? 1.0f : 0.0f, channel == 2 ? 1.0f : 0.0f,
-                         channel == 3 ? 1.0f : 0.0f);
+    shader->setUniform4f("channel"sv, channel == 0 ? 1.0f : 0.0f, channel == 1 ? 1.0f : 0.0f,
+                         channel == 2 ? 1.0f : 0.0f, channel == 3 ? 1.0f : 0.0f);
 }
 
 // a body whose field renders in the active batch. sources reuse the buffers behind their spans, so its points are
