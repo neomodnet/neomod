@@ -12,6 +12,9 @@
 #include <limits>
 #include <string>
 
+// ignored for performance
+// NOLINTBEGIN(cppcoreguidelines-init-variables,cppcoreguidelines-pro-type-member-init)
+
 namespace neomod {
 
 namespace {
@@ -74,7 +77,7 @@ uSz splitFields(std::string_view s, char delim, std::array<std::string_view, N> 
 
 // calls fn for each field, the way SString::split splits
 template <typename F>
-void forEachField(std::string_view s, char delim, F &&fn) {
+void forEachField(std::string_view s, char delim, const F &&fn) {
     uSz start = 0;
     for(uSz i = 0; i < s.size(); i++) {
         if(s[i] != delim) continue;
@@ -256,6 +259,7 @@ bool BeatmapFile::parse(std::string_view line, TimingPoint &out) {
     TimingPoint tp;
     i32 uninherited{1};
     uSz read = 0;
+    // NOLINTNEXTLINE(bugprone-inc-dec-in-conditions)
     const auto next = [&](auto &value) { return read < count && Parsing::parse(fields[read++], &value); };
     if(!next(tp.time) || !next(tp.beatLength)) return false;
     (void)(next(tp.meter) && next(tp.sampleSet) && next(tp.sampleIndex) && next(tp.volume) && next(uninherited) &&
@@ -545,3 +549,5 @@ std::string BeatmapFile::format(const Colour &colour) {
 }
 
 }  // namespace neomod
+
+// NOLINTEND(cppcoreguidelines-init-variables,cppcoreguidelines-pro-type-member-init)
