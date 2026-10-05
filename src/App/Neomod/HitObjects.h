@@ -27,6 +27,7 @@ struct Click;
 struct Skin;
 
 enum class LiveHitResult : uint8_t;
+enum class ModFlags : u64;
 
 namespace neomod {
 
@@ -133,6 +134,11 @@ class HitObject {
 
     // only for sliders
     virtual void rebuildVertexBuffer() { ; }
+
+   protected:
+    // the fades, approach, Hidden, the hittable dim and visibility at curPosMS (update() passes the judging interface's
+    // mods and timing)
+    void updateLook(i32 curPosMS, ModFlags mods, f32 approachTimeMS, f32 speedAdjustedAnimationSpeed);
 
    private:
     static f32 lerp3f(f32 a, f32 b, f32 c, f32 percent);

@@ -312,15 +312,18 @@ void HitObject::drawHitResultAnim(const HITRESULTANIM &hitresultanim) {
 }
 
 void HitObject::update(i32 curPosMS, f64 /*frame_time*/) {
+    this->updateLook(curPosMS, m_pi->getMods().flags, m_pi->getCachedApproachTimeForUpdate(),
+                     m_pi->getSpeedAdjustedAnimationSpeed());
+}
+
+void HitObject::updateLook(i32 curPosMS, ModFlags mods, f32 approachTimeMS, f32 speedAdjustedAnimationSpeed) {
     m_alphaForApproachCircle = 0.0f;
     m_hittableDimRGBColorMultiplierPct = 1.0f;
 
-    const auto &mods = m_pi->getMods();
-
-    const f64 animationSpeedMultiplier = m_pi->getSpeedAdjustedAnimationSpeed();
-    const i32 visibleTms = (mods.has(ModFlags::FreezeFrame) ? m_comboStartMS : m_clickTimeMS);
+    const f64 animationSpeedMultiplier = speedAdjustedAnimationSpeed;
+    const i32 visibleTms = (flags::has<ModFlags::FreezeFrame>(mods) ? m_comboStartMS : m_clickTimeMS);
     m_fadeInTimeMS = GameRules::getFadeInTime() * animationSpeedMultiplier;
-    m_approachTimeMS = (m_useFadeInTimeAsApproachTime ? m_fadeInTimeMS : (i32)m_pi->getCachedApproachTimeForUpdate());
+    m_approachTimeMS = (m_useFadeInTimeAsApproachTime ? m_fadeInTimeMS : (i32)approachTimeMS);
     m_deltaMS = m_clickTimeMS - curPosMS;
 
     // 1 ms fudge by using >=, shouldn't really be a problem
@@ -390,7 +393,7 @@ void HitObject::update(i32 curPosMS, f64 /*frame_time*/) {
         m_alpha = std::clamp<f32>(1.0f - ((f32)(fadeInEnd - curPosMS) / (f32)(fadeInEnd - fadeInStart)), 0.0f, 1.0f);
         m_alphaWithoutHidden = m_alpha;
 
-        if(mods.has(ModFlags::FreezeFrame)) {
+        if(flags::has<ModFlags::FreezeFrame>(mods)) {
             // HACK: set m_alphaWithoutHidden as "alpha without freeze time or hidden"
             //       this makes slider bodies & spinners draw correctly
             const i32 fadeInStart = m_clickTimeMS - m_approachTimeMS;
@@ -399,7 +402,7 @@ void HitObject::update(i32 curPosMS, f64 /*frame_time*/) {
                 std::clamp<f32>(1.0f - ((f32)(fadeInEnd - curPosMS) / (f32)(fadeInEnd - fadeInStart)), 0.0f, 1.0f);
         }
 
-        if(mods.has(ModFlags::Hidden)) {
+        if(flags::has<ModFlags::Hidden>(mods)) {
             // hidden hitobject body fadein
             const f32 fin_start_percent = cv::mod_hd_circle_fadein_start_percent.getFloat();
             const f32 fin_end_percent = cv::mod_hd_circle_fadein_end_percent.getFloat();
@@ -432,7 +435,7 @@ void HitObject::update(i32 curPosMS, f64 /*frame_time*/) {
 
         // hittable dim, see https://github.com/ppy/osu/pull/20572
         if(cv::hitobject_hittable_dim.getBool() &&
-           (!flags::has<ModFlags::Mafham>(mods.flags) || !cv::mod_mafham_ignore_hittable_dim.getBool())) {
+           (!flags::has<ModFlags::Mafham>(mods) || !cv::mod_mafham_ignore_hittable_dim.getBool())) {
             const i32 hittableDimFadeStart = m_clickTimeMS - (i32)GameRules::HITWINDOW_MISS;
 
             // yes, this means the un-dim animation cuts into the already clickable range
