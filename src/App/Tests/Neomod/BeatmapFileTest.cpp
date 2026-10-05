@@ -169,11 +169,17 @@ std::string dumpGameLoad(const std::string &path, const std::string &relative, s
                        tp.sampleIndex, tp.volume, tp.uninherited, tp.kiai);
     }
 
-    const auto c = loadPrimitiveObjectsFromData(bytes, {});
+    auto c = loadPrimitiveObjectsFromData(bytes, {});
+    const LoadError sliderError = c.error
+                                      ? LoadError{}
+                                      : calculateSliderTimesClicksTicks(c.version, c.sliders, c.timingpoints,
+                                                                        c.sliderMultiplier, c.sliderTickRate, c.limits);
     fmt::format_to(std::back_inserter(out),
-                   "prim err={} ver={} ar={} cs={} od={} hp={} sl={} sm={} tr={} set={} breaktime={}\n",
+                   "prim err={} ver={} ar={} cs={} od={} hp={} sl={} sm={} tr={} set={} breaktime={} skipped={} "
+                   "slidererr={}\n",
                    static_cast<int>(c.error.errc), c.version, c.AR, c.CS, c.OD, c.HP, c.stackLeniency,
-                   c.sliderMultiplier, c.sliderTickRate, c.defaultSampleSet, c.totalBreakDuration);
+                   c.sliderMultiplier, c.sliderTickRate, c.defaultSampleSet, c.totalBreakDuration,
+                   c.skippedLines.size(), static_cast<int>(sliderError.errc));
     for(const auto &b : c.breaks) fmt::format_to(std::back_inserter(out), "brk {} {}\n", b.startTime, b.endTime);
     for(const auto col : c.combocolors) fmt::format_to(std::back_inserter(out), "col {:08x}\n", col);
     for(const auto &tp : c.timingpoints) {
@@ -183,9 +189,15 @@ std::string dumpGameLoad(const std::string &path, const std::string &relative, s
     const auto samples = [](const DBType::HITSAMPLE_BITS &s) {
         return fmt::format("{}:{}:{}:{}", s.hitSounds, s.normalSet, s.additionSet, s.volume);
     };
+    // what the game looks up at an object's time
+    const auto timing = [&c](i32 time) {
+        const DBType::TIMING_INFO ti = getTimingInfoForTimeAndTimingPoints(time, c.timingpoints);
+        return fmt::format("{}/{}/{}/{}/{}/{}/{}", ti.offset, ti.beatLengthBase, ti.beatLength, ti.sampleSet,
+                           ti.sampleIndex, ti.volume, ti.isNaN);
+    };
     for(const auto &h : c.hitcircles) {
-        fmt::format_to(std::back_inserter(out), "c {} {} {} {} {} {} {}\n", h.x, h.y, h.time, h.number, h.colorCounter,
-                       h.colorOffset, samples(h.samples));
+        fmt::format_to(std::back_inserter(out), "c {} {} {} {} {} {} {} {}\n", h.x, h.y, h.time, h.number,
+                       h.colorCounter, h.colorOffset, samples(h.samples), timing(h.time));
     }
     for(const auto &s : c.sliders) {
         fmt::format_to(std::back_inserter(out), "s {} {} {} {} {} {} {} {} {} {} {}", s.x, s.y, s.time, s.number,
@@ -193,10 +205,12 @@ std::string dumpGameLoad(const std::string &path, const std::string &relative, s
                        samples(s.hoverSamples), s.points.size());
         for(const auto &p : s.points) fmt::format_to(std::back_inserter(out), " {},{}", p.x, p.y);
         for(const auto &e : s.edgeSamples) fmt::format_to(std::back_inserter(out), " e{}", samples(e));
-        out.push_back('\n');
+        fmt::format_to(std::back_inserter(out), " {}/{}/{} {}\n", s.sliderTime, s.sliderTimeWithoutRepeats,
+                       s.ticks.size(), timing(s.time));
     }
     for(const auto &s : c.spinners) {
-        fmt::format_to(std::back_inserter(out), "sp {} {} {} {} {}\n", s.x, s.y, s.time, s.endTime, samples(s.samples));
+        fmt::format_to(std::back_inserter(out), "sp {} {} {} {} {} {}\n", s.x, s.y, s.time, s.endTime,
+                       samples(s.samples), timing(s.time));
     }
     return out;
 }
