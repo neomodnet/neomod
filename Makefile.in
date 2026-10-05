@@ -250,6 +250,7 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Neomod/BanchoProtocol.cpp \
 	src/App/Neomod/BanchoSubmitter.cpp \
 	src/App/Neomod/BanchoUsers.cpp \
+	src/App/Neomod/BeatmapFile/BeatmapFile.cpp \
 	src/App/Neomod/BeatmapInstallOverlay.cpp \
 	src/App/Neomod/BeatmapInstaller.cpp \
 	src/App/Neomod/BeatmapInterface.cpp src/App/Neomod/Chat.cpp \
@@ -414,6 +415,7 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Tests/ConVarTest.cpp src/App/Tests/CryptoTest.cpp \
 	src/App/Tests/DirectoryWatcherTest.cpp \
 	src/App/Tests/EmojiRenderTest/EmojiRenderTest.cpp \
+	src/App/Tests/Neomod/BeatmapFileTest.cpp \
 	src/App/Tests/Neomod/HitSoundTest.cpp \
 	src/App/Tests/Neomod/PacketTest.cpp \
 	src/App/Tests/Neomod/SkinLoadTest.cpp \
@@ -461,6 +463,7 @@ am__dirstamp = $(am__leading_dot)dirstamp
 @BUILD_TESTS_TRUE@	src/App/Tests/neomod-CryptoTest.$(OBJEXT) \
 @BUILD_TESTS_TRUE@	src/App/Tests/neomod-DirectoryWatcherTest.$(OBJEXT) \
 @BUILD_TESTS_TRUE@	src/App/Tests/EmojiRenderTest/neomod-EmojiRenderTest.$(OBJEXT) \
+@BUILD_TESTS_TRUE@	src/App/Tests/Neomod/neomod-BeatmapFileTest.$(OBJEXT) \
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/neomod-HitSoundTest.$(OBJEXT) \
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/neomod-PacketTest.$(OBJEXT) \
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/neomod-SkinLoadTest.$(OBJEXT) \
@@ -494,6 +497,7 @@ am_neomod_OBJECTS = libraries/neomod-MD5.$(OBJEXT) \
 	src/App/Neomod/neomod-BanchoProtocol.$(OBJEXT) \
 	src/App/Neomod/neomod-BanchoSubmitter.$(OBJEXT) \
 	src/App/Neomod/neomod-BanchoUsers.$(OBJEXT) \
+	src/App/Neomod/BeatmapFile/neomod-BeatmapFile.$(OBJEXT) \
 	src/App/Neomod/neomod-BeatmapInstallOverlay.$(OBJEXT) \
 	src/App/Neomod/neomod-BeatmapInstaller.$(OBJEXT) \
 	src/App/Neomod/neomod-BeatmapInterface.$(OBJEXT) \
@@ -806,6 +810,7 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/App/Neomod/$(DEPDIR)/neomod-UserStatsScreen.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-VolumeOverlay.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-score.Po \
+	src/App/Neomod/BeatmapFile/$(DEPDIR)/neomod-BeatmapFile.Po \
 	src/App/Neomod/DiffCalc/$(DEPDIR)/neomod-AsyncPPCalculator.Po \
 	src/App/Neomod/DiffCalc/$(DEPDIR)/neomod-BatchDiffCalc.Po \
 	src/App/Neomod/DiffCalc/$(DEPDIR)/neomod-DifficultyCalculator.Po \
@@ -833,6 +838,7 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/App/Tests/AudioTester/$(DEPDIR)/neomod-AudioTester.Po \
 	src/App/Tests/BaseFrameworkTest/$(DEPDIR)/neomod-BaseFrameworkTest.Po \
 	src/App/Tests/EmojiRenderTest/$(DEPDIR)/neomod-EmojiRenderTest.Po \
+	src/App/Tests/Neomod/$(DEPDIR)/neomod-BeatmapFileTest.Po \
 	src/App/Tests/Neomod/$(DEPDIR)/neomod-HitSoundTest.Po \
 	src/App/Tests/Neomod/$(DEPDIR)/neomod-PacketTest.Po \
 	src/App/Tests/Neomod/$(DEPDIR)/neomod-SkinLoadTest.Po \
@@ -1447,6 +1453,7 @@ PATH := $(DEPS_PREFIX):$(shell echo $$PATH)
 @BUILD_TESTS_TRUE@	src/App/Tests/CryptoTest.cpp \
 @BUILD_TESTS_TRUE@	src/App/Tests/DirectoryWatcherTest.cpp \
 @BUILD_TESTS_TRUE@	src/App/Tests/EmojiRenderTest/EmojiRenderTest.cpp \
+@BUILD_TESTS_TRUE@	src/App/Tests/Neomod/BeatmapFileTest.cpp \
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/HitSoundTest.cpp \
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/PacketTest.cpp \
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/SkinLoadTest.cpp \
@@ -1485,6 +1492,7 @@ neomod_SOURCES = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Neomod/BanchoProtocol.cpp \
 	src/App/Neomod/BanchoSubmitter.cpp \
 	src/App/Neomod/BanchoUsers.cpp \
+	src/App/Neomod/BeatmapFile/BeatmapFile.cpp \
 	src/App/Neomod/BeatmapInstallOverlay.cpp \
 	src/App/Neomod/BeatmapInstaller.cpp \
 	src/App/Neomod/BeatmapInterface.cpp src/App/Neomod/Chat.cpp \
@@ -2259,6 +2267,15 @@ src/App/Neomod/neomod-BanchoSubmitter.$(OBJEXT):  \
 src/App/Neomod/neomod-BanchoUsers.$(OBJEXT):  \
 	src/App/Neomod/$(am__dirstamp) \
 	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
+src/App/Neomod/BeatmapFile/$(am__dirstamp):
+	@$(MKDIR_P) src/App/Neomod/BeatmapFile
+	@: >>src/App/Neomod/BeatmapFile/$(am__dirstamp)
+src/App/Neomod/BeatmapFile/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) src/App/Neomod/BeatmapFile/$(DEPDIR)
+	@: >>src/App/Neomod/BeatmapFile/$(DEPDIR)/$(am__dirstamp)
+src/App/Neomod/BeatmapFile/neomod-BeatmapFile.$(OBJEXT):  \
+	src/App/Neomod/BeatmapFile/$(am__dirstamp) \
+	src/App/Neomod/BeatmapFile/$(DEPDIR)/$(am__dirstamp)
 src/App/Neomod/neomod-BeatmapInstallOverlay.$(OBJEXT):  \
 	src/App/Neomod/$(am__dirstamp) \
 	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
@@ -3081,6 +3098,9 @@ src/App/Tests/Neomod/$(am__dirstamp):
 src/App/Tests/Neomod/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) src/App/Tests/Neomod/$(DEPDIR)
 	@: >>src/App/Tests/Neomod/$(DEPDIR)/$(am__dirstamp)
+src/App/Tests/Neomod/neomod-BeatmapFileTest.$(OBJEXT):  \
+	src/App/Tests/Neomod/$(am__dirstamp) \
+	src/App/Tests/Neomod/$(DEPDIR)/$(am__dirstamp)
 src/App/Tests/Neomod/neomod-HitSoundTest.$(OBJEXT):  \
 	src/App/Tests/Neomod/$(am__dirstamp) \
 	src/App/Tests/Neomod/$(DEPDIR)/$(am__dirstamp)
@@ -3128,6 +3148,7 @@ mostlyclean-compile:
 	-rm -f libraries/neotrace/src/*.$(OBJEXT)
 	-rm -f src/App/*.$(OBJEXT)
 	-rm -f src/App/Neomod/*.$(OBJEXT)
+	-rm -f src/App/Neomod/BeatmapFile/*.$(OBJEXT)
 	-rm -f src/App/Neomod/DiffCalc/*.$(OBJEXT)
 	-rm -f src/App/Neomod/OsuConVars/*.$(OBJEXT)
 	-rm -f src/App/Neomod/SongBrowser/*.$(OBJEXT)
@@ -3272,6 +3293,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-UserStatsScreen.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-VolumeOverlay.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-score.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/BeatmapFile/$(DEPDIR)/neomod-BeatmapFile.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/DiffCalc/$(DEPDIR)/neomod-AsyncPPCalculator.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/DiffCalc/$(DEPDIR)/neomod-BatchDiffCalc.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/DiffCalc/$(DEPDIR)/neomod-DifficultyCalculator.Po@am__quote@ # am--include-marker
@@ -3299,6 +3321,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/AudioTester/$(DEPDIR)/neomod-AudioTester.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/BaseFrameworkTest/$(DEPDIR)/neomod-BaseFrameworkTest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/EmojiRenderTest/$(DEPDIR)/neomod-EmojiRenderTest.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/Neomod/$(DEPDIR)/neomod-BeatmapFileTest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/Neomod/$(DEPDIR)/neomod-HitSoundTest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/Neomod/$(DEPDIR)/neomod-PacketTest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/Neomod/$(DEPDIR)/neomod-SkinLoadTest.Po@am__quote@ # am--include-marker
@@ -3805,6 +3828,20 @@ src/App/Neomod/neomod-BanchoUsers.obj: src/App/Neomod/BanchoUsers.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/BanchoUsers.cpp' object='src/App/Neomod/neomod-BanchoUsers.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-BanchoUsers.obj `if test -f 'src/App/Neomod/BanchoUsers.cpp'; then $(CYGPATH_W) 'src/App/Neomod/BanchoUsers.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/BanchoUsers.cpp'; fi`
+
+src/App/Neomod/BeatmapFile/neomod-BeatmapFile.o: src/App/Neomod/BeatmapFile/BeatmapFile.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/BeatmapFile/neomod-BeatmapFile.o -MD -MP -MF src/App/Neomod/BeatmapFile/$(DEPDIR)/neomod-BeatmapFile.Tpo -c -o src/App/Neomod/BeatmapFile/neomod-BeatmapFile.o `test -f 'src/App/Neomod/BeatmapFile/BeatmapFile.cpp' || echo '$(srcdir)/'`src/App/Neomod/BeatmapFile/BeatmapFile.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/BeatmapFile/$(DEPDIR)/neomod-BeatmapFile.Tpo src/App/Neomod/BeatmapFile/$(DEPDIR)/neomod-BeatmapFile.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/BeatmapFile/BeatmapFile.cpp' object='src/App/Neomod/BeatmapFile/neomod-BeatmapFile.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/BeatmapFile/neomod-BeatmapFile.o `test -f 'src/App/Neomod/BeatmapFile/BeatmapFile.cpp' || echo '$(srcdir)/'`src/App/Neomod/BeatmapFile/BeatmapFile.cpp
+
+src/App/Neomod/BeatmapFile/neomod-BeatmapFile.obj: src/App/Neomod/BeatmapFile/BeatmapFile.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/BeatmapFile/neomod-BeatmapFile.obj -MD -MP -MF src/App/Neomod/BeatmapFile/$(DEPDIR)/neomod-BeatmapFile.Tpo -c -o src/App/Neomod/BeatmapFile/neomod-BeatmapFile.obj `if test -f 'src/App/Neomod/BeatmapFile/BeatmapFile.cpp'; then $(CYGPATH_W) 'src/App/Neomod/BeatmapFile/BeatmapFile.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/BeatmapFile/BeatmapFile.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/BeatmapFile/$(DEPDIR)/neomod-BeatmapFile.Tpo src/App/Neomod/BeatmapFile/$(DEPDIR)/neomod-BeatmapFile.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/BeatmapFile/BeatmapFile.cpp' object='src/App/Neomod/BeatmapFile/neomod-BeatmapFile.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/BeatmapFile/neomod-BeatmapFile.obj `if test -f 'src/App/Neomod/BeatmapFile/BeatmapFile.cpp'; then $(CYGPATH_W) 'src/App/Neomod/BeatmapFile/BeatmapFile.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/BeatmapFile/BeatmapFile.cpp'; fi`
 
 src/App/Neomod/neomod-BeatmapInstallOverlay.o: src/App/Neomod/BeatmapInstallOverlay.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-BeatmapInstallOverlay.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-BeatmapInstallOverlay.Tpo -c -o src/App/Neomod/neomod-BeatmapInstallOverlay.o `test -f 'src/App/Neomod/BeatmapInstallOverlay.cpp' || echo '$(srcdir)/'`src/App/Neomod/BeatmapInstallOverlay.cpp
@@ -6872,6 +6909,20 @@ src/App/Tests/EmojiRenderTest/neomod-EmojiRenderTest.obj: src/App/Tests/EmojiRen
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Tests/EmojiRenderTest/neomod-EmojiRenderTest.obj `if test -f 'src/App/Tests/EmojiRenderTest/EmojiRenderTest.cpp'; then $(CYGPATH_W) 'src/App/Tests/EmojiRenderTest/EmojiRenderTest.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Tests/EmojiRenderTest/EmojiRenderTest.cpp'; fi`
 
+src/App/Tests/Neomod/neomod-BeatmapFileTest.o: src/App/Tests/Neomod/BeatmapFileTest.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Tests/Neomod/neomod-BeatmapFileTest.o -MD -MP -MF src/App/Tests/Neomod/$(DEPDIR)/neomod-BeatmapFileTest.Tpo -c -o src/App/Tests/Neomod/neomod-BeatmapFileTest.o `test -f 'src/App/Tests/Neomod/BeatmapFileTest.cpp' || echo '$(srcdir)/'`src/App/Tests/Neomod/BeatmapFileTest.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Tests/Neomod/$(DEPDIR)/neomod-BeatmapFileTest.Tpo src/App/Tests/Neomod/$(DEPDIR)/neomod-BeatmapFileTest.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Tests/Neomod/BeatmapFileTest.cpp' object='src/App/Tests/Neomod/neomod-BeatmapFileTest.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Tests/Neomod/neomod-BeatmapFileTest.o `test -f 'src/App/Tests/Neomod/BeatmapFileTest.cpp' || echo '$(srcdir)/'`src/App/Tests/Neomod/BeatmapFileTest.cpp
+
+src/App/Tests/Neomod/neomod-BeatmapFileTest.obj: src/App/Tests/Neomod/BeatmapFileTest.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Tests/Neomod/neomod-BeatmapFileTest.obj -MD -MP -MF src/App/Tests/Neomod/$(DEPDIR)/neomod-BeatmapFileTest.Tpo -c -o src/App/Tests/Neomod/neomod-BeatmapFileTest.obj `if test -f 'src/App/Tests/Neomod/BeatmapFileTest.cpp'; then $(CYGPATH_W) 'src/App/Tests/Neomod/BeatmapFileTest.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Tests/Neomod/BeatmapFileTest.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Tests/Neomod/$(DEPDIR)/neomod-BeatmapFileTest.Tpo src/App/Tests/Neomod/$(DEPDIR)/neomod-BeatmapFileTest.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Tests/Neomod/BeatmapFileTest.cpp' object='src/App/Tests/Neomod/neomod-BeatmapFileTest.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Tests/Neomod/neomod-BeatmapFileTest.obj `if test -f 'src/App/Tests/Neomod/BeatmapFileTest.cpp'; then $(CYGPATH_W) 'src/App/Tests/Neomod/BeatmapFileTest.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Tests/Neomod/BeatmapFileTest.cpp'; fi`
+
 src/App/Tests/Neomod/neomod-HitSoundTest.o: src/App/Tests/Neomod/HitSoundTest.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Tests/Neomod/neomod-HitSoundTest.o -MD -MP -MF src/App/Tests/Neomod/$(DEPDIR)/neomod-HitSoundTest.Tpo -c -o src/App/Tests/Neomod/neomod-HitSoundTest.o `test -f 'src/App/Tests/Neomod/HitSoundTest.cpp' || echo '$(srcdir)/'`src/App/Tests/Neomod/HitSoundTest.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Tests/Neomod/$(DEPDIR)/neomod-HitSoundTest.Tpo src/App/Tests/Neomod/$(DEPDIR)/neomod-HitSoundTest.Po
@@ -7306,6 +7357,8 @@ distclean-generic:
 	-$(am__rm_f) src/App/$(am__dirstamp)
 	-$(am__rm_f) src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
 	-$(am__rm_f) src/App/Neomod/$(am__dirstamp)
+	-$(am__rm_f) src/App/Neomod/BeatmapFile/$(DEPDIR)/$(am__dirstamp)
+	-$(am__rm_f) src/App/Neomod/BeatmapFile/$(am__dirstamp)
 	-$(am__rm_f) src/App/Neomod/DiffCalc/$(DEPDIR)/$(am__dirstamp)
 	-$(am__rm_f) src/App/Neomod/DiffCalc/$(am__dirstamp)
 	-$(am__rm_f) src/App/Neomod/OsuConVars/$(DEPDIR)/$(am__dirstamp)
@@ -7492,6 +7545,7 @@ distclean: distclean-am
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-UserStatsScreen.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-VolumeOverlay.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-score.Po
+	-rm -f src/App/Neomod/BeatmapFile/$(DEPDIR)/neomod-BeatmapFile.Po
 	-rm -f src/App/Neomod/DiffCalc/$(DEPDIR)/neomod-AsyncPPCalculator.Po
 	-rm -f src/App/Neomod/DiffCalc/$(DEPDIR)/neomod-BatchDiffCalc.Po
 	-rm -f src/App/Neomod/DiffCalc/$(DEPDIR)/neomod-DifficultyCalculator.Po
@@ -7519,6 +7573,7 @@ distclean: distclean-am
 	-rm -f src/App/Tests/AudioTester/$(DEPDIR)/neomod-AudioTester.Po
 	-rm -f src/App/Tests/BaseFrameworkTest/$(DEPDIR)/neomod-BaseFrameworkTest.Po
 	-rm -f src/App/Tests/EmojiRenderTest/$(DEPDIR)/neomod-EmojiRenderTest.Po
+	-rm -f src/App/Tests/Neomod/$(DEPDIR)/neomod-BeatmapFileTest.Po
 	-rm -f src/App/Tests/Neomod/$(DEPDIR)/neomod-HitSoundTest.Po
 	-rm -f src/App/Tests/Neomod/$(DEPDIR)/neomod-PacketTest.Po
 	-rm -f src/App/Tests/Neomod/$(DEPDIR)/neomod-SkinLoadTest.Po
@@ -7791,6 +7846,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-UserStatsScreen.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-VolumeOverlay.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-score.Po
+	-rm -f src/App/Neomod/BeatmapFile/$(DEPDIR)/neomod-BeatmapFile.Po
 	-rm -f src/App/Neomod/DiffCalc/$(DEPDIR)/neomod-AsyncPPCalculator.Po
 	-rm -f src/App/Neomod/DiffCalc/$(DEPDIR)/neomod-BatchDiffCalc.Po
 	-rm -f src/App/Neomod/DiffCalc/$(DEPDIR)/neomod-DifficultyCalculator.Po
@@ -7818,6 +7874,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/App/Tests/AudioTester/$(DEPDIR)/neomod-AudioTester.Po
 	-rm -f src/App/Tests/BaseFrameworkTest/$(DEPDIR)/neomod-BaseFrameworkTest.Po
 	-rm -f src/App/Tests/EmojiRenderTest/$(DEPDIR)/neomod-EmojiRenderTest.Po
+	-rm -f src/App/Tests/Neomod/$(DEPDIR)/neomod-BeatmapFileTest.Po
 	-rm -f src/App/Tests/Neomod/$(DEPDIR)/neomod-HitSoundTest.Po
 	-rm -f src/App/Tests/Neomod/$(DEPDIR)/neomod-PacketTest.Po
 	-rm -f src/App/Tests/Neomod/$(DEPDIR)/neomod-SkinLoadTest.Po

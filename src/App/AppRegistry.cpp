@@ -12,6 +12,7 @@
 #include "HitSoundTest.h"
 #include "SkinLoadTest.h"
 #include "AsyncPoolTest.h"
+#include "BeatmapFileTest.h"
 #include "ConVarTest.h"
 #include "CryptoTest.h"
 #include "DirectoryWatcherTest.h"
@@ -31,6 +32,7 @@ static constexpr std::array sDescriptors{
     AppDescriptor{"HitSoundTest", [] -> App * { return new Mc::Tests::HitSoundTest(); }},
     AppDescriptor{"SkinLoadTest", [] -> App * { return new Mc::Tests::SkinLoadTest(); }},
     AppDescriptor{"AsyncPoolTest", [] -> App * { return new Mc::Tests::AsyncPoolTest(); }},
+    AppDescriptor{"BeatmapFileTest", [] -> App * { return new Mc::Tests::BeatmapFileTest(); }},
     AppDescriptor{"ConVarTest", [] -> App * { return new Mc::Tests::ConVarTest(); }},
     AppDescriptor{"CryptoTest", [] -> App * { return new Mc::Tests::CryptoTest(); }},
     AppDescriptor{"DirectoryWatcherTest", [] -> App * { return new Mc::Tests::DirectoryWatcherTest(); }},
