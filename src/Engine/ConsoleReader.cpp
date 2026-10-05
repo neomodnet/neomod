@@ -54,12 +54,16 @@ ConsoleReader::ConsoleReader() {
     const HANDLE stdinHandle = stdinFd >= 0 ? reinterpret_cast<HANDLE>(_get_osfhandle(stdinFd)) : INVALID_HANDLE_VALUE;
     const DWORD stdinType = stdinHandle == INVALID_HANDLE_VALUE ? FILE_TYPE_UNKNOWN : GetFileType(stdinHandle);
     const bool scripted = (stdinType == FILE_TYPE_DISK || stdinType == FILE_TYPE_PIPE);
-    // there's no poll() for anonymous pipes, so poll PeekNamedPipe for data instead (it fails once the writer is gone)
+    // there's no poll() for anonymous pipes, so poll PeekNamedPipe for data instead. it fails with ERROR_BROKEN_PIPE once
+    // the writer is gone; any other failure means it can't tell (wine's unix pipes), so the reader thread takes over
     const auto waitReadable = [stdinHandle, stdinType]() -> bool {
         if(stdinType == FILE_TYPE_DISK) return true;  // getline() just runs into EOF
         for(int i = 0; i < 10; i++) {
             DWORD avail = 0;
-            if(!PeekNamedPipe(stdinHandle, nullptr, 0, nullptr, &avail, nullptr) || avail > 0) return true;
+            if(!PeekNamedPipe(stdinHandle, nullptr, 0, nullptr, &avail, nullptr)) {
+                return GetLastError() == ERROR_BROKEN_PIPE;
+            }
+            if(avail > 0) return true;
             Timing::sleepMS(5);
         }
         return false;
