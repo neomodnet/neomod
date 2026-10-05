@@ -2394,6 +2394,8 @@ void SongBrowser::rebuildScoreButtons() {
     this->localBestContainer->invalidate();
     this->localBestContainer->setVisible(false);
     SAFE_DELETE(this->localBestButton);
+    // (a menu opened from a score button would act on a deleted button, or one that shows another score below)
+    this->contextMenu->setVisible2(false);
 
     auto *map = osu->getMapInterface()->getBeatmap();
     const bool validBeatmap = !!map;
