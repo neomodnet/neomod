@@ -249,7 +249,7 @@ forceinline u8 sampleSetValue(i32 val) {
 void applyHitSample(const BeatmapFile::HitSample &sample, HITSAMPLE_BITS &samples) {
     samples.normalSet = sampleSetValue(sample.normalSet);
     samples.additionSet = sampleSetValue(sample.additionSet);
-    samples.volume = std::clamp<u8>(sample.volume, 0, 100);  // for some reason this can be negative
+    samples.volume = static_cast<u8>(std::clamp(sample.volume, 0, 100));  // for some reason this can be negative
 }
 
 bool sliderScoringTimeComparator(const SLIDER_SCORING_TIME &a, const SLIDER_SCORING_TIME &b) {

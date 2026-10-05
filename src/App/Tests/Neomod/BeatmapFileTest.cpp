@@ -485,6 +485,26 @@ void BeatmapFileTest::runTests() {
         TEST_ASSERT_EQ(BeatmapFile::format(ho), "1,2,3,1,0,1:2:0", "three parts written back");
     }
 
+    TEST_SECTION("the game's reading");
+    {
+        const auto load = [](std::string_view text) {
+            return DatabaseBeatmap::loadPrimitiveObjectsFromData(
+                std::span{reinterpret_cast<const u8 *>(text.data()), text.size()}, "test.osu");
+        };
+        const auto bom = load("\xEF\xBB\xBFosu file format v5\r\n[HitObjects]\r\n1,2,3,1,0\r\n");
+        TEST_ASSERT_EQ(bom.version, 5, "the version after a BOM");
+
+        const auto cr = load(
+            "osu file format v14\r[TimingPoints]\r0,500,4,1,0,100,1,8\r100,500,4,1,0,100,1,9\r"
+            "[HitObjects]\r1,2,3,1,0,0:0:0:-5:\r1,2,4,1,0,0:0:0:300:\r");
+        TEST_ASSERT_EQ(cr.hitcircles.size(), 2, "a file with CR line breaks");
+        TEST_ASSERT(cr.timingpoints.size() == 2 && !cr.timingpoints[0].kiai && cr.timingpoints[1].kiai,
+                    "kiai is the effects field's first bit (8 omits the first barline)");
+        TEST_ASSERT(
+            cr.hitcircles.size() == 2 && cr.hitcircles[0].samples.volume == 0 && cr.hitcircles[1].samples.volume == 100,
+            "sample volumes clamped to 0-100");
+    }
+
     TEST_SECTION("events and colours");
     {
         BeatmapFile::Event ev;
