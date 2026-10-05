@@ -1341,15 +1341,10 @@ void Slider::draw2(bool drawApproachCircle, bool drawOnlyApproachCircle) {
 
     if(drawApproachCircle && drawOnlyApproachCircle) return;
 
-    const ModFlags curGameplayFlags = m_view->getModFlags();
-
     // draw followcircle
     // HACKHACK: this is not entirely correct (due to m_bHeldTillEnd, if held within 300 range but then released, will
     // flash followcircle at the end)
-    bool is_holding_click = isClickHeldSlider();
-    is_holding_click |= flags::any<ModFlags::Autoplay | ModFlags::Relax>(curGameplayFlags);
-
-    bool should_draw_followcircle = (m_visible && m_cursorInside && is_holding_click);
+    bool should_draw_followcircle = (m_visible && m_tracking);
     should_draw_followcircle |= (m_finished && m_followCircleAnimationAlpha > 0.0f && m_heldTillEnd);
 
     if(should_draw_followcircle) {
@@ -1553,84 +1548,19 @@ void Slider::update(i32 curPosMS, f64 frameTimeSecs) {
         }
 
         // animations must be updated even if we are finished
-        updateAnimations(curPosMS);
+        updateAnimations(curPosMS, m_pf->getSpeedAdjustedAnimationSpeed());
     }
 
     // all further calculations are only done while we are active
-    if(m_finished) return;
+    if(m_finished) {
+        this->updateTracking();  // (the keys still change)
+        return;
+    }
 
     const ModFlags curIFaceMods = m_pi->getMods().flags;
 
-    // slider slide percent
-    m_slidePct = 0.0f;
-    if(curPosMS > m_clickTimeMS)
-        m_slidePct = std::clamp<f32>(
-            std::clamp<i32>((curPosMS - (m_clickTimeMS)), 0, (i32)m_sliderTimeMS) / m_sliderTimeMS, 0.0f, 1.0f);
-
-    const i32 visibleTms = flags::has<ModFlags::FreezeFrame>(curIFaceMods) ? m_comboStartMS : m_clickTimeMS;
-    const f32 sliderSnakeDuration = (1.0f / 3.0f) * m_approachTimeMS * cv::slider_snake_duration_multiplier.getFloat();
-    m_sliderSnakePercent = std::min(1.0f, (curPosMS - (visibleTms - m_approachTimeMS)) / (sliderSnakeDuration));
-
-    const i32 reverseArrowFadeInStart =
-        m_clickTimeMS - (cv::snaking_sliders.getBool() ? (m_approachTimeMS - sliderSnakeDuration) : m_approachTimeMS);
-    const i32 reverseArrowFadeInEnd = reverseArrowFadeInStart + cv::slider_reverse_arrow_fadein_duration.getInt();
-    m_reverseArrowAlpha = 1.0f - std::clamp<f32>(((f32)(reverseArrowFadeInEnd - curPosMS) /
-                                                  (f32)(reverseArrowFadeInEnd - reverseArrowFadeInStart)),
-                                                 0.0f, 1.0f);
-    m_reverseArrowAlpha *= cv::slider_reverse_arrow_alpha_multiplier.getFloat();
-
-    m_bodyAlpha = m_alpha;
-    if(flags::has<ModFlags::Hidden>(curIFaceMods)) {  // hidden modifies the body alpha
-        m_bodyAlpha = m_alphaWithoutHidden;           // fade in as usual
-
-        // fade out over the duration of the slider, starting exactly when the default fadein finishes
-        // std::min() ensures that the fade always starts at click_time
-        // (even if the fadeintime is longer than the approachtime)
-        const i32 hiddenSliderBodyFadeOutStart = std::min(visibleTms, visibleTms - m_approachTimeMS + m_fadeInTimeMS);
-        const f32 fade_percent = cv::mod_hd_slider_fade_percent.getFloat();
-        const i32 hiddenSliderBodyFadeOutEnd = m_clickTimeMS + (i32)(fade_percent * m_sliderTimeMS);
-        if(curPosMS >= hiddenSliderBodyFadeOutStart) {
-            m_bodyAlpha = std::clamp<f32>(((f32)(hiddenSliderBodyFadeOutEnd - curPosMS) /
-                                           (f32)(hiddenSliderBodyFadeOutEnd - hiddenSliderBodyFadeOutStart)),
-                                          0.0f, 1.0f);
-            m_bodyAlpha *= m_bodyAlpha;  // quad in body fadeout
-        }
-    }
-
-    // if this slider is active, recalculate sliding/curve position and general state
-    if(m_slidePct > 0.0f || m_visible) {
-        // handle reverse sliders
-        m_inReverse = false;
-        m_hideNumberAfterFirstRepeatHit = false;
-        if(m_repeat > 1) {
-            if(m_slidePct > 0.0f && m_startFinished) m_hideNumberAfterFirstRepeatHit = true;
-
-            f32 part = 1.0f / (f32)m_repeat;
-            m_curRepeat = (i32)(m_slidePct * m_repeat);
-            f32 baseSlidePercent = part * m_curRepeat;
-            f32 partSlidePercent = (m_slidePct - baseSlidePercent) / part;
-            if(m_curRepeat % 2 == 0) {
-                m_slidePct = partSlidePercent;
-                m_reverseArrowPos = 2;
-            } else {
-                m_slidePct = 1.0f - partSlidePercent;
-                m_reverseArrowPos = 1;
-                m_inReverse = true;
-            }
-
-            // no reverse arrow on the last repeat
-            if(m_curRepeat == m_repeat - 1) m_reverseArrowPos = 0;
-
-            // osu style: immediately show all coming reverse arrows (even on the circle we just started from)
-            if(m_curRepeat < m_repeat - 2 && m_slidePct > 0.0f && m_repeat > 2) m_reverseArrowPos = 3;
-        }
-
-        m_curPointRaw = curvePointAt(m_slidePct);
-        m_curPoint = m_pi->osuCoords2Pixels(m_curPointRaw);
-    } else {
-        m_curPointRaw = curvePointAt(0.0f);
-        m_curPoint = m_pi->osuCoords2Pixels(m_curPointRaw);
-    }
+    this->updateSlideLook(curPosMS, curIFaceMods);
+    m_curPoint = m_pi->osuCoords2Pixels(m_curPointRaw);
 
     // No longer ignore keys that were released since entering the slider
     // see isClickHeldSlider()
@@ -1644,6 +1574,7 @@ void Slider::update(i32 curPosMS, f64 frameTimeSecs) {
          (!cv::auto_cursordance.getBool() || (vec::length(m_pi->getCursorPos() - m_curPoint) < followRadius)));
     m_cursorInside = (isAutoCursorInside || isPlayfieldCursorInside);
     m_cursorLeft = !m_cursorInside;
+    this->updateTracking();
 
     // handle slider start
     if(!m_startFinished) {
@@ -1882,8 +1813,79 @@ void Slider::update(i32 curPosMS, f64 frameTimeSecs) {
     }
 }
 
-void Slider::updateAnimations(i32 curPosMS) {
-    f32 animation_multiplier = m_pf->getSpeedAdjustedAnimationSpeed();
+void Slider::updateSlideLook(i32 curPosMS, ModFlags mods) {
+    // slider slide percent
+    m_slidePct = 0.0f;
+    if(curPosMS > m_clickTimeMS)
+        m_slidePct = std::clamp<f32>(
+            std::clamp<i32>((curPosMS - (m_clickTimeMS)), 0, (i32)m_sliderTimeMS) / m_sliderTimeMS, 0.0f, 1.0f);
+
+    const i32 visibleTms = flags::has<ModFlags::FreezeFrame>(mods) ? m_comboStartMS : m_clickTimeMS;
+    const f32 sliderSnakeDuration = (1.0f / 3.0f) * m_approachTimeMS * cv::slider_snake_duration_multiplier.getFloat();
+    m_sliderSnakePercent = std::min(1.0f, (curPosMS - (visibleTms - m_approachTimeMS)) / (sliderSnakeDuration));
+
+    const i32 reverseArrowFadeInStart =
+        m_clickTimeMS - (cv::snaking_sliders.getBool() ? (m_approachTimeMS - sliderSnakeDuration) : m_approachTimeMS);
+    const i32 reverseArrowFadeInEnd = reverseArrowFadeInStart + cv::slider_reverse_arrow_fadein_duration.getInt();
+    m_reverseArrowAlpha = 1.0f - std::clamp<f32>(((f32)(reverseArrowFadeInEnd - curPosMS) /
+                                                  (f32)(reverseArrowFadeInEnd - reverseArrowFadeInStart)),
+                                                 0.0f, 1.0f);
+    m_reverseArrowAlpha *= cv::slider_reverse_arrow_alpha_multiplier.getFloat();
+
+    m_bodyAlpha = m_alpha;
+    if(flags::has<ModFlags::Hidden>(mods)) {  // hidden modifies the body alpha
+        m_bodyAlpha = m_alphaWithoutHidden;   // fade in as usual
+
+        // fade out over the duration of the slider, starting exactly when the default fadein finishes
+        // std::min() ensures that the fade always starts at click_time
+        // (even if the fadeintime is longer than the approachtime)
+        const i32 hiddenSliderBodyFadeOutStart = std::min(visibleTms, visibleTms - m_approachTimeMS + m_fadeInTimeMS);
+        const f32 fade_percent = cv::mod_hd_slider_fade_percent.getFloat();
+        const i32 hiddenSliderBodyFadeOutEnd = m_clickTimeMS + (i32)(fade_percent * m_sliderTimeMS);
+        if(curPosMS >= hiddenSliderBodyFadeOutStart) {
+            m_bodyAlpha = std::clamp<f32>(((f32)(hiddenSliderBodyFadeOutEnd - curPosMS) /
+                                           (f32)(hiddenSliderBodyFadeOutEnd - hiddenSliderBodyFadeOutStart)),
+                                          0.0f, 1.0f);
+            m_bodyAlpha *= m_bodyAlpha;  // quad in body fadeout
+        }
+    }
+
+    // if this slider is active, recalculate sliding/curve position and general state
+    if(m_slidePct > 0.0f || m_visible) {
+        // handle reverse sliders
+        m_inReverse = false;
+        m_hideNumberAfterFirstRepeatHit = false;
+        if(m_repeat > 1) {
+            if(m_slidePct > 0.0f && m_startFinished) m_hideNumberAfterFirstRepeatHit = true;
+
+            f32 part = 1.0f / (f32)m_repeat;
+            m_curRepeat = (i32)(m_slidePct * m_repeat);
+            f32 baseSlidePercent = part * m_curRepeat;
+            f32 partSlidePercent = (m_slidePct - baseSlidePercent) / part;
+            if(m_curRepeat % 2 == 0) {
+                m_slidePct = partSlidePercent;
+                m_reverseArrowPos = 2;
+            } else {
+                m_slidePct = 1.0f - partSlidePercent;
+                m_reverseArrowPos = 1;
+                m_inReverse = true;
+            }
+
+            // no reverse arrow on the last repeat
+            if(m_curRepeat == m_repeat - 1) m_reverseArrowPos = 0;
+
+            // osu style: immediately show all coming reverse arrows (even on the circle we just started from)
+            if(m_curRepeat < m_repeat - 2 && m_slidePct > 0.0f && m_repeat > 2) m_reverseArrowPos = 3;
+        }
+
+        m_curPointRaw = curvePointAt(m_slidePct);
+    } else {
+        m_curPointRaw = curvePointAt(0.0f);
+    }
+}
+
+void Slider::updateAnimations(i32 curPosMS, f32 speedAdjustedAnimationSpeed) {
+    f32 animation_multiplier = speedAdjustedAnimationSpeed;
 
     f32 fadein_fade_time = cv::slider_followcircle_fadein_fade_time.getFloat() * animation_multiplier;
     f32 fadeout_fade_time = cv::slider_followcircle_fadeout_fade_time.getFloat() * animation_multiplier;
@@ -2094,6 +2096,7 @@ void Slider::onHit(LiveHitResult result, i32 delta, bool isEndCircle, f32 target
         // except the one used to tap the slider head (or, "hold into" the slider)
         // see isClickHeldSlider()
         m_ignoredKeys = (m_pi->getKeys() & ~m_pi->lastPressedKey);
+        this->updateTracking();
 
         if(flags::has<ModFlags::Target>(m_pi->getMods().flags)) {
             // not end of combo, show in hiterrorbar, use for accuracy, increase combo, increase
@@ -2382,6 +2385,11 @@ void Slider::rebuildVertexBuffer() {
 }
 
 Slider::~Slider() { onReset(0); }
+
+void Slider::updateTracking() {
+    m_tracking = m_cursorInside &&
+                 (isClickHeldSlider() || flags::any<ModFlags::Autoplay | ModFlags::Relax>(m_pi->getMods().flags));
+}
 
 bool Slider::isClickHeldSlider() const {
     // osu! has a weird slider quirk, that I'll explain in detail here.

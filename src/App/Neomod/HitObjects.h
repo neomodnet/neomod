@@ -331,7 +331,12 @@ class Slider final : public HitObject, public SliderRenderer::BodySource {
     // the drawn part of the curve while snaking in or shrinking
     [[nodiscard]] std::pair<f32, f32> getSnakeRange() const;
 
-    void updateAnimations(i32 curPosMS);
+    // the slide, snake, reverse arrow, body fade and repeat state at curPosMS
+    void updateSlideLook(i32 curPosMS, ModFlags mods);
+    // the follow circle's fades at curPosMS
+    void updateAnimations(i32 curPosMS, f32 speedAdjustedAnimationSpeed);
+    // whatever changes the cursor's position or the keys that count calls this
+    void updateTracking();
 
     void onHit(LiveHitResult result, i32 hitDeltaMS, bool isEndCircle, f32 targetDelta = 0.0f, f32 targetAngle = 0.0f,
                bool isEndResultFromStrictTrackingMod = false);
@@ -405,6 +410,7 @@ class Slider final : public HitObject, public SliderRenderer::BodySource {
     bool m_endFinished{false};
     bool m_cursorLeft{true};
     bool m_cursorInside{false};
+    bool m_tracking{false};  // inside and held: the follow circle shows
     bool m_heldTillEnd{false};
     bool m_heldTillEndForLenienceHack{false};
     bool m_heldTillEndForLenienceHackCheck{false};
