@@ -1101,7 +1101,7 @@ endif # BUILD_LIBACL
 
 # PKG_CONFIG_PLUS_BUNDLED_OSSL only differs from PKG_CONFIG for the xp-compat prebuilt curl bundle (see mk/deps/curl.am)
 # NOTE: if we have bundled openssl, then this assumes we also have zstd libs (built alongside curl, or shipped in the xp-compat prebuilt bundle)
-LIBARCHIVE_CFLAGS += $(shell $(PKG_CONFIG_PLUS_BUNDLED_OSSL) --cflags libarchive)
+LIBARCHIVE_CFLAGS += $(shell $(PKG_CONFIG_PLUS_BUNDLED_OSSL) --cflags libarchive) $(if $(STATICBUILD),-DLIBARCHIVE_STATIC,)
 LIBARCHIVE_LIBS += $(shell $(PKG_CONFIG_PLUS_BUNDLED_OSSL) --libs libarchive)
 # gettext records a static-only libiconv by absolute path in libarchive's global LIBS, and emscripten's
 # libtool then bakes that whole .a into the static libarchive.a (a nested archive that corrupts it). rewrite
@@ -1127,7 +1127,7 @@ $(DEPS_PREFIX)/libarchive-$(LIBARCHIVE_VERSION).built: $(DEPS_CACHE)/libarchive-
 		$(if $(LIBICONV_PREFIX),--with-libiconv-prefix="$(LIBICONV_PREFIX)",--without-libiconv-prefix) \
 		--without-libb2 --with-lzma --with-zlib --with-bz2lib \
 		CC="$(CC)" RANLIB="$(RANLIB)" AR="$(AR)" CXX="$(CXX)" LD="$(LD)" \
-		CFLAGS="$(CFLAGS) -I$(DEPS_PREFIX)/include $(OPENSSL_CFLAGS) $(LIBACL_CFLAGS) $(LZMA_CFLAGS) $(BZIP2_CFLAGS) $(ZLIB_CFLAGS) -D_POSIX_C_SOURCE" \
+		CFLAGS="$(CFLAGS) -I$(DEPS_PREFIX)/include $(OPENSSL_CFLAGS) $(LIBACL_CFLAGS) $(LZMA_CFLAGS) $(BZIP2_CFLAGS) $(ZLIB_CFLAGS) -D_POSIX_C_SOURCE $(if $(STATICBUILD),-DLIBARCHIVE_STATIC,)" \
 		LDFLAGS="$(LDFLAGS) -L$(DEPS_PREFIX)/lib $(OPENSSL_LIBS) $(LIBACL_LIBS) $(LZMA_LIBS) $(BZIP2_LIBS) $(ZLIB_LIBS)" && \
 	$(MAKE_PFX) $(MAKE) && \
 	$(MAKE_PFX) $(MAKE) install

@@ -132,7 +132,7 @@ $(DEPS_PREFIX)/nghttp2-$(NGHTTP2_VERSION).built: $(DEPS_CACHE)/nghttp2-$(NGHTTP2
 	$(CONFIGURE_PFX) ../configure $(LT_GNU_LD_CACHE) --host=$(host) --build=$(build) --prefix="$(DEPS_PREFIX)" \
 		--enable-lib-only --enable-static --disable-shared $(LT_WITH_GNU_LD) \
 		RANLIB="$(RANLIB)" AR="$(AR)" CC="$(CC)" CXX="$(CXX)" LD="$(LD)" \
-		CFLAGS="$(CFLAGS) -Os" CXXFLAGS="$(CXXFLAGS) -Os" LDFLAGS="$(LDFLAGS)" && \
+		CFLAGS="$(CFLAGS) -Os -DNGHTTP2_STATICLIB" CXXFLAGS="$(CXXFLAGS) -Os -DNGHTTP2_STATICLIB" LDFLAGS="$(LDFLAGS)" && \
 	$(MAKE_PFX) $(MAKE) && \
 	$(MAKE_PFX) $(MAKE) install
 	$(PKG_CONFIG) --exists --print-errors libnghttp2
@@ -175,7 +175,7 @@ $(DEPS_PREFIX)/curl-$(CURL_VERSION_REAL).built: $(DEPS_CACHE)/curl-$(CURL_VERSIO
 	$(PKG_CONFIG) --exists --print-errors libcurl
 	touch $@
 
-CURL_CFLAGS += -DWITH_GZFILEOP -DCURL_STATICLIB $(shell $(PKG_CONFIG) --cflags libcurl)
+CURL_CFLAGS += -DWITH_GZFILEOP -DCURL_STATICLIB -DNGHTTP2_STATICLIB $(shell $(PKG_CONFIG) --cflags libcurl)
 # explicit --static because libcurl/openssl are always built static here, even when the
 # other deps are shared (the wrapper only adds --static for fully static builds)
 CURL_LIBS += $(shell $(PKG_CONFIG) --static --libs libcurl)

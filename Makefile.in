@@ -109,7 +109,7 @@ bin_PROGRAMS = neomod$(EXEEXT)
 @BUILD_CURL_TRUE@@UBERCOMPAT_TRUE@am__append_4 = --with-path=$(CURL_LIBDIR)/pkgconfig
 @BUILD_CURL_TRUE@@UBERCOMPAT_TRUE@am__append_5 = -I$(CURL_INCLUDEDIR) $(shell $(PKG_CONFIG_PLUS_BUNDLED_OSSL) --cflags openssl)
 @BUILD_CURL_TRUE@@UBERCOMPAT_TRUE@am__append_6 = -L$(CURL_LIBDIR) $(shell $(PKG_CONFIG_PLUS_BUNDLED_OSSL) --libs openssl)
-@BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@am__append_7 = -DWITH_GZFILEOP -DCURL_STATICLIB $(shell $(PKG_CONFIG) --cflags libcurl)
+@BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@am__append_7 = -DWITH_GZFILEOP -DCURL_STATICLIB -DNGHTTP2_STATICLIB $(shell $(PKG_CONFIG) --cflags libcurl)
 # explicit --static because libcurl/openssl are always built static here, even when the
 # other deps are shared (the wrapper only adds --static for fully static builds)
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@am__append_8 = $(shell $(PKG_CONFIG) --static --libs libcurl)
@@ -194,7 +194,7 @@ bin_PROGRAMS = neomod$(EXEEXT)
 
 # PKG_CONFIG_PLUS_BUNDLED_OSSL only differs from PKG_CONFIG for the xp-compat prebuilt curl bundle (see mk/deps/curl.am)
 # NOTE: if we have bundled openssl, then this assumes we also have zstd libs (built alongside curl, or shipped in the xp-compat prebuilt bundle)
-@BUILD_LIBARCHIVE_TRUE@am__append_75 = $(shell $(PKG_CONFIG_PLUS_BUNDLED_OSSL) --cflags libarchive)
+@BUILD_LIBARCHIVE_TRUE@am__append_75 = $(shell $(PKG_CONFIG_PLUS_BUNDLED_OSSL) --cflags libarchive) $(if $(STATICBUILD),-DLIBARCHIVE_STATIC,)
 @BUILD_LIBARCHIVE_TRUE@am__append_76 = $(shell $(PKG_CONFIG_PLUS_BUNDLED_OSSL) --libs libarchive)
 @BUILD_LIBARCHIVE_TRUE@am__append_77 = $(DEPS_PREFIX)/libarchive-$(LIBARCHIVE_VERSION).built
 @DOWNLOAD_DXC_TRUE@@USE_SDLGPU_TRUE@am__append_78 = --dxc $(DEPS_CACHE)/linux_dxc_2025_07_14/bin/dxc
@@ -8307,7 +8307,7 @@ $(CACERT_INCDIR)/cacert.pem:
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(CONFIGURE_PFX) ../configure $(LT_GNU_LD_CACHE) --host=$(host) --build=$(build) --prefix="$(DEPS_PREFIX)" \
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@		--enable-lib-only --enable-static --disable-shared $(LT_WITH_GNU_LD) \
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@		RANLIB="$(RANLIB)" AR="$(AR)" CC="$(CC)" CXX="$(CXX)" LD="$(LD)" \
-@BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@		CFLAGS="$(CFLAGS) -Os" CXXFLAGS="$(CXXFLAGS) -Os" LDFLAGS="$(LDFLAGS)" && \
+@BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@		CFLAGS="$(CFLAGS) -Os -DNGHTTP2_STATICLIB" CXXFLAGS="$(CXXFLAGS) -Os -DNGHTTP2_STATICLIB" LDFLAGS="$(LDFLAGS)" && \
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(MAKE_PFX) $(MAKE) && \
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(MAKE_PFX) $(MAKE) install
 @BUILD_CURL_TRUE@@UBERCOMPAT_FALSE@	$(PKG_CONFIG) --exists --print-errors libnghttp2
@@ -8939,7 +8939,7 @@ $(CACERT_INCDIR)/cacert.pem:
 @BUILD_LIBARCHIVE_TRUE@		$(if $(LIBICONV_PREFIX),--with-libiconv-prefix="$(LIBICONV_PREFIX)",--without-libiconv-prefix) \
 @BUILD_LIBARCHIVE_TRUE@		--without-libb2 --with-lzma --with-zlib --with-bz2lib \
 @BUILD_LIBARCHIVE_TRUE@		CC="$(CC)" RANLIB="$(RANLIB)" AR="$(AR)" CXX="$(CXX)" LD="$(LD)" \
-@BUILD_LIBARCHIVE_TRUE@		CFLAGS="$(CFLAGS) -I$(DEPS_PREFIX)/include $(OPENSSL_CFLAGS) $(LIBACL_CFLAGS) $(LZMA_CFLAGS) $(BZIP2_CFLAGS) $(ZLIB_CFLAGS) -D_POSIX_C_SOURCE" \
+@BUILD_LIBARCHIVE_TRUE@		CFLAGS="$(CFLAGS) -I$(DEPS_PREFIX)/include $(OPENSSL_CFLAGS) $(LIBACL_CFLAGS) $(LZMA_CFLAGS) $(BZIP2_CFLAGS) $(ZLIB_CFLAGS) -D_POSIX_C_SOURCE $(if $(STATICBUILD),-DLIBARCHIVE_STATIC,)" \
 @BUILD_LIBARCHIVE_TRUE@		LDFLAGS="$(LDFLAGS) -L$(DEPS_PREFIX)/lib $(OPENSSL_LIBS) $(LIBACL_LIBS) $(LZMA_LIBS) $(BZIP2_LIBS) $(ZLIB_LIBS)" && \
 @BUILD_LIBARCHIVE_TRUE@	$(MAKE_PFX) $(MAKE) && \
 @BUILD_LIBARCHIVE_TRUE@	$(MAKE_PFX) $(MAKE) install
