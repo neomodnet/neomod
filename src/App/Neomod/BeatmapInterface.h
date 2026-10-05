@@ -5,7 +5,6 @@
 #include "AbstractBeatmapInterface.h"
 #include "AsyncPPCalculator.h"
 #include "LegacyReplay.h"
-#include "PlaybackInterpolator.h"
 #include "score.h"
 #include "LivePPCalc.h"
 #include "Vectors.h"
@@ -303,8 +302,6 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
 
     void playMissSound();
 
-    [[nodiscard]] i32 getInterpedMusicPos() const;
-
     bool bIsInSkippableSection;
     bool bShouldFlashWarningArrows;
     f32 fShouldFlashSectionPass;
@@ -313,9 +310,6 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
     u32 iContinueMusicPos;
     f64 fWaitTime{0.f};
     f64 fPrevUnpauseTime{0.f};
-
-    // sound
-    mutable std::unique_ptr<GameplayInterpolator> musicInterp;
 
     i32 iCurMusicPos;
     i32 iCurMusicPosWithOffsets;

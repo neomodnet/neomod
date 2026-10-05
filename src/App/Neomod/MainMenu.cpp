@@ -710,7 +710,7 @@ std::pair<bool, float> MainMenu::getTimingpointPulseAmount() {
     }
 
     // playing music, get dynamic pulse amount
-    const i32 curMusicPos = (i32)music->getPositionMS() + music->getOffset(map);
+    const i32 curMusicPos = music->getTime() + music->getOffset(map);
     DBType::TIMING_INFO t = map->getTimingInfoForTime(curMusicPos);
 
     if(t.beatLengthBase == 0.0f)  // bah

@@ -419,7 +419,7 @@ void BeatmapInterface::selectBeatmap() {
     osu->bIsPlayingASelectedBeatmap = false;
 
     // if possible, continue playing where we left off
-    if(this->music.isPlaying()) this->iContinueMusicPos = this->music.getPositionMS();
+    if(this->music.isPlaying()) this->iContinueMusicPos = (u32)std::max(this->music.getTime(), 0);
 
     this->selectBeatmap(this->beatmap);
 }
@@ -1069,6 +1069,9 @@ void BeatmapInterface::seekMS(u32 ms) {
 
         // if there are calculations in there that need the hitobjects to be loaded, also applies speed/pitch
         this->onModUpdate(false, false);
+    } else if(this->bIsPlaying && !this->music.isPlaying()) {
+        // (the music had played to its end)
+        this->music.play();
     }
 
     if(this->is_watching) {
@@ -1094,7 +1097,7 @@ void BeatmapInterface::seekMS(u32 ms) {
     }
 }
 
-u32 BeatmapInterface::getTime() const { return this->music.getPositionMS(); }
+u32 BeatmapInterface::getTime() const { return (u32)std::max(this->music.getTime(), 0); }
 
 u32 BeatmapInterface::getStartTimePlayable() const {
     if(likely(!this->hitobjects.empty()))
@@ -2332,54 +2335,6 @@ void BeatmapInterface::update() {
     }
 }
 
-i32 BeatmapInterface::getInterpedMusicPos() const {
-    const auto currentTime = Timing::getTimeReal<f64>();
-
-    const int interpCV = cv::interpolate_music_pos.getInt();
-    const bool useMcOsuInterp = interpCV == 2;
-    const bool useLazerInterp = !useMcOsuInterp && interpCV == 3;
-
-    // lazy switch on convar change
-    if(useMcOsuInterp && (!this->musicInterp || this->musicInterp->getType() != 2)) {
-        this->musicInterp = std::make_unique<McOsuInterpolator>();
-    } else if(useLazerInterp && (!this->musicInterp || this->musicInterp->getType() != 3)) {
-        this->musicInterp = std::make_unique<TachyonInterpolator>();
-    }
-
-    i64 realMusicPos = -1000;
-    i64 returnPos = -1000;
-    if(this->isActuallyLoading()) {
-        // fake negative start
-        if(useMcOsuInterp || useLazerInterp) {
-            this->musicInterp->update(0.0, currentTime, 0.0, false, 0.0, false);
-        }
-        // otherwise don't do anything (default interpolator is embedded in stream playback position)
-    } else {
-        if(useMcOsuInterp || useLazerInterp) {
-            returnPos = (i32)this->musicInterp->update(
-                (f64)(realMusicPos = (i64)this->music.getPositionMS()), currentTime, this->music.getSpeed(), false,
-                this->music.getLengthMS(), this->music.isPlaying() && !this->bWasSeekFrame);
-        } else {
-            returnPos = (i32)(realMusicPos = (i64)this->music.getPositionMS());
-        }
-    }
-
-    if(cv::debug_snd.getInt() > 1) {
-        const std::string logString = fmt::format(
-            R"(==== MUSIC POSITION DEBUG ====
-real time: {}
-interpolator type: {}
-music->getPositionMS(): {}
-iCurMusicPos: {}
-==== END MUSIC POSITION DEBUG ====)",
-            currentTime, cv::interpolate_music_pos.getInt(), realMusicPos, returnPos);
-
-        logRaw(logString);
-    }
-
-    return (i32)returnPos;
-}
-
 void BeatmapInterface::update2() {
     if(this->bContinueScheduled) {
         // If we paused while m_bIsWaiting (green progressbar), then we have to let the 'if (this->bIsWaiting)' block
@@ -2415,8 +2370,9 @@ void BeatmapInterface::update2() {
 
     const bool isIdlePaused = this->isActuallyPausedAndNotSpectating();
 
-    // update current music position (this variable does not include any offsets!)
-    this->iCurMusicPos = this->getInterpedMusicPos();
+    // update current music position (this variable does not include any offsets!), with a fake negative start while
+    // loading
+    this->iCurMusicPos = this->isActuallyLoading() ? -1000 : this->music.getTime();
     this->iContinueMusicPos = this->iCurMusicPos < 0 ? 0 : this->iCurMusicPos;
 
     const bool wasSeekFrame = this->bWasSeekFrame;

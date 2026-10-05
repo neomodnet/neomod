@@ -5,13 +5,16 @@
 #include "Logging.h"
 #include "MakeDelegateWrapper.h"
 #include "OsuConVars.h"
+#include "PlaybackInterpolator.h"
 #include "ResourceManager.h"
 #include "Sound.h"
 #include "SoundEngine.h"
 #include "SongBrowser/VolNormalization.h"
+#include "Timing.h"
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 MusicTrack::MusicTrack() {
     this->deviceChangeListener =
@@ -30,6 +33,27 @@ void MusicTrack::update() {
         if(this->stream && !this->stream->isPlaying()) soundEngine->play(this->stream);
         this->resumeScheduled = false;
     }
+
+    // the clock: one sample of the stream a frame, which every reader gets. a stream without a voice (before its first
+    // one, after its end) has no position to read, so the time stays
+    if(!this->isReady() || this->deviceChanging || this->stream->isFinished()) return;
+
+    const i32 interpolation = cv::interpolate_music_pos.getInt();
+    if(interpolation == 2 && (!this->smoothing || this->smoothing->getType() != 2)) {
+        this->smoothing = std::make_unique<McOsuInterpolator>();
+    } else if(interpolation == 3 && (!this->smoothing || this->smoothing->getType() != 3)) {
+        this->smoothing = std::make_unique<TachyonInterpolator>();
+    }
+
+    const f64 now = Timing::getTimeReal<f64>();
+    const i32 position = (i32)this->stream->getPositionMS();
+    const bool seeked = std::exchange(this->seeked, false);
+    this->time = interpolation == 2 || interpolation == 3
+                     ? (i32)this->smoothing->update(position, now, this->speed, false, this->getLengthMS(),
+                                                    this->stream->isPlaying() && !seeked)
+                     : position;
+
+    logIf(cv::debug_snd.getInt() > 1, "music clock: real time {:.6f} position {} time {}", now, position, this->time);
 }
 
 bool MusicTrack::load(DatabaseBeatmap *map, bool async, bool reload) {
@@ -65,6 +89,8 @@ bool MusicTrack::load(DatabaseBeatmap *map, bool async, bool reload) {
             if(async) resourceManager->requestNextLoadAsync();
             this->stream = resourceManager->loadSoundAbs(path, "BEATMAP_MUSIC", true /* stream */, false, false);
         }
+        this->time = 0;
+        this->seekOnLoad = false;
     }
     this->path = std::move(path);
 
@@ -82,6 +108,8 @@ void MusicTrack::unload() {
     }
     this->path.clear();
     this->loadFinished = true;
+    this->time = 0;
+    this->seekOnLoad = false;
 }
 
 void MusicTrack::finishLoad() {
@@ -108,6 +136,16 @@ void MusicTrack::finishLoad() {
     // ready and enqueued (or still playing)
     this->stream->setBaseVolume(this->getVolume());
     this->baseFrequency = this->stream->getFrequency();
+    this->stream->setLoop(this->loop);
+    this->applyRate();
+    if(std::exchange(this->seekOnLoad, false)) this->stream->setPositionMS((u32)this->time);
+}
+
+void MusicTrack::makeVoice() {
+    if(this->stream->isFinished() && soundEngine->enqueue(this->stream)) this->applyRate();
+}
+
+void MusicTrack::applyRate() {
     this->stream->setSpeed(this->speed, this->preservePitch);
     this->stream->setPitch(this->pitch);
 }
@@ -116,7 +154,15 @@ bool MusicTrack::isLoading() const { return this->stream && !this->loadFinished;
 
 bool MusicTrack::isReady() const { return this->stream && this->stream->isReady(); }
 
-bool MusicTrack::play() { return this->stream && soundEngine->play(this->stream); }
+bool MusicTrack::play() {
+    if(!this->isReady()) return false;
+
+    // (a new voice starts with the file's rate)
+    const bool newVoice = this->stream->isFinished();
+    if(!soundEngine->play(this->stream)) return false;
+    if(newVoice) this->applyRate();
+    return true;
+}
 
 void MusicTrack::pause() {
     if(this->stream) soundEngine->pause(this->stream);
@@ -131,21 +177,27 @@ void MusicTrack::togglePause() {
 }
 
 void MusicTrack::setPosition(u32 ms) {
-    if(this->stream) this->stream->setPositionMS(ms);
+    this->time = (i32)ms;
+    this->seeked = true;
+    if(!this->isReady()) {
+        this->seekOnLoad = true;
+        return;
+    }
+
+    this->makeVoice();
+    this->stream->setPositionMS(ms);
 }
 
 void MusicTrack::setLoop(bool loop) {
-    if(this->stream) this->stream->setLoop(loop);
+    this->loop = loop;
+    if(this->isReady()) this->stream->setLoop(loop);
 }
 
 void MusicTrack::setRate(f32 speed, f32 pitch, bool preservePitch) {
     this->speed = speed;
     this->pitch = pitch;
     this->preservePitch = preservePitch;
-    if(this->stream) {
-        this->stream->setSpeed(speed, preservePitch);
-        this->stream->setPitch(pitch);
-    }
+    if(this->stream) this->applyRate();
 }
 
 void MusicTrack::setSlowdown(f32 factor) {
@@ -175,10 +227,6 @@ bool MusicTrack::isPlaying() const { return this->stream && this->stream->isPlay
 
 bool MusicTrack::isFinished() const { return this->stream && this->stream->isFinished(); }
 
-bool MusicTrack::isLooped() const { return this->stream && this->stream->isLooped(); }
-
-u32 MusicTrack::getPositionMS() const { return this->stream ? this->stream->getPositionMS() : 0; }
-
 i32 MusicTrack::getOffset(const DatabaseBeatmap *map) const {
     i32 offset =
         (i32)((cv::universal_offset.getFloat() + cv::universal_offset_hardcoded_blamepeppy.getFloat()) * this->speed) +
@@ -195,15 +243,15 @@ i32 MusicTrack::getOffset(const DatabaseBeatmap *map) const {
 
 u32 MusicTrack::getLengthMS() const { return this->stream ? this->stream->getLengthMS() : 0; }
 
-f64 MusicTrack::getPositionPct() const { return this->stream ? this->stream->getPositionPct() : 0.0; }
-
-f32 MusicTrack::getSpeed() const { return this->stream ? this->stream->getSpeed() : 1.f; }
+f64 MusicTrack::getPositionPct() const {
+    const u32 length = this->getLengthMS();
+    return length > 0 ? std::clamp((f64)this->time / length, 0.0, 1.0) : 0.0;
+}
 
 void MusicTrack::onDeviceChangeBefore() {
     // (when a device fails to open, SoLoud reports the change again for the previous one, with the stream stopped)
     if(std::exchange(this->deviceChanging, true)) return;
     this->resumeAfterDeviceChange = this->isPlaying();
-    this->positionBeforeDeviceChange = this->getPositionMS();
 }
 
 void MusicTrack::onDeviceChangeAfter() {
@@ -212,13 +260,11 @@ void MusicTrack::onDeviceChangeAfter() {
 
     // the stream again from its file (BASS frees every stream along with its device), where it was
     // TODO(spec): is this even right? why do we only unload music after already destroying/restarting soundengine
-    const bool loop = this->stream->isLooped();
     resourceManager->destroyResource(this->stream);
     this->stream = resourceManager->loadSoundAbs(this->path, "BEATMAP_MUSIC", true /* stream */, false, false);
     this->loadFinished = false;
+    this->seekOnLoad = true;
     this->finishLoad();
 
-    this->stream->setLoop(loop);
-    this->stream->setPositionMS(this->positionBeforeDeviceChange);
     if(this->resumeAfterDeviceChange) this->resumeScheduled = true;
 }
