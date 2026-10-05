@@ -3,6 +3,7 @@
 
 #include "AsyncFuture.h"
 #include "SyncStoptoken.h"
+#include "noinclude.h"
 
 namespace Async {
 
@@ -39,7 +40,7 @@ class CancellableHandle : public Future<T> {
     // was requested by then, not whether the task noticed). consumes this handle; the returned handle keeps the
     // cancel-on-destroy semantics and is ready once cb has run.
     template <typename Cb>
-    auto then_on_main(Cb &&cb) -> CancellableHandle<detail::then_result_t<Result<T>, Cb>> {
+    MC_UNREVOCABLE auto then_on_main(Cb &&cb) -> CancellableHandle<detail::then_result_t<Result<T>, Cb>> {
         using U = detail::then_result_t<Result<T>, Cb>;
         assert(this->valid() && "then_on_main() on an invalid handle");
         Sync::stop_source stop = std::move(m_stop);  // this handle becomes inert

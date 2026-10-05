@@ -4,6 +4,7 @@
 #include "AsyncTypes.h"
 #include "AsyncFuture.h"
 #include "AsyncCancellable.h"
+#include "noinclude.h"
 
 #include <cassert>
 #include <tuple>
@@ -15,6 +16,8 @@
 // work. fg workers also take bg work, but at least half of them always stay free for fg tasks; bg workers never
 // take fg work. waiting on a future from a pool thread runs other queued tasks in the meantime, so tasks may
 // block on their own sub-tasks. continuations (Future::then etc.) never occupy a thread while pending.
+// work that has to end with its owner goes through an Async::Scope (AsyncScope.h): what's submitted here can't be
+// taken back, dropping its future doesn't stop it.
 namespace Async {
 
 [[nodiscard]] size_t get_thread_count() noexcept;
@@ -27,7 +30,7 @@ void shutdown();
 
 // submit work, get a future back
 template <typename F>
-auto submit(F &&f, Lane lane = Lane::Foreground) -> Future<std::invoke_result_t<F>> {
+MC_UNREVOCABLE auto submit(F &&f, Lane lane = Lane::Foreground) -> Future<std::invoke_result_t<F>> {
     auto *task = detail::make_task(std::forward<F>(f), lane);
     task->add_ref();  // the future's
     detail::enqueue(task);
@@ -36,20 +39,20 @@ auto submit(F &&f, Lane lane = Lane::Foreground) -> Future<std::invoke_result_t<
 
 // fire-and-forget
 template <typename F>
-void dispatch(F &&f, Lane lane = Lane::Foreground) {
+MC_UNREVOCABLE void dispatch(F &&f, Lane lane = Lane::Foreground) {
     detail::enqueue(detail::make_task(std::forward<F>(f), lane));
 }
 
 // run f on the main thread during the next Async::update()
 template <typename F>
-void queue_main(F &&f) {
+MC_UNREVOCABLE void queue_main(F &&f) {
     detail::enqueue(detail::make_task(std::forward<F>(f), Lane::Foreground, true));
 }
 
 // cancellable submit: the callable receives a const Sync::stop_token& and should check stop_requested()
 // periodically. cancelling before the task starts skips it entirely (its result is default-constructed).
 template <typename F>
-auto submit_cancellable(F &&f, Lane lane = Lane::Foreground)
+MC_UNREVOCABLE auto submit_cancellable(F &&f, Lane lane = Lane::Foreground)
     -> CancellableHandle<std::invoke_result_t<F, const Sync::stop_token &>> {
     using T = std::invoke_result_t<F, const Sync::stop_token &>;
     static_assert(std::is_void_v<T> || std::is_default_constructible_v<T>,
@@ -186,18 +189,19 @@ auto when_all(Inputs inputs, Lane lane) {
 // homogeneous vector of non-void futures
 template <typename T>
     requires(!std::is_void_v<T>)
-auto when_all(std::vector<Future<T>> &&futures, Lane lane = Lane::Foreground) -> Future<std::vector<T>> {
+MC_UNREVOCABLE auto when_all(std::vector<Future<T>> &&futures, Lane lane = Lane::Foreground) -> Future<std::vector<T>> {
     return detail::when_all(std::move(futures), lane);
 }
 
 // homogeneous vector of void futures
-inline auto when_all(std::vector<Future<void>> &&futures, Lane lane = Lane::Foreground) -> Future<void> {
+MC_UNREVOCABLE inline auto when_all(std::vector<Future<void>> &&futures, Lane lane = Lane::Foreground) -> Future<void> {
     return detail::when_all(std::move(futures), lane);
 }
 
 // heterogeneous variadic (different types, all non-void)
 template <typename T1, typename T2, typename... Rest>
-auto when_all(Future<T1> &&f1, Future<T2> &&f2, Future<Rest> &&...rest) -> Future<std::tuple<T1, T2, Rest...>> {
+MC_UNREVOCABLE auto when_all(Future<T1> &&f1, Future<T2> &&f2, Future<Rest> &&...rest)
+    -> Future<std::tuple<T1, T2, Rest...>> {
     return detail::when_all(std::make_tuple(std::move(f1), std::move(f2), std::move(rest)...), Lane::Foreground);
 }
 

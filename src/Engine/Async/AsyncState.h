@@ -23,6 +23,10 @@ class StateBase;
 void enqueue(StateBase *task) noexcept;
 // drop a lane-queued task before it starts (skip + complete)
 bool cancel_queued(StateBase *task) noexcept;
+// drop a task that hasn't started, wherever it is: queued on its lane or for the main thread, or registered on
+// `antecedent` (if given) and not yet fired. false if it's running on a worker (the caller waits for it); true if it's
+// done, was dropped, or is the main-thread task running right now (it finishes once the caller returns)
+bool revoke(StateBase *task, StateBase *antecedent) noexcept;
 
 // one heap object per submitted callable: the pool's queue entry, and the completion state its Future observes.
 // refcounted: one ref for the pending execution (released by whoever runs it), one for the Future (if any),
@@ -59,6 +63,12 @@ class StateBase {
     }
 
     [[nodiscard]] bool done() const noexcept { return m_link.load(std::memory_order_acquire) == this; }
+
+    // take back the continuation c if it's registered on this state and hasn't been fired yet
+    bool unlink(StateBase *c) noexcept {
+        StateBase *expected = c;
+        return m_link.compare_exchange_strong(expected, nullptr, std::memory_order_acq_rel, std::memory_order_acquire);
+    }
 
     // block until done(). on a pool thread this runs other queued tasks in the meantime, so a task that
     // waits on a sub-task can never wedge the pool. (AsyncPool.cpp)

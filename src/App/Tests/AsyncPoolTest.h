@@ -2,6 +2,7 @@
 #pragma once
 #include "App.h"
 #include "AsyncPool.h"
+#include "AsyncScope.h"
 
 #include <vector>
 
@@ -17,6 +18,8 @@ class AsyncPoolTest : public App {
 
    private:
     void runSyncTests();
+    void runScopeTests();
+    void startScopeBatchTest();
     void startStressTest();
     void finish();
 
@@ -44,6 +47,9 @@ class AsyncPoolTest : public App {
         // cancellable auto-cancel on destroy
         WAIT_AUTO_CANCEL,
         TEST_AUTO_CANCEL,
+        // a scope cancelled from a main-thread task, with its own main-thread work later in the same update()
+        WAIT_SCOPE_BATCH,
+        TEST_SCOPE_BATCH,
         // every worker blocked in a nested wait or a continuation at once
         WAIT_STRESS,
         TEST_STRESS,
@@ -61,6 +67,12 @@ class AsyncPoolTest : public App {
     Async::Result<int> m_cancelCompletedResult{0, Async::Status::cancelled};
     Async::Result<void> m_cancelCancelledResult{Async::Status::completed};
     Async::Result<void> m_autoCancelResult{Async::Status::completed};
+
+    Async::Scope m_scope;
+    int m_scopeFrames{0};
+    bool m_scopeCancelled{false};
+    bool m_scopeBatchRan{false};
+    bool m_scopeSelfCancelled{false};
 
     std::vector<Async::Future<int>> m_stressLoaders;
     std::vector<Async::Future<void>> m_stressConts;

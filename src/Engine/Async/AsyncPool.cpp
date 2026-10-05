@@ -1,5 +1,6 @@
 // Copyright (c) 2026, WH, All rights reserved.
 #include "AsyncPool.h"
+#include "AsyncScope.h"
 
 #include "LaunchArgs.h"
 #include "Logging.h"
@@ -16,6 +17,8 @@
 #include <algorithm>
 #include <cassert>
 #include <charconv>
+#include <iterator>
+#include <ranges>
 #include <utility>
 #include <vector>
 
@@ -25,9 +28,12 @@ namespace {
 using detail::StateBase;
 
 thread_local bool tl_pool_thread{false};
+thread_local StateBase *tl_running{nullptr};  // the task this thread is running (the innermost, while it helps out)
 
 void run(StateBase *task) noexcept {
+    StateBase *const outer = std::exchange(tl_running, task);
     task->execute();
+    tl_running = outer;
     task->complete();
     task->release();
 }
@@ -170,6 +176,33 @@ class Pool final {
         }
     }
 
+    bool revoke(StateBase *task, StateBase *antecedent) {
+        if(task == tl_running) return true;  // the caller is inside it
+        for(;;) {
+            if(task->done()) return true;
+            bool found = false;
+            {
+                Sync::scoped_lock lock(m_mutex);
+                if(task->on_main) {
+                    found = m_mainQueue.remove(task) || m_mainBatch.remove(task);
+                } else if((task->lane == Lane::Foreground ? m_fgQueue : m_bgQueue).remove(task)) {
+                    m_pending--;
+                    found = true;
+                }
+            }
+            if(found || (antecedent && antecedent->unlink(task))) {
+                // (the execution ref is ours now: it was never run)
+                task->skip();
+                task->complete();
+                task->release();
+                return true;
+            }
+            if(!task->on_main) return false;
+            // a main-thread task on its way into the queue: its antecedent completed on another thread just now
+            Timing::tinyYield();
+        }
+    }
+
     bool cancel_queued(StateBase *task) {
         if(task->on_main || task->done()) return false;  // main-thread continuations always run
         {
@@ -194,15 +227,19 @@ class Pool final {
     }
 
     void update() {
-        StateBase *task = nullptr;
+        // the batch is what was queued before this call; revoke() may take tasks out of it while it's being run
         {
             Sync::scoped_lock lock(m_mutex);
-            task = m_mainQueue.take_all();
+            while(!m_mainQueue.empty()) m_mainBatch.push(m_mainQueue.pop());
         }
-        while(task) {
-            StateBase *next = task->next;  // run() may free it
+        for(;;) {
+            StateBase *task = nullptr;
+            {
+                Sync::scoped_lock lock(m_mutex);
+                if(m_mainBatch.empty()) return;
+                task = m_mainBatch.pop();
+            }
             run(task);
-            task = next;
         }
     }
 
@@ -282,6 +319,7 @@ class Pool final {
     Queue m_fgQueue;
     Queue m_bgQueue;
     Queue m_mainQueue;
+    Queue m_mainBatch;     // taken from m_mainQueue by the update() that's running it
     size_t m_pending{0};   // lane-queued tasks not yet started
     size_t m_stealing{0};  // fg workers currently running bg tasks
     bool m_shutdown{false};
@@ -344,8 +382,47 @@ void StateBase::wait() const noexcept {
 
 void enqueue(StateBase *task) noexcept { pool().enqueue(task); }
 bool cancel_queued(StateBase *task) noexcept { return pool().cancel_queued(task); }
+bool revoke(StateBase *task, StateBase *antecedent) noexcept { return pool().revoke(task, antecedent); }
 
 }  // namespace detail
+
+void Scope::track(detail::StateBase *task, detail::StateBase *antecedent) {
+    task->add_ref();
+    std::vector<Owned> finished;
+    {
+        Sync::scoped_lock lock(this->mutex);
+        const auto done = std::ranges::partition(this->owned, [](const Owned &o) { return !o.task->done(); });
+        finished.assign(std::make_move_iterator(done.begin()), std::make_move_iterator(done.end()));
+        this->owned.erase(done.begin(), done.end());
+        this->owned.push_back({.task = detail::Ref<detail::StateBase>(task), .antecedent = antecedent});
+    }
+    // (released outside the lock: a task's destructor may touch the scope)
+}
+
+void Scope::cancel() {
+    {
+        Sync::scoped_lock lock(this->mutex);
+        this->stop.request_stop();
+    }
+    // (more rounds if a task submits through the scope while it's being cancelled)
+    for(;;) {
+        std::vector<Owned> batch;
+        {
+            Sync::scoped_lock lock(this->mutex);
+            batch.swap(this->owned);
+        }
+        if(batch.empty()) break;
+
+        // everything that hasn't started is dropped first, so that a running task waiting on any of it can finish
+        std::vector<detail::StateBase *> running;
+        for(auto &o : batch) {
+            if(!detail::revoke(o.task.get(), o.antecedent)) running.push_back(o.task.get());
+        }
+        for(auto *task : running) task->wait();
+    }
+    Sync::scoped_lock lock(this->mutex);
+    this->stop = Sync::stop_source{};
+}
 
 size_t get_thread_count() noexcept { return pool().thread_count(); }
 size_t pending_count() noexcept { return pool().pending_count(); }

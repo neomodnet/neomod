@@ -11,6 +11,8 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <utility>
+#include <vector>
 
 namespace Mc::Tests {
 
@@ -107,6 +109,21 @@ void AsyncPoolTest::update() {
         case TEST_AUTO_CANCEL:
             TEST_SECTION("cancellable then_on_main auto-cancel on destroy");
             TEST_ASSERT(!m_autoCancelResult.ok(), "auto-cancel on destroy reports cancelled");
+            startScopeBatchTest();
+            m_phase = WAIT_SCOPE_BATCH;
+            return;
+
+        case WAIT_SCOPE_BATCH:
+            // (one update() runs the batch, the next ones would run anything left over)
+            if(++m_scopeFrames < 4) return;
+            m_phase = TEST_SCOPE_BATCH;
+            [[fallthrough]];
+
+        case TEST_SCOPE_BATCH:
+            TEST_SECTION("scope cancelled from a main-thread task");
+            TEST_ASSERT(m_scopeCancelled, "the task that cancels the scope ran");
+            TEST_ASSERT(!m_scopeBatchRan, "the scope's main-thread work queued after it in the same batch didn't run");
+            TEST_ASSERT(m_scopeSelfCancelled, "a scope's main-thread task can cancel its own scope");
             startStressTest();
             m_phase = WAIT_STRESS;
             return;
@@ -141,6 +158,24 @@ void AsyncPoolTest::update() {
         case DONE:
             return;
     }
+}
+
+void AsyncPoolTest::startScopeBatchTest() {
+    // both are queued for the same Async::update(), in this order
+    Async::queue_main([this] {
+        m_scopeCancelled = true;
+        m_scope.cancel();
+    });
+    m_scope.queue_main([this] { m_scopeBatchRan = true; });
+
+    // (a scope of its own: cancelling m_scope above would take this one out)
+    static Async::Scope* selfScope = nullptr;
+    selfScope = new Async::Scope();
+    selfScope->queue_main([this] {
+        selfScope->cancel();
+        m_scopeSelfCancelled = true;
+    });
+    Async::queue_main([] { Async::queue_main([] { delete std::exchange(selfScope, nullptr); }); });
 }
 
 void AsyncPoolTest::startStressTest() {
@@ -557,6 +592,149 @@ void AsyncPoolTest::runSyncTests() {
         TEST_ASSERT(future.is_ready(), "make_ready_future void is immediately ready");
         future.get();
         TEST_ASSERT(!future.valid(), "make_ready_future void consumed after get");
+    }
+
+    runScopeTests();
+}
+
+namespace {
+// counts the closures alive that carry one, to check that a cancelled scope destroyed all of them
+struct Probe {
+    explicit Probe(std::atomic<int>& live) : live(&live) { this->live->fetch_add(1, std::memory_order_relaxed); }
+    Probe(const Probe& other) : live(other.live) { this->live->fetch_add(1, std::memory_order_relaxed); }
+    Probe& operator=(const Probe&) = delete;
+    ~Probe() { this->live->fetch_sub(1, std::memory_order_relaxed); }
+    std::atomic<int>* live;
+};
+}  // namespace
+
+void AsyncPoolTest::runScopeTests() {
+    TEST_SECTION("scope drops queued tasks");
+    {
+        // every worker and the bg queue busy, the scope's tasks queued behind all of it
+        const size_t n = Async::get_thread_count() * 2;
+        std::vector<Async::Future<void>> fill;
+        fill.reserve(n);
+        for(size_t i = 0; i < n; i++) fill.push_back(Async::submit([] { Timing::sleepMS(40); }, Lane::Background));
+
+        std::atomic<int> live{0}, ran{0};
+        Async::Scope scope;
+        for(int i = 0; i < 8; i++) {
+            (void)scope.submit([&ran, p = Probe(live)] { ran.fetch_add(1, std::memory_order_relaxed); },
+                               Lane::Background);
+        }
+        TEST_ASSERT_EQ(live.load(), 8, "the queued tasks hold their closures");
+        const u64 t0 = Timing::getTicksMS();
+        scope.cancel();
+        const u64 elapsed = Timing::getTicksMS() - t0;
+        TEST_ASSERT_EQ(ran.load(), 0, "none of them ran");
+        TEST_ASSERT_EQ(live.load(), 0, "their closures are gone once cancel() returns");
+        TEST_ASSERT(elapsed < 30, "cancel() doesn't wait for the backlog in front of them");
+        Async::wait_all(fill);
+    }
+
+    TEST_SECTION("scope waits for running tasks");
+    {
+        std::atomic<int> live{0};
+        std::atomic<bool> started{false}, exited{false};
+        Async::Scope scope;
+        auto future = scope.submit([&started, &exited, p = Probe(live)](const Sync::stop_token& tok) {
+            started.store(true, std::memory_order_release);
+            while(!tok.stop_requested()) Timing::tinyYield();
+            exited.store(true, std::memory_order_release);
+            return 7;
+        });
+        while(!started.load(std::memory_order_acquire)) Timing::tinyYield();
+        scope.cancel();
+        TEST_ASSERT(exited.load(std::memory_order_acquire), "the running task saw the scope's stop and finished");
+        TEST_ASSERT(future.is_ready(), "its future is ready");
+        const int result = future.get();
+        TEST_ASSERT_EQ(result, 7, "with the task's own result");
+        TEST_ASSERT_EQ(live.load(), 0, "its closure is gone once its future is");
+    }
+
+    TEST_SECTION("scope drops pending continuations");
+    {
+        std::atomic<int> live{0};
+        std::atomic<bool> ran{false};
+        Async::Scope scope;
+        // (a future from outside the scope)
+        auto outside = Async::submit([] {
+            Timing::sleepMS(60);
+            return 1;
+        });
+        auto continued = scope.then(std::move(outside), [&ran, p = Probe(live)](int x) {
+            ran.store(true, std::memory_order_release);
+            return x + 1;
+        });
+        TEST_ASSERT_EQ(live.load(), 1, "the continuation holds its closure");
+        const u64 t0 = Timing::getTicksMS();
+        scope.cancel();
+        TEST_ASSERT(Timing::getTicksMS() - t0 < 40, "cancel() didn't wait for the future it's waiting on");
+        TEST_ASSERT(continued.is_ready(), "the dropped continuation's future is ready");
+        const int result = continued.get();
+        TEST_ASSERT_EQ(result, 0, "with a default result");
+        TEST_ASSERT_EQ(live.load(), 0, "its closure is gone");
+        Timing::sleepMS(100);
+        TEST_ASSERT(!ran.load(std::memory_order_acquire), "it didn't run when the future it waited for completed");
+    }
+
+    TEST_SECTION("scope drops main-thread work");
+    {
+        std::atomic<int> live{0};
+        bool queuedRan = false, continuationRan = false;
+        std::atomic<bool> antecedentDone{false};
+        Async::Scope scope;
+        scope.queue_main([&queuedRan, p = Probe(live)] { queuedRan = true; });
+        auto continued = scope.then_on_main(scope.submit([&antecedentDone] {
+            antecedentDone.store(true, std::memory_order_release);
+            return 1;
+        }),
+                                            [&continuationRan, p = Probe(live)](int) { continuationRan = true; });
+        // (its continuation is on its way into the main queue or in it by now)
+        while(!antecedentDone.load(std::memory_order_acquire)) Timing::tinyYield();
+        scope.cancel();
+        Async::update();
+        TEST_ASSERT(!queuedRan, "queue_main() work didn't run");
+        TEST_ASSERT(!continuationRan, "a then_on_main() continuation that had fired didn't run");
+        TEST_ASSERT(continued.is_ready(), "its future is ready");
+        continued = {};
+        TEST_ASSERT_EQ(live.load(), 0, "their closures are gone");
+    }
+
+    TEST_SECTION("scope cancelled by one of its own tasks");
+    {
+        Async::Scope scope;
+        std::atomic<bool> finished{false};
+        auto future = scope.submit([&scope, &finished] {
+            scope.cancel();
+            finished.store(true, std::memory_order_release);
+        });
+        const u64 t0 = Timing::getTicksMS();
+        while(!future.is_ready() && Timing::getTicksMS() - t0 < 2000) Timing::tinyYield();
+        TEST_ASSERT(finished.load(std::memory_order_acquire), "a task on a worker can cancel its own scope");
+    }
+
+    TEST_SECTION("scope after cancel, and its destructor");
+    {
+        Async::Scope scope;
+        scope.cancel();
+        const int result = scope.submit([] { return 3; }).get();
+        TEST_ASSERT_EQ(result, 3, "a cancelled scope takes new work");
+        TEST_ASSERT(!scope.token().stop_requested(), "with a fresh stop token");
+
+        const size_t n = Async::get_thread_count() * 2;
+        std::vector<Async::Future<void>> fill;
+        fill.reserve(n);
+        for(size_t i = 0; i < n; i++) fill.push_back(Async::submit([] { Timing::sleepMS(40); }, Lane::Background));
+        std::atomic<int> live{0}, ran{0};
+        {
+            Async::Scope inner;
+            (void)inner.submit([&ran, p = Probe(live)] { ran.fetch_add(1, std::memory_order_relaxed); },
+                               Lane::Background);
+        }
+        TEST_ASSERT_EQ(ran.load() + live.load(), 0, "the destructor dropped a queued task and its closure");
+        Async::wait_all(fill);
     }
 }
 

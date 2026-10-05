@@ -2,6 +2,7 @@
 #pragma once
 
 #include "AsyncState.h"
+#include "noinclude.h"
 
 #include <cassert>
 #include <type_traits>
@@ -47,7 +48,7 @@ class Future {
     // continuation: cb(result) runs on a pool thread once this completes; returns the future of its result.
     // consumes this future. no thread is blocked in the meantime.
     template <typename Cb>
-    auto then(Cb &&cb, Lane lane = Lane::Foreground) -> Future<detail::then_result_t<T, Cb>> {
+    MC_UNREVOCABLE auto then(Cb &&cb, Lane lane = Lane::Foreground) -> Future<detail::then_result_t<T, Cb>> {
         assert(valid() && "then() on an invalid future");
         return Future<detail::then_result_t<T, Cb>>(
             detail::continue_with(std::move(m_state), std::forward<Cb>(cb), lane, false));
@@ -57,7 +58,7 @@ class Future {
     // consumes this future. the returned future is ready once cb has run, so never wait() on it from the
     // main thread (asserts), and from a pool task only while the main thread keeps updating.
     template <typename Cb>
-    auto then_on_main(Cb &&cb) -> Future<detail::then_result_t<T, Cb>> {
+    MC_UNREVOCABLE auto then_on_main(Cb &&cb) -> Future<detail::then_result_t<T, Cb>> {
         assert(valid() && "then_on_main() on an invalid future");
         return Future<detail::then_result_t<T, Cb>>(
             detail::continue_with(std::move(m_state), std::forward<Cb>(cb), Lane::Foreground, true));
@@ -84,6 +85,11 @@ struct FutureAccess {
     template <typename T>
     static State<T> *state(const Future<T> &future) noexcept {
         return future.m_state.get();
+    }
+    // the future's reference, which leaves it invalid
+    template <typename T>
+    static Ref<State<T>> take(Future<T> &future) noexcept {
+        return std::move(future.m_state);
     }
 };
 
