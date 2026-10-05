@@ -160,8 +160,8 @@ OszMeta parse_osz_meta(std::string_view file) {
     using enum BeatmapFile::SectionKind;
     const BeatmapFile parsed{file};
     OszMeta meta;
-    if(const auto artist = parsed.getValue(METADATA, "Artist")) Parsing::parse(*artist, &meta.artist);
-    if(const auto title = parsed.getValue(METADATA, "Title")) Parsing::parse(*title, &meta.title);
+    meta.artist = parsed.getValue(METADATA, "Artist").value_or("");
+    meta.title = parsed.getValue(METADATA, "Title").value_or("");
     if(const auto setId = parsed.getValue(METADATA, "BeatmapSetID")) Parsing::parse(*setId, &meta.set_id);
     return meta;
 }

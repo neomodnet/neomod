@@ -336,15 +336,13 @@ DatabaseBeatmap::PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjectsFromDa
                 return c;
             }
         } else if(kv.key == "SampleSet") {
-            if(std::string sampleSet; Parsing::parse(kv.value, &sampleSet)) {
-                SString::lower_inplace(sampleSet);
-                if(sampleSet == "normal") {
-                    c.defaultSampleSet = SampleSetType::NORMAL;
-                } else if(sampleSet == "soft") {
-                    c.defaultSampleSet = SampleSetType::SOFT;
-                } else if(sampleSet == "drum") {
-                    c.defaultSampleSet = SampleSetType::DRUM;
-                }
+            const std::string sampleSet = SString::to_lower(kv.value);
+            if(sampleSet == "normal") {
+                c.defaultSampleSet = SampleSetType::NORMAL;
+            } else if(sampleSet == "soft") {
+                c.defaultSampleSet = SampleSetType::SOFT;
+            } else if(sampleSet == "drum") {
+                c.defaultSampleSet = SampleSetType::DRUM;
             }
         } else if(kv.key == "StackLeniency") {
             Parsing::parse(kv.value, &c.stackLeniency);
@@ -1198,7 +1196,7 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
                 return ret(LoadError::NON_STD_GAMEMODE);
             }
         } else if(kv.key == "AudioFilename") {
-            Parsing::parse(kv.value, &this->sAudioFileName);
+            this->sAudioFileName = kv.value;
         } else if(kv.key == "StackLeniency") {
             Parsing::parse(kv.value, &this->fStackLeniency);
         } else if(kv.key == "PreviewTime") {
@@ -1211,21 +1209,21 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
     for(const auto line : file.getEntries(Kind::METADATA)) {
         if(!BeatmapFile::parse(line.text, kv)) continue;
         if(kv.key == "Title") {
-            Parsing::parse(kv.value, &this->sTitle);
+            this->sTitle = kv.value;
         } else if(kv.key == "TitleUnicode") {
-            Parsing::parse(kv.value, &tempTitleUnicode);
+            tempTitleUnicode = kv.value;
         } else if(kv.key == "Artist") {
-            Parsing::parse(kv.value, &this->sArtist);
+            this->sArtist = kv.value;
         } else if(kv.key == "ArtistUnicode") {
-            Parsing::parse(kv.value, &tempArtistUnicode);
+            tempArtistUnicode = kv.value;
         } else if(kv.key == "Creator") {
-            Parsing::parse(kv.value, &this->sCreator);
+            this->sCreator = kv.value;
         } else if(kv.key == "Version") {
-            Parsing::parse(kv.value, &this->sDifficultyName);
+            this->sDifficultyName = kv.value;
         } else if(kv.key == "Source") {
-            Parsing::parse(kv.value, &this->sSource);
+            this->sSource = kv.value;
         } else if(kv.key == "Tags") {
-            Parsing::parse(kv.value, &this->sTags);
+            this->sTags = kv.value;
         } else if(kv.key == "BeatmapID") {
             Parsing::parse(kv.value, &this->iID);
         } else if(kv.key == "BeatmapSetID") {
