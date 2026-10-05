@@ -54,8 +54,12 @@ Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, A
 
             const size_t queue_runs = contexts.size();
 
-            for(auto &[beatmap_folder_paths, toplevel_archive, progress_callback] : contexts) {
+            for(auto &[beatmap_folder_paths, toplevel_archive, callback] : contexts) {
                 const bool single_archive = !toplevel_archive.empty();
+                // (the callback is optional)
+                const auto progress_callback = [&callback](float progress, std::string entry) {
+                    if(callback) callback(progress, std::move(entry));
+                };
 
                 const auto finish = [&]() -> void {
                     progress_callback(1.f, "");
