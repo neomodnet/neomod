@@ -162,7 +162,7 @@ class HitObject {
     HITRESULTANIM m_hitresultanim2;
 
    protected:
-    AbstractBeatmapInterface *m_pi;
+    AbstractBeatmapInterface *m_judge;
     BeatmapInterface *m_pf;       // NULL when simulating
     const PlayfieldView *m_view;  // what drawing reads (NULL when simulating)
 
