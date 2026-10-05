@@ -33,8 +33,8 @@ class BeatmapFile {
 
     // a line that starts with '[' and ends with ']', and the lines up to the next one
     struct Section {
-        std::string_view
-            header;             // the "[Name]" line with its line break (empty for the lines before the first section)
+        // the "[Name]" line with its line break (empty for the lines before the first section)
+        std::string_view header;
         std::string_view body;  // the lines after it, with their line breaks
         std::string_view name;  // between the brackets
         SectionKind kind;
@@ -99,8 +99,8 @@ class BeatmapFile {
     // the value of the last "key: value" line with this key in the sections read as `kind`
     [[nodiscard]] std::optional<std::string_view> getValue(SectionKind kind, std::string_view key) const;
 
-    // records: parse() reads one from an entry (false if the entry isn't one) the way the game always has, format()
-    // writes one the way osu!stable does. string views in a record point into the line it was read from
+    // records: parse() reads one from an entry (false if the entry isn't one), format() writes one the way osu!stable
+    // does. string views in a record point into the line it was read from
 
     // a "key: value" line of [General], [Editor], [Metadata], [Difficulty] or [Colours], both sides trimmed
     struct KeyValue {
