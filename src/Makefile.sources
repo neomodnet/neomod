@@ -172,6 +172,7 @@ neomod_SOURCES = \
 	src/App/Neomod/OsuDirectScreen.cpp \
 	src/App/Neomod/OsuKeyBinds.cpp \
 	src/App/Neomod/PauseOverlay.cpp \
+	src/App/Neomod/PlayfieldView.cpp \
 	src/App/Neomod/PreviewTrackManager.cpp \
 	src/App/Neomod/PromptOverlay.cpp \
 	src/App/Neomod/RankingScreen.cpp \

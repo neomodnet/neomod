@@ -10,6 +10,7 @@
 #include "LivePPCalc.h"
 #include "Vectors.h"
 #include "DatabaseBeatmapTypes.h"
+#include "PlayfieldView.h"
 
 #include <memory>
 
@@ -35,7 +36,7 @@ struct Click {
     i32 musicPosMS;       // current music position when the click happened
 };
 
-class BeatmapInterface final : public AbstractBeatmapInterface {
+class BeatmapInterface final : public AbstractBeatmapInterface, public PlayfieldView {
     NOCOPY_NOMOVE(BeatmapInterface)
    public:
     using DBTimingInfo = neomod::DatabaseBeatmapTypes::TIMING_INFO;
@@ -83,24 +84,32 @@ class BeatmapInterface final : public AbstractBeatmapInterface {
     [[nodiscard]] vec2 osuCoords2LegacyPixels(vec2 coords)
         const override;  // only applies vanilla osu mods and static mods to the coordinates (used for generating
                          // the static slider mesh) centered at (0, 0, 0)
+    [[nodiscard]] f32 osuAngle2PixelAngle(f32 degrees) const override;
 
     // cursor
     [[nodiscard]] vec2 getMousePos() const;
     [[nodiscard]] vec2 getCursorPos() const override;
-    [[nodiscard]] vec2 getFirstPersonCursorDelta() const;
+    [[nodiscard]] vec2 getFirstPersonCursorDelta() const override;
 
     // playfield
-    [[nodiscard]] inline vec2 getPlayfieldSize() const { return this->vPlayfieldSize; }
-    [[nodiscard]] inline vec2 getPlayfieldCenter() const { return this->vPlayfieldCenter; }
+    [[nodiscard]] inline f32 getPlayfieldScaleFactor() const override { return this->fScaleFactor; }
+    [[nodiscard]] inline vec2 getPlayfieldSize() const override { return this->vPlayfieldSize; }
+    [[nodiscard]] inline vec2 getPlayfieldCenter() const override { return this->vPlayfieldCenter; }
     [[nodiscard]] inline f32 getPlayfieldRotation() const { return this->fPlayfieldRotation; }
 
     // hitobjects
     [[nodiscard]] inline f32 getHitcircleXMultiplier() const {
         return this->fXMultiplier;
     }  // multiply osu!pixels with this to get screen pixels
-    [[nodiscard]] inline f32 getNumberScale() const { return this->fNumberScale; }
-    [[nodiscard]] inline f32 getHitcircleOverlapScale() const { return this->fHitcircleOverlapScale; }
-    [[nodiscard]] inline bool isInMafhamRenderChunk() const { return this->bInMafhamRenderChunk; }
+    [[nodiscard]] inline f32 getHitcircleDiameter() const override { return this->fHitcircleDiameter; }
+    [[nodiscard]] inline f32 getRawHitcircleDiameter() const override { return this->fRawHitcircleDiameter; }
+    [[nodiscard]] inline f32 getSliderFollowCircleDiameter() const override {
+        return this->fSliderFollowCircleDiameter;
+    }
+    [[nodiscard]] inline f32 getNumberScale() const override { return this->fNumberScale; }
+    [[nodiscard]] inline f32 getHitcircleOverlapScale() const override { return this->fHitcircleOverlapScale; }
+    [[nodiscard]] inline bool isInMafhamRenderChunk() const override { return this->bInMafhamRenderChunk; }
+    [[nodiscard]] bool slidersRenderDynamically() const override;
 
     // score
     [[nodiscard]] inline int getNumHitObjects() const { return this->hitobjects.size(); }
@@ -206,12 +215,14 @@ class BeatmapInterface final : public AbstractBeatmapInterface {
     bool player_loaded = false;
 
     // used by HitObject children and ModSelector
-    [[nodiscard]] const Skin *getSkin() const;  // maybe use this for beatmap skins, maybe
+    [[nodiscard]] const Skin *getSkin() const override;  // maybe use this for beatmap skins, maybe
     [[nodiscard]] Skin *getSkinMutable();
 
     // NOTE: these may not be current outside of gameplay!
-    [[nodiscard]] inline i32 getCurMusicPos() const { return this->iCurMusicPos; }
-    [[nodiscard]] inline i32 getCurMusicPosWithOffsets() const { return this->iCurMusicPosWithOffsets; }
+    [[nodiscard]] inline i32 getCurMusicPos() const override { return this->iCurMusicPos; }
+    [[nodiscard]] inline i32 getCurMusicPosWithOffsets() const override { return this->iCurMusicPosWithOffsets; }
+    [[nodiscard]] inline f32 getBaseAnimationSpeed() const override { return this->fBaseAnimationSpeedFactor; }
+    [[nodiscard]] ModFlags getModFlags() const override;
 
     // helper utility to avoid needing to apply convar/beatmap/audio engine related offsets to raw pos manually
     [[nodiscard]] i32 convertRawToOffsetMusicPos(i32 rawMusicPos) const;
@@ -227,7 +238,7 @@ class BeatmapInterface final : public AbstractBeatmapInterface {
 
     // health
     [[nodiscard]] inline f64 getHealth() const { return this->fHealth; }
-    [[nodiscard]] inline bool hasFailed() const { return this->bFailed; }
+    [[nodiscard]] inline bool hasFailed() const override { return this->bFailed; }
 
     // generic state
     [[nodiscard]] u8 getKeys() const override { return this->current_keys; }

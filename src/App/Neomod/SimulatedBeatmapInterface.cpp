@@ -828,12 +828,11 @@ void SimulatedBeatmapInterface::updateHitobjectMetrics() {
     this->fXMultiplier = GameRules::getHitCircleXMultiplier();
     this->fHitcircleDiameter = GameRules::getRawHitCircleDiameter(this->getCS()) * GameRules::getHitCircleXMultiplier();
 
-    const f32 followcircle_size_multiplier = 2.4f;
     const f32 sliderFollowCircleDiameterMultiplier =
         this->mods.has(ModFlags::PreciseSliders)
             ? (1.0f * (1.0f - this->mods.jigsaw_followcircle_radius_factor) +
-               this->mods.jigsaw_followcircle_radius_factor * followcircle_size_multiplier)
-            : followcircle_size_multiplier;
+               this->mods.jigsaw_followcircle_radius_factor * GameRules::SLIDER_FOLLOW_CIRCLE_MULTIPLIER)
+            : GameRules::SLIDER_FOLLOW_CIRCLE_MULTIPLIER;
     this->fSliderFollowCircleDiameter = this->fHitcircleDiameter * sliderFollowCircleDiameterMultiplier;
 }
 

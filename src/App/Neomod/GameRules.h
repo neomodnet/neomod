@@ -154,4 +154,7 @@ inline f32 getRawHitCircleDiameter(f32 CS) { return getRawHitCircleScale(CS) * 1
 // scales osu!pixels to the actual playfield size
 inline f32 getHitCircleXMultiplier() { return getPlayfieldSize().x / OSU_COORD_WIDTH; }
 
+// the slider follow circle's diameter in hit circle diameters
+inline constexpr const f32 SLIDER_FOLLOW_CIRCLE_MULTIPLIER{2.4f};
+
 }  // namespace GameRules

@@ -1235,6 +1235,10 @@ f32 BeatmapInterface::getPitchMultiplier() const {
 const Skin *BeatmapInterface::getSkin() const { return osu->getSkin(); }
 Skin *BeatmapInterface::getSkinMutable() { return osu->getSkinMutable(); }
 
+ModFlags BeatmapInterface::getModFlags() const { return this->getMods().flags; }
+
+bool BeatmapInterface::slidersRenderDynamically() const { return osu->slidersRenderDynamically(); }
+
 f32 BeatmapInterface::getRawAR() const {
     if(unlikely(!this->beatmap)) return 5.0f;
 
@@ -3789,6 +3793,14 @@ vec2 BeatmapInterface::osuCoords2LegacyPixels(vec2 coords) const {
     return coords;
 }
 
+f32 BeatmapInterface::osuAngle2PixelAngle(f32 degrees) const {
+    f32 rotation = degrees - cv::playfield_rotation.getFloat() - this->fPlayfieldRotation;
+    if(flags::has<ModFlags::HardRock>(this->getMods().flags)) rotation = 360.0f - rotation;
+    if(cv::playfield_mirror_horizontal.getBool()) rotation = 360.0f - rotation;
+    if(cv::playfield_mirror_vertical.getBool()) rotation = 180.0f - rotation;
+    return rotation;
+}
+
 vec2 BeatmapInterface::getMousePos() const {
     if((this->is_watching && !this->bIsPaused) || BanchoState::spectating) {
         return this->interpolatedMousePos;
@@ -4210,18 +4222,15 @@ void BeatmapInterface::updateHitobjectMetrics() {
     this->fXMultiplier = GameRules::getHitCircleXMultiplier();
     this->fHitcircleDiameter = GameRules::getRawHitCircleDiameter(this->getCS()) * GameRules::getHitCircleXMultiplier();
 
-    const f32 osuCoordScaleMultiplier = (this->fHitcircleDiameter / this->fRawHitcircleDiameter);
-    this->fNumberScale = (this->fRawHitcircleDiameter / (160.0f * (skin->i_defaults[1].scale()))) *
-                         osuCoordScaleMultiplier * cv::number_scale_multiplier.getFloat();
+    this->fNumberScale = PlayfieldView::numberScale(skin, this->fRawHitcircleDiameter, this->fHitcircleDiameter);
     this->fHitcircleOverlapScale =
-        (this->fRawHitcircleDiameter / (160.0f)) * osuCoordScaleMultiplier * cv::number_scale_multiplier.getFloat();
+        PlayfieldView::hitcircleOverlapScale(this->fRawHitcircleDiameter, this->fHitcircleDiameter);
 
-    const f32 followcircle_size_multiplier = 2.4f;
     const f32 sliderFollowCircleDiameterMultiplier =
         cv::mod_jigsaw2.getBool()
             ? (1.0f * (1.0f - cv::mod_jigsaw_followcircle_radius_factor.getFloat()) +
-               cv::mod_jigsaw_followcircle_radius_factor.getFloat() * followcircle_size_multiplier)
-            : followcircle_size_multiplier;
+               cv::mod_jigsaw_followcircle_radius_factor.getFloat() * GameRules::SLIDER_FOLLOW_CIRCLE_MULTIPLIER)
+            : GameRules::SLIDER_FOLLOW_CIRCLE_MULTIPLIER;
     this->fSliderFollowCircleDiameter = this->fHitcircleDiameter * sliderFollowCircleDiameterMultiplier;
 }
 

@@ -20,6 +20,7 @@ class SkinImage;
 class Image;
 class AbstractBeatmapInterface;
 class BeatmapInterface;
+class PlayfieldView;
 
 struct Click;
 struct Skin;
@@ -46,10 +47,9 @@ class HitObject {
     void setComboNumber(i32 comboNumber) { m_comboNumber = comboNumber; }
 
    public:
-    static void drawHitResult(BeatmapInterface *pf, vec2 rawPos, LiveHitResult result, f32 animPercentInv,
+    // pos is on the screen
+    static void drawHitResult(const PlayfieldView &view, vec2 pos, LiveHitResult result, f32 animPercentInv,
                               f32 hitDeltaRangePercent);
-    static void drawHitResult(const Skin *skin, f32 hitcircleDiameter, f32 rawHitcircleDiameter, vec2 rawPos,
-                              LiveHitResult result, f32 animPercentInv, f32 hitDeltaRangePercent);
 
    protected:  // only constructable through subclasses
     HitObject(i32 timeMS, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, i32 comboNumber, bool isEndOfCombo,
@@ -123,7 +123,7 @@ class HitObject {
     virtual void onReset(i32 curPosMS);
 
     // only for sliders
-    virtual void rebuildVertexBuffer(bool /*useRawCoords*/ = false) { ; }
+    virtual void rebuildVertexBuffer() { ; }
 
    private:
     static f32 lerp3f(f32 a, f32 b, f32 c, f32 percent);
@@ -131,6 +131,7 @@ class HitObject {
     struct HITRESULTANIM {
         vec2 rawPos{0.f};
         i32 deltaMS{0};
+        f32 deltaRangePercent{0.f};  // deltaMS within the 50 window, -1 (early) to 1 (late)
         f32 timeSecs{-9999.0f};
         LiveHitResult result{0 /* LiveHitResult::HIT_NULL*/};
         bool addObjectDurationToSkinAnimationTimeStartOffset{false};
@@ -143,7 +144,8 @@ class HitObject {
 
    protected:
     AbstractBeatmapInterface *m_pi;
-    BeatmapInterface *m_pf;  // NULL when simulating
+    BeatmapInterface *m_pf;       // NULL when simulating
+    const PlayfieldView *m_view;  // what drawing reads (NULL when simulating)
 
     i32 m_comboStartMS{0};  // for freeze time mod
     i32 m_clickTimeMS;
@@ -181,32 +183,21 @@ class HitObject {
 
 class Circle final : public HitObject {
    public:
-    // main
-    static void drawApproachCircle(BeatmapInterface *pf, vec2 rawPos, i32 number, i32 colorCounter, i32 colorOffset,
-                                   f32 colorRGBMultiplier, f32 approachScale, f32 alpha,
+    // main (rawPos in osu!px)
+    static void drawApproachCircle(const PlayfieldView &view, vec2 rawPos, i32 number, i32 colorCounter,
+                                   i32 colorOffset, f32 colorRGBMultiplier, f32 approachScale, f32 alpha,
                                    bool overrideHDApproachCircle = false);
-    static void drawCircle(BeatmapInterface *pf, vec2 rawPos, i32 number, i32 colorCounter, i32 colorOffset,
+    static void drawCircle(const PlayfieldView &view, vec2 rawPos, i32 number, i32 colorCounter, i32 colorOffset,
                            f32 colorRGBMultiplier, f32 approachScale, f32 alpha, f32 numberAlpha,
                            bool drawNumber = true, bool overrideHDApproachCircle = false);
-    static void drawCircle(const Skin *skin, vec2 pos, f32 hitcircleDiameter, f32 numberScale, f32 overlapScale,
-                           i32 number, i32 colorCounter, i32 colorOffset, f32 colorRGBMultiplier, f32 approachScale,
-                           f32 alpha, f32 numberAlpha, bool drawNumber = true, bool overrideHDApproachCircle = false);
     static void drawCircle(const Skin *skin, vec2 pos, f32 hitcircleDiameter, Color color, f32 alpha = 1.0f);
-    static void drawSliderStartCircle(BeatmapInterface *pf, vec2 rawPos, i32 number, i32 colorCounter, i32 colorOffset,
-                                      f32 colorRGBMultiplier, f32 approachScale, f32 alpha, f32 numberAlpha,
-                                      bool drawNumber = true, bool overrideHDApproachCircle = false);
-    static void drawSliderStartCircle(const Skin *skin, vec2 pos, f32 hitcircleDiameter, f32 numberScale,
-                                      f32 hitcircleOverlapScale, i32 number, i32 colorCounter = 0, i32 colorOffset = 0,
-                                      f32 colorRGBMultiplier = 1.0f, f32 approachScale = 1.0f, f32 alpha = 1.0f,
-                                      f32 numberAlpha = 1.0f, bool drawNumber = true,
+    static void drawSliderStartCircle(const PlayfieldView &view, vec2 rawPos, i32 number, i32 colorCounter = 0,
+                                      i32 colorOffset = 0, f32 colorRGBMultiplier = 1.0f, f32 approachScale = 1.0f,
+                                      f32 alpha = 1.0f, f32 numberAlpha = 1.0f, bool drawNumber = true,
                                       bool overrideHDApproachCircle = false);
-    static void drawSliderEndCircle(BeatmapInterface *pf, vec2 rawPos, i32 number, i32 colorCounter, i32 colorOffset,
-                                    f32 colorRGBMultiplier, f32 approachScale, f32 alpha, f32 numberAlpha,
-                                    bool drawNumber = true, bool overrideHDApproachCircle = false);
-    static void drawSliderEndCircle(const Skin *skin, vec2 pos, f32 hitcircleDiameter, f32 numberScale,
-                                    f32 overlapScale, i32 number = 0, i32 colorCounter = 0, i32 colorOffset = 0,
-                                    f32 colorRGBMultiplier = 1.0f, f32 approachScale = 1.0f, f32 alpha = 1.0f,
-                                    f32 numberAlpha = 1.0f, bool drawNumber = true,
+    static void drawSliderEndCircle(const PlayfieldView &view, vec2 rawPos, i32 number = 0, i32 colorCounter = 0,
+                                    i32 colorOffset = 0, f32 colorRGBMultiplier = 1.0f, f32 approachScale = 1.0f,
+                                    f32 alpha = 1.0f, f32 numberAlpha = 1.0f, bool drawNumber = true,
                                     bool overrideHDApproachCircle = false);
 
     // split helper functions
@@ -306,7 +297,7 @@ class Slider final : public HitObject, public SliderRenderer::BodySource {
     void onClickEvent(std::vector<Click> &clicks) override;
     void onReset(i32 curPosMS) override;
 
-    void rebuildVertexBuffer(bool useRawCoords = false) override;
+    void rebuildVertexBuffer() override;
 
     // the live body, or the one fading out after the end
     [[nodiscard]] std::optional<SliderRenderer::Body> getBody() const override;

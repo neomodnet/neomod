@@ -17,6 +17,7 @@
 #include "Paths.h"
 #include "File.h"
 #include "HitObjects.h"
+#include "PlayfieldView.h"
 #include "HUD.h"
 #include "i18n.h"
 #include "Font.h"
@@ -492,12 +493,11 @@ class SkinPreviewElement final : public CBaseUIElement {
     void draw() override {
         if(!this->bVisible) return;
 
-        const Skin *skin = osu->getSkin();
+        // screen pixels from the element's vertical center
+        const PlainPlayfieldView view{this->getPos() + vec2(0, this->getSize().y / 2), 1.f, this->getSize().y * 0.5f};
+        const Skin *skin = view.getSkin();
 
-        float hitcircleDiameter = this->getSize().y * 0.5f;
-        float numberScale =
-            (hitcircleDiameter / (160.0f * (skin->i_defaults[1].scale()))) * 1 * cv::number_scale_multiplier.getFloat();
-        float overlapScale = (hitcircleDiameter / (160.0f)) * 1 * cv::number_scale_multiplier.getFloat();
+        const float hitcircleDiameter = view.getHitcircleDiameter();
         float scoreScale = 0.5f;
 
         if(this->iMode == 0) {
@@ -514,21 +514,16 @@ class SkinPreviewElement final : public CBaseUIElement {
             const float colorRGBMultiplier = 1.0f;
             using enum LiveHitResult;
 
-            Circle::drawCircle(
-                skin, this->getPos() + vec2(0, this->getSize().y / 2) + vec2(this->getSize().x * (1.0f / 5.0f), 0.0f),
-                hitcircleDiameter, numberScale, overlapScale, number, colorCounter, colorOffset, colorRGBMultiplier,
-                approachScale, approachAlpha, approachAlpha, true, false);
+            Circle::drawCircle(view, vec2(this->getSize().x * (1.0f / 5.0f), 0.0f), number, colorCounter, colorOffset,
+                               colorRGBMultiplier, approachScale, approachAlpha, approachAlpha, true, false);
             Circle::drawHitResult(
-                skin, hitcircleDiameter, hitcircleDiameter,
-                this->getPos() + vec2(0, this->getSize().y / 2) + vec2(this->getSize().x * (2.0f / 5.0f), 0.0f),
+                view, this->getPos() + vec2(0, this->getSize().y / 2) + vec2(this->getSize().x * (2.0f / 5.0f), 0.0f),
                 HIT_100, 0.45f, 0.33f);
             Circle::drawHitResult(
-                skin, hitcircleDiameter, hitcircleDiameter,
-                this->getPos() + vec2(0, this->getSize().y / 2) + vec2(this->getSize().x * (3.0f / 5.0f), 0.0f), HIT_50,
-                0.45f, 0.66f);
+                view, this->getPos() + vec2(0, this->getSize().y / 2) + vec2(this->getSize().x * (3.0f / 5.0f), 0.0f),
+                HIT_50, 0.45f, 0.66f);
             Circle::drawHitResult(
-                skin, hitcircleDiameter, hitcircleDiameter,
-                this->getPos() + vec2(0, this->getSize().y / 2) + vec2(this->getSize().x * (4.0f / 5.0f), 0.0f),
+                view, this->getPos() + vec2(0, this->getSize().y / 2) + vec2(this->getSize().x * (4.0f / 5.0f), 0.0f),
                 HIT_MISS, 0.45f, 1.0f);
             Circle::drawApproachCircle(
                 skin, this->getPos() + vec2(0, this->getSize().y / 2) + vec2(this->getSize().x * (1.0f / 5.0f), 0.0f),
@@ -537,7 +532,7 @@ class SkinPreviewElement final : public CBaseUIElement {
         } else if(this->iMode == 1) {
             const int numNumbers = 6;
             for(int i = 1; i < numNumbers + 1; i++) {
-                Circle::drawHitCircleNumber(skin, numberScale, overlapScale,
+                Circle::drawHitCircleNumber(skin, view.getNumberScale(), view.getHitcircleOverlapScale(),
                                             this->getPos() + vec2(0, this->getSize().y / 2) +
                                                 vec2(this->getSize().x * ((float)i / (numNumbers + 1.0f)), 0.0f),
                                             i - 1, 1.0f, 1.0f);
@@ -575,10 +570,9 @@ class SliderPreviewElement final : public CBaseUIElement, public SliderRenderer:
     void draw() override {
         if(!this->bVisible) return;
 
-        const float hitcircleDiameter = this->getHitcircleDiameter();
-        const float numberScale = (hitcircleDiameter / (160.0f * (osu->getSkin()->i_defaults[1].scale()))) * 1 *
-                                  cv::number_scale_multiplier.getFloat();
-        const float overlapScale = (hitcircleDiameter / (160.0f)) * 1 * cv::number_scale_multiplier.getFloat();
+        // screen pixels from the element's position
+        const PlainPlayfieldView view{this->getPos(), 1.f, this->getHitcircleDiameter()};
+        const float hitcircleDiameter = view.getHitcircleDiameter();
 
         const float approachScale = std::clamp<float>(1.0f + 1.5f - fmod(engine->getTime() * 3, 3.0f), 0.0f, 2.5f);
         float approachAlpha = std::clamp<float>(fmod(engine->getTime() * 3, 3.0f) / 1.5f, 0.0f, 1.0f);
@@ -616,8 +610,7 @@ class SliderPreviewElement final : public CBaseUIElement, public SliderRenderer:
                 const int colorOffset = 0;
                 const float colorRGBMultiplier = 1.0f;
 
-                Circle::drawCircle(osu->getSkin(), points[numPoints / 2] + this->getPos(), hitcircleDiameter,
-                                   numberScale, overlapScale, number, colorCounter, colorOffset, colorRGBMultiplier,
+                Circle::drawCircle(view, points[numPoints / 2], number, colorCounter, colorOffset, colorRGBMultiplier,
                                    approachScale, approachAlpha, approachAlpha, true, false);
                 Circle::drawApproachCircle(osu->getSkin(), points[numPoints / 2] + this->getPos(),
                                            osu->getSkin()->getComboColorForCounter(420, 0), hitcircleDiameter,
@@ -650,12 +643,9 @@ class SliderPreviewElement final : public CBaseUIElement, public SliderRenderer:
                 const int colorOffset = 0;
                 const float colorRGBMultiplier = 1.0f;
 
-                Circle::drawSliderStartCircle(osu->getSkin(), points[0] + this->getPos(), hitcircleDiameter,
-                                              numberScale, overlapScale, number, colorCounter, colorOffset,
-                                              colorRGBMultiplier);
-                Circle::drawSliderEndCircle(osu->getSkin(), points.back() + this->getPos(), hitcircleDiameter,
-                                            numberScale, overlapScale, number, colorCounter, colorOffset,
-                                            colorRGBMultiplier, 1.0f, 1.0f, 0.0f, false, false);
+                Circle::drawSliderStartCircle(view, points[0], number, colorCounter, colorOffset, colorRGBMultiplier);
+                Circle::drawSliderEndCircle(view, points.back(), number, colorCounter, colorOffset, colorRGBMultiplier,
+                                            1.0f, 1.0f, 0.0f, false, false);
             }
         }
     }

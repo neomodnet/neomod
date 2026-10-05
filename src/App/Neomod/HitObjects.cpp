@@ -18,6 +18,7 @@
 #include "VertexArrayObject.h"
 #include "BeatmapInterface.h"
 #include "DatabaseBeatmap.h"
+#include "PlayfieldView.h"
 #include "RenderTarget.h"
 #include "ResourceManager.h"
 #include "Skin.h"
@@ -32,16 +33,13 @@
 namespace neomod {
 using namespace flags::operators;
 
-void HitObject::drawHitResult(BeatmapInterface *pf, vec2 rawPos, LiveHitResult result, f32 animPercentInv,
+void HitObject::drawHitResult(const PlayfieldView &view, vec2 pos, LiveHitResult result, f32 animPercentInv,
                               f32 hitDeltaRangePercent) {
-    drawHitResult(pf->getSkin(), pf->fHitcircleDiameter, pf->fRawHitcircleDiameter, rawPos, result, animPercentInv,
-                  hitDeltaRangePercent);
-}
-
-void HitObject::drawHitResult(const Skin *skin, f32 hitcircleDiameter, f32 rawHitcircleDiameter, vec2 rawPos,
-                              LiveHitResult result, f32 animPercentInv, f32 hitDeltaRangePercent) {
     if(animPercentInv <= 0.0f) return;
 
+    const Skin *skin = view.getSkin();
+    const f32 hitcircleDiameter = view.getHitcircleDiameter();
+    const f32 rawHitcircleDiameter = view.getRawHitcircleDiameter();
     const f32 animPercent = 1.0f - animPercentInv;
 
     const f32 fadeInEndPercent = cv::hitresult_fadein_duration.getFloat() / cv::hitresult_duration.getFloat();
@@ -188,43 +186,43 @@ void HitObject::drawHitResult(const Skin *skin, f32 hitcircleDiameter, f32 rawHi
                 // TODO: rotation anim (only for all non-animated skins), rot = rng(-0.15f, 0.15f), anim1 = 120 ms to
                 // rot, anim2 = rest to rot*2, all ease in
 
-                skin->i_hit0.drawRaw(rawPos + downAnim, (doScaleOrRotateAnim ? missScale : 1.0f) * hitImageScale *
-                                                            cv::hitresult_scale.getFloat());
+                skin->i_hit0.drawRaw(pos + downAnim, (doScaleOrRotateAnim ? missScale : 1.0f) * hitImageScale *
+                                                         cv::hitresult_scale.getFloat());
             } break;
 
             case HIT_50:
                 skin->i_hit50.drawRaw(
-                    rawPos, (doScaleOrRotateAnim ? scale : 1.0f) * hitImageScale * cv::hitresult_scale.getFloat());
+                    pos, (doScaleOrRotateAnim ? scale : 1.0f) * hitImageScale * cv::hitresult_scale.getFloat());
                 break;
 
             case HIT_100:
                 skin->i_hit100.drawRaw(
-                    rawPos, (doScaleOrRotateAnim ? scale : 1.0f) * hitImageScale * cv::hitresult_scale.getFloat());
+                    pos, (doScaleOrRotateAnim ? scale : 1.0f) * hitImageScale * cv::hitresult_scale.getFloat());
                 break;
 
             case HIT_300:
                 if(cv::hitresult_draw_300s.getBool()) {
                     skin->i_hit300.drawRaw(
-                        rawPos, (doScaleOrRotateAnim ? scale : 1.0f) * hitImageScale * cv::hitresult_scale.getFloat());
+                        pos, (doScaleOrRotateAnim ? scale : 1.0f) * hitImageScale * cv::hitresult_scale.getFloat());
                 }
                 break;
 
             case HIT_100K:
                 skin->i_hit100k.drawRaw(
-                    rawPos, (doScaleOrRotateAnim ? scale : 1.0f) * hitImageScale * cv::hitresult_scale.getFloat());
+                    pos, (doScaleOrRotateAnim ? scale : 1.0f) * hitImageScale * cv::hitresult_scale.getFloat());
                 break;
 
             case HIT_300K:
                 if(cv::hitresult_draw_300s.getBool()) {
                     skin->i_hit300k.drawRaw(
-                        rawPos, (doScaleOrRotateAnim ? scale : 1.0f) * hitImageScale * cv::hitresult_scale.getFloat());
+                        pos, (doScaleOrRotateAnim ? scale : 1.0f) * hitImageScale * cv::hitresult_scale.getFloat());
                 }
                 break;
 
             case HIT_300G:
                 if(cv::hitresult_draw_300s.getBool()) {
                     skin->i_hit300g.drawRaw(
-                        rawPos, (doScaleOrRotateAnim ? scale : 1.0f) * hitImageScale * cv::hitresult_scale.getFloat());
+                        pos, (doScaleOrRotateAnim ? scale : 1.0f) * hitImageScale * cv::hitresult_scale.getFloat());
                 }
                 break;
 
@@ -239,6 +237,7 @@ HitObject::HitObject(i32 timeMS, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, i
                      i32 colorCounter, i32 colorOffset, AbstractBeatmapInterface *pi)
     : m_pi(pi),
       m_pf(dynamic_cast<BeatmapInterface *>(pi)),  // should be NULL if SimulatedBeatmapInterface
+      m_view(m_pf),
       m_clickTimeMS(timeMS),
       m_comboNumber(comboNumber),
       m_hitSamples(samples),
@@ -255,28 +254,27 @@ void HitObject::drawHitResultAnim(const HITRESULTANIM &hitresultanim) {
     if((hitresultanim.timeSecs - cv::hitresult_duration.getFloat()) <
            engine->getTime()  // NOTE: this is written like that on purpose, don't change it ("future" results can be
                               // scheduled with it, e.g. for slider end)
-       && (hitresultanim.timeSecs + cv::hitresult_duration_max.getFloat() * (1.0f / m_pf->getBaseAnimationSpeed())) >
+       && (hitresultanim.timeSecs + cv::hitresult_duration_max.getFloat() * (1.0f / m_view->getBaseAnimationSpeed())) >
               engine->getTime()) {
-        auto *skin = m_pf->getSkinMutable();
+        const Skin *skin = m_view->getSkin();
         const f32 skinSpeedMultiplier = skin->anim_speed;
 
         const i32 skinAnimationTimeStartOffset =
             m_clickTimeMS + (hitresultanim.addObjectDurationToSkinAnimationTimeStartOffset ? m_durationMS : 0) +
             hitresultanim.deltaMS;
 
-        for(auto skinElem : {&Skin::i_hit0, &Skin::i_hit50, &Skin::i_hit100, &Skin::i_hit100k, &Skin::i_hit300,
-                             &Skin::i_hit300g, &Skin::i_hit300k}) {
-            SkinImage &image{skin->*skinElem};
-            image.setAnimationTimeOffset(skinSpeedMultiplier, skinAnimationTimeStartOffset);
-            image.setAnimationFrameClampUp();
+        for(SkinImage *image : {&skin->i_hit0, &skin->i_hit50, &skin->i_hit100, &skin->i_hit100k, &skin->i_hit300,
+                                &skin->i_hit300g, &skin->i_hit300k}) {
+            image->setAnimationTimeOffset(skinSpeedMultiplier, skinAnimationTimeStartOffset);
+            image->setAnimationFrameClampUp();
         }
 
         const f32 animPercentInv =
-            1.0f - (((engine->getTime() - hitresultanim.timeSecs) * m_pf->getBaseAnimationSpeed()) /
+            1.0f - (((engine->getTime() - hitresultanim.timeSecs) * m_view->getBaseAnimationSpeed()) /
                     cv::hitresult_duration.getFloat());
 
-        drawHitResult(m_pf, m_pf->osuCoords2Pixels(hitresultanim.rawPos), hitresultanim.result, animPercentInv,
-                      std::clamp<f32>((f32)hitresultanim.deltaMS / m_pi->getHitWindow50(), -1.0f, 1.0f));
+        drawHitResult(*m_view, m_view->osuCoords2Pixels(hitresultanim.rawPos), hitresultanim.result, animPercentInv,
+                      hitresultanim.deltaRangePercent);
     }
 }
 
@@ -444,20 +442,21 @@ void HitObject::addHitResult(LiveHitResult result, i32 delta, bool isEndOfCombo,
 
     const LiveHitResult returnedHit = m_pi->addHitResult(this, result, delta, isEndOfCombo, ignoreOnHitErrorBar, false,
                                                          ignoreCombo, false, ignoreHealth);
-    if(m_pf == nullptr) return;
+    if(m_view == nullptr) return;
 
     HITRESULTANIM hitresultanim;
     {
         hitresultanim.result = (returnedHit != LiveHitResult::HIT_MISS ? returnedHit : result);
         hitresultanim.rawPos = posRaw;
         hitresultanim.deltaMS = delta;
+        hitresultanim.deltaRangePercent = std::clamp<f32>((f32)delta / m_pi->getHitWindow50(), -1.0f, 1.0f);
         hitresultanim.timeSecs = engine->getTime();
         hitresultanim.addObjectDurationToSkinAnimationTimeStartOffset = addObjectDurationToSkinAnimationTimeStartOffset;
     }
 
     // currently a maximum of 2 simultaneous results are supported (for drawing, per hitobject)
     if(engine->getTime() >
-       m_hitresultanim1.timeSecs + cv::hitresult_duration_max.getFloat() * (1.0f / m_pf->getBaseAnimationSpeed()))
+       m_hitresultanim1.timeSecs + cv::hitresult_duration_max.getFloat() * (1.0f / m_view->getBaseAnimationSpeed()))
         m_hitresultanim1 = hitresultanim;
     else
         m_hitresultanim2 = hitresultanim;
@@ -481,33 +480,30 @@ f32 HitObject::lerp3f(f32 a, f32 b, f32 c, f32 percent) {
 i32 Circle::rainbowNumber = 0;
 i32 Circle::rainbowColorCounter = 0;
 
-void Circle::drawApproachCircle(BeatmapInterface *pf, vec2 rawPos, i32 number, i32 colorCounter, i32 colorOffset,
+void Circle::drawApproachCircle(const PlayfieldView &view, vec2 rawPos, i32 number, i32 colorCounter, i32 colorOffset,
                                 f32 colorRGBMultiplier, f32 approachScale, f32 alpha, bool overrideHDApproachCircle) {
     rainbowNumber = number;
     rainbowColorCounter = colorCounter;
 
-    Color comboColor = Colors::scale(pf->getSkin()->getComboColorForCounter(colorCounter, colorOffset),
+    Color comboColor = Colors::scale(view.getSkin()->getComboColorForCounter(colorCounter, colorOffset),
                                      colorRGBMultiplier * cv::circle_color_saturation.getFloat());
 
-    drawApproachCircle(pf->getSkin(), pf->osuCoords2Pixels(rawPos), comboColor, pf->fHitcircleDiameter, approachScale,
-                       alpha, pf->getMods().has(ModFlags::Hidden), overrideHDApproachCircle);
+    drawApproachCircle(view.getSkin(), view.osuCoords2Pixels(rawPos), comboColor, view.getHitcircleDiameter(),
+                       approachScale, alpha, flags::has<ModFlags::Hidden>(view.getModFlags()),
+                       overrideHDApproachCircle);
 }
 
-void Circle::drawCircle(BeatmapInterface *pf, vec2 rawPos, i32 number, i32 colorCounter, i32 colorOffset,
-                        f32 colorRGBMultiplier, f32 approachScale, f32 alpha, f32 numberAlpha, bool drawNumber,
-                        bool overrideHDApproachCircle) {
-    drawCircle(pf->getSkin(), pf->osuCoords2Pixels(rawPos), pf->fHitcircleDiameter, pf->getNumberScale(),
-               pf->getHitcircleOverlapScale(), number, colorCounter, colorOffset, colorRGBMultiplier, approachScale,
-               alpha, numberAlpha, drawNumber, overrideHDApproachCircle);
-}
-
-void Circle::drawCircle(const Skin *skin, vec2 pos, f32 hitcircleDiameter, f32 numberScale, f32 overlapScale,
-                        i32 number, i32 colorCounter, i32 colorOffset, f32 colorRGBMultiplier, f32 /*approachScale*/,
-                        f32 alpha, f32 numberAlpha, bool drawNumber, bool /*overrideHDApproachCircle*/) {
+void Circle::drawCircle(const PlayfieldView &view, vec2 rawPos, i32 number, i32 colorCounter, i32 colorOffset,
+                        f32 colorRGBMultiplier, f32 /*approachScale*/, f32 alpha, f32 numberAlpha, bool drawNumber,
+                        bool /*overrideHDApproachCircle*/) {
     if(alpha <= 0.0f || !cv::draw_circles.getBool()) return;
 
     rainbowNumber = number;
     rainbowColorCounter = colorCounter;
+
+    const Skin *skin = view.getSkin();
+    const vec2 pos = view.osuCoords2Pixels(rawPos);
+    const f32 hitcircleDiameter = view.getHitcircleDiameter();
 
     Color comboColor = Colors::scale(skin->getComboColorForCounter(colorCounter, colorOffset),
                                      colorRGBMultiplier * cv::circle_color_saturation.getFloat());
@@ -526,7 +522,9 @@ void Circle::drawCircle(const Skin *skin, vec2 pos, f32 hitcircleDiameter, f32 n
         drawHitCircleOverlay(skin->i_hitcircleoverlay, pos, circleOverlayImageScale, alpha, colorRGBMultiplier);
 
     // number
-    if(drawNumber) drawHitCircleNumber(skin, numberScale, overlapScale, pos, number, numberAlpha, colorRGBMultiplier);
+    if(drawNumber)
+        drawHitCircleNumber(skin, view.getNumberScale(), view.getHitcircleOverlapScale(), pos, number, numberAlpha,
+                            colorRGBMultiplier);
 
     // overlay
     if(skin->o_hitcircle_overlay_above_number)
@@ -545,30 +543,25 @@ void Circle::drawCircle(const Skin *skin, vec2 pos, f32 hitcircleDiameter, Color
     drawHitCircleOverlay(skin->i_hitcircleoverlay, pos, circleOverlayImageScale, alpha, 1.0f);
 }
 
-void Circle::drawSliderStartCircle(BeatmapInterface *pf, vec2 rawPos, i32 number, i32 colorCounter, i32 colorOffset,
-                                   f32 colorRGBMultiplier, f32 approachScale, f32 alpha, f32 numberAlpha,
-                                   bool drawNumber, bool overrideHDApproachCircle) {
-    drawSliderStartCircle(pf->getSkin(), pf->osuCoords2Pixels(rawPos), pf->fHitcircleDiameter, pf->getNumberScale(),
-                          pf->getHitcircleOverlapScale(), number, colorCounter, colorOffset, colorRGBMultiplier,
-                          approachScale, alpha, numberAlpha, drawNumber, overrideHDApproachCircle);
-}
-
-void Circle::drawSliderStartCircle(const Skin *skin, vec2 pos, f32 hitcircleDiameter, f32 numberScale,
-                                   f32 hitcircleOverlapScale, i32 number, i32 colorCounter, i32 colorOffset,
-                                   f32 colorRGBMultiplier, f32 approachScale, f32 alpha, f32 numberAlpha,
-                                   bool drawNumber, bool overrideHDApproachCircle) {
+void Circle::drawSliderStartCircle(const PlayfieldView &view, vec2 rawPos, i32 number, i32 colorCounter,
+                                   i32 colorOffset, f32 colorRGBMultiplier, f32 approachScale, f32 alpha,
+                                   f32 numberAlpha, bool drawNumber, bool overrideHDApproachCircle) {
     if(alpha <= 0.0f || !cv::draw_circles.getBool()) return;
+
+    const Skin *skin = view.getSkin();
 
     // if no sliderstartcircle image is preset, fallback to default circle
     if(skin->i_slider_start_circle == MISSING_TEXTURE) {
-        drawCircle(skin, pos, hitcircleDiameter, numberScale, hitcircleOverlapScale, number, colorCounter, colorOffset,
-                   colorRGBMultiplier, approachScale, alpha, numberAlpha, drawNumber,
-                   overrideHDApproachCircle);  // normal
+        drawCircle(view, rawPos, number, colorCounter, colorOffset, colorRGBMultiplier, approachScale, alpha,
+                   numberAlpha, drawNumber, overrideHDApproachCircle);  // normal
         return;
     }
 
     rainbowNumber = number;
     rainbowColorCounter = colorCounter;
+
+    const vec2 pos = view.osuCoords2Pixels(rawPos);
+    const f32 hitcircleDiameter = view.getHitcircleDiameter();
 
     Color comboColor = Colors::scale(skin->getComboColorForCounter(colorCounter, colorOffset),
                                      colorRGBMultiplier * cv::circle_color_saturation.getFloat());
@@ -587,7 +580,8 @@ void Circle::drawSliderStartCircle(const Skin *skin, vec2 pos, f32 hitcircleDiam
 
     // number
     if(drawNumber)
-        drawHitCircleNumber(skin, numberScale, hitcircleOverlapScale, pos, number, numberAlpha, colorRGBMultiplier);
+        drawHitCircleNumber(skin, view.getNumberScale(), view.getHitcircleOverlapScale(), pos, number, numberAlpha,
+                            colorRGBMultiplier);
 
     // overlay
     if(skin->i_slider_start_circle_overlay != MISSING_TEXTURE) {
@@ -597,29 +591,25 @@ void Circle::drawSliderStartCircle(const Skin *skin, vec2 pos, f32 hitcircleDiam
     }
 }
 
-void Circle::drawSliderEndCircle(BeatmapInterface *pf, vec2 rawPos, i32 number, i32 colorCounter, i32 colorOffset,
+void Circle::drawSliderEndCircle(const PlayfieldView &view, vec2 rawPos, i32 number, i32 colorCounter, i32 colorOffset,
                                  f32 colorRGBMultiplier, f32 approachScale, f32 alpha, f32 numberAlpha, bool drawNumber,
-                                 bool overrideHDApproachCircle) {
-    drawSliderEndCircle(pf->getSkin(), pf->osuCoords2Pixels(rawPos), pf->fHitcircleDiameter, pf->getNumberScale(),
-                        pf->getHitcircleOverlapScale(), number, colorCounter, colorOffset, colorRGBMultiplier,
-                        approachScale, alpha, numberAlpha, drawNumber, overrideHDApproachCircle);
-}
-
-void Circle::drawSliderEndCircle(const Skin *skin, vec2 pos, f32 hitcircleDiameter, f32 numberScale, f32 overlapScale,
-                                 i32 number, i32 colorCounter, i32 colorOffset, f32 colorRGBMultiplier,
-                                 f32 approachScale, f32 alpha, f32 numberAlpha, bool drawNumber,
                                  bool overrideHDApproachCircle) {
     if(alpha <= 0.0f || !cv::slider_draw_endcircle.getBool() || !cv::draw_circles.getBool()) return;
 
+    const Skin *skin = view.getSkin();
+
     // if no sliderendcircle image is preset, fallback to default circle
     if(skin->i_slider_end_circle == MISSING_TEXTURE) {
-        drawCircle(skin, pos, hitcircleDiameter, numberScale, overlapScale, number, colorCounter, colorOffset,
-                   colorRGBMultiplier, approachScale, alpha, numberAlpha, drawNumber, overrideHDApproachCircle);
+        drawCircle(view, rawPos, number, colorCounter, colorOffset, colorRGBMultiplier, approachScale, alpha,
+                   numberAlpha, drawNumber, overrideHDApproachCircle);
         return;
     }
 
     rainbowNumber = number;
     rainbowColorCounter = colorCounter;
+
+    const vec2 pos = view.osuCoords2Pixels(rawPos);
+    const f32 hitcircleDiameter = view.getHitcircleDiameter();
 
     Color comboColor = Colors::scale(skin->getComboColorForCounter(colorCounter, colorOffset),
                                      colorRGBMultiplier * cv::circle_color_saturation.getFloat());
@@ -783,9 +773,9 @@ Circle::~Circle() { onReset(0); }
 void Circle::draw() {
     HitObject::draw();
 
-    const Skin *skin = m_pf->getSkin();
+    const Skin *skin = m_view->getSkin();
 
-    const ModFlags curGameplayFlags = m_pf->getMods().flags;
+    const ModFlags curGameplayFlags = m_view->getModFlags();
 
     if(flags::has<ModFlags::Traceable>(curGameplayFlags)) {
         // draw nothing for traceable (approach circles are drawn in draw2())
@@ -795,7 +785,7 @@ void Circle::draw() {
     const bool hd = flags::has<ModFlags::Hidden>(curGameplayFlags);
 
     const i32 animTimeOffset =
-        !m_pf->isInMafhamRenderChunk() ? m_clickTimeMS - m_approachTimeMS : m_pf->getCurMusicPosWithOffsets();
+        !m_view->isInMafhamRenderChunk() ? m_clickTimeMS - m_approachTimeMS : m_view->getCurMusicPosWithOffsets();
 
     // draw hit animation (if not hidden)
     if(!hd && !cv::instafade.getBool() && m_hitAnimation > 0.0f && m_hitAnimation != 1.0f) {
@@ -812,7 +802,7 @@ void Circle::draw() {
             g->scale((1.0f + scale * foscale), (1.0f + scale * foscale));
 
             skin->i_hitcircleoverlay.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
-            drawCircle(m_pf, m_rawPos, m_comboNumber, m_colorCounter, m_colorOffset, 1.0f, 1.0f, alpha, alpha,
+            drawCircle(*m_view, m_rawPos, m_comboNumber, m_colorCounter, m_colorOffset, 1.0f, 1.0f, alpha, alpha,
                        drawNumber);
         }
         g->popTransform();
@@ -825,7 +815,7 @@ void Circle::draw() {
 
     // draw circle
     vec2 shakeCorrectedPos = m_rawPos;
-    if(engine->getTime() < m_shakeAnimation && !m_pf->isInMafhamRenderChunk())  // handle note blocking shaking
+    if(engine->getTime() < m_shakeAnimation && !m_view->isInMafhamRenderChunk())  // handle note blocking shaking
     {
         f32 smooth =
             1.0f - ((m_shakeAnimation - engine->getTime()) / cv::circle_shake_duration.getFloat());  // goes from 0 to 1
@@ -845,7 +835,7 @@ void Circle::draw() {
         const f32 alpha = m_waiting && !hd ? 1.0f : m_alpha;
         const f32 numberAlpha = m_waiting && !hd ? 1.0f : m_alpha;
 
-        drawCircle(m_pf, shakeCorrectedPos, m_comboNumber, m_colorCounter, m_colorOffset,
+        drawCircle(*m_view, shakeCorrectedPos, m_comboNumber, m_colorCounter, m_colorOffset,
                    m_hittableDimRGBColorMultiplierPct, approachScale, alpha, numberAlpha, true,
                    m_overrideHDApproachCircle);
     }
@@ -858,20 +848,20 @@ void Circle::draw2() {
                  // we still need to draw the object
 
     // draw approach circle
-    const bool hd = m_pi->getMods().has(ModFlags::Hidden);
+    const bool hd = flags::has<ModFlags::Hidden>(m_view->getModFlags());
 
     // HACKHACK: don't fucking change this piece of code here, it fixes a heisenbug
     // (https://github.com/McKay42/McOsu/issues/165)
     if(cv::bug_flicker_log.getBool()) {
         const f32 approachCircleImageScale =
-            m_pf->fHitcircleDiameter / (128.0f * (m_pf->getSkin()->i_approachcircle.scale()));
+            m_view->getHitcircleDiameter() / (128.0f * (m_view->getSkin()->i_approachcircle.scale()));
         debugLog("click_time = {:d}, aScale = {:f}, iScale = {:f}", m_clickTimeMS, m_approachScale,
                  approachCircleImageScale);
     }
 
-    drawApproachCircle(m_pf, m_rawPos, m_comboNumber, m_colorCounter, m_colorOffset, m_hittableDimRGBColorMultiplierPct,
-                       m_waiting && !hd ? 1.0f : m_approachScale, m_waiting && !hd ? 1.0f : m_alphaForApproachCircle,
-                       m_overrideHDApproachCircle);
+    drawApproachCircle(*m_view, m_rawPos, m_comboNumber, m_colorCounter, m_colorOffset,
+                       m_hittableDimRGBColorMultiplierPct, m_waiting && !hd ? 1.0f : m_approachScale,
+                       m_waiting && !hd ? 1.0f : m_alphaForApproachCircle, m_overrideHDApproachCircle);
 }
 
 void Circle::update(i32 curPosMS, f64 frameTimeSecs) {
@@ -1080,9 +1070,9 @@ void Slider::draw() {
     if(m_ctrlPoints.size() <= 0) return;
 
     const f32 foscale = cv::circle_fade_out_scale.getFloat();
-    const Skin *skin = m_pf->getSkin();
+    const Skin *skin = m_view->getSkin();
 
-    const ModFlags curGameplayFlags = m_pf->getMods().flags;
+    const ModFlags curGameplayFlags = m_view->getModFlags();
 
     const bool hd = flags::has<ModFlags::Hidden>(curGameplayFlags);
     const bool tc = flags::has<ModFlags::Traceable>(curGameplayFlags);
@@ -1100,11 +1090,12 @@ void Slider::draw() {
         // draw slider ticks
         Color tickColor = 0xffffffff;
         tickColor = Colors::scale(tickColor, m_hittableDimRGBColorMultiplierPct);
-        const f32 tickImageScale = (m_pf->fHitcircleDiameter / (16.0f * (skin->i_slider_score_point.scale()))) * 0.125f;
+        const f32 tickImageScale =
+            (m_view->getHitcircleDiameter() / (16.0f * (skin->i_slider_score_point.scale()))) * 0.125f;
         for(const auto &tick : m_ticks) {
             if(tick.finished || tick.percent > sliderSnake) continue;
 
-            vec2 pos = m_pf->osuCoords2Pixels(curvePointAt(tick.percent));
+            vec2 pos = m_view->osuCoords2Pixels(curvePointAt(tick.percent));
 
             g->setColor(Color(tickColor).setA(alpha));
 
@@ -1176,17 +1167,17 @@ void Slider::draw() {
             reverseArrowColor = Colors::scale(reverseArrowColor, m_hittableDimRGBColorMultiplierPct);
 
             f32 div = 0.30f;
-            f32 pulse = (div - std::fmod(std::abs(m_pf->getCurMusicPos()) / 1000.0f, div)) / div;
+            f32 pulse = (div - std::fmod(std::abs(m_view->getCurMusicPos()) / 1000.0f, div)) / div;
             pulse *= pulse;  // quad in
 
-            if(!cv::slider_reverse_arrow_animated.getBool() || m_pf->isInMafhamRenderChunk()) {
+            if(!cv::slider_reverse_arrow_animated.getBool() || m_view->isInMafhamRenderChunk()) {
                 pulse = 0.0f;
             }
 
             const auto &raImage = skin->i_reversearrow;
-            const f32 osuCoordScaleMultiplier = m_pf->fHitcircleDiameter / m_pf->fRawHitcircleDiameter;
+            const f32 osuCoordScaleMultiplier = m_view->getHitcircleDiameter() / m_view->getRawHitcircleDiameter();
             const f32 reverseArrowImageScale =
-                ((m_pf->fRawHitcircleDiameter / (128.0f * raImage.scale())) * osuCoordScaleMultiplier) *
+                ((m_view->getRawHitcircleDiameter() / (128.0f * raImage.scale())) * osuCoordScaleMultiplier) *
                 (1.0f + pulse * 0.30f);
 
             // end and/or start
@@ -1194,12 +1185,9 @@ void Slider::draw() {
                 const bool isEnd = rev == 0;
                 if(isEnd && !reverseEnd) continue;
                 if(!isEnd && !reverseStart) continue;
-                vec2 pos = m_pf->osuCoords2Pixels(curvePointAt(isEnd ? 1.f : 0.f));
-                f32 rotation = (isEnd ? m_curve.getEndAngle() : m_curve.getStartAngle()) -
-                               cv::playfield_rotation.getFloat() - m_pf->getPlayfieldRotation();
-                if((flags::has<ModFlags::HardRock>(curGameplayFlags))) rotation = 360.0f - rotation;
-                if(cv::playfield_mirror_horizontal.getBool()) rotation = 360.0f - rotation;
-                if(cv::playfield_mirror_vertical.getBool()) rotation = 180.0f - rotation;
+                vec2 pos = m_view->osuCoords2Pixels(curvePointAt(isEnd ? 1.f : 0.f));
+                const f32 rotation =
+                    m_view->osuAngle2PixelAngle(isEnd ? m_curve.getEndAngle() : m_curve.getStartAngle());
 
                 g->setColor(Color(reverseArrowColor).setA(m_reverseArrowAlpha));
 
@@ -1242,23 +1230,23 @@ void Slider::draw() {
             {
                 g->scale((1.0f + scale * foscale), (1.0f + scale * foscale));
                 if(m_curRepeat < 1) {
-                    const i32 animTimeOffset = !m_pf->isInMafhamRenderChunk() ? m_clickTimeMS - m_approachTimeMS
-                                                                              : m_pf->getCurMusicPosWithOffsets();
+                    const i32 animTimeOffset = !m_view->isInMafhamRenderChunk() ? m_clickTimeMS - m_approachTimeMS
+                                                                                : m_view->getCurMusicPosWithOffsets();
 
                     skin->i_hitcircleoverlay.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
                     skin->i_slider_start_circle_overlay2.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
 
-                    Circle::drawSliderStartCircle(m_pf, curvePointAt(0.0f), m_comboNumber, m_colorCounter,
+                    Circle::drawSliderStartCircle(*m_view, curvePointAt(0.0f), m_comboNumber, m_colorCounter,
                                                   m_colorOffset, 1.0f, 1.0f, alpha, number_alpha, drawNumber);
                 } else {
                     const i32 animTimeOffset =
-                        !m_pf->isInMafhamRenderChunk() ? m_clickTimeMS : m_pf->getCurMusicPosWithOffsets();
+                        !m_view->isInMafhamRenderChunk() ? m_clickTimeMS : m_view->getCurMusicPosWithOffsets();
 
                     skin->i_hitcircleoverlay.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
                     skin->i_slider_end_circle_overlay2.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
 
-                    Circle::drawSliderEndCircle(m_pf, curvePointAt(0.0f), m_comboNumber, m_colorCounter, m_colorOffset,
-                                                1.0f, 1.0f, alpha, alpha, drawNumber);
+                    Circle::drawSliderEndCircle(*m_view, curvePointAt(0.0f), m_comboNumber, m_colorCounter,
+                                                m_colorOffset, 1.0f, 1.0f, alpha, alpha, drawNumber);
                 }
             }
             g->popTransform();
@@ -1273,13 +1261,13 @@ void Slider::draw() {
             {
                 g->scale((1.0f + scale * foscale), (1.0f + scale * foscale));
 
-                const i32 animTimeOffset =
-                    !m_pf->isInMafhamRenderChunk() ? m_clickTimeMS - m_fadeInTimeMS : m_pf->getCurMusicPosWithOffsets();
+                const i32 animTimeOffset = !m_view->isInMafhamRenderChunk() ? m_clickTimeMS - m_fadeInTimeMS
+                                                                            : m_view->getCurMusicPosWithOffsets();
 
                 skin->i_hitcircleoverlay.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
                 skin->i_slider_end_circle_overlay2.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
 
-                Circle::drawSliderEndCircle(m_pf, curvePointAt(1.0f), m_comboNumber, m_colorCounter, m_colorOffset,
+                Circle::drawSliderEndCircle(*m_view, curvePointAt(1.0f), m_comboNumber, m_colorCounter, m_colorOffset,
                                             1.0f, 1.0f, alpha, 0.0f, false);
             }
             g->popTransform();
@@ -1292,7 +1280,7 @@ void Slider::draw() {
 void Slider::draw2(bool drawApproachCircle, bool drawOnlyApproachCircle) {
     HitObject::draw2();
 
-    const Skin *skin = m_pf->getSkin();
+    const Skin *skin = m_view->getSkin();
 
     // HACKHACK: so much code duplication aaaaaaah
     if((m_visible || (m_startFinished && !m_finished)) &&
@@ -1310,7 +1298,7 @@ void Slider::draw2(bool drawApproachCircle, bool drawOnlyApproachCircle) {
 
             // start circle
             if(!m_startFinished || !sliderRepeatStartCircleFinished || (!m_endFinished && m_repeat % 2 == 0)) {
-                Circle::drawApproachCircle(m_pf, curvePointAt(0.0f), m_comboNumber, m_colorCounter, m_colorOffset,
+                Circle::drawApproachCircle(*m_view, curvePointAt(0.0f), m_comboNumber, m_colorCounter, m_colorOffset,
                                            m_hittableDimRGBColorMultiplierPct, m_approachScale,
                                            m_alphaForApproachCircle, m_overrideHDApproachCircle);
             }
@@ -1319,7 +1307,7 @@ void Slider::draw2(bool drawApproachCircle, bool drawOnlyApproachCircle) {
 
     if(drawApproachCircle && drawOnlyApproachCircle) return;
 
-    const ModFlags curGameplayFlags = m_pf->getMods().flags;
+    const ModFlags curGameplayFlags = m_view->getModFlags();
 
     // draw followcircle
     // HACKHACK: this is not entirely correct (due to m_bHeldTillEnd, if held within 300 range but then released, will
@@ -1331,7 +1319,7 @@ void Slider::draw2(bool drawApproachCircle, bool drawOnlyApproachCircle) {
     should_draw_followcircle |= (m_finished && m_followCircleAnimationAlpha > 0.0f && m_heldTillEnd);
 
     if(should_draw_followcircle) {
-        vec2 point = m_pf->osuCoords2Pixels(m_curPointRaw);
+        vec2 point = m_view->osuCoords2Pixels(m_curPointRaw);
 
         // HACKHACK: this is shit
         f32 tickAnimation =
@@ -1348,8 +1336,9 @@ void Slider::draw2(bool drawApproachCircle, bool drawOnlyApproachCircle) {
         skin->i_slider_follow_circle.setAnimationTimeOffset(skin->anim_speed, m_clickTimeMS);
         skin->i_slider_follow_circle.drawRaw(
             point,
-            (m_pf->fSliderFollowCircleDiameter / skin->i_slider_follow_circle.getSizeBaseRaw().x) * tickAnimationScale *
-                m_followCircleAnimationScale * 0.85f);  // this is a bit strange, but seems to work perfectly with 0.85
+            (m_view->getSliderFollowCircleDiameter() / skin->i_slider_follow_circle.getSizeBaseRaw().x) *
+                tickAnimationScale * m_followCircleAnimationScale *
+                0.85f);  // this is a bit strange, but seems to work perfectly with 0.85
     }
 
     const bool isCompletelyFinished = m_startFinished && m_endFinished && m_finished;
@@ -1361,11 +1350,11 @@ void Slider::draw2(bool drawApproachCircle, bool drawOnlyApproachCircle) {
     {
         if(m_slidePct > 0.0f) {
             // draw sliderb
-            vec2 point = m_pf->osuCoords2Pixels(m_curPointRaw);
+            vec2 point = m_view->osuCoords2Pixels(m_curPointRaw);
             vec2 c1 =
-                m_pf->osuCoords2Pixels(curvePointAt(m_slidePct + 0.01f <= 1.0f ? m_slidePct : m_slidePct - 0.01f));
+                m_view->osuCoords2Pixels(curvePointAt(m_slidePct + 0.01f <= 1.0f ? m_slidePct : m_slidePct - 0.01f));
             vec2 c2 =
-                m_pf->osuCoords2Pixels(curvePointAt(m_slidePct + 0.01f <= 1.0f ? m_slidePct + 0.01f : m_slidePct));
+                m_view->osuCoords2Pixels(curvePointAt(m_slidePct + 0.01f <= 1.0f ? m_slidePct + 0.01f : m_slidePct));
             f32 ballAngle = vec::degrees(std::atan2(c2.y - c1.y, c2.x - c1.x));
             if(skin->o_sliderball_flip) ballAngle += (m_curRepeat % 2 == 0) ? 0 : 180;
 
@@ -1378,7 +1367,7 @@ void Slider::draw2(bool drawApproachCircle, bool drawOnlyApproachCircle) {
             {
                 g->rotate(ballAngle);
                 skin->i_sliderb.setAnimationTimeOffset(skin->anim_speed, m_clickTimeMS);
-                skin->i_sliderb.drawRaw(point, m_pf->fHitcircleDiameter / skin->i_sliderb.getSizeBaseRaw().x);
+                skin->i_sliderb.drawRaw(point, m_view->getHitcircleDiameter() / skin->i_sliderb.getSizeBaseRaw().x);
             }
             g->popTransform();
         }
@@ -1386,40 +1375,41 @@ void Slider::draw2(bool drawApproachCircle, bool drawOnlyApproachCircle) {
 }
 
 void Slider::drawStartCircle(f32 alpha) {
-    const Skin *skin = m_pf->getSkin();
+    const Skin *skin = m_view->getSkin();
 
     if(m_startFinished) {
-        const i32 animTimeOffset = !m_pf->isInMafhamRenderChunk() ? m_clickTimeMS : m_pf->getCurMusicPosWithOffsets();
+        const i32 animTimeOffset =
+            !m_view->isInMafhamRenderChunk() ? m_clickTimeMS : m_view->getCurMusicPosWithOffsets();
 
         skin->i_hitcircleoverlay.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
         skin->i_slider_end_circle_overlay2.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
 
-        Circle::drawSliderEndCircle(m_pf, curvePointAt(0.0f), m_comboNumber, m_colorCounter, m_colorOffset,
+        Circle::drawSliderEndCircle(*m_view, curvePointAt(0.0f), m_comboNumber, m_colorCounter, m_colorOffset,
                                     m_hittableDimRGBColorMultiplierPct, 1.0f, alpha, 0.0f, false, false);
     } else {
         const i32 visibleTms =
-            flags::has<ModFlags::FreezeFrame>(m_pf->getMods().flags) ? m_comboStartMS : m_clickTimeMS;
+            flags::has<ModFlags::FreezeFrame>(m_view->getModFlags()) ? m_comboStartMS : m_clickTimeMS;
         const i32 animTimeOffset =
-            !m_pf->isInMafhamRenderChunk() ? visibleTms - m_approachTimeMS : m_pf->getCurMusicPosWithOffsets();
+            !m_view->isInMafhamRenderChunk() ? visibleTms - m_approachTimeMS : m_view->getCurMusicPosWithOffsets();
 
         skin->i_hitcircleoverlay.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
         skin->i_slider_start_circle_overlay2.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
 
-        Circle::drawSliderStartCircle(m_pf, curvePointAt(0.0f), m_comboNumber, m_colorCounter, m_colorOffset,
+        Circle::drawSliderStartCircle(*m_view, curvePointAt(0.0f), m_comboNumber, m_colorCounter, m_colorOffset,
                                       m_hittableDimRGBColorMultiplierPct, m_approachScale, alpha, alpha,
                                       !m_hideNumberAfterFirstRepeatHit, m_overrideHDApproachCircle);
     }
 }
 
 void Slider::drawEndCircle(f32 alpha, f32 sliderSnake) {
-    const Skin *skin = m_pf->getSkin();
+    const Skin *skin = m_view->getSkin();
     const i32 animTimeOffset =
-        !m_pf->isInMafhamRenderChunk() ? m_clickTimeMS - m_fadeInTimeMS : m_pf->getCurMusicPosWithOffsets();
+        !m_view->isInMafhamRenderChunk() ? m_clickTimeMS - m_fadeInTimeMS : m_view->getCurMusicPosWithOffsets();
 
     skin->i_hitcircleoverlay.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
     skin->i_slider_end_circle_overlay2.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
 
-    Circle::drawSliderEndCircle(m_pf, curvePointAt(sliderSnake), m_comboNumber, m_colorCounter, m_colorOffset,
+    Circle::drawSliderEndCircle(*m_view, curvePointAt(sliderSnake), m_comboNumber, m_colorCounter, m_colorOffset,
                                 m_hittableDimRGBColorMultiplierPct, 1.0f, alpha, 0.0f, false, false);
 }
 
@@ -1437,21 +1427,21 @@ std::optional<SliderRenderer::Body> Slider::getBody() const {
 
     // fading out after the end hit (which finishes the slider, so never together with the live body above)
     const bool slider_fading_out = m_endSliderBodyFadeAnimation > 0.0f && m_endSliderBodyFadeAnimation != 1.0f;
-    if(flags::has<ModFlags::Hidden>(m_pf->getMods().flags) || cv::instafade_sliders.getBool() || !slider_fading_out)
+    if(flags::has<ModFlags::Hidden>(m_view->getModFlags()) || cv::instafade_sliders.getBool() || !slider_fading_out)
         return std::nullopt;
 
     if(!cv::slider_shrink.getBool()) return makeBody(1.0f - m_endSliderBodyFadeAnimation, 0, 1);
     if(!cv::slider_body_lazer_fadeout_style.getBool()) return std::nullopt;
 
     alwaysPointsBuf.clear();
-    alwaysPointsBuf.push_back(m_pf->osuCoords2Pixels(curvePointAt(m_slidePct)));
+    alwaysPointsBuf.push_back(m_view->osuCoords2Pixels(curvePointAt(m_slidePct)));
     return SliderRenderer::Body{
         .alwaysPoints = alwaysPointsBuf,
-        .hitcircleDiameter = m_pf->fHitcircleDiameter,
+        .hitcircleDiameter = m_view->getHitcircleDiameter(),
         .from = 0.0f,
         .to = 0.0f,
-        .skinSettings = {m_pf->getSkin()},
-        .undimmedColor = m_pf->getSkin()->getComboColorForCounter(m_colorCounter, m_colorOffset),
+        .skinSettings = {m_view->getSkin()},
+        .undimmedColor = m_view->getSkin()->getComboColorForCounter(m_colorCounter, m_colorOffset),
         .alpha = 1.0f - m_endSliderBodyFadeAnimation,
         .sliderTimeForRainbow = m_clickTimeMS};
 }
@@ -1461,32 +1451,33 @@ SliderRenderer::Body Slider::makeBody(f32 alpha, f32 from, f32 to) const {
     // smooth begin/end while snaking/shrinking
     if(cv::slider_body_smoothsnake.getBool()) {
         if(cv::slider_shrink.getBool() && m_sliderSnakePercent > 0.999f) {
-            alwaysPointsBuf.push_back(m_pf->osuCoords2Pixels(curvePointAt(m_slidePct)));  // curpoint
-            alwaysPointsBuf.push_back(m_pf->osuCoords2Pixels(
+            alwaysPointsBuf.push_back(m_view->osuCoords2Pixels(curvePointAt(m_slidePct)));  // curpoint
+            alwaysPointsBuf.push_back(m_view->osuCoords2Pixels(
                 getRawPosAt(getEndTime() + 1)));  // endpoint (because setDrawPercent() causes the last
                                                   // circle mesh to become invisible too quickly)
         }
         if(cv::snaking_sliders.getBool() && m_sliderSnakePercent < 1.0f)
-            alwaysPointsBuf.push_back(
-                m_pf->osuCoords2Pixels(curvePointAt(m_sliderSnakePercent)));  // snakeoutpoint (only while snaking out)
+            alwaysPointsBuf.push_back(m_view->osuCoords2Pixels(
+                curvePointAt(m_sliderSnakePercent)));  // snakeoutpoint (only while snaking out)
     }
 
-    SliderRenderer::Body body{.alwaysPoints = alwaysPointsBuf,
-                              .hitcircleDiameter = m_pf->fHitcircleDiameter,
-                              .from = from,
-                              .to = to,
-                              .skinSettings = {m_pf->getSkin()},
-                              .undimmedColor = m_pf->getSkin()->getComboColorForCounter(m_colorCounter, m_colorOffset),
-                              .colorRGBMultiplier = m_hittableDimRGBColorMultiplierPct,
-                              .alpha = alpha,
-                              .sliderTimeForRainbow = m_clickTimeMS};
+    SliderRenderer::Body body{
+        .alwaysPoints = alwaysPointsBuf,
+        .hitcircleDiameter = m_view->getHitcircleDiameter(),
+        .from = from,
+        .to = to,
+        .skinSettings = {m_view->getSkin()},
+        .undimmedColor = m_view->getSkin()->getComboColorForCounter(m_colorCounter, m_colorOffset),
+        .colorRGBMultiplier = m_hittableDimRGBColorMultiplierPct,
+        .alpha = alpha,
+        .sliderTimeForRainbow = m_clickTimeMS};
 
-    if(osu->slidersRenderDynamically()) {
+    if(m_view->slidersRenderDynamically()) {
         // peppy sliders: the shape changes every frame
         legacyScreenPointsBuf.clear();
         Mc::ranges::assign(legacyScreenPointsBuf, m_curve.getPoints());
         for(auto &screenPoint : legacyScreenPointsBuf) {
-            screenPoint = m_pf->osuCoords2Pixels(screenPoint - m_stackOffset);
+            screenPoint = m_view->osuCoords2Pixels(screenPoint - m_stackOffset);
         }
         body.points = legacyScreenPointsBuf;
     } else {
@@ -1494,14 +1485,14 @@ SliderRenderer::Body Slider::makeBody(f32 alpha, f32 from, f32 to) const {
         // as the base mesh is centered at (0, 0, 0) and in raw osu coordinates, we have to scale and translate it to
         // make it fit the actual desktop playfield
         body.mesh = &m_mesh;
-        body.scale = GameRules::getPlayfieldScaleFactor();
-        body.translation = GameRules::getPlayfieldCenter();
+        body.scale = m_view->getPlayfieldScaleFactor();
+        body.translation = m_view->getPlayfieldCenter();
 
-        if(m_pf->hasFailed())
+        if(m_view->hasFailed())
             body.translation =
-                m_pf->osuCoords2Pixels(vec2(GameRules::OSU_COORD_WIDTH / 2, GameRules::OSU_COORD_HEIGHT / 2));
+                m_view->osuCoords2Pixels(vec2(GameRules::OSU_COORD_WIDTH / 2, GameRules::OSU_COORD_HEIGHT / 2));
 
-        if(cv::mod_fps.getBool()) body.translation += m_pf->getFirstPersonCursorDelta();
+        if(cv::mod_fps.getBool()) body.translation += m_view->getFirstPersonCursorDelta();
     }
     return body;
 }
@@ -2347,17 +2338,13 @@ Slider::HitAnim &Slider::addHitAnim(u8 typeFlags, f32 duration) {
     }
 }
 
-void Slider::rebuildVertexBuffer(bool useRawCoords) {
+void Slider::rebuildVertexBuffer() {
     // base mesh (background) (raw unscaled, size in raw osu coordinates centered at (0, 0, 0))
     // this mesh needs to be scaled and translated appropriately since we are not 1:1 with the playfield
     const auto rawPoints = m_curve.getPoints();
     std::vector<vec2> osuCoordPoints{rawPoints.begin(), rawPoints.end()};
-    if(useRawCoords) {
-        for(auto &p : osuCoordPoints) p -= m_stackOffset;
-    } else {
-        for(auto &p : osuCoordPoints) p = m_pi->osuCoords2LegacyPixels(p - m_stackOffset);
-    }
-    m_mesh = SliderRenderer::generateMesh(osu->getVirtScreenSize(), osuCoordPoints, m_pi->fRawHitcircleDiameter,
+    for(auto &p : osuCoordPoints) p = m_view->osuCoords2LegacyPixels(p - m_stackOffset);
+    m_mesh = SliderRenderer::generateMesh(osu->getVirtScreenSize(), osuCoordPoints, m_view->getRawHitcircleDiameter(),
                                           /*skipOOBPoints=*/true);
 }
 
@@ -2408,16 +2395,16 @@ void Spinner::draw() {
     HitObject::draw();
     const f32 fadeOutMultiplier = cv::spinner_fade_out_time_multiplier.getFloat();
     const i32 fadeOutTimeMS =
-        (i32)(GameRules::getFadeOutTime(m_pi->getBaseAnimationSpeed()) * 1000.0f * fadeOutMultiplier);
+        (i32)(GameRules::getFadeOutTime(m_view->getBaseAnimationSpeed()) * 1000.0f * fadeOutMultiplier);
     const i32 deltaEnd = m_deltaMS + m_durationMS;
 
-    const Skin *skin = m_pf->getSkin();
-    const vec2 center = m_pf->osuCoords2Pixels(m_rawPos);
+    const Skin *skin = m_view->getSkin();
+    const vec2 center = m_view->osuCoords2Pixels(m_rawPos);
 
     // osu!stable lays the spinner out in its 640x480 window space (with the spinner centered at (320, 248), which is
     // the playfield center), and draws 1x sprites at 0.625x of that space, see
     // https://osu.ppy.sh/wiki/en/Skinning/osu%21#spinner
-    const f32 windowScale = m_pf->getPlayfieldSize().y / (f32)GameRules::OSU_COORD_HEIGHT;
+    const f32 windowScale = m_view->getPlayfieldSize().y / (f32)GameRules::OSU_COORD_HEIGHT;
     const f32 spinnerScale = 0.625f * windowScale;
     const auto windowPos = [&](f32 dx, f32 dy) { return center + vec2{dx, dy} * windowScale; };
     const auto drawSprite = [](const BasicSkinImage &img, vec2 pos, f32 scale, f32 rotationDeg = 0.f,
@@ -2461,7 +2448,7 @@ void Spinner::draw() {
     const f32 finishScale = 0.80f + easeOut(clampedRatio) * 0.20f;
 
     // spun out / autopilot spinners are drawn dimmed
-    const Color tint = flags::any<ModFlags::SpunOut | ModFlags::Autopilot>(m_pi->getMods().flags) ? Color(0xff808080)
+    const Color tint = flags::any<ModFlags::SpunOut | ModFlags::Autopilot>(m_view->getModFlags()) ? Color(0xff808080)
                                                                                                   : Color(0xffffffff);
 
     // "SPIN!" starts fading out on the first (half) spin, but not before 500 ms in, and "CLEAR!" can't show up before
@@ -2479,7 +2466,7 @@ void Spinner::draw() {
     // the approach circle is only shown when the disc is actually skinned (peppy removed it from the default skin:
     // https://osu.ppy.sh/community/forums/topics/100765)
     const auto drawSpinnerApproachCircle = [&](const BasicSkinImage &disc) {
-        if(flags::has<ModFlags::Hidden>(m_pi->getMods().flags) || disc.isFromDefault() ||
+        if(flags::has<ModFlags::Hidden>(m_view->getModFlags()) || disc.isFromDefault() ||
            skin->i_spinner_approach_circle == MISSING_TEXTURE)
             return;
 
