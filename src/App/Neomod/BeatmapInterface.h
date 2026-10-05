@@ -81,6 +81,9 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
     // cursor
     [[nodiscard]] vec2 getMousePos() const;
     [[nodiscard]] vec2 getCursorPos() const override;
+
+    [[nodiscard]] const Replay::Mods &getMods() const override;
+    [[nodiscard]] LegacyFlags getModsLegacy() const override;
     [[nodiscard]] vec2 getFirstPersonCursorDelta() const override;
 
     // playfield

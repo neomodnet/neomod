@@ -1234,6 +1234,9 @@ f32 BeatmapInterface::getPitchMultiplier() const {
 
 // currently just a passthrough for the main skin, might return beatmap skins in the future
 const Skin *BeatmapInterface::getSkin() const { return osu->getSkin(); }
+
+const Replay::Mods &BeatmapInterface::getMods() const { return osu->getScore()->mods; }
+LegacyFlags BeatmapInterface::getModsLegacy() const { return osu->getScore()->getModsLegacy(); }
 Skin *BeatmapInterface::getSkinMutable() { return osu->getSkinMutable(); }
 
 ModFlags BeatmapInterface::getModFlags() const {

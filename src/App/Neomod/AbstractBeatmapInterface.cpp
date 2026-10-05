@@ -1,6 +1,5 @@
 #include "AbstractBeatmapInterface.h"
 
-#include "Osu.h"
 #include "GameRules.h"
 #include "HitSounds.h"
 #include "LegacyReplay.h"
@@ -17,11 +16,11 @@ void AbstractBeatmapInterface::playSliderTickSound(DatabaseBeatmapTypes::HITSAMP
 
 std::vector<HitSoundUtils::Set_Slider_Hit> AbstractBeatmapInterface::updateSliderSlideSounds(
     bool /*sliding*/, DatabaseBeatmapTypes::HITSAMPLE_BITS /*samples*/, vec2 /*rawPos*/,
-    const std::vector<HitSoundUtils::Set_Slider_Hit> & /*started*/) {
+    const std::vector<HitSoundUtils::Set_Slider_Hit>& /*started*/) {
     return {};
 }
 
-void AbstractBeatmapInterface::stopSliderSounds(const std::vector<HitSoundUtils::Set_Slider_Hit> & /*started*/) {}
+void AbstractBeatmapInterface::stopSliderSounds(const std::vector<HitSoundUtils::Set_Slider_Hit>& /*started*/) {}
 void AbstractBeatmapInterface::playSpinnerSpinSound(f32 /*ratio*/) {}
 void AbstractBeatmapInterface::stopSpinnerSpinSound() {}
 void AbstractBeatmapInterface::playSpinnerBonusSound() {}
@@ -82,9 +81,6 @@ f32 AbstractBeatmapInterface::getConstantOverallDifficultyForSpeedMultiplier() c
                                             GameRules::MIN_HITWINDOW_300, GameRules::MID_HITWINDOW_300,
                                             GameRules::MAX_HITWINDOW_300);
 }
-
-const Replay::Mods &AbstractBeatmapInterface::getMods() const { return osu->getScore()->mods; }
-LegacyFlags AbstractBeatmapInterface::getModsLegacy() const { return osu->getScore()->getModsLegacy(); }
 
 i32 AbstractBeatmapInterface::getPVS() const {
     // this is an approximation with generous boundaries, it doesn't need to be exact (just good enough to filter 10000

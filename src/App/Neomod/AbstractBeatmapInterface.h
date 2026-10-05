@@ -65,8 +65,8 @@ class AbstractBeatmapInterface {
     [[nodiscard]] virtual f32 getApproachTime() const = 0;
     [[nodiscard]] virtual f32 getRawApproachTime() const = 0;
 
-    [[nodiscard]] virtual const Replay::Mods &getMods() const;  // overridden by SimulatedBeatmapInterface
-    [[nodiscard]] virtual LegacyFlags getModsLegacy() const;    // overridden by SimulatedBeatmapInterface
+    [[nodiscard]] virtual const Replay::Mods &getMods() const = 0;
+    [[nodiscard]] virtual LegacyFlags getModsLegacy() const = 0;
     [[nodiscard]] virtual vec2 getCursorPos() const = 0;
 
     virtual void addScorePoints(int points, bool isSpinner = false) = 0;
