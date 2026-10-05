@@ -1238,6 +1238,8 @@ ModFlags BeatmapInterface::getModFlags() const { return this->getMods().flags; }
 
 bool BeatmapInterface::slidersRenderDynamically() const { return osu->slidersRenderDynamically(); }
 
+vec2 BeatmapInterface::getScreenSize() const { return osu->getVirtScreenSize(); }
+
 f32 BeatmapInterface::getRawAR() const {
     if(unlikely(!this->beatmap)) return 5.0f;
 

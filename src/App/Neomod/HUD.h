@@ -15,6 +15,7 @@
 
 class UIAvatar;
 class ScoreboardSlot;
+struct Skin;
 class McFont;
 class ConVar;
 class Image;
@@ -72,6 +73,7 @@ class HUD final : public UIScreen {
         bool combo;                             // true == skin combo digits, false == skin score digits
         u32 minDigits{0};                       // left pad with N zeroes
         AnchorPoint anchor{AnchorPoint::LEFT};  // horizontal alignment to the current origin (LEFT/CENTER/RIGHT)
+        const Skin *skin{nullptr};              // NULL: the current one
     };
     static void drawNumberWithSkinDigits(const SkinDigitDrawOpts &opts);
     static void drawComboSimple(i32 combo, f32 scale = 1.0f);        // used by RankingScreen

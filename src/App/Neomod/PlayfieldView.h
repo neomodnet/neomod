@@ -32,6 +32,7 @@ class PlayfieldView {
     [[nodiscard]] virtual f32 getPlayfieldScaleFactor() const = 0;  // osu!px to screen px
     [[nodiscard]] virtual vec2 getPlayfieldCenter() const = 0;      // on the screen
     [[nodiscard]] virtual vec2 getPlayfieldSize() const = 0;        // on the screen
+    [[nodiscard]] virtual vec2 getScreenSize() const = 0;           // what drawing culls against
 
     [[nodiscard]] virtual f32 getHitcircleDiameter() const = 0;           // screen px
     [[nodiscard]] virtual f32 getRawHitcircleDiameter() const = 0;        // osu!px
@@ -42,8 +43,12 @@ class PlayfieldView {
     // the music position, and with the offsets objects are timed against
     [[nodiscard]] virtual i32 getCurMusicPos() const = 0;
     [[nodiscard]] virtual i32 getCurMusicPosWithOffsets() const = 0;
+    // how long objects take to approach (ms)
+    [[nodiscard]] virtual f32 getApproachTime() const = 0;
     // wall-clock animations take 1 / this of their time
     [[nodiscard]] virtual f32 getBaseAnimationSpeed() const = 0;
+    // fixed wall-clock durations last this many times as long in music time
+    [[nodiscard]] virtual f32 getSpeedAdjustedAnimationSpeed() const = 0;
     [[nodiscard]] virtual ModFlags getModFlags() const = 0;
 
     // gameplay's effects
@@ -57,18 +62,20 @@ class PlayfieldView {
     [[nodiscard]] static f32 hitcircleOverlapScale(f32 rawHitcircleDiameter, f32 hitcircleDiameter);
 };
 
-// a playfield as it is: osu!px scaled and moved onto the screen, drawn with the current skin, no mods or effects
+// a playfield as it is: osu!px scaled and moved onto the screen, no mods or effects
 class PlainPlayfieldView final : public PlayfieldView {
    public:
-    PlainPlayfieldView(vec2 offset, f32 scale, f32 rawHitcircleDiameter)
-        : offset(offset), scale(scale), rawHitcircleDiameter(rawHitcircleDiameter) {}
+    PlainPlayfieldView(const Skin *skin, vec2 offset, f32 scale, f32 rawHitcircleDiameter)
+        : skin(skin), offset(offset), scale(scale), rawHitcircleDiameter(rawHitcircleDiameter) {}
 
+    const Skin *skin;
     vec2 offset;               // where osu!px (0, 0) lands
     f32 scale;                 // osu!px to screen px
     f32 rawHitcircleDiameter;  // osu!px
+    f32 approachTimeMS{0.f};
     i32 musicPos{0};
 
-    [[nodiscard]] const Skin *getSkin() const override;
+    [[nodiscard]] const Skin *getSkin() const override { return this->skin; }
 
     [[nodiscard]] vec2 osuCoords2Pixels(vec2 coords) const override { return coords * this->scale + this->offset; }
     [[nodiscard]] vec2 osuCoords2LegacyPixels(vec2 coords) const override;
@@ -77,6 +84,7 @@ class PlainPlayfieldView final : public PlayfieldView {
     [[nodiscard]] f32 getPlayfieldScaleFactor() const override { return this->scale; }
     [[nodiscard]] vec2 getPlayfieldCenter() const override;
     [[nodiscard]] vec2 getPlayfieldSize() const override;
+    [[nodiscard]] vec2 getScreenSize() const override;
 
     [[nodiscard]] f32 getHitcircleDiameter() const override { return this->rawHitcircleDiameter * this->scale; }
     [[nodiscard]] f32 getRawHitcircleDiameter() const override { return this->rawHitcircleDiameter; }
@@ -86,6 +94,8 @@ class PlainPlayfieldView final : public PlayfieldView {
 
     [[nodiscard]] i32 getCurMusicPos() const override { return this->musicPos; }
     [[nodiscard]] i32 getCurMusicPosWithOffsets() const override { return this->musicPos; }
+    [[nodiscard]] f32 getApproachTime() const override { return this->approachTimeMS; }
     [[nodiscard]] f32 getBaseAnimationSpeed() const override { return 1.f; }
+    [[nodiscard]] f32 getSpeedAdjustedAnimationSpeed() const override { return 1.f; }
     [[nodiscard]] ModFlags getModFlags() const override;
 };

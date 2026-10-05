@@ -32,38 +32,6 @@ struct Anim final {
     Ease animType;
     bool started;
 
-    // --- easing math ---
-
-    static forceinline T applyEasing(Ease type, T percent) noexcept {
-        constexpr T half{0.5};
-        constexpr T one{1};
-        constexpr T two{2};
-
-        using enum Ease;
-        switch(type) {
-            case QuadIn:
-                return percent * percent;
-            case QuadOut:
-                return -percent * (percent - two);
-            case QuadInOut:
-                if((percent *= two) < one) return half * percent * percent;
-                percent -= one;
-                return -half * (percent * (percent - two) - one);
-            case CubicIn:
-                return percent * percent * percent;
-            case CubicOut:
-                percent -= one;
-                return percent * percent * percent + one;
-            case QuartIn:
-                return percent * percent * percent * percent;
-            case QuartOut:
-                percent -= one;
-                return one - percent * percent * percent * percent;
-            default:
-                return percent;
-        }
-    }
-
     // --- per-animation tick (returns true if animation finished) ---
 
     forceinline INLINE_BODY bool tick(T &value, T frameTime, u16 slot, u16 idx) noexcept {
@@ -102,7 +70,7 @@ struct Anim final {
             return true;
         }
 
-        percent = applyEasing(animType, percent);
+        percent = ease(animType, percent);
         value = startValue * (one - percent) + target * percent;
         return false;
     }

@@ -1,8 +1,8 @@
 #include "PlayfieldView.h"
 
+#include "Engine.h"
 #include "GameRules.h"
 #include "ModFlags.h"
-#include "Osu.h"
 #include "OsuConVars.h"
 #include "Skin.h"
 
@@ -17,8 +17,6 @@ f32 PlayfieldView::hitcircleOverlapScale(f32 rawHitcircleDiameter, f32 hitcircle
     return (rawHitcircleDiameter / (160.0f)) * osuCoordScaleMultiplier * cv::number_scale_multiplier.getFloat();
 }
 
-const Skin *PlainPlayfieldView::getSkin() const { return osu->getSkin(); }
-
 vec2 PlainPlayfieldView::osuCoords2LegacyPixels(vec2 coords) const {
     return coords - vec2{GameRules::OSU_COORD_WIDTH / 2, GameRules::OSU_COORD_HEIGHT / 2};
 }
@@ -30,6 +28,8 @@ vec2 PlainPlayfieldView::getPlayfieldCenter() const {
 vec2 PlainPlayfieldView::getPlayfieldSize() const {
     return vec2{GameRules::OSU_COORD_WIDTH, GameRules::OSU_COORD_HEIGHT} * this->scale;
 }
+
+vec2 PlainPlayfieldView::getScreenSize() const { return engine->getScreenSize(); }
 
 f32 PlainPlayfieldView::getSliderFollowCircleDiameter() const {
     return this->getHitcircleDiameter() * GameRules::SLIDER_FOLLOW_CIRCLE_MULTIPLIER;

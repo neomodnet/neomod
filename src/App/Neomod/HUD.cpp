@@ -890,7 +890,7 @@ void HUD::drawLoadingSmall(std::string_view text) {
 }
 
 void HUD::drawNumberWithSkinDigits(const SkinDigitDrawOpts &opts) {
-    const Skin *skin = osu->getSkin();
+    const Skin *skin = opts.skin ? opts.skin : osu->getSkin();
     u64 number = opts.number;
 
     u64 divisor = 1;

@@ -14,7 +14,6 @@
 #include "GameRules.h"
 #include "HUD.h"
 #include "ModFPoSu.h"
-#include "Osu.h"
 #include "Sound.h"
 #include "Font.h"
 #include "VertexArrayObject.h"
@@ -37,6 +36,15 @@
 
 namespace neomod {
 using namespace flags::operators;
+
+namespace {
+// what a hit animation started at its hit (from 0.001, so it shows from the hit's frame on) is at elapsedMS of durationMS
+f32 hitAnimationAt(i32 elapsedMS, i32 durationMS) {
+    if(elapsedMS >= durationMS) return 1.0f;
+    const f32 eased = anim::ease(anim::QuadOut, (f32)elapsedMS / (f32)durationMS);
+    return 0.001f * (1.0f - eased) + eased;
+}
+}  // namespace
 
 void HitObject::drawHitResult(const PlayfieldView &view, vec2 pos, LiveHitResult result, f32 animPercentInv,
                               f32 hitDeltaRangePercent) {
@@ -945,6 +953,16 @@ void Circle::update(i32 curPosMS, f64 frameTimeSecs) {
     }
 }
 
+void Circle::pose(i32 timeMS, i32 fadeOutMS) {
+    this->updateLook(timeMS, m_view->getModFlags(), m_view->getApproachTime(),
+                     m_view->getSpeedAdjustedAnimationSpeed());
+
+    m_waiting = false;
+    m_finished = timeMS >= m_clickTimeMS;
+    m_hitAnimation = m_finished ? hitAnimationAt(timeMS - m_clickTimeMS, fadeOutMS) : 0.0f;
+    m_shakeAnimation = 0.0f;
+}
+
 void Circle::updateStackPosition(f32 stackOffset, bool hardRock) {
     m_rawPos = m_originalRawPos - vec2(m_stackNum * stackOffset, m_stackNum * stackOffset * (hardRock ? -1.0f : 1.0f));
 }
@@ -1813,6 +1831,58 @@ void Slider::update(i32 curPosMS, f64 frameTimeSecs) {
     }
 }
 
+void Slider::pose(i32 timeMS, i32 fadeOutMS) {
+    const ModFlags mods = m_view->getModFlags();
+    const f32 animationSpeed = m_view->getSpeedAdjustedAnimationSpeed();
+    this->updateLook(timeMS, mods, m_view->getApproachTime(), animationSpeed);
+
+    const i32 endTimeMS = this->getEndTime();
+    m_startFinished = timeMS >= m_clickTimeMS;
+    m_endFinished = m_finished = timeMS >= endTimeMS;
+    m_heldTillEnd = true;
+    m_endResult = m_finished ? LiveHitResult::HIT_300 : LiveHitResult::HIT_NULL;
+    for(auto &click : m_clicks) {
+        click.finished = click.successful = timeMS >= click.timeMS;
+    }
+    for(auto &tick : m_ticks) {
+        tick.finished = true;
+    }
+    for(const auto &click : m_clicks) {
+        if(click.type == 1 && !click.finished) m_ticks[click.tickIndex].finished = false;
+    }
+
+    // the slide stops where the end was hit, as in play
+    this->updateSlideLook(std::min(timeMS, endTimeMS), mods);
+    m_tracking = m_startFinished;
+    this->updateAnimations(timeMS, animationSpeed);
+
+    // the head at the start, the repeats at theirs and the tail at the end, as onHit() and onRepeatHit() add them
+    m_clickAnimations.clear();
+    const auto addHitAnimAt = [&](i32 hitTimeMS, u8 typeFlags) {
+        if(timeMS < hitTimeMS || timeMS - hitTimeMS >= fadeOutMS || m_clickAnimations.size() >= 128) return;
+        m_clickAnimations.push_back(HitAnim{.percent{hitAnimationAt(timeMS - hitTimeMS, fadeOutMS)}, .type{typeFlags}});
+    };
+    addHitAnimAt(m_clickTimeMS, HitAnim::HEAD);
+    for(const auto &click : m_clicks) {
+        if(click.type == 0) addHitAnimAt(click.timeMS, click.sliderend ? HitAnim::TAIL : HitAnim::HEAD);
+    }
+    addHitAnimAt(endTimeMS, m_repeat % 2 != 0 ? HitAnim::TAIL : HitAnim::HEAD);
+
+    m_endSliderBodyFadeAnimation =
+        m_finished
+            ? hitAnimationAt(timeMS - endTimeMS, (i32)(fadeOutMS * cv::slider_body_fade_out_time_multiplier.getFloat()))
+            : 0.0f;
+
+    // the follow circle pulses on every tick and repeat
+    i32 lastPulseMS = -1;
+    for(const auto &click : m_clicks) {
+        if(click.finished) lastPulseMS = std::max(lastPulseMS, click.timeMS);
+    }
+    const f32 pulseMS = cv::slider_followcircle_tick_pulse_time.getFloat() * animationSpeed * 1000.0f;
+    m_followCircleTickAnimationScale =
+        lastPulseMS < 0 ? 0.0f : std::clamp<f32>((f32)(timeMS - lastPulseMS) / pulseMS, 0.0f, 1.0f);
+}
+
 void Slider::updateSlideLook(i32 curPosMS, ModFlags mods) {
     // slider slide percent
     m_slidePct = 0.0f;
@@ -2380,7 +2450,7 @@ void Slider::rebuildVertexBuffer() {
     const auto rawPoints = m_curve.getPoints();
     std::vector<vec2> osuCoordPoints{rawPoints.begin(), rawPoints.end()};
     for(auto &p : osuCoordPoints) p = m_view->osuCoords2LegacyPixels(p - m_stackOffset);
-    m_mesh = SliderRenderer::generateMesh(osu->getVirtScreenSize(), osuCoordPoints, m_view->getRawHitcircleDiameter(),
+    m_mesh = SliderRenderer::generateMesh(m_view->getScreenSize(), osuCoordPoints, m_view->getRawHitcircleDiameter(),
                                           /*skipOOBPoints=*/true);
 }
 
@@ -2676,7 +2746,8 @@ void Spinner::draw() {
                 HUD::drawNumberWithSkinDigits({.number = (u64)m_bonusSpins * 1000,
                                                .scale = digitScale,
                                                .combo = false,
-                                               .anchor = AnchorPoint::CENTER});
+                                               .anchor = AnchorPoint::CENTER,
+                                               .skin = skin});
             }
             g->popTransform();
         }
@@ -2699,8 +2770,11 @@ void Spinner::draw() {
         {
             g->scale(digitScale, digitScale);
             g->translate(pos.x, pos.y + (f32)skin->i_scores[0]->getHeight() * digitScale / 2.f);
-            HUD::drawNumberWithSkinDigits(
-                {.number = (u64)std::lround(m_RPM), .scale = digitScale, .combo = false, .anchor = AnchorPoint::RIGHT});
+            HUD::drawNumberWithSkinDigits({.number = (u64)std::lround(m_RPM),
+                                           .scale = digitScale,
+                                           .combo = false,
+                                           .anchor = AnchorPoint::RIGHT,
+                                           .skin = skin});
         }
         g->popTransform();
     } else if(m_deltaMS < 0 && cv::skin_always_draw_spinner_rpm.getBool()) {
@@ -2711,9 +2785,9 @@ void Spinner::draw() {
 
         g->pushTransform();
         {
-            g->translate(
-                (i32)(osu->getVirtScreenWidth() / 2 - stringWidth / 2),
-                (i32)(osu->getVirtScreenHeight() - 5 + (5 + rpmFont->getHeight()) * (1.0f - m_alphaWithoutHidden)));
+            const vec2 screen = m_view->getScreenSize();
+            g->translate((i32)((i32)screen.x / 2 - stringWidth / 2),
+                         (i32)((i32)screen.y - 5 + (5 + rpmFont->getHeight()) * (1.0f - m_alphaWithoutHidden)));
             g->drawString(rpmFont, fmt::format("RPM: {}", (i32)(m_RPM + 0.4f)));
         }
         g->popTransform();
@@ -2752,7 +2826,7 @@ void Spinner::update(i32 curPosMS, f64 frameTimeSecs) {
 
         // scale percent calculation
         i32 deltaMS = m_clickTimeMS - (i32)curPosMS;
-        m_percent = 1.0f - std::clamp<f32>((f32)deltaMS / -(f32)(m_durationMS), 0.0f, 1.0f);
+        m_percent = this->getTimeLeftPercent(curPosMS);
 
         // handle auto, mouse spinning movement
         f32 angleDiff = 0;
@@ -2815,6 +2889,30 @@ void Spinner::update(i32 curPosMS, f64 frameTimeSecs) {
             if(m_completedTimeMS < 0 && m_ratio >= 1.0f) m_completedTimeMS = curPosMS;
         }
     }
+}
+
+void Spinner::pose(i32 timeMS, i32 /*fadeOutMS*/) {
+    this->updateLook(timeMS, m_view->getModFlags(), m_view->getApproachTime(),
+                     m_view->getSpeedAdjustedAnimationSpeed());
+
+    m_finished = timeMS >= this->getEndTime();
+    m_percent = this->getTimeLeftPercent(std::min(timeMS, this->getEndTime()));
+
+    // at rest, without a result
+    m_drawRot = 0.0f;
+    m_rotations = 0.0f;
+    m_ratio = 0.0f;
+    m_RPM = 0.0f;
+    m_completedTimeMS = -1;
+    m_firstSpinTimeMS = -1;
+    m_bonusTimeMS = -1;
+    m_bonusSpins = 0;
+    m_hitSuccess = false;
+}
+
+f32 Spinner::getTimeLeftPercent(i32 curPosMS) const {
+    const i32 deltaMS = m_clickTimeMS - curPosMS;
+    return 1.0f - std::clamp<f32>((f32)deltaMS / -(f32)(m_durationMS), 0.0f, 1.0f);
 }
 
 void Spinner::onReset(i32 curPosMS) {

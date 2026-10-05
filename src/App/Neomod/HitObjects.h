@@ -78,6 +78,10 @@ class HitObject {
     virtual void draw2();
     virtual void update(i32 curPosMS, f64 frameTimeMS);
 
+    // shows the object at timeMS as a perfect play would have left it, without judging it: every part hit at its
+    // time, hit animations timeMS - hit time into fadeOutMS of music time, no hit results; spinners aren't spun
+    virtual void pose(i32 timeMS, i32 fadeOutMS) = 0;
+
     virtual void updateStackPosition(f32 /*stackOffset*/, bool /*hardRock*/) {}  // unused by spinners
     virtual void miss(i32 /*curPos*/) {}                                         // only used by notelock
     [[nodiscard]] virtual bool isClickableFrom(i32 /*music_pos*/, vec2 /*cursor_pos*/) const { return false; }
@@ -239,6 +243,7 @@ class Circle final : public HitObject {
     void draw() override;
     void draw2() override;
     void update(i32 curPosMS, f64 frameTimeMS) override;
+    void pose(i32 timeMS, i32 fadeOutMS) override;
 
     void updateStackPosition(f32 stackOffset, bool hardRock) override;
     void miss(i32 curPosMS) override;
@@ -297,6 +302,7 @@ class Slider final : public HitObject, public SliderRenderer::BodySource {
     inline void draw2() override { draw2(true, false); }
     void draw2(bool drawApproachCircle, bool drawOnlyApproachCircle);
     void update(i32 curPosMS, f64 frameTimeSecs) override;
+    void pose(i32 timeMS, i32 fadeOutMS) override;
 
     void updateStackPosition(f32 stackOffset, bool hardRock) override;
     void miss(i32 curPosMS) override;
@@ -432,6 +438,7 @@ class Spinner final : public HitObject {
 
     void draw() override;
     void update(i32 curPosMS, f64 frameTimeSecs) override;
+    void pose(i32 timeMS, i32 fadeOutMS) override;
 
     [[nodiscard]] vec2 getRawPosAt(i32 /*pos*/) const override { return m_rawPos; }
     [[nodiscard]] vec2 getOriginalRawPosAt(i32 /*pos*/) const override { return m_originalRawPos; }
@@ -442,6 +449,8 @@ class Spinner final : public HitObject {
    private:
     void onHit();
     void rotate(f32 rad);
+    // the part of its time left at curPosMS (1 until it starts)
+    [[nodiscard]] f32 getTimeLeftPercent(i32 curPosMS) const;
 
     vec2 m_rawPos;
     vec2 m_originalRawPos;

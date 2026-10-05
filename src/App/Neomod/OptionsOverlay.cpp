@@ -494,7 +494,8 @@ class SkinPreviewElement final : public CBaseUIElement {
         if(!this->bVisible) return;
 
         // screen pixels from the element's vertical center
-        const PlainPlayfieldView view{this->getPos() + vec2(0, this->getSize().y / 2), 1.f, this->getSize().y * 0.5f};
+        const PlainPlayfieldView view{osu->getSkin(), this->getPos() + vec2(0, this->getSize().y / 2), 1.f,
+                                      this->getSize().y * 0.5f};
         const Skin *skin = view.getSkin();
 
         const float hitcircleDiameter = view.getHitcircleDiameter();
@@ -571,7 +572,7 @@ class SliderPreviewElement final : public CBaseUIElement, public SliderRenderer:
         if(!this->bVisible) return;
 
         // screen pixels from the element's position
-        const PlainPlayfieldView view{this->getPos(), 1.f, this->getHitcircleDiameter()};
+        const PlainPlayfieldView view{osu->getSkin(), this->getPos(), 1.f, this->getHitcircleDiameter()};
         const float hitcircleDiameter = view.getHitcircleDiameter();
 
         const float approachScale = std::clamp<float>(1.0f + 1.5f - fmod(engine->getTime() * 3, 3.0f), 0.0f, 2.5f);

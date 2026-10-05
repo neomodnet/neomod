@@ -19,6 +19,7 @@
 #include "EmojiRenderTest.h"
 #include "NetworkTest.h"
 #include "PacketTest.h"
+#include "PlayfieldTest.h"
 #include "SliderRenderTest.h"
 
 #include <array>
@@ -39,6 +40,7 @@ static constexpr std::array sDescriptors{
     AppDescriptor{"EmojiRenderTest", [] -> App * { return new Mc::Tests::EmojiRenderTest(); }},
     AppDescriptor{"NetworkTest", [] -> App * { return new Mc::Tests::NetworkTest(); }},
     AppDescriptor{"PacketTest", [] -> App * { return new Mc::Tests::PacketTest(); }},
+    AppDescriptor{"PlayfieldTest", [] -> App * { return new Mc::Tests::PlayfieldTest(); }},
     AppDescriptor{"SliderRenderTest", [] -> App * { return new Mc::Tests::SliderRenderTest(); }},
 };
 

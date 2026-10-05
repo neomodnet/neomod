@@ -30,6 +30,38 @@ enum class Ease : u8 {
 
 using enum Ease;
 
+// how far an animation with this easing is at percent (0 to 1) of its time, for animating by something other than the
+// frame time
+template <AnimatableType T>
+[[nodiscard]] constexpr T ease(Ease type, T percent) {
+    constexpr T half{0.5};
+    constexpr T one{1};
+    constexpr T two{2};
+
+    switch(type) {
+        case Ease::QuadIn:
+            return percent * percent;
+        case Ease::QuadOut:
+            return -percent * (percent - two);
+        case Ease::QuadInOut:
+            if((percent *= two) < one) return half * percent * percent;
+            percent -= one;
+            return -half * (percent * (percent - two) - one);
+        case Ease::CubicIn:
+            return percent * percent * percent;
+        case Ease::CubicOut:
+            percent -= one;
+            return percent * percent * percent + one;
+        case Ease::QuartIn:
+            return percent * percent * percent * percent;
+        case Ease::QuartOut:
+            percent -= one;
+            return one - percent * percent * percent * percent;
+        default:
+            return percent;
+    }
+}
+
 // handle to an animated value. value is stored inline; a pool slot is only
 // allocated while an animation is active (lazy allocation).
 // non-copyable, movable. destructor cancels active animations and frees the slot.

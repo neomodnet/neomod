@@ -95,6 +95,7 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
     [[nodiscard]] inline f32 getPlayfieldScaleFactor() const override { return this->fScaleFactor; }
     [[nodiscard]] inline vec2 getPlayfieldSize() const override { return this->vPlayfieldSize; }
     [[nodiscard]] inline vec2 getPlayfieldCenter() const override { return this->vPlayfieldCenter; }
+    [[nodiscard]] vec2 getScreenSize() const override;
     [[nodiscard]] inline f32 getPlayfieldRotation() const { return this->fPlayfieldRotation; }
 
     // hitobjects
@@ -222,6 +223,9 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
     [[nodiscard]] inline i32 getCurMusicPos() const override { return this->iCurMusicPos; }
     [[nodiscard]] inline i32 getCurMusicPosWithOffsets() const override { return this->iCurMusicPosWithOffsets; }
     [[nodiscard]] inline f32 getBaseAnimationSpeed() const override { return this->fBaseAnimationSpeedFactor; }
+    [[nodiscard]] inline f32 getSpeedAdjustedAnimationSpeed() const override {
+        return this->fSpeedAdjustedAnimationSpeedFactor;
+    }
     [[nodiscard]] ModFlags getModFlags() const override;
 
     // helper utility to avoid needing to apply convar/beatmap/audio engine related offsets to raw pos manually
