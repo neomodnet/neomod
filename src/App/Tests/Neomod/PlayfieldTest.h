@@ -16,7 +16,7 @@ class HitObject;
 
 namespace Mc::Tests {
 
-// a map's hitobjects drawn at any time without gameplay (no BeatmapInterface, no Osu): its own skin, a
+// a map's hitobjects and follow points drawn at any time without gameplay (no BeatmapInterface, no Osu): its own skin, a
 // PlainPlayfieldView fitted into the window, the objects from createHitObjects() posed at the time.
 // -testarg:map FILE.osu, -testarg:time MS (pft_time sets it later); Left/Right 100 ms (Shift: 10), Up/Down 1 s, Space
 // plays. -testarg:corpus DIR draws every map under DIR at several times instead, then exits

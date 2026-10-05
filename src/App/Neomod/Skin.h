@@ -7,6 +7,7 @@
 #include "SkinImage.h"
 
 #include <array>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -105,8 +106,8 @@ struct Skin final {
     void reloadSounds();
 
     // drawable helpers
-    [[nodiscard]] Color getComboColorForCounter(int i, int offset) const;
-    inline void setBeatmapComboColors(std::vector<Color> colors) { this->c_beatmap_combo_colors = std::move(colors); }
+    // the colour of the i-th combo: the map's colours (skipped ahead by offset) unless they're ignored, else the skin's
+    [[nodiscard]] Color getComboColorForCounter(int i, int offset, std::span<const Color> beatmapColors = {}) const;
 
     // these theoretically "should" match osu!stable mod image stacking order (by increasing bit position)
     static void getModImagesForMods(std::vector<SkinImage Skin::*> &outVec, LegacyFlags flags);
@@ -433,7 +434,6 @@ struct Skin final {
     Color c_input_overlay_text;
 
     std::vector<Color> c_combo_colors;
-    std::vector<Color> c_beatmap_combo_colors;
 
     // custom
     std::vector<std::string> filepaths_for_random_skin;

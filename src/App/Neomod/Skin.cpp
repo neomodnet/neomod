@@ -963,12 +963,12 @@ void Skin::fixupPrefix(std::string &prefix, const std::string &baseDir) {
     logIf(debug, "prefix fixup result: {}", prefix);
 }
 
-Color Skin::getComboColorForCounter(int i, int offset) const {
+Color Skin::getComboColorForCounter(int i, int offset, std::span<const Color> beatmapColors) const {
     i += cv::skin_color_index_add.getInt();
     i = std::max(i, 0);
 
-    if(this->c_beatmap_combo_colors.size() > 0 && !cv::ignore_beatmap_combo_colors.getBool())
-        return this->c_beatmap_combo_colors[(i + offset) % this->c_beatmap_combo_colors.size()];
+    if(beatmapColors.size() > 0 && !cv::ignore_beatmap_combo_colors.getBool())
+        return beatmapColors[(i + offset) % beatmapColors.size()];
     else if(this->c_combo_colors.size() > 0)
         return this->c_combo_colors[i % this->c_combo_colors.size()];
     else

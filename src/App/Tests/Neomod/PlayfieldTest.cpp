@@ -88,7 +88,7 @@ bool PlayfieldTest::load(const std::string &path) {
     m_view.rawHitcircleDiameter = GameRules::getRawHitCircleDiameter(c.CS);
     m_view.approachTimeMS = GameRules::mapDifficultyRange(
         c.AR, GameRules::getMinApproachTime(), GameRules::getMidApproachTime(), GameRules::getMaxApproachTime());
-    m_skin->setBeatmapComboColors(c.combocolors);
+    m_view.comboColors = c.combocolors;
 
     m_objects = createHitObjects(c, nullptr, &m_view);
     stackHitObjects(m_objects, c.AR, c.version, c.stackLeniency, m_view.rawHitcircleDiameter, false);
@@ -129,6 +129,8 @@ void PlayfieldTest::drawAt(i32 timeMS) {
         e.obj->pose(timeMS, fadeOutMS);
         m_shown.push_back(&e);
     }
+
+    drawFollowPoints(m_view, m_objects, 0);
 
     // as gameplay draws them: spinners first, then the others latest-ending first (so earlier ones end up on top), their
     // second pass the other way round

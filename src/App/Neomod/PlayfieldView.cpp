@@ -44,3 +44,7 @@ f32 PlainPlayfieldView::getHitcircleOverlapScale() const {
 }
 
 ModFlags PlainPlayfieldView::getModFlags() const { return ModFlags::None; }
+
+Color PlainPlayfieldView::getComboColor(i32 colorCounter, i32 colorOffset) const {
+    return this->skin->getComboColorForCounter(colorCounter, colorOffset, this->comboColors);
+}

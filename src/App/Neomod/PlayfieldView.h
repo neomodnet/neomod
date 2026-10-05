@@ -2,7 +2,10 @@
 
 #include "noinclude.h"
 #include "types.h"
+#include "Color.h"
 #include "Vectors.h"
+
+#include <vector>
 
 struct Skin;
 enum class ModFlags : u64;
@@ -57,6 +60,9 @@ class PlayfieldView {
     [[nodiscard]] virtual vec2 getFirstPersonCursorDelta() const { return vec2{0.f}; }
     [[nodiscard]] virtual bool slidersRenderDynamically() const { return false; }
 
+    // the colour of a combo (colorCounter from the start, skipped ahead by colorOffset)
+    [[nodiscard]] virtual Color getComboColor(i32 colorCounter, i32 colorOffset) const = 0;
+
     // the number and overlap scale that go with a circle size
     [[nodiscard]] static f32 numberScale(const Skin *skin, f32 rawHitcircleDiameter, f32 hitcircleDiameter);
     [[nodiscard]] static f32 hitcircleOverlapScale(f32 rawHitcircleDiameter, f32 hitcircleDiameter);
@@ -69,9 +75,10 @@ class PlainPlayfieldView final : public PlayfieldView {
         : skin(skin), offset(offset), scale(scale), rawHitcircleDiameter(rawHitcircleDiameter) {}
 
     const Skin *skin;
-    vec2 offset;               // where osu!px (0, 0) lands
-    f32 scale;                 // osu!px to screen px
-    f32 rawHitcircleDiameter;  // osu!px
+    std::vector<Color> comboColors;  // the map's, if any
+    vec2 offset;                     // where osu!px (0, 0) lands
+    f32 scale;                       // osu!px to screen px
+    f32 rawHitcircleDiameter;        // osu!px
     f32 approachTimeMS{0.f};
     i32 musicPos{0};
 
@@ -98,4 +105,6 @@ class PlainPlayfieldView final : public PlayfieldView {
     [[nodiscard]] f32 getBaseAnimationSpeed() const override { return 1.f; }
     [[nodiscard]] f32 getSpeedAdjustedAnimationSpeed() const override { return 1.f; }
     [[nodiscard]] ModFlags getModFlags() const override;
+
+    [[nodiscard]] Color getComboColor(i32 colorCounter, i32 colorOffset) const override;
 };

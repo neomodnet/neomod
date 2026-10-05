@@ -670,7 +670,7 @@ bool BeatmapInterface::start() {
         // move temp result data into beatmap
         this->hitobjects = std::move(result.hitobjects);
         this->breaks = std::move(result.breaks);
-        this->getSkinMutable()->setBeatmapComboColors(std::move(result.combocolors));  // update combo colors in skin
+        this->comboColors = std::move(result.combocolors);
 
         this->cur_timing_info = {};
         this->default_sample_set = result.defaultSampleSet;
@@ -1235,6 +1235,10 @@ const Skin *BeatmapInterface::getSkin() const { return osu->getSkin(); }
 Skin *BeatmapInterface::getSkinMutable() { return osu->getSkinMutable(); }
 
 ModFlags BeatmapInterface::getModFlags() const { return this->getMods().flags; }
+
+Color BeatmapInterface::getComboColor(i32 colorCounter, i32 colorOffset) const {
+    return this->getSkin()->getComboColorForCounter(colorCounter, colorOffset, this->comboColors);
+}
 
 bool BeatmapInterface::slidersRenderDynamically() const { return osu->slidersRenderDynamically(); }
 
@@ -1820,7 +1824,8 @@ void BeatmapInterface::draw() {
     }
 
     // draw followpoints
-    if(cv::draw_followpoints.getBool() && !cv::mod_mafham.getBool()) this->drawFollowPoints();
+    if(cv::draw_followpoints.getBool() && !cv::mod_mafham.getBool())
+        drawFollowPoints(*this, this->hitobjects, (uSz)std::max(0, this->iPreviousFollowPointObjectIndex));
 
     // draw all hitobjects in reverse
     if(cv::draw_hitobjects.getBool()) this->drawHitObjects();
@@ -2051,158 +2056,6 @@ void BeatmapInterface::drawContinue() {
     g->popTransform();
 }
 
-void BeatmapInterface::drawFollowPoints() {
-    const auto &skin = this->getSkin();
-
-    const i32 curPos = this->iCurMusicPosWithOffsets;
-
-    // I absolutely hate this, followpoints can be abused for cheesing high AR reading since they always fade in with a
-    // fixed 800 ms custom approach time. Capping it at the current approach rate seems sensible, but unfortunately
-    // that's not what osu is doing. It was non-osu-compliant-clamped since this client existed, but let's see how many
-    // people notice a change after all this time (26.02.2020)
-
-    // 0.7x means animation lasts only 0.7 of it's time
-    const f64 animationMultiplier = this->getSpeedAdjustedAnimationSpeed();
-    const i32 followPointApproachTime =
-        animationMultiplier *
-        (cv::followpoints_clamp.getBool()
-             ? std::min((i32)this->fCachedApproachTimeForUpdate, (i32)cv::followpoints_approachtime.getFloat())
-             : (i32)cv::followpoints_approachtime.getFloat());
-    const bool followPointsConnectCombos = cv::followpoints_connect_combos.getBool();
-    const bool followPointsConnectSpinners = cv::followpoints_connect_spinners.getBool();
-    const f32 followPointSeparationMultiplier = std::max(cv::followpoints_separation_multiplier.getFloat(), 0.1f);
-    const f32 followPointPrevFadeTime = animationMultiplier * cv::followpoints_prevfadetime.getFloat();
-    const f32 followPointScaleMultiplier = cv::followpoints_scale_multiplier.getFloat();
-
-    // include previous object in followpoints
-    int lastObjectIndex = -1;
-
-    for(int index = this->iPreviousFollowPointObjectIndex; index < this->hitobjects.size(); index++) {
-        lastObjectIndex = index - 1;
-
-        // ignore future spinners
-        auto *spinnerPointer = this->hitobjects[index] && this->hitobjects[index]->getType() == HitObjectType::SPINNER
-                                   ? static_cast<Spinner *>(this->hitobjects[index].get())
-                                   : nullptr;
-        if(spinnerPointer != nullptr && !followPointsConnectSpinners)  // if this is a spinner
-        {
-            lastObjectIndex = -1;
-            continue;
-        }
-
-        const bool isCurrentHitObjectNewCombo =
-            (lastObjectIndex >= 0 ? this->hitobjects[lastObjectIndex]->isEndOfCombo() : false);
-        const bool isCurrentHitObjectSpinner =
-            (lastObjectIndex >= 0 && followPointsConnectSpinners
-                 ? this->hitobjects[lastObjectIndex] &&
-                       this->hitobjects[lastObjectIndex]->getType() == HitObjectType::SPINNER
-                 : false);
-        if(lastObjectIndex >= 0 && (!isCurrentHitObjectNewCombo || followPointsConnectCombos ||
-                                    (isCurrentHitObjectSpinner && followPointsConnectSpinners))) {
-            // ignore previous spinners
-            spinnerPointer = this->hitobjects[lastObjectIndex] &&
-                                     this->hitobjects[lastObjectIndex]->getType() == HitObjectType::SPINNER
-                                 ? static_cast<Spinner *>(this->hitobjects[lastObjectIndex].get())
-                                 : nullptr;
-            if(spinnerPointer != nullptr && !followPointsConnectSpinners)  // if this is a spinner
-            {
-                lastObjectIndex = -1;
-                continue;
-            }
-
-            // get time & pos of the last and current object
-            const i32 lastObjectEndTime = this->hitobjects[lastObjectIndex]->getClickTime() +
-                                          this->hitobjects[lastObjectIndex]->getDuration() + 1;
-            const i32 objectStartTime = this->hitobjects[index]->getClickTime();
-            const i32 timeDiff = objectStartTime - lastObjectEndTime;
-
-            const vec2 startPointRaw = this->hitobjects[lastObjectIndex]->getRawPosAt(lastObjectEndTime);
-            const vec2 endPointRaw = this->hitobjects[index]->getRawPosAt(objectStartTime);
-            const vec2 startPoint = this->osuCoords2Pixels(startPointRaw);
-            const vec2 endPoint = this->osuCoords2Pixels(endPointRaw);
-
-            const f32 xDiff = endPoint.x - startPoint.x;
-            const f32 yDiff = endPoint.y - startPoint.y;
-            const vec2 diff = endPoint - startPoint;
-
-            // NOTE: dist and separation are in osu!pixels, so that followpoint placement is independent of how the
-            // playfield is scaled to the screen (only the final positions are mapped to screen space)
-            const f32 dist = vec::length(endPointRaw - startPointRaw);
-
-            // draw all points between the two objects
-            const int followPointSeparation = 32.0f * followPointSeparationMultiplier;
-            for(int j = (int)(followPointSeparation * 1.5f); j < (dist - followPointSeparation);
-                j += followPointSeparation) {
-                const f32 animRatio = ((f32)j / dist);
-
-                const vec2 animPosStart = startPoint + (animRatio - 0.1f) * diff;
-                const vec2 finalPos = startPoint + animRatio * diff;
-
-                const i32 fadeInTime = (i32)(lastObjectEndTime + animRatio * timeDiff) - followPointApproachTime;
-                const i32 fadeOutTime = (i32)(lastObjectEndTime + animRatio * timeDiff);
-
-                // draw
-                f32 alpha = 1.0f;
-                f32 followAnimPercent =
-                    std::clamp<f32>((f32)(curPos - fadeInTime) / (f32)followPointPrevFadeTime, 0.0f, 1.0f);
-                followAnimPercent = -followAnimPercent * (followAnimPercent - 2.0f);  // quad out
-
-                // NOTE: only internal osu default skin uses scale + move transforms here, it is impossible to achieve
-                // this effect with user skins
-                const f32 scale = cv::followpoints_anim.getBool() ? 1.5f - 0.5f * followAnimPercent : 1.0f;
-                const vec2 followPos = cv::followpoints_anim.getBool()
-                                           ? animPosStart + (finalPos - animPosStart) * followAnimPercent
-                                           : finalPos;
-
-                // bullshit performance optimization: only draw followpoints if within screen bounds (plus a bit of a
-                // margin) there is only one beatmap where this matters currently: https://osu.ppy.sh/b/1145513
-                if(followPos.x < -osu->getVirtScreenWidth() || followPos.x > osu->getVirtScreenWidth() * 2 ||
-                   followPos.y < -osu->getVirtScreenHeight() || followPos.y > osu->getVirtScreenHeight() * 2)
-                    continue;
-
-                // calculate trail alpha
-                if(curPos >= fadeInTime && curPos < fadeOutTime) {
-                    // future trail
-                    const f32 delta = curPos - fadeInTime;
-                    alpha = (f32)delta / (f32)followPointApproachTime;
-                } else if(curPos >= fadeOutTime && curPos < (fadeOutTime + (i32)followPointPrevFadeTime)) {
-                    // previous trail
-                    const i32 delta = curPos - fadeOutTime;
-                    alpha = 1.0f - (f32)delta / (f32)(followPointPrevFadeTime);
-                } else
-                    alpha = 0.0f;
-
-                // draw it
-                g->setColor(Color(0xffffffff).setA(alpha));
-
-                g->pushTransform();
-                {
-                    g->rotate(vec::degrees(std::atan2(yDiff, xDiff)));
-
-                    skin->i_followpoint.setAnimationTimeOffset(skin->anim_speed, fadeInTime);
-
-                    // NOTE: getSizeBaseRaw() depends on the current animation time being set correctly beforehand!
-                    // (otherwise you get incorrect scales, e.g. for animated elements with inconsistent @2x mixed in)
-                    // the followpoints are scaled by one eighth of the hitcirclediameter (not the raw diameter, but the
-                    // scaled diameter)
-                    const f32 followPointImageScale =
-                        ((this->fHitcircleDiameter / 8.0f) / skin->i_followpoint.getSizeBaseRaw().x) *
-                        followPointScaleMultiplier;
-
-                    skin->i_followpoint.drawRaw(followPos, followPointImageScale * scale);
-                }
-                g->popTransform();
-            }
-        }
-
-        // store current index as previous index
-        lastObjectIndex = index;
-
-        // iterate up until the "nextest" element
-        if(this->hitobjects[index]->getClickTime() >= curPos + followPointApproachTime) break;
-    }
-}
-
 void BeatmapInterface::drawHitObjects() {
     const i32 curPos = this->iCurMusicPosWithOffsets;
     const i32 pvs = this->getPVS();
@@ -2350,7 +2203,8 @@ void BeatmapInterface::drawHitObjects() {
         }
 
         // draw followpoints
-        if(cv::draw_followpoints.getBool()) this->drawFollowPoints();
+        if(cv::draw_followpoints.getBool())
+            drawFollowPoints(*this, this->hitobjects, (uSz)std::max(0, this->iPreviousFollowPointObjectIndex));
 
         // draw live hitobjects (also, code duplication yay)
         {

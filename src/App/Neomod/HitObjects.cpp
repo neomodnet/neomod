@@ -529,7 +529,7 @@ void Circle::drawApproachCircle(const PlayfieldView &view, vec2 rawPos, i32 numb
     rainbowNumber = number;
     rainbowColorCounter = colorCounter;
 
-    Color comboColor = Colors::scale(view.getSkin()->getComboColorForCounter(colorCounter, colorOffset),
+    Color comboColor = Colors::scale(view.getComboColor(colorCounter, colorOffset),
                                      colorRGBMultiplier * cv::circle_color_saturation.getFloat());
 
     drawApproachCircle(view.getSkin(), view.osuCoords2Pixels(rawPos), comboColor, view.getHitcircleDiameter(),
@@ -549,7 +549,7 @@ void Circle::drawCircle(const PlayfieldView &view, vec2 rawPos, i32 number, i32 
     const vec2 pos = view.osuCoords2Pixels(rawPos);
     const f32 hitcircleDiameter = view.getHitcircleDiameter();
 
-    Color comboColor = Colors::scale(skin->getComboColorForCounter(colorCounter, colorOffset),
+    Color comboColor = Colors::scale(view.getComboColor(colorCounter, colorOffset),
                                      colorRGBMultiplier * cv::circle_color_saturation.getFloat());
 
     // approach circle
@@ -607,7 +607,7 @@ void Circle::drawSliderStartCircle(const PlayfieldView &view, vec2 rawPos, i32 n
     const vec2 pos = view.osuCoords2Pixels(rawPos);
     const f32 hitcircleDiameter = view.getHitcircleDiameter();
 
-    Color comboColor = Colors::scale(skin->getComboColorForCounter(colorCounter, colorOffset),
+    Color comboColor = Colors::scale(view.getComboColor(colorCounter, colorOffset),
                                      colorRGBMultiplier * cv::circle_color_saturation.getFloat());
 
     // circle
@@ -655,7 +655,7 @@ void Circle::drawSliderEndCircle(const PlayfieldView &view, vec2 rawPos, i32 num
     const vec2 pos = view.osuCoords2Pixels(rawPos);
     const f32 hitcircleDiameter = view.getHitcircleDiameter();
 
-    Color comboColor = Colors::scale(skin->getComboColorForCounter(colorCounter, colorOffset),
+    Color comboColor = Colors::scale(view.getComboColor(colorCounter, colorOffset),
                                      colorRGBMultiplier * cv::circle_color_saturation.getFloat());
 
     // circle
@@ -1210,7 +1210,7 @@ void Slider::draw() {
         const bool reverseStart = reversePossible && (m_reverseArrowPos == 1 || m_reverseArrowPos == 3);
         if(reverseEnd || reverseStart) {
             // if the combo color is nearly white, blacken the reverse arrow
-            Color comboColor = skin->getComboColorForCounter(m_colorCounter, m_colorOffset);
+            Color comboColor = m_view->getComboColor(m_colorCounter, m_colorOffset);
             Color reverseArrowColor = 0xffffffff;
             if((comboColor.Rf() + comboColor.Gf() + comboColor.Bf()) / 3.0f >
                cv::slider_reverse_arrow_black_threshold.getFloat())
@@ -1405,11 +1405,10 @@ void Slider::draw2(bool drawApproachCircle, bool drawOnlyApproachCircle) {
             f32 ballAngle = vec::degrees(std::atan2(c2.y - c1.y, c2.x - c1.x));
             if(skin->o_sliderball_flip) ballAngle += (m_curRepeat % 2 == 0) ? 0 : 180;
 
-            g->setColor(skin->o_allow_sliderball_tint
-                            ? (cv::slider_ball_tint_combo_color.getBool()
-                                   ? skin->getComboColorForCounter(m_colorCounter, m_colorOffset)
-                                   : skin->c_slider_ball)
-                            : rgb(255, 255, 255));
+            g->setColor(skin->o_allow_sliderball_tint ? (cv::slider_ball_tint_combo_color.getBool()
+                                                             ? m_view->getComboColor(m_colorCounter, m_colorOffset)
+                                                             : skin->c_slider_ball)
+                                                      : rgb(255, 255, 255));
             g->pushTransform();
             {
                 g->rotate(ballAngle);
@@ -1482,15 +1481,14 @@ std::optional<SliderRenderer::Body> Slider::getBody() const {
 
     alwaysPointsBuf.clear();
     alwaysPointsBuf.push_back(m_view->osuCoords2Pixels(curvePointAt(m_slidePct)));
-    return SliderRenderer::Body{
-        .alwaysPoints = alwaysPointsBuf,
-        .hitcircleDiameter = m_view->getHitcircleDiameter(),
-        .from = 0.0f,
-        .to = 0.0f,
-        .skinSettings = {m_view->getSkin()},
-        .undimmedColor = m_view->getSkin()->getComboColorForCounter(m_colorCounter, m_colorOffset),
-        .alpha = 1.0f - m_endSliderBodyFadeAnimation,
-        .sliderTimeForRainbow = m_clickTimeMS};
+    return SliderRenderer::Body{.alwaysPoints = alwaysPointsBuf,
+                                .hitcircleDiameter = m_view->getHitcircleDiameter(),
+                                .from = 0.0f,
+                                .to = 0.0f,
+                                .skinSettings = {m_view->getSkin()},
+                                .undimmedColor = m_view->getComboColor(m_colorCounter, m_colorOffset),
+                                .alpha = 1.0f - m_endSliderBodyFadeAnimation,
+                                .sliderTimeForRainbow = m_clickTimeMS};
 }
 
 SliderRenderer::Body Slider::makeBody(f32 alpha, f32 from, f32 to) const {
@@ -1508,16 +1506,15 @@ SliderRenderer::Body Slider::makeBody(f32 alpha, f32 from, f32 to) const {
                 curvePointAt(m_sliderSnakePercent)));  // snakeoutpoint (only while snaking out)
     }
 
-    SliderRenderer::Body body{
-        .alwaysPoints = alwaysPointsBuf,
-        .hitcircleDiameter = m_view->getHitcircleDiameter(),
-        .from = from,
-        .to = to,
-        .skinSettings = {m_view->getSkin()},
-        .undimmedColor = m_view->getSkin()->getComboColorForCounter(m_colorCounter, m_colorOffset),
-        .colorRGBMultiplier = m_hittableDimRGBColorMultiplierPct,
-        .alpha = alpha,
-        .sliderTimeForRainbow = m_clickTimeMS};
+    SliderRenderer::Body body{.alwaysPoints = alwaysPointsBuf,
+                              .hitcircleDiameter = m_view->getHitcircleDiameter(),
+                              .from = from,
+                              .to = to,
+                              .skinSettings = {m_view->getSkin()},
+                              .undimmedColor = m_view->getComboColor(m_colorCounter, m_colorOffset),
+                              .colorRGBMultiplier = m_hittableDimRGBColorMultiplierPct,
+                              .alpha = alpha,
+                              .sliderTimeForRainbow = m_clickTimeMS};
 
     if(m_view->slidersRenderDynamically()) {
         // peppy sliders: the shape changes every frame
@@ -3116,6 +3113,158 @@ void stackHitObjects(std::span<const std::unique_ptr<HitObject>> objects, f32 AR
     const f32 stackOffset = rawHitcircleDiameter * STACK_OFFSET;
     for(const auto &hitobject : objects) {
         if(hitobject->getStack() != 0) hitobject->updateStackPosition(stackOffset, hardRock);
+    }
+}
+
+void drawFollowPoints(const PlayfieldView &view, std::span<const std::unique_ptr<HitObject>> objects, uSz firstIndex) {
+    const Skin *skin = view.getSkin();
+
+    const i32 curPos = view.getCurMusicPosWithOffsets();
+
+    // I absolutely hate this, followpoints can be abused for cheesing high AR reading since they always fade in with a
+    // fixed 800 ms custom approach time. Capping it at the current approach rate seems sensible, but unfortunately
+    // that's not what osu is doing. It was non-osu-compliant-clamped since this client existed, but let's see how many
+    // people notice a change after all this time (26.02.2020)
+
+    // 0.7x means animation lasts only 0.7 of it's time
+    const f64 animationMultiplier = view.getSpeedAdjustedAnimationSpeed();
+    const i32 followPointApproachTime =
+        animationMultiplier *
+        (cv::followpoints_clamp.getBool()
+             ? std::min((i32)view.getApproachTime(), (i32)cv::followpoints_approachtime.getFloat())
+             : (i32)cv::followpoints_approachtime.getFloat());
+    const bool followPointsConnectCombos = cv::followpoints_connect_combos.getBool();
+    const bool followPointsConnectSpinners = cv::followpoints_connect_spinners.getBool();
+    const f32 followPointSeparationMultiplier = std::max(cv::followpoints_separation_multiplier.getFloat(), 0.1f);
+    const f32 followPointPrevFadeTime = animationMultiplier * cv::followpoints_prevfadetime.getFloat();
+    const f32 followPointScaleMultiplier = cv::followpoints_scale_multiplier.getFloat();
+    const int screenWidth = (int)view.getScreenSize().x;
+    const int screenHeight = (int)view.getScreenSize().y;
+
+    // include previous object in followpoints
+    int lastObjectIndex = -1;
+
+    for(int index = (int)firstIndex; index < objects.size(); index++) {
+        lastObjectIndex = index - 1;
+
+        // ignore future spinners
+        auto *spinnerPointer = objects[index] && objects[index]->getType() == HitObjectType::SPINNER
+                                   ? static_cast<Spinner *>(objects[index].get())
+                                   : nullptr;
+        if(spinnerPointer != nullptr && !followPointsConnectSpinners)  // if this is a spinner
+        {
+            lastObjectIndex = -1;
+            continue;
+        }
+
+        const bool isCurrentHitObjectNewCombo =
+            (lastObjectIndex >= 0 ? objects[lastObjectIndex]->isEndOfCombo() : false);
+        const bool isCurrentHitObjectSpinner =
+            (lastObjectIndex >= 0 && followPointsConnectSpinners
+                 ? objects[lastObjectIndex] && objects[lastObjectIndex]->getType() == HitObjectType::SPINNER
+                 : false);
+        if(lastObjectIndex >= 0 && (!isCurrentHitObjectNewCombo || followPointsConnectCombos ||
+                                    (isCurrentHitObjectSpinner && followPointsConnectSpinners))) {
+            // ignore previous spinners
+            spinnerPointer = objects[lastObjectIndex] && objects[lastObjectIndex]->getType() == HitObjectType::SPINNER
+                                 ? static_cast<Spinner *>(objects[lastObjectIndex].get())
+                                 : nullptr;
+            if(spinnerPointer != nullptr && !followPointsConnectSpinners)  // if this is a spinner
+            {
+                lastObjectIndex = -1;
+                continue;
+            }
+
+            // get time & pos of the last and current object
+            const i32 lastObjectEndTime =
+                objects[lastObjectIndex]->getClickTime() + objects[lastObjectIndex]->getDuration() + 1;
+            const i32 objectStartTime = objects[index]->getClickTime();
+            const i32 timeDiff = objectStartTime - lastObjectEndTime;
+
+            const vec2 startPointRaw = objects[lastObjectIndex]->getRawPosAt(lastObjectEndTime);
+            const vec2 endPointRaw = objects[index]->getRawPosAt(objectStartTime);
+            const vec2 startPoint = view.osuCoords2Pixels(startPointRaw);
+            const vec2 endPoint = view.osuCoords2Pixels(endPointRaw);
+
+            const f32 xDiff = endPoint.x - startPoint.x;
+            const f32 yDiff = endPoint.y - startPoint.y;
+            const vec2 diff = endPoint - startPoint;
+
+            // NOTE: dist and separation are in osu!pixels, so that followpoint placement is independent of how the
+            // playfield is scaled to the screen (only the final positions are mapped to screen space)
+            const f32 dist = vec::length(endPointRaw - startPointRaw);
+
+            // draw all points between the two objects
+            const int followPointSeparation = 32.0f * followPointSeparationMultiplier;
+            for(int j = (int)(followPointSeparation * 1.5f); j < (dist - followPointSeparation);
+                j += followPointSeparation) {
+                const f32 animRatio = ((f32)j / dist);
+
+                const vec2 animPosStart = startPoint + (animRatio - 0.1f) * diff;
+                const vec2 finalPos = startPoint + animRatio * diff;
+
+                const i32 fadeInTime = (i32)(lastObjectEndTime + animRatio * timeDiff) - followPointApproachTime;
+                const i32 fadeOutTime = (i32)(lastObjectEndTime + animRatio * timeDiff);
+
+                // draw
+                f32 alpha = 1.0f;
+                f32 followAnimPercent =
+                    std::clamp<f32>((f32)(curPos - fadeInTime) / (f32)followPointPrevFadeTime, 0.0f, 1.0f);
+                followAnimPercent = -followAnimPercent * (followAnimPercent - 2.0f);  // quad out
+
+                // NOTE: only internal osu default skin uses scale + move transforms here, it is impossible to achieve
+                // this effect with user skins
+                const f32 scale = cv::followpoints_anim.getBool() ? 1.5f - 0.5f * followAnimPercent : 1.0f;
+                const vec2 followPos = cv::followpoints_anim.getBool()
+                                           ? animPosStart + (finalPos - animPosStart) * followAnimPercent
+                                           : finalPos;
+
+                // bullshit performance optimization: only draw followpoints if within screen bounds (plus a bit of a
+                // margin) there is only one beatmap where this matters currently: https://osu.ppy.sh/b/1145513
+                if(followPos.x < -screenWidth || followPos.x > screenWidth * 2 || followPos.y < -screenHeight ||
+                   followPos.y > screenHeight * 2)
+                    continue;
+
+                // calculate trail alpha
+                if(curPos >= fadeInTime && curPos < fadeOutTime) {
+                    // future trail
+                    const f32 delta = curPos - fadeInTime;
+                    alpha = (f32)delta / (f32)followPointApproachTime;
+                } else if(curPos >= fadeOutTime && curPos < (fadeOutTime + (i32)followPointPrevFadeTime)) {
+                    // previous trail
+                    const i32 delta = curPos - fadeOutTime;
+                    alpha = 1.0f - (f32)delta / (f32)(followPointPrevFadeTime);
+                } else
+                    alpha = 0.0f;
+
+                // draw it
+                g->setColor(Color(0xffffffff).setA(alpha));
+
+                g->pushTransform();
+                {
+                    g->rotate(vec::degrees(std::atan2(yDiff, xDiff)));
+
+                    skin->i_followpoint.setAnimationTimeOffset(skin->anim_speed, fadeInTime);
+
+                    // NOTE: getSizeBaseRaw() depends on the current animation time being set correctly beforehand!
+                    // (otherwise you get incorrect scales, e.g. for animated elements with inconsistent @2x mixed in)
+                    // the followpoints are scaled by one eighth of the hitcirclediameter (not the raw diameter, but the
+                    // scaled diameter)
+                    const f32 followPointImageScale =
+                        ((view.getHitcircleDiameter() / 8.0f) / skin->i_followpoint.getSizeBaseRaw().x) *
+                        followPointScaleMultiplier;
+
+                    skin->i_followpoint.drawRaw(followPos, followPointImageScale * scale);
+                }
+                g->popTransform();
+            }
+        }
+
+        // store current index as previous index
+        lastObjectIndex = index;
+
+        // iterate up until the "nextest" element
+        if(objects[index]->getClickTime() >= curPos + followPointApproachTime) break;
     }
 }
 }  // namespace neomod

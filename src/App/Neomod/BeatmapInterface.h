@@ -227,6 +227,7 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
         return this->fSpeedAdjustedAnimationSpeedFactor;
     }
     [[nodiscard]] ModFlags getModFlags() const override;
+    [[nodiscard]] Color getComboColor(i32 colorCounter, i32 colorOffset) const override;
 
     // helper utility to avoid needing to apply convar/beatmap/audio engine related offsets to raw pos manually
     [[nodiscard]] i32 convertRawToOffsetMusicPos(i32 rawMusicPos) const;
@@ -337,6 +338,9 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
     // drain
     f64 fDrainRate;
 
+    // the map's combo colours
+    std::vector<Color> comboColors;
+
     // breaks
     std::vector<DBBreak> breaks;
     AnimFloat fBreakBackgroundFade;
@@ -385,7 +389,6 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
 
     FinishedScore saveAndSubmitScore(bool quit);
 
-    void drawFollowPoints();
     void drawHitObjects();
     void drawSmoke();
 
