@@ -1,7 +1,7 @@
 #pragma once
 // Copyright (c) 2015, PG, All rights reserved.
 #include "App.h"
-#include "DirectoryWatcher.h"
+#include "Registration.h"
 #include "MouseListener.h"
 #include "Touch.h"
 #include "Rect.h"
@@ -300,7 +300,7 @@ class Osu final : public App, public MouseListener, public TouchListener {
     std::unique_ptr<ModFPoSu> fposu{nullptr};
 
     // imports .osk files dropped into skins/
-    DirectoryWatcher::Watch skinsWatch;
+    Mc::Registration skinsWatch;
 
     // rendering
     RenderTarget *backBuffer{nullptr};

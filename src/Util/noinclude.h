@@ -52,6 +52,14 @@ inline bool isInt(float f) { return (f == static_cast<float>(static_cast<int>(f)
                                                               \
    private:
 
+// on an API that keeps what it's given with no Mc::Registration to revoke it: an error in code that gets unloaded while
+// the program runs (compiled with MC_RELOADABLE_CODE), since nothing could stop it from running that code afterwards
+#ifdef MC_RELOADABLE_CODE
+#define MC_UNREVOCABLE [[deprecated("keeps what it is given with no Mc::Registration to revoke it")]]
+#else
+#define MC_UNREVOCABLE
+#endif
+
 // create string view literal
 #define MC_SV(string__) \
     std::string_view_literals::operator""sv(string__, (sizeof(string__) / sizeof((string__)[0]) - 1))

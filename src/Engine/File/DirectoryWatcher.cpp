@@ -34,14 +34,14 @@ struct DirWatcherImpl {
         this->thr = Sync::jthread([this](const Sync::stop_token& stoken) { return this->worker_loop(stoken); });
     }
     ~DirWatcherImpl() {
-        assert(this->watches.empty() && "a Watch outlived the DirectoryWatcher");
+        assert(std::ranges::all_of(this->watches, &WatchEntry::detached) && "a watch outlived the DirectoryWatcher");
         // (the worker waits on the wakeup notification)
         this->thr.request_stop();
         this->thr.join();
         this->destroy_wakeup_notification();
     }
 
-    u32 watch_directory(std::string path, FileChangeCallback cb) {
+    u64 watch_directory(std::string path, FileChangeCallback cb) {
         assert(McThread::is_main_thread() && "directory watches belong to the main thread");
         if(!path.ends_with('/')) path.push_back('/');
         if(!std::ranges::contains(this->watches, path, &WatchEntry::dir)) {
@@ -56,10 +56,14 @@ struct DirWatcherImpl {
         return this->last_id;
     }
 
-    void stop_watching(u32 id) {
+    void end_watch(u64 id, Mc::Registration::End how) {
         assert(McThread::is_main_thread() && "directory watches belong to the main thread");
         const auto it = std::ranges::find(this->watches, id, &WatchEntry::id);
         if(it == this->watches.end()) return;
+        if(how == Mc::Registration::End::DETACH) {
+            it->detached = true;
+            return;
+        }
         const std::string dir = std::move(it->dir);
         this->watches.erase(it);
         if(!std::ranges::contains(this->watches, dir, &WatchEntry::dir)) {
@@ -84,9 +88,9 @@ struct DirWatcherImpl {
 
         // every callback is looked up right before it runs, since the one before it may have stopped any watch.
         // watches started from a callback don't get the events from before they existed (ids only grow)
-        const u32 newest = this->last_id;
+        const u64 newest = this->last_id;
         for(const auto& [dir, event] : events) {
-            for(u32 after = 0;;) {
+            for(u64 after = 0;;) {
                 const auto it = std::ranges::find_if(
                     this->watches, [&](const WatchEntry& w) { return w.id > after && w.id <= newest && w.dir == dir; });
                 if(it == this->watches.end()) break;
@@ -110,13 +114,14 @@ struct DirWatcherImpl {
     };
 
     struct WatchEntry {
-        u32 id;
+        u64 id;
         std::string dir;
         FileChangeCallback cb;
+        bool detached{false};  // no Registration left that could stop it
     };
     // main thread only, in the order they were started
     std::vector<WatchEntry> watches;
-    u32 last_id{0};
+    u64 last_id{0};
 
     // what the worker watches: every directory that has a watch
     Sync::mutex directories_mtx;
@@ -582,26 +587,11 @@ DirectoryWatcher::DirectoryWatcher() : pImpl() {}
 
 DirectoryWatcher::~DirectoryWatcher() = default;
 
-DirectoryWatcher::Watch DirectoryWatcher::watch_directory(std::string path, FileChangeCallback cb) {
-    return {this, pImpl->watch_directory(std::move(path), std::move(cb))};
+Mc::Registration DirectoryWatcher::watch_directory(std::string path, FileChangeCallback cb) {
+    return {[](void* self, u64 id, Mc::Registration::End how) {
+                static_cast<DirectoryWatcher*>(self)->pImpl->end_watch(id, how);
+            },
+            this, pImpl->watch_directory(std::move(path), std::move(cb))};
 }
-
-void DirectoryWatcher::stop_watching(u32 id) { return pImpl->stop_watching(id); }
 
 void DirectoryWatcher::update() { return pImpl->update(); }
-
-DirectoryWatcher::Watch::Watch(Watch&& other) noexcept
-    : watcher(std::exchange(other.watcher, nullptr)), id(std::exchange(other.id, 0)) {}
-
-DirectoryWatcher::Watch& DirectoryWatcher::Watch::operator=(Watch&& other) noexcept {
-    if(this != &other) {
-        this->reset();
-        this->watcher = std::exchange(other.watcher, nullptr);
-        this->id = std::exchange(other.id, 0);
-    }
-    return *this;
-}
-
-void DirectoryWatcher::Watch::reset() {
-    if(this->watcher) std::exchange(this->watcher, nullptr)->stop_watching(this->id);
-}

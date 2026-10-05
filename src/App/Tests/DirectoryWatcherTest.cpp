@@ -43,13 +43,13 @@ DirectoryWatcherTest::DirectoryWatcherTest()
     m_other = record(m_two, "other");
 }
 
-DirectoryWatcher::Watch DirectoryWatcherTest::record(const std::string &dir, const std::string &name) {
+Mc::Registration DirectoryWatcherTest::record(const std::string &dir, const std::string &name) {
     return directoryWatcher->watch_directory(dir, [this, name](const FileChangeEvent &ev) {
         m_seen[name].push_back(Environment::getFileNameFromFilePath(ev.path));
     });
 }
 
-DirectoryWatcher::Watch DirectoryWatcherTest::rearming() {
+Mc::Registration DirectoryWatcherTest::rearming() {
     // (the captured name puts the closure on the heap: a callback running from storage that its own stop freed shows
     // under asan)
     return directoryWatcher->watch_directory(m_one, [this, name = std::string{"rearming"}](const FileChangeEvent &ev) {

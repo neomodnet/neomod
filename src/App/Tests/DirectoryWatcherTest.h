@@ -21,9 +21,9 @@ class DirectoryWatcherTest : public App {
 
    private:
     // a watch of `dir` that records the names of the files it's told about under `name`
-    DirectoryWatcher::Watch record(const std::string &dir, const std::string &name);
+    Mc::Registration record(const std::string &dir, const std::string &name);
     // records under "rearming", and replaces itself with a new one when it sees "third"
-    DirectoryWatcher::Watch rearming();
+    Mc::Registration rearming();
     [[nodiscard]] size_t seen(const std::string &watch, const std::string &file) const;
     void finish();
 
@@ -37,7 +37,7 @@ class DirectoryWatcherTest : public App {
     std::string m_one;
     std::string m_two;
     std::unordered_map<std::string, std::vector<std::string>> m_seen;
-    DirectoryWatcher::Watch m_first, m_second, m_other, m_victim, m_rearming, m_late;
+    Mc::Registration m_first, m_second, m_other, m_victim, m_rearming, m_late;
 };
 
 }  // namespace Mc::Tests

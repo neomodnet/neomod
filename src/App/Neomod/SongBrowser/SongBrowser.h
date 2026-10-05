@@ -5,7 +5,7 @@
 #include "AnimationHandler.h"
 #include "AsyncCancellable.h"
 #include "AsyncChannel.h"
-#include "DirectoryWatcher.h"
+#include "Registration.h"
 #include "MapExporter.h"
 #include "MapFetcher.h"
 #include "ScreenBackable.h"
@@ -369,7 +369,7 @@ class SongBrowser final : public ScreenBackable {
     UIOverlay *loadingOverlay{nullptr};
 
     // keeps the database in sync with maps/ while it's loaded (a load scans maps/ itself)
-    DirectoryWatcher::Watch mapsWatch;
+    Mc::Registration mapsWatch;
 
     // to avoid transitive includes
     struct MD5HashMap;
