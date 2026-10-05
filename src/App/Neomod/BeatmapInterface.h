@@ -70,11 +70,9 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
 
     [[nodiscard]] vec2 legacyPixels2RawPixels(
         vec2 coords) const;  // only used for bounds calculations atm (just scales, nothing else)
-    [[nodiscard]] vec2 pixels2OsuCoords(vec2 pixelCoords) const override;  // only used for positional audio atm
+    [[nodiscard]] vec2 pixels2OsuCoords(vec2 pixelCoords) const;  // only used for positional audio atm
     [[nodiscard]] vec2 osuCoords2Pixels(
         vec2 coords) const override;  // hitobjects should use this one (includes lots of special behaviour)
-    [[nodiscard]] vec2 osuCoords2RawPixels(vec2 coords)
-        const override;  // raw transform from osu!pixels to absolute screen pixels (without any mods whatsoever)
     [[nodiscard]] vec2 osuCoords2LegacyPixels(vec2 coords)
         const override;  // only applies vanilla osu mods and static mods to the coordinates (used for generating
                          // the static slider mesh) centered at (0, 0, 0)

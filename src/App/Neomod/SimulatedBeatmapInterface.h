@@ -23,14 +23,8 @@ class SimulatedBeatmapInterface final : public AbstractBeatmapInterface {
     [[nodiscard]] const Replay::Mods &getMods() const override { return this->mods; }
     [[nodiscard]] LegacyFlags getModsLegacy() const override { return this->mods.to_legacy(); }
 
-    [[nodiscard]] vec2 pixels2OsuCoords(vec2 pixelCoords) const override;  // only used for positional audio atm
     [[nodiscard]] vec2 osuCoords2Pixels(
         vec2 coords) const override;  // hitobjects should use this one (includes lots of special behaviour)
-    [[nodiscard]] vec2 osuCoords2RawPixels(vec2 coords)
-        const override;  // raw transform from osu!pixels to absolute screen pixels (without any mods whatsoever)
-    [[nodiscard]] vec2 osuCoords2LegacyPixels(vec2 coords)
-        const override;  // only applies vanilla osu mods and static mods to the coordinates (used for generating
-                         // the static slider mesh) centered at (0, 0, 0)
 
     // cursor
     [[nodiscard]] vec2 getCursorPos() const override;
@@ -85,8 +79,8 @@ class SimulatedBeatmapInterface final : public AbstractBeatmapInterface {
 
     // HitObject and other helper functions
     LiveHitResult addHitResult(neomod::HitObject *hitObject, LiveHitResult hit, i32 delta, bool isEndOfCombo = false,
-                                bool ignoreOnHitErrorBar = false, bool hitErrorBarOnly = false,
-                                bool ignoreCombo = false, bool ignoreScore = false, bool ignoreHealth = false) override;
+                               bool ignoreOnHitErrorBar = false, bool hitErrorBarOnly = false, bool ignoreCombo = false,
+                               bool ignoreScore = false, bool ignoreHealth = false) override;
     void addSliderBreak() override;
     void addHealth(f64 percent, bool isFromHitResult);
 

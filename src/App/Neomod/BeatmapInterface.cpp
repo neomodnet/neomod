@@ -3689,14 +3689,6 @@ vec2 BeatmapInterface::osuCoords2Pixels(vec2 coords) const {
     return coords;
 }
 
-vec2 BeatmapInterface::osuCoords2RawPixels(vec2 coords) const {
-    // scale and offset
-    coords *= this->fScaleFactor;
-    coords += this->vPlayfieldOffset;  // the offset is already scaled, just add it
-
-    return coords;
-}
-
 vec2 BeatmapInterface::osuCoords2LegacyPixels(vec2 coords) const {
     if(osu->getModHR()) coords.y = GameRules::OSU_COORD_HEIGHT - coords.y;
     if(cv::playfield_mirror_horizontal.getBool()) coords.y = GameRules::OSU_COORD_HEIGHT - coords.y;

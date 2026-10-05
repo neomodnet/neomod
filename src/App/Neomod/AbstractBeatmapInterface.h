@@ -30,7 +30,8 @@ struct Click {
     i32 musicPosMS;       // current music position when the click happened
 };
 
-// either simulated or actual
+// the play that judges hitobjects: gameplay, or a simulated play (watched replays, spectating, seeks) that only keeps
+// the score
 class AbstractBeatmapInterface {
     NOCOPY_NOMOVE(AbstractBeatmapInterface)
    public:
@@ -87,10 +88,8 @@ class AbstractBeatmapInterface {
     virtual void playSpinnerBonusSound();
     virtual void addTargetHit(f32 delta, f32 angle);  // the Target mod's hits, by distance and angle from the center
 
-    [[nodiscard]] virtual vec2 pixels2OsuCoords(vec2 pixelCoords) const = 0;
+    // osu!px to the space the cursor is in
     [[nodiscard]] virtual vec2 osuCoords2Pixels(vec2 coords) const = 0;
-    [[nodiscard]] virtual vec2 osuCoords2RawPixels(vec2 coords) const = 0;
-    [[nodiscard]] virtual vec2 osuCoords2LegacyPixels(vec2 coords) const = 0;
 
     f64 fHpMultiplierComboEnd = 1.0;
     f64 fHpMultiplierNormal = 1.0;

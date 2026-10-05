@@ -687,8 +687,6 @@ void SimulatedBeatmapInterface::update(f64 frame_time) {
     }
 }
 
-vec2 SimulatedBeatmapInterface::pixels2OsuCoords(vec2 pixelCoords) const { return pixelCoords; }
-
 vec2 SimulatedBeatmapInterface::osuCoords2Pixels(vec2 coords) const {
     if((this->mods.has(ModFlags::HardRock))) coords.y = GameRules::OSU_COORD_HEIGHT - coords.y;
 
@@ -723,18 +721,6 @@ vec2 SimulatedBeatmapInterface::osuCoords2Pixels(vec2 coords) const {
         coords.x = std::clamp<f32>(coords.x, 0.0f, GameRules::OSU_COORD_WIDTH);
         coords.y = std::clamp<f32>(coords.y, 0.0f, GameRules::OSU_COORD_HEIGHT);
     }
-
-    return coords;
-}
-
-vec2 SimulatedBeatmapInterface::osuCoords2RawPixels(vec2 coords) const { return coords; }
-
-vec2 SimulatedBeatmapInterface::osuCoords2LegacyPixels(vec2 coords) const {
-    if((this->mods.has(ModFlags::HardRock))) coords.y = GameRules::OSU_COORD_HEIGHT - coords.y;
-
-    // VR center
-    coords.x -= GameRules::OSU_COORD_WIDTH / 2;
-    coords.y -= GameRules::OSU_COORD_HEIGHT / 2;
 
     return coords;
 }
