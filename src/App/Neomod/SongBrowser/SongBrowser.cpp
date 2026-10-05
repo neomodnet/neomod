@@ -942,8 +942,12 @@ void SongBrowser::tick() {
 
     // dispatch export notifications
     for(auto &n : this->exportNotifications.drain()) {
-        ui->getNotificationOverlay()->addToast(std::move(n.msg), n.success ? SUCCESS_TOAST : ERROR_TOAST,
-                                               std::move(n.click_cb));
+        const Color color = n.success ? SUCCESS_TOAST : ERROR_TOAST;
+        if(n.click_cb) {
+            ui->getNotificationOverlay()->addToast(std::move(n.msg), color, std::move(n.click_cb)).detach();
+        } else {
+            ui->getNotificationOverlay()->addToast(std::move(n.msg), color);
+        }
     }
 }
 

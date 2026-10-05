@@ -3,6 +3,7 @@
 #include "AnimationHandler.h"
 #include "CBaseUIButton.h"
 #include "KeyboardEvent.h"
+#include "Registration.h"
 #include "UIScreen.h"
 
 #include <memory>
@@ -36,6 +37,9 @@ class ToastElement final : public CBaseUIButton {
 
     inline void setTimeout(f64 timeout) { this->timeout = std::max(timeout, 0.5); }
     void freezeTimeout();  // stop the timeout at the currently remaining time
+    void dismiss();        // times out right away
+
+    u64 callbackId{0};  // NotificationOverlay's click callback for it, 0 if none
 
    private:
     std::vector<std::string> lines;
@@ -57,20 +61,12 @@ class NotificationOverlay final : public UIScreen {
 
     void onChar(KeyboardEvent &e) override;
 
+    // any thread
+    void addToast(std::string text, Color borderColor, ToastElement::TYPE type = ToastElement::TYPE::SYSTEM);
+    // `callback` runs (on the main thread) when the toast is clicked; resetting the Registration also dismisses it
     using ToastClickCallback = std::function<void()>;
-    struct ToastOpts {
-        std::string text;
-        ToastClickCallback callback{};
-        f64 timeout{ToastElement::DEFAULT_TOAST_TIMEOUT};
-        Color borderColor;
-        ToastElement::TYPE type{ToastElement::TYPE::SYSTEM};
-    };
-    void addToast(ToastOpts opts);
-    inline void addToast(std::string text, Color borderColor, ToastClickCallback callback = {},
-                         ToastElement::TYPE type = ToastElement::TYPE::SYSTEM) {
-        return this->addToast(
-            {.text = std::move(text), .callback = std::move(callback), .borderColor = borderColor, .type = type});
-    }
+    Mc::Registration addToast(std::string text, Color borderColor, ToastClickCallback callback,
+                              ToastElement::TYPE type = ToastElement::TYPE::SYSTEM);
 
     void addNotification(std::string text, Color textColor = 0xffffffff, bool waitForKey = false,
                          float duration = -1.0f);
@@ -80,6 +76,9 @@ class NotificationOverlay final : public UIScreen {
     inline bool isWaitingForKey() { return this->bWaitForKey || this->bConsumeNextChar; }
 
    private:
+    void addToastElement(std::string text, Color borderColor, ToastElement::TYPE type, u64 callbackId);
+    void onToastClicked(u64 callbackId);
+    void endToastCallback(u64 callbackId, Mc::Registration::End how);
     void updateVisibility();
     // stacks the toasts up from the bottom right corner, the newest at the bottom
     void layoutToasts();
@@ -103,6 +102,15 @@ class NotificationOverlay final : public UIScreen {
     struct Mutex;
     std::unique_ptr<Mutex> notifMtx;
     std::vector<std::unique_ptr<ToastElement>> toasts;
+    // the toasts' click callbacks, here rather than in the toasts so that a click runs a copy (it may end its own
+    // Registration) and a reset takes effect even for a toast that's being clicked
+    struct ToastCallback {
+        u64 id;
+        ToastClickCallback callback;
+        bool detached{false};
+    };
+    std::vector<ToastCallback> toastCallbacks;
+    u64 lastToastCallbackId{0};
 
     NOTIFICATION notification1;
     NOTIFICATION notification2;

@@ -1288,23 +1288,25 @@ void Osu::showNotification(const NotificationInfo &info) {
     }
 
     if(info.nclass == NotificationClass::TOAST) {
+        const auto toast = [&](Color color) {
+            if(info.callback) {
+                noverlay->addToast(info.text, color, info.callback).detach();
+            } else {
+                noverlay->addToast(info.text, color);
+            }
+        };
         using enum NotificationPreset;
         switch(info.preset) {
             case CUSTOM:
-                noverlay->addToast(info.text, info.custom_color, info.callback);
-                return;
+                return toast(info.custom_color);
             case INFO:
-                noverlay->addToast(info.text, INFO_TOAST, info.callback);
-                return;
+                return toast(INFO_TOAST);
             case ERROR:
-                noverlay->addToast(info.text, ERROR_TOAST, info.callback);
-                return;
+                return toast(ERROR_TOAST);
             case SUCCESS:
-                noverlay->addToast(info.text, SUCCESS_TOAST, info.callback);
-                return;
+                return toast(SUCCESS_TOAST);
             case STATUS:
-                noverlay->addToast(info.text, STATUS_TOAST, info.callback);
-                return;
+                return toast(STATUS_TOAST);
         }
         std::unreachable();
     } else if(info.nclass == NotificationClass::BANNER) {
@@ -1456,13 +1458,16 @@ void Osu::saveScreenshot() {
                     notif->addNotification(std::move(error), 0xffff0000, false, 3.0f);
                 } else if constexpr(Env::cfg(OS::WASM)) {
                     const bool copied = cv::screenshot_clipboard.getBool() && env->setClipBoardImage(pngData);
-                    notif->addToast(copied ? _("Screenshot copied to clipboard (click to open in a new tab)")
-                                           : _("Screenshot taken (click to open in a new tab)"),
-                                    CHAT_TOAST, [png = std::move(pngData)] {
-                                        if(!env->openDataInDefaultBrowser(png, "image/png")) {
-                                            debugLog("couldn't open the screenshot in a new tab");
-                                        }
-                                    });
+                    notif
+                        ->addToast(copied ? _("Screenshot copied to clipboard (click to open in a new tab)")
+                                          : _("Screenshot taken (click to open in a new tab)"),
+                                   CHAT_TOAST,
+                                   [png = std::move(pngData)] {
+                                       if(!env->openDataInDefaultBrowser(png, "image/png")) {
+                                           debugLog("couldn't open the screenshot in a new tab");
+                                       }
+                                   })
+                        .detach();
                 } else {
                     std::string toastString;
                     // put it in the clipboard as well
@@ -1472,8 +1477,10 @@ void Osu::saveScreenshot() {
                         toastString = tformat("Screenshot saved to {:s}", screenshotFilename);
                     }
 
-                    notif->addToast(std::move(toastString), CHAT_TOAST,
-                                    [file = std::move(screenshotFilename)] { env->openFileBrowser(file); });
+                    notif
+                        ->addToast(std::move(toastString), CHAT_TOAST,
+                                   [file = std::move(screenshotFilename)] { env->openFileBrowser(file); })
+                        .detach();
                 }
             });
     };
@@ -1883,8 +1890,10 @@ void Osu::exportSkin(std::string_view name) {
             using enum SkinArchive::ExportResult::Status;
             switch(res.status) {
                 case Exported:
-                    notif->addToast(tformat("Skin exported to {:s}", res.path), SUCCESS_TOAST,
-                                    [path = res.path] { env->openFileBrowser(path); });
+                    notif
+                        ->addToast(tformat("Skin exported to {:s}", res.path), SUCCESS_TOAST,
+                                   [path = res.path] { env->openFileBrowser(path); })
+                        .detach();
                     return;
                 case DefaultSkin:
                     notif->addToast(_("Can't export the default skin."), ERROR_TOAST);

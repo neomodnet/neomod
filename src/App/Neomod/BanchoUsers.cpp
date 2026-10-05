@@ -98,7 +98,7 @@ void logout_user(i32 user_id) {
 
         if(user_info->is_friend() && cv::notify_friend_status_change.getBool()) {
             auto text = fmt::format("{} is now offline", user_info->name);
-            ui->getNotificationOverlay()->addToast(text, STATUS_TOAST, {}, ToastElement::TYPE::CHAT);
+            ui->getNotificationOverlay()->addToast(text, STATUS_TOAST, ToastElement::TYPE::CHAT);
         }
 
         online_users.erase(it);

@@ -220,9 +220,10 @@ void BanchoState::check_and_notify_nonsubmittable() {
     }
 
     if(!currently_submittable && !BanchoState::nonsubmittable_notification_clicked) {
-        ui->getNotificationOverlay()->addToast(
-            "Score will not submit with current mods/settings", ERROR_TOAST,
-            []() -> void { BanchoState::nonsubmittable_notification_clicked = true; });
+        ui->getNotificationOverlay()
+            ->addToast("Score will not submit with current mods/settings", ERROR_TOAST,
+                       []() -> void { BanchoState::nonsubmittable_notification_clicked = true; })
+            .detach();
     }
 }
 
@@ -652,7 +653,7 @@ void BanchoState::handle_packet(PacketReader &packet) {
                     UserInfo *user = BANCHO::User::try_get_user_info(uid);
                     if(user) ui->getChat()->openChannel(user->name);
                 };
-                ui->getNotificationOverlay()->addToast(text, STATUS_TOAST, open_dms, ToastElement::TYPE::CHAT);
+                ui->getNotificationOverlay()->addToast(text, STATUS_TOAST, open_dms, ToastElement::TYPE::CHAT).detach();
             }
 
             ui->getChat()->updateUserList();

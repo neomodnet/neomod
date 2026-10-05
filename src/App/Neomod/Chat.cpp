@@ -1001,9 +1001,11 @@ void Chat::addMessage(std::string channel_name, const ChatMessage &msg, bool mar
     if(should_highlight) {
         // TODO: highlight message
         auto notif = tformat("{} mentioned you in {}", msg.author_name, channel_name);
-        ui->getNotificationOverlay()->addToast(
-            std::move(notif), CHAT_TOAST, [channel_name] { ui->getChat()->openChannel(channel_name); },
-            ToastElement::TYPE::CHAT);
+        ui->getNotificationOverlay()
+            ->addToast(
+                std::move(notif), CHAT_TOAST, [channel_name] { ui->getChat()->openChannel(channel_name); },
+                ToastElement::TYPE::CHAT)
+            .detach();
     }
 
     bool is_pm = msg.author_id != 0 && channel_name[0] != '#' && msg.author_name != BanchoState::get_username();
@@ -1013,9 +1015,11 @@ void Chat::addMessage(std::string channel_name, const ChatMessage &msg, bool mar
 
         if(cv::chat_notify_on_dm.getBool()) {
             auto notif = tformat("{} sent you a message", msg.author_name);
-            ui->getNotificationOverlay()->addToast(
-                std::move(notif), CHAT_TOAST, [channel_name] { ui->getChat()->openChannel(channel_name); },
-                ToastElement::TYPE::CHAT);
+            ui->getNotificationOverlay()
+                ->addToast(
+                    std::move(notif), CHAT_TOAST, [channel_name] { ui->getChat()->openChannel(channel_name); },
+                    ToastElement::TYPE::CHAT)
+                .detach();
         }
         if(cv::chat_ping_on_mention.getBool()) {
             // Yes, osu! really does use "match-start.wav" for when you get pinged
@@ -1028,9 +1032,11 @@ void Chat::addMessage(std::string channel_name, const ChatMessage &msg, bool mar
         (msg.author_id != BanchoState::get_uid()) && SString::contains_ncase(msg.text, BanchoState::get_username());
     if(mentioned && cv::chat_notify_on_mention.getBool()) {
         auto notif = tformat("You were mentioned in {:s}", channel_name);
-        ui->getNotificationOverlay()->addToast(
-            std::move(notif), CHAT_TOAST, [channel_name] { ui->getChat()->openChannel(channel_name); },
-            ToastElement::TYPE::CHAT);
+        ui->getNotificationOverlay()
+            ->addToast(
+                std::move(notif), CHAT_TOAST, [channel_name] { ui->getChat()->openChannel(channel_name); },
+                ToastElement::TYPE::CHAT)
+            .detach();
     }
     if(mentioned && cv::chat_ping_on_mention.getBool()) {
         // Yes, osu! really does use "match-start.wav" for when you get pinged
