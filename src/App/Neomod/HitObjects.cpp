@@ -3,6 +3,7 @@
 #include <cmath>
 #include <utility>
 
+#include "AbstractBeatmapInterface.h"
 #include "AnimationHandler.h"
 #include "BeatmapPrimitives.h"
 #include "BeatmapStacking.h"
@@ -14,21 +15,20 @@
 #include "GameRules.h"
 #include "HUD.h"
 #include "ModFPoSu.h"
-#include "Sound.h"
 #include "Font.h"
 #include "VertexArrayObject.h"
-#include "BeatmapInterface.h"
 #include "DatabaseBeatmap.h"
 #include "PlayfieldView.h"
+#include "Replay.h"
 #include "RenderTarget.h"
 #include "ResourceManager.h"
 #include "Skin.h"
 #include "SkinImage.h"
 #include "SliderRenderer.h"
-#include "SoundEngine.h"
+#include "score.h"
 #include "Logging.h"
-#include "UI.h"
 #include "HitSounds.h"
+#include "LegacyReplay.h"
 #include "crypto.h"
 
 #define WANT_PDQSORT
@@ -249,7 +249,6 @@ void HitObject::drawHitResult(const PlayfieldView &view, vec2 pos, LiveHitResult
 HitObject::HitObject(i32 timeMS, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, i32 comboNumber, bool isEndOfCombo,
                      i32 colorCounter, i32 colorOffset, AbstractBeatmapInterface *judge, const PlayfieldView *view)
     : m_judge(judge),
-      m_pf(dynamic_cast<BeatmapInterface *>(judge)),  // should be NULL if SimulatedBeatmapInterface
       m_view(view),
       m_clickTimeMS(timeMS),
       m_comboNumber(comboNumber),
@@ -481,7 +480,7 @@ void HitObject::addHitResult(LiveHitResult result, i32 delta, bool isEndOfCombo,
         else
             result = LiveHitResult::HIT_MISS;
 
-        if(m_pf != nullptr) ui->getHUD()->addTarget(targetDelta, targetAngle);
+        m_judge->addTargetHit(targetDelta, targetAngle);
     }
 
     const LiveHitResult returnedHit = m_judge->addHitResult(this, result, delta, isEndOfCombo, ignoreOnHitErrorBar,
@@ -1017,13 +1016,13 @@ void Circle::onClickEvent(std::vector<Click> &clicks) {
 
 void Circle::onHit(LiveHitResult result, i32 delta, f32 targetDelta, f32 targetAngle) {
     // sound and hit animation
-    if(m_pf != nullptr && result != LiveHitResult::HIT_MISS) {
-        const vec2 osuCoords = m_pf->pixels2OsuCoords(m_pf->osuCoords2Pixels(m_rawPos));
-        f32 pan = GameRules::osuCoords2Pan(osuCoords.x);
-        HitSoundUtils::play(m_pf, m_hitSamples, pan, delta, m_clickTimeMS);
+    if(result != LiveHitResult::HIT_MISS) {
+        m_judge->playHitSound(m_hitSamples, m_rawPos, delta, m_clickTimeMS);
 
-        m_hitAnimation = 0.001f;  // quickfix for 1 frame missing images
-        m_hitAnimation.set(1.0f, GameRules::getFadeOutTime(m_judge->getBaseAnimationSpeed()), anim::QuadOut);
+        if(m_view != nullptr) {
+            m_hitAnimation = 0.001f;  // quickfix for 1 frame missing images
+            m_hitAnimation.set(1.0f, GameRules::getFadeOutTime(m_view->getBaseAnimationSpeed()), anim::QuadOut);
+        }
     }
 
     // add it, and we are finished
@@ -1037,7 +1036,7 @@ void Circle::onReset(i32 curPosMS) {
     m_waiting = false;
     m_shakeAnimation = 0.0f;
 
-    if(m_pf != nullptr) {
+    if(m_view != nullptr) {
         m_hitAnimation.stop();
     }
 
@@ -1558,15 +1557,13 @@ std::pair<f32, f32> Slider::getSnakeRange() const {
 void Slider::update(i32 curPosMS, f64 frameTimeSecs) {
     HitObject::update(curPosMS, frameTimeSecs);
 
-    if(m_pf != nullptr) {
-        // stop slide sound while paused
-        if(m_pf->isPaused() || !m_pf->isPlaying() || m_pf->hasFailed()) {
-            HitSoundUtils::stopSliderSounds(m_pf, m_lastSliderSampleSets);
-        }
-
-        // animations must be updated even if we are finished
-        updateAnimations(curPosMS, m_pf->getSpeedAdjustedAnimationSpeed());
+    // stop slide sound while paused
+    if(m_judge->isPaused() || !m_judge->isPlaying() || m_judge->hasFailed()) {
+        m_judge->stopSliderSounds(m_lastSliderSampleSets);
     }
+
+    // animations must be updated even if we are finished
+    if(m_view != nullptr) updateAnimations(curPosMS, m_view->getSpeedAdjustedAnimationSpeed());
 
     // all further calculations are only done while we are active
     if(m_finished) {
@@ -1803,32 +1800,13 @@ void Slider::update(i32 curPosMS, f64 frameTimeSecs) {
 
         // handle sliderslide sound
         // TODO @kiwec: move this to draw()
-        if(m_pf != nullptr) {
-            const ModFlags curGameplayFlags = m_pf->getMods().flags;
-
-            const bool sliding = m_startFinished && !m_endFinished && m_cursorInside && m_deltaMS <= 0             //
-                                 && (isClickHeldSlider() || (flags::has<ModFlags::Autoplay>(curGameplayFlags)) ||  //
-                                     (flags::has<ModFlags::Relax>(curGameplayFlags)))                              //
-                                 && !m_pf->isPaused() && !m_pf->isWaiting() && m_pf->isPlaying()                   //
-                                 && !m_pf->bWasSeekFrame;
-
-            if(sliding) {
-                const vec2 osuCoords = m_pf->pixels2OsuCoords(m_pf->osuCoords2Pixels(m_curPointRaw));
-                f32 pan = GameRules::osuCoords2Pan(osuCoords.x);
-                m_lastSliderSampleSets = HitSoundUtils::play(m_pf, m_hitSamples, pan, 0, -1, true);
-            } else if(!m_lastSliderSampleSets.empty()) {
-                // debugLog("not sliding, stopping");
-                // debugLog(
-                //     "bStartFinished {} bEndFinished {} bCursorInside {} iDelta {} "
-                //     "isClickHeldSlider() {} pf->isPaused() {} pf->isWaiting() {} "
-                //     "pf->isPlaying() {} pf->bWasSeekFrame {}",
-                //     !!bStartFinished, !!bEndFinished, !!bCursorInside, iDelta,
-                //     isClickHeldSlider(), pf->isPaused(), pf->isWaiting(), pf->isPlaying(),
-                //     pf->bWasSeekFrame);
-                HitSoundUtils::stopSliderSounds(m_pf, m_lastSliderSampleSets);
-                m_lastSliderSampleSets.clear();
-            }
-        }
+        const ModFlags curGameplayFlags = m_judge->getMods().flags;
+        const bool sliding = m_startFinished && !m_endFinished && m_cursorInside && m_deltaMS <= 0             //
+                             && (isClickHeldSlider() || (flags::has<ModFlags::Autoplay>(curGameplayFlags)) ||  //
+                                 (flags::has<ModFlags::Relax>(curGameplayFlags)))                              //
+                             && !m_judge->isPaused() && !m_judge->isWaiting() && m_judge->isPlaying();
+        m_lastSliderSampleSets =
+            m_judge->updateSliderSlideSounds(sliding, m_hitSamples, m_curPointRaw, m_lastSliderSampleSets);
     }
 }
 
@@ -2121,39 +2099,41 @@ void Slider::onHit(LiveHitResult result, i32 delta, bool isEndCircle, f32 target
     {
         if(result == LiveHitResult::HIT_MISS) {
             if(!isEndResultFromStrictTrackingMod) onSliderBreak();
-        } else if(m_pf != nullptr) {
+        } else {
             if(m_edgeSamples.size() > 0) {
-                const vec2 osuCoords = m_pf->pixels2OsuCoords(m_pf->osuCoords2Pixels(m_curPointRaw));
-                const f32 pan = GameRules::osuCoords2Pan(osuCoords.x);
                 if(isEndCircle) {
-                    HitSoundUtils::play(m_pf, m_edgeSamples.back(), pan, delta, getEndTime());
+                    m_judge->playHitSound(m_edgeSamples.back(), m_curPointRaw, delta, getEndTime());
                 } else {
-                    HitSoundUtils::play(m_pf, m_edgeSamples[0], pan, delta, m_clickTimeMS);
+                    m_judge->playHitSound(m_edgeSamples[0], m_curPointRaw, delta, m_clickTimeMS);
                 }
             }
 
-            const f32 fadeoutTimeSecs = GameRules::getFadeOutTime(m_judge->getBaseAnimationSpeed());
+            if(m_view != nullptr) {
+                const f32 fadeoutTimeSecs = GameRules::getFadeOutTime(m_view->getBaseAnimationSpeed());
 
-            if(!isEndCircle) {
-                addHitAnim(HitAnim::HEAD, fadeoutTimeSecs);
-            } else {
-                if(m_repeat % 2 != 0) {
-                    addHitAnim(HitAnim::TAIL, fadeoutTimeSecs);
-                } else {
+                if(!isEndCircle) {
                     addHitAnim(HitAnim::HEAD, fadeoutTimeSecs);
+                } else {
+                    if(m_repeat % 2 != 0) {
+                        addHitAnim(HitAnim::TAIL, fadeoutTimeSecs);
+                    } else {
+                        addHitAnim(HitAnim::HEAD, fadeoutTimeSecs);
+                    }
                 }
             }
         }
 
         // end body fadeout
-        if(m_pf != nullptr && isEndCircle) {
-            m_endSliderBodyFadeAnimation = 0.001f;  // quickfix for 1 frame missing images
-            m_endSliderBodyFadeAnimation.set(1.0f,
-                                             GameRules::getFadeOutTime(m_judge->getBaseAnimationSpeed()) *
-                                                 cv::slider_body_fade_out_time_multiplier.getFloat(),
-                                             anim::QuadOut);
+        if(isEndCircle) {
+            if(m_view != nullptr) {
+                m_endSliderBodyFadeAnimation = 0.001f;  // quickfix for 1 frame missing images
+                m_endSliderBodyFadeAnimation.set(1.0f,
+                                                 GameRules::getFadeOutTime(m_view->getBaseAnimationSpeed()) *
+                                                     cv::slider_body_fade_out_time_multiplier.getFloat(),
+                                                 anim::QuadOut);
+            }
             // debugLog("stopping due to end body fadeout");
-            HitSoundUtils::stopSliderSounds(m_pf, m_lastSliderSampleSets);
+            m_judge->stopSliderSounds(m_lastSliderSampleSets);
         }
     }
 
@@ -2235,34 +2215,33 @@ void Slider::onRepeatHit(const SLIDERCLICK &click) {
     // sound and hit animation
     if(!click.successful) {
         onSliderBreak();
-    } else if(m_pf != nullptr) {
-        const vec2 osuCoords = m_pf->pixels2OsuCoords(m_pf->osuCoords2Pixels(m_curPointRaw));
-        f32 pan = GameRules::osuCoords2Pan(osuCoords.x);
-
+    } else {
         // Try to play a repeat sample based on what the mapper gave us
         // NOTE: iCurRepeatCounterForHitSounds starts at 1
         const uSz nb_edge_samples = m_edgeSamples.size();
         assert(nb_edge_samples > 0);
         if(std::cmp_less(m_curRepeatCounterForHitSounds + 1, nb_edge_samples)) {
-            HitSoundUtils::play(m_pf, m_edgeSamples[m_curRepeatCounterForHitSounds], pan, 0, click.timeMS);
+            m_judge->playHitSound(m_edgeSamples[m_curRepeatCounterForHitSounds], m_curPointRaw, 0, click.timeMS);
         } else {
             // We have more repeats than edge samples!
             // Just play whatever we can (either the last repeat sample, or the start sample)
-            HitSoundUtils::play(m_pf, m_edgeSamples[nb_edge_samples - 2], pan, 0, click.timeMS);
+            m_judge->playHitSound(m_edgeSamples[nb_edge_samples - 2], m_curPointRaw, 0, click.timeMS);
         }
 
-        f32 animation_multiplier = m_pf->getSpeedAdjustedAnimationSpeed();
-        f32 tick_pulse_time = cv::slider_followcircle_tick_pulse_time.getFloat() * animation_multiplier;
+        if(m_view != nullptr) {
+            f32 animation_multiplier = m_view->getSpeedAdjustedAnimationSpeed();
+            f32 tick_pulse_time = cv::slider_followcircle_tick_pulse_time.getFloat() * animation_multiplier;
 
-        m_followCircleTickAnimationScale = 0.0f;
-        m_followCircleTickAnimationScale.set(1.0f, tick_pulse_time, anim::Linear);
+            m_followCircleTickAnimationScale = 0.0f;
+            m_followCircleTickAnimationScale.set(1.0f, tick_pulse_time, anim::Linear);
 
-        const f32 fadeoutTimeSecs = GameRules::getFadeOutTime(m_judge->getBaseAnimationSpeed());
+            const f32 fadeoutTimeSecs = GameRules::getFadeOutTime(m_view->getBaseAnimationSpeed());
 
-        if(click.sliderend) {
-            addHitAnim(HitAnim::TAIL, fadeoutTimeSecs);
-        } else {
-            addHitAnim(HitAnim::HEAD, fadeoutTimeSecs);
+            if(click.sliderend) {
+                addHitAnim(HitAnim::TAIL, fadeoutTimeSecs);
+            } else {
+                addHitAnim(HitAnim::HEAD, fadeoutTimeSecs);
+            }
         }
     }
 
@@ -2303,49 +2282,16 @@ void Slider::onTickHit(const SLIDERCLICK &click) {
     // sound and hit animation
     if(!click.successful) {
         onSliderBreak();
-    } else if(m_pf != nullptr) {
-        if(const auto *skin = m_pf->getSkin()) {
-            static constexpr std::array SLIDERTICK_SAMPLESET_METHODS{
-                &Skin::s_normal_slidertick,  //
-                &Skin::s_soft_slidertick,    //
-                &Skin::s_drum_slidertick,    //
-            };
+    } else {
+        m_judge->playSliderTickSound(m_hitSamples, m_curPointRaw, click.timeMS);
 
-            const BeatmapDifficulty *beatmap = m_pf->getBeatmap();
-            const auto ti = (click.timeMS != -1 && beatmap) ? beatmap->getTimingInfoForTime(click.timeMS)
-                                                            : m_pf->getCurrentTimingInfo();
-            HitSoundUtils::HitSoundContext ctx{
-                .timingPointSampleSet = ti.sampleSet,
-                .timingPointVolume = ti.volume,
-                .defaultSampleSet = m_pf->getDefaultSampleSet(),
-                .forcedSampleSet = cv::skin_force_hitsound_sample_set.getVal<u8>(),  // unused by sliderticks
-                .layeredHitSounds = false,
-                .ignoreSampleVolume = cv::ignore_beatmap_sample_volume.getBool(),
-                .boostVolume = false,  // unused by sliderticks
-            };
+        if(m_view != nullptr) {
+            f32 animation_multiplier = m_view->getSpeedAdjustedAnimationSpeed();
+            f32 tick_pulse_time = cv::slider_followcircle_tick_pulse_time.getFloat() * animation_multiplier;
 
-            if(const auto tick = HitSoundUtils::resolveSliderTick(m_hitSamples, ctx);
-               tick.set < (i32)SLIDERTICK_SAMPLESET_METHODS.size()) {
-                if(Sound *skin_sound = skin->*SLIDERTICK_SAMPLESET_METHODS[tick.set]) {
-                    const vec2 osuCoords = m_pf->pixels2OsuCoords(m_pf->osuCoords2Pixels(m_curPointRaw));
-                    f32 pan = GameRules::osuCoords2Pan(osuCoords.x);
-                    if(!cv::sound_panning.getBool() ||
-                       (cv::mod_fposu.getBool() && !cv::mod_fposu_sound_panning.getBool()) ||
-                       (cv::mod_fps.getBool() && !cv::mod_fps_sound_panning.getBool())) {
-                        pan = 0.0f;
-                    } else {
-                        pan *= cv::sound_panning_multiplier.getFloat();
-                    }
-                    soundEngine->play(skin_sound, pan, 0.f, tick.volume);
-                }
-            }
+            m_followCircleTickAnimationScale = 0.0f;
+            m_followCircleTickAnimationScale.set(1.0f, tick_pulse_time, anim::Linear);
         }
-
-        f32 animation_multiplier = m_pf->getSpeedAdjustedAnimationSpeed();
-        f32 tick_pulse_time = cv::slider_followcircle_tick_pulse_time.getFloat() * animation_multiplier;
-
-        m_followCircleTickAnimationScale = 0.0f;
-        m_followCircleTickAnimationScale.set(1.0f, tick_pulse_time, anim::Linear);
     }
 
     // add score
@@ -2369,10 +2315,11 @@ void Slider::onSliderBreak() { m_judge->addSliderBreak(); }
 void Slider::onReset(i32 curPosMS) {
     HitObject::onReset(curPosMS);
 
-    if(m_pf != nullptr) {
+    if(m_judge != nullptr) {
         // debugLog("stopping due to onReset");
-        HitSoundUtils::stopSliderSounds(m_pf, m_lastSliderSampleSets);
-
+        m_judge->stopSliderSounds(m_lastSliderSampleSets);
+    }
+    if(m_view != nullptr) {
         m_followCircleTickAnimationScale.stop();
         m_endSliderBodyFadeAnimation.stop();
     }
@@ -2799,11 +2746,8 @@ void Spinner::update(i32 curPosMS, f64 frameTimeSecs) {
     HitObject::update(curPosMS, frameTimeSecs);
 
     // stop spinner sound and don't update() while paused
-    if(m_judge->isPaused() || !m_judge->isPlaying() || (m_pf && m_pf->hasFailed())) {
-        const auto spinner_spinsound = m_pf && m_pf->getSkin() ? m_pf->getSkin()->s_spinner_spin : nullptr;
-        if(spinner_spinsound && spinner_spinsound->isPlaying()) {
-            soundEngine->stop(spinner_spinsound);
-        }
+    if(m_judge->isPaused() || !m_judge->isPlaying() || m_judge->hasFailed()) {
+        m_judge->stopSpinnerSpinSound();
         return;
     }
 
@@ -2919,12 +2863,7 @@ f32 Spinner::getTimeLeftPercent(i32 curPosMS) const {
 void Spinner::onReset(i32 curPosMS) {
     HitObject::onReset(curPosMS);
 
-    {
-        const auto spinner_spinsound = m_pf && m_pf->getSkin() ? m_pf->getSkin()->s_spinner_spin : nullptr;
-        if(spinner_spinsound && spinner_spinsound->isPlaying()) {
-            soundEngine->stop(spinner_spinsound);
-        }
-    }
+    if(m_judge != nullptr) m_judge->stopSpinnerSpinSound();
 
     m_RPM = 0.0f;
     m_drawRot = 0.0f;
@@ -2968,20 +2907,13 @@ void Spinner::onHit() {
     m_hitSuccess = result != LiveHitResult::HIT_MISS;
 
     // sound
-    if(m_pf != nullptr && result != LiveHitResult::HIT_MISS) {
-        const vec2 osuCoords = m_pf->pixels2OsuCoords(m_pf->osuCoords2Pixels(m_rawPos));
-        f32 pan = GameRules::osuCoords2Pan(osuCoords.x);
-        HitSoundUtils::play(m_pf, m_hitSamples, pan, 0);
-    }
+    if(result != LiveHitResult::HIT_MISS) m_judge->playHitSound(m_hitSamples, m_rawPos, 0);
 
     // add it, and we are finished
     addHitResult(result, 0, m_endOfCombo, m_rawPos, -1.0f, 0.f, /*ignoreOnHitErrorBar=*/true);
     m_finished = true;
 
-    const auto spinner_spinsound = m_pf && m_pf->getSkin() ? m_pf->getSkin()->s_spinner_spin : nullptr;
-    if(spinner_spinsound && spinner_spinsound->isPlaying()) {
-        soundEngine->stop(spinner_spinsound);
-    }
+    m_judge->stopSpinnerSpinSound();
 }
 
 void Spinner::rotate(f32 rad) {
@@ -2999,9 +2931,7 @@ void Spinner::rotate(f32 rad) {
             // extra rotations and bonus sound
             m_bonusSpins++;
             m_bonusTimeMS = m_clickTimeMS - m_deltaMS;
-            if(m_pf != nullptr && !m_pf->bWasSeekFrame && m_pf->getSkin()->s_spinner_bonus) {
-                soundEngine->play(m_pf->getSkin()->s_spinner_bonus);
-            }
+            m_judge->playSpinnerBonusSound();
             m_judge->addHitResult(this, LiveHitResult::HIT_SPINNERBONUS, 0, false, true, true, true, true,
                                   false);  // only increase health
             m_judge->addHitResult(this, LiveHitResult::HIT_SPINNERBONUS, 0, false, true, true, true, true,
@@ -3018,22 +2948,7 @@ void Spinner::rotate(f32 rad) {
     }
 
     // spinner sound
-    if(m_pf != nullptr && !m_pf->bWasSeekFrame) {
-        const Skin *skin = m_pf->getSkin();
-        Sound *spinner_spinsound = skin ? skin->s_spinner_spin : nullptr;
-        if(spinner_spinsound) {
-            if(!spinner_spinsound->isPlaying()) {
-                soundEngine->play(spinner_spinsound);
-            }
-            if(skin->o_spinner_frequency_modulate) {
-                const f32 frequency = 20000.0f + (i32)(std::clamp<f32>(m_ratio, 0.0f, 2.5f) * 40000.0f);
-                spinner_spinsound->setFrequency(frequency);
-            } else {
-                // sanity reset
-                spinner_spinsound->setFrequency(0);
-            }
-        }
-    }
+    m_judge->playSpinnerSpinSound(m_ratio);
 
     m_rotations = newRotations;
 }

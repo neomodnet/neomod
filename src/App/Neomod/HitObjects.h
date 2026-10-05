@@ -20,7 +20,6 @@ class ModFPoSu;
 class SkinImage;
 class Image;
 class AbstractBeatmapInterface;
-class BeatmapInterface;
 class PlayfieldView;
 
 struct Click;
@@ -162,9 +161,8 @@ class HitObject {
     HITRESULTANIM m_hitresultanim2;
 
    protected:
-    AbstractBeatmapInterface *m_judge;
-    BeatmapInterface *m_pf;       // NULL when simulating
-    const PlayfieldView *m_view;  // what drawing reads (NULL when simulating)
+    AbstractBeatmapInterface *m_judge;  // the play judging it (NULL: never updated)
+    const PlayfieldView *m_view;        // what it's drawn on (NULL: never drawn, no draw-only animations)
 
     i32 m_comboStartMS{0};  // for freeze time mod
     i32 m_clickTimeMS;

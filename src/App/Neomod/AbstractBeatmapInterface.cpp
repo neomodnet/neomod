@@ -2,9 +2,30 @@
 
 #include "Osu.h"
 #include "GameRules.h"
+#include "HitSounds.h"
 #include "LegacyReplay.h"
 #include "DatabaseBeatmap.h"
 #include "score.h"
+
+using namespace neomod;
+
+void AbstractBeatmapInterface::playHitSound(DatabaseBeatmapTypes::HITSAMPLE_BITS /*samples*/, vec2 /*rawPos*/,
+                                            i32 /*delta*/, i32 /*timeMS*/) {}
+
+void AbstractBeatmapInterface::playSliderTickSound(DatabaseBeatmapTypes::HITSAMPLE_BITS /*samples*/, vec2 /*rawPos*/,
+                                                   i32 /*timeMS*/) {}
+
+std::vector<HitSoundUtils::Set_Slider_Hit> AbstractBeatmapInterface::updateSliderSlideSounds(
+    bool /*sliding*/, DatabaseBeatmapTypes::HITSAMPLE_BITS /*samples*/, vec2 /*rawPos*/,
+    const std::vector<HitSoundUtils::Set_Slider_Hit> & /*started*/) {
+    return {};
+}
+
+void AbstractBeatmapInterface::stopSliderSounds(const std::vector<HitSoundUtils::Set_Slider_Hit> & /*started*/) {}
+void AbstractBeatmapInterface::playSpinnerSpinSound(f32 /*ratio*/) {}
+void AbstractBeatmapInterface::stopSpinnerSpinSound() {}
+void AbstractBeatmapInterface::playSpinnerBonusSound() {}
+void AbstractBeatmapInterface::addTargetHit(f32 /*delta*/, f32 /*angle*/) {}
 
 f32 AbstractBeatmapInterface::getHitWindow300() const {
     return GameRules::mapDifficultyRange(this->getOD(), GameRules::MIN_HITWINDOW_300, GameRules::MID_HITWINDOW_300,

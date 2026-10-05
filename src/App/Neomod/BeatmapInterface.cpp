@@ -2,6 +2,7 @@
 #include "BeatmapInterface.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <limits>
 #include <span>
@@ -25,6 +26,7 @@
 #include "Engine.h"
 #include "GameRules.h"
 #include "HUD.h"
+#include "HitSounds.h"
 #include "HitObjects.h"
 #include "i18n.h"
 #include "LegacyReplay.h"
@@ -1470,6 +1472,102 @@ void BeatmapInterface::addSliderBreak() {
 }
 
 void BeatmapInterface::addScorePoints(int points, bool isSpinner) { osu->getScore()->addPoints(points, isSpinner); }
+
+namespace {
+// a sound's panning from where it happens on the playfield as drawn (mirrors, rotation, mods)
+f32 soundPanAt(const BeatmapInterface &play, vec2 rawPos) {
+    return GameRules::osuCoords2Pan(play.pixels2OsuCoords(play.osuCoords2Pixels(rawPos)).x);
+}
+}  // namespace
+
+void BeatmapInterface::playHitSound(DatabaseBeatmapTypes::HITSAMPLE_BITS samples, vec2 rawPos, i32 delta, i32 timeMS) {
+    HitSoundUtils::play(this, samples, soundPanAt(*this, rawPos), delta, timeMS);
+}
+
+void BeatmapInterface::playSliderTickSound(DatabaseBeatmapTypes::HITSAMPLE_BITS samples, vec2 rawPos, i32 timeMS) {
+    const Skin *skin = this->getSkin();
+    if(!skin) return;
+
+    static constexpr std::array SLIDERTICK_SAMPLESET_METHODS{
+        &Skin::s_normal_slidertick,  //
+        &Skin::s_soft_slidertick,    //
+        &Skin::s_drum_slidertick,    //
+    };
+
+    const auto ti =
+        (timeMS != -1 && this->beatmap) ? this->beatmap->getTimingInfoForTime(timeMS) : this->getCurrentTimingInfo();
+    HitSoundUtils::HitSoundContext ctx{
+        .timingPointSampleSet = ti.sampleSet,
+        .timingPointVolume = ti.volume,
+        .defaultSampleSet = this->getDefaultSampleSet(),
+        .forcedSampleSet = cv::skin_force_hitsound_sample_set.getVal<u8>(),  // unused by sliderticks
+        .layeredHitSounds = false,
+        .ignoreSampleVolume = cv::ignore_beatmap_sample_volume.getBool(),
+        .boostVolume = false,  // unused by sliderticks
+    };
+
+    if(const auto tick = HitSoundUtils::resolveSliderTick(samples, ctx);
+       tick.set < (i32)SLIDERTICK_SAMPLESET_METHODS.size()) {
+        if(Sound *skin_sound = skin->*SLIDERTICK_SAMPLESET_METHODS[tick.set]) {
+            f32 pan = soundPanAt(*this, rawPos);
+            if(!cv::sound_panning.getBool() || (cv::mod_fposu.getBool() && !cv::mod_fposu_sound_panning.getBool()) ||
+               (cv::mod_fps.getBool() && !cv::mod_fps_sound_panning.getBool())) {
+                pan = 0.0f;
+            } else {
+                pan *= cv::sound_panning_multiplier.getFloat();
+            }
+            soundEngine->play(skin_sound, pan, 0.f, tick.volume);
+        }
+    }
+}
+
+std::vector<HitSoundUtils::Set_Slider_Hit> BeatmapInterface::updateSliderSlideSounds(
+    bool sliding, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, vec2 rawPos,
+    const std::vector<HitSoundUtils::Set_Slider_Hit> &started) {
+    if(sliding && !this->bWasSeekFrame)
+        return HitSoundUtils::play(this, samples, soundPanAt(*this, rawPos), 0, -1, true);
+
+    // debugLog("not sliding, stopping");
+    if(!started.empty()) HitSoundUtils::stopSliderSounds(this, started);
+    return {};
+}
+
+void BeatmapInterface::stopSliderSounds(const std::vector<HitSoundUtils::Set_Slider_Hit> &started) {
+    HitSoundUtils::stopSliderSounds(this, started);
+}
+
+void BeatmapInterface::playSpinnerSpinSound(f32 ratio) {
+    if(this->bWasSeekFrame) return;
+
+    const Skin *skin = this->getSkin();
+    Sound *spinner_spinsound = skin ? skin->s_spinner_spin : nullptr;
+    if(spinner_spinsound) {
+        if(!spinner_spinsound->isPlaying()) {
+            soundEngine->play(spinner_spinsound);
+        }
+        if(skin->o_spinner_frequency_modulate) {
+            const f32 frequency = 20000.0f + (i32)(std::clamp<f32>(ratio, 0.0f, 2.5f) * 40000.0f);
+            spinner_spinsound->setFrequency(frequency);
+        } else {
+            // sanity reset
+            spinner_spinsound->setFrequency(0);
+        }
+    }
+}
+
+void BeatmapInterface::stopSpinnerSpinSound() {
+    const Skin *skin = this->getSkin();
+    Sound *spinner_spinsound = skin ? skin->s_spinner_spin : nullptr;
+    if(spinner_spinsound && spinner_spinsound->isPlaying()) {
+        soundEngine->stop(spinner_spinsound);
+    }
+}
+
+void BeatmapInterface::playSpinnerBonusSound() {
+    if(!this->bWasSeekFrame && this->getSkin()->s_spinner_bonus) soundEngine->play(this->getSkin()->s_spinner_bonus);
+}
+
+void BeatmapInterface::addTargetHit(f32 delta, f32 angle) { ui->getHUD()->addTarget(delta, angle); }
 
 void BeatmapInterface::addHealth(f64 percent, bool isFromHitResult) {
     // never drain before first hitobject (or if drain is disabled)

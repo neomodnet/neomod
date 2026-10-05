@@ -30,12 +30,6 @@ class SimulatedBeatmapInterface;
 struct LiveReplayFrame;
 struct ScoreFrame;
 
-struct Click {
-    u64 timestampNS;      // Timing::getTicksNS() when the event occurred
-    vec2 cursorPos{0.f};  // cursor position when the click happened
-    i32 musicPosMS;       // current music position when the click happened
-};
-
 class BeatmapInterface final : public AbstractBeatmapInterface, public PlayfieldView {
     NOCOPY_NOMOVE(BeatmapInterface)
    public:
@@ -269,6 +263,18 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
     void addSliderBreak() override;
     void addScorePoints(int points, bool isSpinner = false) override;
     void addHealth(f64 percent, bool isFromHitResult);
+
+    void playHitSound(neomod::DatabaseBeatmapTypes::HITSAMPLE_BITS samples, vec2 rawPos, i32 delta,
+                      i32 timeMS) override;
+    void playSliderTickSound(neomod::DatabaseBeatmapTypes::HITSAMPLE_BITS samples, vec2 rawPos, i32 timeMS) override;
+    std::vector<neomod::HitSoundUtils::Set_Slider_Hit> updateSliderSlideSounds(
+        bool sliding, neomod::DatabaseBeatmapTypes::HITSAMPLE_BITS samples, vec2 rawPos,
+        const std::vector<neomod::HitSoundUtils::Set_Slider_Hit> &started) override;
+    void stopSliderSounds(const std::vector<neomod::HitSoundUtils::Set_Slider_Hit> &started) override;
+    void playSpinnerSpinSound(f32 ratio) override;
+    void stopSpinnerSpinSound() override;
+    void playSpinnerBonusSound() override;
+    void addTargetHit(f32 delta, f32 angle) override;
 
     void invalidateWholeMapPPInfo();
     [[nodiscard]] inline f32 live_pp() const { return this->ppv2_calc.get_pp(); }

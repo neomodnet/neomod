@@ -1,7 +1,9 @@
 #pragma once
 #include "noinclude.h"
 
-#include "Vectors_fwd.h"
+#include "Vectors.h"
+
+#include <vector>
 
 namespace Replay {
 struct Mods;
@@ -10,10 +12,23 @@ enum class LegacyFlags : u32;
 enum class LiveHitResult : uint8_t;
 namespace neomod {
 class HitObject;
+namespace DatabaseBeatmapTypes {
+struct HITSAMPLE_BITS;
+}
+namespace HitSoundUtils {
+struct Set_Slider_Hit;
+}
 }  // namespace neomod
 
 class DatabaseBeatmap;
 using BeatmapDifficulty = DatabaseBeatmap;
+
+// a click as the play hands it to its objects to judge (HitObject::onClickEvent)
+struct Click {
+    u64 timestampNS;      // Timing::getTicksNS() when the event occurred
+    vec2 cursorPos{0.f};  // cursor position when the click happened
+    i32 musicPosMS;       // current music position when the click happened
+};
 
 // either simulated or actual
 class AbstractBeatmapInterface {
@@ -22,9 +37,9 @@ class AbstractBeatmapInterface {
     AbstractBeatmapInterface() = default;
     virtual ~AbstractBeatmapInterface() = default;
 
-    virtual LiveHitResult addHitResult(neomod::HitObject *hitObject, LiveHitResult hit, i32 delta, bool isEndOfCombo = false,
-                                       bool ignoreOnHitErrorBar = false, bool hitErrorBarOnly = false,
-                                       bool ignoreCombo = false, bool ignoreScore = false,
+    virtual LiveHitResult addHitResult(neomod::HitObject *hitObject, LiveHitResult hit, i32 delta,
+                                       bool isEndOfCombo = false, bool ignoreOnHitErrorBar = false,
+                                       bool hitErrorBarOnly = false, bool ignoreCombo = false, bool ignoreScore = false,
                                        bool ignoreHealth = false) = 0;
 
     [[nodiscard]] virtual u32 getBreakDurationTotal() const = 0;
@@ -35,6 +50,8 @@ class AbstractBeatmapInterface {
     [[nodiscard]] virtual bool isPaused() const = 0;
     [[nodiscard]] virtual bool isPlaying() const = 0;
     [[nodiscard]] virtual bool isWaiting() const = 0;
+    // stopped at a fail (gameplay's fail animation); a simulated play keeps judging after it fails
+    [[nodiscard]] virtual bool hasFailed() const { return false; }
 
     [[nodiscard]] virtual f32 getSpeedMultiplier() const = 0;
     [[nodiscard]] virtual f32 getPitchMultiplier() const = 0;
@@ -53,6 +70,22 @@ class AbstractBeatmapInterface {
 
     virtual void addScorePoints(int points, bool isSpinner = false) = 0;
     virtual void addSliderBreak() = 0;
+
+    // what judging plays and shows besides the results (rawPos: where on the playfield, for panning); a simulated play
+    // has none of it
+    virtual void playHitSound(neomod::DatabaseBeatmapTypes::HITSAMPLE_BITS samples, vec2 rawPos, i32 delta,
+                              i32 timeMS = -1);
+    virtual void playSliderTickSound(neomod::DatabaseBeatmapTypes::HITSAMPLE_BITS samples, vec2 rawPos, i32 timeMS);
+    // a slider's slide sounds while it's slid, stopped otherwise; returns the ones it started (see HitSoundUtils::play)
+    virtual std::vector<neomod::HitSoundUtils::Set_Slider_Hit> updateSliderSlideSounds(
+        bool sliding, neomod::DatabaseBeatmapTypes::HITSAMPLE_BITS samples, vec2 rawPos,
+        const std::vector<neomod::HitSoundUtils::Set_Slider_Hit> &started);
+    // the started ones, or every slider sound if there are none
+    virtual void stopSliderSounds(const std::vector<neomod::HitSoundUtils::Set_Slider_Hit> &started);
+    virtual void playSpinnerSpinSound(f32 ratio);  // ratio: of the spinning speed needed
+    virtual void stopSpinnerSpinSound();
+    virtual void playSpinnerBonusSound();
+    virtual void addTargetHit(f32 delta, f32 angle);  // the Target mod's hits, by distance and angle from the center
 
     [[nodiscard]] virtual vec2 pixels2OsuCoords(vec2 pixelCoords) const = 0;
     [[nodiscard]] virtual vec2 osuCoords2Pixels(vec2 coords) const = 0;
