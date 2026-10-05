@@ -62,7 +62,9 @@ void Graphics::takeScreenshot(std::string_view savePath) {
 void Graphics::processPendingScreenshot() {
     if(m_data->pendingScreenshots.empty()) return;
 
-    for(auto &screenshot : m_data->pendingScreenshots) {
+    // (taken out first: a callback may ask for the next one)
+    auto screenshots = std::exchange(m_data->pendingScreenshots, {});
+    for(auto &screenshot : screenshots) {
         auto &savePath = screenshot.savePath;
         auto &callback = screenshot.dataCB;
 
@@ -94,7 +96,6 @@ void Graphics::processPendingScreenshot() {
             }
         }
     }
-    m_data->pendingScreenshots.clear();
 }
 
 Graphics::Graphics() : m_data() {
