@@ -232,7 +232,7 @@ TIMINGPOINT toTimingPoint(const BeatmapFile::TimingPoint &tp) {
         out.sampleIndex = tp.sampleIndex;
         out.volume = std::clamp(tp.volume, 0, 100);
         out.uninherited = tp.uninherited;
-        out.kiai = tp.effects > 0;
+        out.kiai = (tp.effects & BeatmapFile::TimingPoint::EFFECT_KIAI) != 0;
     }
     return out;
 }
