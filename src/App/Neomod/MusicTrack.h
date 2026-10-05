@@ -58,6 +58,9 @@ class MusicTrack final {
     [[nodiscard]] bool isLooped() const;
     [[nodiscard]] bool isSlowedDown() const { return this->slowdown < 1.f; }
     [[nodiscard]] u32 getPositionMS() const;
+    // what to add to the time for a map's time: the universal offsets and the slow-rate compensation at the track's
+    // rate, and with a map its local, online and old-version offsets
+    [[nodiscard]] i32 getOffset(const DatabaseBeatmap *map) const;
     [[nodiscard]] u32 getLengthMS() const;
     [[nodiscard]] f64 getPositionPct() const;
     [[nodiscard]] f32 getSpeed() const;

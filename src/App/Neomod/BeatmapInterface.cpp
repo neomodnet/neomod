@@ -2332,21 +2332,6 @@ void BeatmapInterface::update() {
     }
 }
 
-i32 BeatmapInterface::convertRawToOffsetMusicPos(i32 rawPos) const {
-    i32 ret = rawPos;
-    ret += (i32)((cv::universal_offset.getFloat() + cv::universal_offset_hardcoded_blamepeppy.getFloat()) *
-                 this->getSpeedMultiplier());
-    ret += cv::universal_offset_norate.getInt();
-    if(this->beatmap) {
-        ret -= this->beatmap->getLocalOffset();
-        ret -= this->beatmap->getOnlineOffset();
-        if(this->beatmap->getVersion() < 5) {
-            ret -= cv::old_beatmap_offset.getInt();
-        }
-    }
-    return ret;
-}
-
 i32 BeatmapInterface::getInterpedMusicPos() const {
     const auto currentTime = Timing::getTimeReal<f64>();
 
@@ -2377,10 +2362,6 @@ i32 BeatmapInterface::getInterpedMusicPos() const {
         } else {
             returnPos = (i32)(realMusicPos = (i64)this->music.getPositionMS());
         }
-
-        if(this->music.getSpeed() < 1.0f && cv::compensate_music_speed.getBool() &&
-           cv::snd_speed_compensate_pitch.getBool())
-            returnPos += (i64)(((1.0f - this->music.getSpeed()) / 0.75f) * 5);  // osu (new)
     }
 
     if(cv::debug_snd.getInt() > 1) {
@@ -2508,7 +2489,7 @@ void BeatmapInterface::update2() {
         }
 
         // ugh. force update all hitobjects while waiting (necessary because of pvs optimization)
-        i32 curPos = this->convertRawToOffsetMusicPos(this->iCurMusicPos);
+        i32 curPos = this->iCurMusicPos + this->music.getOffset(this->beatmap);
         if(curPos > -1)  // otherwise auto would already click elements that start at exactly 0 (while the map has not
                          // even started)
             curPos = -1;
@@ -2563,7 +2544,7 @@ void BeatmapInterface::update2() {
     }
 
     // update timing (with offsets)
-    this->iCurMusicPosWithOffsets = this->convertRawToOffsetMusicPos(this->iCurMusicPos);
+    this->iCurMusicPosWithOffsets = this->iCurMusicPos + this->music.getOffset(this->beatmap);
 
     // get timestamp from the previous update cycle
     const u64 lastUpdateTime = this->iLastMusicPosUpdateTime;

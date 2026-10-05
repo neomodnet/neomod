@@ -219,9 +219,6 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
     [[nodiscard]] ModFlags getModFlags() const override;
     [[nodiscard]] Color getComboColor(i32 colorCounter, i32 colorOffset) const override;
 
-    // helper utility to avoid needing to apply convar/beatmap/audio engine related offsets to raw pos manually
-    [[nodiscard]] i32 convertRawToOffsetMusicPos(i32 rawMusicPos) const;
-
     [[nodiscard]] f32 getRawAR() const override;
     [[nodiscard]] f32 getAR() const override;
     [[nodiscard]] f32 getCS() const override;

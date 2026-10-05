@@ -179,6 +179,20 @@ bool MusicTrack::isLooped() const { return this->stream && this->stream->isLoope
 
 u32 MusicTrack::getPositionMS() const { return this->stream ? this->stream->getPositionMS() : 0; }
 
+i32 MusicTrack::getOffset(const DatabaseBeatmap *map) const {
+    i32 offset =
+        (i32)((cv::universal_offset.getFloat() + cv::universal_offset_hardcoded_blamepeppy.getFloat()) * this->speed) +
+        cv::universal_offset_norate.getInt();
+    if(this->speed < 1.f && cv::compensate_music_speed.getBool() && this->preservePitch) {
+        offset += (i32)(((1.f - this->speed) / 0.75f) * 5);  // osu (new)
+    }
+    if(map) {
+        offset -= map->getLocalOffset() + map->getOnlineOffset();
+        if(map->getVersion() < 5) offset -= cv::old_beatmap_offset.getInt();
+    }
+    return offset;
+}
+
 u32 MusicTrack::getLengthMS() const { return this->stream ? this->stream->getLengthMS() : 0; }
 
 f64 MusicTrack::getPositionPct() const { return this->stream ? this->stream->getPositionPct() : 0.0; }
