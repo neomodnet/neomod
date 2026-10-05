@@ -172,7 +172,7 @@ BeatmapFile::BeatmapFile(std::string_view bytes) : bytes(bytes), bom(bytes.start
             this->sections.push_back(current);
 
             const std::string_view name = line.substr(1, line.size() - 2);
-            const auto *known = std::ranges::find(KNOWN_SECTIONS, name, &decltype(KNOWN_SECTIONS)::value_type::first);
+            const auto known = std::ranges::find(KNOWN_SECTIONS, name, &decltype(KNOWN_SECTIONS)::value_type::first);
             const SectionKind kind = known != KNOWN_SECTIONS.end() ? known->second : UNKNOWN;
             current = {.header = bytes.substr(pos, next - pos),
                        .body = {},
