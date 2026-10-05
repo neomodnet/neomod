@@ -45,12 +45,10 @@ Button hovered_btn = BTN_NONE;
 }  // namespace
 
 void update_export_progress(float progress, std::string entry_being_processed, const std::string& collection) {
-    export_collection = collection;
     export_progress.store(progress, std::memory_order_relaxed);
-    if(progress > 0.f) {
-        Sync::scoped_lock lk(export_progress_mtx);
-        export_entry = std::move(entry_being_processed);
-    }
+    Sync::scoped_lock lk(export_progress_mtx);
+    export_collection = collection;
+    if(progress > 0.f) export_entry = std::move(entry_being_processed);
 }
 
 void press_button(Button btn_index) {
@@ -261,12 +259,15 @@ void draw() {
     }
     if(float progress = export_progress.load(std::memory_order_relaxed); progress > 0.f && progress < 1.f) {
         std::string export_entry_copy;
+        std::string export_collection_copy;
         {
             Sync::scoped_lock lk(export_progress_mtx);
             export_entry_copy = export_entry;
+            export_collection_copy = export_collection;
         }
-        std::string msg1 = tformat("Exporting {} {:.2f}%", !export_collection.empty() ? export_collection : _("mapset"),
-                                   progress * 100.f);
+        std::string msg1 =
+            tformat("Exporting {} {:.2f}%", !export_collection_copy.empty() ? export_collection_copy : _("mapset"),
+                    progress * 100.f);
         std::string msg2 = tformat(" {:s}", export_entry_copy);
         g->pushTransform();
         g->translate(calcx, calcy);
