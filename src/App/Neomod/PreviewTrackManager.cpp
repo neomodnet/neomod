@@ -258,10 +258,13 @@ void PreviewTrackManager::Impl::download() {
         this->stage = Stage::WRITING;
         const u64 size = response.body.size();
         std::string path = this->file_path(this->set_id);
-        io->write(path, std::move(response.body),
-                  [alive = std::weak_ptr{this->alive}, this, path, written_set_id = this->set_id, size](bool success) {
-                      if(!alive.expired()) this->on_written(path, written_set_id, size, success);
-                  });
+        // (checks `alive` itself)
+        Mc::Registration write = io->write(
+            path, std::move(response.body),
+            [alive = std::weak_ptr{this->alive}, this, path, written_set_id = this->set_id, size](bool success) {
+                if(!alive.expired()) this->on_written(path, written_set_id, size, success);
+            });
+        write.detach();
     });
 }
 

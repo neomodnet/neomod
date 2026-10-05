@@ -208,11 +208,12 @@ void execConfigFile(std::string_view filename_view) {
         if(is_absolute) {
             fubar_abort();
         }
-        io->write(filename, rewritten_file, [filename](bool success) {
+        Mc::Registration write = io->write(filename, rewritten_file, [filename](bool success) {
             if(!success) {
                 debugLog("WARNING: failed to write out config to {}!", filename);
             }
         });
+        write.detach();
     }
 }
 

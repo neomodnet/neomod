@@ -1215,12 +1215,13 @@ void MainMenu::tick() {
             auto data = this->serverIconDL.take_data();
             this->serverIconDL.reset();
             if(!data.empty()) {
-                io->write(icon_path, std::move(data), [icon_path](bool success) {
+                Mc::Registration write = io->write(icon_path, std::move(data), [icon_path](bool success) {
                     if(success && !engine->isShuttingDown()) {
                         resourceManager->requestNextLoadAsync();
                         BanchoState::server_icon = resourceManager->loadImageAbs(icon_path, icon_path);
                     }
                 });
+                write.detach();
             }
         }
     }
@@ -1638,12 +1639,14 @@ void MainMenu::setMenuElementsVisible(bool visible, bool animate) {
 void MainMenu::writeVersionFile() {
     // remember, don't show the notification arrow until the version changes again
     const std::string version_path = Mc::Paths::data() + "/version.txt";
-    io->write(version_path, fmt::format("{}\n{}", cv::version.getString(), cv::build_timestamp.getString()),
-              [version_path](bool success) -> void {
-                  if(!success) {
-                      debugLog("Warning: failed to write new version to {}", version_path);
-                  }
-              });
+    Mc::Registration write =
+        io->write(version_path, fmt::format("{}\n{}", cv::version.getString(), cv::build_timestamp.getString()),
+                  [version_path](bool success) -> void {
+                      if(!success) {
+                          debugLog("Warning: failed to write new version to {}", version_path);
+                      }
+                  });
+    write.detach();
 }
 
 void MainMenu::onCubePressed() {

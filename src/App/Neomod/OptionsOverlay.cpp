@@ -4471,11 +4471,12 @@ void OptionsOverlayImpl::save() {
             write_lines.append(fmt::format("{} {}\n", convar->getName(), convar->getClientString()));
         }
 
-        io->write(cfg_name, std::move(write_lines), wr_callback);
+        // (both callbacks only use globals, and the one at exit has to run during the engine's shutdown)
+        io->write(cfg_name, std::move(write_lines), wr_callback).detach();
     };
 
     // let the nested write callback handle any error message
-    io->read(cfg_name, rd_callback);
+    io->read(cfg_name, rd_callback).detach();
 }
 
 void OptionsOverlayImpl::openAndScrollToSkinSection() {

@@ -224,26 +224,28 @@ void ThumbnailManager::Impl::update() {
             this->pending.erase(id);
 
             // write async
-            io->write(id.save_path, std::move(data),
-                      [alive = std::weak_ptr{this->alive}, this, key = id](bool success) {
-                          if(alive.expired()) return;
+            // (checks `alive` itself)
+            Mc::Registration write = io->write(
+                id.save_path, std::move(data), [alive = std::weak_ptr{this->alive}, this, key = id](bool success) {
+                    if(alive.expired()) return;
 
-                          auto written_it = this->images.find(key);
-                          assert(written_it != this->images.end());
-                          ThumbEntry& written = written_it->second;
-                          if(success) {
-                              written.state = ThumbEntry::State::Resolved;
-                          } else if(written.retried) {
-                              logIfCV(debug_thumbs, "blacklisting {}, writing it failed again", key.id);
-                              written.state = ThumbEntry::State::Blacklisted;
-                          } else {
-                              // download it again (once), e.g. the cache directory might not have been there yet
-                              logIfCV(debug_thumbs, "writing {} failed, downloading it again", key.id);
-                              written.retried = true;
-                              written.state = ThumbEntry::State::Downloading;
-                              if(written.refcount > 0) this->pending.insert(key);
-                          }
-                      });
+                    auto written_it = this->images.find(key);
+                    assert(written_it != this->images.end());
+                    ThumbEntry& written = written_it->second;
+                    if(success) {
+                        written.state = ThumbEntry::State::Resolved;
+                    } else if(written.retried) {
+                        logIfCV(debug_thumbs, "blacklisting {}, writing it failed again", key.id);
+                        written.state = ThumbEntry::State::Blacklisted;
+                    } else {
+                        // download it again (once), e.g. the cache directory might not have been there yet
+                        logIfCV(debug_thumbs, "writing {} failed, downloading it again", key.id);
+                        written.retried = true;
+                        written.state = ThumbEntry::State::Downloading;
+                        if(written.refcount > 0) this->pending.insert(key);
+                    }
+                });
+            write.detach();
         }
     }
 }

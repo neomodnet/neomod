@@ -888,9 +888,7 @@ void BanchoState::handle_packet(PacketReader &packet) {
             };
 
             // run async callback
-            if(!map->getMapFileAsync(std::move(callback))) {
-                debugLog("Immediately failed to get map file data for md5: {} path: {}", md5, file_path);
-            }
+            map->getMapFileAsync(std::move(callback)).detach();
 
             break;
         }

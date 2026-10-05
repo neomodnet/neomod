@@ -17,6 +17,7 @@
 #include "StarPrecalc.h"
 #include "Overrides.h"
 #include "MD5Hash.h"
+#include "Registration.h"
 #include "Color.h"
 #include "SyncStoptoken.h"
 
@@ -66,7 +67,8 @@ using DiffContainer = std::vector<std::unique_ptr<BeatmapDifficulty>>;
 
 #ifndef BUILD_TOOLS_ONLY
 template <typename T>
-concept HitObjectContainer = std::is_same_v<T, neomod::DiffCalc::DifficultyHitObject> || std::is_same_v<T, neomod::HitObject>;
+concept HitObjectContainer =
+    std::is_same_v<T, neomod::DiffCalc::DifficultyHitObject> || std::is_same_v<T, neomod::HitObject>;
 #else
 template <typename T>
 concept HitObjectContainer = std::is_same_v<T, neomod::DiffCalc::DifficultyHitObject>;
@@ -383,8 +385,9 @@ class DatabaseBeatmap final {
         return this->timingpoints;
     }
 
+    // the .osu file's contents (empty if it couldn't be read), see AsyncIOHandler::read()
     using MapFileReadDoneCallback = std::function<void(std::vector<u8>)>;  // == AsyncIOHandler::ReadCallback
-    [[nodiscard]] bool getMapFileAsync(MapFileReadDoneCallback data_callback) const;
+    Mc::Registration getMapFileAsync(MapFileReadDoneCallback data_callback) const;
 
     [[nodiscard]] std::string getFullSoundFilePath() const;
     [[nodiscard]] std::string getFullBackgroundImageFilePath() const;

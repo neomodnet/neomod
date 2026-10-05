@@ -3,6 +3,7 @@
 
 #include "config.h"
 #include "noinclude.h"
+#include "Registration.h"
 #include "StaticPImpl.h"
 #include "types.h"
 
@@ -19,18 +20,17 @@ class AsyncIOHandler final {
     ~AsyncIOHandler();
 
     // read entire file asynchronously
-    // callback receives data vector (empty on failure)
-    // returns false if file already has a pending operation
+    // callback receives data vector (empty on failure, e.g. if the file already has a pending operation) on the main
+    // thread, in a later update(), as long as the Registration lives; a detached one also gets called for an
+    // operation that finishes during engine shutdown, after the app is gone
     using ReadCallback = std::function<void(std::vector<u8>)>;
-    bool read(std::string_view path, ReadCallback callback);
+    Mc::Registration read(std::string_view path, ReadCallback callback);
 
     // write data to file asynchronously
-    // optional callback receives success status after write completes
-    // returns false if file already has a pending operation
+    // callback receives success status after write completes, like read()'s
     using WriteCallback = std::function<void(bool)>;
-    bool write(std::string_view path, std::vector<u8> data, WriteCallback callback = nullptr);
-    bool write(std::string_view path, std::string data, WriteCallback callback = nullptr);
-    bool write(std::string_view path, const u8 *data, size_t amount, WriteCallback callback = nullptr);
+    Mc::Registration write(std::string_view path, std::vector<u8> data, WriteCallback callback);
+    Mc::Registration write(std::string_view path, std::string data, WriteCallback callback);
 
    private:
     friend class Engine;  // only to be used by engine
@@ -47,9 +47,9 @@ class AsyncIOHandler final {
    private:
     class InternalIOContext;
 #ifdef MCENGINE_PLATFORM_WASM
-    StaticPImpl<InternalIOContext, 8> m_impl; // basically a passthrough to synchronous I/O
+    StaticPImpl<InternalIOContext, 40> m_impl;  // basically a passthrough to synchronous I/O
 #else
-    StaticPImpl<InternalIOContext, 96> m_impl;
+    StaticPImpl<InternalIOContext, 152> m_impl;
 #endif
 };
 

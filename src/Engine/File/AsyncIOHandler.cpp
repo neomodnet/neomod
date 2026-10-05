@@ -5,8 +5,85 @@
 #include "Timing.h"
 #include "File.h"
 
+#include <algorithm>
+#include <cassert>
 #include <cstring>
 #include <string>
+#include <utility>
+
+namespace {
+// the callbacks of pending operations, by id (main thread); the operations themselves only carry the id
+struct PendingCallbacks {
+    struct Entry {
+        u64 id;
+        AsyncIOHandler::ReadCallback read;
+        AsyncIOHandler::WriteCallback write;
+        bool detached{false};
+    };
+    struct EarlyResult {
+        u64 id;
+        std::vector<u8> data;
+        bool success;
+    };
+
+    PendingCallbacks() = default;
+    PendingCallbacks(const PendingCallbacks &) = delete;
+    PendingCallbacks &operator=(const PendingCallbacks &) = delete;
+    PendingCallbacks(PendingCallbacks &&) = delete;
+    PendingCallbacks &operator=(PendingCallbacks &&) = delete;
+    ~PendingCallbacks() {
+        assert(std::ranges::all_of(this->entries, &Entry::detached) &&
+               "an i/o callback's Registration outlived the AsyncIOHandler");
+    }
+
+    u64 add(AsyncIOHandler::ReadCallback read, AsyncIOHandler::WriteCallback write) {
+        this->entries.push_back({.id = ++this->lastId, .read = std::move(read), .write = std::move(write)});
+        return this->lastId;
+    }
+
+    void end(u64 id, Mc::Registration::End how) {
+        const auto it = std::ranges::find(this->entries, id, &Entry::id);
+        if(it == this->entries.end()) return;
+        if(how == Mc::Registration::End::DETACH) {
+            it->detached = true;
+        } else {
+            this->entries.erase(it);
+        }
+    }
+
+    // for an operation that's done before read()/write() return (it failed right away, or wasm's synchronous i/o):
+    // the result waits for the next update(), so that callbacks always run after the caller got its Registration
+    u64 finishEarly(u64 id, std::vector<u8> data, bool success) {
+        this->early.push_back({.id = id, .data = std::move(data), .success = success});
+        return id;
+    }
+
+    // the operation's callback, unless its Registration was reset meanwhile
+    void deliver(u64 id, std::vector<u8> data, bool success) {
+        const auto it = std::ranges::find(this->entries, id, &Entry::id);
+        if(it == this->entries.end()) return;
+        const Entry entry = std::move(*it);
+        this->entries.erase(it);
+        if(entry.read) {
+            entry.read(std::move(data));
+        } else if(entry.write) {
+            entry.write(success);
+        }
+    }
+
+    // returns whether there were any (operations started by these callbacks may add more for the next call)
+    bool deliverEarly() {
+        if(this->early.empty()) return false;
+        for(auto &result : std::exchange(this->early, {}))
+            this->deliver(result.id, std::move(result.data), result.success);
+        return true;
+    }
+
+    std::vector<Entry> entries;
+    std::vector<EarlyResult> early;
+    u64 lastId{0};
+};
+}  // namespace
 
 #ifdef MCENGINE_PLATFORM_WASM
 // WASM: synchronous I/O shim (SDL_AsyncIO not supported)
@@ -18,15 +95,20 @@ class AsyncIOHandler::InternalIOContext final {
     InternalIOContext() = default;
     ~InternalIOContext() = default;
 
-    void cleanup() {}
+    void cleanup() {
+        while(this->callbacks.deliverEarly()) {
+        }
+    }
 
-    bool read(std::string_view path, ReadCallback callback) {
+    void update() { this->callbacks.deliverEarly(); }
+
+    u64 read(std::string_view path, ReadCallback callback) {
+        const u64 id = this->callbacks.add(std::move(callback), {});
         std::string pathStr(path);
-        FILE* f = fopen(pathStr.c_str(), "rb");
+        FILE *f = fopen(pathStr.c_str(), "rb");
         if(!f) {
             logIfCV(debug_file, "WARNING: failed to open {} for reading", pathStr);
-            if(callback) callback({});
-            return false;
+            return this->callbacks.finishEarly(id, {}, false);
         }
 
         fseek(f, 0, SEEK_END);
@@ -40,8 +122,7 @@ class AsyncIOHandler::InternalIOContext final {
                 debugLog("ERROR: {} is over 1GB in size!", pathStr);
             }
             fclose(f);
-            if(callback) callback({});
-            return false;
+            return this->callbacks.finishEarly(id, {}, false);
         }
 
         std::vector<u8> data(size);
@@ -53,17 +134,16 @@ class AsyncIOHandler::InternalIOContext final {
             data.resize(bytesRead);
         }
 
-        if(callback) callback(std::move(data));
-        return true;
+        return this->callbacks.finishEarly(id, std::move(data), true);
     }
 
-    bool write(std::string_view path, std::vector<u8> data, WriteCallback callback) {
+    u64 write(std::string_view path, std::vector<u8> data, WriteCallback callback) {
+        const u64 id = this->callbacks.add({}, std::move(callback));
         std::string pathStr(path);
-        FILE* f = fopen(pathStr.c_str(), "wb");
+        FILE *f = fopen(pathStr.c_str(), "wb");
         if(!f) {
             debugLog("ERROR: failed to open {} for writing", pathStr);
-            if(callback) callback(false);
-            return false;
+            return this->callbacks.finishEarly(id, {}, false);
         }
 
         size_t written = fwrite(data.data(), 1, data.size(), f);
@@ -74,9 +154,10 @@ class AsyncIOHandler::InternalIOContext final {
             debugLog("ERROR: only wrote {}/{} bytes to {}", written, data.size(), pathStr);
         }
 
-        if(callback) callback(success);
-        return true;
+        return this->callbacks.finishEarly(id, {}, success);
     }
+
+    PendingCallbacks callbacks;
 };
 
 #else
@@ -106,7 +187,8 @@ class AsyncIOHandler::InternalIOContext final {
 
             while(((Timing::getTicksMS() - startTime) < 10000) &&
                   (sdlIOResult == true || m_activeCallbacks.load(std::memory_order_acquire) > 0 ||
-                   m_activeFiles.size() > 0)) {
+                   m_activeFiles.size() > 0 || !this->callbacks.early.empty())) {
+                this->callbacks.deliverEarly();
                 SDL_AsyncIOOutcome outcome{};
                 if((sdlIOResult = SDL_WaitAsyncIOResult(m_queue, &outcome, 50))) {
                     // take care of any pending async operations (callbacks etc.)
@@ -131,8 +213,7 @@ class AsyncIOHandler::InternalIOContext final {
 
         std::vector<u8> operationBuffer;
 
-        ReadCallback readCallback;
-        WriteCallback writeCallback;
+        u64 id{0};  // its callback in `callbacks`
 
         // for reads:
         // if partial, the returned buffer will be smaller than the actual file contents
@@ -166,6 +247,7 @@ class AsyncIOHandler::InternalIOContext final {
     void update() {
         assert(!!m_queue);
 
+        this->callbacks.deliverEarly();
         SDL_AsyncIOOutcome outcome;
         while(SDL_GetAsyncIOResult(m_queue, &outcome)) {
             drainIoResults(outcome);
@@ -177,17 +259,15 @@ class AsyncIOHandler::InternalIOContext final {
     cb__;                                                      \
     m_activeCallbacks.fetch_sub(1, std::memory_order_acq_rel);
 
-    bool read(std::string_view path, ReadCallback callback) {
+    u64 read(std::string_view path, ReadCallback callback) {
         assert(!!m_queue);
 
+        const u64 id = this->callbacks.add(std::move(callback), {});
         std::string pathStr(path);
         if(m_activeFiles.contains(pathStr)) {
             // TODO: multiple actions on the same file at the same time
             logIfCV(debug_file, "WARNING: cannot read from {}, file is in use", path);
-            if(callback) {
-                PERFORM_CALLBACK(callback({}));
-            }
-            return false;
+            return this->callbacks.finishEarly(id, {}, false);
         }
 
         SDL_AsyncIO* handle = SDL_AsyncIOFromFile(pathStr.c_str(), "r");
@@ -199,10 +279,7 @@ class AsyncIOHandler::InternalIOContext final {
                 debugLog("WARNING: failed to open {} for reading: {}", pathStr, SDL_GetError());
             }
 
-            if(callback) {
-                PERFORM_CALLBACK(callback({}));
-            }
-            return false;
+            return this->callbacks.finishEarly(id, {}, false);
         }
 
         i64 readSize = SDL_GetAsyncIOSize(handle);
@@ -215,79 +292,65 @@ class AsyncIOHandler::InternalIOContext final {
                 // arbitrary size limit sanity check
                 debugLog("ERROR: failed to open {} for reading, over 2GB in size!", pathStr);
             }
-            if(callback) {
-                PERFORM_CALLBACK(callback({}));
-            }
 
             // close it but don't add a context/check for errors
             SDL_CloseAsyncIO(handle, false, m_queue, nullptr);
 
-            return false;
+            return this->callbacks.finishEarly(id, {}, false);
         }
 
         auto* context = new OperationContext(pathStr);
         context->handle = handle;
         context->operationBuffer = std::vector<u8>(readSize);
-        context->readCallback = std::move(callback);
+        context->id = id;
 
         if(!SDL_ReadAsyncIO(handle, context->operationBuffer.data(), 0, readSize, m_queue, context)) {
             debugLog("ERROR: SDL_ReadAsyncIO failed for {}: {}", pathStr, SDL_GetError());
-            if(context->readCallback) {
-                PERFORM_CALLBACK(context->readCallback({}));
-            }
             SDL_CloseAsyncIO(handle, false, m_queue, nullptr);
 
             delete context;
-            return false;
+            return this->callbacks.finishEarly(id, {}, false);
         }
 
         m_activeFiles.insert(pathStr);
 
-        return true;
+        return id;
     }
 
-    bool write(std::string_view path, std::vector<u8> data, WriteCallback callback) {
+    u64 write(std::string_view path, std::vector<u8> data, WriteCallback callback) {
         assert(!!m_queue);
 
+        const u64 id = this->callbacks.add({}, std::move(callback));
         std::string pathStr(path);
         if(m_activeFiles.contains(pathStr)) {
             // TODO: multiple actions on the same file at the same time
             logIfCV(debug_file, "WARNING: cannot write to {}, file is in use", path);
-            if(callback) {
-                PERFORM_CALLBACK(callback(false));
-            }
-            return false;
+            return this->callbacks.finishEarly(id, {}, false);
         }
 
         SDL_AsyncIO* handle = SDL_AsyncIOFromFile(pathStr.c_str(), "w");
         if(!handle) {
             debugLog("ERROR: failed to open {} for writing: {}", pathStr, SDL_GetError());
-            if(callback) {
-                PERFORM_CALLBACK(callback(false));
-            }
-            return false;
+            return this->callbacks.finishEarly(id, {}, false);
         }
 
         auto* context = new OperationContext(pathStr);
         context->handle = handle;
         context->operationBuffer = std::move(data);
-        context->writeCallback = std::move(callback);
+        context->id = id;
 
         if(!SDL_WriteAsyncIO(handle, context->operationBuffer.data(), 0, context->operationBuffer.size(), m_queue,
                              context)) {
             debugLog("ERROR: SDL_WriteAsyncIO failed for {}: {}", pathStr, SDL_GetError());
-            if(context->writeCallback) {
-                PERFORM_CALLBACK(context->writeCallback(false));
-            }
             SDL_CloseAsyncIO(handle, false, m_queue, nullptr);
 
             delete context;
-            return false;
+            return this->callbacks.finishEarly(id, {}, false);
         }
 
         m_activeFiles.insert(pathStr);
 
-        return true;
+        return id;
     }
 
     void handleReadComplete(const SDL_AsyncIOOutcome& outcome, OperationContext* context) {
@@ -322,7 +385,7 @@ class AsyncIOHandler::InternalIOContext final {
         auto* closeContext = new OperationContext(context->path);
         // null handle for close
         closeContext->status = status;
-        closeContext->readCallback = std::move(context->readCallback);
+        closeContext->id = context->id;
         closeContext->operationBuffer = std::move(context->operationBuffer);
 
         // don't flush on closing read operations
@@ -331,9 +394,8 @@ class AsyncIOHandler::InternalIOContext final {
             // so run the callback now
             debugLog("ERROR: failed to close {}: {}", closeContext->path, SDL_GetError());
             m_activeFiles.erase(closeContext->path);
-            if(closeContext->readCallback) {
-                PERFORM_CALLBACK(closeContext->readCallback(std::move(closeContext->operationBuffer)));
-            }
+            PERFORM_CALLBACK(this->callbacks.deliver(closeContext->id, std::move(closeContext->operationBuffer),
+                                                     status == OperationContext::OP_COMPLETE));
             delete closeContext;
         }
 
@@ -360,16 +422,14 @@ class AsyncIOHandler::InternalIOContext final {
         auto* closeContext = new OperationContext(context->path);
         // null handle for close
         closeContext->status = status;
-        closeContext->writeCallback = std::move(context->writeCallback);
+        closeContext->id = context->id;
 
         // flush to make sure data reaches disk
         if(!SDL_CloseAsyncIO(context->handle, true, m_queue, closeContext)) {
             debugLog("ERROR: failed to close {}: {}", closeContext->path, SDL_GetError());
             m_activeFiles.erase(closeContext->path);
-            if(closeContext->writeCallback) {
-                PERFORM_CALLBACK(
-                    closeContext->writeCallback(status == OperationContext::OP_COMPLETE));  // probably not fatal?
-            }
+            PERFORM_CALLBACK(this->callbacks.deliver(closeContext->id, {},
+                                                     status == OperationContext::OP_COMPLETE));  // probably not fatal?
             delete closeContext;
         }
 
@@ -387,13 +447,10 @@ class AsyncIOHandler::InternalIOContext final {
             logIfCV(debug_file, "WARNING: close failed for {}: {}", context->path, SDL_GetError());
         }
 
-        if(context->writeCallback) {
-            PERFORM_CALLBACK(context->writeCallback(context->status == OperationContext::OP_COMPLETE));
-        } else if(context->readCallback) {
-            // we don't really propagate errors here besides the log in
-            // handleReadComplete and an empty/partially filled buffer here...
-            PERFORM_CALLBACK(context->readCallback(std::move(context->operationBuffer)));
-        }
+        // we don't really propagate read errors here besides the log in
+        // handleReadComplete and an empty/partially filled buffer here...
+        PERFORM_CALLBACK(this->callbacks.deliver(context->id, std::move(context->operationBuffer),
+                                                 context->status == OperationContext::OP_COMPLETE));
 
         delete context;
     }
@@ -404,6 +461,9 @@ class AsyncIOHandler::InternalIOContext final {
     std::unordered_set<std::string> m_activeFiles;
 
     std::atomic<size_t> m_activeCallbacks{0};
+
+   public:
+    PendingCallbacks callbacks;
 };
 #endif  // MCENGINE_PLATFORM_WASM
 
@@ -415,26 +475,27 @@ void AsyncIOHandler::cleanup() { m_impl->cleanup(); }
 // if this doesn't succeed (checked once on startup), the engine immediately exits
 #ifdef MCENGINE_PLATFORM_WASM
 bool AsyncIOHandler::succeeded() const { return true; }
-void AsyncIOHandler::update() {}
 #else
 bool AsyncIOHandler::succeeded() const { return m_impl->m_queue != nullptr; }
-void AsyncIOHandler::update() { m_impl->update(); }
 #endif
+void AsyncIOHandler::update() { m_impl->update(); }
 
-bool AsyncIOHandler::read(std::string_view path, ReadCallback callback) {
-    return m_impl->read(path, std::move(callback));
+Mc::Registration AsyncIOHandler::read(std::string_view path, ReadCallback callback) {
+    return {[](void *self, u64 id, Mc::Registration::End how) {
+                static_cast<AsyncIOHandler *>(self)->m_impl->callbacks.end(id, how);
+            },
+            this, m_impl->read(path, std::move(callback))};
 }
 
-bool AsyncIOHandler::write(std::string_view path, std::vector<u8> data, WriteCallback callback) {
-    return m_impl->write(path, std::move(data), std::move(callback));
+Mc::Registration AsyncIOHandler::write(std::string_view path, std::vector<u8> data, WriteCallback callback) {
+    return {[](void *self, u64 id, Mc::Registration::End how) {
+                static_cast<AsyncIOHandler *>(self)->m_impl->callbacks.end(id, how);
+            },
+            this, m_impl->write(path, std::move(data), std::move(callback))};
 }
 
-bool AsyncIOHandler::write(std::string_view path, std::string data, WriteCallback callback) {
-    return m_impl->write(path,
-                         std::vector<u8>{std::make_move_iterator(data.begin()), std::make_move_iterator(data.end())},
-                         std::move(callback));
-}
-
-bool AsyncIOHandler::write(std::string_view path, const u8* data, size_t amount, WriteCallback callback) {
-    return m_impl->write(path, std::vector<u8>(data, data + amount), std::move(callback));
+Mc::Registration AsyncIOHandler::write(std::string_view path, std::string data, WriteCallback callback) {
+    return this->write(path,
+                       std::vector<u8>{std::make_move_iterator(data.begin()), std::make_move_iterator(data.end())},
+                       std::move(callback));
 }

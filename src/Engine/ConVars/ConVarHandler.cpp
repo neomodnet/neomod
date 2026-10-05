@@ -368,13 +368,15 @@ void ConVarHandler::ConVarBuiltins::dumpcommands(void) {
     size_t pos = html_template.find(marker);
     html_template.replace(pos, marker.length(), html);
 
-    io->write(Mc::Paths::data() + "/variables.htm", std::move(html_template), [](bool success) -> void {
-        if(success) {
-            logRaw("ConVars dumped to variables.htm");
-        } else {
-            logRaw("Failed to dump ConVars to variables.htm");
-        }
-    });
+    Mc::Registration write =
+        io->write(Mc::Paths::data() + "/variables.htm", std::move(html_template), [](bool success) -> void {
+            if(success) {
+                logRaw("ConVars dumped to variables.htm");
+            } else {
+                logRaw("Failed to dump ConVars to variables.htm");
+            }
+        });
+    write.detach();
 }
 
 void ConVarHandler::ConVarBuiltins::echo(std::string_view args) {
