@@ -40,6 +40,7 @@
 #include "UserStatsScreen.h"
 #include "VolumeOverlay.h"
 
+#include <algorithm>
 #include <ranges>
 
 namespace {
@@ -376,11 +377,13 @@ void UI::routeKey(KeyboardEvent &e, void (CBaseUIElement::*handler)(KeyboardEven
             for(sSz oi = static_cast<sSz>(this->extra_overlays.size()) - 1; oi >= 0; --oi) {
                 auto *overlay = this->extra_overlays[oi];
                 (overlay->*handler)(e);
+                // (the handler may have popped and deleted its overlay)
+                const bool stillPushed = std::ranges::contains(this->extra_overlays, overlay);
                 if(e.isConsumed()) {
-                    traceKeyConsumed(traceName, overlay);
+                    if(stillPushed) traceKeyConsumed(traceName, overlay);
                     return;
                 }
-                if(overlay->isModal() && overlay->isVisible()) return;
+                if(stillPushed && overlay->isModal() && overlay->isVisible()) return;
             }
         }
 
