@@ -46,13 +46,15 @@ std::string_view trimmed(std::string_view s) {
 template <uSz N>
 uSz splitFields(std::string_view s, char delim, std::array<std::string_view, N> &out) {
     uSz count = 0;
-    uSz i = 0;
-    for(uSz j; (j = s.find(delim, i)) != std::string_view::npos; i = j + 1) {
-        if(count < N) out[count] = s.substr(i, j - i);
+    uSz start = 0;
+    for(uSz i = 0; i < s.size(); i++) {
+        if(s[i] != delim) continue;
+        if(count < N) out[count] = s.substr(start, i - start);
         count++;
+        start = i + 1;
     }
-    if(i < s.size()) {
-        if(count < N) out[count] = s.substr(i);
+    if(start < s.size()) {
+        if(count < N) out[count] = s.substr(start);
         count++;
     }
     return count;
@@ -61,9 +63,13 @@ uSz splitFields(std::string_view s, char delim, std::array<std::string_view, N> 
 // calls fn for each field, the way SString::split splits
 template <typename F>
 void forEachField(std::string_view s, char delim, F &&fn) {
-    uSz i = 0;
-    for(uSz j; (j = s.find(delim, i)) != std::string_view::npos; i = j + 1) fn(s.substr(i, j - i));
-    if(i < s.size()) fn(s.substr(i));
+    uSz start = 0;
+    for(uSz i = 0; i < s.size(); i++) {
+        if(s[i] != delim) continue;
+        fn(s.substr(start, i - start));
+        start = i + 1;
+    }
+    if(start < s.size()) fn(s.substr(start));
 }
 
 void parseHitSample(std::string_view field, BeatmapFile::HitSample &out) {

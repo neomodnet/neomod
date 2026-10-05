@@ -3,7 +3,7 @@ CXXFLAGS = -DBUILD_TOOLS_ONLY -Os -std=c++23 -ffunction-sections -fdata-sections
 LDFLAGS = -Wl,--gc-sections -lembind -s WASM=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s SINGLE_FILE=0 -s ALLOW_MEMORY_GROWTH=1 -s IMPORTED_MEMORY=1
 
 SRCDIR = ../../src
-INCLUDES = -I$(SRCDIR)/App/Neomod -I$(SRCDIR)/App/Neomod/DiffCalc -I$(SRCDIR)/Util -I$(SRCDIR)/../libraries
+INCLUDES = -I$(SRCDIR)/App/Neomod -I$(SRCDIR)/App/Neomod/BeatmapFile -I$(SRCDIR)/App/Neomod/DiffCalc -I$(SRCDIR)/Util -I$(SRCDIR)/../libraries
 
 # GLM: use system headers by default, override with GLM_INCLUDE=-I/path/to/glm
 # https://github.com/g-truc/glm
@@ -13,6 +13,7 @@ INCLUDES += $(GLM_INCLUDE)
 
 SOURCES = \
 	NeomodJs.cpp \
+	$(SRCDIR)/App/Neomod/BeatmapFile/BeatmapFile.cpp \
 	$(SRCDIR)/App/Neomod/DatabaseBeatmap.cpp \
 	$(SRCDIR)/App/Neomod/DiffCalc/DifficultyCalculator.cpp \
 	$(SRCDIR)/App/Neomod/GameRules.cpp \

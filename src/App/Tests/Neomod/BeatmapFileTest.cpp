@@ -6,6 +6,7 @@
 #include "DatabaseBeatmap.h"
 #include "Engine.h"
 #include "File.h"
+#include "Parsing.h"
 #include "SliderCurves.h"
 #include "SyncJthread.h"
 #include "Timing.h"
@@ -234,6 +235,55 @@ FileResult checkFile(const std::string &path, const std::string &relative, bool 
 
     if(dump) result.dump = dumpGameLoad(path, relative, bytes);
     return result;
+}
+
+// single-threaded parse times over files already in memory, best of `rounds`
+void bench(const std::vector<std::pair<std::string, std::string>> &files, int rounds) {
+    std::vector<std::vector<u8>> contents(files.size());
+    for(uSz f = 0; f < files.size(); f++) {
+        File file(files[f].first);
+        file.readToVector(contents[f]);
+    }
+
+    const auto best = [rounds](auto &&fn) {
+        f64 fastest = 1e9;
+        for(int r = 0; r < rounds; r++) {
+            const f64 start = Timing::getTimeReal();
+            fn();
+            fastest = std::min(fastest, Timing::getTimeReal() - start);
+        }
+        return fastest;
+    };
+
+    u64 sink = 0;
+    const f64 primitives = best([&] {
+        for(uSz f = 0; f < files.size(); f++) {
+            const auto c = DatabaseBeatmap::loadPrimitiveObjectsFromData(contents[f], files[f].first);
+            sink += c.getNumObjects();
+        }
+    });
+    const f64 metadata = best([&] {
+        for(const auto &[path, relative] : files) {
+            DatabaseBeatmap meta(path, std::filesystem::path(path).parent_path().string() + "/",
+                                 DatabaseBeatmap::BeatmapType::NEOMOD_DIFFICULTY);
+            sink += meta.loadMetadata(false).fileData.size();
+        }
+    });
+    const f64 records = best([&] {
+        BeatmapFile::HitObject ho;
+        BeatmapFile::TimingPoint tp;
+        BeatmapFile::KeyValue kv;
+        for(const auto &bytes : contents) {
+            const BeatmapFile file{std::span<const u8>{bytes}};
+            for(const Kind kind : {Kind::GENERAL, Kind::METADATA, Kind::DIFFICULTY}) {
+                for(const auto line : file.getEntries(kind)) sink += BeatmapFile::parse(line.text, kv);
+            }
+            for(const auto line : file.getEntries(Kind::TIMING_POINTS)) sink += BeatmapFile::parse(line.text, tp);
+            for(const auto line : file.getEntries(Kind::HIT_OBJECTS)) sink += BeatmapFile::parse(line.text, ho);
+        }
+    });
+    logRaw("  bench over {} files, best of {}: primitives {:.3f} s, metadata {:.3f} s, records {:.3f} s ({})",
+           files.size(), rounds, primitives, metadata, records, sink);
 }
 
 }  // namespace
@@ -473,6 +523,11 @@ void BeatmapFileTest::runCorpus(const std::string &dir) {
     }
     std::ranges::sort(files);
     TEST_ASSERT(!files.empty(), "the corpus has .osu files");
+
+    if(const auto rounds = getTestArg("bench")) {
+        bench(files, std::max(1, Parsing::strto<i32>(*rounds)));
+        return;
+    }
 
     const auto dumpPath = getTestArg("dump");
     const f64 start = Timing::getTimeReal();

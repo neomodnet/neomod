@@ -1,14 +1,17 @@
 // Copyright (c) 2020, PG, All rights reserved.
 #include "DatabaseBeatmap.h"
+#include "BeatmapFile.h"
 #include "DifficultyCalculator.h"
 
 #include "GameRules.h"
 #include "Parsing.h"
 
-#include <source_location>
-#include <utility>
+#include <array>
 #include <cassert>
 #include <cmath>
+#include <optional>
+#include <string>
+#include <utility>
 
 #ifndef BUILD_TOOLS_ONLY
 
@@ -215,85 +218,39 @@ bool DatabaseBeatmap::operator==(const DatabaseBeatmap &other) const {
 
 namespace {  // internal helpers
 
-bool parse_timing_point(std::string_view curLine, TIMINGPOINT &out) {
-    // old beatmaps: Offset, Milliseconds per Beat
-    // old new beatmaps: Offset, Milliseconds per Beat, Meter, sampleSet, sampleIndex, Volume,
-    // !Inherited new new beatmaps: Offset, Milliseconds per Beat, Meter, sampleSet, sampleIndex,
-    // Volume, !Inherited, Kiai Mode
-
-    f64 tpOffset;
-    f64 tpMSPerBeat;
-    i32 tpMeter;
-    i32 tpSampleSet, tpSampleIndex;
-    i32 tpVolume;
-    i32 tpUninherited;
-    i32 tpKiai = 0;  // optional
-
-    if(Parsing::parse(curLine, &tpOffset, ',', &tpMSPerBeat, ',', &tpMeter, ',', &tpSampleSet, ',', &tpSampleIndex, ',',
-                      &tpVolume, ',', &tpUninherited, ',', &tpKiai) ||
-       Parsing::parse(curLine, &tpOffset, ',', &tpMSPerBeat, ',', &tpMeter, ',', &tpSampleSet, ',', &tpSampleIndex, ',',
-                      &tpVolume, ',', &tpUninherited)) {
-        out.offset = std::round(tpOffset);
-        out.msPerBeat = tpMSPerBeat;
-        out.sampleSet = tpSampleSet;
-        out.sampleIndex = tpSampleIndex;
-        out.volume = std::clamp(tpVolume, 0, 100);
-        out.uninherited = tpUninherited == 1;
-        out.kiai = tpKiai > 0;
-        return true;
+// the game's reading of a timing point: the time rounded, and lines of three to six fields read as only their first two
+TIMINGPOINT toTimingPoint(const BeatmapFile::TimingPoint &tp) {
+    TIMINGPOINT out{.offset = std::round(tp.time),
+                    .msPerBeat = tp.beatLength,
+                    .sampleSet = 0,
+                    .sampleIndex = 0,
+                    .volume = 100,
+                    .uninherited = true,
+                    .kiai = false};
+    if(tp.fields >= 7) {
+        out.sampleSet = tp.sampleSet;
+        out.sampleIndex = tp.sampleIndex;
+        out.volume = std::clamp(tp.volume, 0, 100);
+        out.uninherited = tp.uninherited;
+        out.kiai = tp.effects > 0;
     }
-
-    if(Parsing::parse(curLine, &tpOffset, ',', &tpMSPerBeat)) {
-        out.offset = std::round(tpOffset);
-        out.msPerBeat = tpMSPerBeat;
-        out.sampleSet = 0;
-        out.sampleIndex = 0;
-        out.volume = 100;
-        out.uninherited = true;
-        out.kiai = false;
-        return true;
-    }
-
-    return false;
+    return out;
 }
 
 // parse a sample set value with lenient handling, matching lazer behavior:
 // values outside 0-3 default to Normal (1)
 // see: https://github.com/ppy/osu/blob/56ef5eae1409622518fbc19872d5e3477abe90a2/osu.Game/Rulesets/Objects/Legacy/ConvertHitObjectParser.cs#L203
-forceinline u8 parse_sampleset_value(std::string_view str) {
-    i32 val = Parsing::strto<i32>(str);
+forceinline u8 sampleSetValue(i32 val) {
     return (val >= 0 && val <= 3) ? static_cast<u8>(val) : static_cast<u8>(SampleSetType::NORMAL);
 }
 
-// hitSamples are colon-separated optional components (up to 5), and not all 5 have to be specified
-void parse_hitsamples(std::vector<std::string_view> &parts, std::string_view hitSampleStr, HITSAMPLE_BITS &samples) {
-    if(hitSampleStr.empty()) return;
-
-    SString::split(parts, hitSampleStr, ':');
-
-    // Parse available components, using defaults for missing ones
-    if(parts.size() >= 1) {
-        samples.normalSet = parse_sampleset_value(parts[0]);
-    }
-    if(parts.size() >= 2) {
-        samples.additionSet = parse_sampleset_value(parts[1]);
-    }
-    // index of custom beatmap skin samples
-    // TODO: unused atm
-    // if(parts.size() >= 3) {
-    //     samples.index = Parsing::strto<i32>(parts[2]);
-    // }
-    if(parts.size() >= 4) {
-        i32 volume{};
-        volume = Parsing::strto<i32>(parts[3]);  // for some reason this can be negative
-        samples.volume = std::clamp<u8>(volume, 0, 100);
-    }
-    // beatmap custom skin filename (overrides everything else)
-    // TODO: unused atm
-    // if(parts.size() >= 5 && !parts[4].empty()) {
-    // samples.filename = SString::strcpy_u(parts[4]);
-    // }
-};
+// the hit sample's sets and volume
+// TODO: the index of custom beatmap skin samples and their filename (which overrides everything else) are unused atm
+void applyHitSample(const BeatmapFile::HitSample &sample, HITSAMPLE_BITS &samples) {
+    samples.normalSet = sampleSetValue(sample.normalSet);
+    samples.additionSet = sampleSetValue(sample.additionSet);
+    samples.volume = std::clamp<u8>(sample.volume, 0, 100);  // for some reason this can be negative
+}
 
 bool sliderScoringTimeComparator(const SLIDER_SCORING_TIME &a, const SLIDER_SCORING_TIME &b) {
     if(a.time != b.time) return a.time < b.time;
@@ -341,12 +298,12 @@ DatabaseBeatmap::PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjects(std::
 
 #endif  // BUILD_TOOLS_ONLY
 
-static CONSTINIT thread_local std::vector<std::string_view> spbuf1, spbuf2, spbuf3, spbuf4, spbuf5,
-    hitsamplebuf;  // to avoid reallocations; "spbuf" == SString::split buffer
-
 DatabaseBeatmap::PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
                                                                                    std::string_view osuFilePath,
                                                                                    const Sync::stop_token &dead) {
+    using Kind = BeatmapFile::SectionKind;
+    using HO = BeatmapFile::HitObject;
+
     PRIMITIVE_CONTAINER c{};
 
     if(dead.stop_requested()) {
@@ -358,350 +315,225 @@ DatabaseBeatmap::PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjectsFromDa
         return c;
     }
 
-    std::string_view beatmapFile = {reinterpret_cast<const char *>(fileBuffer.data()),
-                                    reinterpret_cast<const char *>(fileBuffer.data() + fileBuffer.size())};
+    const BeatmapFile file{fileBuffer};
 
     const float sliderSanityRange = SLIDER_CURVE_MAX_LENGTH;  // infinity sanity check, same as before
     const int sliderMaxRepeatRange =
         SLIDER_MAX_REPEATS;  // NOTE: osu! will refuse to play any beatmap which has sliders with more than
                              // 9000 repeats, here we just clamp it instead
 
-    std::array<std::optional<Color>, 8> tempColors;
-    std::vector<TIMINGPOINT> tempTimingpoints;
+    // (e.g. "osu file format v12")
+    if(const auto version = file.getVersion()) c.version = *version;
 
-    // load the actual beatmap
+    BeatmapFile::KeyValue kv;
+
     u8 gamemode{(u8)-1};  // ignore non-standard gamemodes for now
+    for(const auto line : file.getEntries(Kind::GENERAL)) {
+        if(!BeatmapFile::parse(line.text, kv)) continue;
+        if(kv.key == "Mode") {
+            if(gamemode == (u8)-1 && Parsing::parse(kv.value, &gamemode) && gamemode != 0) {
+                c.error.errc = LoadError::NON_STD_GAMEMODE;
+                return c;
+            }
+        } else if(kv.key == "SampleSet") {
+            if(std::string sampleSet; Parsing::parse(kv.value, &sampleSet)) {
+                SString::lower_inplace(sampleSet);
+                if(sampleSet == "normal") {
+                    c.defaultSampleSet = SampleSetType::NORMAL;
+                } else if(sampleSet == "soft") {
+                    c.defaultSampleSet = SampleSetType::SOFT;
+                } else if(sampleSet == "drum") {
+                    c.defaultSampleSet = SampleSetType::DRUM;
+                }
+            }
+        } else if(kv.key == "StackLeniency") {
+            Parsing::parse(kv.value, &c.stackLeniency);
+        }
+    }
+
+    bool foundAR = false;
+    for(const auto line : file.getEntries(Kind::DIFFICULTY)) {
+        if(!BeatmapFile::parse(line.text, kv)) continue;
+        if(kv.key == "CircleSize") {
+            Parsing::parse(kv.value, &c.CS);
+        } else if(kv.key == "ApproachRate") {
+            foundAR |= Parsing::parse(kv.value, &c.AR);
+        } else if(kv.key == "HPDrainRate") {
+            Parsing::parse(kv.value, &c.HP);
+        } else if(kv.key == "OverallDifficulty") {
+            Parsing::parse(kv.value, &c.OD);
+        } else if(kv.key == "SliderMultiplier") {
+            Parsing::parse(kv.value, &c.sliderMultiplier);
+        } else if(kv.key == "SliderTickRate") {
+            Parsing::parse(kv.value, &c.sliderTickRate);
+        }
+    }
+
+    BeatmapFile::Event event;
+    for(const auto line : file.getEntries(Kind::EVENTS)) {
+        if(BeatmapFile::parse(line.text, event) && event.kind == BeatmapFile::Event::Kind::BREAK) {
+            c.breaks.push_back(BREAK{.startTime = event.start, .endTime = event.end});
+            // also update total break duration as we go along here
+            c.totalBreakDuration += (u32)(event.end - event.start);
+        }
+    }
+
+    std::vector<TIMINGPOINT> tempTimingpoints;
+    BeatmapFile::TimingPoint timingPoint;
+    for(const auto line : file.getEntries(Kind::TIMING_POINTS)) {
+        if(BeatmapFile::parse(line.text, timingPoint)) tempTimingpoints.push_back(toTimingPoint(timingPoint));
+    }
+
+    std::array<std::optional<Color>, 8> tempColors;
+    BeatmapFile::Colour colour;
+    for(const auto line : file.getEntries(Kind::COLOURS)) {
+        u8 comboNum;
+        if(BeatmapFile::parse(line.text, colour) && Parsing::parse(colour.name, "Combo", &comboNum) && comboNum >= 1 &&
+           comboNum <= 8) {  // bare minimum validation effort
+            tempColors[comboNum - 1] = rgb(colour.r, colour.g, colour.b);
+        }
+    }
 
     int hitobjectsWithoutSpinnerCounter = 0;
     int colorCounter = 1;
     int colorOffset = 0;
     int comboNumber = 1;
-    bool foundAR = false;
-    BlockId curBlock{BlockId::Sentinel};
 
-    std::vector<MetadataBlock> blocksUnseen{metadataBlocks.begin(), metadataBlocks.end()};
-
-    using enum BlockId;
-
-    for(const auto curLine : SString::split_newlines(beatmapFile)) {
+    // circles:
+    // x,y,time,type,hitSounds,hitSamples
+    // sliders:
+    // x,y,time,type,hitSounds,sliderType|curveX:curveY|...,repeat,pixelLength,edgeHitsound,edgeSets,hitSamples
+    // spinners:
+    // x,y,time,type,hitSounds,endTime,hitSamples
+    HO ho;
+    for(const auto line : file.getEntries(Kind::HIT_OBJECTS)) {
         if(dead.stop_requested()) {
             c.error.errc = LoadError::LOAD_INTERRUPTED;
             return c;
         }
 
-        // ignore comments, but only if at the beginning of a line (e.g. allow Artist:DJ'TEKINA//SOMETHING)
-        if(curLine.empty() || SString::is_comment(curLine)) continue;
-
-        // skip the for loop on the first go-around, the header has to be at the start
-        if(curBlock == Sentinel) {
-            curBlock = Header;
-        } else {
-            if(auto it = std::ranges::find(blocksUnseen, curLine, &MetadataBlock::str); it != blocksUnseen.end()) {
-                curBlock = it->id;
-                blocksUnseen.erase(it);
-                continue;  // we just parsed a block header, keep going
-            }
+        if(!BeatmapFile::parse(line.text, ho)) {
+            debugLog("File: {} Invalid hit object (line {}): {}", osuFilePath, line.number, line.text);
+            continue;
         }
 
-        // we don't care here
-        if(curBlock == Metadata) continue;
+        // NOTE: calculating combo numbers and color offsets based on the parsing order is dangerous.
+        // maybe the hitobjects are not sorted by time in the file; these values should be calculated
+        // after sorting just to be sure?
 
-        switch(curBlock) {
-            case Sentinel:
-            case Metadata: {  // already handled above, shut up clang-tidy
-                std::unreachable();
+        if(!(ho.type & HO::TYPE_SPINNER)) hitobjectsWithoutSpinnerCounter++;
+
+        if(ho.type & HO::TYPE_NEW_COMBO) {
+            comboNumber = 1;
+
+            // special case 1: if the current object is a spinner, then the raw color counter is not
+            // increased (but the offset still is!)
+            // special case 2: the first (non-spinner) hitobject in a beatmap is always a new combo,
+            // therefore the raw color counter is not increased for it (but the offset still is!)
+            if(!(ho.type & HO::TYPE_SPINNER) && hitobjectsWithoutSpinnerCounter > 1) colorCounter++;
+
+            // special case 3: "Bits 4-6 (16, 32, 64) form a 3-bit number (0-7) that chooses how many combo colours to skip."
+            colorOffset += (ho.type >> HO::TYPE_COLOUR_SKIP_SHIFT) & 0b111;
+        }
+
+        switch(ho.kind) {
+            case HO::Kind::NONE:
+                break;
+
+            case HO::Kind::CIRCLE: {
+                HITCIRCLE h{};
+                h.x = (f32)(i32)ho.x;  // NOTE: lazer beatmaps do not truncate here
+                h.y = (f32)(i32)ho.y;
+                h.time = ho.time;
+                h.number = comboNumber++;
+                h.colorCounter = colorCounter;
+                h.colorOffset = colorOffset;
+                // h.clicked = false; // unknown what this field was supposed to be for
+                h.samples.hitSounds = (ho.hitSounds & HitSoundType::VALID_HITSOUNDS);
+                applyHitSample(ho.sample, h.samples);
+
+                c.hitcircles.push_back(h);
                 break;
             }
 
-            // (e.g. "osu file format v12")
-            case Header: {
-                Parsing::parse(curLine, "osu file format v", &c.version);
-                break;
-            }
-
-            case General: {
-                std::string sampleSet;
-                if(gamemode == (u8)-1) {
-                    if(Parsing::parse(curLine, "Mode", ':', &gamemode) && gamemode != 0) {
-                        c.error.errc = LoadError::NON_STD_GAMEMODE;
-                        return c;
-                    }
+            case HO::Kind::SLIDER: {
+                if(!ho.slides || !ho.length) {
+                    debugLog("File: {} Invalid slider (line {}): {}", osuFilePath, line.number, line.text);
+                    break;
                 }
-                if(Parsing::parse(curLine, "SampleSet", ':', &sampleSet)) {
-                    SString::lower_inplace(sampleSet);
-                    if(sampleSet == "normal") {
-                        c.defaultSampleSet = SampleSetType::NORMAL;
-                    } else if(sampleSet == "soft") {
-                        c.defaultSampleSet = SampleSetType::SOFT;
-                    } else if(sampleSet == "drum") {
-                        c.defaultSampleSet = SampleSetType::DRUM;
-                    }
+
+                SLIDER slider{};
+                slider.colorCounter = colorCounter;
+                slider.colorOffset = colorOffset;
+                slider.time = ho.time;
+                slider.hoverSamples.hitSounds = (ho.hitSounds & HitSoundType::VALID_SLIDER_HITSOUNDS);
+
+                slider.type = SLIDERCURVETYPE{ho.curveType};
+                slider.points.reserve(ho.curvePoints.size() + 1);
+                for(const vec2 &point : ho.curvePoints) {
+                    slider.points.emplace_back(std::clamp(point.x, -sliderSanityRange, sliderSanityRange),
+                                               std::clamp(point.y, -sliderSanityRange, sliderSanityRange));
+                }
+
+                // special case: osu! logic for handling the hitobject point vs the controlpoints (since
+                // sliders have both, and older beatmaps store the start point inside the control
+                // points)
+                vec2 xy = vec2(std::clamp(ho.x, -sliderSanityRange, sliderSanityRange),
+                               std::clamp(ho.y, -sliderSanityRange, sliderSanityRange));
+                if(slider.points.size() > 0) {
+                    if(slider.points[0] != xy) slider.points.insert(slider.points.begin(), xy);
                 } else {
-                    Parsing::parse(curLine, "StackLeniency", ':', &c.stackLeniency);
+                    slider.points.push_back(xy);
                 }
 
-                break;
-            }
+                // partially allow bullshit sliders (add second point to make valid)
+                // e.g. https://osu.ppy.sh/beatmapsets/791900#osu/1676490
+                if(slider.points.size() == 1) slider.points.push_back(xy);
 
-            case Difficulty: {
-                if(Parsing::parse(curLine, "CircleSize", ':', &c.CS)) break;
-                if(Parsing::parse(curLine, "ApproachRate", ':', &c.AR)) {
-                    foundAR = true;
-                    break;
-                }
-                if(Parsing::parse(curLine, "HPDrainRate", ':', &c.HP)) break;
-                if(Parsing::parse(curLine, "OverallDifficulty", ':', &c.OD)) break;
-                if(Parsing::parse(curLine, "SliderMultiplier", ':', &c.sliderMultiplier)) break;
-                if(Parsing::parse(curLine, "SliderTickRate", ':', &c.sliderTickRate)) break;
-                break;
-            }
-
-            case Events: {
-                i64 type, startTime, endTime;
-                if(Parsing::parse(curLine, &type, ',', &startTime, ',', &endTime)) {
-                    if(type == 2) {
-                        BREAK b{.startTime = startTime, .endTime = endTime};
-                        c.breaks.push_back(b);
-                        // also update total break duration as we go along here
-                        c.totalBreakDuration += (u32)(endTime - startTime);
+                for(uSz i = 0; i < ho.edgeSounds.size(); i++) {
+                    HITSAMPLE_BITS samples{};
+                    samples.hitSounds = ho.edgeSounds[i] & HitSoundType::VALID_HITSOUNDS;
+                    if(i < ho.edgeSets.size()) {
+                        samples.normalSet = sampleSetValue(ho.edgeSets[i].normalSet);
+                        samples.additionSet = sampleSetValue(ho.edgeSets[i].additionSet);
                     }
+                    slider.edgeSamples.push_back(samples);
                 }
+
+                // No start sample specified, use default
+                if(slider.edgeSamples.empty()) slider.edgeSamples.emplace_back();
+
+                // No end sample specified, use the same as start
+                if(slider.edgeSamples.size() == 1) slider.edgeSamples.push_back(slider.edgeSamples.front());
+
+                applyHitSample(ho.sample, slider.hoverSamples);
+
+                const auto pixelLength = static_cast<f32>(*ho.length);
+                slider.x = (f32)(i32)ho.x;  // NOTE: lazer beatmaps do not truncate here
+                slider.y = (f32)(i32)ho.y;
+                slider.repeat = std::clamp(*ho.slides, 0, sliderMaxRepeatRange);
+                slider.pixelLength =
+                    std::isnan(pixelLength) ? 0.f : std::clamp(pixelLength, -sliderSanityRange, sliderSanityRange);
+                slider.number = comboNumber++;
+                c.sliders.push_back(std::move(slider));
                 break;
             }
 
-            case TimingPoints: {
-                TIMINGPOINT t{};
-                if(parse_timing_point(curLine, t)) {
-                    tempTimingpoints.push_back(t);
-                }
-                break;
-            }
-
-            case Colours: {
-                u8 comboNum;
-                u8 r, g, b;
-
-                if(Parsing::parse(curLine, "Combo", &comboNum, ':', &r, ',', &g, ',', &b)) {
-                    if(comboNum >= 1 && comboNum <= 8) {  // bare minimum validation effort
-                        tempColors[comboNum - 1] = rgb(r, g, b);
-                    }
-                }
-
-                break;
-            }
-
-            case HitObjects: {
-                size_t err_line = 0;
-
-                auto upd_last_error = [&err_line](bool parse_result_bad,
-                                                  size_t line = std::source_location::current().line()) -> void {
-                    if(err_line) {  // already got error
-                        return;
-                    } else {
-                        if(parse_result_bad) {
-                            err_line = line;
-                        }
-                    }
-                };
-
-                // circles:
-                // x,y,time,type,hitSounds,hitSamples
-                // sliders:
-                // x,y,time,type,hitSounds,sliderType|curveX:curveY|...,repeat,pixelLength,edgeHitsound,edgeSets,hitSamples
-                // spinners:
-                // x,y,time,type,hitSounds,endTime,hitSamples
-
-                // NOTE: calculating combo numbers and color offsets based on the parsing order is dangerous.
-                // maybe the hitobjects are not sorted by time in the file; these values should be calculated
-                // after sorting just to be sure?
-
-                f32 x{}, y{};
-                i32 time;
-                i32 hitSounds;
-                // this actually should be initialized since we use it unconditionally after trying to parse it
-                u8 type = 0;
-
-                std::vector<std::string_view> &csvs = spbuf1;
-                SString::split(csvs, curLine, ',');
-
-                if(csvs.size() < 5) break;
-                upd_last_error(!Parsing::parse(csvs[0], &x) || !std::isfinite(x) || std::isnan(x));
-                upd_last_error(!Parsing::parse(csvs[1], &y) || !std::isfinite(y) || std::isnan(y));
-                upd_last_error(!Parsing::parse(csvs[2], &time));
-                upd_last_error(!Parsing::parse(csvs[3], &type));
-                upd_last_error(!Parsing::parse(csvs[4], &hitSounds));
-                upd_last_error((type & PpyHitObjectType::SLIDER) && (csvs.size() < 8));
-                upd_last_error((type & PpyHitObjectType::SPINNER) && (csvs.size() < 6));
-                upd_last_error((type & PpyHitObjectType::MANIA_HOLD_NOTE));
-                if(err_line) {
-                    debugLog("File: {} Invalid hit object (error on line {}): {}", osuFilePath, err_line, curLine);
+            case HO::Kind::SPINNER: {
+                if(!ho.endTime) {
+                    debugLog("File: {} Invalid spinner (line {}): {}", osuFilePath, line.number, line.text);
                     break;
                 }
 
-                if(!(type & PpyHitObjectType::SPINNER)) hitobjectsWithoutSpinnerCounter++;
+                SPINNER s{.x = (f32)(i32)ho.x,  // NOTE: lazer beatmaps do not truncate here
+                          .y = (f32)(i32)ho.y,
+                          .time = ho.time,
+                          .endTime = *ho.endTime,
+                          .samples = {}};
+                s.samples.hitSounds = (u8)(ho.hitSounds & HitSoundType::VALID_HITSOUNDS);
+                applyHitSample(ho.sample, s.samples);
 
-                if(type & PpyHitObjectType::NEW_COMBO) {
-                    comboNumber = 1;
-
-                    // special case 1: if the current object is a spinner, then the raw color counter is not
-                    // increased (but the offset still is!)
-                    // special case 2: the first (non-spinner) hitobject in a beatmap is always a new combo,
-                    // therefore the raw color counter is not increased for it (but the offset still is!)
-                    if(!(type & PpyHitObjectType::SPINNER) && hitobjectsWithoutSpinnerCounter > 1) colorCounter++;
-
-                    // special case 3: "Bits 4-6 (16, 32, 64) form a 3-bit number (0-7) that chooses how many combo colours to skip."
-                    colorOffset += (type >> 4) & 0b111;
-                }
-
-                if(type & PpyHitObjectType::CIRCLE) {
-                    HITCIRCLE h{};
-                    h.x = (f32)(i32)x;  // NOTE: lazer beatmaps do not truncate here
-                    h.y = (f32)(i32)y;
-                    h.time = time;
-                    h.number = comboNumber++;
-                    h.colorCounter = colorCounter;
-                    h.colorOffset = colorOffset;
-                    // h.clicked = false; // unknown what this field was supposed to be for
-                    h.samples.hitSounds = (hitSounds & HitSoundType::VALID_HITSOUNDS);
-
-                    if(csvs.size() > 5) {
-                        // ignore errors, use defaults
-                        parse_hitsamples(hitsamplebuf, csvs[5], h.samples);
-                    }
-
-                    c.hitcircles.push_back(h);
-                } else if(type & PpyHitObjectType::SLIDER) {
-                    SLIDER slider{};
-                    slider.colorCounter = colorCounter;
-                    slider.colorOffset = colorOffset;
-                    slider.time = time;
-                    slider.hoverSamples.hitSounds = (hitSounds & HitSoundType::VALID_SLIDER_HITSOUNDS);
-
-                    std::vector<std::string_view> &curves = spbuf2;
-                    SString::split(curves, csvs[5], '|');
-
-                    slider.type = SLIDERCURVETYPE{curves[0][0]};
-                    curves.erase(curves.begin());
-                    for(const auto curvePoints : curves) {
-                        f32 cpX{}, cpY{};
-                        // just skip infinite/invalid curve points (https://osu.ppy.sh/b/1029976)
-                        const bool valid = Parsing::parse(curvePoints, &cpX, ':', &cpY) &&  //
-                                           std::isfinite(cpX) && !std::isnan(cpX) &&        //
-                                           std::isfinite(cpY) && !std::isnan(cpY);          //
-
-                        if(!valid) continue;
-
-                        slider.points.emplace_back(std::clamp(cpX, -sliderSanityRange, sliderSanityRange),
-                                                   std::clamp(cpY, -sliderSanityRange, sliderSanityRange));
-                    }
-
-                    upd_last_error(!Parsing::parse(csvs[6], &slider.repeat));
-                    if(err_line) {
-                        debugLog("File: {} Invalid slider: (error on line {}): {}", osuFilePath, err_line, curLine);
-                        break;
-                    }
-                    upd_last_error(!Parsing::parse(csvs[7], &slider.pixelLength));
-                    if(err_line && !csvs[7].empty()) {
-                        // fix up infinite pixelLength
-                        if(SString::contains_ncase(csvs[7], "e+")) {
-                            if(csvs[7].starts_with('-')) {
-                                slider.pixelLength = -sliderSanityRange;
-                            } else {
-                                slider.pixelLength = sliderSanityRange;
-                            }
-                            err_line = 0;
-                        }
-                    }
-                    if(err_line) {
-                        debugLog("File: {} Invalid slider pixel length: {} slider.pixelLength: {}", osuFilePath,
-                                 csvs[7], slider.pixelLength);
-                        break;
-                    }
-
-                    // special case: osu! logic for handling the hitobject point vs the controlpoints (since
-                    // sliders have both, and older beatmaps store the start point inside the control
-                    // points)
-                    vec2 xy = vec2(std::clamp(x, -sliderSanityRange, sliderSanityRange),
-                                   std::clamp(y, -sliderSanityRange, sliderSanityRange));
-                    if(slider.points.size() > 0) {
-                        if(slider.points[0] != xy) slider.points.insert(slider.points.begin(), xy);
-                    } else {
-                        slider.points.push_back(xy);
-                    }
-
-                    // partially allow bullshit sliders (add second point to make valid)
-                    // e.g. https://osu.ppy.sh/beatmapsets/791900#osu/1676490
-                    if(slider.points.size() == 1) slider.points.push_back(xy);
-
-                    std::vector<std::string_view> &edgeSounds = spbuf3;
-                    if(csvs.size() > 8)
-                        SString::split(edgeSounds, csvs[8], '|');
-                    else
-                        edgeSounds.clear();
-
-                    std::vector<std::string_view> &edgeSets = spbuf4;
-                    if(csvs.size() > 9)
-                        SString::split(edgeSets, csvs[9], '|');
-                    else
-                        edgeSets.clear();
-
-                    for(i32 i = 0; i < edgeSounds.size(); i++) {
-                        HITSAMPLE_BITS samples{};
-                        // ignore parse errors, default hitSounds to 0
-                        (void)Parsing::parse(edgeSounds[i], &samples.hitSounds);
-                        samples.hitSounds &= HitSoundType::VALID_HITSOUNDS;
-
-                        if(!edgeSets.empty() && i < edgeSets.size()) {
-                            std::vector<std::string_view> &parts = spbuf5;
-                            SString::split(parts, edgeSets[i], ':');
-                            if(parts.size() >= 1) samples.normalSet = parse_sampleset_value(parts[0]);
-                            if(parts.size() >= 2) samples.additionSet = parse_sampleset_value(parts[1]);
-                        }
-
-                        slider.edgeSamples.push_back(samples);
-                    }
-
-                    // No start sample specified, use default
-                    if(slider.edgeSamples.empty()) slider.edgeSamples.emplace_back();
-
-                    // No end sample specified, use the same as start
-                    if(slider.edgeSamples.size() == 1) slider.edgeSamples.push_back(slider.edgeSamples.front());
-
-                    if(csvs.size() > 10) {
-                        parse_hitsamples(hitsamplebuf, csvs[10], slider.hoverSamples);
-                    }
-
-                    slider.x = (f32)(i32)x;  // NOTE: lazer beatmaps do not truncate here
-                    slider.y = (f32)(i32)y;
-                    slider.repeat = std::clamp(slider.repeat, 0, sliderMaxRepeatRange);
-                    slider.pixelLength = std::isnan(slider.pixelLength)
-                                             ? 0.f
-                                             : std::clamp(slider.pixelLength, -sliderSanityRange, sliderSanityRange);
-                    slider.number = comboNumber++;
-                    c.sliders.push_back(std::move(slider));
-                } else if(type & PpyHitObjectType::SPINNER) {
-                    i32 endTime{0};
-                    upd_last_error(!Parsing::parse(csvs[5], &endTime));
-
-                    if(err_line) {
-                        debugLog("File: {} Invalid spinner (error on line {}): {}", osuFilePath, err_line, curLine);
-                        break;
-                    }
-
-                    SPINNER s{.x = (f32)(i32)x,  // NOTE: lazer beatmaps do not truncate here
-                              .y = (f32)(i32)y,
-                              .time = time,
-                              .endTime = endTime,
-                              .samples = {}};
-                    s.samples.hitSounds = (u8)(hitSounds & HitSoundType::VALID_HITSOUNDS);
-
-                    if(csvs.size() > 6) {
-                        parse_hitsamples(hitsamplebuf, csvs[6], s.samples);
-                    }
-
-                    c.spinners.push_back(s);
-                }
-
+                c.spinners.push_back(s);
                 break;
             }
         }
@@ -1456,9 +1288,8 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
             }
 
             case TimingPoints: {
-                TIMINGPOINT t{};
-                if(parse_timing_point(curLine, t)) {
-                    tempTimingpoints.push_back(t);
+                if(BeatmapFile::TimingPoint tp; BeatmapFile::parse(curLine, tp)) {
+                    tempTimingpoints.push_back(toTimingPoint(tp));
                 }
                 break;
             }
