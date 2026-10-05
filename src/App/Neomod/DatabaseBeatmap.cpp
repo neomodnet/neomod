@@ -218,23 +218,15 @@ bool DatabaseBeatmap::operator==(const DatabaseBeatmap &other) const {
 
 namespace {  // internal helpers
 
-// the game's reading of a timing point: the time rounded, and lines of three to six fields read as only their first two
+// the game's reading of a timing point: the time rounded
 TIMINGPOINT toTimingPoint(const BeatmapFile::TimingPoint &tp) {
-    TIMINGPOINT out{.offset = std::round(tp.time),
-                    .msPerBeat = tp.beatLength,
-                    .sampleSet = 0,
-                    .sampleIndex = 0,
-                    .volume = 100,
-                    .uninherited = true,
-                    .kiai = false};
-    if(tp.fields >= 7) {
-        out.sampleSet = tp.sampleSet;
-        out.sampleIndex = tp.sampleIndex;
-        out.volume = std::clamp(tp.volume, 0, 100);
-        out.uninherited = tp.uninherited;
-        out.kiai = (tp.effects & BeatmapFile::TimingPoint::EFFECT_KIAI) != 0;
-    }
-    return out;
+    return {.offset = std::round(tp.time),
+            .msPerBeat = tp.beatLength,
+            .sampleSet = tp.sampleSet,
+            .sampleIndex = tp.sampleIndex,
+            .volume = std::clamp(tp.volume, 0, 100),
+            .uninherited = tp.uninherited,
+            .kiai = (tp.effects & BeatmapFile::TimingPoint::EFFECT_KIAI) != 0};
 }
 
 // parse a sample set value with lenient handling, matching lazer behavior:

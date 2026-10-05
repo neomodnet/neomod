@@ -255,17 +255,12 @@ bool BeatmapFile::parse(std::string_view line, TimingPoint &out) {
     // fields are read up to the first one that isn't a number
     TimingPoint tp;
     i32 uninherited{1};
-    u8 read = 0;
-    const auto next = [&](auto &value) {
-        if(read >= count || !Parsing::parse(fields[read], &value)) return false;
-        read++;
-        return true;
-    };
+    uSz read = 0;
+    const auto next = [&](auto &value) { return read < count && Parsing::parse(fields[read++], &value); };
     if(!next(tp.time) || !next(tp.beatLength)) return false;
     (void)(next(tp.meter) && next(tp.sampleSet) && next(tp.sampleIndex) && next(tp.volume) && next(uninherited) &&
            next(tp.effects));
     tp.uninherited = uninherited == 1;
-    tp.fields = read;
     out = tp;
     return true;
 }

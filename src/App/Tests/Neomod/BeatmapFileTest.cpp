@@ -402,7 +402,7 @@ void BeatmapFileTest::runTests() {
         BeatmapFile::TimingPoint tp;
         TEST_ASSERT(BeatmapFile::parse("1000,333.333333333333,4,2,1,60,1,0", tp), "8 fields");
         TEST_ASSERT(tp.time == 1000 && tp.beatLength == 333.333333333333 && tp.meter == 4 && tp.sampleSet == 2 &&
-                        tp.sampleIndex == 1 && tp.volume == 60 && tp.uninherited && tp.effects == 0 && tp.fields == 8,
+                        tp.sampleIndex == 1 && tp.volume == 60 && tp.uninherited && tp.effects == 0,
                     "8 fields read");
         TEST_ASSERT_EQ(BeatmapFile::format(tp), "1000,333.333333333333,4,2,1,60,1,0", "8 fields written back");
 
@@ -412,10 +412,14 @@ void BeatmapFileTest::runTests() {
                     "inherited, fractional time, effects");
         TEST_ASSERT_EQ(BeatmapFile::format(tp), "1500.5,-50,4,2,0,40,0,9", "written back");
 
-        TEST_ASSERT(BeatmapFile::parse("100,500", tp) && tp.fields == 2 && tp.uninherited && tp.volume == 100,
-                    "2 fields");
-        TEST_ASSERT(BeatmapFile::parse("100,-100,4,1,0,70", tp) && tp.fields == 6 && tp.volume == 70, "6 fields");
-        TEST_ASSERT(BeatmapFile::parse("100,500,x,1", tp) && tp.fields == 2, "read up to the first non-number");
+        TEST_ASSERT(BeatmapFile::parse("100,500", tp) && tp.meter == 4 && tp.sampleSet == 0 && tp.uninherited &&
+                        tp.volume == 100,
+                    "2 fields, the rest defaults");
+        TEST_ASSERT(BeatmapFile::parse("100,500,3,2,1,70", tp) && tp.meter == 3 && tp.sampleSet == 2 &&
+                        tp.sampleIndex == 1 && tp.volume == 70 && tp.uninherited && tp.effects == 0,
+                    "6 fields");
+        TEST_ASSERT(BeatmapFile::parse("100,500,x,1", tp) && tp.meter == 4 && tp.sampleSet == 0,
+                    "read up to the first non-number");
         TEST_ASSERT(!BeatmapFile::parse("100", tp), "1 field");
         TEST_ASSERT(BeatmapFile::parse("100,NaN,4,1,0,100,1,0", tp) && std::isnan(tp.beatLength), "NaN");
         TEST_ASSERT_EQ(BeatmapFile::format(tp), "100,NaN,4,1,0,100,1,0", "NaN written back");

@@ -125,7 +125,6 @@ class BeatmapFile {
         i32 volume{100};
         bool uninherited{true};
         i32 effects{0};
-        u8 fields{0};  // how many were read: the ones after them keep their defaults
     };
     static bool parse(std::string_view line, TimingPoint &out);
     static std::string format(const TimingPoint &tp);
