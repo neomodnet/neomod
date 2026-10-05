@@ -17,7 +17,7 @@
 #include "UIContextMenu.h"
 #include "CBaseUIDispatch.h"
 #include "Environment.h"
-#include "BeatmapInterface.h"
+#include "MusicTrack.h"
 #include "PreviewTrackManager.h"
 #include "Skin.h"
 
@@ -243,7 +243,7 @@ void VolumeOverlay::onResolutionChange(vec2 /*newResolution*/) { this->updateLay
 // regular screen walk-ordered keydown handler
 void VolumeOverlay::onKeyDown(KeyboardEvent &key) {
     if(key == KEY_MUTE) {
-        osu->getMapInterface()->pausePreviewMusic(true);
+        osu->getMusicTrack()->togglePause();
         key.consume();
         return;
     }
@@ -381,9 +381,6 @@ void VolumeOverlay::updateEffectVolume(Skin *skin) {
 }
 
 void VolumeOverlay::onMusicVolumeChange() {
-    auto music = osu->getMapInterface()->getMusic();
-    if(music != nullptr) {
-        music->setBaseVolume(osu->getMapInterface()->getIdealVolume());
-    }
+    osu->getMusicTrack()->updateVolume();
     osu->getPreviewTrackManager()->apply_music_volume();
 }

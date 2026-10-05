@@ -2,6 +2,7 @@
 #include "Osu.h"
 
 #include "BeatmapInstaller.h"
+#include "MusicTrack.h"
 #include "PreviewTrackManager.h"
 #include "ThumbnailManager.h"
 #include "BackgroundImageHandler.h"
@@ -126,7 +127,8 @@ Osu::Osu()
     : App(),
       MouseListener(),
       global_osu_(this),
-      map_iface(std::make_unique<BeatmapInterface>()),
+      musicTrack(std::make_unique<MusicTrack>()),
+      map_iface(std::make_unique<BeatmapInterface>(*this->musicTrack)),
       score(std::make_unique<LiveScore>(false)) {
     // global cvar callbacks will be removed in destructor
     cvars().setPolicy({.allowWrite = Osu::globalAllowConVarWrite, .onValueChanged = Osu::globalOnConVarChange});
@@ -443,10 +445,8 @@ Osu::~Osu() {
     BANCHO::Net::cleanup_networking();
 
     // destroy playing music
-    if(this->map_iface && this->map_iface->getMusic()) {
-        resourceManager->destroyResource(this->map_iface->getMusic(), ResourceDestroyFlags::RDF_FORCE_BLOCKING);
-        this->map_iface.reset();
-    }
+    this->map_iface.reset();
+    this->musicTrack.reset();
 
     // clear main menu maps early, just in case
     if(this->UIReady()) {
@@ -604,6 +604,7 @@ void Osu::update() {
     this->previewTrackManager->update();
 
     // does things which needed to wait until loading finished
+    this->musicTrack->update();
     this->map_iface->checkHandleAsyncMusicLoadFinish();
 
     if(this->skin.get()) {
@@ -614,13 +615,6 @@ void Osu::update() {
     this->fposu->update();
 
     ui->update();
-
-    if(this->music_unpause_scheduled && soundEngine->isReady()) {
-        if(Sound *music = this->map_iface->getMusic(); music && !music->isPlaying()) {
-            soundEngine->play(music);
-        }
-        this->music_unpause_scheduled = false;
-    }
 
     // main playfield update
     this->bSeeking = false;
@@ -940,8 +934,8 @@ void Osu::onKeyDown(KeyboardEvent &key) {
         if(env->minimizeWindow()) {
             // (this resumes the music a preview paused, which gets paused again below and comes back with the window)
             this->previewTrackManager->stop();
-            this->bWasBossKeyPaused = this->map_iface->isPreviewMusicPlaying();
-            this->map_iface->pausePreviewMusic(false);
+            this->bWasBossKeyPaused = this->musicTrack->isPlaying();
+            this->musicTrack->pause();
         }
     }
 
@@ -1336,7 +1330,7 @@ void Osu::showNotification(const NotificationInfo &info) {
     return;
 }
 
-void Osu::reloadMapInterface() { this->map_iface = std::make_unique<BeatmapInterface>(); }
+void Osu::reloadMapInterface() { this->map_iface = std::make_unique<BeatmapInterface>(*this->musicTrack); }
 
 void Osu::saveScreenshot() {
     static std::atomic<i32> screenshotNumber{0};
@@ -1815,7 +1809,7 @@ void Osu::doChangeFocus(bool focused) {
     if(focused) {
         if(this->bWasBossKeyPaused) {
             this->bWasBossKeyPaused = false;
-            this->map_iface->pausePreviewMusic();
+            this->musicTrack->togglePause();
         }
 
         this->ui_memb->getVolumeOverlay()->gainFocus();
@@ -2236,15 +2230,6 @@ bool Osu::isBleedingEdge() {
 void Osu::audioRestartCallbackBefore() {
     // abort loudness calc (needed especially for BASS since BASS_Free() is global)
     VolNormalization::shutdown();
-
-    Sound *map_music = nullptr;
-    if(this->map_iface && (map_music = this->map_iface->getMusic())) {
-        this->music_was_playing = map_music->isPlaying();
-        this->music_prev_position_ms = map_music->getPositionMS();
-    } else {
-        this->music_was_playing = false;
-        this->music_prev_position_ms = 0;
-    }
 }
 
 // the actual reset will be sandwiched between these during restart
@@ -2255,22 +2240,6 @@ void Osu::audioRestartCallbackAfter() {
         options->onOutputDeviceChange();
         if(this->skin) {
             this->skin->reloadSounds();
-        }
-
-        // start playing music again after audio device changed
-        Sound *map_music = nullptr;
-        if(this->map_iface && (map_music = this->map_iface->getMusic())) {
-            // TODO(spec): is this even right? why do we only unload music after already destroying/restarting soundengine
-            this->map_iface->unloadMusic();
-            this->map_iface->loadMusic();
-            if((map_music = this->map_iface->getMusic())) {  // need to get new music after loading
-                map_music->setLoop(!this->isInPlayMode());
-                map_music->setPositionMS(this->music_prev_position_ms);
-            }
-        }
-
-        if(this->music_was_playing) {
-            this->music_unpause_scheduled = true;
         }
         options->scheduleLayoutUpdate();
     }

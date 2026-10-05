@@ -10,9 +10,9 @@
 #include "Icons.h"
 #include "MainMenu.h"
 #include "Mouse.h"
+#include "MusicTrack.h"
 #include "Osu.h"
 #include "OsuConVars.h"
-#include "Sound.h"
 #include "TooltipOverlay.h"
 #include "UI.h"
 #include "UIIconButton.h"
@@ -71,7 +71,7 @@ class NowPlaying::SeekBar final : public CBaseUIElement {
     void updateInput(CBaseUIEventCtx &c) override;
 
     // where the bar puts the song: where it plays, or where it's being dragged to
-    [[nodiscard]] f64 getShownPercent(const Sound &music) const {
+    [[nodiscard]] f64 getShownPercent(const MusicTrack &music) const {
         return this->bActive ? this->getCursorPercent() : music.getPositionPct();
     }
 
@@ -104,8 +104,8 @@ void NowPlaying::SeekBar::draw() {
 
     fill(rect.getWidth(), this->isMouseInside() || this->bActive ? 0.3f : 0.15f);
 
-    const Sound *music = osu->getMapInterface()->getMusic();
-    if(!music || !music->isReady() || music->getLengthUS() == 0) return;
+    const MusicTrack *music = osu->getMusicTrack();
+    if(!music->isReady() || music->getLengthMS() == 0) return;
 
     // how far a click would seek
     if(this->isMouseInside() && !this->bActive) fill(rect.getWidth() * this->getCursorPercent(), 0.25f);
@@ -117,13 +117,13 @@ void NowPlaying::SeekBar::updateInput(CBaseUIEventCtx &c) {
     CBaseUIElement::updateInput(c);
     if(!this->isMouseInside() && !this->bActive) return;
 
-    const Sound *music = osu->getMapInterface()->getMusic();
-    if(!music || !music->isReady()) return;
+    const MusicTrack *music = osu->getMusicTrack();
+    if(!music->isReady()) return;
 
     // the time a click would seek to
     auto *tooltips = ui->getTooltipOverlay();
     tooltips->begin();
-    tooltips->addLine(format_time(this->getCursorPercent() * music->getLengthS()));
+    tooltips->addLine(format_time(this->getCursorPercent() * music->getLengthMS() / 1000.));
     tooltips->end();
 }
 
@@ -136,9 +136,9 @@ void NowPlaying::SeekBar::onMouseUpInside(bool /*left*/, bool /*right*/) { this-
 void NowPlaying::SeekBar::onMouseUpOutside(bool /*left*/, bool /*right*/) { this->seek(); }
 
 void NowPlaying::SeekBar::seek() const {
-    Sound *music = osu->getMapInterface()->getMusic();
-    if(!music || !music->isReady()) return;
-    music->setPositionS(this->getCursorPercent() * music->getLengthS());
+    MusicTrack *music = osu->getMusicTrack();
+    if(!music->isReady()) return;
+    music->setPosition((u32)std::round(this->getCursorPercent() * music->getLengthMS()));
 }
 
 // pins the panel open (main_menu_music_controls_pinned): the pin stands upright while it's pinned and lies tilted while
@@ -312,8 +312,8 @@ void NowPlaying::draw() {
 void NowPlaying::drawTimes() {
     if(this->expandAnim <= 0.f) return;
 
-    const Sound *music = osu->getMapInterface()->getMusic();
-    if(!music || !music->isReady() || music->getLengthUS() == 0) return;
+    const MusicTrack *music = osu->getMusicTrack();
+    if(!music->isReady() || music->getLengthMS() == 0) return;
 
     const f32 scale = Osu::getUIScale();
     const f32 baseline = std::round(this->getPos().y + std::round(TITLE_HEIGHT * scale) + BUTTON_HEIGHT * scale / 2.f +
@@ -332,8 +332,9 @@ void NowPlaying::drawTimes() {
         g->popTransform();
     };
 
-    const std::string total = format_time(music->getLengthS());
-    drawAt(format_time(this->seekBar->getShownPercent(*music) * music->getLengthS()), this->getPos().x + PAD * scale);
+    const f64 lengthS = music->getLengthMS() / 1000.;
+    const std::string total = format_time(lengthS);
+    drawAt(format_time(this->seekBar->getShownPercent(*music) * lengthS), this->getPos().x + PAD * scale);
     drawAt(total,
            this->getPos().x + this->getSize().x - PAD * scale - this->font->getStringWidth(total) * TIME_TEXT_SCALE);
 }
@@ -347,7 +348,7 @@ void NowPlaying::drawTitle() {
         std::round(this->getPos().y + std::round(TITLE_HEIGHT * scale) / 2.f + this->font->getHeight() / 2.f);
 
     // whether it plays, in front of the title
-    const char32_t state = osu->getMapInterface()->isPreviewMusicPlaying() ? Icons::MUSIC : Icons::PAUSE;
+    const char32_t state = osu->getMusicTrack()->isPlaying() ? Icons::MUSIC : Icons::PAUSE;
     const std::string stateGlyph = UniString::to_utf8(std::u32string_view{&state, 1});
     const f32 stateScale = this->font->getHeight() / this->iconFont->getGlyphHeight(state);
     g->pushTransform();

@@ -12,6 +12,7 @@
 
 // TODO: refactor everything in src/App/Neomod to be under the neomod namespace
 class ThumbnailManager;
+class MusicTrack;
 class PreviewTrackManager;
 class BeatmapInstaller;
 class ConVar;
@@ -161,6 +162,7 @@ class Osu final : public App, public MouseListener, public TouchListener {
     [[nodiscard]] inline LiveScore *getScore() const { return this->score.get(); }
     [[nodiscard]] inline UpdateHandler *getUpdateHandler() const { return this->updateHandler.get(); }
     [[nodiscard]] inline BeatmapInterface *getMapInterface() const { return this->map_iface.get(); }
+    [[nodiscard]] inline MusicTrack *getMusicTrack() const { return this->musicTrack.get(); }
     [[nodiscard]] inline ThumbnailManager *getThumbnailManager() const { return this->thumbnailManager.get(); }
     [[nodiscard]] inline PreviewTrackManager *getPreviewTrackManager() const { return this->previewTrackManager.get(); }
     [[nodiscard]] inline BeatmapInstaller *getBeatmapInstaller() const { return this->beatmapInstaller.get(); }
@@ -289,6 +291,7 @@ class Osu final : public App, public MouseListener, public TouchListener {
 
     // interfaces (other)
     std::unique_ptr<Skin> skin{nullptr};
+    std::unique_ptr<MusicTrack> musicTrack{nullptr};  // (before the map interface, which plays on it)
     std::unique_ptr<BeatmapInterface> map_iface{nullptr};
     std::unique_ptr<UpdateHandler> updateHandler{nullptr};
     std::unique_ptr<ThumbnailManager> thumbnailManager{nullptr};
@@ -383,9 +386,6 @@ class Osu final : public App, public MouseListener, public TouchListener {
 
     // for audio restart callbacks
     Mc::Registration audioDeviceListener;
-    bool music_unpause_scheduled{false};
-    bool music_was_playing{false};
-    u32 music_prev_position_ms{0};
 };
 
 MAKE_FLAG_ENUM(Osu::ResolutionRequestFlags)

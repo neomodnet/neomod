@@ -17,6 +17,7 @@
 #include "File.h"
 #include "i18n.h"
 #include "Logging.h"
+#include "MusicTrack.h"
 #include "NotificationOverlay.h"
 #include "Osu.h"
 #include "OsuConVars.h"
@@ -503,7 +504,7 @@ void BeatmapInstaller::uninstall(const DatabaseBeatmap* map, bool whole_set) {
     // the preview music streams from the folder, and an open file can't be deleted on windows
     auto* iface = osu->getMapInterface();
     if(whole_set && iface->getBeatmap() && (iface->getBeatmap() == set || iface->getBeatmap()->getParentSet() == set)) {
-        iface->unloadMusic();
+        osu->getMusicTrack()->unload();
     }
 
     if(whole_set) {

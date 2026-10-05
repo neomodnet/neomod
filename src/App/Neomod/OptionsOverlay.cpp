@@ -27,6 +27,7 @@
 #include "BeatmapInterface.h"
 #include "MainMenu.h"
 #include "ModSelector.h"
+#include "MusicTrack.h"
 #include "Osu.h"
 #include "Skin.h"
 #include "SongBrowser/SongBrowser.h"
@@ -3791,10 +3792,7 @@ void OptionsOverlayImpl::onWASAPIPeriodChange(CBaseUISlider *slider) {
 void OptionsOverlayImpl::onLoudnessNormalizationToggle(CBaseUICheckbox *checkbox) {
     this->onCheckboxChange(checkbox);
 
-    auto music = osu->getMapInterface()->getMusic();
-    if(music != nullptr) {
-        music->setBaseVolume(osu->getMapInterface()->getIdealVolume());
-    }
+    osu->getMusicTrack()->updateVolume();
 
     if(cv::normalize_loudness.getBool()) {
         VolNormalization::start_calc(db->loudness_to_calc);

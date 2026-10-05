@@ -17,7 +17,7 @@
 #include "Osu.h"
 #include "RoomScreen.h"
 #include "SongBrowser/SongBrowser.h"
-#include "Sound.h"
+#include "MusicTrack.h"
 #include "score.h"
 #include "UI.h"
 
@@ -75,8 +75,7 @@ std::array<char, 128> beatmap_desc_str(const DatabaseBeatmap* map, bool include_
 void set_activity_with_image(DiscordActivity& to_set) {
 #ifdef MCENGINE_FEATURE_DISCORD
     const auto map = osu->getMapInterface()->getBeatmap();
-    const auto music = osu->getMapInterface()->getMusic();
-    const bool listening = !!map && !!music && music->isPlaying();
+    const bool listening = !!map && osu->getMusicTrack()->isPlaying();
     const bool playing = !!map && osu->isInPlayMode();
     const bool bg_visible = !!map && map->draw_background && cv::rich_presence_map_backgrounds.getBool();
 
@@ -233,8 +232,7 @@ void onMainMenu() {
     auto activity = DiscRPC::create_base_activity();
 
     auto map = osu->getMapInterface()->getBeatmap();
-    auto music = osu->getMapInterface()->getMusic();
-    bool listening = map != nullptr && music != nullptr && music->isPlaying();
+    bool listening = map != nullptr && osu->getMusicTrack()->isPlaying();
     if(listening) {
         activity.details = beatmap_desc_str(map, false);
     }

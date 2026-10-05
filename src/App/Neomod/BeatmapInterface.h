@@ -15,7 +15,7 @@
 #include <memory>
 
 class RenderTarget;
-class Sound;
+class MusicTrack;
 class Shader;
 class ConVar;
 struct Skin;
@@ -39,7 +39,8 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
     // for handling transition from unloaded database to loaded database
     static inline CONSTINIT MD5Hash loading_reselect_map{};
 
-    BeatmapInterface();
+    // plays the selected map's music on `music`
+    explicit BeatmapInterface(MusicTrack &music);
     ~BeatmapInterface() override;
 
     void draw();
@@ -57,7 +58,6 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
 
     // does things which needed to wait until loading finished, even outside of play mode (called by Osu::update)
     void checkHandleAsyncMusicLoadFinish();
-    [[nodiscard]] inline bool isMusicLoadHandled() const { return this->bIsAsyncMusicLoadHandled; }
 
     // Returns true if we're loading or waiting on other players
     bool isLoading();
@@ -139,8 +139,6 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
     bool start();
     void restart(bool quick = false);
     void pause(bool quitIfWaiting = true);
-    void pausePreviewMusic(bool toggle = true);
-    bool isPreviewMusicPlaying();
     void stop(bool quit = true);
     void fail(bool force_death = false);
     void cancelFailing();
@@ -149,16 +147,13 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
     // music/sound
     inline void reloadMusicNow() { this->loadMusic(true, false); }
     void loadMusic(bool reload = false, bool async = false);
-    void unloadMusic();
 
-    [[nodiscard]] f32 getIdealVolume() const;
+    // the speed (and the pitch that goes with it) gameplay plays the music at, or 1 outside of it
     void setMusicSpeed(f32 speed);
-    void setMusicPitch(f32 pitch);
     void seekMS(u32 ms);
     [[nodiscard]] inline DBTimingInfo getCurrentTimingInfo() const { return this->cur_timing_info; }
     [[nodiscard]] inline u8 getDefaultSampleSet() const { return this->default_sample_set; }
 
-    [[nodiscard]] inline Sound *getMusic() const { return this->music; }
     [[nodiscard]] u32 getTime() const;
     [[nodiscard]] u32 getStartTimePlayable() const;
     [[nodiscard]] u32 getLength() const override;
@@ -325,7 +320,6 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
     // sound
     mutable std::unique_ptr<GameplayInterpolator> musicInterp;
 
-    f32 fMusicFrequencyBackup;
     i32 iCurMusicPos;
     i32 iCurMusicPosWithOffsets;
     u64 iLastMusicPosUpdateTime{0};
@@ -415,7 +409,7 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
     // beatmap
     bool bIsSpinnerActive;
     vec2 vContinueCursorPoint{0.f};
-    Sound *music;
+    MusicTrack &music;
 
     // playfield
     f32 fPlayfieldRotation;

@@ -5,12 +5,12 @@
 #include "AsyncIOHandler.h"
 #include "AsyncPool.h"
 #include "Bancho.h"
-#include "BeatmapInterface.h"
 #include "ConVar.h"
 #include "Environment.h"
 #include "File.h"
 #include "Hashing.h"
 #include "Logging.h"
+#include "MusicTrack.h"
 #include "NetworkHandler.h"
 #include "Osu.h"
 #include "OsuConVars.h"
@@ -156,7 +156,7 @@ void PreviewTrackManager::Impl::update() {
             return this->start_playing();
 
         case Stage::PLAYING:
-            if(const Sound *music = osu->getMapInterface()->getMusic(); music && music->isPlaying()) {
+            if(osu->getMusicTrack()->isPlaying()) {
                 // something else started the music (e.g. a downloaded beatmap got selected), which takes over
                 logIfCV(debug_snd, "the music started, stopping preview {}", this->set_id);
                 this->music_paused = false;
@@ -211,7 +211,7 @@ void PreviewTrackManager::Impl::finish() {
 
     if(!std::exchange(this->music_paused, false)) return;
     // (unless something else started it again meanwhile, or replaced it with music that isn't loaded yet)
-    if(Sound *music = osu->getMapInterface()->getMusic(); music && !music->isPlaying()) soundEngine->play(music);
+    if(MusicTrack *music = osu->getMusicTrack(); !music->isPlaying()) music->play();
 }
 
 void PreviewTrackManager::Impl::drop_track() {
@@ -292,8 +292,8 @@ void PreviewTrackManager::Impl::load(bool cached_before) {
 }
 
 void PreviewTrackManager::Impl::start_playing() {
-    if(Sound *music = osu->getMapInterface()->getMusic(); music && music->isPlaying()) {
-        soundEngine->pause(music);
+    if(MusicTrack *music = osu->getMusicTrack(); music->isPlaying()) {
+        music->pause();
         this->music_paused = true;
     }
 

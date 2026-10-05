@@ -1,11 +1,11 @@
 // Copyright (c) 2026, WH, All rights reserved.
 #include "UIIconButton.h"
 
-#include "BeatmapInterface.h"
 #include "Font.h"
 #include "Graphics.h"
 #include "i18n.h"
 #include "Icons.h"
+#include "MusicTrack.h"
 #include "Osu.h"
 #include "TooltipOverlay.h"
 #include "UI.h"
@@ -74,13 +74,13 @@ void UIIconButton::onMouseOutside() {
 
 PauseButton::PauseButton(std::string name) : UIIconButton(Icons::PLAY, std::move(name)) {
     this->tooltipText = _("Play");
-    this->setClickCallback([] { osu->getMapInterface()->pausePreviewMusic(); });
+    this->setClickCallback([] { osu->getMusicTrack()->togglePause(); });
 }
 
 void PauseButton::tick() {
     UIIconButton::tick();
 
-    const bool playing = osu->getMapInterface()->isPreviewMusicPlaying();
+    const bool playing = osu->getMusicTrack()->isPlaying();
     if(playing == (this->icon == Icons::PAUSE)) return;
     this->icon = playing ? Icons::PAUSE : Icons::PLAY;
     this->tooltipText = playing ? _("Pause") : _("Play");

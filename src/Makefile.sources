@@ -164,6 +164,7 @@ neomod_SOURCES = \
 	src/App/Neomod/MapFetcher.cpp \
 	src/App/Neomod/ModFPoSu.cpp \
 	src/App/Neomod/ModSelector.cpp \
+	src/App/Neomod/MusicTrack.cpp \
 	src/App/Neomod/NeomodEnvInterop.cpp \
 	src/App/Neomod/NeomodUrl.cpp \
 	src/App/Neomod/NotificationOverlay.cpp \

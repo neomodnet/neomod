@@ -25,7 +25,7 @@
 #include "RoomScreen.h"
 #include "Skin.h"
 #include "SongBrowser.h"
-#include "Sound.h"
+#include "MusicTrack.h"
 #include "SoundEngine.h"
 #include "UI.h"
 #include "UIButton.h"
@@ -177,15 +177,15 @@ void SpectatorScreen::controlClientState() {
         i32 leeway = map_iface->getSpectatingLeeway();
         if(map_iface->is_buffering) {
             // make sure music is actually paused
-            if(map_iface->music->isPlaying()) {
-                soundEngine->pause(map_iface->music);
+            if(osu->getMusicTrack()->isPlaying()) {
+                osu->getMusicTrack()->pause();
                 map_iface->bIsPlaying = false;
                 map_iface->bIsPaused = true;
             }
 
             if(leeway >= cv::spec_buffer.getInt()) {
                 debugLog("UNPAUSING: leeway: {:d}, iCurMusicPos: {:d}", leeway, map_iface->iCurMusicPos);
-                soundEngine->play(map_iface->music);
+                osu->getMusicTrack()->play();
                 map_iface->bIsPlaying = true;
                 map_iface->bIsPaused = false;
                 map_iface->is_buffering = false;
@@ -197,7 +197,7 @@ void SpectatorScreen::controlClientState() {
 
             if(leeway <= 0 && !is_finished) {
                 debugLog("PAUSING: leeway: {:d}, iCurMusicPos: {:d}", leeway, map_iface->iCurMusicPos);
-                soundEngine->pause(map_iface->music);
+                osu->getMusicTrack()->pause();
                 map_iface->bIsPlaying = false;
                 map_iface->bIsPaused = true;
                 map_iface->is_buffering = true;

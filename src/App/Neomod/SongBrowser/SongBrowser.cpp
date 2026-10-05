@@ -25,6 +25,7 @@
 #include "Graphics.h"
 
 #include "Osu.h"
+#include "MusicTrack.h"
 #include "OsuConVars.h"
 
 #include "BatchDiffCalc.h"
@@ -1178,10 +1179,7 @@ CBaseUIContainer *SongBrowser::setVisible(bool visible) {
         this->selectSelectedBeatmapSongButton();
 
         // re-enable looping, since exiting to the main menu disables it
-        if(Sound *music = osu->getMapInterface()->getMusic()) {
-            // make sure we loop the music, since if we're carrying over from main menu it was set to not-loop
-            music->setLoop(cv::beatmap_preview_music_loop.getBool());
-        }
+        osu->getMusicTrack()->setLoop(cv::beatmap_preview_music_loop.getBool());
 
         RichPresence::onSongBrowser();
     } else {
@@ -1483,6 +1481,7 @@ void SongBrowser::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
     // clear beatmap interface to lose any potential stale references
     VolNormalization::flush_priority();  // it may be calculating on preloaded maps
     osu->reloadMapInterface();
+    osu->getMusicTrack()->releaseMap();
     ui->getMainMenu()->clearPreloadedMaps();
 
     this->selectedButton = nullptr;
@@ -2675,7 +2674,7 @@ void SongBrowser::onDatabaseLoadingFinished(bool isNextScreenSongBrowser) {
     // maybe not actually resulting in songbrowser being opened after this function is called
     bool wasMusicPausedBeforeSongBrowserLoadAndNextScreenIsntSongbrowser = false;
     if(!isNextScreenSongBrowser) {
-        if(auto *music = resourceManager->getSound("BEATMAP_MUSIC"); music && !music->isPlaying()) {
+        if(!osu->getMusicTrack()->isEmpty() && !osu->getMusicTrack()->isPlaying()) {
             wasMusicPausedBeforeSongBrowserLoadAndNextScreenIsntSongbrowser = true;
         }
     }
@@ -2705,12 +2704,10 @@ void SongBrowser::onDatabaseLoadingFinished(bool isNextScreenSongBrowser) {
         this->selectRandomBeatmap();
     }
 
-    if(Sound *music = osu->getMapInterface()->getMusic()) {
-        // make sure we loop the music, since if we're carrying over from main menu it was set to not-loop
-        music->setLoop(cv::beatmap_preview_music_loop.getBool());
-        if(wasMusicPausedBeforeSongBrowserLoadAndNextScreenIsntSongbrowser) {
-            soundEngine->pause(music);
-        }
+    // make sure we loop the music, since if we're carrying over from main menu it was set to not-loop
+    osu->getMusicTrack()->setLoop(cv::beatmap_preview_music_loop.getBool());
+    if(wasMusicPausedBeforeSongBrowserLoadAndNextScreenIsntSongbrowser) {
+        osu->getMusicTrack()->pause();
     }
 
     t.update();

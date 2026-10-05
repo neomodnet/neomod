@@ -1799,7 +1799,7 @@ void HUD::drawClock(f32 percent, bool waiting) {
 void HUD::drawStatistics(const HUDStats &s) {
     static const auto getOffsetStatText = []() -> std::string {
         const auto *bmi = osu->getMapInterface();
-        if(!bmi || !bmi->getMusic() || !bmi->getBeatmap()) return "";
+        if(!bmi || !bmi->getBeatmap()) return "";
 
         const i32 uniScaled =
             (i32)((cv::universal_offset.getFloat() + cv::universal_offset_hardcoded_blamepeppy.getFloat()) *

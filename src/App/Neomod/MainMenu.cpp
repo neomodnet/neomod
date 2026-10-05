@@ -26,6 +26,7 @@
 #include "Font.h"
 #include "Parsing.h"
 #include "Sound.h"
+#include "MusicTrack.h"
 #include "RenderTarget.h"
 #include "HUD.h"
 #include "Icons.h"
@@ -698,8 +699,8 @@ std::pair<bool, float> MainMenu::getTimingpointPulseAmount() {
         return {false, pulse};
     }
 
-    const auto *music = selectedMap->getMusic();
-    if(!music || !music->isPlaying()) {
+    const auto *music = osu->getMusicTrack();
+    if(!music->isPlaying()) {
         return {false, pulse};
     }
 
@@ -1171,17 +1172,11 @@ void MainMenu::tick() {
     // shuffle songs
     if(soundEngine->isReady()) {
         auto *map_iface = osu->getMapInterface();
-        auto *music = map_iface->getMusic();
+        auto *music = osu->getMusicTrack();
 
-        // try getting existing playing music track, even if map_iface->getMusic() did not have one
-        if(!music) {
-            music = resourceManager->getSound("BEATMAP_MUSIC");
-        }
-
-        if(!music) {
+        if(music->isEmpty()) {
             this->selectRandomBeatmap();
-        } else if(!resourceManager->isLoadingResource(music) &&
-                  map_iface->isMusicLoadHandled() /* we are still loading */) {
+        } else if(!music->isLoading()) {
             if(!music->isReady() || music->isFinished()) {
                 this->selectRandomBeatmap();
             } else if(music->isPlaying()) {
@@ -1340,11 +1335,11 @@ void MainMenu::selectPreviousRandomBeatmap() {
 }
 
 void MainMenu::restartMusic() {
-    Sound *music = osu->getMapInterface()->getMusic();
-    if(!music || !music->isReady()) return;
+    MusicTrack *music = osu->getMusicTrack();
+    if(!music->isReady()) return;
 
-    if(!music->isPlaying()) soundEngine->play(music);
-    music->setPositionMS(0);
+    if(!music->isPlaying()) music->play();
+    music->setPosition(0);
 }
 
 void MainMenu::onKeyDown(KeyboardEvent &e) {
@@ -1358,14 +1353,14 @@ void MainMenu::onKeyDown(KeyboardEvent &e) {
         if(e == KEY_NEXT || e == KEY_RIGHT || e == KEY_F2) {
             this->selectRandomBeatmap();
         }
-        if(e == KEY_PLAYPAUSE || (e == KEY_PLAY && !osu->getMapInterface()->isPreviewMusicPlaying()) ||
-           (e == KEY_STOP && osu->getMapInterface()->isPreviewMusicPlaying())) {
-            osu->getMapInterface()->pausePreviewMusic();
+        if(e == KEY_PLAYPAUSE || (e == KEY_PLAY && !osu->getMusicTrack()->isPlaying()) ||
+           (e == KEY_STOP && osu->getMusicTrack()->isPlaying())) {
+            osu->getMusicTrack()->togglePause();
         }
     }
 
     if(e == KEY_C || e == KEY_F4) {
-        osu->getMapInterface()->pausePreviewMusic();
+        osu->getMusicTrack()->togglePause();
     }
 
     if(!this->menuElementsVisible) {
