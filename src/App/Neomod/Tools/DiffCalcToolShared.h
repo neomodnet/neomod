@@ -5,7 +5,7 @@
 #include "config.h"
 #endif
 
-#include "DatabaseBeatmap.h"
+#include "BeatmapPrimitives.h"
 #include "DifficultyCalculator.h"
 #include "ModFlags.h"
 
@@ -69,13 +69,12 @@ struct OneMapResult {
 };
 
 // reads and parses the .osu file; on failure returns the failed stage and fills error
-OneMapResult::ErrorStage loadPrimitivesFromPath(std::string_view path, DatabaseBeatmap::PRIMITIVE_CONTAINER &out,
-                                                std::string &error);
+OneMapResult::ErrorStage loadPrimitivesFromPath(std::string_view path, PRIMITIVE_CONTAINER &out, std::string &error);
 
 // star calc + pp for one already-loaded map with one (mods, speed) config. the container can be
 // reused across configs (slider times are only computed once), same as the game's mod sweeps.
-OneMapResult computeOneConfig(DatabaseBeatmap::PRIMITIVE_CONTAINER &primitives, std::string_view mapIdentity,
-                              ModFlags modFlags, float speedMultiplier);
+OneMapResult computeOneConfig(PRIMITIVE_CONTAINER &primitives, std::string_view mapIdentity, ModFlags modFlags,
+                              float speedMultiplier);
 
 OneMapResult computeOneMap(std::string_view osuFilePath, ModFlags modFlags, float speedMultiplier);
 

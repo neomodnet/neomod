@@ -150,3 +150,5 @@ struct SPINNER final {
 };
 }  // namespace DatabaseBeatmapTypes
 }  // namespace neomod
+
+namespace DBType = neomod::DatabaseBeatmapTypes;

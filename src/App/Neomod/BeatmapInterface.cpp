@@ -16,6 +16,7 @@
 #include "BanchoSubmitter.h"
 #include "BanchoUsers.h"
 #include "BeatmapInterface.h"
+#include "BeatmapStacking.h"
 #include "Chat.h"
 #include "OsuConVars.h"
 #include "Timing.h"
@@ -619,7 +620,7 @@ bool BeatmapInterface::start() {
     {
         DatabaseBeatmap::LOAD_GAMEPLAY_RESULT result = DatabaseBeatmap::loadGameplay(this->beatmap, this);
         if(result.error.errc) {
-            using enum DatabaseBeatmap::LoadError::code;
+            using enum LoadError::code;
             std::string errorMessage;
             switch(result.error.errc) {
                 case METADATA:
@@ -4250,9 +4251,8 @@ void BeatmapInterface::calculateStacks() {
         hitobject->setStack(0);
     }
 
-    DatabaseBeatmap::calculateStacks(
-        DatabaseBeatmap::ObjectGetter<HitObject>{
-            [&objs = this->hitobjects](uSz idx) -> HitObject * { return objs[idx].get(); }},
+    neomod::calculateStacks(
+        ObjectGetter<HitObject>{[&objs = this->hitobjects](uSz idx) -> HitObject * { return objs[idx].get(); }},
         this->hitobjects.size(), this->getAR(), this->beatmap->getVersion(), this->beatmap->getStackLeniency());
 
     // update hitobject positions

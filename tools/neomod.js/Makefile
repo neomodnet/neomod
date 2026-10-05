@@ -14,7 +14,7 @@ INCLUDES += $(GLM_INCLUDE)
 SOURCES = \
 	NeomodJs.cpp \
 	$(SRCDIR)/App/Neomod/BeatmapFile/BeatmapFile.cpp \
-	$(SRCDIR)/App/Neomod/DatabaseBeatmap.cpp \
+	$(SRCDIR)/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp \
 	$(SRCDIR)/App/Neomod/DiffCalc/DifficultyCalculator.cpp \
 	$(SRCDIR)/App/Neomod/GameRules.cpp \
 	$(SRCDIR)/App/Neomod/Replay.cpp \

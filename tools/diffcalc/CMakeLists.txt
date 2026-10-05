@@ -35,7 +35,7 @@ endif()
 
 add_executable(diffcalc
     "${NEOMOD_SRC}/App/Neomod/BeatmapFile/BeatmapFile.cpp"
-    "${NEOMOD_SRC}/App/Neomod/DatabaseBeatmap.cpp"
+    "${NEOMOD_SRC}/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp"
     "${NEOMOD_SRC}/App/Neomod/DiffCalc/DifficultyCalculator.cpp"
     "${NEOMOD_SRC}/App/Neomod/GameRules.cpp"
     "${NEOMOD_SRC}/App/Neomod/Replay.cpp"

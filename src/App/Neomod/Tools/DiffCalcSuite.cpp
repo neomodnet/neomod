@@ -196,7 +196,7 @@ struct CrosscheckSetup {
     bool autopilotOverride{false};  // xor'd onto the mod flag
 };
 
-CalcSnapshot calcOnce(DatabaseBeatmap::LOAD_DIFFOBJ_RESULT &loaded, const CrosscheckSetup &setup, int upToObjectIndex,
+CalcSnapshot calcOnce(DiffCalc::LOAD_DIFFOBJ_RESULT &loaded, const CrosscheckSetup &setup, int upToObjectIndex,
                       DiffCalc::StrainComputeState *strainState) {
     CalcSnapshot snap{};
     const bool autopilot = flags::has<ModFlags::Autopilot>(setup.modFlags) != setup.autopilotOverride;
@@ -456,7 +456,7 @@ int runCrosscheck(const std::vector<std::string> &argv) {
     int failed = 0;
     int skipped = 0;
     for(const auto &fixture : fixtures) {
-        DatabaseBeatmap::PRIMITIVE_CONTAINER primitives;
+        PRIMITIVE_CONTAINER primitives;
         std::string loadError;
         if(loadPrimitivesFromPath((mapsDir / fixture).string(), primitives, loadError) !=
            OneMapResult::ErrorStage::NONE) {
@@ -489,12 +489,12 @@ int runCrosscheck(const std::vector<std::string> &argv) {
             const bool autopilot = flags::has<ModFlags::Autopilot>(setup.modFlags);
 
             auto load = [&primitives, &setup, &cfg]() {
-                return DatabaseBeatmap::loadDifficultyHitObjects(primitives, setup.AR, setup.CS, cfg.speed,
-                                                                 flags::has<ModFlags::HardRock>(setup.modFlags));
+                return DiffCalc::loadDifficultyHitObjects(primitives, setup.AR, setup.CS, cfg.speed,
+                                                          flags::has<ModFlags::HardRock>(setup.modFlags));
             };
 
             // (a) same-key skip == fresh compute (both pass-1)
-            DatabaseBeatmap::LOAD_DIFFOBJ_RESULT reused = load();
+            DiffCalc::LOAD_DIFFOBJ_RESULT reused = load();
             if(reused.error.errc) {
                 std::cout << "SKIP " << fixture << ' ' << label << " (" << reused.error.error_string() << ")\n";
                 continue;
@@ -516,7 +516,7 @@ int runCrosscheck(const std::vector<std::string> &argv) {
             std::ranges::sort(prefixes);
             prefixes.erase(std::ranges::unique(prefixes).begin(), prefixes.end());
             for(const int k : prefixes) {
-                DatabaseBeatmap::LOAD_DIFFOBJ_RESULT freshLoad = load();
+                DiffCalc::LOAD_DIFFOBJ_RESULT freshLoad = load();
                 const CalcSnapshot truncatedFresh = calcOnce(freshLoad, setup, k, &freshLoad.strainState);
                 const CalcSnapshot truncatedReused = calcOnce(reused, setup, k, &reused.strainState);
                 check(label, std::format("prefix@{}", k), truncatedFresh, truncatedReused);
@@ -527,7 +527,7 @@ int runCrosscheck(const std::vector<std::string> &argv) {
             CrosscheckSetup odSetup = setup;
             odSetup.odOverride = setup.OD < 9.f ? setup.OD + 1.f : setup.OD - 1.f;
             const CalcSnapshot odRecomputed = calcOnce(reused, odSetup, -1, &reused.strainState);
-            DatabaseBeatmap::LOAD_DIFFOBJ_RESULT reference = load();
+            DiffCalc::LOAD_DIFFOBJ_RESULT reference = load();
             (void)calcOnce(reference, odSetup, -1, &reference.strainState);
             const CalcSnapshot odReference = calcOnce(reference, odSetup, -1, nullptr);
             check(label, "od-recompute", odReference, odRecomputed);
@@ -557,7 +557,7 @@ int runCrosscheck(const std::vector<std::string> &argv) {
 
             // (d) recompute stability: pass-2 == pass-3 always; pass-1 == pass-2 only when all
             // slider curves were allocated up front (<= 5000 sliders)
-            DatabaseBeatmap::LOAD_DIFFOBJ_RESULT stability = load();
+            DiffCalc::LOAD_DIFFOBJ_RESULT stability = load();
             const CalcSnapshot pass1 = calcOnce(stability, setup, -1, &stability.strainState);
             const CalcSnapshot pass2 = calcOnce(stability, setup, -1, nullptr);
             const CalcSnapshot pass3 = calcOnce(stability, setup, -1, nullptr);
@@ -581,7 +581,7 @@ int runCrosscheck(const std::vector<std::string> &argv) {
             // offsets change their sub-ms rounding, which feeds slider travel values.
             if(cfg.speed == 1.0f && !flags::has<ModFlags::Flashlight>(setup.modFlags)) {
                 for(const i32 offset : {1, 401, 10007}) {
-                    DatabaseBeatmap::PRIMITIVE_CONTAINER shifted = primitives;
+                    PRIMITIVE_CONTAINER shifted = primitives;
                     for(auto &h : shifted.hitcircles) h.time += offset;
                     for(auto &s : shifted.sliders) {
                         s.time += offset;
@@ -592,7 +592,7 @@ int runCrosscheck(const std::vector<std::string> &argv) {
                         s.endTime += offset;
                     }
 
-                    auto shiftedLoad = DatabaseBeatmap::loadDifficultyHitObjects(
+                    auto shiftedLoad = DiffCalc::loadDifficultyHitObjects(
                         shifted, setup.AR, setup.CS, cfg.speed, flags::has<ModFlags::HardRock>(setup.modFlags));
                     const CalcSnapshot shiftedCalc = calcOnce(shiftedLoad, setup, -1, nullptr);
 

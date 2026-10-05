@@ -60,7 +60,7 @@ struct LivePPCalc::LivePPCalcImpl {
         f32 AR{0.f}, CS{0.f};
         f32 speed_multiplier{0.f};
         bool hardRock{false};  // stacking offset direction
-        DatabaseBeatmap::LOAD_DIFFOBJ_RESULT diffres{};
+        DiffCalc::LOAD_DIFFOBJ_RESULT diffres{};
     } m_param_cache;
 
     struct LazyCalcParams {
@@ -148,7 +148,7 @@ struct LivePPCalc::LivePPCalcImpl {
             AsyncPPC::pp_res &retInfo = result.res;
 
             auto &cache = p.get_latest_cached(old_cache);
-            DatabaseBeatmap::LOAD_DIFFOBJ_RESULT &diffres = cache.diffres;
+            DiffCalc::LOAD_DIFFOBJ_RESULT &diffres = cache.diffres;
 
             if(diffres.error.errc) return result;  // uh-oh
 

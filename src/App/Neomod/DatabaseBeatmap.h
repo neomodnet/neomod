@@ -9,24 +9,13 @@
 #include "Vectors_fwd.h"
 #include "FixedSizeArray.h"
 #include "DatabaseBeatmapTypes.h"
-#include "StrainComputeState.h"
+#include "BeatmapPrimitives.h"
 #include "SyncStoptoken.h"
-
-// TODO: make these utilities available without all of these ifdefs (move all diffcalc things to a lightweight separate directory)
-#ifndef BUILD_TOOLS_ONLY
-
 #include "StarPrecalc.h"
 #include "Overrides.h"
 #include "MD5Hash.h"
 #include "Registration.h"
 #include "Color.h"
-
-#else
-#include <memory>
-
-using Color = uint32_t;
-
-#endif
 
 #include <atomic>
 #include <string_view>
@@ -49,7 +38,7 @@ class HitObject;
 }  // namespace neomod
 
 namespace neomod::DiffCalc {
-class DifficultyHitObject;
+struct LOAD_DIFFOBJ_RESULT;
 }
 
 class Database;
@@ -61,162 +50,18 @@ using BeatmapDifficulty = DatabaseBeatmap;
 using BeatmapSet = DatabaseBeatmap;
 using DiffContainer = std::vector<std::unique_ptr<BeatmapDifficulty>>;
 
-#ifndef BUILD_TOOLS_ONLY
-template <typename T>
-concept HitObjectContainer =
-    std::is_same_v<T, neomod::DiffCalc::DifficultyHitObject> || std::is_same_v<T, neomod::HitObject>;
-#else
-template <typename T>
-concept HitObjectContainer = std::is_same_v<T, neomod::DiffCalc::DifficultyHitObject>;
-#endif
-
-namespace DBType = neomod::DatabaseBeatmapTypes;
-
 // DatabaseBeatmap &operator=(DatabaseBeatmap other) already implements these...
 // NOLINTNEXTLINE(hicpp-special-member-functions, cppcoreguidelines-special-member-functions)
 class DatabaseBeatmap final {
-    using DifficultyHitObject = neomod::DiffCalc::DifficultyHitObject;
-
    public:
-    struct LoadError {
-       public:
-        enum code : u8 {
-            NONE = 0,
-            METADATA = 1,
-            FILE_LOAD = 2,
-            NO_TIMINGPOINTS = 3,
-            NO_OBJECTS = 4,
-            TOOMANY_HITOBJECTS = 5,
-            LOAD_INTERRUPTED = 6,
-            LOADMETADATA_ON_BEATMAPSET = 7,
-            NON_STD_GAMEMODE = 8,
-            UNKNOWN_VERSION = 9,
-            ERRC_COUNT = 10
-        };
-        code errc{0};
+    // the .osu file at osuFilePath, read with the game's convars as the limits
+    static neomod::DiffCalc::LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(std::string_view osuFilePath, float AR,
+                                                                          float CS, float speedMultiplier,
+                                                                          bool hardRock,
+                                                                          const Sync::stop_token &dead = {});
+    static neomod::PRIMITIVE_CONTAINER loadPrimitiveObjects(std::string_view osuFilePath,
+                                                            const Sync::stop_token &dead = {});
 
-        [[nodiscard]] forceinline std::string_view error_string() const { return reasons[errc]; }
-
-        explicit operator bool() const { return errc != NONE; }
-
-       private:
-        static constexpr const std::array<std::string_view, ERRC_COUNT> reasons{
-            "no error",                               //
-            "failed to load file metadata",           //
-            "failed to load file",                    //
-            "no timingpoints in file",                //
-            "no objects in file",                     //
-            "too many objects in file",               //
-            "async load interrupted",                 //
-            "tried to load metadata for beatmapset",  //
-            "cannot load non-standard gamemode",      //
-            "unknown beatmap version"};
-    };
-
-    static const Sync::stop_token alwaysFalseStopPred;
-
-    // custom structs
-    struct LOAD_DIFFOBJ_RESULT final {
-        LOAD_DIFFOBJ_RESULT();
-        ~LOAD_DIFFOBJ_RESULT();
-
-        LOAD_DIFFOBJ_RESULT(const LOAD_DIFFOBJ_RESULT &) = delete;
-        LOAD_DIFFOBJ_RESULT &operator=(const LOAD_DIFFOBJ_RESULT &) = delete;
-        LOAD_DIFFOBJ_RESULT(LOAD_DIFFOBJ_RESULT &&) noexcept;
-        LOAD_DIFFOBJ_RESULT &operator=(LOAD_DIFFOBJ_RESULT &&) noexcept;
-
-        // DifficultyHitObject defined in DifficultyCalculator.h
-        std::vector<DifficultyHitObject> diffobjects;
-
-        // which parameters the computed (star calc) fields of diffobjects were last fully computed
-        // with, invalid on a fresh load. pass to StarCalcParams::strainState to reuse them.
-        neomod::DiffCalc::StrainComputeState strainState{};
-
-        u32 totalBreakDuration{0};
-
-        // raw file difficulty values (the scorev1 base multiplier ignores mod-adjusted stats)
-        f32 fileCS{5.f}, fileHP{5.f}, fileOD{5.f};
-
-        LoadError error;
-
-        [[nodiscard]] u32 getTotalMaxCombo() const { return maxComboAtIndex.back(); }
-        [[nodiscard]] u32 getMaxComboAtIndex(uSz diffobjIndex) const;
-
-       private:
-        friend class DatabaseBeatmap;
-        // starts with a single 0 sentinel so getTotalMaxCombo() works pre-fill
-        std::vector<u32> maxComboAtIndex;
-    };
-
-    struct PRIMITIVE_CONTAINER final {
-        std::vector<DBType::HITCIRCLE> hitcircles{};
-        std::vector<DBType::SLIDER> sliders{};
-        std::vector<DBType::SPINNER> spinners{};
-        std::vector<DBType::BREAK> breaks{};
-
-        FixedSizeArray<DBType::TIMINGPOINT> timingpoints{};
-        std::vector<Color> combocolors{};
-
-        f32 stackLeniency{.7f};
-        f32 sliderMultiplier{1.f};
-        f32 sliderTickRate{1.f};
-
-        // [Difficulty] settings (old maps without an ApproachRate entry get AR = OD)
-        f32 AR{5.f};
-        f32 CS{5.f};
-        f32 OD{5.f};
-        f32 HP{5.f};
-
-        [[nodiscard]] inline u32 getNumObjects() const { return hitcircles.size() + sliders.size() + spinners.size(); }
-
-        u32 totalBreakDuration{0};
-
-        i32 version{14};
-        LoadError error;
-
-        // sample set to use if timing point doesn't specify it
-        // 1 = normal, 2 = soft, 3 = drum
-        u8 defaultSampleSet{1};
-
-        // Set after calculateSliderTimesClicksTicks has populated slider timing data.
-        // Allows reuse of the container for multiple loadDifficultyHitObjects calls.
-        bool sliderTimesCalculated{false};
-    };
-
-#ifndef BUILD_TOOLS_ONLY  // pass data/primitives directly for tools build
-    static LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(std::string_view osuFilePath, float AR, float CS,
-                                                        float speedMultiplier, bool hardRock,
-                                                        const Sync::stop_token &dead = alwaysFalseStopPred);
-
-    static PRIMITIVE_CONTAINER loadPrimitiveObjects(std::string_view osuFilePath,
-                                                    const Sync::stop_token &dead = alwaysFalseStopPred);
-#endif
-
-    template <HitObjectContainer C>
-    using ObjectGetter = std::function<C *(uSz)>;
-
-    template <HitObjectContainer C>
-    static void calculateStacks(const ObjectGetter<C> &getObj, uSz numObjects, float AR, int beatmapVersion,
-                                float stackLeniency);
-
-    static LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(PRIMITIVE_CONTAINER &c, float AR, float CS,
-                                                        float speedMultiplier, bool hardRock,
-                                                        const Sync::stop_token &dead = alwaysFalseStopPred);
-
-    static PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileData, std::string_view osuFilePath,
-                                                            const Sync::stop_token &dead = alwaysFalseStopPred);
-    static LoadError calculateSliderTimesClicksTicks(int beatmapVersion, std::vector<DBType::SLIDER> &sliders,
-                                                     FixedSizeArray<DBType::TIMINGPOINT> &timingpoints,
-                                                     float sliderMultiplier, float sliderTickRate);
-    static LoadError calculateSliderTimesClicksTicks(int beatmapVersion, std::vector<DBType::SLIDER> &sliders,
-                                                     FixedSizeArray<DBType::TIMINGPOINT> &timingpoints,
-                                                     float sliderMultiplier, float sliderTickRate,
-                                                     const Sync::stop_token &dead);
-
-    static DBType::TIMING_INFO getTimingInfoForTimeAndTimingPoints(
-        i32 positionMS, const FixedSizeArray<DBType::TIMINGPOINT> &timingpoints);
-
-#ifndef BUILD_TOOLS_ONLY
     NOCOPY_NOMOVE(DatabaseBeatmap)
    public:
     enum class BeatmapType : uint8_t {
@@ -243,7 +88,7 @@ class DatabaseBeatmap final {
 
     struct LOAD_META_RESULT {
         std::vector<u8> fileData{};
-        LoadError error{DatabaseBeatmap::LoadError::NONE};
+        neomod::LoadError error{neomod::LoadError::NONE};
 
         explicit operator bool() const { return error.errc != 0; }
     };
@@ -263,20 +108,16 @@ class DatabaseBeatmap final {
         std::vector<DBType::BREAK> breaks;
         std::vector<Color> combocolors;
 
-        LoadError error;
+        neomod::LoadError error;
 
         u8 defaultSampleSet{1};
     };
 
     static LOAD_GAMEPLAY_RESULT loadGameplay(BeatmapDifficulty *databaseBeatmap, AbstractBeatmapInterface *beatmap,
-                                             LOAD_META_RESULT preloadedMetadata = {{},
-                                                                                   {DatabaseBeatmap::LoadError::NONE}},
-                                             PRIMITIVE_CONTAINER *outPrimitivesCopy = nullptr);
+                                             LOAD_META_RESULT preloadedMetadata = {{}, {neomod::LoadError::NONE}});
     inline LOAD_GAMEPLAY_RESULT loadGameplay(AbstractBeatmapInterface *beatmap,
-                                             LOAD_META_RESULT preloadedMetadata = {{},
-                                                                                   {DatabaseBeatmap::LoadError::NONE}},
-                                             PRIMITIVE_CONTAINER *outPrimitivesCopy = nullptr) {
-        return loadGameplay(this, beatmap, std::move(preloadedMetadata), outPrimitivesCopy);
+                                             LOAD_META_RESULT preloadedMetadata = {{}, {neomod::LoadError::NONE}}) {
+        return loadGameplay(this, beatmap, std::move(preloadedMetadata));
     }
 
     [[nodiscard]] MapOverrides get_overrides() const;
@@ -523,8 +364,3 @@ BPMInfo getBPM(const T &timing_points, std::vector<BPMTuple> &bpm_buffer)
              (std::is_same_v<T, FixedSizeArray<DB_TIMINGPOINT>> ||
               std::is_same_v<T, FixedSizeArray<DBType::TIMINGPOINT>>));
 }  // namespace neomod::BPMCalc
-
-#else
-};
-
-#endif  // BUILD_TOOLS_ONLY

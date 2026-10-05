@@ -3,6 +3,7 @@
 
 #include "TestMacros.h"
 #include "BeatmapFile.h"
+#include "BeatmapPrimitives.h"
 #include "DatabaseBeatmap.h"
 #include "Engine.h"
 #include "File.h"
@@ -168,7 +169,7 @@ std::string dumpGameLoad(const std::string &path, const std::string &relative, s
                        tp.sampleIndex, tp.volume, tp.uninherited, tp.kiai);
     }
 
-    const auto c = DatabaseBeatmap::loadPrimitiveObjectsFromData(bytes, path);
+    const auto c = loadPrimitiveObjectsFromData(bytes, {});
     fmt::format_to(std::back_inserter(out),
                    "prim err={} ver={} ar={} cs={} od={} hp={} sl={} sm={} tr={} set={} breaktime={}\n",
                    static_cast<int>(c.error.errc), c.version, c.AR, c.CS, c.OD, c.HP, c.stackLeniency,
@@ -258,7 +259,7 @@ void bench(const std::vector<std::pair<std::string, std::string>> &files, int ro
     u64 sink = 0;
     const f64 primitives = best([&] {
         for(uSz f = 0; f < files.size(); f++) {
-            const auto c = DatabaseBeatmap::loadPrimitiveObjectsFromData(contents[f], files[f].first);
+            const auto c = loadPrimitiveObjectsFromData(contents[f], {});
             sink += c.getNumObjects();
         }
     });
@@ -492,8 +493,7 @@ void BeatmapFileTest::runTests() {
     TEST_SECTION("the game's reading");
     {
         const auto load = [](std::string_view text) {
-            return DatabaseBeatmap::loadPrimitiveObjectsFromData(
-                std::span{reinterpret_cast<const u8 *>(text.data()), text.size()}, "test.osu");
+            return loadPrimitiveObjectsFromData(std::span{reinterpret_cast<const u8 *>(text.data()), text.size()}, {});
         };
         const auto bom = load("\xEF\xBB\xBFosu file format v5\r\n[HitObjects]\r\n1,2,3,1,0\r\n");
         TEST_ASSERT_EQ(bom.version, 5, "the version after a BOM");

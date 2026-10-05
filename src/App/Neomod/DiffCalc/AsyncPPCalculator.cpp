@@ -24,7 +24,7 @@ struct hitobject_cache {
     bool hardRock{};  // stacking offset direction (not implied by CS: overrides can alias)
 
     // Results
-    DatabaseBeatmap::LOAD_DIFFOBJ_RESULT diffres{};
+    DiffCalc::LOAD_DIFFOBJ_RESULT diffres{};
 
     [[nodiscard]] bool matches(f32 spd, f32 ar, f32 cs, bool hr) const {
         return speed == spd && AR == ar && CS == cs && hardRock == hr;

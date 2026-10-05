@@ -2,7 +2,7 @@
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
 
-#include "DatabaseBeatmap.h"
+#include "BeatmapPrimitives.h"
 #include "DifficultyCalculator.h"
 #include "ModFlags.h"
 #include "Replay.h"
@@ -16,8 +16,8 @@ using namespace neomod;
 struct Beatmap {
     Beatmap(std::string osu_bytes) {
         // Load primitive hitobjects (also parses the [Difficulty] settings, incl. AR = OD fallback)
-        this->primitives = DatabaseBeatmap::loadPrimitiveObjectsFromData(
-            std::span{reinterpret_cast<const u8*>(osu_bytes.data()), osu_bytes.size()}, "memory.osu");
+        this->primitives = loadPrimitiveObjectsFromData(
+            std::span{reinterpret_cast<const u8*>(osu_bytes.data()), osu_bytes.size()}, {});
         if(this->primitives.error.errc) {
             this->error_msg = primitives.error.error_string();
             return;
@@ -112,9 +112,9 @@ struct Beatmap {
     }
 
     bool use_mods(Replay::Mods mods) {
-        auto diffResult = DatabaseBeatmap::loadDifficultyHitObjects(this->primitives, mods.get_naive_ar(this->AR),
-                                                                    mods.get_naive_cs(this->CS), mods.speed,
-                                                                    flags::has<ModFlags::HardRock>(mods.flags));
+        auto diffResult = DiffCalc::loadDifficultyHitObjects(this->primitives, mods.get_naive_ar(this->AR),
+                                                             mods.get_naive_cs(this->CS), mods.speed,
+                                                             flags::has<ModFlags::HardRock>(mods.flags));
         if(diffResult.error.errc) {
             this->loaded_successfully = false;
             this->error_msg = diffResult.error.error_string();
@@ -158,7 +158,7 @@ struct Beatmap {
     float OD = 5.0f;
     float HP = 5.0f;
     int maxPossibleCombo = 0;
-    DatabaseBeatmap::PRIMITIVE_CONTAINER primitives;
+    PRIMITIVE_CONTAINER primitives;
     DiffCalc::DifficultyAttributes difficulty_attributes;
     Replay::Mods mods_of_current_difficulty_attributes;
 

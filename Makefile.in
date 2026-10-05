@@ -251,6 +251,7 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Neomod/BanchoSubmitter.cpp \
 	src/App/Neomod/BanchoUsers.cpp \
 	src/App/Neomod/BeatmapFile/BeatmapFile.cpp \
+	src/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp \
 	src/App/Neomod/BeatmapInstallOverlay.cpp \
 	src/App/Neomod/BeatmapInstaller.cpp \
 	src/App/Neomod/BeatmapInterface.cpp src/App/Neomod/Chat.cpp \
@@ -498,6 +499,7 @@ am_neomod_OBJECTS = libraries/neomod-MD5.$(OBJEXT) \
 	src/App/Neomod/neomod-BanchoSubmitter.$(OBJEXT) \
 	src/App/Neomod/neomod-BanchoUsers.$(OBJEXT) \
 	src/App/Neomod/BeatmapFile/neomod-BeatmapFile.$(OBJEXT) \
+	src/App/Neomod/BeatmapFile/neomod-BeatmapPrimitives.$(OBJEXT) \
 	src/App/Neomod/neomod-BeatmapInstallOverlay.$(OBJEXT) \
 	src/App/Neomod/neomod-BeatmapInstaller.$(OBJEXT) \
 	src/App/Neomod/neomod-BeatmapInterface.$(OBJEXT) \
@@ -811,6 +813,7 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/App/Neomod/$(DEPDIR)/neomod-VolumeOverlay.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-score.Po \
 	src/App/Neomod/BeatmapFile/$(DEPDIR)/neomod-BeatmapFile.Po \
+	src/App/Neomod/BeatmapFile/$(DEPDIR)/neomod-BeatmapPrimitives.Po \
 	src/App/Neomod/DiffCalc/$(DEPDIR)/neomod-AsyncPPCalculator.Po \
 	src/App/Neomod/DiffCalc/$(DEPDIR)/neomod-BatchDiffCalc.Po \
 	src/App/Neomod/DiffCalc/$(DEPDIR)/neomod-DifficultyCalculator.Po \
@@ -1493,6 +1496,7 @@ neomod_SOURCES = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Neomod/BanchoSubmitter.cpp \
 	src/App/Neomod/BanchoUsers.cpp \
 	src/App/Neomod/BeatmapFile/BeatmapFile.cpp \
+	src/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp \
 	src/App/Neomod/BeatmapInstallOverlay.cpp \
 	src/App/Neomod/BeatmapInstaller.cpp \
 	src/App/Neomod/BeatmapInterface.cpp src/App/Neomod/Chat.cpp \
@@ -2274,6 +2278,9 @@ src/App/Neomod/BeatmapFile/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) src/App/Neomod/BeatmapFile/$(DEPDIR)
 	@: >>src/App/Neomod/BeatmapFile/$(DEPDIR)/$(am__dirstamp)
 src/App/Neomod/BeatmapFile/neomod-BeatmapFile.$(OBJEXT):  \
+	src/App/Neomod/BeatmapFile/$(am__dirstamp) \
+	src/App/Neomod/BeatmapFile/$(DEPDIR)/$(am__dirstamp)
+src/App/Neomod/BeatmapFile/neomod-BeatmapPrimitives.$(OBJEXT):  \
 	src/App/Neomod/BeatmapFile/$(am__dirstamp) \
 	src/App/Neomod/BeatmapFile/$(DEPDIR)/$(am__dirstamp)
 src/App/Neomod/neomod-BeatmapInstallOverlay.$(OBJEXT):  \
@@ -3294,6 +3301,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-VolumeOverlay.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-score.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/BeatmapFile/$(DEPDIR)/neomod-BeatmapFile.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/BeatmapFile/$(DEPDIR)/neomod-BeatmapPrimitives.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/DiffCalc/$(DEPDIR)/neomod-AsyncPPCalculator.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/DiffCalc/$(DEPDIR)/neomod-BatchDiffCalc.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/DiffCalc/$(DEPDIR)/neomod-DifficultyCalculator.Po@am__quote@ # am--include-marker
@@ -3842,6 +3850,20 @@ src/App/Neomod/BeatmapFile/neomod-BeatmapFile.obj: src/App/Neomod/BeatmapFile/Be
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/BeatmapFile/BeatmapFile.cpp' object='src/App/Neomod/BeatmapFile/neomod-BeatmapFile.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/BeatmapFile/neomod-BeatmapFile.obj `if test -f 'src/App/Neomod/BeatmapFile/BeatmapFile.cpp'; then $(CYGPATH_W) 'src/App/Neomod/BeatmapFile/BeatmapFile.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/BeatmapFile/BeatmapFile.cpp'; fi`
+
+src/App/Neomod/BeatmapFile/neomod-BeatmapPrimitives.o: src/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/BeatmapFile/neomod-BeatmapPrimitives.o -MD -MP -MF src/App/Neomod/BeatmapFile/$(DEPDIR)/neomod-BeatmapPrimitives.Tpo -c -o src/App/Neomod/BeatmapFile/neomod-BeatmapPrimitives.o `test -f 'src/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp' || echo '$(srcdir)/'`src/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/BeatmapFile/$(DEPDIR)/neomod-BeatmapPrimitives.Tpo src/App/Neomod/BeatmapFile/$(DEPDIR)/neomod-BeatmapPrimitives.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp' object='src/App/Neomod/BeatmapFile/neomod-BeatmapPrimitives.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/BeatmapFile/neomod-BeatmapPrimitives.o `test -f 'src/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp' || echo '$(srcdir)/'`src/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp
+
+src/App/Neomod/BeatmapFile/neomod-BeatmapPrimitives.obj: src/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/BeatmapFile/neomod-BeatmapPrimitives.obj -MD -MP -MF src/App/Neomod/BeatmapFile/$(DEPDIR)/neomod-BeatmapPrimitives.Tpo -c -o src/App/Neomod/BeatmapFile/neomod-BeatmapPrimitives.obj `if test -f 'src/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp'; then $(CYGPATH_W) 'src/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/BeatmapFile/$(DEPDIR)/neomod-BeatmapPrimitives.Tpo src/App/Neomod/BeatmapFile/$(DEPDIR)/neomod-BeatmapPrimitives.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp' object='src/App/Neomod/BeatmapFile/neomod-BeatmapPrimitives.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/BeatmapFile/neomod-BeatmapPrimitives.obj `if test -f 'src/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp'; then $(CYGPATH_W) 'src/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp'; fi`
 
 src/App/Neomod/neomod-BeatmapInstallOverlay.o: src/App/Neomod/BeatmapInstallOverlay.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-BeatmapInstallOverlay.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-BeatmapInstallOverlay.Tpo -c -o src/App/Neomod/neomod-BeatmapInstallOverlay.o `test -f 'src/App/Neomod/BeatmapInstallOverlay.cpp' || echo '$(srcdir)/'`src/App/Neomod/BeatmapInstallOverlay.cpp
@@ -7546,6 +7568,7 @@ distclean: distclean-am
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-VolumeOverlay.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-score.Po
 	-rm -f src/App/Neomod/BeatmapFile/$(DEPDIR)/neomod-BeatmapFile.Po
+	-rm -f src/App/Neomod/BeatmapFile/$(DEPDIR)/neomod-BeatmapPrimitives.Po
 	-rm -f src/App/Neomod/DiffCalc/$(DEPDIR)/neomod-AsyncPPCalculator.Po
 	-rm -f src/App/Neomod/DiffCalc/$(DEPDIR)/neomod-BatchDiffCalc.Po
 	-rm -f src/App/Neomod/DiffCalc/$(DEPDIR)/neomod-DifficultyCalculator.Po
@@ -7847,6 +7870,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-VolumeOverlay.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-score.Po
 	-rm -f src/App/Neomod/BeatmapFile/$(DEPDIR)/neomod-BeatmapFile.Po
+	-rm -f src/App/Neomod/BeatmapFile/$(DEPDIR)/neomod-BeatmapPrimitives.Po
 	-rm -f src/App/Neomod/DiffCalc/$(DEPDIR)/neomod-AsyncPPCalculator.Po
 	-rm -f src/App/Neomod/DiffCalc/$(DEPDIR)/neomod-BatchDiffCalc.Po
 	-rm -f src/App/Neomod/DiffCalc/$(DEPDIR)/neomod-DifficultyCalculator.Po

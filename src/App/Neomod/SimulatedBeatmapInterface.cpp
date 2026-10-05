@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include "BeatmapStacking.h"
 #include "DatabaseBeatmap.h"
 #include "GameRules.h"
 #include "HitObjects.h"
@@ -847,9 +848,8 @@ void SimulatedBeatmapInterface::calculateStacks() {
         hitobject->setStack(0);
     }
 
-    DatabaseBeatmap::calculateStacks(
-        DatabaseBeatmap::ObjectGetter<HitObject>{
-            [&objs = this->hitobjects](uSz idx) -> HitObject * { return objs[idx].get(); }},
+    neomod::calculateStacks(
+        ObjectGetter<HitObject>{[&objs = this->hitobjects](uSz idx) -> HitObject * { return objs[idx].get(); }},
         this->hitobjects.size(), this->getAR(), this->beatmap->getVersion(), this->beatmap->getStackLeniency());
 
     // update hitobject positions

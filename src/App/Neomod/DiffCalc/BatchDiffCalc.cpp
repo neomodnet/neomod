@@ -150,11 +150,11 @@ forceinline bool score_needs_recalc(const FinishedScore& score) {
 
 // Calculate difficulty and PP for a group of scores sharing mod parameters.
 void process_score_group(const BeatmapDifficulty* map, const ModParams& params, std::vector<ScoreWork*>& scores,
-                         DatabaseBeatmap::PRIMITIVE_CONTAINER& primitives, const Sync::stop_token& stoken) {
+                         PRIMITIVE_CONTAINER& primitives, const Sync::stop_token& stoken) {
     if(scores.empty()) return;
 
     auto diffres =
-        DatabaseBeatmap::loadDifficultyHitObjects(primitives, params.ar, params.cs, params.speed, params.hr, stoken);
+        DiffCalc::loadDifficultyHitObjects(primitives, params.ar, params.cs, params.speed, params.hr, stoken);
     if(stoken.stop_requested()) return;
     if(diffres.error.errc) {
         const u32 item_failed_scores = scores.size();
@@ -313,8 +313,8 @@ void build_work_queue(const Sync::stop_token& stoken) {
 }
 
 // star ratings for every precalculated mod combination, length, object counts and BPM of one difficulty
-MapResult calc_map_attributes(BeatmapDifficulty* map, DatabaseBeatmap::PRIMITIVE_CONTAINER& primitives,
-                              const Sync::stop_token& stoken, WorkerContext& ctx) {
+MapResult calc_map_attributes(BeatmapDifficulty* map, PRIMITIVE_CONTAINER& primitives, const Sync::stop_token& stoken,
+                              WorkerContext& ctx) {
     MapResult result{.map = map,
                      .nb_circles = (u32)primitives.hitcircles.size(),
                      .nb_sliders = (u32)primitives.sliders.size(),
@@ -352,7 +352,7 @@ MapResult calc_map_attributes(BeatmapDifficulty* map, DatabaseBeatmap::PRIMITIVE
         // object construction, sorting, and stacking are all speed-independent;
         // only the timing fields need rescaling per speed. slider timing is
         // calculated once (sliderTimesCalculated flag on primitives).
-        auto diffres = DatabaseBeatmap::loadDifficultyHitObjects(primitives, ar, cs, 1.0f, var.hr, stoken);
+        auto diffres = DiffCalc::loadDifficultyHitObjects(primitives, ar, cs, 1.0f, var.hr, stoken);
         if(stoken.stop_requested()) return result;
 
         if(&var == &VARIANTS[0]) {
@@ -691,7 +691,7 @@ MapResult calc_map(BeatmapDifficulty* map) {
     }
 
     WorkerContext ctx;
-    return calc_map_attributes(map, primitives, DatabaseBeatmap::alwaysFalseStopPred, ctx);
+    return calc_map_attributes(map, primitives, {}, ctx);
 }
 
 void apply_results(std::span<const MapResult> results) {

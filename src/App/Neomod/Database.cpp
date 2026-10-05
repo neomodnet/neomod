@@ -2683,7 +2683,7 @@ std::unique_ptr<DiffContainer> Database::parseFolderDiffs(std::string_view folde
     const auto difficultyType = is_peppy ? PEPPY_DIFFICULTY : NEOMOD_DIFFICULTY;
 
     auto diffs = std::make_unique<DiffContainer>();
-    DatabaseBeatmap::LoadError lastError;
+    LoadError lastError;
     for(const auto &beatmapFile : env->getFilesInFolder(beatmapPath)) {
         if(!is_osu_file(beatmapFile)) continue;
 

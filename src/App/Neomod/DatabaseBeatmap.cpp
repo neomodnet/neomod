@@ -3,7 +3,6 @@
 #include "BeatmapFile.h"
 #include "DifficultyCalculator.h"
 
-#include "GameRules.h"
 #include "Parsing.h"
 
 #include <array>
@@ -12,8 +11,6 @@
 #include <optional>
 #include <string>
 #include <utility>
-
-#ifndef BUILD_TOOLS_ONLY
 
 #include "fmt/format.h"
 
@@ -37,71 +34,12 @@
 #define WANT_PDQSORT
 #include "Sorting.h"
 
-#define BEATMAP_MAX_NUM_HITOBJECTS cv::beatmap_max_num_hitobjects.getVal<u32>()
-#define BEATMAP_MAX_NUM_SLIDER_SCORINGTIMES cv::beatmap_max_num_slider_scoringtimes.getInt()
-#define SLIDER_CURVE_MAX_LENGTH cv::slider_curve_max_length.getFloat()
-#define SLIDER_END_INSIDE_CHECK_OFFSET cv::slider_end_inside_check_offset.getInt()
-#define SLIDER_MAX_REPEATS cv::slider_max_repeats.getInt()
-#define SLIDER_MAX_TICKS cv::slider_max_ticks.getInt()
-#define STARS_STACKING cv::stars_stacking.getBool()
-
-#define PDQSORT_RANGE srt::pdqsort
-
-#else
-
-#include <format>
-#include <cstdio>
-#define debugLog(...) printf("%s\n", std::format(__VA_ARGS__).c_str())
-
-#define PDQSORT_RANGE std::ranges::sort
-
-enum class HitObjectType : uint8_t {
-    CIRCLE,
-    SLIDER,
-    SPINNER,
-};
-
-#include "OsuConVars/DiffCalcDefaults.h"
-
-#define BEATMAP_MAX_NUM_HITOBJECTS (u32) cv::defaults::beatmap_max_num_hitobjects
-#define BEATMAP_MAX_NUM_SLIDER_SCORINGTIMES (i32) cv::defaults::beatmap_max_num_slider_scoringtimes
-#define SLIDER_CURVE_MAX_LENGTH cv::defaults::slider_curve_max_length
-#define SLIDER_END_INSIDE_CHECK_OFFSET (i32) cv::defaults::slider_end_inside_check_offset
-#define SLIDER_MAX_REPEATS (i32) cv::defaults::slider_max_repeats
-#define SLIDER_MAX_TICKS (i32) cv::defaults::slider_max_ticks
-#define STARS_STACKING cv::defaults::stars_stacking
-
-#define rgb(r, g, b) ((Color)((((255) & 0xff) << 24) | (((r) & 0xff) << 16) | (((g) & 0xff) << 8) | ((b) & 0xff)))
-
-#endif  // BUILD_TOOLS_ONLY
-
 using namespace neomod;
 using namespace DBType;
 
-const Sync::stop_token DatabaseBeatmap::alwaysFalseStopPred{};
-
-// defined here to avoid including diffcalc things in DatabaseBeatmap.h
-DatabaseBeatmap::LOAD_DIFFOBJ_RESULT::LOAD_DIFFOBJ_RESULT() : maxComboAtIndex{0} {}
-DatabaseBeatmap::LOAD_DIFFOBJ_RESULT::~LOAD_DIFFOBJ_RESULT() = default;
-
-DatabaseBeatmap::LOAD_DIFFOBJ_RESULT::LOAD_DIFFOBJ_RESULT(DatabaseBeatmap::LOAD_DIFFOBJ_RESULT &&) noexcept = default;
-DatabaseBeatmap::LOAD_DIFFOBJ_RESULT &DatabaseBeatmap::LOAD_DIFFOBJ_RESULT::operator=(
-    DatabaseBeatmap::LOAD_DIFFOBJ_RESULT &&) noexcept = default;
-
-u32 DatabaseBeatmap::LOAD_DIFFOBJ_RESULT::getMaxComboAtIndex(uSz index) const {
-    assert(maxComboAtIndex.size() > 0);
-    if(index < maxComboAtIndex.size()) {
-        return maxComboAtIndex[index];
-    }
-    // otherwise return total
-    return maxComboAtIndex.back();
-}
-
-#ifndef BUILD_TOOLS_ONLY
-
 bool DatabaseBeatmap::prefer_cjk_names() { return cv::prefer_cjk.getBool(); }
 
-// out-of-line to keep fmt format string checking out of the header (and out of tools-only builds, which don't link fmt)
+// out-of-line to keep fmt format string checking out of the header
 std::string DatabaseBeatmap::getFullSoundFilePath() const {
     return fmt::format("{:s}{:s}", this->getFolder(), this->getAudioFileName());
 }
@@ -214,61 +152,27 @@ bool DatabaseBeatmap::operator==(const DatabaseBeatmap &other) const {
     return false;
 }
 
-#endif  // BUILD_TOOLS_ONLY
+namespace {
 
-namespace {  // internal helpers
-
-TIMINGPOINT toTimingPoint(const BeatmapFile::TimingPoint &tp) {
-    return {.offset = tp.time,
-            .msPerBeat = tp.beatLength,
-            .sampleSet = tp.sampleSet,
-            .sampleIndex = tp.sampleIndex,
-            .volume = std::clamp(tp.volume, 0, 100),
-            .uninherited = tp.uninherited,
-            .kiai = (tp.effects & BeatmapFile::TimingPoint::EFFECT_KIAI) != 0};
+// the limits the game reads maps with
+PrimitiveLimits limitsFromConVars() {
+    return {.maxHitObjects = cv::beatmap_max_num_hitobjects.getVal<u32>(),
+            .maxSliderScoringTimes = cv::beatmap_max_num_slider_scoringtimes.getInt(),
+            .sliderCurveMaxLength = cv::slider_curve_max_length.getFloat(),
+            .sliderEndInsideCheckOffset = cv::slider_end_inside_check_offset.getInt(),
+            .sliderMaxRepeats = cv::slider_max_repeats.getInt(),
+            .sliderMaxTicks = cv::slider_max_ticks.getInt()};
 }
 
-// parse a sample set value with lenient handling, matching lazer behavior:
-// values outside 0-3 default to Normal (1)
-// see: https://github.com/ppy/osu/blob/56ef5eae1409622518fbc19872d5e3477abe90a2/osu.Game/Rulesets/Objects/Legacy/ConvertHitObjectParser.cs#L203
-forceinline u8 sampleSetValue(i32 val) {
-    return (val >= 0 && val <= 3) ? static_cast<u8>(val) : static_cast<u8>(SampleSetType::NORMAL);
-}
-
-// the hit sample's sets and volume
-// TODO: the index of custom beatmap skin samples and their filename (which overrides everything else) are unused atm
-void applyHitSample(const BeatmapFile::HitSample &sample, HITSAMPLE_BITS &samples) {
-    samples.normalSet = sampleSetValue(sample.normalSet);
-    samples.additionSet = sampleSetValue(sample.additionSet);
-    samples.volume = static_cast<u8>(std::clamp(sample.volume, 0, 100));  // for some reason this can be negative
-}
-
-bool sliderScoringTimeComparator(const SLIDER_SCORING_TIME &a, const SLIDER_SCORING_TIME &b) {
-    if(a.time != b.time) return a.time < b.time;
-    if(a.type != b.type) return static_cast<i32>(a.type) < static_cast<i32>(b.type);
-    return false;  // equivalent
-};
-
-bool timingPointSortComparator(const TIMINGPOINT &a, const TIMINGPOINT &b) {
-    if(a.offset != b.offset) return a.offset < b.offset;
-
-    // uninherited timingpoints go before inherited timingpoints
-    const bool a_uninherited = a.msPerBeat >= 0;
-    const bool b_uninherited = b.msPerBeat >= 0;
-    if(a_uninherited != b_uninherited) return a_uninherited;
-
-    if(a.sampleSet != b.sampleSet) return a.sampleSet < b.sampleSet;
-    if(a.sampleIndex != b.sampleIndex) return a.sampleIndex < b.sampleIndex;
-    if(a.kiai != b.kiai) return a.kiai;
-
-    return false;  // equivalent
+void logSkippedLines(std::string_view osuFilePath, const PRIMITIVE_CONTAINER &c) {
+    if(c.skippedLines.empty()) return;
+    debugLog("File: {} no hit object from {} line(s), the first is line {}", osuFilePath, c.skippedLines.size(),
+             c.skippedLines.front());
 }
 
 }  // namespace
 
-#ifndef BUILD_TOOLS_ONLY
-DatabaseBeatmap::PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjects(std::string_view osuFilePath,
-                                                                           const Sync::stop_token &dead) {
+PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjects(std::string_view osuFilePath, const Sync::stop_token &dead) {
     // open osu file for parsing
     std::vector<u8> fileBuffer;
     uSz beatmapFileSize = 0;
@@ -284,778 +188,18 @@ DatabaseBeatmap::PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjects(std::
         // close the file here
     }
 
-    return loadPrimitiveObjectsFromData(fileBuffer, osuFilePath, dead);
-}
-
-#endif  // BUILD_TOOLS_ONLY
-
-DatabaseBeatmap::PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
-                                                                                   std::string_view osuFilePath,
-                                                                                   const Sync::stop_token &dead) {
-    using Kind = BeatmapFile::SectionKind;
-    using HO = BeatmapFile::HitObject;
-
-    PRIMITIVE_CONTAINER c{};
-
-    if(dead.stop_requested()) {
-        c.error.errc = LoadError::LOAD_INTERRUPTED;
-        return c;
-    }
-    if(fileBuffer.empty()) {
-        c.error.errc = LoadError::FILE_LOAD;
-        return c;
-    }
-
-    const BeatmapFile file{fileBuffer};
-
-    const float sliderSanityRange = SLIDER_CURVE_MAX_LENGTH;  // infinity sanity check, same as before
-    const int sliderMaxRepeatRange =
-        SLIDER_MAX_REPEATS;  // NOTE: osu! will refuse to play any beatmap which has sliders with more than
-                             // 9000 repeats, here we just clamp it instead
-
-    // (e.g. "osu file format v12")
-    if(const auto version = file.getVersion()) c.version = *version;
-
-    BeatmapFile::KeyValue kv;
-
-    u8 gamemode{(u8)-1};  // ignore non-standard gamemodes for now
-    for(const auto line : file.getEntries(Kind::GENERAL)) {
-        if(!BeatmapFile::parse(line.text, kv)) continue;
-        if(kv.key == "Mode") {
-            if(gamemode == (u8)-1 && Parsing::parse(kv.value, &gamemode) && gamemode != 0) {
-                c.error.errc = LoadError::NON_STD_GAMEMODE;
-                return c;
-            }
-        } else if(kv.key == "SampleSet") {
-            const std::string sampleSet = SString::to_lower(kv.value);
-            if(sampleSet == "normal") {
-                c.defaultSampleSet = SampleSetType::NORMAL;
-            } else if(sampleSet == "soft") {
-                c.defaultSampleSet = SampleSetType::SOFT;
-            } else if(sampleSet == "drum") {
-                c.defaultSampleSet = SampleSetType::DRUM;
-            }
-        } else if(kv.key == "StackLeniency") {
-            Parsing::parse(kv.value, &c.stackLeniency);
-        }
-    }
-
-    bool foundAR = false;
-    for(const auto line : file.getEntries(Kind::DIFFICULTY)) {
-        if(!BeatmapFile::parse(line.text, kv)) continue;
-        if(kv.key == "CircleSize") {
-            Parsing::parse(kv.value, &c.CS);
-        } else if(kv.key == "ApproachRate") {
-            foundAR |= Parsing::parse(kv.value, &c.AR);
-        } else if(kv.key == "HPDrainRate") {
-            Parsing::parse(kv.value, &c.HP);
-        } else if(kv.key == "OverallDifficulty") {
-            Parsing::parse(kv.value, &c.OD);
-        } else if(kv.key == "SliderMultiplier") {
-            Parsing::parse(kv.value, &c.sliderMultiplier);
-        } else if(kv.key == "SliderTickRate") {
-            Parsing::parse(kv.value, &c.sliderTickRate);
-        }
-    }
-
-    BeatmapFile::Event event;
-    for(const auto line : file.getEntries(Kind::EVENTS)) {
-        if(BeatmapFile::parse(line.text, event) && event.kind == BeatmapFile::Event::Kind::BREAK) {
-            c.breaks.push_back(BREAK{.startTime = event.start, .endTime = event.end});
-            // also update total break duration as we go along here
-            c.totalBreakDuration += (u32)(event.end - event.start);
-        }
-    }
-
-    std::vector<TIMINGPOINT> tempTimingpoints;
-    BeatmapFile::TimingPoint timingPoint;
-    for(const auto line : file.getEntries(Kind::TIMING_POINTS)) {
-        if(BeatmapFile::parse(line.text, timingPoint)) tempTimingpoints.push_back(toTimingPoint(timingPoint));
-    }
-
-    std::array<std::optional<Color>, 8> tempColors;
-    BeatmapFile::Colour colour;
-    for(const auto line : file.getEntries(Kind::COLOURS)) {
-        u8 comboNum;
-        if(BeatmapFile::parse(line.text, colour) && Parsing::parse(colour.name, "Combo", &comboNum) && comboNum >= 1 &&
-           comboNum <= 8) {  // bare minimum validation effort
-            tempColors[comboNum - 1] = rgb(colour.r, colour.g, colour.b);
-        }
-    }
-
-    int hitobjectsWithoutSpinnerCounter = 0;
-    int colorCounter = 1;
-    int colorOffset = 0;
-    int comboNumber = 1;
-
-    // circles:
-    // x,y,time,type,hitSounds,hitSamples
-    // sliders:
-    // x,y,time,type,hitSounds,sliderType|curveX:curveY|...,repeat,pixelLength,edgeHitsound,edgeSets,hitSamples
-    // spinners:
-    // x,y,time,type,hitSounds,endTime,hitSamples
-    HO ho;
-    for(const auto line : file.getEntries(Kind::HIT_OBJECTS)) {
-        if(dead.stop_requested()) {
-            c.error.errc = LoadError::LOAD_INTERRUPTED;
-            return c;
-        }
-
-        if(!BeatmapFile::parse(line.text, ho)) {
-            debugLog("File: {} Invalid hit object (line {}): {}", osuFilePath, line.number, line.text);
-            continue;
-        }
-
-        // NOTE: calculating combo numbers and color offsets based on the parsing order is dangerous.
-        // maybe the hitobjects are not sorted by time in the file; these values should be calculated
-        // after sorting just to be sure?
-
-        if(!(ho.type & HO::TYPE_SPINNER)) hitobjectsWithoutSpinnerCounter++;
-
-        if(ho.type & HO::TYPE_NEW_COMBO) {
-            comboNumber = 1;
-
-            // special case 1: if the current object is a spinner, then the raw color counter is not
-            // increased (but the offset still is!)
-            // special case 2: the first (non-spinner) hitobject in a beatmap is always a new combo,
-            // therefore the raw color counter is not increased for it (but the offset still is!)
-            if(!(ho.type & HO::TYPE_SPINNER) && hitobjectsWithoutSpinnerCounter > 1) colorCounter++;
-
-            // special case 3: "Bits 4-6 (16, 32, 64) form a 3-bit number (0-7) that chooses how many combo colours to skip."
-            colorOffset += (ho.type >> HO::TYPE_COLOUR_SKIP_SHIFT) & 0b111;
-        }
-
-        switch(ho.kind) {
-            case HO::Kind::NONE:
-                break;
-
-            case HO::Kind::CIRCLE: {
-                HITCIRCLE h{};
-                h.x = (f32)(i32)ho.x;  // NOTE: lazer beatmaps do not truncate here
-                h.y = (f32)(i32)ho.y;
-                h.time = ho.time;
-                h.number = comboNumber++;
-                h.colorCounter = colorCounter;
-                h.colorOffset = colorOffset;
-                // h.clicked = false; // unknown what this field was supposed to be for
-                h.samples.hitSounds = (ho.hitSounds & HitSoundType::VALID_HITSOUNDS);
-                applyHitSample(ho.sample, h.samples);
-
-                c.hitcircles.push_back(h);
-                break;
-            }
-
-            case HO::Kind::SLIDER: {
-                if(!ho.slides || !ho.length) {
-                    debugLog("File: {} Invalid slider (line {}): {}", osuFilePath, line.number, line.text);
-                    break;
-                }
-
-                SLIDER slider{};
-                slider.colorCounter = colorCounter;
-                slider.colorOffset = colorOffset;
-                slider.time = ho.time;
-                slider.hoverSamples.hitSounds = (ho.hitSounds & HitSoundType::VALID_SLIDER_HITSOUNDS);
-
-                slider.type = SLIDERCURVETYPE{ho.curveType};
-                slider.points.reserve(ho.curvePoints.size() + 1);
-                for(const vec2 &point : ho.curvePoints) {
-                    slider.points.emplace_back(std::clamp(point.x, -sliderSanityRange, sliderSanityRange),
-                                               std::clamp(point.y, -sliderSanityRange, sliderSanityRange));
-                }
-
-                // special case: osu! logic for handling the hitobject point vs the controlpoints (since
-                // sliders have both, and older beatmaps store the start point inside the control
-                // points)
-                vec2 xy = vec2(std::clamp(ho.x, -sliderSanityRange, sliderSanityRange),
-                               std::clamp(ho.y, -sliderSanityRange, sliderSanityRange));
-                if(slider.points.size() > 0) {
-                    if(slider.points[0] != xy) slider.points.insert(slider.points.begin(), xy);
-                } else {
-                    slider.points.push_back(xy);
-                }
-
-                // partially allow bullshit sliders (add second point to make valid)
-                // e.g. https://osu.ppy.sh/beatmapsets/791900#osu/1676490
-                if(slider.points.size() == 1) slider.points.push_back(xy);
-
-                for(uSz i = 0; i < ho.edgeSounds.size(); i++) {
-                    HITSAMPLE_BITS samples{};
-                    samples.hitSounds = ho.edgeSounds[i] & HitSoundType::VALID_HITSOUNDS;
-                    if(i < ho.edgeSets.size()) {
-                        samples.normalSet = sampleSetValue(ho.edgeSets[i].normalSet);
-                        samples.additionSet = sampleSetValue(ho.edgeSets[i].additionSet);
-                    }
-                    slider.edgeSamples.push_back(samples);
-                }
-
-                // No start sample specified, use default
-                if(slider.edgeSamples.empty()) slider.edgeSamples.emplace_back();
-
-                // No end sample specified, use the same as start
-                if(slider.edgeSamples.size() == 1) slider.edgeSamples.push_back(slider.edgeSamples.front());
-
-                applyHitSample(ho.sample, slider.hoverSamples);
-
-                const auto pixelLength = static_cast<f32>(*ho.length);
-                slider.x = (f32)(i32)ho.x;  // NOTE: lazer beatmaps do not truncate here
-                slider.y = (f32)(i32)ho.y;
-                slider.repeat = std::clamp(*ho.slides, 0, sliderMaxRepeatRange);
-                slider.pixelLength =
-                    std::isnan(pixelLength) ? 0.f : std::clamp(pixelLength, -sliderSanityRange, sliderSanityRange);
-                slider.number = comboNumber++;
-                c.sliders.push_back(std::move(slider));
-                break;
-            }
-
-            case HO::Kind::SPINNER: {
-                if(!ho.endTime) {
-                    debugLog("File: {} Invalid spinner (line {}): {}", osuFilePath, line.number, line.text);
-                    break;
-                }
-
-                SPINNER s{.x = (f32)(i32)ho.x,  // NOTE: lazer beatmaps do not truncate here
-                          .y = (f32)(i32)ho.y,
-                          .time = ho.time,
-                          .endTime = *ho.endTime,
-                          .samples = {}};
-                s.samples.hitSounds = (u8)(ho.hitSounds & HitSoundType::VALID_HITSOUNDS);
-                applyHitSample(ho.sample, s.samples);
-
-                c.spinners.push_back(s);
-                break;
-            }
-        }
-    }
-
-    // special case: old beatmaps have AR = OD, there is no ApproachRate stored
-    if(!foundAR) c.AR = c.OD;
-
-    // late bail if too many hitobjects would run out of memory and crash
-    if(c.getNumObjects() > BEATMAP_MAX_NUM_HITOBJECTS) {
-        c.error.errc = LoadError::TOOMANY_HITOBJECTS;
-        return c;
-    }
-
-    for(const auto &tempCol : tempColors) {
-        if(tempCol.has_value()) {
-            c.combocolors.push_back(tempCol.value());
-        }
-    }
-
-    if(!tempTimingpoints.empty()) {
-        // sort timingpoints by time
-        if(tempTimingpoints.size() > 1) PDQSORT_RANGE(tempTimingpoints, timingPointSortComparator);
-        c.timingpoints = std::move(tempTimingpoints);
-    }
-
+    PRIMITIVE_CONTAINER c = loadPrimitiveObjectsFromData(fileBuffer, limitsFromConVars(), dead);
+    logSkippedLines(osuFilePath, c);
     return c;
 }
 
-DatabaseBeatmap::LoadError DatabaseBeatmap::calculateSliderTimesClicksTicks(int beatmapVersion,
-                                                                            std::vector<SLIDER> &sliders,
-                                                                            FixedSizeArray<TIMINGPOINT> &timingpoints,
-                                                                            float sliderMultiplier,
-                                                                            float sliderTickRate) {
-    return calculateSliderTimesClicksTicks(beatmapVersion, sliders, timingpoints, sliderMultiplier, sliderTickRate,
-                                           alwaysFalseStopPred);
-}
-
-DatabaseBeatmap::LoadError DatabaseBeatmap::calculateSliderTimesClicksTicks(
-    int beatmapVersion, std::vector<SLIDER> &sliders, FixedSizeArray<TIMINGPOINT> &timingpoints, float sliderMultiplier,
-    float sliderTickRate, const Sync::stop_token &dead) {
-    LoadError r;
-
-    if(timingpoints.size() < 1) {
-        r.errc = LoadError::NO_TIMINGPOINTS;
-        return r;
-    }
-
-    struct SliderHelper {
-        static float getSliderTickDistance(float sliderMultiplier, float sliderTickRate) {
-            return ((100.0f * sliderMultiplier) / sliderTickRate);
-        }
-
-        static float getSliderTimeForSlider(const SLIDER &slider, const TIMING_INFO &timingInfo,
-                                            float sliderMultiplier) {
-            const float duration = timingInfo.beatLength * (slider.pixelLength / sliderMultiplier) / 100.0f;
-            return (duration >= 1.0f && std::isfinite(duration) && !std::isnan(duration)) ? duration
-                                                                                          : 1.0f;  // sanity check
-        }
-
-        static float getSliderVelocity(const TIMING_INFO &timingInfo, float sliderMultiplier, float sliderTickRate) {
-            const float beatLength = timingInfo.beatLength;
-            if(beatLength > 0.0f)
-                return (getSliderTickDistance(sliderMultiplier, sliderTickRate) * sliderTickRate *
-                        (1000.0f / beatLength));
-            else
-                return getSliderTickDistance(sliderMultiplier, sliderTickRate) * sliderTickRate;
-        }
-
-        static float getTimingPointMultiplierForSlider(const TIMING_INFO &timingInfo)  // needed for slider ticks
-        {
-            float beatLengthBase = timingInfo.beatLengthBase;
-            if(beatLengthBase == 0.0f)  // sanity check
-                beatLengthBase = 1.0f;
-
-            return timingInfo.beatLength / beatLengthBase;
-        }
-    };
-
-    for(auto &s : sliders) {
-        if(dead.stop_requested()) {
-            r.errc = LoadError::LOAD_INTERRUPTED;
-            return r;
-        }
-
-        // sanity reset
-        s.ticks.clear();
-        s.scoringTimesForStarCalc.clear();
-
-        // calculate duration
-        const TIMING_INFO timingInfo = getTimingInfoForTimeAndTimingPoints(s.time, timingpoints);
-        s.sliderTimeWithoutRepeats = SliderHelper::getSliderTimeForSlider(s, timingInfo, sliderMultiplier);
-        s.sliderTime = s.sliderTimeWithoutRepeats * s.repeat;
-
-        // calculate ticks
-        int brk = 0;
-        // don't generate ticks for NaN timingpoints and infinite values
-        while(!brk++ && !timingInfo.isNaN && !std::isnan(s.pixelLength) && std::isfinite(s.pixelLength)) {
-            const float minTickPixelDistanceFromEnd =
-                0.01f * SliderHelper::getSliderVelocity(timingInfo, sliderMultiplier, sliderTickRate);
-            const float tickPixelLength =
-                (beatmapVersion < 8 ? SliderHelper::getSliderTickDistance(sliderMultiplier, sliderTickRate)
-                                    : SliderHelper::getSliderTickDistance(sliderMultiplier, sliderTickRate) /
-                                          SliderHelper::getTimingPointMultiplierForSlider(timingInfo));
-
-            if(std::isnan(tickPixelLength) || !std::isfinite(tickPixelLength)) break;
-
-            const float tickDurationPercentOfSliderLength =
-                tickPixelLength / (s.pixelLength == 0.0f ? 1.0f : s.pixelLength);
-            const int max_ticks = SLIDER_MAX_TICKS;
-            const int tickCount = std::min((int)std::ceil(s.pixelLength / tickPixelLength) - 1,
-                                           max_ticks);  // NOTE: hard sanity limit number of ticks per slider
-
-            if(tickCount > 0) {
-                const float tickTOffset = tickDurationPercentOfSliderLength;
-                float pixelDistanceToEnd = s.pixelLength;
-                float t = tickTOffset;
-                for(int i = 0; i < tickCount; i++, t += tickTOffset) {
-                    // skip ticks which are too close to the end of the slider
-                    pixelDistanceToEnd -= tickPixelLength;
-                    if(pixelDistanceToEnd <= minTickPixelDistanceFromEnd) break;
-
-                    s.ticks.push_back(t);
-                }
-            }
-        }
-
-        // bail if too many predicted heuristic scoringTimes would run out of memory and crash
-        if((size_t)std::abs(s.repeat) * s.ticks.size() > (size_t)BEATMAP_MAX_NUM_SLIDER_SCORINGTIMES) {
-            r.errc = LoadError::TOOMANY_HITOBJECTS;
-            return r;
-        }
-
-        // calculate s.scoringTimesForStarCalc, which should include every point in time where the cursor must be within
-        // the followcircle radius and at least one key must be pressed: see
-        // https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Preprocessing/OsuDifficultyHitObject.cs
-        const i32 osuSliderEndInsideCheckOffset = (i32)SLIDER_END_INSIDE_CHECK_OFFSET;
-
-        // 1) "skip the head circle"
-
-        // 2) add repeat times (either at slider begin or end)
-        for(int i = 0; i < (s.repeat - 1); i++) {
-            const f32 time = s.time + (s.sliderTimeWithoutRepeats * (i + 1));  // see Slider.cpp
-            s.scoringTimesForStarCalc.push_back(SLIDER_SCORING_TIME{
-                .time = time,
-                .type = SLIDER_SCORING_TIME::TYPE::REPEAT,
-            });
-        }
-
-        // 3) add tick times (somewhere within slider, repeated for every repeat)
-        for(int i = 0; i < s.repeat; i++) {
-            for(int t = 0; t < s.ticks.size(); t++) {
-                const float tickPercentRelativeToRepeatFromStartAbs =
-                    (((i + 1) % 2) != 0 ? s.ticks[t] : 1.0f - s.ticks[t]);  // see Slider.cpp
-                const f32 time =
-                    s.time + (s.sliderTimeWithoutRepeats * i) +
-                    (tickPercentRelativeToRepeatFromStartAbs * s.sliderTimeWithoutRepeats);  // see Slider.cpp
-                s.scoringTimesForStarCalc.push_back(SLIDER_SCORING_TIME{
-                    .time = time,
-                    .type = SLIDER_SCORING_TIME::TYPE::TICK,
-                });
-            }
-        }
-
-        // 4) add slider end (potentially before last tick for bullshit sliders, but sorting takes care of that)
-        // see https://github.com/ppy/osu/pull/4193#issuecomment-460127543
-        const f32 time =
-            std::max(static_cast<f32>(s.time) + s.sliderTime / 2.0f,
-                     (static_cast<f32>(s.time) + s.sliderTime) - static_cast<f32>(osuSliderEndInsideCheckOffset));
-        s.scoringTimesForStarCalc.push_back(SLIDER_SCORING_TIME{
-            .time = time,
-            .type = SLIDER_SCORING_TIME::TYPE::END,
-        });
-
-        if(dead.stop_requested()) {
-            r.errc = LoadError::LOAD_INTERRUPTED;
-            return r;
-        }
-
-        // 5) sort scoringTimes from earliest to latest
-        if(s.scoringTimesForStarCalc.size() > 1) {
-            PDQSORT_RANGE(s.scoringTimesForStarCalc, sliderScoringTimeComparator);
-        }
-    }
-
-    return r;
-}
-
-template <HitObjectContainer C>
-void DatabaseBeatmap::calculateStacks(const ObjectGetter<C> &getObj, uSz numObjects, float AR, int beatmapVersion,
-                                      float stackLeniency) {
-    constexpr float STACK_LENIENCE = 3.f;
-    const float approachTime = GameRules::getApproachTimeForStacking(AR);
-
-    if(beatmapVersion > 5) {
-        // peppy's algorithm
-        // https://gist.github.com/peppy/1167470
-
-        for(sSz i = static_cast<sSz>(numObjects) - 1; i >= 0; i--) {
-            sSz n = i;
-
-            auto *objectI = getObj(i);
-
-            bool isSpinner = objectI->isSpinner();
-
-            if(objectI->getStack() != 0 || isSpinner) continue;
-
-            bool isHitCircle = objectI->isCircle();
-            bool isSlider = objectI->isSlider();
-
-            if(isHitCircle) {
-                while(--n >= 0) {
-                    auto *objectN = getObj(n);
-
-                    bool isSpinnerN = objectN->isSpinner();
-
-                    if(isSpinnerN) continue;
-
-                    if((f32)objectI->getClickTime() - (approachTime * stackLeniency) > (f32)(objectN->getEndTime()))
-                        break;
-
-                    vec2 objectNEndPosition = objectN->getOriginalRawPosAt(objectN->getEndTime());
-                    if(objectN->getDuration() != 0 &&
-                       vec::length(objectNEndPosition - objectI->getOriginalRawPosAt(objectI->getClickTime())) <
-                           STACK_LENIENCE) {
-                        int offset = objectI->getStack() - objectN->getStack() + 1;
-                        for(sSz j = n + 1; j <= i; j++) {
-                            auto *objectJ = getObj(j);
-                            if(vec::length((objectNEndPosition -
-                                            objectJ->getOriginalRawPosAt(objectJ->getClickTime()))) < STACK_LENIENCE)
-                                objectJ->setStack(objectJ->getStack() - offset);
-                        }
-
-                        break;
-                    }
-
-                    if(vec::length((objectN->getOriginalRawPosAt(objectN->getClickTime()) -
-                                    objectI->getOriginalRawPosAt(objectI->getClickTime()))) < STACK_LENIENCE) {
-                        objectN->setStack(objectI->getStack() + 1);
-                        objectI = objectN;
-                    }
-                }
-            } else if(isSlider) {
-                while(--n >= 0) {
-                    auto *objectN = getObj(n);
-
-                    bool isSpinnerN = objectN->isSpinner();
-
-                    if(isSpinnerN) continue;
-
-                    if((f32)objectI->getClickTime() - (approachTime * stackLeniency) > (f32)objectN->getClickTime())
-                        break;
-
-                    if(vec::length(
-                           ((objectN->getDuration() != 0 ? objectN->getOriginalRawPosAt(objectN->getEndTime())
-                                                         : objectN->getOriginalRawPosAt(objectN->getClickTime())) -
-                            objectI->getOriginalRawPosAt(objectI->getClickTime()))) < STACK_LENIENCE) {
-                        objectN->setStack(objectI->getStack() + 1);
-                        objectI = objectN;
-                    }
-                }
-            }
-        }
-    } else  // getSelectedDifficulty()->version < 6
-    {
-        // old stacking algorithm for old beatmaps
-        // https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Beatmaps/BeatmapProcessor.cs
-
-        for(int i = 0; i < numObjects; i++) {
-            auto *currHitObject = getObj(i);
-
-            const bool isSlider = currHitObject->isSlider();
-
-            if(currHitObject->getStack() != 0 && !isSlider) continue;
-
-            i32 startTime = currHitObject->getEndTime();
-            int sliderStack = 0;
-
-            for(int j = i + 1; j < numObjects; j++) {
-                auto *objectJ = getObj(j);
-
-                if((f32)objectJ->getClickTime() - (approachTime * stackLeniency) > (f32)startTime) break;
-
-                // "The start position of the hitobject, or the position at the end of the path if the hitobject is a
-                // slider"
-                const vec2 position2 = isSlider ? currHitObject->getOriginalRawPosAt(currHitObject->getEndTime())
-                                                : currHitObject->getOriginalRawPosAt(currHitObject->getClickTime());
-
-                if(vec::length((objectJ->getOriginalRawPosAt(objectJ->getClickTime()) -
-                                currHitObject->getOriginalRawPosAt(currHitObject->getClickTime()))) < 3) {
-                    currHitObject->setStack(currHitObject->getStack() + 1);
-                    startTime = objectJ->getEndTime();
-                } else if(vec::length((objectJ->getOriginalRawPosAt(objectJ->getClickTime()) - position2)) < 3) {
-                    // "Case for sliders - bump notes down and right, rather than up and left."
-                    sliderStack++;
-                    objectJ->setStack(objectJ->getStack() - sliderStack);
-                    startTime = objectJ->getEndTime();
-                }
-            }
-        }
-    }
-
-    return;
-}
-
-// explicit instantiations
-template void DatabaseBeatmap::calculateStacks(const ObjectGetter<DifficultyHitObject> &, uSz, float, int, float);
-
-#ifndef BUILD_TOOLS_ONLY
-template void DatabaseBeatmap::calculateStacks(const ObjectGetter<HitObject> &, uSz, float, int, float);
-
-DatabaseBeatmap::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(std::string_view osuFilePath, float AR,
-                                                                               float CS, float speedMultiplier,
-                                                                               bool hardRock,
-                                                                               const Sync::stop_token &dead) {
+DiffCalc::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(std::string_view osuFilePath, float AR,
+                                                                        float CS, float speedMultiplier, bool hardRock,
+                                                                        const Sync::stop_token &dead) {
     // load primitive arrays
     PRIMITIVE_CONTAINER c = loadPrimitiveObjects(osuFilePath, dead);
-    return loadDifficultyHitObjects(c, AR, CS, speedMultiplier, hardRock, dead);
+    return DiffCalc::loadDifficultyHitObjects(c, AR, CS, speedMultiplier, hardRock, dead);
 }
-
-#endif
-
-DatabaseBeatmap::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(PRIMITIVE_CONTAINER &c, float AR,
-                                                                               float CS, float speedMultiplier,
-                                                                               bool hardRock,
-                                                                               const Sync::stop_token &dead) {
-    LOAD_DIFFOBJ_RESULT result{};
-
-    // build generalized OsuDifficultyHitObjects from the vectors (hitcircles, sliders, spinners)
-    // the OsuDifficultyHitObject class is the one getting used in all pp/star calculations, it encompasses every object
-    // type for simplicity
-
-    if(c.error.errc) {
-        result.error.errc = c.error.errc;
-        return result;
-    }
-
-    // save break duration (for pp calc)
-    result.totalBreakDuration = c.totalBreakDuration;
-
-    // save raw file stats (the scorev1 base multiplier is mod-independent)
-    result.fileCS = c.CS;
-    result.fileHP = c.HP;
-    result.fileOD = c.OD;
-
-    // calculate sliderTimes, and build slider clicks and ticks (only if not already done)
-    if(!c.sliderTimesCalculated) {
-        LoadError sliderTimeCalcResult = calculateSliderTimesClicksTicks(c.version, c.sliders, c.timingpoints,
-                                                                         c.sliderMultiplier, c.sliderTickRate, dead);
-        if(sliderTimeCalcResult.errc) {
-            result.error.errc = sliderTimeCalcResult.errc;
-            return result;
-        }
-        c.sliderTimesCalculated = true;
-    }
-
-    // and generate the difficultyhitobjects
-    result.diffobjects.reserve(c.hitcircles.size() + c.sliders.size() + c.spinners.size());
-
-    for(auto &hitcircle : c.hitcircles) {
-        result.diffobjects.emplace_back(DifficultyHitObject::TYPE::CIRCLE, vec2{hitcircle.x, hitcircle.y},
-                                        (i32)hitcircle.time);
-    }
-
-    const bool calculateSliderCurveInConstructor =
-        (c.sliders.size() < 5000);  // NOTE: for explanation see DiffCalc::DifficultyHitObject constructor
-    for(const auto &slider : c.sliders) {
-        if(dead.stop_requested()) {
-            result.error.errc = LoadError::LOAD_INTERRUPTED;
-            return result;
-        }
-
-        result.diffobjects.emplace_back(DifficultyHitObject::TYPE::SLIDER, vec2{slider.x, slider.y}, slider.time,
-                                        slider.time + (i32)slider.sliderTime, slider.sliderTimeWithoutRepeats,
-                                        slider.type, slider.points, slider.pixelLength, slider.scoringTimesForStarCalc,
-                                        slider.repeat, calculateSliderCurveInConstructor);
-    }
-
-    for(const auto &spinner : c.spinners) {
-        result.diffobjects.emplace_back(DifficultyHitObject::TYPE::SPINNER, vec2{spinner.x, spinner.y},
-                                        (i32)spinner.time, (i32)spinner.endTime);
-    }
-
-    if(dead.stop_requested()) {
-        result.error.errc = LoadError::LOAD_INTERRUPTED;
-        return result;
-    }
-
-    if(result.diffobjects.size() > 1) {
-        // sort hitobjects by time
-        static constexpr auto diffHitObjectSortComparator =
-            +[](const DifficultyHitObject &a, const DifficultyHitObject &b) -> bool {
-            if(a.time != b.time) return a.time < b.time;
-            if(a.type != b.type) return static_cast<int>(a.type) < static_cast<int>(b.type);
-            if(a.pos.x != b.pos.x) return a.pos.x < b.pos.x;
-            if(a.pos.y != b.pos.y) return a.pos.y < b.pos.y;
-            return false;  // equivalent
-        };
-
-        PDQSORT_RANGE(result.diffobjects, diffHitObjectSortComparator);
-    }
-
-    if(dead.stop_requested()) {
-        result.error.errc = LoadError::LOAD_INTERRUPTED;
-        return result;
-    }
-
-    // calculate stacks
-    // see Beatmap.cpp
-    // NOTE: this must be done before the speed multiplier is applied!
-    if(STARS_STACKING) {
-        calculateStacks(ObjectGetter<DifficultyHitObject>{[&objs = result.diffobjects](
-                                                              uSz idx) -> DifficultyHitObject * { return &objs[idx]; }},
-                        result.diffobjects.size(), AR, c.version, c.stackLeniency);
-        const float rawHitCircleDiameter = GameRules::getRawHitCircleDiameter(CS);
-
-        // update hitobject positions
-        float stackOffset = rawHitCircleDiameter / 128.0f / GameRules::broken_gamefield_rounding_allowance * 6.4f;
-        for(int i = 0; i < result.diffobjects.size(); i++) {
-            if(dead.stop_requested()) {
-                result.error.errc = LoadError::LOAD_INTERRUPTED;
-                return result;
-            }
-
-            if(result.diffobjects[i].stack != 0) result.diffobjects[i].updateStackPosition(stackOffset, hardRock);
-        }
-    }
-
-    // apply speed multiplier (if present)
-    if(speedMultiplier != 1.0f && speedMultiplier > 0.0f) {
-        const double invSpeedMultiplier = 1.0 / (double)speedMultiplier;
-        for(int i = 0; i < result.diffobjects.size(); i++) {
-            if(dead.stop_requested()) {
-                result.error.errc = LoadError::LOAD_INTERRUPTED;
-                return result;
-            }
-
-            result.diffobjects[i].time = (i32)((double)result.diffobjects[i].time * invSpeedMultiplier);
-            result.diffobjects[i].endTime = (i32)((double)result.diffobjects[i].endTime * invSpeedMultiplier);
-
-            result.diffobjects[i].spanDuration = (double)result.diffobjects[i].spanDuration * invSpeedMultiplier;
-            for(auto &scoringTime : result.diffobjects[i].scoringTimes) {
-                scoringTime.time = ((f64)scoringTime.time * invSpeedMultiplier);
-            }
-        }
-    }
-
-    // calculate cumulative max combo per object
-    // (an empty map keeps the {0} sentinel from the constructor)
-    if(!result.diffobjects.empty()) {
-        result.maxComboAtIndex.clear();  // remove dummy 0
-
-        result.maxComboAtIndex.reserve(result.diffobjects.size());
-        u32 runningCombo = 0;
-        for(const auto &obj : result.diffobjects) {
-            if(obj.type == DifficultyHitObject::TYPE::SLIDER)
-                runningCombo += 1 + (u32)obj.scoringTimes.size();
-            else
-                runningCombo += 1;
-            result.maxComboAtIndex.push_back(runningCombo);
-        }
-    }
-
-    if(result.diffobjects.empty()) {
-        result.error.errc = LoadError::NO_OBJECTS;
-    }
-
-    return result;
-}
-
-TIMING_INFO DatabaseBeatmap::getTimingInfoForTimeAndTimingPoints(i32 positionMS,
-                                                                 const FixedSizeArray<TIMINGPOINT> &timingpoints) {
-    static TIMING_INFO default_info{
-        .offset = 0,
-        .beatLengthBase = 1,
-        .beatLength = 1,
-        .sampleSet = 0,
-        .sampleIndex = 0,
-        .volume = 100,
-        .isNaN = false,
-    };
-
-    if(timingpoints.size() < 1) return default_info;
-
-    TIMING_INFO ti{default_info};
-
-    // initial values
-    ti.offset = timingpoints[0].offset;
-    ti.volume = timingpoints[0].volume;
-    ti.sampleSet = timingpoints[0].sampleSet;
-    ti.sampleIndex = timingpoints[0].sampleIndex;
-
-    // new (peppy's algorithm)
-    // (correctly handles aspire & NaNs)
-    {
-        const bool allowMultiplier = true;
-
-        int point = 0;
-        int samplePoint = 0;
-        int audioPoint = 0;
-
-        for(int i = -1; const auto &tp : timingpoints) {
-            // timingpoints are sorted by offset
-            if(tp.offset > positionMS) break;
-            ++i;
-
-            audioPoint = i;
-
-            if(tp.uninherited)
-                point = i;
-            else
-                samplePoint = i;
-        }
-
-        const f32 mult = (allowMultiplier && samplePoint > point && timingpoints[samplePoint].msPerBeat < 0)
-                             ? std::clamp<f32>((f32)-timingpoints[samplePoint].msPerBeat, 10.0f, 1000.0f) / 100.0f
-                             : 1.f;
-
-        ti.beatLengthBase = timingpoints[point].msPerBeat;
-        ti.offset = timingpoints[point].offset;
-
-        ti.isNaN = std::isnan(timingpoints[samplePoint].msPerBeat) || std::isnan(timingpoints[point].msPerBeat);
-        ti.beatLength = ti.beatLengthBase * mult;
-
-        ti.volume = timingpoints[audioPoint].volume;
-        ti.sampleSet = timingpoints[audioPoint].sampleSet;
-        ti.sampleIndex = timingpoints[audioPoint].sampleIndex;
-    }
-
-    return ti;
-}
-
-#ifndef BUILD_TOOLS_ONLY
 
 f32 DatabaseBeatmap::getStarRating(u8 idx) const {
     if(idx == this->last_queried_sr_idx && this->last_queried_sr > 0.f) {
@@ -1249,11 +393,7 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
         }
     }
 
-    std::vector<TIMINGPOINT> tempTimingpoints;
-    BeatmapFile::TimingPoint timingPoint;
-    for(const auto line : file.getEntries(Kind::TIMING_POINTS)) {
-        if(BeatmapFile::parse(line.text, timingPoint)) tempTimingpoints.push_back(toTimingPoint(timingPoint));
-    }
+    FixedSizeArray<TIMINGPOINT> tempTimingpoints = readTimingPoints(file);
 
     if(!SString::is_wspace_only(tempTitleUnicode)) {
         this->sTitleUnicode = std::move(tempTitleUnicode);
@@ -1278,22 +418,15 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
 
     this->timingpoints = std::move(tempTimingpoints);
 
-    // sort timingpoints and calculate BPM range
-    if(this->timingpoints.size() > 0) {
-        // sort timingpoints by time
-        if(this->timingpoints.size() > 1) {
-            PDQSORT_RANGE(this->timingpoints, timingPointSortComparator);
-        }
-
-        if(this->iMostCommonBPM <= 0) {
-            logIfCV(debug_osu, "calculating BPM range ...");
-            BPMCalc::BPMInfo bpm{};
-            std::vector<BPMCalc::BPMTuple> bpm_calculation_buffer;
-            bpm = BPMCalc::getBPM(this->timingpoints, bpm_calculation_buffer);
-            this->iMinBPM = bpm.min;
-            this->iMaxBPM = bpm.max;
-            this->iMostCommonBPM = bpm.most_common;
-        }
+    // calculate BPM range
+    if(this->iMostCommonBPM <= 0) {
+        logIfCV(debug_osu, "calculating BPM range ...");
+        BPMCalc::BPMInfo bpm{};
+        std::vector<BPMCalc::BPMTuple> bpm_calculation_buffer;
+        bpm = BPMCalc::getBPM(this->timingpoints, bpm_calculation_buffer);
+        this->iMinBPM = bpm.min;
+        this->iMaxBPM = bpm.max;
+        this->iMostCommonBPM = bpm.most_common;
     }
 
     // special case: old beatmaps have AR = OD, there is no ApproachRate stored
@@ -1304,8 +437,7 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
 
 DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(BeatmapDifficulty *databaseBeatmap,
                                                                     AbstractBeatmapInterface *beatmap,
-                                                                    LOAD_META_RESULT preloadedMetadata,
-                                                                    PRIMITIVE_CONTAINER *outPrimitivesCopy) {
+                                                                    LOAD_META_RESULT preloadedMetadata) {
     LOAD_GAMEPLAY_RESULT result = LOAD_GAMEPLAY_RESULT();
     PRIMITIVE_CONTAINER c;
 
@@ -1328,10 +460,8 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(BeatmapDiffi
         }
 
         // load primitives, put in temporary container
-        c = loadPrimitiveObjectsFromData(metaRes.fileData, databaseBeatmap->getFilePath(), alwaysFalseStopPred);
-        if(outPrimitivesCopy) {
-            *outPrimitivesCopy = c;
-        }
+        c = loadPrimitiveObjectsFromData(metaRes.fileData, limitsFromConVars());
+        logSkippedLines(databaseBeatmap->getFilePath(), c);
     }
 
     if(c.error.errc) {
@@ -1371,7 +501,7 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(BeatmapDiffi
     // calculate sliderTimes, and build slider clicks and ticks
     LoadError sliderTimeCalcResult =
         calculateSliderTimesClicksTicks(c.version, c.sliders, databaseBeatmap->timingpoints,
-                                        databaseBeatmap->fSliderMultiplier, databaseBeatmap->fSliderTickRate);
+                                        databaseBeatmap->fSliderMultiplier, databaseBeatmap->fSliderTickRate, c.limits);
     if(sliderTimeCalcResult.errc != LoadError::NONE) {
         result.error.errc = sliderTimeCalcResult.errc;
         return result;
@@ -1416,7 +546,7 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(BeatmapDiffi
             +[](const std::unique_ptr<HitObject> &a, const std::unique_ptr<HitObject> &b) -> bool {
             return BeatmapInterface::sortHitObjectByStartTimeComp(a.get(), b.get());
         };
-        PDQSORT_RANGE(result.hitobjects, hobjsorter);
+        srt::pdqsort(result.hitobjects, hobjsorter);
     }
 
     // update beatmap length stat
@@ -1596,5 +726,3 @@ template BPMInfo getBPM(const FixedSizeArray<DB_TIMINGPOINT> &, std::vector<BPMT
 template BPMInfo getBPM(const FixedSizeArray<DBType::TIMINGPOINT> &, std::vector<BPMTuple> &);
 
 }  // namespace neomod::BPMCalc
-
-#endif  // BUILD_TOOLS_ONLY

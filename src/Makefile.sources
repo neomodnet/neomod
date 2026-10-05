@@ -134,6 +134,7 @@ neomod_SOURCES = \
 	src/App/Neomod/BanchoSubmitter.cpp \
 	src/App/Neomod/BanchoUsers.cpp \
 	src/App/Neomod/BeatmapFile/BeatmapFile.cpp \
+	src/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp \
 	src/App/Neomod/BeatmapInstallOverlay.cpp \
 	src/App/Neomod/BeatmapInstaller.cpp \
 	src/App/Neomod/BeatmapInterface.cpp \

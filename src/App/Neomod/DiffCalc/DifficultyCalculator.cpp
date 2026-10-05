@@ -2,11 +2,16 @@
 #include "DifficultyCalculator.h"
 
 #include "DatabaseBeatmapTypes.h"
+#include "BeatmapStacking.h"
 #include "SliderCurves.h"
 #include "GameRules.h"
 #include "ModFlags.h"
 #include "InlineVec.h"
 
+#define WANT_PDQSORT
+#include "Sorting.h"
+
+#include <cassert>
 #include <numbers>
 #include <utility>
 #include <cstring>
@@ -19,6 +24,7 @@
 #define IGNORE_CLAMPED_SLIDERS cv::stars_ignore_clamped_sliders.getBool()
 #define SLIDER_CURVE_MAX_LENGTH cv::slider_curve_max_length.getFloat()
 #define SLIDER_END_INSIDE_CHECK_OFFSET (f64) cv::slider_end_inside_check_offset.getInt()
+#define STARS_STACKING cv::stars_stacking.getBool()
 
 #define FORMAT_STRING_ fmt::format
 
@@ -30,6 +36,7 @@
 #define IGNORE_CLAMPED_SLIDERS cv::defaults::stars_ignore_clamped_sliders
 #define SLIDER_CURVE_MAX_LENGTH cv::defaults::slider_curve_max_length
 #define SLIDER_END_INSIDE_CHECK_OFFSET (f64) cv::defaults::slider_end_inside_check_offset
+#define STARS_STACKING cv::defaults::stars_stacking
 
 #include <print>
 #include <algorithm>
@@ -505,6 +512,161 @@ f32 DifficultyHitObject::getT(i32 pos, bool raw) const {
         f32 floorVal = (f32)std::floor(t);
         return ((i32)floorVal % 2 == 0) ? t - floorVal : floorVal + 1 - t;
     }
+}
+
+u32 LOAD_DIFFOBJ_RESULT::getMaxComboAtIndex(uSz index) const {
+    assert(maxComboAtIndex.size() > 0);
+    if(index < maxComboAtIndex.size()) {
+        return maxComboAtIndex[index];
+    }
+    // otherwise return total
+    return maxComboAtIndex.back();
+}
+
+LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(PRIMITIVE_CONTAINER &c, f32 AR, f32 CS, f32 speedMultiplier, bool hardRock,
+                                             const Sync::stop_token &dead) {
+    LOAD_DIFFOBJ_RESULT result{};
+
+    // build generalized OsuDifficultyHitObjects from the vectors (hitcircles, sliders, spinners)
+    // the OsuDifficultyHitObject class is the one getting used in all pp/star calculations, it encompasses every object
+    // type for simplicity
+
+    if(c.error.errc) {
+        result.error.errc = c.error.errc;
+        return result;
+    }
+
+    // save break duration (for pp calc)
+    result.totalBreakDuration = c.totalBreakDuration;
+
+    // save raw file stats (the scorev1 base multiplier is mod-independent)
+    result.fileCS = c.CS;
+    result.fileHP = c.HP;
+    result.fileOD = c.OD;
+
+    // calculate sliderTimes, and build slider clicks and ticks (only if not already done)
+    if(!c.sliderTimesCalculated) {
+        LoadError sliderTimeCalcResult = calculateSliderTimesClicksTicks(
+            c.version, c.sliders, c.timingpoints, c.sliderMultiplier, c.sliderTickRate, c.limits, dead);
+        if(sliderTimeCalcResult.errc) {
+            result.error.errc = sliderTimeCalcResult.errc;
+            return result;
+        }
+        c.sliderTimesCalculated = true;
+    }
+
+    // and generate the difficultyhitobjects
+    result.diffobjects.reserve(c.hitcircles.size() + c.sliders.size() + c.spinners.size());
+
+    for(auto &hitcircle : c.hitcircles) {
+        result.diffobjects.emplace_back(DifficultyHitObject::TYPE::CIRCLE, vec2{hitcircle.x, hitcircle.y},
+                                        (i32)hitcircle.time);
+    }
+
+    const bool calculateSliderCurveInConstructor =
+        (c.sliders.size() < 5000);  // NOTE: for explanation see DiffCalc::DifficultyHitObject constructor
+    for(const auto &slider : c.sliders) {
+        if(dead.stop_requested()) {
+            result.error.errc = LoadError::LOAD_INTERRUPTED;
+            return result;
+        }
+
+        result.diffobjects.emplace_back(DifficultyHitObject::TYPE::SLIDER, vec2{slider.x, slider.y}, slider.time,
+                                        slider.time + (i32)slider.sliderTime, slider.sliderTimeWithoutRepeats,
+                                        slider.type, slider.points, slider.pixelLength, slider.scoringTimesForStarCalc,
+                                        slider.repeat, calculateSliderCurveInConstructor);
+    }
+
+    for(const auto &spinner : c.spinners) {
+        result.diffobjects.emplace_back(DifficultyHitObject::TYPE::SPINNER, vec2{spinner.x, spinner.y},
+                                        (i32)spinner.time, (i32)spinner.endTime);
+    }
+
+    if(dead.stop_requested()) {
+        result.error.errc = LoadError::LOAD_INTERRUPTED;
+        return result;
+    }
+
+    if(result.diffobjects.size() > 1) {
+        // sort hitobjects by time
+        static constexpr auto diffHitObjectSortComparator =
+            +[](const DifficultyHitObject &a, const DifficultyHitObject &b) -> bool {
+            if(a.time != b.time) return a.time < b.time;
+            if(a.type != b.type) return static_cast<int>(a.type) < static_cast<int>(b.type);
+            if(a.pos.x != b.pos.x) return a.pos.x < b.pos.x;
+            if(a.pos.y != b.pos.y) return a.pos.y < b.pos.y;
+            return false;  // equivalent
+        };
+
+        srt::pdqsort(result.diffobjects, diffHitObjectSortComparator);
+    }
+
+    if(dead.stop_requested()) {
+        result.error.errc = LoadError::LOAD_INTERRUPTED;
+        return result;
+    }
+
+    // calculate stacks
+    // see Beatmap.cpp
+    // NOTE: this must be done before the speed multiplier is applied!
+    if(STARS_STACKING) {
+        calculateStacks(ObjectGetter<DifficultyHitObject>{[&objs = result.diffobjects](
+                                                              uSz idx) -> DifficultyHitObject * { return &objs[idx]; }},
+                        result.diffobjects.size(), AR, c.version, c.stackLeniency);
+        const float rawHitCircleDiameter = GameRules::getRawHitCircleDiameter(CS);
+
+        // update hitobject positions
+        float stackOffset = rawHitCircleDiameter / 128.0f / GameRules::broken_gamefield_rounding_allowance * 6.4f;
+        for(int i = 0; i < result.diffobjects.size(); i++) {
+            if(dead.stop_requested()) {
+                result.error.errc = LoadError::LOAD_INTERRUPTED;
+                return result;
+            }
+
+            if(result.diffobjects[i].stack != 0) result.diffobjects[i].updateStackPosition(stackOffset, hardRock);
+        }
+    }
+
+    // apply speed multiplier (if present)
+    if(speedMultiplier != 1.0f && speedMultiplier > 0.0f) {
+        const double invSpeedMultiplier = 1.0 / (double)speedMultiplier;
+        for(int i = 0; i < result.diffobjects.size(); i++) {
+            if(dead.stop_requested()) {
+                result.error.errc = LoadError::LOAD_INTERRUPTED;
+                return result;
+            }
+
+            result.diffobjects[i].time = (i32)((double)result.diffobjects[i].time * invSpeedMultiplier);
+            result.diffobjects[i].endTime = (i32)((double)result.diffobjects[i].endTime * invSpeedMultiplier);
+
+            result.diffobjects[i].spanDuration = (double)result.diffobjects[i].spanDuration * invSpeedMultiplier;
+            for(auto &scoringTime : result.diffobjects[i].scoringTimes) {
+                scoringTime.time = ((f64)scoringTime.time * invSpeedMultiplier);
+            }
+        }
+    }
+
+    // calculate cumulative max combo per object
+    // (an empty map keeps the {0} sentinel)
+    if(!result.diffobjects.empty()) {
+        result.maxComboAtIndex.clear();  // remove dummy 0
+
+        result.maxComboAtIndex.reserve(result.diffobjects.size());
+        u32 runningCombo = 0;
+        for(const auto &obj : result.diffobjects) {
+            if(obj.type == DifficultyHitObject::TYPE::SLIDER)
+                runningCombo += 1 + (u32)obj.scoringTimes.size();
+            else
+                runningCombo += 1;
+            result.maxComboAtIndex.push_back(runningCombo);
+        }
+    }
+
+    if(result.diffobjects.empty()) {
+        result.error.errc = LoadError::NO_OBJECTS;
+    }
+
+    return result;
 }
 
 namespace {
