@@ -9,6 +9,7 @@
 #include "Cursors.h"
 #include "KeyboardEvent.h"
 #include "Rect.h"
+#include "Registration.h"
 #include "StaticPImpl.h"
 #include "Vectors.h"
 
@@ -198,10 +199,11 @@ class Environment {
     void showMessageError(std::string_view title, std::string_view message) const;
     void showMessageErrorFatal(std::string_view title, std::string_view message) const;
 
+    // `callback` gets the chosen paths (none if cancelled) on the main thread, unless the Registration is gone by then
     using FileDialogCallback = std::function<void(const std::vector<std::string> &paths)>;
-    void openFileWindow(FileDialogCallback callback, const char *filetypefilters, std::string_view title,
-                        std::string_view initialpath = "") const noexcept;
-    void openFolderWindow(FileDialogCallback callback, std::string_view initialpath = "") const noexcept;
+    Mc::Registration openFileWindow(FileDialogCallback callback, const char *filetypefilters, std::string_view title,
+                                    std::string_view initialpath = "") noexcept;
+    Mc::Registration openFolderWindow(FileDialogCallback callback, std::string_view initialpath = "") noexcept;
     void openFileBrowser(std::string_view initialpath) const noexcept;
 
     // window
@@ -460,6 +462,15 @@ class Environment {
 
     // static callbacks/helpers
     static void sdlFileDialogCallback(void *userdata, const char *const *filelist, int filter) noexcept;
+
+    // file dialogs waiting for their result (main thread); SDL's side only knows the id
+    struct PendingFileDialog {
+        u64 id;
+        FileDialogCallback callback;
+    };
+    std::vector<PendingFileDialog> pendingFileDialogs;
+    u64 lastFileDialogId{0};
+    Mc::Registration addPendingFileDialog(FileDialogCallback callback);
 
     static std::string getThingFromPathHelper(
         std::string_view path,

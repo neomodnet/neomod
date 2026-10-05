@@ -44,6 +44,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <iterator>
 #include <utility>
 #include <string>
@@ -846,8 +847,8 @@ void Environment::showMessageErrorFatal(std::string_view title, std::string_view
     showMessageError(title, message);
 }
 
-void Environment::openFileWindow(FileDialogCallback callback, const char *filetypefilters, std::string_view /*title*/,
-                                 std::string_view initialpath) const noexcept {
+Mc::Registration Environment::openFileWindow(FileDialogCallback callback, const char *filetypefilters,
+                                             std::string_view /*title*/, std::string_view initialpath) noexcept {
     // convert filetypefilters (Windows-style)
     std::vector<std::string> filterNames;
     std::vector<std::string> filterPatterns;
@@ -877,21 +878,38 @@ void Environment::openFileWindow(FileDialogCallback callback, const char *filety
         initialpath = Mc::Paths::data();
     }
 
-    auto *cbdata{new auto(std::move(callback))};
+    Mc::Registration registration = this->addPendingFileDialog(std::move(callback));
 
     // show it
-    SDL_ShowOpenFileDialog(sdlFileDialogCallback, cbdata, m_window, sdlFilters.empty() ? nullptr : sdlFilters.data(),
-                           static_cast<int>(sdlFilters.size()), std::string{initialpath}.c_str(), false);
+    SDL_ShowOpenFileDialog(sdlFileDialogCallback,
+                           reinterpret_cast<void *>(static_cast<uintptr_t>(this->lastFileDialogId)), m_window,
+                           sdlFilters.empty() ? nullptr : sdlFilters.data(), static_cast<int>(sdlFilters.size()),
+                           std::string{initialpath}.c_str(), false);
+    return registration;
 }
 
-void Environment::openFolderWindow(FileDialogCallback callback, std::string_view initialpath) const noexcept {
+Mc::Registration Environment::openFolderWindow(FileDialogCallback callback, std::string_view initialpath) noexcept {
     if(initialpath.length() > 0 && !directoryExists(initialpath)) {
         initialpath = Mc::Paths::data();
     }
 
-    auto *cbdata{new auto(std::move(callback))};
+    Mc::Registration registration = this->addPendingFileDialog(std::move(callback));
 
-    SDL_ShowOpenFolderDialog(sdlFileDialogCallback, cbdata, m_window, std::string{initialpath}.c_str(), false);
+    SDL_ShowOpenFolderDialog(sdlFileDialogCallback,
+                             reinterpret_cast<void *>(static_cast<uintptr_t>(this->lastFileDialogId)), m_window,
+                             std::string{initialpath}.c_str(), false);
+    return registration;
+}
+
+Mc::Registration Environment::addPendingFileDialog(FileDialogCallback callback) {
+    this->pendingFileDialogs.push_back({.id = ++this->lastFileDialogId, .callback = std::move(callback)});
+    return {[](void *self, u64 id, Mc::Registration::End how) {
+                // (a detached one stays until its result arrives)
+                if(how == Mc::Registration::End::REVOKE)
+                    std::erase_if(static_cast<Environment *>(self)->pendingFileDialogs,
+                                  [id](const PendingFileDialog &d) { return d.id == id; });
+            },
+            this, this->lastFileDialogId};
 }
 
 // just open the file manager in a certain folder, but not do anything with it
@@ -1651,15 +1669,14 @@ void Environment::sdlFileDialogCallback(void *userdata, const char *const *filel
 
     SDL_SetError("cleared error in file dialog callback");
 
-    auto *callback = static_cast<FileDialogCallback *>(userdata);
-
     // unfortunately, SDL says it might call the callback off of the main thread, so defer it to the main thread
-    Async::queue_main([results{std::move(results)}, callback]() {
-        // call the callback
-        (*callback)(results);
-
-        // callback no longer needed
-        delete callback;
+    Async::queue_main([results{std::move(results)}, id = reinterpret_cast<uintptr_t>(userdata)]() {
+        auto &pending = env->pendingFileDialogs;
+        const auto it = std::ranges::find(pending, static_cast<u64>(id), &PendingFileDialog::id);
+        if(it == pending.end()) return;  // its Registration was reset meanwhile
+        const FileDialogCallback callback = std::move(it->callback);
+        pending.erase(it);
+        callback(results);
     });
 }
 

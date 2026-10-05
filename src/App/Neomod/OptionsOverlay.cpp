@@ -1928,7 +1928,8 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
         }
 
         ui->getNotificationOverlay()->addNotification(_("Opening file browser ..."), 0xffffffff, false, 0.75f);
-        env->openFolderWindow([conclude_import](const std::vector<std::string> &paths) {
+        // (only globals in there, so it may answer after the options are gone)
+        Mc::Registration dialog = env->openFolderWindow([conclude_import](const std::vector<std::string> &paths) {
             if(paths.empty()) {
                 ui->getNotificationOverlay()->addToast(_("You must select the McOsu folder to import its settings."),
                                                        ERROR_TOAST);
@@ -1941,6 +1942,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
             const bool imported = SettingsImporter::import_from_mcosu(mcosu_path);
             conclude_import(imported);
         });
+        dialog.detach();
     }));
 #endif
 
