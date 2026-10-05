@@ -16,7 +16,7 @@ using namespace neomod;
 struct Beatmap {
     Beatmap(std::string osu_bytes) {
         // Load primitive hitobjects (also parses the [Difficulty] settings, incl. AR = OD fallback)
-        this->primitives = loadPrimitiveObjectsFromData(
+        this->primitives = Primitives::loadPrimitiveObjectsFromData(
             std::span{reinterpret_cast<const u8*>(osu_bytes.data()), osu_bytes.size()}, {});
         if(this->primitives.error.errc) {
             this->error_msg = primitives.error.error_string();
@@ -158,7 +158,7 @@ struct Beatmap {
     float OD = 5.0f;
     float HP = 5.0f;
     int maxPossibleCombo = 0;
-    PRIMITIVE_CONTAINER primitives;
+    Primitives::PRIMITIVE_CONTAINER primitives;
     DiffCalc::DifficultyAttributes difficulty_attributes;
     Replay::Mods mods_of_current_difficulty_attributes;
 

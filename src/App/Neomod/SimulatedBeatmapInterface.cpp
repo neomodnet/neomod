@@ -848,9 +848,11 @@ void SimulatedBeatmapInterface::calculateStacks() {
         hitobject->setStack(0);
     }
 
-    neomod::calculateStacks(
-        ObjectGetter<HitObject>{[&objs = this->hitobjects](uSz idx) -> HitObject * { return objs[idx].get(); }},
-        this->hitobjects.size(), this->getAR(), this->beatmap->getVersion(), this->beatmap->getStackLeniency());
+    Primitives::calculateStacks(Primitives::ObjectGetter<HitObject>{[&objs = this->hitobjects](uSz idx) -> HitObject * {
+                                    return objs[idx].get();
+                                }},
+                                this->hitobjects.size(), this->getAR(), this->beatmap->getVersion(),
+                                this->beatmap->getStackLeniency());
 
     // update hitobject positions
     const f32 STACK_OFFSET = 0.05f;

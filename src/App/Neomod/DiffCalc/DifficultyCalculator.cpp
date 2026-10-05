@@ -523,8 +523,8 @@ u32 LOAD_DIFFOBJ_RESULT::getMaxComboAtIndex(uSz index) const {
     return maxComboAtIndex.back();
 }
 
-LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(PRIMITIVE_CONTAINER &c, f32 AR, f32 CS, f32 speedMultiplier, bool hardRock,
-                                             const Sync::stop_token &dead) {
+LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(Primitives::PRIMITIVE_CONTAINER &c, f32 AR, f32 CS, f32 speedMultiplier,
+                                             bool hardRock, const Sync::stop_token &dead) {
     LOAD_DIFFOBJ_RESULT result{};
 
     // build generalized OsuDifficultyHitObjects from the vectors (hitcircles, sliders, spinners)
@@ -546,7 +546,7 @@ LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(PRIMITIVE_CONTAINER &c, f32 AR, f32
 
     // calculate sliderTimes, and build slider clicks and ticks (only if not already done)
     if(!c.sliderTimesCalculated) {
-        LoadError sliderTimeCalcResult = calculateSliderTimesClicksTicks(
+        Primitives::LoadError sliderTimeCalcResult = Primitives::calculateSliderTimesClicksTicks(
             c.version, c.sliders, c.timingpoints, c.sliderMultiplier, c.sliderTickRate, c.limits, dead);
         if(sliderTimeCalcResult.errc) {
             result.error.errc = sliderTimeCalcResult.errc;
@@ -567,7 +567,7 @@ LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(PRIMITIVE_CONTAINER &c, f32 AR, f32
         (c.sliders.size() < 5000);  // NOTE: for explanation see DiffCalc::DifficultyHitObject constructor
     for(const auto &slider : c.sliders) {
         if(dead.stop_requested()) {
-            result.error.errc = LoadError::LOAD_INTERRUPTED;
+            result.error.errc = Primitives::LoadError::LOAD_INTERRUPTED;
             return result;
         }
 
@@ -583,7 +583,7 @@ LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(PRIMITIVE_CONTAINER &c, f32 AR, f32
     }
 
     if(dead.stop_requested()) {
-        result.error.errc = LoadError::LOAD_INTERRUPTED;
+        result.error.errc = Primitives::LoadError::LOAD_INTERRUPTED;
         return result;
     }
 
@@ -602,7 +602,7 @@ LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(PRIMITIVE_CONTAINER &c, f32 AR, f32
     }
 
     if(dead.stop_requested()) {
-        result.error.errc = LoadError::LOAD_INTERRUPTED;
+        result.error.errc = Primitives::LoadError::LOAD_INTERRUPTED;
         return result;
     }
 
@@ -610,16 +610,17 @@ LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(PRIMITIVE_CONTAINER &c, f32 AR, f32
     // see Beatmap.cpp
     // NOTE: this must be done before the speed multiplier is applied!
     if(STARS_STACKING) {
-        calculateStacks(ObjectGetter<DifficultyHitObject>{[&objs = result.diffobjects](
-                                                              uSz idx) -> DifficultyHitObject * { return &objs[idx]; }},
-                        result.diffobjects.size(), AR, c.version, c.stackLeniency);
+        Primitives::calculateStacks(
+            Primitives::ObjectGetter<DifficultyHitObject>{
+                [&objs = result.diffobjects](uSz idx) -> DifficultyHitObject * { return &objs[idx]; }},
+            result.diffobjects.size(), AR, c.version, c.stackLeniency);
         const float rawHitCircleDiameter = GameRules::getRawHitCircleDiameter(CS);
 
         // update hitobject positions
         float stackOffset = rawHitCircleDiameter / 128.0f / GameRules::broken_gamefield_rounding_allowance * 6.4f;
         for(int i = 0; i < result.diffobjects.size(); i++) {
             if(dead.stop_requested()) {
-                result.error.errc = LoadError::LOAD_INTERRUPTED;
+                result.error.errc = Primitives::LoadError::LOAD_INTERRUPTED;
                 return result;
             }
 
@@ -632,7 +633,7 @@ LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(PRIMITIVE_CONTAINER &c, f32 AR, f32
         const double invSpeedMultiplier = 1.0 / (double)speedMultiplier;
         for(int i = 0; i < result.diffobjects.size(); i++) {
             if(dead.stop_requested()) {
-                result.error.errc = LoadError::LOAD_INTERRUPTED;
+                result.error.errc = Primitives::LoadError::LOAD_INTERRUPTED;
                 return result;
             }
 
@@ -663,7 +664,7 @@ LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(PRIMITIVE_CONTAINER &c, f32 AR, f32
     }
 
     if(result.diffobjects.empty()) {
-        result.error.errc = LoadError::NO_OBJECTS;
+        result.error.errc = Primitives::LoadError::NO_OBJECTS;
     }
 
     return result;

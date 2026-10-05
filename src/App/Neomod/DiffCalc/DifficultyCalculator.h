@@ -130,8 +130,8 @@ struct LOAD_DIFFOBJ_RESULT;
 
 // the objects of a map with the given AR, CS and speed (mods applied) and hardRock's stacking direction; calculates
 // the primitives' slider timing first if that hasn't happened yet
-LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(PRIMITIVE_CONTAINER &c, f32 AR, f32 CS, f32 speedMultiplier, bool hardRock,
-                                             const Sync::stop_token &dead = {});
+LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(Primitives::PRIMITIVE_CONTAINER &c, f32 AR, f32 CS, f32 speedMultiplier,
+                                             bool hardRock, const Sync::stop_token &dead = {});
 
 struct LOAD_DIFFOBJ_RESULT final {
     LOAD_DIFFOBJ_RESULT() = default;
@@ -153,14 +153,15 @@ struct LOAD_DIFFOBJ_RESULT final {
     // raw file difficulty values (the scorev1 base multiplier ignores mod-adjusted stats)
     f32 fileCS{5.f}, fileHP{5.f}, fileOD{5.f};
 
-    LoadError error;
+    Primitives::LoadError error;
 
     [[nodiscard]] u32 getTotalMaxCombo() const { return maxComboAtIndex.back(); }
     [[nodiscard]] u32 getMaxComboAtIndex(uSz diffobjIndex) const;
 
    private:
-    friend LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(PRIMITIVE_CONTAINER &c, f32 AR, f32 CS, f32 speedMultiplier,
-                                                        bool hardRock, const Sync::stop_token &dead);
+    friend LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(Primitives::PRIMITIVE_CONTAINER &c, f32 AR, f32 CS,
+                                                        f32 speedMultiplier, bool hardRock,
+                                                        const Sync::stop_token &dead);
     // starts with a single 0 sentinel so getTotalMaxCombo() works pre-fill
     std::vector<u32> maxComboAtIndex{0};
 };

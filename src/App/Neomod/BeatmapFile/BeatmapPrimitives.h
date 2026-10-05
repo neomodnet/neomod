@@ -13,12 +13,13 @@
 #include <string_view>
 #include <vector>
 
+namespace neomod {
+class BeatmapFile;
+}
+
 // the objects, timing points and settings gameplay and the star calc are built from, read from a .osu file (see
 // BeatmapFile) without any of the game's state, so the standalone tools use the same code
-
-namespace neomod {
-
-class BeatmapFile;
+namespace neomod::Primitives {
 
 struct LoadError {
    public:
@@ -55,7 +56,7 @@ struct LoadError {
 };
 
 // guards against maps made to break the game; the game passes its convars, the tools these defaults
-struct PrimitiveLimits {
+struct Limits {
     u32 maxHitObjects{cv::defaults::beatmap_max_num_hitobjects};
     i32 maxSliderScoringTimes{cv::defaults::beatmap_max_num_slider_scoringtimes};
     f32 sliderCurveMaxLength{cv::defaults::slider_curve_max_length};
@@ -129,7 +130,7 @@ struct PRIMITIVE_CONTAINER final {
     std::vector<u32> skippedLines{};
 
     // what it was read with, for the slider timing calculated from it
-    PrimitiveLimits limits{};
+    Limits limits{};
 
     f32 stackLeniency{.7f};
     f32 sliderMultiplier{1.f};
@@ -159,12 +160,12 @@ struct PRIMITIVE_CONTAINER final {
 
 TimingPoints readTimingPoints(const BeatmapFile &file);
 
-PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileData, const PrimitiveLimits &limits,
+PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileData, const Limits &limits,
                                                  const Sync::stop_token &dead = {});
 
 LoadError calculateSliderTimesClicksTicks(int beatmapVersion, std::vector<DBType::SLIDER> &sliders,
                                           const TimingPoints &timingpoints, float sliderMultiplier,
-                                          float sliderTickRate, const PrimitiveLimits &limits,
+                                          float sliderTickRate, const Limits &limits,
                                           const Sync::stop_token &dead = {});
 
-}  // namespace neomod
+}  // namespace neomod::Primitives

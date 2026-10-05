@@ -155,7 +155,7 @@ bool DatabaseBeatmap::operator==(const DatabaseBeatmap &other) const {
 namespace {
 
 // the limits the game reads maps with
-PrimitiveLimits limitsFromConVars() {
+Primitives::Limits limitsFromConVars() {
     return {.maxHitObjects = cv::beatmap_max_num_hitobjects.getVal<u32>(),
             .maxSliderScoringTimes = cv::beatmap_max_num_slider_scoringtimes.getInt(),
             .sliderCurveMaxLength = cv::slider_curve_max_length.getFloat(),
@@ -164,7 +164,7 @@ PrimitiveLimits limitsFromConVars() {
             .sliderMaxTicks = cv::slider_max_ticks.getInt()};
 }
 
-void logSkippedLines(std::string_view osuFilePath, const PRIMITIVE_CONTAINER &c) {
+void logSkippedLines(std::string_view osuFilePath, const Primitives::PRIMITIVE_CONTAINER &c) {
     if(c.skippedLines.empty()) return;
     debugLog("File: {} no hit object from {} line(s), the first is line {}", osuFilePath, c.skippedLines.size(),
              c.skippedLines.front());
@@ -172,7 +172,8 @@ void logSkippedLines(std::string_view osuFilePath, const PRIMITIVE_CONTAINER &c)
 
 }  // namespace
 
-PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjects(std::string_view osuFilePath, const Sync::stop_token &dead) {
+Primitives::PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjects(std::string_view osuFilePath,
+                                                                      const Sync::stop_token &dead) {
     // open osu file for parsing
     std::vector<u8> fileBuffer;
     uSz beatmapFileSize = 0;
@@ -188,7 +189,7 @@ PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjects(std::string_view osuFi
         // close the file here
     }
 
-    PRIMITIVE_CONTAINER c = loadPrimitiveObjectsFromData(fileBuffer, limitsFromConVars(), dead);
+    Primitives::PRIMITIVE_CONTAINER c = Primitives::loadPrimitiveObjectsFromData(fileBuffer, limitsFromConVars(), dead);
     logSkippedLines(osuFilePath, c);
     return c;
 }
@@ -197,7 +198,7 @@ DiffCalc::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(std::str
                                                                         float CS, float speedMultiplier, bool hardRock,
                                                                         const Sync::stop_token &dead) {
     // load primitive arrays
-    PRIMITIVE_CONTAINER c = loadPrimitiveObjects(osuFilePath, dead);
+    Primitives::PRIMITIVE_CONTAINER c = loadPrimitiveObjects(osuFilePath, dead);
     return DiffCalc::loadDifficultyHitObjects(c, AR, CS, speedMultiplier, hardRock, dead);
 }
 
@@ -262,7 +263,7 @@ Mc::Registration DatabaseBeatmap::getMapFileAsync(MapFileReadDoneCallback data_c
 DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5) {
     if(this->difficulties) {
         return {.fileData = {},
-                .error = {LoadError::LOADMETADATA_ON_BEATMAPSET}};  // we are a beatmapset, not a difficulty
+                .error = {Primitives::LoadError::LOADMETADATA_ON_BEATMAPSET}};  // we are a beatmapset, not a difficulty
     }
 
     logIf(cv::debug_osu.getBool() || cv::debug_db.getBool(), "loading {:s}", this->getFilePath());
@@ -291,13 +292,13 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
     std::string_view beatmapFile = {reinterpret_cast<char *>(fileBuffer.data()),
                                     reinterpret_cast<char *>(fileBuffer.data() + beatmapFileSize)};
 
-    const auto ret = [&](LoadError::code retcode) -> DatabaseBeatmap::LOAD_META_RESULT {
+    const auto ret = [&](Primitives::LoadError::code retcode) -> DatabaseBeatmap::LOAD_META_RESULT {
         return {.fileData = std::move(fileBuffer), .error = {retcode}};
     };
 
     if(fileBuffer.empty() || !beatmapFileSize) {
         debugLog("Osu Error: Couldn't read file {}", this->getFilePath());
-        return ret(LoadError::FILE_LOAD);
+        return ret(Primitives::LoadError::FILE_LOAD);
     }
 
     // compute MD5 hash (very slow)
@@ -316,7 +317,7 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
         this->iVersion = static_cast<u8>(*version);
         if(this->iVersion > cv::beatmap_version.getInt()) {
             debugLog("Ignoring unknown/invalid beatmap version {:d}", this->iVersion);
-            return ret(LoadError::UNKNOWN_VERSION);
+            return ret(Primitives::LoadError::UNKNOWN_VERSION);
         }
     }
 
@@ -328,7 +329,7 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
             // early return for non-std
             if(u8 gamemode; Parsing::parse(kv.value, &gamemode) && gamemode != 0) {
                 logIfCV(debug_osu, "ignoring non-std gamemode {} for {}", gamemode, this->getFilePath());
-                return ret(LoadError::NON_STD_GAMEMODE);
+                return ret(Primitives::LoadError::NON_STD_GAMEMODE);
             }
         } else if(kv.key == "AudioFilename") {
             this->sAudioFileName = kv.value;
@@ -393,7 +394,7 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
         }
     }
 
-    TimingPoints tempTimingpoints = readTimingPoints(file);
+    Primitives::TimingPoints tempTimingpoints = Primitives::readTimingPoints(file);
 
     if(!SString::is_wspace_only(tempTitleUnicode)) {
         this->sTitleUnicode = std::move(tempTitleUnicode);
@@ -413,7 +414,7 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
     // general sanity checks
     if(tempTimingpoints.size() < 1) {
         logIfCV(debug_osu, "no timingpoints in beatmap!");
-        return ret(LoadError::NO_TIMINGPOINTS);  // nothing more to do here
+        return ret(Primitives::LoadError::NO_TIMINGPOINTS);  // nothing more to do here
     }
 
     this->timingpoints = std::move(tempTimingpoints);
@@ -432,14 +433,14 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
     // special case: old beatmaps have AR = OD, there is no ApproachRate stored
     if(!foundAR) this->fAR = this->fOD;
 
-    return ret(LoadError::NONE);
+    return ret(Primitives::LoadError::NONE);
 }
 
 DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(BeatmapDifficulty *databaseBeatmap,
                                                                     AbstractBeatmapInterface *beatmap,
                                                                     LOAD_META_RESULT preloadedMetadata) {
     LOAD_GAMEPLAY_RESULT result = LOAD_GAMEPLAY_RESULT();
-    PRIMITIVE_CONTAINER c;
+    Primitives::PRIMITIVE_CONTAINER c;
 
     {
         // NOTE: reload metadata (force ensures that all necessary data is ready for creating hitobjects and playing etc.,
@@ -460,7 +461,7 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(BeatmapDiffi
         }
 
         // load primitives, put in temporary container
-        c = loadPrimitiveObjectsFromData(metaRes.fileData, limitsFromConVars());
+        c = Primitives::loadPrimitiveObjectsFromData(metaRes.fileData, limitsFromConVars());
         logSkippedLines(databaseBeatmap->getFilePath(), c);
     }
 
@@ -483,7 +484,7 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(BeatmapDiffi
 
     // check if we have any timingpoints at all
     if(databaseBeatmap->timingpoints.size() == 0) {
-        result.error.errc = LoadError::NO_TIMINGPOINTS;
+        result.error.errc = Primitives::LoadError::NO_TIMINGPOINTS;
         return result;
     }
 
@@ -494,15 +495,15 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(BeatmapDiffi
 
     // check if we have any hitobjects at all
     if(databaseBeatmap->getNumObjects() < 1) {
-        result.error.errc = LoadError::NO_OBJECTS;
+        result.error.errc = Primitives::LoadError::NO_OBJECTS;
         return result;
     }
 
     // calculate sliderTimes, and build slider clicks and ticks
-    LoadError sliderTimeCalcResult =
-        calculateSliderTimesClicksTicks(c.version, c.sliders, databaseBeatmap->timingpoints,
-                                        databaseBeatmap->fSliderMultiplier, databaseBeatmap->fSliderTickRate, c.limits);
-    if(sliderTimeCalcResult.errc != LoadError::NONE) {
+    Primitives::LoadError sliderTimeCalcResult = Primitives::calculateSliderTimesClicksTicks(
+        c.version, c.sliders, databaseBeatmap->timingpoints, databaseBeatmap->fSliderMultiplier,
+        databaseBeatmap->fSliderTickRate, c.limits);
+    if(sliderTimeCalcResult.errc != Primitives::LoadError::NONE) {
         result.error.errc = sliderTimeCalcResult.errc;
         return result;
     }
@@ -656,8 +657,7 @@ namespace neomod::BPMCalc {
 template <typename T>
 BPMInfo getBPM(const T &timing_points, std::vector<BPMTuple> &bpm_buffer)
     requires((std::is_same_v<T, std::vector<DB_TIMINGPOINT>> || std::is_same_v<T, std::vector<DBType::TIMINGPOINT>>) ||
-             (std::is_same_v<T, FixedSizeArray<DB_TIMINGPOINT>> ||
-              std::is_same_v<T, TimingPoints>))
+             (std::is_same_v<T, FixedSizeArray<DB_TIMINGPOINT>> || std::is_same_v<T, Primitives::TimingPoints>))
 {
     if(timing_points.empty()) {
         return {};
@@ -723,6 +723,6 @@ BPMInfo getBPM(const T &timing_points, std::vector<BPMTuple> &bpm_buffer)
 template BPMInfo getBPM(const std::vector<DB_TIMINGPOINT> &, std::vector<BPMTuple> &);
 template BPMInfo getBPM(const std::vector<DBType::TIMINGPOINT> &, std::vector<BPMTuple> &);
 template BPMInfo getBPM(const FixedSizeArray<DB_TIMINGPOINT> &, std::vector<BPMTuple> &);
-template BPMInfo getBPM(const TimingPoints &, std::vector<BPMTuple> &);
+template BPMInfo getBPM(const Primitives::TimingPoints &, std::vector<BPMTuple> &);
 
 }  // namespace neomod::BPMCalc

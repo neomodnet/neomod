@@ -620,7 +620,7 @@ bool BeatmapInterface::start() {
     {
         DatabaseBeatmap::LOAD_GAMEPLAY_RESULT result = DatabaseBeatmap::loadGameplay(this->beatmap, this);
         if(result.error.errc) {
-            using enum LoadError::code;
+            using enum Primitives::LoadError::code;
             std::string errorMessage;
             switch(result.error.errc) {
                 case METADATA:
@@ -4251,9 +4251,11 @@ void BeatmapInterface::calculateStacks() {
         hitobject->setStack(0);
     }
 
-    neomod::calculateStacks(
-        ObjectGetter<HitObject>{[&objs = this->hitobjects](uSz idx) -> HitObject * { return objs[idx].get(); }},
-        this->hitobjects.size(), this->getAR(), this->beatmap->getVersion(), this->beatmap->getStackLeniency());
+    Primitives::calculateStacks(Primitives::ObjectGetter<HitObject>{[&objs = this->hitobjects](uSz idx) -> HitObject * {
+                                    return objs[idx].get();
+                                }},
+                                this->hitobjects.size(), this->getAR(), this->beatmap->getVersion(),
+                                this->beatmap->getStackLeniency());
 
     // update hitobject positions
     const f32 STACK_OFFSET = 0.05f;

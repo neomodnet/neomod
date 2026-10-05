@@ -15,7 +15,7 @@
 #include <optional>
 #include <string>
 
-namespace neomod {
+namespace neomod::Primitives {
 
 using namespace DatabaseBeatmapTypes;
 
@@ -133,7 +133,7 @@ TimingPoints readTimingPoints(const BeatmapFile &file) {
     return TimingPoints{std::move(timingpoints)};
 }
 
-PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer, const PrimitiveLimits &limits,
+PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer, const Limits &limits,
                                                  const Sync::stop_token &dead) {
     using Kind = BeatmapFile::SectionKind;
     using HO = BeatmapFile::HitObject;
@@ -388,8 +388,7 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
 
 LoadError calculateSliderTimesClicksTicks(int beatmapVersion, std::vector<SLIDER> &sliders,
                                           const TimingPoints &timingpoints, float sliderMultiplier,
-                                          float sliderTickRate, const PrimitiveLimits &limits,
-                                          const Sync::stop_token &dead) {
+                                          float sliderTickRate, const Limits &limits, const Sync::stop_token &dead) {
     LoadError r;
 
     if(timingpoints.size() < 1) {
@@ -537,4 +536,4 @@ LoadError calculateSliderTimesClicksTicks(int beatmapVersion, std::vector<SLIDER
     return r;
 }
 
-}  // namespace neomod
+}  // namespace neomod::Primitives

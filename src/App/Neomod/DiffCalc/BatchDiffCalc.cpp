@@ -150,7 +150,7 @@ forceinline bool score_needs_recalc(const FinishedScore& score) {
 
 // Calculate difficulty and PP for a group of scores sharing mod parameters.
 void process_score_group(const BeatmapDifficulty* map, const ModParams& params, std::vector<ScoreWork*>& scores,
-                         PRIMITIVE_CONTAINER& primitives, const Sync::stop_token& stoken) {
+                         Primitives::PRIMITIVE_CONTAINER& primitives, const Sync::stop_token& stoken) {
     if(scores.empty()) return;
 
     auto diffres =
@@ -313,8 +313,8 @@ void build_work_queue(const Sync::stop_token& stoken) {
 }
 
 // star ratings for every precalculated mod combination, length, object counts and BPM of one difficulty
-MapResult calc_map_attributes(BeatmapDifficulty* map, PRIMITIVE_CONTAINER& primitives, const Sync::stop_token& stoken,
-                              WorkerContext& ctx) {
+MapResult calc_map_attributes(BeatmapDifficulty* map, Primitives::PRIMITIVE_CONTAINER& primitives,
+                              const Sync::stop_token& stoken, WorkerContext& ctx) {
     MapResult result{.map = map,
                      .nb_circles = (u32)primitives.hitcircles.size(),
                      .nb_sliders = (u32)primitives.sliders.size(),

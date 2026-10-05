@@ -495,7 +495,8 @@ std::pair<ModFlags, float> modStringToModFlag(std::string_view CSVs) {
     return {retFlags, retSpeed};
 }
 
-OneMapResult::ErrorStage loadPrimitivesFromPath(std::string_view path, PRIMITIVE_CONTAINER &out, std::string &error) {
+OneMapResult::ErrorStage loadPrimitivesFromPath(std::string_view path, Primitives::PRIMITIVE_CONTAINER &out,
+                                                std::string &error) {
     std::vector<uint8_t> fileBuffer;
     {
         LiteFile file(std::string{path});
@@ -507,7 +508,7 @@ OneMapResult::ErrorStage loadPrimitivesFromPath(std::string_view path, PRIMITIVE
         // don't need to keep the file open anymore
     }
 
-    out = loadPrimitiveObjectsFromData(fileBuffer, {});
+    out = Primitives::loadPrimitiveObjectsFromData(fileBuffer, {});
     if(out.error.errc) {
         error = out.error.error_string();
         return OneMapResult::ErrorStage::PRIMITIVES;
@@ -517,8 +518,8 @@ OneMapResult::ErrorStage loadPrimitivesFromPath(std::string_view path, PRIMITIVE
 
 // star calc + pp for one already-loaded map with one (mods, speed) config. the container can be
 // reused across configs (slider times are only computed once), same as the game's mod sweeps.
-OneMapResult computeOneConfig(PRIMITIVE_CONTAINER &primitives, std::string_view mapIdentity, ModFlags modFlags,
-                              float speedMultiplier) {
+OneMapResult computeOneConfig(Primitives::PRIMITIVE_CONTAINER &primitives, std::string_view mapIdentity,
+                              ModFlags modFlags, float speedMultiplier) {
     OneMapResult r{};
     r.map = mapIdentity;
     r.modFlags = modFlags;
@@ -639,7 +640,7 @@ OneMapResult computeOneConfig(PRIMITIVE_CONTAINER &primitives, std::string_view 
 }
 
 OneMapResult computeOneMap(std::string_view osuFilePath, ModFlags modFlags, float speedMultiplier) {
-    PRIMITIVE_CONTAINER primitives;
+    Primitives::PRIMITIVE_CONTAINER primitives;
     std::string error;
     const OneMapResult::ErrorStage errorStage = loadPrimitivesFromPath(osuFilePath, primitives, error);
     if(errorStage != OneMapResult::ErrorStage::NONE) {
@@ -762,7 +763,7 @@ std::string writeJsonLine(const OneMapResult &r, bool dumpStrains) {
 // path, the test suite passes the bare filename so goldens are location independent).
 std::string processMapForBatch(std::string_view path, std::string_view identity,
                                const std::vector<BatchConfig> &configs) {
-    PRIMITIVE_CONTAINER primitives;
+    Primitives::PRIMITIVE_CONTAINER primitives;
     std::string error;
     const OneMapResult::ErrorStage errorStage = loadPrimitivesFromPath(path, primitives, error);
 

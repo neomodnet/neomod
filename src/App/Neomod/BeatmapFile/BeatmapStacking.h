@@ -12,6 +12,9 @@ class HitObject;
 namespace DiffCalc {
 class DifficultyHitObject;
 }
+}  // namespace neomod
+
+namespace neomod::Primitives {
 
 template <typename T>
 concept HitObjectContainer = std::is_same_v<T, DiffCalc::DifficultyHitObject> || std::is_same_v<T, HitObject>;
@@ -136,4 +139,4 @@ void calculateStacks(const ObjectGetter<C> &getObj, uSz numObjects, float AR, in
     return;
 }
 
-}  // namespace neomod
+}  // namespace neomod::Primitives

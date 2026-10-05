@@ -169,11 +169,11 @@ std::string dumpGameLoad(const std::string &path, const std::string &relative, s
                        tp.sampleIndex, tp.volume, tp.uninherited, tp.kiai);
     }
 
-    auto c = loadPrimitiveObjectsFromData(bytes, {});
-    const LoadError sliderError = c.error
-                                      ? LoadError{}
-                                      : calculateSliderTimesClicksTicks(c.version, c.sliders, c.timingpoints,
-                                                                        c.sliderMultiplier, c.sliderTickRate, c.limits);
+    auto c = Primitives::loadPrimitiveObjectsFromData(bytes, {});
+    const Primitives::LoadError sliderError =
+        c.error ? Primitives::LoadError{}
+                : Primitives::calculateSliderTimesClicksTicks(c.version, c.sliders, c.timingpoints, c.sliderMultiplier,
+                                                              c.sliderTickRate, c.limits);
     fmt::format_to(std::back_inserter(out),
                    "prim err={} ver={} ar={} cs={} od={} hp={} sl={} sm={} tr={} set={} breaktime={} skipped={} "
                    "slidererr={}\n",
@@ -273,7 +273,7 @@ void bench(const std::vector<std::pair<std::string, std::string>> &files, int ro
     u64 sink = 0;
     const f64 primitives = best([&] {
         for(uSz f = 0; f < files.size(); f++) {
-            const auto c = loadPrimitiveObjectsFromData(contents[f], {});
+            const auto c = Primitives::loadPrimitiveObjectsFromData(contents[f], {});
             sink += c.getNumObjects();
         }
     });
@@ -507,7 +507,8 @@ void BeatmapFileTest::runTests() {
     TEST_SECTION("the game's reading");
     {
         const auto load = [](std::string_view text) {
-            return loadPrimitiveObjectsFromData(std::span{reinterpret_cast<const u8 *>(text.data()), text.size()}, {});
+            return Primitives::loadPrimitiveObjectsFromData(
+                std::span{reinterpret_cast<const u8 *>(text.data()), text.size()}, {});
         };
         const auto bom = load("\xEF\xBB\xBFosu file format v5\r\n[HitObjects]\r\n1,2,3,1,0\r\n");
         TEST_ASSERT_EQ(bom.version, 5, "the version after a BOM");

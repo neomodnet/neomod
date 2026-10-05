@@ -456,7 +456,7 @@ int runCrosscheck(const std::vector<std::string> &argv) {
     int failed = 0;
     int skipped = 0;
     for(const auto &fixture : fixtures) {
-        PRIMITIVE_CONTAINER primitives;
+        Primitives::PRIMITIVE_CONTAINER primitives;
         std::string loadError;
         if(loadPrimitivesFromPath((mapsDir / fixture).string(), primitives, loadError) !=
            OneMapResult::ErrorStage::NONE) {
@@ -581,7 +581,7 @@ int runCrosscheck(const std::vector<std::string> &argv) {
             // offsets change their sub-ms rounding, which feeds slider travel values.
             if(cfg.speed == 1.0f && !flags::has<ModFlags::Flashlight>(setup.modFlags)) {
                 for(const i32 offset : {1, 401, 10007}) {
-                    PRIMITIVE_CONTAINER shifted = primitives;
+                    Primitives::PRIMITIVE_CONTAINER shifted = primitives;
                     for(auto &h : shifted.hitcircles) h.time += offset;
                     for(auto &s : shifted.sliders) {
                         s.time += offset;
