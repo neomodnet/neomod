@@ -29,6 +29,8 @@ constexpr std::array<std::pair<std::string_view, BeatmapFile::SectionKind>, 8> K
     {"HitObjects", HIT_OBJECTS},
 }};
 
+constexpr std::string_view UTF8_BOM{"\xEF\xBB\xBF"};
+
 // a line without its line break: "\n", and a "\r" before it
 std::string_view lineText(std::string_view line) {
     if(line.ends_with('\n')) line.remove_suffix(1);
@@ -144,11 +146,11 @@ void appendHitSample(std::string &out, const BeatmapFile::HitSample &sample) {
 
 }  // namespace
 
-BeatmapFile::BeatmapFile(std::string_view bytes) : bytes(bytes) {
+BeatmapFile::BeatmapFile(std::string_view bytes) : bytes(bytes), bom(bytes.starts_with(UTF8_BOM)) {
     Section current{.header = {}, .body = {}, .name = {}, .kind = NONE, .readAs = NONE, .bodyLine = 1};
-    uSz bodyStart = 0;
+    uSz bodyStart = this->bom ? UTF8_BOM.size() : 0;
     u32 number = 1;
-    for(uSz pos = 0; pos < bytes.size(); number++) {
+    for(uSz pos = bodyStart; pos < bytes.size(); number++) {
         const uSz lineBreak = bytes.find('\n', pos);
         const uSz next = lineBreak == std::string_view::npos ? bytes.size() : lineBreak + 1;
         const std::string_view line = lineText(bytes.substr(pos, next - pos));

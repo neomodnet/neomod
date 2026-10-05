@@ -87,7 +87,10 @@ class BeatmapFile {
         : BeatmapFile(std::string_view{reinterpret_cast<const char *>(bytes.data()), bytes.size()}) {}
 
     [[nodiscard]] std::string_view getBytes() const { return this->bytes; }
-    // in file order, starting with the lines before the first section (possibly none); they cover every byte
+    // whether the bytes start with a UTF-8 byte order mark, which the sections leave out
+    [[nodiscard]] bool hasBom() const { return this->bom; }
+    // in file order, starting with the lines before the first section (possibly none); they cover every byte after the
+    // byte order mark
     [[nodiscard]] std::span<const Section> getSections() const { return this->sections; }
     [[nodiscard]] Entries getEntries(SectionKind kind) const { return {this->sections, kind}; }
 
@@ -204,6 +207,7 @@ class BeatmapFile {
    private:
     std::string_view bytes;
     std::vector<Section> sections;
+    bool bom;
 };
 
 }  // namespace neomod

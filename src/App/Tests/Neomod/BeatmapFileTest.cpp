@@ -31,7 +31,7 @@ using Kind = BeatmapFile::SectionKind;
 namespace {
 
 std::string concatSections(const BeatmapFile &file) {
-    std::string out;
+    std::string out{file.hasBom() ? "\xEF\xBB\xBF" : ""};
     for(const auto &section : file.getSections()) {
         out.append(section.header);
         out.append(section.body);
@@ -367,9 +367,11 @@ void BeatmapFileTest::runTests() {
         TEST_ASSERT(entryTexts(noHeader, Kind::GENERAL) == std::vector<std::string>{"Mode: 1"},
                     "a file that starts with a section");
 
-        // today's reading: the BOM is part of the first line, so the version line isn't recognized
-        const BeatmapFile bom{std::string_view{"\xEF\xBB\xBFosu file format v5\r\n"}};
-        TEST_ASSERT(!bom.getVersion().has_value(), "the version line after a BOM");
+        const std::string_view bomText{"\xEF\xBB\xBFosu file format v5\r\n[General]\r\n"};
+        const BeatmapFile bom{bomText};
+        TEST_ASSERT(bom.hasBom() && bom.getVersion() == std::optional<i32>{5}, "the version line after a BOM");
+        TEST_ASSERT(concatSections(bom) == bomText, "a BOM and the sections give back every byte");
+        TEST_ASSERT(!BeatmapFile{std::string_view{"osu file format v5"}}.hasBom(), "no BOM");
         const BeatmapFile bomLine{std::string_view{"\xEF\xBB\xBF\n\nosu file format v5\n[General]\n"}};
         TEST_ASSERT_EQ(bomLine.getVersion().value_or(-1), 5, "a version line after other lines");
 
