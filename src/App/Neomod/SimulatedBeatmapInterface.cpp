@@ -806,7 +806,7 @@ void SimulatedBeatmapInterface::updateAutoCursorPos() {
 
         percent = std::clamp<f32>(percent, 0.0f, 1.0f);
 
-        // scaled distance (not osucoords)
+        // osu!px, like the diameter
         f32 distance = vec::length(nextPos - prevPos);
         if(distance > this->fHitcircleDiameter * 1.05f)  // snap only if not in a stream (heuristic)
         {
@@ -823,9 +823,9 @@ void SimulatedBeatmapInterface::updatePlayfieldMetrics() {
 }
 
 void SimulatedBeatmapInterface::updateHitobjectMetrics() {
+    // in osu!px like the positions it's judged against (osuCoords2Pixels and the replay cursor aren't scaled)
     this->fRawHitcircleDiameter = GameRules::getRawHitCircleDiameter(this->getCS());
-    this->fXMultiplier = GameRules::getHitCircleXMultiplier();
-    this->fHitcircleDiameter = GameRules::getRawHitCircleDiameter(this->getCS()) * GameRules::getHitCircleXMultiplier();
+    this->fHitcircleDiameter = this->fRawHitcircleDiameter;
 
     const f32 sliderFollowCircleDiameterMultiplier =
         this->mods.has(ModFlags::PreciseSliders)
