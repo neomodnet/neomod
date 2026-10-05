@@ -91,7 +91,7 @@ class BeatmapFile {
     [[nodiscard]] std::span<const Section> getSections() const { return this->sections; }
     [[nodiscard]] Entries getEntries(SectionKind kind) const { return {this->sections, kind}; }
 
-    // N from the "osu file format vN" line, which comes first
+    // N from the "osu file format vN" line before the first section
     [[nodiscard]] std::optional<i32> getVersion() const;
     // the value of the last "key: value" line with this key in the sections read as `kind`
     [[nodiscard]] std::optional<std::string_view> getValue(SectionKind kind, std::string_view key) const;

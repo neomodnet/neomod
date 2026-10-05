@@ -210,9 +210,8 @@ BeatmapFile::Entries::Iterator &BeatmapFile::Entries::Iterator::operator++() {
 }
 
 std::optional<i32> BeatmapFile::getVersion() const {
-    const auto first = Entries{std::span{this->sections}.first(1), NONE}.begin();
-    if(i32 version; first != std::default_sentinel && Parsing::parse((*first).text, "osu file format v", &version)) {
-        return version;
+    for(const Line line : Entries{std::span{this->sections}.first(1), NONE}) {
+        if(i32 version; Parsing::parse(line.text, "osu file format v", &version)) return version;
     }
     return std::nullopt;
 }

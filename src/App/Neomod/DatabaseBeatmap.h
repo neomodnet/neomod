@@ -117,32 +117,6 @@ class DatabaseBeatmap final {
             "unknown beatmap version"};
     };
 
-    enum class BlockId : i8 {
-        Sentinel = -2,  // for skipping the first string scan, header must come first
-        Header = -1,
-        General = 0,
-        Metadata = 1,
-        Difficulty = 2,
-        Events = 3,
-        TimingPoints = 4,
-        Colours = 5,
-        HitObjects = 6,
-    };
-
-    struct MetadataBlock {
-        std::string_view str;
-        BlockId id;
-    };
-
-    static constexpr const std::array<MetadataBlock, 7> metadataBlocks{
-        MetadataBlock{.str = "[General]", .id = BlockId::General},
-        MetadataBlock{.str = "[Metadata]", .id = BlockId::Metadata},
-        MetadataBlock{.str = "[Difficulty]", .id = BlockId::Difficulty},
-        MetadataBlock{.str = "[Events]", .id = BlockId::Events},
-        MetadataBlock{.str = "[TimingPoints]", .id = BlockId::TimingPoints},
-        MetadataBlock{.str = "[Colours]", .id = BlockId::Colours},
-        MetadataBlock{.str = "[HitObjects]", .id = BlockId::HitObjects}};
-
     static const Sync::stop_token alwaysFalseStopPred;
 
     // custom structs

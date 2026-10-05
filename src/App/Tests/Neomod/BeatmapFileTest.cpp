@@ -370,6 +370,8 @@ void BeatmapFileTest::runTests() {
         // today's reading: the BOM is part of the first line, so the version line isn't recognized
         const BeatmapFile bom{std::string_view{"\xEF\xBB\xBFosu file format v5\r\n"}};
         TEST_ASSERT(!bom.getVersion().has_value(), "the version line after a BOM");
+        const BeatmapFile bomLine{std::string_view{"\xEF\xBB\xBF\n\nosu file format v5\n[General]\n"}};
+        TEST_ASSERT_EQ(bomLine.getVersion().value_or(-1), 5, "a version line after other lines");
 
         // today's reading: a lone CR doesn't end a line
         const BeatmapFile crOnly{std::string_view{"osu file format v14\r[General]\rMode: 0\r"}};

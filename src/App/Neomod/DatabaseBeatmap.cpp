@@ -1126,7 +1126,6 @@ Mc::Registration DatabaseBeatmap::getMapFileAsync(MapFileReadDoneCallback data_c
     return io->read(this->getFilePath(), std::move(data_callback));
 }
 
-// XXX: code duplication (see loadPrimitiveObjects)
 DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5) {
     if(this->difficulties) {
         return {.fileData = {},
@@ -1176,124 +1175,95 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
     // reset
     this->timingpoints.clear();
 
-    std::vector<TIMINGPOINT> tempTimingpoints;
+    using Kind = BeatmapFile::SectionKind;
+    const BeatmapFile file{beatmapFile};
+
+    // (e.g. "osu file format v12")
+    if(const auto version = file.getVersion(); version && *version >= 0 && *version <= 255) {
+        this->iVersion = static_cast<u8>(*version);
+        if(this->iVersion > cv::beatmap_version.getInt()) {
+            debugLog("Ignoring unknown/invalid beatmap version {:d}", this->iVersion);
+            return ret(LoadError::UNKNOWN_VERSION);
+        }
+    }
+
+    BeatmapFile::KeyValue kv;
+
+    for(const auto line : file.getEntries(Kind::GENERAL)) {
+        if(!BeatmapFile::parse(line.text, kv)) continue;
+        if(kv.key == "Mode") {
+            // early return for non-std
+            if(u8 gamemode; Parsing::parse(kv.value, &gamemode) && gamemode != 0) {
+                logIfCV(debug_osu, "ignoring non-std gamemode {} for {}", gamemode, this->getFilePath());
+                return ret(LoadError::NON_STD_GAMEMODE);
+            }
+        } else if(kv.key == "AudioFilename") {
+            Parsing::parse(kv.value, &this->sAudioFileName);
+        } else if(kv.key == "StackLeniency") {
+            Parsing::parse(kv.value, &this->fStackLeniency);
+        } else if(kv.key == "PreviewTime") {
+            Parsing::parse(kv.value, &this->iPreviewTime);
+        }
+    }
+
     std::string tempArtistUnicode;
     std::string tempTitleUnicode;
+    for(const auto line : file.getEntries(Kind::METADATA)) {
+        if(!BeatmapFile::parse(line.text, kv)) continue;
+        if(kv.key == "Title") {
+            Parsing::parse(kv.value, &this->sTitle);
+        } else if(kv.key == "TitleUnicode") {
+            Parsing::parse(kv.value, &tempTitleUnicode);
+        } else if(kv.key == "Artist") {
+            Parsing::parse(kv.value, &this->sArtist);
+        } else if(kv.key == "ArtistUnicode") {
+            Parsing::parse(kv.value, &tempArtistUnicode);
+        } else if(kv.key == "Creator") {
+            Parsing::parse(kv.value, &this->sCreator);
+        } else if(kv.key == "Version") {
+            Parsing::parse(kv.value, &this->sDifficultyName);
+        } else if(kv.key == "Source") {
+            Parsing::parse(kv.value, &this->sSource);
+        } else if(kv.key == "Tags") {
+            Parsing::parse(kv.value, &this->sTags);
+        } else if(kv.key == "BeatmapID") {
+            Parsing::parse(kv.value, &this->iID);
+        } else if(kv.key == "BeatmapSetID") {
+            Parsing::parse(kv.value, &this->iSetID);
+        }
+    }
 
-    // load metadata
     bool foundAR = false;
-
-    BlockId curBlock{BlockId::Sentinel};
-    std::vector<MetadataBlock> blocksUnseen{metadataBlocks.begin(), metadataBlocks.end()};
-
-    using enum BlockId;
-
-    for(const auto curLine : SString::split_newlines(beatmapFile)) {
-        // ignore comments, but only if at the beginning of a line (e.g. allow Artist:DJ'TEKINA//SOMETHING)
-        if(curLine.empty() || SString::is_comment(curLine)) continue;
-
-        // skip the for loop on the first go-around, the header has to be at the start
-        if(curBlock == Sentinel) {
-            curBlock = Header;
-        } else {
-            if(auto it = std::ranges::find(blocksUnseen, curLine, &MetadataBlock::str); it != blocksUnseen.end()) {
-                curBlock = it->id;
-                blocksUnseen.erase(it);
-                continue;  // we just parsed a block header, keep going
-            }
+    for(const auto line : file.getEntries(Kind::DIFFICULTY)) {
+        if(!BeatmapFile::parse(line.text, kv)) continue;
+        if(kv.key == "CircleSize") {
+            Parsing::parse(kv.value, &this->fCS);
+        } else if(kv.key == "ApproachRate") {
+            foundAR |= Parsing::parse(kv.value, &this->fAR);
+        } else if(kv.key == "HPDrainRate") {
+            Parsing::parse(kv.value, &this->fHP);
+        } else if(kv.key == "OverallDifficulty") {
+            Parsing::parse(kv.value, &this->fOD);
+        } else if(kv.key == "SliderMultiplier") {
+            Parsing::parse(kv.value, &this->fSliderMultiplier);
+        } else if(kv.key == "SliderTickRate") {
+            Parsing::parse(kv.value, &this->fSliderTickRate);
         }
+    }
 
-        // NOTE: stop early (don't parse "HitObjects" or "Colours" sections here)
-        if(curBlock == HitObjects || curBlock == Colours) break;
-
-        switch(curBlock) {
-            case Colours:
-            case Sentinel:  // already handled above, shut up clang-tidy
-            case HitObjects: {
-                std::unreachable();
-                break;
-            }
-
-// to go to the next line after we successfully parse a line
-#define PARSE_LINE(...) \
-    if(!!(Parsing::parse(curLine, __VA_ARGS__))) break;
-
-            // (e.g. "osu file format v12")
-            case Header: {
-                if(Parsing::parse(curLine, "osu file format v", &this->iVersion)) {
-                    if(this->iVersion > cv::beatmap_version.getInt()) {
-                        debugLog("Ignoring unknown/invalid beatmap version {:d}", this->iVersion);
-                        return ret(LoadError::UNKNOWN_VERSION);
-                    }
-                }
-                break;
-            }
-
-            case General: {
-                // early return for non-std
-                u8 gamemode{(u8)-1};
-                if(Parsing::parse(curLine, "Mode", ':', &gamemode) && gamemode != 0) {
-                    logIfCV(debug_osu, "ignoring non-std gamemode {} for {}", gamemode, this->getFilePath());
-                    return ret(LoadError::NON_STD_GAMEMODE);
-                }
-                //PARSE_LINE("Mode", ':', &this->iGameMode);
-                PARSE_LINE("AudioFilename", ':', &this->sAudioFileName);
-                PARSE_LINE("StackLeniency", ':', &this->fStackLeniency);
-                PARSE_LINE("PreviewTime", ':', &this->iPreviewTime);
-                break;
-            }
-
-            case Metadata: {
-                PARSE_LINE("Title", ':', &this->sTitle);
-                PARSE_LINE("TitleUnicode", ':', &tempTitleUnicode);
-                PARSE_LINE("Artist", ':', &this->sArtist);
-                PARSE_LINE("ArtistUnicode", ':', &tempArtistUnicode);
-                PARSE_LINE("Creator", ':', &this->sCreator);
-                PARSE_LINE("Version", ':', &this->sDifficultyName);
-                PARSE_LINE("Source", ':', &this->sSource);
-                PARSE_LINE("Tags", ':', &this->sTags);
-                PARSE_LINE("BeatmapID", ':', &this->iID);
-                PARSE_LINE("BeatmapSetID", ':', &this->iSetID);
-                break;
-            }
-
-            case Difficulty: {
-                PARSE_LINE("CircleSize", ':', &this->fCS);
-                if(Parsing::parse(curLine, "ApproachRate", ':', &this->fAR)) {
-                    foundAR = true;
-                    break;
-                }
-                PARSE_LINE("HPDrainRate", ':', &this->fHP);
-                PARSE_LINE("OverallDifficulty", ':', &this->fOD);
-                PARSE_LINE("SliderMultiplier", ':', &this->fSliderMultiplier);
-                PARSE_LINE("SliderTickRate", ':', &this->fSliderTickRate);
-                break;
-            }
-#undef PARSE_LINE
-
-            case Events: {
-                // short-circuit if we already have a stored filename
-                bool haveFilename = this->getBackgroundImageFileName().length() > 2;
-
-                std::string bgstr;
-                i64 type{-1};
-                if(!haveFilename &&
-                   Parsing::parse(curLine, &type, ',', Parsing::skip<i64> /* skip start time */, ',', &bgstr) &&
-                   (type == 0)) {
-                    this->sBackgroundImageFileName = std::move(bgstr);
-                    haveFilename = true;
-                }
-
-                break;
-            }
-
-            case TimingPoints: {
-                if(BeatmapFile::TimingPoint tp; BeatmapFile::parse(curLine, tp)) {
-                    tempTimingpoints.push_back(toTimingPoint(tp));
-                }
-                break;
-            }
+    BeatmapFile::Event event;
+    for(const auto line : file.getEntries(Kind::EVENTS)) {
+        // short-circuit if we already have a stored filename
+        if(this->getBackgroundImageFileName().length() > 2) break;
+        if(BeatmapFile::parse(line.text, event) && event.kind == BeatmapFile::Event::Kind::BACKGROUND) {
+            this->sBackgroundImageFileName = event.file;
         }
+    }
+
+    std::vector<TIMINGPOINT> tempTimingpoints;
+    BeatmapFile::TimingPoint timingPoint;
+    for(const auto line : file.getEntries(Kind::TIMING_POINTS)) {
+        if(BeatmapFile::parse(line.text, timingPoint)) tempTimingpoints.push_back(toTimingPoint(timingPoint));
     }
 
     if(!SString::is_wspace_only(tempTitleUnicode)) {
