@@ -296,7 +296,7 @@ CONVAR(engine_throttle, true, CLIENT | SKINS | SERVER,
 CONVAR(file_size_max, 1024, CLIENT | SKINS | SERVER,
        "maximum filesize sanity limit in MB, all files bigger than this are not allowed to load");
 CONVAR(interpolate_music_pos, 2L, CLIENT | SKINS | SERVER,
-       "interpolate song position with engine time (0 = none, 1 = new method, 2 = McOsu, 3 = \"lazer\" (broken?))");
+       "interpolate song position with engine time (0 = none, 1 = new method, 2 = McOsu, 3 = \"lazer\")");
 CONVAR(language, "en"sv, CLIENT | SKINS | SERVER, "display language used by the game" I18N_LOAD_CB);
 CONVAR(minimize_on_focus_lost_if_borderless_windowed_fullscreen, false, CLIENT | SKINS | SERVER);
 CONVAR(minimize_on_focus_lost_if_fullscreen, true, CLIENT | SKINS | SERVER);

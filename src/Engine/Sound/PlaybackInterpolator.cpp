@@ -138,7 +138,8 @@ u32 McOsuInterpolator::update(f64 rawPositionMS, f64 currentTime, f64 playbackSp
 u32 TachyonInterpolator::update(f64 rawPositionMS, f64 currentTime, f64 playbackSpeed, bool /*isLooped*/,
                                 u64 /*lengthMS*/, bool isPlaying) {
     f64 lastTime = this->fInterpolatedMusicPos;
-    f64 realTimeDelta = currentTime - this->fLastRealTimeForInterpolationDelta;
+    // (in ms, like the positions)
+    f64 realTimeDelta = (currentTime - this->fLastRealTimeForInterpolationDelta) * 1000.0;
     this->fLastRealTimeForInterpolationDelta = currentTime;
 
     if(!isPlaying) {

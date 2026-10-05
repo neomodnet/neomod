@@ -100,7 +100,6 @@ class McOsuInterpolator : public GameplayInterpolator {
 };
 
 // Playback interpolator used by osu-framework (LLM'd to C++)
-// NOTE(kiwec): i tried this and it is... stuttery? as if it does the reverse of interpolating. lol
 class TachyonInterpolator : public GameplayInterpolator {
    public:
     TachyonInterpolator() = default;
