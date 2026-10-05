@@ -5,6 +5,7 @@
 #include "BaseEnvironment.h"
 
 #include "Delegate.h"
+#include "noinclude.h"
 #include "Thread.h"
 
 #include <atomic>
@@ -272,7 +273,7 @@ class ConVar {
 
     // generic callback setter that auto-detects callback type
     template <typename Callback>
-    void setCallback(Callback &&callback)
+    MC_UNREVOCABLE void setCallback(Callback &&callback)
         requires cv::detail::CallbackAny<Callback>
     {
         assert(McThread::is_main_thread() && "convars belong to the main thread");

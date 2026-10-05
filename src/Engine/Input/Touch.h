@@ -1,6 +1,7 @@
 // Copyright (c) 2026, kiwec, All rights reserved.
 #pragma once
 #include "InputDevice.h"
+#include "noinclude.h"
 #include "Vectors.h"
 
 #include <vector>
@@ -46,7 +47,7 @@ class Touch final {
     [[nodiscard]] const auto& getFingers() const { return this->fingers; }
 
     // event handling
-    void addListener(TouchListener* listener, bool insertOnTop = false);
+    MC_UNREVOCABLE void addListener(TouchListener* listener, bool insertOnTop = false);
     void removeListener(TouchListener* listener);
 
     // input handling

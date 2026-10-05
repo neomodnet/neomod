@@ -73,7 +73,7 @@ class ResourceManager final {
     // resources which will be garbage collected on shutdown
     // userPtr must contain a pre-created (allocated with new) resource of any type
     // returns true if it was successfully added to tracking
-    bool addManagedResource(Resource *userPtr, const std::string &resourceName);
+    MC_UNREVOCABLE bool addManagedResource(Resource *userPtr, const std::string &resourceName);
 
     // images
     Image *loadImage(std::string filepath, const std::string &resourceName, bool mipmapped = false,

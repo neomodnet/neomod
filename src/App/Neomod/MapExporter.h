@@ -4,6 +4,7 @@
 
 #include "AsyncCancellable.h"
 #include "AsyncChannel.h"
+#include "noinclude.h"
 
 #include <compare>
 #include <functional>
@@ -38,6 +39,7 @@ struct Notification {
 
 // submits export work on Lane::Background. pushes Notifications into `out` as work completes.
 // caller owns the returned handle and the channel; channel must outlive the handle.
-Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, Async::Channel<Notification>& out);
+MC_UNREVOCABLE Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts,
+                                                            Async::Channel<Notification>& out);
 
 }  // namespace MapExporter

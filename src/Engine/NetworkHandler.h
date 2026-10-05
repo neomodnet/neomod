@@ -145,7 +145,7 @@ class NetworkHandler {
     Response httpRequestSynchronous(std::string_view url, RequestOptions options);
 
     // asynchronous API
-    void httpRequestAsync(std::string_view url, RequestOptions options, AsyncCallback callback = {});
+    MC_UNREVOCABLE void httpRequestAsync(std::string_view url, RequestOptions options, AsyncCallback callback = {});
 
     // websockets
     // TODO: consolidate websocket/http to avoid needing this entirely

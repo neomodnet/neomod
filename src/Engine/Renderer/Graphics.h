@@ -218,7 +218,7 @@ class Graphics {
     virtual void flush() = 0;
 
     // can be called any time
-    void takeScreenshot(ScreenshotParams params);
+    MC_UNREVOCABLE void takeScreenshot(ScreenshotParams params);
     // a relative savePath is taken relative to the data directory
     void takeScreenshot(std::string_view savePath);
 

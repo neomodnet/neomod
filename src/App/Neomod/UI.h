@@ -124,7 +124,7 @@ struct UI final {
 
     // queryable with peekOverlay or removable with popOverlay
     // when pushed, the pushed overlay is set visible (but the parent is not set invisible)
-    UIOverlay* pushOverlay(std::unique_ptr<UIOverlay> overlay);
+    MC_UNREVOCABLE UIOverlay* pushOverlay(std::unique_ptr<UIOverlay> overlay);
 
     // returns false if overlay has been destroyed
     [[nodiscard]] bool peekOverlay(UIOverlay* overlay) const;

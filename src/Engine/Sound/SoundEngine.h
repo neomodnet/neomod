@@ -113,10 +113,10 @@ class SoundEngine {
     virtual void onParamChanged(float /* oldValue */, float /* newValue */) { ; }
 
     using AudioOutputChangedCallback = SA::delegate<void()>;
-    inline void setDeviceChangeBeforeCallback(const AudioOutputChangedCallback &callback) {
+    MC_UNREVOCABLE inline void setDeviceChangeBeforeCallback(const AudioOutputChangedCallback &callback) {
         this->restartCBs[0] = callback;
     }
-    inline void setDeviceChangeAfterCallback(const AudioOutputChangedCallback &callback) {
+    MC_UNREVOCABLE inline void setDeviceChangeAfterCallback(const AudioOutputChangedCallback &callback) {
         this->restartCBs[1] = callback;
     }
 

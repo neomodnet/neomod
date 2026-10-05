@@ -3,6 +3,7 @@
 #include "types.h"
 
 #include "InputDevice.h"
+#include "noinclude.h"
 #include "KeyBindings.h"  // IWYU pragma: keep
 #include "StaticPImpl.h"
 
@@ -29,7 +30,7 @@ class Keyboard final : public InputDevice {
     void draw() override;
     void update() override;
 
-    void addListener(KeyboardListener *keyboardListener, bool insertOnTop = false);
+    MC_UNREVOCABLE void addListener(KeyboardListener *keyboardListener, bool insertOnTop = false);
     void removeListener(KeyboardListener *keyboardListener);
 
     [[nodiscard]] bool isControlDown() const;

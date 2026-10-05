@@ -4,6 +4,7 @@
 #define MOUSE_H
 
 #include "InputDevice.h"
+#include "noinclude.h"
 #include "MouseListener.h"
 #include "Rect.h"
 #include "Vectors.h"
@@ -35,7 +36,7 @@ class Mouse final : public InputDevice {
     void drawDebug();
 
     // event handling
-    void addListener(MouseListener *mouseListener, bool insertOnTop = false);
+    MC_UNREVOCABLE void addListener(MouseListener *mouseListener, bool insertOnTop = false);
     void removeListener(MouseListener *mouseListener);
 
     // input handling
