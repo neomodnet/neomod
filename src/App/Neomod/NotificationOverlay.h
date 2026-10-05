@@ -81,6 +81,8 @@ class NotificationOverlay final : public UIScreen {
 
    private:
     void updateVisibility();
+    // stacks the toasts up from the bottom right corner, the newest at the bottom
+    void layoutToasts();
     // convar callbacks
     void onToastCallback(std::string_view args);
     void onNotificationCallback(std::string_view args);

@@ -150,17 +150,14 @@ void NotificationOverlay::tick() {
     UIScreen::tick();
     if(this->toasts.empty()) return;
 
-    const bool chat_toasts_visible = should_chat_toasts_be_visible();
-    const vec2 screen = osu->getVirtScreenSize();
+    this->layoutToasts();
 
+    const bool chat_toasts_visible = should_chat_toasts_be_visible();
     bool a_toast_is_hovered = false;
-    f32 bottom_y = screen.y - TOAST_SCREEN_BOTTOM_MARGIN;
     for(auto rtit = this->toasts.rbegin(); rtit != this->toasts.rend(); ++rtit) {
         const auto &t = *rtit;
         if(t->type == ToastElement::TYPE::CHAT && !chat_toasts_visible) continue;
 
-        bottom_y -= TOAST_OUTER_Y_MARGIN + t->getSize().y;
-        t->setPos(screen.x - (TOAST_SCREEN_RIGHT_MARGIN + TOAST_WIDTH), bottom_y);
         t->tick();
         a_toast_is_hovered |= t->isMouseInside();
     }
@@ -349,8 +346,24 @@ void NotificationOverlay::addToast(ToastOpts opts) {
         toast->setClickCallback(std::move(opts.callback));
     }
     this->toasts.push_back(std::move(toast));
+    // now rather than at the next tick: a toast added after this frame's tick would be hit-tested and drawn at (0,0)
+    this->layoutToasts();
 
     this->updateVisibility();
+}
+
+void NotificationOverlay::layoutToasts() {
+    const bool chat_toasts_visible = should_chat_toasts_be_visible();
+    const vec2 screen = osu->getVirtScreenSize();
+
+    f32 bottom_y = screen.y - TOAST_SCREEN_BOTTOM_MARGIN;
+    for(auto rtit = this->toasts.rbegin(); rtit != this->toasts.rend(); ++rtit) {
+        const auto &t = *rtit;
+        if(t->type == ToastElement::TYPE::CHAT && !chat_toasts_visible) continue;
+
+        bottom_y -= TOAST_OUTER_Y_MARGIN + t->getSize().y;
+        t->setPos(screen.x - (TOAST_SCREEN_RIGHT_MARGIN + TOAST_WIDTH), bottom_y);
+    }
 }
 
 void NotificationOverlay::stopWaitingForKey(bool stillConsumeNextChar) {
