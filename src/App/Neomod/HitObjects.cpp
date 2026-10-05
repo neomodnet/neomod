@@ -467,8 +467,7 @@ void HitObject::updateLook(i32 curPosMS, ModFlags mods, f32 approachTimeMS, f32 
 void HitObject::addHitResult(LiveHitResult result, i32 delta, bool isEndOfCombo, vec2 posRaw, f32 targetDelta,
                              f32 targetAngle, bool ignoreOnHitErrorBar, bool ignoreCombo, bool ignoreHealth,
                              bool addObjectDurationToSkinAnimationTimeStartOffset) {
-    if(m_pf != nullptr && m_pi->getMods().has(ModFlags::Target) && result != LiveHitResult::HIT_MISS &&
-       targetDelta >= 0.0f) {
+    if(m_pi->getMods().has(ModFlags::Target) && result != LiveHitResult::HIT_MISS && targetDelta >= 0.0f) {
         const f32 p300 = cv::mod_target_300_percent.getFloat();
         const f32 p100 = cv::mod_target_100_percent.getFloat();
         const f32 p50 = cv::mod_target_50_percent.getFloat();
@@ -482,7 +481,7 @@ void HitObject::addHitResult(LiveHitResult result, i32 delta, bool isEndOfCombo,
         else
             result = LiveHitResult::HIT_MISS;
 
-        ui->getHUD()->addTarget(targetDelta, targetAngle);
+        if(m_pf != nullptr) ui->getHUD()->addTarget(targetDelta, targetAngle);
     }
 
     const LiveHitResult returnedHit = m_pi->addHitResult(this, result, delta, isEndOfCombo, ignoreOnHitErrorBar, false,
