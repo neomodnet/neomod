@@ -269,9 +269,9 @@ void UIDebug::debugAssert(std::string_view args) {
 
 void UIDebug::debugPrompt(std::string_view msg) {
     // scripted stand-in for the (online-only) real prompt() callers; logs the response for trace asserts
-    m_ui->promptoverlay->prompt(std::string{msg}, SA::MakeDelegate([](std::string_view response) -> void {
-                                    logRaw("uiprompt response='{}'", response);
-                                }));
+    m_prompt = m_ui->promptoverlay->prompt(std::string{msg}, SA::MakeDelegate([](std::string_view response) -> void {
+                                               logRaw("uiprompt response='{}'", response);
+                                           }));
 }
 
 void UIDebug::debugFakeOnline(std::string_view arg) {

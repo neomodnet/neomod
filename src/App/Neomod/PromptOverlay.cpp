@@ -11,6 +11,8 @@
 #include "UIButton.h"
 #include "MakeDelegateWrapper.h"
 
+#include <utility>
+
 PromptOverlay::PromptOverlay() : UIScreen() {
     // modal + closeOnScreenSwitch are declared in UI.h's screen registry
     this->prompt_label = new CBaseUILabel(0, 0, 0, 0, "", "");
@@ -30,7 +32,7 @@ PromptOverlay::PromptOverlay() : UIScreen() {
     this->cancel_btn = new UIButton(0, 0, 110, 35, "cancel_btn", _("Cancel"));
     this->cancel_btn->setColor(0xff0c7c99);
     this->cancel_btn->setUseDefaultSkin();
-    this->cancel_btn->setClickCallback(SA::MakeDelegate<&PromptOverlay::on_cancel>(this));
+    this->cancel_btn->setClickCallback(SA::MakeDelegate<&PromptOverlay::close>(this));
     this->addBaseUIElement(this->cancel_btn);
 }
 
@@ -68,7 +70,7 @@ void PromptOverlay::onKeyDown(KeyboardEvent &e) {
     }
 
     if(e == KEY_ESCAPE) {
-        this->on_cancel();
+        this->close();
         e.consume();
         return;
     }
@@ -89,7 +91,7 @@ void PromptOverlay::onChar(KeyboardEvent &e) {
     e.consume();
 }
 
-void PromptOverlay::prompt(std::string msg, const PromptResponseCallback &callback) {
+Mc::Registration PromptOverlay::prompt(std::string msg, const PromptResponseCallback &callback) {
     this->prompt_label->setText(std::move(msg));
     this->prompt_input->setText("");
     this->prompt_input->focus();
@@ -97,11 +99,22 @@ void PromptOverlay::prompt(std::string msg, const PromptResponseCallback &callba
     this->bVisible = true;
 
     this->onResolutionChange(osu->getVirtScreenSize());
+
+    return {[](void *self, u64 id, Mc::Registration::End how) {
+                auto *overlay = static_cast<PromptOverlay *>(self);
+                if(how == Mc::Registration::End::REVOKE && id == overlay->promptId) overlay->close();
+            },
+            this, ++this->promptId};
 }
 
 void PromptOverlay::on_ok() {
+    // (the callback may open the next prompt)
+    const PromptResponseCallback cb = std::exchange(this->callback, {});
     this->bVisible = false;
-    this->callback(this->prompt_input->getText());
+    if(cb) cb(this->prompt_input->getText());
 }
 
-void PromptOverlay::on_cancel() { this->bVisible = false; }
+void PromptOverlay::close() {
+    this->callback = {};
+    this->bVisible = false;
+}

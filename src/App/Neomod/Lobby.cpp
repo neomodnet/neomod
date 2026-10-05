@@ -74,8 +74,8 @@ RoomUIElement::RoomUIElement(Lobby* multi, const Room& room, float x, float y, f
 void RoomUIElement::onRoomJoinButtonClick(CBaseUIButton* /*btn*/) {
     if(this->has_password) {
         this->multi->room_to_join = this->room_id;
-        ui->getPromptOverlay()->prompt(_("Room password:"),
-                                       SA::MakeDelegate<&Lobby::on_room_join_with_password>(this->multi));
+        this->multi->passwordPrompt = ui->getPromptOverlay()->prompt(
+            _("Room password:"), SA::MakeDelegate<&Lobby::on_room_join_with_password>(this->multi));
     } else {
         this->multi->joinRoom(this->room_id, {});
     }

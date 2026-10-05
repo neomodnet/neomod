@@ -3,6 +3,7 @@
 
 #include "CBaseUIScrollView.h"
 #include "CBaseUITextbox.h"
+#include "Registration.h"
 #include "UIScreen.h"
 
 class CBaseUIButton;
@@ -101,6 +102,7 @@ class Chat final : public UIScreen {
     f32 button_height = 26.f;
 
     std::string away_msg;
+    Mc::Registration joinPrompt;
     std::string tab_completion_prefix;
     std::string tab_completion_match;
 

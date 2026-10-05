@@ -1,6 +1,7 @@
 #pragma once
 // Copyright (c)  2026, WH, All rights reserved.
 #include "noinclude.h"
+#include "Registration.h"
 
 #include <string_view>
 
@@ -28,4 +29,5 @@ class UIDebug final {
 
    private:
     UI* m_ui;
+    Mc::Registration m_prompt;
 };

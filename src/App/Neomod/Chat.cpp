@@ -1479,6 +1479,6 @@ bool Chat::isMouseInside() {
 
 void Chat::askWhatChannelToJoin(CBaseUIButton * /*btn*/) {
     // XXX: Could display nicer UI with full channel list (chat_channels in Bancho.cpp)
-    ui->getPromptOverlay()->prompt(_("Type in the channel you want to join (e.g. '#osu'):"),
-                                   SA::MakeDelegate<&Chat::join>(this));
+    this->joinPrompt = ui->getPromptOverlay()->prompt(_("Type in the channel you want to join (e.g. '#osu'):"),
+                                                      SA::MakeDelegate<&Chat::join>(this));
 }

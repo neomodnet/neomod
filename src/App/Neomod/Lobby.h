@@ -8,6 +8,7 @@
 
 #include "BanchoProtocol.h"
 #include "CBaseUIScrollView.h"
+#include "Registration.h"
 #include "UIScreen.h"
 
 #include <memory>
@@ -58,4 +59,5 @@ class Lobby final : public UIScreen {
     UIButton* create_room_btn;
     CBaseUIScrollView* list;
     i32 room_to_join{0};
+    Mc::Registration passwordPrompt;
 };

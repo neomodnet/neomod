@@ -925,7 +925,8 @@ void RoomScreen::onDownloadMapsClicked() {
 }
 
 void RoomScreen::onChangePasswordClicked() {
-    ui->getPromptOverlay()->prompt(_("New password:"), SA::MakeDelegate<&RoomScreen::set_new_password>(this));
+    this->passwordPrompt =
+        ui->getPromptOverlay()->prompt(_("New password:"), SA::MakeDelegate<&RoomScreen::set_new_password>(this));
 }
 
 void RoomScreen::onChangeWinConditionClicked() {
