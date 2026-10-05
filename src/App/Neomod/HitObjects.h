@@ -140,8 +140,8 @@ class HitObject {
     virtual void rebuildVertexBuffer() { ; }
 
    protected:
-    // the fades, approach, Hidden, the hittable dim and visibility at curPosMS (update() passes the judging interface's
-    // mods and timing)
+    // the fades, approach, Hidden, the hittable dim and visibility at curPosMS (update() passes the view's mods and the
+    // judging interface's timing)
     void updateLook(i32 curPosMS, ModFlags mods, f32 approachTimeMS, f32 speedAdjustedAnimationSpeed);
 
    private:

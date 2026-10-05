@@ -320,8 +320,9 @@ void HitObject::drawHitResultAnim(const HITRESULTANIM &hitresultanim) {
 }
 
 void HitObject::update(i32 curPosMS, f64 /*frame_time*/) {
-    this->updateLook(curPosMS, m_pi->getMods().flags, m_pi->getCachedApproachTimeForUpdate(),
-                     m_pi->getSpeedAdjustedAnimationSpeed());
+    // (the view's mods include the experimental ones; objects without a view aren't drawn)
+    this->updateLook(curPosMS, m_view ? m_view->getModFlags() : m_pi->getMods().flags,
+                     m_pi->getCachedApproachTimeForUpdate(), m_pi->getSpeedAdjustedAnimationSpeed());
 }
 
 void HitObject::updateLook(i32 curPosMS, ModFlags mods, f32 approachTimeMS, f32 speedAdjustedAnimationSpeed) {
@@ -339,7 +340,7 @@ void HitObject::updateLook(i32 curPosMS, ModFlags mods, f32 approachTimeMS, f32 
         // approach circle scale
         const f32 scale = std::clamp<f32>((f32)m_deltaMS / (f32)m_approachTimeMS, 0.0f, 1.0f);
         m_approachScale = 1 + (scale * cv::approach_scale_multiplier.getFloat());
-        if(cv::mod_approach_different.getBool()) {
+        if(flags::has<ModFlags::ApproachDifferent>(mods)) {
             constexpr f32 back_const = 1.70158;
 
             f32 time = 1.0f - scale;
@@ -529,6 +530,8 @@ void Circle::drawApproachCircle(const PlayfieldView &view, vec2 rawPos, i32 numb
     rainbowNumber = number;
     rainbowColorCounter = colorCounter;
 
+    if(flags::has<ModFlags::Mafham>(view.getModFlags())) return;
+
     Color comboColor = Colors::scale(view.getComboColor(colorCounter, colorOffset),
                                      colorRGBMultiplier * cv::circle_color_saturation.getFloat());
 
@@ -672,7 +675,7 @@ void Circle::drawSliderEndCircle(const PlayfieldView &view, vec2 rawPos, i32 num
 
 void Circle::drawApproachCircle(const Skin *skin, vec2 pos, Color comboColor, f32 hitcircleDiameter, f32 approachScale,
                                 f32 alpha, bool modHD, bool overrideHDApproachCircle) {
-    if((!modHD || overrideHDApproachCircle) && cv::draw_approach_circles.getBool() && !cv::mod_mafham.getBool()) {
+    if((!modHD || overrideHDApproachCircle) && cv::draw_approach_circles.getBool()) {
         if(approachScale > 1.0f) {
             const f32 approachCircleImageScale = hitcircleDiameter / (128.0f * (skin->i_approachcircle.scale()));
 
@@ -1180,7 +1183,7 @@ void Slider::draw() {
             }
 
             const bool ifStrictTrackingModShouldDrawEndCircle =
-                (!cv::mod_strict_tracking.getBool() || m_endResult != LiveHitResult::HIT_MISS);
+                (!flags::has<ModFlags::StrictTracking>(curGameplayFlags) || m_endResult != LiveHitResult::HIT_MISS);
 
             const bool draw_end =
                 ((!m_endFinished && m_repeat % 2 != 0 && ifStrictTrackingModShouldDrawEndCircle) ||
@@ -1536,7 +1539,7 @@ SliderRenderer::Body Slider::makeBody(f32 alpha, f32 from, f32 to) const {
             body.translation =
                 m_view->osuCoords2Pixels(vec2(GameRules::OSU_COORD_WIDTH / 2, GameRules::OSU_COORD_HEIGHT / 2));
 
-        if(cv::mod_fps.getBool()) body.translation += m_view->getFirstPersonCursorDelta();
+        if(flags::has<ModFlags::FPS>(m_view->getModFlags())) body.translation += m_view->getFirstPersonCursorDelta();
     }
     return body;
 }

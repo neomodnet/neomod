@@ -1234,7 +1234,14 @@ f32 BeatmapInterface::getPitchMultiplier() const {
 const Skin *BeatmapInterface::getSkin() const { return osu->getSkin(); }
 Skin *BeatmapInterface::getSkinMutable() { return osu->getSkinMutable(); }
 
-ModFlags BeatmapInterface::getModFlags() const { return this->getMods().flags; }
+ModFlags BeatmapInterface::getModFlags() const {
+    // the experimental mods that change the look are only convars, not part of the play's mods
+    ModFlags flags = this->getMods().flags;
+    if(cv::mod_strict_tracking.getBool()) flags |= ModFlags::StrictTracking;
+    if(cv::mod_approach_different.getBool()) flags |= ModFlags::ApproachDifferent;
+    if(cv::mod_fps.getBool()) flags |= ModFlags::FPS;
+    return flags;
+}
 
 Color BeatmapInterface::getComboColor(i32 colorCounter, i32 colorOffset) const {
     return this->getSkin()->getComboColorForCounter(colorCounter, colorOffset, this->comboColors);
