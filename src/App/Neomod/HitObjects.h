@@ -46,7 +46,7 @@ enum class HitObjectType : uint8_t {
 
 class HitObject {
    public:
-    // TEMP constructor helpers (createHitObjects, DatabaseBeatmap::loadGameplay)
+    // TEMP constructor helpers (HitObjects::create, DatabaseBeatmap::loadGameplay)
     void setIsEndOfCombo(bool end) { m_endOfCombo = end; }
     void setComboStartTime(i32 tms) { m_comboStartMS = tms; }
     void setComboNumber(i32 comboNumber) { m_comboNumber = comboNumber; }
@@ -483,16 +483,21 @@ class Spinner final : public HitObject {
     bool m_hitSuccess{false};  // non-miss result ("spinner-osu")
 };
 
-// a map's objects from its primitives (with slider times calculated), sorted by start time, their combo ends and combo
-// start times set; judged by judge and drawn on view (see HitObject's constructor)
-std::vector<std::unique_ptr<HitObject>> createHitObjects(const Primitives::PRIMITIVE_CONTAINER &primitives,
-                                                         AbstractBeatmapInterface *judge, const PlayfieldView *view);
+// a map's objects as a whole, sorted by start time
+namespace HitObjects {
 
-// the follow points between objects sorted by start time, at the view's time; the ones before firstIndex are gone
+// from the map's primitives (with slider times calculated), their combo ends and combo start times set; judged by judge
+// and drawn on view (see HitObject's constructor)
+std::vector<std::unique_ptr<HitObject>> create(const Primitives::PRIMITIVE_CONTAINER &primitives,
+                                               AbstractBeatmapInterface *judge, const PlayfieldView *view);
+
+// osu!'s stacking: moved up and left by a twentieth of the circle diameter per stack level, down and left with Hard Rock
+// (which flips the playfield)
+void stack(std::span<const std::unique_ptr<HitObject>> objects, f32 AR, i32 beatmapVersion, f32 stackLeniency,
+           f32 rawHitcircleDiameter, bool hardRock);
+
+// the follow points between them at the view's time; the ones before firstIndex are gone
 void drawFollowPoints(const PlayfieldView &view, std::span<const std::unique_ptr<HitObject>> objects, uSz firstIndex);
 
-// osu!'s stacking of objects sorted by start time: moved up and left by a twentieth of the circle diameter per stack
-// level, down and left with Hard Rock (which flips the playfield)
-void stackHitObjects(std::span<const std::unique_ptr<HitObject>> objects, f32 AR, i32 beatmapVersion, f32 stackLeniency,
-                     f32 rawHitcircleDiameter, bool hardRock);
+}  // namespace HitObjects
 }  // namespace neomod

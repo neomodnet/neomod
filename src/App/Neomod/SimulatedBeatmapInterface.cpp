@@ -841,8 +841,8 @@ void SimulatedBeatmapInterface::calculateStacks() {
 
     debugLog("Beatmap: Calculating stacks ...");
 
-    stackHitObjects(this->hitobjects, this->getAR(), this->beatmap->getVersion(), this->beatmap->getStackLeniency(),
-                    this->fRawHitcircleDiameter, flags::has<ModFlags::HardRock>(this->mods.flags));
+    HitObjects::stack(this->hitobjects, this->getAR(), this->beatmap->getVersion(), this->beatmap->getStackLeniency(),
+                      this->fRawHitcircleDiameter, flags::has<ModFlags::HardRock>(this->mods.flags));
 }
 
 void SimulatedBeatmapInterface::computeDrainRate() {

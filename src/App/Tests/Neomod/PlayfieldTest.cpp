@@ -90,8 +90,8 @@ bool PlayfieldTest::load(const std::string &path) {
         c.AR, GameRules::getMinApproachTime(), GameRules::getMidApproachTime(), GameRules::getMaxApproachTime());
     m_view.comboColors = c.combocolors;
 
-    m_objects = createHitObjects(c, nullptr, &m_view);
-    stackHitObjects(m_objects, c.AR, c.version, c.stackLeniency, m_view.rawHitcircleDiameter, false);
+    m_objects = HitObjects::create(c, nullptr, &m_view);
+    HitObjects::stack(m_objects, c.AR, c.version, c.stackLeniency, m_view.rawHitcircleDiameter, false);
 
     for(const auto &obj : m_objects) m_byEndTime.push_back({obj.get(), false});
     std::ranges::sort(m_byEndTime,
@@ -130,7 +130,7 @@ void PlayfieldTest::drawAt(i32 timeMS) {
         m_shown.push_back(&e);
     }
 
-    drawFollowPoints(m_view, m_objects, 0);
+    HitObjects::drawFollowPoints(m_view, m_objects, 0);
 
     // as gameplay draws them: spinners first, then the others latest-ending first (so earlier ones end up on top), their
     // second pass the other way round

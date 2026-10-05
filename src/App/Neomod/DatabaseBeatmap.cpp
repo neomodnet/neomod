@@ -526,7 +526,7 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(BeatmapDiffi
 
         beatmap->iMaxPossibleCombo = maxPossibleCombo;
 
-        result.hitobjects = createHitObjects(c, beatmap, view);
+        result.hitobjects = HitObjects::create(c, beatmap, view);
     }
 
     // update beatmap length stat

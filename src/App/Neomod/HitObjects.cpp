@@ -3055,8 +3055,10 @@ vec2 Spinner::getAutoCursorPos(i32 curPosMS) const {
     return vec2((f32)(actualPos.x + r * std::cos(angle)), (f32)(actualPos.y + r * std::sin(angle)));
 }
 
-std::vector<std::unique_ptr<HitObject>> createHitObjects(const Primitives::PRIMITIVE_CONTAINER &primitives,
-                                                         AbstractBeatmapInterface *judge, const PlayfieldView *view) {
+namespace HitObjects {
+
+std::vector<std::unique_ptr<HitObject>> create(const Primitives::PRIMITIVE_CONTAINER &primitives,
+                                               AbstractBeatmapInterface *judge, const PlayfieldView *view) {
     std::vector<std::unique_ptr<HitObject>> objects;
     objects.reserve(primitives.hitcircles.size() + primitives.sliders.size() + primitives.spinners.size());
 
@@ -3099,8 +3101,8 @@ std::vector<std::unique_ptr<HitObject>> createHitObjects(const Primitives::PRIMI
     return objects;
 }
 
-void stackHitObjects(std::span<const std::unique_ptr<HitObject>> objects, f32 AR, i32 beatmapVersion, f32 stackLeniency,
-                     f32 rawHitcircleDiameter, bool hardRock) {
+void stack(std::span<const std::unique_ptr<HitObject>> objects, f32 AR, i32 beatmapVersion, f32 stackLeniency,
+           f32 rawHitcircleDiameter, bool hardRock) {
     // reset
     for(const auto &hitobject : objects) {
         hitobject->setStack(0);
@@ -3269,4 +3271,6 @@ void drawFollowPoints(const PlayfieldView &view, std::span<const std::unique_ptr
         if(objects[index]->getClickTime() >= curPos + followPointApproachTime) break;
     }
 }
+
+}  // namespace HitObjects
 }  // namespace neomod

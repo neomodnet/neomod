@@ -1832,7 +1832,7 @@ void BeatmapInterface::draw() {
 
     // draw followpoints
     if(cv::draw_followpoints.getBool() && !cv::mod_mafham.getBool())
-        drawFollowPoints(*this, this->hitobjects, (uSz)std::max(0, this->iPreviousFollowPointObjectIndex));
+        HitObjects::drawFollowPoints(*this, this->hitobjects, (uSz)std::max(0, this->iPreviousFollowPointObjectIndex));
 
     // draw all hitobjects in reverse
     if(cv::draw_hitobjects.getBool()) this->drawHitObjects();
@@ -2211,7 +2211,8 @@ void BeatmapInterface::drawHitObjects() {
 
         // draw followpoints
         if(cv::draw_followpoints.getBool())
-            drawFollowPoints(*this, this->hitobjects, (uSz)std::max(0, this->iPreviousFollowPointObjectIndex));
+            HitObjects::drawFollowPoints(*this, this->hitobjects,
+                                         (uSz)std::max(0, this->iPreviousFollowPointObjectIndex));
 
         // draw live hitobjects (also, code duplication yay)
         {
@@ -4089,8 +4090,8 @@ void BeatmapInterface::calculateStacks() {
 
     debugLog("Beatmap: Calculating stacks ...");
 
-    stackHitObjects(this->hitobjects, this->getAR(), this->beatmap->getVersion(), this->beatmap->getStackLeniency(),
-                    this->fRawHitcircleDiameter, flags::has<ModFlags::HardRock>(this->getMods().flags));
+    HitObjects::stack(this->hitobjects, this->getAR(), this->beatmap->getVersion(), this->beatmap->getStackLeniency(),
+                      this->fRawHitcircleDiameter, flags::has<ModFlags::HardRock>(this->getMods().flags));
 }
 
 void BeatmapInterface::computeDrainRate() {
