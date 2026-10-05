@@ -375,9 +375,13 @@ void BeatmapFileTest::runTests() {
         const BeatmapFile bomLine{std::string_view{"\xEF\xBB\xBF\n\nosu file format v5\n[General]\n"}};
         TEST_ASSERT_EQ(bomLine.getVersion().value_or(-1), 5, "a version line after other lines");
 
-        // today's reading: a lone CR doesn't end a line
-        const BeatmapFile crOnly{std::string_view{"osu file format v14\r[General]\rMode: 0\r"}};
-        TEST_ASSERT_EQ(crOnly.getSections().size(), 1, "cr only: one line");
+        const std::string_view crText{"osu file format v14\r[General]\rMode: 0\r\r\nStackLeniency: 0.5\n"};
+        const BeatmapFile crOnly{crText};
+        TEST_ASSERT_EQ(crOnly.getSections().size(), 2, "a CR of its own ends a line");
+        TEST_ASSERT(entryTexts(crOnly, Kind::GENERAL) == std::vector<std::string>({"Mode: 0", "StackLeniency: 0.5"}),
+                    "CR, CRLF and LF line breaks mixed");
+        TEST_ASSERT(concatSections(crOnly) == crText, "CR line breaks: sections give back every byte");
+        TEST_ASSERT_EQ(crOnly.getVersion().value_or(-1), 14, "CR line breaks: version");
     }
 
     TEST_SECTION("key-values");

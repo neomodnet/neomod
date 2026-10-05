@@ -31,7 +31,17 @@ constexpr std::array<std::pair<std::string_view, BeatmapFile::SectionKind>, 8> K
 
 constexpr std::string_view UTF8_BOM{"\xEF\xBB\xBF"};
 
-// a line without its line break: "\n", and a "\r" before it
+// the first line of s with its line break: "\r\n", "\n" or a "\r" of its own, as osu! reads them
+std::string_view firstLine(std::string_view s) {
+    const uSz lineFeed = s.find('\n');
+    const uSz end = lineFeed == std::string_view::npos ? s.size() : lineFeed;
+    if(const uSz cr = s.substr(0, end).find('\r'); cr != std::string_view::npos && cr + 1 < end) {
+        return s.substr(0, cr + 1);
+    }
+    return s.substr(0, lineFeed == std::string_view::npos ? s.size() : lineFeed + 1);
+}
+
+// a line without its line break
 std::string_view lineText(std::string_view line) {
     if(line.ends_with('\n')) line.remove_suffix(1);
     if(line.ends_with('\r')) line.remove_suffix(1);
@@ -151,9 +161,9 @@ BeatmapFile::BeatmapFile(std::string_view bytes) : bytes(bytes), bom(bytes.start
     uSz bodyStart = this->bom ? UTF8_BOM.size() : 0;
     u32 number = 1;
     for(uSz pos = bodyStart; pos < bytes.size(); number++) {
-        const uSz lineBreak = bytes.find('\n', pos);
-        const uSz next = lineBreak == std::string_view::npos ? bytes.size() : lineBreak + 1;
-        const std::string_view line = lineText(bytes.substr(pos, next - pos));
+        const std::string_view raw = firstLine(bytes.substr(pos));
+        const uSz next = pos + raw.size();
+        const std::string_view line = lineText(raw);
         if(line.size() >= 2 && line.front() == '[' && line.back() == ']') {
             current.body = bytes.substr(bodyStart, pos - bodyStart);
             this->sections.push_back(current);
@@ -196,9 +206,7 @@ BeatmapFile::Entries::Iterator &BeatmapFile::Entries::Iterator::operator++() {
             continue;
         }
 
-        const uSz lineBreak = this->rest.find('\n');
-        const std::string_view line =
-            this->rest.substr(0, lineBreak == std::string_view::npos ? lineBreak : lineBreak + 1);
+        const std::string_view line = firstLine(this->rest);
         this->rest.remove_prefix(line.size());
         const u32 number = this->nextNumber++;
 
