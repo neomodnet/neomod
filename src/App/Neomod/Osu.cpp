@@ -434,9 +434,8 @@ Osu::~Osu() {
 
     touch->removeListener(this);
 
-    // remove soundengine callbacks (so it doesnt try to call them after we are destroyed)
-    soundEngine->setDeviceChangeBeforeCallback({});
-    soundEngine->setDeviceChangeAfterCallback({});
+    // (so the sound engine doesn't call into what's being destroyed below)
+    this->audioDeviceListener.reset();
 
     BatchDiffCalc::abort_calc();
     AsyncPPC::set_map(nullptr);
@@ -2298,8 +2297,9 @@ void Osu::setupAudio() {
             []() -> void { osu && osu->UIReady() ? ui->getOptionsOverlay()->scheduleLayoutUpdate() : (void)0; });
     }
 
-    soundEngine->setDeviceChangeBeforeCallback(SA::MakeDelegate<&Osu::audioRestartCallbackBefore>(this));
-    soundEngine->setDeviceChangeAfterCallback(SA::MakeDelegate<&Osu::audioRestartCallbackAfter>(this));
+    this->audioDeviceListener =
+        soundEngine->addDeviceChangeListener(SA::MakeDelegate<&Osu::audioRestartCallbackBefore>(this),
+                                             SA::MakeDelegate<&Osu::audioRestartCallbackAfter>(this));
 
     if(Env::cfg(AUD::SOLOUD) && soundEngine->getTypeId() == SoundEngine::SOLOUD) {  // bass works differently
         // this sets convar callbacks for things that require a soundengine reinit, do it

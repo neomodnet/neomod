@@ -4,6 +4,7 @@
 #include "noinclude.h"
 
 #include "Delegate.h"
+#include "Registration.h"
 
 #include <memory>
 #include <optional>
@@ -53,7 +54,7 @@ class SoundEngine {
     enum SndEngineType : TypeId { BASS, SOLOUD, MAX };
 
     SoundEngine() = default;
-    virtual ~SoundEngine() { this->restartCBs = {}; }
+    virtual ~SoundEngine();
 
     // Factory method to create the appropriate sound engine
     static SoundEngine *initialize();
@@ -112,13 +113,11 @@ class SoundEngine {
     virtual void onFreqChanged(float /* oldValue */, float /* newValue */) { ; }
     virtual void onParamChanged(float /* oldValue */, float /* newValue */) { ; }
 
+    // around every change of the output device (restarts, device switches, a lost device reopened), `before` runs while
+    // the old one is still up and `after` once the change is done (either may be empty), on the main thread, for as long
+    // as the returned Registration lives
     using AudioOutputChangedCallback = SA::delegate<void()>;
-    MC_UNREVOCABLE inline void setDeviceChangeBeforeCallback(const AudioOutputChangedCallback &callback) {
-        this->restartCBs[0] = callback;
-    }
-    MC_UNREVOCABLE inline void setDeviceChangeAfterCallback(const AudioOutputChangedCallback &callback) {
-        this->restartCBs[1] = callback;
-    }
+    Mc::Registration addDeviceChangeListener(AudioOutputChangedCallback before, AudioOutputChangedCallback after);
 
     // call this once app init is done, i.e. configs are read, so convar callbacks aren't spuriously fired during init
     virtual void allowInternalCallbacks() { ; }
@@ -149,8 +148,23 @@ class SoundEngine {
 
     float fMasterVolume{1.0f};
 
-    std::array<AudioOutputChangedCallback, 2> restartCBs;  // first to exec before restart, second to exec after restart
     bool bInitSuccess{false};
+
+    enum class DeviceChange : uint8_t { BEFORE, AFTER };
+    // runs the listeners' callbacks for `change`, in the order they were added
+    void notifyDeviceChange(DeviceChange change);
+
+   private:
+    void endDeviceChangeListener(u64 id, Mc::Registration::End how);
+
+    struct DeviceChangeListenerEntry {
+        u64 id;
+        AudioOutputChangedCallback before;
+        AudioOutputChangedCallback after;
+        bool detached{false};  // no Registration left that could end it
+    };
+    std::vector<DeviceChangeListenerEntry> deviceChangeListeners;
+    u64 lastDeviceChangeListenerId{0};
 };
 
 // define/managed in Engine.cpp, declared here for convenience

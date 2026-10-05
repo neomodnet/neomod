@@ -415,8 +415,7 @@ bool BassSoundEngine::initializeOutputDevice(const SoundEngine::OUTPUT_DEVICE &d
 void BassSoundEngine::restart() { this->setOutputDevice(this->currentOutputDevice); }
 
 void BassSoundEngine::shutdown() {
-    // run pre-restart callback here
-    if(this->restartCBs[0] != nullptr) this->restartCBs[0]();
+    this->notifyDeviceChange(DeviceChange::BEFORE);
 
     if(this->currentOutputDevice.driver == OutputDriver::BASS) {
         BASS_SetDevice(this->currentOutputDevice.id);
@@ -629,9 +628,8 @@ void BassSoundEngine::openDeviceControlPanel() {
 }
 
 void BassSoundEngine::setOutputDevice(const SoundEngine::OUTPUT_DEVICE &device) {
-    // run callbacks pt. 1
-    // NOTE: moved to shutdown() (called from within initializeOutputDevice), because that's called on engine shutdown as well
-    // if(this->restartCBs[0] != nullptr) this->restartCBs[0]();
+    // (the BEFORE notification is in shutdown(), called from within initializeOutputDevice, because that's called on
+    // engine shutdown as well)
 
     // TODO: This is blocking main thread, can freeze for a long time on some sound cards
     auto previous = this->currentOutputDevice;
@@ -648,8 +646,7 @@ void BassSoundEngine::setOutputDevice(const SoundEngine::OUTPUT_DEVICE &device) 
         }
     }
 
-    // run callbacks pt. 2
-    if(this->restartCBs[1] != nullptr) this->restartCBs[1]();
+    this->notifyDeviceChange(DeviceChange::AFTER);
 }
 
 void BassSoundEngine::setMasterVolume(float volume) {

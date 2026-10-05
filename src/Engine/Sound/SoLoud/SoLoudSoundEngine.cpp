@@ -609,9 +609,6 @@ void SoLoudSoundEngine::allowInternalCallbacks() {
 }
 
 SoLoudSoundEngine::~SoLoudSoundEngine() {
-    if(!!this->restartCBs[0]) {
-        this->restartCBs[0]();
-    }
     if(soloud && this->isReady()) {
         soloud->deinit();
     }
@@ -747,8 +744,7 @@ bool SoLoudSoundEngine::initializeOutputDevice(const OUTPUT_DEVICE &device) {
     // (copy, the reference may point into outputDevices which gets rebuilt below)
     OUTPUT_DEVICE desiredDev = device;
 
-    // run callbacks pt. 1
-    if(this->restartCBs[0] != nullptr) this->restartCBs[0]();
+    this->notifyDeviceChange(DeviceChange::BEFORE);
     debugLog("id {} name {}", desiredDev.id, desiredDev.name);
 
     // cleanup potential previous device
@@ -958,10 +954,7 @@ bool SoLoudSoundEngine::initializeOutputDevice(const OUTPUT_DEVICE &device) {
     // init global volume
     this->setMasterVolume(this->fMasterVolume);
 
-    // run callbacks pt. 2
-    if(this->restartCBs[1] != nullptr) {
-        this->restartCBs[1]();
-    }
+    this->notifyDeviceChange(DeviceChange::AFTER);
     return true;
 }
 

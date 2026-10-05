@@ -10,6 +10,52 @@
 #include "i18n.h"
 #include "Logging.h"
 #include "LaunchArgs.h"
+#include "Thread.h"
+
+#include <algorithm>
+#include <cassert>
+
+SoundEngine::~SoundEngine() {
+    assert(std::ranges::all_of(this->deviceChangeListeners, &DeviceChangeListenerEntry::detached) &&
+           "a device change listener's Registration outlived the sound engine");
+}
+
+Mc::Registration SoundEngine::addDeviceChangeListener(AudioOutputChangedCallback before,
+                                                      AudioOutputChangedCallback after) {
+    assert(McThread::is_main_thread() && "device change listeners belong to the main thread");
+    this->deviceChangeListeners.push_back({.id = ++this->lastDeviceChangeListenerId, .before = before, .after = after});
+    return {[](void *self, u64 id, Mc::Registration::End how) {
+                static_cast<SoundEngine *>(self)->endDeviceChangeListener(id, how);
+            },
+            this, this->lastDeviceChangeListenerId};
+}
+
+void SoundEngine::endDeviceChangeListener(u64 id, Mc::Registration::End how) {
+    assert(McThread::is_main_thread() && "device change listeners belong to the main thread");
+    const auto it = std::ranges::find(this->deviceChangeListeners, id, &DeviceChangeListenerEntry::id);
+    if(it == this->deviceChangeListeners.end()) return;
+    if(how == Mc::Registration::End::DETACH) {
+        it->detached = true;
+    } else {
+        this->deviceChangeListeners.erase(it);
+    }
+}
+
+void SoundEngine::notifyDeviceChange(DeviceChange change) {
+    // looked up one at a time and run from a copy, since a listener may end its own registration or another's (the
+    // ones added meanwhile wait for the next change)
+    const u64 newest = this->lastDeviceChangeListenerId;
+    for(u64 after = 0;;) {
+        const auto it = std::ranges::find_if(this->deviceChangeListeners, [after, newest](const auto &entry) {
+            return entry.id > after && entry.id <= newest;
+        });
+        if(it == this->deviceChangeListeners.end()) break;
+        after = it->id;
+        if(const AudioOutputChangedCallback callback = change == DeviceChange::BEFORE ? it->before : it->after) {
+            callback();
+        }
+    }
+}
 
 SoundEngine *SoundEngine::initialize() {
 #if !defined(MCENGINE_FEATURE_BASS) && !defined(MCENGINE_FEATURE_SOLOUD)

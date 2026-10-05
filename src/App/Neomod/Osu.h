@@ -382,6 +382,7 @@ class Osu final : public App, public MouseListener, public TouchListener {
     void audioRestartCallbackAfter();
 
     // for audio restart callbacks
+    Mc::Registration audioDeviceListener;
     bool music_unpause_scheduled{false};
     bool music_was_playing{false};
     u32 music_prev_position_ms{0};
