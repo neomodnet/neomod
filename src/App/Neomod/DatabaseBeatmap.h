@@ -33,6 +33,7 @@ using namespace std::string_literals;
 // 4) be a container for difficulties (all top level DatabaseBeatmap objects are containers)
 
 class AbstractBeatmapInterface;
+class PlayfieldView;
 namespace neomod {
 class HitObject;
 }  // namespace neomod
@@ -113,13 +114,15 @@ class DatabaseBeatmap final {
         u8 defaultSampleSet{1};
     };
 
+    // the objects are judged by beatmap and drawn on view (NULL: never drawn)
     static LOAD_GAMEPLAY_RESULT loadGameplay(BeatmapDifficulty *databaseBeatmap, AbstractBeatmapInterface *beatmap,
+                                             const PlayfieldView *view,
                                              LOAD_META_RESULT preloadedMetadata = {
                                                  {}, {neomod::Primitives::LoadError::NONE}});
-    inline LOAD_GAMEPLAY_RESULT loadGameplay(AbstractBeatmapInterface *beatmap,
+    inline LOAD_GAMEPLAY_RESULT loadGameplay(AbstractBeatmapInterface *beatmap, const PlayfieldView *view,
                                              LOAD_META_RESULT preloadedMetadata = {
                                                  {}, {neomod::Primitives::LoadError::NONE}}) {
-        return loadGameplay(this, beatmap, std::move(preloadedMetadata));
+        return loadGameplay(this, beatmap, view, std::move(preloadedMetadata));
     }
 
     [[nodiscard]] MapOverrides get_overrides() const;

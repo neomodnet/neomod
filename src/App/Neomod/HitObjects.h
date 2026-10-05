@@ -10,6 +10,7 @@
 #include "SliderRenderer.h"
 
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 #include <memory>
@@ -32,6 +33,9 @@ namespace neomod {
 namespace HitSoundUtils {
 struct Set_Slider_Hit;
 }
+namespace Primitives {
+struct PRIMITIVE_CONTAINER;
+}
 
 enum class HitObjectType : uint8_t {
     CIRCLE,
@@ -41,7 +45,7 @@ enum class HitObjectType : uint8_t {
 
 class HitObject {
    public:
-    // TEMP constructor helpers (DatabaseBeatmap::loadGameplay)
+    // TEMP constructor helpers (createHitObjects, DatabaseBeatmap::loadGameplay)
     void setIsEndOfCombo(bool end) { m_endOfCombo = end; }
     void setComboStartTime(i32 tms) { m_comboStartMS = tms; }
     void setComboNumber(i32 comboNumber) { m_comboNumber = comboNumber; }
@@ -51,9 +55,14 @@ class HitObject {
     static void drawHitResult(const PlayfieldView &view, vec2 pos, LiveHitResult result, f32 animPercentInv,
                               f32 hitDeltaRangePercent);
 
+    // the order objects are played in, and the order they're drawn in (by end time)
+    static bool sortByStartTimeComp(HitObject const *a, HitObject const *b);
+    static bool sortByEndTimeComp(HitObject const *a, HitObject const *b);
+
    protected:  // only constructable through subclasses
+    // judge: what judges it (NULL: never updated), view: what it's drawn on (NULL: never drawn)
     HitObject(i32 timeMS, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, i32 comboNumber, bool isEndOfCombo,
-              i32 colorCounter, i32 colorOffset, AbstractBeatmapInterface *beatmap);
+              i32 colorCounter, i32 colorOffset, AbstractBeatmapInterface *judge, const PlayfieldView *view);
 
    public:
     HitObject() = delete;
@@ -68,8 +77,8 @@ class HitObject {
     virtual void draw2();
     virtual void update(i32 curPosMS, f64 frameTimeMS);
 
-    virtual void updateStackPosition(f32 /*stackOffset*/) {}  // unused by spinners
-    virtual void miss(i32 /*curPos*/) {}                      // only used by notelock
+    virtual void updateStackPosition(f32 /*stackOffset*/, bool /*hardRock*/) {}  // unused by spinners
+    virtual void miss(i32 /*curPos*/) {}                                         // only used by notelock
     [[nodiscard]] virtual bool isClickableFrom(i32 /*music_pos*/, vec2 /*cursor_pos*/) const { return false; }
 
     // [[nodiscard]] virtual constexpr forceinline i32 getCombo() const {
@@ -214,7 +223,7 @@ class Circle final : public HitObject {
     ~Circle() override;
 
     Circle(vec2 pos, i32 timeMS, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, i32 comboNumber, bool isEndOfCombo,
-           i32 colorCounter, i32 colorOffset, AbstractBeatmapInterface *beatmap);
+           i32 colorCounter, i32 colorOffset, AbstractBeatmapInterface *judge, const PlayfieldView *view);
 
     Circle(const Circle &) = delete;
     Circle &operator=(const Circle &) = delete;
@@ -225,7 +234,7 @@ class Circle final : public HitObject {
     void draw2() override;
     void update(i32 curPosMS, f64 frameTimeMS) override;
 
-    void updateStackPosition(f32 stackOffset) override;
+    void updateStackPosition(f32 stackOffset, bool hardRock) override;
     void miss(i32 curPosMS) override;
     [[nodiscard]] bool isClickableFrom(i32 music_pos, vec2 cursor_pos) const override;
 
@@ -271,7 +280,7 @@ class Slider final : public HitObject, public SliderRenderer::BodySource {
            const std::vector<f32> &ticks, f32 sliderTimeMS, f32 sliderTimeMSWithoutRepeats, i32 timeMS,
            DatabaseBeatmapTypes::HITSAMPLE_BITS hoverSamples,
            std::vector<DatabaseBeatmapTypes::HITSAMPLE_BITS> edgeSamples, i32 comboNumber, bool isEndOfCombo,
-           i32 colorCounter, i32 colorOffset, AbstractBeatmapInterface *beatmap);
+           i32 colorCounter, i32 colorOffset, AbstractBeatmapInterface *judge, const PlayfieldView *view);
 
     Slider(const Slider &) = delete;
     Slider &operator=(const Slider &) = delete;
@@ -283,7 +292,7 @@ class Slider final : public HitObject, public SliderRenderer::BodySource {
     void draw2(bool drawApproachCircle, bool drawOnlyApproachCircle);
     void update(i32 curPosMS, f64 frameTimeSecs) override;
 
-    void updateStackPosition(f32 stackOffset) override;
+    void updateStackPosition(f32 stackOffset, bool hardRock) override;
     void miss(i32 curPosMS) override;
     [[nodiscard]] bool isClickableFrom(i32 music_pos, vec2 cursor_pos) const override;
     // [[nodiscard]] constexpr forceinline i32 getCombo() const override {
@@ -401,7 +410,7 @@ class Spinner final : public HitObject {
    public:
     Spinner() = delete;
     Spinner(vec2 pos, i32 timeMS, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, bool isEndOfCombo, i32 endTimeMS,
-            AbstractBeatmapInterface *beatmap);
+            AbstractBeatmapInterface *judge, const PlayfieldView *view);
     ~Spinner() override;
 
     Spinner(const Spinner &) = delete;
@@ -452,4 +461,14 @@ class Spinner final : public HitObject {
     i32 m_bonusSpins{0};
     bool m_hitSuccess{false};  // non-miss result ("spinner-osu")
 };
+
+// a map's objects from its primitives (with slider times calculated), sorted by start time, their combo ends and combo
+// start times set; judged by judge and drawn on view (see HitObject's constructor)
+std::vector<std::unique_ptr<HitObject>> createHitObjects(const Primitives::PRIMITIVE_CONTAINER &primitives,
+                                                         AbstractBeatmapInterface *judge, const PlayfieldView *view);
+
+// osu!'s stacking of objects sorted by start time: moved up and left by a twentieth of the circle diameter per stack
+// level, down and left with Hard Rock (which flips the playfield)
+void stackHitObjects(std::span<const std::unique_ptr<HitObject>> objects, f32 AR, i32 beatmapVersion, f32 stackLeniency,
+                     f32 rawHitcircleDiameter, bool hardRock);
 }  // namespace neomod

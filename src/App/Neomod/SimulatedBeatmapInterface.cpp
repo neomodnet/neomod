@@ -2,7 +2,6 @@
 
 #include <algorithm>
 
-#include "BeatmapStacking.h"
 #include "DatabaseBeatmap.h"
 #include "GameRules.h"
 #include "HitObjects.h"
@@ -96,7 +95,7 @@ bool SimulatedBeatmapInterface::start() {
     this->updateHitobjectMetrics();
 
     // actually load the difficulty (and the hitobjects)
-    DatabaseBeatmap::LOAD_GAMEPLAY_RESULT result = DatabaseBeatmap::loadGameplay(this->beatmap, this);
+    DatabaseBeatmap::LOAD_GAMEPLAY_RESULT result = DatabaseBeatmap::loadGameplay(this->beatmap, this, nullptr);
     if(result.error.errc) {
         return false;
     }
@@ -111,7 +110,7 @@ bool SimulatedBeatmapInterface::start() {
         this->hitobjectsSortedByEndTime.push_back(unq.get());
     }
 
-    std::ranges::sort(this->hitobjectsSortedByEndTime, BeatmapInterface::sortHitObjectByEndTimeComp);
+    std::ranges::sort(this->hitobjectsSortedByEndTime, HitObject::sortByEndTimeComp);
 
     // after the hitobjects have been loaded we can calculate the stacks
     this->calculateStacks();
@@ -842,23 +841,8 @@ void SimulatedBeatmapInterface::calculateStacks() {
 
     debugLog("Beatmap: Calculating stacks ...");
 
-    // reset
-    for(auto &hitobject : this->hitobjects) {
-        hitobject->setStack(0);
-    }
-
-    Primitives::calculateStacks(Primitives::ObjectGetter<HitObject>{[&objs = this->hitobjects](uSz idx) -> HitObject * {
-                                    return objs[idx].get();
-                                }},
-                                this->hitobjects.size(), this->getAR(), this->beatmap->getVersion(),
-                                this->beatmap->getStackLeniency());
-
-    // update hitobject positions
-    const f32 STACK_OFFSET = 0.05f;
-    const f32 stackOffset = this->fRawHitcircleDiameter * STACK_OFFSET;
-    for(auto &hitobject : this->hitobjects) {
-        if(hitobject->getStack() != 0) hitobject->updateStackPosition(stackOffset);
-    }
+    stackHitObjects(this->hitobjects, this->getAR(), this->beatmap->getVersion(), this->beatmap->getStackLeniency(),
+                    this->fRawHitcircleDiameter, flags::has<ModFlags::HardRock>(this->mods.flags));
 }
 
 void SimulatedBeatmapInterface::computeDrainRate() {

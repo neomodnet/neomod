@@ -16,7 +16,6 @@
 #include "BanchoSubmitter.h"
 #include "BanchoUsers.h"
 #include "BeatmapInterface.h"
-#include "BeatmapStacking.h"
 #include "Chat.h"
 #include "OsuConVars.h"
 #include "Timing.h"
@@ -618,7 +617,7 @@ bool BeatmapInterface::start() {
 
     // actually load the difficulty (and the hitobjects)
     {
-        DatabaseBeatmap::LOAD_GAMEPLAY_RESULT result = DatabaseBeatmap::loadGameplay(this->beatmap, this);
+        DatabaseBeatmap::LOAD_GAMEPLAY_RESULT result = DatabaseBeatmap::loadGameplay(this->beatmap, this, this);
         if(result.error.errc) {
             using enum Primitives::LoadError::code;
             std::string errorMessage;
@@ -689,7 +688,7 @@ bool BeatmapInterface::start() {
         this->hitobjectsSortedByEndTime.push_back(unq.get());
     }
 
-    std::ranges::sort(this->hitobjectsSortedByEndTime, BeatmapInterface::sortHitObjectByEndTimeComp);
+    std::ranges::sort(this->hitobjectsSortedByEndTime, HitObject::sortByEndTimeComp);
 
     // after the hitobjects have been loaded we can calculate the stacks
     this->calculateStacks();
@@ -1503,34 +1502,6 @@ void BeatmapInterface::addHealth(f64 percent, bool isFromHitResult) {
             this->fail();
         }
     }
-}
-
-bool BeatmapInterface::sortHitObjectByStartTimeComp(HitObject const *a, HitObject const *b) {
-    if(a == b) return false;
-
-    if((a->getClickTime()) != (b->getClickTime())) return (a->getClickTime()) < (b->getClickTime());
-
-    if(a->getType() != b->getType()) return static_cast<int>(a->getType()) < static_cast<int>(b->getType());
-    if(a->getComboNumber() != b->getComboNumber()) return a->getComboNumber() < b->getComboNumber();
-
-    auto aPosAtStartTime = a->getRawPosAt(a->getClickTime()), bPosAtClickTime = b->getRawPosAt(b->getClickTime());
-    if(aPosAtStartTime != bPosAtClickTime) return vec::all(vec::lessThan(aPosAtStartTime, bPosAtClickTime));
-
-    return false;  // equivalent
-}
-
-bool BeatmapInterface::sortHitObjectByEndTimeComp(HitObject const *a, HitObject const *b) {
-    if(a == b) return false;
-
-    if((a->getEndTime()) != (b->getEndTime())) return (a->getEndTime()) < (b->getEndTime());
-
-    if(a->getType() != b->getType()) return static_cast<int>(a->getType()) < static_cast<int>(b->getType());
-    if(a->getComboNumber() != b->getComboNumber()) return a->getComboNumber() < b->getComboNumber();
-
-    auto aPosAtEndTime = a->getRawPosAt(a->getEndTime()), bPosAtClickTime = b->getRawPosAt(b->getEndTime());
-    if(aPosAtEndTime != bPosAtClickTime) return vec::all(vec::lessThan(aPosAtEndTime, bPosAtClickTime));
-
-    return false;  // equivalent
 }
 
 bool BeatmapInterface::canDraw() {
@@ -4255,23 +4226,8 @@ void BeatmapInterface::calculateStacks() {
 
     debugLog("Beatmap: Calculating stacks ...");
 
-    // reset
-    for(auto &hitobject : this->hitobjects) {
-        hitobject->setStack(0);
-    }
-
-    Primitives::calculateStacks(Primitives::ObjectGetter<HitObject>{[&objs = this->hitobjects](uSz idx) -> HitObject * {
-                                    return objs[idx].get();
-                                }},
-                                this->hitobjects.size(), this->getAR(), this->beatmap->getVersion(),
-                                this->beatmap->getStackLeniency());
-
-    // update hitobject positions
-    const f32 STACK_OFFSET = 0.05f;
-    const f32 stackOffset = this->fRawHitcircleDiameter * STACK_OFFSET;
-    for(auto &hitobject : this->hitobjects) {
-        if(hitobject->getStack() != 0) hitobject->updateStackPosition(stackOffset);
-    }
+    stackHitObjects(this->hitobjects, this->getAR(), this->beatmap->getVersion(), this->beatmap->getStackLeniency(),
+                    this->fRawHitcircleDiameter, flags::has<ModFlags::HardRock>(this->getMods().flags));
 }
 
 void BeatmapInterface::computeDrainRate() {

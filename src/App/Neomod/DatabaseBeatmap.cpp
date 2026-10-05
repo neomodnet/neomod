@@ -31,9 +31,6 @@
 #include <algorithm>
 #include <sys/stat.h>
 
-#define WANT_PDQSORT
-#include "Sorting.h"
-
 using namespace neomod;
 using namespace DBType;
 
@@ -438,6 +435,7 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
 
 DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(BeatmapDifficulty *databaseBeatmap,
                                                                     AbstractBeatmapInterface *beatmap,
+                                                                    const PlayfieldView *view,
                                                                     LOAD_META_RESULT preloadedMetadata) {
     LOAD_GAMEPLAY_RESULT result = LOAD_GAMEPLAY_RESULT();
     Primitives::PRIMITIVE_CONTAINER c;
@@ -508,15 +506,10 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(BeatmapDiffi
         return result;
     }
 
-    // build hitobjects from the primitive data we loaded from the osu file
+    // build hitobjects from the primitive data we loaded from the osu file, with the mods that change them
     {
         // also calculate max possible combo
         int maxPossibleCombo = 0;
-
-        for(auto &h : c.hitcircles) {
-            result.hitobjects.emplace_back(
-                new Circle(vec2{h.x, h.y}, h.time, h.samples, h.number, false, h.colorCounter, h.colorOffset, beatmap));
-        }
         maxPossibleCombo += c.hitcircles.size();
 
         for(auto &s : c.sliders) {
@@ -525,53 +518,31 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(BeatmapDiffi
 
             if(cv::mod_reverse_sliders.getBool()) std::ranges::reverse(s.points);
 
-            result.hitobjects.emplace_back(new Slider(s.type, s.repeat, s.pixelLength, s.points, s.ticks, s.sliderTime,
-                                                      s.sliderTimeWithoutRepeats, s.time, s.hoverSamples, s.edgeSamples,
-                                                      s.number, false, s.colorCounter, s.colorOffset, beatmap));
-
             const int repeats = std::max((s.repeat - 1), 0);
             maxPossibleCombo += 2 + repeats + (repeats + 1) * s.ticks.size();  // start/end + repeat arrow + ticks
         }
 
-        for(auto &s : c.spinners) {
-            result.hitobjects.emplace_back(new Spinner(vec2{s.x, s.y}, s.time, s.samples, false, s.endTime, beatmap));
-        }
         maxPossibleCombo += c.spinners.size();
 
         beatmap->iMaxPossibleCombo = maxPossibleCombo;
-    }
 
-    // sort hitobjects by starttime
-    if(result.hitobjects.size() > 1) {
-        static constexpr auto hobjsorter =
-            +[](const std::unique_ptr<HitObject> &a, const std::unique_ptr<HitObject> &b) -> bool {
-            return BeatmapInterface::sortHitObjectByStartTimeComp(a.get(), b.get());
-        };
-        srt::pdqsort(result.hitobjects, hobjsorter);
+        result.hitobjects = createHitObjects(c, beatmap, view);
     }
 
     // update beatmap length stat
     if(databaseBeatmap->iLengthMS == 0 && result.hitobjects.size() > 0)
         databaseBeatmap->iLengthMS = result.hitobjects.back()->getClickTime() + result.hitobjects.back()->getDuration();
 
-    // set isEndOfCombo + precalculate Score v2 combo portion maximum
+    // precalculate Score v2 combo portion maximum
     if(beatmap != nullptr) {
         u32 scoreV2ComboPortionMaximum = 1;
-        i32 comboStartTime = 0;
 
         if(result.hitobjects.size() > 0) {
             scoreV2ComboPortionMaximum = 0;
-            comboStartTime = result.hitobjects[0]->getClickTime();
         }
 
         uSz combo = 0;
-        for(size_t i = 0; i < result.hitobjects.size(); i++) {
-            HitObject *currentHitObject = result.hitobjects[i].get();
-            currentHitObject->setComboStartTime(comboStartTime);
-
-            const HitObject *nextHitObject =
-                (i + 1 < result.hitobjects.size() ? result.hitobjects[i + 1].get() : nullptr);
-
+        for(const auto &currentHitObject : result.hitobjects) {
             uSz scoreComboMultiplier = combo == 0 ? 0 : combo - 1;
 
             if(currentHitObject->getType() == HitObjectType::CIRCLE ||
@@ -579,17 +550,10 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(BeatmapDiffi
                 scoreV2ComboPortionMaximum += (u32)(300.0 * (1.0 + (double)scoreComboMultiplier / 10.0));
                 combo++;
             } else if(currentHitObject->getType() == HitObjectType::SLIDER) {
-                combo += 1 + static_cast<const Slider *>(currentHitObject)->getClicks().size();
+                combo += 1 + static_cast<const Slider *>(currentHitObject.get())->getClicks().size();
                 scoreComboMultiplier = combo == 0 ? 0 : combo - 1;
                 scoreV2ComboPortionMaximum += (u32)(300.0 * (1.0 + (double)scoreComboMultiplier / 10.0));
                 combo++;
-            }
-
-            if(nextHitObject == nullptr || nextHitObject->getComboNumber() == 1) {
-                currentHitObject->setIsEndOfCombo(true);
-                if(nextHitObject != nullptr) {
-                    comboStartTime = nextHitObject->getClickTime();
-                }
             }
         }
 

@@ -4,6 +4,8 @@
 #include <utility>
 
 #include "AnimationHandler.h"
+#include "BeatmapPrimitives.h"
+#include "BeatmapStacking.h"
 #include "ContainerRanges.h"
 #include "Graphics.h"
 #include "Bancho.h"
@@ -29,6 +31,9 @@
 #include "UI.h"
 #include "HitSounds.h"
 #include "crypto.h"
+
+#define WANT_PDQSORT
+#include "Sorting.h"
 
 namespace neomod {
 using namespace flags::operators;
@@ -234,16 +239,44 @@ void HitObject::drawHitResult(const PlayfieldView &view, vec2 pos, LiveHitResult
 }
 
 HitObject::HitObject(i32 timeMS, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, i32 comboNumber, bool isEndOfCombo,
-                     i32 colorCounter, i32 colorOffset, AbstractBeatmapInterface *pi)
-    : m_pi(pi),
-      m_pf(dynamic_cast<BeatmapInterface *>(pi)),  // should be NULL if SimulatedBeatmapInterface
-      m_view(m_pf),
+                     i32 colorCounter, i32 colorOffset, AbstractBeatmapInterface *judge, const PlayfieldView *view)
+    : m_pi(judge),
+      m_pf(dynamic_cast<BeatmapInterface *>(judge)),  // should be NULL if SimulatedBeatmapInterface
+      m_view(view),
       m_clickTimeMS(timeMS),
       m_comboNumber(comboNumber),
       m_hitSamples(samples),
       m_colorCounter(colorCounter),
       m_colorOffset(colorOffset),
       m_endOfCombo(isEndOfCombo) {}
+
+bool HitObject::sortByStartTimeComp(HitObject const *a, HitObject const *b) {
+    if(a == b) return false;
+
+    if((a->getClickTime()) != (b->getClickTime())) return (a->getClickTime()) < (b->getClickTime());
+
+    if(a->getType() != b->getType()) return static_cast<int>(a->getType()) < static_cast<int>(b->getType());
+    if(a->getComboNumber() != b->getComboNumber()) return a->getComboNumber() < b->getComboNumber();
+
+    auto aPosAtStartTime = a->getRawPosAt(a->getClickTime()), bPosAtClickTime = b->getRawPosAt(b->getClickTime());
+    if(aPosAtStartTime != bPosAtClickTime) return vec::all(vec::lessThan(aPosAtStartTime, bPosAtClickTime));
+
+    return false;  // equivalent
+}
+
+bool HitObject::sortByEndTimeComp(HitObject const *a, HitObject const *b) {
+    if(a == b) return false;
+
+    if((a->getEndTime()) != (b->getEndTime())) return (a->getEndTime()) < (b->getEndTime());
+
+    if(a->getType() != b->getType()) return static_cast<int>(a->getType()) < static_cast<int>(b->getType());
+    if(a->getComboNumber() != b->getComboNumber()) return a->getComboNumber() < b->getComboNumber();
+
+    auto aPosAtEndTime = a->getRawPosAt(a->getEndTime()), bPosAtClickTime = b->getRawPosAt(b->getEndTime());
+    if(aPosAtEndTime != bPosAtClickTime) return vec::all(vec::lessThan(aPosAtEndTime, bPosAtClickTime));
+
+    return false;  // equivalent
+}
 
 void HitObject::draw2() {
     drawHitResultAnim(m_hitresultanim1);
@@ -761,8 +794,8 @@ void Circle::drawHitCircleNumber(const Skin *skin, f32 numberScale, f32 overlapS
 }
 
 Circle::Circle(vec2 pos, i32 timeMS, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, i32 comboNumber, bool isEndOfCombo,
-               i32 colorCounter, i32 colorOffset, AbstractBeatmapInterface *pi)
-    : HitObject(timeMS, samples, comboNumber, isEndOfCombo, colorCounter, colorOffset, pi),
+               i32 colorCounter, i32 colorOffset, AbstractBeatmapInterface *judge, const PlayfieldView *view)
+    : HitObject(timeMS, samples, comboNumber, isEndOfCombo, colorCounter, colorOffset, judge, view),
       m_rawPos(pos),
       m_originalRawPos(m_rawPos) {
     m_type = HitObjectType::CIRCLE;
@@ -909,10 +942,8 @@ void Circle::update(i32 curPosMS, f64 frameTimeSecs) {
     }
 }
 
-void Circle::updateStackPosition(f32 stackOffset) {
-    m_rawPos = m_originalRawPos - vec2(m_stackNum * stackOffset,
-                                       m_stackNum * stackOffset *
-                                           ((flags::has<ModFlags::HardRock>(m_pi->getMods().flags)) ? -1.0f : 1.0f));
+void Circle::updateStackPosition(f32 stackOffset, bool hardRock) {
+    m_rawPos = m_originalRawPos - vec2(m_stackNum * stackOffset, m_stackNum * stackOffset * (hardRock ? -1.0f : 1.0f));
 }
 
 void Circle::miss(i32 curPosMS) {
@@ -1002,8 +1033,8 @@ Slider::Slider(SLIDERCURVETYPE stype, i32 repeat, f32 pixelLength, std::vector<v
                const std::vector<f32> &ticks, f32 sliderTimeMS, f32 sliderTimeMSWithoutRepeats, i32 timeMS,
                DatabaseBeatmapTypes::HITSAMPLE_BITS hoverSamples,
                std::vector<DatabaseBeatmapTypes::HITSAMPLE_BITS> edgeSamples, i32 comboNumber, bool isEndOfCombo,
-               i32 colorCounter, i32 colorOffset, AbstractBeatmapInterface *pi)
-    : HitObject(timeMS, hoverSamples, comboNumber, isEndOfCombo, colorCounter, colorOffset, pi),
+               i32 colorCounter, i32 colorOffset, AbstractBeatmapInterface *judge, const PlayfieldView *view)
+    : HitObject(timeMS, hoverSamples, comboNumber, isEndOfCombo, colorCounter, colorOffset, judge, view),
       m_ctrlPoints(std::move(points)),
       m_edgeSamples(std::move(edgeSamples)),
       // build curve
@@ -1884,9 +1915,8 @@ void Slider::updateAnimations(i32 curPosMS) {
             1.0f - (1.0f - cv::slider_followcircle_fadeout_scale.getFloat()) * m_followCircleAnimationScale;
 }
 
-void Slider::updateStackPosition(f32 stackOffset) {
-    const bool HR = flags::has<ModFlags::HardRock>(m_pi->getMods().flags);
-    m_stackOffset = vec2{m_stackNum * stackOffset, m_stackNum * stackOffset * (HR ? -1.0f : 1.0f)};
+void Slider::updateStackPosition(f32 stackOffset, bool hardRock) {
+    m_stackOffset = vec2{m_stackNum * stackOffset, m_stackNum * stackOffset * (hardRock ? -1.0f : 1.0f)};
 }
 
 void Slider::miss(i32 curPosMS) {
@@ -2368,8 +2398,8 @@ bool Slider::isClickHeldSlider() const {
 static CONSTINIT VertexArrayObject spinnerMetreVAO{DrawPrimitive::QUADS};
 
 Spinner::Spinner(vec2 pos, i32 timeMS, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, bool isEndOfCombo, i32 endTimeMS,
-                 AbstractBeatmapInterface *pi)
-    : HitObject(timeMS, samples, -1, isEndOfCombo, -1, -1, pi), m_rawPos(pos), m_originalRawPos(m_rawPos) {
+                 AbstractBeatmapInterface *judge, const PlayfieldView *view)
+    : HitObject(timeMS, samples, -1, isEndOfCombo, -1, -1, judge, view), m_rawPos(pos), m_originalRawPos(m_rawPos) {
     m_type = HitObjectType::SPINNER;
     m_durationMS = endTimeMS - timeMS;
 
@@ -2915,5 +2945,68 @@ vec2 Spinner::getAutoCursorPos(i32 curPosMS) const {
     f32 angle = (deltaMS * multiplier) - PI_F / 2.0f;
     f32 r = GameRules::getPlayfieldSize().y / 10.0f;  // XXX: slow?
     return vec2((f32)(actualPos.x + r * std::cos(angle)), (f32)(actualPos.y + r * std::sin(angle)));
+}
+
+std::vector<std::unique_ptr<HitObject>> createHitObjects(const Primitives::PRIMITIVE_CONTAINER &primitives,
+                                                         AbstractBeatmapInterface *judge, const PlayfieldView *view) {
+    std::vector<std::unique_ptr<HitObject>> objects;
+    objects.reserve(primitives.hitcircles.size() + primitives.sliders.size() + primitives.spinners.size());
+
+    for(const auto &h : primitives.hitcircles) {
+        objects.emplace_back(
+            new Circle(vec2{h.x, h.y}, h.time, h.samples, h.number, false, h.colorCounter, h.colorOffset, judge, view));
+    }
+    for(const auto &s : primitives.sliders) {
+        objects.emplace_back(new Slider(s.type, s.repeat, s.pixelLength, s.points, s.ticks, s.sliderTime,
+                                        s.sliderTimeWithoutRepeats, s.time, s.hoverSamples, s.edgeSamples, s.number,
+                                        false, s.colorCounter, s.colorOffset, judge, view));
+    }
+    for(const auto &s : primitives.spinners) {
+        objects.emplace_back(new Spinner(vec2{s.x, s.y}, s.time, s.samples, false, s.endTime, judge, view));
+    }
+
+    if(objects.size() > 1) {
+        static constexpr auto hobjsorter =
+            +[](const std::unique_ptr<HitObject> &a, const std::unique_ptr<HitObject> &b) -> bool {
+            return HitObject::sortByStartTimeComp(a.get(), b.get());
+        };
+        srt::pdqsort(objects, hobjsorter);
+    }
+
+    // a combo ends before the next object numbered 1
+    i32 comboStartTime = objects.empty() ? 0 : objects[0]->getClickTime();
+    for(uSz i = 0; i < objects.size(); i++) {
+        HitObject *currentHitObject = objects[i].get();
+        currentHitObject->setComboStartTime(comboStartTime);
+
+        const HitObject *nextHitObject = (i + 1 < objects.size() ? objects[i + 1].get() : nullptr);
+        if(nextHitObject == nullptr || nextHitObject->getComboNumber() == 1) {
+            currentHitObject->setIsEndOfCombo(true);
+            if(nextHitObject != nullptr) {
+                comboStartTime = nextHitObject->getClickTime();
+            }
+        }
+    }
+
+    return objects;
+}
+
+void stackHitObjects(std::span<const std::unique_ptr<HitObject>> objects, f32 AR, i32 beatmapVersion, f32 stackLeniency,
+                     f32 rawHitcircleDiameter, bool hardRock) {
+    // reset
+    for(const auto &hitobject : objects) {
+        hitobject->setStack(0);
+    }
+
+    Primitives::calculateStacks(
+        Primitives::ObjectGetter<HitObject>{[objects](uSz idx) -> HitObject * { return objects[idx].get(); }},
+        objects.size(), AR, beatmapVersion, stackLeniency);
+
+    // update hitobject positions
+    const f32 STACK_OFFSET = 0.05f;
+    const f32 stackOffset = rawHitcircleDiameter * STACK_OFFSET;
+    for(const auto &hitobject : objects) {
+        if(hitobject->getStack() != 0) hitobject->updateStackPosition(stackOffset, hardRock);
+    }
 }
 }  // namespace neomod

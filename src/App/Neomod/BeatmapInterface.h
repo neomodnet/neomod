@@ -265,9 +265,6 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
     void addScorePoints(int points, bool isSpinner = false) override;
     void addHealth(f64 percent, bool isFromHitResult);
 
-    static bool sortHitObjectByStartTimeComp(neomod::HitObject const *a, neomod::HitObject const *b);
-    static bool sortHitObjectByEndTimeComp(neomod::HitObject const *a, neomod::HitObject const *b);
-
     void invalidateWholeMapPPInfo();
     [[nodiscard]] inline f32 live_pp() const { return this->ppv2_calc.get_pp(); }
     [[nodiscard]] inline f32 live_stars() const { return this->ppv2_calc.get_stars(); }
