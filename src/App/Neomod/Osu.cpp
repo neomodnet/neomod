@@ -955,7 +955,7 @@ void Osu::onKeyDown(KeyboardEvent &key) {
             score.playerName = BanchoState::get_username();
             score.player_id = std::max(0, BanchoState::get_uid());
 
-            f64 pos_seconds = this->map_iface->getTime() - cv::instant_replay_duration.getFloat();
+            f64 pos_seconds = this->map_iface->getTime() / 1000.0 - cv::instant_replay_duration.getFloat();
             u32 pos_ms = (u32)(std::max(0.0, pos_seconds) * 1000.0);
             this->map_iface->cancelFailing();
             this->map_iface->watch(score, pos_ms);
