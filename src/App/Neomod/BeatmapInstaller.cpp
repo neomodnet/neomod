@@ -5,6 +5,7 @@
 #include "Archival.h"
 #include "AsyncPool.h"
 #include "Bancho.h"
+#include "BeatmapFile.h"
 #include "BeatmapInterface.h"
 #include "Database.h"
 #include "DatabaseBeatmap.h"
@@ -155,23 +156,13 @@ struct OszMeta {
 
 // the [Metadata] of one .osu: enough to know the set and to name its folder
 OszMeta parse_osz_meta(std::string_view file) {
+    using neomod::BeatmapFile;
+    using enum BeatmapFile::SectionKind;
+    const BeatmapFile parsed{file};
     OszMeta meta;
-    bool inMetadata = false;
-
-    for(const auto line : SString::split_newlines(file)) {
-        if(line.empty() || SString::is_comment(line)) continue;
-        if(line.contains("[Metadata]")) {
-            inMetadata = true;
-            continue;
-        }
-        if(!inMetadata) continue;
-        if(line.starts_with('[')) break;
-
-        if(Parsing::parse(line, "Artist", ':', &meta.artist)) continue;
-        if(Parsing::parse(line, "Title", ':', &meta.title)) continue;
-        Parsing::parse(line, "BeatmapSetID", ':', &meta.set_id);
-    }
-
+    if(const auto artist = parsed.getValue(METADATA, "Artist")) Parsing::parse(*artist, &meta.artist);
+    if(const auto title = parsed.getValue(METADATA, "Title")) Parsing::parse(*title, &meta.title);
+    if(const auto setId = parsed.getValue(METADATA, "BeatmapSetID")) Parsing::parse(*setId, &meta.set_id);
     return meta;
 }
 

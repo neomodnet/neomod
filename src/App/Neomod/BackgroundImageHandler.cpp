@@ -2,13 +2,13 @@
 #include "BackgroundImageHandler.h"
 
 #include "OsuConVars.h"
+#include "BeatmapFile.h"
 #include "Database.h"
 #include "Osu.h"
 #include "DatabaseBeatmap.h"
 #include "Engine.h"
 #include "File.h"
 #include "Logging.h"
-#include "Parsing.h"
 #include "ResourceManager.h"
 #include "MakeDelegateWrapper.h"
 #include "Environment.h"
@@ -19,6 +19,10 @@
 #include "Skin.h"
 
 #include "demoji.h"
+
+#include <span>
+#include <vector>
+
 namespace {
 
 struct BGPathResult {
@@ -86,63 +90,26 @@ bool checkMojibake(std::string_view file_path, std::string &parsed_bg_filename) 
 
 Async::CancellableHandle<BGPathResult> parseBgFromOsuFile(std::string file_path) {
     auto lambda = [file_path = std::move(file_path)](const Sync::stop_token &tok) -> BGPathResult {
+        using neomod::BeatmapFile;
         BGPathResult result;
 
         bool found = false;
         {
-            File file(file_path);
+            std::vector<u8> bytes;
+            {
+                File file(file_path);
+                if(tok.stop_requested() || !file.canRead()) return result;
+                file.readToVector(bytes);
+            }
+            if(tok.stop_requested()) return result;
 
-            if(tok.stop_requested() || !file.canRead()) return result;
-            const uSz file_size = file.getFileSize();
-
-            static constexpr const uSz CHUNK_SIZE = 64ULL;
-
-            std::array<std::string, CHUNK_SIZE> lines;
-            bool quit = false, is_events_block = false;
-
-            uSz lines_in_chunk = std::min<uSz>(file_size, CHUNK_SIZE);
-
-            std::string temp_parsed_filename;
-            temp_parsed_filename.reserve(64);
-
-            while(!found && !quit && lines_in_chunk > 0) {
-                // read 64 lines at a time
-                for(uSz i = 0; i < lines_in_chunk; i++) {
-                    if(tok.stop_requested()) return result;
-                    if(!file.canRead()) {
-                        // cut short
-                        lines_in_chunk = i;
-                        break;
-                    }
-                    lines[i] = file.readLine();
-                }
-
-                for(uSz i = 0; i < lines_in_chunk; i++) {
-                    if(tok.stop_requested()) return result;
-
-                    std::string_view cur_line = lines[i];
-
-                    // ignore comments, but only if at the beginning of a line (e.g. allow Artist:DJ'TEKINA//SOMETHING)
-                    if(cur_line.empty() || SString::is_comment(cur_line)) continue;
-
-                    if(!is_events_block && cur_line.contains("[Events]")) {
-                        is_events_block = true;
-                        continue;
-                    } else if(cur_line.contains("[TimingPoints]") || cur_line.contains("[Colours]") ||
-                              cur_line.contains("[HitObjects]")) {
-                        quit = true;
-                        break;  // NOTE: stop early
-                    }
-
-                    if(!is_events_block) continue;
-
-                    // parse events block for filename
-                    i32 type{-1}, start;
-                    if(Parsing::parse(cur_line, &type, ',', &start, ',', &temp_parsed_filename) && (type == 0)) {
-                        result.filename = temp_parsed_filename;
-                        found = true;
-                        break;
-                    }
+            BeatmapFile::Event event;
+            for(const auto line :
+                BeatmapFile{std::span<const u8>{bytes}}.getEntries(BeatmapFile::SectionKind::EVENTS)) {
+                if(BeatmapFile::parse(line.text, event) && event.kind == BeatmapFile::Event::Kind::BACKGROUND) {
+                    result.filename = event.file;
+                    found = true;
+                    break;
                 }
             }
         }
