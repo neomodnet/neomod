@@ -1,7 +1,14 @@
 #pragma once
 
-#include "BeatmapInterface.h"
+#include "AbstractBeatmapInterface.h"
+#include "DatabaseBeatmapTypes.h"
+#include "LegacyReplay.h"
 #include "Replay.h"
+#include "score.h"
+
+#include <cmath>
+#include <memory>
+#include <vector>
 
 class SimulatedBeatmapInterface final : public AbstractBeatmapInterface {
     NOCOPY_NOMOVE(SimulatedBeatmapInterface)
