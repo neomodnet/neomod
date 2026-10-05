@@ -285,8 +285,8 @@ void AudioTesterImpl::updateBassComparison() {
             m_bass->enqueue(m_bassSnd.get());
             m_soloud->enqueue(m_soloudSnd.get());
 
-            m_bassSnd->setSpeed(speed);
-            m_soloudSnd->setSpeed(speed);
+            m_bassSnd->setSpeed(speed, cv::snd_speed_compensate_pitch.getBool());
+            m_soloudSnd->setSpeed(speed, cv::snd_speed_compensate_pitch.getBool());
 
             m_bassSnd->setPositionS(COMP_SEEK_POS_S);
             m_soloudSnd->setPositionS(COMP_SEEK_POS_S);

@@ -1070,9 +1070,9 @@ f32 BeatmapInterface::getIdealVolume() const {
 void BeatmapInterface::setMusicSpeed(f32 speed) {
     if(likely(!!this->music)) {
         if((osu->isInPlayMode() || cv::beatmap_preview_mods_live.getBool())) {
-            this->music->setSpeed(speed);
+            this->music->setSpeed(speed, cv::snd_speed_compensate_pitch.getBool());
         } else {  // reset playback speed
-            this->music->setSpeed(1.f);
+            this->music->setSpeed(1.f, cv::snd_speed_compensate_pitch.getBool());
         }
     }
 

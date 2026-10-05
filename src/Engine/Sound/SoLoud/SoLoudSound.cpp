@@ -137,10 +137,9 @@ SOUNDHANDLE SoLoudSound::getHandle() { return this->handle; }
 void SoLoudSound::applyVoiceRate() {
     if(!this->bStream || !this->audioSource || !this->handle) return;
 
-    const bool compensatePitch = cv::snd_speed_compensate_pitch.getBool();
-    const float tempo = compensatePitch ? std::min(this->fSpeed, MAX_TEMPO) : 1.f;
+    const float tempo = this->bPreservePitch ? std::min(this->fSpeed, MAX_TEMPO) : 1.f;
     // Sound's pitch is on BASS_FX's scale (1.0 = unchanged, 1/60 per semitone), the stage takes a frequency factor
-    const float pitchShift = compensatePitch ? std::exp2((this->fPitch - 1.f) * 60.f / 12.f) : 1.f;
+    const float pitchShift = this->bPreservePitch ? std::exp2((this->fPitch - 1.f) * 60.f / 12.f) : 1.f;
 
     soloud->setTempo(this->handle, tempo);
     soloud->setPitchShift(this->handle, pitchShift);
@@ -203,7 +202,7 @@ void SoLoudSound::setPositionUS(u64 us) {
     this->interpolator.reset(positionInSeconds, Timing::getTimeReal(), getSpeed());
 }
 
-void SoLoudSound::setSpeed(float speed) {
+void SoLoudSound::setSpeed(float speed, bool preservePitch) {
     if(!this->isReady() || !this->audioSource || !this->handle) return;
 
     // sample speed could be supported, but there is nothing using it right now so i will only bother when the time
@@ -216,14 +215,15 @@ void SoLoudSound::setSpeed(float speed) {
     speed = std::clamp<float>(speed, 0.05f, 50.0f);
 
     const float previousSpeed = std::exchange(this->fSpeed, speed);
+    this->bPreservePitch = preservePitch;
 
-    // always pushed, since the speed can stay the same while snd_speed_compensate_pitch changed (unchanged values are
-    // free to re-apply, only toggling the compensation costs a seek to drop/re-engage the stage). the voice's position
-    // stays continuous through a tempo change, so nothing else needs resetting
+    // always pushed, since the speed can stay the same while the pitch preservation changed (unchanged values are free
+    // to re-apply, only toggling the preservation costs a seek to drop/re-engage the stage). the voice's position stays
+    // continuous through a tempo change, so nothing else needs resetting
     this->applyVoiceRate();
 
-    logIfCV(debug_snd, "SoLoudSound: Speed change ({:s}compensated pitch) {:s}: {:f}->{:f}",
-            cv::snd_speed_compensate_pitch.getBool() ? "" : "un-", this->sFilePath, previousSpeed, speed);
+    logIfCV(debug_snd, "SoLoudSound: Speed change ({:s}compensated pitch) {:s}: {:f}->{:f}", preservePitch ? "" : "un-",
+            this->sFilePath, previousSpeed, speed);
 }
 
 void SoLoudSound::setPitch(float pitch) {

@@ -240,7 +240,7 @@ void BassSound::setPositionUS(u64 us) {
     this->interpolator.reset(actualSecs, Timing::getTimeReal(), this->getSpeed());
 }
 
-void BassSound::setSpeed(f32 speed) {
+void BassSound::setSpeed(f32 speed, bool preservePitch) {
     if(!this->isReady()) return;
     assert(this->bStream);  // can't call setSpeed() on a sample
 
@@ -252,7 +252,7 @@ void BassSound::setSpeed(f32 speed) {
     BASS_ChannelSetAttribute(this->srchandle, BASS_ATTRIB_TEMPO, 1.0f);
     BASS_ChannelSetAttribute(this->srchandle, BASS_ATTRIB_TEMPO_FREQ, freq);
 
-    if(cv::snd_speed_compensate_pitch.getBool()) {
+    if(preservePitch) {
         BASS_ChannelSetAttribute(this->srchandle, BASS_ATTRIB_TEMPO, (speed - 1.0f) * 100.0f);
     } else {
         BASS_ChannelSetAttribute(this->srchandle, BASS_ATTRIB_TEMPO_FREQ, speed * freq);

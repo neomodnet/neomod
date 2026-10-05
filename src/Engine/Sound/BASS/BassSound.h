@@ -16,7 +16,7 @@ class BassSound final : public Sound {
 
     void setPositionUS(u64 us) override;
 
-    void setSpeed(f32 speed) override;
+    void setSpeed(f32 speed, bool preservePitch) override;
     void setPitch(f32 pitch) override;
     void setFrequency(float frequency) override;
     void setPan(float pan) override;

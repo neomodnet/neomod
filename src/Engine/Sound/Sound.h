@@ -51,7 +51,9 @@ class Sound : public Resource {
         return this->setPositionUS(static_cast<u64>(std::round(secs * (1000. * 1000.))));
     };
 
-    virtual void setSpeed(float speed) = 0;
+    // `preservePitch`: a time-stretch keeps the pitch while the speed changes the tempo, otherwise the pitch follows the
+    // speed (streams only)
+    virtual void setSpeed(float speed, bool preservePitch) = 0;
     virtual void setPitch(float pitch) { this->fPitch = pitch; }
     virtual void setFrequency(float frequency) = 0;
     virtual void setPan(float pan) = 0;

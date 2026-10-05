@@ -28,7 +28,7 @@ class SoLoudSound final : public Sound {
 
     // Sound interface implementation
     void setPositionUS(u64 us) override;
-    void setSpeed(float speed) override;
+    void setSpeed(float speed, bool preservePitch) override;
     void setPitch(float pitch) override;
     void setFrequency(float frequency) override;
     void setPan(float pan) override;
@@ -66,6 +66,7 @@ class SoLoudSound final : public Sound {
 
     // current playback parameters
     float fFrequency{44100.0f};  // sample rate in Hz
+    bool bPreservePitch{true};
 
     // SoLoud-specific members
     std::unique_ptr<SoLoud::AudioSource> audioSource{nullptr};  // base class pointer, could be either WavStream or Wav
