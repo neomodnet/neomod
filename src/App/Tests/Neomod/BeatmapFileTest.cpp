@@ -191,7 +191,7 @@ std::string dumpGameLoad(const std::string &path, const std::string &relative, s
     };
     // what the game looks up at an object's time
     const auto timing = [&c](i32 time) {
-        const DBType::TIMING_INFO ti = getTimingInfoForTimeAndTimingPoints(time, c.timingpoints);
+        const DBType::TIMING_INFO ti = c.timingpoints.getTimingInfo(time);
         return fmt::format("{}/{}/{}/{}/{}/{}/{}", ti.offset, ti.beatLengthBase, ti.beatLength, ti.sampleSet,
                            ti.sampleIndex, ti.volume, ti.isNaN);
     };

@@ -306,7 +306,7 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
     }
 
     // reset
-    this->timingpoints.clear();
+    this->timingpoints = {};
 
     using Kind = BeatmapFile::SectionKind;
     const BeatmapFile file{beatmapFile};
@@ -393,7 +393,7 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
         }
     }
 
-    FixedSizeArray<TIMINGPOINT> tempTimingpoints = readTimingPoints(file);
+    TimingPoints tempTimingpoints = readTimingPoints(file);
 
     if(!SString::is_wspace_only(tempTitleUnicode)) {
         this->sTitleUnicode = std::move(tempTitleUnicode);
@@ -648,7 +648,7 @@ MapOverrides DatabaseBeatmap::get_overrides() const {
 }
 
 TIMING_INFO DatabaseBeatmap::getTimingInfoForTime(i32 positionMS) const {
-    return getTimingInfoForTimeAndTimingPoints(positionMS, this->timingpoints);
+    return this->timingpoints.getTimingInfo(positionMS);
 }
 
 namespace neomod::BPMCalc {
@@ -657,7 +657,7 @@ template <typename T>
 BPMInfo getBPM(const T &timing_points, std::vector<BPMTuple> &bpm_buffer)
     requires((std::is_same_v<T, std::vector<DB_TIMINGPOINT>> || std::is_same_v<T, std::vector<DBType::TIMINGPOINT>>) ||
              (std::is_same_v<T, FixedSizeArray<DB_TIMINGPOINT>> ||
-              std::is_same_v<T, FixedSizeArray<DBType::TIMINGPOINT>>))
+              std::is_same_v<T, TimingPoints>))
 {
     if(timing_points.empty()) {
         return {};
@@ -723,6 +723,6 @@ BPMInfo getBPM(const T &timing_points, std::vector<BPMTuple> &bpm_buffer)
 template BPMInfo getBPM(const std::vector<DB_TIMINGPOINT> &, std::vector<BPMTuple> &);
 template BPMInfo getBPM(const std::vector<DBType::TIMINGPOINT> &, std::vector<BPMTuple> &);
 template BPMInfo getBPM(const FixedSizeArray<DB_TIMINGPOINT> &, std::vector<BPMTuple> &);
-template BPMInfo getBPM(const FixedSizeArray<DBType::TIMINGPOINT> &, std::vector<BPMTuple> &);
+template BPMInfo getBPM(const TimingPoints &, std::vector<BPMTuple> &);
 
 }  // namespace neomod::BPMCalc

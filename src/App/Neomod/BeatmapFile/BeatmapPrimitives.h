@@ -64,13 +64,65 @@ struct PrimitiveLimits {
     i32 sliderMaxTicks{cv::defaults::slider_max_ticks};
 };
 
+// a map's timing points in time order, and what applies at a given time
+class TimingPoints {
+    struct Entry {
+        DBType::TIMINGPOINT point;
+        // the last uninherited and the last inherited point up to this one (the first point if there's none)
+        u32 lastUninherited;
+        u32 lastInherited;
+    };
+
+   public:
+    class Iterator {
+       public:
+        using value_type = DBType::TIMINGPOINT;
+        using difference_type = std::ptrdiff_t;
+
+        Iterator() = default;
+        explicit Iterator(const Entry *entry) : entry(entry) {}
+
+        const DBType::TIMINGPOINT &operator*() const { return this->entry->point; }
+        const DBType::TIMINGPOINT *operator->() const { return &this->entry->point; }
+        Iterator &operator++() {
+            ++this->entry;
+            return *this;
+        }
+        Iterator operator++(int) {
+            const Iterator old = *this;
+            ++this->entry;
+            return old;
+        }
+        bool operator==(const Iterator &) const = default;
+
+       private:
+        const Entry *entry{nullptr};
+    };
+
+    TimingPoints() = default;
+    explicit TimingPoints(std::vector<DBType::TIMINGPOINT> points);
+
+    // the beat length and samples at a time, from the points at or before it (or the first point)
+    [[nodiscard]] DBType::TIMING_INFO getTimingInfo(i32 positionMS) const;
+
+    [[nodiscard]] uSz size() const { return this->entries.size(); }
+    [[nodiscard]] bool empty() const { return this->entries.empty(); }
+    [[nodiscard]] const DBType::TIMINGPOINT &operator[](uSz i) const { return this->entries[i].point; }
+    [[nodiscard]] const DBType::TIMINGPOINT &back() const { return this->entries.back().point; }
+    [[nodiscard]] Iterator begin() const { return Iterator{this->entries.data()}; }
+    [[nodiscard]] Iterator end() const { return Iterator{this->entries.data() + this->entries.size()}; }
+
+   private:
+    FixedSizeArray<Entry> entries;
+};
+
 struct PRIMITIVE_CONTAINER final {
     std::vector<DBType::HITCIRCLE> hitcircles{};
     std::vector<DBType::SLIDER> sliders{};
     std::vector<DBType::SPINNER> spinners{};
     std::vector<DBType::BREAK> breaks{};
 
-    FixedSizeArray<DBType::TIMINGPOINT> timingpoints{};
+    TimingPoints timingpoints{};
     std::vector<Color> combocolors{};
 
     // the [HitObjects] lines no object came from
@@ -105,18 +157,14 @@ struct PRIMITIVE_CONTAINER final {
     bool sliderTimesCalculated{false};
 };
 
-// the file's timing points in time order
-FixedSizeArray<DBType::TIMINGPOINT> readTimingPoints(const BeatmapFile &file);
+TimingPoints readTimingPoints(const BeatmapFile &file);
 
 PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileData, const PrimitiveLimits &limits,
                                                  const Sync::stop_token &dead = {});
 
 LoadError calculateSliderTimesClicksTicks(int beatmapVersion, std::vector<DBType::SLIDER> &sliders,
-                                          const FixedSizeArray<DBType::TIMINGPOINT> &timingpoints,
-                                          float sliderMultiplier, float sliderTickRate, const PrimitiveLimits &limits,
+                                          const TimingPoints &timingpoints, float sliderMultiplier,
+                                          float sliderTickRate, const PrimitiveLimits &limits,
                                           const Sync::stop_token &dead = {});
-
-DBType::TIMING_INFO getTimingInfoForTimeAndTimingPoints(i32 positionMS,
-                                                        const FixedSizeArray<DBType::TIMINGPOINT> &timingpoints);
 
 }  // namespace neomod

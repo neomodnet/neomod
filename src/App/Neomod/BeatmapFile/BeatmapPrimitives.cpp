@@ -69,7 +69,58 @@ bool timingPointSortComparator(const TIMINGPOINT &a, const TIMINGPOINT &b) {
 
 }  // namespace
 
-FixedSizeArray<TIMINGPOINT> readTimingPoints(const BeatmapFile &file) {
+TimingPoints::TimingPoints(std::vector<TIMINGPOINT> points) : entries(points.size()) {
+    // sort timingpoints by time
+    if(points.size() > 1) srt::pdqsort(points, timingPointSortComparator);
+
+    u32 lastUninherited = 0;
+    u32 lastInherited = 0;
+    for(u32 i = 0; i < points.size(); i++) {
+        (points[i].uninherited ? lastUninherited : lastInherited) = i;
+        this->entries[i] = {.point = points[i], .lastUninherited = lastUninherited, .lastInherited = lastInherited};
+    }
+}
+
+TIMING_INFO TimingPoints::getTimingInfo(i32 positionMS) const {
+    if(this->entries.empty()) {
+        return {.offset = 0,
+                .beatLengthBase = 1,
+                .beatLength = 1,
+                .sampleSet = 0,
+                .sampleIndex = 0,
+                .volume = 100,
+                .isNaN = false};
+    }
+
+    // peppy's algorithm (correctly handles aspire & NaNs): the last point at or before the time gives the samples,
+    // the last uninherited one the beat length, and the last inherited one a multiplier if it comes after that
+    const Entry *const first = this->entries.data();
+    const Entry *const after = std::upper_bound(first, first + this->entries.size(), positionMS,
+                                                [](i32 time, const Entry &e) { return time < e.point.offset; });
+    const uSz audioPoint = after == first ? 0 : (after - first) - 1;
+    const uSz point = this->entries[audioPoint].lastUninherited;
+    const uSz samplePoint = this->entries[audioPoint].lastInherited;
+
+    const TIMINGPOINT &timing = this->entries[point].point;
+    const TIMINGPOINT &sample = this->entries[samplePoint].point;
+    const TIMINGPOINT &audio = this->entries[audioPoint].point;
+
+    const f32 mult = (samplePoint > point && sample.msPerBeat < 0)
+                         ? std::clamp<f32>((f32)-sample.msPerBeat, 10.0f, 1000.0f) / 100.0f
+                         : 1.f;
+
+    TIMING_INFO ti;
+    ti.beatLengthBase = (f32)timing.msPerBeat;
+    ti.offset = (i32)timing.offset;
+    ti.isNaN = std::isnan(sample.msPerBeat) || std::isnan(timing.msPerBeat);
+    ti.beatLength = ti.beatLengthBase * mult;
+    ti.volume = audio.volume;
+    ti.sampleSet = audio.sampleSet;
+    ti.sampleIndex = audio.sampleIndex;
+    return ti;
+}
+
+TimingPoints readTimingPoints(const BeatmapFile &file) {
     std::vector<TIMINGPOINT> timingpoints;
     BeatmapFile::TimingPoint timingPoint;
     for(const auto line : file.getEntries(BeatmapFile::SectionKind::TIMING_POINTS)) {
@@ -79,10 +130,7 @@ FixedSizeArray<TIMINGPOINT> readTimingPoints(const BeatmapFile &file) {
             timingpoints.push_back(toTimingPoint(timingPoint));
         }
     }
-
-    // sort timingpoints by time
-    if(timingpoints.size() > 1) srt::pdqsort(timingpoints, timingPointSortComparator);
-    return timingpoints.empty() ? FixedSizeArray<TIMINGPOINT>{} : FixedSizeArray<TIMINGPOINT>{std::move(timingpoints)};
+    return TimingPoints{std::move(timingpoints)};
 }
 
 PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer, const PrimitiveLimits &limits,
@@ -339,7 +387,7 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
 }
 
 LoadError calculateSliderTimesClicksTicks(int beatmapVersion, std::vector<SLIDER> &sliders,
-                                          const FixedSizeArray<TIMINGPOINT> &timingpoints, float sliderMultiplier,
+                                          const TimingPoints &timingpoints, float sliderMultiplier,
                                           float sliderTickRate, const PrimitiveLimits &limits,
                                           const Sync::stop_token &dead) {
     LoadError r;
@@ -391,7 +439,7 @@ LoadError calculateSliderTimesClicksTicks(int beatmapVersion, std::vector<SLIDER
         s.scoringTimesForStarCalc.clear();
 
         // calculate duration
-        const TIMING_INFO timingInfo = getTimingInfoForTimeAndTimingPoints(s.time, timingpoints);
+        const TIMING_INFO timingInfo = timingpoints.getTimingInfo(s.time);
         s.sliderTimeWithoutRepeats = SliderHelper::getSliderTimeForSlider(s, timingInfo, sliderMultiplier);
         s.sliderTime = s.sliderTimeWithoutRepeats * s.repeat;
 
@@ -487,67 +535,6 @@ LoadError calculateSliderTimesClicksTicks(int beatmapVersion, std::vector<SLIDER
     }
 
     return r;
-}
-
-TIMING_INFO getTimingInfoForTimeAndTimingPoints(i32 positionMS, const FixedSizeArray<TIMINGPOINT> &timingpoints) {
-    static TIMING_INFO default_info{
-        .offset = 0,
-        .beatLengthBase = 1,
-        .beatLength = 1,
-        .sampleSet = 0,
-        .sampleIndex = 0,
-        .volume = 100,
-        .isNaN = false,
-    };
-
-    if(timingpoints.size() < 1) return default_info;
-
-    TIMING_INFO ti{default_info};
-
-    // initial values
-    ti.offset = timingpoints[0].offset;
-    ti.volume = timingpoints[0].volume;
-    ti.sampleSet = timingpoints[0].sampleSet;
-    ti.sampleIndex = timingpoints[0].sampleIndex;
-
-    // new (peppy's algorithm)
-    // (correctly handles aspire & NaNs)
-    {
-        const bool allowMultiplier = true;
-
-        int point = 0;
-        int samplePoint = 0;
-        int audioPoint = 0;
-
-        for(int i = -1; const auto &tp : timingpoints) {
-            // timingpoints are sorted by offset
-            if(tp.offset > positionMS) break;
-            ++i;
-
-            audioPoint = i;
-
-            if(tp.uninherited)
-                point = i;
-            else
-                samplePoint = i;
-        }
-
-        const f32 mult = (allowMultiplier && samplePoint > point && timingpoints[samplePoint].msPerBeat < 0)
-                             ? std::clamp<f32>((f32)-timingpoints[samplePoint].msPerBeat, 10.0f, 1000.0f) / 100.0f
-                             : 1.f;
-
-        ti.beatLengthBase = timingpoints[point].msPerBeat;
-        ti.offset = timingpoints[point].offset;
-
-        ti.isNaN = std::isnan(timingpoints[samplePoint].msPerBeat) || std::isnan(timingpoints[point].msPerBeat);
-        ti.beatLength = ti.beatLengthBase * mult;
-
-        ti.volume = timingpoints[audioPoint].volume;
-        ti.sampleSet = timingpoints[audioPoint].sampleSet;
-        ti.sampleIndex = timingpoints[audioPoint].sampleIndex;
-    }
-
-    return ti;
 }
 
 }  // namespace neomod

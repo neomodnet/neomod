@@ -192,9 +192,7 @@ class DatabaseBeatmap final {
     [[nodiscard]] inline float getSliderTickRate() const { return this->fSliderTickRate; }
     [[nodiscard]] inline float getSliderMultiplier() const { return this->fSliderMultiplier; }
 
-    [[nodiscard]] inline const FixedSizeArray<DBType::TIMINGPOINT> &getTimingpoints() const {
-        return this->timingpoints;
-    }
+    [[nodiscard]] inline const neomod::TimingPoints &getTimingpoints() const { return this->timingpoints; }
 
     // the .osu file's contents (empty if it couldn't be read), see AsyncIOHandler::read()
     using MapFileReadDoneCallback = std::function<void(std::vector<u8>)>;  // == AsyncIOHandler::ReadCallback
@@ -254,7 +252,7 @@ class DatabaseBeatmap final {
     BeatmapSet *parentSet{nullptr};
 
    public:
-    FixedSizeArray<DBType::TIMINGPOINT> timingpoints;  // necessary for main menu anim
+    neomod::TimingPoints timingpoints;  // necessary for main menu anim
 
     // redundant data (technically contained in metadata, but precomputed anyway)
 
@@ -362,5 +360,5 @@ template <typename T>
 BPMInfo getBPM(const T &timing_points, std::vector<BPMTuple> &bpm_buffer)
     requires((std::is_same_v<T, std::vector<DB_TIMINGPOINT>> || std::is_same_v<T, std::vector<DBType::TIMINGPOINT>>) ||
              (std::is_same_v<T, FixedSizeArray<DB_TIMINGPOINT>> ||
-              std::is_same_v<T, FixedSizeArray<DBType::TIMINGPOINT>>));
+              std::is_same_v<T, neomod::TimingPoints>));
 }  // namespace neomod::BPMCalc
