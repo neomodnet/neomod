@@ -218,9 +218,8 @@ bool DatabaseBeatmap::operator==(const DatabaseBeatmap &other) const {
 
 namespace {  // internal helpers
 
-// the game's reading of a timing point: the time rounded
 TIMINGPOINT toTimingPoint(const BeatmapFile::TimingPoint &tp) {
-    return {.offset = std::round(tp.time),
+    return {.offset = tp.time,
             .msPerBeat = tp.beatLength,
             .sampleSet = tp.sampleSet,
             .sampleIndex = tp.sampleIndex,
