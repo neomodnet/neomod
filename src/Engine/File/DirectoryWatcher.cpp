@@ -10,6 +10,7 @@
 #include "SyncMutex.h"
 
 #include <algorithm>
+#include <cassert>
 #include <filesystem>
 #include <utility>
 #include <vector>
@@ -32,29 +33,69 @@ struct DirWatcherImpl {
         this->init_wakeup_notification();
         this->thr = Sync::jthread([this](const Sync::stop_token& stoken) { return this->worker_loop(stoken); });
     }
-    ~DirWatcherImpl() { this->destroy_wakeup_notification(); }
-
-    void watch_directory(std::string path, FileChangeCallback cb) {
-        Sync::scoped_lock lock(this->directories_mtx);
-        this->directories_to_add.emplace_back(std::move(path), std::move(cb));
-        this->notify_thread();
+    ~DirWatcherImpl() {
+        assert(this->watches.empty() && "a Watch outlived the DirectoryWatcher");
+        // (the worker waits on the wakeup notification)
+        this->thr.request_stop();
+        this->thr.join();
+        this->destroy_wakeup_notification();
     }
 
-    void stop_watching(std::string path) {
-        Sync::scoped_lock lock(this->directories_mtx);
-        this->directories_to_remove.push_back(std::move(path));
-        this->notify_thread();
+    u32 watch_directory(std::string path, FileChangeCallback cb) {
+        assert(McThread::is_main_thread() && "directory watches belong to the main thread");
+        if(!path.ends_with('/')) path.push_back('/');
+        if(!std::ranges::contains(this->watches, path, &WatchEntry::dir)) {
+            {
+                Sync::scoped_lock lock(this->directories_mtx);
+                this->directories.push_back(path);
+                this->directories_changed = true;
+            }
+            this->notify_thread();
+        }
+        this->watches.push_back({.id = ++this->last_id, .dir = std::move(path), .cb = std::move(cb)});
+        return this->last_id;
+    }
+
+    void stop_watching(u32 id) {
+        assert(McThread::is_main_thread() && "directory watches belong to the main thread");
+        const auto it = std::ranges::find(this->watches, id, &WatchEntry::id);
+        if(it == this->watches.end()) return;
+        const std::string dir = std::move(it->dir);
+        this->watches.erase(it);
+        if(!std::ranges::contains(this->watches, dir, &WatchEntry::dir)) {
+            {
+                Sync::scoped_lock lock(this->directories_mtx);
+                std::erase(this->directories, dir);
+                this->directories_changed = true;
+            }
+            this->notify_thread();
+        }
     }
 
     void update() {
         if(this->finished_events_count.load(std::memory_order_acquire) == 0) return;
 
-        Sync::scoped_lock lock(this->finished_events_mtx);
-        for(const auto& [cb, event] : this->finished_events) {
-            cb(event);
+        std::vector<std::pair<std::string, FileChangeEvent>> events;
+        {
+            Sync::scoped_lock lock(this->finished_events_mtx);
+            events.swap(this->finished_events);
+            this->finished_events_count.store(0, std::memory_order_release);
         }
-        this->finished_events.clear();
-        this->finished_events_count.store(0, std::memory_order_release);
+
+        // every callback is looked up right before it runs, since the one before it may have stopped any watch.
+        // watches started from a callback don't get the events from before they existed (ids only grow)
+        const u32 newest = this->last_id;
+        for(const auto& [dir, event] : events) {
+            for(u32 after = 0;;) {
+                const auto it = std::ranges::find_if(
+                    this->watches, [&](const WatchEntry& w) { return w.id > after && w.id <= newest && w.dir == dir; });
+                if(it == this->watches.end()) break;
+                after = it->id;
+                // (a copy: the callback may stop its own watch)
+                const FileChangeCallback cb = it->cb;
+                cb(event);
+            }
+        }
     }
 
    private:
@@ -68,20 +109,31 @@ struct DirWatcherImpl {
 #endif
     };
 
-    Sync::mutex directories_mtx;
-    std::vector<std::pair<std::string, FileChangeCallback>> directories_to_add;
-    std::vector<std::string> directories_to_remove;
+    struct WatchEntry {
+        u32 id;
+        std::string dir;
+        FileChangeCallback cb;
+    };
+    // main thread only, in the order they were started
+    std::vector<WatchEntry> watches;
+    u32 last_id{0};
 
+    // what the worker watches: every directory that has a watch
+    Sync::mutex directories_mtx;
+    std::vector<std::string> directories;
+    bool directories_changed{false};
+
+    // the watched directory each event is for
     Sync::mutex finished_events_mtx;
-    std::vector<std::pair<FileChangeCallback, FileChangeEvent>> finished_events;
+    std::vector<std::pair<std::string, FileChangeEvent>> finished_events;
     std::atomic<uSz> finished_events_count{0};
 
     Sync::jthread thr;
 
     // locking here also makes the size store safe against a concurrent update() clearing the vector
-    void queue_finished_event(const FileChangeCallback& cb, FileChangeEvent event) {
+    void queue_finished_event(const std::string& dir, FileChangeEvent event) {
         Sync::scoped_lock lock(this->finished_events_mtx);
-        this->finished_events.emplace_back(cb, std::move(event));
+        this->finished_events.emplace_back(dir, std::move(event));
         this->finished_events_count.store(this->finished_events.size(), std::memory_order_release);
     }
 
@@ -97,10 +149,6 @@ struct DirWatcherImpl {
     void notify_thread() { SetEvent(this->wakeup_event); }
 
     struct DirectoryState {
-        DirectoryState(FileChangeCallback cb) : cb(std::move(cb)) {}
-
-        FileChangeCallback cb;
-
         Hash::stable_stringmap<UnconfirmedEvent> unconfirmed_events{};
 
         struct WinDirState {
@@ -165,27 +213,7 @@ struct DirWatcherImpl {
         Sync::stop_callback stop_cb(stoken, [stop_event]() { SetEvent(stop_event); });
 
         while(!stoken.stop_requested()) {
-            // Add/remove directories
-            {
-                Sync::scoped_lock lock(this->directories_mtx);
-                for(auto& path : this->directories_to_remove) {
-                    if(!path.ends_with('/')) path.push_back('/');
-
-                    if(active_directories.contains(path)) active_directories.erase(path);
-                }
-                this->directories_to_remove.clear();
-
-                for(auto& [path, cb] : this->directories_to_add) {
-                    if(!path.ends_with('/')) path.push_back('/');  // make sure it ends with a /
-
-                    auto [it, added] = active_directories.emplace(path, DirectoryState(cb));
-                    if(added) {
-                        // This should always be true
-                        directories_to_init.push_back(&*it);
-                    }
-                }
-                this->directories_to_add.clear();
-            }
+            this->sync_directories(active_directories, directories_to_init);
 
             // Initialize new directories
             for(const auto& it : directories_to_init) {
@@ -307,7 +335,7 @@ struct DirWatcherImpl {
                     if(ec || (file_status.type() != fs::file_type::regular && !is_dir)) {
                         if(notify->Action == FILE_ACTION_REMOVED || notify->Action == FILE_ACTION_RENAMED_OLD_NAME) {
                             this->queue_finished_event(
-                                state.cb, FileChangeEvent{.path = std_filepath, .type = FileChangeType::DELETED});
+                                path, FileChangeEvent{.path = std_filepath, .type = FileChangeType::DELETED});
                             state.unconfirmed_events.erase(std_filepath);
                         }
                     } else {
@@ -365,7 +393,7 @@ struct DirWatcherImpl {
                         // Only confirm after 2+ consecutive stable checks
                         if(unconfirmed.stable_checks >= 2) {
                             to_confirm.push_back(file);
-                            this->queue_finished_event(state.cb, unconfirmed.event);
+                            this->queue_finished_event(path, unconfirmed.event);
                         }
                     } else {
                         // Timestamp changed, reset counter and update
@@ -399,9 +427,6 @@ struct DirWatcherImpl {
     };
 
     struct DirectoryState {
-        DirectoryState(FileChangeCallback cb) : cb(std::move(cb)) {}
-        FileChangeCallback cb;
-
         Hash::stable_stringmap<UnconfirmedEvent> unconfirmed_events{};
         Hash::stable_stringmap<Stamp> files{};
         fs::file_time_type dir_mtime{};
@@ -446,27 +471,7 @@ struct DirWatcherImpl {
             // every 10th tick (1s) is a full sweep, catching changes that don't bump the dir mtime
             // (in-place rewrites, filesystems with coarse/unreliable dir mtimes)
             const bool sweep_tick = (tick_count++ % 10) == 0;
-            // Add/remove directories
-            {
-                Sync::scoped_lock lock(this->directories_mtx);
-                for(auto& path : this->directories_to_remove) {
-                    if(!path.ends_with('/')) path.push_back('/');
-
-                    if(active_directories.contains(path)) active_directories.erase(path);
-                }
-                this->directories_to_remove.clear();
-
-                for(auto& [path, cb] : this->directories_to_add) {
-                    if(!path.ends_with('/')) path.push_back('/');
-
-                    auto [it, added] = active_directories.emplace(path, DirectoryState(cb));
-                    if(added) {
-                        // This should always be true
-                        directories_to_init.push_back(&*it);
-                    }
-                }
-                this->directories_to_add.clear();
-            }
+            this->sync_directories(active_directories, directories_to_init);
             {
                 // Initialize state now (avoiding lock)
                 for(const auto& it : directories_to_init) {
@@ -502,7 +507,7 @@ struct DirWatcherImpl {
                         // drop any pending unconfirmed event for it, like the windows path does
                         state.unconfirmed_events.erase(file);
                         this->queue_finished_event(
-                            state.cb,
+                            path,
                             FileChangeEvent{.path = file, .type = FileChangeType::DELETED, .is_dir = stamp.is_dir});
                         continue;
                     }
@@ -543,7 +548,7 @@ struct DirWatcherImpl {
 
                             // Only confirm after 2+ consecutive stable checks
                             if(existing.stable_checks >= 2) {
-                                this->queue_finished_event(state.cb, existing.event);
+                                this->queue_finished_event(path, existing.event);
                                 state.unconfirmed_events.erase(file);
                             }
                         }
@@ -559,16 +564,44 @@ struct DirWatcherImpl {
         }
     }
 #endif
+
+    // (worker) brings the watched directories in line with `directories`, collecting the new ones in `added`
+    void sync_directories(Hash::stable_stringmap<DirectoryState>& active,
+                          std::vector<Hash::stable_stringmap<DirectoryState>::value_type*>& added) {
+        Sync::scoped_lock lock(this->directories_mtx);
+        if(!std::exchange(this->directories_changed, false)) return;
+        std::erase_if(active,
+                      [this](const auto& entry) { return !std::ranges::contains(this->directories, entry.first); });
+        for(const auto& dir : this->directories) {
+            if(auto [it, inserted] = active.try_emplace(dir); inserted) added.push_back(&*it);
+        }
+    }
 };
 
 DirectoryWatcher::DirectoryWatcher() : pImpl() {}
 
 DirectoryWatcher::~DirectoryWatcher() = default;
 
-void DirectoryWatcher::watch_directory(std::string path, FileChangeCallback cb) {
-    return pImpl->watch_directory(std::move(path), std::move(cb));
+DirectoryWatcher::Watch DirectoryWatcher::watch_directory(std::string path, FileChangeCallback cb) {
+    return {this, pImpl->watch_directory(std::move(path), std::move(cb))};
 }
 
-void DirectoryWatcher::stop_watching(std::string path) { return pImpl->stop_watching(std::move(path)); }
+void DirectoryWatcher::stop_watching(u32 id) { return pImpl->stop_watching(id); }
 
 void DirectoryWatcher::update() { return pImpl->update(); }
+
+DirectoryWatcher::Watch::Watch(Watch&& other) noexcept
+    : watcher(std::exchange(other.watcher, nullptr)), id(std::exchange(other.id, 0)) {}
+
+DirectoryWatcher::Watch& DirectoryWatcher::Watch::operator=(Watch&& other) noexcept {
+    if(this != &other) {
+        this->reset();
+        this->watcher = std::exchange(other.watcher, nullptr);
+        this->id = std::exchange(other.id, 0);
+    }
+    return *this;
+}
+
+void DirectoryWatcher::Watch::reset() {
+    if(this->watcher) std::exchange(this->watcher, nullptr)->stop_watching(this->id);
+}

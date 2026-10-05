@@ -410,13 +410,14 @@ void Osu::doDeferredInitTasks() {
             if(extracted) env->deleteFile(path);
         }
 
-        directoryWatcher->watch_directory(Mc::Paths::skins() + "/", [](const FileChangeEvent &ev) -> void {
-            if(ev.type != FileChangeType::CREATED) return;
-            logRaw("[DirectoryWatcher] Importing new skin {}: type {}", ev.path, static_cast<u32>(ev.type));
-            if(env->getFileExtensionFromFilePath(ev.path) != "osk") return;
-            const bool extracted = neomod::handle_osk(ev.path);
-            if(extracted) env->deleteFile(ev.path);
-        });
+        this->skinsWatch =
+            directoryWatcher->watch_directory(Mc::Paths::skins() + "/", [](const FileChangeEvent &ev) -> void {
+                if(ev.type != FileChangeType::CREATED) return;
+                logRaw("[DirectoryWatcher] Importing new skin {}: type {}", ev.path, static_cast<u32>(ev.type));
+                if(env->getFileExtensionFromFilePath(ev.path) != "osk") return;
+                const bool extracted = neomod::handle_osk(ev.path);
+                if(extracted) env->deleteFile(ev.path);
+            });
     }
 }
 

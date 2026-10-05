@@ -1535,7 +1535,8 @@ void SongBrowser::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
     auto loading_screen = std::make_unique<BeatmapLoadingOverlay>(this, osu->getBackgroundImageHandler(), next_screen);
     this->loadingOverlay = loading_screen.get();
 
-    // start loading
+    // start loading (watching maps/ again once that's done)
+    this->mapsWatch.reset();
     db->load(full_rescan);
 
     // make sure whatever was visible is hidden until loading finishes
@@ -2710,7 +2711,7 @@ void SongBrowser::onDatabaseLoadingFinished(bool isNextScreenSongBrowser) {
     debugLog("Took {} seconds.", t.getElapsedTime());
 
     // Watch for new maps now
-    directoryWatcher->watch_directory(Mc::Paths::maps() + "/", [](const FileChangeEvent &ev) {
+    this->mapsWatch = directoryWatcher->watch_directory(Mc::Paths::maps() + "/", [](const FileChangeEvent &ev) {
         // a set folder dropped in (or changed, or removed) while running: the installer syncs the db and the
         // carousel with it like with an import, and tells its own writes (imports, uninstalls) apart from real
         // changes. a deletion can't be stat'ed (so on windows it isn't known to be a folder), reconciling a name

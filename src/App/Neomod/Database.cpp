@@ -13,7 +13,6 @@
 #include "OsuConVars.h"
 #include "Database.h"
 #include "DatabaseBeatmap.h"
-#include "DirectoryWatcher.h"
 #include "BeatmapInstaller.h"
 #include "Engine.h"
 #include "File.h"
@@ -369,7 +368,6 @@ void Database::destroyLoader() {
     // beatmap_difficulties wipe in startLoader makes them dangle.
     VolNormalization::flush_priority();
 
-    directoryWatcher->stop_watching(Mc::Paths::maps() + "/");
     this->load_interrupted.store(true, std::memory_order_release);  // for subroutines (loadMaps, etc.)
     this->db_load_handle.cancel();
     if(this->db_load_handle.valid()) this->db_load_handle.wait();
