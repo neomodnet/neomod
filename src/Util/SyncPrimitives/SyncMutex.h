@@ -2,7 +2,9 @@
 #pragma once
 // mutex + recursive_mutex + RAII locking things
 
+#if __has_include("config.h")
 #include "config.h"
+#endif
 
 #ifdef USE_NSYNC
 #include "nsync_mu.h"

@@ -54,6 +54,7 @@ target_include_directories(diffcalc PRIVATE
     "${NEOMOD_SRC}/App/Neomod/BeatmapFile"
     "${NEOMOD_SRC}/App/Neomod/DiffCalc"
     "${NEOMOD_SRC}/Util"
+    "${NEOMOD_SRC}/Util/SyncPrimitives"
     "${NEOMOD_LIBS}"
 )
 find_package(Threads REQUIRED)  # batch mode workers

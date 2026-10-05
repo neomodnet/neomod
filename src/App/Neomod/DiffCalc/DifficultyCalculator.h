@@ -8,17 +8,7 @@
 #include "noinclude.h"
 #include "types.h"
 #include "Vectors.h"
-
-#ifndef BUILD_TOOLS_ONLY
 #include "SyncStoptoken.h"
-#else
-
-#include <stop_token>
-namespace Sync {
-using std::stop_token;
-}
-#endif
-
 #include "StrainComputeState.h"
 #include "StaticPImpl.h"
 

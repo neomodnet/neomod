@@ -10,6 +10,7 @@
 #include "FixedSizeArray.h"
 #include "DatabaseBeatmapTypes.h"
 #include "StrainComputeState.h"
+#include "SyncStoptoken.h"
 
 // TODO: make these utilities available without all of these ifdefs (move all diffcalc things to a lightweight separate directory)
 #ifndef BUILD_TOOLS_ONLY
@@ -19,14 +20,9 @@
 #include "MD5Hash.h"
 #include "Registration.h"
 #include "Color.h"
-#include "SyncStoptoken.h"
 
 #else
 #include <memory>
-#include <stop_token>
-namespace Sync {
-using std::stop_token;
-}
 
 using Color = uint32_t;
 

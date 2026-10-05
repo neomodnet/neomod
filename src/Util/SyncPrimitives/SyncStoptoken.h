@@ -2,7 +2,9 @@
 #pragma once
 // stop_token
 
+#if __has_include("config.h")
 #include "config.h"
+#endif
 #include "SyncMutex.h"
 
 #ifdef USE_NSYNC
