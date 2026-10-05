@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <optional>
 #include <string>
 
@@ -72,7 +73,11 @@ FixedSizeArray<TIMINGPOINT> readTimingPoints(const BeatmapFile &file) {
     std::vector<TIMINGPOINT> timingpoints;
     BeatmapFile::TimingPoint timingPoint;
     for(const auto line : file.getEntries(BeatmapFile::SectionKind::TIMING_POINTS)) {
-        if(BeatmapFile::parse(line.text, timingPoint)) timingpoints.push_back(toTimingPoint(timingPoint));
+        // a time that isn't a number or doesn't fit in 32 bits drops the point, as in osu!lazer
+        if(BeatmapFile::parse(line.text, timingPoint) &&
+           std::abs(timingPoint.time) <= std::numeric_limits<i32>::max()) {
+            timingpoints.push_back(toTimingPoint(timingPoint));
+        }
     }
 
     // sort timingpoints by time

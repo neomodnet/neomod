@@ -521,6 +521,12 @@ void BeatmapFileTest::runTests() {
         TEST_ASSERT(
             cr.hitcircles.size() == 2 && cr.hitcircles[0].samples.volume == 0 && cr.hitcircles[1].samples.volume == 100,
             "sample volumes clamped to 0-100");
+
+        const auto times = load(
+            "osu file format v14\r\n[TimingPoints]\r\nNaN,500,4,1,0,100,1,0\r\n3e9,500,4,1,0,100,1,0\r\n"
+            "-3e9,500,4,1,0,100,1,0\r\n100,500,4,1,0,100,1,0\r\n");
+        TEST_ASSERT(times.timingpoints.size() == 1 && times.timingpoints[0].offset == 100,
+                    "timing points at times that aren't numbers or don't fit in 32 bits are dropped");
     }
 
     TEST_SECTION("events and colours");
