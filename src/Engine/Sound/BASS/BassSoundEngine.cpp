@@ -414,8 +414,6 @@ bool BassSoundEngine::initializeOutputDevice(const SoundEngine::OUTPUT_DEVICE &d
 void BassSoundEngine::restart() { this->setOutputDevice(this->currentOutputDevice); }
 
 void BassSoundEngine::shutdown() {
-    this->notifyDeviceChange(DeviceChange::BEFORE);
-
     if(this->currentOutputDevice.driver == OutputDriver::BASS) {
         BASS_SetDevice(this->currentOutputDevice.id);
         BASS_Free();
@@ -626,8 +624,8 @@ void BassSoundEngine::openDeviceControlPanel() {
 }
 
 void BassSoundEngine::setOutputDevice(const SoundEngine::OUTPUT_DEVICE &device) {
-    // (the BEFORE notification is in shutdown(), called from within initializeOutputDevice, because that's called on
-    // engine shutdown as well)
+    // (not in initializeOutputDevice(): the app's first init has no device to change from, so nobody hears of it)
+    this->notifyDeviceChange(DeviceChange::BEFORE);
 
     // TODO: This is blocking main thread, can freeze for a long time on some sound cards
     auto previous = this->currentOutputDevice;
