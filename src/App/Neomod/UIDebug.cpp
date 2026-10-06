@@ -20,6 +20,8 @@
 #include "Engine.h"
 #include "Environment.h"
 #include "Osu.h"
+#include "BeatmapInterface.h"
+#include "DatabaseBeatmap.h"
 #include "Graphics.h"
 
 #include <array>
@@ -131,6 +133,7 @@ void UIDebug::debugAssert(std::string_view args) {
     // ui_assert mouse_at <x> <y> <tolerance>
     // ui_assert os_cursor <visible|clipped> <0|1>
     // ui_assert clipboard <expected>
+    // ui_assert map <file|root|md5|offset|background> <expected>
     auto parts = SString::split(args, ' ');
     std::erase_if(parts, [](std::string_view p) { return p.empty(); });
 
@@ -142,6 +145,31 @@ void UIDebug::debugAssert(std::string_view args) {
             expected.replace(pos, 2, "\n");
         const std::string_view actual = env->getClipBoardText();
         logRaw("UITEST {} clipboard expected='{}' actual='{}'", actual == expected ? "OK" : "FAIL", expected, actual);
+        return;
+    }
+
+    if(parts.size() >= 3 && SString::to_lower(parts[0]) == "map"sv) {
+        // the selected difficulty's .osu file name (the rest of the line), root (maps, or songs for osu!stable's), md5,
+        // local offset or whether its background is drawn, "none" without a selection
+        const std::string_view expected = args.substr(parts[2].data() - args.data());
+        const DatabaseBeatmap *map = osu->getMapInterface()->getBeatmap();
+        std::string actual{"none"};
+        if(map && parts[1] == "file"sv) {
+            actual = Environment::getFileNameFromFilePath(map->getFilePath());
+        } else if(map && parts[1] == "root"sv) {
+            actual = map->type == DatabaseBeatmap::BeatmapType::PEPPY_DIFFICULTY ? "songs" : "maps";
+        } else if(map && parts[1] == "md5"sv) {
+            actual = fmt::format("{}", map->getMD5());
+        } else if(map && parts[1] == "offset"sv) {
+            actual = fmt::to_string(map->getLocalOffset());
+        } else if(map && parts[1] == "background"sv) {
+            actual = fmt::to_string(int{map->draw_background});
+        } else if(map) {
+            logRaw("UITEST FAIL map {} (unknown field, expected file|root|md5|offset|background)", parts[1]);
+            return;
+        }
+        logRaw("UITEST {} map {} expected='{}' actual='{}'", actual == expected ? "OK" : "FAIL", parts[1], expected,
+               actual);
         return;
     }
 
