@@ -55,6 +55,17 @@ void Collection::remove_map(const MD5Hash& map_hash) {
     }
 }
 
+bool replace_map(const MD5Hash& from, const MD5Hash& to) {
+    bool replaced = false;
+    for(auto& collection : s_collections) {
+        if(!collection.get_maps().contains(from)) continue;
+        collection.remove_map(from);
+        collection.add_map(to);
+        replaced = true;
+    }
+    return replaced;
+}
+
 bool Collection::rename_to(std::string_view new_name) {
     if(new_name.empty() || new_name == this->name) return false;
 

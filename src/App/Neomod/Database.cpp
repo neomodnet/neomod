@@ -319,6 +319,10 @@ void Database::startLoader() {
                 if(tok.stop_requested()) goto done;
                 this->loadMaps(this->database_files[NEOMOD_MAPS], this->database_files[STABLE_MAPS]);
                 if(tok.stop_requested()) goto done;
+                // (before anything is reconciled: a changed file's collection entries follow its new content)
+                Collections::load_all(this->database_files[MCNEOMOD_COLLECTIONS],
+                                      this->database_files[STABLE_COLLECTIONS]);
+                if(tok.stop_requested()) goto done;
 
                 // extract + import any loose .osz files dropped into maps/ before handing off to the
                 // song browser, so they're part of the initial listing.
@@ -334,10 +338,6 @@ void Database::startLoader() {
                     this->rescan_created += this->reconcileRoot(MapRoot::Peppy, tok, this->full_rescan);
                     if(tok.stop_requested()) goto done;
                 }
-
-                Collections::load_all(this->database_files[MCNEOMOD_COLLECTIONS],
-                                      this->database_files[STABLE_COLLECTIONS]);
-                if(tok.stop_requested()) goto done;
             }
 
             // .db files that were dropped on the main window
@@ -2820,6 +2820,7 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
         BeatmapDifficulty *kept{nullptr};
         std::unique_ptr<BeatmapDifficulty> parsed{};
         BeatmapDifficulty *owner{nullptr};  // what the md5 index has under parsed's hash
+        BeatmapDifficulty *was{nullptr};    // what parsed replaces
     };
     std::vector<Slot> slots;
 
@@ -2908,6 +2909,19 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
         // or leaves it right away if that's an osu!.db set, which never is)
     }
 
+    // what a new object replaces, which hands it the user's data: the old object of its file when that isn't kept (the
+    // content changed), else the one of its content (it moved here)
+    for(auto &slot : slots) {
+        if(!slot.parsed) continue;
+        slot.was = slot.owner;
+        if(!old) continue;
+        const auto &old_diffs = old->getDifficulties();
+        if(auto it = std::ranges::find(old_diffs, std::string_view{slot.path}, &DatabaseBeatmap::getFilePath);
+           it != old_diffs.end() && std::ranges::none_of(slots, [&it](const Slot &s) { return s.kept == it->get(); })) {
+            slot.was = it->get();
+        }
+    }
+
     const uSz n_old = old ? old->getDifficulties().size() : 0;
     const uSz n_kept = std::ranges::count_if(slots, [](const Slot &s) { return s.kept != nullptr; });
     res.added = static_cast<u16>(std::ranges::count_if(slots, [](const Slot &s) { return s.parsed != nullptr; }));
@@ -2938,6 +2952,19 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
             // (the songs folder's sets are osu!.db's unless it's loaded raw)
             if(slot.owner && slot.owner->type == PEPPY_DIFFICULTY && !this->needs_raw_load) {
                 moved.push_back(slot.owner);
+            }
+            if(const BeatmapDifficulty *was = slot.was) {
+                // what's the user's stays with the map, as on the object osu!stable's editor saves
+                BeatmapDifficulty &now = *slot.parsed;
+                now.iLocalOffset = was->iLocalOffset;
+                now.iOnlineOffset = was->iOnlineOffset;
+                now.draw_background = was->draw_background;
+                now.last_play_time = was->last_play_time;
+                if(now.iID <= 0) now.iID = was->iID;
+                if(now.sAudioFileName == was->sAudioFileName) {
+                    now.loudness.store(was->loudness.load(std::memory_order_acquire), std::memory_order_release);
+                }
+                res.successors.push_back({.was = slot.was, .now = &now});
             }
             fresh.push_back(slot.parsed.get());
             container->push_back(std::move(slot.parsed));
@@ -3030,6 +3057,14 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
         folders[std::string{rel_folder}] = {.mtime = dir_mtime, .set = set};
     }
 
+    // collections follow a file's new content, as osu!stable's editor moves them when it saves
+    bool collections_changed = false;
+    for(const auto &[was, now] : res.successors) {
+        if(was->getMD5() != now->getMD5())
+            collections_changed |= Collections::replace_map(was->getMD5(), now->getMD5());
+    }
+    if(collections_changed && this->isFinished()) Collections::save_collections_async();
+
     // what loadMaps does for db-loaded diffs after the fact
     {
         Sync::shared_lock sr_lock(this->star_ratings_mtx);
@@ -3058,9 +3093,13 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
            std::ranges::any_of(fresh, [](const BeatmapDifficulty *diff) { return diff->ppv2Version == 0; })) {
             this->batch_diffcalc_pending = true;  // picked up by SongBrowser::tick
         }
-        for(BeatmapDifficulty *diff : fresh) VolNormalization::request_priority(diff);
+        for(BeatmapDifficulty *diff : fresh) {
+            if(diff->loudness.load(std::memory_order_acquire) == 0.f) VolNormalization::request_priority(diff);
+        }
     } else {
-        for(BeatmapDifficulty *diff : fresh) this->loudness_to_calc.push_back(diff);
+        for(BeatmapDifficulty *diff : fresh) {
+            if(diff->loudness.load(std::memory_order_acquire) == 0.f) this->loudness_to_calc.push_back(diff);
+        }
     }
 
     res.set = set;

@@ -24,7 +24,10 @@ bool load_mcneomod(std::string_view neomod_collections_path);
 void unload_all();
 bool save_collections();
 bool save_collections(std::span<const Collection> collections, std::string_view save_path);
-void save_collections_async(); // fire-and-forget
+void save_collections_async();  // fire-and-forget
+
+// a map's content changed: the collections that have it get the new md5 instead. returns whether any had it
+bool replace_map(const MD5Hash &from, const MD5Hash &to);
 
 class Collection {
     std::string name;

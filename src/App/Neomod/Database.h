@@ -52,6 +52,13 @@ struct ReconcileResult {
     // osu!.db sets that had maps which moved here (osu!stable's db keeps listing them until it rescans): each
     // tombstoned, with its rebuilt remainder (nullptr: nothing left)
     std::vector<std::pair<BeatmapSet *, BeatmapSet *>> moved_from;
+    // maps whose object a new one replaced (their file's content changed, or they moved here), which took over the old
+    // one's user data and collection entries
+    struct Successor {
+        BeatmapDifficulty *was{nullptr};
+        BeatmapDifficulty *now{nullptr};
+    };
+    std::vector<Successor> successors;
     u16 added{0}, removed{0}, parsed{0};
     [[nodiscard]] std::string_view outcomeName() const;
 };
