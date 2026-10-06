@@ -282,7 +282,10 @@ void SoLoudSound::setLoop(bool loop) {
 u64 SoLoudSound::getPositionUS() const {
     if(!this->isReady() || !this->audioSource || !this->handle) return 0;
 
-    return static_cast<u64>(std::round(soloud->getStreamPosition(this->handle) * 1000.0 * 1000.0));
+    // (SoLoud reads 0 for a voice that's gone, and one that played to its end is at its end)
+    const double position = soloud->getStreamPosition(this->handle);
+    if(position == 0.0 && !soloud->isValidVoiceHandle(this->handle)) return this->getLengthUS();
+    return static_cast<u64>(std::round(position * 1000.0 * 1000.0));
 }
 
 u64 SoLoudSound::getLengthUS() const {
