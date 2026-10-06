@@ -44,8 +44,9 @@ using DiffContainer = std::vector<std::unique_ptr<BeatmapDifficulty>>;
 struct ReconcileResult {
     enum class Outcome : u8 { Unchanged, Created, Updated, Removed, Failed };
     Outcome outcome{Outcome::Unchanged};
-    BeatmapSet *set{nullptr};          // live set for the folder afterwards (nullptr: Removed/Failed/no unique diffs)
-    BeatmapSet *replaced{nullptr};     // tombstoned predecessor (Updated/Removed), valid until the next load()
+    BeatmapSet *set{nullptr};  // live set for the folder afterwards (nullptr: Removed/Failed/no unique diffs)
+    // predecessor (Updated/Removed): tombstoned, valid until the next load(), or set itself when it lost no difficulty
+    BeatmapSet *replaced{nullptr};
     BeatmapSet *dedup_owner{nullptr};  // set owning the first duplicate diff seen (where "already installed" lives)
     // osu!.db sets that had maps which moved here (osu!stable's db keeps listing them until it rescans): each
     // tombstoned, with its rebuilt remainder (nullptr: nothing left)

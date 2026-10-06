@@ -71,10 +71,18 @@ DatabaseBeatmap::DatabaseBeatmap(std::unique_ptr<DiffContainer> &&difficulties, 
         diff->parentSet = this;
     }
 
-    // set representative values for this container (i.e. use values from first difficulty)
-    const auto &firstDiff = *diffs[0];
-    this->sFolder = firstDiff.sFolder;
+    this->sFolder = diffs[0]->sFolder;
+    this->iSetID = diffs[0]->iSetID;
+    this->updateRepresentativeValues();
+}
 
+void DatabaseBeatmap::updateRepresentativeValues() noexcept {
+    if(this->getDifficulties().empty()) return;  // we are a difficulty
+
+    auto &diffs = this->getDifficulties();
+
+    // the first difficulty's metadata, and the extremes over all of them
+    const auto &firstDiff = *diffs[0];
     this->sTitle = firstDiff.sTitle;
     this->sTitleUnicode = firstDiff.sTitleUnicode;
     this->has_unicode_title = firstDiff.has_unicode_title;
@@ -83,16 +91,6 @@ DatabaseBeatmap::DatabaseBeatmap(std::unique_ptr<DiffContainer> &&difficulties, 
     this->has_unicode_artist = firstDiff.has_unicode_artist;
     this->sCreator = firstDiff.sCreator;
     this->sBackgroundImageFileName = firstDiff.sBackgroundImageFileName;
-    this->iSetID = firstDiff.iSetID;
-
-    // also calculate largest representative values
-    this->updateRepresentativeValues();
-}
-
-void DatabaseBeatmap::updateRepresentativeValues() noexcept {
-    if(this->getDifficulties().empty()) return;  // we are a difficulty
-
-    auto &diffs = this->getDifficulties();
 
     this->iLengthMS = 0;
     this->fCS = 99.f;

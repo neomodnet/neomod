@@ -2921,9 +2921,18 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
         return res;
     }
 
-    auto new_set = std::make_unique<BeatmapSet>(std::move(container),
-                                                root == MapRoot::Peppy ? PEPPY_BEATMAPSET : NEOMOD_BEATMAPSET);
-    BeatmapSet *set = new_set.get();
+    // a set that lost none of its difficulties takes the new ones itself: its tombstone would be a set without any
+    std::unique_ptr<BeatmapSet> new_set;
+    BeatmapSet *set = old;
+    if(old && old->difficulties->empty()) {
+        old->difficulties = std::move(container);
+        for(const auto &diff : *old->difficulties) diff->parentSet = old;
+        old->updateRepresentativeValues();
+    } else {
+        new_set = std::make_unique<BeatmapSet>(std::move(container),
+                                               root == MapRoot::Peppy ? PEPPY_BEATMAPSET : NEOMOD_BEATMAPSET);
+        set = new_set.get();
+    }
 
     // set id: the download's, else what the old set already knew, else whatever a diff declares, else a leading
     // number in the folder name (osu!stable's "<setid> Artist - Title" convention)
@@ -2941,17 +2950,21 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
         i32 parsed_id = -1;
         if(Parsing::parse(rel_folder, &parsed_id) && parsed_id > 0) set_id = parsed_id;
     }
-    if(set_id > 0) {
-        set->iSetID = set_id;
-        for(const auto &diff : set->getDifficulties()) {
-            if(diff->iSetID <= 0) diff->iSetID = set_id;
-        }
-    }
 
     {
         Sync::unique_lock lock(this->beatmap_difficulties_mtx);
         for(BeatmapDifficulty *diff : fresh) this->beatmap_difficulties[diff->getMD5()] = diff;
-        if(old) tombstone(old);  // only the dropped diffs are left in it
+        if(old == set) {
+            this->unindexSet(set);  // (indexed again below, maybe under another id)
+        } else if(old) {
+            tombstone(old);  // only the dropped diffs are left in it
+        }
+        if(set_id > 0) {
+            set->iSetID = set_id;
+            for(const auto &diff : set->getDifficulties()) {
+                if(diff->iSetID <= 0) diff->iSetID = set_id;
+            }
+        }
         // an osu!.db set loses the moved ones too: tombstoned, and rebuilt from whatever else it has
         while(!moved.empty()) {
             BeatmapSet *stale = moved.back()->getParentSet();
@@ -2973,7 +2986,7 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
             res.moved_from.emplace_back(stale, remainder);
         }
         this->indexSet(set);
-        this->beatmapsets.push_back(std::move(new_set));
+        if(new_set) this->beatmapsets.push_back(std::move(new_set));
         folders[std::string{rel_folder}] = {.mtime = dir_mtime, .set = set};
     }
 
