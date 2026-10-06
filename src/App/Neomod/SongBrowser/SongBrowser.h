@@ -377,6 +377,9 @@ class SongBrowser final : public ScreenBackable {
     // to avoid transitive includes
     struct MD5HashMap;
     std::unique_ptr<MD5HashMap> hashToDiffButton;
+    // the selection a database load selects again once it's done
+    struct PendingReselect;
+    std::unique_ptr<PendingReselect> reselect;
 
     CollBtnContainer titleCollectionButtons;
     CollBtnContainer artistCollectionButtons;

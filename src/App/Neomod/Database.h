@@ -12,6 +12,7 @@
 #include <atomic>
 #include <set>
 #include <span>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -109,9 +110,20 @@ class Database final {
     void cancel();
     void save();
 
-    // where set folders live: the maps/ drop-zone, or the osu!stable songs folder when it's loaded raw
-    // (no osu!.db as its source)
+    // where set folders live: the maps/ drop-zone, or the osu!stable songs folder (loaded raw when osu!.db isn't
+    // its source)
     enum class MapRoot : u8 { Neomod, Peppy };
+
+    // a difficulty by its place on disk, which names it across database loads (unlike a pointer) and changes of its
+    // content (unlike its md5)
+    struct MapLocation {
+        MapRoot root{MapRoot::Neomod};
+        std::string folder{};  // relative to the root, without a trailing separator
+        std::string file{};    // the .osu's name
+        bool operator==(const MapLocation &) const = default;
+    };
+    // (empty folder and file for a map outside of the roots)
+    [[nodiscard]] MapLocation locate(const BeatmapDifficulty &diff) const;
 
     enum class ReconcileMode : u8 {
         TrustFolderMtime,  // startup: an unchanged folder mtime means no per-file io at all
@@ -161,6 +173,7 @@ class Database final {
 
     BeatmapDifficulty *getBeatmapDifficulty(const MD5Hash &md5hash) const;
     BeatmapDifficulty *getBeatmapDifficulty(i32 map_id) const;
+    BeatmapDifficulty *getBeatmapDifficulty(const MapLocation &location) const;
     // nullptr for set_id <= 0 (unsubmitted sets have no usable id); prefers a maps/ set over an osu!stable one
     BeatmapSet *getBeatmapSet(i32 set_id) const;
     // relative maps/ folder of the set with this id ("" if none). unlike the pointer-returning getters this is

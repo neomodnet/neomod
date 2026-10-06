@@ -871,6 +871,46 @@ BeatmapDifficulty *Database::getBeatmapDifficulty(i32 map_id) const {
     return nullptr;
 }
 
+Database::MapLocation Database::locate(const BeatmapDifficulty &diff) const {
+    const MapRoot root = diff.type == DatabaseBeatmap::BeatmapType::PEPPY_DIFFICULTY ? MapRoot::Peppy : MapRoot::Neomod;
+    const std::string root_path = this->rootPath(root);
+    std::string_view folder = diff.getFolder();
+    if(root_path.empty() || !folder.starts_with(root_path)) return {.root = root};
+
+    folder.remove_prefix(root_path.size());
+    while(folder.ends_with('/') || folder.ends_with('\\')) folder.remove_suffix(1);
+    return {
+        .root = root, .folder = std::string{folder}, .file = Environment::getFileNameFromFilePath(diff.getFilePath())};
+}
+
+BeatmapDifficulty *Database::getBeatmapDifficulty(const MapLocation &location) const {
+    if(this->isLoading()) {
+        debugLog("we are loading, progress {}, not returning a BeatmapDifficulty*", this->getProgress());
+        return nullptr;
+    }
+
+    const std::string path = this->rootPath(location.root) + location.folder + "/" + location.file;
+    auto find_in = [&path](const BeatmapSet *set) -> BeatmapDifficulty * {
+        const auto &diffs = set->getDifficulties();
+        auto it = std::ranges::find(diffs, std::string_view{path}, &DatabaseBeatmap::getFilePath);
+        return it != diffs.end() ? it->get() : nullptr;
+    };
+
+    Sync::shared_lock lock(this->beatmap_difficulties_mtx);
+    // maps/ and a raw-loaded songs folder are indexed by folder; osu!.db's sets group by set id, so its maps are looked
+    // for in all of them
+    if(location.root == MapRoot::Neomod || this->needs_raw_load) {
+        const auto &folders = location.root == MapRoot::Neomod ? this->neomod_folders : this->peppy_folders;
+        auto it = folders.find(location.folder);
+        return it != folders.end() && it->second.set ? find_in(it->second.set) : nullptr;
+    }
+    for(const auto &set : this->beatmapsets) {
+        if(set->type != DatabaseBeatmap::BeatmapType::PEPPY_BEATMAPSET) continue;
+        if(BeatmapDifficulty *diff = find_in(set.get())) return diff;
+    }
+    return nullptr;
+}
+
 BeatmapSet *Database::getBeatmapSet(i32 set_id) const {
     if(set_id <= 0) return nullptr;
     if(this->isLoading()) {

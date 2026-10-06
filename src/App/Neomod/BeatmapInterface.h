@@ -35,9 +35,6 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
     using DBTimingInfo = neomod::DatabaseBeatmapTypes::TIMING_INFO;
     using DBBreak = neomod::DatabaseBeatmapTypes::BREAK;
 
-    // for handling transition from unloaded database to loaded database
-    static inline CONSTINIT MD5Hash loading_reselect_map{};
-
     // plays the selected map's music on `music`
     explicit BeatmapInterface(MusicTrack &music);
     ~BeatmapInterface() override;

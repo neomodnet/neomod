@@ -86,6 +86,10 @@
 #include "Sorting.h"
 
 struct SongBrowser::MD5HashMap : public Hash::flat::map<MD5Hash, SongDifficultyButton *> {};
+struct SongBrowser::PendingReselect {
+    Database::MapLocation where;
+    MD5Hash md5;
+};
 
 namespace {
 constexpr const Color highlightColor = argb(255, 0, 255, 0);
@@ -799,7 +803,8 @@ bool SongBrowser::selectBeatmapset(const BeatmapSet *set) {
 
     assert(set);
     if(!this->bInitializedBeatmaps) {
-        BeatmapInterface::loading_reselect_map = set->getDifficulties()[0]->getMD5();
+        const auto &first = *set->getDifficulties()[0];
+        this->reselect = std::make_unique<PendingReselect>(db->locate(first), first.getMD5());
         return false;
     }
 
@@ -1351,7 +1356,7 @@ void SongBrowser::playPreviewMusic(DatabaseBeatmap *map) {
     switch(music->load(map, true /*async*/)) {
         case MusicTrack::Loaded::NO_AUDIO:
             // (not while the database reloads: its reselection goes on with the music)
-            if(BeatmapInterface::loading_reselect_map.empty()) music->pause();
+            if(!this->reselect) music->pause();
             return;
         case MusicTrack::Loaded::SAME_FILE:
             if(music->getPositionPct() > 0.95) {
@@ -1495,7 +1500,7 @@ void SongBrowser::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
     // remember for initial songbrowser load
     if(const BeatmapDifficulty *map = osu->getMapInterface()->getBeatmap();
        !!map && map->getMD5() != MD5Hash::sentinel && !map->getMD5().is_suspicious()) {
-        BeatmapInterface::loading_reselect_map = map->getMD5();
+        this->reselect = std::make_unique<PendingReselect>(db->locate(*map), map->getMD5());
     }
 
     // reset
@@ -2705,12 +2710,18 @@ void SongBrowser::onDatabaseLoadingFinished(bool isNextScreenSongBrowser) {
     // ugly hack to transition from preloaded main menu beatmap to database-loaded beatmap without pausing music
     {
         DatabaseBeatmap *reselectMap = nullptr;
-        if(BeatmapInterface::loading_reselect_map != MD5Hash{}) {
-            reselectMap = db->getBeatmapDifficulty(BeatmapInterface::loading_reselect_map);
+        if(this->reselect) {
+            // the same file, edited or not, else the same content wherever it went
+            reselectMap = db->getBeatmapDifficulty(this->reselect->md5);
+            if(!reselectMap || db->locate(*reselectMap) != this->reselect->where) {
+                if(DatabaseBeatmap *atLocation = db->getBeatmapDifficulty(this->reselect->where)) {
+                    reselectMap = atLocation;
+                }
+            }
             if(!reselectMap) {
                 // FIXME: why does this happen? every time i see this log, the md5hash is from a map that we never load in
                 // from the database... where are we loading these stray .osu files from
-                debugLog("failed to get reselect map for {}", BeatmapInterface::loading_reselect_map);
+                debugLog("failed to get reselect map for {}", this->reselect->md5);
             }
         }
 
@@ -2718,7 +2729,7 @@ void SongBrowser::onDatabaseLoadingFinished(bool isNextScreenSongBrowser) {
         if(reselectMap) {
             this->selectSelectedBeatmapSongButton();
         }
-        BeatmapInterface::loading_reselect_map.clear();
+        this->reselect.reset();
     }
 
     // ok, if we still haven't selected a song, do so now
