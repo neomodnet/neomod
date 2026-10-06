@@ -1241,6 +1241,7 @@ void MainMenu::updateInput(CBaseUIEventCtx &c) {
 void MainMenu::selectRandomBeatmap() {
     if(db->isFinished() && !db->getBeatmapSets().empty() && !ui->getSongBrowser()->parentButtons.empty()) {
         if(ui->getSongBrowser()->selectRandomBeatmap()) {
+            this->playPickFromStart();
             RichPresence::onMainMenu();
         } else {
             this->restartMusic();
@@ -1309,6 +1310,7 @@ void MainMenu::selectRandomBeatmap() {
 
             if(previous && previous->do_not_store) this->previousPreloadedMaps.push_back(previous);
             ui->getSongBrowser()->onDifficultySelected(candidate_diff, false);
+            this->playPickFromStart();
 
             RichPresence::onMainMenu();
 
@@ -1331,7 +1333,13 @@ void MainMenu::selectPreviousRandomBeatmap() {
         this->restartMusic();
         return;
     }
+    this->playPickFromStart();
     RichPresence::onMainMenu();
+}
+
+void MainMenu::playPickFromStart() {
+    if(std::exchange(this->firstPick, false) && cv::start_first_main_menu_song_at_preview_point.getBool()) return;
+    osu->getMusicTrack()->setPosition(0);
 }
 
 void MainMenu::restartMusic() {

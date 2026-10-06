@@ -55,9 +55,6 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
     // live (but also on start)
     void onModUpdate(bool rebuildSliderVertexBuffers = true, bool recomputeDrainRate = true);
 
-    // does things which needed to wait until loading finished, even outside of play mode (called by Osu::update)
-    void checkHandleAsyncMusicLoadFinish();
-
     // Returns true if we're loading or waiting on other players
     bool isLoading();
 
@@ -142,10 +139,6 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
     void fail(bool force_death = false);
     void cancelFailing();
     void resetScore();
-
-    // music/sound
-    inline void reloadMusicNow() { this->loadMusic(true, false); }
-    void loadMusic(bool reload = false, bool async = false);
 
     // the speed (and the pitch that goes with it) gameplay plays the music at, or 1 outside of it
     void setMusicSpeed(f32 speed);
@@ -295,7 +288,6 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
 
     void actualRestart();
 
-    void handlePreviewPlay();
     void unloadObjects();
 
     void resetHitObjects(i32 curPos = 0);
@@ -307,7 +299,6 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
     f32 fShouldFlashSectionPass;
     f32 fShouldFlashSectionFail;
     bool bContinueScheduled;
-    u32 iContinueMusicPos;
     f64 fWaitTime{0.f};
     f64 fPrevUnpauseTime{0.f};
 
@@ -316,8 +307,6 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
     u64 iLastMusicPosUpdateTime{0};
     f32 fAfterMusicIsFinishedVirtualAudioTimeStart;
     bool bIsFirstMissSound;
-    bool bIsWaitingForPreview{false};
-    bool bIsAsyncMusicLoadHandled{true};
     DBTimingInfo cur_timing_info{};
     u8 default_sample_set{1};
 

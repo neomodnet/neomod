@@ -1167,6 +1167,7 @@ CBaseUIContainer *SongBrowser::setVisible(bool visible) {
 
         // we have to re-select the current beatmap to start playing music again
         osu->getMapInterface()->selectBeatmap();
+        if(DatabaseBeatmap *map = osu->getMapInterface()->getBeatmapMutable()) this->playPreviewMusic(map);
 
         // update user name/stats
         osu->onUserCardChange(BanchoState::get_username());
@@ -1177,9 +1178,6 @@ CBaseUIContainer *SongBrowser::setVisible(bool visible) {
 
         // Select button matching current song preview
         this->selectSelectedBeatmapSongButton();
-
-        // re-enable looping, since exiting to the main menu disables it
-        osu->getMusicTrack()->setLoop(cv::beatmap_preview_music_loop.getBool());
 
         RichPresence::onSongBrowser();
     } else {
@@ -1345,12 +1343,34 @@ void SongBrowser::onSelectionChange(CarouselButton *button, bool rebuild) {
     }
 }
 
+void SongBrowser::playPreviewMusic(DatabaseBeatmap *map) {
+    MusicTrack *music = osu->getMusicTrack();
+    switch(music->load(map, true /*async*/)) {
+        case MusicTrack::Loaded::NO_AUDIO:
+            // (not while the database reloads: its reselection goes on with the music)
+            if(BeatmapInterface::loading_reselect_map.empty()) music->pause();
+            return;
+        case MusicTrack::Loaded::SAME_FILE:
+            if(music->getPositionPct() > 0.95) {
+                music->restart();
+            } else {
+                music->play();
+            }
+            break;
+        case MusicTrack::Loaded::NEW_FILE:
+            music->restart();
+            break;
+    }
+    music->setLoop(cv::beatmap_preview_music_loop.getBool());
+}
+
 void SongBrowser::onDifficultySelected(DatabaseBeatmap *map, bool play) {
     // deselect = unload
     osu->getMapInterface()->deselectBeatmap();
 
     // select = play preview music
     osu->getMapInterface()->selectBeatmap(map);
+    if(map) this->playPreviewMusic(map);
 
     // update song info
     if(map) {
@@ -2695,8 +2715,7 @@ void SongBrowser::onDatabaseLoadingFinished(bool isNextScreenSongBrowser) {
         if(reselectMap) {
             this->selectSelectedBeatmapSongButton();
         }
-
-        // the reselect map is cleared when the preview starts playing
+        BeatmapInterface::loading_reselect_map.clear();
     }
 
     // ok, if we still haven't selected a song, do so now
@@ -2704,8 +2723,6 @@ void SongBrowser::onDatabaseLoadingFinished(bool isNextScreenSongBrowser) {
         this->selectRandomBeatmap();
     }
 
-    // make sure we loop the music, since if we're carrying over from main menu it was set to not-loop
-    osu->getMusicTrack()->setLoop(cv::beatmap_preview_music_loop.getBool());
     if(wasMusicPausedBeforeSongBrowserLoadAndNextScreenIsntSongbrowser) {
         osu->getMusicTrack()->pause();
     }

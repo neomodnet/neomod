@@ -22,14 +22,21 @@ class MusicTrack final {
     ~MusicTrack();
 
     // finishes a load once the file and the map's loudness are in, resumes the music after a device change and samples
-    // the clock; run once per frame, before anything reads the clock
-    void update();
+    // the clock; run once per frame, before anything reads the clock. whether a load finished (the music may have
+    // started with it)
+    bool update();
 
+    enum class Loaded : u8 {
+        NO_AUDIO,   // the map has no audio file, nothing changed
+        SAME_FILE,  // its file is the one already loaded, which goes on as it was
+        NEW_FILE,   // its file is loading, or loaded (a sync load)
+    };
     // makes `map`'s audio the track's: loaded unless it's the file already loaded (or `reload`), and counted as loading
-    // until the map's loudness is in when normalization wants it. `map` is kept for the volume until the next load or
-    // releaseMap(). false (and nothing changes) for a map without an audio file
-    bool load(DatabaseBeatmap *map, bool async, bool reload = false);
-    // forgets the map, before the maps it could point into go away (database loads)
+    // until the map's loudness is in when normalization wants it. `map` is kept for the volume and the restart point
+    // until the next load or releaseMap(). a play() asked for before (still waiting for a load) is dropped
+    Loaded load(DatabaseBeatmap *map, bool async, bool reload = false);
+    // forgets the map, before the maps it could point into go away (database loads), and a play() still waiting for its
+    // loudness: the selection after the load asks again
     void releaseMap();
     // stops and frees the stream, e.g. before deleting the file it reads
     void unload();
@@ -41,11 +48,13 @@ class MusicTrack final {
     // nothing was loaded (or it was unloaded)
     [[nodiscard]] bool isEmpty() const { return this->stream == nullptr; }
 
-    // whether it plays now (from the start again once it has played to its end)
-    bool play();
+    // plays now, or once the load and its loudness wait are done (from the start again once it has played to its end)
+    void play();
     void pause();
     // for the buttons and keys that pause and resume the music
     void togglePause();
+    // plays from the restart point: the map's preview time, or 40% into the song without one
+    void restart();
     // also after the music has played to its end; the clock reads the new time at once
     void setPosition(u32 ms);
     void setLoop(bool loop);
@@ -70,11 +79,12 @@ class MusicTrack final {
     [[nodiscard]] f32 getSpeed() const { return this->speed; }
 
    private:
-    // what a finished load still waits for, then the stream is set up to play (paused)
-    void finishLoad();
+    // what a finished load still waits for, then the stream is set up and plays if asked to; whether it finished now
+    bool finishLoad();
     // a stream that played to its end has no voice left (SoLoud) to seek: a new one, paused, with the track's rate
     void makeVoice();
     void applyRate();
+    [[nodiscard]] u32 getRestartPoint() const;
     void onDeviceChangeBefore();
     void onDeviceChangeAfter();
     [[nodiscard]] f32 getVolume() const;
@@ -93,9 +103,12 @@ class MusicTrack final {
     f32 slowdown{1.f};
 
     i32 time{0};
-    f64 lastPosition{0.0};   // the stream's, at the last sample
-    bool seeked{false};      // restarts the smoothing at the next sample
-    bool seekOnLoad{false};  // the stream wasn't loaded yet when the time was set
+    f64 lastPosition{0.0};  // the stream's, at the last sample
+    bool seeked{false};     // restarts the smoothing at the next sample
+    // asked for while the stream was still loading
+    bool seekOnLoad{false};
+    bool restartOnLoad{false};
+    bool playOnLoad{false};
     std::unique_ptr<GameplayInterpolator> smoothing;
 
     bool loadFinished{true};

@@ -53,6 +53,7 @@
 #include "RankingScreen.h"
 #include "RenderTarget.h"
 #include "ResourceManager.h"
+#include "RichPresence.h"
 #include "RoomScreen.h"
 #include "Shader.h"
 #include "Skin.h"
@@ -603,9 +604,8 @@ void Osu::update() {
 
     this->previewTrackManager->update();
 
-    // does things which needed to wait until loading finished
-    this->musicTrack->update();
-    this->map_iface->checkHandleAsyncMusicLoadFinish();
+    // (a finished load may have started the music)
+    if(this->musicTrack->update()) RichPresence::refreshStatus();
 
     if(this->skin.get()) {
         this->skin->update(this->isInPlayMode(), this->map_iface->isPlaying(),

@@ -67,6 +67,9 @@ class MainMenu final : public UIScreen, public MouseListener {
     std::pair<bool, float> getTimingpointPulseAmount();  // for main menu cube anim
     void updateLayout();
     void restartMusic();
+    // the menu plays its picks from the start, over the song browser's preview rule (the first one from its restart
+    // point with start_first_main_menu_song_at_preview_point)
+    void playPickFromStart();
 
     void animMainButton();
     void animMainButtonBack();
@@ -152,6 +155,7 @@ class MainMenu final : public UIScreen, public MouseListener {
     std::vector<std::unique_ptr<BeatmapSet>> preloadedMaps;
     // the preloaded difficulties that played before the current one, for going back while the database isn't loaded
     std::vector<BeatmapDifficulty *> previousPreloadedMaps;
+    bool firstPick{true};
 
     // songs folder enumeration (for random beatmap before db loads)
     void submitSongsFolderEnum();

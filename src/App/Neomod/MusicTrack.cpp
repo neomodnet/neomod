@@ -26,8 +26,8 @@ MusicTrack::~MusicTrack() {
     if(this->stream) resourceManager->destroyResource(this->stream, ResourceDestroyFlags::RDF_FORCE_BLOCKING);
 }
 
-void MusicTrack::update() {
-    this->finishLoad();
+bool MusicTrack::update() {
+    const bool finished = this->finishLoad();
 
     if(this->resumeScheduled && soundEngine->isReady()) {
         if(this->stream && !this->stream->isPlaying()) soundEngine->play(this->stream);
@@ -37,7 +37,7 @@ void MusicTrack::update() {
     // the clock: the stream's position once a frame, smoothed (interpolate_music_pos: lazer's unless McOsu's or none),
     // which every reader gets. a stream without a voice (before its first one, after its end) has no position to read,
     // so the time stays
-    if(!this->isReady() || this->deviceChanging || this->stream->isFinished()) return;
+    if(!this->isReady() || this->deviceChanging || this->stream->isFinished()) return finished;
 
     const f64 now = Timing::getTimeReal<f64>();
     const f64 position = (f64)this->stream->getPositionUS() / 1000.0;
@@ -65,13 +65,14 @@ void MusicTrack::update() {
 
     logIf(cv::debug_snd.getInt() > 1, "music clock: real time {:.6f} position {:.3f} time {}", now, position,
           this->time);
+    return finished;
 }
 
-bool MusicTrack::load(DatabaseBeatmap *map, bool async, bool reload) {
+MusicTrack::Loaded MusicTrack::load(DatabaseBeatmap *map, bool async, bool reload) {
     std::string path = map->getFullSoundFilePath();
     if(path.empty()) {
         debugLog("no music file for {}!", map->getFilePath());
-        return false;
+        return Loaded::NO_AUDIO;
     }
     this->map = map;
 
@@ -86,6 +87,7 @@ bool MusicTrack::load(DatabaseBeatmap *map, bool async, bool reload) {
     // finished by finishLoad() even if the file doesn't need loading: the map can still be missing its loudness (e.g.
     // the db's copy of a preloaded main menu map)
     this->loadFinished = false;
+    this->playOnLoad = false;
 
     // if normalization is enabled and we don't yet have loudness for this map, kick off a priority calc in parallel
     // with the audio decode, finishLoad() holds the music back until it lands (avoiding an audible volume snap)
@@ -103,15 +105,20 @@ bool MusicTrack::load(DatabaseBeatmap *map, bool async, bool reload) {
         this->time = 0;
         this->seeked = true;
         this->seekOnLoad = false;
+        this->restartOnLoad = false;
     }
     this->path = std::move(path);
 
     // a sync load (or none) is done now, an async one is finished by update()
     if(!async || skip) this->finishLoad();
-    return true;
+    return skip ? Loaded::SAME_FILE : Loaded::NEW_FILE;
 }
 
-void MusicTrack::releaseMap() { this->map = nullptr; }
+void MusicTrack::releaseMap() {
+    this->map = nullptr;
+    // (without the map there is no loudness to wait for)
+    this->playOnLoad = false;
+}
 
 void MusicTrack::unload() {
     if(this->stream) {
@@ -122,18 +129,20 @@ void MusicTrack::unload() {
     this->loadFinished = true;
     this->time = 0;
     this->seekOnLoad = false;
+    this->restartOnLoad = false;
+    this->playOnLoad = false;
 }
 
-void MusicTrack::finishLoad() {
-    if(this->loadFinished || !this->stream) return;
-    if(resourceManager->isLoadingResource(this->stream)) return;
+bool MusicTrack::finishLoad() {
+    if(this->loadFinished || !this->stream) return false;
+    if(resourceManager->isLoadingResource(this->stream)) return false;
 
     // hold off until loudness has landed if normalization is currently enabled, so the song doesn't briefly play at
     // unnormalized volume. fallback_loudness is non-zero, so this never hangs: the priority worker always writes a
     // non-zero value (real or fallback). re-checked each frame: toggling normalization off while waiting lets playback
     // proceed
     if(this->map && cv::normalize_loudness.getBool() && this->map->loudness.load(std::memory_order_acquire) == 0.f) {
-        return;
+        return false;
     }
 
     this->loadFinished = true;
@@ -142,7 +151,7 @@ void MusicTrack::finishLoad() {
     if(!this->stream->isReady() || (!this->stream->isPlaying() && !soundEngine->enqueue(this->stream))) {
         logIf(cv::debug_osu.getBool() || cv::debug_snd.getBool(), "failed to enqueue music at {}",
               this->stream->getFilePath());
-        return;
+        return true;
     }
 
     // ready and enqueued (or still playing)
@@ -150,10 +159,16 @@ void MusicTrack::finishLoad() {
     this->baseFrequency = this->stream->getFrequency();
     this->stream->setLoop(this->loop);
     this->applyRate();
+    if(std::exchange(this->restartOnLoad, false)) {
+        this->time = (i32)this->getRestartPoint();
+        this->seekOnLoad = true;
+    }
     if(std::exchange(this->seekOnLoad, false)) {
         this->stream->setPositionMS((u32)this->time);
         this->seeked = true;
     }
+    if(std::exchange(this->playOnLoad, false)) this->play();
+    return true;
 }
 
 void MusicTrack::makeVoice() {
@@ -169,26 +184,44 @@ bool MusicTrack::isLoading() const { return this->stream && !this->loadFinished;
 
 bool MusicTrack::isReady() const { return this->stream && this->stream->isReady(); }
 
-bool MusicTrack::play() {
-    if(!this->isReady()) return false;
+void MusicTrack::play() {
+    if(!this->isReady() || this->isLoading()) {
+        this->playOnLoad = true;
+        return;
+    }
 
     // (a new voice starts with the file's rate)
     const bool newVoice = this->stream->isFinished();
-    if(!soundEngine->play(this->stream)) return false;
-    if(newVoice) this->applyRate();
-    return true;
+    if(soundEngine->play(this->stream) && newVoice) this->applyRate();
 }
 
 void MusicTrack::pause() {
+    this->playOnLoad = false;
     if(this->stream) soundEngine->pause(this->stream);
 }
 
 void MusicTrack::togglePause() {
-    if(this->isPlaying()) {
+    if(this->isPlaying() || this->playOnLoad) {
         this->pause();
     } else {
         this->play();
     }
+}
+
+void MusicTrack::restart() {
+    if(this->isReady()) {
+        this->setPosition(this->getRestartPoint());
+    } else {
+        // (the restart point can need the song's length)
+        this->restartOnLoad = true;
+        this->seekOnLoad = false;
+    }
+    this->play();
+}
+
+u32 MusicTrack::getRestartPoint() const {
+    const i32 preview = this->map ? this->map->getPreviewTime() : -1;
+    return preview >= 0 ? (u32)preview : (u32)(this->getLengthMS() * 0.4f);
 }
 
 void MusicTrack::setPosition(u32 ms) {
@@ -196,6 +229,7 @@ void MusicTrack::setPosition(u32 ms) {
     this->seeked = true;
     if(!this->isReady()) {
         this->seekOnLoad = true;
+        this->restartOnLoad = false;
         return;
     }
 
