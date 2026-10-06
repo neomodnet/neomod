@@ -4,6 +4,7 @@
 
 #include "Archival.h"
 #include "AsyncPool.h"
+#include "BackgroundImageHandler.h"
 #include "BeatmapFile.h"
 #include "BeatmapInterface.h"
 #include "Database.h"
@@ -644,8 +645,10 @@ void BeatmapInstaller::update() {
                 if(!r) break;  // db busy/rebuilding; retry next tick
 
                 // the carousel follows the db whatever the outcome (an archive can overwrite an installed set's
-                // files with nothing loadable, which removes the set)
+                // files with nothing loadable, which removes the set), and backgrounds are read again (an image
+                // replaced under its name changes nothing the db sees)
                 ui->getSongBrowser()->applyReconcile(*r);
+                osu->getBackgroundImageHandler()->forgetFolder(Mc::Paths::maps() + "/" + e.folder + "/");
                 if(e.kind == Entry::Kind::Folder) {
                     // (whatever was done to the folder outside of the game: no toasts for that)
                     if(r->outcome != ReconcileResult::Outcome::Unchanged &&

@@ -13,6 +13,7 @@
 #include "MakeDelegateWrapper.h"
 #include "Environment.h"
 #include "Hashing.h"
+#include "MD5Hash.h"
 #include "Graphics.h"
 #include "AsyncPool.h"
 
@@ -140,10 +141,12 @@ struct BGImageHandlerImpl final {
     void update(bool allowEviction);
     const Image *getLoadBackgroundImage(const DatabaseBeatmap *beatmap, bool load_immediately = false,
                                         bool allow_menubg_fallback = true);
+    void forgetFolder(std::string_view folder);
 
     struct ENTRY {
         std::string folder;
         std::string bg_image_filename;
+        MD5Hash md5;  // of the content it was made for (a changed file may name another background)
 
         Async::CancellableHandle<BGPathResult> bg_path_handle;
         Image *image;
@@ -364,6 +367,11 @@ const Image *BGImageHandlerImpl::getLoadBackgroundImage(const DatabaseBeatmap *b
 
     logIf(cv::debug_bg_loader.getInt() > 1, "trying to load image for {:s}", beatmap_filepath);
 
+    if(auto it = this->cache.find(beatmap_filepath); it != this->cache.end() && it->second.md5 != beatmap->getMD5()) {
+        this->releaseImageRef(it->second);
+        this->cache.erase(it);
+    }
+
     if(const auto &it = this->cache.find(beatmap_filepath); it != this->cache.end()) {
         // 1) if the path or image is already loaded, return image ref immediately (which may still be NULL) and keep track
         // of when it was last requested
@@ -414,6 +422,7 @@ const Image *BGImageHandlerImpl::getLoadBackgroundImage(const DatabaseBeatmap *b
         // create entry
         ENTRY entry{.folder{beatmap->getFolder()},
                     .bg_image_filename{beatmap->getBackgroundImageFileName()},
+                    .md5 = beatmap->getMD5(),
                     .bg_path_handle = {},
                     .image = nullptr,
                     .loading_time = engine->getTime() + (load_immediately ? 0. : this->image_loading_delay),
@@ -435,6 +444,17 @@ const Image *BGImageHandlerImpl::getLoadBackgroundImage(const DatabaseBeatmap *b
     }
 
     return ret;
+}
+
+void BGImageHandlerImpl::forgetFolder(std::string_view folder) {
+    for(auto it = this->cache.begin(); it != this->cache.end();) {
+        if(it->second.folder != folder) {
+            ++it;
+            continue;
+        }
+        this->releaseImageRef(it->second);
+        it = this->cache.erase(it);
+    }
 }
 
 // private
@@ -506,4 +526,5 @@ const Image *BGImageHandler::getLoadBackgroundImage(const DatabaseBeatmap *beatm
                                                     bool allow_menubg_fallback) {
     return pImpl->getLoadBackgroundImage(beatmap, load_immediately, allow_menubg_fallback);
 }
+void BGImageHandler::forgetFolder(std::string_view folder) { pImpl->forgetFolder(folder); }
 void BGImageHandler::scheduleFreezeCache() { pImpl->frozen = true; }

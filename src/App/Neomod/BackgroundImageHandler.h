@@ -6,6 +6,8 @@
 #include "types.h"
 #include "StaticPImpl.h"
 
+#include <string_view>
+
 struct BGImageHandlerImpl;
 
 class Image;
@@ -24,6 +26,8 @@ class BGImageHandler final {
     void update(bool allowEviction);
     const Image *getLoadBackgroundImage(const DatabaseBeatmap *beatmap, bool load_immediately = false,
                                         bool allow_menubg_fallback = true);
+    // drops what's cached for a set folder (the one a map's getFolder() names) whose files changed, so it's read again
+    void forgetFolder(std::string_view folder);
 
     void scheduleFreezeCache();
 
