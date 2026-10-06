@@ -93,6 +93,7 @@ class MusicTrack final {
     f32 slowdown{1.f};
 
     i32 time{0};
+    f64 lastPosition{0.0};   // the stream's, at the last sample
     bool seeked{false};      // restarts the smoothing at the next sample
     bool seekOnLoad{false};  // the stream wasn't loaded yet when the time was set
     std::unique_ptr<GameplayInterpolator> smoothing;

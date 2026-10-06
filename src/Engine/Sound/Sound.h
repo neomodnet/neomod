@@ -1,8 +1,8 @@
 #pragma once
 // Copyright (c) 2014, PG, All rights reserved.
 
+#include "types.h"
 #include "Resource.h"
-#include "PlaybackInterpolator.h"
 
 #include <unordered_map>
 #include <cmath>
@@ -65,6 +65,7 @@ class Sound : public Resource {
 
     [[nodiscard]] f64 getPositionPct() const { return std::clamp<f64>(getPositionS() / getLengthS(), 0.0f, 1.0f); }
 
+    // as the backend last reported it, which moves in steps of its output buffer (smoothing is up to the caller)
     virtual u64 getPositionUS() const = 0;
     inline u32 getPositionMS() const { return (this->getPositionUS() + 500) / 1000; }
     inline f64 getPositionS() const { return static_cast<f64>(this->getPositionUS()) / (1000. * 1000.); }
@@ -120,8 +121,6 @@ class Sound : public Resource {
     // currently playing sound instances (updates cache)
     const std::unordered_map<SOUNDHANDLE, PlaybackParams> &getActiveHandles();
     void addActiveInstance(SOUNDHANDLE handle, PlaybackParams instance);
-
-    mutable PlaybackInterpolator interpolator;
 
     std::unordered_map<SOUNDHANDLE, PlaybackParams> activeHandleCache;
 

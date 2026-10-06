@@ -12,7 +12,6 @@
 #include "File.h"
 #include "ResourceManager.h"
 #include "Logging.h"
-#include "Timing.h"
 
 #include "soloud.h"
 #include "soloud_file.h"
@@ -173,12 +172,9 @@ void SoLoudSound::destroy() {
     this->fLastPlayTime = 0.0f;
     this->bIgnored = false;
 
-    // reset position cache state
-    this->cached_stream_position = 0.0;
-    this->soloud_stream_position_cache_time = -1.0;
+    // reset handle cache state
     this->soloud_paused_handle_cache_time = 0.0;
     this->soloud_valid_handle_cache_time = 0.0;
-    this->force_sync_position_next = true;
 }
 
 void SoLoudSound::setPositionUS(u64 us) {
@@ -194,12 +190,6 @@ void SoLoudSound::setPositionUS(u64 us) {
 
     // seek
     soloud->seek(this->handle, positionInSeconds);
-
-    // force next position query to be synchronous to get accurate post-seek position
-    this->force_sync_position_next = true;
-
-    // reset position interp vars with the new position
-    this->interpolator.reset(positionInSeconds, Timing::getTimeReal(), getSpeed());
 }
 
 void SoLoudSound::setSpeed(float speed, bool preservePitch) {
@@ -292,8 +282,7 @@ void SoLoudSound::setLoop(bool loop) {
 u64 SoLoudSound::getPositionUS() const {
     if(!this->isReady() || !this->audioSource || !this->handle) return 0;
 
-    return this->interpolator.update(getStreamPositionInSeconds(), Timing::getTimeReal(), getSpeed(), isLooped(),
-                                     getLengthMS(), isPlaying());
+    return static_cast<u64>(std::round(soloud->getStreamPosition(this->handle) * 1000.0 * 1000.0));
 }
 
 u64 SoLoudSound::getLengthUS() const {
@@ -352,20 +341,6 @@ void SoLoudSound::setHandleVolume(SOUNDHANDLE handle, f32 volume) {
 }
 
 // soloud-specific accessors
-
-double SoLoudSound::getStreamPositionInSeconds() const {
-    if(!this->audioSource || !this->handle) return this->interpolator.getLastInterpolatedPositionS();
-
-    const auto now = Timing::getTimeReal();
-
-    if(this->force_sync_position_next || (now >= this->soloud_stream_position_cache_time + 0.01)) {
-        this->force_sync_position_next = false;
-        this->cached_stream_position = soloud->getStreamPosition(this->handle);
-        this->soloud_stream_position_cache_time = now;
-    }
-
-    return this->cached_stream_position;
-}
 
 double SoLoudSound::getSourceLengthInSeconds() const {
     if(!this->audioSource) return 0.0;

@@ -10,7 +10,6 @@
 #include "Engine.h"
 #include "ResourceManager.h"
 #include "Sound.h"
-#include "Timing.h"
 #include "Logging.h"
 #include "App.h"
 
@@ -568,7 +567,6 @@ void BassSoundEngine::pause(Sound *snd) {
     BASS_Mixer_ChannelFlags(bassSound->srchandle, BASS_MIXER_CHAN_PAUSE, BASS_MIXER_CHAN_PAUSE);
     bassSound->bPaused = true;
     bassSound->paused_position_us = posUS;
-    bassSound->interpolator.reset((f64)posUS / (1000. * 1000.), Timing::getTimeReal(), bassSound->getSpeed());
 }
 
 void BassSoundEngine::stop(Sound *snd) {

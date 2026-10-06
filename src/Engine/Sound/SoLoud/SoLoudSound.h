@@ -62,7 +62,6 @@ class SoLoudSound final : public Sound {
 
     // helpers to access Wav/WavStream internals
     [[nodiscard]] double getSourceLengthInSeconds() const;
-    [[nodiscard]] double getStreamPositionInSeconds() const;
 
     // current playback parameters
     float fFrequency{44100.0f};  // sample rate in Hz
@@ -85,11 +84,6 @@ class SoLoudSound final : public Sound {
     bool is_playing_cached() const;
     mutable bool cached_pause_state{false};
     mutable double soloud_paused_handle_cache_time{-1.};
-
-    // position caching to avoid blocking on getStreamPosition calls
-    mutable double cached_stream_position{0.0};
-    mutable double soloud_stream_position_cache_time{-1.};
-    mutable bool force_sync_position_next{true};
 };
 
 #endif

@@ -34,26 +34,37 @@ void MusicTrack::update() {
         this->resumeScheduled = false;
     }
 
-    // the clock: one sample of the stream a frame, which every reader gets. a stream without a voice (before its first
-    // one, after its end) has no position to read, so the time stays
+    // the clock: the stream's position once a frame, smoothed (interpolate_music_pos: lazer's unless McOsu's or none),
+    // which every reader gets. a stream without a voice (before its first one, after its end) has no position to read,
+    // so the time stays
     if(!this->isReady() || this->deviceChanging || this->stream->isFinished()) return;
+
+    const f64 now = Timing::getTimeReal<f64>();
+    const f64 position = (f64)this->stream->getPositionUS() / 1000.0;
+    // the smoothing starts over after a seek and wherever the position went back (a loop, a new voice), it never
+    // runs from its old time into the new one
+    const bool wentBack = position < std::exchange(this->lastPosition, position);
+    bool restart = std::exchange(this->seeked, false) || wentBack;
 
     const i32 interpolation = cv::interpolate_music_pos.getInt();
     if(interpolation == 2 && (!this->smoothing || this->smoothing->getType() != 2)) {
         this->smoothing = std::make_unique<McOsuInterpolator>();
-    } else if(interpolation == 3 && (!this->smoothing || this->smoothing->getType() != 3)) {
+        restart = true;
+    } else if(interpolation != 0 && interpolation != 2 && (!this->smoothing || this->smoothing->getType() != 3)) {
         this->smoothing = std::make_unique<TachyonInterpolator>();
+        restart = true;
     }
 
-    const f64 now = Timing::getTimeReal<f64>();
-    const i32 position = (i32)this->stream->getPositionMS();
-    const bool seeked = std::exchange(this->seeked, false);
-    this->time = interpolation == 2 || interpolation == 3
-                     ? (i32)this->smoothing->update(position, now, this->speed, false, this->getLengthMS(),
-                                                    this->stream->isPlaying() && !seeked)
-                     : position;
+    if(interpolation == 0) {
+        this->time = (i32)std::round(position);
+    } else {
+        if(restart) this->smoothing->reset(position, now);
+        this->time = (i32)this->smoothing->update(position, now, this->speed, false, this->getLengthMS(),
+                                                  this->stream->isPlaying());
+    }
 
-    logIf(cv::debug_snd.getInt() > 1, "music clock: real time {:.6f} position {} time {}", now, position, this->time);
+    logIf(cv::debug_snd.getInt() > 1, "music clock: real time {:.6f} position {:.3f} time {}", now, position,
+          this->time);
 }
 
 bool MusicTrack::load(DatabaseBeatmap *map, bool async, bool reload) {
@@ -90,6 +101,7 @@ bool MusicTrack::load(DatabaseBeatmap *map, bool async, bool reload) {
             this->stream = resourceManager->loadSoundAbs(path, "BEATMAP_MUSIC", true /* stream */, false, false);
         }
         this->time = 0;
+        this->seeked = true;
         this->seekOnLoad = false;
     }
     this->path = std::move(path);
@@ -138,7 +150,10 @@ void MusicTrack::finishLoad() {
     this->baseFrequency = this->stream->getFrequency();
     this->stream->setLoop(this->loop);
     this->applyRate();
-    if(std::exchange(this->seekOnLoad, false)) this->stream->setPositionMS((u32)this->time);
+    if(std::exchange(this->seekOnLoad, false)) {
+        this->stream->setPositionMS((u32)this->time);
+        this->seeked = true;
+    }
 }
 
 void MusicTrack::makeVoice() {

@@ -3,98 +3,12 @@
 #include <algorithm>
 #include <cmath>
 
-#include "ConVar.h"
-
-u64 PlaybackInterpolator::update(f64 rawPositionS, f64 currentTime, f64 playbackSpeed, bool isLooped, u32 lengthMS,
-                                 bool isPlaying) {
-    if(cv::interpolate_music_pos.getInt() == 0) return static_cast<u64>(std::round(rawPositionS * 1000. * 1000.));
-
-    // reset state if not initialized or not playing
-    if(this->dLastPositionTime <= 0.0 || !isPlaying) {
-        reset(rawPositionS, currentTime, playbackSpeed);
-        return this->iLastInterpolatedPositionUS;
-    }
-
-    // time since last update() call (for interpolation)
-    const f64 timeDelta = currentTime - this->dLastPositionTime;
-
-    // always advance from last interpolated position
-    f64 currentInterpolatedS = static_cast<f64>(this->iLastInterpolatedPositionUS) / (1000.0 * 1000.0);
-    f64 interpolatedPositionS = currentInterpolatedS + (timeDelta * this->dEstimatedRate);
-
-    // update rate estimate and apply drift correction when raw position changes
-    if(this->dLastRawPosition != rawPositionS) {
-        // calculate time between raw position samples
-        const f64 rawPositionTimeDelta = currentTime - this->dLastRawPositionChangeTime;
-
-        // only update rate if enough time has passed (5ms minimum)
-        if(rawPositionTimeDelta > 0.005) {
-            f64 newRate;
-
-            if(rawPositionS >= this->dLastRawPosition) {
-                // normal forward movement
-                newRate = (rawPositionS - this->dLastRawPosition) / rawPositionTimeDelta;
-            } else if(isLooped && lengthMS > 0) {
-                // handle loop wraparound
-                const f64 lengthS = lengthMS / 1000.;
-                const f64 wrappedChange = (lengthS - this->dLastRawPosition) + rawPositionS;
-                newRate = wrappedChange / rawPositionTimeDelta;
-            } else {
-                // backward movement (seeking), keep current rate
-                newRate = this->dEstimatedRate;
-            }
-
-            // sanity check against expected rate (allow 20% deviation)
-            const f64 expectedRate = playbackSpeed;
-            if(newRate < expectedRate * 0.8 || newRate > expectedRate * 1.2) {
-                newRate = expectedRate * 0.7 + newRate * 0.3;  // blend back toward expected
-            }
-
-            // smooth the rate estimate
-            this->dEstimatedRate = this->dEstimatedRate * 0.6 + newRate * 0.4;
-        }
-
-        // apply drift correction to sync with raw position
-        const f64 error = rawPositionS - interpolatedPositionS;
-        interpolatedPositionS += error * 0.3;
-
-        this->dLastRawPosition = rawPositionS;
-        this->dLastRawPositionChangeTime = currentTime;  // track when raw position changed
-    } else {
-        // gradual adjustment when raw position hasn't changed for a while
-        const f64 timeSinceLastChange = currentTime - this->dLastRawPositionChangeTime;
-        if(timeSinceLastChange > 0.1) {
-            const f64 expectedRate = playbackSpeed;
-            this->dEstimatedRate = this->dEstimatedRate * 0.95 + expectedRate * 0.05;
-        }
-    }
-
-    // update time basis for next call
-    this->dLastPositionTime = currentTime;
-
-    // handle looping
-    if(isLooped && lengthMS > 0) {
-        const f64 lengthS = lengthMS / 1000.;
-        if(interpolatedPositionS >= lengthS) {
-            this->iLastInterpolatedPositionUS =
-                static_cast<u64>(std::round(std::fmod(interpolatedPositionS, lengthS) * 1000. * 1000.));
-            return this->iLastInterpolatedPositionUS;
-        }
-    }
-
-    this->iLastInterpolatedPositionUS =
-        static_cast<u64>(std::round(std::max(0.0, interpolatedPositionS) * 1000. * 1000.));
-    return this->iLastInterpolatedPositionUS;
-}
-
 // Playback interpolator used by McOsu
 u32 McOsuInterpolator::update(f64 rawPositionMS, f64 currentTime, f64 playbackSpeed, bool /*isLooped*/,
                               u64 /*lengthMS*/, bool isPlaying) {
     if(!isPlaying) {
         // no interpolation
-        this->fInterpolatedMusicPos = rawPositionMS;
-        this->fLastAudioTimeAccurateSet = currentTime;
-        this->fLastRealTimeForInterpolationDelta = currentTime;
+        this->reset(rawPositionMS, currentTime);
         return (u32)std::round(this->fInterpolatedMusicPos);
     }
 
@@ -132,6 +46,12 @@ u32 McOsuInterpolator::update(f64 rawPositionMS, f64 currentTime, f64 playbackSp
     }
 
     return (u32)std::round(this->fInterpolatedMusicPos);
+}
+
+void McOsuInterpolator::reset(f64 rawPositionMS, f64 currentTime) {
+    this->fInterpolatedMusicPos = rawPositionMS;
+    this->fLastAudioTimeAccurateSet = currentTime;
+    this->fLastRealTimeForInterpolationDelta = currentTime;
 }
 
 // Playback interpolator used by osu-framework (LLM'd to C++)
@@ -184,6 +104,13 @@ u32 TachyonInterpolator::update(f64 rawPositionMS, f64 currentTime, f64 playback
     }
 
     return (u32)std::round(this->fInterpolatedMusicPos);
+}
+
+void TachyonInterpolator::reset(f64 rawPositionMS, f64 currentTime) {
+    this->fIsInterpolating = false;
+    this->fInterpolatedMusicPos = rawPositionMS;
+    this->fLastAudioTimeAccurateSet = rawPositionMS;
+    this->fLastRealTimeForInterpolationDelta = currentTime;
 }
 
 f64 TachyonInterpolator::Lerp(f64 start, f64 final, f64 amount) { return start + (final - start) * amount; }
