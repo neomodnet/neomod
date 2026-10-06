@@ -138,7 +138,7 @@ void NowPlaying::SeekBar::onMouseUpOutside(bool /*left*/, bool /*right*/) { this
 void NowPlaying::SeekBar::seek() const {
     MusicTrack *music = osu->getMusicTrack();
     if(!music->isReady()) return;
-    music->setPosition((u32)std::round(this->getCursorPercent() * music->getLengthMS()));
+    music->setPosition((i32)std::round(this->getCursorPercent() * music->getLengthMS()));
 }
 
 // pins the panel open (main_menu_music_controls_pinned): the pin stands upright while it's pinned and lies tilted while

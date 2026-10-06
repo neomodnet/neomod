@@ -53,6 +53,11 @@ class MusicTrack final {
     // nothing was loaded (or it was unloaded)
     [[nodiscard]] bool isEmpty() const { return this->stream == nullptr; }
 
+    // for plays: the time also runs before the song and past its end at the track's rate while it plays (the song
+    // paused there and started when the time comes into it), and setPosition() can go there. off: the time keeps to the
+    // song, which stops at its end
+    void setVirtualTime(bool on);
+
     // plays now, or once the load and its loudness wait are done (from the start again once it has played to its end)
     void play();
     void pause();
@@ -60,8 +65,9 @@ class MusicTrack final {
     void togglePause();
     // plays from the restart point: the map's preview time, or 40% into the song without one
     void restart();
-    // also after the music has played to its end; the clock reads the new time at once
-    void setPosition(u32 ms);
+    // also after the music has played to its end; the clock reads the new time at once. outside the song only in virtual
+    // time (otherwise before it is its start)
+    void setPosition(i32 ms);
     void setLoop(bool loop);
     void setRate(f32 speed, f32 pitch, bool preservePitch);
     // slows the music down by lowering its frequency to `factor` of its own (the fail animation), until endSlowdown()
@@ -88,6 +94,8 @@ class MusicTrack final {
     bool finishLoad();
     // a stream that played to its end has no voice left (SoLoud) to seek: a new one, paused, with the track's rate
     void makeVoice();
+    // the stream from `ms`, playing if the track does
+    void enterSong(i32 ms);
     void applyRate();
     [[nodiscard]] u32 getRestartPoint() const;
     void onDeviceChangeBefore();
@@ -110,6 +118,12 @@ class MusicTrack final {
     i32 time{0};
     f64 lastPosition{0.0};  // the stream's, at the last sample
     bool seeked{false};     // restarts the smoothing at the next sample
+    f64 lastUpdate{0.0};    // real time
+
+    bool virtualTime{false};
+    bool playing{false};      // asked to play, which the time follows in virtual time
+    bool outsideSong{false};  // in virtual time: before the song or past its end
+    f64 virtualMS{0.0};       // the time there
     // asked for while the stream was still loading
     bool seekOnLoad{false};
     bool restartOnLoad{false};

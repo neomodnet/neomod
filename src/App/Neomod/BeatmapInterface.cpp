@@ -91,7 +91,6 @@ BeatmapInterface::BeatmapInterface(MusicTrack &music) : AbstractBeatmapInterface
     this->iCurMusicPos = 0;
     this->iCurMusicPosWithOffsets = 0;
     this->bWasSeekFrame = false;
-    this->fAfterMusicIsFinishedVirtualAudioTimeStart = -1.0f;
     this->bIsFirstMissSound = true;
 
     this->bFailed = false;
@@ -699,10 +698,12 @@ bool BeatmapInterface::start() {
 
         // Restarting sound engine already reloads the music
     } else {
-        this->music.load(this->beatmap, false,
-                         true);  // need to reload in case of speed/pitch changes (just to be sure)
+        // need to reload in case of speed/pitch changes (just to be sure)
+        this->music.load(this->beatmap, false, true);
     }
 
+    // the lead-in before the song and the time after its end
+    this->music.setVirtualTime(true);
     this->music.setLoop(false);
     this->spectate_pause = false;
     this->bIsPaused = false;
@@ -714,7 +715,6 @@ bool BeatmapInterface::start() {
     this->iPreviousSectionPassFailTime = -1;
     this->fShouldFlashSectionPass = 0.0f;
     this->fShouldFlashSectionFail = 0.0f;
-    this->fAfterMusicIsFinishedVirtualAudioTimeStart = -1.f;
 
     this->music.setPosition(0);
     this->iCurMusicPos = 0;
@@ -723,9 +723,10 @@ bool BeatmapInterface::start() {
     // (from the beginning, even if the last play was quit while waiting for a quick restart)
     this->bIsPlaying = true;
     this->bIsWaiting = true;
+    this->bLeadInStarted = false;
+    this->iLeadInMS = 0;
     this->bIsRestartScheduled = false;
     this->bIsRestartScheduledQuick = false;
-    this->fWaitTime = Timing::getTimeReal<f32>();
 
     if(this->beatmap->getLocalOffset() != 0)
         ui->getNotificationOverlay()->addNotification(
@@ -770,15 +771,8 @@ void BeatmapInterface::actualRestart() {
 
     // we are waiting for an asynchronous start of the beatmap in the next update()
     this->bIsWaiting = true;
-    this->fWaitTime = Timing::getTimeReal<f32>();
-
-    // if the first hitobject starts immediately, add artificial wait time before starting the music
-    if(likely(!this->hitobjects.empty())) {
-        if(this->hitobjects[0]->getClickTime() < cv::early_note_time.getInt()) {
-            this->bIsWaiting = true;
-            this->fWaitTime = Timing::getTimeReal<f32>() + cv::early_note_time.getFloat() / 1000.0f;
-        }
-    }
+    this->bLeadInStarted = false;
+    this->iLeadInMS = 0;
 
     // pause temporarily if playing
     if(this->music.isPlaying()) this->music.pause();
@@ -818,15 +812,6 @@ void BeatmapInterface::pause(bool quitIfWaiting) {
 
     const bool isFirstPause = !this->bContinueScheduled;
 
-    // NOTE: this assumes that no beatmap ever goes far beyond the end of the music
-    // NOTE: if pure virtual audio time is ever supported (playing without SoundEngine) then this needs to be adapted
-    // fix pausing after music ends breaking beatmap state (by just not allowing it to be paused)
-    if(this->fAfterMusicIsFinishedVirtualAudioTimeStart >= 0.0f) {
-        const f32 delta = Timing::getTimeReal<f32>() - this->fAfterMusicIsFinishedVirtualAudioTimeStart;
-        if(delta < 5.0f)  // WARNING: sanity limit, always allow escaping after 5 seconds of overflow time
-            return;
-    }
-
     if(this->bIsPlaying) {
         if(this->bIsWaiting && quitIfWaiting) {
             // if we are still m_bIsWaiting, pausing the game via the escape key is the
@@ -852,10 +837,8 @@ void BeatmapInterface::pause(bool quitIfWaiting) {
     } else if(this->bIsPaused && !this->bContinueScheduled) {
         // if this is the first time unpausing
         if(osu->getModAuto() || osu->getModAutopilot() || this->bIsInSkippableSection || this->is_watching) {
-            if(!this->bIsWaiting) {
-                // only force play() if we were not early waiting
-                this->music.play();
-            }
+            // (also during the lead-in, which runs on the music's virtual time)
+            this->music.play();
 
             this->bIsPlaying = true;
             this->bIsPaused = false;
@@ -909,6 +892,7 @@ void BeatmapInterface::pause(bool quitIfWaiting) {
 
 void BeatmapInterface::stop(bool quit) {
     osu->bIsPlayingASelectedBeatmap = false;
+    this->music.setVirtualTime(false);
 
     soundEngine->stop(this->getSkin()->s_fail);
 
@@ -1038,7 +1022,6 @@ void BeatmapInterface::seekMS(u32 ms) {
     bool was_submittable = this->is_submittable;
 
     this->bWasSeekFrame = true;
-    this->fWaitTime = 0.0f;
 
     this->music.setPosition(ms);
     this->music.updateVolume();
@@ -1059,9 +1042,6 @@ void BeatmapInterface::seekMS(u32 ms) {
 
         // if there are calculations in there that need the hitobjects to be loaded, also applies speed/pitch
         this->onModUpdate(false, false);
-    } else if(this->bIsPlaying && !this->music.isPlaying()) {
-        // (the music had played to its end)
-        this->music.play();
     }
 
     if(this->is_watching) {
@@ -1121,13 +1101,9 @@ f32 BeatmapInterface::getPercentFinished() const {
 
 f32 BeatmapInterface::getPercentFinishedPlayable() const {
     if(this->bIsWaiting) {
-        // this->fWaitTime is set to the time when the wait time ENDS
-        f32 wait_duration = (cv::early_note_time.getFloat() / 1000.f);
-        if(wait_duration <= 0.f) return 0.f;
-
-        f32 wait_start = this->fWaitTime - wait_duration;
-        f32 wait_percent = (Timing::getTimeReal<f32>() - wait_start) / wait_duration;
-        return std::clamp(wait_percent, 0.f, 1.f);
+        // (through the lead-in)
+        if(this->iLeadInMS <= 0) return 0.f;
+        return std::clamp(1.f + (f32)this->iCurMusicPos / (f32)this->iLeadInMS, 0.f, 1.f);
     } else {
         f32 length_playable = this->getLengthPlayable();
         if(length_playable <= 0.f) return 0.f;
@@ -2236,8 +2212,7 @@ void BeatmapInterface::update() {
 
 void BeatmapInterface::update2() {
     if(this->bContinueScheduled) {
-        // If we paused while m_bIsWaiting (green progressbar), then we have to let the 'if (this->bIsWaiting)' block
-        // handle the sound play() call
+        // (a pause while waiting (green progressbar) continues without the continue click)
         bool isEarlyNoteContinue = (!this->bIsPaused && this->bIsWaiting);
         if(this->bClickedContinue || isEarlyNoteContinue) {
             this->bClickedContinue = false;
@@ -2248,9 +2223,7 @@ void BeatmapInterface::update2() {
             // (for allowing consolebox optionsmenu chat etc. text input in the continue screen)
             osu->updateWindowsKeyDisable();
 
-            if(!isEarlyNoteContinue) {
-                this->music.play();
-            }
+            this->music.play();
 
             this->bIsPlaying = true;  // usually this should be checked with the result of the above play() call, but
                                       // since we are continuing we can assume that everything works
@@ -2293,53 +2266,41 @@ void BeatmapInterface::update2() {
     // hoist this call out (it's constant throughout an update iteration)
     const f64 current_frametime = engine->getFrameTime();
 
-    // HACKHACK: clean this mess up
-    // waiting to start (file loading, retry)
-    // NOTE: this is dependent on being here AFTER m_iCurMusicPos has been set above, because it modifies it to fake a
-    // negative start (else everything would just freeze for the waiting period)
+    // waiting to start: the load, then the lead-in, which is the music track's virtual time before the song
     if(this->bIsWaiting) {
-        if(this->isLoading()) {
-            this->fWaitTime = Timing::getTimeReal<f32>();
+        if(!this->isLoading() && !this->bLeadInStarted && !this->bIsPaused) {
+            this->bLeadInStarted = true;
+            this->bIsPlaying = true;
 
-            // if the first hitobject starts immediately, add artificial wait time before starting the music
-            if(!this->bIsRestartScheduledQuick && likely(!this->hitobjects.empty())) {
-                if(this->hitobjects[0]->getClickTime() < cv::early_note_time.getInt()) {
-                    this->fWaitTime = Timing::getTimeReal<f32>() + cv::early_note_time.getFloat() / 1000.0f;
+            // a quick restart starts just before the first hitobject (even if there is a long waiting period at the
+            // beginning with nothing etc.); from the song's start, a first hitobject that starts immediately gets
+            // early_note_time of lead-in
+            i32 start_ms = 0;
+            if(this->bIsRestartScheduledQuick) {
+                if(likely(!this->hitobjects.empty())) {
+                    const i32 retry_time = std::max(0, cv::quick_retry_time.getInt());
+                    start_ms = std::max(this->hitobjects[0]->getClickTime() - retry_time, 0);
                 }
+                this->bIsRestartScheduledQuick = false;
             }
-        } else {
-            if(Timing::getTimeReal<f32>() > this->fWaitTime) {
-                if(!this->bIsPaused) {
-                    this->bIsWaiting = false;
-                    this->bIsPlaying = true;
-
-                    i64 start_ms = 0;
-
-                    // if we are quick restarting, jump just before the first hitobject (even if there is a long waiting
-                    // period at the beginning with nothing etc.)
-                    if(this->bIsRestartScheduledQuick) {
-                        if(likely(!this->hitobjects.empty())) {
-                            i64 retry_time = std::max(0, cv::quick_retry_time.getInt());
-                            start_ms = this->hitobjects[0]->getClickTime() - retry_time;
-                            if(start_ms < 0) start_ms = 0;
-                        }
-                        this->bIsRestartScheduledQuick = false;
-                    }
-
-                    this->music.play();
-                    this->music.setLoop(false);
-                    this->music.setPosition(start_ms);
-                    this->bWasSeekFrame = true;
-                    this->music.updateVolume();
-
-                    // if there are calculations in there that need the hitobjects to be loaded, also applies
-                    // speed/pitch
-                    this->onModUpdate(false, false);
-                }
-            } else {
-                this->iCurMusicPos =
-                    (Timing::getTimeReal<f32>() - this->fWaitTime) * 1000.0f * this->getSpeedMultiplier();
+            if(start_ms == 0 && likely(!this->hitobjects.empty()) &&
+               this->hitobjects[0]->getClickTime() < cv::early_note_time.getInt()) {
+                start_ms = -(i32)(cv::early_note_time.getFloat() * this->getSpeedMultiplier());
             }
+            this->iLeadInMS = -std::min(start_ms, 0);
+            // (without a lead-in the waiting ends with the start)
+            this->bIsWaiting = start_ms < 0;
+
+            this->music.setLoop(false);
+            this->music.setPosition(start_ms);
+            this->music.play();
+            this->bWasSeekFrame = true;
+            this->music.updateVolume();
+
+            // if there are calculations in there that need the hitobjects to be loaded, also applies speed/pitch
+            this->onModUpdate(false, false);
+        } else if(this->bLeadInStarted && this->iCurMusicPos >= 0) {
+            this->bIsWaiting = false;
         }
 
         // ugh. force update all hitobjects while waiting (necessary because of pvs optimization)
@@ -2363,24 +2324,10 @@ void BeatmapInterface::update2() {
         return;
     }
 
-    // detect and handle music end
+    // detect and handle music end (the music track's virtual time goes on past it until the last hitobject is done, plus
+    // end_delay_time, because some beatmaps have hitobjects going until >= the exact end of the music ffs)
     if(!this->bIsWaiting && this->music.isReady()) {
         const bool isMusicFinished = this->music.isFinished();
-
-        // trigger virtual audio time after music finishes
-        if(!isMusicFinished)
-            this->fAfterMusicIsFinishedVirtualAudioTimeStart = -1.0f;
-        else if(this->fAfterMusicIsFinishedVirtualAudioTimeStart < 0.0f)
-            this->fAfterMusicIsFinishedVirtualAudioTimeStart = Timing::getTimeReal<f32>();
-
-        if(isMusicFinished) {
-            // continue with virtual audio time until the last hitobject is done (plus sanity offset given via
-            // osu_end_delay_time) because some beatmaps have hitobjects going until >= the exact end of the music ffs
-            // NOTE: this overwrites m_iCurMusicPos for the rest of the update loop
-            this->iCurMusicPos =
-                (i32)this->music.getLengthMS() +
-                (i32)((Timing::getTimeReal<f32>() - this->fAfterMusicIsFinishedVirtualAudioTimeStart) * 1000.0f);
-        }
 
         const bool hasAnyHitObjects = (likely(!this->hitobjects.empty()));
         const bool isTimePastLastHitObjectPlusLenience =

@@ -32,16 +32,34 @@ bool MusicTrack::update() {
     const bool finished = this->finishLoad();
 
     if(this->resumeScheduled && soundEngine->isReady()) {
-        if(this->stream && !this->stream->isPlaying()) soundEngine->play(this->stream);
+        if(this->stream && !this->outsideSong && !this->stream->isPlaying()) soundEngine->play(this->stream);
         this->resumeScheduled = false;
+    }
+
+    const f64 now = Timing::getTimeReal<f64>();
+    const f64 elapsed = now - std::exchange(this->lastUpdate, now);
+    if(!this->isReady() || this->deviceChanging) return finished;
+
+    // virtual time: before the song and past its end the time runs by itself while the track plays, until it comes into
+    // the song
+    if(this->virtualTime && !this->outsideSong && this->stream->isFinished()) {
+        this->outsideSong = true;
+        this->virtualMS = this->time;
+    }
+    if(this->outsideSong) {
+        if(this->playing) this->virtualMS += elapsed * 1000.0 * this->speed * this->slowdown;
+        this->time = (i32)std::round(this->virtualMS);
+        logIf(cv::debug_snd.getInt() > 1, "music clock: real time {:.6f} position {:.3f} time {} (virtual)", now,
+              this->virtualMS, this->time);
+        if(this->virtualMS >= 0.0 && this->virtualMS < this->getLengthMS()) this->enterSong(this->time);
+        return finished;
     }
 
     // the clock: the stream's position once a frame, smoothed (interpolate_music_pos: lazer's unless McOsu's or none),
     // which every reader gets. a stream without a voice (before its first one, after its end) has no position to read,
     // so the time stays
-    if(!this->isReady() || this->deviceChanging || this->stream->isFinished()) return finished;
+    if(this->stream->isFinished()) return finished;
 
-    const f64 now = Timing::getTimeReal<f64>();
     const f64 position = (f64)this->stream->getPositionUS() / 1000.0;
     // the smoothing starts over after a seek and wherever the position went back (a loop, a new voice), it never
     // runs from its old time into the new one
@@ -106,6 +124,7 @@ MusicTrack::Loaded MusicTrack::load(DatabaseBeatmap *map, bool async, bool reloa
         }
         this->time = 0;
         this->seeked = true;
+        this->outsideSong = false;
         this->seekOnLoad = false;
         this->restartOnLoad = false;
     }
@@ -137,6 +156,7 @@ void MusicTrack::unload() {
     this->path.clear();
     this->loadFinished = true;
     this->time = 0;
+    this->outsideSong = false;
     this->seekOnLoad = false;
     this->restartOnLoad = false;
     this->playOnLoad = false;
@@ -172,16 +192,33 @@ bool MusicTrack::finishLoad() {
         this->time = (i32)this->getRestartPoint();
         this->seekOnLoad = true;
     }
-    if(std::exchange(this->seekOnLoad, false)) {
-        this->stream->setPositionMS((u32)this->time);
-        this->seeked = true;
-    }
+    if(std::exchange(this->seekOnLoad, false)) this->setPosition(this->time);
     if(std::exchange(this->playOnLoad, false)) this->play();
     return true;
 }
 
 void MusicTrack::makeVoice() {
     if(this->stream->isFinished() && soundEngine->enqueue(this->stream)) this->applyRate();
+}
+
+void MusicTrack::enterSong(i32 ms) {
+    this->outsideSong = false;
+    this->time = ms;
+    this->seeked = true;
+    this->makeVoice();
+    this->stream->setPositionMS((u32)ms);
+    // (outside of virtual time a seek leaves playing to the caller)
+    if(this->virtualTime && this->playing && !this->stream->isPlaying()) soundEngine->play(this->stream);
+}
+
+void MusicTrack::setVirtualTime(bool on) {
+    if(std::exchange(this->virtualTime, on) == on) return;
+    this->playing = this->stream && this->stream->isPlaying();
+    if(!on && std::exchange(this->outsideSong, false)) {
+        // the song's own time again: its start before it, its end past it
+        this->time = std::clamp(this->time, 0, (i32)this->getLengthMS());
+        this->seeked = true;
+    }
 }
 
 void MusicTrack::applyRate() {
@@ -194,6 +231,9 @@ bool MusicTrack::isLoading() const { return this->stream && !this->loadFinished;
 bool MusicTrack::isReady() const { return this->stream && this->stream->isReady(); }
 
 void MusicTrack::play() {
+    this->playing = true;
+    // (outside the song the time runs, and the song starts when it comes in)
+    if(this->outsideSong) return;
     if(!this->isReady() || this->isLoading()) {
         this->playOnLoad = true;
         return;
@@ -205,6 +245,7 @@ void MusicTrack::play() {
 }
 
 void MusicTrack::pause() {
+    this->playing = false;
     this->playOnLoad = false;
     if(this->stream) soundEngine->pause(this->stream);
 }
@@ -219,7 +260,7 @@ void MusicTrack::togglePause() {
 
 void MusicTrack::restart() {
     if(this->isReady()) {
-        this->setPosition(this->getRestartPoint());
+        this->setPosition((i32)this->getRestartPoint());
     } else {
         // (the restart point can need the song's length)
         this->restartOnLoad = true;
@@ -233,8 +274,9 @@ u32 MusicTrack::getRestartPoint() const {
     return preview >= 0 ? (u32)preview : (u32)(this->getLengthMS() * 0.4f);
 }
 
-void MusicTrack::setPosition(u32 ms) {
-    this->time = (i32)ms;
+void MusicTrack::setPosition(i32 ms) {
+    if(!this->virtualTime) ms = std::max(ms, 0);
+    this->time = ms;
     this->seeked = true;
     if(!this->isReady()) {
         this->seekOnLoad = true;
@@ -242,8 +284,13 @@ void MusicTrack::setPosition(u32 ms) {
         return;
     }
 
-    this->makeVoice();
-    this->stream->setPositionMS(ms);
+    if(this->virtualTime && (ms < 0 || ms >= (i32)this->getLengthMS())) {
+        this->outsideSong = true;
+        this->virtualMS = ms;
+        if(this->stream->isPlaying()) soundEngine->pause(this->stream);
+        return;
+    }
+    this->enterSong(ms);
 }
 
 void MusicTrack::setLoop(bool loop) {
@@ -281,9 +328,13 @@ f32 MusicTrack::getVolume() const {
     return loudness != 0.f ? volume * std::pow(10.f, (cv::loudness_target.getFloat() - loudness) / 20.f) : volume;
 }
 
-bool MusicTrack::isPlaying() const { return this->stream && this->stream->isPlaying(); }
+bool MusicTrack::isPlaying() const {
+    return this->virtualTime ? this->playing : this->stream && this->stream->isPlaying();
+}
 
-bool MusicTrack::isFinished() const { return this->stream && this->stream->isFinished(); }
+bool MusicTrack::isFinished() const {
+    return this->virtualTime ? this->outsideSong && this->virtualMS >= 0.0 : this->stream && this->stream->isFinished();
+}
 
 i32 MusicTrack::getOffset(const DatabaseBeatmap *map) const {
     i32 offset =

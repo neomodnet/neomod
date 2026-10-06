@@ -26,6 +26,7 @@ class UIDebug final {
     void debugFakeOnline(std::string_view arg);
     void debugFakeRoom(std::string_view arg);
     void debugChatMessage(std::string_view args);
+    void debugFocus(std::string_view arg);
 
    private:
     UI* m_ui;

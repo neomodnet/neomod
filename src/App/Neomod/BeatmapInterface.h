@@ -277,6 +277,8 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
     bool bIsPlaying;
     bool bIsPaused;
     bool bIsWaiting;
+    bool bLeadInStarted{false};
+    i32 iLeadInMS{0};  // the lead-in's length in music time (0: none)
     bool bIsRestartScheduled;
     bool bIsRestartScheduledQuick;
     bool bWasSeekFrame;
@@ -299,13 +301,11 @@ class BeatmapInterface final : public AbstractBeatmapInterface, public Playfield
     f32 fShouldFlashSectionPass;
     f32 fShouldFlashSectionFail;
     bool bContinueScheduled;
-    f64 fWaitTime{0.f};
     f64 fPrevUnpauseTime{0.f};
 
     i32 iCurMusicPos;
     i32 iCurMusicPosWithOffsets;
     u64 iLastMusicPosUpdateTime{0};
-    f32 fAfterMusicIsFinishedVirtualAudioTimeStart;
     bool bIsFirstMissSound;
     DBTimingInfo cur_timing_info{};
     u8 default_sample_set{1};

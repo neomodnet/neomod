@@ -37,6 +37,7 @@ static ConVar ui_prompt_cmd("ui_prompt", CLIENT | NOLOAD | NOSAVE);
 static ConVar debug_fake_online_cmd("debug_fake_online", CLIENT | NOLOAD | NOSAVE);
 static ConVar debug_fake_room_cmd("debug_fake_room", CLIENT | NOLOAD | NOSAVE);
 static ConVar debug_chat_message_cmd("debug_chat_message", CLIENT | NOLOAD | NOSAVE);
+static ConVar debug_focus_cmd("debug_focus", CLIENT | NOLOAD | NOSAVE);
 }  // namespace cv
 
 UIScreen *UIDebug::findScreenByName(std::string_view lowerName) const {
@@ -284,6 +285,15 @@ void UIDebug::debugFakeOnline(std::string_view arg) {
 
 void UIDebug::debugFakeRoom(std::string_view arg) { BanchoState::fake_join_room(arg == "map"); }
 
+void UIDebug::debugFocus(std::string_view arg) {
+    // the window losing ("0") or getting focus, which a headless window never reports
+    if(arg == "0") {
+        osu->onFocusLost();
+    } else {
+        osu->onFocusGained();
+    }
+}
+
 void UIDebug::debugChatMessage(std::string_view args) {
     // debug_chat_message <channel> <author id> <text...>: a message as if received from the server (author 0 = a
     // system message), timestamped at a local midnight so it reads 00:00 in any time zone
@@ -318,6 +328,7 @@ UIDebug::UIDebug(UI *ui_parent) : m_ui(ui_parent) {
     cv::debug_fake_online_cmd.setCallback(SA::MakeDelegate<&UIDebug::debugFakeOnline>(this));
     cv::debug_fake_room_cmd.setCallback(SA::MakeDelegate<&UIDebug::debugFakeRoom>(this));
     cv::debug_chat_message_cmd.setCallback(SA::MakeDelegate<&UIDebug::debugChatMessage>(this));
+    cv::debug_focus_cmd.setCallback(SA::MakeDelegate<&UIDebug::debugFocus>(this));
 }
 
 UIDebug::~UIDebug() {
@@ -328,5 +339,6 @@ UIDebug::~UIDebug() {
     cv::ui_prompt_cmd.removeAllCallbacks();
     cv::debug_fake_online_cmd.removeAllCallbacks();
     cv::debug_fake_room_cmd.removeAllCallbacks();
+    cv::debug_focus_cmd.removeAllCallbacks();
     cv::debug_chat_message_cmd.removeAllCallbacks();
 }
