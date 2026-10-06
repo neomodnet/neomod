@@ -4,7 +4,6 @@
 
 #include "Archival.h"
 #include "AsyncPool.h"
-#include "Bancho.h"
 #include "BeatmapFile.h"
 #include "BeatmapInterface.h"
 #include "Database.h"
@@ -118,10 +117,8 @@ void on_done(const ReconcileResult& r, const Entry& e) {
         toasts->addToast(tformat("Downloaded beatmapset #{:d}", e.set_id), SUCCESS_TOAST);
     }
 
-    // a multiplayer room's map and a spectated player's stay selected (their screens select those themselves)
-    const bool selection_taken =
-        BanchoState::spectating || (BanchoState::is_in_a_multi_room() && BanchoState::room.map_id > 0);
-    if(e.auto_select && set && !selection_taken) {
+    // a held selection stays (e.g. a multiplayer room's map, a spectated player's: their screens select those)
+    if(e.auto_select && set && !osu->getMusicTrack()->isHeld()) {
         const auto& diffs = set->getDifficulties();
         assert(!diffs.empty());
 

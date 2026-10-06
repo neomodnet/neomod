@@ -138,4 +138,6 @@ class RoomScreen final : public UIScreen {
     i32 current_map_id{-1};
     MapFetcher map_fetcher;
     Mc::Registration passwordPrompt;
+    // while the room has a map (the room picks it, nothing else may)
+    Mc::Registration selectionHold;
 };

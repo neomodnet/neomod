@@ -7,6 +7,7 @@
 #include "BanchoUsers.h"
 #include "BeatmapInstaller.h"
 #include "BeatmapInterface.h"
+#include "DatabaseBeatmap.h"
 #include "Chat.h"
 #include "OsuConVars.h"
 #include "ConVarHandler.h"
@@ -22,6 +23,7 @@
 #include "ResourceManager.h"
 #include "RoomScreen.h"
 #include "SongBrowser.h"
+#include "SpectatorScreen.h"
 #include "SString.h"
 #include "SyncStoptoken.h"
 #include "Timing.h"
@@ -423,10 +425,8 @@ void BanchoState::disconnect(bool shutdown) {
     BanchoState::fully_supports_neomod = false;
     BanchoState::endpoint = "";
     BanchoState::game_endpoint = "";
-    BanchoState::spectating = false;
-    BanchoState::spectated_player_id = 0;
+    Spectating::forget();
     BanchoState::spectators.clear();
-    BanchoState::fellow_spectators.clear();
     BanchoState::server_icon_url = "";
     if(BanchoState::server_icon != nullptr) {
         resourceManager->destroyResource(BanchoState::server_icon);
@@ -552,7 +552,7 @@ void BanchoState::set_fake_online(bool enable) {
     }
 }
 
-void BanchoState::fake_join_room() {
+void BanchoState::fake_join_room(bool with_selected_map) {
     if(!BanchoState::is_online()) BanchoState::set_fake_online(true);
 
     // mirror Lobby::on_create_room_clicked's locally-built room, but hand it straight to
@@ -566,6 +566,13 @@ void BanchoState::fake_join_room() {
     room.slots[0].player_id = BanchoState::get_uid();
     room.nb_players = 1;
     room.nb_open_slots = 15;
+    // as a server's room with the selected map picked
+    if(const auto *map = osu->getMapInterface()->getBeatmap(); with_selected_map && map) {
+        room.map_id = map->getID();
+        room.map_md5 = map->getMD5();
+        room.map_name =
+            fmt::format("{:s} - {:s} [{:s}]", map->getArtistLatin(), map->getTitleLatin(), map->getDifficultyName());
+    }
 
     ui->getRoomScreen()->on_room_joined(room);
 }

@@ -58,5 +58,7 @@ void start_by_username(std::string_view username);
 
 void start(int user_id);
 void stop();
+// ends spectating on this side only (stop() also tells the server; a disconnect has nobody to tell)
+void forget();
 
 }  // namespace Spectating

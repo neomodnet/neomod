@@ -1799,7 +1799,7 @@ void SongBrowser::removeBeatmapSet(const BeatmapSet *set) {
 
     this->unlinkBeatmapSet(set);
     this->rebuildAfterSetChange();
-    if(selected_inside) this->selectRandomBeatmap();
+    if(selected_inside && !osu->getMusicTrack()->isHeld()) this->selectRandomBeatmap();
 }
 
 void SongBrowser::replaceBeatmapSet(const BeatmapSet *old_set, BeatmapSet *new_set) {
@@ -1817,7 +1817,7 @@ void SongBrowser::replaceBeatmapSet(const BeatmapSet *old_set, BeatmapSet *new_s
     if(selected_inside) {
         if(cur->getParentSet() == new_set) {
             this->selectSelectedBeatmapSongButton();
-        } else {
+        } else if(!osu->getMusicTrack()->isHeld()) {
             this->selectBeatmapset(new_set);
         }
     }

@@ -447,7 +447,6 @@ Osu::~Osu() {
 
     // destroy playing music
     this->map_iface.reset();
-    this->musicTrack.reset();
 
     // clear main menu maps early, just in case
     if(this->UIReady()) {
@@ -457,6 +456,8 @@ Osu::~Osu() {
     this->bUILoaded = false;
     this->ui_memb.reset();  // destroy ui layers
     ui = nullptr;
+    // (after the ui, whose screens hold the selection)
+    this->musicTrack.reset();
     // shutdown db
     this->db_memb.reset();  // shutdown db
     db = nullptr;

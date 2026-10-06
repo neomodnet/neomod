@@ -107,7 +107,8 @@ struct BanchoState final {
     static bool fake_online;
     static void set_fake_online(bool enable);
     // enter a synthetic multiplayer room (auto-enables fake_online); shows RoomScreen + #multiplayer chat.
-    static void fake_join_room();
+    // with_selected_map: the room has the selected map picked (otherwise none)
+    static void fake_join_room(bool with_selected_map = false);
 
    private:
     // internal helpers

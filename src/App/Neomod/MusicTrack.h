@@ -41,6 +41,11 @@ class MusicTrack final {
     // stops and frees the stream, e.g. before deleting the file it reads
     void unload();
 
+    // while a hold lives, nothing changes the selected map and its music on its own (an install's auto-select, a removed
+    // set's reselection, the main menu's next song); its holder still selects as usual
+    [[nodiscard]] Mc::Registration hold();
+    [[nodiscard]] bool isHeld() const { return this->holds > 0; }
+
     // a load or its loudness wait hasn't finished
     [[nodiscard]] bool isLoading() const;
     // the stream is loaded and can play
@@ -112,6 +117,7 @@ class MusicTrack final {
     std::unique_ptr<GameplayInterpolator> smoothing;
 
     bool loadFinished{true};
+    u32 holds{0};
 
     // across a device change
     bool deviceChanging{false};

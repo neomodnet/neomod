@@ -12,6 +12,7 @@
 #include "Mouse.h"
 #include "Keyboard.h"
 
+#include "MusicTrack.h"
 #include "Osu.h"
 #include "BackgroundImageHandler.h"
 #include "Bancho.h"
@@ -571,6 +572,7 @@ void RoomScreen::ragequit(bool play_sound) {
     BANCHO::Net::send_packet(packet);
 
     BanchoState::room = Room();
+    this->selectionHold.reset();
 
     // the protection lock and the room's mods go away as one change: what got set below the lock while we were in
     // here never was in effect, and doesn't get to be for the moment in between either
@@ -597,6 +599,7 @@ void RoomScreen::on_map_change() {
 
     // Deselect current map
     osu->getMapInterface()->deselectBeatmap();
+    this->selectionHold = BanchoState::room.map_id > 0 ? osu->getMusicTrack()->hold() : Mc::Registration{};
 
     if(BanchoState::room.map_id == 0) {
         this->map_title->setText(_("(no map selected)"));
@@ -907,6 +910,7 @@ void RoomScreen::onSelectMapClicked() {
     BanchoState::room.map_md5 = {};
     BanchoState::room.pack(packet);
     BANCHO::Net::send_packet(packet);
+    this->selectionHold.reset();
 }
 
 void RoomScreen::onDownloadMapsClicked() {
@@ -922,6 +926,7 @@ void RoomScreen::onDownloadMapsClicked() {
     BanchoState::room.map_md5 = {};
     BanchoState::room.pack(packet);
     BANCHO::Net::send_packet(packet);
+    this->selectionHold.reset();
 }
 
 void RoomScreen::onChangePasswordClicked() {

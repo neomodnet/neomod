@@ -13,6 +13,7 @@
 #include "Timing.h"
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <utility>
 
@@ -23,6 +24,7 @@ MusicTrack::MusicTrack() {
 }
 
 MusicTrack::~MusicTrack() {
+    assert(this->holds == 0 && "a hold outlived the music track");
     if(this->stream) resourceManager->destroyResource(this->stream, ResourceDestroyFlags::RDF_FORCE_BLOCKING);
 }
 
@@ -112,6 +114,13 @@ MusicTrack::Loaded MusicTrack::load(DatabaseBeatmap *map, bool async, bool reloa
     // a sync load (or none) is done now, an async one is finished by update()
     if(!async || skip) this->finishLoad();
     return skip ? Loaded::SAME_FILE : Loaded::NEW_FILE;
+}
+
+Mc::Registration MusicTrack::hold() {
+    this->holds++;
+    // (a hold has nothing to finish, so detaching one ends it too)
+    return {[](void *track, u64 /*id*/, Mc::Registration::End /*how*/) { static_cast<MusicTrack *>(track)->holds--; },
+            this, 0};
 }
 
 void MusicTrack::releaseMap() {

@@ -282,7 +282,7 @@ void UIDebug::debugFakeOnline(std::string_view arg) {
     BanchoState::set_fake_online(a.empty() || a != "0");
 }
 
-void UIDebug::debugFakeRoom() { BanchoState::fake_join_room(); }
+void UIDebug::debugFakeRoom(std::string_view arg) { BanchoState::fake_join_room(arg == "map"); }
 
 void UIDebug::debugChatMessage(std::string_view args) {
     // debug_chat_message <channel> <author id> <text...>: a message as if received from the server (author 0 = a

@@ -1169,10 +1169,9 @@ void MainMenu::tick() {
             break;
     }
 
-    // shuffle songs
-    if(soundEngine->isReady()) {
+    // shuffle songs (not a held selection)
+    if(auto *music = osu->getMusicTrack(); soundEngine->isReady() && !music->isHeld()) {
         auto *map_iface = osu->getMapInterface();
-        auto *music = osu->getMusicTrack();
 
         if(music->isEmpty()) {
             this->selectRandomBeatmap();
