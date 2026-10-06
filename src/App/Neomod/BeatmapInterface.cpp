@@ -1411,8 +1411,9 @@ void BeatmapInterface::playSliderTickSound(DatabaseBeatmapTypes::HITSAMPLE_BITS 
         &Skin::s_drum_slidertick,    //
     };
 
-    const auto ti =
-        (timeMS != -1 && this->beatmap) ? this->beatmap->getTimingInfoForTime(timeMS) : this->getCurrentTimingInfo();
+    const auto ti = (timeMS != -1 && this->beatmap)
+                        ? this->beatmap->getTimingInfoForTime(timeMS + cv::timingpoints_offset.getInt())
+                        : this->getCurrentTimingInfo();
     HitSoundUtils::HitSoundContext ctx{
         .timingPointSampleSet = ti.sampleSet,
         .timingPointVolume = ti.volume,
