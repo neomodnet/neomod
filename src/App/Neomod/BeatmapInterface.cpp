@@ -1391,67 +1391,64 @@ void BeatmapInterface::addSliderBreak() {
 void BeatmapInterface::addScorePoints(int points, bool isSpinner) { osu->getScore()->addPoints(points, isSpinner); }
 
 namespace {
-// a sound's panning from where it happens on the playfield as drawn (mirrors, rotation, mods)
+// a sound's panning from where it happens on the playfield as drawn (mirrors, rotation, mods), as played
 f32 soundPanAt(const BeatmapInterface &play, vec2 rawPos) {
-    return GameRules::osuCoords2Pan(play.pixels2OsuCoords(play.osuCoords2Pixels(rawPos)).x);
+    return HitSoundUtils::playedPan(GameRules::osuCoords2Pan(play.pixels2OsuCoords(play.osuCoords2Pixels(rawPos)).x));
+}
+
+// the context of a hitsound at `timeMS` (-1: now)
+HitSoundUtils::HitSoundContext hitSoundContext(const BeatmapInterface &play, const Skin &skin, i32 timeMS) {
+    const DatabaseBeatmap *map = play.getBeatmap();
+    return HitSoundUtils::makeContext(
+        (timeMS != -1 && map) ? HitSoundUtils::samplesAt(map->getTimingpoints(), timeMS) : play.getCurrentTimingInfo(),
+        play.getDefaultSampleSet(), skin.o_layered_hitsounds);
 }
 }  // namespace
 
 void BeatmapInterface::playHitSound(DatabaseBeatmapTypes::HITSAMPLE_BITS samples, vec2 rawPos, i32 delta, i32 timeMS) {
-    HitSoundUtils::play(this, samples, soundPanAt(*this, rawPos), delta, timeMS);
+    // Don't play hitsounds when seeking
+    const Skin *skin = this->getSkin();
+    if(this->bWasSeekFrame || !skin) return;
+
+    f32 pitch = 0.f;
+    if(cv::snd_pitch_hitsounds.getBool()) {
+        // don't change pitch for 300s if delta is within 300 hitwindow
+        // (see AbstractBeatmapInterface.cpp for weird math justification)
+        if(!cv::snd_pitch_hitsounds_ignore_300s.getBool() ||
+           (f32)std::abs(delta) >= (std::floor(this->getHitWindow300()) - 0.5f)) {
+            pitch = (f32)delta / this->getHitWindow100() * cv::snd_pitch_hitsounds_factor.getFloat();
+        }
+    }
+
+    HitSoundUtils::play(*skin, HitSoundUtils::resolve(samples, hitSoundContext(*this, *skin, timeMS), false),
+                        soundPanAt(*this, rawPos), pitch);
 }
 
 void BeatmapInterface::playSliderTickSound(DatabaseBeatmapTypes::HITSAMPLE_BITS samples, vec2 rawPos, i32 timeMS) {
     const Skin *skin = this->getSkin();
     if(!skin) return;
-
-    static constexpr std::array SLIDERTICK_SAMPLESET_METHODS{
-        &Skin::s_normal_slidertick,  //
-        &Skin::s_soft_slidertick,    //
-        &Skin::s_drum_slidertick,    //
-    };
-
-    const auto ti = (timeMS != -1 && this->beatmap)
-                        ? this->beatmap->getTimingInfoForTime(timeMS + cv::timingpoints_offset.getInt())
-                        : this->getCurrentTimingInfo();
-    HitSoundUtils::HitSoundContext ctx{
-        .timingPointSampleSet = ti.sampleSet,
-        .timingPointVolume = ti.volume,
-        .defaultSampleSet = this->getDefaultSampleSet(),
-        .forcedSampleSet = cv::skin_force_hitsound_sample_set.getVal<u8>(),  // unused by sliderticks
-        .layeredHitSounds = false,
-        .ignoreSampleVolume = cv::ignore_beatmap_sample_volume.getBool(),
-        .boostVolume = false,  // unused by sliderticks
-    };
-
-    if(const auto tick = HitSoundUtils::resolveSliderTick(samples, ctx);
-       tick.set < (i32)SLIDERTICK_SAMPLESET_METHODS.size()) {
-        if(Sound *skin_sound = skin->*SLIDERTICK_SAMPLESET_METHODS[tick.set]) {
-            f32 pan = soundPanAt(*this, rawPos);
-            if(!cv::sound_panning.getBool() || (cv::mod_fposu.getBool() && !cv::mod_fposu_sound_panning.getBool()) ||
-               (cv::mod_fps.getBool() && !cv::mod_fps_sound_panning.getBool())) {
-                pan = 0.0f;
-            } else {
-                pan *= cv::sound_panning_multiplier.getFloat();
-            }
-            soundEngine->play(skin_sound, pan, 0.f, tick.volume);
-        }
-    }
+    HitSoundUtils::playSliderTick(*skin,
+                                  HitSoundUtils::resolveSliderTick(samples, hitSoundContext(*this, *skin, timeMS)),
+                                  soundPanAt(*this, rawPos));
 }
 
 std::vector<HitSoundUtils::Set_Slider_Hit> BeatmapInterface::updateSliderSlideSounds(
     bool sliding, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, vec2 rawPos,
     const std::vector<HitSoundUtils::Set_Slider_Hit> &started) {
-    if(sliding && !this->bWasSeekFrame)
-        return HitSoundUtils::play(this, samples, soundPanAt(*this, rawPos), 0, -1, true);
+    const Skin *skin = this->getSkin();
+    if(!skin) return {};
+    if(sliding && !this->bWasSeekFrame) {
+        return HitSoundUtils::play(*skin, HitSoundUtils::resolve(samples, hitSoundContext(*this, *skin, -1), true),
+                                   soundPanAt(*this, rawPos), 0.f);
+    }
 
     // debugLog("not sliding, stopping");
-    if(!started.empty()) HitSoundUtils::stopSliderSounds(this, started);
+    if(!started.empty()) HitSoundUtils::stopSliderSounds(*skin, started);
     return {};
 }
 
 void BeatmapInterface::stopSliderSounds(const std::vector<HitSoundUtils::Set_Slider_Hit> &started) {
-    HitSoundUtils::stopSliderSounds(this, started);
+    if(const Skin *skin = this->getSkin()) HitSoundUtils::stopSliderSounds(*skin, started);
 }
 
 void BeatmapInterface::playSpinnerSpinSound(f32 ratio) {
@@ -2358,7 +2355,7 @@ void BeatmapInterface::update2() {
     // update current timingpoint
     if(this->iCurMusicPosWithOffsets >= 0) {
         this->cur_timing_info =
-            this->beatmap->getTimingInfoForTime(this->iCurMusicPosWithOffsets + cv::timingpoints_offset.getInt());
+            HitSoundUtils::samplesAt(this->beatmap->getTimingpoints(), this->iCurMusicPosWithOffsets);
     }
 
     // interpolate clicks that occurred between the last update and now

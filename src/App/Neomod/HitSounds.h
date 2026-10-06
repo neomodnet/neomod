@@ -4,19 +4,21 @@
 #include "types.h"
 #include "DatabaseBeatmapTypes.h"
 
-#include <string>
+#include <span>
 #include <vector>
-#include <memory>
 
-class BeatmapInterface;
+struct Skin;
+namespace neomod::Primitives {
+class TimingPoints;
+}
 
 namespace neomod::HitSoundUtils {
 
-// all external state that hitsound resolution depends on, gathered from globals at the call site
+// all external state that hitsound resolution depends on (see makeContext())
 struct HitSoundContext {
-    i32 timingPointSampleSet;  // from TIMING_INFO::sampleSet for the current play_time
-    i32 timingPointVolume;     // from TIMING_INFO::volume for the current play_time
-    u8 defaultSampleSet;       // from BeatmapInterface::getDefaultSampleSet()
+    i32 timingPointSampleSet;  // from the TIMING_INFO samplesAt() the hitsound's time
+    i32 timingPointVolume;     // ditto
+    u8 defaultSampleSet;       // the map's
     u8 forcedSampleSet;        // cv::skin_force_hitsound_sample_set
     bool layeredHitSounds;     // from Skin::o_layered_hitsounds
     bool ignoreSampleVolume;   // cv::ignore_beatmap_sample_volume
@@ -45,19 +47,34 @@ struct Set_Slider_Hit {
     u8 hit;
 };
 
-std::vector<Set_Slider_Hit> play(BeatmapInterface *pf, DatabaseBeatmapTypes::HITSAMPLE_BITS info, f32 pan, i32 delta, i32 play_time = -1,
-                                 bool is_sliderslide = false);
+// the timing point a hitsound at `timeMS` takes its sample set and volume from: the one active timingpoints_offset
+// after it
+[[nodiscard]] DatabaseBeatmapTypes::TIMING_INFO samplesAt(const Primitives::TimingPoints &timing, i32 timeMS);
+// a hitsound's context from those samples, the map's default sample set and whether the skin layers its hitsounds (the
+// rest from the hitsound convars)
+[[nodiscard]] HitSoundContext makeContext(const DatabaseBeatmapTypes::TIMING_INFO &samples, u8 defaultSampleSet,
+                                          bool layeredHitSounds);
+// the pan a hitsound plays at: `pan` (from where it happens on the playfield) through sound_panning and its multiplier,
+// centered for FPoSu and FPS unless their own panning convars are on
+[[nodiscard]] f32 playedPan(f32 pan);
 
-void stopSliderSounds(BeatmapInterface *pf, const std::vector<Set_Slider_Hit> &specific_sets);
+// plays resolved hitsounds with `skin`'s sounds (a slider slide only if it isn't playing yet); returns the ones it
+// played, for stopSliderSounds()
+std::vector<Set_Slider_Hit> play(const Skin &skin, std::span<const ResolvedHitSound> sounds, f32 pan, f32 pitch);
+void playSliderTick(const Skin &skin, ResolvedSliderTick tick, f32 pan);
+// the given ones, or every slider sound if there are none
+void stopSliderSounds(const Skin &skin, const std::vector<Set_Slider_Hit> &specific_sets);
 
 // pure versions that take all dependencies as parameters
 [[nodiscard]] u8 getNormalSet(DatabaseBeatmapTypes::HITSAMPLE_BITS info, const HitSoundContext &ctx);
 [[nodiscard]] u8 getAdditionSet(DatabaseBeatmapTypes::HITSAMPLE_BITS info, const HitSoundContext &ctx);
-[[nodiscard]] f32 getVolume(DatabaseBeatmapTypes::HITSAMPLE_BITS info, const HitSoundContext &ctx, u8 hitSoundType, bool is_sliderslide);
+[[nodiscard]] f32 getVolume(DatabaseBeatmapTypes::HITSAMPLE_BITS info, const HitSoundContext &ctx, u8 hitSoundType,
+                            bool is_sliderslide);
 
 // determines which sounds should be played without actually playing them
-[[nodiscard]] std::vector<ResolvedHitSound> resolve(DatabaseBeatmapTypes::HITSAMPLE_BITS info, const HitSoundContext &ctx,
-                                                    bool is_sliderslide);
+[[nodiscard]] std::vector<ResolvedHitSound> resolve(DatabaseBeatmapTypes::HITSAMPLE_BITS info,
+                                                    const HitSoundContext &ctx, bool is_sliderslide);
 
-[[nodiscard]] ResolvedSliderTick resolveSliderTick(DatabaseBeatmapTypes::HITSAMPLE_BITS info, const HitSoundContext &ctx);
+[[nodiscard]] ResolvedSliderTick resolveSliderTick(DatabaseBeatmapTypes::HITSAMPLE_BITS info,
+                                                   const HitSoundContext &ctx);
 }  // namespace neomod::HitSoundUtils

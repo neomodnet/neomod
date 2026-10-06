@@ -1,13 +1,17 @@
 #include "HitSounds.h"
 
-#include "BeatmapInterface.h"
+#include "BeatmapFile/BeatmapPrimitives.h"
 #include "OsuConVars.h"
 // #include "Logging.h"
-#include "ResourceManager.h"
 #include "Skin.h"
-#include "DatabaseBeatmap.h"
 #include "SoundEngine.h"
 #include "Sound.h"
+
+#include <algorithm>
+#include <array>
+#include <cassert>
+#include <cmath>
+#include <utility>
 
 namespace neomod::HitSoundUtils {
 using namespace DatabaseBeatmapTypes;
@@ -201,61 +205,38 @@ ResolvedSliderTick resolveSliderTick(HITSAMPLE_BITS info, const HitSoundContext 
     return {volume, set_idx};
 }
 
-// global-dependent methods (delegate to pure versions)
+TIMING_INFO samplesAt(const Primitives::TimingPoints &timing, i32 timeMS) {
+    return timing.getTimingInfo(timeMS + cv::timingpoints_offset.getInt());
+}
 
-std::vector<Set_Slider_Hit> play(BeatmapInterface *pf, HITSAMPLE_BITS info, f32 pan, i32 delta, i32 play_time,
-                                 bool is_sliderslide) {
-    assert(pf);
-
-    // Don't play hitsounds when seeking
-    if(unlikely(pf->bWasSeekFrame)) return {};
-
-    const Skin *skin = pf->getSkin();
-    if(unlikely(!skin)) return {};  // sanity
-
-    if(!cv::sound_panning.getBool() || (cv::mod_fposu.getBool() && !cv::mod_fposu_sound_panning.getBool()) ||
-       (cv::mod_fps.getBool() && !cv::mod_fps_sound_panning.getBool())) {
-        pan = 0.0f;
-    } else {
-        pan *= cv::sound_panning_multiplier.getFloat();
-    }
-
-    int brk = 0;
-    f32 pitch = 0.f;
-    while(cv::snd_pitch_hitsounds.getBool() && !brk++) {
-        if(cv::snd_pitch_hitsounds_ignore_300s.getBool() &&
-           ((f32)std::abs(delta) < (std::floor(pf->getHitWindow300()) - 0.5f))) {
-            // don't change pitch for 300s if delta is within 300 hitwindow
-            // (see AbstractBeatmapInterface.cpp for weird math justification)
-            break;
-        }
-        f32 range = pf->getHitWindow100();
-        pitch = (f32)delta / range * cv::snd_pitch_hitsounds_factor.getFloat();
-    }
-
-    // build context from current state
-    const BeatmapDifficulty *beatmap = pf->getBeatmap();
-    const auto ti = (play_time != -1 && beatmap)
-                        ? beatmap->getTimingInfoForTime(play_time + cv::timingpoints_offset.getInt())
-                        : pf->getCurrentTimingInfo();
-    HitSoundContext ctx{
-        .timingPointSampleSet = ti.sampleSet,
-        .timingPointVolume = ti.volume,
-        .defaultSampleSet = pf->getDefaultSampleSet(),
+HitSoundContext makeContext(const TIMING_INFO &samples, u8 defaultSampleSet, bool layeredHitSounds) {
+    return {
+        .timingPointSampleSet = samples.sampleSet,
+        .timingPointVolume = samples.volume,
+        .defaultSampleSet = defaultSampleSet,
         .forcedSampleSet = cv::skin_force_hitsound_sample_set.getVal<u8>(),
-        .layeredHitSounds = skin->o_layered_hitsounds,
+        .layeredHitSounds = layeredHitSounds,
         .ignoreSampleVolume = cv::ignore_beatmap_sample_volume.getBool(),
         .boostVolume = cv::snd_boost_hitsound_volume.getBool(),
     };
+}
 
-    // actually play the resolved sounds
+f32 playedPan(f32 pan) {
+    if(!cv::sound_panning.getBool() || (cv::mod_fposu.getBool() && !cv::mod_fposu_sound_panning.getBool()) ||
+       (cv::mod_fps.getBool() && !cv::mod_fps_sound_panning.getBool())) {
+        return 0.0f;
+    }
+    return pan * cv::sound_panning_multiplier.getFloat();
+}
+
+std::vector<Set_Slider_Hit> play(const Skin &skin, std::span<const ResolvedHitSound> sounds, f32 pan, f32 pitch) {
     std::vector<Set_Slider_Hit> played_list;
-    for(const auto &r : resolve(info, ctx, is_sliderslide)) {
+    for(const auto &r : sounds) {
         Sound *Skin::*sound_ptr = SOUND_METHODS[r.set][r.slider][r.hit];
-        Sound *snd = skin->*sound_ptr;
+        Sound *snd = skin.*sound_ptr;
         if(!snd) continue;
 
-        if(is_sliderslide && snd->isPlaying()) continue;
+        if(r.slider == SLIDER_IDX && snd->isPlaying()) continue;
 
         if(soundEngine->play(snd, pan, pitch, r.volume)) {
             played_list.push_back({r.set, r.slider, r.hit});
@@ -265,18 +246,25 @@ std::vector<Set_Slider_Hit> play(BeatmapInterface *pf, HITSAMPLE_BITS info, f32 
     return played_list;
 }
 
-void stopSliderSounds(BeatmapInterface *pf, const std::vector<Set_Slider_Hit> &specific_sets) {
-    assert(pf);
+void playSliderTick(const Skin &skin, ResolvedSliderTick tick, f32 pan) {
+    static constexpr std::array SLIDERTICK_SAMPLESET_METHODS{
+        &Skin::s_normal_slidertick,  //
+        &Skin::s_soft_slidertick,    //
+        &Skin::s_drum_slidertick,    //
+    };
 
+    if(tick.set >= SLIDERTICK_SAMPLESET_METHODS.size()) return;
+    if(Sound *snd = skin.*SLIDERTICK_SAMPLESET_METHODS[tick.set]) soundEngine->play(snd, pan, 0.f, tick.volume);
+}
+
+void stopSliderSounds(const Skin &skin, const std::vector<Set_Slider_Hit> &specific_sets) {
     // TODO @kiwec: map hitsounds are not supported
-    const Skin *skin = pf->getSkin();
-    if(unlikely(!skin)) return;  // sanity
 
     // stop specified previously played sounds, otherwise stop everything
     if(!specific_sets.empty()) {
         for(const auto &triple : specific_sets) {
             assert(SOUND_METHODS[triple.set][triple.slider][triple.hit]);
-            Sound *to_stop = skin->*SOUND_METHODS[triple.set][triple.slider][triple.hit];
+            Sound *to_stop = skin.*SOUND_METHODS[triple.set][triple.slider][triple.hit];
 
             if(to_stop && to_stop->isPlaying()) {
                 // debugLog("stopping specific set {} {} {} {}", triple.set, triple.slider, triple.hit,
@@ -296,7 +284,7 @@ void stopSliderSounds(BeatmapInterface *pf, const std::vector<Set_Slider_Hit> &s
         const auto &slider_sounds = sample_set[SLIDER_IDX];
         for(const auto &slider_snd_ptr : slider_sounds) {
             if(slider_snd_ptr == nullptr) continue;  // ugly
-            Sound *snd_memb = skin->*slider_snd_ptr;
+            Sound *snd_memb = skin.*slider_snd_ptr;
             if(snd_memb != nullptr && snd_memb->isPlaying()) {
                 // debugLog("stopping {}", snd_memb->getFilePath());
                 soundEngine->stop(snd_memb);

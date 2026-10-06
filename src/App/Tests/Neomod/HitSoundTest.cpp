@@ -2,8 +2,10 @@
 #include "HitSoundTest.h"
 
 #include "TestMacros.h"
+#include "BeatmapFile/BeatmapPrimitives.h"
 #include "Engine.h"
 #include "HitSounds.h"
+#include "OsuConVars.h"
 
 namespace Mc::Tests {
 using namespace neomod;
@@ -503,6 +505,44 @@ void HitSoundTest::runTests() {
         ctx.ignoreSampleVolume = true;
         auto tick = resolveSliderTick(s, ctx);
         TEST_ASSERT_NEAR(tick.volume, 1.0f, 0.001f, "slider tick ignores sample volume -> 1.0");
+    }
+
+    // -------------------------------------------------------
+    // the context: the samples at a time, then the rest
+    // -------------------------------------------------------
+    TEST_SECTION("samplesAt / makeContext");
+    {
+        // normal at 100% from 0, an inherited soft point at 60% from 2502
+        const Primitives::TimingPoints timing{{
+            {.offset = 0,
+             .msPerBeat = 500,
+             .sampleSet = 1,
+             .sampleIndex = 0,
+             .volume = 100,
+             .uninherited = true,
+             .kiai = false},
+            {.offset = 2502,
+             .msPerBeat = -100,
+             .sampleSet = 2,
+             .sampleIndex = 0,
+             .volume = 60,
+             .uninherited = false,
+             .kiai = false},
+        }};
+        const i32 offset = cv::timingpoints_offset.getInt();
+        TEST_ASSERT_EQ(samplesAt(timing, 2502 - offset - 1).sampleSet, (i32)SampleSetType::NORMAL,
+                       "a hitsound more than timingpoints_offset before a point keeps the previous samples");
+        TEST_ASSERT_EQ(samplesAt(timing, 2502 - offset).sampleSet, (i32)SampleSetType::SOFT,
+                       "a hitsound timingpoints_offset before a point takes its samples");
+        TEST_ASSERT_EQ(samplesAt(timing, 2502 - offset).volume, 60, "and its volume");
+
+        const HitSoundContext ctx = makeContext(samplesAt(timing, 3000), SampleSetType::DRUM, true);
+        TEST_ASSERT_EQ(ctx.timingPointSampleSet, (i32)SampleSetType::SOFT, "context takes the samples' set");
+        TEST_ASSERT_EQ(ctx.timingPointVolume, 60, "context takes the samples' volume");
+        TEST_ASSERT_EQ((i32)ctx.defaultSampleSet, (i32)SampleSetType::DRUM, "context takes the map's default set");
+        TEST_ASSERT(ctx.layeredHitSounds, "context takes the skin's layering");
+        TEST_ASSERT_EQ((i32)ctx.forcedSampleSet, cv::skin_force_hitsound_sample_set.getInt(),
+                       "context takes the forced sample set convar");
     }
 }
 
