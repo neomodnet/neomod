@@ -14,6 +14,7 @@
 #include "Chat.h"
 #include "OsuConVars.h"
 #include "Graphics.h"
+#include "Database.h"
 #include "DatabaseBeatmap.h"
 #include "Engine.h"
 #include "GameRules.h"
@@ -242,7 +243,7 @@ void RankingScreen::draw() {
 
     // draw background image
     if(cv::draw_rankingscreen_background_image.getBool()) {
-        osu->getBackgroundImageHandler()->draw(m_impl->storedScore.map);
+        osu->getBackgroundImageHandler()->draw(db->getBeatmapDifficulty(m_impl->storedScore.beatmap_hash));
 
         // draw top black bar
         g->setColor(0xff000000);
@@ -345,19 +346,22 @@ void RankingScreen::updateInput(CBaseUIEventCtx &c) {
         tto->begin();
         {
             auto &sc = m_impl->storedScore;
-            tto->addLine(tformat("{:.2f}pp", sc.get_or_calc_pp()));
+            const DatabaseBeatmap *map = db->getBeatmapDifficulty(sc.beatmap_hash);
+            tto->addLine(tformat("{:.2f}pp", sc.get_or_calc_pp(map)));
             if(sc.ppv2_total_stars > 0.0) {
                 tto->addLine(tformat("Stars: {:.2f} ({:.2f} aim, {:.2f} speed)", sc.ppv2_total_stars, sc.ppv2_aim_stars,
                                      sc.ppv2_speed_stars));
             }
             tto->addLine(tformat("Speed: {:.3g}x", sc.mods.speed));
 
-            const f32 AR = GameRules::arWithSpeed(sc.mods.get_naive_ar(sc.map), sc.mods.speed);
-            const f32 OD = GameRules::odWithSpeed(sc.mods.get_naive_od(sc.map), sc.mods.speed);
-            const f32 CS = sc.mods.get_naive_cs(sc.map);
-            const f32 HP = sc.mods.get_naive_hp(sc.map);
+            if(map) {
+                const f32 AR = GameRules::arWithSpeed(sc.mods.get_naive_ar(map), sc.mods.speed);
+                const f32 OD = GameRules::odWithSpeed(sc.mods.get_naive_od(map), sc.mods.speed);
+                const f32 CS = sc.mods.get_naive_cs(map);
+                const f32 HP = sc.mods.get_naive_hp(map);
 
-            tto->addLine(tformat("CS:{:.2f} AR:{:.2f} OD:{:.2f} HP:{:.2f}", CS, AR, OD, HP));
+                tto->addLine(tformat("CS:{:.2f} AR:{:.2f} OD:{:.2f} HP:{:.2f}", CS, AR, OD, HP));
+            }
 
             if(m_impl->sMods.length() > 0) tto->addLine(m_impl->sMods);
 
@@ -406,8 +410,10 @@ void RankingScreen::setScore(const FinishedScore &newscore) {
     m_impl->storedScore = newscore;
     auto &sc = m_impl->storedScore;
 
-    m_impl->songInfo->setFromBeatmap(sc.map);
-    m_impl->storedScore.map = sc.map;
+    // the map is looked up by its md5 wherever it's needed: a pointer kept here would outlive a database load that
+    // comes back to this screen, and not every score names its map (an instant replay's doesn't)
+    sc.map = nullptr;
+    m_impl->songInfo->setFromBeatmap(db->getBeatmapDifficulty(sc.beatmap_hash));
 
     const std::string scorePlayer =
         m_impl->storedScore.playerName.empty() ? BanchoState::get_username() : m_impl->storedScore.playerName;

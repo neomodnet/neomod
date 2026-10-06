@@ -33,7 +33,7 @@ enum class ScoreGrade : uint8_t {
 
 struct FinishedScore final {
     [[nodiscard]] inline bool operator==(const FinishedScore &c) const {
-        return unix_timestamp == c.unix_timestamp &&      //
+        return unix_timestamp == c.unix_timestamp &&    //
                score == c.score &&                      //
                mods == c.mods &&                        //
                beatmap_hash == c.beatmap_hash &&        //
@@ -122,7 +122,9 @@ struct FinishedScore final {
     [[nodiscard]] inline bool is_peppy_imported() const { return this->server == "ppy.sh"; }
     [[nodiscard]] inline bool is_mcosu_imported() const { return this->client.starts_with("mcosu"); }
 
-    f64 get_or_calc_pp();
+    // calculates the pp with the map's difficulty settings if they aren't known yet (-1 until that's done, and without a
+    // map)
+    f64 get_or_calc_pp(const DatabaseBeatmap *map);
     [[nodiscard]] f64 get_pp() const;
     [[nodiscard]] ScoreGrade calculate_grade() const;
 

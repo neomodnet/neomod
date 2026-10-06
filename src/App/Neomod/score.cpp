@@ -463,19 +463,17 @@ namespace neomod::DiffCalc {
 extern const u32 PP_ALGORITHM_VERSION;
 }
 
-f64 FinishedScore::get_or_calc_pp() {
-    assert(this->map != nullptr);
-
+f64 FinishedScore::get_or_calc_pp(const DatabaseBeatmap *map) {
     f64 pp = this->get_pp();
-    if(pp != -1.0) return pp;
+    if(pp != -1.0 || !map) return pp;
 
     AsyncPPC::pp_calc_request request{.modFlags = this->mods.flags,
                                       .speedOverride = this->mods.speed,
 
-                                      .AR = this->mods.get_naive_ar(this->map),
-                                      .HP = this->mods.get_naive_hp(this->map),
-                                      .CS = this->mods.get_naive_cs(this->map),
-                                      .OD = this->mods.get_naive_od(this->map),
+                                      .AR = this->mods.get_naive_ar(map),
+                                      .HP = this->mods.get_naive_hp(map),
+                                      .CS = this->mods.get_naive_cs(map),
+                                      .OD = this->mods.get_naive_od(map),
 
                                       .comboMax = this->comboMax,
                                       .numMisses = this->numMisses,

@@ -407,7 +407,7 @@ void ScoreButton::tick() {
     // Update pp
     auto &sc = *this->storedScore;
     if(sc.get_pp() == -1.0) {
-        if(sc.get_or_calc_pp() != -1.0) {
+        if(sc.get_or_calc_pp(sc.map) != -1.0) {
             // NOTE: Allows dropped sliderends. Should fix with @PPV3
             const bool fullCombo = (sc.maxPossibleCombo > 0 && sc.numMisses == 0 && sc.numSliderBreaks == 0);
 

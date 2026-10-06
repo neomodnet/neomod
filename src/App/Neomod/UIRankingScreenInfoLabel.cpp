@@ -88,10 +88,10 @@ void UIRankingScreenInfoLabel::draw() {
 }
 
 void UIRankingScreenInfoLabel::setFromBeatmap(const DatabaseBeatmap *map) {
-    this->setArtist(map->getArtist());
-    this->setTitle(map->getTitle());
-    this->setDiff(map->getDifficultyName());
-    this->setMapper(map->getCreator());
+    this->setArtist(map ? map->getArtist() : "");
+    this->setTitle(map ? map->getTitle() : "");
+    this->setDiff(map ? map->getDifficultyName() : "");
+    this->setMapper(map ? map->getCreator() : "");
 
     std::time_t now_c = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
