@@ -8,6 +8,30 @@
 
 using namespace neomod;
 
+AbstractBeatmapInterface::~AbstractBeatmapInterface() = default;
+
+f32 AbstractBeatmapInterface::getMapAR() const {
+    return this->played ? this->played->primitives.AR : this->beatmap->getAR();
+}
+f32 AbstractBeatmapInterface::getMapCS() const {
+    return this->played ? this->played->primitives.CS : this->beatmap->getCS();
+}
+f32 AbstractBeatmapInterface::getMapOD() const {
+    return this->played ? this->played->primitives.OD : this->beatmap->getOD();
+}
+f32 AbstractBeatmapInterface::getMapHP() const {
+    return this->played ? this->played->primitives.HP : this->beatmap->getHP();
+}
+f32 AbstractBeatmapInterface::getMapStackLeniency() const {
+    return this->played ? this->played->primitives.stackLeniency : this->beatmap->getStackLeniency();
+}
+i32 AbstractBeatmapInterface::getMapVersion() const {
+    return this->played ? this->played->primitives.version : this->beatmap->getVersion();
+}
+const Primitives::TimingPoints &AbstractBeatmapInterface::getMapTimingPoints() const {
+    return this->played ? this->played->primitives.timingpoints : this->beatmap->getTimingpoints();
+}
+
 void AbstractBeatmapInterface::playHitSound(DatabaseBeatmapTypes::HITSAMPLE_BITS /*samples*/, vec2 /*rawPos*/,
                                             i32 /*delta*/, i32 /*timeMS*/) {}
 
@@ -16,11 +40,11 @@ void AbstractBeatmapInterface::playSliderTickSound(DatabaseBeatmapTypes::HITSAMP
 
 std::vector<HitSoundUtils::Set_Slider_Hit> AbstractBeatmapInterface::updateSliderSlideSounds(
     bool /*sliding*/, DatabaseBeatmapTypes::HITSAMPLE_BITS /*samples*/, vec2 /*rawPos*/,
-    const std::vector<HitSoundUtils::Set_Slider_Hit>& /*started*/) {
+    const std::vector<HitSoundUtils::Set_Slider_Hit> & /*started*/) {
     return {};
 }
 
-void AbstractBeatmapInterface::stopSliderSounds(const std::vector<HitSoundUtils::Set_Slider_Hit>& /*started*/) {}
+void AbstractBeatmapInterface::stopSliderSounds(const std::vector<HitSoundUtils::Set_Slider_Hit> & /*started*/) {}
 void AbstractBeatmapInterface::playSpinnerSpinSound(f32 /*ratio*/) {}
 void AbstractBeatmapInterface::stopSpinnerSpinSound() {}
 void AbstractBeatmapInterface::playSpinnerBonusSound() {}

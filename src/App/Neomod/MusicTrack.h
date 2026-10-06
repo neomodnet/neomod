@@ -83,8 +83,9 @@ class MusicTrack final {
     // the clock: this frame's time in ms, without offsets (the stream's position, smoothed by interpolate_music_pos)
     [[nodiscard]] i32 getTime() const { return this->time; }
     // what to add to the time for a map's time: the universal offsets and the slow-rate compensation at the track's
-    // rate, and with a map its local, online and old-version offsets
-    [[nodiscard]] i32 getOffset(const DatabaseBeatmap *map) const;
+    // rate, and with a map its local and online offsets and the old-version one (by the file format version its file
+    // has, which its database record may not know)
+    [[nodiscard]] i32 getOffset(const DatabaseBeatmap *map, i32 version) const;
     [[nodiscard]] u32 getLengthMS() const;
     [[nodiscard]] f64 getPositionPct() const;
     [[nodiscard]] f32 getSpeed() const { return this->speed; }

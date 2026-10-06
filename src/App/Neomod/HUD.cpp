@@ -1806,7 +1806,8 @@ void HUD::drawStatistics(const HUDStats &s) {
         const i32 uniUnscaled = cv::universal_offset_norate.getInt();
         const i32 local = bmi->getBeatmap()->getLocalOffset();
         const i32 online = bmi->getBeatmap()->getOnlineOffset();
-        return fmt::format("off: {}ms ((({}peppy+{}us)*{:.1f}spd)+{}uu-{}l-{}lo)", music->getOffset(bmi->getBeatmap()),
+        return fmt::format("off: {}ms ((({}peppy+{}us)*{:.1f}spd)+{}uu-{}l-{}lo)",
+                           music->getOffset(bmi->getBeatmap(), bmi->getMapVersion()),
                            cv::universal_offset_hardcoded_blamepeppy.getFloat(), cv::universal_offset.getFloat(),
                            music->getSpeed(), uniUnscaled, local, online);
     };

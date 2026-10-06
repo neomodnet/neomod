@@ -94,11 +94,14 @@ bool SimulatedBeatmapInterface::start() {
     this->updatePlayfieldMetrics();
     this->updateHitobjectMetrics();
 
-    // actually load the difficulty (and the hitobjects)
-    DatabaseBeatmap::LOAD_GAMEPLAY_RESULT result = DatabaseBeatmap::loadGameplay(this->beatmap, this, nullptr);
+    // actually load the difficulty (and the hitobjects), from what it reads from the file now
+    this->played = std::make_unique<PlayedMap>(DatabaseBeatmap::readPlayedMap(this->beatmap->getFilePath()));
+    DatabaseBeatmap::LOAD_GAMEPLAY_RESULT result = DatabaseBeatmap::loadGameplay(*this->played, this, nullptr);
     if(result.error.errc) {
+        this->played.reset();
         return false;
     }
+    this->nb_hitobjects = this->played->primitives.getNumObjects();
     this->hitobjects.clear();
     this->hitobjects = std::move(result.hitobjects);
     this->breaks = std::move(result.breaks);
@@ -136,7 +139,7 @@ f32 SimulatedBeatmapInterface::getCS() const {
     if(this->mods.has(ModFlags::HardRock)) CSdifficultyMultiplier = 1.3f;
     if(this->mods.has(ModFlags::Easy)) CSdifficultyMultiplier = 0.5f;
 
-    f32 CS = std::clamp<f32>(this->beatmap->getCS() * CSdifficultyMultiplier, 0.0f, 10.0f);
+    f32 CS = std::clamp<f32>(this->getMapCS() * CSdifficultyMultiplier, 0.0f, 10.0f);
 
     if(this->mods.cs_override >= 0.0f) CS = this->mods.cs_override;
     if(this->mods.cs_overridenegative < 0.0f) CS = this->mods.cs_overridenegative;
@@ -160,7 +163,7 @@ f32 SimulatedBeatmapInterface::getHP() const {
     if(this->mods.has(ModFlags::HardRock)) HPdifficultyMultiplier = 1.4f;
     if(this->mods.has(ModFlags::Easy)) HPdifficultyMultiplier = 0.5f;
 
-    f32 HP = std::clamp<f32>(this->beatmap->getHP() * HPdifficultyMultiplier, 0.0f, 10.0f);
+    f32 HP = std::clamp<f32>(this->getMapHP() * HPdifficultyMultiplier, 0.0f, 10.0f);
     if(this->mods.hp_override >= 0.0f) HP = this->mods.hp_override;
 
     return HP;
@@ -171,7 +174,7 @@ f32 SimulatedBeatmapInterface::getRawAR() const {
     if(this->mods.has(ModFlags::HardRock)) ARdifficultyMultiplier = 1.4f;
     if(this->mods.has(ModFlags::Easy)) ARdifficultyMultiplier = 0.5f;
 
-    return std::clamp<f32>(this->beatmap->getAR() * ARdifficultyMultiplier, 0.0f, 10.0f);
+    return std::clamp<f32>(this->getMapAR() * ARdifficultyMultiplier, 0.0f, 10.0f);
 }
 
 f32 SimulatedBeatmapInterface::getAR() const {
@@ -204,7 +207,7 @@ f32 SimulatedBeatmapInterface::getRawOD() const {
     if(this->mods.has(ModFlags::HardRock)) ODdifficultyMultiplier = 1.4f;
     if(this->mods.has(ModFlags::Easy)) ODdifficultyMultiplier = 0.5f;
 
-    return std::clamp<f32>(this->beatmap->getOD() * ODdifficultyMultiplier, 0.0f, 10.0f);
+    return std::clamp<f32>(this->getMapOD() * ODdifficultyMultiplier, 0.0f, 10.0f);
 }
 
 f32 SimulatedBeatmapInterface::getOD() const {
@@ -647,7 +650,7 @@ void SimulatedBeatmapInterface::update(f64 frame_time) {
         if(this->fDrainRate > 0.0) {
             if(!this->bInBreak) {
                 // special case: break drain edge cases
-                bool drainAfterLastHitobjectBeforeBreakStart = (this->beatmap->getVersion() < 8);
+                bool drainAfterLastHitobjectBeforeBreakStart = (this->getMapVersion() < 8);
 
                 const bool isBetweenHitobjectsAndBreak = (int)this->iPreviousHitObjectTime <= breakEvent.startTime &&
                                                          (int)this->iNextHitObjectTime >= breakEvent.endTime &&
@@ -827,7 +830,7 @@ void SimulatedBeatmapInterface::calculateStacks() {
 
     debugLog("Beatmap: Calculating stacks ...");
 
-    HitObjects::stack(this->hitobjects, this->getAR(), this->beatmap->getVersion(), this->beatmap->getStackLeniency(),
+    HitObjects::stack(this->hitobjects, this->getAR(), this->getMapVersion(), this->getMapStackLeniency(),
                       this->fRawHitcircleDiameter, flags::has<ModFlags::HardRock>(this->mods.flags));
 }
 
@@ -898,7 +901,7 @@ void SimulatedBeatmapInterface::computeDrainRate() {
         TestPlayer testPlayer(200.f);
 
         const f64 HP = this->getHP();
-        const int version = this->beatmap->getVersion();
+        const int version = this->getMapVersion();
 
         f64 testDrop = 0.05;
 

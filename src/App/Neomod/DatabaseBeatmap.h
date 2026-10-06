@@ -22,6 +22,7 @@
 #include <memory>
 #include <functional>
 #include <span>
+#include <vector>
 
 using namespace std::string_view_literals;
 using namespace std::string_literals;
@@ -51,17 +52,30 @@ using BeatmapDifficulty = DatabaseBeatmap;
 using BeatmapSet = DatabaseBeatmap;
 using DiffContainer = std::vector<std::unique_ptr<BeatmapDifficulty>>;
 
+// a map's file as a play read it, which is what the play goes by, whatever the map's database record says (the record
+// lags behind a file that changed until the database is told). DatabaseBeatmap::readPlayedMap() makes one
+struct PlayedMap {
+    neomod::Primitives::PRIMITIVE_CONTAINER primitives;  // the settings, timing and objects (error set if unreadable)
+    MD5Hash md5;
+    std::shared_ptr<const std::vector<u8>> data;  // the file's bytes, for what parses it again
+};
+
 // DatabaseBeatmap &operator=(DatabaseBeatmap other) already implements these...
 // NOLINTNEXTLINE(hicpp-special-member-functions, cppcoreguidelines-special-member-functions)
 class DatabaseBeatmap final {
    public:
-    // the .osu file at osuFilePath, read with the game's convars as the limits
+    // the .osu file at osuFilePath (or its bytes), read with the game's convars as the limits
     static neomod::DiffCalc::LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(std::string_view osuFilePath, float AR,
+                                                                          float CS, float speedMultiplier,
+                                                                          bool hardRock,
+                                                                          const Sync::stop_token &dead = {});
+    static neomod::DiffCalc::LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(std::span<const u8> osuFileData, float AR,
                                                                           float CS, float speedMultiplier,
                                                                           bool hardRock,
                                                                           const Sync::stop_token &dead = {});
     static neomod::Primitives::PRIMITIVE_CONTAINER loadPrimitiveObjects(std::string_view osuFilePath,
                                                                         const Sync::stop_token &dead = {});
+    static PlayedMap readPlayedMap(std::string_view osuFilePath);
 
     NOCOPY_NOMOVE(DatabaseBeatmap)
    public:
@@ -114,16 +128,10 @@ class DatabaseBeatmap final {
         u8 defaultSampleSet{1};
     };
 
-    // the objects are judged by beatmap and drawn on view (NULL: never drawn)
-    static LOAD_GAMEPLAY_RESULT loadGameplay(BeatmapDifficulty *databaseBeatmap, AbstractBeatmapInterface *beatmap,
-                                             const PlayfieldView *view,
-                                             LOAD_META_RESULT preloadedMetadata = {
-                                                 {}, {neomod::Primitives::LoadError::NONE}});
-    inline LOAD_GAMEPLAY_RESULT loadGameplay(AbstractBeatmapInterface *beatmap, const PlayfieldView *view,
-                                             LOAD_META_RESULT preloadedMetadata = {
-                                                 {}, {neomod::Primitives::LoadError::NONE}}) {
-        return loadGameplay(this, beatmap, view, std::move(preloadedMetadata));
-    }
+    // a play's objects from what it read (the convar mods applied to its primitives on the way), judged by beatmap and
+    // drawn on view (NULL: never drawn)
+    static LOAD_GAMEPLAY_RESULT loadGameplay(PlayedMap &played, AbstractBeatmapInterface *beatmap,
+                                             const PlayfieldView *view);
 
     [[nodiscard]] MapOverrides get_overrides() const;
 

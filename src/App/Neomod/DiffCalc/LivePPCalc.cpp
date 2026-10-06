@@ -7,8 +7,12 @@
 #include "BeatmapInterface.h"
 #include "DatabaseBeatmap.h"
 #include "DifficultyCalculator.h"
+#include "MD5Hash.h"
 #include "uwu.h"
 #include "ConVar.h"
+
+#include <memory>
+#include <vector>
 
 using namespace neomod;
 
@@ -56,7 +60,7 @@ struct LivePPCalc::LivePPCalcImpl {
 
     // only accessed async
     struct LazyCalcParamCache {
-        std::string path{""};
+        MD5Hash md5{};
         f32 AR{0.f}, CS{0.f};
         f32 speed_multiplier{0.f};
         bool hardRock{false};  // stacking offset direction
@@ -64,7 +68,9 @@ struct LivePPCalc::LivePPCalcImpl {
     } m_param_cache;
 
     struct LazyCalcParams {
-        std::string osufile_path;
+        // the map as the play read it
+        std::shared_ptr<const std::vector<u8>> data;
+        MD5Hash md5;
         u64 legacy_total_score;
         f32 CS, AR, HP, OD;
         f32 speed_multiplier;
@@ -80,15 +86,15 @@ struct LivePPCalc::LivePPCalcImpl {
             const bool hardRock = flags::has<ModFlags::HardRock>(this->mods.flags);
 
             // rebuild as necessary
-            if(c.path != this->osufile_path || c.AR != this->AR || c.CS != this->CS ||
+            if(c.md5 != this->md5 || c.AR != this->AR || c.CS != this->CS ||
                c.speed_multiplier != this->speed_multiplier || c.hardRock != hardRock) {
-                c.path = this->osufile_path;
+                c.md5 = this->md5;
                 c.AR = this->AR;
                 c.CS = this->CS;
                 c.speed_multiplier = this->speed_multiplier;
                 c.hardRock = hardRock;
                 // get new diffres
-                c.diffres = DatabaseBeatmap::loadDifficultyHitObjects(this->osufile_path, this->AR, this->CS,
+                c.diffres = DatabaseBeatmap::loadDifficultyHitObjects(*this->data, this->AR, this->CS,
                                                                       this->speed_multiplier, hardRock);
             }
             return c;
@@ -120,30 +126,32 @@ struct LivePPCalc::LivePPCalcImpl {
 
         update_queued_idx(cur_hobj);
 
+        const PlayedMap *played = m_bmi->getPlayed();
         m_calc_inst.enqueue([p =
                                  LazyCalcParams{
-                                     .osufile_path{m_bmi->beatmap ? m_bmi->beatmap->getFilePath() : ""sv},  //
-                                     .legacy_total_score = score.getScore(),                                //
-                                     .CS = m_bmi->getCS(),                                                  //
-                                     .AR = m_bmi->getAR(),                                                  //
-                                     .HP = m_bmi->getHP(),                                                  //
-                                     .OD = m_bmi->getOD(),                                                  //
-                                     .speed_multiplier = m_bmi->getSpeedMultiplier(),                       //
-                                     .current_hitobject = m_bmi->iCurrentHitObjectIndex,                    //
-                                     .nb_circles = m_bmi->iCurrentNumCircles,                               //
-                                     .nb_sliders = m_bmi->iCurrentNumSliders,                               //
-                                     .nb_spinners = m_bmi->iCurrentNumSpinners,                             //
-                                     .highest_combo = score.getComboMax(),                                  //
-                                     .nb_misses = score.getNumMisses(),                                     //
-                                     .nb_300s = score.getNum300s(),                                         //
-                                     .nb_100s = score.getNum100s(),                                         //
-                                     .nb_50s = score.getNum50s(),                                           //
-                                     .mods = score.mods,                                                    //
+                                     .data = played ? played->data : nullptr,             //
+                                     .md5 = played ? played->md5 : MD5Hash{},             //
+                                     .legacy_total_score = score.getScore(),              //
+                                     .CS = m_bmi->getCS(),                                //
+                                     .AR = m_bmi->getAR(),                                //
+                                     .HP = m_bmi->getHP(),                                //
+                                     .OD = m_bmi->getOD(),                                //
+                                     .speed_multiplier = m_bmi->getSpeedMultiplier(),     //
+                                     .current_hitobject = m_bmi->iCurrentHitObjectIndex,  //
+                                     .nb_circles = m_bmi->iCurrentNumCircles,             //
+                                     .nb_sliders = m_bmi->iCurrentNumSliders,             //
+                                     .nb_spinners = m_bmi->iCurrentNumSpinners,           //
+                                     .highest_combo = score.getComboMax(),                //
+                                     .nb_misses = score.getNumMisses(),                   //
+                                     .nb_300s = score.getNum300s(),                       //
+                                     .nb_100s = score.getNum100s(),                       //
+                                     .nb_50s = score.getNum50s(),                         //
+                                     .mods = score.mods,                                  //
                                  },
                              &old_cache = m_param_cache](void) -> LazyPPRes {
             LazyPPRes result;
 
-            if(p.osufile_path.empty()) return result;
+            if(!p.data) return result;
 
             AsyncPPC::pp_res &retInfo = result.res;
 

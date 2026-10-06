@@ -3,6 +3,7 @@
 
 #include "Vectors.h"
 
+#include <memory>
 #include <vector>
 
 namespace Replay {
@@ -22,6 +23,10 @@ struct Set_Slider_Hit;
 
 class DatabaseBeatmap;
 using BeatmapDifficulty = DatabaseBeatmap;
+struct PlayedMap;
+namespace neomod::Primitives {
+class TimingPoints;
+}
 
 // a click as the play hands it to its objects to judge (HitObject::onClickEvent)
 struct Click {
@@ -36,7 +41,7 @@ class AbstractBeatmapInterface {
     NOCOPY_NOMOVE(AbstractBeatmapInterface)
    public:
     AbstractBeatmapInterface() = default;
-    virtual ~AbstractBeatmapInterface() = default;
+    virtual ~AbstractBeatmapInterface();
 
     virtual LiveHitResult addHitResult(neomod::HitObject *hitObject, LiveHitResult hit, i32 delta,
                                        bool isEndOfCombo = false, bool ignoreOnHitErrorBar = false,
@@ -112,6 +117,16 @@ class AbstractBeatmapInterface {
     // Generic behavior below, do not override
     [[nodiscard]] inline const BeatmapDifficulty *getBeatmap() const { return this->beatmap; }
     [[nodiscard]] inline BeatmapDifficulty *getBeatmapMutable() const { return this->beatmap; }
+    // the map's file as the current play read it (null outside of a play)
+    [[nodiscard]] inline const PlayedMap *getPlayed() const { return this->played.get(); }
+    // the map's settings and timing as this play has them: what it read, or the database record's outside of a play
+    [[nodiscard]] f32 getMapAR() const;
+    [[nodiscard]] f32 getMapCS() const;
+    [[nodiscard]] f32 getMapOD() const;
+    [[nodiscard]] f32 getMapHP() const;
+    [[nodiscard]] f32 getMapStackLeniency() const;
+    [[nodiscard]] i32 getMapVersion() const;
+    [[nodiscard]] const neomod::Primitives::TimingPoints &getMapTimingPoints() const;
 
     [[nodiscard]] bool isClickHeld() const;
     [[nodiscard]] LiveHitResult getHitResult(i32 delta) const;
@@ -140,4 +155,5 @@ class AbstractBeatmapInterface {
 
    protected:
     BeatmapDifficulty *beatmap{nullptr};
+    std::unique_ptr<PlayedMap> played;
 };

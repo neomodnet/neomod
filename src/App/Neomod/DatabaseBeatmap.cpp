@@ -197,6 +197,27 @@ DiffCalc::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(std::str
     return DiffCalc::loadDifficultyHitObjects(c, AR, CS, speedMultiplier, hardRock, dead);
 }
 
+DiffCalc::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(std::span<const u8> osuFileData, float AR,
+                                                                        float CS, float speedMultiplier, bool hardRock,
+                                                                        const Sync::stop_token &dead) {
+    Primitives::PRIMITIVE_CONTAINER c =
+        Primitives::loadPrimitiveObjectsFromData(osuFileData, limitsFromConVars(), dead);
+    return DiffCalc::loadDifficultyHitObjects(c, AR, CS, speedMultiplier, hardRock, dead);
+}
+
+PlayedMap DatabaseBeatmap::readPlayedMap(std::string_view osuFilePath) {
+    // XXX: file io, md5 calc, all on main thread!!
+    auto data = std::make_shared<std::vector<u8>>();
+    if(File file(osuFilePath); file.canRead()) file.readToVector(*data);
+
+    PlayedMap played;
+    played.primitives = Primitives::loadPrimitiveObjectsFromData(*data, limitsFromConVars());
+    logSkippedLines(osuFilePath, played.primitives);
+    played.md5 = crypto::hash::md5(*data);
+    played.data = std::move(data);
+    return played;
+}
+
 f32 DatabaseBeatmap::getStarRating(u8 idx) const {
     if(idx == this->last_queried_sr_idx && this->last_queried_sr > 0.f) {
         return this->last_queried_sr;
@@ -431,38 +452,19 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
     return ret(Primitives::LoadError::NONE);
 }
 
-DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(BeatmapDifficulty *databaseBeatmap,
+DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(PlayedMap &played,
                                                                     AbstractBeatmapInterface *beatmap,
-                                                                    const PlayfieldView *view,
-                                                                    LOAD_META_RESULT preloadedMetadata) {
+                                                                    const PlayfieldView *view) {
     LOAD_GAMEPLAY_RESULT result = LOAD_GAMEPLAY_RESULT();
-    Primitives::PRIMITIVE_CONTAINER c;
-
-    {
-        // NOTE: reload metadata (force ensures that all necessary data is ready for creating hitobjects and playing etc.,
-        // also if beatmap file is changed manually in the meantime)
-        // XXX: file io, md5 calc, all on main thread!!
-        auto metaRes = std::move(preloadedMetadata);
-
-        if(metaRes.fileData.empty() || metaRes.error) {
-            logIf(cv::debug_osu.getBool() || cv::debug_db.getBool(), "reloading metadata for {} because {}",
-                  databaseBeatmap->getFilePath(),
-                  metaRes.fileData.empty() ? "metadata file data was empty" : metaRes.error.error_string());
-            metaRes = databaseBeatmap->loadMetadata();
-        }
-
-        result.error = metaRes.error;
-        if(result.error.errc) {
-            return result;
-        }
-
-        // load primitives, put in temporary container
-        c = Primitives::loadPrimitiveObjectsFromData(metaRes.fileData, limitsFromConVars());
-        logSkippedLines(databaseBeatmap->getFilePath(), c);
-    }
+    Primitives::PRIMITIVE_CONTAINER &c = played.primitives;
 
     if(c.error.errc) {
         result.error.errc = c.error.errc;
+        return result;
+    }
+    // (a format newer than the game knows, which the database doesn't take either)
+    if(c.version > cv::beatmap_version.getInt()) {
+        result.error.errc = Primitives::LoadError::UNKNOWN_VERSION;
         return result;
     }
 
@@ -470,39 +472,26 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(BeatmapDiffi
     result.combocolors = std::move(c.combocolors);
     result.defaultSampleSet = c.defaultSampleSet;
 
-    // override some values with data from primitive load, even though they should already be loaded from metadata
-    // (sanity)
-    databaseBeatmap->timingpoints = std::move(c.timingpoints);
-    databaseBeatmap->fSliderMultiplier = c.sliderMultiplier;
-    databaseBeatmap->fSliderTickRate = c.sliderTickRate;
-    databaseBeatmap->fStackLeniency = c.stackLeniency;
-    databaseBeatmap->iVersion = c.version;
-
     // check if we have any timingpoints at all
-    if(databaseBeatmap->timingpoints.size() == 0) {
+    if(c.timingpoints.size() == 0) {
         result.error.errc = Primitives::LoadError::NO_TIMINGPOINTS;
         return result;
     }
 
-    // update numObjects
-    databaseBeatmap->iNumCircles = c.hitcircles.size();
-    databaseBeatmap->iNumSliders = c.sliders.size();
-    databaseBeatmap->iNumSpinners = c.spinners.size();
-
     // check if we have any hitobjects at all
-    if(databaseBeatmap->getNumObjects() < 1) {
+    if(c.getNumObjects() < 1) {
         result.error.errc = Primitives::LoadError::NO_OBJECTS;
         return result;
     }
 
     // calculate sliderTimes, and build slider clicks and ticks
     Primitives::LoadError sliderTimeCalcResult = Primitives::calculateSliderTimesClicksTicks(
-        c.version, c.sliders, databaseBeatmap->timingpoints, databaseBeatmap->fSliderMultiplier,
-        databaseBeatmap->fSliderTickRate, c.limits);
+        c.version, c.sliders, c.timingpoints, c.sliderMultiplier, c.sliderTickRate, c.limits);
     if(sliderTimeCalcResult.errc != Primitives::LoadError::NONE) {
         result.error.errc = sliderTimeCalcResult.errc;
         return result;
     }
+    c.sliderTimesCalculated = true;
 
     // build hitobjects from the primitive data we loaded from the osu file, with the mods that change them
     {
@@ -526,10 +515,6 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(BeatmapDiffi
 
         result.hitobjects = HitObjects::create(c, beatmap, view);
     }
-
-    // update beatmap length stat
-    if(databaseBeatmap->iLengthMS == 0 && result.hitobjects.size() > 0)
-        databaseBeatmap->iLengthMS = result.hitobjects.back()->getClickTime() + result.hitobjects.back()->getDuration();
 
     // precalculate Score v2 combo portion maximum
     if(beatmap != nullptr) {

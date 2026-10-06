@@ -165,7 +165,7 @@ void BeatmapInterface::drawDebug() {
     static constexpr Color shadowColor = argb(255, 0, 0, 0);
     static constexpr Color textColor = argb(255, 255, 232, 255);
 
-    const auto &alltp = this->beatmap->getTimingpoints();
+    const auto &alltp = this->getMapTimingPoints();
     if(alltp.empty()) return;
 
     McFont *debugFont = engine->getConsoleFont();
@@ -603,9 +603,11 @@ bool BeatmapInterface::start() {
     this->updateHitobjectMetrics();
     this->bIsPreLoading = false;
 
-    // actually load the difficulty (and the hitobjects)
+    // actually load the difficulty (and the hitobjects): the play goes by what it reads from the file now (objects ask for
+    // the map's settings while they're made)
     {
-        DatabaseBeatmap::LOAD_GAMEPLAY_RESULT result = DatabaseBeatmap::loadGameplay(this->beatmap, this, this);
+        this->played = std::make_unique<PlayedMap>(DatabaseBeatmap::readPlayedMap(this->beatmap->getFilePath()));
+        DatabaseBeatmap::LOAD_GAMEPLAY_RESULT result = DatabaseBeatmap::loadGameplay(*this->played, this, this);
         if(result.error.errc) {
             using enum Primitives::LoadError::code;
             std::string errorMessage;
@@ -649,6 +651,7 @@ bool BeatmapInterface::start() {
                 ui->getNotificationOverlay()->addToast(errorMessage, ERROR_TOAST);
             }
 
+            this->played.reset();
             osu->bIsPlayingASelectedBeatmap = false;
             osu->setShouldPauseBGThreads(false);
 
@@ -656,6 +659,7 @@ bool BeatmapInterface::start() {
         }
 
         // move temp result data into beatmap
+        this->nb_hitobjects = this->played->primitives.getNumObjects();
         this->hitobjects = std::move(result.hitobjects);
         this->breaks = std::move(result.breaks);
         this->comboColors = std::move(result.combocolors);
@@ -1173,7 +1177,7 @@ vec2 BeatmapInterface::getScreenSize() const { return osu->getVirtScreenSize(); 
 f32 BeatmapInterface::getRawAR() const {
     if(unlikely(!this->beatmap)) return 5.0f;
 
-    return std::clamp<f32>(this->beatmap->getAR() * Osu::getDifficultyMultiplier(), 0.0f, 10.0f);
+    return std::clamp<f32>(this->getMapAR() * Osu::getDifficultyMultiplier(), 0.0f, 10.0f);
 }
 
 f32 BeatmapInterface::getAR() const {
@@ -1214,7 +1218,7 @@ f32 BeatmapInterface::getCS() const {
     else if(f32 cs_override = cv::cs_override.getFloat(); cs_override >= 0.0f)
         CS = cs_override;
     else
-        CS = std::clamp<f32>(this->beatmap->getCS() * Osu::getCSDifficultyMultiplier(), 0.0f, 10.0f);
+        CS = std::clamp<f32>(this->getMapCS() * Osu::getCSDifficultyMultiplier(), 0.0f, 10.0f);
 
     if(cv::mod_minimize.getBool() && likely(!this->hitobjects.empty())) {
         const f32 percent =
@@ -1237,7 +1241,7 @@ f32 BeatmapInterface::getHP() const {
     if(f32 hp_override = cv::hp_override.getFloat(); hp_override >= 0.0f)
         HP = hp_override;
     else
-        HP = std::clamp<f32>(this->beatmap->getHP() * Osu::getDifficultyMultiplier(), 0.0f, 10.0f);
+        HP = std::clamp<f32>(this->getMapHP() * Osu::getDifficultyMultiplier(), 0.0f, 10.0f);
 
     return HP;
 }
@@ -1245,7 +1249,7 @@ f32 BeatmapInterface::getHP() const {
 f32 BeatmapInterface::getRawOD() const {
     if(unlikely(!this->beatmap)) return 5.0f;
 
-    return std::clamp<f32>(this->beatmap->getOD() * Osu::getDifficultyMultiplier(), 0.0f, 10.0f);
+    return std::clamp<f32>(this->getMapOD() * Osu::getDifficultyMultiplier(), 0.0f, 10.0f);
 }
 
 f32 BeatmapInterface::getOD() const {
@@ -1399,9 +1403,10 @@ f32 soundPanAt(const BeatmapInterface &play, vec2 rawPos) {
 // the context of a hitsound at `timeMS` (-1: now)
 HitSoundUtils::HitSoundContext hitSoundContext(const BeatmapInterface &play, const Skin &skin, i32 timeMS) {
     const DatabaseBeatmap *map = play.getBeatmap();
-    return HitSoundUtils::makeContext(
-        (timeMS != -1 && map) ? HitSoundUtils::samplesAt(map->getTimingpoints(), timeMS) : play.getCurrentTimingInfo(),
-        play.getDefaultSampleSet(), skin.o_layered_hitsounds);
+    return HitSoundUtils::makeContext((timeMS != -1 && map)
+                                          ? HitSoundUtils::samplesAt(play.getMapTimingPoints(), timeMS)
+                                          : play.getCurrentTimingInfo(),
+                                      play.getDefaultSampleSet(), skin.o_layered_hitsounds);
 }
 }  // namespace
 
@@ -1539,6 +1544,7 @@ bool BeatmapInterface::canDraw() {
 }
 
 void BeatmapInterface::unloadObjects() {
+    this->played.reset();
     this->resetLiveStarsTasks();
     this->currentHitObject = nullptr;
     this->iCurrentHitObjectIndex = 0;
@@ -2304,7 +2310,7 @@ void BeatmapInterface::update2() {
         }
 
         // ugh. force update all hitobjects while waiting (necessary because of pvs optimization)
-        i32 curPos = this->iCurMusicPos + this->music.getOffset(this->beatmap);
+        i32 curPos = this->iCurMusicPos + this->music.getOffset(this->beatmap, this->getMapVersion());
         if(curPos > -1)  // otherwise auto would already click elements that start at exactly 0 (while the map has not
                          // even started)
             curPos = -1;
@@ -2345,7 +2351,7 @@ void BeatmapInterface::update2() {
     }
 
     // update timing (with offsets)
-    this->iCurMusicPosWithOffsets = this->iCurMusicPos + this->music.getOffset(this->beatmap);
+    this->iCurMusicPosWithOffsets = this->iCurMusicPos + this->music.getOffset(this->beatmap, this->getMapVersion());
 
     // get timestamp from the previous update cycle
     const u64 lastUpdateTime = this->iLastMusicPosUpdateTime;
@@ -2356,8 +2362,7 @@ void BeatmapInterface::update2() {
 
     // update current timingpoint
     if(this->iCurMusicPosWithOffsets >= 0) {
-        this->cur_timing_info =
-            HitSoundUtils::samplesAt(this->beatmap->getTimingpoints(), this->iCurMusicPosWithOffsets);
+        this->cur_timing_info = HitSoundUtils::samplesAt(this->getMapTimingPoints(), this->iCurMusicPosWithOffsets);
     }
 
     // interpolate clicks that occurred between the last update and now
@@ -2954,7 +2959,7 @@ void BeatmapInterface::update2() {
                && !this->bIsInSkippableSection)  // not in a skippable section
             {
                 // special case: break drain edge cases
-                bool drainAfterLastHitobjectBeforeBreakStart = (this->beatmap->getVersion() < 8);
+                bool drainAfterLastHitobjectBeforeBreakStart = (this->getMapVersion() < 8);
 
                 const bool isBetweenHitobjectsAndBreak = (int)this->iPreviousHitObjectTime <= breakEvent.startTime &&
                                                          (int)this->iNextHitObjectTime >= breakEvent.endTime &&
@@ -3416,8 +3421,8 @@ vec2 BeatmapInterface::getFirstPersonCursorDelta() const {
 }
 
 FinishedScore BeatmapInterface::saveAndSubmitScore(bool quit) {
-    // calculate stars
-    const std::string osuFilePath{this->beatmap->getFilePath()};
+    // calculate stars (of what was played, which the file may not be anymore)
+    const PlayedMap &played = *this->played;
     const f32 AR = this->getAR();
     const f32 HP = this->getHP();
     const f32 CS = this->getCS();
@@ -3433,7 +3438,7 @@ FinishedScore BeatmapInterface::saveAndSubmitScore(bool quit) {
 
     const u32 breakDuration = this->getBreakDurationTotal();
 
-    auto diffres = DatabaseBeatmap::loadDifficultyHitObjects(osuFilePath, AR, CS, speedMultiplier, hardRock);
+    auto diffres = DatabaseBeatmap::loadDifficultyHitObjects(*played.data, AR, CS, speedMultiplier, hardRock);
 
     DiffCalc::BeatmapDiffcalcData diffcalcData{.sortedHitObjects = diffres.diffobjects,
                                                .CS = CS,
@@ -3470,9 +3475,9 @@ FinishedScore BeatmapInterface::saveAndSubmitScore(bool quit) {
 
     // calculate final pp
     const int numHitObjects = this->hitobjects.size();
-    const int numCircles = this->beatmap->getNumCircles();
-    const int numSliders = this->beatmap->getNumSliders();
-    const int numSpinners = this->beatmap->getNumSpinners();
+    const int numCircles = static_cast<int>(played.primitives.hitcircles.size());
+    const int numSliders = static_cast<int>(played.primitives.sliders.size());
+    const int numSpinners = static_cast<int>(played.primitives.spinners.size());
     const int highestCombo = liveScore->getComboMax();
     const int numMisses = liveScore->getNumMisses();
     const int num300s = liveScore->getNum300s();
@@ -3525,7 +3530,8 @@ FinishedScore BeatmapInterface::saveAndSubmitScore(bool quit) {
     score.playerName = BanchoState::get_username();
     score.passed = isComplete && !isZero && !liveScore->hasDied();
     score.grade = score.passed ? liveScore->getGrade() : ScoreGrade::F;
-    score.map = this->beatmap;
+    // (the score is of what was played: the record only names the same content when the file didn't change)
+    score.map = this->beatmap->getMD5() == played.md5 ? this->beatmap : nullptr;
     score.ragequit = quit;
     // iCurMusicPos < 0 means "did not start"
     score.play_time_ms = (this->iCurMusicPos > 0 ? this->iCurMusicPos / this->getSpeedMultiplier() : 0);
@@ -3550,7 +3556,7 @@ FinishedScore BeatmapInterface::saveAndSubmitScore(bool quit) {
     score.numHitObjects = numHitObjects;
     score.numCircles = numCircles;
     score.mods = liveScore->mods;
-    score.beatmap_hash = this->beatmap->getMD5();  // NOTE: necessary for "Use Mods"
+    score.beatmap_hash = played.md5;  // NOTE: necessary for "Use Mods"
     score.replay = this->live_replay;
 
     // @PPV3: store ppv3 data if not already done. also double check replay is marked correctly
@@ -3834,7 +3840,7 @@ void BeatmapInterface::calculateStacks() {
 
     debugLog("Beatmap: Calculating stacks ...");
 
-    HitObjects::stack(this->hitobjects, this->getAR(), this->beatmap->getVersion(), this->beatmap->getStackLeniency(),
+    HitObjects::stack(this->hitobjects, this->getAR(), this->getMapVersion(), this->getMapStackLeniency(),
                       this->fRawHitcircleDiameter, flags::has<ModFlags::HardRock>(this->getMods().flags));
 }
 
@@ -3905,7 +3911,7 @@ void BeatmapInterface::computeDrainRate() {
         TestPlayer testPlayer(200.0);
 
         const f64 HP = this->getHP();
-        const int version = this->beatmap->getVersion();
+        const int version = this->getMapVersion();
 
         f64 testDrop = 0.05;
 

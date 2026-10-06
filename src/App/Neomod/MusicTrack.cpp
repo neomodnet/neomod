@@ -334,7 +334,7 @@ bool MusicTrack::isFinished() const {
     return this->virtualTime ? this->outsideSong && this->virtualMS >= 0.0 : this->stream && this->stream->isFinished();
 }
 
-i32 MusicTrack::getOffset(const DatabaseBeatmap *map) const {
+i32 MusicTrack::getOffset(const DatabaseBeatmap *map, i32 version) const {
     i32 offset =
         (i32)((cv::universal_offset.getFloat() + cv::universal_offset_hardcoded_blamepeppy.getFloat()) * this->speed) +
         cv::universal_offset_norate.getInt();
@@ -343,7 +343,7 @@ i32 MusicTrack::getOffset(const DatabaseBeatmap *map) const {
     }
     if(map) {
         offset -= map->getLocalOffset() + map->getOnlineOffset();
-        if(map->getVersion() < 5) offset -= cv::old_beatmap_offset.getInt();
+        if(version < 5) offset -= cv::old_beatmap_offset.getInt();
     }
     return offset;
 }

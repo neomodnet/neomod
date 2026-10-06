@@ -950,7 +950,7 @@ void Osu::onKeyDown(KeyboardEvent &key) {
            (!this->map_iface->is_watching && !BanchoState::spectating)) {
             FinishedScore score;
             score.replay = this->map_iface->live_replay;
-            score.beatmap_hash = this->map_iface->getBeatmap()->getMD5();
+            score.beatmap_hash = this->map_iface->getPlayed()->md5;
             score.mods = this->score->mods;
 
             score.playerName = BanchoState::get_username();

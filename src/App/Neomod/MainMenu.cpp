@@ -711,7 +711,7 @@ std::pair<bool, float> MainMenu::getTimingpointPulseAmount() {
     }
 
     // playing music, get dynamic pulse amount
-    const f64 beat = map->getTimingpoints().getBeat(music->getTime() + music->getOffset(map));
+    const f64 beat = map->getTimingpoints().getBeat(music->getTime() + music->getOffset(map, map->getVersion()));
     this->animBeatCounter = (unsigned int)(i32)std::floor(beat - 0.5);
     pulse = (float)(beat - std::floor(beat));
 
