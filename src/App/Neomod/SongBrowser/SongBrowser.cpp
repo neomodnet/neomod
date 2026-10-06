@@ -1820,15 +1820,13 @@ void SongBrowser::replaceBeatmapSet(const BeatmapSet *old_set, BeatmapSet *new_s
 
     this->unlinkBeatmapSet(old_set);
     this->addBeatmapSet(new_set);
-    this->rebuildAfterSetChange();
 
-    if(selected_inside) {
-        if(cur->getParentSet() == new_set) {
-            this->selectSelectedBeatmapSongButton();
-        } else if(!osu->getMusicTrack()->isHeld()) {
-            this->selectBeatmapset(new_set);
-        }
-    }
+    // a selection that stays gets its new button selected before the rebuild, whose search update would take a single
+    // matching set for a new selection and pick its hardest difficulty
+    const bool stays = selected_inside && cur->getParentSet() == new_set;
+    if(stays) this->selectSelectedBeatmapSongButton();
+    this->rebuildAfterSetChange();
+    if(selected_inside && !stays && !osu->getMusicTrack()->isHeld()) this->selectBeatmapset(new_set);
 }
 
 void SongBrowser::requestNextScrollToSongButtonJumpFix(SongDifficultyButton *diffButton) {
