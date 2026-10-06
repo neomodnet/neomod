@@ -31,14 +31,10 @@ MusicTrack::~MusicTrack() {
 bool MusicTrack::update() {
     const bool finished = this->finishLoad();
 
-    if(this->resumeScheduled && soundEngine->isReady()) {
-        if(this->stream && !this->outsideSong && !this->stream->isPlaying()) soundEngine->play(this->stream);
-        this->resumeScheduled = false;
-    }
-
     const f64 now = Timing::getTimeReal<f64>();
     const f64 elapsed = now - std::exchange(this->lastUpdate, now);
-    if(!this->isReady() || this->deviceChanging) return finished;
+    // (a stream that's still loading isn't where the time is yet: a seek waits for the load)
+    if(!this->isReady() || this->isLoading() || this->deviceChanging) return finished;
 
     // virtual time: before the song and past its end the time runs by itself while the track plays, until it comes into
     // the song
@@ -173,6 +169,8 @@ bool MusicTrack::finishLoad() {
     if(this->map && cv::normalize_loudness.getBool() && this->map->loudness.load(std::memory_order_acquire) == 0.f) {
         return false;
     }
+    // (after a device change BASS takes streams only from the next frame on, or later with snd_ready_delay)
+    if(!soundEngine->isReady()) return false;
 
     this->loadFinished = true;
 
@@ -374,6 +372,5 @@ void MusicTrack::onDeviceChangeAfter() {
     this->loadFinished = false;
     this->seekOnLoad = true;
     this->finishLoad();
-
-    if(this->resumeAfterDeviceChange) this->resumeScheduled = true;
+    if(this->resumeAfterDeviceChange) this->play();
 }

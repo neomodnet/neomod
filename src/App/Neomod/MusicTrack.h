@@ -136,5 +136,4 @@ class MusicTrack final {
     // across a device change
     bool deviceChanging{false};
     bool resumeAfterDeviceChange{false};
-    bool resumeScheduled{false};
 };
