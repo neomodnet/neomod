@@ -233,6 +233,7 @@ struct RankingScreen::RankingScreenImpl {
     // custom
     FinishedScore storedScore;
     bool bIsUnranked;
+    bool songInfoPending{false};  // the score's map wasn't in the database yet (a play's changed file)
 };
 
 RankingScreen::RankingScreen() : ScreenBackable(), m_impl(this) {}
@@ -327,6 +328,17 @@ void RankingScreen::draw() {
     }
 }
 
+void RankingScreen::tick() {
+    ScreenBackable::tick();
+    if(!this->bVisible || !m_impl->songInfoPending) return;
+
+    // (the database learns about a play's changed file after the play)
+    if(const DatabaseBeatmap *map = db->getBeatmapDifficulty(m_impl->storedScore.beatmap_hash)) {
+        m_impl->songInfo->setFromBeatmap(map);
+        m_impl->songInfoPending = false;
+    }
+}
+
 void RankingScreen::drawModImage(const SkinImage &image, vec2 &pos, vec2 &max) const {
     g->setColor(0xffffffff);
     image.draw(vec2(pos.x - image.getSize().x / 2.0f, pos.y));
@@ -413,7 +425,9 @@ void RankingScreen::setScore(const FinishedScore &newscore) {
     // the map is looked up by its md5 wherever it's needed: a pointer kept here would outlive a database load that
     // comes back to this screen, and not every score names its map (an instant replay's doesn't)
     sc.map = nullptr;
-    m_impl->songInfo->setFromBeatmap(db->getBeatmapDifficulty(sc.beatmap_hash));
+    const DatabaseBeatmap *map = db->getBeatmapDifficulty(sc.beatmap_hash);
+    m_impl->songInfo->setFromBeatmap(map);
+    m_impl->songInfoPending = map == nullptr;
 
     const std::string scorePlayer =
         m_impl->storedScore.playerName.empty() ? BanchoState::get_username() : m_impl->storedScore.playerName;

@@ -17,6 +17,7 @@ class RankingScreen final : public ScreenBackable {
     ~RankingScreen() override;
 
     void draw() override;
+    void tick() override;
     void updateInput(CBaseUIEventCtx &c) override;
 
     CBaseUIContainer *setVisible(bool visible) override;

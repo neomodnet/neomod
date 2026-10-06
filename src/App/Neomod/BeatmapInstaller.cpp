@@ -76,6 +76,7 @@ struct Entry {
     f32 progress{0.f};
     bool auto_select{false};
     bool delete_after{false};
+    bool changed{false};  // a folder whose content is known to have changed
     f64 finished_time{0.0};
 
     [[nodiscard]] bool is_local() const { return this->kind == Kind::Osz; }
@@ -411,12 +412,16 @@ void BeatmapInstaller::enqueue_local(std::string osz_path, bool auto_select, boo
     m->entries.push_back(std::move(e));
 }
 
-void BeatmapInstaller::enqueue_folder(std::string folder) {
+void BeatmapInstaller::enqueue_folder(std::string folder, bool changed) {
     // a queued pass lists the folder only once it runs, so one is enough; a change after a pass has started gets
     // another one after it
-    if(std::ranges::any_of(m->entries, [&folder](const Entry& e) {
-           return e.kind == Entry::Kind::Folder && e.stage == MapInstallStage::Queued && e.folder == folder;
-       })) {
+    if(auto it = std::ranges::find_if(m->entries,
+                                      [&folder](const Entry& e) {
+                                          return e.kind == Entry::Kind::Folder && e.stage == MapInstallStage::Queued &&
+                                                 e.folder == folder;
+                                      });
+       it != m->entries.end()) {
+        it->changed |= changed;
         return;
     }
 
@@ -424,6 +429,7 @@ void BeatmapInstaller::enqueue_folder(std::string folder) {
     e.kind = Entry::Kind::Folder;
     e.uid = m->next_uid++;
     e.folder = std::move(folder);
+    e.changed = changed;
     m->entries.push_back(std::move(e));
 }
 
@@ -562,7 +568,7 @@ void BeatmapInstaller::update() {
                         break;
                     }
                     if(auto settled = m->settled.find(e.folder); settled != m->settled.end()) {
-                        const bool untouched = folder_state(e.folder) == settled->second;
+                        const bool untouched = !e.changed && folder_state(e.folder) == settled->second;
                         m->settled.erase(settled);  // whatever happens to the folder next is a change to what it left
                         if(untouched) {
                             logIfCV(debug_db, "[DirectoryWatcher] maps/{}: the installer's own write", e.folder);
@@ -653,8 +659,8 @@ void BeatmapInstaller::update() {
                     // (whatever was done to the folder outside of the game: no toasts for that)
                     if(r->outcome != ReconcileResult::Outcome::Unchanged &&
                        r->outcome != ReconcileResult::Outcome::Failed) {
-                        logRaw("[DirectoryWatcher] maps/{}: {} (+{} -{})", e.folder, r->outcomeName(), r->added,
-                               r->removed);
+                        logRaw("[{}] maps/{}: {} (+{} -{})", e.changed ? "BeatmapInstaller" : "DirectoryWatcher",
+                               e.folder, r->outcomeName(), r->added, r->removed);
                     }
                     e.stage = Done;
                     e.finished_time = now;

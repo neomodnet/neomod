@@ -20,6 +20,7 @@
 #include "Chat.h"
 #include "OsuConVars.h"
 #include "Timing.h"
+#include "BeatmapInstaller.h"
 #include "Database.h"
 #include "DatabaseBeatmap.h"
 #include "DifficultyCalculator.h"
@@ -656,6 +657,13 @@ bool BeatmapInterface::start() {
             osu->setShouldPauseBGThreads(false);
 
             return false;
+        }
+
+        // the file changed since the database read it: the database catches up after the play (osu!.db's maps once
+        // osu!stable rescans, a raw-loaded songs folder's at the next F5)
+        if(this->played->md5 != this->beatmap->getMD5() &&
+           this->beatmap->type == DatabaseBeatmap::BeatmapType::NEOMOD_DIFFICULTY) {
+            osu->getBeatmapInstaller()->enqueue_folder(db->locate(*this->beatmap).folder, /*changed=*/true);
         }
 
         // move temp result data into beatmap

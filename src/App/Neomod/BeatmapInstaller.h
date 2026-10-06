@@ -108,8 +108,9 @@ class BeatmapInstaller final {
 
     // a maps/ set folder the directory watcher saw change (added, edited or removed): synced with the db and the
     // carousel like an import, once no import is writing or registering it. a folder that's exactly as the last
-    // import or uninstall left it (a deleted one included) was that write, which leaves nothing to do
-    void enqueue_folder(std::string folder);
+    // import or uninstall left it (a deleted one included) was that write, which leaves nothing to do, unless the
+    // caller knows that its content changed (a file rewritten in place doesn't move the folder's mtime)
+    void enqueue_folder(std::string folder, bool changed = false);
 
    private:
     struct BMInstallerImpl;
