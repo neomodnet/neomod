@@ -105,6 +105,9 @@ class TimingPoints {
 
     // the beat length and samples at a time, from the points at or before it (or the first point)
     [[nodiscard]] DBType::TIMING_INFO getTimingInfo(i32 positionMS) const;
+    // the beats since the uninherited point that applies at a time, with their fraction: for what pulses with the music
+    // (0 without a beat length)
+    [[nodiscard]] f64 getBeat(i32 positionMS) const;
 
     [[nodiscard]] uSz size() const { return this->entries.size(); }
     [[nodiscard]] bool empty() const { return this->entries.empty(); }
@@ -114,6 +117,9 @@ class TimingPoints {
     [[nodiscard]] Iterator end() const { return Iterator{this->entries.data() + this->entries.size()}; }
 
    private:
+    // the last point at or before the time (the first point before them all)
+    [[nodiscard]] uSz entryAt(i32 positionMS) const;
+
     FixedSizeArray<Entry> entries;
 };
 

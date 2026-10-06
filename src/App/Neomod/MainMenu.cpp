@@ -18,6 +18,7 @@
 #include "Paths.h"
 #include "MakeDelegateWrapper.h"
 #include "Database.h"
+#include "BeatmapFile/BeatmapPrimitives.h"
 #include "DatabaseBeatmap.h"
 #include "Downloader.h"
 #include "Engine.h"
@@ -710,19 +711,9 @@ std::pair<bool, float> MainMenu::getTimingpointPulseAmount() {
     }
 
     // playing music, get dynamic pulse amount
-    const i32 curMusicPos = music->getTime() + music->getOffset(map);
-    DBType::TIMING_INFO t = map->getTimingInfoForTime(curMusicPos);
-
-    if(t.beatLengthBase == 0.0f)  // bah
-        t.beatLengthBase = 1.0f;
-
-    this->animBeatCounter = (curMusicPos - t.offset - (i32)(std::max((i32)t.beatLengthBase, (i32)1) * 0.5f)) /
-                            std::max((i32)t.beatLengthBase, (i32)1);
-
-    pulse = (float)((curMusicPos - t.offset) % std::max((i32)t.beatLengthBase, (i32)1)) /
-            t.beatLengthBase;  // modulo must be >= 1
-    pulse = std::clamp<float>(pulse, -1.0f, 1.0f);
-    if(pulse < 0.0f) pulse = 1.0f - std::abs(pulse);
+    const f64 beat = map->getTimingpoints().getBeat(music->getTime() + music->getOffset(map));
+    this->animBeatCounter = (unsigned int)(i32)std::floor(beat - 0.5);
+    pulse = (float)(beat - std::floor(beat));
 
     return {true, pulse};
 }

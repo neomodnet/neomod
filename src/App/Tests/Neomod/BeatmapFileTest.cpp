@@ -446,6 +446,31 @@ void BeatmapFileTest::runTests() {
         TEST_ASSERT_EQ(BeatmapFile::format(tp), "8250,-166.66666666666669,4,3,1,60,0,0", "17 digits written back");
     }
 
+    TEST_SECTION("beats");
+    {
+        const auto point = [](f64 offset, f64 msPerBeat, bool uninherited) {
+            return DBType::TIMINGPOINT{.offset = offset,
+                                       .msPerBeat = msPerBeat,
+                                       .sampleSet = 0,
+                                       .sampleIndex = 0,
+                                       .volume = 100,
+                                       .uninherited = uninherited,
+                                       .kiai = false};
+        };
+        const Primitives::TimingPoints whole{{point(1000, 500, true), point(2000, -50, false), point(5100, 400, true)}};
+        TEST_ASSERT(whole.getBeat(1000) == 0.0, "the uninherited point is beat 0");
+        TEST_ASSERT(whole.getBeat(3250) == 4.5, "beats with their fraction, an inherited point doesn't count");
+        TEST_ASSERT(whole.getBeat(750) == -0.5, "before the first point, from it");
+        TEST_ASSERT(whole.getBeat(5500) == 1.0, "a later uninherited point starts over");
+
+        // 170 BPM: a beat length with a fraction doesn't drift (integer milliseconds would be 0.94 ms off a beat)
+        const Primitives::TimingPoints fraction{{point(0, 60000.0 / 170, true)}};
+        TEST_ASSERT(std::abs(fraction.getBeat(35294) - 100.0) < 0.001, "the 100th beat of 352.94 ms");
+
+        TEST_ASSERT(Primitives::TimingPoints{{point(0, std::nan(""), true)}}.getBeat(1000) == 0.0, "NaN beat length");
+        TEST_ASSERT(Primitives::TimingPoints{}.getBeat(1000) == 0.0, "no points");
+    }
+
     TEST_SECTION("hit objects");
     {
         using HO = BeatmapFile::HitObject;

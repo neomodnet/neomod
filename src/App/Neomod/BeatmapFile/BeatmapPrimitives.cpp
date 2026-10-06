@@ -94,10 +94,7 @@ TIMING_INFO TimingPoints::getTimingInfo(i32 positionMS) const {
 
     // peppy's algorithm (correctly handles aspire & NaNs): the last point at or before the time gives the samples,
     // the last uninherited one the beat length, and the last inherited one a multiplier if it comes after that
-    const Entry *const first = this->entries.data();
-    const Entry *const after = std::upper_bound(first, first + this->entries.size(), positionMS,
-                                                [](i32 time, const Entry &e) { return time < e.point.offset; });
-    const uSz audioPoint = after == first ? 0 : (after - first) - 1;
+    const uSz audioPoint = this->entryAt(positionMS);
     const uSz point = this->entries[audioPoint].lastUninherited;
     const uSz samplePoint = this->entries[audioPoint].lastInherited;
 
@@ -118,6 +115,20 @@ TIMING_INFO TimingPoints::getTimingInfo(i32 positionMS) const {
     ti.sampleSet = audio.sampleSet;
     ti.sampleIndex = audio.sampleIndex;
     return ti;
+}
+
+f64 TimingPoints::getBeat(i32 positionMS) const {
+    if(this->entries.empty()) return 0.0;
+    const TIMINGPOINT &timing = this->entries[this->entries[this->entryAt(positionMS)].lastUninherited].point;
+    if(!(timing.msPerBeat > 0.0)) return 0.0;  // (NaN too)
+    return (positionMS - timing.offset) / timing.msPerBeat;
+}
+
+uSz TimingPoints::entryAt(i32 positionMS) const {
+    const Entry *const first = this->entries.data();
+    const Entry *const after = std::upper_bound(first, first + this->entries.size(), positionMS,
+                                                [](i32 time, const Entry &e) { return time < e.point.offset; });
+    return after == first ? 0 : (after - first) - 1;
 }
 
 TimingPoints readTimingPoints(const BeatmapFile &file) {
