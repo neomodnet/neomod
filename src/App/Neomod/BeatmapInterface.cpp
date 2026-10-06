@@ -2292,6 +2292,8 @@ void BeatmapInterface::update2() {
             this->music.setLoop(false);
             this->music.setPosition(start_ms);
             this->music.play();
+            // (the time was read before this seek, and the rest of the frame plays from the start point)
+            this->iCurMusicPos = this->music.getTime();
             this->bWasSeekFrame = true;
             this->music.updateVolume();
 
