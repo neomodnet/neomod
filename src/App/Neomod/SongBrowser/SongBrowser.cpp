@@ -1772,6 +1772,16 @@ void SongBrowser::rebuildAfterSetChange() {
 }
 
 void SongBrowser::applyReconcile(const ReconcileResult &r) {
+    // a selected map that a new object replaced (its file's content changed, or it moved here) is that object from now
+    // on, so the set changes below treat it as a map that stayed (a held selection is its holder's)
+    bool followed = false;
+    if(const DatabaseBeatmap *cur = osu->getMapInterface()->getBeatmap(); cur && !osu->getMusicTrack()->isHeld()) {
+        if(auto it = std::ranges::find(r.successors, cur, &ReconcileResult::Successor::was); it != r.successors.end()) {
+            osu->getMapInterface()->selectBeatmap(it->now);
+            followed = true;
+        }
+    }
+
     // first, since their buttons still hold the md5s that this folder's take over
     for(const auto &[gone, remainder] : r.moved_from) {
         if(remainder) {
@@ -1785,6 +1795,7 @@ void SongBrowser::applyReconcile(const ReconcileResult &r) {
         using enum ReconcileResult::Outcome;
         case Created:
             this->addBeatmapSet(r.set);
+            if(followed) this->selectSelectedBeatmapSongButton();
             break;
         case Updated:
             this->replaceBeatmapSet(r.replaced, r.set);
