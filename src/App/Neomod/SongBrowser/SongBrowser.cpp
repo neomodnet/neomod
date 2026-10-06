@@ -1213,8 +1213,11 @@ void SongBrowser::onPlayEnd(bool quit) {
     if(!quit) {
         this->rebuildScoreButtons();
 
-        auto *selectedSongDiffButton = this->selectedButton->as<SongDifficultyButton>();
-        if(selectedSongDiffButton != nullptr) selectedSongDiffButton->updateGrade();
+        if(this->selectedButton) {
+            if(auto *selectedSongDiffButton = this->selectedButton->as<SongDifficultyButton>()) {
+                selectedSongDiffButton->updateGrade();
+            }
+        }
     }
 
     // update song info
@@ -3614,6 +3617,10 @@ void SongBrowser::recreateCollectionsButtons() {
             this->visibleSongButtons.clear();
         }
 
+        // (an open collection is the selection, and it may not get a button again)
+        for(const auto &btn : this->collectionButtons) {
+            if(this->selectedButton == btn.get()) this->selectedButton = nullptr;
+        }
         this->selectionPreviousCollectionButton = nullptr;
         this->collectionButtons.clear();
     }
