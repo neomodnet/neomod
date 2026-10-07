@@ -11,6 +11,11 @@ CBaseUIStyledButton::CBaseUIStyledButton(std::string text, std::string name)
 
 CBaseUIStyledButton::~CBaseUIStyledButton() = default;
 
+CBaseUIStyledButton *CBaseUIStyledButton::setChecked(bool checked) {
+    this->checked = checked;
+    return this;
+}
+
 void CBaseUIStyledButton::draw() {
     if(!this->isVisible()) return;
 
@@ -20,7 +25,7 @@ void CBaseUIStyledButton::draw() {
                                         : this->bMouseInside                  ? HOVERED
                                                                               : NORMAL;
     const UIStyle &style = uiStyle();
-    style.drawControl(this->getRect(), state);
+    style.drawControl(this->getRect(), state, this->checked);
     style.drawText(this->getRect(), this->getText(), TEXT_JUSTIFICATION::CENTERED, state);
 }
 

@@ -21,6 +21,7 @@ class UIStyle {
         Color control{argb(255, 46, 46, 56)};
         Color controlHovered{argb(255, 60, 60, 72)};
         Color accent{argb(255, 64, 140, 200)};
+        Color accentHovered{argb(255, 84, 160, 220)};
         Color text{argb(255, 230, 230, 235)};
         Color textDim{argb(255, 150, 150, 162)};
         Color textDisabled{argb(255, 96, 96, 106)};
@@ -46,7 +47,8 @@ class UIStyle {
     enum class ControlState : u8 { NORMAL, HOVERED, PRESSED, DISABLED };
 
     void drawPanel(const McRect &rect) const;
-    void drawControl(const McRect &rect, ControlState state) const;
+    // checked: the chosen one of a group, or a toggle that's on
+    void drawControl(const McRect &rect, ControlState state, bool checked = false) const;
     // text in a rect, vertically centered
     void drawText(const McRect &rect, std::string_view text, TEXT_JUSTIFICATION justification, ControlState state,
                   bool dim = false) const;

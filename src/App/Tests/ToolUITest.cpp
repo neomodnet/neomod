@@ -168,6 +168,10 @@ void ToolUITest::testStyledWidgets() {
                                                 2.f * style.metrics.controlHeight),
                 "a button's natural size is its text's with the style's padding, at the style's height");
     style.setScale(1.f);
+
+    const vec2 unchecked = button.getNaturalSize();
+    button.setChecked(true);
+    TEST_ASSERT(button.isChecked() && button.getNaturalSize() == unchecked, "a checked button keeps its size");
 }
 
 }  // namespace Mc::Tests

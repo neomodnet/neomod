@@ -23,13 +23,13 @@ void UIStyle::drawPanel(const McRect &rect) const {
     g->drawRect(rect);
 }
 
-void UIStyle::drawControl(const McRect &rect, ControlState state) const {
+void UIStyle::drawControl(const McRect &rect, ControlState state, bool checked) const {
     switch(state) {
         case ControlState::NORMAL:
-            g->setColor(this->palette.control);
+            g->setColor(checked ? this->palette.accent : this->palette.control);
             break;
         case ControlState::HOVERED:
-            g->setColor(this->palette.controlHovered);
+            g->setColor(checked ? this->palette.accentHovered : this->palette.controlHovered);
             break;
         case ControlState::PRESSED:
             g->setColor(this->palette.accent);
