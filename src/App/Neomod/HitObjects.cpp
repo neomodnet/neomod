@@ -964,6 +964,14 @@ void Circle::pose(i32 timeMS, i32 fadeOutMS) {
     m_shakeAnimation = 0.0f;
 }
 
+void Circle::addSoundCues(std::vector<SoundCue> &out) const {
+    out.push_back({.timeMS = m_clickTimeMS,
+                   .endTimeMS = m_clickTimeMS,
+                   .kind = SoundCue::Kind::HIT,
+                   .samples = m_hitSamples,
+                   .rawPos = m_rawPos});
+}
+
 void Circle::updateStackPosition(f32 stackOffset, bool hardRock) {
     m_rawPos = m_originalRawPos - vec2(m_stackNum * stackOffset, m_stackNum * stackOffset * (hardRock ? -1.0f : 1.0f));
 }
@@ -1862,6 +1870,31 @@ void Slider::pose(i32 timeMS, i32 fadeOutMS) {
         lastPulseMS < 0 ? 0.0f : std::clamp<f32>((f32)(timeMS - lastPulseMS) / pulseMS, 0.0f, 1.0f);
 }
 
+void Slider::addSoundCues(std::vector<SoundCue> &out) const {
+    if(m_ctrlPoints.size() == 0) return;
+
+    const auto cue = [&](i32 timeMS, SoundCue::Kind kind, const DatabaseBeatmapTypes::HITSAMPLE_BITS &samples,
+                         i32 endTimeMS) {
+        out.push_back({.timeMS = timeMS,
+                       .endTimeMS = endTimeMS,
+                       .kind = kind,
+                       .samples = samples,
+                       .rawPos = this->getRawPosAt(timeMS)});
+    };
+    const i32 endTimeMS = this->getEndTime();
+    cue(m_clickTimeMS, SoundCue::Kind::HIT, m_edgeSamples.front(), m_clickTimeMS);
+    cue(m_clickTimeMS, SoundCue::Kind::SLIDE, m_hitSamples, endTimeMS);
+    i32 repeat = 0;
+    for(const auto &click : m_clicks) {
+        if(click.type == 0) {
+            cue(click.timeMS, SoundCue::Kind::HIT, this->getRepeatSamples(++repeat), click.timeMS);
+        } else {
+            cue(click.timeMS, SoundCue::Kind::TICK, m_hitSamples, click.timeMS);
+        }
+    }
+    cue(endTimeMS, SoundCue::Kind::HIT, m_edgeSamples.back(), endTimeMS);
+}
+
 void Slider::updateSlideLook(i32 curPosMS, ModFlags mods) {
     // slider slide percent
     m_slidePct = 0.0f;
@@ -2216,17 +2249,8 @@ void Slider::onRepeatHit(const SLIDERCLICK &click) {
     if(!click.successful) {
         onSliderBreak();
     } else {
-        // Try to play a repeat sample based on what the mapper gave us
         // NOTE: iCurRepeatCounterForHitSounds starts at 1
-        const uSz nb_edge_samples = m_edgeSamples.size();
-        assert(nb_edge_samples > 0);
-        if(std::cmp_less(m_curRepeatCounterForHitSounds + 1, nb_edge_samples)) {
-            m_judge->playHitSound(m_edgeSamples[m_curRepeatCounterForHitSounds], m_curPointRaw, 0, click.timeMS);
-        } else {
-            // We have more repeats than edge samples!
-            // Just play whatever we can (either the last repeat sample, or the start sample)
-            m_judge->playHitSound(m_edgeSamples[nb_edge_samples - 2], m_curPointRaw, 0, click.timeMS);
-        }
+        m_judge->playHitSound(this->getRepeatSamples(m_curRepeatCounterForHitSounds), m_curPointRaw, 0, click.timeMS);
 
         if(m_view != nullptr) {
             f32 animation_multiplier = m_view->getSpeedAdjustedAnimationSpeed();
@@ -2261,6 +2285,17 @@ void Slider::onRepeatHit(const SLIDERCLICK &click) {
     }
 
     m_curRepeatCounterForHitSounds++;
+}
+
+const DatabaseBeatmapTypes::HITSAMPLE_BITS &Slider::getRepeatSamples(i32 repeat) const {
+    // Try to play a repeat sample based on what the mapper gave us
+    // (the map loader gives every slider at least a start and an end sample)
+    const uSz nb_edge_samples = m_edgeSamples.size();
+    assert(nb_edge_samples >= 2);
+    if(std::cmp_less(repeat + 1, nb_edge_samples)) return m_edgeSamples[repeat];
+    // We have more repeats than edge samples!
+    // Just play whatever we can (either the last repeat sample, or the start sample)
+    return m_edgeSamples[nb_edge_samples - 2];
 }
 
 void Slider::onTickHit(const SLIDERCLICK &click) {
@@ -2853,6 +2888,15 @@ void Spinner::pose(i32 timeMS, i32 /*fadeOutMS*/) {
     m_bonusTimeMS = -1;
     m_bonusSpins = 0;
     m_hitSuccess = false;
+}
+
+void Spinner::addSoundCues(std::vector<SoundCue> &out) const {
+    const i32 endTimeMS = this->getEndTime();
+    out.push_back({.timeMS = endTimeMS,
+                   .endTimeMS = endTimeMS,
+                   .kind = SoundCue::Kind::HIT,
+                   .samples = m_hitSamples,
+                   .rawPos = m_rawPos});
 }
 
 f32 Spinner::getTimeLeftPercent(i32 curPosMS) const {

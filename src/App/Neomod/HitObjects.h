@@ -52,6 +52,20 @@ class HitObject {
     void setComboNumber(i32 comboNumber) { m_comboNumber = comboNumber; }
 
    public:
+    // a sound a perfect play makes: what judgement plays when the object, or a part of it, is hit at its time
+    struct SoundCue {
+        enum class Kind : u8 {
+            HIT,    // a circle, a slider's head, repeats and end, a spinner's end
+            TICK,   // a slider tick
+            SLIDE,  // a slider's slide sound, held until endTimeMS
+        };
+        i32 timeMS;
+        i32 endTimeMS;
+        Kind kind;
+        DatabaseBeatmapTypes::HITSAMPLE_BITS samples;
+        vec2 rawPos;  // where it happens (osu!px), which its pan follows
+    };
+
     // pos is on the screen
     static void drawHitResult(const PlayfieldView &view, vec2 pos, LiveHitResult result, f32 animPercentInv,
                               f32 hitDeltaRangePercent);
@@ -81,6 +95,8 @@ class HitObject {
     // shows the object at timeMS as a perfect play would have left it, without judging it: every part hit at its
     // time, hit animations timeMS - hit time into fadeOutMS of music time, no hit results; spinners aren't spun
     virtual void pose(i32 timeMS, i32 fadeOutMS) = 0;
+    // the sounds a perfect play makes for it: pose()'s counterpart for sound
+    virtual void addSoundCues(std::vector<SoundCue> &out) const = 0;
 
     virtual void updateStackPosition(f32 /*stackOffset*/, bool /*hardRock*/) {}  // unused by spinners
     virtual void miss(i32 /*curPos*/) {}                                         // only used by notelock
@@ -243,6 +259,7 @@ class Circle final : public HitObject {
     void draw2() override;
     void update(i32 curPosMS, f64 frameTimeMS) override;
     void pose(i32 timeMS, i32 fadeOutMS) override;
+    void addSoundCues(std::vector<SoundCue> &out) const override;
 
     void updateStackPosition(f32 stackOffset, bool hardRock) override;
     void miss(i32 curPosMS) override;
@@ -302,6 +319,7 @@ class Slider final : public HitObject, public SliderRenderer::BodySource {
     void draw2(bool drawApproachCircle, bool drawOnlyApproachCircle);
     void update(i32 curPosMS, f64 frameTimeSecs) override;
     void pose(i32 timeMS, i32 fadeOutMS) override;
+    void addSoundCues(std::vector<SoundCue> &out) const override;
 
     void updateStackPosition(f32 stackOffset, bool hardRock) override;
     void miss(i32 curPosMS) override;
@@ -348,6 +366,8 @@ class Slider final : public HitObject, public SliderRenderer::BodySource {
     void onRepeatHit(const SLIDERCLICK &click);
     void onTickHit(const SLIDERCLICK &click);
     void onSliderBreak();
+    // what the repeat-th repeat (counted from 1) plays
+    [[nodiscard]] const DatabaseBeatmapTypes::HITSAMPLE_BITS &getRepeatSamples(i32 repeat) const;
 
     [[nodiscard]] vec2 curvePointAt(f32 t) const { return m_curve.pointAt(t) - m_stackOffset; }
     [[nodiscard]] f32 getT(i32 posMS, bool raw) const;
@@ -438,6 +458,7 @@ class Spinner final : public HitObject {
     void draw() override;
     void update(i32 curPosMS, f64 frameTimeSecs) override;
     void pose(i32 timeMS, i32 fadeOutMS) override;
+    void addSoundCues(std::vector<SoundCue> &out) const override;
 
     [[nodiscard]] vec2 getRawPosAt(i32 /*pos*/) const override { return m_rawPos; }
     [[nodiscard]] vec2 getOriginalRawPosAt(i32 /*pos*/) const override { return m_originalRawPos; }

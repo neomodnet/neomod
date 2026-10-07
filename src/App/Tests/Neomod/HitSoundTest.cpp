@@ -4,8 +4,14 @@
 #include "TestMacros.h"
 #include "BeatmapFile/BeatmapPrimitives.h"
 #include "Engine.h"
+#include "HitObjects.h"
 #include "HitSounds.h"
 #include "OsuConVars.h"
+
+#include <memory>
+#include <span>
+#include <string_view>
+#include <vector>
 
 namespace Mc::Tests {
 using namespace neomod;
@@ -543,6 +549,86 @@ void HitSoundTest::runTests() {
         TEST_ASSERT(ctx.layeredHitSounds, "context takes the skin's layering");
         TEST_ASSERT_EQ((i32)ctx.forcedSampleSet, cv::skin_force_hitsound_sample_set.getInt(),
                        "context takes the forced sample set convar");
+    }
+
+    // -------------------------------------------------------
+    // the sounds a perfect play makes, per object
+    // -------------------------------------------------------
+    TEST_SECTION("addSoundCues");
+    {
+        // 500 ms beats at slider velocity 1.4 and tick rate 1: 280 px is a two-beat span with a tick in its middle
+        constexpr std::string_view map =
+            "osu file format v14\n\n[Difficulty]\nSliderMultiplier:1.4\nSliderTickRate:1\n\n[TimingPoints]\n"
+            "0,500,4,2,0,100,1,0\n\n[HitObjects]\n"
+            "100,100,1000,1,2,0:0:0:0:\n"                                         // a circle with a whistle
+            "64,192,2000,2,0,L|344:192,3,280,2|8|4|0,0:0|0:0|0:0|0:0,0:0:0:0:\n"  // edges: whistle, clap, finish, -
+            "256,192,6000,12,4,7000,0:0:0:0:\n"                                   // a spinner with a finish
+            "64,192,8000,2,0,L|344:192,4,280,8|4,0:0|0:0,0:0:0:0:\n";             // three repeats, two edge sounds
+        auto c = Primitives::loadPrimitiveObjectsFromData(
+            std::span{reinterpret_cast<const u8 *>(map.data()), map.size()}, {});
+        TEST_ASSERT(!c.error, "the map loads");
+        TEST_ASSERT(!Primitives::calculateSliderTimesClicksTicks(c.version, c.sliders, c.timingpoints,
+                                                                 c.sliderMultiplier, c.sliderTickRate, c.limits),
+                    "its slider times calculate");
+        const auto objects = HitObjects::create(c, nullptr, nullptr);
+        TEST_ASSERT_EQ(objects.size(), (uSz)4, "four objects");
+        if(objects.size() == 4) {
+            using Kind = HitObject::SoundCue::Kind;
+            const auto cuesOf = [](const HitObject &obj) {
+                std::vector<HitObject::SoundCue> cues;
+                obj.addSoundCues(cues);
+                return cues;
+            };
+
+            const auto circle = cuesOf(*objects[0]);
+            TEST_ASSERT_EQ(circle.size(), (uSz)1, "a circle: one hit");
+            if(circle.size() == 1) {
+                TEST_ASSERT_EQ(circle[0].timeMS, 1000, "at its time");
+                TEST_ASSERT(circle[0].kind == Kind::HIT, "a hit");
+                TEST_ASSERT_EQ((i32)circle[0].samples.hitSounds, (i32)HitSoundType::WHISTLE, "with its whistle");
+            }
+
+            // head, slide, two repeats, a tick per span, end
+            const auto slider = cuesOf(*objects[1]);
+            TEST_ASSERT_EQ(slider.size(), (uSz)8, "a slider with two repeats and a tick per span: eight cues");
+            const auto find = [](const std::vector<HitObject::SoundCue> &cues, i32 timeMS, Kind kind) {
+                for(const auto &cue : cues) {
+                    if(cue.timeMS == timeMS && cue.kind == kind) return &cue;
+                }
+                return static_cast<const HitObject::SoundCue *>(nullptr);
+            };
+            const auto hitSoundsAt = [&](const std::vector<HitObject::SoundCue> &cues, i32 timeMS) {
+                const auto *cue = find(cues, timeMS, Kind::HIT);
+                return cue ? (i32)cue->samples.hitSounds : -1;
+            };
+            TEST_ASSERT_EQ(hitSoundsAt(slider, 2000), (i32)HitSoundType::WHISTLE, "the head plays the first edge");
+            TEST_ASSERT_EQ(hitSoundsAt(slider, 3000), (i32)HitSoundType::CLAP, "the first repeat the second");
+            TEST_ASSERT_EQ(hitSoundsAt(slider, 4000), (i32)HitSoundType::FINISH, "the second repeat the third");
+            TEST_ASSERT_EQ(hitSoundsAt(slider, 5000), 0, "the end the last");
+            const auto *slide = find(slider, 2000, Kind::SLIDE);
+            TEST_ASSERT(slide != nullptr, "the slide starts with the head");
+            if(slide) TEST_ASSERT_EQ(slide->endTimeMS, 5000, "and ends with the slider");
+            TEST_ASSERT(
+                find(slider, 2500, Kind::TICK) && find(slider, 3500, Kind::TICK) && find(slider, 4500, Kind::TICK),
+                "a tick in the middle of every span");
+            if(const auto *end = find(slider, 5000, Kind::HIT)) {
+                TEST_ASSERT_NEAR(end->rawPos.x, 344.f, 1.f, "three spans end at the far end, where the end is heard");
+            }
+
+            const auto spinner = cuesOf(*objects[2]);
+            TEST_ASSERT_EQ(spinner.size(), (uSz)1, "a spinner: one hit");
+            if(spinner.size() == 1) {
+                TEST_ASSERT_EQ(spinner[0].timeMS, 7000, "at its end");
+                TEST_ASSERT_EQ((i32)spinner[0].samples.hitSounds, (i32)HitSoundType::FINISH, "with its finish");
+            }
+
+            // three repeats with only a head and an end sample given: the repeats play the head's
+            const auto fallback = cuesOf(*objects[3]);
+            TEST_ASSERT_EQ(hitSoundsAt(fallback, 9000), (i32)HitSoundType::CLAP,
+                           "more repeats than edge samples: a repeat plays the start's");
+            TEST_ASSERT_EQ(hitSoundsAt(fallback, 11000), (i32)HitSoundType::CLAP, "every repeat");
+            TEST_ASSERT_EQ(hitSoundsAt(fallback, 12000), (i32)HitSoundType::FINISH, "the end its own");
+        }
     }
 }
 
