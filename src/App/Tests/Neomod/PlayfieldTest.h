@@ -18,8 +18,9 @@ namespace Mc::Tests {
 
 // a map's hitobjects and follow points drawn at any time without gameplay (no BeatmapInterface, no Osu): its own skin, a
 // PlainPlayfieldView fitted into the window, the objects from HitObjects::create() posed at the time.
-// -testarg:map FILE.osu, -testarg:time MS (pft_time sets it later); Left/Right 100 ms (Shift: 10), Up/Down 1 s, Space
-// plays. -testarg:corpus DIR draws every map under DIR at several times instead, then exits
+// -testarg:map FILE.osu, -testarg:time MS (pft_time sets it later), -testarg:trail 1 (osu!stable's editor look, T
+// toggles it); Left/Right 100 ms (Shift: 10), Up/Down 1 s, Space plays. -testarg:corpus DIR draws every map under DIR at several
+// times instead, then exits
 class PlayfieldTest : public App {
     NOCOPY_NOMOVE(PlayfieldTest)
    public:
@@ -68,6 +69,7 @@ class PlayfieldTest : public App {
     f32 m_timeConVar{0.f};  // pft_time as last seen
     bool m_loaded{false};
     bool m_playing{false};
+    bool m_trail{false};  // past circles as osu!stable's editor shows them (see HitObject::pose())
 };
 
 }  // namespace Mc::Tests

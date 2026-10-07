@@ -26,6 +26,9 @@ constexpr inline float osuCoords2Pan(float x) { return (x / (float)OSU_COORD_WID
 float getFadeOutTime(float animationSpeedMultiplier = 1.f);
 i32 getFadeInTime();
 
+// how long osu!stable's editor keeps a hit circle after its hit, as a trail instead of its hit animation
+inline constexpr const i32 EDITOR_TRAIL_TIME_MS{800};
+
 //********************//
 //	Hitobject Timing  //
 //********************//

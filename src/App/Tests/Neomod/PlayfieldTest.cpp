@@ -60,6 +60,7 @@ PlayfieldTest::PlayfieldTest() {
         if(!this->load(*map)) logRaw("PlayfieldTest: can't draw {}", *map);
     }
     if(const auto time = getTestArg("time")) m_timeMS = Parsing::strto<i32>(*time);
+    m_trail = getTestArg("trail") == "1";
 }
 
 PlayfieldTest::~PlayfieldTest() {
@@ -125,7 +126,7 @@ void PlayfieldTest::drawAt(i32 timeMS) {
             e.obj->rebuildVertexBuffer();
             e.meshBuilt = true;
         }
-        e.obj->pose(timeMS, fadeOutMS);
+        e.obj->pose(timeMS, fadeOutMS, m_trail ? GameRules::EDITOR_TRAIL_TIME_MS : 0);
         m_shown.push_back(e.obj);
     }
 
@@ -171,7 +172,8 @@ void PlayfieldTest::draw() {
     g->pushTransform();
     {
         g->translate(12, font->getHeight() + 10);
-        g->drawString(font, fmt::format("{} ms{}", (i32)m_timeMS, m_playing ? "" : "  (paused)"));
+        g->drawString(
+            font, fmt::format("{} ms{}{}", (i32)m_timeMS, m_playing ? "" : "  (paused)", m_trail ? "  (trail)" : ""));
     }
     g->popTransform();
 }
@@ -207,6 +209,8 @@ void PlayfieldTest::onKeyDown(KeyboardEvent &e) {
         m_timeMS += 1000.0;
     } else if(sc == KEY_SPACE) {
         m_playing = !m_playing;
+    } else if(sc == KEY_T) {
+        m_trail = !m_trail;
     } else {
         return;
     }

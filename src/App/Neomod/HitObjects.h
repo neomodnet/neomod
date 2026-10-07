@@ -93,8 +93,10 @@ class HitObject {
     virtual void update(i32 curPosMS, f64 frameTimeMS);
 
     // shows the object at timeMS as a perfect play would have left it, without judging it: every part hit at its
-    // time, hit animations timeMS - hit time into fadeOutMS of music time, no hit results; spinners aren't spun
-    virtual void pose(i32 timeMS, i32 fadeOutMS) = 0;
+    // time, hit animations timeMS - hit time into fadeOutMS of music time, no hit results; spinners aren't spun.
+    // with a trail (trailMS > 0, osu!stable's editor without hit animations), circles and slider heads stay white after
+    // their hit and fade out over trailMS instead, and slider repeats and ends don't animate
+    virtual void pose(i32 timeMS, i32 fadeOutMS, i32 trailMS) = 0;
     // the sounds a perfect play makes for it: pose()'s counterpart for sound
     virtual void addSoundCues(std::vector<SoundCue> &out) const = 0;
 
@@ -203,6 +205,9 @@ class HitObject {
     f32 m_alphaForApproachCircle{0.f};
     f32 m_approachScale{0.f};
     f32 m_hittableDimRGBColorMultiplierPct{1.f};
+    // a posed trail (see pose()): the circle's (or slider head's) alpha, 0 without one, and its approach circle's scale
+    f32 m_trailAlpha{0.f};
+    f32 m_trailApproachScale{1.f};
 
     bool m_blocked{false};
     bool m_overrideHDApproachCircle{false};
@@ -233,6 +238,10 @@ class Circle final : public HitObject {
                                     i32 colorOffset = 0, f32 colorRGBMultiplier = 1.0f, f32 approachScale = 1.0f,
                                     f32 alpha = 1.0f, f32 numberAlpha = 1.0f, bool drawNumber = true,
                                     bool overrideHDApproachCircle = false);
+    // a circle in `color` (the combo colour, or white for a trail): the skin's hit circle, or for a slider's head its
+    // slider start circle where the skin has one
+    static void drawCircleIn(const PlayfieldView &view, vec2 rawPos, i32 number, i32 colorCounter, Color color,
+                             f32 colorRGBMultiplier, f32 alpha, f32 numberAlpha, bool drawNumber, bool sliderHead);
 
     // split helper functions
     static void drawApproachCircle(const Skin *skin, vec2 pos, Color comboColor, f32 hitcircleDiameter,
@@ -258,7 +267,7 @@ class Circle final : public HitObject {
     void draw() override;
     void draw2() override;
     void update(i32 curPosMS, f64 frameTimeMS) override;
-    void pose(i32 timeMS, i32 fadeOutMS) override;
+    void pose(i32 timeMS, i32 fadeOutMS, i32 trailMS) override;
     void addSoundCues(std::vector<SoundCue> &out) const override;
 
     void updateStackPosition(f32 stackOffset, bool hardRock) override;
@@ -318,7 +327,7 @@ class Slider final : public HitObject, public SliderRenderer::BodySource {
     inline void draw2() override { draw2(true, false); }
     void draw2(bool drawApproachCircle, bool drawOnlyApproachCircle);
     void update(i32 curPosMS, f64 frameTimeSecs) override;
-    void pose(i32 timeMS, i32 fadeOutMS) override;
+    void pose(i32 timeMS, i32 fadeOutMS, i32 trailMS) override;
     void addSoundCues(std::vector<SoundCue> &out) const override;
 
     void updateStackPosition(f32 stackOffset, bool hardRock) override;
@@ -457,7 +466,7 @@ class Spinner final : public HitObject {
 
     void draw() override;
     void update(i32 curPosMS, f64 frameTimeSecs) override;
-    void pose(i32 timeMS, i32 fadeOutMS) override;
+    void pose(i32 timeMS, i32 fadeOutMS, i32 trailMS) override;
     void addSoundCues(std::vector<SoundCue> &out) const override;
 
     [[nodiscard]] vec2 getRawPosAt(i32 /*pos*/) const override { return m_rawPos; }

@@ -44,6 +44,14 @@ f32 hitAnimationAt(i32 elapsedMS, i32 durationMS) {
     const f32 eased = anim::ease(anim::QuadOut, (f32)elapsedMS / (f32)durationMS);
     return 0.001f * (1.0f - eased) + eased;
 }
+
+// a trail (see HitObject::pose()) elapsedMS after the hit: the circle's alpha, from 1 to 0 over durationMS
+f32 trailAlphaAt(i32 elapsedMS, i32 durationMS) {
+    return 1.0f - std::clamp((f32)elapsedMS / (f32)durationMS, 0.0f, 1.0f);
+}
+
+// and its approach circle's scale, a tenth larger over the first 100 ms
+f32 trailApproachScaleAt(i32 elapsedMS) { return 1.0f + 0.1f * std::clamp((f32)elapsedMS / 100.0f, 0.0f, 1.0f); }
 }  // namespace
 
 void HitObject::drawHitResult(const PlayfieldView &view, vec2 pos, LiveHitResult result, f32 animPercentInv,
@@ -541,6 +549,18 @@ void Circle::drawApproachCircle(const PlayfieldView &view, vec2 rawPos, i32 numb
 void Circle::drawCircle(const PlayfieldView &view, vec2 rawPos, i32 number, i32 colorCounter, i32 colorOffset,
                         f32 colorRGBMultiplier, f32 /*approachScale*/, f32 alpha, f32 numberAlpha, bool drawNumber,
                         bool /*overrideHDApproachCircle*/) {
+    // approach circle
+    /// drawApproachCircle(skin, pos, comboColor, hitcircleDiameter, approachScale, alpha, modHD,
+    /// overrideHDApproachCircle); // they are now drawn separately in draw2()
+
+    drawCircleIn(view, rawPos, number, colorCounter,
+                 Colors::scale(view.getComboColor(colorCounter, colorOffset),
+                               colorRGBMultiplier * cv::circle_color_saturation.getFloat()),
+                 colorRGBMultiplier, alpha, numberAlpha, drawNumber, false);
+}
+
+void Circle::drawCircleIn(const PlayfieldView &view, vec2 rawPos, i32 number, i32 colorCounter, Color color,
+                          f32 colorRGBMultiplier, f32 alpha, f32 numberAlpha, bool drawNumber, bool sliderHead) {
     if(alpha <= 0.0f || !cv::draw_circles.getBool()) return;
 
     rainbowNumber = number;
@@ -550,21 +570,20 @@ void Circle::drawCircle(const PlayfieldView &view, vec2 rawPos, i32 number, i32 
     const vec2 pos = view.osuCoords2Pixels(rawPos);
     const f32 hitcircleDiameter = view.getHitcircleDiameter();
 
-    Color comboColor = Colors::scale(view.getComboColor(colorCounter, colorOffset),
-                                     colorRGBMultiplier * cv::circle_color_saturation.getFloat());
-
-    // approach circle
-    /// drawApproachCircle(skin, pos, comboColor, hitcircleDiameter, approachScale, alpha, modHD,
-    /// overrideHDApproachCircle); // they are now drawn separately in draw2()
+    // if no sliderstartcircle image is preset, fallback to default circle
+    const bool startCircle = sliderHead && skin->i_slider_start_circle != MISSING_TEXTURE;
+    const BasicSkinImage &circleImage = startCircle ? skin->i_slider_start_circle : skin->i_hitcircle;
+    const SkinImage &overlayImage = startCircle ? skin->i_slider_start_circle_overlay2 : skin->i_hitcircleoverlay;
+    const bool drawOverlay = !startCircle || skin->i_slider_start_circle_overlay != MISSING_TEXTURE;
 
     // circle
-    const f32 circleImageScale = hitcircleDiameter / (128.0f * (skin->i_hitcircle.scale()));
-    drawHitCircle(skin->i_hitcircle, pos, comboColor, circleImageScale, alpha);
+    const f32 circleImageScale = hitcircleDiameter / (128.0f * (circleImage.scale()));
+    drawHitCircle(circleImage, pos, color, circleImageScale, alpha);
 
     // overlay
-    const f32 circleOverlayImageScale = hitcircleDiameter / skin->i_hitcircleoverlay.getSizeBaseRaw().x;
-    if(!skin->o_hitcircle_overlay_above_number)
-        drawHitCircleOverlay(skin->i_hitcircleoverlay, pos, circleOverlayImageScale, alpha, colorRGBMultiplier);
+    const f32 circleOverlayImageScale = hitcircleDiameter / overlayImage.getSizeBaseRaw().x;
+    if(drawOverlay && !skin->o_hitcircle_overlay_above_number)
+        drawHitCircleOverlay(overlayImage, pos, circleOverlayImageScale, alpha, colorRGBMultiplier);
 
     // number
     if(drawNumber)
@@ -572,8 +591,8 @@ void Circle::drawCircle(const PlayfieldView &view, vec2 rawPos, i32 number, i32 
                             colorRGBMultiplier);
 
     // overlay
-    if(skin->o_hitcircle_overlay_above_number)
-        drawHitCircleOverlay(skin->i_hitcircleoverlay, pos, circleOverlayImageScale, alpha, colorRGBMultiplier);
+    if(drawOverlay && skin->o_hitcircle_overlay_above_number)
+        drawHitCircleOverlay(overlayImage, pos, circleOverlayImageScale, alpha, colorRGBMultiplier);
 }
 
 void Circle::drawCircle(const Skin *skin, vec2 pos, f32 hitcircleDiameter, Color color, f32 alpha) {
@@ -589,51 +608,12 @@ void Circle::drawCircle(const Skin *skin, vec2 pos, f32 hitcircleDiameter, Color
 }
 
 void Circle::drawSliderStartCircle(const PlayfieldView &view, vec2 rawPos, i32 number, i32 colorCounter,
-                                   i32 colorOffset, f32 colorRGBMultiplier, f32 approachScale, f32 alpha,
-                                   f32 numberAlpha, bool drawNumber, bool overrideHDApproachCircle) {
-    if(alpha <= 0.0f || !cv::draw_circles.getBool()) return;
-
-    const Skin *skin = view.getSkin();
-
-    // if no sliderstartcircle image is preset, fallback to default circle
-    if(skin->i_slider_start_circle == MISSING_TEXTURE) {
-        drawCircle(view, rawPos, number, colorCounter, colorOffset, colorRGBMultiplier, approachScale, alpha,
-                   numberAlpha, drawNumber, overrideHDApproachCircle);  // normal
-        return;
-    }
-
-    rainbowNumber = number;
-    rainbowColorCounter = colorCounter;
-
-    const vec2 pos = view.osuCoords2Pixels(rawPos);
-    const f32 hitcircleDiameter = view.getHitcircleDiameter();
-
-    Color comboColor = Colors::scale(view.getComboColor(colorCounter, colorOffset),
-                                     colorRGBMultiplier * cv::circle_color_saturation.getFloat());
-
-    // circle
-    const f32 circleImageScale = hitcircleDiameter / (128.0f * (skin->i_slider_start_circle.scale()));
-    drawHitCircle(skin->i_slider_start_circle, pos, comboColor, circleImageScale, alpha);
-
-    // overlay
-    const f32 circleOverlayImageScale = hitcircleDiameter / skin->i_slider_start_circle_overlay2.getSizeBaseRaw().x;
-    if(skin->i_slider_start_circle_overlay != MISSING_TEXTURE) {
-        if(!skin->o_hitcircle_overlay_above_number)
-            drawHitCircleOverlay(skin->i_slider_start_circle_overlay2, pos, circleOverlayImageScale, alpha,
-                                 colorRGBMultiplier);
-    }
-
-    // number
-    if(drawNumber)
-        drawHitCircleNumber(skin, view.getNumberScale(), view.getHitcircleOverlapScale(), pos, number, numberAlpha,
-                            colorRGBMultiplier);
-
-    // overlay
-    if(skin->i_slider_start_circle_overlay != MISSING_TEXTURE) {
-        if(skin->o_hitcircle_overlay_above_number)
-            drawHitCircleOverlay(skin->i_slider_start_circle_overlay2, pos, circleOverlayImageScale, alpha,
-                                 colorRGBMultiplier);
-    }
+                                   i32 colorOffset, f32 colorRGBMultiplier, f32 /*approachScale*/, f32 alpha,
+                                   f32 numberAlpha, bool drawNumber, bool /*overrideHDApproachCircle*/) {
+    drawCircleIn(view, rawPos, number, colorCounter,
+                 Colors::scale(view.getComboColor(colorCounter, colorOffset),
+                               colorRGBMultiplier * cv::circle_color_saturation.getFloat()),
+                 colorRGBMultiplier, alpha, numberAlpha, drawNumber, true);
 }
 
 void Circle::drawSliderEndCircle(const PlayfieldView &view, vec2 rawPos, i32 number, i32 colorCounter, i32 colorOffset,
@@ -853,6 +833,14 @@ void Circle::draw() {
         g->popTransform();
     }
 
+    // posed with a trail: white, fading out
+    if(m_trailAlpha > 0.0f) {
+        skin->i_hitcircleoverlay.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
+        drawCircleIn(*m_view, m_rawPos, m_comboNumber, m_colorCounter, 0xffffffff, 1.0f, m_trailAlpha, m_trailAlpha,
+                     true, false);
+        return;
+    }
+
     if(m_finished ||
        (!m_visible && !m_waiting))  // special case needed for when we are past this objects time, but still
                                     // within not-miss range, because we still need to draw the object
@@ -888,6 +876,11 @@ void Circle::draw() {
 
 void Circle::draw2() {
     HitObject::draw2();
+    if(m_trailAlpha > 0.0f) {
+        drawApproachCircle(*m_view, m_rawPos, m_comboNumber, m_colorCounter, m_colorOffset, 1.0f, m_trailApproachScale,
+                           m_trailAlpha);
+        return;
+    }
     if(m_finished || (!m_visible && !m_waiting))
         return;  // special case needed for when we are past this objects time, but still within not-miss range, because
                  // we still need to draw the object
@@ -954,13 +947,17 @@ void Circle::update(i32 curPosMS, f64 frameTimeSecs) {
     }
 }
 
-void Circle::pose(i32 timeMS, i32 fadeOutMS) {
+void Circle::pose(i32 timeMS, i32 fadeOutMS, i32 trailMS) {
     this->updateLook(timeMS, m_view->getModFlags(), m_view->getApproachTime(),
                      m_view->getSpeedAdjustedAnimationSpeed());
 
     m_waiting = false;
     m_finished = timeMS >= m_clickTimeMS;
-    m_hitAnimation = m_finished ? hitAnimationAt(timeMS - m_clickTimeMS, fadeOutMS) : 0.0f;
+    const i32 sinceHitMS = timeMS - m_clickTimeMS;
+    const bool trail = m_finished && trailMS > 0;
+    m_hitAnimation = m_finished && !trail ? hitAnimationAt(sinceHitMS, fadeOutMS) : 0.0f;
+    m_trailAlpha = trail ? trailAlphaAt(sinceHitMS, trailMS) : 0.0f;
+    m_trailApproachScale = trail ? trailApproachScaleAt(sinceHitMS) : 1.0f;
     m_shakeAnimation = 0.0f;
 }
 
@@ -1141,10 +1138,10 @@ void Slider::draw() {
     SliderRenderer::draw(*this);
 
     const bool isCompletelyFinished = m_startFinished && m_endFinished && m_finished;
-    if((m_visible || (m_startFinished && !m_finished)) &&
-       !isCompletelyFinished)  // extra possibility to avoid flicker between HitObject::m_bVisible delay and the
-                               // fadeout animation below this if block
-    {
+    // extra possibility to avoid flicker between HitObject::m_bVisible delay and the fadeout animation below
+    const bool drawParts = (m_visible || (m_startFinished && !m_finished)) && !isCompletelyFinished;
+    const bool has_points = m_ctrlPoints.size() > 1;
+    if(drawParts) {
         const f32 alpha = (cv::mod_hd_slider_fast_fade.getBool() ? m_alpha : m_bodyAlpha);
         const f32 sliderSnake = getSnakeRange().second;
 
@@ -1170,7 +1167,6 @@ void Slider::draw() {
         }
 
         // draw start & end circle (if not traceable)
-        const bool has_points = m_ctrlPoints.size() > 1;
         if(has_points && !tc) {
             // HACKHACK: very dirty code
             bool sliderRepeatStartCircleFinished = (m_repeat < 2);
@@ -1212,7 +1208,18 @@ void Slider::draw() {
             // start circle
             if(draw_start) drawStartCircle(circle_alpha);
         }
+    }
 
+    // posed with a trail: the head stays, white, fading out (under the reverse arrows, as in osu!stable)
+    if(m_trailAlpha > 0.0f && !tc) {
+        const i32 animTimeOffset = m_clickTimeMS - m_approachTimeMS;
+        skin->i_hitcircleoverlay.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
+        skin->i_slider_start_circle_overlay2.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
+        Circle::drawCircleIn(*m_view, curvePointAt(0.0f), m_comboNumber, m_colorCounter, 0xffffffff, 1.0f, m_trailAlpha,
+                             m_trailAlpha, true, true);
+    }
+
+    if(drawParts) {
         // draw reverse arrows
         const bool reversePossible = has_points && m_reverseArrowAlpha > 0.0f;
         const bool reverseEnd = reversePossible && (m_reverseArrowPos == 2 || m_reverseArrowPos == 3);
@@ -1364,6 +1371,11 @@ void Slider::draw2(bool drawApproachCircle, bool drawOnlyApproachCircle) {
                                            m_alphaForApproachCircle, m_overrideHDApproachCircle);
             }
         }
+    }
+
+    if(drawApproachCircle && m_trailAlpha > 0.0f) {
+        Circle::drawApproachCircle(*m_view, curvePointAt(0.0f), m_comboNumber, m_colorCounter, m_colorOffset, 1.0f,
+                                   m_trailApproachScale, m_trailAlpha);
     }
 
     if(drawApproachCircle && drawOnlyApproachCircle) return;
@@ -1818,7 +1830,7 @@ void Slider::update(i32 curPosMS, f64 frameTimeSecs) {
     }
 }
 
-void Slider::pose(i32 timeMS, i32 fadeOutMS) {
+void Slider::pose(i32 timeMS, i32 fadeOutMS, i32 trailMS) {
     const ModFlags mods = m_view->getModFlags();
     const f32 animationSpeed = m_view->getSpeedAdjustedAnimationSpeed();
     this->updateLook(timeMS, mods, m_view->getApproachTime(), animationSpeed);
@@ -1849,11 +1861,16 @@ void Slider::pose(i32 timeMS, i32 fadeOutMS) {
         if(timeMS < hitTimeMS || timeMS - hitTimeMS >= fadeOutMS || m_clickAnimations.size() >= 128) return;
         m_clickAnimations.push_back(HitAnim{.percent{hitAnimationAt(timeMS - hitTimeMS, fadeOutMS)}, .type{typeFlags}});
     };
-    addHitAnimAt(m_clickTimeMS, HitAnim::HEAD);
-    for(const auto &click : m_clicks) {
-        if(click.type == 0) addHitAnimAt(click.timeMS, click.sliderend ? HitAnim::TAIL : HitAnim::HEAD);
+    const bool trail = m_startFinished && trailMS > 0;
+    if(trailMS <= 0) {
+        addHitAnimAt(m_clickTimeMS, HitAnim::HEAD);
+        for(const auto &click : m_clicks) {
+            if(click.type == 0) addHitAnimAt(click.timeMS, click.sliderend ? HitAnim::TAIL : HitAnim::HEAD);
+        }
+        addHitAnimAt(endTimeMS, m_repeat % 2 != 0 ? HitAnim::TAIL : HitAnim::HEAD);
     }
-    addHitAnimAt(endTimeMS, m_repeat % 2 != 0 ? HitAnim::TAIL : HitAnim::HEAD);
+    m_trailAlpha = trail ? trailAlphaAt(timeMS - m_clickTimeMS, trailMS) : 0.0f;
+    m_trailApproachScale = trail ? trailApproachScaleAt(timeMS - m_clickTimeMS) : 1.0f;
 
     m_endSliderBodyFadeAnimation =
         m_finished
@@ -2871,7 +2888,7 @@ void Spinner::update(i32 curPosMS, f64 frameTimeSecs) {
     }
 }
 
-void Spinner::pose(i32 timeMS, i32 /*fadeOutMS*/) {
+void Spinner::pose(i32 timeMS, i32 /*fadeOutMS*/, i32 /*trailMS*/) {
     this->updateLook(timeMS, m_view->getModFlags(), m_view->getApproachTime(),
                      m_view->getSpeedAdjustedAnimationSpeed());
 
