@@ -2776,8 +2776,8 @@ void SongBrowser::onDatabaseLoadingFinished(bool isNextScreenSongBrowser) {
     // Watch for new maps now
     this->mapsWatch = directoryWatcher->watch_directory(Mc::Paths::maps() + "/", [](const FileChangeEvent &ev) {
         // a set folder dropped in (or changed, or removed) while running: the installer syncs the db and the
-        // carousel with it like with an import, and tells its own writes (imports, uninstalls) apart from real
-        // changes. a deletion can't be stat'ed (so on windows it isn't known to be a folder), reconciling a name
+        // carousel with it like with an import, and tells its own writes (imports, uninstalls) and what its passes
+        // saw already apart from real changes. a deletion can't be stat'ed (so on windows it isn't known to be a folder), reconciling a name
         // that isn't a set folder (a deleted .osz) is a no-op
         if(ev.is_dir || ev.type == FileChangeType::DELETED) {
             osu->getBeatmapInstaller()->enqueue_folder(Environment::getFileNameFromFilePath(ev.path));

@@ -76,7 +76,8 @@ struct Entry {
     f32 progress{0.f};
     bool auto_select{false};
     bool delete_after{false};
-    bool changed{false};  // a folder whose content is known to have changed
+    bool changed{false};          // a folder whose content is known to have changed
+    fs::file_time_type listed{};  // a folder pass's: the folder's state when its worker was about to list it
     f64 finished_time{0.0};
 
     [[nodiscard]] bool is_local() const { return this->kind == Kind::Osz; }
@@ -569,8 +570,8 @@ void BeatmapInstaller::update() {
                 if(e.kind == Entry::Kind::Folder) {
                     // the folder may be one an import is writing (an extraction's folder isn't known until it's done)
                     // or registering, or one an earlier pass is still on, so it waits for those. one that's exactly
-                    // as the last import or uninstall left it was that write: the watcher reported the installer's
-                    // own change
+                    // as the last import, uninstall or pass left it was that write, or a change that pass saw: the
+                    // watcher reported what the installer did already
                     if(!db->isFinished() || db->isCancelled() || extracting >= max_extracting ||
                        Mc::ranges::any_of(m->entries, [&e](const Entry& o) {
                            return (o.stage == Extracting && o.kind != Entry::Kind::Folder) ||
@@ -587,6 +588,8 @@ void BeatmapInstaller::update() {
                             break;
                         }
                     }
+                    // (read before the worker lists it, so a change racing the listing is a change to what it left)
+                    e.listed = folder_state(e.folder);
                     e.extract_handle =
                         Async::submit([folder = e.folder]() { return parse_extracted(folder); }, Lane::Background);
                     e.stage = Extracting;
@@ -673,6 +676,7 @@ void BeatmapInstaller::update() {
                         logRaw("[{}] maps/{}: {} (+{} -{})", e.changed ? "BeatmapInstaller" : "DirectoryWatcher",
                                e.folder, r->outcomeName(), r->added, r->removed);
                     }
+                    m->settled[e.folder] = e.listed;
                     e.stage = Done;
                     e.finished_time = now;
                 } else if(!r->set && !r->dedup_owner) {
