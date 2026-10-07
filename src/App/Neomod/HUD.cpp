@@ -718,12 +718,8 @@ void HUD::drawFps() {
 
     const f32 dpiScale = Osu::getUIScale();
 
-    const i32 margin = std::round(3.0f * dpiScale);
+    const auto [margin, belowPadding] = HUD::getFpsCounterMargins();
     const f32 shadowOffset = std::round(1.0f * dpiScale);
-
-    // console font does not scale with DPI
-    static const i32 runtimeConfigHeight = (i32)(engine->getConsoleFont()->getHeight() * 1.25f);
-    const i32 belowPadding = HUD::shouldDrawRuntimeInfo() ? runtimeConfigHeight : 0;
 
     const vec2 screenSize = osu->getVirtScreenSize();
 
@@ -771,6 +767,21 @@ void HUD::drawFps() {
         g->drawString(font, msString, TextFX{.col_text = msColor, .offs_px = shadowOffset});
     }
     g->popTransform();
+}
+
+HUD::FpsCounterMargins HUD::getFpsCounterMargins() {
+    // console font does not scale with DPI
+    static const i32 runtimeConfigHeight = (i32)(engine->getConsoleFont()->getHeight() * 1.25f);
+    return {.edge = (i32)std::round(3.0f * Osu::getUIScale()),
+            .below = HUD::shouldDrawRuntimeInfo() ? runtimeConfigHeight : 0};
+}
+
+vec2 HUD::getFpsCounterSize() {
+    if(!cv::draw_fps.getBool()) return {0.f, 0.f};
+    McFont *font = engine->getDefaultFont();
+    const auto [margin, below] = HUD::getFpsCounterMargins();
+    const f32 width = std::max(font->getStringWidth("0000 fps"), font->getStringWidth("000.0 ms"));
+    return {width + 2.f * (f32)margin, 2.f * font->getHeight() + 3.f * (f32)margin + (f32)below};
 }
 
 void HUD::drawPlayfieldBorder(vec2 playfieldCenter, vec2 playfieldSize, f32 hitcircleDiameter) {

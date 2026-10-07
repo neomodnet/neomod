@@ -62,6 +62,9 @@ class HUD final : public UIScreen {
         bool secondTrail = false);  // NOTE: only use if drawCursor() with updateAndDrawTrail = false (FPoSu)
     void drawCursorRipples();
     void drawFps();
+    // how much of the screen's bottom right corner drawFps() covers (none while it's off), with room for four-digit
+    // rates: what a screen keeps its controls out of
+    static vec2 getFpsCounterSize();
     void drawHitErrorBar(BeatmapInterface *pf);
     void drawPlayfieldBorder(vec2 playfieldCenter, vec2 playfieldSize, f32 hitcircleDiameter);
     void drawPlayfieldBorder(vec2 playfieldCenter, vec2 playfieldSize, f32 hitcircleDiameter, f32 borderSize);
@@ -229,6 +232,12 @@ class HUD final : public UIScreen {
     void updateInputOverlayDemo();
 
     static bool shouldDrawRuntimeInfo();
+    // the fps counter's distance from the screen's edges, and the room it leaves below itself for the runtime info
+    struct FpsCounterMargins {
+        i32 edge;
+        i32 below;
+    };
+    static FpsCounterMargins getFpsCounterMargins();
 
     static f32 getCursorTrailScaleFactor();
 

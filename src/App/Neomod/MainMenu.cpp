@@ -1491,10 +1491,8 @@ void MainMenu::updateLayout() {
     this->versionButton->setRelPos(-1, screenSize.y - this->versionButton->getSize().y);
 
     {
-        McFont *font = engine->getDefaultFont();
         f32 margin = std::round(3.f * dpiScale);
-        f32 ads_y = screenSize.y;
-        if(cv::draw_fps.getBool()) ads_y -= (font->getHeight() * 3.f + margin);
+        f32 ads_y = screenSize.y - HUD::getFpsCounterSize().y;
 
         this->discordButton->onResized();
         ads_y -= this->discordButton->getSize().y + margin;
