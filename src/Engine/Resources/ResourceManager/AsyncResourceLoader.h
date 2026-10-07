@@ -28,7 +28,8 @@ class AsyncResourceLoader final {
     void scheduleAsyncDestroy(Resource *resource, bool shouldDelete);
     void reloadResources(const std::vector<Resource *> &resources);
 
-    // block until a specific resource's async load completes, then run sync init.
+    // block until a specific resource's async load completes, then run sync init. a reload requested meanwhile is
+    // dropped: for callers that reload or destroy the resource themselves right after.
     // returns true if the resource was found in-flight; false if it wasn't loading.
     bool waitForResource(Resource *resource);
 

@@ -172,15 +172,10 @@ bool AsyncResourceLoader::waitForResource(Resource *resource) {
         resource->load();
     }
 
-    // handle pending reloads
-    bool needsReload = false;
+    // dropped, not restarted: it would run alongside the caller's own reload, or on the resource the caller destroys
     {
         Sync::scoped_lock lock(this->pendingReloadsMutex);
-        needsReload = this->pendingReloads.erase(resource) > 0;
-    }
-    if(needsReload) {
-        resource->release();
-        requestAsyncLoad(resource);
+        this->pendingReloads.erase(resource);
     }
 
     return true;
