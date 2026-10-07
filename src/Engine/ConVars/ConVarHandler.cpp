@@ -15,6 +15,7 @@
 #include "fmt/chrono.h"
 
 #include <algorithm>
+#include <iterator>
 #include <unordered_set>
 #include <utility>
 
@@ -41,6 +42,55 @@ ConVar *ConVarHandler::getConVarByName(std::string_view name) const {
     auto it = this->vConVarMap.find(name);
     if(it != this->vConVarMap.end()) return it->second;
     return nullptr;
+}
+
+void ConVarHandler::add(ConVar &cvar) {
+    // No duplicate ConVar names allowed
+    assert(!this->vConVarMap.contains(cvar.getName()) && "no duplicate ConVar names allowed.");
+
+    this->vConVarMap.emplace(cvar.getName(), &cvar);
+    this->vConVarArray.push_back(&cvar);
+
+    const auto kept = this->vKeptValues.find(cvar.getName());
+    if(kept == this->vKeptValues.end()) return;
+    const KeptValue value = std::move(kept->second);
+    this->vKeptValues.erase(kept);
+
+    // (what the client could have set it to: commands have no value, and configs don't load NOLOAD convars)
+    if(!value.text || !cvar.canHaveValue() || !cvar.isFlagSet(cv::CLIENT) ||
+       (value.fromConfig && cvar.isFlagSet(cv::NOLOAD))) {
+        return;
+    }
+    if(auto parsed = cvar.makeValue(value.fromConfig ? Console::configValue(cvar, *value.text) : *value.text); parsed) {
+        cvar.clientValue = std::make_unique<ConVar::Value>(std::move(*parsed));
+    }
+}
+
+void ConVarHandler::remove(ConVar &cvar) {
+    assert(this->iChangeDepth == 0 && this->iNotifyDepth == 0 && "a convar can't go away during a change");
+
+    // (searched from the back: at exit, the statics go in the reverse order of their registration)
+    if(const auto it = std::ranges::find(this->vConVarArray.rbegin(), this->vConVarArray.rend(), &cvar);
+       it != this->vConVarArray.rend()) {
+        this->vConVarArray.erase(std::next(it).base());
+    }
+    this->vConVarMap.erase(cvar.getName());
+    std::erase(this->vSessionConVars, &cvar);
+    if(cvar.bProtectedNonDefault) this->iNumProtectedNonDefault--;
+
+    // (a saveable convar's name stays known even without a value: an older config line of that name is out of date)
+    const bool save = !cvar.isFlagSet(cv::NOSAVE);
+    std::optional<std::string> text;
+    if(!cvar.isClientDefault()) text = cvar.clientValue->s;
+    if(text || save) {
+        this->vKeptValues.insert_or_assign(cvar.getName(),
+                                           KeptValue{.text = std::move(text), .fromConfig = false, .save = save});
+    }
+}
+
+void ConVarHandler::keepConfigValue(std::string_view name, std::string_view text) {
+    assert(!this->vConVarMap.contains(name));
+    this->vKeptValues.insert_or_assign(name, KeptValue{.text = std::string{text}, .fromConfig = true, .save = true});
 }
 
 std::vector<ConVar *> ConVarHandler::getConVarByLetter(std::string_view letters) const {
@@ -107,7 +157,9 @@ void ConVarHandler::endChange() {
     // everything is in place. the change is over before anyone hears about it, so that callbacks are free to change
     // convars themselves (or to begin a change of their own)
     const std::vector<PendingChange> pending = std::exchange(this->vPending, {});
+    this->iNotifyDepth++;
     for(const auto &[cv, old, callbacks] : pending) cv->notifyIfChanged(old, callbacks);
+    this->iNotifyDepth--;
 }
 
 bool ConVarHandler::remember(ConVar &cvar, bool callbacks) {
@@ -144,6 +196,11 @@ void ConVarHandler::clearLayer(CvarEditor editor) {
             if(editor == CvarEditor::SERVER) cv->setServerProtected(CvarProtection::DEFAULT);
         }
     });
+    if(editor == CvarEditor::CLIENT) {
+        // (saveable names stay known, like their convars would)
+        for(auto &[name, kept] : this->vKeptValues) kept.text.reset();
+        std::erase_if(this->vKeptValues, [](const auto &kept) { return !kept.second.save; });
+    }
 }
 
 void ConVarHandler::beginSession(std::span<ConVar *const> convars) {

@@ -6,6 +6,7 @@
 #include "UniString.h"
 #include "crypto.h"
 #include "ConVarHandler.h"
+#include "Console.h"
 #include "CBaseUICheckbox.h"
 #include "CBaseUIContainer.h"
 #include "CBaseUIScrollView.h"
@@ -4405,63 +4406,19 @@ void OptionsOverlayImpl::save() {
     };
 
     static AsyncIOHandler::ReadCallback rd_callback = [](std::vector<u8> read_data) -> void {
-        std::vector<std::string_view> read_lines;
-        if(read_data.empty()) {
-            if(Environment::fileExists(cfg_name)) {
-                debugLog("WARNING: read no data from previous osu.cfg!");
-                // back it up just in case
-                const std::string backup_name = fmt::format("{}.{:%F}.bak", cfg_name, fmt::gmtime(std::time(nullptr)));
-                if(File::copy(cfg_name, backup_name)) {
-                    debugLog("backed up {} -> {}", cfg_name, backup_name);
-                }
+        if(read_data.empty() && Environment::fileExists(cfg_name)) {
+            debugLog("WARNING: read no data from previous osu.cfg!");
+            // back it up just in case
+            const std::string backup_name = fmt::format("{}.{:%F}.bak", cfg_name, fmt::gmtime(std::time(nullptr)));
+            if(File::copy(cfg_name, backup_name)) {
+                debugLog("backed up {} -> {}", cfg_name, backup_name);
             }
-        } else {
-            read_lines = SString::split(
-                std::string_view{reinterpret_cast<const char *>(read_data.data()), read_data.size()}, '\n');
-        }
-
-        std::string write_lines;
-        write_lines.reserve(read_lines.size());
-
-        for(auto line : read_lines) {
-            SString::trim_inplace(line);
-            if(line.empty()) continue;
-            if(SString::is_comment(line, "#") || SString::is_comment(line, "//")) {
-                write_lines.append(line);
-                if(!write_lines.ends_with('\n')) write_lines.push_back('\n');
-                continue;
-            }
-
-            bool cvar_found = false;
-            const auto parts = SString::split(line, ' ');
-            for(auto convar : cvars().getConVarArray()) {
-                if(convar->isFlagSet(cv::NOSAVE)) continue;
-                if(convar->getName() == parts[0]) {
-                    cvar_found = true;
-                    break;
-                }
-            }
-
-            if(!cvar_found) {
-                write_lines.append(line);
-                if(!write_lines.ends_with('\n')) write_lines.push_back('\n');
-                continue;
-            }
-        }
-
-        if(!write_lines.empty()) {
-            write_lines.append("\n\n");
-        }
-
-        // (the client's own values: what a skin/the server/a multiplayer room is forcing right now isn't ours to keep)
-        for(auto *convar : cvars().getConVarArray()) {
-            if(!convar->canHaveValue() || convar->isFlagSet(cv::NOSAVE)) continue;
-            if(convar->isClientDefault()) continue;
-            write_lines.append(fmt::format("{} {}\n", convar->getName(), convar->getClientString()));
         }
 
         // (both callbacks only use globals, and the one at exit has to run during the engine's shutdown)
-        io->write(cfg_name, std::move(write_lines), wr_callback).detach();
+        io->write(cfg_name, Console::makeConfig({reinterpret_cast<const char *>(read_data.data()), read_data.size()}),
+                  wr_callback)
+            .detach();
     };
 
     // let the nested write callback handle any error message

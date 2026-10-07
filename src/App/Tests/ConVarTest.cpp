@@ -7,6 +7,7 @@
 #include "Console.h"
 #include "BaseEnvironment.h"
 #include "Engine.h"
+#include "SString.h"
 #include "SyncJthread.h"
 #include "types.h"
 
@@ -14,6 +15,8 @@
 #include <array>
 #include <atomic>
 #include <initializer_list>
+#include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -91,6 +94,23 @@ std::string s_cbNewString;
 bool isNonDefaultProtected(const ConVar &cvar) {
     return std::ranges::contains(cvars().getNonDefaultProtectedCvars(), &cvar);
 }
+
+// for the convars that come and go (owned by a test, like an editor object's would be)
+int s_ownedCalls{0};
+
+// the value kept for a name no convar has right now (none if nothing is kept, or the client left it at the default)
+std::optional<std::string> keptValue(std::string_view name) {
+    const auto kept = cvars().getKeptValues().find(name);
+    return kept != cvars().getKeptValues().end() ? kept->second.text : std::nullopt;
+}
+bool isKept(std::string_view name) { return keptValue(name).has_value(); }
+
+// how many lines of `config` start with `prefix`
+size_t countLines(std::string_view config, std::string_view prefix) {
+    size_t count = 0;
+    for(const auto line : SString::split(config, '\n')) count += line.starts_with(prefix);
+    return count;
+}
 }  // namespace
 
 ConVarTest::ConVarTest() {
@@ -135,6 +155,7 @@ void ConVarTest::update() {
     this->testSession();
     this->testChange();
     this->testThreads();
+    this->testLifetime();
 
     TEST_PRINT_RESULTS("ConVarTest");
     engine->shutdown();
@@ -771,12 +792,12 @@ void ConVarTest::testConsole() {
     s_vetoed = nullptr;
 
     // lines out of a config may have a comment after a number. text may be anything, so it isn't looked at for one
-    TEST_ASSERT(Console::processCommand("cvtest_loadable 2.5 // a comment", true) && t_loadable.getFloat() == 2.5f &&
-                    t_loadable.getString() == "2.5",
+    TEST_ASSERT(Console::processCommand("cvtest_loadable 2.5 // a comment", Console::Source::CONFIG) &&
+                    t_loadable.getFloat() == 2.5f && t_loadable.getString() == "2.5",
                 "a comment after a number in a config isn't part of the value");
     TEST_ASSERT(!Console::processCommand("cvtest_loadable 3.5 // a comment") && t_loadable.getFloat() == 2.5f,
                 "...which is for configs only");
-    Console::processCommand("cvtest_loadable_string http://localhost // not a comment", true);
+    Console::processCommand("cvtest_loadable_string http://localhost // not a comment", Console::Source::CONFIG);
     TEST_ASSERT_EQ(t_loadableString.getString(), "http://localhost // not a comment",
                    "text in a config stays what it is");
     t_loadable.setValue(1.0f);
@@ -1267,6 +1288,139 @@ void ConVarTest::testThreads() {
 
     t_layered.setValue(1.0f);
     t_protected.setValue(0.0f);
+}
+
+void ConVarTest::testLifetime() {
+    TEST_SECTION("convars that come and go");
+
+    const size_t numConVars = cvars().getNumConVars();
+    auto owned = std::make_unique<ConVar>("cvtest_owned", 1.0f, cv::CLIENT | cv::HIDDEN, "",
+                                          [](float) -> void { s_ownedCalls++; });
+    TEST_ASSERT(cvars().getConVarByName("cvtest_owned") == owned.get() && cvars().getNumConVars() == numConVars + 1,
+                "a convar that isn't a static registers like one");
+    owned->setValue(2.5f);
+    TEST_ASSERT_EQ(s_ownedCalls, 1, "a callback given to the constructor runs");
+
+    owned.reset();
+    TEST_ASSERT(cvars().getConVarByName("cvtest_owned") == nullptr && cvars().getNumConVars() == numConVars &&
+                    !std::ranges::contains(cvars().getConVarArray(), "cvtest_owned"sv, &ConVar::getName),
+                "a destroyed convar is gone from the registry");
+    TEST_ASSERT(keptValue("cvtest_owned") == "2.5", "...which keeps its client value");
+
+    owned = std::make_unique<ConVar>("cvtest_owned", 1.0f, cv::CLIENT | cv::HIDDEN, "",
+                                     [](float) -> void { s_ownedCalls++; });
+    TEST_ASSERT(owned->getFloat() == 2.5f && owned->getMaster() == CvarEditor::CLIENT && !owned->isClientDefault(),
+                "a convar registering under its name takes the kept value as its client value");
+    TEST_ASSERT_EQ(s_ownedCalls, 1, "...without callbacks (its owner is still being constructed)");
+    TEST_ASSERT(!isKept("cvtest_owned"), "...and it isn't kept anymore");
+
+    owned->setValue(1.0f);
+    owned.reset();
+    TEST_ASSERT(!isKept("cvtest_owned") && cvars().getKeptValues().contains("cvtest_owned"),
+                "a convar at its default leaves no value, but its name stays known (for configs)");
+    {
+        ConVar nosave("cvtest_owned_nosave", 0, cv::CLIENT | cv::HIDDEN | cv::NOSAVE);
+    }
+    TEST_ASSERT(!cvars().getKeptValues().contains("cvtest_owned_nosave"),
+                "...unlike a NOSAVE convar's, which configs don't care about");
+
+    // (not something editor code could have: those are client settings)
+    {
+        ConVar protectedOwned("cvtest_owned_protected", 0.0f, cv::CLIENT | cv::PROTECTED | cv::HIDDEN);
+        protectedOwned.setValue(3.0f);
+        TEST_ASSERT(!cvars().areProtectedCvarsDefault(), "an owned protected convar counts like a static one");
+
+        ConVar *const sessionConVars[] = {&protectedOwned};
+        cvars().beginSession(sessionConVars);
+    }
+    TEST_ASSERT(cvars().areProtectedCvarsDefault(), "...and stops counting when it is destroyed");
+    TEST_ASSERT(!cvars().isInSession(), "a destroyed convar is no longer part of a session");
+    cvars().endSession();
+    TEST_ASSERT(isKept("cvtest_owned_protected"), "(its client value is kept as well)");
+    {
+        ConVar protectedOwned("cvtest_owned_protected", 0.0f, cv::CLIENT | cv::PROTECTED | cv::HIDDEN);
+        protectedOwned.setValue(0.0f);
+    }
+
+    // values in configs for names that no convar has (yet)
+    TEST_ASSERT(Console::processCommand("cvtest_later 7", Console::Source::CONFIG) && isKept("cvtest_later"),
+                "a config's value for a name without a convar is kept");
+    TEST_ASSERT(!Console::processCommand("cvtest_typed 7") && !isKept("cvtest_typed"),
+                "...but not a value typed into the console");
+    TEST_ASSERT(!Console::processCommand("cvtest_imported 7", Console::Source::OTHER_INSTALL_CONFIG) &&
+                    !isKept("cvtest_imported"),
+                "...nor one from another installation's config");
+    TEST_ASSERT(!Console::processCommand("cvtest_valueless", Console::Source::CONFIG) && !isKept("cvtest_valueless"),
+                "...nor a name by itself");
+    {
+        ConVar later("cvtest_later", 0, cv::CLIENT | cv::HIDDEN);
+        TEST_ASSERT_EQ(later.getInt(), 7, "a convar registering later takes the config's value");
+        later.setValue(0);
+    }
+
+    Console::processCommand("cvtest_later_commented 4 // four", Console::Source::CONFIG);
+    {
+        ConVar later("cvtest_later_commented", 0.0f, cv::CLIENT | cv::HIDDEN);
+        TEST_ASSERT_EQ(later.getFloat(), 4.0f, "...read like a config's line (a comment after a number)");
+        later.setValue(0.0f);
+    }
+
+    Console::processCommand("cvtest_later_noload 3", Console::Source::CONFIG);
+    {
+        ConVar later("cvtest_later_noload", 0, cv::CLIENT | cv::HIDDEN | cv::NOLOAD);
+        TEST_ASSERT(later.getInt() == 0 && !isKept("cvtest_later_noload"),
+                    "a NOLOAD convar doesn't take a config's value (which is dropped)");
+        later.setValue(5);
+    }
+    TEST_ASSERT(isKept("cvtest_later_noload"), "(but what its client had set it to is kept)");
+    {
+        ConVar later("cvtest_later_noload", 0, cv::CLIENT | cv::HIDDEN | cv::NOLOAD);
+        TEST_ASSERT_EQ(later.getInt(), 5, "...and taken over by the next one");
+        later.setValue(0);
+    }
+
+    // configs get written with the kept values
+    Console::processCommand("cvtest_kept 1", Console::Source::CONFIG);
+    {
+        ConVar nosave("cvtest_kept_nosave", 0, cv::CLIENT | cv::HIDDEN | cv::NOSAVE);
+        nosave.setValue(9);
+    }
+    {
+        ConVar reset("cvtest_reset", 0, cv::CLIENT | cv::HIDDEN);
+        reset.setValue(4);
+        reset.clearValue(CvarEditor::CLIENT);
+    }
+    auto saved = std::make_unique<ConVar>("cvtest_saved", 0, cv::CLIENT | cv::HIDDEN);
+    saved->setValue(3);
+    const std::string config = Console::makeConfig(
+        "# a comment\ncvtest_kept 0\ncvtest_cmd an argument\ncvtest_saved 2\ncvtest_kept_nosave 8\ncvtest_reset "
+        "4\nnobody_knows\n");
+    TEST_ASSERT_EQ(countLines(config, "# a comment"), 1, "a config keeps its comments");
+    TEST_ASSERT(countLines(config, "cvtest_kept ") == 1 && countLines(config, "cvtest_kept 1") == 1,
+                "...writes a kept value once, from what is kept");
+    TEST_ASSERT(countLines(config, "cvtest_saved ") == 1 && countLines(config, "cvtest_saved 3") == 1,
+                "...and a convar's value from the convar");
+    TEST_ASSERT_EQ(countLines(config, "cvtest_cmd an argument"), 1, "...keeps lines of a NOSAVE convar as they were");
+    TEST_ASSERT_EQ(countLines(config, "cvtest_kept_nosave 8"), 1,
+                   "...as well as those of a name whose kept value isn't saved");
+    TEST_ASSERT_EQ(countLines(config, "cvtest_kept_nosave 9"), 0, "(which is a NOSAVE convar's)");
+    TEST_ASSERT_EQ(countLines(config, "nobody_knows"), 1, "...and lines nothing here knows about");
+    TEST_ASSERT_EQ(countLines(config, "cvtest_reset"), 0,
+                   "...but not an old line of a convar that is gone, after its value went back to the default");
+
+    saved->setValue(0);
+    saved.reset();
+    {
+        ConVar kept("cvtest_kept", 0, cv::CLIENT | cv::HIDDEN);
+        kept.setValue(0);
+        ConVar nosave("cvtest_kept_nosave", 0, cv::CLIENT | cv::HIDDEN | cv::NOSAVE);
+        TEST_ASSERT_EQ(nosave.getInt(), 9, "a NOSAVE convar's kept value is still taken over");
+        nosave.setValue(0);
+    }
+    TEST_ASSERT(
+        std::ranges::none_of(cvars().getKeptValues(),
+                             [](const auto &kept) { return kept.first.starts_with("cvtest_") && kept.second.text; }),
+        "(no value of the tests is kept anymore)");
 }
 
 }  // namespace Mc::Tests

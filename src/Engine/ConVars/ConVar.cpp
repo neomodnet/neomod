@@ -50,22 +50,30 @@ ConVar version("version", PACKAGE_VERSION_UNCACHED, CONSTANT);
 }  // namespace cv
 
 void ConVar::addConVar() {
-    // every ctor ends up here with its values in place: publish them for the getters
-    this->resolve();
-
-    std::string_view name = this->getName();
-
     // osu_ prefix is deprecated.
     // If you really need it, you'll also need to edit Console::execConfigFile to whitelist it there.
-    assert(!(name.starts_with("osu_") && !name.starts_with("osu_folder")) && "osu_ ConVar prefix is deprecated.");
+    assert(!(this->sName.starts_with("osu_") && !this->sName.starts_with("osu_folder")) &&
+           "osu_ ConVar prefix is deprecated.");
 
-    auto &convar_map = cvars().vConVarMap;
+    // (which may hand it the client value kept under its name)
+    cvars().add(*this);
 
-    // No duplicate ConVar names allowed
-    assert(!convar_map.contains(name) && "no duplicate ConVar names allowed.");
+    // every ctor ends up here with its values in place: publish them for the getters
+    this->resolve();
+}
 
-    convar_map.emplace(name, this);
-    cvars().vConVarArray.push_back(this);
+ConVar::~ConVar() { cvars().remove(*this); }
+
+bool ConVar::isProtected() const {
+    switch(this->serverProtectionPolicy) {
+        case CvarProtection::DEFAULT:
+            return this->isFlagSet(cv::PROTECTED);
+        case CvarProtection::PROTECTED:
+            return true;
+        case CvarProtection::UNPROTECTED:
+        default:
+            return false;
+    }
 }
 
 std::string ConVar::getFancyDefaultValue() const {

@@ -24,24 +24,32 @@
 using namespace std::string_view_literals;
 using namespace std::string_literals;
 
+// on the flags only the program's own convars may have: an error in code that gets unloaded while the program runs
+// (compiled with MC_RELOADABLE_CODE), whose convars are client settings
+#ifdef MC_RELOADABLE_CODE
+#define CV_HOST_ONLY [[deprecated("convars of code that gets unloaded while the program runs are client settings")]]
+#else
+#define CV_HOST_ONLY
+#endif
+
 namespace cv {
 enum CvarFlags : uint8_t {
     // Modifiable by clients
     CLIENT = (1 << 0),
 
     // Modifiable by servers
-    SERVER = (1 << 1),
+    SERVER CV_HOST_ONLY = (1 << 1),
 
     // Modifiable by skins
     // TODO: assert() CLIENT is set
-    SKINS = (1 << 2),
+    SKINS CV_HOST_ONLY = (1 << 2),
 
     // Scores won't submit if modified
-    PROTECTED = (1 << 3),
+    PROTECTED CV_HOST_ONLY = (1 << 3),
 
     // Scores won't submit if modified during gameplay
     // (nothing the engine looks at: what it means is up to the app's ConVarHandler::Policy)
-    GAMEPLAY = (1 << 4),
+    GAMEPLAY CV_HOST_ONLY = (1 << 4),
 
     // Hidden from console suggestions (e.g. for passwords or deprecated cvars)
     HIDDEN = (1 << 5),
@@ -89,6 +97,7 @@ enum class CvarSetResult : uint8_t {
 };
 
 class ConVar {
+    NOCOPY_NOMOVE(ConVar)
     // convenience for "tricking" clangd/intellisense into allowing us to use a namespace for ConVarHandler in ConVarDefs.h
 #ifndef DEFINE_CONVARS
     friend class ConVarHandler;
@@ -193,7 +202,7 @@ class ConVar {
         requires(!std::is_same_v<std::decay_t<T>, const char *>) && cv::detail::CallbackAny<Callback>
         : sName(name), sHelpString(helpString) {
         this->setupValue(std::forward<T>(defaultValue), flags);
-        this->setCallback(std::forward<Callback>(callback));
+        this->installCallback(std::forward<Callback>(callback));
         this->addConVar();
     }
 
@@ -212,7 +221,7 @@ class ConVar {
         requires std::is_arithmetic_v<std::decay_t<T>> && cv::detail::CallbackAny<Callback>
         : sName(name), sHelpString(helpString), range(range) {
         this->setupValue(std::forward<T>(defaultValue), flags);
-        this->setCallback(std::forward<Callback>(callback));
+        this->installCallback(std::forward<Callback>(callback));
         this->addConVar();
     }
 
@@ -221,7 +230,7 @@ class ConVar {
         requires(!std::is_same_v<std::decay_t<T>, const char *>) && cv::detail::CallbackAny<Callback>
         : sName(name), sHelpString("") {
         this->setupValue(std::forward<T>(defaultValue), flags);
-        this->setCallback(std::forward<Callback>(callback));
+        this->installCallback(std::forward<Callback>(callback));
         this->addConVar();
     }
 
@@ -239,7 +248,7 @@ class ConVar {
         requires cv::detail::CallbackAny<Callback>
         : sName(name), sHelpString(helpString) {
         this->initValueImpl(defaultValue, flags);
-        this->setCallback(std::forward<Callback>(callback));
+        this->installCallback(std::forward<Callback>(callback));
         this->addConVar();
     }
 
@@ -248,9 +257,13 @@ class ConVar {
         requires cv::detail::CallbackAny<Callback>
         : sName(name), sHelpString("") {
         this->initValueImpl(defaultValue, flags);
-        this->setCallback(std::forward<Callback>(callback));
+        this->installCallback(std::forward<Callback>(callback));
         this->addConVar();
     }
+
+    // takes the convar out of the registry, which keeps its client value for the next convar of that name (see
+    // ConVarHandler::getKeptValues())
+    ~ConVar();
 
     // every editor has a value of its own: the server's beats the skin's, which beats the client's (see resolve()).
     // not every text is something a convar can be set to: numeric ones only take numbers, as all of the text (and bool
@@ -272,30 +285,12 @@ class ConVar {
     void clearValue(CvarEditor editor);
 
     // generic callback setter that auto-detects callback type
+    // (a callback given to the constructor instead belongs to the convar, and goes away with it)
     template <typename Callback>
     MC_UNREVOCABLE void setCallback(Callback &&callback)
         requires cv::detail::CallbackAny<Callback>
     {
-        assert(McThread::is_main_thread() && "convars belong to the main thread");
-        using D = std::decay_t<Callback>;
-        if constexpr(is_cb_delegate<D>)
-            this->setCallbackImpl(std::forward<Callback>(callback));
-        else if constexpr(cb_invocable<D>)
-            this->setCallbackImpl(VoidCB(std::forward<Callback>(callback)));
-        else if constexpr(cb_invocable<D, std::string_view>)
-            this->setCallbackImpl(StringCB(std::forward<Callback>(callback)));
-        else if constexpr(cb_invocable<D, float>)
-            this->setCallbackImpl(FloatCB(std::forward<Callback>(callback)));
-        else if constexpr(cb_invocable<D, double>)
-            this->setCallbackImpl(DoubleCB(std::forward<Callback>(callback)));
-        else if constexpr(cb_invocable<D, std::string_view, std::string_view>)
-            this->setCallbackImpl(StringChangeCB(std::forward<Callback>(callback)));
-        else if constexpr(cb_invocable<D, float, float>)
-            this->setCallbackImpl(FloatChangeCB(std::forward<Callback>(callback)));
-        else if constexpr(cb_invocable<D, double, double>)
-            this->setCallbackImpl(DoubleChangeCB(std::forward<Callback>(callback)));
-        else
-            static_assert(Env::always_false_v<D>, "Unsupported callback signature");
+        this->installCallback(std::forward<Callback>(callback));
     }
 
     void removeCallback();
@@ -368,17 +363,7 @@ class ConVar {
 
     void setServerProtected(CvarProtection policy);
 
-    [[nodiscard]] inline bool isProtected() const {
-        switch(this->serverProtectionPolicy) {
-            case CvarProtection::DEFAULT:
-                return this->isFlagSet(cv::PROTECTED);
-            case CvarProtection::PROTECTED:
-                return true;
-            case CvarProtection::UNPROTECTED:
-            default:
-                return false;
-        }
-    }
+    [[nodiscard]] bool isProtected() const;
 
    private:
     // typed setValue impls — public setValue<T> dispatches into these based on T category
@@ -386,7 +371,34 @@ class ConVar {
     CvarSetResult setValueImpl(double newDouble, bool doCallback, CvarEditor editor);
     CvarSetResult setValueImpl(std::string_view newString, bool doCallback, CvarEditor editor);
 
-    // typed setCallback impls — public setCallback<C> dispatches into these
+    // setCallback() and the constructors: compile-time dispatch into the typed impls below
+    template <typename Callback>
+    void installCallback(Callback &&callback)
+        requires cv::detail::CallbackAny<Callback>
+    {
+        assert(McThread::is_main_thread() && "convars belong to the main thread");
+        using D = std::decay_t<Callback>;
+        if constexpr(is_cb_delegate<D>)
+            this->setCallbackImpl(std::forward<Callback>(callback));
+        else if constexpr(cb_invocable<D>)
+            this->setCallbackImpl(VoidCB(std::forward<Callback>(callback)));
+        else if constexpr(cb_invocable<D, std::string_view>)
+            this->setCallbackImpl(StringCB(std::forward<Callback>(callback)));
+        else if constexpr(cb_invocable<D, float>)
+            this->setCallbackImpl(FloatCB(std::forward<Callback>(callback)));
+        else if constexpr(cb_invocable<D, double>)
+            this->setCallbackImpl(DoubleCB(std::forward<Callback>(callback)));
+        else if constexpr(cb_invocable<D, std::string_view, std::string_view>)
+            this->setCallbackImpl(StringChangeCB(std::forward<Callback>(callback)));
+        else if constexpr(cb_invocable<D, float, float>)
+            this->setCallbackImpl(FloatChangeCB(std::forward<Callback>(callback)));
+        else if constexpr(cb_invocable<D, double, double>)
+            this->setCallbackImpl(DoubleChangeCB(std::forward<Callback>(callback)));
+        else
+            static_assert(Env::always_false_v<D>, "Unsupported callback signature");
+    }
+
+    // typed setCallback impls
     void setCallbackImpl(VoidCB cb);
     void setCallbackImpl(StringCB cb);
     void setCallbackImpl(FloatCB cb);

@@ -11,6 +11,8 @@
 #include "Paths.h"
 #include "SyncMutex.h"
 
+#include "fmt/format.h"
+
 #include <algorithm>
 #include <cassert>
 #include <deque>
@@ -36,8 +38,9 @@ std::vector<std::string> s_history;
 int s_historySelection{-1};
 }  // namespace
 
-bool processCommand(std::string_view command, bool fromFile) {
+bool processCommand(std::string_view command, Source source) {
     if(command.length() < 1) return false;
+    const bool fromFile = source != Source::USER;
 
     // remove whitespace from beginning/end of string
     SString::trim_inplace(command);
@@ -75,6 +78,11 @@ bool processCommand(std::string_view command, bool fromFile) {
     // get convar
     ConVar *var = cvars().getConVarByName(commandName);
     if(!var) {
+        // (it may belong to code that isn't there yet)
+        if(source == Source::CONFIG && !commandValue.empty()) {
+            cvars().keepConfigValue(commandName, commandValue);
+            return true;
+        }
         debugLog("Unknown command: {:s}", commandName);
         return false;
     }
@@ -83,14 +91,7 @@ bool processCommand(std::string_view command, bool fromFile) {
         return false;
     }
 
-    // configs may have a comment after a value. only numbers get looked at for one, text may be anything (urls...)
-    if(fromFile && var->getType() != ConVar::CONVAR_TYPE::STRING) {
-        if(const size_t comment = commandValue.starts_with("//") ? 0 : commandValue.find(" //");
-           comment != std::string::npos) {
-            commandValue.erase(comment);
-            SString::trim_inplace(commandValue);
-        }
-    }
+    if(fromFile) commandValue = std::string{configValue(*var, commandValue)};
 
     // set new value (this handles all callbacks internally)
     // (a command's name by itself runs it without arguments, a convar's just asks about it: see below)
@@ -199,7 +200,7 @@ void execConfigFile(std::string_view filename_view) {
         }
 
         // process the collected commands
-        for(const auto &cmd : cmds) processCommand(cmd, true);
+        for(const auto &cmd : cmds) processCommand(cmd, is_absolute ? Source::OTHER_INSTALL_CONFIG : Source::CONFIG);
     }
 
     // if we don't remove prefixed lines, this could prevent users from
@@ -215,6 +216,46 @@ void execConfigFile(std::string_view filename_view) {
         });
         write.detach();
     }
+}
+
+std::string_view configValue(const ConVar &var, std::string_view text) {
+    if(var.getType() == ConVar::CONVAR_TYPE::STRING) return text;
+    if(const size_t comment = text.starts_with("//") ? 0 : text.find(" //"); comment != std::string_view::npos) {
+        text = text.substr(0, comment);
+        SString::trim_inplace(text);
+    }
+    return text;
+}
+
+std::string makeConfig(std::string_view previous) {
+    std::string config;
+    for(auto line : SString::split(previous, '\n')) {
+        SString::trim_inplace(line);
+        if(line.empty()) continue;
+        if(!SString::is_comment(line, "#") && !SString::is_comment(line, "//")) {
+            // (written from the convar's or the kept value below)
+            const std::string_view name = line.substr(0, line.find(' '));
+            const ConVar *var = cvars().getConVarByName(name);
+            const auto kept = cvars().getKeptValues().find(name);
+            if((var && !var->isFlagSet(cv::NOSAVE)) || (kept != cvars().getKeptValues().end() && kept->second.save)) {
+                continue;
+            }
+        }
+        config.append(line);
+        config.push_back('\n');
+    }
+
+    if(!config.empty()) config.append("\n\n");
+
+    // (the client's own values: what a skin/the server/a multiplayer room is forcing right now isn't ours to keep)
+    for(const auto *var : cvars().getConVarArray()) {
+        if(!var->canHaveValue() || var->isFlagSet(cv::NOSAVE) || var->isClientDefault()) continue;
+        config.append(fmt::format("{} {}\n", var->getName(), var->getClientString()));
+    }
+    for(const auto &[name, kept] : cvars().getKeptValues()) {
+        if(kept.save && kept.text) config.append(fmt::format("{} {}\n", name, *kept.text));
+    }
+    return config;
 }
 
 void log(std::string_view text, Color color) {

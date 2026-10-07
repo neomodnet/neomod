@@ -9,6 +9,7 @@
 #include <string_view>
 #include <utility>
 #include <memory>
+#include <optional>
 
 using namespace std::string_view_literals;
 using namespace std::string_literals;
@@ -33,6 +34,19 @@ class ConVarHandler {
     [[nodiscard]] ConVar *getConVarByName(std::string_view name) const;
     [[nodiscard]] std::vector<ConVar *> getConVarByLetter(std::string_view letters) const;
 
+    // what is known about names no convar has right now: what one of our configs sets a convar that doesn't exist (yet)
+    // to, and what a convar that is gone was set to. the next convar of that name takes its value over (without
+    // callbacks: its owner is still being constructed), and configs get written with them in the meantime (see Console)
+    struct KeptValue {
+        std::optional<std::string> text;  // (none: the client left it at its default)
+        bool fromConfig;                  // (NOLOAD convars don't take these)
+        bool save;  // whether it belongs into configs (not a NOSAVE convar's): a config's line of its name is ours
+    };
+    [[nodiscard]] forceinline const Hash::unstable_stringmap<KeptValue> &getKeptValues() const {
+        return this->vKeptValues;
+    }
+    void keepConfigValue(std::string_view name, std::string_view text);
+
     // whether every protected convar is at its default value, and the ones that aren't
     // (the former is cheap enough to ask every frame: convars keep count whenever their value changes)
     [[nodiscard]] forceinline bool areProtectedCvarsDefault() const { return this->iNumProtectedNonDefault == 0; }
@@ -55,7 +69,8 @@ class ConVarHandler {
     [[nodiscard]] forceinline bool isProtectionEnforced() const { return this->bProtectionEnforced; }
 
     // ConVar::clearValue() for every convar: forgets everything a skin/the server has set, which for the server
-    // includes what it has protected/unprotected (or everything the client has: every convar is back at its default)
+    // includes what it has protected/unprotected (or everything the client has: every convar is back at its default,
+    // and no value is kept for names without one)
     void clearLayer(CvarEditor editor);
 
     // a session is a time during which what the client sets some convars to isn't meant to last, like the mods of a
@@ -89,6 +104,10 @@ class ConVarHandler {
    private:
     friend class ConVar;
 
+    // a convar comes into existence (with its values in place, but not resolved yet), or goes away
+    void add(ConVar &cvar);
+    void remove(ConVar &cvar);
+
     // (see change())
     void beginChange();
     void endChange();
@@ -102,10 +121,12 @@ class ConVarHandler {
     bool bProtectionEnforced{false};
     int iNumProtectedNonDefault{0};
     int iChangeDepth{0};
+    int iNotifyDepth{0};  // (convars that are being told about a change can't go away meanwhile)
     std::vector<ConVar *> vConVarArray;
     std::vector<ConVar *> vSessionConVars;
     std::vector<PendingChange> vPending;  // who is part of the change that is going on, and what they were before
     Hash::unstable_stringmap<ConVar *> vConVarMap;
+    Hash::unstable_stringmap<KeptValue> vKeptValues;
 };
 
 extern ConVarHandler &cvars();

@@ -28,6 +28,7 @@ class ConVarTest : public App {
     void testSession();
     void testChange();
     void testThreads();
+    void testLifetime();
 
     int m_passes{0};
     int m_failures{0};

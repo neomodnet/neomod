@@ -8,12 +8,28 @@
 #include <string_view>
 #include <vector>
 
+class ConVar;
+
 // command processing plus the state every console view shares (log scrollback, command history, suggestions)
 // the logger thread hands over log lines at any time (log()), the main thread moves them into the scrollback once per
 // frame (updateLog()) and the views read it from there, without any locking
 namespace Console {
-bool processCommand(std::string_view command, bool fromFile = false);
+// where a command comes from: configs don't set NOLOAD convars and may have a comment after a number, and a value for a
+// name no convar has is kept from our own configs (in the cfg folder) for the convar that registers under it later
+enum class Source : u8 {
+    USER,
+    CONFIG,
+    OTHER_INSTALL_CONFIG,  // (given by an absolute path: another installation's, imported from)
+};
+bool processCommand(std::string_view command, Source source = Source::USER);
 void execConfigFile(std::string_view filename_view);
+
+// what a config's text sets a convar to: a number may have a comment after it, text may be anything (urls...)
+[[nodiscard]] std::string_view configValue(const ConVar &var, std::string_view text);
+
+// a config of the client's values, including those kept for names without a convar; whatever else `previous` has
+// (comments, lines nothing here knows about) stays as it was
+[[nodiscard]] std::string makeConfig(std::string_view previous);
 
 // log scrollback
 struct LogEntry {
