@@ -341,10 +341,8 @@ i32 MusicTrack::getOffset(const DatabaseBeatmap *map, i32 version) const {
     if(this->speed < 1.f && cv::compensate_music_speed.getBool() && this->preservePitch) {
         offset += (i32)(((1.f - this->speed) / 0.75f) * 5);  // osu (new)
     }
-    if(map) {
-        offset -= map->getLocalOffset() + map->getOnlineOffset();
-        if(version < 5) offset -= cv::old_beatmap_offset.getInt();
-    }
+    if(version < 5) offset -= cv::old_beatmap_offset.getInt();
+    if(map) offset -= map->getLocalOffset() + map->getOnlineOffset();
     return offset;
 }
 
