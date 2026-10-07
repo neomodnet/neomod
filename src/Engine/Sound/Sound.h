@@ -6,6 +6,7 @@
 
 #include <unordered_map>
 #include <cmath>
+#include <memory>
 #include <algorithm>
 
 #define SOUND_TYPE(ClassName, TypeID, ParentClass)                      \
@@ -26,6 +27,7 @@ struct PlaybackParams {
 };
 
 class Sound : public Resource {
+    NOCOPY_NOMOVE(Sound)
     friend class SoundEngine;
 
    public:
@@ -33,14 +35,8 @@ class Sound : public Resource {
     enum SndType : TypeId { BASS, SOLOUD };
 
    public:
-    Sound(std::string filepath, bool stream, bool overlayable, bool loop)
-        : Resource(SOUND, std::move(filepath),
-                   /*doFilesystemExistenceCheck=*/false),  // we check filesystem status in async load
-          bStream(stream),
-          bIsLooped(loop),
-          bIsOverlayable(overlayable) {
-        this->activeHandleCache.reserve(5);
-    }
+    Sound(std::string filepath, bool stream, bool overlayable, bool loop);
+    ~Sound() override;
 
     // rebuild with a new path (or reload with the same path)
     void rebuild(std::string_view newFilePath = "", bool async = false);
@@ -124,9 +120,6 @@ class Sound : public Resource {
 
     std::unordered_map<SOUNDHANDLE, PlaybackParams> activeHandleCache;
 
-    // so that we don't change the filepath for a possibly currently-async-loading file when rebuilding, and only set it on the next load
-    std::string sRebuildFilePath;
-
     f64 fLastPlayTime{0.0};
 
     float fPan{0.0f};
@@ -145,5 +138,10 @@ class Sound : public Resource {
     bool bPaused{false};
 
    private:
+    // so that we don't change the filepath for a possibly currently-async-loading file when rebuilding, and only set it on the next load
+    struct RebuildInfo;
+    std::unique_ptr<RebuildInfo> rebuildInfo;
+
+    std::string takeRebuildPath();
     static bool isValidAudioFile(std::string_view filePath, std::string_view fileExt);
 };

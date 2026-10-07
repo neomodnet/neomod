@@ -1,12 +1,10 @@
 // Copyright (c) 2014, PG, All rights reserved.
 #include "Sound.h"
 
-#include "BassSound.h"
-#include "SoLoudSound.h"
-
 #include "ConVar.h"
 #include "Environment.h"
 #include "File.h"
+#include "SyncMutex.h"
 #include "ResourceManager.h"
 #include "SoundEngine.h"
 #include "SString.h"
@@ -16,15 +14,26 @@
 #include <utility>
 #include <algorithm>
 
+struct Sound::RebuildInfo {
+    Sync::mutex changeMutex;
+    std::string path;
+};
+
+Sound::Sound(std::string filepath, bool stream, bool overlayable, bool loop)
+    : Resource(SOUND, std::move(filepath),
+               /*doFilesystemExistenceCheck=*/false),  // we check filesystem status in async load
+      bStream(stream),
+      bIsLooped(loop),
+      bIsOverlayable(overlayable),
+      rebuildInfo(new RebuildInfo()) {
+    this->activeHandleCache.reserve(5);
+}
+
+Sound::~Sound() = default;
+
 void Sound::initAsync() {
-    std::string toLoad;
-    const bool isRebuild = !this->sRebuildFilePath.empty();
-    if(isRebuild) {
-        toLoad = std::move(this->sRebuildFilePath);
-        this->sRebuildFilePath.clear();
-    } else {
-        toLoad = this->sFilePath;
-    }
+    std::string toLoad = this->takeRebuildPath();
+    if(toLoad.empty()) toLoad = this->sFilePath;
 
     this->doPathFixup(toLoad);
 
@@ -54,9 +63,15 @@ void Sound::initAsync() {
     this->sFilePath = toLoad;
 }
 
+std::string Sound::takeRebuildPath() {
+    const Sync::scoped_lock lk(this->rebuildInfo->changeMutex);
+    return std::exchange(this->rebuildInfo->path, {});
+}
+
 void Sound::rebuild(std::string_view newFilePath, bool async) {
     if(!newFilePath.empty()) {
-        this->sRebuildFilePath = newFilePath;
+        const Sync::scoped_lock lk(this->rebuildInfo->changeMutex);
+        this->rebuildInfo->path = newFilePath;
     }
 
     resourceManager->reloadResource(this, async);
