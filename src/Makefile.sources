@@ -290,6 +290,7 @@ neomod_SOURCES = \
 	src/GUI/CBaseUICheckbox.cpp \
 	src/GUI/CBaseUIContainer.cpp \
 	src/GUI/CBaseUIDispatch.cpp \
+	src/GUI/CBaseUIDropdown.cpp \
 	src/GUI/CBaseUIElement.cpp \
 	src/GUI/CBaseUIEventCtx.cpp \
 	src/GUI/CBaseUIImage.cpp \

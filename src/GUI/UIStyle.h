@@ -63,8 +63,8 @@ class UIStyle {
     void drawRow(const McRect &rect, ControlState state) const;
     // a line across the middle of rect
     void drawSeparator(const McRect &rect) const;
-    enum class Mark : u8 { CHECK, SUBMENU };
-    // a mark in the middle of rect, in the text colour of state: a checked item's tick, a submenu's arrow
+    enum class Mark : u8 { CHECK, SUBMENU, DROPDOWN };
+    // a mark in the middle of rect, in the text colour of state: a checked item's tick, a submenu's arrow, a dropdown's
     void drawMark(const McRect &rect, Mark mark, ControlState state) const;
 
    private:

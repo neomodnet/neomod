@@ -2,6 +2,7 @@
 #include "ToolUITest.h"
 
 #include "CBaseUIBox.h"
+#include "CBaseUIDropdown.h"
 #include "CBaseUIMenu.h"
 #include "CBaseUIMenuBar.h"
 #include "CBaseUIPopupLayer.h"
@@ -289,6 +290,34 @@ void ToolUITest::testMenus() {
     press(KEY_ESCAPE);
     bar.tick();
     TEST_ASSERT_EQ(bar.getOpen(), -1, "the bar notices its menu closed");
+    layer.tick();
+
+    int changed = -1;
+    CBaseUIDropdown dropdown(layer, {"Auto", "Normal", "Soft", "Drum"}, "dropdown");
+    dropdown.setChangeCallback([&changed](int index) { changed = index; });
+    dropdown.setPos(10, 20);
+    dropdown.setSize(120, 28);
+    TEST_ASSERT_EQ(dropdown.getChosen(), -1, "a dropdown starts with nothing chosen");
+    dropdown.setChosen(2);
+    TEST_ASSERT(dropdown.getChosen() == 2 && changed == -1, "choosing one in code doesn't call back");
+    TEST_ASSERT_EQ(dropdown.getNaturalSize().y, 28.f, "a dropdown is as tall as a control");
+    dropdown.open(false);
+    const auto *list = static_cast<const CBaseUIMenu *>(layer.getElements().back());
+    TEST_ASSERT(dropdown.isOpen() && list->getItems().size() == 4 && list->getItems()[2].checked &&
+                    !list->getItems()[1].checked,
+                "its menu lists the options, the chosen one checked");
+    TEST_ASSERT(list->getPos() == vec2(10, 48), "...under it");
+    press(KEY_DOWN);
+    press(KEY_ENTER);
+    TEST_ASSERT(changed == 0 && dropdown.getChosen() == 0 && !dropdown.isOpen(),
+                "an option chosen from the menu is the chosen one and goes to the callback");
+    layer.tick();
+    dropdown.open(true);
+    press(KEY_ESCAPE);
+    TEST_ASSERT(!dropdown.isOpen() && changed == 0, "Escape closes it without a change");
+    layer.tick();
+    dropdown.setChosen(7);
+    TEST_ASSERT_EQ(dropdown.getChosen(), -1, "an option it doesn't have is none");
 }
 
 }  // namespace Mc::Tests

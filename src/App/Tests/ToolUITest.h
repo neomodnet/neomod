@@ -4,7 +4,7 @@
 
 namespace Mc::Tests {
 
-// the framework's pieces for tool screens: shortcuts, boxes, the style's widgets, popups and menus
+// the framework's pieces for tool screens: shortcuts, boxes, the style's widgets, popups, menus and dropdowns
 class ToolUITest : public App {
     NOCOPY_NOMOVE(ToolUITest)
    public:

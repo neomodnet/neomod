@@ -96,6 +96,10 @@ void UIStyle::drawMark(const McRect &rect, Mark mark, ControlState state) const 
                 g->drawLinef(c.x - r / 2.f + o, c.y - r, c.x + r / 2.f + o, c.y);
                 g->drawLinef(c.x + r / 2.f + o, c.y, c.x - r / 2.f + o, c.y + r);
                 break;
+            case Mark::DROPDOWN:
+                g->drawLinef(c.x - r, c.y - r / 2.f + o, c.x, c.y + r / 2.f + o);
+                g->drawLinef(c.x, c.y + r / 2.f + o, c.x + r, c.y - r / 2.f + o);
+                break;
         }
     }
 }
