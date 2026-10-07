@@ -71,6 +71,7 @@
 #include "UI.h"
 #include "UIContextMenu.h"
 #include "UIModSelectorModButton.h"
+#include "UIStyle.h"
 #include "UIUserContextMenu.h"
 #include "UpdateHandler.h"
 #include "UserCard.h"
@@ -325,6 +326,7 @@ Osu::Osu()
     });
 
     this->prevUIScale = Osu::getUIScale();
+    uiStyle().setScale(this->prevUIScale);
 
     // load global resources
     const int baseDPI = 96;
@@ -434,6 +436,7 @@ Osu::~Osu() {
         mouse->setAppCursorConfined(false);
         mouse->setRawInputOverride(false);
     }
+    uiStyle().setScale(1.f);
 
     touch->removeListener(this);
 
@@ -1631,6 +1634,9 @@ void Osu::doResolutionChange(vec2 newResolution, ResolutionRequestFlags src) {
         this->prevUIScale = newUIScale;
         this->reloadFonts();
     }
+
+    // (styled widgets and boxes follow it by themselves)
+    uiStyle().setScale(newUIScale);
 
     // always call onResolutionChange, since DPI changes cause layout changes
     ui->onResolutionChange(this->getVirtScreenSize());

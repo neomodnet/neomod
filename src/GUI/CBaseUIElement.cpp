@@ -1,6 +1,8 @@
 // Copyright (c) 2013, PG, All rights reserved.
 #include "CBaseUIElement.h"
 
+#include "CBaseUIBox.h"
+
 #include "Engine.h"
 #include "Logging.h"
 #include "ConVar.h"
@@ -69,6 +71,18 @@ bool CBaseUIElement::isVisibleOnScreen(CBaseUIElement *elem) {
 }
 bool CBaseUIElement::isVisibleOnScreen() const { return CBaseUIElement::isVisibleOnScreen(this->getRect()); }
 
+vec2 CBaseUIElement::getNaturalSize() { return {0.f, 0.f}; }
+
+CBaseUIElement *CBaseUIElement::setBoxItem(BoxItem item) {
+    this->boxItem = item;
+    this->requestLayout();
+    return this;
+}
+
+void CBaseUIElement::requestLayout() {
+    if(this->boxId != 0) CBaseUIBox::onItemChanged(this->boxId);
+}
+
 bool CBaseUIElement::isEnabled() { return this->bEnabled; }
 bool CBaseUIElement::isBusy() { return this->bBusy && this->isVisible(); }
 bool CBaseUIElement::isMouseInside() { return this->bMouseInside && this->isVisible(); }
@@ -120,7 +134,9 @@ CBaseUIElement *CBaseUIElement::setRelRect(McRect rect) {
 }
 
 CBaseUIElement *CBaseUIElement::setVisible(bool visible) {
+    if(visible == this->bVisible) return this;
     this->bVisible = visible;
+    this->requestLayout();
     return this;
 }
 CBaseUIElement *CBaseUIElement::setActive(bool active) {

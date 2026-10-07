@@ -90,6 +90,7 @@ TEST_SOURCES := \
 	src/App/Tests/Neomod/SkinLoadTest.cpp \
 	src/App/Tests/Neomod/SliderRenderTest.cpp \
 	src/App/Tests/NetworkTest.cpp \
+	src/App/Tests/ToolUITest.cpp \
 	$(NULL)
 endif
 
@@ -281,6 +282,7 @@ neomod_SOURCES = \
 	src/Engine/Timing.cpp \
 	src/Engine/URLHistory.cpp \
 	src/Engine/i18n.cpp \
+	src/GUI/CBaseUIBox.cpp \
 	src/GUI/CBaseUIButton.cpp \
 	src/GUI/CBaseUICheckbox.cpp \
 	src/GUI/CBaseUIContainer.cpp \
@@ -293,8 +295,11 @@ neomod_SOURCES = \
 	src/GUI/CBaseUIScrollView.cpp \
 	src/GUI/CBaseUISelectableTextView.cpp \
 	src/GUI/CBaseUISlider.cpp \
+	src/GUI/CBaseUIStyledButton.cpp \
+	src/GUI/CBaseUIStyledLabel.cpp \
 	src/GUI/CBaseUITextbox.cpp \
 	src/GUI/CBaseUIWindow.cpp \
+	src/GUI/UIStyle.cpp \
 	src/GUI/Windows/ConsoleBox.cpp \
 	src/GUI/Windows/ConsoleWidgets.cpp \
 	src/GUI/Windows/ConsoleWindow.cpp \

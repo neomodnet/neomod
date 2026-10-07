@@ -70,6 +70,8 @@ CBaseUIButton *CBaseUIButton::setTextJustification(TEXT_JUSTIFICATION j) {
 CBaseUIButton *CBaseUIButton::setText(std::string text) {
     this->sText = std::move(text);
     this->updateStringMetrics();
+    // (a natural size may depend on it)
+    this->requestLayout();
     return this;
 }
 

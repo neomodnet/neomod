@@ -46,6 +46,21 @@ enum class TEXT_JUSTIFICATION : u8 { LEFT, CENTERED, RIGHT };
 
 class CBaseUIContainer;
 
+// how a box (CBaseUIBox) sizes and places an element: along the box's axis a length in units (see UIStyle), its natural
+// size, or a share by weight of what those leave; across the box its whole inner extent, or its natural size aligned
+struct BoxItem {
+    enum class Size : u8 { FIXED, FIT, FLEX };
+    enum class Align : u8 { FILL, START, CENTER, END };
+
+    Size size{Size::FIT};
+    Align align{Align::FILL};
+    float value{0.f};  // the length of FIXED, the weight of FLEX
+
+    static constexpr BoxItem fixed(float units, Align align = Align::FILL) { return {Size::FIXED, align, units}; }
+    static constexpr BoxItem fit(Align align = Align::FILL) { return {Size::FIT, align, 0.f}; }
+    static constexpr BoxItem flex(float weight = 1.f, Align align = Align::FILL) { return {Size::FLEX, align, weight}; }
+};
+
 // ============================================================================================
 //  Authoring a UI element (the part you actually touch)
 // ============================================================================================
@@ -121,6 +136,14 @@ class CBaseUIElement : public KeyboardListener {
     virtual bool isBusy();
     virtual bool isMouseInside();
 
+    // the size its content needs (a box's fitting items get it): none for an element without content of its own
+    [[nodiscard]] virtual vec2 getNaturalSize();
+    [[nodiscard]] const BoxItem &getBoxItem() const { return this->boxItem; }
+    CBaseUIElement *setBoxItem(BoxItem item);
+    // its natural size, its BoxItem or whether it's visible changed: the box it is in (see CBaseUIBox) lays out again at
+    // its next tick. an element calls it when its natural size changes
+    void requestLayout();
+
     CBaseUIElement *setPos(vec2 newPos);
 
     CBaseUIElement *setPos(float xPos, float yPos);
@@ -166,6 +189,7 @@ class CBaseUIElement : public KeyboardListener {
 
    protected:
     friend class CBaseUIContainer;
+    friend class CBaseUIBox;
     friend CBaseUIDispatch::State;
 
     // events (default implementation does nothing for all of these)
@@ -212,6 +236,9 @@ class CBaseUIElement : public KeyboardListener {
     // position and size
     McRect rect;
     McRect relRect;
+
+    BoxItem boxItem;
+    u32 boxId{0};  // the box it is an item of (see CBaseUIBox::onItemChanged())
 
     // vec2 &vPos;    // reference to rect.vMin
     // vec2 &vSize;   // reference to rect.vSize

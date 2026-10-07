@@ -358,15 +358,17 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	src/Engine/Sound/Sound.cpp src/Engine/Sound/SoundEngine.cpp \
 	src/Engine/SysMon.cpp src/Engine/Thread.cpp \
 	src/Engine/Timing.cpp src/Engine/URLHistory.cpp \
-	src/Engine/i18n.cpp src/GUI/CBaseUIButton.cpp \
-	src/GUI/CBaseUICheckbox.cpp src/GUI/CBaseUIContainer.cpp \
-	src/GUI/CBaseUIDispatch.cpp src/GUI/CBaseUIElement.cpp \
-	src/GUI/CBaseUIEventCtx.cpp src/GUI/CBaseUIImage.cpp \
-	src/GUI/CBaseUIImageButton.cpp src/GUI/CBaseUILabel.cpp \
-	src/GUI/CBaseUIScrollView.cpp \
+	src/Engine/i18n.cpp src/GUI/CBaseUIBox.cpp \
+	src/GUI/CBaseUIButton.cpp src/GUI/CBaseUICheckbox.cpp \
+	src/GUI/CBaseUIContainer.cpp src/GUI/CBaseUIDispatch.cpp \
+	src/GUI/CBaseUIElement.cpp src/GUI/CBaseUIEventCtx.cpp \
+	src/GUI/CBaseUIImage.cpp src/GUI/CBaseUIImageButton.cpp \
+	src/GUI/CBaseUILabel.cpp src/GUI/CBaseUIScrollView.cpp \
 	src/GUI/CBaseUISelectableTextView.cpp \
-	src/GUI/CBaseUISlider.cpp src/GUI/CBaseUITextbox.cpp \
-	src/GUI/CBaseUIWindow.cpp src/GUI/Windows/ConsoleBox.cpp \
+	src/GUI/CBaseUISlider.cpp src/GUI/CBaseUIStyledButton.cpp \
+	src/GUI/CBaseUIStyledLabel.cpp src/GUI/CBaseUITextbox.cpp \
+	src/GUI/CBaseUIWindow.cpp src/GUI/UIStyle.cpp \
+	src/GUI/Windows/ConsoleBox.cpp \
 	src/GUI/Windows/ConsoleWidgets.cpp \
 	src/GUI/Windows/ConsoleWindow.cpp \
 	src/GUI/Windows/VisualProfiler.cpp \
@@ -423,7 +425,8 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Tests/Neomod/PlayfieldTest.cpp \
 	src/App/Tests/Neomod/SkinLoadTest.cpp \
 	src/App/Tests/Neomod/SliderRenderTest.cpp \
-	src/App/Tests/NetworkTest.cpp $(builddir)/gen/binary_embed.cpp \
+	src/App/Tests/NetworkTest.cpp src/App/Tests/ToolUITest.cpp \
+	$(builddir)/gen/binary_embed.cpp \
 	$(DEPS_PREFIX)/mimalloc/mimalloc_new_delete.cpp
 am__dirstamp = $(am__leading_dot)dirstamp
 @USE_GL_TRUE@am__objects_1 = src/Engine/Renderer/OpenGL/neomod-OpenGLImage.$(OBJEXT) \
@@ -472,7 +475,8 @@ am__dirstamp = $(am__leading_dot)dirstamp
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/neomod-PlayfieldTest.$(OBJEXT) \
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/neomod-SkinLoadTest.$(OBJEXT) \
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/neomod-SliderRenderTest.$(OBJEXT) \
-@BUILD_TESTS_TRUE@	src/App/Tests/neomod-NetworkTest.$(OBJEXT)
+@BUILD_TESTS_TRUE@	src/App/Tests/neomod-NetworkTest.$(OBJEXT) \
+@BUILD_TESTS_TRUE@	src/App/Tests/neomod-ToolUITest.$(OBJEXT)
 am__objects_12 = $(builddir)/gen/neomod-binary_embed.$(OBJEXT)
 @BUILD_MIMALLOC_TRUE@@WIN_PLATFORM_TRUE@am__objects_13 = $(DEPS_PREFIX)/mimalloc/neomod-mimalloc_new_delete.$(OBJEXT)
 @WIN_PLATFORM_TRUE@am__objects_14 = $(am__objects_13)
@@ -648,6 +652,7 @@ am_neomod_OBJECTS = libraries/neomod-MD5.$(OBJEXT) \
 	src/Engine/neomod-Timing.$(OBJEXT) \
 	src/Engine/neomod-URLHistory.$(OBJEXT) \
 	src/Engine/neomod-i18n.$(OBJEXT) \
+	src/GUI/neomod-CBaseUIBox.$(OBJEXT) \
 	src/GUI/neomod-CBaseUIButton.$(OBJEXT) \
 	src/GUI/neomod-CBaseUICheckbox.$(OBJEXT) \
 	src/GUI/neomod-CBaseUIContainer.$(OBJEXT) \
@@ -660,8 +665,11 @@ am_neomod_OBJECTS = libraries/neomod-MD5.$(OBJEXT) \
 	src/GUI/neomod-CBaseUIScrollView.$(OBJEXT) \
 	src/GUI/neomod-CBaseUISelectableTextView.$(OBJEXT) \
 	src/GUI/neomod-CBaseUISlider.$(OBJEXT) \
+	src/GUI/neomod-CBaseUIStyledButton.$(OBJEXT) \
+	src/GUI/neomod-CBaseUIStyledLabel.$(OBJEXT) \
 	src/GUI/neomod-CBaseUITextbox.$(OBJEXT) \
 	src/GUI/neomod-CBaseUIWindow.$(OBJEXT) \
+	src/GUI/neomod-UIStyle.$(OBJEXT) \
 	src/GUI/Windows/neomod-ConsoleBox.$(OBJEXT) \
 	src/GUI/Windows/neomod-ConsoleWidgets.$(OBJEXT) \
 	src/GUI/Windows/neomod-ConsoleWindow.$(OBJEXT) \
@@ -845,6 +853,7 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/App/Tests/$(DEPDIR)/neomod-CryptoTest.Po \
 	src/App/Tests/$(DEPDIR)/neomod-DirectoryWatcherTest.Po \
 	src/App/Tests/$(DEPDIR)/neomod-NetworkTest.Po \
+	src/App/Tests/$(DEPDIR)/neomod-ToolUITest.Po \
 	src/App/Tests/AudioTester/$(DEPDIR)/neomod-AudioTester.Po \
 	src/App/Tests/BaseFrameworkTest/$(DEPDIR)/neomod-BaseFrameworkTest.Po \
 	src/App/Tests/EmojiRenderTest/$(DEPDIR)/neomod-EmojiRenderTest.Po \
@@ -929,6 +938,7 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/Engine/Sound/BASS/$(DEPDIR)/neomod-BassSoundEngine.Po \
 	src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudSound.Po \
 	src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudSoundEngine.Po \
+	src/GUI/$(DEPDIR)/neomod-CBaseUIBox.Po \
 	src/GUI/$(DEPDIR)/neomod-CBaseUIButton.Po \
 	src/GUI/$(DEPDIR)/neomod-CBaseUICheckbox.Po \
 	src/GUI/$(DEPDIR)/neomod-CBaseUIContainer.Po \
@@ -941,8 +951,11 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/GUI/$(DEPDIR)/neomod-CBaseUIScrollView.Po \
 	src/GUI/$(DEPDIR)/neomod-CBaseUISelectableTextView.Po \
 	src/GUI/$(DEPDIR)/neomod-CBaseUISlider.Po \
+	src/GUI/$(DEPDIR)/neomod-CBaseUIStyledButton.Po \
+	src/GUI/$(DEPDIR)/neomod-CBaseUIStyledLabel.Po \
 	src/GUI/$(DEPDIR)/neomod-CBaseUITextbox.Po \
 	src/GUI/$(DEPDIR)/neomod-CBaseUIWindow.Po \
+	src/GUI/$(DEPDIR)/neomod-UIStyle.Po \
 	src/GUI/Windows/$(DEPDIR)/neomod-ConsoleBox.Po \
 	src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWidgets.Po \
 	src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWindow.Po \
@@ -1471,6 +1484,7 @@ PATH := $(DEPS_PREFIX):$(shell echo $$PATH)
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/SkinLoadTest.cpp \
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/SliderRenderTest.cpp \
 @BUILD_TESTS_TRUE@	src/App/Tests/NetworkTest.cpp \
+@BUILD_TESTS_TRUE@	src/App/Tests/ToolUITest.cpp \
 @BUILD_TESTS_TRUE@	$(NULL)
 
 @USE_OPENGLES_TRUE@@WASM_PLATFORM_FALSE@GLAD_SOURCES := \
@@ -1612,15 +1626,17 @@ neomod_SOURCES = libraries/MD5.cpp libraries/demoji.c \
 	src/Engine/Sound/Sound.cpp src/Engine/Sound/SoundEngine.cpp \
 	src/Engine/SysMon.cpp src/Engine/Thread.cpp \
 	src/Engine/Timing.cpp src/Engine/URLHistory.cpp \
-	src/Engine/i18n.cpp src/GUI/CBaseUIButton.cpp \
-	src/GUI/CBaseUICheckbox.cpp src/GUI/CBaseUIContainer.cpp \
-	src/GUI/CBaseUIDispatch.cpp src/GUI/CBaseUIElement.cpp \
-	src/GUI/CBaseUIEventCtx.cpp src/GUI/CBaseUIImage.cpp \
-	src/GUI/CBaseUIImageButton.cpp src/GUI/CBaseUILabel.cpp \
-	src/GUI/CBaseUIScrollView.cpp \
+	src/Engine/i18n.cpp src/GUI/CBaseUIBox.cpp \
+	src/GUI/CBaseUIButton.cpp src/GUI/CBaseUICheckbox.cpp \
+	src/GUI/CBaseUIContainer.cpp src/GUI/CBaseUIDispatch.cpp \
+	src/GUI/CBaseUIElement.cpp src/GUI/CBaseUIEventCtx.cpp \
+	src/GUI/CBaseUIImage.cpp src/GUI/CBaseUIImageButton.cpp \
+	src/GUI/CBaseUILabel.cpp src/GUI/CBaseUIScrollView.cpp \
 	src/GUI/CBaseUISelectableTextView.cpp \
-	src/GUI/CBaseUISlider.cpp src/GUI/CBaseUITextbox.cpp \
-	src/GUI/CBaseUIWindow.cpp src/GUI/Windows/ConsoleBox.cpp \
+	src/GUI/CBaseUISlider.cpp src/GUI/CBaseUIStyledButton.cpp \
+	src/GUI/CBaseUIStyledLabel.cpp src/GUI/CBaseUITextbox.cpp \
+	src/GUI/CBaseUIWindow.cpp src/GUI/UIStyle.cpp \
+	src/GUI/Windows/ConsoleBox.cpp \
 	src/GUI/Windows/ConsoleWidgets.cpp \
 	src/GUI/Windows/ConsoleWindow.cpp \
 	src/GUI/Windows/VisualProfiler.cpp \
@@ -2807,6 +2823,8 @@ src/GUI/$(am__dirstamp):
 src/GUI/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) src/GUI/$(DEPDIR)
 	@: >>src/GUI/$(DEPDIR)/$(am__dirstamp)
+src/GUI/neomod-CBaseUIBox.$(OBJEXT): src/GUI/$(am__dirstamp) \
+	src/GUI/$(DEPDIR)/$(am__dirstamp)
 src/GUI/neomod-CBaseUIButton.$(OBJEXT): src/GUI/$(am__dirstamp) \
 	src/GUI/$(DEPDIR)/$(am__dirstamp)
 src/GUI/neomod-CBaseUICheckbox.$(OBJEXT): src/GUI/$(am__dirstamp) \
@@ -2831,9 +2849,15 @@ src/GUI/neomod-CBaseUISelectableTextView.$(OBJEXT):  \
 	src/GUI/$(am__dirstamp) src/GUI/$(DEPDIR)/$(am__dirstamp)
 src/GUI/neomod-CBaseUISlider.$(OBJEXT): src/GUI/$(am__dirstamp) \
 	src/GUI/$(DEPDIR)/$(am__dirstamp)
+src/GUI/neomod-CBaseUIStyledButton.$(OBJEXT): src/GUI/$(am__dirstamp) \
+	src/GUI/$(DEPDIR)/$(am__dirstamp)
+src/GUI/neomod-CBaseUIStyledLabel.$(OBJEXT): src/GUI/$(am__dirstamp) \
+	src/GUI/$(DEPDIR)/$(am__dirstamp)
 src/GUI/neomod-CBaseUITextbox.$(OBJEXT): src/GUI/$(am__dirstamp) \
 	src/GUI/$(DEPDIR)/$(am__dirstamp)
 src/GUI/neomod-CBaseUIWindow.$(OBJEXT): src/GUI/$(am__dirstamp) \
+	src/GUI/$(DEPDIR)/$(am__dirstamp)
+src/GUI/neomod-UIStyle.$(OBJEXT): src/GUI/$(am__dirstamp) \
 	src/GUI/$(DEPDIR)/$(am__dirstamp)
 src/GUI/Windows/$(am__dirstamp):
 	@$(MKDIR_P) src/GUI/Windows
@@ -3142,6 +3166,9 @@ src/App/Tests/Neomod/neomod-SliderRenderTest.$(OBJEXT):  \
 src/App/Tests/neomod-NetworkTest.$(OBJEXT):  \
 	src/App/Tests/$(am__dirstamp) \
 	src/App/Tests/$(DEPDIR)/$(am__dirstamp)
+src/App/Tests/neomod-ToolUITest.$(OBJEXT):  \
+	src/App/Tests/$(am__dirstamp) \
+	src/App/Tests/$(DEPDIR)/$(am__dirstamp)
 $(builddir)/gen/$(am__dirstamp):
 	@$(MKDIR_P) $(builddir)/gen
 	@: >>$(builddir)/gen/$(am__dirstamp)
@@ -3347,6 +3374,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/$(DEPDIR)/neomod-CryptoTest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/$(DEPDIR)/neomod-DirectoryWatcherTest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/$(DEPDIR)/neomod-NetworkTest.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/$(DEPDIR)/neomod-ToolUITest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/AudioTester/$(DEPDIR)/neomod-AudioTester.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/BaseFrameworkTest/$(DEPDIR)/neomod-BaseFrameworkTest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/EmojiRenderTest/$(DEPDIR)/neomod-EmojiRenderTest.Po@am__quote@ # am--include-marker
@@ -3431,6 +3459,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/Engine/Sound/BASS/$(DEPDIR)/neomod-BassSoundEngine.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudSound.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudSoundEngine.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUIBox.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUIButton.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUICheckbox.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUIContainer.Po@am__quote@ # am--include-marker
@@ -3443,8 +3472,11 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUIScrollView.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUISelectableTextView.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUISlider.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUIStyledButton.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUIStyledLabel.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUITextbox.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-CBaseUIWindow.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/GUI/$(DEPDIR)/neomod-UIStyle.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/Windows/$(DEPDIR)/neomod-ConsoleBox.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWidgets.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWindow.Po@am__quote@ # am--include-marker
@@ -5917,6 +5949,20 @@ src/Engine/neomod-i18n.obj: src/Engine/i18n.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/Engine/neomod-i18n.obj `if test -f 'src/Engine/i18n.cpp'; then $(CYGPATH_W) 'src/Engine/i18n.cpp'; else $(CYGPATH_W) '$(srcdir)/src/Engine/i18n.cpp'; fi`
 
+src/GUI/neomod-CBaseUIBox.o: src/GUI/CBaseUIBox.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/GUI/neomod-CBaseUIBox.o -MD -MP -MF src/GUI/$(DEPDIR)/neomod-CBaseUIBox.Tpo -c -o src/GUI/neomod-CBaseUIBox.o `test -f 'src/GUI/CBaseUIBox.cpp' || echo '$(srcdir)/'`src/GUI/CBaseUIBox.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/GUI/$(DEPDIR)/neomod-CBaseUIBox.Tpo src/GUI/$(DEPDIR)/neomod-CBaseUIBox.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/GUI/CBaseUIBox.cpp' object='src/GUI/neomod-CBaseUIBox.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/GUI/neomod-CBaseUIBox.o `test -f 'src/GUI/CBaseUIBox.cpp' || echo '$(srcdir)/'`src/GUI/CBaseUIBox.cpp
+
+src/GUI/neomod-CBaseUIBox.obj: src/GUI/CBaseUIBox.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/GUI/neomod-CBaseUIBox.obj -MD -MP -MF src/GUI/$(DEPDIR)/neomod-CBaseUIBox.Tpo -c -o src/GUI/neomod-CBaseUIBox.obj `if test -f 'src/GUI/CBaseUIBox.cpp'; then $(CYGPATH_W) 'src/GUI/CBaseUIBox.cpp'; else $(CYGPATH_W) '$(srcdir)/src/GUI/CBaseUIBox.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/GUI/$(DEPDIR)/neomod-CBaseUIBox.Tpo src/GUI/$(DEPDIR)/neomod-CBaseUIBox.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/GUI/CBaseUIBox.cpp' object='src/GUI/neomod-CBaseUIBox.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/GUI/neomod-CBaseUIBox.obj `if test -f 'src/GUI/CBaseUIBox.cpp'; then $(CYGPATH_W) 'src/GUI/CBaseUIBox.cpp'; else $(CYGPATH_W) '$(srcdir)/src/GUI/CBaseUIBox.cpp'; fi`
+
 src/GUI/neomod-CBaseUIButton.o: src/GUI/CBaseUIButton.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/GUI/neomod-CBaseUIButton.o -MD -MP -MF src/GUI/$(DEPDIR)/neomod-CBaseUIButton.Tpo -c -o src/GUI/neomod-CBaseUIButton.o `test -f 'src/GUI/CBaseUIButton.cpp' || echo '$(srcdir)/'`src/GUI/CBaseUIButton.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/GUI/$(DEPDIR)/neomod-CBaseUIButton.Tpo src/GUI/$(DEPDIR)/neomod-CBaseUIButton.Po
@@ -6085,6 +6131,34 @@ src/GUI/neomod-CBaseUISlider.obj: src/GUI/CBaseUISlider.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/GUI/neomod-CBaseUISlider.obj `if test -f 'src/GUI/CBaseUISlider.cpp'; then $(CYGPATH_W) 'src/GUI/CBaseUISlider.cpp'; else $(CYGPATH_W) '$(srcdir)/src/GUI/CBaseUISlider.cpp'; fi`
 
+src/GUI/neomod-CBaseUIStyledButton.o: src/GUI/CBaseUIStyledButton.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/GUI/neomod-CBaseUIStyledButton.o -MD -MP -MF src/GUI/$(DEPDIR)/neomod-CBaseUIStyledButton.Tpo -c -o src/GUI/neomod-CBaseUIStyledButton.o `test -f 'src/GUI/CBaseUIStyledButton.cpp' || echo '$(srcdir)/'`src/GUI/CBaseUIStyledButton.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/GUI/$(DEPDIR)/neomod-CBaseUIStyledButton.Tpo src/GUI/$(DEPDIR)/neomod-CBaseUIStyledButton.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/GUI/CBaseUIStyledButton.cpp' object='src/GUI/neomod-CBaseUIStyledButton.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/GUI/neomod-CBaseUIStyledButton.o `test -f 'src/GUI/CBaseUIStyledButton.cpp' || echo '$(srcdir)/'`src/GUI/CBaseUIStyledButton.cpp
+
+src/GUI/neomod-CBaseUIStyledButton.obj: src/GUI/CBaseUIStyledButton.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/GUI/neomod-CBaseUIStyledButton.obj -MD -MP -MF src/GUI/$(DEPDIR)/neomod-CBaseUIStyledButton.Tpo -c -o src/GUI/neomod-CBaseUIStyledButton.obj `if test -f 'src/GUI/CBaseUIStyledButton.cpp'; then $(CYGPATH_W) 'src/GUI/CBaseUIStyledButton.cpp'; else $(CYGPATH_W) '$(srcdir)/src/GUI/CBaseUIStyledButton.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/GUI/$(DEPDIR)/neomod-CBaseUIStyledButton.Tpo src/GUI/$(DEPDIR)/neomod-CBaseUIStyledButton.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/GUI/CBaseUIStyledButton.cpp' object='src/GUI/neomod-CBaseUIStyledButton.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/GUI/neomod-CBaseUIStyledButton.obj `if test -f 'src/GUI/CBaseUIStyledButton.cpp'; then $(CYGPATH_W) 'src/GUI/CBaseUIStyledButton.cpp'; else $(CYGPATH_W) '$(srcdir)/src/GUI/CBaseUIStyledButton.cpp'; fi`
+
+src/GUI/neomod-CBaseUIStyledLabel.o: src/GUI/CBaseUIStyledLabel.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/GUI/neomod-CBaseUIStyledLabel.o -MD -MP -MF src/GUI/$(DEPDIR)/neomod-CBaseUIStyledLabel.Tpo -c -o src/GUI/neomod-CBaseUIStyledLabel.o `test -f 'src/GUI/CBaseUIStyledLabel.cpp' || echo '$(srcdir)/'`src/GUI/CBaseUIStyledLabel.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/GUI/$(DEPDIR)/neomod-CBaseUIStyledLabel.Tpo src/GUI/$(DEPDIR)/neomod-CBaseUIStyledLabel.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/GUI/CBaseUIStyledLabel.cpp' object='src/GUI/neomod-CBaseUIStyledLabel.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/GUI/neomod-CBaseUIStyledLabel.o `test -f 'src/GUI/CBaseUIStyledLabel.cpp' || echo '$(srcdir)/'`src/GUI/CBaseUIStyledLabel.cpp
+
+src/GUI/neomod-CBaseUIStyledLabel.obj: src/GUI/CBaseUIStyledLabel.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/GUI/neomod-CBaseUIStyledLabel.obj -MD -MP -MF src/GUI/$(DEPDIR)/neomod-CBaseUIStyledLabel.Tpo -c -o src/GUI/neomod-CBaseUIStyledLabel.obj `if test -f 'src/GUI/CBaseUIStyledLabel.cpp'; then $(CYGPATH_W) 'src/GUI/CBaseUIStyledLabel.cpp'; else $(CYGPATH_W) '$(srcdir)/src/GUI/CBaseUIStyledLabel.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/GUI/$(DEPDIR)/neomod-CBaseUIStyledLabel.Tpo src/GUI/$(DEPDIR)/neomod-CBaseUIStyledLabel.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/GUI/CBaseUIStyledLabel.cpp' object='src/GUI/neomod-CBaseUIStyledLabel.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/GUI/neomod-CBaseUIStyledLabel.obj `if test -f 'src/GUI/CBaseUIStyledLabel.cpp'; then $(CYGPATH_W) 'src/GUI/CBaseUIStyledLabel.cpp'; else $(CYGPATH_W) '$(srcdir)/src/GUI/CBaseUIStyledLabel.cpp'; fi`
+
 src/GUI/neomod-CBaseUITextbox.o: src/GUI/CBaseUITextbox.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/GUI/neomod-CBaseUITextbox.o -MD -MP -MF src/GUI/$(DEPDIR)/neomod-CBaseUITextbox.Tpo -c -o src/GUI/neomod-CBaseUITextbox.o `test -f 'src/GUI/CBaseUITextbox.cpp' || echo '$(srcdir)/'`src/GUI/CBaseUITextbox.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/GUI/$(DEPDIR)/neomod-CBaseUITextbox.Tpo src/GUI/$(DEPDIR)/neomod-CBaseUITextbox.Po
@@ -6112,6 +6186,20 @@ src/GUI/neomod-CBaseUIWindow.obj: src/GUI/CBaseUIWindow.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/GUI/CBaseUIWindow.cpp' object='src/GUI/neomod-CBaseUIWindow.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/GUI/neomod-CBaseUIWindow.obj `if test -f 'src/GUI/CBaseUIWindow.cpp'; then $(CYGPATH_W) 'src/GUI/CBaseUIWindow.cpp'; else $(CYGPATH_W) '$(srcdir)/src/GUI/CBaseUIWindow.cpp'; fi`
+
+src/GUI/neomod-UIStyle.o: src/GUI/UIStyle.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/GUI/neomod-UIStyle.o -MD -MP -MF src/GUI/$(DEPDIR)/neomod-UIStyle.Tpo -c -o src/GUI/neomod-UIStyle.o `test -f 'src/GUI/UIStyle.cpp' || echo '$(srcdir)/'`src/GUI/UIStyle.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/GUI/$(DEPDIR)/neomod-UIStyle.Tpo src/GUI/$(DEPDIR)/neomod-UIStyle.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/GUI/UIStyle.cpp' object='src/GUI/neomod-UIStyle.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/GUI/neomod-UIStyle.o `test -f 'src/GUI/UIStyle.cpp' || echo '$(srcdir)/'`src/GUI/UIStyle.cpp
+
+src/GUI/neomod-UIStyle.obj: src/GUI/UIStyle.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/GUI/neomod-UIStyle.obj -MD -MP -MF src/GUI/$(DEPDIR)/neomod-UIStyle.Tpo -c -o src/GUI/neomod-UIStyle.obj `if test -f 'src/GUI/UIStyle.cpp'; then $(CYGPATH_W) 'src/GUI/UIStyle.cpp'; else $(CYGPATH_W) '$(srcdir)/src/GUI/UIStyle.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/GUI/$(DEPDIR)/neomod-UIStyle.Tpo src/GUI/$(DEPDIR)/neomod-UIStyle.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/GUI/UIStyle.cpp' object='src/GUI/neomod-UIStyle.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/GUI/neomod-UIStyle.obj `if test -f 'src/GUI/UIStyle.cpp'; then $(CYGPATH_W) 'src/GUI/UIStyle.cpp'; else $(CYGPATH_W) '$(srcdir)/src/GUI/UIStyle.cpp'; fi`
 
 src/GUI/Windows/neomod-ConsoleBox.o: src/GUI/Windows/ConsoleBox.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/GUI/Windows/neomod-ConsoleBox.o -MD -MP -MF src/GUI/Windows/$(DEPDIR)/neomod-ConsoleBox.Tpo -c -o src/GUI/Windows/neomod-ConsoleBox.o `test -f 'src/GUI/Windows/ConsoleBox.cpp' || echo '$(srcdir)/'`src/GUI/Windows/ConsoleBox.cpp
@@ -7079,6 +7167,20 @@ src/App/Tests/neomod-NetworkTest.obj: src/App/Tests/NetworkTest.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Tests/neomod-NetworkTest.obj `if test -f 'src/App/Tests/NetworkTest.cpp'; then $(CYGPATH_W) 'src/App/Tests/NetworkTest.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Tests/NetworkTest.cpp'; fi`
 
+src/App/Tests/neomod-ToolUITest.o: src/App/Tests/ToolUITest.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Tests/neomod-ToolUITest.o -MD -MP -MF src/App/Tests/$(DEPDIR)/neomod-ToolUITest.Tpo -c -o src/App/Tests/neomod-ToolUITest.o `test -f 'src/App/Tests/ToolUITest.cpp' || echo '$(srcdir)/'`src/App/Tests/ToolUITest.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Tests/$(DEPDIR)/neomod-ToolUITest.Tpo src/App/Tests/$(DEPDIR)/neomod-ToolUITest.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Tests/ToolUITest.cpp' object='src/App/Tests/neomod-ToolUITest.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Tests/neomod-ToolUITest.o `test -f 'src/App/Tests/ToolUITest.cpp' || echo '$(srcdir)/'`src/App/Tests/ToolUITest.cpp
+
+src/App/Tests/neomod-ToolUITest.obj: src/App/Tests/ToolUITest.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Tests/neomod-ToolUITest.obj -MD -MP -MF src/App/Tests/$(DEPDIR)/neomod-ToolUITest.Tpo -c -o src/App/Tests/neomod-ToolUITest.obj `if test -f 'src/App/Tests/ToolUITest.cpp'; then $(CYGPATH_W) 'src/App/Tests/ToolUITest.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Tests/ToolUITest.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Tests/$(DEPDIR)/neomod-ToolUITest.Tpo src/App/Tests/$(DEPDIR)/neomod-ToolUITest.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Tests/ToolUITest.cpp' object='src/App/Tests/neomod-ToolUITest.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Tests/neomod-ToolUITest.obj `if test -f 'src/App/Tests/ToolUITest.cpp'; then $(CYGPATH_W) 'src/App/Tests/ToolUITest.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Tests/ToolUITest.cpp'; fi`
+
 $(builddir)/gen/neomod-binary_embed.o: $(builddir)/gen/binary_embed.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT $(builddir)/gen/neomod-binary_embed.o -MD -MP -MF $(builddir)/gen/$(DEPDIR)/neomod-binary_embed.Tpo -c -o $(builddir)/gen/neomod-binary_embed.o `test -f '$(builddir)/gen/binary_embed.cpp' || echo '$(srcdir)/'`$(builddir)/gen/binary_embed.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(builddir)/gen/$(DEPDIR)/neomod-binary_embed.Tpo $(builddir)/gen/$(DEPDIR)/neomod-binary_embed.Po
@@ -7659,6 +7761,7 @@ distclean: distclean-am
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-CryptoTest.Po
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-DirectoryWatcherTest.Po
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-NetworkTest.Po
+	-rm -f src/App/Tests/$(DEPDIR)/neomod-ToolUITest.Po
 	-rm -f src/App/Tests/AudioTester/$(DEPDIR)/neomod-AudioTester.Po
 	-rm -f src/App/Tests/BaseFrameworkTest/$(DEPDIR)/neomod-BaseFrameworkTest.Po
 	-rm -f src/App/Tests/EmojiRenderTest/$(DEPDIR)/neomod-EmojiRenderTest.Po
@@ -7743,6 +7846,7 @@ distclean: distclean-am
 	-rm -f src/Engine/Sound/BASS/$(DEPDIR)/neomod-BassSoundEngine.Po
 	-rm -f src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudSound.Po
 	-rm -f src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudSoundEngine.Po
+	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIBox.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIButton.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUICheckbox.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIContainer.Po
@@ -7755,8 +7859,11 @@ distclean: distclean-am
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIScrollView.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUISelectableTextView.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUISlider.Po
+	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIStyledButton.Po
+	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIStyledLabel.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUITextbox.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIWindow.Po
+	-rm -f src/GUI/$(DEPDIR)/neomod-UIStyle.Po
 	-rm -f src/GUI/Windows/$(DEPDIR)/neomod-ConsoleBox.Po
 	-rm -f src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWidgets.Po
 	-rm -f src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWindow.Po
@@ -7964,6 +8071,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-CryptoTest.Po
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-DirectoryWatcherTest.Po
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-NetworkTest.Po
+	-rm -f src/App/Tests/$(DEPDIR)/neomod-ToolUITest.Po
 	-rm -f src/App/Tests/AudioTester/$(DEPDIR)/neomod-AudioTester.Po
 	-rm -f src/App/Tests/BaseFrameworkTest/$(DEPDIR)/neomod-BaseFrameworkTest.Po
 	-rm -f src/App/Tests/EmojiRenderTest/$(DEPDIR)/neomod-EmojiRenderTest.Po
@@ -8048,6 +8156,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/Engine/Sound/BASS/$(DEPDIR)/neomod-BassSoundEngine.Po
 	-rm -f src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudSound.Po
 	-rm -f src/Engine/Sound/SoLoud/$(DEPDIR)/neomod-SoLoudSoundEngine.Po
+	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIBox.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIButton.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUICheckbox.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIContainer.Po
@@ -8060,8 +8169,11 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIScrollView.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUISelectableTextView.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUISlider.Po
+	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIStyledButton.Po
+	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIStyledLabel.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUITextbox.Po
 	-rm -f src/GUI/$(DEPDIR)/neomod-CBaseUIWindow.Po
+	-rm -f src/GUI/$(DEPDIR)/neomod-UIStyle.Po
 	-rm -f src/GUI/Windows/$(DEPDIR)/neomod-ConsoleBox.Po
 	-rm -f src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWidgets.Po
 	-rm -f src/GUI/Windows/$(DEPDIR)/neomod-ConsoleWindow.Po
