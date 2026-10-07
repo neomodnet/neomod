@@ -19,7 +19,6 @@
 #include "RenderTarget.h"
 #include "ResourceManager.h"
 #include "Skin.h"
-#include "SliderRenderer.h"
 #include "Timing.h"
 
 #include "fmt/format.h"
@@ -120,33 +119,19 @@ void PlayfieldTest::drawAt(i32 timeMS) {
     // what can show at timeMS (approaching or fading out), posed
     const i32 lead = (i32)m_view.approachTimeMS + GameRules::getFadeInTime() + 1000;
     m_shown.clear();
-    for(Entry &e : m_byEndTime) {
+    for(Entry &e : std::views::reverse(m_byEndTime)) {
         if(e.obj->getClickTime() - lead > timeMS || e.obj->getEndTime() + 2000 < timeMS) continue;
         if(!e.meshBuilt) {
             e.obj->rebuildVertexBuffer();
             e.meshBuilt = true;
         }
         e.obj->pose(timeMS, fadeOutMS);
-        m_shown.push_back(&e);
+        m_shown.push_back(e.obj);
     }
 
     HitObjects::drawFollowPoints(m_view, m_objects, 0);
-
-    // as gameplay draws them: spinners first, then the others latest-ending first (so earlier ones end up on top), their
-    // second pass the other way round
-    for(Entry *e : std::views::reverse(m_shown)) {
-        if(e->obj->isSpinner()) e->obj->draw();
-    }
-    {
-        SliderRenderer::Batch sliderBodies{m_sliderRT};
-        for(Entry *e : std::views::reverse(m_shown)) {
-            if(e->obj->isSlider()) sliderBodies.queue(*static_cast<const Slider *>(e->obj));
-        }
-        for(Entry *e : std::views::reverse(m_shown)) {
-            if(!e->obj->isSpinner()) e->obj->draw();
-        }
-    }
-    for(Entry *e : m_shown) e->obj->draw2();
+    HitObjects::draw(m_shown, m_sliderRT);
+    for(HitObject *obj : std::views::reverse(m_shown)) obj->draw2();
 }
 
 void PlayfieldTest::drawCorpusFrame() {

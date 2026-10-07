@@ -1957,18 +1957,10 @@ void BeatmapInterface::drawHitObjects() {
                 if(endTime > mostDistantEndTimeDrawn) mostDistantEndTimeDrawn = endTime;
             }
 
-            // in order to avoid covering circles/sliders with spinner skin elements, draw spinners first
-            // and overlay circles/sliders on top
-            // this logic could be embedded in the sort order itself but i'm lazy to check if that would mess anything else up
-            if(obj->getType() == HitObjectType::SPINNER) {
-                obj->draw();
-            } else {
-                this->objectsToDraw.push_back(obj);
-            }
+            this->objectsToDraw.push_back(obj);
         }
 
-        // draw non-spinners after
-        drawObjects(this->objectsToDraw);
+        HitObjects::draw(this->objectsToDraw, osu->getSliderFrameBuffer());
 
         // this avoids PVS culling objects which are overlapped before the end of other objects, like circles appearing before
         // sliders are finished causing the initial slider approach circle to not be drawn

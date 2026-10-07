@@ -3189,5 +3189,22 @@ void drawFollowPoints(const PlayfieldView &view, std::span<const std::unique_ptr
     }
 }
 
+void draw(std::span<HitObject *const> objects, RenderTarget *sliderBodies) {
+    // in order to avoid covering circles/sliders with spinner skin elements, draw spinners first
+    // and overlay circles/sliders on top
+    // this logic could be embedded in the sort order itself but i'm lazy to check if that would mess anything else up
+    for(HitObject *obj : objects) {
+        if(obj->isSpinner()) obj->draw();
+    }
+
+    SliderRenderer::Batch bodies{sliderBodies};
+    for(const HitObject *obj : objects) {
+        if(obj->isSlider()) bodies.queue(*static_cast<const Slider *>(obj));
+    }
+    for(HitObject *obj : objects) {
+        if(!obj->isSpinner()) obj->draw();
+    }
+}
+
 }  // namespace HitObjects
 }  // namespace neomod

@@ -52,8 +52,8 @@ class PlayfieldTest : public App {
     PlainPlayfieldView m_view{nullptr, vec2{0.f}, 1.f, 0.f};
 
     std::vector<std::unique_ptr<neomod::HitObject>> m_objects;
-    std::vector<Entry> m_byEndTime;  // the draw order
-    std::vector<Entry *> m_shown;    // posed for the frame being drawn
+    std::vector<Entry> m_byEndTime;            // the draw order
+    std::vector<neomod::HitObject *> m_shown;  // posed for the frame being drawn, latest-ending first
     i32 m_firstTimeMS{0};
     i32 m_lastTimeMS{0};
 

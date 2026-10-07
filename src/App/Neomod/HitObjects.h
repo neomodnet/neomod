@@ -21,6 +21,7 @@ class SkinImage;
 class Image;
 class AbstractBeatmapInterface;
 class PlayfieldView;
+class RenderTarget;
 
 struct Click;
 struct Skin;
@@ -496,6 +497,11 @@ void stack(std::span<const std::unique_ptr<HitObject>> objects, f32 AR, i32 beat
 
 // the follow points between them at the view's time; the ones before firstIndex are gone
 void drawFollowPoints(const PlayfieldView &view, std::span<const std::unique_ptr<HitObject>> objects, uSz firstIndex);
+
+// draws objects (the ones to show, latest-ending first) the way play does: spinners first, then the others with their
+// slider bodies rendered together into sliderBodies, so that earlier objects end up on top. their draw2() is the
+// caller's, earliest-ending first
+void draw(std::span<HitObject *const> objects, RenderTarget *sliderBodies);
 
 }  // namespace HitObjects
 }  // namespace neomod
