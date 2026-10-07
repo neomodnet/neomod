@@ -64,8 +64,8 @@ class MouseSink final : public MouseListener {
     // model); routed in dispatchEvents to the top-most wheel-accepting hit candidate, or to
     // the captor while a capture is held. consumed-state is shared across both roots like the
     // button events (the engine root dispatches first).
-    void onWheelVertical(int delta) override;
-    void onWheelHorizontal(int delta) override;
+    void onWheelVertical(WheelDelta wheel) override;
+    void onWheelHorizontal(WheelDelta wheel) override;
 };
 
 // which UI root a dispatch call serves; the engine root (guiContainer) dispatches before the

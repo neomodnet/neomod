@@ -52,8 +52,8 @@ struct State final {
     u64 lastPushFrame{0};
 
     // per-frame wheel totals
-    int wheelVertical{0};
-    int wheelHorizontal{0};
+    WheelDelta wheelVertical{};
+    WheelDelta wheelHorizontal{};
     u64 lastWheelFrame{0};
     bool wheelConsumed{false};
     // a hit group containing a hovered scroll surface (bWheelSurface) declined the wheel:
@@ -135,24 +135,26 @@ void MouseSink::onButtonChange(ButtonEvent &ev) {
     state.queue[state.qSize++] = ev;
 }
 
-void MouseSink::onWheelVertical(int delta) {
+void MouseSink::onWheelVertical(WheelDelta wheel) {
     const u64 frame = engine->getFrameCount();
     if(frame != state.lastWheelFrame) {
-        state.wheelVertical = state.wheelHorizontal = 0;
+        state.wheelVertical = state.wheelHorizontal = {};
         state.wheelConsumed = state.wheelFloored = false;
         state.lastWheelFrame = frame;
     }
-    state.wheelVertical += delta;
+    state.wheelVertical.delta += wheel.delta;
+    state.wheelVertical.ticks += wheel.ticks;
 }
 
-void MouseSink::onWheelHorizontal(int delta) {
+void MouseSink::onWheelHorizontal(WheelDelta wheel) {
     const u64 frame = engine->getFrameCount();
     if(frame != state.lastWheelFrame) {
-        state.wheelVertical = state.wheelHorizontal = 0;
+        state.wheelVertical = state.wheelHorizontal = {};
         state.wheelConsumed = state.wheelFloored = false;
         state.lastWheelFrame = frame;
     }
-    state.wheelHorizontal += delta;
+    state.wheelHorizontal.delta += wheel.delta;
+    state.wheelHorizontal.ticks += wheel.ticks;
 }
 
 void State::setFocus(CBaseUIElement *elem) {
@@ -339,7 +341,8 @@ void State::dispatchEvents(CBaseUIEventCtx &c, Root root) {
     this->resolveHover(c, root);
 
     const bool hasWheel = (this->lastWheelFrame == frame && !this->wheelConsumed &&
-                           (this->wheelVertical != 0 || this->wheelHorizontal != 0));
+                           (this->wheelVertical.delta != 0 || this->wheelVertical.ticks != 0 ||
+                            this->wheelHorizontal.delta != 0 || this->wheelHorizontal.ticks != 0));
     if(!hasEvents && !hasWheel) return;
 
     const u64 startGeneration = this->elemGeneration;

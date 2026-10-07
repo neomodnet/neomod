@@ -19,6 +19,14 @@ enum class MouseButtonFlags : uint8_t {
 
 MAKE_FLAG_ENUM(MouseButtonFlags)
 
+// a wheel's movement on one axis: `delta` in 1/120 notches, as finely as the device reports it (a trackpad moves by
+// fractions of a notch), and `ticks`, the whole notches it completed (the remainder carries over to the next movement).
+// what moves continuously (a scroll view) takes the delta, what moves in steps (a volume or slider step) the ticks
+struct WheelDelta {
+    int delta;
+    int ticks;
+};
+
 struct ButtonEvent {
     uint64_t timestamp;
     MouseButtonFlags btn;
@@ -36,10 +44,10 @@ class MouseListener {
     MouseListener(MouseListener &&) = default;
     MouseListener &operator=(MouseListener &&) = default;
 
-    virtual void onButtonChange(ButtonEvent &/*event*/) {}
+    virtual void onButtonChange(ButtonEvent & /*event*/) {}
 
-    virtual void onWheelVertical(int /*delta*/) {}
-    virtual void onWheelHorizontal(int /*delta*/) {}
+    virtual void onWheelVertical(WheelDelta /*wheel*/) {}
+    virtual void onWheelHorizontal(WheelDelta /*wheel*/) {}
 };
 
 #endif

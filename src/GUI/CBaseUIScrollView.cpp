@@ -351,19 +351,19 @@ void CBaseUIScrollView::updateInput(CBaseUIEventCtx &c) {
         for(uSz i = firstChildCandidate; i < c.hitCandidates.size(); i++) c.hitCandidates[i].clipped = true;
 }
 
-bool CBaseUIScrollView::onWheel(int deltaVertical, int deltaHorizontal) {
+bool CBaseUIScrollView::onWheel(WheelDelta vertical, WheelDelta horizontal) {
     // alt-wheel belongs to the app-level volume gesture
     // HACK: this doesn't belong here???
     if(this->bBlockScrolling || keyboard->isAltDown()) return false;
 
     bool consumed = false;
-    if(this->bVerticalScrolling && deltaVertical != 0 && this->getSize().y < this->vScrollSize.y) {
-        this->scrollY(deltaVertical * this->fScrollMouseWheelMultiplier *
+    if(this->bVerticalScrolling && vertical.delta != 0 && this->getSize().y < this->vScrollSize.y) {
+        this->scrollY(vertical.delta * this->fScrollMouseWheelMultiplier *
                       cv::ui_scrollview_mousewheel_multiplier.getDouble());
         consumed = true;
     }
-    if(this->bHorizontalScrolling && deltaHorizontal != 0 && this->getSize().x < this->vScrollSize.x) {
-        this->scrollX(-deltaHorizontal * this->fScrollMouseWheelMultiplier *
+    if(this->bHorizontalScrolling && horizontal.delta != 0 && this->getSize().x < this->vScrollSize.x) {
+        this->scrollX(-horizontal.delta * this->fScrollMouseWheelMultiplier *
                       cv::ui_scrollview_mousewheel_multiplier.getDouble());
         consumed = true;
     }

@@ -50,8 +50,8 @@ class BaseFrameworkTest : public App, public MouseListener {
 
     // mouse
     void onButtonChange(ButtonEvent &event) override;
-    void onWheelVertical(int delta) override;
-    void onWheelHorizontal(int delta) override;
+    void onWheelVertical(WheelDelta wheel) override;
+    void onWheelHorizontal(WheelDelta wheel) override;
 
     // UI
     std::unique_ptr<FrameworkTestButton> m_testButton;

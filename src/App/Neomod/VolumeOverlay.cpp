@@ -199,9 +199,8 @@ void VolumeOverlay::updateInput(CBaseUIEventCtx &c) {
     this->volumeSliderOverlayContainer->updateInput(c);
 }
 
-bool VolumeOverlay::onWheel(int deltaVertical, int /*deltaHorizontal*/) {
-    const int notches = deltaVertical / 120;
-    if(notches == 0) return false;
+bool VolumeOverlay::onWheel(WheelDelta vertical, WheelDelta /*horizontal*/) {
+    if(vertical.delta == 0 && vertical.ticks == 0) return false;
 
     // the global gates that survived canChangeVolume's screen enumeration (exclusivity is
     // structural now: this only runs when no candidate consumed the wheel, or as the
@@ -214,10 +213,10 @@ bool VolumeOverlay::onWheel(int deltaVertical, int /*deltaHorizontal*/) {
         if(!osu->getVirtScreenRect().contains(mouse->getPos())) return false;
     }
 
-    if(notches > 0) {
-        this->volumeUp(notches);
-    } else {
-        this->volumeDown(-notches);
+    if(vertical.ticks > 0) {
+        this->volumeUp(vertical.ticks);
+    } else if(vertical.ticks < 0) {
+        this->volumeDown(-vertical.ticks);
     }
     return true;
 }

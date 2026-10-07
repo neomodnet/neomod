@@ -417,7 +417,7 @@ void CBaseUIWindow::onMouseOutside() {
     if(!this->bResizing) env->setCursor(CURSORTYPE::CURSOR_NORMAL);
 }
 
-bool CBaseUIWindow::onWheel(int /*deltaVertical*/, int /*deltaHorizontal*/) {
+bool CBaseUIWindow::onWheel(WheelDelta /*vertical*/, WheelDelta /*horizontal*/) {
     // a window is an opaque surface: a wheel over its frame must not scroll whatever lies beneath
     // (scrollable children are visited after us, so they still get first refusal)
     return true;

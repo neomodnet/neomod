@@ -41,8 +41,8 @@ class Mouse final : public InputDevice {
 
     // input handling
     void onPosChange(dvec2 pos);  // window pixels; an absolute pointer is at pos
-    void onWheelVertical(int delta);
-    void onWheelHorizontal(int delta);
+    void onWheelVertical(WheelDelta wheel);
+    void onWheelHorizontal(WheelDelta wheel);
     void onButtonChange(ButtonEvent ev);
 
     // position/coordinate handling
@@ -109,11 +109,6 @@ class Mouse final : public InputDevice {
         return flags::has<MouseButtonFlags::MF_RIGHT>(this->buttonsPressedMask);
     }
 
-    [[nodiscard]] constexpr forceinline int getWheelDeltaVertical() const { return this->iWheelDeltaVertical; }
-    [[nodiscard]] constexpr forceinline int getWheelDeltaHorizontal() const { return this->iWheelDeltaHorizontal; }
-
-    void resetWheelDelta();
-
     [[nodiscard]] constexpr forceinline bool isRawInputWanted() const {
         return this->bIsRawInputDesired;
     }  // the user's setting, NOT the actual OS raw input state (see Environment::isOSMouseInputRaw)!
@@ -125,8 +120,7 @@ class Mouse final : public InputDevice {
 
     struct FullEvent {
         ButtonEvent orig;
-        int wheelVDelta;
-        int wheelHDelta;
+        WheelDelta wheel;
         Type type;
     };
 
@@ -137,8 +131,8 @@ class Mouse final : public InputDevice {
     std::optional<dvec2> lastAbsolutePos;
 
     void applyPos(dvec2 pos);  // window pixels
-    void onWheelVertical_internal(int delta);
-    void onWheelHorizontal_internal(int delta);
+    void onWheelVertical_internal(WheelDelta wheel);
+    void onWheelHorizontal_internal(WheelDelta wheel);
     void onButtonChange_internal(ButtonEvent &ev);
 
     // callbacks
@@ -170,12 +164,6 @@ class Mouse final : public InputDevice {
     // button state (using our internal button index)
     MouseButtonFlags buttonsHeldMask{0};
     MouseButtonFlags buttonsPressedMask{0};
-
-    // wheel state
-    int iWheelDeltaVertical{0};
-    int iWheelDeltaHorizontal{0};
-    int iWheelDeltaVerticalActual{0};
-    int iWheelDeltaHorizontalActual{0};
 
     // listeners
     std::vector<MouseListener *> listeners;

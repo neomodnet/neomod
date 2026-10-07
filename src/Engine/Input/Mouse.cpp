@@ -26,7 +26,6 @@ Mouse::~Mouse() {
 }
 
 void Mouse::reset() {
-    this->resetWheelDelta();
     this->buttonsHeldMask = env->getCurrentlyHeldMouseButtons();
     this->vRawDelta = {0.f, 0.f};
 }
@@ -157,16 +156,14 @@ void Mouse::update() {
                 this->onButtonChange_internal(fullEvent.orig);
                 break;
             case Type::WHEELV:
-                this->onWheelVertical_internal(fullEvent.wheelVDelta);
+                this->onWheelVertical_internal(fullEvent.wheel);
                 break;
             case Type::WHEELH:
-                this->onWheelHorizontal_internal(fullEvent.wheelHDelta);
+                this->onWheelHorizontal_internal(fullEvent.wheel);
                 break;
         }
     }
     this->eventQueue.clear();
-
-    this->resetWheelDelta();
 
     // the os cursor state this frame calls for, the only place it changes
     const McRect viewport = this->getAppViewport();
@@ -180,14 +177,6 @@ void Mouse::update() {
     });
 }
 
-void Mouse::resetWheelDelta() {
-    this->iWheelDeltaVertical = this->iWheelDeltaVerticalActual;
-    this->iWheelDeltaVerticalActual = 0;
-
-    this->iWheelDeltaHorizontal = this->iWheelDeltaHorizontalActual;
-    this->iWheelDeltaHorizontalActual = 0;
-}
-
 void Mouse::onPosChange(dvec2 pos) {
     this->newAbsolutePos = pos;
     this->applyPos(pos);
@@ -198,31 +187,27 @@ void Mouse::applyPos(dvec2 pos) {
     this->vPos = vec2{pos} - this->appViewport.getMin();
 }
 
-void Mouse::onWheelVertical(int delta) {
-    this->eventQueue.emplace_back(FullEvent{.orig = {}, .wheelVDelta = delta, .wheelHDelta = {}, .type = Type::WHEELV});
+void Mouse::onWheelVertical(WheelDelta wheel) {
+    this->eventQueue.emplace_back(FullEvent{.orig = {}, .wheel = wheel, .type = Type::WHEELV});
 }
 
-void Mouse::onWheelHorizontal(int delta) {
-    this->eventQueue.emplace_back(FullEvent{.orig = {}, .wheelVDelta = {}, .wheelHDelta = delta, .type = Type::WHEELH});
+void Mouse::onWheelHorizontal(WheelDelta wheel) {
+    this->eventQueue.emplace_back(FullEvent{.orig = {}, .wheel = wheel, .type = Type::WHEELH});
 }
 
 void Mouse::onButtonChange(ButtonEvent ev) {
-    this->eventQueue.emplace_back(FullEvent{.orig = ev, .wheelVDelta = {}, .wheelHDelta = {}, .type = Type::BUTTON});
+    this->eventQueue.emplace_back(FullEvent{.orig = ev, .wheel = {}, .type = Type::BUTTON});
 }
 
-void Mouse::onWheelVertical_internal(int delta) {
-    this->iWheelDeltaVerticalActual += delta;
-
+void Mouse::onWheelVertical_internal(WheelDelta wheel) {
     for(auto *listener : this->listeners) {
-        listener->onWheelVertical(delta);
+        listener->onWheelVertical(wheel);
     }
 }
 
-void Mouse::onWheelHorizontal_internal(int delta) {
-    this->iWheelDeltaHorizontalActual += delta;
-
+void Mouse::onWheelHorizontal_internal(WheelDelta wheel) {
     for(auto *listener : this->listeners) {
-        listener->onWheelHorizontal(delta);
+        listener->onWheelHorizontal(wheel);
     }
 }
 

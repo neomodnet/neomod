@@ -102,17 +102,13 @@ void CBaseUISlider::drawBlock() {
                 argb(255, 255, 255, 255), argb(255, 255, 255, 255));
 }
 
-bool CBaseUISlider::onWheel(int deltaVertical, int /*deltaHorizontal*/) {
+bool CBaseUISlider::onWheel(WheelDelta vertical, WheelDelta /*horizontal*/) {
     // wheel during a drag would fight the grab (the captured move recomputes the value from
     // the cursor position every frame)
-    if(!this->bAllowMouseWheel || this->bActive || deltaVertical == 0) return false;
+    if(!this->bAllowMouseWheel || this->bActive || (vertical.delta == 0 && vertical.ticks == 0)) return false;
 
-    const int multiplier = std::max(1, std::abs(deltaVertical) / 120);
-
-    if(deltaVertical > 0) {
-        this->setValue(this->fCurValue + this->fKeyDelta * multiplier, this->bAnimated);
-    } else {
-        this->setValue(this->fCurValue - this->fKeyDelta * multiplier, this->bAnimated);
+    if(vertical.ticks != 0) {
+        this->setValue(this->fCurValue + this->fKeyDelta * static_cast<float>(vertical.ticks), this->bAnimated);
     }
     return true;
 }

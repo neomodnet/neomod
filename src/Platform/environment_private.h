@@ -83,6 +83,8 @@ class SDLMain final : public Environment {
 
     std::vector<std::string> m_vDroppedData;  // queued data dropped onto window
 
+    float m_fSyntheticWheelResidual{0.f};  // mouse_wheel's fraction of a notch, carried over like SDL does
+
     friend class GPUDriverConfigurator;
     std::unique_ptr<GPUDriverConfigurator> m_gpuConfigurator;
 

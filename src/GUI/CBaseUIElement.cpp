@@ -173,7 +173,7 @@ void CBaseUIElement::onMouseDownInside(bool /*left*/, bool /*right*/) { ; }
 void CBaseUIElement::onMouseDownOutside(bool /*left*/, bool /*right*/) { ; }
 void CBaseUIElement::onMouseUpInside(bool /*left*/, bool /*right*/) { ; }
 void CBaseUIElement::onMouseUpOutside(bool /*left*/, bool /*right*/) { ; }
-bool CBaseUIElement::onWheel(int /*deltaVertical*/, int /*deltaHorizontal*/) { return false; }
+bool CBaseUIElement::onWheel(WheelDelta /*vertical*/, WheelDelta /*horizontal*/) { return false; }
 void CBaseUIElement::onMouseCancel() { ; }
 void CBaseUIElement::onCapturedMouseMove() { ; }
 void CBaseUIElement::onCapturedMoveThrough() { ; }

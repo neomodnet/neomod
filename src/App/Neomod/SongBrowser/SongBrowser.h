@@ -136,7 +136,7 @@ class SongBrowser final : public ScreenBackable {
 
     // screen-wide wheel fallback, forwarded to the carousel (osu-stable behavior); hovered
     // scroll surfaces win first, and an empty/fits carousel declines down to the volume sink
-    bool onWheel(int deltaVertical, int deltaHorizontal) override;
+    bool onWheel(WheelDelta vertical, WheelDelta horizontal) override;
 
     void onKeyDown(KeyboardEvent &e) override;
     void onKeyUp(KeyboardEvent &e) override;

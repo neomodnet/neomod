@@ -985,8 +985,8 @@ void SongBrowser::updateInput(CBaseUIEventCtx &c) {
     this->carousel->updateInput(c);
 }
 
-bool SongBrowser::onWheel(int deltaVertical, int deltaHorizontal) {
-    return this->carousel->onWheel(deltaVertical, deltaHorizontal);
+bool SongBrowser::onWheel(WheelDelta vertical, WheelDelta horizontal) {
+    return this->carousel->onWheel(vertical, horizontal);
 }
 
 void SongBrowser::onKeyDown(KeyboardEvent &key) {

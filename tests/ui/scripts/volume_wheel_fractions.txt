@@ -1,0 +1,23 @@
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+ui_trace 1
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+mouse_to 640 360
+@wait 3
+# a trackpad's fractions of a notch: nothing steps until they add up to a whole one
+mouse_wheel -0.25
+@wait 2
+mouse_wheel -0.25
+@wait 2
+mouse_wheel -0.25
+@wait 2
+ui_assert visible volumeoverlay 0
+mouse_wheel -0.25
+@wait 5
+ui_assert visible volumeoverlay 1
+exit

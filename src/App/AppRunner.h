@@ -29,8 +29,8 @@ class AppRunner final : public App, public MouseListener {
     void onChar(KeyboardEvent &e) override;
 
     void onButtonChange(ButtonEvent &event) override;
-    void onWheelVertical(int delta) override;
-    void onWheelHorizontal(int delta) override;
+    void onWheelVertical(WheelDelta wheel) override;
+    void onWheelHorizontal(WheelDelta wheel) override;
 
     void onResolutionChanged(vec2 newResolution) override;
     void onDPIChanged() override;

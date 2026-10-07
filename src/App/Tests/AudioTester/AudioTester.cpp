@@ -472,8 +472,8 @@ void AudioTester::onRestored() { debugLog(""); }
 void AudioTester::onKeyUp(KeyboardEvent &e) { (void)e; }
 void AudioTester::onChar(KeyboardEvent &e) { (void)e; }
 void AudioTester::onButtonChange(ButtonEvent &event) { (void)event; }
-void AudioTester::onWheelVertical(int delta) { (void)delta; }
-void AudioTester::onWheelHorizontal(int delta) { (void)delta; }
+void AudioTester::onWheelVertical(WheelDelta wheel) { (void)wheel; }
+void AudioTester::onWheelHorizontal(WheelDelta wheel) { (void)wheel; }
 
 }  // namespace Mc::Tests
 

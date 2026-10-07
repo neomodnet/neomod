@@ -200,7 +200,7 @@ void BaseFrameworkTest::onChar(KeyboardEvent &e) {
 void BaseFrameworkTest::onButtonChange(ButtonEvent &event) {
     debugLog("button: {} down: {} timestamp: {}", static_cast<size_t>(event.btn), event.down, event.timestamp);
 }
-void BaseFrameworkTest::onWheelVertical(int delta) { debugLog("{}", delta); }
-void BaseFrameworkTest::onWheelHorizontal(int delta) { debugLog("{}", delta); }
+void BaseFrameworkTest::onWheelVertical(WheelDelta wheel) { debugLog("{} {}", wheel.delta, wheel.ticks); }
+void BaseFrameworkTest::onWheelHorizontal(WheelDelta wheel) { debugLog("{} {}", wheel.delta, wheel.ticks); }
 
 }  // namespace Mc::Tests

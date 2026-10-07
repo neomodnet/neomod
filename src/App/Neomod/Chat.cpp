@@ -75,7 +75,7 @@ class ChatLogView final : public CBaseUISelectableTextView {
 
     // prevent scroll fallthrough (should this be the normal scrollview behavior?)
     // it seems surprising to change volume when the scroll surface isn't scrollable yet
-    bool onWheel(int deltaVertical, int deltaHorizontal) override;
+    bool onWheel(WheelDelta vertical, WheelDelta horizontal) override;
 
    protected:
     [[nodiscard]] size_t getRunCount() const override { return this->runs.size(); }
@@ -105,11 +105,11 @@ void ChatLogView::freeElements() {
     CBaseUIScrollView::freeElements();
 }
 
-bool ChatLogView::onWheel(int deltaVertical, int deltaHorizontal) {
+bool ChatLogView::onWheel(WheelDelta vertical, WheelDelta horizontal) {
     // alt-wheel belongs to the app-level volume gesture
     // HACK: this doesn't belong here???
     if(this->bBlockScrolling || keyboard->isAltDown()) return false;
-    CBaseUISelectableTextView::onWheel(deltaVertical, deltaHorizontal);
+    CBaseUISelectableTextView::onWheel(vertical, horizontal);
     return true;
 }
 

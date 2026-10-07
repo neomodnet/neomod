@@ -174,14 +174,14 @@ void AppRunner::onButtonChange(ButtonEvent &event) {
     }
 }
 
-void AppRunner::onWheelVertical(int delta) {
+void AppRunner::onWheelVertical(WheelDelta wheel) {
     if(m_activeApp) return;
-    (void)delta;
+    (void)wheel;
 }
 
-void AppRunner::onWheelHorizontal(int delta) {
+void AppRunner::onWheelHorizontal(WheelDelta wheel) {
     if(m_activeApp) return;
-    (void)delta;
+    (void)wheel;
 }
 
 void AppRunner::onResolutionChanged(vec2 newResolution) {

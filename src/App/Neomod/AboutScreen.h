@@ -27,7 +27,7 @@ class AboutScreen final : public ScreenBackable {
    protected:
     // the tab strip isn't a scroll surface, so a wheel over it would fall through to the volume
     // sink: claim it screen-wide and forward to the active tab (same as SongBrowser's carousel)
-    bool onWheel(int deltaVertical, int deltaHorizontal) override;
+    bool onWheel(WheelDelta vertical, WheelDelta horizontal) override;
 
    private:
     void onChangeClicked(CBaseUIButton *button);

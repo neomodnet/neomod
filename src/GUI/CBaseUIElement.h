@@ -2,6 +2,7 @@
 // Copyright (c) 2013, PG, All rights reserved.
 
 #include "KeyboardListener.h"
+#include "MouseListener.h"
 #include "Vectors.h"
 #include "Rect.h"
 #include "CBaseUIEventCtx.h"
@@ -184,8 +185,9 @@ class CBaseUIElement : public KeyboardListener {
 
     // wheel routing (dispatch-driven, see CBaseUIDispatch): per-frame wheel totals, offered
     // top-most-first to the hovered hit candidates; return true to consume (stops the
-    // fall-through to elements beneath)
-    virtual bool onWheel(int deltaVertical, int deltaHorizontal);
+    // fall-through to elements beneath). something that moves in steps consumes a movement
+    // that hasn't completed one yet as well (see WheelDelta)
+    virtual bool onWheel(WheelDelta vertical, WheelDelta horizontal);
 
     // mouse capture lifecycle (dispatch-driven, see CBaseUIDispatch). a pressed element whose press is
     // taken away (capture steal, hidden/disabled/input-blocked mid-hold) gets onMouseCancel

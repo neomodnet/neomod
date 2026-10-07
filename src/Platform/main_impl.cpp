@@ -34,6 +34,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <iterator>
 #include <vector>
 
@@ -190,16 +191,19 @@ void SDLMain::mouse_down(std::string_view btn) { pushMouseButtonEvent(btn, true)
 void SDLMain::mouse_up(std::string_view btn) { pushMouseButtonEvent(btn, false); }
 
 void SDLMain::mouse_wheel(std::string_view args) {
-    const int notches = Parsing::strto<int>(args);
-    if(notches == 0) {
-        debugLog("usage: mouse_wheel <notches> (nonzero, positive = scroll up)");
+    const auto notches = Parsing::strto<float>(args);
+    if(notches == 0.f) {
+        debugLog("usage: mouse_wheel <notches> (nonzero, positive = scroll up, fractions like a trackpad's)");
         return;
     }
     SDL_Event ev{};
     ev.wheel.type = SDL_EVENT_MOUSE_WHEEL;
     ev.wheel.timestamp = Timing::getTicksNS();
     ev.wheel.windowID = m_windowID;
-    ev.wheel.y = static_cast<float>(notches);
+    ev.wheel.y = notches;
+    float whole{};
+    m_fSyntheticWheelResidual = std::modf(m_fSyntheticWheelResidual + notches, &whole);
+    ev.wheel.integer_y = static_cast<Sint32>(whole);
     handleEvent(&ev);
 }
 
@@ -708,12 +712,11 @@ SDL_AppResult SDLMain::handleEvent(SDL_Event *event) {
             break;
 
         case SDL_EVENT_MOUSE_WHEEL:
-            if(float wx = event->wheel.x; wx != 0.f)
+            if(event->wheel.x != 0.f || event->wheel.integer_x != 0)
                 mouse->onWheelHorizontal(
-                    static_cast<int>(120.f * (std::abs(wx) < 1.f ? (std::signbit(wx) ? -1.f : 1.f) : wx)));
-            if(float wy = event->wheel.y; wy != 0.f)
-                mouse->onWheelVertical(
-                    static_cast<int>(120.f * (std::abs(wy) < 1.f ? (std::signbit(wy) ? -1.f : 1.f) : wy)));
+                    {static_cast<int>(std::lround(120.f * event->wheel.x)), event->wheel.integer_x});
+            if(event->wheel.y != 0.f || event->wheel.integer_y != 0)
+                mouse->onWheelVertical({static_cast<int>(std::lround(120.f * event->wheel.y)), event->wheel.integer_y});
             break;
 
         // pens are absolute pointers whatever the mouse mode is (sdl's pen->mouse/touch emulation is off)

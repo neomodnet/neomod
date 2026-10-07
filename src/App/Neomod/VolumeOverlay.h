@@ -23,7 +23,7 @@ class VolumeOverlay final : public UIScreen {
     // the global arrow-volume key sink (see UI::onKeyDown)
     void onArrowVolumeFallback(KeyboardEvent& key);
     // the dispatch fall-through wheel sink (and the hovered-slider wheel claim)
-    bool onWheel(int deltaVertical, int deltaHorizontal) override;
+    bool onWheel(WheelDelta vertical, WheelDelta horizontal) override;
     void updateLayout();
     bool isBusy() override;
     bool isVisible() override;

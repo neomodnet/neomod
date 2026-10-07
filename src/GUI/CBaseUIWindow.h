@@ -105,7 +105,7 @@ class CBaseUIWindow : public CBaseUIElement {
     void onMouseCancel() override;
     void onMouseOutside() override;
     void onCapturedMouseMove() override;
-    bool onWheel(int deltaVertical, int deltaHorizontal) override;
+    bool onWheel(WheelDelta vertical, WheelDelta horizontal) override;
 
     void onMoved() override;
     void onResized() override;

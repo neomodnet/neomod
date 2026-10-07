@@ -192,8 +192,8 @@ void AboutScreen::updateInput(CBaseUIEventCtx &c) {
     ScreenBackable::updateInput(c);
 }
 
-bool AboutScreen::onWheel(int deltaVertical, int deltaHorizontal) {
-    return this->tabs[static_cast<size_t>(this->activeTab)].view->onWheel(deltaVertical, deltaHorizontal);
+bool AboutScreen::onWheel(WheelDelta vertical, WheelDelta horizontal) {
+    return this->tabs[static_cast<size_t>(this->activeTab)].view->onWheel(vertical, horizontal);
 }
 
 void AboutScreen::setActiveTab(Tab tab) {
