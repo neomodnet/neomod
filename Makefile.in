@@ -425,8 +425,8 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Tests/Neomod/PlayfieldTest.cpp \
 	src/App/Tests/Neomod/SkinLoadTest.cpp \
 	src/App/Tests/Neomod/SliderRenderTest.cpp \
-	src/App/Tests/NetworkTest.cpp src/App/Tests/ToolUITest.cpp \
-	$(builddir)/gen/binary_embed.cpp \
+	src/App/Tests/NetworkTest.cpp src/App/Tests/TestMacros.cpp \
+	src/App/Tests/ToolUITest.cpp $(builddir)/gen/binary_embed.cpp \
 	$(DEPS_PREFIX)/mimalloc/mimalloc_new_delete.cpp
 am__dirstamp = $(am__leading_dot)dirstamp
 @USE_GL_TRUE@am__objects_1 = src/Engine/Renderer/OpenGL/neomod-OpenGLImage.$(OBJEXT) \
@@ -476,6 +476,7 @@ am__dirstamp = $(am__leading_dot)dirstamp
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/neomod-SkinLoadTest.$(OBJEXT) \
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/neomod-SliderRenderTest.$(OBJEXT) \
 @BUILD_TESTS_TRUE@	src/App/Tests/neomod-NetworkTest.$(OBJEXT) \
+@BUILD_TESTS_TRUE@	src/App/Tests/neomod-TestMacros.$(OBJEXT) \
 @BUILD_TESTS_TRUE@	src/App/Tests/neomod-ToolUITest.$(OBJEXT)
 am__objects_12 = $(builddir)/gen/neomod-binary_embed.$(OBJEXT)
 @BUILD_MIMALLOC_TRUE@@WIN_PLATFORM_TRUE@am__objects_13 = $(DEPS_PREFIX)/mimalloc/neomod-mimalloc_new_delete.$(OBJEXT)
@@ -853,6 +854,7 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/App/Tests/$(DEPDIR)/neomod-CryptoTest.Po \
 	src/App/Tests/$(DEPDIR)/neomod-DirectoryWatcherTest.Po \
 	src/App/Tests/$(DEPDIR)/neomod-NetworkTest.Po \
+	src/App/Tests/$(DEPDIR)/neomod-TestMacros.Po \
 	src/App/Tests/$(DEPDIR)/neomod-ToolUITest.Po \
 	src/App/Tests/AudioTester/$(DEPDIR)/neomod-AudioTester.Po \
 	src/App/Tests/BaseFrameworkTest/$(DEPDIR)/neomod-BaseFrameworkTest.Po \
@@ -1484,6 +1486,7 @@ PATH := $(DEPS_PREFIX):$(shell echo $$PATH)
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/SkinLoadTest.cpp \
 @BUILD_TESTS_TRUE@	src/App/Tests/Neomod/SliderRenderTest.cpp \
 @BUILD_TESTS_TRUE@	src/App/Tests/NetworkTest.cpp \
+@BUILD_TESTS_TRUE@	src/App/Tests/TestMacros.cpp \
 @BUILD_TESTS_TRUE@	src/App/Tests/ToolUITest.cpp \
 @BUILD_TESTS_TRUE@	$(NULL)
 
@@ -3166,6 +3169,9 @@ src/App/Tests/Neomod/neomod-SliderRenderTest.$(OBJEXT):  \
 src/App/Tests/neomod-NetworkTest.$(OBJEXT):  \
 	src/App/Tests/$(am__dirstamp) \
 	src/App/Tests/$(DEPDIR)/$(am__dirstamp)
+src/App/Tests/neomod-TestMacros.$(OBJEXT):  \
+	src/App/Tests/$(am__dirstamp) \
+	src/App/Tests/$(DEPDIR)/$(am__dirstamp)
 src/App/Tests/neomod-ToolUITest.$(OBJEXT):  \
 	src/App/Tests/$(am__dirstamp) \
 	src/App/Tests/$(DEPDIR)/$(am__dirstamp)
@@ -3374,6 +3380,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/$(DEPDIR)/neomod-CryptoTest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/$(DEPDIR)/neomod-DirectoryWatcherTest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/$(DEPDIR)/neomod-NetworkTest.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/$(DEPDIR)/neomod-TestMacros.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/$(DEPDIR)/neomod-ToolUITest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/AudioTester/$(DEPDIR)/neomod-AudioTester.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Tests/BaseFrameworkTest/$(DEPDIR)/neomod-BaseFrameworkTest.Po@am__quote@ # am--include-marker
@@ -7167,6 +7174,20 @@ src/App/Tests/neomod-NetworkTest.obj: src/App/Tests/NetworkTest.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Tests/neomod-NetworkTest.obj `if test -f 'src/App/Tests/NetworkTest.cpp'; then $(CYGPATH_W) 'src/App/Tests/NetworkTest.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Tests/NetworkTest.cpp'; fi`
 
+src/App/Tests/neomod-TestMacros.o: src/App/Tests/TestMacros.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Tests/neomod-TestMacros.o -MD -MP -MF src/App/Tests/$(DEPDIR)/neomod-TestMacros.Tpo -c -o src/App/Tests/neomod-TestMacros.o `test -f 'src/App/Tests/TestMacros.cpp' || echo '$(srcdir)/'`src/App/Tests/TestMacros.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Tests/$(DEPDIR)/neomod-TestMacros.Tpo src/App/Tests/$(DEPDIR)/neomod-TestMacros.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Tests/TestMacros.cpp' object='src/App/Tests/neomod-TestMacros.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Tests/neomod-TestMacros.o `test -f 'src/App/Tests/TestMacros.cpp' || echo '$(srcdir)/'`src/App/Tests/TestMacros.cpp
+
+src/App/Tests/neomod-TestMacros.obj: src/App/Tests/TestMacros.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Tests/neomod-TestMacros.obj -MD -MP -MF src/App/Tests/$(DEPDIR)/neomod-TestMacros.Tpo -c -o src/App/Tests/neomod-TestMacros.obj `if test -f 'src/App/Tests/TestMacros.cpp'; then $(CYGPATH_W) 'src/App/Tests/TestMacros.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Tests/TestMacros.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Tests/$(DEPDIR)/neomod-TestMacros.Tpo src/App/Tests/$(DEPDIR)/neomod-TestMacros.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Tests/TestMacros.cpp' object='src/App/Tests/neomod-TestMacros.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Tests/neomod-TestMacros.obj `if test -f 'src/App/Tests/TestMacros.cpp'; then $(CYGPATH_W) 'src/App/Tests/TestMacros.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Tests/TestMacros.cpp'; fi`
+
 src/App/Tests/neomod-ToolUITest.o: src/App/Tests/ToolUITest.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Tests/neomod-ToolUITest.o -MD -MP -MF src/App/Tests/$(DEPDIR)/neomod-ToolUITest.Tpo -c -o src/App/Tests/neomod-ToolUITest.o `test -f 'src/App/Tests/ToolUITest.cpp' || echo '$(srcdir)/'`src/App/Tests/ToolUITest.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Tests/$(DEPDIR)/neomod-ToolUITest.Tpo src/App/Tests/$(DEPDIR)/neomod-ToolUITest.Po
@@ -7761,6 +7782,7 @@ distclean: distclean-am
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-CryptoTest.Po
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-DirectoryWatcherTest.Po
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-NetworkTest.Po
+	-rm -f src/App/Tests/$(DEPDIR)/neomod-TestMacros.Po
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-ToolUITest.Po
 	-rm -f src/App/Tests/AudioTester/$(DEPDIR)/neomod-AudioTester.Po
 	-rm -f src/App/Tests/BaseFrameworkTest/$(DEPDIR)/neomod-BaseFrameworkTest.Po
@@ -8071,6 +8093,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-CryptoTest.Po
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-DirectoryWatcherTest.Po
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-NetworkTest.Po
+	-rm -f src/App/Tests/$(DEPDIR)/neomod-TestMacros.Po
 	-rm -f src/App/Tests/$(DEPDIR)/neomod-ToolUITest.Po
 	-rm -f src/App/Tests/AudioTester/$(DEPDIR)/neomod-AudioTester.Po
 	-rm -f src/App/Tests/BaseFrameworkTest/$(DEPDIR)/neomod-BaseFrameworkTest.Po

@@ -26,7 +26,8 @@ inline std::optional<std::string> getTestArg(std::string_view name) {
 }
 
 namespace detail {
-inline int todo_level, todo_do_loop;
+// defined in TestMacros.cpp: one copy for the program and any library it loads
+extern int todo_level, todo_do_loop;
 inline void start_todo(int is_todo) {
     todo_level = (todo_level << 1) | (is_todo != 0);
     todo_do_loop = 1;

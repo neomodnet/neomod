@@ -90,6 +90,7 @@ TEST_SOURCES := \
 	src/App/Tests/Neomod/SkinLoadTest.cpp \
 	src/App/Tests/Neomod/SliderRenderTest.cpp \
 	src/App/Tests/NetworkTest.cpp \
+	src/App/Tests/TestMacros.cpp \
 	src/App/Tests/ToolUITest.cpp \
 	$(NULL)
 endif
