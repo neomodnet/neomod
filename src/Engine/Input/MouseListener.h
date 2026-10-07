@@ -32,6 +32,7 @@ struct ButtonEvent {
     MouseButtonFlags btn;
     bool down;
     bool consumed;
+    uint8_t clicks{1};  // presses of the button in a row, as the platform counts them (a double click's second: 2)
 };
 
 class MouseListener {

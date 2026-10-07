@@ -109,6 +109,11 @@ bool stealCapture(CBaseUIElement *thief);
 // against the device state every dispatch)
 [[nodiscard]] MouseButtonFlags getCaptorButtons();
 
+// how many presses in a row the press being delivered is (for onMouseDownInside/Outside): 2 for a double click's second
+// press, counted while the presses go to the same element with the same button, within the platform's double-click
+// time and distance
+[[nodiscard]] u8 getClicks();
+
 struct State;  // internal per-frame state (for CBaseUIElement friend access)
 void clear();  // reset all state (sanity cleanup on engine shutdown)
 

@@ -64,7 +64,7 @@ class SDLMain final : public Environment {
     void sendkey(std::string_view args);
     void sendtext(std::string_view args);
 
-    void pushMouseButtonEvent(std::string_view btnName, bool down);
+    void pushMouseButtonEvent(std::string_view args, bool down);
     void mouse_to(std::string_view args);
     void mouse_down(std::string_view args);
     void mouse_up(std::string_view args);

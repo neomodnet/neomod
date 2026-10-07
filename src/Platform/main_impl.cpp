@@ -164,7 +164,16 @@ void SDLMain::mouse_to(std::string_view args) {
     mouse->onPosChange({x, y});
 }
 
-void SDLMain::pushMouseButtonEvent(std::string_view btnName, bool down) {
+void SDLMain::pushMouseButtonEvent(std::string_view args, bool down) {
+    // [button] [clicks]: the presses in a row this one is (2 for a double click's second)
+    const uSz space = args.find(' ');
+    const std::string_view btnName = args.substr(0, space);
+    u8 clicks{1};
+    if(space != std::string_view::npos && (!Parsing::parse(args.substr(space + 1), &clicks) || clicks == 0)) {
+        debugLog("usage: mouse_down/mouse_up [left/right/middle] [clicks]");
+        return;
+    }
+
     u8 sdlButton{};
     if(btnName.empty() || btnName == "left")
         sdlButton = SDL_BUTTON_LEFT;
@@ -183,7 +192,7 @@ void SDLMain::pushMouseButtonEvent(std::string_view btnName, bool down) {
     ev.button.windowID = m_windowID;
     ev.button.button = sdlButton;
     ev.button.down = down;
-    ev.button.clicks = 1;
+    ev.button.clicks = clicks;
     handleEvent(&ev);
 }
 
@@ -702,13 +711,9 @@ SDL_AppResult SDLMain::handleEvent(SDL_Event *event) {
 
         // mouse events
         case SDL_EVENT_MOUSE_BUTTON_DOWN:
-            mouse->onButtonChange(
-                {event->button.timestamp, (MouseButtonFlags)(1 << (event->button.button - 1)), true, false});
-            break;
-
         case SDL_EVENT_MOUSE_BUTTON_UP:
-            mouse->onButtonChange(
-                {event->button.timestamp, (MouseButtonFlags)(1 << (event->button.button - 1)), false, false});
+            mouse->onButtonChange({event->button.timestamp, (MouseButtonFlags)(1 << (event->button.button - 1)),
+                                   event->button.down, false, event->button.clicks});
             break;
 
         case SDL_EVENT_MOUSE_WHEEL:

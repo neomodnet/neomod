@@ -28,6 +28,11 @@ struct State final {
     [[nodiscard]] CBaseUIElement *getCaptor() const { return this->captor; }
     [[nodiscard]] bool isCaptureLocked() const { return this->captorLocked; }
     [[nodiscard]] MouseButtonFlags getCaptorButtons() const { return this->captorButtons; }
+    [[nodiscard]] u8 getClicks() const { return this->clicks; }
+
+    // a press is about to be delivered to target: the platform's count of presses in a row holds while they go to the
+    // same element and button, a press elsewhere starts over
+    void countClicks(const CBaseUIElement *target, MouseButtonFlags btn, u8 platformClicks);
 
     // hover resolved once per frame from the walk's hit candidates: the single top-most candidate
     // (+ its ancestor path) GAINS hover, everything beneath it is retracted - one resolution that
@@ -85,6 +90,11 @@ struct State final {
 
     // last cursor position delivered as a captured move (for move-edge trace gating)
     vec2 lastCaptureMovePos{0.f};
+
+    // the last press's target and button (compared, never dereferenced; element dtors clear it), and its clicks
+    const CBaseUIElement *lastPressTarget{nullptr};
+    MouseButtonFlags lastPressButton{};
+    u8 clicks{1};
 
     // bumped on every element destruction; dispatch abandons the frame's remaining deliveries
     // when it changes mid-loop (a handler deleted/rebuilt parts of the UI under the candidates)
@@ -172,6 +182,7 @@ void State::onElementDestroyed(CBaseUIElement *elem) {
     ++this->elemGeneration;
     if(this->wheelSink == elem) this->wheelSink = nullptr;
     if(this->focused == elem) this->focused = nullptr;
+    if(this->lastPressTarget == elem) this->lastPressTarget = nullptr;
     if(this->captor == elem) {
         // the captor is mid-destruction: no calls into it, but observers still disarm
         this->captor = nullptr;
@@ -181,6 +192,12 @@ void State::onElementDestroyed(CBaseUIElement *elem) {
     } else {
         std::erase(this->capturePath, elem);
     }
+}
+
+void State::countClicks(const CBaseUIElement *target, MouseButtonFlags btn, u8 platformClicks) {
+    this->clicks = (target == this->lastPressTarget && btn == this->lastPressButton) ? platformClicks : 1;
+    this->lastPressTarget = target;
+    this->lastPressButton = btn;
 }
 
 void State::lockCapture(const CBaseUIElement *who) {
@@ -444,6 +461,7 @@ void State::dispatchEvents(CBaseUIEventCtx &c, Root root) {
             if(qe.down) {
                 this->captorButtons |= btn;
                 if(eligible) {
+                    this->countClicks(elem, btn, qe.clicks);
                     if(elem->bMouseInside) {
                         UI_TRACE_EVENT(0, elem, "downInside");
                         elem->onMouseDownInside(left, right);
@@ -497,6 +515,7 @@ void State::dispatchEvents(CBaseUIEventCtx &c, Root root) {
             this->captorLocked = false;
             this->capturePath = target->path;
             this->lastCaptureMovePos = mouse->getPos();
+            this->countClicks(target->elem, btn, qe.clicks);
             UI_TRACE_EVENT(0, target->elem, "downInside");
             target->elem->onMouseDownInside(left, right);
             if(this->captor == target->elem) {
@@ -521,5 +540,6 @@ bool stealCapture(CBaseUIElement *thief) { return state.stealCapture(thief); }
 CBaseUIElement *getCaptor() { return state.getCaptor(); }
 bool isCaptureLocked() { return state.isCaptureLocked(); }
 MouseButtonFlags getCaptorButtons() { return state.getCaptorButtons(); }
+u8 getClicks() { return state.getClicks(); }
 
 }  // namespace CBaseUIDispatch
