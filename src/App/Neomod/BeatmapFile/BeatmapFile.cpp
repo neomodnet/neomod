@@ -12,8 +12,92 @@
 #include <limits>
 #include <string>
 
+// the tools are built without fmt. std::format checks a "..."_cf string at compile time, fmt compiles it, and a compiled
+// one writes through the iterator it's given: into fmt's own buffer in place, into a std::string piece by piece
+#ifdef BUILD_TOOLS_ONLY
+#include <cstddef>
+#include <format>
+#include <iterator>
+namespace formatting = std;
+namespace {
+consteval std::string_view operator""_cf(const char *str, std::size_t len) { return {str, len}; }
+using Text = std::string;
+auto writer(Text &text) { return std::back_inserter(text); }
+}  // namespace
+#else
+#include "fmt/compile.h"
+#include "fmt/format.h"
+namespace formatting = fmt;
+using fmt::operator""_cf;
+namespace {
+using Text = fmt::memory_buffer;
+auto writer(Text &text) { return fmt::appender(text); }
+}  // namespace
+#endif
+
 // ignored for performance
 // NOLINTBEGIN(cppcoreguidelines-init-variables,cppcoreguidelines-pro-type-member-init)
+
+namespace {
+
+// a double the way osu!stable writes one (.NET's "G": 15 significant digits), with more digits only where 15 don't give
+// back the same number (osu!lazer writes the shortest that does)
+struct StableDouble {
+    f64 value;
+};
+
+// a position: whole numbers as osu!stable writes them, fractions (osu!lazer) as the shortest text that gives them back
+struct Coordinate {
+    f32 value;
+};
+
+}  // namespace
+
+template <>
+struct formatting::formatter<StableDouble> {
+    template <typename ParseContext>
+    constexpr auto parse(ParseContext &ctx) const {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(StableDouble d, FormatContext &ctx) const {
+        if(!std::isfinite(d.value)) {
+            const std::string_view name = std::isnan(d.value) ? "NaN" : d.value < 0 ? "-Infinity" : "Infinity";
+            return formatting::format_to(ctx.out(), "{}"_cf, name);
+        }
+        std::array<char, 40> buf;
+        char *end = buf.data();
+        for(int precision = 15; precision <= 17; precision++) {
+            end =
+                std::to_chars(buf.data(), buf.data() + buf.size(), d.value, std::chars_format::general, precision).ptr;
+            if(f64 back; Parsing::from_chars(buf.data(), end, back).ec == std::errc() && back == d.value) break;
+        }
+        std::replace(buf.data(), end, 'e', 'E');
+        return formatting::format_to(ctx.out(), "{}"_cf, std::string_view{buf.data(), end});
+    }
+};
+
+template <>
+struct formatting::formatter<Coordinate> {
+    template <typename ParseContext>
+    constexpr auto parse(ParseContext &ctx) const {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(Coordinate c, FormatContext &ctx) const {
+        std::array<char, 40> buf;
+        char *end;
+        if(c.value == std::trunc(c.value) && std::abs(c.value) < 2147483648.f) {
+            end = std::to_chars(buf.data(), buf.data() + buf.size(), static_cast<i64>(c.value)).ptr;
+        } else {
+            end = std::to_chars(buf.data(), buf.data() + buf.size(), c.value, std::chars_format::general).ptr;
+            std::replace(buf.data(), end, 'e', 'E');
+        }
+        return formatting::format_to(ctx.out(), "{}"_cf, std::string_view{buf.data(), end});
+    }
+};
 
 namespace neomod {
 
@@ -100,61 +184,14 @@ void parseHitSample(std::string_view field, BeatmapFile::HitSample &out) {
     out.parts = static_cast<u8>(std::min<uSz>(std::ranges::count(field, ':') + 1, 5));
 }
 
-void appendInt(std::string &out, i64 value) {
-    std::array<char, 24> buf;
-    const auto [end, ec] = std::to_chars(buf.data(), buf.data() + buf.size(), value);
-    out.append(buf.data(), end);
-}
-
-void upperExponent(char *begin, char *end) {
-    for(char *c = begin; c != end; c++) {
-        if(*c == 'e') *c = 'E';
-    }
-}
-
-// a double the way osu!stable writes one (.NET's "G": 15 significant digits), with more digits only where 15 don't give
-// back the same number (osu!lazer writes the shortest that does)
-void appendDouble(std::string &out, f64 value) {
-    if(std::isnan(value)) {
-        out.append("NaN");
-        return;
-    }
-    if(std::isinf(value)) {
-        out.append(value < 0 ? "-Infinity" : "Infinity");
-        return;
-    }
-    std::array<char, 40> buf;
-    char *end = buf.data();
-    for(int precision = 15; precision <= 17; precision++) {
-        end = std::to_chars(buf.data(), buf.data() + buf.size(), value, std::chars_format::general, precision).ptr;
-        if(f64 back; Parsing::from_chars(buf.data(), end, back).ec == std::errc() && back == value) break;
-    }
-    upperExponent(buf.data(), end);
-    out.append(buf.data(), end);
-}
-
-// a position: whole numbers as osu!stable writes them, fractions (osu!lazer) as the shortest text that gives them back
-void appendCoordinate(std::string &out, f32 value) {
-    if(value == std::trunc(value) && std::abs(value) < 2147483648.f) {
-        appendInt(out, static_cast<i64>(value));
-        return;
-    }
-    std::array<char, 40> buf;
-    char *end = std::to_chars(buf.data(), buf.data() + buf.size(), value, std::chars_format::general).ptr;
-    upperExponent(buf.data(), end);
-    out.append(buf.data(), end);
-}
-
-void appendHitSample(std::string &out, const BeatmapFile::HitSample &sample) {
-    const std::array<i32, 4> numbers{sample.normalSet, sample.additionSet, sample.index, sample.volume};
-    for(uSz i = 0; i < numbers.size() && i < sample.parts; i++) {
-        out.push_back(i == 0 ? ',' : ':');
-        appendInt(out, numbers[i]);
-    }
+void appendHitSample(Text &out, const BeatmapFile::HitSample &sample) {
     if(sample.parts >= 5) {
-        out.push_back(':');
-        out.append(sample.filename);
+        formatting::format_to(writer(out), ",{}:{}:{}:{}:{}"_cf, sample.normalSet, sample.additionSet, sample.index,
+                              sample.volume, sample.filename);
+        return;
     }
+    const std::array<i32, 4> numbers{sample.normalSet, sample.additionSet, sample.index, sample.volume};
+    for(uSz i = 0; i < sample.parts; i++) formatting::format_to(writer(out), "{}{}"_cf, i == 0 ? ',' : ':', numbers[i]);
 }
 
 }  // namespace
@@ -270,15 +307,10 @@ bool BeatmapFile::parse(std::string_view line, TimingPoint &out) {
 }
 
 std::string BeatmapFile::format(const TimingPoint &tp) {
-    std::string out;
-    appendDouble(out, tp.time);
-    out.push_back(',');
-    appendDouble(out, tp.beatLength);
-    for(const i32 value : {tp.meter, tp.sampleSet, tp.sampleIndex, tp.volume, tp.uninherited ? 1 : 0, tp.effects}) {
-        out.push_back(',');
-        appendInt(out, value);
-    }
-    return out;
+    Text out;
+    formatting::format_to(writer(out), "{},{},{},{},{},{},{},{}"_cf, StableDouble{tp.time}, StableDouble{tp.beatLength},
+                          tp.meter, tp.sampleSet, tp.sampleIndex, tp.volume, tp.uninherited ? 1 : 0, tp.effects);
+    return {out.data(), out.size()};
 }
 
 bool BeatmapFile::parse(std::string_view line, HitObject &out) {
@@ -384,16 +416,9 @@ bool BeatmapFile::parse(std::string_view line, HitObject &out) {
 std::string BeatmapFile::format(const HitObject &ho) {
     using T = HitObject;
 
-    std::string out;
-    appendCoordinate(out, ho.x);
-    out.push_back(',');
-    appendCoordinate(out, ho.y);
-    out.push_back(',');
-    appendInt(out, ho.time);
-    out.push_back(',');
-    appendInt(out, ho.type);
-    out.push_back(',');
-    appendInt(out, ho.hitSounds);
+    Text out;
+    const auto it = writer(out);
+    formatting::format_to(it, "{},{},{},{},{}"_cf, Coordinate{ho.x}, Coordinate{ho.y}, ho.time, ho.type, ho.hitSounds);
 
     switch(ho.kind) {
         case T::Kind::NONE:
@@ -407,32 +432,23 @@ std::string BeatmapFile::format(const HitObject &ho) {
             out.push_back(',');
             if(ho.curveType != '\0') out.push_back(ho.curveType);
             for(const vec2 &point : ho.curvePoints) {
-                out.push_back('|');
-                appendCoordinate(out, point.x);
-                out.push_back(':');
-                appendCoordinate(out, point.y);
+                formatting::format_to(it, "|{}:{}"_cf, Coordinate{point.x}, Coordinate{point.y});
             }
-            out.push_back(',');
-            appendInt(out, ho.slides);
-            out.push_back(',');
-            appendDouble(out, ho.length);
+            formatting::format_to(it, ",{},{}"_cf, ho.slides, StableDouble{ho.length});
 
             // osu!stable writes the edges and the sample together, older files stop after any of them
             const bool sets = !ho.edgeSets.empty() || ho.sample.parts > 0;
             if(sets || !ho.edgeSounds.empty()) {
                 out.push_back(',');
                 for(uSz i = 0; i < ho.edgeSounds.size(); i++) {
-                    if(i > 0) out.push_back('|');
-                    appendInt(out, ho.edgeSounds[i]);
+                    formatting::format_to(it, "{}{}"_cf, i > 0 ? "|" : "", ho.edgeSounds[i]);
                 }
             }
             if(sets) {
                 out.push_back(',');
                 for(uSz i = 0; i < ho.edgeSets.size(); i++) {
-                    if(i > 0) out.push_back('|');
-                    appendInt(out, ho.edgeSets[i].normalSet);
-                    out.push_back(':');
-                    appendInt(out, ho.edgeSets[i].additionSet);
+                    formatting::format_to(it, "{}{}:{}"_cf, i > 0 ? "|" : "", ho.edgeSets[i].normalSet,
+                                          ho.edgeSets[i].additionSet);
                 }
             }
             appendHitSample(out, ho.sample);
@@ -440,12 +456,11 @@ std::string BeatmapFile::format(const HitObject &ho) {
         }
 
         case T::Kind::SPINNER:
-            out.push_back(',');
-            appendInt(out, ho.endTime);
+            formatting::format_to(it, ",{}"_cf, ho.endTime);
             appendHitSample(out, ho.sample);
             break;
     }
-    return out;
+    return {out.data(), out.size()};
 }
 
 bool BeatmapFile::parse(std::string_view line, Event &out) {
@@ -504,27 +519,14 @@ bool BeatmapFile::parse(std::string_view line, Event &out) {
 }
 
 std::string BeatmapFile::format(const Event &ev) {
-    std::string out;
-    switch(ev.kind) {
-        case Event::Kind::BACKGROUND:
-            out.append("0,");
-            break;
-        case Event::Kind::VIDEO:
-            out.append("Video,");
-            break;
-        case Event::Kind::BREAK:
-            out.append("2,");
-            appendInt(out, ev.start);
-            out.push_back(',');
-            appendInt(out, ev.end);
-            return out;
+    Text out;
+    if(ev.kind == Event::Kind::BREAK) {
+        formatting::format_to(writer(out), "2,{},{}"_cf, ev.start, ev.end);
+    } else {
+        formatting::format_to(writer(out), "{},{},\"{}\"{}"_cf, ev.kind == Event::Kind::VIDEO ? "Video" : "0", ev.start,
+                              ev.file, ev.rest);
     }
-    appendInt(out, ev.start);
-    out.append(",\"");
-    out.append(ev.file);
-    out.push_back('"');
-    out.append(ev.rest);
-    return out;
+    return {out.data(), out.size()};
 }
 
 bool BeatmapFile::parse(std::string_view line, Colour &out) {
@@ -542,14 +544,9 @@ bool BeatmapFile::parse(std::string_view line, Colour &out) {
 }
 
 std::string BeatmapFile::format(const Colour &colour) {
-    std::string out{colour.name};
-    out.append(" : ");
-    appendInt(out, colour.r);
-    out.push_back(',');
-    appendInt(out, colour.g);
-    out.push_back(',');
-    appendInt(out, colour.b);
-    return out;
+    Text out;
+    formatting::format_to(writer(out), "{} : {},{},{}"_cf, colour.name, colour.r, colour.g, colour.b);
+    return {out.data(), out.size()};
 }
 
 }  // namespace neomod
