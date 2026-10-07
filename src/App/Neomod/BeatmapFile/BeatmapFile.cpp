@@ -296,28 +296,43 @@ bool BeatmapFile::parse(std::string_view line, HitObject &out) {
        !Parsing::parse(fields[4], &hitSounds)) {
         return false;
     }
-    if((type & T::TYPE_SLIDER) && count < 8) return false;
+    if((type & T::TYPE_SLIDER) && count < 7) return false;
     if((type & T::TYPE_SPINNER) && count < 6) return false;
     if(type & T::TYPE_MANIA_HOLD) return false;
+
+    const T::Kind kind = (type & T::TYPE_CIRCLE)    ? T::Kind::CIRCLE
+                         : (type & T::TYPE_SLIDER)  ? T::Kind::SLIDER
+                         : (type & T::TYPE_SPINNER) ? T::Kind::SPINNER
+                                                    : T::Kind::NONE;
+    i32 slides{1}, endTime{0};
+    f64 length{0.0};
+    if(kind == T::Kind::SLIDER) {
+        if(!Parsing::parse(fields[6], &slides)) return false;
+        if(count > 7 && !Parsing::parse(fields[7], &length)) {
+            // too large for a double, but a length nonetheless
+            if(!SString::contains_ncase(fields[7], "e+")) return false;
+            length = fields[7].starts_with('-') ? -std::numeric_limits<f64>::infinity()
+                                                : std::numeric_limits<f64>::infinity();
+        }
+    } else if(kind == T::Kind::SPINNER && !Parsing::parse(fields[5], &endTime)) {
+        return false;
+    }
 
     out.x = x;
     out.y = y;
     out.time = time;
     out.type = type;
     out.hitSounds = hitSounds;
-    out.kind = (type & T::TYPE_CIRCLE)    ? T::Kind::CIRCLE
-               : (type & T::TYPE_SLIDER)  ? T::Kind::SLIDER
-               : (type & T::TYPE_SPINNER) ? T::Kind::SPINNER
-                                          : T::Kind::NONE;
+    out.kind = kind;
     out.sample = {};
     out.sample.parts = 0;
     out.curveType = 0;
     out.curvePoints.clear();
-    out.slides.reset();
-    out.length.reset();
+    out.slides = slides;
+    out.length = length;
     out.edgeSounds.clear();
     out.edgeSets.clear();
-    out.endTime.reset();
+    out.endTime = endTime;
 
     switch(out.kind) {
         case T::Kind::NONE:
@@ -340,16 +355,6 @@ bool BeatmapFile::parse(std::string_view line, HitObject &out) {
                 });
             }
 
-            if(i32 slides; Parsing::parse(fields[6], &slides)) out.slides = slides;
-
-            if(f64 length; Parsing::parse(fields[7], &length)) {
-                out.length = length;
-            } else if(SString::contains_ncase(fields[7], "e+")) {
-                // too large for a double, but a length nonetheless
-                out.length = fields[7].starts_with('-') ? -std::numeric_limits<f64>::infinity()
-                                                        : std::numeric_limits<f64>::infinity();
-            }
-
             if(count > 8) {
                 forEachField(fields[8], '|', [&out](std::string_view part) {
                     u8 sounds{0};
@@ -370,7 +375,6 @@ bool BeatmapFile::parse(std::string_view line, HitObject &out) {
         }
 
         case T::Kind::SPINNER:
-            if(i32 endTime; Parsing::parse(fields[5], &endTime)) out.endTime = endTime;
             if(count > 6) parseHitSample(fields[6], out.sample);
             break;
     }
@@ -409,9 +413,9 @@ std::string BeatmapFile::format(const HitObject &ho) {
                 appendCoordinate(out, point.y);
             }
             out.push_back(',');
-            appendInt(out, ho.slides.value_or(1));
+            appendInt(out, ho.slides);
             out.push_back(',');
-            appendDouble(out, ho.length.value_or(0.0));
+            appendDouble(out, ho.length);
 
             // osu!stable writes the edges and the sample together, older files stop after any of them
             const bool sets = !ho.edgeSets.empty() || ho.sample.parts > 0;
@@ -437,7 +441,7 @@ std::string BeatmapFile::format(const HitObject &ho) {
 
         case T::Kind::SPINNER:
             out.push_back(',');
-            appendInt(out, ho.endTime.value_or(ho.time));
+            appendInt(out, ho.endTime);
             appendHitSample(out, ho.sample);
             break;
     }

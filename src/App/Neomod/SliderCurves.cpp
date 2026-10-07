@@ -180,6 +180,13 @@ class SCEDMBuilder final {
     [[nodiscard]] bool hasPoints() const { return !m_allPoints.empty(); }
     auto &getPoints() { return m_allPoints; }
 
+    // summed in the order build() walks the points, so a curve this long ends at the last one
+    [[nodiscard]] f32 getLength() const {
+        f32 length = 0.0f;
+        for(uSz i = 1; i < m_allPoints.size(); i++) length += vec::length(m_allPoints[i] - m_allPoints[i - 1]);
+        return length;
+    }
+
     void build(std::vector<vec2> &curvePointsOut, f32 &startAngleOut, f32 &endAngleOut, u32 nCurve, f32 pixelLength);
 };
 
@@ -279,7 +286,6 @@ static CONSTINIT thread_local SCEDMBuilder g_curveBuilder{};
 
 void SliderCurve::constructBezier(std::span<const vec2> controlPoints, f32 curvePointsSeparation, bool line) {
     const u32 max_points = SLIDER_CURVE_MAX_POINTS;
-    m_NCurve = std::min((u32)(m_pixelLength / std::clamp<f32>(curvePointsSeparation, 1.0f, 100.0f)), max_points);
 
     const u32 numControlPoints = controlPoints.size();
 
@@ -307,6 +313,9 @@ void SliderCurve::constructBezier(std::span<const vec2> controlPoints, f32 curve
         g_curveBuilder.addBezierSegment(&controlPoints[segmentStart], numControlPoints - segmentStart);
     }
 
+    if(m_pixelLength == 0.0f) m_pixelLength = g_curveBuilder.getLength();
+    m_NCurve = std::min((u32)(m_pixelLength / std::clamp<f32>(curvePointsSeparation, 1.0f, 100.0f)), max_points);
+
     if(g_curveBuilder.hasPoints()) {
         g_curveBuilder.build(m_curvePoints, m_startAngle, m_endAngle, m_NCurve, m_pixelLength);
     } else {
@@ -323,7 +332,6 @@ void SliderCurve::constructBezier(std::span<const vec2> controlPoints, f32 curve
 
 void SliderCurve::constructCatmull(std::span<const vec2> controlPoints, f32 curvePointsSeparation) {
     const u32 max_points = SLIDER_CURVE_MAX_POINTS;
-    m_NCurve = std::min((u32)(m_pixelLength / std::clamp<f32>(curvePointsSeparation, 1.0f, 100.0f)), max_points);
 
     const u32 numControlPoints = controlPoints.size();
 
@@ -372,6 +380,9 @@ void SliderCurve::constructCatmull(std::span<const vec2> controlPoints, f32 curv
             g_curveBuilder.addCatmullSegment(catmullPoints);
         }
     }
+
+    if(m_pixelLength == 0.0f) m_pixelLength = g_curveBuilder.getLength();
+    m_NCurve = std::min((u32)(m_pixelLength / std::clamp<f32>(curvePointsSeparation, 1.0f, 100.0f)), max_points);
 
     if(g_curveBuilder.hasPoints()) {
         g_curveBuilder.build(m_curvePoints, m_startAngle, m_endAngle, m_NCurve, m_pixelLength);
@@ -479,6 +490,7 @@ void SliderCurve::constructCircular(std::span<const vec2> controlPoints, f32 cur
     const f32 radius = vec::length(startAngPoint);
     const f32 naturalArcAngle = std::abs(endAngle - startAngle);
     const f32 naturalArcLength = naturalArcAngle * radius;
+    if(m_pixelLength == 0.0f) m_pixelLength = naturalArcLength;
 
     // if pixel length exceeds the natural arc, extend tangentially
     // (matches osu!stable/lazer behavior for "lengthened" perfect circle sliders (manually edited .osu file quirk))

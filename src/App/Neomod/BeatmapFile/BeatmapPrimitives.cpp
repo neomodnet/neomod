@@ -4,6 +4,7 @@
 
 #include "Parsing.h"
 #include "SString.h"
+#include "SliderCurves.h"
 #include "Vectors.h"
 
 #define WANT_PDQSORT
@@ -295,11 +296,6 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
             }
 
             case HO::Kind::SLIDER: {
-                if(!ho.slides || !ho.length) {
-                    c.skippedLines.push_back(line.number);
-                    break;
-                }
-
                 SLIDER slider{};
                 slider.colorCounter = colorCounter;
                 slider.colorOffset = colorOffset;
@@ -346,27 +342,27 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
 
                 applyHitSample(ho.sample, slider.hoverSamples);
 
-                const auto pixelLength = static_cast<f32>(*ho.length);
+                const auto pixelLength = static_cast<f32>(ho.length);
                 slider.x = (f32)(i32)ho.x;  // NOTE: lazer beatmaps do not truncate here
                 slider.y = (f32)(i32)ho.y;
-                slider.repeat = std::clamp(*ho.slides, 0, sliderMaxRepeatRange);
+                slider.repeat = std::clamp(ho.slides, 0, sliderMaxRepeatRange);
                 slider.pixelLength =
                     std::isnan(pixelLength) ? 0.f : std::clamp(pixelLength, -sliderSanityRange, sliderSanityRange);
+                if(slider.pixelLength == 0.f) {
+                    // without a length: as long as its curve
+                    slider.pixelLength =
+                        std::min(SliderCurve{slider.type, slider.points, 0.f}.getPixelLength(), sliderSanityRange);
+                }
                 slider.number = comboNumber++;
                 c.sliders.push_back(std::move(slider));
                 break;
             }
 
             case HO::Kind::SPINNER: {
-                if(!ho.endTime) {
-                    c.skippedLines.push_back(line.number);
-                    break;
-                }
-
                 SPINNER s{.x = (f32)(i32)ho.x,  // NOTE: lazer beatmaps do not truncate here
                           .y = (f32)(i32)ho.y,
                           .time = ho.time,
-                          .endTime = *ho.endTime,
+                          .endTime = ho.endTime,
                           .samples = {}};
                 s.samples.hitSounds = (u8)(ho.hitSounds & HitSoundType::VALID_HITSOUNDS);
                 applyHitSample(ho.sample, s.samples);

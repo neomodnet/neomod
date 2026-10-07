@@ -22,6 +22,7 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <numbers>
 #include <thread>
 #include <utility>
 
@@ -455,20 +456,21 @@ void BeatmapFileTest::runTests() {
         TEST_ASSERT_EQ(BeatmapFile::format(ho), "64,64,3000,2,0,L|128:64,1,64", "slider without edges back");
         TEST_ASSERT(BeatmapFile::parse("64,64,3000,2,0,L|128:64|inf:5|P|7:7,1,64", ho) && ho.curvePoints.size() == 2,
                     "curve parts that aren't two finite numbers are left out");
-        TEST_ASSERT(BeatmapFile::parse("64,64,3000,2,0,L|128:64,x,64", ho) && !ho.slides.has_value(),
-                    "unreadable slides");
-        TEST_ASSERT(BeatmapFile::parse("64,64,3000,2,0,L|128:64,1,1e+500", ho) && ho.length && std::isinf(*ho.length) &&
-                        *ho.length > 0,
-                    "a length too large for a double");
-        TEST_ASSERT(BeatmapFile::parse("64,64,3000,2,0,L|128:64,1,x", ho) && !ho.length.has_value(),
-                    "unreadable length");
+        TEST_ASSERT(!BeatmapFile::parse("64,64,3000,2,0,L|128:64,x,64", ho), "unreadable slides");
+        TEST_ASSERT(
+            BeatmapFile::parse("64,64,3000,2,0,L|128:64,1,1e+500", ho) && std::isinf(ho.length) && ho.length > 0,
+            "a length too large for a double");
+        TEST_ASSERT(!BeatmapFile::parse("64,64,3000,2,0,L|128:64,1,x", ho), "unreadable length");
         TEST_ASSERT(BeatmapFile::parse("64,64,3000,2,0,,1,64", ho) && ho.curveType == '\0', "empty curve field");
-        TEST_TODO TEST_ASSERT(BeatmapFile::parse("64,64,3000,2,0,L|1:1,1", ho) && !ho.length.has_value(),
-                              "a slider without its length field");
+        TEST_ASSERT(BeatmapFile::parse("64,64,3000,2,0,L|1:1,1", ho) && ho.length == 0.0,
+                    "a slider without its length field");
+        TEST_ASSERT_EQ(BeatmapFile::format(ho), "64,64,3000,2,0,L|1:1,1,0",
+                       "written with a length of 0, read the same");
 
         TEST_ASSERT(BeatmapFile::parse("256,192,4000,12,0,6000,0:0:0:0:", ho), "spinner");
         TEST_ASSERT(ho.kind == HO::Kind::SPINNER && ho.endTime == 6000, "spinner read");
         TEST_ASSERT_EQ(BeatmapFile::format(ho), "256,192,4000,12,0,6000,0:0:0:0:", "spinner written back");
+        TEST_ASSERT(!BeatmapFile::parse("256,192,4000,12,0,x", ho), "unreadable spinner end");
 
         TEST_TODO TEST_ASSERT(BeatmapFile::parse("64,192,500,128,0,1000:0:0:0:0:", ho), "osu!mania hold");
         TEST_ASSERT(!BeatmapFile::parse("64,192,500,1", ho), "fewer than 5 fields");
@@ -516,6 +518,14 @@ void BeatmapFileTest::runTests() {
             "-3e9,500,4,1,0,100,1,0\r\n100,500,4,1,0,100,1,0\r\n");
         TEST_ASSERT(times.timingpoints.size() == 1 && times.timingpoints[0].offset == 100,
                     "timing points at times that aren't numbers or don't fit in 32 bits are dropped");
+
+        const auto lengths = load(
+            "osu file format v14\r\n[TimingPoints]\r\n0,500,4,1,0,100,1,0\r\n[HitObjects]\r\n0,0,1000,2,0,L|100:0,1\r\n"
+            "0,0,2000,2,0,L|0:50,1,0\r\n0,0,3000,2,0,L|30:40,1,20\r\n0,0,4000,2,0,P|50:50|100:0,1\r\n");
+        TEST_ASSERT(lengths.sliders.size() == 4 && lengths.sliders[0].pixelLength == 100.f &&
+                        lengths.sliders[1].pixelLength == 50.f && lengths.sliders[2].pixelLength == 20.f &&
+                        std::abs(lengths.sliders[3].pixelLength - 50.f * std::numbers::pi_v<f32>) < 0.01f,
+                    "a slider without a length, or with 0, is as long as its curve");
     }
 
     TEST_SECTION("events and colours");

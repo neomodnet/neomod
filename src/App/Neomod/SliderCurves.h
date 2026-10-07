@@ -26,6 +26,7 @@ class SliderCurve final {
    public:
     SliderCurve() = delete;
 
+    // a pixelLength of 0 makes the curve as long as its control points, as osu! plays a slider without a length
     SliderCurve(SLIDERCURVETYPE type, std::span<const vec2> controlPoints, f32 pixelLength);
     SliderCurve(SLIDERCURVETYPE type, std::span<const vec2> controlPoints, f32 pixelLength, f32 curvePointsSeparation);
 

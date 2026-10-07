@@ -176,19 +176,21 @@ class BeatmapFile {
         // sliders
         char curveType{0};
         std::vector<vec2> curvePoints;  // after the start, as written, without the ones that aren't two finite numbers
-        std::optional<i32> slides;
-        std::optional<f64> length;  // +-infinity for one written with an exponent too large for a double
+        i32 slides{1};
+        // osu! plays a slider without one (or with 0) as long as its curve, so a missing length reads as 0; +-infinity
+        // for one written with an exponent too large for a double
+        f64 length{0.0};
         std::vector<u8> edgeSounds;
         std::vector<EdgeSet> edgeSets;
 
         // spinners
-        std::optional<i32> endTime;
+        i32 endTime{0};
 
         bool operator==(const HitObject &) const = default;
     };
-    // false for a line no object comes from: too few fields for its kind, a value the first five fields can't hold,
-    // or an osu!mania hold. a kind's own fields may still be missing (slides, length, endTime); parsing into a
-    // record that's reused keeps the capacity of its vectors
+    // false for a line no object comes from: too few fields for its kind, a value the first five fields, a slider's
+    // slides and length or a spinner's end time can't hold, or an osu!mania hold. parsing into a record that's reused
+    // keeps the capacity of its vectors
     static bool parse(std::string_view line, HitObject &out);
     static std::string format(const HitObject &ho);
 
