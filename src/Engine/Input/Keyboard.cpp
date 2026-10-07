@@ -126,7 +126,7 @@ struct Keyboard::KeyboardImpl {
     std::vector<OSEvent> eventQueue;
 
     // global keyboard modifier state as of the last keydown/up event
-    KEYCODE modstate{};
+    KEYMOD modstate{};
 };
 
 Keyboard::Keyboard() : m_impl() { m_impl->eventQueue.reserve(8); }
@@ -143,7 +143,7 @@ void Keyboard::update() {
                 m_impl->modstate = kevent.heldModifiersAsOfEvent;
                 m_impl->dispatchKeyDown({kevent.layoutIndependentScancode, kevent.layoutDependentKeycode,
                                          static_cast<char32_t>(kevent.layoutDependentKeycode), kevent.timestamp,
-                                         kevent.isRepeat});
+                                         kevent.heldModifiersAsOfEvent, kevent.isRepeat});
                 break;
             }
 
@@ -152,7 +152,7 @@ void Keyboard::update() {
                 m_impl->modstate = kevent.heldModifiersAsOfEvent;
                 m_impl->dispatchKeyUp({kevent.layoutIndependentScancode, kevent.layoutDependentKeycode,
                                        static_cast<char32_t>(kevent.layoutDependentKeycode), kevent.timestamp,
-                                       kevent.isRepeat});
+                                       kevent.heldModifiersAsOfEvent, kevent.isRepeat});
                 break;
             }
 
@@ -160,11 +160,12 @@ void Keyboard::update() {
                 const auto& tevent{event.charev};
                 assert(tevent.text && tevent.text[0] != '\0');
 
+                const KEYMOD modifiers = m_impl->modstate;
                 if(likely(tevent.textLen == 1)) {
-                    m_impl->dispatchChar({0, 0, static_cast<char32_t>(tevent.text[0]), tevent.timestamp, false});
+                    m_impl->dispatchChar({0, 0, static_cast<char32_t>(tevent.text[0]), tevent.timestamp, modifiers});
                 } else {
                     for(char32_t chr : UniString::codepoints(std::string_view{tevent.text, tevent.textLen}))
-                        m_impl->dispatchChar({0, 0, chr, tevent.timestamp, false});
+                        m_impl->dispatchChar({0, 0, chr, tevent.timestamp, modifiers});
                 }
                 break;
             }
