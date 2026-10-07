@@ -1036,7 +1036,6 @@ void BeatmapInterface::seekMS(u32 ms) {
     this->bWasSeekFrame = true;
 
     this->music.setPosition(ms);
-    this->music.updateVolume();
     this->setMusicSpeed(this->getSpeedMultiplier());
 
     this->resetHitObjects(ms);
@@ -2301,7 +2300,6 @@ void BeatmapInterface::update2() {
             // (the time was read before this seek, and the rest of the frame plays from the start point)
             this->iCurMusicPos = this->music.getTime();
             this->bWasSeekFrame = true;
-            this->music.updateVolume();
 
             // if there are calculations in there that need the hitobjects to be loaded, also applies speed/pitch
             this->onModUpdate(false, false);

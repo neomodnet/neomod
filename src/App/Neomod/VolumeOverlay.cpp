@@ -379,7 +379,4 @@ void VolumeOverlay::updateEffectVolume(Skin *skin) {
     }
 }
 
-void VolumeOverlay::onMusicVolumeChange() {
-    osu->getMusicTrack()->updateVolume();
-    osu->getPreviewTrackManager()->apply_music_volume();
-}
+void VolumeOverlay::onMusicVolumeChange() { osu->getPreviewTrackManager()->apply_music_volume(); }

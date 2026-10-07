@@ -12,18 +12,19 @@ class DatabaseBeatmap;
 class GameplayInterpolator;
 class Sound;
 
-// the selected beatmap's music: one stream at a time, the wait for its map's loudness before it starts, its volume
-// (volume_music and loudness normalization), its recovery after output device changes, and the clock that everything
-// following the music reads. what it plays and when is up to its users (the screens that select maps, gameplay)
+// a beatmap's music: one stream at a time (its own, whatever other tracks play), the wait for its map's loudness before it
+// starts, its volume (volume_music and loudness normalization), its recovery after output device changes, and the clock
+// that everything following the music reads. what it plays and when is up to its users (for the game's track, the
+// screens that select maps and gameplay)
 class MusicTrack final {
     NOCOPY_NOMOVE(MusicTrack)
    public:
     MusicTrack();
     ~MusicTrack();
 
-    // finishes a load once the file and the map's loudness are in, resumes the music after a device change and samples
-    // the clock; run once per frame, before anything reads the clock. whether a load finished (the music may have
-    // started with it)
+    // finishes a load once the file and the map's loudness are in, keeps the volume as volume_music and the loudness
+    // normalization say, resumes the music after a device change and samples the clock; run once per frame, before
+    // anything reads the clock. whether a load finished (the music may have started with it)
     bool update();
 
     enum class Loaded : u8 {
@@ -73,8 +74,6 @@ class MusicTrack final {
     // slows the music down by lowering its frequency to `factor` of its own (the fail animation), until endSlowdown()
     void setSlowdown(f32 factor);
     void endSlowdown();
-    // after a change of volume_music or of the loudness normalization
-    void updateVolume();
 
     [[nodiscard]] bool isPlaying() const;
     [[nodiscard]] bool isFinished() const;

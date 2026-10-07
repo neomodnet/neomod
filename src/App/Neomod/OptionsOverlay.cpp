@@ -3793,8 +3793,6 @@ void OptionsOverlayImpl::onWASAPIPeriodChange(CBaseUISlider *slider) {
 void OptionsOverlayImpl::onLoudnessNormalizationToggle(CBaseUICheckbox *checkbox) {
     this->onCheckboxChange(checkbox);
 
-    osu->getMusicTrack()->updateVolume();
-
     if(cv::normalize_loudness.getBool()) {
         VolNormalization::start_calc(db->loudness_to_calc);
     } else {

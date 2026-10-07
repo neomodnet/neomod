@@ -30,6 +30,12 @@ MusicTrack::~MusicTrack() {
 
 bool MusicTrack::update() {
     const bool finished = this->finishLoad();
+    // (volume_music, the loudness normalization and its target, or the map's loudness changed)
+    if(this->loadFinished && this->stream) {
+        if(const f32 volume = this->getVolume(); volume != this->stream->getBaseVolume()) {
+            this->stream->setBaseVolume(volume);
+        }
+    }
 
     const f64 now = Timing::getTimeReal<f64>();
     const f64 elapsed = now - std::exchange(this->lastUpdate, now);
@@ -116,7 +122,7 @@ MusicTrack::Loaded MusicTrack::load(DatabaseBeatmap *map, bool async, bool reloa
             this->stream->rebuild(path, async);
         } else {
             if(async) resourceManager->requestNextLoadAsync();
-            this->stream = resourceManager->loadSoundAbs(path, "BEATMAP_MUSIC", true /* stream */, false, false);
+            this->stream = resourceManager->loadSoundAbs(path, "", true /* stream */, false, false);
         }
         this->time = 0;
         this->seeked = true;
@@ -314,10 +320,6 @@ void MusicTrack::endSlowdown() {
     if(this->stream) this->stream->setFrequency(0.f);
 }
 
-void MusicTrack::updateVolume() {
-    if(this->stream) this->stream->setBaseVolume(this->getVolume());
-}
-
 f32 MusicTrack::getVolume() const {
     const f32 volume = cv::volume_music.getFloat();
     if(!cv::normalize_loudness.getBool() || !this->map) return volume;
@@ -366,7 +368,7 @@ void MusicTrack::onDeviceChangeAfter() {
     // the stream again from its file (BASS frees every stream along with its device), where it was
     // TODO(spec): is this even right? why do we only unload music after already destroying/restarting soundengine
     resourceManager->destroyResource(this->stream);
-    this->stream = resourceManager->loadSoundAbs(this->path, "BEATMAP_MUSIC", true /* stream */, false, false);
+    this->stream = resourceManager->loadSoundAbs(this->path, "", true /* stream */, false, false);
     this->loadFinished = false;
     this->seekOnLoad = true;
     this->finishLoad();
