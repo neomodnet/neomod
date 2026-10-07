@@ -106,7 +106,7 @@ struct Skin final {
     void reloadSounds();
 
     // drawable helpers
-    // the colour of the i-th combo: the map's colours (skipped ahead by offset) unless they're ignored, else the skin's
+    // the colour of the i-th combo, skipped ahead by offset: one of the map's colours unless they're ignored, else the skin's
     [[nodiscard]] Color getComboColorForCounter(int i, int offset, std::span<const Color> beatmapColors = {}) const;
 
     // these theoretically "should" match osu!stable mod image stacking order (by increasing bit position)

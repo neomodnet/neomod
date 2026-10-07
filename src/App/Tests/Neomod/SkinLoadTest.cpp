@@ -395,6 +395,21 @@ void SkinLoadTest::testDefaultSkin() {
         TEST_ASSERT(!m_skin->i_hitcircleoverlay.isMissingTexture(), "hitcircleoverlay not missing");
     }
 
+    TEST_SECTION("default skin: combo colours");
+    {
+        // (what a map without colours of its own is drawn in, colour skips included)
+        const std::vector<Color> &colours = m_skin->c_combo_colors;
+        TEST_ASSERT(colours.size() >= 3, "the default skin has combo colours");
+        if(colours.size() >= 3) {
+            TEST_ASSERT(m_skin->getComboColorForCounter(1, 0, {}) == colours[1],
+                        "a combo takes the skin's next colour");
+            TEST_ASSERT(m_skin->getComboColorForCounter(1, 1, {}) == colours[2],
+                        "a colour skip skips the skin's colours");
+            TEST_ASSERT(m_skin->getComboColorForCounter((i32)colours.size() - 1, 1, {}) == colours[0],
+                        "around the end");
+        }
+    }
+
     TEST_SECTION("default skin: export");
     {
         auto exported = SkinArchive::submit_export(*m_skin, Mc::Paths::cache() + "/.tmp/skinloadtest/unused");
