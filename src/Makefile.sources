@@ -254,6 +254,7 @@ neomod_SOURCES = \
 	src/Engine/Input/KeyBindings.cpp \
 	src/Engine/Input/Keyboard.cpp \
 	src/Engine/Input/Mouse.cpp \
+	src/Engine/Input/Shortcut.cpp \
 	src/Engine/Input/Touch.cpp \
 	src/Engine/Logging.cpp \
 	src/Engine/NetworkHandler.cpp \
@@ -294,6 +295,9 @@ neomod_SOURCES = \
 	src/GUI/CBaseUIImage.cpp \
 	src/GUI/CBaseUIImageButton.cpp \
 	src/GUI/CBaseUILabel.cpp \
+	src/GUI/CBaseUIMenu.cpp \
+	src/GUI/CBaseUIMenuBar.cpp \
+	src/GUI/CBaseUIPopupLayer.cpp \
 	src/GUI/CBaseUIScrollView.cpp \
 	src/GUI/CBaseUISelectableTextView.cpp \
 	src/GUI/CBaseUISlider.cpp \

@@ -4,6 +4,7 @@
 #include "KeyboardEvent.h"
 
 #include <initializer_list>
+#include <string>
 
 // a key pressed with exactly these modifiers held, e.g. {KEY_S, KEYMOD_CONTROL} for Ctrl+S. either side of a modifier
 // counts as that modifier, lock keys don't count
@@ -14,6 +15,8 @@ struct Shortcut {
     [[nodiscard]] constexpr bool matches(const KeyboardEvent &e) const {
         return e.getScanCode() == this->key && held(e.getModifiers()) == held(this->modifiers);
     }
+    // as a menu shows it, e.g. "Ctrl+Shift+S"
+    [[nodiscard]] std::string text() const;
 
    private:
     // which of ctrl, shift, alt and super a mask has, on either side

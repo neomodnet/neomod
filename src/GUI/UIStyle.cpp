@@ -63,6 +63,43 @@ void UIStyle::drawText(const McRect &rect, std::string_view text, TEXT_JUSTIFICA
     g->popTransform();
 }
 
+void UIStyle::drawPopup(const McRect &rect) const {
+    g->setColor(this->palette.control);
+    g->fillRect(rect);
+    g->setColor(this->palette.border);
+    g->drawRect(rect);
+}
+
+void UIStyle::drawRow(const McRect &rect, ControlState state) const {
+    if(state != ControlState::HOVERED && state != ControlState::PRESSED) return;
+    g->setColor(state == ControlState::PRESSED ? this->palette.accent : this->palette.controlHovered);
+    g->fillRect(rect);
+}
+
+void UIStyle::drawSeparator(const McRect &rect) const {
+    g->setColor(this->palette.border);
+    g->fillRectf(rect.getX(), std::round(rect.getY() + rect.getHeight() / 2.f), rect.getWidth(), 1.f);
+}
+
+void UIStyle::drawMark(const McRect &rect, Mark mark, ControlState state) const {
+    g->setColor(state == ControlState::DISABLED ? this->palette.textDisabled : this->palette.text);
+    const vec2 c = rect.getCenter();
+    const float r = std::round(this->px(4.f));
+    // (two strokes a pixel apart for some weight)
+    for(float o = 0.f; o < 2.f; o += 1.f) {
+        switch(mark) {
+            case Mark::CHECK:
+                g->drawLinef(c.x - r, c.y + o, c.x - r / 3.f, c.y + r * 2.f / 3.f + o);
+                g->drawLinef(c.x - r / 3.f, c.y + r * 2.f / 3.f + o, c.x + r, c.y - r * 2.f / 3.f + o);
+                break;
+            case Mark::SUBMENU:
+                g->drawLinef(c.x - r / 2.f + o, c.y - r, c.x + r / 2.f + o, c.y);
+                g->drawLinef(c.x + r / 2.f + o, c.y, c.x - r / 2.f + o, c.y + r);
+                break;
+        }
+    }
+}
+
 UIStyle &uiStyle() {
     static UIStyle style;
     return style;

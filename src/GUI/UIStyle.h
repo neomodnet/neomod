@@ -33,6 +33,10 @@ class UIStyle {
         float gap{6.f};              // between neighbours
         float controlPadding{10.f};  // between a control's edge and its text, horizontally
         float controlHeight{28.f};
+        float rowHeight{24.f};       // a row of a menu or a list
+        float separatorHeight{7.f};  // a menu's separator row
+        float markWidth{18.f};       // the space a row keeps for a mark (see drawMark)
+        float popupPadding{4.f};     // between a popup's edge and its rows
     } metrics;
 
     // pixels per unit
@@ -52,6 +56,16 @@ class UIStyle {
     // text in a rect, vertically centered
     void drawText(const McRect &rect, std::string_view text, TEXT_JUSTIFICATION justification, ControlState state,
                   bool dim = false) const;
+    // the surface of a popup (a menu)
+    void drawPopup(const McRect &rect) const;
+    // what's behind a row of a menu or a list, or a menu bar's title: nothing unless it's hovered (or highlighted by the
+    // keyboard) or pressed (an open menu's title)
+    void drawRow(const McRect &rect, ControlState state) const;
+    // a line across the middle of rect
+    void drawSeparator(const McRect &rect) const;
+    enum class Mark : u8 { CHECK, SUBMENU };
+    // a mark in the middle of rect, in the text colour of state: a checked item's tick, a submenu's arrow
+    void drawMark(const McRect &rect, Mark mark, ControlState state) const;
 
    private:
     float scale{1.f};

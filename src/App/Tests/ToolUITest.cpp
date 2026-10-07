@@ -2,6 +2,9 @@
 #include "ToolUITest.h"
 
 #include "CBaseUIBox.h"
+#include "CBaseUIMenu.h"
+#include "CBaseUIMenuBar.h"
+#include "CBaseUIPopupLayer.h"
 #include "CBaseUIStyledButton.h"
 #include "CBaseUIStyledLabel.h"
 #include "Engine.h"
@@ -16,6 +19,7 @@
 #include "fmt/format.h"
 
 #include <string>
+#include <vector>
 
 namespace Mc::Tests {
 
@@ -26,6 +30,17 @@ struct Block final : CBaseUIElement {
     void draw() override {}
     vec2 getNaturalSize() override { return this->natural; }
     vec2 natural;
+};
+
+// a popup that says when it's deleted
+struct Probe final : CBaseUIElement {
+    Probe(vec2 natural, bool &deleted)
+        : CBaseUIElement(0, 0, 0, 0, std::string{}), natural(natural), deleted(deleted) {}
+    ~Probe() override { this->deleted = true; }
+    void draw() override {}
+    vec2 getNaturalSize() override { return this->natural; }
+    vec2 natural;
+    bool &deleted;
 };
 
 std::string rect(const CBaseUIElement *e) {
@@ -46,6 +61,7 @@ void ToolUITest::update() {
     this->testShortcuts();
     this->testBoxes();
     this->testStyledWidgets();
+    this->testMenus();
 
     TEST_PRINT_RESULTS("ToolUITest");
     engine->shutdown();
@@ -172,6 +188,107 @@ void ToolUITest::testStyledWidgets() {
     const vec2 unchecked = button.getNaturalSize();
     button.setChecked(true);
     TEST_ASSERT(button.isChecked() && button.getNaturalSize() == unchecked, "a checked button keeps its size");
+}
+
+void ToolUITest::testMenus() {
+    TEST_SECTION("menus");
+    uiStyle().setScale(1.f);
+
+    TEST_ASSERT_EQ(Shortcut(KEY_S, (KEYMOD)(KEYMOD_CONTROL | KEYMOD_SHIFT)).text(), "Ctrl+Shift+S",
+                   "a shortcut's text: its modifiers, then its key");
+    TEST_ASSERT_EQ(Shortcut{KEY_F5}.text(), "F5", "...without modifiers just the key");
+
+    CBaseUIPopupLayer layer("layer");
+    layer.setSize(300, 200);
+    bool firstGone = false;
+    bool secondGone = false;
+    const u32 first = layer.open(new Probe({100, 50}, firstGone), {250, 180});
+    TEST_ASSERT(layer.isVisible() && layer.isOpen(first), "an open popup shows the layer");
+    TEST_ASSERT_EQ(rect(layer.getElements()[0]), "200,150 100x50",
+                   "a popup gets its natural size, moved as far as needed to be inside the layer");
+    const u32 second = layer.open(new Probe({10, 10}, secondGone), {5, 5});
+    layer.close(first);
+    TEST_ASSERT(!layer.isOpen(first) && !layer.isOpen(second) && !layer.isVisible(),
+                "closing a popup closes the ones opened after it, and the layer hides with none open");
+    TEST_ASSERT(!firstGone && !secondGone, "closed popups live until the layer's next tick");
+    layer.tick();
+    TEST_ASSERT(firstGone && secondGone, "...and go then");
+
+    int chosen = -1;
+    bool closedWhenRun = false;
+    const auto act = [&](int which) {
+        return [&, which] {
+            chosen = which;
+            closedWhenRun = !layer.isOpen();
+        };
+    };
+    const std::vector<MenuItem> items{
+        {.name = "a", .label = "A", .shortcut = "Ctrl+A", .action = act(0)},
+        MenuItem::line(),
+        {.name = "b", .label = "B", .action = act(1), .enabled = false},
+        {.name = "c", .label = "C", .action = act(2), .checked = true},
+        {.name = "d",
+         .label = "D",
+         .submenu =
+             [&] {
+                 return std::vector<MenuItem>{{.name = "e", .label = "E", .action = act(3)},
+                                              {.name = "f", .label = "F", .action = act(4)}};
+             }},
+    };
+    const auto press = [&layer](SCANCODE scancode) {
+        KeyboardEvent e = key(scancode, KEYMOD_NONE);
+        layer.onKeyDown(e);
+        return e.isConsumed();
+    };
+
+    auto *menu = new CBaseUIMenu(layer, items, "menu");
+    TEST_ASSERT_EQ(menu->getNaturalSize().y, 4.f * 24.f + 7.f + 2.f * 4.f,
+                   "a menu is as tall as its rows and separators, with its padding");
+    menu->open({0, 0});
+    TEST_ASSERT_EQ(menu->getHighlighted(), -1, "a menu the mouse opened has nothing highlighted");
+    press(KEY_DOWN);
+    TEST_ASSERT_EQ(menu->getHighlighted(), 0, "Down highlights the first item");
+    press(KEY_DOWN);
+    TEST_ASSERT_EQ(menu->getHighlighted(), 3,
+                   "...then the next one that can be chosen (no separator, nothing disabled)");
+    press(KEY_DOWN);
+    press(KEY_DOWN);
+    TEST_ASSERT_EQ(menu->getHighlighted(), 0, "...around past the last");
+    press(KEY_UP);
+    TEST_ASSERT_EQ(menu->getHighlighted(), 4, "Up goes back");
+    press(KEY_RIGHT);
+    TEST_ASSERT_EQ(layer.getElements().size(), uSz{2}, "Right opens a submenu");
+    TEST_ASSERT_EQ(static_cast<CBaseUIMenu *>(layer.getElements().back())->getHighlighted(), 0,
+                   "...with its first item highlighted");
+    press(KEY_LEFT);
+    TEST_ASSERT_EQ(layer.getElements().size(), uSz{1}, "Left closes it");
+    press(KEY_RIGHT);
+    press(KEY_DOWN);
+    press(KEY_ENTER);
+    TEST_ASSERT(chosen == 4 && closedWhenRun && !layer.isOpen(), "Enter chooses, after every menu closed");
+    layer.tick();
+
+    menu = new CBaseUIMenu(layer, items, "menu");
+    menu->open({0, 0});
+    TEST_ASSERT(press(KEY_A) && layer.isOpen(), "no key gets past an open popup");
+    press(KEY_ESCAPE);
+    TEST_ASSERT(!layer.isOpen(), "Escape closes it");
+    layer.tick();
+
+    CBaseUIMenuBar bar(layer, "bar");
+    const auto build = [&items] { return items; };
+    bar.add("one", "One", build)->add("two", "Two", build)->add("three", "Three", build);
+    bar.open(0, true);
+    TEST_ASSERT(bar.getOpen() == 0 && static_cast<CBaseUIMenu *>(layer.getElements().back())->getHighlighted() == 0,
+                "a title's menu opened by a key has its first item highlighted");
+    press(KEY_RIGHT);
+    TEST_ASSERT_EQ(bar.getOpen(), 1, "Right on an item without a submenu opens the next title's menu");
+    press(KEY_LEFT);
+    press(KEY_LEFT);
+    TEST_ASSERT_EQ(bar.getOpen(), 2, "Left the previous one's, around past the first");
+    press(KEY_ESCAPE);
+    bar.tick();
+    TEST_ASSERT_EQ(bar.getOpen(), -1, "the bar notices its menu closed");
 }
 
 }  // namespace Mc::Tests
