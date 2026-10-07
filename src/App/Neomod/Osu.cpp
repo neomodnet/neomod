@@ -1824,8 +1824,11 @@ void Osu::doChangeFocus(bool focused) {
         if(this->isInPlayMode() && !this->map_iface->isPaused() && cv::pause_on_focus_loss.getBool()) {
             if(!BanchoState::is_playing_a_multi_map() && !this->map_iface->is_watching && !BanchoState::spectating) {
                 this->map_iface->pause(false);
-                ui->getPauseOverlay()->setVisible(true);
-                ui->getModSelector()->setVisible(false);
+                // (past the last object + end_skip_time, the pause ends the play)
+                if(this->isInPlayMode()) {
+                    ui->getPauseOverlay()->setVisible(true);
+                    ui->getModSelector()->setVisible(false);
+                }
             }
         }
 
