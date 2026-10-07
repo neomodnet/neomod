@@ -106,6 +106,8 @@ class BeatmapFile {
     struct KeyValue {
         std::string_view key;
         std::string_view value;
+
+        bool operator==(const KeyValue &) const = default;
     };
     static bool parse(std::string_view line, KeyValue &out);
     // osu!stable's spacing around the ':' differs per section
@@ -125,6 +127,8 @@ class BeatmapFile {
         i32 volume{100};
         bool uninherited{true};
         i32 effects{0};
+
+        bool operator==(const TimingPoint &) const = default;
     };
     static bool parse(std::string_view line, TimingPoint &out);
     static std::string format(const TimingPoint &tp);
@@ -137,7 +141,9 @@ class BeatmapFile {
         i32 index{0};
         i32 volume{0};
         std::string_view filename;
-        u8 parts{5};  // how many were written (osu!stable writes all five, a line may have none)
+        u8 parts{5};  // how many of the five were written (osu!stable writes all five, a line may have none)
+
+        bool operator==(const HitSample &) const = default;
     };
 
     // a [HitObjects] line: x,y,time,type,hitSounds, then for sliders curve,slides,length,edgeSounds,edgeSets, for
@@ -155,6 +161,8 @@ class BeatmapFile {
         struct EdgeSet {
             i32 normalSet{0};
             i32 additionSet{0};
+
+            bool operator==(const EdgeSet &) const = default;
         };
 
         f32 x{0.f};  // as written, fractions included
@@ -175,6 +183,8 @@ class BeatmapFile {
 
         // spinners
         std::optional<i32> endTime;
+
+        bool operator==(const HitObject &) const = default;
     };
     // false for a line no object comes from: too few fields for its kind, a value the first five fields can't hold,
     // or an osu!mania hold. a kind's own fields may still be missing (slides, length, endTime); parsing into a
@@ -191,6 +201,8 @@ class BeatmapFile {
         i64 end{0};             // breaks
         std::string_view file;  // backgrounds and videos: the name between the quotes, or all that follows unquoted
         std::string_view rest;  // backgrounds and videos: what follows the closing quote (",x,y"), as written
+
+        bool operator==(const Event &) const = default;
     };
     static bool parse(std::string_view line, Event &out);
     static std::string format(const Event &ev);
@@ -199,6 +211,8 @@ class BeatmapFile {
     struct Colour {
         std::string_view name;
         u8 r{0}, g{0}, b{0};
+
+        bool operator==(const Colour &) const = default;
     };
     static bool parse(std::string_view line, Colour &out);
     static std::string format(const Colour &colour);

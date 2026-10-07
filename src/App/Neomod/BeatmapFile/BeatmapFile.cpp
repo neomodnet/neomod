@@ -97,7 +97,7 @@ void parseHitSample(std::string_view field, BeatmapFile::HitSample &out) {
     if(count >= 4) out.volume = Parsing::strto<i32>(parts[3]);
     if(count >= 5) out.filename = parts[4];
     // (an empty filename after the last ':' counts as written)
-    out.parts = static_cast<u8>(std::min<uSz>(std::ranges::count(field, ':') + 1, std::numeric_limits<u8>::max()));
+    out.parts = static_cast<u8>(std::min<uSz>(std::ranges::count(field, ':') + 1, 5));
 }
 
 void appendInt(std::string &out, i64 value) {

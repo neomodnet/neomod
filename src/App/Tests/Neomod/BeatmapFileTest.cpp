@@ -46,47 +46,6 @@ std::vector<std::string> entryTexts(const BeatmapFile &file, Kind kind) {
     return out;
 }
 
-// what equality means after a record went through format(): NaN equals NaN
-bool same(f64 a, f64 b) { return a == b || (std::isnan(a) && std::isnan(b)); }
-
-bool same(const BeatmapFile::TimingPoint &a, const BeatmapFile::TimingPoint &b) {
-    return same(a.time, b.time) && same(a.beatLength, b.beatLength) && a.meter == b.meter &&
-           a.sampleSet == b.sampleSet && a.sampleIndex == b.sampleIndex && a.volume == b.volume &&
-           a.uninherited == b.uninherited && a.effects == b.effects;
-}
-
-bool same(const BeatmapFile::HitSample &a, const BeatmapFile::HitSample &b) {
-    return a.normalSet == b.normalSet && a.additionSet == b.additionSet && a.index == b.index && a.volume == b.volume &&
-           a.filename == b.filename;
-}
-
-bool same(const BeatmapFile::HitObject &a, const BeatmapFile::HitObject &b) {
-    const auto sameEdgeSets = [](const auto &x, const auto &y) {
-        return std::ranges::equal(x, y, [](const auto &p, const auto &q) {
-            return p.normalSet == q.normalSet && p.additionSet == q.additionSet;
-        });
-    };
-    const auto sameLength = [](std::optional<f64> x, std::optional<f64> y) {
-        return x.has_value() == y.has_value() && (!x || same(*x, *y));
-    };
-    return a.x == b.x && a.y == b.y && a.time == b.time && a.type == b.type && a.hitSounds == b.hitSounds &&
-           a.kind == b.kind && same(a.sample, b.sample) && a.curveType == b.curveType &&
-           a.curvePoints == b.curvePoints && a.slides == b.slides && sameLength(a.length, b.length) &&
-           a.edgeSounds == b.edgeSounds && sameEdgeSets(a.edgeSets, b.edgeSets) && a.endTime == b.endTime;
-}
-
-bool same(const BeatmapFile::Event &a, const BeatmapFile::Event &b) {
-    return a.kind == b.kind && a.start == b.start && a.end == b.end && a.file == b.file && a.rest == b.rest;
-}
-
-bool same(const BeatmapFile::Colour &a, const BeatmapFile::Colour &b) {
-    return a.name == b.name && a.r == b.r && a.g == b.g && a.b == b.b;
-}
-
-bool same(const BeatmapFile::KeyValue &a, const BeatmapFile::KeyValue &b) {
-    return a.key == b.key && a.value == b.value;
-}
-
 // how the records of one kind fared through format() over the corpus
 struct RecordStats {
     u64 entries{0};    // lines in sections of this kind
@@ -135,7 +94,7 @@ void roundTrip(const BeatmapFile &file, Kind kind, std::string_view where, Recor
         if(stats.notIdentical.size() < 8) {
             stats.notIdentical.push_back(fmt::format("{}:{}: {} -> {}", where, line.number, line.text, text));
         }
-        if(Record again; BeatmapFile::parse(text, again) && same(record, again)) {
+        if(Record again; BeatmapFile::parse(text, again) && again == record) {
             stats.same++;
             continue;
         }
@@ -528,6 +487,9 @@ void BeatmapFileTest::runTests() {
         TEST_ASSERT(BeatmapFile::parse("1,2,3,1,0,1:2:0", ho) && ho.sample.parts == 3 && ho.sample.additionSet == 2,
                     "an older sample of three parts");
         TEST_ASSERT_EQ(BeatmapFile::format(ho), "1,2,3,1,0,1:2:0", "three parts written back");
+        TEST_ASSERT(BeatmapFile::parse("1,2,3,1,0,0:0:0:0:hit.wav:x", ho) && ho.sample.parts == 5 &&
+                        ho.sample.filename == "hit.wav",
+                    "what follows the filename isn't a part");
     }
 
     TEST_SECTION("the game's reading");
