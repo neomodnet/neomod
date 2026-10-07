@@ -252,6 +252,10 @@ bool save_collections(std::span<const Collection> collections, std::string_view 
         }
     }
 
+    if(!dbw.commit()) {
+        debugLog("Cannot save collections to {}: {}", save_path, dbw.error());
+        return false;
+    }
     debugLog("collections.db: saving took {:f} seconds", (Timing::getTimeReal() - startTime));
     return true;
 }

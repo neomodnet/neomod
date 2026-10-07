@@ -8,6 +8,8 @@
 
 #include "fmt/format.h"
 
+#include <cerrno>
+#include <cstdio>
 #include <system_error>
 #include <cassert>
 #include <vector>
@@ -29,6 +31,19 @@ constexpr uSz NUM_FILE_LOCKS = 16;
 
 std::array<Sync::shared_mutex, NUM_FILE_LOCKS> file_locks;
 uSz path_to_lock_index(std::string_view path) noexcept { return std::hash<std::string_view>{}(path) % NUM_FILE_LOCKS; }
+
+// replaces `to` with `from` in one step, so whoever opens `to` finds the old file or the new one, never none
+// (std::filesystem::rename doesn't replace an existing file with every Windows toolchain)
+bool replace_file(const fs::path &from, const fs::path &to, std::string &error) noexcept {
+#ifdef MCENGINE_PLATFORM_WINDOWS
+    if(::MoveFileExW(from.c_str(), to.c_str(), MOVEFILE_REPLACE_EXISTING)) return true;
+    error = std::system_category().message(static_cast<int>(::GetLastError()));
+#else
+    if(::rename(from.c_str(), to.c_str()) == 0) return true;
+    error = std::generic_category().message(errno);
+#endif
+    return false;
+}
 }  // namespace
 
 namespace detail {
@@ -389,28 +404,41 @@ Writer::Writer(std::string_view writePath_param)
     this->file.open(this->tmp_file_path, std::ios::binary);
     if(!this->file.is_open()) {
         this->set_error(fmt::format("Failed to open file for writing: {:s}", std::generic_category().message(errno)));
-        debugLog("Failed to open '{:s}': {:s}", this->write_path, std::generic_category().message(errno).c_str());
         return;
     }
 }
 
 Writer::~Writer() {
+    if(!this->committed && !this->commit()) {
+        debugLog("Failed to write '{:s}': {:s}", this->write_path, this->last_error);
+    }
+    file_locks[path_to_lock_index(this->write_path)].unlock();
+}
+
+bool Writer::commit() noexcept {
+    if(this->committed) return this->good();
+    this->committed = true;
+
     if(this->file.is_open()) {
         this->flush();
         this->file.close();
-
-        if(!this->error_flag && this->tmp_file_path != this->file_path) {
-            std::error_code ec;
-            fs::remove(this->file_path, ec);  // Windows (the Microsoft docs are LYING)
-            fs::rename(this->tmp_file_path, this->file_path, ec);
-            if(ec) {
-                // can't set error in destructor, but log it
-                debugLog("Failed to rename temporary file: {:s}", ec.message().c_str());
-            }
+        if(this->file.fail()) {
+            this->set_error(fmt::format("Failed to close file: {:s}", std::generic_category().message(errno)));
         }
     }
+    if(this->tmp_file_path == this->file_path) return this->good();
 
-    file_locks[path_to_lock_index(this->write_path)].unlock();
+    std::error_code ec;
+    if(this->error_flag) {
+        fs::remove(this->tmp_file_path, ec);
+        return false;
+    }
+    if(std::string error; !replace_file(this->tmp_file_path, this->file_path, error)) {
+        this->set_error(fmt::format("Failed to replace the file: {:s}", error));
+        fs::remove(this->tmp_file_path, ec);
+        return false;
+    }
+    return true;
 }
 
 void Writer::set_error(const std::string &error_msg) noexcept {
@@ -465,9 +493,12 @@ void Writer::write_bytes(const u8 *bytes, uSz n) noexcept {
         }
     }
 
-    if(this->pos + n > WRITE_BUFFER_SIZE) {
-        this->set_error(
-            fmt::format("Attempted to write {:d} bytes (exceeding buffer size {:d})", n, WRITE_BUFFER_SIZE));
+    // more than the buffer holds goes straight to the file
+    if(n > WRITE_BUFFER_SIZE) {
+        this->file.write(reinterpret_cast<const char *>(bytes), static_cast<std::streamsize>(n));
+        if(this->file.fail()) {
+            this->set_error(fmt::format("Failed to write to file: {:s}", std::generic_category().message(errno)));
+        }
         return;
     }
 

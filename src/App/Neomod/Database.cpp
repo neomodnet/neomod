@@ -2030,6 +2030,10 @@ void Database::saveMaps() {
         }
     }
 
+    if(!maps.commit()) {
+        debugLog("Cannot save maps to {}: {}", neomod_maps_db, maps.error());
+        return;
+    }
     t.update();
     debugLog("Saved {:d} maps (+ {:d} overrides, {:d} star ratings) in {:f} seconds.", nb_diffs_saved, nb_overrides,
              nb_star_entries, t.getElapsedTime());
@@ -2677,6 +2681,10 @@ void Database::saveScores() {
         }
     }
 
+    if(!dbr.commit()) {
+        debugLog("Cannot save scores to {}: {}", neomod_scores_db, dbr.error());
+        return;
+    }
     debugLog("Saved {:d} scores in {:f} seconds.", nb_scores, (Timing::getTimeReal() - startTime));
 }
 

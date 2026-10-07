@@ -335,6 +335,10 @@ bool save_osr(const FinishedScore& score, std::span<const std::string> additiona
         }
     }
 
+    if(!osr.commit()) {
+        debugLog("Cannot save replay to {}: {}", osr_path, osr.error());
+        return false;
+    }
     return true;
 }
 

@@ -254,11 +254,18 @@ class Writer {
     NOCOPY_NOMOVE(Writer)
    public:
     Writer() = delete;
+    // writes to <writePath>.tmp, which replaces the file at writePath in one step when the writer is committed (WASM
+    // writes in place)
     Writer(std::string_view writePath);
+    // commits if commit() wasn't called, logging a failure
     ~Writer();
 
     [[nodiscard]] constexpr bool good() const noexcept { return !this->error_flag; }
     [[nodiscard]] constexpr std::string_view error() const noexcept { return this->last_error; }
+
+    // writes what's buffered and replaces the file with what was written; nothing changes if any of it failed (then
+    // false, error() says why). nothing can be written after it
+    bool commit() noexcept;
 
     void flush() noexcept;
     void write_bytes(const u8 *bytes, uSz n) noexcept;
@@ -300,6 +307,7 @@ class Writer {
 
     uSz pos{0};
     bool error_flag{false};
+    bool committed{false};
     std::string last_error;
 };
 }  // namespace ByteBufferedFile

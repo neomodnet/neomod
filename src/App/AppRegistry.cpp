@@ -16,6 +16,7 @@
 #include "ConVarTest.h"
 #include "CryptoTest.h"
 #include "DirectoryWatcherTest.h"
+#include "FileTest.h"
 #include "EmojiRenderTest.h"
 #include "NetworkTest.h"
 #include "PacketTest.h"
@@ -39,6 +40,7 @@ static constexpr std::array sDescriptors{
     AppDescriptor{"CryptoTest", [] -> App * { return new Mc::Tests::CryptoTest(); }},
     AppDescriptor{"DirectoryWatcherTest", [] -> App * { return new Mc::Tests::DirectoryWatcherTest(); }},
     AppDescriptor{"EmojiRenderTest", [] -> App * { return new Mc::Tests::EmojiRenderTest(); }},
+    AppDescriptor{"FileTest", [] -> App * { return new Mc::Tests::FileTest(); }},
     AppDescriptor{"NetworkTest", [] -> App * { return new Mc::Tests::NetworkTest(); }},
     AppDescriptor{"PacketTest", [] -> App * { return new Mc::Tests::PacketTest(); }},
     AppDescriptor{"PlayfieldTest", [] -> App * { return new Mc::Tests::PlayfieldTest(); }},
