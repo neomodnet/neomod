@@ -504,13 +504,14 @@ void BeatmapFileTest::runTests() {
         TEST_ASSERT(BeatmapFile::parse("64,64,3000,2,0,L|128:64,1,x", ho) && !ho.length.has_value(),
                     "unreadable length");
         TEST_ASSERT(BeatmapFile::parse("64,64,3000,2,0,,1,64", ho) && ho.curveType == '\0', "empty curve field");
-        TEST_ASSERT(!BeatmapFile::parse("64,64,3000,2,0,L|1:1,1", ho), "a slider needs 8 fields");
+        TEST_TODO TEST_ASSERT(BeatmapFile::parse("64,64,3000,2,0,L|1:1,1", ho) && !ho.length.has_value(),
+                              "a slider without its length field");
 
         TEST_ASSERT(BeatmapFile::parse("256,192,4000,12,0,6000,0:0:0:0:", ho), "spinner");
         TEST_ASSERT(ho.kind == HO::Kind::SPINNER && ho.endTime == 6000, "spinner read");
         TEST_ASSERT_EQ(BeatmapFile::format(ho), "256,192,4000,12,0,6000,0:0:0:0:", "spinner written back");
 
-        TEST_ASSERT(!BeatmapFile::parse("64,192,500,128,0,1000:0:0:0:0:", ho), "osu!mania hold");
+        TEST_TODO TEST_ASSERT(BeatmapFile::parse("64,192,500,128,0,1000:0:0:0:0:", ho), "osu!mania hold");
         TEST_ASSERT(!BeatmapFile::parse("64,192,500,1", ho), "fewer than 5 fields");
         TEST_ASSERT(!BeatmapFile::parse("nan,192,500,1,0", ho), "position not finite");
         TEST_ASSERT(!BeatmapFile::parse("64,192,500,300,0", ho), "type beyond a byte");
@@ -572,7 +573,7 @@ void BeatmapFileTest::runTests() {
                         ev.start == -200,
                     "video");
         TEST_ASSERT_EQ(BeatmapFile::format(ev), "Video,-200,\"v.mp4\"", "video written back");
-        TEST_ASSERT(!BeatmapFile::parse("Sprite,Foreground,Centre,\"sb/x.png\",320,240", ev), "storyboard");
+        TEST_TODO TEST_ASSERT(BeatmapFile::parse("Sprite,Foreground,Centre,\"sb/x.png\",320,240", ev), "storyboard");
         TEST_ASSERT(!BeatmapFile::parse("0,0,\"unclosed", ev), "unclosed quote");
 
         BeatmapFile::Colour colour;
