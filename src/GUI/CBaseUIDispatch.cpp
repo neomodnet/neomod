@@ -440,13 +440,14 @@ void State::dispatchEvents(CBaseUIEventCtx &c, Root root) {
             CBaseUIElement *elem = this->captor;
             // input-eligible this frame = the updateInput walk reached it (procedural gating)
             const bool eligible = (elem->lastInputFrame == frame);
+            // after a handler, elem is only touched while it's still the captor (a destroyed element released it)
             if(qe.down) {
                 this->captorButtons |= btn;
                 if(eligible) {
                     if(elem->bMouseInside) {
                         UI_TRACE_EVENT(0, elem, "downInside");
                         elem->onMouseDownInside(left, right);
-                        elem->bActive = true;
+                        if(this->captor == elem) elem->bActive = true;
                     } else {
                         UI_TRACE_EVENT(1, elem, "downOutside");
                         elem->onMouseDownOutside(left, right);
@@ -463,7 +464,7 @@ void State::dispatchEvents(CBaseUIEventCtx &c, Root root) {
                         UI_TRACE_EVENT(1, elem, "upOutside");
                         elem->onMouseUpOutside(left, right);
                     }
-                    elem->bActive = false;
+                    if(this->captor == elem) elem->bActive = false;
                 } else if(!eligible) {
                     // captor went hidden/blocked between the captured-phase check and this event
                     // (mid-event-loop mutation): same cancel semantics, no click
@@ -498,9 +499,11 @@ void State::dispatchEvents(CBaseUIEventCtx &c, Root root) {
             this->lastCaptureMovePos = mouse->getPos();
             UI_TRACE_EVENT(0, target->elem, "downInside");
             target->elem->onMouseDownInside(left, right);
-            target->elem->bActive = true;
-            // ancestors observe from the press frame (a scrollview arms its drag gesture here)
-            if(this->captor == target->elem) this->observeCapturedFrame();
+            if(this->captor == target->elem) {
+                target->elem->bActive = true;
+                // ancestors observe from the press frame (a scrollview arms its drag gesture here)
+                this->observeCapturedFrame();
+            }
         }
         // up with no captor: nobody received the down (or the captor died); leave it alone
     }
