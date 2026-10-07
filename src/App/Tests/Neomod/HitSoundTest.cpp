@@ -630,6 +630,45 @@ void HitSoundTest::runTests() {
             TEST_ASSERT_EQ(hitSoundsAt(fallback, 12000), (i32)HitSoundType::FINISH, "the end its own");
         }
     }
+    {
+        // edges a slider doesn't list play the object's hitsounds and sample sets (osu!stable's unified sliders,
+        // which it writes without the edge fields; lazer reads them the same way)
+        constexpr std::string_view map =
+            "osu file format v14\n\n[Difficulty]\nSliderMultiplier:1.4\nSliderTickRate:1\n\n[TimingPoints]\n"
+            "0,500,4,2,0,100,1,0\n\n[HitObjects]\n"
+            "64,192,1000,2,2,L|344:192,2,280\n"                 // a whistle, nothing after the length
+            "64,192,4000,2,8,L|344:192,1,280,,,2:3:0:0:\n"      // a clap and sets, but no edge sounds or sets
+            "64,192,6000,2,4,L|344:192,1,280,2|0,,3:2:0:0:\n";  // edge sounds without edge sets
+        auto c = Primitives::loadPrimitiveObjectsFromData(
+            std::span{reinterpret_cast<const u8 *>(map.data()), map.size()}, {});
+        TEST_ASSERT(
+            !c.error && !Primitives::calculateSliderTimesClicksTicks(c.version, c.sliders, c.timingpoints,
+                                                                     c.sliderMultiplier, c.sliderTickRate, c.limits),
+            "the map with unified sliders loads");
+        const auto objects = HitObjects::create(c, nullptr, nullptr);
+        TEST_ASSERT_EQ(objects.size(), (uSz)3, "three sliders");
+        if(objects.size() == 3) {
+            const auto hitAt = [&](uSz index, i32 timeMS) {
+                std::vector<HitObject::SoundCue> cues;
+                objects[index]->addSoundCues(cues);
+                for(const auto &cue : cues) {
+                    if(cue.timeMS == timeMS && cue.kind == HitObject::SoundCue::Kind::HIT) return cue.samples;
+                }
+                return HITSAMPLE_BITS{.hitSounds = 0xff, .normalSet = 0xff, .additionSet = 0xff, .volume = 0};
+            };
+            TEST_ASSERT_EQ((i32)hitAt(0, 1000).hitSounds, (i32)HitSoundType::WHISTLE, "a unified slider's head");
+            TEST_ASSERT_EQ((i32)hitAt(0, 2000).hitSounds, (i32)HitSoundType::WHISTLE, "its repeat");
+            TEST_ASSERT_EQ((i32)hitAt(0, 3000).hitSounds, (i32)HitSoundType::WHISTLE, "and its end play its whistle");
+            TEST_ASSERT_EQ((i32)hitAt(1, 4000).hitSounds, (i32)HitSoundType::CLAP, "empty edge lists: the object's");
+            TEST_ASSERT_EQ((i32)hitAt(1, 5000).normalSet, (i32)SampleSetType::SOFT, "with its normal set");
+            TEST_ASSERT_EQ((i32)hitAt(1, 5000).additionSet, (i32)SampleSetType::DRUM, "and its addition set");
+            TEST_ASSERT_EQ((i32)hitAt(2, 6000).hitSounds, (i32)HitSoundType::WHISTLE, "listed edge sounds stay");
+            TEST_ASSERT_EQ((i32)hitAt(2, 7000).hitSounds, 0, "every one of them");
+            TEST_ASSERT_EQ((i32)hitAt(2, 7000).normalSet, (i32)SampleSetType::DRUM,
+                           "edges without sets take the object's normal set");
+            TEST_ASSERT_EQ((i32)hitAt(2, 6000).additionSet, (i32)SampleSetType::SOFT, "and its addition set");
+        }
+    }
 }
 
 }  // namespace Mc::Tests

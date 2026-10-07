@@ -324,9 +324,15 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
                 // e.g. https://osu.ppy.sh/beatmapsets/791900#osu/1676490
                 if(slider.points.size() == 1) slider.points.push_back(xy);
 
-                for(uSz i = 0; i < ho.edgeSounds.size(); i++) {
-                    HITSAMPLE_BITS samples{};
-                    samples.hitSounds = ho.edgeSounds[i] & HitSoundType::VALID_HITSOUNDS;
+                // an edge the lists leave out plays the object's hitsounds and sample sets (as osu!stable's sliders
+                // without edge fields do, and as lazer reads them)
+                const HITSAMPLE_BITS objectEdge{.hitSounds = (u8)(ho.hitSounds & HitSoundType::VALID_HITSOUNDS),
+                                                .normalSet = sampleSetValue(ho.sample.normalSet),
+                                                .additionSet = sampleSetValue(ho.sample.additionSet),
+                                                .volume = 0};
+                for(uSz i = 0; i < std::max(ho.edgeSounds.size(), ho.edgeSets.size()); i++) {
+                    HITSAMPLE_BITS samples = objectEdge;
+                    if(i < ho.edgeSounds.size()) samples.hitSounds = ho.edgeSounds[i] & HitSoundType::VALID_HITSOUNDS;
                     if(i < ho.edgeSets.size()) {
                         samples.normalSet = sampleSetValue(ho.edgeSets[i].normalSet);
                         samples.additionSet = sampleSetValue(ho.edgeSets[i].additionSet);
@@ -334,8 +340,8 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
                     slider.edgeSamples.push_back(samples);
                 }
 
-                // No start sample specified, use default
-                if(slider.edgeSamples.empty()) slider.edgeSamples.emplace_back();
+                // No start sample specified, use the object's
+                if(slider.edgeSamples.empty()) slider.edgeSamples.push_back(objectEdge);
 
                 // No end sample specified, use the same as start
                 if(slider.edgeSamples.size() == 1) slider.edgeSamples.push_back(slider.edgeSamples.front());
