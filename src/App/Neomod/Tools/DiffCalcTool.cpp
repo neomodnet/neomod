@@ -535,9 +535,9 @@ OneMapResult computeOneConfig(Primitives::PRIMITIVE_CONTAINER &primitives, std::
     r.stackLeniency = primitives.stackLeniency;
     r.sliderMultiplier = primitives.sliderMultiplier;
     r.sliderTickRate = primitives.sliderTickRate;
-    r.numCircles = static_cast<uint32_t>(primitives.hitcircles.size());
-    r.numSliders = static_cast<uint32_t>(primitives.sliders.size());
-    r.numSpinners = static_cast<uint32_t>(primitives.spinners.size());
+    r.numCircles = primitives.getNumObjects<DBType::HITCIRCLE>();
+    r.numSliders = primitives.getNumObjects<DBType::SLIDER>();
+    r.numSpinners = primitives.getNumObjects<DBType::SPINNER>();
     r.numObjects = primitives.getNumObjects();
 
     // load difficulty hitobjects for star calculation
@@ -597,9 +597,9 @@ OneMapResult computeOneConfig(Primitives::PRIMITIVE_CONTAINER &primitives, std::
                                       .ar = r.AR,
                                       .od = r.OD,
                                       .numHitObjects = numHitObjects,
-                                      .numCircles = static_cast<int>(primitives.hitcircles.size()),
-                                      .numSliders = static_cast<int>(primitives.sliders.size()),
-                                      .numSpinners = static_cast<int>(primitives.spinners.size()),
+                                      .numCircles = static_cast<int>(r.numCircles),
+                                      .numSliders = static_cast<int>(r.numSliders),
+                                      .numSpinners = static_cast<int>(r.numSpinners),
                                       .maxPossibleCombo = maxCombo,
                                       .combo = -1,
                                       .misses = 0,

@@ -510,8 +510,8 @@ class Spinner final : public HitObject {
 // a map's objects as a whole, sorted by start time
 namespace HitObjects {
 
-// from the map's primitives (with slider times calculated), in the order they're played, their combo ends and combo
-// start times set; judged by judge and drawn on view (see HitObject's constructor)
+// from the map's primitives (with timing points if it has sliders), in the order they're played, their combo ends and
+// combo start times set; judged by judge and drawn on view (see HitObject's constructor)
 std::vector<std::unique_ptr<HitObject>> create(const Primitives::PRIMITIVE_CONTAINER &primitives,
                                                AbstractBeatmapInterface *judge, const PlayfieldView *view);
 

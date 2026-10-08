@@ -22,6 +22,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 
 using namespace neomod;
@@ -464,7 +465,7 @@ int runCrosscheck(const std::vector<std::string> &argv) {
             skipped++;
             continue;
         }
-        const bool bigMap = primitives.sliders.size() > 5000;
+        const bool bigMap = primitives.getNumObjects<DBType::SLIDER>() > 5000;
 
         int fixtureFailures = 0;
         auto check = [&fixture, &fixtureFailures](std::string_view label, std::string_view checkName,
@@ -582,14 +583,13 @@ int runCrosscheck(const std::vector<std::string> &argv) {
             if(cfg.speed == 1.0f && !flags::has<ModFlags::Flashlight>(setup.modFlags)) {
                 for(const i32 offset : {1, 401, 10007}) {
                     Primitives::PRIMITIVE_CONTAINER shifted = primitives;
-                    for(auto &h : shifted.hitcircles) h.time += offset;
-                    for(auto &s : shifted.sliders) {
-                        s.time += offset;
-                        for(auto &st : s.scoringTimesForStarCalc) st.time += (float)offset;
-                    }
-                    for(auto &s : shifted.spinners) {
-                        s.time += offset;
-                        s.endTime += offset;
+                    for(auto &object : shifted.objects) {
+                        std::visit([offset](auto &o) { o.time += offset; }, object);
+                        if(auto *slider = std::get_if<DBType::SLIDER>(&object)) {
+                            for(auto &st : slider->scoringTimesForStarCalc) st.time += (float)offset;
+                        } else if(auto *spinner = std::get_if<DBType::SPINNER>(&object)) {
+                            spinner->endTime += offset;
+                        }
                     }
 
                     auto shiftedLoad = DiffCalc::loadDifficultyHitObjects(

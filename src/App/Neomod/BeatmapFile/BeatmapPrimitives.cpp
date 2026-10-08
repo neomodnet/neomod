@@ -15,6 +15,8 @@
 #include <limits>
 #include <optional>
 #include <string>
+#include <type_traits>
+#include <variant>
 
 namespace neomod::Primitives {
 
@@ -66,6 +68,134 @@ bool timingPointSortComparator(const TIMINGPOINT &a, const TIMINGPOINT &b) {
     if(a.kiai != b.kiai) return a.kiai;
 
     return false;  // equivalent
+}
+
+// a slider's duration, ticks and the times the star calc scores it at, from the map's timing points (there are some)
+LoadError calculateSliderTimesClicksTicks(int beatmapVersion, SLIDER &s, const TimingPoints &timingpoints,
+                                          float sliderMultiplier, float sliderTickRate, const Limits &limits) {
+    LoadError r;
+
+    struct SliderHelper {
+        static float getSliderTickDistance(float sliderMultiplier, float sliderTickRate) {
+            return ((100.0f * sliderMultiplier) / sliderTickRate);
+        }
+
+        static float getSliderTimeForSlider(const SLIDER &slider, const TIMING_INFO &timingInfo,
+                                            float sliderMultiplier) {
+            const float duration = timingInfo.beatLength * (slider.pixelLength / sliderMultiplier) / 100.0f;
+            return (duration >= 1.0f && std::isfinite(duration) && !std::isnan(duration)) ? duration
+                                                                                          : 1.0f;  // sanity check
+        }
+
+        static float getSliderVelocity(const TIMING_INFO &timingInfo, float sliderMultiplier, float sliderTickRate) {
+            const float beatLength = timingInfo.beatLength;
+            if(beatLength > 0.0f)
+                return (getSliderTickDistance(sliderMultiplier, sliderTickRate) * sliderTickRate *
+                        (1000.0f / beatLength));
+            else
+                return getSliderTickDistance(sliderMultiplier, sliderTickRate) * sliderTickRate;
+        }
+
+        static float getTimingPointMultiplierForSlider(const TIMING_INFO &timingInfo)  // needed for slider ticks
+        {
+            float beatLengthBase = timingInfo.beatLengthBase;
+            if(beatLengthBase == 0.0f)  // sanity check
+                beatLengthBase = 1.0f;
+
+            return timingInfo.beatLength / beatLengthBase;
+        }
+    };
+
+    // calculate duration
+    const TIMING_INFO timingInfo = timingpoints.getTimingInfo(s.time);
+    s.sliderTimeWithoutRepeats = SliderHelper::getSliderTimeForSlider(s, timingInfo, sliderMultiplier);
+    s.sliderTime = s.sliderTimeWithoutRepeats * s.repeat;
+
+    // calculate ticks
+    int brk = 0;
+    // don't generate ticks for NaN timingpoints and infinite values
+    while(!brk++ && !timingInfo.isNaN && !std::isnan(s.pixelLength) && std::isfinite(s.pixelLength)) {
+        const float minTickPixelDistanceFromEnd =
+            0.01f * SliderHelper::getSliderVelocity(timingInfo, sliderMultiplier, sliderTickRate);
+        const float tickPixelLength =
+            (beatmapVersion < 8 ? SliderHelper::getSliderTickDistance(sliderMultiplier, sliderTickRate)
+                                : SliderHelper::getSliderTickDistance(sliderMultiplier, sliderTickRate) /
+                                      SliderHelper::getTimingPointMultiplierForSlider(timingInfo));
+
+        if(std::isnan(tickPixelLength) || !std::isfinite(tickPixelLength)) break;
+
+        const float tickDurationPercentOfSliderLength =
+            tickPixelLength / (s.pixelLength == 0.0f ? 1.0f : s.pixelLength);
+        const int max_ticks = limits.sliderMaxTicks;
+        const int tickCount = std::min((int)std::ceil(s.pixelLength / tickPixelLength) - 1,
+                                       max_ticks);  // NOTE: hard sanity limit number of ticks per slider
+
+        if(tickCount > 0) {
+            const float tickTOffset = tickDurationPercentOfSliderLength;
+            float pixelDistanceToEnd = s.pixelLength;
+            float t = tickTOffset;
+            for(int i = 0; i < tickCount; i++, t += tickTOffset) {
+                // skip ticks which are too close to the end of the slider
+                pixelDistanceToEnd -= tickPixelLength;
+                if(pixelDistanceToEnd <= minTickPixelDistanceFromEnd) break;
+
+                s.ticks.push_back(t);
+            }
+        }
+    }
+
+    // bail if too many predicted heuristic scoringTimes would run out of memory and crash
+    if((size_t)std::abs(s.repeat) * s.ticks.size() > (size_t)limits.maxSliderScoringTimes) {
+        r.errc = LoadError::TOOMANY_HITOBJECTS;
+        return r;
+    }
+
+    // calculate s.scoringTimesForStarCalc, which should include every point in time where the cursor must be within
+    // the followcircle radius and at least one key must be pressed: see
+    // https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Preprocessing/OsuDifficultyHitObject.cs
+    const i32 osuSliderEndInsideCheckOffset = limits.sliderEndInsideCheckOffset;
+
+    // 1) "skip the head circle"
+
+    // 2) add repeat times (either at slider begin or end)
+    for(int i = 0; i < (s.repeat - 1); i++) {
+        const f32 time = s.time + (s.sliderTimeWithoutRepeats * (i + 1));  // see Slider.cpp
+        s.scoringTimesForStarCalc.push_back(SLIDER_SCORING_TIME{
+            .time = time,
+            .type = SLIDER_SCORING_TIME::TYPE::REPEAT,
+        });
+    }
+
+    // 3) add tick times (somewhere within slider, repeated for every repeat)
+    for(int i = 0; i < s.repeat; i++) {
+        for(int t = 0; t < s.ticks.size(); t++) {
+            const float tickPercentRelativeToRepeatFromStartAbs =
+                (((i + 1) % 2) != 0 ? s.ticks[t] : 1.0f - s.ticks[t]);  // see Slider.cpp
+            const f32 time = s.time + (s.sliderTimeWithoutRepeats * i) +
+                             (tickPercentRelativeToRepeatFromStartAbs * s.sliderTimeWithoutRepeats);  // see Slider.cpp
+            s.scoringTimesForStarCalc.push_back(SLIDER_SCORING_TIME{
+                .time = time,
+                .type = SLIDER_SCORING_TIME::TYPE::TICK,
+            });
+        }
+    }
+
+    // 4) add slider end (potentially before last tick for bullshit sliders, but sorting takes care of that)
+    // see https://github.com/ppy/osu/pull/4193#issuecomment-460127543
+    const f32 time =
+        std::max(static_cast<f32>(s.time) + s.sliderTime / 2.0f,
+                 (static_cast<f32>(s.time) + s.sliderTime) - static_cast<f32>(osuSliderEndInsideCheckOffset));
+    s.scoringTimesForStarCalc.push_back(SLIDER_SCORING_TIME{
+        .time = time,
+        .type = SLIDER_SCORING_TIME::TYPE::END,
+    });
+
+    // 5) sort scoringTimes from earliest to latest
+    if(s.scoringTimesForStarCalc.size() > 1) {
+        srt::pdqsort(s.scoringTimesForStarCalc, sliderScoringTimeComparator);
+    }
+
+    return r;
 }
 
 }  // namespace
@@ -151,7 +281,6 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
     using HO = BeatmapFile::HitObject;
 
     PRIMITIVE_CONTAINER c{};
-    c.limits = limits;
 
     if(dead.stop_requested()) {
         c.error.errc = LoadError::LOAD_INTERRUPTED;
@@ -222,6 +351,8 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
             c.totalBreakDuration += (u32)(event.end - event.start);
         }
     }
+    // (as osu!stable keeps them)
+    std::ranges::stable_sort(c.breaks, {}, &BREAK::startTime);
 
     std::array<std::optional<Color>, 8> tempColors;
     BeatmapFile::Colour colour;
@@ -233,13 +364,8 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
         }
     }
 
-    // each object's time and type, to put them in time order and number their combos once all are read (below)
-    struct ComboEntry {
-        i32 time;
-        u8 type;
-        ObjectRef object;
-    };
-    std::vector<ComboEntry> comboEntries;
+    // (before the objects, the sliders' times come from them)
+    c.timingpoints = readTimingPoints(file);
 
     // circles:
     // x,y,time,type,hitSounds,hitSamples
@@ -248,17 +374,26 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
     // spinners:
     // x,y,time,type,hitSounds,endTime,hitSamples
     HO ho;
+    // (an object per line at most, so the objects aren't moved while the vector grows)
+    uSz lines = 0;
+    for(const auto &section : file.getSections()) {
+        if(section.readAs == Kind::HIT_OBJECTS) lines += section.lines;
+    }
+    c.objects.reserve(std::min<uSz>(lines, limits.maxHitObjects));
+    bool inTimeOrder = true;
+    i32 previousTime = std::numeric_limits<i32>::min();
     for(const auto line : file.getEntries(Kind::HIT_OBJECTS)) {
         if(dead.stop_requested()) {
             c.error.errc = LoadError::LOAD_INTERRUPTED;
             return c;
         }
 
-        if(!BeatmapFile::parse(line.text, ho)) {
-            c.skippedLines.push_back(line.number);
-            continue;
-        }
+        if(!BeatmapFile::parse(line.text, ho)) continue;
+        inTimeOrder = inTimeOrder && ho.time >= previousTime;
+        previousTime = ho.time;
 
+        const bool newCombo = ho.type & HO::TYPE_NEW_COMBO;
+        const u8 colorSkip = (ho.type >> HO::TYPE_COLOUR_SKIP_SHIFT) & 0b111;
         switch(ho.kind) {
             case HO::Kind::NONE:
                 break;
@@ -268,19 +403,21 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
                 h.x = (f32)(i32)ho.x;  // NOTE: lazer beatmaps do not truncate here
                 h.y = (f32)(i32)ho.y;
                 h.time = ho.time;
+                h.newCombo = newCombo;
+                h.colorSkip = colorSkip;
                 // h.clicked = false; // unknown what this field was supposed to be for
                 h.samples.hitSounds = (ho.hitSounds & HitSoundType::VALID_HITSOUNDS);
                 applyHitSample(ho.sample, h.samples);
 
-                comboEntries.push_back(
-                    {.time = ho.time, .type = ho.type, .object = {ObjectRef::Kind::CIRCLE, (u32)c.hitcircles.size()}});
-                c.hitcircles.push_back(h);
+                c.objects.emplace_back(h);
                 break;
             }
 
             case HO::Kind::SLIDER: {
                 SLIDER slider{};
                 slider.time = ho.time;
+                slider.newCombo = newCombo;
+                slider.colorSkip = colorSkip;
                 slider.hoverSamples.hitSounds = (ho.hitSounds & HitSoundType::VALID_SLIDER_HITSOUNDS);
 
                 slider.type = SLIDERCURVETYPE{ho.curveType};
@@ -340,9 +477,13 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
                     slider.pixelLength =
                         std::min(SliderCurve{slider.type, slider.points, 0.f}.getPixelLength(), sliderSanityRange);
                 }
-                comboEntries.push_back(
-                    {.time = ho.time, .type = ho.type, .object = {ObjectRef::Kind::SLIDER, (u32)c.sliders.size()}});
-                c.sliders.push_back(std::move(slider));
+                // (only by timing points: whatever needs slider times checks the map has some)
+                if(!c.timingpoints.empty()) {
+                    c.error = calculateSliderTimesClicksTicks(c.version, slider, c.timingpoints, c.sliderMultiplier,
+                                                              c.sliderTickRate, limits);
+                    if(c.error) return c;
+                }
+                c.objects.emplace_back(std::move(slider));
                 break;
             }
 
@@ -352,48 +493,51 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
                           .time = ho.time,
                           .endTime = ho.endTime,
                           .samples = {},
+                          .newCombo = newCombo,
+                          .colorSkip = colorSkip,
                           .isEndOfCombo = false};
                 s.samples.hitSounds = (u8)(ho.hitSounds & HitSoundType::VALID_HITSOUNDS);
                 applyHitSample(ho.sample, s.samples);
 
-                comboEntries.push_back(
-                    {.time = ho.time, .type = ho.type, .object = {ObjectRef::Kind::SPINNER, (u32)c.spinners.size()}});
-                c.spinners.push_back(s);
+                c.objects.emplace_back(s);
                 break;
             }
+        }
+
+        // bail if too many hitobjects would run out of memory and crash
+        if(c.objects.size() > limits.maxHitObjects) {
+            c.error.errc = LoadError::TOOMANY_HITOBJECTS;
+            return c;
         }
     }
 
     // the objects as they come in time, which a file's lines don't have to follow (osu!stable and lazer sort them too;
     // equal times keep the order of their lines), and their combos in that order
-    std::ranges::stable_sort(comboEntries, {}, &ComboEntry::time);
+    if(!inTimeOrder) {
+        std::ranges::stable_sort(
+            c.objects, {}, [](const auto &object) { return std::visit([](const auto &o) { return o.time; }, object); });
+    }
     int hitobjectsWithoutSpinnerCounter = 0;
     int colorCounter = 1;
     int colorOffset = 0;
     int comboNumber = 1;
-    std::vector<i32> breakEnds;
-    breakEnds.reserve(c.breaks.size());
-    for(const BREAK &b : c.breaks) breakEnds.push_back(b.endTime);
-    std::ranges::sort(breakEnds);
-    auto nextBreakEnd = breakEnds.cbegin();
+    auto nextBreak = c.breaks.cbegin();
     bool forceNewCombo = false;
     bool *previousEndsCombo = nullptr;
-    c.objectsByTime.reserve(comboEntries.size());
-    for(const ComboEntry &entry : comboEntries) {
-        c.objectsByTime.push_back(entry.object);
-        const bool isSpinner = entry.object.kind == ObjectRef::Kind::SPINNER;
+    const auto number = [&]<typename T>(T &o) {
+        constexpr bool isSpinner = std::is_same_v<T, SPINNER>;
         if(!isSpinner) hitobjectsWithoutSpinnerCounter++;
-        for(; nextBreakEnd != breakEnds.cend() && *nextBreakEnd < entry.time; ++nextBreakEnd) forceNewCombo = true;
+        for(; nextBreak != c.breaks.cend() && nextBreak->endTime < o.time; ++nextBreak) forceNewCombo = true;
 
         // a combo ends before any object that starts one, a spinner too (as in osu!stable, where a v8 file's spinners
         // always do)
-        if(previousEndsCombo && ((entry.type & HO::TYPE_NEW_COMBO) || forceNewCombo || (isSpinner && c.version <= 8))) {
+        if(previousEndsCombo && (o.newCombo || forceNewCombo || (isSpinner && c.version <= 8))) {
             *previousEndsCombo = true;
         }
 
         // the first object after spinners or a break starts a new combo whether its line has one or not (as in
         // osu!stable and lazer)
-        if((entry.type & HO::TYPE_NEW_COMBO) || (forceNewCombo && !isSpinner)) {
+        if(o.newCombo || (forceNewCombo && !isSpinner)) {
             comboNumber = 1;
 
             // special case 1: if the current object is a spinner, then the raw color counter is not
@@ -404,24 +548,25 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
 
             // special case 3: "Bits 4-6 (16, 32, 64) form a 3-bit number (0-7) that chooses how many combo colours to skip."
             // (only an object's own new combo skips any)
-            if(entry.type & HO::TYPE_NEW_COMBO) colorOffset += (entry.type >> HO::TYPE_COLOUR_SKIP_SHIFT) & 0b111;
+            if(o.newCombo) colorOffset += o.colorSkip;
         }
         forceNewCombo = isSpinner;
 
-        if(entry.object.kind == ObjectRef::Kind::CIRCLE) {
-            HITCIRCLE &h = c.hitcircles[entry.object.index];
-            h.number = comboNumber++;
-            h.colorCounter = colorCounter;
-            h.colorOffset = colorOffset;
-            previousEndsCombo = &h.isEndOfCombo;
-        } else if(entry.object.kind == ObjectRef::Kind::SLIDER) {
-            SLIDER &slider = c.sliders[entry.object.index];
-            slider.number = comboNumber++;
-            slider.colorCounter = colorCounter;
-            slider.colorOffset = colorOffset;
-            previousEndsCombo = &slider.isEndOfCombo;
+        if constexpr(!isSpinner) {
+            o.number = comboNumber++;
+            o.colorCounter = colorCounter;
+            o.colorOffset = colorOffset;
+        }
+        previousEndsCombo = &o.isEndOfCombo;
+    };
+    // (not through std::visit, which libc++ dispatches through a table of functions: slower here)
+    for(auto &object : c.objects) {
+        if(auto *h = std::get_if<HITCIRCLE>(&object)) {
+            number(*h);
+        } else if(auto *slider = std::get_if<SLIDER>(&object)) {
+            number(*slider);
         } else {
-            previousEndsCombo = &c.spinners[entry.object.index].isEndOfCombo;
+            number(std::get<SPINNER>(object));
         }
     }
     if(previousEndsCombo) *previousEndsCombo = true;
@@ -429,171 +574,13 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
     // special case: old beatmaps have AR = OD, there is no ApproachRate stored
     if(!foundAR) c.AR = c.OD;
 
-    // late bail if too many hitobjects would run out of memory and crash
-    if(c.getNumObjects() > limits.maxHitObjects) {
-        c.error.errc = LoadError::TOOMANY_HITOBJECTS;
-        return c;
-    }
-
     for(const auto &tempCol : tempColors) {
         if(tempCol.has_value()) {
             c.combocolors.push_back(tempCol.value());
         }
     }
 
-    c.timingpoints = readTimingPoints(file);
-
     return c;
-}
-
-LoadError calculateSliderTimesClicksTicks(int beatmapVersion, std::vector<SLIDER> &sliders,
-                                          const TimingPoints &timingpoints, float sliderMultiplier,
-                                          float sliderTickRate, const Limits &limits, const Sync::stop_token &dead) {
-    LoadError r;
-
-    if(timingpoints.size() < 1) {
-        r.errc = LoadError::NO_TIMINGPOINTS;
-        return r;
-    }
-
-    struct SliderHelper {
-        static float getSliderTickDistance(float sliderMultiplier, float sliderTickRate) {
-            return ((100.0f * sliderMultiplier) / sliderTickRate);
-        }
-
-        static float getSliderTimeForSlider(const SLIDER &slider, const TIMING_INFO &timingInfo,
-                                            float sliderMultiplier) {
-            const float duration = timingInfo.beatLength * (slider.pixelLength / sliderMultiplier) / 100.0f;
-            return (duration >= 1.0f && std::isfinite(duration) && !std::isnan(duration)) ? duration
-                                                                                          : 1.0f;  // sanity check
-        }
-
-        static float getSliderVelocity(const TIMING_INFO &timingInfo, float sliderMultiplier, float sliderTickRate) {
-            const float beatLength = timingInfo.beatLength;
-            if(beatLength > 0.0f)
-                return (getSliderTickDistance(sliderMultiplier, sliderTickRate) * sliderTickRate *
-                        (1000.0f / beatLength));
-            else
-                return getSliderTickDistance(sliderMultiplier, sliderTickRate) * sliderTickRate;
-        }
-
-        static float getTimingPointMultiplierForSlider(const TIMING_INFO &timingInfo)  // needed for slider ticks
-        {
-            float beatLengthBase = timingInfo.beatLengthBase;
-            if(beatLengthBase == 0.0f)  // sanity check
-                beatLengthBase = 1.0f;
-
-            return timingInfo.beatLength / beatLengthBase;
-        }
-    };
-
-    for(auto &s : sliders) {
-        if(dead.stop_requested()) {
-            r.errc = LoadError::LOAD_INTERRUPTED;
-            return r;
-        }
-
-        // sanity reset
-        s.ticks.clear();
-        s.scoringTimesForStarCalc.clear();
-
-        // calculate duration
-        const TIMING_INFO timingInfo = timingpoints.getTimingInfo(s.time);
-        s.sliderTimeWithoutRepeats = SliderHelper::getSliderTimeForSlider(s, timingInfo, sliderMultiplier);
-        s.sliderTime = s.sliderTimeWithoutRepeats * s.repeat;
-
-        // calculate ticks
-        int brk = 0;
-        // don't generate ticks for NaN timingpoints and infinite values
-        while(!brk++ && !timingInfo.isNaN && !std::isnan(s.pixelLength) && std::isfinite(s.pixelLength)) {
-            const float minTickPixelDistanceFromEnd =
-                0.01f * SliderHelper::getSliderVelocity(timingInfo, sliderMultiplier, sliderTickRate);
-            const float tickPixelLength =
-                (beatmapVersion < 8 ? SliderHelper::getSliderTickDistance(sliderMultiplier, sliderTickRate)
-                                    : SliderHelper::getSliderTickDistance(sliderMultiplier, sliderTickRate) /
-                                          SliderHelper::getTimingPointMultiplierForSlider(timingInfo));
-
-            if(std::isnan(tickPixelLength) || !std::isfinite(tickPixelLength)) break;
-
-            const float tickDurationPercentOfSliderLength =
-                tickPixelLength / (s.pixelLength == 0.0f ? 1.0f : s.pixelLength);
-            const int max_ticks = limits.sliderMaxTicks;
-            const int tickCount = std::min((int)std::ceil(s.pixelLength / tickPixelLength) - 1,
-                                           max_ticks);  // NOTE: hard sanity limit number of ticks per slider
-
-            if(tickCount > 0) {
-                const float tickTOffset = tickDurationPercentOfSliderLength;
-                float pixelDistanceToEnd = s.pixelLength;
-                float t = tickTOffset;
-                for(int i = 0; i < tickCount; i++, t += tickTOffset) {
-                    // skip ticks which are too close to the end of the slider
-                    pixelDistanceToEnd -= tickPixelLength;
-                    if(pixelDistanceToEnd <= minTickPixelDistanceFromEnd) break;
-
-                    s.ticks.push_back(t);
-                }
-            }
-        }
-
-        // bail if too many predicted heuristic scoringTimes would run out of memory and crash
-        if((size_t)std::abs(s.repeat) * s.ticks.size() > (size_t)limits.maxSliderScoringTimes) {
-            r.errc = LoadError::TOOMANY_HITOBJECTS;
-            return r;
-        }
-
-        // calculate s.scoringTimesForStarCalc, which should include every point in time where the cursor must be within
-        // the followcircle radius and at least one key must be pressed: see
-        // https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Preprocessing/OsuDifficultyHitObject.cs
-        const i32 osuSliderEndInsideCheckOffset = limits.sliderEndInsideCheckOffset;
-
-        // 1) "skip the head circle"
-
-        // 2) add repeat times (either at slider begin or end)
-        for(int i = 0; i < (s.repeat - 1); i++) {
-            const f32 time = s.time + (s.sliderTimeWithoutRepeats * (i + 1));  // see Slider.cpp
-            s.scoringTimesForStarCalc.push_back(SLIDER_SCORING_TIME{
-                .time = time,
-                .type = SLIDER_SCORING_TIME::TYPE::REPEAT,
-            });
-        }
-
-        // 3) add tick times (somewhere within slider, repeated for every repeat)
-        for(int i = 0; i < s.repeat; i++) {
-            for(int t = 0; t < s.ticks.size(); t++) {
-                const float tickPercentRelativeToRepeatFromStartAbs =
-                    (((i + 1) % 2) != 0 ? s.ticks[t] : 1.0f - s.ticks[t]);  // see Slider.cpp
-                const f32 time =
-                    s.time + (s.sliderTimeWithoutRepeats * i) +
-                    (tickPercentRelativeToRepeatFromStartAbs * s.sliderTimeWithoutRepeats);  // see Slider.cpp
-                s.scoringTimesForStarCalc.push_back(SLIDER_SCORING_TIME{
-                    .time = time,
-                    .type = SLIDER_SCORING_TIME::TYPE::TICK,
-                });
-            }
-        }
-
-        // 4) add slider end (potentially before last tick for bullshit sliders, but sorting takes care of that)
-        // see https://github.com/ppy/osu/pull/4193#issuecomment-460127543
-        const f32 time =
-            std::max(static_cast<f32>(s.time) + s.sliderTime / 2.0f,
-                     (static_cast<f32>(s.time) + s.sliderTime) - static_cast<f32>(osuSliderEndInsideCheckOffset));
-        s.scoringTimesForStarCalc.push_back(SLIDER_SCORING_TIME{
-            .time = time,
-            .type = SLIDER_SCORING_TIME::TYPE::END,
-        });
-
-        if(dead.stop_requested()) {
-            r.errc = LoadError::LOAD_INTERRUPTED;
-            return r;
-        }
-
-        // 5) sort scoringTimes from earliest to latest
-        if(s.scoringTimesForStarCalc.size() > 1) {
-            srt::pdqsort(s.scoringTimesForStarCalc, sliderScoringTimeComparator);
-        }
-    }
-
-    return r;
 }
 
 }  // namespace neomod::Primitives

@@ -8,9 +8,11 @@
 #include "SyncStoptoken.h"
 #include "OsuConVars/DiffCalcDefaults.h"
 
+#include <algorithm>
 #include <array>
 #include <span>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 namespace neomod {
@@ -123,30 +125,14 @@ class TimingPoints {
     FixedSizeArray<Entry> entries;
 };
 
-// an object in PRIMITIVE_CONTAINER: its kind's vector and its place there
-struct ObjectRef final {
-    enum class Kind : u8 { CIRCLE, SLIDER, SPINNER };
-    Kind kind;
-    u32 index;
-};
-
 struct PRIMITIVE_CONTAINER final {
-    std::vector<DBType::HITCIRCLE> hitcircles{};
-    std::vector<DBType::SLIDER> sliders{};
-    std::vector<DBType::SPINNER> spinners{};
+    // in the order the game plays them: by time, equal times in the order of their lines
+    std::vector<std::variant<DBType::HITCIRCLE, DBType::SLIDER, DBType::SPINNER>> objects{};
+    // by start time
     std::vector<DBType::BREAK> breaks{};
-
-    // every object in the order the game plays them: by time, equal times in the order of their lines
-    std::vector<ObjectRef> objectsByTime{};
 
     TimingPoints timingpoints{};
     std::vector<Color> combocolors{};
-
-    // the [HitObjects] lines no object came from
-    std::vector<u32> skippedLines{};
-
-    // what it was read with, for the slider timing calculated from it
-    Limits limits{};
 
     f32 stackLeniency{.7f};
     f32 sliderMultiplier{1.f};
@@ -158,7 +144,12 @@ struct PRIMITIVE_CONTAINER final {
     f32 OD{5.f};
     f32 HP{5.f};
 
-    [[nodiscard]] inline u32 getNumObjects() const { return hitcircles.size() + sliders.size() + spinners.size(); }
+    [[nodiscard]] inline u32 getNumObjects() const { return objects.size(); }
+    // of one kind: DBType::HITCIRCLE, SLIDER or SPINNER
+    template <typename Kind>
+    [[nodiscard]] u32 getNumObjects() const {
+        return std::ranges::count_if(objects, [](const auto &object) { return std::holds_alternative<Kind>(object); });
+    }
 
     u32 totalBreakDuration{0};
 
@@ -168,20 +159,12 @@ struct PRIMITIVE_CONTAINER final {
     // sample set to use if timing point doesn't specify it
     // 1 = normal, 2 = soft, 3 = drum
     u8 defaultSampleSet{1};
-
-    // Set after calculateSliderTimesClicksTicks has populated slider timing data.
-    // Allows reuse of the container for multiple loadDifficultyHitObjects calls.
-    bool sliderTimesCalculated{false};
 };
 
 TimingPoints readTimingPoints(const BeatmapFile &file);
 
+// with its sliders' durations, ticks and scoring times when it has timing points (what needs those checks it has some)
 PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileData, const Limits &limits,
                                                  const Sync::stop_token &dead = {});
-
-LoadError calculateSliderTimesClicksTicks(int beatmapVersion, std::vector<DBType::SLIDER> &sliders,
-                                          const TimingPoints &timingpoints, float sliderMultiplier,
-                                          float sliderTickRate, const Limits &limits,
-                                          const Sync::stop_token &dead = {});
 
 }  // namespace neomod::Primitives

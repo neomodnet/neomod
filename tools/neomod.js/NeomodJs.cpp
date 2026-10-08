@@ -27,6 +27,9 @@ struct Beatmap {
         this->CS = this->primitives.CS;
         this->OD = this->primitives.OD;
         this->HP = this->primitives.HP;
+        this->numCircles = static_cast<int>(this->primitives.getNumObjects<DBType::HITCIRCLE>());
+        this->numSliders = static_cast<int>(this->primitives.getNumObjects<DBType::SLIDER>());
+        this->numSpinners = static_cast<int>(this->primitives.getNumObjects<DBType::SPINNER>());
 
         this->loaded_successfully = true;
 
@@ -53,9 +56,9 @@ struct Beatmap {
                                         .ar = score.mods.get_naive_ar(this->AR),
                                         .od = score.mods.get_naive_od(this->OD),
                                         .numHitObjects = static_cast<int>(this->primitives.getNumObjects()),
-                                        .numCircles = static_cast<int>(this->primitives.hitcircles.size()),
-                                        .numSliders = static_cast<int>(this->primitives.sliders.size()),
-                                        .numSpinners = static_cast<int>(this->primitives.spinners.size()),
+                                        .numCircles = this->numCircles,
+                                        .numSliders = this->numSliders,
+                                        .numSpinners = this->numSpinners,
                                         .maxPossibleCombo = this->maxPossibleCombo,
                                         .combo = score.comboMax,
                                         .misses = score.numMisses,
@@ -157,6 +160,9 @@ struct Beatmap {
     float CS = 5.0f;
     float OD = 5.0f;
     float HP = 5.0f;
+    int numCircles = 0;
+    int numSliders = 0;
+    int numSpinners = 0;
     int maxPossibleCombo = 0;
     Primitives::PRIMITIVE_CONTAINER primitives;
     DiffCalc::DifficultyAttributes difficulty_attributes;

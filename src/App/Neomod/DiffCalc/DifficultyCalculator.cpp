@@ -8,14 +8,13 @@
 #include "ModFlags.h"
 #include "InlineVec.h"
 
-#define WANT_PDQSORT
-
 #include <cassert>
 #include <numbers>
 #include <utility>
 #include <cstring>
 #include <type_traits>
 #include <span>
+#include <variant>
 
 #ifndef BUILD_TOOLS_ONLY
 #include "OsuConVars.h"
@@ -526,7 +525,7 @@ LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(Primitives::PRIMITIVE_CONTAINER &c,
                                              bool hardRock, const Sync::stop_token &dead) {
     LOAD_DIFFOBJ_RESULT result{};
 
-    // build generalized OsuDifficultyHitObjects from the vectors (hitcircles, sliders, spinners)
+    // build generalized OsuDifficultyHitObjects from the primitive objects
     // the OsuDifficultyHitObject class is the one getting used in all pp/star calculations, it encompasses every object
     // type for simplicity
 
@@ -543,49 +542,37 @@ LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(Primitives::PRIMITIVE_CONTAINER &c,
     result.fileHP = c.HP;
     result.fileOD = c.OD;
 
-    // calculate sliderTimes, and build slider clicks and ticks (only if not already done)
-    if(!c.sliderTimesCalculated) {
-        Primitives::LoadError sliderTimeCalcResult = Primitives::calculateSliderTimesClicksTicks(
-            c.version, c.sliders, c.timingpoints, c.sliderMultiplier, c.sliderTickRate, c.limits, dead);
-        if(sliderTimeCalcResult.errc) {
-            result.error.errc = sliderTimeCalcResult.errc;
-            return result;
-        }
-        c.sliderTimesCalculated = true;
+    // (a map without timing points has no slider times, and the game doesn't play it)
+    if(c.timingpoints.empty()) {
+        result.error.errc = Primitives::LoadError::NO_TIMINGPOINTS;
+        return result;
     }
 
     // and generate the difficultyhitobjects, in the order the game plays them
-    result.diffobjects.reserve(c.objectsByTime.size());
+    result.diffobjects.reserve(c.objects.size());
+    // NOTE: for explanation see DiffCalc::DifficultyHitObject constructor (sliders are only counted when there could be
+    // that many)
     const bool calculateSliderCurveInConstructor =
-        (c.sliders.size() < 5000);  // NOTE: for explanation see DiffCalc::DifficultyHitObject constructor
-    for(const auto [kind, index] : c.objectsByTime) {
-        switch(kind) {
-            case Primitives::ObjectRef::Kind::CIRCLE: {
-                const auto &hitcircle = c.hitcircles[index];
-                result.diffobjects.emplace_back(DifficultyHitObject::TYPE::CIRCLE, vec2{hitcircle.x, hitcircle.y},
-                                                (i32)hitcircle.time);
-                break;
+        c.objects.size() < 5000 || c.getNumObjects<DatabaseBeatmapTypes::SLIDER>() < 5000;
+    for(const auto &object : c.objects) {
+        if(const auto *hitcircle = std::get_if<DatabaseBeatmapTypes::HITCIRCLE>(&object)) {
+            result.diffobjects.emplace_back(DifficultyHitObject::TYPE::CIRCLE, vec2{hitcircle->x, hitcircle->y},
+                                            (i32)hitcircle->time);
+        } else if(const auto *slider = std::get_if<DatabaseBeatmapTypes::SLIDER>(&object)) {
+            if(dead.stop_requested()) {
+                result.error.errc = Primitives::LoadError::LOAD_INTERRUPTED;
+                return result;
             }
-            case Primitives::ObjectRef::Kind::SLIDER: {
-                if(dead.stop_requested()) {
-                    result.error.errc = Primitives::LoadError::LOAD_INTERRUPTED;
-                    return result;
-                }
 
-                const auto &slider = c.sliders[index];
-                result.diffobjects.emplace_back(DifficultyHitObject::TYPE::SLIDER, vec2{slider.x, slider.y},
-                                                slider.time, slider.time + (i32)slider.sliderTime,
-                                                slider.sliderTimeWithoutRepeats, slider.type, slider.points,
-                                                slider.pixelLength, slider.scoringTimesForStarCalc, slider.repeat,
-                                                calculateSliderCurveInConstructor);
-                break;
-            }
-            case Primitives::ObjectRef::Kind::SPINNER: {
-                const auto &spinner = c.spinners[index];
-                result.diffobjects.emplace_back(DifficultyHitObject::TYPE::SPINNER, vec2{spinner.x, spinner.y},
-                                                (i32)spinner.time, (i32)spinner.endTime);
-                break;
-            }
+            result.diffobjects.emplace_back(DifficultyHitObject::TYPE::SLIDER, vec2{slider->x, slider->y}, slider->time,
+                                            slider->time + (i32)slider->sliderTime, slider->sliderTimeWithoutRepeats,
+                                            slider->type, slider->points, slider->pixelLength,
+                                            slider->scoringTimesForStarCalc, slider->repeat,
+                                            calculateSliderCurveInConstructor);
+        } else {
+            const auto &spinner = std::get<DatabaseBeatmapTypes::SPINNER>(object);
+            result.diffobjects.emplace_back(DifficultyHitObject::TYPE::SPINNER, vec2{spinner.x, spinner.y},
+                                            (i32)spinner.time, (i32)spinner.endTime);
         }
     }
 

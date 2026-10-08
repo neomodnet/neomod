@@ -41,6 +41,7 @@ class BeatmapFile {
         // what its lines count as: its kind, or for an UNKNOWN name the section before it (as in osu!stable)
         SectionKind readAs;
         u32 bodyLine;  // the number of the first line after the header (1-based)
+        u32 lines;     // in its body
     };
 
     struct Line {

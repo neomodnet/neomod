@@ -11,6 +11,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 
 #include "fmt/format.h"
 
@@ -159,12 +160,6 @@ Primitives::Limits limitsFromConVars() {
             .sliderMaxTicks = cv::slider_max_ticks.getInt()};
 }
 
-void logSkippedLines(std::string_view osuFilePath, const Primitives::PRIMITIVE_CONTAINER &c) {
-    if(c.skippedLines.empty()) return;
-    debugLog("File: {} no hit object from {} line(s), the first is line {}", osuFilePath, c.skippedLines.size(),
-             c.skippedLines.front());
-}
-
 }  // namespace
 
 Primitives::PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjects(std::string_view osuFilePath,
@@ -184,9 +179,7 @@ Primitives::PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjects(std::strin
         // close the file here
     }
 
-    Primitives::PRIMITIVE_CONTAINER c = Primitives::loadPrimitiveObjectsFromData(fileBuffer, limitsFromConVars(), dead);
-    logSkippedLines(osuFilePath, c);
-    return c;
+    return Primitives::loadPrimitiveObjectsFromData(fileBuffer, limitsFromConVars(), dead);
 }
 
 DiffCalc::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(std::string_view osuFilePath, float AR,
@@ -212,7 +205,6 @@ PlayedMap DatabaseBeatmap::readPlayedMap(std::string_view osuFilePath) {
 
     PlayedMap played;
     played.primitives = Primitives::loadPrimitiveObjectsFromData(*data, limitsFromConVars());
-    logSkippedLines(osuFilePath, played.primitives);
     played.md5 = crypto::hash::md5(*data);
     played.data = std::move(data);
     return played;
@@ -484,32 +476,25 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(PlayedMap &p
         return result;
     }
 
-    // calculate sliderTimes, and build slider clicks and ticks
-    Primitives::LoadError sliderTimeCalcResult = Primitives::calculateSliderTimesClicksTicks(
-        c.version, c.sliders, c.timingpoints, c.sliderMultiplier, c.sliderTickRate, c.limits);
-    if(sliderTimeCalcResult.errc != Primitives::LoadError::NONE) {
-        result.error.errc = sliderTimeCalcResult.errc;
-        return result;
-    }
-    c.sliderTimesCalculated = true;
-
     // build hitobjects from the primitive data we loaded from the osu file, with the mods that change them
     {
         // also calculate max possible combo
         int maxPossibleCombo = 0;
-        maxPossibleCombo += c.hitcircles.size();
+        for(auto &object : c.objects) {
+            auto *s = std::get_if<DBType::SLIDER>(&object);
+            if(!s) {
+                maxPossibleCombo++;
+                continue;
+            }
 
-        for(auto &s : c.sliders) {
             if(cv::mod_strict_tracking.getBool() && cv::mod_strict_tracking_remove_slider_ticks.getBool())
-                s.ticks.clear();
+                s->ticks.clear();
 
-            if(cv::mod_reverse_sliders.getBool()) std::ranges::reverse(s.points);
+            if(cv::mod_reverse_sliders.getBool()) std::ranges::reverse(s->points);
 
-            const int repeats = std::max((s.repeat - 1), 0);
-            maxPossibleCombo += 2 + repeats + (repeats + 1) * s.ticks.size();  // start/end + repeat arrow + ticks
+            const int repeats = std::max((s->repeat - 1), 0);
+            maxPossibleCombo += 2 + repeats + (repeats + 1) * s->ticks.size();  // start/end + repeat arrow + ticks
         }
-
-        maxPossibleCombo += c.spinners.size();
 
         beatmap->iMaxPossibleCombo = maxPossibleCombo;
 

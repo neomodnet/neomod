@@ -27,6 +27,7 @@
 #include <string>
 #include <thread>
 #include <utility>
+#include <variant>
 
 namespace Mc::Tests {
 using namespace neomod;
@@ -131,17 +132,11 @@ std::string dumpGameLoad(const std::string &path, const std::string &relative, s
                        tp.sampleIndex, tp.volume, tp.uninherited, tp.kiai);
     }
 
-    auto c = Primitives::loadPrimitiveObjectsFromData(bytes, {});
-    const Primitives::LoadError sliderError =
-        c.error ? Primitives::LoadError{}
-                : Primitives::calculateSliderTimesClicksTicks(c.version, c.sliders, c.timingpoints, c.sliderMultiplier,
-                                                              c.sliderTickRate, c.limits);
+    const auto c = Primitives::loadPrimitiveObjectsFromData(bytes, {});
     fmt::format_to(std::back_inserter(out),
-                   "prim err={} ver={} ar={} cs={} od={} hp={} sl={} sm={} tr={} set={} breaktime={} skipped={} "
-                   "slidererr={}\n",
+                   "prim err={} ver={} ar={} cs={} od={} hp={} sl={} sm={} tr={} set={} breaktime={}\n",
                    static_cast<int>(c.error.errc), c.version, c.AR, c.CS, c.OD, c.HP, c.stackLeniency,
-                   c.sliderMultiplier, c.sliderTickRate, c.defaultSampleSet, c.totalBreakDuration,
-                   c.skippedLines.size(), static_cast<int>(sliderError.errc));
+                   c.sliderMultiplier, c.sliderTickRate, c.defaultSampleSet, c.totalBreakDuration);
     for(const auto &b : c.breaks) fmt::format_to(std::back_inserter(out), "brk {} {}\n", b.startTime, b.endTime);
     for(const auto col : c.combocolors) fmt::format_to(std::back_inserter(out), "col {:08x}\n", col);
     for(const auto &tp : c.timingpoints) {
@@ -158,31 +153,22 @@ std::string dumpGameLoad(const std::string &path, const std::string &relative, s
                            ti.sampleIndex, ti.volume, ti.isNaN);
     };
     // in the order they're played, each with whether it ends its combo
-    for(const auto [kind, index] : c.objectsByTime) {
-        switch(kind) {
-            case Primitives::ObjectRef::Kind::CIRCLE: {
-                const auto &h = c.hitcircles[index];
-                fmt::format_to(std::back_inserter(out), "c {} {} {} {} {} {} {} {} {}\n", h.x, h.y, h.time, h.number,
-                               h.colorCounter, h.colorOffset, h.isEndOfCombo, samples(h.samples), timing(h.time));
-                break;
-            }
-            case Primitives::ObjectRef::Kind::SLIDER: {
-                const auto &s = c.sliders[index];
-                fmt::format_to(std::back_inserter(out), "s {} {} {} {} {} {} {} {} {} {} {} {}", s.x, s.y, s.time,
-                               s.number, s.colorCounter, s.colorOffset, s.isEndOfCombo, static_cast<char>(s.type),
-                               s.repeat, s.pixelLength, samples(s.hoverSamples), s.points.size());
-                for(const auto &p : s.points) fmt::format_to(std::back_inserter(out), " {},{}", p.x, p.y);
-                for(const auto &e : s.edgeSamples) fmt::format_to(std::back_inserter(out), " e{}", samples(e));
-                fmt::format_to(std::back_inserter(out), " {}/{}/{} {}\n", s.sliderTime, s.sliderTimeWithoutRepeats,
-                               s.ticks.size(), timing(s.time));
-                break;
-            }
-            case Primitives::ObjectRef::Kind::SPINNER: {
-                const auto &s = c.spinners[index];
-                fmt::format_to(std::back_inserter(out), "sp {} {} {} {} {} {} {}\n", s.x, s.y, s.time, s.endTime,
-                               s.isEndOfCombo, samples(s.samples), timing(s.time));
-                break;
-            }
+    for(const auto &object : c.objects) {
+        if(const auto *h = std::get_if<DBType::HITCIRCLE>(&object)) {
+            fmt::format_to(std::back_inserter(out), "c {} {} {} {} {} {} {} {} {}\n", h->x, h->y, h->time, h->number,
+                           h->colorCounter, h->colorOffset, h->isEndOfCombo, samples(h->samples), timing(h->time));
+        } else if(const auto *s = std::get_if<DBType::SLIDER>(&object)) {
+            fmt::format_to(std::back_inserter(out), "s {} {} {} {} {} {} {} {} {} {} {} {}", s->x, s->y, s->time,
+                           s->number, s->colorCounter, s->colorOffset, s->isEndOfCombo, static_cast<char>(s->type),
+                           s->repeat, s->pixelLength, samples(s->hoverSamples), s->points.size());
+            for(const auto &p : s->points) fmt::format_to(std::back_inserter(out), " {},{}", p.x, p.y);
+            for(const auto &e : s->edgeSamples) fmt::format_to(std::back_inserter(out), " e{}", samples(e));
+            fmt::format_to(std::back_inserter(out), " {}/{}/{} {}\n", s->sliderTime, s->sliderTimeWithoutRepeats,
+                           s->ticks.size(), timing(s->time));
+        } else {
+            const auto &spinner = std::get<DBType::SPINNER>(object);
+            fmt::format_to(std::back_inserter(out), "sp {} {} {} {} {} {} {}\n", spinner.x, spinner.y, spinner.time,
+                           spinner.endTime, spinner.isEndOfCombo, samples(spinner.samples), timing(spinner.time));
         }
     }
     return out;
@@ -313,6 +299,8 @@ void BeatmapFileTest::runTests() {
         TEST_ASSERT(sections[0].kind == Kind::NONE && sections[0].header.empty(), "lines before the first section");
         TEST_ASSERT(sections[1].kind == Kind::GENERAL && sections[1].name == "General", "[General]");
         TEST_ASSERT_EQ(sections[1].bodyLine, 5, "line number after [General]");
+        TEST_ASSERT(sections[0].lines == 3 && sections[1].lines == 3 && sections[4].lines == 1,
+                    "lines in a section's body (the last without a final line break)");
         TEST_ASSERT(sections[2].kind == Kind::EDITOR && sections[2].readAs == Kind::EDITOR, "[Editor] is known");
         TEST_ASSERT_EQ(file.getVersion().value_or(-1), 14, "version");
 
@@ -519,12 +507,12 @@ void BeatmapFileTest::runTests() {
         const auto cr = load(
             "osu file format v14\r[TimingPoints]\r0,500,4,1,0,100,1,8\r100,500,4,1,0,100,1,9\r"
             "[HitObjects]\r1,2,3,1,0,0:0:0:-5:\r1,2,4,1,0,0:0:0:300:\r");
-        TEST_ASSERT_EQ(cr.hitcircles.size(), 2, "a file with CR line breaks");
+        TEST_ASSERT_EQ(cr.getNumObjects<DBType::HITCIRCLE>(), 2, "a file with CR line breaks");
         TEST_ASSERT(cr.timingpoints.size() == 2 && !cr.timingpoints[0].kiai && cr.timingpoints[1].kiai,
                     "kiai is the effects field's first bit (8 omits the first barline)");
-        TEST_ASSERT(
-            cr.hitcircles.size() == 2 && cr.hitcircles[0].samples.volume == 0 && cr.hitcircles[1].samples.volume == 100,
-            "sample volumes clamped to 0-100");
+        const auto volume = [&cr](uSz i) { return std::get<DBType::HITCIRCLE>(cr.objects[i]).samples.volume; };
+        TEST_ASSERT(cr.getNumObjects<DBType::HITCIRCLE>() == 2 && volume(0) == 0 && volume(1) == 100,
+                    "sample volumes clamped to 0-100");
 
         const auto times = load(
             "osu file format v14\r\n[TimingPoints]\r\nNaN,500,4,1,0,100,1,0\r\n3e9,500,4,1,0,100,1,0\r\n"
@@ -535,68 +523,62 @@ void BeatmapFileTest::runTests() {
         const auto lengths = load(
             "osu file format v14\r\n[TimingPoints]\r\n0,500,4,1,0,100,1,0\r\n[HitObjects]\r\n0,0,1000,2,0,L|100:0,1\r\n"
             "0,0,2000,2,0,L|0:50,1,0\r\n0,0,3000,2,0,L|30:40,1,20\r\n0,0,4000,2,0,P|50:50|100:0,1\r\n");
-        TEST_ASSERT(lengths.sliders.size() == 4 && lengths.sliders[0].pixelLength == 100.f &&
-                        lengths.sliders[1].pixelLength == 50.f && lengths.sliders[2].pixelLength == 20.f &&
-                        std::abs(lengths.sliders[3].pixelLength - 50.f * std::numbers::pi_v<f32>) < 0.01f,
+        const auto length = [&lengths](uSz i) { return std::get<DBType::SLIDER>(lengths.objects[i]).pixelLength; };
+        TEST_ASSERT(lengths.getNumObjects<DBType::SLIDER>() == 4 && length(0) == 100.f && length(1) == 50.f &&
+                        length(2) == 20.f && std::abs(length(3) - 50.f * std::numbers::pi_v<f32>) < 0.01f,
                     "a slider without a length, or with 0, is as long as its curve");
+
+        // the circle at a time: its number, color counter and offset
+        const auto combo = [](const Primitives::PRIMITIVE_CONTAINER &c, i32 time) {
+            for(const auto &object : c.objects) {
+                const auto *h = std::get_if<DBType::HITCIRCLE>(&object);
+                if(h && h->time == time) return fmt::format("{} {} {}", h->number, h->colorCounter, h->colorOffset);
+            }
+            return std::string{"none"};
+        };
 
         // (lines out of time order: combos as the objects come in time, as osu!stable and lazer number them)
         const auto order =
             load("osu file format v14\r\n[HitObjects]\r\n0,0,3000,37,0\r\n0,0,1000,5,0\r\n0,0,2000,1,0\r\n");
-        const auto combo = [&order](i32 time) {
-            for(const auto &h : order.hitcircles) {
-                if(h.time == time) return fmt::format("{} {} {}", h.number, h.colorCounter, h.colorOffset);
-            }
-            return std::string{"none"};
-        };
-        TEST_ASSERT_EQ(combo(1000), "1 1 0", "the earliest object starts the first combo, wherever its line is");
-        TEST_ASSERT_EQ(combo(2000), "2 1 0", "...the next one in time continues it");
-        TEST_ASSERT_EQ(combo(3000), "1 2 2", "...and a later new combo (skipping two colours) starts the next");
+        TEST_ASSERT_EQ(combo(order, 1000), "1 1 0", "the earliest object starts the first combo, wherever its line is");
+        TEST_ASSERT_EQ(combo(order, 2000), "2 1 0", "...the next one in time continues it");
+        TEST_ASSERT_EQ(combo(order, 3000), "1 2 2", "...and a later new combo (skipping two colours) starts the next");
 
         const auto sameTime = load(
-            "osu file format v14\r\n[HitObjects]\r\n0,0,1000,2,0,L|100:0,1,100\r\n0,0,1000,1,0\r\n"
-            "256,192,500,12,0,800\r\n0,0,1000,1,0\r\n");
+            "osu file format v14\r\n[HitObjects]\r\n0,0,1000,2,0,L|100:0,1,100\r\n1,0,1000,1,0\r\n"
+            "256,192,500,12,0,800\r\n2,0,1000,1,0\r\n");
         std::string kinds;
-        for(const auto [kind, index] : sameTime.objectsByTime) {
-            kinds += fmt::format("{}{} ",
-                                 kind == Primitives::ObjectRef::Kind::CIRCLE   ? 'c'
-                                 : kind == Primitives::ObjectRef::Kind::SLIDER ? 's'
-                                                                               : 'p',
-                                 index);
+        for(const auto &object : sameTime.objects) {
+            const char kind = std::holds_alternative<DBType::HITCIRCLE>(object) ? 'c'
+                              : std::holds_alternative<DBType::SLIDER>(object)  ? 's'
+                                                                                : 'p';
+            kinds += fmt::format("{}{} ", kind, std::visit([](const auto &o) { return o.x; }, object));
         }
-        TEST_ASSERT_EQ(kinds, "p0 s0 c0 c1 ", "the objects by time, equal times in the order of their lines");
+        TEST_ASSERT_EQ(kinds, "p256 s0 c1 c2 ", "the objects by time, equal times in the order of their lines");
 
         const auto spinners = load(
             "osu file format v14\r\n[HitObjects]\r\n0,0,1000,5,0\r\n0,0,2000,1,0\r\n256,192,3000,12,0,4000\r\n"
             "0,0,5000,1,0\r\n0,0,6000,1,0\r\n256,192,7000,8,0,8000\r\n0,0,9000,1,0\r\n256,192,10000,12,0,11000\r\n"
             "256,192,12000,8,0,13000\r\n0,0,14000,1,0\r\n256,192,15000,44,0,16000\r\n0,0,17000,1,0\r\n");
-        const auto spinnerCombo = [&spinners](i32 time) {
-            for(const auto &h : spinners.hitcircles) {
-                if(h.time == time) return fmt::format("{} {} {}", h.number, h.colorCounter, h.colorOffset);
-            }
-            return std::string{"none"};
-        };
-        TEST_ASSERT_EQ(spinnerCombo(5000), "1 2 0", "the object after a new combo spinner starts the next combo");
-        TEST_ASSERT_EQ(spinnerCombo(6000), "2 2 0", "...which the one after continues");
-        TEST_ASSERT_EQ(spinnerCombo(9000), "1 3 0", "a spinner without a new combo starts one on the next object too");
-        TEST_ASSERT_EQ(spinnerCombo(14000), "1 4 0", "spinners in a row start one combo after them");
-        TEST_ASSERT_EQ(spinnerCombo(17000), "1 5 2", "a new combo spinner's colour skip carries over to it");
+        TEST_ASSERT_EQ(combo(spinners, 5000), "1 2 0", "the object after a new combo spinner starts the next combo");
+        TEST_ASSERT_EQ(combo(spinners, 6000), "2 2 0", "...which the one after continues");
+        TEST_ASSERT_EQ(combo(spinners, 9000), "1 3 0",
+                       "a spinner without a new combo starts one on the next object too");
+        TEST_ASSERT_EQ(combo(spinners, 14000), "1 4 0", "spinners in a row start one combo after them");
+        TEST_ASSERT_EQ(combo(spinners, 17000), "1 5 2", "a new combo spinner's colour skip carries over to it");
 
         const auto breaks = load(
             "osu file format v14\r\n[Events]\r\n2,6500,8500\r\n2,2500,4500\r\n[HitObjects]\r\n0,0,1000,5,0\r\n"
             "0,0,2000,1,0\r\n0,0,5000,1,0\r\n0,0,6000,1,0\r\n0,0,8500,1,0\r\n0,0,9000,1,0\r\n");
-        const auto breakCombo = [&breaks](i32 time) {
-            for(const auto &h : breaks.hitcircles) {
-                if(h.time == time) return fmt::format("{} {} {}", h.number, h.colorCounter, h.colorOffset);
-            }
-            return std::string{"none"};
-        };
-        TEST_ASSERT_EQ(breakCombo(5000), "1 2 0", "the first object after a break starts the next combo");
-        TEST_ASSERT_EQ(breakCombo(6000), "2 2 0", "...which the one after continues");
-        TEST_ASSERT_EQ(breakCombo(8500), "3 2 0", "an object where a break ends is still in it");
-        TEST_ASSERT_EQ(breakCombo(9000), "1 3 0", "...the one after it starts the next combo (breaks in any order)");
+        TEST_ASSERT(
+            breaks.breaks.size() == 2 && breaks.breaks[0].startTime == 2500 && breaks.breaks[1].startTime == 6500,
+            "breaks by start time, whatever the order of their lines");
+        TEST_ASSERT_EQ(combo(breaks, 5000), "1 2 0", "the first object after a break starts the next combo");
+        TEST_ASSERT_EQ(combo(breaks, 6000), "2 2 0", "...which the one after continues");
+        TEST_ASSERT_EQ(combo(breaks, 8500), "3 2 0", "an object where a break ends is still in it");
+        TEST_ASSERT_EQ(combo(breaks, 9000), "1 3 0", "...the one after it starts the next combo");
 
-        // which of the game's objects end a combo (in the order they're played)
+        // which of the game's objects end a combo, and when the combo each is in starts (in the order they're played)
         const auto comboEnds = [&load](std::string_view text) {
             std::string ends;
             for(const auto &object : HitObjects::create(load(text), nullptr, nullptr)) {
@@ -604,11 +586,20 @@ void BeatmapFileTest::runTests() {
             }
             return ends;
         };
-        TEST_ASSERT_EQ(comboEnds("osu file format v14\r\n[HitObjects]\r\n0,0,1000,5,0\r\n0,0,2000,1,0\r\n"
-                                 "256,192,3000,12,0,4000\r\n0,0,5000,1,0\r\n0,0,6000,1,0\r\n256,192,7000,8,0,8000\r\n"
-                                 "0,0,9000,1,0\r\n"),
-                       "0110011",
+        const auto comboStarts = [&load](std::string_view text) {
+            std::string starts;
+            for(const auto &object : HitObjects::create(load(text), nullptr, nullptr)) {
+                starts += fmt::format("{} ", object->getComboStartTime());
+            }
+            return starts;
+        };
+        constexpr std::string_view withSpinners =
+            "osu file format v14\r\n[HitObjects]\r\n0,0,1000,5,0\r\n0,0,2000,1,0\r\n256,192,3000,12,0,4000\r\n"
+            "0,0,5000,1,0\r\n0,0,6000,1,0\r\n256,192,7000,8,0,8000\r\n0,0,9000,1,0\r\n";
+        TEST_ASSERT_EQ(comboEnds(withSpinners), "0110011",
                        "a combo ends before a spinner with a new combo (not one without) and at every spinner");
+        TEST_ASSERT_EQ(comboStarts(withSpinners), "1000 1000 3000 5000 5000 5000 9000 ",
+                       "...and the next one starts at the object after its end");
         TEST_ASSERT_EQ(comboEnds("osu file format v8\r\n[HitObjects]\r\n0,0,1000,5,0\r\n0,0,2000,1,0\r\n"
                                  "256,192,3000,8,0,4000\r\n0,0,5000,1,0\r\n"),
                        "0111", "a v8 spinner always starts a combo");

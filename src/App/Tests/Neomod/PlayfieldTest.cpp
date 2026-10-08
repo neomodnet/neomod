@@ -81,9 +81,6 @@ bool PlayfieldTest::load(const std::string &path) {
     }
     Primitives::PRIMITIVE_CONTAINER c = Primitives::loadPrimitiveObjectsFromData(bytes, Primitives::Limits{});
     if(c.error || c.getNumObjects() == 0 || c.timingpoints.empty()) return false;
-    if(Primitives::calculateSliderTimesClicksTicks(c.version, c.sliders, c.timingpoints, c.sliderMultiplier,
-                                                   c.sliderTickRate, c.limits))
-        return false;
 
     m_view.rawHitcircleDiameter = GameRules::getRawHitCircleDiameter(c.CS);
     m_view.approachTimeMS = GameRules::mapDifficultyRange(

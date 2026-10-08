@@ -196,6 +196,9 @@ void process_score_group(const BeatmapDifficulty* map, const ModParams& params, 
     if(stoken.stop_requested()) return;
 
     // calculate PP for each score using shared difficulty attributes
+    const i32 numCircles = (i32)primitives.getNumObjects<DBType::HITCIRCLE>();
+    const i32 numSliders = (i32)primitives.getNumObjects<DBType::SLIDER>();
+    const i32 numSpinners = (i32)primitives.getNumObjects<DBType::SPINNER>();
     std::vector<ScoreResult> group_results;
     group_results.reserve(scores.size());
 
@@ -206,9 +209,9 @@ void process_score_group(const BeatmapDifficulty* map, const ModParams& params, 
                                             .ar = params.ar,
                                             .od = params.od,
                                             .numHitObjects = (i32)primitives.getNumObjects(),
-                                            .numCircles = (i32)primitives.hitcircles.size(),
-                                            .numSliders = (i32)primitives.sliders.size(),
-                                            .numSpinners = (i32)primitives.spinners.size(),
+                                            .numCircles = numCircles,
+                                            .numSliders = numSliders,
+                                            .numSpinners = numSpinners,
                                             .maxPossibleCombo = (i32)diffres.getTotalMaxCombo(),
                                             .combo = sw->score.comboMax,
                                             .misses = sw->score.numMisses,
@@ -316,9 +319,9 @@ void build_work_queue(const Sync::stop_token& stoken) {
 MapResult calc_map_attributes(BeatmapDifficulty* map, Primitives::PRIMITIVE_CONTAINER& primitives,
                               const Sync::stop_token& stoken, WorkerContext& ctx) {
     MapResult result{.map = map,
-                     .nb_circles = (u32)primitives.hitcircles.size(),
-                     .nb_sliders = (u32)primitives.sliders.size(),
-                     .nb_spinners = (u32)primitives.spinners.size()};
+                     .nb_circles = primitives.getNumObjects<DBType::HITCIRCLE>(),
+                     .nb_sliders = primitives.getNumObjects<DBType::SLIDER>(),
+                     .nb_spinners = primitives.getNumObjects<DBType::SPINNER>()};
 
     const f32 base_ar = map->getAR();
     const f32 base_cs = map->getCS();
@@ -349,9 +352,8 @@ MapResult calc_map_attributes(BeatmapDifficulty* map, Primitives::PRIMITIVE_CONT
         const f32 hp = std::clamp(base_hp * var.ar_od_hp_mul, 0.f, 10.f);
 
         // build DifficultyHitObjects once at speed=1.0 for this AR/CS variant.
-        // object construction, sorting, and stacking are all speed-independent;
-        // only the timing fields need rescaling per speed. slider timing is
-        // calculated once (sliderTimesCalculated flag on primitives).
+        // object construction and stacking are speed-independent;
+        // only the timing fields need rescaling per speed.
         auto diffres = DiffCalc::loadDifficultyHitObjects(primitives, ar, cs, 1.0f, var.hr, stoken);
         if(stoken.stop_requested()) return result;
 
@@ -508,7 +510,6 @@ void process_work_item(WorkItem& item, const Sync::stop_token& stoken, WorkerCon
     if(stoken.stop_requested()) return;
 
     // process score calculations, grouped by mod parameters to share difficulty calc
-    // subsequent loadDifficultyHitObjects calls skip slider timing (sliderTimesCalculated == true)
     if(!item.scores.empty()) {
         Hash::flat::map<ModParams, std::vector<ScoreWork*>, ModParamsHash> score_groups;
         for(auto& sw : item.scores) {

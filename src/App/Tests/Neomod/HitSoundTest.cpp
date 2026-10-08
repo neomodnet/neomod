@@ -567,9 +567,6 @@ void HitSoundTest::runTests() {
         auto c = Primitives::loadPrimitiveObjectsFromData(
             std::span{reinterpret_cast<const u8 *>(map.data()), map.size()}, {});
         TEST_ASSERT(!c.error, "the map loads");
-        TEST_ASSERT(!Primitives::calculateSliderTimesClicksTicks(c.version, c.sliders, c.timingpoints,
-                                                                 c.sliderMultiplier, c.sliderTickRate, c.limits),
-                    "its slider times calculate");
         const auto objects = HitObjects::create(c, nullptr, nullptr);
         TEST_ASSERT_EQ(objects.size(), (uSz)4, "four objects");
         if(objects.size() == 4) {
@@ -641,10 +638,7 @@ void HitSoundTest::runTests() {
             "64,192,6000,2,4,L|344:192,1,280,2|0,,3:2:0:0:\n";  // edge sounds without edge sets
         auto c = Primitives::loadPrimitiveObjectsFromData(
             std::span{reinterpret_cast<const u8 *>(map.data()), map.size()}, {});
-        TEST_ASSERT(
-            !c.error && !Primitives::calculateSliderTimesClicksTicks(c.version, c.sliders, c.timingpoints,
-                                                                     c.sliderMultiplier, c.sliderTickRate, c.limits),
-            "the map with unified sliders loads");
+        TEST_ASSERT(!c.error, "the map with unified sliders loads");
         const auto objects = HitObjects::create(c, nullptr, nullptr);
         TEST_ASSERT_EQ(objects.size(), (uSz)3, "three sliders");
         if(objects.size() == 3) {

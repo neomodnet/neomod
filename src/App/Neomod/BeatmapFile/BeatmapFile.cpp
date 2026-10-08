@@ -197,7 +197,7 @@ void appendHitSample(Text &out, const BeatmapFile::HitSample &sample) {
 }  // namespace
 
 BeatmapFile::BeatmapFile(std::string_view bytes) : bytes(bytes), bom(bytes.starts_with(UTF8_BOM)) {
-    Section current{.header = {}, .body = {}, .name = {}, .kind = NONE, .readAs = NONE, .bodyLine = 1};
+    Section current{.header = {}, .body = {}, .name = {}, .kind = NONE, .readAs = NONE, .bodyLine = 1, .lines = 0};
     uSz bodyStart = this->bom ? UTF8_BOM.size() : 0;
     u32 number = 1;
     for(uSz pos = bodyStart; pos < bytes.size(); number++) {
@@ -206,6 +206,7 @@ BeatmapFile::BeatmapFile(std::string_view bytes) : bytes(bytes), bom(bytes.start
         const std::string_view line = lineText(raw);
         if(line.size() >= 2 && line.front() == '[' && line.back() == ']') {
             current.body = bytes.substr(bodyStart, pos - bodyStart);
+            current.lines = number - current.bodyLine;
             this->sections.push_back(current);
 
             const std::string_view name = line.substr(1, line.size() - 2);
@@ -216,12 +217,14 @@ BeatmapFile::BeatmapFile(std::string_view bytes) : bytes(bytes), bom(bytes.start
                        .name = name,
                        .kind = kind,
                        .readAs = kind == UNKNOWN ? current.readAs : kind,
-                       .bodyLine = number + 1};
+                       .bodyLine = number + 1,
+                       .lines = 0};
             bodyStart = next;
         }
         pos = next;
     }
     current.body = bytes.substr(bodyStart);
+    current.lines = number - current.bodyLine;
     this->sections.push_back(current);
 }
 

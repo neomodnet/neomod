@@ -3473,9 +3473,9 @@ FinishedScore BeatmapInterface::saveAndSubmitScore(bool quit) {
 
     // calculate final pp
     const int numHitObjects = this->hitobjects.size();
-    const int numCircles = static_cast<int>(played.primitives.hitcircles.size());
-    const int numSliders = static_cast<int>(played.primitives.sliders.size());
-    const int numSpinners = static_cast<int>(played.primitives.spinners.size());
+    const int numCircles = static_cast<int>(played.primitives.getNumObjects<DBType::HITCIRCLE>());
+    const int numSliders = static_cast<int>(played.primitives.getNumObjects<DBType::SLIDER>());
+    const int numSpinners = static_cast<int>(played.primitives.getNumObjects<DBType::SPINNER>());
     const int highestCombo = liveScore->getComboMax();
     const int numMisses = liveScore->getNumMisses();
     const int num300s = liveScore->getNum300s();

@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <utility>
+#include <variant>
 
 #include "AbstractBeatmapInterface.h"
 #include "AnimationHandler.h"
@@ -30,8 +31,6 @@
 #include "HitSounds.h"
 #include "LegacyReplay.h"
 #include "crypto.h"
-
-#define WANT_PDQSORT
 
 namespace neomod {
 using namespace flags::operators;
@@ -3009,35 +3008,27 @@ namespace HitObjects {
 std::vector<std::unique_ptr<HitObject>> create(const Primitives::PRIMITIVE_CONTAINER &primitives,
                                                AbstractBeatmapInterface *judge, const PlayfieldView *view) {
     std::vector<std::unique_ptr<HitObject>> objects;
-    objects.reserve(primitives.objectsByTime.size());
-    for(const auto [kind, index] : primitives.objectsByTime) {
-        switch(kind) {
-            case Primitives::ObjectRef::Kind::CIRCLE: {
-                const auto &h = primitives.hitcircles[index];
-                objects.emplace_back(new Circle(vec2{h.x, h.y}, h.time, h.samples, h.number, h.isEndOfCombo,
-                                                h.colorCounter, h.colorOffset, judge, view));
-                break;
-            }
-            case Primitives::ObjectRef::Kind::SLIDER: {
-                const auto &s = primitives.sliders[index];
-                objects.emplace_back(new Slider(s.type, s.repeat, s.pixelLength, s.points, s.ticks, s.sliderTime,
-                                                s.sliderTimeWithoutRepeats, s.time, s.hoverSamples, s.edgeSamples,
-                                                s.number, s.isEndOfCombo, s.colorCounter, s.colorOffset, judge, view));
-                break;
-            }
-            case Primitives::ObjectRef::Kind::SPINNER: {
-                const auto &s = primitives.spinners[index];
-                objects.emplace_back(
-                    new Spinner(vec2{s.x, s.y}, s.time, s.samples, s.isEndOfCombo, s.endTime, judge, view));
-                break;
-            }
+    objects.reserve(primitives.objects.size());
+    i32 comboStartTime = 0;
+    bool startsCombo = true;
+    for(const auto &object : primitives.objects) {
+        if(const auto *h = std::get_if<DatabaseBeatmapTypes::HITCIRCLE>(&object)) {
+            objects.emplace_back(new Circle(vec2{h->x, h->y}, h->time, h->samples, h->number, h->isEndOfCombo,
+                                            h->colorCounter, h->colorOffset, judge, view));
+        } else if(const auto *s = std::get_if<DatabaseBeatmapTypes::SLIDER>(&object)) {
+            objects.emplace_back(new Slider(s->type, s->repeat, s->pixelLength, s->points, s->ticks, s->sliderTime,
+                                            s->sliderTimeWithoutRepeats, s->time, s->hoverSamples, s->edgeSamples,
+                                            s->number, s->isEndOfCombo, s->colorCounter, s->colorOffset, judge, view));
+        } else {
+            const auto &spinner = std::get<DatabaseBeatmapTypes::SPINNER>(object);
+            objects.emplace_back(new Spinner(vec2{spinner.x, spinner.y}, spinner.time, spinner.samples,
+                                             spinner.isEndOfCombo, spinner.endTime, judge, view));
         }
-    }
 
-    i32 comboStartTime = objects.empty() ? 0 : objects[0]->getClickTime();
-    for(uSz i = 0; i < objects.size(); i++) {
-        objects[i]->setComboStartTime(comboStartTime);
-        if(objects[i]->isEndOfCombo() && i + 1 < objects.size()) comboStartTime = objects[i + 1]->getClickTime();
+        HitObject &created = *objects.back();
+        if(startsCombo) comboStartTime = created.getClickTime();
+        created.setComboStartTime(comboStartTime);
+        startsCombo = created.isEndOfCombo();
     }
 
     return objects;
