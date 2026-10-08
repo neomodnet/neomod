@@ -264,20 +264,6 @@ HitObject::HitObject(i32 timeMS, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, i
       m_colorOffset(colorOffset),
       m_endOfCombo(isEndOfCombo) {}
 
-bool HitObject::sortByEndTimeComp(HitObject const *a, HitObject const *b) {
-    if(a == b) return false;
-
-    if((a->getEndTime()) != (b->getEndTime())) return (a->getEndTime()) < (b->getEndTime());
-
-    if(a->getType() != b->getType()) return static_cast<int>(a->getType()) < static_cast<int>(b->getType());
-    if(a->getComboNumber() != b->getComboNumber()) return a->getComboNumber() < b->getComboNumber();
-
-    auto aPosAtEndTime = a->getRawPosAt(a->getEndTime()), bPosAtClickTime = b->getRawPosAt(b->getEndTime());
-    if(aPosAtEndTime != bPosAtClickTime) return vec::all(vec::lessThan(aPosAtEndTime, bPosAtClickTime));
-
-    return false;  // equivalent
-}
-
 void HitObject::draw2() {
     drawHitResultAnim(m_hitresultanim1);
     drawHitResultAnim(m_hitresultanim2);

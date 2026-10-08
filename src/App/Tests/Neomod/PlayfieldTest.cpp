@@ -94,8 +94,7 @@ bool PlayfieldTest::load(const std::string &path) {
     HitObjects::stack(m_objects, c.AR, c.version, c.stackLeniency, m_view.rawHitcircleDiameter, false);
 
     for(const auto &obj : m_objects) m_byEndTime.push_back({obj.get(), false});
-    std::ranges::sort(m_byEndTime,
-                      [](const Entry &a, const Entry &b) { return HitObject::sortByEndTimeComp(a.obj, b.obj); });
+    std::ranges::stable_sort(m_byEndTime, {}, [](const Entry &e) { return e.obj->getEndTime(); });
 
     m_firstTimeMS = m_objects.front()->getClickTime();
     m_lastTimeMS = m_byEndTime.back().obj->getEndTime();

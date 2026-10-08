@@ -688,7 +688,7 @@ bool BeatmapInterface::start() {
         this->hitobjectsSortedByEndTime.push_back(unq.get());
     }
 
-    std::ranges::sort(this->hitobjectsSortedByEndTime, HitObject::sortByEndTimeComp);
+    std::ranges::stable_sort(this->hitobjectsSortedByEndTime, {}, &HitObject::getEndTime);
 
     // after the hitobjects have been loaded we can calculate the stacks
     this->calculateStacks();

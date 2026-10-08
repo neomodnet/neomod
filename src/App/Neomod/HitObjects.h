@@ -70,9 +70,6 @@ class HitObject {
     static void drawHitResult(const PlayfieldView &view, vec2 pos, LiveHitResult result, f32 animPercentInv,
                               f32 hitDeltaRangePercent);
 
-    // the order objects are drawn in (by end time)
-    static bool sortByEndTimeComp(HitObject const *a, HitObject const *b);
-
    protected:  // only constructable through subclasses
     // judge: what judges it (NULL: never updated), view: what it's drawn on (NULL: never drawn)
     HitObject(i32 timeMS, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, i32 comboNumber, bool isEndOfCombo,
