@@ -124,6 +124,17 @@ void FileTest::update() {
         TEST_ASSERT(!nowhere.commit() && !nowhere.error().empty(), "a file that can't be opened fails its commit");
     }
 
+    TEST_SECTION("directories");
+    {
+        // (with a data dir given as a unix path under wine too, which the file layer converts)
+        const std::string nested = dir + "/made/with/parents";
+        TEST_ASSERT(Environment::createDirectory(nested) && Environment::directoryExists(nested),
+                    "a directory is made with its missing parents");
+        TEST_ASSERT(Environment::createDirectory(nested + "/"),
+                    "...one that's there counts as made, a trailing slash too");
+        TEST_ASSERT(!Environment::createDirectory(dir + "/committed"), "a file in the way isn't a directory");
+    }
+
     Environment::deletePathsRecursive(dir);
     TEST_PRINT_RESULTS("FileTest");
     engine->shutdown();

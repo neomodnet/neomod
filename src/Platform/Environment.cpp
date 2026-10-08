@@ -52,6 +52,8 @@
 #include <iomanip>
 #include <filesystem>
 #include <optional>
+#include <string_view>
+#include <system_error>
 #include <unordered_map>
 
 #if defined(MCENGINE_PLATFORM_WINDOWS)
@@ -457,7 +459,12 @@ bool Environment::directoryExists(std::string_view directoryName) noexcept {
 }
 
 bool Environment::createDirectory(const std::string &directoryName) noexcept {
-    return SDL_CreateDirectory(directoryName.c_str());  // returns true if it already exists
+    // with its missing parents, through the file layer's path (under wine a unix path becomes a dos one there)
+    std::string_view path{directoryName};
+    while(path.size() > 1 && (path.back() == '/' || path.back() == '\\')) path.remove_suffix(1);
+    std::error_code ec;
+    std::filesystem::create_directories(File::getFsPath(path), ec);
+    return !ec;  // (true if it's there already)
 }
 
 bool Environment::deletePathsRecursive(const std::string &path, int maxRecursionLevels) noexcept {
