@@ -117,6 +117,7 @@ Real ranked maps are named `<beatmap_id>.osu`; degenerate cases are tiny hand-wr
 | `empty-objects.osu` | zero objects, "no objects in file" error line | hand-written |
 | `zero-length-slider.osu` | 0-pixelLength slider with a single-point curve | hand-written |
 | `negative-duration.osu` | spinner with endTime < startTime (Aspire getDuration clamp) | hand-written |
+| `same-time-objects.osu` | objects sharing a start time, kept in the order of their lines (as lazer) | hand-written |
 | `synthetic-5001-sliders.osu` | >5000 sliders, deferred McKay curve alloc path | `python3 gen_5001_sliders.py` (deterministic, checked in) |
 
 Real fixtures were extracted from local `.osz` archives with:

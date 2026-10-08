@@ -9,7 +9,6 @@
 #include "InlineVec.h"
 
 #define WANT_PDQSORT
-#include "Sorting.h"
 
 #include <cassert>
 #include <numbers>
@@ -47,7 +46,7 @@
 namespace neomod::DiffCalc {
 // see https://github.com/ppy/osu/pull/37850
 // NOTE: updated to 20260811 to force recalc over initial implementation divergences
-const u32 PP_ALGORITHM_VERSION{20260811};
+const u32 PP_ALGORITHM_VERSION{20261008};
 
 namespace {
 // internal helper utils (forward decls)
@@ -555,50 +554,39 @@ LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(Primitives::PRIMITIVE_CONTAINER &c,
         c.sliderTimesCalculated = true;
     }
 
-    // and generate the difficultyhitobjects
-    result.diffobjects.reserve(c.hitcircles.size() + c.sliders.size() + c.spinners.size());
-
-    for(auto &hitcircle : c.hitcircles) {
-        result.diffobjects.emplace_back(DifficultyHitObject::TYPE::CIRCLE, vec2{hitcircle.x, hitcircle.y},
-                                        (i32)hitcircle.time);
-    }
-
+    // and generate the difficultyhitobjects, in the order the game plays them
+    result.diffobjects.reserve(c.objectsByTime.size());
     const bool calculateSliderCurveInConstructor =
         (c.sliders.size() < 5000);  // NOTE: for explanation see DiffCalc::DifficultyHitObject constructor
-    for(const auto &slider : c.sliders) {
-        if(dead.stop_requested()) {
-            result.error.errc = Primitives::LoadError::LOAD_INTERRUPTED;
-            return result;
+    for(const auto [kind, index] : c.objectsByTime) {
+        switch(kind) {
+            case Primitives::ObjectRef::Kind::CIRCLE: {
+                const auto &hitcircle = c.hitcircles[index];
+                result.diffobjects.emplace_back(DifficultyHitObject::TYPE::CIRCLE, vec2{hitcircle.x, hitcircle.y},
+                                                (i32)hitcircle.time);
+                break;
+            }
+            case Primitives::ObjectRef::Kind::SLIDER: {
+                if(dead.stop_requested()) {
+                    result.error.errc = Primitives::LoadError::LOAD_INTERRUPTED;
+                    return result;
+                }
+
+                const auto &slider = c.sliders[index];
+                result.diffobjects.emplace_back(DifficultyHitObject::TYPE::SLIDER, vec2{slider.x, slider.y},
+                                                slider.time, slider.time + (i32)slider.sliderTime,
+                                                slider.sliderTimeWithoutRepeats, slider.type, slider.points,
+                                                slider.pixelLength, slider.scoringTimesForStarCalc, slider.repeat,
+                                                calculateSliderCurveInConstructor);
+                break;
+            }
+            case Primitives::ObjectRef::Kind::SPINNER: {
+                const auto &spinner = c.spinners[index];
+                result.diffobjects.emplace_back(DifficultyHitObject::TYPE::SPINNER, vec2{spinner.x, spinner.y},
+                                                (i32)spinner.time, (i32)spinner.endTime);
+                break;
+            }
         }
-
-        result.diffobjects.emplace_back(DifficultyHitObject::TYPE::SLIDER, vec2{slider.x, slider.y}, slider.time,
-                                        slider.time + (i32)slider.sliderTime, slider.sliderTimeWithoutRepeats,
-                                        slider.type, slider.points, slider.pixelLength, slider.scoringTimesForStarCalc,
-                                        slider.repeat, calculateSliderCurveInConstructor);
-    }
-
-    for(const auto &spinner : c.spinners) {
-        result.diffobjects.emplace_back(DifficultyHitObject::TYPE::SPINNER, vec2{spinner.x, spinner.y},
-                                        (i32)spinner.time, (i32)spinner.endTime);
-    }
-
-    if(dead.stop_requested()) {
-        result.error.errc = Primitives::LoadError::LOAD_INTERRUPTED;
-        return result;
-    }
-
-    if(result.diffobjects.size() > 1) {
-        // sort hitobjects by time
-        static constexpr auto diffHitObjectSortComparator =
-            +[](const DifficultyHitObject &a, const DifficultyHitObject &b) -> bool {
-            if(a.time != b.time) return a.time < b.time;
-            if(a.type != b.type) return static_cast<int>(a.type) < static_cast<int>(b.type);
-            if(a.pos.x != b.pos.x) return a.pos.x < b.pos.x;
-            if(a.pos.y != b.pos.y) return a.pos.y < b.pos.y;
-            return false;  // equivalent
-        };
-
-        srt::pdqsort(result.diffobjects, diffHitObjectSortComparator);
     }
 
     if(dead.stop_requested()) {
