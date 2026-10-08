@@ -103,8 +103,8 @@ class MusicTrack final {
     [[nodiscard]] f32 getVolume() const;
 
     Sound *stream{nullptr};
-    std::string path;  // what the stream plays, or is loading
-    DatabaseBeatmap *map{nullptr};
+    std::string path;               // what the stream plays, or is loading
+    DatabaseBeatmap *map{nullptr};  // TODO: avoid storing loudness inside beatmap (as the only place)
     Mc::Registration deviceChangeListener;
 
     // the transport, kept for the stream a load or a device change makes and for its new voices
@@ -136,4 +136,9 @@ class MusicTrack final {
     // across a device change
     bool deviceChanging{false};
     bool resumeAfterDeviceChange{false};
+
+    // TODO related to storing loudness in DatabaseBeatmap:
+    // to avoid the case where the beatmap is unloaded but the music is still playing,
+    // keep the music at the last known loudness
+    mutable f32 lastLoudness{0.0f};
 };

@@ -322,10 +322,12 @@ void MusicTrack::endSlowdown() {
 
 f32 MusicTrack::getVolume() const {
     const f32 volume = cv::volume_music.getFloat();
-    if(!cv::normalize_loudness.getBool() || !this->map) return volume;
+    if(!cv::normalize_loudness.getBool()) return volume;
+    if(this->map) this->lastLoudness = this->map->loudness.load(std::memory_order_acquire);
 
-    const f32 loudness = this->map->loudness.load(std::memory_order_acquire);
-    return loudness != 0.f ? volume * std::pow(10.f, (cv::loudness_target.getFloat() - loudness) / 20.f) : volume;
+    return this->lastLoudness != 0.f
+               ? volume * std::pow(10.f, (cv::loudness_target.getFloat() - this->lastLoudness) / 20.f)
+               : volume;
 }
 
 bool MusicTrack::isPlaying() const {
