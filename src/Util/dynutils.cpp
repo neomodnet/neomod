@@ -13,10 +13,7 @@
 #include "RuntimePlatform.h"
 
 #include "WinDebloatDefs.h"
-#include <winbase.h>
-#ifndef SUCCEEDED
-#define SUCCEEDED(hr) (((HRESULT)(hr)) >= 0)
-#endif
+#include <windows.h>
 #include <libloaderapi.h>
 
 #else

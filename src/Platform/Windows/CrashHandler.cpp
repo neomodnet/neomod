@@ -17,6 +17,7 @@ void init() {}
 
 #include "WinDebloatDefs.h"
 
+#include <windows.h>
 #include <winver.h>
 #include <processthreadsapi.h>
 #include <timezoneapi.h>

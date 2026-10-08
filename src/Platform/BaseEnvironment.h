@@ -232,8 +232,12 @@ typedef void* HWND;
 #include "WinDebloatDefs.h"
 
 #include <basetsd.h>
-#include <windef.h>
 #include <intrin.h>
+
+// as windef.h declares it (STRICT), which would bring the windows headers and their macros (near, far, DELETE, ...)
+// into every file that includes this one
+struct HWND__;
+typedef HWND__ *HWND;
 
 #ifndef fileno
 #define fileno _fileno

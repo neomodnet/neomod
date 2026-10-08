@@ -18,7 +18,7 @@
 #ifdef MCENGINE_PLATFORM_WINDOWS
 #include "WinDebloatDefs.h"
 
-#include <winbase.h>
+#include <windows.h>
 #include <winreg.h>
 
 #include "UniString.h"

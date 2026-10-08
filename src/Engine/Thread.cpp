@@ -8,11 +8,8 @@
 
 #if defined(_WIN32)
 #include "WinDebloatDefs.h"
-#include <winbase.h>
+#include <windows.h>
 #include <processthreadsapi.h>
-#ifndef SUCCEEDED
-#define SUCCEEDED(hr) (((HRESULT)(hr)) >= 0)
-#endif
 #include <libloaderapi.h>
 #include "dynutils.h"
 #include "UniString.h"
