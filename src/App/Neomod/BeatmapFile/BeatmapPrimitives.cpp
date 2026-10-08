@@ -233,12 +233,11 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
         }
     }
 
-    // each object's time and type, which the combos are numbered from once all are read (below)
+    // each object's time and type, to put them in time order and number their combos once all are read (below)
     struct ComboEntry {
         i32 time;
         u8 type;
-        HO::Kind kind;
-        uSz index;  // in hitcircles or sliders
+        ObjectRef object;
     };
     std::vector<ComboEntry> comboEntries;
 
@@ -260,13 +259,6 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
             continue;
         }
 
-        if(ho.kind != HO::Kind::NONE) {
-            comboEntries.push_back({.time = ho.time,
-                                    .type = ho.type,
-                                    .kind = ho.kind,
-                                    .index = ho.kind == HO::Kind::SLIDER ? c.sliders.size() : c.hitcircles.size()});
-        }
-
         switch(ho.kind) {
             case HO::Kind::NONE:
                 break;
@@ -280,6 +272,8 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
                 h.samples.hitSounds = (ho.hitSounds & HitSoundType::VALID_HITSOUNDS);
                 applyHitSample(ho.sample, h.samples);
 
+                comboEntries.push_back(
+                    {.time = ho.time, .type = ho.type, .object = {ObjectRef::Kind::CIRCLE, (u32)c.hitcircles.size()}});
                 c.hitcircles.push_back(h);
                 break;
             }
@@ -346,6 +340,8 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
                     slider.pixelLength =
                         std::min(SliderCurve{slider.type, slider.points, 0.f}.getPixelLength(), sliderSanityRange);
                 }
+                comboEntries.push_back(
+                    {.time = ho.time, .type = ho.type, .object = {ObjectRef::Kind::SLIDER, (u32)c.sliders.size()}});
                 c.sliders.push_back(std::move(slider));
                 break;
             }
@@ -359,14 +355,16 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
                 s.samples.hitSounds = (u8)(ho.hitSounds & HitSoundType::VALID_HITSOUNDS);
                 applyHitSample(ho.sample, s.samples);
 
+                comboEntries.push_back(
+                    {.time = ho.time, .type = ho.type, .object = {ObjectRef::Kind::SPINNER, (u32)c.spinners.size()}});
                 c.spinners.push_back(s);
                 break;
             }
         }
     }
 
-    // combos as the objects come in time, which a file's lines don't have to follow (osu!stable and lazer sort before
-    // numbering them; equal times keep the order of their lines, as in lazer)
+    // the objects as they come in time, which a file's lines don't have to follow (osu!stable and lazer sort them too;
+    // equal times keep the order of their lines), and their combos in that order
     std::ranges::stable_sort(comboEntries, {}, &ComboEntry::time);
     int hitobjectsWithoutSpinnerCounter = 0;
     int colorCounter = 1;
@@ -378,8 +376,10 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
     std::ranges::sort(breakEnds);
     auto nextBreakEnd = breakEnds.cbegin();
     bool forceNewCombo = false;
+    c.objectsByTime.reserve(comboEntries.size());
     for(const ComboEntry &entry : comboEntries) {
-        const bool isSpinner = entry.kind == HO::Kind::SPINNER;
+        c.objectsByTime.push_back(entry.object);
+        const bool isSpinner = entry.object.kind == ObjectRef::Kind::SPINNER;
         if(!isSpinner) hitobjectsWithoutSpinnerCounter++;
         for(; nextBreakEnd != breakEnds.cend() && *nextBreakEnd < entry.time; ++nextBreakEnd) forceNewCombo = true;
 
@@ -400,13 +400,13 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
         }
         forceNewCombo = isSpinner;
 
-        if(entry.kind == HO::Kind::CIRCLE) {
-            HITCIRCLE &h = c.hitcircles[entry.index];
+        if(entry.object.kind == ObjectRef::Kind::CIRCLE) {
+            HITCIRCLE &h = c.hitcircles[entry.object.index];
             h.number = comboNumber++;
             h.colorCounter = colorCounter;
             h.colorOffset = colorOffset;
-        } else if(entry.kind == HO::Kind::SLIDER) {
-            SLIDER &slider = c.sliders[entry.index];
+        } else if(entry.object.kind == ObjectRef::Kind::SLIDER) {
+            SLIDER &slider = c.sliders[entry.object.index];
             slider.number = comboNumber++;
             slider.colorCounter = colorCounter;
             slider.colorOffset = colorOffset;

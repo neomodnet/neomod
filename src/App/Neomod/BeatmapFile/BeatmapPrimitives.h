@@ -123,11 +123,21 @@ class TimingPoints {
     FixedSizeArray<Entry> entries;
 };
 
+// an object in PRIMITIVE_CONTAINER: its kind's vector and its place there
+struct ObjectRef final {
+    enum class Kind : u8 { CIRCLE, SLIDER, SPINNER };
+    Kind kind;
+    u32 index;
+};
+
 struct PRIMITIVE_CONTAINER final {
     std::vector<DBType::HITCIRCLE> hitcircles{};
     std::vector<DBType::SLIDER> sliders{};
     std::vector<DBType::SPINNER> spinners{};
     std::vector<DBType::BREAK> breaks{};
+
+    // every object in the order the game plays them: by time, equal times in the order of their lines
+    std::vector<ObjectRef> objectsByTime{};
 
     TimingPoints timingpoints{};
     std::vector<Color> combocolors{};

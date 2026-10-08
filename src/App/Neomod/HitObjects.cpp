@@ -32,7 +32,6 @@
 #include "crypto.h"
 
 #define WANT_PDQSORT
-#include "Sorting.h"
 
 namespace neomod {
 using namespace flags::operators;
@@ -264,20 +263,6 @@ HitObject::HitObject(i32 timeMS, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, i
       m_colorCounter(colorCounter),
       m_colorOffset(colorOffset),
       m_endOfCombo(isEndOfCombo) {}
-
-bool HitObject::sortByStartTimeComp(HitObject const *a, HitObject const *b) {
-    if(a == b) return false;
-
-    if((a->getClickTime()) != (b->getClickTime())) return (a->getClickTime()) < (b->getClickTime());
-
-    if(a->getType() != b->getType()) return static_cast<int>(a->getType()) < static_cast<int>(b->getType());
-    if(a->getComboNumber() != b->getComboNumber()) return a->getComboNumber() < b->getComboNumber();
-
-    auto aPosAtStartTime = a->getRawPosAt(a->getClickTime()), bPosAtClickTime = b->getRawPosAt(b->getClickTime());
-    if(aPosAtStartTime != bPosAtClickTime) return vec::all(vec::lessThan(aPosAtStartTime, bPosAtClickTime));
-
-    return false;  // equivalent
-}
 
 bool HitObject::sortByEndTimeComp(HitObject const *a, HitObject const *b) {
     if(a == b) return false;
@@ -3038,27 +3023,28 @@ namespace HitObjects {
 std::vector<std::unique_ptr<HitObject>> create(const Primitives::PRIMITIVE_CONTAINER &primitives,
                                                AbstractBeatmapInterface *judge, const PlayfieldView *view) {
     std::vector<std::unique_ptr<HitObject>> objects;
-    objects.reserve(primitives.hitcircles.size() + primitives.sliders.size() + primitives.spinners.size());
-
-    for(const auto &h : primitives.hitcircles) {
-        objects.emplace_back(
-            new Circle(vec2{h.x, h.y}, h.time, h.samples, h.number, false, h.colorCounter, h.colorOffset, judge, view));
-    }
-    for(const auto &s : primitives.sliders) {
-        objects.emplace_back(new Slider(s.type, s.repeat, s.pixelLength, s.points, s.ticks, s.sliderTime,
-                                        s.sliderTimeWithoutRepeats, s.time, s.hoverSamples, s.edgeSamples, s.number,
-                                        false, s.colorCounter, s.colorOffset, judge, view));
-    }
-    for(const auto &s : primitives.spinners) {
-        objects.emplace_back(new Spinner(vec2{s.x, s.y}, s.time, s.samples, false, s.endTime, judge, view));
-    }
-
-    if(objects.size() > 1) {
-        static constexpr auto hobjsorter =
-            +[](const std::unique_ptr<HitObject> &a, const std::unique_ptr<HitObject> &b) -> bool {
-            return HitObject::sortByStartTimeComp(a.get(), b.get());
-        };
-        srt::pdqsort(objects, hobjsorter);
+    objects.reserve(primitives.objectsByTime.size());
+    for(const auto [kind, index] : primitives.objectsByTime) {
+        switch(kind) {
+            case Primitives::ObjectRef::Kind::CIRCLE: {
+                const auto &h = primitives.hitcircles[index];
+                objects.emplace_back(new Circle(vec2{h.x, h.y}, h.time, h.samples, h.number, false, h.colorCounter,
+                                                h.colorOffset, judge, view));
+                break;
+            }
+            case Primitives::ObjectRef::Kind::SLIDER: {
+                const auto &s = primitives.sliders[index];
+                objects.emplace_back(new Slider(s.type, s.repeat, s.pixelLength, s.points, s.ticks, s.sliderTime,
+                                                s.sliderTimeWithoutRepeats, s.time, s.hoverSamples, s.edgeSamples,
+                                                s.number, false, s.colorCounter, s.colorOffset, judge, view));
+                break;
+            }
+            case Primitives::ObjectRef::Kind::SPINNER: {
+                const auto &s = primitives.spinners[index];
+                objects.emplace_back(new Spinner(vec2{s.x, s.y}, s.time, s.samples, false, s.endTime, judge, view));
+                break;
+            }
+        }
     }
 
     // a combo ends before the next object numbered 1

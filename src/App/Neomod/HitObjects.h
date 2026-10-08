@@ -70,8 +70,7 @@ class HitObject {
     static void drawHitResult(const PlayfieldView &view, vec2 pos, LiveHitResult result, f32 animPercentInv,
                               f32 hitDeltaRangePercent);
 
-    // the order objects are played in, and the order they're drawn in (by end time)
-    static bool sortByStartTimeComp(HitObject const *a, HitObject const *b);
+    // the order objects are drawn in (by end time)
     static bool sortByEndTimeComp(HitObject const *a, HitObject const *b);
 
    protected:  // only constructable through subclasses
@@ -515,8 +514,8 @@ class Spinner final : public HitObject {
 // a map's objects as a whole, sorted by start time
 namespace HitObjects {
 
-// from the map's primitives (with slider times calculated), their combo ends and combo start times set; judged by judge
-// and drawn on view (see HitObject's constructor)
+// from the map's primitives (with slider times calculated), in the order they're played, their combo ends and combo
+// start times set; judged by judge and drawn on view (see HitObject's constructor)
 std::vector<std::unique_ptr<HitObject>> create(const Primitives::PRIMITIVE_CONTAINER &primitives,
                                                AbstractBeatmapInterface *judge, const PlayfieldView *view);
 

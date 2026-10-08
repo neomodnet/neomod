@@ -541,6 +541,19 @@ void BeatmapFileTest::runTests() {
         TEST_ASSERT_EQ(combo(2000), "2 1 0", "...the next one in time continues it");
         TEST_ASSERT_EQ(combo(3000), "1 2 2", "...and a later new combo (skipping two colours) starts the next");
 
+        const auto sameTime = load(
+            "osu file format v14\r\n[HitObjects]\r\n0,0,1000,2,0,L|100:0,1,100\r\n0,0,1000,1,0\r\n"
+            "256,192,500,12,0,800\r\n0,0,1000,1,0\r\n");
+        std::string kinds;
+        for(const auto [kind, index] : sameTime.objectsByTime) {
+            kinds += fmt::format("{}{} ",
+                                 kind == Primitives::ObjectRef::Kind::CIRCLE   ? 'c'
+                                 : kind == Primitives::ObjectRef::Kind::SLIDER ? 's'
+                                                                               : 'p',
+                                 index);
+        }
+        TEST_ASSERT_EQ(kinds, "p0 s0 c0 c1 ", "the objects by time, equal times in the order of their lines");
+
         const auto spinners = load(
             "osu file format v14\r\n[HitObjects]\r\n0,0,1000,5,0\r\n0,0,2000,1,0\r\n256,192,3000,12,0,4000\r\n"
             "0,0,5000,1,0\r\n0,0,6000,1,0\r\n256,192,7000,8,0,8000\r\n0,0,9000,1,0\r\n256,192,10000,12,0,11000\r\n"
