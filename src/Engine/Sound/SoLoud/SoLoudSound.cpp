@@ -36,7 +36,7 @@ const char *decoderName(SoLoud::WAVSTREAM_FILETYPE filetype) {
         case SoLoud::WAVSTREAM_WAV:
             return "dr_wav";
         case SoLoud::WAVSTREAM_OGG:
-            return "dr_ogg";
+            return "stb_vorbis";
         case SoLoud::WAVSTREAM_FLAC:
             return "dr_flac";
         case SoLoud::WAVSTREAM_MPG123:
