@@ -47,7 +47,6 @@ enum class HitObjectType : uint8_t {
 class HitObject {
    public:
     // TEMP constructor helpers (HitObjects::create, DatabaseBeatmap::loadGameplay)
-    void setIsEndOfCombo(bool end) { m_endOfCombo = end; }
     void setComboStartTime(i32 tms) { m_comboStartMS = tms; }
     void setComboNumber(i32 comboNumber) { m_comboNumber = comboNumber; }
 

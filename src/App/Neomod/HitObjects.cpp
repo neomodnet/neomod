@@ -3014,38 +3014,30 @@ std::vector<std::unique_ptr<HitObject>> create(const Primitives::PRIMITIVE_CONTA
         switch(kind) {
             case Primitives::ObjectRef::Kind::CIRCLE: {
                 const auto &h = primitives.hitcircles[index];
-                objects.emplace_back(new Circle(vec2{h.x, h.y}, h.time, h.samples, h.number, false, h.colorCounter,
-                                                h.colorOffset, judge, view));
+                objects.emplace_back(new Circle(vec2{h.x, h.y}, h.time, h.samples, h.number, h.isEndOfCombo,
+                                                h.colorCounter, h.colorOffset, judge, view));
                 break;
             }
             case Primitives::ObjectRef::Kind::SLIDER: {
                 const auto &s = primitives.sliders[index];
                 objects.emplace_back(new Slider(s.type, s.repeat, s.pixelLength, s.points, s.ticks, s.sliderTime,
                                                 s.sliderTimeWithoutRepeats, s.time, s.hoverSamples, s.edgeSamples,
-                                                s.number, false, s.colorCounter, s.colorOffset, judge, view));
+                                                s.number, s.isEndOfCombo, s.colorCounter, s.colorOffset, judge, view));
                 break;
             }
             case Primitives::ObjectRef::Kind::SPINNER: {
                 const auto &s = primitives.spinners[index];
-                objects.emplace_back(new Spinner(vec2{s.x, s.y}, s.time, s.samples, false, s.endTime, judge, view));
+                objects.emplace_back(
+                    new Spinner(vec2{s.x, s.y}, s.time, s.samples, s.isEndOfCombo, s.endTime, judge, view));
                 break;
             }
         }
     }
 
-    // a combo ends before the next object numbered 1
     i32 comboStartTime = objects.empty() ? 0 : objects[0]->getClickTime();
     for(uSz i = 0; i < objects.size(); i++) {
-        HitObject *currentHitObject = objects[i].get();
-        currentHitObject->setComboStartTime(comboStartTime);
-
-        const HitObject *nextHitObject = (i + 1 < objects.size() ? objects[i + 1].get() : nullptr);
-        if(nextHitObject == nullptr || nextHitObject->getComboNumber() == 1) {
-            currentHitObject->setIsEndOfCombo(true);
-            if(nextHitObject != nullptr) {
-                comboStartTime = nextHitObject->getClickTime();
-            }
-        }
+        objects[i]->setComboStartTime(comboStartTime);
+        if(objects[i]->isEndOfCombo() && i + 1 < objects.size()) comboStartTime = objects[i + 1]->getClickTime();
     }
 
     return objects;

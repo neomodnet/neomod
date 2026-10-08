@@ -351,7 +351,8 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
                           .y = (f32)(i32)ho.y,
                           .time = ho.time,
                           .endTime = ho.endTime,
-                          .samples = {}};
+                          .samples = {},
+                          .isEndOfCombo = false};
                 s.samples.hitSounds = (u8)(ho.hitSounds & HitSoundType::VALID_HITSOUNDS);
                 applyHitSample(ho.sample, s.samples);
 
@@ -376,12 +377,19 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
     std::ranges::sort(breakEnds);
     auto nextBreakEnd = breakEnds.cbegin();
     bool forceNewCombo = false;
+    bool *previousEndsCombo = nullptr;
     c.objectsByTime.reserve(comboEntries.size());
     for(const ComboEntry &entry : comboEntries) {
         c.objectsByTime.push_back(entry.object);
         const bool isSpinner = entry.object.kind == ObjectRef::Kind::SPINNER;
         if(!isSpinner) hitobjectsWithoutSpinnerCounter++;
         for(; nextBreakEnd != breakEnds.cend() && *nextBreakEnd < entry.time; ++nextBreakEnd) forceNewCombo = true;
+
+        // a combo ends before any object that starts one, a spinner too (as in osu!stable, where a v8 file's spinners
+        // always do)
+        if(previousEndsCombo && ((entry.type & HO::TYPE_NEW_COMBO) || forceNewCombo || (isSpinner && c.version <= 8))) {
+            *previousEndsCombo = true;
+        }
 
         // the first object after spinners or a break starts a new combo whether its line has one or not (as in
         // osu!stable and lazer)
@@ -405,13 +413,18 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
             h.number = comboNumber++;
             h.colorCounter = colorCounter;
             h.colorOffset = colorOffset;
+            previousEndsCombo = &h.isEndOfCombo;
         } else if(entry.object.kind == ObjectRef::Kind::SLIDER) {
             SLIDER &slider = c.sliders[entry.object.index];
             slider.number = comboNumber++;
             slider.colorCounter = colorCounter;
             slider.colorOffset = colorOffset;
+            previousEndsCombo = &slider.isEndOfCombo;
+        } else {
+            previousEndsCombo = &c.spinners[entry.object.index].isEndOfCombo;
         }
     }
+    if(previousEndsCombo) *previousEndsCombo = true;
 
     // special case: old beatmaps have AR = OD, there is no ApproachRate stored
     if(!foundAR) c.AR = c.OD;

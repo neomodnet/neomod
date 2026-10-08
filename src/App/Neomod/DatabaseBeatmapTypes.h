@@ -104,6 +104,7 @@ struct HITCIRCLE final {
     i32 number;
     i32 colorCounter;
     i32 colorOffset;
+    bool isEndOfCombo;
     // bool clicked; // not sure what this was supposed to be used for
     HITSAMPLE_BITS samples;
 };
@@ -127,6 +128,7 @@ struct SLIDER final {
     i32 number;
     i32 colorCounter;
     i32 colorOffset;
+    bool isEndOfCombo;
 
     f32 sliderTime;
     f32 sliderTimeWithoutRepeats;
@@ -147,6 +149,7 @@ struct SPINNER final {
     i32 time;
     i32 endTime;
     HITSAMPLE_BITS samples;
+    bool isEndOfCombo;
 };
 }  // namespace DatabaseBeatmapTypes
 }  // namespace neomod
