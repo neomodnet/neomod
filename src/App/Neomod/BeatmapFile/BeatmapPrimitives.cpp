@@ -260,10 +260,12 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
             continue;
         }
 
-        comboEntries.push_back({.time = ho.time,
-                                .type = ho.type,
-                                .kind = ho.kind,
-                                .index = ho.kind == HO::Kind::SLIDER ? c.sliders.size() : c.hitcircles.size()});
+        if(ho.kind != HO::Kind::NONE) {
+            comboEntries.push_back({.time = ho.time,
+                                    .type = ho.type,
+                                    .kind = ho.kind,
+                                    .index = ho.kind == HO::Kind::SLIDER ? c.sliders.size() : c.hitcircles.size()});
+        }
 
         switch(ho.kind) {
             case HO::Kind::NONE:
@@ -370,21 +372,27 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
     int colorCounter = 1;
     int colorOffset = 0;
     int comboNumber = 1;
+    bool afterSpinner = false;
     for(const ComboEntry &entry : comboEntries) {
-        if(!(entry.type & HO::TYPE_SPINNER)) hitobjectsWithoutSpinnerCounter++;
+        const bool isSpinner = entry.kind == HO::Kind::SPINNER;
+        if(!isSpinner) hitobjectsWithoutSpinnerCounter++;
 
-        if(entry.type & HO::TYPE_NEW_COMBO) {
+        // the first object after spinners starts a new combo whether its line has one or not (as in osu!stable and
+        // lazer)
+        if((entry.type & HO::TYPE_NEW_COMBO) || (afterSpinner && !isSpinner)) {
             comboNumber = 1;
 
             // special case 1: if the current object is a spinner, then the raw color counter is not
             // increased (but the offset still is!)
             // special case 2: the first (non-spinner) hitobject in a beatmap is always a new combo,
             // therefore the raw color counter is not increased for it (but the offset still is!)
-            if(!(entry.type & HO::TYPE_SPINNER) && hitobjectsWithoutSpinnerCounter > 1) colorCounter++;
+            if(!isSpinner && hitobjectsWithoutSpinnerCounter > 1) colorCounter++;
 
             // special case 3: "Bits 4-6 (16, 32, 64) form a 3-bit number (0-7) that chooses how many combo colours to skip."
-            colorOffset += (entry.type >> HO::TYPE_COLOUR_SKIP_SHIFT) & 0b111;
+            // (only an object's own new combo skips any)
+            if(entry.type & HO::TYPE_NEW_COMBO) colorOffset += (entry.type >> HO::TYPE_COLOUR_SKIP_SHIFT) & 0b111;
         }
+        afterSpinner = isSpinner;
 
         if(entry.kind == HO::Kind::CIRCLE) {
             HITCIRCLE &h = c.hitcircles[entry.index];

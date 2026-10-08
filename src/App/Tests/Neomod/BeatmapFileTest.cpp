@@ -540,6 +540,22 @@ void BeatmapFileTest::runTests() {
         TEST_ASSERT_EQ(combo(1000), "1 1 0", "the earliest object starts the first combo, wherever its line is");
         TEST_ASSERT_EQ(combo(2000), "2 1 0", "...the next one in time continues it");
         TEST_ASSERT_EQ(combo(3000), "1 2 2", "...and a later new combo (skipping two colours) starts the next");
+
+        const auto spinners = load(
+            "osu file format v14\r\n[HitObjects]\r\n0,0,1000,5,0\r\n0,0,2000,1,0\r\n256,192,3000,12,0,4000\r\n"
+            "0,0,5000,1,0\r\n0,0,6000,1,0\r\n256,192,7000,8,0,8000\r\n0,0,9000,1,0\r\n256,192,10000,12,0,11000\r\n"
+            "256,192,12000,8,0,13000\r\n0,0,14000,1,0\r\n256,192,15000,44,0,16000\r\n0,0,17000,1,0\r\n");
+        const auto spinnerCombo = [&spinners](i32 time) {
+            for(const auto &h : spinners.hitcircles) {
+                if(h.time == time) return fmt::format("{} {} {}", h.number, h.colorCounter, h.colorOffset);
+            }
+            return std::string{"none"};
+        };
+        TEST_ASSERT_EQ(spinnerCombo(5000), "1 2 0", "the object after a new combo spinner starts the next combo");
+        TEST_ASSERT_EQ(spinnerCombo(6000), "2 2 0", "...which the one after continues");
+        TEST_ASSERT_EQ(spinnerCombo(9000), "1 3 0", "a spinner without a new combo starts one on the next object too");
+        TEST_ASSERT_EQ(spinnerCombo(14000), "1 4 0", "spinners in a row start one combo after them");
+        TEST_ASSERT_EQ(spinnerCombo(17000), "1 5 2", "a new combo spinner's colour skip carries over to it");
     }
 
     TEST_SECTION("events and colours");
