@@ -372,14 +372,20 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
     int colorCounter = 1;
     int colorOffset = 0;
     int comboNumber = 1;
-    bool afterSpinner = false;
+    std::vector<i32> breakEnds;
+    breakEnds.reserve(c.breaks.size());
+    for(const BREAK &b : c.breaks) breakEnds.push_back(b.endTime);
+    std::ranges::sort(breakEnds);
+    auto nextBreakEnd = breakEnds.cbegin();
+    bool forceNewCombo = false;
     for(const ComboEntry &entry : comboEntries) {
         const bool isSpinner = entry.kind == HO::Kind::SPINNER;
         if(!isSpinner) hitobjectsWithoutSpinnerCounter++;
+        for(; nextBreakEnd != breakEnds.cend() && *nextBreakEnd < entry.time; ++nextBreakEnd) forceNewCombo = true;
 
-        // the first object after spinners starts a new combo whether its line has one or not (as in osu!stable and
-        // lazer)
-        if((entry.type & HO::TYPE_NEW_COMBO) || (afterSpinner && !isSpinner)) {
+        // the first object after spinners or a break starts a new combo whether its line has one or not (as in
+        // osu!stable and lazer)
+        if((entry.type & HO::TYPE_NEW_COMBO) || (forceNewCombo && !isSpinner)) {
             comboNumber = 1;
 
             // special case 1: if the current object is a spinner, then the raw color counter is not
@@ -392,7 +398,7 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
             // (only an object's own new combo skips any)
             if(entry.type & HO::TYPE_NEW_COMBO) colorOffset += (entry.type >> HO::TYPE_COLOUR_SKIP_SHIFT) & 0b111;
         }
-        afterSpinner = isSpinner;
+        forceNewCombo = isSpinner;
 
         if(entry.kind == HO::Kind::CIRCLE) {
             HITCIRCLE &h = c.hitcircles[entry.index];

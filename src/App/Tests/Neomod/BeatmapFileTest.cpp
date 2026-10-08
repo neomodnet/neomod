@@ -556,6 +556,20 @@ void BeatmapFileTest::runTests() {
         TEST_ASSERT_EQ(spinnerCombo(9000), "1 3 0", "a spinner without a new combo starts one on the next object too");
         TEST_ASSERT_EQ(spinnerCombo(14000), "1 4 0", "spinners in a row start one combo after them");
         TEST_ASSERT_EQ(spinnerCombo(17000), "1 5 2", "a new combo spinner's colour skip carries over to it");
+
+        const auto breaks = load(
+            "osu file format v14\r\n[Events]\r\n2,6500,8500\r\n2,2500,4500\r\n[HitObjects]\r\n0,0,1000,5,0\r\n"
+            "0,0,2000,1,0\r\n0,0,5000,1,0\r\n0,0,6000,1,0\r\n0,0,8500,1,0\r\n0,0,9000,1,0\r\n");
+        const auto breakCombo = [&breaks](i32 time) {
+            for(const auto &h : breaks.hitcircles) {
+                if(h.time == time) return fmt::format("{} {} {}", h.number, h.colorCounter, h.colorOffset);
+            }
+            return std::string{"none"};
+        };
+        TEST_ASSERT_EQ(breakCombo(5000), "1 2 0", "the first object after a break starts the next combo");
+        TEST_ASSERT_EQ(breakCombo(6000), "2 2 0", "...which the one after continues");
+        TEST_ASSERT_EQ(breakCombo(8500), "3 2 0", "an object where a break ends is still in it");
+        TEST_ASSERT_EQ(breakCombo(9000), "1 3 0", "...the one after it starts the next combo (breaks in any order)");
     }
 
     TEST_SECTION("events and colours");
