@@ -233,10 +233,14 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
         }
     }
 
-    int hitobjectsWithoutSpinnerCounter = 0;
-    int colorCounter = 1;
-    int colorOffset = 0;
-    int comboNumber = 1;
+    // each object's time and type, which the combos are numbered from once all are read (below)
+    struct ComboEntry {
+        i32 time;
+        u8 type;
+        HO::Kind kind;
+        uSz index;  // in hitcircles or sliders
+    };
+    std::vector<ComboEntry> comboEntries;
 
     // circles:
     // x,y,time,type,hitSounds,hitSamples
@@ -256,24 +260,10 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
             continue;
         }
 
-        // NOTE: calculating combo numbers and color offsets based on the parsing order is dangerous.
-        // maybe the hitobjects are not sorted by time in the file; these values should be calculated
-        // after sorting just to be sure?
-
-        if(!(ho.type & HO::TYPE_SPINNER)) hitobjectsWithoutSpinnerCounter++;
-
-        if(ho.type & HO::TYPE_NEW_COMBO) {
-            comboNumber = 1;
-
-            // special case 1: if the current object is a spinner, then the raw color counter is not
-            // increased (but the offset still is!)
-            // special case 2: the first (non-spinner) hitobject in a beatmap is always a new combo,
-            // therefore the raw color counter is not increased for it (but the offset still is!)
-            if(!(ho.type & HO::TYPE_SPINNER) && hitobjectsWithoutSpinnerCounter > 1) colorCounter++;
-
-            // special case 3: "Bits 4-6 (16, 32, 64) form a 3-bit number (0-7) that chooses how many combo colours to skip."
-            colorOffset += (ho.type >> HO::TYPE_COLOUR_SKIP_SHIFT) & 0b111;
-        }
+        comboEntries.push_back({.time = ho.time,
+                                .type = ho.type,
+                                .kind = ho.kind,
+                                .index = ho.kind == HO::Kind::SLIDER ? c.sliders.size() : c.hitcircles.size()});
 
         switch(ho.kind) {
             case HO::Kind::NONE:
@@ -284,9 +274,6 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
                 h.x = (f32)(i32)ho.x;  // NOTE: lazer beatmaps do not truncate here
                 h.y = (f32)(i32)ho.y;
                 h.time = ho.time;
-                h.number = comboNumber++;
-                h.colorCounter = colorCounter;
-                h.colorOffset = colorOffset;
                 // h.clicked = false; // unknown what this field was supposed to be for
                 h.samples.hitSounds = (ho.hitSounds & HitSoundType::VALID_HITSOUNDS);
                 applyHitSample(ho.sample, h.samples);
@@ -297,8 +284,6 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
 
             case HO::Kind::SLIDER: {
                 SLIDER slider{};
-                slider.colorCounter = colorCounter;
-                slider.colorOffset = colorOffset;
                 slider.time = ho.time;
                 slider.hoverSamples.hitSounds = (ho.hitSounds & HitSoundType::VALID_SLIDER_HITSOUNDS);
 
@@ -359,7 +344,6 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
                     slider.pixelLength =
                         std::min(SliderCurve{slider.type, slider.points, 0.f}.getPixelLength(), sliderSanityRange);
                 }
-                slider.number = comboNumber++;
                 c.sliders.push_back(std::move(slider));
                 break;
             }
@@ -376,6 +360,42 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
                 c.spinners.push_back(s);
                 break;
             }
+        }
+    }
+
+    // combos as the objects come in time, which a file's lines don't have to follow (osu!stable and lazer sort before
+    // numbering them; equal times keep the order of their lines, as in lazer)
+    std::ranges::stable_sort(comboEntries, {}, &ComboEntry::time);
+    int hitobjectsWithoutSpinnerCounter = 0;
+    int colorCounter = 1;
+    int colorOffset = 0;
+    int comboNumber = 1;
+    for(const ComboEntry &entry : comboEntries) {
+        if(!(entry.type & HO::TYPE_SPINNER)) hitobjectsWithoutSpinnerCounter++;
+
+        if(entry.type & HO::TYPE_NEW_COMBO) {
+            comboNumber = 1;
+
+            // special case 1: if the current object is a spinner, then the raw color counter is not
+            // increased (but the offset still is!)
+            // special case 2: the first (non-spinner) hitobject in a beatmap is always a new combo,
+            // therefore the raw color counter is not increased for it (but the offset still is!)
+            if(!(entry.type & HO::TYPE_SPINNER) && hitobjectsWithoutSpinnerCounter > 1) colorCounter++;
+
+            // special case 3: "Bits 4-6 (16, 32, 64) form a 3-bit number (0-7) that chooses how many combo colours to skip."
+            colorOffset += (entry.type >> HO::TYPE_COLOUR_SKIP_SHIFT) & 0b111;
+        }
+
+        if(entry.kind == HO::Kind::CIRCLE) {
+            HITCIRCLE &h = c.hitcircles[entry.index];
+            h.number = comboNumber++;
+            h.colorCounter = colorCounter;
+            h.colorOffset = colorOffset;
+        } else if(entry.kind == HO::Kind::SLIDER) {
+            SLIDER &slider = c.sliders[entry.index];
+            slider.number = comboNumber++;
+            slider.colorCounter = colorCounter;
+            slider.colorOffset = colorOffset;
         }
     }
 

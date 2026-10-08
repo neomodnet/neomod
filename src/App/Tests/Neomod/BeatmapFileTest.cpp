@@ -23,6 +23,7 @@
 #include <fstream>
 #include <map>
 #include <numbers>
+#include <string>
 #include <thread>
 #include <utility>
 
@@ -526,6 +527,19 @@ void BeatmapFileTest::runTests() {
                         lengths.sliders[1].pixelLength == 50.f && lengths.sliders[2].pixelLength == 20.f &&
                         std::abs(lengths.sliders[3].pixelLength - 50.f * std::numbers::pi_v<f32>) < 0.01f,
                     "a slider without a length, or with 0, is as long as its curve");
+
+        // (lines out of time order: combos as the objects come in time, as osu!stable and lazer number them)
+        const auto order =
+            load("osu file format v14\r\n[HitObjects]\r\n0,0,3000,37,0\r\n0,0,1000,5,0\r\n0,0,2000,1,0\r\n");
+        const auto combo = [&order](i32 time) {
+            for(const auto &h : order.hitcircles) {
+                if(h.time == time) return fmt::format("{} {} {}", h.number, h.colorCounter, h.colorOffset);
+            }
+            return std::string{"none"};
+        };
+        TEST_ASSERT_EQ(combo(1000), "1 1 0", "the earliest object starts the first combo, wherever its line is");
+        TEST_ASSERT_EQ(combo(2000), "2 1 0", "...the next one in time continues it");
+        TEST_ASSERT_EQ(combo(3000), "1 2 2", "...and a later new combo (skipping two colours) starts the next");
     }
 
     TEST_SECTION("events and colours");
