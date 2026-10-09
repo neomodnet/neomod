@@ -539,6 +539,19 @@ void BeatmapFileTest::runTests() {
             std::abs(natural(BEZIER, {{0.f, 0.f}, {100.f, 0.f}, {100.f, 100.f}, {100.f, 100.f}}) - 158.64f) < 0.5f,
             "...except a doubled last point, which stays in its bezier (the cubic a b c c)");
 
+        // where a curve of a given length ends
+        const auto end = [](SLIDERCURVETYPE type, std::vector<vec2> points, f32 length) {
+            return SliderCurve{type, points, length}.pointAt(1.f);
+        };
+        TEST_ASSERT(vec::distance(end(LINEAR, {{0.f, 0.f}, {100.f, 0.f}}, 150.f), vec2{150.f, 0.f}) < 0.01f,
+                    "a slider longer than its curve goes on along the curve's last segment");
+        TEST_ASSERT(
+            vec::distance(end(BEZIER, {{0.f, 0.f}, {100.f, 0.f}, {100.f, 100.f}}, 300.f), vec2{100.f, 237.68f}) < 1.5f,
+            "...a bezier's too, the way it ends (its last approximated piece, close to the tangent)");
+        TEST_ASSERT(
+            vec::distance(end(LINEAR, {{0.f, 0.f}, {100.f, 0.f}, {100.f, 0.f}}, 150.f), vec2{100.f, 0.f}) < 0.01f,
+            "...but not when that segment has no length");
+
         // the circle at a time: its number, color counter and offset
         const auto combo = [](const Primitives::PRIMITIVE_CONTAINER &c, i32 time) {
             for(const auto &object : c.objects) {

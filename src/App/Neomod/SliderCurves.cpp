@@ -187,6 +187,15 @@ class SCEDMBuilder final {
         return length;
     }
 
+    // a curve shorter than pixelLength goes on along its last segment (not when that has no length), as osu! plays it
+    void extendTo(f32 pixelLength) {
+        if(m_allPoints.size() < 2) return;
+        const vec2 before = m_allPoints[m_allPoints.size() - 2];
+        vec2 &last = m_allPoints.back();
+        const f32 missing = pixelLength - getLength();
+        if(missing > 0.0f && last != before) last += vec::normalize(last - before) * missing;
+    }
+
     void build(std::vector<vec2> &curvePointsOut, f32 &startAngleOut, f32 &endAngleOut, u32 nCurve, f32 pixelLength);
 };
 
@@ -315,6 +324,7 @@ void SliderCurve::constructBezier(std::span<const vec2> controlPoints, f32 curve
     }
 
     if(m_pixelLength == 0.0f) m_pixelLength = g_curveBuilder.getLength();
+    g_curveBuilder.extendTo(m_pixelLength);
     m_NCurve = std::min((u32)(m_pixelLength / std::clamp<f32>(curvePointsSeparation, 1.0f, 100.0f)), max_points);
 
     if(g_curveBuilder.hasPoints()) {
@@ -383,6 +393,7 @@ void SliderCurve::constructCatmull(std::span<const vec2> controlPoints, f32 curv
     }
 
     if(m_pixelLength == 0.0f) m_pixelLength = g_curveBuilder.getLength();
+    g_curveBuilder.extendTo(m_pixelLength);
     m_NCurve = std::min((u32)(m_pixelLength / std::clamp<f32>(curvePointsSeparation, 1.0f, 100.0f)), max_points);
 
     if(g_curveBuilder.hasPoints()) {
