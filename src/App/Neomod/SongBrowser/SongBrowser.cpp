@@ -822,7 +822,6 @@ bool SongBrowser::selectBeatmapset(const BeatmapSet *set) {
         ui->getNotificationOverlay()->addToast(_("Beatmapset has no difficulties"), ERROR_TOAST);
         return false;
     } else {
-        this->onSelectionChange((*this->hashToDiffButton)[best_diff->getMD5()], false);
         this->onDifficultySelected(best_diff, false);
         this->selectSelectedBeatmapSongButton();
         return true;
@@ -1794,8 +1793,10 @@ void SongBrowser::applyReconcile(const ReconcileResult &r) {
     switch(r.outcome) {
         using enum ReconcileResult::Outcome;
         case Created:
+            if(!this->bInitializedBeatmaps) break;
             this->addBeatmapSet(r.set);
             if(followed) this->selectSelectedBeatmapSongButton();
+            this->rebuildAfterSetChange();
             break;
         case Updated:
             this->replaceBeatmapSet(r.replaced, r.set);
