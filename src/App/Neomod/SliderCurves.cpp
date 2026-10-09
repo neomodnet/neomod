@@ -621,7 +621,7 @@ SliderCurve::SliderCurve(SLIDERCURVETYPE ctorType, std::span<const vec2> control
         if(std::abs(norb.x * nora.y - norb.y * nora.x) < 0.00001f) {
             m_type = BEZIER;
             constructBezier(controlPoints, curvePointsSeparation,
-                            false);  // vectors parallel, use linear bezier instead
+                            true);  // vectors parallel, use linear bezier instead
         } else {
             m_type = CIRCULAR;
             constructCircular(controlPoints, curvePointsSeparation);

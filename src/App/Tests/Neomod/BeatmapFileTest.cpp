@@ -538,6 +538,8 @@ void BeatmapFileTest::runTests() {
         TEST_ASSERT(
             std::abs(natural(BEZIER, {{0.f, 0.f}, {100.f, 0.f}, {100.f, 100.f}, {100.f, 100.f}}) - 158.64f) < 0.5f,
             "...except a doubled last point, which stays in its bezier (the cubic a b c c)");
+        TEST_ASSERT(std::abs(natural(PASSTHROUGH, {{0.f, 0.f}, {200.f, 0.f}, {100.f, 0.f}}) - 300.f) < 0.01f,
+                    "a perfect circle through three points on a line is the line through them");
 
         // where a curve of a given length ends
         const auto end = [](SLIDERCURVETYPE type, std::vector<vec2> points, f32 length) {
