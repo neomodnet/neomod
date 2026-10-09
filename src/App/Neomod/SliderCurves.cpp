@@ -43,6 +43,7 @@ class SCEDMBuilder final {
     // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 
     static constexpr f64 TOLERANCE_SQ = 0.25 * 0.25;
+    static constexpr i32 CATMULL_DETAIL = 50;
 
     // bezier approximation buffers
     std::vector<vec2> m_midpoints;
@@ -154,26 +155,15 @@ class SCEDMBuilder final {
 
     void addBezierSegment(const vec2 *controlPoints, u32 count) { generateBezierPoints(controlPoints, count); }
 
-    void addCatmullSegment(const std::array<vec2, 4> &initPoints) {
-        f32 approxLength = 0;
-        for(i32 i = 1; i < 4; i++) {
-            approxLength += std::max(0.0001f, vec::length(initPoints[i] - initPoints[i - 1]));
-        }
-
-        const i32 numPoints = (i32)(approxLength / 8.0f) + 2;
-
-        for(i32 i = 0; i < numPoints; i++) {
-            f32 t = (f32)i / (f32)(numPoints - 1);
-            t = t + 1;  // t * (2 - 1) + 1
-
-            const vec2 A1 = initPoints[0] * (1 - t) + initPoints[1] * t;
-            const vec2 A2 = initPoints[1] * (2 - t) + initPoints[2] * (t - 1);
-            const vec2 A3 = initPoints[2] * (3 - t) + initPoints[3] * (t - 2);
-
-            const vec2 B1 = A1 * ((2 - t) * 0.5f) + A2 * (t * 0.5f);
-            const vec2 B2 = A2 * ((3 - t) * 0.5f) + A3 * ((t - 1) * 0.5f);
-
-            m_allPoints.push_back(B1 * (2 - t) + B2 * (t - 1));
+    // the curve between the middle two of four points, in as many lines as osu! draws it with
+    void addCatmullSegment(const std::array<vec2, 4> &v) {
+        for(i32 i = 0; i <= CATMULL_DETAIL; i++) {
+            const f32 t = (f32)i / CATMULL_DETAIL;
+            const f32 t2 = t * t;
+            const f32 t3 = t2 * t;
+            m_allPoints.push_back(0.5f *
+                                  (2.f * v[1] + (v[2] - v[0]) * t + (2.f * v[0] - 5.f * v[1] + 4.f * v[2] - v[3]) * t2 +
+                                   (3.f * v[1] - v[0] - 3.f * v[2] + v[3]) * t3));
         }
     }
 
@@ -348,48 +338,13 @@ void SliderCurve::constructCatmull(std::span<const vec2> controlPoints, f32 curv
 
     g_curveBuilder.reset();
 
-    // build temporary 4-point windows for catmull-rom
-    // repeat the first and last points as control points if they differ from neighbors
-
-    // handle first point duplication
-    const bool duplicateFirst = (controlPoints[0].x != controlPoints[1].x || controlPoints[0].y != controlPoints[1].y);
-
-    // handle last point duplication
-    const bool duplicateLast = (controlPoints[numControlPoints - 1].x != controlPoints[numControlPoints - 2].x ||
-                                controlPoints[numControlPoints - 1].y != controlPoints[numControlPoints - 2].y);
-
-    // calculate effective point count
-    u32 effectiveCount = numControlPoints + (duplicateFirst ? 1 : 0) + (duplicateLast ? 1 : 0);
-
-    auto getPoint = [&](u32 idx) -> vec2 {
-        if(duplicateFirst) {
-            if(idx == 0) return controlPoints[0];
-            idx--;
-        }
-        if(idx < numControlPoints) return controlPoints[idx];
-        return controlPoints[numControlPoints - 1];
-    };
-
-    std::array<vec2, 4> catmullPoints;  // NOLINT
-    for(u32 i = 0; i + 3 < effectiveCount; i++) {
-        catmullPoints[0] = getPoint(i);
-        catmullPoints[1] = getPoint(i + 1);
-        catmullPoints[2] = getPoint(i + 2);
-        catmullPoints[3] = getPoint(i + 3);
-        g_curveBuilder.addCatmullSegment(catmullPoints);
-    }
-
-    // handle final window if we have exactly 4 effective points remaining
-    if(effectiveCount >= 4) {
-        catmullPoints[0] = getPoint(effectiveCount - 4);
-        catmullPoints[1] = getPoint(effectiveCount - 3);
-        catmullPoints[2] = getPoint(effectiveCount - 2);
-        catmullPoints[3] = getPoint(effectiveCount - 1);
-
-        // only add if not already added in the loop
-        if(effectiveCount == 4) {
-            g_curveBuilder.addCatmullSegment(catmullPoints);
-        }
+    // a curve between each two points: the point before the first is the first itself, the one after the last is where
+    // the path would go on as it came
+    for(u32 i = 0; i + 1 < numControlPoints; i++) {
+        const vec2 next = controlPoints[i + 1];
+        g_curveBuilder.addCatmullSegment(
+            {i > 0 ? controlPoints[i - 1] : controlPoints[i], controlPoints[i], next,
+             i + 2 < numControlPoints ? controlPoints[i + 2] : next + (next - controlPoints[i])});
     }
 
     if(m_pixelLength == 0.0f) m_pixelLength = g_curveBuilder.getLength();
@@ -411,7 +366,7 @@ void SliderCurve::constructCatmull(std::span<const vec2> controlPoints, f32 curv
 namespace {
 
 // Helpers
-forceinline vec2 circ_intersect(vec2 a, vec2 ta, vec2 b, vec2 tb) {
+vec2 circ_intersect(vec2 a, vec2 ta, vec2 b, vec2 tb) {
     const f32 des = (tb.x * ta.y - tb.y * ta.x);
     if(std::abs(des) < 0.0001f) {
         debugLog("ERROR: Vectors are parallel!!!");
@@ -422,7 +377,7 @@ forceinline vec2 circ_intersect(vec2 a, vec2 ta, vec2 b, vec2 tb) {
     return (b + vec2(tb.x * u, tb.y * u));
 };
 
-#define CIRC_ISIN(a, b, c) (((b) > (a) && (b) < (c)) || ((b) < (a) && (b) > (c)))
+bool circ_isin(f32 a, f32 b, f32 c) { return ((b) > (a) && (b) < (c)) || ((b) < (a) && (b) > (c)); }
 
 }  // namespace
 
@@ -467,25 +422,25 @@ void SliderCurve::constructCircular(std::span<const vec2> controlPoints, f32 cur
     // find the angles that pass through midAng
 
     // clang-format off
-    if(!CIRC_ISIN(startAngle, midAng, endAngle)) {
+    if(!circ_isin(startAngle, midAng, endAngle)) {
         if(
             (std::abs(startAngle + 2.f * PI_F - endAngle) < 2.f * PI_F) &&
-            CIRC_ISIN(startAngle + (2.f * PI_F), midAng, endAngle)
+            circ_isin(startAngle + (2.f * PI_F), midAng, endAngle)
             ) {
             startAngle += 2.f * PI_F;
         } else if(
             (std::abs(startAngle - (endAngle + 2.f * PI_F)) < 2.f * PI_F) &&
-            CIRC_ISIN(startAngle, midAng, endAngle + (2.f * PI_F))
+            circ_isin(startAngle, midAng, endAngle + (2.f * PI_F))
             ) {
             endAngle += 2.f * PI_F;
         } else if(
             (std::abs(startAngle - 2.f * PI_F - endAngle) < 2.f * PI_F) &&
-            CIRC_ISIN(startAngle - (2.f * PI_F), midAng, endAngle)
+            circ_isin(startAngle - (2.f * PI_F), midAng, endAngle)
             ) {
             startAngle -= 2.f * PI_F;
         } else if(
             (std::abs(startAngle - (endAngle - 2.f * PI_F)) < 2.f * PI_F) &&
-            CIRC_ISIN(startAngle, midAng, endAngle - (2.f * PI_F))
+            circ_isin(startAngle, midAng, endAngle - (2.f * PI_F))
             ) {
             endAngle -= 2.f * PI_F;
         } else {
