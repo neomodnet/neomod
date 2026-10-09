@@ -291,7 +291,8 @@ void SliderCurve::constructBezier(std::span<const vec2> controlPoints, f32 curve
 
     g_curveBuilder.reset();
 
-    // Beziers: splits points into different Beziers if has the same points (red anchor points)
+    // Beziers: splits points into different Beziers if has the same points (red anchor points), except for a doubled last
+    // point, which stays in its Bezier
     // a b c - c d - d e f g
     // Lines: generate a new curve for each sequential pair
     // ab  bc  cd  de  ef  fg
@@ -299,7 +300,7 @@ void SliderCurve::constructBezier(std::span<const vec2> controlPoints, f32 curve
     for(u32 i = 1; i < numControlPoints; i++) {
         if(line) {
             g_curveBuilder.addBezierSegment(&controlPoints[i - 1], 2);
-        } else if(controlPoints[i] == controlPoints[i - 1]) {
+        } else if(controlPoints[i] == controlPoints[i - 1] && i + 1 < numControlPoints) {
             // red anchor point - end current segment
             if(i - segmentStart >= 2) {
                 g_curveBuilder.addBezierSegment(&controlPoints[segmentStart], i - segmentStart);

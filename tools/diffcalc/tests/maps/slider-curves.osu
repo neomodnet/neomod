@@ -1,0 +1,33 @@
+osu file format v14
+
+[General]
+AudioFilename: audio.mp3
+StackLeniency: 0.7
+Mode: 0
+
+[Metadata]
+Title:slider curves
+Artist:diffcalc suite
+Creator:neomod
+Version:fixture
+
+[Difficulty]
+HPDrainRate:5
+CircleSize:4
+OverallDifficulty:8
+ApproachRate:9
+SliderMultiplier:1.4
+SliderTickRate:1
+
+[TimingPoints]
+0,500,4,2,0,60,1,0
+
+[HitObjects]
+100,100,1000,5,0,0:0:0:0:
+0,0,1500,2,0,B|100:0|100:100|100:100,1,140
+300,300,2500,1,0,0:0:0:0:
+50,300,3000,2,0,L|150:300,1,210
+400,100,4500,1,0,0:0:0:0:
+300,50,5000,2,0,B|350:100|300:150,1,280
+100,200,7000,2,0,P|300:200|200:200,1,280
+256,192,9000,1,0,0:0:0:0:

@@ -528,6 +528,17 @@ void BeatmapFileTest::runTests() {
                         length(2) == 20.f && std::abs(length(3) - 50.f * std::numbers::pi_v<f32>) < 0.01f,
                     "a slider without a length, or with 0, is as long as its curve");
 
+        // a curve's own length
+        const auto natural = [](SLIDERCURVETYPE type, std::vector<vec2> points) {
+            return SliderCurve{type, points, 0.f}.getPixelLength();
+        };
+        using enum SLIDERCURVETYPE;
+        TEST_ASSERT(std::abs(natural(BEZIER, {{0.f, 0.f}, {100.f, 0.f}, {100.f, 0.f}, {100.f, 100.f}}) - 200.f) < 0.01f,
+                    "a doubled point starts a new bezier");
+        TEST_ASSERT(
+            std::abs(natural(BEZIER, {{0.f, 0.f}, {100.f, 0.f}, {100.f, 100.f}, {100.f, 100.f}}) - 158.64f) < 0.5f,
+            "...except a doubled last point, which stays in its bezier (the cubic a b c c)");
+
         // the circle at a time: its number, color counter and offset
         const auto combo = [](const Primitives::PRIMITIVE_CONTAINER &c, i32 time) {
             for(const auto &object : c.objects) {

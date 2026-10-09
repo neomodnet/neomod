@@ -45,7 +45,7 @@
 namespace neomod::DiffCalc {
 // see https://github.com/ppy/osu/pull/37850
 // NOTE: updated to 20260811 to force recalc over initial implementation divergences
-const u32 PP_ALGORITHM_VERSION{20261008};
+const u32 PP_ALGORITHM_VERSION{20261009};
 
 namespace {
 // internal helper utils (forward decls)
