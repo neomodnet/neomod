@@ -8,6 +8,7 @@
 #include "Osu.h"
 #include "ResourceManager.h"
 #include "Font.h"
+#include "Skin.h"
 #include "Graphics.h"
 
 TooltipOverlay::TooltipOverlay() : UIScreen() {
@@ -26,7 +27,11 @@ void TooltipOverlay::draw() {
 
         McFont* font = engine->getDefaultFont();
 
-        const vec2 offset = vec2(10, 10) * dpiScale;
+        const BasicSkinImage cursor = osu->getSkin()->i_cursor;
+        const float cursorImgScale = cursor.getHeight() / (64.f * cursor.scale());
+        const float cursorScale = cv::cursor_scale.getFloat();
+
+        const vec2 offset = vec2(20, 20) * cursorImgScale * cursorScale * dpiScale;
         const int margin = 5 * dpiScale;
         const int lineSpacing = 8 * dpiScale;
         const float borderTextAlpha = this->fAnim * this->fAnim * this->fAnim;
