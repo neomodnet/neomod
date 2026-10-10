@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <array>
+#include <optional>
 
 #ifndef BUILD_TOOLS_ONLY
 #include "Engine.h"
@@ -366,12 +367,9 @@ void SliderCurve::constructCatmull(std::span<const vec2> controlPoints, f32 curv
 namespace {
 
 // Helpers
-vec2 circ_intersect(vec2 a, vec2 ta, vec2 b, vec2 tb) {
+std::optional<vec2> circ_intersect(vec2 a, vec2 ta, vec2 b, vec2 tb) {
     const f32 des = (tb.x * ta.y - tb.y * ta.x);
-    if(std::abs(des) < 0.0001f) {
-        debugLog("ERROR: Vectors are parallel!!!");
-        return {0.f, 0.f};
-    }
+    if(std::abs(des) < 0.0001f) return std::nullopt;  // parallel
 
     const f32 u = ((b.y - a.y) * ta.x + (a.x - b.x) * ta.y) / des;
     return (b + vec2(tb.x * u, tb.y * u));
@@ -381,13 +379,13 @@ bool circ_isin(f32 a, f32 b, f32 c) { return ((b) > (a) && (b) < (c)) || ((b) < 
 
 }  // namespace
 
-void SliderCurve::constructCircular(std::span<const vec2> controlPoints, f32 curvePointsSeparation) {
+bool SliderCurve::constructCircular(std::span<const vec2> controlPoints, f32 curvePointsSeparation) {
     // initialize
     m_circCenterX = m_circCenterY = m_circRadius = m_circStartAngle = m_circEndAngle = 0.f;
 
     if(controlPoints.size() != 3) {
         debugLog("ERROR: controlPoints.size() != 3");
-        return;
+        return false;
     }
 
     // construct the three points
@@ -408,7 +406,9 @@ void SliderCurve::constructCircular(std::span<const vec2> controlPoints, f32 cur
     norb.x = -norb.y;
     norb.y = temp;
 
-    const vec2 center = circ_intersect(mida, nora, midb, norb);
+    const std::optional<vec2> foundCenter = circ_intersect(mida, nora, midb, norb);
+    if(!foundCenter) return false;
+    const vec2 center = *foundCenter;
 
     // find the angles relative to the circle center
     const vec2 startAngPoint = start - center;
@@ -444,9 +444,7 @@ void SliderCurve::constructCircular(std::span<const vec2> controlPoints, f32 cur
             ) {
             endAngle -= 2.f * PI_F;
         } else {
-            debugLog("ERROR: Cannot find angles between midAng ({} {} {})",
-                     startAngle, midAng, endAngle);
-            return;
+            return false;
         }
     }
     // clang-format on
@@ -537,6 +535,7 @@ void SliderCurve::constructCircular(std::span<const vec2> controlPoints, f32 cur
                 break;
         }
     }
+    return true;
 }
 
 //******************************//
@@ -573,13 +572,12 @@ SliderCurve::SliderCurve(SLIDERCURVETYPE ctorType, std::span<const vec2> control
         // TODO: to properly support all aspire sliders (e.g. Ping), need to use osu circular arc calc + subdivide line
         // segments if they are too big
 
-        if(std::abs(norb.x * nora.y - norb.y * nora.x) < 0.00001f) {
+        // vectors parallel, or too nearly so for a circle through them in floats: use linear bezier instead
+        m_type = CIRCULAR;
+        if(std::abs(norb.x * nora.y - norb.y * nora.x) < 0.00001f ||
+           !constructCircular(controlPoints, curvePointsSeparation)) {
             m_type = BEZIER;
-            constructBezier(controlPoints, curvePointsSeparation,
-                            true);  // vectors parallel, use linear bezier instead
-        } else {
-            m_type = CIRCULAR;
-            constructCircular(controlPoints, curvePointsSeparation);
+            constructBezier(controlPoints, curvePointsSeparation, true);
         }
     } else if(ctorType == CATMULL) {
         m_type = CATMULL;

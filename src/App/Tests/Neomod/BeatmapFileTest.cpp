@@ -540,6 +540,12 @@ void BeatmapFileTest::runTests() {
             "...except a doubled last point, which stays in its bezier (the cubic a b c c)");
         TEST_ASSERT(std::abs(natural(PASSTHROUGH, {{0.f, 0.f}, {200.f, 0.f}, {100.f, 0.f}}) - 300.f) < 0.01f,
                     "a perfect circle through three points on a line is the line through them");
+        const std::vector<vec2> nearlyOnALine{{83.28f, 117.45f}, {-8.f, 93.f}, {-120.f, 63.f}};
+        TEST_ASSERT(
+            std::abs(natural(PASSTHROUGH, nearlyOnALine) - vec::distance(nearlyOnALine[0], nearlyOnALine[1]) -
+                     vec::distance(nearlyOnALine[1], nearlyOnALine[2])) < 0.01f &&
+                vec::distance(SliderCurve{PASSTHROUGH, nearlyOnALine, 0.f}.pointAt(1.f), nearlyOnALine[2]) < 0.01f,
+            "...also when floats can't tell them from a line (fractional points: no circle through them)");
         TEST_ASSERT(std::abs(natural(CATMULL, {{0.f, 0.f}, {100.f, 0.f}}) - 100.f) < 0.01f,
                     "a catmull curve through two points goes from one to the other once");
         const std::vector<vec2> corner{{0.f, 0.f}, {100.f, 0.f}, {100.f, 100.f}};

@@ -118,7 +118,7 @@ Real ranked maps are named `<beatmap_id>.osu`; degenerate cases are tiny hand-wr
 | `zero-length-slider.osu` | 0-pixelLength slider with a single-point curve | hand-written |
 | `negative-duration.osu` | spinner with endTime < startTime (Aspire getDuration clamp) | hand-written |
 | `same-time-objects.osu` | objects sharing a start time, kept in the order of their lines (as lazer) | hand-written |
-| `slider-curves.osu` | sliders with a doubled last point, longer than their curve, a perfect circle on a line, catmull curves | hand-written |
+| `slider-curves.osu` | sliders with a doubled last point, longer than their curve, a perfect circle on a line (and one on a line but for float precision), catmull curves | hand-written |
 | `synthetic-5001-sliders.osu` | >5000 sliders, deferred McKay curve alloc path | `python3 gen_5001_sliders.py` (deterministic, checked in) |
 
 Real fixtures were extracted from local `.osz` archives with:

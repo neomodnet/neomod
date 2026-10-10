@@ -93,6 +93,7 @@ class SliderCurve final {
 
     void constructBezier(std::span<const vec2> controlPoints, f32 curvePointsSeparation, bool line);
     void constructCatmull(std::span<const vec2> controlPoints, f32 curvePointsSeparation);
-    void constructCircular(std::span<const vec2> controlPoints, f32 curvePointsSeparation);
+    // false: there's no circle through the points as floats tell them apart (they're on a line, or nearly)
+    bool constructCircular(std::span<const vec2> controlPoints, f32 curvePointsSeparation);
 };  // namespace neomod
 }  // namespace neomod
