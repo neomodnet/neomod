@@ -5,7 +5,9 @@
 #endif
 
 #include "Vectors.h"
+#include "types.h"
 
+#include <optional>
 #include <vector>
 #include <span>
 
@@ -17,6 +19,31 @@ enum class SLIDERCURVETYPE : char {
     LINEAR = 'L',
     PASSTHROUGH = 'P',
 };
+
+// the circle through three points and the arc on it from the first through the second to the third, as osu! finds
+// them (angles in radians, the end's on the side the arc goes)
+struct CircularArc {
+    vec2 center;
+    f32 radius;
+    f32 startAngle;
+    f32 endAngle;
+};
+// none: the points are on a line, or too nearly so for floats to find a circle through them (osu! draws a perfect circle
+// slider through such points as lines)
+[[nodiscard]] std::optional<CircularArc> circularArcThrough(vec2 start, vec2 mid, vec2 end);
+
+// calls piece() with each piece osu! draws a bezier slider's points as: the runs between its red anchors (two equal
+// points), each starting where the one before ends (a doubled last point stays in its run)
+template <typename F>
+void forEachBezierPiece(std::span<const vec2> points, F &&piece) {
+    uSz start = 0;
+    for(uSz i = 1; i < points.size(); i++) {
+        if(points[i] != points[i - 1] || i + 1 == points.size()) continue;
+        if(i - start >= 2) piece(points.subspan(start, i - start));
+        start = i;
+    }
+    if(points.size() - start >= 2) piece(points.subspan(start));
+}
 
 //**********************//
 //	 Curve Base Class	//
@@ -93,7 +120,6 @@ class SliderCurve final {
 
     void constructBezier(std::span<const vec2> controlPoints, f32 curvePointsSeparation, bool line);
     void constructCatmull(std::span<const vec2> controlPoints, f32 curvePointsSeparation);
-    // false: there's no circle through the points as floats tell them apart (they're on a line, or nearly)
-    bool constructCircular(std::span<const vec2> controlPoints, f32 curvePointsSeparation);
+    void constructCircular(const CircularArc &arc, f32 curvePointsSeparation);
 };  // namespace neomod
 }  // namespace neomod

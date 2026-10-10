@@ -296,22 +296,12 @@ void SliderCurve::constructBezier(std::span<const vec2> controlPoints, f32 curve
     // a b c - c d - d e f g
     // Lines: generate a new curve for each sequential pair
     // ab  bc  cd  de  ef  fg
-    u32 segmentStart = 0;
-    for(u32 i = 1; i < numControlPoints; i++) {
-        if(line) {
-            g_curveBuilder.addBezierSegment(&controlPoints[i - 1], 2);
-        } else if(controlPoints[i] == controlPoints[i - 1] && i + 1 < numControlPoints) {
-            // red anchor point - end current segment
-            if(i - segmentStart >= 2) {
-                g_curveBuilder.addBezierSegment(&controlPoints[segmentStart], i - segmentStart);
-            }
-            segmentStart = i;
-        }
-    }
-
-    // handle final segment (non-line mode only)
-    if(!line && numControlPoints - segmentStart >= 2) {
-        g_curveBuilder.addBezierSegment(&controlPoints[segmentStart], numControlPoints - segmentStart);
+    if(line) {
+        for(u32 i = 1; i < numControlPoints; i++) g_curveBuilder.addBezierSegment(&controlPoints[i - 1], 2);
+    } else {
+        forEachBezierPiece(controlPoints, [](std::span<const vec2> piece) {
+            g_curveBuilder.addBezierSegment(piece.data(), (u32)piece.size());
+        });
     }
 
     if(m_pixelLength == 0.0f) m_pixelLength = g_curveBuilder.getLength();
@@ -379,24 +369,7 @@ bool circ_isin(f32 a, f32 b, f32 c) { return ((b) > (a) && (b) < (c)) || ((b) < 
 
 }  // namespace
 
-bool SliderCurve::constructCircular(std::span<const vec2> controlPoints, f32 curvePointsSeparation) {
-    // initialize
-    m_circCenterX = m_circCenterY = m_circRadius = m_circStartAngle = m_circEndAngle = 0.f;
-
-    if(controlPoints.size() != 3) {
-        debugLog("ERROR: controlPoints.size() != 3");
-        return false;
-    }
-
-    // construct the three points
-    const vec2 start = controlPoints[0];
-    const vec2 mid = controlPoints[1];
-    const vec2 end = controlPoints[2];
-
-    // find the circle center
-    const vec2 mida = start + (mid - start) * 0.5f;
-    const vec2 midb = end + (mid - end) * 0.5f;
-
+std::optional<CircularArc> circularArcThrough(vec2 start, vec2 mid, vec2 end) {
     vec2 nora = mid - start;
     f32 temp = nora.x;
     nora.x = -nora.y;
@@ -406,14 +379,19 @@ bool SliderCurve::constructCircular(std::span<const vec2> controlPoints, f32 cur
     norb.x = -norb.y;
     norb.y = temp;
 
-    const std::optional<vec2> foundCenter = circ_intersect(mida, nora, midb, norb);
-    if(!foundCenter) return false;
-    const vec2 center = *foundCenter;
+    // vectors parallel
+    if(std::abs(norb.x * nora.y - norb.y * nora.x) < 0.00001f) return std::nullopt;
+
+    // find the circle center
+    const vec2 mida = start + (mid - start) * 0.5f;
+    const vec2 midb = end + (mid - end) * 0.5f;
+    const std::optional<vec2> center = circ_intersect(mida, nora, midb, norb);
+    if(!center) return std::nullopt;
 
     // find the angles relative to the circle center
-    const vec2 startAngPoint = start - center;
-    const vec2 midAngPoint = mid - center;
-    const vec2 endAngPoint = end - center;
+    const vec2 startAngPoint = start - *center;
+    const vec2 midAngPoint = mid - *center;
+    const vec2 endAngPoint = end - *center;
 
     f32 startAngle = (f32)std::atan2(startAngPoint.y, startAngPoint.x);
     const f32 midAng = (f32)std::atan2(midAngPoint.y, midAngPoint.x);
@@ -444,15 +422,27 @@ bool SliderCurve::constructCircular(std::span<const vec2> controlPoints, f32 cur
             ) {
             endAngle -= 2.f * PI_F;
         } else {
-            return false;
+            return std::nullopt;
         }
     }
     // clang-format on
 
+    return CircularArc{
+        .center = *center, .radius = vec::length(startAngPoint), .startAngle = startAngle, .endAngle = endAngle};
+}
+
+void SliderCurve::constructCircular(const CircularArc &arc, f32 curvePointsSeparation) {
+    // initialize
+    m_circCenterX = m_circCenterY = m_circRadius = m_circStartAngle = m_circEndAngle = 0.f;
+
+    const vec2 center = arc.center;
+    const f32 startAngle = arc.startAngle;
+    const f32 endAngle = arc.endAngle;
+
     const f32 maxPoints = SLIDER_CURVE_MAX_POINTS;
 
     // find an angle with an arc length of pixelLength along this circle
-    const f32 radius = vec::length(startAngPoint);
+    const f32 radius = arc.radius;
     const f32 naturalArcAngle = std::abs(endAngle - startAngle);
     const f32 naturalArcLength = naturalArcAngle * radius;
     if(m_pixelLength == 0.0f) m_pixelLength = naturalArcLength;
@@ -535,7 +525,6 @@ bool SliderCurve::constructCircular(std::span<const vec2> controlPoints, f32 cur
                 break;
         }
     }
-    return true;
 }
 
 //******************************//
@@ -559,23 +548,13 @@ SliderCurve::SliderCurve(SLIDERCURVETYPE ctorType, std::span<const vec2> control
       m_pixelLength(std::abs(ctorPixelLength)) {
     using enum SLIDERCURVETYPE;
     if(ctorType == PASSTHROUGH && controlPoints.size() == 3) {
-        vec2 nora = controlPoints[1] - controlPoints[0];
-        vec2 norb = controlPoints[1] - controlPoints[2];
-
-        f32 temp = nora.x;
-        nora.x = -nora.y;
-        nora.y = temp;
-        temp = norb.x;
-        norb.x = -norb.y;
-        norb.y = temp;
-
         // TODO: to properly support all aspire sliders (e.g. Ping), need to use osu circular arc calc + subdivide line
         // segments if they are too big
-
-        // vectors parallel, or too nearly so for a circle through them in floats: use linear bezier instead
-        m_type = CIRCULAR;
-        if(std::abs(norb.x * nora.y - norb.y * nora.x) < 0.00001f ||
-           !constructCircular(controlPoints, curvePointsSeparation)) {
+        if(const auto arc = circularArcThrough(controlPoints[0], controlPoints[1], controlPoints[2])) {
+            m_type = CIRCULAR;
+            constructCircular(*arc, curvePointsSeparation);
+        } else {
+            // vectors parallel, or too nearly so for a circle through them in floats: use linear bezier instead
             m_type = BEZIER;
             constructBezier(controlPoints, curvePointsSeparation, true);
         }
