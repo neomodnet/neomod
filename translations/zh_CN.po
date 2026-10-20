@@ -55,6 +55,20 @@ msgstr "国家/地区"
 msgid "Team"
 msgstr "队伍"
 
+#: src/App/Neomod/BanchoSubmitter.cpp
+msgid "not online on the server"
+msgstr "未连接到服务器"
+
+#: src/App/Neomod/BanchoSubmitter.cpp
+#, c++-format
+msgid "Score submission failed ({}), retrying..."
+msgstr "成绩提交失败（{}），正在重试..."
+
+#: src/App/Neomod/BanchoSubmitter.cpp src/App/Neomod/RankingScreen.cpp
+#, c++-format
+msgid "Score submission rejected: {}"
+msgstr "成绩被拒绝：{}"
+
 #: src/App/Neomod/BeatmapInstallOverlay.cpp
 #, c++-format
 msgid "Beatmap #{:d}"
@@ -530,11 +544,11 @@ msgstr "此设置由服务器强制设定。"
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 msgid "This setting can't be changed during a multiplayer match."
-msgstr ""
+msgstr "多人游戏对局中无法更改此设置。"
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 msgid "Use the usual setting"
-msgstr ""
+msgstr "使用常规设置"
 
 #: src/App/Neomod/MapSettingsOverlay.cpp src/App/Neomod/OptionsOverlay.cpp
 msgid "Reset"
@@ -546,32 +560,32 @@ msgstr "故事板"
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 msgid "Beatmap skin"
-msgstr ""
+msgstr "谱面皮肤"
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 msgid "Beatmap hitsounds"
-msgstr ""
+msgstr "谱面音效"
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 msgid "Changing this mid-play makes the play unranked."
-msgstr ""
+msgstr "游玩中更改此项会使本次游玩不计入排名。"
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 msgid "Background dim"
-msgstr ""
+msgstr "背景暗化"
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 msgid "Local offset"
-msgstr ""
+msgstr "本地偏移"
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 msgid "Beatmap settings"
-msgstr ""
+msgstr "谱面设置"
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 #, c++-format
 msgid "{:d} ms"
-msgstr ""
+msgstr "{:d} ms"
 
 #: src/App/Neomod/ModSelector.cpp
 msgid "CS Override"
@@ -2951,11 +2965,11 @@ msgstr "（在皮肤选项中关闭 \"{}\" 即可更改）"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "This setting is overridden for the current beatmap."
-msgstr ""
+msgstr "此设置已被当前谱面覆盖。"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "(change it in the beatmap settings at the bottom of the screen)"
-msgstr ""
+msgstr "（可在屏幕底部的谱面设置中更改）"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "All settings have been reset."
@@ -3151,8 +3165,20 @@ msgid "You achieved the #1 score on local rankings!"
 msgstr "你在本地排行榜中取得了第 1 名！"
 
 #: src/App/Neomod/RankingScreen.cpp
+msgid "Online Ranking"
+msgstr "在线排名"
+
+#: src/App/Neomod/RankingScreen.cpp
 msgid "Watch replay"
 msgstr "观看回放"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Like"
+msgstr "喜欢"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Dislike"
+msgstr "不喜欢"
 
 #: src/App/Neomod/RankingScreen.cpp
 #, c++-format
@@ -3192,6 +3218,59 @@ msgstr "Unstable Rate：{:.2f}"
 #: src/App/Neomod/RankingScreen.cpp
 msgid "Mods: "
 msgstr "模组： "
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Submitting score..."
+msgstr "正在提交成绩..."
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Score submitted"
+msgstr "成绩已提交"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Rank"
+msgstr "排名"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Ranked score"
+msgstr "计入排名的总分"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Total score"
+msgstr "总分"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Max combo"
+msgstr "最大连击"
+
+#: src/App/Neomod/RankingScreen.cpp src/App/Neomod/RoomScreen.cpp
+msgid "Accuracy"
+msgstr "准确率"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Performance"
+msgstr "表现分"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Beatmap ranking"
+msgstr "谱面排名"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Overall ranking"
+msgstr "总排名"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Did you enjoy this beatmap?"
+msgstr "你喜欢这张谱面吗？"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Sending rating..."
+msgstr "正在发送评分..."
+
+#: src/App/Neomod/RankingScreen.cpp
+#, c++-format
+msgid "Average rating: {:.1f}/10"
+msgstr "平均评分：{:.1f}/10"
 
 #: src/App/Neomod/RankingScreen.cpp
 #, c++-format
@@ -3333,10 +3412,6 @@ msgid "Score V1"
 msgstr "Score V1"
 
 #: src/App/Neomod/RoomScreen.cpp
-msgid "Accuracy"
-msgstr "准确率"
-
-#: src/App/Neomod/RoomScreen.cpp
 msgid "Combo"
 msgstr "连击"
 
@@ -3395,6 +3470,10 @@ msgstr "CS:{:.3g} AR:{:.3g} OD:{:.3g} HP:{:.3g} 星级:{:.3g} -> {:.3g} ({}pp)"
 #, c++-format
 msgid "CS:{:.3g} AR:{:.3g} OD:{:.3g} HP:{:.3g} Stars:{:.3g} * (??? pp)"
 msgstr "CS:{:.3g} AR:{:.3g} OD:{:.3g} HP:{:.3g} 星级:{:.3g} * (??? pp)"
+
+#: src/App/Neomod/SongBrowser/ScoreButton.cpp
+msgid "Submitting..."
+msgstr "正在提交..."
 
 #: src/App/Neomod/SongBrowser/ScoreButton.cpp
 msgid "Wobble 2"

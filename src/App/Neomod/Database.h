@@ -153,6 +153,8 @@ class Database final {
     // returns true if adding succeeded
     bool addScore(const FinishedScore &score);
     void deleteScore(const FinishedScore &scoreToDelete);
+    // records the id the server gave the score once it was submitted
+    void setBanchoScoreId(const FinishedScore &score, i64 bancho_score_id);
     static void sortScoresInPlace(std::vector<FinishedScore> &scores);
 
     PlayerPPScores getPlayerPPScores(std::string_view playerName);

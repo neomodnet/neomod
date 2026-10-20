@@ -33,7 +33,6 @@
 #include "SString.h"
 #include "Timing.h"
 #include "Logging.h"
-#include "UserCard.h"
 #include "File.h"
 #include "UI.h"
 #include "Database.h"
@@ -358,13 +357,6 @@ void BanchoState::handle_packet(PacketReader &packet) {
             user->total_score = packet.read<i64>();
             user->global_rank = packet.read<i32>();
             user->pp = packet.read<u16>();
-
-            if(stats_user_id == BanchoState::get_uid()) {
-                osu->getUserButton()->updateUserStats();
-            }
-            if(stats_user_id == BanchoState::spectated_player_id) {
-                ui->getSpectatorScreen()->userCard->updateUserStats();
-            }
 
             ui->getChat()->updateUserList();
 

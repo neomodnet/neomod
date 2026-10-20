@@ -57,6 +57,20 @@ msgstr "Страна"
 msgid "Team"
 msgstr "Команда"
 
+#: src/App/Neomod/BanchoSubmitter.cpp
+msgid "not online on the server"
+msgstr "нет подключения к серверу"
+
+#: src/App/Neomod/BanchoSubmitter.cpp
+#, c++-format
+msgid "Score submission failed ({}), retrying..."
+msgstr "Не удалось отправить результат ({}), повторная попытка..."
+
+#: src/App/Neomod/BanchoSubmitter.cpp src/App/Neomod/RankingScreen.cpp
+#, c++-format
+msgid "Score submission rejected: {}"
+msgstr "Результат отклонён сервером: {}"
+
 #: src/App/Neomod/BeatmapInstallOverlay.cpp
 #, c++-format
 msgid "Beatmap #{:d}"
@@ -532,11 +546,11 @@ msgstr "Эта настройка принудительно задана сер
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 msgid "This setting can't be changed during a multiplayer match."
-msgstr ""
+msgstr "Эту настройку нельзя изменить во время мультиплеерного матча."
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 msgid "Use the usual setting"
-msgstr ""
+msgstr "Использовать обычную настройку"
 
 #: src/App/Neomod/MapSettingsOverlay.cpp src/App/Neomod/OptionsOverlay.cpp
 msgid "Reset"
@@ -548,32 +562,32 @@ msgstr "Сториборд"
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 msgid "Beatmap skin"
-msgstr ""
+msgstr "Скин карты"
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 msgid "Beatmap hitsounds"
-msgstr ""
+msgstr "Хитсаунды карты"
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 msgid "Changing this mid-play makes the play unranked."
-msgstr ""
+msgstr "Изменение во время игры делает попытку нерейтинговой."
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 msgid "Background dim"
-msgstr ""
+msgstr "Затемнение фона"
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 msgid "Local offset"
-msgstr ""
+msgstr "Локальный оффсет"
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 msgid "Beatmap settings"
-msgstr ""
+msgstr "Настройки карты"
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 #, c++-format
 msgid "{:d} ms"
-msgstr ""
+msgstr "{:d} мс"
 
 #: src/App/Neomod/ModSelector.cpp
 msgid "CS Override"
@@ -2953,11 +2967,11 @@ msgstr "(отключите \"{}\" в настройках скина, чтоб�
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "This setting is overridden for the current beatmap."
-msgstr ""
+msgstr "Эта настройка переопределена для текущей карты."
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "(change it in the beatmap settings at the bottom of the screen)"
-msgstr ""
+msgstr "(измените её в настройках карты внизу экрана)"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "All settings have been reset."
@@ -3153,8 +3167,20 @@ msgid "You achieved the #1 score on local rankings!"
 msgstr "Вы заняли #1 место в локальном рейтинге!"
 
 #: src/App/Neomod/RankingScreen.cpp
+msgid "Online Ranking"
+msgstr "Онлайн-рейтинг"
+
+#: src/App/Neomod/RankingScreen.cpp
 msgid "Watch replay"
 msgstr "Смотреть реплей"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Like"
+msgstr "Нравится"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Dislike"
+msgstr "Не нравится"
 
 #: src/App/Neomod/RankingScreen.cpp
 #, c++-format
@@ -3194,6 +3220,59 @@ msgstr "Нестабильность (UR): {:.2f}"
 #: src/App/Neomod/RankingScreen.cpp
 msgid "Mods: "
 msgstr "Моды: "
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Submitting score..."
+msgstr "Отправка результата..."
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Score submitted"
+msgstr "Результат отправлен"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Rank"
+msgstr "Место"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Ranked score"
+msgstr "Рейтинговые очки"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Total score"
+msgstr "Всего очков"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Max combo"
+msgstr "Макс. комбо"
+
+#: src/App/Neomod/RankingScreen.cpp src/App/Neomod/RoomScreen.cpp
+msgid "Accuracy"
+msgstr "Точность"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Performance"
+msgstr "Производительность"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Beatmap ranking"
+msgstr "Рейтинг карты"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Overall ranking"
+msgstr "Общий рейтинг"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Did you enjoy this beatmap?"
+msgstr "Вам понравилась эта карта?"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Sending rating..."
+msgstr "Отправка оценки..."
+
+#: src/App/Neomod/RankingScreen.cpp
+#, c++-format
+msgid "Average rating: {:.1f}/10"
+msgstr "Средняя оценка: {:.1f}/10"
 
 #: src/App/Neomod/RankingScreen.cpp
 #, c++-format
@@ -3335,10 +3414,6 @@ msgid "Score V1"
 msgstr "Score V1"
 
 #: src/App/Neomod/RoomScreen.cpp
-msgid "Accuracy"
-msgstr "Точность"
-
-#: src/App/Neomod/RoomScreen.cpp
 msgid "Combo"
 msgstr "Комбо"
 
@@ -3397,6 +3472,10 @@ msgstr "CS:{:.3g} AR:{:.3g} OD:{:.3g} HP:{:.3g} Звёзды:{:.3g} -> {:.3g} ({
 #, c++-format
 msgid "CS:{:.3g} AR:{:.3g} OD:{:.3g} HP:{:.3g} Stars:{:.3g} * (??? pp)"
 msgstr "CS:{:.3g} AR:{:.3g} OD:{:.3g} HP:{:.3g} Звёзды:{:.3g} * (??? pp)"
+
+#: src/App/Neomod/SongBrowser/ScoreButton.cpp
+msgid "Submitting..."
+msgstr "Отправка..."
 
 #: src/App/Neomod/SongBrowser/ScoreButton.cpp
 msgid "Wobble 2"

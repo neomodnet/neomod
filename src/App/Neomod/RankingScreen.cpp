@@ -1,11 +1,16 @@
 // Copyright (c) 2016, PG, All rights reserved.
 #include "RankingScreen.h"
 
+#include <array>
 #include <cmath>
+#include <utility>
+#include <vector>
 
 #include "AnimationHandler.h"
 #include "BackgroundImageHandler.h"
 #include "Bancho.h"
+#include "BanchoApi.h"
+#include "BanchoSubmitter.h"
 #include "BeatmapInterface.h"
 #include "CBaseUIContainer.h"
 #include "CBaseUIImage.h"
@@ -24,9 +29,11 @@
 #include "Keyboard.h"
 #include "LegacyReplay.h"
 #include "MakeDelegateWrapper.h"
+#include "NetworkHandler.h"
 #include "Mouse.h"
 #include "OptionsOverlay.h"
 #include "Osu.h"
+#include "Parsing.h"
 #include "ResourceManager.h"
 #include "Timing.h"
 #include "RoomScreen.h"
@@ -36,6 +43,8 @@
 #include "SongBrowser/ScoreButton.h"
 #include "SongBrowser/SongBrowser.h"
 #include "SoundEngine.h"
+#include "SString.h"
+#include "SyncStoptoken.h"
 #include "SpectatorScreen.h"
 #include "TooltipOverlay.h"
 #include "UI.h"
@@ -109,50 +118,76 @@ class RankingScreenBottomElement final : public CBaseUILabel {
     bool bVisible2;
 };
 
-class RankingScreenScrollDownInfoButton final : public CBaseUIButton {
+// the online ranking below the score: a status line, the stat changes, and the map rating
+class RankingScreenOnlinePanel final : public CBaseUIElement {
    public:
-    RankingScreenScrollDownInfoButton() : CBaseUIButton(0, 0, 0, 0, "") {
-        this->bVisible2 = false;
-        this->fAlpha = 1.0f;
-    }
+    struct Row {
+        std::string label;
+        std::string value;
+        Color valueColor;
+    };
+    struct Column {
+        std::string title;
+        std::vector<Row> rows;
+    };
+
+    RankingScreenOnlinePanel() : CBaseUIElement(0, 0, 0, 0, "") {}
 
     void draw() override {
-        if(!this->bVisible || !this->bVisible2) return;
+        if(!this->bVisible) return;
 
-        const float textScale = 0.45f;
-        g->pushTransform();
-        {
-            const float scale = (this->getSize().y / this->fStringHeight) * textScale;
+        const Color topColor = 0xdd3a2e0c;
+        const Color bottomColor = 0xdd493a0f;
+        g->fillGradient(this->getPos(), this->getSize(), topColor, topColor, bottomColor, bottomColor);
 
-            float animation = std::fmod((float)(engine->getTime() - 0.0f) * 3.2f, 2.0f);
-            if(animation > 1.0f) animation = 2.0f - animation;
+        McFont *titleFont = osu->getSongBrowserFontBold();
+        McFont *font = osu->getSubTitleFont();
+        const f32 padding = Osu::getUIScale(20.f);
+        const auto drawText = [](McFont *textFont, std::string_view text, f32 x, f32 y,
+                                 Color color = rgb(255, 255, 255)) {
+            g->pushTransform();
+            g->translate((int)x, (int)y);
+            g->drawString(textFont, text, TextFX{.col_text = color, .offs_px = 1.f});
+            g->popTransform();
+        };
+        const f32 centerX = this->getPos().x + this->getSize().x / 2.f;
 
-            animation = -animation * (animation - 2);  // quad out
-            const float offset = -this->fStringHeight * scale * 0.25f + animation * this->fStringHeight * scale * 0.25f;
+        f32 y = this->getPos().y + padding + titleFont->getHeight();
+        const std::string_view title = _("Online Ranking");
+        drawText(titleFont, title, centerX - titleFont->getStringWidth(title) / 2.f, y);
+        y += padding;
 
-            g->scale(scale, scale);
-            g->translate((int)(this->getPos().x + this->getSize().x / 2 - this->fStringWidth * scale / 2),
-                         (int)(this->getPos().y + this->getSize().y / 2 + this->fStringHeight * scale / 2 - offset));
-            g->translate(2, 2);
-            g->setColor(Color(0xff000000).setA(this->fAlpha));
-
-            g->drawString(this->font, this->getText());
-            g->translate(-2, -2);
-            g->setColor(Color(0xffffffff).setA(this->fAlpha));
-
-            g->drawString(this->font, this->getText());
+        if(!this->status.empty()) {
+            y += font->getHeight() * 1.5f;
+            drawText(font, this->status, centerX - font->getStringWidth(this->status) / 2.f, y);
         }
-        g->popTransform();
+
+        const f32 columnWidth = std::min((this->getSize().x - padding * 3.f) / 2.f, Osu::getUIScale(400.f));
+        const f32 columnsX = centerX - columnWidth - padding / 2.f;
+        for(size_t i = 0; i < this->columns.size(); i++) {
+            const Column &column = this->columns[i];
+            if(column.rows.empty()) continue;
+
+            const f32 x = columnsX + (f32)i * (columnWidth + padding);
+            f32 rowY = y + titleFont->getHeight() * 1.5f;
+            drawText(titleFont, column.title, x, rowY);
+            rowY += font->getHeight() * 0.75f;
+            for(const Row &row : column.rows) {
+                rowY += font->getHeight() * 1.6f;
+                drawText(font, row.label, x, rowY);
+                drawText(font, row.value, x + columnWidth - font->getStringWidth(row.value), rowY, row.valueColor);
+            }
+        }
+
+        if(!this->rating.empty()) {
+            const f32 ratingY = this->getPos().y + this->getSize().y * 0.75f;
+            drawText(font, this->rating, centerX - font->getStringWidth(this->rating) / 2.f, ratingY);
+        }
     }
 
-    void setAlpha(float alpha) { this->fAlpha = alpha; }
-
-    void setVisible2(bool visible2) { this->bVisible2 = visible2; }
-
-    [[nodiscard]] inline bool isVisible2() const { return this->bVisible2; }
-
-    bool bVisible2;
-    float fAlpha;
+    std::string status;
+    std::array<Column, 2> columns;
+    std::string rating;
 };
 }  // namespace
 
@@ -200,6 +235,16 @@ struct RankingScreen::RankingScreenImpl {
         this->watch_btn->setClickCallback(SA::MakeDelegate<&RankingScreen::onWatchClicked>(parent));
         this->rankings->container.addBaseUIElement(this->watch_btn);
 
+        this->onlinePanel = new RankingScreenOnlinePanel();
+        this->rankings->container.addBaseUIElement(this->onlinePanel);
+
+        this->like_btn = new UIButton(0, 0, 0, 0, "", _("Like"));
+        this->like_btn->setClickCallback([parent] { parent->requestRating(10); });
+        this->rankings->container.addBaseUIElement(this->like_btn);
+        this->dislike_btn = new UIButton(0, 0, 0, 0, "", _("Dislike"));
+        this->dislike_btn->setClickCallback([parent] { parent->requestRating(1); });
+        this->rankings->container.addBaseUIElement(this->dislike_btn);
+
         parent->setGrade(ScoreGrade::D);
         parent->setIndex(0);  // TEMP
 
@@ -221,6 +266,18 @@ struct RankingScreen::RankingScreenImpl {
     UIButton *retry_btn;
     UIButton *watch_btn;
 
+    RankingScreenOnlinePanel *onlinePanel;
+    UIButton *like_btn;
+    UIButton *dislike_btn;
+
+    // NONE: the score is not being submitted, or the player is offline. there is no online ranking to show
+    enum class Online : u8 { NONE, SUBMITTING, DONE } online{Online::NONE};
+    BANCHO::Net::SubmissionResult submission;
+
+    enum class Rating : u8 { UNAVAILABLE, CAN_RATE, SENDING, RATED } rating{Rating::UNAVAILABLE};
+    f64 averageRating{0.0};
+    Sync::stop_source ratingCancel;
+
     ScoreGrade grade{ScoreGrade::D};  // TEMP
     float fUnstableRate;
     float fHitErrorAvgMin;
@@ -237,7 +294,7 @@ struct RankingScreen::RankingScreenImpl {
 };
 
 RankingScreen::RankingScreen() : ScreenBackable(), m_impl(this) {}
-RankingScreen::~RankingScreen() = default;
+RankingScreen::~RankingScreen() { m_impl->ratingCancel.request_stop(); }
 
 void RankingScreen::draw() {
     if(!this->bVisible) return;
@@ -350,8 +407,10 @@ void RankingScreen::updateInput(CBaseUIEventCtx &c) {
     if(!this->bVisible) return;
     ScreenBackable::updateInput(c);
 
-    // tooltip (pp + accuracy + unstable rate)
-    if(!ui->getOptionsOverlay()->isMouseInside() && mouse->getPos().x < osu->getVirtScreenWidth() * 0.5f) {
+    // tooltip (pp + accuracy + unstable rate), while the score is in view
+    const bool scoreInView = m_impl->rankings->getRelPosY() > -m_impl->rankings->getSize().y * 0.25;
+    if(scoreInView && !ui->getOptionsOverlay()->isMouseInside() &&
+       mouse->getPos().x < osu->getVirtScreenWidth() * 0.5f) {
         auto *tto = ui->getTooltipOverlay();
         tto->begin();
         {
@@ -484,6 +543,130 @@ void RankingScreen::setScore(const FinishedScore &newscore) {
     Skin::getModImagesForMods(m_impl->modImages, sc.mods);
 
     m_impl->extraMods = ScoreButton::getExtraModNamesForDisplay(sc.mods);
+
+    m_impl->ratingCancel.request_stop();
+    m_impl->rating = RankingScreenImpl::Rating::UNAVAILABLE;
+    m_impl->online = BanchoState::is_online() && BANCHO::Net::is_score_pending(sc)
+                         ? RankingScreenImpl::Online::SUBMITTING
+                         : RankingScreenImpl::Online::NONE;
+    const bool hasOnlinePanel = m_impl->online != RankingScreenImpl::Online::NONE;
+    m_impl->rankings->setVerticalScrolling(hasOnlinePanel);
+    m_impl->rankings->scrollToY(0, false);
+    m_impl->onlinePanel->setVisible(hasOnlinePanel);
+    this->setOnlinePanelText();
+}
+
+void RankingScreen::onScoreSubmitted(const FinishedScore &score, const BANCHO::Net::SubmissionResult &result) {
+    if(m_impl->online != RankingScreenImpl::Online::SUBMITTING || !(m_impl->storedScore == score)) return;
+
+    m_impl->online = RankingScreenImpl::Online::DONE;
+    m_impl->submission = result;
+    m_impl->storedScore.bancho_score_id = result.online_score_id;
+    if(result.rejection_reason.empty() && result.has_charts) {
+        this->requestRating(0);
+    }
+    this->setOnlinePanelText();
+}
+
+void RankingScreen::requestRating(i32 rating) {
+    m_impl->ratingCancel.request_stop();
+    m_impl->ratingCancel = {};
+    if(rating > 0) {
+        m_impl->rating = RankingScreenImpl::Rating::SENDING;
+        this->setOnlinePanelText();
+    }
+
+    std::string url =
+        fmt::format("osu.{}/web/osu-rate.php?c={}", BanchoState::endpoint, m_impl->storedScore.beatmap_hash);
+    if(rating > 0) url.append(fmt::format("&v={}", rating));
+    BANCHO::Api::append_auth_params(url, "u", "p");
+
+    Mc::Net::RequestOptions options{
+        .user_agent = "osu!",
+        .timeout = 5,
+        .connect_timeout = 5,
+        .cancel_token = m_impl->ratingCancel.get_token(),
+    };
+    networkHandler->httpRequestAsync(url, std::move(options),
+                                     [this](const Mc::Net::Response &response) { this->onRatingResponse(response); });
+}
+
+void RankingScreen::onRatingResponse(const Mc::Net::Response &response) {
+    // "ok": the map can be rated. "alreadyvoted\n<average>": it was rated (now, or before)
+    // anything else: the map can't be rated (e.g. "not ranked")
+    const std::string_view body = response.success ? SString::trimmed(response.text()) : std::string_view{};
+    if(body == "ok") {
+        m_impl->rating = RankingScreenImpl::Rating::CAN_RATE;
+    } else if(body.starts_with("alreadyvoted")) {
+        m_impl->rating = RankingScreenImpl::Rating::RATED;
+        m_impl->averageRating = Parsing::strto<f64>(SString::trimmed(body.substr(12)));
+    } else {
+        m_impl->rating = RankingScreenImpl::Rating::UNAVAILABLE;
+    }
+    this->setOnlinePanelText();
+}
+
+void RankingScreen::setOnlinePanelText() {
+    using Result = BANCHO::Net::SubmissionResult;
+    auto &panel = *m_impl->onlinePanel;
+    const Result &result = m_impl->submission;
+
+    panel.columns = {};
+    if(m_impl->online == RankingScreenImpl::Online::SUBMITTING) {
+        panel.status = _("Submitting score...");
+    } else if(!result.rejection_reason.empty()) {
+        panel.status = tformat("Score submission rejected: {}", result.rejection_reason);
+    } else if(!result.has_charts) {
+        panel.status = _("Score submitted");
+    } else {
+        panel.status.clear();
+
+        // "before -> after", or only "after" when it didn't change (or there was nothing before).
+        // a change is green when the number went up and red when it went down (inverted for the rank).
+        const auto rows = [](const Result::Chart &chart) {
+            std::vector<RankingScreenOnlinePanel::Row> out;
+            const auto add = [&out](std::string_view label, const Result::Stat &stat, auto &&format,
+                                    bool lowerIsBetter = false) {
+                if(stat.after == 0.0) return;
+                if(stat.before == 0.0 || stat.before == stat.after) {
+                    out.push_back({std::string{label}, format(stat.after), rgb(255, 255, 255)});
+                    return;
+                }
+                const bool improved = (stat.after > stat.before) != lowerIsBetter;
+                out.push_back({std::string{label}, fmt::format("{} -> {}", format(stat.before), format(stat.after)),
+                               improved ? rgb(100, 255, 100) : rgb(255, 100, 100)});
+            };
+            const auto number = [](f64 v) { return SString::thousands((u64)v); };
+
+            add(_("Rank"), chart.rank, [&number](f64 v) { return "#" + number(v); }, true);
+            add(_("Ranked score"), chart.ranked_score, number);
+            add(_("Total score"), chart.total_score, number);
+            add(_("Max combo"), chart.max_combo, [&number](f64 v) { return number(v) + "x"; });
+            add(_("Accuracy"), chart.accuracy, [](f64 v) { return fmt::format("{:.2f}%", v); });
+            add(_("Performance"), chart.pp, [&number](f64 v) { return number(std::round(v)) + "pp"; });
+            return out;
+        };
+        panel.columns[0] = {.title = _("Beatmap ranking"), .rows = rows(result.beatmap)};
+        panel.columns[1] = {.title = _("Overall ranking"), .rows = rows(result.overall)};
+    }
+
+    using Rating = RankingScreenImpl::Rating;
+    switch(m_impl->rating) {
+        case Rating::UNAVAILABLE:
+            panel.rating.clear();
+            break;
+        case Rating::CAN_RATE:
+            panel.rating = _("Did you enjoy this beatmap?");
+            break;
+        case Rating::SENDING:
+            panel.rating = _("Sending rating...");
+            break;
+        case Rating::RATED:
+            panel.rating = tformat("Average rating: {:.1f}/10", m_impl->averageRating);
+            break;
+    }
+    m_impl->like_btn->setVisible(m_impl->rating == Rating::CAN_RATE);
+    m_impl->dislike_btn->setVisible(m_impl->rating == Rating::CAN_RATE);
 }
 
 const FinishedScore &RankingScreen::getScore() { return m_impl->storedScore; }
@@ -541,6 +724,17 @@ void RankingScreen::updateLayout() {
 
     m_impl->rankingBottom->setSize(m_impl->rankings->getSize().x + 2, osu->getVirtScreenHeight() * 0.2f);
     m_impl->rankingBottom->setRelPosY(m_impl->rankingIndex->getRelPos().y + m_impl->rankingIndex->getSize().y);
+
+    // the online ranking is one page below the score
+    const f32 pageHeight = m_impl->rankings->getSize().y;
+    m_impl->onlinePanel->setSize(m_impl->rankings->getSize().x + 2, pageHeight);
+    m_impl->onlinePanel->setRelPos(0, pageHeight + 1);
+
+    m_impl->like_btn->setSize(btn_width, btn_height);
+    m_impl->dislike_btn->setSize(btn_width, btn_height);
+    const f32 rateY = m_impl->onlinePanel->getRelPos().y + pageHeight * 0.75f + 15.f * dpiScale;
+    m_impl->like_btn->setRelPos(m_impl->rankings->getSize().x / 2 - btn_width - 5.f * dpiScale, rateY);
+    m_impl->dislike_btn->setRelPos(m_impl->rankings->getSize().x / 2 + 5.f * dpiScale, rateY);
 
     this->setGrade(m_impl->grade);
 

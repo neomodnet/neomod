@@ -2,8 +2,15 @@
 // Copyright (c) 2016, PG, All rights reserved.
 #include "ScreenBackable.h"
 #include "StaticPImpl.h"
+#include "types.h"
 
 struct FinishedScore;
+namespace BANCHO::Net {
+struct SubmissionResult;
+}
+namespace Mc::Net {
+struct Response;
+}
 
 struct Skin;
 class SkinImage;
@@ -28,6 +35,9 @@ class RankingScreen final : public ScreenBackable {
     void setScore(const FinishedScore &score);
     const FinishedScore &getScore();
 
+    // shows the online ranking of the score, if it is the one on screen
+    void onScoreSubmitted(const FinishedScore &score, const BANCHO::Net::SubmissionResult &result);
+
    private:
     void updateLayout() override;
     void onBack() override;
@@ -37,9 +47,14 @@ class RankingScreen final : public ScreenBackable {
     void setGrade(ScoreGrade grade);
     void setIndex(int index);
 
+    // rating 0 only asks whether the map can be rated
+    void requestRating(i32 rating);
+    void onRatingResponse(const Mc::Net::Response &response);
+    void setOnlinePanelText();
+
     [[nodiscard]] std::string getPPString() const;
     [[nodiscard]] vec2 getPPPosRaw() const;
 
     struct RankingScreenImpl;
-    StaticPImpl<RankingScreenImpl, 768> m_impl;
+    StaticPImpl<RankingScreenImpl, 1280> m_impl;
 };

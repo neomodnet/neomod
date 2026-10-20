@@ -400,6 +400,7 @@ void AboutScreen::buildChangelog() {
     CHANGELOG v44_02;
     v44_02.title = "44.02 (" CHANGELOG_TIMESTAMP ")";
     v44_02.changes = {
+        R"(- Added score submission results and map voting below the ranking screen)",
         R"(- Storyboard playback improvements:)",
         R"(  - Improved performance of large storyboards)",
         R"(  - Overlapping commands, flickering opacity and combined scaling/movement commands)",
@@ -408,6 +409,9 @@ void AboutScreen::buildChangelog() {
         R"(  - Fixed storyboard trigger sprites only reacting while their own commands run)",
         R"(  - Fixed storyboard samples with a different file extension than written not playing)",
         R"(  - Fixed "UseSkinSprites" storyboards preferring skin images over the beatmap's own)",
+        R"(- Score submission is now retried until the server accepts or rejects the score)",
+        R"(- Scores that are still being submitted are now shown as such in the leaderboard)",
+        R"(- Fixed the pp change on the user card not showing when the stats changed on another screen)",
         R"(- Fixed importing skins zipped with the macOS archive utility (outside of macOS))",
         R"(- Fixed beatmaps from watched online replays merging into one beatmapset)",
     };

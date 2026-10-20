@@ -55,6 +55,20 @@ msgstr "País"
 msgid "Team"
 msgstr "Equipe"
 
+#: src/App/Neomod/BanchoSubmitter.cpp
+msgid "not online on the server"
+msgstr "sem conexão com o servidor"
+
+#: src/App/Neomod/BanchoSubmitter.cpp
+#, c++-format
+msgid "Score submission failed ({}), retrying..."
+msgstr "Falha ao enviar a pontuação ({}), tentando novamente..."
+
+#: src/App/Neomod/BanchoSubmitter.cpp src/App/Neomod/RankingScreen.cpp
+#, c++-format
+msgid "Score submission rejected: {}"
+msgstr "Pontuação rejeitada: {}"
+
 #: src/App/Neomod/BeatmapInstallOverlay.cpp
 #, c++-format
 msgid "Beatmap #{:d}"
@@ -530,11 +544,11 @@ msgstr "Esta configuração é imposta pelo servidor."
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 msgid "This setting can't be changed during a multiplayer match."
-msgstr ""
+msgstr "Esta configuração não pode ser alterada durante uma partida multijogador."
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 msgid "Use the usual setting"
-msgstr ""
+msgstr "Usar a configuração habitual"
 
 #: src/App/Neomod/MapSettingsOverlay.cpp src/App/Neomod/OptionsOverlay.cpp
 msgid "Reset"
@@ -546,32 +560,32 @@ msgstr "Storyboard"
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 msgid "Beatmap skin"
-msgstr ""
+msgstr "Skin do beatmap"
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 msgid "Beatmap hitsounds"
-msgstr ""
+msgstr "Hitsounds do beatmap"
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 msgid "Changing this mid-play makes the play unranked."
-msgstr ""
+msgstr "Alterar isso durante a partida a torna não ranqueada."
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 msgid "Background dim"
-msgstr ""
+msgstr "Escurecer fundo"
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 msgid "Local offset"
-msgstr ""
+msgstr "Offset local"
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 msgid "Beatmap settings"
-msgstr ""
+msgstr "Configurações do beatmap"
 
 #: src/App/Neomod/MapSettingsOverlay.cpp
 #, c++-format
 msgid "{:d} ms"
-msgstr ""
+msgstr "{:d} ms"
 
 #: src/App/Neomod/ModSelector.cpp
 msgid "CS Override"
@@ -2951,11 +2965,11 @@ msgstr "(desative \"{}\" nas opções de skin para mudar)"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "This setting is overridden for the current beatmap."
-msgstr ""
+msgstr "Esta configuração é substituída para o beatmap atual."
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "(change it in the beatmap settings at the bottom of the screen)"
-msgstr ""
+msgstr "(altere-a nas configurações do beatmap na parte inferior da tela)"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "All settings have been reset."
@@ -3151,8 +3165,20 @@ msgid "You achieved the #1 score on local rankings!"
 msgstr "Você conseguiu a pontuação #1 no ranking local!"
 
 #: src/App/Neomod/RankingScreen.cpp
+msgid "Online Ranking"
+msgstr "Ranking online"
+
+#: src/App/Neomod/RankingScreen.cpp
 msgid "Watch replay"
 msgstr "Assistir replay"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Like"
+msgstr "Gostei"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Dislike"
+msgstr "Não gostei"
 
 #: src/App/Neomod/RankingScreen.cpp
 #, c++-format
@@ -3192,6 +3218,59 @@ msgstr "Unstable Rate: {:.2f}"
 #: src/App/Neomod/RankingScreen.cpp
 msgid "Mods: "
 msgstr "Mods: "
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Submitting score..."
+msgstr "Enviando pontuação..."
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Score submitted"
+msgstr "Pontuação enviada"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Rank"
+msgstr "Posição"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Ranked score"
+msgstr "Pontuação ranqueada"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Total score"
+msgstr "Pontuação total"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Max combo"
+msgstr "Combo máximo"
+
+#: src/App/Neomod/RankingScreen.cpp src/App/Neomod/RoomScreen.cpp
+msgid "Accuracy"
+msgstr "Precisão"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Performance"
+msgstr "Desempenho"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Beatmap ranking"
+msgstr "Ranking do beatmap"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Overall ranking"
+msgstr "Ranking geral"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Did you enjoy this beatmap?"
+msgstr "Você curtiu este beatmap?"
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Sending rating..."
+msgstr "Enviando avaliação..."
+
+#: src/App/Neomod/RankingScreen.cpp
+#, c++-format
+msgid "Average rating: {:.1f}/10"
+msgstr "Avaliação média: {:.1f}/10"
 
 #: src/App/Neomod/RankingScreen.cpp
 #, c++-format
@@ -3333,10 +3412,6 @@ msgid "Score V1"
 msgstr "Score V1"
 
 #: src/App/Neomod/RoomScreen.cpp
-msgid "Accuracy"
-msgstr "Precisão"
-
-#: src/App/Neomod/RoomScreen.cpp
 msgid "Combo"
 msgstr "Combo"
 
@@ -3395,6 +3470,10 @@ msgstr "CS:{:.3g} AR:{:.3g} OD:{:.3g} HP:{:.3g} Estrelas:{:.3g} -> {:.3g} ({}pp)
 #, c++-format
 msgid "CS:{:.3g} AR:{:.3g} OD:{:.3g} HP:{:.3g} Stars:{:.3g} * (??? pp)"
 msgstr "CS:{:.3g} AR:{:.3g} OD:{:.3g} HP:{:.3g} Estrelas:{:.3g} * (??? pp)"
+
+#: src/App/Neomod/SongBrowser/ScoreButton.cpp
+msgid "Submitting..."
+msgstr "Enviando..."
 
 #: src/App/Neomod/SongBrowser/ScoreButton.cpp
 msgid "Wobble 2"

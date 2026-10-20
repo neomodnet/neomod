@@ -635,6 +635,16 @@ void Database::deleteScore(const FinishedScore &scoreToDelete) {
     }
 }
 
+void Database::setBanchoScoreId(const FinishedScore &score, i64 bancho_score_id) {
+    Sync::unique_lock lock(this->scores_mtx);
+    if(const auto &scoreit = this->scores.find(score.beatmap_hash); scoreit != this->scores.end()) {
+        if(auto it = Mc::ranges::find(scoreit->second, score); it != scoreit->second.end()) {
+            it->bancho_score_id = bancho_score_id;
+            this->scores_changed.store(true, std::memory_order_release);
+        }
+    }
+}
+
 void Database::sortScoresInPlace(std::vector<FinishedScore> &scores) {
     if(scores.size() < 2) return;
 

@@ -35,6 +35,20 @@ msgstr ""
 msgid "Team"
 msgstr ""
 
+#: src/App/Neomod/BanchoSubmitter.cpp
+msgid "not online on the server"
+msgstr ""
+
+#: src/App/Neomod/BanchoSubmitter.cpp
+#, c++-format
+msgid "Score submission failed ({}), retrying..."
+msgstr ""
+
+#: src/App/Neomod/BanchoSubmitter.cpp src/App/Neomod/RankingScreen.cpp
+#, c++-format
+msgid "Score submission rejected: {}"
+msgstr ""
+
 #: src/App/Neomod/BeatmapInstallOverlay.cpp
 #, c++-format
 msgid "Beatmap #{:d}"
@@ -3021,7 +3035,19 @@ msgid "You achieved the #1 score on local rankings!"
 msgstr ""
 
 #: src/App/Neomod/RankingScreen.cpp
+msgid "Online Ranking"
+msgstr ""
+
+#: src/App/Neomod/RankingScreen.cpp
 msgid "Watch replay"
+msgstr ""
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Like"
+msgstr ""
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Dislike"
 msgstr ""
 
 #: src/App/Neomod/RankingScreen.cpp
@@ -3061,6 +3087,59 @@ msgstr ""
 
 #: src/App/Neomod/RankingScreen.cpp
 msgid "Mods: "
+msgstr ""
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Submitting score..."
+msgstr ""
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Score submitted"
+msgstr ""
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Rank"
+msgstr ""
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Ranked score"
+msgstr ""
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Total score"
+msgstr ""
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Max combo"
+msgstr ""
+
+#: src/App/Neomod/RankingScreen.cpp src/App/Neomod/RoomScreen.cpp
+msgid "Accuracy"
+msgstr ""
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Performance"
+msgstr ""
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Beatmap ranking"
+msgstr ""
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Overall ranking"
+msgstr ""
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Did you enjoy this beatmap?"
+msgstr ""
+
+#: src/App/Neomod/RankingScreen.cpp
+msgid "Sending rating..."
+msgstr ""
+
+#: src/App/Neomod/RankingScreen.cpp
+#, c++-format
+msgid "Average rating: {:.1f}/10"
 msgstr ""
 
 #: src/App/Neomod/RankingScreen.cpp
@@ -3203,10 +3282,6 @@ msgid "Score V1"
 msgstr ""
 
 #: src/App/Neomod/RoomScreen.cpp
-msgid "Accuracy"
-msgstr ""
-
-#: src/App/Neomod/RoomScreen.cpp
 msgid "Combo"
 msgstr ""
 
@@ -3264,6 +3339,10 @@ msgstr ""
 #: src/App/Neomod/SongBrowser/InfoLabel.cpp
 #, c++-format
 msgid "CS:{:.3g} AR:{:.3g} OD:{:.3g} HP:{:.3g} Stars:{:.3g} * (??? pp)"
+msgstr ""
+
+#: src/App/Neomod/SongBrowser/ScoreButton.cpp
+msgid "Submitting..."
 msgstr ""
 
 #: src/App/Neomod/SongBrowser/ScoreButton.cpp

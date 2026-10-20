@@ -113,4 +113,5 @@ class ScoreButton final : public CBaseUIButton {
     bool bRightClick{false};
     bool bRightClickCheck{false};
     bool is_friend{false};
+    bool is_submitting{false};
 };

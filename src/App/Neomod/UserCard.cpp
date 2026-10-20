@@ -221,6 +221,7 @@ void UserCard::tick() {
     // so this should not be an expensive operation
     // calling this on each update loop allows us to just set db->bDidScoresChangeForStats = true
     // to recalculate local user stats
+    // (it only ticks while shown, so stats that changed while hidden still animate once it is visible)
     this->updateUserStats();
 }
 

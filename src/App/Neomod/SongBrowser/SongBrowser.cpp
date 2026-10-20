@@ -41,6 +41,7 @@
 #include "Bancho.h"
 #include "BanchoNetworking.h"
 #include "BanchoLeaderboard.h"
+#include "BanchoSubmitter.h"
 #include "RichPresence.h"
 #include "MapExporter.h"
 
@@ -2466,6 +2467,17 @@ void SongBrowser::rebuildScoreButtons() {
             const auto &search = db->getOnlineScores().find(mapHash);
             if(search != db->getOnlineScores().end()) {
                 scores = search->second;
+
+                // show passes that are still being submitted where the server will list them
+                for(FinishedScore &pending : BANCHO::Net::get_pending_scores(mapHash)) {
+                    if(!pending.passed) continue;
+
+                    // the server lists one score per player
+                    std::erase_if(scores, [&pending](const FinishedScore &sc) {
+                        return sc.is_online_score && sc.player_id == pending.player_id && sc.score < pending.score;
+                    });
+                    scores.push_back(std::move(pending));
+                }
 
                 if(!local_best) {
                     if(!scores.empty()) {

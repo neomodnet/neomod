@@ -5,6 +5,7 @@
 #include "Osu.h"
 #include "Bancho.h"
 #include "BanchoProtocol.h"
+#include "BanchoSubmitter.h"
 #include "BanchoUsers.h"
 #include "BeatmapInstaller.h"
 #include "BeatmapInterface.h"
@@ -243,6 +244,8 @@ void update_networking() {
 
     if(!BanchoState::is_online()) return;
 
+    update_submissions();
+
     // Append missing presence/stats request packets
     // XXX: Rather than every second, this should be done once, and only once
     //      (if we remove the check, right now it could spam 1000x/second)
@@ -335,6 +338,7 @@ void cleanup_networking() {
     // no thread to kill, just cleanup any remaining state
     auth_token = "";
     outgoing = {};
+    cleanup_submissions();
 }
 
 }  // namespace BANCHO::Net

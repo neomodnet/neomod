@@ -11,6 +11,7 @@
 
 #include "SString.h"
 #include "AnimationHandler.h"
+#include "BanchoSubmitter.h"
 #include "BanchoUsers.h"
 #include "OsuConVars.h"
 #include "Database.h"
@@ -371,7 +372,9 @@ void ScoreButton::draw() {
         g->popTransform();
 
         // elapsed time since score
-        if(this->sScoreTime.length() > 0) {
+        const std::string_view timeString =
+            this->is_submitting ? std::string_view{_("Submitting...")} : std::string_view{this->sScoreTime};
+        if(!timeString.empty()) {
             const float timeHeight = rightSideThirdHeight;
             const float timeScale = (timeHeight / timeFont->getHeight()) * timeElapsedScale;
             const float timePaddingLeft = 8;
@@ -385,10 +388,10 @@ void ScoreButton::draw() {
                 g->translate(0.75f, 0.75f);
                 g->setColor(Color(0xff000000).setA(0.85f));
 
-                g->drawString(timeFont, this->sScoreTime);
+                g->drawString(timeFont, timeString);
                 g->translate(-0.75f, -0.75f);
-                g->setColor(0xffffffff);
-                g->drawString(timeFont, this->sScoreTime);
+                g->setColor(this->is_submitting ? 0xffaaaaaa : 0xffffffff);
+                g->drawString(timeFont, timeString);
             }
             g->popTransform();
         }
@@ -717,6 +720,7 @@ void ScoreButton::setScore(const FinishedScore &newscore, const DatabaseBeatmap 
     const bool fullCombo = (sc.maxPossibleCombo > 0 && sc.numMisses == 0 && sc.numSliderBreaks == 0);
 
     this->is_friend = false;
+    this->is_submitting = BANCHO::Net::is_score_pending(sc);
 
     this->avatar.reset();
     if(sc.player_id != 0) {

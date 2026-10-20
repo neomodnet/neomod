@@ -181,6 +181,7 @@ class SongBrowser final : public ScreenBackable {
     void rebuildSongButtons();
     void recreateCollectionsButtons();
     void onGotNewLeaderboard(const MD5Hash &lbHash);
+    void rebuildScoreButtons();
     void partiallyUpdateSongButtonLayout(const std::vector<CarouselButton *> &btns, f32 y);
     void updateSongButtonLayout();
 
@@ -296,7 +297,6 @@ class SongBrowser final : public ScreenBackable {
     void unlinkBeatmapSet(const BeatmapSet *set);
     void rebuildAfterSetChange();
 
-    void rebuildScoreButtons();
     CollBtnContainer *getCollectionButtonsForGroup(GroupType group);
 
     void drawStrainGraphOverlay();
