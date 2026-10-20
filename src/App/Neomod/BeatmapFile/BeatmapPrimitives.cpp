@@ -487,12 +487,22 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
                 slider.x = (f32)(i32)ho.x;  // NOTE: lazer beatmaps do not truncate here
                 slider.y = (f32)(i32)ho.y;
                 slider.repeat = std::clamp(ho.slides, 0, sliderMaxRepeatRange);
-                slider.pixelLength =
-                    std::isnan(pixelLength) ? 0.f : std::clamp(pixelLength, -sliderSanityRange, sliderSanityRange);
+                // osu!stable parses negative lengths as an invisible slider without a path, judged at its head
+                slider.invisible = pixelLength < 0.f;
+                if(slider.invisible) {
+                    slider.type = SLIDERCURVETYPE::LINEAR;
+                    slider.points.assign(2, slider.points[0]);
+                }
+                slider.pixelLength = std::isnan(pixelLength) ? 0.f : std::clamp(pixelLength, 0.f, sliderSanityRange);
                 if(slider.pixelLength == 0.f) {
                     // without a length: as long as its curve
                     slider.pixelLength =
                         std::min(SliderCurve{slider.type, slider.points, 0.f}.getPixelLength(), sliderSanityRange);
+                }
+                // osu!stable never judges the repeats of a slider without a path (lazer drops them and their sounds)
+                if(slider.pixelLength == 0.f && slider.repeat > 1) {
+                    slider.repeat = 1;
+                    slider.edgeSamples = {slider.edgeSamples.front(), slider.edgeSamples.back()};
                 }
                 // (only by timing points: whatever needs slider times checks the map has some)
                 if(!c.timingpoints.empty()) {

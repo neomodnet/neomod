@@ -1037,7 +1037,7 @@ void Circle::onReset(i32 curPosMS) {
 
 vec2 Circle::getAutoCursorPos(i32 /*curPos*/) const { return m_judge->osuCoords2Pixels(m_rawPos); }
 
-Slider::Slider(SLIDERCURVETYPE stype, i32 repeat, f32 pixelLength, std::span<const vec2> points,
+Slider::Slider(SLIDERCURVETYPE stype, i32 repeat, f32 pixelLength, bool invisible, std::span<const vec2> points,
                std::span<const f32> ticks, f32 sliderTimeMS, f32 sliderTimeMSWithoutRepeats, i32 timeMS,
                DatabaseBeatmapTypes::HITSAMPLE_BITS hoverSamples,
                std::vector<DatabaseBeatmapTypes::HITSAMPLE_BITS> edgeSamples, i32 comboNumber, bool isEndOfCombo,
@@ -1045,11 +1045,12 @@ Slider::Slider(SLIDERCURVETYPE stype, i32 repeat, f32 pixelLength, std::span<con
     : HitObject(timeMS, hoverSamples, comboNumber, isEndOfCombo, colorCounter, colorOffset, judge, view),
       m_edgeSamples(std::move(edgeSamples)),
       // build curve
-      m_curve(stype, points, std::abs(pixelLength)),
+      m_curve(stype, points, pixelLength),
       m_sliderTimeMS(sliderTimeMS),
       m_sliderTimeMSWithoutRepeats(sliderTimeMSWithoutRepeats),
       m_repeat(repeat),
-      m_numCtrlPoints(static_cast<u32>(points.size())) {
+      m_numCtrlPoints(static_cast<u32>(points.size())),
+      m_invisible(invisible) {
     m_type = HitObjectType::SLIDER;
 
     // build raw ticks
@@ -1109,7 +1110,7 @@ static CONSTINIT std::vector<vec2> alwaysPointsBuf;
 static CONSTINIT std::vector<vec2> legacyScreenPointsBuf;
 
 void Slider::draw() {
-    if(m_numCtrlPoints <= 0) return;
+    if(m_numCtrlPoints <= 0 || m_invisible) return;
 
     const f32 foscale = cv::circle_fade_out_scale.getFloat();
     const Skin *skin = m_view->getSkin();
@@ -1331,6 +1332,7 @@ void Slider::draw() {
 
 void Slider::draw2(bool drawApproachCircle, bool drawOnlyApproachCircle) {
     HitObject::draw2();
+    if(m_invisible) return;
 
     const Skin *skin = m_view->getSkin();
 
@@ -1465,7 +1467,7 @@ void Slider::drawEndCircle(f32 alpha, f32 sliderSnake) {
 }
 
 std::optional<SliderRenderer::Body> Slider::getBody() const {
-    if(m_numCtrlPoints <= 0) return std::nullopt;
+    if(m_numCtrlPoints <= 0 || m_invisible) return std::nullopt;
 
     const bool isCompletelyFinished = m_startFinished && m_endFinished && m_finished;
     if((m_visible || (m_startFinished && !m_finished)) && !isCompletelyFinished) {
@@ -3097,9 +3099,10 @@ std::vector<std::unique_ptr<HitObject>> create(const Primitives::PRIMITIVE_CONTA
             objects.emplace_back(new Circle(vec2{h->x, h->y}, h->time, h->samples, h->number, h->isEndOfCombo,
                                             h->colorCounter, h->colorOffset, judge, view));
         } else if(const auto *s = std::get_if<DatabaseBeatmapTypes::SLIDER>(&object)) {
-            objects.emplace_back(new Slider(s->type, s->repeat, s->pixelLength, s->points, s->ticks, s->sliderTime,
-                                            s->sliderTimeWithoutRepeats, s->time, s->hoverSamples, s->edgeSamples,
-                                            s->number, s->isEndOfCombo, s->colorCounter, s->colorOffset, judge, view));
+            objects.emplace_back(new Slider(s->type, s->repeat, s->pixelLength, s->invisible, s->points, s->ticks,
+                                            s->sliderTime, s->sliderTimeWithoutRepeats, s->time, s->hoverSamples,
+                                            s->edgeSamples, s->number, s->isEndOfCombo, s->colorCounter, s->colorOffset,
+                                            judge, view));
         } else {
             const auto &spinner = std::get<DatabaseBeatmapTypes::SPINNER>(object);
             objects.emplace_back(new Spinner(vec2{spinner.x, spinner.y}, spinner.time, spinner.samples,

@@ -313,7 +313,8 @@ class Slider final : public HitObject, public SliderRenderer::BodySource {
     Slider() = delete;
     ~Slider() override;
 
-    Slider(neomod::SLIDERCURVETYPE stype, i32 repeat, f32 pixelLength, std::span<const vec2> points,
+    // an invisible slider draws nothing but its judgements
+    Slider(neomod::SLIDERCURVETYPE stype, i32 repeat, f32 pixelLength, bool invisible, std::span<const vec2> points,
            std::span<const f32> ticks, f32 sliderTimeMS, f32 sliderTimeMSWithoutRepeats, i32 timeMS,
            DatabaseBeatmapTypes::HITSAMPLE_BITS hoverSamples,
            std::vector<DatabaseBeatmapTypes::HITSAMPLE_BITS> edgeSamples, i32 comboNumber, bool isEndOfCombo,
@@ -452,6 +453,7 @@ class Slider final : public HitObject, public SliderRenderer::BodySource {
     bool m_heldTillEndForLenienceHackCheck{false};
     bool m_inReverse{false};
     bool m_hideNumberAfterFirstRepeatHit{false};
+    bool m_invisible;
 };
 
 class Spinner final : public HitObject {

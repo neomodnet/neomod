@@ -139,6 +139,7 @@ struct SLIDER final {
     bool newCombo;
     u8 colorSkip;
     bool isEndOfCombo;
+    bool invisible;  // a negative length in the file (the slider then has no path)
 
     f32 sliderTime;
     f32 sliderTimeWithoutRepeats;

@@ -526,11 +526,23 @@ void BeatmapFileTest::runTests() {
 
         const auto lengths = load(
             "osu file format v14\r\n[TimingPoints]\r\n0,500,4,1,0,100,1,0\r\n[HitObjects]\r\n0,0,1000,2,0,L|100:0,1\r\n"
-            "0,0,2000,2,0,L|0:50,1,0\r\n0,0,3000,2,0,L|30:40,1,20\r\n0,0,4000,2,0,P|50:50|100:0,1\r\n");
-        const auto length = [&lengths](uSz i) { return std::get<DBType::SLIDER>(lengths.objects[i]).pixelLength; };
-        TEST_ASSERT(lengths.getNumObjects<DBType::SLIDER>() == 4 && length(0) == 100.f && length(1) == 50.f &&
+            "0,0,2000,2,0,L|0:50,1,0\r\n0,0,3000,2,0,L|30:40,1,20\r\n0,0,4000,2,0,P|50:50|100:0,1\r\n"
+            "0,0,5000,2,0,L|0:70,1,-1\r\n0,0,6000,2,2,L|0:70,3,-1,0|8|2|4\r\n0,0,7000,2,0,L|0:0,2,0\r\n");
+        const auto slider = [&lengths](uSz i) -> const DBType::SLIDER & {
+            return std::get<DBType::SLIDER>(lengths.objects[i]);
+        };
+        const auto length = [&slider](uSz i) { return slider(i).pixelLength; };
+        TEST_ASSERT(lengths.getNumObjects<DBType::SLIDER>() == 7 && length(0) == 100.f && length(1) == 50.f &&
                         length(2) == 20.f && std::abs(length(3) - 50.f * std::numbers::pi_v<f32>) < 0.01f,
                     "a slider without a length, or with 0, is as long as its curve");
+        TEST_ASSERT(lengths.getNumObjects<DBType::SLIDER>() == 7 && length(4) == 0.f && slider(4).invisible &&
+                        std::ranges::all_of(slider(4).points, [](vec2 p) { return p == vec2{0.f, 0.f}; }) &&
+                        !slider(0).invisible,
+                    "a slider with a negative length is invisible, without a path past its head (like osu!stable)");
+        TEST_ASSERT(lengths.getNumObjects<DBType::SLIDER>() == 7 && slider(4).repeat == 1 && slider(5).repeat == 1 &&
+                        slider(6).repeat == 1 && slider(5).edgeSamples.size() == 2 &&
+                        slider(5).edgeSamples[0].hitSounds == 0 && slider(5).edgeSamples[1].hitSounds == 4,
+                    "a slider without a path has no repeats, keeping the sounds of its head and tail");
 
         // a curve's own length
         const auto natural = [](SLIDERCURVETYPE type, std::vector<vec2> points) {
