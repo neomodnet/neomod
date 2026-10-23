@@ -2,6 +2,8 @@
 #pragma once
 #include "App.h"
 
+#include <string>
+
 namespace Mc::Tests {
 
 class StoryboardTest : public App {
@@ -14,6 +16,7 @@ class StoryboardTest : public App {
 
    private:
     void runTests();
+    void runCorpus(const std::string &dir);
 
     int m_passes{0};
     int m_failures{0};

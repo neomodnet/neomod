@@ -12,6 +12,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 class DatabaseBeatmap;
@@ -61,7 +62,10 @@ class Storyboard {
     [[nodiscard]] vec2 getBackgroundOffset() const;
 
     [[nodiscard]] uSz getNumSprites() const;
+    [[nodiscard]] uSz getNumSamples() const;
     [[nodiscard]] std::optional<SpriteState> getSpriteState(uSz sprite, f64 time) const;
+    // when a sprite is shown, from its first visible command to the end of its last
+    [[nodiscard]] std::pair<f64, f64> getSpriteSpan(uSz sprite) const;
     [[nodiscard]] std::optional<f64> getEndTime() const;
 
     void load(bool visualsOnly);

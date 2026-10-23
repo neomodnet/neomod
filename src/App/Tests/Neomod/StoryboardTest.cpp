@@ -2,14 +2,31 @@
 #include "StoryboardTest.h"
 
 #include "TestMacros.h"
+#include "BeatmapFile.h"
+#include "ContainerRanges.h"
 #include "Engine.h"
 #include "Environment.h"
 #include "File.h"
+#include "Parsing.h"
 #include "Paths.h"
 #include "Storyboard.h"
+#include "SyncJthread.h"
+#include "Timing.h"
+#include "Vectors.h"
 
+#include "fmt/format.h"
+
+#include <algorithm>
+#include <array>
+#include <atomic>
+#include <cmath>
+#include <filesystem>
+#include <fstream>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <thread>
+#include <vector>
 
 namespace Mc::Tests {
 
@@ -23,6 +40,160 @@ Storyboard storyboard(std::string_view events, std::string_view osb = {}) {
     const std::string osu = fmt::format("osu file format v14\n\n[Events]\n{}\n", events);
     return Storyboard{"", osu, osb, "", ""};
 }
+
+// a folder of a corpus holding .osu files
+struct CorpusSet {
+    std::string name;  // relative to the corpus
+    std::string folder;
+    std::vector<std::string> maps;  // file names, sorted
+};
+
+std::vector<CorpusSet> findSets(const std::string &dir) {
+    namespace fs = std::filesystem;
+    std::vector<CorpusSet> sets;
+    std::error_code ec;
+    for(auto it = fs::recursive_directory_iterator(dir, fs::directory_options::skip_permission_denied, ec);
+        !ec && it != fs::recursive_directory_iterator(); it.increment(ec)) {
+        const fs::path &path = it->path();
+        if(path.extension() != ".osu" || !it->is_regular_file(ec)) continue;
+        std::string folder = path.parent_path().string() + "/";
+        if(sets.empty() || sets.back().folder != folder) {
+            sets.push_back({.name = fs::relative(path.parent_path(), dir, ec).generic_string(),
+                            .folder = std::move(folder),
+                            .maps = {}});
+        }
+        sets.back().maps.push_back(path.filename().string());
+    }
+    Mc::ranges::sort(sets, {}, &CorpusSet::name);
+    for(auto &set : sets) Mc::ranges::sort(set.maps);
+    return sets;
+}
+
+std::string readFile(const std::string &path) {
+    File file(path);
+    return file.canRead() ? file.readToString() : std::string{};
+}
+
+// the .osb the game would read next to this map
+std::string readOsb(const std::string &folder, std::string_view osu) {
+    using neomod::BeatmapFile;
+    std::string artist, title, creator;
+    BeatmapFile::KeyValue kv;
+    for(const auto line : BeatmapFile{osu}.getEntries(BeatmapFile::SectionKind::METADATA)) {
+        if(!BeatmapFile::parse(line.text, kv)) continue;
+        if(kv.key == "Artist") artist = kv.value;
+        if(kv.key == "Title") title = kv.value;
+        if(kv.key == "Creator") creator = kv.value;
+    }
+    const std::string osb = Storyboard::findOsbFile(folder, artist, title, creator);
+    return osb.empty() ? std::string{} : readFile(folder + osb);
+}
+
+// a sprite's start, its end and 8 times between
+std::array<f64, 10> sampleTimes(const Storyboard &sb, uSz sprite) {
+    const auto [start, end] = sb.getSpriteSpan(sprite);
+    std::array<f64, 10> times{};
+    for(uSz i = 0; i < times.size(); i++) times[i] = start + (end - start) * (f64)i / (f64)(times.size() - 1);
+    return times;
+}
+
+bool isFinite(const Storyboard::SpriteState &s) {
+    return std::isfinite(s.pos.x) && std::isfinite(s.pos.y) && std::isfinite(s.scale.x) && std::isfinite(s.scale.y) &&
+           std::isfinite(s.rotation) && std::isfinite(s.colour.x) && std::isfinite(s.colour.y) &&
+           std::isfinite(s.colour.z) && std::isfinite(s.alpha);
+}
+
+std::string formatState(const std::optional<Storyboard::SpriteState> &s) {
+    if(!s) return "hidden";
+    return fmt::format("pos {:.6g},{:.6g} scale {:.6g},{:.6g} rot {:.6g} col {:.4g},{:.4g},{:.4g} a {:.6g} {}{}{} f{}",
+                       s->pos.x, s->pos.y, s->scale.x, s->scale.y, s->rotation, s->colour.x, s->colour.y, s->colour.z,
+                       s->alpha, s->flipH ? 'H' : '-', s->flipV ? 'V' : '-', s->additive ? 'A' : '-', s->frame);
+}
+
+// what one map of a set does in the corpus check
+struct MapResult {
+    uSz sprites{0};
+    uSz samples{0};
+    f64 parseTime{0.0};
+    std::vector<std::string> problems;
+    std::string dump;
+};
+
+MapResult checkMap(const CorpusSet &set, const std::string &map, bool dump) {
+    MapResult result;
+    const std::string osu = readFile(set.folder + map);
+    const std::string osb = readOsb(set.folder, osu);
+    const f64 start = Timing::getTimeReal();
+    const Storyboard sb{set.folder, osu, osb, "", ""};
+    result.parseTime = Timing::getTimeReal() - start;
+    result.sprites = sb.getNumSprites();
+    result.samples = sb.getNumSamples();
+
+    if(const auto end = sb.getEndTime(); end && !std::isfinite(*end)) {
+        result.problems.push_back(fmt::format("{}: end time {}", map, *end));
+    }
+    if(dump) result.dump = fmt::format("== {}\n", set.name);
+    for(uSz i = 0; i < sb.getNumSprites(); i++) {
+        const auto [first, last] = sb.getSpriteSpan(i);
+        if(!std::isfinite(first) || !std::isfinite(last)) {
+            result.problems.push_back(fmt::format("{}: sprite {} spans {} to {}", map, i, first, last));
+            continue;
+        }
+        if(dump) result.dump += fmt::format("-- {}\n", i);
+        for(const f64 time : sampleTimes(sb, i)) {
+            const auto state = sb.getSpriteState(i, time);
+            if(state && !isFinite(*state)) {
+                result.problems.push_back(fmt::format("{}: sprite {} at {}: {}", map, i, time, formatState(state)));
+            }
+            if(dump) result.dump += fmt::format("{:.1f}: {}\n", time, formatState(state));
+        }
+    }
+    return result;
+}
+
+// parse time and an update + draw sweep at 60 Hz over the whole storyboard of the heaviest maps, best of `rounds`
+// (without the set's folder, so no image is found and drawing only works out each sprite's state)
+void bench(const std::vector<CorpusSet> &sets, int rounds) {
+    struct Heavy {
+        std::string name, osu, osb;
+        uSz sprites;
+    };
+    std::vector<Heavy> heavy;
+    for(const auto &set : sets) {
+        std::string osu = readFile(set.folder + set.maps.front());
+        std::string osb = readOsb(set.folder, osu);
+        const uSz sprites = Storyboard{"", osu, osb, "", ""}.getNumSprites();
+        heavy.push_back({.name = set.name, .osu = std::move(osu), .osb = std::move(osb), .sprites = sprites});
+    }
+    Mc::ranges::sort(heavy, std::greater{}, &Heavy::sprites);
+    heavy.resize(std::min<uSz>(heavy.size(), 5));
+
+    const Storyboard::View view{.screen = McRect{0.f, 0.f, 1920.f, 1080.f}};
+    for(const auto &map : heavy) {
+        f64 parse = 1e9, sweep = 1e9;
+        u64 frames = 0;
+        for(int r = 0; r < rounds; r++) {
+            const f64 start = Timing::getTimeReal();
+            Storyboard sb{"", map.osu, map.osb, "", ""};
+            parse = std::min(parse, Timing::getTimeReal() - start);
+
+            sb.load(true);
+            f64 first = 0.0;
+            for(uSz i = 0; i < sb.getNumSprites(); i++) first = std::min(first, sb.getSpriteSpan(i).first);
+            const f64 last = sb.getEndTime().value_or(0.0);
+            const f64 sweepStart = Timing::getTimeReal();
+            frames = 0;
+            for(f64 time = first; time <= last; time += 1000.0 / 60.0, frames++) {
+                sb.update(time, true, false);
+                sb.draw(Storyboard::Layer::BACKGROUND, Storyboard::Layer::OVERLAY, view);
+            }
+            sweep = std::min(sweep, Timing::getTimeReal() - sweepStart);
+        }
+        logRaw("  bench {}: {} sprites, best of {}: parse {:.1f} ms, sweep {:.1f} ms ({} frames, {:.1f} us a frame)",
+               map.name, map.sprites, rounds, parse * 1000.0, sweep * 1000.0, frames,
+               sweep * 1e6 / (f64)std::max<u64>(frames, 1));
+    }
+}
 }  // namespace
 
 StoryboardTest::StoryboardTest() { logRaw("StoryboardTest created"); }
@@ -31,6 +202,7 @@ void StoryboardTest::update() {
     if(!m_ran) {
         m_ran = true;
         runTests();
+        if(const auto corpus = getTestArg("corpus")) runCorpus(*corpus);
 
         TEST_PRINT_RESULTS("StoryboardTest");
 
@@ -256,6 +428,70 @@ void StoryboardTest::runTests() {
         TEST_ASSERT(sb.getBackgroundOffset() == vec2(10.f, -20.f), "background offset");
         TEST_ASSERT(sb.getSpriteState(0, 5).has_value(), "sprite there");
         (void)Layer::OVERLAY;
+    }
+}
+
+void StoryboardTest::runCorpus(const std::string &dir) {
+    TEST_SECTION(fmt::format("corpus {}", dir));
+    const auto sets = findSets(dir);
+    TEST_ASSERT(!sets.empty(), "the corpus has sets");
+
+    if(const auto rounds = getTestArg("bench")) {
+        bench(sets, std::max(1, Parsing::strto<i32>(*rounds)));
+        return;
+    }
+
+    // every map of every set; only the first map of a set is dumped (the .osb is the same for all)
+    struct Job {
+        const CorpusSet *set;
+        const std::string *map;
+    };
+    std::vector<Job> jobs;
+    for(const auto &set : sets) {
+        for(const auto &map : set.maps) jobs.push_back({.set = &set, .map = &map});
+    }
+    const auto dumpPath = getTestArg("dump");
+    const f64 start = Timing::getTimeReal();
+    std::vector<MapResult> results(jobs.size());
+    {
+        std::atomic<uSz> next{0};
+        std::vector<Sync::jthread> workers;
+        const unsigned count = std::max(1u, std::thread::hardware_concurrency());
+        for(unsigned i = 0; i < count; i++) {
+            workers.emplace_back([&] {
+                for(uSz j; (j = next.fetch_add(1)) < jobs.size();) {
+                    const Job &job = jobs[j];
+                    results[j] = checkMap(*job.set, *job.map, dumpPath && job.map == &job.set->maps.front());
+                }
+            });
+        }
+    }
+    logRaw("  {} sets, {} maps in {:.2f} s", sets.size(), jobs.size(), Timing::getTimeReal() - start);
+
+    uSz problems = 0, sprites = 0, samples = 0;
+    for(uSz j = 0; j < jobs.size();) {
+        const CorpusSet &set = *jobs[j].set;
+        f64 parse = 0.0;
+        uSz setSprites = 0, setSamples = 0;
+        for(; j < jobs.size() && jobs[j].set == &set; j++) {
+            parse += results[j].parseTime;
+            setSprites = std::max(setSprites, results[j].sprites);
+            setSamples = std::max(setSamples, results[j].samples);
+            for(const auto &problem : results[j].problems) {
+                if(problems++ < 20) logRaw("  {}: {}", set.name, problem);
+            }
+        }
+        sprites += setSprites, samples += setSamples;
+        logRaw("  {}: {} maps, {} sprites, {} samples, parsed in {:.1f} ms", set.name, set.maps.size(), setSprites,
+               setSamples, parse * 1000.0);
+    }
+    logRaw("  {} sprites, {} samples (the most of each set's maps)", sprites, samples);
+    TEST_ASSERT_EQ(problems, 0, "every span and every sampled state is finite");
+
+    if(dumpPath) {
+        std::ofstream out(*dumpPath, std::ios::binary);
+        for(const auto &r : results) out << r.dump;
+        logRaw("  wrote {}", *dumpPath);
     }
 }
 

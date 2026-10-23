@@ -872,6 +872,7 @@ std::string Storyboard::findOsbFile(std::string_view folder, std::string_view ar
 bool Storyboard::isEmpty() const { return this->impl->sprites.empty() && this->impl->samples.empty(); }
 vec2 Storyboard::getBackgroundOffset() const { return this->impl->backgroundOffset; }
 uSz Storyboard::getNumSprites() const { return this->impl->sprites.size(); }
+uSz Storyboard::getNumSamples() const { return this->impl->samples.size(); }
 
 bool Storyboard::replacesBackground() const {
     const auto &bg = this->impl->backgroundFile;
@@ -883,6 +884,11 @@ bool Storyboard::replacesBackground() const {
 std::optional<Storyboard::SpriteState> Storyboard::getSpriteState(uSz sprite, f64 time) const {
     if(sprite >= this->impl->sprites.size()) return std::nullopt;
     return this->impl->stateAt((u32)sprite, time);
+}
+
+std::pair<f64, f64> Storyboard::getSpriteSpan(uSz sprite) const {
+    const Sprite &s = this->impl->sprites[sprite];
+    return {s.start, s.end};
 }
 
 std::optional<f64> Storyboard::getEndTime() const {
