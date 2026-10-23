@@ -92,17 +92,16 @@ struct TriggerCondition {
     Kind kind;
 
     // filters for HIT_SOUND
-    // TODO: use std::optional?
-    i8 normalSet{-1};
-    i8 additionSet{-1};
-    u8 additions{0};
-    i32 index{-1};
+    std::optional<u8> normalSet{};
+    std::optional<u8> additionSet{};
+    u8 additions{0};  // any of these (0: no filter)
+    std::optional<i32> index{};
 
     [[nodiscard]] bool matches(const Storyboard::HitSound &sound) const {
-        if(this->normalSet >= 0 && sound.normalSet != (u8)this->normalSet) return false;
+        if(this->normalSet && sound.normalSet != *this->normalSet) return false;
         if(this->additions != 0 && (sound.additions & this->additions) == 0) return false;
-        if(this->additionSet >= 0 && (sound.additions == 0 || sound.additionSet != (u8)this->additionSet)) return false;
-        if(this->index >= 0 && sound.index != (u16)this->index) return false;
+        if(this->additionSet && (sound.additions == 0 || sound.additionSet != *this->additionSet)) return false;
+        if(this->index && (i32)sound.index != *this->index) return false;
         return true;
     }
 };
@@ -132,6 +131,11 @@ struct Sprite {
     f64 end{0.0};
     f64 earliestCommand{0.0};
     u32 firstImage{0};
+
+    // a parameter with a zero-length P of its kind anywhere (own commands, loops, triggers) is on until one applies
+    bool instantFlipH{false};
+    bool instantFlipV{false};
+    bool instantAdditive{false};
 };
 
 struct Sample {
@@ -165,6 +169,12 @@ struct Latest {
         return true;
     }
 };
+
+// a finite number (generators write NaN for values they couldn't work out)
+template <typename T>
+bool readNumber(std::string_view s, T &out) {
+    return Parsing::strto_s(s, out) && std::isfinite(out);
+}
 
 // extra generous path handling, as it needs to be for some storyboards
 // TODO: this logic is duplicated in various ways in multiple places
@@ -228,34 +238,37 @@ std::optional<TriggerCondition> parseTriggerCondition(std::string_view s) {
     s.remove_prefix(prefix.size());
 
     // take the next word of `words` that is at the start of `s`
-    const auto take = [&s](std::span<const std::string_view> words) -> i8 {
+    const auto take = [&s](std::span<const std::string_view> words) -> std::optional<u8> {
         for(uSz i = 0; i < words.size(); i++) {
             if(s.size() >= words[i].size() && SString::strcase_equal(s.substr(0, words[i].size()), words[i])) {
                 s.remove_prefix(words[i].size());
-                return (i8)i;
+                return (u8)i;
             }
         }
-        return -1;
+        return std::nullopt;
     };
 
     static constexpr std::array<std::string_view, 4> sets{"All", "Normal", "Soft", "Drum"};
     static constexpr std::array<std::string_view, 3> additions{"Whistle", "Finish", "Clap"};
-    const i8 set1 = take(sets);
-    const i8 set2 = set1 >= 0 ? take(sets) : (i8)-1;
-    const i8 addition = take(additions);
+    const auto set1 = take(sets);
+    const auto set2 = set1 ? take(sets) : std::nullopt;
+    const auto addition = take(additions);
 
     TriggerCondition condition{.kind = Kind::HIT_SOUND};
-    if(!s.empty() && !Parsing::strto_s(s, condition.index)) return std::nullopt;
+    if(i32 index; !s.empty()) {
+        if(!Parsing::strto_s(s, index)) return std::nullopt;
+        condition.index = index;
+    }
 
     // with only one set and an addition, the set is the addition's
-    const bool set1IsAddition = set1 >= 0 && set2 < 0 && addition >= 0;
-    const i8 normalSet = set1IsAddition ? set2 : set1;
-    const i8 additionSet = set1IsAddition ? set1 : set2;
-
+    const bool set1IsAddition = set1 && !set2 && addition;
     // "All" == no filter
-    condition.normalSet = normalSet > 0 ? (i8)(normalSet - 1) : (i8)-1;
-    condition.additionSet = additionSet > 0 ? (i8)(additionSet - 1) : (i8)-1;
-    condition.additions = addition >= 0 ? (u8)(1 << addition) : (u8)0;
+    const auto filter = [](std::optional<u8> set) {
+        return set && *set > 0 ? std::optional<u8>{(u8)(*set - 1)} : std::nullopt;
+    };
+    condition.normalSet = filter(set1IsAddition ? set2 : set1);
+    condition.additionSet = filter(set1IsAddition ? set1 : set2);
+    condition.additions = addition ? (u8)(1 << *addition) : (u8)0;
     return condition;
 }
 
@@ -300,6 +313,11 @@ struct Storyboard::Impl {
     MD5Hash osbHash;
     bool hasOsb{false};
 
+    // how long a play shows the storyboard: every command line's start and end as written (loop and trigger commands
+    // at their relative times, without repetitions) and every sample
+    f64 spanStart{INF};
+    f64 spanEnd{-INF};
+
     // for loading
     std::vector<std::string> imageFiles;
     std::vector<u32> frameFiles;
@@ -318,8 +336,7 @@ struct Storyboard::Impl {
     bool passing{true};
     std::vector<std::vector<FiredTrigger>> fired;
 
-    void parse(std::string_view file, bool isOsu, std::vector<std::pair<std::string, std::string>> &variables);
-    void parseEventLine(std::string_view line, i32 version, std::vector<std::string_view> &fields);
+    struct Parser;
     void finish();
     void resolveFiles(std::string_view skinFolder);
 
@@ -328,21 +345,30 @@ struct Storyboard::Impl {
     [[nodiscard]] std::optional<SpriteState> stateAt(u32 index, f64 time) const;
 
     void fire(TriggerCondition::Kind kind, const HitSound *sound, f64 time);
-
-    // set up while parsing
-    Sprite *current{nullptr};
-    Group *currentGroup{nullptr};
 };
 
-void Storyboard::Impl::parse(std::string_view file, bool isOsu,
-                             std::vector<std::pair<std::string, std::string>> &variables) {
+// reads a storyboard's files into it, the .osu's first (its variables carry over to the .osb)
+struct Storyboard::Impl::Parser {
+    Impl &sb;
+    std::vector<std::pair<std::string, std::string>> variables{};
+    i32 version{14};
+    // where the next command goes: a sprite's own commands, one of its loops or one of its triggers
+    Sprite *sprite{nullptr};
+    Group *group{nullptr};
+    std::vector<std::string_view> fields{};
+
+    void file(std::string_view file, bool isOsu);
+    void eventLine(std::string_view line);
+};
+
+void Storyboard::Impl::Parser::file(std::string_view file, bool isOsu) {
     const BeatmapFile osu{file};
     // .osb files have no version, they're read as the latest one
-    const i32 version = isOsu ? osu.getVersion().value_or(14) : 14;
-    this->current = nullptr;
-    this->currentGroup = nullptr;
+    this->version = isOsu ? osu.getVersion().value_or(14) : 14;
+    this->sprite = nullptr;
+    this->group = nullptr;
 
-    std::vector<std::string_view> fields;
+    auto &variables = this->variables;
     for(const auto &section : osu.getSections()) {
         const bool isVariables = section.name == "Variables";
         if(!isVariables && section.readAs != BeatmapFile::SectionKind::EVENTS &&
@@ -368,8 +394,8 @@ void Storyboard::Impl::parse(std::string_view file, bool isOsu,
                 }
             } else if(section.readAs == BeatmapFile::SectionKind::GENERAL) {
                 if(BeatmapFile::KeyValue kv; BeatmapFile::parse(line, kv)) {
-                    if(kv.key == "UseSkinSprites") this->useSkinSprites = kv.value == "1";
-                    if(kv.key == "WidescreenStoryboard") this->widescreen = kv.value == "1";
+                    if(kv.key == "UseSkinSprites") this->sb.useSkinSprites = kv.value == "1";
+                    if(kv.key == "WidescreenStoryboard") this->sb.widescreen = kv.value == "1";
                 }
             } else if(line.contains('$') && !variables.empty()) {
                 std::string substituted{line};
@@ -378,16 +404,17 @@ void Storyboard::Impl::parse(std::string_view file, bool isOsu,
                         substituted.replace(pos, name.size(), value);
                     }
                 }
-                this->parseEventLine(substituted, version, fields);
+                this->eventLine(substituted);
             } else {
-                this->parseEventLine(line, version, fields);
+                this->eventLine(line);
             }
         }
     }
 }
 
 // absolute hell
-void Storyboard::Impl::parseEventLine(std::string_view line, i32 version, std::vector<std::string_view> &fields) {
+void Storyboard::Impl::Parser::eventLine(std::string_view line) {
+    auto &fields = this->fields;
     // strip out comments from commands
     if(const uSz comment = line.find("//"); comment != std::string_view::npos) line = line.substr(0, comment);
 
@@ -399,13 +426,13 @@ void Storyboard::Impl::parseEventLine(std::string_view line, i32 version, std::v
     if(fields.empty()) return;
 
     if(depth == 0) {
-        this->current = nullptr;
-        this->currentGroup = nullptr;
+        this->sprite = nullptr;
+        this->group = nullptr;
 
         const std::string_view type = SString::trimmed(fields[0]);
         if(type == "Background" || type == "0") {
-            if(f32 x, y; fields.size() > 4 && Parsing::strto_s(fields[3], x) && Parsing::strto_s(fields[4], y)) {
-                this->backgroundOffset = {x, y};
+            if(f32 x, y; fields.size() > 4 && readNumber(fields[3], x) && readNumber(fields[4], y)) {
+                this->sb.backgroundOffset = {x, y};
             }
         } else if(type == "Sprite" || type == "4" || type == "Animation" || type == "6") {
             const bool animation = type == "Animation" || type == "6";
@@ -413,86 +440,96 @@ void Storyboard::Impl::parseEventLine(std::string_view line, i32 version, std::v
             const auto layer = parseLayer(fields[1]);
             const auto origin = parseOrigin(fields[2]);
             f32 x, y;
-            if(!layer || !origin || !Parsing::strto_s(fields[4], x) || !Parsing::strto_s(fields[5], y)) return;
+            if(!layer || !origin || !readNumber(fields[4], x) || !readNumber(fields[5], y)) return;
 
             Sprite sprite{.layer = *layer, .origin = *origin, .pos = {x, y}, .path = cleanPath(fields[3])};
             if(animation) {
                 i32 frameCount;
                 f64 frameDelay;
-                if(!Parsing::strto_s(fields[6], frameCount) || !Parsing::strto_s(fields[7], frameDelay) ||
-                   frameCount <= 0) {
+                if(!Parsing::strto_s(fields[6], frameCount) || !readNumber(fields[7], frameDelay) || frameCount <= 0) {
                     return;
                 }
-                if(version < 6) frameDelay = std::round(0.015 * frameDelay) * 1.186 * (1000.0 / 60.0);
+                if(this->version < 6) frameDelay = std::round(0.015 * frameDelay) * 1.186 * (1000.0 / 60.0);
                 sprite.frameCount = (u32)frameCount;
                 sprite.frameDelay = frameDelay;
                 sprite.loopForever = fields.size() <= 8 ||
                                      (SString::trimmed(fields[8]) != "LoopOnce" && SString::trimmed(fields[8]) != "1");
             }
-            this->sprites.push_back(std::move(sprite));
-            this->current = &this->sprites.back();
+            this->sb.sprites.push_back(std::move(sprite));
+            this->sprite = &this->sb.sprites.back();
         } else if(type == "Sample" || type == "5") {
             f64 time;
             const auto layer = fields.size() >= 4 ? parseLayer(fields[2]) : std::nullopt;
-            if(!layer || !Parsing::strto_s(fields[1], time)) return;
+            if(!layer || !readNumber(fields[1], time)) return;
             f32 volume = 100.f;
-            if(fields.size() > 4) (void)Parsing::strto_s(fields[4], volume);
-            this->samples.push_back({.time = time,
-                                     .layer = *layer,
-                                     .path = cleanPath(fields[3]),
-                                     .volume = std::clamp(volume, 0.f, 100.f) / 100.f});
+            if(fields.size() > 4) (void)readNumber(fields[4], volume);
+            this->sb.samples.push_back({.time = time,
+                                        .layer = *layer,
+                                        .path = cleanPath(fields[3]),
+                                        .volume = std::clamp(volume, 0.f, 100.f) / 100.f});
+            this->sb.spanStart = std::min(this->sb.spanStart, time);
+            this->sb.spanEnd = std::max(this->sb.spanEnd, time);
         }
         return;
     }
 
-    if(!this->current) return;
-    if(depth < 2) this->currentGroup = &this->current->cmds;
+    if(!this->sprite) return;
+    if(depth < 2) this->group = &this->sprite->cmds;
 
     const std::string_view type = SString::trimmed(fields[0]);
     if(type == "L") {
         f64 start;
         i32 count;
-        if(fields.size() < 3 || !Parsing::strto_s(fields[1], start) || !Parsing::strto_s(fields[2], count)) return;
-        this->current->loops.push_back({.start = start, .iterations = std::max(count, 1), .cmds = {}});
-        this->currentGroup = &this->current->loops.back().cmds;
+        if(fields.size() < 3 || !readNumber(fields[1], start) || !Parsing::strto_s(fields[2], count)) return;
+        this->sprite->loops.push_back({.start = start, .iterations = std::max(count, 1), .cmds = {}});
+        this->group = &this->sprite->loops.back().cmds;
         return;
     }
     if(type == "T") {
         const auto condition = fields.size() >= 2 ? parseTriggerCondition(fields[1]) : std::nullopt;
         if(!condition) {
-            this->currentGroup = nullptr;
+            this->group = nullptr;
             return;
         }
         f64 start = -INF, end = INF;
         i32 groupNumber = 0;
-        if(fields.size() > 2) (void)Parsing::strto_s(fields[2], start);
-        if(fields.size() > 3) (void)Parsing::strto_s(fields[3], end);
+        if(fields.size() > 2) (void)readNumber(fields[2], start);
+        if(fields.size() > 3) (void)readNumber(fields[3], end);
         if(fields.size() > 4) (void)Parsing::strto_s(fields[4], groupNumber);
-        this->current->triggers.push_back(
+        this->sprite->triggers.push_back(
             {.condition = *condition, .start = start, .end = end, .groupNumber = groupNumber, .cmds = {}});
-        this->currentGroup = &this->current->triggers.back().cmds;
+        this->group = &this->sprite->triggers.back().cmds;
         return;
     }
 
-    Group *group = this->currentGroup;
+    Group *group = this->group;
     if(!group || fields.size() < 5) return;
 
     i32 easing;
     f64 start, end;
-    if(!Parsing::strto_s(fields[1], easing) || !Parsing::strto_s(fields[2], start)) return;
+    if(!Parsing::strto_s(fields[1], easing) || !readNumber(fields[2], start)) return;
     if(SString::trimmed(fields[3]).empty()) {
         end = start;
-    } else if(!Parsing::strto_s(fields[3], end)) {
+    } else if(!readNumber(fields[3], end)) {
         return;
     }
+    this->sb.spanStart = std::min(this->sb.spanStart, start);
+    this->sb.spanEnd = std::max(this->sb.spanEnd, end);
     const Ease ease = easing >= 0 && easing < (i32)Ease::COUNT ? (Ease)easing : Ease::Linear;
 
     if(type == "P") {
         const std::string_view param = SString::trimmed(fields[4]);
         const Command<bool> cmd{.start = start, .end = end, .from = true, .to = start == end, .easing = ease};
-        if(param == "H") group->add(group->flipH, cmd);
-        if(param == "V") group->add(group->flipV, cmd);
-        if(param == "A") group->add(group->additive, cmd);
+        if(param == "H") {
+            group->add(group->flipH, cmd);
+            this->sprite->instantFlipH |= start == end;
+        } else if(param == "V") {
+            group->add(group->flipV, cmd);
+            this->sprite->instantFlipV |= start == end;
+        } else if(param == "A") {
+            group->add(group->additive, cmd);
+            this->sprite->instantAdditive |= start == end;
+        }
         return;
     }
 
@@ -522,9 +559,9 @@ void Storyboard::Impl::parseEventLine(std::string_view line, i32 version, std::v
             group->add(list, Command<T>{.start = start, .end = end, .from = from, .to = from, .easing = ease});
         }
     };
-    const auto one = [](std::span<const std::string_view> v, f32 &out) { return Parsing::strto_s(v[0], out); };
+    const auto one = [](std::span<const std::string_view> v, f32 &out) { return readNumber(v[0], out); };
     const auto two = [](std::span<const std::string_view> v, vec2 &out) {
-        return Parsing::strto_s(v[0], out.x) && Parsing::strto_s(v[1], out.y);
+        return readNumber(v[0], out.x) && readNumber(v[1], out.y);
     };
 
     if(type == "F") {
@@ -548,8 +585,7 @@ void Storyboard::Impl::parseEventLine(std::string_view line, i32 version, std::v
         }
     } else if(type == "C") {
         commands(group->colour, 3, [](std::span<const std::string_view> v, vec3 &out) {
-            if(!Parsing::strto_s(v[0], out.x) || !Parsing::strto_s(v[1], out.y) || !Parsing::strto_s(v[2], out.z))
-                return false;
+            if(!readNumber(v[0], out.x) || !readNumber(v[1], out.y) || !readNumber(v[2], out.z)) return false;
             out /= 255.f;
             return true;
         });
@@ -798,15 +834,13 @@ Storyboard::Storyboard(std::string folder, std::string_view osuFile, std::string
     this->impl->backgroundFile = std::move(backgroundFile);
     File::normalizeSlashes(this->impl->backgroundFile, '\\', '/');
 
-    std::vector<std::pair<std::string, std::string>> variables;
-    this->impl->parse(osuFile, true, variables);
+    Impl::Parser parser{.sb = *this->impl};
+    parser.file(osuFile, true);
     if(!osbFile.empty()) {
         this->impl->hasOsb = true;
         this->impl->osbHash = crypto::hash::md5(osbFile);
-        this->impl->parse(osbFile, false, variables);
+        parser.file(osbFile, false);
     }
-    this->impl->current = nullptr;
-    this->impl->currentGroup = nullptr;
     this->impl->finish();
     this->impl->resolveFiles(skinFolder);
 }

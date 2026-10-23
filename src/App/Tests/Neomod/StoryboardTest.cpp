@@ -309,6 +309,9 @@ void StoryboardTest::runTests() {
         TEST_ASSERT(numeric && numeric->pos == vec2(1.f, 2.f) && numeric->alpha == 0.25f,
                     "layer and origin by number, an empty end time");
         TEST_ASSERT(!storyboard("Sprite,Nowhere,Centre,a.png,0,0\n_F,0,0,1,1\n").getNumSprites(), "unknown layer");
+        const auto nan = storyboard("Sprite,Background,Centre,a.png,1,2\n_F,0,0,10,1\n_M,0,5,10,NaN,NaN,NaN,NaN\n");
+        const auto kept = nan.getSpriteState(0, 8);
+        TEST_ASSERT(kept && kept->pos == vec2(1.f, 2.f), "a NaN value drops its line");
     }
 
     TEST_SECTION("variables");
