@@ -397,8 +397,15 @@ void AboutScreen::onChangeClicked(CBaseUIButton *button) {
 void AboutScreen::buildChangelog() {
     std::vector<CHANGELOG> changelogs;
 
+    CHANGELOG v44_02;
+    v44_02.title = "44.02 (" CHANGELOG_TIMESTAMP ")";
+    v44_02.changes = {
+        R"()",
+    };
+    changelogs.push_back(std::move(v44_02));
+
     CHANGELOG v44_01;
-    v44_01.title = "44.01 (" CHANGELOG_TIMESTAMP ")";
+    v44_01.title = "44.01 (2026-10-23)";
     v44_01.changes = {
         R"(- Added nightcore beats (only plays if your skin has them))",
         R"(- Added Brazilian Portuguese, Indonesian, Italian, Korean, Simplified Chinese, Spanish, Turkish and Ukrainian translations)",
