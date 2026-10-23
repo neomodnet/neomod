@@ -10,6 +10,7 @@
 
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -44,13 +45,15 @@ class Storyboard {
         u16 index;
     };
 
+    // skinDirs: where the skin looks for its elements, first match first (for UseSkinSprites)
     Storyboard(std::string folder, std::string_view osuFile, std::string_view osbFile, std::string backgroundFile,
-               std::string_view skinFolder);
+               std::span<const std::string> skinDirs);
     ~Storyboard();
 
     // reads and parses a storyboard off the main thread
     [[nodiscard]] static Async::CancellableHandle<std::unique_ptr<Storyboard>> parseAsync(
-        const DatabaseBeatmap &map, std::shared_ptr<const std::vector<u8>> osuFile, std::string skinFolder, Lane lane);
+        const DatabaseBeatmap &map, std::shared_ptr<const std::vector<u8>> osuFile, std::vector<std::string> skinDirs,
+        Lane lane);
 
     // "Artist - Title (Creator).osb", or else the first .osb in the folder
     [[nodiscard]] static std::string findOsbFile(std::string_view folder, std::string_view artist,
@@ -67,6 +70,9 @@ class Storyboard {
     // when a sprite is shown, from its first visible command to the end of its last
     [[nodiscard]] std::pair<f64, f64> getSpriteSpan(uSz sprite) const;
     [[nodiscard]] std::optional<f64> getEndTime() const;
+    // the files load() loads for a sprite's frame and for a sample ("" if there's none)
+    [[nodiscard]] std::string_view getImageFile(uSz sprite, u32 frame = 0) const;
+    [[nodiscard]] std::string_view getSampleFile(uSz sample) const;
 
     void load(bool visualsOnly);
     [[nodiscard]] bool isReady() const;

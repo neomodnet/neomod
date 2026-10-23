@@ -1404,8 +1404,8 @@ void BeatmapInterface::loadStoryboard() {
     if(!sbmap) return;
 
     const Skin *skin = this->getSkin();
-    this->storyboardHandle =
-        Storyboard::parseAsync(*sbmap, map->data, skin ? skin->skin_dir : std::string{}, Lane::Foreground);
+    this->storyboardHandle = Storyboard::parseAsync(
+        *sbmap, map->data, skin ? skin->search_dirs : std::vector<std::string>{}, Lane::Foreground);
 }
 
 void BeatmapInterface::applyMapSettings() {

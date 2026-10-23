@@ -5,6 +5,7 @@
 #include "BeatmapFile.h"
 #include "ContainerRanges.h"
 #include "Engine.h"
+#include "OsuConVars.h"
 #include "Environment.h"
 #include "File.h"
 #include "Parsing.h"
@@ -38,7 +39,7 @@ void writeFile(const std::string &path, std::string_view bytes) {
 
 Storyboard storyboard(std::string_view events, std::string_view osb = {}) {
     const std::string osu = fmt::format("osu file format v14\n\n[Events]\n{}\n", events);
-    return Storyboard{"", osu, osb, "", ""};
+    return Storyboard{"", osu, osb, "", {}};
 }
 
 // a folder of a corpus holding .osu files
@@ -114,6 +115,8 @@ std::string formatState(const std::optional<Storyboard::SpriteState> &s) {
 struct MapResult {
     uSz sprites{0};
     uSz samples{0};
+    uSz missingImages{0};  // sprites without an image for their first frame
+    uSz missingSamples{0};
     f64 parseTime{0.0};
     std::vector<std::string> problems;
     std::string dump;
@@ -124,10 +127,12 @@ MapResult checkMap(const CorpusSet &set, const std::string &map, bool dump) {
     const std::string osu = readFile(set.folder + map);
     const std::string osb = readOsb(set.folder, osu);
     const f64 start = Timing::getTimeReal();
-    const Storyboard sb{set.folder, osu, osb, "", ""};
+    const Storyboard sb{set.folder, osu, osb, "", {}};
     result.parseTime = Timing::getTimeReal() - start;
     result.sprites = sb.getNumSprites();
     result.samples = sb.getNumSamples();
+    for(uSz i = 0; i < result.sprites; i++) result.missingImages += sb.getImageFile(i).empty();
+    for(uSz i = 0; i < result.samples; i++) result.missingSamples += sb.getSampleFile(i).empty();
 
     if(const auto end = sb.getEndTime(); end && !std::isfinite(*end)) {
         result.problems.push_back(fmt::format("{}: end time {}", map, *end));
@@ -162,7 +167,7 @@ void bench(const std::vector<CorpusSet> &sets, int rounds) {
     for(const auto &set : sets) {
         std::string osu = readFile(set.folder + set.maps.front());
         std::string osb = readOsb(set.folder, osu);
-        const uSz sprites = Storyboard{"", osu, osb, "", ""}.getNumSprites();
+        const uSz sprites = Storyboard{"", osu, osb, "", {}}.getNumSprites();
         heavy.push_back({.name = set.name, .osu = std::move(osu), .osb = std::move(osb), .sprites = sprites});
     }
     Mc::ranges::sort(heavy, std::greater{}, &Heavy::sprites);
@@ -174,7 +179,7 @@ void bench(const std::vector<CorpusSet> &sets, int rounds) {
         u64 frames = 0;
         for(int r = 0; r < rounds; r++) {
             const f64 start = Timing::getTimeReal();
-            Storyboard sb{"", map.osu, map.osb, "", ""};
+            Storyboard sb{"", map.osu, map.osb, "", {}};
             parse = std::min(parse, Timing::getTimeReal() - start);
 
             sb.load(true);
@@ -404,7 +409,7 @@ void StoryboardTest::runTests() {
             "osu file format v14\n\n[Events]\nSprite,Overlay,Centre,b.png,0,0\n_F,0,0,1,1\n"
             "Sprite,Background,Centre,\"sb\\A.png\",0,0\n_F,0,0,1,1\n"};
         const auto hashOf = [&dir](std::string_view osu, std::string_view osb = {}) {
-            Storyboard sb{dir, osu, osb, "bg.jpg", ""};
+            Storyboard sb{dir, osu, osb, "bg.jpg", {}};
             sb.load(false);
             return sb.getHash();
         };
@@ -421,12 +426,49 @@ void StoryboardTest::runTests() {
         Environment::deletePathsRecursive(dir, 3);
     }
 
+    TEST_SECTION("files");
+    {
+        const std::string dir = Mc::Paths::cache() + "/storyboardtest/";
+        Environment::createDirectory(dir + "set/sb");
+        Environment::createDirectory(dir + "skin");
+        Environment::createDirectory(dir + "default");
+        for(const char *file : {"set/sb/plain.jpg", "set/sb/Hit.OGG", "set/ding.wav", "set/both.png", "skin/both.png",
+                                "skin/skinned.png", "skin/skinned@2x.png", "skin/sd.png", "default/fallback.png"}) {
+            writeFile(dir + file, "x");
+        }
+        const std::string osu{
+            "osu file format v14\n\n[General]\nUseSkinSprites: 1\n\n[Events]\n"
+            "Sprite,Background,Centre,\"sb/plain\",0,0\n_F,0,0,1,1\n"
+            "Sprite,Background,Centre,\"both.png\",0,0\n_F,0,0,1,1\n"
+            "Sprite,Background,Centre,\"skinned.png\",0,0\n_F,0,0,1,1\n"
+            "Sprite,Background,Centre,\"sd\",0,0\n_F,0,0,1,1\n"
+            "Sprite,Background,Centre,\"fallback.png\",0,0\n_F,0,0,1,1\n"
+            "Sprite,Background,Centre,\"nowhere.png\",0,0\n_F,0,0,1,1\n"
+            "Sample,0,0,\"sb/hit.wav\"\nSample,0,0,\"ding\"\nSample,0,0,\"nothing.wav\"\n"};
+        const std::vector<std::string> skinDirs{dir + "skin/", dir + "default/"};
+        const Storyboard sb{dir + "set", osu, "", "", skinDirs};
+        TEST_ASSERT_EQ(sb.getImageFile(0), dir + "set/sb/plain.jpg", "an image named without an extension");
+        TEST_ASSERT_EQ(sb.getImageFile(1), dir + "set/both.png", "the set's image before the skin's");
+        if(cv::skin_hd.getBool()) TEST_ASSERT_EQ(sb.getImageFile(2), dir + "skin/skinned@2x.png", "a skin's @2x image");
+        TEST_ASSERT_EQ(sb.getImageFile(3), dir + "skin/sd.png", "a skin's image named without an extension");
+        TEST_ASSERT_EQ(sb.getImageFile(4), dir + "default/fallback.png", "the default skin's image");
+        TEST_ASSERT_EQ(sb.getImageFile(5), "", "an image nowhere");
+        TEST_ASSERT_EQ(sb.getSampleFile(0), dir + "set/sb/Hit.OGG", "a sample found with another extension");
+        TEST_ASSERT_EQ(sb.getSampleFile(1), dir + "set/ding.wav", "a sample named without an extension");
+        TEST_ASSERT_EQ(sb.getSampleFile(2), "", "a sample nowhere");
+
+        const Storyboard plain{dir + "set", "osu file format v14\n\n[Events]\nSprite,0,1,skinned.png,0,0\n_F,0,0,1,1\n",
+                               "", "", skinDirs};
+        TEST_ASSERT_EQ(plain.getImageFile(0), "", "no skin images without UseSkinSprites");
+        Environment::deletePathsRecursive(dir, 3);
+    }
+
     TEST_SECTION("background");
     {
         const std::string osu{
             "osu file format "
             "v14\n\n[Events]\n0,0,\"bg.jpg\",10,-20\nSprite,Background,Centre,\"BG.jpg\",320,240\n_F,0,0,10,1\n"};
-        const Storyboard sb{"", osu, "", "bg.jpg", ""};
+        const Storyboard sb{"", osu, "", "bg.jpg", {}};
         TEST_ASSERT(sb.replacesBackground(), "a background layer sprite of the background replaces it");
         TEST_ASSERT(sb.getBackgroundOffset() == vec2(10.f, -20.f), "background offset");
         TEST_ASSERT(sb.getSpriteState(0, 5).has_value(), "sprite there");
@@ -471,24 +513,28 @@ void StoryboardTest::runCorpus(const std::string &dir) {
     }
     logRaw("  {} sets, {} maps in {:.2f} s", sets.size(), jobs.size(), Timing::getTimeReal() - start);
 
-    uSz problems = 0, sprites = 0, samples = 0;
+    uSz problems = 0, sprites = 0, samples = 0, setsMissingImages = 0, setsMissingSamples = 0;
     for(uSz j = 0; j < jobs.size();) {
         const CorpusSet &set = *jobs[j].set;
         f64 parse = 0.0;
-        uSz setSprites = 0, setSamples = 0;
+        uSz setSprites = 0, setSamples = 0, missingImages = 0, missingSamples = 0;
         for(; j < jobs.size() && jobs[j].set == &set; j++) {
             parse += results[j].parseTime;
             setSprites = std::max(setSprites, results[j].sprites);
             setSamples = std::max(setSamples, results[j].samples);
+            missingImages = std::max(missingImages, results[j].missingImages);
+            missingSamples = std::max(missingSamples, results[j].missingSamples);
             for(const auto &problem : results[j].problems) {
                 if(problems++ < 20) logRaw("  {}: {}", set.name, problem);
             }
         }
         sprites += setSprites, samples += setSamples;
-        logRaw("  {}: {} maps, {} sprites, {} samples, parsed in {:.1f} ms", set.name, set.maps.size(), setSprites,
-               setSamples, parse * 1000.0);
+        setsMissingImages += missingImages > 0, setsMissingSamples += missingSamples > 0;
+        logRaw("  {}: {} maps, {} sprites, {} samples, parsed in {:.1f} ms, files missing: {} images, {} samples",
+               set.name, set.maps.size(), setSprites, setSamples, parse * 1000.0, missingImages, missingSamples);
     }
-    logRaw("  {} sprites, {} samples (the most of each set's maps)", sprites, samples);
+    logRaw("  {} sprites, {} samples (the most of each set's maps); sets missing images: {}, samples: {}", sprites,
+           samples, setsMissingImages, setsMissingSamples);
     TEST_ASSERT_EQ(problems, 0, "every span and every sampled state is finite");
 
     if(dumpPath) {

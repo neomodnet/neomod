@@ -1029,8 +1029,8 @@ void MainMenu::updateStoryboard() {
         const bool alreadyShown = this->storyboard && map == this->shownStoryboardMap;
         if(map && !alreadyShown) {
             const Skin *skin = osu->getSkin();
-            this->storyboardHandle =
-                Storyboard::parseAsync(*map, nullptr, skin ? skin->skin_dir : std::string{}, Lane::Background);
+            this->storyboardHandle = Storyboard::parseAsync(
+                *map, nullptr, skin ? skin->search_dirs : std::vector<std::string>{}, Lane::Background);
         }
     }
 
