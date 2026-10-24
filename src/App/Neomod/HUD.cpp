@@ -1430,9 +1430,9 @@ std::span<const SCORE_ENTRY> HUD::updateAndGetCurrentScores() {
 
             const std::vector<FinishedScore> *scoreVec = nullptr;
             if(is_online) {
-                const auto &scoreIt = db->getOnlineScores().find(this->beatmap_md5);
-                if(scoreIt != db->getOnlineScores().end()) {
-                    scoreVec = &scoreIt->second;
+                const auto &lbIt = db->getOnlineLeaderboards().find(this->beatmap_md5);
+                if(lbIt != db->getOnlineLeaderboards().end()) {
+                    scoreVec = &lbIt->second.scores;
                 }
             }
 
@@ -2809,18 +2809,15 @@ void HUD::updateScoringMetric() {
     } else {
         this->scoring_metric = WinCondition::SCOREV1;
 
-        u32 sortIndex = cv::songbrowser_scores_sortingtype.getInt();
-        if(sortIndex < ui->getSongBrowser()->SCORE_SORTING_METHODS.size()) {
-            auto sort = ui->getSongBrowser()->SCORE_SORTING_METHODS[sortIndex];
-            if(sort.comparator == Database::sortScoreByAccuracy) {
-                this->scoring_metric = WinCondition::ACCURACY;
-            } else if(sort.comparator == Database::sortScoreByCombo) {
-                this->scoring_metric = WinCondition::MAX_COMBO;
-            } else if(sort.comparator == Database::sortScoreByMisses) {
-                this->scoring_metric = WinCondition::MISSES;
-            } else if(sort.comparator == Database::sortScoreByPP) {
-                this->scoring_metric = WinCondition::PP;
-            }
+        const auto comparator = ui->getSongBrowser()->getScoreSortingMethod().comparator;
+        if(comparator == Database::sortScoreByAccuracy) {
+            this->scoring_metric = WinCondition::ACCURACY;
+        } else if(comparator == Database::sortScoreByCombo) {
+            this->scoring_metric = WinCondition::MAX_COMBO;
+        } else if(comparator == Database::sortScoreByMisses) {
+            this->scoring_metric = WinCondition::MISSES;
+        } else if(comparator == Database::sortScoreByPP) {
+            this->scoring_metric = WinCondition::PP;
         }
     }
 }

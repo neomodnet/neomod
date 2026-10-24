@@ -222,6 +222,8 @@ class SongBrowser final : public ScreenBackable {
     static constexpr int NUM_SCORE_SORTING_METHODS{6};
     static constexpr int DEFAULT_SCORE_SORTING_INDEX{NUM_SCORE_SORTING_METHODS - 1};
     std::array<SCORE_SORTING_METHOD, NUM_SCORE_SORTING_METHODS> SCORE_SORTING_METHODS;
+    // the one songbrowser_scores_sortingtype picks (the default one for an invalid value)
+    [[nodiscard]] const SCORE_SORTING_METHOD &getScoreSortingMethod() const;
 
     [[nodiscard]] inline GroupType getGroupingMode() const { return this->curGroup; }
 
@@ -280,6 +282,8 @@ class SongBrowser final : public ScreenBackable {
     // TODO: make more stuff private
    private:
     void initializeGroupingButtons();
+    // shows the scores rebuildScoreButtons() collected once the pp the buttons show is known (polled from tick())
+    void buildScoreButtons();
     void onDatabaseLoadingFinished(bool isNextScreenSongBrowser);
     // plays a selected map's music as stable's song select does: the file that was already loaded goes on where it
     // was (also where a quit play paused it) unless it's nearly at its end, a new one starts at its restart point
@@ -331,10 +335,11 @@ class SongBrowser final : public ScreenBackable {
     CBaseUIScrollView *scoreBrowser;
     CBaseUIElement *scoreBrowserScoresStillLoadingElement;
     CBaseUIElement *scoreBrowserNoRecordsSetElement;
-    std::unique_ptr<CBaseUIContainer> localBestContainer{nullptr};
-    CBaseUILabel *localBestLabel;
-    ScoreButton *localBestButton = nullptr;
-    bool score_resort_scheduled = false;
+    std::unique_ptr<CBaseUIContainer> personalBestContainer{nullptr};
+    CBaseUILabel *personalBestLabel;
+    ScoreButton *personalBestButton = nullptr;
+    struct PendingScores;
+    std::unique_ptr<PendingScores> pendingScores;
 
     // song carousel
     std::unique_ptr<BeatmapCarousel> carousel{nullptr};

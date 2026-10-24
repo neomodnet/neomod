@@ -23,7 +23,6 @@
 #include "AsyncPPCalculator.h"
 #include "SongBrowser/VolNormalization.h"
 #include "DiffCalc/BatchDiffCalc.h"
-#include "SongBrowser/SongBrowser.h"
 #include "Timing.h"
 #include "UI.h"
 #include "Logging.h"
@@ -533,8 +532,6 @@ bool Database::addScore(const FinishedScore &score) {
     // so just skip everything and return the index
     const bool added = this->addScoreRaw(score);
     if(added) {
-        this->sortScores(score.beatmap_hash);
-
         this->scores_changed = true;
 
         // wait for any previous save to finish before starting a new one
@@ -645,26 +642,32 @@ void Database::setBanchoScoreId(const FinishedScore &score, i64 bancho_score_id)
     }
 }
 
-void Database::sortScoresInPlace(std::vector<FinishedScore> &scores) {
-    if(scores.size() < 2) return;
+void Database::setScorePP(const FinishedScore &score) {
+    const auto copy_pp = [&score](FinishedScore &dst) {
+        dst.ppv2_version = score.ppv2_version;
+        dst.ppv2_score = score.ppv2_score;
+        dst.ppv2_total_stars = score.ppv2_total_stars;
+        dst.ppv2_aim_stars = score.ppv2_aim_stars;
+        dst.ppv2_speed_stars = score.ppv2_speed_stars;
+    };
 
-    int sortIndex = cv::songbrowser_scores_sortingtype.getInt();
-
-    // Fallback: sort by pp
-    if(sortIndex < 0 || sortIndex >= ui->getSongBrowser()->SCORE_SORTING_METHODS.size()) {
-        sortIndex = ui->getSongBrowser()->DEFAULT_SCORE_SORTING_INDEX;
-        cv::songbrowser_scores_sortingtype.setValue(sortIndex);
+    if(score.is_online_score) {
+        if(const auto &lbit = this->online_leaderboards.find(score.beatmap_hash);
+           lbit != this->online_leaderboards.end()) {
+            auto &lb = lbit->second;
+            if(auto it = Mc::ranges::find(lb.scores, score); it != lb.scores.end()) copy_pp(*it);
+            if(lb.personal_best == score) copy_pp(*lb.personal_best);
+        }
+        return;
     }
 
-    Mc::ranges::sort(scores, ui->getSongBrowser()->SCORE_SORTING_METHODS[sortIndex].comparator);
-}
-
-void Database::sortScores(const MD5Hash &beatmapMD5Hash) {
-    Sync::unique_lock lk(this->scores_mtx);
-    if(auto it = this->scores.find(beatmapMD5Hash); it != this->scores.end()) {
-        Database::sortScoresInPlace(it->second);
+    Sync::unique_lock lock(this->scores_mtx);
+    if(const auto &scoreit = this->scores.find(score.beatmap_hash); scoreit != this->scores.end()) {
+        if(auto it = Mc::ranges::find(scoreit->second, score); it != scoreit->second.end()) {
+            copy_pp(*it);
+            this->scores_changed.store(true, std::memory_order_release);
+        }
     }
-    return;
 }
 
 Database::PlayerPPScores Database::getPlayerPPScores(std::string_view playerName) {

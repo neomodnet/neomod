@@ -3583,8 +3583,8 @@ msgid "No records set!"
 msgstr "Brak ustanowionych rekordów!"
 
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
-msgid "Personal Best (from local scores)"
-msgstr "Osobisty rekord (z lokalnych wyników)"
+msgid "Personal Best"
+msgstr "Osobisty rekord"
 
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "Invalid osu! folder (or no beatmaps found): "

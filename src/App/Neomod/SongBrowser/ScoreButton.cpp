@@ -1,7 +1,6 @@
 // Copyright (c) 2018, PG, All rights reserved.
 #include "ScoreButton.h"
 
-#include "ContainerRanges.h"
 #include "OptionsOverlay.h"
 #include "SongBrowser.h"
 // ---
@@ -199,28 +198,7 @@ void ScoreButton::draw() {
                 return this->sScoreScorePPWeightedPP;
             }
 
-            // override behavior
-            if(cv::scores_always_display_pp.getBool()) {
-                return this->sFmtedScorePPWithCombo;
-            }
-
-            // show score for score sorting, pp for pp sorting
-            u32 sortIndex = cv::songbrowser_scores_sortingtype.getInt();
-            if(sortIndex < g_songbrowser->SCORE_SORTING_METHODS.size()) {
-                auto sort = g_songbrowser->SCORE_SORTING_METHODS[sortIndex];
-                if(sort.comparator == db->sortScoreByPP) {
-                    return this->sFmtedScorePPWithCombo;
-                } else if(sort.comparator == db->sortScoreByScore) {
-                    return this->sFmtedScoreScoreWithCombo;
-                }
-            }
-
-            // fallback behavior for other sorting types (misleading convar name)
-            if(cv::scores_sort_by_pp.getBool()) {
-                return this->sFmtedScorePPWithCombo;
-            } else {
-                return this->sFmtedScoreScoreWithCombo;
-            }
+            return ScoreButton::showsPP() ? this->sFmtedScorePPWithCombo : this->sFmtedScoreScoreWithCombo;
         }();
 
         g->scale(scale, scale);
@@ -408,33 +386,19 @@ void ScoreButton::draw() {
 void ScoreButton::tick() {
     CBaseUIButton::tick();
     if(this->avatar) this->avatar->tick();
+}
 
-    // Update pp
-    auto &sc = *this->storedScore;
-    if(sc.get_pp() == -1.0) {
-        if(sc.get_or_calc_pp(sc.map) != -1.0) {
-            // NOTE: Allows dropped sliderends. Should fix with @PPV3
-            const bool fullCombo = (sc.maxPossibleCombo > 0 && sc.numMisses == 0 && sc.numSliderBreaks == 0);
+bool ScoreButton::showsPP() {
+    // override behavior
+    if(cv::scores_always_display_pp.getBool()) return true;
 
-            if(!sc.is_online_score) {
-                db->scores_mtx.lock();
-            }
-            auto &hashToScore = sc.is_online_score ? db->getOnlineScores() : db->getScoresMutable();
-            if(const auto &it = hashToScore.find(sc.beatmap_hash); it != hashToScore.end()) {
-                if(auto scorevecIt = Mc::ranges::find(it->second, sc); scorevecIt != it->second.end()) {
-                    g_songbrowser->score_resort_scheduled = true;
-                    *scorevecIt = sc;
-                }
-            }
-            if(!sc.is_online_score) {
-                db->scores_mtx.unlock();
-            }
+    // show score for score sorting, pp for pp sorting
+    const auto comparator = g_songbrowser->getScoreSortingMethod().comparator;
+    if(comparator == Database::sortScoreByPP) return true;
+    if(comparator == Database::sortScoreByScore) return false;
 
-            this->sFmtedScorePPWithCombo =
-                fmt::format("PP: {}pp ({}x{:s})", (int)std::round(sc.get_pp()), SString::thousands(sc.comboMax),
-                            comboBasedSuffix(sc.perfect, fullCombo));
-        }
-    }
+    // fallback behavior for other sorting types (misleading convar name)
+    return cv::scores_sort_by_pp.getBool();
 }
 
 void ScoreButton::updateInput(CBaseUIEventCtx &c) {

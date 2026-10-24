@@ -143,7 +143,7 @@ void on_submission_response(u64 id, const Mc::Net::Response &response) {
     }
 
     // the leaderboard and the score buttons show which scores are still pending
-    db->getOnlineScores().erase(score.beatmap_hash);
+    db->getOnlineLeaderboards().erase(score.beatmap_hash);
     ui->getSongBrowser()->rebuildScoreButtons();
     ui->getRankingScreen()->onScoreSubmitted(score, result);
 }

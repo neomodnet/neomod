@@ -337,6 +337,14 @@ SongBrowser::GlobalSongBrowserCtorDtor::~GlobalSongBrowserCtorDtor() {
     neomod::sbr::g_carousel = nullptr;
 }
 
+// a leaderboard waiting for buildScoreButtons()
+struct SongBrowser::PendingScores {
+    const DatabaseBeatmap *map{nullptr};
+    OnlineLeaderboard lb;  // local leaderboards only fill the scores
+    // online leaderboards show the player's best on the server in a box below the list
+    bool personal_best_box{false};
+};
+
 SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
     this->MAP_SORTING_METHODS = {{{_("By Artist"), sort_by_artist},          //
                                   {_("By BPM"), sort_by_bpm},                //
@@ -388,6 +396,9 @@ SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
             if(newValue.length() == 1 && SString::is_wspace_only(newValue))
                 cv::songbrowser_search_hardcoded_filter.setValue("");
         });
+    // they decide whether the score buttons show pp, which buildScoreButtons() may have to wait for
+    cv::scores_always_display_pp.setCallback(SA::MakeDelegate<&SongBrowser::rebuildScoreButtons>(this));
+    cv::scores_sort_by_pp.setCallback(SA::MakeDelegate<&SongBrowser::rebuildScoreButtons>(this));
 
     // vars
     this->bSongBrowserRightClickScrollCheck = false;
@@ -512,14 +523,14 @@ SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
     this->scoreBrowserNoRecordsSetElement = new NoRecordsSetElement(_("No records set!"));
     this->scoreBrowser->container.addBaseUIElement(this->scoreBrowserNoRecordsSetElement);
 
-    // NOTE: we don't add localBestContainer to the screen; we draw and update it manually so that
+    // NOTE: we don't add personalBestContainer to the screen; we draw and update it manually so that
     //       it can be drawn under skins which overlay the scores list.
-    this->localBestContainer = std::make_unique<CBaseUIContainer>(0.f, 0.f, 0.f, 0.f, "");
-    this->localBestContainer->setVisible(false);
-    this->localBestLabel = new CBaseUILabel(0, 0, 0, 0, "", _("Personal Best (from local scores)"));
-    this->localBestLabel->setDrawBackground(false);
-    this->localBestLabel->setDrawFrame(false);
-    this->localBestLabel->setTextJustification(TEXT_JUSTIFICATION::CENTERED);
+    this->personalBestContainer = std::make_unique<CBaseUIContainer>(0.f, 0.f, 0.f, 0.f, "");
+    this->personalBestContainer->setVisible(false);
+    this->personalBestLabel = new CBaseUILabel(0, 0, 0, 0, "", _("Personal Best"));
+    this->personalBestLabel->setDrawBackground(false);
+    this->personalBestLabel->setDrawFrame(false);
+    this->personalBestLabel->setTextJustification(TEXT_JUSTIFICATION::CENTERED);
 
     this->thumbnailYRatio = cv::draw_songbrowser_thumbnails.getBool() ? 1.333333f : 0.f;
 
@@ -564,9 +575,9 @@ SongBrowser::~SongBrowser() {
     }
     this->scoreButtonCache.clear();
 
-    this->localBestContainer->invalidate();  // contained elements freed manually below
-    SAFE_DELETE(this->localBestButton);
-    SAFE_DELETE(this->localBestLabel);
+    this->personalBestContainer->invalidate();  // contained elements freed manually below
+    SAFE_DELETE(this->personalBestButton);
+    SAFE_DELETE(this->personalBestLabel);
     SAFE_DELETE(this->scoreBrowserScoresStillLoadingElement);
     SAFE_DELETE(this->scoreBrowserNoRecordsSetElement);
 
@@ -577,6 +588,8 @@ SongBrowser::~SongBrowser() {
     SAFE_DELETE(this->scoreBrowser);
 
     cv::songbrowser_search_hardcoded_filter.removeAllCallbacks();
+    cv::scores_always_display_pp.removeCallback();
+    cv::scores_sort_by_pp.removeCallback();
 }
 
 bool SongBrowser::drawBeatmapOrMenuBackground() {
@@ -654,7 +667,7 @@ void SongBrowser::draw() {
 
     {
         // draw strain graph of currently selected beatmap
-        // FIXME: ugly, where do we even put this? "No records set!" label or local best button is in the same spot
+        // FIXME: ugly, where do we even put this? "No records set!" label or personal best button is in the same spot
         const bool doDrawStrainGraph = cv::draw_songbrowser_strain_graph.getBool();
         auto *noRecordsSetElem = static_cast<CBaseUILabel *>(this->scoreBrowserNoRecordsSetElement);
         const Color oldNoRecordsSetBG = noRecordsSetElem->getBackgroundColor();
@@ -663,15 +676,15 @@ void SongBrowser::draw() {
         bool noRecordsSetOpacityHack = false;
         if(doDrawStrainGraph) {
             this->drawStrainGraphOverlay();
-            if(this->localBestContainer->isVisible() &&
-               Mc::ranges::contains(this->localBestContainer->getElements(), noRecordsSetElem)) {
+            if(this->personalBestContainer->isVisible() &&
+               Mc::ranges::contains(this->personalBestContainer->getElements(), noRecordsSetElem)) {
                 noRecordsSetOpacityHack = true;
                 noRecordsSetElem->setBackgroundColor(Color{oldNoRecordsSetBG}.setA(0.5f));
                 noRecordsSetElem->setFrameColor(Color{oldNoRecordsSetFrame}.setA(0.5f));
             }
         }
 
-        this->localBestContainer->draw();
+        this->personalBestContainer->draw();
 
         if(noRecordsSetOpacityHack) {
             noRecordsSetElem->setBackgroundColor(oldNoRecordsSetBG);
@@ -681,7 +694,7 @@ void SongBrowser::draw() {
 
     if(cv::debug_osu.getBool()) {
         this->scoreBrowser->container.draw_debug();
-        this->localBestContainer->draw_debug();
+        this->personalBestContainer->draw_debug();
     }
 
     // draw beatmap carousel
@@ -853,7 +866,7 @@ void SongBrowser::tick() {
     if(!this->bVisible) return;
 
     // avoid ticking extra ui elements when not visible
-    this->localBestContainer->tick();
+    this->personalBestContainer->tick();
     this->contextMenu->tick();
     BottomBar::tick();
     this->topbarRight->tick();
@@ -901,10 +914,7 @@ void SongBrowser::tick() {
         }
     }
 
-    if(this->score_resort_scheduled) {
-        this->rebuildScoreButtons();
-        this->score_resort_scheduled = false;
-    }
+    if(this->pendingScores) this->buildScoreButtons();
 
     // handle async random beatmap selection
     if(this->bRandomBeatmapScheduled) {
@@ -965,9 +975,9 @@ void SongBrowser::updateInput(CBaseUIEventCtx &c) {
     // (score browser, context menu, the carousel itself) gets first refusal
     if(c.propagate_clicks) c.addWheelClaim(this);
 
-    this->localBestContainer->updateInput(c);
-    if(this->localBestButton && this->localBestButton->isVisible() && this->localBestButton->isMouseInside()) {
-        // HACKHACK: don't hover score button list buttons under local best!
+    this->personalBestContainer->updateInput(c);
+    if(this->personalBestButton && this->personalBestButton->isVisible() && this->personalBestButton->isMouseInside()) {
+        // HACKHACK: don't hover score button list buttons under personal best!
         this->scoreBrowser->stealFocus();
     }
     ScreenBackable::updateInput(c);
@@ -1144,7 +1154,8 @@ void SongBrowser::onResolutionChange(vec2 newResolution) {
         {static_cast<CBaseUIElement *>(this->topbarLeft), static_cast<CBaseUIElement *>(this->topbarRight),
          static_cast<CBaseUIElement *>(this->contextMenu), static_cast<CBaseUIElement *>(this->scoreBrowser),
          static_cast<CBaseUIElement *>(this->carousel.get()),
-         static_cast<CBaseUIElement *>(this->localBestContainer.get()), static_cast<CBaseUIElement *>(this->search)}) {
+         static_cast<CBaseUIElement *>(this->personalBestContainer.get()),
+         static_cast<CBaseUIElement *>(this->search)}) {
         if(extra) this->allChildren.push_back(extra);
     }
     return this->allChildren;
@@ -1544,9 +1555,10 @@ void SongBrowser::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
     // reselected map has no button afterwards: back to the empty list it starts out as
     this->scoreBrowser->invalidate();
     this->scoreBrowser->container.addBaseUIElement(this->scoreBrowserNoRecordsSetElement);
-    this->localBestContainer->invalidate();
-    this->localBestContainer->setVisible(false);
-    SAFE_DELETE(this->localBestButton);
+    this->personalBestContainer->invalidate();
+    this->personalBestContainer->setVisible(false);
+    SAFE_DELETE(this->personalBestButton);
+    this->pendingScores.reset();
 
     this->contextMenu->setVisible2(false);
 
@@ -2366,21 +2378,21 @@ void SongBrowser::updateScoreBrowserLayout() {
     this->scoreBrowser->setSize(scoreButtonWidthMax, browserHeight);
     const i32 scoreHeight = SongBrowser::getUIScale(53.f);
 
-    // In stable, even when looking at local scores, there is space where the "local best" would be.
-    f32 local_best_size = (f32)(scoreHeight + SongBrowser::getUIScale(61));
-    browserHeight -= local_best_size;
+    // In stable, even when looking at local scores, there is space where the "personal best" would be.
+    f32 personal_best_size = (f32)(scoreHeight + SongBrowser::getUIScale(61));
+    browserHeight -= personal_best_size;
     this->scoreBrowser->setSize(this->scoreBrowser->getSize().x, browserHeight);
     this->scoreBrowser->setScrollSizeToContent();
 
-    if(this->localBestContainer->isVisible()) {
-        this->localBestContainer->setPos(this->scoreBrowser->getPos().x,
-                                         this->scoreBrowser->getPos().y + this->scoreBrowser->getSize().y);
-        this->localBestContainer->setSize(this->scoreBrowser->getSize().x, local_best_size);
-        this->localBestLabel->setRelPos(0, 0);
-        this->localBestLabel->setSize(this->scoreBrowser->getSize().x, 40);
-        if(this->localBestButton) {
-            this->localBestButton->setRelPos(0, 40);
-            this->localBestButton->setSize(this->scoreBrowser->getSize().x, (f32)scoreHeight);
+    if(this->personalBestContainer->isVisible()) {
+        this->personalBestContainer->setPos(this->scoreBrowser->getPos().x,
+                                            this->scoreBrowser->getPos().y + this->scoreBrowser->getSize().y);
+        this->personalBestContainer->setSize(this->scoreBrowser->getSize().x, personal_best_size);
+        this->personalBestLabel->setRelPos(0, 0);
+        this->personalBestLabel->setSize(this->scoreBrowser->getSize().x, 40);
+        if(this->personalBestButton) {
+            this->personalBestButton->setRelPos(0, 40);
+            this->personalBestButton->setSize(this->scoreBrowser->getSize().x, (f32)scoreHeight);
         }
     }
 
@@ -2404,7 +2416,7 @@ void SongBrowser::updateScoreBrowserLayout() {
         this->scoreBrowserNoRecordsSetElement->setRelPos(
             this->scoreBrowser->getSize().x / 2 - this->scoreBrowserScoresStillLoadingElement->getSize().x / 2, 45);
     }
-    this->localBestContainer->update_pos();
+    this->personalBestContainer->update_pos();
     this->scoreBrowser->container.update_pos();
     this->scoreBrowser->setScrollSizeToContent();
 }
@@ -2434,105 +2446,92 @@ void SongBrowser::rebuildScoreButtons() {
 
     // reset
     this->scoreBrowser->invalidate();
-    this->localBestContainer->invalidate();
-    this->localBestContainer->setVisible(false);
-    SAFE_DELETE(this->localBestButton);
+    this->personalBestContainer->invalidate();
+    this->personalBestContainer->setVisible(false);
+    SAFE_DELETE(this->personalBestButton);
     // (a menu opened from a score button would act on a deleted button, or one that shows another score below)
     this->contextMenu->setVisible2(false);
+    this->pendingScores.reset();
 
-    auto *map = osu->getMapInterface()->getBeatmap();
-    const bool validBeatmap = !!map;
-    const MD5Hash mapHash = validBeatmap ? map->getMD5() : MD5Hash{};
+    // until buildScoreButtons() has everything it needs
+    this->scoreBrowser->container.addBaseUIElement(this->scoreBrowserScoresStillLoadingElement);
+    this->updateScoreBrowserLayout();
 
-    bool is_online = (BanchoState::is_online() || BanchoState::is_logging_in()) &&
-                     cv::songbrowser_scores_filteringtype.getString() != _("Local");
-
-    std::vector<FinishedScore> scores;
-    if(validBeatmap) {
-        Sync::shared_lock lock(db->scores_mtx);
-
-        const FinishedScore *local_best = nullptr;
-        const auto &local_scores = db->getScores().find(mapHash);
+    auto pending = std::make_unique<PendingScores>();
+    pending->map = osu->getMapInterface()->getBeatmap();
+    if(const auto *map = pending->map) {
+        const MD5Hash &mapHash = map->getMD5();
+        const bool is_online = (BanchoState::is_online() || BanchoState::is_logging_in()) &&
+                               cv::songbrowser_scores_filteringtype.getString() != _("Local");
 
         if(is_online) {
-            if(local_scores != db->getScores().end()) {
-                if(const auto &elem = Mc::ranges::max_element(
-                       local_scores->second,
-                       [](const FinishedScore &a, const FinishedScore &b) { return a.score < b.score; });
-                   elem != local_scores->second.end()) {
-                    local_best = &(*elem);
-                }
-            }
-
-            const auto &search = db->getOnlineScores().find(mapHash);
-            if(search != db->getOnlineScores().end()) {
-                scores = search->second;
-
-                // show passes that are still being submitted where the server will list them
-                for(FinishedScore &pending : BANCHO::Net::get_pending_scores(mapHash)) {
-                    if(!pending.passed) continue;
-
-                    // the server lists one score per player
-                    std::erase_if(scores, [&pending](const FinishedScore &sc) {
-                        return sc.is_online_score && sc.player_id == pending.player_id && sc.score < pending.score;
-                    });
-                    scores.push_back(std::move(pending));
-                }
-
-                if(!local_best) {
-                    if(!scores.empty()) {
-                        // We only want to display "No scores" if there are online scores present
-                        // Otherwise, it would be displayed twice
-                        SAFE_DELETE(this->localBestButton);
-                        this->localBestContainer->addBaseUIElement(this->localBestLabel);
-                        this->localBestContainer->addBaseUIElement(this->scoreBrowserNoRecordsSetElement);
-                        this->localBestContainer->setVisible(true);
-                    }
-                } else {
-                    SAFE_DELETE(this->localBestButton);
-                    this->localBestButton = new ScoreButton(this->contextMenu, 0, 0, 0, 0);
-                    this->localBestButton->setClickCallback(SA::MakeDelegate<&SongBrowser::onScoreClicked>(this));
-                    this->localBestButton->setScore(*local_best, map);
-                    this->localBestButton->resetHighlight();
-                    this->localBestButton->setDrawsOnTop(true);
-                    this->localBestContainer->addBaseUIElement(this->localBestLabel);
-                    this->localBestContainer->addBaseUIElement(this->localBestButton);
-                    this->localBestContainer->setVisible(true);
-                }
-
-                // We have already fetched the scores so there's no point in showing "Loading...".
-                // When there are no online scores for this map, let's treat it as if we are
-                // offline in order to show "No records set!" instead.
-                is_online = false;
-            } else {
-                // We haven't fetched the scores yet, do so now
+            const auto &search = db->getOnlineLeaderboards().find(mapHash);
+            if(search == db->getOnlineLeaderboards().end()) {
+                // onGotNewLeaderboard() comes back here
                 BANCHO::Leaderboard::fetch_online_scores(map);
-
-                // Display local best while scores are loading
-                if(local_best) {
-                    SAFE_DELETE(this->localBestButton);
-                    this->localBestButton = new ScoreButton(this->contextMenu, 0, 0, 0, 0);
-                    this->localBestButton->setClickCallback(SA::MakeDelegate<&SongBrowser::onScoreClicked>(this));
-                    this->localBestButton->setScore(*local_best, map);
-                    this->localBestButton->resetHighlight();
-                    this->localBestButton->setDrawsOnTop(true);
-                    this->localBestContainer->addBaseUIElement(this->localBestLabel);
-                    this->localBestContainer->addBaseUIElement(this->localBestButton);
-                    this->localBestContainer->setVisible(true);
-                }
+                return;
             }
+            pending->lb = search->second;
+            auto &scores = pending->lb.scores;
+
+            // show passes that are still being submitted where the server will list them
+            for(FinishedScore &sc : BANCHO::Net::get_pending_scores(mapHash)) {
+                if(!sc.passed) continue;
+
+                // the server lists one score per player
+                std::erase_if(scores, [&sc](const FinishedScore &listed) {
+                    return listed.is_online_score && listed.player_id == sc.player_id && listed.score < sc.score;
+                });
+                scores.push_back(std::move(sc));
+            }
+
+            // without online scores, "No records set!" is already displayed in the list
+            pending->personal_best_box = !scores.empty();
         } else {
-            if(local_scores != db->getScores().end()) {
-                scores = local_scores->second;
+            Sync::shared_lock lock(db->scores_mtx);
+            if(const auto &local_scores = db->getScores().find(mapHash); local_scores != db->getScores().end()) {
+                pending->lb.scores = local_scores->second;
             }
         }
     }
 
+    this->pendingScores = std::move(pending);
+    this->buildScoreButtons();
+}
+
+void SongBrowser::buildScoreButtons() {
+    const auto *map = this->pendingScores->map;
+    // the selection moved on while the song browser was hidden (pp is only calculated for the selected map)
+    if(map != osu->getMapInterface()->getBeatmap()) return this->rebuildScoreButtons();
+    auto &lb = this->pendingScores->lb;
+
+    // pp shown on the buttons (always the case when they're sorted by it) has to be known before they're built,
+    // so that nothing changes or reorders once they're shown
+    if(map && ScoreButton::showsPP()) {
+        bool all_known = true;
+        const auto resolve = [map, &all_known](FinishedScore &sc) {
+            if(sc.get_pp() != -1.0) return;
+            if(sc.get_or_calc_pp(map) != -1.0) {
+                db->setScorePP(sc);
+            } else {
+                all_known = false;
+            }
+        };
+        for(auto &sc : lb.scores) resolve(sc);
+        if(lb.personal_best) resolve(*lb.personal_best);
+
+        // polled again on the next tick
+        if(!all_known) return;
+    }
+
+    const std::unique_ptr<PendingScores> pending = std::move(this->pendingScores);
+    std::vector<FinishedScore> &scores = pending->lb.scores;
     const int numScores = (int)scores.size();
 
+    this->scoreBrowser->invalidate();
+
     if(numScores > 1) {
-        // sort
-        Database::sortScoresInPlace(scores);
+        Mc::ranges::sort(scores, this->getScoreSortingMethod().comparator);
     }
 
     // top up cache as necessary
@@ -2549,32 +2548,31 @@ void SongBrowser::rebuildScoreButtons() {
     if(numScores < 1) {
         // NOTE(spec): not sure if it was a typo, but the code here was using scoreBrowserScoresStillLoadingElement's position in both cases
         //             just leaving it like that for now...
-        CBaseUIElement *toAdd = validBeatmap && is_online ? this->scoreBrowserScoresStillLoadingElement
-                                                          : this->scoreBrowserNoRecordsSetElement;
-        this->scoreBrowser->container.addBaseUIElement(toAdd, this->scoreBrowserScoresStillLoadingElement->getRelPos());
+        this->scoreBrowser->container.addBaseUIElement(this->scoreBrowserNoRecordsSetElement,
+                                                       this->scoreBrowserScoresStillLoadingElement->getRelPos());
     } else {
-        // build
-        std::vector<ScoreButton *> scoreButtons;
         for(int i = 0; i < numScores; i++) {
             ScoreButton *button = this->scoreButtonCache[i];
             button->setScore(scores[i], map, i + 1);
             button->setVisible(false);
-            // HACKHACK: preload pp immediately (flicker reduction)
-            // ScoreButton::tick should not have a side effect of updating the database!
-            button->tick();
-            scoreButtons.push_back(button);
+            this->scoreBrowser->container.addBaseUIElement(button);
+            button->resetHighlight();
         }
+    }
 
-        // add
-        for(int i = 0; i < numScores; i++) {
-            scoreButtons[i]->setIndex(i + 1);
-            this->scoreBrowser->container.addBaseUIElement(scoreButtons[i]);
+    if(pending->personal_best_box) {
+        this->personalBestContainer->addBaseUIElement(this->personalBestLabel);
+        if(pending->lb.personal_best) {
+            this->personalBestButton = new ScoreButton(this->contextMenu, 0, 0, 0, 0);
+            this->personalBestButton->setClickCallback(SA::MakeDelegate<&SongBrowser::onScoreClicked>(this));
+            this->personalBestButton->setScore(*pending->lb.personal_best, map, pending->lb.personal_best_rank);
+            this->personalBestButton->resetHighlight();
+            this->personalBestButton->setDrawsOnTop(true);
+            this->personalBestContainer->addBaseUIElement(this->personalBestButton);
+        } else {
+            this->personalBestContainer->addBaseUIElement(this->scoreBrowserNoRecordsSetElement);
         }
-
-        // reset
-        for(auto &scoreButton : scoreButtons) {
-            scoreButton->resetHighlight();
-        }
+        this->personalBestContainer->setVisible(true);
     }
 
     // layout
@@ -2582,8 +2580,8 @@ void SongBrowser::rebuildScoreButtons() {
 
     // update grade of difficulty button for current map
     // (weird place for this to be, i think the intent is to update them after you set a score)
-    if(!validBeatmap) return;
-    if(const auto &it = this->hashToDiffButton->find(mapHash); it != this->hashToDiffButton->end()) {
+    if(!map) return;
+    if(const auto &it = this->hashToDiffButton->find(map->getMD5()); it != this->hashToDiffButton->end()) {
         it->second->updateGrade();
     }
 }
@@ -3032,9 +3030,15 @@ void SongBrowser::onFilterScoresChange(std::string_view text, int id) {
     type_cv->setValue(text_to_set);  // NOTE: remember
 
     this->filterScoresDropdown->setText(text_to_set);
-    db->getOnlineScores().clear();
+    db->getOnlineLeaderboards().clear();
     this->rebuildScoreButtons();
     this->scoreBrowser->scrollToTop();
+}
+
+const SongBrowser::SCORE_SORTING_METHOD &SongBrowser::getScoreSortingMethod() const {
+    const u32 sortIndex = cv::songbrowser_scores_sortingtype.getInt();
+    return this->SCORE_SORTING_METHODS[sortIndex < this->SCORE_SORTING_METHODS.size() ? sortIndex
+                                                                                      : DEFAULT_SCORE_SORTING_INDEX];
 }
 
 void SongBrowser::onSortScoresChange(std::string_view /*text*/, int id) {

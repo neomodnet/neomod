@@ -414,6 +414,8 @@ void AboutScreen::buildChangelog() {
         R"(- Fixed the pp change on the user card not showing when the stats changed on another screen)",
         R"(- Fixed importing skins zipped with the macOS archive utility (outside of macOS))",
         R"(- Fixed beatmaps from watched online replays merging into one beatmapset)",
+        R"(- Fixed leaderboards sorted by pp sometimes showing scores out of order)",
+        R"(- Online leaderboards now show your personal best on the server instead of the best local score)",
     };
     changelogs.push_back(std::move(v44_02));
 

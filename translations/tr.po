@@ -3581,8 +3581,8 @@ msgid "No records set!"
 msgstr "Rekor yok!"
 
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
-msgid "Personal Best (from local scores)"
-msgstr "Kişisel En İyi (yerel skorlardan)"
+msgid "Personal Best"
+msgstr "Kişisel En İyi"
 
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "Invalid osu! folder (or no beatmaps found): "

@@ -3451,7 +3451,7 @@ msgid "No records set!"
 msgstr ""
 
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
-msgid "Personal Best (from local scores)"
+msgid "Personal Best"
 msgstr ""
 
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp

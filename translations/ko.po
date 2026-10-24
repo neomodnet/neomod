@@ -3581,8 +3581,8 @@ msgid "No records set!"
 msgstr "기록이 없습니다!"
 
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
-msgid "Personal Best (from local scores)"
-msgstr "개인 최고 기록 (로컬 점수 기준)"
+msgid "Personal Best"
+msgstr "개인 최고 기록"
 
 #: src/App/Neomod/SongBrowser/SongBrowser.cpp
 msgid "Invalid osu! folder (or no beatmaps found): "

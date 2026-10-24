@@ -5,11 +5,13 @@
 #include "LegacyReplay.h"
 #include "Overrides.h"
 #include "SyncMutex.h"
+#include "score.h"
 
 #include "Hashing.h"
 #include "DiffCalc/StarPrecalc.h"
 
 #include <atomic>
+#include <optional>
 #include <set>
 #include <span>
 #include <string>
@@ -33,7 +35,6 @@ namespace BatchDiffCalc {
 struct internal;
 }
 
-class ScoreButton;
 class ConVar;
 
 class DatabaseBeatmap;
@@ -80,6 +81,13 @@ struct alignas(1) DB_TIMINGPOINT {
 #pragma pack(pop)
 
 using HashToScoreMap = Hash::flat::map<MD5Hash, std::vector<FinishedScore>>;
+
+// a map's leaderboard as the server sent it
+struct OnlineLeaderboard {
+    std::vector<FinishedScore> scores;
+    std::optional<FinishedScore> personal_best;
+    i32 personal_best_rank{0};
+};
 
 class Database final {
     NOCOPY_NOMOVE(Database)
@@ -155,7 +163,8 @@ class Database final {
     void deleteScore(const FinishedScore &scoreToDelete);
     // records the id the server gave the score once it was submitted
     void setBanchoScoreId(const FinishedScore &score, i64 bancho_score_id);
-    static void sortScoresInPlace(std::vector<FinishedScore> &scores);
+    // stores the pp computed for a score back into the local database or the online leaderboard it came from
+    void setScorePP(const FinishedScore &score);
 
     PlayerPPScores getPlayerPPScores(std::string_view playerName);
     PlayerStats calculatePlayerStats(std::string_view playerName);
@@ -197,7 +206,7 @@ class Database final {
 
     // WARNING: Before calling getScores(), you need to lock db->scores_mtx!
     [[nodiscard]] inline const HashToScoreMap &getScores() const { return this->scores; }
-    inline HashToScoreMap &getOnlineScores() { return this->online_scores; }
+    inline Hash::flat::map<MD5Hash, OnlineLeaderboard> &getOnlineLeaderboards() { return this->online_leaderboards; }
 
     static std::string getOsuSongsFolder();
 
@@ -249,12 +258,11 @@ class Database final {
 
     // for updating scores externally
     friend struct BatchDiffCalc::internal;
-    friend class ScoreButton;  // HACKHACK: why are we updating database scores from a BUTTON???
     friend bool LegacyReplay::load_from_disk(FinishedScore &score, bool update_db);
     inline HashToScoreMap &getScoresMutable() { return this->scores; }
 
     HashToScoreMap scores;
-    HashToScoreMap online_scores;
+    Hash::flat::map<MD5Hash, OnlineLeaderboard> online_leaderboards;
 
     enum class DatabaseType : u8 {
         INVALID_DB = 0,
@@ -305,7 +313,6 @@ class Database final {
     void loadOldMcNeomodScores(std::string_view dbPath);
     void loadPeppyScores(std::string_view dbPath);
     void saveScores();
-    void sortScores(const MD5Hash &beatmapMD5Hash);
     bool addScoreRaw(const FinishedScore &score);
     // returns position of existing score in the scores[hash] array if found, -1 otherwise
     // this isn't completely accurate but allows skipping importing some duplicate entries early from dbs

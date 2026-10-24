@@ -29,6 +29,8 @@ class ScoreButton final : public CBaseUIButton {
     static std::string getModsStringForDisplay(const Replay::Mods &mods);
     static std::vector<std::string> getExtraModNamesForDisplay(const Replay::Mods &mods);
     static std::string getNotelockNameForDisplay(int notelockType);
+    // whether song browser score buttons show pp instead of score (the sort order and the scores_*_pp convars decide)
+    static bool showsPP();
 
     enum class STYLE : uint8_t { SONG_BROWSER, TOP_RANKS };
     ScoreButton() = delete;
