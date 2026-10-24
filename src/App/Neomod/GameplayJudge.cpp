@@ -396,7 +396,7 @@ u32 GameplayJudge::getScoreV1DifficultyMultiplier() const {
     f32 drainLength =
         std::max(this->getLengthPlayable() - std::min(breakTimeMS, this->getLengthPlayable()), (u32)1000) / 1000;
     return std::round((this->beatmap->getCS() + this->beatmap->getHP() + this->beatmap->getOD() +
-                       std::clamp<f32>((f32)this->beatmap->getNumObjects() / drainLength * 8.0f, 0.0f, 16.0f)) /
+                       std::clamp<f32>((f32)this->nb_hitobjects / drainLength * 8.0f, 0.0f, 16.0f)) /
                       38.0f * 5.0f);
 }
 

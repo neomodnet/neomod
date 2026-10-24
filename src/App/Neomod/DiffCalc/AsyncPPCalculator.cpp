@@ -25,6 +25,10 @@ struct hitobject_cache {
 
     // Results
     DiffCalc::LOAD_DIFFOBJ_RESULT diffres{};
+    // from the file, since a freshly imported map's database record doesn't have them yet
+    i32 numCircles{};
+    i32 numSliders{};
+    i32 numSpinners{};
 
     [[nodiscard]] bool matches(f32 spd, f32 ar, f32 cs, bool hr) const {
         return speed == spd && AR == ar && CS == cs && hardRock == hr;
@@ -64,9 +68,6 @@ struct info_cache {
 struct calc_session {
     // map snapshot, so the task never touches DatabaseBeatmap memory
     std::string osuFilePath;
-    i32 numCircles{};
-    i32 numSliders{};
-    i32 numSpinners{};
 
     Sync::mutex work_mtx;
 
@@ -173,6 +174,16 @@ void drain_work(const std::shared_ptr<calc_session>& s, const Sync::stop_token& 
 
             if(stoken.stop_requested()) return;
 
+            for(const auto& obj : new_ho.diffres.diffobjects) {
+                if(obj.isCircle()) {
+                    new_ho.numCircles++;
+                } else if(obj.isSlider()) {
+                    new_ho.numSliders++;
+                } else {
+                    new_ho.numSpinners++;
+                }
+            }
+
             // cached even on error, so that we stop trying after failing once
             s->ho_cache.push_back(std::move(new_ho));
             computed_ho = &s->ho_cache.back();
@@ -264,10 +275,10 @@ void drain_work(const std::shared_ptr<calc_session>& s, const Sync::stop_token& 
                                                 .timescale = rqt.speedOverride,
                                                 .ar = rqt.AR,
                                                 .od = rqt.OD,
-                                                .numHitObjects = s->numCircles + s->numSliders + s->numSpinners,
-                                                .numCircles = s->numCircles,
-                                                .numSliders = s->numSliders,
-                                                .numSpinners = s->numSpinners,
+                                                .numHitObjects = (i32)computed_ho->diffres.diffobjects.size(),
+                                                .numCircles = computed_ho->numCircles,
+                                                .numSliders = computed_ho->numSliders,
+                                                .numSpinners = computed_ho->numSpinners,
                                                 .maxPossibleCombo = (i32)computed_ho->diffres.getTotalMaxCombo(),
                                                 .combo = rqt.comboMax,
                                                 .misses = rqt.numMisses,
@@ -302,9 +313,6 @@ void set_map(const DatabaseBeatmap* new_map) {
     if(new_map) {
         auto s = std::make_shared<calc_session>();
         s->osuFilePath = std::string{new_map->getFilePath()};
-        s->numCircles = new_map->getNumCircles();
-        s->numSliders = new_map->getNumSliders();
-        s->numSpinners = new_map->getNumSpinners();
         session = std::move(s);
         // no eager task spawn, the next query_result() poll kicks the drain
     } else {

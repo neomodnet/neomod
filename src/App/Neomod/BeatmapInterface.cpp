@@ -2748,7 +2748,7 @@ const AsyncPPC::pp_res &BeatmapInterface::getWholeMapPPInfo() const {
                                       .OD = mods.get_naive_od(map),
                                       .comboMax = -1,
                                       .numMisses = 0,  // unset sentinel for request (bad api)
-                                      .num300s = map->getNumObjects(),
+                                      .num300s = -1,   // all of the map's objects
                                       .num100s = 0,
                                       .num50s = 0,
                                       .legacyTotalScore = 0,
