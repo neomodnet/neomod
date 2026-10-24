@@ -254,8 +254,9 @@ class GameplayJudge final {
     bool bInBreak = false;
     bool bLastComboPerfect = true;
     bool bBreakPassed = true;
-    i32 iNumBreaksPassed = 0;
-    i32 iNumBreaksStarted = 0;
+    // breaks long enough to count toward passing at the end
+    i32 iNumLongBreaksPassed = 0;
+    i32 iNumLongBreaks = 0;
     bool bIsInSkippableSection = false;
     bool bIsSpinnerActive = false;
     neomod::HitObject *currentHitObject = nullptr;

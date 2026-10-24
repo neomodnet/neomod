@@ -36,7 +36,7 @@ namespace {
 
 constexpr f64 INF = std::numeric_limits<f64>::infinity();
 constexpr u32 NO_FILE = std::numeric_limits<u32>::max();
-constexpr u32 NO_SLOTS = std::numeric_limits<u32>::max();
+constexpr u32 NO_INDEX = std::numeric_limits<u32>::max();
 constexpr f64 SLOT_STEP = 1000.0 / 60.0;
 
 // a property going from one value to another over [start, end]
@@ -137,7 +137,8 @@ struct Sprite {
     f64 earliestCommand{0.0};
     u32 firstImage{0};
 
-    u32 slots{NO_SLOTS};  // for a sprite with S and V, or M and MX/MY
+    u32 slots{NO_INDEX};  // for a sprite with S and V, or M and MX/MY
+    u32 fired{NO_INDEX};  // for a sprite with triggers
 
     // a parameter with a zero-length P of its kind anywhere (own commands, loops, triggers) is on until one applies
     bool instantFlipH{false};
@@ -521,9 +522,10 @@ struct Storyboard::Impl {
     // once played
     f64 time{-INF};
     bool passing{true};
-    std::vector<std::vector<FiredTrigger>> fired;
-    std::vector<Slots> slots;  // of the sprites that have them, as of the last update()
-    std::vector<u32> slotted;  // those sprites
+    std::vector<std::vector<FiredTrigger>> fired;  // of the sprites with triggers
+    std::vector<u32> triggered;                    // those sprites
+    std::vector<Slots> slots;                      // of the sprites that have them, as of the last update()
+    std::vector<u32> slotted;                      // those sprites
 
     struct Parser;
     void finish();
@@ -841,12 +843,16 @@ void Storyboard::Impl::finish() {
             this->slots.push_back({.pos = sprite.pos});
             this->slotted.push_back(i);
         }
+        if(!sprite.triggers.empty()) {
+            sprite.fired = (u32)this->fired.size();
+            this->fired.emplace_back();
+            this->triggered.push_back(i);
+        }
 
         this->layers[(uSz)sprite.layer].push_back(i);
     }
 
     Mc::ranges::stable_sort(this->samples, {}, &Sample::time);
-    this->fired.resize(this->sprites.size());
 }
 
 void Storyboard::Impl::resolveFiles(std::span<const std::string> skinDirs) {
@@ -960,7 +966,7 @@ Picks Storyboard::Impl::picksAt(u32 index, f64 time, f64 firedBy) const {
         picks.each(loop.cmds,
                    [&](auto &pick, const auto &cmds) { pick.loop(cmds, current, current - duration, split, time); });
     }
-    for(const auto &fired : this->fired[index]) {
+    for(const auto &fired : sprite.fired == NO_INDEX ? std::span<const FiredTrigger>{} : this->fired[sprite.fired]) {
         if(fired.time > firedBy) continue;
         picks.each(sprite.triggers[fired.trigger].cmds,
                    [&](auto &pick, const auto &cmds) { pick.sorted(cmds, fired.time, time); });
@@ -985,7 +991,7 @@ std::optional<Storyboard::SpriteState> Storyboard::Impl::stateAt(u32 index, f64 
 
     const Picks picks = this->picksAt(index, time, INF);
     vec2 pos, scale;
-    if(sprite.slots != NO_SLOTS) {
+    if(sprite.slots != NO_INDEX) {
         // (update() keeps them at the last grid frame before now)
         Slots slots = this->slots[sprite.slots];
         this->playTo(index, slots, time);
@@ -1024,16 +1030,15 @@ std::optional<Storyboard::SpriteState> Storyboard::Impl::stateAt(u32 index, f64 
 }
 
 void Storyboard::Impl::fire(TriggerCondition::Kind kind, const HitSound *sound, f64 time) {
-    for(u32 s = 0; s < this->sprites.size(); s++) {
+    for(const u32 s : this->triggered) {
         const Sprite &sprite = this->sprites[s];
-        if(sprite.triggers.empty()) continue;
         for(u32 t = 0; t < sprite.triggers.size(); t++) {
             const Trigger &trigger = sprite.triggers[t];
             if(trigger.condition.kind != kind || time < trigger.start || time > trigger.end) continue;
             if(sound && !trigger.condition.matches(*sound)) continue;
 
             // a trigger that fires again starts over, and stops others of the same group
-            auto &fired = this->fired[s];
+            auto &fired = this->fired[sprite.fired];
             std::erase_if(fired, [&](const FiredTrigger &f) {
                 return f.trigger == t ||
                        (trigger.groupNumber != 0 && sprite.triggers[f.trigger].groupNumber == trigger.groupNumber);
@@ -1234,8 +1239,10 @@ void Storyboard::update(f64 time, bool passing, bool seeked) {
     if(seeked) {
         for(auto &fired : sb.fired) fired.clear();
     } else if(time > sb.time) {
-        for(auto it = sb.sounds.empty() ? sb.samples.end()
-                                        : Mc::ranges::upper_bound(sb.samples, sb.time, {}, &Sample::time);
+        // (a sample more than 400 ms late is left out: after a hitch they'd all play at once)
+        for(auto it = sb.sounds.empty()
+                          ? sb.samples.end()
+                          : Mc::ranges::upper_bound(sb.samples, std::max(sb.time, time - 400.0), {}, &Sample::time);
             it != sb.samples.end() && it->time <= time; ++it) {
             if((it->layer == Layer::FAIL && passing) || (it->layer == Layer::PASS && !passing)) continue;
             if(Sound *sound = sb.sounds[it->sound]; sound && sound->isReady()) {

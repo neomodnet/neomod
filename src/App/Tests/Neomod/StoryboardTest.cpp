@@ -360,6 +360,8 @@ void StoryboardTest::runTests() {
         TEST_ASSERT(sb.getSpriteState(0, 850)->scale.x == 3.f, "a drum whistle fires it");
         TEST_ASSERT(sb.getSpriteState(1, 850)->scale.x == 1.f, "the sprite's own running command comes first");
         TEST_ASSERT(sb.getSpriteState(0, 20000).has_value(), "a sprite with triggers stays after its own commands");
+        sb.onHitSound({.normalSet = 0, .additionSet = 2, .additions = 1, .index = 0}, 20000);
+        TEST_ASSERT(sb.getSpriteState(0, 20050)->scale.x == 3.f, "and its triggers fire after them");
         TEST_ASSERT_EQ(sb.getNumSprites(), 3u, "a sprite with only triggers is kept");
         const auto unfired = sb.getSpriteState(2, 850);
         TEST_ASSERT(unfired && unfired->alpha == 0.f, "and shows nothing until a trigger sets its opacity");
