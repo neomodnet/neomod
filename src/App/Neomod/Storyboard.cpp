@@ -488,8 +488,8 @@ struct Storyboard::Impl {
     bool useSkinSprites{false};
 
     std::vector<Sprite> sprites;
-    std::array<std::vector<u32>, (uSz)Layer::COUNT> layers;  // sprites of each layer, in drawing order
-    std::vector<Sample> samples;                             // sorted by time
+    std::vector<u32> byStart;     // the sprites in order of their start
+    std::vector<Sample> samples;  // sorted by time
     MD5Hash osbHash;
     bool hasOsb{false};
 
@@ -525,7 +525,9 @@ struct Storyboard::Impl {
     std::vector<std::vector<FiredTrigger>> fired;  // of the sprites with triggers
     std::vector<u32> triggered;                    // those sprites
     std::vector<Slots> slots;                      // of the sprites that have them, as of the last update()
-    std::vector<u32> slotted;                      // those sprites
+    // as of the last update(): how many of byStart have started, and the live sprites of each layer in drawing order
+    uSz started{0};
+    std::array<std::vector<u32>, (uSz)Layer::COUNT> live;
 
     struct Parser;
     void finish();
@@ -841,7 +843,6 @@ void Storyboard::Impl::finish() {
         if((s && v) || (m && xy)) {
             sprite.slots = (u32)this->slots.size();
             this->slots.push_back({.pos = sprite.pos});
-            this->slotted.push_back(i);
         }
         if(!sprite.triggers.empty()) {
             sprite.fired = (u32)this->fired.size();
@@ -849,9 +850,10 @@ void Storyboard::Impl::finish() {
             this->triggered.push_back(i);
         }
 
-        this->layers[(uSz)sprite.layer].push_back(i);
+        this->byStart.push_back(i);
     }
 
+    Mc::ranges::stable_sort(this->byStart, {}, [this](u32 i) { return this->sprites[i].start; });
     Mc::ranges::stable_sort(this->samples, {}, &Sample::time);
 }
 
@@ -1134,8 +1136,9 @@ uSz Storyboard::getNumSamples() const { return this->impl->samples.size(); }
 bool Storyboard::replacesBackground() const {
     const auto &bg = this->impl->backgroundFile;
     if(bg.empty()) return false;
-    return Mc::ranges::any_of(this->impl->layers[(uSz)Layer::BACKGROUND],
-                              [&](u32 i) { return SString::strcase_equal(this->impl->sprites[i].path, bg); });
+    return Mc::ranges::any_of(this->impl->sprites, [&](const Sprite &sprite) {
+        return sprite.layer == Layer::BACKGROUND && SString::strcase_equal(sprite.path, bg);
+    });
 }
 
 std::optional<Storyboard::SpriteState> Storyboard::getSpriteState(uSz sprite, f64 time) const {
@@ -1238,6 +1241,8 @@ void Storyboard::update(f64 time, bool passing, bool seeked) {
 
     if(seeked) {
         for(auto &fired : sb.fired) fired.clear();
+        sb.started = 0;
+        for(auto &live : sb.live) live.clear();
     } else if(time > sb.time) {
         // (a sample more than 400 ms late is left out: after a hitch they'd all play at once)
         for(auto it = sb.sounds.empty()
@@ -1257,9 +1262,23 @@ void Storyboard::update(f64 time, bool passing, bool seeked) {
     sb.time = time;
     sb.passing = passing;
 
-    for(const u32 index : sb.slotted) {
-        const Sprite &sprite = sb.sprites[index];
-        if(sprite.isLive(time)) sb.playTo(index, sb.slots[sprite.slots], time);
+    // the sprites that started since join their layer's live ones (appended, then merged back into drawing order),
+    // the ones that ended leave
+    std::array<uSz, (uSz)Layer::COUNT> before{};
+    for(uSz layer = 0; layer < sb.live.size(); layer++) before[layer] = sb.live[layer].size();
+    for(; sb.started < sb.byStart.size() && sb.sprites[sb.byStart[sb.started]].start <= time; sb.started++) {
+        const u32 index = sb.byStart[sb.started];
+        if(sb.sprites[index].end >= time) sb.live[(uSz)sb.sprites[index].layer].push_back(index);
+    }
+    for(uSz layer = 0; layer < sb.live.size(); layer++) {
+        auto &live = sb.live[layer];
+        const auto joined = live.begin() + (sSz)before[layer];
+        std::sort(joined, live.end());
+        std::inplace_merge(live.begin(), joined, live.end());
+        std::erase_if(live, [&](u32 index) { return sb.sprites[index].end < time; });
+        for(const u32 index : live) {
+            if(const u32 slots = sb.sprites[index].slots; slots != NO_INDEX) sb.playTo(index, sb.slots[slots], time);
+        }
     }
 }
 
@@ -1288,9 +1307,7 @@ void Storyboard::draw(Layer first, Layer last, const View &view) const {
     for(auto layer = (uSz)first; layer <= (uSz)last; layer++) {
         if(((Layer)layer == Layer::FAIL && sb.passing) || ((Layer)layer == Layer::PASS && !sb.passing)) continue;
 
-        for(const u32 index : sb.layers[layer]) {
-            // (checked here: the full evaluation takes a big stack frame to set up)
-            if(!sb.sprites[index].isLive(sb.time)) continue;
+        for(const u32 index : sb.live[layer]) {
             const auto state = sb.stateAt(index, sb.time);
             if(!state || state->alpha == 0.f || state->scale.x == 0.f || state->scale.y == 0.f) continue;
             const Sprite &sprite = sb.sprites[index];
