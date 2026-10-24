@@ -408,6 +408,7 @@ void AboutScreen::buildChangelog() {
         R"(  - Fixed storyboard trigger sprites only reacting while their own commands run)",
         R"(  - Fixed storyboard samples with a different file extension than written not playing)",
         R"(  - Fixed "UseSkinSprites" storyboards preferring skin images over the beatmap's own)",
+        R"(- Fixed importing skins zipped with the macOS archive utility (outside of macOS))",
     };
     changelogs.push_back(std::move(v44_02));
 

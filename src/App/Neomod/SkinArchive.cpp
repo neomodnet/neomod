@@ -367,15 +367,26 @@ bool unpack(std::string_view osk_path, std::string_view skins_dir) {
         return false;
     }
 
-    // skins zipped as a folder instead of its contents would extract to skins/name/name/,
-    // so if every file lives under the same top-level folder, strip that folder while extracting
-    std::string common_root;
+    // the files to extract, by their path in the skin folder. system files like the __MACOSX/ folder from macOS's
+    // archive utility are left out (libarchive only folds those into the files' metadata on macOS)
+    std::vector<std::pair<const Archive::Entry *, std::string>> files;
     for(const auto &entry : entries) {
         if(entry.isDirectory()) continue;
 
         std::string filename = entry.getFilename();
         File::normalizeSlashes(filename, '\\', '/');
 
+        const auto folders = SString::split(filename, '/');
+        // security check: skip files with path traversal attempts
+        if(Mc::ranges::contains(folders, ".."sv) || Mc::ranges::any_of(folders, is_junk)) continue;
+
+        files.emplace_back(&entry, std::move(filename));
+    }
+
+    // skins zipped as a folder instead of its contents would extract to skins/name/name/,
+    // so if every file lives under the same top-level folder, strip that folder while extracting
+    std::string common_root;
+    for(const auto &[_, filename] : files) {
         const auto slash = filename.find('/');
         const auto root =
             (slash == std::string::npos) ? std::string_view{} : std::string_view{filename}.substr(0, slash);
@@ -390,19 +401,11 @@ bool unpack(std::string_view osk_path, std::string_view skins_dir) {
         Environment::createDirectory(skin_root);
     }
 
-    for(const auto &entry : entries) {
-        if(entry.isDirectory()) continue;
-
-        std::string filename = entry.getFilename();
-        File::normalizeSlashes(filename, '\\', '/');
+    for(auto &[entry, filename] : files) {
         if(!common_root.empty()) filename.erase(0, common_root.size() + 1);
 
-        const auto folders = SString::split(filename, '/');
-        // security check: skip files with path traversal attempts
-        if(Mc::ranges::contains(folders, ".."sv)) continue;
-
         std::string file_path = skin_root;
-        for(const auto &folder : folders) {
+        for(const auto &folder : SString::split(filename, '/')) {
             if(!Environment::directoryExists(file_path)) {
                 Environment::createDirectory(file_path);
             }
@@ -411,7 +414,7 @@ bool unpack(std::string_view osk_path, std::string_view skins_dir) {
         }
 
         // when a file can't be extracted we just ignore it (as long as the archive is valid)
-        if(!entry.extractToFile(file_path)) {
+        if(!entry->extractToFile(file_path)) {
             debugLog("Failed to extract skin file {:s}", filename.c_str());
         }
     }
