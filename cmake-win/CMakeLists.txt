@@ -150,7 +150,7 @@ add_external_project(libjpeg
         -DCMAKE_ASM_NASM_FLAGS="-DPIC"
         -DCMAKE_ASM_NASM_OBJECT_FORMAT=win64
         -DWITH_SYSTEM_ZLIB=ON
-        -DCMAKE_C_FLAGS="${COMMON_C_FLAGS_STR} /I${DEPS_INSTALL_DIR}/include"
+        "-DCMAKE_C_FLAGS=${COMMON_C_FLAGS_STR} /I${DEPS_INSTALL_DIR}/include"
     BUILD_COMMAND cmake --build <BINARY_DIR> --config ${CMAKE_BUILD_TYPE} --parallel ${CPU_COUNT}
 )
 
@@ -303,9 +303,9 @@ add_external_project(curl
 
 add_external_project(mpg123
     SOURCE_SUBDIR ports/cmake
-    PATCH_COMMAND ${CMAKE_COMMAND} -E echo "Patching mpg123 to add VBRI tag support"
+    PATCH_COMMAND ${CMAKE_COMMAND} -E echo "Patching mpg123"
         COMMAND ${CMAKE_COMMAND}
-            -DFILE_TO_PATCH=<SOURCE_DIR>/src/libmpg123/parse.c
+            -DMPG123_SOURCE_DIR=<SOURCE_DIR>
             -P ${CMAKE_SOURCE_DIR}/patch_mpg123.cmake
     CMAKE_ARGS
         ${EXTERNAL_PROJECT_CMAKE_ARGS}

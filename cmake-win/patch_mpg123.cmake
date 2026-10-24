@@ -1,4 +1,5 @@
 # apply VBRI tag parsing patch to libmpg123
+set(FILE_TO_PATCH "${MPG123_SOURCE_DIR}/src/libmpg123/parse.c")
 file(READ "${FILE_TO_PATCH}" FILE_CONTENT)
 
 # define the new check_vbri_tag function
@@ -113,12 +114,15 @@ static int check_vbri_tag(mpg123_handle *fr)
 ]=])
 
 # add the check_vbri_tag function after check_lame_tag_no label
-string(REPLACE
-    "check_lame_tag_no:\n\treturn 0;\n}"
-    "check_lame_tag_no:\n\treturn 0;\n}\n\n${VBRI_FUNCTION}"
-    FILE_CONTENT
-    "${FILE_CONTENT}"
-)
+# (the patch step reruns on the already patched source whenever the patch command changes)
+if(NOT FILE_CONTENT MATCHES "check_vbri_tag")
+    string(REPLACE
+        "check_lame_tag_no:\n\treturn 0;\n}"
+        "check_lame_tag_no:\n\treturn 0;\n}\n\n${VBRI_FUNCTION}"
+        FILE_CONTENT
+        "${FILE_CONTENT}"
+    )
+endif()
 
 # modify the check_lame_tag call to also check VBRI
 string(REPLACE
@@ -130,3 +134,14 @@ string(REPLACE
 
 file(WRITE "${FILE_TO_PATCH}" "${FILE_CONTENT}")
 message(STATUS "patched ${FILE_TO_PATCH} to add VBRI tag support")
+
+# remove the stray empty #define in the _WIN32 branch of compat.h (upstream typo, breaks MSVC; no-op once fixed upstream)
+set(FILE_TO_PATCH "${MPG123_SOURCE_DIR}/src/compat/compat.h")
+file(READ "${FILE_TO_PATCH}" FILE_CONTENT)
+string(REPLACE
+    "#define STDERR_FILENO _fileno(stderr)\n#define\n"
+    "#define STDERR_FILENO _fileno(stderr)\n"
+    FILE_CONTENT
+    "${FILE_CONTENT}"
+)
+file(WRITE "${FILE_TO_PATCH}" "${FILE_CONTENT}")

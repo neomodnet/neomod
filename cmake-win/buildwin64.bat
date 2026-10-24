@@ -69,11 +69,11 @@ if "%1"=="--clean-cache" (
     goto parse_args
 )
 if "%1"=="--jobs" (
-    shift
-    if not "%1"=="" (
-        set JOBS="%1"
+    if not "%2"=="" (
+        set JOBS="%2"
+        echo Using %2 parallel build tasks
     )
-    echo Using %JOBS% parallel build tasks
+    shift
     shift
     goto parse_args
 )
