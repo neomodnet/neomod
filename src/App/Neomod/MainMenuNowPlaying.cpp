@@ -182,7 +182,7 @@ NowPlaying::NowPlaying(MainMenu *mm)
     this->addBaseUIElement(this->pinButton);
 
     this->prevButton = new UIIconButton(Icons::STEP_BACKWARD, "mainmenu_prev");
-    this->prevButton->setIconHeight(0.5f)->setTooltipText(_("Previous song"));
+    this->prevButton->setIconHeight(0.5f);
     this->prevButton->setClickCallback([mm] { mm->selectPreviousRandomBeatmap(); });
     this->addBaseUIElement(this->prevButton);
 
@@ -191,7 +191,7 @@ NowPlaying::NowPlaying(MainMenu *mm)
     this->addBaseUIElement(this->pauseButton);
 
     this->nextButton = new UIIconButton(Icons::STEP_FORWARD, "mainmenu_next");
-    this->nextButton->setIconHeight(0.5f)->setTooltipText(_("Next song"));
+    this->nextButton->setIconHeight(0.5f);
     this->nextButton->setClickCallback([mm] { mm->selectRandomBeatmap(); });
     this->addBaseUIElement(this->nextButton);
 

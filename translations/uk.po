@@ -469,14 +469,6 @@ msgstr "Згортати в режимі очікування"
 msgid "Keep expanded"
 msgstr "Тримати розгорнутим"
 
-#: src/App/Neomod/MainMenuNowPlaying.cpp
-msgid "Previous song"
-msgstr "Попередня пісня"
-
-#: src/App/Neomod/MainMenuNowPlaying.cpp
-msgid "Next song"
-msgstr "Наступна пісня"
-
 #: src/App/Neomod/MainMenuTips.cpp
 msgid "Press Alt + Enter to toggle Fullscreen."
 msgstr "Натисніть Alt + Enter, щоб перемкнути повноекранний режим."
@@ -3690,14 +3682,6 @@ msgstr "Базу даних не завантажено, неможливо вс
 #: src/App/Neomod/SpectatorScreen.cpp
 msgid "Downloading map..."
 msgstr "Завантаження мапи..."
-
-#: src/App/Neomod/UIIconButton.cpp
-msgid "Play"
-msgstr "Грати"
-
-#: src/App/Neomod/UIIconButton.cpp
-msgid "Pause"
-msgstr "Пауза"
 
 #: src/App/Neomod/UISearchOverlay.cpp
 msgid "Search: "

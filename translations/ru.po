@@ -471,14 +471,6 @@ msgstr "Сворачивать при бездействии"
 msgid "Keep expanded"
 msgstr "Не сворачивать"
 
-#: src/App/Neomod/MainMenuNowPlaying.cpp
-msgid "Previous song"
-msgstr "Предыдущая песня"
-
-#: src/App/Neomod/MainMenuNowPlaying.cpp
-msgid "Next song"
-msgstr "Следующая песня"
-
 #: src/App/Neomod/MainMenuTips.cpp
 msgid "Press Alt + Enter to toggle Fullscreen."
 msgstr "Нажмите Alt + Enter для переключения полноэкранного режима."
@@ -3692,14 +3684,6 @@ msgstr "База данных не загружена, невозможно ус
 #: src/App/Neomod/SpectatorScreen.cpp
 msgid "Downloading map..."
 msgstr "Скачивание карты..."
-
-#: src/App/Neomod/UIIconButton.cpp
-msgid "Play"
-msgstr "Воспроизвести"
-
-#: src/App/Neomod/UIIconButton.cpp
-msgid "Pause"
-msgstr "Пауза"
 
 #: src/App/Neomod/UISearchOverlay.cpp
 msgid "Search: "

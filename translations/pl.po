@@ -471,14 +471,6 @@ msgstr "Zwijaj przy bezczynności"
 msgid "Keep expanded"
 msgstr "Pozostaw rozwinięte"
 
-#: src/App/Neomod/MainMenuNowPlaying.cpp
-msgid "Previous song"
-msgstr "Poprzedni utwór"
-
-#: src/App/Neomod/MainMenuNowPlaying.cpp
-msgid "Next song"
-msgstr "Następny utwór"
-
 #: src/App/Neomod/MainMenuTips.cpp
 msgid "Press Alt + Enter to toggle Fullscreen."
 msgstr "Naciśnij Alt + Enter, aby włączyć/wyłączyć pełny ekran."
@@ -3692,14 +3684,6 @@ msgstr "Baza danych nie jest wczytana, nie można zainstalować mapy"
 #: src/App/Neomod/SpectatorScreen.cpp
 msgid "Downloading map..."
 msgstr "Pobieranie mapy..."
-
-#: src/App/Neomod/UIIconButton.cpp
-msgid "Play"
-msgstr "Odtwórz"
-
-#: src/App/Neomod/UIIconButton.cpp
-msgid "Pause"
-msgstr "Pauza"
 
 #: src/App/Neomod/UISearchOverlay.cpp
 msgid "Search: "

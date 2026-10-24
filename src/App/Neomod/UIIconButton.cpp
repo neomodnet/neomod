@@ -1,6 +1,7 @@
 // Copyright (c) 2026, WH, All rights reserved.
 #include "UIIconButton.h"
 
+#include "Engine.h"
 #include "Font.h"
 #include "Graphics.h"
 #include "i18n.h"
@@ -73,15 +74,16 @@ void UIIconButton::onMouseOutside() {
 }
 
 PauseButton::PauseButton(std::string name) : UIIconButton(Icons::PLAY, std::move(name)) {
-    this->tooltipText = _("Play");
     this->setClickCallback([] { osu->getMusicTrack()->togglePause(); });
 }
 
 void PauseButton::tick() {
     UIIconButton::tick();
 
-    const bool playing = osu->getMusicTrack()->isPlaying();
+    auto *track = osu->getMusicTrack();
+    if(track->isLoading()) return;
+
+    const bool playing = track->isPlaying();
     if(playing == (this->icon == Icons::PAUSE)) return;
     this->icon = playing ? Icons::PAUSE : Icons::PLAY;
-    this->tooltipText = playing ? _("Pause") : _("Play");
 }

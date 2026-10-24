@@ -469,14 +469,6 @@ msgstr "空闲时折叠"
 msgid "Keep expanded"
 msgstr "保持展开"
 
-#: src/App/Neomod/MainMenuNowPlaying.cpp
-msgid "Previous song"
-msgstr "上一首"
-
-#: src/App/Neomod/MainMenuNowPlaying.cpp
-msgid "Next song"
-msgstr "下一首"
-
 #: src/App/Neomod/MainMenuTips.cpp
 msgid "Press Alt + Enter to toggle Fullscreen."
 msgstr "按 Alt + Enter 切换全屏。"
@@ -3690,14 +3682,6 @@ msgstr "数据库未加载，无法安装谱面"
 #: src/App/Neomod/SpectatorScreen.cpp
 msgid "Downloading map..."
 msgstr "正在下载谱面..."
-
-#: src/App/Neomod/UIIconButton.cpp
-msgid "Play"
-msgstr "开始"
-
-#: src/App/Neomod/UIIconButton.cpp
-msgid "Pause"
-msgstr "暂停"
 
 #: src/App/Neomod/UISearchOverlay.cpp
 msgid "Search: "

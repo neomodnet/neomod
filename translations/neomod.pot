@@ -449,14 +449,6 @@ msgstr ""
 msgid "Keep expanded"
 msgstr ""
 
-#: src/App/Neomod/MainMenuNowPlaying.cpp
-msgid "Previous song"
-msgstr ""
-
-#: src/App/Neomod/MainMenuNowPlaying.cpp
-msgid "Next song"
-msgstr ""
-
 #: src/App/Neomod/MainMenuTips.cpp
 msgid "Press Alt + Enter to toggle Fullscreen."
 msgstr ""
@@ -3559,14 +3551,6 @@ msgstr ""
 
 #: src/App/Neomod/SpectatorScreen.cpp
 msgid "Downloading map..."
-msgstr ""
-
-#: src/App/Neomod/UIIconButton.cpp
-msgid "Play"
-msgstr ""
-
-#: src/App/Neomod/UIIconButton.cpp
-msgid "Pause"
 msgstr ""
 
 #: src/App/Neomod/UISearchOverlay.cpp

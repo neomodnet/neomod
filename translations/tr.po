@@ -469,14 +469,6 @@ msgstr "Boştayken daralt"
 msgid "Keep expanded"
 msgstr "Genişletilmiş tut"
 
-#: src/App/Neomod/MainMenuNowPlaying.cpp
-msgid "Previous song"
-msgstr "Önceki şarkı"
-
-#: src/App/Neomod/MainMenuNowPlaying.cpp
-msgid "Next song"
-msgstr "Sonraki şarkı"
-
 #: src/App/Neomod/MainMenuTips.cpp
 msgid "Press Alt + Enter to toggle Fullscreen."
 msgstr "Tam ekranı açıp kapatmak için Alt + Enter'a bas."
@@ -3690,14 +3682,6 @@ msgstr "Veritabanı yüklenmedi, harita yüklenemiyor"
 #: src/App/Neomod/SpectatorScreen.cpp
 msgid "Downloading map..."
 msgstr "Harita indiriliyor..."
-
-#: src/App/Neomod/UIIconButton.cpp
-msgid "Play"
-msgstr "Oyna"
-
-#: src/App/Neomod/UIIconButton.cpp
-msgid "Pause"
-msgstr "Duraklat"
 
 #: src/App/Neomod/UISearchOverlay.cpp
 msgid "Search: "

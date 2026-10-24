@@ -469,14 +469,6 @@ msgstr "Ciutkan saat tidak aktif"
 msgid "Keep expanded"
 msgstr "Tetap terbuka"
 
-#: src/App/Neomod/MainMenuNowPlaying.cpp
-msgid "Previous song"
-msgstr "Lagu sebelumnya"
-
-#: src/App/Neomod/MainMenuNowPlaying.cpp
-msgid "Next song"
-msgstr "Lagu berikutnya"
-
 #: src/App/Neomod/MainMenuTips.cpp
 msgid "Press Alt + Enter to toggle Fullscreen."
 msgstr "Tekan Alt + Enter untuk mengalihkan layar penuh."
@@ -3690,14 +3682,6 @@ msgstr "Database belum dimuat, tidak bisa memasang map"
 #: src/App/Neomod/SpectatorScreen.cpp
 msgid "Downloading map..."
 msgstr "Mengunduh map..."
-
-#: src/App/Neomod/UIIconButton.cpp
-msgid "Play"
-msgstr "Main"
-
-#: src/App/Neomod/UIIconButton.cpp
-msgid "Pause"
-msgstr "Jeda"
 
 #: src/App/Neomod/UISearchOverlay.cpp
 msgid "Search: "

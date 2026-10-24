@@ -469,14 +469,6 @@ msgstr "Contraer en reposo"
 msgid "Keep expanded"
 msgstr "Mantener expandido"
 
-#: src/App/Neomod/MainMenuNowPlaying.cpp
-msgid "Previous song"
-msgstr "Canción anterior"
-
-#: src/App/Neomod/MainMenuNowPlaying.cpp
-msgid "Next song"
-msgstr "Canción siguiente"
-
 #: src/App/Neomod/MainMenuTips.cpp
 msgid "Press Alt + Enter to toggle Fullscreen."
 msgstr "Pulsa Alt + Enter para alternar la pantalla completa."
@@ -3690,14 +3682,6 @@ msgstr "Base de datos no cargada, no se puede instalar el mapa"
 #: src/App/Neomod/SpectatorScreen.cpp
 msgid "Downloading map..."
 msgstr "Descargando mapa..."
-
-#: src/App/Neomod/UIIconButton.cpp
-msgid "Play"
-msgstr "Jugar"
-
-#: src/App/Neomod/UIIconButton.cpp
-msgid "Pause"
-msgstr "Pausa"
 
 #: src/App/Neomod/UISearchOverlay.cpp
 msgid "Search: "

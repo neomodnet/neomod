@@ -469,14 +469,6 @@ msgstr "유휴 시 접기"
 msgid "Keep expanded"
 msgstr "항상 펼치기"
 
-#: src/App/Neomod/MainMenuNowPlaying.cpp
-msgid "Previous song"
-msgstr "이전 곡"
-
-#: src/App/Neomod/MainMenuNowPlaying.cpp
-msgid "Next song"
-msgstr "다음 곡"
-
 #: src/App/Neomod/MainMenuTips.cpp
 msgid "Press Alt + Enter to toggle Fullscreen."
 msgstr "Alt + Enter를 눌러 전체 화면을 전환하세요."
@@ -3690,14 +3682,6 @@ msgstr "데이터베이스가 로드되지 않아 맵을 설치할 수 없습니
 #: src/App/Neomod/SpectatorScreen.cpp
 msgid "Downloading map..."
 msgstr "맵 다운로드 중..."
-
-#: src/App/Neomod/UIIconButton.cpp
-msgid "Play"
-msgstr "플레이"
-
-#: src/App/Neomod/UIIconButton.cpp
-msgid "Pause"
-msgstr "일시 정지"
 
 #: src/App/Neomod/UISearchOverlay.cpp
 msgid "Search: "
