@@ -1,6 +1,7 @@
 // Copyright (c) 2025, kiwec, All rights reserved.
 #include "Storyboard.h"
 
+#include "Osu.h"  // osuBaseResolution (static)
 #include "AnimationHandler.h"
 #include "AsyncPool.h"
 #include "ContainerRanges.h"
@@ -27,6 +28,8 @@
 #include <limits>
 #include <numbers>
 #include <utility>
+
+// NOLINTBEGIN(cppcoreguidelines-init-variables)
 
 using neomod::BeatmapFile;
 using Ease = AnimationHandler::Ease;
@@ -529,7 +532,6 @@ struct Storyboard::Impl {
     uSz started{0};
     std::array<std::vector<u32>, (uSz)Layer::COUNT> live;
 
-    struct Parser;
     void finish();
     void resolveFiles(std::span<const std::string> skinDirs);
 
@@ -543,9 +545,10 @@ struct Storyboard::Impl {
     void fire(TriggerCondition::Kind kind, const HitSound *sound, f64 time);
 };
 
+namespace {
 // reads a storyboard's files into it, the .osu's first (its variables carry over to the .osb)
-struct Storyboard::Impl::Parser {
-    Impl &sb;
+struct StoryboardParser {
+    Storyboard::Impl &sb;
     std::vector<std::pair<std::string, std::string>> variables{};
     i32 version{14};
     // where the next command goes: a sprite's own commands, one of its loops or one of its triggers
@@ -557,7 +560,7 @@ struct Storyboard::Impl::Parser {
     void eventLine(std::string_view line);
 };
 
-void Storyboard::Impl::Parser::file(std::string_view file, bool isOsu) {
+void StoryboardParser::file(std::string_view file, bool isOsu) {
     const BeatmapFile osu{file};
     // .osb files have no version, they're read as the latest one
     this->version = isOsu ? osu.getVersion().value_or(14) : 14;
@@ -609,7 +612,7 @@ void Storyboard::Impl::Parser::file(std::string_view file, bool isOsu) {
 }
 
 // absolute hell
-void Storyboard::Impl::Parser::eventLine(std::string_view line) {
+void StoryboardParser::eventLine(std::string_view line) {
     auto &fields = this->fields;
     // strip out comments from commands
     if(const uSz comment = line.find("//"); comment != std::string_view::npos) line = line.substr(0, comment);
@@ -782,6 +785,7 @@ void Storyboard::Impl::Parser::eventLine(std::string_view line) {
         });
     }
 }
+}  // namespace
 
 void Storyboard::Impl::finish() {
     // only what has something to do is drawn
@@ -1058,7 +1062,7 @@ Storyboard::Storyboard(std::string folder, std::string_view osuFile, std::string
     this->impl->backgroundFile = std::move(backgroundFile);
     File::normalizeSlashes(this->impl->backgroundFile, '\\', '/');
 
-    Impl::Parser parser{.sb = *this->impl};
+    StoryboardParser parser{.sb = *this->impl};
     parser.file(osuFile, true);
     if(!osbFile.empty()) {
         this->impl->hasOsb = true;
@@ -1297,22 +1301,23 @@ void Storyboard::draw(Layer first, Layer last, const View &view) const {
 
     // storyboards have a virtual 4:3 resolution of 640x480
     // but nothing stops a mapper from going further neg/pos to support 16:9
-    const f32 scale = screen.getHeight() / 480.f;
-    const vec2 topLeft{screen.getX() + (screen.getWidth() - 640.f * scale) / 2.f, screen.getY()};
+    const f32 scale = screen.getHeight() / Osu::osuBaseResolution.y;
+    const vec2 topLeft{screen.getX() + (screen.getWidth() - Osu::osuBaseResolution.x * scale) / 2.f, screen.getY()};
 
     // one that isn't made for widescreen shows only that area (axis-aligned: under playfield rotation, its bounds)
     if(!sb.widescreen) {
         // (where View::transform() puts a point)
-        const f32 radians = glm::radians(-view.rotation);
+        const f32 radians = vec::radians(-view.rotation);
         const auto viewed = [&](vec2 p) {
             p = (p - view.pivot) * vec2{view.flipX ? -1.f : 1.f, view.flipY ? -1.f : 1.f};
             return view.pivot + vec2{p.x * std::cos(radians) - p.y * std::sin(radians),
                                      p.x * std::sin(radians) + p.y * std::cos(radians)};
         };
         vec2 low = viewed(topLeft), high = low;
-        for(const vec2 corner : {vec2{640.f, 0.f}, vec2{0.f, 480.f}, vec2{640.f, 480.f}}) {
+        for(const vec2 corner : {vec2{Osu::osuBaseResolution.x, 0.f}, vec2{0.f, Osu::osuBaseResolution.y},
+                                 vec2{Osu::osuBaseResolution.x, Osu::osuBaseResolution.y}}) {
             const vec2 p = viewed(topLeft + corner * scale);
-            low = glm::min(low, p), high = glm::max(high, p);
+            low = vec::min(low, p), high = vec::max(high, p);
         }
         g->pushClipRect(McRect{low, high - low});
     }
@@ -1341,7 +1346,7 @@ void Storyboard::draw(Layer first, Layer last, const View &view) const {
                 g->scale(mirrorX ? -1.f : 1.f, mirrorY ? -1.f : 1.f);
                 g->translate(-originFromCenter);
                 g->scale(std::abs(state->scale.x) * imageScale, std::abs(state->scale.y) * imageScale);
-                g->rotate(glm::degrees(state->rotation));
+                g->rotate(vec::degrees(state->rotation));
                 g->translate(state->pos);
                 g->scale(scale, scale);
                 g->translate(topLeft);
@@ -1355,3 +1360,5 @@ void Storyboard::draw(Layer first, Layer last, const View &view) const {
 
     if(!sb.widescreen) g->popClipRect();
 }
+
+// NOLINTEND(cppcoreguidelines-init-variables)
