@@ -306,6 +306,11 @@ class BeatmapInterface final : public GameplayJudge::Listener, public PlayfieldV
     void actualRestart();
     // puts the music where the play starts, which waits there for its lead-in (see update2()); quick: a quick restart's
     void seekToStart(bool quick);
+    // where a storyboard going on after the last hitobject holds the play, as a music position (none after a fail or
+    // in multiplayer rooms)
+    [[nodiscard]] std::optional<i32> getStoryboardEnd() const;
+    // past the last hitobject with more than 3 s of such a storyboard left: skipping goes to its end
+    [[nodiscard]] bool isInOutro() const;
 
     void unloadObjects();
 

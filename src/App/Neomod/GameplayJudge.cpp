@@ -1008,8 +1008,10 @@ void GameplayJudge::update(f64 frameTimeSecs) {
     {
         const i32 legacyOffset = (this->iPreviousHitObjectTime < this->hitobjects[0]->getClickTime() ? 0 : 1000);  // Mc
         const i32 nextHitObjectDelta = this->iNextHitObjectTime - this->iCurMusicPos;
+        // (before the first one there's no previous one, so a storyboard's lead-in before 0 counts too)
+        const bool beforeFirst = this->iCurMusicPos < this->hitobjects[0]->getClickTime();
         if(nextHitObjectDelta > 0 && nextHitObjectDelta > (i32)cv::skip_time.getInt() &&
-           this->iCurMusicPos > (this->iPreviousHitObjectTime + legacyOffset))
+           (beforeFirst || this->iCurMusicPos > (this->iPreviousHitObjectTime + legacyOffset)))
             this->bIsInSkippableSection = true;
         else if(!cv::end_skip.getBool() && nextHitObjectDelta < 0)
             this->bIsInSkippableSection = true;

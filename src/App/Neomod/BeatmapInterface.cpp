@@ -304,7 +304,11 @@ void BeatmapInterface::skipEmptySection() {
     const i32 nextHitObjectTime = this->judge->getNextHitObjectTime();
     const i32 nextHitObjectDelta = nextHitObjectTime - (i32)this->iCurMusicPosWithOffsets;
 
-    if(!cv::end_skip.getBool() && nextHitObjectDelta < 0) {
+    if(this->isInOutro()) {
+        // (past its end, the play ends)
+        this->music.setPosition(*this->getStoryboardEnd() + 1);
+        this->bWasSeekFrame = true;
+    } else if(!cv::end_skip.getBool() && nextHitObjectDelta < 0) {
         this->music.setPosition(std::max(this->music.getLengthMS(), (u32)1) - 1);
         this->bWasSeekFrame = true;
     } else {
@@ -813,8 +817,27 @@ void BeatmapInterface::seekToStart(bool quick) {
     if(start_ms == 0 && likely(!hitobjects.empty()) && hitobjects[0]->getClickTime() < cv::early_note_time.getInt()) {
         start_ms = -(i32)(cv::early_note_time.getFloat() * this->getSpeedMultiplier());
     }
+    // a storyboard starting before that gets its lead-in (not on quick restarts)
+    if(const auto span = this->storyboard ? this->storyboard->getTimeSpan() : std::nullopt; span && !quick) {
+        const i32 offset = this->music.getOffset(this->beatmap, this->judge->getMapVersion());
+        start_ms = std::min(start_ms, (i32)std::floor(span->first) - offset);
+    }
     this->music.setPosition(start_ms);
     this->iCurMusicPos = start_ms;
+}
+
+std::optional<i32> BeatmapInterface::getStoryboardEnd() const {
+    if(!this->storyboard || this->judge->hasFailed() || BanchoState::is_playing_a_multi_map()) return std::nullopt;
+    const auto span = this->storyboard->getTimeSpan();
+    if(!span) return std::nullopt;
+    return (i32)std::ceil(span->second) - this->music.getOffset(this->beatmap, this->judge->getMapVersion());
+}
+
+bool BeatmapInterface::isInOutro() const {
+    const auto end = this->getStoryboardEnd();
+    const auto sortedByEndTime = this->judge->getHitObjectsSortedByEndTime();
+    return end && !sortedByEndTime.empty() && this->iCurMusicPos > sortedByEndTime.back()->getEndTime() &&
+           *end - this->iCurMusicPos > 3000;
 }
 
 void BeatmapInterface::pause(bool quitIfWaiting) {
@@ -1968,7 +1991,11 @@ void BeatmapInterface::update() {
     // adopt the storyboard once parsed (at the start, or after it got turned on mid-play)
     if(this->storyboardHandle.valid() && this->storyboardHandle.is_ready()) {
         this->storyboard = this->storyboardHandle.get();
-        if(this->storyboard) this->storyboard->load(false);
+        if(this->storyboard) {
+            this->storyboard->load(false);
+            // (for its lead-in, while the play still waits to start; quick restarts keep their storyboard)
+            if(this->bIsWaiting && !this->bLeadInStarted) this->seekToStart(false);
+        }
     }
 
     // handle preloading (only for distributed slider vertexbuffer generation atm)
@@ -2145,11 +2172,14 @@ void BeatmapInterface::update2() {
 
         const bool hasAnyHitObjects = (likely(!hitobjects.empty()));
         const auto sortedByEndTime = this->judge->getHitObjectsSortedByEndTime();
+        // (a storyboard going on after the last hitobject holds the play until its end)
+        const i32 storyboardEnd = this->getStoryboardEnd().value_or(std::numeric_limits<i32>::min());
         const bool isTimePastLastHitObjectPlusLenience =
             !sortedByEndTime.empty() &&
-            (this->iCurMusicPos > (sortedByEndTime.back()->getEndTime() + (i32)cv::end_delay_time.getInt()));
+            (this->iCurMusicPos >
+             std::max(sortedByEndTime.back()->getEndTime() + (i32)cv::end_delay_time.getInt(), storyboardEnd));
         if(!hasAnyHitObjects || (cv::end_skip.getBool() && isTimePastLastHitObjectPlusLenience) ||
-           (!cv::end_skip.getBool() && isMusicFinished)) {
+           (!cv::end_skip.getBool() && isMusicFinished && this->iCurMusicPos > storyboardEnd)) {
             if(!this->judge->hasFailed()) {
                 this->stop(false);
                 return;
@@ -2275,7 +2305,7 @@ void BeatmapInterface::update2() {
     // empty section detection & skipping
     if(likely(!hitobjects.empty())) {
         const bool wasInSkippableSection = this->bIsInSkippableSection;
-        this->bIsInSkippableSection = this->judge->isInSkippableSection();
+        this->bIsInSkippableSection = this->judge->isInSkippableSection() || this->isInOutro();
 
         if((wasInSkippableSection != this->bIsInSkippableSection) || (BanchoState::is_playing_a_multi_map())) {
             // FIXME: why the FUCK is this here?

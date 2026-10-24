@@ -400,7 +400,14 @@ void AboutScreen::buildChangelog() {
     CHANGELOG v44_02;
     v44_02.title = "44.02 (" CHANGELOG_TIMESTAMP ")";
     v44_02.changes = {
-        R"()",
+        R"(- Storyboard playback improvements:)",
+        R"(  - Improved performance of large storyboards)",
+        R"(  - Overlapping commands, flickering opacity and combined scaling/movement commands)",
+        R"(  - 4:3 storyboards are cut off at their area)",
+        R"(  - Storyboards starting before the song or going on after the last object play in full (the end is skippable))",
+        R"(  - Fixed storyboard trigger sprites only reacting while their own commands run)",
+        R"(  - Fixed storyboard samples with a different file extension than written not playing)",
+        R"(  - Fixed "UseSkinSprites" storyboards preferring skin images over the beatmap's own)",
     };
     changelogs.push_back(std::move(v44_02));
 

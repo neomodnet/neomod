@@ -93,12 +93,21 @@ std::string readOsb(const std::string &folder, std::string_view osu) {
     return osb.empty() ? std::string{} : readFile(folder + osb);
 }
 
+// the latest end of the sprites that end
+f64 lastSpriteEnd(const Storyboard &sb) {
+    f64 last = 0.0;
+    for(uSz i = 0; i < sb.getNumSprites(); i++) {
+        if(const f64 end = sb.getSpriteSpan(i).second; std::isfinite(end)) last = std::max(last, end);
+    }
+    return last;
+}
+
 // a sprite's start, its end and 8 times between (a sprite with triggers is there all along: from 0 to the end of the
 // storyboard's other sprites)
 std::array<f64, 10> sampleTimes(const Storyboard &sb, uSz sprite) {
     auto [start, end] = sb.getSpriteSpan(sprite);
     if(!std::isfinite(start)) start = 0.0;
-    if(!std::isfinite(end)) end = std::max(start, sb.getEndTime().value_or(start));
+    if(!std::isfinite(end)) end = std::max(start, lastSpriteEnd(sb));
     std::array<f64, 10> times{};
     for(uSz i = 0; i < times.size(); i++) times[i] = start + (end - start) * (f64)i / (f64)(times.size() - 1);
     return times;
@@ -140,8 +149,8 @@ MapResult checkMap(const CorpusSet &set, const std::string &map, bool dump) {
     for(uSz i = 0; i < result.sprites; i++) result.missingImages += sb.getImageFile(i).empty();
     for(uSz i = 0; i < result.samples; i++) result.missingSamples += sb.getSampleFile(i).empty();
 
-    if(const auto end = sb.getEndTime(); end && !std::isfinite(*end)) {
-        result.problems.push_back(fmt::format("{}: end time {}", map, *end));
+    if(const auto span = sb.getTimeSpan(); span && (!std::isfinite(span->first) || !std::isfinite(span->second))) {
+        result.problems.push_back(fmt::format("{}: time span {} to {}", map, span->first, span->second));
     }
     if(dump) result.dump = fmt::format("== {}\n", set.name);
     for(uSz i = 0; i < sb.getNumSprites(); i++) {
@@ -190,7 +199,7 @@ void bench(const std::vector<CorpusSet> &sets, int rounds) {
             sb.load(true);
             f64 first = 0.0;
             for(uSz i = 0; i < sb.getNumSprites(); i++) first = std::min(first, sb.getSpriteSpan(i).first);
-            const f64 last = sb.getEndTime().value_or(0.0);
+            const f64 last = lastSpriteEnd(sb);
             const f64 sweepStart = Timing::getTimeReal();
             frames = 0;
             for(f64 time = first; time <= last; time += 1000.0 / 60.0, frames++) {
@@ -241,7 +250,7 @@ void StoryboardTest::runTests() {
         const auto held = sb.getSpriteState(0, 2500);
         TEST_ASSERT(held && held->alpha == 1.f, "keeps the end value after a command");
         TEST_ASSERT(sb.getSpriteState(0, 3000) && !sb.getSpriteState(0, 3000.5), "there until the last command ends");
-        TEST_ASSERT_EQ(sb.getEndTime().value_or(0.0), 3000.0, "end time");
+        TEST_ASSERT(sb.getTimeSpan() == std::pair(1000.0, 3000.0), "time span");
     }
 
     TEST_SECTION("easing");
@@ -467,6 +476,16 @@ void StoryboardTest::runTests() {
                          .getSpriteState(0, 2000)
                          ->flipH,
                     "a P in a loop, after the loop");
+    }
+
+    TEST_SECTION("time span");
+    {
+        // every command line's own times and the samples': loops not repeated, triggers' commands as written
+        const auto sb = storyboard(
+            "Sprite,Background,Centre,a.png,0,0\n_F,0,-3000,1000,1\n_L,5000,10\n__F,0,0,1000,1,0\n"
+            "_T,HitSound,0,90000\n__S,0,-4000,100,2\nSample,7000,0,a.wav\n");
+        TEST_ASSERT(sb.getTimeSpan() == std::pair(-4000.0, 7000.0), "commands and samples as written");
+        TEST_ASSERT(!storyboard("Sprite,Background,Centre,a.png,0,0\n").getTimeSpan(), "none without commands");
     }
 
     TEST_SECTION("shared slots");

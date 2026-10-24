@@ -69,7 +69,8 @@ class Storyboard {
     [[nodiscard]] std::optional<SpriteState> getSpriteState(uSz sprite, f64 time) const;
     // when a sprite is shown, from its first visible command to the end of its last
     [[nodiscard]] std::pair<f64, f64> getSpriteSpan(uSz sprite) const;
-    [[nodiscard]] std::optional<f64> getEndTime() const;
+    // when the storyboard's commands and samples start and end as written (loops not repeated), if it has any
+    [[nodiscard]] std::optional<std::pair<f64, f64>> getTimeSpan() const;
     // the files load() loads for a sprite's frame and for a sample ("" if there's none)
     [[nodiscard]] std::string_view getImageFile(uSz sprite, u32 frame = 0) const;
     [[nodiscard]] std::string_view getSampleFile(uSz sample) const;

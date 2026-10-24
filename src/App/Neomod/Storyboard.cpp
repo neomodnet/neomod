@@ -1151,13 +1151,9 @@ std::pair<f64, f64> Storyboard::getSpriteSpan(uSz sprite) const {
     return {s.start, s.end};
 }
 
-std::optional<f64> Storyboard::getEndTime() const {
-    std::optional<f64> end;
-    for(const auto &sprite : this->impl->sprites) {
-        if(std::isfinite(sprite.end)) end = std::max(end.value_or(-INF), sprite.end);
-    }
-    for(const auto &sample : this->impl->samples) end = std::max(end.value_or(-INF), sample.time);
-    return end;
+std::optional<std::pair<f64, f64>> Storyboard::getTimeSpan() const {
+    if(this->impl->spanStart > this->impl->spanEnd) return std::nullopt;
+    return std::pair{this->impl->spanStart, this->impl->spanEnd};
 }
 
 std::string_view Storyboard::getImageFile(uSz sprite, u32 frame) const {
