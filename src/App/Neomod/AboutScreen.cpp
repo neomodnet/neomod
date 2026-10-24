@@ -409,6 +409,7 @@ void AboutScreen::buildChangelog() {
         R"(  - Fixed storyboard samples with a different file extension than written not playing)",
         R"(  - Fixed "UseSkinSprites" storyboards preferring skin images over the beatmap's own)",
         R"(- Fixed importing skins zipped with the macOS archive utility (outside of macOS))",
+        R"(- Fixed beatmaps from watched online replays merging into one beatmapset)",
     };
     changelogs.push_back(std::move(v44_02));
 

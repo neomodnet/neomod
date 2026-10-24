@@ -192,16 +192,22 @@ std::string sanitize_folder_name(std::string_view name) {
 // where a set lives under maps/: the only place that decides folder names. an installed set (by id) keeps
 // its folder, which is how new or updated difficulties end up next to the existing ones; everything else
 // gets osu!stable's "<setid> Artist - Title" (a local file's own stem already has that shape if it came
-// from the website, and is whatever the user named it otherwise). a stem whose folder already exists belongs
-// to another set (e.g. every "download.osz"), so a known set falls back to the osu!stable name.
-// "" if nothing usable is known
-std::string target_folder_name(i32 set_id, std::string_view osz_stem, const OszMeta& meta) {
+// from the website, and is whatever the user named it otherwise). a stem whose folder already exists but has
+// none of the archive's .osu files belongs to another set (e.g. every "download.osz" or "replay.osz"), so the
+// set falls back to the osu!stable name instead of merging into it. "" if nothing usable is known
+std::string target_folder_name(i32 set_id, std::string_view osz_stem, const OszMeta& meta,
+                               const std::vector<Archive::Entry>& entries) {
     if(set_id > 0) {
         if(std::string existing = db->getBeatmapSetFolder(set_id); !existing.empty()) return existing;
     }
 
     std::string name = sanitize_folder_name(osz_stem);
-    if(set_id > 0 && !name.empty() && env->directoryExists(fmt::format("{}/{}", Mc::Paths::maps(), name))) {
+    if(const std::string dir = fmt::format("{}/{}/", Mc::Paths::maps(), name);
+       !name.empty() && env->directoryExists(dir) && Mc::ranges::none_of(entries, [&dir](const Archive::Entry& e) {
+           const std::string_view file = e.getFilename();
+           return file.size() > 4 && SString::strcase_equal(file.substr(file.size() - 4), ".osu") &&
+                  env->fileExists(dir + e.getFilename());
+       })) {
         name.clear();
     }
     if(name.empty() && (!meta.artist.empty() || !meta.title.empty())) {
@@ -320,7 +326,7 @@ std::string BeatmapInstaller::resolve_and_extract_osz(std::span<const u8> data, 
     std::string_view stem = osz_name;
     if(stem.size() > 4 && SString::strcase_equal(stem.substr(stem.size() - 4), ".osz")) stem.remove_suffix(4);
 
-    std::string folder = target_folder_name(set_id, stem, meta);
+    std::string folder = target_folder_name(set_id, stem, meta, entries);
     if(folder.empty()) {
         debugLog("No usable name for the beatmapset folder of {:s}", osz_name);
         return {};
