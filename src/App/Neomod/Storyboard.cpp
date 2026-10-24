@@ -295,18 +295,17 @@ struct Slots {
 
         // M, MX and MY: each kind's pick per phase, in order of time, then M, MX, MY
         struct Move {
-            std::pair<f64, f64> key;
-            u8 kind;
-            vec2 value;  // (MX's in x, MY's in y)
+            std::pair<f64, f64> key{INF, INF};  // (unused slots sort last)
+            u8 kind{};
+            vec2 value{};  // (MX's in x, MY's in y)
         };
         struct Moves {
-            std::array<Move, 3> list{};
+            std::array<Move, 3> list;
             uSz count{0};
 
             [[nodiscard]] std::span<Move> sorted() {
-                const std::span<Move> moves{this->list.data(), this->count};
-                Mc::ranges::sort(moves, {}, [](const Move &m) { return std::pair{m.key, m.kind}; });
-                return moves;
+                Mc::ranges::sort(this->list, {}, [](const Move &m) { return std::pair{m.key, m.kind}; });
+                return {this->list.data(), this->count};
             }
         };
         Moves running, past, future;
