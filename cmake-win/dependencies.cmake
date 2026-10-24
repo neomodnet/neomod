@@ -21,14 +21,14 @@ macro(set_download_name dep_name version url)
     set(${_upper_dep_name}_DL_NAME "${dep_name}-${version}${_temp_ext}")
 endmacro()
 
-set(SDL3_VERSION "3b2bc951500ca6a1f428af77e036e732d9a8afe3")
+set(SDL3_VERSION "9f3346bd4d82")
 set(SDL3_URL "https://github.com/libsdl-org/SDL/archive/${SDL3_VERSION}.tar.gz")
-set(SDL3_HASH "SHA512=fc232486118942e577d582b2321da5518204a0337ffeffacc4889cdde33c0043aff7a70aa8c630fa2b354e40be6f652330004687d896a3951fc3934c82ba2c8c")
+set(SDL3_HASH "SHA512=4f78c8e23839ebec7622d88c0f63bf3affcb20eab19011c6e08c6aeb83b9f588315d3722c8248128b7324066c2d46d3a8b42c5f45ad5fc71b17a62831619afe5")
 set_download_name("sdl3" "${SDL3_VERSION}" "${SDL3_URL}")
 
-set(BROTLI_VERSION "1.2.0")
+set(BROTLI_VERSION "1.2.1")
 set(BROTLI_URL "https://github.com/google/brotli/archive/refs/tags/v${BROTLI_VERSION}.tar.gz")
-set(BROTLI_HASH "SHA512=f94542afd2ecd96cc41fd21a805a3da314281ae558c10650f3e6d9ca732b8425bba8fde312823f0a564c7de3993bdaab5b43378edab65ebb798cefb6fd702256")
+set(BROTLI_HASH "SHA512=460591287d428c8b5a8a2766b5b424d14501fcda12c7118b8f3cc4bfae44b90ac75ca156557f07b6e22542612724d904533e5f70019be07dbbb604c46f03ab69")
 set_download_name("brotli" "${BROTLI_VERSION}" "${BROTLI_URL}")
 
 set(FREETYPE_VERSION "2.14.3")
@@ -43,9 +43,9 @@ set(LIBJPEG_URL "https://github.com/libjpeg-turbo/libjpeg-turbo/releases/downloa
 set(LIBJPEG_HASH "SHA512=13536db56c16e5364690ae2d31343a203e3b653c853c1f5314d36c8eb06700e92342737f1381f0171b3eb0223384c5fbcde91b55a46576952c4e75dc049cd045")
 set_download_name("libjpeg" "${LIBJPEG_VERSION}" "${LIBJPEG_URL}")
 
-set(LIBPNG_VERSION "1.6.58")
+set(LIBPNG_VERSION "1.6.59")
 set(LIBPNG_URL "https://github.com/pnggroup/libpng/archive/refs/tags/v${LIBPNG_VERSION}.tar.gz")
-set(LIBPNG_HASH "SHA512=65f54d805e1f7c46a5fc335b984e4cbd4f934e0f02fbf6673c13800b49a4c11fbeb4098eebfb33079527a56c3d933e97631f91ab68dbb31442982784f9241ace")
+set(LIBPNG_HASH "SHA512=2d753e764846a0a75a10f2a00c6f4ae23d2ae37237c69d59d5e619da3f143d59f4ea9ce29c1fb39435df1cef77877c83b042a2275934c353a6603061da2d2dd9")
 set_download_name("libpng" "${LIBPNG_VERSION}" "${LIBPNG_URL}")
 
 set(ZLIB_VERSION "2.3.3")
@@ -58,9 +58,9 @@ set(BZIP2_URL "https://github.com/libarchive/bzip2/archive/${BZIP2_VERSION}.tar.
 set(BZIP2_HASH "SHA512=a1aae1e884f85a225e2a1ddf610f11dda672bc242d4e8d0cda3534efb438b3a0306ec1d130eec378d46abb48f6875687d6b20dcc18a6037a4455f531c22d50f6")
 set_download_name("bzip2" "${BZIP2_VERSION}" "${BZIP2_URL}")
 
-set(FMT_VERSION "cde18a38bbd960a2e803b76880fbbf4b4ffb3cd7")
+set(FMT_VERSION "0fc31633e7d5")
 set(FMT_URL "https://github.com/fmtlib/fmt/archive/${FMT_VERSION}.tar.gz")
-set(FMT_HASH "SHA512=d86027e1f61d8fcb51bd21574d9a7e56cecfcb71820a6a109e6aa166d13e727d0f7e6fd69e4c159d1d38c0185100f9b2f4c840ddfc8d32622101af3a059465dd")
+set(FMT_HASH "SHA512=a47ddb64a017fefcb291591ecea61842abc64d663575fba7e0cfc198cd843395a174fde5823fc89e05c21ff2af8b94caacc1b82139b5d19ffa36a8c58f4821de")
 set_download_name("fmt" "${FMT_VERSION}" "${FMT_URL}")
 
 set(SPDLOG_VERSION "1.17.0")
@@ -73,19 +73,19 @@ set(GLM_URL "https://github.com/g-truc/glm/archive/refs/tags/${GLM_VERSION}.tar.
 set(GLM_HASH "SHA512=0a490f0c79cd4a8ba54f37358f8917cef961dab9e61417c84ae0959c61bc860e5b83f4fb7f27169fb3d08eef1d84131bddde23d60876922310205c901b1273aa")
 set_download_name("glm" "${GLM_VERSION}" "${GLM_URL}")
 
-set(LZMA_VERSION "5.8.3")
+set(LZMA_VERSION "5.8.4")
 set(LZMA_URL "https://github.com/tukaani-project/xz/releases/download/v${LZMA_VERSION}/xz-${LZMA_VERSION}.tar.gz")
-set(LZMA_HASH "SHA512=bd77164795b5cbfbe864f64021e67e37f39cb9aba9abdd894d53fbb6857abe074923808918d1dc3bb0706253e726b2b9704cd0c3bc744d70e220c7356fa4995e")
+set(LZMA_HASH "SHA512=94db303688511a2d34f81ba994d834b28b0145a1ecd75ec2c61416b26c9cc24ab3e4d902808cc3d785c5894793d57af569728be7bc8ef6624bb3fc90c04f97fa")
 set_download_name("lzma" "${LZMA_VERSION}" "${LZMA_URL}")
 
-set(LIBARCHIVE_VERSION "3.8.7")
+set(LIBARCHIVE_VERSION "3.8.10")
 set(LIBARCHIVE_URL "https://github.com/libarchive/libarchive/releases/download/v${LIBARCHIVE_VERSION}/libarchive-${LIBARCHIVE_VERSION}.tar.gz")
-set(LIBARCHIVE_HASH "SHA512=a13c9342aba25f50efc08f6753631f46e30c5806c61987fe2640c8d58d18c7e90ff0da5b8a13a0589e9978ea08253ac2edb533ac254b70ea391f94b5f1eede42")
+set(LIBARCHIVE_HASH "SHA512=823e5424ed675d73cadb05e73e168110f5748991dd1f3b3767822f6b3795ecc8bd92c6f34cce95712faebc7b1bbd20fc8aff80b991e4803ef7a055c49358bf65")
 set_download_name("libarchive" "${LIBARCHIVE_VERSION}" "${LIBARCHIVE_URL}")
 
-set(MPG123_VERSION "f6c19f46031088efc8d0e5b83305a6f36ceceb65")
+set(MPG123_VERSION "9bc3de631d646026c69a84fd0e3def259cca4841")
 set(MPG123_URL "https://github.com/madebr/mpg123/archive/${MPG123_VERSION}.tar.gz")
-set(MPG123_HASH "SHA512=e4ac2504d610e1660d3f2008f5a6460d1ed18d4f9658ba0a6a30c356bae6d4ed03f62947c4186b66be8749fd200a85e4ce33229aaa6126ec10fb9bd14bdabb5e")
+set(MPG123_HASH "SHA512=2f35ddd23c5f96f781a8b94a5a3757243d9fcd55bfb759d656fdc0794623f1ad19764063a411163f4ccf9b11ca6a9890ae8f717ae9df44146dc4f824885c6eef")
 set_download_name("mpg123" "${MPG123_VERSION}" "${MPG123_URL}")
 
 set(SOLOUD_VERSION "4d0ab5baa88e06d2953caa13ec28aaf4c0f8819b")
@@ -98,14 +98,14 @@ set(NSYNC_URL "https://github.com/google/nsync/archive/refs/tags/${NSYNC_VERSION
 set(NSYNC_HASH "SHA512=fdcd61eb686ca6d6804d82837fcd33ddee54d6b2aeb7bc20cdff8c5bd2a75f87b724f72c7e835459a1a82ee8bed3d6da5e4c111b3bca22545c6e037f129839f2")
 set_download_name("nsync" "${NSYNC_VERSION}" "${NSYNC_URL}")
 
-set(SIMDUTF_VERSION "9.2.0")
+set(SIMDUTF_VERSION "9.3.2")
 set(SIMDUTF_URL "https://github.com/simdutf/simdutf/archive/refs/tags/v${SIMDUTF_VERSION}.tar.gz")
-set(SIMDUTF_HASH "SHA512=3585ad36511ec7fc059fb9ddfea121dd41d7f464fcb376f9d4109e28abbd6e5ed82aa142bb57452a9917827e7e9cba64f132fc136adb14db396276b848fed2ab")
+set(SIMDUTF_HASH "SHA512=cba5850d7182305da9f4e4f6029c3f1b46a1b407d54ae2661c805e734490cb435ad2a641e44bcfcf05726f5d927b0ac37d510b858e61c352118e0e63c323d980")
 set_download_name("simdutf" "${SIMDUTF_VERSION}" "${SIMDUTF_URL}")
 
-set(CTRE_VERSION "6225211806c48230e5d17a1e555ef69e7325051c")
+set(CTRE_VERSION "62b060684d57")
 set(CTRE_URL "https://github.com/hanickadot/compile-time-regular-expressions/archive/${CTRE_VERSION}.tar.gz")
-set(CTRE_HASH "SHA512=7633ac6297e61e1f2f59468b0eeb29d8f010dc069b0e866d261744cfa0a772c7ac2ae4818bb563cd578db5a1d86bc37f12aa9cddc87d551cba2942239ab09c87")
+set(CTRE_HASH "SHA512=bd0c0b872d795f179680280d44744e4a8091067c1f340763707fec8adb88994641ea7e099c7dc3149f1b2d3848d2507c5b5b015f8c45ea9992519a64dccf1cb6")
 set_download_name("ctre" "${CTRE_VERSION}" "${CTRE_URL}")
 
 set(CURL_VERSION "8.23.0")
