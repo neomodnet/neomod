@@ -1304,6 +1304,23 @@ void Storyboard::draw(Layer first, Layer last, const View &view) const {
     const f32 scale = screen.getHeight() / 480.f;
     const vec2 topLeft{screen.getX() + (screen.getWidth() - 640.f * scale) / 2.f, screen.getY()};
 
+    // one that isn't made for widescreen shows only that area (axis-aligned: under playfield rotation, its bounds)
+    if(!sb.widescreen) {
+        // (where View::transform() puts a point)
+        const f32 radians = glm::radians(-view.rotation);
+        const auto viewed = [&](vec2 p) {
+            p = (p - view.pivot) * vec2{view.flipX ? -1.f : 1.f, view.flipY ? -1.f : 1.f};
+            return view.pivot + vec2{p.x * std::cos(radians) - p.y * std::sin(radians),
+                                     p.x * std::sin(radians) + p.y * std::cos(radians)};
+        };
+        vec2 low = viewed(topLeft), high = low;
+        for(const vec2 corner : {vec2{640.f, 0.f}, vec2{0.f, 480.f}, vec2{640.f, 480.f}}) {
+            const vec2 p = viewed(topLeft + corner * scale);
+            low = glm::min(low, p), high = glm::max(high, p);
+        }
+        g->pushClipRect(McRect{low, high - low});
+    }
+
     for(auto layer = (uSz)first; layer <= (uSz)last; layer++) {
         if(((Layer)layer == Layer::FAIL && sb.passing) || ((Layer)layer == Layer::PASS && !sb.passing)) continue;
 
@@ -1339,4 +1356,6 @@ void Storyboard::draw(Layer first, Layer last, const View &view) const {
             if(state->additive) g->setBlendMode(DrawBlendMode::ALPHA);
         }
     }
+
+    if(!sb.widescreen) g->popClipRect();
 }
