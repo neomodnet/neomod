@@ -36,6 +36,8 @@ namespace {
 
 constexpr f64 INF = std::numeric_limits<f64>::infinity();
 constexpr u32 NO_FILE = std::numeric_limits<u32>::max();
+constexpr u32 NO_SLOTS = std::numeric_limits<u32>::max();
+constexpr f64 SLOT_STEP = 1000.0 / 60.0;
 
 // a property going from one value to another over [start, end]
 template <typename T>
@@ -45,12 +47,13 @@ struct Command {
     T from;
     T to;
     Ease easing;
+    f64 reach{-INF};  // the latest end of this command and the ones before it in its list
 };
 
 // the commands of a sprite, a loop or a trigger, per property, sorted by start (then end) time
 struct Group {
-    std::vector<Command<f32>> x, y, scale, rotation, alpha;
-    std::vector<Command<vec2>> vectorScale;
+    std::vector<Command<f32>> x, y, scale, rotation, alpha;  // (x, y: MX and MY)
+    std::vector<Command<vec2>> move, vectorScale;
     std::vector<Command<vec3>> colour;
     std::vector<Command<bool>> flipH, flipV, additive;
     f64 start{INF};
@@ -71,9 +74,11 @@ struct Group {
             Mc::ranges::stable_sort(list, [](const auto &a, const auto &b) {
                 return a.start != b.start ? a.start < b.start : a.end < b.end;
             });
+            f64 reach = -INF;
+            for(auto &cmd : list) cmd.reach = reach = std::max(reach, cmd.end);
         };
         byTime(this->x), byTime(this->y), byTime(this->scale), byTime(this->rotation), byTime(this->alpha);
-        byTime(this->vectorScale), byTime(this->colour), byTime(this->flipH), byTime(this->flipV);
+        byTime(this->move), byTime(this->vectorScale), byTime(this->colour), byTime(this->flipH), byTime(this->flipV);
         byTime(this->additive);
     }
 };
@@ -132,10 +137,14 @@ struct Sprite {
     f64 earliestCommand{0.0};
     u32 firstImage{0};
 
+    u32 slots{NO_SLOTS};  // for a sprite with S and V, or M and MX/MY
+
     // a parameter with a zero-length P of its kind anywhere (own commands, loops, triggers) is on until one applies
     bool instantFlipH{false};
     bool instantFlipV{false};
     bool instantAdditive{false};
+
+    [[nodiscard]] bool isLive(f64 time) const { return time >= this->start && time <= this->end; }
 };
 
 struct Sample {
@@ -151,24 +160,194 @@ struct FiredTrigger {
     f64 time;
 };
 
+// the command a property takes its value from at a time, out of every group of a sprite (each placed `offset` later):
+// the running one that comes first (by start, then end), else the finished one that comes last (its end value), else
+// the first one still to come (its start value); on equal times, the group seen first comes first
 template <typename T>
-struct Latest {
-    const Command<T> *cmd{nullptr};
-    f64 offset{0.0};
-    f64 start{-INF};
+struct Pick {
+    struct At {
+        const Command<T> *cmd{nullptr};
+        f64 offset{0.0};
 
-    bool consider(const std::vector<Command<T>> &cmds, f64 offset, f64 time) {
-        const auto it = Mc::ranges::upper_bound(cmds, time - offset, {}, &Command<T>::start);
-        if(it == cmds.begin()) return false;
-        const Command<T> &cmd = *std::prev(it);
-        if(cmd.start + offset >= this->start) {
-            this->cmd = &cmd;
-            this->offset = offset;
-            this->start = cmd.start + offset;
+        [[nodiscard]] bool before(const Command<T> &other, f64 otherOffset) const {
+            const f64 start = this->cmd->start + this->offset, otherStart = other.start + otherOffset;
+            return start != otherStart ? start < otherStart : this->cmd->end + this->offset < other.end + otherOffset;
         }
-        return true;
+    };
+    At running, past, future;
+
+    void one(const Command<T> &cmd, f64 offset, f64 time) {
+        if(time > cmd.end + offset) {
+            if(!this->past.cmd || !At{&cmd, offset}.before(*this->past.cmd, this->past.offset)) {
+                this->past = {&cmd, offset};
+            }
+        } else if(time >= cmd.start + offset) {
+            if(!this->running.cmd || At{&cmd, offset}.before(*this->running.cmd, this->running.offset)) {
+                this->running = {&cmd, offset};
+            }
+        } else if(!this->future.cmd || At{&cmd, offset}.before(*this->future.cmd, this->future.offset)) {
+            this->future = {&cmd, offset};
+        }
+    }
+
+    // a list sorted by start time: the first running one is the first whose reach gets to `time`, and with none
+    // running the last one started is the last finished
+    void sorted(std::span<const Command<T>> cmds, f64 offset, f64 time) {
+        const f64 local = time - offset;
+        const auto started = Mc::ranges::upper_bound(cmds, local, {}, &Command<T>::start);
+        if(const auto first =
+               std::lower_bound(cmds.begin(), started, local, [](const Command<T> &c, f64 t) { return c.reach < t; });
+           first != started) {
+            this->one(*first, offset, time);
+        } else if(started != cmds.begin()) {
+            this->one(*std::prev(started), offset, time);
+        }
+        if(started != cmds.end()) this->one(*started, offset, time);
+    }
+
+    // a loop's list: the commands that start by `split` (in the iteration's time) are `current` later, the rest
+    // `previous`
+    void loop(std::span<const Command<T>> cmds, f64 current, f64 previous, f64 split, f64 time) {
+        const auto rest = Mc::ranges::upper_bound(cmds, split, {}, &Command<T>::start);
+        this->sorted({cmds.begin(), rest}, current, time);
+        for(auto it = rest; it != cmds.end(); ++it) this->one(*it, previous, time);
+    }
+
+    // a running command's value
+    [[nodiscard]] static T eased(const At &at, f64 time) {
+        const Command<T> &cmd = *at.cmd;
+        if(cmd.end <= cmd.start) return cmd.to;
+        const f32 progress = AnimationHandler::ease(cmd.easing, (time - at.offset - cmd.start) / (cmd.end - cmd.start));
+        return cmd.from + (cmd.to - cmd.from) * progress;
+    }
+
+    [[nodiscard]] std::optional<T> value(f64 time) const {
+        if(this->running.cmd) return eased(this->running, time);
+        if(this->past.cmd) return this->past.cmd->to;
+        if(this->future.cmd) return this->future.cmd->from;
+        return std::nullopt;
+    }
+
+    // a parameter is on while a P of its kind runs; after one, only if it had no length; before any, `initial`
+    [[nodiscard]] bool parameter(bool initial) const {
+        if(this->running.cmd) return true;
+        if(this->past.cmd) return this->past.cmd->to;
+        return initial;
     }
 };
+
+// every property's pick
+struct Picks {
+    Pick<f32> x, y, scale, rotation, alpha;
+    Pick<vec2> move, vectorScale;
+    Pick<vec3> colour;
+    Pick<bool> flipH, flipV, additive;
+
+    // fn(pick, commands) for each property of a group
+    template <typename Fn>
+    void each(const Group &g, Fn &&fn) {
+        fn(this->x, g.x), fn(this->y, g.y), fn(this->scale, g.scale), fn(this->rotation, g.rotation);
+        fn(this->alpha, g.alpha), fn(this->move, g.move), fn(this->vectorScale, g.vectorScale);
+        fn(this->colour, g.colour), fn(this->flipH, g.flipH), fn(this->flipV, g.flipV), fn(this->additive, g.additive);
+    }
+};
+
+// scale and position of a sprite with S and V, or M and MX/MY: each pair goes by shared flags (a frame applies one
+// command of the pair, and a value it doesn't set stays as it was), so what shows depends on the frames before. Use
+// Impl::playTo() to get them for a time: frames are played on a 60 Hz grid from the sprite's first command
+struct Slots {
+    i64 step{-1};  // the last grid frame played (-1: none)
+    f32 scale{1.f};
+    vec2 vectorScale{1.f};
+    vec2 pos{0.f};
+
+    // one frame: the S or V that comes first in its phase (S on equal times) sets its own value; for M, MX and MY the
+    // running ones each set theirs (in order of time, then M, MX, MY), then the finished and the ones to come where
+    // nothing set them yet, an M only if neither M, MX nor MY did
+    void play(const Picks &p, f64 time) {
+        const auto key = [](const auto &at) { return std::pair{at.cmd->start + at.offset, at.cmd->end + at.offset}; };
+
+        const auto &s = p.scale;
+        const auto &v = p.vectorScale;
+        if(s.running.cmd || v.running.cmd) {
+            if(s.running.cmd && (!v.running.cmd || key(s.running) <= key(v.running))) {
+                this->scale = Pick<f32>::eased(s.running, time);
+            } else {
+                this->vectorScale = Pick<vec2>::eased(v.running, time);
+            }
+        } else if(s.past.cmd || v.past.cmd) {
+            if(s.past.cmd && (!v.past.cmd || key(s.past) > key(v.past))) {
+                this->scale = s.past.cmd->to;
+            } else {
+                this->vectorScale = v.past.cmd->to;
+            }
+        } else if(s.future.cmd || v.future.cmd) {
+            if(s.future.cmd && (!v.future.cmd || key(s.future) <= key(v.future))) {
+                this->scale = s.future.cmd->from;
+            } else {
+                this->vectorScale = v.future.cmd->from;
+            }
+        }
+
+        // M, MX and MY: each kind's pick per phase, in order of time, then M, MX, MY
+        struct Move {
+            std::pair<f64, f64> key;
+            u8 kind;
+            vec2 value;  // (MX's in x, MY's in y)
+        };
+        struct Moves {
+            std::array<Move, 3> list{};
+            uSz count{0};
+
+            [[nodiscard]] std::span<Move> sorted() {
+                const std::span<Move> moves{this->list.data(), this->count};
+                Mc::ranges::sort(moves, {}, [](const Move &m) { return std::pair{m.key, m.kind}; });
+                return moves;
+            }
+        };
+        Moves running, past, future;
+        const auto add = [&]<typename T>(const Pick<T> &pick, u8 kind) {
+            const auto both = [kind](T v) {
+                if constexpr(std::is_same_v<T, vec2>) {
+                    (void)kind;
+                    return v;
+                } else {
+                    return kind == 1 ? vec2{v, 0.f} : vec2{0.f, v};
+                }
+            };
+            if(pick.running.cmd) {
+                running.list[running.count++] = {key(pick.running), kind, both(Pick<T>::eased(pick.running, time))};
+            }
+            if(pick.past.cmd) past.list[past.count++] = {key(pick.past), kind, both(pick.past.cmd->to)};
+            if(pick.future.cmd) future.list[future.count++] = {key(pick.future), kind, both(pick.future.cmd->from)};
+        };
+        add(p.move, 0), add(p.x, 1), add(p.y, 2);
+
+        std::array<bool, 3> set{};
+        const auto apply = [&](const Move &m) {
+            if(m.kind != 2) this->pos.x = m.value.x;
+            if(m.kind != 1) this->pos.y = m.value.y;
+            set[m.kind] = true;
+        };
+        // (an M only where none of the three applied, an MX or MY where its own kind didn't)
+        const auto open = [&set](const Move &m) { return m.kind == 0 ? !set[0] && !set[1] && !set[2] : !set[m.kind]; };
+        for(const Move &m : running.sorted()) apply(m);
+        const auto finished = past.sorted();
+        for(auto it = finished.rbegin(); it != finished.rend(); ++it) {
+            if(open(*it)) apply(*it);
+        }
+        for(const Move &m : future.sorted()) {
+            if(open(m)) apply(m);
+        }
+    }
+};
+
+// how opacity is drawn: as a byte of its value times 255, wrapping around (2 is nearly opaque, -0.06 mostly visible)
+f32 drawnOpacity(f32 alpha) {
+    const f32 byte = alpha * 255.f;
+    if(!(std::abs(byte) < 2147483648.f)) return 0.f;  // (NaN and what doesn't fit an i32)
+    return (f32)((i32)byte & 0xFF) / 255.f;
+}
 
 // a finite number (generators write NaN for values they couldn't work out)
 template <typename T>
@@ -343,13 +522,18 @@ struct Storyboard::Impl {
     f64 time{-INF};
     bool passing{true};
     std::vector<std::vector<FiredTrigger>> fired;
+    std::vector<Slots> slots;  // of the sprites that have them, as of the last update()
+    std::vector<u32> slotted;  // those sprites
 
     struct Parser;
     void finish();
     void resolveFiles(std::span<const std::string> skinDirs);
 
-    template <typename T, typename Get>
-    [[nodiscard]] T evaluate(u32 index, Get get, T fallback, f64 time) const;
+    // what each property goes by at `time` (with the triggers fired by `firedBy`)
+    [[nodiscard]] Picks picksAt(u32 index, f64 time, f64 firedBy) const;
+    // a sprite's slots, played on from where they are to the last grid frame by `time` (from the start when they're
+    // past it)
+    void playTo(u32 index, Slots &slots, f64 time) const;
     [[nodiscard]] std::optional<SpriteState> stateAt(u32 index, f64 time) const;
 
     void fire(TriggerCondition::Kind kind, const HitSound *sound, f64 time);
@@ -585,12 +769,7 @@ void Storyboard::Impl::Parser::eventLine(std::string_view line) {
     } else if(type == "V") {
         commands(group->vectorScale, 2, two);
     } else if(type == "M") {
-        std::vector<Command<vec2>> moves;
-        commands(moves, 2, two);
-        for(const auto &m : moves) {
-            group->add(group->x, Command<f32>{m.start, m.end, m.from.x, m.to.x, m.easing});
-            group->add(group->y, Command<f32>{m.start, m.end, m.from.y, m.to.y, m.easing});
-        }
+        commands(group->move, 2, two);
     } else if(type == "C") {
         commands(group->colour, 3, [](std::span<const std::string_view> v, vec3 &out) {
             if(!readNumber(v[0], out.x) || !readNumber(v[1], out.y) || !readNumber(v[2], out.z)) return false;
@@ -604,7 +783,8 @@ void Storyboard::Impl::finish() {
     // only what has something to do is drawn
     std::erase_if(this->sprites, [](Sprite &sprite) {
         std::erase_if(sprite.loops, [](const Loop &loop) { return loop.cmds.empty(); });
-        return sprite.cmds.empty() && sprite.loops.empty();
+        std::erase_if(sprite.triggers, [](const Trigger &trigger) { return trigger.cmds.empty(); });
+        return sprite.cmds.empty() && sprite.loops.empty() && sprite.triggers.empty();
     });
 
     for(u32 i = 0; i < this->sprites.size(); i++) {
@@ -621,25 +801,46 @@ void Storyboard::Impl::finish() {
         }
         sprite.earliestCommand = earliest;
         sprite.start = earliest;
+        sprite.end = end;
 
+        // a sprite with triggers is there all along: they may fire any time, even before or after its own commands
+        if(!sprite.triggers.empty()) {
+            sprite.start = -INF;
+            sprite.end = INF;
+        }
+
+        const auto visible = [](f32 alpha) { return drawnOpacity(alpha) > 0.f; };
         std::vector<std::pair<f64, const Command<f32> *>> alphas;  // (startTime, cmd)
-        const auto collectAlphas = [&alphas](const std::vector<Command<f32>> &cmds, f64 offset) {
+        const auto collectAlphas = [&](const std::vector<Command<f32>> &cmds, f64 offset) {
             for(const auto &cmd : cmds) {
                 alphas.emplace_back(cmd.start + offset, &cmd);
-                if(cmd.from > 0.f || cmd.to > 0.f) break;
+                if(visible(cmd.from) || visible(cmd.to)) break;
             }
         };
         collectAlphas(sprite.cmds.alpha, 0.0);
         for(const auto &loop : sprite.loops) collectAlphas(loop.cmds.alpha, loop.start);
-        if(!alphas.empty()) {
+        if(!alphas.empty() && sprite.triggers.empty()) {
             const auto first = Mc::ranges::min_element(alphas, {}, &std::pair<f64, const Command<f32> *>::first);
             f64 firstVisible = INF;
             for(const auto &[start, cmd] : alphas) {
-                if(cmd->from > 0.f || cmd->to > 0.f) firstVisible = std::min(firstVisible, start);
+                if(visible(cmd->from) || visible(cmd->to)) firstVisible = std::min(firstVisible, start);
             }
-            if(first->second->from == 0.f && firstVisible < INF) sprite.start = firstVisible;
+            if(!visible(first->second->from) && firstVisible < INF) sprite.start = firstVisible;
         }
-        sprite.end = end;
+
+        bool s = false, v = false, m = false, xy = false;
+        const auto has = [&](const Group &g) {
+            s |= !g.scale.empty(), v |= !g.vectorScale.empty(), m |= !g.move.empty();
+            xy |= !g.x.empty() || !g.y.empty();
+        };
+        has(sprite.cmds);
+        for(const auto &loop : sprite.loops) has(loop.cmds);
+        for(const auto &trigger : sprite.triggers) has(trigger.cmds);
+        if((s && v) || (m && xy)) {
+            sprite.slots = (u32)this->slots.size();
+            this->slots.push_back({.pos = sprite.pos});
+            this->slotted.push_back(i);
+        }
 
         this->layers[(uSz)sprite.layer].push_back(i);
     }
@@ -744,87 +945,77 @@ void Storyboard::Impl::resolveFiles(std::span<const std::string> skinDirs) {
     }
 }
 
-template <typename T, typename Get>
-T Storyboard::Impl::evaluate(u32 index, Get get, T fallback, f64 time) const {
+Picks Storyboard::Impl::picksAt(u32 index, f64 time, f64 firedBy) const {
     const Sprite &sprite = this->sprites[index];
-    Latest<T> latest;
-    latest.consider(get(sprite.cmds), 0.0, time);
+    Picks picks;
+    picks.each(sprite.cmds, [time](auto &pick, const auto &cmds) { pick.sorted(cmds, 0.0, time); });
     for(const auto &loop : sprite.loops) {
-        const auto &cmds = get(loop.cmds);
-        if(cmds.empty()) continue;
+        // each command repeats on its own: by now, the ones that started iteration k (counted from the loop's first
+        // command) are on it, the others still on k - 1; before the loop they're all on the first, after it on the last
         const f64 duration = loop.duration();
-        i32 iteration = 0;
-        if(duration > 0.0) {
-            iteration = (i32)std::clamp(std::floor((time - loop.start - loop.cmds.start) / duration), 0.0,
-                                        (f64)(loop.iterations - 1));
-        }
-        if(!latest.consider(cmds, loop.start + duration * iteration, time) && iteration > 0) {
-            latest.consider(cmds, loop.start + duration * (iteration - 1), time);
-        }
+        const f64 k = duration > 0.0 ? std::floor((time - loop.start - loop.cmds.start) / duration) : 0.0;
+        const f64 iteration = std::clamp(k, 0.0, (f64)(loop.iterations - 1));
+        const f64 current = loop.start + duration * iteration;
+        const f64 split = iteration == k && k > 0.0 ? time - current : INF;
+        picks.each(loop.cmds,
+                   [&](auto &pick, const auto &cmds) { pick.loop(cmds, current, current - duration, split, time); });
     }
     for(const auto &fired : this->fired[index]) {
-        latest.consider(get(sprite.triggers[fired.trigger].cmds), fired.time, time);
+        if(fired.time > firedBy) continue;
+        picks.each(sprite.triggers[fired.trigger].cmds,
+                   [&](auto &pick, const auto &cmds) { pick.sorted(cmds, fired.time, time); });
     }
+    return picks;
+}
 
-    if(latest.cmd) {
-        Command<T> cmd = *latest.cmd;
-        cmd.start += latest.offset;
-        cmd.end += latest.offset;
-
-        if constexpr(std::is_same_v<T, bool>) {
-            return time < cmd.end ? cmd.from : cmd.to;
-        } else {
-            if(time >= cmd.end || cmd.end <= cmd.start) return cmd.to;
-            const f32 progress = AnimationHandler::ease(cmd.easing, (time - cmd.start) / (cmd.end - cmd.start));
-            return cmd.from + (cmd.to - cmd.from) * progress;
-        }
-    }
-
-    const Command<T> *first = nullptr;
-    f64 firstStart = INF;
-    if(const auto &cmds = get(sprite.cmds); !cmds.empty()) {
-        first = &cmds.front();
-        firstStart = cmds.front().start;
-    }
-    for(const auto &loop : sprite.loops) {
-        if(const auto &cmds = get(loop.cmds); !cmds.empty() && loop.start + cmds.front().start < firstStart) {
-            first = &cmds.front();
-            firstStart = loop.start + cmds.front().start;
-        }
-    }
-    if(!first) return fallback;
-    if constexpr(std::is_same_v<T, bool>) {
-        return first->start == first->end;
-    } else {
-        return first->from;
+void Storyboard::Impl::playTo(u32 index, Slots &slots, f64 time) const {
+    const Sprite &sprite = this->sprites[index];
+    const f64 first = std::isfinite(sprite.earliestCommand) ? sprite.earliestCommand : 0.0;
+    if(slots.step >= 0 && first + SLOT_STEP * (f64)slots.step > time) slots = Slots{.pos = sprite.pos};
+    for(i64 step = slots.step + 1; first + SLOT_STEP * (f64)step <= time; step++) {
+        const f64 at = first + SLOT_STEP * (f64)step;
+        slots.play(this->picksAt(index, at, at), at);
+        slots.step = step;
     }
 }
 
 std::optional<Storyboard::SpriteState> Storyboard::Impl::stateAt(u32 index, f64 time) const {
     const Sprite &sprite = this->sprites[index];
-    if(time < sprite.start || time >= sprite.end) return std::nullopt;
+    if(!sprite.isLive(time)) return std::nullopt;
 
-    // clang-format off
+    const Picks picks = this->picksAt(index, time, INF);
+    vec2 pos, scale;
+    if(sprite.slots != NO_SLOTS) {
+        // (update() keeps them at the last grid frame before now)
+        Slots slots = this->slots[sprite.slots];
+        this->playTo(index, slots, time);
+        slots.play(picks, time);
+        pos = slots.pos;
+        scale = slots.vectorScale * std::max(slots.scale, 0.f);
+    } else {
+        const auto move = picks.move.value(time);
+        pos =
+            move ? *move : vec2{picks.x.value(time).value_or(sprite.pos.x), picks.y.value(time).value_or(sprite.pos.y)};
+        scale =
+            picks.vectorScale.value(time).value_or(vec2{1.f}) * std::max(picks.scale.value(time).value_or(1.f), 0.f);
+    }
+
     SpriteState state{
-        .pos = {this->evaluate<f32>(index, [](const Group &g) -> auto & { return g.x; }, sprite.pos.x, time),
-                this->evaluate<f32>(index, [](const Group &g) -> auto & { return g.y; }, sprite.pos.y, time)},
-        .scale = this->evaluate<vec2>(index, [](const Group &g) -> auto & { return g.vectorScale; }, vec2{1.f}, time) *
-                 this->evaluate<f32>(index, [](const Group &g) -> auto & { return g.scale; }, 1.f, time),
-        .rotation = this->evaluate<f32>(index, [](const Group &g) -> auto & { return g.rotation; }, 0.f, time),
-        .colour = this->evaluate<vec3>(index, [](const Group &g) -> auto & { return g.colour; }, vec3{1.f}, time),
-        .alpha = this->evaluate<f32>(index, [](const Group &g) -> auto & { return g.alpha; }, 1.f, time),
-        .flipH = this->evaluate<bool>(index, [](const Group &g) -> auto & { return g.flipH; }, false, time),
-        .flipV = this->evaluate<bool>(index, [](const Group &g) -> auto & { return g.flipV; }, false, time),
-        .additive = this->evaluate<bool>(index, [](const Group &g) -> auto & { return g.additive; }, false, time),
+        .pos = pos,
+        .scale = scale,
+        .rotation = picks.rotation.value(time).value_or(0.f),
+        .colour = picks.colour.value(time).value_or(vec3{1.f}),
+        // a sprite with triggers shows nothing until a command sets its opacity
+        .alpha = drawnOpacity(picks.alpha.value(time).value_or(sprite.triggers.empty() ? 1.f : 0.f)),
+        .flipH = picks.flipH.parameter(sprite.instantFlipH),
+        .flipV = picks.flipV.parameter(sprite.instantFlipV),
+        .additive = picks.additive.parameter(sprite.instantAdditive),
         .frame = 0,
     };
-    // clang-format on
-
-    // an opacity above 1 wraps around, which storyboards use for flickering
-    if(state.alpha > 1.f) state.alpha = std::fmod(state.alpha, 1.f);
 
     if(sprite.frameCount > 0 && sprite.frameDelay > 0.0) {
-        const auto frame = (i64)std::floor((time - sprite.earliestCommand) / sprite.frameDelay);
+        const f64 since = std::isfinite(sprite.earliestCommand) ? time - sprite.earliestCommand : 0.0;
+        const auto frame = (i64)std::floor(since / sprite.frameDelay);
         const auto count = (i64)sprite.frameCount;
         state.frame =
             (u32)(sprite.loopForever ? ((frame % count) + count) % count : std::clamp<i64>(frame, 0, count - 1));
@@ -835,7 +1026,7 @@ std::optional<Storyboard::SpriteState> Storyboard::Impl::stateAt(u32 index, f64 
 void Storyboard::Impl::fire(TriggerCondition::Kind kind, const HitSound *sound, f64 time) {
     for(u32 s = 0; s < this->sprites.size(); s++) {
         const Sprite &sprite = this->sprites[s];
-        if(sprite.triggers.empty() || time < sprite.start || time >= sprite.end) continue;
+        if(sprite.triggers.empty()) continue;
         for(u32 t = 0; t < sprite.triggers.size(); t++) {
             const Trigger &trigger = sprite.triggers[t];
             if(trigger.condition.kind != kind || time < trigger.start || time > trigger.end) continue;
@@ -954,7 +1145,9 @@ std::pair<f64, f64> Storyboard::getSpriteSpan(uSz sprite) const {
 
 std::optional<f64> Storyboard::getEndTime() const {
     std::optional<f64> end;
-    for(const auto &sprite : this->impl->sprites) end = std::max(end.value_or(-INF), sprite.end);
+    for(const auto &sprite : this->impl->sprites) {
+        if(std::isfinite(sprite.end)) end = std::max(end.value_or(-INF), sprite.end);
+    }
     for(const auto &sample : this->impl->samples) end = std::max(end.value_or(-INF), sample.time);
     return end;
 }
@@ -1056,6 +1249,11 @@ void Storyboard::update(f64 time, bool passing, bool seeked) {
 
     sb.time = time;
     sb.passing = passing;
+
+    for(const u32 index : sb.slotted) {
+        const Sprite &sprite = sb.sprites[index];
+        if(sprite.isLive(time)) sb.playTo(index, sb.slots[sprite.slots], time);
+    }
 }
 
 void Storyboard::onHitSound(HitSound sound, f64 time) {
@@ -1084,8 +1282,10 @@ void Storyboard::draw(Layer first, Layer last, const View &view) const {
         if(((Layer)layer == Layer::FAIL && sb.passing) || ((Layer)layer == Layer::PASS && !sb.passing)) continue;
 
         for(const u32 index : sb.layers[layer]) {
+            // (checked here: the full evaluation takes a big stack frame to set up)
+            if(!sb.sprites[index].isLive(sb.time)) continue;
             const auto state = sb.stateAt(index, sb.time);
-            if(!state || state->alpha <= 0.f || state->scale.x == 0.f || state->scale.y == 0.f) continue;
+            if(!state || state->alpha == 0.f || state->scale.x == 0.f || state->scale.y == 0.f) continue;
             const Sprite &sprite = sb.sprites[index];
             const auto [image, imageScale] = sb.frames[sprite.firstImage + state->frame];
             if(!image || !image->isReady()) continue;

@@ -37,6 +37,9 @@ void writeFile(const std::string &path, std::string_view bytes) {
     (void)file.write({reinterpret_cast<const u8 *>(bytes.data()), bytes.size()});
 }
 
+// opacity is drawn in steps of a byte
+constexpr f32 BYTE = 1.f / 255.f;
+
 Storyboard storyboard(std::string_view events, std::string_view osb = {}) {
     const std::string osu = fmt::format("osu file format v14\n\n[Events]\n{}\n", events);
     return Storyboard{"", osu, osb, "", {}};
@@ -90,9 +93,12 @@ std::string readOsb(const std::string &folder, std::string_view osu) {
     return osb.empty() ? std::string{} : readFile(folder + osb);
 }
 
-// a sprite's start, its end and 8 times between
+// a sprite's start, its end and 8 times between (a sprite with triggers is there all along: from 0 to the end of the
+// storyboard's other sprites)
 std::array<f64, 10> sampleTimes(const Storyboard &sb, uSz sprite) {
-    const auto [start, end] = sb.getSpriteSpan(sprite);
+    auto [start, end] = sb.getSpriteSpan(sprite);
+    if(!std::isfinite(start)) start = 0.0;
+    if(!std::isfinite(end)) end = std::max(start, sb.getEndTime().value_or(start));
     std::array<f64, 10> times{};
     for(uSz i = 0; i < times.size(); i++) times[i] = start + (end - start) * (f64)i / (f64)(times.size() - 1);
     return times;
@@ -139,8 +145,7 @@ MapResult checkMap(const CorpusSet &set, const std::string &map, bool dump) {
     }
     if(dump) result.dump = fmt::format("== {}\n", set.name);
     for(uSz i = 0; i < sb.getNumSprites(); i++) {
-        const auto [first, last] = sb.getSpriteSpan(i);
-        if(!std::isfinite(first) || !std::isfinite(last)) {
+        if(const auto [first, last] = sb.getSpriteSpan(i); !(first <= last)) {
             result.problems.push_back(fmt::format("{}: sprite {} spans {} to {}", map, i, first, last));
             continue;
         }
@@ -217,6 +222,7 @@ void StoryboardTest::update() {
 
 void StoryboardTest::runTests() {
     using Layer = Storyboard::Layer;
+    using SpriteState = Storyboard::SpriteState;
 
     TEST_SECTION("commands");
     {
@@ -229,12 +235,12 @@ void StoryboardTest::runTests() {
         const auto mid = sb.getSpriteState(0, 1500);
         TEST_ASSERT(mid.has_value(), "there while fading in");
         if(mid) {
-            TEST_ASSERT_NEAR(mid->alpha, 0.5f, 1e-4f, "halfway faded in");
+            TEST_ASSERT_NEAR(mid->alpha, 0.5f, BYTE, "halfway faded in");
             TEST_ASSERT_NEAR(mid->pos.x, 25.f, 1e-3f, "moved a quarter of the way");
         }
         const auto held = sb.getSpriteState(0, 2500);
         TEST_ASSERT(held && held->alpha == 1.f, "keeps the end value after a command");
-        TEST_ASSERT(!sb.getSpriteState(0, 3000), "gone once the last command ends");
+        TEST_ASSERT(sb.getSpriteState(0, 3000) && !sb.getSpriteState(0, 3000.5), "there until the last command ends");
         TEST_ASSERT_EQ(sb.getEndTime().value_or(0.0), 3000.0, "end time");
     }
 
@@ -244,7 +250,7 @@ void StoryboardTest::runTests() {
         const auto state = sb.getSpriteState(0, 500);
         TEST_ASSERT(state.has_value(), "sprite there");
         if(state) {
-            TEST_ASSERT_NEAR(state->alpha, 0.75f, 1e-4f, "easing 1 decelerates (osu!'s \"Out\")");
+            TEST_ASSERT_NEAR(state->alpha, 0.75f, BYTE, "easing 1 decelerates (osu!'s \"Out\")");
             TEST_ASSERT_NEAR(state->scale.x, 2.f, 1e-4f, "a single value holds over the whole command");
         }
     }
@@ -262,12 +268,12 @@ void StoryboardTest::runTests() {
         const auto fadingOut = sb.getSpriteState(0, 2750);
         TEST_ASSERT(first && second && fadingOut, "there during the loop");
         if(first && second && fadingOut) {
-            TEST_ASSERT_NEAR(first->alpha, 0.5f, 1e-4f, "first iteration");
-            TEST_ASSERT_NEAR(second->alpha, 0.5f, 1e-4f, "second iteration");
-            TEST_ASSERT_NEAR(fadingOut->alpha, 0.5f, 1e-4f, "second iteration fading out");
+            TEST_ASSERT_NEAR(first->alpha, 0.5f, BYTE, "first iteration");
+            TEST_ASSERT_NEAR(second->alpha, 0.5f, BYTE, "second iteration");
+            TEST_ASSERT_NEAR(fadingOut->alpha, 0.5f, BYTE, "second iteration fading out");
         }
-        TEST_ASSERT(sb.getSpriteState(0, 3999).has_value(), "there until the last iteration ends");
-        TEST_ASSERT(!sb.getSpriteState(0, 4000), "gone after the last iteration");
+        TEST_ASSERT(sb.getSpriteState(0, 4000).has_value(), "there until the last iteration ends");
+        TEST_ASSERT(!sb.getSpriteState(0, 4000.5), "gone after the last iteration");
     }
 
     TEST_SECTION("shorthand");
@@ -309,9 +315,9 @@ void StoryboardTest::runTests() {
             "_F,0,500,1000,0.25\n");
         TEST_ASSERT_EQ(sb.getNumSprites(), 2u, "a sprite without commands is left out");
         const auto flicker = sb.getSpriteState(0, 500);
-        TEST_ASSERT(flicker && std::abs(flicker->alpha - 0.5f) < 1e-4f, "an opacity above 1 wraps around");
+        TEST_ASSERT(flicker && flicker->alpha == 126.f / 255.f, "an opacity above 1 wraps around");
         const auto numeric = sb.getSpriteState(1, 600);
-        TEST_ASSERT(numeric && numeric->pos == vec2(1.f, 2.f) && numeric->alpha == 0.25f,
+        TEST_ASSERT(numeric && numeric->pos == vec2(1.f, 2.f) && numeric->alpha == 63.f / 255.f,
                     "layer and origin by number, an empty end time");
         TEST_ASSERT(!storyboard("Sprite,Nowhere,Centre,a.png,0,0\n_F,0,0,1,1\n").getNumSprites(), "unknown layer");
         const auto nan = storyboard("Sprite,Background,Centre,a.png,1,2\n_F,0,0,10,1\n_M,0,5,10,NaN,NaN,NaN,NaN\n");
@@ -331,21 +337,179 @@ void StoryboardTest::runTests() {
     {
         auto sb = storyboard(
             "Sprite,Foreground,Centre,a.png,0,0\n"
-            "_F,0,0,10000,1\n"
+            "_F,0,0,500,1\n"
+            "_S,0,0,750,1\n"
             "_T,Passing,0,10000\n"
             "__F,0,0,100,0,1\n"
             "_T,HitSoundDrumWhistle\n"
-            "__S,0,0,100,3\n");
+            "__S,0,0,100,3\n"
+            "Sprite,Foreground,Centre,b.png,0,0\n"
+            "_S,0,0,10000,1\n"
+            "_T,HitSoundDrumWhistle\n"
+            "__S,0,0,100,3\n"
+            "Sprite,Foreground,Centre,c.png,0,0\n"
+            "_T,HitSoundDrumWhistle,2000,3000\n"
+            "__F,0,0,100,1\n");
         sb.update(500, false, false);
         TEST_ASSERT(sb.getSpriteState(0, 550)->alpha == 1.f, "nothing fired yet");
         sb.update(600, true, false);
-        TEST_ASSERT_NEAR(sb.getSpriteState(0, 650)->alpha, 0.5f, 1e-4f, "Passing fired on the change to passing");
+        TEST_ASSERT_NEAR(sb.getSpriteState(0, 650)->alpha, 0.5f, BYTE, "Passing fired on the change to passing");
         sb.onHitSound({.normalSet = 0, .additionSet = 1, .additions = 1, .index = 0}, 700);
         TEST_ASSERT(sb.getSpriteState(0, 750)->scale.x == 1.f, "a whistle of another set doesn't fire it");
         sb.onHitSound({.normalSet = 0, .additionSet = 2, .additions = 1, .index = 0}, 800);
         TEST_ASSERT(sb.getSpriteState(0, 850)->scale.x == 3.f, "a drum whistle fires it");
+        TEST_ASSERT(sb.getSpriteState(1, 850)->scale.x == 1.f, "the sprite's own running command comes first");
+        TEST_ASSERT(sb.getSpriteState(0, 20000).has_value(), "a sprite with triggers stays after its own commands");
+        TEST_ASSERT_EQ(sb.getNumSprites(), 3u, "a sprite with only triggers is kept");
+        const auto unfired = sb.getSpriteState(2, 850);
+        TEST_ASSERT(unfired && unfired->alpha == 0.f, "and shows nothing until a trigger sets its opacity");
+        sb.onHitSound({.normalSet = 0, .additionSet = 2, .additions = 1, .index = 0}, 2500);
+        TEST_ASSERT(sb.getSpriteState(2, 2550)->alpha == 1.f, "a trigger fires within its own window");
         sb.update(500, true, true);
         TEST_ASSERT(sb.getSpriteState(0, 550)->alpha == 1.f, "seeking forgets what fired");
+        TEST_ASSERT(sb.getSpriteState(2, 2550)->alpha == 0.f, "seeking forgets what fired, even far away");
+    }
+
+    TEST_SECTION("overlaps");
+    {
+        // the running command that started first wins, then the one that ended last (in order of start), then the
+        // first to come gives its start value; MX on a sprite kept alive by a fade from -5000 to 20000
+        struct Expect {
+            f64 time;
+            f32 x;
+        };
+        const auto positions = [&](std::string_view what, std::string_view commands,
+                                   std::initializer_list<Expect> expects) {
+            const auto sb =
+                storyboard(fmt::format("Sprite,Background,Centre,a.png,0,0\n_F,0,-5000,20000,1\n{}", commands));
+            for(const auto &[time, x] : expects) {
+                const auto state = sb.getSpriteState(0, time);
+                TEST_ASSERT(state && state->pos.x == x,
+                            fmt::format("{} at {}: x {}, got {}", what, time, x, state ? state->pos.x : NAN));
+            }
+        };
+        // (storybrew's test/CommandOverlapTest.cs, test/CommandReversedTest.cs, test/LoopOverlapTest.cs and
+        // test/LoopOffsetTest.cs)
+        positions("gap", "_MX,0,0,1000,0,100\n_MX,0,2000,3000,20000,30000\n",
+                  {{-1000, 0},
+                   {0, 0},
+                   {500, 50},
+                   {1000, 100},
+                   {1500, 100},
+                   {2000, 20000},
+                   {2500, 25000},
+                   {3000, 30000},
+                   {4000, 30000}});
+        positions("touching", "_MX,0,0,1000,0,100\n_MX,0,1000,2000,10000,20000\n",
+                  {{-1000, 0}, {0, 0}, {500, 50}, {1000, 100}, {1500, 15000}, {2000, 20000}, {3000, 20000}});
+        positions(
+            "partial", "_MX,0,0,1000,0,100\n_MX,0,500,1500,5000,15000\n",
+            {{-1000, 0}, {250, 25}, {500, 50}, {750, 75}, {1000, 100}, {1250, 12500}, {1500, 15000}, {2000, 15000}});
+        positions("complete", "_MX,0,0,1000,0,100\n_MX,0,250,750,200,300\n",
+                  {{-1000, 0}, {250, 25}, {500, 50}, {750, 75}, {1000, 100}, {2000, 300}});
+        positions("same start", "_MX,0,0,1000,0,100\n_MX,0,0,2000,1000,2000\n",
+                  {{-1000, 0}, {500, 50}, {1000, 100}, {1500, 1750}, {2000, 2000}, {3000, 2000}});
+        positions("same end", "_MX,0,0,1000,0,100\n_MX,0,500,1000,1000,2000\n",
+                  {{-1000, 0}, {500, 50}, {750, 75}, {1000, 100}, {2000, 2000}});
+        positions("same start and end", "_MX,0,0,1000,100,200\n_MX,0,0,1000,-100,-200\n",
+                  {{-1000, 100}, {0, 100}, {500, 150}, {1000, 200}, {2000, -200}});
+        // (an end before the start is the start: storybrew still has 200 at 2000)
+        positions("reversed", "_MX,0,2000,1000,200,100\n",
+                  {{0, 200}, {1000, 200}, {1999, 200}, {2001, 100}, {3000, 100}});
+        const std::initializer_list<Expect> repeated{{-1000, 0},  {0, 0},      {500, 50},   {1000, 100},
+                                                     {1500, 150}, {2000, 200}, {2500, 50},  {3000, 100},
+                                                     {3500, 150}, {4000, 200}, {10000, 200}};
+        positions("plain",
+                  "_MX,0,0,1000,0,100\n_MX,0,1000,2000,100,200\n_MX,0,2000,3000,0,100\n_MX,0,3000,4000,100,200\n",
+                  repeated);
+        positions("loop", "_L,0,2\n__MX,0,0,1000,0,100\n__MX,0,1000,2000,100,200\n", repeated);
+        positions("overlapping loops",
+                  "_L,0,2\n__MX,0,0,1000,0,100\n__F,0,1000,2000,1,1\n"
+                  "_L,0,2\n__F,0,0,1000,1,1\n__MX,0,1000,2000,100,200\n",
+                  repeated);
+        // (storybrew has 100 where an iteration ends and the next starts: there the command is on the next one)
+        positions("loop starting later", "_L,0,2\n__MX,0,1000,2000,0,100\n",
+                  {{-1000, 0}, {0, 0}, {1000, 0}, {1500, 50}, {2000, 0}, {2500, 50}, {3000, 100}, {4000, 100}});
+        positions("loop starting earlier", "_L,0,2\n__MX,0,-500,500,0,100\n",
+                  {{-1000, 0}, {-500, 0}, {0, 50}, {500, 0}, {1000, 50}, {1500, 100}, {2000, 100}});
+
+        // (test/CommandTest.cs) a parameter runs while its P does; one without length is on before and after it
+        struct ExpectParameter {
+            f64 time;
+            bool on;
+        };
+        const auto additive = [&](std::string_view what, std::string_view commands,
+                                  std::initializer_list<ExpectParameter> expects) {
+            const auto sb =
+                storyboard(fmt::format("Sprite,Background,Centre,a.png,0,0\n_F,0,-5000,20000,1\n{}", commands));
+            for(const auto &[time, on] : expects) {
+                const auto state = sb.getSpriteState(0, time);
+                TEST_ASSERT(state && state->additive == on, fmt::format("{} at {}", what, time));
+            }
+        };
+        additive("point", "_P,0,1000,1000,A\n", {{0, true}, {1000, true}, {2000, true}});
+        additive("lasting", "_P,0,1000,2000,A\n",
+                 {{0, false}, {1000, true}, {1500, true}, {2000, true}, {3000, false}});
+        additive("lasting after a point", "_P,0,1000,1000,A\n_P,0,2000,3000,A\n",
+                 {{0, true}, {1000, true}, {1500, true}, {2500, true}, {3000, true}, {4000, false}});
+        additive("lasting before a point", "_P,0,1000,2000,A\n_P,0,3000,3000,A\n",
+                 {{0, true}, {1500, true}, {2000, true}, {2500, false}, {3000, true}, {4000, true}});
+        for(int i = 0; i < 3; i++) {
+            const auto sb = storyboard(
+                "Sprite,Background,Centre,a.png,0,0\n_F,0,-5000,20000,1\n_L,0,3\n__P,0,0,200,H\n__P,0,100,300,V\n");
+            const auto at = [&](f64 time) { return sb.getSpriteState(0, i * 300 + time).value_or(SpriteState{}); };
+            TEST_ASSERT(at(0).flipH && at(100).flipH && at(200).flipH && !at(250).flipH, "a P in a loop, H");
+            TEST_ASSERT(!at(50).flipV && at(100).flipV && at(200).flipV && at(300).flipV, "a P in a loop, V");
+        }
+        TEST_ASSERT(!storyboard("Sprite,Background,Centre,a.png,0,0\n_F,0,-5000,20000,1\n_L,0,3\n__P,0,0,200,H\n")
+                         .getSpriteState(0, 2000)
+                         ->flipH,
+                    "a P in a loop, after the loop");
+    }
+
+    TEST_SECTION("shared slots");
+    {
+        // S and V share one flag: the one that applies sets its value and the other's stays as it was
+        const auto sv =
+            storyboard("Sprite,Background,Centre,a.png,0,0\n_F,0,0,8000,1\n_S,0,5000,,3\n_V,0,0,1000,2,2,1,1\n");
+        const auto scaleAt = [&](f64 time) { return sv.getSpriteState(0, time).value_or(SpriteState{}).scale.x; };
+        TEST_ASSERT_NEAR(scaleAt(500), 1.5f, 1e-4f, "a V running leaves S as it was (1, not the 3 to come)");
+        TEST_ASSERT_NEAR(scaleAt(2000), 1.f, 1e-4f, "a finished V still beats an S to come");
+        TEST_ASSERT_NEAR(scaleAt(6000), 3.f, 1e-4f, "then S applies and V stays at its end");
+
+        // M, MX and MY: a running M doesn't stop a finished MY, an M to come is held back by an MY
+        const auto m = storyboard(
+            "Sprite,Background,Centre,a.png,320,240\n_F,0,0,8000,1\n_M,0,1000,2000,0,0,100,100\n"
+            "_MY,0,0,500,50,60\n");
+        const auto posAt = [&](f64 time) { return m.getSpriteState(0, time).value_or(SpriteState{}).pos; };
+        TEST_ASSERT(posAt(250) == vec2(320.f, 55.f), "an M to come doesn't apply while MY did");
+        TEST_ASSERT(posAt(1500) == vec2(50.f, 60.f), "a finished MY still sets y next to a running M");
+        TEST_ASSERT(posAt(3000) == vec2(100.f, 60.f), "after both, the finished MY sets y and M only x");
+
+        // played on a 60 Hz grid from the first command: the same whatever times it's asked for, or updated at
+        auto updated =
+            storyboard("Sprite,Background,Centre,a.png,0,0\n_F,0,0,8000,1\n_S,0,5000,,3\n_V,0,0,1000,2,2,1,1\n");
+        for(f64 time = 0; time < 7000; time += 7.3) updated.update(time, true, false);
+        TEST_ASSERT(updated.getSpriteState(0, 6990)->scale == sv.getSpriteState(0, 6990)->scale,
+                    "updates don't change it");
+        updated.update(500, true, true);
+        TEST_ASSERT_NEAR(updated.getSpriteState(0, 500)->scale.x, 1.5f, 1e-4f, "nor does seeking back");
+    }
+
+    TEST_SECTION("values");
+    {
+        const auto sb = storyboard(
+            "Sprite,Background,Centre,a.png,0,0\n_F,0,0,1000,2\n_S,0,0,1000,-1\n_V,0,0,1000,-2,1\n"
+            "Sprite,Background,Centre,a.png,0,0\n_F,0,0,1000,-0.06\n"
+            "Sprite,Background,Centre,a.png,0,0\n_F,0,0,1000,1.004\n");
+        const auto opaque = sb.getSpriteState(0, 500);
+        TEST_ASSERT(opaque && opaque->alpha == 254.f / 255.f, "an opacity of 2 is nearly opaque");
+        TEST_ASSERT(opaque && opaque->scale == vec2(0.f), "a negative S is 0");
+        TEST_ASSERT(sb.getSpriteState(1, 500)->alpha == 241.f / 255.f, "a negative opacity wraps around too");
+        TEST_ASSERT(sb.getSpriteState(2, 500)->alpha == 0.f, "and one just above 1 is invisible");
+        const auto mirrored =
+            storyboard("Sprite,Background,Centre,a.png,0,0\n_F,0,0,1000,1\n_V,0,0,1000,-2,1\n").getSpriteState(0, 500);
+        TEST_ASSERT(mirrored && mirrored->scale == vec2(-2.f, 1.f), "a negative V mirrors");
     }
 
     // (from osu!lazer's test resources)
@@ -360,8 +524,8 @@ void StoryboardTest::runTests() {
             " L,9000,40\n"
             "  F,0,0,1000,0,1\n"
             "  F,0,1000,2000,1,0\n");
-        TEST_ASSERT(loops.getSpriteState(0, 2999) && !loops.getSpriteState(0, 3000), "a loop runs at least once");
-        TEST_ASSERT(loops.getSpriteState(1, 88999) && !loops.getSpriteState(1, 89000), "a loop runs its count");
+        TEST_ASSERT(loops.getSpriteState(0, 3000) && !loops.getSpriteState(0, 3001), "a loop runs at least once");
+        TEST_ASSERT(loops.getSpriteState(1, 89000) && !loops.getSpriteState(1, 89001), "a loop runs its count");
 
         const auto noop = storyboard(
             "Sprite,Background,TopCentre,\"img.jpg\",320,240\n"
@@ -535,7 +699,7 @@ void StoryboardTest::runCorpus(const std::string &dir) {
     }
     logRaw("  {} sprites, {} samples (the most of each set's maps); sets missing images: {}, samples: {}", sprites,
            samples, setsMissingImages, setsMissingSamples);
-    TEST_ASSERT_EQ(problems, 0, "every span and every sampled state is finite");
+    TEST_ASSERT_EQ(problems, 0, "every span is ordered and every sampled state is finite");
 
     if(dumpPath) {
         std::ofstream out(*dumpPath, std::ios::binary);
