@@ -2472,16 +2472,21 @@ void SongBrowser::rebuildScoreButtons() {
                 return;
             }
             pending->lb = search->second;
+            const auto &personal_best = pending->lb.personal_best;
             auto &scores = pending->lb.scores;
 
             // show passes that are still being submitted where the server will list them
+            const bool mods_filter = cv::songbrowser_scores_filteringtype.getString() == _("Selected mods");
             for(FinishedScore &sc : BANCHO::Net::get_pending_scores(mapHash)) {
                 if(!sc.passed) continue;
+                if(mods_filter && sc.mods.to_legacy() != ui->getModSelector()->getModFlags()) continue;
 
-                // the server lists one score per player
-                std::erase_if(scores, [&sc](const FinishedScore &listed) {
-                    return listed.is_online_score && listed.player_id == sc.player_id && listed.score < sc.score;
-                });
+                // the server lists one score per player, and which one it keeps depends on how it ranks them:
+                // only show a pending one for a player without a score yet (which can be outside of the listed ones)
+                if((personal_best && personal_best->player_id == sc.player_id) ||
+                   Mc::ranges::contains(scores, sc.player_id, &FinishedScore::player_id)) {
+                    continue;
+                }
                 scores.push_back(std::move(sc));
             }
 
