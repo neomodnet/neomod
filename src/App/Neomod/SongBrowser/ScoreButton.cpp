@@ -571,17 +571,19 @@ void ScoreButton::onRightMouseUpInside() {
                 // debugLog("disallowing replay button, client: {}", this->score.client);
             }
 
-            CBaseUIButton *spacer = this->contextMenu->addButton("---");
-            spacer->setEnabled(false);
-            spacer->setTextColor(0xff888888);
-            spacer->setTextDarkColor(0xff000000);
-            CBaseUIButton *deleteButton = this->contextMenu->addButton("Delete Score", 3);
-            if(sc.is_peppy_imported()) {
-                // XXX: gray it out and have hover reason why user can't delete instead
-                //      ...or allow delete and just store it as hidden in db
-                deleteButton->setEnabled(false);
-                deleteButton->setTextColor(0xff888888);
-                deleteButton->setTextDarkColor(0xff000000);
+            if(!sc.is_online_score) {
+                CBaseUIButton *spacer = this->contextMenu->addButton("---");
+                spacer->setEnabled(false);
+                spacer->setTextColor(0xff888888);
+                spacer->setTextDarkColor(0xff000000);
+                CBaseUIButton *deleteButton = this->contextMenu->addButton("Delete Score", 3);
+                if(sc.is_peppy_imported()) {
+                    // XXX: gray it out and have hover reason why user can't delete instead
+                    //      ...or allow delete and just store it as hidden in db
+                    deleteButton->setEnabled(false);
+                    deleteButton->setTextColor(0xff888888);
+                    deleteButton->setTextDarkColor(0xff000000);
+                }
             }
         }
         this->contextMenu->end(false, false);
