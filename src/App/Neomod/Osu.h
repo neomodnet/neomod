@@ -223,6 +223,7 @@ class Osu final : public App, public MouseListener, public TouchListener {
     // imports (e.g. the website's score-preview link), where the beatmap may still be installing from a
     // .osz passed alongside the replay, or the db may still be loading. polled in update().
     void openScoreScreenWhenReady(const FinishedScore &score);
+    [[nodiscard]] inline bool isScoreOpenPending() const { return !!this->pendingScoreOpen; }
 
     [[nodiscard]] bool slidersRenderDynamically()
         const;  // certain mods or actions require Sliders to render dynamically

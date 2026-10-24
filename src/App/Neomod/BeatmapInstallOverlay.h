@@ -6,7 +6,7 @@
 
 // global progress overlay for in-flight BeatmapInstaller entries.
 // bottom-left anchored stack, one row per active entry. visible iff any entries exist,
-// not in play mode, and cv::draw_beatmap_install_overlay is on.
+// not in play mode or kiosk mode, and cv::draw_beatmap_install_overlay is on.
 class BeatmapInstallOverlay final : public UIScreen {
     NOCOPY_NOMOVE(BeatmapInstallOverlay)
    public:

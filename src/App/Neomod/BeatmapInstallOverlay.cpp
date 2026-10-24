@@ -224,7 +224,7 @@ void BeatmapInstallOverlay::tick() {
     // play mode is the broader visibility gate; the matching draw() call lives in UI::draw()'s
     // "not playing" branch. tick() runs before the input pass, so the bVisible computed here is
     // what gates the child X buttons' input in the same frame.
-    if(!cv::draw_beatmap_install_overlay.getBool() || osu->isInPlayMode()) {
+    if(!cv::draw_beatmap_install_overlay.getBool() || osu->isInPlayMode() || Osu::isKioskMode()) {
         this->bVisible = false;
         return;
     }

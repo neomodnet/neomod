@@ -111,7 +111,7 @@ void on_done(const ReconcileResult& r, const Entry& e) {
              e.is_local() ? e.display_name : fmt::format("beatmapset #{:d}", e.set_id), e.folder, r.outcomeName(),
              r.added, r.removed);
 
-    if(r.outcome != Created && r.outcome != Updated) {  // nothing the db didn't already have
+    if(r.outcome != Created && r.outcome != Updated && !Osu::isKioskMode()) {  // nothing the db didn't already have
         toasts->addToast(e.is_local() ? tformat("{} is already installed", e.display_name)
                                       : tformat("Beatmapset #{:d} is already installed", e.set_id),
                          INFO_TOAST);
@@ -192,13 +192,18 @@ std::string sanitize_folder_name(std::string_view name) {
 // where a set lives under maps/: the only place that decides folder names. an installed set (by id) keeps
 // its folder, which is how new or updated difficulties end up next to the existing ones; everything else
 // gets osu!stable's "<setid> Artist - Title" (a local file's own stem already has that shape if it came
-// from the website, and is whatever the user named it otherwise). "" if nothing usable is known
+// from the website, and is whatever the user named it otherwise). a stem whose folder already exists belongs
+// to another set (e.g. every "download.osz"), so a known set falls back to the osu!stable name.
+// "" if nothing usable is known
 std::string target_folder_name(i32 set_id, std::string_view osz_stem, const OszMeta& meta) {
     if(set_id > 0) {
         if(std::string existing = db->getBeatmapSetFolder(set_id); !existing.empty()) return existing;
     }
 
     std::string name = sanitize_folder_name(osz_stem);
+    if(set_id > 0 && !name.empty() && env->directoryExists(fmt::format("{}/{}", Mc::Paths::maps(), name))) {
+        name.clear();
+    }
     if(name.empty() && (!meta.artist.empty() || !meta.title.empty())) {
         name = sanitize_folder_name(set_id > 0 ? fmt::format("{} {} - {}", set_id, meta.artist, meta.title)
                                                : fmt::format("{} - {}", meta.artist, meta.title));

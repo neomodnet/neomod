@@ -2746,8 +2746,8 @@ void SongBrowser::onDatabaseLoadingFinished(bool isNextScreenSongBrowser) {
         this->reselect.reset();
     }
 
-    // ok, if we still haven't selected a song, do so now
-    if(osu->getMapInterface()->getBeatmap() == nullptr) {
+    // ok, if we still haven't selected a song, do so now (unless a pending score is about to select its own)
+    if(osu->getMapInterface()->getBeatmap() == nullptr && !osu->isScoreOpenPending()) {
         this->selectRandomBeatmap();
     }
 

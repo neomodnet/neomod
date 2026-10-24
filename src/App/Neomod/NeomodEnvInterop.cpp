@@ -91,9 +91,11 @@ void handle_open_requests(std::span<const std::string> requests) {
 
     // external files: import async through the installer, but never delete the user's file. the
     // installer defers the actual db import until the db is loaded. enqueued even while playing (a
-    // background import); we just don't navigate or reload the db in that case.
+    // background import); we just don't navigate or reload the db in that case. a replay opened
+    // alongside selects its own difficulty, so the .osz doesn't auto-select one first.
     for(const auto &path : osz_imports) {
-        osu->getBeatmapInstaller()->enqueue_local(path, /*auto_select=*/true, /*delete_after=*/false);
+        osu->getBeatmapInstaller()->enqueue_local(path, /*auto_select=*/replay_imports.empty(),
+                                                  /*delete_after=*/false);
     }
 
     // Don't navigate, import replays or reload the database while playing
