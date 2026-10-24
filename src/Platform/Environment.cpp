@@ -923,6 +923,11 @@ Mc::Registration Environment::addPendingFileDialog(FileDialogCallback callback) 
 
 // just open the file manager in a certain folder, but not do anything with it
 void Environment::openFileBrowser(std::string_view initialpath) const noexcept {
+    if constexpr(Env::cfg(OS::WASM)) {  // causes an exception in wasm
+        debugLog("TODO: {}", initialpath);
+        return;
+    }
+
     // XXX: On windows you can also open a folder while having a file selected
     //      Would be useful for screenshots, for example
     std::string pathToOpen =
