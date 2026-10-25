@@ -1038,10 +1038,15 @@ bool SDLMain::createWindow() {
     // wait for calibration to finish before setting custom iteration rates in WASM
     if constexpr(!Env::cfg(OS::WASM)) {
         const auto hz = std::round(m_fDisplayHz);
-        const auto fourxhz = std::round(std::clamp<float>(hz * 4.0f, hz, 1000.0f));
-
         // also set fps_max to 4x the refresh rate
-        cv::fps_max.setDefaultDouble(fourxhz);
+        if constexpr(Env::cfg(OS::MAC)) {
+            // except on macos, because it's a bad operating system
+            // (CPU-side limiting is completely broken unless its 1*hz or 2*hz)
+            cv::fps_max.setDefaultDouble(0.);
+        } else {
+            const auto fourxhz = std::round(std::clamp<float>(hz * 4.0f, hz, 1000.0f));
+            cv::fps_max.setDefaultDouble(fourxhz);
+        }
         cv::fps_max_menu.setDefaultDouble(hz);
     } else {
         cv::fps_max.setDefaultDouble(0.);
