@@ -416,6 +416,7 @@ void AboutScreen::buildChangelog() {
         R"(- Fixed beatmaps from watched online replays merging into one beatmapset)",
         R"(- Fixed leaderboards sorted by pp sometimes showing scores out of order)",
         R"(- Online leaderboards now show your personal best on the server instead of the best local score)",
+        R"(- ScoreV2: fixed sliders downgraded by missed ticks or ends not showing their result)",
     };
     changelogs.push_back(std::move(v44_02));
 

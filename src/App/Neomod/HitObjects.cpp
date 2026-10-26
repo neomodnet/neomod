@@ -1728,8 +1728,8 @@ void Slider::update(i32 curPosMS, f64 /*frameTimeSecs*/) {
                         const LiveHitResult returnedHit =
                             m_judge->addHitResult(this, m_endResult, 0, m_endOfCombo, true, false, true, false, false);
 
-                        // scorev2 only shows the head result
-                        if(!flags::has<ModFlags::ScoreV2>(curIFaceMods))
+                        // scorev2 shows the head result, so only show the miss if it changed the slider result
+                        if(!flags::has<ModFlags::ScoreV2>(curIFaceMods) || m_endResult != m_startResult)
                             addHitResultAnim(returnedHit != LiveHitResult::HIT_MISS ? returnedHit : m_endResult, 0,
                                              getRawPosAt(getEndTime()), true);
                     }
@@ -2287,12 +2287,13 @@ void Slider::onHit(LiveHitResult result, i32 delta, bool isEndCircle, f32 target
             const LiveHitResult returnedHit =
                 m_judge->addHitResult(this, result, delta, m_endOfCombo, true, false, true, false, isLazer2020Drain);
 
-            // scorev2 only shows the head result
-            if(!m_judge->getMods().has(ModFlags::ScoreV2)) {
+            const bool scoreV2 = m_judge->getMods().has(ModFlags::ScoreV2);
+            if(scoreV2 && !startShown) addHitResultAnim(m_startResult, delta, curvePointAt(0.0f), true);
+
+            // scorev2 shows the head result, so the tail only shows a slider result that the rest of it changed
+            if(!scoreV2 || result != m_startResult) {
                 addHitResultAnim(returnedHit != LiveHitResult::HIT_MISS ? returnedHit : result, delta,
                                  getRawPosAt(getEndTime()), true);
-            } else if(!startShown) {
-                addHitResultAnim(m_startResult, delta, curvePointAt(0.0f), true);
             }
         }
     }
