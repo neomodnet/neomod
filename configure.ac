@@ -626,7 +626,7 @@ AS_IF([test "x$enable_asan" = "xyes" || test "x$enable_tsan" = "xyes"], [
     CFLAGS="${CFLAGS}${sanitizer_string}"
     LDFLAGS="${LDFLAGS}${sanitizer_string}" # apparently it also needs to be specified as a linker flag...?
 
-    AS_IF([test -z "$LLVMMINGW" && test "x$enable_clang" = "xyes"],[
+    AS_IF([test "x$enable_asan" = "xyes" && test -z "$LLVMMINGW" && test "x$enable_clang" = "xyes"],[
         CFLAGS="$CFLAGS -fsanitize-address-use-after-scope -fsanitize-address-use-after-return=always"
         CXXFLAGS="$CXXFLAGS -fsanitize-address-use-after-scope -fsanitize-address-use-after-return=always"
     ])

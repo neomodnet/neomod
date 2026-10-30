@@ -8206,7 +8206,7 @@ fi
     CFLAGS="${CFLAGS}${sanitizer_string}"
     LDFLAGS="${LDFLAGS}${sanitizer_string}" # apparently it also needs to be specified as a linker flag...?
 
-    if test -z "$LLVMMINGW" && test "x$enable_clang" = "xyes"
+    if test "x$enable_asan" = "xyes" && test -z "$LLVMMINGW" && test "x$enable_clang" = "xyes"
 then :
 
         CFLAGS="$CFLAGS -fsanitize-address-use-after-scope -fsanitize-address-use-after-return=always"
