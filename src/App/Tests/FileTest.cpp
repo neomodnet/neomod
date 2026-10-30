@@ -48,6 +48,7 @@ void FileTest::update() {
         TEST_SECTION("file dialogs");
         TEST_ASSERT(m_dialogAnswer && m_dialogAnswer->empty(),
                     "a file dialog in a headless run, which nothing can show, answers at once with nothing chosen");
+        TEST_ASSERT(!m_revokedAnswered, "one whose Registration was reset isn't answered");
 
         m_done = true;
         Environment::deletePathsRecursive(dir);
@@ -149,9 +150,13 @@ void FileTest::update() {
         TEST_ASSERT(!Environment::createDirectory(dir + "/committed"), "a file in the way isn't a directory");
     }
 
+    // (with filters SDL reads until it answers)
+    env->openFileWindow([this](const std::vector<std::string> &) { m_revokedAnswered = true; }, "Text\0txt\0",
+                        "FileTest")
+        .reset();
     m_dialogAsked = Timing::getTimeReal();
     m_dialog = env->openFileWindow([this](const std::vector<std::string> &paths) { m_dialogAnswer = paths; },
-                                   "Text\0txt\0", "FileTest");
+                                   "Text\0txt\0Images\0png;jpg\0", "FileTest");
 }
 
 }  // namespace Mc::Tests

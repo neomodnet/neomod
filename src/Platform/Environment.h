@@ -27,6 +27,7 @@ typedef struct SDL_Window SDL_Window;
 typedef struct SDL_Cursor SDL_Cursor;
 typedef struct SDL_Environment SDL_Environment;
 typedef struct SDL_Rect SDL_Rect;
+typedef struct SDL_DialogFileFilter SDL_DialogFileFilter;
 
 class Graphics;
 class Engine;
@@ -199,7 +200,9 @@ class Environment {
     void showMessageError(std::string_view title, std::string_view message) const;
     void showMessageErrorFatal(std::string_view title, std::string_view message) const;
 
-    // `callback` gets the chosen paths (none if cancelled) on the main thread, unless the Registration is gone by then
+    // `callback` gets the chosen paths (none if cancelled) on the main thread, unless the Registration is gone by then.
+    // `filetypefilters` are pairs of a name and a pattern (extensions separated by ';', or "*"), each one NUL-terminated
+    // and an empty name after the last ("Images\0png;jpg\0" as a string literal)
     using FileDialogCallback = std::function<void(const std::vector<std::string> &paths)>;
     Mc::Registration openFileWindow(FileDialogCallback callback, const char *filetypefilters, std::string_view title,
                                     std::string_view initialpath = "") noexcept;
@@ -482,10 +485,14 @@ class Environment {
     // static callbacks/helpers
     static void sdlFileDialogCallback(void *userdata, const char *const *filelist, int filter) noexcept;
 
-    // file dialogs waiting for their result (main thread); SDL's side only knows the id
+    // file dialogs waiting for their result (main thread); SDL's side only knows the id. one stays until SDL answered,
+    // even once its Registration is revoked, since SDL may read its filters until then
     struct PendingFileDialog {
         u64 id;
-        FileDialogCallback callback;
+        FileDialogCallback callback;  // (none once revoked)
+        // the filters' names and patterns, which the filters point into (a vector's buffer stays put when it's moved)
+        std::vector<char> filterText;
+        std::vector<SDL_DialogFileFilter> filters;
     };
     std::vector<PendingFileDialog> pendingFileDialogs;
     u64 lastFileDialogId{0};

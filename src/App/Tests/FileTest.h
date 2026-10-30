@@ -27,6 +27,7 @@ class FileTest : public App {
     Mc::Registration m_dialog;
     f64 m_dialogAsked{0.0};  // when (0: not yet)
     std::optional<std::vector<std::string>> m_dialogAnswer;
+    bool m_revokedAnswered{false};
 };
 
 }  // namespace Mc::Tests
