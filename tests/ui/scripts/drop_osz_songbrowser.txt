@@ -1,0 +1,22 @@
+# an .osz dropped on the window while the song browser is open (debug_drop: the path where a drop goes) is imported
+# and selected, as uitest_import/idless.osz on the command line is (import_idless_osz). run.py removes maps/idless/
+# uitest-cleanup: idless
+# uitest-log: 1 Finished installing idless.osz into maps/idless/: created (+2 -0)
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+ui_trace 1
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen songbrowser
+@wait 300
+ui_assert screen_active songbrowser 1
+debug_drop uitest_import/idless.osz
+@wait 60
+@wait_secs 3
+ui_assert map file diff02.osu
+exit

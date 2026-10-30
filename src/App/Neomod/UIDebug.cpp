@@ -28,11 +28,14 @@
 #include "HitObjects.h"
 #include "DatabaseBeatmap.h"
 #include "Graphics.h"
+#include "NeomodEnvInterop.h"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <ctime>
+#include <span>
+#include <string>
 
 namespace cv {
 // callbacks only set after initialized
@@ -46,6 +49,7 @@ static ConVar debug_fake_online_cmd("debug_fake_online", CLIENT | NOLOAD | NOSAV
 static ConVar debug_fake_room_cmd("debug_fake_room", CLIENT | NOLOAD | NOSAVE);
 static ConVar debug_chat_message_cmd("debug_chat_message", CLIENT | NOLOAD | NOSAVE);
 static ConVar debug_focus_cmd("debug_focus", CLIENT | NOLOAD | NOSAVE);
+static ConVar debug_drop_cmd("debug_drop", CLIENT | NOLOAD | NOSAVE);
 }  // namespace cv
 
 UIScreen *UIDebug::findScreenByName(std::string_view lowerName) const {
@@ -383,6 +387,12 @@ void UIDebug::debugFocus(std::string_view arg) {
     }
 }
 
+void UIDebug::debugDrop(std::string_view path) {
+    // a file dropped on the window, which a headless window never gets
+    const std::string dropped{SString::trimmed(path)};
+    neomod::handle_open_requests(std::span{&dropped, 1});
+}
+
 void UIDebug::debugChatMessage(std::string_view args) {
     // debug_chat_message <channel> <author id> <text...>: a message as if received from the server (author 0 = a
     // system message), timestamped at a local midnight so it reads 00:00 in any time zone
@@ -418,6 +428,7 @@ UIDebug::UIDebug(UI *ui_parent) : m_ui(ui_parent) {
     cv::debug_fake_room_cmd.setCallback(SA::MakeDelegate<&UIDebug::debugFakeRoom>(this));
     cv::debug_chat_message_cmd.setCallback(SA::MakeDelegate<&UIDebug::debugChatMessage>(this));
     cv::debug_focus_cmd.setCallback(SA::MakeDelegate<&UIDebug::debugFocus>(this));
+    cv::debug_drop_cmd.setCallback(SA::MakeDelegate<&UIDebug::debugDrop>(this));
 }
 
 UIDebug::~UIDebug() {
@@ -429,5 +440,6 @@ UIDebug::~UIDebug() {
     cv::debug_fake_online_cmd.removeAllCallbacks();
     cv::debug_fake_room_cmd.removeAllCallbacks();
     cv::debug_focus_cmd.removeAllCallbacks();
+    cv::debug_drop_cmd.removeAllCallbacks();
     cv::debug_chat_message_cmd.removeAllCallbacks();
 }
