@@ -895,13 +895,17 @@ Database::MapLocation Database::locate(const BeatmapDifficulty &diff) const {
         .root = root, .folder = std::string{folder}, .file = Environment::getFileNameFromFilePath(diff.getFilePath())};
 }
 
+std::string Database::pathOf(const MapLocation &location) const {
+    return this->rootPath(location.root) + location.folder + "/" + location.file;
+}
+
 BeatmapDifficulty *Database::getBeatmapDifficulty(const MapLocation &location) const {
     if(this->isLoading()) {
         debugLog("we are loading, progress {}, not returning a BeatmapDifficulty*", this->getProgress());
         return nullptr;
     }
 
-    const std::string path = this->rootPath(location.root) + location.folder + "/" + location.file;
+    const std::string path = this->pathOf(location);
     auto find_in = [&path](const BeatmapSet *set) -> BeatmapDifficulty * {
         const auto &diffs = set->getDifficulties();
         auto it = Mc::ranges::find(diffs, std::string_view{path}, &DatabaseBeatmap::getFilePath);

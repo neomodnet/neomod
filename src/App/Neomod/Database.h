@@ -139,6 +139,8 @@ class Database final {
     };
     // (empty folder and file for a map outside of the roots)
     [[nodiscard]] MapLocation locate(const BeatmapDifficulty &diff) const;
+    // the file a location names
+    [[nodiscard]] std::string pathOf(const MapLocation &location) const;
 
     enum class ReconcileMode : u8 {
         TrustFolderMtime,  // startup: an unchanged folder mtime means no per-file io at all

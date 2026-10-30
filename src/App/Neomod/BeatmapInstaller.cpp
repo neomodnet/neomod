@@ -530,15 +530,21 @@ void BeatmapInstaller::uninstall(const DatabaseBeatmap* map, bool whole_set) {
     }
     const bool gone = whole_set ? !env->directoryExists(path) : !env->fileExists(path);
 
-    // the db and the carousel follow whatever is left on disk, and the directory watcher's event for this
-    // write is recognized as such (see enqueue_folder())
-    const auto r = db->reconcileFolder(Database::MapRoot::Neomod, rel, Database::ReconcileMode::PerFile, -1, nullptr);
-    ui->getSongBrowser()->applyReconcile(r);
-    m->settled[rel] = folder_state(rel);
-
-    debugLog("Uninstalled {} from maps/{}/: {} (-{:d})", name, rel, r.outcomeName(), r.removed);
+    // the db and the carousel follow whatever is left on disk
+    if(const auto r = this->register_folder(rel)) {
+        debugLog("Uninstalled {} from maps/{}/: {} (-{:d})", name, rel, r->outcomeName(), r->removed);
+    }
     ui->getNotificationOverlay()->addToast(gone ? tformat("Deleted {}", name) : tformat("Couldn't delete {}", name),
                                            gone ? SUCCESS_TOAST : ERROR_TOAST);
+}
+
+std::optional<ReconcileResult> BeatmapInstaller::register_folder(const std::string& folder) {
+    if(!db->isFinished() || db->isCancelled() || osu->isInPlayMode()) return std::nullopt;  // (see try_import)
+    auto r = db->reconcileFolder(Database::MapRoot::Neomod, folder, Database::ReconcileMode::PerFile, -1, nullptr);
+    ui->getSongBrowser()->applyReconcile(r);
+    osu->getBackgroundImageHandler()->forgetFolder(Mc::Paths::maps() + "/" + folder + "/");
+    m->settled[folder] = folder_state(folder);
+    return r;
 }
 
 bool BeatmapInstaller::has_pending() const {
@@ -661,6 +667,14 @@ void BeatmapInstaller::update() {
             }
 
             case Installing: {
+                // a folder that changed since the worker listed it (register_folder() wrote into it, say) is listed
+                // again: its parse would undo what changed
+                if(e.kind == Entry::Kind::Folder && folder_state(e.folder) != e.listed) {
+                    e.diffs.reset();
+                    e.calculated.clear();
+                    e.stage = Queued;
+                    break;
+                }
                 const auto r = try_import(e);
                 if(!r) break;  // db busy/rebuilding; retry next tick
 

@@ -6,6 +6,7 @@
 #include "types.h"
 #include "StaticPImpl.h"
 
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -13,6 +14,7 @@
 
 class DatabaseBeatmap;
 using BeatmapSet = DatabaseBeatmap;
+struct ReconcileResult;
 
 enum class MapInstallStage : u8 {
     None = (1 << 0),
@@ -112,6 +114,11 @@ class BeatmapInstaller final {
     // import or uninstall left it (a deleted one included) was that write, which leaves nothing to do, unless the
     // caller knows that its content changed (a file rewritten in place doesn't move the folder's mtime)
     void enqueue_folder(std::string folder, bool changed = false);
+    // the same right away, for files written into a maps/ set folder that have to be in the db before anything else
+    // happens: synced on the main thread now (its new diffs get their stars from the batch afterwards), and the
+    // directory watcher's event for the write ends there. nothing outside of the song browser's reach (the db loading,
+    // gameplay)
+    std::optional<ReconcileResult> register_folder(const std::string& folder);
 
    private:
     struct BMInstallerImpl;
