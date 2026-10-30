@@ -234,7 +234,6 @@ RoomScreen::RoomScreen() : UIScreen() {
     this->select_map_btn->setColor(0xff0c7c99);
     this->select_map_btn->setUseDefaultSkin();
     this->select_map_btn->setClickCallback(SA::MakeDelegate<&RoomScreen::onSelectMapClicked>(this));
-    this->online_maps_btn = new UIButton(0, 0, 0, 0, "online_maps_btn", "Download maps");
     this->online_maps_btn = new UIButton(0, 0, 0, 0, "online_maps_btn", _("Download maps"));
     this->online_maps_btn->setColor(0xff0c7c99);
     this->online_maps_btn->setUseDefaultSkin();
