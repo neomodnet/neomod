@@ -507,6 +507,12 @@ bool Environment::renameFile(const std::string &oldFileName, const std::string &
         return true;
     }
     if(!SDL_RenamePath(oldFileName.c_str(), newFileName.c_str())) {
+        // a move between filesystems, copied and removed; never one file under two names (a name in other case where
+        // case doesn't count), whose removal would take the copy with it
+        if(std::error_code ec;
+           std::filesystem::equivalent(File::getFsPath(oldFileName), File::getFsPath(newFileName), ec)) {
+            return false;
+        }
         std::string tempFile{newFileName + ".tmp"};
         if(!SDL_CopyFile(oldFileName.c_str(), tempFile.c_str())) {
             return false;

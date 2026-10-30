@@ -150,6 +150,19 @@ void FileTest::update() {
         TEST_ASSERT(!Environment::createDirectory(dir + "/committed"), "a file in the way isn't a directory");
     }
 
+    TEST_SECTION("renames");
+    {
+        const std::string from = dir + "/renamed";
+        {
+            ByteBufferedFile::Writer out(from);
+            out.write<u32>(5);
+        }
+        TEST_ASSERT(Environment::renameFile(from, dir + "/Renamed") && readAll(dir + "/Renamed").size() == 4 &&
+                        std::ranges::contains(Environment::getFilesInFolder(dir), std::string{"Renamed"}) &&
+                        !std::ranges::contains(Environment::getFilesInFolder(dir), std::string{"renamed"}),
+                    "a file renamed to its name in other case is there under that name only");
+    }
+
     // (with filters SDL reads until it answers)
     env->openFileWindow([this](const std::vector<std::string> &) { m_revokedAnswered = true; }, "Text\0txt\0",
                         "FileTest")

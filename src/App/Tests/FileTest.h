@@ -10,8 +10,8 @@
 
 namespace Mc::Tests {
 
-// the file layer's writing (ByteBufferedFile::Writer): replacing a file, large writes, the outcome of a write; and a file
-// dialog's answer (which comes on a later frame)
+// the file layer's writing (ByteBufferedFile::Writer): replacing a file, large writes, the outcome of a write; renames,
+// and a file dialog's answer (which comes on a later frame)
 class FileTest : public App {
     NOCOPY_NOMOVE(FileTest)
    public:
