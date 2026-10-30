@@ -658,6 +658,9 @@ void BeatmapFileTest::runTests() {
                     "background with a comma in its name");
         TEST_ASSERT_EQ(BeatmapFile::format(ev), "0,0,\"bg, final.jpg\",0,0", "background written back");
         TEST_ASSERT(BeatmapFile::parse("0,0,bg.jpg", ev) && ev.file == "bg.jpg", "unquoted background");
+        TEST_ASSERT(BeatmapFile::parse("0,0, bg.jpg ,0,0", ev) && ev.file == "bg.jpg" && ev.rest == ",0,0",
+                    "...whose name ends at the next comma, before its offsets");
+        TEST_ASSERT_EQ(BeatmapFile::format(ev), "0,0,\"bg.jpg\",0,0", "...written back quoted");
         TEST_ASSERT(BeatmapFile::parse("2,1000,2500", ev) && ev.kind == BeatmapFile::Event::Kind::BREAK &&
                         ev.start == 1000 && ev.end == 2500,
                     "break");

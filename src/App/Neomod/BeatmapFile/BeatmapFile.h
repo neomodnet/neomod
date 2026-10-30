@@ -202,8 +202,8 @@ class BeatmapFile {
         Kind kind{Kind::BACKGROUND};
         i64 start{0};
         i64 end{0};             // breaks
-        std::string_view file;  // backgrounds and videos: the name between the quotes, or all that follows unquoted
-        std::string_view rest;  // backgrounds and videos: what follows the closing quote (",x,y"), as written
+        std::string_view file;  // backgrounds and videos: the name between the quotes, or up to the next comma unquoted
+        std::string_view rest;  // backgrounds and videos: what follows the name (",x,y"), as written
 
         bool operator==(const Event &) const = default;
     };

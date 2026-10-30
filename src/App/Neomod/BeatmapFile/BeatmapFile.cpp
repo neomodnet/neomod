@@ -501,7 +501,7 @@ bool BeatmapFile::parse(std::string_view line, Event &out) {
         return true;
     }
 
-    // the file: between quotes, or unquoted all that follows
+    // the file: between quotes (where it may have commas), or unquoted up to the next comma
     std::string_view file = rest;
     while(!file.empty() && (file.front() == ' ' || file.front() == '\t')) file.remove_prefix(1);
     if(file.starts_with('"')) {
@@ -510,7 +510,9 @@ bool BeatmapFile::parse(std::string_view line, Event &out) {
         ev.rest = file.substr(closingQuote + 1);
         file = file.substr(1, closingQuote - 1);
     } else {
-        file = SString::trimmed(file);
+        const uSz comma = std::min(file.find(','), file.size());
+        ev.rest = file.substr(comma);
+        file = SString::trimmed(file.substr(0, comma));
     }
     ev.file = file;
     out = ev;
