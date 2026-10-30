@@ -111,8 +111,8 @@ void releaseBlob(ID3DBlob *blob) {
 
 #define MCENGINE_D3D11_SHADER_MAX_NUM_CONSTANT_BUFFERS 9
 
-DirectX11Shader::DirectX11Shader(std::string vertexShader, std::string fragmentShader, [[maybe_unused]] bool source)
-    : Shader(), sVsh(std::move(vertexShader)), sFsh(std::move(fragmentShader)) {
+DirectX11Shader::DirectX11Shader(std::string_view vertexShader, std::string_view fragmentShader)
+    : Shader(), sVsh(vertexShader), sFsh(fragmentShader) {
     this->prevVSConstantBuffers.resize(MCENGINE_D3D11_SHADER_MAX_NUM_CONSTANT_BUFFERS, nullptr);
     this->prevPSConstantBuffers.resize(MCENGINE_D3D11_SHADER_MAX_NUM_CONSTANT_BUFFERS, nullptr);
 }
@@ -481,8 +481,8 @@ bool DirectX11Shader::reflectConstantBuffers(ID3DBlob *blob, Stage stage) {
     return true;
 }
 
-bool DirectX11Shader::compile(const std::string &vertexShader, const std::string &fragmentShader) {
-    if(vertexShader.length() < 1 || fragmentShader.length() < 1) return false;
+bool DirectX11Shader::compile(std::string_view vertexShader, std::string_view fragmentShader) {
+    if(vertexShader.empty() || fragmentShader.empty()) return false;
 
     auto *dx11 = static_cast<DirectX11Interface *>(g);
 
@@ -503,19 +503,15 @@ bool DirectX11Shader::compile(const std::string &vertexShader, const std::string
     ID3DBlob *vsError = nullptr;
     ID3DBlob *psError = nullptr;
 
-    // convert to persistent c strings to avoid lifetime issues
-    std::string vsSource = vertexShader.c_str();
-    std::string psSource = fragmentShader.c_str();
-
     HRESULT hr1{S_OK}, hr2{S_OK};
 
     debugLog("DirectX11Shader: D3DCompile()-ing vertex shader ...");
-    hr1 = s_d3dCompileFunc(vsSource.c_str(), vsSource.length(), "VS_SOURCE", nullptr /*defines*/, nullptr, vsEntryPoint,
-                           vsProfile, flags, 0, &vs, &vsError);
+    hr1 = s_d3dCompileFunc(vertexShader.data(), vertexShader.size(), "VS_SOURCE", nullptr /*defines*/, nullptr,
+                           vsEntryPoint, vsProfile, flags, 0, &vs, &vsError);
 
     debugLog("DirectX11Shader: D3DCompile()-ing pixel shader ...");
-    hr2 = s_d3dCompileFunc(psSource.c_str(), psSource.length(), "PS_SOURCE", nullptr /*defines*/, nullptr, psEntryPoint,
-                           psProfile, flags, 0, &ps, &psError);
+    hr2 = s_d3dCompileFunc(fragmentShader.data(), fragmentShader.size(), "PS_SOURCE", nullptr /*defines*/, nullptr,
+                           psEntryPoint, psProfile, flags, 0, &ps, &psError);
 
     // check compilation results
     if(FAILED(hr1) || FAILED(hr2) || vs == nullptr || ps == nullptr) {

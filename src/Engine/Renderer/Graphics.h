@@ -243,8 +243,8 @@ class Graphics {
     virtual Image *createImage(std::string filePath, bool mipmapped, bool keepInSystemMemory) = 0;
     virtual Image *createImage(i32 width, i32 height, bool mipmapped, bool keepInSystemMemory) = 0;
     virtual RenderTarget *createRenderTarget(int x, int y, int width, int height, MultisampleType multiSampleType) = 0;
-    virtual Shader *createShaderFromFile(std::string vertexShaderFilePath, std::string fragmentShaderFilePath) = 0;
-    virtual Shader *createShaderFromSource(std::string vertexShader, std::string fragmentShader) = 0;
+    // the sources aren't copied: they have to outlive the shader (e.g. embedded data), which compiles from them on load
+    virtual Shader *createShaderFromSource(std::string_view vertexShader, std::string_view fragmentShader) = 0;
     virtual VertexArrayObject *createVertexArrayObject(DrawPrimitive primitive, DrawUsageType usage,
                                                        bool keepInSystemMemory) = 0;
 

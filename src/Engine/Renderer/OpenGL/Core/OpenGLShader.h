@@ -11,10 +11,12 @@
 
 #include "Hashing.h"
 
+#include <string_view>
+
 class OpenGLShader final : public Shader {
     NOCOPY_NOMOVE(OpenGLShader)
    public:
-    OpenGLShader(std::string vertexShader, std::string fragmentShader, bool source);
+    OpenGLShader(std::string_view vertexShader, std::string_view fragmentShader);
     ~OpenGLShader() override { destroy(); }
 
     void enable() override;
@@ -28,17 +30,15 @@ class OpenGLShader final : public Shader {
     void writeUniform(std::string_view name, UniformType type, const void *const data, unsigned int dataSize) override;
 
    private:
-    bool compile(const std::string &vertexShader, const std::string &fragmentShader, bool source);
-    int createShaderFromString(const std::string &shaderSource, int shaderType);
-    int createShaderFromFile(const std::string &fileName, int shaderType);
+    bool compile(std::string_view vertexShader, std::string_view fragmentShader);
+    int createShaderFromString(std::string_view shaderSource, int shaderType);
 
     int getAttribLocation(std::string_view name);
     int getAndCacheUniformLocation(std::string_view name);
 
-    std::string sVsh;
-    std::string sFsh;
+    std::string_view sVsh;
+    std::string_view sFsh;
 
-    bool bSource;
     unsigned int iVertexShader;
     unsigned int iFragmentShader;
     unsigned int iProgram;

@@ -533,54 +533,6 @@ Sound *ResourceManager::loadSoundAbs(std::string filepath, const std::string &re
     return snd;
 }
 
-Shader *ResourceManager::loadShader(std::string vertexShaderFilePath, std::string fragmentShaderFilePath,
-                                    const std::string &resourceName) {
-    auto res = pImpl->checkIfExistsAndHandle<Shader>(resourceName);
-    if(res != nullptr) return res;
-
-    // create instance and load it
-    vertexShaderFilePath.insert(0, Mc::Paths::assets() + "/shaders/");
-    fragmentShaderFilePath.insert(0, Mc::Paths::assets() + "/shaders/");
-    Shader *shader = g->createShaderFromFile(vertexShaderFilePath, fragmentShaderFilePath);
-    pImpl->setResourceName(shader, resourceName);
-
-    loadResource(shader, true);
-
-    return shader;
-}
-
-Shader *ResourceManager::loadShader(std::string vertexShaderFilePath, std::string fragmentShaderFilePath) {
-    vertexShaderFilePath.insert(0, Mc::Paths::assets() + "/shaders/");
-    fragmentShaderFilePath.insert(0, Mc::Paths::assets() + "/shaders/");
-    Shader *shader = g->createShaderFromFile(vertexShaderFilePath, fragmentShaderFilePath);
-
-    loadResource(shader, true);
-
-    return shader;
-}
-
-Shader *ResourceManager::createShader(std::string vertexShader, std::string fragmentShader,
-                                      const std::string &resourceName) {
-    auto res = pImpl->checkIfExistsAndHandle<Shader>(resourceName);
-    if(res != nullptr) return res;
-
-    // create instance and load it
-    Shader *shader = g->createShaderFromSource(std::move(vertexShader), std::move(fragmentShader));
-    pImpl->setResourceName(shader, resourceName);
-
-    loadResource(shader, true);
-
-    return shader;
-}
-
-Shader *ResourceManager::createShader(std::string vertexShader, std::string fragmentShader) {
-    Shader *shader = g->createShaderFromSource(std::move(vertexShader), std::move(fragmentShader));
-
-    loadResource(shader, true);
-
-    return shader;
-}
-
 Shader *ResourceManager::createShaderAuto(std::string_view shaderBasename) {
     auto *shader = pImpl->checkIfExistsAndHandle<Shader>(shaderBasename);
     if(shader != nullptr) return shader;
@@ -590,12 +542,11 @@ Shader *ResourceManager::createShaderAuto(std::string_view shaderBasename) {
         const std::string_view pfx = env->usingDX11() ? "DX11" : env->usingSDLGPU() ? "VK" : "GL";
         assert(ALL_BINMAP.contains(fmt::format("{}_{}_vsh", pfx, shaderBasename)) &&
                ALL_BINMAP.contains(fmt::format("{}_{}_fsh", pfx, shaderBasename)));
-        shader = g->createShaderFromSource(std::string{ALL_BINMAP.at(fmt::format("{}_{}_vsh", pfx, shaderBasename))},
-                                           std::string{ALL_BINMAP.at(fmt::format("{}_{}_fsh", pfx, shaderBasename))});
+        shader = g->createShaderFromSource(ALL_BINMAP.at(fmt::format("{}_{}_vsh", pfx, shaderBasename)),
+                                           ALL_BINMAP.at(fmt::format("{}_{}_fsh", pfx, shaderBasename)));
     } else {
         // nullgraphics has no shaders, but just create a dummy shader
-        const std::string dummy = fmt::format("nullgfx_{}", shaderBasename);
-        shader = g->createShaderFromSource(dummy, dummy);
+        shader = g->createShaderFromSource({}, {});
     }
 
     pImpl->setResourceName(shader, shaderBasename);

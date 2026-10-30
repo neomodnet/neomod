@@ -206,8 +206,8 @@ bool DirectX11Interface::init() {
     this->deviceContext->OMSetBlendState(this->blendState, nullptr, D3D11_DEFAULT_SAMPLE_MASK);
 
     // create default shader
-    const auto vertexShader = std::string(reinterpret_cast<const char *>(DX11_default_vsh), DX11_default_vsh_size);
-    const auto pixelShader = std::string(reinterpret_cast<const char *>(DX11_default_fsh), DX11_default_fsh_size);
+    const auto vertexShader = std::string_view(reinterpret_cast<const char *>(DX11_default_vsh), DX11_default_vsh_size);
+    const auto pixelShader = std::string_view(reinterpret_cast<const char *>(DX11_default_fsh), DX11_default_fsh_size);
 
     this->shaderTexturedGeneric = static_cast<DirectX11Shader *>(createShaderFromSource(vertexShader, pixelShader));
     this->shaderTexturedGeneric->load();
@@ -1216,12 +1216,8 @@ RenderTarget *DirectX11Interface::createRenderTarget(int x, int y, int width, in
     return new DirectX11RenderTarget(x, y, width, height, multiSampleType);
 }
 
-Shader *DirectX11Interface::createShaderFromFile(std::string vertexShaderFilePath, std::string fragmentShaderFilePath) {
-    return new DirectX11Shader(vertexShaderFilePath, fragmentShaderFilePath, false);
-}
-
-Shader *DirectX11Interface::createShaderFromSource(std::string vertexShader, std::string fragmentShader) {
-    return new DirectX11Shader(vertexShader, fragmentShader, true);
+Shader *DirectX11Interface::createShaderFromSource(std::string_view vertexShader, std::string_view fragmentShader) {
+    return new DirectX11Shader(vertexShader, fragmentShader);
 }
 
 VertexArrayObject *DirectX11Interface::createVertexArrayObject(DrawPrimitive primitive, DrawUsageType usage,
@@ -1269,10 +1265,10 @@ void DirectX11Interface::initSmoothClipShader() {
     if(this->smoothClipShader) return;
 
     this->smoothClipShader.reset(
-        this->createShaderFromSource(std::string(reinterpret_cast<const char *>(&DX11_smoothclip_vsh[0]),
-                                                 static_cast<size_t>(DX11_smoothclip_vsh_size)),
-                                     std::string(reinterpret_cast<const char *>(&DX11_smoothclip_fsh[0]),
-                                                 static_cast<size_t>(DX11_smoothclip_fsh_size))));
+        this->createShaderFromSource(std::string_view(reinterpret_cast<const char *>(&DX11_smoothclip_vsh[0]),
+                                                      static_cast<size_t>(DX11_smoothclip_vsh_size)),
+                                     std::string_view(reinterpret_cast<const char *>(&DX11_smoothclip_fsh[0]),
+                                                      static_cast<size_t>(DX11_smoothclip_fsh_size))));
 
     if(this->smoothClipShader) {
         this->smoothClipShader->loadAsync();

@@ -18,6 +18,7 @@
 #include "Hashing.h"
 
 #include <cstdint>
+#include <string_view>
 #include <vector>
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -62,7 +63,7 @@ class DirectX11Shader final : public Shader {
     NOCOPY_NOMOVE(DirectX11Shader);
 
    public:
-    DirectX11Shader(std::string vertexShader, std::string fragmentShader, bool source = true);
+    DirectX11Shader(std::string_view vertexShader, std::string_view fragmentShader);
     ~DirectX11Shader() override { destroy(); }
 
     void enable() override;
@@ -103,7 +104,7 @@ class DirectX11Shader final : public Shader {
     void initAsync() override;
     void destroy() override;
 
-    bool compile(const std::string &vertexShader, const std::string &fragmentShader);
+    bool compile(std::string_view vertexShader, std::string_view fragmentShader);
     // reflect a compiled blob's constant buffers into this->constantBuffers + uniformLocationCache (+ create the
     // GPU buffers and record them in vs/psBuffers by register slot). returns false on a hard error.
     bool reflectConstantBuffers(ID3DBlob *blob, Stage stage);
@@ -111,7 +112,7 @@ class DirectX11Shader final : public Shader {
     void writeUniform(std::string_view name, UniformType type, const void *const data, unsigned int dataSize) override;
 
    private:
-    std::string sVsh, sFsh;
+    std::string_view sVsh, sFsh;
 
     ID3D11VertexShader *vs{nullptr};
     ID3D11PixelShader *ps{nullptr};

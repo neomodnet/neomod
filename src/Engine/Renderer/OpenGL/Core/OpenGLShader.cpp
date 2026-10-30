@@ -12,10 +12,8 @@
 #include "Engine.h"
 #include "Logging.h"
 #include "Matrices.h"
-#include "File.h"
 
 #include <charconv>
-#include <fstream>
 
 static inline void glDeleteObject_wrapper(GLuint obj) {
     if(glIsProgram(obj))
@@ -57,8 +55,8 @@ static inline void glGetObjectParameteriv_wrapper(GLuint obj, GLenum pname, GLin
 #define MCglUniform4f glUniform4f
 #define MCglUniformMatrix4fv glUniformMatrix4fv
 
-OpenGLShader::OpenGLShader(std::string vertexShader, std::string fragmentShader, bool source)
-    : Shader(), sVsh(std::move(vertexShader)), sFsh(std::move(fragmentShader)), bSource(source) {
+OpenGLShader::OpenGLShader(std::string_view vertexShader, std::string_view fragmentShader)
+    : Shader(), sVsh(vertexShader), sFsh(fragmentShader) {
     this->iProgram = 0;
     this->iVertexShader = 0;
     this->iFragmentShader = 0;
@@ -67,9 +65,9 @@ OpenGLShader::OpenGLShader(std::string vertexShader, std::string fragmentShader,
 }
 
 void OpenGLShader::init() {
-    this->setReady(this->compile(this->sVsh, this->sFsh, this->bSource));
+    this->setReady(this->compile(this->sVsh, this->sFsh));
     if(!this->isReady()) {
-        debugLog("name: {:s}\nVSH:\n{:s}\nFSH:\n{:s}", this->sName, this->sFsh, this->sVsh);
+        debugLog("name: {:s}\nVSH:\n{:s}\nFSH:\n{:s}", this->sName, this->sVsh, this->sFsh);
     }
 }
 
@@ -186,14 +184,12 @@ int OpenGLShader::getAndCacheUniformLocation(std::string_view name) {
     return id;
 }
 
-bool OpenGLShader::compile(const std::string &vertexShader, const std::string &fragmentShader, bool source) {
-    // load & compile shaders
-    debugLog("Compiling {:s} ...", (source ? "vertex source" : vertexShader));
-    this->iVertexShader = source ? createShaderFromString(vertexShader, GL_VERTEX_SHADER_ARB)
-                                 : createShaderFromFile(vertexShader, GL_VERTEX_SHADER_ARB);
-    debugLog("Compiling {:s} ...", (source ? "fragment source" : fragmentShader));
-    this->iFragmentShader = source ? createShaderFromString(fragmentShader, GL_FRAGMENT_SHADER_ARB)
-                                   : createShaderFromFile(fragmentShader, GL_FRAGMENT_SHADER_ARB);
+bool OpenGLShader::compile(std::string_view vertexShader, std::string_view fragmentShader) {
+    // compile shaders
+    debugLog("Compiling vertex source ...");
+    this->iVertexShader = createShaderFromString(vertexShader, GL_VERTEX_SHADER_ARB);
+    debugLog("Compiling fragment source ...");
+    this->iFragmentShader = createShaderFromString(fragmentShader, GL_FRAGMENT_SHADER_ARB);
 
     const bool showDebugPopup = cv::debug_shaders.getBool() || Env::cfg(BUILD::DEBUG);
     if(this->iVertexShader == 0 || this->iFragmentShader == 0) {
@@ -272,7 +268,7 @@ bool OpenGLShader::compile(const std::string &vertexShader, const std::string &f
     return true;
 }
 
-int OpenGLShader::createShaderFromString(const std::string &shaderSource, int shaderType) {
+int OpenGLShader::createShaderFromString(std::string_view shaderSource, int shaderType) {
     const auto shader = MCglCreateShaderObject(shaderType);
 
     if(shader == 0) {
@@ -281,8 +277,9 @@ int OpenGLShader::createShaderFromString(const std::string &shaderSource, int sh
     }
 
     // compile shader
-    const char *shaderSourceChar = shaderSource.c_str();
-    MCglShaderSource(shader, 1, &shaderSourceChar, nullptr);
+    const char *shaderSourceChar = shaderSource.data();
+    const auto shaderSourceLength = static_cast<GLint>(shaderSource.size());
+    MCglShaderSource(shader, 1, &shaderSourceChar, &shaderSourceLength);
     MCglCompileShader(shader);
 
     int returnValue = GL_TRUE;
@@ -306,16 +303,6 @@ int OpenGLShader::createShaderFromString(const std::string &shaderSource, int sh
     }
 
     return static_cast<int>(shader);
-}
-
-int OpenGLShader::createShaderFromFile(const std::string &fileName, int shaderType) {
-    // load file
-    File inFile(fileName);
-    if(!inFile.canRead()) {
-        engine->showMessageError("OpenGLShader Error", fileName.c_str());
-        return 0;
-    }
-    return createShaderFromString(inFile.readToString(), shaderType);
 }
 
 #endif

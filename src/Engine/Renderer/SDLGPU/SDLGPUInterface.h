@@ -140,8 +140,7 @@ class SDLGPUInterface final : public ModernGraphicsShared {
     Image *createImage(std::string filePath, bool mipmapped, bool keepInSystemMemory) override;
     Image *createImage(i32 width, i32 height, bool mipmapped, bool keepInSystemMemory) override;
     RenderTarget *createRenderTarget(int x, int y, int width, int height, MultisampleType msType) override;
-    Shader *createShaderFromFile(std::string vertexShaderFilePath, std::string fragmentShaderFilePath) override;
-    Shader *createShaderFromSource(std::string vertexShader, std::string fragmentShader) override;
+    Shader *createShaderFromSource(std::string_view vertexShader, std::string_view fragmentShader) override;
     VertexArrayObject *createVertexArrayObject(DrawPrimitive primitive, DrawUsageType usage,
                                                bool keepInSystemMemory) override;
 

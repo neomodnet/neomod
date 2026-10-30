@@ -216,8 +216,8 @@ bool SDLGPUInterface::init() {
 
     // create default shader
     m_defaultShader.reset(static_cast<SDLGPUShader *>(createShaderFromSource(
-        std::string(reinterpret_cast<const char *>(VK_default_vsh), static_cast<uSz>(VK_default_vsh_size)),
-        std::string(reinterpret_cast<const char *>(VK_default_fsh), static_cast<uSz>(VK_default_fsh_size)))));
+        std::string_view(reinterpret_cast<const char *>(VK_default_vsh), static_cast<uSz>(VK_default_vsh_size)),
+        std::string_view(reinterpret_cast<const char *>(VK_default_fsh), static_cast<uSz>(VK_default_fsh_size)))));
     m_defaultShader->loadAsync();
     m_defaultShader->load();
 
@@ -1797,8 +1797,9 @@ void SDLGPUInterface::initSmoothClipShader() {
     if(m_smoothClipShader) return;
 
     m_smoothClipShader.reset(static_cast<SDLGPUShader *>(createShaderFromSource(
-        std::string(reinterpret_cast<const char *>(VK_smoothclip_vsh), static_cast<uSz>(VK_smoothclip_vsh_size)),
-        std::string(reinterpret_cast<const char *>(VK_smoothclip_fsh), static_cast<uSz>(VK_smoothclip_fsh_size)))));
+        std::string_view(reinterpret_cast<const char *>(VK_smoothclip_vsh), static_cast<uSz>(VK_smoothclip_vsh_size)),
+        std::string_view(reinterpret_cast<const char *>(VK_smoothclip_fsh),
+                         static_cast<uSz>(VK_smoothclip_fsh_size)))));
 
     if(m_smoothClipShader) {
         m_smoothClipShader->loadAsync();
@@ -1820,13 +1821,8 @@ RenderTarget *SDLGPUInterface::createRenderTarget(int x, int y, int width, int h
     return new SDLGPURenderTarget(this, m_device, x, y, width, height, msType);
 }
 
-Shader *SDLGPUInterface::createShaderFromFile(std::string vertexShaderFilePath, std::string fragmentShaderFilePath) {
-    return new SDLGPUShader(this, m_device, std::move(vertexShaderFilePath), std::move(fragmentShaderFilePath),
-                            false);  // NOTE: not currently implemented (all shaders are included as binary data)
-}
-
-Shader *SDLGPUInterface::createShaderFromSource(std::string vertexShader, std::string fragmentShader) {
-    return new SDLGPUShader(this, m_device, std::move(vertexShader), std::move(fragmentShader));
+Shader *SDLGPUInterface::createShaderFromSource(std::string_view vertexShader, std::string_view fragmentShader) {
+    return new SDLGPUShader(this, m_device, vertexShader, fragmentShader);
 }
 
 VertexArrayObject *SDLGPUInterface::createVertexArrayObject(DrawPrimitive primitive, DrawUsageType usage,

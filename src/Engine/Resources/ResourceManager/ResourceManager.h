@@ -97,12 +97,6 @@ class ResourceManager final {
                         bool overlayable = false, bool loop = false);
 
     // shaders
-    Shader *loadShader(std::string vertexShaderFilePath, std::string fragmentShaderFilePath,
-                       const std::string &resourceName);
-    Shader *loadShader(std::string vertexShaderFilePath, std::string fragmentShaderFilePath);
-    Shader *createShader(std::string vertexShader, std::string fragmentShader, const std::string &resourceName);
-    Shader *createShader(std::string vertexShader, std::string fragmentShader);
-
     // automatically loads opengl/dx11 vertex and fragment shaders
     // sets the resource name to the shaderBasename as well
     Shader *createShaderAuto(std::string_view shaderBasename);

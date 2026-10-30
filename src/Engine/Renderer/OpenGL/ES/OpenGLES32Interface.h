@@ -83,9 +83,7 @@ class OpenGLES32Interface final : public SDLGLInterface {
     Image *createImage(std::string filePath, bool mipmapped, bool keepInSystemMemory) final;
     Image *createImage(int width, int height, bool mipmapped, bool keepInSystemMemory) final;
     RenderTarget *createRenderTarget(int x, int y, int width, int height, MultisampleType multiSampleType) final;
-    Shader *createShaderFromFile(std::string vertexShaderFilePath,
-                                 std::string fragmentShaderFilePath) final;                      // DEPRECATED
-    Shader *createShaderFromSource(std::string vertexShader, std::string fragmentShader) final;  // DEPRECATED
+    Shader *createShaderFromSource(std::string_view vertexShader, std::string_view fragmentShader) final;
     VertexArrayObject *createVertexArrayObject(DrawPrimitive primitive, DrawUsageType usage,
                                                bool keepInSystemMemory) final;
 

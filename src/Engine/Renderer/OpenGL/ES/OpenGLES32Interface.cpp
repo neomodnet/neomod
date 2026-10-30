@@ -781,15 +781,8 @@ RenderTarget *OpenGLES32Interface::createRenderTarget(int x, int y, int width, i
     return new OpenGLRenderTarget(x, y, width, height, multiSampleType);
 }
 
-Shader *OpenGLES32Interface::createShaderFromFile(std::string vertexShaderFilePath,
-                                                  std::string fragmentShaderFilePath) {
-    auto *shader = new OpenGLES32Shader(vertexShaderFilePath, fragmentShaderFilePath, false);
-    registerShader(shader);
-    return shader;
-}
-
-Shader *OpenGLES32Interface::createShaderFromSource(std::string vertexShader, std::string fragmentShader) {
-    auto *shader = new OpenGLES32Shader(vertexShader, fragmentShader, true);
+Shader *OpenGLES32Interface::createShaderFromSource(std::string_view vertexShader, std::string_view fragmentShader) {
+    auto *shader = new OpenGLES32Shader(vertexShader, fragmentShader);
     registerShader(shader);
     return shader;
 }
@@ -834,10 +827,11 @@ void OpenGLES32Interface::updateAllShaderTransforms() {
 void OpenGLES32Interface::initSmoothClipShader() {
     if(this->smoothClipShader != nullptr) return;
 
-    this->smoothClipShader.reset(this->createShaderFromSource(
-        std::string(reinterpret_cast<const char *>(&GL_smoothclip_vsh[0]), static_cast<size_t>(GL_smoothclip_vsh_size)),
-        std::string(reinterpret_cast<const char *>(&GL_smoothclip_fsh[0]),
-                    static_cast<size_t>(GL_smoothclip_fsh_size))));
+    this->smoothClipShader.reset(
+        this->createShaderFromSource(std::string_view(reinterpret_cast<const char *>(&GL_smoothclip_vsh[0]),
+                                                      static_cast<size_t>(GL_smoothclip_vsh_size)),
+                                     std::string_view(reinterpret_cast<const char *>(&GL_smoothclip_fsh[0]),
+                                                      static_cast<size_t>(GL_smoothclip_fsh_size))));
 
     if(this->smoothClipShader != nullptr) {
         this->smoothClipShader->loadAsync();

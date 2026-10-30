@@ -739,12 +739,8 @@ RenderTarget *OpenGLInterface::createRenderTarget(int x, int y, int width, int h
     return new OpenGLRenderTarget(x, y, width, height, multiSampleType);
 }
 
-Shader *OpenGLInterface::createShaderFromFile(std::string vertexShaderFilePath, std::string fragmentShaderFilePath) {
-    return new OpenGLShader(vertexShaderFilePath, fragmentShaderFilePath, false);
-}
-
-Shader *OpenGLInterface::createShaderFromSource(std::string vertexShader, std::string fragmentShader) {
-    return new OpenGLShader(vertexShader, fragmentShader, true);
+Shader *OpenGLInterface::createShaderFromSource(std::string_view vertexShader, std::string_view fragmentShader) {
+    return new OpenGLShader(vertexShader, fragmentShader);
 }
 
 VertexArrayObject *OpenGLInterface::createVertexArrayObject(DrawPrimitive primitive, DrawUsageType usage,
@@ -765,10 +761,11 @@ void OpenGLInterface::onTransformUpdate() {
 void OpenGLInterface::initSmoothClipShader() {
     if(this->smoothClipShader != nullptr) return;
 
-    this->smoothClipShader.reset(this->createShaderFromSource(
-        std::string(reinterpret_cast<const char *>(&GL_smoothclip_vsh[0]), static_cast<size_t>(GL_smoothclip_vsh_size)),
-        std::string(reinterpret_cast<const char *>(&GL_smoothclip_fsh[0]),
-                    static_cast<size_t>(GL_smoothclip_fsh_size))));
+    this->smoothClipShader.reset(
+        this->createShaderFromSource(std::string_view(reinterpret_cast<const char *>(&GL_smoothclip_vsh[0]),
+                                                      static_cast<size_t>(GL_smoothclip_vsh_size)),
+                                     std::string_view(reinterpret_cast<const char *>(&GL_smoothclip_fsh[0]),
+                                                      static_cast<size_t>(GL_smoothclip_fsh_size))));
 
     if(this->smoothClipShader != nullptr) {
         this->smoothClipShader->loadAsync();

@@ -20,6 +20,7 @@
 #include "types.h"
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 typedef struct SDL_GPUCommandBuffer SDL_GPUCommandBuffer;
@@ -35,8 +36,8 @@ class SDLGPUShader final : public Shader {
 
    private:
     friend SDLGPUInterface;
-    SDLGPUShader(SDLGPUInterface *gpu, SDL_GPUDevice *device, std::string vertexShaderPack,
-                 std::string fragmentShaderPack, bool source = true);
+    SDLGPUShader(SDLGPUInterface *gpu, SDL_GPUDevice *device, std::string_view vertexShaderPack,
+                 std::string_view fragmentShaderPack);
 
    public:
     SDLGPUShader() = delete;
@@ -93,16 +94,16 @@ class SDLGPUShader final : public Shader {
 
    private:
     // parse a .shdpk shader pack, extracting GLSL source and the best-matching binary for the device
-    static bool parseShaderPack(SDL_GPUDevice *device, const u8 *data, size_t dataSize, std::string *glslOut,
+    static bool parseShaderPack(SDL_GPUDevice *device, const u8 *data, size_t dataSize, std::string_view *glslOut,
                                 std::vector<u8> &binaryOut, SDL_GPUShaderFormat &formatOut);
 
-    static std::vector<UniformBlock> parseUniformBlocks(const std::string &glsl);
+    static std::vector<UniformBlock> parseUniformBlocks(std::string_view glsl);
 
     SDLGPUInterface *m_gpu;
     SDL_GPUDevice *m_device;
 
-    std::string m_sVsh;
-    std::string m_sFsh;
+    std::string_view m_sVsh;
+    std::string_view m_sFsh;
 
     SDLGPUShader *m_lastActiveShader{nullptr};  // for restore, to allow nested shaders to restore last enabled shader
     SDL_GPUShader *m_gpuVertexShader{nullptr};

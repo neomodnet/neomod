@@ -134,8 +134,7 @@ class DirectX11Interface final : public ModernGraphicsShared {
     Image *createImage(std::string filePath, bool mipmapped, bool keepInSystemMemory) override;
     Image *createImage(int width, int height, bool mipmapped, bool keepInSystemMemory) override;
     RenderTarget *createRenderTarget(int x, int y, int width, int height, MultisampleType multiSampleType) override;
-    Shader *createShaderFromFile(std::string vertexShaderFilePath, std::string fragmentShaderFilePath) override;
-    Shader *createShaderFromSource(std::string vertexShader, std::string fragmentShader) override;
+    Shader *createShaderFromSource(std::string_view vertexShader, std::string_view fragmentShader) override;
     VertexArrayObject *createVertexArrayObject(DrawPrimitive primitive, DrawUsageType usage,
                                                bool keepInSystemMemory) override;
 

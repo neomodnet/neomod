@@ -345,7 +345,6 @@ MainMenu::MainMenu() : UIScreen() {
     // loaded in Osu:: ctor, async
     this->logoImg = resourceManager->getImage("NEOMOD_LOGO");
     assert(this->logoImg);
-    // background_shader = resourceManager->loadShader("main_menu_bg.vsh", "main_menu_bg.fsh");
 
     // check if the user has never clicked the changelog for this update
     this->didUserUpdateFromOlderVersion = this->drawVersionNotificationArrow =

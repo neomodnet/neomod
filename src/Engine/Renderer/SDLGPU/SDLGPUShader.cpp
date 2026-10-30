@@ -29,13 +29,9 @@
 #include <charconv>
 #include <cstring>
 
-SDLGPUShader::SDLGPUShader(SDLGPUInterface *gpu, SDL_GPUDevice *device, std::string vertexShaderPack,
-                           std::string fragmentShaderPack, [[maybe_unused]] bool source)
-    : Shader(),
-      m_gpu(gpu),
-      m_device(device),
-      m_sVsh(std::move(vertexShaderPack)),
-      m_sFsh(std::move(fragmentShaderPack)) {}
+SDLGPUShader::SDLGPUShader(SDLGPUInterface *gpu, SDL_GPUDevice *device, std::string_view vertexShaderPack,
+                           std::string_view fragmentShaderPack)
+    : Shader(), m_gpu(gpu), m_device(device), m_sVsh(vertexShaderPack), m_sFsh(fragmentShaderPack) {}
 
 void SDLGPUShader::init() {
     if(!m_device || !m_gpu) {  // should not happen
@@ -45,7 +41,7 @@ void SDLGPUShader::init() {
     }
 
     // parse vertex shader pack
-    std::string vshGlsl;
+    std::string_view vshGlsl;
     std::vector<u8> vshBinary;
     SDL_GPUShaderFormat vshFormat;  // NOLINT(cppcoreguidelines-init-variables)
     if(!parseShaderPack(m_device, reinterpret_cast<const u8 *>(m_sVsh.data()), m_sVsh.size(), &vshGlsl, vshBinary,
@@ -56,7 +52,7 @@ void SDLGPUShader::init() {
     }
 
     // parse fragment shader pack
-    std::string fshGlsl;
+    std::string_view fshGlsl;
     std::vector<u8> fshBinary;
     SDL_GPUShaderFormat fshFormat;  // NOLINT(cppcoreguidelines-init-variables)
     if(!parseShaderPack(m_device, reinterpret_cast<const u8 *>(m_sFsh.data()), m_sFsh.size(), &fshGlsl, fshBinary,
@@ -225,7 +221,7 @@ void SDLGPUShader::writeUniform(std::string_view name, [[maybe_unused]] UniformT
 
 // shader pack parsing
 
-bool SDLGPUShader::parseShaderPack(SDL_GPUDevice *device, const u8 *data, size_t dataSize, std::string *glslOut,
+bool SDLGPUShader::parseShaderPack(SDL_GPUDevice *device, const u8 *data, size_t dataSize, std::string_view *glslOut,
                                    std::vector<u8> &binaryOut, SDL_GPUShaderFormat &formatOut) {
     if(dataSize < 12 || std::memcmp(data, "SGSH", 4) != 0) return false;
 
@@ -251,7 +247,7 @@ bool SDLGPUShader::parseShaderPack(SDL_GPUDevice *device, const u8 *data, size_t
         for(const auto &sec : sections) {
             if(sec.format == FMT_GLSL) {
                 if(sec.offset + sec.size > dataSize) return false;
-                glslOut->assign(reinterpret_cast<const char *>(data) + sec.offset, sec.size);
+                *glslOut = {reinterpret_cast<const char *>(data) + sec.offset, sec.size};
                 foundGlsl = true;
                 break;
             }
@@ -277,6 +273,7 @@ bool SDLGPUShader::parseShaderPack(SDL_GPUDevice *device, const u8 *data, size_t
         for(const auto &sec : sections) {
             if(sec.format == prio.packFmt) {
                 if(sec.offset + sec.size > dataSize) return false;
+                // copied, since SPIR-V has to be 4-byte aligned and pack sections aren't
                 binaryOut.assign(data + sec.offset, data + sec.offset + sec.size);
                 formatOut = prio.gpuFmt;
                 foundBinary = true;
@@ -322,7 +319,7 @@ u32 compute_std140_offset(u32 currentOffset, std::string_view typeName) {
 }
 }  // namespace
 
-std::vector<SDLGPUShader::UniformBlock> SDLGPUShader::parseUniformBlocks(const std::string &glsl) {
+std::vector<SDLGPUShader::UniformBlock> SDLGPUShader::parseUniformBlocks(std::string_view glsl) {
     std::vector<UniformBlock> ret;
 
     // find: layout(...set=N, binding=M...) uniform BlockName { ... }

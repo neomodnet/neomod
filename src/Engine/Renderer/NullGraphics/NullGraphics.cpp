@@ -102,11 +102,7 @@ Image *NullGraphics::createImage(i32 width, i32 height, bool mipmapped, bool kee
 RenderTarget *NullGraphics::createRenderTarget(int x, int y, int width, int height, MultisampleType msType) {
     return new NullRenderTarget(x, y, width, height, msType);
 }
-Shader *NullGraphics::createShaderFromFile(std::string /*vertexShaderFilePath*/,
-                                           std::string /*fragmentShaderFilePath*/) {
-    return new NullShader();
-}
-Shader *NullGraphics::createShaderFromSource(std::string /*vertexShader*/, std::string /*fragmentShader*/) {
+Shader *NullGraphics::createShaderFromSource(std::string_view /*vertexShader*/, std::string_view /*fragmentShader*/) {
     return new NullShader();
 }
 VertexArrayObject *NullGraphics::createVertexArrayObject(DrawPrimitive primitive, DrawUsageType usage,

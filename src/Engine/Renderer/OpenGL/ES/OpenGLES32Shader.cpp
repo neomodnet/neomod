@@ -20,9 +20,7 @@
 
 #include <charconv>
 
-OpenGLES32Shader::OpenGLES32Shader(const std::string &vertexShader, const std::string &fragmentShader,
-                                   [[maybe_unused]] bool source)
-    : Shader() {
+OpenGLES32Shader::OpenGLES32Shader(std::string_view vertexShader, std::string_view fragmentShader) : Shader() {
     m_sVsh = vertexShader;
     m_sFsh = fragmentShader;
 
@@ -33,7 +31,7 @@ OpenGLES32Shader::OpenGLES32Shader(const std::string &vertexShader, const std::s
     m_iProgramBackup = 0;
 }
 
-void OpenGLES32Shader::init() { this->setReady(this->compile(m_sVsh, m_sFsh, true)); }
+void OpenGLES32Shader::init() { this->setReady(this->compile(m_sVsh, m_sFsh)); }
 
 void OpenGLES32Shader::initAsync() { this->setAsyncReady(true); }
 
@@ -151,14 +149,12 @@ bool OpenGLES32Shader::isActive() {
     return (this->isReady() && currentProgram == m_iProgram);
 }
 
-bool OpenGLES32Shader::compile(const std::string &vertexShader, const std::string &fragmentShader, bool source) {
-    // load & compile shaders
-    debugLog("Compiling {:s} ...", (source ? "vertex source" : vertexShader));
-    m_iVertexShader = source ? createShaderFromString(vertexShader, GL_VERTEX_SHADER)
-                             : createShaderFromFile(vertexShader, GL_VERTEX_SHADER);
-    debugLog("Compiling {:s} ...", (source ? "fragment source" : fragmentShader));
-    m_iFragmentShader = source ? createShaderFromString(fragmentShader, GL_FRAGMENT_SHADER)
-                               : createShaderFromFile(fragmentShader, GL_FRAGMENT_SHADER);
+bool OpenGLES32Shader::compile(std::string_view vertexShader, std::string_view fragmentShader) {
+    // compile shaders
+    debugLog("Compiling vertex source ...");
+    m_iVertexShader = createShaderFromString(vertexShader, GL_VERTEX_SHADER);
+    debugLog("Compiling fragment source ...");
+    m_iFragmentShader = createShaderFromString(fragmentShader, GL_FRAGMENT_SHADER);
 
     const bool showDebugPopup = cv::debug_shaders.getBool();  // || Env::cfg(BUILD::DEBUG);
     if(m_iVertexShader == 0 || m_iFragmentShader == 0) {
@@ -245,7 +241,7 @@ bool OpenGLES32Shader::compile(const std::string &vertexShader, const std::strin
     return true;
 }
 
-int OpenGLES32Shader::createShaderFromString(const std::string &shaderSource, int shaderType) {
+int OpenGLES32Shader::createShaderFromString(std::string_view shaderSource, int shaderType) {
     const GLint shader = glCreateShader(shaderType);
 
     if(shader == 0) {
@@ -254,8 +250,9 @@ int OpenGLES32Shader::createShaderFromString(const std::string &shaderSource, in
     }
 
     // compile shader
-    const char *shaderSourceChar = shaderSource.c_str();
-    glShaderSource(shader, 1, &shaderSourceChar, nullptr);
+    const char *shaderSourceChar = shaderSource.data();
+    const auto shaderSourceLength = static_cast<GLint>(shaderSource.size());
+    glShaderSource(shader, 1, &shaderSourceChar, &shaderSourceLength);
     glCompileShader(shader);
 
     GLint ret = GL_FALSE;
@@ -277,27 +274,6 @@ int OpenGLES32Shader::createShaderFromString(const std::string &shaderSource, in
     }
 
     return shader;
-}
-
-int OpenGLES32Shader::createShaderFromFile(const std::string &fileName, int shaderType) {
-    // load file
-    std::ifstream inFile(fileName.c_str());
-    if(!inFile) {
-        engine->showMessageError("OpenGLES32Shader Error", fileName);
-        return 0;
-    }
-    std::string line;
-    std::string shaderSource;
-    while(inFile.good()) {
-        std::getline(inFile, line);
-        shaderSource += line + "\n\0";
-    }
-    shaderSource += "\n\0";
-    inFile.close();
-
-    std::string shaderSourcePtr = std::string(shaderSource.c_str());
-
-    return createShaderFromString(shaderSourcePtr, shaderType);
 }
 
 #endif

@@ -16,10 +16,12 @@
 #include "Shader.h"
 #include "Hashing.h"
 
+#include <string_view>
+
 class OpenGLES32Shader final : public Shader {
     NOCOPY_NOMOVE(OpenGLES32Shader)
    public:
-    OpenGLES32Shader(const std::string &vertexShader, const std::string &fragmentShader, bool source);
+    OpenGLES32Shader(std::string_view vertexShader, std::string_view fragmentShader);
     ~OpenGLES32Shader() override { destroy(); }
 
     void enable() override;
@@ -38,12 +40,11 @@ class OpenGLES32Shader final : public Shader {
     void writeUniform(std::string_view name, UniformType type, const void *const data, unsigned int dataSize) override;
 
    private:
-    bool compile(const std::string &vertexShader, const std::string &fragmentShader, bool source);
-    int createShaderFromString(const std::string &shaderSource, int shaderType);
-    int createShaderFromFile(const std::string &fileName, int shaderType);
+    bool compile(std::string_view vertexShader, std::string_view fragmentShader);
+    int createShaderFromString(std::string_view shaderSource, int shaderType);
     int getAndCacheUniformLocation(std::string_view name);
 
-    std::string m_sVsh, m_sFsh;
+    std::string_view m_sVsh, m_sFsh;
 
     int m_iVertexShader;
     int m_iFragmentShader;
