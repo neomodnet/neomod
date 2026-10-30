@@ -347,6 +347,8 @@ class DatabaseBeatmap final {
    private:
     bool has_unicode_title{false};
     bool has_unicode_artist{false};
+    bool says_set_id{
+        false};  // its file has a BeatmapSetID (-1 for an unsubmitted map), unlike files older than the key
 
     // class internal data (custom)
 

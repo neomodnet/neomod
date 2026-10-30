@@ -157,7 +157,7 @@ void UIDebug::debugAssert(std::string_view args) {
 
     if(parts.size() >= 3 && SString::to_lower(parts[0]) == "map"sv) {
         // the selected difficulty's .osu file name (the rest of the line), root (maps, or songs for osu!stable's), md5,
-        // local offset or whether its background is drawn, "none" without a selection
+        // local offset, whether its background is drawn or its set's online id, "none" without a selection
         const std::string_view expected = args.substr(parts[2].data() - args.data());
         const DatabaseBeatmap *map = osu->getMapInterface()->getBeatmap();
         std::string actual{"none"};
@@ -171,8 +171,10 @@ void UIDebug::debugAssert(std::string_view args) {
             actual = fmt::to_string(map->getLocalOffset());
         } else if(map && parts[1] == "background"sv) {
             actual = fmt::to_string(int{map->getSettings().draw_background});
+        } else if(map && parts[1] == "setid"sv) {
+            actual = fmt::to_string(map->getSetID());
         } else if(map) {
-            logRaw("UITEST FAIL map {} (unknown field, expected file|root|md5|offset|background)", parts[1]);
+            logRaw("UITEST FAIL map {} (unknown field, expected file|root|md5|offset|background|setid)", parts[1]);
             return;
         }
         logRaw("UITEST {} map {} expected='{}' actual='{}'", actual == expected ? "OK" : "FAIL", parts[1], expected,

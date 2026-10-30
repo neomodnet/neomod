@@ -210,6 +210,10 @@ class Database final {
 
     static std::string getOsuSongsFolder();
 
+    // the online set id osu!stable's "<setid> Artist - Title" folder and .osz names start with: the name's first word,
+    // if that's a number (-1 otherwise). for files that don't say theirs (older than the key)
+    static i32 setIdFromName(std::string_view name);
+
     // only used for raw loading without db
     static std::unique_ptr<BeatmapSet> loadRawBeatmap(std::string_view beatmapPath, bool is_peppy = false);
     // parses every .osu directly inside a set folder (what loadRawBeatmap, the maps/ rescan and the installer's

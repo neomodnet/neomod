@@ -192,19 +192,22 @@ def provision_fixtures(bindir, datadir):
         (play_songs / "play.osu").write_text(beatmap("UITest Play", "play", "silence.wav", 60))
 
     # .osz import fixtures (passed to the binary via '# uitest-args:', i.e. the drag/drop path):
-    # a set with an id, the same set with one more diff (merges into the installed folder), and a
-    # set without any id (unsubmitted-style, named after the file)
+    # a set with an id, the same set with one more diff (merges into the installed folder), a set
+    # without any id (unsubmitted-style, named after the file) and an unsubmitted one whose name starts
+    # with a number that isn't a set id
     imports = bindir / "uitest_import"
-    if not imports.is_dir():
-        imports.mkdir()
-        for name, set_id, diffs, title in (
-            ("set123.osz", 123, (1, 2), "UITest Set123"),
-            ("set123_extra.osz", 123, (1, 2, 3), "UITest Set123"),
-            ("idless.osz", -1, (1, 2), "UITest Idless"),
-        ):
-            with zipfile.ZipFile(imports / name, "w", zipfile.ZIP_DEFLATED) as z:
-                for i in diffs:
-                    z.writestr(f"diff{i:02d}.osu", beatmap(title, f"diff {i:02d}", "none.mp3", i, set_id))
+    imports.mkdir(exist_ok=True)
+    for name, set_id, diffs, title in (
+        ("set123.osz", 123, (1, 2), "UITest Set123"),
+        ("set123_extra.osz", 123, (1, 2, 3), "UITest Set123"),
+        ("idless.osz", -1, (1, 2), "UITest Idless"),
+        ("07th Expansion - Import.osz", -1, (1,), "uitestsetidf"),
+    ):
+        if (imports / name).is_file():
+            continue
+        with zipfile.ZipFile(imports / name, "w", zipfile.ZIP_DEFLATED) as z:
+            for i in diffs:
+                z.writestr(f"diff{i:02d}.osu", beatmap(title, f"diff {i:02d}", "none.mp3", i, set_id))
 
 
 def run_one(name, binary, bindir, datadir, record):

@@ -42,7 +42,8 @@ class BeatmapInstaller final {
     // "" on failure). the folder is the one of the already-installed set with the same id (which is how new
     // or updated difficulties end up next to the existing ones), else a new osu!stable-style
     // "<setid> Artist - Title" (the .osz stem for local files). a set id isn't required: it comes from
-    // set_id_override (downloads), else the archive's .osu files, else a leading number in osz_name.
+    // set_id_override (downloads), else the archive's .osu files, else (when they don't say) the number osz_name
+    // starts with (Database::setIdFromName).
     static std::string resolve_and_extract_osz(std::span<const u8> data, std::string_view osz_name,
                                                i32 set_id_override = -1);
 

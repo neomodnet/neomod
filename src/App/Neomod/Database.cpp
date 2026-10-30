@@ -37,7 +37,6 @@
 #include "fmt/chrono.h"
 
 #include <algorithm>
-#include <cctype>
 #include <cstring>
 #include <span>
 #include <utility>
@@ -950,6 +949,16 @@ std::string rel_folder_of(std::string_view folder_path) {
 }
 }  // namespace
 
+i32 Database::setIdFromName(std::string_view name) {
+    const std::string_view word = name.substr(0, name.find(' '));
+    i32 id{-1};
+    if(word.empty() || !Mc::ranges::all_of(word, [](char c) { return c >= '0' && c <= '9'; }) ||
+       !Parsing::parse(word, &id) || id <= 0) {
+        return -1;
+    }
+    return id;
+}
+
 std::string Database::getBeatmapSetFolder(i32 set_id) const {
     if(set_id <= 0) return {};
 
@@ -1741,20 +1750,10 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 }
 
                 // special case: legacy fallback behavior for invalid beatmapSetID, try to parse the ID from the path
-                if(beatmapset_id < 1 && beatmap_subfolder.length() > 0) {
-                    size_t slash = beatmap_subfolder.find('/');
-                    std::string candidate =
-                        (slash != std::string::npos) ? beatmap_subfolder.substr(0, slash) : beatmap_subfolder;
-
-                    if(!candidate.empty() && std::isdigit(static_cast<unsigned char>(candidate[0]))) {
-                        if(!Parsing::parse(candidate, &beatmapset_id)) {
-                            beatmapset_id = -1;
-                        }
-                    }
-                }
+                // (-1 as a sentinel if we still couldn't get one)
                 if(beatmapset_id < 1) {
-                    // use -1 as a sentinel if we still couldn't get one
-                    beatmapset_id = -1;
+                    beatmapset_id =
+                        setIdFromName(std::string_view{beatmap_subfolder}.substr(0, beatmap_subfolder.find('/')));
                 }
 
                 BeatmapDifficulty *diffp = nullptr;
@@ -3047,8 +3046,9 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
         set = new_set.get();
     }
 
-    // set id: the download's, else what the old set already knew, else whatever a diff declares, else a leading
-    // number in the folder name (osu!stable's "<setid> Artist - Title" convention)
+    // set id: the download's, else what the old set already knew, else whatever a diff declares, else the number
+    // osu!stable's "<setid> Artist - Title" folder names start with, for a folder seen for the first time whose files
+    // don't say (files older than the key; one that says -1 is unsubmitted)
     i32 set_id = set_id_override;
     if(set_id <= 0 && old) set_id = old->getSetID();
     if(set_id <= 0) {
@@ -3059,9 +3059,9 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
             }
         }
     }
-    if(set_id <= 0 && !rel_folder.empty() && std::isdigit(static_cast<unsigned char>(rel_folder.front()))) {
-        i32 parsed_id = -1;
-        if(Parsing::parse(rel_folder, &parsed_id) && parsed_id > 0) set_id = parsed_id;
+    if(set_id <= 0 && !old &&
+       Mc::ranges::none_of(set->getDifficulties(), [](const auto &diff) { return diff->says_set_id; })) {
+        set_id = setIdFromName(rel_folder);
     }
 
     {

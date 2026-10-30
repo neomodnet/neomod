@@ -1,0 +1,54 @@
+# a set's online id comes from the leading number of its folder's name only when that's the name's whole first word
+# ("<id> Artist - Title") and none of its files says BeatmapSetID (a file saying -1 is unsubmitted, which any folder
+# name leaves alone): "07th Expansion" isn't set 7, a new set in "01 Track" isn't set 1, an old file's "123 ..." is 123.
+# the same for an .osz's name: "07th Expansion - Import.osz" (unsubmitted) gets a folder of its own, not set 7's
+# uitest-datadir: fresh
+# uitest-args: "uitest_import/07th Expansion - Import.osz"
+# uitest-file: maps/07th Expansion - Declared/map.osu|osu file format v14||[General]|AudioFilename: none.mp3|Mode: 0||[Metadata]|Title:uitestsetida|Artist:UITest|Creator:uitest|Version:only|BeatmapID:0|BeatmapSetID:-1||[Difficulty]|CircleSize:4|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|0,500,4,2,0,100,1,0||[HitObjects]|256,192,1000,1,0,0:0:0:0:
+# uitest-file: maps/07th Expansion - Undeclared/map.osu|osu file format v14||[General]|AudioFilename: none.mp3|Mode: 0||[Metadata]|Title:uitestsetidb|Artist:UITest|Creator:uitest|Version:only|BeatmapID:0||[Difficulty]|CircleSize:4|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|0,500,4,2,0,100,1,0||[HitObjects]|256,192,1000,1,0,0:0:0:0:
+# uitest-file: maps/01 Track/map.osu|osu file format v14||[General]|AudioFilename: none.mp3|Mode: 0||[Metadata]|Title:uitestsetidc|Artist:UITest|Creator:uitest|Version:only|BeatmapID:0|BeatmapSetID:-1||[Difficulty]|CircleSize:4|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|0,500,4,2,0,100,1,0||[HitObjects]|256,192,1000,1,0,0:0:0:0:
+# uitest-file: maps/123 Artist - Title/map.osu|osu file format v14||[General]|AudioFilename: none.mp3|Mode: 0||[Metadata]|Title:uitestsetidd|Artist:UITest|Creator:uitest|Version:only|BeatmapID:0||[Difficulty]|CircleSize:4|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|0,500,4,2,0,100,1,0||[HitObjects]|256,192,1000,1,0,0:0:0:0:
+# uitest-file: maps/7 Other Set/map.osu|osu file format v14||[General]|AudioFilename: none.mp3|Mode: 0||[Metadata]|Title:uitestsetide|Artist:UITest|Creator:uitest|Version:only|BeatmapID:0|BeatmapSetID:7||[Difficulty]|CircleSize:4|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|0,500,4,2,0,100,1,0||[HitObjects]|256,192,1000,1,0,0:0:0:0:
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen songbrowser
+@wait 300
+@wait_secs 3
+sendtext uitestsetida
+@wait 60
+ui_assert map setid -1
+sendkey Escape
+@wait 10
+sendtext uitestsetidb
+@wait 60
+ui_assert map setid -1
+sendkey Escape
+@wait 10
+sendtext uitestsetidc
+@wait 60
+ui_assert map setid -1
+sendkey Escape
+@wait 10
+sendtext uitestsetidd
+@wait 60
+ui_assert map setid 123
+sendkey Escape
+@wait 10
+sendtext uitestsetide
+@wait 60
+ui_assert map setid 7
+sendkey Escape
+@wait 10
+sendtext uitestsetidf
+@wait 60
+ui_assert map setid -1
+sendkey Escape
+@wait 10
+exit

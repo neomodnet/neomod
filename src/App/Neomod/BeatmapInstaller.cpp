@@ -29,7 +29,6 @@
 #include "UI.h"
 
 #include <algorithm>
-#include <cctype>
 #include <filesystem>
 #include <optional>
 
@@ -151,6 +150,7 @@ void fail_entry(Entry& e, f64 now) {
 
 struct OszMeta {
     i32 set_id{-1};
+    bool says_set_id{false};  // a BeatmapSetID line (-1 for an unsubmitted map), unlike files older than the key
     std::string artist;
     std::string title;
 };
@@ -163,7 +163,8 @@ OszMeta parse_osz_meta(std::string_view file) {
     OszMeta meta;
     meta.artist = parsed.getValue(METADATA, "Artist").value_or("");
     meta.title = parsed.getValue(METADATA, "Title").value_or("");
-    if(const auto setId = parsed.getValue(METADATA, "BeatmapSetID")) Parsing::parse(*setId, &meta.set_id);
+    if(const auto setId = parsed.getValue(METADATA, "BeatmapSetID"))
+        meta.says_set_id = Parsing::parse(*setId, &meta.set_id);
     return meta;
 }
 
@@ -310,21 +311,19 @@ std::string BeatmapInstaller::resolve_and_extract_osz(std::span<const u8> data, 
             meta.artist = std::move(parsed.artist);
             meta.title = std::move(parsed.title);
         }
+        meta.says_set_id |= parsed.says_set_id;
         if(parsed.set_id > 0) {
             meta.set_id = parsed.set_id;
             break;
         }
     }
 
-    i32 set_id = set_id_override > 0 ? set_id_override : meta.set_id;
-    // fallback: a leading number in the filename, e.g. "12345 Artist - Title.osz"
-    if(set_id <= 0 && !osz_name.empty() && std::isdigit(static_cast<unsigned char>(osz_name.front()))) {
-        i32 parsed = -1;
-        if(Parsing::parse(osz_name, &parsed) && parsed > 0) set_id = parsed;
-    }
-
     std::string_view stem = osz_name;
     if(stem.size() > 4 && SString::strcase_equal(stem.substr(stem.size() - 4), ".osz")) stem.remove_suffix(4);
+
+    // fallback for files that don't say: the number in the file's name, e.g. "12345 Artist - Title.osz"
+    i32 set_id = set_id_override > 0 ? set_id_override : meta.set_id;
+    if(set_id <= 0 && !meta.says_set_id) set_id = Database::setIdFromName(stem);
 
     std::string folder = target_folder_name(set_id, stem, meta, entries);
     if(folder.empty()) {

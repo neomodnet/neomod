@@ -372,7 +372,7 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
         } else if(kv.key == "BeatmapID") {
             Parsing::parse(kv.value, &this->iID);
         } else if(kv.key == "BeatmapSetID") {
-            Parsing::parse(kv.value, &this->iSetID);
+            this->says_set_id = Parsing::parse(kv.value, &this->iSetID);
         }
     }
 
