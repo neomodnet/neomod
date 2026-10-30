@@ -297,6 +297,9 @@ MAIN_FUNC /* int argc, char *argv[] */
                 SDL_SetHintWithPriority(SDL_HINT_VIDEO_DRIVER, "offscreen", SDL_HINT_OVERRIDE);
             }
         }
+        // nothing could show a file dialog: one asked for answers at once with nothing chosen (no driver of that name),
+        // instead of a panel nobody sees that never answers (macOS)
+        SDL_SetHintWithPriority(SDL_HINT_FILE_DIALOG_DRIVER, "none", SDL_HINT_NORMAL);
         if(Env::cfg(OS::WASM) || !has_arg(REND_HEADLESS_AUDIO)) {
             // silence audio output in headless unless -headless-audio is passed
             // (or we are running in headless WASM, since node.js doesn't have audio)

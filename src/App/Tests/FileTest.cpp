@@ -8,9 +8,11 @@
 #include "File.h"
 #include "Paths.h"
 #include "SyncJthread.h"
+#include "Timing.h"
 
 #include "fmt/format.h"
 
+#include <algorithm>
 #include <atomic>
 #include <filesystem>
 #include <string>
@@ -39,9 +41,21 @@ FileTest::FileTest() { logRaw("FileTest created"); }
 
 void FileTest::update() {
     if(m_done) return;
-    m_done = true;
-
     const std::string dir = Mc::Paths::cache() + "/filetest";
+    if(m_dialogAsked > 0.0) {
+        // (its answer comes through the main thread's queue)
+        if(!m_dialogAnswer && Timing::getTimeReal() - m_dialogAsked < 5.0) return;
+        TEST_SECTION("file dialogs");
+        TEST_ASSERT(m_dialogAnswer && m_dialogAnswer->empty(),
+                    "a file dialog in a headless run, which nothing can show, answers at once with nothing chosen");
+
+        m_done = true;
+        Environment::deletePathsRecursive(dir);
+        TEST_PRINT_RESULTS("FileTest");
+        engine->shutdown();
+        return;
+    }
+
     Environment::createDirectory(dir);
 
     TEST_SECTION("replace");
@@ -135,9 +149,9 @@ void FileTest::update() {
         TEST_ASSERT(!Environment::createDirectory(dir + "/committed"), "a file in the way isn't a directory");
     }
 
-    Environment::deletePathsRecursive(dir);
-    TEST_PRINT_RESULTS("FileTest");
-    engine->shutdown();
+    m_dialogAsked = Timing::getTimeReal();
+    m_dialog = env->openFileWindow([this](const std::vector<std::string> &paths) { m_dialogAnswer = paths; },
+                                   "Text\0txt\0", "FileTest");
 }
 
 }  // namespace Mc::Tests
