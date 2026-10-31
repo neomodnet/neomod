@@ -150,6 +150,7 @@ add_external_project(libjpeg
         -DCMAKE_ASM_NASM_FLAGS="-DPIC"
         -DCMAKE_ASM_NASM_OBJECT_FORMAT=win64
         -DWITH_SYSTEM_ZLIB=ON
+        -DCMAKE_C_FLAGS="${COMMON_C_FLAGS_STR} /I${DEPS_INSTALL_DIR}/include"
     BUILD_COMMAND cmake --build <BINARY_DIR> --config ${CMAKE_BUILD_TYPE} --parallel ${CPU_COUNT}
 )
 
