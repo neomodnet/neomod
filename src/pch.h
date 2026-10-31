@@ -40,11 +40,6 @@
 #include "fmt/printf.h"
 #endif
 
-// boost is insanely fat, even if we avoid including it transitively
-#include "boost/sort/pdqsort/pdqsort.hpp"
-#include "boost/sort/spinsort/spinsort.hpp"
-#include "boost/sort/spreadsort/spreadsort.hpp"
-
 // commonly-included stdlib includes
 #include <algorithm>
 #include <array>

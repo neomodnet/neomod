@@ -5,12 +5,10 @@
 
 #include "Engine.h"
 #include "ResourceManager.h"
+#include "ContainerRanges.h"
 #include "Logging.h"
 #include "Image.h"
 #include "Graphics.h"
-
-#define WANT_PDQSORT
-#include "Sorting.h"
 
 TextureAtlas::TextureAtlas(int width, int height, bool filtering) : Resource(TEXTUREATLAS) {
     this->iWidth = width;
@@ -72,7 +70,7 @@ bool TextureAtlas::packRects(std::vector<PackRect> &rects) {
     if(rects.empty()) return true;
 
     // sort rectangles by height (tallest first) for better packing efficiency
-    srt::pdqsort(rects, [](const PackRect &a, const PackRect &b) { return a.height > b.height; });
+    Mc::ranges::sort(rects, [](const PackRect &a, const PackRect &b) { return a.height > b.height; });
 
     // initialize skyline - start with single segment covering width minus right edge padding
     const int packableWidth = this->iWidth - ATLAS_PADDING;

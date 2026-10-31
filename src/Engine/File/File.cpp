@@ -15,9 +15,6 @@
 #include "SyncOnce.h"
 #include "UniString.h"
 
-#define WANT_PDQSORT
-#include "Sorting.h"
-
 #include <algorithm>
 #include <cassert>
 #include <cerrno>
@@ -127,7 +124,7 @@ class DirectoryCache final {
             entries.emplace_back(it->second.lastCacheAccess, it);
 
         // sort by access time (oldest first)
-        srt::pdqsort(entries, [](const auto &a, const auto &b) { return a.first < b.first; });
+        Mc::ranges::sort(entries, [](const auto &a, const auto &b) { return a.first < b.first; });
 
         // remove the oldest entries
         for(uSz i = 0; i < entriesToRemove; ++i) this->cache.erase(entries[i].second);
@@ -957,7 +954,7 @@ std::vector<File::DirEntry> File::pruneDirectory(std::string_view dir, bool (*ma
     getDirectoryEntries(dir, DirContents::FILES, entries);
     std::erase_if(entries,
                   [managed](const DirEntry &entry) { return entry.type != FILETYPE::FILE || !managed(entry.name); });
-    srt::pdqsort(entries, [](const DirEntry &a, const DirEntry &b) { return a.mtime > b.mtime; });
+    Mc::ranges::sort(entries, [](const DirEntry &a, const DirEntry &b) { return a.mtime > b.mtime; });
 
     const i64 now = time(nullptr);
     u64 totalBytes = 0;

@@ -54,7 +54,6 @@ BASS audio library suite (https://www.un4seen.com/) - proprietary (free for non-
 Bundled in-tree libraries:
 - stb_image.h (https://github.com/nothings/stb) - Public Domain / MIT
 - glad (https://glad.dav1d.de/) - WTFPL / CC0-1.0 & Apache-2.0
-- boost/sort (https://www.boost.org/) - Boost Software License 1.0
 - unordered_dense (ankerl) (https://github.com/martinus/unordered_dense) - MIT
 - delegatesv2 (https://sakryukov.github.io/publications/2017-02-13.The-Impossibly-Fast-C++Delegates-Fixed.html) - MIT
 - demoji (William Horvath) - MIT

@@ -344,7 +344,6 @@ DEALINGS IN THE SOFTWARE.
 ---
 
 Used by the following dependencies:
-- boost/sort (https://www.boost.org/)
 - ctre (https://github.com/hanickadot/compile-time-regular-expressions) [BSL-1.0 option]
 
 ============================================================

@@ -83,9 +83,6 @@
 
 #include "fmt/chrono.h"
 
-#define WANT_PDQSORT
-#include "Sorting.h"
-
 struct SongBrowser::MD5HashMap : public Hash::flat::map<MD5Hash, SongDifficultyButton *> {};
 struct SongBrowser::PendingReselect {
     Database::MapLocation where;
@@ -3225,7 +3222,7 @@ void SongBrowser::rebuildAfterGroupOrSortChange(GroupType group, const std::opti
             }
         }
         // the master button list should be sorted for all groupings
-        srt::pdqsort(this->parentButtons, MAP_SORTING_METHODS[this->curSortMethod].comparator);
+        Mc::ranges::sort(this->parentButtons, MAP_SORTING_METHODS[this->curSortMethod].comparator);
         this->bSongButtonsNeedSorting = false;
     }
 
@@ -3271,7 +3268,7 @@ void SongBrowser::rebuildAfterGroupOrSortChange(GroupType group, const std::opti
                 for(const auto &button : *collBtns) {
                     auto &children = button->getChildren();
                     if(!children.empty()) {
-                        srt::pdqsort(children, MAP_SORTING_METHODS[this->curSortMethod].comparator);
+                        Mc::ranges::sort(children, MAP_SORTING_METHODS[this->curSortMethod].comparator);
                         button->setChildren(children);
                     }
                 }

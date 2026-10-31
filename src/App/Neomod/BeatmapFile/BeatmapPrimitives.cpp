@@ -8,9 +8,6 @@
 #include "SliderCurves.h"
 #include "Vectors.h"
 
-#define WANT_PDQSORT
-#include "Sorting.h"
-
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -205,7 +202,7 @@ LoadError calculateSliderTimesClicksTicks(int beatmapVersion, SLIDER &s, const T
 
     // 5) sort scoringTimes from earliest to latest
     if(s.scoringTimesForStarCalc.size() > 1) {
-        srt::pdqsort(s.scoringTimesForStarCalc, sliderScoringTimeComparator);
+        Mc::ranges::sort(s.scoringTimesForStarCalc, sliderScoringTimeComparator);
     }
 
     return r;
@@ -215,7 +212,7 @@ LoadError calculateSliderTimesClicksTicks(int beatmapVersion, SLIDER &s, const T
 
 TimingPoints::TimingPoints(std::vector<TIMINGPOINT> points) : entries(points.size()) {
     // sort timingpoints by time
-    if(points.size() > 1) srt::pdqsort(points, timingPointSortComparator);
+    if(points.size() > 1) Mc::ranges::sort(points, timingPointSortComparator);
 
     u32 lastUninherited = 0;
     u32 lastInherited = 0;
