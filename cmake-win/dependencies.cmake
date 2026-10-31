@@ -21,9 +21,9 @@ macro(set_download_name dep_name version url)
     set(${_upper_dep_name}_DL_NAME "${dep_name}-${version}${_temp_ext}")
 endmacro()
 
-set(SDL3_VERSION "cb433584b0776f5f9a31ded79c30f4de0888a9d2")
+set(SDL3_VERSION "bd9f6ca9ff0e9509f49980fc1b70837f54b6f244")
 set(SDL3_URL "https://github.com/libsdl-org/SDL/archive/${SDL3_VERSION}.tar.gz")
-set(SDL3_HASH "SHA512=b814ce078cfa76d42456c274065ed83325398c419a5a1d26aeea97e4adc6c66c7c6c2a0920b0820c291d2937853c62691d8423bc82e86c627814cba3ffdc146e")
+set(SDL3_HASH "SHA512=96ab2ca27d7be58d843f1e7c55f1c60413a9d49a82cc15f3cd5f92825b5de680c2f1f16a509f51c8124d6e5f3218b43f39000e342694014c349ae4131aa03b66")
 set_download_name("sdl3" "${SDL3_VERSION}" "${SDL3_URL}")
 
 set(BROTLI_VERSION "1.2.1")
@@ -38,9 +38,9 @@ set(FREETYPE_HASH "SHA512=c3b6b0cc4b428c9c647ab2148386901dfd315273b68051940e8fea
 set_download_name("freetype" "${FREETYPE_VERSION}" "${FREETYPE_URL}")
 unset(_freetype_ver_temp)
 
-set(LIBJPEG_VERSION "3.2.0")
+set(LIBJPEG_VERSION "3.2.1")
 set(LIBJPEG_URL "https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/${LIBJPEG_VERSION}/libjpeg-turbo-${LIBJPEG_VERSION}.tar.gz")
-set(LIBJPEG_HASH "SHA512=13536db56c16e5364690ae2d31343a203e3b653c853c1f5314d36c8eb06700e92342737f1381f0171b3eb0223384c5fbcde91b55a46576952c4e75dc049cd045")
+set(LIBJPEG_HASH "SHA512=8a0be9e42f4dd0634d61ec76b959f8942c70237848bb2854baad8abd352483784b7c4f099823368fb3e40be5d9200fb4b2574aecdcebf225d74b09dc217948eb")
 set_download_name("libjpeg" "${LIBJPEG_VERSION}" "${LIBJPEG_URL}")
 
 set(LIBPNG_VERSION "1.6.59")

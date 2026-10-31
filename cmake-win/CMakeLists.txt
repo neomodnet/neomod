@@ -139,6 +139,7 @@ add_external_project(bzip2
 )
 
 add_external_project(libjpeg
+    DEPENDS zlib_external
     CMAKE_ARGS
         ${EXTERNAL_PROJECT_CMAKE_ARGS}
         -DENABLE_STATIC=ON
@@ -148,6 +149,7 @@ add_external_project(libjpeg
         -DREQUIRE_SIMD=OFF
         -DCMAKE_ASM_NASM_FLAGS="-DPIC"
         -DCMAKE_ASM_NASM_OBJECT_FORMAT=win64
+        -DWITH_SYSTEM_ZLIB=ON
     BUILD_COMMAND cmake --build <BINARY_DIR> --config ${CMAKE_BUILD_TYPE} --parallel ${CPU_COUNT}
 )
 
