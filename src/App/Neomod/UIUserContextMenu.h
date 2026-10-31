@@ -27,12 +27,18 @@ class UIUserLabel final : public CBaseUILabel {
    public:
     UIUserLabel(i32 user_id, std::string username);
 
+    // twitch purple, for users who are live
+    static constexpr Color LIVE_COLOR{0xff9146ff};
+
     void draw() override;
     void onMouseUpInside(bool left = true, bool right = false) override;
     void onMouseInside() override;
     void onMouseOutside() override;
 
     i32 user_id;
+
+    // when false, the text color stays as set even if the user is live
+    bool show_live{true};
 
    private:
     AnimFloat hover_anim{0.f};

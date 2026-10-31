@@ -599,6 +599,7 @@ void RoomScreen::updateLayout(vec2 newResolution) {
             user_box->setFont(this->lfont);
             user_box->setPos(avatar->getRelPos().x + avatar->getSize().x + 10, y_total);
             user_box->setTextColor(color);
+            user_box->show_live = !slot.is_ready();
             user_box->setSizeToContent();
             user_box->setSize(user_box->getSize().x, SLOT_HEIGHT);
             this->slotlist->container.addBaseUIElement(user_box);

@@ -1,6 +1,7 @@
 // Copyright (c) 2025, kiwec, All rights reserved.
 #include "UserCard2.h"
 
+#include "BanchoProtocol.h"
 #include "BanchoUsers.h"
 #include "Color.h"
 #include "Engine.h"
@@ -186,7 +187,9 @@ void UserCard2::draw() {
 
         g->scale(scale, scale);
         g->translate(this->getPos().x + xCounter, this->getPos().y + yCounter);
-        g->setColor(0xffffffff);
+        using namespace flags::operators;
+        g->setColor((this->info->privileges & Privileges::LIVE_ON_TWITCH) ? UIUserLabel::LIVE_COLOR
+                                                                          : Color(0xffffffff));
         g->drawString(usernameFont, this->info->name);
     }
     g->popTransform();

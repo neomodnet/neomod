@@ -417,6 +417,7 @@ void AboutScreen::buildChangelog() {
         R"(- Fixed leaderboards sorted by pp sometimes showing scores out of order)",
         R"(- Online leaderboards now show your personal best on the server instead of the best local score)",
         R"(- Replaced default skin cursor)",
+        R"(- Usernames of players who are live on Twitch are shown in purple)",
         R"(- ScoreV2: fixed sliders downgraded by missed ticks or ends not showing their result)",
         R"(- Fixed beatmapsets named with a leading number (e.g. "07th Expansion") taking it as their set ID, which could import them into an unrelated set)",
         R"(- Fixed beatmap backgrounds and videos named without quotes but with an offset not being found)",

@@ -5,6 +5,7 @@
 
 #include "Bancho.h"
 #include "BanchoNetworking.h"
+#include "BanchoProtocol.h"
 #include "BanchoUsers.h"
 #include "Chat.h"
 #include "Color.h"
@@ -294,7 +295,16 @@ void UIUserLabel::draw() {
         g->fillRect(this->getPos(), this->getSize());
     }
 
-    CBaseUILabel::draw();
+    using namespace flags::operators;
+    const auto *user = BANCHO::User::try_get_user_info(this->user_id);
+    if(this->show_live && user && (user->privileges & Privileges::LIVE_ON_TWITCH)) {
+        const Color color = this->getTextColor();
+        this->setTextColor(LIVE_COLOR);
+        CBaseUILabel::draw();
+        this->setTextColor(color);
+    } else {
+        CBaseUILabel::draw();
+    }
 }
 
 void UIUserLabel::onMouseUpInside(bool /*left*/, bool /*right*/) {

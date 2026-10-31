@@ -33,6 +33,7 @@ enum class Privileges : uint8_t {
     OWNER = 8,
     DEVELOPER = 16,
     TOURNAMENT_STAFF = 32,
+    LIVE_ON_TWITCH = 64,
 
     // Made-up flag for convenience
     MODERATOR = NOMINATOR | OWNER | DEVELOPER | TOURNAMENT_STAFF,
