@@ -15,8 +15,6 @@
 #include "Chat.h"
 #include "ContainerRanges.h"
 #include "Database.h"
-#include "Engine.h"
-#include "Font.h"
 #include "i18n.h"
 #include "KeyBindings.h"
 #include "MainMenu.h"
@@ -35,8 +33,8 @@
 #include "MakeDelegateWrapper.h"
 #include "DatabaseBeatmap.h"
 
-RoomUIElement::RoomUIElement(Lobby* multi, const Room& room, float x, float y, float width, float height)
-    : CBaseUIScrollView(x, y, width, height, {}) {
+RoomUIElement::RoomUIElement(Lobby* multi, const Room& room, float x, float y, float width)
+    : CBaseUIScrollView(x, y, width, 0.f, {}) {
     // NOTE: We can't store the room pointer, since it might expire later
     this->multi = multi;
     this->room_id = room.id;
@@ -45,31 +43,42 @@ RoomUIElement::RoomUIElement(Lobby* multi, const Room& room, float x, float y, f
     this->setBlockScrolling(true);
     this->setDrawFrame(true);
 
-    const float title_width = multi->font->getStringWidth(room.name) + 20.f;
-    auto* title_ui = new CBaseUILabel(10.f, 5.f, title_width, 30.f, {}, room.name);
+    const f32 margin = 10.f * Osu::getUIScale();
+    const f32 line_padding = 6.f * Osu::getUIScale();
+    f32 line_y = margin - line_padding;
+
+    auto* title_ui = new CBaseUILabel(margin, line_y, 0.f, 0.f, {}, room.name);
+    title_ui->setSizeToContent(0, (i32)line_padding);
     title_ui->setDrawFrame(false);
     title_ui->setDrawBackground(false);
     this->container.addBaseUIElement(title_ui);
+    line_y += title_ui->getSize().y;
 
-    std::string player_count_str = tformat("Players: {:d}/{:d}", room.nb_players, room.nb_open_slots);
-    const float player_count_width = multi->font->getStringWidth(player_count_str) + 20.f;
-    auto* slots_ui = new CBaseUILabel(10.f, 33.f, player_count_width, 30.f, {}, std::move(player_count_str));
+    auto* slots_ui = new CBaseUILabel(margin, line_y, 0.f, 0.f, {},
+                                      tformat("Players: {:d}/{:d}", room.nb_players, room.nb_open_slots));
+    slots_ui->setSizeToContent(0, (i32)line_padding);
     slots_ui->setDrawFrame(false);
     slots_ui->setDrawBackground(false);
     this->container.addBaseUIElement(slots_ui);
+    line_y += slots_ui->getSize().y + line_padding;
 
-    this->join_btn = new UIButton(10.f, 65.f, 120.f, 30.f, {}, _("Join room"));
+    this->join_btn = new UIButton(margin, line_y, 0.f, 0.f, {}, _("Join room"));
+    this->join_btn->setSizeToContent((i32)(2 * margin), (i32)line_padding);
     this->join_btn->setUseDefaultSkin();
     this->join_btn->setColor(0xff00d900);
     this->join_btn->setClickCallback(SA::MakeDelegate<&RoomUIElement::onRoomJoinButtonClick>(this));
     this->container.addBaseUIElement(this->join_btn);
 
     if(room.has_password) {
-        auto* pwlabel = new CBaseUILabel(135.f, 64.f, 150.f, 30.f, {}, _("(password required)"));
+        auto* pwlabel = new CBaseUILabel(margin * 1.5f + this->join_btn->getSize().x, line_y, 0.f,
+                                         this->join_btn->getSize().y, {}, _("(password required)"));
+        pwlabel->setWidthToContent(0);
         pwlabel->setDrawFrame(false);
         pwlabel->setDrawBackground(false);
         this->container.addBaseUIElement(pwlabel);
     }
+
+    this->setSizeY(line_y + this->join_btn->getSize().y + margin);
 }
 
 void RoomUIElement::onRoomJoinButtonClick(CBaseUIButton* /*btn*/) {
@@ -83,8 +92,6 @@ void RoomUIElement::onRoomJoinButtonClick(CBaseUIButton* /*btn*/) {
 }
 
 Lobby::Lobby() : UIScreen() {
-    this->font = engine->getDefaultFont();
-
     auto* heading = new CBaseUILabel(50.f, 30.f, 300.f, 40.f, {}, _("Multiplayer rooms"));
     heading->setFont(osu->getTitleFont());
     heading->setSizeToContent(0, 0);
@@ -202,14 +209,13 @@ void Lobby::updateLayout(vec2 newResolution) {
         70 + std::round(newResolution.y * free_ratio / 2) - this->create_room_btn->getSize().y / 2);
 
     const f32 room_margin = 20.f * Osu::getUIScale();
-    const f32 room_height = 105.f * Osu::getUIScale();
     f32 y = room_margin / 2.f;
     for(const auto& room : this->rooms) {
         const f32 x = 10.f * Osu::getUIScale();
         const f32 room_width = this->list->getSize().x - room_margin;
-        auto* room_ui = new RoomUIElement(this, *room, x, y, room_width, room_height);
+        auto* room_ui = new RoomUIElement(this, *room, x, y, room_width);
         this->list->container.addBaseUIElement(room_ui);
-        y += room_height + room_margin;
+        y += room_ui->getSize().y + room_margin;
     }
 
     this->list->setScrollSizeToContent();

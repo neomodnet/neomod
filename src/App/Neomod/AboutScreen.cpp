@@ -420,6 +420,7 @@ void AboutScreen::buildChangelog() {
         R"(- ScoreV2: fixed sliders downgraded by missed ticks or ends not showing their result)",
         R"(- Fixed beatmapsets named with a leading number (e.g. "07th Expansion") taking it as their set ID, which could import them into an unrelated set)",
         R"(- Fixed beatmap backgrounds and videos named without quotes but with an offset not being found)",
+        R"(- Fixed the multiplayer room list not scaling with DPI (overlapping text, cut off "Join room" button))",
     };
     changelogs.push_back(std::move(v44_02));
 
