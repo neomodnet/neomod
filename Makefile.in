@@ -9127,7 +9127,7 @@ $(CACERT_INCDIR)/cacert.pem:
 @USE_BASS_TRUE@$(DEPS_PREFIX)/bass-$(BASS_VERSION).built: $(DEPS_CACHE)/bass-$(BASS_VERSION)-$(SYSNAME).source
 @USE_BASS_TRUE@	$(MKDIR_P) $(DEPS_PREFIX)
 @USE_BASS_TRUE@	touch $@
-@BUILD_LIBJPEG_TRUE@$(DEPS_PREFIX)/libjpeg-$(LIBJPEG_VERSION).built: $(DEPS_CACHE)/libjpeg-$(LIBJPEG_VERSION).tar.gz
+@BUILD_LIBJPEG_TRUE@$(DEPS_PREFIX)/libjpeg-$(LIBJPEG_VERSION).built: $(DEPS_PREFIX)/zlib-$(ZLIB_VERSION).built $(DEPS_CACHE)/libjpeg-$(LIBJPEG_VERSION).tar.gz
 @BUILD_LIBJPEG_TRUE@	rm -rf $(DEPS_PREFIX)/libjpeg
 @BUILD_LIBJPEG_TRUE@	$(MKDIR_P) $(DEPS_PREFIX)/libjpeg/build $(DEPS_PREFIX)/lib/pkgconfig
 @BUILD_LIBJPEG_TRUE@	$(TAR) xf $(DEPS_CACHE)/libjpeg-$(LIBJPEG_VERSION).tar.gz -C $(DEPS_PREFIX)/libjpeg --strip-components=1 && \

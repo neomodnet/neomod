@@ -601,7 +601,7 @@ endif # USE_BASS
 if BUILD_LIBJPEG
 LIBJPEG_CFLAGS += $(shell $(PKG_CONFIG) --cflags libturbojpeg)
 LIBJPEG_LIBS += $(shell $(PKG_CONFIG) --libs libturbojpeg)
-$(DEPS_PREFIX)/libjpeg-$(LIBJPEG_VERSION).built: $(DEPS_CACHE)/libjpeg-$(LIBJPEG_VERSION).tar.gz
+$(DEPS_PREFIX)/libjpeg-$(LIBJPEG_VERSION).built: $(DEPS_PREFIX)/zlib-$(ZLIB_VERSION).built $(DEPS_CACHE)/libjpeg-$(LIBJPEG_VERSION).tar.gz
 	rm -rf $(DEPS_PREFIX)/libjpeg
 	$(MKDIR_P) $(DEPS_PREFIX)/libjpeg/build $(DEPS_PREFIX)/lib/pkgconfig
 	$(TAR) xf $(DEPS_CACHE)/libjpeg-$(LIBJPEG_VERSION).tar.gz -C $(DEPS_PREFIX)/libjpeg --strip-components=1 && \
