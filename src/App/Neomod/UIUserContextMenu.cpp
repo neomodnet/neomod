@@ -188,8 +188,7 @@ void UIUserContextMenuScreen::on_action(std::string_view text, int user_action) 
 
             auto scheme = cv::use_https.getBool() ? "https://" : "http://";
             auto url = fmt::format("{}osu.{}/u/{}", scheme, endpoint, this->user_id);
-            ui->getNotificationOverlay()->addNotification("Opening browser, please wait ...", 0xffffffff, false, 0.75f);
-            env->openURLInDefaultBrowser(url);
+            osu->openURLWithNotification(url);
         } break;
         case UA_ADD_FRIEND: {
             Packet packet;
@@ -233,9 +232,7 @@ void UIUserContextMenuScreen::on_action(std::string_view text, int user_action) 
             if(BanchoState::endpoint == NEOMOD_DOMAIN) {
                 auto scheme = cv::use_https.getBool() ? "https://" : "http://";
                 auto url = fmt::format("{}" NEOMOD_DOMAIN "/settings/", scheme);
-                ui->getNotificationOverlay()->addNotification("Opening browser, please wait ...", 0xffffffff, false,
-                                                              0.75f);
-                env->openURLInDefaultBrowser(url);
+                osu->openURLWithNotification(url);
             }
         } break;
         case UA_CHANGE_NAME: {

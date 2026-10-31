@@ -1852,10 +1852,8 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     this->addSubSection(_("FPoSu - Mouse"));
 
     UIButton *cm360CalculatorLinkButton = this->addButton("https://www.mouse-sensitivity.com/");
-    cm360CalculatorLinkButton->setClickCallback(SA::MakeDelegate([]() -> void {
-        ui->getNotificationOverlay()->addNotification(_("Opening browser, please wait ..."), 0xffffffff, false, 0.75f);
-        env->openURLInDefaultBrowser("https://www.mouse-sensitivity.com/");
-    }));
+    cm360CalculatorLinkButton->setClickCallback(
+        SA::MakeDelegate([]() -> void { osu->openURLWithNotification("https://www.mouse-sensitivity.com/"); }));
 
     cm360CalculatorLinkButton->setColor(0xff0e4a59);
     this->addLabel("");

@@ -388,8 +388,7 @@ void AboutScreen::onChangeClicked(CBaseUIButton *button) {
 
         debugLog("url = {:s}", url);
 
-        ui->getNotificationOverlay()->addNotification("Opening browser, please wait ...", 0xffffffff, false, 0.75f);
-        env->openURLInDefaultBrowser(url);
+        osu->openURLWithNotification(url);
     }
 }
 

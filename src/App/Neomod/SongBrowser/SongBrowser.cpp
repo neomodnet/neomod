@@ -3066,8 +3066,7 @@ void SongBrowser::onWebClicked(CBaseUIButton * /*button*/) {
 
         const auto scheme = cv::use_https.getBool() ? "https://" : "http://";
         const auto endpoint = BanchoState::is_online() ? BanchoState::endpoint : "ppy.sh";
-        env->openURLInDefaultBrowser(fmt::format("{:s}osu.{:s}/{:s}/{:d}", scheme, endpoint, b_or_s_endpoint, real_id));
-        ui->getNotificationOverlay()->addNotification(_("Opening browser, please wait ..."), 0xffffffff, false, 0.75f);
+        osu->openURLWithNotification(fmt::format("{:s}osu.{:s}/{:s}/{:d}", scheme, endpoint, b_or_s_endpoint, real_id));
     }
 }
 

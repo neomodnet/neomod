@@ -909,7 +909,12 @@ Mc::Registration Environment::openFolderWindow(FileDialogCallback callback, std:
 }
 
 Mc::Registration Environment::addPendingFileDialog(FileDialogCallback callback) {
-    this->pendingFileDialogs.push_back({.id = ++this->lastFileDialogId, .callback = std::move(callback)});
+    {
+        PendingFileDialog dialog;
+        dialog.id = ++this->lastFileDialogId;
+        dialog.callback = std::move(callback);
+        this->pendingFileDialogs.emplace_back(std::move(dialog));
+    }
     return {[](void *self, u64 id, Mc::Registration::End how) {
                 // a revoked one isn't answered (a detached one is)
                 auto &pending = static_cast<Environment *>(self)->pendingFileDialogs;

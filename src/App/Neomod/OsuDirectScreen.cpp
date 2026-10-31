@@ -81,8 +81,7 @@ void open_beatmap_page(i32 set_id) {
     const auto scheme = cv::use_https.getBool() ? "https://"sv : "http://"sv;
     const auto url = fmt::format("{}osu.{}/s/{}", scheme, BanchoState::endpoint, set_id);
     debugLog("opening map link {:s}", url);
-    ui->getNotificationOverlay()->addNotification(_("Opening browser, please wait ..."), 0xffffffff, false, 0.75f);
-    env->openURLInDefaultBrowser(url, /*preventFocusSteal=*/true);
+    osu->openURLWithNotification(url);
 }
 
 // the server takes these queries as keywords, so they must not be translated

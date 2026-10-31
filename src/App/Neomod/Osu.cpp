@@ -2321,3 +2321,10 @@ std::string Osu::getDefaultFallbackOsuFolder() {
 
     return folderRet;
 }
+
+void Osu::openURLWithNotification(std::string_view url) const {
+    if(!this->UIReady()) return;
+    this->ui_memb->getNotificationOverlay()->addNotification(_("Opening browser, please wait ..."), 0xffffffff, false,
+                                                             0.75f);
+    env->openURLInDefaultBrowser(url);
+}

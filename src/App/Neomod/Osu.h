@@ -241,6 +241,8 @@ class Osu final : public App, public MouseListener, public TouchListener {
     void rebuildRenderTargets();
     void reloadFonts();
 
+    void openURLWithNotification(std::string_view url) const;
+
     // callbacks
     void onWindowedResolutionChanged(std::string_view args);
     void onFSResChanged(std::string_view args);
