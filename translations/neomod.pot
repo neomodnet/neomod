@@ -2657,11 +2657,6 @@ msgstr ""
 msgid "FPoSu - Mouse"
 msgstr ""
 
-#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/OsuDirectScreen.cpp
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp
-msgid "Opening browser, please wait ..."
-msgstr ""
-
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "DPI:"
 msgstr ""
@@ -2931,6 +2926,10 @@ msgstr ""
 #: src/App/Neomod/Osu.cpp
 #, c++-format
 msgid "Couldn't export the skin to {:s}"
+msgstr ""
+
+#: src/App/Neomod/Osu.cpp
+msgid "Opening browser, please wait ..."
 msgstr ""
 
 #: src/App/Neomod/OsuDirectScreen.cpp

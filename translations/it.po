@@ -2779,11 +2779,6 @@ msgstr "Opacità sfondo"
 msgid "FPoSu - Mouse"
 msgstr "FPoSu - Mouse"
 
-#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/OsuDirectScreen.cpp
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp
-msgid "Opening browser, please wait ..."
-msgstr "Apertura del browser, attendi ..."
-
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "DPI:"
 msgstr "DPI:"
@@ -3060,6 +3055,10 @@ msgstr "Impossibile esportare la skin predefinita."
 #, c++-format
 msgid "Couldn't export the skin to {:s}"
 msgstr "Impossibile esportare la skin in {:s}"
+
+#: src/App/Neomod/Osu.cpp
+msgid "Opening browser, please wait ..."
+msgstr "Apertura del browser, attendi ..."
 
 #: src/App/Neomod/OsuDirectScreen.cpp
 #, c++-format

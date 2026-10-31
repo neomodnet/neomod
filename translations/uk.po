@@ -2779,11 +2779,6 @@ msgstr "Непрозорість фону"
 msgid "FPoSu - Mouse"
 msgstr "FPoSu - Миша"
 
-#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/OsuDirectScreen.cpp
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp
-msgid "Opening browser, please wait ..."
-msgstr "Відкриття браузера, зачекайте ..."
-
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "DPI:"
 msgstr "DPI:"
@@ -3060,6 +3055,10 @@ msgstr "Неможливо експортувати стандартний ск�
 #, c++-format
 msgid "Couldn't export the skin to {:s}"
 msgstr "Не вдалося експортувати скін у {:s}"
+
+#: src/App/Neomod/Osu.cpp
+msgid "Opening browser, please wait ..."
+msgstr "Відкриття браузера, зачекайте ..."
 
 #: src/App/Neomod/OsuDirectScreen.cpp
 #, c++-format

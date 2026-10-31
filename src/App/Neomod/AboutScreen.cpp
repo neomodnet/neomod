@@ -396,8 +396,15 @@ void AboutScreen::onChangeClicked(CBaseUIButton *button) {
 void AboutScreen::buildChangelog() {
     std::vector<CHANGELOG> changelogs;
 
+    CHANGELOG v44_03;
+    v44_03.title = "44.03 (" CHANGELOG_TIMESTAMP ")";
+    v44_03.changes = {
+        R"()",
+    };
+    changelogs.push_back(std::move(v44_03));
+
     CHANGELOG v44_02;
-    v44_02.title = "44.02 (" CHANGELOG_TIMESTAMP ")";
+    v44_02.title = "44.02 (2026-10-31)";
     v44_02.changes = {
         R"(- Added score submission results and map voting below the ranking screen)",
         R"(- Multiplayer rooms on neomod servers support override sliders and experimental mods)",

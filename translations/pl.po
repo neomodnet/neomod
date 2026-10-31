@@ -2781,11 +2781,6 @@ msgstr "Krycie tła"
 msgid "FPoSu - Mouse"
 msgstr "FPoSu - Mysz"
 
-#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/OsuDirectScreen.cpp
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp
-msgid "Opening browser, please wait ..."
-msgstr "Otwieranie przeglądarki, proszę czekać ..."
-
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "DPI:"
 msgstr "DPI:"
@@ -3062,6 +3057,10 @@ msgstr "Nie można wyeksportować domyślnego skina."
 #, c++-format
 msgid "Couldn't export the skin to {:s}"
 msgstr "Nie udało się wyeksportować skina do {:s}"
+
+#: src/App/Neomod/Osu.cpp
+msgid "Opening browser, please wait ..."
+msgstr "Otwieranie przeglądarki, proszę czekać ..."
 
 #: src/App/Neomod/OsuDirectScreen.cpp
 #, c++-format

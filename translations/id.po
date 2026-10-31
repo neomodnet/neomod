@@ -2779,11 +2779,6 @@ msgstr "Opasitas Latar"
 msgid "FPoSu - Mouse"
 msgstr "FPoSu - Mouse"
 
-#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/OsuDirectScreen.cpp
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp
-msgid "Opening browser, please wait ..."
-msgstr "Membuka browser, harap tunggu ..."
-
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "DPI:"
 msgstr "DPI:"
@@ -3060,6 +3055,10 @@ msgstr "Tidak bisa mengekspor skin bawaan."
 #, c++-format
 msgid "Couldn't export the skin to {:s}"
 msgstr "Tidak dapat mengekspor skin ke {:s}"
+
+#: src/App/Neomod/Osu.cpp
+msgid "Opening browser, please wait ..."
+msgstr "Membuka browser, harap tunggu ..."
 
 #: src/App/Neomod/OsuDirectScreen.cpp
 #, c++-format

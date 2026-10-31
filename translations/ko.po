@@ -2779,11 +2779,6 @@ msgstr "배경 불투명도"
 msgid "FPoSu - Mouse"
 msgstr "FPoSu - 마우스"
 
-#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/OsuDirectScreen.cpp
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp
-msgid "Opening browser, please wait ..."
-msgstr "브라우저를 여는 중, 잠시 기다려 주세요 ..."
-
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "DPI:"
 msgstr "DPI:"
@@ -3060,6 +3055,10 @@ msgstr "기본 스킨은 내보낼 수 없습니다."
 #, c++-format
 msgid "Couldn't export the skin to {:s}"
 msgstr "스킨을 {:s}(으)로 내보내지 못했습니다"
+
+#: src/App/Neomod/Osu.cpp
+msgid "Opening browser, please wait ..."
+msgstr "브라우저를 여는 중, 잠시 기다려 주세요 ..."
 
 #: src/App/Neomod/OsuDirectScreen.cpp
 #, c++-format

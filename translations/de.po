@@ -2781,11 +2781,6 @@ msgstr "Hintergrund-Deckkraft"
 msgid "FPoSu - Mouse"
 msgstr "FPoSu - Maus"
 
-#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/OsuDirectScreen.cpp
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp
-msgid "Opening browser, please wait ..."
-msgstr "Öffne Browser, bitte warten ..."
-
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "DPI:"
 msgstr "DPI:"
@@ -3062,6 +3057,10 @@ msgstr "Der Standard-Skin kann nicht exportiert werden."
 #, c++-format
 msgid "Couldn't export the skin to {:s}"
 msgstr "Skin konnte nicht nach {:s} exportiert werden"
+
+#: src/App/Neomod/Osu.cpp
+msgid "Opening browser, please wait ..."
+msgstr "Öffne Browser, bitte warten ..."
 
 #: src/App/Neomod/OsuDirectScreen.cpp
 #, c++-format

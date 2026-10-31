@@ -2779,11 +2779,6 @@ msgstr "背景不透明度"
 msgid "FPoSu - Mouse"
 msgstr "FPoSu - 鼠标"
 
-#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/OsuDirectScreen.cpp
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp
-msgid "Opening browser, please wait ..."
-msgstr "正在打开浏览器，请稍候 ..."
-
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "DPI:"
 msgstr "DPI："
@@ -3060,6 +3055,10 @@ msgstr "无法导出默认皮肤。"
 #, c++-format
 msgid "Couldn't export the skin to {:s}"
 msgstr "无法将皮肤导出到 {:s}"
+
+#: src/App/Neomod/Osu.cpp
+msgid "Opening browser, please wait ..."
+msgstr "正在打开浏览器，请稍候 ..."
 
 #: src/App/Neomod/OsuDirectScreen.cpp
 #, c++-format

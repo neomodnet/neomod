@@ -2781,11 +2781,6 @@ msgstr "背景の不透明度"
 msgid "FPoSu - Mouse"
 msgstr "FPoSu - マウス"
 
-#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/OsuDirectScreen.cpp
-#: src/App/Neomod/SongBrowser/SongBrowser.cpp
-msgid "Opening browser, please wait ..."
-msgstr "ブラウザを開いています、お待ちください..."
-
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "DPI:"
 msgstr "DPI:"
@@ -3062,6 +3057,10 @@ msgstr "デフォルトスキンはエクスポートできません。"
 #, c++-format
 msgid "Couldn't export the skin to {:s}"
 msgstr "スキンを {:s} にエクスポートできませんでした"
+
+#: src/App/Neomod/Osu.cpp
+msgid "Opening browser, please wait ..."
+msgstr "ブラウザを開いています、お待ちください..."
 
 #: src/App/Neomod/OsuDirectScreen.cpp
 #, c++-format
