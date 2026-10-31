@@ -3,7 +3,9 @@
 #include "BanchoPacket.h"
 #include "ModFlags.h"
 #include "EnumString.h"
+#include "Replay.h"
 
+#include <array>
 #include <string>
 
 enum class Action : uint8_t {
@@ -178,7 +180,7 @@ struct Slot {
     u8 status = 0;  // bitfield of [quit, complete, playing, no_map, ready, not_ready, locked, open]
     u8 team = 0;
     i32 player_id = 0;
-    LegacyFlags mods{};
+    Replay::Mods mods;  // (freemod rooms only)
 
     // From MATCH_PLAYER_SKIPPED
     bool skipped = false;
@@ -237,7 +239,8 @@ class Room {
 
     u8 in_progress = 0;
     u8 match_type = 0;
-    LegacyFlags mods{};
+    Replay::Mods mods;           // (in a freemod room only the shared ones, see with_shared_mods())
+    bool has_full_mods = false;  // the server sent the full mods, not only the legacy ones (and takes them back)
     bool has_password = false;
 
     std::string name;
@@ -275,6 +278,13 @@ class Room {
 
     [[nodiscard]] bool is_host() const;
     void pack(Packet &packet);
+
+    // what the given slot's player plays with
+    [[nodiscard]] Replay::Mods get_player_mods(const Slot &slot) const;
+
+    // the mods everyone in a freemod room plays with are the host's: the speed (timewarp too) and target. own with
+    // those taken from shared
+    [[nodiscard]] static Replay::Mods with_shared_mods(Replay::Mods own, const Replay::Mods &shared);
 };
 
 #pragma pack(push, 1)

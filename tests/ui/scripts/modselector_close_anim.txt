@@ -1,8 +1,8 @@
-# pins the ModSelector update-while-invisible HACKHACK (ModSelector.cpp): drag the AR
-# override up, click Reset All Mods (animated) then Close while the reset anim is still
-# in flight. the override cvar must settle to -1 (off) even though the screen went
-# invisible mid-anim. verified to FAIL (cvar stuck at 2.4) with the hack disabled.
-# P1's always-on tick() replaces the hack and must keep this green.
+# drag the AR override up, click Reset All Mods then Close right away: the override cvar is
+# -1 (off) once the screen is gone. this used to pin the ModSelector update-while-invisible
+# HACKHACK, when the reset animated the sliders and their callbacks kept setting the cvar
+# until the animation was done; the reset sets the cvars directly now, and the override
+# sliders don't animate (the AR block is where the pointer let go: the max).
 options_save_on_back 0
 debug_fixed_frametime 0.0166667
 ui_trace 1
@@ -22,7 +22,7 @@ mouse_to 850 79
 @wait 3
 mouse_up
 @wait 3
-ui_assert convar ar_override 12.1
+ui_assert convar ar_override 12.5
 mouse_to 640 559
 @wait 2
 mouse_down

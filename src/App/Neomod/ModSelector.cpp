@@ -230,8 +230,6 @@ ModSelector::ModSelector() : UIScreen() {
         this->addOverrideSlider(OvrSliderType::HP, _("HP Override"), _("HP:"), &cv::hp_override, 0.0f, 12.5f,
                                 _("Hit/Health Points (higher number = harder survival)."));
 
-    overrideCS.slider->setAnimated(false);  // quick fix for otherwise possible inconsistencies due to slider vertex
-                                            // buffers and animated CS changes
     auto changeCallback = SA::MakeDelegate<&ModSelector::onOverrideSliderChange>(this);
     for(auto *slider : std::array{overrideCS.slider, overrideAR.slider, overrideOD.slider, overrideHP.slider}) {
         slider->setChangeCallback(changeCallback);
@@ -257,7 +255,6 @@ ModSelector::ModSelector() : UIScreen() {
 
     overrideSpeed.slider->setChangeCallback(SA::MakeDelegate<&ModSelector::onOverrideSliderChange>(this));
     // overrideSpeed.slider->setValue(-1.0f, false);
-    overrideSpeed.slider->setAnimated(false);  // same quick fix as above
     overrideSpeed.slider->setLiveUpdate(false);
 
     this->speedSlider = overrideSpeed.slider;
@@ -464,6 +461,29 @@ void ModSelector::updateButtons(bool initial) {
     this->modButtonSV2->setAvailable(!isMulti);  // we use win condition instead in multi
     this->modButtonAUTO->setAvailable(!isMulti);
 
+    // of the override sliders and experimental mods, only what no server or skin decides. in a room (where they show
+    // only if its mods carry more than the grid's) only what its mods carry: not the speed and timewarp unless we are
+    // the host (like DT/HT, see Room::with_shared_mods()), and not the no pausing that every room has
+    const auto changeable = [isMulti](const ConVar &cvar) {
+        return cvar.getMaster() == CvarEditor::CLIENT && (!isMulti || Replay::Mods::covers(cvar));
+    };
+    for(const auto &overrideSlider : this->overrideSliders) {
+        const bool available = changeable(*overrideSlider.cvar) &&
+                               (overrideSlider.lockCvar == nullptr || changeable(*overrideSlider.lockCvar)) &&
+                               (isHostEquivalent || overrideSlider.type != OvrSliderType::SPEED);
+        overrideSlider.slider->setEnabled(available);
+        if(overrideSlider.lock != nullptr) {
+            overrideSlider.lock->setEnabled(available);
+            overrideSlider.desc->setEnabled(available);
+        }
+    }
+    for(const auto &experimentalMod : this->experimentalMods) {
+        if(experimentalMod.cvar == nullptr) continue;
+        experimentalMod.element->setEnabled(changeable(*experimentalMod.cvar) &&
+                                            !(isMulti && experimentalMod.cvar == &cv::mod_no_pausing) &&
+                                            (isHostEquivalent || experimentalMod.cvar != &cv::mod_timewarp));
+    }
+
 #undef MKIMGGETR
 }
 
@@ -511,7 +531,7 @@ void ModSelector::draw() {
         g->fillRect(0, 0, osu->getVirtScreenWidth(), osu->getVirtScreenHeight());
     }
 
-    if(BanchoState::is_in_a_multi_room()) {
+    if(this->showsGridOnly()) {
         // get mod button element bounds
         vec2 modGridButtonsStart = vec2(osu->getVirtScreenWidth(), osu->getVirtScreenHeight());
         vec2 modGridButtonsSize = vec2(0, osu->getVirtScreenHeight());
@@ -633,7 +653,7 @@ void ModSelector::draw() {
     }
 
     // draw experimental mods
-    if(!BanchoState::is_in_a_multi_room()) {
+    if(!this->showsGridOnly()) {
         const auto &expCont = this->experimentalContainer;
         const McRect expContRect = expCont->getRect();
         g->pushTransform();
@@ -651,12 +671,7 @@ void ModSelector::draw() {
 }
 
 void ModSelector::tick() {
-    // manual containers are ticked unconditionally: hidden override sliders settle via
-    // CBaseUISlider::tick, which is what used to require updating-while-invisible here
-    // NOTE: this is still a hack and slow!
     UIScreen::tick();
-    this->experimentalContainer->tick();
-    this->overrideSliderContainer->tick();
 
     if(!this->bVisible) {
         if(this->bScheduledHide) {
@@ -666,6 +681,10 @@ void ModSelector::tick() {
         }
         return;
     }
+
+    // (the manual containers aren't in vElements, which UIScreen::tick() only ticks while we're visible as well)
+    this->experimentalContainer->tick();
+    this->overrideSliderContainer->tick();
 
     this->nonSubmittableWarning->setVisible(BanchoState::can_submit_scores() &&
                                             !BanchoState::are_settings_submittable());
@@ -720,7 +739,7 @@ void ModSelector::updateInput(CBaseUIEventCtx &c) {
 
     UIScreen::updateInput(c);
 
-    if(!BanchoState::is_in_a_multi_room()) {
+    if(!this->showsGridOnly()) {
         this->overrideSliderContainer->updateInput(c);
 
         // override slider tooltips (ALT)
@@ -740,14 +759,7 @@ void ModSelector::updateInput(CBaseUIEventCtx &c) {
         }
 
         // handle experimental mods visibility
-        bool experimentalModEnabled = false;
-        for(const auto &experimentalMod : this->experimentalMods) {
-            if(const auto *checkboxPointer = dynamic_cast<CBaseUICheckbox *>(experimentalMod.element);
-               checkboxPointer != nullptr && checkboxPointer->isChecked()) {
-                experimentalModEnabled = true;
-                break;
-            }
-        }
+        const bool experimentalModEnabled = this->isExperimentalModEnabled();
 
         McRect experimentalTrigger = McRect(
             0, 0,
@@ -821,15 +833,7 @@ CBaseUIContainer *ModSelector::setVisible(bool visible) {
         this->fAnimation = 0.0f;
         this->fAnimation.set(1.0f, 0.1f, anim::QuadOut);
 
-        bool experimentalModEnabled = false;
-        for(const auto &experimentalMod : this->experimentalMods) {
-            const auto *checkboxPointer = dynamic_cast<CBaseUICheckbox *>(experimentalMod.element);
-            if(checkboxPointer != nullptr && checkboxPointer->isChecked()) {
-                experimentalModEnabled = true;
-                break;
-            }
-        }
-        if(experimentalModEnabled) {
+        if(this->isExperimentalModEnabled()) {
             this->bExperimentalVisible = true;
             if(this->isInCompactMode())
                 this->fExperimentalAnimation.set(1.0f, (1.0f - this->fExperimentalAnimation) * 0.06f, anim::QuadOut);
@@ -860,6 +864,17 @@ CBaseUIContainer *ModSelector::setVisible(bool visible) {
 }
 
 bool ModSelector::isInCompactMode() const { return osu->isInPlayMode(); }
+
+bool ModSelector::showsGridOnly() const {
+    return BanchoState::is_in_a_multi_room() && !BanchoState::room.has_full_mods;
+}
+
+bool ModSelector::isExperimentalModEnabled() const {
+    return Mc::ranges::contains(this->experimentalMods, true, [](const EXPERIMENTAL_MOD &experimentalMod) -> bool {
+        auto *checkboxPointer = dynamic_cast<CBaseUICheckbox *>(experimentalMod.element);
+        return checkboxPointer != nullptr && checkboxPointer->isChecked() && checkboxPointer->isEnabled();
+    });
+}
 
 bool ModSelector::isCSOverrideSliderActive() const { return this->CSSlider->isActive(); }
 
@@ -1102,7 +1117,7 @@ void ModSelector::updateExperimentalLayout() {
     expCont
         ->setScrollSizeToContent(1 * dpiScale)  //
         ->container.update_pos();               //
-    expCont->setVisible(!BanchoState::is_in_a_multi_room());
+    expCont->setVisible(!this->showsGridOnly());
 }
 
 const ModSelector::OVERRIDE_SLIDER ModSelector::addOverrideSlider(OvrSliderType typeEnum, const std::string &text,
@@ -1140,11 +1155,14 @@ const ModSelector::OVERRIDE_SLIDER ModSelector::addOverrideSlider(OvrSliderType 
         ->setDrawFrame(debugDrawFrame)      //
         ->setDrawBackground(false)          //
         ->setTextColor(color);              //
-    os.slider                               //
-        ->setBounds(min, max + 1.0f)        //
-        ->setKeyDelta(0.1f)                 //
-        ->setLiveUpdate(true)               //
-        ->setAllowMouseWheel(false);        //
+    // (not animated: the value is where the player lets go, an animated block would keep changing it afterwards. also
+    // avoids possible inconsistencies due to slider vertex buffers and animated CS changes)
+    os.slider                         //
+        ->setBounds(min, max + 1.0f)  //
+        ->setKeyDelta(0.1f)           //
+        ->setAnimated(false)          //
+        ->setLiveUpdate(true)         //
+        ->setAllowMouseWheel(false);  //
 
     if(os.cvar != nullptr) os.slider->setValue(os.cvar->getFloat() + 1.0f, false);
 
@@ -1184,6 +1202,7 @@ UICheckbox *ModSelector::addExperimentalCheckbox(const std::string &text, const 
     checkbox->setTooltipText(tooltipText);
     checkbox->setWidthToContent(0);
     if(cvar != nullptr) {
+        checkbox->setName(std::string{cvar->getName()});
         checkbox->setChecked(cvar->getBool());
         checkbox->setChangeCallback(SA::MakeDelegate<&ModSelector::onCheckboxChange>(this));
     }
@@ -1198,28 +1217,15 @@ UICheckbox *ModSelector::addExperimentalCheckbox(const std::string &text, const 
 }
 
 void ModSelector::resetModsUserInitiated() {
-    using namespace flags::operators;
-
     this->resetMods();
+    osu->updateMods();
+    this->useCurrentMods();
 
     soundEngine->play(osu->getSkin()->s_check_off);
     this->resetModsButton->animateClickColor();
 
-    if(BanchoState::is_in_a_multi_room()) {
-        LegacyFlags minimum_mods{};
-        if(!BanchoState::room.is_host()) {
-            minimum_mods = BanchoState::room.mods;
-            minimum_mods &= (LegacyFlags::DoubleTime | LegacyFlags::HalfTime | LegacyFlags::Target);
-        }
-
-        Packet packet;
-        packet.id = OUTP_MATCH_CHANGE_MODS;
-        packet.write<LegacyFlags>(minimum_mods);
-        BANCHO::Net::send_packet(packet);
-
-        // Don't wait on server response to update UI
-        Replay::Mods::use(Replay::Mods::from_legacy(minimum_mods));
-    }
+    // (in a room, the ones it shares come back from it)
+    ui->getRoomScreen()->onModsChanged();
 
     if(BanchoState::is_online()) {
         RichPresence::updateBanchoMods();
@@ -1229,17 +1235,12 @@ void ModSelector::resetModsUserInitiated() {
 void ModSelector::resetMods() {
     // cv::mod_fposu.setValue(false);  // intentionally commented out so people can play it in multi
 
+    // (everything goes to the convars directly: the controls' callbacks are for the player's input)
     for(const auto &overrideSlider : this->overrideSliders) {
-        if(overrideSlider.lock != nullptr) overrideSlider.lock->setChecked(false);
-    }
-
-    for(const auto &overrideSlider : this->overrideSliders) {
-        // HACKHACK: force small delta to force an update (otherwise values could get stuck, e.g. for "Use Mods" context
-        // menu)
-        // HACKHACK: only animate while visible to workaround "Use mods" bug (if custom speed multiplier already
-        // set and then "Use mods" with different custom speed multiplier would reset to 1.0x because of anim)
-        overrideSlider.slider->setValue(overrideSlider.slider->getMin() + 0.0001f, this->bVisible);
-        overrideSlider.slider->setValue(overrideSlider.slider->getMin(), this->bVisible);
+        if(overrideSlider.lock != nullptr) overrideSlider.lock->setChecked(false, false);
+        if(overrideSlider.lockCvar != nullptr) overrideSlider.lockCvar->setValue(false);
+        overrideSlider.slider->setValue(overrideSlider.slider->getMin(), false, false);
+        overrideSlider.cvar->setValue(-1.0f);
     }
 
     // the DT/HT buttons' convars only mirror the speed that was just reset: they go off with it instead of through
@@ -1257,7 +1258,7 @@ void ModSelector::resetMods() {
         if(auto *checkboxPointer = dynamic_cast<CBaseUICheckbox *>(experimentalMod.element)) {
             // HACKHACK: we update both just in case because if the mod selector was not yet visible after a convar
             // change (e.g. because of "Use mods") then the checkbox has not yet updated its internal state
-            checkboxPointer->setChecked(false);
+            checkboxPointer->setChecked(false, false);
             if(cvar != nullptr) cvar->setValue(0.0f);
         }
     }
@@ -1377,6 +1378,9 @@ void ModSelector::onOverrideSliderChange(CBaseUISlider *slider) {
     osu->updateMods();
 
     this->updateOverrideSliderLabels();
+
+    // (once the player lets go of it)
+    if(!slider->isBusy()) ui->getRoomScreen()->onModsChanged();
 }
 
 void ModSelector::onOverrideSliderLockChange(CBaseUICheckbox *checkbox) {
@@ -1410,6 +1414,8 @@ void ModSelector::onOverrideSliderLockChange(CBaseUICheckbox *checkbox) {
     osu->updateMods();
 
     this->updateOverrideSliderLabels();
+
+    ui->getRoomScreen()->onModsChanged();
 }
 
 void ModSelector::updateOverrideSliderLabels() {
@@ -1437,7 +1443,7 @@ void ModSelector::updateOverrideSliderLabels() {
         // update lock checkbox
         if(overrideSlider.lock != nullptr && overrideSlider.lockCvar != nullptr &&
            overrideSlider.lock->isChecked() != overrideSlider.lockCvar->getBool())
-            overrideSlider.lock->setChecked(overrideSlider.lockCvar->getBool());
+            overrideSlider.lock->setChecked(overrideSlider.lockCvar->getBool(), false);
     }
 }
 
@@ -1552,6 +1558,8 @@ void ModSelector::onCheckboxChange(CBaseUICheckbox *checkbox) {
     if(osu->isInPlayMode()) osu->getMapInterface()->onModUpdate();
 
     osu->updateMods();
+
+    ui->getRoomScreen()->onModsChanged();
 }
 
 void ModSelector::onResolutionChange(vec2 newResolution) {

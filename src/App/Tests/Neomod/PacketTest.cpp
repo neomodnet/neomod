@@ -2,6 +2,7 @@
 #include "PacketTest.h"
 
 #include "TestMacros.h"
+#include "Bancho.h"
 #include "BanchoPacket.h"
 #include "BanchoProtocol.h"
 #include "Engine.h"
@@ -203,7 +204,7 @@ void PacketTest::update() {
         room.id = 1234;
         room.in_progress = 1;
         room.match_type = 0;
-        room.mods = static_cast<LegacyFlags>(72u);  // hidden + doubletime
+        room.mods = Replay::Mods::from_legacy(static_cast<LegacyFlags>(72u));  // hidden + doubletime
         room.name = "Test Room";
         room.password = "hunter2";
         room.map_name = "artist - title [diff]";
@@ -219,9 +220,9 @@ void PacketTest::update() {
         room.slots[0].status = 4;                      // not ready (occupied by us)
         room.slots[0].player_id = 2;
         room.slots[0].team = 1;
-        room.slots[0].mods = static_cast<LegacyFlags>(8u);  // hidden
-        room.slots[3].status = 2;                           // locked
-        room.slots[5].status = 8;                           // ready
+        room.slots[0].mods = Replay::Mods::from_legacy(static_cast<LegacyFlags>(8u));  // hidden
+        room.slots[3].status = 2;                                                      // locked
+        room.slots[5].status = 8;                                                      // ready
         room.slots[5].player_id = 77;
 
         Packet packet;
@@ -250,6 +251,97 @@ void PacketTest::update() {
             "occupied slot");
         TEST_ASSERT(parsed.slots[5].player_id == 77 && parsed.slots[5].is_ready(), "ready slot");
         TEST_ASSERT(parsed.slots[3].is_locked() && !parsed.slots[3].has_player(), "locked slot");
+    }
+
+    TEST_SECTION("room round trip with the full mods");
+    {
+        using namespace flags::operators;
+        BanchoState::fully_supports_neomod = true;
+
+        Room room;
+        room.id = 1;
+        room.host_id = 2;
+        room.freemods = 1;
+        room.has_full_mods = true;
+        for(auto &slot : room.slots) slot.status = 1;  // open
+        room.slots[0].status = 4;                      // not ready
+        room.slots[0].player_id = 2;
+        room.slots[2].status = 8;  // ready
+        room.slots[2].player_id = 77;
+        room.mods.flags = ModFlags::Timewarp;
+        room.mods.speed = 1.25f;
+        room.mods.timewarp_multiplier = 1.3f;
+        room.slots[0].mods.flags = ModFlags::Hidden | ModFlags::Wobble1;
+        room.slots[0].mods.ar_override = 9.5f;
+        room.slots[0].mods.wobble_strength = 30.f;
+        room.slots[2].mods.flags = ModFlags::HardRock | ModFlags::AROverrideLock;
+        room.slots[2].mods.ar_override = 10.f;
+
+        Packet packet;
+        room.pack(packet);
+        PacketReader reader{packet.data};
+        const Room parsed(reader);
+        TEST_ASSERT(reader.good() && reader.remaining() == 0, "Room::pack and Room(PacketReader) agree on the layout");
+        TEST_ASSERT(parsed.has_full_mods, "the room has the full mods");
+        TEST_ASSERT(parsed.mods == room.mods, "room mods");
+        TEST_ASSERT(parsed.slots[0].mods == room.slots[0].mods && parsed.slots[2].mods == room.slots[2].mods,
+                    "the players' mods");
+
+        // the room's speed and timewarp are everyone's
+        const Replay::Mods player = parsed.get_player_mods(parsed.slots[0]);
+        TEST_ASSERT(player.speed == 1.25f && player.has(ModFlags::Timewarp) && player.timewarp_multiplier == 1.3f &&
+                        player.has(ModFlags::Hidden | ModFlags::Wobble1) && player.ar_override == 9.5f &&
+                        player.wobble_strength == 30.f,
+                    "a freemod player's mods come with the room's shared ones");
+
+        // a neomod server that doesn't send them (an older one) leaves the room at the legacy mods
+        room.has_full_mods = false;
+        Packet without;
+        room.pack(without);
+        PacketReader without_reader{without.data};
+        const Room older_server(without_reader);
+        TEST_ASSERT(without_reader.good() && !older_server.has_full_mods, "a room without the full mods");
+        TEST_ASSERT(older_server.mods == Replay::Mods::from_legacy(LegacyFlags::DoubleTime) &&
+                        older_server.slots[0].mods == Replay::Mods::from_legacy(LegacyFlags::Hidden),
+                    "keeps the legacy mods (not zeros)");
+
+        // and so do cut off ones
+        PacketReader cut_reader{std::span{packet.data}.first(packet.data.size() - 1)};
+        const Room cut(cut_reader);
+        TEST_ASSERT(
+            !cut.has_full_mods && cut.mods == older_server.mods && cut.slots[2].mods == older_server.slots[2].mods,
+            "cut off full mods leave the room at the legacy ones");
+
+        // what a newer version adds to a room's mods is skipped, the slots' still line up
+        Packet longer;
+        room.pack(longer);
+        Packet blob;
+        Replay::Mods::pack_and_write(blob, room.mods);
+        blob.write<f32>(42.f);
+        longer.write_uleb128(blob.data.size());
+        longer.write_bytes(blob.data);
+        for(const auto i : {0, 2}) {
+            Packet slot_blob;
+            Replay::Mods::pack_and_write(slot_blob, room.slots[i].mods);
+            longer.write_uleb128(slot_blob.data.size());
+            longer.write_bytes(slot_blob.data);
+        }
+        PacketReader longer_reader{longer.data};
+        const Room newer(longer_reader);
+        TEST_ASSERT(newer.has_full_mods && newer.mods == room.mods && newer.slots[0].mods == room.slots[0].mods &&
+                        newer.slots[2].mods == room.slots[2].mods,
+                    "longer mods from a newer version");
+
+        // what a client that only knows the legacy layout gets out of it
+        BanchoState::fully_supports_neomod = false;
+        PacketReader legacy_reader{packet.data};
+        const Room legacy(legacy_reader);
+        TEST_ASSERT(legacy_reader.good() && legacy_reader.remaining() > 0, "the full mods follow the legacy layout");
+        TEST_ASSERT(!legacy.has_full_mods, "which it leaves alone");
+        TEST_ASSERT(legacy.mods == Replay::Mods::from_legacy(LegacyFlags::DoubleTime),
+                    "legacy room mods approximate the full ones");
+        TEST_ASSERT(legacy.slots[2].mods == Replay::Mods::from_legacy(LegacyFlags::HardRock),
+                    "legacy player mods approximate the full ones");
     }
 
     TEST_SECTION("mods round trip");

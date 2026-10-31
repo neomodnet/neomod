@@ -171,7 +171,6 @@ void CBaseUISlider::tick() {
 
     // handle animation value settings after mouse release
     // deliberately not gated on visibility: a hidden slider's block animation still settles
-    // (lets e.g. ModSelector close mid-animation without updating-while-invisible)
     const bool activeMouseMotion{this->bActive && (vec2{mouse->getPos()} != this->vLastMousePos)};
     if(!activeMouseMotion) {
         if(this->vBlockPos.x.animating()) {
@@ -203,7 +202,7 @@ void CBaseUISlider::tick() {
 }
 
 void CBaseUISlider::onKeyDown(KeyboardEvent &e) {
-    if(!this->bVisible) return;
+    if(!this->bVisible || !this->bEnabled) return;
 
     if(this->isMouseInside()) {
         if(e == KEY_LEFT) {

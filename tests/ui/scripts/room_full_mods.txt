@@ -1,0 +1,65 @@
+# a room on a server that takes the full mods (debug_fake_online neomod: what logging in to a neomod server does) shows
+# the override sliders and the experimental mods along with the grid, and what the player picks there stays on: the
+# room takes it over and applies its mods again right away. what its mods don't carry (the mirrors are only convars)
+# and the no pausing that every room has can't be changed, and a reset leaves the latter on. on a server that only
+# takes the legacy mods, a room shows nothing but the grid. synthetic rooms (debug_fake_room, we're the host), F1 opens
+# the mod selector; the room runs frames on the wall clock, hence @wait_secs for animations.
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+debug_fake_online neomod
+debug_fake_room
+@wait 20
+ui_assert screen_active room 1
+sendkey F1
+@wait_secs 1
+ui_assert visible modselector 1
+ui_assert visible modsel_experimental 1
+ui_assert enabled modsel_ar 1
+ui_assert enabled mod_wobble 1
+ui_assert enabled playfield_mirror_horizontal 0
+ui_assert enabled mod_no_pausing 0
+mouse_to 460 79
+@wait 3
+mouse_down
+@wait 3
+mouse_to 700 79
+@wait 3
+mouse_up
+@wait 5
+ui_assert convar ar_override 8.1
+mouse_to 20 300
+@wait_secs 1
+mouse_to 57 471
+@wait 3
+mouse_down
+@wait 3
+mouse_up
+@wait 5
+ui_assert convar mod_wobble 1
+ui_assert convar ar_override 8.1
+ui_assert convar mod_no_pausing 1
+sendkey 1
+@wait 5
+ui_assert convar ar_override -1
+ui_assert convar mod_wobble 0
+ui_assert convar mod_no_pausing 1
+sendkey Escape
+@wait_secs 1
+debug_fake_online 0
+@wait 20
+ui_assert visible room 0
+ui_assert convar mod_no_pausing 0
+debug_fake_room
+@wait 20
+ui_assert screen_active room 1
+sendkey F1
+@wait_secs 1
+ui_assert visible modselector 1
+ui_assert visible modsel_experimental 0
+exit

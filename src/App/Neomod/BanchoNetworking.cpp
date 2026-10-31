@@ -574,6 +574,7 @@ void BanchoState::fake_join_room(bool with_selected_map) {
     room.slots[0].player_id = BanchoState::get_uid();
     room.nb_players = 1;
     room.nb_open_slots = 15;
+    room.has_full_mods = BanchoState::fully_supports_neomod;  // (as a neomod server's room)
     // as a server's room with the selected map picked
     if(const auto *map = osu->getMapInterface()->getBeatmap(); with_selected_map && map) {
         room.map_id = map->getID();

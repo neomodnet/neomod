@@ -3,6 +3,7 @@
 
 #include <utility>
 
+#include "Color.h"
 #include "Engine.h"
 #include "MakeDelegateWrapper.h"
 #include "Font.h"
@@ -33,9 +34,13 @@ void CBaseUICheckbox::draw() {
         g->drawRect(this->getPos(), this->getSize());
     }
 
+    // (dimmed while disabled)
+    const Color frameColor = this->bEnabled ? this->frameColor : Colors::scale(this->frameColor, 0.5f);
+    const Color textColor = this->bEnabled ? this->textColor : Colors::scale(this->textColor, 0.5f);
+
     // draw hover rects
     const int hoverRectOffset = std::round(3.0f * dpiScale);
-    g->setColor(this->frameColor);
+    g->setColor(frameColor);
     const bool drawClickHeldRect = this->bActive;
     const bool drawHoverRect = !drawClickHeldRect && (this->bEnabled && this->isMouseInside());
     if(drawHoverRect || drawClickHeldRect) this->drawHoverRect(hoverRectOffset, drawClickHeldRect);
@@ -56,7 +61,7 @@ void CBaseUICheckbox::draw() {
     if(this->font != nullptr && this->getText().length() > 0) {
         // g->pushClipRect(McRect(this->getPos().x + 1, this->getPos().y + 1, this->getSize().x - 1, this->getSize().y - 1));
 
-        g->setColor(this->textColor);
+        g->setColor(textColor);
         g->pushTransform();
         {
             g->translate((int)(this->getPos().x + this->getBlockBorder() * 2 + this->getBlockSize()),
@@ -69,7 +74,7 @@ void CBaseUICheckbox::draw() {
             g->drawString(this->font, this->getText());
 
             g->translate(-shadowOffset, -shadowOffset);
-            g->setColor(this->textColor);
+            g->setColor(textColor);
             g->drawString(this->font, this->getText());
         }
         g->popTransform();

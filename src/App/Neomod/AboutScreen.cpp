@@ -401,6 +401,7 @@ void AboutScreen::buildChangelog() {
     v44_02.title = "44.02 (" CHANGELOG_TIMESTAMP ")";
     v44_02.changes = {
         R"(- Added score submission results and map voting below the ranking screen)",
+        R"(- Multiplayer rooms on neomod servers support override sliders and experimental mods)",
         R"(- Storyboard playback improvements:)",
         R"(  - Improved performance of large storyboards)",
         R"(  - Overlapping commands, flickering opacity and combined scaling/movement commands)",

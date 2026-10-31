@@ -6,6 +6,7 @@
 //       i just kept adding more stuff to McOsu's .h file! and now it makes little sense.
 
 class DatabaseBeatmap;
+class ConVar;
 
 namespace Replay {
 
@@ -82,6 +83,9 @@ struct Mods {
     // with_settings also applies what is a setting in the options menu rather than a mod (storyboard, FPoSu,
     // notelock type, ...), which only makes sense for reproducing someone's play exactly
     static void use(const Mods &mods, bool with_settings = false);
+
+    // whether the convar is one of those that mods are made of (not counting the settings among them)
+    [[nodiscard]] static bool covers(const ConVar &cvar);
 
     // mods that aren't the player's own choice (a multiplayer room's, a watched replay's, a spectated player's) get
     // used inside of a session (see ConVarHandler::beginSession()): what the player had selected before stays

@@ -8,6 +8,7 @@
 #include "Graphics.h"
 #include "SoundEngine.h"
 #include "Engine.h"
+#include "Font.h"
 #include "i18n.h"
 #include "Mouse.h"
 #include "Keyboard.h"
@@ -23,6 +24,7 @@
 #include "CBaseUILabel.h"
 #include "CBaseUITextbox.h"
 #include "Chat.h"
+#include "ContainerRanges.h"
 #include "OsuConVars.h"
 #include "ConVarHandler.h"
 #include "Database.h"
@@ -40,9 +42,12 @@
 #include "Skin.h"
 #include "SkinImage.h"
 #include "SongBrowser/InfoLabel.h"
+#include "SongBrowser/ScoreButton.h"
 #include "SongBrowser/SongBrowser.h"
 #include "SongBrowser/SongButton.h"
 #include "SpectatorScreen.h"
+#include "SString.h"
+#include "TooltipOverlay.h"
 #include "UI.h"
 #include "UIAvatar.h"
 #include "UIButton.h"
@@ -59,31 +64,51 @@ using namespace flags::operators;
 
 struct UIModList::ModImageList : public std::vector<SkinImage Skin::*> {};
 
-UIModList::UIModList(LegacyFlags *flags)
-    : CBaseUIContainer(0, 0, 0, 0, "mod_list"), flags(flags), mod_images(new ModImageList()) {}
+UIModList::UIModList() : CBaseUIContainer(0, 0, 0, 0, "mod_list"), mod_images(new ModImageList()) {}
 UIModList::~UIModList() = default;
 
-void UIModList::draw() {
-    // TODO: when can this->flags actually change? why can't we just store the flags ourselves instead of using a pointer
-    if(this->last_flags != *this->flags) {
-        this->last_flags = *this->flags;
+void UIModList::setMods(const Replay::Mods &mods) {
+    if(mods == this->mods) return;
+    this->mods = mods;
 
-        Replay::Mods temp = Replay::Mods::from_legacy(*this->flags);
-        // clientside nightcore
-        if(cv::nightcore_enjoyer.getBool() && (temp.speed == 1.5f || temp.speed == 0.75f)) {
-            temp.flags |= ModFlags::NoPitchCorrection;
-        } else {
-            temp.flags &= ~ModFlags::NoPitchCorrection;
-        }
-
-        this->mod_images->clear();
-        Skin::getModImagesForMods(*this->mod_images, temp);
+    Replay::Mods temp = mods;
+    // clientside nightcore
+    if(cv::nightcore_enjoyer.getBool() && (temp.speed == 1.5f || temp.speed == 0.75f)) {
+        temp.flags |= ModFlags::NoPitchCorrection;
+    } else {
+        temp.flags &= ~ModFlags::NoPitchCorrection;
     }
 
+    this->mod_images->clear();
+    Skin::getModImagesForMods(*this->mod_images, temp);
+
+    // a speed that isn't DT/HT (those have their icons), the override sliders' values, the experimental mods
+    this->names.clear();
+    if(mods.speed != 1.f && mods.speed != 1.5f && mods.speed != 0.75f) {
+        this->names.push_back(tformat("{:.4g}x", mods.speed));
+    }
+    const auto addOverride = [this](std::string_view name, f32 value, bool locked) {
+        if(value < 0.f) return;
+        // TRANSLATORS: an override slider's value that doesn't change with the speed, e.g. "AR 9.5 (locked)"
+        this->names.push_back(locked ? tformat("{} {:.4g} (locked)", name, value)
+                                     : fmt::format("{} {:.4g}", name, value));
+    };
+    addOverride("CS", mods.cs_override, false);
+    addOverride("AR", mods.ar_override, mods.has(ModFlags::AROverrideLock));
+    addOverride("OD", mods.od_override, mods.has(ModFlags::ODOverrideLock));
+    addOverride("HP", mods.hp_override, false);
+    for(auto &name : ScoreButton::getExtraModNamesForDisplay(mods)) {
+        this->names.push_back(std::move(name));
+    }
+    this->names_text = SString::join(this->names, ", ");
+}
+
+void UIModList::draw() {
     g->setColor(0xffffffff);
     vec2 mod_pos = this->getPos();
 
     const auto *skin = osu->getSkin();
+    float last_width = 0.f;
     for(const auto memb : *this->mod_images) {
         const SkinImage &mod_icon = skin->*memb;
         float target_height = this->getSize().y;
@@ -98,10 +123,37 @@ void UIModList::draw() {
         // Overlap mods a bit, just like peppy's client does
         // TODO: check if this is right... should probably re-use the logic in RankingScreen?
         mod_pos.x += target_width * 0.6f;
+        last_width = target_width;
     }
+
+    if(this->names_text.empty()) return;
+
+    // (past the last icon, which doesn't get overlapped)
+    McFont *font = engine->getDefaultFont();
+    const f32 text_x = mod_pos.x + last_width * 0.4f + (last_width > 0.f ? 10.f * Osu::getUIScale() : 0.f);
+    g->pushClipRect(McRect(this->getPos(), this->getSize()));
+    g->pushTransform();
+    {
+        g->translate(std::round(text_x), std::round(this->getPos().y + (this->getSize().y + font->getHeight()) / 2.f));
+        g->drawString(font, this->names_text, TextFX{});
+    }
+    g->popTransform();
+    g->popClipRect();
 }
 
-bool UIModList::isVisible() { return !!*this->flags; }
+void UIModList::updateInput(CBaseUIEventCtx &c) {
+    CBaseUIContainer::updateInput(c);
+    if(!this->isMouseInside() || this->names.empty()) return;
+
+    auto *tto = ui->getTooltipOverlay();
+    tto->begin();
+    for(const auto &name : this->names) {
+        tto->addLine(name);
+    }
+    tto->end();
+}
+
+bool UIModList::isVisible() { return this->bVisible && this->mods != Replay::Mods{}; }
 
 #define INIT_LABEL(label_name, default_text, is_big)                        \
     do {                                                                    \
@@ -196,7 +248,7 @@ RoomScreen::RoomScreen() : UIScreen() {
     this->freemod->setDrawFrame(false);
     this->freemod->setDrawBackground(false);
     this->freemod->setChangeCallback(SA::MakeDelegate<&RoomScreen::onFreemodCheckboxChanged>(this));
-    this->mods = new UIModList(&BanchoState::room.mods);
+    this->mods = new UIModList();
     INIT_LABEL(this->no_mods_selected, _("No mods selected."), false);
 
     this->ready_btn = new UIButton(0, 0, 0, 0, "start_game_btn", _("Start game"));
@@ -460,11 +512,11 @@ void RoomScreen::updateSettingsLayout(vec2 newResolution) {
         this->freemod->setChecked(BanchoState::room.freemods);
         ADD_ELEMENT(this->freemod);
     }
-    if(!BanchoState::room.mods) {
+    if(BanchoState::room.mods == Replay::Mods{}) {
         ADD_ELEMENT(this->no_mods_selected);
     } else {
-        this->mods->flags = &BanchoState::room.mods;
-        this->mods->setSize(300.f * Osu::getUIScale(), 90.f * Osu::getUIScale());
+        this->mods->setMods(BanchoState::room.mods);
+        this->mods->setSize(this->settings->getSize().x - 20.f * Osu::getUIScale(), 90.f * Osu::getUIScale());
         ADD_ELEMENT(this->mods);
     }
 
@@ -551,7 +603,8 @@ void RoomScreen::updateLayout(vec2 newResolution) {
             user_box->setSize(user_box->getSize().x, SLOT_HEIGHT);
             this->slotlist->container.addBaseUIElement(user_box);
 
-            auto user_mods = new UIModList(&slot.mods);
+            auto user_mods = new UIModList();
+            user_mods->setMods(slot.mods);
             user_mods->setPos(user_box->getPos().x + user_box->getSize().x + 30.f * dpiScale, y_total);
             user_mods->setSize(350.f * dpiScale, SLOT_HEIGHT);
             this->slotlist->container.addBaseUIElement(user_mods);
@@ -580,6 +633,7 @@ void RoomScreen::ragequit(bool play_sound) {
         cvars().setProtectionEnforced(false);
         Replay::Mods::end_session();
     });
+    ui->getModSelector()->updateButtons();
 
     ui->setScreen(BanchoState::is_online() ? ui->getLobbyBase() : ui->getMainMenuBase());
     ui->getChat()->removeChannel("#multiplayer");
@@ -662,15 +716,46 @@ void RoomScreen::on_room_joined(const Room &room) {
 }
 
 void RoomScreen::useRoomMods() {
-    LegacyFlags mods = BanchoState::room.mods;
-    for(const auto &slot : BanchoState::room.slots) {
-        if(slot.player_id == BanchoState::get_uid()) mods |= slot.mods;
-    }
+    const auto &room = BanchoState::room;
+    const auto slot = Mc::ranges::find(room.slots, BanchoState::get_uid(), &Slot::player_id);
+    Replay::Mods mods = slot != room.slots.end() ? room.get_player_mods(*slot) : room.mods;
 
     // (there is no pausing in multiplayer)
-    Replay::Mods room_mods = Replay::Mods::from_legacy(mods);
-    room_mods.flags |= ModFlags::NoPausing;
-    Replay::Mods::use(room_mods);
+    mods.flags |= ModFlags::NoPausing;
+    Replay::Mods::use(mods);
+}
+
+void RoomScreen::onModsChanged() {
+    auto &room = BanchoState::room;
+    const auto slot = Mc::ranges::find(room.slots, BanchoState::get_uid(), &Slot::player_id);
+    if(!BanchoState::is_in_a_multi_room() || slot == room.slots.end()) return;
+
+    // our options menu's settings that are part of a play's mods aren't the room's business (see Replay::Mods::use()),
+    // except for the nightcore our DT button shows then, and the no pausing goes without saying
+    Replay::Mods mods = Replay::Mods::from_cvars();
+    mods.flags &= ~(ModFlags::NoHP | ModFlags::FPoSu | ModFlags::NoPausing);
+    mods.notelock_type = Replay::Mods{}.notelock_type;
+    if(!room.has_full_mods) {
+        mods = Replay::Mods::from_legacy(mods.to_legacy());
+    }
+
+    // (as the server will have it)
+    if(room.is_host()) {
+        room.mods = room.freemods ? Room::with_shared_mods({}, mods) : mods;
+    } else if(room.freemods) {
+        mods = Room::with_shared_mods(mods, room.mods);
+    }
+    if(room.freemods) slot->mods = mods;
+
+    Packet packet;
+    packet.id = OUTP_MATCH_CHANGE_MODS;
+    packet.write<LegacyFlags>(mods.to_legacy());
+    if(room.has_full_mods) Replay::Mods::pack_and_write(packet, mods);
+    BANCHO::Net::send_packet(packet);
+
+    // Don't wait on server response to update UI (that also takes back what the room has no room for)
+    this->useRoomMods();
+    this->updateLayout(osu->getVirtScreenSize());
 }
 
 void RoomScreen::on_room_updated(const Room &room) {
@@ -725,6 +810,8 @@ void RoomScreen::on_room_updated(const Room &room) {
         ui->getModSelector()->close(true);
     }
     this->useRoomMods();
+    // (whether we are the host might have changed)
+    if(ui->getModSelector()->isVisible()) ui->getModSelector()->updateButtons();
 
     this->updateLayout(osu->getVirtScreenSize());
 }
@@ -797,7 +884,7 @@ FinishedScore RoomScreen::get_approximate_score() {
     for(const auto &slot : BanchoState::room.slots) {
         if(slot.player_id != BanchoState::get_uid()) continue;
 
-        score.mods = Replay::Mods::from_legacy(slot.mods);
+        score.mods = BanchoState::room.get_player_mods(slot);
         score.passed = !slot.died;
         score.unix_timestamp = slot.last_update_tms;
         score.num300s = slot.num300;

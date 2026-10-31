@@ -7,7 +7,6 @@
 #include "OsuConVars.h"
 #include "AnimationHandler.h"
 #include "Bancho.h"
-#include "BanchoNetworking.h"
 #include "Engine.h"
 #include "ModSelector.h"
 #include "Osu.h"
@@ -103,7 +102,6 @@ void UIModSelectorModButton::resetState() {
 
 void UIModSelectorModButton::onClicked(bool /*left*/, bool /*right*/) {
     if(!this->bAvailable) return;
-    using namespace flags::operators;
 
     // increase state, wrap around, switch on and off
     if(this->bOn) {
@@ -126,28 +124,7 @@ void UIModSelectorModButton::onClicked(bool /*left*/, bool /*right*/) {
     // set new state
     this->setState(this->iState);
 
-    if(BanchoState::is_in_a_multi_room()) {
-        auto mod_flags = this->osuModSelector->getModFlags();
-        for(auto &slot : BanchoState::room.slots) {
-            if(slot.player_id != BanchoState::get_uid()) continue;
-            slot.mods = mod_flags;
-            if(BanchoState::room.is_host()) {
-                BanchoState::room.mods = mod_flags;
-                if(BanchoState::room.freemods) {
-                    // When freemod is enabled, we only want to force DT, HT, or Target.
-                    BanchoState::room.mods &= LegacyFlags::DoubleTime | LegacyFlags::HalfTime | LegacyFlags::Target;
-                }
-            }
-        }
-
-        Packet packet;
-        packet.id = OUTP_MATCH_CHANGE_MODS;
-        packet.write<LegacyFlags>(mod_flags);
-        BANCHO::Net::send_packet(packet);
-
-        // Don't wait on server response to update UI
-        ui->getRoomScreen()->on_room_updated(BanchoState::room);
-    }
+    ui->getRoomScreen()->onModsChanged();
 
     if(BanchoState::is_online()) {
         RichPresence::updateBanchoMods();
@@ -175,9 +152,8 @@ void UIModSelectorModButton::setBaseScale(float xScale, float yScale) {
 }
 
 // horrible multi-purpose function. we should get rid of write_cvars path entirely
+// (also for unavailable buttons: they still show what is in effect, it's only the player who can't click them)
 void UIModSelectorModButton::setOn(bool on, bool silent, bool write_cvars) {
-    if(!this->bAvailable) return;
-
     bool prevState = this->bOn;
     this->bOn = on;
 

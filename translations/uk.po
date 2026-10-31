@@ -3278,6 +3278,17 @@ msgid "You achieved the #{} score on local rankings!"
 msgstr "Ви встановили результат #{} у локальному рейтингу!"
 
 #: src/App/Neomod/RoomScreen.cpp
+#, c++-format
+msgid "{:.4g}x"
+msgstr "{:.4g}x"
+
+#. TRANSLATORS: an override slider's value that doesn't change with the speed, e.g. "AR 9.5 (locked)"
+#: src/App/Neomod/RoomScreen.cpp
+#, c++-format
+msgid "{} {:.4g} (locked)"
+msgstr "{} {:.4g} (фікс.)"
+
+#: src/App/Neomod/RoomScreen.cpp
 msgid "Multiplayer room"
 msgstr "Кімната мультиплеєра"
 

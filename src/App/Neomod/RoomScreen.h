@@ -5,9 +5,12 @@
 #include "MD5Hash.h"
 #include "MapFetcher.h"
 #include "Registration.h"
+#include "Replay.h"
 #include "UIScreen.h"
 
-enum class LegacyFlags : u32;
+#include <memory>
+#include <string>
+#include <vector>
 
 class DatabaseBeatmap;
 using BeatmapDifficulty = DatabaseBeatmap;
@@ -31,25 +34,28 @@ class UICheckbox;
 class UIContextMenu;
 class McFont;
 
+// mods as the skin's icons, followed by the names of those without one (the overrides, the experimental mods)
 class UIModList final : public CBaseUIContainer {
     NOCOPY_NOMOVE(UIModList)
    public:
-    UIModList() = delete;
-    UIModList(LegacyFlags* flags);
+    UIModList();
     ~UIModList() override;
 
-    LegacyFlags* flags;
+    void setMods(const Replay::Mods& mods);
 
     void draw() override;
+    void updateInput(CBaseUIEventCtx& c) override;
     bool isVisible() override;
 
     // Dummy function for RoomScreen generic macro
     void setSizeToContent(int /*a*/, int /*b*/) {}
 
    private:
-    LegacyFlags last_flags{};
+    Replay::Mods mods;
     struct ModImageList;
     std::unique_ptr<ModImageList> mod_images;
+    std::vector<std::string> names;
+    std::string names_text;
 };
 
 class RoomScreen final : public UIScreen {
@@ -75,6 +81,9 @@ class RoomScreen final : public UIScreen {
 
     // applies the mods of the room and of our slot in it
     void useRoomMods();
+    // the player changed their mods in the mod selector: they become ours in the room (and the room's while we are
+    // its host), as far as the room takes them
+    void onModsChanged();
 
     void on_map_change();
     void on_room_joined(const Room& room);

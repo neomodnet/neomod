@@ -67,6 +67,11 @@ class ModSelector final : public UIScreen {
    private:
     enum class OvrSliderType : u8 { CS, AR, OD, HP, SPEED };
 
+    // in a room whose mods are only the legacy ones (the server doesn't take more), there is nothing but the mod grid
+    [[nodiscard]] bool showsGridOnly() const;
+    // (one the player can change: the experimental mods stay in view while one is on)
+    [[nodiscard]] bool isExperimentalModEnabled() const;
+
     struct OVERRIDE_SLIDER {
         CBaseUICheckbox *lock;
         CBaseUIButton *desc;

@@ -26,7 +26,7 @@ mouse_to 850 350
 @wait 3
 mouse_up
 @wait 10
-ui_assert convar ar_override 12.4
+ui_assert convar ar_override 12.5
 ui_assert active modsel_ar 0
 ui_assert hovered modsel_ar 0
 mouse_to 10 10

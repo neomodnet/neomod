@@ -370,10 +370,11 @@ void UIDebug::debugPrompt(std::string_view msg) {
 
 void UIDebug::debugFakeOnline(std::string_view arg) {
     // headless stand-in for the (server-dependent) login flow, so online-gated UI is testable.
-    // no arg or non-"0" enables; "0" disables.
+    // no arg or non-"0" enables ("neomod": as on a neomod server); "0" disables.
     std::string a{arg};
     SString::trim_inplace(a);
     BanchoState::set_fake_online(a.empty() || a != "0");
+    if(a == "neomod" && BanchoState::fake_online) BanchoState::initialize_neomod_server_session();
 }
 
 void UIDebug::debugFakeRoom(std::string_view arg) { BanchoState::fake_join_room(arg == "map"); }

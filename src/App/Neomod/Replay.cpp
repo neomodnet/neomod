@@ -383,11 +383,17 @@ void Mods::use(const Mods &mods, bool with_settings) {
         for_each_mod_cv(mods, with_settings, [](ConVar &cvar, auto value) -> void { cvar.setValue(value); });
     });
 
+    osu->updateMods();
+
     // Update mod selector UI
     mod_selector->useCurrentMods();
+}
 
-    // FIXME: this is already called like 5 times from the previous calls
-    osu->updateMods();
+bool Mods::covers(const ConVar &cvar) {
+    bool covered = false;
+    for_each_mod_cv(Mods{}, false,
+                    [&](const ConVar &modCvar, auto /*value*/) -> void { covered |= &modCvar == &cvar; });
+    return covered;
 }
 
 void Mods::begin_session(bool with_settings) {
@@ -408,10 +414,10 @@ void Mods::begin_session(bool with_settings) {
 void Mods::end_session() {
     if(!cvars().isInSession()) return;
     cvars().endSession();
+    osu->updateMods();
 
     // Update mod selector UI
     ui->getModSelector()->useCurrentMods();
-    osu->updateMods();
 }
 
 template <GenericReader R>
