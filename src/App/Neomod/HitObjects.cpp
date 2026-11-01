@@ -2529,14 +2529,6 @@ Spinner::Spinner(vec2 pos, i32 timeMS, DatabaseBeatmapTypes::HITSAMPLE_BITS samp
     m_type = HitObjectType::SPINNER;
     m_durationMS = endTimeMS - timeMS;
 
-    constexpr i32 minVel = 12;
-    constexpr i32 maxVel = 48;
-    constexpr i32 minTimeMS = 2000;
-    constexpr i32 maxTimeMS = 5000;
-    m_maxStoredDeltaAngles = std::clamp<i32>(
-        (i32)((endTimeMS - timeMS - minTimeMS) * (maxVel - minVel) / (maxTimeMS - minTimeMS) + minVel), minVel, maxVel);
-    m_storedDeltaAngles = std::make_unique<f32[]>(m_maxStoredDeltaAngles);
-
     // spinners don't need misaims
     m_misAim = true;
 
@@ -2863,7 +2855,7 @@ void Spinner::update(i32 curPosMS, f64 frameTimeSecs) {
             return;
         }
 
-        const f32 DELTA_UPDATE_TIME_MS = (frameTimeSecs * 1000.0f);
+        const f32 frameMS = (f32)(frameTimeSecs * 1000.0);
         const f32 AUTO_MULTIPLIER = (1.0f / 20.0f);
 
         // scale percent calculation
@@ -2873,7 +2865,7 @@ void Spinner::update(i32 curPosMS, f64 frameTimeSecs) {
         // handle auto, mouse spinning movement
         f32 angleDiff = 0;
         if(flags::any<ModFlags::Autoplay | ModFlags::Autopilot | ModFlags::SpunOut>(m_judge->getMods().flags)) {
-            angleDiff = frameTimeSecs * 1000.0f * AUTO_MULTIPLIER * m_judge->getSpeedMultiplier();
+            angleDiff = frameMS * AUTO_MULTIPLIER;
         } else {  // user spin
             vec2 mouseDelta = m_judge->getCursorPos() - m_judge->osuCoords2Pixels(m_rawPos);
             const auto currentMouseAngle = (f32)std::atan2(mouseDelta.y, mouseDelta.x);
@@ -2888,53 +2880,54 @@ void Spinner::update(i32 curPosMS, f64 frameTimeSecs) {
                 angleDiff += 2 * PI_F;
             else if(angleDiff > PI_F)
                 angleDiff -= 2 * PI_F;
-
-            // like osu!stable, the spinner turns in music time: spins count 1.5x with DT, 0.75x with HT
-            angleDiff *= m_judge->getSpeedMultiplier();
         }
 
         // handle spinning
-        // HACKHACK: rewrite this
         if(deltaMS <= 0) {
+            const ModFlags mods = m_judge->getMods().flags;
             bool isSpinning =
-                m_judge->isClickHeld() ||
-                flags::any<ModFlags::Autoplay | ModFlags::Relax | ModFlags::SpunOut>(m_judge->getMods().flags);
+                m_judge->isClickHeld() || flags::any<ModFlags::Autoplay | ModFlags::Relax | ModFlags::SpunOut>(mods);
 
-            m_deltaOverflowMS += frameTimeSecs * 1000.0f;
+            m_deltaOverflowMS += frameMS;
 
             if(isSpinning) m_deltaAngleOverflow += angleDiff;
 
-            const f32 prevRotations = m_rotations;
-            while(m_deltaOverflowMS >= DELTA_UPDATE_TIME_MS) {
-                // spin caused by the cursor
-                f32 deltaAngle = 0;
-                if(isSpinning) {
-                    deltaAngle = m_deltaAngleOverflow * DELTA_UPDATE_TIME_MS / m_deltaOverflowMS;
-                    m_deltaAngleOverflow -= deltaAngle;
-                    // deltaAngle = std::clamp<f32>(deltaAngle, -MAX_ANG_DIFF, MAX_ANG_DIFF);
+            // like osu!stable, the spinner velocity chases the cursor velocity in 60 Hz steps (its replay frame rate).
+            // the velocity changes by at most maxAccel per ms, which is higher for spinners shorter than 5 seconds.
+            // velocities are per real ms, capped at 0.05 rad/ms (477 RPM).
+            constexpr f32 STEP_MS = 1000.0f / 60.0f;
+            const f32 maxAccel = 0.00008f + std::max(0.0f, (5000.0f - (f32)m_durationMS) / 2000000.0f);
+            while(m_deltaOverflowMS >= STEP_MS) {
+                const f32 stepAngle = m_deltaAngleOverflow * STEP_MS / m_deltaOverflowMS;
+                m_deltaAngleOverflow -= stepAngle;
+                m_deltaOverflowMS -= STEP_MS;
+
+                // the cursor velocity drops to a third after one still step, and to 0 after two
+                if(stepAngle == 0.0f) {
+                    m_theoreticalVelocity = ++m_stillSteps < 2 ? m_theoreticalVelocity / 3.0f : 0.0f;
+                } else {
+                    m_stillSteps = 0;
+                    m_theoreticalVelocity = stepAngle / STEP_MS;
                 }
 
-                m_deltaOverflowMS -= DELTA_UPDATE_TIME_MS;
+                if(flags::any<ModFlags::SpunOut | ModFlags::Autopilot>(mods)) {
+                    m_velocity = 0.03f;
+                } else {
+                    // relax turns around 4x slower
+                    const bool turning = m_theoreticalVelocity > m_velocity ? m_velocity < 0.0f : m_velocity > 0.0f;
+                    const f32 accel = maxAccel * STEP_MS / (turning && flags::has<ModFlags::Relax>(mods) ? 4.0f : 1.0f);
+                    m_velocity += std::clamp(m_theoreticalVelocity - m_velocity, -accel, accel);
+                }
+                m_velocity = std::clamp(m_velocity, -0.05f, 0.05f);
 
-                m_sumDeltaAngle -= m_storedDeltaAngles[m_deltaAngleIndex];
-                m_sumDeltaAngle += deltaAngle;
-                m_storedDeltaAngles[m_deltaAngleIndex++] = deltaAngle;
-                m_deltaAngleIndex %= m_maxStoredDeltaAngles;
-
-                // osu!stable caps the spinner at 0.05 rad per (music) ms, i.e. 477 RPM
-                const f32 maxAngle = 0.05f * DELTA_UPDATE_TIME_MS * m_judge->getSpeedMultiplier();
-                f32 rotationAngle = std::clamp(m_sumDeltaAngle / m_maxStoredDeltaAngles, -maxAngle, maxAngle);
-                f32 rotationPerSec = rotationAngle * (1000.0f / DELTA_UPDATE_TIME_MS) / (2.0f * PI_F);
-
-                f32 decay = std::pow(0.01f, (f32)frameTimeSecs);
-                m_RPM = m_RPM * decay + (1.0 - decay) * std::abs(rotationPerSec) * 60;
-                m_RPM = std::min(m_RPM, 477.0f);
-
-                if(std::abs(rotationAngle) > 0.0001f) rotate(rotationAngle);
+                m_RPM = m_RPM * 0.9f + 0.1f * std::abs(m_velocity) * 1000.0f / (2.0f * PI_F) * 60.0f;
             }
 
-            // the spinnerspin loop only plays while the spinner is actually turning
-            if(m_rotations == prevRotations) m_judge->stopSpinnerSpinSound();
+            // the spinner turns in music time: spins count 1.5x with DT, 0.75x with HT
+            if(m_velocity != 0.0f)
+                rotate(m_velocity * frameMS * m_judge->getSpeedMultiplier());
+            else
+                m_judge->stopSpinnerSpinSound();
 
             if(m_halfSpinsNeeded > 0) m_ratio = m_rotations / ((f32)m_halfSpinsNeeded * 180.0f);
             if(m_completedTimeMS < 0 && m_ratio >= 1.0f) m_completedTimeMS = curPosMS;
@@ -2984,9 +2977,10 @@ void Spinner::onReset(i32 curPosMS) {
     m_drawRot = 0.0f;
     m_rotations = 0.0f;
     m_deltaOverflowMS = 0.0f;
-    m_sumDeltaAngle = 0.0f;
-    m_deltaAngleIndex = 0;
     m_deltaAngleOverflow = 0.0f;
+    m_velocity = 0.0f;
+    m_theoreticalVelocity = 0.0f;
+    m_stillSteps = 0;
     m_ratio = 0.0f;
     m_completedTimeMS = -1;
     m_firstSpinTimeMS = -1;
@@ -2997,10 +2991,6 @@ void Spinner::onReset(i32 curPosMS) {
     // spinners don't need misaims
     m_misAim = true;
 
-    for(i32 i = 0; i < m_maxStoredDeltaAngles; i++) {
-        m_storedDeltaAngles[i] = 0.0f;
-    }
-
     if(curPosMS > getEndTime())
         m_finished = true;
     else
@@ -3008,13 +2998,15 @@ void Spinner::onReset(i32 curPosMS) {
 }
 
 void Spinner::onHit() {
-    // calculate hit result
+    // calculate hit result, in half rotations like osu!stable
+    const i32 halfSpins = (i32)(m_rotations / 180.0f);
     LiveHitResult result = LiveHitResult::HIT_NULL;
-    if(m_ratio >= 1.0f || (flags::has<ModFlags::Autoplay>(m_judge->getMods().flags)))
+    if(m_halfSpinsNeeded <= 0 || halfSpins >= m_halfSpinsNeeded + 1 ||
+       (flags::has<ModFlags::Autoplay>(m_judge->getMods().flags)))
         result = LiveHitResult::HIT_300;
-    else if(m_ratio >= 0.9f && !cv::mod_ming3012.getBool() && !cv::mod_no100s.getBool())
+    else if(halfSpins >= m_halfSpinsNeeded - 1 && !cv::mod_ming3012.getBool() && !cv::mod_no100s.getBool())
         result = LiveHitResult::HIT_100;
-    else if(m_ratio >= 0.75f && !cv::mod_no100s.getBool() && !cv::mod_no50s.getBool())
+    else if(halfSpins >= m_halfSpinsNeeded / 4 && !cv::mod_no100s.getBool() && !cv::mod_no50s.getBool())
         result = LiveHitResult::HIT_50;
     else
         result = LiveHitResult::HIT_MISS;

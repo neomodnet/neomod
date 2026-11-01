@@ -486,8 +486,6 @@ class Spinner final : public HitObject {
     vec2 m_rawPos;
     vec2 m_originalRawPos;
 
-    std::unique_ptr<f32[]> m_storedDeltaAngles;
-
     // bool bClickedOnce;
     f32 m_percent{0.f};
 
@@ -495,11 +493,12 @@ class Spinner final : public HitObject {
     f32 m_rotations{0.f};
     i32 m_halfSpinsNeeded{-1};
     f32 m_deltaOverflowMS{0.f};
-    f32 m_sumDeltaAngle{0.f};
-
-    i32 m_maxStoredDeltaAngles;
-    i32 m_deltaAngleIndex{0};
     f32 m_deltaAngleOverflow{0.f};
+
+    // in rad per real ms
+    f32 m_velocity{0.f};
+    f32 m_theoreticalVelocity{0.f};
+    i32 m_stillSteps{0};
 
     f32 m_RPM{0.f};
 

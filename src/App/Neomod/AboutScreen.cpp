@@ -399,7 +399,7 @@ void AboutScreen::buildChangelog() {
     CHANGELOG v44_03;
     v44_03.title = "44.03 (" CHANGELOG_TIMESTAMP ")";
     v44_03.changes = {
-        R"()",
+        R"(- Fixed spinners being too hard to spin)",
     };
     changelogs.push_back(std::move(v44_03));
 
