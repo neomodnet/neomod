@@ -608,6 +608,8 @@ CONVAR(net_transfer_timeout, 300, CLIENT | SERVER, "default upload/download time
 CONVAR(sv_allow_speed_override, false, SERVER,
        "let clients submit scores with non-vanilla speeds (e.g. not only HT/DT speed)");
 CONVAR(sv_has_irc_users, true, SERVER, "players with negative IDs will show up as IRC users");
+CONVAR(sv_replay_framerate, 60, SERVER,
+       "how many cursor frames per second replays record (key changes are always recorded)", Range{30, 1000});
 
 // Main menu
 CONVAR(adblock, false, CLIENT | SKINS | SERVER);

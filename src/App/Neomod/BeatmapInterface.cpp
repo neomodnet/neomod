@@ -2629,7 +2629,8 @@ void BeatmapInterface::write_frame(const LegacyReplay::Frame &frame, bool force)
     const i32 delta = frame.cur_music_pos - this->last_event_ms;
     if(delta < 0) return;
     const bool keysChanged = frame.key_flags != this->last_keys;
-    if(!force && !keysChanged && this->last_event_time + 0.01666666666 > Timing::getTimeReal()) return;
+    const f32 frameTime = (1.f / cv::sv_replay_framerate.getFloat());
+    if(!force && !keysChanged && this->last_event_time + frameTime > Timing::getTimeReal()) return;
     if(delta == 0 && !keysChanged) return;
 
     // In replays, "K1" is always stored as "K1+M1"
