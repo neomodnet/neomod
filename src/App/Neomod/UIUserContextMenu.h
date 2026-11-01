@@ -5,7 +5,10 @@
 #include "CBaseUILabel.h"
 #include "UIScreen.h"
 
+#include <optional>
+
 class UIContextMenu;
+struct UserInfo;
 
 class UIUserContextMenuScreen final : public UIScreen {
    public:
@@ -29,6 +32,10 @@ class UIUserLabel final : public CBaseUILabel {
 
     // twitch purple, for users who are live
     static constexpr Color LIVE_COLOR{0xff9146ff};
+    static constexpr Color SUPPORTER_COLOR{0xffffcc22};
+
+    // the name color implied by the user privileges, if any
+    static std::optional<Color> getUserColor(const UserInfo* user);
 
     void draw() override;
     void onMouseUpInside(bool left = true, bool right = false) override;
@@ -37,8 +44,8 @@ class UIUserLabel final : public CBaseUILabel {
 
     i32 user_id;
 
-    // when false, the text color stays as set even if the user is live
-    bool show_live{true};
+    // when false, the text color stays as set regardless of getUserColor()
+    bool show_user_color{true};
 
    private:
     AnimFloat hover_anim{0.f};

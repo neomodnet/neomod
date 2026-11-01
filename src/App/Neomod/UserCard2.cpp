@@ -187,9 +187,7 @@ void UserCard2::draw() {
 
         g->scale(scale, scale);
         g->translate(this->getPos().x + xCounter, this->getPos().y + yCounter);
-        using namespace flags::operators;
-        g->setColor((this->info->privileges & Privileges::LIVE_ON_TWITCH) ? UIUserLabel::LIVE_COLOR
-                                                                          : Color(0xffffffff));
+        g->setColor(UIUserLabel::getUserColor(this->info).value_or(0xffffffff));
         g->drawString(usernameFont, this->info->name);
     }
     g->popTransform();

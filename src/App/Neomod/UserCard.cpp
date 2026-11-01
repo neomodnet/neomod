@@ -86,7 +86,7 @@ void UserCard::draw() {
 
         g->scale(scale, scale);
         g->translate((int)(this->getPos().x + iconWidth + usernamePaddingLeft), yCounter);
-        g->setColor(0xffffffff);
+        g->setColor(UIUserLabel::getUserColor(BANCHO::User::try_get_user_info(this->user_id)).value_or(0xffffffff));
         g->drawString(usernameFont, this->getText());
     }
     g->popTransform();

@@ -284,6 +284,14 @@ UIUserLabel::UIUserLabel(i32 user_id, std::string username) : CBaseUILabel() {
     this->setBackgroundColor(argb(0.3f, 1.f, 1.f, 1.f));
 }
 
+std::optional<Color> UIUserLabel::getUserColor(const UserInfo *user) {
+    using namespace flags::operators;
+    if(!user) return std::nullopt;
+    if(user->privileges & Privileges::LIVE_ON_TWITCH) return LIVE_COLOR;
+    if(user->privileges & Privileges::SUPPORTER) return SUPPORTER_COLOR;
+    return std::nullopt;
+}
+
 void UIUserLabel::draw() {
     if(!this->bVisible) return;
 
@@ -295,11 +303,11 @@ void UIUserLabel::draw() {
         g->fillRect(this->getPos(), this->getSize());
     }
 
-    using namespace flags::operators;
-    const auto *user = BANCHO::User::try_get_user_info(this->user_id);
-    if(this->show_live && user && (user->privileges & Privileges::LIVE_ON_TWITCH)) {
+    const auto user_color =
+        this->show_user_color ? getUserColor(BANCHO::User::try_get_user_info(this->user_id)) : std::nullopt;
+    if(user_color) {
         const Color color = this->getTextColor();
-        this->setTextColor(LIVE_COLOR);
+        this->setTextColor(*user_color);
         CBaseUILabel::draw();
         this->setTextColor(color);
     } else {

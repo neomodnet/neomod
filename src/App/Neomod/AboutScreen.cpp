@@ -406,6 +406,7 @@ void AboutScreen::buildChangelog() {
         R"(- Fixed unsubmitted osu!stable scores not getting imported)",
         R"(- Nightcore/Daycore now change the pitch along with the speed)",
         R"(- Removed "Actual Flashlight" and "Target Practice" mods)",
+        R"(- Supporters now have a colored username)",
         R"(- Replay playback: Fixed health drain and spinners on DT/HT)",
         R"(- Servers: Added "sv_allow_instafade" and "sv_replay_framerate" convars)",
     };
