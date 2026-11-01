@@ -423,8 +423,6 @@ void ModSelector::updateButtons(bool initial) {
 
     this->modButtonFL = setGridModbtn(this->getGridButton(FL_POS), 0, initial && osu->getModFlashlight(),
                                       &cv::mod_flashlight, "fl", _("Restricted view area."), MKIMGGETR(i_modselect_fl));
-    setGridModbtn(this->getGridButton(FL_POS), 1, initial && cv::mod_actual_flashlight.getBool(),
-                  &cv::mod_actual_flashlight, "afl", _("Actual flashlight."), MKIMGGETR(i_modselect_fl));
 
     this->modButtonRX =
         setGridModbtn(this->getGridButton(RX_POS), 0, initial && osu->getModRelax(), &cv::mod_relax, "relax",

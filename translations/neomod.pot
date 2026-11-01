@@ -900,10 +900,6 @@ msgid "Restricted view area."
 msgstr ""
 
 #: src/App/Neomod/ModSelector.cpp
-msgid "Actual flashlight."
-msgstr ""
-
-#: src/App/Neomod/ModSelector.cpp
 msgid ""
 "You don't need to click.\n"
 "Give your clicking/tapping fingers a break from the heat of things.\n"

@@ -172,7 +172,6 @@ void BanchoState::initialize_neomod_server_session() {
         &cv::od_override, &cv::od_override_lock,
         &cv::cs_override, &cv::cs_overridenegative,
         &cv::hp_override,
-        &cv::mod_actual_flashlight,
         &cv::mod_artimewarp, &cv::mod_artimewarp_multiplier,
         &cv::mod_arwobble, &cv::mod_arwobble_interval, &cv::mod_arwobble_strength,
         &cv::mod_fadingcursor,

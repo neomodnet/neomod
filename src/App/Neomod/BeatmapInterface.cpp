@@ -1570,12 +1570,7 @@ void BeatmapInterface::draw() {
     if(cv::draw_smoke.getBool()) this->drawSmoke();
 
     // draw flashlight overlay
-    {
-        const bool flashlight_enabled = cv::mod_flashlight.getBool();
-        const bool actual_flashlight_enabled = cv::mod_actual_flashlight.getBool();
-        if(flashlight_enabled || actual_flashlight_enabled)
-            this->drawFlashlight(flashlight_enabled ? FLType::NORMAL_FL : FLType::ACTUAL_FL);
-    }
+    if(cv::mod_flashlight.getBool()) this->drawFlashlight();
 
     // draw continue overlay (moved from HUD to draw properly in FPoSu)
     if(this->isContinueScheduled() && !this->isPaused() && cv::draw_continue.getBool()) this->drawContinue();
@@ -1598,7 +1593,7 @@ void BeatmapInterface::draw() {
     }
 }
 
-void BeatmapInterface::drawFlashlight(FLType type) {
+void BeatmapInterface::drawFlashlight() {
     // Convert screen mouse -> osu mouse pos
     const vec2 cursorPos = this->getCursorPos();
     const vec2 mouse_position = (cursorPos - GameRules::getPlayfieldOffset())  //
@@ -1613,75 +1608,40 @@ void BeatmapInterface::drawFlashlight(FLType type) {
     const vec2 flashlightPos =
         this->flashlight_position * GameRules::getPlayfieldScaleFactor() + GameRules::getPlayfieldOffset();
 
-    const float base_fl_radius = cv::flashlight_radius.getFloat() * GameRules::getPlayfieldScaleFactor();
-    float anti_fl_radius = base_fl_radius * 0.625f;
-    float fl_radius = base_fl_radius;
+    float fl_radius = cv::flashlight_radius.getFloat() * GameRules::getPlayfieldScaleFactor();
 
     if(osu->getScore()->getCombo() >= 200 || cv::flashlight_always_hard.getBool()) {
-        anti_fl_radius = base_fl_radius;
         fl_radius *= 0.625f;
     } else if(osu->getScore()->getCombo() >= 100) {
-        anti_fl_radius = base_fl_radius * 0.8125f;
         fl_radius *= 0.8125f;
     }
 
-    if(type == FLType::NORMAL_FL) {
-        // Lazy-load shader
-        if(!this->flashlight_shader) {
-            this->flashlight_shader = resourceManager->createShaderAuto("flashlight");
-        }
-
-        // Dim screen when holding a slider
-        float opacity = 1.f;
-        if(this->judge->holding_slider && !cv::avoid_flashes.getBool()) {
-            opacity = 0.2f;
-        }
-
-        this->flashlight_shader->enable();
-        this->flashlight_shader->setUniform1f("max_opacity", opacity);
-        this->flashlight_shader->setUniform1f("flashlight_radius", fl_radius);
-
-        if(!g->hasFlippedTextureOrigin()) {  // top-left origin backends don't need a Y flip
-            this->flashlight_shader->setUniform2f("flashlight_center", flashlightPos.x, flashlightPos.y);
-        } else {
-            this->flashlight_shader->setUniform2f("flashlight_center", flashlightPos.x,
-                                                  osu->getVirtScreenSize().y - flashlightPos.y);
-        }
-
-        g->setColor(argb(255, 0, 0, 0));
-        g->fillRect(0, 0, osu->getVirtScreenWidth(), osu->getVirtScreenHeight());
-
-        this->flashlight_shader->disable();
+    // Lazy-load shader
+    if(!this->flashlight_shader) {
+        this->flashlight_shader = resourceManager->createShaderAuto("flashlight");
     }
 
-    if(type == FLType::ACTUAL_FL) {
-        // Lazy-load shader
-        if(!this->actual_flashlight_shader) {
-            this->actual_flashlight_shader = resourceManager->createShaderAuto("actual_flashlight");
-        }
-
-        // Brighten screen when holding a slider
-        float opacity = 1.f;
-        if(this->judge->holding_slider && !cv::avoid_flashes.getBool()) {
-            opacity = 0.8f;
-        }
-
-        this->actual_flashlight_shader->enable();
-        this->actual_flashlight_shader->setUniform1f("max_opacity", opacity);
-        this->actual_flashlight_shader->setUniform1f("flashlight_radius", anti_fl_radius);
-
-        if(!g->hasFlippedTextureOrigin()) {  // top-left origin backends don't need a Y flip
-            this->actual_flashlight_shader->setUniform2f("flashlight_center", flashlightPos.x, flashlightPos.y);
-        } else {
-            this->actual_flashlight_shader->setUniform2f("flashlight_center", flashlightPos.x,
-                                                         osu->getVirtScreenSize().y - flashlightPos.y);
-        }
-
-        g->setColor(argb(255, 0, 0, 0));
-        g->fillRect(0, 0, osu->getVirtScreenWidth(), osu->getVirtScreenHeight());
-
-        this->actual_flashlight_shader->disable();
+    // Dim screen when holding a slider
+    float opacity = 1.f;
+    if(this->judge->holding_slider && !cv::avoid_flashes.getBool()) {
+        opacity = 0.2f;
     }
+
+    this->flashlight_shader->enable();
+    this->flashlight_shader->setUniform1f("max_opacity", opacity);
+    this->flashlight_shader->setUniform1f("flashlight_radius", fl_radius);
+
+    if(!g->hasFlippedTextureOrigin()) {  // top-left origin backends don't need a Y flip
+        this->flashlight_shader->setUniform2f("flashlight_center", flashlightPos.x, flashlightPos.y);
+    } else {
+        this->flashlight_shader->setUniform2f("flashlight_center", flashlightPos.x,
+                                              osu->getVirtScreenSize().y - flashlightPos.y);
+    }
+
+    g->setColor(argb(255, 0, 0, 0));
+    g->fillRect(0, 0, osu->getVirtScreenWidth(), osu->getVirtScreenHeight());
+
+    this->flashlight_shader->disable();
 }
 
 void BeatmapInterface::drawSmoke() {

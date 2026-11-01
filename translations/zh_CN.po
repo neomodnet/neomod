@@ -930,10 +930,6 @@ msgid "Restricted view area."
 msgstr "视野受限。"
 
 #: src/App/Neomod/ModSelector.cpp
-msgid "Actual flashlight."
-msgstr "真正的手电筒。"
-
-#: src/App/Neomod/ModSelector.cpp
 msgid ""
 "You don't need to click.\n"
 "Give your clicking/tapping fingers a break from the heat of things.\n"

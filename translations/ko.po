@@ -930,10 +930,6 @@ msgid "Restricted view area."
 msgstr "시야가 제한됩니다."
 
 #: src/App/Neomod/ModSelector.cpp
-msgid "Actual flashlight."
-msgstr "진짜 손전등."
-
-#: src/App/Neomod/ModSelector.cpp
 msgid ""
 "You don't need to click.\n"
 "Give your clicking/tapping fingers a break from the heat of things.\n"

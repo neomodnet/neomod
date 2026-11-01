@@ -932,10 +932,6 @@ msgid "Restricted view area."
 msgstr "Eingeschränkter Sichtbereich."
 
 #: src/App/Neomod/ModSelector.cpp
-msgid "Actual flashlight."
-msgstr "Echte Taschenlampe."
-
-#: src/App/Neomod/ModSelector.cpp
 msgid ""
 "You don't need to click.\n"
 "Give your clicking/tapping fingers a break from the heat of things.\n"

@@ -371,8 +371,7 @@ class BeatmapInterface final : public GameplayJudge::Listener, public PlayfieldV
     void drawHitObjects();
     void drawSmoke();
 
-    enum class FLType : uint8_t { NORMAL_FL, ACTUAL_FL };
-    void drawFlashlight(FLType type);
+    void drawFlashlight();
 
     void drawContinue();
 
@@ -427,7 +426,6 @@ class BeatmapInterface final : public GameplayJudge::Listener, public PlayfieldV
 
     // FL
     vec2 flashlight_position{0.f};
-    Shader *actual_flashlight_shader{nullptr};
     Shader *flashlight_shader{nullptr};
 
     // custom

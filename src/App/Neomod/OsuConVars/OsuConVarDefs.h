@@ -454,7 +454,6 @@ CONVAR(cs_overridenegative, 0.0f, CLIENT | SERVER | PROTECTED | GAMEPLAY,
        "use this to override below CS 0. active if value is less than 0, disabled otherwise. "
        "this override always overrides the other override.");
 CONVAR(hp_override, -1.0f, CLIENT | SERVER | PROTECTED | GAMEPLAY);
-CONVAR(mod_actual_flashlight, false, CLIENT | SERVER | PROTECTED | GAMEPLAY);
 CONVAR(mod_approach_different, false, CLIENT | SERVER | PROTECTED | GAMEPLAY,
        "replicates osu!lazer's \"Approach Different\" mod");
 CONVAR(mod_approach_different_initial_size, 4.0f, CLIENT | SERVER | GAMEPLAY,
