@@ -402,6 +402,7 @@ void AboutScreen::buildChangelog() {
         R"(- Added screenshot uploading (hold Shift while taking a screenshot))",
         R"(- Fixed spinners being too hard to spin)",
         R"(- Fixed "Singletap" and "Alternate" letting any key hit the first two notes of the map)",
+        R"(- Fixed "Strict clicks" sometimes breaking combo when clicking during a spinner)",
         R"(- Removed "Actual Flashlight" mod)",
         R"(- Replay playback: Fixed health drain and spinners on DT/HT)",
         R"(- Servers: Added "sv_allow_instafade" and "sv_replay_framerate" convars)",

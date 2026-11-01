@@ -710,7 +710,6 @@ void GameplayJudge::update(f64 frameTimeSecs) {
     this->iCurrentNumCircles = 0;
     this->iCurrentNumSliders = 0;
     this->iCurrentNumSpinners = 0;
-    bool spinner_active = false;
     {
         bool blockNextNotes = false;
 
@@ -798,14 +797,6 @@ void GameplayJudge::update(f64 frameTimeSecs) {
             }
 
             if(this->iCurMusicPos >= curHobj->getEndTime()) this->iCurrentHitObjectIndex = i;
-
-            // spinner visibility detection
-            // XXX: there might be a "better" way to do it?
-            if(isSpinner) {
-                bool spinner_started = this->iCurMusicPos >= curHobj->getClickTime();
-                bool spinner_ended = this->iCurMusicPos > curHobj->getEndTime();
-                spinner_active |= (spinner_started && !spinner_ended);
-            }
 
             // note blocking / notelock (1)
             const Slider *currentSliderPointer = isSlider ? static_cast<Slider *>(curHobj) : nullptr;
@@ -993,8 +984,20 @@ void GameplayJudge::update(f64 frameTimeSecs) {
         if(!this->clicks.empty()) {
             // nightmare mod: extra clicks = sliderbreak
             bool break_on_extra_click = mods.has(ModFlags::StrictClicks);
-            break_on_extra_click &= !this->bIsInSkippableSection && !this->bInBreak && !spinner_active;
+            break_on_extra_click &= !this->bIsInSkippableSection && !this->bInBreak;
             break_on_extra_click &= this->iCurrentHitObjectIndex > 0;
+
+            // clicks during a spinner spin it.
+            // this uses the click time, since the frame time can be outside the spinner while the click was inside.
+            const auto isSpinnerClick = [&](const Click &click) {
+                for(size_t i = this->iCurrentHitObjectIndex;
+                    i < this->hitobjects.size() && this->hitobjects[i]->getClickTime() <= click.musicPosMS; i++) {
+                    if(this->hitobjects[i]->isSpinner() && click.musicPosMS <= this->hitobjects[i]->getEndTime())
+                        return true;
+                }
+                return false;
+            };
+            break_on_extra_click &= !Mc::ranges::all_of(this->clicks, isSpinnerClick);
             if(break_on_extra_click) {
                 this->addSliderBreak();
                 this->addHitResult(nullptr, LiveHitResult::HIT_MISS_SLIDERBREAK, 0, false, true, true, true, true,
