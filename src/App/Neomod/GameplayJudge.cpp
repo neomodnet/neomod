@@ -179,7 +179,8 @@ void GameplayJudge::simulate_to(i32 musicPos) {
         u8 clickKeys = keys & ~lastKeys;
         if(this->getMods().has(ModFlags::DKS)) clickKeys |= lastKeys & ~keys;
 
-        this->step(frame, (f64)(frame.cur_music_pos - prev_frame.cur_music_pos) / 1000.0, clickKeys);
+        this->step(frame, (f64)(frame.cur_music_pos - prev_frame.cur_music_pos) / 1000.0 / this->getSpeedMultiplier(),
+                   clickKeys);
     }
 }
 

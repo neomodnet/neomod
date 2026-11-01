@@ -400,6 +400,7 @@ void AboutScreen::buildChangelog() {
     v44_03.title = "44.03 (" CHANGELOG_TIMESTAMP ")";
     v44_03.changes = {
         R"(- Fixed spinners being too hard to spin)",
+        R"(- Replay playback: Fixed health drain and spinners on DT/HT)",
         R"(- Servers: Added "sv_replay_framerate" convar)",
     };
     changelogs.push_back(std::move(v44_03));
