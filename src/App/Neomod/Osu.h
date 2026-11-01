@@ -138,7 +138,7 @@ class Osu final : public App, public MouseListener, public TouchListener {
     // an empty name gets one made up
     void exportSkin(std::string_view name = {});
     void saveEverything();
-    void saveScreenshot();
+    void saveScreenshot(bool upload = false);
 
     // threading-related
     [[nodiscard]] bool isInPlayModeAndNotPaused() const;

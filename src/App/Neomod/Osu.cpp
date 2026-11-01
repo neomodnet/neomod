@@ -69,6 +69,7 @@
 #include "SoundEngine.h"
 #include "SpectatorScreen.h"
 #include "TooltipOverlay.h"
+#include "TransferOverlay.h"
 #include "Touch.h"
 #include "UI.h"
 #include "UIContextMenu.h"
@@ -80,6 +81,9 @@
 #include "UserStatsScreen.h"
 #include "VolumeOverlay.h"
 #include "Logging.h"
+#include "NetworkHandler.h"
+#include "SString.h"
+#include "SyncStoptoken.h"
 #include "Graphics.h"
 #include "i18n.h"
 
@@ -87,7 +91,9 @@
 #include "NeomodEnvInterop.h"
 
 #include <algorithm>
+#include <atomic>
 #include <limits>
+#include <memory>
 
 using namespace flags::operators;
 
@@ -883,7 +889,7 @@ void Osu::onKeyDown(KeyboardEvent &key) {
     // screenshots
     if(key == binds::SAVE_SCREENSHOT) {
         if(!key.isRepeat()) {
-            this->saveScreenshot();
+            this->saveScreenshot(keyboard->isShiftDown());
         }
         key.consume();
     }
@@ -1293,13 +1299,13 @@ void Osu::showNotification(const NotificationInfo &info) {
 
 void Osu::reloadMapInterface() { this->map_iface = std::make_unique<BeatmapInterface>(*this->musicTrack); }
 
-void Osu::saveScreenshot() {
+void Osu::saveScreenshot(bool upload) {
     static std::atomic<i32> screenshotNumber{0};
 
     constexpr u8 screenshotChannels{3};
 
-    auto saveFunc = [internalRes = this->internalRect.getSize(),
-                     &skin = this->skin](std::vector<u8> pixelData) -> void {
+    auto saveFunc = [internalRes = this->internalRect.getSize(), &skin = this->skin,
+                     upload](std::vector<u8> pixelData) -> void {
         if(!osu) return;  // paranoia
         if(pixelData.empty()) {
             static uint8_t once = 0;
@@ -1403,10 +1409,59 @@ void Osu::saveScreenshot() {
                 return ret;
             },
             Lane::Background)
-            .then_on_main([](SaveResult screenshotRes) {
+            .then_on_main([upload](SaveResult screenshotRes) {
                 if(!osu || !osu->UIReady()) return;
                 auto [screenshotFilename, pngData, error]{std::move(screenshotRes)};
                 auto *notif = ui->getNotificationOverlay();
+                if(upload && !pngData.empty()) {
+                    if(!BanchoState::is_online()) {
+                        notif->addNotification(_("Can't upload screenshot: not logged in."), 0xffff0000, false, 3.0f);
+                    } else {
+                        const bool oauth = BanchoState::is_oauth;
+                        const std::string user = oauth ? "$token" : BanchoState::get_username();
+                        const std::string_view pw = oauth ? BanchoState::cho_token : BanchoState::pw_md5.string();
+                        auto progress = std::make_shared<std::atomic<f32>>(0.f);
+                        Sync::stop_source cancel;
+                        const u32 transfer = ui->getTransferOverlay()->addTransfer(
+                            _("Uploading screenshot"), progress, [cancel]() mutable { cancel.request_stop(); });
+                        Mc::Net::RequestOptions options{
+                            .user_agent = "osu!",
+                            .mime_parts{
+                                {.name = "u", .data = {user.begin(), user.end()}},
+                                {.name = "p", .data = {pw.begin(), pw.end()}},
+                                {.name = "v", .data = {'1'}},
+                                {.filename = "screenshot.png", .name = "ss", .data = pngData},
+                            },
+                            .progress_callback = [progress](float p) { progress->store(p, std::memory_order_relaxed); },
+                            .timeout = cv::net_transfer_timeout.getVal<long>(),
+                            .connect_timeout = 5,
+                            .cancel_token = cancel.get_token(),
+                        };
+                        networkHandler->httpRequestAsync(
+                            fmt::format("osu.{}/web/osu-screenshot.php", BanchoState::endpoint), std::move(options),
+                            [endpoint = BanchoState::endpoint, transfer](const Mc::Net::Response &response) {
+                                if(!osu || !osu->UIReady()) return;
+                                ui->getTransferOverlay()->removeTransfer(transfer);
+                                auto *notif = ui->getNotificationOverlay();
+                                const std::string_view body = SString::trimmed(response.text());
+                                if(!response.success || response.response_code != 200 || body.empty()) {
+                                    notif->addNotification(
+                                        tformat("Screenshot upload failed: {}",
+                                                body.empty() ? std::string_view{response.error_msg} : body),
+                                        0xffff0000, false, 3.0f);
+                                    return;
+                                }
+                                auto url = fmt::format(
+                                    "{}osu.{}/ss/{}", cv::use_https.getBool() ? "https://" : "http://", endpoint, body);
+                                env->setClipBoardText(url);
+                                notif
+                                    ->addToast(_("Screenshot uploaded, link copied to clipboard (click to open)"),
+                                               CHAT_TOAST,
+                                               [url = std::move(url)] { osu->openURLWithNotification(url); })
+                                    .detach();
+                            });
+                    }
+                }
                 if(pngData.empty()) {
                     notif->addNotification(std::move(error), 0xffff0000, false, 3.0f);
                 } else if constexpr(Env::cfg(OS::WASM)) {

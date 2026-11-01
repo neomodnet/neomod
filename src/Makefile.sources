@@ -139,7 +139,6 @@ neomod_SOURCES = \
 	src/App/Neomod/BanchoUsers.cpp \
 	src/App/Neomod/BeatmapFile/BeatmapFile.cpp \
 	src/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp \
-	src/App/Neomod/BeatmapInstallOverlay.cpp \
 	src/App/Neomod/BeatmapInstaller.cpp \
 	src/App/Neomod/BeatmapInterface.cpp \
 	src/App/Neomod/Chat.cpp \
@@ -212,6 +211,7 @@ neomod_SOURCES = \
 	src/App/Neomod/Tools/DiffCalcSuite.cpp \
 	src/App/Neomod/Tools/DiffCalcTool.cpp \
 	src/App/Neomod/TooltipOverlay.cpp \
+	src/App/Neomod/TransferOverlay.cpp \
 	src/App/Neomod/UI.cpp \
 	src/App/Neomod/UIAvatar.cpp \
 	src/App/Neomod/UIBackButton.cpp \

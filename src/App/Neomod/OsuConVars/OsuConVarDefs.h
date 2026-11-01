@@ -208,7 +208,7 @@ CONVAR(background_fade_out_duration, 0.25f, CLIENT | SKINS | SERVER);
 CONVAR(draw_accuracy, true, CLIENT | SKINS | SERVER);
 CONVAR(draw_approach_circles, true, CLIENT | SKINS | SERVER);
 CONVAR(draw_beatmap_background_image, true, CLIENT | SKINS | SERVER);
-CONVAR(draw_beatmap_install_overlay, true, CLIENT | SERVER, "show the global beatmap download progress overlay");
+CONVAR(draw_beatmap_install_overlay, true, CLIENT | SERVER, "show the global download/upload progress overlay");
 CONVAR(draw_circles, true, CLIENT | SKINS | SERVER);
 CONVAR(draw_combo, true, CLIENT | SKINS | SERVER);
 CONVAR(draw_continue, true, CLIENT | SKINS | SERVER);

@@ -1,6 +1,6 @@
 // Copyright (c) 2026, WH, All rights reserved.
 
-#include "BeatmapInstallOverlay.h"
+#include "TransferOverlay.h"
 
 #include "CBaseUIButton.h"
 #include "Engine.h"
@@ -30,6 +30,9 @@ constexpr f32 DEF_PANEL_INNER_PAD{4.f};
 constexpr f32 DEF_STATUS_ZONE_W{96.f};
 constexpr f32 DEF_TITLE_STATUS_GAP{8.f};
 
+// keeps addTransfer() ids apart from BeatmapInstaller uids
+constexpr u32 TRANSFER_UID_BIT{1u << 31};
+
 Color color_for_progress(MapInstallStage stage) {
     using enum MapInstallStage;
     switch(stage) {
@@ -48,17 +51,15 @@ Color color_for_progress(MapInstallStage stage) {
     }
 }
 
-class InstallRow final : public CBaseUIContainer {
-    NOCOPY_NOMOVE(InstallRow)
+class TransferRow final : public CBaseUIContainer {
+    NOCOPY_NOMOVE(TransferRow)
    public:
-    explicit InstallRow(u32 uid);
-    ~InstallRow() override = default;
+    explicit TransferRow(u32 uid);
+    ~TransferRow() override = default;
 
     void draw() override;
 
-    // set this InstallRow element to an EntryView's state
-    // maybe TODO: should BeatmapInstallOverlay be more tightly coupled to BeatmapInstaller to avoid the need
-    // to duplicate and reconcile state between them?
+    // set this TransferRow element to an EntryView's state
     void apply(const BeatmapInstaller::EntryView& v);
 
     [[nodiscard]] u32 uid() const { return this->entry_uid; }
@@ -79,8 +80,10 @@ class InstallRow final : public CBaseUIContainer {
     void update_cached_strings();
 };
 
-InstallRow::InstallRow(u32 uid)
-    : CBaseUIContainer(0, 0, 0, 0, fmt::format("install-row-{}", uid)), entry_uid(uid), font(engine->getDefaultFont()) {
+TransferRow::TransferRow(u32 uid)
+    : CBaseUIContainer(0, 0, 0, 0, fmt::format("transfer-row-{}", uid)),
+      entry_uid(uid),
+      font(engine->getDefaultFont()) {
     this->x_btn = new CBaseUIButton(0, 0, 0, 0, "x", "✖"s);
     this->x_btn->setDrawFrame(false);
     this->x_btn->setDrawBackground(false);
@@ -90,7 +93,7 @@ InstallRow::InstallRow(u32 uid)
     this->update_cached_strings();
 }
 
-void InstallRow::apply(const BeatmapInstaller::EntryView& v) {
+void TransferRow::apply(const BeatmapInstaller::EntryView& v) {
     bool dirty = false;
     if(v.set_id != this->mapset_id) {  // local imports resolve theirs mid-flight
         this->mapset_id = v.set_id;
@@ -111,7 +114,7 @@ void InstallRow::apply(const BeatmapInstaller::EntryView& v) {
     if(dirty) this->update_cached_strings();
 }
 
-void InstallRow::update_cached_strings() {
+void TransferRow::update_cached_strings() {
     this->cached_title = this->display_name.empty() ? tformat("Beatmap #{:d}", this->mapset_id) : this->display_name;
 
     switch(this->stage) {
@@ -137,7 +140,7 @@ void InstallRow::update_cached_strings() {
     }
 }
 
-void InstallRow::draw() {
+void TransferRow::draw() {
     const f32 scale = Osu::getUIScale();
     const vec2 pos = this->getPos();
     const vec2 size = this->getSize();
@@ -197,7 +200,16 @@ void InstallRow::draw() {
 
 }  // namespace
 
-struct BeatmapInstallOverlay::BIOImpl {
+struct TransferOverlay::TOImpl {
+    struct Transfer {
+        u32 uid;
+        std::string name;
+        std::shared_ptr<const std::atomic<f32>> progress;
+        std::function<void()> cancel;
+    };
+    std::vector<Transfer> transfers;
+    u32 next_transfer_uid{TRANSFER_UID_BIT};
+
     // temporary buffer for in-progress downloads
     std::vector<BeatmapInstaller::EntryView> entry_cache;
 
@@ -207,18 +219,30 @@ struct BeatmapInstallOverlay::BIOImpl {
     i32 last_virt_height{0};
 };
 
-BeatmapInstallOverlay::BeatmapInstallOverlay() : UIScreen(), m_impl() {}
-BeatmapInstallOverlay::~BeatmapInstallOverlay() = default;
+TransferOverlay::TransferOverlay() : UIScreen(), m_impl() {}
+TransferOverlay::~TransferOverlay() = default;
 
-void BeatmapInstallOverlay::onResolutionChange(vec2 /*newResolution*/) {
+void TransferOverlay::onResolutionChange(vec2 /*newResolution*/) {
     // invalidate cached layout inputs so update() recomputes positions next tick
     m_impl->last_scale = 0.f;
     m_impl->last_virt_height = 0;
 }
 
-void BeatmapInstallOverlay::updateInput(CBaseUIEventCtx& c) { CBaseUIContainer::updateInput(c); }
+void TransferOverlay::updateInput(CBaseUIEventCtx& c) { CBaseUIContainer::updateInput(c); }
 
-void BeatmapInstallOverlay::tick() {
+u32 TransferOverlay::addTransfer(std::string name, std::shared_ptr<const std::atomic<f32>> progress,
+                                 std::function<void()> cancel) {
+    const u32 uid = m_impl->next_transfer_uid++ | TRANSFER_UID_BIT;
+    m_impl->transfers.push_back(
+        {.uid = uid, .name = std::move(name), .progress = std::move(progress), .cancel = std::move(cancel)});
+    return uid;
+}
+
+void TransferOverlay::removeTransfer(u32 id) {
+    std::erase_if(m_impl->transfers, [id](const auto& t) { return t.uid == id; });
+}
+
+void TransferOverlay::tick() {
     UIScreen::tick();
 
     // play mode is the broader visibility gate; the matching draw() call lives in UI::draw()'s
@@ -232,6 +256,12 @@ void BeatmapInstallOverlay::tick() {
     auto* installer = osu->getBeatmapInstaller();
 
     installer->snapshot(m_impl->entry_cache);
+    for(const auto& t : m_impl->transfers) {
+        m_impl->entry_cache.push_back({.uid = t.uid,
+                                       .stage = MapInstallStage::Downloading,
+                                       .progress = t.progress->load(std::memory_order_relaxed),
+                                       .display_name = t.name});
+    }
     if(m_impl->entry_cache.empty()) {
         this->bVisible = false;
         return;
@@ -243,8 +273,8 @@ void BeatmapInstallOverlay::tick() {
     bool topology_changed = false;
     {
         // collect-then-delete to avoid mutating vElements while iterating it
-        std::vector<InstallRow*> stale;
-        for(auto* row : this->getElementsAs<InstallRow>()) {
+        std::vector<TransferRow*> stale;
+        for(auto* row : this->getElementsAs<TransferRow>()) {
             bool found = false;
             for(const auto& v : m_impl->entry_cache) {
                 if(v.uid == row->uid()) {
@@ -261,15 +291,23 @@ void BeatmapInstallOverlay::tick() {
     // add new rows + update existing ones. insertion order preserves "first seen first"
     // so a bottom-anchored vertical layout naturally puts newest at the bottom.
     for(const auto& v : m_impl->entry_cache) {
-        InstallRow* row = nullptr;
-        for(auto* r : this->getElementsAs<InstallRow>()) {
+        TransferRow* row = nullptr;
+        for(auto* r : this->getElementsAs<TransferRow>()) {
             if(r->uid() == v.uid) {
                 row = r;
                 break;
             }
         }
         if(!row) {
-            row = new InstallRow(v.uid);
+            row = new TransferRow(v.uid);
+            if(v.uid & TRANSFER_UID_BIT) {
+                row->xButton()->setClickCallback([this, uid = v.uid]() {
+                    for(const auto& t : m_impl->transfers) {
+                        if(t.uid == uid && t.cancel) t.cancel();
+                    }
+                    this->removeTransfer(uid);
+                });
+            }
             this->addBaseUIElement(row);
             topology_changed = true;
         }
@@ -282,7 +320,7 @@ void BeatmapInstallOverlay::tick() {
     // recompute only when row count, ui scale, or virtual screen height changed.
     const f32 scale = Osu::getUIScale();
     const i32 virt_h = osu->getVirtScreenHeight();
-    const auto& rows = this->getElementsAs<InstallRow>();
+    const auto& rows = this->getElementsAs<TransferRow>();
 
     if(topology_changed || scale != m_impl->last_scale || virt_h != m_impl->last_virt_height ||
        rows.size() != m_impl->last_row_count) {
@@ -321,7 +359,7 @@ void BeatmapInstallOverlay::tick() {
     }
 }
 
-void BeatmapInstallOverlay::draw() {
+void TransferOverlay::draw() {
     if(!this->isVisible()) return;
 
     const vec2 pos = this->getPos();
@@ -344,7 +382,7 @@ void BeatmapInstallOverlay::draw() {
     });
 
     // dividers between rows
-    const auto& rows = this->getElementsAs<InstallRow>();
+    const auto& rows = this->getElementsAs<TransferRow>();
     if(rows.size() >= 2) {
         g->setColor(rgb(50, 50, 50).setA(0.85f));
         for(uSz i = 1; i < rows.size(); ++i) {

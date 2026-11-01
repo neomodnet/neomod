@@ -97,7 +97,9 @@ struct RequestOptions {
     std::string post_data{};
     std::string user_agent{};
     std::vector<MimePart> mime_parts{};
-    std::function<void(float)> progress_callback{nullptr};  // progress callback for downloads
+    // upload progress while a request body is being sent, download progress after that.
+    // the wasm backend only reports download progress.
+    std::function<void(float)> progress_callback{nullptr};
     long timeout{5};
     long connect_timeout{5};
 

@@ -69,27 +69,6 @@ msgstr "Pengiriman skor gagal ({}), mencoba lagi..."
 msgid "Score submission rejected: {}"
 msgstr "Skor ditolak: {}"
 
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-#, c++-format
-msgid "Beatmap #{:d}"
-msgstr "Beatmap #{:d}"
-
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-msgid "Failed"
-msgstr "Gagal"
-
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-msgid "Installing..."
-msgstr "Memasang..."
-
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-msgid "Extracting..."
-msgstr "Mengekstrak..."
-
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-msgid "Queued"
-msgstr "Dalam antrean"
-
 #: src/App/Neomod/BeatmapInstaller.cpp
 #, c++-format
 msgid "{} is already installed"
@@ -3025,6 +3004,23 @@ msgid "Error: Couldn't grab a screenshot :("
 msgstr "Error: Tidak dapat mengambil tangkapan layar :("
 
 #: src/App/Neomod/Osu.cpp
+msgid "Can't upload screenshot: not logged in."
+msgstr "Tidak dapat mengunggah tangkapan layar: belum masuk."
+
+#: src/App/Neomod/Osu.cpp
+msgid "Uploading screenshot"
+msgstr "Mengunggah tangkapan layar"
+
+#: src/App/Neomod/Osu.cpp
+#, c++-format
+msgid "Screenshot upload failed: {}"
+msgstr "Gagal mengunggah tangkapan layar: {}"
+
+#: src/App/Neomod/Osu.cpp
+msgid "Screenshot uploaded, link copied to clipboard (click to open)"
+msgstr "Tangkapan layar diunggah, tautan disalin ke papan klip (klik untuk membuka)"
+
+#: src/App/Neomod/Osu.cpp
 msgid "Screenshot copied to clipboard (click to open in a new tab)"
 msgstr "Tangkapan layar disalin ke clipboard (klik untuk membuka di tab baru)"
 
@@ -3771,6 +3767,27 @@ msgstr "Database belum dimuat, tidak bisa memasang map"
 #: src/App/Neomod/SpectatorScreen.cpp
 msgid "Downloading map..."
 msgstr "Mengunduh map..."
+
+#: src/App/Neomod/TransferOverlay.cpp
+#, c++-format
+msgid "Beatmap #{:d}"
+msgstr "Beatmap #{:d}"
+
+#: src/App/Neomod/TransferOverlay.cpp
+msgid "Failed"
+msgstr "Gagal"
+
+#: src/App/Neomod/TransferOverlay.cpp
+msgid "Installing..."
+msgstr "Memasang..."
+
+#: src/App/Neomod/TransferOverlay.cpp
+msgid "Extracting..."
+msgstr "Mengekstrak..."
+
+#: src/App/Neomod/TransferOverlay.cpp
+msgid "Queued"
+msgstr "Dalam antrean"
 
 #: src/App/Neomod/UISearchOverlay.cpp
 msgid "Search: "

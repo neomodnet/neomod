@@ -49,27 +49,6 @@ msgstr ""
 msgid "Score submission rejected: {}"
 msgstr ""
 
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-#, c++-format
-msgid "Beatmap #{:d}"
-msgstr ""
-
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-msgid "Failed"
-msgstr ""
-
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-msgid "Installing..."
-msgstr ""
-
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-msgid "Extracting..."
-msgstr ""
-
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-msgid "Queued"
-msgstr ""
-
 #: src/App/Neomod/BeatmapInstaller.cpp
 #, c++-format
 msgid "{} is already installed"
@@ -2897,6 +2876,23 @@ msgid "Error: Couldn't grab a screenshot :("
 msgstr ""
 
 #: src/App/Neomod/Osu.cpp
+msgid "Can't upload screenshot: not logged in."
+msgstr ""
+
+#: src/App/Neomod/Osu.cpp
+msgid "Uploading screenshot"
+msgstr ""
+
+#: src/App/Neomod/Osu.cpp
+#, c++-format
+msgid "Screenshot upload failed: {}"
+msgstr ""
+
+#: src/App/Neomod/Osu.cpp
+msgid "Screenshot uploaded, link copied to clipboard (click to open)"
+msgstr ""
+
+#: src/App/Neomod/Osu.cpp
 msgid "Screenshot copied to clipboard (click to open in a new tab)"
 msgstr ""
 
@@ -3640,6 +3636,27 @@ msgstr ""
 
 #: src/App/Neomod/SpectatorScreen.cpp
 msgid "Downloading map..."
+msgstr ""
+
+#: src/App/Neomod/TransferOverlay.cpp
+#, c++-format
+msgid "Beatmap #{:d}"
+msgstr ""
+
+#: src/App/Neomod/TransferOverlay.cpp
+msgid "Failed"
+msgstr ""
+
+#: src/App/Neomod/TransferOverlay.cpp
+msgid "Installing..."
+msgstr ""
+
+#: src/App/Neomod/TransferOverlay.cpp
+msgid "Extracting..."
+msgstr ""
+
+#: src/App/Neomod/TransferOverlay.cpp
+msgid "Queued"
 msgstr ""
 
 #: src/App/Neomod/UISearchOverlay.cpp

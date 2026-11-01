@@ -71,27 +71,6 @@ msgstr "Не удалось отправить результат ({}), повт
 msgid "Score submission rejected: {}"
 msgstr "Результат отклонён сервером: {}"
 
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-#, c++-format
-msgid "Beatmap #{:d}"
-msgstr "Карта #{:d}"
-
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-msgid "Failed"
-msgstr "Ошибка"
-
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-msgid "Installing..."
-msgstr "Установка..."
-
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-msgid "Extracting..."
-msgstr "Распаковка..."
-
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-msgid "Queued"
-msgstr "В очереди"
-
 #: src/App/Neomod/BeatmapInstaller.cpp
 #, c++-format
 msgid "{} is already installed"
@@ -3027,6 +3006,23 @@ msgid "Error: Couldn't grab a screenshot :("
 msgstr "Ошибка: Не удалось сделать скриншот :("
 
 #: src/App/Neomod/Osu.cpp
+msgid "Can't upload screenshot: not logged in."
+msgstr "Не удалось загрузить скриншот: вы не вошли в систему."
+
+#: src/App/Neomod/Osu.cpp
+msgid "Uploading screenshot"
+msgstr "Загрузка скриншота"
+
+#: src/App/Neomod/Osu.cpp
+#, c++-format
+msgid "Screenshot upload failed: {}"
+msgstr "Не удалось загрузить скриншот: {}"
+
+#: src/App/Neomod/Osu.cpp
+msgid "Screenshot uploaded, link copied to clipboard (click to open)"
+msgstr "Скриншот загружен, ссылка скопирована в буфер обмена (нажмите, чтобы открыть)"
+
+#: src/App/Neomod/Osu.cpp
 msgid "Screenshot copied to clipboard (click to open in a new tab)"
 msgstr "Скриншот скопирован в буфер обмена (нажмите, чтобы открыть в новой вкладке)"
 
@@ -3773,6 +3769,27 @@ msgstr "База данных не загружена, невозможно ус
 #: src/App/Neomod/SpectatorScreen.cpp
 msgid "Downloading map..."
 msgstr "Скачивание карты..."
+
+#: src/App/Neomod/TransferOverlay.cpp
+#, c++-format
+msgid "Beatmap #{:d}"
+msgstr "Карта #{:d}"
+
+#: src/App/Neomod/TransferOverlay.cpp
+msgid "Failed"
+msgstr "Ошибка"
+
+#: src/App/Neomod/TransferOverlay.cpp
+msgid "Installing..."
+msgstr "Установка..."
+
+#: src/App/Neomod/TransferOverlay.cpp
+msgid "Extracting..."
+msgstr "Распаковка..."
+
+#: src/App/Neomod/TransferOverlay.cpp
+msgid "Queued"
+msgstr "В очереди"
 
 #: src/App/Neomod/UISearchOverlay.cpp
 msgid "Search: "

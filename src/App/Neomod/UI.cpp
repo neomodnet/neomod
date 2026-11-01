@@ -20,7 +20,6 @@
 #include "SString.h"
 
 #include "AboutScreen.h"
-#include "BeatmapInstallOverlay.h"
 #include "Chat.h"
 #include "HUD.h"
 #include "Lobby.h"
@@ -37,6 +36,7 @@
 #include "SongBrowser/SongBrowser.h"
 #include "SpectatorScreen.h"
 #include "TooltipOverlay.h"
+#include "TransferOverlay.h"
 #include "UIUserContextMenu.h"
 #include "UIContextMenu.h"
 #include "UserStatsScreen.h"

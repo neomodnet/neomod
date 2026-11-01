@@ -20,7 +20,7 @@ class UIScreen;
 class UIOverlay;
 
 class AboutScreen;
-class BeatmapInstallOverlay;
+class TransferOverlay;
 class Chat;
 class HUD;
 class Lobby;
@@ -70,7 +70,7 @@ class UIDebug;
 //     (rank 10, drawn by the gameplay composite).
 //   OVERLAY band (ranks 11-21): occlusion matters here, so this order is important:
 //     11 pauseoverlay  12 mapsettingsoverlay  13 chat  14 modselector  15 useractions
-//     16 optionsoverlay  17 promptoverlay  18 beatmapinstalloverlay  19 volumeoverlay
+//     16 optionsoverlay  17 promptoverlay  18 transferoverlay  19 volumeoverlay
 //     20 notificationoverlay  21 tooltipoverlay
 //   mapsettingsoverlay > pauseoverlay: it's reachable while paused (the pause menu is modal).
 //   chat < modselector/options: they cover the chat (the menu modselector leaves it up underneath, dimmed).
@@ -100,7 +100,7 @@ class UIDebug;
     X( 8, UIF_DEFAULT,           AboutScreen,             aboutscreen) \
     X( 9, UIF_DEFAULT,           MainMenu,                mainmenu) \
     X(21, UIF_DEFAULT,           TooltipOverlay,          tooltipoverlay) \
-    X(18, UIF_DEFAULT,           BeatmapInstallOverlay,   beatmapinstalloverlay)
+    X(18, UIF_DEFAULT,           TransferOverlay,         transferoverlay)
 // clang-format on
 
 struct UI final {

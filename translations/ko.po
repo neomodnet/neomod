@@ -69,27 +69,6 @@ msgstr "점수 제출 실패 ({}), 다시 시도 중..."
 msgid "Score submission rejected: {}"
 msgstr "점수 제출 거부됨: {}"
 
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-#, c++-format
-msgid "Beatmap #{:d}"
-msgstr "비트맵 #{:d}"
-
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-msgid "Failed"
-msgstr "실패"
-
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-msgid "Installing..."
-msgstr "설치 중..."
-
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-msgid "Extracting..."
-msgstr "압축 해제 중..."
-
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-msgid "Queued"
-msgstr "대기 중"
-
 #: src/App/Neomod/BeatmapInstaller.cpp
 #, c++-format
 msgid "{} is already installed"
@@ -3025,6 +3004,23 @@ msgid "Error: Couldn't grab a screenshot :("
 msgstr "오류: 스크린샷을 찍을 수 없습니다 :("
 
 #: src/App/Neomod/Osu.cpp
+msgid "Can't upload screenshot: not logged in."
+msgstr "스크린샷을 업로드할 수 없습니다: 로그인되지 않았습니다."
+
+#: src/App/Neomod/Osu.cpp
+msgid "Uploading screenshot"
+msgstr "스크린샷 업로드 중"
+
+#: src/App/Neomod/Osu.cpp
+#, c++-format
+msgid "Screenshot upload failed: {}"
+msgstr "스크린샷 업로드 실패: {}"
+
+#: src/App/Neomod/Osu.cpp
+msgid "Screenshot uploaded, link copied to clipboard (click to open)"
+msgstr "스크린샷이 업로드되었고 링크가 클립보드에 복사되었습니다 (클릭하여 열기)"
+
+#: src/App/Neomod/Osu.cpp
 msgid "Screenshot copied to clipboard (click to open in a new tab)"
 msgstr "스크린샷을 클립보드에 복사했습니다 (클릭하면 새 탭에서 열기)"
 
@@ -3771,6 +3767,27 @@ msgstr "데이터베이스가 로드되지 않아 맵을 설치할 수 없습니
 #: src/App/Neomod/SpectatorScreen.cpp
 msgid "Downloading map..."
 msgstr "맵 다운로드 중..."
+
+#: src/App/Neomod/TransferOverlay.cpp
+#, c++-format
+msgid "Beatmap #{:d}"
+msgstr "비트맵 #{:d}"
+
+#: src/App/Neomod/TransferOverlay.cpp
+msgid "Failed"
+msgstr "실패"
+
+#: src/App/Neomod/TransferOverlay.cpp
+msgid "Installing..."
+msgstr "설치 중..."
+
+#: src/App/Neomod/TransferOverlay.cpp
+msgid "Extracting..."
+msgstr "압축 해제 중..."
+
+#: src/App/Neomod/TransferOverlay.cpp
+msgid "Queued"
+msgstr "대기 중"
 
 #: src/App/Neomod/UISearchOverlay.cpp
 msgid "Search: "

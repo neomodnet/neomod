@@ -69,27 +69,6 @@ msgstr "Error al enviar la puntuación ({}), reintentando..."
 msgid "Score submission rejected: {}"
 msgstr "Puntuación rechazada: {}"
 
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-#, c++-format
-msgid "Beatmap #{:d}"
-msgstr "Beatmap #{:d}"
-
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-msgid "Failed"
-msgstr "Fallido"
-
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-msgid "Installing..."
-msgstr "Instalando..."
-
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-msgid "Extracting..."
-msgstr "Extrayendo..."
-
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-msgid "Queued"
-msgstr "En cola"
-
 #: src/App/Neomod/BeatmapInstaller.cpp
 #, c++-format
 msgid "{} is already installed"
@@ -3025,6 +3004,23 @@ msgid "Error: Couldn't grab a screenshot :("
 msgstr "Error: No se pudo hacer la captura :("
 
 #: src/App/Neomod/Osu.cpp
+msgid "Can't upload screenshot: not logged in."
+msgstr "No se puede subir la captura: no has iniciado sesión."
+
+#: src/App/Neomod/Osu.cpp
+msgid "Uploading screenshot"
+msgstr "Subiendo captura"
+
+#: src/App/Neomod/Osu.cpp
+#, c++-format
+msgid "Screenshot upload failed: {}"
+msgstr "Error al subir la captura: {}"
+
+#: src/App/Neomod/Osu.cpp
+msgid "Screenshot uploaded, link copied to clipboard (click to open)"
+msgstr "Captura subida, enlace copiado al portapapeles (haz clic para abrir)"
+
+#: src/App/Neomod/Osu.cpp
 msgid "Screenshot copied to clipboard (click to open in a new tab)"
 msgstr "Captura copiada al portapapeles (haz clic para abrirla en una pestaña nueva)"
 
@@ -3771,6 +3767,27 @@ msgstr "Base de datos no cargada, no se puede instalar el mapa"
 #: src/App/Neomod/SpectatorScreen.cpp
 msgid "Downloading map..."
 msgstr "Descargando mapa..."
+
+#: src/App/Neomod/TransferOverlay.cpp
+#, c++-format
+msgid "Beatmap #{:d}"
+msgstr "Beatmap #{:d}"
+
+#: src/App/Neomod/TransferOverlay.cpp
+msgid "Failed"
+msgstr "Fallido"
+
+#: src/App/Neomod/TransferOverlay.cpp
+msgid "Installing..."
+msgstr "Instalando..."
+
+#: src/App/Neomod/TransferOverlay.cpp
+msgid "Extracting..."
+msgstr "Extrayendo..."
+
+#: src/App/Neomod/TransferOverlay.cpp
+msgid "Queued"
+msgstr "En cola"
 
 #: src/App/Neomod/UISearchOverlay.cpp
 msgid "Search: "

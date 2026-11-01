@@ -251,7 +251,6 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Neomod/BanchoUsers.cpp \
 	src/App/Neomod/BeatmapFile/BeatmapFile.cpp \
 	src/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp \
-	src/App/Neomod/BeatmapInstallOverlay.cpp \
 	src/App/Neomod/BeatmapInstaller.cpp \
 	src/App/Neomod/BeatmapInterface.cpp src/App/Neomod/Chat.cpp \
 	src/App/Neomod/ChatLink.cpp src/App/Neomod/Collections.cpp \
@@ -307,7 +306,8 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Neomod/ThumbnailManager.cpp \
 	src/App/Neomod/Tools/DiffCalcSuite.cpp \
 	src/App/Neomod/Tools/DiffCalcTool.cpp \
-	src/App/Neomod/TooltipOverlay.cpp src/App/Neomod/UI.cpp \
+	src/App/Neomod/TooltipOverlay.cpp \
+	src/App/Neomod/TransferOverlay.cpp src/App/Neomod/UI.cpp \
 	src/App/Neomod/UIAvatar.cpp src/App/Neomod/UIBackButton.cpp \
 	src/App/Neomod/UIButton.cpp src/App/Neomod/UIButtonRounded.cpp \
 	src/App/Neomod/UIButtonWithIcon.cpp \
@@ -517,7 +517,6 @@ am_neomod_OBJECTS = libraries/neomod-MD5.$(OBJEXT) \
 	src/App/Neomod/neomod-BanchoUsers.$(OBJEXT) \
 	src/App/Neomod/BeatmapFile/neomod-BeatmapFile.$(OBJEXT) \
 	src/App/Neomod/BeatmapFile/neomod-BeatmapPrimitives.$(OBJEXT) \
-	src/App/Neomod/neomod-BeatmapInstallOverlay.$(OBJEXT) \
 	src/App/Neomod/neomod-BeatmapInstaller.$(OBJEXT) \
 	src/App/Neomod/neomod-BeatmapInterface.$(OBJEXT) \
 	src/App/Neomod/neomod-Chat.$(OBJEXT) \
@@ -590,6 +589,7 @@ am_neomod_OBJECTS = libraries/neomod-MD5.$(OBJEXT) \
 	src/App/Neomod/Tools/neomod-DiffCalcSuite.$(OBJEXT) \
 	src/App/Neomod/Tools/neomod-DiffCalcTool.$(OBJEXT) \
 	src/App/Neomod/neomod-TooltipOverlay.$(OBJEXT) \
+	src/App/Neomod/neomod-TransferOverlay.$(OBJEXT) \
 	src/App/Neomod/neomod-UI.$(OBJEXT) \
 	src/App/Neomod/neomod-UIAvatar.$(OBJEXT) \
 	src/App/Neomod/neomod-UIBackButton.$(OBJEXT) \
@@ -768,7 +768,6 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/App/Neomod/$(DEPDIR)/neomod-BanchoProtocol.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-BanchoSubmitter.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-BanchoUsers.Po \
-	src/App/Neomod/$(DEPDIR)/neomod-BeatmapInstallOverlay.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-BeatmapInstaller.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-BeatmapInterface.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-Chat.Po \
@@ -822,6 +821,7 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/App/Neomod/$(DEPDIR)/neomod-StrainGraph.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-ThumbnailManager.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-TooltipOverlay.Po \
+	src/App/Neomod/$(DEPDIR)/neomod-TransferOverlay.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-UI.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-UIAvatar.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-UIBackButton.Po \
@@ -1556,7 +1556,6 @@ neomod_SOURCES = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Neomod/BanchoUsers.cpp \
 	src/App/Neomod/BeatmapFile/BeatmapFile.cpp \
 	src/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp \
-	src/App/Neomod/BeatmapInstallOverlay.cpp \
 	src/App/Neomod/BeatmapInstaller.cpp \
 	src/App/Neomod/BeatmapInterface.cpp src/App/Neomod/Chat.cpp \
 	src/App/Neomod/ChatLink.cpp src/App/Neomod/Collections.cpp \
@@ -1612,7 +1611,8 @@ neomod_SOURCES = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Neomod/ThumbnailManager.cpp \
 	src/App/Neomod/Tools/DiffCalcSuite.cpp \
 	src/App/Neomod/Tools/DiffCalcTool.cpp \
-	src/App/Neomod/TooltipOverlay.cpp src/App/Neomod/UI.cpp \
+	src/App/Neomod/TooltipOverlay.cpp \
+	src/App/Neomod/TransferOverlay.cpp src/App/Neomod/UI.cpp \
 	src/App/Neomod/UIAvatar.cpp src/App/Neomod/UIBackButton.cpp \
 	src/App/Neomod/UIButton.cpp src/App/Neomod/UIButtonRounded.cpp \
 	src/App/Neomod/UIButtonWithIcon.cpp \
@@ -2361,9 +2361,6 @@ src/App/Neomod/BeatmapFile/neomod-BeatmapFile.$(OBJEXT):  \
 src/App/Neomod/BeatmapFile/neomod-BeatmapPrimitives.$(OBJEXT):  \
 	src/App/Neomod/BeatmapFile/$(am__dirstamp) \
 	src/App/Neomod/BeatmapFile/$(DEPDIR)/$(am__dirstamp)
-src/App/Neomod/neomod-BeatmapInstallOverlay.$(OBJEXT):  \
-	src/App/Neomod/$(am__dirstamp) \
-	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
 src/App/Neomod/neomod-BeatmapInstaller.$(OBJEXT):  \
 	src/App/Neomod/$(am__dirstamp) \
 	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
@@ -2597,6 +2594,9 @@ src/App/Neomod/Tools/neomod-DiffCalcTool.$(OBJEXT):  \
 	src/App/Neomod/Tools/$(am__dirstamp) \
 	src/App/Neomod/Tools/$(DEPDIR)/$(am__dirstamp)
 src/App/Neomod/neomod-TooltipOverlay.$(OBJEXT):  \
+	src/App/Neomod/$(am__dirstamp) \
+	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
+src/App/Neomod/neomod-TransferOverlay.$(OBJEXT):  \
 	src/App/Neomod/$(am__dirstamp) \
 	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
 src/App/Neomod/neomod-UI.$(OBJEXT): src/App/Neomod/$(am__dirstamp) \
@@ -3354,7 +3354,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-BanchoProtocol.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-BanchoSubmitter.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-BanchoUsers.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-BeatmapInstallOverlay.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-BeatmapInstaller.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-BeatmapInterface.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-Chat.Po@am__quote@ # am--include-marker
@@ -3408,6 +3407,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-StrainGraph.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-ThumbnailManager.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-TooltipOverlay.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-TransferOverlay.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-UI.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-UIAvatar.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-UIBackButton.Po@am__quote@ # am--include-marker
@@ -4003,20 +4003,6 @@ src/App/Neomod/BeatmapFile/neomod-BeatmapPrimitives.obj: src/App/Neomod/BeatmapF
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp' object='src/App/Neomod/BeatmapFile/neomod-BeatmapPrimitives.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/BeatmapFile/neomod-BeatmapPrimitives.obj `if test -f 'src/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp'; then $(CYGPATH_W) 'src/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp'; fi`
-
-src/App/Neomod/neomod-BeatmapInstallOverlay.o: src/App/Neomod/BeatmapInstallOverlay.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-BeatmapInstallOverlay.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-BeatmapInstallOverlay.Tpo -c -o src/App/Neomod/neomod-BeatmapInstallOverlay.o `test -f 'src/App/Neomod/BeatmapInstallOverlay.cpp' || echo '$(srcdir)/'`src/App/Neomod/BeatmapInstallOverlay.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-BeatmapInstallOverlay.Tpo src/App/Neomod/$(DEPDIR)/neomod-BeatmapInstallOverlay.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/BeatmapInstallOverlay.cpp' object='src/App/Neomod/neomod-BeatmapInstallOverlay.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-BeatmapInstallOverlay.o `test -f 'src/App/Neomod/BeatmapInstallOverlay.cpp' || echo '$(srcdir)/'`src/App/Neomod/BeatmapInstallOverlay.cpp
-
-src/App/Neomod/neomod-BeatmapInstallOverlay.obj: src/App/Neomod/BeatmapInstallOverlay.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-BeatmapInstallOverlay.obj -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-BeatmapInstallOverlay.Tpo -c -o src/App/Neomod/neomod-BeatmapInstallOverlay.obj `if test -f 'src/App/Neomod/BeatmapInstallOverlay.cpp'; then $(CYGPATH_W) 'src/App/Neomod/BeatmapInstallOverlay.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/BeatmapInstallOverlay.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-BeatmapInstallOverlay.Tpo src/App/Neomod/$(DEPDIR)/neomod-BeatmapInstallOverlay.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/BeatmapInstallOverlay.cpp' object='src/App/Neomod/neomod-BeatmapInstallOverlay.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-BeatmapInstallOverlay.obj `if test -f 'src/App/Neomod/BeatmapInstallOverlay.cpp'; then $(CYGPATH_W) 'src/App/Neomod/BeatmapInstallOverlay.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/BeatmapInstallOverlay.cpp'; fi`
 
 src/App/Neomod/neomod-BeatmapInstaller.o: src/App/Neomod/BeatmapInstaller.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-BeatmapInstaller.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-BeatmapInstaller.Tpo -c -o src/App/Neomod/neomod-BeatmapInstaller.o `test -f 'src/App/Neomod/BeatmapInstaller.cpp' || echo '$(srcdir)/'`src/App/Neomod/BeatmapInstaller.cpp
@@ -5025,6 +5011,20 @@ src/App/Neomod/neomod-TooltipOverlay.obj: src/App/Neomod/TooltipOverlay.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/TooltipOverlay.cpp' object='src/App/Neomod/neomod-TooltipOverlay.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-TooltipOverlay.obj `if test -f 'src/App/Neomod/TooltipOverlay.cpp'; then $(CYGPATH_W) 'src/App/Neomod/TooltipOverlay.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/TooltipOverlay.cpp'; fi`
+
+src/App/Neomod/neomod-TransferOverlay.o: src/App/Neomod/TransferOverlay.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-TransferOverlay.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-TransferOverlay.Tpo -c -o src/App/Neomod/neomod-TransferOverlay.o `test -f 'src/App/Neomod/TransferOverlay.cpp' || echo '$(srcdir)/'`src/App/Neomod/TransferOverlay.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-TransferOverlay.Tpo src/App/Neomod/$(DEPDIR)/neomod-TransferOverlay.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/TransferOverlay.cpp' object='src/App/Neomod/neomod-TransferOverlay.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-TransferOverlay.o `test -f 'src/App/Neomod/TransferOverlay.cpp' || echo '$(srcdir)/'`src/App/Neomod/TransferOverlay.cpp
+
+src/App/Neomod/neomod-TransferOverlay.obj: src/App/Neomod/TransferOverlay.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-TransferOverlay.obj -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-TransferOverlay.Tpo -c -o src/App/Neomod/neomod-TransferOverlay.obj `if test -f 'src/App/Neomod/TransferOverlay.cpp'; then $(CYGPATH_W) 'src/App/Neomod/TransferOverlay.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/TransferOverlay.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-TransferOverlay.Tpo src/App/Neomod/$(DEPDIR)/neomod-TransferOverlay.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/TransferOverlay.cpp' object='src/App/Neomod/neomod-TransferOverlay.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-TransferOverlay.obj `if test -f 'src/App/Neomod/TransferOverlay.cpp'; then $(CYGPATH_W) 'src/App/Neomod/TransferOverlay.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/TransferOverlay.cpp'; fi`
 
 src/App/Neomod/neomod-UI.o: src/App/Neomod/UI.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-UI.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-UI.Tpo -c -o src/App/Neomod/neomod-UI.o `test -f 'src/App/Neomod/UI.cpp' || echo '$(srcdir)/'`src/App/Neomod/UI.cpp
@@ -7936,7 +7936,6 @@ distclean: distclean-am
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-BanchoProtocol.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-BanchoSubmitter.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-BanchoUsers.Po
-	-rm -f src/App/Neomod/$(DEPDIR)/neomod-BeatmapInstallOverlay.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-BeatmapInstaller.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-BeatmapInterface.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-Chat.Po
@@ -7990,6 +7989,7 @@ distclean: distclean-am
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-StrainGraph.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-ThumbnailManager.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-TooltipOverlay.Po
+	-rm -f src/App/Neomod/$(DEPDIR)/neomod-TransferOverlay.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-UI.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-UIAvatar.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-UIBackButton.Po
@@ -8259,7 +8259,6 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-BanchoProtocol.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-BanchoSubmitter.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-BanchoUsers.Po
-	-rm -f src/App/Neomod/$(DEPDIR)/neomod-BeatmapInstallOverlay.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-BeatmapInstaller.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-BeatmapInterface.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-Chat.Po
@@ -8313,6 +8312,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-StrainGraph.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-ThumbnailManager.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-TooltipOverlay.Po
+	-rm -f src/App/Neomod/$(DEPDIR)/neomod-TransferOverlay.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-UI.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-UIAvatar.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-UIBackButton.Po

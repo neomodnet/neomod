@@ -268,7 +268,7 @@ struct NetworkImpl {
 
     static uSz headerCallback(char* buffer, uSz size, uSz nitems, void* userdata);
     static uSz writeCallback(void* contents, uSz size, uSz nmemb, void* userp);
-    static i32 progressCallback(void* clientp, i64 dltotal, i64 dlnow, i64 /**/, i64 /**/);
+    static i32 progressCallback(void* clientp, i64 dltotal, i64 dlnow, i64 ultotal, i64 ulnow);
 
     // main async thread
     void threadLoopFunc(const Sync::stop_token& stopToken);
@@ -461,11 +461,13 @@ void NetworkImpl::websocketSend() {
     }
 }
 
-i32 NetworkImpl::progressCallback(void* clientp, i64 dltotal, i64 dlnow, i64 /*unused*/, i64 /*unused*/) {
+i32 NetworkImpl::progressCallback(void* clientp, i64 dltotal, i64 dlnow, i64 ultotal, i64 ulnow) {
     auto* request = static_cast<Request*>(clientp);
-    if(request->options.progress_callback && dltotal > 0) {
-        float progress = static_cast<float>(dlnow) / static_cast<float>(dltotal);
-        request->options.progress_callback(progress);
+    if(!request->options.progress_callback) return 0;
+    if(ultotal > 0 && ulnow < ultotal) {
+        request->options.progress_callback(static_cast<float>(ulnow) / static_cast<float>(ultotal));
+    } else if(dltotal > 0) {
+        request->options.progress_callback(static_cast<float>(dlnow) / static_cast<float>(dltotal));
     }
     return 0;
 }

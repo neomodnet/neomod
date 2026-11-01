@@ -71,27 +71,6 @@ msgstr "スコアの送信に失敗しました（{}）。再試行中..."
 msgid "Score submission rejected: {}"
 msgstr "スコアがサーバーに拒否されました: {}"
 
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-#, c++-format
-msgid "Beatmap #{:d}"
-msgstr "ビートマップ #{:d}"
-
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-msgid "Failed"
-msgstr "失敗"
-
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-msgid "Installing..."
-msgstr "インストール中..."
-
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-msgid "Extracting..."
-msgstr "展開中..."
-
-#: src/App/Neomod/BeatmapInstallOverlay.cpp
-msgid "Queued"
-msgstr "待機中"
-
 #: src/App/Neomod/BeatmapInstaller.cpp
 #, c++-format
 msgid "{} is already installed"
@@ -3027,6 +3006,23 @@ msgid "Error: Couldn't grab a screenshot :("
 msgstr "エラー: スクリーンショットを撮影できませんでした :("
 
 #: src/App/Neomod/Osu.cpp
+msgid "Can't upload screenshot: not logged in."
+msgstr "スクリーンショットをアップロードできません：ログインしていません。"
+
+#: src/App/Neomod/Osu.cpp
+msgid "Uploading screenshot"
+msgstr "スクリーンショットをアップロード中"
+
+#: src/App/Neomod/Osu.cpp
+#, c++-format
+msgid "Screenshot upload failed: {}"
+msgstr "スクリーンショットのアップロードに失敗しました：{}"
+
+#: src/App/Neomod/Osu.cpp
+msgid "Screenshot uploaded, link copied to clipboard (click to open)"
+msgstr "スクリーンショットをアップロードし、リンクをクリップボードにコピーしました（クリックで開く）"
+
+#: src/App/Neomod/Osu.cpp
 msgid "Screenshot copied to clipboard (click to open in a new tab)"
 msgstr "スクリーンショットをクリップボードにコピーしました（クリックで新しいタブで開きます）"
 
@@ -3773,6 +3769,27 @@ msgstr "データベースが読み込まれていないため、マップをイ
 #: src/App/Neomod/SpectatorScreen.cpp
 msgid "Downloading map..."
 msgstr "マップをダウンロード中..."
+
+#: src/App/Neomod/TransferOverlay.cpp
+#, c++-format
+msgid "Beatmap #{:d}"
+msgstr "ビートマップ #{:d}"
+
+#: src/App/Neomod/TransferOverlay.cpp
+msgid "Failed"
+msgstr "失敗"
+
+#: src/App/Neomod/TransferOverlay.cpp
+msgid "Installing..."
+msgstr "インストール中..."
+
+#: src/App/Neomod/TransferOverlay.cpp
+msgid "Extracting..."
+msgstr "展開中..."
+
+#: src/App/Neomod/TransferOverlay.cpp
+msgid "Queued"
+msgstr "待機中"
 
 #: src/App/Neomod/UISearchOverlay.cpp
 msgid "Search: "

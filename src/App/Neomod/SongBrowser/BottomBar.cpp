@@ -132,8 +132,8 @@ void updateInput(CBaseUIEventCtx& c) {
 
     // TODO: BottomBar isn't a CBaseUIElement so click/hover detection needs BS manual workarounds
     bool overlay_has_mouse_inside = false;
-    for(auto* overlay : {ui->getOptionsOverlayBase(), ui->getChatBase(), ui->getModSelectorBase(),
-                         ui->getBeatmapInstallOverlayBase()}) {
+    for(auto* overlay :
+        {ui->getOptionsOverlayBase(), ui->getChatBase(), ui->getModSelectorBase(), ui->getTransferOverlayBase()}) {
         if(overlay->isVisible() && overlay->isMouseInside()) {
             overlay_has_mouse_inside = true;
             break;
