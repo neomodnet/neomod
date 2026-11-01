@@ -1069,8 +1069,9 @@ void BeatmapInterface::cancelFailing() {
 void BeatmapInterface::setMusicSpeed(f32 speed) {
     // (outside of play only with beatmap_preview_mods_live)
     const bool modded = osu->isInPlayMode() || cv::beatmap_preview_mods_live.getBool();
-    this->music.setRate(modded ? speed : 1.f, modded ? this->getPitchMultiplier() : 1.f,
-                        cv::snd_speed_compensate_pitch.getBool());
+    // nightcore/daycore change the pitch along with the speed
+    this->music.setRate(modded ? speed : 1.f, cv::snd_speed_compensate_pitch.getBool() &&
+                                                  !(modded && this->getMods().has(ModFlags::NoPitchCorrection)));
 }
 
 void BeatmapInterface::seekMS(u32 ms) {
@@ -1188,7 +1189,6 @@ int BeatmapInterface::getMostCommonBPM() const {
 }
 
 f32 BeatmapInterface::getSpeedMultiplier() const { return this->judge ? this->judge->getSpeedMultiplier() : 1.f; }
-f32 BeatmapInterface::getPitchMultiplier() const { return this->judge ? this->judge->getPitchMultiplier() : 1.f; }
 
 // currently just a passthrough for the main skin, might return beatmap skins in the future
 const Skin *BeatmapInterface::getSkin() const { return osu->getSkin(); }

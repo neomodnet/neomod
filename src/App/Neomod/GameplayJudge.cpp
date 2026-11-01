@@ -321,19 +321,6 @@ f32 GameplayJudge::getSpeedMultiplier() const {
     return speed >= 0.05f ? speed : 1.f;
 }
 
-f32 GameplayJudge::getPitchMultiplier() const {
-    // if pitch compensation is off, keep pitch constant (do not apply daycore/nightcore pitch)
-    if(!cv::snd_speed_compensate_pitch.getBool()) return 1.f;
-
-    // TODO: re-add actual nightcore/daycore mods
-    const f32 speedMult = this->getSpeedMultiplier();
-    if(this->getMods().has(ModFlags::NoPitchCorrection) && speedMult != 1.f) {
-        return speedMult < 1.f ? 0.92f /* daycore */ : 1.1166f /* nightcore */;
-    }
-
-    return 1.f;
-}
-
 f64 GameplayJudge::getHitWindow300() const {
     return GameRules::mapDifficultyRange<f64>(this->getOD(), GameRules::MIN_HITWINDOW_300, GameRules::MID_HITWINDOW_300,
                                               GameRules::MAX_HITWINDOW_300);

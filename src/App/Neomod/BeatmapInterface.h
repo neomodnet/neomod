@@ -127,7 +127,6 @@ class BeatmapInterface final : public GameplayJudge::Listener, public PlayfieldV
     [[nodiscard]] inline f32 getSpeedStars() const { return this->fSpeedStars; }
     [[nodiscard]] inline f32 getSpeedNotes() const { return this->fSpeedNotes; }
     [[nodiscard]] f32 getSpeedMultiplier() const;
-    [[nodiscard]] f32 getPitchMultiplier() const;
 
     const AsyncPPC::pp_res &getWholeMapPPInfo() const;
 

@@ -229,10 +229,7 @@ void MusicTrack::setVirtualTime(bool on) {
     }
 }
 
-void MusicTrack::applyRate() {
-    this->stream->setSpeed(this->speed, this->preservePitch);
-    this->stream->setPitch(this->pitch);
-}
+void MusicTrack::applyRate() { this->stream->setSpeed(this->speed, this->preservePitch); }
 
 bool MusicTrack::isLoading() const { return this->stream && !this->loadFinished; }
 
@@ -306,9 +303,8 @@ void MusicTrack::setLoop(bool loop) {
     if(this->isReady()) this->stream->setLoop(loop);
 }
 
-void MusicTrack::setRate(f32 speed, f32 pitch, bool preservePitch) {
+void MusicTrack::setRate(f32 speed, bool preservePitch) {
     this->speed = speed;
-    this->pitch = pitch;
     this->preservePitch = preservePitch;
     if(this->stream) this->applyRate();
 }

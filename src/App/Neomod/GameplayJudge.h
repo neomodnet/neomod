@@ -127,7 +127,6 @@ class GameplayJudge final {
     [[nodiscard]] f32 getApproachTime() const;
     [[nodiscard]] f32 getRawApproachTime() const;
     [[nodiscard]] f32 getSpeedMultiplier() const;
-    [[nodiscard]] f32 getPitchMultiplier() const;
     [[nodiscard]] f64 getHitWindow300() const;
     [[nodiscard]] f32 getRawHitWindow300() const;
     [[nodiscard]] f64 getHitWindow100() const;

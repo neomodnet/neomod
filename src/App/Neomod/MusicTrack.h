@@ -70,7 +70,7 @@ class MusicTrack final {
     // time (otherwise before it is its start)
     void setPosition(i32 ms);
     void setLoop(bool loop);
-    void setRate(f32 speed, f32 pitch, bool preservePitch);
+    void setRate(f32 speed, bool preservePitch);
     // slows the music down by lowering its frequency to `factor` of its own (the fail animation), until endSlowdown()
     void setSlowdown(f32 factor);
     void endSlowdown();
@@ -110,7 +110,6 @@ class MusicTrack final {
     // the transport, kept for the stream a load or a device change makes and for its new voices
     bool loop{false};
     f32 speed{1.f};
-    f32 pitch{1.f};
     bool preservePitch{true};
     f32 baseFrequency{0.f};
     f32 slowdown{1.f};
