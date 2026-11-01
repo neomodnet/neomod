@@ -405,6 +405,7 @@ void AboutScreen::buildChangelog() {
         R"(- Fixed spinners being too hard to spin)",
         R"(- Fixed unsubmitted osu!stable scores not getting imported)",
         R"(- Nightcore/Daycore now change the pitch along with the speed)",
+        R"(- Moved "Target Practice" to experimental mods)",
         R"(- Removed "Actual Flashlight" mod)",
         R"(- Supporters now have a colored username)",
         R"(- Replay playback: Fixed health drain and spinners on DT/HT)",

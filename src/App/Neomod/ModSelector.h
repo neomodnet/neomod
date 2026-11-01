@@ -120,7 +120,7 @@ class ModSelector final : public UIScreen {
     bool bShowOverrideSliderALTHint{true};
 
     // mod grid buttons
-    static constexpr int GRID_WIDTH{6};
+    static constexpr int GRID_WIDTH{5};
     static constexpr int GRID_HEIGHT{3};
 
     std::array<UIModSelectorModButton *, GRID_WIDTH * GRID_HEIGHT> modButtons{};
@@ -135,7 +135,7 @@ class ModSelector final : public UIScreen {
     // clang-format off
     MKMODBTN(EZ,0,0); MKMODBTN(NF,  1,0);MKMODBTN(HT,2,0);
     MKMODBTN(HR,0,1); MKMODBTN(SDPF,1,1);MKMODBTN(DT,2,1);MKMODBTN(HD,  3,1);MKMODBTN(FL, 4,1);
-    MKMODBTN(RX,0,2); MKMODBTN(AP,  1,2);MKMODBTN(SO,2,2);MKMODBTN(AUTO,3,2);MKMODBTN(TGT,4,2);MKMODBTN(SV2,5,2);
+    MKMODBTN(RX,0,2); MKMODBTN(AP,  1,2);MKMODBTN(SO,2,2);MKMODBTN(AUTO,3,2);MKMODBTN(SV2,4,2);
     // clang-format on
 #undef MKMODBTN
 

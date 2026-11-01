@@ -866,6 +866,18 @@ msgid "Leaving sliders in any way counts as a miss and combo break. (Reload beat
 msgstr "Любой сход со слайдера засчитывается как промах и прерывает комбо. (Перезагрузите карту для применения!)"
 
 #: src/App/Neomod/ModSelector.cpp
+msgid "Target Practice"
+msgstr "Тренировка точности"
+
+#: src/App/Neomod/ModSelector.cpp
+msgid ""
+"Accuracy is based on the distance to the center of all hitobjects.\n"
+"300s still require at least being in the hit window of a 100 in addition to the rule above."
+msgstr ""
+"Точность зависит от расстояния до центра объектов.\n"
+"Для получения 300 всё равно необходимо попасть как минимум в окно тайминга 100-очковых нот."
+
+#: src/App/Neomod/ModSelector.cpp
 msgid "WARNING: Score submission will be disabled due to non-vanilla mod selection."
 msgstr "ВНИМАНИЕ: Отправка рекордов будет отключена из-за выбора нестандартных модов."
 
@@ -956,14 +968,6 @@ msgstr "Спиннеры будут пройдены автоматически.
 #: src/App/Neomod/ModSelector.cpp
 msgid "Watch a perfect automated play through the song."
 msgstr "Посмотрите идеальное автоматическое прохождение карты."
-
-#: src/App/Neomod/ModSelector.cpp
-msgid ""
-"Accuracy is based on the distance to the center of all hitobjects.\n"
-"300s still require at least being in the hit window of a 100 in addition to the rule above."
-msgstr ""
-"Точность зависит от расстояния до центра объектов.\n"
-"Для получения 300 всё равно необходимо попасть как минимум в окно тайминга 100-очковых нот."
 
 #: src/App/Neomod/ModSelector.cpp
 msgid ""

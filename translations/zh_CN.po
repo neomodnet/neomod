@@ -864,6 +864,18 @@ msgid "Leaving sliders in any way counts as a miss and combo break. (Reload beat
 msgstr "以任何方式离开滑条都算作 Miss 并断连。（重新加载谱面后生效！）"
 
 #: src/App/Neomod/ModSelector.cpp
+msgid "Target Practice"
+msgstr "靶心练习"
+
+#: src/App/Neomod/ModSelector.cpp
+msgid ""
+"Accuracy is based on the distance to the center of all hitobjects.\n"
+"300s still require at least being in the hit window of a 100 in addition to the rule above."
+msgstr ""
+"精准度取决于与所有物件中心的距离。\n"
+"除上述规则外，300 仍要求至少处于 100 的判定区间内。"
+
+#: src/App/Neomod/ModSelector.cpp
 msgid "WARNING: Score submission will be disabled due to non-vanilla mod selection."
 msgstr "警告：由于选择了非原版模组，成绩提交将被禁用。"
 
@@ -954,14 +966,6 @@ msgstr "转盘会自动完成。"
 #: src/App/Neomod/ModSelector.cpp
 msgid "Watch a perfect automated play through the song."
 msgstr "观看这首歌的完美自动游玩。"
-
-#: src/App/Neomod/ModSelector.cpp
-msgid ""
-"Accuracy is based on the distance to the center of all hitobjects.\n"
-"300s still require at least being in the hit window of a 100 in addition to the rule above."
-msgstr ""
-"精准度取决于与所有物件中心的距离。\n"
-"除上述规则外，300 仍要求至少处于 100 的判定区间内。"
 
 #: src/App/Neomod/ModSelector.cpp
 msgid ""

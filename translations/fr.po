@@ -862,6 +862,18 @@ msgid "Leaving sliders in any way counts as a miss and combo break. (Reload beat
 msgstr "Quitter un slider de quelque façon que ce soit compte comme un miss et une rupture de combo. (Rechargez la beatmap pour appliquer !)"
 
 #: src/App/Neomod/ModSelector.cpp
+msgid "Target Practice"
+msgstr "Entraînement de précision"
+
+#: src/App/Neomod/ModSelector.cpp
+msgid ""
+"Accuracy is based on the distance to the center of all hitobjects.\n"
+"300s still require at least being in the hit window of a 100 in addition to the rule above."
+msgstr ""
+"La précision est basée sur la distance au centre de tous les hitobjects.\n"
+"Les 300 nécessitent toujours d'être au moins dans la fenêtre de hit d'un 100 en plus de la règle ci-dessus."
+
+#: src/App/Neomod/ModSelector.cpp
 msgid "WARNING: Score submission will be disabled due to non-vanilla mod selection."
 msgstr "ATTENTION : La soumission des scores sera désactivée en raison de la sélection de mods non standards."
 
@@ -952,14 +964,6 @@ msgstr "Les spinners sont effectués automatiquement."
 #: src/App/Neomod/ModSelector.cpp
 msgid "Watch a perfect automated play through the song."
 msgstr "Regardez l'ordinateur réaliser un score parfait."
-
-#: src/App/Neomod/ModSelector.cpp
-msgid ""
-"Accuracy is based on the distance to the center of all hitobjects.\n"
-"300s still require at least being in the hit window of a 100 in addition to the rule above."
-msgstr ""
-"La précision est basée sur la distance au centre de tous les hitobjects.\n"
-"Les 300 nécessitent toujours d'être au moins dans la fenêtre de hit d'un 100 en plus de la règle ci-dessus."
 
 #: src/App/Neomod/ModSelector.cpp
 msgid ""

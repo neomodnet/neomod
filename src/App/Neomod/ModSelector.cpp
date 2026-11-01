@@ -327,6 +327,10 @@ ModSelector::ModSelector() : UIScreen() {
         _("Strict Tracking"),
         _("Leaving sliders in any way counts as a miss and combo break. (Reload beatmap to apply!)"),
         &cv::mod_strict_tracking);
+    this->addExperimentalCheckbox(_("Target Practice"),
+                                  _("Accuracy is based on the distance to the center of all hitobjects.\n300s still "
+                                    "require at least being in the hit window of a 100 in addition to the rule above."),
+                                  &cv::mod_target);
 
     this->nonSubmittableWarning = new CBaseUILabel();
     this->nonSubmittableWarning
@@ -438,11 +442,6 @@ void ModSelector::updateButtons(bool initial) {
     this->modButtonAUTO =
         setGridModbtn(this->getGridButton(AUTO_POS), 0, initial && osu->getModAuto(), &cv::mod_autoplay, "auto",
                       _("Watch a perfect automated play through the song."), MKIMGGETR(i_modselect_auto));
-    this->modButtonTGT = setGridModbtn(
-        this->getGridButton(TGT_POS), 0, initial && osu->getModTarget(), &cv::mod_target, "practicetarget",
-        _("Accuracy is based on the distance to the center of all hitobjects.\n300s still require at "
-          "least being in the hit window of a 100 in addition to the rule above."),
-        MKIMGGETR(i_modselect_target));
     this->modButtonSV2 =
         setGridModbtn(this->getGridButton(SV2_POS), 0, initial && osu->getModScorev2(), &cv::mod_scorev2, "v2",
                       _("Try the future scoring system.\n** UNRANKED **"), MKIMGGETR(i_modselect_sv2));
@@ -453,15 +452,15 @@ void ModSelector::updateButtons(bool initial) {
     // Only enable these in singleplayer or if we're the host of a multi lobby
     this->modButtonHT->setAvailable(isHostEquivalent);
     this->modButtonDT->setAvailable(isHostEquivalent);
-    this->modButtonTGT->setAvailable(isHostEquivalent);
 
     // Only enable these in singleplayer
     this->modButtonSV2->setAvailable(!isMulti);  // we use win condition instead in multi
     this->modButtonAUTO->setAvailable(!isMulti);
 
     // of the override sliders and experimental mods, only what no server or skin decides. in a room (where they show
-    // only if its mods carry more than the grid's) only what its mods carry: not the speed and timewarp unless we are
-    // the host (like DT/HT, see Room::with_shared_mods()), and not the no pausing that every room has
+    // only if its mods carry more than the grid's) only what its mods carry: not the speed, timewarp and target
+    // practice unless we are the host (like DT/HT, see Room::with_shared_mods()), and not the no pausing that every
+    // room has
     const auto changeable = [isMulti](const ConVar &cvar) {
         return cvar.getMaster() == CvarEditor::CLIENT && (!isMulti || Replay::Mods::covers(cvar));
     };
@@ -479,7 +478,8 @@ void ModSelector::updateButtons(bool initial) {
         if(experimentalMod.cvar == nullptr) continue;
         experimentalMod.element->setEnabled(changeable(*experimentalMod.cvar) &&
                                             !(isMulti && experimentalMod.cvar == &cv::mod_no_pausing) &&
-                                            (isHostEquivalent || experimentalMod.cvar != &cv::mod_timewarp));
+                                            (isHostEquivalent || (experimentalMod.cvar != &cv::mod_timewarp &&
+                                                                  experimentalMod.cvar != &cv::mod_target)));
     }
 
 #undef MKIMGGETR

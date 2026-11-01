@@ -864,6 +864,18 @@ msgid "Leaving sliders in any way counts as a miss and combo break. (Reload beat
 msgstr "어떤 식으로든 슬라이더를 벗어나면 미스 및 콤보 끊김으로 처리됩니다. (적용하려면 비트맵을 다시 불러오세요!)"
 
 #: src/App/Neomod/ModSelector.cpp
+msgid "Target Practice"
+msgstr "타겟 연습"
+
+#: src/App/Neomod/ModSelector.cpp
+msgid ""
+"Accuracy is based on the distance to the center of all hitobjects.\n"
+"300s still require at least being in the hit window of a 100 in addition to the rule above."
+msgstr ""
+"정확도는 모든 오브젝트 중심까지의 거리를 기준으로 합니다.\n"
+"300은 위 규칙과 별개로 최소한 100 판정 범위 안에 들어와야 합니다."
+
+#: src/App/Neomod/ModSelector.cpp
 msgid "WARNING: Score submission will be disabled due to non-vanilla mod selection."
 msgstr "경고: 기본이 아닌 모드를 선택했으므로 점수 제출이 비활성화됩니다."
 
@@ -954,14 +966,6 @@ msgstr "스피너가 자동으로 완료됩니다."
 #: src/App/Neomod/ModSelector.cpp
 msgid "Watch a perfect automated play through the song."
 msgstr "곡의 완벽한 자동 플레이를 감상하세요."
-
-#: src/App/Neomod/ModSelector.cpp
-msgid ""
-"Accuracy is based on the distance to the center of all hitobjects.\n"
-"300s still require at least being in the hit window of a 100 in addition to the rule above."
-msgstr ""
-"정확도는 모든 오브젝트 중심까지의 거리를 기준으로 합니다.\n"
-"300은 위 규칙과 별개로 최소한 100 판정 범위 안에 들어와야 합니다."
 
 #: src/App/Neomod/ModSelector.cpp
 msgid ""

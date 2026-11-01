@@ -864,6 +864,18 @@ msgid "Leaving sliders in any way counts as a miss and combo break. (Reload beat
 msgstr "Keluar dari slider dengan cara apa pun dihitung sebagai miss dan combo break. (Muat ulang beatmap untuk menerapkan!)"
 
 #: src/App/Neomod/ModSelector.cpp
+msgid "Target Practice"
+msgstr "Latihan Target"
+
+#: src/App/Neomod/ModSelector.cpp
+msgid ""
+"Accuracy is based on the distance to the center of all hitobjects.\n"
+"300s still require at least being in the hit window of a 100 in addition to the rule above."
+msgstr ""
+"Akurasi didasarkan pada jarak ke pusat semua objek.\n"
+"300 tetap memerlukan setidaknya masuk dalam jendela hit 100 selain aturan di atas."
+
+#: src/App/Neomod/ModSelector.cpp
 msgid "WARNING: Score submission will be disabled due to non-vanilla mod selection."
 msgstr "PERINGATAN: Pengiriman skor akan dinonaktifkan karena pilihan mod non-vanilla."
 
@@ -954,14 +966,6 @@ msgstr "Spinner akan diselesaikan secara otomatis."
 #: src/App/Neomod/ModSelector.cpp
 msgid "Watch a perfect automated play through the song."
 msgstr "Tonton permainan otomatis sempurna dari lagu ini."
-
-#: src/App/Neomod/ModSelector.cpp
-msgid ""
-"Accuracy is based on the distance to the center of all hitobjects.\n"
-"300s still require at least being in the hit window of a 100 in addition to the rule above."
-msgstr ""
-"Akurasi didasarkan pada jarak ke pusat semua objek.\n"
-"300 tetap memerlukan setidaknya masuk dalam jendela hit 100 selain aturan di atas."
 
 #: src/App/Neomod/ModSelector.cpp
 msgid ""
