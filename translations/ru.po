@@ -959,6 +959,14 @@ msgstr "Посмотрите идеальное автоматическое п�
 
 #: src/App/Neomod/ModSelector.cpp
 msgid ""
+"Accuracy is based on the distance to the center of all hitobjects.\n"
+"300s still require at least being in the hit window of a 100 in addition to the rule above."
+msgstr ""
+"Точность зависит от расстояния до центра объектов.\n"
+"Для получения 300 всё равно необходимо попасть как минимум в окно тайминга 100-очковых нот."
+
+#: src/App/Neomod/ModSelector.cpp
+msgid ""
 "Try the future scoring system.\n"
 "** UNRANKED **"
 msgstr ""

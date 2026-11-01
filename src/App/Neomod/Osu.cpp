@@ -2223,6 +2223,7 @@ bool Osu::getModAuto() const { return flags::has<ModFlags::Autoplay>(this->score
 bool Osu::getModAutopilot() const { return flags::has<ModFlags::Autopilot>(this->score->mods.flags); }
 bool Osu::getModRelax() const { return flags::has<ModFlags::Relax>(this->score->mods.flags); }
 bool Osu::getModSpunout() const { return flags::has<ModFlags::SpunOut>(this->score->mods.flags); }
+bool Osu::getModTarget() const { return flags::has<ModFlags::Target>(this->score->mods.flags); }
 bool Osu::getModScorev2() const { return flags::has<ModFlags::ScoreV2>(this->score->mods.flags); }
 bool Osu::getModFlashlight() const { return flags::has<ModFlags::Flashlight>(this->score->mods.flags); }
 bool Osu::getModNF() const { return flags::has<ModFlags::NoFail>(this->score->mods.flags); }

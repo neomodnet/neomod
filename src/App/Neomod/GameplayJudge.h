@@ -61,6 +61,7 @@ class GameplayJudge final {
         virtual void playSpinnerSpinSound(f32 ratio, neomod::DatabaseBeatmapTypes::HITSAMPLE_BITS samples);
         virtual void stopSpinnerSpinSound();
         virtual void playSpinnerBonusSound(neomod::DatabaseBeatmapTypes::HITSAMPLE_BITS samples);
+        virtual void addTargetHit(f32 delta, f32 angle);  // target mod hits by distance and angle from the center
 
         virtual void onComboBreak();  // called right before the combo is reset
         virtual void onHealthGain(f64 healthBefore);
@@ -200,6 +201,7 @@ class GameplayJudge final {
     void playSpinnerSpinSound(f32 ratio, neomod::DatabaseBeatmapTypes::HITSAMPLE_BITS samples);
     void stopSpinnerSpinSound();
     void playSpinnerBonusSound(neomod::DatabaseBeatmapTypes::HITSAMPLE_BITS samples);
+    void addTargetHit(f32 delta, f32 angle);
 
     // for HitObject::update to avoid recalculating for each object every frame
     [[nodiscard]] forceinline f32 getCachedApproachTimeForUpdate() const { return this->fCachedApproachTimeForUpdate; }

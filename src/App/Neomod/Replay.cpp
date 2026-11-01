@@ -109,6 +109,7 @@ LegacyFlags Mods::to_legacy() const {
     if(flags::has<ModFlags::SpunOut>(this->flags)) legacy_flags |= LegacyFlags::SpunOut;
     if(flags::has<ModFlags::Autopilot>(this->flags)) legacy_flags |= LegacyFlags::Autopilot;
     if(flags::has<ModFlags::Perfect>(this->flags)) legacy_flags |= LegacyFlags::Perfect;
+    if(flags::has<ModFlags::Target>(this->flags)) legacy_flags |= LegacyFlags::Target;
     if(flags::has<ModFlags::ScoreV2>(this->flags)) legacy_flags |= LegacyFlags::ScoreV2;
     if(flags::has<ModFlags::Autoplay>(this->flags)) {
         legacy_flags &= ~(LegacyFlags::Relax | LegacyFlags::Autopilot);
@@ -134,6 +135,7 @@ Mods Mods::from_legacy(LegacyFlags legacy_flags) {
     if(flags::has<LegacyFlags::SpunOut>(legacy_flags)) neoflags |= ModFlags::SpunOut;
     if(flags::has<LegacyFlags::Autopilot>(legacy_flags)) neoflags |= ModFlags::Autopilot;
     if(flags::has<LegacyFlags::Perfect>(legacy_flags)) neoflags |= ModFlags::Perfect;
+    if(flags::has<LegacyFlags::Target>(legacy_flags)) neoflags |= ModFlags::Target;
     if(flags::has<LegacyFlags::ScoreV2>(legacy_flags)) neoflags |= ModFlags::ScoreV2;
     if(flags::has<LegacyFlags::Nightmare>(legacy_flags)) neoflags |= ModFlags::StrictClicks | ModFlags::PreciseSliders;
     if(flags::has<LegacyFlags::FPoSu>(legacy_flags)) neoflags |= ModFlags::FPoSu;
@@ -221,6 +223,7 @@ Mods Mods::from_cvars() {
     ADDIFCV(mod_spunout, SpunOut);
     ADDIFCV(mod_scorev2, ScoreV2);
     ADDIFCV(mod_fposu, FPoSu);
+    ADDIFCV(mod_target, Target);
     ADDIFCV(ar_override_lock, AROverrideLock);
     ADDIFCV(od_override_lock, ODOverrideLock);
     ADDIFCV(mod_timewarp, Timewarp);
@@ -298,6 +301,7 @@ static void for_each_mod_cv(const Mods &mods, bool with_settings, const F &func)
     CVFROMFLAG(mod_perfect, Perfect);
     CVFROMFLAG(mod_spunout, SpunOut);
     CVFROMFLAG(mod_scorev2, ScoreV2);
+    CVFROMFLAG(mod_target, Target);
     CVFROMFLAG(ar_override_lock, AROverrideLock);
     CVFROMFLAG(od_override_lock, ODOverrideLock);
     CVFROMFLAG(mod_timewarp, Timewarp);

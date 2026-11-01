@@ -959,6 +959,14 @@ msgstr "Obejrzyj perfekcyjne automatyczne przejście utworu."
 
 #: src/App/Neomod/ModSelector.cpp
 msgid ""
+"Accuracy is based on the distance to the center of all hitobjects.\n"
+"300s still require at least being in the hit window of a 100 in addition to the rule above."
+msgstr ""
+"Celność opiera się na odległości od środka wszystkich obiektów.\n"
+"300 nadal wymagają trafienia przynajmniej w oknie dla 100 oprócz powyższej reguły."
+
+#: src/App/Neomod/ModSelector.cpp
+msgid ""
 "Try the future scoring system.\n"
 "** UNRANKED **"
 msgstr ""

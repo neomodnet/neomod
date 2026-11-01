@@ -260,6 +260,7 @@ CONVAR(draw_statistics_sliderbreaks, false, CLIENT | SKINS | SERVER);
 CONVAR(draw_statistics_totalstars, false, CLIENT | SKINS | SERVER);
 CONVAR(draw_statistics_ur, false, CLIENT | SKINS | SERVER);
 CONVAR(draw_statistics_audio_offset, false, CLIENT);  // DEBUG
+CONVAR(draw_target_heatmap, true, CLIENT | SKINS | SERVER);
 CONVAR(hud_accuracy_scale, 1.0f, CLIENT | SKINS | SERVER);
 CONVAR(hud_combo_scale, 1.0f, CLIENT | SKINS | SERVER);
 CONVAR(hud_fps_smoothing, true, CLIENT | SKINS | SERVER);
@@ -420,6 +421,7 @@ CONVAR(mod_autoplay, false, CLIENT | SERVER | GAMEPLAY);
 CONVAR(mod_autopilot, false, CLIENT | SERVER | GAMEPLAY);
 CONVAR(mod_relax, false, CLIENT | SERVER | GAMEPLAY);
 CONVAR(mod_spunout, false, CLIENT | SERVER | GAMEPLAY);
+CONVAR(mod_target, false, CLIENT | SERVER | GAMEPLAY);
 CONVAR(mod_scorev2, false, CLIENT | SERVER | GAMEPLAY);
 CONVAR(mod_flashlight, false, CLIENT | SERVER | GAMEPLAY);
 CONVAR(mod_doubletime, false, CLIENT | SERVER | GAMEPLAY);
@@ -508,6 +510,9 @@ CONVAR(mod_strict_tracking, false, CLIENT | SERVER | PROTECTED | GAMEPLAY);
 CONVAR(mod_strict_tracking_remove_slider_ticks, false, CLIENT | SERVER | PROTECTED | GAMEPLAY,
        "whether the strict tracking mod should remove slider ticks or not, "
        "this changed after its initial implementation in lazer");
+CONVAR(mod_target_100_percent, 0.7f, CLIENT | SERVER | PROTECTED | GAMEPLAY);
+CONVAR(mod_target_300_percent, 0.5f, CLIENT | SERVER | PROTECTED | GAMEPLAY);
+CONVAR(mod_target_50_percent, 0.95f, CLIENT | SERVER | PROTECTED | GAMEPLAY);
 CONVAR(mod_timewarp, false, CLIENT | SERVER | PROTECTED | GAMEPLAY);
 CONVAR(mod_timewarp_multiplier, 1.5f, CLIENT | SERVER | GAMEPLAY);
 CONVAR(mod_wobble, false, CLIENT | SERVER | PROTECTED | GAMEPLAY);

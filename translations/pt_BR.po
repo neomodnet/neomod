@@ -957,6 +957,14 @@ msgstr "Assista a uma jogada automática perfeita da música."
 
 #: src/App/Neomod/ModSelector.cpp
 msgid ""
+"Accuracy is based on the distance to the center of all hitobjects.\n"
+"300s still require at least being in the hit window of a 100 in addition to the rule above."
+msgstr ""
+"A precisão é baseada na distância até o centro de todos os objetos.\n"
+"Os 300s ainda exigem estar pelo menos na janela de um 100, além da regra acima."
+
+#: src/App/Neomod/ModSelector.cpp
+msgid ""
 "Try the future scoring system.\n"
 "** UNRANKED **"
 msgstr ""

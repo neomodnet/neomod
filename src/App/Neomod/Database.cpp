@@ -2590,8 +2590,7 @@ void Database::loadPeppyScores(std::string_view dbPath) {
 
             sc.comboMax = dbr.read<u16>();
             sc.perfect = dbr.read<u8>();
-            const auto legacy_flags = dbr.read<LegacyFlags>();
-            sc.mods = Replay::Mods::from_legacy(legacy_flags);
+            sc.mods = Replay::Mods::from_legacy(dbr.read<LegacyFlags>());
 
             dbr.skip_string();  // hp graph
 
@@ -2613,7 +2612,7 @@ void Database::loadPeppyScores(std::string_view dbPath) {
                 sc.bancho_score_id = 0;
             }
 
-            if(flags::has<LegacyFlags::Target>(legacy_flags)) {
+            if(sc.mods.has(ModFlags::Target)) {
                 dbr.skip<f64>();  // total accuracy
             }
 

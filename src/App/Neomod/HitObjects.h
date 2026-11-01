@@ -120,9 +120,9 @@ class HitObject {
     [[nodiscard]] forceinline i32 getComboStartTime() const { return m_comboStartMS; }
     [[nodiscard]] forceinline i32 getComboNumber() const { return m_comboNumber; }
 
-    void addHitResult(LiveHitResult result, i32 delta, bool isEndOfCombo, vec2 posRaw, bool ignoreOnHitErrorBar = false,
-                      bool ignoreCombo = false, bool ignoreHealth = false,
-                      bool addObjectDurationToSkinAnimationTimeStartOffset = true);
+    void addHitResult(LiveHitResult result, i32 delta, bool isEndOfCombo, vec2 posRaw, f32 targetDeltaPct = 0.0f,
+                      f32 targetAngle = 0.0f, bool ignoreOnHitErrorBar = false, bool ignoreCombo = false,
+                      bool ignoreHealth = false, bool addObjectDurationToSkinAnimationTimeStartOffset = true);
     // shows a hit result at posRaw without judging anything
     void addHitResultAnim(LiveHitResult result, i32 delta, vec2 posRaw,
                           bool addObjectDurationToSkinAnimationTimeStartOffset);
@@ -230,6 +230,7 @@ class Circle final : public HitObject {
     static void drawCircle(const PlayfieldView &view, vec2 rawPos, i32 number, i32 colorCounter, i32 colorOffset,
                            f32 colorRGBMultiplier, f32 approachScale, f32 alpha, f32 numberAlpha,
                            bool drawNumber = true, bool overrideHDApproachCircle = false);
+    static void drawCircle(const Skin *skin, vec2 pos, f32 hitcircleDiameter, Color color, f32 alpha = 1.0f);
     static void drawSliderStartCircle(const PlayfieldView &view, vec2 rawPos, i32 number, i32 colorCounter = 0,
                                       i32 colorOffset = 0, f32 colorRGBMultiplier = 1.0f, f32 approachScale = 1.0f,
                                       f32 alpha = 1.0f, f32 numberAlpha = 1.0f, bool drawNumber = true,
@@ -286,7 +287,7 @@ class Circle final : public HitObject {
     static i32 rainbowNumber;
     static i32 rainbowColorCounter;
 
-    void onHit(LiveHitResult result, i32 hitDeltaMS);
+    void onHit(LiveHitResult result, i32 hitDeltaMS, f32 targetDeltaPct = 0.0f, f32 targetAngle = 0.0f);
 
     bool m_waiting{false};
 
@@ -370,7 +371,8 @@ class Slider final : public HitObject, public SliderRenderer::BodySource {
     // whatever changes the cursor's position or the keys that count calls this
     void updateTracking();
 
-    void onHit(LiveHitResult result, i32 hitDeltaMS, bool isEndCircle, bool isEndResultFromStrictTrackingMod = false);
+    void onHit(LiveHitResult result, i32 hitDeltaMS, bool isEndCircle, f32 targetDelta = 0.0f, f32 targetAngle = 0.0f,
+               bool isEndResultFromStrictTrackingMod = false);
     void onRepeatHit(const SLIDERCLICK &click);
     void onTickHit(const SLIDERCLICK &click);
     void onSliderBreak();

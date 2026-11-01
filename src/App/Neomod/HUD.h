@@ -103,6 +103,7 @@ class HUD final : public UIScreen {
 
     void animateCombo();
     void addHitError(i32 delta, bool miss = false, bool misaim = false);
+    void addTarget(f32 delta, f32 angle);
     void animateInputOverlay(GameplayKeys key_flag, bool down, std::optional<i32> musicPos = std::nullopt);
 
     void addCursorRipple(vec2 pos);
@@ -187,6 +188,12 @@ class HUD final : public UIScreen {
         bool misaim;
     };
 
+    struct TARGET {
+        f32 time;
+        f32 delta;
+        f32 angle;
+    };
+
     struct BREAK {
         f32 startPercent;
         f32 endPercent;
@@ -223,6 +230,7 @@ class HUD final : public UIScreen {
     static void drawHitErrorBarInt2(vec2 center, i32 ur);
     void drawClock(f32 percent, bool waiting);
     static void drawStatistics(const HUDStats &stats);
+    void drawTargetHeatmap(f32 hitcircleDiameter);
     void drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 beatmapStartTimePlayable,
                                f32 beatmapPercentFinishedPlayable, const std::vector<BREAK> &breaks);
     void drawInputOverlay(i32 numK1, i32 numK2, i32 numM1, i32 numM2);
@@ -313,6 +321,9 @@ class HUD final : public UIScreen {
     std::unique_ptr<VertexArrayObject> cursorTrailVAO;
     std::unique_ptr<VertexArrayObject> inputOverlayTrailVAO;
     std::vector<CursorRippleElement> cursorRipples;
+
+    // target heatmap
+    std::vector<TARGET> targets;
 
     // health
     double fHealth;

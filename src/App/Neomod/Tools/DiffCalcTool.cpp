@@ -425,6 +425,7 @@ std::string modsStringFromMods(ModFlags mods, float speed) {
     if(flags::has<Autopilot>(mods)) modsString.append("AP,");
     if(pf) modsString.append("PF,");
     if(flags::has<ScoreV2>(mods)) modsString.append("v2,");
+    if(flags::has<Target>(mods)) modsString.append("Target,");
     if(flags::any<MirrorHorizontal | MirrorVertical>(mods)) modsString.append("Mirror,");
     if(flags::has<FPoSu>(mods)) modsString.append("FPoSu,");
     if(flags::has<Singletap>(mods)) modsString.append("1K,");
@@ -480,6 +481,8 @@ std::pair<ModFlags, float> modStringToModFlag(std::string_view CSVs) {
             retFlags |= Perfect;
         } else if(modString == "v2") {
             retFlags |= ScoreV2;
+        } else if(modString == "target") {
+            retFlags |= Target;
         } else if(modString == "mirror") {
             retFlags |= MirrorHorizontal;  // modsStringFromMods prints "Mirror" for either axis
         } else if(modString == "fposu") {

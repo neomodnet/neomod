@@ -1375,6 +1375,8 @@ void BeatmapInterface::playSpinnerBonusSound(DatabaseBeatmapTypes::HITSAMPLE_BIT
         soundEngine->play(skin->s_spinner_bonus, 0.f, 0.f, spinnerSoundVolume(*this, *skin, samples));
 }
 
+void BeatmapInterface::addTargetHit(f32 delta, f32 angle) { ui->getHUD()->addTarget(delta, angle); }
+
 bool BeatmapInterface::canDraw() {
     if(!this->bIsPlaying && !this->bIsPaused && !this->bContinueScheduled && !this->bIsWaiting) return false;
     if(unlikely(!this->beatmap) || this->music.isEmpty())  // sanity check

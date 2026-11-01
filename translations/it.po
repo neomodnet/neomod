@@ -957,6 +957,14 @@ msgstr "Guarda una partita automatica perfetta del brano."
 
 #: src/App/Neomod/ModSelector.cpp
 msgid ""
+"Accuracy is based on the distance to the center of all hitobjects.\n"
+"300s still require at least being in the hit window of a 100 in addition to the rule above."
+msgstr ""
+"La precisione si basa sulla distanza dal centro di tutti gli oggetti.\n"
+"I 300 richiedono comunque di essere almeno nella finestra di un 100, oltre alla regola sopra."
+
+#: src/App/Neomod/ModSelector.cpp
+msgid ""
 "Try the future scoring system.\n"
 "** UNRANKED **"
 msgstr ""

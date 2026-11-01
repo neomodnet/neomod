@@ -26,7 +26,7 @@ enum class ModFlags : u64 {
     SpunOut = 1ULL << 12,
     ScoreV2 = 1ULL << 13,
     FPoSu = 1ULL << 14,
-    Target = 1ULL << 15,  // removed
+    Target = 1ULL << 15,
 
     // Experimental mods
     AROverrideLock = 1ULL << 16,

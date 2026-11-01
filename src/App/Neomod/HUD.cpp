@@ -221,6 +221,11 @@ void HUD::draw() {
 
         g->pushTransform();
         {
+            if(osu->getModTarget() && cv::draw_target_heatmap.getBool()) {
+                g->translate(0, pf->fHitcircleDiameter *
+                                    (1.0f / (cv::hud_scale.getFloat() * cv::hud_statistics_scale.getFloat())));
+            }
+
             const auto &whole_pp = pf->getWholeMapPPInfo();
             this->drawStatistics({.misses = score->getNumMisses(),
                                   .sliderbreaks = score->getNumSliderBreaks(),
@@ -299,6 +304,8 @@ void HUD::draw() {
         if(cv::draw_progressbar.getBool()) this->drawClock(pf->getPercentFinishedPlayable(), pf->isWaiting());
 
         if(cv::draw_accuracy.getBool()) this->drawAccuracy(score->getAccuracy() * 100.0f);
+
+        if(osu->getModTarget() && cv::draw_target_heatmap.getBool()) this->drawTargetHeatmap(pf->fHitcircleDiameter);
     } else if(!cv::hud_shift_tab_toggles_everything.getBool()) {
         if(cv::draw_inputoverlay.getBool()) {
             const bool isAutoClicking = (osu->getModAuto() || osu->getModRelax());
@@ -392,6 +399,13 @@ void HUD::draw() {
         g->setColor(0xffffffff);
         g->drawString(font, str);
         g->popTransform();
+    }
+
+    // target heatmap cleanup
+    if(osu->getModTarget()) {
+        if(this->targets.size() > 0 && engine->getTime() > this->targets[0].time) {
+            this->targets.erase(this->targets.begin());
+        }
     }
 }
 
@@ -2015,6 +2029,70 @@ void HUD::drawStatistics(const HUDStats &s) {
     g->popTransform();
 }
 
+void HUD::drawTargetHeatmap(f32 hitcircleDiameter) {
+    const vec2 center = vec2((i32)(hitcircleDiameter / 2.0f + 5.0f), (i32)(hitcircleDiameter / 2.0f + 5.0f));
+
+    // constexpr const COLORPART brightnessSub = 0;
+    static constexpr Color color300 = rgb(0, 255, 255);
+    static constexpr Color color100 = rgb(0, 255, 0);
+    static constexpr Color color50 = rgb(255, 165, 0);
+    static constexpr Color colorMiss = rgb(255, 0, 0);
+
+    Circle::drawCircle(osu->getSkin(), center, hitcircleDiameter, rgb(50, 50, 50));
+
+    const i32 size = hitcircleDiameter * 0.075f;
+    for(auto &target : this->targets) {
+        const f32 delta = target.delta;
+
+        const f32 overlap = 0.15f;
+        Color color{};
+        if(delta < cv::mod_target_300_percent.getFloat() - overlap)
+            color = color300;
+        else if(delta < cv::mod_target_300_percent.getFloat() + overlap) {
+            const f32 factor300 = (cv::mod_target_300_percent.getFloat() + overlap - delta) / (2.0f * overlap);
+            const f32 factor100 = 1.0f - factor300;
+            color = argb(1.0f, color300.Rf() * factor300 + color100.Rf() * factor100,
+                         color300.Gf() * factor300 + color100.Gf() * factor100,
+                         color300.Bf() * factor300 + color100.Bf() * factor100);
+        } else if(delta < cv::mod_target_100_percent.getFloat() - overlap)
+            color = color100;
+        else if(delta < cv::mod_target_100_percent.getFloat() + overlap) {
+            const f32 factor100 = (cv::mod_target_100_percent.getFloat() + overlap - delta) / (2.0f * overlap);
+            const f32 factor50 = 1.0f - factor100;
+            color = argb(1.0f, color100.Rf() * factor100 + color50.Rf() * factor50,
+                         color100.Gf() * factor100 + color50.Gf() * factor50,
+                         color100.Bf() * factor100 + color50.Bf() * factor50);
+        } else if(delta < cv::mod_target_50_percent.getFloat())
+            color = color50;
+        else
+            color = colorMiss;
+
+        g->setColor(Color(color).setA(std::clamp<f32>((target.time - engine->getTime()) / 3.5f, 0.0f, 1.0f)));
+
+        const f32 theta = vec::radians(target.angle);
+        const f32 cs = std::cos(theta);
+        const f32 sn = std::sin(theta);
+
+        vec2 up = vec2(-1, 0);
+        vec2 offset{0.f};
+        offset.x = up.x * cs - up.y * sn;
+        offset.y = up.x * sn + up.y * cs;
+        offset = vec::normalize(offset);
+        offset *= (delta * (hitcircleDiameter / 2.0f));
+
+        // g->fillRect(center.x-size/2 - offset.x, center.y-size/2 - offset.y, size, size);
+
+        const f32 imageScale = Osu::getImageScaleToFitResolution(osu->getSkin()->i_circle_full, vec2(size, size));
+        g->pushTransform();
+        {
+            g->scale(imageScale, imageScale);
+            g->translate(center.x - offset.x, center.y - offset.y);
+            g->drawImage(osu->getSkin()->i_circle_full);
+        }
+        g->popTransform();
+    }
+}
+
 void HUD::drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 beatmapStartTimePlayable,
                                 f32 beatmapPercentFinishedPlayable, const std::vector<BREAK> &breaks) {
     const vec2 new_cursor_pos = mouse->getPos();
@@ -2551,6 +2629,10 @@ void HUD::addHitError(i32 delta, bool miss, bool misaim) {
 
     if(this->hiterrors.size() > cv::hud_hiterrorbar_max_entries.getInt())
         this->hiterrors.erase(this->hiterrors.begin());
+}
+
+void HUD::addTarget(f32 delta, f32 angle) {
+    this->targets.push_back({.time = (f32)(engine->getTime() + 3.5f), .delta = delta, .angle = angle});
 }
 
 void HUD::animateInputOverlay(GameplayKeys key_flag, bool down, std::optional<i32> musicPos) {
