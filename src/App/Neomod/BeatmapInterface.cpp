@@ -106,7 +106,6 @@ BeatmapInterface::BeatmapInterface(MusicTrack &music) : music(music), ppv2_calc(
     this->iPreviousSectionPassFailTime = -1;
 
     this->bClickedContinue = false;
-    this->iAllowAnyNextKeyUntilHitObjectIndex = 0;
 
     this->fScaleFactor = 1.0f;
 
@@ -369,17 +368,13 @@ void BeatmapInterface::onKey(GameplayKeys key_flag, bool down, u64 timestamp) {
             }
         }
 
-        if(cv::mod_singletap.getBool() && !(this->lastPressedKey & key_flag)) {
-            if(this->getCurrentHitObjectIndex() > this->iAllowAnyNextKeyUntilHitObjectIndex) {
-                soundEngine->play(this->getSkin()->s_combobreak);
-                return;
-            }
+        if(cv::mod_singletap.getBool() && this->lastPressedKey != 0 && !(this->lastPressedKey & key_flag)) {
+            soundEngine->play(this->getSkin()->s_combobreak);
+            return;
         }
 
         if(cv::mod_fullalternate.getBool() && (this->lastPressedKey & key_flag)) {
-            if(this->getCurrentHitObjectIndex() > this->iAllowAnyNextKeyUntilHitObjectIndex) {
-                return;
-            }
+            return;
         }
 
         // key overlay & counter
@@ -2023,10 +2018,13 @@ void BeatmapInterface::update() {
         }
     }
 
-    // singletap/fullalternate mod lenience
-    if(this->bInBreak || this->bIsInSkippableSection || this->judge->isSpinnerActive() ||
-       this->judge->getCurrentHitObjectIndex() < 1) {
-        this->iAllowAnyNextKeyUntilHitObjectIndex = this->judge->getCurrentHitObjectIndex() + 1;
+    // singletap/fullalternate mod lenience: the first press after a non-gameplay period may use any key
+    const auto hitobjects = this->judge->getHitObjects();
+    const bool beforeFirstHitObject =
+        !hitobjects.empty() &&
+        this->iCurMusicPosWithOffsets < hitobjects[0]->getClickTime() - (i32)this->judge->getHitWindow50();
+    if(this->bInBreak || this->bIsInSkippableSection || this->judge->isSpinnerActive() || beforeFirstHitObject) {
+        this->lastPressedKey = 0;
     }
 }
 

@@ -354,7 +354,6 @@ class BeatmapInterface final : public GameplayJudge::Listener, public PlayfieldV
     std::vector<Click> all_clicks;
     bool bClickedContinue;
     u8 lastPressedKey{0};
-    int iAllowAnyNextKeyUntilHitObjectIndex;
 
     std::vector<neomod::HitObject *> objectsToDraw;  // for drawHitObjects, temp buffer
 
