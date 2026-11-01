@@ -401,7 +401,7 @@ void AboutScreen::buildChangelog() {
     v44_03.changes = {
         R"(- Fixed spinners being too hard to spin)",
         R"(- Replay playback: Fixed health drain and spinners on DT/HT)",
-        R"(- Servers: Added "sv_replay_framerate" convar)",
+        R"(- Servers: Added "sv_allow_instafade" and "sv_replay_framerate" convars)",
     };
     changelogs.push_back(std::move(v44_03));
 

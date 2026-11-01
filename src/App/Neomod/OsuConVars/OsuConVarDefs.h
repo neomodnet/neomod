@@ -605,6 +605,8 @@ CONVAR(prefer_websockets, true, CLIENT, "prefer websocket connections over http 
 CONVAR(net_transfer_timeout, 300, CLIENT | SERVER, "default upload/download timeout (in seconds)");
 
 // Server settings
+CONVAR(sv_allow_instafade, true, SERVER,
+       "when disabled, ignores the instafade settings and draws hitcircle numbers fading out with the circle");
 CONVAR(sv_allow_speed_override, false, SERVER,
        "let clients submit scores with non-vanilla speeds (e.g. not only HT/DT speed)");
 CONVAR(sv_has_irc_users, true, SERVER, "players with negative IDs will show up as IRC users");

@@ -795,13 +795,14 @@ void Circle::draw() {
         !m_view->isInMafhamRenderChunk() ? m_clickTimeMS - m_approachTimeMS : m_view->getCurMusicPosWithOffsets();
 
     // draw hit animation (if not hidden)
-    if(!hd && !cv::instafade.getBool() && m_hitAnimation > 0.0f && m_hitAnimation != 1.0f) {
+    const bool instafade = cv::instafade.getBool() && cv::sv_allow_instafade.getBool();
+    if(!hd && !instafade && m_hitAnimation > 0.f && m_hitAnimation != 1.f) {
         f32 alpha = 1.0f - m_hitAnimation;
 
         f32 scale = m_hitAnimation;
         scale = -scale * (scale - 2.0f);  // quad out scale
 
-        const bool drawNumber = skin->version > 1.0f ? false : true;
+        const bool drawNumber = skin->version <= 1.f || !cv::sv_allow_instafade.getBool();
         const f32 foscale = cv::circle_fade_out_scale.getFloat();
 
         g->pushTransform();
@@ -1256,7 +1257,7 @@ void Slider::draw() {
     }
 
     // draw start/end circle hit animation
-    const bool instafade_slider_head = cv::instafade.getBool();
+    const bool instafade_slider_head = cv::instafade.getBool() && cv::sv_allow_instafade.getBool();
 
     const bool do_endhit_animations = !tc && !hd && !instafade_slider_head;  // no animations with traceable/hidden here
     const bool do_starthit_animations = do_endhit_animations && cv::slider_sliderhead_fadeout.getBool();
@@ -1276,7 +1277,7 @@ void Slider::draw() {
             f32 scale = anim.percent;
             scale = -scale * (scale - 2.0f);  // quad out scale
 
-            const bool drawNumber = (skin->version > 1.0f ? false : true) && m_curRepeat < 1;
+            const bool drawNumber = (skin->version <= 1.f || !cv::sv_allow_instafade.getBool()) && m_curRepeat < 1;
 
             g->pushTransform();
             {
@@ -1478,7 +1479,8 @@ std::optional<SliderRenderer::Body> Slider::getBody() const {
 
     // fading out after the end hit (which finishes the slider, so never together with the live body above)
     const bool slider_fading_out = m_endSliderBodyFadeAnimation > 0.0f && m_endSliderBodyFadeAnimation != 1.0f;
-    if(flags::has<ModFlags::Hidden>(m_view->getModFlags()) || cv::instafade_sliders.getBool() || !slider_fading_out)
+    const bool instafade = cv::instafade_sliders.getBool() && cv::sv_allow_instafade.getBool();
+    if(flags::has<ModFlags::Hidden>(m_view->getModFlags()) || instafade || !slider_fading_out)
         return std::nullopt;
 
     if(!cv::slider_shrink.getBool()) return makeBody(1.0f - m_endSliderBodyFadeAnimation, 0, 1);
