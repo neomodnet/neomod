@@ -445,26 +445,9 @@ void HitObject::updateLook(i32 curPosMS, ModFlags mods, f32 approachTimeMS, f32 
     }
 }
 
-void HitObject::addHitResult(LiveHitResult result, i32 delta, bool isEndOfCombo, vec2 posRaw, f32 targetDelta,
-                             f32 targetAngle, bool ignoreOnHitErrorBar, bool ignoreCombo, bool ignoreHealth,
+void HitObject::addHitResult(LiveHitResult result, i32 delta, bool isEndOfCombo, vec2 posRaw, bool ignoreOnHitErrorBar,
+                             bool ignoreCombo, bool ignoreHealth,
                              bool addObjectDurationToSkinAnimationTimeStartOffset) {
-    if(m_judge->getMods().has(ModFlags::Target) && result != LiveHitResult::HIT_MISS && targetDelta >= 0.0f) {
-        const f32 p300 = cv::mod_target_300_percent.getFloat();
-        const f32 p100 = cv::mod_target_100_percent.getFloat();
-        const f32 p50 = cv::mod_target_50_percent.getFloat();
-
-        if(targetDelta < p300 && (result == LiveHitResult::HIT_300 || result == LiveHitResult::HIT_100))
-            result = LiveHitResult::HIT_300;
-        else if(targetDelta < p100)
-            result = LiveHitResult::HIT_100;
-        else if(targetDelta < p50)
-            result = LiveHitResult::HIT_50;
-        else
-            result = LiveHitResult::HIT_MISS;
-
-        m_judge->addTargetHit(targetDelta, targetAngle);
-    }
-
     const LiveHitResult returnedHit = m_judge->addHitResult(this, result, delta, isEndOfCombo, ignoreOnHitErrorBar,
                                                             false, ignoreCombo, false, ignoreHealth);
     addHitResultAnim(returnedHit != LiveHitResult::HIT_MISS ? returnedHit : result, delta, posRaw,
@@ -575,18 +558,6 @@ void Circle::drawCircleIn(const PlayfieldView &view, vec2 rawPos, i32 number, i3
     // overlay
     if(drawOverlay && skin->o_hitcircle_overlay_above_number)
         drawHitCircleOverlay(overlayImage, pos, circleOverlayImageScale, alpha, colorRGBMultiplier);
-}
-
-void Circle::drawCircle(const Skin *skin, vec2 pos, f32 hitcircleDiameter, Color color, f32 alpha) {
-    // this function is only used by the target practice heatmap
-
-    // circle
-    const f32 circleImageScale = hitcircleDiameter / (128.0f * (skin->i_hitcircle.scale()));
-    drawHitCircle(skin->i_hitcircle, pos, color, circleImageScale, alpha);
-
-    // overlay
-    const f32 circleOverlayImageScale = hitcircleDiameter / skin->i_hitcircleoverlay.getSizeBaseRaw().x;
-    drawHitCircleOverlay(skin->i_hitcircleoverlay, pos, circleOverlayImageScale, alpha, 1.0f);
 }
 
 void Circle::drawSliderStartCircle(const PlayfieldView &view, vec2 rawPos, i32 number, i32 colorCounter,
@@ -907,11 +878,7 @@ void Circle::update(i32 curPosMS, f64 frameTimeSecs) {
                 LiveHitResult result = m_judge->getHitResult(deltaMS);
 
                 if(result != LiveHitResult::HIT_NULL) {
-                    const f32 targetDelta = cursorDelta / (m_judge->fHitcircleDiameter / 2.0f);
-                    const f32 targetAngle =
-                        vec::degrees(std::atan2(m_judge->getCursorPos().y - pos.y, m_judge->getCursorPos().x - pos.x));
-
-                    onHit(result, deltaMS, targetDelta, targetAngle);
+                    onHit(result, deltaMS);
                 }
             }
         }
@@ -992,16 +959,13 @@ void Circle::onClickEvent(std::vector<Click> &clicks) {
 
         LiveHitResult result = m_judge->getHitResult(deltaMS);
         if(result != LiveHitResult::HIT_NULL) {
-            const f32 targetDelta = cursorDelta / (m_judge->fHitcircleDiameter / 2.0f);
-            const f32 targetAngle = vec::degrees(std::atan2(cursorPos.y - pos.y, cursorPos.x - pos.x));
-
             clicks.erase(clicks.begin());
-            onHit(result, deltaMS, targetDelta, targetAngle);
+            onHit(result, deltaMS);
         }
     }
 }
 
-void Circle::onHit(LiveHitResult result, i32 delta, f32 targetDelta, f32 targetAngle) {
+void Circle::onHit(LiveHitResult result, i32 delta) {
     // sound and hit animation
     if(result != LiveHitResult::HIT_MISS) {
         m_judge->playHitSound(m_hitSamples, m_rawPos, delta, m_clickTimeMS);
@@ -1013,7 +977,7 @@ void Circle::onHit(LiveHitResult result, i32 delta, f32 targetDelta, f32 targetA
     }
 
     // add it, and we are finished
-    addHitResult(result, delta, m_endOfCombo, m_rawPos, targetDelta, targetAngle);
+    addHitResult(result, delta, m_endOfCombo, m_rawPos);
     m_finished = true;
 }
 
@@ -1480,8 +1444,7 @@ std::optional<SliderRenderer::Body> Slider::getBody() const {
     // fading out after the end hit (which finishes the slider, so never together with the live body above)
     const bool slider_fading_out = m_endSliderBodyFadeAnimation > 0.0f && m_endSliderBodyFadeAnimation != 1.0f;
     const bool instafade = cv::instafade_sliders.getBool() && cv::sv_allow_instafade.getBool();
-    if(flags::has<ModFlags::Hidden>(m_view->getModFlags()) || instafade || !slider_fading_out)
-        return std::nullopt;
+    if(flags::has<ModFlags::Hidden>(m_view->getModFlags()) || instafade || !slider_fading_out) return std::nullopt;
 
     if(!cv::slider_shrink.getBool()) return makeBody(1.0f - m_endSliderBodyFadeAnimation, 0, 1);
     if(!cv::slider_body_lazer_fadeout_style.getBool()) return std::nullopt;
@@ -1619,12 +1582,8 @@ void Slider::update(i32 curPosMS, f64 /*frameTimeSecs*/) {
                         LiveHitResult result = m_judge->getHitResult(deltaMS);
 
                         if(result != LiveHitResult::HIT_NULL) {
-                            const f32 targetDelta = cursorDelta / (m_judge->fHitcircleDiameter / 2.0f);
-                            const f32 targetAngle = vec::degrees(
-                                std::atan2(m_judge->getCursorPos().y - pos.y, m_judge->getCursorPos().x - pos.x));
-
                             m_startResult = result;
-                            onHit(m_startResult, deltaMS, false, targetDelta, targetAngle);
+                            onHit(m_startResult, deltaMS, false);
                             m_judge->holding_slider = true;
                         }
                     }
@@ -1847,7 +1806,7 @@ void Slider::update(i32 curPosMS, f64 /*frameTimeSecs*/) {
                 } else
                     isEndResultComingFromStrictTrackingMod = true;
 
-                onHit(m_endResult, 0, true, 0.0f, 0.0f, isEndResultComingFromStrictTrackingMod);
+                onHit(m_endResult, 0, true, isEndResultComingFromStrictTrackingMod);
                 m_judge->holding_slider = false;
             }
         }
@@ -2165,20 +2124,16 @@ void Slider::onClickEvent(std::vector<Click> &clicks) {
 
             LiveHitResult result = m_judge->getHitResult(deltaMS);
             if(result != LiveHitResult::HIT_NULL) {
-                const f32 targetDelta = cursorDelta / (m_judge->fHitcircleDiameter / 2.0f);
-                const f32 targetAngle = vec::degrees(std::atan2(cursorPos.y - pos.y, cursorPos.x - pos.x));
-
                 clicks.erase(clicks.begin());
                 m_startResult = result;
-                onHit(m_startResult, deltaMS, false, targetDelta, targetAngle);
+                onHit(m_startResult, deltaMS, false);
                 m_judge->holding_slider = true;
             }
         }
     }
 }
 
-void Slider::onHit(LiveHitResult result, i32 delta, bool isEndCircle, f32 targetDelta, f32 targetAngle,
-                   bool isEndResultFromStrictTrackingMod) {
+void Slider::onHit(LiveHitResult result, i32 delta, bool isEndCircle, bool isEndResultFromStrictTrackingMod) {
     if(m_numCtrlPoints == 0) return;
 
     // start + end of a slider add +30 points, if successful
@@ -2240,18 +2195,12 @@ void Slider::onHit(LiveHitResult result, i32 delta, bool isEndCircle, f32 target
         m_ignoredKeys = (m_judge->getKeys() & ~m_judge->lastPressedKey);
         this->updateTracking();
 
-        if(flags::has<ModFlags::Target>(m_judge->getMods().flags)) {
-            // not end of combo, show in hiterrorbar, use for accuracy, increase combo, increase
-            // score, ignore for health, don't add object duration to result anim
-            addHitResult(result, delta, false, curvePointAt(0.0f), targetDelta, targetAngle, false, false, true, false);
-        } else {
-            // not end of combo, show in hiterrorbar, ignore for accuracy, increase combo,
-            // don't count towards score, depending on scorev2 ignore for health or not
-            m_judge->addHitResult(this, result, delta, false, false, true, false, true, true);
+        // not end of combo, show in hiterrorbar, ignore for accuracy, increase combo,
+        // don't count towards score, depending on scorev2 ignore for health or not
+        m_judge->addHitResult(this, result, delta, false, false, true, false, true, true);
 
-            // scorev2 judges the whole slider by its head, so its result is shown as soon as the head is hit
-            if(m_judge->getMods().has(ModFlags::ScoreV2)) addHitResultAnim(result, delta, curvePointAt(0.0f), false);
-        }
+        // scorev2 judges the whole slider by its head, so its result is shown as soon as the head is hit
+        if(m_judge->getMods().has(ModFlags::ScoreV2)) addHitResultAnim(result, delta, curvePointAt(0.0f), false);
 
         // add bonus score + health manually
         if(result != LiveHitResult::HIT_MISS) {
@@ -3019,7 +2968,7 @@ void Spinner::onHit() {
     if(result != LiveHitResult::HIT_MISS) m_judge->playHitSound(m_hitSamples, m_rawPos, 0);
 
     // add it, and we are finished
-    addHitResult(result, 0, m_endOfCombo, m_rawPos, -1.0f, 0.f, /*ignoreOnHitErrorBar=*/true);
+    addHitResult(result, 0, m_endOfCombo, m_rawPos, /*ignoreOnHitErrorBar=*/true);
     m_finished = true;
 
     m_judge->stopSpinnerSpinSound();

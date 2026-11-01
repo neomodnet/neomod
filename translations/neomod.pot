@@ -922,12 +922,6 @@ msgstr ""
 
 #: src/App/Neomod/ModSelector.cpp
 msgid ""
-"Accuracy is based on the distance to the center of all hitobjects.\n"
-"300s still require at least being in the hit window of a 100 in addition to the rule above."
-msgstr ""
-
-#: src/App/Neomod/ModSelector.cpp
-msgid ""
 "Try the future scoring system.\n"
 "** UNRANKED **"
 msgstr ""

@@ -844,7 +844,6 @@ std::string ScoreButton::getModsStringForDisplay(const Replay::Mods &mods) {
     if(flags::has<Autopilot>(mods.flags)) modsString.append("AP,");
     if(pf) modsString.append("PF,");
     if(flags::has<ScoreV2>(mods.flags)) modsString.append("v2,");
-    if(flags::has<Target>(mods.flags)) modsString.append("Target,");
     if(flags::any<MirrorHorizontal | MirrorVertical>(mods.flags)) modsString.append("Mirror,");
     if(flags::has<FPoSu>(mods.flags)) modsString.append("FPoSu,");
     if(flags::has<Singletap>(mods.flags)) modsString.append("1K,");

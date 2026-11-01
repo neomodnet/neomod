@@ -275,7 +275,6 @@ class BeatmapInterface final : public GameplayJudge::Listener, public PlayfieldV
     void playSpinnerSpinSound(f32 ratio, neomod::DatabaseBeatmapTypes::HITSAMPLE_BITS samples) override;
     void stopSpinnerSpinSound() override;
     void playSpinnerBonusSound(neomod::DatabaseBeatmapTypes::HITSAMPLE_BITS samples) override;
-    void addTargetHit(f32 delta, f32 angle) override;
     void onComboBreak() override;
     void onHealthGain(f64 healthBefore) override;
     bool onFail(bool byMods) override;

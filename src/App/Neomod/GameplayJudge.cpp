@@ -35,7 +35,6 @@ void GameplayJudge::Listener::stopSliderSounds(const std::vector<HitSoundUtils::
 void GameplayJudge::Listener::playSpinnerSpinSound(f32 /*ratio*/, DatabaseBeatmapTypes::HITSAMPLE_BITS /*samples*/) {}
 void GameplayJudge::Listener::stopSpinnerSpinSound() {}
 void GameplayJudge::Listener::playSpinnerBonusSound(DatabaseBeatmapTypes::HITSAMPLE_BITS /*samples*/) {}
-void GameplayJudge::Listener::addTargetHit(f32 /*delta*/, f32 /*angle*/) {}
 void GameplayJudge::Listener::onComboBreak() {}
 void GameplayJudge::Listener::onHealthGain(f64 /*healthBefore*/) {}
 bool GameplayJudge::Listener::onFail(bool /*byMods*/) { return true; }
@@ -623,10 +622,6 @@ void GameplayJudge::stopSpinnerSpinSound() {
 
 void GameplayJudge::playSpinnerBonusSound(DatabaseBeatmapTypes::HITSAMPLE_BITS samples) {
     if(this->listener) this->listener->playSpinnerBonusSound(samples);
-}
-
-void GameplayJudge::addTargetHit(f32 delta, f32 angle) {
-    if(this->listener) this->listener->addTargetHit(delta, angle);
 }
 
 void GameplayJudge::addHealth(f64 percent, bool isFromHitResult) {

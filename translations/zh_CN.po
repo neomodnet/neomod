@@ -957,14 +957,6 @@ msgstr "观看这首歌的完美自动游玩。"
 
 #: src/App/Neomod/ModSelector.cpp
 msgid ""
-"Accuracy is based on the distance to the center of all hitobjects.\n"
-"300s still require at least being in the hit window of a 100 in addition to the rule above."
-msgstr ""
-"精准度取决于与所有物件中心的距离。\n"
-"除上述规则外，300 仍要求至少处于 100 的判定区间内。"
-
-#: src/App/Neomod/ModSelector.cpp
-msgid ""
 "Try the future scoring system.\n"
 "** UNRANKED **"
 msgstr ""

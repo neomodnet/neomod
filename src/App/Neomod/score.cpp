@@ -427,7 +427,6 @@ std::string LiveScore::getModsStringForRichPresence() const {
     if(osu->getModAutopilot()) modsString.append("AP");
     if(osu->getModSS()) modsString.append("PF");
     if(osu->getModScorev2()) modsString.append("v2");
-    if(osu->getModTarget()) modsString.append("TP");
     if(osu->getModTD()) modsString.append("TD");
 
     return modsString;

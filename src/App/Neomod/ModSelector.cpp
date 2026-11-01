@@ -438,11 +438,6 @@ void ModSelector::updateButtons(bool initial) {
     this->modButtonAUTO =
         setGridModbtn(this->getGridButton(AUTO_POS), 0, initial && osu->getModAuto(), &cv::mod_autoplay, "auto",
                       _("Watch a perfect automated play through the song."), MKIMGGETR(i_modselect_auto));
-    this->modButtonTGT = setGridModbtn(
-        this->getGridButton(TGT_POS), 0, initial && osu->getModTarget(), &cv::mod_target, "practicetarget",
-        _("Accuracy is based on the distance to the center of all hitobjects.\n300s still require at "
-          "least being in the hit window of a 100 in addition to the rule above."),
-        MKIMGGETR(i_modselect_target));
     this->modButtonSV2 =
         setGridModbtn(this->getGridButton(SV2_POS), 0, initial && osu->getModScorev2(), &cv::mod_scorev2, "v2",
                       _("Try the future scoring system.\n** UNRANKED **"), MKIMGGETR(i_modselect_sv2));
@@ -453,7 +448,6 @@ void ModSelector::updateButtons(bool initial) {
     // Only enable these in singleplayer or if we're the host of a multi lobby
     this->modButtonHT->setAvailable(isHostEquivalent);
     this->modButtonDT->setAvailable(isHostEquivalent);
-    this->modButtonTGT->setAvailable(isHostEquivalent);
 
     // Only enable these in singleplayer
     this->modButtonSV2->setAvailable(!isMulti);  // we use win condition instead in multi

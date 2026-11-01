@@ -191,7 +191,6 @@ class Osu final : public App, public MouseListener, public TouchListener {
     [[nodiscard]] bool getModAutopilot() const;
     [[nodiscard]] bool getModRelax() const;
     [[nodiscard]] bool getModSpunout() const;
-    [[nodiscard]] bool getModTarget() const;
     [[nodiscard]] bool getModScorev2() const;
     [[nodiscard]] bool getModFlashlight() const;
     [[nodiscard]] bool getModNF() const;

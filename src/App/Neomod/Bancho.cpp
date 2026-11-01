@@ -202,8 +202,6 @@ bool BanchoState::are_settings_submittable() {
     if(!cvars().areProtectedCvarsDefault()) return false;
 
     // Also check for non-vanilla mod combinations here while we're at it
-    // We don't want to submit target scores, even though it's allowed in multiplayer
-    if(osu->getModTarget()) return false;
     if(osu->getModAuto()) return false;
     if(osu->getModEZ() && osu->getModHR()) return false;
 

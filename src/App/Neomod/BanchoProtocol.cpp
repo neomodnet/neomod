@@ -139,7 +139,7 @@ Replay::Mods Room::get_player_mods(const Slot &slot) const {
 
 Replay::Mods Room::with_shared_mods(Replay::Mods own, const Replay::Mods &shared) {
     using namespace flags::operators;
-    constexpr ModFlags SHARED_FLAGS = ModFlags::Timewarp | ModFlags::Target;
+    constexpr ModFlags SHARED_FLAGS = ModFlags::Timewarp;
 
     own.flags = (own.flags & ~SHARED_FLAGS) | (shared.flags & SHARED_FLAGS);
     own.speed = shared.speed;

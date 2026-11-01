@@ -294,7 +294,6 @@ struct Skin final {
     mutable SkinImage i_modselect_ap{};
     mutable SkinImage i_modselect_so{};
     mutable SkinImage i_modselect_auto{};
-    mutable SkinImage i_modselect_target{};
     mutable SkinImage i_modselect_sv2{};
     mutable SkinImage i_modselect_td{};
     mutable SkinImage i_modselect_cinema{};
