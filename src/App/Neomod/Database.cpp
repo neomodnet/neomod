@@ -2617,7 +2617,7 @@ void Database::loadPeppyScores(std::string_view dbPath) {
                 dbr.skip<f64>();  // total accuracy
             }
 
-            if(gamemode == 0 && sc.bancho_score_id != 0) {
+            if(gamemode == 0) {
                 sc.beatmap_hash = md5hash;
                 sc.grade = sc.calculate_grade();
 
