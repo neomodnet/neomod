@@ -16,7 +16,9 @@
 #include "Vectors.h"
 
 #include <png.h>
+#ifdef MCENGINE_FEATURE_LIBJPEG
 #include <turbojpeg.h>
+#endif
 #include <zlib.h>
 
 #include <csetjmp>
@@ -195,6 +197,7 @@ ImageDecodeResult Image::decodePNGFromMemory(const u8 *inData, u64 size) {
 }
 
 ImageDecodeResult Image::decodeJPEGFromMemory(const u8 *inData, u64 size) {
+#ifdef MCENGINE_FEATURE_LIBJPEG
     using enum ImageDecodeResult;
     // decode jpeg
     tjhandle tjInstance = tj3Init(TJINIT_DECOMPRESS);
@@ -243,6 +246,9 @@ ImageDecodeResult Image::decodeJPEGFromMemory(const u8 *inData, u64 size) {
 
     tj3Destroy(tjInstance);
     return SUCCESS;
+#else
+    return this->decodeSTBFromMemory(inData, size);
+#endif
 }
 
 ImageDecodeResult Image::decodeSTBFromMemory(const u8 *inData, u64 size) {

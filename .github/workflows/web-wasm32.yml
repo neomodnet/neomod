@@ -63,9 +63,9 @@ jobs:
         with:
           path: |
             build-out/build/deps
-          key: deps-web-wasm32-${{ hashFiles('configure.ac', 'Makefile.am', 'mk/**') }}
+          key: deps-web-wasm32-v2-${{ hashFiles('configure.ac', 'Makefile.am', 'mk/**') }}
           restore-keys: |
-            deps-web-wasm32-
+            deps-web-wasm32-v2-
 
       - name: ccache
         uses: actions/cache@v5.0.1

@@ -278,7 +278,7 @@ AC_CHECK_PROG([MOLD], [mold], [mold])
 AC_CHECK_PROG([LLD], [lld], [lld])
 
 AC_ARG_ENABLE([tests],
-    AS_HELP_STRING([--enable-tests], [Build tests and support running with -testapp <test> (default: yes)]))
+    AS_HELP_STRING([--enable-tests], [Build tests and support running with -testapp <test> (default: yes, except for non-debug WASM builds)]))
 AC_ARG_ENABLE([optimize],
     AS_HELP_STRING([--enable-optimize], [Optimize for speed (default: yes)]))
 AC_ARG_ENABLE([native],
@@ -421,7 +421,10 @@ AS_IF([test "x$with_discord" != "xno" && test -z "$WASM_CC"], [
     with_discord=no
 ])
 
-# enable tests by default
+# enable tests by default, except for non-debug WASM builds where they would only add download size
+AS_IF([test -z "$enable_tests" && test -n "$WASM_CC" && test "x$enable_debug" != "xyes"], [
+    enable_tests=no
+])
 AS_IF([test "x$enable_tests" != "xno"], [
     AC_DEFINE([MCENGINE_TESTS], [1], [Defined if building with support for the testing framework.])
 ])
@@ -1378,9 +1381,11 @@ AS_IF([test "x$enable_debug" = "xyes"], [
 ], [
     AS_IF([test "x$enable_optimize" != "xno"], [
         CPPFLAGS="$CPPFLAGS -DNDEBUG -D_NDEBUG"
-        # put it at the start so -O3 is overrideable from the command line
-        CXXFLAGS="-O3 $(printf '%s' "$CXXFLAGS" | $SED 's/-O2//g')" # where do those -g -O2 flags even come from...
-        CFLAGS="-O3 $(printf '%s' "$CFLAGS" | $SED 's/-O2//g')"
+        # -Os doesn't impact gameplay performance, but reduces size a lot
+        AS_IF([test -n "$WASM_CC"], [opt_level=-Os], [opt_level=-O3])
+        # put it at the start so the opt level is overrideable from the command line
+        CXXFLAGS="$opt_level $(printf '%s' "$CXXFLAGS" | $SED 's/-O2//g')" # where do those -g -O2 flags even come from...
+        CFLAGS="$opt_level $(printf '%s' "$CFLAGS" | $SED 's/-O2//g')"
         NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,-O1"
 
         AS_IF([test "x$enable_clang" != "xyes" && test -z "$WASM_CC"], [
@@ -1858,9 +1863,15 @@ AC_SUBST([SDL3_VERSION])
 AC_SUBST([SDL3_PREFIX])
 AC_SUBST([SDL3_STATIC])
 
-AS_IF([test "x$have_libjpeg" != "xyes"], [
-    have_libjpeg="build from source"
-    AC_PROG_NASM
+# WASM decodes jpegs with stb_image, libjpeg would only add download size
+AS_IF([test -n "$WASM_CC"], [
+    have_libjpeg="not used"
+], [
+    AC_DEFINE([MCENGINE_FEATURE_LIBJPEG], [1], [Defined if libjpeg-turbo is used for decoding jpegs.])
+    AS_IF([test "x$have_libjpeg" != "xyes"], [
+        have_libjpeg="build from source"
+        AC_PROG_NASM
+    ])
 ])
 
 LIBJPEG_VERSION=$LIBJPEG_BUILD_VERSION
@@ -1917,8 +1928,10 @@ AC_SUBST([LIBARCHIVE_VERSION])
 AC_SUBST([LIBARCHIVE_PREFIX])
 
 LIBICONV_PREFIX=
-AS_IF([test "x$have_libiconv" != "xyes"], [
-    # TODO: wasm should have this built in?
+AS_IF([test -n "$WASM_CC"], [
+    # emscripten libc (musl) provides iconv
+    have_libiconv=yes
+], [test "x$have_libiconv" != "xyes"], [
     have_libiconv="build from source"
     LIBICONV_PREFIX="${DEPS_PREFIX}"
 ])
@@ -2002,7 +2015,7 @@ AC_SUBST([NSYNC_VERSION])
 AC_SUBST([NSYNC_PREFIX])
 
 AM_CONDITIONAL([BUILD_SDL3], [test "x$have_sdl3" != "xyes"])
-AM_CONDITIONAL([BUILD_LIBJPEG], [test "x$have_libjpeg" != "xyes"])
+AM_CONDITIONAL([BUILD_LIBJPEG], [test "x$have_libjpeg" = "xbuild from source"])
 AM_CONDITIONAL([BUILD_LIBPNG], [test "x$have_libpng" != "xyes"])
 AM_CONDITIONAL([BUILD_BZIP2], [test "x$have_bzip2" != "xyes"])
 AM_CONDITIONAL([BUILD_ZLIB], [test "x$have_zlib" != "xyes"])

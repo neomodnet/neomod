@@ -1,0 +1,116 @@
+--- a/include/freetype/config/ftmodule.h
++++ b/include/freetype/config/ftmodule.h
+@@ -12,22 +12,12 @@
+ 
+ FT_USE_MODULE( FT_Module_Class, autofit_module_class )
+ FT_USE_MODULE( FT_Driver_ClassRec, tt_driver_class )
+-FT_USE_MODULE( FT_Driver_ClassRec, t1_driver_class )
+ FT_USE_MODULE( FT_Driver_ClassRec, cff_driver_class )
+-FT_USE_MODULE( FT_Driver_ClassRec, t1cid_driver_class )
+-FT_USE_MODULE( FT_Driver_ClassRec, pfr_driver_class )
+-FT_USE_MODULE( FT_Driver_ClassRec, t42_driver_class )
+-FT_USE_MODULE( FT_Driver_ClassRec, winfnt_driver_class )
+-FT_USE_MODULE( FT_Driver_ClassRec, pcf_driver_class )
+-FT_USE_MODULE( FT_Driver_ClassRec, bdf_driver_class )
+ FT_USE_MODULE( FT_Module_Class, psaux_module_class )
+ FT_USE_MODULE( FT_Module_Class, psnames_module_class )
+ FT_USE_MODULE( FT_Module_Class, pshinter_module_class )
+ FT_USE_MODULE( FT_Module_Class, sfnt_module_class )
+ FT_USE_MODULE( FT_Renderer_Class, ft_smooth_renderer_class )
+ FT_USE_MODULE( FT_Renderer_Class, ft_raster1_renderer_class )
+-FT_USE_MODULE( FT_Renderer_Class, ft_sdf_renderer_class )
+-FT_USE_MODULE( FT_Renderer_Class, ft_bitmap_sdf_renderer_class )
+-FT_USE_MODULE( FT_Renderer_Class, ft_svg_renderer_class )
+ 
+ /* EOF */
+--- a/include/freetype/config/ftoption.h
++++ b/include/freetype/config/ftoption.h
+@@ -373,7 +373,7 @@
+    *   in your 'psnames' module.  The Type~1 driver will not be able to
+    *   synthesize a Unicode charmap out of the glyphs found in the fonts.
+    */
+-#define FT_CONFIG_OPTION_ADOBE_GLYPH_LIST
++/* #undef FT_CONFIG_OPTION_ADOBE_GLYPH_LIST */
+ 
+ 
+   /**************************************************************************
+@@ -563,7 +563,7 @@
+    *
+    *   More details on the hooks can be found in file `otsvg.h`.
+    */
+-#define FT_CONFIG_OPTION_SVG
++/* #undef FT_CONFIG_OPTION_SVG */
+ 
+ 
+   /**************************************************************************
+--- a/modules.cfg
++++ b/modules.cfg
+@@ -37,7 +37,7 @@
+ # PostScript Type 1 font driver.
+ #
+ # This driver needs the `psaux', `pshinter', and `psnames' modules.
+-FONT_MODULES += type1
++# FONT_MODULES += type1
+ 
+ # CFF/OpenType font driver.
+ #
+@@ -47,25 +47,25 @@
+ # Type 1 CID-keyed font driver.
+ #
+ # This driver needs the `psaux', `pshinter', and `psnames' modules.
+-FONT_MODULES += cid
++# FONT_MODULES += cid
+ 
+ # PFR/TrueDoc font driver.  See optional extension ftpfr.c below also.
+-FONT_MODULES += pfr
++# FONT_MODULES += pfr
+ 
+ # PostScript Type 42 font driver.
+ #
+ # This driver needs the `truetype' and `psaux' modules.
+-FONT_MODULES += type42
++# FONT_MODULES += type42
+ 
+ # Windows FONT/FNT font driver.  See optional extension ftwinfnt.c below
+ # also.
+-FONT_MODULES += winfonts
++# FONT_MODULES += winfonts
+ 
+ # PCF font driver.  If debugging and tracing is enabled, needs `ftbitmap.c'.
+-FONT_MODULES += pcf
++# FONT_MODULES += pcf
+ 
+ # BDF font driver.  See optional extension ftbdf.c below also.
+-FONT_MODULES += bdf
++# FONT_MODULES += bdf
+ 
+ # SFNT files support.  If used without `truetype' or `cff', it supports
+ # bitmap-only fonts within an SFNT wrapper.
+@@ -100,10 +100,10 @@
+ RASTER_MODULES += raster
+ 
+ # OT-SVG.
+-RASTER_MODULES += svg
++# RASTER_MODULES += svg
+ 
+ # Signed distance field rasterizer.
+-RASTER_MODULES += sdf
++# RASTER_MODULES += sdf
+ 
+ 
+ ####
+@@ -127,12 +127,12 @@
+ # Support for streams compressed with LZW (files with suffix .Z).
+ #
+ # See include/freetype/ftlzw.h for the API.
+-AUX_MODULES += lzw
++# AUX_MODULES += lzw
+ 
+ # Support for streams compressed with bzip2 (files with suffix .bz2).
+ #
+ # See include/freetype/ftbzip2.h for the API.
+-AUX_MODULES += bzip2
++# AUX_MODULES += bzip2
+ 
+ # OpenType table validation.  Needs `ftotval.c' below.
+ #

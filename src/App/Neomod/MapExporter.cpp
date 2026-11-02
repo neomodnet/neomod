@@ -186,8 +186,8 @@ Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, A
                     };
 
                     // re-compressing things we already compressed is a waste of resources
-                    Archive::Writer ar(Archive::Format::ZIP, Archive::COMPRESSION_STORE, ARCHIVE_CHARSET);
-                    const std::string extSuffix{ar.getExtSuffix()};
+                    Archive::Writer ar(ARCHIVE_CHARSET, Archive::COMPRESSION_STORE);
+                    const std::string extSuffix{Archive::EXT_SUFFIX};
 
                     size_t num_added = 0;
                     for(const auto &exported_entry : exported) {
@@ -223,9 +223,8 @@ Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, A
                         Environment::deletePathsRecursive(export_folder_sub);
                     }
                 } else if(single_archive) {
-                    queue_notification(fmt::format("Failed to export folders to {}{}", export_folder_sub,
-                                                   Archive::getExtSuffix(Archive::Format::ZIP)),
-                                       false);
+                    queue_notification(
+                        fmt::format("Failed to export folders to {}{}", export_folder_sub, Archive::EXT_SUFFIX), false);
                 }
 
                 float progress = std::clamp(1.f / (float)queue_runs, 0.01f, 1.f);

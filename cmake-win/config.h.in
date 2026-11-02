@@ -31,6 +31,7 @@
 /* Other flags */
 #cmakedefine USE_NSYNC
 #cmakedefine MCENGINE_FEATURE_DISCORD
+#cmakedefine MCENGINE_FEATURE_LIBJPEG
 #cmakedefine MCENGINE_TESTS
 
 /* Windows-specific definitions */

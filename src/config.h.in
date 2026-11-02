@@ -75,6 +75,9 @@
 /* Defined if an IME may be used. */
 #undef MCENGINE_FEATURE_IMESUPPORT
 
+/* Defined if libjpeg-turbo is used for decoding jpegs. */
+#undef MCENGINE_FEATURE_LIBJPEG
+
 /* Defined if the OpenGL backend is to be used. */
 #undef MCENGINE_FEATURE_OPENGL
 

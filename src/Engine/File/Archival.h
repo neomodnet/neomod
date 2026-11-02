@@ -6,7 +6,6 @@
 
 #include <memory>
 #include <string>
-#include <utility>
 #include <vector>
 #include <span>
 
@@ -15,38 +14,8 @@ struct archive_entry;
 
 class Archive {
    public:
-    enum class Format : uint8_t {
-        ZIP,
-        SEVENZIP_DEFLATE,
-        SEVENZIP_BZ2,
-        SEVENZIP_LZMA1,
-        SEVENZIP_LZMA2,
-        TAR,
-        TAR_GZ,
-        TAR_BZ2,
-        TAR_XZ,
-    };
-
-    static constexpr std::string_view getExtSuffix(Format fmt) {
-        switch(fmt) {
-            case Format::ZIP:
-            case Format::SEVENZIP_DEFLATE:
-                return ".zip";
-            case Format::SEVENZIP_BZ2:
-            case Format::SEVENZIP_LZMA1:
-            case Format::SEVENZIP_LZMA2:
-                return ".7z";
-            case Format::TAR:
-                return ".tar";
-            case Format::TAR_GZ:
-                return ".tar.gz";
-            case Format::TAR_BZ2:
-                return ".tar.bz2";
-            case Format::TAR_XZ:
-                return ".tar.xz";
-        }
-        std::unreachable();
-    }
+    // archives are always zip
+    static constexpr std::string_view EXT_SUFFIX{".zip"};
 
     static constexpr int COMPRESSION_STORE = 0;
     static constexpr int COMPRESSION_DEFAULT = -1;
@@ -128,9 +97,7 @@ class Archive {
        public:
         // hdrCharset: the charset entry names are stored in; if one of them can't be represented in it, the whole
         // archive gets written with (flagged) UTF-8 names instead
-        explicit Writer(std::string_view hdrCharset);
-        explicit Writer(Format format = Format::ZIP, int compressionLevel = COMPRESSION_DEFAULT,
-                        std::string_view hdrCharset = {});
+        explicit Writer(std::string_view hdrCharset = {}, int compressionLevel = COMPRESSION_DEFAULT);
         ~Writer() = default;
 
         // add a single file from disk; fails if diskPath is a directory
@@ -152,7 +119,6 @@ class Archive {
 
         [[nodiscard]] bool isEmpty() const { return this->pendingEntries.empty(); }
         [[nodiscard]] size_t getEntryCount() const { return this->pendingEntries.size(); }
-        [[nodiscard]] constexpr std::string_view getExtSuffix() const { return Archive::getExtSuffix(this->format); }
 
        private:
         struct PendingEntry {
@@ -173,7 +139,6 @@ class Archive {
         std::vector<PendingEntry> pendingEntries;
         int compressionLevel;
         int threads;
-        Format format;
         std::string sHdrCharset;  // empty = libarchive default
     };
 };

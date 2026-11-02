@@ -402,7 +402,7 @@ $(DEPS_PREFIX)/SDL3-$(SDL3_VERSION).built: $(DEPS_CACHE)/SDL3-$(SDL3_VERSION).ta
 		$(CMAKE_AR_RANLIB_FLAGS) \
 		-D CMAKE_FIND_ROOT_PATH="$(DEPS_PREFIX)" \
 		-D CMAKE_SYSTEM_PROCESSOR="$(host_cpu)" \
-		$(if $(WASM_CC),-DSDL_PTHREADS=ON,) \
+		$(if $(WASM_CC),-DSDL_PTHREADS=ON -DSDL_LEAN_AND_MEAN=ON,) \
 		-D SDL_RPATH=OFF \
 		-D SDL_IBUS=OFF \
 		-D SDL_HIDAPI_LIBUSB=OFF \
@@ -880,13 +880,16 @@ endif # BUILD_BROTLI
 
 FREETYPE2_CFLAGS += $(shell $(PKG_CONFIG) --cflags freetype2)
 FREETYPE2_LIBS += $(shell $(PKG_CONFIG) --libs freetype2)
+# only sfnt-based fonts (TrueType/OpenType, also inside WOFF/WOFF2) are ever loaded, so freetype-sfnt-only.patch drops
+# the other font drivers and the unused renderers; bzip2 was only needed for compressed PCF fonts
 if WASM_PLATFORM
 # Use CMake for WASM to avoid apinames native tool issue
-$(DEPS_PREFIX)/freetype-$(FREETYPE2_VERSION).built: $(DEPS_PREFIX)/brotli-$(BROTLI_VERSION).built $(DEPS_PREFIX)/libpng-$(LIBPNG_VERSION).built $(DEPS_PREFIX)/bzip2-$(BZIP2_VERSION).built $(DEPS_PREFIX)/zlib-$(ZLIB_VERSION).built $(DEPS_CACHE)/freetype-$(FREETYPE2_VERSION).tar.gz
+$(DEPS_PREFIX)/freetype-$(FREETYPE2_VERSION).built: $(DEPS_PREFIX)/brotli-$(BROTLI_VERSION).built $(DEPS_PREFIX)/libpng-$(LIBPNG_VERSION).built $(DEPS_PREFIX)/zlib-$(ZLIB_VERSION).built $(DEPS_CACHE)/freetype-$(FREETYPE2_VERSION).tar.gz
 	rm -rf $(DEPS_PREFIX)/freetype
 	$(MKDIR_P) $(DEPS_PREFIX)/freetype/build $(DEPS_PREFIX)/lib/pkgconfig
 	$(TAR) xf $(DEPS_CACHE)/freetype-$(FREETYPE2_VERSION).tar.gz -C $(DEPS_PREFIX)/freetype --strip-components=1 && \
 	cd $(DEPS_PREFIX)/freetype && \
+	patch -Np1<$(BUILD_MISCDIR)/freetype-sfnt-only.patch && \
 	PKG_CONFIG="$(PKG_CONFIG)" \
 	$(CMAKE_CONF_PFX) $(CMAKE) -S . -B build -G "$(CMAKE_GEN)" \
 		-D CMAKE_BUILD_TYPE="$(if $(ENABLE_DEBUG),Debug,Release)" \
@@ -902,41 +905,37 @@ $(DEPS_PREFIX)/freetype-$(FREETYPE2_VERSION).built: $(DEPS_PREFIX)/brotli-$(BROT
 		-D FT_DISABLE_HARFBUZZ=ON \
 		-D FT_REQUIRE_ZLIB=ON \
 		-D FT_REQUIRE_PNG=ON \
-		-D FT_REQUIRE_BZIP2=ON \
+		-D FT_DISABLE_BZIP2=ON \
 		-D FT_REQUIRE_BROTLI=ON \
 		-D BUILD_SHARED_LIBS=OFF \
 		-D BROTLIDEC_INCLUDE_DIRS="$(DEPS_PREFIX)/include" \
 		-D ZLIB_INCLUDE_DIR="$(DEPS_PREFIX)/include" \
 		-D PNG_PNG_INCLUDE_DIR="$(DEPS_PREFIX)/include" \
-		-D BZIP2_INCLUDE_DIR="$(DEPS_PREFIX)/include" \
 		-D BROTLIDEC_LIBRARIES="$(DEPS_PREFIX)/lib/libbrotlidec.a $(DEPS_PREFIX)/lib/libbrotlienc.a" \
 		-D ZLIB_LIBRARY="$(DEPS_PREFIX)/lib/libz.a" \
-		-D PNG_LIBRARY="$(DEPS_PREFIX)/lib/libpng16.a" \
-		-D BZIP2_LIBRARY_RELEASE="$(DEPS_PREFIX)/lib/libbz2.a" \
-		-D BZIP2_LIBRARY_DEBUG="$(DEPS_PREFIX)/lib/libbz2.a" \
-		-D BZIP2_LIBRARIES="$(DEPS_PREFIX)/lib/libbz2.a" && \
+		-D PNG_LIBRARY="$(DEPS_PREFIX)/lib/libpng16.a" && \
 	$(CMAKE) --build build $(CMAKEPAROPT) && \
 	$(CMAKE) --install build
 	$(PKG_CONFIG) --exists --print-errors freetype2
 	mv $(DEPS_PREFIX)/lib/libfreetyped.a $(DEPS_PREFIX)/lib/libfreetype.a || true
 	touch $@
 else
-$(DEPS_PREFIX)/freetype-$(FREETYPE2_VERSION).built: $(DEPS_PREFIX)/brotli-$(BROTLI_VERSION).built $(DEPS_PREFIX)/libpng-$(LIBPNG_VERSION).built $(DEPS_PREFIX)/bzip2-$(BZIP2_VERSION).built $(DEPS_PREFIX)/zlib-$(ZLIB_VERSION).built $(DEPS_CACHE)/freetype-$(FREETYPE2_VERSION).tar.gz
+$(DEPS_PREFIX)/freetype-$(FREETYPE2_VERSION).built: $(DEPS_PREFIX)/brotli-$(BROTLI_VERSION).built $(DEPS_PREFIX)/libpng-$(LIBPNG_VERSION).built $(DEPS_PREFIX)/zlib-$(ZLIB_VERSION).built $(DEPS_CACHE)/freetype-$(FREETYPE2_VERSION).tar.gz
 	rm -rf $(DEPS_PREFIX)/freetype
 	$(MKDIR_P) $(DEPS_PREFIX)/freetype/build $(DEPS_PREFIX)/lib/pkgconfig
 	$(TAR) xf $(DEPS_CACHE)/freetype-$(FREETYPE2_VERSION).tar.gz -C $(DEPS_PREFIX)/freetype --strip-components=1 && \
 	cd $(DEPS_PREFIX)/freetype && \
 	$(SED) -i 's|TOP_DIR :=.*||' builds/unix/unix-def.in && \
 	patch -Np1<$(BUILD_MISCDIR)/freetype-win.patch && \
+	patch -Np1<$(BUILD_MISCDIR)/freetype-sfnt-only.patch && \
 	PKG_CONFIG="$(PKG_CONFIG)" \
 		$(CONFIGURE_PFX) ./configure $(LT_GNU_LD_CACHE) --host=$(host) --prefix="$(DEPS_PREFIX)" \
-		--with-zlib=yes --with-bzip2=yes --with-png=yes --with-harfbuzz=no --with-brotli=yes --with-librsvg=no \
+		--with-zlib=yes --with-bzip2=no --with-png=yes --with-harfbuzz=no --with-brotli=yes --with-librsvg=no \
 		$(if $(STATICBUILD),--enable-static --disable-shared,--enable-shared --disable-static) \
 		RANLIB="$(RANLIB)" AR="$(AR)" CC="$(CC)" CXX="$(CXX)" LD="$(LD)" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" \
 		LDFLAGS="$(LDFLAGS)" && \
 	$(SED) -i \
 		-e 's|.*#.*define FT_CONFIG_OPTION_SYSTEM_ZLIB.*|#define FT_CONFIG_OPTION_SYSTEM_ZLIB|' \
-		-e 's|.*#.*define FT_CONFIG_OPTION_USE_BZIP2.*|#define FT_CONFIG_OPTION_USE_BZIP2|' \
 		-e 's|.*#.*define FT_CONFIG_OPTION_USE_PNG.*|#define FT_CONFIG_OPTION_USE_PNG|' \
 		-e 's|.*#.*define FT_CONFIG_OPTION_USE_BROTLI.*|#define FT_CONFIG_OPTION_USE_BROTLI|' \
 		builds/unix/ftoption.h && \
@@ -1070,7 +1069,12 @@ $(DEPS_PREFIX)/ctre-$(CTRE_VERSION).built: $(DEPS_CACHE)/ctre-$(CTRE_VERSION).ta
 	touch $@
 endif # BUILD_CTRE
 
+if WASM_PLATFORM
+# iconv is part of the emscripten libc
+LIBICONV_LIBS :=
+else
 LIBICONV_LIBS := -liconv
+endif
 if BUILD_LIBICONV
 LIBICONV_LIBS += -L$(DEPS_PREFIX)/lib
 # no pkg-config for iconv

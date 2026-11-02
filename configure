@@ -1780,7 +1780,7 @@ Optional Features:
   --enable-silent-rules   less verbose build output (undo: "make V=1")
   --disable-silent-rules  verbose build output (undo: "make V=0")
   --enable-tests          Build tests and support running with -testapp <test>
-                          (default: yes)
+                          (default: yes, except for non-debug WASM builds)
   --enable-optimize       Optimize for speed (default: yes)
   --enable-native         Compile for -march=native (default: no)
   --enable-debug          Enable debug build (default: no)
@@ -7251,7 +7251,13 @@ else case e in #(
 esac
 fi
 
-# enable tests by default
+# enable tests by default, except for non-debug WASM builds where they would only add download size
+if test -z "$enable_tests" && test -n "$WASM_CC" && test "x$enable_debug" != "xyes"
+then :
+
+    enable_tests=no
+
+fi
 if test "x$enable_tests" != "xno"
 then :
 
@@ -12215,9 +12221,17 @@ else case e in #(
 then :
 
         CPPFLAGS="$CPPFLAGS -DNDEBUG -D_NDEBUG"
-        # put it at the start so -O3 is overrideable from the command line
-        CXXFLAGS="-O3 $(printf '%s' "$CXXFLAGS" | $SED 's/-O2//g')" # where do those -g -O2 flags even come from...
-        CFLAGS="-O3 $(printf '%s' "$CFLAGS" | $SED 's/-O2//g')"
+        # -Os doesn't impact gameplay performance, but reduces size a lot
+        if test -n "$WASM_CC"
+then :
+  opt_level=-Os
+else case e in #(
+  e) opt_level=-O3 ;;
+esac
+fi
+        # put it at the start so the opt level is overrideable from the command line
+        CXXFLAGS="$opt_level $(printf '%s' "$CXXFLAGS" | $SED 's/-O2//g')" # where do those -g -O2 flags even come from...
+        CFLAGS="$opt_level $(printf '%s' "$CFLAGS" | $SED 's/-O2//g')"
         NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,-O1"
 
         if test "x$enable_clang" != "xyes" && test -z "$WASM_CC"
@@ -18585,10 +18599,21 @@ fi
 
 
 
-if test "x$have_libjpeg" != "xyes"
+# WASM decodes jpegs with stb_image, libjpeg would only add download size
+if test -n "$WASM_CC"
 then :
 
-    have_libjpeg="build from source"
+    have_libjpeg="not used"
+
+else case e in #(
+  e)
+
+printf '%s\n' "#define MCENGINE_FEATURE_LIBJPEG 1" >>confdefs.h
+
+    if test "x$have_libjpeg" != "xyes"
+then :
+
+        have_libjpeg="build from source"
 
     # Extract the first word of "nasm", so it can be a program name with args.
 set dummy nasm; ac_word=$2
@@ -18638,6 +18663,9 @@ fi
     fi
 
 
+fi
+ ;;
+esac
 fi
 
 LIBJPEG_VERSION=$LIBJPEG_BUILD_VERSION
@@ -18718,10 +18746,15 @@ LIBARCHIVE_PREFIX="${DEPS_PREFIX}"
 
 
 LIBICONV_PREFIX=
-if test "x$have_libiconv" != "xyes"
+if test -n "$WASM_CC"
 then :
 
-    # TODO: wasm should have this built in?
+    # emscripten libc (musl) provides iconv
+    have_libiconv=yes
+
+elif test "x$have_libiconv" != "xyes"
+then :
+
     have_libiconv="build from source"
     LIBICONV_PREFIX="${DEPS_PREFIX}"
 
@@ -18864,7 +18897,7 @@ else
   BUILD_SDL3_FALSE=
 fi
 
- if test "x$have_libjpeg" != "xyes"; then
+ if test "x$have_libjpeg" = "xbuild from source"; then
   BUILD_LIBJPEG_TRUE=
   BUILD_LIBJPEG_FALSE='#'
 else

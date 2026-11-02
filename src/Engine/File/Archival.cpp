@@ -20,6 +20,7 @@
 
 #ifndef _WIN32
 #include <sys/stat.h>
+#include <utility>
 #endif
 
 //------------------------------------------------------------------------------
@@ -138,9 +139,7 @@ void Archive::Reader::initFromFile(const std::string& filePath) {
         return;
     }
 
-    // enable all supported formats and filters
-    archive_read_support_format_all(this->archive);
-    archive_read_support_filter_all(this->archive);
+    archive_read_support_format_zip(this->archive);
 
     if(!this->sHdrCharset.empty()) {
         const std::string opt = fmt::format("hdrcharset={:s}", this->sHdrCharset);
@@ -174,9 +173,7 @@ void Archive::Reader::initFromMemory(std::span<const u8> data) {
         return;
     }
 
-    // enable all supported formats and filters
-    archive_read_support_format_all(this->archive);
-    archive_read_support_filter_all(this->archive);
+    archive_read_support_format_zip(this->archive);
 
     if(!this->sHdrCharset.empty()) {
         const std::string opt = fmt::format("hdrcharset={:s}", this->sHdrCharset);
@@ -392,16 +389,9 @@ bool Archive::Reader::isPathSafe(std::string_view path) { return path.find("..")
 // Archive::Writer implementation
 //------------------------------------------------------------------------------
 
-Archive::Writer::Writer(std::string_view hdrCharset)
-    : compressionLevel(COMPRESSION_DEFAULT),
-      threads(std::clamp<int>(cv::archive_threads.getInt(), 0, McThread::get_logical_cpu_count())),
-      format(Format::ZIP),
-      sHdrCharset(hdrCharset) {}
-
-Archive::Writer::Writer(Format format, int compressionLevel, std::string_view hdrCharset)
+Archive::Writer::Writer(std::string_view hdrCharset, int compressionLevel)
     : compressionLevel(compressionLevel),
       threads(std::clamp<int>(cv::archive_threads.getInt(), 0, McThread::get_logical_cpu_count())),
-      format(format),
       sHdrCharset(hdrCharset) {}
 
 std::string Archive::Writer::normalizePath(std::string_view path) {
@@ -569,7 +559,11 @@ bool Archive::Writer::addData(std::string_view archivePath, std::vector<u8>&& da
 }
 
 bool Archive::Writer::configureArchive(struct archive* a) {
-    int r{ARCHIVE_OK};
+    if(archive_write_set_format_zip(a) != ARCHIVE_OK) {
+        logIfCV(debug_file, "failed to set ZIP format: {:s}", archive_error_string(a));
+        return false;
+    }
+
     std::string options;
 
     // apply charset if requested
@@ -577,110 +571,14 @@ bool Archive::Writer::configureArchive(struct archive* a) {
         options += fmt::format("hdrcharset={:s},", this->sHdrCharset);
     }
 
-    switch(this->format) {
-        case Format::ZIP:
-            r = archive_write_set_format_zip(a);
-            if(r != ARCHIVE_OK) {
-                logIfCV(debug_file, "failed to set ZIP format: {:s}", archive_error_string(a));
-                return false;
-            }
-
-            if(this->compressionLevel == COMPRESSION_STORE) {
-                options += "zip:compression=store,";
-            } else if(this->compressionLevel != COMPRESSION_DEFAULT) {
-                options += fmt::format("zip:compression=deflate,zip:compression-level={:d},",
-                                       std::clamp(this->compressionLevel, 1, 9));
-            }
-            if(this->threads != 1) {
-                options += fmt::format("zip:threads={:d},", this->threads);
-            }
-            break;
-
-        case Format::SEVENZIP_DEFLATE:
-        case Format::SEVENZIP_BZ2:
-        case Format::SEVENZIP_LZMA1:
-        case Format::SEVENZIP_LZMA2:
-            r = archive_write_set_format_7zip(a);
-            if(r != ARCHIVE_OK) {
-                logIfCV(debug_file, "failed to set SEVENZIP format: {:s}", archive_error_string(a));
-                return false;
-            }
-
-            {
-                const std::string_view compression = this->compressionLevel == COMPRESSION_STORE ? "store"
-                                                     : this->format == Format::SEVENZIP_BZ2      ? "bzip2"
-                                                     : this->format == Format::SEVENZIP_LZMA1    ? "lzma1"
-                                                     : this->format == Format::SEVENZIP_LZMA2    ? "lzma2"
-                                                                                                 : "deflate";
-                options += fmt::format("7zip:compression={:s},", compression);
-            }
-            if(this->compressionLevel != COMPRESSION_DEFAULT) {
-                int level = std::clamp(this->compressionLevel, this->format == Format::SEVENZIP_BZ2 ? 1 : 0, 9);
-                options += fmt::format("7zip:compression-level={:d},", level);
-            }
-            if(this->threads != 1) {
-                options += fmt::format("7zip:threads={:d},", this->threads);
-            }
-            break;
-
-        case Format::TAR:
-            r = archive_write_set_format_pax_restricted(a);
-            if(r != ARCHIVE_OK) {
-                logIfCV(debug_file, "failed to set TAR format: {:s}", archive_error_string(a));
-                return false;
-            }
-            break;
-
-        case Format::TAR_GZ:
-            r = archive_write_set_format_pax_restricted(a);
-            if(r != ARCHIVE_OK) {
-                logIfCV(debug_file, "failed to set TAR format: {:s}", archive_error_string(a));
-                return false;
-            }
-            r = archive_write_add_filter_gzip(a);
-            if(r != ARCHIVE_OK) {
-                logIfCV(debug_file, "failed to add gzip filter: {:s}", archive_error_string(a));
-                return false;
-            }
-            if(this->compressionLevel != COMPRESSION_DEFAULT && this->compressionLevel != COMPRESSION_STORE) {
-                options += fmt::format("gzip:compression-level={:d},", std::clamp(this->compressionLevel, 1, 9));
-            }
-            break;
-
-        case Format::TAR_BZ2:
-            r = archive_write_set_format_pax_restricted(a);
-            if(r != ARCHIVE_OK) {
-                logIfCV(debug_file, "failed to set TAR format: {:s}", archive_error_string(a));
-                return false;
-            }
-            r = archive_write_add_filter_bzip2(a);
-            if(r != ARCHIVE_OK) {
-                logIfCV(debug_file, "failed to add bzip2 filter: {:s}", archive_error_string(a));
-                return false;
-            }
-            if(this->compressionLevel != COMPRESSION_DEFAULT && this->compressionLevel != COMPRESSION_STORE) {
-                options += fmt::format("bzip2:compression-level={:d},", std::clamp(this->compressionLevel, 1, 9));
-            }
-            break;
-
-        case Format::TAR_XZ:
-            r = archive_write_set_format_pax_restricted(a);
-            if(r != ARCHIVE_OK) {
-                logIfCV(debug_file, "failed to set TAR format: {:s}", archive_error_string(a));
-                return false;
-            }
-            r = archive_write_add_filter_xz(a);
-            if(r != ARCHIVE_OK) {
-                logIfCV(debug_file, "failed to add xz filter: {:s}", archive_error_string(a));
-                return false;
-            }
-            if(this->compressionLevel != COMPRESSION_DEFAULT && this->compressionLevel != COMPRESSION_STORE) {
-                options += fmt::format("xz:compression-level={:d},", std::clamp(this->compressionLevel, 0, 9));
-            }
-            if(this->threads != 1) {
-                options += fmt::format("xz:threads={:d},", this->threads);
-            }
-            break;
+    if(this->compressionLevel == COMPRESSION_STORE) {
+        options += "zip:compression=store,";
+    } else if(this->compressionLevel != COMPRESSION_DEFAULT) {
+        options += fmt::format("zip:compression=deflate,zip:compression-level={:d},",
+                               std::clamp(this->compressionLevel, 1, 9));
+    }
+    if(this->threads != 1) {
+        options += fmt::format("zip:threads={:d},", this->threads);
     }
 
     if(!options.empty()) {
@@ -787,7 +685,7 @@ bool Archive::Writer::writeToFile(std::string outputPath, bool appendExtension, 
     }
 
     if(appendExtension) {
-        outputPath += getExtSuffix();
+        outputPath += EXT_SUFFIX;
     }
 
     int r = archive_write_open_filename(a, outputPath.c_str());
