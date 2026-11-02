@@ -6,6 +6,7 @@
 #include "DatabaseBeatmap.h"
 #include "DifficultyCalculator.h"
 #include "GameplayJudge.h"
+#include "HitObjects.h"
 #include "LegacyReplay.h"
 #include "ModFlags.h"
 #include "Replay.h"
@@ -15,6 +16,7 @@
 #include <memory>
 #include <span>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 using namespace emscripten;
@@ -46,6 +48,85 @@ val mods_to_js(const Replay::Mods &mods) {
     m.set("shirone_combo", mods.shirone_combo);
     return m;
 }
+
+const char *hit_result_name(LiveHitResult hit) {
+    using enum LiveHitResult;
+    switch(hit) {
+        case HIT_NULL:
+            return "null";
+        case HIT_MISS:
+            return "miss";
+        case HIT_50:
+            return "50";
+        case HIT_100:
+            return "100";
+        case HIT_300:
+            return "300";
+        case HIT_MISS_SLIDERBREAK:
+            return "sliderbreak";
+        case HIT_MU:
+            return "mu";
+        case HIT_100K:
+            return "100k";
+        case HIT_300K:
+            return "300k";
+        case HIT_300G:
+            return "300g";
+        case HIT_SLIDER10:
+            return "tick";
+        case HIT_SLIDER30:
+            return "repeat";
+        case HIT_SPINNERSPIN:
+            return "spinnerspin";
+        case HIT_SPINNERBONUS:
+            return "spinnerbonus";
+    }
+    return "null";
+}
+
+const char *hit_object_type_name(HitObjectType type) {
+    switch(type) {
+        case HitObjectType::CIRCLE:
+            return "circle";
+        case HitObjectType::SLIDER:
+            return "slider";
+        case HitObjectType::SPINNER:
+            return "spinner";
+    }
+    return "circle";
+}
+
+// records every judgement of a simulated play, with where the cursor and the object were at that time
+class HitRecorder final : public GameplayJudge::Listener {
+   public:
+    void onHitResult(const HitObject *hitObject, LiveHitResult hit, i32 delta, bool timed) override {
+        const i32 time = this->judge->getCurMusicPos();
+        const vec2 cursor = this->judge->getCursorPos();
+
+        val h = val::object();
+        h.set("result", std::string{hit_result_name(hit)});
+        h.set("time", time);
+        h.set("delta", delta);
+        h.set("timed", timed);
+        h.set("cursorX", cursor.x);
+        h.set("cursorY", cursor.y);
+        const auto it = hitObject ? this->indices.find(hitObject) : this->indices.end();
+        h.set("object", it != this->indices.end() ? it->second : -1);
+        if(hitObject) {
+            const vec2 pos = this->judge->osuCoords2Pixels(hitObject->getRawPosAt(time));
+            h.set("objectX", pos.x);
+            h.set("objectY", pos.y);
+        }
+        this->hits.call<void>("push", h);
+    }
+
+    void onComboBreak() override { this->comboBreaks.call<void>("push", this->judge->getCurMusicPos()); }
+
+    const GameplayJudge *judge = nullptr;
+    std::unordered_map<const HitObject *, i32> indices;
+    val hits = val::array();
+    val comboBreaks = val::array();
+};
 
 }  // namespace
 
@@ -104,6 +185,31 @@ struct JsBeatmap {
                                         .legacyTotalScore = (u32)score.score,
                                         .isMcOsuImported = false};
         return DiffCalc::calculatePPv2(params);
+    }
+
+    // the difficulty and strains of the mods last passed to calculate_pp()
+    [[nodiscard]] val difficulty() const {
+        const auto strains_to_js = [](const std::vector<f32> &strains) {
+            val arr = val::array();
+            for(f32 strain : strains) arr.call<void>("push", strain);
+            return arr;
+        };
+
+        val d = val::object();
+        d.set("stars", this->star_rating);
+        d.set("aim", this->difficulty_attributes.AimDifficulty);
+        d.set("speed", this->difficulty_attributes.SpeedDifficulty);
+        d.set("reading", this->difficulty_attributes.ReadingDifficulty);
+        d.set("flashlight", this->difficulty_attributes.FlashlightDifficulty);
+        d.set("speedNoteCount", this->difficulty_attributes.SpeedNoteCount);
+        d.set("sliderFactor", this->difficulty_attributes.SliderFactor);
+        d.set("maxCombo", this->maxPossibleCombo);
+        d.set("aimStrains", strains_to_js(this->aim_strains));
+        d.set("speedStrains", strains_to_js(this->speed_strains));
+        // where the strain sections lie, in unscaled beatmap time
+        d.set("strainsStartMS", this->strains_start_ms);
+        d.set("strainSectionMS", this->strain_section_ms);
+        return d;
     }
 
     std::shared_ptr<const std::vector<u8>> data;  // the .osu file
@@ -186,8 +292,10 @@ struct JsBeatmap {
         DiffCalc::StarCalcParams starParams{
             .outAttributes = this->difficulty_attributes,
             .beatmapData = diffcalcData,
-            .outAimStrains = nullptr,
-            .outSpeedStrains = nullptr,
+            .outAimStrains = &this->aim_strains,
+            .outSpeedStrains = &this->speed_strains,
+            .outStrainsStartMS = &this->strains_start_ms,
+            .outStrainSectionMS = &this->strain_section_ms,
             .upToObjectIndex = -1,
             .cancelCheck = {},
         };
@@ -205,11 +313,11 @@ struct JsBeatmap {
     Primitives::PRIMITIVE_CONTAINER primitives;
     DiffCalc::DifficultyAttributes difficulty_attributes;
     Replay::Mods mods_of_current_difficulty_attributes;
-
-    // maybe expose these later
     double star_rating = 0.0;
-    // aim_pp == this->difficulty_attributes.AimDifficulty
-    // speed_pp == this->difficulty_attributes.SpeedDifficulty
+    std::vector<f32> aim_strains;
+    std::vector<f32> speed_strains;
+    f64 strains_start_ms = 0.0;
+    f64 strain_section_ms = 0.0;
 };
 
 struct JsReplay {
@@ -259,9 +367,47 @@ struct JsReplay {
         LiveScore score(true);
         score.mods = this->replay.mods;
 
-        GameplayJudge judge(&beatmap.map, score);
+        HitRecorder recorder;
+        GameplayJudge judge(&beatmap.map, score, nullptr, &recorder);
+        recorder.judge = &judge;
         if(const auto err = judge.load(beatmap.data))
             val::global("Error").new_(std::string{err.error_string()}).throw_();
+
+        // positions are where the objects get judged (stacked, flipped by HardRock); wobble mods move them during
+        // play, so for those only the positions of hits are exact
+        val objects = val::array();
+        const auto hitobjects = judge.getHitObjects();
+        for(i32 i = 0; i < (i32)hitobjects.size(); i++) {
+            const HitObject *obj = hitobjects[i].get();
+            recorder.indices[obj] = i;
+
+            const vec2 start = judge.osuCoords2Pixels(obj->getRawPosAt(obj->getClickTime()));
+            const vec2 end = judge.osuCoords2Pixels(obj->getRawPosAt(obj->getEndTime()));
+            val o = val::object();
+            o.set("type", std::string{hit_object_type_name(obj->getType())});
+            o.set("time", obj->getClickTime());
+            o.set("endTime", obj->getEndTime());
+            o.set("x", start.x);
+            o.set("y", start.y);
+            o.set("endX", end.x);
+            o.set("endY", end.y);
+            o.set("stack", obj->getStack());
+            objects.call<void>("push", o);
+        }
+
+        // in music time, and osu!px like the positions
+        val params = val::object();
+        params.set("speed", judge.getSpeedMultiplier());
+        params.set("ar", judge.getAR());
+        params.set("od", judge.getOD());
+        params.set("cs", judge.getCS());
+        params.set("hp", judge.getHP());
+        params.set("approachTime", judge.getApproachTime());
+        params.set("hitWindow300", judge.getHitWindow300());
+        params.set("hitWindow100", judge.getHitWindow100());
+        params.set("hitWindow50", judge.getHitWindow50());
+        params.set("circleRadius", judge.fHitcircleDiameter / 2.f);
+        params.set("followCircleRadius", judge.fSliderFollowCircleDiameter / 2.f);
 
         judge.replay = this->replay.replay;
         judge.simulate_to(std::numeric_limits<i32>::max());
@@ -291,6 +437,11 @@ struct JsReplay {
         obj.set("failed", judge.hasFailed());
         obj.set("mods", mods_to_js(result.mods));
         obj.set("pp", beatmap.calculate_pp(result));
+        obj.set("difficulty", beatmap.difficulty());
+        obj.set("params", params);
+        obj.set("objects", objects);
+        obj.set("hits", recorder.hits);
+        obj.set("comboBreaks", recorder.comboBreaks);
         return obj;
     }
 
@@ -300,7 +451,7 @@ struct JsReplay {
 };
 
 EMSCRIPTEN_BINDINGS(neomod_diffcalc) {
-    class_<JsBeatmap>("Beatmap").constructor<std::string>().function("calculate", &Beatmap::calculate);
+    class_<JsBeatmap>("Beatmap").constructor<std::string>().function("calculate", &JsBeatmap::calculate);
     class_<JsReplay>("Replay")
         .constructor<std::string>()
         .property("info", &JsReplay::info)

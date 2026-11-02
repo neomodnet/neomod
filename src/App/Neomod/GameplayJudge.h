@@ -63,6 +63,10 @@ class GameplayJudge final {
         virtual void playSpinnerBonusSound(neomod::DatabaseBeatmapTypes::HITSAMPLE_BITS samples);
         virtual void addTargetHit(f32 delta, f32 angle);  // target mod hits by distance and angle from the center
 
+        // every judgement that wasn't overridden by Perfect/SuddenDeath
+        // hitObject: NULL for some slider breaks
+        // timed: whether delta is a hit error, which counts towards the unstable rate
+        virtual void onHitResult(const neomod::HitObject *hitObject, LiveHitResult hit, i32 delta, bool timed);
         virtual void onComboBreak();  // called right before the combo is reset
         virtual void onHealthGain(f64 healthBefore);
         virtual bool onFail(bool byMods);  // byMods true when fail is caused by Perfect/SuddenDeath

@@ -36,6 +36,8 @@ void GameplayJudge::Listener::playSpinnerSpinSound(f32 /*ratio*/, DatabaseBeatma
 void GameplayJudge::Listener::stopSpinnerSpinSound() {}
 void GameplayJudge::Listener::playSpinnerBonusSound(DatabaseBeatmapTypes::HITSAMPLE_BITS /*samples*/) {}
 void GameplayJudge::Listener::addTargetHit(f32 /*delta*/, f32 /*angle*/) {}
+void GameplayJudge::Listener::onHitResult(const HitObject * /*hitObject*/, LiveHitResult /*hit*/, i32 /*delta*/,
+                                          bool /*timed*/) {}
 void GameplayJudge::Listener::onComboBreak() {}
 void GameplayJudge::Listener::onHealthGain(f64 /*healthBefore*/) {}
 bool GameplayJudge::Listener::onFail(bool /*byMods*/) { return true; }
@@ -530,7 +532,10 @@ LiveHitResult GameplayJudge::addHitResult(HitObject *hitObject, LiveHitResult hi
         }
     }
 
-    if(hit == HIT_MISS && this->listener) this->listener->onComboBreak();
+    if(this->listener) {
+        this->listener->onHitResult(hitObject, hit, delta, !ignoreOnHitErrorBar);
+        if(hit == HIT_MISS) this->listener->onComboBreak();
+    }
 
     // score
     this->score.addHitResult(this, hitObject, hit, delta, ignoreOnHitErrorBar, hitErrorBarOnly, ignoreCombo,
