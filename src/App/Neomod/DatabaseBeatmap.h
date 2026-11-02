@@ -52,8 +52,8 @@ using BeatmapDifficulty = DatabaseBeatmap;
 using BeatmapSet = DatabaseBeatmap;
 using DiffContainer = std::vector<std::unique_ptr<BeatmapDifficulty>>;
 
-// a map's file as a play read it, which is what the play goes by, whatever the map's database record says (the record
-// lags behind a file that changed until the database is told). DatabaseBeatmap::readPlayedMap() makes one
+// the .osu file parsed when gameplay starts. DatabaseBeatmap::readPlayedMap() makes one.
+// gameplay uses this instead of the database record, which can be outdated if the file changed on disk.
 struct PlayedMap {
     neomod::Primitives::PRIMITIVE_CONTAINER primitives;  // the settings, timing and objects (error set if unreadable)
     MD5Hash md5;
@@ -75,7 +75,6 @@ class DatabaseBeatmap final {
                                                                           const Sync::stop_token &dead = {});
     static neomod::Primitives::PRIMITIVE_CONTAINER loadPrimitiveObjects(std::string_view osuFilePath,
                                                                         const Sync::stop_token &dead = {});
-    static PlayedMap readPlayedMap(std::string_view osuFilePath);
 
     NOCOPY_NOMOVE(DatabaseBeatmap)
    public:
@@ -108,7 +107,12 @@ class DatabaseBeatmap final {
         explicit operator bool() const { return error.errc != 0; }
     };
 
-    LOAD_META_RESULT loadMetadata(bool compute_md5 = true);
+    // fileData: the .osu file, if it shouldn't be read from disk
+    LOAD_META_RESULT loadMetadata(bool compute_md5 = true,
+                                  const std::shared_ptr<const std::vector<u8>> &fileData = nullptr);
+
+    // reads and parses the .osu file for gameplay (fileData: the .osu file, if it shouldn't be read from disk)
+    [[nodiscard]] PlayedMap readPlayedMap(std::shared_ptr<const std::vector<u8>> fileData = nullptr) const;
 
     struct LOAD_GAMEPLAY_RESULT final {
         LOAD_GAMEPLAY_RESULT();

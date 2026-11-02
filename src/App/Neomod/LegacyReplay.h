@@ -49,6 +49,7 @@ BEATMAP_VALUES getBeatmapValuesForModsLegacy(LegacyFlags modsLegacy, float legac
 std::vector<u8> compress_frames(const std::vector<Frame>& frames);
 bool load_from_disk(FinishedScore& score, bool update_db);
 bool load_osr(std::string_view osr_path, FinishedScore& score_out);
+bool load_osr(std::span<const u8> osr_data, FinishedScore& score_out);
 bool save_osr(const FinishedScore& score, std::span<const std::string> additional_data = {});
 void load_and_watch(FinishedScore score);
 

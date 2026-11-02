@@ -262,7 +262,11 @@ bool load_osr(std::string_view osr_path, FinishedScore& score_out) {
         if(!buffer) return false;
     }
 
-    auto info = from_bytes({buffer.get(), file_size});
+    return load_osr(std::span<const u8>{buffer.get(), file_size}, score_out);
+}
+
+bool load_osr(std::span<const u8> osr_data, FinishedScore& score_out) {
+    auto info = from_bytes(osr_data);
     if(info.frames.empty()) return false;
 
     score_out.replay = info.frames;

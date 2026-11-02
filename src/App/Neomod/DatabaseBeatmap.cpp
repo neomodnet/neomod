@@ -199,10 +199,13 @@ DiffCalc::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(std::spa
     return DiffCalc::loadDifficultyHitObjects(c, AR, CS, speedMultiplier, hardRock, dead);
 }
 
-PlayedMap DatabaseBeatmap::readPlayedMap(std::string_view osuFilePath) {
+PlayedMap DatabaseBeatmap::readPlayedMap(std::shared_ptr<const std::vector<u8>> data) const {
     // XXX: file io, md5 calc, all on main thread!!
-    auto data = std::make_shared<std::vector<u8>>();
-    if(File file(osuFilePath); file.canRead()) file.readToVector(*data);
+    if(!data) {
+        auto fileBuffer = std::make_shared<std::vector<u8>>();
+        if(File file(this->getFilePath()); file.canRead()) file.readToVector(*fileBuffer);
+        data = std::move(fileBuffer);
+    }
 
     PlayedMap played;
     played.primitives = Primitives::loadPrimitiveObjectsFromData(*data, limitsFromConVars());
@@ -269,7 +272,8 @@ Mc::Registration DatabaseBeatmap::getMapFileAsync(MapFileReadDoneCallback data_c
     return io->read(this->getFilePath(), std::move(data_callback));
 }
 
-DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5) {
+DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(
+    bool compute_md5, const std::shared_ptr<const std::vector<u8>> &fileData) {
     if(this->difficulties) {
         return {.fileData = {},
                 .error = {Primitives::LoadError::LOADMETADATA_ON_BEATMAPSET}};  // we are a beatmapset, not a difficulty
@@ -280,7 +284,10 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(bool compute_md5
     std::vector<u8> fileBuffer;
     size_t beatmapFileSize{0};
 
-    {
+    if(fileData) {
+        fileBuffer = *fileData;
+        beatmapFileSize = fileBuffer.size();
+    } else {
         File file(this->getFilePath());
         if(file.canRead()) {
             beatmapFileSize = file.getFileSize();

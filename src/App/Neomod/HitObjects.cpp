@@ -984,7 +984,7 @@ void Circle::onClickEvent(std::vector<Click> &clicks) {
     if(cursorDelta < m_judge->fHitcircleDiameter / 2.0f) {
         // note blocking & shake
         if(m_blocked) {
-            m_shakeAnimation = engine->getTime() + cv::circle_shake_duration.getFloat();
+            if(animatesHits()) m_shakeAnimation = engine->getTime() + cv::circle_shake_duration.getFloat();
             return;  // ignore click event completely
         }
 
@@ -1480,8 +1480,7 @@ std::optional<SliderRenderer::Body> Slider::getBody() const {
     // fading out after the end hit (which finishes the slider, so never together with the live body above)
     const bool slider_fading_out = m_endSliderBodyFadeAnimation > 0.0f && m_endSliderBodyFadeAnimation != 1.0f;
     const bool instafade = cv::instafade_sliders.getBool() && cv::sv_allow_instafade.getBool();
-    if(flags::has<ModFlags::Hidden>(m_view->getModFlags()) || instafade || !slider_fading_out)
-        return std::nullopt;
+    if(flags::has<ModFlags::Hidden>(m_view->getModFlags()) || instafade || !slider_fading_out) return std::nullopt;
 
     if(!cv::slider_shrink.getBool()) return makeBody(1.0f - m_endSliderBodyFadeAnimation, 0, 1);
     if(!cv::slider_body_lazer_fadeout_style.getBool()) return std::nullopt;
@@ -3002,13 +3001,13 @@ void Spinner::onReset(i32 curPosMS) {
 void Spinner::onHit() {
     // calculate hit result, in half rotations like osu!stable
     const i32 halfSpins = (i32)(m_rotations / 180.0f);
+    const auto &mods = m_judge->getMods();
     LiveHitResult result = LiveHitResult::HIT_NULL;
-    if(m_halfSpinsNeeded <= 0 || halfSpins >= m_halfSpinsNeeded + 1 ||
-       (flags::has<ModFlags::Autoplay>(m_judge->getMods().flags)))
+    if(m_halfSpinsNeeded <= 0 || halfSpins >= m_halfSpinsNeeded + 1 || mods.has(ModFlags::Autoplay))
         result = LiveHitResult::HIT_300;
-    else if(halfSpins >= m_halfSpinsNeeded - 1 && !cv::mod_ming3012.getBool() && !cv::mod_no100s.getBool())
+    else if(halfSpins >= m_halfSpinsNeeded - 1 && !mods.has(ModFlags::Ming3012) && !mods.has(ModFlags::No100s))
         result = LiveHitResult::HIT_100;
-    else if(halfSpins >= m_halfSpinsNeeded / 4 && !cv::mod_no100s.getBool() && !cv::mod_no50s.getBool())
+    else if(halfSpins >= m_halfSpinsNeeded / 4 && !mods.has(ModFlags::No100s) && !mods.has(ModFlags::No50s))
         result = LiveHitResult::HIT_50;
     else
         result = LiveHitResult::HIT_MISS;

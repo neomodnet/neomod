@@ -48,7 +48,7 @@ GameplayJudge::GameplayJudge(DatabaseBeatmap *map, LiveScore &score, const Playf
 
 GameplayJudge::~GameplayJudge() { this->unload(); }
 
-Primitives::LoadError GameplayJudge::load() {
+Primitives::LoadError GameplayJudge::load(std::shared_ptr<const std::vector<u8>> fileData) {
     this->unload();
     this->resetScore();
 
@@ -56,7 +56,7 @@ Primitives::LoadError GameplayJudge::load() {
     this->updateHitobjectMetrics();
 
     // the play goes by what it reads from the file now (objects ask for the map's settings while they're made)
-    this->mapData = std::make_unique<PlayedMap>(DatabaseBeatmap::readPlayedMap(this->beatmap->getFilePath()));
+    this->mapData = std::make_unique<PlayedMap>(this->beatmap->readPlayedMap(std::move(fileData)));
     DatabaseBeatmap::LOAD_GAMEPLAY_RESULT result = DatabaseBeatmap::loadGameplay(*this->mapData, this, this->view);
     if(result.error.errc) {
         this->mapData.reset();

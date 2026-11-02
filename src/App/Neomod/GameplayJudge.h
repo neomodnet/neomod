@@ -72,8 +72,8 @@ class GameplayJudge final {
                   Listener *listener = nullptr);
     ~GameplayJudge();
 
-    // attempt to read the map and make its objects
-    neomod::Primitives::LoadError load();
+    // attempt to read the map and make its objects (fileData: the .osu file, if it shouldn't be read from disk)
+    neomod::Primitives::LoadError load(std::shared_ptr<const std::vector<u8>> fileData = nullptr);
     void unload();
 
     // play from the start again, or seek to curPos with everything before it done
