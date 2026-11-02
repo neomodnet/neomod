@@ -1525,6 +1525,32 @@ neomod_LDFLAGS := \
 # extracted maps dependency (only applicable for wasm but avoids += (slow))
 EXTRA_neomod_DEPENDENCIES := $(EXTRACTED_MAPS_DEP) $(WASM_POLYFILL_DEP)
 
+if WASM_PLATFORM
+# `make neomodjs`: the neomod.js library (see tools/neomod.js), built from the game objects plus embind bindings.
+# the module never runs the game, so the game-only link flags (preloaded assets, node polyfill, emrun) are left out.
+NEOMODJS_DIR := $(builddir)/neomodjs
+NEOMODJS_OBJ := $(NEOMODJS_DIR)/NeomodJs.o
+NEOMODJS_LINK_FLAGS := \
+	-lembind -sMODULARIZE=1 -sEXPORT_ES6=1 -sINVOKE_RUN=0 -sPTHREAD_POOL_SIZE=0 \
+	-sIMPORTED_MEMORY=1 -sINITIAL_MEMORY=64MB -sALLOW_MEMORY_GROWTH=1 -sMAXIMUM_MEMORY=4GB -Wno-pthreads-mem-growth \
+	-sINCOMING_MODULE_JS_API=wasmMemory,onAbort,print,printErr
+
+$(NEOMODJS_OBJ): $(srcdir)/tools/neomod.js/NeomodJs.cpp $(BUILT_SOURCES) $(PCH_OUTPUT) | $(EMBED_HEADER) $(TRANSLATIONS_HEADER)
+	$(MKDIR_P) $(NEOMODJS_DIR)
+	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) \
+		-MT $@ -MD -MP -MF $(NEOMODJS_DIR)/NeomodJs.d -c -o $@ $<
+
+-include $(NEOMODJS_DIR)/NeomodJs.d
+
+$(NEOMODJS_DIR)/neomod.js: $(NEOMODJS_OBJ) $(neomod_OBJECTS)
+	$(CXXLD) $(neomod_CXXFLAGS) $(CXXFLAGS) \
+		$(filter-out $(WASM_PRELOAD_FLAGS) --pre-js $(WASM_POLYFILL_DEP) --emrun,$(neomod_LDFLAGS)) $(LDFLAGS) \
+		$(NEOMODJS_LINK_FLAGS) -o $@ $^ $(LIBS)
+
+neomodjs: $(NEOMODJS_DIR)/neomod.js
+CLEANFILES += $(NEOMODJS_DIR)/*
+endif
+
 if WIN_PLATFORM
 # mimalloc new/delete override for windows
 neomod_SOURCES += $(MIMALLOC_OVERRIDE_DEP)
@@ -1851,7 +1877,7 @@ clean-deps:
 
 clean-dep-cache:
 	rm -rf $(DEPS_CACHE)
-.PHONY: clean-deps clean-dep-cache install-libs install-dirs compile-commands FORCE
+.PHONY: clean-deps clean-dep-cache install-libs install-dirs compile-commands neomodjs FORCE
 
 maintainer-clean-local: clean-deps clean-dep-cache
 

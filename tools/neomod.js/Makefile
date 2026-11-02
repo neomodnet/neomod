@@ -1,33 +1,13 @@
-CXX = em++
-CXXFLAGS = -DBUILD_TOOLS_ONLY -Os -std=c++23 -ffunction-sections -fdata-sections -fno-exceptions -fno-unwind-tables -msimd128 -mrelaxed-simd -ffp-contract=off -flto=thin
-LDFLAGS = -Wl,--gc-sections -lembind -s WASM=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s SINGLE_FILE=0 -s ALLOW_MEMORY_GROWTH=1 -s IMPORTED_MEMORY=1
+# neomod.js is linked from the game objects, so it needs a build directory configured for wasm:
+#   mkdir wasm-release-build && cd wasm-release-build && emconfigure ../configure
+WASM_BUILD ?= ../../wasm-release-build
 
-SRCDIR = ../../src
-INCLUDES = -I$(SRCDIR)/App/Neomod -I$(SRCDIR)/App/Neomod/BeatmapFile -I$(SRCDIR)/App/Neomod/DiffCalc -I$(SRCDIR)/Util -I$(SRCDIR)/Util/CompatShims -I$(SRCDIR)/Util/SyncPrimitives -I$(SRCDIR)/../libraries
-
-# GLM: use system headers by default, override with GLM_INCLUDE=-I/path/to/glm
-# https://github.com/g-truc/glm
-PKG_CONFIG ?= pkg-config
-GLM_INCLUDE ?= $(shell $(PKG_CONFIG) --cflags glm)
-INCLUDES += $(GLM_INCLUDE)
-
-SOURCES = \
-	NeomodJs.cpp \
-	$(SRCDIR)/App/Neomod/BeatmapFile/BeatmapFile.cpp \
-	$(SRCDIR)/App/Neomod/BeatmapFile/BeatmapPrimitives.cpp \
-	$(SRCDIR)/App/Neomod/DiffCalc/DifficultyCalculator.cpp \
-	$(SRCDIR)/App/Neomod/GameRules.cpp \
-	$(SRCDIR)/App/Neomod/Replay.cpp \
-	$(SRCDIR)/App/Neomod/SliderCurves.cpp \
-	$(SRCDIR)/Util/Parsing.cpp \
-	$(SRCDIR)/Util/SString.cpp \
-	$(SRCDIR)/Util/Vectors.cpp
-
-neomod.js: $(SOURCES)
+neomod.js:
+	emmake $(MAKE) -C $(WASM_BUILD) neomodjs
 	@mkdir -p bin
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(INCLUDES) $^ -o bin/$@
+	cp $(WASM_BUILD)/neomodjs/neomod.js $(WASM_BUILD)/neomodjs/neomod.wasm bin/
 
 clean:
 	rm -rf bin
 
-.PHONY: clean
+.PHONY: neomod.js clean
