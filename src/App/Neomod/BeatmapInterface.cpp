@@ -32,7 +32,7 @@
 #include "HitSounds.h"
 #include "HitObjects.h"
 #include "i18n.h"
-#include "LegacyReplay.h"
+#include "ReplayFile.h"
 #include "Logging.h"
 #include "MapSettingsOverlay.h"
 #include "ModFPoSu.h"
@@ -1457,14 +1457,14 @@ void BeatmapInterface::resetScore() {
     // don't clear the replay when we're watching/spectating
     if(!this->is_watching && !BanchoState::spectating) {
         this->judge->replay = {
-            LegacyReplay::Frame{
+            Replay::Frame{
                 .cur_music_pos = -1,
                 .milliseconds_since_last_frame = 0,
                 .x = 256,
                 .y = -500,
                 .key_flags = 0,
             },
-            LegacyReplay::Frame{
+            Replay::Frame{
                 .cur_music_pos = -1,
                 .milliseconds_since_last_frame = -1,
                 .x = 256,
@@ -2188,8 +2188,8 @@ void BeatmapInterface::update2() {
     // don't advance replay frames if we are paused unless this was a seek
     const auto &replay = this->judge->replay;
     if((!isIdlePaused || wasSeekFrame) && (this->is_watching || BanchoState::spectating) && replay.size() >= 2) {
-        LegacyReplay::Frame current_frame = replay[this->current_frame_idx];
-        LegacyReplay::Frame next_frame = replay[this->current_frame_idx + 1];
+        Replay::Frame current_frame = replay[this->current_frame_idx];
+        Replay::Frame next_frame = replay[this->current_frame_idx + 1];
 
         while(next_frame.cur_music_pos <= this->iCurMusicPosWithOffsets) {
             if(this->current_frame_idx + 2 >= replay.size()) break;
@@ -2212,8 +2212,8 @@ void BeatmapInterface::update2() {
 
             // Replays have both K1 and M1 set when K1 is pressed, fix it now
             if(!this->getMods().has(ModFlags::NoKeylock)) {
-                if(this->current_keys & LegacyReplay::K1) this->current_keys &= ~LegacyReplay::M1;
-                if(this->current_keys & LegacyReplay::K2) this->current_keys &= ~LegacyReplay::M2;
+                if(this->current_keys & Replay::K1) this->current_keys &= ~Replay::M1;
+                if(this->current_keys & Replay::K2) this->current_keys &= ~Replay::M2;
             }
 
             for(auto key : {GameplayKeys::K1, GameplayKeys::K2, GameplayKeys::M1, GameplayKeys::M2}) {
@@ -2481,22 +2481,22 @@ void BeatmapInterface::step(f64 frametime) {
     // judge clicks since last frame
     for(const auto &event : this->key_events) {
         const vec2 pos = replayCursor(event.click.cursorPos);
-        const LegacyReplay::Frame frame{.cur_music_pos = event.click.musicPosMS,
-                                        .milliseconds_since_last_frame = 0,
-                                        .x = pos.x,
-                                        .y = pos.y,
-                                        .key_flags = event.keys};
+        const Replay::Frame frame{.cur_music_pos = event.click.musicPosMS,
+                                  .milliseconds_since_last_frame = 0,
+                                  .x = pos.x,
+                                  .y = pos.y,
+                                  .key_flags = event.keys};
         this->judge->step(frame, 0.0, event.clickKey);
         this->write_frame(frame, true);
     }
 
     // judge cursor movement (or lack thereof)
     const vec2 pos = replayCursor(this->getCursorPos());
-    const LegacyReplay::Frame frame{.cur_music_pos = this->iCurMusicPosWithOffsets,
-                                    .milliseconds_since_last_frame = 0,
-                                    .x = pos.x,
-                                    .y = pos.y,
-                                    .key_flags = this->current_keys};
+    const Replay::Frame frame{.cur_music_pos = this->iCurMusicPosWithOffsets,
+                              .milliseconds_since_last_frame = 0,
+                              .x = pos.x,
+                              .y = pos.y,
+                              .key_flags = this->current_keys};
     this->judge->step(frame, frametime, 0);
     this->write_frame(frame, this->judge->needsReplayFrame());
 }
@@ -2582,7 +2582,7 @@ void BeatmapInterface::broadcast_spectator_frames() {
     this->last_spectator_broadcast = engine->getTime();
 }
 
-void BeatmapInterface::write_frame(const LegacyReplay::Frame &frame, bool force) {
+void BeatmapInterface::write_frame(const Replay::Frame &frame, bool force) {
     if(!this->bIsPlaying || this->judge->hasFailed() || this->is_watching || BanchoState::spectating) return;
 
     const i32 delta = frame.cur_music_pos - this->last_event_ms;
@@ -2596,11 +2596,11 @@ void BeatmapInterface::write_frame(const LegacyReplay::Frame &frame, bool force)
     // (unless we have the "no keylock" mod on, which uses 4 keys instead of only 2)
     u8 replay_keys = frame.key_flags;
     if(!this->getMods().has(ModFlags::NoKeylock)) {
-        if(frame.key_flags & LegacyReplay::KeyFlags::K1) replay_keys |= LegacyReplay::KeyFlags::M1;
-        if(frame.key_flags & LegacyReplay::KeyFlags::K2) replay_keys |= LegacyReplay::KeyFlags::M2;
+        if(frame.key_flags & Replay::KeyFlags::K1) replay_keys |= Replay::KeyFlags::M1;
+        if(frame.key_flags & Replay::KeyFlags::K2) replay_keys |= Replay::KeyFlags::M2;
     }
 
-    this->judge->replay.push_back(LegacyReplay::Frame{
+    this->judge->replay.push_back(Replay::Frame{
         .cur_music_pos = frame.cur_music_pos,
         .milliseconds_since_last_frame = delta,
         .x = frame.x,

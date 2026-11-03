@@ -2,7 +2,7 @@
 // Copyright (c) 2016, PG, All rights reserved.
 
 #include "AsyncCancellable.h"
-#include "LegacyReplay.h"
+#include "ReplayFile.h"
 #include "Overrides.h"
 #include "SyncMutex.h"
 #include "score.h"
@@ -27,7 +27,7 @@ extern bool save_collections();
 extern bool save_collections(std::span<const Collection> collections, std::string_view save_path);
 extern void save_collections_async();
 }  // namespace Collections
-namespace LegacyReplay {
+namespace Replay {
 extern bool load_from_disk(FinishedScore &score, bool update_db);
 }
 
@@ -264,7 +264,7 @@ class Database final {
 
     // for updating scores externally
     friend struct BatchDiffCalc::internal;
-    friend bool LegacyReplay::load_from_disk(FinishedScore &score, bool update_db);
+    friend bool Replay::load_from_disk(FinishedScore &score, bool update_db);
     inline HashToScoreMap &getScoresMutable() { return this->scores; }
 
     HashToScoreMap scores;

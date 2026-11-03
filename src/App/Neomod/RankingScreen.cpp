@@ -27,7 +27,7 @@
 #include "Font.h"
 #include "Sound.h"
 #include "Keyboard.h"
-#include "LegacyReplay.h"
+#include "ReplayFile.h"
 #include "MakeDelegateWrapper.h"
 #include "NetworkHandler.h"
 #include "Mouse.h"
@@ -478,7 +478,7 @@ void RankingScreen::onRetryClicked() {
     osu->getMapInterface()->play();
 }
 
-void RankingScreen::onWatchClicked() { LegacyReplay::load_and_watch(m_impl->storedScore); }
+void RankingScreen::onWatchClicked() { Replay::load_and_watch(m_impl->storedScore); }
 
 void RankingScreen::setScore(const FinishedScore &newscore) {
     m_impl->storedScore = newscore;

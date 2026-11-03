@@ -265,7 +265,6 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Neomod/Downloader.cpp src/App/Neomod/GameRules.cpp \
 	src/App/Neomod/GameplayJudge.cpp src/App/Neomod/HUD.cpp \
 	src/App/Neomod/HitObjects.cpp src/App/Neomod/HitSounds.cpp \
-	src/App/Neomod/LegacyReplay.cpp \
 	src/App/Neomod/LoadingScreen.cpp src/App/Neomod/Lobby.cpp \
 	src/App/Neomod/MainMenu.cpp \
 	src/App/Neomod/MainMenuNowPlaying.cpp \
@@ -285,7 +284,8 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Neomod/PreviewTrackManager.cpp \
 	src/App/Neomod/PromptOverlay.cpp \
 	src/App/Neomod/RankingScreen.cpp src/App/Neomod/Replay.cpp \
-	src/App/Neomod/RichPresence.cpp src/App/Neomod/RoomScreen.cpp \
+	src/App/Neomod/ReplayFile.cpp src/App/Neomod/RichPresence.cpp \
+	src/App/Neomod/RoomScreen.cpp \
 	src/App/Neomod/ScoreboardSlot.cpp \
 	src/App/Neomod/ScreenBackable.cpp \
 	src/App/Neomod/SettingsImporter.cpp src/App/Neomod/Skin.cpp \
@@ -538,7 +538,6 @@ am_neomod_OBJECTS = libraries/neomod-MD5.$(OBJEXT) \
 	src/App/Neomod/neomod-HUD.$(OBJEXT) \
 	src/App/Neomod/neomod-HitObjects.$(OBJEXT) \
 	src/App/Neomod/neomod-HitSounds.$(OBJEXT) \
-	src/App/Neomod/neomod-LegacyReplay.$(OBJEXT) \
 	src/App/Neomod/neomod-LoadingScreen.$(OBJEXT) \
 	src/App/Neomod/neomod-Lobby.$(OBJEXT) \
 	src/App/Neomod/neomod-MainMenu.$(OBJEXT) \
@@ -564,6 +563,7 @@ am_neomod_OBJECTS = libraries/neomod-MD5.$(OBJEXT) \
 	src/App/Neomod/neomod-PromptOverlay.$(OBJEXT) \
 	src/App/Neomod/neomod-RankingScreen.$(OBJEXT) \
 	src/App/Neomod/neomod-Replay.$(OBJEXT) \
+	src/App/Neomod/neomod-ReplayFile.$(OBJEXT) \
 	src/App/Neomod/neomod-RichPresence.$(OBJEXT) \
 	src/App/Neomod/neomod-RoomScreen.$(OBJEXT) \
 	src/App/Neomod/neomod-ScoreboardSlot.$(OBJEXT) \
@@ -785,7 +785,6 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/App/Neomod/$(DEPDIR)/neomod-HUD.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-HitObjects.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-HitSounds.Po \
-	src/App/Neomod/$(DEPDIR)/neomod-LegacyReplay.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-LoadingScreen.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-Lobby.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-MainMenu.Po \
@@ -810,6 +809,7 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	src/App/Neomod/$(DEPDIR)/neomod-PromptOverlay.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-RankingScreen.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-Replay.Po \
+	src/App/Neomod/$(DEPDIR)/neomod-ReplayFile.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-RichPresence.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-RoomScreen.Po \
 	src/App/Neomod/$(DEPDIR)/neomod-ScoreboardSlot.Po \
@@ -1573,7 +1573,6 @@ neomod_SOURCES = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Neomod/Downloader.cpp src/App/Neomod/GameRules.cpp \
 	src/App/Neomod/GameplayJudge.cpp src/App/Neomod/HUD.cpp \
 	src/App/Neomod/HitObjects.cpp src/App/Neomod/HitSounds.cpp \
-	src/App/Neomod/LegacyReplay.cpp \
 	src/App/Neomod/LoadingScreen.cpp src/App/Neomod/Lobby.cpp \
 	src/App/Neomod/MainMenu.cpp \
 	src/App/Neomod/MainMenuNowPlaying.cpp \
@@ -1593,7 +1592,8 @@ neomod_SOURCES = libraries/MD5.cpp libraries/demoji.c \
 	src/App/Neomod/PreviewTrackManager.cpp \
 	src/App/Neomod/PromptOverlay.cpp \
 	src/App/Neomod/RankingScreen.cpp src/App/Neomod/Replay.cpp \
-	src/App/Neomod/RichPresence.cpp src/App/Neomod/RoomScreen.cpp \
+	src/App/Neomod/ReplayFile.cpp src/App/Neomod/RichPresence.cpp \
+	src/App/Neomod/RoomScreen.cpp \
 	src/App/Neomod/ScoreboardSlot.cpp \
 	src/App/Neomod/ScreenBackable.cpp \
 	src/App/Neomod/SettingsImporter.cpp src/App/Neomod/Skin.cpp \
@@ -2439,9 +2439,6 @@ src/App/Neomod/neomod-HitObjects.$(OBJEXT):  \
 src/App/Neomod/neomod-HitSounds.$(OBJEXT):  \
 	src/App/Neomod/$(am__dirstamp) \
 	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
-src/App/Neomod/neomod-LegacyReplay.$(OBJEXT):  \
-	src/App/Neomod/$(am__dirstamp) \
-	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
 src/App/Neomod/neomod-LoadingScreen.$(OBJEXT):  \
 	src/App/Neomod/$(am__dirstamp) \
 	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
@@ -2519,6 +2516,9 @@ src/App/Neomod/neomod-RankingScreen.$(OBJEXT):  \
 	src/App/Neomod/$(am__dirstamp) \
 	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
 src/App/Neomod/neomod-Replay.$(OBJEXT):  \
+	src/App/Neomod/$(am__dirstamp) \
+	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
+src/App/Neomod/neomod-ReplayFile.$(OBJEXT):  \
 	src/App/Neomod/$(am__dirstamp) \
 	src/App/Neomod/$(DEPDIR)/$(am__dirstamp)
 src/App/Neomod/neomod-RichPresence.$(OBJEXT):  \
@@ -3388,7 +3388,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-HUD.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-HitObjects.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-HitSounds.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-LegacyReplay.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-LoadingScreen.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-Lobby.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-MainMenu.Po@am__quote@ # am--include-marker
@@ -3413,6 +3412,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-PromptOverlay.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-RankingScreen.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-Replay.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-ReplayFile.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-RichPresence.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-RoomScreen.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/App/Neomod/$(DEPDIR)/neomod-ScoreboardSlot.Po@am__quote@ # am--include-marker
@@ -4291,20 +4291,6 @@ src/App/Neomod/neomod-HitSounds.obj: src/App/Neomod/HitSounds.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-HitSounds.obj `if test -f 'src/App/Neomod/HitSounds.cpp'; then $(CYGPATH_W) 'src/App/Neomod/HitSounds.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/HitSounds.cpp'; fi`
 
-src/App/Neomod/neomod-LegacyReplay.o: src/App/Neomod/LegacyReplay.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-LegacyReplay.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-LegacyReplay.Tpo -c -o src/App/Neomod/neomod-LegacyReplay.o `test -f 'src/App/Neomod/LegacyReplay.cpp' || echo '$(srcdir)/'`src/App/Neomod/LegacyReplay.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-LegacyReplay.Tpo src/App/Neomod/$(DEPDIR)/neomod-LegacyReplay.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/LegacyReplay.cpp' object='src/App/Neomod/neomod-LegacyReplay.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-LegacyReplay.o `test -f 'src/App/Neomod/LegacyReplay.cpp' || echo '$(srcdir)/'`src/App/Neomod/LegacyReplay.cpp
-
-src/App/Neomod/neomod-LegacyReplay.obj: src/App/Neomod/LegacyReplay.cpp
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-LegacyReplay.obj -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-LegacyReplay.Tpo -c -o src/App/Neomod/neomod-LegacyReplay.obj `if test -f 'src/App/Neomod/LegacyReplay.cpp'; then $(CYGPATH_W) 'src/App/Neomod/LegacyReplay.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/LegacyReplay.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-LegacyReplay.Tpo src/App/Neomod/$(DEPDIR)/neomod-LegacyReplay.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/LegacyReplay.cpp' object='src/App/Neomod/neomod-LegacyReplay.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-LegacyReplay.obj `if test -f 'src/App/Neomod/LegacyReplay.cpp'; then $(CYGPATH_W) 'src/App/Neomod/LegacyReplay.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/LegacyReplay.cpp'; fi`
-
 src/App/Neomod/neomod-LoadingScreen.o: src/App/Neomod/LoadingScreen.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-LoadingScreen.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-LoadingScreen.Tpo -c -o src/App/Neomod/neomod-LoadingScreen.o `test -f 'src/App/Neomod/LoadingScreen.cpp' || echo '$(srcdir)/'`src/App/Neomod/LoadingScreen.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-LoadingScreen.Tpo src/App/Neomod/$(DEPDIR)/neomod-LoadingScreen.Po
@@ -4654,6 +4640,20 @@ src/App/Neomod/neomod-Replay.obj: src/App/Neomod/Replay.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/Replay.cpp' object='src/App/Neomod/neomod-Replay.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-Replay.obj `if test -f 'src/App/Neomod/Replay.cpp'; then $(CYGPATH_W) 'src/App/Neomod/Replay.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/Replay.cpp'; fi`
+
+src/App/Neomod/neomod-ReplayFile.o: src/App/Neomod/ReplayFile.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-ReplayFile.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-ReplayFile.Tpo -c -o src/App/Neomod/neomod-ReplayFile.o `test -f 'src/App/Neomod/ReplayFile.cpp' || echo '$(srcdir)/'`src/App/Neomod/ReplayFile.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-ReplayFile.Tpo src/App/Neomod/$(DEPDIR)/neomod-ReplayFile.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/ReplayFile.cpp' object='src/App/Neomod/neomod-ReplayFile.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-ReplayFile.o `test -f 'src/App/Neomod/ReplayFile.cpp' || echo '$(srcdir)/'`src/App/Neomod/ReplayFile.cpp
+
+src/App/Neomod/neomod-ReplayFile.obj: src/App/Neomod/ReplayFile.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-ReplayFile.obj -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-ReplayFile.Tpo -c -o src/App/Neomod/neomod-ReplayFile.obj `if test -f 'src/App/Neomod/ReplayFile.cpp'; then $(CYGPATH_W) 'src/App/Neomod/ReplayFile.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/ReplayFile.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/App/Neomod/$(DEPDIR)/neomod-ReplayFile.Tpo src/App/Neomod/$(DEPDIR)/neomod-ReplayFile.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/App/Neomod/ReplayFile.cpp' object='src/App/Neomod/neomod-ReplayFile.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -c -o src/App/Neomod/neomod-ReplayFile.obj `if test -f 'src/App/Neomod/ReplayFile.cpp'; then $(CYGPATH_W) 'src/App/Neomod/ReplayFile.cpp'; else $(CYGPATH_W) '$(srcdir)/src/App/Neomod/ReplayFile.cpp'; fi`
 
 src/App/Neomod/neomod-RichPresence.o: src/App/Neomod/RichPresence.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CXXFLAGS) $(CXXFLAGS) -MT src/App/Neomod/neomod-RichPresence.o -MD -MP -MF src/App/Neomod/$(DEPDIR)/neomod-RichPresence.Tpo -c -o src/App/Neomod/neomod-RichPresence.o `test -f 'src/App/Neomod/RichPresence.cpp' || echo '$(srcdir)/'`src/App/Neomod/RichPresence.cpp
@@ -7985,7 +7985,6 @@ distclean: distclean-am
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-HUD.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-HitObjects.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-HitSounds.Po
-	-rm -f src/App/Neomod/$(DEPDIR)/neomod-LegacyReplay.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-LoadingScreen.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-Lobby.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-MainMenu.Po
@@ -8010,6 +8009,7 @@ distclean: distclean-am
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-PromptOverlay.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-RankingScreen.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-Replay.Po
+	-rm -f src/App/Neomod/$(DEPDIR)/neomod-ReplayFile.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-RichPresence.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-RoomScreen.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-ScoreboardSlot.Po
@@ -8309,7 +8309,6 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-HUD.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-HitObjects.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-HitSounds.Po
-	-rm -f src/App/Neomod/$(DEPDIR)/neomod-LegacyReplay.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-LoadingScreen.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-Lobby.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-MainMenu.Po
@@ -8334,6 +8333,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-PromptOverlay.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-RankingScreen.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-Replay.Po
+	-rm -f src/App/Neomod/$(DEPDIR)/neomod-ReplayFile.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-RichPresence.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-RoomScreen.Po
 	-rm -f src/App/Neomod/$(DEPDIR)/neomod-ScoreboardSlot.Po

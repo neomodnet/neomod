@@ -125,20 +125,20 @@ void GameplayJudge::resetScore() {
     this->score.reset();
 }
 
-void GameplayJudge::step(const LegacyReplay::Frame &frame, f64 frameTimeSecs, u8 clickKeys) {
+void GameplayJudge::step(const Replay::Frame &frame, f64 frameTimeSecs, u8 clickKeys) {
     this->bNeedsReplayFrame = false;
 
     // replays have both K1 and M1 set when K1 is pressed (unless NoKeylock mod is on)
     u8 keys = frame.key_flags;
     if(!this->getMods().has(ModFlags::NoKeylock)) {
-        if(keys & LegacyReplay::K1) keys &= ~LegacyReplay::M1;
-        if(keys & LegacyReplay::K2) keys &= ~LegacyReplay::M2;
+        if(keys & Replay::K1) keys &= ~Replay::M1;
+        if(keys & Replay::K2) keys &= ~Replay::M2;
     }
 
     const vec2 cursorPos{frame.x, frame.y};
     const bool countsKeys = !this->bInBreak && !this->bIsInSkippableSection &&
                             (this->hitobjects.empty() || frame.cur_music_pos >= this->hitobjects[0]->getClickTime());
-    for(auto key : {LegacyReplay::K1, LegacyReplay::K2, LegacyReplay::M1, LegacyReplay::M2}) {
+    for(auto key : {Replay::K1, Replay::K2, Replay::M1, Replay::M2}) {
         if(!(clickKeys & key)) continue;
         this->lastPressedKey = key;
         this->clicks.push_back(Click{
@@ -162,8 +162,8 @@ void GameplayJudge::simulate_to(i32 musicPos) {
     const bool keylock = !this->getMods().has(ModFlags::NoKeylock);
     const auto keylocked = [keylock](u8 keys) -> u8 {
         if(keylock) {
-            if(keys & LegacyReplay::K1) keys &= ~LegacyReplay::M1;
-            if(keys & LegacyReplay::K2) keys &= ~LegacyReplay::M2;
+            if(keys & Replay::K1) keys &= ~Replay::M1;
+            if(keys & Replay::K2) keys &= ~Replay::M2;
         }
         return keys;
     };
@@ -172,9 +172,9 @@ void GameplayJudge::simulate_to(i32 musicPos) {
     //       objects ending after the second-to-last frame still get judged
     while(this->current_frame_idx + 1 < (i32)this->replay.size() &&
           this->replay[this->current_frame_idx + 1].cur_music_pos <= musicPos) {
-        const LegacyReplay::Frame &prev_frame = this->replay[this->current_frame_idx];
+        const Replay::Frame &prev_frame = this->replay[this->current_frame_idx];
         this->current_frame_idx++;
-        const LegacyReplay::Frame &frame = this->replay[this->current_frame_idx];
+        const Replay::Frame &frame = this->replay[this->current_frame_idx];
 
         const u8 lastKeys = keylocked(prev_frame.key_flags);
         const u8 keys = keylocked(frame.key_flags);
@@ -460,7 +460,7 @@ i32 GameplayJudge::getPVS() const {
 
 vec2 GameplayJudge::getCursorPos() const { return this->vCursorPos; }
 
-bool GameplayJudge::isClickHeld() const { return this->getKeys() & ~LegacyReplay::Smoke; }
+bool GameplayJudge::isClickHeld() const { return this->getKeys() & ~Replay::Smoke; }
 
 vec2 GameplayJudge::osuCoords2Pixels(vec2 coords) const {
     const auto &mods = this->getMods();

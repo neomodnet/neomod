@@ -1,5 +1,5 @@
 // Copyright (c) 2024, kiwec, All rights reserved.
-#include "LegacyReplay.h"
+#include "ReplayFile.h"
 
 #ifndef LZMA_API_STATIC
 #define LZMA_API_STATIC
@@ -39,7 +39,7 @@
 #include <span>
 #include <string_view>
 
-namespace LegacyReplay {
+namespace Replay {
 
 BEATMAP_VALUES getBeatmapValuesForModsLegacy(LegacyFlags modsLegacy, float legacyAR, float legacyCS, float legacyOD,
                                              float legacyHP) {
@@ -465,7 +465,7 @@ bool save_osr(const FinishedScore& score, std::span<const std::string> additiona
         return false;
     }
 
-    auto compressed_replay = LegacyReplay::compress_frames(score.replay);
+    auto compressed_replay = Replay::compress_frames(score.replay);
     const MD5String compressed_replay_hash{crypto::hash::md5(compressed_replay)};
 
     osr.write<u8>(0);          // ruleset
@@ -637,4 +637,4 @@ void load_and_watch(FinishedScore score) {
     });
 }
 
-}  // namespace LegacyReplay
+}  // namespace Replay

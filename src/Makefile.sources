@@ -158,7 +158,6 @@ neomod_SOURCES = \
 	src/App/Neomod/HUD.cpp \
 	src/App/Neomod/HitObjects.cpp \
 	src/App/Neomod/HitSounds.cpp \
-	src/App/Neomod/LegacyReplay.cpp \
 	src/App/Neomod/LoadingScreen.cpp \
 	src/App/Neomod/Lobby.cpp \
 	src/App/Neomod/MainMenu.cpp \
@@ -184,6 +183,7 @@ neomod_SOURCES = \
 	src/App/Neomod/PromptOverlay.cpp \
 	src/App/Neomod/RankingScreen.cpp \
 	src/App/Neomod/Replay.cpp \
+	src/App/Neomod/ReplayFile.cpp \
 	src/App/Neomod/RichPresence.cpp \
 	src/App/Neomod/RoomScreen.cpp \
 	src/App/Neomod/ScoreboardSlot.cpp \

@@ -5,7 +5,7 @@
 #include "BeatmapPrimitives.h"
 #include "Color.h"
 #include "DatabaseBeatmapTypes.h"
-#include "LegacyReplay.h"
+#include "ReplayFile.h"
 #include "Vectors.h"
 
 #include <memory>
@@ -83,9 +83,9 @@ class GameplayJudge final {
     // play from the start again, or seek to curPos with everything before it done
     void reset(i32 curPos = 0);
 
-    void step(const LegacyReplay::Frame &frame, f64 frameTimeSecs, u8 clickKeys);
+    void step(const Replay::Frame &frame, f64 frameTimeSecs, u8 clickKeys);
     void simulate_to(i32 musicPos);
-    std::vector<LegacyReplay::Frame> replay;
+    std::vector<Replay::Frame> replay;
 
     void animate(i32 curPos);  // TODO: this shouldn't be in this class
 

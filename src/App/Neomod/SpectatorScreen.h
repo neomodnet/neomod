@@ -3,7 +3,7 @@
 
 #include "types.h"
 #include "BanchoProtocol.h"
-#include "LegacyReplay.h"
+#include "ReplayFile.h"
 #include "MD5Hash.h"
 #include "UIScreen.h"
 
@@ -19,7 +19,7 @@ struct RemotePlayerUpdate {
     i32 music_pos;
     MD5Hash map_md5;
     ScoreFrame score;
-    std::vector<LegacyReplay::Frame> replay_frames;
+    std::vector<Replay::Frame> replay_frames;
 };
 
 class SpectatorScreen final : public UIScreen {

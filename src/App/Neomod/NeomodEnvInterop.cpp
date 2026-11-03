@@ -108,7 +108,7 @@ void handle_open_requests(std::span<const std::string> requests) {
     FinishedScore last_replay;
     for(const auto &path : replay_imports) {
         FinishedScore replay;
-        if(LegacyReplay::load_osr(path, replay)) {
+        if(Replay::load_osr(path, replay)) {
             last_replay = replay;
         } else {
             ui->getNotificationOverlay()->addToast("Failed to load replay.", ERROR_TOAST);

@@ -327,7 +327,7 @@ void send_submission(PendingSubmission &sub) {
 namespace BANCHO::Net {
 
 void submit_score(FinishedScore score) {
-    auto compressed_replay = LegacyReplay::compress_frames(score.replay);
+    auto compressed_replay = Replay::compress_frames(score.replay);
     if(compressed_replay.size() <= 24) {
         debugLog("Replay too small to submit! Compressed size: {:d} bytes", compressed_replay.size());
         return;

@@ -17,7 +17,7 @@
 #include "BeatmapInstaller.h"
 #include "Engine.h"
 #include "File.h"
-#include "LegacyReplay.h"
+#include "ReplayFile.h"
 #include "NotificationOverlay.h"
 #include "AsyncPool.h"
 #include "AsyncPPCalculator.h"
@@ -549,7 +549,7 @@ bool Database::addScore(const FinishedScore &score) {
         this->score_save_future = Async::submit(
             [this, scorecopy = score, additional_data = std::move(saveable_cvars)] {
                 // NOTE: if we ever read cvars out of the replay data, # of cvars would be additional_data.size()/2
-                LegacyReplay::save_osr(scorecopy, additional_data);
+                Replay::save_osr(scorecopy, additional_data);
 
                 if(!engine->isShuttingDown() && cv::scores_save_immediately.getBool()) {
                     this->saveScores();
@@ -1234,7 +1234,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                     // so just fix it up here
                     if(maybe_dotnettime > 1'000'000'000'000'000 /* 100% .net timestamp from non-updated db */) {
                         last_modification_time =
-                            (maybe_dotnettime - LegacyReplay::UNIX_EPOCH_TICKS) / LegacyReplay::TICKS_PER_SECOND;
+                            (maybe_dotnettime - Replay::UNIX_EPOCH_TICKS) / Replay::TICKS_PER_SECOND;
                     }
                     MapSettings settings;
                     settings.local_offset = neomod_maps.read<i16>();
@@ -1577,7 +1577,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 const i64 modification_time_dotnet_ticks = dbr.read<i64>();
                 // convert to unix time (peppy db 100% stores these in .NET timestamp form)
                 const i64 last_modification_time =
-                    (modification_time_dotnet_ticks - LegacyReplay::UNIX_EPOCH_TICKS) / LegacyReplay::TICKS_PER_SECOND;
+                    (modification_time_dotnet_ticks - Replay::UNIX_EPOCH_TICKS) / Replay::TICKS_PER_SECOND;
 
                 // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
                 f32 AR, CS, HP, OD;
@@ -1684,8 +1684,7 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 i64 last_played = 0;
                 if(!unplayed) {
                     const i64 last_played_dotnet_ticks = dbr.read<i64>();
-                    last_played =
-                        (last_played_dotnet_ticks - LegacyReplay::UNIX_EPOCH_TICKS) / LegacyReplay::TICKS_PER_SECOND;
+                    last_played = (last_played_dotnet_ticks - Replay::UNIX_EPOCH_TICKS) / Replay::TICKS_PER_SECOND;
                 } else {
                     dbr.skip<i64>();
                 }
@@ -2595,7 +2594,7 @@ void Database::loadPeppyScores(std::string_view dbPath) {
             dbr.skip_string();  // hp graph
 
             const i64 full_tms = dbr.read<i64>();
-            sc.unix_timestamp = (full_tms - LegacyReplay::UNIX_EPOCH_TICKS) / LegacyReplay::TICKS_PER_SECOND;
+            sc.unix_timestamp = (full_tms - Replay::UNIX_EPOCH_TICKS) / Replay::TICKS_PER_SECOND;
             sc.peppy_replay_tms = full_tms - 504911232000000000;
 
             // Always -1, but let's skip it properly just in case

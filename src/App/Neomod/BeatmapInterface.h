@@ -4,7 +4,7 @@
 #include "AnimationHandler.h"
 #include "GameplayJudge.h"
 #include "AsyncPPCalculator.h"
-#include "LegacyReplay.h"
+#include "ReplayFile.h"
 #include "score.h"
 #include "LivePPCalc.h"
 #include "Vectors.h"
@@ -181,7 +181,7 @@ class BeatmapInterface final : public GameplayJudge::Listener, public PlayfieldV
     f32 fHitcircleDiameter{0.f};  // screen px
 
     // replay recording
-    void write_frame(const LegacyReplay::Frame &frame, bool force);
+    void write_frame(const Replay::Frame &frame, bool force);
     f64 last_event_time = 0.0;
     i32 last_event_ms = 0;
     u8 current_keys = 0;
@@ -249,7 +249,7 @@ class BeatmapInterface final : public GameplayJudge::Listener, public PlayfieldV
 
     // generic state
     [[nodiscard]] u8 getKeys() const { return this->current_keys; }
-    [[nodiscard]] bool isClickHeld() const { return this->current_keys & ~LegacyReplay::Smoke; }
+    [[nodiscard]] bool isClickHeld() const { return this->current_keys & ~Replay::Smoke; }
     [[nodiscard]] inline bool isPlaying() const { return this->bIsPlaying; }
     [[nodiscard]] inline bool isPaused() const { return this->bIsPaused; }
     [[nodiscard]] inline bool isRestartScheduled() const { return this->bIsRestartScheduled; }

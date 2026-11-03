@@ -459,7 +459,7 @@ void SpectatorScreen::handleFrameBundle(PacketReader &packet) {
         // but i have no idea how to parse it, so let's ignore it just like the sequence number.
         if(frame.time < -1000) continue;
 
-        update.replay_frames.push_back(LegacyReplay::Frame{
+        update.replay_frames.push_back(Replay::Frame{
             .cur_music_pos = frame.time,
             .milliseconds_since_last_frame = 0,  // set below
             .x = frame.mouse_x,
@@ -478,7 +478,7 @@ void SpectatorScreen::handleFrameBundle(PacketReader &packet) {
     (void)sequence;  // don't know how to use this
 
     // some clients send frames in the wrong order, so we're correcting it here.
-    Mc::ranges::stable_sort(update.replay_frames, [](const LegacyReplay::Frame &a, const LegacyReplay::Frame &b) {
+    Mc::ranges::stable_sort(update.replay_frames, [](const Replay::Frame &a, const Replay::Frame &b) {
         return a.cur_music_pos < b.cur_music_pos;
     });
 

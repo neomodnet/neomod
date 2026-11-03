@@ -24,10 +24,10 @@ class Shader;
 class VertexArrayObject;
 
 class CBaseUIContainer;
-namespace LegacyReplay {
+namespace Replay {
 enum KeyFlags : uint8_t;
 }
-using GameplayKeys = LegacyReplay::KeyFlags;
+using GameplayKeys = Replay::KeyFlags;
 
 enum class WinCondition : uint8_t;
 

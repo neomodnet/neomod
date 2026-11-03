@@ -7,7 +7,7 @@
 #include "DifficultyCalculator.h"
 #include "GameplayJudge.h"
 #include "HitObjects.h"
-#include "LegacyReplay.h"
+#include "ReplayFile.h"
 #include "ModFlags.h"
 #include "Replay.h"
 #include "score.h"
@@ -322,8 +322,8 @@ struct JsBeatmap {
 
 struct JsReplay {
     JsReplay(std::string osr_bytes) {
-        this->loaded_successfully = LegacyReplay::load_osr(
-            std::span{reinterpret_cast<const u8 *>(osr_bytes.data()), osr_bytes.size()}, this->replay);
+        this->loaded_successfully =
+            Replay::load_osr(std::span{reinterpret_cast<const u8 *>(osr_bytes.data()), osr_bytes.size()}, this->replay);
     }
 
     [[nodiscard]] val info() const {

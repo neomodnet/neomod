@@ -12,11 +12,11 @@ namespace neomod {
 class HitObject;
 }  // namespace neomod
 
-namespace LegacyReplay {
+namespace Replay {
 struct Frame;
 enum KeyFlags : uint8_t;
-}  // namespace LegacyReplay
-using GameplayKeys = LegacyReplay::KeyFlags;
+}  // namespace Replay
+using GameplayKeys = Replay::KeyFlags;
 
 enum class ScoreGrade : uint8_t {
     XH,
@@ -54,7 +54,7 @@ struct FinishedScore final {
 
 #ifndef BUILD_TOOLS_ONLY
 
-    std::vector<LegacyReplay::Frame> replay;  // not always loaded
+    std::vector<Replay::Frame> replay;  // not always loaded
 
 #endif
 

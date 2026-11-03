@@ -30,10 +30,10 @@ class UserCard;
 class Database;
 struct FinishedScore;
 
-namespace LegacyReplay {
+namespace Replay {
 enum KeyFlags : uint8_t;
 }
-using GameplayKeys = LegacyReplay::KeyFlags;
+using GameplayKeys = Replay::KeyFlags;
 
 #ifndef CONVAR_H
 enum class CvarEditor : uint8_t;

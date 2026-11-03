@@ -11,7 +11,7 @@
 #include "GameRules.h"
 #include "HUD.h"
 #include "HitObjects.h"
-#include "LegacyReplay.h"
+#include "ReplayFile.h"
 #include "Osu.h"
 #include "ModFlags.h"
 #include "RoomScreen.h"
@@ -544,7 +544,7 @@ std::string FinishedScore::dbgstr() const {
     std::string playerName: {}
     std::string client: {}
     std::string server: {}
-    std::vector<LegacyReplay::Frame> replay.size(): {}
+    std::vector<Replay::Frame> replay.size(): {}
     u64 peppy_replay_tms: {}
     i64 bancho_score_id: {}
     i32 player_id: {}

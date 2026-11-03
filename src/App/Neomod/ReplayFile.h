@@ -5,12 +5,9 @@
 
 #include <span>
 
-// TODO: we should rename this to something else than "LegacyReplay"
-//       it's no longer just "legacy", as we export in this format too...
-
 struct FinishedScore;
 
-namespace LegacyReplay {
+namespace Replay {
 
 inline constexpr i64 TICKS_PER_SECOND = 10'000'000;
 inline constexpr i64 UNIX_EPOCH_TICKS = 621'355'968'000'000'000;  // ticks from 0001-01-01 to 1970-01-01
@@ -53,6 +50,6 @@ bool load_osr(std::span<const u8> osr_data, FinishedScore& score_out);
 bool save_osr(const FinishedScore& score, std::span<const std::string> additional_data = {});
 void load_and_watch(FinishedScore score);
 
-}  // namespace LegacyReplay
+}  // namespace Replay
 
-using GameplayKeys = LegacyReplay::KeyFlags;
+using GameplayKeys = Replay::KeyFlags;

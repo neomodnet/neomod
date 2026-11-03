@@ -20,7 +20,7 @@
 #include "Environment.h"
 #include "MakeDelegateWrapper.h"
 #include "Keyboard.h"
-#include "LegacyReplay.h"
+#include "ReplayFile.h"
 #include "Mouse.h"
 #include "Osu.h"
 #include "Timing.h"
@@ -608,7 +608,7 @@ void ScoreButton::onContextMenu(std::string_view text, int id) {
     }
 
     if(id == 2) {
-        LegacyReplay::load_and_watch(sc);
+        Replay::load_and_watch(sc);
         return;
     }
 
@@ -719,7 +719,7 @@ void ScoreButton::setScore(const FinishedScore &newscore, const DatabaseBeatmap 
     this->sScoreMods = getModsStringForDisplay(sc.mods);
     this->sCustom = (sc.mods.speed != 1.0f ? fmt::format("Speed: {:g}x", sc.mods.speed) : "");
     if(map != nullptr) {
-        const LegacyReplay::BEATMAP_VALUES beatmapValuesForModsLegacy = LegacyReplay::getBeatmapValuesForModsLegacy(
+        const Replay::BEATMAP_VALUES beatmapValuesForModsLegacy = Replay::getBeatmapValuesForModsLegacy(
             sc.mods.to_legacy(), map->getAR(), map->getCS(), map->getOD(), map->getHP());
         if(AR == -1.f) AR = beatmapValuesForModsLegacy.AR;
         if(OD == -1.f) OD = beatmapValuesForModsLegacy.OD;

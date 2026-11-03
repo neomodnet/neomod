@@ -30,7 +30,7 @@
 #include "score.h"
 #include "Logging.h"
 #include "HitSounds.h"
-#include "LegacyReplay.h"
+#include "ReplayFile.h"
 #include "crypto.h"
 
 namespace neomod {
@@ -2518,7 +2518,7 @@ bool Slider::isClickHeldSlider() const {
     // Note that the restriction only applies to the slider head.
     // Any key pressed *after* entering the slider counts as a hold.
 
-    u8 held_gameplay_keys = m_judge->getKeys() & ~LegacyReplay::Smoke;
+    u8 held_gameplay_keys = m_judge->getKeys() & ~Replay::Smoke;
     return (held_gameplay_keys & ~m_ignoredKeys);
 }
 

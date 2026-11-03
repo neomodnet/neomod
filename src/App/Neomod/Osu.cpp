@@ -37,7 +37,7 @@
 #include "OsuKeyBinds.h"
 #include "KeyBindings.h"
 #include "Keyboard.h"
-#include "LegacyReplay.h"
+#include "ReplayFile.h"
 #include "Lobby.h"
 #include "MainMenu.h"
 #include "ModFPoSu.h"

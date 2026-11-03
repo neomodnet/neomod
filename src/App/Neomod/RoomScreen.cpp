@@ -30,7 +30,7 @@
 #include "Database.h"
 #include "MakeDelegateWrapper.h"
 #include "HUD.h"
-#include "LegacyReplay.h"
+#include "ReplayFile.h"
 #include "Lobby.h"
 #include "ModSelector.h"
 #include "NotificationOverlay.h"
