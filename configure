@@ -1780,7 +1780,7 @@ Optional Features:
   --enable-silent-rules   less verbose build output (undo: "make V=1")
   --disable-silent-rules  verbose build output (undo: "make V=0")
   --enable-tests          Build tests and support running with -testapp <test>
-                          (default: yes, except for non-debug WASM builds)
+                          (default: yes)
   --enable-optimize       Optimize for speed (default: yes)
   --enable-native         Compile for -march=native (default: no)
   --enable-debug          Enable debug build (default: no)
@@ -7251,13 +7251,7 @@ else case e in #(
 esac
 fi
 
-# enable tests by default, except for non-debug WASM builds where they would only add download size
-if test -z "$enable_tests" && test -n "$WASM_CC" && test "x$enable_debug" != "xyes"
-then :
-
-    enable_tests=no
-
-fi
+# enable tests by default
 if test "x$enable_tests" != "xno"
 then :
 

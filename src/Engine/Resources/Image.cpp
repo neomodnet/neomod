@@ -16,10 +16,11 @@
 #include "Vectors.h"
 
 #include <png.h>
+#include <zlib.h>
+
 #ifdef MCENGINE_FEATURE_LIBJPEG
 #include <turbojpeg.h>
 #endif
-#include <zlib.h>
 
 #include <csetjmp>
 #include <cstddef>
@@ -197,8 +198,8 @@ ImageDecodeResult Image::decodePNGFromMemory(const u8 *inData, u64 size) {
 }
 
 ImageDecodeResult Image::decodeJPEGFromMemory(const u8 *inData, u64 size) {
-#ifdef MCENGINE_FEATURE_LIBJPEG
     using enum ImageDecodeResult;
+#ifdef MCENGINE_FEATURE_LIBJPEG
     // decode jpeg
     tjhandle tjInstance = tj3Init(TJINIT_DECOMPRESS);
     if(!tjInstance) {
@@ -247,7 +248,9 @@ ImageDecodeResult Image::decodeJPEGFromMemory(const u8 *inData, u64 size) {
     tj3Destroy(tjInstance);
     return SUCCESS;
 #else
-    return this->decodeSTBFromMemory(inData, size);
+    (void)inData;
+    (void)size;
+    return UNAVAILABLE;
 #endif
 }
 
@@ -348,7 +351,7 @@ std::vector<u8> Image::encodeToPNG(const u8 *data, i32 width, i32 height, u8 cha
     return buffer;
 }
 
-bool Image::saveToImage(const u8 *data, i32 width, i32 height, u8 channels, std::string filepath) {
+bool Image::saveToImage(const u8 *data, i32 width, i32 height, u8 channels, const std::string &filepath) {
     debugLog("Saving image to {:s} ...", filepath);
 
     auto pngData = encodeToPNG(data, width, height, channels);
@@ -546,7 +549,11 @@ bool Image::loadRawImage() {
         if(isPNG) {
             res = decodePNGFromMemory(fileBuffer.get(), fileSize);
         } else if(isJPEG) {
-            res = decodeJPEGFromMemory(fileBuffer.get(), fileSize);
+            if constexpr(Env::cfg(FEAT::LIBJPEG)) {
+                res = decodeJPEGFromMemory(fileBuffer.get(), fileSize);
+            } else {
+                res = decodeSTBFromMemory(fileBuffer.get(), fileSize);
+            }
         }
 
         // early exit on interruption
@@ -555,7 +562,7 @@ bool Image::loadRawImage() {
         }
 
         // fallback to stb_image if primary decoder failed or format was unrecognized
-        if(res == ImageDecodeResult::FAIL) {
+        if(res == ImageDecodeResult::FAIL && (Env::cfg(FEAT::FFMPEG) || Env::cfg(FEAT::LIBJPEG))) {
             if(isPNG || isJPEG) {
                 debugLog("Image Warning: Primary decoder failed for {:s}, trying fallback...", this->sFilePath);
             }

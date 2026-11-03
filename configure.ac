@@ -278,7 +278,7 @@ AC_CHECK_PROG([MOLD], [mold], [mold])
 AC_CHECK_PROG([LLD], [lld], [lld])
 
 AC_ARG_ENABLE([tests],
-    AS_HELP_STRING([--enable-tests], [Build tests and support running with -testapp <test> (default: yes, except for non-debug WASM builds)]))
+    AS_HELP_STRING([--enable-tests], [Build tests and support running with -testapp <test> (default: yes)]))
 AC_ARG_ENABLE([optimize],
     AS_HELP_STRING([--enable-optimize], [Optimize for speed (default: yes)]))
 AC_ARG_ENABLE([native],
@@ -421,10 +421,7 @@ AS_IF([test "x$with_discord" != "xno" && test -z "$WASM_CC"], [
     with_discord=no
 ])
 
-# enable tests by default, except for non-debug WASM builds where they would only add download size
-AS_IF([test -z "$enable_tests" && test -n "$WASM_CC" && test "x$enable_debug" != "xyes"], [
-    enable_tests=no
-])
+# enable tests by default
 AS_IF([test "x$enable_tests" != "xno"], [
     AC_DEFINE([MCENGINE_TESTS], [1], [Defined if building with support for the testing framework.])
 ])

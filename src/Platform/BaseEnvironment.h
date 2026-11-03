@@ -30,6 +30,8 @@ enum class FEAT : uint8_t {
     MAINCB = 1 << 2,
     TESTS = 1 << 3,
     I18N = 1 << 4,
+    LIBJPEG = 1 << 5,
+    FFMPEG = 1 << 6,
     NONE = 0,
 };
 enum class AUD : uint8_t {
@@ -110,6 +112,12 @@ consteval FEAT getFeatures() {
 #endif
 #if defined(MCENGINE_FEATURE_I18N)
         FEAT::I18N |
+#endif
+#if defined(MCENGINE_FEATURE_LIBJPEG)
+        FEAT::LIBJPEG |
+#endif
+#if defined(MCENGINE_FEATURE_FFMPEG)
+        FEAT::FFMPEG |
 #endif
         FEAT::NONE;
 }
