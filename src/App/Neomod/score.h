@@ -114,6 +114,9 @@ struct FinishedScore final {
     bool is_online_score : 1 = false;
     bool is_online_replay_available : 1 = false;
 
+    // set for osu!stable score ids loaded from .osr files
+    bool is_legacy_score_id : 1 = false;
+
     // NOTE: unfinished feature
     // float ppv3_score = 0.f;
     // std::string ppv3_algorithm;
@@ -122,6 +125,11 @@ struct FinishedScore final {
 
     [[nodiscard]] inline bool is_peppy_imported() const { return this->server == "ppy.sh"; }
     [[nodiscard]] inline bool is_mcosu_imported() const { return this->client.starts_with("mcosu"); }
+
+    // osu!stable score ids are separate from the ones servers send (/scores/osu/<id> vs /scores/<id>)
+    [[nodiscard]] inline bool has_legacy_score_id() const {
+        return this->is_legacy_score_id || this->is_peppy_imported();
+    }
 
     // calculates the pp with the map's difficulty settings if they aren't known yet (-1 until that's done, and without a
     // map)

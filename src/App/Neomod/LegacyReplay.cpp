@@ -29,8 +29,12 @@
 #include "Logging.h"
 #include "UI.h"
 #include "Replay.h"
+#include "yyjson.h"
 
-#include <optional>
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <memory>
 #include <string>
 #include <span>
 #include <string_view>
@@ -65,19 +69,42 @@ BEATMAP_VALUES getBeatmapValuesForModsLegacy(LegacyFlags modsLegacy, float legac
 }
 
 namespace {
-std::vector<Frame> get_frames(std::span<const u8> replay_data) {
-    std::vector<Frame> replay_frames;
-    if(replay_data.size() <= 0) return replay_frames;
+// streams the decompressed lzma data to on_chunk. returns false on a decompression error.
+template <typename F>
+bool decompress(std::span<const u8> data, F&& on_chunk) {
+    if(data.empty()) return false;
 
     lzma_stream strm = LZMA_STREAM_INIT;
     lzma_ret ret = lzma_alone_decoder(&strm, UINT64_MAX);
     if(ret != LZMA_OK) {
         debugLog("Failed to init lzma library ({:d})", static_cast<unsigned int>(ret));
-        return replay_frames;
+        return false;
     }
 
-    i32 cur_music_pos = 0;
     std::array<u8, BUFSIZ> outbuf;
+    strm.next_in = data.data();
+    strm.avail_in = data.size();
+    do {
+        strm.next_out = outbuf.data();
+        strm.avail_out = outbuf.size();
+
+        ret = lzma_code(&strm, LZMA_FINISH);
+        if(ret != LZMA_OK && ret != LZMA_STREAM_END) {
+            debugLog("Decompression error ({:d})", static_cast<unsigned int>(ret));
+            break;
+        }
+
+        on_chunk(std::string_view{(const char*)outbuf.data(), outbuf.size() - strm.avail_out});
+    } while(ret != LZMA_STREAM_END && strm.avail_out == 0);
+
+    lzma_end(&strm);
+    return ret == LZMA_OK || ret == LZMA_STREAM_END;
+}
+
+std::vector<Frame> get_frames(std::span<const u8> replay_data) {
+    std::vector<Frame> replay_frames;
+
+    i32 cur_music_pos = 0;
     std::string pending;  // partial frame entry carried across chunk boundaries
     const auto parse_entry = [&cur_music_pos, &replay_frames](std::string_view frame_str) {
         Frame frame;
@@ -92,21 +119,8 @@ std::vector<Frame> get_frames(std::span<const u8> replay_data) {
         }
     };
 
-    strm.next_in = replay_data.data();
-    strm.avail_in = replay_data.size();
-    do {
-        strm.next_out = outbuf.data();
-        strm.avail_out = outbuf.size();
-
-        ret = lzma_code(&strm, LZMA_FINISH);
-        if(ret != LZMA_OK && ret != LZMA_STREAM_END) {
-            debugLog("Decompression error ({:d})", static_cast<unsigned int>(ret));
-            replay_frames.clear();
-            goto end;
-        }
-
-        // parse the complete (comma-terminated) frame entries of this chunk as they arrive
-        std::string_view chunk{(const char*)outbuf.data(), outbuf.size() - strm.avail_out};
+    // parse the complete (comma-terminated) frame entries of each chunk as they arrive
+    const bool decompressed = decompress(replay_data, [&pending, &parse_entry](std::string_view chunk) {
         for(size_t comma = chunk.find(','); comma != std::string_view::npos; comma = chunk.find(',')) {
             std::string_view entry = chunk.substr(0, comma);
             if(!pending.empty()) {
@@ -118,13 +132,12 @@ std::vector<Frame> get_frames(std::span<const u8> replay_data) {
             chunk.remove_prefix(comma + 1);
         }
         pending.append(chunk);
-    } while(ret != LZMA_STREAM_END && strm.avail_out == 0);
+    });
+    if(!decompressed) return {};
 
     // tolerate a final entry without the trailing comma
     if(!pending.empty()) parse_entry(pending);
 
-end:
-    lzma_end(&strm);
     return replay_frames;
 }
 }  // namespace
@@ -186,16 +199,140 @@ struct Info {
     int numGekis;
     int numKatus;
     int numMisses;
-    i32 score;
+    u64 score;
     int comboMax;
     bool perfect;
-    LegacyFlags mod_flags;
     std::string life_bar_graph;
     i64 timestamp;
     std::vector<Frame> frames;
-    i64 bancho_score_id = 0;
-    std::optional<Replay::Mods> neomod_mods;
+    i64 score_id = 0;
+    i64 legacy_score_id = 0;
+    Replay::Mods mods;
 };
+
+// converts the mods of a lazer score info json, skipping mods and mod settings neomod doesn't have
+Replay::Mods parse_lazer_mods(yyjson_val* lazer_mods_json) {
+    using namespace flags::operators;
+
+    struct LazerMod {
+        std::string_view acronym;
+        ModFlags flags{};
+        f32 speed = 1.f;
+        std::array<std::string_view, 2> settings{};
+    };
+    static constexpr std::array<LazerMod, 17> lazer_mods{{
+        {.acronym = "NF", .flags = ModFlags::NoFail},
+        {.acronym = "EZ", .flags = ModFlags::Easy},
+        {.acronym = "HD", .flags = ModFlags::Hidden},
+        {.acronym = "HR", .flags = ModFlags::HardRock},
+        {.acronym = "SD", .flags = ModFlags::SuddenDeath},
+        {.acronym = "PF", .flags = ModFlags::Perfect},
+        {.acronym = "FL", .flags = ModFlags::Flashlight},
+        {.acronym = "RX", .flags = ModFlags::Relax},
+        {.acronym = "AP", .flags = ModFlags::Autopilot},
+        {.acronym = "SO", .flags = ModFlags::SpunOut},
+        {.acronym = "TD", .flags = ModFlags::TouchDevice},
+        {.acronym = "CL"},
+        {.acronym = "DT", .speed = 1.5f, .settings = {"speed_change", "adjust_pitch"}},
+        {.acronym = "NC", .flags = ModFlags::NoPitchCorrection, .speed = 1.5f, .settings = {"speed_change"}},
+        {.acronym = "HT", .speed = 0.75f, .settings = {"speed_change", "adjust_pitch"}},
+        {.acronym = "DC", .flags = ModFlags::NoPitchCorrection, .speed = 0.75f, .settings = {"speed_change"}},
+        {.acronym = "MR", .settings = {"reflection"}},
+    }};
+
+    Replay::Mods mods;
+    auto mods_iter = yyjson_arr_iter_with(lazer_mods_json);
+    while(auto* mod = yyjson_arr_iter_next(&mods_iter)) {
+        auto* acronym_json = yyjson_obj_get(mod, "acronym");
+        if(!yyjson_is_str(acronym_json)) continue;
+        const std::string_view acronym{yyjson_get_str(acronym_json), yyjson_get_len(acronym_json)};
+        const auto lazer_mod = Mc::ranges::find(lazer_mods, acronym, &LazerMod::acronym);
+        if(lazer_mod == lazer_mods.end()) {
+            debugLog("Ignoring unsupported lazer mod {}", acronym);
+            continue;
+        }
+
+        mods.flags |= lazer_mod->flags;
+        if(lazer_mod->speed != 1.f) mods.speed = lazer_mod->speed;
+
+        yyjson_val* reflection = nullptr;
+        auto settings_iter = yyjson_obj_iter_with(yyjson_obj_get(mod, "settings"));
+        while(auto* setting = yyjson_obj_iter_next(&settings_iter)) {
+            const std::string_view key{yyjson_get_str(setting), yyjson_get_len(setting)};
+            auto* value = yyjson_obj_iter_get_val(setting);
+            if(!Mc::ranges::contains(lazer_mod->settings, key)) {
+                debugLog("Ignoring unsupported lazer mod setting {}.{}", acronym, key);
+                continue;
+            }
+
+            if(key == "speed_change") {
+                mods.speed = (f32)yyjson_get_num(value);
+            } else if(key == "adjust_pitch") {
+                if(yyjson_is_true(value)) mods.flags |= ModFlags::NoPitchCorrection;
+            } else if(key == "reflection") {
+                reflection = value;
+            }
+        }
+
+        // horizontal by default
+        if(acronym == "MR") {
+            const std::string_view reflection_str =
+                yyjson_is_str(reflection) ? std::string_view{yyjson_get_str(reflection), yyjson_get_len(reflection)}
+                                          : std::string_view{};
+            if(yyjson_get_num(reflection) == 1 || SString::strcase_equal(reflection_str, "vertical")) {
+                mods.flags |= ModFlags::MirrorVertical;
+            } else if(yyjson_get_num(reflection) == 2 || SString::strcase_equal(reflection_str, "both")) {
+                mods.flags |= ModFlags::MirrorHorizontal | ModFlags::MirrorVertical;
+            } else {
+                mods.flags |= ModFlags::MirrorHorizontal;
+            }
+        }
+    }
+
+    return mods;
+}
+
+// reads the score info json at the end of lazer replays: the online score id, the mods and the score
+void read_lazer_score_info(std::string_view json, Info& info) {
+    const std::unique_ptr<yyjson_doc, decltype([](yyjson_doc* doc) { yyjson_doc_free(doc); })> doc{
+        yyjson_read(json.data(), json.size(), YYJSON_READ_NOFLAG)};
+    auto* score_info = yyjson_doc_get_root(doc.get());
+    if(!yyjson_is_obj(score_info)) {
+        debugLog("Invalid lazer score info");
+        return;
+    }
+
+    // -1 when the score wasn't submitted
+    if(auto* online_id = yyjson_obj_get(score_info, "online_id"); yyjson_is_int(online_id)) {
+        if(const i64 id = yyjson_get_sint(online_id); id != -1) info.score_id = id;
+    }
+
+    auto* lazer_mods = yyjson_obj_get(score_info, "mods");
+    if(yyjson_is_arr(lazer_mods)) info.mods = parse_lazer_mods(lazer_mods);
+
+    // lazer's "classic scoring" unfairly nerfs CL, and fucks up multipliers in general.
+    // so we recompute the score with correct mod multipliers.
+    f64 score_without_mods = info.score;
+    if(yyjson_arr_size(lazer_mods) > 0) {
+        auto* total_score_without_mods = yyjson_obj_get(score_info, "total_score_without_mods");
+        if(!yyjson_is_num(total_score_without_mods)) return;
+        score_without_mods = yyjson_get_num(total_score_without_mods);
+    }
+
+    auto* statistics = yyjson_obj_get(score_info, "statistics");
+    auto* maximum_statistics = yyjson_obj_get(score_info, "maximum_statistics");
+    const auto stat = [](yyjson_val* stats, const char* key) { return yyjson_get_num(yyjson_obj_get(stats, key)); };
+
+    const f64 objects = stat(maximum_statistics, "great") + stat(maximum_statistics, "ok") +
+                        stat(maximum_statistics, "meh") + stat(maximum_statistics, "miss");
+    const f64 classic = std::round((objects * objects * 32.57 + 100000) * score_without_mods / 1000000);
+
+    const f64 hits = 300 * stat(statistics, "great") + 100 * stat(statistics, "ok") + 50 * stat(statistics, "meh") +
+                     30 * stat(statistics, "slider_tail_hit") + 10 * stat(statistics, "large_tick_hit") +
+                     100 * stat(statistics, "small_bonus") + 1000 * stat(statistics, "large_bonus");
+    const f64 multiplier = info.mods.get_scorev1_multiplier();
+    info.score = std::llround(hits + std::max(classic - hits, 0.) * multiplier);
+}
 
 Info from_bytes(std::span<const u8> data) {
     Info info{};
@@ -218,10 +355,10 @@ Info from_bytes(std::span<const u8> data) {
     info.numGekis = replay.read<u16>();
     info.numKatus = replay.read<u16>();
     info.numMisses = replay.read<u16>();
-    info.score = replay.read<i32>();
+    info.score = (u32)replay.read<i32>();
     info.comboMax = replay.read<u16>();
     info.perfect = replay.read<u8>();
-    info.mod_flags = replay.read<LegacyFlags>();
+    info.mods = Replay::Mods::from_legacy(replay.read<LegacyFlags>());
     info.life_bar_graph = replay.read_string();
     info.timestamp = (replay.read<i64>() - UNIX_EPOCH_TICKS) / TICKS_PER_SECOND;
 
@@ -232,19 +369,40 @@ Info from_bytes(std::span<const u8> data) {
     info.frames = get_frames(lzma_frames);
 
     // https://github.com/ppy/osu/blob/a0e300c3/osu.Game/Scoring/Legacy/LegacyScoreDecoder.cs
+    i64 score_id = 0;
     if(info.osu_version >= 20140721) {
-        info.bancho_score_id = replay.read<i64>();
+        score_id = replay.read<i64>();
     } else if(info.osu_version >= 20121008) {
-        info.bancho_score_id = replay.read<i32>();
+        score_id = replay.read<i32>();
     }
 
-    // XXX: handle lazer replay data (versions 30000001 to 30000016)
+    if(info.osu_version >= 40000000) {
+        // score_id = score_id, if only things could always be this simple
+        info.score_id = score_id;
+    } else {
+        // thanks peppy for the yummy spaghetti!
+        // this field is legacy_score_id when it's an osu!stable score
+        // but it's -1 when it's a lazer score (we then have to get "actual" id from json below)
+        if(score_id != -1) info.legacy_score_id = score_id;
+    }
+
+    // lazer replays append their score info as lzma-compressed json
+    if(info.osu_version >= 30000001 && info.osu_version < 40000000) {
+        const i32 score_info_size = replay.read<i32>();
+        const auto compressed_score_info = replay.read_span(score_info_size > 0 ? (uSz)score_info_size : 0);
+
+        std::string score_info;
+        if(replay.good() &&
+           decompress(compressed_score_info, [&score_info](std::string_view chunk) { score_info.append(chunk); })) {
+            read_lazer_score_info(score_info, info);
+        }
+    }
 
     // handle neomod mods
     if(info.osu_version >= 40000000) {
         auto mods = Replay::Mods::unpack(replay);
         // a truncated/absent block fails the reader
-        if(replay.good()) info.neomod_mods = mods;
+        if(replay.good()) info.mods = mods;
         // cvar snapshot (u32 count + strings) not currently read (see NOTE in Database::addScore)
     }
 
@@ -270,20 +428,21 @@ bool load_osr(std::span<const u8> osr_data, FinishedScore& score_out) {
     if(info.frames.empty()) return false;
 
     score_out.replay = info.frames;
-    score_out.mods = info.neomod_mods.value_or(Replay::Mods::from_legacy(info.mod_flags));
+    score_out.mods = info.mods;
     score_out.num300s = info.num300s;
     score_out.num100s = info.num100s;
     score_out.num50s = info.num50s;
     score_out.numGekis = info.numGekis;
     score_out.numKatus = info.numKatus;
     score_out.numMisses = info.numMisses;
-    score_out.score = (u32)info.score;
+    score_out.score = info.score;
     score_out.playerName = info.username;
     score_out.beatmap_hash = info.map_md5;
     score_out.perfect = info.perfect;
     score_out.comboMax = info.comboMax;
     score_out.unix_timestamp = info.timestamp;
-    score_out.bancho_score_id = info.bancho_score_id;
+    score_out.bancho_score_id = info.score_id != 0 ? info.score_id : info.legacy_score_id;
+    score_out.is_legacy_score_id = info.score_id == 0 && info.legacy_score_id != 0;
 
     // Prevent saving score to db
     score_out.is_online_score = true;

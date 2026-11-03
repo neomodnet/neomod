@@ -464,7 +464,8 @@ CBaseUIContainer *RankingScreen::setVisible(bool visible) {
 
     // update url history
     if(i64 score_id = m_impl->storedScore.bancho_score_id; visible && score_id != 0) {
-        Mc::URLHistory::replaceState(fmt::format("/scores/osu/{:d}", score_id));
+        Mc::URLHistory::replaceState(
+            fmt::format("/scores/{:s}{:d}", m_impl->storedScore.has_legacy_score_id() ? "osu/" : "", score_id));
     } else {
         Mc::URLHistory::replaceState(Osu::isBleedingEdge() ? "/online/bleedingedge/" : "/online/");
     }

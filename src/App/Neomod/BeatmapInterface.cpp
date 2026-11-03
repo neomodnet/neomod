@@ -520,7 +520,8 @@ bool BeatmapInterface::watch(const FinishedScore &score, u32 start_ms) {
 
     // update url history
     if(i64 score_id = score.bancho_score_id; score_id != 0) {
-        Mc::URLHistory::replaceState(fmt::format("/scores/osu/{:d}", score_id));
+        Mc::URLHistory::replaceState(
+            fmt::format("/scores/{:s}{:d}", score.has_legacy_score_id() ? "osu/" : "", score_id));
     } else {
         Mc::URLHistory::replaceState(Osu::isBleedingEdge() ? "/online/bleedingedge/" : "/online/");
     }

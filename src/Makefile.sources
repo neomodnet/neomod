@@ -124,6 +124,7 @@ neomod_SOURCES = \
 	libraries/neotrace/src/symbolize_elf_symtab.cpp \
 	libraries/neotrace/src/symbolize_posix.cpp \
 	libraries/sha256.cpp \
+	libraries/yyjson.c \
 	src/App/AppRegistry.cpp \
 	src/App/AppRunner.cpp \
 	src/App/Neomod/AboutScreen.cpp \
