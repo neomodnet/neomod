@@ -400,6 +400,7 @@ void AboutScreen::buildChangelog() {
     v44_03.title = "44.03 (" CHANGELOG_TIMESTAMP ")";
     v44_03.changes = {
         R"(- Added screenshot uploading (hold Shift while taking a screenshot))",
+        R"(- Fixed adding/removing maps from inside a collection opening another collection)",
         R"(- Fixed "Singletap" and "Alternate" letting any key hit the first two notes of the map)",
         R"(- Fixed "Strict clicks" sometimes breaking combo when clicking during a spinner)",
         R"(- Fixed spinners being too hard to spin)",
