@@ -323,6 +323,9 @@ AC_ARG_WITH([audio],
 AC_ARG_WITH([ffmpeg],
     AS_HELP_STRING([--with-ffmpeg], [Build ffmpeg shared libraries (default: yes)]))
 
+AC_ARG_WITH([libjpeg],
+    AS_HELP_STRING([--with-libjpeg], [Decode jpegs with libjpeg-turbo instead of stb_image (faster, larger binary) (default: yes)]))
+
 AC_ARG_WITH([mimalloc],
     AS_HELP_STRING([--with-mimalloc], [Use mimalloc instead of the default memory allocator (faster) (default: on if not debug and not winx86)]))
 
@@ -1793,7 +1796,9 @@ AS_IF([test "$SYSNAME" = "linux"], [
 # TODO: add all deps and transitive deps (fun!)
 AS_IF([test "x$enable_system_deps" != "xno"], [
     PKG_CHECK_AUTO([SDL3], [sdl3 >= $SDL3_MIN_VERSION], [have_sdl3=yes], [have_sdl3=no])
-    PKG_CHECK_AUTO([LIBJPEG], [libturbojpeg >= $LIBJPEG_MIN_VERSION], [have_libjpeg=yes], [have_libjpeg=no])
+    AS_IF([test "x$with_libjpeg" != "xno"], [
+        PKG_CHECK_AUTO([LIBJPEG], [libturbojpeg >= $LIBJPEG_MIN_VERSION], [have_libjpeg=yes], [have_libjpeg=no])
+    ])
     PKG_CHECK_AUTO([LIBPNG], [libpng >= $LIBPNG_MIN_VERSION], [have_libpng=yes], [have_libpng=no])
     PKG_CHECK_AUTO([ZLIB], [zlib >= $ZLIB_MIN_VERSION], [have_zlib=yes], [have_zlib=no])
     PKG_CHECK_AUTO([BZIP2], [bzip2 >= $BZIP2_MIN_VERSION], [have_bzip2=yes], [have_bzip2=no])
@@ -1860,15 +1865,14 @@ AC_SUBST([SDL3_VERSION])
 AC_SUBST([SDL3_PREFIX])
 AC_SUBST([SDL3_STATIC])
 
-# WASM decodes jpegs with stb_image, libjpeg would only add download size
-AS_IF([test -n "$WASM_CC"], [
-    have_libjpeg="not used"
-], [
+AS_IF([test "x$with_libjpeg" != "xno"], [
     AC_DEFINE([MCENGINE_FEATURE_LIBJPEG], [1], [Defined if libjpeg-turbo is used for decoding jpegs.])
     AS_IF([test "x$have_libjpeg" != "xyes"], [
         have_libjpeg="build from source"
         AC_PROG_NASM
     ])
+], [
+    have_libjpeg="not used"
 ])
 
 LIBJPEG_VERSION=$LIBJPEG_BUILD_VERSION

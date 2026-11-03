@@ -562,7 +562,7 @@ bool Image::loadRawImage() {
         }
 
         // fallback to stb_image if primary decoder failed or format was unrecognized
-        if(res == ImageDecodeResult::FAIL && (Env::cfg(FEAT::FFMPEG) || Env::cfg(FEAT::LIBJPEG))) {
+        if(res == ImageDecodeResult::FAIL && (!isJPEG || Env::cfg(FEAT::FFMPEG) || Env::cfg(FEAT::LIBJPEG))) {
             if(isPNG || isJPEG) {
                 debugLog("Image Warning: Primary decoder failed for {:s}, trying fallback...", this->sFilePath);
             }

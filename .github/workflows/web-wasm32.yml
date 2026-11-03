@@ -84,7 +84,7 @@ jobs:
           export MAKEFLAGS="-j$(nproc)"
           export CCACHE_DIR="${{ env.CCACHE_DIR }}"
           cd build-out && \
-          emconfigure ../configure --disable-tests && \
+          emconfigure ../configure --disable-tests --without-libjpeg && \
           emmake make install
 
       - uses: actions/upload-artifact@v6.0.0

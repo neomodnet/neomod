@@ -1071,6 +1071,7 @@ enable_redistributable
 with_renderer
 with_audio
 with_ffmpeg
+with_libjpeg
 with_mimalloc
 with_nsync
 with_discord
@@ -1825,6 +1826,8 @@ Optional Packages:
                           The (comma separated list of) audio backend(s) to
                           build with (default: soloud)
   --with-ffmpeg           Build ffmpeg shared libraries (default: yes)
+  --with-libjpeg          Decode jpegs with libjpeg-turbo instead of stb_image
+                          (faster, larger binary) (default: yes)
   --with-mimalloc         Use mimalloc instead of the default memory allocator
                           (faster) (default: on if not debug and not winx86)
   --with-nsync            Use nsync instead of std::mutex for synchronization
@@ -6984,6 +6987,14 @@ fi
 if test ${with_ffmpeg+y}
 then :
   withval=$with_ffmpeg;
+fi
+
+
+
+# Check whether --with-libjpeg was given.
+if test ${with_libjpeg+y}
+then :
+  withval=$with_libjpeg;
 fi
 
 
@@ -16013,6 +16024,9 @@ fi ;;
 esac
 fi
 
+    if test "x$with_libjpeg" != "xno"
+then :
+
 
     if test "x$enable_static" = "xyes"
 then :
@@ -16165,6 +16179,8 @@ fi ;;
 esac
 fi
 
+
+fi
 
     if test "x$enable_static" = "xyes"
 then :
@@ -18593,14 +18609,9 @@ fi
 
 
 
-# WASM decodes jpegs with stb_image, libjpeg would only add download size
-if test -n "$WASM_CC"
+if test "x$with_libjpeg" != "xno"
 then :
 
-    have_libjpeg="not used"
-
-else case e in #(
-  e)
 
 printf '%s\n' "#define MCENGINE_FEATURE_LIBJPEG 1" >>confdefs.h
 
@@ -18658,6 +18669,10 @@ fi
 
 
 fi
+
+else case e in #(
+  e)
+    have_libjpeg="not used"
  ;;
 esac
 fi
