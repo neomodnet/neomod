@@ -365,11 +365,11 @@ add_external_project(ctre
     BUILD_COMMAND cmake --build <BINARY_DIR> --config ${CMAKE_BUILD_TYPE} --parallel ${CPU_COUNT}
 )
 
-# rapidjson is required by discord-rpc but only as a header-only dep
+# rapidjson is header-only
 add_external_project(rapidjson
     CONFIGURE_COMMAND ${CMAKE_COMMAND} -E echo "Skipping configure"
     BUILD_COMMAND ${CMAKE_COMMAND} -E echo "Skipping build"
-    INSTALL_COMMAND ${CMAKE_COMMAND} -E echo "Skipping install"
+    INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory <SOURCE_DIR>/include/rapidjson ${DEPS_INSTALL_DIR}/include/rapidjson
 )
 
 # discord-rpc (open-source rich presence library, harmonytf fork)

@@ -95,6 +95,9 @@ struct Mods {
     static void begin_session(bool with_settings = false);
     static void end_session();
 
+    // whether the game can play at this rate (what the sound backends clamp to), for rates read from outside the game
+    [[nodiscard]] static constexpr bool is_playable_speed(f32 speed) { return speed >= 0.05f && speed <= 50.f; }
+
     // templated for either PacketReader/Packet or ByteBufferedFile::Reader/Writer
 
     template <GenericReader R>

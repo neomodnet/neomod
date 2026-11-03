@@ -239,9 +239,8 @@ am__neomod_SOURCES_DIST = libraries/MD5.cpp libraries/demoji.c \
 	libraries/neotrace/src/symbolize_dbghelp.cpp \
 	libraries/neotrace/src/symbolize_elf_symtab.cpp \
 	libraries/neotrace/src/symbolize_posix.cpp \
-	libraries/sha256.cpp libraries/yyjson.c \
-	src/App/AppRegistry.cpp src/App/AppRunner.cpp \
-	src/App/Neomod/AboutScreen.cpp \
+	libraries/sha256.cpp src/App/AppRegistry.cpp \
+	src/App/AppRunner.cpp src/App/Neomod/AboutScreen.cpp \
 	src/App/Neomod/BackgroundImageHandler.cpp \
 	src/App/Neomod/Bancho.cpp src/App/Neomod/BanchoAes.cpp \
 	src/App/Neomod/BanchoApi.cpp \
@@ -504,7 +503,6 @@ am_neomod_OBJECTS = libraries/neomod-MD5.$(OBJEXT) \
 	libraries/neotrace/src/neomod-symbolize_elf_symtab.$(OBJEXT) \
 	libraries/neotrace/src/neomod-symbolize_posix.$(OBJEXT) \
 	libraries/neomod-sha256.$(OBJEXT) \
-	libraries/neomod-yyjson.$(OBJEXT) \
 	src/App/neomod-AppRegistry.$(OBJEXT) \
 	src/App/neomod-AppRunner.$(OBJEXT) \
 	src/App/Neomod/neomod-AboutScreen.$(OBJEXT) \
@@ -748,7 +746,6 @@ am__depfiles_remade = $(DEPS_PREFIX)/mimalloc/$(DEPDIR)/neomod-mimalloc_new_dele
 	libraries/$(DEPDIR)/neomod-MD5.Po \
 	libraries/$(DEPDIR)/neomod-demoji.Po \
 	libraries/$(DEPDIR)/neomod-sha256.Po \
-	libraries/$(DEPDIR)/neomod-yyjson.Po \
 	libraries/glad/$(DEPDIR)/neomod-glad_egl.Po \
 	libraries/glad/$(DEPDIR)/neomod-glad_gl.Po \
 	libraries/neotrace/src/$(DEPDIR)/neomod-backend_emscripten.Po \
@@ -1547,9 +1544,8 @@ neomod_SOURCES = libraries/MD5.cpp libraries/demoji.c \
 	libraries/neotrace/src/symbolize_dbghelp.cpp \
 	libraries/neotrace/src/symbolize_elf_symtab.cpp \
 	libraries/neotrace/src/symbolize_posix.cpp \
-	libraries/sha256.cpp libraries/yyjson.c \
-	src/App/AppRegistry.cpp src/App/AppRunner.cpp \
-	src/App/Neomod/AboutScreen.cpp \
+	libraries/sha256.cpp src/App/AppRegistry.cpp \
+	src/App/AppRunner.cpp src/App/Neomod/AboutScreen.cpp \
 	src/App/Neomod/BackgroundImageHandler.cpp \
 	src/App/Neomod/Bancho.cpp src/App/Neomod/BanchoAes.cpp \
 	src/App/Neomod/BanchoApi.cpp \
@@ -1995,6 +1991,7 @@ BUILT_SOURCES := \
 	$(DEPS_PREFIX)/glm-$(GLM_VERSION).built \
 	$(DEPS_PREFIX)/SoLoud-$(SOLOUD_VERSION).built \
 	$(DEPS_PREFIX)/mpg123-$(MPG123_VERSION).built \
+	$(DEPS_PREFIX)/rapidjson-$(RAPIDJSON_COMMIT).built \
 	$(DEPS_PREFIX)/discord-rpc-$(DISCORDRPC_COMMIT).built \
 	$(DEPS_PREFIX)/liblzma-$(LZMA_VERSION).built \
 	$(DEPS_PREFIX)/libarchive-$(LIBARCHIVE_VERSION).built \
@@ -2317,8 +2314,6 @@ libraries/neotrace/src/neomod-symbolize_posix.$(OBJEXT):  \
 	libraries/neotrace/src/$(am__dirstamp) \
 	libraries/neotrace/src/$(DEPDIR)/$(am__dirstamp)
 libraries/neomod-sha256.$(OBJEXT): libraries/$(am__dirstamp) \
-	libraries/$(DEPDIR)/$(am__dirstamp)
-libraries/neomod-yyjson.$(OBJEXT): libraries/$(am__dirstamp) \
 	libraries/$(DEPDIR)/$(am__dirstamp)
 src/App/$(am__dirstamp):
 	@$(MKDIR_P) src/App
@@ -3351,7 +3346,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@libraries/$(DEPDIR)/neomod-MD5.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@libraries/$(DEPDIR)/neomod-demoji.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@libraries/$(DEPDIR)/neomod-sha256.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@libraries/$(DEPDIR)/neomod-yyjson.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@libraries/glad/$(DEPDIR)/neomod-glad_egl.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@libraries/glad/$(DEPDIR)/neomod-glad_gl.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@libraries/neotrace/src/$(DEPDIR)/neomod-backend_emscripten.Po@am__quote@ # am--include-marker
@@ -3658,20 +3652,6 @@ libraries/neomod-demoji.obj: libraries/demoji.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libraries/demoji.c' object='libraries/neomod-demoji.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CFLAGS) $(CFLAGS) -c -o libraries/neomod-demoji.obj `if test -f 'libraries/demoji.c'; then $(CYGPATH_W) 'libraries/demoji.c'; else $(CYGPATH_W) '$(srcdir)/libraries/demoji.c'; fi`
-
-libraries/neomod-yyjson.o: libraries/yyjson.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CFLAGS) $(CFLAGS) -MT libraries/neomod-yyjson.o -MD -MP -MF libraries/$(DEPDIR)/neomod-yyjson.Tpo -c -o libraries/neomod-yyjson.o `test -f 'libraries/yyjson.c' || echo '$(srcdir)/'`libraries/yyjson.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) libraries/$(DEPDIR)/neomod-yyjson.Tpo libraries/$(DEPDIR)/neomod-yyjson.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libraries/yyjson.c' object='libraries/neomod-yyjson.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CFLAGS) $(CFLAGS) -c -o libraries/neomod-yyjson.o `test -f 'libraries/yyjson.c' || echo '$(srcdir)/'`libraries/yyjson.c
-
-libraries/neomod-yyjson.obj: libraries/yyjson.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CFLAGS) $(CFLAGS) -MT libraries/neomod-yyjson.obj -MD -MP -MF libraries/$(DEPDIR)/neomod-yyjson.Tpo -c -o libraries/neomod-yyjson.obj `if test -f 'libraries/yyjson.c'; then $(CYGPATH_W) 'libraries/yyjson.c'; else $(CYGPATH_W) '$(srcdir)/libraries/yyjson.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) libraries/$(DEPDIR)/neomod-yyjson.Tpo libraries/$(DEPDIR)/neomod-yyjson.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libraries/yyjson.c' object='libraries/neomod-yyjson.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(neomod_CPPFLAGS) $(CPPFLAGS) $(neomod_CFLAGS) $(CFLAGS) -c -o libraries/neomod-yyjson.obj `if test -f 'libraries/yyjson.c'; then $(CYGPATH_W) 'libraries/yyjson.c'; else $(CYGPATH_W) '$(srcdir)/libraries/yyjson.c'; fi`
 
 .cpp.o:
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
@@ -7948,7 +7928,6 @@ distclean: distclean-am
 	-rm -f libraries/$(DEPDIR)/neomod-MD5.Po
 	-rm -f libraries/$(DEPDIR)/neomod-demoji.Po
 	-rm -f libraries/$(DEPDIR)/neomod-sha256.Po
-	-rm -f libraries/$(DEPDIR)/neomod-yyjson.Po
 	-rm -f libraries/glad/$(DEPDIR)/neomod-glad_egl.Po
 	-rm -f libraries/glad/$(DEPDIR)/neomod-glad_gl.Po
 	-rm -f libraries/neotrace/src/$(DEPDIR)/neomod-backend_emscripten.Po
@@ -8272,7 +8251,6 @@ maintainer-clean: maintainer-clean-am
 	-rm -f libraries/$(DEPDIR)/neomod-MD5.Po
 	-rm -f libraries/$(DEPDIR)/neomod-demoji.Po
 	-rm -f libraries/$(DEPDIR)/neomod-sha256.Po
-	-rm -f libraries/$(DEPDIR)/neomod-yyjson.Po
 	-rm -f libraries/glad/$(DEPDIR)/neomod-glad_egl.Po
 	-rm -f libraries/glad/$(DEPDIR)/neomod-glad_gl.Po
 	-rm -f libraries/neotrace/src/$(DEPDIR)/neomod-backend_emscripten.Po
@@ -8698,7 +8676,6 @@ $(DEPS_CACHE)/discord-rpc-$(DISCORDRPC_COMMIT).tar.gz:
 	$(MKDIR_P) $(DEPS_CACHE)
 	$(CURLCOMMAND) "https://github.com/harmonytf/discord-rpc/archive/$(DISCORDRPC_COMMIT).tar.gz" || { rm -f $@; exit 1; }
 
-# rapidjson required for discord-rpc (header-only lib copied into discord-rpc's thirdparty folder)
 $(DEPS_CACHE)/rapidjson-$(RAPIDJSON_COMMIT).tar.gz:
 	$(MKDIR_P) $(DEPS_CACHE)
 	$(CURLCOMMAND) "https://github.com/Tencent/rapidjson/archive/$(RAPIDJSON_COMMIT).tar.gz" || { rm -f $@; exit 1; }
@@ -9134,12 +9111,20 @@ $(CACERT_INCDIR)/cacert.pem:
 @USE_SOLOUD_TRUE@	$(PKG_CONFIG) --env-only --modversion --print-errors soloud # since we never accept system SoLoud, use --modversion instead of --exists to find sdl3/mpg123 from the system
 @USE_SOLOUD_TRUE@	touch $@
 
+$(DEPS_PREFIX)/rapidjson-$(RAPIDJSON_COMMIT).built: $(DEPS_CACHE)/rapidjson-$(RAPIDJSON_COMMIT).tar.gz
+	rm -rf $(DEPS_PREFIX)/rapidjson $(DEPS_PREFIX)/include/rapidjson
+	$(MKDIR_P) $(DEPS_PREFIX)/include/ $(DEPS_PREFIX)/rapidjson
+	$(TAR) xf $(DEPS_CACHE)/rapidjson-$(RAPIDJSON_COMMIT).tar.gz -C $(DEPS_PREFIX)/rapidjson --strip-components=1 && \
+	cp -r $(DEPS_PREFIX)/rapidjson/include/rapidjson $(DEPS_PREFIX)/include/
+	test -f $(DEPS_PREFIX)/include/rapidjson/document.h
+	touch $@
+
 # OBJCFLAGS go with the C flags because discord-rpc doesn't enable the OBJC language (discord_register_osx.m is built as C)
-@USE_DISCORDRPC_TRUE@$(DEPS_PREFIX)/discord-rpc-$(DISCORDRPC_COMMIT).built: $(DEPS_CACHE)/discord-rpc-$(DISCORDRPC_COMMIT).tar.gz $(DEPS_CACHE)/rapidjson-$(RAPIDJSON_COMMIT).tar.gz
+@USE_DISCORDRPC_TRUE@$(DEPS_PREFIX)/discord-rpc-$(DISCORDRPC_COMMIT).built: $(DEPS_CACHE)/discord-rpc-$(DISCORDRPC_COMMIT).tar.gz $(DEPS_PREFIX)/rapidjson-$(RAPIDJSON_COMMIT).built
 @USE_DISCORDRPC_TRUE@	rm -rf $(DEPS_PREFIX)/discord-rpc
 @USE_DISCORDRPC_TRUE@	$(MKDIR_P) $(DEPS_PREFIX)/discord-rpc/build
 @USE_DISCORDRPC_TRUE@	$(TAR) xf $(DEPS_CACHE)/discord-rpc-$(DISCORDRPC_COMMIT).tar.gz -C $(DEPS_PREFIX)/discord-rpc --strip-components=1 && \
-@USE_DISCORDRPC_TRUE@	$(TAR) xf $(DEPS_CACHE)/rapidjson-$(RAPIDJSON_COMMIT).tar.gz -C $(DEPS_PREFIX)/discord-rpc/thirdparty/rapidjson --strip-components=1 && \
+@USE_DISCORDRPC_TRUE@	cp -R $(DEPS_PREFIX)/rapidjson/. $(DEPS_PREFIX)/discord-rpc/thirdparty/rapidjson/ && \
 @USE_DISCORDRPC_TRUE@	$(CMAKE) -DSRC=$(DEPS_PREFIX)/discord-rpc -P $(BUILD_MISCDIR)/discord-rpc-fixes.cmake && \
 @USE_DISCORDRPC_TRUE@	cd $(DEPS_PREFIX)/discord-rpc && \
 @USE_DISCORDRPC_TRUE@	PKG_CONFIG="$(PKG_CONFIG)" CC="$(CC)" CXX="$(CXX)" LDFLAGS="$(LDFLAGS)" \

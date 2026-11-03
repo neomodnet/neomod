@@ -1766,7 +1766,7 @@ AC_SUBST([GLM_VERSION], [1.0.3])
 AC_SUBST([FFMPEG_VERSION], [9.0.2])
 
 AC_SUBST([DISCORDRPC_COMMIT], [deedb52ce511728458641783cb6d80c7bbdde38c]) # harmonytf/discord-rpc
-AC_SUBST([RAPIDJSON_COMMIT], [8261c1ddf43f10de00fd8c9a67811d1486b2c784]) # required by discord-rpc, header-only
+AC_SUBST([RAPIDJSON_COMMIT], [8261c1ddf43f10de00fd8c9a67811d1486b2c784]) # header-only
 
 AC_SUBST([BASS_VERSION], [20260208_202602]) # just mark the date so we can invalidate the cache if necessary
 

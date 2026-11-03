@@ -127,7 +127,6 @@ $(DEPS_CACHE)/discord-rpc-$(DISCORDRPC_COMMIT).tar.gz:
 	$(MKDIR_P) $(DEPS_CACHE)
 	$(CURLCOMMAND) "https://github.com/harmonytf/discord-rpc/archive/$(DISCORDRPC_COMMIT).tar.gz" || { rm -f $@; exit 1; }
 
-# rapidjson required for discord-rpc (header-only lib copied into discord-rpc's thirdparty folder)
 $(DEPS_CACHE)/rapidjson-$(RAPIDJSON_COMMIT).tar.gz:
 	$(MKDIR_P) $(DEPS_CACHE)
 	$(CURLCOMMAND) "https://github.com/Tencent/rapidjson/archive/$(RAPIDJSON_COMMIT).tar.gz" || { rm -f $@; exit 1; }
@@ -539,6 +538,14 @@ $(DEPS_PREFIX)/SoLoud-$(SOLOUD_VERSION).built: $(DEPS_CACHE)/SoLoud-$(SOLOUD_VER
 INSTALL_LIB_DEPS += $(DEPS_PREFIX)/SoLoud-$(SOLOUD_VERSION).built
 endif # USE_SOLOUD
 
+$(DEPS_PREFIX)/rapidjson-$(RAPIDJSON_COMMIT).built: $(DEPS_CACHE)/rapidjson-$(RAPIDJSON_COMMIT).tar.gz
+	rm -rf $(DEPS_PREFIX)/rapidjson $(DEPS_PREFIX)/include/rapidjson
+	$(MKDIR_P) $(DEPS_PREFIX)/include/ $(DEPS_PREFIX)/rapidjson
+	$(TAR) xf $(DEPS_CACHE)/rapidjson-$(RAPIDJSON_COMMIT).tar.gz -C $(DEPS_PREFIX)/rapidjson --strip-components=1 && \
+	cp -r $(DEPS_PREFIX)/rapidjson/include/rapidjson $(DEPS_PREFIX)/include/
+	test -f $(DEPS_PREFIX)/include/rapidjson/document.h
+	touch $@
+
 if USE_DISCORDRPC
 DISCORDRPC_CFLAGS := -I$(DEPS_PREFIX)/include
 DISCORDRPC_LIBS := -L$(DEPS_PREFIX)/lib -ldiscord-rpc
@@ -550,11 +557,11 @@ DISCORDRPC_LIBS += -lpsapi -ladvapi32
 endif
 
 # OBJCFLAGS go with the C flags because discord-rpc doesn't enable the OBJC language (discord_register_osx.m is built as C)
-$(DEPS_PREFIX)/discord-rpc-$(DISCORDRPC_COMMIT).built: $(DEPS_CACHE)/discord-rpc-$(DISCORDRPC_COMMIT).tar.gz $(DEPS_CACHE)/rapidjson-$(RAPIDJSON_COMMIT).tar.gz
+$(DEPS_PREFIX)/discord-rpc-$(DISCORDRPC_COMMIT).built: $(DEPS_CACHE)/discord-rpc-$(DISCORDRPC_COMMIT).tar.gz $(DEPS_PREFIX)/rapidjson-$(RAPIDJSON_COMMIT).built
 	rm -rf $(DEPS_PREFIX)/discord-rpc
 	$(MKDIR_P) $(DEPS_PREFIX)/discord-rpc/build
 	$(TAR) xf $(DEPS_CACHE)/discord-rpc-$(DISCORDRPC_COMMIT).tar.gz -C $(DEPS_PREFIX)/discord-rpc --strip-components=1 && \
-	$(TAR) xf $(DEPS_CACHE)/rapidjson-$(RAPIDJSON_COMMIT).tar.gz -C $(DEPS_PREFIX)/discord-rpc/thirdparty/rapidjson --strip-components=1 && \
+	cp -R $(DEPS_PREFIX)/rapidjson/. $(DEPS_PREFIX)/discord-rpc/thirdparty/rapidjson/ && \
 	$(CMAKE) -DSRC=$(DEPS_PREFIX)/discord-rpc -P $(BUILD_MISCDIR)/discord-rpc-fixes.cmake && \
 	cd $(DEPS_PREFIX)/discord-rpc && \
 	PKG_CONFIG="$(PKG_CONFIG)" CC="$(CC)" CXX="$(CXX)" LDFLAGS="$(LDFLAGS)" \
@@ -1384,6 +1391,7 @@ BUILT_SOURCES := \
 	$(DEPS_PREFIX)/glm-$(GLM_VERSION).built \
 	$(DEPS_PREFIX)/SoLoud-$(SOLOUD_VERSION).built \
 	$(DEPS_PREFIX)/mpg123-$(MPG123_VERSION).built \
+	$(DEPS_PREFIX)/rapidjson-$(RAPIDJSON_COMMIT).built \
 	$(DEPS_PREFIX)/discord-rpc-$(DISCORDRPC_COMMIT).built \
 	$(DEPS_PREFIX)/liblzma-$(LZMA_VERSION).built \
 	$(DEPS_PREFIX)/libarchive-$(LIBARCHIVE_VERSION).built \

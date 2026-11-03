@@ -6,6 +6,8 @@
 #endif
 #include <lzma.h>
 
+#include <rapidjson/document.h>
+
 #include "AsyncIOHandler.h"
 #include "ByteBufferedFile.h"
 #include "ContainerRanges.h"
@@ -29,7 +31,6 @@
 #include "Logging.h"
 #include "UI.h"
 #include "Replay.h"
-#include "yyjson.h"
 
 #include <algorithm>
 #include <array>
@@ -210,8 +211,23 @@ struct Info {
     Replay::Mods mods;
 };
 
+// rapidjson's getters only assert the value's type and replay files are untrusted:
+// a missing member reads as null, a mistyped value as 0/empty
+const rapidjson::Value& json_get(const rapidjson::Value& obj, const char* key) {
+    static const rapidjson::Value null;
+    if(!obj.IsObject()) return null;
+    const auto member = obj.FindMember(key);
+    return member != obj.MemberEnd() ? member->value : null;
+}
+
+f64 json_num(const rapidjson::Value& value) { return value.IsNumber() ? value.GetDouble() : 0.; }
+
+std::string_view json_str(const rapidjson::Value& value) {
+    return value.IsString() ? std::string_view{value.GetString(), value.GetStringLength()} : std::string_view{};
+}
+
 // converts the mods of a lazer score info json, skipping mods and mod settings neomod doesn't have
-Replay::Mods parse_lazer_mods(yyjson_val* lazer_mods_json) {
+Replay::Mods parse_lazer_mods(const rapidjson::Value& lazer_mods_json) {
     using namespace flags::operators;
 
     struct LazerMod {
@@ -241,11 +257,10 @@ Replay::Mods parse_lazer_mods(yyjson_val* lazer_mods_json) {
     }};
 
     Replay::Mods mods;
-    auto mods_iter = yyjson_arr_iter_with(lazer_mods_json);
-    while(auto* mod = yyjson_arr_iter_next(&mods_iter)) {
-        auto* acronym_json = yyjson_obj_get(mod, "acronym");
-        if(!yyjson_is_str(acronym_json)) continue;
-        const std::string_view acronym{yyjson_get_str(acronym_json), yyjson_get_len(acronym_json)};
+    for(const auto& mod : lazer_mods_json.GetArray()) {
+        const auto& acronym_json = json_get(mod, "acronym");
+        if(!acronym_json.IsString()) continue;
+        const std::string_view acronym = json_str(acronym_json);
         const auto lazer_mod = Mc::ranges::find(lazer_mods, acronym, &LazerMod::acronym);
         if(lazer_mod == lazer_mods.end()) {
             debugLog("Ignoring unsupported lazer mod {}", acronym);
@@ -255,33 +270,33 @@ Replay::Mods parse_lazer_mods(yyjson_val* lazer_mods_json) {
         mods.flags |= lazer_mod->flags;
         if(lazer_mod->speed != 1.f) mods.speed = lazer_mod->speed;
 
-        yyjson_val* reflection = nullptr;
-        auto settings_iter = yyjson_obj_iter_with(yyjson_obj_get(mod, "settings"));
-        while(auto* setting = yyjson_obj_iter_next(&settings_iter)) {
-            const std::string_view key{yyjson_get_str(setting), yyjson_get_len(setting)};
-            auto* value = yyjson_obj_iter_get_val(setting);
-            if(!Mc::ranges::contains(lazer_mod->settings, key)) {
-                debugLog("Ignoring unsupported lazer mod setting {}.{}", acronym, key);
-                continue;
-            }
+        const auto& settings = json_get(mod, "settings");
+        if(settings.IsObject()) {
+            for(const auto& setting : settings.GetObj()) {
+                const std::string_view key = json_str(setting.name);
+                if(!Mc::ranges::contains(lazer_mod->settings, key)) {
+                    debugLog("Ignoring unsupported lazer mod setting {}.{}", acronym, key);
+                    continue;
+                }
 
-            if(key == "speed_change") {
-                mods.speed = (f32)yyjson_get_num(value);
-            } else if(key == "adjust_pitch") {
-                if(yyjson_is_true(value)) mods.flags |= ModFlags::NoPitchCorrection;
-            } else if(key == "reflection") {
-                reflection = value;
+                if(key == "speed_change") {
+                    // otherwise keeps the mod's default rate
+                    if(const f32 speed = (f32)json_num(setting.value); Replay::Mods::is_playable_speed(speed)) {
+                        mods.speed = speed;
+                    }
+                } else if(key == "adjust_pitch") {
+                    if(setting.value.IsTrue()) mods.flags |= ModFlags::NoPitchCorrection;
+                }
             }
         }
 
         // horizontal by default
         if(acronym == "MR") {
-            const std::string_view reflection_str =
-                yyjson_is_str(reflection) ? std::string_view{yyjson_get_str(reflection), yyjson_get_len(reflection)}
-                                          : std::string_view{};
-            if(yyjson_get_num(reflection) == 1 || SString::strcase_equal(reflection_str, "vertical")) {
+            const auto& reflection = json_get(settings, "reflection");
+            const std::string_view reflection_str = json_str(reflection);
+            if(json_num(reflection) == 1 || SString::strcase_equal(reflection_str, "vertical")) {
                 mods.flags |= ModFlags::MirrorVertical;
-            } else if(yyjson_get_num(reflection) == 2 || SString::strcase_equal(reflection_str, "both")) {
+            } else if(json_num(reflection) == 2 || SString::strcase_equal(reflection_str, "both")) {
                 mods.flags |= ModFlags::MirrorHorizontal | ModFlags::MirrorVertical;
             } else {
                 mods.flags |= ModFlags::MirrorHorizontal;
@@ -294,34 +309,34 @@ Replay::Mods parse_lazer_mods(yyjson_val* lazer_mods_json) {
 
 // reads the score info json at the end of lazer replays: the online score id, the mods and the score
 void read_lazer_score_info(std::string_view json, Info& info) {
-    const std::unique_ptr<yyjson_doc, decltype([](yyjson_doc* doc) { yyjson_doc_free(doc); })> doc{
-        yyjson_read(json.data(), json.size(), YYJSON_READ_NOFLAG)};
-    auto* score_info = yyjson_doc_get_root(doc.get());
-    if(!yyjson_is_obj(score_info)) {
+    // iterative since the default recursive parser overflows the stack on deeply nested json
+    rapidjson::Document score_info;
+    score_info.Parse<rapidjson::kParseIterativeFlag | rapidjson::kParseValidateEncodingFlag>(json.data(), json.size());
+    if(!score_info.IsObject()) {
         debugLog("Invalid lazer score info");
         return;
     }
 
     // -1 when the score wasn't submitted
-    if(auto* online_id = yyjson_obj_get(score_info, "online_id"); yyjson_is_int(online_id)) {
-        if(const i64 id = yyjson_get_sint(online_id); id != -1) info.score_id = id;
+    if(const auto& online_id = json_get(score_info, "online_id"); online_id.IsInt64()) {
+        if(const i64 id = online_id.GetInt64(); id != -1) info.score_id = id;
     }
 
-    auto* lazer_mods = yyjson_obj_get(score_info, "mods");
-    if(yyjson_is_arr(lazer_mods)) info.mods = parse_lazer_mods(lazer_mods);
+    const auto& lazer_mods = json_get(score_info, "mods");
+    if(lazer_mods.IsArray()) info.mods = parse_lazer_mods(lazer_mods);
 
     // lazer's "classic scoring" unfairly nerfs CL, and fucks up multipliers in general.
     // so we recompute the score with correct mod multipliers.
     f64 score_without_mods = info.score;
-    if(yyjson_arr_size(lazer_mods) > 0) {
-        auto* total_score_without_mods = yyjson_obj_get(score_info, "total_score_without_mods");
-        if(!yyjson_is_num(total_score_without_mods)) return;
-        score_without_mods = yyjson_get_num(total_score_without_mods);
+    if(lazer_mods.IsArray() && !lazer_mods.Empty()) {
+        const auto& total_score_without_mods = json_get(score_info, "total_score_without_mods");
+        if(!total_score_without_mods.IsNumber()) return;
+        score_without_mods = total_score_without_mods.GetDouble();
     }
 
-    auto* statistics = yyjson_obj_get(score_info, "statistics");
-    auto* maximum_statistics = yyjson_obj_get(score_info, "maximum_statistics");
-    const auto stat = [](yyjson_val* stats, const char* key) { return yyjson_get_num(yyjson_obj_get(stats, key)); };
+    const auto& statistics = json_get(score_info, "statistics");
+    const auto& maximum_statistics = json_get(score_info, "maximum_statistics");
+    const auto stat = [](const rapidjson::Value& stats, const char* key) { return json_num(json_get(stats, key)); };
 
     const f64 objects = stat(maximum_statistics, "great") + stat(maximum_statistics, "ok") +
                         stat(maximum_statistics, "meh") + stat(maximum_statistics, "miss");

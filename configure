@@ -15361,7 +15361,7 @@ FFMPEG_VERSION=9.0.2
 DISCORDRPC_COMMIT=deedb52ce511728458641783cb6d80c7bbdde38c
  # harmonytf/discord-rpc
 RAPIDJSON_COMMIT=8261c1ddf43f10de00fd8c9a67811d1486b2c784
- # required by discord-rpc, header-only
+ # header-only
 
 BASS_VERSION=20260208_202602
  # just mark the date so we can invalidate the cache if necessary

@@ -425,7 +425,7 @@ Mods Mods::unpack(R &reader) {
     Mods mods;
 
     mods.flags = static_cast<ModFlags>(reader.template read<u64>());
-    mods.speed = reader.template read<f32>();
+    if(const f32 speed = reader.template read<f32>(); is_playable_speed(speed)) mods.speed = speed;
     mods.notelock_type = reader.template read<i32>();
     mods.ar_override = reader.template read<f32>();
     mods.ar_overridenegative = reader.template read<f32>();
