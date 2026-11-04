@@ -182,7 +182,9 @@ enum MC_DEFINE_ENUM(IncomingPackets, uint8_t, INP_ENUM_VALS, IncomingPackets_to_
     X(OUTP_TOURNAMENT_EXIT_MATCH_CHANNEL, = 109) \
     /* neomod-specific packets */                \
     X(OUTP_MATCH_SCORE, = 133)                   \
-    X(OUTP_JOIN_ACTIVITY_ROOM, = 134)
+    X(OUTP_JOIN_ACTIVITY_ROOM, = 134)            \
+    X(OUTP_KICK_PLAYER, = 135)                   \
+    X(OUTP_SET_HOST, = 136)
 
 // NOTE: u8 in case packet headers get shortened, even though packet IDs are currently u16
 enum MC_DEFINE_ENUM(OutgoingPackets, uint8_t, OUTP_ENUM_VALS, OutgoingPackets_to_string);

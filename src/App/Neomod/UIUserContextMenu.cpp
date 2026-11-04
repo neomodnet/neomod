@@ -113,7 +113,8 @@ void UIUserContextMenuScreen::open(i32 user_id, bool is_song_browser_button) {
     if(!is_self) {
         if(BanchoState::room.is_host() && slot_number != -1) {
             this->menu->addButton("Set as Host", UA_TRANSFER_HOST);
-            this->menu->addButton("Kick", UA_KICK);
+            // (players can't leave the room of a discord activity, so they can't be kicked out of it either)
+            if(!Osu::isDiscordActivity()) this->menu->addButton("Kick", UA_KICK);
         }
 
         const UserInfo *user_info = BANCHO::User::get_user_info(user_id, true);
@@ -168,12 +169,26 @@ void UIUserContextMenuScreen::on_action(std::string_view text, int user_action) 
     switch(user_action) {
         case UA_TRANSFER_HOST: {
             Packet packet;
+            if(BanchoState::fully_supports_neomod) {
+                packet.id = OUTP_SET_HOST;
+                packet.write<i32>(this->user_id);
+                BANCHO::Net::send_packet(packet);
+                break;
+            }
+
             packet.id = OUTP_TRANSFER_HOST;
             packet.write<u32>(slot_number);
             BANCHO::Net::send_packet(packet);
         } break;
         case UA_KICK: {
             Packet packet;
+            if(BanchoState::fully_supports_neomod) {
+                packet.id = OUTP_KICK_PLAYER;
+                packet.write<i32>(this->user_id);
+                BANCHO::Net::send_packet(packet);
+                break;
+            }
+
             packet.id = OUTP_MATCH_LOCK;
             packet.write<u32>(slot_number);
             BANCHO::Net::send_packet(packet);  // kick by locking the slot
