@@ -53,7 +53,6 @@ struct BanchoState final {
 
     static Room room;
     static bool match_started;
-    static std::array<Slot, 16> last_scores;
 
     struct Channel {
         std::string name;

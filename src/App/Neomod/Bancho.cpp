@@ -90,7 +90,6 @@ std::string BanchoState::client_hashes{""};
 
 Room BanchoState::room;
 bool BanchoState::match_started{false};
-std::array<Slot, 16> BanchoState::last_scores{};
 
 Hash::unstable_stringmap<BanchoState::Channel *> BanchoState::chat_channels;
 f64 BanchoState::silence_end{0.0};
@@ -230,6 +229,20 @@ void BanchoState::check_and_notify_nonsubmittable() {
             .detach();
     }
 }
+
+namespace {
+void on_room_join_success(const Room &room) {
+    // Sanity, in case some trolley admins do funny business
+    if(BanchoState::spectating) {
+        Spectating::stop();
+    }
+    if(osu->isInPlayMode()) {
+        osu->getMapInterface()->stop(true);
+    }
+
+    ui->getRoomScreen()->on_room_joined(room);
+}
+}  // namespace
 
 void BanchoState::handle_packet(PacketReader &packet) {
     logIfCV(debug_network, "{:d} ({:s})", packet.id, IncomingPackets_to_string((IncomingPackets)packet.id));
@@ -435,6 +448,36 @@ void BanchoState::handle_packet(PacketReader &packet) {
             break;
         }
 
+        case INP_ROOM_STATE: {
+            const auto reason = (RoomStateReason)packet.read<u8>();
+            auto room = Room::from_state(packet);
+            if(reason == RoomStateReason::JOINED) {
+                on_room_join_success(room);
+            } else if(reason == RoomStateReason::MATCH_STARTED) {
+                ui->getRoomScreen()->on_match_started(room);
+            } else if(room.id == BanchoState::room.id) {
+                ui->getRoomScreen()->on_room_updated(room);
+            }
+            break;
+        }
+
+        case INP_ROOM_PLAYERS_UPDATED: {
+            ui->getRoomScreen()->on_room_players_updated(packet);
+            break;
+        }
+
+        case INP_ROOM_SUMMARY: {
+            if(ui->getLobby()->isVisible()) {
+                ui->getLobby()->updateRoom(Room::from_summary(packet));
+            }
+            break;
+        }
+
+        case INP_MATCH_SCORES: {
+            ui->getRoomScreen()->on_match_scores(packet);
+            break;
+        }
+
         case INP_ROOM_CREATED:  // fallthrough
         case INP_ROOM_UPDATED: {
             auto room = Room(packet);
@@ -457,17 +500,7 @@ void BanchoState::handle_packet(PacketReader &packet) {
         }
 
         case INP_ROOM_JOIN_SUCCESS: {
-            // Sanity, in case some trolley admins do funny business
-            if(BanchoState::spectating) {
-                Spectating::stop();
-            }
-            if(osu->isInPlayMode()) {
-                osu->getMapInterface()->stop(true);
-            }
-
-            auto room = Room(packet);
-            ui->getRoomScreen()->on_room_joined(room);
-
+            on_room_join_success(Room(packet));
             break;
         }
 

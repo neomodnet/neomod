@@ -67,7 +67,7 @@ void UIUserContextMenuScreen::open(i32 user_id, bool is_song_browser_button) {
 
     int slot_number = -1;
     if(BanchoState::is_in_a_multi_room()) {
-        for(int i = 0; i < 16; i++) {
+        for(int i = 0; i < BanchoState::room.slots.size(); i++) {
             if(BanchoState::room.slots[i].player_id == user_id) {
                 slot_number = i;
                 break;
@@ -157,7 +157,7 @@ void UIUserContextMenuScreen::on_action(std::string_view text, int user_action) 
     UserInfo *user_info = BANCHO::User::get_user_info(this->user_id);
     int slot_number = -1;
     if(BanchoState::is_in_a_multi_room()) {
-        for(int i = 0; i < 16; i++) {
+        for(int i = 0; i < BanchoState::room.slots.size(); i++) {
             if(BanchoState::room.slots[i].player_id == this->user_id) {
                 slot_number = i;
                 break;

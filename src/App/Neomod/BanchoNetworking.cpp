@@ -569,8 +569,8 @@ void BanchoState::fake_join_room(bool with_selected_map) {
     room.id = 1;
     room.name = "Test Room";
     room.host_id = BanchoState::get_uid();
-    for(auto &slot : room.slots) slot.status = 1;  // open
-    room.slots[0].status = 4;                      // not ready (occupied by us)
+    room.slots.resize(1);
+    room.slots[0].status = 4;  // not ready (occupied by us)
     room.slots[0].player_id = BanchoState::get_uid();
     room.nb_players = 1;
     room.nb_open_slots = 15;

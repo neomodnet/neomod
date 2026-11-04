@@ -54,8 +54,10 @@ RoomUIElement::RoomUIElement(Lobby* multi, const Room& room, float x, float y, f
     this->container.addBaseUIElement(title_ui);
     line_y += title_ui->getSize().y;
 
-    auto* slots_ui = new CBaseUILabel(margin, line_y, 0.f, 0.f, {},
-                                      tformat("Players: {:d}/{:d}", room.nb_players, room.nb_open_slots));
+    auto* slots_ui =
+        new CBaseUILabel(margin, line_y, 0.f, 0.f, {},
+                         room.nb_open_slots > 0 ? tformat("Players: {:d}/{:d}", room.nb_players, room.nb_open_slots)
+                                                : tformat("Players: {:d}", room.nb_players));
     slots_ui->setSizeToContent(0, (i32)line_padding);
     slots_ui->setDrawFrame(false);
     slots_ui->setDrawBackground(false);
@@ -261,9 +263,7 @@ void Lobby::on_create_room_clicked() {
     BanchoState::room = Room();
     BanchoState::room.name = _("New room");  // XXX: doesn't work
     BanchoState::room.host_id = BanchoState::get_uid();
-    for(auto& slot : BanchoState::room.slots) {
-        slot.status = 1;  // open slot
-    }
+    BanchoState::room.slots.resize(1);
     BanchoState::room.slots[0].status = 4;  // not ready
     BanchoState::room.slots[0].player_id = BanchoState::get_uid();
 

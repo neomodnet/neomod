@@ -7,6 +7,7 @@
 
 #include <array>
 #include <string>
+#include <vector>
 
 enum class Action : uint8_t {
     IDLE = 0,
@@ -48,7 +49,11 @@ enum class WinCondition : uint8_t {
 
     // neomod-specific, shouldn't be networked
     MISSES = 4,
+
+    // neomod-specific, only networked for neomod servers
     PP = 5,
+
+    // neomod-specific, shouldn't be networked
     MAX_COMBO = 6,
 };
 
@@ -116,7 +121,11 @@ enum class GameMode : uint8_t {
     X(INP_UNPROTECT_VARIABLES, = 129)                                   \
     X(INP_FORCE_VALUES, = 130)                                          \
     X(INP_RESET_VALUES, = 131)                                          \
-    X(INP_REQUEST_MAP, = 132)
+    X(INP_REQUEST_MAP, = 132)                                           \
+    X(INP_ROOM_STATE, = 133)                                            \
+    X(INP_ROOM_PLAYERS_UPDATED, = 134)                                  \
+    X(INP_ROOM_SUMMARY, = 135)                                          \
+    X(INP_MATCH_SCORES, = 136)
 
 // NOTE: u8 in case packet headers get shortened, even though packet IDs are currently u16
 enum MC_DEFINE_ENUM(IncomingPackets, uint8_t, INP_ENUM_VALS, IncomingPackets_to_string);
@@ -170,7 +179,10 @@ enum MC_DEFINE_ENUM(IncomingPackets, uint8_t, INP_ENUM_VALS, IncomingPackets_to_
     X(OUTP_USER_PRESENCE_REQUEST_ALL, = 98)      \
     X(OUTP_TOGGLE_BLOCK_NON_FRIEND_DMS, = 99)    \
     X(OUTP_TOURNAMENT_JOIN_MATCH_CHANNEL, = 108) \
-    X(OUTP_TOURNAMENT_EXIT_MATCH_CHANNEL, = 109)
+    X(OUTP_TOURNAMENT_EXIT_MATCH_CHANNEL, = 109) \
+    /* neomod-specific packets */                \
+    X(OUTP_MATCH_SCORE, = 133)                   \
+    X(OUTP_JOIN_ACTIVITY_ROOM, = 134)
 
 // NOTE: u8 in case packet headers get shortened, even though packet IDs are currently u16
 enum MC_DEFINE_ENUM(OutgoingPackets, uint8_t, OUTP_ENUM_VALS, OutgoingPackets_to_string);
@@ -206,6 +218,10 @@ struct Slot {
     double sv2_combo = 0.0;
     double sv2_bonus = 0.0;
 
+    // From MATCH_SCORES, depending on the win condition
+    f32 accuracy = 0.f;
+    f32 pp = 0.f;
+
     // locked
     [[nodiscard]] inline bool is_locked() const { return (this->status & 0b00000010); }
 
@@ -226,10 +242,23 @@ struct Slot {
     [[nodiscard]] inline bool has_player() const { return (this->status & 0b01111100); }
 };
 
+// Why the server sent a ROOM_STATE
+enum class RoomStateReason : u8 { UPDATED = 0, JOINED = 1, MATCH_STARTED = 2 };
+
+// MATCH_SCORE and MATCH_SCORES flags
+enum MatchScoreFlags : u8 { MATCH_SCORE_DEAD = 1 << 0, MATCH_SCORE_HAS_MISS = 1 << 1, MATCH_SCORE_PERFECT = 1 << 2 };
+
 class Room {
    public:
     Room() = default;  // default-initialized room means we're not in multiplayer at the moment
     Room(PacketReader &packet);
+
+    // ROOM_STATE, without the reason in front of it. Only has the players the server tells us about.
+    [[nodiscard]] static Room from_state(PacketReader &packet);
+    // ROOM_SUMMARY, enough for listing the room in the lobby
+    [[nodiscard]] static Room from_summary(PacketReader &packet);
+    // the status, team and mods of a player, as in ROOM_STATE and ROOM_PLAYERS_UPDATED
+    void read_player(PacketReader &packet);
 
     MD5Hash map_md5;
 
@@ -248,34 +277,20 @@ class Room {
     std::string password;
     std::string map_name;
 
-    std::array<Slot, 16> slots{};
+    std::vector<Slot> slots;
 
     u8 mode = 0;
     WinCondition win_condition{};
     u8 team_type = 0;
     u8 freemods = 0;
 
-    u8 nb_players = 0;
-    u8 nb_open_slots = 0;
+    // these can be larger than what's in slots, since the server only sends some players
+    u32 nb_players = 0;
+    u32 nb_open_slots = 0;
+    u32 nb_ready_players = 0;
 
-    [[nodiscard]] inline bool nb_ready() const {
-        u8 nb = 0;
-        for(const auto &slot : this->slots) {
-            if(slot.has_player() && slot.is_ready()) {
-                nb++;
-            }
-        }
-        return nb;
-    }
-
-    [[nodiscard]] inline bool all_players_ready() const {
-        for(const auto &slot : this->slots) {
-            if(slot.has_player() && !slot.is_ready()) {
-                return false;
-            }
-        }
-        return true;
-    }
+    [[nodiscard]] inline u32 nb_ready() const { return this->nb_ready_players; }
+    [[nodiscard]] inline bool all_players_ready() const { return this->nb_ready_players == this->nb_players; }
 
     [[nodiscard]] bool is_host() const;
     void pack(Packet &packet);

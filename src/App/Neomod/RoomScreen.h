@@ -88,8 +88,10 @@ class RoomScreen final : public UIScreen {
     void on_map_change();
     void on_room_joined(const Room& room);
     void on_room_updated(const Room& room);
+    void on_room_players_updated(PacketReader& packet);
     void on_match_started(const Room& room);
     void on_match_score_updated(PacketReader& packet);
+    void on_match_scores(PacketReader& packet);
     void on_player_failed(i32 slot_id);
     void on_match_finished();
     void on_player_skip(i32 user_id);
@@ -141,7 +143,7 @@ class RoomScreen final : public UIScreen {
     McFont* font{nullptr};
     McFont* lfont{nullptr};
 
-    time_t last_packet_tms = {0};
+    f64 last_score_packet_time{0.0};
 
     // tracks the last map we successfully downloaded + applied via on_map_change;
     // map_fetcher drives the install of the host's current pick until it gets there.

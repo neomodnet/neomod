@@ -2,10 +2,13 @@
 #include "BanchoProtocol.h"
 
 #include "Bancho.h"
+#include "ContainerRanges.h"
 #include "BeatmapInterface.h"
 #include "Osu.h"
 
 Room::Room(PacketReader &packet) {
+    this->slots.resize(16);
+
     this->id = packet.read<u16>();
     this->in_progress = packet.read<u8>();
     this->match_type = packet.read<u8>();
@@ -37,6 +40,7 @@ Room::Room(PacketReader &packet) {
         if(slot.has_player()) {
             slot.player_id = packet.read<i32>();
             this->nb_players++;
+            if(slot.is_ready()) this->nb_ready_players++;
         }
     }
 
@@ -79,6 +83,62 @@ Room::Room(PacketReader &packet) {
     }
 }
 
+Room Room::from_state(PacketReader &packet) {
+    Room room;
+    room.has_full_mods = true;
+    room.id = packet.read<u16>();
+    room.in_progress = packet.read<u8>();
+    room.match_type = packet.read<u8>();
+    room.name = packet.read_string();
+    room.has_password = packet.read<u8>() > 0;
+    room.map_name = packet.read_string();
+    room.map_id = packet.read<i32>();
+    room.map_md5 = packet.read_hash_chars();
+    room.host_id = packet.read<i32>();
+    room.win_condition = (WinCondition)packet.read<u8>();
+    room.team_type = packet.read<u8>();
+    room.freemods = packet.read<u8>();
+    room.seed = packet.read<u32>();
+    PacketReader mods_blob{packet.read_span(packet.read_uleb128())};
+    room.mods = Replay::Mods::unpack(mods_blob);
+    room.nb_players = packet.read_uleb128();
+    room.nb_open_slots = room.nb_players;
+    room.nb_ready_players = packet.read_uleb128();
+
+    const u32 nb_sent = packet.read_uleb128();
+    for(u32 i = 0; i < nb_sent && packet.good(); i++) {
+        room.read_player(packet);
+    }
+    return room;
+}
+
+Room Room::from_summary(PacketReader &packet) {
+    Room room;
+    room.id = packet.read<u16>();
+    room.in_progress = packet.read<u8>();
+    room.has_password = packet.read<u8>() > 0;
+    room.name = packet.read_string();
+    room.map_name = packet.read_string();
+    room.nb_players = packet.read_uleb128();
+    return room;
+}
+
+void Room::read_player(PacketReader &packet) {
+    const i32 player_id = packet.read<i32>();
+    auto slot = Mc::ranges::find(this->slots, player_id, &Slot::player_id);
+    if(slot == this->slots.end()) {
+        slot = this->slots.emplace(this->slots.end());
+        slot->player_id = player_id;
+    }
+
+    slot->status = packet.read<u8>();
+    slot->team = packet.read<u8>();
+    if(this->freemods) {
+        PacketReader mods_blob{packet.read_span(packet.read_uleb128())};
+        slot->mods = Replay::Mods::unpack(mods_blob);
+    }
+}
+
 void Room::pack(Packet &packet) {
     packet.write<u16>(this->id);
     packet.write<u8>(this->in_progress);
@@ -89,15 +149,20 @@ void Room::pack(Packet &packet) {
     packet.write_string(this->map_name);
     packet.write<i32>(this->map_id);
     packet.write_hash_chars(this->map_md5);
-    for(auto &slot : this->slots) {
-        packet.write<u8>(slot.status);
+    // always 16 slots here, servers don't read what's in them anyway
+    static const Slot open_slot{.status = 1};
+    const auto slot_at = [this](size_t i) -> const Slot & {
+        return i < this->slots.size() ? this->slots[i] : open_slot;
+    };
+    for(size_t i = 0; i < 16; i++) {
+        packet.write<u8>(slot_at(i).status);
     }
-    for(auto &slot : this->slots) {
-        packet.write<u8>(slot.team);
+    for(size_t i = 0; i < 16; i++) {
+        packet.write<u8>(slot_at(i).team);
     }
-    for(auto &slot : this->slots) {
-        if(slot.has_player()) {
-            packet.write<i32>(slot.player_id);
+    for(size_t i = 0; i < 16; i++) {
+        if(slot_at(i).has_player()) {
+            packet.write<i32>(slot_at(i).player_id);
         }
     }
 
@@ -107,8 +172,8 @@ void Room::pack(Packet &packet) {
     packet.write<u8>(this->team_type);
     packet.write<u8>(this->freemods);
     if(this->freemods) {
-        for(auto &slot : this->slots) {
-            packet.write<LegacyFlags>(slot.mods.to_legacy());
+        for(size_t i = 0; i < 16; i++) {
+            packet.write<LegacyFlags>(slot_at(i).mods.to_legacy());
         }
     }
 
@@ -124,8 +189,8 @@ void Room::pack(Packet &packet) {
 
         write_mods(this->mods);
         if(this->freemods) {
-            for(const auto &slot : this->slots) {
-                if(slot.has_player()) write_mods(slot.mods);
+            for(size_t i = 0; i < 16; i++) {
+                if(slot_at(i).has_player()) write_mods(slot_at(i).mods);
             }
         }
     }
@@ -149,7 +214,7 @@ Replay::Mods Room::with_shared_mods(Replay::Mods own, const Replay::Mods &shared
 
 ScoreFrame ScoreFrame::get() {
     u8 slot_id = 0;
-    for(u8 i = 0; i < 16; i++) {
+    for(u8 i = 0; i < BanchoState::room.slots.size() && i < 16; i++) {
         if(BanchoState::room.slots[i].player_id == BanchoState::get_uid()) {
             slot_id = i;
             break;

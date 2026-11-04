@@ -1385,6 +1385,8 @@ std::span<const SCORE_ENTRY> HUD::updateAndGetCurrentScores() {
                 slot.max_combo = (u16)player_score.getComboMax();
                 slot.total_score = (i32)player_score.getScore();
                 slot.current_hp = pf->getHealth() * 200;
+                slot.accuracy = player_score.getAccuracy();
+                slot.pp = std::max(0.f, pf->live_pp());
             }
 
             const auto *user_info = BANCHO::User::get_user_info(slot.player_id, true);
@@ -1397,11 +1399,10 @@ std::span<const SCORE_ENTRY> HUD::updateAndGetCurrentScores() {
             scoreEntry.maxCombo = slot.max_combo;
             scoreEntry.misses = slot.num_miss;
             scoreEntry.score = slot.total_score;
+            scoreEntry.accuracy = slot.accuracy;
+            scoreEntry.pp = slot.pp;
             scoreEntry.dead = (slot.current_hp == 0);
             scoreEntry.highlight = (slot.player_id == BanchoState::get_uid());
-
-            // NOTE: not setting scoreEntry.pp since we would have to compute it on-the-fly for each slot
-            //       and "pp" is not a valid win condition for multiplayer matches
 
             if(slot.has_quit()) {
                 slot.current_hp = 0;
@@ -1414,11 +1415,6 @@ std::span<const SCORE_ENTRY> HUD::updateAndGetCurrentScores() {
                     scoreEntry.name = tformat("{} [skip]", user_info->name.c_str());
                 }
             }
-
-            // hit_score != total_score: total_score also accounts for spinner bonus & mods
-            const u64 hit_score = 300UL * slot.num300 + 100UL * slot.num100 + 50UL * slot.num50;
-            const u64 max_score = 300UL * (slot.num300 + slot.num100 + slot.num50 + slot.num_miss);
-            scoreEntry.accuracy = (max_score > 0) ? (hit_score / (f64)max_score) : 0.f;
 
             this->scores_cache.push_back(std::move(scoreEntry));
         }

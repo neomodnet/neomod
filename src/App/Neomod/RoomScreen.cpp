@@ -1,6 +1,9 @@
 // Copyright (c) 2024, kiwec, All rights reserved.
 #include "RoomScreen.h"
 
+#include <algorithm>
+#include <cmath>
+#include <memory>
 #include <sstream>
 #include <utility>
 
@@ -8,6 +11,7 @@
 #include "Graphics.h"
 #include "SoundEngine.h"
 #include "Engine.h"
+#include "Environment.h"
 #include "Font.h"
 #include "i18n.h"
 #include "Mouse.h"
@@ -31,6 +35,7 @@
 #include "MakeDelegateWrapper.h"
 #include "HUD.h"
 #include "ReplayFile.h"
+#include "LoadingScreen.h"
 #include "Lobby.h"
 #include "ModSelector.h"
 #include "NotificationOverlay.h"
@@ -469,6 +474,8 @@ void RoomScreen::updateSettingsLayout(vec2 newResolution) {
         this->win_condition->setText(_("Win condition: Combo"));
     } else if(BanchoState::room.win_condition == WinCondition::SCOREV2) {
         this->win_condition->setText(_("Win condition: ScoreV2"));
+    } else if(BanchoState::room.win_condition == WinCondition::PP) {
+        this->win_condition->setText(_("Win condition: pp"));
     } else {
         this->win_condition->setText(_("Win condition: ???"));
     }
@@ -521,14 +528,11 @@ void RoomScreen::updateSettingsLayout(vec2 newResolution) {
     }
 
     // Ready button
-    int nb_ready = 0;
+    const u32 nb_ready = BanchoState::room.nb_ready();
     bool is_ready = false;
     for(auto &slot : BanchoState::room.slots) {
-        if(slot.has_player() && slot.is_ready()) {
-            nb_ready++;
-            if(slot.player_id == BanchoState::get_uid()) {
-                is_ready = true;
-            }
+        if(slot.has_player() && slot.is_ready() && slot.player_id == BanchoState::get_uid()) {
+            is_ready = true;
         }
     }
     if(is_host && is_ready && nb_ready > 1) {
@@ -576,8 +580,10 @@ void RoomScreen::updateLayout(vec2 newResolution) {
     this->slotlist->setSize(newResolution.x * 0.6f - 200.f * dpiScale, newResolution.y * 0.6f - 110.f * dpiScale);
     this->slotlist->freeElements();
     i32 y_total = 10.f * dpiScale;
+    u32 nb_shown = 0;
     for(auto &slot : BanchoState::room.slots) {
         if(slot.has_player()) {
+            nb_shown++;
             const auto *user_info = BANCHO::User::get_user_info(slot.player_id, true);
 
             auto color = 0xffffffff;
@@ -612,6 +618,15 @@ void RoomScreen::updateLayout(vec2 newResolution) {
 
             y_total += SLOT_HEIGHT + 5.f * dpiScale;
         }
+    }
+    if(BanchoState::room.nb_players > nb_shown) {
+        auto others = new CBaseUILabel(10.f * dpiScale, y_total, 0.f, 0.f, {},
+                                       tformat("and {:d} more", BanchoState::room.nb_players - nb_shown));
+        others->setFont(this->lfont);
+        others->setDrawFrame(false);
+        others->setDrawBackground(false);
+        others->setSizeToContent(0, 0);
+        this->slotlist->container.addBaseUIElement(others);
     }
     this->slotlist->setScrollSizeToContent();
 }
@@ -827,7 +842,7 @@ void RoomScreen::on_match_started(const Room &room) {
     // Re-apply mods to make sure we are in sync (instant abort->start edge case)
     this->useRoomMods();
 
-    this->last_packet_tms = time(nullptr);
+    this->last_score_packet_time = engine->getTime();
 
     if(osu->getMapInterface()->play()) {
         BanchoState::match_started = true;
@@ -843,7 +858,7 @@ void RoomScreen::on_match_started(const Room &room) {
 
 void RoomScreen::on_match_score_updated(PacketReader &packet) {
     auto frame = packet.read<ScoreFrame>();
-    if(frame.slot_id > 15) return;
+    if(frame.slot_id >= BanchoState::room.slots.size()) return;
 
     auto slot = &BanchoState::room.slots[frame.slot_id];
     slot->last_update_tms = frame.time;
@@ -860,6 +875,11 @@ void RoomScreen::on_match_score_updated(PacketReader &packet) {
     slot->current_hp = frame.current_hp;
     slot->tag = frame.tag;
 
+    // hit_score != total_score: total_score also accounts for spinner bonus & mods
+    const u64 hit_score = 300UL * slot->num300 + 100UL * slot->num100 + 50UL * slot->num50;
+    const u64 max_score = 300UL * (slot->num300 + slot->num100 + slot->num50 + slot->num_miss);
+    slot->accuracy = (max_score > 0) ? (hit_score / (f64)max_score) : 0.f;
+
     bool is_scorev2 = packet.read<u8>();
     if(is_scorev2) {
         slot->sv2_combo = packet.read<f64>();
@@ -869,8 +889,68 @@ void RoomScreen::on_match_score_updated(PacketReader &packet) {
     ui->getHUD()->updateScoreboard(true);
 }
 
+void RoomScreen::on_match_scores(PacketReader &packet) {
+    if(!BanchoState::is_in_a_multi_room()) return;
+    auto &room = BanchoState::room;
+
+    // the server only tells us about the top players, who might not be the ones we know about
+    bool players_changed = false;
+    for(u32 nb_removed = packet.read_uleb128(); nb_removed > 0 && packet.good(); nb_removed--) {
+        const i32 player_id = packet.read<i32>();
+        if(player_id == BanchoState::get_uid()) continue;
+        players_changed |= std::erase_if(room.slots, [=](const Slot &s) { return s.player_id == player_id; }) > 0;
+    }
+
+    for(u32 nb_scores = packet.read_uleb128(); nb_scores > 0 && packet.good(); nb_scores--) {
+        const i32 player_id = packet.read<i32>();
+        const u32 total_score = packet.read<u32>();
+        const u16 max_combo = packet.read<u16>();
+        const u16 metric = packet.read<u16>();
+        const u8 flags = packet.read<u8>();
+
+        // our own score is always more recent here
+        if(player_id == BanchoState::get_uid()) continue;
+
+        auto slot = Mc::ranges::find(room.slots, player_id, &Slot::player_id);
+        if(slot == room.slots.end()) {
+            slot = room.slots.emplace(room.slots.end());
+            slot->player_id = player_id;
+            slot->status = 0b00100000;  // playing
+            players_changed = true;
+        }
+
+        slot->total_score = (i32)total_score;
+        slot->max_combo = max_combo;
+        slot->current_hp = (flags & MATCH_SCORE_DEAD) ? 0 : 1;
+        if(room.win_condition == WinCondition::ACCURACY) {
+            slot->accuracy = metric / 10000.f;
+        } else if(room.win_condition == WinCondition::CURRENT_COMBO) {
+            slot->current_combo = metric;
+        } else if(room.win_condition == WinCondition::PP) {
+            slot->pp = metric / 10.f;
+        }
+    }
+
+    if(players_changed) {
+        ui->getHUD()->resetScoreboard();
+    } else {
+        ui->getHUD()->updateScoreboard(true);
+    }
+}
+
+void RoomScreen::on_room_players_updated(PacketReader &packet) {
+    if(!BanchoState::is_in_a_multi_room() || packet.read<u16>() != BanchoState::room.id) return;
+
+    Room room = BanchoState::room;
+    room.nb_ready_players = packet.read_uleb128();
+    for(u32 nb_players = packet.read_uleb128(); nb_players > 0 && packet.good(); nb_players--) {
+        room.read_player(packet);
+    }
+    this->on_room_updated(room);
+}
+
 void RoomScreen::on_player_failed(i32 slot_id) {
-    if(slot_id < 0 || slot_id > 15) return;
+    if(slot_id < 0 || slot_id >= BanchoState::room.slots.size()) return;
     BanchoState::room.slots[slot_id].died = true;
 }
 
@@ -907,8 +987,6 @@ FinishedScore RoomScreen::get_approximate_score() {
 // All players have finished.
 void RoomScreen::on_match_finished() {
     if(!BanchoState::is_playing_a_multi_map()) return;
-    BanchoState::last_scores = BanchoState::room.slots;
-
     osu->onPlayEnd(this->get_approximate_score(), false);
 
     BanchoState::match_started = false;
@@ -943,30 +1021,48 @@ void RoomScreen::on_match_aborted() {
 void RoomScreen::onClientScoreChange(bool force) {
     if(!BanchoState::is_playing_a_multi_map()) return;
 
-    // Update at most once every 250ms
-    bool should_update = difftime(time(nullptr), this->last_packet_tms) > 0.25;
-    if(!should_update && !force) return;
+    // Update at most once every 500ms, which is how often the server passes scores on
+    const f64 now = engine->getTime();
+    if(!force && now < this->last_score_packet_time + 0.5) return;
+    this->last_score_packet_time = now;
+
+    const ScoreFrame frame = ScoreFrame::get();
 
     Packet packet;
-    packet.id = OUTP_UPDATE_MATCH_SCORE;
-    packet.write<ScoreFrame>(ScoreFrame::get());
-    BANCHO::Net::send_packet(packet);
+    if(BanchoState::fully_supports_neomod) {
+        // only what the scoreboard shows
+        u16 metric = 0;
+        if(BanchoState::room.win_condition == WinCondition::ACCURACY) {
+            metric = (u16)std::round(osu->getScore()->getAccuracy() * 10000.f);
+        } else if(BanchoState::room.win_condition == WinCondition::CURRENT_COMBO) {
+            metric = frame.current_combo;
+        } else if(BanchoState::room.win_condition == WinCondition::PP) {
+            metric = (u16)std::clamp(osu->getMapInterface()->live_pp() * 10.f, 0.f, 65535.f);
+        }
 
-    this->last_packet_tms = time(nullptr);
+        packet.id = OUTP_MATCH_SCORE;
+        packet.write<u32>((u32)std::max(frame.total_score, 0));
+        packet.write<u16>(frame.max_combo);
+        packet.write<u16>(metric);
+        packet.write<u8>((frame.current_hp == 0 ? MATCH_SCORE_DEAD : 0) |
+                         (frame.num_miss > 0 ? MATCH_SCORE_HAS_MISS : 0) |
+                         (frame.is_perfect ? MATCH_SCORE_PERFECT : 0));
+    } else {
+        packet.id = OUTP_UPDATE_MATCH_SCORE;
+        packet.write<ScoreFrame>(frame);
+    }
+    BANCHO::Net::send_packet(packet);
 }
 
 void RoomScreen::onReadyButtonClick() {
     if(this->ready_btn->is_loading) return;
     soundEngine->play(osu->getSkin()->s_menu_hit);
 
-    int nb_ready = 0;
+    const u32 nb_ready = BanchoState::room.nb_ready();
     bool is_ready = false;
     for(auto &slot : BanchoState::room.slots) {
-        if(slot.has_player() && slot.is_ready()) {
-            nb_ready++;
-            if(slot.player_id == BanchoState::get_uid()) {
-                is_ready = true;
-            }
+        if(slot.has_player() && slot.is_ready() && slot.player_id == BanchoState::get_uid()) {
+            is_ready = true;
         }
     }
     if(BanchoState::room.is_host() && is_ready && nb_ready > 1) {
@@ -1029,6 +1125,7 @@ void RoomScreen::onChangeWinConditionClicked() {
     this->contextMenu->addButton(_("Score V2"), (int)WinCondition::SCOREV2);
     this->contextMenu->addButton(_("Accuracy"), (int)WinCondition::ACCURACY);
     this->contextMenu->addButton(_("Combo"), (int)WinCondition::CURRENT_COMBO);
+    if(BanchoState::fully_supports_neomod) this->contextMenu->addButton(_("pp"), (int)WinCondition::PP);
     this->contextMenu->end(false, false);
     this->contextMenu->setPos(mouse->getPos());
     this->contextMenu->setClickCallback(SA::MakeDelegate<&RoomScreen::onWinConditionSelected>(this));
