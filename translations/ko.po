@@ -339,6 +339,11 @@ msgid "Players: {:d}/{:d}"
 msgstr "플레이어: {:d}/{:d}"
 
 #: src/App/Neomod/Lobby.cpp
+#, c++-format
+msgid "Players: {:d}"
+msgstr "플레이어: {:d}"
+
+#: src/App/Neomod/Lobby.cpp
 msgid "Join room"
 msgstr "방 참가"
 
@@ -367,7 +372,7 @@ msgstr "게임 상대 찾는 중"
 msgid "There are no matches available."
 msgstr "참가할 수 있는 매치가 없습니다."
 
-#: src/App/Neomod/Lobby.cpp
+#: src/App/Neomod/Lobby.cpp src/App/Neomod/RoomScreen.cpp
 msgid "Joining room..."
 msgstr "방에 참가하는 중..."
 
@@ -3379,6 +3384,10 @@ msgid "Win condition: ScoreV2"
 msgstr "승리 조건: ScoreV2"
 
 #: src/App/Neomod/RoomScreen.cpp
+msgid "Win condition: pp"
+msgstr "승리 조건: pp"
+
+#: src/App/Neomod/RoomScreen.cpp
 msgid "Win condition: ???"
 msgstr "승리 조건: ???"
 
@@ -3406,6 +3415,19 @@ msgid "[no map] {}"
 msgstr "[맵 없음] {}"
 
 #: src/App/Neomod/RoomScreen.cpp
+#, c++-format
+msgid "and {:d} more"
+msgstr "외 {:d}명"
+
+#: src/App/Neomod/RoomScreen.cpp
+msgid "Connecting..."
+msgstr "연결 중..."
+
+#: src/App/Neomod/RoomScreen.cpp
+msgid "Failed to connect. Retrying..."
+msgstr "연결에 실패했습니다. 다시 시도하는 중..."
+
+#: src/App/Neomod/RoomScreen.cpp
 msgid "Failed to load map"
 msgstr "맵을 불러오지 못했습니다"
 
@@ -3420,6 +3442,10 @@ msgstr "Score V1"
 #: src/App/Neomod/RoomScreen.cpp
 msgid "Combo"
 msgstr "콤보"
+
+#: src/App/Neomod/RoomScreen.cpp
+msgid "pp"
+msgstr "pp"
 
 #: src/App/Neomod/SongBrowser/BottomBar.cpp
 #, c++-format

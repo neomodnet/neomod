@@ -339,6 +339,11 @@ msgid "Players: {:d}/{:d}"
 msgstr "Oyuncular: {:d}/{:d}"
 
 #: src/App/Neomod/Lobby.cpp
+#, c++-format
+msgid "Players: {:d}"
+msgstr "Oyuncular: {:d}"
+
+#: src/App/Neomod/Lobby.cpp
 msgid "Join room"
 msgstr "Odaya katıl"
 
@@ -367,7 +372,7 @@ msgstr "Oyun arıyor"
 msgid "There are no matches available."
 msgstr "Uygun maç yok."
 
-#: src/App/Neomod/Lobby.cpp
+#: src/App/Neomod/Lobby.cpp src/App/Neomod/RoomScreen.cpp
 msgid "Joining room..."
 msgstr "Odaya katılınıyor..."
 
@@ -3379,6 +3384,10 @@ msgid "Win condition: ScoreV2"
 msgstr "Kazanma koşulu: ScoreV2"
 
 #: src/App/Neomod/RoomScreen.cpp
+msgid "Win condition: pp"
+msgstr "Kazanma koşulu: pp"
+
+#: src/App/Neomod/RoomScreen.cpp
 msgid "Win condition: ???"
 msgstr "Kazanma koşulu: ???"
 
@@ -3406,6 +3415,19 @@ msgid "[no map] {}"
 msgstr "[harita yok] {}"
 
 #: src/App/Neomod/RoomScreen.cpp
+#, c++-format
+msgid "and {:d} more"
+msgstr "ve {:d} kişi daha"
+
+#: src/App/Neomod/RoomScreen.cpp
+msgid "Connecting..."
+msgstr "Bağlanıyor..."
+
+#: src/App/Neomod/RoomScreen.cpp
+msgid "Failed to connect. Retrying..."
+msgstr "Bağlanılamadı. Yeniden deneniyor..."
+
+#: src/App/Neomod/RoomScreen.cpp
 msgid "Failed to load map"
 msgstr "Harita yüklenemedi"
 
@@ -3420,6 +3442,10 @@ msgstr "Score V1"
 #: src/App/Neomod/RoomScreen.cpp
 msgid "Combo"
 msgstr "Kombo"
+
+#: src/App/Neomod/RoomScreen.cpp
+msgid "pp"
+msgstr "pp"
 
 #: src/App/Neomod/SongBrowser/BottomBar.cpp
 #, c++-format

@@ -339,6 +339,11 @@ msgid "Players: {:d}/{:d}"
 msgstr "Jugadores: {:d}/{:d}"
 
 #: src/App/Neomod/Lobby.cpp
+#, c++-format
+msgid "Players: {:d}"
+msgstr "Jugadores: {:d}"
+
+#: src/App/Neomod/Lobby.cpp
 msgid "Join room"
 msgstr "Unirse a la sala"
 
@@ -367,7 +372,7 @@ msgstr "Buscando partida"
 msgid "There are no matches available."
 msgstr "No hay partidas disponibles."
 
-#: src/App/Neomod/Lobby.cpp
+#: src/App/Neomod/Lobby.cpp src/App/Neomod/RoomScreen.cpp
 msgid "Joining room..."
 msgstr "Uniéndose a la sala..."
 
@@ -3379,6 +3384,10 @@ msgid "Win condition: ScoreV2"
 msgstr "Condición de victoria: ScoreV2"
 
 #: src/App/Neomod/RoomScreen.cpp
+msgid "Win condition: pp"
+msgstr "Condición de victoria: pp"
+
+#: src/App/Neomod/RoomScreen.cpp
 msgid "Win condition: ???"
 msgstr "Condición de victoria: ???"
 
@@ -3406,6 +3415,19 @@ msgid "[no map] {}"
 msgstr "[sin mapa] {}"
 
 #: src/App/Neomod/RoomScreen.cpp
+#, c++-format
+msgid "and {:d} more"
+msgstr "y {:d} más"
+
+#: src/App/Neomod/RoomScreen.cpp
+msgid "Connecting..."
+msgstr "Conectando..."
+
+#: src/App/Neomod/RoomScreen.cpp
+msgid "Failed to connect. Retrying..."
+msgstr "Error de conexión. Reintentando..."
+
+#: src/App/Neomod/RoomScreen.cpp
 msgid "Failed to load map"
 msgstr "No se pudo cargar el mapa"
 
@@ -3420,6 +3442,10 @@ msgstr "Score V1"
 #: src/App/Neomod/RoomScreen.cpp
 msgid "Combo"
 msgstr "Combo"
+
+#: src/App/Neomod/RoomScreen.cpp
+msgid "pp"
+msgstr "pp"
 
 #: src/App/Neomod/SongBrowser/BottomBar.cpp
 #, c++-format

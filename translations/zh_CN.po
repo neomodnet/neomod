@@ -339,6 +339,11 @@ msgid "Players: {:d}/{:d}"
 msgstr "玩家: {:d}/{:d}"
 
 #: src/App/Neomod/Lobby.cpp
+#, c++-format
+msgid "Players: {:d}"
+msgstr "玩家：{:d}"
+
+#: src/App/Neomod/Lobby.cpp
 msgid "Join room"
 msgstr "加入房间"
 
@@ -367,7 +372,7 @@ msgstr "正在寻找对局"
 msgid "There are no matches available."
 msgstr "暂无可用的对局。"
 
-#: src/App/Neomod/Lobby.cpp
+#: src/App/Neomod/Lobby.cpp src/App/Neomod/RoomScreen.cpp
 msgid "Joining room..."
 msgstr "正在加入房间..."
 
@@ -3379,6 +3384,10 @@ msgid "Win condition: ScoreV2"
 msgstr "胜利条件：ScoreV2"
 
 #: src/App/Neomod/RoomScreen.cpp
+msgid "Win condition: pp"
+msgstr "胜利条件：pp"
+
+#: src/App/Neomod/RoomScreen.cpp
 msgid "Win condition: ???"
 msgstr "胜利条件：???"
 
@@ -3406,6 +3415,19 @@ msgid "[no map] {}"
 msgstr "[无谱面] {}"
 
 #: src/App/Neomod/RoomScreen.cpp
+#, c++-format
+msgid "and {:d} more"
+msgstr "还有 {:d} 人"
+
+#: src/App/Neomod/RoomScreen.cpp
+msgid "Connecting..."
+msgstr "正在连接..."
+
+#: src/App/Neomod/RoomScreen.cpp
+msgid "Failed to connect. Retrying..."
+msgstr "连接失败。正在重试..."
+
+#: src/App/Neomod/RoomScreen.cpp
 msgid "Failed to load map"
 msgstr "无法加载谱面"
 
@@ -3420,6 +3442,10 @@ msgstr "Score V1"
 #: src/App/Neomod/RoomScreen.cpp
 msgid "Combo"
 msgstr "连击"
+
+#: src/App/Neomod/RoomScreen.cpp
+msgid "pp"
+msgstr "pp"
 
 #: src/App/Neomod/SongBrowser/BottomBar.cpp
 #, c++-format

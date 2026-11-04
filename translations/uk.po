@@ -339,6 +339,11 @@ msgid "Players: {:d}/{:d}"
 msgstr "Гравці: {:d}/{:d}"
 
 #: src/App/Neomod/Lobby.cpp
+#, c++-format
+msgid "Players: {:d}"
+msgstr "Гравці: {:d}"
+
+#: src/App/Neomod/Lobby.cpp
 msgid "Join room"
 msgstr "Приєднатися до кімнати"
 
@@ -367,7 +372,7 @@ msgstr "Шукає гру"
 msgid "There are no matches available."
 msgstr "Немає доступних матчів."
 
-#: src/App/Neomod/Lobby.cpp
+#: src/App/Neomod/Lobby.cpp src/App/Neomod/RoomScreen.cpp
 msgid "Joining room..."
 msgstr "Приєднання до кімнати..."
 
@@ -3379,6 +3384,10 @@ msgid "Win condition: ScoreV2"
 msgstr "Умова перемоги: ScoreV2"
 
 #: src/App/Neomod/RoomScreen.cpp
+msgid "Win condition: pp"
+msgstr "Умова перемоги: pp"
+
+#: src/App/Neomod/RoomScreen.cpp
 msgid "Win condition: ???"
 msgstr "Умова перемоги: ???"
 
@@ -3406,6 +3415,19 @@ msgid "[no map] {}"
 msgstr "[немає мапи] {}"
 
 #: src/App/Neomod/RoomScreen.cpp
+#, c++-format
+msgid "and {:d} more"
+msgstr "і ще {:d}"
+
+#: src/App/Neomod/RoomScreen.cpp
+msgid "Connecting..."
+msgstr "Підключення..."
+
+#: src/App/Neomod/RoomScreen.cpp
+msgid "Failed to connect. Retrying..."
+msgstr "Не вдалося підключитися. Повторна спроба..."
+
+#: src/App/Neomod/RoomScreen.cpp
 msgid "Failed to load map"
 msgstr "Не вдалося завантажити мапу"
 
@@ -3420,6 +3442,10 @@ msgstr "Score V1"
 #: src/App/Neomod/RoomScreen.cpp
 msgid "Combo"
 msgstr "Комбо"
+
+#: src/App/Neomod/RoomScreen.cpp
+msgid "pp"
+msgstr "pp"
 
 #: src/App/Neomod/SongBrowser/BottomBar.cpp
 #, c++-format
