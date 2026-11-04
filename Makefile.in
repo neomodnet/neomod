@@ -9670,7 +9670,7 @@ compile-commands:
 		--clangd $(abs_top_srcdir)/.clangd --clangd-template $(srcdir)/.clangd-template $(COMPDB_FRAGMENTS)
 
 @WASM_PLATFORM_TRUE@$(DESTDIR)$(bindir)/%: % | install-dirs
-@WASM_PLATFORM_TRUE@	$(INSTALL) -Dm 644 $< $@
+@WASM_PLATFORM_TRUE@	$(INSTALL) -m 644 $< $@
 
 @WASM_PLATFORM_TRUE@install-dirs:
 @WASM_PLATFORM_TRUE@	$(INSTALL) -dm 755 "$(DESTDIR)$(bindir)"

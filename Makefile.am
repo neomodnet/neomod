@@ -1619,7 +1619,7 @@ if WASM_PLATFORM
 WASM_INSTALL_FILES = neomod.js neomod.wasm
 
 $(DESTDIR)$(bindir)/%: % | install-dirs
-	$(INSTALL) -Dm 644 $< $@
+	$(INSTALL) -m 644 $< $@
 
 install-dirs:
 	$(INSTALL) -dm 755 "$(DESTDIR)$(bindir)"
