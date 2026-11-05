@@ -195,7 +195,7 @@ struct Slot {
     u8 status = 0;  // bitfield of [quit, complete, playing, no_map, ready, not_ready, locked, open]
     u8 team = 0;
     i32 player_id = 0;
-    Replay::Mods mods;  // (freemod rooms only)
+    Replay::Mods mods{};  // (freemod rooms only)
 
     // From MATCH_PLAYER_SKIPPED
     bool skipped = false;
