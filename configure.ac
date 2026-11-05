@@ -652,11 +652,25 @@ AS_IF([test "x$enable_lto" != "xno"], [
     disable_lto=no
 ])
 
+AC_ARG_ENABLE([threads],
+    AS_HELP_STRING([--disable-threads], [WASM only: build for browsers without SharedArrayBuffer, everything runs on the main thread (default: enabled)]))
+wasm_thread_flags="-sWASM_WORKERS=1 -pthread"
+WASM_SDL_PTHREADS=ON
+WASM_MINIAUDIO_FLAGS="-DMA_ENABLE_AUDIO_WORKLETS=1"
+AS_IF([test -n "$WASM_CC" && test "x$enable_threads" = "xno"], [
+    wasm_thread_flags=""
+    WASM_SDL_PTHREADS=OFF
+    WASM_MINIAUDIO_FLAGS=""
+    AC_DEFINE([MCENGINE_FEATURE_NO_THREADS], [1], [Everything runs on the main thread])
+])
+AC_SUBST([WASM_SDL_PTHREADS])
+AC_SUBST([WASM_MINIAUDIO_FLAGS])
+
 AS_IF([test -n "$WASM_CC"], [
     # emscripten/WASM build
-    CXXFLAGS="$CXXFLAGS -sWASM_WORKERS=1 -pthread -msimd128 -Qunused-arguments -Wno-unused-command-line-argument -Wno-c2x-extensions"
-    CFLAGS="$CFLAGS -sWASM_WORKERS=1 -pthread -msimd128 -Qunused-arguments -Wno-unused-command-line-argument"
-    LDFLAGS="$LDFLAGS -sWASM_WORKERS=1 -pthread -msimd128 -Qunused-arguments -Wno-unused-command-line-argument"
+    CXXFLAGS="$CXXFLAGS $wasm_thread_flags -msimd128 -Qunused-arguments -Wno-unused-command-line-argument -Wno-c2x-extensions"
+    CFLAGS="$CFLAGS $wasm_thread_flags -msimd128 -Qunused-arguments -Wno-unused-command-line-argument"
+    LDFLAGS="$LDFLAGS $wasm_thread_flags -msimd128 -Qunused-arguments -Wno-unused-command-line-argument"
     _ccache_ctype="clang"
     _cid="Emscripten"
     CLANG=yes
@@ -714,9 +728,14 @@ AS_CASE(["$host_os"],
 [*emscripten], [
     # WASM/Emscripten build
     WASM_POLYFILL_DEP="\$(srcdir)/src/Platform/WASM/wasm-node-polyfill.js"
-    emscripten_flags="-sPTHREAD_POOL_SIZE=32 -sAUDIO_WORKLET=1 -sWASM=1 -sWASM_WORKERS=1 -sFETCH=1"
-    emscripten_flags="$emscripten_flags -sMAX_WEBGL_VERSION=2 -sLLD_REPORT_UNDEFINED -sSTACK_SIZE=1MB -sENVIRONMENT=web,worker,node"
-    emscripten_flags="$emscripten_flags -sWEBSOCKET_URL=wss:// -sFULL_ES3 -sINITIAL_MEMORY=1536MB"
+    emscripten_flags="-sWASM=1 -sFETCH=1 -sMAX_WEBGL_VERSION=2 -sLLD_REPORT_UNDEFINED -sENVIRONMENT=web,worker,node"
+    emscripten_flags="$emscripten_flags -sWEBSOCKET_URL=wss:// -sFULL_ES3"
+    AS_IF([test "x$enable_threads" = "xno"], [
+        # tasks stack up on the main thread when one waits for another, and memory isn't shared so it can grow
+        emscripten_flags="$emscripten_flags -sSTACK_SIZE=8MB -sINITIAL_MEMORY=256MB -sALLOW_MEMORY_GROWTH=1"
+    ], [
+        emscripten_flags="$emscripten_flags -sPTHREAD_POOL_SIZE=32 -sAUDIO_WORKLET=1 -sWASM_WORKERS=1 -sSTACK_SIZE=1MB -sINITIAL_MEMORY=1536MB"
+    ])
     emscripten_flags="$emscripten_flags -sEXPORTED_RUNTIME_METHODS=callMain,ENV,FS -sINCOMING_MODULE_JS_API=arguments,locateFile,onAbort,onRuntimeInitialized,noInitialRun,print"
 
     NEOMOD_CPPFLAGS="$NEOMOD_CPPFLAGS -U__linux__ -D__EMSCRIPTEN__"

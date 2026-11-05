@@ -65,14 +65,19 @@
 
 namespace Logger {
 namespace {  // static
-std::shared_ptr<spdlog::async_logger> s_logger;
-spdlog::async_logger *s_logger_raw_ptr{nullptr};
-std::shared_ptr<spdlog::async_logger> s_raw_logger;
-spdlog::async_logger *s_raw_logger_raw_ptr{nullptr};
+#ifdef MCENGINE_FEATURE_NO_THREADS
+using logger_t = spdlog::logger;  // async loggers need a thread
+#else
+using logger_t = spdlog::async_logger;
+#endif
+std::shared_ptr<logger_t> s_logger;
+logger_t *s_logger_raw_ptr{nullptr};
+std::shared_ptr<logger_t> s_raw_logger;
+logger_t *s_raw_logger_raw_ptr{nullptr};
 
 // network channel (file-only, single format)
-std::shared_ptr<spdlog::async_logger> s_network_logger;
-spdlog::async_logger *s_network_logger_raw_ptr{nullptr};
+std::shared_ptr<logger_t> s_network_logger;
+logger_t *s_network_logger_raw_ptr{nullptr};
 
 bool s_log_initialized{false};
 
@@ -478,6 +483,7 @@ void init(bool create_console) noexcept {
     setvbuf(stdout, nullptr, _IONBF, 0);
     setvbuf(stderr, nullptr, _IONBF, 0);
 
+#ifndef MCENGINE_FEATURE_NO_THREADS
     // initialize async thread pool before creating any async loggers
     // queue size: 32768 slots (each ~256 bytes), 1 background thread
     // use overrun_oldest policy for non-blocking behavior
@@ -493,6 +499,7 @@ void init(bool create_console) noexcept {
             // called from inside of it (including McThread::set_current_thread_prio)
             SDL_CleanupTLS();
         });
+#endif
 
     // engine console sink handles its own formatting
     auto engine_console_sink{std::make_shared<ConsoleSink>()};
@@ -536,25 +543,37 @@ void init(bool create_console) noexcept {
             Mc::Paths::logs() + "/" LOGFILE_BASENAME "-network.log", true)};
         network_file_sink->set_pattern("[%T] %v");  // just timestamp and message
 
+#ifdef MCENGINE_FEATURE_NO_THREADS
+        s_network_logger = std::make_shared<logger_t>(NETWORK_LOGGER_NAME, spdlog::sinks_init_list{network_file_sink});
+#else
         s_network_logger = std::make_shared<spdlog::async_logger>(
             NETWORK_LOGGER_NAME, spdlog::sinks_init_list{network_file_sink}, spdlog::thread_pool(),
             spdlog::async_overflow_policy::overrun_oldest);
+#endif
         s_network_logger_raw_ptr = s_network_logger.get();
         s_network_logger->set_level(spdlog::level::trace);
         s_network_logger->flush_on(spdlog::level::off);
         spdlog::register_logger(s_network_logger);
     }
 
+#ifdef MCENGINE_FEATURE_NO_THREADS
+    s_logger = std::make_shared<logger_t>(DEFAULT_LOGGER_NAME, main_sinks.begin(), main_sinks.end());
+#else
     // create main async logger with stdout + console + optional file sink
     s_logger =
         std::make_shared<spdlog::async_logger>(DEFAULT_LOGGER_NAME, main_sinks.begin(), main_sinks.end(),
                                                spdlog::thread_pool(), spdlog::async_overflow_policy::overrun_oldest);
+#endif
     s_logger_raw_ptr = s_logger.get();
 
+#ifdef MCENGINE_FEATURE_NO_THREADS
+    s_raw_logger = std::make_shared<logger_t>(RAW_LOGGER_NAME, raw_sinks.begin(), raw_sinks.end());
+#else
     // create raw async logger with separate stdout + console + optional file sink
     s_raw_logger =
         std::make_shared<spdlog::async_logger>(RAW_LOGGER_NAME, raw_sinks.begin(), raw_sinks.end(),
                                                spdlog::thread_pool(), spdlog::async_overflow_policy::overrun_oldest);
+#endif
     s_raw_logger_raw_ptr = s_raw_logger.get();
 
     // set to trace level so we print out all messages
@@ -573,7 +592,9 @@ void init(bool create_console) noexcept {
 
     // flush every 500ms
     // console commands will trigger a flush for responsiveness, though
+#ifndef MCENGINE_FEATURE_NO_THREADS
     spdlog::flush_every(std::chrono::milliseconds(500));
+#endif
 
     // make the s_logger default (doesn't really matter right now since we're handling it manually, i think, but still)
     spdlog::set_default_logger(s_logger);

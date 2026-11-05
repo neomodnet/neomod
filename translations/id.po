@@ -452,6 +452,10 @@ msgid "Update Error! Click to retry ..."
 msgstr "Pembaruan gagal! Klik untuk mencoba lagi ..."
 
 #: src/App/Neomod/MainMenu.cpp
+msgid "Your browser doesn't support multithreaded WebAssembly, so performance will be worse than usual."
+msgstr "Browser kamu tidak mendukung WebAssembly multithread, jadi performanya akan lebih buruk dari biasanya."
+
+#: src/App/Neomod/MainMenu.cpp
 msgid "You must log in to join Multiplayer!"
 msgstr "Kamu harus masuk untuk bermain Multiplayer!"
 

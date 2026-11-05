@@ -78,6 +78,9 @@
 /* Defined if libjpeg-turbo is used for decoding jpegs. */
 #undef MCENGINE_FEATURE_LIBJPEG
 
+/* Everything runs on the main thread */
+#undef MCENGINE_FEATURE_NO_THREADS
+
 /* Defined if the OpenGL backend is to be used. */
 #undef MCENGINE_FEATURE_OPENGL
 

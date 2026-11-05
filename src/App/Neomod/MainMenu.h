@@ -108,6 +108,7 @@ class MainMenu final : public UIScreen, public MouseListener {
 
     neomod::mainmenu::NowPlaying *nowPlaying;
     neomod::mainmenu::WrappedText *tipLabel{nullptr};
+    neomod::mainmenu::WrappedText *noThreadsWarning{nullptr};
     std::unique_ptr<UIButton> updateAvailableButton{nullptr};
     UIButtonVertical *onlineBeatmapsButton{nullptr};
     CBaseUIButton *versionButton;

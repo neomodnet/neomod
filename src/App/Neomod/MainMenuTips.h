@@ -1,6 +1,7 @@
 // Copyright (c) 2026, WH, All rights reserved.
 #pragma once
 
+#include "Color.h"
 #include "CBaseUIContainer.h"
 
 #include <span>
@@ -21,6 +22,7 @@ class WrappedText final : public CBaseUIContainer {
     WrappedText *setFont(McFont *font);
 
     WrappedText *setText(const std::string &text);
+    WrappedText *setTextColor(Color color);
     WrappedText *setOnMouseUpInsideCallback(std::function<void(bool, bool)> cb);
 
     void onMouseUpInside(bool left = true, bool right = false) override;
@@ -29,6 +31,7 @@ class WrappedText final : public CBaseUIContainer {
 
    private:
     McFont *font;
+    Color textColor{rgb(200, 200, 200)};
     std::string lastText;
     float lastWrapWidth{0.f};
     std::function<void(bool, bool)> onMouseUpCB{nullptr};

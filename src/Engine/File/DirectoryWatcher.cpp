@@ -32,13 +32,17 @@ struct DirWatcherImpl {
    public:
     DirWatcherImpl() {
         this->init_wakeup_notification();
+#ifndef MCENGINE_FEATURE_NO_THREADS
         this->thr = Sync::jthread([this](const Sync::stop_token& stoken) { return this->worker_loop(stoken); });
+#endif
     }
     ~DirWatcherImpl() {
         assert(Mc::ranges::all_of(this->watches, &WatchEntry::detached) && "a watch outlived the DirectoryWatcher");
         // (the worker waits on the wakeup notification)
+#ifndef MCENGINE_FEATURE_NO_THREADS
         this->thr.request_stop();
         this->thr.join();
+#endif
         this->destroy_wakeup_notification();
     }
 

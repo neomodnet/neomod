@@ -452,6 +452,10 @@ msgid "Update Error! Click to retry ..."
 msgstr "Помилка оновлення! Натисніть, щоб спробувати ще раз ..."
 
 #: src/App/Neomod/MainMenu.cpp
+msgid "Your browser doesn't support multithreaded WebAssembly, so performance will be worse than usual."
+msgstr "Ваш браузер не підтримує багатопотоковий WebAssembly, тому продуктивність буде нижчою, ніж зазвичай."
+
+#: src/App/Neomod/MainMenu.cpp
 msgid "You must log in to join Multiplayer!"
 msgstr "Увійдіть, щоб грати в мультиплеєрі!"
 

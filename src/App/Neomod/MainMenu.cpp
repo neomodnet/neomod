@@ -405,6 +405,12 @@ MainMenu::MainMenu() : UIScreen() {
     this->addBaseUIElement(this->tipLabel);
     cv::main_menu_tips.setCallback(SA::MakeDelegate<&mainmenu::WrappedText::setVisibleCallback>(this->tipLabel));
 
+#ifdef MCENGINE_FEATURE_NO_THREADS
+    this->noThreadsWarning = new mainmenu::WrappedText(engine->getDefaultFont(), 0, 0, 0, 0);
+    this->noThreadsWarning->setTextColor(rgb(255, 220, 0));
+    this->addBaseUIElement(this->noThreadsWarning);
+#endif
+
     this->versionButton = new CBaseUIButton(0, 0, 0, 0, "", "");
     this->versionButton->setDrawBackground(false);
     this->versionButton->setDrawFrame(false);
@@ -1530,6 +1536,13 @@ void MainMenu::updateLayout() {
         const f32 tipLabelMargin = (updateButtonVis ? 10.f : 30.f) * dpiScale;
         const f32 tipLabelYPos = tipLabelStartY - this->tipLabel->getSize().y - tipLabelMargin;
         this->tipLabel->setRelPos((screenSize.x - this->tipLabel->getSize().x) / 2.f, tipLabelYPos);
+    }
+
+    if(this->noThreadsWarning) {
+        this->noThreadsWarning->setSizeX(screenSize.x * 0.45f);
+        this->noThreadsWarning->setText(
+            _("Your browser doesn't support multithreaded WebAssembly, so performance will be worse than usual."));
+        this->noThreadsWarning->setRelPos(12 * dpiScale, 12 * dpiScale);
     }
 
     this->onlineBeatmapsButton->onResized();

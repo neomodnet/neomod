@@ -360,6 +360,10 @@ u32 get_total() {
 
 void start_calc(std::span<DatabaseBeatmap *const> maps_to_calc) {
     VolNormalization::abort();
+#ifdef MCENGINE_FEATURE_NO_THREADS
+    // decoding whole songs would freeze the game: maps keep their fallback loudness
+    return;
+#endif
     if(maps_to_calc.empty()) return;
     if(!cv::normalize_loudness.getBool()) return;
 
@@ -407,6 +411,11 @@ void start_calc(std::span<DatabaseBeatmap *const> maps_to_calc) {
 void abort() { s_threads.clear(); }
 
 void request_priority(DatabaseBeatmap *map) {
+#ifdef MCENGINE_FEATURE_NO_THREADS
+    // same as start_calc(), but the music is holding back until the map has a loudness
+    if(map) map->loudness.store(cv::loudness_fallback.getFloat(), std::memory_order_release);
+    return;
+#endif
     if(!map) return;
     if(!cv::normalize_loudness.getBool()) return;
     if(!s_prio) {

@@ -92,7 +92,35 @@ jobs:
           name: neomod-web-wasm32
           path: build-out/dist/bin-wasm32
 
+      - name: Cache built dependencies (no threads)
+        uses: actions/cache@v5.0.1
+        with:
+          path: |
+            build-out-nothreads/build/deps
+          key: deps-web-wasm32-nothreads-v1-${{ hashFiles('configure.ac', 'Makefile.am', 'mk/**') }}
+          restore-keys: |
+            deps-web-wasm32-nothreads-v1-
+
+      # for browsers without SharedArrayBuffer
+      - name: Building neomod (no threads)
+        run: |
+          export MAKEFLAGS="-j$(nproc)"
+          export CCACHE_DIR="${{ env.CCACHE_DIR }}"
+          mkdir -p build-out-nothreads/build
+          cd build-out-nothreads && \
+          emconfigure ../configure --disable-tests --without-libjpeg --disable-threads && \
+          emmake make install
+
+      - uses: actions/upload-artifact@v6.0.0
+        with:
+          name: neomod-web-wasm32-nothreads
+          path: build-out-nothreads/dist/bin-wasm32
+
       # runs the build headless under node (without a renderer) and plays a map on autoplay, see tests/sanity/run.py
       - name: Sanity test
         timeout-minutes: 10
         run: python3 tests/sanity/run.py build-out/dist/bin-wasm32/neomod.js
+
+      - name: Sanity test (no threads)
+        timeout-minutes: 10
+        run: python3 tests/sanity/run.py build-out-nothreads/dist/bin-wasm32/neomod.js

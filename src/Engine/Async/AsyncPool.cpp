@@ -11,7 +11,9 @@
 #include "Timing.h"
 
 #ifdef MCENGINE_PLATFORM_WASM
+#ifndef MCENGINE_FEATURE_NO_THREADS
 #include <emscripten/threading.h>
+#endif
 #endif
 
 #include <algorithm>
@@ -27,7 +29,11 @@ namespace {
 
 using detail::StateBase;
 
+#ifdef MCENGINE_FEATURE_NO_THREADS
+thread_local bool tl_pool_thread{true};  // the main thread does the work of the pool
+#else
 thread_local bool tl_pool_thread{false};
+#endif
 thread_local StateBase *tl_running{nullptr};  // the task this thread is running (the innermost, while it helps out)
 
 void run(StateBase *task) noexcept {
@@ -38,6 +44,7 @@ void run(StateBase *task) noexcept {
     task->release();
 }
 
+#ifndef MCENGINE_FEATURE_NO_THREADS
 size_t configured_thread_count() noexcept {
     size_t count = std::clamp<size_t>(McThread::get_logical_cpu_count() - 1, 2, 32);
 #ifdef MCENGINE_PLATFORM_WASM
@@ -51,6 +58,7 @@ size_t configured_thread_count() noexcept {
     }
     return count;
 }
+#endif
 
 // fifo threaded through the states' next pointers: queueing allocates nothing
 struct Queue {
@@ -102,6 +110,9 @@ class Pool final {
     NOCOPY_NOMOVE(Pool)
    public:
     Pool() {
+#ifdef MCENGINE_FEATURE_NO_THREADS
+        m_fgCount = 1;  // the main thread, during update() and while waiting on a future
+#else
         const size_t total = configured_thread_count();
         m_bgCount = std::clamp<size_t>(total / 4, 1, 8);
         m_fgCount = total - m_bgCount;
@@ -117,6 +128,7 @@ class Pool final {
 
         debugLog("AsyncPool: started {} worker threads ({} fg, {} bg, up to {} fg helping with bg work)", total,
                  m_fgCount, m_bgCount, m_stealCap);
+#endif
     }
 
     ~Pool() { shutdown(); }
@@ -130,6 +142,9 @@ class Pool final {
         m_fgCV.notify_all();
         m_bgCV.notify_all();
         m_threads.clear();  // joins; the workers drain both lanes first
+#ifdef MCENGINE_FEATURE_NO_THREADS
+        while(StateBase *task = this->try_pop_any(Lane::Foreground)) run(task);
+#endif
 
         // main-thread continuations that fired during the drain have no frame left to run in
         StateBase *leftover = nullptr;
@@ -236,11 +251,21 @@ class Pool final {
             StateBase *task = nullptr;
             {
                 Sync::scoped_lock lock(m_mutex);
-                if(m_mainBatch.empty()) return;
+                if(m_mainBatch.empty()) break;
                 task = m_mainBatch.pop();
             }
             run(task);
         }
+
+#ifdef MCENGINE_FEATURE_NO_THREADS
+        // nobody else is going to run the queued tasks. one always gets to, however long it takes.
+        const u64 deadline = Timing::getTicksMS() + NO_THREADS_MS_PER_UPDATE;
+        do {
+            StateBase *task = this->try_pop_any(Lane::Foreground);
+            if(!task) break;
+            run(task);
+        } while(Timing::getTicksMS() < deadline);
+#endif
     }
 
     [[nodiscard]] size_t thread_count() const noexcept { return m_fgCount + m_bgCount; }
@@ -250,6 +275,10 @@ class Pool final {
     }
 
    private:
+#ifdef MCENGINE_FEATURE_NO_THREADS
+    static constexpr u64 NO_THREADS_MS_PER_UPDATE{8};
+#endif
+
     void enqueue_main(StateBase *task) {
         {
             Sync::scoped_lock lock(m_mutex);
@@ -355,14 +384,23 @@ void StateBase::wait() const noexcept {
         while(!done()) {
             if(StateBase *task = pool().try_pop_any(lane)) {
                 run(task);
-            } else if(StateBase *link = m_link.load(std::memory_order_acquire); link != this) {
-                m_link.wait(link, std::memory_order_acquire);
+            } else {
+#ifdef MCENGINE_FEATURE_NO_THREADS
+                // what it's waiting for is below us on the stack, or is a main-thread continuation
+                debugLog("AsyncPool: nothing left that could finish the task being waited on");
+                assert(false);
+                return;
+#else
+                if(StateBase *link = m_link.load(std::memory_order_acquire); link != this) {
+                    m_link.wait(link, std::memory_order_acquire);
+                }
+#endif
             }
         }
         return;
     }
 
-#ifdef MCENGINE_PLATFORM_WASM
+#if defined(MCENGINE_PLATFORM_WASM) && !defined(MCENGINE_FEATURE_NO_THREADS)
     // on WASM, a blocking wait on the main thread can deadlock if the worker needs to proxy calls back.
     // drain the pthreads proxy queue while spinning so those calls can complete.
     if(McThread::is_main_thread()) {

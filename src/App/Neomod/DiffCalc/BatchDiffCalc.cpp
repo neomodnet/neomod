@@ -656,6 +656,11 @@ void start_calc() {
     map_results.clear();
     score_results.clear();
 
+#ifdef MCENGINE_FEATURE_NO_THREADS
+    // recalculating would freeze the game for too long: maps and scores keep what they have
+    workqueue_ready = true;
+    return;
+#endif
     coordinator_thread = Sync::jthread(coordinator);
 }
 

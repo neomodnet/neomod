@@ -109,6 +109,11 @@ WrappedText *WrappedText::setOnMouseUpInsideCallback(std::function<void(bool, bo
     return this;
 }
 
+WrappedText *WrappedText::setTextColor(Color color) {
+    this->textColor = color;
+    return this;
+}
+
 WrappedText *WrappedText::setText(const std::string &text) {
     const float containerWidth = this->getSize().x;
     if(text == this->lastText && containerWidth == this->lastWrapWidth) return this;
@@ -121,7 +126,7 @@ WrappedText *WrappedText::setText(const std::string &text) {
     float yCounter = 0.f;
     for(const auto &line : lines) {
         auto *label = new CBaseUILabel(0, yCounter, containerWidth, lineHeight, "", line);
-        label->setTextColor(rgb(200, 200, 200))
+        label->setTextColor(this->textColor)
             ->setShadowColor(rgb(50, 50, 50))
             ->setTextJustification(TEXT_JUSTIFICATION::CENTERED)
             ->setDrawTextShadow(true)

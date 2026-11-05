@@ -32,6 +32,11 @@ struct lazy_promise {
     lazy_promise(Ret default_ret) : ret(std::move(default_ret)) {}
 
     void enqueue(Func &&func) {
+#ifdef MCENGINE_FEATURE_NO_THREADS
+        // there's no thread to do it on, so the result is ready right away
+        this->set(func());
+        return;
+#endif
         {
             Sync::scoped_lock lock(this->work_mtx);
             if(!this->thread.joinable()) {

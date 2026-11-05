@@ -897,6 +897,8 @@ WASM_PRELOAD_FLAGS
 PKG_CONFIG_PATH_CUSTOM
 PKG_CONFIG_PATH
 CLANG
+WASM_MINIAUDIO_FLAGS
+WASM_SDL_PTHREADS
 ENABLE_ASAN
 with_ffmpeg
 AUDBACKENDLIST
@@ -1076,6 +1078,7 @@ with_mimalloc
 with_nsync
 with_discord
 with_i18n
+enable_threads
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1815,6 +1818,9 @@ Optional Features:
                           Don't bundle any non-redistributable content
                           (currently only relevant for WASM, skips bundling
                           beatmaps, default: yes)
+  --disable-threads       WASM only: build for browsers without
+                          SharedArrayBuffer, everything runs on the main
+                          thread (default: enabled)
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -8197,13 +8203,36 @@ then :
 
 fi
 
+# Check whether --enable-threads was given.
+if test ${enable_threads+y}
+then :
+  enableval=$enable_threads;
+fi
+
+wasm_thread_flags="-sWASM_WORKERS=1 -pthread"
+WASM_SDL_PTHREADS=ON
+WASM_MINIAUDIO_FLAGS="-DMA_ENABLE_AUDIO_WORKLETS=1"
+if test -n "$WASM_CC" && test "x$enable_threads" = "xno"
+then :
+
+    wasm_thread_flags=""
+    WASM_SDL_PTHREADS=OFF
+    WASM_MINIAUDIO_FLAGS=""
+
+printf '%s\n' "#define MCENGINE_FEATURE_NO_THREADS 1" >>confdefs.h
+
+
+fi
+
+
+
 if test -n "$WASM_CC"
 then :
 
     # emscripten/WASM build
-    CXXFLAGS="$CXXFLAGS -sWASM_WORKERS=1 -pthread -msimd128 -Qunused-arguments -Wno-unused-command-line-argument -Wno-c2x-extensions"
-    CFLAGS="$CFLAGS -sWASM_WORKERS=1 -pthread -msimd128 -Qunused-arguments -Wno-unused-command-line-argument"
-    LDFLAGS="$LDFLAGS -sWASM_WORKERS=1 -pthread -msimd128 -Qunused-arguments -Wno-unused-command-line-argument"
+    CXXFLAGS="$CXXFLAGS $wasm_thread_flags -msimd128 -Qunused-arguments -Wno-unused-command-line-argument -Wno-c2x-extensions"
+    CFLAGS="$CFLAGS $wasm_thread_flags -msimd128 -Qunused-arguments -Wno-unused-command-line-argument"
+    LDFLAGS="$LDFLAGS $wasm_thread_flags -msimd128 -Qunused-arguments -Wno-unused-command-line-argument"
     _ccache_ctype="clang"
     _cid="Emscripten"
     CLANG=yes
@@ -8285,9 +8314,20 @@ case "$host_os" in #(
 
     # WASM/Emscripten build
     WASM_POLYFILL_DEP="\$(srcdir)/src/Platform/WASM/wasm-node-polyfill.js"
-    emscripten_flags="-sPTHREAD_POOL_SIZE=32 -sAUDIO_WORKLET=1 -sWASM=1 -sWASM_WORKERS=1 -sFETCH=1"
-    emscripten_flags="$emscripten_flags -sMAX_WEBGL_VERSION=2 -sLLD_REPORT_UNDEFINED -sSTACK_SIZE=1MB -sENVIRONMENT=web,worker,node"
-    emscripten_flags="$emscripten_flags -sWEBSOCKET_URL=wss:// -sFULL_ES3 -sINITIAL_MEMORY=1536MB"
+    emscripten_flags="-sWASM=1 -sFETCH=1 -sMAX_WEBGL_VERSION=2 -sLLD_REPORT_UNDEFINED -sENVIRONMENT=web,worker,node"
+    emscripten_flags="$emscripten_flags -sWEBSOCKET_URL=wss:// -sFULL_ES3"
+    if test "x$enable_threads" = "xno"
+then :
+
+        # tasks stack up on the main thread when one waits for another, and memory isn't shared so it can grow
+        emscripten_flags="$emscripten_flags -sSTACK_SIZE=8MB -sINITIAL_MEMORY=256MB -sALLOW_MEMORY_GROWTH=1"
+
+else case e in #(
+  e)
+        emscripten_flags="$emscripten_flags -sPTHREAD_POOL_SIZE=32 -sAUDIO_WORKLET=1 -sWASM_WORKERS=1 -sSTACK_SIZE=1MB -sINITIAL_MEMORY=1536MB"
+     ;;
+esac
+fi
     emscripten_flags="$emscripten_flags -sEXPORTED_RUNTIME_METHODS=callMain,ENV,FS -sINCOMING_MODULE_JS_API=arguments,locateFile,onAbort,onRuntimeInitialized,noInitialRun,print"
 
     NEOMOD_CPPFLAGS="$NEOMOD_CPPFLAGS -U__linux__ -D__EMSCRIPTEN__"
