@@ -1,6 +1,20 @@
 // Copyright (c) 2025 kiwec, All rights reserved.
 #include "DirectoryWatcher.h"
 
+#include "config.h"
+
+#ifdef MCENGINE_PLATFORM_WASM
+
+// nothing outside of the game changes the virtual file system
+struct DirWatcherImpl {};
+
+DirectoryWatcher::DirectoryWatcher() : pImpl() {}
+DirectoryWatcher::~DirectoryWatcher() = default;
+Mc::Registration DirectoryWatcher::watch_directory(std::string /*path*/, FileChangeCallback /*cb*/) { return {}; }
+void DirectoryWatcher::update() {}
+
+#else
+
 #include "ContainerRanges.h"
 #include "File.h"
 #include "Logging.h"
@@ -32,17 +46,13 @@ struct DirWatcherImpl {
    public:
     DirWatcherImpl() {
         this->init_wakeup_notification();
-#ifndef MCENGINE_FEATURE_NO_THREADS
         this->thr = Sync::jthread([this](const Sync::stop_token& stoken) { return this->worker_loop(stoken); });
-#endif
     }
     ~DirWatcherImpl() {
         assert(Mc::ranges::all_of(this->watches, &WatchEntry::detached) && "a watch outlived the DirectoryWatcher");
         // (the worker waits on the wakeup notification)
-#ifndef MCENGINE_FEATURE_NO_THREADS
         this->thr.request_stop();
         this->thr.join();
-#endif
         this->destroy_wakeup_notification();
     }
 
@@ -84,7 +94,7 @@ struct DirWatcherImpl {
     void update() {
         if(this->finished_events_count.load(std::memory_order_acquire) == 0) return;
 
-        std::vector<std::pair<std::string, FileChangeEvent>> events;
+        std::vector<std::pair<std::string, FileChangeEvent> > events;
         {
             Sync::scoped_lock lock(this->finished_events_mtx);
             events.swap(this->finished_events);
@@ -135,7 +145,7 @@ struct DirWatcherImpl {
 
     // the watched directory each event is for
     Sync::mutex finished_events_mtx;
-    std::vector<std::pair<std::string, FileChangeEvent>> finished_events;
+    std::vector<std::pair<std::string, FileChangeEvent> > finished_events;
     std::atomic<uSz> finished_events_count{0};
 
     Sync::jthread thr;
@@ -600,3 +610,5 @@ Mc::Registration DirectoryWatcher::watch_directory(std::string path, FileChangeC
 }
 
 void DirectoryWatcher::update() { return pImpl->update(); }
+
+#endif  // MCENGINE_PLATFORM_WASM

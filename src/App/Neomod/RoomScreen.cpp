@@ -180,15 +180,15 @@ bool UIModList::isVisible() { return this->bVisible && this->mods != Replay::Mod
 
 #define ADD_ELEMENT(element) ADD_ELEMENT_WITH_PADDING(element, button_padding, button_padding)
 
-#define ADD_BUTTON(button, label)                                                                     \
-    do {                                                                                              \
-        (label)->onResized();                                                                         \
-        (label)->setSizeToContent(0, 0);                                                              \
-        (button)->onResized();                                                                        \
-        (button)->setSizeToContent(button_padding, button_padding);                                   \
-        (button)->setPos((label)->getSize().x + 20.f * Osu::getUIScale(),                             \
-                         (label)->getPos().y + ((label)->getSize().y - (button)->getSize().y) / 2.f); \
-        this->settings->container.addBaseUIElement(button);                                           \
+#define ADD_BUTTON(button, label)                                                                        \
+    do {                                                                                                 \
+        (label)->onResized();                                                                            \
+        (label)->setSizeToContent(0, 0);                                                                 \
+        (button)->onResized();                                                                           \
+        (button)->setSizeToContent(button_padding, button_padding);                                      \
+        (button)->setPos((label)->getSize().x + 20.f * Osu::getUIScale(),                                \
+                         (label)->getRelPos().y + ((label)->getSize().y - (button)->getSize().y) / 2.f); \
+        this->settings->container.addBaseUIElement(button);                                              \
     } while(0)
 
 #define PAD(x)                               \
@@ -501,7 +501,7 @@ void RoomScreen::updateSettingsLayout(vec2 newResolution) {
         this->online_maps_btn->setSizeToContent(button_padding, button_padding);
         this->online_maps_btn->setPos(
             map_label->getSize().x + this->select_map_btn->getSize().x + 30.f * Osu::getUIScale(),
-            map_label->getPos().y + (map_label->getSize().y - this->online_maps_btn->getSize().y) / 2.f);
+            map_label->getRelPos().y + (map_label->getSize().y - this->online_maps_btn->getSize().y) / 2.f);
         this->settings->container.addBaseUIElement(this->online_maps_btn);
     }
     ADD_ELEMENT(this->map_title);
@@ -536,7 +536,7 @@ void RoomScreen::updateSettingsLayout(vec2 newResolution) {
             is_ready = true;
         }
     }
-    if(is_host && is_ready && nb_ready > 1) {
+    if(is_host && is_ready) {
         const std::string force_start_str =
             BanchoState::room.all_players_ready()
                 ? _("Start game")
@@ -1129,14 +1129,13 @@ void RoomScreen::onReadyButtonClick() {
     if(this->ready_btn->is_loading) return;
     soundEngine->play(osu->getSkin()->s_menu_hit);
 
-    const u32 nb_ready = BanchoState::room.nb_ready();
     bool is_ready = false;
     for(auto &slot : BanchoState::room.slots) {
         if(slot.has_player() && slot.is_ready() && slot.player_id == BanchoState::get_uid()) {
             is_ready = true;
         }
     }
-    if(BanchoState::room.is_host() && is_ready && nb_ready > 1) {
+    if(BanchoState::room.is_host() && is_ready) {
         Packet packet;
         packet.id = OUTP_START_MATCH;
         BANCHO::Net::send_packet(packet);

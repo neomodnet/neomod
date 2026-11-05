@@ -1757,6 +1757,9 @@ void Osu::updateWindowsKeyDisable() {
 }
 
 void Osu::onWindowedResolutionChanged(std::string_view args) {
+    // discord decides the size of the iframe, a saved one would only make the canvas not fit it
+    if(Osu::isDiscordActivity()) return;
+
     // ignore if we're still loading or not in fullscreen
     this->last_res_change_req_src |= R_CV_WINDOWED_RESOLUTION;
 

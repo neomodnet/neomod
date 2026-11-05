@@ -38,44 +38,40 @@ inline constexpr char32_t STEP_BACKWARD{0xf048};
 inline constexpr char32_t STEP_FORWARD{0xf051};
 inline constexpr char32_t MUSIC{0xf001};
 inline constexpr char32_t THUMB_TACK{0xf08d};
-inline constexpr char32_t MICROPHONE_SLASH{0xf131};
-inline constexpr char32_t DEAF{0xf2a4};
 
 inline constexpr const std::array icons{
-    Z_UNKNOWN_CHAR,    //
-    Z_SPACE,           //
-    GEAR,              //
-    DESKTOP,           //
-    CIRCLE,            //
-    CUBE,              //
-    VOLUME_UP,         //
-    VOLUME_DOWN,       //
-    VOLUME_OFF,        //
-    MICROPHONE_SLASH,  //
-    DEAF,              //
-    PAINTBRUSH,        //
-    GAMEPAD,           //
-    WRENCH,            //
-    EYE,               //
-    ARROW_CIRCLE_UP,   //
-    TROPHY,            //
-    CARET_DOWN,        //
-    ARROW_DOWN,        //
-    GLOBE,             //
-    USER,              //
-    UNDO,              //
-    KEYBOARD,          //
-    LOCK,              //
-    UNLOCK,            //
-    DISCORD,           //
-    TWITTER,           //
-    PLAY,              //
-    PAUSE,             //
-    STOP,              //
-    STEP_BACKWARD,     //
-    STEP_FORWARD,      //
-    MUSIC,             //
-    THUMB_TACK,        //
+    Z_UNKNOWN_CHAR,   //
+    Z_SPACE,          //
+    GEAR,             //
+    DESKTOP,          //
+    CIRCLE,           //
+    CUBE,             //
+    VOLUME_UP,        //
+    VOLUME_DOWN,      //
+    VOLUME_OFF,       //
+    PAINTBRUSH,       //
+    GAMEPAD,          //
+    WRENCH,           //
+    EYE,              //
+    ARROW_CIRCLE_UP,  //
+    TROPHY,           //
+    CARET_DOWN,       //
+    ARROW_DOWN,       //
+    GLOBE,            //
+    USER,             //
+    UNDO,             //
+    KEYBOARD,         //
+    LOCK,             //
+    UNLOCK,           //
+    DISCORD,          //
+    TWITTER,          //
+    PLAY,             //
+    PAUSE,            //
+    STOP,             //
+    STEP_BACKWARD,    //
+    STEP_FORWARD,     //
+    MUSIC,            //
+    THUMB_TACK,       //
 };
 
 };  // namespace Icons

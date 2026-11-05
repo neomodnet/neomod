@@ -24,13 +24,6 @@
 extern "C" EMSCRIPTEN_KEEPALIVE void neomod_set_player_speaking(i32 user_id, bool speaking) {
     BANCHO::User::get_user_info(user_id)->speaking = speaking;
 }
-
-// same, when a player mutes or deafens themselves
-extern "C" EMSCRIPTEN_KEEPALIVE void neomod_set_player_voice_state(i32 user_id, bool muted, bool deafened) {
-    auto* user = BANCHO::User::get_user_info(user_id);
-    user->voice_muted = muted;
-    user->voice_deafened = deafened;
-}
 #endif
 
 namespace BANCHO::User {
