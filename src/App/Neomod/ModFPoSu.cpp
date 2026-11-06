@@ -22,6 +22,7 @@
 #include "Logging.h"
 #include "MakeDelegateWrapper.h"
 #include "Graphics.h"
+#include "Image.h"
 
 #include "UniString.h"
 #include "VertexArrayObject.h"
@@ -197,38 +198,43 @@ void ModFPoSu::draw() {
                     g->drawVAO(&lineVAO);
                 }
 
-                // skybox/cube
+                // skybox/cube (both loaded on demand, nothing is drawn until they're ready)
+                const Skin *skin = osu->getSkin();
                 if(cv::fposu_skybox.getBool() &&
                    (m_impl->skyboxModel ||  // lazy load 3d model
                     (m_impl->skyboxModel = std::make_unique<ModFPoSu3DModel>(skyboxObj, nullptr, true)))) {
-                    g->pushTransform();
-                    {
-                        Matrix4 modelMatrix;
+                    if(const BasicSkinImage &skybox = skin->request(skin->i_skybox); skybox->isGPUReady()) {
+                        g->pushTransform();
                         {
-                            Matrix4 scale;
-                            scale.scale(cv::fposu_3d_skybox_size.getFloat());
+                            Matrix4 modelMatrix;
+                            {
+                                Matrix4 scale;
+                                scale.scale(cv::fposu_3d_skybox_size.getFloat());
 
-                            modelMatrix = scale;
-                        }
-                        g->setWorldMatrixMul(modelMatrix);
+                                modelMatrix = scale;
+                            }
+                            g->setWorldMatrixMul(modelMatrix);
 
-                        g->setColor(0xffffffff);
-                        osu->getSkin()->i_skybox.bind();
-                        {
-                            m_impl->skyboxModel->draw3D();
+                            g->setColor(0xffffffff);
+                            skybox.bind();
+                            {
+                                m_impl->skyboxModel->draw3D();
+                            }
+                            skybox.unbind();
                         }
-                        osu->getSkin()->i_skybox.unbind();
+                        g->popTransform();
                     }
-                    g->popTransform();
                 } else if(cv::fposu_cube.getBool()) {
-                    osu->getSkin()->i_background_cube.bind();
-                    {
-                        g->setColor(rgb(std::clamp<int>(cv::fposu_cube_tint_r.getInt(), 0, 255),
-                                        std::clamp<int>(cv::fposu_cube_tint_g.getInt(), 0, 255),
-                                        std::clamp<int>(cv::fposu_cube_tint_b.getInt(), 0, 255)));
-                        g->drawVAO(m_impl->vaoCube);
+                    if(const BasicSkinImage &cube = skin->request(skin->i_background_cube); cube->isGPUReady()) {
+                        cube.bind();
+                        {
+                            g->setColor(rgb(std::clamp<int>(cv::fposu_cube_tint_r.getInt(), 0, 255),
+                                            std::clamp<int>(cv::fposu_cube_tint_g.getInt(), 0, 255),
+                                            std::clamp<int>(cv::fposu_cube_tint_b.getInt(), 0, 255)));
+                            g->drawVAO(m_impl->vaoCube);
+                        }
+                        cube.unbind();
                     }
-                    osu->getSkin()->i_background_cube.unbind();
                 }
             }
             g->setDepthBuffer(false);

@@ -78,9 +78,10 @@ struct Skin final {
 
     void createSkinImage(SkinImage &ref, const std::string &skinElementName, vec2 baseSizeForScaling2x, f32 osuSize,
                          bool ignoreDefaultSkin = false, const std::string &animationSeparator = "-");
+    // (onDemand: only find the file, request() loads it)
     void loadUnsizedImage(BasicSkinImage &ref, const std::string &skinElementName, const std::string &resourceName,
                           bool ignoreDefaultSkin = false, const std::string &fileExtension = "png",
-                          bool forceLoadMipmaps = false, const std::string &overrideDir = {});
+                          bool forceLoadMipmaps = false, const std::string &overrideDir = {}, bool onDemand = false);
 
     enum LoadSoundFlags : u8 {
         OVERLAYABLE = (1 << 0),
@@ -96,6 +97,15 @@ struct Skin final {
 
     struct BeatmapOverride;
     std::unique_ptr<BeatmapOverride> beatmap_override;
+
+    // where the elements loaded on demand come from
+    struct OnDemandImage {
+        BasicSkinImage *element;
+        std::string path;
+        std::string resourceName;
+        bool mipmaps;
+    };
+    std::vector<OnDemandImage> on_demand_images;
 
    public:
     // the audio formats a sound element can come in, in the order they're looked for
@@ -139,6 +149,10 @@ struct Skin final {
         getModImagesForMods(ret, mods);
         return ret;
     }
+
+    // large elements only some modes draw (FPoSu's skybox and cube) are found when the skin loads, but only read from
+    // disk the first time they're requested: draw what request() returns, and skip it while it isn't GPU-ready
+    [[nodiscard]] const BasicSkinImage &request(const BasicSkinImage &element) const;
 
     [[nodiscard]] const BasicSkinImage &getGradeImageLarge(ScoreGrade grade) const;
     [[nodiscard]] const SkinImage &getGradeImageSmall(ScoreGrade grade) const;
@@ -241,9 +255,9 @@ struct Skin final {
     BasicSkinImage i_circle_full{};
     BasicSkinImage i_seek_triangle{};
     BasicSkinImage i_user_icon{};
-    BasicSkinImage i_background_cube{};
+    mutable BasicSkinImage i_background_cube{};  // (on demand)
     BasicSkinImage i_menu_bg{};
-    BasicSkinImage i_skybox{};
+    mutable BasicSkinImage i_skybox{};  // (on demand)
 
     mutable SkinImage i_hitcircleoverlay{};
     mutable SkinImage i_followpoint{};

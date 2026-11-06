@@ -78,14 +78,18 @@ void Skin::destroy(bool everything) {
 
     const auto destroyFlags = everything ? ResourceDestroyFlags::RDF_FORCE_BLOCKING : ResourceDestroyFlags::RDF_DEFAULT;
 
-    for(auto &bimg : this->basic_images) {
+    const auto destroyImage = [destroyFlags](const BasicSkinImage &bimg) {
         // don't destroy named/cached default skin images (because we might have multiple copies of them)
         // we still add it to the basic_images vector so that we can check if it's finished loading
-        if(bimg->img && bimg->img != MISSING_TEXTURE && !bimg->isFromDefault()) {
-            resourceManager->destroyResource(bimg->img, destroyFlags);
+        if(bimg.img && bimg.img != MISSING_TEXTURE && !bimg.isFromDefault()) {
+            resourceManager->destroyResource(bimg.img, destroyFlags);
         }
-    }
+    };
+    for(const auto *bimg : this->basic_images) destroyImage(*bimg);
     this->basic_images.clear();
+    // (request() doesn't add what it loads to basic_images)
+    for(const auto &onDemand : this->on_demand_images) destroyImage(*onDemand.element);
+    this->on_demand_images.clear();
 
     for(auto &simg : this->skin_images) {
         simg->destroy(everything);
@@ -622,11 +626,12 @@ void Skin::loadElements() {
     this->loadUnsizedImage(this->i_user_icon, "user-icon", "SK_I_USER_ICON");
     this->randomizeFilePath();
     this->loadUnsizedImage(this->i_background_cube, "backgroundcube", "SK_I_FPOSU_BACKGROUNDCUBE", false, "png",
-                           true);  // force mipmaps
+                           true /*force mipmaps*/, {}, true /*on demand*/);
     this->randomizeFilePath();
     this->loadUnsizedImage(this->i_menu_bg, "menu-background", "SK_I_MENU_BACKGROUND", false, "jpg");
     this->randomizeFilePath();
-    this->loadUnsizedImage(this->i_skybox, "skybox", "SK_I_FPOSU_3D_SKYBOX");
+    this->loadUnsizedImage(this->i_skybox, "skybox", "SK_I_FPOSU_3D_SKYBOX", false, "png", false, {},
+                           true /*on demand*/);
 
     // slider ticks
     this->loadSound(this->s_normal_slidertick, "normal-slidertick", "SK_S_NORMALSLIDERTICK",  //
@@ -1205,7 +1210,7 @@ void Skin::createSkinImage(SkinImage &ref, const std::string &skinElementName, v
 
 void Skin::loadUnsizedImage(BasicSkinImage &ref, const std::string &skinElementName, const std::string &resourceName,
                             bool ignoreDefaultSkin, const std::string &fileExtension, bool forceLoadMipmaps,
-                            const std::string &overrideDir) {
+                            const std::string &overrideDir, bool onDemand) {
     const bool use_mipmaps = cv::skin_mipmaps.getBool() || forceLoadMipmaps;
 
     // map overrides never load @2x images
@@ -1223,7 +1228,6 @@ void Skin::loadUnsizedImage(BasicSkinImage &ref, const std::string &skinElementN
     }
 
     assert(ref == MISSING_TEXTURE);
-    bool loaded = false;
 
     const size_t n_dirs = overrideDir.empty() ? (ignoreDefaultSkin ? 1 : this->search_dirs.size()) : 1;
 
@@ -1276,30 +1280,39 @@ void Skin::loadUnsizedImage(BasicSkinImage &ref, const std::string &skinElementN
             res_name.append("_DEFAULT");
         }
 
-        if(load_hd && exists_2x) {
-            if(load_async) resourceManager->requestNextLoadAsync();
-            ref.img = resourceManager->loadImageAbs(path_2x, res_name, use_mipmaps);
-            ref.scale_mul = 2;
-            loaded = true;
-        } else if(exists_1x) {
-            if(load_async) resourceManager->requestNextLoadAsync();
-            ref.img = resourceManager->loadImageAbs(path_1x, res_name, use_mipmaps);
-            ref.scale_mul = 1;
-            loaded = true;
+        // (a dir with only the @2x one doesn't count without skin_hd)
+        const bool use_2x = load_hd && exists_2x;
+        if(!use_2x && !exists_1x) continue;
+
+        ref.scale_mul = use_2x ? 2 : 1;
+        ref.is_default = is_cached_default;
+        std::string &path = use_2x ? path_2x : path_1x;
+
+        if(onDemand) {
+            this->on_demand_images.push_back(OnDemandImage{
+                .element = &ref, .path = std::move(path), .resourceName = std::move(res_name), .mipmaps = use_mipmaps});
+            return;
         }
 
-        if(loaded) {
-            ref.is_default = is_cached_default;
-
-            break;
-        }
+        if(load_async) resourceManager->requestNextLoadAsync();
+        ref.img = resourceManager->loadImageAbs(std::move(path), res_name, use_mipmaps);
+        break;
     }
 
-    if(loaded && ref.img != MISSING_TEXTURE) {
+    if(ref.img != MISSING_TEXTURE) {
         this->basic_images.push_back(&ref);
     }
+}
 
-    return;
+const BasicSkinImage &Skin::request(const BasicSkinImage &element) const {
+    if(element.img != MISSING_TEXTURE) return element;
+
+    const auto it = Mc::ranges::find(this->on_demand_images, &element, &OnDemandImage::element);
+    if(it == this->on_demand_images.end()) return element;
+
+    if(cv::skin_async.getBool()) resourceManager->requestNextLoadAsync();
+    it->element->img = resourceManager->loadImageAbs(it->path, it->resourceName, it->mipmaps);
+    return element;
 }
 
 void Skin::loadSound(Sound *&ref, const std::string &skinElementName, const std::string &resourceName, u8 flags) {
