@@ -1,5 +1,7 @@
 #pragma once
 // Copyright (c) 2015, PG, All rights reserved.
+#include "BaseEnvironment.h"
+
 #include "App.h"
 #include "Registration.h"
 #include "MouseListener.h"
@@ -171,7 +173,12 @@ class Osu final : public App, public MouseListener, public TouchListener {
     [[nodiscard]] inline RenderTarget *getBackBuffer() const { return this->backBuffer; }
     [[nodiscard]] inline RenderTarget *getPlayfieldBuffer() const { return this->playfieldBuffer; }
     [[nodiscard]] inline RenderTarget *getSliderFrameBuffer() const { return this->sliderFrameBuffer; }
-    [[nodiscard]] inline RenderTarget *getAAFrameBuffer() const { return this->AAFrameBuffer; }
+    [[nodiscard]] inline RenderTarget *getMainMenuFramebuffer() const {
+        if constexpr(Env::cfg(OS::WASM))
+            return this->sliderFrameBuffer;
+        else
+            return this->AAFrameBuffer;
+    }
     [[nodiscard]] inline RenderTarget *getFrameBuffer() const { return this->frameBuffer; }
     [[nodiscard]] inline RenderTarget *getFrameBuffer2() const { return this->frameBuffer2; }
     [[nodiscard]] inline McFont *getTitleFont() const { return this->titleFont; }
@@ -315,7 +322,7 @@ class Osu final : public App, public MouseListener, public TouchListener {
     RenderTarget *backBuffer{nullptr};
     RenderTarget *playfieldBuffer{nullptr};
     RenderTarget *sliderFrameBuffer{nullptr};
-    RenderTarget *AAFrameBuffer{nullptr};
+    RenderTarget *AAFrameBuffer{nullptr};  // not created on WASM to save memory
     RenderTarget *frameBuffer{nullptr};
     RenderTarget *frameBuffer2{nullptr};
 

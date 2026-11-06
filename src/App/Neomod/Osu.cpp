@@ -215,8 +215,9 @@ Osu::Osu()
     this->playfieldBuffer = resourceManager->createRenderTarget(0, 0, 64, 64);
     this->sliderFrameBuffer =
         resourceManager->createRenderTarget(0, 0, this->getVirtScreenWidth(), this->getVirtScreenHeight());
-    this->AAFrameBuffer = resourceManager->createRenderTarget(0, 0, this->getVirtScreenWidth(),
-                                                              this->getVirtScreenHeight(), MultisampleType::X4);
+    if constexpr(!Env::cfg(OS::WASM))
+        this->AAFrameBuffer = resourceManager->createRenderTarget(0, 0, this->getVirtScreenWidth(),
+                                                                  this->getVirtScreenHeight(), MultisampleType::X4);
     this->frameBuffer = resourceManager->createRenderTarget(0, 0, 64, 64);
     this->frameBuffer2 = resourceManager->createRenderTarget(0, 0, 64, 64);
 
@@ -510,8 +511,10 @@ Osu::~Osu() {
     this->playfieldBuffer = nullptr;
     resourceManager->destroyResource(this->sliderFrameBuffer, ResourceDestroyFlags::RDF_FORCE_BLOCKING);
     this->sliderFrameBuffer = nullptr;
-    resourceManager->destroyResource(this->AAFrameBuffer, ResourceDestroyFlags::RDF_FORCE_BLOCKING);
-    this->AAFrameBuffer = nullptr;
+    if constexpr(!Env::cfg(OS::WASM)) {
+        resourceManager->destroyResource(this->AAFrameBuffer, ResourceDestroyFlags::RDF_FORCE_BLOCKING);
+        this->AAFrameBuffer = nullptr;
+    }
     resourceManager->destroyResource(this->frameBuffer, ResourceDestroyFlags::RDF_FORCE_BLOCKING);
     this->frameBuffer = nullptr;
     resourceManager->destroyResource(this->frameBuffer2, ResourceDestroyFlags::RDF_FORCE_BLOCKING);
@@ -1681,7 +1684,8 @@ void Osu::rebuildRenderTargets() {
     this->sliderFrameBuffer->rebuild(0, 0, this->internalRect.getWidth(), this->internalRect.getHeight(),
                                      MultisampleType::X0);
 
-    this->AAFrameBuffer->rebuild(0, 0, this->internalRect.getWidth(), this->internalRect.getHeight());
+    if constexpr(!Env::cfg(OS::WASM))
+        this->AAFrameBuffer->rebuild(0, 0, this->internalRect.getWidth(), this->internalRect.getHeight());
 
     if(cv::mod_mafham.getBool()) {
         this->frameBuffer->rebuild(0, 0, this->internalRect.getWidth(), this->internalRect.getHeight());

@@ -745,7 +745,7 @@ void MainMenu::drawMainButton() {
     float inset = 0.0f;
     if(drawing_full_cube) {
         inset = (1.0f - 0.5f * this->friendAnimPercent);
-        osu->getAAFrameBuffer()->enable();
+        osu->getMainMenuFramebuffer()->enable();
 
         g->setBlendMode(DrawBlendMode::PREMUL_ALPHA);
 
@@ -912,8 +912,8 @@ void MainMenu::drawMainButton() {
 
         g->setBlendMode(DrawBlendMode::ALPHA);
 
-        osu->getAAFrameBuffer()->disable();
-        osu->getAAFrameBuffer()->draw(0, 0);
+        osu->getMainMenuFramebuffer()->disable();
+        osu->getMainMenuFramebuffer()->draw(0, 0);
     }
 }
 
