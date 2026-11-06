@@ -26,13 +26,16 @@ class TextureAtlas final : public Resource {
 
     void reloadAtlasImage();
 
+    // replaces the atlas image with a blank one of the new size; the caller draws back whatever it should keep
+    void resize(int width, int height);
+
     // place RGBA pixels at specific coordinates (for use after packing)
     void putAt(int x, int y, int width, int height, const u8 *rgbaPixels);
     // set image region to black
     void clearRegion(int x, int y, int width, int height);
 
-    // advanced skyline packing for efficient atlas utilization
-    bool packRects(std::vector<PackRect> &rects);
+    // advanced skyline packing for efficient atlas utilization, into a width x height area
+    static bool packRects(std::vector<PackRect> &rects, int width, int height);
 
     // calculate optimal atlas size for given rectangles
     static size_t calculateOptimalSize(const std::vector<PackRect> &rects, float targetOccupancy = 0.75f,
@@ -53,6 +56,8 @@ class TextureAtlas final : public Resource {
     void init() override;
     void initAsync() override;
     void destroy() override;
+
+    void createAtlasImage(int width, int height);
 
     std::unique_ptr<Image> atlasImage;
 

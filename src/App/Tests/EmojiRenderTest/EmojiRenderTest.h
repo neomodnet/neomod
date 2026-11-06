@@ -27,7 +27,10 @@ class EmojiRenderTest : public App {
     McFont *m_font16{nullptr};
     McFont *m_font24{nullptr};
     McFont *m_font32{nullptr};
+    McFont *m_font96{nullptr};
     bool m_showAtlas{false};
+    bool m_stress{false};
+    u32 m_stressOffset{0};
 };
 
 }  // namespace Mc::Tests

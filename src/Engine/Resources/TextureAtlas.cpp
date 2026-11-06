@@ -11,27 +11,24 @@
 #include "Graphics.h"
 
 TextureAtlas::TextureAtlas(int width, int height, bool filtering) : Resource(TEXTUREATLAS) {
-    this->iWidth = width;
-    this->iHeight = height;
     this->bFiltered = filtering;
-
-    resourceManager->requestNextLoadUnmanaged();
-    this->atlasImage.reset(resourceManager->createImage(this->iWidth, this->iHeight, false,
-                                                        true /* keep in system memory, for faster reloads */));
+    this->createAtlasImage(width, height);
 }
 
 TextureAtlas::~TextureAtlas() { this->destroy(); }
 
+void TextureAtlas::createAtlasImage(int width, int height) {
+    this->iWidth = width;
+    this->iHeight = height;
+
+    resourceManager->requestNextLoadUnmanaged();
+    this->atlasImage.reset(resourceManager->createImage(this->iWidth, this->iHeight, false,
+                                                        true /* keep in system memory, for faster reloads */));
+    this->atlasImage->setFilterMode(this->bFiltered ? TextureFilterMode::LINEAR : TextureFilterMode::NONE);
+}
+
 void TextureAtlas::init() {
     resourceManager->loadResource(this->atlasImage.get());
-
-    if(!this->bFiltered) {
-        this->atlasImage->setFilterMode(TextureFilterMode::NONE);
-    } else {
-        // sanity (this is default)
-        this->atlasImage->setFilterMode(TextureFilterMode::LINEAR);
-    }
-
     this->setReady(true);
 }
 
@@ -44,6 +41,12 @@ void TextureAtlas::reloadAtlasImage() {
 
     // reload synchronously, don't bother going through resourceManager
     this->atlasImage->reload();
+}
+
+void TextureAtlas::resize(int width, int height) {
+    // draws recorded earlier in the frame may still reference the old image, get them to the renderer first
+    g->flush();
+    this->createAtlasImage(width, height);
 }
 
 void TextureAtlas::putAt(int x, int y, int width, int height, const u8 *rgbaPixels) {
@@ -66,21 +69,21 @@ void TextureAtlas::clearRegion(int x, int y, int width, int height) {
     this->atlasImage->clearRegion(x, y, width, height);
 }
 
-bool TextureAtlas::packRects(std::vector<PackRect> &rects) {
+bool TextureAtlas::packRects(std::vector<PackRect> &rects, int width, int height) {
     if(rects.empty()) return true;
 
     // sort rectangles by height (tallest first) for better packing efficiency
     Mc::ranges::sort(rects, [](const PackRect &a, const PackRect &b) { return a.height > b.height; });
 
     // initialize skyline - start with single segment covering width minus right edge padding
-    const int packableWidth = this->iWidth - ATLAS_PADDING;
+    const int packableWidth = width - ATLAS_PADDING;
     std::vector<Skyline> skylines = {{.x = 0, .y = ATLAS_PADDING, .width = packableWidth}};
 
     for(auto &rect : rects) {
         const int rectWidth = rect.width + ATLAS_PADDING;
         const int rectHeight = rect.height + ATLAS_PADDING;
 
-        int bestHeight = this->iHeight;
+        int bestHeight = height;
         int bestIndex = -1;
         int bestX = packableWidth;  // initialize to rightmost position for leftmost preference
 
@@ -106,9 +109,9 @@ bool TextureAtlas::packRects(std::vector<PackRect> &rects) {
             }
         }
 
-        if(bestIndex == -1 || bestHeight > this->iHeight) {
+        if(bestIndex == -1 || bestHeight > height) {
             debugLog("ERROR: Packing failed for rect id={}: bestIndex={}, bestHeight={}, atlasHeight={}", rect.id,
-                     bestIndex, bestHeight, this->iHeight);
+                     bestIndex, bestHeight, height);
             return false;
         }
 
