@@ -22,8 +22,11 @@
 #include <turbojpeg.h>
 #endif
 
+#include <algorithm>
+#include <cassert>
 #include <csetjmp>
 #include <cstddef>
+#include <cstdlib>
 #include <cstring>
 #include <utility>
 
@@ -397,13 +400,6 @@ Image::Image(i32 width, i32 height, bool mipmapped, bool keepInSystemMemory) : R
 
     this->bCreatedImage = true;
 
-    // allocate dirty grid for texture atlas reuploads
-    if(keepInSystemMemory) {
-        this->dirtyGridW = (this->iWidth + DIRTY_TILE_SIZE - 1) >> DIRTY_TILE_SHIFT;
-        this->dirtyGridH = (this->iHeight + DIRTY_TILE_SIZE - 1) >> DIRTY_TILE_SHIFT;
-        this->dirtyGrid.resize(static_cast<size_t>(this->dirtyGridW) * this->dirtyGridH, 0);
-    }
-
     // reserve rawImage
     if(cv::debug_image.getBool()) {
         // don't calloc() if we're filling with pink anyways
@@ -425,6 +421,81 @@ Image::Image(i32 width, i32 height, bool mipmapped, bool keepInSystemMemory) : R
 }
 
 ivec2 Image::getSize() const { return ivec2{this->iWidth, this->iHeight}; }
+
+bool Image::SizedRGBABytes::resize(i32 newWidth, i32 newHeight) noexcept {
+    assert(newWidth > 0 && newHeight > 0);
+    const u64 oldStride = static_cast<u64>(this->width) * Image::NUM_CHANNELS;
+    const u64 newStride = static_cast<u64>(newWidth) * Image::NUM_CHANNELS;
+    const u64 oldBytes = this->getNumBytes();
+    const u64 newBytes = newStride * newHeight;
+    const i32 keptRows = std::min(this->height, newHeight);
+
+    // in place, in the order that never overwrites a row that hasn't moved yet
+    const auto moveRows = [&](u8 *data) {
+        if(newStride < oldStride) {
+            for(i32 row = 1; row < keptRows; row++) {
+                std::memmove(data + row * newStride, data + row * oldStride, newStride);
+            }
+        } else if(newStride > oldStride) {
+            for(i32 row = keptRows - 1; row > 0; row--) {
+                std::memmove(data + row * newStride, data + row * oldStride, oldStride);
+            }
+        }
+    };
+
+    // a shrinking buffer would cut off rows that haven't moved yet, a growing one only has room for them afterwards
+    if(newBytes < oldBytes) moveRows(this->get());
+    if(newBytes != oldBytes) {
+        if(auto *data = static_cast<u8 *>(realloc(this->get(), newBytes))) {
+            (void)this->release();
+            this->reset(data);
+        } else if(newBytes > oldBytes) {  // a failed shrink just keeps the larger buffer
+            return false;
+        }
+    }
+    if(newBytes >= oldBytes) moveRows(this->get());
+
+    u8 *data = this->get();
+    if(newStride > oldStride) {
+        for(i32 row = 0; row < keptRows; row++) {
+            std::memset(data + row * newStride + oldStride, 0, newStride - oldStride);
+        }
+    }
+    std::memset(data + keptRows * newStride, 0, newBytes - keptRows * newStride);
+
+    this->width = newWidth;
+    this->height = newHeight;
+    return true;
+}
+
+bool Image::resize(i32 w, i32 h) {
+    assert(w > 0 && h > 0 && w <= 16384 && h <= 16384);
+    if(w == this->iWidth && h == this->iHeight) return true;
+
+    // entirely transparent loaded images have no pixels to move, setRegion() allocates them at the new size
+    if(this->rawImage.get() && !this->rawImage.resize(w, h)) {
+        debugLog("Image Error: Couldn't resize {} from {}x{} to {}x{}", this->getDebugIdentifier(), this->iWidth,
+                 this->iHeight, w, h);
+        return false;
+    }
+    this->iWidth = w;
+    this->iHeight = h;
+
+    this->bDirtyFull = true;
+    this->bResized = true;
+    return true;
+}
+
+void Image::resetDirtyRegion() {
+    this->bDirtyFull = false;
+    this->bResized = false;
+    if(!this->bKeepInSystemMemory) return;
+
+    // sized here so that it always matches what was uploaded
+    this->dirtyGridW = (this->iWidth + DIRTY_TILE_SIZE - 1) >> DIRTY_TILE_SHIFT;
+    this->dirtyGridH = (this->iHeight + DIRTY_TILE_SIZE - 1) >> DIRTY_TILE_SHIFT;
+    this->dirtyGrid.assign(static_cast<size_t>(this->dirtyGridW) * this->dirtyGridH, 0);
+}
 
 std::vector<McIRect> Image::getDirtyRects() {
     if(this->bDirtyFull || this->dirtyGrid.empty()) return {{0, 0, this->iWidth, this->iHeight}};
@@ -718,26 +789,6 @@ void Image::clearRegion(i32 x, i32 y, i32 w, i32 h) {
             std::memset(&this->dirtyGrid[ty * this->dirtyGridW + tx0], 1, tx1 - tx0 + 1);
         }
     }
-}
-
-void Image::setImageData(i32 w, i32 h, const u8 *rgbaPixels) {
-    assert(!!rgbaPixels);
-    assert(w >= 0 && h >= 0);
-    if(w == this->iWidth && h == this->iHeight) {
-        return setRegion(0, 0, w, h, rgbaPixels);
-    }
-    assert(w <= 16384 && h <= 16384);
-
-    this->rawImage = SizedRGBABytes{w, h};
-
-    std::memcpy(this->rawImage.get(), rgbaPixels, this->totalBytes());
-    if(!this->bCreatedImage) {
-        // recompute alpha channel visibility here (TODO: remove if slow)
-        this->bLoadedImageEntirelyTransparent = isRawImageCompletelyTransparent();
-    }
-
-    this->bDirtyFull = true;
-    if(!this->dirtyGrid.empty()) std::memset(this->dirtyGrid.data(), 0, this->dirtyGrid.size());
 }
 
 // internal

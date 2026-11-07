@@ -64,9 +64,10 @@ class Image : public Resource {
 
     // these functions will require a reload() to upload to GPU
     void setPixel(i32 x, i32 y, Color color);
-    void setImageData(i32 w, i32 h, const u8 *rgbaPixels);
     void setRegion(i32 x, i32 y, i32 w, i32 h, const u8 *rgbaPixels);
     void clearRegion(i32 x, i32 y, i32 w, i32 h);
+    // grows or crops to w x h, keeping pixels at their coordinates (new ones are transparent); false if out of memory
+    bool resize(i32 w, i32 h);
 
     [[nodiscard]] inline bool failedLoad() const { return this->bLoadError.load(std::memory_order_acquire); }
     [[nodiscard]] Color getPixel(i32 x, i32 y) const;
@@ -145,6 +146,10 @@ class Image : public Resource {
         [[nodiscard]] constexpr forceinline i32 getX() const { return this->width; }
         [[nodiscard]] constexpr forceinline i32 getY() const { return this->height; }
 
+        // grows or crops, keeping pixels at their coordinates and zeroing new ones;
+        // false (with the data untouched) if the allocation failed
+        bool resize(i32 newWidth, i32 newHeight) noexcept;
+
         void clear() {
             this->reset();
             this->width = 0;
@@ -172,16 +177,17 @@ class Image : public Resource {
     [[nodiscard]] std::vector<McIRect> getDirtyRects();
 
     // reset after uploading to gpu
-    void resetDirtyRegion() {
-        this->bDirtyFull = false;
-        if(!this->dirtyGrid.empty()) std::memset(this->dirtyGrid.data(), 0, this->dirtyGrid.size());
-    }
+    void resetDirtyRegion();
+
+    // whether resize() changed the size since the last upload, so the gpu texture has to be recreated
+    [[nodiscard]] inline bool wasResized() const { return this->bResized; }
 
    private:
     std::vector<u8> dirtyGrid;
     i32 dirtyGridW{0};
     i32 dirtyGridH{0};
     bool bDirtyFull{true};  // first upload is always full
+    bool bResized{false};
 
    protected:
     TextureWrapMode wrapMode;

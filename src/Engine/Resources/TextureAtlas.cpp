@@ -11,21 +11,16 @@
 #include "Graphics.h"
 
 TextureAtlas::TextureAtlas(int width, int height, bool filtering) : Resource(TEXTUREATLAS) {
-    this->bFiltered = filtering;
-    this->createAtlasImage(width, height);
-}
-
-TextureAtlas::~TextureAtlas() { this->destroy(); }
-
-void TextureAtlas::createAtlasImage(int width, int height) {
     this->iWidth = width;
     this->iHeight = height;
 
     resourceManager->requestNextLoadUnmanaged();
     this->atlasImage.reset(resourceManager->createImage(this->iWidth, this->iHeight, false,
                                                         true /* keep in system memory, for faster reloads */));
-    this->atlasImage->setFilterMode(this->bFiltered ? TextureFilterMode::LINEAR : TextureFilterMode::NONE);
+    this->atlasImage->setFilterMode(filtering ? TextureFilterMode::LINEAR : TextureFilterMode::NONE);
 }
+
+TextureAtlas::~TextureAtlas() { this->destroy(); }
 
 void TextureAtlas::init() {
     resourceManager->loadResource(this->atlasImage.get());
@@ -43,10 +38,17 @@ void TextureAtlas::reloadAtlasImage() {
     this->atlasImage->reload();
 }
 
-void TextureAtlas::resize(int width, int height) {
-    // draws recorded earlier in the frame may still reference the old image, get them to the renderer first
+bool TextureAtlas::resize(int width, int height) {
+    if(this->atlasImage == nullptr) return false;
+
+    // draws recorded earlier in the frame are made for the old size, get them to the renderer before a reload resizes
+    // the texture
     g->flush();
-    this->createAtlasImage(width, height);
+    if(!this->atlasImage->resize(width, height)) return false;
+
+    this->iWidth = width;
+    this->iHeight = height;
+    return true;
 }
 
 void TextureAtlas::putAt(int x, int y, int width, int height, const u8 *rgbaPixels) {

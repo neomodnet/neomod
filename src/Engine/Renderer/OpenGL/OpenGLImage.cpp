@@ -69,14 +69,14 @@ void OpenGLImage::init() {
 
     // upload to gpu
     {
-        if(glTextureWasEmpty) {
-            // first upload: must use glTexImage2D to allocate texture storage
+        // rebind
+        if(!glTextureWasEmpty) glBindTexture(GL_TEXTURE_2D, this->GLTexture);
+
+        if(glTextureWasEmpty || this->wasResized()) {
+            // first upload or new size: must use glTexImage2D to (re)allocate texture storage
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, this->rawImage.getX(), this->rawImage.getY(), 0, GL_RGBA,
                          GL_UNSIGNED_BYTE, this->rawImage.get());
         } else {
-            // rebind
-            glBindTexture(GL_TEXTURE_2D, this->GLTexture);
-
             // reupload: use glTexSubImage2D with dirty rects to avoid full reupload
             auto dirtyRects = this->getDirtyRects();
             const bool fullImage = dirtyRects.size() == 1 && dirtyRects[0].getWidth() == this->iWidth &&

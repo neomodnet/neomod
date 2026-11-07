@@ -26,8 +26,8 @@ class TextureAtlas final : public Resource {
 
     void reloadAtlasImage();
 
-    // replaces the atlas image with a blank one of the new size; the caller draws back whatever it should keep
-    void resize(int width, int height);
+    // grows or crops the atlas image, keeping its contents where they are; false if out of memory
+    [[nodiscard]] bool resize(int width, int height);
 
     // place RGBA pixels at specific coordinates (for use after packing)
     void putAt(int x, int y, int width, int height, const u8 *rgbaPixels);
@@ -57,14 +57,10 @@ class TextureAtlas final : public Resource {
     void initAsync() override;
     void destroy() override;
 
-    void createAtlasImage(int width, int height);
-
     std::unique_ptr<Image> atlasImage;
 
     int iWidth;
     int iHeight;
-
-    bool bFiltered;
 };
 
 #endif

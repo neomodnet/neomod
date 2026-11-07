@@ -124,6 +124,9 @@ void SDLGPUImage::initAsync() {
     const u32 mipLevels =
         this->bMipmapped ? (u32)std::max(2, (int)std::floor(std::log2(maxDim)) - 4) : 1;  // must be > 1 if mipmapped
 
+    // textures have a fixed size, a resized image needs a new one
+    if(this->wasResized()) m_gpu->releaseTexture(m_texture);
+
     // create texture (or re-upload to existing)
     if(m_texture == nullptr) {
         SDL_GPUTextureCreateInfo texInfo{};

@@ -286,7 +286,7 @@ struct McFontImpl final {
     // adds the slots for the part of the dynamic region the atlas didn't cover at its old size
     void addDynamicSlots(int oldWidth, int oldHeight);
 
-    // doubles the atlas height (then width) and draws the glyphs it had back in; false if it's at its maximum size
+    // doubles the atlas height (then width); false if it's at its maximum size or out of memory
     bool growAtlas();
 
     // consolidated glyph processing methods
@@ -305,9 +305,6 @@ struct McFontImpl final {
     // renders bitmap to atlas at specified position. updates UV coords and sets inAtlas.
     // handles grayscale->white+alpha, BGRA->RGBA conversion, and color bitmap downscaling.
     void renderBitmapToAtlas(char32_t ch, int x, int y, const FT_Bitmap &bitmap, bool isDynamicSlot);
-
-    // renderBitmapToAtlas() for a glyph whose metrics are already loaded
-    void renderGlyphToAtlas(char32_t ch, int x, int y, bool isDynamicSlot);
 
     // for initial glyphs, packed
     bool initializeAtlas();
@@ -965,23 +962,7 @@ bool McFontImpl::growAtlas() {
     const int height = m_textureAtlas->getHeight();
     const int newHeight = std::min(height * 2, static_cast<int>(MAX_ATLAS_SIZE));
     const int newWidth = newHeight > height ? width : std::min(width * 2, static_cast<int>(MAX_ATLAS_SIZE));
-    if(newWidth == width && newHeight == height) return false;
-
-    m_textureAtlas->resize(newWidth, newHeight);
-
-    // the new image is blank, put the glyphs back where their metrics say they are
-    for(char32_t ch : m_vInitialGlyphs) {
-        if(const auto &it = m_mGlyphMetrics.find(ch); it != m_mGlyphMetrics.end() && it->second->sizePixelsX > 0) {
-            renderGlyphToAtlas(ch, static_cast<int>(it->second->uvPixelsX), static_cast<int>(it->second->uvPixelsY),
-                               false /*not dynamic*/);
-        }
-    }
-    for(const DynamicSlot &slot : m_dynamicSlots) {
-        if(slot.occupied) {
-            renderGlyphToAtlas(slot.character, slot.x + TextureAtlas::ATLAS_PADDING,
-                               slot.y + TextureAtlas::ATLAS_PADDING, true /*dynamic*/);
-        }
-    }
+    if((newWidth == width && newHeight == height) || !m_textureAtlas->resize(newWidth, newHeight)) return false;
 
     addDynamicSlots(width, height);
     m_bAtlasNeedsReload = true;
@@ -1133,18 +1114,6 @@ void McFontImpl::renderBitmapToAtlas(char32_t ch, int x, int y, const FT_Bitmap 
     }
 }
 
-void McFontImpl::renderGlyphToAtlas(char32_t ch, int x, int y, bool isDynamicSlot) {
-    const auto &metrics = *m_mGlyphMetrics[ch];
-    if(!metrics.face) return;
-
-    // load bitmap (metrics already stored, so don't overwrite)
-    FT_BitmapGlyph bitmapGlyph = loadBitmapGlyph(ch, metrics.face, false /*storeMetrics*/);
-    if(!bitmapGlyph) return;
-
-    renderBitmapToAtlas(ch, x, y, bitmapGlyph->bitmap, isDynamicSlot);
-    FT_Done_Glyph(reinterpret_cast<FT_Glyph>(bitmapGlyph));
-}
-
 bool McFontImpl::initializeAtlas() {
     if(m_vInitialGlyphs.empty()) return true;
 
@@ -1209,7 +1178,16 @@ bool McFontImpl::initializeAtlas() {
 
     // render all packed glyphs to static region
     for(const auto &rect : packRects) {
-        renderGlyphToAtlas(rectsToChars[rect.id], rect.x, rect.y, false /*not dynamic*/);
+        const char32_t ch = rectsToChars[rect.id];
+        const auto &metrics = *m_mGlyphMetrics[ch];
+        if(metrics.face) {
+            // load bitmap (metrics already stored, so don't overwrite)
+            FT_BitmapGlyph bitmapGlyph = loadBitmapGlyph(ch, metrics.face, false /*storeMetrics*/);
+            if(bitmapGlyph) {
+                renderBitmapToAtlas(ch, rect.x, rect.y, bitmapGlyph->bitmap, false /*not dynamic*/);
+                FT_Done_Glyph(reinterpret_cast<FT_Glyph>(bitmapGlyph));
+            }
+        }
     }
 
     addDynamicSlots(0, 0);

@@ -82,6 +82,9 @@ void DirectX11Image::init() {
     const UINT maxDim = (UINT)std::max(this->iWidth, this->iHeight);
     const UINT mipLevels = (UINT)std::max(1, (int)std::floor(std::log2(maxDim)) - 4);
 
+    // textures have a fixed size, a resized image needs a new one (and a view of it)
+    if(this->wasResized()) this->deleteDX();
+
     // create texture (with initial data)
     D3D11_TEXTURE2D_DESC textureDesc;
     D3D11_SUBRESOURCE_DATA initData;
