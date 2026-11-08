@@ -2454,6 +2454,8 @@ void Slider::onReset(i32 curPosMS) {
         m_endSliderBodyFadeAnimation = 1.0f;
     }
 
+    // (a tick is finished once none of its clicks is left)
+    for(auto &tick : m_ticks) tick.finished = true;
     for(auto &click : m_clicks) {
         if(curPosMS > click.timeMS) {
             click.finished = true;
@@ -2461,17 +2463,8 @@ void Slider::onReset(i32 curPosMS) {
         } else {
             click.finished = false;
             click.successful = false;
+            if(click.type == 1) m_ticks[click.tickIndex].finished = false;
         }
-    }
-
-    for(i32 i = 0; i < m_ticks.size(); i++) {
-        i32 numMissingTickClicks = 0;
-        for(const auto &click : m_clicks) {
-            if(click.type == 1 && click.tickIndex == i && !click.finished) {
-                numMissingTickClicks++;
-            }
-        }
-        m_ticks[i].finished = numMissingTickClicks == 0;
     }
 }
 
