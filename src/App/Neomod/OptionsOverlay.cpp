@@ -903,15 +903,9 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     {
         this->addSubSection(_("Localization"));
 
-        std::string currentLanguage = "English";
-        for(const auto lang : i18n::get_available_languages()) {
-            if(lang.code == cv::language.getString()) {
-                currentLanguage = lang.name;
-                break;
-            }
-        }
-
-        auto languageElement = this->addButton(_("Select language"), currentLanguage, false, &cv::language);
+        // cv::language can hold any locale string (e.g. "ja_JP" loaded on startup), so show what it resolved to
+        auto languageElement =
+            this->addButton(_("Select language"), std::string{i18n::get_current_language().name}, false, &cv::language);
         this->languageSelectButton = (CBaseUIButton *)languageElement->baseElems[0].get();
         this->languageSelectButton->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onLanguageSelect>(this));
 

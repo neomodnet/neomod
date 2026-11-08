@@ -41,6 +41,8 @@ const char* translate(int index, std::string_view original);
 const char* translate_plural(int index, std::string_view singular, std::string_view plural, int n);
 
 std::span<const Language> get_available_languages();
+// the language load() resolved its locale to (English if it matched none)
+const Language& get_current_language();
 
 }  // namespace i18n
 
@@ -80,6 +82,8 @@ inline std::span<const Language> get_available_languages() {
     };
     return {static_cast<const Language*>(AVAILABLE_LANGUAGES), 1};
 }
+
+inline const Language& get_current_language() { return get_available_languages()[0]; }
 
 }  // namespace i18n
 

@@ -70,7 +70,8 @@ static const std::unordered_map<std::string_view, PLURAL_FORM> plural_forms_tabl
 // Looks hacky, but better than just using a NULL pointer
 const char* translation_fallback = "\0\0\0\0\0\0\0";
 
-std::string current_language{};
+// nullptr while the source language (English) is in use
+const Language* current_language{nullptr};
 PLURAL_FORM current_plural_form{ONE_FORM};
 std::array<const char*, std::size(TRANSLATABLE_STRINGS)> translations;
 
@@ -191,6 +192,8 @@ static_assert(std::is_sorted(std::begin(TRANSLATABLE_STRINGS), std::end(TRANSLAT
 
 std::span<const Language> get_available_languages() { return {std::data(LANGUAGES), std::size(LANGUAGES)}; }
 
+const Language& get_current_language() { return current_language ? *current_language : LANGUAGES[0]; }
+
 void load(std::string_view locale) {
     // The translations[], current_language, and current_plural_form globals are read
     // unsynchronized by every _() / tformat() call across all threads. This is safe only
@@ -203,7 +206,7 @@ void load(std::string_view locale) {
     // with no LANG/LANGUAGE/LC_*). Treat it the same as English so we don't log a noisy
     // "Failed to load locale ''" on every startup.
     if(locale.empty() || locale == "en"sv) {
-        current_language = "";
+        current_language = nullptr;
         return;
     }
 
@@ -218,7 +221,7 @@ void load(std::string_view locale) {
     // navigator.language nor a user-set env var is available, so we treat them as English too
     // instead of logging a spurious "Failed to load locale 'C.UTF-8'" on every WASM startup.
     if(lang == "en" || lang == "C" || lang == "POSIX") {
-        current_language = "";
+        current_language = nullptr;
         return;
     }
 
@@ -252,11 +255,11 @@ void load(std::string_view locale) {
             current_plural_form = it->second;
         }
 
-        current_language = match->code;
+        current_language = match;
         return;
     }
 
-    current_language = "";
+    current_language = nullptr;
     debugLog("Failed to load locale '{}' (doesn't exist!)", locale);
 }
 
@@ -265,7 +268,7 @@ const char* translate(int index, std::string_view original) {
     //       at .size() is well-defined for every real call site; the assert catches any future
     //       non-literal misuse before it silently reads past-end bytes.
     assert(original.data()[original.size()] == '\0');
-    if(current_language.empty() || current_language == "en") return original.data();
+    if(!current_language) return original.data();
 
     if(index == -1) return original.data();
     if(translations[index] == translation_fallback) return original.data();
@@ -276,7 +279,7 @@ const char* translate(int index, std::string_view original) {
 const char* translate_plural(int index, std::string_view singular, std::string_view plural, int n) {
     assert(singular.data()[singular.size()] == '\0');
     assert(plural.data()[plural.size()] == '\0');
-    if(index == -1 || current_language.empty() || current_language == "en") {
+    if(index == -1 || !current_language) {
         return n == 1 ? singular.data() : plural.data();
     }
 
