@@ -19,10 +19,12 @@ scripts that save a config or bring their own skin get a data dir of their own i
 
 import argparse
 import difflib
+import hashlib
 import os
 import re
 import shlex
 import shutil
+import struct
 import subprocess
 import sys
 import wave
@@ -112,6 +114,47 @@ def maps_set(datadir, folder, set_id, n_diffs):
     return d
 
 
+def osu_str(s):
+    """osu!'s serialized string (.db files): 0x00 for an empty one, else 0x0b, the uleb128 byte length and utf-8"""
+    if not s:
+        return b"\x00"
+    data, n, length = s.encode(), len(s.encode()), bytearray()
+    while True:
+        length.append((n & 0x7F) | (0x80 if n > 0x7F else 0))
+        n >>= 7
+        if not n:
+            break
+    return b"\x0b" + bytes(length) + data
+
+
+def stable_install(osu_dir, folder, set_id, n_diffs, offsets):
+    """an osu!stable install: Songs/<folder>/ with the diffs maps_set() makes for the same arguments, and an osu!.db
+    listing them as stable would (diff i with the local offset offsets[i], if any)"""
+    songs = osu_dir / "Songs" / folder
+    songs.mkdir(parents=True, exist_ok=True)
+    entries = b""
+    for i in range(1, n_diffs + 1):
+        name, version = f"diff{i:02d}.osu", f"diff {i:02d}"
+        (songs / name).write_text(beatmap(f"UITest {folder}", version, "none.mp3", i, set_id))
+        md5 = hashlib.md5((songs / name).read_bytes()).hexdigest()
+        length = 1000 + 500 * (i - 1)
+        # artist, title (each with its unicode one), creator, version, audio, md5, file
+        e = b"".join(osu_str(s) for s in ("UITest", "", f"UITest {folder}", "", "uitest", version, "none.mp3", md5, name))
+        e += struct.pack("<BHHHq", 4, i, 0, 0, 0)  # ranked, circles, sliders, spinners, modification time
+        e += struct.pack("<ffffd", 5, 4, 5, 5, 1.4)  # AR, CS, HP, OD, slider multiplier
+        e += struct.pack("<IIII", 0, 0, 0, 0)  # star ratings per mode
+        e += struct.pack("<III", length // 1000, length, 0)  # drain time, length, preview time
+        e += struct.pack("<I", 1) + struct.pack("<dd?", 500.0, 0.0, True)  # timing points
+        e += struct.pack("<iiI", 0, set_id, 0) + bytes(4)  # map id, set id, thread id, grades
+        e += struct.pack("<hfB", offsets.get(i, 0), 0.7, 0)  # local offset, stack leniency, mode
+        e += osu_str("") + osu_str("") + struct.pack("<h", 0) + osu_str("")  # source, tags, online offset, title font
+        e += struct.pack("<?q?", True, 0, False) + osu_str(folder)  # unplayed, last played, osz2, folder
+        e += struct.pack("<Q", 0) + bytes(5) + struct.pack("<IB", 0, 0)  # last online check, flags, last edit, mania
+        entries += e
+    header = struct.pack("<II?q", 20250108, 1, True, 0) + osu_str("uitest") + struct.pack("<I", n_diffs)
+    (osu_dir / "osu!.db").write_bytes(header + entries + struct.pack("<I", 0))
+
+
 def script_directives(text):
     """'# uitest-<key>: <value>' lines in a script's leading comment block:
     maps: '<folder>|<set_id>|<n_diffs>' provisions maps/<folder>/ before the run (removed after)
@@ -190,6 +233,12 @@ def provision_fixtures(bindir, datadir):
             w.setframerate(8000)
             w.writeframes(b"\x00\x00" * (8000 * 35))
         (play_songs / "play.osu").write_text(beatmap("UITest Play", "play", "silence.wav", 60))
+
+    # an osu!stable install with an osu!.db: ONE set of two diffs ("uitest stable", set 456; diff 02 with a local
+    # offset of 7 ms), made like '# uitest-maps: uitest stable|456|<n>' makes its folder in maps/
+    stable = bindir / "uitest_osu_folder_stable"
+    if not (stable / "osu!.db").is_file():
+        stable_install(stable, "uitest stable", 456, 2, {2: 7})
 
     # .osz import fixtures (passed to the binary via '# uitest-args:', i.e. the drag/drop path):
     # a set with an id, the same set with one more diff (merges into the installed folder), a set

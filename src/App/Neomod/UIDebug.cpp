@@ -26,6 +26,7 @@
 #include "BeatmapInterface.h"
 #include "GameplayJudge.h"
 #include "HitObjects.h"
+#include "Database.h"
 #include "DatabaseBeatmap.h"
 #include "Graphics.h"
 #include "NeomodEnvInterop.h"
@@ -144,6 +145,7 @@ void UIDebug::debugAssert(std::string_view args) {
     // ui_assert os_cursor <visible|clipped> <0|1>
     // ui_assert clipboard <expected>
     // ui_assert map <file|root|md5|offset|background> <expected>
+    // ui_assert sets <count>
     // ui_assert play finished <count>
     auto parts = SString::split(args, ' ');
     std::erase_if(parts, [](std::string_view p) { return p.empty(); });
@@ -183,6 +185,14 @@ void UIDebug::debugAssert(std::string_view args) {
         }
         logRaw("UITEST {} map {} expected='{}' actual='{}'", actual == expected ? "OK" : "FAIL", parts[1], expected,
                actual);
+        return;
+    }
+
+    if(parts.size() >= 2 && SString::to_lower(parts[0]) == "sets"sv) {
+        // how many beatmapsets the database lists
+        const auto expected = Parsing::strto<i32>(parts[1]);
+        const auto actual = db->isFinished() ? (i32)db->getBeatmapSets().size() : -1;
+        logRaw("UITEST {} sets expected={} actual={}", actual == expected ? "OK" : "FAIL", expected, actual);
         return;
     }
 
