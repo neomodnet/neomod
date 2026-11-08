@@ -657,7 +657,7 @@ void Osu::update() {
                       (this->map_iface->isWatching() && !this->map_iface->isActuallyPausedAndNotSpectating()))  //
                      && (!ui->getVolumeOverlay()->isBusy())                                                     //
                      && (!BanchoState::is_playing_a_multi_map() && !this->map_iface->isSkipButtonHeld())        //
-                     && (!BanchoState::spectating);                                                             //
+                     && (this->map_iface->getKind() != BeatmapInterface::PlayKind::SPECTATE);                   //
 
     ui->update();
 
@@ -926,7 +926,7 @@ void Osu::onKeyDown(KeyboardEvent &key) {
         // instant replay
         if((this->map_iface->isPaused() || this->map_iface->hasFailed()) &&  //
            (!key.isConsumed() && key == binds::INSTANT_REPLAY) &&            //
-           (this->map_iface->getKind() == BeatmapInterface::PlayKind::PLAY && !BanchoState::spectating)) {
+           this->map_iface->getKind() == BeatmapInterface::PlayKind::PLAY) {
             FinishedScore score;
             score.replay = this->map_iface->getJudge()->replay;
             score.beatmap_hash = this->map_iface->getJudge()->getMapData()->md5;
@@ -1753,11 +1753,10 @@ void Osu::updateMouseViewport() {
 void Osu::updateWindowsKeyDisable() {
     if(!this->UIReady()) return;
 
-    const bool isPlayerPlaying =
-        (env->winFocused() && !env->winMinimized()) && this->isInPlayMode() &&
-        (!(this->map_iface->isPaused() || this->map_iface->isContinueScheduled()) ||
-         this->map_iface->isRestartScheduled()) &&
-        !(cv::mod_autoplay.getBool() || this->map_iface->isWatching() || BanchoState::spectating);
+    const bool isPlayerPlaying = (env->winFocused() && !env->winMinimized()) && this->isInPlayMode() &&
+                                 (!(this->map_iface->isPaused() || this->map_iface->isContinueScheduled()) ||
+                                  this->map_iface->isRestartScheduled()) &&
+                                 !(cv::mod_autoplay.getBool() || this->map_iface->isWatching());
 
     const bool disable = cv::win_disable_windows_key_while_playing.getBool() && isPlayerPlaying;
     logIfCV(debug_osu, "{} windows key, {} to text input", disable ? "disabling" : "enabling",
@@ -1863,7 +1862,7 @@ void Osu::doChangeFocus(bool focused) {
         this->ui_memb->getVolumeOverlay()->gainFocus();
     } else {
         if(this->isInPlayMode() && !this->map_iface->isPaused() && cv::pause_on_focus_loss.getBool()) {
-            if(!BanchoState::is_playing_a_multi_map() && !this->map_iface->isWatching() && !BanchoState::spectating) {
+            if(!BanchoState::is_playing_a_multi_map() && !this->map_iface->isWatching()) {
                 this->map_iface->pause(false);
                 // (past the last object + end_skip_time, the pause ends the play)
                 if(this->isInPlayMode()) {
@@ -2045,9 +2044,9 @@ void Osu::updateCursorVisibility() {
     if(!this->UIReady()) return;
 
     const bool playing = this->isInPlayMode();
-    const bool forced_visible = playing && !this->map_iface->isPaused() &&
-                                (cv::mod_autoplay.getBool() || cv::mod_autopilot.getBool() ||
-                                 this->map_iface->isWatching() || BanchoState::spectating);
+    const bool forced_visible =
+        playing && !this->map_iface->isPaused() &&
+        (cv::mod_autoplay.getBool() || cv::mod_autopilot.getBool() || this->map_iface->isWatching());
 
     // the os cursor can show the game cursor instead, as long as it can stay visible and in absolute mode
     const bool hardware_wanted = cv::cursor_hardware.getBool() && !forced_visible && !mouse->isRawInputWanted() &&

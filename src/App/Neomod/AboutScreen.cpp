@@ -415,6 +415,7 @@ void AboutScreen::buildChangelog() {
         R"(- Supporters now have a colored username)",
         R"(- Replay playback: Fixed health drain and spinners on DT/HT)",
         R"(- Servers: Added "sv_allow_instafade" and "sv_replay_framerate" convars)",
+        R"(- Spectating: Fixed a disconnect mid-play turning the spectated play into your own)",
         R"(- Web: Added a fallback for browsers that don't support multithreaded WASM)",
     };
     changelogs.push_back(std::move(v44_03));

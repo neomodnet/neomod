@@ -148,11 +148,12 @@ class BeatmapInterface final : public GameplayJudge::Listener, public PlayfieldV
     // stops + unloads the currently loaded music and deletes all hitobjects
     void deselectBeatmap();
 
-    // what a play is, where BanchoState doesn't tell (spectating and multiplayer are sessions that outlast a play)
+    // what a play is (multiplayer is BanchoState's, a session that outlasts a play)
     enum class PlayKind : u8 {
-        PLAY,    // the player's own
-        REPLAY,  // a recorded play being watched (see watch())
-        TEST,    // the selected map tried out from a time (see test())
+        PLAY,      // the player's own
+        REPLAY,    // a recorded play being watched (see watch())
+        SPECTATE,  // someone's play followed as it happens (see spectate())
+        TEST,      // the selected map tried out from a time (see test())
     };
 
     bool play();
@@ -167,7 +168,8 @@ class BeatmapInterface final : public GameplayJudge::Listener, public PlayfieldV
     // where the last test ended: its start, or the time quitTestHere() ended it at
     [[nodiscard]] i32 getTestEnd() const { return this->iTestEndMS; }
     [[nodiscard]] PlayKind getKind() const { return this->kind; }
-    [[nodiscard]] bool isWatching() const { return this->kind == PlayKind::REPLAY; }
+    // someone else's play is shown: a replay or a spectated one
+    [[nodiscard]] bool isWatching() const { return this->kind == PlayKind::REPLAY || this->kind == PlayKind::SPECTATE; }
 
     bool start();
     void restart(bool quick = false);

@@ -1473,7 +1473,7 @@ std::span<const SCORE_ENTRY> HUD::updateAndGetCurrentScores() {
         SCORE_ENTRY playerScoreEntry;
         if(osu->getModAuto() || (osu->getModAutopilot() && osu->getModRelax())) {
             playerScoreEntry.name = PACKAGE_NAME;
-        } else if(pf->isWatching() || BanchoState::spectating) {
+        } else if(pf->isWatching()) {
             playerScoreEntry.name = osu->watched_user_name;
             playerScoreEntry.player_id = osu->watched_user_id;
         } else {
@@ -2103,7 +2103,7 @@ void HUD::drawScrubbingTimeline(u32 beatmapTime, u32 beatmapLengthPlayable, u32 
 
     // Auto-hide scrubbing timeline when watching a replay
     f64 galpha = 1.0f;
-    if(osu->getMapInterface()->isWatching()) {
+    if(osu->getMapInterface()->getKind() == BeatmapInterface::PlayKind::REPLAY) {
         const f64 time_since_last_move =
             new_cursor_move_time -
             (this->fLastCursorMoveTime + cv::hud_scrubbing_timeline_replay_fadeout_time.getDouble());

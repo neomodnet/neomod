@@ -4,7 +4,6 @@
 
 #include "ContainerRanges.h"
 #include "noinclude.h"
-#include "Bancho.h"
 #include "BeatmapInterface.h"
 #include "Engine.h"
 #include "Graphics.h"
@@ -315,8 +314,8 @@ void UI::draw() {
         const bool paused = osu->map_iface->isPaused();
         const vec2 cursorPos =
             isFPoSu ? (osu->getVirtScreenSize() / 2.0f) : (paused ? mouse->getPos() : osu->map_iface->getCursorPos());
-        const bool drawSecondTrail = !paused && (cv::mod_autoplay.getBool() || cv::mod_autopilot.getBool() ||
-                                                 osu->map_iface->isWatching() || BanchoState::spectating);
+        const bool drawSecondTrail =
+            !paused && (cv::mod_autoplay.getBool() || cv::mod_autopilot.getBool() || osu->map_iface->isWatching());
         const bool updateAndDrawTrail = !isFPoSu;
         this->hud->drawCursor(cursorPos, cursorAlpha, drawSecondTrail, updateAndDrawTrail);
     } else {

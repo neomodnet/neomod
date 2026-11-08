@@ -3,7 +3,6 @@
 
 #include "AnimationHandler.h"
 #include "BackgroundImageHandler.h"
-#include "Bancho.h"
 #include "BeatmapInterface.h"
 #include "Camera.h"
 #include "Matrices.h"
@@ -333,8 +332,7 @@ void ModFPoSu::update() {
         }
     }
 
-    const bool isAutoCursor = (osu->getModAuto() || osu->getModAutopilot() || osu->getMapInterface()->isWatching() ||
-                               BanchoState::spectating);
+    const bool isAutoCursor = (osu->getModAuto() || osu->getModAutopilot() || osu->getMapInterface()->isWatching());
 
     m_impl->bCrosshairIntersectsScreen = true;
     if(!cv::fposu_absolute_mode.getBool() && !isAutoCursor) {

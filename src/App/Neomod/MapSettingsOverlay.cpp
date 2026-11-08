@@ -163,7 +163,7 @@ void MapSettingsOverlay::tick() {
     const bool wasHovered = std::exchange(this->bHovered, false);
 
     BeatmapInterface *bmi = osu->getMapInterface();
-    if(!osu->isInPlayMode() || !bmi->getBeatmap() || BanchoState::spectating) {
+    if(!osu->isInPlayMode() || !bmi->getBeatmap() || bmi->getKind() == BeatmapInterface::PlayKind::SPECTATE) {
         this->bPeeking = false;
         this->bAvailable = false;
         this->targetHeight = 0.f;

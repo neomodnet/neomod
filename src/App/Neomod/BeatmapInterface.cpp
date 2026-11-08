@@ -334,7 +334,7 @@ void BeatmapInterface::skipEmptySection() {
 }
 
 void BeatmapInterface::onKey(GameplayKeys key_flag, bool down, u64 timestamp) {
-    if(this->isWatching() || BanchoState::spectating) return;
+    if(this->isWatching()) return;
 
     bool should_click = (!osu->getModAuto() && !osu->getModRelax()) || !cv::auto_and_relax_block_user_input.getBool();
 
@@ -543,6 +543,7 @@ bool BeatmapInterface::spectate() {
     score.client = "peppy-unknown";
     score.server = BanchoState::endpoint;
     score.mods = Replay::Mods::from_legacy(user_info->mods);
+    this->kind = PlayKind::SPECTATE;
 
     // the spectated player's mods are only for watching them play (see stop())
     Replay::Mods::begin_session(true);
@@ -551,6 +552,7 @@ bool BeatmapInterface::spectate() {
     if(!this->start()) {
         // Map failed to load
         end_play_mod_session();
+        this->kind = PlayKind::PLAY;
         return false;
     }
 
@@ -604,7 +606,7 @@ bool BeatmapInterface::start() {
 
     // HACKHACK: stuck key quickfix
     const auto keys_held = this->current_keys & ~GameplayKeys::Smoke;
-    if(this->isWatching() || BanchoState::spectating) {
+    if(this->isWatching()) {
         this->onKey(GameplayKeys::K1, false, 0);
         this->onKey(GameplayKeys::M1, false, 0);
         this->onKey(GameplayKeys::K2, false, 0);
@@ -780,7 +782,7 @@ void BeatmapInterface::restart(bool quick) {
     if(!this->bIsWaiting || !this->isLoading()) {
         this->bIsRestartScheduled = true;
         this->bIsRestartScheduledQuick = quick;
-    } else if(this->bIsPaused && !BanchoState::spectating) {
+    } else if(this->bIsPaused && this->kind != PlayKind::SPECTATE) {
         this->pause(false);
     }
 }
@@ -876,7 +878,7 @@ bool BeatmapInterface::isInOutro() const {
 void BeatmapInterface::pause(bool quitIfWaiting) {
     if(unlikely(!this->beatmap)) return;
     if(cv::mod_no_pausing.getBool()) return;
-    if(BanchoState::spectating) {
+    if(this->kind == PlayKind::SPECTATE) {
         Spectating::stop();
         return;
     }
@@ -977,11 +979,11 @@ void BeatmapInterface::stop(bool quit) {
     this->bContinueScheduled = false;
 
     FinishedScore score;
-    if(this->isWatching()) {
+    if(this->kind == PlayKind::REPLAY) {
         score = this->replay_data;
     } else if(BanchoState::is_playing_a_multi_map()) {
         score = ui->getRoomScreen()->get_approximate_score();
-    } else if(this->kind == PlayKind::PLAY) {
+    } else if(this->kind == PlayKind::PLAY || this->kind == PlayKind::SPECTATE) {
         // Call this BEFORE unloadObjects()!
         score = this->saveAndSubmitScore(quit);
     }
@@ -995,9 +997,9 @@ void BeatmapInterface::stop(bool quit) {
         osu->bModAutoTemp = false;
     }
 
-    // (outside of a room there is nothing else that a session could be for, so whatever is left of one ends here as
-    // well: a disconnect while spectating doesn't get here as "spectating" anymore)
-    if(this->kind != PlayKind::PLAY || BanchoState::spectating || !BanchoState::is_in_a_multi_room()) {
+    // (outside of a room there is nothing else that a session could be for, so whatever is left of one ends
+    // here as well)
+    if(this->kind != PlayKind::PLAY || !BanchoState::is_in_a_multi_room()) {
         end_play_mod_session();
     }
 
@@ -1045,8 +1047,7 @@ void BeatmapInterface::fail(bool force_death) {
 
 bool BeatmapInterface::onFail(bool byMods) {
     // perfect restarts instead of failing, and so can sudden death
-    if(byMods && !this->isWatching() && !BanchoState::spectating &&
-       (osu->getModSS() || cv::mod_suddendeath_restart.getBool())) {
+    if(byMods && !this->isWatching() && (osu->getModSS() || cv::mod_suddendeath_restart.getBool())) {
         this->restart();
         return false;
     }
@@ -1055,7 +1056,7 @@ bool BeatmapInterface::onFail(bool byMods) {
 }
 
 bool BeatmapInterface::failPlay(bool force_death) {
-    if((this->kind != PlayKind::PLAY || BanchoState::spectating) && !force_death) return false;
+    if(this->kind != PlayKind::PLAY && !force_death) return false;
 
     // Change behavior of relax mod when online
     if(BanchoState::is_online() && osu->getModRelax()) return false;
@@ -1145,7 +1146,7 @@ void BeatmapInterface::seekMS(u32 ms) {
         this->onModUpdate(false, false);
     }
 
-    if(this->isWatching() || BanchoState::spectating) {
+    if(this->isWatching()) {
         // a replay is judged up to where it was seeked to (from the start again when seeking backwards), without
         // showing every hit on the way
         if(backwards) this->judge->reset();
@@ -1157,7 +1158,7 @@ void BeatmapInterface::seekMS(u32 ms) {
         this->judge->reset((i32)ms);
     }
 
-    if(!this->isWatching() && !BanchoState::spectating) {  // score submission already disabled when watching replay
+    if(!this->isWatching()) {  // score submission already disabled when watching replay
         if(was_submittable && BanchoState::can_submit_scores()) {
             ui->getNotificationOverlay()->addToast("Score will not submit due to seeking", ERROR_TOAST);
         }
@@ -1172,7 +1173,7 @@ void BeatmapInterface::seekMS(u32 ms) {
 }
 
 const std::vector<LiveScore::TimedHitResult> &BeatmapInterface::getTimelineHitresults() const {
-    return this->isWatching() ? this->replay_hitresults : osu->getScore()->hitresults;
+    return this->kind == PlayKind::REPLAY ? this->replay_hitresults : osu->getScore()->hitresults;
 }
 
 u32 BeatmapInterface::getTime() const { return (u32)std::max(this->music.getTime(), 0); }
@@ -1497,7 +1498,7 @@ void BeatmapInterface::resetScore() {
     this->is_submittable = BanchoState::are_settings_submittable();
 
     // don't clear the replay when we're watching/spectating
-    if(!this->isWatching() && !BanchoState::spectating) {
+    if(!this->isWatching()) {
         this->judge->replay = {
             Replay::Frame{
                 .cur_music_pos = -1,
@@ -2209,7 +2210,7 @@ void BeatmapInterface::update2() {
 
     // interpolate the key changes that occurred between the last update and now
     // (except if we are paused)
-    if(!isIdlePaused && !this->isWatching() && !BanchoState::spectating && !this->key_events.empty()) {
+    if(!isIdlePaused && !this->isWatching() && !this->key_events.empty()) {
         if(const u64 timeSinceLastUpdate = currentUpdateTime - lastUpdateTime; timeSinceLastUpdate > 0) {
             for(auto &event : this->key_events) {
                 Click &click = event.click;
@@ -2229,7 +2230,7 @@ void BeatmapInterface::update2() {
     // the cursor and keys shown while watching (the judge judges the frames, below)
     // don't advance replay frames if we are paused unless this was a seek
     const auto &replay = this->judge->replay;
-    if((!isIdlePaused || wasSeekFrame) && (this->isWatching() || BanchoState::spectating) && replay.size() >= 2) {
+    if((!isIdlePaused || wasSeekFrame) && (this->isWatching()) && replay.size() >= 2) {
         Replay::Frame current_frame = replay[this->current_frame_idx];
         Replay::Frame next_frame = replay[this->current_frame_idx + 1];
 
@@ -2283,11 +2284,11 @@ void BeatmapInterface::update2() {
     }
 
     // judging
-    if(this->isWatching() || BanchoState::spectating) {
+    if(this->isWatching()) {
         if(!isIdlePaused || wasSeekFrame) this->judge->simulate_to(this->iCurMusicPosWithOffsets);
         this->judge->animate(this->iCurMusicPosWithOffsets);
         if(this->bIsPaused) this->stopObjectSounds();
-        if(this->isWatching()) osu->getScore()->setCheated();
+        if(this->kind == PlayKind::REPLAY) osu->getScore()->setCheated();
     } else if(this->bIsPlaying && !this->judge->hasFailed()) {
         this->step(current_frametime);
     } else {
@@ -2464,7 +2465,7 @@ void BeatmapInterface::update2() {
                 this->music.pause();
                 this->bIsPaused = true;
 
-                if(BanchoState::spectating) {
+                if(this->kind == PlayKind::SPECTATE) {
                     osu->bIsPlayingASelectedBeatmap = false;
                 } else {
                     ui->getPauseOverlay()->setVisible(true);
@@ -2478,7 +2479,7 @@ void BeatmapInterface::update2() {
     }
 
     // spectator score correction
-    if(BanchoState::spectating && replay.size() >= 2) {
+    if(this->kind == PlayKind::SPECTATE && replay.size() >= 2) {
         const auto &current_frame = replay[this->current_frame_idx];
 
         i32 score_frame_idx = -1;
@@ -2625,7 +2626,7 @@ void BeatmapInterface::broadcast_spectator_frames() {
 }
 
 void BeatmapInterface::write_frame(const Replay::Frame &frame, bool force) {
-    if(!this->bIsPlaying || this->judge->hasFailed() || this->kind != PlayKind::PLAY || BanchoState::spectating) return;
+    if(!this->bIsPlaying || this->judge->hasFailed() || this->kind != PlayKind::PLAY) return;
 
     const i32 delta = frame.cur_music_pos - this->last_event_ms;
     if(delta < 0) return;
@@ -2934,7 +2935,7 @@ f32 BeatmapInterface::osuAngle2PixelAngle(f32 degrees) const {
 }
 
 vec2 BeatmapInterface::getMousePos() const {
-    if((this->isWatching() && !this->bIsPaused) || BanchoState::spectating) {
+    if(this->kind == PlayKind::SPECTATE || (this->kind == PlayKind::REPLAY && !this->bIsPaused)) {
         return this->interpolatedMousePos;
     } else {
         return mouse->getPos();
@@ -3068,7 +3069,7 @@ FinishedScore BeatmapInterface::saveAndSubmitScore(bool quit) {
     bool isComplete = (num300s + num100s + num50s + numMisses >= numHitObjects);
     bool isZero = (liveScore->getScore() < 1);
     bool isCheated = (osu->getModAuto() || (osu->getModAutopilot() && osu->getModRelax())) || liveScore->isUnranked() ||
-                     this->isWatching() || BanchoState::spectating;
+                     this->isWatching();
 
     FinishedScore score;
 
@@ -3216,7 +3217,7 @@ bool BeatmapInterface::isActuallyPausedAndNotSpectating() const {
     // TODO(spec): need to actually test spectating to make sure i dont break something, so not including that here for now
     // this function is mainly to avoid running through replay frames while we are paused
     // (see while(next_frame.cur_music_pos <= this->iCurMusicPosWithOffsets) ... in update2())
-    if(BanchoState::spectating) return false;
+    if(this->kind == PlayKind::SPECTATE) return false;
 
     return (this->isPaused() && ui->getPauseOverlay()->isVisible())  //
            && !this->music.isPlaying()                               //
