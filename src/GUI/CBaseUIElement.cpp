@@ -188,7 +188,9 @@ void CBaseUIElement::onDisabled() { ; }
 void CBaseUIElement::onMouseInside() { ; }
 void CBaseUIElement::onMouseOutside() { ; }
 void CBaseUIElement::onMouseDownInside(bool /*left*/, bool /*right*/) { ; }
-void CBaseUIElement::onMouseDownOutside(bool /*left*/, bool /*right*/) { ; }
+void CBaseUIElement::onMouseDownOutside(bool /*left*/, bool /*right*/) {
+    if(this->isFocused()) this->stealFocus();
+}
 void CBaseUIElement::onMouseUpInside(bool /*left*/, bool /*right*/) { ; }
 void CBaseUIElement::onMouseUpOutside(bool /*left*/, bool /*right*/) { ; }
 bool CBaseUIElement::onWheel(WheelDelta /*vertical*/, WheelDelta /*horizontal*/) { return false; }
@@ -270,14 +272,16 @@ void CBaseUIElement::updateInput(CBaseUIEventCtx &c) {
     // click-blocked element is not a candidate and the dispatcher never grants it hover.
     if(c.propagate_clicks && rectInside && !this->bClickThroughSelf) c.addHitCandidate(this);
 
-    if(c.propagate_clicks && (this->bHandleLeftMouse || this->bHandleRightMouse)) {
+    // the focus holder hears of either button, whichever it handles: a press elsewhere takes the keyboard from it
+    const bool focused = this->isFocused();
+    if(c.propagate_clicks && (this->bHandleLeftMouse || this->bHandleRightMouse || focused)) {
         // outside-downs stay a per-element broadcast: the rect-based "pressed elsewhere" signal
         // (popup close-on-outside, contextmenu/textbox deactivation). KEPT deliberately - it is a
         // mouse concept, not keyboard focus: a context menu holding clickable items cannot be the
         // focus holder, so the broadcast is the right tool, not the focus pointer.
         // the captor is excluded; its events are routed in CBaseUIDispatch::dispatchEvents.
-        const u8 pressedMask = (u8)((this->bHandleLeftMouse && mouse->isLeftPressed()) << 1) |
-                               (u8)(this->bHandleRightMouse && mouse->isRightPressed());
+        const u8 pressedMask = (u8)(((this->bHandleLeftMouse || focused) && mouse->isLeftPressed()) << 1) |
+                               (u8)((this->bHandleRightMouse || focused) && mouse->isRightPressed());
         if(pressedMask && !rectInside && this != CBaseUIDispatch::getCaptor()) {
             UI_TRACE_EVENT(1, this, "downOutside");
             this->onMouseDownOutside((pressedMask & 0b10), (pressedMask & 0b01));

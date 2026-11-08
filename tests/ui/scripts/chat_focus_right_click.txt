@@ -1,0 +1,36 @@
+# a right click far from chat takes the keyboard from its input as a left click does (the input handles the left
+# button only, but the focus holder hears of either): the text typed after it doesn't reach chat
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+debug_fake_online 1
+@wait 5
+sendkey F8
+@wait 12
+ui_assert visible chat 1
+mouse_to 640 700
+@wait 3
+mouse_down
+@wait 3
+mouse_up
+@wait 3
+sendtext hi
+@wait 3
+ui_assert text chat_input hi
+ui_assert focused chat_input 1
+mouse_to 640 80
+@wait 3
+mouse_down right
+@wait 2
+mouse_up right
+@wait 5
+ui_assert focused chat_input 0
+sendtext x
+@wait 3
+ui_assert text chat_input hi
+exit

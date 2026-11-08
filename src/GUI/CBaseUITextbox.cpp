@@ -623,14 +623,6 @@ void CBaseUITextbox::onMouseDownInside(bool left, bool right) {
 
 void CBaseUITextbox::onMouseCancel() { this->bBusy = false; }
 
-void CBaseUITextbox::onMouseDownOutside(bool left, bool right) {
-    CBaseUIElement::onMouseDownOutside(left, right);
-
-    // pressed elsewhere: relinquish focus (bActive=false + clears the focus pointer +
-    // onFocusStolen does bBusy=false + deselect)
-    this->stealFocus();
-}
-
 void CBaseUITextbox::onMouseUpInside(bool left, bool right) {
     CBaseUIElement::onMouseUpInside(left, right);
 

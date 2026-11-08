@@ -105,7 +105,6 @@ class CBaseUITextbox : public CBaseUIElement {
 
     // events
     void onMouseDownInside(bool left = true, bool right = false) override;
-    void onMouseDownOutside(bool left = true, bool right = false) override;
     void onMouseUpInside(bool left = true, bool right = false) override;
     void onMouseUpOutside(bool left = true, bool right = false) override;
     void onMouseCancel() override;

@@ -405,6 +405,7 @@ void AboutScreen::buildChangelog() {
         R"(- Fixed "Singletap" and "Alternate" letting any key hit the first two notes of the map)",
         R"(- Fixed "Strict clicks" sometimes breaking combo when clicking during a spinner)",
         R"(- Fixed spinners being too hard to spin)",
+        R"(- Fixed text boxes staying focused after right-clicking elsewhere)",
         R"(- Fixed the language setting showing "English" when the game was using your system language)",
         R"(- Fixed unsubmitted osu!stable scores not getting imported)",
         R"(- Nightcore/Daycore now change the pitch along with the speed)",

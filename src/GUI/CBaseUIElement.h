@@ -197,7 +197,8 @@ class CBaseUIElement : public KeyboardListener {
     friend class CBaseUIBox;
     friend CBaseUIDispatch::State;
 
-    // events (default implementation does nothing for all of these)
+    // events (default implementation does nothing for all of these, except that onMouseDownOutside() takes the
+    // keyboard focus from its holder)
     virtual void onResized();
     virtual void onMoved();
 
