@@ -9,7 +9,7 @@ was already in proximity; only the next proximity-in applied it.
 +++ b/src/video/wayland/SDL_waylandmouse.c
 @@ -1133,16 +1133,12 @@
  
-         SDL_WaylandPenTool *tool;
+         Wayland_PenTool *tool;
          wl_list_for_each(tool, &seat->tablet.tool_list, link) {
 -            obj.wl_tool = tool->wltool;
 -            obj.is_pointer = false;
@@ -21,11 +21,11 @@ was already in proximity; only the next proximity-in applied it.
 +             * cursor passed in here would not reflect a hidden cursor).
               */
 -            if (tool->focus && (!mouse->focus || mouse->focus->internal == tool->focus)) {
--                Wayland_CursorStateSetCursor(&tool->cursor_state, &obj, tool->focus, tool->proximity_serial, mouse->cur_cursor);
+-                SetCursorState(&tool->cursor_state, &obj, tool->focus, tool->proximity_serial, mouse->cur_cursor);
 -            } else if (!tool->focus) {
--                Wayland_CursorStateResetCursor(&tool->cursor_state);
+-                ResetCursorState(&tool->cursor_state);
 +            if (!tool->focus || !mouse->focus || mouse->focus->internal == tool->focus) {
-+                Wayland_TabletToolUpdateCursor(tool);
++                Wayland_UpdateTabletToolCursor(tool);
              }
          }
      }

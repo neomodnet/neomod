@@ -21,9 +21,9 @@ macro(set_download_name dep_name version url)
     set(${_upper_dep_name}_DL_NAME "${dep_name}-${version}${_temp_ext}")
 endmacro()
 
-set(SDL3_VERSION "bd9f6ca9ff0e9509f49980fc1b70837f54b6f244")
+set(SDL3_VERSION "7a47eb1e860f")
 set(SDL3_URL "https://github.com/libsdl-org/SDL/archive/${SDL3_VERSION}.tar.gz")
-set(SDL3_HASH "SHA512=96ab2ca27d7be58d843f1e7c55f1c60413a9d49a82cc15f3cd5f92825b5de680c2f1f16a509f51c8124d6e5f3218b43f39000e342694014c349ae4131aa03b66")
+set(SDL3_HASH "SHA512=0f6a3b82ff3a34b43d5fd8d1b8ca7b98e4a057ef5afe824c9b1880cb642ce4db82bc7c37e39b173f740796e43c32042cc75e19bc5e8ecea3dacd1eb16d777bdd")
 set_download_name("sdl3" "${SDL3_VERSION}" "${SDL3_URL}")
 
 set(BROTLI_VERSION "1.2.1")
@@ -78,14 +78,14 @@ set(LZMA_URL "https://github.com/tukaani-project/xz/releases/download/v${LZMA_VE
 set(LZMA_HASH "SHA512=94db303688511a2d34f81ba994d834b28b0145a1ecd75ec2c61416b26c9cc24ab3e4d902808cc3d785c5894793d57af569728be7bc8ef6624bb3fc90c04f97fa")
 set_download_name("lzma" "${LZMA_VERSION}" "${LZMA_URL}")
 
-set(LIBARCHIVE_VERSION "3.8.10")
+set(LIBARCHIVE_VERSION "3.8.11")
 set(LIBARCHIVE_URL "https://github.com/libarchive/libarchive/releases/download/v${LIBARCHIVE_VERSION}/libarchive-${LIBARCHIVE_VERSION}.tar.gz")
-set(LIBARCHIVE_HASH "SHA512=823e5424ed675d73cadb05e73e168110f5748991dd1f3b3767822f6b3795ecc8bd92c6f34cce95712faebc7b1bbd20fc8aff80b991e4803ef7a055c49358bf65")
+set(LIBARCHIVE_HASH "SHA512=ede0c44112d9c5702fb6662521ad386209692971912b1ef5cad1bafbef168e228ab3835352d56fcc5aad5b617d6e8b6e3069bb3207248f87d61aeb420ee65b9b")
 set_download_name("libarchive" "${LIBARCHIVE_VERSION}" "${LIBARCHIVE_URL}")
 
-set(MPG123_VERSION "9bc3de631d646026c69a84fd0e3def259cca4841")
+set(MPG123_VERSION "37627c0eb90b")
 set(MPG123_URL "https://github.com/madebr/mpg123/archive/${MPG123_VERSION}.tar.gz")
-set(MPG123_HASH "SHA512=2f35ddd23c5f96f781a8b94a5a3757243d9fcd55bfb759d656fdc0794623f1ad19764063a411163f4ccf9b11ca6a9890ae8f717ae9df44146dc4f824885c6eef")
+set(MPG123_HASH "SHA512=04e46a3e414413fae7c31b8bc235b9bf75f815fca8c87856dbdbb19b0aa771b016f5952156ad9540bba0b7a82c4684ae926f5cc370d18d8f99c598e9cc84d161")
 set_download_name("mpg123" "${MPG123_VERSION}" "${MPG123_URL}")
 
 set(SOLOUD_VERSION "4d0ab5baa88e06d2953caa13ec28aaf4c0f8819b")
@@ -98,9 +98,9 @@ set(NSYNC_URL "https://github.com/google/nsync/archive/refs/tags/${NSYNC_VERSION
 set(NSYNC_HASH "SHA512=fdcd61eb686ca6d6804d82837fcd33ddee54d6b2aeb7bc20cdff8c5bd2a75f87b724f72c7e835459a1a82ee8bed3d6da5e4c111b3bca22545c6e037f129839f2")
 set_download_name("nsync" "${NSYNC_VERSION}" "${NSYNC_URL}")
 
-set(SIMDUTF_VERSION "9.3.2")
+set(SIMDUTF_VERSION "9.3.3")
 set(SIMDUTF_URL "https://github.com/simdutf/simdutf/archive/refs/tags/v${SIMDUTF_VERSION}.tar.gz")
-set(SIMDUTF_HASH "SHA512=cba5850d7182305da9f4e4f6029c3f1b46a1b407d54ae2661c805e734490cb435ad2a641e44bcfcf05726f5d927b0ac37d510b858e61c352118e0e63c323d980")
+set(SIMDUTF_HASH "SHA512=3639f51386f14178fa6681d5c305fb21acb57a45c3dc95c78bfc27e796f714ea8f1d1bba84fd1027f7763e4fe53735bdfb68cd04ae8c2e34fa512dd1bc4e7318")
 set_download_name("simdutf" "${SIMDUTF_VERSION}" "${SIMDUTF_URL}")
 
 set(CTRE_VERSION "62b060684d57")
