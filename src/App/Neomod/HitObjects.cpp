@@ -1054,9 +1054,11 @@ Slider::Slider(SLIDERCURVETYPE stype, i32 repeat, f32 pixelLength, std::span<con
     m_type = HitObjectType::SLIDER;
 
     // build raw ticks
+    m_ticks.reserve(ticks.size());
     for(f32 tick : ticks) {
         m_ticks.emplace_back(SLIDERTICK{.percent = tick, .finished = false});
     }
+    m_clicks.reserve((uSz)std::max(m_repeat - 1, 0) + (uSz)std::max(m_repeat, 0) * m_ticks.size());
 
     // build repeats
     for(i32 i = 0; i < (m_repeat - 1); i++) {

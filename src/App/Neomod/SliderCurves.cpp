@@ -204,6 +204,7 @@ void SCEDMBuilder::build(std::vector<vec2> &curvePointsOut, f32 &startAngleOut, 
     vec2 lastCurve = m_allPoints[0];
 
     // resample: for each equal-distance step, find the two raw points that straddle it and interpolate
+    curvePointsOut.reserve(curvePointsOut.size() + nCurve + 1);
     for(i64 i = 0; i < (nCurve + 1LL); i++) {
         const f32 temp_dist = (f32)((f32)i * pixelLength) / (f32)nCurve;
         const f32 prefDistance = std::isfinite(temp_dist) ? temp_dist : 0.f;
@@ -517,6 +518,7 @@ void SliderCurve::constructCircular(const CircularArc &arc, f32 curvePointsSepar
         // calculate points
         const f32 steps = std::min(m_pixelLength / (std::clamp<f32>(curvePointsSeparation, 1.0f, 100.0f)), maxPoints);
         const i32 intSteps = (i32)std::round(steps) + 2;  // must guarantee an int range of 0 to steps!
+        if(intSteps > 0) m_curvePoints.reserve(intSteps);
         for(i32 i = 0; i < intSteps; i++) {
             f32 t = std::clamp<f32>((f32)i / steps, 0.0f, 1.0f);
             m_curvePoints.push_back(pointAt(t));

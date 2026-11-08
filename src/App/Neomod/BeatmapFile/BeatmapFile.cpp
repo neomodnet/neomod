@@ -196,6 +196,8 @@ BeatmapFile::BeatmapFile(std::string_view bytes) : bytes(bytes), bom(bytes.start
     Section current{.header = {}, .body = {}, .name = {}, .kind = NONE, .readAs = NONE, .bodyLine = 1, .lines = 0};
     uSz bodyStart = this->bom ? UTF8_BOM.size() : 0;
     u32 number = 1;
+    // (the part before the first header, then usually one of each)
+    this->sections.reserve(KNOWN_SECTIONS.size() + 1);
     for(uSz pos = bodyStart; pos < bytes.size(); number++) {
         const std::string_view raw = firstLine(bytes.substr(pos));
         const uSz next = pos + raw.size();

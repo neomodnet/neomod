@@ -141,6 +141,7 @@ LoadError calculateSliderTimesClicksTicks(int beatmapVersion, SLIDER &s, const T
                                        max_ticks);  // NOTE: hard sanity limit number of ticks per slider
 
         if(tickCount > 0) {
+            s.ticks.reserve(tickCount);
             const float tickTOffset = tickDurationPercentOfSliderLength;
             float pixelDistanceToEnd = s.pixelLength;
             float t = tickTOffset;
@@ -166,6 +167,8 @@ LoadError calculateSliderTimesClicksTicks(int beatmapVersion, SLIDER &s, const T
     const i32 osuSliderEndInsideCheckOffset = limits.sliderEndInsideCheckOffset;
 
     // 1) "skip the head circle"
+    s.scoringTimesForStarCalc.reserve((size_t)std::max(s.repeat - 1, 0) +
+                                      (size_t)std::max(s.repeat, 0) * s.ticks.size() + 1);
 
     // 2) add repeat times (either at slider begin or end)
     for(int i = 0; i < (s.repeat - 1); i++) {
@@ -274,6 +277,11 @@ uSz TimingPoints::entryAt(i32 positionMS) const {
 
 TimingPoints readTimingPoints(const BeatmapFile &file) {
     std::vector<TIMINGPOINT> timingpoints;
+    uSz lines = 0;
+    for(const auto &section : file.getSections()) {
+        if(section.readAs == BeatmapFile::SectionKind::TIMING_POINTS) lines += section.lines;
+    }
+    timingpoints.reserve(lines);
     BeatmapFile::TimingPoint timingPoint;
     for(const auto line : file.getEntries(BeatmapFile::SectionKind::TIMING_POINTS)) {
         // a time that isn't a number or doesn't fit in 32 bits drops the point, as in osu!lazer
@@ -463,6 +471,7 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
                 applyHitSample(ho.sample, objectEdge, c.sampleFiles);
                 objectEdge.hitSounds = (u8)(ho.hitSounds & HitSoundType::VALID_HITSOUNDS);
                 objectEdge.volume = 0;
+                slider.edgeSamples.reserve(std::max<uSz>(std::max(ho.edgeSounds.size(), ho.edgeSets.size()), 2));
                 for(uSz i = 0; i < std::max(ho.edgeSounds.size(), ho.edgeSets.size()); i++) {
                     HITSAMPLE_BITS samples = objectEdge;
                     if(i < ho.edgeSounds.size()) samples.hitSounds = ho.edgeSounds[i] & HitSoundType::VALID_HITSOUNDS;
