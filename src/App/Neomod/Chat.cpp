@@ -1451,7 +1451,7 @@ void Chat::updateVisibility() {
         cv::chat_auto_hide.getBool() &&                                                // if auto-hide is enabled
         !(BanchoState::is_playing_a_multi_map() && !map_iface->all_players_loaded) &&  // not while waiting for players
         !(cv::mod_autoplay.getBool() || (cv::mod_autopilot.getBool() && cv::mod_relax.getBool()) ||
-          map_iface->is_watching || BanchoState::spectating) &&  // not "spectating" (or equivalent)
+          map_iface->isWatching() || BanchoState::spectating) &&  // not "spectating" (or equivalent)
         (osu->isInPlayMode() && !map_iface->isInSkippableSection() &&
          !ui->getPauseOverlay()->isVisible());  // is playing and not in a skippable section
 

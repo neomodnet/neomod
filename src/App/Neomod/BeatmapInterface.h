@@ -148,9 +148,16 @@ class BeatmapInterface final : public GameplayJudge::Listener, public PlayfieldV
     // stops + unloads the currently loaded music and deletes all hitobjects
     void deselectBeatmap();
 
+    // what a play is, where BanchoState doesn't tell (spectating and multiplayer are sessions that outlast a play)
+    enum class PlayKind : u8 {
+        PLAY,    // the player's own
+        REPLAY,  // a recorded play being watched (see watch())
+    };
+
     bool play();
     bool watch(const FinishedScore &score, u32 start_ms);
     bool spectate();
+    [[nodiscard]] bool isWatching() const { return this->kind == PlayKind::REPLAY; }
 
     bool start();
     void restart(bool quick = false);
@@ -192,7 +199,6 @@ class BeatmapInterface final : public GameplayJudge::Listener, public PlayfieldV
     FinishedScore replay_data;
     std::vector<LiveScore::TimedHitResult> replay_hitresults;  // every judgement of replay_data
     vec2 interpolatedMousePos{0.f};
-    bool is_watching = false;
     i32 current_frame_idx = 0;
 
     // getting spectated (live)
@@ -381,6 +387,7 @@ class BeatmapInterface final : public GameplayJudge::Listener, public PlayfieldV
     BeatmapDifficulty *beatmap{nullptr};
     vec2 vContinueCursorPoint{0.f};
     MusicTrack &music;
+    PlayKind kind{PlayKind::PLAY};
 
     // playfield
     f32 fScaleFactor;

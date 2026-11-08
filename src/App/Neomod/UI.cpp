@@ -316,7 +316,7 @@ void UI::draw() {
         const vec2 cursorPos =
             isFPoSu ? (osu->getVirtScreenSize() / 2.0f) : (paused ? mouse->getPos() : osu->map_iface->getCursorPos());
         const bool drawSecondTrail = !paused && (cv::mod_autoplay.getBool() || cv::mod_autopilot.getBool() ||
-                                                 osu->map_iface->is_watching || BanchoState::spectating);
+                                                 osu->map_iface->isWatching() || BanchoState::spectating);
         const bool updateAndDrawTrail = !isFPoSu;
         this->hud->drawCursor(cursorPos, cursorAlpha, drawSecondTrail, updateAndDrawTrail);
     } else {

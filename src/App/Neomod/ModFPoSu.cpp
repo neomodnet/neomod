@@ -333,8 +333,8 @@ void ModFPoSu::update() {
         }
     }
 
-    const bool isAutoCursor =
-        (osu->getModAuto() || osu->getModAutopilot() || osu->getMapInterface()->is_watching || BanchoState::spectating);
+    const bool isAutoCursor = (osu->getModAuto() || osu->getModAutopilot() || osu->getMapInterface()->isWatching() ||
+                               BanchoState::spectating);
 
     m_impl->bCrosshairIntersectsScreen = true;
     if(!cv::fposu_absolute_mode.getBool() && !isAutoCursor) {
