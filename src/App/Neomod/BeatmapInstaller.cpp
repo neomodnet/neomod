@@ -83,12 +83,12 @@ struct Entry {
     [[nodiscard]] bool is_local() const { return this->kind == Kind::Osz; }
 };
 
-// shared Installing-stage tail: imports the already-extracted (or watched) folder once it's safe to.
-// nullopt means the caller should retry next tick: the db is mid-(re)build (reconciling then would
-// race the loader thread), or a map is being played (an updated/removed selection would unload it).
-std::optional<ReconcileResult> try_import(Entry& e) {
-    if(!db->isFinished() || db->isCancelled() || osu->isInPlayMode()) return std::nullopt;
+// whether the db can take a folder now: not while it's mid-(re)build (reconciling then would race the loader thread)
+// or a map is being played (an updated/removed selection would unload it)
+bool can_import() { return db->isFinished() && !db->isCancelled() && !osu->isInPlayMode(); }
 
+// shared Installing-stage tail: imports the already-extracted (or watched) folder, once can_import()
+ReconcileResult import_extracted(Entry& e) {
     // the diffs get what the worker calculated before they're registered: nothing ever sees them without it
     BatchDiffCalc::apply_results(e.calculated);
     e.calculated.clear();
@@ -365,7 +365,7 @@ void BeatmapInstaller::enqueue(i32 set_id, bool auto_select, std::string_view di
     if(set_id <= 0) return;
 
     // de-dupe against other downloads only: a local import that resolved to the same set coexists
-    // harmlessly (try_import/addBeatmapSet are idempotent, the second one just finds a duplicate).
+    // harmlessly (import_extracted/addBeatmapSet are idempotent, the second one just finds a duplicate).
     for(Entry& e : m->entries) {
         if(e.is_local() || e.set_id != set_id) continue;
 
@@ -498,7 +498,7 @@ void BeatmapInstaller::uninstall(const DatabaseBeatmap* map, bool whole_set) {
     const BeatmapSet* set = map->getParentSet() ? map->getParentSet() : map;
     // the song browser greys the menu items out for osu!stable sets, and nothing here touches that folder either
     if(set->type != DatabaseBeatmap::BeatmapType::NEOMOD_BEATMAPSET) return;
-    if(!db->isFinished() || db->isCancelled() || osu->isInPlayMode()) return;  // (see try_import)
+    if(!can_import()) return;
 
     // maps/ sets live directly under the maps dir, the only place this ever deletes from
     const std::string maps_prefix = Mc::Paths::maps() + "/";
@@ -539,7 +539,7 @@ void BeatmapInstaller::uninstall(const DatabaseBeatmap* map, bool whole_set) {
 }
 
 std::optional<ReconcileResult> BeatmapInstaller::register_folder(const std::string& folder) {
-    if(!db->isFinished() || db->isCancelled() || osu->isInPlayMode()) return std::nullopt;  // (see try_import)
+    if(!can_import()) return std::nullopt;
     auto r = db->reconcileFolder(Database::MapRoot::Neomod, folder, Database::ReconcileMode::PerFile, -1, nullptr);
     ui->getSongBrowser()->applyReconcile(r);
     osu->getBackgroundImageHandler()->forgetFolder(Mc::Paths::maps() + "/" + folder + "/");
@@ -667,6 +667,7 @@ void BeatmapInstaller::update() {
             }
 
             case Installing: {
+                if(!can_import()) break;  // retry next tick
                 // a folder that changed since the worker listed it (register_folder() wrote into it, say) is listed
                 // again: its parse would undo what changed
                 if(e.kind == Entry::Kind::Folder && folder_state(e.folder) != e.listed) {
@@ -675,32 +676,31 @@ void BeatmapInstaller::update() {
                     e.stage = Queued;
                     break;
                 }
-                const auto r = try_import(e);
-                if(!r) break;  // db busy/rebuilding; retry next tick
+                const ReconcileResult r = import_extracted(e);
 
                 // the carousel follows the db whatever the outcome (an archive can overwrite an installed set's
                 // files with nothing loadable, which removes the set), and backgrounds are read again (an image
                 // replaced under its name changes nothing the db sees)
-                ui->getSongBrowser()->applyReconcile(*r);
+                ui->getSongBrowser()->applyReconcile(r);
                 osu->getBackgroundImageHandler()->forgetFolder(Mc::Paths::maps() + "/" + e.folder + "/");
                 if(e.kind == Entry::Kind::Folder) {
                     // (whatever was done to the folder outside of the game: no toasts for that)
-                    if(r->outcome != ReconcileResult::Outcome::Unchanged &&
-                       r->outcome != ReconcileResult::Outcome::Failed) {
+                    if(r.outcome != ReconcileResult::Outcome::Unchanged &&
+                       r.outcome != ReconcileResult::Outcome::Failed) {
                         logRaw("[{}] maps/{}: {} (+{} -{})", e.changed ? "BeatmapInstaller" : "DirectoryWatcher",
-                               e.folder, r->outcomeName(), r->added, r->removed);
+                               e.folder, r.outcomeName(), r.added, r.removed);
                     }
                     m->settled[e.folder] = e.listed;
                     e.stage = Done;
                     e.finished_time = now;
-                } else if(!r->set && !r->dedup_owner) {
+                } else if(!r.set && !r.dedup_owner) {
                     fail_entry(e, now);
                 } else {
                     e.stage = Done;
                     e.finished_time = now;
                     if(e.is_local() && e.delete_after) env->deleteFile(e.osz_path);
                     m->settled[e.folder] = folder_state(e.folder);
-                    on_done(*r, e);
+                    on_done(r, e);
                 }
                 break;
             }
