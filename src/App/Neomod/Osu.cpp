@@ -911,10 +911,22 @@ void Osu::onKeyDown(KeyboardEvent &key) {
 
     // while playing (and not in options)
     if(this->isInPlayMode() && !ui->getOptionsOverlay()->isVisible() && !ui->getChat()->isVisible()) {
+        // a test's own keys (see BeatmapInterface::test()): autoplay, and back at the play's time
+        if(this->map_iface->getKind() == BeatmapInterface::PlayKind::TEST && !key.isConsumed() && !key.isRepeat()) {
+            if(key == KEY_TAB) {
+                ui->getModSelector()->toggleAuto();
+                key.consume();
+            } else if(key == KEY_F2) {
+                this->map_iface->quitTestHere();
+                key.consume();
+                return;
+            }
+        }
+
         // instant replay
         if((this->map_iface->isPaused() || this->map_iface->hasFailed()) &&  //
            (!key.isConsumed() && key == binds::INSTANT_REPLAY) &&            //
-           (!this->map_iface->isWatching() && !BanchoState::spectating)) {
+           (this->map_iface->getKind() == BeatmapInterface::PlayKind::PLAY && !BanchoState::spectating)) {
             FinishedScore score;
             score.replay = this->map_iface->getJudge()->replay;
             score.beatmap_hash = this->map_iface->getJudge()->getMapData()->md5;
@@ -2086,6 +2098,12 @@ void Osu::onGameplayKey(GameplayKeys key_flag, bool down, u64 timestamp, bool fr
 
     const bool changed = !(held_now & key_flag) == down;
     if(!changed) return;
+
+    // a test's player takes over from its autoplay by pressing a key
+    if(down && !is_smoke && this->isInPlayMode() && this->getModAuto() &&
+       this->map_iface->getKind() == BeatmapInterface::PlayKind::TEST) {
+        ui->getModSelector()->toggleAuto();
+    }
 
     if(is_smoke) {
         // just add/remove smoke

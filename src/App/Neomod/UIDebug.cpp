@@ -51,6 +51,7 @@ static ConVar debug_fake_room_cmd("debug_fake_room", CLIENT | NOLOAD | NOSAVE);
 static ConVar debug_chat_message_cmd("debug_chat_message", CLIENT | NOLOAD | NOSAVE);
 static ConVar debug_focus_cmd("debug_focus", CLIENT | NOLOAD | NOSAVE);
 static ConVar debug_drop_cmd("debug_drop", CLIENT | NOLOAD | NOSAVE);
+static ConVar debug_test_play_cmd("debug_test_play", CLIENT | NOLOAD | NOSAVE);
 }  // namespace cv
 
 UIScreen *UIDebug::findScreenByName(std::string_view lowerName) const {
@@ -204,6 +205,17 @@ void UIDebug::debugAssert(std::string_view args) {
             judge ? (i32)Mc::ranges::count_if(judge->getHitObjects(), [](const auto &h) { return h->isFinished(); })
                   : -1;
         logRaw("UITEST {} play finished expected={} actual={}", actual == expected ? "OK" : "FAIL", expected, actual);
+        return;
+    }
+
+    if(parts.size() >= 4 && SString::to_lower(parts[0]) == "play"sv && parts[1] == "test_end"sv) {
+        // where the last test play ended (its start, or the play's time F2 ended it at), within a range: the music
+        // runs on the wall clock
+        const auto min = Parsing::strto<i32>(parts[2]);
+        const auto max = Parsing::strto<i32>(parts[3]);
+        const i32 actual = osu->getMapInterface()->getTestEnd();
+        logRaw("UITEST {} play test_end expected={}..{} actual={}", actual >= min && actual <= max ? "OK" : "FAIL", min,
+               max, actual);
         return;
     }
 
@@ -404,6 +416,11 @@ void UIDebug::debugDrop(std::string_view path) {
     neomod::handle_open_requests(std::span{&dropped, 1});
 }
 
+void UIDebug::debugTestPlay(std::string_view startMS) {
+    // a test of the selected map from a time, which the editor starts otherwise
+    osu->getMapInterface()->test(Parsing::strto<i32>(SString::trimmed(startMS)));
+}
+
 void UIDebug::debugChatMessage(std::string_view args) {
     // debug_chat_message <channel> <author id> <text...>: a message as if received from the server (author 0 = a
     // system message), timestamped at a local midnight so it reads 00:00 in any time zone
@@ -440,6 +457,7 @@ UIDebug::UIDebug(UI *ui_parent) : m_ui(ui_parent) {
     cv::debug_chat_message_cmd.setCallback(SA::MakeDelegate<&UIDebug::debugChatMessage>(this));
     cv::debug_focus_cmd.setCallback(SA::MakeDelegate<&UIDebug::debugFocus>(this));
     cv::debug_drop_cmd.setCallback(SA::MakeDelegate<&UIDebug::debugDrop>(this));
+    cv::debug_test_play_cmd.setCallback(SA::MakeDelegate<&UIDebug::debugTestPlay>(this));
 }
 
 UIDebug::~UIDebug() {
@@ -452,5 +470,6 @@ UIDebug::~UIDebug() {
     cv::debug_fake_room_cmd.removeAllCallbacks();
     cv::debug_focus_cmd.removeAllCallbacks();
     cv::debug_drop_cmd.removeAllCallbacks();
+    cv::debug_test_play_cmd.removeAllCallbacks();
     cv::debug_chat_message_cmd.removeAllCallbacks();
 }

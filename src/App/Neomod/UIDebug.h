@@ -28,6 +28,7 @@ class UIDebug final {
     void debugChatMessage(std::string_view args);
     void debugFocus(std::string_view arg);
     void debugDrop(std::string_view path);
+    void debugTestPlay(std::string_view startMS);
 
    private:
     UI* m_ui;

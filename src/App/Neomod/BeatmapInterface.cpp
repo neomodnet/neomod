@@ -68,9 +68,9 @@
 using namespace flags::operators;
 using namespace neomod;
 
-// the mods that came with what was being watched (a replay, a spectated player) go away with it: the player's own ones
-// are back, or the room's if it was watched from inside of one
-static void end_watched_mod_session() {
+// the mods a play came with that aren't the player's (a replay's, a spectated player's, a test's none) go away with it:
+// the player's own ones are back, or the room's if it was played from inside of one
+static void end_play_mod_session() {
     if(BanchoState::is_in_a_multi_room()) {
         ui->getRoomScreen()->useRoomMods();
     } else {
@@ -317,7 +317,7 @@ void BeatmapInterface::skipEmptySection() {
 
     soundEngine->play(this->getSkin()->s_menu_hit);
 
-    if(!BanchoState::spectators.empty()) {
+    if(this->kind != PlayKind::TEST && !BanchoState::spectators.empty()) {
         // TODO @kiwec: how does skip work? does client jump to latest time or just skip beginning?
         //              is signaling skip even necessary?
         this->broadcast_spectator_frames();
@@ -491,7 +491,7 @@ bool BeatmapInterface::watch(const FinishedScore &score, u32 start_ms) {
 
     if(!this->start()) {
         // Map failed to load
-        end_watched_mod_session();
+        end_play_mod_session();
         this->kind = PlayKind::PLAY;
         return false;
     }
@@ -550,7 +550,7 @@ bool BeatmapInterface::spectate() {
 
     if(!this->start()) {
         // Map failed to load
-        end_watched_mod_session();
+        end_play_mod_session();
         return false;
     }
 
@@ -558,6 +558,30 @@ bool BeatmapInterface::spectate() {
     this->score_frames.clear();
 
     return true;
+}
+
+bool BeatmapInterface::test(i32 startMS) {
+    this->kind = PlayKind::TEST;
+    this->iTestStartMS = this->iTestEndMS = startMS;
+
+    // without the player's mods, which are back once it ends (see stop())
+    Replay::Mods::begin_session();
+    Replay::Mods::use(Replay::Mods{});
+
+    if(!this->start()) {
+        end_play_mod_session();
+        this->kind = PlayKind::PLAY;
+        return false;
+    }
+    RichPresence::onPlayStart();
+    return true;
+}
+
+void BeatmapInterface::quitTestHere() {
+    if(this->kind != PlayKind::TEST) return;
+    // (until it starts, its time is its start)
+    this->iTestEndMS = this->bIsWaiting ? this->iTestStartMS : this->iCurMusicPosWithOffsets;
+    this->stop(true);
 }
 
 bool BeatmapInterface::start() {
@@ -801,10 +825,23 @@ void BeatmapInterface::actualRestart() {
 }
 
 void BeatmapInterface::seekToStart(bool quick) {
+    const auto hitobjects = this->judge->getHitObjects();
+
+    // a test starts one approach time ahead of its start, so that what's there fades in fully, with what starts before
+    // it left out (see test())
+    if(this->kind == PlayKind::TEST && !hitobjects.empty() && this->iTestStartMS > hitobjects.front()->getClickTime() &&
+       this->iTestStartMS <= hitobjects.back()->getClickTime()) {
+        this->judge->reset(this->iTestStartMS - 1, true);
+        const i32 test_start_ms = this->iTestStartMS - (i32)this->getApproachTime() -
+                                  this->music.getOffset(this->beatmap, this->judge->getMapVersion());
+        this->music.setPosition(test_start_ms);
+        this->iCurMusicPos = test_start_ms;
+        return;
+    }
+
     // a quick restart starts just before the first hitobject (even if there is a long waiting period at the beginning
     // with nothing etc.); from the song's start, a first hitobject that starts immediately gets early_note_time of
     // lead-in
-    const auto hitobjects = this->judge->getHitObjects();
     i32 start_ms = 0;
     if(quick && likely(!hitobjects.empty())) {
         const i32 retry_time = std::max(0, cv::quick_retry_time.getInt());
@@ -944,7 +981,7 @@ void BeatmapInterface::stop(bool quit) {
         score = this->replay_data;
     } else if(BanchoState::is_playing_a_multi_map()) {
         score = ui->getRoomScreen()->get_approximate_score();
-    } else {
+    } else if(this->kind == PlayKind::PLAY) {
         // Call this BEFORE unloadObjects()!
         score = this->saveAndSubmitScore(quit);
     }
@@ -960,11 +997,11 @@ void BeatmapInterface::stop(bool quit) {
 
     // (outside of a room there is nothing else that a session could be for, so whatever is left of one ends here as
     // well: a disconnect while spectating doesn't get here as "spectating" anymore)
-    if(this->isWatching() || BanchoState::spectating || !BanchoState::is_in_a_multi_room()) {
-        end_watched_mod_session();
+    if(this->kind != PlayKind::PLAY || BanchoState::spectating || !BanchoState::is_in_a_multi_room()) {
+        end_play_mod_session();
     }
 
-    this->kind = PlayKind::PLAY;
+    const PlayKind kind = std::exchange(this->kind, PlayKind::PLAY);
     this->is_buffering = false;
     this->judge->replay.clear();
     this->score_frames.clear();
@@ -974,7 +1011,12 @@ void BeatmapInterface::stop(bool quit) {
     this->unloadObjects();
     cvars().clearLayer(CvarEditor::CONTEXT);
 
-    if(BanchoState::is_playing_a_multi_map()) {
+    if(kind == PlayKind::TEST) {
+        // back to the screen it was started from (see start()), closing what a screen switch closes
+        ui->setScreen(ui->getActiveScreen());
+        osu->updateConfineCursor();
+        osu->updateWindowsKeyDisable();
+    } else if(BanchoState::is_playing_a_multi_map()) {
         if(quit && !Osu::isKioskMode()) {
             osu->onPlayEnd(score, true);
             ui->getRoomScreen()->ragequit();
@@ -1013,7 +1055,7 @@ bool BeatmapInterface::onFail(bool byMods) {
 }
 
 bool BeatmapInterface::failPlay(bool force_death) {
-    if((this->isWatching() || BanchoState::spectating) && !force_death) return false;
+    if((this->kind != PlayKind::PLAY || BanchoState::spectating) && !force_death) return false;
 
     // Change behavior of relax mod when online
     if(BanchoState::is_online() && osu->getModRelax()) return false;
@@ -2583,7 +2625,7 @@ void BeatmapInterface::broadcast_spectator_frames() {
 }
 
 void BeatmapInterface::write_frame(const Replay::Frame &frame, bool force) {
-    if(!this->bIsPlaying || this->judge->hasFailed() || this->isWatching() || BanchoState::spectating) return;
+    if(!this->bIsPlaying || this->judge->hasFailed() || this->kind != PlayKind::PLAY || BanchoState::spectating) return;
 
     const i32 delta = frame.cur_music_pos - this->last_event_ms;
     if(delta < 0) return;

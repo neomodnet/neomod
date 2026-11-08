@@ -308,7 +308,13 @@ void onPlayStart() {
 
     activity.details = beatmap_desc_str(map, true);
 
-    if(BanchoState::is_in_a_multi_room()) {
+    if(osu->getMapInterface()->getKind() == BeatmapInterface::PlayKind::TEST) {
+        setBanchoStatus(activity.details.data(), Action::TESTING);
+
+        strncpy(activity.state.data(), "Testing", activity.state.size() - 1);
+        activity.party.size.current_size = 0;
+        activity.party.size.max_size = 0;
+    } else if(BanchoState::is_in_a_multi_room()) {
         setBanchoStatus(activity.details.data(), Action::MULTIPLAYER);
 
         strncpy(activity.state.data(), "Playing in a lobby", activity.state.size() - 1);

@@ -100,12 +100,16 @@ void GameplayJudge::unload() {
     this->clicks.clear();
 }
 
-void GameplayJudge::reset(i32 curPos) {
+void GameplayJudge::reset(i32 curPos, bool leaveOutStarted) {
     this->resetScore();
     for(auto &hitobject : this->hitobjects) {
-        hitobject->onReset(curPos);
-        hitobject->update(curPos, 0.0);
-        hitobject->onReset(curPos);
+        // (past its end, it's done)
+        const i32 pos = leaveOutStarted && hitobject->getClickTime() <= curPos
+                            ? std::max(curPos, hitobject->getEndTime() + 1)
+                            : curPos;
+        hitobject->onReset(pos);
+        hitobject->update(pos, 0.0);
+        hitobject->onReset(pos);
     }
     this->iCurMusicPos = curPos;
 }

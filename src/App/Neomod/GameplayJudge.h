@@ -80,8 +80,9 @@ class GameplayJudge final {
     neomod::Primitives::LoadError load(std::shared_ptr<const std::vector<u8>> fileData = nullptr);
     void unload();
 
-    // play from the start again, or seek to curPos with everything before it done
-    void reset(i32 curPos = 0);
+    // play from the start again, or seek to curPos with everything before it done (a slider or spinner going on at curPos
+    // stays playable, unless leaveOutStarted: then what started by curPos is done, as for a play that starts there)
+    void reset(i32 curPos = 0, bool leaveOutStarted = false);
 
     void step(const Replay::Frame &frame, f64 frameTimeSecs, u8 clickKeys);
     void simulate_to(i32 musicPos);

@@ -1,0 +1,118 @@
+# a test play (what the editor's F5 starts, here by debug_test_play): the selected map from a time, one approach time
+# ahead of it with what starts before it left out (a normal start before the first object), without the player's mods
+# (back afterwards); Tab turns autoplay on and a gameplay key off; Retry restarts at the test's start; F2 (at the play's
+# time, its start until it started), the pause menu's Back and the play's end (at the start) go back to the screen it
+# was started from, never to the ranking screen.
+# the play fixture: 60 circles every 500 ms from 1000, approach rate 5 (1200 ms). assertion-only, the music runs on
+# the wall clock.
+options_save_on_back 0
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+osu_folder uitest_osu_folder_play
+set_active_ui_screen songbrowser
+@wait 300
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+ui_assert map file play.osu
+mod_hidden 1
+@wait 2
+debug_test_play 10000
+@wait 2
+ui_assert play finished 18
+ui_assert convar mod_hidden 0
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+ui_assert visible songbrowser 0
+sendkey Tab
+@wait 2
+ui_assert convar mod_autoplay 1
+sendkey Z
+@wait 2
+ui_assert convar mod_autoplay 0
+sendkey Escape
+@wait_secs 1
+ui_assert visible pauseoverlay 1
+mouse_to 640 359
+@wait 5
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+ui_assert visible pauseoverlay 0
+ui_assert play finished 18
+@sleep 1000
+@wait 10
+@sleep 1000
+@wait 10
+sendkey F2
+@wait 5
+ui_assert screen_active songbrowser 1
+ui_assert visible songbrowser 1
+ui_assert visible pauseoverlay 0
+ui_assert convar mod_hidden 1
+ui_assert convar mod_autoplay 0
+ui_assert play test_end 10001 20000
+mouse_to 10 10
+@wait 2
+debug_test_play 10000
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+sendkey Escape
+@wait_secs 1
+ui_assert visible pauseoverlay 1
+mouse_to 640 508
+@wait 5
+mouse_down
+@wait 2
+mouse_up
+@wait_secs 1
+ui_assert screen_active songbrowser 1
+ui_assert visible songbrowser 1
+ui_assert visible pauseoverlay 0
+ui_assert convar mod_hidden 1
+ui_assert play test_end 10000 10000
+mouse_to 10 10
+@wait 2
+debug_test_play 500
+@wait 2
+ui_assert play finished 0
+sendkey F2
+@wait 5
+ui_assert screen_active songbrowser 1
+ui_assert play test_end 500 500
+debug_test_play 40000
+@wait 2
+ui_assert play finished 0
+sendkey F2
+@wait 5
+ui_assert screen_active songbrowser 1
+debug_test_play 30000
+@wait 2
+ui_assert play finished 58
+sendkey Tab
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+ui_assert screen_active rankingscreen 0
+ui_assert screen_active songbrowser 1
+ui_assert visible songbrowser 1
+ui_assert convar mod_autoplay 0
+ui_assert convar mod_hidden 1
+exit

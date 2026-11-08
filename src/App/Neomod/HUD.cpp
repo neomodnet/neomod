@@ -1423,9 +1423,11 @@ std::span<const SCORE_ENTRY> HUD::updateAndGetCurrentScores() {
         {
             const bool is_online = (BanchoState::is_online() || BanchoState::is_logging_in()) &&
                                    cv::songbrowser_scores_filteringtype.getString() != _("Local");
+            // (a test has none to measure itself against)
+            const bool testing = pf->getKind() == BeatmapInterface::PlayKind::TEST;
 
             const std::vector<FinishedScore> *scoreVec = nullptr;
-            if(is_online) {
+            if(is_online && !testing) {
                 const auto &lbIt = db->getOnlineLeaderboards().find(this->beatmap_md5);
                 if(lbIt != db->getOnlineLeaderboards().end()) {
                     scoreVec = &lbIt->second.scores;
@@ -1434,7 +1436,7 @@ std::span<const SCORE_ENTRY> HUD::updateAndGetCurrentScores() {
 
             // use local if we had no online scores or are not online
             bool locked_scores_mtx = false;
-            if(!scoreVec) {
+            if(!scoreVec && !testing) {
                 db->scores_mtx.lock_shared();
                 locked_scores_mtx = true;
                 const auto &scoreIt = db->getScores().find(this->beatmap_md5);

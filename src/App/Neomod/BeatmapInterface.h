@@ -152,11 +152,21 @@ class BeatmapInterface final : public GameplayJudge::Listener, public PlayfieldV
     enum class PlayKind : u8 {
         PLAY,    // the player's own
         REPLAY,  // a recorded play being watched (see watch())
+        TEST,    // the selected map tried out from a time (see test())
     };
 
     bool play();
     bool watch(const FinishedScore &score, u32 start_ms);
     bool spectate();
+    // plays the selected map from startMS (its time) to try it out: one approach time ahead of it with what starts
+    // before it left out (a normal start when that's nothing, or nothing starts after it), without mods; nothing fails
+    // and nothing is kept (score, replay). its end shows the screen it was started from again
+    bool test(i32 startMS);
+    // ends a test with getTestEnd() at the play's time
+    void quitTestHere();
+    // where the last test ended: its start, or the time quitTestHere() ended it at
+    [[nodiscard]] i32 getTestEnd() const { return this->iTestEndMS; }
+    [[nodiscard]] PlayKind getKind() const { return this->kind; }
     [[nodiscard]] bool isWatching() const { return this->kind == PlayKind::REPLAY; }
 
     bool start();
@@ -388,6 +398,8 @@ class BeatmapInterface final : public GameplayJudge::Listener, public PlayfieldV
     vec2 vContinueCursorPoint{0.f};
     MusicTrack &music;
     PlayKind kind{PlayKind::PLAY};
+    i32 iTestStartMS{0};
+    i32 iTestEndMS{0};
 
     // playfield
     f32 fScaleFactor;
