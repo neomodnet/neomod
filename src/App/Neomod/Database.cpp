@@ -899,6 +899,23 @@ std::string Database::pathOf(const MapLocation &location) const {
     return this->rootPath(location.root) + location.folder + "/" + location.file;
 }
 
+Database::MapLocation Database::standIn(const MapLocation &location) {
+    MapLocation in_maps{.root = MapRoot::Neomod, .folder = location.folder, .file = location.file};
+    if(location.root == MapRoot::Peppy) Mc::ranges::replace(in_maps.folder, '/', '_');
+    return in_maps;
+}
+
+bool Database::isStoodIn(std::string_view peppy_folder) const {
+    std::string nested;  // (only a nested folder's stand-in has another name)
+    if(peppy_folder.contains('/')) {
+        nested = standIn({.root = MapRoot::Peppy, .folder = std::string{peppy_folder}}).folder;
+        peppy_folder = nested;
+    }
+    Sync::shared_lock lock(this->beatmap_difficulties_mtx);
+    auto it = this->neomod_folders.find(peppy_folder);
+    return it != this->neomod_folders.end() && it->second.set;
+}
+
 BeatmapDifficulty *Database::getBeatmapDifficulty(const MapLocation &location) const {
     if(this->isLoading()) {
         debugLog("we are loading, progress {}, not returning a BeatmapDifficulty*", this->getProgress());
@@ -1381,8 +1398,9 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                 }
 
                 // songs folder records only matter while osu!.db isn't its source; otherwise they're stale and
-                // get dropped by the next save
-                if(root == MapRoot::Peppy && !this->needs_raw_load) continue;
+                // get dropped by the next save. one that a maps/ folder stands for (read before them) isn't loaded:
+                // its maps would take the md5 index from that folder's
+                if(root == MapRoot::Peppy && (!this->needs_raw_load || this->isStoodIn(rel_folder))) continue;
 
                 BeatmapSet *set_ptr = nullptr;
                 if(diffs && !diffs->empty()) {
@@ -1750,6 +1768,16 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                     logIfCV(debug_db, "skipping osu!.db entry {}, maps/ has it at {}", dotosu_fullpath,
                             owner->getFilePath());
                     continue;
+                }
+                // a folder that a maps/ folder with a set stands for is that one's, while it's on disk (a vanished one
+                // loses to this entry, and the startup pass drops it)
+                if(this->isStoodIn(beatmap_subfolder)) {
+                    const std::string stand_in = standIn({.root = MapRoot::Peppy, .folder = beatmap_subfolder}).folder;
+                    if(Environment::directoryExists(this->rootPath(MapRoot::Neomod) + stand_in)) {
+                        logIfCV(debug_db, "skipping osu!.db entry {}, maps/{} stands for its folder", dotosu_fullpath,
+                                stand_in);
+                        continue;
+                    }
                 }
 
                 // special case: legacy fallback behavior for invalid beatmapSetID, try to parse the ID from the path
@@ -2810,6 +2838,8 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
     const std::string abs_folder = this->rootPath(root) + std::string{rel_folder} + "/";
     auto &folders = this->folderIndex(root);
     if(dir_mtime == 0) dir_mtime = folder_mtime(abs_folder);
+    // a songs folder that a maps/ folder stands for is that one's: as good as gone here
+    if(root == MapRoot::Peppy && this->isStoodIn(rel_folder)) dir_mtime = 0;
 
     // snapshot the record (the map may rehash while this folder is being worked on)
     bool known = false;
@@ -2914,14 +2944,31 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
     Mc::ranges::sort(slots, {}, &Slot::path);
 
     // 3. the hash decides what a parsed file is: one index lookup each under the lock, then the decisions (which
-    //    may stat other folders) without it
+    //    may stat other folders) without it. the maps of the songs folder that a maps/ folder stands for are found on
+    //    the way: through the osu!stable owners of its files' content and the osu!stable sets of their ids
+    std::vector<BeatmapDifficulty *> stood_in;
     {
         Sync::shared_lock lock(this->beatmap_difficulties_mtx);
+        std::vector<BeatmapSet *> candidates;
+        auto consider = [&candidates](BeatmapSet *set) {
+            if(set && set->type == PEPPY_BEATMAPSET && !Mc::ranges::contains(candidates, set))
+                candidates.push_back(set);
+        };
         for(auto &slot : slots) {
             if(!slot.parsed) continue;
             if(auto it = this->beatmap_difficulties.find(slot.parsed->getMD5());
                it != this->beatmap_difficulties.end()) {
                 slot.owner = it->second;
+            }
+            if(root != MapRoot::Neomod) continue;
+            if(slot.owner) consider(slot.owner->getParentSet());
+            if(auto it = this->sets_by_id.find(slot.parsed->iSetID); it != this->sets_by_id.end()) {
+                for(BeatmapSet *set : it->second) consider(set);
+            }
+        }
+        for(BeatmapSet *set : candidates) {
+            for(const auto &diff : set->getDifficulties()) {
+                if(standIn(this->locate(*diff)).folder == rel_folder) stood_in.push_back(diff.get());
             }
         }
     }
@@ -2942,7 +2989,7 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
                 slot.kept = owner;
             }
             slot.parsed.reset();
-        } else if(owner && Environment::fileExists(owner->getFilePath())) {
+        } else if(owner && !Mc::ranges::contains(stood_in, owner) && Environment::fileExists(owner->getFilePath())) {
             // a copy of a map that still exists elsewhere: the first one wins
             if(!res.dedup_owner) res.dedup_owner = owner->getParentSet();
             logIfCV(debug_db, "reconcile {}: {} duplicates {}", rel_folder, name(), owner->getFilePath());
@@ -2955,19 +3002,32 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
         }
         // otherwise it's new here: nothing has this content, or the owner's file is gone (the map moved here; the
         // index entry is retargeted below, the stale object stays in its own set until that folder is reconciled,
-        // or leaves it right away if that's an osu!.db set, which never is)
+        // or leaves it right away if that's an osu!.db set, which never is), or the owner is in the songs folder
+        // this one stands for (whose maps all leave their set below)
     }
 
     // what a new object replaces, which hands it the user's data: the old object of its file when that isn't kept (the
-    // content changed), else the one of its content (it moved here)
+    // content changed), else the one of its content (it moved here), else the map of its name in the songs folder
+    // this one stands for (its content changed on the way)
     for(auto &slot : slots) {
         if(!slot.parsed) continue;
         slot.was = slot.owner;
-        if(!old) continue;
-        const auto &old_diffs = old->getDifficulties();
-        if(auto it = Mc::ranges::find(old_diffs, std::string_view{slot.path}, &DatabaseBeatmap::getFilePath);
-           it != old_diffs.end() && Mc::ranges::none_of(slots, [&it](const Slot &s) { return s.kept == it->get(); })) {
-            slot.was = it->get();
+        if(old) {
+            const auto &old_diffs = old->getDifficulties();
+            if(auto it = Mc::ranges::find(old_diffs, std::string_view{slot.path}, &DatabaseBeatmap::getFilePath);
+               it != old_diffs.end() &&
+               Mc::ranges::none_of(slots, [&it](const Slot &s) { return s.kept == it->get(); })) {
+                slot.was = it->get();
+            }
+        }
+        if(!slot.was) {
+            auto file_name = [](const BeatmapDifficulty *diff) {
+                return Environment::getFileNameFromFilePath(diff->getFilePath());
+            };
+            if(auto it = Mc::ranges::find(stood_in, Environment::getFileNameFromFilePath(slot.path), file_name);
+               it != stood_in.end()) {
+                slot.was = *it;
+            }
         }
     }
 
@@ -2995,11 +3055,14 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
     //    tombstone keeps only what was dropped (compacted: nothing may ever see a null diff in a set)
     auto container = std::make_unique<DiffContainer>();
     std::vector<BeatmapDifficulty *> fresh;
-    std::vector<BeatmapDifficulty *> moved;  // stale osu!.db objects of maps that moved here
+    // osu!stable's maps that are this folder's now: stale osu!.db objects of maps that moved here, and those of the
+    // songs folder this one stands for
+    std::vector<BeatmapDifficulty *> moved{stood_in};
     for(auto &slot : slots) {
         if(slot.parsed) {
             // (the songs folder's sets are osu!.db's unless it's loaded raw)
-            if(slot.owner && slot.owner->type == PEPPY_DIFFICULTY && !this->needs_raw_load) {
+            if(slot.owner && slot.owner->type == PEPPY_DIFFICULTY && !this->needs_raw_load &&
+               !Mc::ranges::contains(moved, slot.owner)) {
                 moved.push_back(slot.owner);
             }
             if(const BeatmapDifficulty *was = slot.was) {
@@ -3081,7 +3144,8 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
                 if(diff->iSetID <= 0) diff->iSetID = set_id;
             }
         }
-        // an osu!.db set loses the moved ones too: tombstoned, and rebuilt from whatever else it has
+        // their osu!stable sets lose them too: tombstoned, and rebuilt from whatever else they have (an osu!.db set can
+        // span folders; a raw-loaded folder's record goes with its set, so the folder is read again once it's its own)
         while(!moved.empty()) {
             BeatmapSet *stale = moved.back()->getParentSet();
             auto rest = std::make_unique<DiffContainer>();
@@ -3099,6 +3163,9 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
                 this->beatmapsets.push_back(std::move(rebuilt));
             }
             tombstone(stale);
+            if(this->needs_raw_load) {
+                std::erase_if(this->peppy_folders, [stale](const auto &record) { return record.second.set == stale; });
+            }
             res.moved_from.emplace_back(stale, remainder);
         }
         this->indexSet(set);
@@ -3157,7 +3224,7 @@ ReconcileResult Database::reconcileFolder(MapRoot root, std::string_view rel_fol
     logIfCV(debug_db, "reconcile {}: {} (+{} -{}, parsed {})", rel_folder, res.outcomeName(), res.added, res.removed,
             res.parsed);
     for(const auto &[gone, remainder] : res.moved_from) {
-        logIfCV(debug_db, "reconcile {}: moved here from osu!.db's {} ({})", rel_folder, gone->getFolder(),
+        logIfCV(debug_db, "reconcile {}: moved here from osu!stable's {} ({})", rel_folder, gone->getFolder(),
                 remainder ? "rest kept" : "nothing left");
     }
     return res;

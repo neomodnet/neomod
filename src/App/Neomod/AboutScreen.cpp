@@ -408,6 +408,7 @@ void AboutScreen::buildChangelog() {
         R"(- Fixed the language setting showing "English" when the game was using your system language)",
         R"(- Fixed unsubmitted osu!stable scores not getting imported)",
         R"(- Nightcore/Daycore now change the pitch along with the speed)",
+        R"(- A beatmapset folder in maps/ named like an osu!stable one now takes its place instead of being skipped as a duplicate)",
         R"(- Reduced memory usage)",
         R"(- Moved "Target Practice" to experimental mods)",
         R"(- Removed "Actual Flashlight" mod)",

@@ -1,0 +1,30 @@
+# a maps/ folder named like a folder of osu!stable's songs folder stands for it once it has a set: osu!stable's set
+# isn't listed beside it. run.py's osu!stable install has "uitest stable" (diff 01, and diff 02 with a local offset
+# of 7 ms in osu!.db); maps/ has a copy of it whose diff 02 was edited: one set, both maps from maps/, the edited one
+# with its original's offset
+# uitest-datadir: fresh
+# uitest-maps: uitest stable|456|1
+# uitest-file: maps/uitest stable/diff02.osu|osu file format v14||[General]|AudioFilename: none.mp3|Mode: 0||[Metadata]|Title:UITest uitest stable|Artist:UITest|Creator:uitest|Version:diff 02|BeatmapID:0|BeatmapSetID:456||[Difficulty]|HPDrainRate:5|CircleSize:4|OverallDifficulty:5|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|0,500,4,2,0,100,1,0||[HitObjects]|256,192,1000,1,0,0:0:0:0:|256,192,1500,1,0,0:0:0:0:|256,192,2000,1,0,0:0:0:0:
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+osu_folder uitest_osu_folder_stable
+set_active_ui_screen songbrowser
+@wait 300
+@wait_secs 2
+ui_assert sets 1
+sendtext diff 01
+@wait 60
+ui_assert map root maps
+sendkey Escape
+@wait 10
+sendtext diff 02
+@wait 60
+ui_assert map root maps
+ui_assert map offset 7
+exit

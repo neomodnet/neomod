@@ -50,8 +50,9 @@ struct ReconcileResult {
     // predecessor (Updated/Removed): tombstoned, valid until the next load(), or set itself when it lost no difficulty
     BeatmapSet *replaced{nullptr};
     BeatmapSet *dedup_owner{nullptr};  // set owning the first duplicate diff seen (where "already installed" lives)
-    // osu!.db sets that had maps which moved here (osu!stable's db keeps listing them until it rescans): each
-    // tombstoned, with its rebuilt remainder (nullptr: nothing left)
+    // osu!stable sets that had maps which are this folder's now: maps that moved here (osu!stable's db keeps listing
+    // them until it rescans), or those of the songs folder this one stands for (Database::standIn). each tombstoned,
+    // with its rebuilt remainder (nullptr: nothing left)
     std::vector<std::pair<BeatmapSet *, BeatmapSet *>> moved_from;
     // maps whose object a new one replaced (their file's content changed, or they moved here), which took over the old
     // one's user data and collection entries
@@ -141,6 +142,12 @@ class Database final {
     [[nodiscard]] MapLocation locate(const BeatmapDifficulty &diff) const;
     // the file a location names
     [[nodiscard]] std::string pathOf(const MapLocation &location) const;
+    // where a map is in maps/: one of the songs folder's is the same file in the maps/ folder named after its folder
+    // (a nested one's path as one name), which stands for that folder once it has a set: neomod lists it in place of
+    // osu!stable's from then on
+    [[nodiscard]] static MapLocation standIn(const MapLocation &location);
+    // whether the maps/ folder that stands for this folder of the songs folder is known with a set
+    [[nodiscard]] bool isStoodIn(std::string_view peppy_folder) const;
 
     enum class ReconcileMode : u8 {
         TrustFolderMtime,  // startup: an unchanged folder mtime means no per-file io at all
@@ -155,6 +162,9 @@ class Database final {
     // never both. nothing here calculates difficulty: a load is followed by the batch pass, later imports calculate
     // their diffs before passing them (BatchDiffCalc::calc_map/apply_results) and what they leave the batch (their
     // scores, diffs parsed here) gets another pass.
+    // a maps/ folder with a set takes the place of the songs folder it stands for (standIn()): that folder's maps are
+    // its files' predecessors, by content or else by file name, and leave their set (moved_from); a songs folder that
+    // one stands for counts as gone.
     // limits: folder mtimes move on entry add/remove/rename but not on in-place rewrites (PerFile catches those),
     // and without preparsed a rewrite within the same second as the recorded mtime is missed (same as stable)
     ReconcileResult reconcileFolder(MapRoot root, std::string_view rel_folder, ReconcileMode mode, i32 set_id_override,
