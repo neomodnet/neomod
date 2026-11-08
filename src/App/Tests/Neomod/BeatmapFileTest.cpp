@@ -525,6 +525,17 @@ void BeatmapFileTest::runTests() {
         TEST_ASSERT(times.timingpoints.size() == 1 && times.timingpoints[0].offset == 100,
                     "timing points at times that aren't numbers or don't fit in 32 bits are dropped");
 
+        const auto together = load(
+            "osu file format v14\r\n[TimingPoints]\r\n1000,-50,4,2,0,80,0,0\r\n1000,500,4,1,0,100,1,0\r\n"
+            "1000,-25,4,1,0,60,0,1\r\n2000,400,4,1,0,100,1,0\r\n2000,300,4,1,0,100,1,0\r\n");
+        const DBType::TIMING_INFO first = together.timingpoints.getTimingInfo(1000);
+        TEST_ASSERT(
+            first.beatLengthBase == 500.f && first.beatLength == 125.f && first.sampleSet == 1 && first.volume == 60,
+            "of several points at one time, the uninherited one gives the beat length and the inherited one "
+            "written last the velocity and the samples");
+        TEST_ASSERT(together.timingpoints.getTimingInfo(2000).beatLengthBase == 300.f,
+                    "...and of two uninherited ones, the one written last the beat length");
+
         const auto lengths = load(
             "osu file format v14\r\n[TimingPoints]\r\n0,500,4,1,0,100,1,0\r\n[HitObjects]\r\n0,0,1000,2,0,L|100:0,1\r\n"
             "0,0,2000,2,0,L|0:50,1,0\r\n0,0,3000,2,0,L|30:40,1,20\r\n0,0,4000,2,0,P|50:50|100:0,1\r\n");

@@ -65,21 +65,6 @@ bool sliderScoringTimeComparator(const SLIDER_SCORING_TIME &a, const SLIDER_SCOR
     return false;  // equivalent
 };
 
-bool timingPointSortComparator(const TIMINGPOINT &a, const TIMINGPOINT &b) {
-    if(a.offset != b.offset) return a.offset < b.offset;
-
-    // uninherited timingpoints go before inherited timingpoints
-    const bool a_uninherited = a.msPerBeat >= 0;
-    const bool b_uninherited = b.msPerBeat >= 0;
-    if(a_uninherited != b_uninherited) return a_uninherited;
-
-    if(a.sampleSet != b.sampleSet) return a.sampleSet < b.sampleSet;
-    if(a.sampleIndex != b.sampleIndex) return a.sampleIndex < b.sampleIndex;
-    if(a.kiai != b.kiai) return a.kiai;
-
-    return false;  // equivalent
-}
-
 // a slider's duration, ticks and the times the star calc scores it at, from the map's timing points (there are some)
 LoadError calculateSliderTimesClicksTicks(int beatmapVersion, SLIDER &s, const TimingPoints &timingpoints,
                                           float sliderMultiplier, float sliderTickRate, const Limits &limits) {
@@ -214,8 +199,7 @@ LoadError calculateSliderTimesClicksTicks(int beatmapVersion, SLIDER &s, const T
 }  // namespace
 
 TimingPoints::TimingPoints(std::vector<TIMINGPOINT> points) : entries(points.size()) {
-    // sort timingpoints by time
-    if(points.size() > 1) Mc::ranges::sort(points, timingPointSortComparator);
+    Mc::ranges::stable_sort(points, {}, [](const TIMINGPOINT &p) { return timingOrder(p.offset, p.uninherited); });
 
     u32 lastUninherited = 0;
     u32 lastInherited = 0;

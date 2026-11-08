@@ -14,6 +14,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -69,7 +70,11 @@ struct Limits {
     i32 sliderMaxTicks{cv::defaults::slider_max_ticks};
 };
 
-// a map's timing points in time order, and what applies at a given time
+// what orders a map's timing points: by time, an uninherited point before the inherited ones at its time, the rest as
+// written (sorted stably by it), so that of several at one time the last one written applies
+[[nodiscard]] constexpr std::pair<f64, bool> timingOrder(f64 time, bool uninherited) { return {time, !uninherited}; }
+
+// a map's timing points in timingOrder(), and what applies at a given time
 class TimingPoints {
     struct Entry {
         DBType::TIMINGPOINT point;
