@@ -396,8 +396,15 @@ void AboutScreen::onChangeClicked(CBaseUIButton *button) {
 void AboutScreen::buildChangelog() {
     std::vector<CHANGELOG> changelogs;
 
+    CHANGELOG v44_05;
+    v44_05.title = "44.05 (" CHANGELOG_TIMESTAMP ")";
+    v44_05.changes = {
+        R"()",
+    };
+    changelogs.push_back(std::move(v44_05));
+
     CHANGELOG v44_04;
-    v44_04.title = "44.04 (" CHANGELOG_TIMESTAMP ")";
+    v44_04.title = "44.04 (2026-11-09)";
     v44_04.changes = {
         R"(- Fixed scrollwheel on Windows with Raw Input enabled)",
         R"(- Spectating: Fixed a disconnect mid-play turning the spectated play into your own)",
@@ -410,7 +417,7 @@ void AboutScreen::buildChangelog() {
     changelogs.push_back(std::move(v44_04));
 
     CHANGELOG v44_03;
-    v44_03.title = "44.03 (2026-11-09)";
+    v44_03.title = "44.03 (2026-11-08)";
     v44_03.changes = {
         R"(- Added screenshot uploading (hold Shift while taking a screenshot))",
         R"(- Added support for osu!lazer replays)",
