@@ -1,0 +1,57 @@
+From 0072c321c79700a22b28e20007f893dbae10b56e Mon Sep 17 00:00:00 2001
+From: William Horvath <william@horvath.blog>
+Date: Mon, 9 Nov 2026 10:02:36 +0900
+Subject: [PATCH] Revert "win32: Revert raw mouse wheel support (#16586)"
+
+This reverts commit 606c77b7b23b0b327a12d40b8cd0e4ca860d338b.
+---
+ src/video/windows/SDL_windowsevents.c | 26 +++++++++++++++++---------
+ 1 file changed, 17 insertions(+), 9 deletions(-)
+
+diff --git a/src/video/windows/SDL_windowsevents.c b/src/video/windows/SDL_windowsevents.c
+index 3fa887da7..28e4e3ac7 100644
+--- a/src/video/windows/SDL_windowsevents.c
++++ b/src/video/windows/SDL_windowsevents.c
+@@ -716,9 +716,15 @@ static void WIN_HandleRawMouseInput(Uint64 timestamp, SDL_VideoData *data, HANDL
+             }
+         }
+ 
+-        /* Note: We don't handle RI_MOUSE_WHEEL and RI_MOUSE_HWHEEL here because some
+-           input devices have inverted wheel direction in raw mode. This avoids scroll
+-           direction changing unexpectedly when entering/exiting relative mouse mode. */
++        if (rawmouse->usButtonFlags & RI_MOUSE_WHEEL) {
++            SHORT amount = (SHORT)rawmouse->usButtonData;
++            float fAmount = (float)amount / WHEEL_DELTA;
++            SDL_SendMouseWheel(timestamp, window, mouseID, 0.0f, fAmount, SDL_MOUSEWHEEL_NORMAL);
++        } else if (rawmouse->usButtonFlags & RI_MOUSE_HWHEEL) {
++            SHORT amount = (SHORT)rawmouse->usButtonData;
++            float fAmount = (float)amount / WHEEL_DELTA;
++            SDL_SendMouseWheel(timestamp, window, mouseID, fAmount, 0.0f, SDL_MOUSEWHEEL_NORMAL);
++        }
+ 
+         /* Invalidate the mouse button flags. If we don't do this then disabling raw input
+            will cause held down mouse buttons to persist when released. */
+@@ -1533,12 +1539,14 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
+     case WM_MOUSEWHEEL:
+     case WM_MOUSEHWHEEL:
+     {
+-        short amount = GET_WHEEL_DELTA_WPARAM(wParam);
+-        float fAmount = (float)amount / WHEEL_DELTA;
+-        if (msg == WM_MOUSEWHEEL) {
+-            SDL_SendMouseWheel(WIN_GetEventTimestamp(), data->window, SDL_GLOBAL_MOUSE_ID, 0.0f, fAmount, SDL_MOUSEWHEEL_NORMAL);
+-        } else {
+-            SDL_SendMouseWheel(WIN_GetEventTimestamp(), data->window, SDL_GLOBAL_MOUSE_ID, fAmount, 0.0f, SDL_MOUSEWHEEL_NORMAL);
++        if (!data->videodata->raw_mouse_enabled) {
++            short amount = GET_WHEEL_DELTA_WPARAM(wParam);
++            float fAmount = (float)amount / WHEEL_DELTA;
++            if (msg == WM_MOUSEWHEEL) {
++                SDL_SendMouseWheel(WIN_GetEventTimestamp(), data->window, SDL_GLOBAL_MOUSE_ID, 0.0f, fAmount, SDL_MOUSEWHEEL_NORMAL);
++            } else {
++                SDL_SendMouseWheel(WIN_GetEventTimestamp(), data->window, SDL_GLOBAL_MOUSE_ID, fAmount, 0.0f, SDL_MOUSEWHEEL_NORMAL);
++            }
+         }
+     } break;
+ 
+-- 
+2.54.0
+

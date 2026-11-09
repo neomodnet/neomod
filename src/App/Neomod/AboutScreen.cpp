@@ -399,6 +399,7 @@ void AboutScreen::buildChangelog() {
     CHANGELOG v44_04;
     v44_04.title = "44.04 (" CHANGELOG_TIMESTAMP ")";
     v44_04.changes = {
+        R"(- Fixed scrollwheel on Windows with Raw Input enabled)",
         R"(- Spectating: Fixed a disconnect mid-play turning the spectated play into your own)",
         R"(- Fixed text boxes staying focused after right-clicking off of them)",
         R"(- Fixed neomod maps not overriding osu!stable ones if they had the same name)",

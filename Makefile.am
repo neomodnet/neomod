@@ -388,6 +388,7 @@ $(DEPS_PREFIX)/SDL3-$(SDL3_VERSION).built: $(DEPS_CACHE)/SDL3-$(SDL3_VERSION).ta
 	patch -Np1<$(BUILD_MISCDIR)/SDL3-emscripten-fullscreen.patch && \
 	patch -Np1<$(BUILD_MISCDIR)/SDL3-emscripten-terminating-quit.patch && \
 	patch -Np1<$(BUILD_MISCDIR)/SDL3-cocoa-Add-IOHID-based-mouse-raw-input-path.patch && \
+	patch -Np1<$(BUILD_MISCDIR)/SDL3-revert-scrollwheel-nolegacy.patch && \
 	PKG_CONFIG="$(PKG_CONFIG)" LDFLAGS="$(LDFLAGS) $(if $(SDL3_STATIC),,$(SDL3_EXTRALIBS))" CC="$(CC)" CXX="$(CXX)" OBJCFLAGS="$(OBJCFLAGS)" \
 	$(CMAKE_CONF_PFX) $(CMAKE) -S . -B build -G "$(CMAKE_GEN)" \
 		-D CMAKE_BUILD_TYPE="$(if $(ENABLE_DEBUG),Debug,Release)" \
