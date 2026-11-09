@@ -5,6 +5,7 @@
 
 #include "types.h"
 #include "StaticPImpl.h"
+#include "MD5Hash.h"
 
 #include <optional>
 #include <span>
@@ -77,9 +78,9 @@ class BeatmapInstaller final {
     void update();
 
     // idempotent. if the set is already tracked as a download, only the auto_select bit is OR'd in
-    // and display_name is filled iff currently empty (so a later caller with a name
+    // and display_name and md5 are filled iff currently empty (so a later caller with a name
     // upgrades an entry queued earlier without one).
-    void enqueue(i32 set_id, bool auto_select, std::string_view display_name = {});
+    void enqueue(i32 set_id, bool auto_select, std::string_view display_name = {}, const MD5Hash &md5 = {});
 
     // import a local .osz file (drag-drop, file association, maps/ watcher). the set id is unknown
     // until the archive is cracked open on a worker thread. delete_after removes the source file once

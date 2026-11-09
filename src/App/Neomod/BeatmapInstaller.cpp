@@ -65,6 +65,7 @@ struct Entry {
     u32 uid{0};
     i32 set_id{-1};
     std::string display_name;
+    MD5Hash md5{};
     Downloader::DownloadHandle dl_handle;
     std::string osz_path;
     std::string folder;                    // maps/ folder the archive was extracted into (relative)
@@ -362,7 +363,7 @@ struct BeatmapInstaller::BMInstallerImpl final {
 BeatmapInstaller::BeatmapInstaller() : m() {}
 BeatmapInstaller::~BeatmapInstaller() = default;
 
-void BeatmapInstaller::enqueue(i32 set_id, bool auto_select, std::string_view display_name) {
+void BeatmapInstaller::enqueue(i32 set_id, bool auto_select, std::string_view display_name, const MD5Hash& md5) {
     if(set_id <= 0) return;
 
     // de-dupe against other downloads only: a local import that resolved to the same set coexists
@@ -375,6 +376,7 @@ void BeatmapInstaller::enqueue(i32 set_id, bool auto_select, std::string_view di
 
         // upgrade an empty name with whatever the new caller has (don't clobber an existing name)
         if(e.display_name.empty() && !display_name.empty()) e.display_name.assign(display_name);
+        if(e.md5.empty()) e.md5 = md5;
 
         // if a previous attempt failed, allow retry
         if(e.stage == MapInstallStage::Failed) {
@@ -391,6 +393,7 @@ void BeatmapInstaller::enqueue(i32 set_id, bool auto_select, std::string_view di
     e.set_id = set_id;
     e.auto_select = auto_select;
     if(!display_name.empty()) e.display_name.assign(display_name);
+    e.md5 = md5;
     m->entries.push_back(std::move(e));
 }
 
@@ -620,7 +623,7 @@ void BeatmapInstaller::update() {
             case Downloading: {
                 // download_beatmapset lazily creates the handle on first call (when e.dl_handle is null),
                 // then on each subsequent call polls completion.
-                const bool ready = Downloader::download_beatmapset(static_cast<u32>(e.set_id), e.dl_handle);
+                const bool ready = Downloader::download_beatmapset(static_cast<u32>(e.set_id), e.dl_handle, e.md5);
                 if(ready) {
                     // the target folder depends on what the db knows, so hold the bytes until it's loaded
                     // (and until an extraction slot is free)

@@ -64,7 +64,7 @@ const MapFetcher::State &MapFetcher::tick() {
 
     // map targets need the owning set resolved first (server metadata query unless hinted)
     if(this->set_id <= 0) {
-        const i32 resolved = Downloader::resolve_beatmapset_id_for(this->map_id, this->set_id_hint);
+        const i32 resolved = Downloader::resolve_beatmapset_id_for(this->map_id, this->set_id_hint, this->md5);
         if(resolved < 0) {
             this->st = {.status = Status::NotFound, .why = Why::Resolve, .progress = 0.f};
         } else if(resolved > 0) {
@@ -96,6 +96,6 @@ const MapFetcher::State &MapFetcher::tick() {
         return this->st;
     }
 
-    osu->getBeatmapInstaller()->enqueue(this->set_id, /*auto_select=*/false);
+    osu->getBeatmapInstaller()->enqueue(this->set_id, /*auto_select=*/false, {}, this->md5);
     return this->st;
 }

@@ -1,5 +1,6 @@
 #pragma once
 #include "types.h"
+#include "MD5Hash.h"
 
 #include <memory>
 #include <vector>
@@ -57,12 +58,13 @@ DownloadHandle download(std::string_view url);
 // Drives the transfer of a beatmapset .osz. Returns true once the response body has arrived
 // (claim it with handle.take_data()). On failure, latches handle.failed(); see also
 // handle.cancelled().
-bool download_beatmapset(u32 set_id, DownloadHandle &handle);
+bool download_beatmapset(u32 set_id, DownloadHandle &handle, const MD5Hash &md5 = {});
 
 // Resolves a beatmap_id to its containing beatmapset_id.
+// - md5 (if non-empty) is looked up instead: it also resolves unsubmitted maps, which have no beatmap_id.
 // - set_id_hint > 0: cache and return immediately, skipping the network lookup.
 // - returns: positive set_id (resolved), 0 (still resolving / in flight), -1 (resolution failed).
 // Main-thread only.
-i32 resolve_beatmapset_id_for(i32 beatmap_id, i32 set_id_hint = 0);
+i32 resolve_beatmapset_id_for(i32 beatmap_id, i32 set_id_hint = 0, const MD5Hash &md5 = {});
 
 }  // namespace Downloader

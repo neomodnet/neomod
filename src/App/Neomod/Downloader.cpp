@@ -264,8 +264,11 @@ class DownloadManager {
 // beatmap_id -> beatmapset_id cache. populated synchronously from set_id hints, or asynchronously
 // from the osu-search-set.php API. value == 0 means "we asked and the lookup failed permanently".
 std::unordered_map<i32, i32> beatmap_to_beatmapset;
+// the same for lookups by md5
+std::unordered_map<MD5Hash, i32> md5_to_beatmapset;
 // dedupe in-flight resolution queries: at most one outstanding request at a time.
 i32 queried_map_id = 0;
+MD5Hash queried_md5;
 }  // namespace
 
 void abort_downloads() {
@@ -294,9 +297,10 @@ DownloadHandle download(std::string_view url) {
     return DownloadHandle{std::move(req)};
 }
 
-bool download_beatmapset(u32 set_id, DownloadHandle& handle) {
+bool download_beatmapset(u32 set_id, DownloadHandle& handle, const MD5Hash& md5) {
     if(!handle) {
         auto url = fmt::format("osu.{}/d/", BanchoState::endpoint);
+        bool from_server = true;
         if(auto override_url = cv::beatmap_mirror_override.getString(); override_url.length() > 0) {
             if(override_url.starts_with("https://")) {
                 override_url = override_url.substr("https://"sv.size());
@@ -305,9 +309,11 @@ bool download_beatmapset(u32 set_id, DownloadHandle& handle) {
             }
             if(!override_url.empty()) {
                 url = override_url;
+                from_server = false;
             }
         }
         url.append(fmt::format("{:d}", set_id));
+        if(from_server && !md5.empty()) url.append(fmt::format("?c={:s}", md5.to_chars().string()));
         handle = download(url);
     }
     if(!handle.completed()) return false;
@@ -318,24 +324,32 @@ bool download_beatmapset(u32 set_id, DownloadHandle& handle) {
     return true;
 }
 
-i32 resolve_beatmapset_id_for(i32 beatmap_id, i32 set_id_hint) {
-    if(beatmap_id <= 0) return -1;
+i32 resolve_beatmapset_id_for(i32 beatmap_id, i32 set_id_hint, const MD5Hash& md5) {
+    const bool by_md5 = !md5.empty();
+    if(!by_md5 && beatmap_id <= 0) return -1;
 
-    if(auto it = beatmap_to_beatmapset.find(beatmap_id); it != beatmap_to_beatmapset.end()) {
+    if(by_md5) {
+        if(auto it = md5_to_beatmapset.find(md5); it != md5_to_beatmapset.end()) {
+            return it->second == 0 ? -1 : it->second;
+        }
+    } else if(auto it = beatmap_to_beatmapset.find(beatmap_id); it != beatmap_to_beatmapset.end()) {
         return it->second == 0 ? -1 : it->second;
     }
 
     if(set_id_hint > 0) {
-        beatmap_to_beatmapset[beatmap_id] = set_id_hint;
+        (by_md5 ? md5_to_beatmapset[md5] : beatmap_to_beatmapset[beatmap_id]) = set_id_hint;
         return set_id_hint;
     }
 
-    if(queried_map_id == beatmap_id) {
-        // a query is already in flight for this id; wait for the response.
+    if(by_md5 ? queried_md5 == md5 : queried_map_id == beatmap_id) {
+        // a query is already in flight for this map; wait for the response.
         return 0;
     }
 
-    std::string url = fmt::format("osu.{:s}/web/osu-search-set.php?b={:d}", BanchoState::endpoint, beatmap_id);
+    std::string url = fmt::format("osu.{:s}/web/osu-search-set.php?", BanchoState::endpoint);
+    if(beatmap_id > 0) url.append(fmt::format("b={:d}&", beatmap_id));
+    if(by_md5) url.append(fmt::format("c={:s}&", md5.to_chars().string()));
+    url.pop_back();
     BANCHO::Api::append_auth_params(url);
 
     Mc::Net::RequestOptions options{
@@ -343,16 +357,16 @@ i32 resolve_beatmapset_id_for(i32 beatmap_id, i32 set_id_hint) {
         .timeout = 5,
         .connect_timeout = 5,
     };
-    networkHandler->httpRequestAsync(url, std::move(options), [beatmap_id](const Mc::Net::Response& response) {
-        if(response.success) {
-            auto metadata = parse_beatmapset_metadata(response.text());
-            beatmap_to_beatmapset[beatmap_id] = metadata.set_id;
-        } else {
-            beatmap_to_beatmapset[beatmap_id] = 0;
-        }
+    networkHandler->httpRequestAsync(url, std::move(options), [beatmap_id, md5, by_md5](const Mc::Net::Response& response) {
+        const i32 set_id = response.success ? parse_beatmapset_metadata(response.text()).set_id : 0;
+        (by_md5 ? md5_to_beatmapset[md5] : beatmap_to_beatmapset[beatmap_id]) = set_id;
     });
 
-    queried_map_id = beatmap_id;
+    if(by_md5) {
+        queried_md5 = md5;
+    } else {
+        queried_map_id = beatmap_id;
+    }
     return 0;
 }
 
