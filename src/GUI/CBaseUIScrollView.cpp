@@ -456,9 +456,11 @@ void CBaseUIScrollView::onCapturedMouseMove() {
         this->vVelocity.x = 0.;
         this->vVelocity.y = 0.;
         if(this->bScrollbarIsVerticalScrolling) {
-            const f64 percent = std::clamp<f64>((curMousePos.y - this->getPos().y - this->verticalScrollbar.getWidth() -
+            const f64 trackTop = this->getPos().y + this->fScrollbarInsetTop;
+            const f64 trackHeight = this->getSize().y - this->fScrollbarInsetTop - this->fScrollbarInsetBottom;
+            const f64 percent = std::clamp<f64>((curMousePos.y - trackTop - this->verticalScrollbar.getWidth() -
                                                  this->verticalScrollbar.getHeight() - this->vMouseBackup.y - 1.0) /
-                                                    (this->getSize().y - 2.0 * this->verticalScrollbar.getWidth()),
+                                                    (trackHeight - 2.0 * this->verticalScrollbar.getWidth()),
                                                 0.0, 1.0);
             this->scrollToYInt(-this->vScrollSize.y * percent, true, false);
         } else {
@@ -787,6 +789,8 @@ void CBaseUIScrollView::updateScrollbars() {
     // update vertical scrollbar
     if(this->bVerticalScrolling && this->vScrollSize.y > this->getSize().y) {
         const f64 verticalBlockWidth = cv::ui_scrollview_scrollbarwidth.getInt();
+        const f64 trackTop = this->getPos().y + this->fScrollbarInsetTop;
+        const f64 trackHeight = this->getSize().y - this->fScrollbarInsetTop - this->fScrollbarInsetBottom;
 
         const f64 rawVerticalPercent = (this->vScrollPos.y > 0 ? -this->vScrollPos.y : std::abs(this->vScrollPos.y)) /
                                        (this->vScrollSize.y - this->getSize().y);
@@ -800,14 +804,13 @@ void CBaseUIScrollView::updateScrollbars() {
 
         const f64 verticalHeightPercent = (this->getSize().y - (verticalBlockWidth * 2)) / this->vScrollSize.y;
         const f64 verticalBlockHeight =
-            std::clamp<f64>(std::max(verticalHeightPercent * this->getSize().y, verticalBlockWidth) * overscroll,
-                            verticalBlockWidth, std::max((f64)this->getSize().y, verticalBlockWidth));
+            std::clamp<f64>(std::max(verticalHeightPercent * trackHeight, verticalBlockWidth) * overscroll,
+                            verticalBlockWidth, std::max(trackHeight, verticalBlockWidth));
 
         this->verticalScrollbar =
             McRect(this->getPos().x + this->getSize().x - (verticalBlockWidth * this->fScrollbarSizeMultiplier),
-                   this->getPos().y +
-                       (verticalPercent * (this->getSize().y - (verticalBlockWidth * 2.0) - verticalBlockHeight) +
-                        verticalBlockWidth + 1.0),
+                   trackTop + (verticalPercent * (trackHeight - (verticalBlockWidth * 2.0) - verticalBlockHeight) +
+                               verticalBlockWidth + 1.0),
                    (verticalBlockWidth * this->fScrollbarSizeMultiplier), verticalBlockHeight);
         if(this->bScrollbarOnLeft) {
             this->verticalScrollbar.setMinX(this->getPos().x);

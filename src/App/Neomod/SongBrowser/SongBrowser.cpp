@@ -2327,6 +2327,9 @@ void SongBrowser::updateLayout() {
     this->carousel->setSize(
         (f32)osu->getVirtScreenWidth() - (this->topbarLeft->getPos().x + this->topbarLeft->getSize().x),
         (f32)osu->getVirtScreenHeight());
+    // the carousel extends underneath the top/bottom bars for translucent skins
+    this->carousel->setVerticalScrollbarInsets(this->topbarRight->getPos().y + this->topbarRight->getSize().y,
+                                               BottomBar::get_min_height());
     this->updateSongButtonLayout();
 
     this->search->setPos((f32)osu->getVirtScreenWidth() / 2, this->topbarRight->getSize().y + 8 * dpiScale);

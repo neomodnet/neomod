@@ -111,11 +111,22 @@ class CBaseUIScrollView : public CBaseUIElement {
         return this;
     }
 
-    void setScrollMouseWheelMultiplier(f32 scrollMouseWheelMultiplier) {
-        this->fScrollMouseWheelMultiplier = scrollMouseWheelMultiplier;
+    // keeps the vertical scrollbar's track clear of the view's top/bottom edges, for views that extend
+    // underneath bars drawn over them
+    CBaseUIScrollView *setVerticalScrollbarInsets(f32 top, f32 bottom) {
+        this->fScrollbarInsetTop = top;
+        this->fScrollbarInsetBottom = bottom;
+        this->updateScrollbars();
+        return this;
     }
-    void setScrollbarSizeMultiplier(f32 scrollbarSizeMultiplier) {
+
+    CBaseUIScrollView *setScrollMouseWheelMultiplier(f32 scrollMouseWheelMultiplier) {
+        this->fScrollMouseWheelMultiplier = scrollMouseWheelMultiplier;
+        return this;
+    }
+    CBaseUIScrollView *setScrollbarSizeMultiplier(f32 scrollbarSizeMultiplier) {
         this->fScrollbarSizeMultiplier = scrollbarSizeMultiplier;
+        return this;
     }
 
     // get
@@ -230,6 +241,8 @@ class CBaseUIScrollView : public CBaseUIElement {
 
     f32 fScrollMouseWheelMultiplier{1.f};
     f32 fScrollbarSizeMultiplier{1.f};
+    f32 fScrollbarInsetTop{0.f};
+    f32 fScrollbarInsetBottom{0.f};
     McRect verticalScrollbar;
     McRect horizontalScrollbar;
 
