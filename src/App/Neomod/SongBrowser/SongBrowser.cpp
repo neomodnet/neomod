@@ -3255,16 +3255,17 @@ void SongBrowser::rebuildAfterGroupOrSortChange(GroupType group, const std::opti
         }
     } else {
         if(auto *collBtns = this->getCollectionButtonsForGroup(group); !!collBtns) {
-            if(group == GroupType::DIFFICULTY) {
-                this->rebucketDifficultyCollections();
-            }
-
             this->visibleSongButtons.reserve(collBtns->size());
             for(const auto &unq : *collBtns) {
                 this->visibleSongButtons.push_back(unq.get());
             }
 
             if(forceSort || groupingChanged || sortingChanged || diffSortChanged) {
+                // rebucketing puts each set's difficulties next to each other, only the sort below orders them again
+                if(group == GroupType::DIFFICULTY) {
+                    this->rebucketDifficultyCollections();
+                }
+
                 for(const auto &button : *collBtns) {
                     auto &children = button->getChildren();
                     if(!children.empty()) {
@@ -3665,8 +3666,8 @@ void SongBrowser::recreateCollectionsButtons() {
         // (an open collection is the selection, and it may not get a button again)
         for(const auto &btn : this->collectionButtons) {
             if(this->selectedButton == btn.get()) this->selectedButton = nullptr;
+            if(this->selectionPreviousCollectionButton == btn.get()) this->selectionPreviousCollectionButton = nullptr;
         }
-        this->selectionPreviousCollectionButton = nullptr;
         this->collectionButtons.clear();
     }
 
