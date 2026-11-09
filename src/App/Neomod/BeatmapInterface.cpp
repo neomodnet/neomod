@@ -2651,6 +2651,16 @@ void BeatmapInterface::write_frame(const Replay::Frame &frame, bool force) {
         .key_flags = replay_keys,
     });
 
+    this->last_event_time = engine->getTime();
+    this->last_event_ms = frame.cur_music_pos;
+    this->last_keys = frame.key_flags;
+
+    if(BanchoState::spectators.empty()) {
+        // frames nobody watched must not end up in the first bundle of a later spectator
+        this->frame_batch.clear();
+        return;
+    }
+
     this->frame_batch.push_back(LiveReplayFrame{
         .key_flags = replay_keys,
         .padding = 0,
@@ -2659,11 +2669,7 @@ void BeatmapInterface::write_frame(const Replay::Frame &frame, bool force) {
         .time = frame.cur_music_pos,
     });
 
-    this->last_event_time = engine->getTime();
-    this->last_event_ms = frame.cur_music_pos;
-    this->last_keys = frame.key_flags;
-
-    if(!BanchoState::spectators.empty() && last_event_time > this->last_spectator_broadcast + 1.0) {
+    if(last_event_time > this->last_spectator_broadcast + 1.0) {
         this->broadcast_spectator_frames();
     }
 }

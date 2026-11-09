@@ -399,7 +399,7 @@ void AboutScreen::buildChangelog() {
     CHANGELOG v44_05;
     v44_05.title = "44.05 (" CHANGELOG_TIMESTAMP ")";
     v44_05.changes = {
-        R"()",
+        R"(- Spectating: Fixed client sending outdated frames to spectators)",
     };
     changelogs.push_back(std::move(v44_05));
 
