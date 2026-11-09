@@ -46,7 +46,7 @@ enum UserActions : uint8_t {
 
 UIUserContextMenuScreen::UIUserContextMenuScreen() : UIScreen() {
     this->bVisible = true;
-    this->menu = new UIContextMenu();
+    this->menu = new UIContextMenu(0, 0, 0, 0, "useractions_menu");
     this->addBaseUIElement(this->menu);
 }
 

@@ -152,7 +152,7 @@ struct UI final {
     // ui_validate_ticks support (debug builds): logs UITEST FAIL for screens skipped by the tick pass
     void validateTicks() const;
 
-    // walks LAYER_ORDER top -> bottom (with extra_overlays spliced in) until consumed, skipping hiddenAtPress
+    // walks LAYER_ORDER top -> bottom (with extra_overlays spliced in) until consumed, skipping the layers the press opened
     void routeKey(KeyboardEvent& e, void (CBaseUIElement::*handler)(KeyboardEvent&), std::string_view traceName);
     // draws LAYER_ORDER[from, to), skipping the active screen (drawn at the frame bottom)
     void drawLayerRange(size_t from, size_t to);
@@ -178,9 +178,11 @@ struct UI final {
     std::array<UIScreen*, NUM_SCREENS> screens{};
 
     // layers hidden when the current key press began (snapshot on its non-repeat keydown, cleared on
-    // keyup); routeKey skips them so a hotkey that opens a screen doesn't also hand it the same press:
-    // the keydown walk continues below the handler and the press's char event follows right behind
-    // (mainmenu P/Enter -> songbrowser got the Enter as "play" and the p in its search)
+    // keyup); routeKey skips the ones visible since, so a hotkey that opens a screen doesn't also hand
+    // it the same press: the keydown walk continues below the handler and the char event
+    // follows right behind (mainmenu P/Enter -> songbrowser got the Enter as "play" and the p in its
+    // search). a layer that stays hidden gets its keys, which it gates itself: some act while hidden
+    // (the volume overlay on the media keys, the options with their skin dropdown open)
     std::bitset<NUM_SCREENS> hiddenAtPress{};
 
     // additional overlays added by pushOverlay (owned by UI)

@@ -5,8 +5,10 @@
 
 #include "AnimationHandler.h"
 #include "CBaseUIContainer.h"
+#include "CBaseUIDispatch.h"
 #include "CBaseUIEventCtx.h"
 #include "CBaseUIScrollView.h"
+#include "ContainerRanges.h"
 #include "OsuConVars.h"
 #include "MakeDelegateWrapper.h"
 #include "Engine.h"
@@ -93,7 +95,9 @@ UIContextMenu::UIContextMenu(float xPos, float yPos, float xSize, float ySize, s
     this->bBigStyle = false;
 }
 
-UIContextMenu::~UIContextMenu() = default;
+UIContextMenu::~UIContextMenu() {
+    if(this->searchList != nullptr) this->searchList->invalidate();
+}
 
 void UIContextMenu::draw() {
     if(!this->bVisible2) return;
@@ -115,6 +119,22 @@ void UIContextMenu::draw() {
     g->setColor(Color(this->frameColor).setA(this->frameColor.Af() * (this->fAnimation * this->fAnimation)));
 
     g->drawRect(this->getPos(), this->getSize());
+
+    if(this->searchList != nullptr) {
+        // a line under the search box
+        if(this->searchList->getSize().y > 0) {
+            g->drawLine(this->getPos().x, this->searchList->getPos().y, this->getPos().x + this->getSize().x,
+                        this->searchList->getPos().y);
+        }
+
+        if(this->highlighted != nullptr) {
+            g->pushClipRect(this->searchList->getRect());
+            g->setColor(Color(0xff404040).setA((f32)this->fAnimation));
+            g->fillRect(this->getPos().x + 1, this->highlighted->getPos().y, this->getSize().x - 1,
+                        this->highlighted->getSize().y);
+            g->popClipRect();
+        }
+    }
 
     CBaseUIScrollView::draw();
 
@@ -140,6 +160,13 @@ void UIContextMenu::tick() {
         if(this->containedTextbox->hitEnter()) this->onHitEnter(this->containedTextbox);
     }
 
+    if(this->searchTextbox != nullptr) {
+        // a press on the menu takes the keyboard focus from the search box
+        if(CBaseUIDispatch::getFocus() == nullptr) this->searchTextbox->requestFocus();
+
+        if(this->searchTextbox->getText() != this->sSearch) this->updateSearch();
+    }
+
     if(this->selfDeletionCrashWorkaroundScheduledElementDeleteHack.size() > 0) {
         for(auto &i : this->selfDeletionCrashWorkaroundScheduledElementDeleteHack) {
             delete i;
@@ -157,6 +184,29 @@ void UIContextMenu::onKeyUp(KeyboardEvent &e) {
 
 void UIContextMenu::onKeyDown(KeyboardEvent &e) {
     if(!this->bVisible2) return;
+
+    if(this->searchList != nullptr) {
+        const std::vector<CBaseUIElement *> &buttons = this->searchList->container.getElements();
+        if(e == KEY_ESCAPE) {
+            this->setVisible2(false);
+        } else if(e == KEY_DOWN || e == KEY_UP) {
+            if(!buttons.empty()) {
+                // past the last button it goes on from the first one
+                const uSz current = Mc::ranges::find(buttons, this->highlighted) - buttons.begin();
+                const uSz step = e == KEY_DOWN ? 1 : buttons.size() - 1;
+                this->highlight(static_cast<UIContextMenuButton *>(buttons[(current + step) % buttons.size()]));
+            }
+        } else if(e == KEY_ENTER || e == KEY_NUMPAD_ENTER) {
+            if(this->highlighted != nullptr) this->onClick(this->highlighted);
+        } else {
+            // the search box takes every other key
+            CBaseUIScrollView::onKeyDown(e);
+        }
+
+        // nothing beneath gets keys while it is open
+        e.consume();
+        return;
+    }
 
     CBaseUIScrollView::onKeyDown(e);
 
@@ -182,9 +232,11 @@ void UIContextMenu::onChar(KeyboardEvent &e) {
     if(!this->bVisible2) return;
 
     CBaseUIScrollView::onChar(e);
+
+    if(this->searchTextbox != nullptr) e.consume();
 }
 
-void UIContextMenu::begin(int minWidth, bool bigStyle) {
+void UIContextMenu::begin(int minWidth, bool bigStyle, bool searchable) {
     this->iWidthCounter = minWidth;
     this->bBigStyle = bigStyle;
 
@@ -203,11 +255,42 @@ void UIContextMenu::begin(int minWidth, bool bigStyle) {
             this->selfDeletionCrashWorkaroundScheduledElementDeleteHack.end(), oldElementsWeCanNotDeleteYet.begin(),
             oldElementsWeCanNotDeleteYet.end());
         this->invalidate();  // ensure nothing is deleted yet
+
+        // in a searchable menu, searchButtons owns the buttons, so the list must not delete them
+        if(this->searchList != nullptr) this->searchList->invalidate();
+        for(auto &button : this->searchButtons) {
+            this->selfDeletionCrashWorkaroundScheduledElementDeleteHack.push_back(button.release());
+        }
+        this->searchButtons.clear();
     }
 
     this->freeElements();
 
     this->containedTextbox = nullptr;
+    this->searchTextbox = nullptr;
+    this->searchList = nullptr;
+    this->highlighted = nullptr;
+    this->sSearch.clear();
+
+    if(searchable) {
+        const int buttonHeight = 30 * Osu::getUIScale() * (this->bBigStyle ? 1.27f : 1.0f);
+        const int margin = 9 * Osu::getUIScale();
+
+        // the search text lines up with the button text
+        this->searchTextbox = new UIContextMenuTextbox(0, margin, 0, buttonHeight, "contextmenu_search", -1);
+        this->searchTextbox->setTextOffsetX(margin);
+        this->searchTextbox->setDrawFrame(false);
+        this->searchTextbox->setDrawBackground(false);
+        if(this->bBigStyle) this->searchTextbox->setFont(osu->getSubTitleFont());
+        this->container.addBaseUIElement(this->searchTextbox);
+
+        this->searchList = new CBaseUIScrollView(0, buttonHeight + 2 * margin, 0, 0, "");
+        this->searchList->setHorizontalScrolling(false);
+        this->searchList->setDrawBackground(false);
+        this->searchList->setDrawFrame(false);
+        this->searchList->setScrollbarSizeMultiplier(0.5f);
+        this->container.addBaseUIElement(this->searchList);
+    }
 }
 
 UIContextMenuButton *UIContextMenu::addButtonJustified(const std::string &text, TEXT_JUSTIFICATION j, int id) {
@@ -224,7 +307,11 @@ UIContextMenuButton *UIContextMenu::addButtonJustified(const std::string &text, 
         button->setDrawFrame(false);
         button->setDrawBackground(false);
     }
-    this->container.addBaseUIElement(button);
+    if(this->searchList != nullptr) {
+        this->searchButtons.emplace_back(button);
+    } else {
+        this->container.addBaseUIElement(button);
+    }
 
     if(button->getSize().x + 2 * margin > this->iWidthCounter) {
         this->iWidthCounter = button->getSize().x + 2 * margin;
@@ -281,6 +368,7 @@ void UIContextMenu::end(bool invertAnimation, EndStyle style) {
     for(auto *element : elements) {
         element->setSizeX(this->iWidthCounter - 2 * margin);
     }
+    if(this->searchList != nullptr) this->updateSearch();
 
     this->setVerticalScrolling(false);
     if(fit) {
@@ -363,12 +451,70 @@ void UIContextMenu::end(bool invertAnimation, EndStyle style) {
         // steal focus for scroll handling priority
         this->parent->stealFocus();
     }
+
+    if(this->searchTextbox != nullptr) this->searchTextbox->requestFocus();
+}
+
+void UIContextMenu::updateSearch() {
+    const int buttonHeight = 30 * Osu::getUIScale() * (this->bBigStyle ? 1.27f : 1.0f);
+    const int margin = 9 * Osu::getUIScale();
+
+    this->sSearch = this->searchTextbox->getText();
+
+    // searchButtons owns the buttons, the list must not delete them
+    this->searchList->invalidate();
+    this->searchList->freeElements();
+
+    int listHeight = 0;
+    for(const auto &button : this->searchButtons) {
+        if(!this->sSearch.empty() && !SString::contains_ncase(button->getText(), this->sSearch)) continue;
+
+        button->setSizeX(this->iWidthCounter - 2 * margin);
+        this->searchList->container.addBaseUIElement(button.get(), margin, margin + listHeight);
+        listHeight += buttonHeight;
+    }
+    if(listHeight > 0) listHeight += 2 * margin;
+
+    const int searchHeight = buttonHeight + 2 * margin;
+    const int maxListHeight = osu->getVirtScreenHeight() / 2 - searchHeight;
+    this->searchList->setVerticalScrolling(listHeight > maxListHeight);
+    this->searchList->setSize(this->iWidthCounter, std::min(listHeight, maxListHeight));
+    this->searchList->setScrollSizeToContent(margin);
+
+    this->searchTextbox->setSizeX(this->iWidthCounter);
+    this->setSizeY(searchHeight + this->searchList->getSize().y);
+    this->setScrollSizeToContent();
+    if(this->parent && this->parent->isVisible()) {
+        this->parent->setScrollSizeToContent();
+        this->parent->forceInvalidateClipping();
+    }
+
+    // Enter clicks the first match
+    const std::vector<CBaseUIElement *> &buttons = this->searchList->container.getElements();
+    this->highlight(buttons.empty() ? nullptr : static_cast<UIContextMenuButton *>(buttons.front()));
+}
+
+void UIContextMenu::highlight(UIContextMenuButton *button) {
+    this->highlighted = button;
+    if(button == nullptr) return;
+
+    const int margin = 9 * Osu::getUIScale();
+    const float top = button->getRelPos().y - margin;
+    const float bottom = button->getRelPos().y + button->getSize().y + margin;
+    if(top + this->searchList->getRelPosY() < 0) {
+        this->searchList->scrollToY(-top, false);
+    } else if(bottom + this->searchList->getRelPosY() > this->searchList->getSize().y) {
+        this->searchList->scrollToY(-(bottom - this->searchList->getSize().y), false);
+    }
 }
 
 void UIContextMenu::setVisible2(bool visible2) {
     this->bVisible2 = visible2;
 
-    if(!this->bVisible2) this->setSize(1, 1);  // reset size
+    if(!this->bVisible2) {
+        this->setSize(1, 1);  // reset size
+        if(this->searchTextbox != nullptr) this->searchTextbox->stealFocus();
+    }
 
     if(this->parent && this->parent->isVisible()) {
         this->parent->setScrollSizeToContent();   // and update parent scroll size

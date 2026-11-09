@@ -6,6 +6,10 @@
 
 #include "Delegate.h"
 
+#include <memory>
+#include <string>
+#include <vector>
+
 class CBaseUIContainer;
 
 class UIContextMenuButton;
@@ -33,7 +37,7 @@ class UIContextMenu final : public CBaseUIScrollView {
     using ButtonClickCallback = SA::delegate<void(std::string_view, int)>;
     void setClickCallback(ButtonClickCallback clickCallback) { this->clickCallback = std::move(clickCallback); }
 
-    void begin(int minWidth = 0, bool bigStyle = false);
+    void begin(int minWidth = 0, bool bigStyle = false, bool searchable = false);
     UIContextMenuButton *addButtonJustified(const std::string &text,
                                             TEXT_JUSTIFICATION j = TEXT_JUSTIFICATION::CENTERED, int id = -1);
     inline UIContextMenuButton *addButton(const std::string &text, int id = -1) {
@@ -81,11 +85,20 @@ class UIContextMenu final : public CBaseUIScrollView {
     void onClick(UIContextMenuButton *button);
     void onHitEnter(UIContextMenuTextbox *textbox);
 
+    void updateSearch();
+    void highlight(UIContextMenuButton *button);
+
     std::vector<CBaseUIElement *> selfDeletionCrashWorkaroundScheduledElementDeleteHack;
 
     CBaseUIScrollView *parent = nullptr;
     UIContextMenuTextbox *containedTextbox = nullptr;
     ButtonClickCallback clickCallback = {};
+
+    std::vector<std::unique_ptr<UIContextMenuButton>> searchButtons;
+    UIContextMenuTextbox *searchTextbox = nullptr;
+    CBaseUIScrollView *searchList = nullptr;
+    UIContextMenuButton *highlighted = nullptr;
+    std::string sSearch;
 
     i32 iYCounter = 0;
     i32 iWidthCounter = 0;
@@ -127,6 +140,9 @@ class UIContextMenuTextbox final : public CBaseUITextbox {
     ~UIContextMenuTextbox() override { ; }
 
     [[nodiscard]] inline int getID() const { return this->iID; }
+
+    // how far the text is from the left edge
+    void setTextOffsetX(int textOffsetX) { this->iTextOffsetX = textOffsetX; }
 
    private:
     int iID;

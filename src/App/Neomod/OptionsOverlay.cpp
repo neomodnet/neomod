@@ -2109,6 +2109,9 @@ void OptionsOverlayImpl::tick() {
         this->updateLayout();
     }
 
+    // the options don't tick their elements while they are hidden
+    if(!parent->bVisible) this->contextMenu->tick();
+
     parent->ScreenBackable::tick();
 }
 
@@ -2385,7 +2388,11 @@ void OptionsOverlayImpl::onKeyDown(KeyboardEvent &e) {
 }
 
 void OptionsOverlayImpl::onChar(KeyboardEvent &e) {
-    if(!parent->bVisible) return;
+    if(!parent->bVisible) {
+        // the skins dropdown has a search box
+        if(this->contextMenu->isVisible()) this->contextMenu->onChar(e);
+        return;
+    }
 
     parent->ScreenBackable::onChar(e);
     if(e.isConsumed()) return;
@@ -3220,12 +3227,9 @@ void OptionsOverlayImpl::onSkinSelectFoldersFinished(const std::vector<std::stri
             this->contextMenu->setPos(this->skinSelectLocalButton->getPos());
             this->contextMenu->setRelPos(this->skinSelectLocalButton->getRelPos());
             this->options->setScrollSizeToContent();
-        } else {
-            // Put it 50px from top, we'll move it later
-            this->contextMenu->setPos(vec2{0, 100});
         }
 
-        this->contextMenu->begin();
+        this->contextMenu->begin(250 * Osu::getUIScale(), false, true);
 
         constexpr Color fallbackColor = 0xffff8800;
         constexpr Color selectedColor = 0xff00ff00;
@@ -3246,14 +3250,7 @@ void OptionsOverlayImpl::onSkinSelectFoldersFinished(const std::vector<std::stri
             else if(skinFolder.compare(fallbackSkin) == 0)
                 button->setTextBrightColor(fallbackColor);
         }
-        {
-            using namespace flags::operators;
-            using enum UIContextMenu::EndStyle;
-            auto flags = !parent->bVisible ? CLAMP_VERTICAL | STANDALONE_SCROLL : UIContextMenu::EndStyle{0};
-
-            // we want to be able to scroll the skin dropdown itself
-            this->contextMenu->end(false, flags);
-        }
+        this->contextMenu->end(false, UIContextMenu::EndStyle{0});
         this->contextMenu->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSkinSelect2>(this));
 
         if(!parent->bVisible) {

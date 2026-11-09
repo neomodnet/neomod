@@ -351,9 +351,9 @@ forceinline void traceKeyConsumed(std::string_view evt, CBaseUIElement *consumer
 
 // key routing walks the same top -> bottom layer order as the input pass; the first
 // consumer ends the walk, and a visible modal layer floors it (keys it declined die
-// there instead of reaching the layers beneath). layers hidden when the press began
-// (hiddenAtPress) are skipped but still floor; extra overlays aren't filtered (nothing
-// pushes one from a key)
+// there instead of reaching the layers beneath). layers the press itself opened (hidden
+// when it began, see hiddenAtPress) are skipped but still floor; extra overlays aren't
+// filtered (nothing pushes one from a key)
 void UI::routeKey(KeyboardEvent &e, void (CBaseUIElement::*handler)(KeyboardEvent &), std::string_view traceName) {
     if(e.isConsumed()) return;
 
@@ -376,7 +376,7 @@ void UI::routeKey(KeyboardEvent &e, void (CBaseUIElement::*handler)(KeyboardEven
 
         const size_t si = LAYER_ORDER[li];
         auto *screen = this->screens[si];
-        if(!this->hiddenAtPress[si]) {
+        if(!(this->hiddenAtPress[si] && screen->isVisible())) {
             (screen->*handler)(e);
             if(e.isConsumed()) {
                 traceKeyConsumed(traceName, screen);

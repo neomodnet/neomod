@@ -1,0 +1,29 @@
+# the skin dropdown has a search bar: typing filters the skins and Enter chooses the first match.
+# Up/Down move its highlight, so they don't reach the arrow-volume fallback sink while it is open.
+# uitest-datadir: fresh
+# uitest-file: skins/UITestSkin/skin.ini|[General]|Name: UITestSkin|Author: uitest
+# uitest-file: skins/Other/skin.ini|[General]|Name: Other|Author: uitest
+options_save_on_back 0
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+key_open_skin_select_menu 14
+mouse_to 10 10
+@wait 30
+sendkey K
+@wait_secs 2
+ui_assert visible options_contextmenu 1
+ui_assert exists Other 1
+sendkey Up
+@wait_secs 0.5
+ui_assert visible volumeoverlay 0
+sendtext uitest
+@wait 5
+ui_assert exists Other 0
+ui_assert exists UITestSkin 1
+take_screenshot screenshots/uitest_skin_dropdown_search.png
+@wait 5
+sendkey Return
+@wait 30
+ui_assert visible options_contextmenu 0
+ui_assert convar skin UITestSkin
+exit
