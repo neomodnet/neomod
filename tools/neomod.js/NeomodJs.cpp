@@ -159,6 +159,19 @@ struct JsBeatmap {
 
     double calculate(val obj) { return this->calculate_pp(this->to_score(obj)); }
 
+    // difficulty() with the mods given like calculate() takes them, nomod when omitted
+    val difficulty_with(val mods) {
+        if(!this->loaded_successfully) val::global("Error").new_(this->error_msg).throw_();
+
+        val obj = val::object();
+        obj.set("mods", mods);
+        const Replay::Mods m = this->to_score(obj).mods;
+        if(this->mods_of_current_difficulty_attributes != m && !this->use_mods(m)) {
+            val::global("Error").new_(this->error_msg).throw_();
+        }
+        return this->difficulty();
+    }
+
     double calculate_pp(const FinishedScore &score) {
         if(!this->loaded_successfully) val::global("Error").new_(this->error_msg).throw_();
 
@@ -451,7 +464,10 @@ struct JsReplay {
 };
 
 EMSCRIPTEN_BINDINGS(neomod_diffcalc) {
-    class_<JsBeatmap>("Beatmap").constructor<std::string>().function("calculate", &JsBeatmap::calculate);
+    class_<JsBeatmap>("Beatmap")
+        .constructor<std::string>()
+        .function("calculate", &JsBeatmap::calculate)
+        .function("difficulty", &JsBeatmap::difficulty_with);
     class_<JsReplay>("Replay")
         .constructor<std::string>()
         .property("info", &JsReplay::info)
