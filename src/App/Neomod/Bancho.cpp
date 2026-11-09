@@ -143,6 +143,8 @@ void BanchoState::update_online_status(OnlineStatus new_status) {
         }
 
         ui->getOptionsOverlay()->scheduleLayoutUpdate();
+        // (a status set before the login went nowhere, but is remembered as sent)
+        if(new_status == OnlineStatus::LOGGED_IN) RichPresence::resetBanchoStatus();
         RichPresence::refreshStatus();
     }
 }
