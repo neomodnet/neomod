@@ -396,8 +396,17 @@ void AboutScreen::onChangeClicked(CBaseUIButton *button) {
 void AboutScreen::buildChangelog() {
     std::vector<CHANGELOG> changelogs;
 
+    CHANGELOG v44_04;
+    v44_04.title = "44.04 (" CHANGELOG_TIMESTAMP ")";
+    v44_04.changes = {
+        R"(- Spectating: Fixed a disconnect mid-play turning the spectated play into your own)",
+        R"(- Fixed text boxes staying focused after right-clicking off of them)",
+        R"(- Fixed neomod maps not overriding osu!stable ones if they had the same name)",
+    };
+    changelogs.push_back(std::move(v44_04));
+
     CHANGELOG v44_03;
-    v44_03.title = "44.03 (" CHANGELOG_TIMESTAMP ")";
+    v44_03.title = "44.03 (2026-11-09)";
     v44_03.changes = {
         R"(- Added screenshot uploading (hold Shift while taking a screenshot))",
         R"(- Added support for osu!lazer replays)",
@@ -405,18 +414,15 @@ void AboutScreen::buildChangelog() {
         R"(- Fixed "Singletap" and "Alternate" letting any key hit the first two notes of the map)",
         R"(- Fixed "Strict clicks" sometimes breaking combo when clicking during a spinner)",
         R"(- Fixed spinners being too hard to spin)",
-        R"(- Fixed text boxes staying focused after right-clicking elsewhere)",
         R"(- Fixed the language setting showing "English" when the game was using your system language)",
         R"(- Fixed unsubmitted osu!stable scores not getting imported)",
         R"(- Nightcore/Daycore now change the pitch along with the speed)",
-        R"(- A beatmapset folder in maps/ named like an osu!stable one now takes its place instead of being skipped as a duplicate)",
         R"(- Reduced memory usage)",
         R"(- Moved "Target Practice" to experimental mods)",
         R"(- Removed "Actual Flashlight" mod)",
         R"(- Supporters now have a colored username)",
         R"(- Replay playback: Fixed health drain and spinners on DT/HT)",
         R"(- Servers: Added "sv_allow_instafade" and "sv_replay_framerate" convars)",
-        R"(- Spectating: Fixed a disconnect mid-play turning the spectated play into your own)",
         R"(- Web: Added a fallback for browsers that don't support multithreaded WASM)",
     };
     changelogs.push_back(std::move(v44_03));
