@@ -8,6 +8,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 namespace neomod {
@@ -99,6 +100,10 @@ class BeatmapFile {
     [[nodiscard]] std::optional<i32> getVersion() const;
     // the value of the last "key: value" line with this key in the sections read as `kind`
     [[nodiscard]] std::optional<std::string_view> getValue(SectionKind kind, std::string_view key) const;
+    // ...read as a number (none: no such line, or its value isn't one)
+    template <typename T>
+        requires(std::is_same_v<T, i32> || std::is_same_v<T, f32> || std::is_same_v<T, f64>)
+    [[nodiscard]] std::optional<T> getValue(SectionKind kind, std::string_view key) const;
 
     // records: parse() reads one from an entry (false if the entry isn't one), format() writes one the way osu!stable
     // does. string views in a record point into the line it was read from

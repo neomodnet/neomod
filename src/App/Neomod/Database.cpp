@@ -1328,10 +1328,9 @@ void Database::loadMaps(std::string_view neomod_maps_path, std::string_view pepp
                                 std::vector<u8> bytes;
                                 File file(osufile_fullpath);
                                 file.readToVector(bytes);
-                                if(const auto id = BeatmapFile{std::span<const u8>{bytes}}.getValue(
-                                       BeatmapFile::SectionKind::METADATA, "BeatmapID")) {
-                                    Parsing::parse(*id, &tempiID);
-                                }
+                                tempiID = BeatmapFile{std::span<const u8>{bytes}}
+                                              .getValue<i32>(BeatmapFile::SectionKind::METADATA, "BeatmapID")
+                                              .value_or(tempiID);
                             }
                             if(tempiID != -1 && tempiID == iID) {
                                 osu_filename = osufile_nameonly;

@@ -318,6 +318,11 @@ void BeatmapFileTest::runTests() {
         TEST_ASSERT_EQ(number, 6, "entry line numbers");
         TEST_ASSERT(file.getValue(Kind::METADATA, "Title") == std::optional<std::string_view>{"Song"}, "getValue");
         TEST_ASSERT(!file.getValue(Kind::METADATA, "Artist").has_value(), "getValue of a missing key");
+        TEST_ASSERT(file.getValue<f32>(Kind::EDITOR, "DistanceSpacing") == 1.2f, "getValue as a number");
+        TEST_ASSERT(file.getValue<i32>(Kind::GENERAL, "Mode") == 0, "getValue as an integer");
+        TEST_ASSERT(!file.getValue<f64>(Kind::METADATA, "Title").has_value(),
+                    "getValue of a value that isn't a number");
+        TEST_ASSERT(!file.getValue<i32>(Kind::METADATA, "Artist").has_value(), "getValue as a number of a missing key");
     }
     {
         // unknown names keep the section before them going, as in osu!stable; repeated sections all count
@@ -333,6 +338,7 @@ void BeatmapFileTest::runTests() {
                     "entries of every section read as [Difficulty]");
         TEST_ASSERT(file.getValue(Kind::DIFFICULTY, "CircleSize") == std::optional<std::string_view>{"5"},
                     "the last value wins");
+        TEST_ASSERT(file.getValue<f64>(Kind::DIFFICULTY, "CircleSize") == 5.0, "the last value wins as a number");
     }
     {
         const BeatmapFile empty{std::string_view{}};

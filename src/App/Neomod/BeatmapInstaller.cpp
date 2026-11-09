@@ -23,7 +23,6 @@
 #include "Osu.h"
 #include "OsuConVars.h"
 #include "Paths.h"
-#include "Parsing.h"
 #include "SongBrowser/SongBrowser.h"
 #include "SString.h"
 #include "UI.h"
@@ -164,8 +163,10 @@ OszMeta parse_osz_meta(std::string_view file) {
     OszMeta meta;
     meta.artist = parsed.getValue(METADATA, "Artist").value_or("");
     meta.title = parsed.getValue(METADATA, "Title").value_or("");
-    if(const auto setId = parsed.getValue(METADATA, "BeatmapSetID"))
-        meta.says_set_id = Parsing::parse(*setId, &meta.set_id);
+    if(const auto setId = parsed.getValue<i32>(METADATA, "BeatmapSetID")) {
+        meta.set_id = *setId;
+        meta.says_set_id = true;
+    }
     return meta;
 }
 

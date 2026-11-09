@@ -275,6 +275,17 @@ std::optional<std::string_view> BeatmapFile::getValue(SectionKind kind, std::str
     return value;
 }
 
+template <typename T>
+    requires(std::is_same_v<T, i32> || std::is_same_v<T, f32> || std::is_same_v<T, f64>)
+std::optional<T> BeatmapFile::getValue(SectionKind kind, std::string_view key) const {
+    T number;
+    if(const auto value = this->getValue(kind, key); value && Parsing::parse(*value, &number)) return number;
+    return std::nullopt;
+}
+template std::optional<i32> BeatmapFile::getValue<i32>(SectionKind, std::string_view) const;
+template std::optional<f32> BeatmapFile::getValue<f32>(SectionKind, std::string_view) const;
+template std::optional<f64> BeatmapFile::getValue<f64>(SectionKind, std::string_view) const;
+
 bool BeatmapFile::parse(std::string_view line, KeyValue &out) {
     const uSz colon = line.find(':');
     if(colon == std::string_view::npos) return false;
