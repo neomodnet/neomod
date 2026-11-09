@@ -401,6 +401,7 @@ void AboutScreen::buildChangelog() {
     v44_04.changes = {
         R"(- Fixed scrollwheel on Windows with Raw Input enabled)",
         R"(- Spectating: Fixed a disconnect mid-play turning the spectated play into your own)",
+        R"(- Standardized date format to YYYY-MM-DD)",
         R"(- Fixed text boxes staying focused after right-clicking off of them)",
         R"(- Fixed neomod maps not overriding osu!stable ones if they had the same name)",
         R"(- Fixed your online status not updating if it changed while logging in)",

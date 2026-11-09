@@ -520,7 +520,7 @@ void RankingScreen::setScore(const FinishedScore &newscore) {
     localtime_x(&timestamp, &tm);
 
     std::array<char, 64> dateString{};
-    size_t written = std::strftime(dateString.data(), dateString.size(), "%d %b %Y at %H:%M:%S", &tm);
+    size_t written = std::strftime(dateString.data(), dateString.size(), "%Y-%m-%d %H:%M:%S", &tm);
 
     m_impl->songInfo->setDate(std::string(dateString.data(), written));
     m_impl->songInfo->setPlayer(sc.playerName);

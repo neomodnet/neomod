@@ -759,7 +759,7 @@ void ScoreButton::setScore(const FinishedScore &newscore, const DatabaseBeatmap 
     localtime_x(&timestamp, &tm);
 
     std::array<char, 64> dateString{};
-    const size_t written = std::strftime(dateString.data(), dateString.size(), "%d %b %Y at %H:%M:%S", &tm);
+    const size_t written = std::strftime(dateString.data(), dateString.size(), "%Y-%m-%d %H:%M:%S", &tm);
 
     this->sScoreDateTime = std::string{dateString.data(), written};
     this->iScoreUnixTimestamp = sc.unix_timestamp;
