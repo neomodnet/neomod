@@ -342,6 +342,22 @@ EM_JS(int, js_open_data_in_new_tab, (const void *data, size_t size, const char *
     URL.revokeObjectURL(url);
     return 0;
 });
+
+// FS.readFile copies the file out of the emscripten fs, which only the main thread has.
+// the object URL is revoked once the download had a while to read it
+EM_JS(int, js_download_file, (const char *path, const char *name), {
+    try {
+        var url = URL.createObjectURL(new Blob([FS.readFile(UTF8ToString(path))]));
+        var link = document.createElement("a");
+        link.href = url;
+        link.download = UTF8ToString(name);
+        link.click();
+        setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
+        return 1;
+    } catch(e) {
+        return 0;
+    }
+});
 // clang-format on
 #endif
 
@@ -924,6 +940,16 @@ Mc::Registration Environment::addPendingFileDialog(FileDialogCallback callback) 
                 }
             },
             this, this->lastFileDialogId};
+}
+
+void Environment::revealFile(std::string_view path) const noexcept {
+#ifdef MCENGINE_PLATFORM_WASM
+    if(!js_download_file(std::string{path}.c_str(), getFileNameFromFilePath(path).c_str())) {
+        debugLog("couldn't download {}", path);
+    }
+#else
+    this->openFileBrowser(path);
+#endif
 }
 
 // just open the file manager in a certain folder, but not do anything with it

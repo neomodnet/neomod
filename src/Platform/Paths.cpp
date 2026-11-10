@@ -121,6 +121,7 @@ void init() {
     s_dirs.data = strip_trailing_slashes(APP_DATA_DIR);
     std::string cache;  // empty = derived below
     std::string logs;
+    std::string exports;
 
     if constexpr(Env::cfg(OS::MAC)) {
         // inside an app bundle the executable directory is sealed by the code signature, so assets come from
@@ -150,6 +151,7 @@ void init() {
         File::normalizeSlashes(s_dirs.data, '\\', '/');
         cache = s_dirs.data + "/cache";
         logs = s_dirs.data + "/logs";
+        exports = s_dirs.data + "/exports";
     }
 
     s_dirs.fonts = s_dirs.assets + "/fonts";
@@ -160,7 +162,6 @@ void init() {
     s_dirs.skins = s_dirs.data + "/skins";
     s_dirs.replays = s_dirs.data + "/replays";
     s_dirs.screenshots = s_dirs.data + "/screenshots";
-    s_dirs.exports = s_dirs.data + "/exports";
     s_dirs.db = s_dirs.data;
 
     if(cache.empty()) {
@@ -181,9 +182,12 @@ void init() {
     }
     s_dirs.cache = std::move(cache);
 
-    // logs stay in the non-persistent fs on wasm
+    // logs stay in the non-persistent fs on wasm, and so do exports: they reach the user as downloads, a copy in
+    // IndexedDB would only take up space
     if(logs.empty()) logs = (Env::cfg(OS::WASM) ? s_dirs.assets : s_dirs.data) + "/logs";
     s_dirs.logs = std::move(logs);
+    if(exports.empty()) exports = (Env::cfg(OS::WASM) ? s_dirs.assets : s_dirs.data) + "/exports";
+    s_dirs.exports = std::move(exports);
 }
 }  // namespace detail
 

@@ -225,6 +225,7 @@ Osu::Osu()
     this->db_memb = std::make_unique<Database>();  // global database instance (sets global "db" pointer in ctor)
     // (before the ui, whose volume overlay passes music volume changes on to it)
     this->previewTrackManager = std::make_unique<PreviewTrackManager>();
+    this->mapExports = std::make_unique<MapExporter::Queue>();
     this->ui_memb = std::make_unique<UI>();  // sets global "ui" pointer in ctor
     this->updateHandler = std::make_unique<UpdateHandler>();
     this->thumbnailManager = std::make_unique<ThumbnailManager>();
@@ -639,6 +640,7 @@ void Osu::update() {
     }
 
     this->previewTrackManager->update();
+    this->mapExports->update();
 
     // (a finished load may have started the music)
     if(this->musicTrack->update()) RichPresence::refreshStatus();
@@ -1502,7 +1504,7 @@ void Osu::saveScreenshot(bool upload) {
 
                     notif
                         ->addToast(std::move(toastString), CHAT_TOAST,
-                                   [file = std::move(screenshotFilename)] { env->openFileBrowser(file); })
+                                   [file = std::move(screenshotFilename)] { env->revealFile(file); })
                         .detach();
                 }
             });
@@ -1935,9 +1937,13 @@ void Osu::exportSkin(std::string_view name) {
             using enum SkinArchive::ExportResult::Status;
             switch(res.status) {
                 case Exported:
+                    // on wasm the archive only reaches the user as a download, by its name
+                    if constexpr(Env::cfg(OS::WASM)) env->revealFile(res.path);
                     notif
-                        ->addToast(tformat("Skin exported to {:s}", res.path), SUCCESS_TOAST,
-                                   [path = res.path] { env->openFileBrowser(path); })
+                        ->addToast(
+                            tformat("Skin exported to {:s}",
+                                    Env::cfg(OS::WASM) ? Environment::getFileNameFromFilePath(res.path) : res.path),
+                            SUCCESS_TOAST, [path = res.path] { env->revealFile(path); })
                         .detach();
                     return;
                 case DefaultSkin:

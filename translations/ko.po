@@ -522,6 +522,26 @@ msgstr "Ctrl + O를 누르면 어디서나 설정 메뉴를 열 수 있습니다
 msgid "Tip: {:s}"
 msgstr "팁: {:s}"
 
+#: src/App/Neomod/MapExporter.cpp
+#, c++-format
+msgid "Failed to export folders to {}"
+msgstr "폴더를 {}(으)로 내보내지 못했습니다"
+
+#: src/App/Neomod/MapExporter.cpp
+#, c++-format
+msgid "Exported {} folders into {}"
+msgstr "폴더 {}개를 {}에 묶어 내보냈습니다"
+
+#: src/App/Neomod/MapExporter.cpp
+#, c++-format
+msgid "Exported {}"
+msgstr "{}을(를) 내보냈습니다"
+
+#: src/App/Neomod/MapExporter.cpp
+#, c++-format
+msgid "Exported {} folders to {}"
+msgstr "폴더 {}개를 {}(으)로 내보냈습니다"
+
 #: src/App/Neomod/MapSettingsOverlay.cpp src/App/Neomod/OptionsOverlay.cpp
 msgid "This setting is locked in multiplayer rooms."
 msgstr "멀티플레이 방에서는 이 설정이 잠겨 있습니다."

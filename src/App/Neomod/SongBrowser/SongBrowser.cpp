@@ -546,8 +546,6 @@ SongBrowser::~SongBrowser() {
     BatchDiffCalc::abort_calc();
     AsyncPPC::set_map(nullptr);
     VolNormalization::abort();
-    this->exportHandle.cancel();
-    if(this->exportHandle.valid()) this->exportHandle.wait();
     this->checkHandleKillBackgroundSearchMatcher();
 
     this->hashToDiffButton->clear();
@@ -943,24 +941,6 @@ void SongBrowser::tick() {
         if(this->scheduled_scroll_to_selected_button) {
             this->scheduled_scroll_to_selected_button = false;
             this->scrollToBestButton();
-        }
-    }
-
-    // handle export completion
-    if(this->exportHandle.valid() && this->exportHandle.is_ready()) {
-        this->exportHandle.get();
-        if(!this->pendingExports.empty()) {
-            this->exportHandle = MapExporter::submit_export(std::move(this->pendingExports), this->exportNotifications);
-        }
-    }
-
-    // dispatch export notifications
-    for(auto &n : this->exportNotifications.drain()) {
-        const Color color = n.success ? SUCCESS_TOAST : ERROR_TOAST;
-        if(n.click_cb) {
-            ui->getNotificationOverlay()->addToast(std::move(n.msg), color, std::move(n.click_cb)).detach();
-        } else {
-            ui->getNotificationOverlay()->addToast(std::move(n.msg), color);
         }
     }
 }
@@ -2600,13 +2580,6 @@ void SongBrowser::checkHandleKillBackgroundSearchMatcher() {
     if(this->searchHandle.valid()) this->searchHandle.wait();
 }
 
-void SongBrowser::startExport(MapExporter::ExportContext ctx) {
-    this->pendingExports.emplace(std::move(ctx));
-    if(!this->exportHandle.valid()) {
-        this->exportHandle = MapExporter::submit_export(std::move(this->pendingExports), this->exportNotifications);
-    }
-}
-
 void SongBrowser::initializeGroupingButtons() {
 #define MKCBTN(name__) \
     std::make_unique<CollectionButton>(250.f, 250.f, 200.f, 50.f, fmt::format("cbtn-{:s}", name__), name__)
@@ -3455,7 +3428,7 @@ void SongBrowser::onSongButtonContextMenu(SongButton *songButton, std::string_vi
             assert(songButton->getDatabaseBeatmap());
             std::string folder{songButton->getDatabaseBeatmap()->getFolder()};
             auto ctx = MapExporter::ExportContext{{folder}, "", BottomBar::update_export_progress_cb};
-            this->startExport(std::move(ctx));
+            osu->getMapExports()->start(std::move(ctx));
         } else if(id == 6 || id == 7) {  // delete beatmap (6) / beatmapset (7) from disk
             assert(songButton->getDatabaseBeatmap());
             // NOTE: this deletes songButton (and its siblings) along with the set's buttons
@@ -3571,7 +3544,7 @@ void SongBrowser::onCollectionButtonContextMenu(CollectionButton *collectionButt
             .cb = [namestr = std::string{collection_name}](f32 progress, std::string entry) -> void {
                 return BottomBar::update_export_progress(progress, std::move(entry), namestr);
             }};
-        this->startExport(std::move(ctx));
+        osu->getMapExports()->start(std::move(ctx));
     }
 }
 

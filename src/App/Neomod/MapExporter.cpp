@@ -6,9 +6,13 @@
 #include "Timing.h"
 #include "Archival.h"
 #include "File.h"
+#include "BaseEnvironment.h"
 #include "Environment.h"
+#include "i18n.h"
 #include "Logging.h"
 #include "AsyncPool.h"
+#include "NotificationOverlay.h"
+#include "UI.h"
 #include "fmt/chrono.h"
 
 #include <ctime>
@@ -40,7 +44,7 @@ std::string export_root() {
     return root;
 }
 
-Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, Async::Channel<Notification> &out) {
+Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, Async::Channel<Result> &out) {
     // (the export folder is a string convar, which the task doesn't get to read)
     return Async::submit_cancellable(
         [contexts = std::move(contexts), &out, export_folder_top = export_root(),
@@ -120,17 +124,6 @@ Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, A
                     progress_callback(progress, Environment::getFileNameFromFilePath(processing));
                 };
 
-                auto queue_notification = [&](std::string_view message, bool success,
-                                              std::string callback_open_path = "") {
-                    if(!callback_open_path.empty()) {
-                        out.push({std::string{message}, success, [path = std::move(callback_open_path)]() -> void {
-                                      return env->openFileBrowser(std::move(path));
-                                  }});
-                    } else {
-                        out.push({std::string{message}, success, {}});
-                    }
-                };
-
                 std::vector<std::string> exported;
                 for(const auto &folder : real_mapfolders) {
                     if(tok.stop_requested()) return finish();
@@ -158,19 +151,7 @@ Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, A
                 }
 
                 if(!single_archive) {
-                    // limit spam
-                    if(exported.size() < 10) {
-                        if(exported.empty()) {
-                            queue_notification(fmt::format("Failed to export folders to {}", export_folder_sub), false);
-                        } else {
-                            for(auto &exported_entry : exported) {
-                                queue_notification(fmt::format("Exported {}", exported_entry), true, exported_entry);
-                            }
-                        }
-                    } else {
-                        queue_notification(fmt::format("Exported {} folders to {}", exported.size(), export_folder_sub),
-                                           true, export_folder_sub);
-                    }
+                    out.push({.files = std::move(exported), .destination = export_folder_sub, .bundled = 0});
                 }
                 if(single_archive && !exported.empty()) {
                     progress_chunk = 0.50f;
@@ -203,18 +184,11 @@ Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, A
 
                         update_progress_stage2(export_pathname + extSuffix);
 
-                        if(ar.writeToFile(export_pathname, true, tok)) {
-                            queue_notification(
-                                fmt::format("Exported {} folders into {}{}", num_added, export_pathname, extSuffix),
-                                true, export_pathname);
-                        } else {
-                            queue_notification(fmt::format("Failed to export {} folders into {}{}", num_added,
-                                                           export_pathname, extSuffix),
-                                               false);
-                        }
+                        Result result{.files = {}, .destination = export_pathname + extSuffix, .bundled = num_added};
+                        if(ar.writeToFile(export_pathname, true, tok)) result.files.push_back(result.destination);
+                        out.push(std::move(result));
                     } else {
-                        queue_notification(
-                            fmt::format("Failed to export folders to {}{}", export_folder_top, extSuffix), false);
+                        out.push({.files = {}, .destination = export_folder_top + extSuffix, .bundled = 0});
                     }
                     // clean up temp dir
                     // this is sketchy so i'll only delete if the export folder hasn't been changed,
@@ -223,8 +197,9 @@ Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, A
                         Environment::deletePathsRecursive(export_folder_sub);
                     }
                 } else if(single_archive) {
-                    queue_notification(
-                        fmt::format("Failed to export folders to {}{}", export_folder_sub, Archive::EXT_SUFFIX), false);
+                    out.push({.files = {},
+                              .destination = export_folder_sub + std::string{Archive::EXT_SUFFIX},
+                              .bundled = 0});
                 }
 
                 float progress = std::clamp(1.f / (float)queue_runs, 0.01f, 1.f);
@@ -232,6 +207,52 @@ Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, A
             }
         },
         Lane::Background);
+}
+
+Queue::~Queue() {
+    this->running.cancel();
+    if(this->running.valid()) this->running.wait();
+}
+
+void Queue::start(ExportContext ctx) {
+    this->pending.emplace(std::move(ctx));
+    if(!this->running.valid()) this->running = submit_export(std::move(this->pending), this->results);
+}
+
+void Queue::update() {
+    if(this->running.valid() && this->running.is_ready()) {
+        this->running.get();
+        if(!this->pending.empty()) this->running = submit_export(std::move(this->pending), this->results);
+    }
+    // on wasm the archives only reach the user as downloads, by their names
+    const auto shown = [](const std::string &file) {
+        return Env::cfg(OS::WASM) ? Environment::getFileNameFromFilePath(file) : file;
+    };
+    const auto reveal = [](const std::string &file) { return [file] { env->revealFile(file); }; };
+    auto *notif = ui->getNotificationOverlay();
+    for(const Result &res : this->results.drain()) {
+        if constexpr(Env::cfg(OS::WASM)) {
+            for(const auto &file : res.files) env->revealFile(file);
+        }
+        if(res.files.empty()) {
+            notif->addToast(tformat("Failed to export folders to {}", res.destination), ERROR_TOAST);
+        } else if(res.bundled > 0) {
+            notif
+                ->addToast(tformat("Exported {} folders into {}", res.bundled, shown(res.files.front())), SUCCESS_TOAST,
+                           reveal(res.files.front()))
+                .detach();
+        } else if(res.files.size() < 10) {
+            for(const auto &file : res.files) {
+                notif->addToast(tformat("Exported {}", shown(file)), SUCCESS_TOAST, reveal(file)).detach();
+            }
+        } else {
+            // one toast for many archives
+            notif
+                ->addToast(tformat("Exported {} folders to {}", res.files.size(), res.destination), SUCCESS_TOAST,
+                           [dir = res.destination] { env->openFileBrowser(dir); })
+                .detach();
+        }
+    }
 }
 
 }  // namespace MapExporter

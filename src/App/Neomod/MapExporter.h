@@ -31,15 +31,40 @@ struct ExportContext {
     UpdateProgressCallback cb{nullptr};
 };
 
-struct Notification {
-    std::string msg;
-    bool success;
-    std::function<void()> click_cb;
+// what one ExportContext came to
+struct Result {
+    // the archives written: an .osz per map folder, or the bundle (none if it failed)
+    std::vector<std::string> files;
+    // the folder the archives went to, or the bundle
+    std::string destination;
+    // how many map folders the bundle holds (0 without one)
+    size_t bundled{0};
 };
 
-// submits export work on Lane::Background. pushes Notifications into `out` as work completes.
+// submits export work on Lane::Background. pushes a Result into `out` per context as work completes.
 // caller owns the returned handle and the channel; channel must outlive the handle.
 MC_UNREVOCABLE Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts,
-                                                            Async::Channel<Notification>& out);
+                                                            Async::Channel<Result>& out);
+
+// exports one batch after another and shows their results as toasts. the app owns one and updates it every frame,
+// so exports go on whatever screen shows. on WASM it also downloads every archive, the only way it reaches the user
+class Queue {
+    NOCOPY_NOMOVE(Queue)
+   public:
+    Queue() = default;
+    ~Queue();
+
+    // starts `ctx` now, or with the next batch once the running one is done (an export already waiting isn't added
+    // twice)
+    void start(ExportContext ctx);
+    // starts the next batch once the running one is done, and shows the results that came in
+    void update();
+
+   private:
+    std::set<ExportContext> pending;
+    // (before the handle, whose task writes to it)
+    Async::Channel<Result> results;
+    Async::CancellableHandle<void> running;
+};
 
 }  // namespace MapExporter

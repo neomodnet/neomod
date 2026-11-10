@@ -208,6 +208,9 @@ class Environment {
                                     std::string_view initialpath = "") noexcept;
     Mc::Registration openFolderWindow(FileDialogCallback callback, std::string_view initialpath = "") noexcept;
     void openFileBrowser(std::string_view initialpath) const noexcept;
+    // shows the user a file the game wrote for them (an export, a screenshot): the file manager at its folder.
+    // WASM has no file manager and its files are out of the user's reach, so the browser downloads it instead
+    void revealFile(std::string_view path) const noexcept;
 
     // window
     void restoreWindow();

@@ -1,0 +1,38 @@
+# an export goes on when the song browser is left: Export Beatmapset from a difficulty's context menu, then the main
+# menu right away; the toast for the written .osz shows there
+# uitest-datadir: fresh
+# uitest-maps: uitest export set|-1|2
+# uitest-log: 1 Exported
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen songbrowser
+@wait 300
+sendtext uitest export set
+@wait 60
+sendkey Down
+@wait 30
+mouse_to 1033 327
+@wait 2
+mouse_down right
+@wait 1
+mouse_up right
+@wait 5
+mouse_to 1116 508
+@wait 2
+mouse_down
+@wait 1
+mouse_up
+@wait 2
+set_active_ui_screen mainmenu
+@wait 10
+@wait_secs 3
+@wait 10
+exit

@@ -520,6 +520,26 @@ msgstr "Appuyez sur Ctrl + O pour ouvrir le menu des options n'importe où."
 msgid "Tip: {:s}"
 msgstr "Astuce : {:s}"
 
+#: src/App/Neomod/MapExporter.cpp
+#, c++-format
+msgid "Failed to export folders to {}"
+msgstr "Impossible d'exporter les dossiers vers {}"
+
+#: src/App/Neomod/MapExporter.cpp
+#, c++-format
+msgid "Exported {} folders into {}"
+msgstr "{} dossiers exportés dans {}"
+
+#: src/App/Neomod/MapExporter.cpp
+#, c++-format
+msgid "Exported {}"
+msgstr "Exporté : {}"
+
+#: src/App/Neomod/MapExporter.cpp
+#, c++-format
+msgid "Exported {} folders to {}"
+msgstr "{} dossiers exportés vers {}"
+
 #: src/App/Neomod/MapSettingsOverlay.cpp src/App/Neomod/OptionsOverlay.cpp
 msgid "This setting is locked in multiplayer rooms."
 msgstr "Ce paramètre est verrouillé dans les salles multijoueur."

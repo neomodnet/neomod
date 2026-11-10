@@ -402,6 +402,7 @@ void AboutScreen::buildChangelog() {
         R"(- Added a search bar to the skin selection dropdown)",
         R"(- Fixed media volume keys not working)",
         R"(- Spectating: Fixed client sending outdated frames to spectators)",
+        R"(- Web: Exported beatmaps and skins are now downloaded)",
     };
     changelogs.push_back(std::move(v44_05));
 
@@ -415,6 +416,7 @@ void AboutScreen::buildChangelog() {
         R"(- Fixed neomod maps not overriding osu!stable ones if they had the same name)",
         R"(- Fixed your online status not updating if it changed while logging in)",
         R"(- Fixed various carousel selection/grouping issues)",
+        R"(- Fixed beatmap exports stalling after leaving song select)",
     };
     changelogs.push_back(std::move(v44_04));
 

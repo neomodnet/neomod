@@ -35,6 +35,9 @@ struct FinishedScore;
 namespace Replay {
 enum KeyFlags : uint8_t;
 }
+namespace MapExporter {
+class Queue;
+}
 using GameplayKeys = Replay::KeyFlags;
 
 #ifndef CONVAR_H
@@ -169,6 +172,7 @@ class Osu final : public App, public MouseListener, public TouchListener {
     [[nodiscard]] inline MusicTrack *getMusicTrack() const { return this->musicTrack.get(); }
     [[nodiscard]] inline ThumbnailManager *getThumbnailManager() const { return this->thumbnailManager.get(); }
     [[nodiscard]] inline PreviewTrackManager *getPreviewTrackManager() const { return this->previewTrackManager.get(); }
+    [[nodiscard]] inline MapExporter::Queue *getMapExports() const { return this->mapExports.get(); }
     [[nodiscard]] inline BeatmapInstaller *getBeatmapInstaller() const { return this->beatmapInstaller.get(); }
     [[nodiscard]] inline RenderTarget *getBackBuffer() const { return this->backBuffer; }
     [[nodiscard]] inline RenderTarget *getPlayfieldBuffer() const { return this->playfieldBuffer; }
@@ -309,6 +313,7 @@ class Osu final : public App, public MouseListener, public TouchListener {
     std::unique_ptr<UpdateHandler> updateHandler{nullptr};
     std::unique_ptr<ThumbnailManager> thumbnailManager{nullptr};
     std::unique_ptr<PreviewTrackManager> previewTrackManager{nullptr};
+    std::unique_ptr<MapExporter::Queue> mapExports{nullptr};
     std::unique_ptr<BeatmapInstaller> beatmapInstaller{nullptr};
     std::unique_ptr<UserCard> userButton{nullptr};
     std::unique_ptr<BGImageHandler> backgroundImageHandler{nullptr};
