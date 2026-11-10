@@ -301,6 +301,29 @@ void ToolUITest::testTextboxes() {
     press(KEY_BACKSPACE, KEYMOD_LCONTROL);
     TEST_ASSERT_EQ(box.getText(), "", "...with the spaces after it, when the caret is behind them");
 
+    // where Ctrl+Left/Right stop, until the caret stays where it is
+    const auto jumps = [&](SCANCODE scancode) {
+        std::vector<int> stops;
+        do {
+            press(scancode, KEYMOD_LCONTROL);
+            stops.push_back(box.caretPosition);
+        } while(stops.size() < 2 || stops[stops.size() - 2] != stops.back());
+        return stops;
+    };
+    box.setText("foo.bar(baz) 1.5");
+    press(KEY_HOME);
+    TEST_ASSERT(jumps(KEY_RIGHT) == std::vector<int>({7, 8, 11, 13, 16, 16}),
+                "Ctrl+Right stops at punctuation, a '.' between letters is part of the word");
+    TEST_ASSERT(jumps(KEY_LEFT) == std::vector<int>({13, 11, 8, 7, 0, 0}), "...and so does Ctrl+Left");
+    box.setText("\u6b8b\u9177\u306a\u5929\u4f7f");
+    press(KEY_END);
+    TEST_ASSERT(jumps(KEY_LEFT) == std::vector<int>({9, 6, 0, 0}), "...and between kanji and kana");
+    box.setText("foo.bar(baz)");
+    press(KEY_END);
+    press(KEY_BACKSPACE, KEYMOD_LCONTROL);
+    press(KEY_BACKSPACE, KEYMOD_LCONTROL);
+    TEST_ASSERT_EQ(box.getText(), "foo.bar(", "Ctrl+Backspace removes the punctuation and the word before the caret");
+
     box.setText("abc");
     press(KEY_A, KEYMOD_LCONTROL);
     TEST_ASSERT(box.hasSelectedText() && box.caretPosition == 3, "Ctrl+A selects everything");

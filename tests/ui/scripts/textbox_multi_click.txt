@@ -1,0 +1,173 @@
+# a double click in a textbox selects the word under it and a triple click all of it. a word is a run of one kind of
+# character: letters (with a '.' or an apostrophe between two of them), punctuation, spaces, or one Japanese script.
+# a drag after a double click extends the selection by words, from the word it began on. both texts fit the prompt's
+# input (440,360,400,40) without scrolling; the glyphs' x ranges are noted where they're clicked
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+ui_prompt words
+@wait 3
+mouse_to 640 380
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+ui_assert focused prompt_input 1
+sendtext Don't (TV) 1.5
+@wait 3
+# "Don't": D 445-456, o 458-467, ' 483-484, t 486-492
+mouse_to 462 380
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 2
+mouse_down left 2
+@wait 2
+mouse_up
+@wait 2
+sendkey 224 down
+sendkey C
+sendkey 224 up
+@wait 2
+ui_assert clipboard Don't
+# "1.5": 1 544-548, . 552-554, 5 557-565; a press past the end of the text is on its last word, one on the '.' too
+mouse_to 700 380
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 2
+mouse_down left 2
+@wait 2
+mouse_up
+@wait 2
+sendkey 224 down
+sendkey C
+sendkey 224 up
+@wait 2
+ui_assert clipboard 1.5
+# "(TV)": ( 500-504, TV 506-529, ) 531-534
+mouse_to 518 380
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 2
+mouse_down left 2
+@wait 2
+mouse_up
+@wait 2
+sendkey 224 down
+sendkey C
+sendkey 224 up
+@wait 2
+ui_assert clipboard TV
+mouse_to 553 380
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 2
+mouse_down left 2
+@wait 2
+mouse_up
+@wait 2
+sendkey 224 down
+sendkey C
+sendkey 224 up
+@wait 2
+ui_assert clipboard 1.5
+# the third press of a triple click selects everything
+mouse_to 518 380
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 2
+mouse_down left 2
+@wait 2
+mouse_up
+@wait 2
+mouse_down left 3
+@wait 2
+mouse_up
+@wait 2
+sendkey 224 down
+sendkey C
+sendkey 224 up
+@wait 2
+ui_assert clipboard Don't (TV) 1.5
+sendtext 残酷な天使のテーゼ
+@wait 3
+ui_assert text prompt_input 残酷な天使のテーゼ
+# 残 444-461, 酷 464-481, な 485-500, 天 504-521, 使 524-541, の 545-560, テ 565-580, ー 585-600, ゼ 604-620
+mouse_to 472 380
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 2
+mouse_down left 2
+@wait 2
+mouse_up
+@wait 2
+sendkey 224 down
+sendkey C
+sendkey 224 up
+@wait 2
+ui_assert clipboard 残酷
+mouse_to 592 380
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 2
+mouse_down left 2
+@wait 2
+mouse_up
+@wait 2
+sendkey 224 down
+sendkey C
+sendkey 224 up
+@wait 2
+ui_assert clipboard テーゼ
+# a drag from "天使" to the left takes the words before it, back to the right those after it
+mouse_to 512 380
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 2
+mouse_down left 2
+@wait 2
+mouse_to 492 380
+@wait 2
+sendkey 224 down
+sendkey C
+sendkey 224 up
+@wait 2
+ui_assert clipboard な天使
+mouse_to 472 380
+@wait 2
+sendkey 224 down
+sendkey C
+sendkey 224 up
+@wait 2
+ui_assert clipboard 残酷な天使
+mouse_to 552 380
+@wait 2
+mouse_up
+@wait 2
+sendkey 224 down
+sendkey C
+sendkey 224 up
+@wait 2
+ui_assert clipboard 天使の
+exit

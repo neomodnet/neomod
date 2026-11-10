@@ -3,6 +3,7 @@
 
 #include "CBaseUITextbox.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "App.h"
@@ -17,7 +18,6 @@
 #include "CBaseUIDispatch.h"
 #include "Font.h"
 #include "Graphics.h"
-#include "SString.h"
 #include "Environment.h"
 #include "UniString.h"
 #include "crypto.h"
@@ -25,16 +25,72 @@
 // #include "Logging.h"
 
 namespace {
+// a word (what a double click selects, what Ctrl+Left/Right step over): a run of characters of one kind
+enum class CharKind : u8 { SPACE, PUNCTUATION, WORD, HIRAGANA, KATAKANA, HAN };
+
+CharKind kindOf(char32_t c) {
+    if(c < 0x80) {
+        if(c == ' ' || (c >= '\t' && c <= '\r')) return CharKind::SPACE;
+        if((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_')
+            return CharKind::WORD;
+        return CharKind::PUNCTUATION;
+    }
+    // Japanese has no spaces between words, so its scripts take turns instead
+    static constexpr struct {
+        char32_t first, last;
+        CharKind kind;
+    } ranges[]{
+        {0x00A0, 0x00A0, CharKind::SPACE},       {0x00A1, 0x00BF, CharKind::PUNCTUATION},
+        {0x00D7, 0x00D7, CharKind::PUNCTUATION}, {0x00F7, 0x00F7, CharKind::PUNCTUATION},
+        {0x2000, 0x200B, CharKind::SPACE},       {0x2010, 0x205E, CharKind::PUNCTUATION},
+        {0x3000, 0x3000, CharKind::SPACE},       {0x3001, 0x3004, CharKind::PUNCTUATION},
+        {0x3005, 0x3007, CharKind::HAN},         {0x3008, 0x303F, CharKind::PUNCTUATION},
+        {0x3040, 0x309F, CharKind::HIRAGANA},    {0x30A0, 0x30FA, CharKind::KATAKANA},
+        {0x30FB, 0x30FB, CharKind::PUNCTUATION}, {0x30FC, 0x30FF, CharKind::KATAKANA},
+        {0x3400, 0x4DBF, CharKind::HAN},         {0x4E00, 0x9FFF, CharKind::HAN},
+        {0xF900, 0xFAFF, CharKind::HAN},         {0xFF01, 0xFF0F, CharKind::PUNCTUATION},
+        {0xFF1A, 0xFF20, CharKind::PUNCTUATION}, {0xFF3B, 0xFF40, CharKind::PUNCTUATION},
+        {0xFF5B, 0xFF65, CharKind::PUNCTUATION}, {0xFF66, 0xFF9F, CharKind::KATAKANA},
+        {0x20000, 0x3FFFF, CharKind::HAN},
+    };
+    for(const auto &range : ranges) {
+        if(c >= range.first && c <= range.last) return range.kind;
+    }
+    return CharKind::WORD;
+}
+
+// the kind of the character at byte `pos`: a '.' or an apostrophe between two letters belongs to them ("1.5", "don't")
+CharKind kindAt(std::string_view text, uSz pos) {
+    const auto at = [text](uSz from) { return *UniString::codepoints(text.substr(from)).begin(); };
+    const char32_t c = at(pos);
+    const uSz next = UniString::next(text, pos);
+    if((c == '.' || c == '\'' || c == U'\u2019') && pos > 0 && next < text.size() &&
+       kindOf(at(UniString::prev(text, pos))) == CharKind::WORD && kindOf(at(next)) == CharKind::WORD)
+        return CharKind::WORD;
+    return kindOf(c);
+}
+
+// where the run of `kind` that ends at `pos` starts
+uSz runStart(std::string_view text, uSz pos, CharKind kind) {
+    while(pos > 0 && kindAt(text, UniString::prev(text, pos)) == kind) pos = UniString::prev(text, pos);
+    return pos;
+}
+
+// where the run of `kind` that starts at `pos` ends
+uSz runEnd(std::string_view text, uSz pos, CharKind kind) {
+    while(pos < text.size() && kindAt(text, pos) == kind) pos = UniString::next(text, pos);
+    return pos;
+}
+
 // where a word jump from `pos` goes: back to the start of the word before it, forward to the start of the next one
 int wordJump(std::string_view text, int pos, bool forward) {
-    const auto isSpace = [&](uSz from, uSz to) { return SString::is_wspace_only(text.substr(from, to - from)); };
     uSz at = pos;
     if(forward) {
-        while(at < text.size() && !isSpace(at, UniString::next(text, at))) at = UniString::next(text, at);
-        while(at < text.size() && isSpace(at, UniString::next(text, at))) at = UniString::next(text, at);
+        if(at < text.size()) at = runEnd(text, at, kindAt(text, at));
+        at = runEnd(text, at, CharKind::SPACE);
     } else {
-        while(at > 0 && isSpace(UniString::prev(text, at), at)) at = UniString::prev(text, at);
-        while(at > 0 && !isSpace(UniString::prev(text, at), at)) at = UniString::prev(text, at);
+        at = runStart(text, at, CharKind::SPACE);
+        if(at > 0) at = runStart(text, at, kindAt(text, UniString::prev(text, at)));
     }
     return (int)at;
 }
@@ -180,6 +236,17 @@ int CBaseUITextbox::hitTestCaret(std::string_view vt, int mx) const {
     return static_cast<int>(this->font->hitTest(vt, static_cast<float>(mx - this->iTextAddX) - this->fTextScrollAddX));
 }
 
+std::pair<int, int> CBaseUITextbox::hitTestWord(std::string_view vt, int mx) const {
+    // the character under the cursor (past the end of the text: the last one)
+    auto at = static_cast<uSz>(this->hitTestCaret(vt, mx));
+    if(at == vt.size() || (at > 0 && static_cast<float>(mx - this->iTextAddX) - this->fTextScrollAddX <
+                                         this->font->getStringWidth(vt.substr(0, at))))
+        at = UniString::prev(vt, at);
+
+    const CharKind kind = kindAt(vt, at);
+    return {static_cast<int>(runStart(vt, at, kind)), static_cast<int>(runEnd(vt, at, kind))};
+}
+
 void CBaseUITextbox::onCapturedMouseMove() {
     // selecting and scrolling: the selection was begun at the down, captured moves extend it
     const MouseButtonFlags held = CBaseUIDispatch::getCaptorButtons();
@@ -218,8 +285,19 @@ void CBaseUITextbox::onCapturedMouseMove() {
             }
         }
 
-        // handle selecting end
-        this->iSelectEnd = this->hitTestCaret(visible_text, mouseX);
+        // handle selecting end (after a triple click everything stays selected)
+        if(this->iSelectClicks == 1) {
+            this->iSelectEnd = this->hitTestCaret(visible_text, mouseX);
+        } else if(this->iSelectClicks == 2) {
+            // the word the selection began on and those up to the cursor, with the caret on the far side
+            // (the text can have changed under a held button)
+            const auto [start, end] = this->hitTestWord(visible_text, mouseX);
+            const int size = static_cast<int>(visible_text.size());
+            const bool back = start < this->iWordStart;
+            this->iSelectStart = std::min(back ? this->iWordEnd : this->iWordStart, size);
+            this->iSelectEnd = back ? start : std::min(std::max(end, this->iWordEnd), size);
+            this->iSelectX = this->font->getStringWidth(visible_text.substr(0, this->iSelectStart));
+        }
         this->caretPosition = this->iSelectEnd;
     } else {
         if(!this->hasSelectedText()) {
@@ -610,10 +688,20 @@ void CBaseUITextbox::onMouseDownInside(bool left, bool right) {
         const auto visibleText = this->getVisibleText();
         const int hit = this->hitTestCaret(visibleText, mouseX);
         if(left) {
-            // begin a fresh selection at the click point; captured moves extend it
-            this->iSelectStart = this->iSelectEnd = hit;
+            // begin a fresh selection: at the click point, the word under it on a double click, everything on a triple
+            // click (a password has no words to show); captured moves extend it
+            const int clicks = std::min<int>(CBaseUIDispatch::getClicks(), 3);
+            this->iSelectClicks = this->is_password && clicks == 2 ? 3 : clicks;
+            if(this->iSelectClicks == 3) {
+                this->selectAll();
+            } else if(this->iSelectClicks == 2) {
+                const auto [start, end] = this->hitTestWord(visibleText, mouseX);
+                this->iWordStart = this->iSelectStart = start;
+                this->iWordEnd = this->iSelectEnd = this->caretPosition = end;
+            } else {
+                this->iSelectStart = this->iSelectEnd = this->caretPosition = hit;
+            }
             this->iSelectX = this->font->getStringWidth(visibleText.substr(0, this->iSelectStart));
-            this->caretPosition = hit;
         } else if(!this->hasSelectedText()) {
             this->caretPosition = hit;
         }

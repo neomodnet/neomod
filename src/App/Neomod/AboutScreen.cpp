@@ -403,6 +403,7 @@ void AboutScreen::buildChangelog() {
         R"(- Fixed media volume keys not working)",
         R"(- Spectating: Fixed client sending outdated frames to spectators)",
         R"(- Web: Exported beatmaps and skins are now downloaded)",
+        R"(- Text boxes: Added double/triple-click select, and made block-caret-move consistent)",
     };
     changelogs.push_back(std::move(v44_05));
 

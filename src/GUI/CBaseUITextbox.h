@@ -3,6 +3,8 @@
 #include "CBaseUIElement.h"
 #include "Color.h"
 
+#include <utility>
+
 class McFont;
 
 // TODO: so much duplication for text things between textbox/label/button
@@ -111,6 +113,8 @@ class CBaseUITextbox : public CBaseUIElement {
     void onCapturedMouseMove() override;
 
     [[nodiscard]] int hitTestCaret(std::string_view vt, int mx) const;
+    // the word under the cursor as byte offsets [start, end): a run of spaces, punctuation or letters of one script
+    [[nodiscard]] std::pair<int, int> hitTestWord(std::string_view vt, int mx) const;
 
     // puts the caret at a byte position of the text; `select` extends the selection to there (starting one at the caret)
     void moveCaret(int position, bool select);
@@ -139,6 +143,11 @@ class CBaseUITextbox : public CBaseUIElement {
     int iSelectStart;
     int iSelectEnd;
     int iSelectX;
+    // the presses in a row that began the selection: it extends by characters (1), by words (2) or is everything (3)
+    int iSelectClicks{1};
+    // the word a selection by words began on
+    int iWordStart{0};
+    int iWordEnd{0};
 
     Color textColor;
     Color frameColor;
