@@ -1067,8 +1067,9 @@ void SDLGPUInterface::recordDraw(SDL_GPUBuffer *bakedBuffer, u32 first, u32 coun
     // an immediate draw joins the last command when the state matches. failing that it can still join an earlier
     // one when it is pixel-disjoint from every command in between, since the order of draws that don't touch the
     // same pixels doesn't matter: this is what turns interleaved backgrounds, text and icons into one command each
+    // (never a line strip, which would run on into the strip it joined)
     DrawCommand *target = nullptr;
-    if(!bakedBuffer && !m_renderPassBoundaries.empty()) {
+    if(!bakedBuffer && m_currentPrimitiveType != SDL_GPU_PRIMITIVETYPE_LINESTRIP && !m_renderPassBoundaries.empty()) {
         const uSz passFirst = m_renderPassBoundaries.back().drawIndex;
         uSz i = m_pendingDraws.size();
         if(i > passFirst && compatible(m_pendingDraws[i - 1])) {
