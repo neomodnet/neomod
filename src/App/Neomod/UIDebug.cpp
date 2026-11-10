@@ -23,6 +23,7 @@
 #include "Engine.h"
 #include "Environment.h"
 #include "Osu.h"
+#include "Skin.h"
 #include "BeatmapInterface.h"
 #include "GameplayJudge.h"
 #include "HitObjects.h"
@@ -148,6 +149,7 @@ void UIDebug::debugAssert(std::string_view args) {
     // ui_assert map <file|root|md5|offset|background> <expected>
     // ui_assert sets <count>
     // ui_assert play finished <count>
+    // ui_assert skin samples <count>
     auto parts = SString::split(args, ' ');
     std::erase_if(parts, [](std::string_view p) { return p.empty(); });
 
@@ -216,6 +218,15 @@ void UIDebug::debugAssert(std::string_view args) {
         const i32 actual = osu->getMapInterface()->getTestEnd();
         logRaw("UITEST {} play test_end expected={}..{} actual={}", actual >= min && actual <= max ? "OK" : "FAIL", min,
                max, actual);
+        return;
+    }
+
+    if(parts.size() >= 3 && SString::to_lower(parts[0]) == "skin"sv && parts[1] == "samples"sv) {
+        // how many sounds the skin has from a map's folder (see Skin::loadBeatmapOverride())
+        const Skin *skin = osu->getSkin();
+        const auto expected = Parsing::strto<i32>(parts[2]);
+        const auto actual = skin ? (i32)skin->getBeatmapSamples().size() : -1;
+        logRaw("UITEST {} skin samples expected={} actual={}", actual == expected ? "OK" : "FAIL", expected, actual);
         return;
     }
 

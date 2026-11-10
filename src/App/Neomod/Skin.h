@@ -119,9 +119,14 @@ struct Skin final {
 
     [[nodiscard]] bool isReady() const;
 
+    // a map's folder replaces what it has of the skin's images (with the map's slider colours) and of its sounds (with
+    // the files its hit samples name), until it's unloaded
     void loadBeatmapOverride(std::string_view folder, std::span<const std::string> sampleFiles,
-                             std::optional<Color> sliderBorder, std::optional<Color> sliderTrackOverride);
+                             std::optional<Color> sliderBorder, std::optional<Color> sliderTrackOverride, bool images,
+                             bool sounds);
     void unloadBeatmapOverride();
+    // loads the override `other` has
+    void copyBeatmapOverride(const Skin &other);
     void reloadSounds();
 
     [[nodiscard]] std::string getBeatmapFile(std::string_view filename) const;

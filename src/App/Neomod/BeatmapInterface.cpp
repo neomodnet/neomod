@@ -1435,7 +1435,8 @@ void BeatmapInterface::loadBeatmapSkin() {
     if(!skin || !map || !this->beatmap) return;
 
     skin->loadBeatmapOverride(this->beatmap->getFolder(), map->primitives.sampleFiles, map->primitives.sliderBorder,
-                              map->primitives.sliderTrackOverride);
+                              map->primitives.sliderTrackOverride, !cv::ignore_beatmap_skins.getBool(),
+                              !cv::ignore_beatmap_samples.getBool());
 }
 
 Storyboard::View BeatmapInterface::getStoryboardView() const {

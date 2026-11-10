@@ -711,8 +711,8 @@ void Osu::update() {
             this->bSkinLoadScheduled = false;
 
             if(this->skin.get() != this->skinScheduledToLoad) {
+                if(this->skin) this->skinScheduledToLoad->copyBeatmapOverride(*this->skin);
                 this->skin.reset(this->skinScheduledToLoad);
-                if(this->map_iface) this->map_iface->loadBeatmapSkin();
             }
 
             this->skinScheduledToLoad = nullptr;

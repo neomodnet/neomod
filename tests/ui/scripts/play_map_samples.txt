@@ -1,0 +1,51 @@
+# a map's own hitsound samples are loaded for its play unless they're ignored: here the folder's soft-hitnormal2 (its
+# timing point's set and index) and key.wav, which its first circle names. a skin reload during the play keeps them,
+# ignoring them unloads them, and so does the play's end.
+# no debug_fixed_frametime: the music runs on wall-clock time, so the waits are in seconds.
+# uitest-datadir: fresh
+# uitest-copy: uitest_osu_folder_play/Songs/play set/silence.wav|maps/uitest skinned/silence.wav
+# uitest-copy: uitest_osu_folder_play/Songs/play set/silence.wav|maps/uitest skinned/soft-hitnormal2.wav
+# uitest-copy: uitest_osu_folder_play/Songs/play set/silence.wav|maps/uitest skinned/key.wav
+# uitest-file: maps/uitest skinned/skinned.osu|osu file format v14||[General]|AudioFilename: silence.wav|Mode: 0||[Metadata]|Title:UITest Skinned|Artist:UITest|Creator:uitest|Version:skinned|BeatmapID:0|BeatmapSetID:-1||[Difficulty]|HPDrainRate:5|CircleSize:4|OverallDifficulty:5|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|0,500,4,2,2,100,1,0||[HitObjects]|256,192,1000,1,0,0:0:0:0:key.wav|256,192,1500,1,0,0:0:0:0:|256,192,2000,1,0,0:0:0:0:|256,192,2500,1,0,0:0:0:0:|256,192,3000,1,0,0:0:0:0:|256,192,3500,1,0,0:0:0:0:|256,192,4000,1,0,0:0:0:0:|256,192,4500,1,0,0:0:0:0:|256,192,5000,1,0,0:0:0:0:|256,192,5500,1,0,0:0:0:0:|256,192,6000,1,0,0:0:0:0:|256,192,6500,1,0,0:0:0:0:|256,192,7000,1,0,0:0:0:0:|256,192,7500,1,0,0:0:0:0:|256,192,8000,1,0,0:0:0:0:|256,192,8500,1,0,0:0:0:0:|256,192,9000,1,0,0:0:0:0:|256,192,9500,1,0,0:0:0:0:|256,192,10000,1,0,0:0:0:0:|256,192,10500,1,0,0:0:0:0:|256,192,11000,1,0,0:0:0:0:|256,192,11500,1,0,0:0:0:0:|256,192,12000,1,0,0:0:0:0:|256,192,12500,1,0,0:0:0:0:|256,192,13000,1,0,0:0:0:0:|256,192,13500,1,0,0:0:0:0:|256,192,14000,1,0,0:0:0:0:|256,192,14500,1,0,0:0:0:0:|256,192,15000,1,0,0:0:0:0:|256,192,15500,1,0,0:0:0:0:|256,192,16000,1,0,0:0:0:0:|256,192,16500,1,0,0:0:0:0:|256,192,17000,1,0,0:0:0:0:|256,192,17500,1,0,0:0:0:0:|256,192,18000,1,0,0:0:0:0:|256,192,18500,1,0,0:0:0:0:|256,192,19000,1,0,0:0:0:0:|256,192,19500,1,0,0:0:0:0:|256,192,20000,1,0,0:0:0:0:|256,192,20500,1,0,0:0:0:0:|256,192,21000,1,0,0:0:0:0:|256,192,21500,1,0,0:0:0:0:|256,192,22000,1,0,0:0:0:0:|256,192,22500,1,0,0:0:0:0:|256,192,23000,1,0,0:0:0:0:|256,192,23500,1,0,0:0:0:0:|256,192,24000,1,0,0:0:0:0:|256,192,24500,1,0,0:0:0:0:|256,192,25000,1,0,0:0:0:0:|256,192,25500,1,0,0:0:0:0:|256,192,26000,1,0,0:0:0:0:|256,192,26500,1,0,0:0:0:0:|256,192,27000,1,0,0:0:0:0:|256,192,27500,1,0,0:0:0:0:|256,192,28000,1,0,0:0:0:0:|256,192,28500,1,0,0:0:0:0:|256,192,29000,1,0,0:0:0:0:|256,192,29500,1,0,0:0:0:0:|256,192,30000,1,0,0:0:0:0:|256,192,30500,1,0,0:0:0:0:
+options_save_on_back 0
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mod_nofail 1
+ignore_beatmap_samples 0
+mouse_to 10 10
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen songbrowser
+@wait 300
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+ui_assert sets 1
+ui_assert map file skinned.osu
+ui_assert skin samples 0
+sendkey Return
+@wait_secs 5
+ui_assert visible songbrowser 0
+ui_assert skin samples 2
+skin_reload
+@wait_secs 3
+ui_assert skin samples 2
+ignore_beatmap_samples 1
+@wait 5
+ui_assert skin samples 0
+ignore_beatmap_samples 0
+@wait 5
+ui_assert skin samples 2
+sendkey Escape
+@wait_secs 1
+ui_assert visible pauseoverlay 1
+mouse_to 640 508
+@wait 5
+mouse_down
+@wait 2
+mouse_up
+@wait_secs 2
+ui_assert visible songbrowser 1
+ui_assert skin samples 0
+exit

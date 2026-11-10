@@ -32,10 +32,15 @@
 #include <utility>
 
 struct Skin::BeatmapOverride {
+    // what it was loaded from
     std::string dir;
+    std::vector<std::string> sample_files;  // the files hit samples name, by HITSAMPLE_BITS::filename - 1
+    std::optional<Color> map_slider_border;
+    std::optional<Color> map_slider_track_override;
+    bool images;  // whether its images (and slider colours) replace the skin's
+    bool sounds;  // whether its sounds do, and its hitsound samples get loaded
+
     Hash::unstable_ncase_set<std::string> files;  // the folder's, by name in any case
-    bool images;                                  // whether its images (and slider colours) replace the skin's
-    bool sounds;                                  // whether its sounds do, and its hitsound samples get loaded
 
     // the replaced elements, with what the skin had before (in the order they were replaced, which can be more than once)
     std::vector<std::pair<BasicSkinImage *, BasicSkinImage>> basic_images;
@@ -766,16 +771,17 @@ void Skin::loadElements() {
 }
 
 void Skin::loadBeatmapOverride(std::string_view folder, std::span<const std::string> sampleFiles,
-                               std::optional<Color> sliderBorder, std::optional<Color> sliderTrackOverride) {
+                               std::optional<Color> sliderBorder, std::optional<Color> sliderTrackOverride, bool images,
+                               bool sounds) {
     this->unloadBeatmapOverride();
-
-    const bool images = !cv::ignore_beatmap_skins.getBool();
-    const bool sounds = !cv::ignore_beatmap_samples.getBool();
     if(!images && !sounds) return;
 
     auto o = std::make_unique<BeatmapOverride>();
     o->dir = folder;
     if(!o->dir.ends_with('/')) o->dir.push_back('/');
+    o->sample_files.assign(sampleFiles.begin(), sampleFiles.end());
+    o->map_slider_border = sliderBorder;
+    o->map_slider_track_override = sliderTrackOverride;
     for(auto &file : Environment::getFilesInFolder(o->dir)) {
         o->files.insert(std::move(file));
     }
@@ -830,8 +836,8 @@ void Skin::loadBeatmapOverride(std::string_view folder, std::span<const std::str
         }
 
         // the files hit samples name (with or without their extension)
-        ov.file_samples.reserve(sampleFiles.size());
-        for(std::string name : sampleFiles) {
+        ov.file_samples.reserve(ov.sample_files.size());
+        for(std::string name : ov.sample_files) {
             File::normalizeSlashes(name, '\\', '/');
             std::string path = this->getBeatmapFile(name);
             if(path.empty()) path = findWithExtension(std::string_view{name}.substr(0, name.rfind('.')));
@@ -849,6 +855,13 @@ void Skin::loadBeatmapOverride(std::string_view folder, std::span<const std::str
 
     // (until the map's elements have loaded as well)
     this->is_ready = false;
+}
+
+void Skin::copyBeatmapOverride(const Skin &other) {
+    if(const auto *o = other.beatmap_override.get()) {
+        this->loadBeatmapOverride(o->dir, o->sample_files, o->map_slider_border, o->map_slider_track_override,
+                                  o->images, o->sounds);
+    }
 }
 
 void Skin::unloadBeatmapOverride() {

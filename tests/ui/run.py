@@ -162,6 +162,7 @@ def script_directives(text):
     cleanup: a maps/<folder> the script is expected to create, removed after the run
     datadir: 'fresh' runs the script on an empty data dir of its own (out/data_<script>) instead of the
              shared one, for scripts that write state the other scripts would boot into (e.g. osu.cfg)
+    copy: '<source>|<path>' copies a fixture file (relative to the bin dir) into the data dir before the run
     file: '<path>|<line>|<line>...' writes a fixture file (relative to the data dir) before the run
     cfg: '<convar> <value>' is what osu.cfg has to hold for the convar after the run ('-' = no line at all)
     log: '<count> <text>' is how many lines of the log have to contain the text (0 = none)
@@ -276,6 +277,10 @@ def run_one(name, binary, bindir, datadir, record):
         datadir = OUT_DIR / f"data_{name}"
         shutil.rmtree(datadir, ignore_errors=True)
         datadir.mkdir()
+    for spec in directives.get("copy", []):
+        source, path = (s.strip() for s in spec.split("|"))
+        (datadir / path).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(bindir / source, datadir / path)
     for spec in directives.get("file", []):
         path, *lines = spec.split("|")
         (datadir / path.strip()).parent.mkdir(parents=True, exist_ok=True)
