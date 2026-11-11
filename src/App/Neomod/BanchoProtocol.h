@@ -125,7 +125,8 @@ enum class GameMode : uint8_t {
     X(INP_ROOM_STATE, = 133)                                            \
     X(INP_ROOM_PLAYERS_UPDATED, = 134)                                  \
     X(INP_ROOM_SUMMARY, = 135)                                          \
-    X(INP_MATCH_SCORES, = 136)
+    X(INP_MATCH_SCORES, = 136)                                          \
+    X(INP_SUPPORTER_TOKEN, = 137)
 
 // NOTE: u8 in case packet headers get shortened, even though packet IDs are currently u16
 enum MC_DEFINE_ENUM(IncomingPackets, uint8_t, INP_ENUM_VALS, IncomingPackets_to_string);

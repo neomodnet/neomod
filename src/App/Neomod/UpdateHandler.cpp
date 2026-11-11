@@ -13,6 +13,8 @@
 #include "SString.h"
 #include "UI.h"
 #include "OptionsOverlay.h"
+#include "NotificationOverlay.h"
+#include "i18n.h"
 #include "Logging.h"
 #include "Environment.h"
 #include "Paths.h"
@@ -51,14 +53,30 @@ void UpdateHandler::onBleedingEdgeChanged(float oldVal, float newVal) {
     this->checkForUpdates(true);
 }
 
+void UpdateHandler::onSupporterToken() {
+    if(!this->waiting_for_token) return;
+    this->waiting_for_token = false;
+    this->checkForUpdates(this->force_after_token);
+}
+
 void UpdateHandler::checkForUpdates(bool force_update) {
     if(this->getStatus() != STATUS_IDLE && this->getStatus() != STATUS_ERROR) {
         debugLog("We're already updating!");
         return;
     }
 
+    // without a token, the server treats us like a client from before supporter tokens.
+    // releases get checked until login brings one, then onSupporterToken() checks bleeding edge.
+    this->checking_bleedingedge = cv::bleedingedge.getBool() && !cv::supporter_token.getString().empty();
+    this->waiting_for_token = cv::bleedingedge.getBool() && !this->checking_bleedingedge;
+    if(this->waiting_for_token) {
+        debugLog("UpdateHandler: No supporter token yet, checking releases until login");
+        this->force_after_token = force_update;
+        force_update = false;
+    }
+
     std::string versionUrl = "https://" NEOMOD_DOMAIN;
-    if(cv::bleedingedge.getBool()) {
+    if(this->checking_bleedingedge) {
         versionUrl.append("/bleedingedge/" OS_NAME ".txt");
     } else {
         versionUrl.append("/update/" OS_NAME "/latest-version.txt");
@@ -71,6 +89,7 @@ void UpdateHandler::checkForUpdates(bool force_update) {
         .timeout = 10,
         .connect_timeout = 5,
     };
+    options.headers["X-Supporter-Token"] = cv::supporter_token.getString();
 
     // arm cancellation for this whole check -> download chain (see onBleedingEdgeChanged)
     this->cancel_src = {};
@@ -79,11 +98,22 @@ void UpdateHandler::checkForUpdates(bool force_update) {
     this->status = STATUS_CHECKING_FOR_UPDATE;
     networkHandler->httpRequestAsync(versionUrl, std::move(options),
                                      [this, force_update](const Mc::Net::Response &response) {
-                                         this->onVersionCheckComplete(response.text(), response.success, force_update);
+                                         this->onVersionCheckComplete(response.text(), response.success,
+                                                                      response.response_code, force_update);
                                      });
 }
 
-void UpdateHandler::onVersionCheckComplete(std::string_view response, bool success, bool force_update) {
+void UpdateHandler::onVersionCheckComplete(std::string_view response, bool success, long response_code,
+                                           bool force_update) {
+    if(this->checking_bleedingedge && response_code == 403) {
+        // not a supporter (anymore): go back to the release stream, which re-checks for updates
+        debugLog("UpdateHandler: Bleeding edge updates are a supporter perk");
+        ui->getNotificationOverlay()->addToast(_("Bleeding edge updates are a supporter perk."), ERROR_TOAST);
+        this->status = STATUS_IDLE;
+        cv::bleedingedge.setValue(false);
+        return;
+    }
+
     if(!success || response.empty()) {
         // Avoid setting STATUS_ERROR, since we don't want a big red button to show up for offline players
         // We DO want it to show up if the update check was requested manually.
@@ -135,7 +165,7 @@ void UpdateHandler::onVersionCheckComplete(std::string_view response, bool succe
     }
 
     std::string update_url;
-    if(cv::bleedingedge.getBool()) {
+    if(this->checking_bleedingedge) {
         update_url = "https://" NEOMOD_DOMAIN "/bleedingedge/" OS_NAME ".zip";
     } else {
         update_url = fmt::format("https://" NEOMOD_DOMAIN "/update/" OS_NAME "/v{:.2f}.zip", latest_version);
@@ -152,6 +182,7 @@ void UpdateHandler::onVersionCheckComplete(std::string_view response, bool succe
         .connect_timeout = 10,
         .flags = Mc::Net::RequestOptions::FOLLOW_REDIRECTS,
     };
+    options.headers["X-Supporter-Token"] = cv::supporter_token.getString();
     // same source as the version check, so cancelling aborts the download too
     options.cancel_token = this->cancel_src.get_token();
 
@@ -286,7 +317,7 @@ void UpdateHandler::installUpdate() {
         }
     }
 
-    cv::is_bleedingedge.setValue(cv::bleedingedge.getBool());
+    cv::is_bleedingedge.setValue(this->checking_bleedingedge);
     ui->getOptionsOverlay()->save();
 
     // we're done updating; restart the game, since the user already clicked to update

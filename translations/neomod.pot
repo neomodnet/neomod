@@ -5141,6 +5141,10 @@ msgstr ""
 msgid "(Press ENTER to confirm.)"
 msgstr ""
 
+#: src/App/Neomod/UpdateHandler.cpp
+msgid "Bleeding edge updates are a supporter perk."
+msgstr ""
+
 #: src/Engine/Sound/SoundEngine.cpp
 msgid "No sound"
 msgstr ""

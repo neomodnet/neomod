@@ -25,6 +25,7 @@
 #include "NotificationOverlay.h"
 #include "OptionsOverlay.h"
 #include "Osu.h"
+#include "UpdateHandler.h"
 #include "RankingScreen.h"
 #include "RoomScreen.h"
 #include "SongBrowser/SongBrowser.h"
@@ -922,6 +923,15 @@ void BanchoState::handle_packet(PacketReader &packet) {
             // run async callback
             map->getMapFileAsync(std::move(callback)).detach();
 
+            break;
+        }
+
+        case INP_SUPPORTER_TOKEN: {
+            auto token = packet.read_string();
+            if(BanchoState::endpoint == NEOMOD_DOMAIN) {
+                cv::supporter_token.setValue(token);
+                osu->getUpdateHandler()->onSupporterToken();
+            }
             break;
         }
 

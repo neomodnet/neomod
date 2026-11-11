@@ -32,13 +32,14 @@ class UpdateHandler {
 
     // release stream management
     void onBleedingEdgeChanged(float oldVal, float newVal);
+    void onSupporterToken();
 
     // convar command callback
     void updateCallback();
 
    private:
     // async operation chain
-    void onVersionCheckComplete(std::string_view response, bool success, bool force_update);
+    void onVersionCheckComplete(std::string_view response, bool success, long response_code, bool force_update);
     void onDownloadComplete(std::span<const u8> data, bool success, std::string_view hash);
 
     // status
@@ -46,4 +47,11 @@ class UpdateHandler {
 
     // armed per checkForUpdates(); request_stop() aborts an in-flight version check or download
     Sync::stop_source cancel_src;
+
+    // the stream that the latest check used, which installUpdate() installs
+    bool checking_bleedingedge{false};
+
+    // bleeding edge checks wait for the supporter token, which the server sends on login
+    bool waiting_for_token{false};
+    bool force_after_token{false};
 };

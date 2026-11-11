@@ -602,6 +602,7 @@ CONVAR(mp_oauth_token, ""sv, CLIENT | HIDDEN);
 CONVAR(mp_password, ""sv, CLIENT | HIDDEN | NOSAVE);
 CONVAR(mp_password_md5, ""sv, CLIENT | HIDDEN);
 CONVAR(mp_server, NEOMOD_DOMAIN ""sv, CLIENT);
+CONVAR(supporter_token, ""sv, CLIENT | HIDDEN);
 CONVAR(name, "Guest"sv, CLIENT);
 CONVAR(prefer_websockets, true, CLIENT, "prefer websocket connections over http polling");
 CONVAR(net_transfer_timeout, 300, CLIENT | SERVER, "default upload/download timeout (in seconds)");

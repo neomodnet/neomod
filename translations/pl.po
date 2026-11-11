@@ -5273,6 +5273,10 @@ msgstr "Wpisz nazwę użytkownika:"
 msgid "(Press ENTER to confirm.)"
 msgstr "(Naciśnij ENTER, aby potwierdzić.)"
 
+#: src/App/Neomod/UpdateHandler.cpp
+msgid "Bleeding edge updates are a supporter perk."
+msgstr "Aktualizacje \"bleeding edge\" są dostępne tylko dla supporterów."
+
 #: src/Engine/Sound/SoundEngine.cpp
 msgid "No sound"
 msgstr "Brak dźwięku"

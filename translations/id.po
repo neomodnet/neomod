@@ -5271,6 +5271,10 @@ msgstr "Masukkan Nama Pengguna:"
 msgid "(Press ENTER to confirm.)"
 msgstr "(Tekan ENTER untuk mengonfirmasi.)"
 
+#: src/App/Neomod/UpdateHandler.cpp
+msgid "Bleeding edge updates are a supporter perk."
+msgstr "Pembaruan bleeding edge adalah keuntungan khusus supporter."
+
 #: src/Engine/Sound/SoundEngine.cpp
 msgid "No sound"
 msgstr "Tanpa suara"
