@@ -14,6 +14,8 @@
 
 #include <cassert>
 #include <array>
+#elif defined(MCENGINE_PLATFORM_MACOS)
+#include <mach/thread_switch.h>
 #endif
 
 namespace Timing {
@@ -164,10 +166,15 @@ void sleep_ns_precise_internal(u64 ns) noexcept { SDL_DelayPrecise(ns); }
 #endif
 
 void yield_internal() noexcept {
-    if constexpr(Env::cfg(OS::WASM))
+    if constexpr(Env::cfg(OS::WASM)) {
         SDL_DelayNS(0);
-    else
+    } else {
+#ifdef MCENGINE_PLATFORM_MACOS
+        thread_switch(MACH_PORT_NULL, SWITCH_OPTION_DEPRESS, 1);
+#else
         std::this_thread::yield();
+#endif
+    }
 }
 
 }  // namespace detail
