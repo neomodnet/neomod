@@ -668,7 +668,7 @@ AC_SUBST([WASM_MINIAUDIO_FLAGS])
 
 AS_IF([test -n "$WASM_CC"], [
     # emscripten/WASM build
-    CXXFLAGS="$CXXFLAGS $wasm_thread_flags -msimd128 -Qunused-arguments -Wno-unused-command-line-argument -Wno-c2x-extensions"
+    CXXFLAGS="$CXXFLAGS $wasm_thread_flags -msimd128 -Qunused-arguments -Wno-unused-command-line-argument -Wno-c2x-extensions -Wno-c++26-extensions"
     CFLAGS="$CFLAGS $wasm_thread_flags -msimd128 -Qunused-arguments -Wno-unused-command-line-argument"
     LDFLAGS="$LDFLAGS $wasm_thread_flags -msimd128 -Qunused-arguments -Wno-unused-command-line-argument"
     _ccache_ctype="clang"
@@ -679,7 +679,7 @@ AS_IF([test -n "$WASM_CC"], [
     AS_IF([test "x$enable_clang" = "xyes"], [
         CC=clang
         CXX=clang++
-        CXXFLAGS="$CXXFLAGS -Qunused-arguments -Wno-c2x-extensions"
+        CXXFLAGS="$CXXFLAGS -Qunused-arguments -Wno-c2x-extensions -Wno-c++26-extensions"
         CFLAGS="$CFLAGS -Qunused-arguments"
         LDFLAGS="$LDFLAGS"
         CLANG=yes

@@ -8272,7 +8272,7 @@ if test -n "$WASM_CC"
 then :
 
     # emscripten/WASM build
-    CXXFLAGS="$CXXFLAGS $wasm_thread_flags -msimd128 -Qunused-arguments -Wno-unused-command-line-argument -Wno-c2x-extensions"
+    CXXFLAGS="$CXXFLAGS $wasm_thread_flags -msimd128 -Qunused-arguments -Wno-unused-command-line-argument -Wno-c2x-extensions -Wno-c++26-extensions"
     CFLAGS="$CFLAGS $wasm_thread_flags -msimd128 -Qunused-arguments -Wno-unused-command-line-argument"
     LDFLAGS="$LDFLAGS $wasm_thread_flags -msimd128 -Qunused-arguments -Wno-unused-command-line-argument"
     _ccache_ctype="clang"
@@ -8287,7 +8287,7 @@ then :
 
         CC=clang
         CXX=clang++
-        CXXFLAGS="$CXXFLAGS -Qunused-arguments -Wno-c2x-extensions"
+        CXXFLAGS="$CXXFLAGS -Qunused-arguments -Wno-c2x-extensions -Wno-c++26-extensions"
         CFLAGS="$CFLAGS -Qunused-arguments"
         LDFLAGS="$LDFLAGS"
         CLANG=yes
