@@ -401,6 +401,7 @@ void AboutScreen::buildChangelog() {
     v44_05.changes = {
         R"(- Added a search bar to the skin selection dropdown)",
         R"(- Fixed media volume keys not working)",
+        R"(- "Avoid flashing elements" now also stops the break warning arrows from blinking)",
         R"(- Spectating: Fixed client sending outdated frames to spectators)",
         R"(- Web: Exported beatmaps and skins are now downloaded)",
         R"(- Text boxes: Added double/triple-click select, and made block-caret-move consistent)",

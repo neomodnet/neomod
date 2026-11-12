@@ -2377,7 +2377,9 @@ void BeatmapInterface::update2() {
         const i32 nextDelta = (nextHitObjectTime - this->iCurMusicPosWithOffsets);
         const bool drawWarningArrows = gapSize > minGapSize && nextDelta > 0;
         if(drawWarningArrows &&
-           ((nextDelta <= lastVisibleMin + blinkDelta * 13 && nextDelta > lastVisibleMin + blinkDelta * 12) ||
+           ((cv::avoid_flashes.getBool() && nextDelta <= lastVisibleMin + blinkDelta * 13 &&
+             nextDelta > lastVisibleMin) ||
+            (nextDelta <= lastVisibleMin + blinkDelta * 13 && nextDelta > lastVisibleMin + blinkDelta * 12) ||
             (nextDelta <= lastVisibleMin + blinkDelta * 11 && nextDelta > lastVisibleMin + blinkDelta * 10) ||
             (nextDelta <= lastVisibleMin + blinkDelta * 9 && nextDelta > lastVisibleMin + blinkDelta * 8) ||
             (nextDelta <= lastVisibleMin + blinkDelta * 7 && nextDelta > lastVisibleMin + blinkDelta * 6) ||
