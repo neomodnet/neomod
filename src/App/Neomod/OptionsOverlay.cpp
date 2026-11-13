@@ -1721,6 +1721,8 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
                       &cv::draw_statistics_perfectpp);
     this->addCheckbox(_("Draw Stats: Misses"), _("Number of misses."), &cv::draw_statistics_misses);
     this->addCheckbox(_("Draw Stats: SliderBreaks"), _("Number of slider breaks."), &cv::draw_statistics_sliderbreaks);
+    this->addCheckbox(_("Draw Stats: Retries"), _("How many times the current map was retried."),
+                      &cv::draw_statistics_retries);
     this->addCheckbox(_("Draw Stats: Max Possible Combo"), &cv::draw_statistics_maxpossiblecombo);
     this->addCheckbox(_("Draw Stats: Stars*** (Until Now)"),
                       _("Incrementally updates the star rating (aka \"realtime stars\")."),

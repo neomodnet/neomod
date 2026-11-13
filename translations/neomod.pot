@@ -243,6 +243,11 @@ msgstr ""
 
 #: src/App/Neomod/HUD.cpp
 #, c++-format
+msgid "Retries: {:d}"
+msgstr ""
+
+#: src/App/Neomod/HUD.cpp
+#, c++-format
 msgid "FC: {:d}x"
 msgstr ""
 
@@ -2400,6 +2405,14 @@ msgstr ""
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Number of slider breaks."
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Draw Stats: Retries"
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "How many times the current map was retried."
 msgstr ""
 
 #: src/App/Neomod/OptionsOverlay.cpp

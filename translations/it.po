@@ -263,6 +263,11 @@ msgstr "SBrk: {:d}"
 
 #: src/App/Neomod/HUD.cpp
 #, c++-format
+msgid "Retries: {:d}"
+msgstr "Tentativi: {:d}"
+
+#: src/App/Neomod/HUD.cpp
+#, c++-format
 msgid "FC: {:d}x"
 msgstr "FC: {:d}x"
 
@@ -2509,6 +2514,14 @@ msgstr "Disegna statistica: SliderBreaks"
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Number of slider breaks."
 msgstr "Numero di slider break."
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Draw Stats: Retries"
+msgstr "Disegna statistica: Tentativi"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "How many times the current map was retried."
+msgstr "Quante volte è stata riprovata la mappa attuale."
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Draw Stats: Max Possible Combo"

@@ -441,6 +441,13 @@ bool BeatmapInterface::play() {
     this->kind = PlayKind::PLAY;
 
     if(this->start()) {
+        if(this->retriesMD5 == this->beatmap->getMD5()) {
+            this->iRetries++;
+        } else {
+            this->retriesMD5 = this->beatmap->getMD5();
+            this->iRetries = 0;
+        }
+
         ui->getMapSettingsOverlay()->onPlayStart();
         this->last_spectator_broadcast = engine->getTime();
         RichPresence::onPlayStart();
@@ -788,6 +795,8 @@ void BeatmapInterface::restart(bool quick) {
 }
 
 void BeatmapInterface::actualRestart() {
+    if(this->kind == PlayKind::PLAY) this->iRetries++;
+
     // reset everything
     this->resetScore();
     this->judge->reset(-1000);

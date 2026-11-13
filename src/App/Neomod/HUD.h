@@ -201,6 +201,7 @@ class HUD final : public UIScreen {
 
     struct HUDStats {
         i32 misses, sliderbreaks;
+        i32 retries;
         i32 maxPossibleCombo;
         f32 liveStars, totalStars;
         i32 bpm;

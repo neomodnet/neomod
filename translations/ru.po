@@ -265,6 +265,11 @@ msgstr "СБ: {:d}"
 
 #: src/App/Neomod/HUD.cpp
 #, c++-format
+msgid "Retries: {:d}"
+msgstr "Попытки: {:d}"
+
+#: src/App/Neomod/HUD.cpp
+#, c++-format
 msgid "FC: {:d}x"
 msgstr "ФК: {:d}x"
 
@@ -2511,6 +2516,14 @@ msgstr "Статистика: Слайдербрейки"
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Number of slider breaks."
 msgstr "Количество слайдербрейков."
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Draw Stats: Retries"
+msgstr "Статистика: Попытки"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "How many times the current map was retried."
+msgstr "Сколько раз была перезапущена текущая карта."
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Draw Stats: Max Possible Combo"

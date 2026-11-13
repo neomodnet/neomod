@@ -400,6 +400,7 @@ void AboutScreen::buildChangelog() {
     v44_05.title = "44.05 (" CHANGELOG_TIMESTAMP ")";
     v44_05.changes = {
         R"(- Added a search bar to the skin selection dropdown)",
+        R"(- Added "Retries" HUD statistic)",
         R"(- Fixed media volume keys not working)",
         R"(- "Avoid flashing elements" now also stops the break warning arrows from blinking)",
         R"(- Replays: Improved accuracy at hitobject edges)",

@@ -12,6 +12,7 @@
 #include "PlayfieldView.h"
 
 #include "Storyboard.h"
+#include "MD5Hash.h"
 
 #include <limits>
 #include <memory>
@@ -193,6 +194,8 @@ class BeatmapInterface final : public GameplayJudge::Listener, public PlayfieldV
 
     // live statistics
     [[nodiscard]] int getMostCommonBPM() const;
+    // how many times the current map was played again since another map was played
+    [[nodiscard]] i32 getRetries() const { return this->iRetries; }
 
     // set to false when using protected cvars
     bool is_submittable = true;
@@ -313,6 +316,8 @@ class BeatmapInterface final : public GameplayJudge::Listener, public PlayfieldV
     i32 iLeadInMS{0};  // the lead-in's length in music time (0: none)
     bool bIsRestartScheduled;
     bool bIsRestartScheduledQuick;
+    i32 iRetries{0};
+    MD5Hash retriesMD5;
     bool bWasSeekFrame;
     bool bTempSeekNF{false};
 

@@ -263,6 +263,11 @@ msgstr "SBrk: {:d}"
 
 #: src/App/Neomod/HUD.cpp
 #, c++-format
+msgid "Retries: {:d}"
+msgstr "重试: {:d}"
+
+#: src/App/Neomod/HUD.cpp
+#, c++-format
 msgid "FC: {:d}x"
 msgstr "FC: {:d}x"
 
@@ -2509,6 +2514,14 @@ msgstr "绘制统计：断滑条"
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Number of slider breaks."
 msgstr "断滑条次数。"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Draw Stats: Retries"
+msgstr "绘制统计：重试次数"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "How many times the current map was retried."
+msgstr "当前谱面的重试次数。"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Draw Stats: Max Possible Combo"

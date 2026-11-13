@@ -256,6 +256,7 @@ CONVAR(draw_statistics_nps, false, CLIENT | SKINS | SERVER);
 CONVAR(draw_statistics_od, false, CLIENT | SKINS | SERVER);
 CONVAR(draw_statistics_perfectpp, false, CLIENT | SKINS | SERVER);
 CONVAR(draw_statistics_pp, false, CLIENT | SKINS | SERVER);
+CONVAR(draw_statistics_retries, false, CLIENT | SKINS | SERVER);
 CONVAR(draw_statistics_sliderbreaks, false, CLIENT | SKINS | SERVER);
 CONVAR(draw_statistics_totalstars, false, CLIENT | SKINS | SERVER);
 CONVAR(draw_statistics_ur, false, CLIENT | SKINS | SERVER);
@@ -385,6 +386,8 @@ CONVAR(hud_statistics_pp_decimal_places, 0, CLIENT | SKINS | SERVER,
        "number of decimal places for the live pp counter (min = 0, max = 2)");
 CONVAR(hud_statistics_pp_offset_x, 0.0f, CLIENT | SKINS | SERVER);
 CONVAR(hud_statistics_pp_offset_y, 0.0f, CLIENT | SKINS | SERVER);
+CONVAR(hud_statistics_retries_offset_x, 0.0f, CLIENT | SKINS | SERVER);
+CONVAR(hud_statistics_retries_offset_y, 0.0f, CLIENT | SKINS | SERVER);
 CONVAR(hud_statistics_scale, 1.0f, CLIENT | SKINS | SERVER);
 CONVAR(hud_statistics_sliderbreaks_offset_x, 0.0f, CLIENT | SKINS | SERVER);
 CONVAR(hud_statistics_sliderbreaks_offset_y, 0.0f, CLIENT | SKINS | SERVER);

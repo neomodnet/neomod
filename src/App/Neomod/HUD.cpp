@@ -229,6 +229,7 @@ void HUD::draw() {
             const auto &whole_pp = pf->getWholeMapPPInfo();
             this->drawStatistics({.misses = score->getNumMisses(),
                                   .sliderbreaks = score->getNumSliderBreaks(),
+                                  .retries = pf->getRetries(),
                                   .maxPossibleCombo = pf->getJudge()->iMaxPossibleCombo,
                                   .liveStars = pf->live_stars(),
                                   .totalStars = (f32)whole_pp.total_stars,
@@ -487,6 +488,7 @@ void HUD::drawDummy() {
 
     this->drawStatistics({.misses = 0,
                           .sliderbreaks = 0,
+                          .retries = 4,
                           .maxPossibleCombo = 727,
                           .liveStars = 2.3f,
                           .totalStars = 5.5f,
@@ -1959,6 +1961,10 @@ void HUD::drawStatistics(const HUDStats &s) {
             // TRANSLATORS: "SBrk" stands for "Slider Breaks" (number of slider breaks/missed slider ticks)
             addStatistic(tformat("SBrk: {:d}", s.sliderbreaks), cv::hud_statistics_sliderbreaks_offset_x.getInt(),
                          cv::hud_statistics_sliderbreaks_offset_y.getInt());
+
+        if(cv::draw_statistics_retries.getBool())
+            addStatistic(tformat("Retries: {:d}", s.retries), cv::hud_statistics_retries_offset_x.getInt(),
+                         cv::hud_statistics_retries_offset_y.getInt());
 
         if(cv::draw_statistics_maxpossiblecombo.getBool())
             addStatistic(tformat("FC: {:d}x", s.maxPossibleCombo),
