@@ -20,6 +20,9 @@ struct Frame {
     f32 y;  // 0 - 384
 
     u8 key_flags;
+
+    // changed the score result; written with full float precision
+    bool key_frame{false};
 };
 
 enum KeyFlags : uint8_t {

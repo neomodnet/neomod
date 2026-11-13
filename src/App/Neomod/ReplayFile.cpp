@@ -155,8 +155,15 @@ std::vector<u8> compress_frames(const std::vector<Frame>& frames) {
 
     std::string replay_string;
     for(const Frame& frame : frames) {
-        replay_string.append(fmt::format("{}|{:.4f}|{:.4f}|{},", frame.milliseconds_since_last_frame, frame.x, frame.y,
-                                         frame.key_flags));
+        // the shortest exact representation, unless rounding to 4 decimals is shorter and this isn't a key frame
+        const auto coord = [&frame](f32 value) {
+            std::string exact = fmt::format("{}", value);
+            if(frame.key_frame) return exact;
+            std::string rounded = fmt::format("{:.4f}", value);
+            return rounded.length() < exact.length() ? rounded : exact;
+        };
+        replay_string.append(fmt::format("{}|{}|{}|{},", frame.milliseconds_since_last_frame, coord(frame.x),
+                                         coord(frame.y), frame.key_flags));
     }
 
     // osu!stable doesn't consider a replay valid unless it ends with this

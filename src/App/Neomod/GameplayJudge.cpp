@@ -520,7 +520,7 @@ LiveHitResult GameplayJudge::addHitResult(HitObject *hitObject, LiveHitResult hi
     const auto &mods = this->getMods();
 
     // key presses always get a frame; this is for slider parts, misses, or relax hits
-    this->bNeedsReplayFrame = true;
+    this->markReplayFrame();
 
     // handle perfect & sudden death
     if(mods.has(ModFlags::Perfect)) {

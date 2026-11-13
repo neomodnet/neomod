@@ -2652,6 +2652,7 @@ void BeatmapInterface::write_frame(const Replay::Frame &frame, bool force) {
         .x = frame.x,
         .y = frame.y,
         .key_flags = replay_keys,
+        .key_frame = force,
     });
 
     this->last_event_time = engine->getTime();
