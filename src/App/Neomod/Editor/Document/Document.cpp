@@ -843,6 +843,11 @@ bool Document::patch() {
     // so the place a line has among them is the place its object has), or a break line
     Primitives::PRIMITIVE_CONTAINER &c = this->primitives;
     const auto lineOf = [](const Primitives::Object &o) { return spanOf(o).line; };
+    const auto sampleFileOf = [](const Primitives::Object &o) -> u16 {
+        if(const auto *h = std::get_if<DBType::HITCIRCLE>(&o)) return h->samples.filename;
+        if(const auto *spinner = std::get_if<DBType::SPINNER>(&o)) return spinner->samples.filename;
+        return 0;
+    };
     std::vector<std::pair<uSz, Primitives::Object>> objects;
     std::vector<std::pair<Break *, BeatmapFile::Event>> events;
     for(const Id id : this->rewritten) {
@@ -855,6 +860,9 @@ bool Document::patch() {
             auto object = Primitives::readObject(content, (u32)at + 1, c, DatabaseBeatmap::limits());
             // a slider needs timing points, which reading it whole says
             if(!object || (c.timingpoints.empty() && std::holds_alternative<DBType::SLIDER>(*object))) return false;
+            // the sample files are numbered in the order the lines first name them: a line that names another one
+            // (or none now) can change which there are and their numbers
+            if(sampleFileOf(*object) != sampleFileOf(*slot)) return false;
             objects.emplace_back(slot - c.objects.begin(), std::move(*object));
         } else if(const auto b = Mc::ranges::find(this->breaks, id, &Break::id); b != this->breaks.end()) {
             BeatmapFile::Event event;

@@ -41,22 +41,28 @@ forceinline u8 sampleSetValue(i32 val) {
     return (val >= 0 && val <= 3) ? static_cast<u8>(val) : static_cast<u8>(SampleSetType::NORMAL);
 }
 
-// the hit sample's sets, volume, custom sample index and filename (added to sampleFiles if it's new)
-void applyHitSample(const BeatmapFile::HitSample &sample, HITSAMPLE_BITS &samples,
-                    std::vector<std::string> &sampleFiles) {
+// the hit sample's sets, volume, custom sample index and filename. a new filename joins sampleFiles; false if they
+// are const and don't have it
+template <typename Files>
+bool applyHitSample(const BeatmapFile::HitSample &sample, HITSAMPLE_BITS &samples, Files &sampleFiles) {
     samples.normalSet = sampleSetValue(sample.normalSet);
     samples.additionSet = sampleSetValue(sample.additionSet);
     samples.volume = static_cast<u8>(std::clamp(sample.volume, 0, 100));  // for some reason this can be negative
     samples.index = static_cast<u16>(std::clamp(sample.index, 0, 0xffff));
 
     samples.filename = 0;
-    if(sample.filename.empty()) return;
+    if(sample.filename.empty()) return true;
     auto it = Mc::ranges::find(sampleFiles, sample.filename);
     if(it == sampleFiles.end()) {
-        if(sampleFiles.size() >= 0xffff) return;
-        it = sampleFiles.emplace(sampleFiles.end(), sample.filename);
+        if constexpr(std::is_const_v<Files>) {
+            return false;
+        } else {
+            if(sampleFiles.size() >= 0xffff) return true;
+            it = sampleFiles.emplace(sampleFiles.end(), sample.filename);
+        }
     }
     samples.filename = static_cast<u16>(it - sampleFiles.begin() + 1);
+    return true;
 }
 
 bool sliderScoringTimeComparator(const SLIDER_SCORING_TIME &a, const SLIDER_SCORING_TIME &b) {
@@ -197,11 +203,10 @@ LoadError calculateSliderTimesClicksTicks(int beatmapVersion, SLIDER &s, const T
 }
 
 // the object an object line holds as read by the game, before the combos are counted (with the slider times when the
-// map has timing points), handed to `add`; none for a line of no kind, and a limit can refuse it. the sample files it
-// names join the ones in c
-template <typename Add>
-LoadError makeObject(const BeatmapFile::HitObject &ho, u32 line, PRIMITIVE_CONTAINER &c, const Limits &limits,
-                     const Add &add) {
+// map has timing points), handed to `add`; none for a line of no kind, and a limit can refuse it. a sample file it
+// names joins the ones in c, and a const c gets no object for a file it doesn't have
+template <typename Container, typename Add>
+LoadError makeObject(const BeatmapFile::HitObject &ho, u32 line, Container &c, const Limits &limits, const Add &add) {
     using HO = BeatmapFile::HitObject;
     const float sliderSanityRange = limits.sliderCurveMaxLength;  // infinity sanity check, same as before
     const int sliderMaxRepeatRange =
@@ -229,7 +234,7 @@ LoadError makeObject(const BeatmapFile::HitObject &ho, u32 line, PRIMITIVE_CONTA
             h.colorSkip = colorSkip;
             // h.clicked = false; // unknown what this field was supposed to be for
             h.samples.hitSounds = (ho.hitSounds & HitSoundType::VALID_HITSOUNDS);
-            applyHitSample(ho.sample, h.samples, c.sampleFiles);
+            if(!applyHitSample(ho.sample, h.samples, c.sampleFiles)) break;
             h.line = line;
 
             add(std::move(h));
@@ -325,7 +330,7 @@ LoadError makeObject(const BeatmapFile::HitObject &ho, u32 line, PRIMITIVE_CONTA
                       .isEndOfCombo = false,
                       .line = line};
             s.samples.hitSounds = (u8)(ho.hitSounds & HitSoundType::VALID_HITSOUNDS);
-            applyHitSample(ho.sample, s.samples, c.sampleFiles);
+            if(!applyHitSample(ho.sample, s.samples, c.sampleFiles)) break;
 
             add(std::move(s));
             break;
@@ -407,7 +412,8 @@ uSz TimingPoints::entryAt(i32 positionMS) const {
     return after == first ? 0 : (after - first) - 1;
 }
 
-std::optional<Object> readObject(std::string_view line, u32 number, PRIMITIVE_CONTAINER &c, const Limits &limits) {
+std::optional<Object> readObject(std::string_view line, u32 number, const PRIMITIVE_CONTAINER &c,
+                                 const Limits &limits) {
     BeatmapFile::HitObject record;
     if(!BeatmapFile::parse(line, record)) return std::nullopt;
     std::optional<Object> object;

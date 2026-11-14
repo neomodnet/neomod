@@ -466,13 +466,12 @@ class EditorTests {
         return {reinterpret_cast<const char *>(document.getBytes().data()), document.getBytes().size()};
     }
 
-    // all of one object in a map as read (a sample file by its name: a read that patched numbers the files differently
-    // than a whole one)
-    static std::string describe(const neomod::Primitives::Object &object, std::span<const std::string> sampleFiles) {
+    // all of one object in a map as read
+    static std::string describe(const neomod::Primitives::Object &object) {
         using namespace neomod::DatabaseBeatmapTypes;
-        const auto samples = [sampleFiles](const HITSAMPLE_BITS &s) {
+        const auto samples = [](const HITSAMPLE_BITS &s) {
             return fmt::format("{}:{}:{}:{}:{}:{}", s.hitSounds, s.normalSet, s.additionSet, s.volume, s.index,
-                               s.filename ? std::string_view{sampleFiles[s.filename - 1]} : std::string_view{});
+                               s.filename);
         };
         if(const auto *h = std::get_if<HITCIRCLE>(&object)) {
             return fmt::format("circle {},{} {} #{} {}+{} {} {} {} {} line {}", h->x, h->y, h->time, h->number,
@@ -503,15 +502,14 @@ class EditorTests {
         auto [read, error] = Document::read(location("read.osu"), "", doc.getBytes());
         if(!read) return "its bytes don't read";
         const auto &were = doc.getPrimitives().objects;
-        const auto &wereFiles = doc.getPrimitives().sampleFiles;
         const auto &are = read->getPrimitives().objects;
-        const auto &areFiles = read->getPrimitives().sampleFiles;
         if(were.size() != are.size()) return "the number of objects";
         for(uSz i = 0; i < are.size(); i++) {
-            if(describe(were[i], wereFiles) != describe(are[i], areFiles)) {
-                return fmt::format("object {}: {} | {}", i, describe(were[i], wereFiles), describe(are[i], areFiles));
+            if(describe(were[i]) != describe(are[i])) {
+                return fmt::format("object {}: {} | {}", i, describe(were[i]), describe(are[i]));
             }
         }
+        if(doc.getPrimitives().sampleFiles != read->getPrimitives().sampleFiles) return "the sample files";
         const MapObjects made{*read};
         const auto look = [](const MapObjects &o, uSz i) {
             const neomod::HitObject &h = *o.objects[i];
@@ -539,7 +537,7 @@ class EditorTests {
             if(a.timeMS != b.timeMS || a.endTimeMS != b.endTimeMS || a.kind != b.kind ||
                a.samples.hitSounds != b.samples.hitSounds || a.samples.normalSet != b.samples.normalSet ||
                a.samples.additionSet != b.samples.additionSet || a.samples.volume != b.samples.volume ||
-               a.rawPos != b.rawPos) {
+               a.samples.index != b.samples.index || a.samples.filename != b.samples.filename || a.rawPos != b.rawPos) {
                 return fmt::format("sound {}", i);
             }
         }
@@ -2046,6 +2044,22 @@ class EditorTests {
         TEST_ASSERT_EQ(unlikeRead(doc, *state.objects), std::string{}, "...as reading the map whole would");
         while(doc.canUndo()) state.undo();
         TEST_ASSERT(text(doc) == original && unlikeRead(doc, *state.objects).empty(), "every step undone");
+
+        // sample files are numbered in the order the lines first name them
+        const auto &files = doc.getPrimitives().sampleFiles;
+        const std::vector<std::string> kick{"kick.wav"}, snareKick{"snare.wav", "kick.wav"};
+        edit(Action::SAMPLE_FILE, c, [](HO &object) { object.sample.filename = "kick.wav"; });
+        TEST_ASSERT(!patched() && files == kick, "a line that names a sample file reads the map whole");
+        edit(Action::SAMPLE_FILE, b, [](HO &object) { object.sample.filename = "snare.wav"; });
+        TEST_ASSERT(!patched() && files == snareKick, "...and so does one that names another, numbered before it");
+        TEST_ASSERT_EQ(unlikeRead(doc, *state.objects), std::string{}, "...as reading the map whole would");
+        edit(Action::HITSOUNDS, b, [](HO &object) { object.hitSounds = 4; });
+        TEST_ASSERT(patched(), "a line that keeps its sample file is read alone");
+        TEST_ASSERT_EQ(unlikeRead(doc, *state.objects), std::string{}, "...as reading the map whole would");
+        edit(Action::SAMPLE_FILE, b, [](HO &object) { object.sample.filename = "kick.wav"; });
+        TEST_ASSERT(!patched() && files == kick, "a file no line names any more is gone");
+        TEST_ASSERT_EQ(unlikeRead(doc, *state.objects), std::string{}, "...as reading the map whole would");
+        while(doc.canUndo()) state.undo();
 
         // a line in [HitObjects] that's no object, which the step end places changed lines around
         const std::string odd = original + "junk\r\n";
