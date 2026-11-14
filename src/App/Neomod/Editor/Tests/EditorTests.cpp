@@ -2984,6 +2984,13 @@ class EditorTests {
                         "an uninherited point pasted at an inherited one's time leaves it");
             env->setClipBoardText("5400,300,4,1,0,80,1,0\r\nnot a point\r\n");
             TEST_ASSERT(!TimingPanel::canPastePoints(), "a clipboard with other lines has nothing to paste");
+            bool none = true;
+            for(const char *line : {"256,192,1000,1,0,0:0:0:0:", "64,192,4000,2,0,L|344:192,1,280", "2,6200,14800",
+                                    "5400,300", "5400,300,4,1,0,80,1,0,0"}) {
+                env->setClipBoardText(line);
+                none = none && !TimingPanel::canPastePoints();
+            }
+            TEST_ASSERT(none, "...nor has one with an object, a break or a part of a point: a point has eight numbers");
             list->stealFocus();
         }
 

@@ -14,6 +14,7 @@
 #include "KeyboardEvent.h"
 #include "Metronome.h"
 #include "NotificationOverlay.h"
+#include "Parsing.h"
 #include "Retiming.h"
 #include "SString.h"
 #include "TimeDisplay.h"
@@ -53,11 +54,19 @@ std::vector<Point> clipboardPoints() {
     for(std::string_view line : SString::split_newlines(env->getClipBoardText())) {
         line = SString::trimmed(line);
         if(line.empty()) continue;
-        if(Point point; neomod::BeatmapFile::parse(line, point)) {
-            points.push_back(point);
-        } else {
+        // a whole point: its eight fields, all numbers (other lines of a map start with two numbers too)
+        const auto fields = SString::split(line, ',');
+        Point point;
+        if(fields.size() != 8 ||
+           !Mc::ranges::all_of(fields,
+                               [](std::string_view field) {
+                                   f64 number{0.0};
+                                   return Parsing::parse(field, &number);
+                               }) ||
+           !neomod::BeatmapFile::parse(line, point)) {
             return {};
         }
+        points.push_back(point);
     }
     return points;
 }
