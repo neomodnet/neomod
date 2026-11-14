@@ -396,12 +396,13 @@ void AboutScreen::onChangeClicked(CBaseUIButton *button) {
 void AboutScreen::buildChangelog() {
     std::vector<CHANGELOG> changelogs;
 
-    CHANGELOG v44_05;
-    v44_05.title = "44.05 (" CHANGELOG_TIMESTAMP ")";
-    v44_05.changes = {
-        R"(- Added a beatmap editor: "Edit" in the main menu, or right-click a difficulty in song select and choose "Edit")",
-        R"(- Chat: Editor timestamps like 00:12:345 (1,2) and neomod://edit links open the editor there)",
-        R"(- Main menu: "E" now opens the editor ("X" still exits))",
+    CHANGELOG v45_00;
+    v45_00.title = "45.00 (" CHANGELOG_TIMESTAMP ")";
+    v45_00.changes = {
+        R"(- Added a beatmap editor)",
+        R"(  - Click "Edit" or press "E" to open the editor from the main menu)",
+        R"(  - You can also right-click a difficulty in song select and choose "Edit")",
+        R"(  - In chat, editor timestamps like 00:12:345 (1,2) and neomod://edit links also work)",
         R"(- Added a search bar to the skin selection dropdown)",
         R"(- Added "Retries" HUD statistic)",
         R"(- Sliders now take their custom sample index and volume from timing points only, like in osu!)",
@@ -414,7 +415,7 @@ void AboutScreen::buildChangelog() {
         R"(- Exported beatmaps are now named "<set ID> Artist - Title.osz" instead of after their folder)",
         R"(- Fixed collection exports including a beatmapset once per difficulty)",
     };
-    changelogs.push_back(std::move(v44_05));
+    changelogs.push_back(std::move(v45_00));
 
     CHANGELOG v44_04;
     v44_04.title = "44.04 (2026-11-09)";
