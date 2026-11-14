@@ -76,6 +76,7 @@ bool OpenGLInterface::init() {
 
     // initialize the state cache
     GLStateCache::initialize();
+    GLStateCache::setViewport(0, 0, (int)this->vResolution.x, (int)this->vResolution.y);
     return true;
 }
 

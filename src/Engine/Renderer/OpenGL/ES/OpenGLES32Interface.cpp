@@ -193,6 +193,7 @@ void main() {
 
     // initialize the state cache
     GLStateCache::initialize();
+    GLStateCache::setViewport(0, 0, (int)m_vResolution.x, (int)m_vResolution.y);
 
     return true;
 }

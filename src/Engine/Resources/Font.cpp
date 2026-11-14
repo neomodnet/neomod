@@ -50,8 +50,16 @@
 // TODO: use fontconfig on linux?
 #ifdef _WIN32
 #include "WinDebloatDefs.h"
-#include <shlobj.h>
+// for the system fallback lookup
+#undef NOGDI
+#undef NOTEXTMETRIC
 #include <windows.h>
+#include <dwrite.h>
+
+#include "dynutils.h"
+
+#include <array>
+#include <initializer_list>
 #endif
 
 // temp (hopefully) debug convar
@@ -1449,7 +1457,120 @@ bool loadFallbackFont(const std::string &fontPath, bool isSystemFont) {
     return true;
 }
 
-void discoverSystemFallbacks() {
+#ifdef MCENGINE_PLATFORM_WINDOWS
+// asks GDI which font it maps each request to, so per-user fonts and the host fonts under wine are found too
+std::vector<std::string> findSystemFallbacks() {
+    struct SystemFontSpec {
+        std::vector<std::wstring_view> faces;  // in order of preference
+        BYTE charset;                          // unless DEFAULT_CHARSET, GDI's pick for it is the last resort
+    };
+    const std::array<SystemFontSpec, 6> wantedFonts{{
+        {.faces = {L"Arial"}, .charset = ANSI_CHARSET},
+        // Meiryo (Japanese), Yu Gothic as alternative (Meiryo is an optional language pack component on Win10+)
+        {.faces = {L"Meiryo", L"Yu Gothic"}, .charset = SHIFTJIS_CHARSET},
+        // Microsoft YaHei (Chinese)
+        {.faces = {L"Microsoft YaHei"}, .charset = GB2312_CHARSET},
+        // Malgun Gothic (Korean)
+        {.faces = {L"Malgun Gothic"}, .charset = HANGEUL_CHARSET},
+        {.faces = {L"Segoe UI Emoji"}, .charset = DEFAULT_CHARSET},
+        {.faces = {L"Segoe UI Symbol"}, .charset = DEFAULT_CHARSET},
+    }};
+
+    std::vector<std::string> resolved;
+
+    using dynutils::load_func;
+    dynutils::lib_obj *gdi32 = dynutils::load_lib_system("gdi32.dll");
+    dynutils::lib_obj *dwrite = dynutils::load_lib_system("dwrite.dll");
+    const auto pCreateCompatibleDC = load_func<decltype(CreateCompatibleDC)>(gdi32, "CreateCompatibleDC");
+    const auto pDeleteDC = load_func<decltype(DeleteDC)>(gdi32, "DeleteDC");
+    const auto pCreateFontIndirectW = load_func<decltype(CreateFontIndirectW)>(gdi32, "CreateFontIndirectW");
+    const auto pSelectObject = load_func<decltype(SelectObject)>(gdi32, "SelectObject");
+    const auto pDeleteObject = load_func<decltype(DeleteObject)>(gdi32, "DeleteObject");
+    const auto pGetTextFaceW = load_func<decltype(GetTextFaceW)>(gdi32, "GetTextFaceW");
+    const auto pGetTextCharset = load_func<decltype(GetTextCharset)>(gdi32, "GetTextCharset");
+    const auto pDWriteCreateFactory = load_func<decltype(DWriteCreateFactory)>(dwrite, "DWriteCreateFactory");
+
+    IDWriteFactory *factory = nullptr;
+    IDWriteGdiInterop *interop = nullptr;
+    HDC dc = nullptr;
+
+    // empty if the font selected into the dc is not a local file
+    const auto selectedFontPath = [&interop, &dc]() -> std::string {
+        IDWriteFontFace *face = nullptr;
+        IDWriteFontFile *file = nullptr;
+        IDWriteFontFileLoader *loader = nullptr;
+        IDWriteLocalFontFileLoader *localLoader = nullptr;
+        UINT32 numFiles = 1;
+        const void *key = nullptr;
+        UINT32 keySize = 0, pathLength = 0;
+        std::wstring path;
+        if(SUCCEEDED(interop->CreateFontFaceFromHdc(dc, &face)) && SUCCEEDED(face->GetFiles(&numFiles, &file)) &&
+           SUCCEEDED(file->GetReferenceKey(&key, &keySize)) && SUCCEEDED(file->GetLoader(&loader)) &&
+           SUCCEEDED(
+               loader->QueryInterface(__uuidof(IDWriteLocalFontFileLoader), reinterpret_cast<void **>(&localLoader))) &&
+           SUCCEEDED(localLoader->GetFilePathLengthFromKey(key, keySize, &pathLength))) {
+            path.resize(pathLength + 1);
+            if(SUCCEEDED(localLoader->GetFilePathFromKey(key, keySize, path.data(), pathLength + 1)))
+                path.resize(pathLength);
+            else
+                path.clear();
+        }
+        for(IUnknown *obj : std::initializer_list<IUnknown *>{localLoader, loader, file, face}) {
+            if(obj) obj->Release();
+        }
+        // wine returns NT paths
+        if(path.starts_with(L"\\??\\")) path.erase(0, 4);
+        return UniString::to_utf8(path);
+    };
+
+    if(!pCreateCompatibleDC || !pDeleteDC || !pCreateFontIndirectW || !pSelectObject || !pDeleteObject ||
+       !pGetTextFaceW || !pGetTextCharset || !pDWriteCreateFactory) {
+        debugLog("Font Warning: Can't look up system fonts: {}", dynutils::get_error());
+    } else if(SUCCEEDED(pDWriteCreateFactory(DWRITE_FACTORY_TYPE_ISOLATED, __uuidof(IDWriteFactory),
+                                             reinterpret_cast<IUnknown **>(&factory))) &&
+              SUCCEEDED(factory->GetGdiInterop(&interop)) && (dc = pCreateCompatibleDC(nullptr))) {
+        for(const auto &spec : wantedFonts) {
+            for(size_t i = 0; i <= spec.faces.size(); i++) {
+                const bool anyFace = i == spec.faces.size();
+                if(anyFace && spec.charset == DEFAULT_CHARSET) break;
+
+                LOGFONTW logFont{};
+                logFont.lfCharSet = spec.charset;
+                logFont.lfOutPrecision = OUT_TT_ONLY_PRECIS;
+                if(!anyFace) spec.faces[i].copy(logFont.lfFaceName, LF_FACESIZE - 1);
+
+                HFONT font = pCreateFontIndirectW(&logFont);
+                if(!font) continue;
+                HGDIOBJ prevFont = pSelectObject(dc, font);
+
+                // GDI substitutes a face that isn't installed
+                wchar_t selectedFace[LF_FACESIZE]{};
+                const bool found = anyFace ? pGetTextCharset(dc) == spec.charset
+                                           : pGetTextFaceW(dc, LF_FACESIZE, selectedFace) > 0 &&
+                                                 lstrcmpiW(selectedFace, logFont.lfFaceName) == 0;
+                std::string path = found ? selectedFontPath() : std::string{};
+
+                pSelectObject(dc, prevFont);
+                pDeleteObject(font);
+
+                if(path.empty()) continue;
+                // several scripts can map to one pan-CJK font
+                if(Mc::ranges::find(resolved, path) == resolved.end()) resolved.push_back(std::move(path));
+                break;
+            }
+        }
+    }
+
+    if(dc) pDeleteDC(dc);
+    for(IUnknown *obj : std::initializer_list<IUnknown *>{interop, factory}) {
+        if(obj) obj->Release();
+    }
+    dynutils::unload_lib(dwrite);
+    dynutils::unload_lib(gdi32);
+    return resolved;
+}
+#else
+std::vector<std::string> findSystemFallbacks() {
     // each entry is one slot in the fallback priority order: knownPaths are the usual exact
     // locations (checked directly, cheap), scanNames are filenames matched by a recursive scan
     // of scanRoots which only runs for slots where no knownPath existed
@@ -1462,33 +1583,7 @@ void discoverSystemFallbacks() {
     std::vector<SystemFontSpec> wantedFonts;
     std::vector<std::string> scanRoots;
 
-#ifdef MCENGINE_PLATFORM_WINDOWS
-    std::wstring windirW;
-    windirW.resize(MAX_PATH + 1);
-    const size_t ret = GetWindowsDirectoryW(windirW.data(), MAX_PATH);
-    if(ret <= 0) return;
-    windirW.resize(ret);
-    const std::string windir = UniString::to_utf8(windirW);
-    const std::string fontsDir = windir + "\\Fonts\\";
-
-    wantedFonts = {
-        {.knownPaths = {fontsDir + "arial.ttf"}, .scanNames = {"arial.ttf"}},
-        // Meiryo (Japanese), Yu Gothic as alternative (Meiryo is an optional language pack component on Win10+)
-        {.knownPaths = {fontsDir + "meiryo.ttc", fontsDir + "YuGothM.ttc"}, .scanNames = {"meiryo.ttc", "YuGothM.ttc"}},
-        // Microsoft YaHei (Chinese)
-        {.knownPaths = {fontsDir + "msyh.ttc"}, .scanNames = {"msyh.ttc", "msyh.ttf"}},
-        // Malgun Gothic (Korean)
-        {.knownPaths = {fontsDir + "malgun.ttf"}, .scanNames = {"malgun.ttf"}},
-        // Segoe UI Emoji
-        {.knownPaths = {fontsDir + "seguiemj.ttf"}, .scanNames = {"seguiemj.ttf"}},
-        // Segoe UI Symbol
-        {.knownPaths = {fontsDir + "seguisym.ttf"}, .scanNames = {"seguisym.ttf"}},
-    };
-    scanRoots = {windir + "\\Fonts"};
-    // per-user installed fonts
-    if(const std::string localAppData = Environment::getEnvVariable("LOCALAPPDATA"); !localAppData.empty())
-        scanRoots.push_back(localAppData + "\\Microsoft\\Windows\\Fonts");
-#elif defined(MCENGINE_PLATFORM_MACOS)
+#if defined(MCENGINE_PLATFORM_MACOS)
     // /System/Library/Fonts lives on the sealed system volume, so the known paths are reliable
     // (APFS name lookups are normalization-insensitive, so NFC literals resolve to the NFD names on disk).
     wantedFonts = {
@@ -1543,7 +1638,7 @@ void discoverSystemFallbacks() {
         scanRoots.push_back(home + "/.fonts");
     }
 #else  // TODO: loading WOFF fonts in wasm? idk
-    return;
+    return {};
 #endif
 
     // check the known locations first
@@ -1614,8 +1709,13 @@ void discoverSystemFallbacks() {
         }
     }
 
+    return resolved;
+}
+#endif
+
+void discoverSystemFallbacks() {
     // load in declaration order, so that the fallback lookup priority stays consistent
-    for(const auto &fontPath : resolved) {
+    for(const auto &fontPath : findSystemFallbacks()) {
         if(!fontPath.empty() && loadFallbackFont(fontPath, true)) {
             debugLog("Loaded system fallback font: {:s}", fontPath);
         }

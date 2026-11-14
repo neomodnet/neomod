@@ -398,9 +398,7 @@ void AboutScreen::buildChangelog() {
 
     CHANGELOG v45_01;
     v45_01.title = "45.01 (" CHANGELOG_TIMESTAMP ")";
-    v45_01.changes = {
-        R"()",
-    };
+    v45_01.changes = {};
     changelogs.push_back(std::move(v45_01));
 
     CHANGELOG v45_00;
