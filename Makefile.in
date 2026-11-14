@@ -11876,16 +11876,17 @@ compile-commands:
 @AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@stamp-install-wine-shortcuts: | install-dirs
 @AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@	@cd "$(DESTDIR)$(bindir)" && \
 @AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@	for backend in $(AUDBACKENDLIST); do \
-@AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@		echo 'Set WshShell = CreateObject("WScript.Shell")' > temp.vbs && \
-@AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@		echo "Set Shortcut = WshShell.CreateShortcut(\"neomod-$$backend.lnk\")" >> temp.vbs && \
-@AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@		echo 'Shortcut.TargetPath = "C:\Windows\System32\cmd.exe"' >> temp.vbs && \
-@AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@		echo "Shortcut.Arguments = \"/c start \"\"\"\" \"\".\\$(PROGRAMS)\"\" -sound $$backend\"" >> temp.vbs && \
-@AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@		echo "Shortcut.Description = \"neomod with the $$backend audio backend\"" >> temp.vbs && \
-@AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@		echo 'Shortcut.WindowStyle = 7' >> temp.vbs && \
-@AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@		echo 'Shortcut.Save' >> temp.vbs && \
+@AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@		printf '%s\n' \
+@AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@			'Set WshShell = CreateObject("WScript.Shell")' \
+@AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@			"Set Shortcut = WshShell.CreateShortcut(\"neomod-$$backend.lnk\")" \
+@AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@			'Shortcut.TargetPath = "C:\Windows\System32\cmd.exe"' \
+@AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@			"Shortcut.Arguments = \"/c start \"\"\"\" \"\".\\$(PROGRAMS)\"\" -sound $$backend\"" \
+@AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@			"Shortcut.Description = \"neomod with the $$backend audio backend\"" \
+@AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@			'Shortcut.WindowStyle = 7' \
+@AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@			'Shortcut.Save' > temp.vbs && \
 @AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@		WINEPREFIX=$(TEMP_WINEPFX) DISPLAY= WAYLAND_DISPLAY= WINEDLLOVERRIDES="mscoree=;mshtml=;winex11.drv=;winewayland.drv=" WINEDEBUG=-all \
 @AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@		$(WINE) cscript temp.vbs && \
-@AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@		rm temp.vbs; \
+@AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@		rm temp.vbs || exit 1; \
 @AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@	done
 @AUDIO_SHORTCUTS_TRUE@@WASM_PLATFORM_FALSE@	@touch $@
 

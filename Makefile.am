@@ -1822,16 +1822,17 @@ if AUDIO_SHORTCUTS
 stamp-install-wine-shortcuts: | install-dirs
 	@cd "$(DESTDIR)$(bindir)" && \
 	for backend in $(AUDBACKENDLIST); do \
-		echo 'Set WshShell = CreateObject("WScript.Shell")' > temp.vbs && \
-		echo "Set Shortcut = WshShell.CreateShortcut(\"neomod-$$backend.lnk\")" >> temp.vbs && \
-		echo 'Shortcut.TargetPath = "C:\Windows\System32\cmd.exe"' >> temp.vbs && \
-		echo "Shortcut.Arguments = \"/c start \"\"\"\" \"\".\\$(PROGRAMS)\"\" -sound $$backend\"" >> temp.vbs && \
-		echo "Shortcut.Description = \"neomod with the $$backend audio backend\"" >> temp.vbs && \
-		echo 'Shortcut.WindowStyle = 7' >> temp.vbs && \
-		echo 'Shortcut.Save' >> temp.vbs && \
+		printf '%s\n' \
+			'Set WshShell = CreateObject("WScript.Shell")' \
+			"Set Shortcut = WshShell.CreateShortcut(\"neomod-$$backend.lnk\")" \
+			'Shortcut.TargetPath = "C:\Windows\System32\cmd.exe"' \
+			"Shortcut.Arguments = \"/c start \"\"\"\" \"\".\\$(PROGRAMS)\"\" -sound $$backend\"" \
+			"Shortcut.Description = \"neomod with the $$backend audio backend\"" \
+			'Shortcut.WindowStyle = 7' \
+			'Shortcut.Save' > temp.vbs && \
 		WINEPREFIX=$(TEMP_WINEPFX) DISPLAY= WAYLAND_DISPLAY= WINEDLLOVERRIDES="mscoree=;mshtml=;winex11.drv=;winewayland.drv=" WINEDEBUG=-all \
 		$(WINE) cscript temp.vbs && \
-		rm temp.vbs; \
+		rm temp.vbs || exit 1; \
 	done
 	@touch $@
 
