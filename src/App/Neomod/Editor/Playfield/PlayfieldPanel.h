@@ -23,8 +23,8 @@ class HitObject;
 // the compose tools work here: selecting (a click, Ctrl+click, a box), picking a part of the selected slider (a click
 // on it), moving the selection, placing circles, sliders and spinners, right-clicks. Alt and the wheel set the distance
 // snap spacing.
-// a readout shows the position and the spacing around it. a slider being placed, or selected alone, shows its control
-// points
+// a readout shows the position and the spacing around it. a slider being placed, selected alone or (with Select) under
+// the cursor shows its control points
 class PlayfieldPanel final : public CBaseUIElement {
     NOCOPY_NOMOVE(PlayfieldPanel)
    public:

@@ -157,13 +157,13 @@ void PlayfieldPanel::tick() {
             !this->backgroundFile.empty() && Environment::fileExists(this->backgroundFolder + this->backgroundFile);
     }
 
-    // a slider being placed aims at the cursor, while it's over the playfield
+    // a slider being placed aims at the cursor, while it's over the playfield; with Select, a slider under it shows
+    // its control points
     Compose &compose = this->state.compose;
-    if(compose.isPlacingSlider()) {
-        this->fit();
-        compose.aimSlider(this->isMouseInside() ? std::optional{this->toField(mouse->getPos())} : std::nullopt,
-                          this->state.snapSettings());
-    }
+    this->fit();
+    const auto cursor = this->isMouseInside() ? std::optional{this->toField(mouse->getPos())} : std::nullopt;
+    if(compose.isPlacingSlider()) compose.aimSlider(cursor, this->state.snapSettings());
+    compose.hover(this->gesture == Gesture::NONE ? cursor : std::nullopt, this->controlPointReach());
     CBaseUIElement::tick();
 }
 
@@ -463,7 +463,7 @@ void PlayfieldPanel::onMouseDownInside(bool left, bool right) {
     Compose &compose = this->state.compose;
     this->fit();
     const vec2 pos = this->toField(mouse->getPos());
-    // the control points on the selected slider come first
+    // the control points shown (on the selected slider, or the hovered one) come first
     const auto point = compose.getTool() == Compose::Tool::SELECT
                            ? compose.controlPointAt(pos, this->controlPointReach())
                            : std::nullopt;
@@ -488,9 +488,11 @@ void PlayfieldPanel::onMouseDownInside(bool left, bool right) {
                 if(keyboard->isControlDown()) {
                     compose.makeRedAnchor(*point);
                 } else {
+                    // a click without a drag picks a part of the slider if it was the selected one already
+                    const u32 selection = compose.getSelectionVersion();
                     compose.startPointDrag(*point);
                     this->gesture = Gesture::POINT;
-                    this->picking = true;
+                    this->picking = compose.getSelectionVersion() == selection;
                 }
                 return;
             }

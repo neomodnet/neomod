@@ -187,6 +187,7 @@ void Compose::reset() {
     this->spinner.reset();
     this->sliderPlacement.reset();
     this->previewing.reset();
+    this->hovered.reset();
     this->nudgeGesture = 0;
 }
 
@@ -298,7 +299,7 @@ std::optional<vec2> Compose::getPickedEdgePos() const {
 
 std::optional<SliderPath::Edge> Compose::pickedSounds() const {
     const auto part = this->getPicked();
-    const SelectedSlider *selected = part ? this->selectedSlider() : nullptr;
+    const ShownSlider *selected = part ? this->selectedSlider() : nullptr;
     if(!selected) return std::nullopt;
     const HO &slider = selected->slider;
     if(!part->edge) {
@@ -313,7 +314,7 @@ std::optional<SliderPath::Edge> Compose::pickedSounds() const {
 template <typename F>
 bool Compose::changePicked(Action action, F &&change) {
     const auto part = this->getPicked();
-    const SelectedSlider *selected = part ? this->selectedSlider() : nullptr;
+    const ShownSlider *selected = part ? this->selectedSlider() : nullptr;
     if(!selected) return false;
     const Document::Id id = selected->id;
     HO slider = selected->slider;
@@ -841,12 +842,67 @@ std::optional<Compose::ControlPoints> Compose::controlPoints() const {
             .aim = placement->aim,
             .offset = placement->placed ? stackOffsetOf(*this->state.objects, placement->line) : vec2{0.f}};
     }
-    const SelectedSlider *selected = this->selectedSlider();
-    if(!selected) return std::nullopt;
-    return ControlPoints{.points = selected->points, .aim = std::nullopt, .offset = selected->offset};
+    const ShownSlider *shown = this->shownSlider();
+    if(!shown) return std::nullopt;
+    return ControlPoints{.points = shown->points, .aim = std::nullopt, .offset = shown->offset};
 }
 
-const Compose::SelectedSlider *Compose::selectedSlider() const {
+void Compose::hover(std::optional<vec2> cursor, f32 within) {
+    // only where nothing else shows control points or goes on
+    if(!cursor || !this->state.objects || this->tool != Tool::SELECT || this->sliderPlacement || this->dragging() ||
+       this->selectedSlider()) {
+        this->hovered.reset();
+        return;
+    }
+    const u32 revision = this->state.document->getRevision();
+    if(this->hovered && this->hovered->revision != revision) this->hovered.reset();
+    // it stays while the cursor is on one of its points, which are off its body
+    if(this->hovered && this->controlPointAt(*cursor, within)) return;
+
+    // the unselected slider there, the nearest in time to the playhead
+    const MapObjects &objects = *this->state.objects;
+    const f32 radius = objects.view.rawHitcircleDiameter / 2.f;
+    const i32 time = this->state.clock.getTime();
+    const auto [first, last] = this->shownRange();
+    std::optional<uSz> at;
+    for(uSz i = first; i < last; i++) {
+        const HitObject &object = *objects.objects[i];
+        if(!object.isSlider() || this->isSelected(objects.ids[i]) || !this->isShown(object) ||
+           (at && std::abs(object.getClickTime() - time) >= std::abs(objects.objects[*at]->getClickTime() - time))) {
+            continue;
+        }
+        if(onBody(static_cast<const Slider &>(object), *cursor, radius)) at = i;
+    }
+    if(!at) {
+        this->hovered.reset();
+        return;
+    }
+    const Document::Id id = objects.ids[*at];
+    if(this->hovered && this->hovered->slider.id == id) return;
+    this->hovered.reset();
+    if(auto slider = this->state.document->getObject(id); slider && slider->kind == HO::Kind::SLIDER) {
+        std::vector<vec2> points = SliderPath::pointsOf(*slider);
+        this->hovered = Hovered{.slider = {.id = id,
+                                           .slider = std::move(*slider),
+                                           .points = std::move(points),
+                                           .offset = stackOffsetOf(objects, id)},
+                                .revision = revision};
+    }
+}
+
+const Compose::ShownSlider *Compose::shownSlider() const {
+    if(const ShownSlider *selected = this->selectedSlider()) return selected;
+    return this->hovered && this->tool == Tool::SELECT && this->hovered->revision == this->state.document->getRevision()
+               ? &this->hovered->slider
+               : nullptr;
+}
+
+const Compose::ShownSlider *Compose::sliderToEdit() {
+    if(const ShownSlider *shown = this->shownSlider(); shown && !this->selectedSlider()) this->select({shown->id});
+    return this->selectedSlider();
+}
+
+const Compose::ShownSlider *Compose::selectedSlider() const {
     if(!this->state.objects || this->selection.size() != 1) return nullptr;
     Summary &s = this->cachedSummary;
     if(s.selectionVersion != this->selectionVersion) s = {.selectionVersion = this->selectionVersion};
@@ -856,10 +912,10 @@ const Compose::SelectedSlider *Compose::selectedSlider() const {
         const Document::Id id = this->selection.front();
         if(auto slider = this->state.document->getObject(id); slider && slider->kind == HO::Kind::SLIDER) {
             std::vector<vec2> points = SliderPath::pointsOf(*slider);
-            s.slider = SelectedSlider{.id = id,
-                                      .slider = std::move(*slider),
-                                      .points = std::move(points),
-                                      .offset = stackOffsetOf(*this->state.objects, id)};
+            s.slider = ShownSlider{.id = id,
+                                   .slider = std::move(*slider),
+                                   .points = std::move(points),
+                                   .offset = stackOffsetOf(*this->state.objects, id)};
         }
     }
     return s.slider ? &*s.slider : nullptr;
@@ -877,7 +933,7 @@ std::optional<HO> Compose::reshaped(const HO &slider, std::span<const vec2> poin
 }
 
 std::optional<uSz> Compose::controlPointAt(vec2 pos, f32 within) const {
-    const SelectedSlider *selected = this->selectedSlider();
+    const ShownSlider *selected = this->shownSlider();
     if(!selected) return std::nullopt;
     const std::vector<vec2> &points = selected->points;
     std::optional<uSz> nearest;
@@ -893,7 +949,7 @@ std::optional<uSz> Compose::controlPointAt(vec2 pos, f32 within) const {
 
 void Compose::startPointDrag(uSz index) {
     this->pointDrag.reset();
-    const SelectedSlider *selected = this->selectedSlider();
+    const ShownSlider *selected = this->sliderToEdit();
     if(!selected) return;
     PointDrag drag;
     this->beginDrag(drag, Action::EDIT_SLIDER);
@@ -937,7 +993,7 @@ void Compose::dragPoint(vec2 cursor, const Snapping::Settings &snap) {
 
 void Compose::addControlPoint(vec2 cursor, const Snapping::Settings &snap) {
     this->pointDrag.reset();
-    const SelectedSlider *selected = this->selectedSlider();
+    const ShownSlider *selected = this->selectedSlider();
     if(!selected) return;
     const vec2 at =
         vec::round(snap.grid ? Snapping::grid(cursor - selected->offset, snap.gridSize) : cursor - selected->offset);
@@ -953,7 +1009,7 @@ void Compose::addControlPoint(vec2 cursor, const Snapping::Settings &snap) {
 }
 
 void Compose::makeRedAnchor(uSz index) {
-    const SelectedSlider *selected = this->selectedSlider();
+    const ShownSlider *selected = this->sliderToEdit();
     if(!selected) return;
     std::vector<vec2> points = selected->points;
     // an inner point that isn't one already
@@ -970,7 +1026,7 @@ void Compose::makeRedAnchor(uSz index) {
 }
 
 void Compose::removeControlPoint(uSz index) {
-    const SelectedSlider *selected = this->selectedSlider();
+    const ShownSlider *selected = this->sliderToEdit();
     if(!selected) return;
     std::vector<vec2> points = selected->points;
     if(index >= points.size()) return;
@@ -986,17 +1042,17 @@ void Compose::removeControlPoint(uSz index) {
 }
 
 std::optional<SLIDERCURVETYPE> Compose::getCurveType() const {
-    const SelectedSlider *selected = this->selectedSlider();
+    const ShownSlider *selected = this->selectedSlider();
     return selected ? std::optional{(SLIDERCURVETYPE)selected->slider.curveType} : std::nullopt;
 }
 
 bool Compose::takesCurveType(SLIDERCURVETYPE type) const {
-    const SelectedSlider *selected = this->selectedSlider();
+    const ShownSlider *selected = this->selectedSlider();
     return selected && (type != SLIDERCURVETYPE::PASSTHROUGH || SliderPath::makesCircle(selected->points));
 }
 
 void Compose::setCurveType(SLIDERCURVETYPE type) {
-    const SelectedSlider *selected = this->selectedSlider();
+    const ShownSlider *selected = this->selectedSlider();
     if(!selected || (SLIDERCURVETYPE)selected->slider.curveType == type || !this->takesCurveType(type)) return;
     if(const auto slider = this->reshaped(selected->slider, selected->points, type)) {
         this->state.edit(Action::CURVE_TYPE, [&, id = selected->id](Document::Change &c) { c.setObject(id, *slider); });
@@ -1719,7 +1775,7 @@ std::vector<HO> Compose::polygon(i32 corners, i32 repeats, f64 offsetDegrees, f6
 }
 
 std::optional<std::pair<Document::Id, HO>> Compose::getSelectedSlider() const {
-    const SelectedSlider *selected = this->selectedSlider();
+    const ShownSlider *selected = this->selectedSlider();
     if(!selected) return std::nullopt;
     return std::pair{selected->id, selected->slider};
 }

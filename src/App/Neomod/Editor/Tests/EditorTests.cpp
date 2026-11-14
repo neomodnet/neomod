@@ -3527,6 +3527,42 @@ class EditorTests {
                     "a right-click on it takes the anchor out (one of its points): the type the points get");
         undoAll();
 
+        // with Select, an unselected slider under the cursor shows its control points too
+        const std::vector<Document::Id> bezier{idAt(4000)};
+        compose.clearSelection();
+        state.clock.seek(4000);
+        compose.hover(vec2{200.f, 250.f}, 5.f);
+        TEST_ASSERT(compose.controlPoints() && compose.controlPoints()->points.size() == 3,
+                    "a slider under the cursor shows its control points without being selected");
+        compose.hover(vec2{200.f, 298.f}, 5.f);
+        TEST_ASSERT(compose.controlPointAt({200.f, 298.f}, 5.f) == uSz{1},
+                    "...which stay while the cursor is on one of them, off its body");
+        compose.hover(vec2{400.f, 50.f}, 5.f);
+        TEST_ASSERT(!compose.controlPoints(), "...and go once it's on neither");
+        compose.hover(vec2{200.f, 250.f}, 5.f);
+        compose.hover(vec2{200.f, 298.f}, 5.f);
+        compose.startPointDrag(1);
+        TEST_ASSERT(compose.getSelection() == bezier, "a press on one selects the slider");
+        compose.dragPoint({200.f, 320.f}, unsnapped);
+        compose.endGesture();
+        TEST_ASSERT(lineAt(4000).starts_with("100,200,4000,2,0,B|200:320|300:200,1,"), "...and drags the point");
+        undoAll();
+        compose.clearSelection();
+        compose.hover(vec2{200.f, 250.f}, 5.f);
+        compose.removeControlPoint(1);
+        TEST_ASSERT(compose.getSelection() == bezier && lineAt(4000).starts_with("100,200,4000,2,0,L|300:200,1,"),
+                    "a right-click on one selects it and takes the point out");
+        undoAll();
+        compose.select({idAt(2000)});
+        compose.hover(vec2{200.f, 250.f}, 5.f);
+        TEST_ASSERT(compose.controlPoints() && compose.controlPoints()->points.size() == 2,
+                    "a slider selected alone keeps showing its own");
+        compose.clearSelection();
+        compose.setTool(Compose::Tool::CIRCLE);
+        compose.hover(vec2{200.f, 250.f}, 5.f);
+        TEST_ASSERT(!compose.controlPoints(), "the other tools show none");
+        compose.setTool(Compose::Tool::SELECT);
+
         // another step between the press and the first update in a drag ends the drag (its lines may have changed or
         // gone)
         compose.select({idAt(2000)});

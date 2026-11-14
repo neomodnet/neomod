@@ -178,16 +178,20 @@ class Compose {
     void takeBackSliderPoint();
     [[nodiscard]] bool isPlacingSlider() const { return this->sliderPlacement.has_value(); }
     // the control points shown: those on the slider being placed (the cursor last, `aim`), else those on the selection
-    // if it's one slider; where they are drawn is `offset` (its stack offset) away. the points are kept until the next
-    // change
+    // if it's one slider, else those on the hovered slider (see hover()); where they are drawn is `offset` (its stack
+    // offset) away. the points are kept until the next change
     struct ControlPoints {
         std::span<const vec2> points;
         std::optional<vec2> aim;
         vec2 offset;
     };
     [[nodiscard]] std::optional<ControlPoints> controlPoints() const;
-    // which control point on the selected slider is at pos, within `within` osu!px: the nearest, the first in a red
-    // pair
+    // with the Select tool, while the selection isn't one slider and nothing is dragged, the unselected slider under the
+    // cursor (none: off the playfield) is the hovered one, whose control points show. it stays that while the cursor is
+    // within `within` osu!px of one of them; an edit of one (a drag, a red anchor, a removal) selects it. called every
+    // frame
+    void hover(std::optional<vec2> cursor, f32 within);
+    // which control point shown is at pos, within `within` osu!px: the nearest, the first in a red pair
     [[nodiscard]] std::optional<uSz> controlPointAt(vec2 pos, f32 within) const;
     // a drag of one of them: startPointDrag() at the press, then the cursor. the head goes where a dragged head snaps
     // (and stays in the field), the others onto the grid; a red pair moves together. the slider keeps its curve type
@@ -364,8 +368,8 @@ class Compose {
     void update();
 
    private:
-    // the selected slider (the only selection): its line, record and points
-    struct SelectedSlider {
+    // a slider whose control points show: its line, record and points
+    struct ShownSlider {
         Document::Id id;
         neomod::BeatmapFile::HitObject slider;
         std::vector<vec2> points;  // see SliderPath::pointsOf()
@@ -389,7 +393,7 @@ class Compose {
         bool newCombo{false};                  // the line on every selected object starts one
         u8 colourSkip{0};                      // from the line the earliest one is on
         std::optional<u32> sliderRevision{};   // the document revision `slider` is from
-        std::optional<SelectedSlider> slider{};
+        std::optional<ShownSlider> slider{};
     };
     struct Drag {
         u64 gesture{0};
@@ -485,7 +489,11 @@ class Compose {
     template <typename F>
     bool changeSamples(Document::Action action, F &&change);
     // none: the selection isn't one slider
-    [[nodiscard]] const SelectedSlider *selectedSlider() const;
+    [[nodiscard]] const ShownSlider *selectedSlider() const;
+    // the slider whose control points show: the selected one, else the hovered one (none: neither)
+    [[nodiscard]] const ShownSlider *shownSlider() const;
+    // the slider an edit of a shown control point is for: the selected one, which the hovered one becomes first
+    [[nodiscard]] const ShownSlider *sliderToEdit();
     // `slider` with these points and this curve type, its length snapped again; none under a tick
     [[nodiscard]] std::optional<neomod::BeatmapFile::HitObject> reshaped(const neomod::BeatmapFile::HitObject &slider,
                                                                          std::span<const vec2> points,
@@ -537,6 +545,12 @@ class Compose {
     std::optional<SpinnerPlacement> spinner;
     std::optional<SliderPlacement> sliderPlacement;
     std::optional<PointDrag> pointDrag;
+    // the hovered slider (see hover()), as the document had it at a revision
+    struct Hovered {
+        ShownSlider slider;
+        u32 revision{0};
+    };
+    std::optional<Hovered> hovered;
     struct StepPreview : Drag {
         // the object starts and lines as it started (what previewPlace() replaces), kept from its first placing
         std::optional<std::vector<std::pair<i32, Document::Id>>> starts;
