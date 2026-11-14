@@ -12,8 +12,9 @@ struct Shortcut {
     SCANCODE key{};
     KEYMOD modifiers{KEYMOD_NONE};
 
-    [[nodiscard]] constexpr bool matches(const KeyboardEvent &e) const {
-        return e.getScanCode() == this->key && held(e.getModifiers()) == held(this->modifiers);
+    // modifiers in `ignored` count as not held (for one that's held for something else while keys are pressed)
+    [[nodiscard]] constexpr bool matches(const KeyboardEvent &e, KEYMOD ignored = KEYMOD_NONE) const {
+        return e.getScanCode() == this->key && held((KEYMOD)(e.getModifiers() & ~ignored)) == held(this->modifiers);
     }
     // as a menu shows it, e.g. "Ctrl+Shift+S"
     [[nodiscard]] std::string text() const;

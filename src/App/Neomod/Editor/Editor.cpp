@@ -855,10 +855,10 @@ void Editor::onKeyDown(KeyboardEvent &e) {
 
     if(!e.isRepeat()) this->heldArrows |= arrowBit(e);
     // the first key binding that means something now (without a map only the tabs do); with none Escape goes on, to
-    // go back
+    // go back. Alt is held to turn distance snap around, so a key means the same with it
     const auto bindings = Commands::bindings();
     const auto binding = Mc::ranges::find_if(bindings, [&](const Commands::Binding &b) {
-        return b.shortcut.matches(e) && (shown || b.command == Command::TAB) && this->applies(b.command);
+        return b.shortcut.matches(e, KEYMOD_ALT) && (shown || b.command == Command::TAB) && this->applies(b.command);
     });
     if(binding == bindings.end()) return;
     e.consume();

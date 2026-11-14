@@ -144,6 +144,9 @@ void ToolUITest::testShortcuts() {
                 "...but not with another modifier as well");
     TEST_ASSERT(!ctrlS.matches(key(KEY_S, KEYMOD_NONE)), "...nor without its modifier");
     TEST_ASSERT(!ctrlS.matches(key(KEY_A, KEYMOD_LCONTROL)), "...nor another key");
+    TEST_ASSERT(ctrlS.matches(key(KEY_S, KEYMOD_LCONTROL | KEYMOD_LALT), KEYMOD_ALT) &&
+                    !ctrlS.matches(key(KEY_S, KEYMOD_LCONTROL | KEYMOD_LSHIFT), KEYMOD_ALT),
+                "an ignored modifier counts as not held");
 
     const Shortcut space{KEY_SPACE};
     TEST_ASSERT(space.matches(key(KEY_SPACE, KEYMOD_NONE)) && !space.matches(key(KEY_SPACE, KEYMOD_LALT)),
