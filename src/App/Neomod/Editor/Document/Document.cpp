@@ -157,6 +157,7 @@ bool inPlace(const Splice &s) {
 struct Document::Base {
     std::vector<Gap> gaps;
     i64 preempt;
+    std::vector<Id> breaks;  // the break lines there were
 };
 
 Document::Document(Database::MapLocation location, std::shared_ptr<const std::vector<u8>> fileBytes)
@@ -218,8 +219,11 @@ bool Document::commit() {
         }
         // what the step started from, which fit() compares with
         if(!std::exchange(this->baseTaken, true)) {
-            this->base.reset(
-                new Base{.gaps = gapsOf(spansOf(this->primitives)), .preempt = preemptOf(this->primitives.AR)});
+            std::vector<Id> breakIds;
+            for(const Break &b : this->breaks) breakIds.push_back(b.id);
+            this->base.reset(new Base{.gaps = gapsOf(spansOf(this->primitives)),
+                                      .preempt = preemptOf(this->primitives.AR),
+                                      .breaks = std::move(breakIds)});
         }
         // a revert or a restored version is the content as it was written
         const bool reverting = this->open->action == Action::REVERT || this->open->action == Action::RESTORE;
@@ -437,12 +441,14 @@ bool Document::fit(const Hash::flat::set<Id> &changed) {
 
     Change change{*this};
     bool edited = false;
-    std::vector<Break> fitted;          // the breaks after the fit, for the new combos
-    std::vector<u8> seen(gaps.size());  // the first break in a touched gap was there; the others in it go
-    std::vector<u8> held(gaps.size());  // a touched gap keeps a break
+    std::vector<Break> fitted;           // the breaks after the fit, for the new combos
+    std::vector<u8> seen(gaps.size());   // the first break in a touched gap was there; the others in it go
+    std::vector<u8> held(gaps.size());   // a touched gap keeps a break
+    std::vector<u8> added(gaps.size());  // the step gave the gap a break: put in by hand, or by the fit below
     for(const Break &b : this->breaks) {
         const uSz k = gapIndexOf(gaps, b);
         if(!touched[k]) {
+            if(!Mc::ranges::contains(this->base->breaks, b.id)) added[k] = true;
             fitted.push_back(b);
             continue;
         }
@@ -475,7 +481,6 @@ bool Document::fit(const Hash::flat::set<Id> &changed) {
         fitted.push_back(out);
     }
     // a gap of 5 s or more gets one
-    std::vector<u8> added(gaps.size());
     for(uSz k = 0; k < gaps.size(); k++) {
         if(!touched[k] || held[k] || gaps[k].isOpen() || gaps[k].to - gaps[k].from < FILLED_GAP_MS) continue;
         Break b = defaultBreak(gaps[k], preempt);

@@ -1655,6 +1655,8 @@ class EditorTests {
         TEST_ASSERT(compose.insertBreak(), "...");
         TEST_ASSERT_EQ(events(), "2,7000,8800\r\n2,11200,18800\r\n2,24200,25800\r\n2,27200,28800\r\n",
                        "...from 200 ms after the object before it to the approach time before the next, in time order");
+        TEST_ASSERT(lineOf(e) == "256,192,20000,5,0,0:0:0:0:" && lineOf(idAt(27000)) == "256,192,27000,5,0,0:0:0:0:",
+                    "...each with the new combo the game starts after it written to the next object");
         state.clock.seek(1500);
         const bool tooShort = compose.insertBreak();
         state.clock.seek(500);
