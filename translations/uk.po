@@ -1434,6 +1434,14 @@ msgid "{} BPM"
 msgstr "{} BPM"
 
 #: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "0.1 BPM, with Shift 1 BPM, with Ctrl 0.01 BPM"
+msgstr "0.1 BPM, із Shift 1 BPM, із Ctrl 0.01 BPM"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "1 ms, with Shift 10 ms"
+msgstr "1 мс, із Shift 10 мс"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
 #, c++-format
 msgid "Taps: {}"
 msgstr "Натискань: {}"

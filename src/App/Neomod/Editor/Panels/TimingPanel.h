@@ -101,9 +101,10 @@ class TimingPanel final : public CBaseUIBox, private CBaseUIList::Model {
     // the run, however many times it changes them
     template <typename F>
     void retime(std::span<const Document::Id> targets, Which which, u64 &gesture, F &&edit);
-    // the tempo on the selected uninherited points, a tenth of a beat a minute down (-1) or up (1)
+    // the tempo on the selected uninherited points, a tenth of a beat a minute down (-1) or up (1); a whole one with
+    // Shift held, a hundredth with Ctrl
     void nudgeTempo(f64 by);
-    // the time on the selected points, a millisecond earlier (-1) or later (1)
+    // the time on the selected points, a millisecond earlier (-1) or later (1); ten with Shift held
     void nudgeTime(f64 by);
     [[nodiscard]] bool isTapping() const;
     // the row for the last point at or before the editor time (the first one before them all; none without points), of

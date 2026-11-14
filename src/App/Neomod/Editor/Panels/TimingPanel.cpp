@@ -7,10 +7,12 @@
 #include "ConVar.h"
 #include "ContainerRanges.h"
 #include "EditorState.h"
+#include "Engine.h"
 #include "Environment.h"
 #include "Form.h"
 #include "Hashing.h"
 #include "KeyBindings.h"
+#include "Keyboard.h"
 #include "KeyboardEvent.h"
 #include "Metronome.h"
 #include "NotificationOverlay.h"
@@ -18,6 +20,7 @@
 #include "Retiming.h"
 #include "SString.h"
 #include "TimeDisplay.h"
+#include "TooltipOverlay.h"
 #include "UI.h"
 #include "UIStyle.h"
 #include "i18n.h"
@@ -389,15 +392,17 @@ void TimingPanel::retime(std::span<const Document::Id> targets, Which which, u64
 }
 
 void TimingPanel::nudgeTempo(f64 by) {
+    by *= keyboard->isShiftDown() ? 1.0 : keyboard->isControlDown() ? 0.01 : 0.1;
     const auto ids = this->state.document->getTimingPointIds();
     std::vector<Document::Id> targets;
     for(const uSz row : this->summarize().rows) targets.push_back(ids[row]);
     this->retime(targets, Which::UNINHERITED, this->tempoGesture, [by](Point &point) {
-        point.beatLength = Retiming::beatLengthOf(std::clamp(rounded(bpmOf(point) + 0.1 * by, 1000.0), 1.0, 10000.0));
+        point.beatLength = Retiming::beatLengthOf(std::clamp(rounded(bpmOf(point) + by, 1000.0), 1.0, 10000.0));
     });
 }
 
 void TimingPanel::nudgeTime(f64 by) {
+    if(keyboard->isShiftDown()) by *= 10.0;
     const auto ids = this->state.document->getTimingPointIds();
     std::vector<Document::Id> targets;
     for(const uSz row : this->summarize().rows) targets.push_back(ids[row]);
@@ -473,6 +478,14 @@ void TimingPanel::tick() {
     this->faster->setEnabled(selected.uninherited);
     this->earlier->setEnabled(!selected.rows.empty());
     this->later->setEnabled(!selected.rows.empty());
+    // how far the step buttons go, which the held keys change
+    const bool overTime = this->earlier->isMouseInside() || this->later->isMouseInside();
+    if(overTime || this->slower->isMouseInside() || this->faster->isMouseInside()) {
+        TooltipOverlay *tooltip = ui->getTooltipOverlay();
+        tooltip->begin();
+        tooltip->addLine(overTime ? _("1 ms, with Shift 10 ms") : _("0.1 BPM, with Shift 1 BPM, with Ctrl 0.01 BPM"));
+        tooltip->end();
+    }
 
     const bool tapping = this->isTapping();
     if(this->state.document && !tapping && (!this->state.metronome || this->state.metronome->getBool())) {
