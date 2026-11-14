@@ -196,6 +196,143 @@ LoadError calculateSliderTimesClicksTicks(int beatmapVersion, SLIDER &s, const T
     return r;
 }
 
+// the object an object line holds as read by the game, before the combos are counted (with the slider times when the
+// map has timing points), handed to `add`; none for a line of no kind, and a limit can refuse it. the sample files it
+// names join the ones in c
+template <typename Add>
+LoadError makeObject(const BeatmapFile::HitObject &ho, u32 line, PRIMITIVE_CONTAINER &c, const Limits &limits,
+                     const Add &add) {
+    using HO = BeatmapFile::HitObject;
+    const float sliderSanityRange = limits.sliderCurveMaxLength;  // infinity sanity check, same as before
+    const int sliderMaxRepeatRange =
+        limits.sliderMaxRepeats;  // NOTE: osu! will refuse to play any beatmap which has sliders with more than
+                                  // 9000 repeats, here we just clamp it instead
+
+    // circles:
+    // x,y,time,type,hitSounds,hitSamples
+    // sliders:
+    // x,y,time,type,hitSounds,sliderType|curveX:curveY|...,repeat,pixelLength,edgeHitsound,edgeSets,hitSamples
+    // spinners:
+    // x,y,time,type,hitSounds,endTime,hitSamples
+    const bool newCombo = ho.type & HO::TYPE_NEW_COMBO;
+    const u8 colorSkip = (ho.type >> HO::TYPE_COLOUR_SKIP_SHIFT) & 0b111;
+    switch(ho.kind) {
+        case HO::Kind::NONE:
+            break;
+
+        case HO::Kind::CIRCLE: {
+            HITCIRCLE h{};
+            h.x = (f32)(i32)ho.x;  // NOTE: lazer beatmaps do not truncate here
+            h.y = (f32)(i32)ho.y;
+            h.time = ho.time;
+            h.newCombo = newCombo;
+            h.colorSkip = colorSkip;
+            // h.clicked = false; // unknown what this field was supposed to be for
+            h.samples.hitSounds = (ho.hitSounds & HitSoundType::VALID_HITSOUNDS);
+            applyHitSample(ho.sample, h.samples, c.sampleFiles);
+            h.line = line;
+
+            add(std::move(h));
+            break;
+        }
+
+        case HO::Kind::SLIDER: {
+            SLIDER slider{};
+            slider.time = ho.time;
+            slider.newCombo = newCombo;
+            slider.colorSkip = colorSkip;
+            slider.hoverSamples.hitSounds = (ho.hitSounds & HitSoundType::VALID_SLIDER_HITSOUNDS);
+
+            slider.type = SLIDERCURVETYPE{ho.curveType};
+            slider.points.reserve(ho.curvePoints.size() + 1);
+            for(const vec2 &point : ho.curvePoints) {
+                slider.points.emplace_back(std::clamp(point.x, -sliderSanityRange, sliderSanityRange),
+                                           std::clamp(point.y, -sliderSanityRange, sliderSanityRange));
+            }
+
+            // special case: osu! logic for handling the hitobject point vs the controlpoints (since
+            // sliders have both, and older beatmaps store the start point inside the control
+            // points)
+            vec2 xy = vec2(std::clamp(ho.x, -sliderSanityRange, sliderSanityRange),
+                           std::clamp(ho.y, -sliderSanityRange, sliderSanityRange));
+            if(slider.points.size() > 0) {
+                if(slider.points[0] != xy) slider.points.insert(slider.points.begin(), xy);
+            } else {
+                slider.points.push_back(xy);
+            }
+
+            // partially allow bullshit sliders (add second point to make valid)
+            // e.g. https://osu.ppy.sh/beatmapsets/791900#osu/1676490
+            if(slider.points.size() == 1) slider.points.push_back(xy);
+
+            // an edge the lists leave out plays the object hitsounds and sample sets (as osu!stable sliders without
+            // edge fields do, and as read by lazer)
+            HITSAMPLE_BITS objectEdge{};
+            applyHitSample(ho.sample, objectEdge, c.sampleFiles);
+            objectEdge.hitSounds = (u8)(ho.hitSounds & HitSoundType::VALID_HITSOUNDS);
+            objectEdge.volume = 0;
+            slider.edgeSamples.reserve(std::max<uSz>(std::max(ho.edgeSounds.size(), ho.edgeSets.size()), 2));
+            for(uSz i = 0; i < std::max(ho.edgeSounds.size(), ho.edgeSets.size()); i++) {
+                HITSAMPLE_BITS samples = objectEdge;
+                if(i < ho.edgeSounds.size()) samples.hitSounds = ho.edgeSounds[i] & HitSoundType::VALID_HITSOUNDS;
+                if(i < ho.edgeSets.size()) {
+                    samples.normalSet = sampleSetValue(ho.edgeSets[i].normalSet);
+                    samples.additionSet = sampleSetValue(ho.edgeSets[i].additionSet);
+                }
+                slider.edgeSamples.push_back(samples);
+            }
+
+            // No start sample specified, use the object samples
+            if(slider.edgeSamples.empty()) slider.edgeSamples.push_back(objectEdge);
+
+            // No end sample specified, use the same as start
+            if(slider.edgeSamples.size() == 1) slider.edgeSamples.push_back(slider.edgeSamples.front());
+
+            applyHitSample(ho.sample, slider.hoverSamples, c.sampleFiles);
+
+            const auto pixelLength = static_cast<f32>(ho.length);
+            slider.x = (f32)(i32)ho.x;  // NOTE: lazer beatmaps do not truncate here
+            slider.y = (f32)(i32)ho.y;
+            slider.repeat = std::clamp(ho.slides, 0, sliderMaxRepeatRange);
+            slider.pixelLength =
+                std::isnan(pixelLength) ? 0.f : std::clamp(pixelLength, -sliderSanityRange, sliderSanityRange);
+            if(slider.pixelLength == 0.f) {
+                // without a length: as long as its curve
+                slider.pixelLength =
+                    std::min(SliderCurve{slider.type, slider.points, 0.f}.getPixelLength(), sliderSanityRange);
+            }
+            slider.line = line;
+            // only by timing points: whatever needs slider times checks the map has some
+            if(!c.timingpoints.empty()) {
+                if(const LoadError error = calculateSliderTimesClicksTicks(
+                       c.version, slider, c.timingpoints, c.sliderMultiplier, c.sliderTickRate, limits)) {
+                    return error;
+                }
+            }
+            add(std::move(slider));
+            break;
+        }
+
+        case HO::Kind::SPINNER: {
+            SPINNER s{.x = (f32)(i32)ho.x,  // NOTE: lazer beatmaps do not truncate here
+                      .y = (f32)(i32)ho.y,
+                      .time = ho.time,
+                      .endTime = ho.endTime,
+                      .samples = {},
+                      .newCombo = newCombo,
+                      .colorSkip = colorSkip,
+                      .isEndOfCombo = false,
+                      .line = line};
+            s.samples.hitSounds = (u8)(ho.hitSounds & HitSoundType::VALID_HITSOUNDS);
+            applyHitSample(ho.sample, s.samples, c.sampleFiles);
+
+            add(std::move(s));
+            break;
+        }
+    }
+    return {};
+}
+
 }  // namespace
 
 TimingPoints::TimingPoints(std::vector<TIMINGPOINT> points) : entries(points.size()) {
@@ -252,11 +389,31 @@ f64 TimingPoints::getBeat(i32 positionMS) const {
     return (positionMS - timing.offset) / timing.msPerBeat;
 }
 
+f64 TimingPoints::getBeatLengthMultiplier(i32 positionMS) const {
+    if(this->entries.empty()) return 1.0;
+    // the multiplier in getTimingInfo()
+    const Entry &at = this->entries[this->entryAt(positionMS)];
+    const DBType::TIMINGPOINT &sample = this->entries[at.lastInherited].point;
+    return at.lastInherited > at.lastUninherited && sample.msPerBeat < 0
+               ? std::clamp(-sample.msPerBeat, 10.0, 1000.0) / 100.0
+               : 1.0;
+}
+
 uSz TimingPoints::entryAt(i32 positionMS) const {
     const Entry *const first = this->entries.data();
     const Entry *const after = std::upper_bound(first, first + this->entries.size(), positionMS,
                                                 [](i32 time, const Entry &e) { return time < e.point.offset; });
     return after == first ? 0 : (after - first) - 1;
+}
+
+std::optional<Object> readObject(std::string_view line, u32 number, PRIMITIVE_CONTAINER &c, const Limits &limits) {
+    BeatmapFile::HitObject record;
+    if(!BeatmapFile::parse(line, record)) return std::nullopt;
+    std::optional<Object> object;
+    if(makeObject(record, number, c, limits, [&](auto &&read) { object = std::forward<decltype(read)>(read); })) {
+        return std::nullopt;
+    }
+    return object;
 }
 
 TimingPoints readTimingPoints(const BeatmapFile &file) {
@@ -277,6 +434,97 @@ TimingPoints readTimingPoints(const BeatmapFile &file) {
     return TimingPoints{std::move(timingpoints)};
 }
 
+namespace {
+// the loader counts its objects once, so they need no report
+template <bool report>
+void countCombos(PRIMITIVE_CONTAINER &c, std::vector<uSz> *recounted) {
+    int hitobjectsWithoutSpinnerCounter = 0;
+    int colorCounter = 1;
+    int colorOffset = 0;
+    int comboNumber = 1;
+    auto nextBreak = c.breaks.cbegin();
+    bool forceNewCombo = false;
+    bool *previousEndsCombo = nullptr;
+    // an object combo is whole once the next object says whether it ends it: then it's known whether it came out
+    // otherwise than it was
+    uSz index = 0;
+    bool previousWasEnd = false;
+    bool previousRecounted = false;
+    const auto settlePrevious = [&] {
+        if constexpr(report) {
+            if(previousEndsCombo && (previousRecounted || *previousEndsCombo != previousWasEnd)) {
+                recounted->push_back(index - 1);
+            }
+        }
+    };
+    const auto number = [&]<typename T>(T &o) {
+        constexpr bool isSpinner = std::is_same_v<T, SPINNER>;
+        if(!isSpinner) hitobjectsWithoutSpinnerCounter++;
+        for(; nextBreak != c.breaks.cend() && nextBreak->endTime < o.time; ++nextBreak) forceNewCombo = true;
+
+        // a combo ends before any object that starts one, a spinner too (as in osu!stable, where spinners in a v8 file
+        // always do)
+        if(previousEndsCombo && (o.newCombo || forceNewCombo || (isSpinner && c.version <= 8))) {
+            *previousEndsCombo = true;
+        }
+        settlePrevious();
+        if constexpr(report) previousWasEnd = o.isEndOfCombo;
+        // until the next object says otherwise
+        o.isEndOfCombo = false;
+
+        // the first object after spinners or a break starts a new combo whether its line has one or not (as in
+        // osu!stable and lazer)
+        if(o.newCombo || (forceNewCombo && !isSpinner)) {
+            comboNumber = 1;
+
+            // special case 1: if the current object is a spinner, then the raw color counter is not
+            // increased (but the offset still is!)
+            // special case 2: the first (non-spinner) hitobject in a beatmap is always a new combo,
+            // therefore the raw color counter is not increased for it (but the offset still is!)
+            if(!isSpinner && hitobjectsWithoutSpinnerCounter > 1) colorCounter++;
+
+            // special case 3: "Bits 4-6 (16, 32, 64) form a 3-bit number (0-7) that chooses how many combo colours to
+            // skip." (only a new combo on the object itself skips any)
+            if(o.newCombo) colorOffset += o.colorSkip;
+        }
+        forceNewCombo = isSpinner;
+
+        if constexpr(report) previousRecounted = false;
+        if constexpr(!isSpinner) {
+            if constexpr(report) {
+                previousRecounted =
+                    o.number != comboNumber || o.colorCounter != colorCounter || o.colorOffset != colorOffset;
+            }
+            o.number = comboNumber++;
+            o.colorCounter = colorCounter;
+            o.colorOffset = colorOffset;
+        }
+        previousEndsCombo = &o.isEndOfCombo;
+        if constexpr(report) index++;
+    };
+    // not through std::visit, which libc++ dispatches through a function table: slower here
+    for(auto &object : c.objects) {
+        if(auto *h = std::get_if<HITCIRCLE>(&object)) {
+            number(*h);
+        } else if(auto *slider = std::get_if<SLIDER>(&object)) {
+            number(*slider);
+        } else {
+            number(std::get<SPINNER>(object));
+        }
+    }
+    if(previousEndsCombo) *previousEndsCombo = true;
+    settlePrevious();
+}
+}  // namespace
+
+void countCombos(PRIMITIVE_CONTAINER &c, std::vector<uSz> *recounted) {
+    if(recounted) {
+        countCombos<true>(c, recounted);
+    } else {
+        countCombos<false>(c, nullptr);
+    }
+}
+
 PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer, const Limits &limits,
                                                  const Sync::stop_token &dead) {
     using Kind = BeatmapFile::SectionKind;
@@ -294,11 +542,6 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
     }
 
     const BeatmapFile file{fileBuffer};
-
-    const float sliderSanityRange = limits.sliderCurveMaxLength;  // infinity sanity check, same as before
-    const int sliderMaxRepeatRange =
-        limits.sliderMaxRepeats;  // NOTE: osu! will refuse to play any beatmap which has sliders with more than
-                                  // 9000 repeats, here we just clamp it instead
 
     // (e.g. "osu file format v12")
     if(const auto version = file.getVersion()) c.version = *version;
@@ -374,12 +617,6 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
     // (before the objects, the sliders' times come from them)
     c.timingpoints = readTimingPoints(file);
 
-    // circles:
-    // x,y,time,type,hitSounds,hitSamples
-    // sliders:
-    // x,y,time,type,hitSounds,sliderType|curveX:curveY|...,repeat,pixelLength,edgeHitsound,edgeSets,hitSamples
-    // spinners:
-    // x,y,time,type,hitSounds,endTime,hitSamples
     HO ho;
     // (an object per line at most, so the objects aren't moved while the vector grows)
     uSz lines = 0;
@@ -399,117 +636,12 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
         inTimeOrder = inTimeOrder && ho.time >= previousTime;
         previousTime = ho.time;
 
-        const bool newCombo = ho.type & HO::TYPE_NEW_COMBO;
-        const u8 colorSkip = (ho.type >> HO::TYPE_COLOUR_SKIP_SHIFT) & 0b111;
-        switch(ho.kind) {
-            case HO::Kind::NONE:
-                break;
-
-            case HO::Kind::CIRCLE: {
-                HITCIRCLE h{};
-                h.x = (f32)(i32)ho.x;  // NOTE: lazer beatmaps do not truncate here
-                h.y = (f32)(i32)ho.y;
-                h.time = ho.time;
-                h.newCombo = newCombo;
-                h.colorSkip = colorSkip;
-                // h.clicked = false; // unknown what this field was supposed to be for
-                h.samples.hitSounds = (ho.hitSounds & HitSoundType::VALID_HITSOUNDS);
-                applyHitSample(ho.sample, h.samples, c.sampleFiles);
-
-                c.objects.emplace_back(h);
-                break;
-            }
-
-            case HO::Kind::SLIDER: {
-                SLIDER slider{};
-                slider.time = ho.time;
-                slider.newCombo = newCombo;
-                slider.colorSkip = colorSkip;
-                slider.hoverSamples.hitSounds = (ho.hitSounds & HitSoundType::VALID_SLIDER_HITSOUNDS);
-
-                slider.type = SLIDERCURVETYPE{ho.curveType};
-                slider.points.reserve(ho.curvePoints.size() + 1);
-                for(const vec2 &point : ho.curvePoints) {
-                    slider.points.emplace_back(std::clamp(point.x, -sliderSanityRange, sliderSanityRange),
-                                               std::clamp(point.y, -sliderSanityRange, sliderSanityRange));
-                }
-
-                // special case: osu! logic for handling the hitobject point vs the controlpoints (since
-                // sliders have both, and older beatmaps store the start point inside the control
-                // points)
-                vec2 xy = vec2(std::clamp(ho.x, -sliderSanityRange, sliderSanityRange),
-                               std::clamp(ho.y, -sliderSanityRange, sliderSanityRange));
-                if(slider.points.size() > 0) {
-                    if(slider.points[0] != xy) slider.points.insert(slider.points.begin(), xy);
-                } else {
-                    slider.points.push_back(xy);
-                }
-
-                // partially allow bullshit sliders (add second point to make valid)
-                // e.g. https://osu.ppy.sh/beatmapsets/791900#osu/1676490
-                if(slider.points.size() == 1) slider.points.push_back(xy);
-
-                // an edge the lists leave out plays the object's hitsounds and sample sets (as osu!stable's sliders
-                // without edge fields do, and as lazer reads them)
-                HITSAMPLE_BITS objectEdge{};
-                applyHitSample(ho.sample, objectEdge, c.sampleFiles);
-                objectEdge.hitSounds = (u8)(ho.hitSounds & HitSoundType::VALID_HITSOUNDS);
-                objectEdge.volume = 0;
-                slider.edgeSamples.reserve(std::max<uSz>(std::max(ho.edgeSounds.size(), ho.edgeSets.size()), 2));
-                for(uSz i = 0; i < std::max(ho.edgeSounds.size(), ho.edgeSets.size()); i++) {
-                    HITSAMPLE_BITS samples = objectEdge;
-                    if(i < ho.edgeSounds.size()) samples.hitSounds = ho.edgeSounds[i] & HitSoundType::VALID_HITSOUNDS;
-                    if(i < ho.edgeSets.size()) {
-                        samples.normalSet = sampleSetValue(ho.edgeSets[i].normalSet);
-                        samples.additionSet = sampleSetValue(ho.edgeSets[i].additionSet);
-                    }
-                    slider.edgeSamples.push_back(samples);
-                }
-
-                // No start sample specified, use the object's
-                if(slider.edgeSamples.empty()) slider.edgeSamples.push_back(objectEdge);
-
-                // No end sample specified, use the same as start
-                if(slider.edgeSamples.size() == 1) slider.edgeSamples.push_back(slider.edgeSamples.front());
-
-                applyHitSample(ho.sample, slider.hoverSamples, c.sampleFiles);
-
-                const auto pixelLength = static_cast<f32>(ho.length);
-                slider.x = (f32)(i32)ho.x;  // NOTE: lazer beatmaps do not truncate here
-                slider.y = (f32)(i32)ho.y;
-                slider.repeat = std::clamp(ho.slides, 0, sliderMaxRepeatRange);
-                slider.pixelLength =
-                    std::isnan(pixelLength) ? 0.f : std::clamp(pixelLength, -sliderSanityRange, sliderSanityRange);
-                if(slider.pixelLength == 0.f) {
-                    // without a length: as long as its curve
-                    slider.pixelLength =
-                        std::min(SliderCurve{slider.type, slider.points, 0.f}.getPixelLength(), sliderSanityRange);
-                }
-                // (only by timing points: whatever needs slider times checks the map has some)
-                if(!c.timingpoints.empty()) {
-                    c.error = calculateSliderTimesClicksTicks(c.version, slider, c.timingpoints, c.sliderMultiplier,
-                                                              c.sliderTickRate, limits);
-                    if(c.error) return c;
-                }
-                c.objects.emplace_back(std::move(slider));
-                break;
-            }
-
-            case HO::Kind::SPINNER: {
-                SPINNER s{.x = (f32)(i32)ho.x,  // NOTE: lazer beatmaps do not truncate here
-                          .y = (f32)(i32)ho.y,
-                          .time = ho.time,
-                          .endTime = ho.endTime,
-                          .samples = {},
-                          .newCombo = newCombo,
-                          .colorSkip = colorSkip,
-                          .isEndOfCombo = false};
-                s.samples.hitSounds = (u8)(ho.hitSounds & HitSoundType::VALID_HITSOUNDS);
-                applyHitSample(ho.sample, s.samples, c.sampleFiles);
-
-                c.objects.emplace_back(s);
-                break;
-            }
+        const LoadError error = makeObject(ho, line.number, c, limits, [&](auto &&object) {
+            c.objects.emplace_back(std::forward<decltype(object)>(object));
+        });
+        if(error) {
+            c.error = error;
+            return c;
         }
 
         // bail if too many hitobjects would run out of memory and crash
@@ -525,59 +657,7 @@ PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileBuffer,
         Mc::ranges::stable_sort(
             c.objects, {}, [](const auto &object) { return std::visit([](const auto &o) { return o.time; }, object); });
     }
-    int hitobjectsWithoutSpinnerCounter = 0;
-    int colorCounter = 1;
-    int colorOffset = 0;
-    int comboNumber = 1;
-    auto nextBreak = c.breaks.cbegin();
-    bool forceNewCombo = false;
-    bool *previousEndsCombo = nullptr;
-    const auto number = [&]<typename T>(T &o) {
-        constexpr bool isSpinner = std::is_same_v<T, SPINNER>;
-        if(!isSpinner) hitobjectsWithoutSpinnerCounter++;
-        for(; nextBreak != c.breaks.cend() && nextBreak->endTime < o.time; ++nextBreak) forceNewCombo = true;
-
-        // a combo ends before any object that starts one, a spinner too (as in osu!stable, where a v8 file's spinners
-        // always do)
-        if(previousEndsCombo && (o.newCombo || forceNewCombo || (isSpinner && c.version <= 8))) {
-            *previousEndsCombo = true;
-        }
-
-        // the first object after spinners or a break starts a new combo whether its line has one or not (as in
-        // osu!stable and lazer)
-        if(o.newCombo || (forceNewCombo && !isSpinner)) {
-            comboNumber = 1;
-
-            // special case 1: if the current object is a spinner, then the raw color counter is not
-            // increased (but the offset still is!)
-            // special case 2: the first (non-spinner) hitobject in a beatmap is always a new combo,
-            // therefore the raw color counter is not increased for it (but the offset still is!)
-            if(!isSpinner && hitobjectsWithoutSpinnerCounter > 1) colorCounter++;
-
-            // special case 3: "Bits 4-6 (16, 32, 64) form a 3-bit number (0-7) that chooses how many combo colours to skip."
-            // (only an object's own new combo skips any)
-            if(o.newCombo) colorOffset += o.colorSkip;
-        }
-        forceNewCombo = isSpinner;
-
-        if constexpr(!isSpinner) {
-            o.number = comboNumber++;
-            o.colorCounter = colorCounter;
-            o.colorOffset = colorOffset;
-        }
-        previousEndsCombo = &o.isEndOfCombo;
-    };
-    // (not through std::visit, which libc++ dispatches through a table of functions: slower here)
-    for(auto &object : c.objects) {
-        if(auto *h = std::get_if<HITCIRCLE>(&object)) {
-            number(*h);
-        } else if(auto *slider = std::get_if<SLIDER>(&object)) {
-            number(*slider);
-        } else {
-            number(std::get<SPINNER>(object));
-        }
-    }
-    if(previousEndsCombo) *previousEndsCombo = true;
+    countCombos(c);
 
     // special case: old beatmaps have AR = OD, there is no ApproachRate stored
     if(!foundAR) c.AR = c.OD;

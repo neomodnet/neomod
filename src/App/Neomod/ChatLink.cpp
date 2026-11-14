@@ -3,7 +3,9 @@
 
 #include "Bancho.h"
 #include "Lobby.h"
+#include "MD5Hash.h"
 #include "MainMenu.h"
+#include "NeomodUrl.h"
 #include "NotificationOverlay.h"
 #include "Osu.h"
 #include "Environment.h"
@@ -72,6 +74,16 @@ void ChatLink::onMouseUpInside(bool /*left*/, bool /*right*/) {
             std::wstring_view password = match.get<2>().to_view();
             ui->getLobby()->joinRoom(invite_id, UniString::to_utf8(password));
         }
+        return;
+    }
+
+    // a place in a map, for the editor: in the map it has open or else the selected one
+    if(static constexpr std::string_view edit{"osu://edit/"}; this->link.starts_with(edit)) {
+        osu->openEditorLink({}, this->link.substr(edit.size()));
+        return;
+    }
+    if(this->link.starts_with(NEOMOD_URL_SCHEME)) {
+        neomod::handle_neomod_url(this->link);
         return;
     }
 

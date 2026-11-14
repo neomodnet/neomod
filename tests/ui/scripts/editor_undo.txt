@@ -1,0 +1,83 @@
+# Ctrl+Z and Ctrl+Y take a step back and do it again exactly: a save after undoing writes nothing, after redoing it writes
+# what was done. Revert to Saved (from the File menu) is a step too: saved right after, nothing is written; undone,
+# the change is back and a save writes it.
+# uitest-datadir: fresh
+# uitest-maps: uitest editor set|-1|2
+# uitest-log: 2 [BeatmapInstaller] maps/uitest editor set: updated (+1 -1)
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen songbrowser
+@wait 300
+sendtext uitest editor set
+@wait 60
+sendkey Down
+@wait 30
+mouse_to 1033 327
+@wait 2
+mouse_down right
+@wait 1
+mouse_up right
+@wait 3
+mouse_to 1116 394
+@wait 2
+mouse_down
+@wait 1
+mouse_up
+@wait 30
+sendkey Right
+@wait 3
+sendkey 224 down
+sendkey B
+sendkey Z
+sendkey S
+sendkey 224 up
+@wait 3
+@wait_secs 2
+ui_assert map md5 7dacd9315e9b7357df9e6d0d39be3acd
+sendkey 224 down
+sendkey Y
+sendkey S
+sendkey 224 up
+@wait 3
+@wait_secs 2
+ui_assert map md5 c1216e95014aa8ab5b9492a3832213b6
+sendkey Right
+@wait 3
+sendkey 224 down
+sendkey B
+sendkey 224 up
+@wait 3
+mouse_to 30 22
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+mouse_to 100 155
+@wait 5
+ui_assert hovered editor_menu_revert 1
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+sendkey 224 down
+sendkey S
+sendkey 224 up
+@wait 3
+@wait_secs 2
+ui_assert map md5 c1216e95014aa8ab5b9492a3832213b6
+sendkey 224 down
+sendkey Z
+sendkey S
+sendkey 224 up
+@wait 3
+@wait_secs 2
+exit

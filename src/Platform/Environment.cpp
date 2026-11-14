@@ -43,6 +43,7 @@
 #endif
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -61,6 +62,8 @@
 #if defined(MCENGINE_PLATFORM_WINDOWS)
 #include "WinDebloatDefs.h"
 #include <windows.h>
+#include <objbase.h>   // CoInitializeEx
+#include <shellapi.h>  // ShellExecuteExW
 #include <lmcons.h>
 #include <winnls.h>  // getDefaultLocale
 #elif defined(__APPLE__) || defined(MCENGINE_PLATFORM_LINUX)
@@ -75,6 +78,7 @@
 #elif defined(__EMSCRIPTEN__)
 // TODO (?)
 #include <emscripten/em_js.h>
+#include <emscripten/html5.h>
 #endif
 
 #include <SDL3/SDL.h>
@@ -358,8 +362,75 @@ EM_JS(int, js_download_file, (const char *path, const char *name), {
         return 0;
     }
 });
+
+// EM_JS takes the parameter names from the text, which a function pointer declarator would garble
+using PageEndFn = void (*)();
+
+// beforeunload asks first while leave guards count, and the page end shuts the game down (`shutdown`), unless the
+// browser keeps the page for coming back to it. an ended guard counts until autoPersist has stored what was written by
+// then: the next autoPersist run is due a moment after each write, and ends after any write made during it
+EM_JS_DEPS(neomod_page_leave, "$getWasmTableEntry,$IDBFS");
+EM_JS(void, js_handle_page_leave, (PageEndFn shutdown), {
+    var leave = Module.neomodLeave = {guards: 0, persisting: false, stored: [], askedPersist: false};
+    IDBFS.onAutoPersistStateChanged = function(active) {
+        leave.persisting = active;
+        if(!active) leave.stored.splice(0).forEach(function(done) { done(); });
+    };
+    window.addEventListener("beforeunload", function(e) {
+        if(leave.guards > 0) {
+            e.preventDefault();
+            e.returnValue = true;
+        }
+    });
+    window.addEventListener("pagehide", function(e) {
+        if(!e.persisted) getWasmTableEntry(shutdown)();
+    });
+});
+
+// headless runs have no window, so nothing handles the page end and there's nothing to guard
+EM_JS(void, js_leave_guard_begin, (), {
+    var leave = Module.neomodLeave;
+    if(!leave) return;
+    leave.guards++;
+    if(!leave.askedPersist && typeof navigator !== "undefined" && navigator.storage && navigator.storage.persist) {
+        leave.askedPersist = true;
+        navigator.storage.persist().then(function(kept) { console.log("persistent storage: " + kept); });
+    }
+});
+
+// autoPersist queues its run with a timer of 0 ms when a file is written, which runs before this one
+EM_JS(void, js_leave_guard_end, (), {
+    var leave = Module.neomodLeave;
+    if(!leave) return;
+    setTimeout(function() {
+        var done = function() { leave.guards--; };
+        if(leave.persisting) leave.stored.push(done); else done();
+    }, 0);
+});
 // clang-format on
 #endif
+
+Mc::Registration Environment::guardLeave() noexcept {
+#ifdef MCENGINE_PLATFORM_WASM
+    assert(McThread::is_main_thread());
+    js_leave_guard_begin();
+    return {[](void *, u64, Mc::Registration::End) { js_leave_guard_end(); }, nullptr, 0};
+#else
+    return {};
+#endif
+}
+
+void Environment::handlePageLeave() {
+#ifdef MCENGINE_PLATFORM_WASM
+    // the beforeunload handler of SDL shuts the game down, which staying on the page couldn't take back
+    emscripten_set_beforeunload_callback(nullptr, nullptr);
+    js_handle_page_leave([] {
+        if(!env) return;
+        env->shutdown();
+        SDL_OnApplicationWillTerminate();
+    });
+#endif
+}
 
 bool Environment::openDataInDefaultBrowser([[maybe_unused]] std::span<const u8> data,
                                            [[maybe_unused]] std::string_view mimeType) noexcept {
@@ -458,6 +529,8 @@ const std::string &Environment::getUserDataPath() const noexcept {
     return m_sAppDataPath;
 }
 
+// TODO: clean up redundant passthroughs between here and File
+
 // modifies the input filename! (checks case insensitively past the last slash)
 bool Environment::fileExists(std::string &filename) noexcept {
     return File::existsCaseInsensitive(filename) == File::FILETYPE::FILE;
@@ -477,13 +550,8 @@ bool Environment::directoryExists(std::string_view directoryName) noexcept {
     return File::exists(directoryName) == File::FILETYPE::FOLDER;
 }
 
-bool Environment::createDirectory(const std::string &directoryName) noexcept {
-    // with its missing parents, through the file layer's path (under wine a unix path becomes a dos one there)
-    std::string_view path{directoryName};
-    while(path.size() > 1 && (path.back() == '/' || path.back() == '\\')) path.remove_suffix(1);
-    std::error_code ec;
-    std::filesystem::create_directories(File::getFsPath(path), ec);
-    return !ec;  // (true if it's there already)
+bool Environment::createDirectory(std::string_view directoryName) noexcept {
+    return File::createDirectoryRecursive(directoryName);
 }
 
 bool Environment::deletePathsRecursive(const std::string &path, int maxRecursionLevels) noexcept {
@@ -547,7 +615,6 @@ bool Environment::deleteFile(const std::string &filePath) noexcept { return SDL_
 
 namespace {
 // make sure we have a valid path for enumeration (ends with the right separator, and handles long paths on windows)
-// TODO: fix duplication between here and File
 std::string manualDirectoryFixup(std::string_view input) {
     assert(!input.empty());
 
@@ -1008,6 +1075,55 @@ void Environment::openFileBrowser(std::string_view initialpath) const noexcept {
 
     // this can block for a long time
     Async::dispatch(std::move(doOpenURL), Lane::Background);
+}
+
+void Environment::openInTextEditor(std::string_view path) const noexcept {
+    std::string file{path};
+#if defined(MCENGINE_PLATFORM_WASM)
+    std::vector<u8> text;
+    File{file}.readToVector(text);
+    constexpr std::string_view mime{"text/plain;charset=utf-8"};
+    if(text.empty() || !js_open_data_in_new_tab(text.data(), text.size(), mime.data(), mime.size())) {
+        debugLog("Failed to show {:s} in a new tab", path);
+    }
+#elif defined(MCENGINE_PLATFORM_WINDOWS)
+    File::normalizeSlashes(file, '/', '\\');
+    std::error_code ec;
+    std::wstring wide = UniString::to_wide(file);
+    std::wstring absolute = std::filesystem::absolute(wide, ec).wstring();
+    // as a .txt file, since its own type may open in something other than an editor
+    auto doOpen = [file = ec ? std::move(wide) : std::move(absolute)]() {
+        // shell extensions may need COM
+        const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+        SHELLEXECUTEINFOW info{};
+        info.cbSize = sizeof(info);
+        info.fMask = SEE_MASK_CLASSNAME | SEE_MASK_NOASYNC;
+        info.lpFile = file.c_str();
+        info.nShow = SW_SHOWNORMAL;
+        info.lpClass = L".txt";
+        if(!ShellExecuteExW(&info)) {
+            debugLog("Failed to open {:s} in a text editor: error {:d}", UniString::to_utf8(file), GetLastError());
+        }
+        if(SUCCEEDED(com)) CoUninitialize();
+    };
+    // this can block for a long time
+    Async::dispatch(std::move(doOpen), Lane::Background);
+#else
+    std::array<const char *, 4> args = Env::cfg(OS::MAC)
+                                           ? std::array<const char *, 4>{"open", "-t", file.c_str(), nullptr}
+                                           : std::array<const char *, 4>{"xdg-open", file.c_str(), nullptr, nullptr};
+    const SDL_PropertiesID props = SDL_CreateProperties();
+    SDL_SetPointerProperty(props, SDL_PROP_PROCESS_CREATE_ARGS_POINTER, static_cast<void *>(args.data()));
+    SDL_SetBooleanProperty(props, SDL_PROP_PROCESS_CREATE_BACKGROUND_BOOLEAN, true);
+    SDL_Process *process = SDL_CreateProcessWithProperties(props);
+    SDL_DestroyProperties(props);
+    if(!process) {
+        debugLog("Failed to open {:s} in a text editor: {:s}", path, SDL_GetError());
+        return;
+    }
+    // it goes on by itself
+    SDL_DestroyProcess(process);
+#endif
 }
 
 void Environment::restoreWindow() {

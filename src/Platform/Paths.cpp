@@ -31,7 +31,7 @@ namespace Mc::Paths {
 namespace {
 struct Dirs {
     std::string exe, exe_dir, assets, fonts, materials, libs;
-    std::string data, cfg, maps, skins, replays, screenshots, exports, db, cache, logs;
+    std::string data, cfg, maps, skins, replays, screenshots, exports, editor, db, cache, logs;
 } s_dirs;
 
 std::string strip_trailing_slashes(std::string_view path) {
@@ -117,7 +117,8 @@ void init() {
     // build-time defaults: assets and data both live next to the executable (which is the working directory
     // after the chdir above), or wherever the packager pointed MCENGINE_DATA_DIR/APP_DATA_DIR at
     s_dirs.assets = strip_trailing_slashes(MCENGINE_DATA_DIR);
-    s_dirs.libs = s_dirs.assets + "/lib";
+    // the windows loader has no rpath, so its dlls are installed next to the executable
+    s_dirs.libs = Env::cfg(OS::WINDOWS) ? s_dirs.assets : s_dirs.assets + "/lib";
     s_dirs.data = strip_trailing_slashes(APP_DATA_DIR);
     std::string cache;  // empty = derived below
     std::string logs;
@@ -162,6 +163,7 @@ void init() {
     s_dirs.skins = s_dirs.data + "/skins";
     s_dirs.replays = s_dirs.data + "/replays";
     s_dirs.screenshots = s_dirs.data + "/screenshots";
+    s_dirs.editor = s_dirs.data + "/editor";
     s_dirs.db = s_dirs.data;
 
     if(cache.empty()) {
@@ -205,6 +207,7 @@ const std::string &skins() { return s_dirs.skins; }
 const std::string &replays() { return s_dirs.replays; }
 const std::string &screenshots() { return s_dirs.screenshots; }
 const std::string &exports() { return s_dirs.exports; }
+const std::string &editor() { return s_dirs.editor; }
 const std::string &db() { return s_dirs.db; }
 const std::string &cache() { return s_dirs.cache; }
 const std::string &logs() { return s_dirs.logs; }

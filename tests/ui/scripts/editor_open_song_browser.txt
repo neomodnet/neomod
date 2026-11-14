@@ -1,0 +1,46 @@
+# Edit in the difficulty context menu opens it in the editor (the selected map, at 0, the os cursor over the editor),
+# and Back goes back to the song browser it came from.
+# uitest-datadir: fresh
+# uitest-maps: uitest editor set|-1|2
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+ui_trace 1
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen songbrowser
+@wait 300
+sendtext uitest editor set
+@wait 60
+mouse_to 1033 327
+@wait 2
+mouse_down right
+@wait 1
+mouse_up right
+@wait 3
+ui_assert visible songbrowser_contextmenu 1
+mouse_to 1116 394
+@wait 2
+mouse_down
+@wait 1
+mouse_up
+@wait 30
+ui_assert screen_active editorscreen 1
+ui_assert visible editor_playfield 1
+ui_assert text editor_title UITest - UITest uitest editor set [diff 02]
+ui_assert text editor_clock 00:00:000
+ui_assert os_cursor visible 1
+mouse_to 1241 22
+@wait 3
+mouse_down
+@wait 3
+mouse_up
+@wait 10
+ui_assert screen_active songbrowser 1
+ui_assert os_cursor visible 0
+exit

@@ -1,0 +1,136 @@
+# test play from the editor (F5): the map saved first (an osu!stable map set copied into maps/ first, as for any write;
+# nothing at all without changes), then played from the editor time, one approach time ahead with what starts before it
+# left out and without the player mods. Back in the pause menu and the play end come back to the editor at the start
+# time, F2 at the play time. the play fixture (the osu!stable songs folder, loaded raw): 60 circles every 500 ms from
+# 1000, approach rate 5 (1200 ms), 120 BPM. assertion-only, the music runs on the wall clock.
+# uitest-datadir: fresh
+# uitest-unchanged: uitest_osu_folder_play
+options_save_on_back 0
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder_play
+set_active_ui_screen songbrowser
+@wait 300
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+ui_assert sets 1
+set_active_ui_screen editorscreen
+@wait 60
+ui_assert visible editor_open_selected 1
+sendkey Return
+@wait 30
+ui_assert visible editor_playfield 1
+sendkey Z
+@wait 2
+ui_assert text editor_clock 00:01:000
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+@wait 5
+ui_assert text editor_clock 00:10:000
+mod_hidden 1
+@wait 2
+sendkey F5
+@wait 2
+ui_assert play finished 18
+ui_assert convar mod_hidden 0
+ui_assert map root songs
+ui_assert visible editor 0
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+sendkey Escape
+@wait_secs 1
+ui_assert visible pauseoverlay 1
+mouse_to 640 508
+@wait 5
+mouse_down
+@wait 2
+mouse_up
+@wait_secs 1
+ui_assert screen_active editorscreen 1
+ui_assert visible editor 1
+ui_assert visible pauseoverlay 0
+ui_assert text editor_clock 00:10:000
+ui_assert convar mod_hidden 1
+ui_assert sets 1
+mouse_to 10 10
+@wait 2
+sendkey F5
+@sleep 1000
+@wait 10
+@sleep 1000
+@wait 10
+@sleep 1000
+@wait 10
+@sleep 1000
+@wait 10
+sendkey F2
+@wait 5
+ui_assert screen_active editorscreen 1
+ui_assert visible editor 1
+ui_assert play test_end 10001 30000
+sendkey V
+@wait 2
+sendkey Left
+@wait 2
+ui_assert text editor_clock 00:30:000
+sendkey 224 down
+sendkey B
+sendkey 224 up
+@wait 3
+ui_assert text editor_title UITest - UITest Play [play] *
+sendkey F5
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+ui_assert map root maps
+ui_assert sets 1
+ui_assert visible editor 0
+sendkey Tab
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+ui_assert screen_active editorscreen 1
+ui_assert visible editor 1
+ui_assert screen_active rankingscreen 0
+ui_assert text editor_clock 00:30:000
+ui_assert text editor_title UITest - UITest Play [play]
+ui_assert convar mod_autoplay 0
+ui_assert convar mod_hidden 1
+exit

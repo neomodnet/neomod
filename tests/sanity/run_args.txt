@@ -1,8 +1,28 @@
 # stdin script for run.py (comment lines are dropped before it's piped in):
-# song browser (the first visit loads the beatmap database with the generated map), play the map on
-# autoplay up to the ranking screen, back to the song browser, open the options, quit.
+# the editor tests; the editor (its first visit loads the beatmap database with the generated map, which its empty state
+# offers: opened with Enter, played for a moment, rebuilt in place once, which destroys it and creates it again from its
+# session, then left with Escape), the song browser, play the map on autoplay up to the ranking screen, back to the song
+# browser, open the options, quit.
+# no clicks: the wasm build under node has no window, its screen stays 320x240.
 # the waits are generous wall-clock times, so slow runners with software rendering keep up
 mod_autoplay 1
+editor_test
+set_active_ui_screen editorscreen
+@wait_secs 3
+ui_assert visible editor_exit 1
+ui_assert visible editor_open_selected 1
+sendkey Return
+@wait_secs 1
+ui_assert visible editor_playfield 1
+sendkey Space
+@wait_secs 1
+sendkey Space
+editor_reload
+@wait_secs 1
+ui_assert visible editor_playfield 1
+sendkey Escape
+@wait_secs 1
+ui_assert screen_active mainmenu 1
 set_active_ui_screen songbrowser
 @wait_secs 3
 ui_assert exists SongDifficultyButton 1

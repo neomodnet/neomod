@@ -2,6 +2,8 @@
 #include "ToolUITest.h"
 
 #include "CBaseUIBox.h"
+#include "CBaseUIColorButton.h"
+#include "CBaseUIColorPicker.h"
 #include "CBaseUIDropdown.h"
 #include "CBaseUIList.h"
 #include "CBaseUIMenu.h"
@@ -31,6 +33,7 @@
 #include <cmath>
 #include <limits>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace Mc::Tests {
@@ -89,6 +92,22 @@ std::string rect(const CBaseUIElement *e) {
 
 KeyboardEvent key(SCANCODE scancode, KEYMOD modifiers) { return {scancode, 0, 0, 0, modifiers}; }
 
+// the element called `name` in `root` or under it
+CBaseUIElement *find(CBaseUIElement *root, std::string_view name) {
+    if(root->getName() == name) return root;
+    for(CBaseUIElement *child : root->getAllChildren()) {
+        if(CBaseUIElement *found = find(child, name)) return found;
+    }
+    return nullptr;
+}
+
+void type(CBaseUIElement *field, std::u32string_view characters) {
+    for(const char32_t character : characters) {
+        KeyboardEvent e{0, 0, character, 0, KEYMOD_NONE};
+        field->onChar(e);
+    }
+}
+
 constexpr KEYMOD CTRL_SHIFT{(KEYMOD)(KEYMOD_LCONTROL | KEYMOD_LSHIFT)};
 }  // namespace
 
@@ -108,6 +127,7 @@ void ToolUITest::update() {
     this->testNumberFields();
     this->testLists();
     this->testMenus();
+    this->testColourPickers();
 
     TEST_PRINT_RESULTS("ToolUITest");
     engine->shutdown();
@@ -223,6 +243,24 @@ void ToolUITest::testStyledWidgets() {
     row.tick();
     TEST_ASSERT_EQ(after->getRelPos().x, font->getStringWidth("a much longer text"),
                    "...where what follows it moves along");
+
+    // a label given less room than its text
+    CBaseUIBox narrow(CBaseUIBox::Axis::ROW);
+    auto *squeezed = new CBaseUIStyledLabel("a much longer text");
+    narrow.add(squeezed, BoxItem::flex())->add(new Block({10, 10}), BoxItem::fit());
+    narrow.setSize(font->getStringWidth("a much longer text") + 10.f, 20);
+    TEST_ASSERT(squeezed->getShownText() == "a much longer text", "a label with room for its text shows all of it");
+    narrow.setSize(font->getStringWidth("a much lon..."), 20);
+    TEST_ASSERT(squeezed->getShownText().ends_with("...") && squeezed->getText() == "a much longer text" &&
+                    font->getStringWidth(squeezed->getShownText()) <= squeezed->getSize().x + 1.f,
+                "...and one without cuts it short with an ellipsis, its text being what it was");
+    squeezed->setCutInMiddle(true);
+    TEST_ASSERT(squeezed->getShownText().starts_with("a m") && squeezed->getShownText().ends_with("ext") &&
+                    squeezed->getShownText().contains("...") &&
+                    font->getStringWidth(squeezed->getShownText()) <= squeezed->getSize().x + 1.f,
+                "...or, cut in the middle, keeps both ends");
+    squeezed->setText("short");
+    TEST_ASSERT(squeezed->getShownText() == "short", "...until a text that fits is set");
 
     CBaseUIStyledButton button("Back");
     style.setScale(2.f);
@@ -445,6 +483,14 @@ void ToolUITest::testNumberFields() {
     field.setValue(4.125);
     TEST_ASSERT_EQ(field.getText(), "4.125x", "...with its suffix, and with all the decimals it has");
 
+    field.setNamedValue(0.0, "Auto");
+    field.setValue(0.0);
+    TEST_ASSERT_EQ(field.getText(), "Auto", "a named value shows as its name");
+    field.visit();
+    TEST_ASSERT_EQ(field.getText(), "0", "...and as its number while it's typed in");
+    field.stealFocus();
+    TEST_ASSERT(field.getText() == "Auto" && heard.empty(), "...which changes nothing");
+
     field.setValue(5.0);
     field.visit();
     TEST_ASSERT(field.isFocused() && field.getText() == "5" && field.hasSelectedText(),
@@ -619,6 +665,10 @@ void ToolUITest::testLists() {
     TEST_ASSERT(selected() == std::vector<u64>({102}), "...and the keys go on from where the row picked is now");
     list.setSelection(std::vector<u64>{500, 103});
     TEST_ASSERT(selected() == std::vector<u64>({103, 500}) && changes == 9, "a selection set isn't the user's change");
+    list.setSelection(std::vector<u64>{105});
+    press(KEY_UP);
+    TEST_ASSERT(selected() == std::vector<u64>({104}), "a row selected alone is where the keys go on from");
+    list.setSelection(std::vector<u64>{500, 103});
 
     // only what shows is asked for
     list.scrollTo(50);
@@ -636,6 +686,14 @@ void ToolUITest::testLists() {
     click(3);
     TEST_ASSERT(list.getSelection().empty() && inView(0, 2), "a click under the last row drops the selection");
     list.stealFocus();
+
+    Rows more;
+    for(u64 key = 0; key < 20; key++) more.keys.push_back(key);
+    PressedList late(more, {{"a", 0.f}}, "late");
+    late.scrollTo(0);
+    late.setSize(200.f, rowHeight * 6.f);
+    TEST_ASSERT_EQ(late.getRowsInView().first, 0u,
+                   "a row scrolled to before the list has a size shows once it has one");
 }
 
 void ToolUITest::testMenus() {
@@ -661,6 +719,15 @@ void ToolUITest::testMenus() {
     TEST_ASSERT(!firstGone && !secondGone, "closed popups live until the layer's next tick");
     layer.tick();
     TEST_ASSERT(firstGone && secondGone, "...and go then");
+    auto *field = new CBaseUIStyledTextbox("field");
+    layer.open(field, {0, 0});
+    field->visit();
+    TEST_ASSERT(field->isFocused(), "a popup's field takes the focus from the layer, which took it as it opened");
+    field->stealFocus();
+    layer.tick();
+    TEST_ASSERT(layer.isFocused(), "...and the layer has it again once the field lets it go");
+    layer.closeAll();
+    layer.tick();
 
     int chosen = -1;
     bool closedWhenRun = false;
@@ -765,6 +832,107 @@ void ToolUITest::testMenus() {
     layer.tick();
     dropdown.setChosen(7);
     TEST_ASSERT_EQ(dropdown.getChosen(), -1, "an option it doesn't have is none");
+}
+
+void ToolUITest::testColourPickers() {
+    TEST_SECTION("colour pickers");
+    uiStyle().setScale(1.f);
+
+    {
+        CBaseUIColorPicker picker("picker");
+        picker.setSize(picker.getNaturalSize());
+        std::vector<Color> heard;
+        picker.setChangeCallback([&](Color c) { heard.push_back(c); });
+        const auto channel = [&](std::string_view name) {
+            return static_cast<CBaseUINumberField *>(find(&picker, name));
+        };
+        auto *hex = static_cast<CBaseUIStyledTextbox *>(find(&picker, "picker_hex"));
+        const auto press = [&](SCANCODE scancode, KEYMOD modifiers = KEYMOD_NONE) {
+            KeyboardEvent e = key(scancode, modifiers);
+            picker.onKeyDown(e);
+            return e.isConsumed();
+        };
+
+        picker.setColor(rgb(0, 128, 255));
+        TEST_ASSERT(channel("picker_r")->getValue() == 0.0 && channel("picker_g")->getValue() == 128.0 &&
+                        channel("picker_b")->getValue() == 255.0 && hex->getText() == "#0080FF" && heard.empty(),
+                    "a colour picker shows its colour's channels and hex code, and a colour set isn't a change");
+        TEST_ASSERT(!picker.isAdjusting(), "...nor is it being set");
+
+        channel("picker_r")->visit();
+        type(channel("picker_r"), U"64");
+        TEST_ASSERT(picker.isAdjusting() && heard.empty(), "what's typed into a channel isn't the colour yet");
+        press(KEY_ENTER);
+        TEST_ASSERT(picker.getColor() == rgb(64, 128, 255) && heard == std::vector<Color>({rgb(64, 128, 255)}) &&
+                        hex->getText() == "#4080FF",
+                    "Enter takes it: its user hears of the colour, and the hex code follows");
+        hex->visit();
+        type(hex, U"#fc0");
+        press(KEY_ENTER);
+        TEST_ASSERT(picker.getColor() == rgb(255, 204, 0) && hex->getText() == "#FFCC00" &&
+                        channel("picker_g")->getValue() == 204.0 && heard.size() == 2,
+                    "a hex code typed is the colour, a short one's digits doubled");
+        hex->visit();
+        type(hex, U"12zz");
+        press(KEY_ENTER);
+        TEST_ASSERT(picker.getColor() == rgb(255, 204, 0) && hex->getText() == "#FFCC00" && heard.size() == 2,
+                    "what's no hex code changes nothing");
+        picker.setColor(rgb(255, 204, 0));
+        hex->visit();
+        type(hex, U"000000");
+        press(KEY_ENTER);
+        TEST_ASSERT(picker.getColor() == rgb(0, 0, 0) && heard.size() == 3, "black is a colour");
+
+        TEST_ASSERT(press(KEY_TAB) && channel("picker_r")->isFocused(), "Tab goes to the first of its fields");
+        type(channel("picker_r"), U"9");
+        press(KEY_TAB);
+        TEST_ASSERT(channel("picker_g")->isFocused() && picker.getColor() == rgb(9, 0, 0),
+                    "...and on to the next, taking what was typed");
+        press(KEY_TAB, KEYMOD_LSHIFT);
+        press(KEY_TAB, KEYMOD_LSHIFT);
+        TEST_ASSERT(hex->isFocused(), "Shift+Tab goes back, from the first to the last");
+        hex->stealFocus();
+    }
+
+    CBaseUIPopupLayer layer("layer");
+    layer.setSize(600, 400);
+    const auto press = [&layer](SCANCODE scancode) {
+        KeyboardEvent e = key(scancode, KEYMOD_NONE);
+        layer.onKeyDown(e);
+    };
+    {
+        CBaseUIColorButton button(layer, "colour");
+        std::vector<Color> heard;
+        button.setChangeCallback([&](Color c) { heard.push_back(c); });
+        button.setPos(10, 20);
+        button.setSize(56, 28);
+        button.setColor(rgb(10, 20, 30));
+        TEST_ASSERT(button.getColor() == rgb(10, 20, 30) && !button.isOpen() && heard.empty() && button.getVisit() == 0,
+                    "a colour button shows the colour it was given, closed");
+
+        button.open();
+        TEST_ASSERT(button.isOpen() && layer.getElements().back()->getPos() == vec2(10, 48),
+                    "its picker opens under it");
+        auto *red = static_cast<CBaseUINumberField *>(find(&layer, "colour_picker_r"));
+        TEST_ASSERT(red && red->getValue() == 10.0, "...showing its colour");
+        red->visit();
+        type(red, U"200");
+        TEST_ASSERT(button.isAdjusting(), "a field of its picker typed in, it's being set");
+        press(KEY_ENTER);
+        TEST_ASSERT(button.getColor() == rgb(200, 20, 30) && heard == std::vector<Color>({rgb(200, 20, 30)}),
+                    "a colour set in its picker is its colour and goes to the callback");
+        TEST_ASSERT(button.isOpen(), "...and the picker stays");
+        button.setColor(rgb(1, 2, 3));
+        TEST_ASSERT(red->getValue() == 1.0 && heard.size() == 1, "a colour given while it's open shows there too");
+        const u32 visit = button.getVisit();
+        layer.closeAll();
+        TEST_ASSERT(!button.isOpen() && button.getColor() == rgb(1, 2, 3), "closed by the layer, it's closed");
+        layer.tick();
+        button.open();
+        TEST_ASSERT(button.isOpen() && button.getVisit() != visit, "each opening is a visit of its own");
+    }
+    TEST_ASSERT(!layer.isOpen(), "a button that goes takes its picker along");
+    layer.tick();
 }
 
 }  // namespace Mc::Tests

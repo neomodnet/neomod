@@ -1,0 +1,53 @@
+# a timestamp in a chat message is a link (not one at the end of a word): a click on it in the song browser opens the
+# selected map in the editor there, with the objects for its combo numbers selected (here the circle with a whistle);
+# with the editor shown, it goes to the time in the open map. chat geometry at 1280x720: the message row is at y=523,
+# its timestamps span x 170..287 and 467..553
+# uitest-datadir: fresh
+# uitest-file: maps/uitest compose/compose.osu|osu file format v14||[General]|AudioFilename: none.mp3|Mode: 0||[Metadata]|Title:UITest compose|Artist:UITest|Creator:uitest|Version:compose|BeatmapID:0|BeatmapSetID:-1||[Difficulty]|CircleSize:4|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|0,500,4,2,0,100,1,0||[HitObjects]|64,64,1000,5,0,0:0:0:0:|448,64,1500,1,2,0:0:0:0:|448,320,2000,1,0,0:0:0:0:|64,320,2500,1,0,0:0:0:0:|100,192,3000,6,0,L\x7c400:192,1,280|256,192,5000,12,0,6000,0:0:0:0:|256,100,7000,1,0,0:0:0:0:
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+debug_fake_online 1
+set_active_ui_screen songbrowser
+@wait 300
+sendkey F8
+@wait 12
+ui_assert visible chat 1
+debug_chat_message #osu 7 at 00:00:900 (2) - the whistle, then 00:02:500 and not x00:03:000
+@wait 10
+# the one at the end of a word is plain text
+mouse_to 660 523
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 10
+ui_assert visible songbrowser_search 1
+mouse_to 228 523
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 60
+ui_assert visible editor 1
+ui_assert text editor_title UITest - UITest compose [compose]
+ui_assert text editor_clock 00:01:000
+ui_assert checked editor_whistle 1
+ui_assert visible chat 1
+mouse_to 510 523
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 10
+ui_assert text editor_clock 00:02:500
+take_screenshot screenshots/uitest_chat_editor_link.png
+@wait 3
+exit

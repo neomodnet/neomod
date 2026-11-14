@@ -1,0 +1,139 @@
+# the Setup tab fields write the map as steps once a visit or a drag ends: a title typed (Ctrl+S takes and saves it
+# while the field has the focus, Tab goes on to the next field that can be typed in, Escape takes back what was typed
+# there), a difficulty value dragged and one typed, a toggle. undone they're as they were; saved, the file has them. a
+# map without combo colours gets the skin colours to change, a row each, which its x takes away
+# uitest-datadir: fresh
+# uitest-maps: uitest editor set|-1|2
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen songbrowser
+@wait 300
+sendtext uitest editor set
+@wait 60
+sendkey Down
+@wait 30
+mouse_to 1033 327
+@wait 2
+mouse_down right
+@wait 1
+mouse_up right
+@wait 3
+mouse_to 1116 394
+@wait 2
+mouse_down
+@wait 1
+mouse_up
+@wait 30
+sendkey F4
+@wait 5
+mouse_to 290 224
+@wait 2
+ui_assert os_cursor shape text
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+ui_assert focused editor_setup_title 1
+sendkey 224 down
+sendkey A
+sendkey 224 up
+sendtext New Title
+@wait 3
+ui_assert text editor_setup_title New Title
+ui_assert text editor_title UITest - UITest uitest editor set [diff 02]
+sendkey 224 down
+sendkey S
+sendkey 224 up
+@wait 3
+@wait_secs 2
+ui_assert focused editor_setup_title 1
+ui_assert map md5 c89ffdcd45ad00d736c8bb62453b2d9d
+ui_assert text editor_setup_title_romanised New Title
+ui_assert enabled editor_setup_title_romanised 0
+ui_assert text editor_title UITest - New Title [diff 02]
+sendkey Tab
+@wait 3
+ui_assert focused editor_setup_title 0
+ui_assert focused editor_setup_creator 1
+sendtext x
+@wait 3
+ui_assert text editor_setup_creator x
+sendkey Escape
+@wait 3
+ui_assert text editor_setup_creator uitest
+ui_assert focused editor_setup_creator 0
+ui_assert visible editor_setup 1
+mouse_to 600 258
+@wait 2
+ui_assert os_cursor shape size_h
+mouse_down
+@wait 2
+mouse_to 640 258
+@wait 2
+ui_assert text editor_setup_ar 6
+ui_assert text editor_title UITest - New Title [diff 02]
+mouse_up
+@wait 3
+ui_assert text editor_setup_ar 6
+ui_assert text editor_title UITest - New Title [diff 02] *
+ui_assert focused editor_setup_ar 0
+mouse_to 600 190
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+ui_assert focused editor_setup_cs 1
+sendtext 4.5
+sendkey Return
+@wait 3
+ui_assert text editor_setup_cs 4.5
+ui_assert focused editor_setup_cs 0
+mouse_to 800 417
+@wait 2
+ui_assert hovered editor_setup_widescreen 1
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+ui_assert checked editor_setup_widescreen 1
+sendkey 224 down
+sendkey Z
+sendkey 224 up
+@wait 3
+ui_assert checked editor_setup_widescreen 0
+ui_assert text editor_setup_cs 4.5
+sendkey 224 down
+sendkey Y
+sendkey S
+sendkey 224 up
+@wait 3
+@wait_secs 2
+ui_assert checked editor_setup_widescreen 1
+ui_assert map md5 caf38420c5cd51db48714c399f1aadf8
+ui_assert visible editor_setup_colour_row_1 0
+mouse_to 1120 182
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert visible editor_setup_colour_row_1 1
+ui_assert visible editor_setup_colour_row_4 1
+mouse_to 1250 156
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert visible editor_setup_colour_row_4 0
+ui_assert visible editor_setup_colour_row_3 1
+exit

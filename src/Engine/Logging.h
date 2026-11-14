@@ -88,8 +88,9 @@ void logRaw_int(uint8_t log_channel, log_level::level_enum lvl, fmt::format_stri
 void init(bool create_console) noexcept;
 void shutdown() noexcept;
 
-// manual trigger for console commands
-void flush() noexcept;
+// manual trigger for console commands. with wait, also blocks until everything logged before the call has been written
+// out (e.g. before unloading a library that logged: queued messages point at its strings); false if that timed out
+bool flush(bool wait = false) noexcept;
 
 // is stdout a terminal (util func.)
 [[nodiscard]] bool isaTTY() noexcept;

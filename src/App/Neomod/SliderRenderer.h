@@ -49,6 +49,7 @@ struct Body final {
 
     SkinSettings skinSettings{};
     Color undimmedColor = 0xffffffff;
+    std::optional<Color> borderColor{};  // instead of the skin colour (or the combo colour, or rainbow)
     f32 colorRGBMultiplier = 1.0f;
     f32 alpha = 1.0f;
     i32 sliderTimeForRainbow = 0;

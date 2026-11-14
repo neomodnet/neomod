@@ -141,7 +141,12 @@ struct BGImageHandlerImpl final {
     void update(bool allowEviction);
     const Image *getLoadBackgroundImage(const DatabaseBeatmap *beatmap, bool load_immediately = false,
                                         bool allow_menubg_fallback = true);
+    const Image *getLoadBackgroundImage(std::string_view folder, std::string_view file);
     void forgetFolder(std::string_view folder);
+
+    // a new cache entry for `file` in `folder`, loaded at its next update (evicting stale ones on overflow)
+    void addEntry(std::string key, std::string_view folder, std::string_view file, const MD5Hash &md5,
+                  bool load_immediately);
 
     struct ENTRY {
         std::string folder;
@@ -170,6 +175,9 @@ struct BGImageHandlerImpl final {
         Image *image{nullptr};
         u32 ref_count{0};
     };
+
+    // whether the image an entry holds is its file as it is now (not replaced since it was read)
+    [[nodiscard]] bool isUnchanged(const ENTRY &entry) const;
 
     [[nodiscard]] u32 getMaxEvictions() const;
 
@@ -368,8 +376,13 @@ const Image *BGImageHandlerImpl::getLoadBackgroundImage(const DatabaseBeatmap *b
     logIf(cv::debug_bg_loader.getInt() > 1, "trying to load image for {:s}", beatmap_filepath);
 
     if(auto it = this->cache.find(beatmap_filepath); it != this->cache.end() && it->second.md5 != beatmap->getMD5()) {
-        this->releaseImageRef(it->second);
-        this->cache.erase(it);
+        // new content naming the same background keeps its image, while that file wasn't replaced
+        if(it->second.bg_image_filename == beatmap->getBackgroundImageFileName() && this->isUnchanged(it->second)) {
+            it->second.md5 = beatmap->getMD5();
+        } else {
+            this->releaseImageRef(it->second);
+            this->cache.erase(it);
+        }
     }
 
     if(const auto &it = this->cache.find(beatmap_filepath); it != this->cache.end()) {
@@ -398,41 +411,8 @@ const Image *BGImageHandlerImpl::getLoadBackgroundImage(const DatabaseBeatmap *b
         try_menubg_fallback = allow_menubg_fallback && (entry.ready_but_image_not_found || (ret && ret->failedLoad()));
     } else {
         // 2) not found in cache, so create a new entry which will get handled in the next update
-
-        // try evicting stale not-yet-loaded-nor-started-loading entries on overflow
-        if(this->shared_images.size() > this->max_cache_size) {
-            // don't evict more than a few at a time
-            u32 max_to_evict = getMaxEvictions();
-            u32 evicted = 0;
-
-            for(auto it = this->cache.begin(); it != this->cache.end();) {
-                if(evicted > max_to_evict) break;
-
-                const auto &[osu_path, entry] = *it;
-                if(entry.load_scheduled && (entry.isStale(this->eviction_delay_frames) &&
-                                            !(entry.image && entry.image == this->last_drawn_image))) {
-                    it = this->cache.erase(it);
-                    evicted++;
-                } else {
-                    ++it;
-                }
-            }
-        }
-
-        // create entry
-        ENTRY entry{.folder{beatmap->getFolder()},
-                    .bg_image_filename{beatmap->getBackgroundImageFileName()},
-                    .md5 = beatmap->getMD5(),
-                    .bg_path_handle = {},
-                    .image = nullptr,
-                    .loading_time = engine->getTime() + (load_immediately ? 0. : this->image_loading_delay),
-                    .frame_last_accessed = engine->getFrameCount(),
-                    .load_scheduled = true,
-                    .overwrite_db_entry = false,
-                    .ready_but_image_not_found = false,
-                    .has_image_ref = false};
-
-        this->cache.try_emplace(beatmap_filepath, std::move(entry));
+        this->addEntry(beatmap_filepath, beatmap->getFolder(), beatmap->getBackgroundImageFileName(), beatmap->getMD5(),
+                       load_immediately);
     }
 
     if(try_menubg_fallback) {
@@ -446,9 +426,67 @@ const Image *BGImageHandlerImpl::getLoadBackgroundImage(const DatabaseBeatmap *b
     return ret;
 }
 
+const Image *BGImageHandlerImpl::getLoadBackgroundImage(std::string_view folder, std::string_view file) {
+    if(this->disabled || file.empty()) return nullptr;
+    // keyed by the image path, which is never a map path
+    std::string path = fmt::format("{:s}{:s}", folder, file);
+    this->last_requested_entry = path;
+    if(auto it = this->cache.find(path); it != this->cache.end()) {
+        it->second.frame_last_accessed = engine->getFrameCount();
+        return it->second.image;
+    }
+    this->addEntry(std::move(path), folder, file, {}, false);
+    return nullptr;
+}
+
+void BGImageHandlerImpl::addEntry(std::string key, std::string_view folder, std::string_view file, const MD5Hash &md5,
+                                  bool load_immediately) {
+    // try evicting stale not-yet-loaded-nor-started-loading entries on overflow
+    if(this->shared_images.size() > this->max_cache_size) {
+        // don't evict more than a few at a time
+        u32 max_to_evict = getMaxEvictions();
+        u32 evicted = 0;
+
+        for(auto it = this->cache.begin(); it != this->cache.end();) {
+            if(evicted > max_to_evict) break;
+
+            const auto &[osu_path, entry] = *it;
+            if(entry.load_scheduled && (entry.isStale(this->eviction_delay_frames) &&
+                                        !(entry.image && entry.image == this->last_drawn_image))) {
+                it = this->cache.erase(it);
+                evicted++;
+            } else {
+                ++it;
+            }
+        }
+    }
+
+    ENTRY entry{.folder{folder},
+                .bg_image_filename{file},
+                .md5 = md5,
+                .bg_path_handle = {},
+                .image = nullptr,
+                .loading_time = engine->getTime() + (load_immediately ? 0. : this->image_loading_delay),
+                .frame_last_accessed = engine->getFrameCount(),
+                .load_scheduled = true,
+                .overwrite_db_entry = false,
+                .ready_but_image_not_found = false,
+                .has_image_ref = false};
+    this->cache.try_emplace(std::move(key), std::move(entry));
+}
+
+bool BGImageHandlerImpl::isUnchanged(const ENTRY &entry) const {
+    // one still being read counts as changed: nothing shows it yet
+    if(!entry.has_image_ref || !entry.image->isReady()) return false;
+    const std::string path = fmt::format("{:s}{:s}", entry.folder, entry.bg_image_filename);
+    struct stat64 now{};
+    return File::stat_c(path.c_str(), &now) == 0 && now.st_mtime == entry.image->getFileModificationTime();
+}
+
 void BGImageHandlerImpl::forgetFolder(std::string_view folder) {
+    // an image read before stays while its file does (changed .osu files get new entries at their next lookup)
     for(auto it = this->cache.begin(); it != this->cache.end();) {
-        if(it->second.folder != folder) {
+        if(it->second.folder != folder || this->isUnchanged(it->second)) {
             ++it;
             continue;
         }
@@ -525,6 +563,9 @@ void BGImageHandler::update(bool allowEviction) { return pImpl->update(allowEvic
 const Image *BGImageHandler::getLoadBackgroundImage(const DatabaseBeatmap *beatmap, bool load_immediately,
                                                     bool allow_menubg_fallback) {
     return pImpl->getLoadBackgroundImage(beatmap, load_immediately, allow_menubg_fallback);
+}
+const Image *BGImageHandler::getLoadBackgroundImage(std::string_view folder, std::string_view file) {
+    return pImpl->getLoadBackgroundImage(folder, file);
 }
 void BGImageHandler::forgetFolder(std::string_view folder) { pImpl->forgetFolder(folder); }
 void BGImageHandler::scheduleFreezeCache() { pImpl->frozen = true; }

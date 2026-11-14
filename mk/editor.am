@@ -1,0 +1,101 @@
+# the editor (src/App/Neomod/Editor, reached through src/App/Neomod/EditorModule.h)
+
+# its directories are include dirs for its own objects only (NEOMOD_INCLUDE_FLAGS skips them), so nothing else can
+# include its headers; EDITOR_CXXFLAGS makes static objects with constructors or destructors errors in editor code, and
+# MC_RELOADABLE_CODE the apis that keep what they are given without an Mc::Registration (MC_UNREVOCABLE)
+EDITOR_INCLUDE_FLAGS := $(shell find $(srcdir)/src/App/Neomod/Editor -not -path '*/.*' -type d -print | $(SED) 's|^|-I|' | tr '\n' ' ')
+EDITOR_FLAGS := $(EDITOR_INCLUDE_FLAGS) $(EDITOR_CXXFLAGS) -DMC_RELOADABLE_CODE -Werror=deprecated-declarations
+
+if HOT_RELOAD
+# --enable-hot-reload: the editor is a library that the running game reloads in place; `make editor-module` builds and
+# installs nothing else. declared as an archive so that automake compiles its objects (own flags, dependency
+# tracking), the archive itself is never built
+EXTRA_LIBRARIES = libneomod_editor.a
+libneomod_editor_a_SOURCES = $(EDITOR_SOURCES) src/Engine/HotReload/LibraryStamp.cpp
+libneomod_editor_a_CPPFLAGS = $(neomod_CPPFLAGS)
+libneomod_editor_a_CXXFLAGS = $(neomod_CXXFLAGS) $(EDITOR_FLAGS)
+$(libneomod_editor_a_OBJECTS): $(BUILT_SOURCES) $(PCH_OUTPUT) | $(EMBED_OUTPUT) $(TRANSLATIONS_HEADER)
+
+# MODULE_LIBS: on PE, the import library that the program link writes
+EDITOR_MODULE = $(LIBPREFIX)neomod-editor$(DLLEXT)
+$(EDITOR_MODULE): $(libneomod_editor_a_OBJECTS) neomod$(EXEEXT)
+if WIN_PLATFORM
+	@test -f $(HOST_EXPORTS_DEF) || { echo "$(HOST_EXPORTS_DEF) is missing: relink the program (rm neomod$(EXEEXT))" >&2; exit 1; }
+	@dups=$$($(NM) -g --defined-only $(libneomod_editor_a_OBJECTS) | \
+		$(AWK) 'def { if(/^[ \t]/) exported[$$1] = 1; next } NF == 3 && $$2 ~ /^[BCDV]$$/ && ($$3 in exported) { print $$3 }' \
+			def=1 $(HOST_EXPORTS_DEF) def=0 - | LC_ALL=C sort -u); \
+	test -z "$$dups" || { \
+		echo "$@: on Windows the library has its own copy of these header-defined variables, apart from the program's;" >&2; \
+		echo "define them in a .cpp (static inline members, statics in inline functions, inline variables):" >&2; \
+		echo "$$dups" | { c++filt 2>/dev/null || cat; } | $(SED) 's/^/  /' >&2; exit 1; }
+endif
+	$(AM_V_CXXLD)$(CXX) $(CXXFLAGS) $(LDFLAGS) $(MODULE_LDFLAGS) -o $@ $(libneomod_editor_a_OBJECTS) $(MODULE_LIBS)
+all-local: $(EDITOR_MODULE)
+
+# a new value whenever any other program object was rebuilt, compiled into both sides (see Mc::hostStamp())
+HOST_STAMP_HEADER = $(builddir)/gen/host_stamp.h
+HOST_STAMP_OBJECTS = src/Engine/HotReload/neomod-HostStamp.$(OBJEXT) src/Engine/HotReload/libneomod_editor_a-LibraryStamp.$(OBJEXT)
+$(HOST_STAMP_HEADER): $(filter-out $(HOST_STAMP_OBJECTS),$(neomod_OBJECTS))
+	@$(MKDIR_P) $(dir $@)
+	$(AM_V_GEN)printf '#define MC_HOST_STAMP 0x%sULL\n' "$$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')" > $@
+$(HOST_STAMP_OBJECTS): $(HOST_STAMP_HEADER)
+
+if NARROW_HOST_EXPORTS
+# the program exports its own code and only the dependencies that editor code calls directly: on ELF its exports reach
+# every library loaded later (GL drivers, GTK through libdecor, ...), which would bind to its copies of zlib, libpng,
+# freetype, ... instead of their own, and a PE export table holds at most 65535 names. editor code that calls into
+# another dependency fails to load (ELF) or to link (PE), naming the symbol. HOST_EXPORTS_EXCLUDE: whether the linker
+# takes the archives (--exclude-libs) or, like the lld mingw driver, only their symbols
+HOST_EXPORTED_LIBS = libfmt*|libnsync*|libSDL3.a|libsimdutf.a
+$(builddir)/gen/host_exports.rsp: $(BUILT_SOURCES)
+	@$(MKDIR_P) $(dir $@)
+	$(AM_V_GEN)libs=; for lib in $(DEPS_PREFIX)/lib/*.a $(DEPS_PREFIX)/lib64/*.a; do \
+		case $${lib##*/} in $(HOST_EXPORTED_LIBS)|*.dll.a|'*.a') ;; *) libs="$$libs $$lib" ;; esac; \
+	done; \
+	case $(HOST_EXPORTS_EXCLUDE) in \
+	libs) names=; for lib in $$libs; do names="$$names$${names:+:}$${lib##*/}"; done; \
+		test -z "$$names" || printf '%s\n' "-Wl,--exclude-libs,$$names" ;; \
+	symbols) for lib in $$libs; do \
+			syms=$$($(NM) -g --defined-only "$$lib" | $(AWK) 'NF == 3 { printf "%s%s", sep, $$3; sep = "," }'); \
+			test -z "$$syms" || printf '%s\n' "-Xlinker --exclude-symbols=$$syms"; \
+		done ;; \
+	esac > $@
+# the path is spelled out: automake folds these into the := definitions in Makefile.am, which come before this file
+neomod_LDFLAGS += @$(builddir)/gen/host_exports.rsp
+EXTRA_neomod_DEPENDENCIES += $(builddir)/gen/host_exports.rsp
+CLEANFILES += $(builddir)/gen/host_exports.rsp
+endif
+
+if WIN_PLATFORM
+# its debug info, with -gcodeview: the library names only the file, the game copies it along (Mc::ReloadableLibrary)
+EDITOR_PDB = neomod-editor.pdb
+# what the program exports, written by its link. PE gives the library its own copy of every header-defined variable it
+# uses, so the library link checks its objects against this (see $(EDITOR_MODULE))
+HOST_EXPORTS_DEF = $(builddir)/gen/host_exports.def
+# spelled out, like the response file
+neomod_LDFLAGS += -Wl,--output-def,$(builddir)/gen/host_exports.def
+CLEANFILES += $(MODULE_LIBS) $(EDITOR_PDB) $(HOST_EXPORTS_DEF)
+endif
+
+# renamed into place, so that the game never sees half a file (the pdb first, so that it's there with the library)
+stamp-install-editor-module: $(EDITOR_MODULE) | install-dirs
+if WIN_PLATFORM
+	test ! -f $(EDITOR_PDB) || { $(INSTALL) -m 644 $(EDITOR_PDB) "$(DESTDIR)$(bindir)/$(LIBDEST)$(EDITOR_PDB).tmp" && \
+		mv -f "$(DESTDIR)$(bindir)/$(LIBDEST)$(EDITOR_PDB).tmp" "$(DESTDIR)$(bindir)/$(LIBDEST)$(EDITOR_PDB)"; }
+endif
+	$(INSTALL) -m 755 $(EDITOR_MODULE) "$(DESTDIR)$(bindir)/$(LIBDEST)$(EDITOR_MODULE).tmp"
+	mv -f "$(DESTDIR)$(bindir)/$(LIBDEST)$(EDITOR_MODULE).tmp" "$(DESTDIR)$(bindir)/$(LIBDEST)$(EDITOR_MODULE)"
+	@touch $@
+INSTALL_STAMPS += stamp-install-editor-module
+
+editor-module: stamp-install-editor-module
+
+COMPDB_OBJECTS += $(libneomod_editor_a_OBJECTS)
+CLEANFILES += $(EDITOR_MODULE) $(HOST_STAMP_HEADER)
+else
+neomod_SOURCES += $(EDITOR_SOURCES)
+# private: the pch and BUILT_SOURCES must not inherit these from whichever editor object pulls them in first
+src/App/Neomod/Editor/%.$(OBJEXT): private neomod_CXXFLAGS += $(EDITOR_FLAGS)
+endif
+
+.PHONY: editor-module

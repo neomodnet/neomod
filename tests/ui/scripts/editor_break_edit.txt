@@ -1,0 +1,82 @@
+# breaks by hand: Timing > Insert Break Here gives the 4.5 s gap the time is in its break (3700 to 6800), whose end
+# is then dragged a tick earlier on the timeline (6000); saved. Timing > Reset Breaks leaves only what the map gets
+# by itself, which is none here (no gap of 5 s); saved.
+# uitest-datadir: fresh
+# uitest-file: maps/uitest breaks/breaks.osu|osu file format v14||[General]|AudioFilename: none.mp3|Mode: 0||[Metadata]|Title:UITest breaks|Artist:UITest|Creator:uitest|Version:breaks|BeatmapID:0|BeatmapSetID:-1||[Difficulty]|CircleSize:4|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[Events]|//Break Periods|2,8200,9800||[TimingPoints]|0,500,4,2,0,100,1,0||[HitObjects]|64,64,1000,5,0,0:0:0:0:|448,64,2000,1,0,0:0:0:0:|448,320,3000,1,0,0:0:0:0:|64,320,3500,1,0,0:0:0:0:|256,192,8000,1,0,0:0:0:0:|256,100,11000,5,0,0:0:0:0:
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen editorscreen
+@wait 300
+sendkey Return
+@wait 30
+ui_assert text editor_title UITest - UITest breaks [breaks]
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+@wait 3
+ui_assert text editor_clock 00:05:000
+mouse_to 260 22
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+mouse_to 300 203
+@wait 3
+ui_assert hovered editor_menu_insert_break 1
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert text editor_title UITest - UITest breaks [breaks] *
+mouse_to 1055 74
+@wait 3
+mouse_down
+@wait 2
+mouse_to 980 74
+@wait 2
+mouse_to 905 74
+@wait 3
+mouse_up
+@wait 3
+sendkey 224 down
+sendkey S
+sendkey 224 up
+@wait 3
+@wait_secs 2
+ui_assert map md5 ae62522c85cfcb28404fe2918a53b7d5
+mouse_to 260 22
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+mouse_to 300 227
+@wait 3
+ui_assert hovered editor_menu_reset_breaks 1
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+sendkey 224 down
+sendkey S
+sendkey 224 up
+@wait 3
+@wait_secs 2
+ui_assert map md5 d3dc3e12ef4421cb8d184565ca9e952b
+exit

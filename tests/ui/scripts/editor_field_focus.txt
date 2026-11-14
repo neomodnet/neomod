@@ -1,0 +1,53 @@
+# a right click elsewhere takes the keyboard from a field and from the timing list, as a left click does: the BPM
+# field focused, a right click on the timeline, and the typed 9 doesn't reach it; the same for the list
+# uitest-datadir: fresh
+# uitest-file: maps/uitest timing/timing.osu|osu file format v14||[General]|AudioFilename: none.mp3|Mode: 0||[Metadata]|Title:UITest timing|Artist:UITest|Creator:uitest|Version:timing|BeatmapID:0|BeatmapSetID:-1||[Difficulty]|CircleSize:4|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|1000,500,4,2,0,100,1,0|2999,-50,4,2,0,100,0,0|5000,400,4,2,0,100,1,0||[HitObjects]|256,192,1000,5,0,0:0:0:0:|100,100,1125,1,0,0:0:0:0:|64,192,3000,2,0,L\x7c204:192,1,140|256,192,5400,5,0,0:0:0:0:
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen editorscreen
+@wait 300
+sendkey Return
+@wait 30
+ui_assert text editor_title UITest - UITest timing [timing]
+sendkey F3
+@wait 5
+mouse_to 1125 225
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+ui_assert focused editor_timing_bpm 1
+mouse_to 640 690
+@wait 2
+mouse_down right
+@wait 2
+mouse_up right
+@wait 3
+ui_assert focused editor_timing_bpm 0
+sendtext 9
+@wait 3
+ui_assert text editor_timing_bpm 120
+mouse_to 300 181
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+ui_assert focused editor_timing_points 1
+mouse_to 640 690
+@wait 2
+mouse_down right
+@wait 2
+mouse_up right
+@wait 3
+ui_assert focused editor_timing_points 0
+exit

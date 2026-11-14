@@ -6,6 +6,7 @@
 
 #include "Delegate.h"
 #include "noinclude.h"
+#include "Registration.h"
 #include "Thread.h"
 
 #include <atomic>

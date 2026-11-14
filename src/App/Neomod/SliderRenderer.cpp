@@ -548,8 +548,9 @@ void composite(const Entry &entry) {
     }
 
     const bool doRainbow = cv::slider_rainbow.getBool();
-    const Color borderColor =
-        get_border_color(b.skinSettings, doRainbow, b.sliderTimeForRainbow, b.colorRGBMultiplier, b.undimmedColor);
+    const Color borderColor = b.borderColor ? Colors::scale(*b.borderColor, b.colorRGBMultiplier)
+                                            : get_border_color(b.skinSettings, doRainbow, b.sliderTimeForRainbow,
+                                                               b.colorRGBMultiplier, b.undimmedColor);
     const Color bodyColor =
         get_body_color(b.skinSettings, doRainbow, b.sliderTimeForRainbow, b.colorRGBMultiplier, b.undimmedColor);
 

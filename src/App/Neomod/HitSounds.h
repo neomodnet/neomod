@@ -5,6 +5,8 @@
 #include "DatabaseBeatmapTypes.h"
 
 #include <span>
+#include <string>
+#include <string_view>
 #include <vector>
 
 struct Skin;
@@ -62,6 +64,10 @@ struct Set_Slider_Hit {
 // the pan a hitsound plays at: `pan` (from where it happens on the playfield) through sound_panning and its multiplier,
 // centered for FPoSu and FPS unless their own panning convars are on
 [[nodiscard]] f32 playedPan(f32 pan);
+
+// what the sample a map has for a custom sample index (1+) is called, without its extension: "<set>-<sound>" for index
+// 1, "<set>-<sound><index>" after it. set: 0 normal, 1 soft, 2 drum; sound: "hitclap", "slidertick", ...
+[[nodiscard]] std::string mapSampleName(u8 set, std::string_view sound, u16 index);
 
 // plays resolved hitsounds with skin/map sounds; returns the ones it played, for stopSliderSounds()
 std::vector<Set_Slider_Hit> play(const Skin &skin, std::span<const ResolvedHitSound> sounds, f32 pan, f32 pitch);

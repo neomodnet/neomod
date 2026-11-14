@@ -86,6 +86,11 @@ msgstr "已下载谱面集 #{:d}"
 
 #: src/App/Neomod/BeatmapInstaller.cpp
 #, c++-format
+msgid "{} couldn't be copied into the neomod library"
+msgstr "无法将 {} 复制到 neomod 库"
+
+#: src/App/Neomod/BeatmapInstaller.cpp
+#, c++-format
 msgid "Failed to import {}"
 msgstr "无法导入 {}"
 
@@ -213,6 +218,1384 @@ msgstr "未检测到新谱面。"
 #, c++-format
 msgid "{} was written by a newer version, ignoring it"
 msgstr "{} 由更新的版本写入，已忽略"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Normal"
+msgstr "Normal"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Soft"
+msgstr "Soft"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Drum"
+msgstr "Drum"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Sidebar.cpp
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Auto"
+msgstr "Auto"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Play / Pause"
+msgstr "播放 / 暂停"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Play from the Start"
+msgstr "从头播放"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Go to the First Object"
+msgstr "跳到第一个物件"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Go to the Last Object"
+msgstr "跳到最后一个物件"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Step Backward"
+msgstr "后退一步"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Step Forward"
+msgstr "前进一步"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#, c++-format
+msgid "Step Backward {} Ticks"
+msgstr "后退 {} 格"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#, c++-format
+msgid "Step Forward {} Ticks"
+msgstr "前进 {} 格"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Next Timing Point"
+msgstr "下一个时间点"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Previous Timing Point"
+msgstr "上一个时间点"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#, c++-format
+msgid "Playback Rate {:+}%"
+msgstr "播放速度 {:+}%"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Next Bookmark"
+msgstr "下一个书签"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Previous Bookmark"
+msgstr "上一个书签"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#, c++-format
+msgid "Beat Divisor 1/{}"
+msgstr "节拍分度 1/{}"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/MainMenu.cpp
+msgid "Save"
+msgstr "保存"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Test Play"
+msgstr "试玩"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Revert to Saved"
+msgstr "恢复到已保存"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Copy of This One"
+msgstr "复制当前难度"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Empty"
+msgstr "空白"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Undo"
+msgstr "撤销"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Redo"
+msgstr "重做"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Add Bookmark"
+msgstr "添加书签"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Remove Bookmark"
+msgstr "移除书签"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Toolbox.cpp
+msgid "Select"
+msgstr "选择"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Toolbox.cpp
+msgid "Circle"
+msgstr "圆圈"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Toolbox.cpp
+msgid "Slider"
+msgstr "滑条"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Toolbox.cpp
+msgid "Spinner"
+msgstr "转盘"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "New Combo"
+msgstr "新连击"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Whistle"
+msgstr "Whistle"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Finish"
+msgstr "Finish"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Clap"
+msgstr "Clap"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#, c++-format
+msgid "Sample Set: {}"
+msgstr "音效组：{}"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#, c++-format
+msgid "Additions: {}"
+msgstr "附加音效：{}"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Delete"
+msgstr "删除"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Select All"
+msgstr "全选"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Nudge Backward"
+msgstr "向后微移"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Nudge Forward"
+msgstr "向前微移"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Move Selection Left"
+msgstr "向左移动所选"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Move Selection Right"
+msgstr "向右移动所选"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Move Selection Up"
+msgstr "向上移动所选"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Move Selection Down"
+msgstr "向下移动所选"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#: src/App/Neomod/Editor/Panels/StepPopup.cpp src/App/Neomod/PromptOverlay.cpp
+msgid "Cancel"
+msgstr "取消"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Cut"
+msgstr "剪切"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Copy"
+msgstr "复制"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Paste"
+msgstr "粘贴"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Clone"
+msgstr "克隆"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Grid Snap"
+msgstr "网格吸附"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Distance Snap"
+msgstr "距离吸附"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Use Current Spacing"
+msgstr "使用当前间距"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#, c++-format
+msgid "Grid Size {}"
+msgstr "网格大小 {}"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Next Grid Size"
+msgstr "下一个网格大小"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Linear"
+msgstr "直线"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Perfect Circle"
+msgstr "正圆"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Bezier"
+msgstr "贝塞尔"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Catmull"
+msgstr "Catmull"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Reverse"
+msgstr "反向"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Flip Horizontally"
+msgstr "水平翻转"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Flip Vertically"
+msgstr "垂直翻转"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Rotate Anticlockwise"
+msgstr "逆时针旋转"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Rotate Clockwise"
+msgstr "顺时针旋转"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Reset All Samples"
+msgstr "重置所有音效"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Reset Samples"
+msgstr "重置音效"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Rotate By..."
+msgstr "按角度旋转..."
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Scale By..."
+msgstr "按比例缩放..."
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Move To..."
+msgstr "移动到..."
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Polygon Circles..."
+msgstr "多边形圆圈..."
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Convert to Stream..."
+msgstr "转换为连打..."
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Reset Combo Colours"
+msgstr "重置连击颜色"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Compose"
+msgstr "编排"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Timing"
+msgstr "时间轴"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Song Setup"
+msgstr "歌曲设置"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Verify"
+msgstr "检查"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "History"
+msgstr "历史"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Add Inherited Point"
+msgstr "添加继承点"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Add Timing Point"
+msgstr "添加时间点"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Delete Timing Point"
+msgstr "删除时间点"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Resnap All Objects"
+msgstr "重新吸附所有物件"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Recalculate Slider Lengths"
+msgstr "重新计算滑条长度"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Insert Break Here"
+msgstr "在此插入休息段"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Reset Breaks"
+msgstr "重置休息段"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Copy Link to This Time"
+msgstr "复制此时间的链接"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Open Song Folder"
+msgstr "打开歌曲文件夹"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Open .osu in Text Editor"
+msgstr "在文本编辑器中打开 .osu"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Export Beatmapset"
+msgstr "导出谱面集"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Set Preview Point Here"
+msgstr "在此设置预览点"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Metronome"
+msgstr "节拍器"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Move Objects with Timing Changes"
+msgstr "随时间轴更改移动物件"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Tap"
+msgstr "敲击"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Panels/SampleChooser.cpp
+msgid "File"
+msgstr "文件"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/MainMenu.cpp src/App/Neomod/SongBrowser/SongButton.cpp
+msgid "Edit"
+msgstr "编辑"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Hitsounds"
+msgstr "打击音效"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Playback"
+msgstr "播放"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "View"
+msgstr "视图"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Restore Version"
+msgstr "恢复版本"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Add Circle"
+msgstr "添加圆圈"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Add Slider"
+msgstr "添加滑条"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Add Spinner"
+msgstr "添加转盘"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Edit Slider"
+msgstr "编辑滑条"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Curve Type"
+msgstr "曲线类型"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Repeats"
+msgstr "往返次数"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Spinner End"
+msgstr "转盘结束"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Flip"
+msgstr "翻转"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Rotate"
+msgstr "旋转"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Scale"
+msgstr "缩放"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Polygon Circles"
+msgstr "多边形圆圈"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Convert to Stream"
+msgstr "转换为连打"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Move"
+msgstr "移动"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Nudge"
+msgstr "微移"
+
+#: src/App/Neomod/Editor/Editor.cpp src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Combo Colour"
+msgstr "连击颜色"
+
+#: src/App/Neomod/Editor/Editor.cpp src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Sample Set"
+msgstr "音效组"
+
+#: src/App/Neomod/Editor/Editor.cpp src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Additions"
+msgstr "附加音效"
+
+#: src/App/Neomod/Editor/Editor.cpp src/App/Neomod/Editor/Panels/SampleSets.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Sample Index"
+msgstr "音效索引"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Sample Volume"
+msgstr "音效音量"
+
+#: src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Panels/SampleChooser.cpp
+msgid "Sample File"
+msgstr "音效文件"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Remove Break"
+msgstr "移除休息段"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Move Break"
+msgstr "移动休息段"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Insert Break"
+msgstr "插入休息段"
+
+#: src/App/Neomod/Editor/Editor.cpp src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Metadata"
+msgstr "元数据"
+
+#: src/App/Neomod/Editor/Editor.cpp src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Difficulty"
+msgstr "难度"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Map Settings"
+msgstr "谱面设置"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Colours"
+msgstr "颜色"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Resnap"
+msgstr "重新吸附"
+
+#: src/App/Neomod/Editor/Editor.cpp src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Background"
+msgstr "背景"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Help"
+msgstr "帮助"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Back"
+msgstr "返回"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Beatmap Editor"
+msgstr "谱面编辑器"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Setup"
+msgstr "设置"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "New Beatmap from an Audio File"
+msgstr "从音频文件新建谱面"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The unsaved changes to the open map couldn't be kept in a draft, so it stays open."
+msgstr "打开的谱面中未保存的更改无法保留到草稿中，因此谱面保持打开。"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The map that was open here isn't in the song browser anymore."
+msgstr "此处打开的谱面已不在歌曲浏览器中。"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The editor only opens osu!standard maps."
+msgstr "编辑器只能打开 osu!standard 谱面。"
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "This map can't be opened: {}"
+msgstr "无法打开此谱面：{}"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The unsaved changes to this map are back. File > Revert to Saved discards them."
+msgstr "此谱面未保存的更改已恢复。文件 > 恢复到已保存 可放弃这些更改。"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The map file changed since these unsaved changes were made. File > Revert to Saved loads it."
+msgstr "这些未保存的更改之后谱面文件已被修改。文件 > 恢复到已保存 可加载它。"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Right-click a difficulty in the song browser and choose Edit to open it here."
+msgstr "在歌曲浏览器中右键点击一个难度并选择编辑，即可在此打开。"
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "Edit {}"
+msgstr "编辑 {}"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "A map without objects can't be tested."
+msgstr "没有物件的谱面无法测试。"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The map file couldn't be read."
+msgstr "无法读取谱面文件。"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Nothing was added: an object would start after the song ends."
+msgstr "未添加任何内容：物件会在歌曲结束后才开始。"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "A break goes between two objects at least 1.2 seconds apart, where there's none yet."
+msgstr "休息段放在两个相隔至少 1.2 秒且尚无休息段的物件之间。"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Link copied."
+msgstr "链接已复制。"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Link copied. It opens the map as it was last saved."
+msgstr "链接已复制。它会打开最后一次保存时的谱面。"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "New Beatmap..."
+msgstr "新建谱面..."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "New Difficulty"
+msgstr "新建难度"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Open Difficulty"
+msgstr "打开难度"
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "Undo {}"
+msgstr "撤销{}"
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "Redo {}"
+msgstr "重做{}"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Grid Size"
+msgstr "网格大小"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Hit Animations"
+msgstr "打击动画"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Map Skin"
+msgstr "谱面皮肤"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Map Hitsounds"
+msgstr "谱面打击音效"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Background Dim"
+msgstr "背景暗化"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Hitsound Labels"
+msgstr "打击音效标签"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Keyboard Shortcuts..."
+msgstr "键盘快捷键..."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Custom Samples..."
+msgstr "自定义音效..."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Playfield Centre"
+msgstr "游戏区域中心"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Selection Centre"
+msgstr "选区中心"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Rotate By"
+msgstr "旋转角度"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Angle"
+msgstr "角度"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Around"
+msgstr "围绕"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Scale By"
+msgstr "缩放比例"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Factor"
+msgstr "倍数"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "X Axis"
+msgstr "X 轴"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Y Axis"
+msgstr "Y 轴"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Move By"
+msgstr "移动距离"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Move To"
+msgstr "移动到"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Corners"
+msgstr "顶点数"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Offset Angle"
+msgstr "偏移角度"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Spacing"
+msgstr "间距"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Count"
+msgstr "数量"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Divisor"
+msgstr "分度"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "By Count"
+msgstr "按数量"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "By Spacing"
+msgstr "按间距"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Spaced"
+msgstr "分布方式"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "A map without timing points can't be saved."
+msgstr "没有时间点的谱面无法保存。"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Saved"
+msgstr "已保存"
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "This map is the same as {} now, so it can't be saved."
+msgstr "此谱面现在与 {} 相同，因此无法保存。"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "This map isn't in the song browser anymore, so it can't be saved."
+msgstr "此谱面已不在歌曲浏览器中，因此无法保存。"
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "The file keeps its name, another file in its folder is called {}."
+msgstr "文件保留原名，同一文件夹中已有名为 {} 的文件。"
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "The file keeps its name, it couldn't be renamed to {}."
+msgstr "文件保留原名，无法重命名为 {}。"
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "The map couldn't be saved: {}"
+msgstr "无法保存谱面：{}"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Saved. Another program had changed the file: the History tab has its version."
+msgstr "已保存。其他程序曾修改过该文件：其版本保留在历史选项卡中。"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The map can't be tested yet: the song browser is still reading the saved file. Try again in a moment."
+msgstr "暂时无法测试谱面：歌曲浏览器仍在读取已保存的文件。请稍后重试。"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "To start a beatmap from an audio file, use File > New Beatmap. To use it as a sample, drop it while a sample is being chosen."
+msgstr "要用音频文件创建谱面，请使用 文件 > 新建谱面。要将其用作音效，请在选择音效时拖入。"
+
+#: src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Panels/SampleChooser.cpp
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+msgid "Audio files"
+msgstr "音频文件"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "New Beatmap"
+msgstr "新建谱面"
+
+#: src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Panels/SampleChooser.cpp
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#, c++-format
+msgid "{} can't be used: its name can't be written into a map."
+msgstr "无法使用 {}：其名称无法写入谱面。"
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "The beatmap couldn't be made from {}."
+msgstr "无法从 {} 创建谱面。"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The difficulty couldn't be made: the game couldn't read it."
+msgstr "无法创建难度：游戏无法读取它。"
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "The difficulty couldn't be made: {}"
+msgstr "无法创建难度：{}"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The difficulty couldn't be made: its file name is taken."
+msgstr "无法创建难度：文件名已被占用。"
+
+#: src/App/Neomod/Editor/EditorState.cpp
+msgid "This beatmap set can't be copied into the neomod library."
+msgstr "此谱面集无法复制到 neomod 库。"
+
+#: src/App/Neomod/Editor/EditorState.cpp
+msgid "This is an osu!stable map: copying its set into the neomod library first."
+msgstr "这是 osu!stable 谱面：先将其谱面集复制到 neomod 库。"
+
+#: src/App/Neomod/Editor/EditorState.cpp
+msgid "The edit wasn't made: sliders need a timing point."
+msgstr "未进行编辑：滑条需要一个时间点。"
+
+#: src/App/Neomod/Editor/EditorState.cpp
+msgid "The edit wasn't made: the map would have too many objects."
+msgstr "未进行编辑：谱面的物件会过多。"
+
+#: src/App/Neomod/Editor/EditorState.cpp
+msgid "The edit wasn't made: the game couldn't read the result."
+msgstr "未进行编辑：游戏无法读取结果。"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+#, c++-format
+msgid "{} objects"
+msgstr "{} 个物件"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+#, c++-format
+msgid "{} timing points"
+msgstr "{} 个时间点"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+#, c++-format
+msgid "{} other lines"
+msgstr "{} 行其他内容"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+msgid "nothing"
+msgstr "无"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+msgid "Restore This Version"
+msgstr "恢复此版本"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+msgid "Changes"
+msgstr "更改"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+msgid "Objects"
+msgstr "物件"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+msgid "Saved At"
+msgstr "保存时间"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+msgid "Select a version to compare it with the map as it is."
+msgstr "选择一个版本以与当前谱面比较。"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+msgid "This version can't be read anymore."
+msgstr "此版本已无法读取。"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+#, c++-format
+msgid "From this version to the map now: {}"
+msgstr "从此版本到当前谱面：{}"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+#, c++-format
+msgid "Changed outside the editor: {}"
+msgstr "在编辑器外更改：{}"
+
+#: src/App/Neomod/Editor/Panels/SampleChooser.cpp
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#, c++-format
+msgid "{} couldn't be copied into the map folder."
+msgstr "无法将 {} 复制到谱面文件夹。"
+
+#: src/App/Neomod/Editor/Panels/SampleChooser.cpp
+msgid "Add File..."
+msgstr "添加文件..."
+
+#: src/App/Neomod/Editor/Panels/SampleChooser.cpp
+msgid "No File"
+msgstr "无文件"
+
+#: src/App/Neomod/Editor/Panels/SampleChooser.cpp
+msgid "Use"
+msgstr "使用"
+
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+#, c++-format
+msgid "{} can't be used: samples are .wav, .ogg or .mp3 files."
+msgstr "无法使用 {}：音效必须是 .wav、.ogg 或 .mp3 文件。"
+
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+msgid "Custom Samples"
+msgstr "自定义音效"
+
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+msgid "Choose File..."
+msgstr "选择文件..."
+
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+msgid "Delete File"
+msgstr "删除文件"
+
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+msgid "This map has no samples of its own."
+msgstr "此谱面没有自带音效。"
+
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+#, c++-format
+msgid "This map has samples for: {}"
+msgstr "此谱面带有以下音效：{}"
+
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+#, c++-format
+msgid "{}: not overridden"
+msgstr "{}：未被覆盖"
+
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+#, c++-format
+msgid "{} couldn't be deleted."
+msgstr "无法删除 {}。"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Artist"
+msgstr "艺术家"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Romanised Artist"
+msgstr "艺术家（罗马音）"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Romanised Title"
+msgstr "标题（罗马音）"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Title"
+msgstr "标题"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Creator"
+msgstr "作者"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Difficulty Name"
+msgstr "难度名"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Source"
+msgstr "来源"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Tags"
+msgstr "标签"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "HP Drain Rate"
+msgstr "HP 消耗速度"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Circle Size"
+msgstr "圆圈大小"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Overall Difficulty"
+msgstr "整体难度"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Approach Rate"
+msgstr "缩圈速度"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Slider Velocity"
+msgstr "滑条速度"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Slider Tick Rate"
+msgstr "滑条节拍频率"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Stack Leniency"
+msgstr "堆叠宽容度"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "General"
+msgstr "常规"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Choose..."
+msgstr "选择..."
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Images"
+msgstr "图像"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid " ms"
+msgstr " ms"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Audio Lead-In"
+msgstr "音频前置时间"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Preview Point"
+msgstr "预览点"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/SongBrowser/ScoreButton.cpp
+msgid "None"
+msgstr "无"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Use Current Time"
+msgstr "使用当前时间"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Countdown"
+msgstr "倒计时"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Double Speed"
+msgstr "双倍速"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Half Speed"
+msgstr "半速"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Countdown Offset"
+msgstr "倒计时偏移"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid " beats"
+msgstr " 拍"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Widescreen Storyboard"
+msgstr "宽屏故事板"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Letterbox in Breaks"
+msgstr "休息段时显示黑边"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Epilepsy Warning"
+msgstr "癫痫警告"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Samples Match Playback Rate"
+msgstr "音效跟随播放速度"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Combo Colours"
+msgstr "连击颜色"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "The skin colours are used."
+msgstr "使用皮肤颜色。"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Add Colour"
+msgstr "添加颜色"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Use Custom Colours"
+msgstr "使用自定义颜色"
+
+#: src/App/Neomod/Editor/Panels/ShortcutList.cpp
+msgid "Keyboard Shortcuts"
+msgstr "键盘快捷键"
+
+#: src/App/Neomod/Editor/Panels/ShortcutList.cpp
+msgid "Command"
+msgstr "命令"
+
+#: src/App/Neomod/Editor/Panels/ShortcutList.cpp
+msgid "Keys"
+msgstr "按键"
+
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Index"
+msgstr "索引"
+
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Volume"
+msgstr "音量"
+
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Sample File..."
+msgstr "音效文件..."
+
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Several Files"
+msgstr "多个文件"
+
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Sliders take their sample index, volume and file from their timing points."
+msgstr "滑条的音效索引、音量和文件取自其时间点。"
+
+#: src/App/Neomod/Editor/Panels/StepPopup.cpp
+msgid "Apply"
+msgstr "应用"
+
+#: src/App/Neomod/Editor/Panels/TimeDisplay.cpp
+msgid "intro"
+msgstr "前奏"
+
+#: src/App/Neomod/Editor/Panels/TimeDisplay.cpp
+msgid "outro"
+msgstr "尾奏"
+
+#: src/App/Neomod/Editor/Panels/TimeDisplay.cpp
+msgid "kiai"
+msgstr "高潮"
+
+#: src/App/Neomod/Editor/Panels/TimeDisplay.cpp
+#, c++-format
+msgid "{} kiai"
+msgstr "{} 高潮"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Time"
+msgstr "时间"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Tempo"
+msgstr "速度"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Meter"
+msgstr "拍号"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Samples"
+msgstr "音效"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Kiai"
+msgstr "高潮"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Selected Points"
+msgstr "已选时间点"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "BPM"
+msgstr "BPM"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Default"
+msgstr "默认"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Files..."
+msgstr "文件..."
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Omit First Bar Line"
+msgstr "省略第一条小节线"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+#, c++-format
+msgid "{} BPM"
+msgstr "{} BPM"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+#, c++-format
+msgid "Taps: {}"
+msgstr "敲击：{}"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+#, c++-format
+msgid "Taps: {} ({} BPM)"
+msgstr "敲击：{}（{} BPM）"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Tap along to set the tempo (T)"
+msgstr "跟着节奏敲击以设置速度 (T)"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "An inherited point needs a timing point at or before it."
+msgstr "继承点需要在同一位置或之前有一个时间点。"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "A map keeps at least one timing point."
+msgstr "谱面至少保留一个时间点。"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "This object starts {} ms off the nearest tick."
+msgstr "此物件的开始偏离最近的节拍 {} ms。"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "This slider has a repeat {} ms off the nearest tick."
+msgstr "此滑条的折返偏离最近的节拍 {} ms。"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "This object ends {} ms off the nearest tick."
+msgstr "此物件的结束偏离最近的节拍 {} ms。"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "These objects are at the same time."
+msgstr "这些物件位于同一时间。"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "These objects are less than 10 ms apart."
+msgstr "这些物件间隔不到 10 ms。"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "This object leaves the screen at a 4:3 aspect ratio."
+msgstr "此物件在 4:3 宽高比下超出屏幕。"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "This spinner lasts only {} ms."
+msgstr "此转盘只持续 {} ms。"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "This spinner doesn't start a new combo."
+msgstr "此转盘没有开始新连击。"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "This object is hit at {}% volume."
+msgstr "此物件的打击音量为 {}%。"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Two timing points of the same kind are at this time."
+msgstr "此时间有两个同类型的时间点。"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "The map has no preview point."
+msgstr "谱面没有预览点。"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "The map has no background image."
+msgstr "谱面没有背景图片。"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "The background image file is missing."
+msgstr "缺少背景图片文件。"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "The audio file is missing."
+msgstr "缺少音频文件。"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "{} is {}, with more than one decimal place."
+msgstr "{} 为 {}，小数位超过一位。"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "{} is {}, outside of 0 to 10."
+msgstr "{} 为 {}，超出 0 到 10 的范围。"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "The map has less than 30 seconds of drain time ({} s)."
+msgstr "谱面的游玩时间不足 30 秒（{} 秒）。"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Issue"
+msgstr "问题"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Show Minor Issues"
+msgstr "显示次要问题"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "No issues found."
+msgstr "未发现问题。"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "Problems: {}   Warnings: {}   Minor: {}"
+msgstr "问题：{}   警告：{}   次要：{}"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Problem"
+msgstr "问题"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Warning"
+msgstr "警告"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Minor"
+msgstr "次要"
+
+#: src/App/Neomod/Editor/Playfield/PlayfieldPanel.cpp
+#, c++-format
+msgid "Prev: {:.2f}x"
+msgstr "上一个：{:.2f}x"
+
+#: src/App/Neomod/Editor/Playfield/PlayfieldPanel.cpp
+#, c++-format
+msgid "Next: {:.2f}x"
+msgstr "下一个：{:.2f}x"
+
+#: src/App/Neomod/EditorScreen.cpp
+msgid "The editor failed to start."
+msgstr "编辑器启动失败。"
+
+#: src/App/Neomod/EditorScreen.cpp
+msgid "The editor could not be loaded, the log has the details."
+msgstr "无法加载编辑器，详情见日志。"
+
+#: src/App/Neomod/EditorScreen.cpp
+msgid "The editor was built for a newer build of the game, restart the game to load it."
+msgstr "编辑器是为更新版本的游戏构建的，请重启游戏以加载它。"
+
+#: src/App/Neomod/EditorScreen.cpp
+msgid "Ctrl+Alt+E tries again, Escape goes back."
+msgstr "Ctrl+Alt+E 重试，Escape 返回。"
+
+#: src/App/Neomod/EditorScreen.cpp
+#, c++-format
+msgid "Reloaded the editor in {:.2f} ms"
+msgstr "已在 {:.2f} ms内重新加载编辑器"
+
+#: src/App/Neomod/EditorScreen.cpp
+#, c++-format
+msgid "The editor could not be loaded: {}"
+msgstr "无法加载编辑器：{}"
+
+#: src/App/Neomod/EditorScreen.cpp
+#, c++-format
+msgid "Restoring the last editor session crashed the game, so the editor started a new one. The old session was kept as {}."
+msgstr "恢复上次的编辑器会话导致游戏崩溃，因此编辑器已开始新会话。旧会话已保留为 {}。"
 
 #: src/App/Neomod/HUD.cpp
 #, c++-format
@@ -416,10 +1799,6 @@ msgstr "选项"
 #: src/App/Neomod/MainMenu.cpp
 msgid "Exit"
 msgstr "退出"
-
-#: src/App/Neomod/MainMenu.cpp
-msgid "Save"
-msgstr "保存"
 
 #: src/App/Neomod/MainMenu.cpp src/App/Neomod/OsuDirectScreen.cpp
 msgid "Online Beatmaps"
@@ -1022,6 +2401,10 @@ msgstr "实验性模组"
 msgid "Hold [ALT] to slide in 0.01 increments."
 msgstr "按住 [ALT] 以 0.01 为步长调整。"
 
+#: src/App/Neomod/NeomodUrl.cpp
+msgid "This editor link isn't valid."
+msgstr "此编辑器链接无效。"
+
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Mouse Left"
 msgstr "鼠标左键"
@@ -1039,20 +2422,12 @@ msgid "McOsu"
 msgstr "McOsu"
 
 #: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/SongBrowser/ScoreButton.cpp
-msgid "None"
-msgstr "无"
-
-#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/SongBrowser/ScoreButton.cpp
 msgid "osu!lazer 2020"
 msgstr "osu!lazer 2020"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "osu!stable (default)"
 msgstr "osu!stable（默认）"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "General"
-msgstr "常规"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Online server"
@@ -1522,10 +2897,6 @@ msgid "Devices"
 msgstr "设备"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Default"
-msgstr "默认"
-
-#: src/App/Neomod/OptionsOverlay.cpp
 msgid "Select Output Device"
 msgstr "选择输出设备"
 
@@ -1634,10 +3005,6 @@ msgstr "ASIO"
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Open ASIO settings"
 msgstr "打开 ASIO 设置"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Volume"
-msgstr "音量"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Normalize loudness across songs"
@@ -2214,10 +3581,6 @@ msgstr "Autopilot"
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Spunout"
 msgstr "Spunout"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Auto"
-msgstr "Auto"
 
 #: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/RoomScreen.cpp
 msgid "Score V2"
@@ -3000,8 +4363,20 @@ msgid "Failed to save osu.cfg"
 msgstr "无法保存 osu.cfg"
 
 #: src/App/Neomod/Osu.cpp
+msgid "Editor links open from the main menu, the song browser and the editor."
+msgstr "编辑器链接可从主菜单、歌曲浏览器和编辑器中打开。"
+
+#: src/App/Neomod/Osu.cpp
 msgid "This replay's beatmap is not installed."
 msgstr "此回放的谱面未安装。"
+
+#: src/App/Neomod/Osu.cpp
+msgid "The linked map isn't installed and wasn't found online."
+msgstr "链接的谱面未安装，且在线上也未找到。"
+
+#: src/App/Neomod/Osu.cpp
+msgid "The linked map isn't installed. Log in to download it."
+msgstr "链接的谱面未安装。登录后即可下载。"
 
 #: src/App/Neomod/Osu.cpp
 #, c++-format
@@ -3192,10 +4567,6 @@ msgstr "退出"
 #: src/App/Neomod/PromptOverlay.cpp
 msgid "OK"
 msgstr "确定"
-
-#: src/App/Neomod/PromptOverlay.cpp
-msgid "Cancel"
-msgstr "取消"
 
 #: src/App/Neomod/RankingScreen.cpp
 msgid "You achieved the #1 score on local rankings!"

@@ -54,6 +54,20 @@ struct Skin::BeatmapOverride {
     std::vector<Sound *> file_samples;                // by HITSAMPLE_BITS::filename - 1 (nullptr: not in the folder)
 };
 
+// a sound from a map folder, loaded like the skin sounds
+static Sound *loadBeatmapSound(std::string path, bool loop) {
+    if(cv::skin_async.getBool()) resourceManager->requestNextLoadAsync();
+    return resourceManager->loadSoundAbs(std::move(path), "", false, !loop, loop);
+}
+
+// the path to the sound file in the worn map with this name before its extension, empty if it has none
+static std::string findBeatmapSound(const Skin &skin, std::string_view stem) {
+    for(const auto ext : Skin::SOUND_EXTENSIONS) {
+        if(std::string path = skin.getBeatmapFile(fmt::format("{}{}", stem, ext)); !path.empty()) return path;
+    }
+    return {};
+}
+
 Skin::Skin(std::string name, std::string filepath, std::string fallbackDir)
     : name(std::move(name)),
       skin_dir(std::move(filepath)),
@@ -291,6 +305,8 @@ void Skin::load() {
     if(!this->s_hover_sp) this->s_hover_sp = this->s_menu_hover;
     if(!this->s_click_mp) this->s_click_mp = this->s_click_button;
     if(!this->s_hover_mp) this->s_hover_mp = this->s_menu_hover;
+    if(!this->s_click_edit) this->s_click_edit = this->s_click_button;
+    if(!this->s_hover_edit) this->s_hover_edit = this->s_menu_hover;
     if(!this->s_click_options) this->s_click_options = this->s_click_button;
     if(!this->s_hover_options) this->s_hover_options = this->s_menu_hover;
     if(!this->s_click_exit) this->s_click_exit = this->s_click_button;
@@ -362,6 +378,9 @@ void Skin::loadElements() {
     this->loadUnsizedImage(this->i_hitcircle, "hitcircle", "SK_I_HITCIRCLE");
     this->createSkinImage(this->i_hitcircleoverlay, "hitcircleoverlay", vec2(128, 128), 64);
     this->i_hitcircleoverlay.setAnimationFramerate(2);
+
+    this->randomizeFilePath();
+    this->loadUnsizedImage(this->i_hitcircleselect, "hitcircleselect", "SK_I_HITCIRCLESELECT");
 
     this->randomizeFilePath();
     this->loadUnsizedImage(this->i_approachcircle, "approachcircle", "SK_I_APPROACHCIRCLE");
@@ -701,6 +720,8 @@ void Skin::loadElements() {
     this->loadSound(this->s_check_on, "check-on", "SK_S_CHECKON", OVERLAYABLE | SAMPLE);
     this->loadSound(this->s_check_off, "check-off", "SK_S_CHECKOFF", OVERLAYABLE | SAMPLE);
     this->loadSound(this->s_shutter, "shutter", "SK_S_SHUTTER", OVERLAYABLE | SAMPLE);
+    this->loadSound(this->s_metronome_high, "metronomehigh", "SK_S_METRONOMEHIGH", OVERLAYABLE | SAMPLE);
+    this->loadSound(this->s_metronome_low, "metronomelow", "SK_S_METRONOMELOW", OVERLAYABLE | SAMPLE);
     this->loadSound(this->s_section_pass, "sectionpass", "SK_S_SECTIONPASS", BEATMAP);
     this->loadSound(this->s_section_fail, "sectionfail", "SK_S_SECTIONFAIL", BEATMAP);
     this->loadSound(this->s_nightcore_kick, "nightcore-kick", "SK_S_NIGHTCORE_KICK", OVERLAYABLE | SAMPLE);
@@ -737,6 +758,8 @@ void Skin::loadElements() {
                     OVERLAYABLE | SAMPLE | NO_DEFAULT);
     this->loadSound(this->s_hover_mp, "menu-multiplayer-hover", "SK_S_HOVER_MULTIPLAYER",
                     OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_click_edit, "menu-edit-click", "SK_S_CLICK_EDIT", OVERLAYABLE | SAMPLE | NO_DEFAULT);
+    this->loadSound(this->s_hover_edit, "menu-edit-hover", "SK_S_HOVER_EDIT", OVERLAYABLE | SAMPLE | NO_DEFAULT);
     this->loadSound(this->s_click_options, "menu-options-click", "SK_S_CLICK_OPTIONS",
                     OVERLAYABLE | SAMPLE | NO_DEFAULT);
     this->loadSound(this->s_hover_options, "menu-options-hover", "SK_S_HOVER_OPTIONS",
@@ -779,9 +802,6 @@ void Skin::loadBeatmapOverride(std::string_view folder, std::span<const std::str
     auto o = std::make_unique<BeatmapOverride>();
     o->dir = folder;
     if(!o->dir.ends_with('/')) o->dir.push_back('/');
-    o->sample_files.assign(sampleFiles.begin(), sampleFiles.end());
-    o->map_slider_border = sliderBorder;
-    o->map_slider_track_override = sliderTrackOverride;
     for(auto &file : Environment::getFilesInFolder(o->dir)) {
         o->files.insert(std::move(file));
     }
@@ -792,30 +812,10 @@ void Skin::loadBeatmapOverride(std::string_view folder, std::span<const std::str
     o->slider_track_overridden = this->o_slider_track_overridden;
     this->beatmap_override = std::move(o);
 
-    if(images) {
-        if(sliderBorder) this->c_slider_border = *sliderBorder;
-        if(sliderTrackOverride) {
-            this->c_slider_track_override = *sliderTrackOverride;
-            this->o_slider_track_overridden = true;
-        }
-    }
-
     this->loadElements();
 
     if(sounds) {
         auto &ov = *this->beatmap_override;
-        const bool async = cv::skin_async.getBool();
-        const auto loadSample = [async](std::string path, bool loop) -> Sound * {
-            if(async) resourceManager->requestNextLoadAsync();
-            return resourceManager->loadSoundAbs(std::move(path), "", false, !loop, loop);
-        };
-        const auto findWithExtension = [this](std::string_view stem) -> std::string {
-            for(const auto ext : SOUND_EXTENSIONS) {
-                if(std::string path = this->getBeatmapFile(fmt::format("{}{}", stem, ext)); !path.empty()) return path;
-            }
-            return {};
-        };
-
         // the hitsound samples for custom sample indices ("soft-hitclap", "drum-slidertick3", ...)
         static constexpr ctll::fixed_string sample_pattern{
             "(normal|soft|drum)-(hit(normal|whistle|finish|clap)|slider(slide|whistle|tick))[0-9]*"};
@@ -829,21 +829,13 @@ void Skin::loadBeatmapOverride(std::string_view folder, std::span<const std::str
             }
             const std::string stem = SString::to_lower(std::string_view{file}.substr(0, dot));
             if(!ctre::match<sample_pattern>(stem) || ov.samples.contains(stem)) continue;
-            std::string path = findWithExtension(stem);
+            std::string path = findBeatmapSound(*this, stem);
             if(path.empty()) continue;
             const bool loop = stem.contains("sliderslide") || stem.contains("sliderwhistle");
-            ov.samples.emplace(stem, loadSample(std::move(path), loop));
-        }
-
-        // the files hit samples name (with or without their extension)
-        ov.file_samples.reserve(ov.sample_files.size());
-        for(std::string name : ov.sample_files) {
-            File::normalizeSlashes(name, '\\', '/');
-            std::string path = this->getBeatmapFile(name);
-            if(path.empty()) path = findWithExtension(std::string_view{name}.substr(0, name.rfind('.')));
-            ov.file_samples.push_back(path.empty() ? nullptr : loadSample(std::move(path), false));
+            ov.samples.emplace(stem, loadBeatmapSound(std::move(path), loop));
         }
     }
+    this->updateBeatmapOverride(sampleFiles, sliderBorder, sliderTrackOverride);
 
     // (the skin's own sounds get theirs from VolumeOverlay::updateEffectVolume())
     const std::vector<Sound *> beatmapSamples = this->getBeatmapSamples();
@@ -855,6 +847,50 @@ void Skin::loadBeatmapOverride(std::string_view folder, std::span<const std::str
 
     // (until the map's elements have loaded as well)
     this->is_ready = false;
+}
+
+void Skin::updateBeatmapOverride(std::span<const std::string> sampleFiles, std::optional<Color> sliderBorder,
+                                 std::optional<Color> sliderTrackOverride) {
+    auto *o = this->beatmap_override.get();
+    if(!o) return;
+
+    o->map_slider_border = sliderBorder;
+    o->map_slider_track_override = sliderTrackOverride;
+    if(o->images) {
+        this->c_slider_border = sliderBorder.value_or(o->slider_border);
+        this->c_slider_track_override = sliderTrackOverride.value_or(o->slider_track_override);
+        this->o_slider_track_overridden = sliderTrackOverride || o->slider_track_overridden;
+    }
+
+    if(Mc::ranges::equal(o->sample_files, sampleFiles)) return;
+    // a file that's still named keeps its sound, whatever its number is now
+    Hash::unstable_stringmap<Sound *> loaded;
+    for(size_t i = 0; i < o->file_samples.size(); i++) {
+        loaded.emplace(std::move(o->sample_files[i]), o->file_samples[i]);
+    }
+    o->sample_files.assign(sampleFiles.begin(), sampleFiles.end());
+    o->file_samples.clear();
+    if(o->sounds) {
+        o->file_samples.reserve(o->sample_files.size());
+        for(const std::string &file : o->sample_files) {
+            if(const auto it = loaded.find(file); it != loaded.end()) {
+                o->file_samples.push_back(it->second);
+                loaded.erase(it);
+                continue;
+            }
+            // named with or without its extension
+            std::string name = file;
+            File::normalizeSlashes(name, '\\', '/');
+            std::string path = this->getBeatmapFile(name);
+            if(path.empty()) path = findBeatmapSound(*this, std::string_view{name}.substr(0, name.rfind('.')));
+            Sound *sound = path.empty() ? nullptr : loadBeatmapSound(std::move(path), false);
+            if(sound) sound->setBaseVolume(cv::volume_effects.getFloat());
+            o->file_samples.push_back(sound);
+        }
+    }
+    for(const auto &[name, sound] : loaded) {
+        if(sound) resourceManager->destroyResource(sound);
+    }
 }
 
 void Skin::copyBeatmapOverride(const Skin &other) {

@@ -971,6 +971,13 @@ std::vector<File::DirEntry> File::pruneDirectory(std::string_view dir, bool (*ma
     return entries;
 }
 
+bool File::createDirectoryRecursive(std::string_view dir) {
+    while(dir.size() > 1 && (dir.back() == '/' || dir.back() == '\\')) dir.remove_suffix(1);
+    std::error_code ec;
+    fs::create_directories(File::getFsPath(dir), ec);
+    return !ec;  // true if it's there already
+}
+
 #ifndef MCENGINE_PLATFORM_WINDOWS
 #define adjust_path(dummy__) dummy__
 #endif

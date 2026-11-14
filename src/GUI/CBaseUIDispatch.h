@@ -113,6 +113,9 @@ bool stealCapture(CBaseUIElement *thief);
 // press, counted while the presses go to the same element with the same button, within the platform's double-click
 // time and distance
 [[nodiscard]] u8 getClicks();
+// the same for an element whose parts are separate targets (the rows in a list, the objects in a view): counted only
+// while the presses are on the same part. the press is on `part` from then on; a press that never says is on none
+[[nodiscard]] u8 getClicks(u64 part);
 
 // gives the cursor the shape this frame's hovered element wants (CBaseUIElement::getCursorShape(): the innermost one
 // with a shape, the mouse's captor while there is one), an arrow otherwise. once a frame, after both roots' dispatch

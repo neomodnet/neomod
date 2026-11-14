@@ -84,6 +84,11 @@ msgstr "Beatmapset #{:d} téléchargé"
 
 #: src/App/Neomod/BeatmapInstaller.cpp
 #, c++-format
+msgid "{} couldn't be copied into the neomod library"
+msgstr "{} n'a pas pu être copié dans la bibliothèque neomod"
+
+#: src/App/Neomod/BeatmapInstaller.cpp
+#, c++-format
 msgid "Failed to import {}"
 msgstr "Échec de l'importation de {}"
 
@@ -211,6 +216,1384 @@ msgstr "Aucune nouvelle beatmap détectée."
 #, c++-format
 msgid "{} was written by a newer version, ignoring it"
 msgstr "{} a été écrit par une version plus récente, ignoré"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Normal"
+msgstr "Normal"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Soft"
+msgstr "Soft"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Drum"
+msgstr "Drum"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Sidebar.cpp
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Auto"
+msgstr "Auto"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Play / Pause"
+msgstr "Lecture / Pause"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Play from the Start"
+msgstr "Lire depuis le début"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Go to the First Object"
+msgstr "Aller au premier objet"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Go to the Last Object"
+msgstr "Aller au dernier objet"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Step Backward"
+msgstr "Reculer d'un pas"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Step Forward"
+msgstr "Avancer d'un pas"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#, c++-format
+msgid "Step Backward {} Ticks"
+msgstr "Reculer de {} ticks"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#, c++-format
+msgid "Step Forward {} Ticks"
+msgstr "Avancer de {} ticks"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Next Timing Point"
+msgstr "Point de timing suivant"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Previous Timing Point"
+msgstr "Point de timing précédent"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#, c++-format
+msgid "Playback Rate {:+}%"
+msgstr "Vitesse de lecture {:+} %"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Next Bookmark"
+msgstr "Signet suivant"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Previous Bookmark"
+msgstr "Signet précédent"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#, c++-format
+msgid "Beat Divisor 1/{}"
+msgstr "Diviseur de beat 1/{}"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/MainMenu.cpp
+msgid "Save"
+msgstr "Sauvegarder"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Test Play"
+msgstr "Tester"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Revert to Saved"
+msgstr "Revenir à la version enregistrée"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Copy of This One"
+msgstr "Copie de celle-ci"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Empty"
+msgstr "Vide"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Undo"
+msgstr "Annuler"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Redo"
+msgstr "Rétablir"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Add Bookmark"
+msgstr "Ajouter un signet"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Remove Bookmark"
+msgstr "Retirer le signet"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Toolbox.cpp
+msgid "Select"
+msgstr "Sélection"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Toolbox.cpp
+msgid "Circle"
+msgstr "Cercle"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Toolbox.cpp
+msgid "Slider"
+msgstr "Slider"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Toolbox.cpp
+msgid "Spinner"
+msgstr "Spinner"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "New Combo"
+msgstr "Nouveau combo"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Whistle"
+msgstr "Whistle"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Finish"
+msgstr "Finish"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Clap"
+msgstr "Clap"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#, c++-format
+msgid "Sample Set: {}"
+msgstr "Sample set : {}"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#, c++-format
+msgid "Additions: {}"
+msgstr "Additions : {}"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Delete"
+msgstr "Supprimer"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Select All"
+msgstr "Tout sélectionner"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Nudge Backward"
+msgstr "Décaler en arrière"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Nudge Forward"
+msgstr "Décaler en avant"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Move Selection Left"
+msgstr "Déplacer la sélection à gauche"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Move Selection Right"
+msgstr "Déplacer la sélection à droite"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Move Selection Up"
+msgstr "Déplacer la sélection vers le haut"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Move Selection Down"
+msgstr "Déplacer la sélection vers le bas"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#: src/App/Neomod/Editor/Panels/StepPopup.cpp src/App/Neomod/PromptOverlay.cpp
+msgid "Cancel"
+msgstr "Annuler"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Cut"
+msgstr "Couper"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Copy"
+msgstr "Copier"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Paste"
+msgstr "Coller"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Clone"
+msgstr "Cloner"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Grid Snap"
+msgstr "Aimanter à la grille"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Distance Snap"
+msgstr "Aimanter à la distance"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Use Current Spacing"
+msgstr "Utiliser l'espacement actuel"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#, c++-format
+msgid "Grid Size {}"
+msgstr "Taille de la grille {}"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Next Grid Size"
+msgstr "Taille de grille suivante"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Linear"
+msgstr "Linéaire"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Perfect Circle"
+msgstr "Cercle parfait"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Bezier"
+msgstr "Bézier"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Catmull"
+msgstr "Catmull"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Reverse"
+msgstr "Inverser"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Flip Horizontally"
+msgstr "Retourner horizontalement"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Flip Vertically"
+msgstr "Retourner verticalement"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Rotate Anticlockwise"
+msgstr "Pivoter dans le sens antihoraire"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Rotate Clockwise"
+msgstr "Pivoter dans le sens horaire"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Reset All Samples"
+msgstr "Réinitialiser tous les samples"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Reset Samples"
+msgstr "Réinitialiser les samples"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Rotate By..."
+msgstr "Pivoter de..."
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Scale By..."
+msgstr "Redimensionner de..."
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Move To..."
+msgstr "Déplacer vers..."
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Polygon Circles..."
+msgstr "Cercles en polygone..."
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Convert to Stream..."
+msgstr "Convertir en stream..."
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Reset Combo Colours"
+msgstr "Réinitialiser les couleurs de combo"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Compose"
+msgstr "Composer"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Timing"
+msgstr "Timing"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Song Setup"
+msgstr "Configuration de la musique"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Verify"
+msgstr "Vérifier"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "History"
+msgstr "Historique"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Add Inherited Point"
+msgstr "Ajouter un point hérité"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Add Timing Point"
+msgstr "Ajouter un point de timing"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Delete Timing Point"
+msgstr "Supprimer le point de timing"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Resnap All Objects"
+msgstr "Réaligner tous les objets"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Recalculate Slider Lengths"
+msgstr "Recalculer la longueur des sliders"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Insert Break Here"
+msgstr "Insérer une pause ici"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Reset Breaks"
+msgstr "Réinitialiser les pauses"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Copy Link to This Time"
+msgstr "Copier le lien vers ce moment"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Open Song Folder"
+msgstr "Ouvrir le dossier de la musique"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Open .osu in Text Editor"
+msgstr "Ouvrir le .osu dans un éditeur de texte"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Export Beatmapset"
+msgstr "Exporter le beatmapset"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Set Preview Point Here"
+msgstr "Placer le point d'aperçu ici"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Metronome"
+msgstr "Métronome"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Move Objects with Timing Changes"
+msgstr "Déplacer les objets avec les changements de timing"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Tap"
+msgstr "Taper"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Panels/SampleChooser.cpp
+msgid "File"
+msgstr "Fichier"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/MainMenu.cpp src/App/Neomod/SongBrowser/SongButton.cpp
+msgid "Edit"
+msgstr "Édition"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Hitsounds"
+msgstr "Hitsounds"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Playback"
+msgstr "Lecture"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "View"
+msgstr "Affichage"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Restore Version"
+msgstr "Restaurer la version"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Add Circle"
+msgstr "Ajouter un cercle"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Add Slider"
+msgstr "Ajouter un slider"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Add Spinner"
+msgstr "Ajouter un spinner"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Edit Slider"
+msgstr "Modifier le slider"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Curve Type"
+msgstr "Type de courbe"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Repeats"
+msgstr "Répétitions"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Spinner End"
+msgstr "Fin du spinner"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Flip"
+msgstr "Retourner"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Rotate"
+msgstr "Pivoter"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Scale"
+msgstr "Redimensionner"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Polygon Circles"
+msgstr "Cercles en polygone"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Convert to Stream"
+msgstr "Convertir en stream"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Move"
+msgstr "Déplacer"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Nudge"
+msgstr "Décaler"
+
+#: src/App/Neomod/Editor/Editor.cpp src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Combo Colour"
+msgstr "Couleur de combo"
+
+#: src/App/Neomod/Editor/Editor.cpp src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Sample Set"
+msgstr "Sample set"
+
+#: src/App/Neomod/Editor/Editor.cpp src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Additions"
+msgstr "Additions"
+
+#: src/App/Neomod/Editor/Editor.cpp src/App/Neomod/Editor/Panels/SampleSets.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Sample Index"
+msgstr "Index de sample"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Sample Volume"
+msgstr "Volume du sample"
+
+#: src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Panels/SampleChooser.cpp
+msgid "Sample File"
+msgstr "Fichier de sample"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Remove Break"
+msgstr "Retirer la pause"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Move Break"
+msgstr "Déplacer la pause"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Insert Break"
+msgstr "Insérer une pause"
+
+#: src/App/Neomod/Editor/Editor.cpp src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Metadata"
+msgstr "Métadonnées"
+
+#: src/App/Neomod/Editor/Editor.cpp src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Difficulty"
+msgstr "Difficulté"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Map Settings"
+msgstr "Paramètres de la map"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Colours"
+msgstr "Couleurs"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Resnap"
+msgstr "Réaligner"
+
+#: src/App/Neomod/Editor/Editor.cpp src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Background"
+msgstr "Fond"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Help"
+msgstr "Aide"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Back"
+msgstr "Retour"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Beatmap Editor"
+msgstr "Éditeur de beatmap"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Setup"
+msgstr "Configuration"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "New Beatmap from an Audio File"
+msgstr "Nouvelle beatmap à partir d'un fichier audio"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The unsaved changes to the open map couldn't be kept in a draft, so it stays open."
+msgstr "Les modifications non enregistrées de la map ouverte n'ont pas pu être gardées dans un brouillon, elle reste donc ouverte."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The map that was open here isn't in the song browser anymore."
+msgstr "La map ouverte ici n'est plus dans le navigateur de musiques."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The editor only opens osu!standard maps."
+msgstr "L'éditeur n'ouvre que les maps osu!standard."
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "This map can't be opened: {}"
+msgstr "Cette map ne peut pas être ouverte : {}"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The unsaved changes to this map are back. File > Revert to Saved discards them."
+msgstr "Les modifications non enregistrées de cette map sont de retour. Fichier > Revenir à la version enregistrée les annule."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The map file changed since these unsaved changes were made. File > Revert to Saved loads it."
+msgstr "Le fichier de la map a changé depuis ces modifications non enregistrées. Fichier > Revenir à la version enregistrée le charge."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Right-click a difficulty in the song browser and choose Edit to open it here."
+msgstr "Faites un clic droit sur une difficulté dans le navigateur de musiques et choisissez Modifier pour l'ouvrir ici."
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "Edit {}"
+msgstr "Modifier {}"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "A map without objects can't be tested."
+msgstr "Une map sans objets ne peut pas être testée."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The map file couldn't be read."
+msgstr "Le fichier de la map n'a pas pu être lu."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Nothing was added: an object would start after the song ends."
+msgstr "Rien n'a été ajouté : un objet commencerait après la fin de la musique."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "A break goes between two objects at least 1.2 seconds apart, where there's none yet."
+msgstr "Une pause se place entre deux objets espacés d'au moins 1,2 seconde, là où il n'y en a pas encore."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Link copied."
+msgstr "Lien copié."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Link copied. It opens the map as it was last saved."
+msgstr "Lien copié. Il ouvre la map telle qu'elle a été enregistrée pour la dernière fois."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "New Beatmap..."
+msgstr "Nouvelle beatmap..."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "New Difficulty"
+msgstr "Nouvelle difficulté"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Open Difficulty"
+msgstr "Ouvrir une difficulté"
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "Undo {}"
+msgstr "Annuler {}"
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "Redo {}"
+msgstr "Rétablir {}"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Grid Size"
+msgstr "Taille de la grille"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Hit Animations"
+msgstr "Animations de frappe"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Map Skin"
+msgstr "Skin de la map"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Map Hitsounds"
+msgstr "Hitsounds de la map"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Background Dim"
+msgstr "Assombrissement du fond"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Hitsound Labels"
+msgstr "Étiquettes de hitsounds"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Keyboard Shortcuts..."
+msgstr "Raccourcis clavier..."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Custom Samples..."
+msgstr "Samples personnalisés..."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Playfield Centre"
+msgstr "Centre de la zone de jeu"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Selection Centre"
+msgstr "Centre de la sélection"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Rotate By"
+msgstr "Pivoter de"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Angle"
+msgstr "Angle"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Around"
+msgstr "Autour de"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Scale By"
+msgstr "Redimensionner de"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Factor"
+msgstr "Facteur"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "X Axis"
+msgstr "Axe X"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Y Axis"
+msgstr "Axe Y"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Move By"
+msgstr "Déplacer de"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Move To"
+msgstr "Déplacer vers"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Corners"
+msgstr "Coins"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Offset Angle"
+msgstr "Angle de décalage"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Spacing"
+msgstr "Espacement"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Count"
+msgstr "Nombre"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Divisor"
+msgstr "Diviseur"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "By Count"
+msgstr "Par nombre"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "By Spacing"
+msgstr "Par espacement"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Spaced"
+msgstr "Espacés"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "A map without timing points can't be saved."
+msgstr "Une map sans points de timing ne peut pas être enregistrée."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Saved"
+msgstr "Enregistré"
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "This map is the same as {} now, so it can't be saved."
+msgstr "Cette map est maintenant identique à {}, elle ne peut donc pas être enregistrée."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "This map isn't in the song browser anymore, so it can't be saved."
+msgstr "Cette map n'est plus dans le navigateur de musiques, elle ne peut donc pas être enregistrée."
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "The file keeps its name, another file in its folder is called {}."
+msgstr "Le fichier garde son nom, un autre fichier de son dossier s'appelle {}."
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "The file keeps its name, it couldn't be renamed to {}."
+msgstr "Le fichier garde son nom, il n'a pas pu être renommé en {}."
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "The map couldn't be saved: {}"
+msgstr "La map n'a pas pu être enregistrée : {}"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Saved. Another program had changed the file: the History tab has its version."
+msgstr "Enregistré. Un autre programme avait modifié le fichier : l'onglet Historique contient sa version."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The map can't be tested yet: the song browser is still reading the saved file. Try again in a moment."
+msgstr "La map ne peut pas encore être testée : le navigateur de musiques lit encore le fichier enregistré. Réessayez dans un instant."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "To start a beatmap from an audio file, use File > New Beatmap. To use it as a sample, drop it while a sample is being chosen."
+msgstr "Pour créer une beatmap à partir d'un fichier audio, utilisez Fichier > Nouvelle beatmap. Pour l'utiliser comme sample, déposez-le pendant le choix d'un sample."
+
+#: src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Panels/SampleChooser.cpp
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+msgid "Audio files"
+msgstr "Fichiers audio"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "New Beatmap"
+msgstr "Nouvelle beatmap"
+
+#: src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Panels/SampleChooser.cpp
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#, c++-format
+msgid "{} can't be used: its name can't be written into a map."
+msgstr "{} ne peut pas être utilisé : son nom ne peut pas être écrit dans une map."
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "The beatmap couldn't be made from {}."
+msgstr "La beatmap n'a pas pu être créée à partir de {}."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The difficulty couldn't be made: the game couldn't read it."
+msgstr "La difficulté n'a pas pu être créée : le jeu n'a pas pu la lire."
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "The difficulty couldn't be made: {}"
+msgstr "La difficulté n'a pas pu être créée : {}"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The difficulty couldn't be made: its file name is taken."
+msgstr "La difficulté n'a pas pu être créée : son nom de fichier est déjà pris."
+
+#: src/App/Neomod/Editor/EditorState.cpp
+msgid "This beatmap set can't be copied into the neomod library."
+msgstr "Ce beatmapset ne peut pas être copié dans la bibliothèque neomod."
+
+#: src/App/Neomod/Editor/EditorState.cpp
+msgid "This is an osu!stable map: copying its set into the neomod library first."
+msgstr "C'est une map osu!stable : son set est d'abord copié dans la bibliothèque neomod."
+
+#: src/App/Neomod/Editor/EditorState.cpp
+msgid "The edit wasn't made: sliders need a timing point."
+msgstr "La modification n'a pas été faite : les sliders ont besoin d'un point de timing."
+
+#: src/App/Neomod/Editor/EditorState.cpp
+msgid "The edit wasn't made: the map would have too many objects."
+msgstr "La modification n'a pas été faite : la map aurait trop d'objets."
+
+#: src/App/Neomod/Editor/EditorState.cpp
+msgid "The edit wasn't made: the game couldn't read the result."
+msgstr "La modification n'a pas été faite : le jeu n'a pas pu lire le résultat."
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+#, c++-format
+msgid "{} objects"
+msgstr "{} objets"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+#, c++-format
+msgid "{} timing points"
+msgstr "{} points de timing"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+#, c++-format
+msgid "{} other lines"
+msgstr "{} autres lignes"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+msgid "nothing"
+msgstr "rien"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+msgid "Restore This Version"
+msgstr "Restaurer cette version"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+msgid "Changes"
+msgstr "Modifications"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+msgid "Objects"
+msgstr "Objets"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+msgid "Saved At"
+msgstr "Enregistré le"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+msgid "Select a version to compare it with the map as it is."
+msgstr "Sélectionnez une version pour la comparer à la map actuelle."
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+msgid "This version can't be read anymore."
+msgstr "Cette version ne peut plus être lue."
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+#, c++-format
+msgid "From this version to the map now: {}"
+msgstr "De cette version à la map actuelle : {}"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+#, c++-format
+msgid "Changed outside the editor: {}"
+msgstr "Modifié hors de l'éditeur : {}"
+
+#: src/App/Neomod/Editor/Panels/SampleChooser.cpp
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#, c++-format
+msgid "{} couldn't be copied into the map folder."
+msgstr "{} n'a pas pu être copié dans le dossier de la map."
+
+#: src/App/Neomod/Editor/Panels/SampleChooser.cpp
+msgid "Add File..."
+msgstr "Ajouter un fichier..."
+
+#: src/App/Neomod/Editor/Panels/SampleChooser.cpp
+msgid "No File"
+msgstr "Aucun fichier"
+
+#: src/App/Neomod/Editor/Panels/SampleChooser.cpp
+msgid "Use"
+msgstr "Utiliser"
+
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+#, c++-format
+msgid "{} can't be used: samples are .wav, .ogg or .mp3 files."
+msgstr "{} ne peut pas être utilisé : les samples sont des fichiers .wav, .ogg ou .mp3."
+
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+msgid "Custom Samples"
+msgstr "Samples personnalisés"
+
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+msgid "Choose File..."
+msgstr "Choisir un fichier..."
+
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+msgid "Delete File"
+msgstr "Supprimer le fichier"
+
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+msgid "This map has no samples of its own."
+msgstr "Cette map n'a pas de samples propres."
+
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+#, c++-format
+msgid "This map has samples for: {}"
+msgstr "Cette map a des samples pour : {}"
+
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+#, c++-format
+msgid "{}: not overridden"
+msgstr "{} : non remplacé"
+
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+#, c++-format
+msgid "{} couldn't be deleted."
+msgstr "{} n'a pas pu être supprimé."
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Artist"
+msgstr "Artiste"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Romanised Artist"
+msgstr "Artiste romanisé"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Romanised Title"
+msgstr "Titre romanisé"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Title"
+msgstr "Titre"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Creator"
+msgstr "Créateur"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Difficulty Name"
+msgstr "Nom de la difficulté"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Source"
+msgstr "Source"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Tags"
+msgstr "Tags"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "HP Drain Rate"
+msgstr "Taux de perte de HP"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Circle Size"
+msgstr "Taille des cercles"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Overall Difficulty"
+msgstr "Difficulté globale"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Approach Rate"
+msgstr "Vitesse d'approche"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Slider Velocity"
+msgstr "Vélocité des sliders"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Slider Tick Rate"
+msgstr "Fréquence des ticks de slider"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Stack Leniency"
+msgstr "Tolérance d'empilement"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "General"
+msgstr "Général"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Choose..."
+msgstr "Choisir..."
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Images"
+msgstr "Images"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid " ms"
+msgstr " ms"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Audio Lead-In"
+msgstr "Délai audio initial"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Preview Point"
+msgstr "Point d'aperçu"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/SongBrowser/ScoreButton.cpp
+msgid "None"
+msgstr "Aucun"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Use Current Time"
+msgstr "Utiliser le temps actuel"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Countdown"
+msgstr "Compte à rebours"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Double Speed"
+msgstr "Vitesse double"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Half Speed"
+msgstr "Demi-vitesse"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Countdown Offset"
+msgstr "Décalage du compte à rebours"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid " beats"
+msgstr " temps"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Widescreen Storyboard"
+msgstr "Storyboard grand écran"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Letterbox in Breaks"
+msgstr "Letterbox pendant les pauses"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Epilepsy Warning"
+msgstr "Avertissement d'épilepsie"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Samples Match Playback Rate"
+msgstr "Les samples suivent la vitesse de lecture"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Combo Colours"
+msgstr "Couleurs de combo"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "The skin colours are used."
+msgstr "Les couleurs du skin sont utilisées."
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Add Colour"
+msgstr "Ajouter une couleur"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Use Custom Colours"
+msgstr "Utiliser des couleurs personnalisées"
+
+#: src/App/Neomod/Editor/Panels/ShortcutList.cpp
+msgid "Keyboard Shortcuts"
+msgstr "Raccourcis clavier"
+
+#: src/App/Neomod/Editor/Panels/ShortcutList.cpp
+msgid "Command"
+msgstr "Commande"
+
+#: src/App/Neomod/Editor/Panels/ShortcutList.cpp
+msgid "Keys"
+msgstr "Touches"
+
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Index"
+msgstr "Index"
+
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Volume"
+msgstr "Volume"
+
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Sample File..."
+msgstr "Fichier de sample..."
+
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Several Files"
+msgstr "Plusieurs fichiers"
+
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Sliders take their sample index, volume and file from their timing points."
+msgstr "Les sliders prennent l'index, le volume et le fichier de sample de leurs points de timing."
+
+#: src/App/Neomod/Editor/Panels/StepPopup.cpp
+msgid "Apply"
+msgstr "Appliquer"
+
+#: src/App/Neomod/Editor/Panels/TimeDisplay.cpp
+msgid "intro"
+msgstr "intro"
+
+#: src/App/Neomod/Editor/Panels/TimeDisplay.cpp
+msgid "outro"
+msgstr "outro"
+
+#: src/App/Neomod/Editor/Panels/TimeDisplay.cpp
+msgid "kiai"
+msgstr "kiai"
+
+#: src/App/Neomod/Editor/Panels/TimeDisplay.cpp
+#, c++-format
+msgid "{} kiai"
+msgstr "{} kiai"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Time"
+msgstr "Temps"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Tempo"
+msgstr "Tempo"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Meter"
+msgstr "Mesure"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Samples"
+msgstr "Samples"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Kiai"
+msgstr "Kiai"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Selected Points"
+msgstr "Points sélectionnés"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "BPM"
+msgstr "BPM"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Default"
+msgstr "Par défaut"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Files..."
+msgstr "Fichiers..."
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Omit First Bar Line"
+msgstr "Omettre la première barre de mesure"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+#, c++-format
+msgid "{} BPM"
+msgstr "{} BPM"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+#, c++-format
+msgid "Taps: {}"
+msgstr "Tapes : {}"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+#, c++-format
+msgid "Taps: {} ({} BPM)"
+msgstr "Tapes : {} ({} BPM)"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Tap along to set the tempo (T)"
+msgstr "Tapez en rythme pour régler le tempo (T)"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "An inherited point needs a timing point at or before it."
+msgstr "Un point hérité a besoin d'un point de timing à son moment ou avant."
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "A map keeps at least one timing point."
+msgstr "Une map garde au moins un point de timing."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "This object starts {} ms off the nearest tick."
+msgstr "Cet objet commence à {} ms du tick le plus proche."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "This slider has a repeat {} ms off the nearest tick."
+msgstr "Ce slider fait demi-tour à {} ms du tick le plus proche."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "This object ends {} ms off the nearest tick."
+msgstr "Cet objet se termine à {} ms du tick le plus proche."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "These objects are at the same time."
+msgstr "Ces objets sont au même moment."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "These objects are less than 10 ms apart."
+msgstr "Ces objets sont espacés de moins de 10 ms."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "This object leaves the screen at a 4:3 aspect ratio."
+msgstr "Cet objet sort de l'écran en format 4:3."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "This spinner lasts only {} ms."
+msgstr "Ce spinner ne dure que {} ms."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "This spinner doesn't start a new combo."
+msgstr "Ce spinner ne commence pas un nouveau combo."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "This object is hit at {}% volume."
+msgstr "Cet objet est frappé à {}% de volume."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Two timing points of the same kind are at this time."
+msgstr "Deux points de timing du même type sont à ce moment."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "The map has no preview point."
+msgstr "La map n'a pas de point d'aperçu."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "The map has no background image."
+msgstr "La map n'a pas d'image de fond."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "The background image file is missing."
+msgstr "Le fichier de l'image de fond est manquant."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "The audio file is missing."
+msgstr "Le fichier audio est manquant."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "{} is {}, with more than one decimal place."
+msgstr "{} vaut {}, avec plus d'une décimale."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "{} is {}, outside of 0 to 10."
+msgstr "{} vaut {}, hors de l'intervalle 0 à 10."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "The map has less than 30 seconds of drain time ({} s)."
+msgstr "La map a moins de 30 secondes de jeu ({} s)."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Issue"
+msgstr "Problème"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Show Minor Issues"
+msgstr "Afficher les problèmes mineurs"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "No issues found."
+msgstr "Aucun problème trouvé."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "Problems: {}   Warnings: {}   Minor: {}"
+msgstr "Problèmes : {}   Avertissements : {}   Mineurs : {}"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Problem"
+msgstr "Problème"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Warning"
+msgstr "Avertissement"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Minor"
+msgstr "Mineur"
+
+#: src/App/Neomod/Editor/Playfield/PlayfieldPanel.cpp
+#, c++-format
+msgid "Prev: {:.2f}x"
+msgstr "Préc. : {:.2f}x"
+
+#: src/App/Neomod/Editor/Playfield/PlayfieldPanel.cpp
+#, c++-format
+msgid "Next: {:.2f}x"
+msgstr "Suiv. : {:.2f}x"
+
+#: src/App/Neomod/EditorScreen.cpp
+msgid "The editor failed to start."
+msgstr "L'éditeur n'a pas pu démarrer."
+
+#: src/App/Neomod/EditorScreen.cpp
+msgid "The editor could not be loaded, the log has the details."
+msgstr "L'éditeur n'a pas pu être chargé, le journal contient les détails."
+
+#: src/App/Neomod/EditorScreen.cpp
+msgid "The editor was built for a newer build of the game, restart the game to load it."
+msgstr "L'éditeur a été compilé pour une version plus récente du jeu, redémarrez le jeu pour le charger."
+
+#: src/App/Neomod/EditorScreen.cpp
+msgid "Ctrl+Alt+E tries again, Escape goes back."
+msgstr "Ctrl+Alt+E réessaie, Échap revient en arrière."
+
+#: src/App/Neomod/EditorScreen.cpp
+#, c++-format
+msgid "Reloaded the editor in {:.2f} ms"
+msgstr "Éditeur rechargé en {:.2f} ms"
+
+#: src/App/Neomod/EditorScreen.cpp
+#, c++-format
+msgid "The editor could not be loaded: {}"
+msgstr "L'éditeur n'a pas pu être chargé : {}"
+
+#: src/App/Neomod/EditorScreen.cpp
+#, c++-format
+msgid "Restoring the last editor session crashed the game, so the editor started a new one. The old session was kept as {}."
+msgstr "La restauration de la dernière session de l'éditeur a fait planter le jeu, l'éditeur en a donc démarré une nouvelle. L'ancienne session a été conservée sous {}."
 
 #: src/App/Neomod/HUD.cpp
 #, c++-format
@@ -414,10 +1797,6 @@ msgstr "Options"
 #: src/App/Neomod/MainMenu.cpp
 msgid "Exit"
 msgstr "Quitter"
-
-#: src/App/Neomod/MainMenu.cpp
-msgid "Save"
-msgstr "Sauvegarder"
 
 #: src/App/Neomod/MainMenu.cpp src/App/Neomod/OsuDirectScreen.cpp
 msgid "Online Beatmaps"
@@ -1020,6 +2399,10 @@ msgstr "Mods expérimentaux"
 msgid "Hold [ALT] to slide in 0.01 increments."
 msgstr "Maintenez [ALT] pour glisser par incréments de 0,01."
 
+#: src/App/Neomod/NeomodUrl.cpp
+msgid "This editor link isn't valid."
+msgstr "Ce lien d'éditeur n'est pas valide."
+
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Mouse Left"
 msgstr "Souris gauche"
@@ -1037,20 +2420,12 @@ msgid "McOsu"
 msgstr "McOsu"
 
 #: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/SongBrowser/ScoreButton.cpp
-msgid "None"
-msgstr "Aucun"
-
-#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/SongBrowser/ScoreButton.cpp
 msgid "osu!lazer 2020"
 msgstr "osu!lazer 2020"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "osu!stable (default)"
 msgstr "osu!stable (défaut)"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "General"
-msgstr "Général"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Online server"
@@ -1520,10 +2895,6 @@ msgid "Devices"
 msgstr "Périphériques"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Default"
-msgstr "Par défaut"
-
-#: src/App/Neomod/OptionsOverlay.cpp
 msgid "Select Output Device"
 msgstr "Carte son"
 
@@ -1632,10 +3003,6 @@ msgstr "ASIO"
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Open ASIO settings"
 msgstr "Ouvrir les paramètres ASIO"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Volume"
-msgstr "Volume"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Normalize loudness across songs"
@@ -2212,10 +3579,6 @@ msgstr "Autopilot"
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Spunout"
 msgstr "Spunout"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Auto"
-msgstr "Auto"
 
 #: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/RoomScreen.cpp
 msgid "Score V2"
@@ -2998,8 +4361,20 @@ msgid "Failed to save osu.cfg"
 msgstr "Échec de la sauvegarde de osu.cfg"
 
 #: src/App/Neomod/Osu.cpp
+msgid "Editor links open from the main menu, the song browser and the editor."
+msgstr "Les liens d'éditeur s'ouvrent depuis le menu principal, le navigateur de musiques et l'éditeur."
+
+#: src/App/Neomod/Osu.cpp
 msgid "This replay's beatmap is not installed."
 msgstr "La beatmap de ce replay n'est pas installée."
+
+#: src/App/Neomod/Osu.cpp
+msgid "The linked map isn't installed and wasn't found online."
+msgstr "La map liée n'est pas installée et n'a pas été trouvée en ligne."
+
+#: src/App/Neomod/Osu.cpp
+msgid "The linked map isn't installed. Log in to download it."
+msgstr "La map liée n'est pas installée. Connectez-vous pour la télécharger."
 
 #: src/App/Neomod/Osu.cpp
 #, c++-format
@@ -3190,10 +4565,6 @@ msgstr "Quitter"
 #: src/App/Neomod/PromptOverlay.cpp
 msgid "OK"
 msgstr "OK"
-
-#: src/App/Neomod/PromptOverlay.cpp
-msgid "Cancel"
-msgstr "Annuler"
 
 #: src/App/Neomod/RankingScreen.cpp
 msgid "You achieved the #1 score on local rankings!"

@@ -19,7 +19,7 @@ pen_down
 @wait 3
 pen_up
 @wait 40
-pen_to 867 401
+pen_to 867 426
 @wait 3
 pen_down
 @wait 3

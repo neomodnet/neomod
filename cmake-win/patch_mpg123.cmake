@@ -114,7 +114,7 @@ static int check_vbri_tag(mpg123_handle *fr)
 ]=])
 
 # add the check_vbri_tag function after check_lame_tag_no label
-# (the patch step reruns on the already patched source whenever the patch command changes)
+# the patch step reruns on the already patched source whenever the patch command changes
 if(NOT FILE_CONTENT MATCHES "check_vbri_tag")
     string(REPLACE
         "check_lame_tag_no:\n\treturn 0;\n}"

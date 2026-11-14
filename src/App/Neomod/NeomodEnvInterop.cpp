@@ -4,6 +4,7 @@
 #include "OsuConVars.h"
 #include "BeatmapInstaller.h"
 #include "Database.h"
+#include "EditorScreen.h"
 #include "DatabaseBeatmap.h"
 #include "NeomodUrl.h"
 #include "OptionsOverlay.h"
@@ -51,6 +52,7 @@ void handle_open_requests(std::span<const std::string> requests) {
     bool got_db_related_import = false;
     std::vector<std::string> osz_imports;
     std::vector<std::string> replay_imports;
+    std::vector<std::string> unclaimed;  // for the screen shown
     bool need_to_reload_database = false;
 
     for(const auto &arg : requests) {
@@ -82,9 +84,16 @@ void handle_open_requests(std::span<const std::string> requests) {
                     db->addPathToImport(arg);
                     need_to_reload_database = true;
                     got_db_related_import = true;
+                } else {
+                    unclaimed.push_back(arg);
                 }
             }
         }
+    }
+
+    // the editor screen stays the active one, hidden, during a test play it started
+    if(!unclaimed.empty() && ui->getActiveScreen() == ui->getEditorScreen() && ui->getEditorScreen()->isVisible()) {
+        ui->getEditorScreen()->onDrop(unclaimed);
     }
 
     if(!got_db_related_import) return;

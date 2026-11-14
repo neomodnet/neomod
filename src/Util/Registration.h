@@ -1,9 +1,17 @@
 #pragma once
 // Copyright (c) 2026, WH, All rights reserved.
-#include "noinclude.h"
 #include "types.h"
 
 #include <utility>
+
+// on an API that keeps what it's given with no Mc::Registration to revoke it: an error in code that gets unloaded while
+// the program runs (compiled with MC_RELOADABLE_CODE), since nothing could stop it from running that code afterwards.
+// (decided here, after the pch, which code with and without MC_RELOADABLE_CODE shares)
+#ifdef MC_RELOADABLE_CODE
+#define MC_UNREVOCABLE [[deprecated("keeps what it is given with no Mc::Registration to revoke it")]]
+#else
+#define MC_UNREVOCABLE
+#endif
 
 namespace Mc {
 // What a service keeps on a caller's behalf (a callback, a listener, an overlay) lasts as long as the Registration it

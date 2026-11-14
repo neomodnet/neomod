@@ -1,0 +1,43 @@
+# an editor link given at launch (neomod://edit/<map md5>/<time>/<combo numbers>): the database loads, the editor
+# opens the map at the first object from the time with the objects for the combo numbers selected (here the circle with
+# a whistle). Edit, Copy Link to This Time (the last menu row) copies the link for the selection; a link given while the
+# editor shows the map only goes to its time
+# uitest-datadir: fresh
+# uitest-args: neomod://edit/0e4b05479a56e3fe8274faa754984cc3/00:00:900/2
+# uitest-file: cfg/osu.cfg|osu_folder uitest_osu_folder
+# uitest-file: maps/uitest compose/compose.osu|osu file format v14||[General]|AudioFilename: none.mp3|Mode: 0||[Metadata]|Title:UITest compose|Artist:UITest|Creator:uitest|Version:compose|BeatmapID:0|BeatmapSetID:-1||[Difficulty]|CircleSize:4|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|0,500,4,2,0,100,1,0||[HitObjects]|64,64,1000,5,0,0:0:0:0:|448,64,1500,1,2,0:0:0:0:|448,320,2000,1,0,0:0:0:0:|64,320,2500,1,0,0:0:0:0:|100,192,3000,6,0,L\x7c400:192,1,280|256,192,5000,12,0,6000,0:0:0:0:|256,100,7000,1,0,0:0:0:0:
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 300
+ui_assert text editor_title UITest - UITest compose [compose]
+ui_assert text editor_clock 00:01:000
+ui_assert checked editor_whistle 1
+mouse_to 86 22
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert visible editor_menu_copy_link 1
+mouse_to 200 454
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert clipboard https://neomod.net/online/?neomod://edit/0e4b05479a56e3fe8274faa754984cc3/00:01:500/2
+debug_drop neomod://edit/0e4b05479a56e3fe8274faa754984cc3/00:02:400
+@wait 5
+ui_assert text editor_clock 00:02:400
+ui_assert checked editor_whistle 1
+# one that names no map changes nothing
+debug_drop neomod://edit/nothing/00:03:000
+@wait 5
+ui_assert text editor_clock 00:02:400
+exit

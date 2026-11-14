@@ -69,6 +69,9 @@
 /* Defined if the OpenGL ES backend is to be used. */
 #undef MCENGINE_FEATURE_GLES32
 
+/* Defined if the editor is built as a library that is reloaded in place. */
+#undef MCENGINE_FEATURE_HOT_RELOAD
+
 /* Defined if internationalization features are to be supported. */
 #undef MCENGINE_FEATURE_I18N
 

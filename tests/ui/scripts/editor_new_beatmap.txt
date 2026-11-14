@@ -1,0 +1,48 @@
+# an audio file dropped on the editor (debug_drop: where a drop goes) starts a new beatmap: a set in maps/ named after
+# the file, with the audio and a first difficulty titled after it by the player (unsubmitted: no set id), shown on the
+# Timing tab at 1/4; it's in the song browser with its audio. Escape goes back to Compose before it leaves the editor,
+# and a drop on the shown map starts no other beatmap (which would show its Timing tab)
+# uitest-datadir: fresh
+# uitest-cleanup: silence
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen editorscreen
+@wait 300
+ui_assert visible editor_new_beatmap 1
+debug_drop uitest_osu_folder_play/Songs/play set/silence.wav
+@wait 30
+ui_assert text editor_title silence
+ui_assert visible editor_timing 1
+ui_assert visible editor_empty 0
+ui_assert text editor_divisor_value 1/4
+sendkey Escape
+@wait 30
+ui_assert screen_active editorscreen 1
+ui_assert visible editor_timing 0
+ui_assert visible editor_playfield 1
+debug_drop uitest_osu_folder_play/Songs/play set/silence.wav
+@wait 30
+ui_assert visible editor_timing 0
+ui_assert visible editor_playfield 1
+# an empty map starts with the Circle tool, which Escape puts down first
+sendkey Escape
+@wait 5
+ui_assert screen_active editorscreen 1
+sendkey Escape
+@wait 30
+ui_assert screen_active editorscreen 0
+set_active_ui_screen songbrowser
+@wait 60
+sendtext silence
+@wait 60
+ui_assert map file silence (Guest).osu
+ui_assert map setid -1
+exit

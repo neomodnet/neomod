@@ -588,6 +588,7 @@ bool Image::loadRawImage() {
             if(this->isInterrupted())  // cancellation point
                 return exit();
 
+            this->iFileModificationTime = file.getModificationTime();
             fileBuffer = file.takeFileBuffer();
             if(!fileBuffer) {
                 debugLog("Image Error: Couldn't readFile() file {:s}", this->sFilePath);

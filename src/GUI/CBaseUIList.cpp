@@ -34,6 +34,7 @@ CBaseUIList *CBaseUIList::setSelection(std::span<const u64> keys) {
     this->selection.insert(keys.begin(), keys.end());
     if(this->anchor && !this->selection.contains(*this->anchor)) this->anchor.reset();
     if(this->cursor && !this->selection.contains(*this->cursor)) this->cursor.reset();
+    if(keys.size() == 1) this->anchor = this->cursor = keys.front();
     return this;
 }
 
@@ -102,7 +103,8 @@ void CBaseUIList::scrollTo(uSz row) {
     const float rowHeight = style.px(style.metrics.rowHeight);
     const float top = (float)row * rowHeight;
     const float view = this->getRowsRect().getHeight();
-    if(top < this->scroll) {
+    // a list without room for a row (not laid out yet) shows it first
+    if(top < this->scroll || view < rowHeight) {
         this->scroll = top;
     } else if(top + rowHeight > this->scroll + view) {
         this->scroll = top + rowHeight - view;
@@ -287,7 +289,7 @@ void CBaseUIList::onMouseDownInside(bool left, bool right) {
         }
         return;
     }
-    if(CBaseUIDispatch::getClicks() >= 2) {
+    if(CBaseUIDispatch::getClicks(this->model.getRowKey(*row)) >= 2) {
         if(this->activateCallback) this->activateCallback(*row);
         return;
     }

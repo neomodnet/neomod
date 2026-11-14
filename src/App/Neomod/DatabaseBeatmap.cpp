@@ -47,6 +47,11 @@ std::string DatabaseBeatmap::getFullBackgroundImageFilePath() const {
     return fmt::format("{:s}{:s}", this->getFolder(), this->getBackgroundImageFileName());
 }
 
+const DiffContainer &DatabaseBeatmap::getDifficulties() const {
+    static DiffContainer empty;
+    return this->difficulties == nullptr ? empty : *this->difficulties;
+}
+
 DatabaseBeatmap::LOAD_GAMEPLAY_RESULT::LOAD_GAMEPLAY_RESULT() = default;
 DatabaseBeatmap::LOAD_GAMEPLAY_RESULT::~LOAD_GAMEPLAY_RESULT() = default;
 
@@ -149,10 +154,7 @@ bool DatabaseBeatmap::operator==(const DatabaseBeatmap &other) const {
     return false;
 }
 
-namespace {
-
-// the limits the game reads maps with
-Primitives::Limits limitsFromConVars() {
+Primitives::Limits DatabaseBeatmap::limits() {
     return {.maxHitObjects = cv::beatmap_max_num_hitobjects.getVal<u32>(),
             .maxSliderScoringTimes = cv::beatmap_max_num_slider_scoringtimes.getInt(),
             .sliderCurveMaxLength = cv::slider_curve_max_length.getFloat(),
@@ -160,8 +162,6 @@ Primitives::Limits limitsFromConVars() {
             .sliderMaxRepeats = cv::slider_max_repeats.getInt(),
             .sliderMaxTicks = cv::slider_max_ticks.getInt()};
 }
-
-}  // namespace
 
 Primitives::PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjects(std::string_view osuFilePath,
                                                                       const Sync::stop_token &dead) {
@@ -180,7 +180,7 @@ Primitives::PRIMITIVE_CONTAINER DatabaseBeatmap::loadPrimitiveObjects(std::strin
         // close the file here
     }
 
-    return Primitives::loadPrimitiveObjectsFromData(fileBuffer, limitsFromConVars(), dead);
+    return Primitives::loadPrimitiveObjectsFromData(fileBuffer, DatabaseBeatmap::limits(), dead);
 }
 
 DiffCalc::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(std::string_view osuFilePath, float AR,
@@ -195,7 +195,7 @@ DiffCalc::LOAD_DIFFOBJ_RESULT DatabaseBeatmap::loadDifficultyHitObjects(std::spa
                                                                         float CS, float speedMultiplier, bool hardRock,
                                                                         const Sync::stop_token &dead) {
     Primitives::PRIMITIVE_CONTAINER c =
-        Primitives::loadPrimitiveObjectsFromData(osuFileData, limitsFromConVars(), dead);
+        Primitives::loadPrimitiveObjectsFromData(osuFileData, DatabaseBeatmap::limits(), dead);
     return DiffCalc::loadDifficultyHitObjects(c, AR, CS, speedMultiplier, hardRock, dead);
 }
 
@@ -208,7 +208,7 @@ PlayedMap DatabaseBeatmap::readPlayedMap(std::shared_ptr<const std::vector<u8>> 
     }
 
     PlayedMap played;
-    played.primitives = Primitives::loadPrimitiveObjectsFromData(*data, limitsFromConVars());
+    played.primitives = Primitives::loadPrimitiveObjectsFromData(*data, DatabaseBeatmap::limits());
     played.md5 = crypto::hash::md5(*data);
     played.data = std::move(data);
     return played;

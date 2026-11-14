@@ -12,6 +12,7 @@
 #include <optional>
 #include <ranges>
 #include <span>
+#include <utility>
 #include <cassert>
 
 namespace CBaseUIDispatch {
@@ -33,6 +34,7 @@ struct State final {
     [[nodiscard]] bool isCaptureLocked() const { return this->captorLocked; }
     [[nodiscard]] MouseButtonFlags getCaptorButtons() const { return this->captorButtons; }
     [[nodiscard]] u8 getClicks() const { return this->clicks; }
+    [[nodiscard]] u8 getClicks(u64 part);
 
     // a press is about to be delivered to target: the platform's count of presses in a row holds while they go to the
     // same element and button, a press elsewhere starts over
@@ -102,6 +104,10 @@ struct State final {
     const CBaseUIElement *lastPressTarget{nullptr};
     MouseButtonFlags lastPressButton{};
     u8 clicks{1};
+    // the part of its element the press being delivered and the one before were on (none: not said), and their presses
+    // in a row there
+    std::optional<u64> part, lastPart;
+    u8 partClicks{1}, lastPartClicks{1};
 
     // bumped on every element destruction; dispatch abandons the frame's remaining deliveries
     // when it changes mid-loop (a handler deleted/rebuilt parts of the UI under the candidates)
@@ -205,6 +211,14 @@ void State::countClicks(const CBaseUIElement *target, MouseButtonFlags btn, u8 p
     this->clicks = (target == this->lastPressTarget && btn == this->lastPressButton) ? platformClicks : 1;
     this->lastPressTarget = target;
     this->lastPressButton = btn;
+    this->lastPart = std::exchange(this->part, std::nullopt);
+    this->lastPartClicks = std::exchange(this->partClicks, 1);
+}
+
+u8 State::getClicks(u64 part) {
+    this->part = part;
+    this->partClicks = this->clicks > 1 && this->lastPart == part ? this->lastPartClicks + 1 : 1;
+    return this->partClicks;
 }
 
 void State::lockCapture(const CBaseUIElement *who) {
@@ -564,5 +578,6 @@ CBaseUIElement *getCaptor() { return state.getCaptor(); }
 bool isCaptureLocked() { return state.isCaptureLocked(); }
 MouseButtonFlags getCaptorButtons() { return state.getCaptorButtons(); }
 u8 getClicks() { return state.getClicks(); }
+u8 getClicks(u64 part) { return state.getClicks(part); }
 
 }  // namespace CBaseUIDispatch

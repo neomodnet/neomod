@@ -1,0 +1,116 @@
+# the map samples by sample index: Files... beside Sample Index on the Timing tab shows the index on the selected point
+# (the first index for skin samples), the sounds in each sample set with the file the folder has for it. the index
+# steps, a cell picked says what it has and is heard (without a file the skin sample, a looping one for a while), a
+# sound file dropped on the game becomes the sample for the picked cell, under its name, and Delete File deletes it; the
+# skin has them at once. with the sample chooser open, a dropped file is added to it and picked
+# uitest-datadir: fresh
+# uitest-copy: uitest_osu_folder_play/Songs/play set/silence.wav|maps/uitest samples/silence.wav
+# uitest-copy: uitest_osu_folder_play/Songs/play set/silence.wav|maps/uitest samples/kick.wav
+# uitest-copy: uitest_osu_folder_play/Songs/play set/silence.wav|maps/uitest samples/Snare.ogg
+# uitest-copy: uitest_osu_folder_play/Songs/play set/silence.wav|maps/uitest samples/soft-hitclap2.wav
+# uitest-file: maps/uitest samples/samples.osu|osu file format v14||[General]|AudioFilename: silence.wav|Mode: 0||[Metadata]|Title:UITest samples|Artist:UITest|Creator:uitest|Version:samples|BeatmapID:0|BeatmapSetID:-1||[Difficulty]|CircleSize:4|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|0,500,4,2,0,100,1,0||[HitObjects]|64,64,1000,5,0,0:0:0:0:|448,64,1500,1,2,0:0:0:0:|448,320,2000,1,0,0:0:0:0:|64,320,2500,1,0,0:0:0:0:|100,192,3000,6,0,L\x7c400:192,1,280|256,192,5000,12,0,6000,0:0:0:0:|256,100,7000,1,0,0:0:0:0:
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen editorscreen
+@wait 300
+sendkey Return
+@wait 30
+ui_assert text editor_title UITest - UITest samples [samples]
+ui_assert skin samples 1
+sendkey F3
+@wait 5
+mouse_to 1225 360
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert visible editor_sample_sets 1
+ui_assert text editor_sample_sets_index_value 1
+ui_assert text editor_sample_sets_used This map has samples for: 2
+ui_assert text editor_sample_sets_normal_hitnormal -
+ui_assert checked editor_sample_sets_normal_hitnormal 1
+ui_assert text editor_sample_sets_file normal-hitnormal: not overridden
+ui_assert enabled editor_sample_sets_delete 0
+mouse_to 408 292
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+ui_assert text editor_sample_sets_index_value 2
+ui_assert text editor_sample_sets_soft_hitclap wav
+ui_assert text editor_sample_sets_drum_hitfinish -
+mouse_to 790 382
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+ui_assert checked editor_sample_sets_soft_sliderslide 1
+ui_assert text editor_sample_sets_file soft-sliderslide2: not overridden
+@wait 120
+ui_assert visible editor_sample_sets 1
+mouse_to 675 382
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+ui_assert checked editor_sample_sets_soft_hitclap 1
+ui_assert checked editor_sample_sets_normal_hitnormal 0
+ui_assert text editor_sample_sets_file soft-hitclap2.wav
+ui_assert enabled editor_sample_sets_delete 1
+mouse_to 559 416
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+ui_assert text editor_sample_sets_file drum-hitfinish2: not overridden
+debug_drop uitest_osu_folder_play/Songs/play set/silence.wav
+@wait 5
+ui_assert visible editor_sample_sets 1
+ui_assert text editor_sample_sets_drum_hitfinish wav
+ui_assert text editor_sample_sets_file drum-hitfinish2.wav
+ui_assert skin samples 2
+ui_assert text editor_title UITest - UITest samples [samples]
+mouse_to 1020 450
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert text editor_sample_sets_drum_hitfinish -
+ui_assert enabled editor_sample_sets_delete 0
+ui_assert skin samples 1
+sendkey Escape
+@wait 5
+ui_assert exists editor_sample_sets 0
+sendkey F1
+@wait 5
+mouse_to 1197 438
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert rows editor_sample_files 3
+debug_drop uitest_osu_folder_play/Songs/play set/silence.wav
+@wait 5
+ui_assert rows editor_sample_files 4
+ui_assert cell editor_sample_files 1 0 silence (2).wav
+ui_assert selected editor_sample_files 1
+sendkey Return
+@wait 5
+ui_assert exists editor_sample_chooser 0
+ui_assert text editor_sample_file silence (2).wav
+exit

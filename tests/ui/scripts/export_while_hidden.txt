@@ -25,7 +25,7 @@ mouse_down right
 @wait 1
 mouse_up right
 @wait 5
-mouse_to 1116 508
+mouse_to 1116 546
 @wait 2
 mouse_down
 @wait 1

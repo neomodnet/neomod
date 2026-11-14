@@ -1,0 +1,117 @@
+# the editor skin wears the open map while it's shown: here soft-hitnormal2 and key.wav from the folder, which the first
+# circle names. View > Map Hitsounds turns them off and on (editor_map_hitsounds), an edit that takes the file name out
+# of the map (deleting every object) frees its sound and undo loads it again, a test play wears the map by the game
+# settings (ignored by default) and the editor wears it again afterwards, and leaving the editor unloads it (the first
+# Escape drops the selection undo left). no debug_fixed_frametime: the test plays run on wall-clock time.
+# uitest-datadir: fresh
+# uitest-copy: uitest_osu_folder_play/Songs/play set/silence.wav|maps/uitest skinned/silence.wav
+# uitest-copy: uitest_osu_folder_play/Songs/play set/silence.wav|maps/uitest skinned/soft-hitnormal2.wav
+# uitest-copy: uitest_osu_folder_play/Songs/play set/silence.wav|maps/uitest skinned/key.wav
+# uitest-file: maps/uitest skinned/skinned.osu|osu file format v14||[General]|AudioFilename: silence.wav|Mode: 0||[Metadata]|Title:UITest Skinned|Artist:UITest|Creator:uitest|Version:skinned|BeatmapID:0|BeatmapSetID:-1||[Difficulty]|HPDrainRate:5|CircleSize:4|OverallDifficulty:5|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|0,500,4,2,2,100,1,0||[HitObjects]|256,192,1000,1,0,0:0:0:0:key.wav|256,192,1500,1,0,0:0:0:0:|256,192,2000,1,0,0:0:0:0:|256,192,2500,1,0,0:0:0:0:|256,192,3000,1,0,0:0:0:0:|256,192,3500,1,0,0:0:0:0:|256,192,4000,1,0,0:0:0:0:|256,192,4500,1,0,0:0:0:0:|256,192,5000,1,0,0:0:0:0:|256,192,5500,1,0,0:0:0:0:|256,192,6000,1,0,0:0:0:0:|256,192,6500,1,0,0:0:0:0:|256,192,7000,1,0,0:0:0:0:|256,192,7500,1,0,0:0:0:0:|256,192,8000,1,0,0:0:0:0:|256,192,8500,1,0,0:0:0:0:|256,192,9000,1,0,0:0:0:0:|256,192,9500,1,0,0:0:0:0:|256,192,10000,1,0,0:0:0:0:|256,192,10500,1,0,0:0:0:0:|256,192,11000,1,0,0:0:0:0:|256,192,11500,1,0,0:0:0:0:|256,192,12000,1,0,0:0:0:0:|256,192,12500,1,0,0:0:0:0:|256,192,13000,1,0,0:0:0:0:|256,192,13500,1,0,0:0:0:0:|256,192,14000,1,0,0:0:0:0:|256,192,14500,1,0,0:0:0:0:|256,192,15000,1,0,0:0:0:0:|256,192,15500,1,0,0:0:0:0:|256,192,16000,1,0,0:0:0:0:|256,192,16500,1,0,0:0:0:0:|256,192,17000,1,0,0:0:0:0:|256,192,17500,1,0,0:0:0:0:|256,192,18000,1,0,0:0:0:0:|256,192,18500,1,0,0:0:0:0:|256,192,19000,1,0,0:0:0:0:|256,192,19500,1,0,0:0:0:0:|256,192,20000,1,0,0:0:0:0:|256,192,20500,1,0,0:0:0:0:|256,192,21000,1,0,0:0:0:0:|256,192,21500,1,0,0:0:0:0:|256,192,22000,1,0,0:0:0:0:|256,192,22500,1,0,0:0:0:0:|256,192,23000,1,0,0:0:0:0:|256,192,23500,1,0,0:0:0:0:|256,192,24000,1,0,0:0:0:0:|256,192,24500,1,0,0:0:0:0:|256,192,25000,1,0,0:0:0:0:|256,192,25500,1,0,0:0:0:0:|256,192,26000,1,0,0:0:0:0:|256,192,26500,1,0,0:0:0:0:|256,192,27000,1,0,0:0:0:0:|256,192,27500,1,0,0:0:0:0:|256,192,28000,1,0,0:0:0:0:|256,192,28500,1,0,0:0:0:0:|256,192,29000,1,0,0:0:0:0:|256,192,29500,1,0,0:0:0:0:|256,192,30000,1,0,0:0:0:0:|256,192,30500,1,0,0:0:0:0:
+options_save_on_back 0
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen editorscreen
+@wait 300
+@sleep 500
+@wait 30
+ui_assert skin samples 0
+sendkey Return
+@wait 30
+ui_assert text editor_title UITest - UITest Skinned [skinned]
+ui_assert skin samples 2
+mouse_to 334 22
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+mouse_to 400 227
+@wait 3
+ui_assert hovered editor_menu_map_hitsounds 1
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert convar editor_map_hitsounds 0
+ui_assert skin samples 0
+editor_map_hitsounds 1
+@wait 5
+ui_assert skin samples 2
+sendkey 224 down
+sendkey A
+sendkey 224 up
+@wait 3
+sendkey Delete
+@wait 5
+ui_assert text editor_title UITest - UITest Skinned [skinned] *
+ui_assert skin samples 1
+sendkey 224 down
+sendkey Z
+sendkey 224 up
+@wait 5
+ui_assert text editor_title UITest - UITest Skinned [skinned]
+ui_assert skin samples 2
+sendkey Z
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+@wait 5
+ui_assert text editor_clock 00:04:000
+sendkey F5
+@wait 2
+ui_assert visible editor 0
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+ui_assert skin samples 0
+sendkey Escape
+@wait_secs 1
+ui_assert visible pauseoverlay 1
+mouse_to 640 508
+@wait 5
+mouse_down
+@wait 2
+mouse_up
+@wait_secs 1
+ui_assert visible editor 1
+ui_assert skin samples 2
+ignore_beatmap_samples 0
+@wait 2
+ui_assert skin samples 2
+sendkey F5
+@wait 2
+ui_assert visible editor 0
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+ui_assert skin samples 2
+sendkey Escape
+@wait_secs 1
+ui_assert visible pauseoverlay 1
+mouse_to 640 508
+@wait 5
+mouse_down
+@wait 2
+mouse_up
+@wait_secs 1
+ui_assert visible editor 1
+ui_assert skin samples 2
+sendkey Escape
+@wait 5
+sendkey Escape
+@wait 30
+ui_assert visible editor 0
+ui_assert skin samples 0
+exit

@@ -1,0 +1,22 @@
+# the marker for a restore that never finished (the game crashed restoring the session) makes the first start set that
+# session aside (session.bad) and start a fresh one, with a toast.
+# uitest-datadir: fresh
+# uitest-file: editor/session|\x03\x01\x00\x0b\x11uitest editor set\x0b\x0adiff02.osu\x00\x01\x00\x0b\x11uitest editor set\x0b\x0adiff02.osu\xdc\x05\x00\x00\x00\x01\x04
+# uitest-file: editor/session.restoring|
+# uitest-log: 1 restoring the editor session crashed the game last time
+# uitest-log: 1 editor session: 0 map(s), none open
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+ui_trace 1
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen editorscreen
+@wait 120
+ui_assert visible editor_exit 1
+exit

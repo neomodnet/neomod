@@ -1,0 +1,34 @@
+# View > Hitsound Labels turns the timeline sound labels off (editor_hitsound_labels, on by default).
+# uitest-datadir: fresh
+# uitest-file: maps/uitest compose/compose.osu|osu file format v14||[General]|AudioFilename: none.mp3|Mode: 0||[Metadata]|Title:UITest compose|Artist:UITest|Creator:uitest|Version:compose|BeatmapID:0|BeatmapSetID:-1||[Difficulty]|CircleSize:4|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|0,500,4,2,0,100,1,0||[HitObjects]|64,64,1000,5,0,0:0:0:0:|448,64,1500,1,2,0:0:0:0:|448,320,2000,1,0,0:0:0:0:|64,320,2500,1,0,0:0:0:0:|100,192,3000,6,0,L\x7c400:192,1,280|256,192,5000,12,0,6000,0:0:0:0:|256,100,7000,1,0,0:0:0:0:
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen editorscreen
+@wait 300
+sendkey Return
+@wait 30
+ui_assert text editor_title UITest - UITest compose [compose]
+ui_assert convar editor_hitsound_labels 1
+mouse_to 334 22
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+mouse_to 400 275
+@wait 3
+ui_assert hovered editor_menu_hitsound_labels 1
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert convar editor_hitsound_labels 0
+exit

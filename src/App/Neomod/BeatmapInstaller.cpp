@@ -30,6 +30,8 @@
 #include <algorithm>
 #include <filesystem>
 #include <optional>
+#include <utility>
+#include <vector>
 
 namespace {  // internal utils
 using namespace std::string_view_literals;
@@ -54,13 +56,15 @@ Extracted parse_extracted(std::string folder) {
     return out;
 }
 
-// one queued import. three kinds share the stage machine:
+// one queued import. four kinds share the stage machine:
 // - download: set_id known up front, dl_handle drives Queued/Downloading; the fetched bytes
 //   then use the extract_handle through Extracting like a local import
 // - local .osz: osz_path set; only the archive knows its set id (and it may not have one at all)
 // - folder: a maps/ folder the directory watcher reported; Extracting only parses it
+// - copy: a folder in the osu!stable songs folder (source) copied into the maps/ folder that stands for it; Extracting
+//   copies and parses it
 struct Entry {
-    enum class Kind : u8 { Download, Osz, Folder };
+    enum class Kind : u8 { Download, Osz, Folder, Copy };
     Kind kind{Kind::Download};
     u32 uid{0};
     i32 set_id{-1};
@@ -68,6 +72,7 @@ struct Entry {
     MD5Hash md5{};
     Downloader::DownloadHandle dl_handle;
     std::string osz_path;
+    std::string source;                    // for a copy: the osu!stable folder it copies (absolute)
     std::string folder;                    // maps/ folder the archive was extracted into (relative)
     std::unique_ptr<DiffContainer> diffs;  // its .osu files, parsed by the extraction worker, consumed by the import
     std::vector<BatchDiffCalc::MapResult> calculated;  // the worker's difficulty calculation for diffs
@@ -139,7 +144,10 @@ void on_done(const ReconcileResult& r, const Entry& e) {
 void fail_entry(Entry& e, f64 now) {
     e.stage = MapInstallStage::Failed;
     e.finished_time = now;
-    if(e.is_local()) {
+    if(e.kind == Entry::Kind::Copy) {
+        ui->getNotificationOverlay()->addToast(tformat("{} couldn't be copied into the neomod library", e.display_name),
+                                               ERROR_TOAST);
+    } else if(e.is_local()) {
         ui->getNotificationOverlay()->addToast(tformat("Failed to import {}", e.display_name), ERROR_TOAST);
     } else {
         ui->getNotificationOverlay()->addToast(tformat("Failed to download beatmapset #{:d} :(", e.set_id),
@@ -156,19 +164,24 @@ struct OszMeta {
     std::string title;
 };
 
-// the [Metadata] of one .osu: enough to know the set and to name its folder
-OszMeta parse_osz_meta(std::string_view file) {
+// reads the [Metadata] in one .osu from a set into meta: the artist and title from the first one that has them, the set
+// id from the first one that has one. true once there's nothing more to learn
+bool read_osu_meta(OszMeta& meta, std::string_view file) {
     using neomod::BeatmapFile;
     using enum BeatmapFile::SectionKind;
     const BeatmapFile parsed{file};
-    OszMeta meta;
-    meta.artist = parsed.getValue(METADATA, "Artist").value_or("");
-    meta.title = parsed.getValue(METADATA, "Title").value_or("");
-    if(const auto setId = parsed.getValue<i32>(METADATA, "BeatmapSetID")) {
-        meta.set_id = *setId;
-        meta.says_set_id = true;
+    if(meta.artist.empty() && meta.title.empty()) {
+        meta.artist = parsed.getValue(METADATA, "Artist").value_or("");
+        meta.title = parsed.getValue(METADATA, "Title").value_or("");
     }
-    return meta;
+    if(const auto setId = parsed.getValue<i32>(METADATA, "BeatmapSetID")) {
+        meta.says_set_id = true;
+        if(*setId > 0) {
+            meta.set_id = *setId;
+            return true;
+        }
+    }
+    return false;
 }
 
 // something every filesystem the maps/ folder could end up on accepts
@@ -193,6 +206,18 @@ std::string sanitize_folder_name(std::string_view name) {
     return out;
 }
 
+// the name osu! gives a set, "<setid> Artist - Title" (without the set id for an unsubmitted set, only the set id
+// without metadata), legal on any filesystem. "" if nothing usable is known
+std::string osu_set_name(i32 set_id, const OszMeta& meta) {
+    std::string name;
+    if(!meta.artist.empty() || !meta.title.empty()) {
+        name = sanitize_folder_name(set_id > 0 ? fmt::format("{} {} - {}", set_id, meta.artist, meta.title)
+                                               : fmt::format("{} - {}", meta.artist, meta.title));
+    }
+    if(name.empty() && set_id > 0) name = fmt::to_string(set_id);
+    return name;
+}
+
 // where a set lives under maps/: the only place that decides folder names. an installed set (by id) keeps
 // its folder, which is how new or updated difficulties end up next to the existing ones; everything else
 // gets osu!stable's "<setid> Artist - Title" (a local file's own stem already has that shape if it came
@@ -214,11 +239,7 @@ std::string target_folder_name(i32 set_id, std::string_view osz_stem, const OszM
        })) {
         name.clear();
     }
-    if(name.empty() && (!meta.artist.empty() || !meta.title.empty())) {
-        name = sanitize_folder_name(set_id > 0 ? fmt::format("{} {} - {}", set_id, meta.artist, meta.title)
-                                               : fmt::format("{} - {}", meta.artist, meta.title));
-    }
-    if(name.empty() && set_id > 0) name = fmt::to_string(set_id);
+    if(name.empty()) name = osu_set_name(set_id, meta);
     return name;
 }
 
@@ -269,6 +290,41 @@ bool write_entries_to_dir(const std::vector<Archive::Entry>& entries, std::strin
 // osu! always stores .osz entry names as Shift-JIS (CP932)
 constexpr std::string_view ARCHIVE_CHARSET{"CP932"};
 
+// copies a folder tree (with a trailing separator) into maps/<folder>/, over what's there and the top level .osu files
+// last, so that a copy cut short has none or all of them; then parsed like an extraction (no folder on failure). a file
+// that can't be copied is left out, as an archive entry that can't be written is
+Extracted copy_extracted(const std::string& from, std::string folder) {
+    // storyboards nest their assets a few folders deep
+    constexpr int MAX_DEPTH{8};
+    const std::string to = fmt::format("{}/{}/", Mc::Paths::maps(), folder);
+    const bool existed = env->directoryExists(to);
+    std::vector<std::pair<std::string, int>> folders{{"", 0}};  // relative ones with a trailing separator, their depth
+    std::vector<std::string> maps;
+    bool copied = env->directoryExists(from) && env->createDirectory(to);
+    for(uSz i = 0; copied && i < folders.size(); i++) {
+        const auto [rel_folder, depth] = folders[i];
+        std::vector<File::DirEntry> entries;
+        File::getDirectoryEntries(from + rel_folder, File::DirContents::ALL, entries, false);
+        for(const auto& entry : entries) {
+            const std::string rel = rel_folder + entry.name;
+            if(entry.type == File::FILETYPE::FOLDER) {
+                if(depth < MAX_DEPTH && env->createDirectory(to + rel)) folders.emplace_back(rel + "/", depth + 1);
+            } else if(depth == 0 && rel.size() > 4 && SString::strcase_equal(rel.substr(rel.size() - 4), ".osu")) {
+                maps.push_back(rel);
+            } else {
+                (void)File::copy(from + rel, to + rel);
+            }
+        }
+    }
+    for(const std::string& rel : maps) copied = copied && File::copy(from + rel, to + rel);
+    if(!copied) {
+        debugLog("Couldn't copy {} into maps/{}/", from, folder);
+        if(!existed) env->deletePathsRecursive(to, MAX_DEPTH + 1);
+        return {};
+    }
+    return parse_extracted(std::move(folder));
+}
+
 // maps/<folder> as the directory watcher would see it right now, for telling its events apart from the
 // installer's own writes (see enqueue_folder()): the mtime, or a sentinel for a folder that isn't there (an uninstall)
 fs::file_time_type folder_state(std::string_view folder) {
@@ -307,18 +363,7 @@ std::string BeatmapInstaller::resolve_and_extract_osz(std::span<const u8> data, 
 
         const auto& osu_data = entry.getUncompressedData();
         if(osu_data.empty()) continue;
-
-        OszMeta parsed =
-            parse_osz_meta(std::string_view{reinterpret_cast<const char*>(osu_data.data()), osu_data.size()});
-        if(meta.artist.empty() && meta.title.empty()) {
-            meta.artist = std::move(parsed.artist);
-            meta.title = std::move(parsed.title);
-        }
-        meta.says_set_id |= parsed.says_set_id;
-        if(parsed.set_id > 0) {
-            meta.set_id = parsed.set_id;
-            break;
-        }
+        if(read_osu_meta(meta, {reinterpret_cast<const char*>(osu_data.data()), osu_data.size()})) break;
     }
 
     std::string_view stem = osz_name;
@@ -335,6 +380,35 @@ std::string BeatmapInstaller::resolve_and_extract_osz(std::span<const u8> data, 
     }
     if(!write_entries_to_dir(entries, fmt::format("{}/{}/", Mc::Paths::maps(), folder))) return {};
     return folder;
+}
+
+std::string BeatmapInstaller::new_folder_name(std::string_view name) {
+    const std::string base = sanitize_folder_name(name);
+    if(base.empty()) return {};
+    std::string folder = base;
+    for(u32 n = 2;; n++) {
+        if(const std::string path = fmt::format("{}/{}", Mc::Paths::maps(), folder);
+           !env->directoryExists(path) && !env->fileExists(path)) {
+            return folder;
+        }
+        folder = fmt::format("{} ({})", base, n);
+    }
+}
+
+std::string BeatmapInstaller::set_name(std::string_view folder_path) {
+    while(folder_path.ends_with('/') || folder_path.ends_with('\\')) folder_path.remove_suffix(1);
+    const std::string dir = fmt::format("{}/", folder_path);
+    OszMeta meta;
+    for(const auto& file : Environment::getFilesInFolder(dir)) {
+        if(file.size() <= 4 || !SString::strcase_equal(file.substr(file.size() - 4), ".osu")) continue;
+        File osu(dir + file);
+        if(osu.canRead() && read_osu_meta(meta, osu.readToString())) break;
+    }
+    i32 set_id = meta.set_id;
+    if(set_id <= 0 && !meta.says_set_id) {
+        set_id = Database::setIdFromName(Environment::getFileNameFromFilePath(folder_path));
+    }
+    return osu_set_name(set_id, meta);
 }
 
 std::string BeatmapInstaller::read_and_extract_osz(std::string_view path) {
@@ -449,6 +523,34 @@ void BeatmapInstaller::enqueue_folder(std::string folder, bool changed) {
     m->entries.push_back(std::move(e));
 }
 
+std::string BeatmapInstaller::enqueue_copy(std::string_view peppy_folder) {
+    using enum Database::MapRoot;
+    std::string folder = Database::standIn({.root = Peppy, .folder = std::string{peppy_folder}}).folder;
+    if(folder.empty()) return {};
+    // a stand-in with a set is already the folder for it: copying it again would undo what was changed in it
+    if(db->isStoodIn(peppy_folder)) return folder;
+    // one folder copy at a time
+    if(Mc::ranges::none_of(m->entries, [&folder](const Entry& e) {
+           return e.kind == Entry::Kind::Copy && e.folder == folder && e.stage != MapInstallStage::Failed;
+       })) {
+        Entry e;
+        e.kind = Entry::Kind::Copy;
+        e.uid = m->next_uid++;
+        e.source = db->pathOf({.root = Peppy, .folder = std::string{peppy_folder}});
+        e.display_name = peppy_folder;
+        e.folder = folder;
+        m->entries.push_back(std::move(e));
+    }
+    return folder;
+}
+
+bool BeatmapInstaller::is_writing(std::string_view folder) const {
+    using enum MapInstallStage;
+    return Mc::ranges::any_of(m->entries, [folder](const Entry& e) {
+        return e.folder == folder && (e.stage == Queued || e.stage == Extracting || e.stage == Installing);
+    });
+}
+
 void BeatmapInstaller::cancel(i32 set_id) {
     for(auto it = m->entries.begin(); it != m->entries.end(); ++it) {
         if(it->is_local() || it->set_id != set_id) continue;
@@ -483,7 +585,7 @@ void BeatmapInstaller::snapshot(std::vector<BeatmapInstaller::EntryView>& out) c
     out.clear();
     out.reserve(m->entries.size());
     for(const Entry& e : m->entries) {
-        if(e.kind == Entry::Kind::Folder) continue;
+        if(e.kind == Entry::Kind::Folder || e.kind == Entry::Kind::Copy) continue;
         out.push_back({.uid = e.uid,
                        .set_id = e.set_id,
                        .stage = e.stage,
@@ -542,9 +644,11 @@ void BeatmapInstaller::uninstall(const DatabaseBeatmap* map, bool whole_set) {
                                            gone ? SUCCESS_TOAST : ERROR_TOAST);
 }
 
-std::optional<ReconcileResult> BeatmapInstaller::register_folder(const std::string& folder) {
+std::optional<ReconcileResult> BeatmapInstaller::register_folder(const std::string& folder, bool reread) {
     if(!can_import()) return std::nullopt;
-    auto r = db->reconcileFolder(Database::MapRoot::Neomod, folder, Database::ReconcileMode::PerFile, -1, nullptr);
+    auto r = db->reconcileFolder(
+        Database::MapRoot::Neomod, folder, Database::ReconcileMode::PerFile, -1,
+        reread ? Database::parseFolderDiffs(Mc::Paths::maps() + "/" + folder + "/", false) : nullptr);
     ui->getSongBrowser()->applyReconcile(r);
     osu->getBackgroundImageHandler()->forgetFolder(Mc::Paths::maps() + "/" + folder + "/");
     m->settled[folder] = folder_state(folder);
@@ -584,7 +688,7 @@ void BeatmapInstaller::update() {
                     // watcher reported what the installer did already
                     if(!db->isFinished() || db->isCancelled() || extracting >= max_extracting ||
                        Mc::ranges::any_of(m->entries, [&e](const Entry& o) {
-                           return (o.stage == Extracting && o.kind != Entry::Kind::Folder) ||
+                           return (o.stage == Extracting && o.folder.empty()) ||
                                   ((o.stage == Extracting || o.stage == Installing) && o.folder == e.folder);
                        })) {
                         break;
@@ -602,6 +706,21 @@ void BeatmapInstaller::update() {
                     e.listed = folder_state(e.folder);
                     e.extract_handle =
                         Async::submit([folder = e.folder]() { return parse_extracted(folder); }, Lane::Background);
+                    e.stage = Extracting;
+                    extracting++;
+                    break;
+                }
+                if(e.kind == Entry::Kind::Copy) {
+                    // into a folder that nothing else is writing or registering
+                    if(!db->isFinished() || db->isCancelled() || extracting >= max_extracting ||
+                       Mc::ranges::any_of(m->entries, [&e](const Entry& o) {
+                           return (o.stage == Extracting || o.stage == Installing) && o.folder == e.folder;
+                       })) {
+                        break;
+                    }
+                    e.extract_handle =
+                        Async::submit([from = e.source, folder = e.folder]() { return copy_extracted(from, folder); },
+                                      Lane::Background);
                     e.stage = Extracting;
                     extracting++;
                     break;
@@ -697,14 +816,20 @@ void BeatmapInstaller::update() {
                     m->settled[e.folder] = e.listed;
                     e.stage = Done;
                     e.finished_time = now;
-                } else if(!r.set && !r.dedup_owner) {
+                } else if(!r.set && (!r.dedup_owner || e.kind == Entry::Kind::Copy)) {
                     fail_entry(e, now);
                 } else {
                     e.stage = Done;
                     e.finished_time = now;
                     if(e.is_local() && e.delete_after) env->deleteFile(e.osz_path);
                     m->settled[e.folder] = folder_state(e.folder);
-                    on_done(r, e);
+                    // a copy is for whoever asked for it to follow: no toasts, nothing selected
+                    if(e.kind == Entry::Kind::Copy) {
+                        debugLog("Copied {} into maps/{}/: {} (+{:d} -{:d})", e.display_name, e.folder, r.outcomeName(),
+                                 r.added, r.removed);
+                    } else {
+                        on_done(r, e);
+                    }
                 }
                 break;
             }

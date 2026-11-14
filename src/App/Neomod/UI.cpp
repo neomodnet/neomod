@@ -20,6 +20,7 @@
 
 #include "AboutScreen.h"
 #include "Chat.h"
+#include "EditorScreen.h"
 #include "HUD.h"
 #include "Lobby.h"
 #include "MainMenu.h"
@@ -318,8 +319,8 @@ void UI::draw() {
             !paused && (cv::mod_autoplay.getBool() || cv::mod_autopilot.getBool() || osu->map_iface->isWatching());
         const bool updateAndDrawTrail = !isFPoSu;
         this->hud->drawCursor(cursorPos, cursorAlpha, drawSecondTrail, updateAndDrawTrail);
-    } else {
-        // draw cursor (menus)
+    } else if(!this->editorscreen->isVisible()) {
+        // draw cursor (menus; the editor has the os cursor)
         this->hud->drawCursor(mouse->getPos(), cursorAlpha);
     }
 

@@ -1,6 +1,9 @@
 // Copyright (c) 2026, WH, All rights reserved.
 #include "MapExporter.h"
 
+#include "BeatmapInstaller.h"
+#include "ContainerRanges.h"
+#include "Hashing.h"
 #include "Paths.h"
 #include "OsuConVars.h"
 #include "Timing.h"
@@ -15,6 +18,7 @@
 #include "UI.h"
 #include "fmt/chrono.h"
 
+#include <algorithm>
 #include <ctime>
 
 namespace MapExporter {
@@ -107,6 +111,11 @@ Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, A
                     }
                 }
 
+                // a collection lists a set folder once per difficulty
+                Mc::ranges::sort(real_mapfolders);
+                real_mapfolders.erase(std::unique(real_mapfolders.begin(), real_mapfolders.end()),
+                                      real_mapfolders.end());
+
                 size_t total_chunk = real_mapfolders.size();
                 size_t current_processing = 0;
                 float progress_chunk = 0.f;
@@ -125,6 +134,8 @@ Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, A
                 };
 
                 std::vector<std::string> exported;
+                // two sets in a batch with the same name don't overwrite one another in the archive
+                Hash::unstable_ncase_set<std::string> names;
                 for(const auto &folder : real_mapfolders) {
                     if(tok.stop_requested()) return finish();
                     Archive::Writer ar(ARCHIVE_CHARSET);
@@ -133,14 +144,13 @@ Async::CancellableHandle<void> submit_export(std::set<ExportContext> contexts, A
                         continue;
                     }
 
-                    std::string cleaned_folder_name = folder;
-                    const size_t slashpos = folder.rfind('/');
-                    if(slashpos != std::string::npos) {
-                        cleaned_folder_name = folder.substr(slashpos + 1);
-                    }
+                    // named like a set download, since a maps/ folder may be named only after its id
+                    std::string base = BeatmapInstaller::set_name(folder);
+                    if(base.empty()) base = Environment::getFileNameFromFilePath(folder);
+                    std::string name = base;
+                    for(u32 n = 2; !names.insert(name).second; n++) name = fmt::format("{} ({})", base, n);
 
-                    const std::string path_to_export_to =
-                        fmt::format("{}{}.osz", export_folder_sub, cleaned_folder_name);
+                    const std::string path_to_export_to = fmt::format("{}{}.osz", export_folder_sub, name);
 
                     // even if we're bundling everything at the end, write out to a file for each entry
                     // to avoid needing to store each individual entry in memory at once

@@ -1,0 +1,55 @@
+# reversing: Ctrl+A and Ctrl+G turn the map backwards in time (each start where the span mirrors its end, the new combos
+# where they were in time, the slider path the other way), then Reverse in the Compose menu turns the slider alone back
+# (its time kept). saved, the objects are as they were reversed.
+# uitest-datadir: fresh
+# uitest-file: maps/uitest reverse/reverse.osu|osu file format v14||[General]|AudioFilename: none.mp3|Mode: 0||[Metadata]|Title:UITest reverse|Artist:UITest|Creator:uitest|Version:reverse|BeatmapID:0|BeatmapSetID:-1||[Difficulty]|CircleSize:4|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|0,500,4,2,0,100,1,0||[HitObjects]|64,64,1000,5,0,0:0:0:0:|448,64,1500,1,2,0:0:0:0:|100,192,2000,2,0,P\x7c200:100\x7c300:192,1,240|256,300,3500,5,0,0:0:0:0:
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen editorscreen
+@wait 300
+sendkey Return
+@wait 30
+ui_assert text editor_title UITest - UITest reverse [reverse]
+ui_assert text editor_clock 00:00:000
+sendkey 224 down
+sendkey A
+sendkey G
+sendkey 224 up
+@wait 3
+sendkey Escape
+@wait 3
+mouse_to 1021 74
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+mouse_to 166 22
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert visible editor_menu_compose_menu 1
+mouse_to 200 179
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert exists editor_menu_compose_menu 0
+sendkey 224 down
+sendkey S
+sendkey 224 up
+@wait 3
+@wait_secs 2
+ui_assert map md5 fd71989e1d181ac2763056240d7510a4
+exit

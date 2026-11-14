@@ -27,8 +27,8 @@ u32 CBaseUIPopupLayer::open(CBaseUIElement *popup, vec2 pos, const McRect &passT
     const vec2 size = popup->getNaturalSize();
     popup->setSize(size);
     const vec2 min = this->getPos();
-    const vec2 max = glm::max(min, this->getPos() + this->getSize() - size);
-    this->addBaseUIElement(popup, glm::clamp(pos, min, max) - this->getPos());
+    const vec2 max = vec::max(min, this->getPos() + this->getSize() - size);
+    this->addBaseUIElement(popup, vec::clamp(pos, min, max) - this->getPos());
 
     const u32 id = this->nextId++;
     this->popups.push_back({.id = id, .passThrough = passThrough});
@@ -65,6 +65,8 @@ bool CBaseUIPopupLayer::isOpen(u32 id) const { return Mc::ranges::contains(this-
 void CBaseUIPopupLayer::tick() {
     for(CBaseUIElement *popup : this->closed) delete popup;
     this->closed.clear();
+    // a popup field that let the focus go leaves it here, not with what's beneath
+    if(this->isOpen() && CBaseUIDispatch::getFocus() == nullptr) this->requestFocus();
     CBaseUIContainer::tick();
 }
 

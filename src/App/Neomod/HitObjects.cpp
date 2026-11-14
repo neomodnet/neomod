@@ -578,8 +578,6 @@ void Circle::drawCircleIn(const PlayfieldView &view, vec2 rawPos, i32 number, i3
 }
 
 void Circle::drawCircle(const Skin *skin, vec2 pos, f32 hitcircleDiameter, Color color, f32 alpha) {
-    // this function is only used by the target practice heatmap
-
     // circle
     const f32 circleImageScale = hitcircleDiameter / (128.0f * (skin->i_hitcircle.scale()));
     drawHitCircle(skin->i_hitcircle, pos, color, circleImageScale, alpha);
@@ -1520,6 +1518,7 @@ SliderRenderer::Body Slider::makeBody(f32 alpha, f32 from, f32 to) const {
                               .to = to,
                               .skinSettings = {m_view->getSkin()},
                               .undimmedColor = m_view->getComboColor(m_colorCounter, m_colorOffset),
+                              .borderColor = m_tint,
                               .colorRGBMultiplier = m_hittableDimRGBColorMultiplierPct,
                               .alpha = alpha,
                               .sliderTimeForRainbow = m_clickTimeMS};
@@ -2596,8 +2595,9 @@ void Spinner::draw() {
     const f32 finishScale = 0.80f + easeOut(clampedRatio) * 0.20f;
 
     // spun out / autopilot spinners are drawn dimmed
-    const Color tint = flags::any<ModFlags::SpunOut | ModFlags::Autopilot>(m_view->getModFlags()) ? Color(0xff808080)
-                                                                                                  : Color(0xffffffff);
+    const Color tint = m_tint                                                                       ? *m_tint
+                       : flags::any<ModFlags::SpunOut | ModFlags::Autopilot>(m_view->getModFlags()) ? Color(0xff808080)
+                                                                                                    : Color(0xffffffff);
 
     // "SPIN!" starts fading out on the first (half) spin, but not before 500 ms in, and "CLEAR!" can't show up before
     // that either
@@ -3079,29 +3079,41 @@ std::vector<std::unique_ptr<HitObject>> create(const Primitives::PRIMITIVE_CONTA
                                                const PlayfieldView *view) {
     std::vector<std::unique_ptr<HitObject>> objects;
     objects.reserve(primitives.objects.size());
+    for(uSz i = 0; i < primitives.objects.size(); i++) objects.push_back(create(primitives, i, judge, view));
+    startCombos(objects);
+    return objects;
+}
+
+std::unique_ptr<HitObject> create(const Primitives::PRIMITIVE_CONTAINER &primitives, uSz index, GameplayJudge *judge,
+                                  const PlayfieldView *view) {
+    const auto &object = primitives.objects[index];
+    std::unique_ptr<HitObject> created;
+    if(const auto *h = std::get_if<DatabaseBeatmapTypes::HITCIRCLE>(&object)) {
+        created.reset(new Circle(vec2{h->x, h->y}, h->time, h->samples, h->number, h->isEndOfCombo, h->colorCounter,
+                                 h->colorOffset, judge, view));
+        created->setLine(h->line);
+    } else if(const auto *s = std::get_if<DatabaseBeatmapTypes::SLIDER>(&object)) {
+        created.reset(new Slider(s->type, s->repeat, s->pixelLength, s->points, s->ticks, s->sliderTime,
+                                 s->sliderTimeWithoutRepeats, s->time, s->hoverSamples, s->edgeSamples, s->number,
+                                 s->isEndOfCombo, s->colorCounter, s->colorOffset, judge, view));
+        created->setLine(s->line);
+    } else {
+        const auto &spinner = std::get<DatabaseBeatmapTypes::SPINNER>(object);
+        created.reset(new Spinner(vec2{spinner.x, spinner.y}, spinner.time, spinner.samples, spinner.isEndOfCombo,
+                                  spinner.endTime, judge, view));
+        created->setLine(spinner.line);
+    }
+    return created;
+}
+
+void startCombos(std::span<const std::unique_ptr<HitObject>> objects) {
     i32 comboStartTime = 0;
     bool startsCombo = true;
-    for(const auto &object : primitives.objects) {
-        if(const auto *h = std::get_if<DatabaseBeatmapTypes::HITCIRCLE>(&object)) {
-            objects.emplace_back(new Circle(vec2{h->x, h->y}, h->time, h->samples, h->number, h->isEndOfCombo,
-                                            h->colorCounter, h->colorOffset, judge, view));
-        } else if(const auto *s = std::get_if<DatabaseBeatmapTypes::SLIDER>(&object)) {
-            objects.emplace_back(new Slider(s->type, s->repeat, s->pixelLength, s->points, s->ticks, s->sliderTime,
-                                            s->sliderTimeWithoutRepeats, s->time, s->hoverSamples, s->edgeSamples,
-                                            s->number, s->isEndOfCombo, s->colorCounter, s->colorOffset, judge, view));
-        } else {
-            const auto &spinner = std::get<DatabaseBeatmapTypes::SPINNER>(object);
-            objects.emplace_back(new Spinner(vec2{spinner.x, spinner.y}, spinner.time, spinner.samples,
-                                             spinner.isEndOfCombo, spinner.endTime, judge, view));
-        }
-
-        HitObject &created = *objects.back();
-        if(startsCombo) comboStartTime = created.getClickTime();
-        created.setComboStartTime(comboStartTime);
-        startsCombo = created.isEndOfCombo();
+    for(const auto &object : objects) {
+        if(startsCombo) comboStartTime = object->getClickTime();
+        object->setComboStartTime(comboStartTime);
+        startsCombo = object->isEndOfCombo();
     }
-
-    return objects;
 }
 
 void stack(std::span<const std::unique_ptr<HitObject>> objects, f32 AR, i32 beatmapVersion, f32 stackLeniency,
@@ -3115,11 +3127,11 @@ void stack(std::span<const std::unique_ptr<HitObject>> objects, f32 AR, i32 beat
         Primitives::ObjectGetter<HitObject>{[objects](uSz idx) -> HitObject * { return objects[idx].get(); }},
         objects.size(), AR, beatmapVersion, stackLeniency);
 
-    // update hitobject positions
+    // update hitobject positions (also of ones stacked before that aren't now)
     const f32 STACK_OFFSET = 0.05f;
     const f32 stackOffset = rawHitcircleDiameter * STACK_OFFSET;
     for(const auto &hitobject : objects) {
-        if(hitobject->getStack() != 0) hitobject->updateStackPosition(stackOffset, hardRock);
+        hitobject->updateStackPosition(stackOffset, hardRock);
     }
 }
 

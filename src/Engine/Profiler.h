@@ -1,5 +1,7 @@
 #pragma once
 // Copyright (c) 2020, PG, All rights reserved.
+#include <string>
+
 #define VPROF_MAIN()                 \
     g_profCurrentProfile.mainprof(); \
     VPROF("Main")
@@ -88,7 +90,7 @@ class ProfilerNode {
     void enterScope();
     bool exitScope();
 
-    [[nodiscard]] inline const char *getName() const { return this->name; }
+    [[nodiscard]] inline const char *getName() const { return this->name.c_str(); }
     [[nodiscard]] inline int getGroupID() const { return this->iGroupID; }
 
     [[nodiscard]] inline ProfilerNode *getParent() const { return this->parent; }
@@ -105,7 +107,17 @@ class ProfilerNode {
 
     ProfilerNode *getSubNode(const char *name, const char *group);
 
-    const char *name;
+    // scope names are string literals, so the address where the node name was last seen is checked first. the same name
+    // at another address (another copy of the literal, or code that was reloaded) still matches and moves the address
+    inline bool isNamed(const char *name) {
+        if(name == this->nameAddress) return true;  // NOTE: pointer comparison
+        if(this->name != name) return false;
+        this->nameAddress = name;
+        return true;
+    }
+
+    std::string name;
+    const char *nameAddress;
     int iGroupID;
 
     ProfilerNode *parent;
@@ -164,7 +176,7 @@ class ProfilerProfile {
         }
 
         if((this->iEnabled != 0 && !this->bEnableScheduled) || !this->bAtRoot) {
-            if(name != this->curNode->name) {  // NOTE: pointer comparison
+            if(!this->curNode->isNamed(name)) {
                 ProfilerNode *subNode = this->curNode->getSubNode(name, group);
                 if(subNode == nullptr) {  // out of nodes, don't track this scope (nor anything below it)
                     this->iUntrackedScopes = 1;
@@ -212,15 +224,20 @@ class ProfilerProfile {
     [[nodiscard]] inline const ProfilerNode *getRoot() const { return &this->root; }
 
     [[nodiscard]] inline const char *getGroupName(int groupID) const {
-        return this->groups[groupID < 0 ? 0 : (groupID > this->iNumGroups - 1 ? this->iNumGroups - 1 : groupID)].name;
+        return this->groups[groupID < 0 ? 0 : (groupID > this->iNumGroups - 1 ? this->iNumGroups - 1 : groupID)]
+            .name.c_str();
     }
 
     [[nodiscard]] inline double sumTimes(int groupID) const { return this->sumTimes(&this->root, groupID); };
     [[nodiscard]] double sumTimes(const ProfilerNode *node, int groupID) const;
 
+    // forgets the addresses where node names were last seen (see ProfilerNode::isNamed()). call it before unloading
+    // code whose string literals named scopes: a different literal could show up at the same address later
+    void forgetNameAddresses();
+
    private:
     struct BUDGETGROUP {
-        const char *name;
+        std::string name;
     };
 
     int groupNameToID(const char *group);

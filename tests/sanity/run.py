@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""sanity test for a finished build: boots it headless on a fresh data dir, plays a generated map on autoplay
-and quits (see run_args.txt). meant for CI, to catch builds that crash, hang or don't work at all on a platform.
+"""sanity test for a finished build: boots it headless on a fresh data dir, reloads the editor in place, plays a
+generated map on autoplay and quits (see run_args.txt). meant for CI, to catch builds that crash, hang or don't
+work at all on a platform.
 
 usage:
   run.py <neomod executable> [-- extra launch args, e.g. -opengl]
@@ -196,7 +197,7 @@ def main():
         problems.append("no clean shutdown")
     lines = output.splitlines()
     problems += [ln for ln in lines if "UITEST FAIL" in ln or "Unknown command:" in ln]
-    expected = sum(ln.startswith("ui_assert") for ln in script)
+    expected = sum(ln.startswith(("ui_assert", "editor_test")) for ln in script)
     passed = sum("UITEST OK" in ln for ln in lines)
     if passed != expected:
         problems.append(f"{passed} of {expected} asserts passed")

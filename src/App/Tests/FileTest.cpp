@@ -134,7 +134,14 @@ void FileTest::update() {
         TEST_ASSERT(Environment::directoryExists(blocked) && !Environment::fileExists(blocked + ".tmp"),
                     "and changes nothing: what was there stays, the .tmp goes");
 
-        ByteBufferedFile::Writer nowhere(dir + "/missing/file");
+        {
+            ByteBufferedFile::Writer deeper(dir + "/missing/file");
+            deeper.write<u32>(1);
+            TEST_ASSERT(deeper.commit() && Environment::fileExists(dir + "/missing/file"),
+                        "a file in a folder that isn't there gets the folder made");
+        }
+        // its folder is a file
+        ByteBufferedFile::Writer nowhere(path + "/file");
         nowhere.write<u32>(1);
         TEST_ASSERT(!nowhere.commit() && !nowhere.error().empty(), "a file that can't be opened fails its commit");
     }

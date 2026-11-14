@@ -86,6 +86,11 @@ msgstr "Beatmapset #{:d} telah diunduh"
 
 #: src/App/Neomod/BeatmapInstaller.cpp
 #, c++-format
+msgid "{} couldn't be copied into the neomod library"
+msgstr "{} tidak dapat disalin ke pustaka neomod"
+
+#: src/App/Neomod/BeatmapInstaller.cpp
+#, c++-format
 msgid "Failed to import {}"
 msgstr "Gagal mengimpor {}"
 
@@ -213,6 +218,1384 @@ msgstr "Tidak ada beatmap baru yang terdeteksi."
 #, c++-format
 msgid "{} was written by a newer version, ignoring it"
 msgstr "{} ditulis oleh versi yang lebih baru, diabaikan"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Normal"
+msgstr "Normal"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Soft"
+msgstr "Soft"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Drum"
+msgstr "Drum"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Sidebar.cpp
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Auto"
+msgstr "Auto"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Play / Pause"
+msgstr "Putar / Jeda"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Play from the Start"
+msgstr "Putar dari Awal"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Go to the First Object"
+msgstr "Ke Objek Pertama"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Go to the Last Object"
+msgstr "Ke Objek Terakhir"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Step Backward"
+msgstr "Mundur Satu Langkah"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Step Forward"
+msgstr "Maju Satu Langkah"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#, c++-format
+msgid "Step Backward {} Ticks"
+msgstr "Mundur {} Tick"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#, c++-format
+msgid "Step Forward {} Ticks"
+msgstr "Maju {} Tick"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Next Timing Point"
+msgstr "Titik Timing Berikutnya"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Previous Timing Point"
+msgstr "Titik Timing Sebelumnya"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#, c++-format
+msgid "Playback Rate {:+}%"
+msgstr "Kecepatan Putar {:+}%"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Next Bookmark"
+msgstr "Penanda Berikutnya"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Previous Bookmark"
+msgstr "Penanda Sebelumnya"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#, c++-format
+msgid "Beat Divisor 1/{}"
+msgstr "Pembagi Beat 1/{}"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/MainMenu.cpp
+msgid "Save"
+msgstr "Simpan"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Test Play"
+msgstr "Uji Main"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Revert to Saved"
+msgstr "Kembalikan ke Versi Tersimpan"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Copy of This One"
+msgstr "Salinan dari Ini"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Empty"
+msgstr "Kosong"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Undo"
+msgstr "Urungkan"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Redo"
+msgstr "Ulangi"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Add Bookmark"
+msgstr "Tambah Penanda"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Remove Bookmark"
+msgstr "Hapus Penanda"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Toolbox.cpp
+msgid "Select"
+msgstr "Pilih"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Toolbox.cpp
+msgid "Circle"
+msgstr "Lingkaran"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Toolbox.cpp
+msgid "Slider"
+msgstr "Slider"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Toolbox.cpp
+msgid "Spinner"
+msgstr "Spinner"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "New Combo"
+msgstr "Kombo Baru"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Whistle"
+msgstr "Whistle"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Finish"
+msgstr "Finish"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Clap"
+msgstr "Clap"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#, c++-format
+msgid "Sample Set: {}"
+msgstr "Sample Set: {}"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#, c++-format
+msgid "Additions: {}"
+msgstr "Tambahan: {}"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Delete"
+msgstr "Hapus"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Select All"
+msgstr "Pilih Semua"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Nudge Backward"
+msgstr "Geser Sedikit ke Belakang"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Nudge Forward"
+msgstr "Geser Sedikit ke Depan"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Move Selection Left"
+msgstr "Pindahkan Pilihan ke Kiri"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Move Selection Right"
+msgstr "Pindahkan Pilihan ke Kanan"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Move Selection Up"
+msgstr "Pindahkan Pilihan ke Atas"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Move Selection Down"
+msgstr "Pindahkan Pilihan ke Bawah"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#: src/App/Neomod/Editor/Panels/StepPopup.cpp src/App/Neomod/PromptOverlay.cpp
+msgid "Cancel"
+msgstr "Batal"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Cut"
+msgstr "Potong"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Copy"
+msgstr "Salin"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Paste"
+msgstr "Tempel"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Clone"
+msgstr "Klon"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Grid Snap"
+msgstr "Snap ke Grid"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Distance Snap"
+msgstr "Snap Jarak"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Use Current Spacing"
+msgstr "Gunakan Jarak Saat Ini"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#, c++-format
+msgid "Grid Size {}"
+msgstr "Ukuran Grid {}"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Next Grid Size"
+msgstr "Ukuran Grid Berikutnya"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Linear"
+msgstr "Linear"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Perfect Circle"
+msgstr "Lingkaran Sempurna"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Bezier"
+msgstr "Bezier"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Catmull"
+msgstr "Catmull"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Reverse"
+msgstr "Balikkan Arah"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Flip Horizontally"
+msgstr "Cerminkan Horizontal"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Flip Vertically"
+msgstr "Cerminkan Vertikal"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Rotate Anticlockwise"
+msgstr "Putar Berlawanan Arah Jarum Jam"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Rotate Clockwise"
+msgstr "Putar Searah Jarum Jam"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Reset All Samples"
+msgstr "Atur Ulang Semua Sample"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Reset Samples"
+msgstr "Atur Ulang Sample"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Rotate By..."
+msgstr "Putar Sebesar..."
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Scale By..."
+msgstr "Skalakan Sebesar..."
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Move To..."
+msgstr "Pindahkan Ke..."
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Polygon Circles..."
+msgstr "Lingkaran Poligon..."
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Convert to Stream..."
+msgstr "Ubah Menjadi Stream..."
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Reset Combo Colours"
+msgstr "Atur Ulang Warna Kombo"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Compose"
+msgstr "Susun"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Timing"
+msgstr "Timing"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Song Setup"
+msgstr "Pengaturan Lagu"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Verify"
+msgstr "Verifikasi"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "History"
+msgstr "Riwayat"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Add Inherited Point"
+msgstr "Tambah Titik Turunan"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Add Timing Point"
+msgstr "Tambah Titik Timing"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Delete Timing Point"
+msgstr "Hapus Titik Timing"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Resnap All Objects"
+msgstr "Snap Ulang Semua Objek"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Recalculate Slider Lengths"
+msgstr "Hitung Ulang Panjang Slider"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Insert Break Here"
+msgstr "Sisipkan Jeda di Sini"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Reset Breaks"
+msgstr "Atur Ulang Jeda"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Copy Link to This Time"
+msgstr "Salin Tautan ke Waktu Ini"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Open Song Folder"
+msgstr "Buka Folder Lagu"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Open .osu in Text Editor"
+msgstr "Buka .osu di Editor Teks"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Export Beatmapset"
+msgstr "Ekspor Beatmapset"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Set Preview Point Here"
+msgstr "Atur Titik Pratinjau di Sini"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Metronome"
+msgstr "Metronom"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Move Objects with Timing Changes"
+msgstr "Pindahkan Objek Bersama Perubahan Timing"
+
+#: src/App/Neomod/Editor/Commands.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Tap"
+msgstr "Ketuk"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Panels/SampleChooser.cpp
+msgid "File"
+msgstr "Berkas"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/MainMenu.cpp src/App/Neomod/SongBrowser/SongButton.cpp
+msgid "Edit"
+msgstr "Edit"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "Hitsounds"
+msgstr "Hitsound"
+
+#: src/App/Neomod/Editor/Commands.cpp
+msgid "Playback"
+msgstr "Pemutaran"
+
+#: src/App/Neomod/Editor/Commands.cpp src/App/Neomod/Editor/Editor.cpp
+msgid "View"
+msgstr "Tampilan"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Restore Version"
+msgstr "Pulihkan Versi"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Add Circle"
+msgstr "Tambah Lingkaran"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Add Slider"
+msgstr "Tambah Slider"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Add Spinner"
+msgstr "Tambah Spinner"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Edit Slider"
+msgstr "Edit Slider"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Curve Type"
+msgstr "Jenis Kurva"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Repeats"
+msgstr "Pengulangan"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Spinner End"
+msgstr "Akhir Spinner"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Flip"
+msgstr "Cerminkan"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Rotate"
+msgstr "Putar"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Scale"
+msgstr "Skalakan"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Polygon Circles"
+msgstr "Lingkaran Poligon"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Convert to Stream"
+msgstr "Ubah Menjadi Stream"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Move"
+msgstr "Pindahkan"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Nudge"
+msgstr "Geser Sedikit"
+
+#: src/App/Neomod/Editor/Editor.cpp src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Combo Colour"
+msgstr "Warna Kombo"
+
+#: src/App/Neomod/Editor/Editor.cpp src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Sample Set"
+msgstr "Sample Set"
+
+#: src/App/Neomod/Editor/Editor.cpp src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Additions"
+msgstr "Tambahan"
+
+#: src/App/Neomod/Editor/Editor.cpp src/App/Neomod/Editor/Panels/SampleSets.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Sample Index"
+msgstr "Indeks Sample"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Sample Volume"
+msgstr "Volume Sample"
+
+#: src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Panels/SampleChooser.cpp
+msgid "Sample File"
+msgstr "Berkas Sample"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Remove Break"
+msgstr "Hapus Jeda"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Move Break"
+msgstr "Pindahkan Jeda"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Insert Break"
+msgstr "Sisipkan Jeda"
+
+#: src/App/Neomod/Editor/Editor.cpp src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Metadata"
+msgstr "Metadata"
+
+#: src/App/Neomod/Editor/Editor.cpp src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Difficulty"
+msgstr "Tingkat Kesulitan"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Map Settings"
+msgstr "Pengaturan Map"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Colours"
+msgstr "Warna"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Resnap"
+msgstr "Snap Ulang"
+
+#: src/App/Neomod/Editor/Editor.cpp src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Background"
+msgstr "Latar"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Help"
+msgstr "Bantuan"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Back"
+msgstr "Kembali"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Beatmap Editor"
+msgstr "Editor Beatmap"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Setup"
+msgstr "Pengaturan"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "New Beatmap from an Audio File"
+msgstr "Beatmap Baru dari Berkas Audio"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The unsaved changes to the open map couldn't be kept in a draft, so it stays open."
+msgstr "Perubahan yang belum disimpan pada map yang terbuka tidak dapat disimpan dalam draf, jadi map tetap terbuka."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The map that was open here isn't in the song browser anymore."
+msgstr "Map yang tadi terbuka di sini sudah tidak ada di peramban lagu."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The editor only opens osu!standard maps."
+msgstr "Editor hanya membuka map osu!standard."
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "This map can't be opened: {}"
+msgstr "Map ini tidak dapat dibuka: {}"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The unsaved changes to this map are back. File > Revert to Saved discards them."
+msgstr "Perubahan yang belum disimpan pada map ini sudah kembali. Berkas > Kembalikan ke Versi Tersimpan akan membuangnya."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The map file changed since these unsaved changes were made. File > Revert to Saved loads it."
+msgstr "Berkas map berubah sejak perubahan yang belum disimpan ini dibuat. Berkas > Kembalikan ke Versi Tersimpan akan memuatnya."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Right-click a difficulty in the song browser and choose Edit to open it here."
+msgstr "Klik kanan sebuah tingkat kesulitan di peramban lagu dan pilih Edit untuk membukanya di sini."
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "Edit {}"
+msgstr "Edit {}"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "A map without objects can't be tested."
+msgstr "Map tanpa objek tidak dapat diuji."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The map file couldn't be read."
+msgstr "Berkas map tidak dapat dibaca."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Nothing was added: an object would start after the song ends."
+msgstr "Tidak ada yang ditambahkan: sebuah objek akan dimulai setelah lagu berakhir."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "A break goes between two objects at least 1.2 seconds apart, where there's none yet."
+msgstr "Jeda ditempatkan di antara dua objek yang berjarak setidaknya 1,2 detik, di tempat yang belum ada jedanya."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Link copied."
+msgstr "Tautan disalin."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Link copied. It opens the map as it was last saved."
+msgstr "Tautan disalin. Tautan ini membuka map seperti saat terakhir disimpan."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "New Beatmap..."
+msgstr "Beatmap Baru..."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "New Difficulty"
+msgstr "Tingkat Kesulitan Baru"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Open Difficulty"
+msgstr "Buka Tingkat Kesulitan"
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "Undo {}"
+msgstr "Urungkan {}"
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "Redo {}"
+msgstr "Ulangi {}"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Grid Size"
+msgstr "Ukuran Grid"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Hit Animations"
+msgstr "Animasi Pukulan"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Map Skin"
+msgstr "Skin Map"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Map Hitsounds"
+msgstr "Hitsound Map"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Background Dim"
+msgstr "Redupkan Latar"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Hitsound Labels"
+msgstr "Label Hitsound"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Keyboard Shortcuts..."
+msgstr "Pintasan Keyboard..."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Custom Samples..."
+msgstr "Sample Kustom..."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Playfield Centre"
+msgstr "Tengah Area Bermain"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Selection Centre"
+msgstr "Tengah Pilihan"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Rotate By"
+msgstr "Putar Sebesar"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Angle"
+msgstr "Sudut"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Around"
+msgstr "Di Sekitar"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Scale By"
+msgstr "Skalakan Sebesar"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Factor"
+msgstr "Faktor"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "X Axis"
+msgstr "Sumbu X"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Y Axis"
+msgstr "Sumbu Y"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Move By"
+msgstr "Pindahkan Sebesar"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Move To"
+msgstr "Pindahkan Ke"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Corners"
+msgstr "Sudut Poligon"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Offset Angle"
+msgstr "Sudut Offset"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Spacing"
+msgstr "Jarak"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Count"
+msgstr "Jumlah"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Divisor"
+msgstr "Pembagi"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "By Count"
+msgstr "Berdasarkan Jumlah"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "By Spacing"
+msgstr "Berdasarkan Jarak"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Spaced"
+msgstr "Diatur"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "A map without timing points can't be saved."
+msgstr "Map tanpa titik timing tidak dapat disimpan."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Saved"
+msgstr "Tersimpan"
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "This map is the same as {} now, so it can't be saved."
+msgstr "Map ini sekarang sama dengan {}, jadi tidak dapat disimpan."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "This map isn't in the song browser anymore, so it can't be saved."
+msgstr "Map ini sudah tidak ada di peramban lagu, jadi tidak dapat disimpan."
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "The file keeps its name, another file in its folder is called {}."
+msgstr "Berkas tetap memakai namanya, berkas lain di foldernya bernama {}."
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "The file keeps its name, it couldn't be renamed to {}."
+msgstr "Berkas tetap memakai namanya, namanya tidak dapat diubah menjadi {}."
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "The map couldn't be saved: {}"
+msgstr "Map tidak dapat disimpan: {}"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "Saved. Another program had changed the file: the History tab has its version."
+msgstr "Tersimpan. Program lain telah mengubah berkas ini: tab Riwayat menyimpan versinya."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The map can't be tested yet: the song browser is still reading the saved file. Try again in a moment."
+msgstr "Map belum dapat diuji: peramban lagu masih membaca berkas yang disimpan. Coba lagi sebentar lagi."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "To start a beatmap from an audio file, use File > New Beatmap. To use it as a sample, drop it while a sample is being chosen."
+msgstr "Untuk membuat beatmap dari berkas audio, gunakan Berkas > Beatmap Baru. Untuk memakainya sebagai sample, jatuhkan saat sample sedang dipilih."
+
+#: src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Panels/SampleChooser.cpp
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+msgid "Audio files"
+msgstr "Berkas audio"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "New Beatmap"
+msgstr "Beatmap Baru"
+
+#: src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Panels/SampleChooser.cpp
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#, c++-format
+msgid "{} can't be used: its name can't be written into a map."
+msgstr "{} tidak dapat digunakan: namanya tidak dapat ditulis ke dalam map."
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "The beatmap couldn't be made from {}."
+msgstr "Beatmap tidak dapat dibuat dari {}."
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The difficulty couldn't be made: the game couldn't read it."
+msgstr "Tingkat kesulitan tidak dapat dibuat: game tidak dapat membacanya."
+
+#: src/App/Neomod/Editor/Editor.cpp
+#, c++-format
+msgid "The difficulty couldn't be made: {}"
+msgstr "Tingkat kesulitan tidak dapat dibuat: {}"
+
+#: src/App/Neomod/Editor/Editor.cpp
+msgid "The difficulty couldn't be made: its file name is taken."
+msgstr "Tingkat kesulitan tidak dapat dibuat: nama berkasnya sudah dipakai."
+
+#: src/App/Neomod/Editor/EditorState.cpp
+msgid "This beatmap set can't be copied into the neomod library."
+msgstr "Beatmapset ini tidak dapat disalin ke pustaka neomod."
+
+#: src/App/Neomod/Editor/EditorState.cpp
+msgid "This is an osu!stable map: copying its set into the neomod library first."
+msgstr "Ini map osu!stable: set-nya disalin ke pustaka neomod terlebih dahulu."
+
+#: src/App/Neomod/Editor/EditorState.cpp
+msgid "The edit wasn't made: sliders need a timing point."
+msgstr "Pengeditan tidak dilakukan: slider memerlukan titik timing."
+
+#: src/App/Neomod/Editor/EditorState.cpp
+msgid "The edit wasn't made: the map would have too many objects."
+msgstr "Pengeditan tidak dilakukan: map akan memiliki terlalu banyak objek."
+
+#: src/App/Neomod/Editor/EditorState.cpp
+msgid "The edit wasn't made: the game couldn't read the result."
+msgstr "Pengeditan tidak dilakukan: game tidak dapat membaca hasilnya."
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+#, c++-format
+msgid "{} objects"
+msgstr "{} objek"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+#, c++-format
+msgid "{} timing points"
+msgstr "{} titik timing"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+#, c++-format
+msgid "{} other lines"
+msgstr "{} baris lain"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+msgid "nothing"
+msgstr "tidak ada"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+msgid "Restore This Version"
+msgstr "Pulihkan Versi Ini"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+msgid "Changes"
+msgstr "Perubahan"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+msgid "Objects"
+msgstr "Objek"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+msgid "Saved At"
+msgstr "Disimpan pada"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+msgid "Select a version to compare it with the map as it is."
+msgstr "Pilih sebuah versi untuk membandingkannya dengan map saat ini."
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+msgid "This version can't be read anymore."
+msgstr "Versi ini sudah tidak dapat dibaca."
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+#, c++-format
+msgid "From this version to the map now: {}"
+msgstr "Dari versi ini ke map saat ini: {}"
+
+#: src/App/Neomod/Editor/Panels/HistoryPanel.cpp
+#, c++-format
+msgid "Changed outside the editor: {}"
+msgstr "Diubah di luar editor: {}"
+
+#: src/App/Neomod/Editor/Panels/SampleChooser.cpp
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#, c++-format
+msgid "{} couldn't be copied into the map folder."
+msgstr "{} tidak dapat disalin ke folder map."
+
+#: src/App/Neomod/Editor/Panels/SampleChooser.cpp
+msgid "Add File..."
+msgstr "Tambah Berkas..."
+
+#: src/App/Neomod/Editor/Panels/SampleChooser.cpp
+msgid "No File"
+msgstr "Tidak Ada Berkas"
+
+#: src/App/Neomod/Editor/Panels/SampleChooser.cpp
+msgid "Use"
+msgstr "Gunakan"
+
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+#, c++-format
+msgid "{} can't be used: samples are .wav, .ogg or .mp3 files."
+msgstr "{} tidak dapat digunakan: sample berupa berkas .wav, .ogg, atau .mp3."
+
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+msgid "Custom Samples"
+msgstr "Sample Kustom"
+
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+msgid "Choose File..."
+msgstr "Pilih Berkas..."
+
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+msgid "Delete File"
+msgstr "Hapus Berkas"
+
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+msgid "This map has no samples of its own."
+msgstr "Map ini tidak memiliki sample sendiri."
+
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+#, c++-format
+msgid "This map has samples for: {}"
+msgstr "Map ini memiliki sample untuk: {}"
+
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+#, c++-format
+msgid "{}: not overridden"
+msgstr "{}: tidak ditimpa"
+
+#: src/App/Neomod/Editor/Panels/SampleSets.cpp
+#, c++-format
+msgid "{} couldn't be deleted."
+msgstr "{} tidak dapat dihapus."
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Artist"
+msgstr "Artis"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Romanised Artist"
+msgstr "Artis (Romanisasi)"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Romanised Title"
+msgstr "Judul (Romanisasi)"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Title"
+msgstr "Judul"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Creator"
+msgstr "Pembuat"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Difficulty Name"
+msgstr "Nama Kesulitan"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Source"
+msgstr "Sumber"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Tags"
+msgstr "Tag"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "HP Drain Rate"
+msgstr "Laju Pengurangan HP"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Circle Size"
+msgstr "Ukuran Lingkaran"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Overall Difficulty"
+msgstr "Tingkat Kesulitan Keseluruhan"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Approach Rate"
+msgstr "Laju Kemunculan"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Slider Velocity"
+msgstr "Kecepatan Slider"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Slider Tick Rate"
+msgstr "Laju Tick Slider"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Stack Leniency"
+msgstr "Toleransi Tumpukan"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "General"
+msgstr "Umum"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Choose..."
+msgstr "Pilih..."
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Images"
+msgstr "Gambar"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid " ms"
+msgstr " ms"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Audio Lead-In"
+msgstr "Jeda Awal Audio"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Preview Point"
+msgstr "Titik Pratinjau"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/SongBrowser/ScoreButton.cpp
+msgid "None"
+msgstr "Tidak ada"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Use Current Time"
+msgstr "Gunakan Waktu Saat Ini"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Countdown"
+msgstr "Hitung Mundur"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Double Speed"
+msgstr "Kecepatan Ganda"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Half Speed"
+msgstr "Setengah Kecepatan"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Countdown Offset"
+msgstr "Offset Hitung Mundur"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid " beats"
+msgstr " ketukan"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Widescreen Storyboard"
+msgstr "Storyboard Layar Lebar"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Letterbox in Breaks"
+msgstr "Letterbox saat Jeda"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Epilepsy Warning"
+msgstr "Peringatan Epilepsi"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Samples Match Playback Rate"
+msgstr "Sample Mengikuti Laju Pemutaran"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Combo Colours"
+msgstr "Warna Kombo"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "The skin colours are used."
+msgstr "Warna skin digunakan."
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Add Colour"
+msgstr "Tambah Warna"
+
+#: src/App/Neomod/Editor/Panels/SetupPanel.cpp
+msgid "Use Custom Colours"
+msgstr "Gunakan Warna Kustom"
+
+#: src/App/Neomod/Editor/Panels/ShortcutList.cpp
+msgid "Keyboard Shortcuts"
+msgstr "Pintasan Keyboard"
+
+#: src/App/Neomod/Editor/Panels/ShortcutList.cpp
+msgid "Command"
+msgstr "Perintah"
+
+#: src/App/Neomod/Editor/Panels/ShortcutList.cpp
+msgid "Keys"
+msgstr "Tombol"
+
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Index"
+msgstr "Indeks"
+
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Volume"
+msgstr "Volume"
+
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Sample File..."
+msgstr "Berkas Sample..."
+
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Several Files"
+msgstr "Beberapa Berkas"
+
+#: src/App/Neomod/Editor/Panels/Sidebar.cpp
+msgid "Sliders take their sample index, volume and file from their timing points."
+msgstr "Slider mengambil indeks, volume, dan berkas sample dari titik timing-nya."
+
+#: src/App/Neomod/Editor/Panels/StepPopup.cpp
+msgid "Apply"
+msgstr "Terapkan"
+
+#: src/App/Neomod/Editor/Panels/TimeDisplay.cpp
+msgid "intro"
+msgstr "intro"
+
+#: src/App/Neomod/Editor/Panels/TimeDisplay.cpp
+msgid "outro"
+msgstr "outro"
+
+#: src/App/Neomod/Editor/Panels/TimeDisplay.cpp
+msgid "kiai"
+msgstr "kiai"
+
+#: src/App/Neomod/Editor/Panels/TimeDisplay.cpp
+#, c++-format
+msgid "{} kiai"
+msgstr "{} kiai"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Time"
+msgstr "Waktu"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Tempo"
+msgstr "Tempo"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Meter"
+msgstr "Birama"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Samples"
+msgstr "Sample"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Kiai"
+msgstr "Kiai"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Selected Points"
+msgstr "Titik Terpilih"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "BPM"
+msgstr "BPM"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Default"
+msgstr "Bawaan"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Files..."
+msgstr "Berkas..."
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Omit First Bar Line"
+msgstr "Lewati Garis Birama Pertama"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+#, c++-format
+msgid "{} BPM"
+msgstr "{} BPM"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+#, c++-format
+msgid "Taps: {}"
+msgstr "Ketukan: {}"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+#, c++-format
+msgid "Taps: {} ({} BPM)"
+msgstr "Ketukan: {} ({} BPM)"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "Tap along to set the tempo (T)"
+msgstr "Ketuk mengikuti irama untuk mengatur tempo (T)"
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "An inherited point needs a timing point at or before it."
+msgstr "Titik turunan membutuhkan titik timing pada atau sebelum posisinya."
+
+#: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+msgid "A map keeps at least one timing point."
+msgstr "Map menyimpan setidaknya satu titik timing."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "This object starts {} ms off the nearest tick."
+msgstr "Objek ini dimulai {} ms dari tick terdekat."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "This slider has a repeat {} ms off the nearest tick."
+msgstr "Slider ini berbalik {} ms dari tick terdekat."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "This object ends {} ms off the nearest tick."
+msgstr "Objek ini berakhir {} ms dari tick terdekat."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "These objects are at the same time."
+msgstr "Objek-objek ini berada di waktu yang sama."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "These objects are less than 10 ms apart."
+msgstr "Objek-objek ini berjarak kurang dari 10 ms."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "This object leaves the screen at a 4:3 aspect ratio."
+msgstr "Objek ini keluar dari layar pada rasio aspek 4:3."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "This spinner lasts only {} ms."
+msgstr "Spinner ini hanya berlangsung {} ms."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "This spinner doesn't start a new combo."
+msgstr "Spinner ini tidak memulai kombo baru."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "This object is hit at {}% volume."
+msgstr "Objek ini dipukul dengan volume {}%."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Two timing points of the same kind are at this time."
+msgstr "Ada dua titik timing dari jenis yang sama pada waktu ini."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "The map has no preview point."
+msgstr "Map tidak memiliki titik pratinjau."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "The map has no background image."
+msgstr "Map tidak memiliki gambar latar."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "The background image file is missing."
+msgstr "Berkas gambar latar tidak ada."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "The audio file is missing."
+msgstr "Berkas audio tidak ada."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "{} is {}, with more than one decimal place."
+msgstr "{} bernilai {}, dengan lebih dari satu angka desimal."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "{} is {}, outside of 0 to 10."
+msgstr "{} bernilai {}, di luar rentang 0 hingga 10."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "The map has less than 30 seconds of drain time ({} s)."
+msgstr "Map memiliki kurang dari 30 detik permainan ({} dtk)."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Issue"
+msgstr "Masalah"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Show Minor Issues"
+msgstr "Tampilkan Masalah Kecil"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "No issues found."
+msgstr "Tidak ada masalah ditemukan."
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+#, c++-format
+msgid "Problems: {}   Warnings: {}   Minor: {}"
+msgstr "Masalah: {}   Peringatan: {}   Kecil: {}"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Problem"
+msgstr "Masalah"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Warning"
+msgstr "Peringatan"
+
+#: src/App/Neomod/Editor/Panels/VerifyPanel.cpp
+msgid "Minor"
+msgstr "Kecil"
+
+#: src/App/Neomod/Editor/Playfield/PlayfieldPanel.cpp
+#, c++-format
+msgid "Prev: {:.2f}x"
+msgstr "Sebelumnya: {:.2f}x"
+
+#: src/App/Neomod/Editor/Playfield/PlayfieldPanel.cpp
+#, c++-format
+msgid "Next: {:.2f}x"
+msgstr "Berikutnya: {:.2f}x"
+
+#: src/App/Neomod/EditorScreen.cpp
+msgid "The editor failed to start."
+msgstr "Editor gagal dimulai."
+
+#: src/App/Neomod/EditorScreen.cpp
+msgid "The editor could not be loaded, the log has the details."
+msgstr "Editor tidak dapat dimuat, log berisi detailnya."
+
+#: src/App/Neomod/EditorScreen.cpp
+msgid "The editor was built for a newer build of the game, restart the game to load it."
+msgstr "Editor dibuat untuk build game yang lebih baru, mulai ulang game untuk memuatnya."
+
+#: src/App/Neomod/EditorScreen.cpp
+msgid "Ctrl+Alt+E tries again, Escape goes back."
+msgstr "Ctrl+Alt+E mencoba lagi, Escape kembali."
+
+#: src/App/Neomod/EditorScreen.cpp
+#, c++-format
+msgid "Reloaded the editor in {:.2f} ms"
+msgstr "Editor dimuat ulang dalam {:.2f} ms"
+
+#: src/App/Neomod/EditorScreen.cpp
+#, c++-format
+msgid "The editor could not be loaded: {}"
+msgstr "Editor tidak dapat dimuat: {}"
+
+#: src/App/Neomod/EditorScreen.cpp
+#, c++-format
+msgid "Restoring the last editor session crashed the game, so the editor started a new one. The old session was kept as {}."
+msgstr "Memulihkan sesi editor terakhir membuat game crash, jadi editor memulai sesi baru. Sesi lama disimpan sebagai {}."
 
 #: src/App/Neomod/HUD.cpp
 #, c++-format
@@ -416,10 +1799,6 @@ msgstr "Opsi"
 #: src/App/Neomod/MainMenu.cpp
 msgid "Exit"
 msgstr "Keluar"
-
-#: src/App/Neomod/MainMenu.cpp
-msgid "Save"
-msgstr "Simpan"
 
 #: src/App/Neomod/MainMenu.cpp src/App/Neomod/OsuDirectScreen.cpp
 msgid "Online Beatmaps"
@@ -1022,6 +2401,10 @@ msgstr "Mod Eksperimental"
 msgid "Hold [ALT] to slide in 0.01 increments."
 msgstr "Tahan [ALT] untuk menggeser dengan kenaikan 0.01."
 
+#: src/App/Neomod/NeomodUrl.cpp
+msgid "This editor link isn't valid."
+msgstr "Tautan editor ini tidak valid."
+
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Mouse Left"
 msgstr "Mouse Kiri"
@@ -1039,20 +2422,12 @@ msgid "McOsu"
 msgstr "McOsu"
 
 #: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/SongBrowser/ScoreButton.cpp
-msgid "None"
-msgstr "Tidak ada"
-
-#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/SongBrowser/ScoreButton.cpp
 msgid "osu!lazer 2020"
 msgstr "osu!lazer 2020"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "osu!stable (default)"
 msgstr "osu!stable (bawaan)"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "General"
-msgstr "Umum"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Online server"
@@ -1522,10 +2897,6 @@ msgid "Devices"
 msgstr "Perangkat"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Default"
-msgstr "Bawaan"
-
-#: src/App/Neomod/OptionsOverlay.cpp
 msgid "Select Output Device"
 msgstr "Pilih Perangkat Output"
 
@@ -1634,10 +3005,6 @@ msgstr "ASIO"
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Open ASIO settings"
 msgstr "Buka pengaturan ASIO"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Volume"
-msgstr "Volume"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Normalize loudness across songs"
@@ -2214,10 +3581,6 @@ msgstr "Autopilot"
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Spunout"
 msgstr "Spunout"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Auto"
-msgstr "Auto"
 
 #: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/RoomScreen.cpp
 msgid "Score V2"
@@ -3000,8 +4363,20 @@ msgid "Failed to save osu.cfg"
 msgstr "Gagal menyimpan osu.cfg"
 
 #: src/App/Neomod/Osu.cpp
+msgid "Editor links open from the main menu, the song browser and the editor."
+msgstr "Tautan editor dapat dibuka dari menu utama, peramban lagu, dan editor."
+
+#: src/App/Neomod/Osu.cpp
 msgid "This replay's beatmap is not installed."
 msgstr "Beatmap replay ini tidak terpasang."
+
+#: src/App/Neomod/Osu.cpp
+msgid "The linked map isn't installed and wasn't found online."
+msgstr "Map yang ditautkan belum terpasang dan tidak ditemukan secara online."
+
+#: src/App/Neomod/Osu.cpp
+msgid "The linked map isn't installed. Log in to download it."
+msgstr "Map yang ditautkan belum terpasang. Masuk untuk mengunduhnya."
 
 #: src/App/Neomod/Osu.cpp
 #, c++-format
@@ -3192,10 +4567,6 @@ msgstr "Keluar"
 #: src/App/Neomod/PromptOverlay.cpp
 msgid "OK"
 msgstr "OK"
-
-#: src/App/Neomod/PromptOverlay.cpp
-msgid "Cancel"
-msgstr "Batal"
 
 #: src/App/Neomod/RankingScreen.cpp
 msgid "You achieved the #1 score on local rankings!"

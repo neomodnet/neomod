@@ -31,6 +31,7 @@ class UpdateHandler;
 class UserCard;
 class Database;
 struct FinishedScore;
+struct MD5Hash;
 
 namespace Replay {
 enum KeyFlags : uint8_t;
@@ -237,6 +238,11 @@ class Osu final : public App, public MouseListener, public TouchListener {
     void openScoreScreenWhenReady(const FinishedScore &score);
     [[nodiscard]] inline bool isScoreOpenPending() const { return !!this->pendingScoreOpen; }
 
+    // shows a place in a map in the editor: `timestamp` is an osu! one, mm:ss:mmm with the combo numbers for the
+    // objects to select in parentheses or without any. the map is the one with `md5`, downloaded first if it isn't
+    // installed (polled in update()); without an md5, the one open in the editor or else the selected one
+    void openEditorLink(const MD5Hash &md5, std::string timestamp);
+
     [[nodiscard]] bool slidersRenderDynamically()
         const;  // certain mods or actions require Sliders to render dynamically
                 // (e.g. wobble or the CS override slider)
@@ -375,6 +381,10 @@ class Osu final : public App, public MouseListener, public TouchListener {
     // a score awaiting its beatmap to land in the db before its ranking screen is shown (see
     // openScoreScreenWhenReady + the poll in update()); null when nothing is pending
     std::unique_ptr<FinishedScore> pendingScoreOpen{nullptr};
+
+    // an editor link awaiting its map (see openEditorLink()); null when nothing is pending
+    struct PendingEditorLink;
+    std::unique_ptr<PendingEditorLink> pendingEditorLink;
 
    public:
     std::string watched_user_name;

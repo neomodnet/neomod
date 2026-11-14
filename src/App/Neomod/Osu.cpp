@@ -23,6 +23,7 @@
 #include "DirectoryWatcher.h"
 #include "DiscordInterface.h"
 #include "Downloader.h"
+#include "EditorScreen.h"
 #include "Engine.h"
 #include "File.h"
 #include "Font.h"
@@ -40,6 +41,7 @@
 #include "ReplayFile.h"
 #include "Lobby.h"
 #include "MainMenu.h"
+#include "MapFetcher.h"
 #include "ModFPoSu.h"
 #include "ModSelector.h"
 #include "Mouse.h"
@@ -134,6 +136,24 @@ void Osu::globalOnConVarChange(const ConVar &cvar) {
 
 Osu::GlobalOsuCtorDtorThing::GlobalOsuCtorDtorThing(Osu *optr) { osu = optr; }
 Osu::GlobalOsuCtorDtorThing::~GlobalOsuCtorDtorThing() { osu = nullptr; }
+
+struct Osu::PendingEditorLink {
+    MapFetcher fetcher;
+    std::string timestamp;
+};
+
+// whether an editor link can open now, telling the user if not: not from a play, a room or anywhere else the editor
+// taking over the music would get in the way
+static bool canOpenEditorLink() {
+    // the song browser also picks a room's map
+    if(!BanchoState::is_in_a_multi_room() &&
+       (ui->getEditorScreen()->isVisible() || ui->getSongBrowser()->isVisible() || ui->getMainMenu()->isVisible())) {
+        return true;
+    }
+    ui->getNotificationOverlay()->addToast(_("Editor links open from the main menu, the song browser and the editor."),
+                                           INFO_TOAST);
+    return false;
+}
 
 Osu::Osu()
     : App(),
@@ -625,6 +645,27 @@ void Osu::update() {
                 // TODO: auto-download
                 ui->getNotificationOverlay()->addToast(_("This replay's beatmap is not installed."), ERROR_TOAST);
                 this->pendingScoreOpen.reset();
+            }
+        }
+
+        if(this->pendingEditorLink && db->isFinished() && !db->isCancelled()) {
+            MapFetcher &fetcher = this->pendingEditorLink->fetcher;
+            if(const MapFetcher::State &fetch = fetcher.tick(); fetch.status == MapFetcher::Status::Found) {
+                const auto link = std::move(this->pendingEditorLink);
+                // the screen may be another one since
+                if(Database::MapLocation location = db->locate(*link->fetcher.result());
+                   !location.file.empty() && canOpenEditorLink()) {
+                    ui->getEditorScreen()->enter(std::move(location), std::move(link->timestamp));
+                }
+            } else if(fetch.status == MapFetcher::Status::NotFound) {
+                // the installer said so itself if a download failed
+                if(fetch.why != MapFetcher::Why::Install) {
+                    ui->getNotificationOverlay()->addToast(
+                        BanchoState::is_online() ? _("The linked map isn't installed and wasn't found online.")
+                                                 : _("The linked map isn't installed. Log in to download it."),
+                        ERROR_TOAST);
+                }
+                this->pendingEditorLink.reset();
             }
         }
     }
@@ -1517,6 +1558,25 @@ void Osu::openScoreScreenWhenReady(const FinishedScore &score) {
     this->pendingScoreOpen = std::make_unique<FinishedScore>(score);
 }
 
+void Osu::openEditorLink(const MD5Hash &md5, std::string timestamp) {
+    if(!canOpenEditorLink()) return;
+    EditorScreen *editor = ui->getEditorScreen();
+    if(!md5.empty()) {
+        this->pendingEditorLink = std::make_unique<PendingEditorLink>();
+        this->pendingEditorLink->fetcher.target_map(0, md5);
+        this->pendingEditorLink->timestamp = std::move(timestamp);
+        if(!db->isFinished() || db->isCancelled()) ui->getSongBrowser()->refreshBeatmaps(ui->getActiveScreen());
+        return;
+    }
+    if(editor->isVisible()) {
+        editor->enter(std::nullopt, std::move(timestamp));
+    } else if(const DatabaseBeatmap *selected = this->map_iface->getBeatmap()) {
+        if(Database::MapLocation location = db->locate(*selected); !location.file.empty()) {
+            editor->enter(std::move(location), std::move(timestamp));
+        }
+    }
+}
+
 void Osu::onPlayEnd(const FinishedScore &score, bool quit) {
     if(!quit && cv::mod_endless.getBool()) {
         this->bScheduleEndlessModNextBeatmap = true;
@@ -1862,6 +1922,7 @@ void Osu::doChangeFocus(bool focused) {
         }
 
         this->ui_memb->getVolumeOverlay()->gainFocus();
+        this->ui_memb->getEditorScreen()->onFocusGained();
     } else {
         if(this->isInPlayMode() && !this->map_iface->isPaused() && cv::pause_on_focus_loss.getBool()) {
             if(!BanchoState::is_playing_a_multi_map() && !this->map_iface->isWatching()) {
@@ -2050,9 +2111,12 @@ void Osu::updateCursorVisibility() {
     if(!this->UIReady()) return;
 
     const bool playing = this->isInPlayMode();
+
+    // the editor is a tool, with the os cursor
     const bool forced_visible =
-        playing && !this->map_iface->isPaused() &&
-        (cv::mod_autoplay.getBool() || cv::mod_autopilot.getBool() || this->map_iface->isWatching());
+        (playing && !this->map_iface->isPaused() &&
+         (cv::mod_autoplay.getBool() || cv::mod_autopilot.getBool() || this->map_iface->isWatching())) ||
+        ui->getEditorScreenBase()->isVisible();
 
     // the os cursor can show the game cursor instead, as long as it can stay visible and in absolute mode
     const bool hardware_wanted = cv::cursor_hardware.getBool() && !forced_visible && !mouse->isRawInputWanted() &&

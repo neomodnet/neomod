@@ -313,6 +313,8 @@ AC_ARG_ENABLE([pch],
     AS_HELP_STRING([--enable-pch], [Build and use a pre-compiled header to speed up rebuild time (default: yes)]))
 AC_ARG_ENABLE([redistributable],
     AS_HELP_STRING([--enable-redistributable], [Don't bundle any non-redistributable content (currently only relevant for WASM, skips bundling beatmaps, default: yes)]))
+AC_ARG_ENABLE([hot-reload],
+    AS_HELP_STRING([--enable-hot-reload], [Build the editor as a library that the running game reloads in place, for local development (macOS, Linux and mingw) (default: no)]))
 
 AC_ARG_WITH([renderer],
     AS_HELP_STRING([--with-renderer={opengl,dx11,opengles,sdlgpu}], [The (comma separated list of) renderer backend(s) to build with (default: sdlgpu)]))
@@ -440,8 +442,36 @@ AS_IF([test "x$with_i18n" != "xno"], [
     with_i18n=no
 ])
 
+# a closed program is one that nothing gets loaded into later, which hidden visibility, initial-exec TLS, -mcmodel=small,
+# a static C++ runtime and LTO assume. --enable-hot-reload opens it up instead: the program exports its symbols and the
+# editor becomes a library that the running game reloads in place (mk/editor.am)
+AS_IF([test "x$enable_hot_reload" = "xyes"], [
+    AS_IF([test -n "$WASM_CC"], [AC_MSG_ERROR([--enable-hot-reload: wasm has no usable dynamic loading])])
+    AS_CASE(["$host_os"], [darwin*|linux-gnu|mingw32], [], [AC_MSG_ERROR([--enable-hot-reload is only implemented for macOS, Linux and mingw])])
+    AS_IF([test "$host_cpu" = "i686"], [AC_MSG_ERROR([--enable-hot-reload is not supported on i686])])
+    AS_IF([test -n "$enable_lto" && test "x$enable_lto" != "xno"], [AC_MSG_ERROR([--enable-hot-reload cannot be combined with --enable-lto])])
+    AS_IF([test "x$enable_strip" = "xyes"], [AC_MSG_ERROR([--enable-hot-reload cannot be combined with --enable-strip])])
+    enable_lto=no
+    enable_strip=no
+    closed_program=no
+    AC_DEFINE([MCENGINE_FEATURE_HOT_RELOAD], [1], [Defined if the editor is built as a library that is reloaded in place.])
+], [
+    enable_hot_reload=no
+    closed_program=yes
+])
+
+# dependencies are built for either kind of program (visibility) and aren't rebuilt when that changes
+AS_IF([test "x$closed_program" = "xyes"], [_program_mode=closed], [_program_mode=open])
+AS_IF([ls "$PWD"/build/deps/*.built >/dev/null 2>&1], [
+    AS_IF([test "$(cat "$PWD/build/.program-mode" 2>/dev/null || echo closed)" != "$_program_mode"], [
+        AC_MSG_ERROR([the dependencies in build/deps were built for a different --enable-hot-reload setting: run `make clean-deps` or use a fresh build directory])
+    ])
+])
+AS_MKDIR_P(["$PWD/build"])
+printf '%s\n' "$_program_mode" > "$PWD/build/.program-mode"
+
 # set some default flags here
-AS_IF([test "x$enable_static" = "xyes"], [
+AS_IF([test "x$enable_static" = "xyes" && test "x$closed_program" = "xyes"], [
     CFLAGS="$CFLAGS -fvisibility=hidden"
     CXXFLAGS="$CXXFLAGS -fvisibility=hidden"
     LDFLAGS="$LDFLAGS -fvisibility=hidden"
@@ -958,9 +988,11 @@ AS_IF([test "$_HAVE_MD5SUM" = "yes"],
     [_cc_real_hash="$($CC --version | md5 -q),$host"
      _cxx_real_hash="$($CXX --version | md5 -q),$host"])
 
+# CCACHE_DEPEND: on a miss, compile right away and take the headers from the -MD output, instead of preprocessing
+# the whole file (without the pch) first; that pass costs about as much as the compile itself
 cat > "$PWD/build/cc" <<EOF
 #!/usr/bin/env bash
-CCACHE_SLOPPINESS=pch_defines,time_macros,include_file_mtime,include_file_ctime \\
+CCACHE_SLOPPINESS=pch_defines,time_macros,include_file_mtime,include_file_ctime CCACHE_DEPEND=1 \\
 CCACHE_COMPRESS=1 CCACHE_COMPRESSLEVEL=4 CCACHE_COMPILERTYPE=$_ccache_ctype CCACHE_COMPILERCHECK="string:$_cc_real_hash" \\
 $CCACHE $CC_REAL "\$@"
 EOF
@@ -968,7 +1000,7 @@ chmod +x "$PWD/build/cc"
 # the pch depends on this wrapper, so only replace it when the compiler (hash) actually changed
 cat > "$PWD/build/cxx.new" <<EOF
 #!/usr/bin/env bash
-CCACHE_SLOPPINESS=pch_defines,time_macros,include_file_mtime,include_file_ctime \\
+CCACHE_SLOPPINESS=pch_defines,time_macros,include_file_mtime,include_file_ctime CCACHE_DEPEND=1 \\
 CCACHE_COMPRESS=1 CCACHE_COMPRESSLEVEL=4 CCACHE_COMPILERTYPE=$_ccache_ctype CCACHE_COMPILERCHECK="string:$_cxx_real_hash" \\
 $CCACHE $CXX_REAL "\$@"
 EOF
@@ -1050,7 +1082,8 @@ int main(void) { return [ConfProbe value]; }
 # putting this part here so that $CC is defined to the final value
 AS_IF([test "$host_os" = "mingw32"], [
     WINPTHREAD_LDFLAGS=""
-    AS_IF([test "x$enable_static" = "xyes"], [
+    # an open program shares libwinpthread-1.dll with the C++ runtime and the editor library instead
+    AS_IF([test "x$enable_static" = "xyes" && test "x$closed_program" = "xyes"], [
         # locate the original winpthread library
         WINPTHREAD_ORIG=$(${CC} -print-file-name=libwinpthread.a)
         AC_SUBST([WINPTHREAD_ORIG])
@@ -1139,8 +1172,8 @@ AC_SUBST([CP_INSTALL])
 
 # don't omit frame pointers, it's not worth it on 64-bit, and having them makes profiling/debugging better
 AS_IF([test "$host_cpu" != "i686" && test -z "$WASM_CC"], [
-    # -mcmodel=small is not supported on arm64/darwin
-    AS_IF([test "$SYSNAME" != "macos"], [
+    # -mcmodel=small is not supported on arm64/darwin, and a library loaded later can't reach the program data with it
+    AS_IF([test "$SYSNAME" != "macos" && test "x$closed_program" = "xyes"], [
         COMMON_FLAGS="$COMMON_FLAGS -mcmodel=small"
     ])
     COMMON_FLAGS="$COMMON_FLAGS -fno-omit-frame-pointer -momit-leaf-frame-pointer"
@@ -1169,6 +1202,47 @@ AX_CHECK_LINK_FLAG([-Wl,--gc-sections], [
         LDFLAGS="$LDFLAGS -Wl,-dead_strip"
     ])
 ])
+
+# hot reload: the program exports its own symbols and those of its dependencies (-rdynamic is -export_dynamic for ld64,
+# which also keeps them through -dead_strip). on mach-o the library is a bundle that is linked against the program, on
+# ELF a shared object whose references to it are resolved when it's loaded, on PE a DLL linked against the program
+# import library (GNU ld accepts -rdynamic there with only a warning). mk/editor.am narrows the exports on ELF and PE,
+# with --exclude-libs or, where the linker lacks that (the lld mingw driver), --exclude-symbols
+MODULE_LDFLAGS=
+MODULE_LIBS=
+HOST_EXPORTS_EXCLUDE=
+AS_IF([test "x$closed_program" = "xno"], [
+    AS_IF([test "$SYSNAME" = "windows"], [
+        AX_CHECK_LINK_FLAG([-Wl,--export-all-symbols], [
+            NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,--export-all-symbols -Wl,--out-implib,libneomod.dll.a"
+        ], [
+            AC_MSG_ERROR([--enable-hot-reload: no way to export the program symbols found])
+        ])
+        MODULE_LDFLAGS='-shared'
+        MODULE_LIBS='libneomod.dll.a'
+    ], [
+        AX_CHECK_LINK_FLAG([-rdynamic], [
+            NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -rdynamic"
+        ], [
+            AC_MSG_ERROR([--enable-hot-reload: no way to export the program symbols found])
+        ])
+        AS_IF([test "$SYSNAME" = "macos"], [
+            MODULE_LDFLAGS='-bundle -bundle_loader neomod$(EXEEXT)'
+        ], [
+            MODULE_LDFLAGS='-shared'
+        ])
+    ])
+    AS_IF([test "$SYSNAME" != "macos"], [
+        AX_CHECK_LINK_FLAG([-Wl,--exclude-libs,ALL], [HOST_EXPORTS_EXCLUDE=libs], [
+            AX_CHECK_LINK_FLAG([-Xlinker --exclude-symbols=mc_none], [HOST_EXPORTS_EXCLUDE=symbols], [
+                AC_MSG_ERROR([--enable-hot-reload: no way to leave the dependencies out of the program exports found])
+            ])
+        ])
+    ])
+])
+AC_SUBST([MODULE_LDFLAGS])
+AC_SUBST([MODULE_LIBS])
+AC_SUBST([HOST_EXPORTS_EXCLUDE])
 
 AC_SUBST([CPPFLAGS])
 AC_SUBST([CXXFLAGS])
@@ -1234,10 +1308,27 @@ const unsigned char test@<:@@:>@ = {
 rm -f conftest.cppembed_test
 AC_SUBST([EMBED_TYPE])
 
-AS_IF([test -z "$WASM_CC" && test -z "$_is_linux_libcpp" && test "$SYSNAME" != "macos"], [
+AS_IF([test -z "$WASM_CC" && test -z "$_is_linux_libcpp" && test "$SYSNAME" != "macos" && test "x$closed_program" = "xyes"], [
     # the default static libc++ build does not work with -fno-exceptions
     # (also not supported with macos libc++)
+    # and libraries loaded later share one runtime with the program
     LDFLAGS="$LDFLAGS -static-libstdc++ -static-libgcc"
+], [test "$SYSNAME" = "linux" && test "x$closed_program" = "xno"], [
+    # hot reload on ELF. one C++ runtime in the process: a static one would be exported to every library loaded later
+    AS_IF([test -n "$_is_linux_libcpp"], [_cxx_runtime=libc++.so], [_cxx_runtime=libstdc++.so])
+    AC_MSG_CHECKING([for a shared C++ runtime])
+    _cxx_runtime_path="$($CXX $CXXFLAGS -print-file-name=$_cxx_runtime)"
+    AS_IF([test "$_cxx_runtime_path" = "$_cxx_runtime"], [
+        AC_MSG_RESULT([no])
+        AC_MSG_ERROR([--enable-hot-reload needs a shared C++ runtime, $CXX_REAL only has a static one])
+    ])
+    AC_MSG_RESULT([$_cxx_runtime_path])
+    # the library objects are PIC, so the program objects are too: gcc rejects a pch built with another -fpie/-fpic
+    # setting
+    NEOMOD_COMPFLAGS="$NEOMOD_COMPFLAGS -fPIC"
+    # unique symbols from gcc (statics in inline functions, template statics) keep glibc from ever unloading the
+    # library, and the next one would bind to its copies
+    AX_CHECK_COMPILE_FLAG([-fno-gnu-unique], [NEOMOD_CXXFLAGS="$NEOMOD_CXXFLAGS -fno-gnu-unique"], [], [-Werror])
 ])
 
 AS_IF([test -z "$WASM_CC"], [
@@ -1246,9 +1337,12 @@ AS_IF([test -z "$WASM_CC"], [
         CXXFLAGS="$CXXFLAGS -mtls-dialect=gnu2"
         CFLAGS="$CFLAGS -mtls-dialect=gnu2"
     ])
-    AX_CHECK_COMPILE_FLAG([-ftls-model=initial-exec],[
-        CXXFLAGS="$CXXFLAGS -ftls-model=initial-exec"
-        CFLAGS="$CFLAGS -ftls-model=initial-exec"
+    # initial-exec only covers TLS that exists when the program starts
+    AS_IF([test "x$closed_program" = "xyes"], [
+        AX_CHECK_COMPILE_FLAG([-ftls-model=initial-exec],[
+            CXXFLAGS="$CXXFLAGS -ftls-model=initial-exec"
+            CFLAGS="$CFLAGS -ftls-model=initial-exec"
+        ])
     ])
 ])
 
@@ -1329,25 +1423,29 @@ AS_IF([test "$host_os" = "mingw32" && { test -n "$SRCREMAP" || test "x$enable_cl
     AX_CHECK_COMPILE_FLAG([-gcodeview], [
         CXXFLAGS="-g $CXXFLAGS -gcodeview" # add some debug info too since its detached
         CFLAGS="-g $CFLAGS -gcodeview"
+        _pdb_ldflags=
         AX_CHECK_LINK_FLAG([-Wl,--pdb=], [
-            NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,--pdb="
+            _pdb_ldflags="-Wl,--pdb="
         ])
         # speeds up link time on llvm-mingw, not crucial though
         AX_CHECK_COMPILE_FLAG([-gcodeview-ghash], [
             AX_CHECK_LINK_FLAG([-Wl,/debug:ghash], [
                 CXXFLAGS="$CXXFLAGS -gcodeview-ghash"
                 CFLAGS="$CFLAGS -gcodeview-ghash"
-                NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,/debug:ghash"
+                _pdb_ldflags="$_pdb_ldflags -Wl,/debug:ghash"
             ])
         ])
         AX_CHECK_LINK_FLAG([-Wl,/pdbaltpath:%_PDB%], [
-            NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,/pdbaltpath:%_PDB%"
+            _pdb_ldflags="$_pdb_ldflags -Wl,/pdbaltpath:%_PDB%"
         ])
         AS_IF([test "$SRCREMAP" != "no"], [
             AX_CHECK_LINK_FLAG([-Wl,/pdbsourcepath:], [
-                NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,/pdbsourcepath:'${SRCREMAP:-X:\\}'"
+                _pdb_ldflags="$_pdb_ldflags -Wl,/pdbsourcepath:'${SRCREMAP:-X:\\}'"
             ])
         ])
+        NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS $_pdb_ldflags"
+        # the editor library pdb also only names the file: it's copied along with the library (Mc::ReloadableLibrary)
+        AS_IF([test "x$closed_program" = "xno"], [MODULE_LDFLAGS="$MODULE_LDFLAGS $_pdb_ldflags"])
     ])
 ])
 
@@ -1513,6 +1611,14 @@ AS_IF([test "x$enable_lto" != "xno"], [
 #     NEOMOD_COMPFLAGS="$NEOMOD_COMPFLAGS -Wexit-time-destructors -Wglobal-constructors -Wpessimizing-move -Wrange-loop-construct"
 # ])
 
+# editor code must not have static objects with constructors or destructors (see src/App/Neomod/EditorModule.h),
+# a rule rather than style, so these are errors regardless of --enable-werror (used in mk/editor.am)
+EDITOR_CXXFLAGS=
+AX_CHECK_COMPILE_FLAG([-Werror=global-constructors -Werror=exit-time-destructors], [
+    EDITOR_CXXFLAGS="-Werror=global-constructors -Werror=exit-time-destructors"
+], [], [-Werror])
+AC_SUBST([EDITOR_CXXFLAGS])
+
 # check for -Wl,--build-id (makes some debugging tools work better)
 AX_CHECK_LINK_FLAG([-Wl,--build-id], [
     LDFLAGS="$LDFLAGS -Wl,--build-id"
@@ -1558,8 +1664,8 @@ AS_IF([test "x$enable_harden" != "xno"], [
     AX_CHECK_LINK_FLAG([-Wl,--as-needed -Wl,--no-copy-dt-needed-entries], [
         LDFLAGS="$LDFLAGS -Wl,--as-needed -Wl,--no-copy-dt-needed-entries"
     ])
-    AS_IF([test "$host_os" = "mingw32" && test -z "$LLVMMINGW"], [
-        # otherwise libssp-0.dll is needed
+    AS_IF([test "$host_os" = "mingw32" && test -z "$LLVMMINGW" && test "x$closed_program" = "xyes"], [
+        # otherwise libssp-0.dll is needed (an open program installs it with the rest of the runtime)
         AX_CHECK_LINK_FLAG([-Wl,--whole-archive,-Bstatic -l:libssp.a -Wl,--no-whole-archive,-Bdynamic], [
             LDFLAGS="$LDFLAGS -Wl,--whole-archive,-Bstatic -l:libssp.a -Wl,--no-whole-archive,-Bdynamic"
         ])
@@ -2088,22 +2194,38 @@ AS_IF([test x"$enable_pch" = "xno"], [using_pch=no], [using_pch=yes])
 AM_CONDITIONAL([BUILDING_IN_CI], [test "$CI" = "true"])
 AM_CONDITIONAL([BUILD_PCH], [test "$using_pch" = "yes"])
 
-# copy winpthread dll to install directory
-AS_IF([test "$SYSNAME" = "windows" && test "x$enable_static" != "xyes"], [
-    WINSHARED_DLLS="$($CC -print-search-dirs | $GREP '^programs:' | $SED 's/programs: =//' | tr ':' '\n' | while read dir; do
-                        if test -n "$dir"; then
-                            find "$dir" -name "libwinpthread-1.dll" 2>/dev/null
-                        fi
-                    done | head -1)"
+# runtime dlls to install next to the program: winpthread for --disable-static, and for an open program the whole
+# runtime, which it shares with the editor library (C++ runtime and unwinder, winpthread, and the gcc ssp)
+_runtime_dlls=
+AS_IF([test "$SYSNAME" = "windows" && test "x$closed_program" = "xno"], [
+    AS_IF([test -n "$LLVMMINGW"], [_runtime_dlls="libc++.dll libunwind.dll"], [_runtime_dlls="libstdc++-6.dll libgcc_s_seh-1.dll"])
+    _runtime_dlls="$_runtime_dlls libwinpthread-1.dll"
+    AS_IF([test -z "$LLVMMINGW" && test "x$hardened_build" = "xyes"], [_runtime_dlls="$_runtime_dlls libssp-0.dll"])
+], [test "$SYSNAME" = "windows" && test "x$enable_static" != "xyes"], [
+    _runtime_dlls="libwinpthread-1.dll"
 ])
+WINSHARED_DLLS=
+for _dll in $_runtime_dlls; do
+    # among the compiler libraries (gcc), in the bin/ next to them (llvm-mingw, msys2) or on its program path
+    _dll_path="$($CC -print-search-dirs | $SED -n 's/^libraries: =//p; s/^programs: =//p' | tr ':' '\n' | while read dir; do
+                    test -n "$dir" && for cand in "$dir/$_dll" "$dir/../bin/$_dll"; do test -f "$cand" && echo "$cand"; done
+                done | head -1)"
+    AS_IF([test -n "$_dll_path"], [
+        WINSHARED_DLLS="${WINSHARED_DLLS:+$WINSHARED_DLLS }$_dll_path"
+    ], [test "x$closed_program" = "xno"], [
+        AC_MSG_ERROR([--enable-hot-reload: $_dll not found among the libraries of $CXX_REAL])
+    ])
+done
 
 AC_SUBST([WINSHARED_DLLS])
 AC_SUBST([ubercompat])
 AM_CONDITIONAL([WINSHARED_DLLS_NEEDED], [test -n "$WINSHARED_DLLS"])
-AM_CONDITIONAL([BUILD_WINPTHREAD_NOVERSION], 
-    [test "$host_os" = "mingw32" && test "x$enable_static" = "xyes"])
+AM_CONDITIONAL([BUILD_WINPTHREAD_NOVERSION],
+    [test "$host_os" = "mingw32" && test "x$enable_static" = "xyes" && test "x$closed_program" = "xyes"])
 
 AM_CONDITIONAL([BUILD_TESTS], [test "x$enable_tests" != "xno"])
+AM_CONDITIONAL([HOT_RELOAD], [test "x$closed_program" = "xno"])
+AM_CONDITIONAL([NARROW_HOST_EXPORTS], [test -n "$HOST_EXPORTS_EXCLUDE"])
 AM_CONDITIONAL([AUDIO_SHORTCUTS], [test -n "$make_audio_shortcuts" && test -n "$WINE" && test "$SYSNAME" = "windows"])
 AM_CONDITIONAL([BUNDLE_BEATMAPS], [test -n "$WASM_CC" && test "x$enable_redistributable" = "xno"])
 
@@ -2146,6 +2268,7 @@ neomod build configuration:
     System deps:        ${enable_system_deps-yes}
     Static linking:     ${enable_static-no}
     Stripped build:     ${enable_strip-yes}
+    Hot reload:         ${enable_hot_reload}
 
 Dependencies:
     libX11              ${have_x11-no}

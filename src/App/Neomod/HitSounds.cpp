@@ -94,8 +94,8 @@ static constexpr auto SOUND_METHODS =  //
           A_{
               &Skin::s_normal_sliderslide,    //
               &Skin::s_normal_sliderwhistle,  //
-              (Sound *Skin::*)nullptr,        // SET-sliderfinish and SET-sliderclap aren't actually valid
-              (Sound *Skin::*)nullptr         //
+              (Sound * Skin::*)nullptr,       // SET-sliderfinish and SET-sliderclap aren't actually valid
+              (Sound * Skin::*)nullptr        //
           }},
        // SampleSetType::SOFT
        A_{//
@@ -110,8 +110,8 @@ static constexpr auto SOUND_METHODS =  //
           A_{
               &Skin::s_soft_sliderslide,    //
               &Skin::s_soft_sliderwhistle,  //
-              (Sound *Skin::*)nullptr,      //
-              (Sound *Skin::*)nullptr       //
+              (Sound * Skin::*)nullptr,     //
+              (Sound * Skin::*)nullptr      //
           }},                               //
        // SampleSetType::DRUM
        A_{//
@@ -126,8 +126,8 @@ static constexpr auto SOUND_METHODS =  //
           A_{
               &Skin::s_drum_sliderslide,    //
               &Skin::s_drum_sliderwhistle,  //
-              (Sound *Skin::*)nullptr,      //
-              (Sound *Skin::*)nullptr       //
+              (Sound * Skin::*)nullptr,     //
+              (Sound * Skin::*)nullptr      //
           }}};  //
 #undef A_
 
@@ -138,12 +138,15 @@ static constexpr std::array<std::array<std::string_view, 4>, 2> SOUND_NAMES{{
     {"sliderslide", "sliderwhistle", "", ""},
 }};
 
+std::string mapSampleName(u8 set, std::string_view sound, u16 index) {
+    return index > 1 ? fmt::format("{}-{}{}", SET_NAMES[set], sound, index)
+                     : fmt::format("{}-{}", SET_NAMES[set], sound);
+}
+
 // the map's own sample for a custom sample index if it has one, else the skin's
 static Sound *sampleFor(const Skin &skin, Sound *Skin::*skinSound, u8 set, std::string_view sound, u16 index) {
-    if(index == 1) {
-        if(Sound *snd = skin.getBeatmapSample(fmt::format("{}-{}", SET_NAMES[set], sound))) return snd;
-    } else if(index > 1) {
-        if(Sound *snd = skin.getBeatmapSample(fmt::format("{}-{}{}", SET_NAMES[set], sound, index))) return snd;
+    if(index >= 1) {
+        if(Sound *snd = skin.getBeatmapSample(mapSampleName(set, sound, index))) return snd;
     }
     return skin.*skinSound;
 }

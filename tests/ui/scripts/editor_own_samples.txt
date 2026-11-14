@@ -1,0 +1,165 @@
+# the sample on a hit itself in the sidebar: an index typed and a volume dragged for the selected circle, a file picked
+# in the chooser (the sound files in the map folder without the song; a double click takes one, the arrow keys and Enter
+# too, No File none), which the skin loads. with everything selected they're set on the circles and the spinner, the
+# slider aside
+# uitest-datadir: fresh
+# uitest-copy: uitest_osu_folder_play/Songs/play set/silence.wav|maps/uitest samples/silence.wav
+# uitest-copy: uitest_osu_folder_play/Songs/play set/silence.wav|maps/uitest samples/kick.wav
+# uitest-copy: uitest_osu_folder_play/Songs/play set/silence.wav|maps/uitest samples/Snare.ogg
+# uitest-copy: uitest_osu_folder_play/Songs/play set/silence.wav|maps/uitest samples/soft-hitclap2.wav
+# uitest-file: maps/uitest samples/samples.osu|osu file format v14||[General]|AudioFilename: silence.wav|Mode: 0||[Metadata]|Title:UITest samples|Artist:UITest|Creator:uitest|Version:samples|BeatmapID:0|BeatmapSetID:-1||[Difficulty]|CircleSize:4|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|0,500,4,2,0,100,1,0||[HitObjects]|64,64,1000,5,0,0:0:0:0:|448,64,1500,1,2,0:0:0:0:|448,320,2000,1,0,0:0:0:0:|64,320,2500,1,0,0:0:0:0:|100,192,3000,6,0,L\x7c400:192,1,280|256,192,5000,12,0,6000,0:0:0:0:|256,100,7000,1,0,0:0:0:0:
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen editorscreen
+@wait 300
+sendkey Return
+@wait 30
+ui_assert text editor_title UITest - UITest samples [samples]
+ui_assert text editor_sample_index Auto
+ui_assert text editor_sample_volume Auto
+ui_assert text editor_sample_file Sample File...
+ui_assert checked editor_sample_file 0
+ui_assert skin samples 1
+sendkey Right
+sendkey Right
+@wait 3
+mouse_to 402 239
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+mouse_to 1160 404
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+ui_assert focused editor_sample_index 1
+sendtext 2
+sendkey Return
+@wait 3
+ui_assert text editor_sample_index 2
+ui_assert text editor_title UITest - UITest samples [samples] *
+mouse_to 1205 404
+@wait 2
+mouse_down
+@wait 2
+mouse_to 1265 404
+@wait 2
+ui_assert text editor_sample_volume 30%
+mouse_up
+@wait 3
+ui_assert text editor_sample_volume 30%
+mouse_to 1197 438
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert visible editor_sample_chooser 1
+ui_assert rows editor_sample_files 3
+ui_assert cell editor_sample_files 0 0 kick.wav
+ui_assert cell editor_sample_files 1 0 Snare.ogg
+ui_assert cell editor_sample_files 2 0 soft-hitclap2.wav
+ui_assert selected editor_sample_files 0
+ui_assert enabled editor_sample_use 0
+mouse_to 900 466
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+ui_assert selected editor_sample_files 1
+ui_assert enabled editor_sample_use 1
+mouse_down left 2
+@wait 2
+mouse_up
+@wait 5
+ui_assert exists editor_sample_chooser 0
+ui_assert text editor_sample_file Snare.ogg
+ui_assert checked editor_sample_file 1
+ui_assert skin samples 2
+mouse_to 1197 438
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert selected editor_sample_files 1
+sendkey Up
+@wait 3
+sendkey Return
+@wait 5
+ui_assert exists editor_sample_chooser 0
+ui_assert text editor_sample_file kick.wav
+mouse_to 1197 438
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+mouse_to 998 690
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert exists editor_sample_chooser 0
+ui_assert text editor_sample_file Sample File...
+ui_assert checked editor_sample_file 0
+ui_assert text editor_sample_index 2
+sendkey 224 down
+sendkey Z
+sendkey 224 up
+@wait 3
+ui_assert text editor_sample_file kick.wav
+sendkey 224 down
+sendkey A
+sendkey 224 up
+@wait 3
+ui_assert text editor_sample_file Several Files
+ui_assert checked editor_sample_file 1
+mouse_to 1160 404
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+sendtext 3
+sendkey Return
+@wait 3
+ui_assert text editor_sample_index 3
+sendkey Escape
+@wait 3
+ui_assert text editor_sample_index Auto
+ui_assert text editor_sample_volume Auto
+ui_assert text editor_sample_file Sample File...
+sendkey 224 down
+sendkey A
+sendkey 224 up
+@wait 3
+mouse_to 1228 404
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+ui_assert focused editor_sample_volume 1
+sendtext 45
+sendkey 224 down
+sendkey S
+sendkey 224 up
+@wait 5
+sendkey Escape
+@wait 3
+ui_assert text editor_sample_volume 45%
+exit

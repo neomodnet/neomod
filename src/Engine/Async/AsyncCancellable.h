@@ -3,7 +3,7 @@
 
 #include "AsyncFuture.h"
 #include "SyncStoptoken.h"
-#include "noinclude.h"
+#include "Registration.h"
 
 namespace Async {
 

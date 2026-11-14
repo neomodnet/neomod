@@ -67,17 +67,19 @@ static ConVar window_draw_while_occluded("window_draw_while_occluded", false, CL
 }  // namespace cv
 
 // for sending keys synthetically from console
-// usage: sendkey <name> [down|up]  -- without the suffix sends down+up; with it only that
+// usage: sendkey <name> [down|up|repeat]  -- without the suffix sends down+up; with it only that
 // half, so modifiers can be held across other commands (e.g. sendkey LCtrl down, sendkey O,
-// sendkey LCtrl up). pushed events carry the accumulated held-modifier mask.
+// sendkey LCtrl up). repeat sends a down as the platform repeats a held key.
+// pushed events carry the accumulated held-modifier mask.
 void SDLMain::sendkey(std::string_view args) {
     std::string_view keyName = args;
-    bool sendDown = true, sendUp = true;
-    // only a trailing "down"/"up" token is a suffix; key names may contain spaces ("Left Ctrl")
+    bool sendDown = true, sendUp = true, repeat = false;
+    // only a trailing "down"/"up"/"repeat" token is a suffix; key names may contain spaces ("Left Ctrl")
     if(const auto spacePos = args.rfind(' '); spacePos != std::string_view::npos) {
         const std::string_view suffix = args.substr(spacePos + 1);
-        if(suffix == "down") {
+        if(suffix == "down" || suffix == "repeat") {
             sendUp = false;
+            repeat = suffix == "repeat";
             keyName = args.substr(0, spacePos);
         } else if(suffix == "up") {
             sendDown = false;
@@ -116,7 +118,7 @@ void SDLMain::sendkey(std::string_view args) {
     ev.key.timestamp = Timing::getTicksNS();
     ev.key.scancode = sc;
     ev.key.key = SDL_GetKeyFromScancode(sc, SDL_KMOD_NONE, false);
-    ev.key.repeat = false;
+    ev.key.repeat = repeat;
     ev.key.windowID = m_windowID;
 
     if(sendDown) {
@@ -1006,6 +1008,8 @@ bool SDLMain::createWindow() {
     }
 
     m_windowID = SDL_GetWindowID(m_window);
+    // after SDL set its own up with the window
+    this->handlePageLeave();
 
     if(m_bIsKMSDRM) {
         cv::monitor.setValue(initDisplayID, false);

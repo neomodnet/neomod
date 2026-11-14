@@ -11,6 +11,7 @@
 #include "CBaseUIList.h"
 #include "CBaseUIScrollView.h"
 #include "CBaseUIStyledButton.h"
+#include "CBaseUIStyledLabel.h"
 #include "CBaseUITextbox.h"
 #include "PromptOverlay.h"
 #include "Parsing.h"
@@ -154,11 +155,13 @@ void UIDebug::debugAssert(std::string_view args) {
     std::erase_if(parts, [](std::string_view p) { return p.empty(); });
 
     if(!parts.empty() && SString::to_lower(parts[0]) == "clipboard"sv) {
-        // the rest of the line, with \n standing for a newline
+        // the rest of the line, with \n standing for a newline and \s for a space (one at the line end is cut off)
         const auto textStart = args.find(' ');
         std::string expected{textStart == std::string_view::npos ? std::string_view{} : args.substr(textStart + 1)};
         for(size_t pos = 0; (pos = expected.find("\\n", pos)) != std::string::npos; pos++)
             expected.replace(pos, 2, "\n");
+        for(size_t pos = 0; (pos = expected.find("\\s", pos)) != std::string::npos; pos++)
+            expected.replace(pos, 2, " ");
         const std::string_view actual = env->getClipBoardText();
         logRaw("UITEST {} clipboard expected='{}' actual='{}'", actual == expected ? "OK" : "FAIL", expected, actual);
         return;
@@ -334,15 +337,21 @@ void UIDebug::debugAssert(std::string_view args) {
     }
 
     if(pred == "text"sv) {
-        // ui_assert text <name> <expected> (expected may not contain spaces)
-        auto *tb = dynamic_cast<CBaseUITextbox *>(elem);
-        if(!tb) {
-            logRaw("UITEST FAIL text {} (not a textbox)", parts[1]);
+        // ui_assert text <name> <expected> (the rest of the line): the text in a textbox, a styled label or a button
+        const std::string_view expected = args.substr(parts[2].data() - args.data());
+        std::string_view actualText;
+        if(auto *tb = dynamic_cast<CBaseUITextbox *>(elem)) {
+            actualText = tb->getText();
+        } else if(auto *label = dynamic_cast<CBaseUIStyledLabel *>(elem)) {
+            actualText = label->getText();
+        } else if(auto *button = dynamic_cast<CBaseUIButton *>(elem)) {
+            actualText = button->getText();
+        } else {
+            logRaw("UITEST FAIL text {} (not a textbox, a styled label or a button)", parts[1]);
             return;
         }
-        const std::string_view actualText = tb->getText();
-        logRaw("UITEST {} text {} expected='{}' actual='{}'", actualText == parts[2] ? "OK" : "FAIL", parts[1],
-               parts[2], actualText);
+        logRaw("UITEST {} text {} expected='{}' actual='{}'", actualText == expected ? "OK" : "FAIL", parts[1],
+               expected, actualText);
         return;
     }
 

@@ -18,7 +18,7 @@ mouse_down
 @wait 3
 mouse_up
 @wait 40
-mouse_to 867 401
+mouse_to 867 426
 @wait 3
 mouse_down
 @wait 3

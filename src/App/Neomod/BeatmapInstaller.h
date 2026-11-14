@@ -53,6 +53,15 @@ class BeatmapInstaller final {
     // same as resolve_and_extract_osz but reading from a path on disk instead of directly from memory
     static std::string read_and_extract_osz(std::string_view path);
 
+    // a folder name for a new set under maps/ made from `name`: legal on any filesystem (as import folders are) and not
+    // taken (" (2)", " (3)", ... appended). "" if nothing usable is left of it
+    static std::string new_folder_name(std::string_view name);
+
+    // the name osu! gives the set in a folder (absolute path), "<setid> Artist - Title", made like the folder name for
+    // a new set on import: from the .osu files there, with the set id from the folder name when none of them says one.
+    // "" if they don't say enough
+    static std::string set_name(std::string_view folder_path);
+
     // how long to keep Failed entries around so listings can render the red state
     static constexpr f64 FAILED_ENTRY_TTL_S = 60.0;
 
@@ -80,7 +89,7 @@ class BeatmapInstaller final {
     // idempotent. if the set is already tracked as a download, only the auto_select bit is OR'd in
     // and display_name and md5 are filled iff currently empty (so a later caller with a name
     // upgrades an entry queued earlier without one).
-    void enqueue(i32 set_id, bool auto_select, std::string_view display_name = {}, const MD5Hash &md5 = {});
+    void enqueue(i32 set_id, bool auto_select, std::string_view display_name = {}, const MD5Hash& md5 = {});
 
     // import a local .osz file (drag-drop, file association, maps/ watcher). the set id is unknown
     // until the archive is cracked open on a worker thread. delete_after removes the source file once
@@ -118,8 +127,15 @@ class BeatmapInstaller final {
     // the same right away, for files written into a maps/ set folder that have to be in the db before anything else
     // happens: synced on the main thread now (its new diffs get their stars from the batch afterwards), and the
     // directory watcher's event for the write ends there. nothing outside of the song browser's reach (the db loading,
-    // gameplay)
-    std::optional<ReconcileResult> register_folder(const std::string& folder);
+    // gameplay). reread: every file is read again and matched by content, for a file the caller rewrote (a rewrite
+    // within the second its record was read in keeps the mtime that tells the others apart)
+    std::optional<ReconcileResult> register_folder(const std::string& folder, bool reread = false);
+    // copies a folder in the osu!stable songs folder (relative to it) into the maps/ folder that stands for it there
+    // (Database::standIn) on a worker, over what's there, then syncs that like an import, which lists it in place of
+    // the osu!stable set; nothing when that one has a set already. returns that maps/ folder ("" if there's none)
+    std::string enqueue_copy(std::string_view peppy_folder);
+    // true while an entry is still writing into or registering this maps/ folder
+    [[nodiscard]] bool is_writing(std::string_view folder) const;
 
    private:
     struct BMInstallerImpl;

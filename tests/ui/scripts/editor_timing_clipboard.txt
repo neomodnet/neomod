@@ -1,0 +1,70 @@
+# copy, cut and paste on the Timing tab: Ctrl+C copies the selected point and Delete takes it out, Ctrl+V puts it back
+# at its time (the map as it was); Ctrl+X and Ctrl+V the same. Edit > Delete takes out the selected point too
+# uitest-datadir: fresh
+# uitest-file: maps/uitest timing/timing.osu|osu file format v14||[General]|AudioFilename: none.mp3|Mode: 0||[Metadata]|Title:UITest timing|Artist:UITest|Creator:uitest|Version:timing|BeatmapID:0|BeatmapSetID:-1||[Difficulty]|CircleSize:4|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|1000,500,4,2,0,100,1,0|2999,-50,4,2,0,100,0,0|5000,400,4,2,0,100,1,0||[HitObjects]|256,192,1000,5,0,0:0:0:0:|100,100,1125,1,0,0:0:0:0:|64,192,3000,2,0,L\x7c204:192,1,140|256,192,5400,5,0,0:0:0:0:
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen editorscreen
+@wait 300
+sendkey Return
+@wait 30
+ui_assert text editor_title UITest - UITest timing [timing]
+sendkey F3
+@wait 5
+mouse_to 300 180
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+ui_assert focused editor_timing_points 1
+sendkey 224 down
+sendkey C
+sendkey 224 up
+@wait 3
+sendkey Delete
+@wait 3
+ui_assert text editor_title UITest - UITest timing [timing] *
+sendkey 224 down
+sendkey V
+sendkey 224 up
+@wait 3
+ui_assert text editor_title UITest - UITest timing [timing]
+sendkey 224 down
+sendkey X
+sendkey 224 up
+@wait 3
+ui_assert text editor_title UITest - UITest timing [timing] *
+sendkey 224 down
+sendkey V
+sendkey 224 up
+@wait 3
+ui_assert text editor_title UITest - UITest timing [timing]
+mouse_to 300 180
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+mouse_to 85 22
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+mouse_to 110 180
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert text editor_title UITest - UITest timing [timing] *
+exit

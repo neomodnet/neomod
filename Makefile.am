@@ -755,6 +755,10 @@ if !CLANG_BUILD
 FMT_EXTRA_BUILDFLAGS += -fno-lto
 endif # !CLANG_BUILD
 endif # WIN32_PLATFORM
+if HOT_RELOAD
+# fmt hides its symbols unless told otherwise, and the program exports it to the editor library (mk/editor.am)
+FMT_EXTRA_CMAKEFLAGS := -DCMAKE_CXX_VISIBILITY_PRESET=default -DCMAKE_VISIBILITY_INLINES_HIDDEN=OFF
+endif # HOT_RELOAD
 
 if BUILD_FMT
 FMT_CFLAGS += $(shell $(PKG_CONFIG) --cflags fmt)
@@ -790,6 +794,7 @@ $(DEPS_PREFIX)/fmt-$(FMT_VERSION).built: $(DEPS_CACHE)/fmt-$(FMT_VERSION).tar.gz
 		-DFMT_MODULE=OFF \
 		-DFMT_SYSTEM_HEADERS=OFF \
 		-DFMT_UNICODE=ON \
+		$(FMT_EXTRA_CMAKEFLAGS) \
 		-DBUILD_SHARED_LIBS="$(if $(STATICBUILD),OFF,ON)" && \
 	$(CMAKE) --build build "$(CMAKEPAROPT)" && \
 	$(CMAKE) --install build
@@ -1446,8 +1451,8 @@ endif # BUILD_PCH
 # add/remove doesn't churn the whole tree.
 $(neomod_OBJECTS): $(BUILT_SOURCES) $(PCH_OUTPUT) | $(EMBED_HEADER) $(TRANSLATIONS_HEADER)
 
-# add all paths with sources as an include ("-I") flag
-NEOMOD_INCLUDE_FLAGS := $(shell find $(srcdir)/src -not -path '*/.*' -type d -print | $(SED) 's|^|-I|' | tr '\n' ' ')
+# add all paths with sources as an include ("-I") flag (except the editor paths, see mk/editor.am)
+NEOMOD_INCLUDE_FLAGS := $(shell find $(srcdir)/src -path $(srcdir)/src/App/Neomod/Editor -prune -o -not -path '*/.*' -type d -print | $(SED) 's|^|-I|' | tr '\n' ' ')
 
 neomod_CPPFLAGS := $(NEOMOD_CPPFLAGS)
 
@@ -1580,13 +1585,14 @@ endif
 # combine the fragments into compile_commands.json and point $(top_srcdir)/.clangd at it. normal builds are unaffected.
 # run `make clean` first for a from-scratch database (e.g. after reconfiguring with different flags).
 # BUILT_SOURCES are built separately first (with the real CC/CXX), due to weird interactions with sub-makes and parallel jobs
-COMPDB_FRAGMENTS = $(addsuffix .compdb,$(PCH_OUTPUT) $(neomod_OBJECTS))
+COMPDB_OBJECTS = $(PCH_OUTPUT) $(neomod_OBJECTS)
+COMPDB_FRAGMENTS = $(addsuffix .compdb,$(COMPDB_OBJECTS))
 COMPDB_RECORD = $(PYTHON) $(srcdir)/build-aux/gen_compdb.py record
 compile-commands:
 	@for f in $(COMPDB_FRAGMENTS); do test -f $$f || rm -f $${f%.compdb}; done
 	$(MAKE_PFX) $(MAKE) $(AM_MAKEFLAGS) $(BUILT_SOURCES) && \
 	$(MAKE_PFX) $(MAKE) $(AM_MAKEFLAGS) 'CC=$(COMPDB_RECORD) --compiler "$(CC_REAL)" -- $(CC)' 'CXX=$(COMPDB_RECORD) --compiler "$(CXX_REAL)" -- $(CXX)' \
-		$(PCH_OUTPUT) $(neomod_OBJECTS) && \
+		$(COMPDB_OBJECTS) && \
 	$(PYTHON) $(srcdir)/build-aux/gen_compdb.py --strip-pch -o compile_commands.json \
 		--clangd $(abs_top_srcdir)/.clangd --clangd-template $(srcdir)/.clangd-template $(COMPDB_FRAGMENTS)
 
@@ -1733,9 +1739,10 @@ endif
 INSTALL_STAMPS += stamp-install-sharedlibs
 
 # --- patchelf rpath (linux only) ---
+# not the editor library in hot-reload builds, which its own install rule renames into place
 if LINUX_PLATFORM
 stamp-install-rpath: stamp-install-sharedlibs
-	find "$(DESTDIR)$(bindir)/lib" -maxdepth 1 -name '*'.so'*' -execdir $(PATCHELF) --set-rpath '$$ORIGIN:$$ORIGIN/../' '{''}' ';'
+	find "$(DESTDIR)$(bindir)/lib" -maxdepth 1 -name '*'.so'*' ! -name '$(EDITOR_MODULE)' ! -name '$(EDITOR_MODULE).tmp' -execdir $(PATCHELF) --set-rpath '$$ORIGIN:$$ORIGIN/../' '{''}' ';'
 	find "$(DESTDIR)$(bindir)" -maxdepth 1 -name '*'.so'*' -execdir $(PATCHELF) --set-rpath '$$ORIGIN:$$ORIGIN/lib' '{''}' ';'
 	@touch $@
 
@@ -1746,11 +1753,12 @@ endif
 # --- install_name_tool rpath (macos only) ---
 # rewrite absolute build-time install names so dylibs resolve their dependencies from
 # the directory they were installed to (Contents/Frameworks), not the build tree.
+# the editor module in hot-reload builds is a bundle, linked against the program instead
 if MACOS_PLATFORM
 stamp-install-librpath: stamp-install-sharedlibs
 	@for dir in "$(DESTDIR)$(bindir)/$(LIBDEST)"; do \
 		test -d "$$dir" || continue; \
-		find "$$dir" -maxdepth 1 -name '*.dylib' | while read -r lib; do \
+		find "$$dir" -maxdepth 1 -name '*.dylib' ! -name '$(EDITOR_MODULE)' | while read -r lib; do \
 			args="-id @rpath/$$(basename "$$lib")"; \
 			for dep in $$(otool -L "$$lib" | $(SED) -n 's/^[[:space:]]*\([^[:space:]]*\).*/\1/p'); do \
 				depbn=$$(basename "$$dep"); \
@@ -1851,6 +1859,9 @@ endif # WASM_PLATFORM
 # .install-state invalidates them if the install dir is recreated, and
 # uninstall-local clears them explicitly.
 DISTCLEANFILES = $(INSTALL_STAMPS) .install-state
+
+# after the variables it appends to (INSTALL_STAMPS, COMPDB_OBJECTS)
+include $(top_srcdir)/mk/editor.am
 
 # install hooks
 # copy pdb (windows), create app bundle (macos)

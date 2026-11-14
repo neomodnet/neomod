@@ -1,0 +1,54 @@
+# an osu!stable map is edited like any other: its first save copies its set into maps/ under its folder name, where the
+# copy stands for it (one set), and saves the map there (a bookmark and the editor settings; the md5 matches the
+# expected text), with the offset the original has; the osu!stable folder stays as it was
+# uitest-datadir: fresh
+# uitest-unchanged: uitest_osu_folder_stable
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder_stable
+set_active_ui_screen songbrowser
+@wait 300
+@wait_secs 2
+sendtext uitest stable
+@wait 60
+sendkey Down
+@wait 30
+ui_assert map file diff02.osu
+ui_assert map root songs
+mouse_to 1033 327
+@wait 2
+mouse_down right
+@wait 1
+mouse_up right
+@wait 3
+mouse_to 1116 394
+@wait 2
+mouse_down
+@wait 1
+mouse_up
+@wait 30
+ui_assert text editor_title UITest - UITest uitest stable [diff 02]
+sendkey 224 down
+sendkey B
+sendkey 224 up
+@wait 3
+ui_assert text editor_title UITest - UITest uitest stable [diff 02] *
+sendkey 224 down
+sendkey S
+sendkey 224 up
+@wait 3
+@wait_secs 2
+ui_assert text editor_title UITest - UITest uitest stable [diff 02]
+ui_assert sets 1
+ui_assert map root maps
+ui_assert map file diff02.osu
+ui_assert map offset 7
+ui_assert map md5 d0468beb7e82cee41378924a6eb521aa
+exit

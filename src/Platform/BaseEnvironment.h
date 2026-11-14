@@ -32,6 +32,7 @@ enum class FEAT : uint8_t {
     I18N = 1 << 4,
     LIBJPEG = 1 << 5,
     FFMPEG = 1 << 6,
+    HOT_RELOAD = 1 << 7,
     NONE = 0,
 };
 enum class AUD : uint8_t {
@@ -118,6 +119,9 @@ consteval FEAT getFeatures() {
 #endif
 #if defined(MCENGINE_FEATURE_FFMPEG)
         FEAT::FFMPEG |
+#endif
+#if defined(MCENGINE_FEATURE_HOT_RELOAD)
+        FEAT::HOT_RELOAD |
 #endif
         FEAT::NONE;
 }

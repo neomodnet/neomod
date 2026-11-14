@@ -74,16 +74,21 @@ void UIIconButton::onMouseOutside() {
 }
 
 PauseButton::PauseButton(std::string name) : UIIconButton(Icons::PLAY, std::move(name)) {
-    this->setClickCallback([] { osu->getMusicTrack()->togglePause(); });
+    this->setClickCallback([this] { this->toggle(); });
 }
 
 void PauseButton::tick() {
     UIIconButton::tick();
 
-    auto *track = osu->getMusicTrack();
-    if(track->isLoading()) return;
-
-    const bool playing = track->isPlaying();
+    const bool playing = this->isPlaying();
     if(playing == (this->icon == Icons::PAUSE)) return;
     this->icon = playing ? Icons::PAUSE : Icons::PLAY;
 }
+
+bool PauseButton::isPlaying() const {
+    // a loading track keeps the current icon, e.g. through next/previous
+    const auto *track = osu->getMusicTrack();
+    return track->isLoading() ? this->icon == Icons::PAUSE : track->isPlaying();
+}
+
+void PauseButton::toggle() { osu->getMusicTrack()->togglePause(); }

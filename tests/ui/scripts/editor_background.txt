@@ -1,0 +1,56 @@
+# an image dropped on the editor (debug_drop: where a drop goes) becomes the shown map background: copied into its
+# folder and set as a step, which the Setup tab shows and a save writes (in new events for a map without any; undone,
+# it's gone again). in English, whatever the system language: "None" is translated
+# uitest-datadir: fresh
+# uitest-maps: uitest bg set|-1|2
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen songbrowser
+@wait 300
+sendtext uitest bg set
+@wait 60
+sendkey Down
+@wait 30
+mouse_to 1033 327
+@wait 2
+mouse_down right
+@wait 1
+mouse_up right
+@wait 3
+mouse_to 1116 394
+@wait 2
+mouse_down
+@wait 1
+mouse_up
+@wait 30
+debug_drop uitest_import/background.png
+@wait 3
+ui_assert text editor_title UITest - UITest uitest bg set [diff 02] *
+sendkey F4
+@wait 5
+ui_assert text editor_setup_background background.png
+sendkey 224 down
+sendkey Z
+sendkey 224 up
+@wait 3
+ui_assert text editor_setup_background None
+sendkey 224 down
+sendkey Y
+sendkey 224 up
+@wait 3
+ui_assert text editor_setup_background background.png
+sendkey 224 down
+sendkey S
+sendkey 224 up
+@wait 3
+@wait_secs 2
+ui_assert map md5 4b64ecbe2a39eea705a76c9aa5d34d56
+exit

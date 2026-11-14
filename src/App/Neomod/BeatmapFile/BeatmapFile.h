@@ -88,6 +88,13 @@ class BeatmapFile {
     explicit BeatmapFile(std::span<const u8> bytes)
         : BeatmapFile(std::string_view{reinterpret_cast<const char *>(bytes.data()), bytes.size()}) {}
 
+    // the name a known section has between the brackets in its header (empty for NONE and UNKNOWN)
+    [[nodiscard]] static std::string_view sectionName(SectionKind kind);
+    // the UTF-8 byte order mark a file may start with, which isn't part of its first line
+    static constexpr std::string_view BOM{"\xEF\xBB\xBF"};
+    // the first line in s with its line break: "\r\n", "\n" or a lone "\r", as read by osu
+    [[nodiscard]] static std::string_view firstLine(std::string_view s);
+
     [[nodiscard]] std::string_view getBytes() const { return this->bytes; }
     // whether the bytes start with a UTF-8 byte order mark, which the sections leave out
     [[nodiscard]] bool hasBom() const { return this->bom; }

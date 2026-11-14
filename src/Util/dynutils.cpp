@@ -10,6 +10,7 @@
 #define LPREFIX ""
 #define LSUFFIX ".dll"
 
+#include "File.h"
 #include "RuntimePlatform.h"
 
 #include "WinDebloatDefs.h"
@@ -24,8 +25,6 @@
 #define LSUFFIX ".so"
 #endif
 #endif
-
-#define LNAMESTR(lib) fmt::format(LPREFIX "{:s}" LSUFFIX, (lib))
 
 namespace dynutils {
 namespace {
@@ -57,6 +56,8 @@ void unload_lib(lib_obj *&lib) {
     lib = nullptr;
 }
 
+std::string lib_file_name(std::string_view lib_name) { return fmt::format(LPREFIX "{:s}" LSUFFIX, lib_name); }
+
 // example usage: load_lib("bass"), load_lib("libbass.so"), load_lib("bass.dll"), load_lib("bass", "lib/")
 // you get the point
 lib_obj *load_lib(const char *c_lib_name, const char *c_search_dir) {
@@ -65,7 +66,7 @@ lib_obj *load_lib(const char *c_lib_name, const char *c_search_dir) {
     lib_obj *ret = nullptr;
     if(!lib_name.empty()) {
         if(Environment::getFileExtensionFromFilePath(lib_name).empty()) {
-            lib_name = LNAMESTR(lib_name);
+            lib_name = lib_file_name(lib_name);
         }
         if(!search_dir.empty()) {
             if(!search_dir.ends_with('/') && search_dir.ends_with('\\')) {
@@ -109,7 +110,7 @@ lib_obj *load_lib_system(const char *c_lib_name) {
 
     std::string lib_name{c_lib_name};
     if(Environment::getFileExtensionFromFilePath(lib_name).empty()) {
-        lib_name = LNAMESTR(lib_name);
+        lib_name = lib_file_name(lib_name);
     }
 
     // LOAD_LIBRARY_SEARCH_SYSTEM32 is not supported on windows xp
@@ -147,6 +148,9 @@ lib_obj *load_lib(decltype(nullptr)) {
     return ret;
 }
 
+// module names are compared as paths with backslashes
+bool is_loaded(const char *path) { return GetModuleHandleW(File::getFsPath(path).make_preferred().c_str()) != nullptr; }
+
 #else
 
 #include <dlfcn.h>
@@ -160,12 +164,18 @@ lib_obj *load_lib(decltype(nullptr)) {
     return ret;
 }
 
+bool is_loaded(const char *path) {
+    // RTLD_NOLOAD only hands out (another reference to) what's already loaded
+    void *handle = dlopen(path, RTLD_LAZY | RTLD_NOLOAD);
+    if(handle) dlclose(handle);
+    return handle != nullptr;
+}
+
 #endif
 
 const char *get_error() { return last_error.c_str(); }
 
 #undef LNAME
-#undef LNAMESTR
 #undef LPREFIX
 #undef LSUFFIX
 

@@ -49,6 +49,14 @@ class HitObject {
     // TEMP constructor helpers (HitObjects::create, DatabaseBeatmap::loadGameplay)
     void setComboStartTime(i32 tms) { m_comboStartMS = tms; }
     void setComboNumber(i32 comboNumber) { m_comboNumber = comboNumber; }
+    // its combo counted again (see Primitives::countCombos())
+    void setCombo(i32 comboNumber, i32 colorCounter, i32 colorOffset, bool isEndOfCombo) {
+        m_comboNumber = comboNumber;
+        m_colorCounter = colorCounter;
+        m_colorOffset = colorOffset;
+        m_endOfCombo = isEndOfCombo;
+    }
+    void setLine(u32 line) { m_line = line; }
 
    public:
     // a sound a perfect play makes: what judgement plays when the object, or a part of it, is hit at its time
@@ -120,6 +128,9 @@ class HitObject {
     [[nodiscard]] forceinline i32 getComboStartTime() const { return m_comboStartMS; }
     [[nodiscard]] forceinline i32 getComboNumber() const { return m_comboNumber; }
 
+    // the line in its file it was read from (1-based, 0: not from a file)
+    [[nodiscard]] forceinline u32 getLine() const { return m_line; }
+
     void addHitResult(LiveHitResult result, i32 delta, bool isEndOfCombo, vec2 posRaw, f32 targetDeltaPct = 0.0f,
                       f32 targetAngle = 0.0f, bool ignoreOnHitErrorBar = false, bool ignoreCombo = false,
                       bool ignoreHealth = false, bool addObjectDurationToSkinAnimationTimeStartOffset = true);
@@ -130,6 +141,8 @@ class HitObject {
 
     void setStack(i32 stack) { m_stackNum = stack; }
     void setForceDrawApproachCircle(bool firstNote) { m_overrideHDApproachCircle = firstNote; }
+    // draws a slider border or a spinner in this colour instead of its own (none: its own)
+    void setTint(std::optional<Color> tint) { m_tint = tint; }
     void setAutopilotDelta(i32 deltaMS) { m_autopilotDeltaMS = deltaMS; }
     void setBlocked(bool blocked) { m_blocked = blocked; }
 
@@ -200,6 +213,7 @@ class HitObject {
     i32 m_colorOffset;
 
     i32 m_stackNum{0};
+    u32 m_line{0};
 
     f32 m_alpha{0.f};
     f32 m_alphaWithoutHidden{0.f};
@@ -209,6 +223,7 @@ class HitObject {
     // a posed trail (see pose()): the circle's (or slider head's) alpha, 0 without one, and its approach circle's scale
     f32 m_trailAlpha{0.f};
     f32 m_trailApproachScale{1.f};
+    std::optional<Color> m_tint;
 
     bool m_blocked{false};
     bool m_overrideHDApproachCircle{false};
@@ -521,6 +536,13 @@ namespace HitObjects {
 // combo start times set; judged by judge and drawn on view (see HitObject's constructor)
 std::vector<std::unique_ptr<HitObject>> create(const Primitives::PRIMITIVE_CONTAINER &primitives, GameplayJudge *judge,
                                                const PlayfieldView *view);
+// the one at `index` among them, as create() makes it but for the combo start time (which follows from the objects
+// before it)
+std::unique_ptr<HitObject> create(const Primitives::PRIMITIVE_CONTAINER &primitives, uSz index, GameplayJudge *judge,
+                                  const PlayfieldView *view);
+// gives objects in play order (the first one starting a combo) their combo start times, each combo starting after an
+// object that ends one
+void startCombos(std::span<const std::unique_ptr<HitObject>> objects);
 
 // osu!'s stacking: moved up and left by a twentieth of the circle diameter per stack level, down and left with Hard Rock
 // (which flips the playfield)

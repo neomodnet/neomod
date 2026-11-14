@@ -2,6 +2,7 @@
 #pragma once
 #include "InputDevice.h"
 #include "noinclude.h"
+#include "Registration.h"
 #include "Vectors.h"
 
 #include <vector>

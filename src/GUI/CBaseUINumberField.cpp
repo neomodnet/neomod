@@ -62,6 +62,12 @@ CBaseUINumberField *CBaseUINumberField::setSuffix(std::string suffix) {
     return this;
 }
 
+CBaseUINumberField *CBaseUINumberField::setNamedValue(f64 value, std::string text) {
+    this->named.emplace(value, std::move(text));
+    if(!this->typing) this->setText(this->format(false));
+    return this;
+}
+
 CBaseUINumberField *CBaseUINumberField::setValue(f64 value) {
     this->settled = value;
     if(same(value, this->value)) return this;
@@ -200,6 +206,7 @@ void CBaseUINumberField::onMouseCancel() {
 
 std::string CBaseUINumberField::format(bool typing) const {
     if(std::isnan(this->value)) return {};
+    if(!typing && this->named && this->named->first == this->value) return this->named->second;
     // (a value with more decimals than the user can set shows them all)
     const f64 scale = std::pow(10.0, this->decimals);
     std::string out = std::round(this->value * scale) / scale == this->value

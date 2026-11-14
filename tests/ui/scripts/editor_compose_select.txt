@@ -1,0 +1,75 @@
+# selecting and moving: a box from nothing selects the objects shown whose heads are inside it, a drag of one of them
+# moves them all, Ctrl+click adds another; Delete removes the selection and Undo (from the Edit menu) brings it back,
+# selected. saved, the moved circles are where they were dragged.
+# uitest-datadir: fresh
+# uitest-file: maps/uitest compose/compose.osu|osu file format v14||[General]|AudioFilename: none.mp3|Mode: 0||[Metadata]|Title:UITest compose|Artist:UITest|Creator:uitest|Version:compose|BeatmapID:0|BeatmapSetID:-1||[Difficulty]|CircleSize:4|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|0,500,4,2,0,100,1,0||[HitObjects]|64,64,1000,5,0,0:0:0:0:|448,64,1500,1,2,0:0:0:0:|448,320,2000,1,0,0:0:0:0:|64,320,2500,1,0,0:0:0:0:|100,192,3000,6,0,L\x7c400:192,1,280|256,192,5000,12,0,6000,0:0:0:0:|256,100,7000,1,0,0:0:0:0:
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen editorscreen
+@wait 300
+sendkey Return
+@wait 30
+ui_assert text editor_title UITest - UITest compose [compose]
+editor_grid_snap 0
+editor_distance_snap 0
+sendkey Right
+sendkey Right
+@wait 3
+mouse_to 340 170
+@wait 3
+mouse_down
+@wait 2
+mouse_to 600 200
+@wait 2
+mouse_to 870 260
+@wait 3
+mouse_up
+@wait 3
+mouse_to 838 239
+@wait 3
+mouse_down
+@wait 2
+mouse_to 838 300
+@wait 2
+mouse_to 838 353
+@wait 3
+mouse_up
+@wait 3
+sendkey 224 down
+mouse_to 838 531
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+sendkey 224 up
+@wait 2
+sendkey Delete
+@wait 3
+mouse_to 86 22
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+mouse_to 150 54
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+sendkey 224 down
+sendkey S
+sendkey 224 up
+@wait 3
+@wait_secs 2
+ui_assert map md5 0a3f1bcd92be1b622c217b11eef1d20a
+exit

@@ -3,6 +3,7 @@
 
 #include "config.h"
 #include "noinclude.h"
+#include "Registration.h"
 
 #include "Vectors_fwd.h"
 #include "CBaseUIEventCtx.h"
@@ -22,6 +23,7 @@ class UIOverlay;
 class AboutScreen;
 class TransferOverlay;
 class Chat;
+class EditorScreen;
 class HUD;
 class Lobby;
 class MainMenu;
@@ -64,43 +66,44 @@ class UIDebug;
 // comment is the only place the stack reads in order. The active base screen draws at the frame
 // bottom, the overlay band draws over it; input + key routing walk the whole stack top-down.
 //
-//   BASE band (ranks 1-10): at most one visible at a time, so order WITHIN the band does not
-//     matter; the 9 setScreen-swapped base screens (room, rankingscreen, userstatsscreen,
-//     spectatorscreen, songbrowser, osudirectscreen, lobby, aboutscreen, mainmenu), then hud
-//     (rank 10, drawn by the gameplay composite).
-//   OVERLAY band (ranks 11-21): occlusion matters here, so this order is important:
-//     11 pauseoverlay  12 mapsettingsoverlay  13 chat  14 modselector  15 useractions
-//     16 optionsoverlay  17 promptoverlay  18 transferoverlay  19 volumeoverlay
-//     20 notificationoverlay  21 tooltipoverlay
+//   BASE band (ranks 1-11): at most one visible at a time, so order WITHIN the band does not
+//     matter; the 10 setScreen-swapped base screens (room, rankingscreen, userstatsscreen,
+//     spectatorscreen, songbrowser, osudirectscreen, lobby, aboutscreen, mainmenu, editorscreen),
+//     then hud (rank 11, drawn by the gameplay composite).
+//   OVERLAY band (ranks 12-22): occlusion matters here, so this order is important:
+//     12 pauseoverlay  13 mapsettingsoverlay  14 chat  15 modselector  16 useractions
+//     17 optionsoverlay  18 promptoverlay  19 transferoverlay  20 volumeoverlay
+//     21 notificationoverlay  22 tooltipoverlay
 //   mapsettingsoverlay > pauseoverlay: it's reachable while paused (the pause menu is modal).
 //   chat < modselector/options: they cover the chat (the menu modselector leaves it up underneath, dimmed).
 //   notification > volume is deliberate: VolumeOverlay::onKeyDown is ungated (KEY_MUTE, volume
-//   binds) and must not eat keys ahead of notification's keybind capture. extra_overlays from
+//   binds) and must not eat keys ahead of the notification keybind capture. extra_overlays from
 //   pushOverlay splice in just below volumeoverlay (see EXTRAS_SPLICE).
 
 // clang-format off
 #define UI_SCREEN_REGISTRY(X) \
-    X(20, UIF_DEFAULT,           NotificationOverlay,     notificationoverlay) \
-    X(19, UIF_DEFAULT,           VolumeOverlay,           volumeoverlay) \
-    X(17, UIF_MODAL | UIF_CLOSE, PromptOverlay,           promptoverlay) \
-    X(14, UIF_MODAL | UIF_CLOSE, ModSelector,             modselector) \
-    X(15, UIF_DEFAULT,           UIUserContextMenuScreen, useractions) \
+    X(21, UIF_DEFAULT,           NotificationOverlay,     notificationoverlay) \
+    X(20, UIF_DEFAULT,           VolumeOverlay,           volumeoverlay) \
+    X(18, UIF_MODAL | UIF_CLOSE, PromptOverlay,           promptoverlay) \
+    X(15, UIF_MODAL | UIF_CLOSE, ModSelector,             modselector) \
+    X(16, UIF_DEFAULT,           UIUserContextMenuScreen, useractions) \
     X( 1, UIF_DEFAULT,           RoomScreen,              room) \
-    X(13, UIF_DEFAULT,           Chat,                    chat) \
-    X(16, UIF_CLOSE,             OptionsOverlay,          optionsoverlay) \
+    X(14, UIF_DEFAULT,           Chat,                    chat) \
+    X(17, UIF_CLOSE,             OptionsOverlay,          optionsoverlay) \
     X( 2, UIF_DEFAULT,           RankingScreen,           rankingscreen) \
     X( 3, UIF_DEFAULT,           UserStatsScreen,         userstatsscreen) \
     X( 4, UIF_DEFAULT,           SpectatorScreen,         spectatorscreen) \
-    X(11, UIF_MODAL | UIF_CLOSE, PauseOverlay,            pauseoverlay) \
-    X(12, UIF_DEFAULT,           MapSettingsOverlay,      mapsettingsoverlay) \
-    X(10, UIF_DEFAULT,           HUD,                     hud) \
+    X(12, UIF_MODAL | UIF_CLOSE, PauseOverlay,            pauseoverlay) \
+    X(13, UIF_DEFAULT,           MapSettingsOverlay,      mapsettingsoverlay) \
+    X(11, UIF_DEFAULT,           HUD,                     hud) \
     X( 5, UIF_DEFAULT,           SongBrowser,             songbrowser) \
     X( 6, UIF_DEFAULT,           OsuDirectScreen,         osudirectscreen) \
     X( 7, UIF_DEFAULT,           Lobby,                   lobby) \
     X( 8, UIF_DEFAULT,           AboutScreen,             aboutscreen) \
     X( 9, UIF_DEFAULT,           MainMenu,                mainmenu) \
-    X(21, UIF_DEFAULT,           TooltipOverlay,          tooltipoverlay) \
-    X(18, UIF_DEFAULT,           TransferOverlay,         transferoverlay)
+    X(22, UIF_DEFAULT,           TooltipOverlay,          tooltipoverlay) \
+    X(19, UIF_DEFAULT,           TransferOverlay,         transferoverlay) \
+    X(10, UIF_DEFAULT,           EditorScreen,            editorscreen)
 // clang-format on
 
 struct UI final {

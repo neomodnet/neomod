@@ -1,0 +1,129 @@
+# the square for a combo colour on the Setup tab opens a colour picker under it: a drag in its square or its hue strip,
+# a hex code or a channel typed (Tab goes through the fields) each set the colour, which the map has once the drag ends
+# or the field is left; a click on the colour it opened with sets that again. one visit is one step
+# uitest-datadir: fresh
+# uitest-file: maps/uitest compose/compose.osu|osu file format v14||[General]|AudioFilename: none.mp3|Mode: 0||[Metadata]|Title:UITest compose|Artist:UITest|Creator:uitest|Version:compose|BeatmapID:0|BeatmapSetID:-1||[Difficulty]|CircleSize:4|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|0,500,4,2,0,100,1,0||[HitObjects]|64,64,1000,5,0,0:0:0:0:|448,64,1500,1,2,0:0:0:0:|448,320,2000,1,0,0:0:0:0:|64,320,2500,1,0,0:0:0:0:|100,192,3000,6,0,L\x7c400:192,1,280|256,192,5000,12,0,6000,0:0:0:0:|256,100,7000,1,0,0:0:0:0:
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen editorscreen
+@wait 300
+sendkey Return
+@wait 30
+ui_assert text editor_title UITest - UITest compose [compose]
+sendkey F4
+@wait 5
+mouse_to 1120 182
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert visible editor_setup_colour_1 1
+ui_assert exists editor_setup_colour_1_popup 0
+mouse_to 1100 156
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert visible editor_setup_colour_1_popup 1
+ui_assert text editor_setup_colour_1_picker_hex #0080FF
+mouse_to 1127 248
+@wait 2
+mouse_down
+@wait 2
+ui_assert text editor_setup_colour_1_picker_hex #3F5F7F
+ui_assert text editor_setup_colour_1_picker_r 63
+mouse_to 1127 249
+@wait 2
+mouse_to 1127 248
+@wait 2
+mouse_up
+@wait 3
+ui_assert text editor_setup_colour_1_picker_hex #3F5F7F
+mouse_to 1018 332
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+ui_assert text editor_setup_colour_1_picker_hex #7F413F
+mouse_to 1090 394
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+ui_assert focused editor_setup_colour_1_picker_hex 1
+sendkey 224 down
+sendkey A
+sendkey 224 up
+sendtext 10c020
+sendkey Return
+@wait 3
+ui_assert text editor_setup_colour_1_picker_hex #10C020
+ui_assert text editor_setup_colour_1_picker_r 16
+ui_assert text editor_setup_colour_1_picker_g 192
+ui_assert text editor_setup_colour_1_picker_b 32
+sendkey Tab
+@wait 3
+ui_assert focused editor_setup_colour_1_picker_r 1
+sendtext 255
+sendkey Tab
+@wait 3
+ui_assert focused editor_setup_colour_1_picker_g 1
+ui_assert text editor_setup_colour_1_picker_hex #FFC020
+sendkey Escape
+@wait 3
+ui_assert visible editor_setup_colour_1_popup 1
+mouse_to 1185 394
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+ui_assert text editor_setup_colour_1_picker_hex #0080FF
+mouse_to 1127 248
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+ui_assert text editor_setup_colour_1_picker_hex #3F5F7F
+mouse_to 600 500
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert exists editor_setup_colour_1_popup 0
+mouse_to 1100 156
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert text editor_setup_colour_1_picker_hex #3F5F7F
+sendkey Escape
+@wait 5
+ui_assert exists editor_setup_colour_1_popup 0
+sendkey 224 down
+sendkey Z
+sendkey 224 up
+@wait 5
+mouse_to 1100 156
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert text editor_setup_colour_1_picker_hex #0080FF
+exit

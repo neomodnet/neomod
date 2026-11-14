@@ -1,0 +1,53 @@
+# the ways in and out of the editor: the main menu Edit button and its E key open it, the editor exit button and Escape
+# both go back to the main menu. the editor root is shown and hidden with its screen; the first visit loads the beatmap
+# database.
+# uitest-datadir: fresh
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+ui_trace 1
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+mouse_to 640 360
+@wait 2
+mouse_down
+@wait 3
+mouse_up
+@wait 60
+mouse_to 867 359
+@wait 3
+mouse_down
+@wait 3
+mouse_up
+@wait 120
+ui_assert screen_active editorscreen 1
+ui_assert visible editor 1
+ui_assert visible editor_exit 1
+mouse_to 1241 22
+@wait 3
+mouse_down
+@wait 3
+mouse_up
+@wait 10
+ui_assert screen_active mainmenu 1
+ui_assert visible editorscreen 0
+ui_assert visible editor 0
+mouse_to 10 10
+@wait 3
+sendkey Return
+@wait 5
+ui_assert visible mainmenu_edit 1
+sendkey E
+@wait 10
+ui_assert screen_active editorscreen 1
+ui_assert visible editor 1
+sendkey Escape
+@wait 10
+ui_assert screen_active mainmenu 1
+ui_assert visible editorscreen 0
+exit

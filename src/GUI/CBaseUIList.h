@@ -46,7 +46,7 @@ class CBaseUIList : public CBaseUIElement {
 
     [[nodiscard]] const Model &getModel() const { return this->model; }
     [[nodiscard]] const Hash::flat::set<u64> &getSelection() const { return this->selection; }
-    // (doesn't call the callback)
+    // a row selected alone is the one the keys go on from (doesn't call the callback)
     CBaseUIList *setSelection(std::span<const u64> keys);
     // called when the user changed the selection
     CBaseUIList *setSelectionCallback(std::function<void()> callback);

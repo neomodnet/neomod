@@ -1,0 +1,38 @@
+# Help > Keyboard Shortcuts lists every command that has keys under its group heading, a command with several keys
+# once; Escape closes the list and leaves the editor shown.
+# uitest-datadir: fresh
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+set_active_ui_screen editorscreen
+@wait 120
+ui_assert exists editor_shortcuts 0
+mouse_to 397 22
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 10
+mouse_to 480 52
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 15
+ui_assert visible editor_shortcuts 1
+ui_assert cell editor_shortcut_rows 0 0 Playback
+ui_assert cell editor_shortcut_rows 0 1 Play / Pause
+ui_assert cell editor_shortcut_rows 0 2 Space, C
+ui_assert cell editor_shortcut_rows 1 0
+ui_assert cell editor_shortcut_rows 1 1 Play from the Start
+sendkey Escape
+@wait 10
+ui_assert exists editor_shortcuts 0
+ui_assert screen_active editorscreen 1
+exit

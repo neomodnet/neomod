@@ -1,0 +1,79 @@
+# the timeline zoom buttons: + zooms in by a tenth and - out, as Alt and the wheel over the timeline do, between 0.1 and
+# 8. ten clicks on - from 1 stop at 0.1, two on + give 0.3, which a save writes into the new [Editor] section.
+# uitest-datadir: fresh
+# uitest-file: maps/uitest zoom/zoom.osu|osu file format v14||[General]|AudioFilename: none.mp3|Mode: 0||[Metadata]|Title:UITest zoom|Artist:UITest|Creator:uitest|Version:zoom|BeatmapID:0|BeatmapSetID:-1||[Difficulty]|CircleSize:4|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|0,500,4,2,0,100,1,0||[HitObjects]|64,64,1000,5,0,0:0:0:0:
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen editorscreen
+@wait 300
+sendkey Return
+@wait 30
+ui_assert text editor_title UITest - UITest zoom [zoom]
+mouse_to 141 91
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+mouse_to 141 56
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+sendkey 224 down
+sendkey B
+sendkey S
+sendkey 224 up
+@wait 3
+@wait_secs 2
+ui_assert map md5 eef55817e2d25da32fee7b4b34842dc4
+exit

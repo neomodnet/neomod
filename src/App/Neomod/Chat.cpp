@@ -51,6 +51,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cwctype>
 #include "ctre.hpp"
 #include <utility>
 
@@ -204,9 +205,10 @@ void ChatChannel::add_message(ChatMessage msg) {
         }
     }
 
-    // regex101 format: (\[\[(.+?)\]\])|(\[((\S+):\/\/\S+) (.+?)\])|(https?:\/\/\S+)
+    // regex101 format: (\[\[(.+?)\]\])|(\[((\S+):\/\/\S+) (.+?)\])|((?:https?|neomod):\/\/\S+)|(\d{2,}:[0-5]\d[:.]\d{3}(?: \([^)]+\))?)
     // This matches:
     // - Raw URLs      https://example.com
+    // - Timestamps    00:12:345 (1,2)
     // - Labeled URLs  [https://regex101.com useful website]
     // - Lobby invites [osump://0/ join my lobby plz]
     // - Wiki links    [[Chat Console]]
@@ -218,11 +220,14 @@ void ChatChannel::add_message(ChatMessage msg) {
     // Group 5) https
     // Group 6) label
     // Group 7) https://example.com
+    // Group 8) 00:12:345 (1,2)
     //
     // Groups 1, 2 only exist for wiki links
     // Groups 3, 4, 5, 6 only exist for labeled links
     // Group 7 only exists for raw links
-    static constexpr ctll::fixed_string url_pattern{LR"((\[\[(.+?)\]\])|(\[((\S+)://\S+) (.+?)\])|(https?://\S+))"};
+    // Group 8 only exists for timestamps
+    static constexpr ctll::fixed_string url_pattern{
+        LR"((\[\[(.+?)\]\])|(\[((\S+)://\S+) (.+?)\])|((?:https?|neomod)://\S+)|(\d{2,}:[0-5]\d[:.]\d{3}(?: \([^)]+\))?))"};
 
     // convert to wstring for regex matching and correct codepoint-level indexing
     // (also implicitly sanitizes malformed utf-8 from the network)
@@ -241,6 +246,15 @@ void ChatChannel::add_message(ChatMessage msg) {
             // Raw link
             link_url = raw_link.to_view();
             link_label = raw_link.to_view();
+        } else if(auto timestamp = match.get<8>(); timestamp) {
+            // Timestamp: a place in a map, for the editor (not the end of a word)
+            if(const wchar_t before = match_start > 0 ? msg_text[match_start - 1] : L' ';
+               std::iswalnum(before) || before == L'_') {
+                continue;
+            }
+            link_url = L"osu://edit/";
+            link_url.append(timestamp.to_view());
+            link_label = timestamp.to_view();
         } else if(auto labeled_link = match.get<3>(); labeled_link) {
             // Labeled link
             link_url = match.get<4>().to_view();
@@ -248,7 +262,7 @@ void ChatChannel::add_message(ChatMessage msg) {
 
             // Normalize invite links to osump://
             std::wstring_view link_protocol = match.get<5>().to_view();
-            if(link_protocol == L"osu") {
+            if(link_protocol == L"osu" && !link_url.starts_with(L"osu://edit/")) {
                 // osu:// -> osump://
                 link_url.insert(3, L"mp");
             } else if(link_protocol == L"http://osump") {

@@ -33,7 +33,7 @@ mouse_down right
 mouse_up right
 @wait 3
 ui_assert visible songbrowser_contextmenu 1
-mouse_to 1116 622
+mouse_to 1116 660
 @wait 2
 mouse_down
 @wait 1

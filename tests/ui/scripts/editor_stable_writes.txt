@@ -1,0 +1,62 @@
+# a background dropped on an osu!stable map and New Difficulty on it write into the set copy in maps/: the set is copied
+# first and the map goes on in the copy (one set, the game selection on it), the background is a step on the copy, the
+# new difficulty joins the copied set; the osu!stable folder stays as it was
+# uitest-datadir: fresh
+# uitest-unchanged: uitest_osu_folder_stable
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder_stable
+set_active_ui_screen songbrowser
+@wait 300
+@wait_secs 2
+sendtext uitest stable
+@wait 60
+sendkey Down
+@wait 30
+ui_assert map root songs
+mouse_to 1033 327
+@wait 2
+mouse_down right
+@wait 1
+mouse_up right
+@wait 3
+mouse_to 1116 394
+@wait 2
+mouse_down
+@wait 1
+mouse_up
+@wait 30
+debug_drop uitest_import/background.png
+@wait 3
+@wait_secs 2
+ui_assert sets 1
+ui_assert map root maps
+ui_assert map file diff02.osu
+ui_assert text editor_title UITest - UITest uitest stable [diff 02] *
+sendkey F4
+@wait 5
+ui_assert text editor_setup_background background.png
+mouse_to 30 22
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+mouse_to 100 76
+@wait 5
+mouse_to 369 76
+@wait 5
+mouse_down
+@wait 2
+mouse_up
+@wait 30
+ui_assert text editor_title UITest - UITest uitest stable [New Difficulty]
+ui_assert sets 1
+exit

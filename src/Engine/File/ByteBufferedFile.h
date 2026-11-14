@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <span>
 
 #ifndef UTIL_MD5HASH_H
 #if defined(__GNUC__) && !defined(__clang__) && (defined(__MINGW32__) || defined(__MINGW64__))
@@ -255,7 +256,7 @@ class Writer {
    public:
     Writer() = delete;
     // writes to <writePath>.tmp, which replaces the file at writePath in one step when the writer is committed (WASM
-    // writes in place)
+    // writes in place). folders in the path that aren't there are made
     Writer(std::string_view writePath);
     // commits if commit() wasn't called, logging a failure
     ~Writer();
@@ -269,6 +270,7 @@ class Writer {
 
     void flush() noexcept;
     void write_bytes(const u8 *bytes, uSz n) noexcept;
+    void write_bytes(std::span<const u8> bytes) noexcept { this->write_bytes(bytes.data(), bytes.size()); }
     void write_hash_chars(const MD5String &hash_str) noexcept;
     void write_hash_digest(const MD5Hash &hash_digest) noexcept;
     void write_uleb128(u32 num) noexcept;

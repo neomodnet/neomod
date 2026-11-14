@@ -4,7 +4,9 @@
 #include "types.h"
 
 #include <functional>
+#include <optional>
 #include <string>
+#include <utility>
 
 // a number to set, drawn as a text field. a drag to the left or right changes it by steps (with Shift by its fine
 // step); a click types it in instead: Enter or the focus leaving takes what was typed, kept within the range, and
@@ -24,6 +26,8 @@ class CBaseUINumberField : public CBaseUIStyledTextbox {
     CBaseUINumberField *setDecimals(int decimals);
     // shown after the number while it isn't being typed in
     CBaseUINumberField *setSuffix(std::string suffix);
+    // a value that shows as `text` while it isn't being typed in (0 standing for "automatic", say)
+    CBaseUINumberField *setNamedValue(f64 value, std::string text);
     // shows it as it is (the range and the decimals only bind what the user sets). while the user types, what's typed
     // stays. a value that's no number (NaN) shows as nothing, for what there are several of: it can be typed over,
     // not dragged or stepped
@@ -63,6 +67,7 @@ class CBaseUINumberField : public CBaseUIStyledTextbox {
 
     std::function<void(f64)> changeCallback;
     std::string suffix;
+    std::optional<std::pair<f64, std::string>> named;
     f64 value{0.0};
     f64 settled{0.0};  // the value its user knows
     f64 min{0.0};

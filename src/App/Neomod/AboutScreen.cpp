@@ -399,6 +399,9 @@ void AboutScreen::buildChangelog() {
     CHANGELOG v44_05;
     v44_05.title = "44.05 (" CHANGELOG_TIMESTAMP ")";
     v44_05.changes = {
+        R"(- Added a beatmap editor: "Edit" in the main menu, or right-click a difficulty in song select and choose "Edit")",
+        R"(- Chat: Editor timestamps like 00:12:345 (1,2) and neomod://edit links open the editor there)",
+        R"(- Main menu: "E" now opens the editor ("X" still exits))",
         R"(- Added a search bar to the skin selection dropdown)",
         R"(- Added "Retries" HUD statistic)",
         R"(- Fixed media volume keys not working)",
@@ -407,6 +410,8 @@ void AboutScreen::buildChangelog() {
         R"(- Spectating: Fixed client sending outdated frames to spectators)",
         R"(- Web: Exported beatmaps and skins are now downloaded)",
         R"(- Text boxes: Added double/triple-click select, and made block-caret-move consistent)",
+        R"(- Exported beatmaps are now named "<set ID> Artist - Title.osz" instead of after their folder)",
+        R"(- Fixed collection exports including a beatmapset once per difficulty)",
     };
     changelogs.push_back(std::move(v44_05));
 

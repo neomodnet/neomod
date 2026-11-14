@@ -4,6 +4,7 @@
 #include "Vectors.h"
 #include "GameRules.h"
 
+#include <algorithm>
 #include <functional>
 #include <type_traits>
 
@@ -137,6 +138,22 @@ void calculateStacks(const ObjectGetter<C> &getObj, uSz numObjects, float AR, in
     }
 
     return;
+}
+
+// objects (sorted by time) fall into runs that stack only among themselves: calculateStacks() over one run alone gives
+// it the stacks it gets over all objects. returns where the run after the one at `start` starts: the first object that
+// starts further after every earlier end in the run than objects stack across (numObjects if there's none). only the
+// objects from `start` on are looked at
+template <HitObjectContainer C>
+uSz nextStackingRun(const ObjectGetter<C> &getObj, uSz numObjects, uSz start, float AR, float stackLeniency) {
+    const float window = GameRules::getApproachTimeForStacking(AR) * stackLeniency;
+    i32 latestEnd = getObj(start)->getEndTime();
+    for(uSz i = start + 1; i < numObjects; i++) {
+        const C *object = getObj(i);
+        if((f32)object->getClickTime() - window > (f32)latestEnd) return i;
+        latestEnd = std::max(latestEnd, object->getEndTime());
+    }
+    return numObjects;
 }
 
 }  // namespace neomod::Primitives

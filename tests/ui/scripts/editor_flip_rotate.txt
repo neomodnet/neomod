@@ -1,0 +1,50 @@
+# flipping and turning: Ctrl+A, then Ctrl+H, Ctrl+J, Ctrl+> twice and Ctrl+< mirror the map across the playfield middle
+# lines and turn it around its center (the heads and the slider points; the spinner stays), then the Compose menu Flip
+# Horizontally. saved, the objects are where those maps put them.
+# uitest-datadir: fresh
+# uitest-file: maps/uitest flip/flip.osu|osu file format v14||[General]|AudioFilename: none.mp3|Mode: 0||[Metadata]|Title:UITest flip|Artist:UITest|Creator:uitest|Version:flip|BeatmapID:0|BeatmapSetID:-1||[Difficulty]|CircleSize:4|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|0,500,4,2,0,100,1,0||[HitObjects]|64,64,1000,5,0,0:0:0:0:|448,100,1500,1,2,0:0:0:0:|100,192,2000,2,0,P\x7c200:100\x7c300:192,1,240|256,192,3500,12,0,4500,0:0:0:0:
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen editorscreen
+@wait 300
+sendkey Return
+@wait 30
+ui_assert text editor_title UITest - UITest flip [flip]
+sendkey 224 down
+sendkey A
+sendkey H
+sendkey J
+sendkey 55
+sendkey 55
+sendkey 54
+sendkey 224 up
+@wait 3
+mouse_to 166 22
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert visible editor_menu_compose_menu 1
+mouse_to 200 203
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert exists editor_menu_compose_menu 0
+sendkey 224 down
+sendkey S
+sendkey 224 up
+@wait 3
+@wait_secs 2
+ui_assert map md5 3aa541a2a540bac8a174dcc5f6883fe9
+exit

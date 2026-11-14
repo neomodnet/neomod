@@ -1,0 +1,59 @@
+# repeats and spinner ends on the timeline: a slider end circle dragged gives it the span count whose end is nearest
+# (the head and the tail keep their edge sounds, the repeats added get the body sounds), a spinner end dragged goes to
+# the divisor tick nearest to the cursor. saved, the slider and the spinner are as they were dragged.
+# uitest-datadir: fresh
+# uitest-file: maps/uitest repeats/repeats.osu|osu file format v14||[General]|AudioFilename: none.mp3|Mode: 0||[Metadata]|Title:UITest repeats|Artist:UITest|Creator:uitest|Version:repeats|BeatmapID:0|BeatmapSetID:-1||[Difficulty]|CircleSize:4|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|0,500,4,2,0,100,1,0||[HitObjects]|100,192,1000,6,4,L\x7c400:192,1,280,2\x7c8,2:0\x7c0:0,0:0:0:0:|256,192,4000,12,0,5000,0:0:0:0:|256,100,7000,5,0,0:0:0:0:
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen editorscreen
+@wait 300
+sendkey Return
+@wait 30
+ui_assert text editor_title UITest - UITest repeats [repeats]
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+@wait 3
+ui_assert text editor_clock 00:02:000
+mouse_to 718 74
+@wait 3
+mouse_down
+@wait 2
+mouse_to 913 74
+@wait 2
+mouse_to 1106 74
+@wait 3
+mouse_up
+@wait 3
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+@wait 3
+ui_assert text editor_clock 00:04:000
+mouse_to 902 74
+@wait 3
+mouse_down
+@wait 2
+mouse_to 961 74
+@wait 2
+mouse_to 1013 74
+@wait 3
+mouse_up
+@wait 3
+sendkey 224 down
+sendkey S
+sendkey 224 up
+@wait 3
+@wait_secs 2
+ui_assert map md5 d670d65ba8bbcc3aff57dee7ecd1391b
+exit

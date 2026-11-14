@@ -3,6 +3,7 @@
 
 #include "Console.h"
 #include "EngineConfig.h"
+#include "SyncCV.h"
 #include "SyncMutex.h"
 #include "Thread.h"
 #include "Environment.h"
@@ -22,7 +23,11 @@
 #include <unistd.h>
 #endif
 
+#include <algorithm>
 #include <array>
+#include <atomic>
+#include <charconv>
+#include <chrono>
 
 // TODO: handle log level switching at runtime
 // we currently want all logging to be output, so set it to the most verbose level
@@ -38,10 +43,12 @@
 #include "spdlog/sinks/stdout_color_sinks.h"
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/pattern_formatter.h"
+#include "spdlog/details/null_mutex.h"
 
 #define DEFAULT_LOGGER_NAME "main"
 #define RAW_LOGGER_NAME "raw"
 #define NETWORK_LOGGER_NAME "network"
+#define BARRIER_LOGGER_NAME "barrier"
 
 #ifdef _DEBUG
 // debug pattern: [filename:line] [function]: message
@@ -423,6 +430,39 @@ class DualPatternFileSink final : public spdlog::sinks::base_sink<custom_spdmtx>
     inline void flush_() override { file_helper_.flush(); }
 };
 
+// receives the ticket numbers that flush(true) logs and waits for. its logger posts into the same queue as the others,
+// which has one worker, so everything logged before a ticket has been written out by the time the ticket arrives here
+class BarrierSink final : public spdlog::sinks::base_sink<spdlog::details::null_mutex> {
+   public:
+    // false if the ticket didn't arrive in time
+    bool wait_for(uint64_t ticket, std::chrono::milliseconds timeout) {
+        Sync::unique_lock lock(mtx_);
+        return cv_.wait_for(lock, timeout, [&] { return reached_ >= ticket; });
+    }
+
+   protected:
+    inline void sink_it_(const spdlog::details::log_msg &msg) noexcept override {
+        uint64_t ticket = 0;
+        std::from_chars(msg.payload.data(), msg.payload.data() + msg.payload.size(), ticket);
+        {
+            Sync::lock_guard lock(mtx_);
+            // tickets taken by different threads at the same time can arrive out of order
+            reached_ = std::max(reached_, ticket);
+        }
+        cv_.notify_all();
+    }
+    inline void flush_() noexcept override {}
+
+   private:
+    Sync::mutex mtx_;
+    Sync::condition_variable cv_;
+    uint64_t reached_{0};
+};
+
+std::shared_ptr<spdlog::async_logger> s_barrier_logger;
+BarrierSink *s_barrier_sink{nullptr};
+std::atomic<uint64_t> s_barrier_ticket{0};
+
 }  // namespace
 
 // to be called in main(), for one-time setup/teardown
@@ -590,6 +630,12 @@ void init(bool create_console) noexcept {
     spdlog::register_logger(s_logger);
     spdlog::register_logger(s_raw_logger);
 
+    // not registered: only flush(true) logs to it, and its tickets must not be dropped on the way in
+    auto barrier_sink{std::make_shared<BarrierSink>()};
+    s_barrier_sink = barrier_sink.get();
+    s_barrier_logger = std::make_shared<spdlog::async_logger>(
+        BARRIER_LOGGER_NAME, std::move(barrier_sink), spdlog::thread_pool(), spdlog::async_overflow_policy::block);
+
     // flush every 500ms
     // console commands will trigger a flush for responsiveness, though
 #ifndef MCENGINE_FEATURE_NO_THREADS
@@ -608,6 +654,8 @@ void shutdown() noexcept {
     flush();
     s_log_initialized = false;
 
+    s_barrier_sink = nullptr;
+    s_barrier_logger.reset();
     s_network_logger_raw_ptr = nullptr;
     s_network_logger.reset();
     s_raw_logger_raw_ptr = nullptr;
@@ -636,15 +684,26 @@ void shutdown() noexcept {
 }
 
 // manual trigger for console commands
-void flush() noexcept {
-    if(likely(s_log_initialized)) {
-        s_logger->flush();
-        s_raw_logger->flush();
-        if(s_network_logger) s_network_logger->flush();
-    } else {
+bool flush(bool wait) noexcept {
+    if(unlikely(!s_log_initialized)) {
         fflush(stdout);
         fflush(stderr);
+        return true;
     }
+
+    s_logger->flush();
+    s_raw_logger->flush();
+    if(s_network_logger) s_network_logger->flush();
+    if(!wait) return true;
+
+    // the queue drops its oldest messages when it overflows (a ticket among them), so post another one if it takes long
+    for(int tries = 0; tries < 5; tries++) {
+        const uint64_t ticket = ++s_barrier_ticket;
+        const fmt::format_int text{ticket};
+        s_barrier_logger->log(spdlog::level::info, std::string_view{text.data(), text.size()});
+        if(s_barrier_sink->wait_for(ticket, std::chrono::seconds(1))) return true;
+    }
+    return false;
 }
 
 // extra util functions

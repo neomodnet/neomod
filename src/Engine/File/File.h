@@ -130,6 +130,8 @@ class File {
     static std::vector<DirEntry> pruneDirectory(std::string_view dir, bool (*managed)(std::string_view name),
                                                 i64 maxAgeSeconds, u64 maxTotalBytes = UINT64_MAX);
 
+    static bool createDirectoryRecursive(std::string_view dir);
+
     // fs::path works differently depending on the type of string it was constructed with
     // so use this to get a unicode-constructed path on windows (convert), utf8 otherwise (passthrough)
     [[nodiscard]] static std::filesystem::path getFsPath(std::string_view utf8path);

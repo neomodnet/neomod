@@ -4,6 +4,7 @@
 
 #include "AsyncCancellable.h"
 #include "AsyncChannel.h"
+#include "Registration.h"
 #include "noinclude.h"
 
 #include <compare>

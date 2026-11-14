@@ -1,0 +1,75 @@
+# unsaved changes are kept when another difficulty opens (File, Open Difficulty) and are back when the map opens again,
+# while its file stays as it was.
+# uitest-datadir: fresh
+# uitest-maps: uitest editor set|-1|2
+# uitest-log: 1 editor: diff02.osu continues its unsaved changes
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen songbrowser
+@wait 300
+sendtext uitest editor set
+@wait 60
+sendkey Down
+@wait 30
+mouse_to 1033 327
+@wait 2
+mouse_down right
+@wait 1
+mouse_up right
+@wait 3
+mouse_to 1116 394
+@wait 2
+mouse_down
+@wait 1
+mouse_up
+@wait 30
+ui_assert text editor_title UITest - UITest uitest editor set [diff 02]
+sendkey Right
+@wait 3
+sendkey 224 down
+sendkey B
+sendkey 224 up
+@wait 3
+mouse_to 30 22
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+ui_assert visible editor_menu_file_menu 1
+mouse_to 100 100
+@wait 5
+ui_assert visible editor_menu_open_difficulty_menu 1
+mouse_to 300 100
+@wait 5
+mouse_down
+@wait 2
+mouse_up
+@wait 30
+ui_assert exists editor_menu_file_menu 0
+ui_assert text editor_title UITest - UITest uitest editor set [diff 01]
+mouse_to 30 22
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+mouse_to 100 100
+@wait 5
+mouse_to 300 124
+@wait 5
+mouse_down
+@wait 2
+mouse_up
+@wait 30
+ui_assert text editor_title UITest - UITest uitest editor set [diff 02] *
+ui_assert map md5 7dacd9315e9b7357df9e6d0d39be3acd
+exit

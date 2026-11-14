@@ -38,11 +38,16 @@ class UIIconButton : public CBaseUIButton {
 };
 
 // plays and pauses the selected beatmap's music, showing what a click would do
-class PauseButton final : public UIIconButton {
+class PauseButton : public UIIconButton {
     NOCOPY_NOMOVE(PauseButton)
    public:
     PauseButton(std::string name = {});
     ~PauseButton() override = default;
 
     void tick() override;
+
+   protected:
+    // base implementations refer to Osu::musicTrack
+    [[nodiscard]] virtual bool isPlaying() const;
+    virtual void toggle();
 };

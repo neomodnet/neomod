@@ -85,3 +85,11 @@
 // and they're so ridiculously slow to compile that it's worth putting them here as well
 #include <print>
 #include <format>
+
+// code compiled with MC_RELOADABLE_CODE shares this pch, so what that define decides has to stay out of it
+#ifdef MC_UNREVOCABLE
+#error "Registration.h is part of the pch, where MC_UNREVOCABLE can't follow MC_RELOADABLE_CODE"
+#endif
+#ifdef CV_HOST_ONLY
+#error "ConVar.h is part of the pch, where CV_HOST_ONLY can't follow MC_RELOADABLE_CODE"
+#endif

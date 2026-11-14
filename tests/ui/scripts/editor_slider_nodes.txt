@@ -1,0 +1,60 @@
+# a part of the selected slider picked: a click on its tail in the playfield picks it (W: a whistle there), a click on
+# its head circle on the timeline picks that (Shift+E: the soft set there), a click on its body picks the body (R: the
+# slide clap). saved, the edge lists have the sounds for each edge and the body its own.
+# uitest-datadir: fresh
+# uitest-file: maps/uitest nodes/nodes.osu|osu file format v14||[General]|AudioFilename: none.mp3|Mode: 0||[Metadata]|Title:UITest nodes|Artist:UITest|Creator:uitest|Version:nodes|BeatmapID:0|BeatmapSetID:-1||[Difficulty]|CircleSize:4|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|0,500,4,2,0,100,1,0||[HitObjects]|100,192,1000,6,0,L\x7c400:192,1,280|256,300,3000,5,0,0:0:0:0:
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen editorscreen
+@wait 300
+sendkey Return
+@wait 30
+ui_assert text editor_title UITest - UITest nodes [nodes]
+ui_assert text editor_clock 00:00:000
+mouse_to 442 385
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+mouse_to 761 385
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+sendkey W
+@wait 3
+mouse_to 902 74
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+sendkey 225 down
+sendkey E
+sendkey 225 up
+@wait 3
+mouse_to 601 385
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+sendkey R
+@wait 3
+sendkey 224 down
+sendkey S
+sendkey 224 up
+@wait 3
+@wait_secs 2
+ui_assert map md5 f4a036b0a599c5ca0830e7c87737ba34
+exit

@@ -28,6 +28,9 @@ class BGImageHandler final {
     void update(bool allowEviction);
     const Image *getLoadBackgroundImage(const DatabaseBeatmap *beatmap, bool load_immediately = false,
                                         bool allow_menubg_fallback = true);
+    // an image in a set folder (the one getFolder() names for a map), cached and loaded like a map background is: one
+    // the map file names before the record does. nullptr until it's loaded
+    const Image *getLoadBackgroundImage(std::string_view folder, std::string_view file);
     // drops what's cached for a set folder (the one a map's getFolder() names) whose files changed, so it's read again
     void forgetFolder(std::string_view folder);
 

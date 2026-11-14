@@ -1,0 +1,97 @@
+# File, New Difficulty makes a difficulty in the open map set from it: a copy (with its unsaved changes, which stay with
+# the open map) named "<name> (copy)", or an empty one named "New Difficulty", each opened on the Setup tab with its
+# name selected to type another. a name typed and saved renames its file; the set has all four then
+# uitest-datadir: fresh
+# uitest-maps: uitest newdiff set|-1|2
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen songbrowser
+@wait 300
+sendtext uitest newdiff set
+@wait 60
+sendkey Down
+@wait 30
+mouse_to 1033 327
+@wait 2
+mouse_down right
+@wait 1
+mouse_up right
+@wait 3
+mouse_to 1116 394
+@wait 2
+mouse_down
+@wait 1
+mouse_up
+@wait 30
+sendkey 224 down
+sendkey B
+sendkey 224 up
+@wait 3
+ui_assert text editor_title UITest - UITest uitest newdiff set [diff 02] *
+mouse_to 30 22
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+mouse_to 100 76
+@wait 5
+ui_assert visible editor_menu_new_difficulty_menu 1
+mouse_to 369 100
+@wait 5
+mouse_down
+@wait 2
+mouse_up
+@wait 30
+ui_assert text editor_title UITest - UITest uitest newdiff set [diff 02 (copy)]
+ui_assert visible editor_setup 1
+ui_assert focused editor_setup_version 1
+ui_assert text editor_setup_version diff 02 (copy)
+sendtext Insane
+sendkey Return
+@wait 3
+ui_assert text editor_title UITest - UITest uitest newdiff set [diff 02 (copy)] *
+sendkey 224 down
+sendkey S
+sendkey 224 up
+@wait 3
+@wait_secs 2
+ui_assert text editor_title UITest - UITest uitest newdiff set [Insane]
+mouse_to 30 22
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+mouse_to 100 76
+@wait 5
+mouse_to 369 76
+@wait 5
+mouse_down
+@wait 2
+mouse_up
+@wait 30
+ui_assert text editor_title UITest - UITest uitest newdiff set [New Difficulty]
+ui_assert focused editor_setup_version 1
+ui_assert text editor_setup_version New Difficulty
+sendkey Escape
+@wait 3
+mouse_to 30 22
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+mouse_to 100 100
+@wait 5
+ui_assert exists editor_menu_difficulty_3 1
+ui_assert exists editor_menu_difficulty_4 0
+exit

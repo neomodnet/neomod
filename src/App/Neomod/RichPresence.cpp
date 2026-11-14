@@ -39,9 +39,11 @@ enum class MusicDependentCallback : u8 {
     ON_SONGBROWSER,
     ON_PLAYSTART,
     //ON_PLAYEND, // this doesn't set discord status for some reason?
-    ON_MULTI
+    ON_MULTI,
+    ON_EDITOR,
 };
 MusicDependentCallback last_callback{};
+MD5Hash editor_map;  // what onEditor() was last told about (by content: its record may be gone at a refresh)
 
 template <size_t N = 128>
 std::array<char, N> crop_string_to_n(const std::string& str) {
@@ -76,7 +78,7 @@ std::array<char, 128> beatmap_desc_str(const DatabaseBeatmap* map, bool include_
     return ret;
 }
 
-void set_activity_with_image(DiscordActivity& to_set) {
+void set_activity_with_image(const DatabaseBeatmap* map, DiscordActivity& to_set, bool is_editor = false) {
 #ifdef MCENGINE_PLATFORM_WASM
     if(Osu::isDiscordActivity()) {
         // clang-format off
@@ -90,8 +92,7 @@ void set_activity_with_image(DiscordActivity& to_set) {
 #endif
 
 #ifdef MCENGINE_FEATURE_DISCORD
-    const auto map = osu->getMapInterface()->getBeatmap();
-    const bool listening = !!map && osu->getMusicTrack()->isPlaying();
+    const bool listening = !!map && (osu->getMusicTrack()->isPlaying() || is_editor);
     const bool playing = !!map && osu->isInPlayMode();
     const bool bg_visible = !!map && map->getSettings().draw_background && cv::rich_presence_map_backgrounds.getBool();
 
@@ -139,8 +140,39 @@ void set_activity_with_image(DiscordActivity& to_set) {
 
     DiscRPC::set_activity(to_set);
 #else
+    (void)map;
     (void)to_set;
+    (void)is_editor;
 #endif
+}
+
+// what setBanchoStatus() sends, about `map`
+void send_status(const char* info_text, Action action, const DatabaseBeatmap* map) {
+    std::string fancy_text{fmt::format("\n{:s}", info_text)};
+    if(fancy_text.length() > 1023) fancy_text.resize(1023);
+
+    // Don't send status update if it's the same as our current status
+    // (prevents situations like spamming main menu updates if song fails to loop)
+    if(last_status == fancy_text && last_action == action) return;
+    last_status = fancy_text;
+    last_action = action;
+
+    MD5Hash map_md5;
+    i32 map_id = 0;
+    if(map != nullptr) {
+        map_md5 = map->getMD5();
+        map_id = map->getID();
+    }
+
+    Packet packet;
+    packet.id = OUTP_CHANGE_ACTION;
+    packet.write<u8>((u8)action);
+    packet.write_string(fancy_text);
+    packet.write_hash_chars(map_md5);
+    packet.write<LegacyFlags>(ui->getModSelector()->getModFlags());
+    packet.write<u8>(0);  // osu!std
+    packet.write<i32>(map_id);
+    BANCHO::Net::send_packet(packet);
 }
 }  // namespace
 
@@ -162,6 +194,9 @@ void refreshStatus() {
         case ON_MULTI:
             onMultiplayerLobby();
             break;
+        case ON_EDITOR:
+            if(const DatabaseBeatmap* map = db->getBeatmapDifficulty(editor_map)) onEditor(*map);
+            break;
         case ON_NULL:
             break;
     }
@@ -169,32 +204,7 @@ void refreshStatus() {
 
 void setBanchoStatus(const char* info_text, Action action) {
     if(osu == nullptr) return;
-
-    std::string fancy_text{fmt::format("\n{:s}", info_text)};
-    if(fancy_text.length() > 1023) fancy_text.resize(1023);
-
-    // Don't send status update if it's the same as our current status
-    // (prevents situations like spamming main menu updates if song fails to loop)
-    if(last_status == fancy_text && last_action == action) return;
-    last_status = fancy_text;
-    last_action = action;
-
-    MD5Hash map_md5;
-    i32 map_id = 0;
-    if(const auto* map = osu->getMapInterface()->getBeatmap(); map != nullptr) {
-        map_md5 = map->getMD5();
-        map_id = map->getID();
-    }
-
-    Packet packet;
-    packet.id = OUTP_CHANGE_ACTION;
-    packet.write<u8>((u8)action);
-    packet.write_string(fancy_text);
-    packet.write_hash_chars(map_md5);
-    packet.write<LegacyFlags>(ui->getModSelector()->getModFlags());
-    packet.write<u8>(0);  // osu!std
-    packet.write<i32>(map_id);
-    BANCHO::Net::send_packet(packet);
+    send_status(info_text, action, osu->getMapInterface()->getBeatmap());
 }
 
 void resetBanchoStatus() {
@@ -252,7 +262,7 @@ void onMainMenu() {
 
     auto activity = DiscRPC::create_base_activity();
 
-    auto map = osu->getMapInterface()->getBeatmap();
+    const auto* map = osu->getMapInterface()->getBeatmap();
     bool listening = map != nullptr && osu->getMusicTrack()->isPlaying();
     if(listening) {
         activity.details = beatmap_desc_str(map, false);
@@ -260,7 +270,7 @@ void onMainMenu() {
 
     strncpy(activity.state.data(), msg.data(), activity.state.size() - 1);
     setBanchoStatus(msg.data(), action);
-    set_activity_with_image(activity);
+    set_activity_with_image(map, activity);
 }
 
 void onSongBrowser() {
@@ -285,7 +295,7 @@ void onSongBrowser() {
         activity.party.size.max_size = 0;
     }
 
-    set_activity_with_image(activity);
+    set_activity_with_image(osu->getMapInterface()->getBeatmap(), activity);
     env->setWindowTitle(PACKAGE_NAME);
 }
 
@@ -340,10 +350,22 @@ void onPlayStart() {
         activity.party.size.max_size = 0;
     }
 
-    set_activity_with_image(activity);
+    set_activity_with_image(map, activity);
 
     // also update window title
     env->setWindowTitle(fmt::format(PACKAGE_NAME " - {:s}", std::string_view{&activity.details[0]}));
+}
+
+void onEditor(const DatabaseBeatmap& map) {
+    last_callback = MusicDependentCallback::ON_EDITOR;
+    editor_map = map.getMD5();
+
+    auto activity = DiscRPC::create_base_activity();
+    activity.details = beatmap_desc_str(&map, true);
+    strncpy(activity.state.data(), "Editing", activity.state.size() - 1);
+
+    send_status(activity.details.data(), Action::EDITING, &map);
+    set_activity_with_image(&map, activity, /*is_editor=*/true);
 }
 
 void onPlayEnd(bool quit) {
@@ -384,7 +406,7 @@ void onMultiplayerLobby() {
     activity.party.size.current_size = BanchoState::room.nb_players;
     activity.party.size.max_size = BanchoState::room.nb_open_slots;
 
-    set_activity_with_image(activity);
+    set_activity_with_image(osu->getMapInterface()->getBeatmap(), activity);
 }
 
 }  // namespace RichPresence

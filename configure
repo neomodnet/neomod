@@ -632,6 +632,10 @@ BUNDLE_BEATMAPS_FALSE
 BUNDLE_BEATMAPS_TRUE
 AUDIO_SHORTCUTS_FALSE
 AUDIO_SHORTCUTS_TRUE
+NARROW_HOST_EXPORTS_FALSE
+NARROW_HOST_EXPORTS_TRUE
+HOT_RELOAD_FALSE
+HOT_RELOAD_TRUE
 BUILD_TESTS_FALSE
 BUILD_TESTS_TRUE
 BUILD_WINPTHREAD_NOVERSION_FALSE
@@ -845,6 +849,7 @@ NEOMOD_LDFLAGS
 NEOMOD_CXXFLAGS
 NEOMOD_CFLAGS
 NEOMOD_CPPFLAGS
+EDITOR_CXXFLAGS
 OPENMP
 ffmpeg_strip
 ENABLE_DEBUG
@@ -854,6 +859,9 @@ LD
 EMBED_TYPE
 CFLAGS_EXTRA
 CXXFLAGS_EXTRA
+HOST_EXPORTS_EXCLUDE
+MODULE_LIBS
+MODULE_LDFLAGS
 CP_INSTALL
 LIBPREFIX
 DLLEXT
@@ -1072,6 +1080,7 @@ enable_static
 enable_werror
 enable_pch
 enable_redistributable
+enable_hot_reload
 with_renderer
 with_audio
 with_ffmpeg
@@ -1821,6 +1830,9 @@ Optional Features:
                           Don't bundle any non-redistributable content
                           (currently only relevant for WASM, skips bundling
                           beatmaps, default: yes)
+  --enable-hot-reload     Build the editor as a library that the running game
+                          reloads in place, for local development (macOS,
+                          Linux and mingw) (default: no)
   --disable-threads       WASM only: build for browsers without
                           SharedArrayBuffer, everything runs on the main
                           thread (default: enabled)
@@ -7013,6 +7025,12 @@ then :
   enableval=$enable_redistributable;
 fi
 
+# Check whether --enable-hot-reload was given.
+if test ${enable_hot_reload+y}
+then :
+  enableval=$enable_hot_reload;
+fi
+
 
 
 # Check whether --with-renderer was given.
@@ -7599,8 +7617,73 @@ else case e in #(
 esac
 fi
 
+# a closed program is one that nothing gets loaded into later, which hidden visibility, initial-exec TLS, -mcmodel=small,
+# a static C++ runtime and LTO assume. --enable-hot-reload opens it up instead: the program exports its symbols and the
+# editor becomes a library that the running game reloads in place (mk/editor.am)
+if test "x$enable_hot_reload" = "xyes"
+then :
+
+    if test -n "$WASM_CC"
+then :
+  as_fn_error $? "--enable-hot-reload: wasm has no usable dynamic loading" "$LINENO" 5
+fi
+    case "$host_os" in #(
+  darwin*|linux-gnu|mingw32) :
+     ;; #(
+  *) :
+    as_fn_error $? "--enable-hot-reload is only implemented for macOS, Linux and mingw" "$LINENO" 5 ;;
+esac
+    if test "$host_cpu" = "i686"
+then :
+  as_fn_error $? "--enable-hot-reload is not supported on i686" "$LINENO" 5
+fi
+    if test -n "$enable_lto" && test "x$enable_lto" != "xno"
+then :
+  as_fn_error $? "--enable-hot-reload cannot be combined with --enable-lto" "$LINENO" 5
+fi
+    if test "x$enable_strip" = "xyes"
+then :
+  as_fn_error $? "--enable-hot-reload cannot be combined with --enable-strip" "$LINENO" 5
+fi
+    enable_lto=no
+    enable_strip=no
+    closed_program=no
+
+printf '%s\n' "#define MCENGINE_FEATURE_HOT_RELOAD 1" >>confdefs.h
+
+
+else case e in #(
+  e)
+    enable_hot_reload=no
+    closed_program=yes
+ ;;
+esac
+fi
+
+# dependencies are built for either kind of program (visibility) and aren't rebuilt when that changes
+if test "x$closed_program" = "xyes"
+then :
+  _program_mode=closed
+else case e in #(
+  e) _program_mode=open ;;
+esac
+fi
+if ls "$PWD"/build/deps/*.built >/dev/null 2>&1
+then :
+
+    if test "$(cat "$PWD/build/.program-mode" 2>/dev/null || echo closed)" != "$_program_mode"
+then :
+
+        as_fn_error $? "the dependencies in build/deps were built for a different --enable-hot-reload setting: run \`make clean-deps\` or use a fresh build directory" "$LINENO" 5
+
+fi
+
+fi
+as_dir="$PWD/build"; as_fn_mkdir_p
+printf '%s\n' "$_program_mode" > "$PWD/build/.program-mode"
+
 # set some default flags here
-if test "x$enable_static" = "xyes"
+if test "x$enable_static" = "xyes" && test "x$closed_program" = "xyes"
 then :
 
     CFLAGS="$CFLAGS -fvisibility=hidden"
@@ -10388,9 +10471,11 @@ else case e in #(
 esac
 fi
 
+# CCACHE_DEPEND: on a miss, compile right away and take the headers from the -MD output, instead of preprocessing
+# the whole file (without the pch) first; that pass costs about as much as the compile itself
 cat > "$PWD/build/cc" <<EOF
 #!/usr/bin/env bash
-CCACHE_SLOPPINESS=pch_defines,time_macros,include_file_mtime,include_file_ctime \\
+CCACHE_SLOPPINESS=pch_defines,time_macros,include_file_mtime,include_file_ctime CCACHE_DEPEND=1 \\
 CCACHE_COMPRESS=1 CCACHE_COMPRESSLEVEL=4 CCACHE_COMPILERTYPE=$_ccache_ctype CCACHE_COMPILERCHECK="string:$_cc_real_hash" \\
 $CCACHE $CC_REAL "\$@"
 EOF
@@ -10398,7 +10483,7 @@ chmod +x "$PWD/build/cc"
 # the pch depends on this wrapper, so only replace it when the compiler (hash) actually changed
 cat > "$PWD/build/cxx.new" <<EOF
 #!/usr/bin/env bash
-CCACHE_SLOPPINESS=pch_defines,time_macros,include_file_mtime,include_file_ctime \\
+CCACHE_SLOPPINESS=pch_defines,time_macros,include_file_mtime,include_file_ctime CCACHE_DEPEND=1 \\
 CCACHE_COMPRESS=1 CCACHE_COMPRESSLEVEL=4 CCACHE_COMPILERTYPE=$_ccache_ctype CCACHE_COMPILERCHECK="string:$_cxx_real_hash" \\
 $CCACHE $CXX_REAL "\$@"
 EOF
@@ -10693,7 +10778,8 @@ if test "$host_os" = "mingw32"
 then :
 
     WINPTHREAD_LDFLAGS=""
-    if test "x$enable_static" = "xyes"
+    # an open program shares libwinpthread-1.dll with the C++ runtime and the editor library instead
+    if test "x$enable_static" = "xyes" && test "x$closed_program" = "xyes"
 then :
 
         # locate the original winpthread library
@@ -10822,8 +10908,8 @@ esac
 if test "$host_cpu" != "i686" && test -z "$WASM_CC"
 then :
 
-    # -mcmodel=small is not supported on arm64/darwin
-    if test "$SYSNAME" != "macos"
+    # -mcmodel=small is not supported on arm64/darwin, and a library loaded later can't reach the program data with it
+    if test "$SYSNAME" != "macos" && test "x$closed_program" = "xyes"
 then :
 
         COMMON_FLAGS="$COMMON_FLAGS -mcmodel=small"
@@ -10946,6 +11032,229 @@ fi
  ;;
 esac
 fi
+
+
+# hot reload: the program exports its own symbols and those of its dependencies (-rdynamic is -export_dynamic for ld64,
+# which also keeps them through -dead_strip). on mach-o the library is a bundle that is linked against the program, on
+# ELF a shared object whose references to it are resolved when it's loaded, on PE a DLL linked against the program
+# import library (GNU ld accepts -rdynamic there with only a warning). mk/editor.am narrows the exports on ELF and PE,
+# with --exclude-libs or, where the linker lacks that (the lld mingw driver), --exclude-symbols
+MODULE_LDFLAGS=
+MODULE_LIBS=
+HOST_EXPORTS_EXCLUDE=
+if test "x$closed_program" = "xno"
+then :
+
+    if test "$SYSNAME" = "windows"
+then :
+
+        { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking whether the linker accepts -Wl,--export-all-symbols" >&5
+printf %s "checking whether the linker accepts -Wl,--export-all-symbols... " >&6; }
+if test ${ax_cv_check_ldflags___Wl___export_all_symbols+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e)
+  ax_check_save_flags=$LDFLAGS
+  LDFLAGS="$LDFLAGS  -Wl,--export-all-symbols"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main (void)
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ax_cv_check_ldflags___Wl___export_all_symbols=yes
+else case e in #(
+  e) ax_cv_check_ldflags___Wl___export_all_symbols=no ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+  LDFLAGS=$ax_check_save_flags ;;
+esac
+fi
+{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: $ax_cv_check_ldflags___Wl___export_all_symbols" >&5
+printf '%s\n' "$ax_cv_check_ldflags___Wl___export_all_symbols" >&6; }
+if test "x$ax_cv_check_ldflags___Wl___export_all_symbols" = xyes
+then :
+
+            NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,--export-all-symbols -Wl,--out-implib,libneomod.dll.a"
+
+else case e in #(
+  e)
+            as_fn_error $? "--enable-hot-reload: no way to export the program symbols found" "$LINENO" 5
+         ;;
+esac
+fi
+
+        MODULE_LDFLAGS='-shared'
+        MODULE_LIBS='libneomod.dll.a'
+
+else case e in #(
+  e)
+        { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking whether the linker accepts -rdynamic" >&5
+printf %s "checking whether the linker accepts -rdynamic... " >&6; }
+if test ${ax_cv_check_ldflags___rdynamic+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e)
+  ax_check_save_flags=$LDFLAGS
+  LDFLAGS="$LDFLAGS  -rdynamic"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main (void)
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ax_cv_check_ldflags___rdynamic=yes
+else case e in #(
+  e) ax_cv_check_ldflags___rdynamic=no ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+  LDFLAGS=$ax_check_save_flags ;;
+esac
+fi
+{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: $ax_cv_check_ldflags___rdynamic" >&5
+printf '%s\n' "$ax_cv_check_ldflags___rdynamic" >&6; }
+if test "x$ax_cv_check_ldflags___rdynamic" = xyes
+then :
+
+            NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -rdynamic"
+
+else case e in #(
+  e)
+            as_fn_error $? "--enable-hot-reload: no way to export the program symbols found" "$LINENO" 5
+         ;;
+esac
+fi
+
+        if test "$SYSNAME" = "macos"
+then :
+
+            MODULE_LDFLAGS='-bundle -bundle_loader neomod$(EXEEXT)'
+
+else case e in #(
+  e)
+            MODULE_LDFLAGS='-shared'
+         ;;
+esac
+fi
+     ;;
+esac
+fi
+    if test "$SYSNAME" != "macos"
+then :
+
+        { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking whether the linker accepts -Wl,--exclude-libs,ALL" >&5
+printf %s "checking whether the linker accepts -Wl,--exclude-libs,ALL... " >&6; }
+if test ${ax_cv_check_ldflags___Wl___exclude_libs_ALL+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e)
+  ax_check_save_flags=$LDFLAGS
+  LDFLAGS="$LDFLAGS  -Wl,--exclude-libs,ALL"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main (void)
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ax_cv_check_ldflags___Wl___exclude_libs_ALL=yes
+else case e in #(
+  e) ax_cv_check_ldflags___Wl___exclude_libs_ALL=no ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+  LDFLAGS=$ax_check_save_flags ;;
+esac
+fi
+{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: $ax_cv_check_ldflags___Wl___exclude_libs_ALL" >&5
+printf '%s\n' "$ax_cv_check_ldflags___Wl___exclude_libs_ALL" >&6; }
+if test "x$ax_cv_check_ldflags___Wl___exclude_libs_ALL" = xyes
+then :
+  HOST_EXPORTS_EXCLUDE=libs
+else case e in #(
+  e)
+            { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking whether the linker accepts -Xlinker --exclude-symbols=mc_none" >&5
+printf %s "checking whether the linker accepts -Xlinker --exclude-symbols=mc_none... " >&6; }
+if test ${ax_cv_check_ldflags___Xlinker___exclude_symbols_mc_none+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e)
+  ax_check_save_flags=$LDFLAGS
+  LDFLAGS="$LDFLAGS  -Xlinker --exclude-symbols=mc_none"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main (void)
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ax_cv_check_ldflags___Xlinker___exclude_symbols_mc_none=yes
+else case e in #(
+  e) ax_cv_check_ldflags___Xlinker___exclude_symbols_mc_none=no ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+  LDFLAGS=$ax_check_save_flags ;;
+esac
+fi
+{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: $ax_cv_check_ldflags___Xlinker___exclude_symbols_mc_none" >&5
+printf '%s\n' "$ax_cv_check_ldflags___Xlinker___exclude_symbols_mc_none" >&6; }
+if test "x$ax_cv_check_ldflags___Xlinker___exclude_symbols_mc_none" = xyes
+then :
+  HOST_EXPORTS_EXCLUDE=symbols
+else case e in #(
+  e)
+                as_fn_error $? "--enable-hot-reload: no way to leave the dependencies out of the program exports found" "$LINENO" 5
+             ;;
+esac
+fi
+
+         ;;
+esac
+fi
+
+
+fi
+
+fi
+
+
 
 
 
@@ -11185,12 +11494,87 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
 rm -f conftest.cppembed_test
 
 
-if test -z "$WASM_CC" && test -z "$_is_linux_libcpp" && test "$SYSNAME" != "macos"
+if test -z "$WASM_CC" && test -z "$_is_linux_libcpp" && test "$SYSNAME" != "macos" && test "x$closed_program" = "xyes"
 then :
 
     # the default static libc++ build does not work with -fno-exceptions
     # (also not supported with macos libc++)
+    # and libraries loaded later share one runtime with the program
     LDFLAGS="$LDFLAGS -static-libstdc++ -static-libgcc"
+
+elif test "$SYSNAME" = "linux" && test "x$closed_program" = "xno"
+then :
+
+    # hot reload on ELF. one C++ runtime in the process: a static one would be exported to every library loaded later
+    if test -n "$_is_linux_libcpp"
+then :
+  _cxx_runtime=libc++.so
+else case e in #(
+  e) _cxx_runtime=libstdc++.so ;;
+esac
+fi
+    { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking for a shared C++ runtime" >&5
+printf %s "checking for a shared C++ runtime... " >&6; }
+    _cxx_runtime_path="$($CXX $CXXFLAGS -print-file-name=$_cxx_runtime)"
+    if test "$_cxx_runtime_path" = "$_cxx_runtime"
+then :
+
+        { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf '%s\n' "no" >&6; }
+        as_fn_error $? "--enable-hot-reload needs a shared C++ runtime, $CXX_REAL only has a static one" "$LINENO" 5
+
+fi
+    { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: $_cxx_runtime_path" >&5
+printf '%s\n' "$_cxx_runtime_path" >&6; }
+    # the library objects are PIC, so the program objects are too: gcc rejects a pch built with another -fpie/-fpic
+    # setting
+    NEOMOD_COMPFLAGS="$NEOMOD_COMPFLAGS -fPIC"
+    # unique symbols from gcc (statics in inline functions, template statics) keep glibc from ever unloading the
+    # library, and the next one would bind to its copies
+    { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking whether the C++ compiler accepts -fno-gnu-unique" >&5
+printf %s "checking whether the C++ compiler accepts -fno-gnu-unique... " >&6; }
+if test ${ax_cv_check_cxxflags__Werror__fno_gnu_unique+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e)
+  ax_check_save_flags=$CXXFLAGS
+  if test x"$GXX" = xyes ; then
+    add_gnu_werror="-Werror"
+  fi
+  CXXFLAGS="$CXXFLAGS -Werror -fno-gnu-unique $add_gnu_werror"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main (void)
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_compile "$LINENO"
+then :
+  ax_cv_check_cxxflags__Werror__fno_gnu_unique=yes
+else case e in #(
+  e) ax_cv_check_cxxflags__Werror__fno_gnu_unique=no ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+  CXXFLAGS=$ax_check_save_flags ;;
+esac
+fi
+{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: $ax_cv_check_cxxflags__Werror__fno_gnu_unique" >&5
+printf '%s\n' "$ax_cv_check_cxxflags__Werror__fno_gnu_unique" >&6; }
+if test "x$ax_cv_check_cxxflags__Werror__fno_gnu_unique" = xyes
+then :
+  NEOMOD_CXXFLAGS="$NEOMOD_CXXFLAGS -fno-gnu-unique"
+else case e in #(
+  e) : ;;
+esac
+fi
+
 
 fi
 
@@ -11245,7 +11629,11 @@ else case e in #(
 esac
 fi
 
-    { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking whether the C++ compiler accepts -ftls-model=initial-exec" >&5
+    # initial-exec only covers TLS that exists when the program starts
+    if test "x$closed_program" = "xyes"
+then :
+
+        { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking whether the C++ compiler accepts -ftls-model=initial-exec" >&5
 printf %s "checking whether the C++ compiler accepts -ftls-model=initial-exec... " >&6; }
 if test ${ax_cv_check_cxxflags___ftls_model_initial_exec+y}
 then :
@@ -11284,14 +11672,16 @@ printf '%s\n' "$ax_cv_check_cxxflags___ftls_model_initial_exec" >&6; }
 if test "x$ax_cv_check_cxxflags___ftls_model_initial_exec" = xyes
 then :
 
-        CXXFLAGS="$CXXFLAGS -ftls-model=initial-exec"
-        CFLAGS="$CFLAGS -ftls-model=initial-exec"
+            CXXFLAGS="$CXXFLAGS -ftls-model=initial-exec"
+            CFLAGS="$CFLAGS -ftls-model=initial-exec"
 
 else case e in #(
   e) : ;;
 esac
 fi
 
+
+fi
 
 fi
 
@@ -11985,6 +12375,7 @@ then :
 
         CXXFLAGS="-g $CXXFLAGS -gcodeview" # add some debug info too since its detached
         CFLAGS="-g $CFLAGS -gcodeview"
+        _pdb_ldflags=
         { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking whether the linker accepts -Wl,--pdb=" >&5
 printf %s "checking whether the linker accepts -Wl,--pdb=... " >&6; }
 if test ${ax_cv_check_ldflags___Wl___pdb_+y}
@@ -12022,7 +12413,7 @@ printf '%s\n' "$ax_cv_check_ldflags___Wl___pdb_" >&6; }
 if test "x$ax_cv_check_ldflags___Wl___pdb_" = xyes
 then :
 
-            NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,--pdb="
+            _pdb_ldflags="-Wl,--pdb="
 
 else case e in #(
   e) : ;;
@@ -12108,7 +12499,7 @@ then :
 
                 CXXFLAGS="$CXXFLAGS -gcodeview-ghash"
                 CFLAGS="$CFLAGS -gcodeview-ghash"
-                NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,/debug:ghash"
+                _pdb_ldflags="$_pdb_ldflags -Wl,/debug:ghash"
 
 else case e in #(
   e) : ;;
@@ -12158,7 +12549,7 @@ printf '%s\n' "$ax_cv_check_ldflags___Wl__pdbaltpath___PDB_" >&6; }
 if test "x$ax_cv_check_ldflags___Wl__pdbaltpath___PDB_" = xyes
 then :
 
-            NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,/pdbaltpath:%_PDB%"
+            _pdb_ldflags="$_pdb_ldflags -Wl,/pdbaltpath:%_PDB%"
 
 else case e in #(
   e) : ;;
@@ -12205,7 +12596,7 @@ printf '%s\n' "$ax_cv_check_ldflags___Wl__pdbsourcepath_" >&6; }
 if test "x$ax_cv_check_ldflags___Wl__pdbsourcepath_" = xyes
 then :
 
-                NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS -Wl,/pdbsourcepath:'${SRCREMAP:-X:\\}'"
+                _pdb_ldflags="$_pdb_ldflags -Wl,/pdbsourcepath:'${SRCREMAP:-X:\\}'"
 
 else case e in #(
   e) : ;;
@@ -12213,6 +12604,12 @@ esac
 fi
 
 
+fi
+        NEOMOD_LDFLAGS="$NEOMOD_LDFLAGS $_pdb_ldflags"
+        # the editor library pdb also only names the file: it's copied along with the library (Mc::ReloadableLibrary)
+        if test "x$closed_program" = "xno"
+then :
+  MODULE_LDFLAGS="$MODULE_LDFLAGS $_pdb_ldflags"
 fi
 
 else case e in #(
@@ -12829,6 +13226,57 @@ fi
 #     NEOMOD_COMPFLAGS="$NEOMOD_COMPFLAGS -Wexit-time-destructors -Wglobal-constructors -Wpessimizing-move -Wrange-loop-construct"
 # ])
 
+# editor code must not have static objects with constructors or destructors (see src/App/Neomod/EditorModule.h),
+# a rule rather than style, so these are errors regardless of --enable-werror (used in mk/editor.am)
+EDITOR_CXXFLAGS=
+{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking whether the C++ compiler accepts -Werror=global-constructors -Werror=exit-time-destructors" >&5
+printf %s "checking whether the C++ compiler accepts -Werror=global-constructors -Werror=exit-time-destructors... " >&6; }
+if test ${ax_cv_check_cxxflags__Werror__Werror_global_constructors__Werror_exit_time_destructors+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e)
+  ax_check_save_flags=$CXXFLAGS
+  if test x"$GXX" = xyes ; then
+    add_gnu_werror="-Werror"
+  fi
+  CXXFLAGS="$CXXFLAGS -Werror -Werror=global-constructors -Werror=exit-time-destructors $add_gnu_werror"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main (void)
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_compile "$LINENO"
+then :
+  ax_cv_check_cxxflags__Werror__Werror_global_constructors__Werror_exit_time_destructors=yes
+else case e in #(
+  e) ax_cv_check_cxxflags__Werror__Werror_global_constructors__Werror_exit_time_destructors=no ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+  CXXFLAGS=$ax_check_save_flags ;;
+esac
+fi
+{ printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: $ax_cv_check_cxxflags__Werror__Werror_global_constructors__Werror_exit_time_destructors" >&5
+printf '%s\n' "$ax_cv_check_cxxflags__Werror__Werror_global_constructors__Werror_exit_time_destructors" >&6; }
+if test "x$ax_cv_check_cxxflags__Werror__Werror_global_constructors__Werror_exit_time_destructors" = xyes
+then :
+
+    EDITOR_CXXFLAGS="-Werror=global-constructors -Werror=exit-time-destructors"
+
+else case e in #(
+  e) : ;;
+esac
+fi
+
+
+
 # check for -Wl,--build-id (makes some debugging tools work better)
 { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking whether the linker accepts -Wl,--build-id" >&5
 printf %s "checking whether the linker accepts -Wl,--build-id... " >&6; }
@@ -13255,10 +13703,10 @@ else case e in #(
 esac
 fi
 
-    if test "$host_os" = "mingw32" && test -z "$LLVMMINGW"
+    if test "$host_os" = "mingw32" && test -z "$LLVMMINGW" && test "x$closed_program" = "xyes"
 then :
 
-        # otherwise libssp-0.dll is needed
+        # otherwise libssp-0.dll is needed (an open program installs it with the rest of the runtime)
         { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking whether the linker accepts -Wl,--whole-archive,-Bstatic -l:libssp.a -Wl,--no-whole-archive,-Bdynamic" >&5
 printf %s "checking whether the linker accepts -Wl,--whole-archive,-Bstatic -l:libssp.a -Wl,--no-whole-archive,-Bdynamic... " >&6; }
 if test ${ax_cv_check_ldflags___Wl___whole_archive__Bstatic__l_libssp_a__Wl___no_whole_archive__Bdynamic+y}
@@ -19334,17 +19782,49 @@ else
 fi
 
 
-# copy winpthread dll to install directory
-if test "$SYSNAME" = "windows" && test "x$enable_static" != "xyes"
+# runtime dlls to install next to the program: winpthread for --disable-static, and for an open program the whole
+# runtime, which it shares with the editor library (C++ runtime and unwinder, winpthread, and the gcc ssp)
+_runtime_dlls=
+if test "$SYSNAME" = "windows" && test "x$closed_program" = "xno"
 then :
 
-    WINSHARED_DLLS="$($CC -print-search-dirs | $GREP '^programs:' | $SED 's/programs: =//' | tr ':' '\n' | while read dir; do
-                        if test -n "$dir"; then
-                            find "$dir" -name "libwinpthread-1.dll" 2>/dev/null
-                        fi
-                    done | head -1)"
+    if test -n "$LLVMMINGW"
+then :
+  _runtime_dlls="libc++.dll libunwind.dll"
+else case e in #(
+  e) _runtime_dlls="libstdc++-6.dll libgcc_s_seh-1.dll" ;;
+esac
+fi
+    _runtime_dlls="$_runtime_dlls libwinpthread-1.dll"
+    if test -z "$LLVMMINGW" && test "x$hardened_build" = "xyes"
+then :
+  _runtime_dlls="$_runtime_dlls libssp-0.dll"
+fi
+
+elif test "$SYSNAME" = "windows" && test "x$enable_static" != "xyes"
+then :
+
+    _runtime_dlls="libwinpthread-1.dll"
 
 fi
+WINSHARED_DLLS=
+for _dll in $_runtime_dlls; do
+    # among the compiler libraries (gcc), in the bin/ next to them (llvm-mingw, msys2) or on its program path
+    _dll_path="$($CC -print-search-dirs | $SED -n 's/^libraries: =//p; s/^programs: =//p' | tr ':' '\n' | while read dir; do
+                    test -n "$dir" && for cand in "$dir/$_dll" "$dir/../bin/$_dll"; do test -f "$cand" && echo "$cand"; done
+                done | head -1)"
+    if test -n "$_dll_path"
+then :
+
+        WINSHARED_DLLS="${WINSHARED_DLLS:+$WINSHARED_DLLS }$_dll_path"
+
+elif test "x$closed_program" = "xno"
+then :
+
+        as_fn_error $? "--enable-hot-reload: $_dll not found among the libraries of $CXX_REAL" "$LINENO" 5
+
+fi
+done
 
 
 
@@ -19356,7 +19836,7 @@ else
   WINSHARED_DLLS_NEEDED_FALSE=
 fi
 
- if test "$host_os" = "mingw32" && test "x$enable_static" = "xyes"; then
+ if test "$host_os" = "mingw32" && test "x$enable_static" = "xyes" && test "x$closed_program" = "xyes"; then
   BUILD_WINPTHREAD_NOVERSION_TRUE=
   BUILD_WINPTHREAD_NOVERSION_FALSE='#'
 else
@@ -19371,6 +19851,22 @@ fi
 else
   BUILD_TESTS_TRUE='#'
   BUILD_TESTS_FALSE=
+fi
+
+ if test "x$closed_program" = "xno"; then
+  HOT_RELOAD_TRUE=
+  HOT_RELOAD_FALSE='#'
+else
+  HOT_RELOAD_TRUE='#'
+  HOT_RELOAD_FALSE=
+fi
+
+ if test -n "$HOST_EXPORTS_EXCLUDE"; then
+  NARROW_HOST_EXPORTS_TRUE=
+  NARROW_HOST_EXPORTS_FALSE='#'
+else
+  NARROW_HOST_EXPORTS_TRUE='#'
+  NARROW_HOST_EXPORTS_FALSE=
 fi
 
  if test -n "$make_audio_shortcuts" && test -n "$WINE" && test "$SYSNAME" = "windows"; then
@@ -19684,6 +20180,14 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${BUILD_TESTS_TRUE}" && test -z "${BUILD_TESTS_FALSE}"; then
   as_fn_error $? "conditional \"BUILD_TESTS\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${HOT_RELOAD_TRUE}" && test -z "${HOT_RELOAD_FALSE}"; then
+  as_fn_error $? "conditional \"HOT_RELOAD\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${NARROW_HOST_EXPORTS_TRUE}" && test -z "${NARROW_HOST_EXPORTS_FALSE}"; then
+  as_fn_error $? "conditional \"NARROW_HOST_EXPORTS\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${AUDIO_SHORTCUTS_TRUE}" && test -z "${AUDIO_SHORTCUTS_FALSE}"; then
@@ -21053,6 +21557,7 @@ neomod build configuration:
     System deps:        ${enable_system_deps-yes}
     Static linking:     ${enable_static-no}
     Stripped build:     ${enable_strip-yes}
+    Hot reload:         ${enable_hot_reload}
 
 Dependencies:
     libX11              ${have_x11-no}
@@ -21116,6 +21621,7 @@ neomod build configuration:
     System deps:        ${enable_system_deps-yes}
     Static linking:     ${enable_static-no}
     Stripped build:     ${enable_strip-yes}
+    Hot reload:         ${enable_hot_reload}
 
 Dependencies:
     libX11              ${have_x11-no}

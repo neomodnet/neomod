@@ -53,6 +53,8 @@ cond_sources "if USE_BASS"     "BASS_SOURCES"      src/Engine/Sound/BASS
 cond_sources "if USE_FFMPEG"   "FFMPEG_SOURCES"    src/Engine/Resources/FFmpegInterop # i don't know what folder this should really go in, whatever
 cond_sources "if WIN_PLATFORM" "WIN_SOURCES"       src/Platform/Windows
 cond_sources "if BUILD_TESTS"  "TEST_SOURCES"      src/App/Tests
+# LibraryStamp.cpp is linked into the reloadable libraries instead (mk/editor.am)
+cond_sources "if HOT_RELOAD"   "HOT_RELOAD_SOURCES" src/Engine/HotReload -not -name LibraryStamp.cpp
 
 # glad (needed for native GL/GLES builds; WASM has its own loader)
 # shellcheck disable=SC2016
@@ -65,6 +67,14 @@ cond_sources "if BUILD_TESTS"  "TEST_SOURCES"      src/App/Tests
     find_sources libraries/glad -maxdepth 1 -name 'glad_*gl*'
     printf '\t$(NULL)\nendif\n'
     printf 'endif\n'
+} >> "$SOURCES_FILE"
+
+# editor sources (not referenced by neomod_SOURCES here, mk/editor.am adds them with their own flags)
+# shellcheck disable=SC2016
+{
+    printf '\nEDITOR_SOURCES := \\\n'
+    find_sources src/App/Neomod/Editor
+    printf '\t$(NULL)\n'
 } >> "$SOURCES_FILE"
 
 # unconditional sources + conditional variable references
@@ -80,7 +90,9 @@ cond_sources "if BUILD_TESTS"  "TEST_SOURCES"      src/App/Tests
         -not -path 'src/Platform/Windows/*' \
         -not -path 'src/Engine/Resources/FFmpegInterop/*' \
         -not -path 'libraries/glad/*' \
-        -not -path 'src/App/Tests/*'
+        -not -path 'src/App/Tests/*' \
+        -not -path 'src/Engine/HotReload/*' \
+        -not -path 'src/App/Neomod/Editor/*'
 
     cat << 'EOF'
 	$(GL_SHARED_SOURCES) \
@@ -94,6 +106,7 @@ cond_sources "if BUILD_TESTS"  "TEST_SOURCES"      src/App/Tests
 	$(WIN_SOURCES) \
 	$(FFMPEG_SOURCES) \
 	$(TEST_SOURCES) \
+	$(HOT_RELOAD_SOURCES) \
 	$(NULL)
 EOF
 } >> "$SOURCES_FILE"

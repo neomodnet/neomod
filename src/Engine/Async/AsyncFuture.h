@@ -2,7 +2,7 @@
 #pragma once
 
 #include "AsyncState.h"
-#include "noinclude.h"
+#include "Registration.h"
 
 #include <cassert>
 #include <type_traits>

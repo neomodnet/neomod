@@ -115,6 +115,7 @@ struct HITCIRCLE final {
     bool isEndOfCombo;
     // bool clicked; // not sure what this was supposed to be used for
     HITSAMPLE_BITS samples;
+    u32 line{0};  // of the file it was read from (1-based)
 };
 
 struct SLIDER_SCORING_TIME final {  // for star calc
@@ -152,6 +153,7 @@ struct SLIDER final {
     HITSAMPLE_BITS hoverSamples;
 
     SLIDERCURVETYPE type;
+    u32 line{0};  // of the file it was read from (1-based)
 };
 
 struct SPINNER final {
@@ -162,6 +164,7 @@ struct SPINNER final {
     bool newCombo;
     u8 colorSkip;
     bool isEndOfCombo;
+    u32 line{0};  // of the file it was read from (1-based)
 };
 }  // namespace DatabaseBeatmapTypes
 }  // namespace neomod

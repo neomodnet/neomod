@@ -3,6 +3,7 @@
 #include "config.h"
 
 #include "noinclude.h"
+#include "Registration.h"
 #include "types.h"
 #include "StaticPImpl.h"
 #include "Hashing.h"

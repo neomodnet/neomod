@@ -97,6 +97,13 @@ TEST_SOURCES := \
 	$(NULL)
 endif
 
+if HOT_RELOAD
+HOT_RELOAD_SOURCES := \
+	src/Engine/HotReload/HostStamp.cpp \
+	src/Engine/HotReload/ReloadableLibrary.cpp \
+	$(NULL)
+endif
+
 if !WASM_PLATFORM
 if USE_OPENGL
 GLAD_SOURCES := \
@@ -111,6 +118,46 @@ GLAD_SOURCES := \
 	$(NULL)
 endif
 endif
+
+EDITOR_SOURCES := \
+	src/App/Neomod/Editor/Commands.cpp \
+	src/App/Neomod/Editor/Document/Document.cpp \
+	src/App/Neomod/Editor/Document/MapFiles.cpp \
+	src/App/Neomod/Editor/Document/MapObjects.cpp \
+	src/App/Neomod/Editor/Document/Verify.cpp \
+	src/App/Neomod/Editor/Editor.cpp \
+	src/App/Neomod/Editor/EditorHistory.cpp \
+	src/App/Neomod/Editor/EditorModule.cpp \
+	src/App/Neomod/Editor/EditorSession.cpp \
+	src/App/Neomod/Editor/EditorState.cpp \
+	src/App/Neomod/Editor/Panels/Form.cpp \
+	src/App/Neomod/Editor/Panels/HistoryPanel.cpp \
+	src/App/Neomod/Editor/Panels/SampleChooser.cpp \
+	src/App/Neomod/Editor/Panels/SamplePreview.cpp \
+	src/App/Neomod/Editor/Panels/SampleSets.cpp \
+	src/App/Neomod/Editor/Panels/SetupPanel.cpp \
+	src/App/Neomod/Editor/Panels/ShortcutList.cpp \
+	src/App/Neomod/Editor/Panels/Sidebar.cpp \
+	src/App/Neomod/Editor/Panels/StepPopup.cpp \
+	src/App/Neomod/Editor/Panels/Stepper.cpp \
+	src/App/Neomod/Editor/Panels/TimeDisplay.cpp \
+	src/App/Neomod/Editor/Panels/TimingPanel.cpp \
+	src/App/Neomod/Editor/Panels/Toolbox.cpp \
+	src/App/Neomod/Editor/Panels/Transport.cpp \
+	src/App/Neomod/Editor/Panels/VerifyPanel.cpp \
+	src/App/Neomod/Editor/Playfield/Compose.cpp \
+	src/App/Neomod/Editor/Playfield/PlayfieldPanel.cpp \
+	src/App/Neomod/Editor/Playfield/SliderPath.cpp \
+	src/App/Neomod/Editor/Playfield/Snapping.cpp \
+	src/App/Neomod/Editor/Tests/EditorTests.cpp \
+	src/App/Neomod/Editor/Time/BeatSnap.cpp \
+	src/App/Neomod/Editor/Time/Clock.cpp \
+	src/App/Neomod/Editor/Time/Metronome.cpp \
+	src/App/Neomod/Editor/Time/Playback.cpp \
+	src/App/Neomod/Editor/Time/Retiming.cpp \
+	src/App/Neomod/Editor/Timeline/Overview.cpp \
+	src/App/Neomod/Editor/Timeline/Timeline.cpp \
+	$(NULL)
 
 neomod_SOURCES = \
 	libraries/MD5.cpp \
@@ -152,6 +199,7 @@ neomod_SOURCES = \
 	src/App/Neomod/DiffCalc/LivePPCalc.cpp \
 	src/App/Neomod/DiffCalc/StarPrecalc.cpp \
 	src/App/Neomod/Downloader.cpp \
+	src/App/Neomod/EditorScreen.cpp \
 	src/App/Neomod/GameRules.cpp \
 	src/App/Neomod/GameplayJudge.cpp \
 	src/App/Neomod/HUD.cpp \
@@ -251,6 +299,7 @@ neomod_SOURCES = \
 	src/Engine/File/Archival.cpp \
 	src/Engine/File/AsyncIOHandler.cpp \
 	src/Engine/File/ByteBufferedFile.cpp \
+	src/Engine/File/Deflate.cpp \
 	src/Engine/File/DirectoryWatcher.cpp \
 	src/Engine/File/File.cpp \
 	src/Engine/Input/KeyBindings.cpp \
@@ -290,6 +339,8 @@ neomod_SOURCES = \
 	src/GUI/CBaseUIBox.cpp \
 	src/GUI/CBaseUIButton.cpp \
 	src/GUI/CBaseUICheckbox.cpp \
+	src/GUI/CBaseUIColorButton.cpp \
+	src/GUI/CBaseUIColorPicker.cpp \
 	src/GUI/CBaseUIContainer.cpp \
 	src/GUI/CBaseUIDispatch.cpp \
 	src/GUI/CBaseUIDropdown.cpp \
@@ -348,4 +399,5 @@ neomod_SOURCES = \
 	$(WIN_SOURCES) \
 	$(FFMPEG_SOURCES) \
 	$(TEST_SOURCES) \
+	$(HOT_RELOAD_SOURCES) \
 	$(NULL)

@@ -459,6 +459,8 @@ typedef enum MC_Scancode : unsigned int {
 #define KEY_9 MC_SCANCODE_9
 #define KEY_MINUS MC_SCANCODE_MINUS
 #define KEY_EQUALS MC_SCANCODE_EQUALS
+#define KEY_COMMA MC_SCANCODE_COMMA
+#define KEY_PERIOD MC_SCANCODE_PERIOD
 
 // numpad
 #define KEY_NUMPAD0 MC_SCANCODE_KP_0

@@ -1,0 +1,42 @@
+# a file dropped on the window during a test play started from the editor (whose screen stays the active one, hidden)
+# doesn't reach the editor: back from the play (F2), it shows the map it tested, and no new beatmap was made of the
+# dropped audio file. the play fixture: the osu!stable songs folder, loaded raw, played without changes (nothing
+# written)
+# uitest-datadir: fresh
+# uitest-cleanup: silence
+# uitest-unchanged: uitest_osu_folder_play
+options_save_on_back 0
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder_play
+set_active_ui_screen songbrowser
+@wait 300
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+ui_assert sets 1
+set_active_ui_screen editorscreen
+@wait 60
+ui_assert visible editor_open_selected 1
+sendkey Return
+@wait 30
+ui_assert visible editor_playfield 1
+sendkey F5
+@wait 2
+ui_assert visible editor 0
+@sleep 500
+@wait 30
+debug_drop uitest_osu_folder_play/Songs/play set/silence.wav
+@wait 30
+sendkey F2
+@sleep 500
+@wait 30
+ui_assert visible editor 1
+ui_assert visible editor_playfield 1
+ui_assert visible editor_timing 0
+ui_assert sets 1
+exit

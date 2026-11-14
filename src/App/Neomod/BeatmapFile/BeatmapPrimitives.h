@@ -121,6 +121,9 @@ class TimingPoints {
     [[nodiscard]] const DBType::TIMINGPOINT &getUninherited(i32 positionMS) const {
         return this->entries[this->entries[this->entryAt(positionMS)].lastUninherited].point;
     }
+    // what the inherited point that applies at a time multiplies the beat length by (0.5 for twice the slider velocity, 1
+    // without one), in full precision: for what's written from it
+    [[nodiscard]] f64 getBeatLengthMultiplier(i32 positionMS) const;
 
     [[nodiscard]] uSz size() const { return this->entries.size(); }
     [[nodiscard]] bool empty() const { return this->entries.empty(); }
@@ -136,9 +139,12 @@ class TimingPoints {
     FixedSizeArray<Entry> entries;
 };
 
+// one object in a map
+using Object = std::variant<DBType::HITCIRCLE, DBType::SLIDER, DBType::SPINNER>;
+
 struct PRIMITIVE_CONTAINER final {
     // in the order the game plays them: by time, equal times in the order of their lines
-    std::vector<std::variant<DBType::HITCIRCLE, DBType::SLIDER, DBType::SPINNER>> objects{};
+    std::vector<Object> objects{};
     // by start time
     std::vector<DBType::BREAK> breaks{};
 
@@ -181,5 +187,14 @@ TimingPoints readTimingPoints(const BeatmapFile &file);
 // with its sliders' durations, ticks and scoring times when it has timing points (what needs those checks it has some)
 PRIMITIVE_CONTAINER loadPrimitiveObjectsFromData(std::span<const u8> fileData, const Limits &limits,
                                                  const Sync::stop_token &dead = {});
+// reads one object line (line `number` in its file, without its line break) as loadPrimitiveObjectsFromData() does,
+// with the settings and timing points `c` has. sample files the line names join the ones in `c`. combos aren't counted
+// yet (they're 0). none for a line that isn't an object, or one a limit refuses
+[[nodiscard]] std::optional<Object> readObject(std::string_view line, u32 number, PRIMITIVE_CONTAINER &c,
+                                               const Limits &limits);
+// counts the combos over the objects in `c` in play order (with its breaks and version): the number, colour counter and
+// offset for each, and whether it ends its combo. `recounted`, when given, gets the objects whose combo came out
+// otherwise than it was (in order)
+void countCombos(PRIMITIVE_CONTAINER &c, std::vector<uSz> *recounted = nullptr);
 
 }  // namespace neomod::Primitives

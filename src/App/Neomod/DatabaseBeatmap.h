@@ -75,6 +75,8 @@ class DatabaseBeatmap final {
                                                                           const Sync::stop_token &dead = {});
     static neomod::Primitives::PRIMITIVE_CONTAINER loadPrimitiveObjects(std::string_view osuFilePath,
                                                                         const Sync::stop_token &dead = {});
+    // the limits the game reads maps with (its convars)
+    static neomod::Primitives::Limits limits();
 
     NOCOPY_NOMOVE(DatabaseBeatmap)
    public:
@@ -153,10 +155,7 @@ class DatabaseBeatmap final {
     [[nodiscard]] inline std::string_view getFolder() const { return this->sFolder; }
     [[nodiscard]] inline std::string_view getFilePath() const { return this->sFilePath; }
 
-    [[nodiscard]] inline const DiffContainer &getDifficulties() const {
-        static DiffContainer empty;
-        return this->difficulties == nullptr ? empty : *this->difficulties;
-    }
+    [[nodiscard]] const DiffContainer &getDifficulties() const;
 
     [[nodiscard]] inline BeatmapSet *getParentSet() const { return this->parentSet; }
 

@@ -1,0 +1,92 @@
+# snapping: with T and Y grid and distance snap go off, and a circle goes where it's clicked; T again and Ctrl+3 (a
+# grid of 16), one goes on the grid; Y again, one is spaced from the object before (0.8 of what their time apart
+# covers) and on the grid; Alt and the wheel over the playfield change the spacing. saved, the circles and the editor
+# settings are in the file.
+# uitest-datadir: fresh
+# uitest-file: maps/uitest compose/compose.osu|osu file format v14||[General]|AudioFilename: none.mp3|Mode: 0||[Metadata]|Title:UITest compose|Artist:UITest|Creator:uitest|Version:compose|BeatmapID:0|BeatmapSetID:-1||[Difficulty]|CircleSize:4|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|0,500,4,2,0,100,1,0||[HitObjects]|64,64,1000,5,0,0:0:0:0:|448,64,1500,1,2,0:0:0:0:|448,320,2000,1,0,0:0:0:0:|64,320,2500,1,0,0:0:0:0:|100,192,3000,6,0,L\x7c400:192,1,280|256,192,5000,12,0,6000,0:0:0:0:|256,100,7000,1,0,0:0:0:0:
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen editorscreen
+@wait 300
+sendkey Return
+@wait 30
+ui_assert text editor_title UITest - UITest compose [compose]
+ui_assert convar editor_grid_snap 1
+ui_assert convar editor_distance_snap 1
+sendkey T
+sendkey Y
+@wait 3
+ui_assert convar editor_grid_snap 0
+ui_assert convar editor_distance_snap 0
+sendkey 2
+@wait 2
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+@wait 3
+ui_assert text editor_clock 00:04:500
+mouse_to 444 395
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+sendkey T
+sendkey 224 down
+sendkey 3
+sendkey 224 up
+@wait 3
+ui_assert text editor_grid_size_value 16
+sendkey Left
+@wait 3
+ui_assert text editor_clock 00:04:000
+mouse_to 600 300
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+sendkey Y
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+@wait 3
+ui_assert text editor_clock 00:08:000
+mouse_to 700 500
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+sendkey 226 down
+mouse_wheel 1
+@wait 3
+sendkey 226 up
+@wait 3
+ui_assert text editor_spacing_value 0.9x
+sendkey 224 down
+sendkey S
+sendkey 224 up
+@wait 3
+@wait_secs 2
+ui_assert map md5 dd913cebd37a8ddd6ccf6f3aedd9c7fc
+exit

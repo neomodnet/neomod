@@ -90,4 +90,5 @@ class SongButton : public CarouselButton {
     }
 
     void onOpenBeatmapFolderClicked();
+    void onEditClicked();
 };

@@ -1,0 +1,89 @@
+# the Verify tab (Ctrl+Shift+A) lists what's wrong with the map: here a map with one of each flaw (19 issues, whole map
+# issues first, the others by time; the minor one once Show Minor Issues is on). picking an issue goes to its time and
+# selects its objects, a double click also shows the tab it's fixed on, and the list follows the map: without the two
+# circles at one time there's one issue less, and undo on the tab brings it back.
+# uitest-datadir: fresh
+# uitest-file: maps/uitest flawed/flawed.osu|osu file format v14||[General]|AudioFilename: none.mp3|Mode: 0||[Metadata]|Title:UITest flawed|Artist:UITest|Creator:uitest|Version:flawed|BeatmapID:0|BeatmapSetID:-1||[Difficulty]|HPDrainRate:5|CircleSize:4.25|OverallDifficulty:5|ApproachRate:11|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|0,500,4,2,0,100,1,0|8000,-100,4,2,0,15,0,0|8000,-100,4,2,0,15,0,0|8400,-100,4,2,0,100,0,0||[HitObjects]|256,192,1003,5,0,0:0:0:0:|256,192,1543,1,0,0:0:0:0:|560,192,2000,1,0,0:0:0:0:|100,100,2500,1,0,0:0:0:0:|200,100,2500,1,0,0:0:0:0:|100,300,3000,1,0,0:0:0:0:|200,300,3005,1,0,0:0:0:0:|256,192,4000,8,0,4250,0:0:0:0:|400,192,5000,2,0,L\x7c610:192,1,210|256,192,7000,1,0,0:0:0:3:|256,192,8000,1,0,0:0:0:0:|100,100,9000,2,0,L\x7c180:100,1,80
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen editorscreen
+@wait 300
+sendkey Return
+@wait 30
+ui_assert text editor_title UITest - UITest flawed [flawed]
+ui_assert visible editor_verify 0
+sendkey 224 down
+sendkey 225 down
+sendkey A
+sendkey 225 up
+sendkey 224 up
+@wait 5
+ui_assert visible editor_verify 1
+ui_assert visible editor_playfield 0
+ui_assert rows editor_verify_issues 18
+ui_assert text editor_verify_summary Problems: 15   Warnings: 3   Minor: 1
+ui_assert checked editor_verify_minor 0
+mouse_to 1168 134
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert checked editor_verify_minor 1
+ui_assert rows editor_verify_issues 19
+ui_assert cell editor_verify_issues 0 2 The map has no preview point.
+ui_assert cell editor_verify_issues 3 2 Circle Size is 4.25, with more than one decimal place.
+ui_assert cell editor_verify_issues 6 0 Problem
+ui_assert cell editor_verify_issues 6 1 00:01:003
+ui_assert cell editor_verify_issues 6 2 This object starts 3.0 ms off the nearest tick.
+ui_assert cell editor_verify_issues 7 0 Minor
+ui_assert cell editor_verify_issues 9 2 These objects are at the same time.
+ui_assert cell editor_verify_issues 12 2 This spinner lasts only 250 ms.
+ui_assert cell editor_verify_issues 16 0 Warning
+ui_assert cell editor_verify_issues 16 2 This object is hit at 15% volume.
+ui_assert cell editor_verify_issues 17 2 Two timing points of the same kind are at this time.
+mouse_to 600 406
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 5
+ui_assert selected editor_verify_issues 1
+ui_assert text editor_clock 00:02:500
+ui_assert visible editor_verify 1
+mouse_down left 2
+@wait 2
+mouse_up left
+@wait 5
+ui_assert visible editor_verify 0
+ui_assert visible editor_playfield 1
+sendkey 224 down
+sendkey C
+sendkey 224 up
+@wait 3
+ui_assert clipboard 00:02:500 (4,5) -\s
+sendkey Delete
+@wait 5
+sendkey 224 down
+sendkey 225 down
+sendkey A
+sendkey 225 up
+sendkey 224 up
+@wait 5
+ui_assert rows editor_verify_issues 18
+ui_assert cell editor_verify_issues 9 2 These objects are less than 10 ms apart.
+sendkey 224 down
+sendkey Z
+sendkey 224 up
+@wait 5
+ui_assert rows editor_verify_issues 19
+ui_assert cell editor_verify_issues 9 2 These objects are at the same time.
+exit

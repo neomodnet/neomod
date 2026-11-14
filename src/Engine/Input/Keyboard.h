@@ -4,6 +4,7 @@
 
 #include "InputDevice.h"
 #include "noinclude.h"
+#include "Registration.h"
 #include "KeyBindings.h"  // IWYU pragma: keep
 #include "StaticPImpl.h"
 

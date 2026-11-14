@@ -21,6 +21,7 @@
 #include "BeatmapFile/BeatmapPrimitives.h"
 #include "DatabaseBeatmap.h"
 #include "Downloader.h"
+#include "EditorScreen.h"
 #include "Engine.h"
 #include "File.h"
 #include "i18n.h"
@@ -103,6 +104,7 @@ namespace {
 enum class SubButtonType : u8 {
     Singleplayer,
     Multiplayer,
+    Edit,
     Options,
     Exit,
     Save,  // only relevant in WASM
@@ -161,6 +163,7 @@ class MainMenu::MainButton final : public UIButtonRounded {
                 using enum SubButtonType;
                 case Singleplayer:  sound = skin->s_hover_sp;       break;
                 case Multiplayer:   sound = skin->s_hover_mp;       break;
+                case Edit:          sound = skin->s_hover_edit;     break;
                 case Save:          [[fallthrough]]; // WASM (just use options sound)
                 case Options:       sound = skin->s_hover_options;  break;
                 case Exit:          sound = skin->s_hover_exit;     break;
@@ -372,6 +375,8 @@ MainMenu::MainMenu() : UIScreen() {
             ->setClickCallback(SA::MakeDelegate<&MainMenu::onPlayButtonPressed>(this));
         add_main_menu_button(_("Multiplayer"), "mainmenu_multiplayer", SubButtonType::Multiplayer)
             ->setClickCallback(SA::MakeDelegate<&MainMenu::onMultiplayerButtonPressed>(this));
+        add_main_menu_button(_("Edit"), "mainmenu_edit", SubButtonType::Edit)
+            ->setClickCallback(SA::MakeDelegate<&MainMenu::onEditButtonPressed>(this));
         add_main_menu_button(_("Options"), "mainmenu_options", SubButtonType::Options)
             ->setClickCallback(SA::MakeDelegate<&MainMenu::onOptionsButtonPressed>(this));
         add_main_menu_button(Env::cfg(OS::WASM) ? _("Save") : _("Exit"), "mainmenu_exit",
@@ -1427,7 +1432,10 @@ void MainMenu::onKeyDown(KeyboardEvent &e) {
         if(e == KEY_O) {
             this->onOptionsButtonPressed();
         }
-        if(e == KEY_E || e == KEY_X) {
+        if(e == KEY_E) {
+            this->onEditButtonPressed();
+        }
+        if(e == KEY_X) {
             this->onSaveOrExitButtonPressed();
         }
         if(e == KEY_ESCAPE) {
@@ -1567,10 +1575,10 @@ void MainMenu::updateLayout() {
         this->twitterButton->setRelPos(screenSize.x - this->twitterButton->getSize().x, ads_y);
     }
 
+    // the buttons split a stack of fixed height, centered on the cube
     int numButtons = this->menuElements.size();
-    int menuElementHeight = this->vSize.y / numButtons;
-    int menuElementPadding = numButtons > 3 ? this->vSize.y * 0.04f : this->vSize.y * 0.075f;
-    menuElementHeight -= (numButtons - 1) * menuElementPadding;
+    int menuElementPadding = this->vSize.y * 0.02f;
+    int menuElementHeight = (this->vSize.y * 0.64f - (numButtons - 1) * menuElementPadding) / numButtons;
     int menuElementExtraWidth = this->vSize.x * 0.06f;
 
     float offsetPercent = this->centerOffsetAnim / (this->vSize.x / 2.0f);
@@ -1776,6 +1784,16 @@ void MainMenu::onMultiplayerButtonPressed() {
     soundEngine->play(skin->s_menu_hit);
     if(skin->s_click_mp != skin->s_menu_hit) {
         soundEngine->play(skin->s_click_mp);
+    }
+}
+
+void MainMenu::onEditButtonPressed() {
+    ui->getEditorScreen()->enter();
+
+    const auto *skin = osu->getSkin();
+    soundEngine->play(skin->s_menu_hit);
+    if(skin->s_click_edit != skin->s_menu_hit) {
+        soundEngine->play(skin->s_click_edit);
     }
 }
 

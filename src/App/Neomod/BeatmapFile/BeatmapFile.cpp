@@ -117,18 +117,6 @@ constexpr std::array<std::pair<std::string_view, BeatmapFile::SectionKind>, 8> K
     {"HitObjects", HIT_OBJECTS},
 }};
 
-constexpr std::string_view UTF8_BOM{"\xEF\xBB\xBF"};
-
-// the first line of s with its line break: "\r\n", "\n" or a "\r" of its own, as osu! reads them
-std::string_view firstLine(std::string_view s) {
-    const uSz lineFeed = s.find('\n');
-    const uSz end = lineFeed == std::string_view::npos ? s.size() : lineFeed;
-    if(const uSz cr = s.substr(0, end).find('\r'); cr != std::string_view::npos && cr + 1 < end) {
-        return s.substr(0, cr + 1);
-    }
-    return s.substr(0, lineFeed == std::string_view::npos ? s.size() : lineFeed + 1);
-}
-
 // a line without its line break
 std::string_view lineText(std::string_view line) {
     if(line.ends_with('\n')) line.remove_suffix(1);
@@ -192,9 +180,23 @@ void appendHitSample(Text &out, const BeatmapFile::HitSample &sample) {
 
 }  // namespace
 
-BeatmapFile::BeatmapFile(std::string_view bytes) : bytes(bytes), bom(bytes.starts_with(UTF8_BOM)) {
+std::string_view BeatmapFile::sectionName(SectionKind kind) {
+    const auto known = Mc::ranges::find(KNOWN_SECTIONS, kind, &decltype(KNOWN_SECTIONS)::value_type::second);
+    return known != KNOWN_SECTIONS.end() ? known->first : std::string_view{};
+}
+
+std::string_view BeatmapFile::firstLine(std::string_view s) {
+    const uSz lineFeed = s.find('\n');
+    const uSz end = lineFeed == std::string_view::npos ? s.size() : lineFeed;
+    if(const uSz cr = s.substr(0, end).find('\r'); cr != std::string_view::npos && cr + 1 < end) {
+        return s.substr(0, cr + 1);
+    }
+    return s.substr(0, lineFeed == std::string_view::npos ? s.size() : lineFeed + 1);
+}
+
+BeatmapFile::BeatmapFile(std::string_view bytes) : bytes(bytes), bom(bytes.starts_with(BOM)) {
     Section current{.header = {}, .body = {}, .name = {}, .kind = NONE, .readAs = NONE, .bodyLine = 1, .lines = 0};
-    uSz bodyStart = this->bom ? UTF8_BOM.size() : 0;
+    uSz bodyStart = this->bom ? BOM.size() : 0;
     u32 number = 1;
     // (the part before the first header, then usually one of each)
     this->sections.reserve(KNOWN_SECTIONS.size() + 1);

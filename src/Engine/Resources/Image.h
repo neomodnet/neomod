@@ -73,6 +73,9 @@ class Image : public Resource {
     [[nodiscard]] Color getPixel(i32 x, i32 y) const;
 
     [[nodiscard]] inline Image::TYPE getType() const { return this->type; }
+    // when the file it was read from was last modified, as File::getModificationTime() has it. only once isReady(),
+    // 0 for an image without a file
+    [[nodiscard]] inline i64 getFileModificationTime() const { return this->iFileModificationTime; }
     [[nodiscard]] inline i32 getWidth() const { return this->iWidth; }
     [[nodiscard]] inline i32 getHeight() const { return this->iHeight; }
     [[nodiscard]] ivec2 getSize() const;
@@ -199,6 +202,7 @@ class Image : public Resource {
     bool bKeepInSystemMemory;
     std::atomic<bool> bLoadError{false};
     bool bLoadedImageEntirelyTransparent{false};
+    i64 iFileModificationTime{0};
 
    private:
     [[nodiscard]] bool isRawImageCompletelyTransparent() const;

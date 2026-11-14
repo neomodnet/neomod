@@ -1,0 +1,20 @@
+# a session the editor can't read (garbage, which also stands for one from a newer version: its first
+# byte isn't the version this build writes) starts a fresh one.
+# uitest-datadir: fresh
+# uitest-file: editor/session|garbage
+# uitest-log: 1 editor session: 0 map(s), none open
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+ui_trace 1
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen editorscreen
+@wait 120
+ui_assert visible editor_exit 1
+exit

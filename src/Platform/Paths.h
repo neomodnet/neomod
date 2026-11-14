@@ -32,6 +32,7 @@ const std::string &skins();
 const std::string &replays();
 const std::string &screenshots();
 const std::string &exports();
+const std::string &editor();  // the beatmap editor session
 const std::string &db();
 const std::string &cache();
 const std::string &logs();

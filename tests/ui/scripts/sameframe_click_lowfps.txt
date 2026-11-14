@@ -14,7 +14,7 @@ mouse_to 640 360
 mouse_down
 mouse_up
 @wait 30
-mouse_to 867 401
+mouse_to 867 426
 @wait 3
 ui_assert hovered mainmenu_options 1
 exit

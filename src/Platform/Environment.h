@@ -149,6 +149,11 @@ class Environment {
     // opens in-memory file contents in a new browser tab, for platforms whose files the user can't reach (WASM)
     // returns false if unsupported or blocked by the browser
     bool openDataInDefaultBrowser(std::span<const u8> data, std::string_view mimeType) noexcept;
+    // held while the user has work the app hasn't written yet (main thread only). while one is held, and after it
+    // ends until what was written by then is stored for good, leaving the page asks first: on WASM only what's in
+    // IndexedDB outlives the page. the first one also asks the browser to keep the storage for good, instead of
+    // clearing it when space runs low. no effect elsewhere
+    [[nodiscard]] Mc::Registration guardLeave() noexcept;
 
     // user
     [[nodiscard]] std::string_view getUsername() const noexcept;
@@ -162,7 +167,8 @@ class Environment {
     [[nodiscard]] static bool directoryExists(std::string_view directoryName) noexcept;
 
     // NOTE: createDirectory creates recursively
-    static bool createDirectory(const std::string &directoryName) noexcept;
+    static bool createDirectory(std::string_view directoryName) noexcept;
+
     // be extremely careful with this!
     // deletes the directory at the given path: removes the files inside it, recurses into subdirectories
     // up to maxRecursionLevels deep, then removes the directory itself.
@@ -211,6 +217,9 @@ class Environment {
     // shows the user a file the game wrote for them (an export, a screenshot): the file manager at its folder.
     // WASM has no file manager and its files are out of the user's reach, so the browser downloads it instead
     void revealFile(std::string_view path) const noexcept;
+    // the file in the default text editor: what opens .txt files on Windows, the default text editor on macOS,
+    // whatever xdg-open opens it with on Linux. WASM shows it read-only in a new browser tab
+    void openInTextEditor(std::string_view path) const noexcept;
 
     // window
     void restoreWindow();
@@ -335,6 +344,9 @@ class Environment {
     bool m_bMinimizeSupported;
 
     std::vector<std::string> m_vOpenRequests;
+
+    // WASM: the page end, taken over from SDL once it has made the window (see guardLeave())
+    void handlePageLeave();
 
     // cache
     mutable std::string m_sUsername;

@@ -30,6 +30,9 @@ class CBaseUIPopupLayer final : public CBaseUIContainer {
     void onKeyDown(KeyboardEvent &e) override;
     void onKeyUp(KeyboardEvent &e) override;
     void onChar(KeyboardEvent &e) override;
+    // it holds the focus only to keep it from what's beneath: no popup element has it then, a popup field taking it
+    // from the layer keeps it, and the layer has it again once that field lets it go
+    void onFocusStolen() override {}
 
    protected:
     void onMouseDownInside(bool left, bool right) override;

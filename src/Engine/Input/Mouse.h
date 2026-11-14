@@ -5,6 +5,7 @@
 
 #include "InputDevice.h"
 #include "noinclude.h"
+#include "Registration.h"
 #include "MouseListener.h"
 #include "Rect.h"
 #include "Vectors.h"

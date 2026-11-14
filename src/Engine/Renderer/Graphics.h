@@ -2,6 +2,7 @@
 // Copyright (c) 2012, PG, All rights reserved.
 
 #include "noinclude.h"
+#include "Registration.h"
 #include "types.h"
 #include "Color.h"
 #include "Rect.h"

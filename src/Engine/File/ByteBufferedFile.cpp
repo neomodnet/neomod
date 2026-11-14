@@ -401,6 +401,11 @@ Writer::Writer(std::string_view writePath_param)
         this->tmp_file_path += ".tmp";
     }
 
+    if(auto parent = this->file_path.parent_path(); !parent.empty()) {
+        std::error_code ec;
+        fs::create_directories(parent, ec);
+    }
+
     this->file.open(this->tmp_file_path, std::ios::binary);
     if(!this->file.is_open()) {
         this->set_error(fmt::format("Failed to open file for writing: {:s}", std::generic_category().message(errno)));

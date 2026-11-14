@@ -12,9 +12,12 @@
 // ---
 
 #include "BackgroundImageHandler.h"
+#include "Bancho.h"
 #include "Collections.h"
 #include "OsuConVars.h"
+#include "Database.h"
 #include "DatabaseBeatmap.h"
+#include "EditorScreen.h"
 #include "MakeDelegateWrapper.h"
 #include "Environment.h"
 #include "Engine.h"
@@ -24,7 +27,11 @@
 #include "SkinImage.h"
 #include "UIContextMenu.h"
 #include "Graphics.h"
+#include "UI.h"
+#include "i18n.h"
 #include "score.h"
+
+#include "fmt/format.h"
 
 #include <algorithm>
 #include <utility>
@@ -333,6 +340,13 @@ void SongButton::triggerContextMenu(vec2 pos) {
             cmenu->addButtonJustified("[=] Open Beatmap Folder", TEXT_JUSTIFICATION::LEFT, 0)
                 ->setClickCallback(SA::MakeDelegate<&SongButton::onOpenBeatmapFolderClicked>(this));
 
+        // a childless button stands for a single difficulty. not in a room, where the song browser picks its map, and
+        // not for a map outside the folders the editor opens maps from
+        if(this->databaseBeatmap && this->children.empty() && !BanchoState::is_in_a_multi_room() &&
+           !db->locate(*this->databaseBeatmap).file.empty())
+            cmenu->addButtonJustified(fmt::format("[=] {}", _("Edit")), TEXT_JUSTIFICATION::LEFT, 8)
+                ->setClickCallback(SA::MakeDelegate<&SongButton::onEditClicked>(this));
+
         if(this->databaseBeatmap != nullptr && this->databaseBeatmap->getDifficulties().size() < 1)
             cmenu->addButtonJustified("[+] Add to Collection", TEXT_JUSTIFICATION::LEFT, 1);
 
@@ -535,6 +549,12 @@ float SongButton::calculateGradeScale() {
 float SongButton::calculateGradeWidth() {
     const auto &gradeImg = osu->getSkin()->getGradeImageSmall(this->grade);
     return gradeImg.getSizeBaseRaw().x * this->calculateGradeScale();
+}
+
+void SongButton::onEditClicked() {
+    g_songbrowser->contextMenu->setVisible2(false);
+    if(!this->databaseBeatmap) return;
+    ui->getEditorScreen()->enter(db->locate(*this->databaseBeatmap));
 }
 
 void SongButton::onOpenBeatmapFolderClicked() {

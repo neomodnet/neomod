@@ -1,0 +1,168 @@
+# the Timing tab lists the map timing points and sets the selected ones: a BPM typed takes the section objects and its
+# inherited point along (saved: the file has them on their beats); the nudge buttons are steps at once, a run of them
+# one to undo; a click, and Ctrl with it, select; Ctrl+P and Ctrl+Shift+P add points at the playhead with what's in
+# force there (the inherited one shows the tab with its velocity to type); Delete takes out the selected points, Ctrl+I
+# the one in force, never the last uninherited one; T taps
+# uitest-datadir: fresh
+# uitest-file: maps/uitest timing/timing.osu|osu file format v14||[General]|AudioFilename: none.mp3|Mode: 0||[Metadata]|Title:UITest timing|Artist:UITest|Creator:uitest|Version:timing|BeatmapID:0|BeatmapSetID:-1||[Difficulty]|CircleSize:4|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|1000,500,4,2,0,100,1,0|2999,-50,4,2,0,100,0,0|5000,400,4,2,0,100,1,0||[HitObjects]|256,192,1000,5,0,0:0:0:0:|100,100,1125,1,0,0:0:0:0:|64,192,3000,2,0,L\x7c204:192,1,140|256,192,5400,5,0,0:0:0:0:
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen editorscreen
+@wait 300
+sendkey Return
+@wait 30
+ui_assert text editor_title UITest - UITest timing [timing]
+sendkey F3
+@wait 5
+ui_assert checked editor_tab_timing 1
+ui_assert visible editor_timing 1
+ui_assert visible editor_toolbox 0
+ui_assert rows editor_timing_points 3
+ui_assert selected editor_timing_points 1
+ui_assert cell editor_timing_points 0 0 00:01:000
+ui_assert cell editor_timing_points 0 1 120 BPM
+ui_assert cell editor_timing_points 1 1 x2.00
+ui_assert cell editor_timing_points 2 2 4/4
+ui_assert text editor_timing_time 1000 ms
+ui_assert text editor_timing_bpm 120
+ui_assert enabled editor_timing_velocity 0
+mouse_to 1125 225
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+ui_assert focused editor_timing_bpm 1
+sendtext 240
+sendkey Return
+@wait 3
+ui_assert cell editor_timing_points 0 1 240 BPM
+ui_assert cell editor_timing_points 1 0 00:01:999
+ui_assert text editor_title UITest - UITest timing [timing] *
+sendkey 224 down
+sendkey S
+sendkey 224 up
+@wait 3
+@wait_secs 2
+ui_assert map md5 d325b87d65a7d2c3b172ecad2c5d90c3
+sendkey 224 down
+sendkey Z
+sendkey 224 up
+@wait 3
+ui_assert cell editor_timing_points 0 1 120 BPM
+ui_assert cell editor_timing_points 1 0 00:02:999
+mouse_to 1247 157
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+ui_assert text editor_timing_time 1002 ms
+ui_assert cell editor_timing_points 0 0 00:01:002
+ui_assert cell editor_timing_points 1 0 00:03:001
+sendkey 224 down
+sendkey Z
+sendkey 224 up
+@wait 3
+ui_assert cell editor_timing_points 0 0 00:01:000
+mouse_to 300 181
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+ui_assert selected editor_timing_points 1
+ui_assert focused editor_timing_points 1
+ui_assert enabled editor_timing_bpm 0
+ui_assert text editor_timing_velocity 2x
+sendkey 224 down
+mouse_to 300 205
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+sendkey 224 up
+@wait 3
+ui_assert selected editor_timing_points 2
+ui_assert text editor_timing_time 2999 ms
+ui_assert enabled editor_timing_bpm 1
+ui_assert text editor_timing_bpm 150
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+@wait 3
+ui_assert text editor_clock 00:02:000
+sendkey 224 down
+sendkey P
+sendkey 224 up
+@wait 3
+ui_assert rows editor_timing_points 4
+ui_assert selected editor_timing_points 1
+ui_assert cell editor_timing_points 1 0 00:02:000
+ui_assert cell editor_timing_points 1 1 120 BPM
+sendkey F1
+@wait 3
+sendkey 224 down
+sendkey 225 down
+sendkey P
+sendkey 225 up
+sendkey 224 up
+@wait 3
+ui_assert checked editor_tab_timing 1
+ui_assert rows editor_timing_points 5
+ui_assert cell editor_timing_points 2 1 x1.00
+ui_assert focused editor_timing_velocity 1
+sendtext 1.5
+sendkey Return
+@wait 3
+ui_assert cell editor_timing_points 2 1 x1.50
+sendkey 224 down
+sendkey P
+sendkey 224 up
+@wait 3
+ui_assert rows editor_timing_points 5
+ui_assert cell editor_timing_points 1 1 120 BPM
+sendkey Delete
+@wait 3
+ui_assert rows editor_timing_points 4
+ui_assert cell editor_timing_points 1 1 x1.50
+sendkey 224 down
+sendkey I
+sendkey 224 up
+@wait 3
+ui_assert rows editor_timing_points 3
+ui_assert cell editor_timing_points 1 0 00:02:999
+mouse_to 300 157
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 2
+sendkey 224 down
+sendkey A
+sendkey 224 up
+@wait 3
+ui_assert selected editor_timing_points 3
+sendkey Delete
+@wait 3
+ui_assert rows editor_timing_points 3
+ui_assert text editor_timing_tapped Tap along to set the tempo (T)
+sendkey T
+@wait 3
+ui_assert text editor_timing_tapped Taps: 1
+take_screenshot screenshots/timing.png
+@wait 3
+exit

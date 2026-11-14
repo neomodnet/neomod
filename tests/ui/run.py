@@ -29,6 +29,7 @@ import subprocess
 import sys
 import wave
 import zipfile
+import zlib
 from pathlib import Path
 
 import pixelprobe
@@ -102,6 +103,17 @@ def beatmap(title, version, audio, n_objects, set_id=-1):
     return "\n".join(lines) + "\n"
 
 
+def png(path, width, height, rgb):
+    """a solid-colour RGB PNG."""
+    rows = b"".join(b"\x00" + bytes(rgb) * width for _ in range(height))
+
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+
+    header = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
+    path.write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header) + chunk(b"IDAT", zlib.compress(rows)) + chunk(b"IEND", b""))
+
+
 def maps_set(datadir, folder, set_id, n_diffs):
     """a raw beatmapset folder in the data dir's maps/ drop-zone (metadata-only diffs), for the
     '# uitest-maps:' directive; run_one removes it again after the script."""
@@ -163,9 +175,11 @@ def script_directives(text):
     datadir: 'fresh' runs the script on an empty data dir of its own (out/data_<script>) instead of the
              shared one, for scripts that write state the other scripts would boot into (e.g. osu.cfg)
     copy: '<source>|<path>' copies a fixture file (relative to the bin dir) into the data dir before the run
-    file: '<path>|<line>|<line>...' writes a fixture file (relative to the data dir) before the run
+    file: '<path>|<line>|<line>...' writes a fixture file (relative to the data dir) before the run; backslash
+          escapes (\\x01) write raw bytes
     cfg: '<convar> <value>' is what osu.cfg has to hold for the convar after the run ('-' = no line at all)
     log: '<count> <text>' is how many lines of the log have to contain the text (0 = none)
+    unchanged: a fixture directory (relative to the bin dir) the run must leave byte for byte as it was
     xfail: a known failure that planned work fixes: the script is reported as XFAIL as long as every
            failed assert line contains (one of) the given text(s), any other failure still fails it, and
            it fails once it passes (so the directive gets removed together with the fix)"""
@@ -177,6 +191,11 @@ def script_directives(text):
         if m:
             out.setdefault(m.group(1), []).append(m.group(2).strip())
     return out
+
+
+def tree_digest(root):
+    """every file under root (relative path -> md5), for '# uitest-unchanged:'"""
+    return {str(p.relative_to(root)): hashlib.md5(p.read_bytes()).hexdigest() for p in sorted(root.rglob("*")) if p.is_file()}
 
 
 def cfg_checks(datadir, specs):
@@ -258,6 +277,9 @@ def provision_fixtures(bindir, datadir):
         with zipfile.ZipFile(imports / name, "w", zipfile.ZIP_DEFLATED) as z:
             for i in diffs:
                 z.writestr(f"diff{i:02d}.osu", beatmap(title, f"diff {i:02d}", "none.mp3", i, set_id))
+    # an image dropped on the editor (its background)
+    if not (imports / "background.png").is_file():
+        png(imports / "background.png", 64, 48, (40, 120, 200))
 
 
 def run_one(name, binary, bindir, datadir, record):
@@ -284,7 +306,8 @@ def run_one(name, binary, bindir, datadir, record):
     for spec in directives.get("file", []):
         path, *lines = spec.split("|")
         (datadir / path.strip()).parent.mkdir(parents=True, exist_ok=True)
-        (datadir / path.strip()).write_text("\n".join(lines) + "\n")
+        content = "\n".join(lines) + "\n"
+        (datadir / path.strip()).write_bytes(content.encode().decode("unicode_escape").encode("latin-1"))
     shot = datadir / "screenshots" / f"uitest_{name}.png"
     shot.unlink(missing_ok=True)
     fixture_dirs = []
@@ -292,6 +315,7 @@ def run_one(name, binary, bindir, datadir, record):
         folder, set_id, n_diffs = (s.strip() for s in spec.split("|"))
         fixture_dirs.append(maps_set(datadir, folder, int(set_id), int(n_diffs)))
     extra_args = [a for spec in directives.get("args", []) for a in shlex.split(spec)]
+    unchanged = {d: tree_digest(bindir / d) for d in directives.get("unchanged", [])}
 
     # -multi: without it, an already running instance takes the run (this one forwards its argv and exits)
     proc = subprocess.run(
@@ -312,6 +336,8 @@ def run_one(name, binary, bindir, datadir, record):
         shutil.rmtree(datadir / "maps" / folder, ignore_errors=True)
 
     log += "".join(ln + "\n" for ln in cfg_checks(datadir, directives.get("cfg", [])))
+    for d, before in unchanged.items():
+        log += f"UNCHANGED {'OK' if tree_digest(bindir / d) == before else 'FAIL'} {d}\n"
     game_lines = proc.stdout.splitlines()
     for spec in directives.get("log", []):
         count, text = spec.split(None, 1)
@@ -327,6 +353,8 @@ def run_one(name, binary, bindir, datadir, record):
         reasons.append("cfg")
     if "LOG FAIL" in log:
         reasons.append("log")
+    if "UNCHANGED FAIL" in log:
+        reasons.append("unchanged")
 
     # known failures: only the asserts the directive names may fail
     xfail = directives.get("xfail", [])

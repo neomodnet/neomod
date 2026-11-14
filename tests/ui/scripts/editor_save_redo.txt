@@ -1,0 +1,64 @@
+# a save while a step can be redone keeps it: two bookmarks, the second undone, Ctrl+S writes the first (with the editor
+# settings, which are no step), Ctrl+Y brings the second back
+# uitest-datadir: fresh
+# uitest-maps: uitest editor set|-1|2
+# uitest-log: 1 [BeatmapInstaller] maps/uitest editor set: updated (+1 -1)
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen songbrowser
+@wait 300
+sendtext uitest editor set
+@wait 60
+sendkey Down
+@wait 30
+mouse_to 1033 327
+@wait 2
+mouse_down right
+@wait 1
+mouse_up right
+@wait 3
+mouse_to 1116 394
+@wait 2
+mouse_down
+@wait 1
+mouse_up
+@wait 30
+ui_assert screen_active editorscreen 1
+ui_assert text editor_title UITest - UITest uitest editor set [diff 02]
+sendkey Right
+@wait 3
+sendkey 224 down
+sendkey B
+sendkey 224 up
+@wait 3
+sendkey Right
+@wait 3
+sendkey 224 down
+sendkey B
+sendkey 224 up
+@wait 3
+sendkey 224 down
+sendkey Z
+sendkey 224 up
+@wait 3
+ui_assert text editor_title UITest - UITest uitest editor set [diff 02] *
+sendkey 224 down
+sendkey S
+sendkey 224 up
+@wait 3
+@wait_secs 2
+ui_assert text editor_title UITest - UITest uitest editor set [diff 02]
+sendkey 224 down
+sendkey Y
+sendkey 224 up
+@wait 3
+ui_assert text editor_title UITest - UITest uitest editor set [diff 02] *
+exit

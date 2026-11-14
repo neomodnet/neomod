@@ -125,6 +125,10 @@ struct Skin final {
                              std::optional<Color> sliderBorder, std::optional<Color> sliderTrackOverride, bool images,
                              bool sounds);
     void unloadBeatmapOverride();
+    // the override map changed in place: the files its hit samples name now and its slider colours. sounds are kept by
+    // file name, so only new names load
+    void updateBeatmapOverride(std::span<const std::string> sampleFiles, std::optional<Color> sliderBorder,
+                               std::optional<Color> sliderTrackOverride);
     // loads the override `other` has
     void copyBeatmapOverride(const Skin &other);
     void reloadSounds();
@@ -188,6 +192,7 @@ struct Skin final {
     std::array<BasicSkinImage, 10> i_combos{};
 
     BasicSkinImage i_hitcircle{};
+    BasicSkinImage i_hitcircleselect{};  // over a selected object
     BasicSkinImage i_approachcircle{};
     BasicSkinImage i_reversearrow{};
     BasicSkinImage i_score_x{};
@@ -409,6 +414,8 @@ struct Skin final {
     Sound *s_hover_sp{nullptr};
     Sound *s_click_mp{nullptr};
     Sound *s_hover_mp{nullptr};
+    Sound *s_click_edit{nullptr};
+    Sound *s_hover_edit{nullptr};
     Sound *s_click_options{nullptr};
     Sound *s_hover_options{nullptr};
     Sound *s_click_exit{nullptr};
@@ -453,6 +460,8 @@ struct Skin final {
     Sound *s_check_on{nullptr};
     Sound *s_check_off{nullptr};
     Sound *s_shutter{nullptr};
+    Sound *s_metronome_high{nullptr};
+    Sound *s_metronome_low{nullptr};
     Sound *s_section_pass{nullptr};
     Sound *s_section_fail{nullptr};
     Sound *s_nightcore_kick{nullptr};

@@ -5,8 +5,6 @@
 #include "Logging.h"
 #include "Timing.h"
 
-#include <cstring>
-
 ProfilerProfile g_profCurrentProfile(true);
 
 // weird extra namespace here due to msvc linkage issues for callback in ConVarDefs.h
@@ -34,7 +32,7 @@ ProfilerProfile::ProfilerProfile(bool manualStartViaMain) : root("Root", VPROF_B
 
     this->iNumGroups = 0;
     for(auto &group : this->groups) {
-        group.name = nullptr;
+        group.name.clear();
     }
 
     this->iNumNodes = 0;
@@ -53,6 +51,13 @@ ProfilerProfile::ProfilerProfile(bool manualStartViaMain) : root("Root", VPROF_B
 
     this->groupNameToID(VPROF_BUDGETGROUP_DRAW);
     this->groupNameToID(VPROF_BUDGETGROUP_DRAW_SWAPBUFFERS);
+}
+
+void ProfilerProfile::forgetNameAddresses() {
+    this->root.nameAddress = nullptr;
+    for(int i = 0; i < this->iNumNodes; i++) {
+        this->nodes[i].nameAddress = nullptr;
+    }
 }
 
 double ProfilerProfile::sumTimes(const ProfilerNode *node, int groupID) const {
@@ -82,7 +87,7 @@ double ProfilerProfile::sumTimes(const ProfilerNode *node, int groupID) const {
 
 int ProfilerProfile::groupNameToID(const char *group) {
     for(int i = 0; i < this->iNumGroups; i++) {
-        if(strcmp(this->groups[i].name, group) == 0) return i;
+        if(this->groups[i].name == group) return i;
     }
 
     // NOTE: this can run during static init (from ProfilerNode's constructor), so no logging/engine access here
@@ -100,7 +105,8 @@ ProfilerNode::ProfilerNode(const char *name, const char *group, ProfilerNode *pa
 }
 
 void ProfilerNode::constructor(const char *name, const char *group, ProfilerNode *parent) {
-    this->name = name;
+    this->name = name != nullptr ? name : "";
+    this->nameAddress = name;
     this->parent = parent;
     this->child = nullptr;
     this->sibling = nullptr;
@@ -133,8 +139,7 @@ ProfilerNode *ProfilerNode::getSubNode(const char *name, const char *group) {
     // find existing node
     ProfilerNode *child = this->child;
     while(child != nullptr) {
-        if(child->name == name)  // NOTE: pointer comparison
-            return child;
+        if(child->isNamed(name)) return child;
 
         child = child->sibling;
     }
