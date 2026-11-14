@@ -16,7 +16,6 @@
 #include "NotificationOverlay.h"
 #include "Osu.h"
 #include "Parsing.h"
-#include "Paths.h"
 #include "SString.h"
 #include "Skin.h"
 #include "UI.h"
@@ -369,7 +368,6 @@ void SetupPanel::commit() {
 void SetupPanel::useBackground(const std::string &path) {
     if(this->state.copyFirst([this, path] { this->useBackground(path); })) return;
     Document &document = *this->state.document;
-    const std::string folder = fmt::format("{}/{}/", Mc::Paths::maps(), document.getLocation().folder);
     const std::string name = Environment::getFileNameFromFilePath(path);
     // written quoted, on a line of its own
     if(Mc::ranges::any_of(name, [](char c) { return (unsigned char)c < 32 || c == '"'; })) {
@@ -377,7 +375,7 @@ void SetupPanel::useBackground(const std::string &path) {
             tformat("{} can't be used: its name can't be written into a map.", name));
         return;
     }
-    const auto taken = MapFiles::takeIn(folder, path);
+    const auto taken = MapFiles::takeIn(MapFiles::folderOf(document.getLocation()), path);
     if(!taken) {
         ui->getNotificationOverlay()->addToast(tformat("{} couldn't be copied into the map folder.", name),
                                                ERROR_TOAST);

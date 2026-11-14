@@ -4,8 +4,7 @@
 #include "CBaseUIStyledButton.h"
 #include "CBaseUIStyledLabel.h"
 #include "Color.h"
-#include "Database.h"
-#include "Environment.h"
+#include "MapFiles.h"
 #include "TimeDisplay.h"
 #include "UIStyle.h"
 #include "i18n.h"
@@ -132,8 +131,7 @@ void VerifyPanel::tick() {
     const Document *document = this->state.document.get();
     if(this->isVisible() && document && this->checked != document->getRevision()) {
         this->checked = document->getRevision();
-        this->found = Verify::check(*document, *this->state.objects,
-                                    Environment::getFolderFromFilePath(db->pathOf(document->getLocation())));
+        this->found = Verify::check(*document, *this->state.objects, MapFiles::folderOf(document->getLocation()));
         this->list(this->minor->isChecked());
 
         std::array<uSz, 3> counts{};

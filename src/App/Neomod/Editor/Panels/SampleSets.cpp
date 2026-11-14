@@ -12,10 +12,10 @@
 #include "File.h"
 #include "Font.h"
 #include "HitSounds.h"
+#include "MapFiles.h"
 #include "NotificationOverlay.h"
 #include "Osu.h"
 #include "Parsing.h"
-#include "Paths.h"
 #include "SString.h"
 #include "Skin.h"
 #include "Stepper.h"
@@ -34,9 +34,6 @@ namespace {
 // units, with room for "sliderwhistle"
 constexpr f32 CELL_WIDTH{120.f};
 
-// what osu! looks for, in its order
-constexpr std::array<std::string_view, 3> EXTENSIONS{"wav", "mp3", "ogg"};
-
 // where SampleSets::SOUNDS has the slider sounds
 constexpr uSz SLIDERSLIDE{4};
 constexpr uSz SLIDERTICK{6};
@@ -49,12 +46,12 @@ constexpr f64 LOOP_SECONDS{1.5};
 bool put(EditorState &state, const std::string &path, const std::string &stem,
          const std::function<void()> &folderChanged) {
     const std::string extension = SString::to_lower(Environment::getFileExtensionFromFilePath(path));
-    if(!Mc::ranges::contains(EXTENSIONS, extension)) {
+    if(!MapFiles::isSound(path)) {
         ui->getNotificationOverlay()->addNotification(tformat("{} can't be used: samples are .wav, .ogg or .mp3 files.",
                                                               Environment::getFileNameFromFilePath(path)));
         return false;
     }
-    const std::string folder = fmt::format("{}/{}/", Mc::Paths::maps(), state.document->getLocation().folder);
+    const std::string folder = MapFiles::folderOf(state.document->getLocation());
     const std::string name = fmt::format("{}.{}", stem, extension);
     // chosen from the folder itself, it's there already
     std::error_code ec;
@@ -69,8 +66,7 @@ bool put(EditorState &state, const std::string &path, const std::string &stem,
         const std::string_view other{file};
         const uSz dot = other.rfind('.');
         if(dot != std::string_view::npos && SString::strcase_equal(other.substr(0, dot), stem) &&
-           Mc::ranges::contains(EXTENSIONS, SString::to_lower(other.substr(dot + 1))) &&
-           !std::filesystem::equivalent(File::getFsPath(folder + file), target, ec)) {
+           MapFiles::isSound(other) && !std::filesystem::equivalent(File::getFsPath(folder + file), target, ec)) {
             Environment::deleteFile(folder + file);
         }
     }
@@ -139,13 +135,11 @@ SampleSets::SampleSets(EditorState &state, CBaseUIPopupLayer &popups, i32 index,
     this->detail = new CBaseUIStyledLabel({}, "editor_sample_sets_file");
     auto *choose = new CBaseUIStyledButton(_("Choose File..."), "editor_sample_sets_choose");
     choose->setClickCallback([this] {
-        // the filter name, then its extensions
-        const std::string filter = std::string{_("Audio files")} + '\0' + "wav;ogg;mp3" + '\0';
         this->fileDialog = env->openFileWindow(
             [this](const std::vector<std::string> &paths) {
                 if(!paths.empty()) this->setFile(paths.front());
             },
-            filter.c_str(), _("Custom Samples"));
+            MapFiles::soundFilter(_("Audio files")).c_str(), _("Custom Samples"));
     });
     this->deleteButton = new CBaseUIStyledButton(_("Delete File"), "editor_sample_sets_delete");
     this->deleteButton->setClickCallback([this] { this->deleteFile(); });
@@ -165,7 +159,7 @@ u32 SampleSets::open(vec2 pos) {
 
 std::string_view SampleSets::fileFor(std::span<const std::string> files, uSz set, uSz sound, i32 index) {
     const std::string stem = neomod::HitSoundUtils::mapSampleName((u8)set, SOUNDS[sound], (u16)index);
-    for(const std::string_view extension : EXTENSIONS) {
+    for(const std::string_view extension : MapFiles::SOUND_EXTENSIONS) {
         for(const std::string &file : files) {
             const std::string_view name{file};
             if(name.size() == stem.size() + 1 + extension.size() && name[stem.size()] == '.' &&
@@ -189,9 +183,7 @@ std::vector<i32> SampleSets::indicesIn(std::span<const std::string> files) {
     std::vector<i32> indices;
     for(const std::string &file : files) {
         const uSz dot = file.rfind('.');
-        if(dot == std::string::npos || !Mc::ranges::contains(EXTENSIONS, SString::to_lower(file.substr(dot + 1)))) {
-            continue;
-        }
+        if(dot == std::string::npos || !MapFiles::isSound(file)) continue;
         const std::string stem = SString::to_lower(std::string_view{file}.substr(0, dot));
         for(const std::string &first : firsts) {
             if(!stem.starts_with(first)) continue;

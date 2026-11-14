@@ -225,11 +225,7 @@ std::string describe(const DatabaseBeatmap &map) {
     return text;
 }
 
-// what the editor takes a dropped or chosen file for
-bool isAudio(std::string_view path) {
-    const std::string extension = SString::to_lower(Environment::getFileExtensionFromFilePath(path));
-    return extension == "mp3" || extension == "ogg" || extension == "wav";
-}
+// what the editor takes a dropped file for
 bool isImage(std::string_view path) {
     const std::string extension = SString::to_lower(Environment::getFileExtensionFromFilePath(path));
     return extension == "jpg" || extension == "jpeg" || extension == "png";
@@ -1219,10 +1215,10 @@ void Editor::run(Command command, i32 value) {
         case Command::EXPORT:
             // what's exported is the map as saved: an osu!stable map from its copy once it has one
             this->save([this] {
-                const std::string folder =
-                    Environment::getFolderFromFilePath(db->pathOf(this->state.document->getLocation()));
                 osu->getMapExports()->start(
-                    {.beatmap_folder_paths = {folder}, .toplevel_archive_bundle = {}, .cb = {}});
+                    {.beatmap_folder_paths = {MapFiles::folderOf(this->state.document->getLocation())},
+                     .toplevel_archive_bundle = {},
+                     .cb = {}});
             });
             break;
         case Command::SET_PREVIEW:
@@ -1764,7 +1760,7 @@ void Editor::startTest() {
 }
 
 void Editor::drop(std::span<const std::string> paths) {
-    if(const auto audio = Mc::ranges::find_if(paths, [](const std::string &path) { return isAudio(path); });
+    if(const auto audio = Mc::ranges::find_if(paths, [](const std::string &path) { return MapFiles::isSound(path); });
        audio != paths.end()) {
         // dropped while a sample is being chosen, it's that
         if(this->popups->isOpen(this->sampleSetsId)) {
@@ -1786,13 +1782,11 @@ void Editor::drop(std::span<const std::string> paths) {
 }
 
 void Editor::chooseAudio() {
-    // the filter name, then its extensions
-    const std::string filter = std::string{_("Audio files")} + '\0' + "mp3;ogg;wav" + '\0';
     this->fileDialog = env->openFileWindow(
         [this](const std::vector<std::string> &paths) {
-            if(!paths.empty() && isAudio(paths.front())) this->newBeatmap(paths.front());
+            if(!paths.empty() && MapFiles::isSound(paths.front())) this->newBeatmap(paths.front());
         },
-        filter.c_str(), _("New Beatmap"));
+        MapFiles::soundFilter(_("Audio files")).c_str(), _("New Beatmap"));
 }
 
 void Editor::newBeatmap(const std::string &audio) {

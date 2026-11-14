@@ -6,13 +6,11 @@
 #include "CBaseUIStyledButton.h"
 #include "CBaseUIStyledLabel.h"
 #include "ContainerRanges.h"
-#include "DatabaseBeatmap.h"
 #include "EditorState.h"
 #include "Environment.h"
 #include "MapFiles.h"
 #include "NotificationOverlay.h"
 #include "Osu.h"
-#include "Paths.h"
 #include "SString.h"
 #include "Skin.h"
 #include "UI.h"
@@ -34,14 +32,6 @@ namespace {
 constexpr f32 NAME_WIDTH{300.f};
 constexpr f32 ROWS_SHOWN{10.f};
 
-// what osu! plays as samples
-constexpr std::array<std::string_view, 3> EXTENSIONS{"wav", "ogg", "mp3"};
-
-bool isSound(std::string_view name) {
-    const std::string extension = SString::to_lower(Environment::getFileExtensionFromFilePath(name));
-    return Mc::ranges::contains(EXTENSIONS, extension);
-}
-
 // whether an object line can name it (the line fields end at commas)
 bool writable(std::string_view name) {
     return Mc::ranges::none_of(name, [](char c) { return (unsigned char)c < 32 || c == ','; });
@@ -56,12 +46,11 @@ void refuse(std::string_view name) {
 std::optional<std::string> import(EditorState &state, const std::string &path,
                                   const std::function<void()> &folderChanged) {
     const std::string name = Environment::getFileNameFromFilePath(path);
-    if(!isSound(name) || !writable(name)) {
+    if(!MapFiles::isSound(name) || !writable(name)) {
         refuse(name);
         return std::nullopt;
     }
-    const std::string folder = fmt::format("{}/{}/", Mc::Paths::maps(), state.document->getLocation().folder);
-    auto taken = MapFiles::takeIn(folder, path);
+    auto taken = MapFiles::takeIn(MapFiles::folderOf(state.document->getLocation()), path);
     if(!taken) {
         ui->getNotificationOverlay()->addToast(tformat("{} couldn't be copied into the map folder.", name),
                                                ERROR_TOAST);
@@ -89,13 +78,11 @@ SampleChooser::SampleChooser(EditorState &state, CBaseUIPopupLayer &popups, std:
 
     auto *add = new CBaseUIStyledButton(_("Add File..."), "editor_sample_add");
     add->setClickCallback([this] {
-        // the filter name, then its extensions
-        const std::string filter = std::string{_("Audio files")} + '\0' + "wav;ogg;mp3" + '\0';
         this->fileDialog = env->openFileWindow(
             [this](const std::vector<std::string> &paths) {
                 if(!paths.empty()) this->addFile(paths.front());
             },
-            filter.c_str(), _("Sample File"));
+            MapFiles::soundFilter(_("Audio files")).c_str(), _("Sample File"));
     });
     auto *none = new CBaseUIStyledButton(_("No File"), "editor_sample_none");
     none->setClickCallback([this] { this->take({}); });
@@ -138,15 +125,13 @@ void SampleChooser::draw() {
 void SampleChooser::list(std::string_view picked) {
     this->files.clear();
     this->rows->setSelection({});
-    const DatabaseBeatmap *map = this->state.clock.getMap();
-    if(!map || !this->state.document) return;
-    this->folder = map->getFolder();
-    if(!this->folder.ends_with('/')) this->folder.push_back('/');
+    if(!this->state.clock.isAttached()) return;
+    this->folder = MapFiles::folderOf(this->state.document->getLocation());
 
     const std::string_view song =
         this->state.document->getFile().getValue(Kind::GENERAL, "AudioFilename").value_or(std::string_view{});
     for(std::string &file : Environment::getFilesInFolder(this->folder)) {
-        if(isSound(file) && !SString::strcase_equal(file, song)) this->files.push_back(std::move(file));
+        if(MapFiles::isSound(file) && !SString::strcase_equal(file, song)) this->files.push_back(std::move(file));
     }
     std::sort(this->files.begin(), this->files.end(), [](const std::string &a, const std::string &b) {
         return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end(), [](char x, char y) {

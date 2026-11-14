@@ -1,12 +1,15 @@
 // Copyright (c) 2026, WH, All rights reserved.
 #include "MapFiles.h"
 
+#include "ContainerRanges.h"
+#include "Database.h"
 #include "Document.h"
 #include "Environment.h"
 #include "File.h"
 #include "SString.h"
 
 #include "fmt/format.h"
+#include "fmt/ranges.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -17,6 +20,20 @@
 using Kind = neomod::BeatmapFile::SectionKind;
 
 namespace MapFiles {
+std::string folderOf(const Database::MapLocation &location) {
+    std::string path = db->pathOf(location);
+    path.resize(path.size() - location.file.size());
+    return path;
+}
+
+bool isSound(std::string_view name) {
+    return Mc::ranges::contains(SOUND_EXTENSIONS, SString::to_lower(Environment::getFileExtensionFromFilePath(name)));
+}
+
+std::string soundFilter(std::string_view name) {
+    return fmt::format("{}{}{}{}", name, '\0', fmt::join(SOUND_EXTENSIONS, ";"), '\0');
+}
+
 std::string nameFor(const neomod::BeatmapFile &file) {
     auto value = [&file](Kind kind, std::string_view key) { return file.getValue(kind, key).value_or(""); };
     std::string name;
