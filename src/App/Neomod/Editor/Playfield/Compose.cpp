@@ -370,19 +370,24 @@ i32 Compose::tailTime(const HitObject &object) {
     return object.getEndTime();
 }
 
-std::pair<vec2, vec2> Compose::fieldRange() const {
-    vec2 low{std::numeric_limits<f32>::max()};
-    vec2 high{std::numeric_limits<f32>::lowest()};
+std::optional<std::pair<vec2, vec2>> Compose::selectionBounds() const {
+    std::optional<std::pair<vec2, vec2>> bounds;
     const MapObjects &objects = *this->state.objects;
     for(const Document::Id id : this->selection) {
         const HitObject *object = objects.find(id);
         if(!object || object->isSpinner()) continue;
         for(const i32 at : {object->getClickTime(), tailTime(*object)}) {
-            low = vec::min(low, object->getOriginalRawPosAt(at));
-            high = vec::max(high, object->getOriginalRawPosAt(at));
+            const vec2 p = object->getOriginalRawPosAt(at);
+            bounds = bounds ? std::pair{vec::min(bounds->first, p), vec::max(bounds->second, p)} : std::pair{p, p};
         }
     }
-    return {vec::min(-low, vec2{0.f}), vec::max(FIELD - high, vec2{0.f})};
+    return bounds;
+}
+
+std::pair<vec2, vec2> Compose::fieldRange() const {
+    const auto bounds = this->selectionBounds();
+    if(!bounds) return {vec2{0.f}, vec2{0.f}};
+    return {vec::min(-bounds->first, vec2{0.f}), vec::max(FIELD - bounds->second, vec2{0.f})};
 }
 
 std::pair<uSz, uSz> Compose::shownRange() const {
@@ -536,14 +541,19 @@ f64 Compose::tickLengthAt(i32 timeMS) const {
            (c.timingpoints.getBeatLengthMultiplier(timeMS) * this->state.divisor);
 }
 
-std::optional<Snapping::Reference> Compose::referenceBefore(i32 timeMS) const {
+const HitObject *Compose::endingBefore(i32 timeMS) const {
     const MapObjects &objects = *this->state.objects;
     const auto ending = Mc::ranges::lower_bound(objects.byEndTime, timeMS, {},
                                                 [](const MapObjects::Shown &s) { return s.object->getEndTime(); });
-    if(ending == objects.byEndTime.begin() || !(this->velocityAt(timeMS) > 0.0)) return std::nullopt;
-    const HitObject &last = *std::prev(ending)->object;
-    if(last.isSpinner()) return std::nullopt;
-    return Snapping::Reference{.end = last.getOriginalRawPosAt(last.getEndTime()), .endTime = last.getEndTime()};
+    if(ending == objects.byEndTime.begin()) return nullptr;
+    const HitObject *last = std::prev(ending)->object;
+    return last->isSpinner() ? nullptr : last;
+}
+
+std::optional<Snapping::Reference> Compose::referenceBefore(i32 timeMS) const {
+    const HitObject *last = this->endingBefore(timeMS);
+    if(!last || !(this->velocityAt(timeMS) > 0.0)) return std::nullopt;
+    return Snapping::Reference{.end = last->getOriginalRawPosAt(last->getEndTime()), .endTime = last->getEndTime()};
 }
 
 template <typename F>
@@ -661,13 +671,9 @@ std::optional<Compose::Spot> Compose::spot(vec2 cursor, const Snapping::Settings
 
     // the last object ending before the time, the first starting after it
     const MapObjects &objects = *this->state.objects;
-    const auto ending = Mc::ranges::lower_bound(objects.byEndTime, spot.time, {},
-                                                [](const MapObjects::Shown &s) { return s.object->getEndTime(); });
-    if(ending != objects.byEndTime.begin()) {
-        if(const HitObject &previous = *std::prev(ending)->object; !previous.isSpinner()) {
-            spot.previous = this->spacing(previous.getOriginalRawPosAt(previous.getEndTime()), previous.getEndTime(),
-                                          spot.pos, spot.time, spot.time);
-        }
+    if(const HitObject *previous = this->endingBefore(spot.time)) {
+        spot.previous = this->spacing(previous->getOriginalRawPosAt(previous->getEndTime()), previous->getEndTime(),
+                                      spot.pos, spot.time, spot.time);
     }
     if(const uSz starting = objects.firstFrom(spot.time + 1);
        starting != objects.objects.size() && !objects.objects[starting]->isSpinner()) {
@@ -706,12 +712,9 @@ std::optional<f32> Compose::currentSpacing() const {
         if(starting == objects.objects.size()) return std::nullopt;
         to = objects.objects[starting].get();
     }
-    const auto ending = Mc::ranges::lower_bound(objects.byEndTime, to->getClickTime(), {},
-                                                [](const MapObjects::Shown &s) { return s.object->getEndTime(); });
-    if(to->isSpinner() || ending == objects.byEndTime.begin()) return std::nullopt;
-    const HitObject &from = *std::prev(ending)->object;
-    if(from.isSpinner()) return std::nullopt;
-    return this->spacing(from.getOriginalRawPosAt(from.getEndTime()), from.getEndTime(),
+    const HitObject *from = to->isSpinner() ? nullptr : this->endingBefore(to->getClickTime());
+    if(!from) return std::nullopt;
+    return this->spacing(from->getOriginalRawPosAt(from->getEndTime()), from->getEndTime(),
                          to->getOriginalRawPosAt(to->getClickTime()), to->getClickTime(), to->getClickTime());
 }
 
@@ -1751,33 +1754,21 @@ std::vector<HO> Compose::stream(const HO &slider, i32 divisor, f64 spacing, i32 
 }
 
 std::optional<vec2> Compose::selectionCenter() const {
-    const MapObjects &objects = *this->state.objects;
-    std::optional<std::pair<vec2, vec2>> bounds;
-    for(const Document::Id id : this->selection) {
-        const HitObject *object = objects.find(id);
-        if(!object || object->isSpinner()) continue;
-        for(const vec2 p :
-            {object->getOriginalRawPosAt(object->getClickTime()), object->getOriginalRawPosAt(tailTime(*object))}) {
-            bounds = bounds ? std::pair{vec::min(bounds->first, p), vec::max(bounds->second, p)} : std::pair{p, p};
-        }
-    }
+    const auto bounds = this->selectionBounds();
     if(!bounds) return std::nullopt;
     return (bounds->first + bounds->second) / 2.f;
 }
 
 f32 Compose::maxScale(vec2 center, bool x, bool y) const {
-    const MapObjects &objects = *this->state.objects;
     f32 limit = std::numeric_limits<f32>::infinity();
     // how far from the center a coordinate can be scaled before it leaves [0, size]
     const auto room = [&](f32 p, f32 c, f32 size) {
         if(p > c) limit = std::min(limit, (size - c) / (p - c));
         if(p < c) limit = std::min(limit, c / (c - p));
     };
-    for(const Document::Id id : this->selection) {
-        const HitObject *object = objects.find(id);
-        if(!object || object->isSpinner()) continue;
-        for(const vec2 p :
-            {object->getOriginalRawPosAt(object->getClickTime()), object->getOriginalRawPosAt(tailTime(*object))}) {
+    // the outermost ones leave first
+    if(const auto bounds = this->selectionBounds()) {
+        for(const vec2 p : {bounds->first, bounds->second}) {
             if(x) room(p.x, center.x, FIELD.x);
             if(y) room(p.y, center.y, FIELD.y);
         }

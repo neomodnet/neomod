@@ -304,7 +304,7 @@ class Compose {
     // the selected heads and control points through `map` (spinners stay); with `reshape` each slider length snaps
     // again to the divisor ticks, at least one. whether the step changes anything
     bool previewMap(const std::function<vec2(vec2)> &map, bool reshape);
-    // the middle of the bounds around the selected heads and slider ends (none: nothing but spinners is selected)
+    // the middle of the bounds around the selected heads and slider tails (none: nothing but spinners is selected)
     [[nodiscard]] std::optional<vec2> selectionCenter() const;
     // the largest factor (at least 1) by which the selection scales around `center` on these axes with its heads and
     // slider ends in the field (5 when they're all at the center)
@@ -459,6 +459,8 @@ class Compose {
     [[nodiscard]] bool isShown(const neomod::HitObject &object) const;
     // the objects isShown() can be true for, from the first index to before the last
     [[nodiscard]] std::pair<uSz, uSz> shownRange() const;
+    // the bounds around the selected heads and slider tails, unstacked (none: nothing but spinners is selected)
+    [[nodiscard]] std::optional<std::pair<vec2, vec2>> selectionBounds() const;
     // how far the selection heads and tails can move without leaving the field, or going further out than they are
     [[nodiscard]] std::pair<vec2, vec2> fieldRange() const;
     [[nodiscard]] i32 snappedNow() const;
@@ -486,7 +488,10 @@ class Compose {
     [[nodiscard]] std::optional<neomod::BeatmapFile::HitObject> reshaped(const neomod::BeatmapFile::HitObject &slider,
                                                                          std::span<const vec2> points,
                                                                          neomod::SLIDERCURVETYPE type) const;
-    // what distance snap spaces from at the time (none: no object before it, a spinner, or no timing points)
+    // the last object ending before the time, which a position at it is spaced from (none: there's none, or it's a
+    // spinner)
+    [[nodiscard]] const neomod::HitObject *endingBefore(i32 timeMS) const;
+    // what distance snap spaces from at the time (none: no such object, or no timing points)
     [[nodiscard]] std::optional<Snapping::Reference> referenceBefore(i32 timeMS) const;
     // gives `fn` each position things stack onto: the heads and slider ends (unstacked) of the shown objects, or of
     // the unselected ones (`unselected`), except the one at `except`
