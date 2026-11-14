@@ -1,7 +1,7 @@
 # the marker for a restore that never finished (the game crashed restoring the session) makes the first start set that
 # session aside (session.bad) and start a fresh one, with a toast.
 # uitest-datadir: fresh
-# uitest-file: editor/session|\x03\x01\x00\x0b\x11uitest editor set\x0b\x0adiff02.osu\x00\x01\x00\x0b\x11uitest editor set\x0b\x0adiff02.osu\xdc\x05\x00\x00\x00\x01\x04
+# uitest-file: editor/session|\x06\x01\x00\x0b\x11uitest editor set\x0b\x0adiff02.osu\x00\x01\x00\x0b\x11uitest editor set\x0b\x0adiff02.osu\xdc\x05\x00\x00\x00\x01\x04\x00\x00\x00\x00\x00\x00\x00\x00
 # uitest-file: editor/session.restoring|
 # uitest-log: 1 restoring the editor session crashed the game last time
 # uitest-log: 1 editor session: 0 map(s), none open

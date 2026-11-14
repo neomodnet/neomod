@@ -21,7 +21,7 @@
 
 namespace {
 // the format: its version, the open map (if any) with its draft (if any), the views, the tool, the selection and the
-// tab (version 3 had no tool or selection, version 4 no spacing or grid size in its views, version 5 no tab)
+// tab (version 5 had no tab)
 constexpr u8 SESSION_VERSION{6};
 // in a draft file: its version, the map, the draft
 constexpr u8 DRAFT_VERSION{1};
@@ -68,7 +68,7 @@ EditorSession EditorSession::read(std::span<const u8> bytes) {
     PacketReader in(bytes);
     EditorSession session;
     const u8 version = in.read<u8>();
-    bool good = version >= 3 && version <= SESSION_VERSION;
+    bool good = version >= 5 && version <= SESSION_VERSION;
     if(good && in.read<u8>() != 0) good = readLocation(in, session.open.emplace());
     if(good && in.read<u8>() != 0) good = session.open && readDraft(in, session.draft.emplace());
     const u8 count = good ? in.read<u8>() : 0;
@@ -82,13 +82,11 @@ EditorSession EditorSession::read(std::span<const u8> bytes) {
         if(const u8 divisor = in.read<u8>() != 0 ? in.read<u8>() : 0; divisor > 0) {
             view.divisor = BeatSnap::clampDivisor(divisor);
         }
-        if(version >= 5) {
-            if(in.read<u8>() != 0) view.spacing = Snapping::clampSpacing(in.read<f32>());
-            if(in.read<u8>() != 0) view.gridSize = Snapping::clampGridSize(in.read<u8>());
-        }
+        if(in.read<u8>() != 0) view.spacing = Snapping::clampSpacing(in.read<f32>());
+        if(in.read<u8>() != 0) view.gridSize = Snapping::clampGridSize(in.read<u8>());
         good = good && in.good();
     }
-    if(good && version >= 4) {
+    if(good) {
         session.tool = in.read<u8>();
         const u32 count = in.read<u32>();
         for(u32 i = 0; good && i < count; i++) {

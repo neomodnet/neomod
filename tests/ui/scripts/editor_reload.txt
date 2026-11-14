@@ -3,7 +3,7 @@
 # `editor_reload fresh` starts a new session. every start logs its session.
 # uitest-datadir: fresh
 # uitest-maps: uitest editor set|-1|2
-# uitest-file: editor/session|\x03\x01\x00\x0b\x11uitest editor set\x0b\x0adiff02.osu\x00\x01\x00\x0b\x11uitest editor set\x0b\x0adiff02.osu\xdc\x05\x00\x00\x00\x01\x04
+# uitest-file: editor/session|\x06\x01\x00\x0b\x11uitest editor set\x0b\x0adiff02.osu\x00\x01\x00\x0b\x11uitest editor set\x0b\x0adiff02.osu\xdc\x05\x00\x00\x00\x01\x04\x00\x00\x00\x00\x00\x00\x00\x00
 # uitest-log: 3 editor session: 1 map(s), diff02.osu
 # uitest-log: 2 editor session: 0 map(s), none open
 # uitest-log: 5 started the editor (generation

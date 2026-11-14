@@ -1,7 +1,7 @@
-# a session on disk (version 3) opens its map at its time, with its divisor, once the database is in.
+# a session on disk opens its map at its time, with its divisor, once the database is in.
 # uitest-datadir: fresh
 # uitest-maps: uitest editor set|-1|2
-# uitest-file: editor/session|\x03\x01\x00\x0b\x11uitest editor set\x0b\x0adiff02.osu\x00\x01\x00\x0b\x11uitest editor set\x0b\x0adiff02.osu\xdc\x05\x00\x00\x00\x01\x04
+# uitest-file: editor/session|\x06\x01\x00\x0b\x11uitest editor set\x0b\x0adiff02.osu\x00\x01\x00\x0b\x11uitest editor set\x0b\x0adiff02.osu\xdc\x05\x00\x00\x00\x01\x04\x00\x00\x00\x00\x00\x00\x00\x00
 # uitest-log: 1 editor session: 1 map(s), diff02.osu
 options_save_on_back 0
 debug_fixed_frametime 0.0166667

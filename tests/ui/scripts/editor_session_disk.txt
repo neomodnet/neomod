@@ -1,7 +1,7 @@
-# the first start continues the session an earlier run left on disk (version 3, a map open; the map itself isn't
+# the first start continues the session an earlier run left on disk (a map open; the map itself isn't
 # there: the editor says so).
 # uitest-datadir: fresh
-# uitest-file: editor/session|\x03\x01\x00\x0b\x11uitest editor set\x0b\x0adiff02.osu\x00\x01\x00\x0b\x11uitest editor set\x0b\x0adiff02.osu\xdc\x05\x00\x00\x00\x01\x04
+# uitest-file: editor/session|\x06\x01\x00\x0b\x11uitest editor set\x0b\x0adiff02.osu\x00\x01\x00\x0b\x11uitest editor set\x0b\x0adiff02.osu\xdc\x05\x00\x00\x00\x01\x04\x00\x00\x00\x00\x00\x00\x00\x00
 # uitest-log: 1 editor session: 1 map(s), diff02.osu
 options_save_on_back 0
 debug_fixed_frametime 0.0166667

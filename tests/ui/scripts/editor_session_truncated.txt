@@ -1,6 +1,6 @@
 # a session that was cut off (the right version, then too few bytes for the open map) starts a fresh one.
 # uitest-datadir: fresh
-# uitest-file: editor/session|\x03\x01\x00\x0b
+# uitest-file: editor/session|\x06\x01\x00\x0b
 # uitest-log: 1 editor session: 0 map(s), none open
 options_save_on_back 0
 debug_fixed_frametime 0.0166667
