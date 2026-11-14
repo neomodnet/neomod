@@ -265,12 +265,15 @@ LoadError makeObject(const BeatmapFile::HitObject &ho, u32 line, PRIMITIVE_CONTA
             // e.g. https://osu.ppy.sh/beatmapsets/791900#osu/1676490
             if(slider.points.size() == 1) slider.points.push_back(xy);
 
+            // a slider takes only the sample sets from its hit sample: the custom sample index and the volume come from
+            // the timing points, and it plays no sample file (as in osu!stable and lazer)
+            slider.hoverSamples.normalSet = sampleSetValue(ho.sample.normalSet);
+            slider.hoverSamples.additionSet = sampleSetValue(ho.sample.additionSet);
+
             // an edge the lists leave out plays the object hitsounds and sample sets (as osu!stable sliders without
             // edge fields do, and as read by lazer)
-            HITSAMPLE_BITS objectEdge{};
-            applyHitSample(ho.sample, objectEdge, c.sampleFiles);
+            HITSAMPLE_BITS objectEdge = slider.hoverSamples;
             objectEdge.hitSounds = (u8)(ho.hitSounds & HitSoundType::VALID_HITSOUNDS);
-            objectEdge.volume = 0;
             slider.edgeSamples.reserve(std::max<uSz>(std::max(ho.edgeSounds.size(), ho.edgeSets.size()), 2));
             for(uSz i = 0; i < std::max(ho.edgeSounds.size(), ho.edgeSets.size()); i++) {
                 HITSAMPLE_BITS samples = objectEdge;
@@ -287,8 +290,6 @@ LoadError makeObject(const BeatmapFile::HitObject &ho, u32 line, PRIMITIVE_CONTA
 
             // No end sample specified, use the same as start
             if(slider.edgeSamples.size() == 1) slider.edgeSamples.push_back(slider.edgeSamples.front());
-
-            applyHitSample(ho.sample, slider.hoverSamples, c.sampleFiles);
 
             const auto pixelLength = static_cast<f32>(ho.length);
             slider.x = (f32)(i32)ho.x;  // NOTE: lazer beatmaps do not truncate here

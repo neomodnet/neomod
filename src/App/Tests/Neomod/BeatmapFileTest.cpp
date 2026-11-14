@@ -525,6 +525,26 @@ void BeatmapFileTest::runTests() {
         TEST_ASSERT(cr.getNumObjects<DBType::HITCIRCLE>() == 2 && volume(0) == 0 && volume(1) == 100,
                     "sample volumes clamped to 0-100");
 
+        // a circle has a hit sample of its own; a slider takes only the sets from it
+        const auto own = load(
+            "osu file format v14\r\n[TimingPoints]\r\n0,500,4,1,0,100,1,0\r\n[HitObjects]\r\n"
+            "0,0,1000,1,0,2:3:4:50:a.wav\r\n0,0,2000,2,0,L|100:0,2,100,2|0|8,0:0|1:2,2:3:4:50:b.wav\r\n");
+        const auto bits = [](const DBType::HITSAMPLE_BITS &s) {
+            return fmt::format("{}:{}:{}:{}:{}", s.normalSet, s.additionSet, s.index, s.volume, s.filename);
+        };
+        if(own.objects.size() == 2) {
+            const auto &slider = std::get<DBType::SLIDER>(own.objects[1]);
+            TEST_ASSERT_EQ(bits(std::get<DBType::HITCIRCLE>(own.objects[0]).samples), "2:3:4:50:1",
+                           "a circle's sets, sample index, volume and file");
+            TEST_ASSERT_EQ(bits(slider.hoverSamples), "2:3:0:0:0", "a slider body takes the sets alone");
+            TEST_ASSERT(slider.edgeSamples.size() == 3 && bits(slider.edgeSamples[0]) == "0:0:0:0:0" &&
+                            bits(slider.edgeSamples[1]) == "1:2:0:0:0" && bits(slider.edgeSamples[2]) == "2:3:0:0:0",
+                        "...and so does an edge without sets of its own");
+            TEST_ASSERT(own.sampleFiles == std::vector<std::string>{"a.wav"}, "a file only a slider names isn't one");
+        } else {
+            TEST_ASSERT(false, "the map with samples reads");
+        }
+
         const auto times = load(
             "osu file format v14\r\n[TimingPoints]\r\nNaN,500,4,1,0,100,1,0\r\n3e9,500,4,1,0,100,1,0\r\n"
             "-3e9,500,4,1,0,100,1,0\r\n100,500,4,1,0,100,1,0\r\n");

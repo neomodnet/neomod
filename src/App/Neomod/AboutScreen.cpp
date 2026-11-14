@@ -404,6 +404,7 @@ void AboutScreen::buildChangelog() {
         R"(- Main menu: "E" now opens the editor ("X" still exits))",
         R"(- Added a search bar to the skin selection dropdown)",
         R"(- Added "Retries" HUD statistic)",
+        R"(- Sliders now take their custom sample index and volume from timing points only, like in osu!)",
         R"(- Fixed media volume keys not working)",
         R"(- "Avoid flashing elements" now also stops the break warning arrows from blinking)",
         R"(- Replays: Improved accuracy at hitobject edges)",
