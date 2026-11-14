@@ -14,8 +14,6 @@
 #include <utility>
 
 namespace {
-constexpr std::array<i32, 4> RATES{25, 50, 75, 100};
-
 class EditorPauseButton final : public PauseButton {
     NOCOPY_NOMOVE(EditorPauseButton)
    public:
@@ -39,12 +37,15 @@ Transport::Transport(EditorState &state) : CBaseUIBox(Axis::ROW, "editor_transpo
 
     this->playButton = new EditorPauseButton(this->state.clock, "editor_play");
     this->add(this->playButton, BoxItem::fixed(style.metrics.controlHeight));
+    // side by side, as tabs are
+    auto *rates = new CBaseUIBox(Axis::ROW, "editor_rates");
     for(uSz i = 0; i < RATES.size(); i++) {
         auto *button = new CBaseUIStyledButton(fmt::format("{}%", RATES[i]), fmt::format("editor_rate_{}", RATES[i]));
         button->setClickCallback([this, rate = RATES[i]] { this->state.clock.setRate((f32)rate / 100.f); });
         this->rateButtons[i] = button;
-        this->add(button, BoxItem::fit());
+        rates->add(button, BoxItem::fit());
     }
+    this->add(rates, BoxItem::fit());
 }
 
 Transport::~Transport() = default;

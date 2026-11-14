@@ -57,7 +57,7 @@ void Clock::seek(i32 timeMS) {
 }
 
 void Clock::setRate(f32 rate) {
-    this->rate = std::clamp(rate, 0.25f, 1.f);
+    this->rate = std::clamp(rate, 0.25f, 1.5f);
     if(this->track) this->track->setRate(this->rate, true);
 }
 

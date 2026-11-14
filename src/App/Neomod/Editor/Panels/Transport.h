@@ -2,6 +2,7 @@
 // Copyright (c) 2026, WH, All rights reserved.
 #include "CBaseUIBox.h"
 #include "noinclude.h"
+#include "types.h"
 
 #include <array>
 
@@ -9,7 +10,7 @@ class CBaseUIStyledButton;
 class PauseButton;
 struct EditorState;
 
-// play or pause, and the rate the music plays at (25 to 100%, the pitch kept)
+// play or pause, and the rate the music plays at (25 to 150%, the pitch kept)
 class Transport final : public CBaseUIBox {
     NOCOPY_NOMOVE(Transport)
    public:
@@ -19,8 +20,10 @@ class Transport final : public CBaseUIBox {
     void tick() override;
 
    private:
+    static constexpr std::array<i32, 5> RATES{25, 50, 75, 100, 150};
+
     EditorState &state;
     PauseButton *playButton;
-    std::array<CBaseUIStyledButton *, 4> rateButtons{};
+    std::array<CBaseUIStyledButton *, RATES.size()> rateButtons{};
     i32 shownRate{100};  // the percentage the buttons' texts are for
 };

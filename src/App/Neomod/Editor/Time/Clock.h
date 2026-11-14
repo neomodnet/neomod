@@ -40,7 +40,7 @@ class Clock {
     void togglePause();
     // to timeMS, kept within the song
     void seek(i32 timeMS);
-    // from 0.25 to 1, keeping the pitch
+    // from 0.25 to 1.5, keeping the pitch
     void setRate(f32 rate);
     [[nodiscard]] f32 getRate() const { return this->rate; }
 
