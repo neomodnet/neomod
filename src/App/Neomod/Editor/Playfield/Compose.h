@@ -167,7 +167,8 @@ class Compose {
     void placeCircle(vec2 cursor, const Snapping::Settings &snap);
     // placing a slider: its head goes where a circle would, at the snapped playhead; then the cursor (none off the
     // playfield) is its next point, which addSliderPoint() keeps (the last point again becomes a red anchor). until it
-    // reaches a tick it isn't in the map; finishing keeps it as it is
+    // reaches a tick it isn't in the map; finishing keeps it as it is. a seek while it's placed gives it the span count
+    // whose end is nearest to the playhead (see update())
     void startSlider(vec2 cursor, const Snapping::Settings &snap);
     void aimSlider(std::optional<vec2> cursor, const Snapping::Settings &snap);
     void addSliderPoint();
@@ -359,7 +360,7 @@ class Compose {
     };
     [[nodiscard]] std::optional<ColourSkips> getColourSkips() const;
 
-    // once a frame after the clock: a spinner being placed follows the playhead
+    // once a frame after the clock: a spinner being placed follows the playhead, a slider being placed a seek
     void update();
 
    private:
@@ -440,6 +441,7 @@ class Compose {
         i32 start{0};
         std::vector<vec2> points;  // kept, the head first
         std::optional<vec2> aim;   // the cursor position
+        std::optional<i32> reach;  // where the playhead was taken since it started, which its spans reach to
         std::optional<Document::Id> replaced;
         std::optional<neomod::BeatmapFile::HitObject> placed;  // what the map has of it (none: it's under a tick)
         Document::Id line{0};                                  // ...on this line

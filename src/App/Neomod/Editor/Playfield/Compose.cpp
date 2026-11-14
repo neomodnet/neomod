@@ -795,6 +795,11 @@ void Compose::restateSlider() {
             slider->sample = {
                 .normalSet = this->brush.normalSet, .additionSet = this->brush.additionSet, .filename = {}, .parts = 5};
         }
+        // as many spans as end nearest to where the playhead was taken, the earlier of two as near
+        if(const f64 velocity = this->velocityAt(placement.start); placement.reach && velocity > 0.0) {
+            const f64 spans = std::ceil((*placement.reach - placement.start) * velocity / length - 0.5);
+            SliderPath::setSpans(*slider, (i32)std::clamp(spans, 1.0, (f64)DatabaseBeatmap::limits().sliderMaxRepeats));
+        }
     }
     if(slider == placement.placed) return;
     placement.placed = slider;
@@ -1048,7 +1053,13 @@ void Compose::cancelSpinner() {
 }
 
 void Compose::update() {
-    if(!this->spinner || !this->state.document) return;
+    if(!this->state.document) return;
+    // a slider being placed repeats as far as the playhead is taken (not while it plays on by itself)
+    if(this->sliderPlacement && this->state.clock.isSeekFrame()) {
+        this->sliderPlacement->reach = this->state.clock.getTime();
+        this->restateSlider();
+    }
+    if(!this->spinner) return;
     // its end follows the playhead, a beat after it, once that's after its start
     if(const i32 end = this->snappedNow() + this->spinner->beat;
        end > this->spinner->start && end != this->spinner->end) {

@@ -1,0 +1,83 @@
+# repeats while placing a slider: the wheel taken four ticks on (half a beat, at 1/4) gives the slider being placed, two
+# ticks long, the two spans that end there. saved, the slider is in the file with them.
+# uitest-datadir: fresh
+# uitest-file: maps/uitest slider/slider.osu|osu file format v14||[General]|AudioFilename: none.mp3|Mode: 0||[Metadata]|Title:UITest slider|Artist:UITest|Creator:uitest|Version:slider|BeatmapID:0|BeatmapSetID:-1||[Difficulty]|CircleSize:4|ApproachRate:5|SliderMultiplier:1.4|SliderTickRate:1||[TimingPoints]|0,500,4,2,0,100,1,0||[HitObjects]|64,64,1000,5,0,0:0:0:0:|448,320,2000,1,0,0:0:0:0:|256,192,6000,1,0,0:0:0:0:
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder
+set_active_ui_screen editorscreen
+@wait 300
+sendkey Return
+@wait 30
+ui_assert text editor_title UITest - UITest slider [slider]
+editor_grid_snap 0
+editor_distance_snap 0
+sendkey 225 down
+sendkey 4
+sendkey 225 up
+@wait 2
+sendkey 3
+@wait 2
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+sendkey Right
+@wait 3
+ui_assert text editor_clock 00:03:000
+mouse_to 443 280
+@wait 3
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+mouse_to 556 280
+@wait 3
+mouse_wheel -1
+@wait 3
+mouse_wheel -1
+@wait 3
+mouse_wheel -1
+@wait 3
+mouse_wheel -1
+@wait 3
+ui_assert text editor_clock 00:03:500
+mouse_down right
+@wait 2
+mouse_up right
+@wait 3
+sendkey 1
+@wait 2
+sendkey 224 down
+sendkey S
+sendkey 224 up
+@wait 3
+@wait_secs 2
+ui_assert map md5 83d1ca1923b906f8dd6dcb9c9f173eaa
+exit

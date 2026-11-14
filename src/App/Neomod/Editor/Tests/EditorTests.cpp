@@ -3396,6 +3396,52 @@ class EditorTests {
                     "what takes the editor elsewhere keeps a slider being placed as it is");
         undoAll();
 
+        // repeats while placing: a seek gives it the span count that ends nearest to the playhead
+        state.clock.seek(3000);
+        state.clock.update();
+        compose.startSlider({100.f, 100.f}, unsnapped);
+        compose.aimSlider(vec2{240.f, 100.f}, unsnapped);
+        compose.update();
+        TEST_ASSERT(objectsText().find("100,100,3000,2,0,L|240:100,1,140\r\n") != std::string::npos,
+                    "a slider a beat long, placed without a seek, has one span");
+        const auto seekTo = [&](i32 time) {
+            state.clock.seek(time);
+            state.clock.update();
+            compose.update();
+        };
+        seekTo(4000);
+        TEST_ASSERT(objectsText().find("100,100,3000,2,0,L|240:100,2,140\r\n") != std::string::npos,
+                    "the playhead taken two beats on: two spans");
+        seekTo(4250);
+        TEST_ASSERT(objectsText().find("100,100,3000,2,0,L|240:100,2,140\r\n") != std::string::npos,
+                    "...half a span further: the earlier of two ends as near");
+        seekTo(4375);
+        TEST_ASSERT(objectsText().find("100,100,3000,2,0,L|240:100,3,140\r\n") != std::string::npos, "...three");
+        compose.aimSlider(vec2{170.f, 100.f}, unsnapped);
+        TEST_ASSERT(objectsText().find("100,100,3000,2,0,L|170:100,5,70\r\n") != std::string::npos,
+                    "aimed half as far, it has the spans that end nearest for its new length");
+        seekTo(2000);
+        TEST_ASSERT(objectsText().find("100,100,3000,2,0,L|170:100,1,70\r\n") != std::string::npos,
+                    "the playhead taken back before it: one span again");
+        seekTo(3500);
+        compose.finishSlider();
+        TEST_ASSERT(objectsText().find("100,100,3000,2,0,L|170:100,2,70\r\n") != std::string::npos,
+                    "finished, it keeps its spans");
+        undoAll();
+        TEST_ASSERT_EQ(text(doc), original, "...one step");
+        compose.setSampleSet(false, 2);
+        state.clock.seek(3000);
+        state.clock.update();
+        compose.startSlider({100.f, 100.f}, unsnapped);
+        compose.aimSlider(vec2{240.f, 100.f}, unsnapped);
+        seekTo(4000);
+        compose.finishSlider();
+        TEST_ASSERT(
+            objectsText().find("100,100,3000,2,0,L|240:100,2,140,0|0|0,2:0|2:0|2:0,2:0:0:0:\r\n") != std::string::npos,
+            "with a sample set, each edge gets it");
+        undoAll();
+        compose.setSampleSet(false, 0);
+
         // shaping
         const auto lineAt = [&](i32 timeMS) {
             const std::string_view all = objectsText();
