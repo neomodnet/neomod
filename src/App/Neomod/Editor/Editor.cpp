@@ -1158,7 +1158,7 @@ void Editor::run(Command command, i32 value) {
             break;
         case Command::COPY_LINK: {
             const auto [time, numbers] = compose.timestamp();
-            std::string link = fmt::format("https://" NEOMOD_DOMAIN "/online/?" NEOMOD_URL_SCHEME "edit/{}/{}",
+            std::string link = fmt::format("https://" NEOMOD_DOMAIN "/open/edit/{}/{}",
                                            document.getMD5().to_chars().string(), TimeDisplay::format(time));
             if(!numbers.empty()) link += fmt::format("/{}", fmt::join(numbers, ","));
             env->setClipBoardText(link);
