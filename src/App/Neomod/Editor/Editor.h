@@ -113,6 +113,9 @@ class Editor final : public CBaseUIContainer {
     // another difficulty in the open map set, at the time the editor is at, playing on if it plays
     void openDifficulty(const Database::MapLocation &location);
 
+    // goes where FIRST_OBJECT, LAST_OBJECT, NEXT_POINT, PREVIOUS_POINT, NEXT_BOOKMARK or PREVIOUS_BOOKMARK says (see
+    // Commands)
+    void seek(Command command);
     void step(i32 ticks);
     // the popup of ROTATE_BY, SCALE_BY, MOVE_TO, POLYGON or STREAM over the playfield
     void openStepPopup(Command command);

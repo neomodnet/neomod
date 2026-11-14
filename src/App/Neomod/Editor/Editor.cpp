@@ -956,8 +956,6 @@ void Editor::run(Command command, i32 value) {
     Document &document = *this->state.document;
     const i32 time = clock.getTime();
     const auto &objects = this->state.objects->objects;
-    const auto points = document.getTimingPoints();
-    const auto bookmarks = document.getBookmarks();
     switch(command) {
         case Command::TOGGLE_PAUSE:
             clock.togglePause();
@@ -967,57 +965,18 @@ void Editor::run(Command command, i32 value) {
             clock.play();
             break;
         case Command::FIRST_OBJECT:
-            // from the first object, back to the start, stopped
-            if(objects.empty() || objects.front()->getClickTime() == time) {
-                clock.pause();
-                clock.seek(0);
-            } else {
-                clock.seek(objects.front()->getClickTime());
-            }
-            break;
         case Command::LAST_OBJECT:
-            if(!objects.empty() && time < objects.back()->getEndTime()) {
-                clock.seek(objects.back()->getEndTime());
-            } else {
-                clock.seek(std::max(0, (i32)clock.getLength() - 500));
-            }
+        case Command::NEXT_POINT:
+        case Command::PREVIOUS_POINT:
+        case Command::NEXT_BOOKMARK:
+        case Command::PREVIOUS_BOOKMARK:
+            this->seek(command);
             break;
         case Command::STEP:
             this->step(value);
             break;
-        case Command::NEXT_POINT:
-        case Command::PREVIOUS_POINT: {
-            // the point in force a little after the time, so that one the time sits on counts as reached
-            const auto inForce =
-                Mc::ranges::upper_bound(points, time + 5.0, {}, &neomod::BeatmapFile::TimingPoint::time);
-            const sSz active = (inForce - points.begin()) - 1;
-            if(command == Command::NEXT_POINT) {
-                if(active + 1 < (sSz)points.size()) clock.seek((i32)points[active + 1].time);
-            } else if(active >= 0) {
-                if(time - points[active].time > 1000.0) {
-                    clock.seek((i32)points[active].time);
-                } else if(active > 0) {
-                    clock.seek((i32)points[active - 1].time);
-                }
-            }
-            break;
-        }
         case Command::RATE:
             clock.setRate((f32)(std::lround(clock.getRate() * 100.f) + value) / 100.f);
-            break;
-        case Command::NEXT_BOOKMARK:
-            if(const auto it = Mc::ranges::find_if(bookmarks, [&](i32 b) { return b > time + 50; });
-               it != bookmarks.end()) {
-                clock.seek(*it);
-            }
-            break;
-        case Command::PREVIOUS_BOOKMARK:
-            for(auto it = bookmarks.rbegin(); it != bookmarks.rend(); ++it) {
-                if(*it < time - 500) {
-                    clock.seek(*it);
-                    break;
-                }
-            }
             break;
         case Command::DIVISOR:
             this->setDivisor(value);
@@ -1504,6 +1463,66 @@ void Editor::setTab(Tab tab) {
     this->showPanels();
     if(tab == Tab::TIMING && this->state.clock.isAttached()) this->timing->selectInForce();
     ui->getEditorScreen()->sessionChanged();
+}
+
+void Editor::seek(Command command) {
+    Clock &clock = this->state.clock;
+    const Document &document = *this->state.document;
+    const i32 time = clock.getTime();
+    const auto &objects = this->state.objects->objects;
+    switch(command) {
+        case Command::FIRST_OBJECT:
+            // from the first object, back to the start, stopped
+            if(objects.empty() || objects.front()->getClickTime() == time) {
+                clock.pause();
+                clock.seek(0);
+            } else {
+                clock.seek(objects.front()->getClickTime());
+            }
+            break;
+        case Command::LAST_OBJECT:
+            if(!objects.empty() && time < objects.back()->getEndTime()) {
+                clock.seek(objects.back()->getEndTime());
+            } else {
+                clock.seek(std::max(0, (i32)clock.getLength() - 500));
+            }
+            break;
+        case Command::NEXT_POINT:
+        case Command::PREVIOUS_POINT: {
+            // the point in force a little after the time, so that one the time sits on counts as reached
+            const auto points = document.getTimingPoints();
+            const auto inForce =
+                Mc::ranges::upper_bound(points, time + 5.0, {}, &neomod::BeatmapFile::TimingPoint::time);
+            const sSz active = (inForce - points.begin()) - 1;
+            if(command == Command::NEXT_POINT) {
+                if(active + 1 < (sSz)points.size()) clock.seek((i32)points[active + 1].time);
+            } else if(active >= 0) {
+                if(time - points[active].time > 1000.0) {
+                    clock.seek((i32)points[active].time);
+                } else if(active > 0) {
+                    clock.seek((i32)points[active - 1].time);
+                }
+            }
+            break;
+        }
+        case Command::NEXT_BOOKMARK:
+        case Command::PREVIOUS_BOOKMARK: {
+            const auto bookmarks = document.getBookmarks();
+            if(command == Command::NEXT_BOOKMARK) {
+                if(const auto it = Mc::ranges::find_if(bookmarks, [&](i32 b) { return b > time + 50; });
+                   it != bookmarks.end()) {
+                    clock.seek(*it);
+                }
+            } else if(const auto it =
+                          std::find_if(bookmarks.rbegin(), bookmarks.rend(), [&](i32 b) { return b < time - 500; });
+                      it != bookmarks.rend()) {
+                clock.seek(*it);
+            }
+            break;
+        }
+        default:
+            break;
+    }
 }
 
 void Editor::step(i32 ticks) {
