@@ -1,0 +1,47 @@
+# the overview bar follows the map: a bookmark added at 1 s shows on it, one added at 30.5 s and taken back by undo
+# doesn't (the play fixture: 35 s of audio).
+# uitest-datadir: fresh
+# uitest-unchanged: uitest_osu_folder_play
+options_save_on_back 0
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+language en
+@wait 30
+osu_folder uitest_osu_folder_play
+set_active_ui_screen songbrowser
+@wait 300
+@sleep 500
+@wait 30
+@sleep 500
+@wait 30
+ui_assert sets 1
+set_active_ui_screen editorscreen
+@wait 60
+ui_assert visible editor_open_selected 1
+sendkey Return
+@wait 30
+ui_assert visible editor_playfield 1
+sendkey Z
+@wait 2
+ui_assert text editor_clock 00:01:000
+sendkey 224 down
+sendkey B
+sendkey 224 up
+@wait 3
+sendkey V
+@wait 3
+ui_assert text editor_clock 00:30:500
+sendkey 224 down
+sendkey B
+sendkey 224 up
+@wait 3
+sendkey 224 down
+sendkey Z
+sendkey 224 up
+@wait 3
+sendkey Left
+@wait 3
+take_screenshot screenshots/uitest_editor_overview.png
+@wait 3
+exit

@@ -43,6 +43,27 @@ void Overview::draw() {
     const vec2 pos = this->getPos();
     const vec2 size = this->getSize();
     // everything but the time in one draw (a marathon has thousands of timing points)
+    if(const Made now{.map = this->state.document->getMD5(),
+                      .revision = this->state.document->getRevision(),
+                      .length = this->state.clock.getLength(),
+                      .pos = pos,
+                      .size = size};
+       this->made != now) {
+        this->made = now;
+        this->remake();
+    }
+    g->setColor(argb(255, 255, 255, 255));
+    g->drawVAO(&this->rects);
+
+    // the time
+    const f32 x = std::round(this->xAt(this->state.clock.getTime()));
+    g->setColor(argb(255, 255, 255, 255));
+    g->fillRectf(x - 1.f, pos.y, 3.f, size.y);
+}
+
+void Overview::remake() {
+    const vec2 pos = this->getPos();
+    const vec2 size = this->getSize();
     this->rects.clear();
     const auto rect = [&](f32 x, f32 y, f32 width, f32 height, Color color) {
         this->rects.addVertices(std::array<vec3, 6>{vec3{x, y, 0.f}, vec3{x, y + height, 0.f},
@@ -81,13 +102,6 @@ void Overview::draw() {
     for(const TimingPoint &point : points) {
         line(point.time, 0.f, 0.5f, point.uninherited ? UNINHERITED_COLOR : INHERITED_COLOR);
     }
-    g->setColor(argb(255, 255, 255, 255));
-    g->drawVAO(&this->rects);
-
-    // the time
-    const f32 x = std::round(this->xAt(this->state.clock.getTime()));
-    g->setColor(argb(255, 255, 255, 255));
-    g->fillRectf(x - 1.f, pos.y, 3.f, size.y);
 }
 
 void Overview::onMouseDownInside(bool left, bool /*right*/) {
