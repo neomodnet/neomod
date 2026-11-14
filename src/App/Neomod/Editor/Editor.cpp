@@ -302,6 +302,7 @@ Editor::Editor(std::span<const u8> session)
                               SA::MakeDelegate<&Editor::loadMapSkin>(this)}),
       soundLabels(new ConVar{"editor_hitsound_labels", true, cv::CLIENT,
                              "the editor timeline says which sounds each object plays, if not the default"}),
+      grid(new ConVar{"editor_grid", true, cv::CLIENT, "the editor playfield shows the grid positions snap to"}),
       session(EditorSession::read(session)) {
     this->state.hitAnimations = this->hitAnimations.get();
     this->state.gridSnap = this->gridSnap.get();
@@ -310,6 +311,7 @@ Editor::Editor(std::span<const u8> session)
     this->state.carryObjects = this->carryObjects.get();
     this->state.backgroundDim = this->backgroundDim.get();
     this->state.soundLabels = this->soundLabels.get();
+    this->state.grid = this->grid.get();
     if(this->session.tab <= (u8)Tab::HISTORY) this->state.tab = (Tab)this->session.tab;
     // shown by its screen (see EditorScreen::createEditor())
     this->bVisible = false;
@@ -1443,6 +1445,10 @@ std::vector<MenuItem> Editor::viewMenu() {
                  .label = _("Hitsound Labels"),
                  .action = [this] { this->soundLabels->setValue(!this->soundLabels->getBool()); },
                  .checked = this->soundLabels->getBool()},
+        MenuItem{.name = "editor_menu_grid",
+                 .label = _("Grid"),
+                 .action = [this] { this->grid->setValue(!this->grid->getBool()); },
+                 .checked = this->grid->getBool()},
     };
 }
 

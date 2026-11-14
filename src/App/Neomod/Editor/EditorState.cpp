@@ -94,6 +94,8 @@ bool EditorState::showsHitAnimations() const { return this->hitAnimations && thi
 
 bool EditorState::showsSoundLabels() const { return this->soundLabels && this->soundLabels->getBool(); }
 
+bool EditorState::showsGrid() const { return !this->grid || this->grid->getBool(); }
+
 Snapping::Settings EditorState::snapSettings() const {
     const bool shift = keyboard->isShiftDown();
     const bool grid = (this->gridSnap && this->gridSnap->getBool()) != shift;

@@ -74,6 +74,8 @@ struct EditorState {
     [[nodiscard]] bool showsHitAnimations() const;
     // the timeline circles say which sounds they play
     [[nodiscard]] bool showsSoundLabels() const;
+    // the playfield shows its grid
+    [[nodiscard]] bool showsGrid() const;
     // how positions snap now: the grid and distance snap settings as the held keys change them. Shift turns grid snap
     // around and Alt distance snap. with distance snap on and grid snap off, Shift or Ctrl alone snaps the angle
     [[nodiscard]] Snapping::Settings snapSettings() const;
@@ -114,6 +116,8 @@ struct EditorState {
     const ConVar *backgroundDim{nullptr};
     // its editor_hitsound_labels (none: off)
     const ConVar *soundLabels{nullptr};
+    // its editor_grid (none: on, as it is by default)
+    const ConVar *grid{nullptr};
 
    private:
     // makes the document objects again (only those it patched, if that's all it did) after a change (never while

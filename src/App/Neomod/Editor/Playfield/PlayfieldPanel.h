@@ -17,7 +17,8 @@ class HitObject;
 }
 
 // the shown map objects at the editor time as a play draws them, in the game 640x480 around the field, so that objects
-// at its edges show whole. under them the grid and the map background, dimmed by editor_background_dim outside breaks.
+// at its edges show whole. with them the grid (unless editor_grid hides it) and the map background, dimmed by
+// editor_background_dim outside breaks.
 // past circles stay as a trail unless editor_hit_animations asks for the play look.
 // the compose tools work here: selecting (a click, Ctrl+click, a box), picking a part of the selected slider (a click
 // on it), moving the selection, placing circles, sliders and spinners, right-clicks. Alt and the wheel set the distance

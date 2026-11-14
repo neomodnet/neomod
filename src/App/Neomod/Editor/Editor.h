@@ -147,6 +147,7 @@ class Editor final : public CBaseUIContainer {
     std::unique_ptr<ConVar> mapSkin;
     std::unique_ptr<ConVar> mapHitsounds;
     std::unique_ptr<ConVar> soundLabels;
+    std::unique_ptr<ConVar> grid;
     EditorState state;
     EditorSession session;
     Mc::Registration gameMusic;       // holds the game music track while the editor is shown

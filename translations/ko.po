@@ -884,6 +884,10 @@ msgid "Hitsound Labels"
 msgstr "히트사운드 라벨"
 
 #: src/App/Neomod/Editor/Editor.cpp
+msgid "Grid"
+msgstr "그리드"
+
+#: src/App/Neomod/Editor/Editor.cpp
 msgid "Keyboard Shortcuts..."
 msgstr "키보드 단축키..."
 
@@ -1374,13 +1378,13 @@ msgid "outro"
 msgstr "아웃트로"
 
 #: src/App/Neomod/Editor/Panels/TimeDisplay.cpp
-msgid "kiai"
-msgstr "키아이"
-
-#: src/App/Neomod/Editor/Panels/TimeDisplay.cpp
 #, c++-format
 msgid "{} kiai"
 msgstr "{} 키아이"
+
+#: src/App/Neomod/Editor/Panels/TimeDisplay.cpp
+msgid "kiai"
+msgstr "키아이"
 
 #: src/App/Neomod/Editor/Panels/TimingPanel.cpp
 #: src/App/Neomod/Editor/Panels/VerifyPanel.cpp

@@ -137,7 +137,7 @@ void PlayfieldPanel::draw() {
     HitObjects::drawFollowPoints(objects.view, objects.objects, objects.firstFrom(time - SHOWN_AFTER_MS));
     HitObjects::draw(this->shown, osu->getSliderFrameBuffer());
     for(auto it = this->shown.rbegin(); it != this->shown.rend(); ++it) (*it)->draw2();
-    this->drawGrid();
+    if(this->state.showsGrid()) this->drawGrid();
     this->drawMarks();
     this->drawReadout();
 
