@@ -27,7 +27,6 @@
 #include "Skin.h"
 #include "Logging.h"
 #include "SongBrowser.h"
-#include "AsyncIOHandler.h"
 #include "crypto.h"
 
 #include <algorithm>
@@ -264,12 +263,6 @@ f32 DatabaseBeatmap::getStarRating(u8 idx) const {
     }
 
     return ret;
-}
-
-Mc::Registration DatabaseBeatmap::getMapFileAsync(MapFileReadDoneCallback data_callback) const {
-    // don't want to include AsyncIOHandler.h in DatabaseBeatmap.h
-    static_assert(std::is_same_v<MapFileReadDoneCallback, AsyncIOHandler::ReadCallback>);
-    return io->read(this->getFilePath(), std::move(data_callback));
 }
 
 DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(

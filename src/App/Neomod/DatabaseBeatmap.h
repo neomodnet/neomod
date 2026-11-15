@@ -14,7 +14,6 @@
 #include "StarPrecalc.h"
 #include "Overrides.h"
 #include "MD5Hash.h"
-#include "Registration.h"
 #include "Color.h"
 
 #include <atomic>
@@ -210,10 +209,6 @@ class DatabaseBeatmap final {
     [[nodiscard]] inline float getSliderMultiplier() const { return this->fSliderMultiplier; }
 
     [[nodiscard]] inline const neomod::Primitives::TimingPoints &getTimingpoints() const { return this->timingpoints; }
-
-    // the .osu file's contents (empty if it couldn't be read), see AsyncIOHandler::read()
-    using MapFileReadDoneCallback = std::function<void(std::vector<u8>)>;  // == AsyncIOHandler::ReadCallback
-    Mc::Registration getMapFileAsync(MapFileReadDoneCallback data_callback) const;
 
     [[nodiscard]] std::string getFullSoundFilePath() const;
     [[nodiscard]] std::string getFullBackgroundImageFilePath() const;

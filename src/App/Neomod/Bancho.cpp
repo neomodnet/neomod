@@ -7,6 +7,7 @@
 #include <cstring>
 
 #include "Bancho.h"
+#include "AsyncIOHandler.h"
 #include "BanchoApi.h"
 #include "BanchoNetworking.h"
 #include "BanchoProtocol.h"
@@ -332,10 +333,10 @@ void BanchoState::handle_packet(PacketReader &packet) {
             auto msg = ChatMessage{
                 .tms = time(nullptr),
                 .author_id = sender_id,
-                .author_name = sender,
-                .text = text,
+                .author_name = std::move(sender),
+                .text = std::move(text),
             };
-            ui->getChat()->addMessage(recipient, msg, true);
+            ui->getChat()->addMessage(std::move(recipient), msg, true);
 
             break;
         }
@@ -892,14 +893,14 @@ void BanchoState::handle_packet(PacketReader &packet) {
 
             std::string file_path{map->getFilePath()};
 
-            DatabaseBeatmap::MapFileReadDoneCallback callback = [url, md5,
-                                                                 file_path](std::vector<u8> osu_file) -> void {
+            AsyncIOHandler::ReadCallback callback = [url, md5, file_path](std::vector<u8> osu_file) -> void {
                 if(!networkHandler) return;  // quit if we got called while shutting down
 
                 if(osu_file.empty()) {
                     debugLog("Failed to get map file data for md5: {} path: {}", md5, file_path);
                     return;
                 }
+                // TODO: move md5 check to async
                 const MD5String md5_check = crypto::hash::md5(osu_file);
                 if(md5 != md5_check) {
                     debugLog("After loading map {}, we got different md5 {}!", md5, md5_check);
@@ -921,7 +922,7 @@ void BanchoState::handle_packet(PacketReader &packet) {
             };
 
             // run async callback
-            map->getMapFileAsync(std::move(callback)).detach();
+            io->read(file_path, std::move(callback)).detach();
 
             break;
         }

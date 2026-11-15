@@ -2403,7 +2403,8 @@ void SongBrowser::updateScoreBrowserLayout() {
 
 void SongBrowser::onGotNewLeaderboard(const MD5Hash &lbHash) {
     if(!this->isVisible()) return;
-    assert(BanchoState::is_online());
+    // rare scenario, but we could be called on the error path and now be logged out
+    // assert(BanchoState::is_online());
 
     auto *map = osu->getMapInterface()->getBeatmap();
     if(!map) return;
