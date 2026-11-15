@@ -393,7 +393,8 @@ void ConVarHandler::ConVarBuiltins::dumpcommands(void) {
     Mc::ranges::sort(convars, {}, &ConVar::getName);
 
     std::string html = R"(<section class="variables">)";
-    for(auto var : convars) {
+    for(auto *var : convars) {
+        if(var->isFlagSet(cv::HIDDEN)) continue;
         // only doing this because of some stupid spurious warning with LTO
 #define STRIF_(FLAG__, flag__) var->isFlagSet(cv::FLAG__) ? "<span class=\"flag " #flag__ "\">" #FLAG__ "</span>" : ""
         const std::string flags = fmt::format("\n{:s}{:s}{:s}{:s}{:s}\n",    //
