@@ -46,7 +46,6 @@ class BaseFrameworkTest : public App, public MouseListener {
     // keyboard
     void onKeyDown(KeyboardEvent &e) override;
     void onKeyUp(KeyboardEvent &e) override;
-    void onChar(KeyboardEvent &e) override;
 
     // mouse
     void onButtonChange(ButtonEvent &event) override;

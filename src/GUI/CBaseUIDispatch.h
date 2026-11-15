@@ -36,6 +36,8 @@
 //                to the captor until release (lock/steal/cancel serve the drag widgets)
 //    - wheel   : top-most wheel-accepting candidate, else the fall-through sink (VolumeOverlay)
 //    - focus   : a single focused element across both roots (the keyboard target)
+//  and what typed text goes to (the text target): the focused text field, or what a root types
+//  into without one, offered to the keyboard by each root every frame
 // ============================================================================================
 
 // pass-B mouse routing + capture state for the CBaseUI layer. one instance, owned by Engine
@@ -91,6 +93,15 @@ void setWheelSink(CBaseUIElement *sink);
 void setFocus(CBaseUIElement *elem);
 [[nodiscard]] CBaseUIElement *getFocus();
 void clearFocusIf(const CBaseUIElement *elem);
+
+// the focus if it's under top (or is top) with everything below top visible, else null; whether top itself shows is
+// the caller's call. it's looked for once per focus and top (through all children), so asking every frame is cheap
+[[nodiscard]] CBaseUIElement *locateFocus(CBaseUIElement *top);
+
+// offers the keyboard what typed text goes to this frame (Keyboard::offerTextTarget), if target is a text field or a
+// type-to-search (TextInputClient); anything else is no offer. a root calls it after its dispatch, inside the mouse
+// scope it runs in. the frame's first offer wins, so the engine root's does
+void offerTextTarget(CBaseUIElement *target);
 
 // a locked capture cannot be stolen (slider grab, scrollbar drag, window drag/resize);
 // only the current captor may lock

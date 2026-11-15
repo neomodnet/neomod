@@ -82,7 +82,6 @@ enum ArgSwitch : unsigned char {
     MISC_GL_DEBUG,        // -debugctx (immediately initialize opengl with debugging)
     MISC_GL_AA,           // -aa <samples> (full-window antialiasing setting)
     MISC_DX11_EXCLUSIVE,  // -exclusive (exclusive fullscreen instead of flip presentation)
-    MISC_ENABLE_IME,      // -ime (enable unfinished IME (on-screen-keyboard) support)
     MISC_NO_DPI,          // -nodpi (ignore display DPI scaling)
     MISC_NO_FPU,          // -nofpu (don't change floating point behavior on thread init)
     MISC_ASYNC_THREADS,   // -async_threads <n> (override the async pool's worker thread count, for testing)

@@ -31,7 +31,8 @@ class CBaseUIStyledTextbox : public CBaseUITextbox {
 
     void draw() override;
     void onKeyDown(KeyboardEvent &e) override;
-    void onChar(KeyboardEvent &e) override;
+    void onTextInput(std::string_view text) override;
+    void onTextComposition(const TextComposition &composition) override;
     void onFocusStolen() override;
     void onResized() override;
     [[nodiscard]] vec2 getNaturalSize() override;

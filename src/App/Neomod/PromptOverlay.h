@@ -17,7 +17,6 @@ class PromptOverlay final : public UIScreen {
     void draw() override;
     void onKeyDown(KeyboardEvent &e) override;
     void onKeyUp(KeyboardEvent &e) override;
-    void onChar(KeyboardEvent &e) override;
 
     using PromptResponseCallback = SA::delegate<void(std::string_view)>;
     // asks for a line of text; `callback` gets it on OK. resetting the Registration closes the prompt if it's still

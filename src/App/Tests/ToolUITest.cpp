@@ -25,7 +25,9 @@
 #include "Mouse.h"
 #include "Shortcut.h"
 #include "TestMacros.h"
+#include "TextInput.h"
 #include "UIStyle.h"
+#include "UniString.h"
 
 #include "fmt/format.h"
 
@@ -90,7 +92,7 @@ std::string rect(const CBaseUIElement *e) {
     return fmt::format("{},{} {}x{}", e->getRelPos().x, e->getRelPos().y, e->getSize().x, e->getSize().y);
 }
 
-KeyboardEvent key(SCANCODE scancode, KEYMOD modifiers) { return {scancode, 0, 0, 0, modifiers}; }
+KeyboardEvent key(SCANCODE scancode, KEYMOD modifiers) { return {scancode, 0, 0, modifiers}; }
 
 // the element called `name` in `root` or under it
 CBaseUIElement *find(CBaseUIElement *root, std::string_view name) {
@@ -101,10 +103,10 @@ CBaseUIElement *find(CBaseUIElement *root, std::string_view name) {
     return nullptr;
 }
 
+// as the keyboard types into the text target
 void type(CBaseUIElement *field, std::u32string_view characters) {
     for(const char32_t character : characters) {
-        KeyboardEvent e{0, 0, character, 0, KEYMOD_NONE};
-        field->onChar(e);
+        dynamic_cast<TextInputClient *>(field)->onTextInput(UniString::to_utf8(std::u32string_view{&character, 1}));
     }
 }
 
@@ -302,8 +304,7 @@ void ToolUITest::testTextboxes() {
         box.onKeyDown(e);
     };
     const auto type = [&](char32_t character) {
-        KeyboardEvent e{0, 0, character, 0, KEYMOD_NONE};
-        box.onChar(e);
+        box.onTextInput(UniString::to_utf8(std::u32string_view{&character, 1}));
     };
 
     box.setText("one two  three");
@@ -399,14 +400,12 @@ void ToolUITest::testTextFields() {
         return e.isConsumed();
     };
     const auto type = [&](char32_t character) {
-        KeyboardEvent e{0, 0, character, 0, KEYMOD_NONE};
-        field.onChar(e);
-        return e.isConsumed();
+        field.onTextInput(UniString::to_utf8(std::u32string_view{&character, 1}));
     };
 
     field.setText("ab");
     TEST_ASSERT(heard.empty(), "a text set isn't an edit");
-    TEST_ASSERT(!press(KEY_A) && !type(U'a'), "a field without the focus takes no key");
+    TEST_ASSERT(!press(KEY_A), "a field without the focus takes no key");
 
     field.focus();
     type(U'c');
@@ -452,7 +451,8 @@ void ToolUITest::testTextFields() {
 
     field.setFilter([](char32_t character) { return character < 127; });
     field.focus();
-    TEST_ASSERT(type(U'\u00f1') && field.getText() == "abcz", "a character its filter refuses isn't typed");
+    type(U'\u00f1');
+    TEST_ASSERT_EQ(field.getText(), "abcz", "a character its filter refuses isn't typed");
     env->setClipBoardText("1\n2\u00f13");
     press(KEY_V, KEYMOD_LCONTROL);
     TEST_ASSERT_EQ(field.getText(), "abcz123", "...nor pasted, and neither are control characters");
@@ -474,8 +474,7 @@ void ToolUITest::testNumberFields() {
     };
     const auto type = [&](std::u32string_view characters) {
         for(const char32_t character : characters) {
-            KeyboardEvent e{0, 0, character, 0, KEYMOD_NONE};
-            field.onChar(e);
+            field.onTextInput(UniString::to_utf8(std::u32string_view{&character, 1}));
         }
     };
 

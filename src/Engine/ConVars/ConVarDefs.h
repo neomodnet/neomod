@@ -323,7 +323,6 @@ CONVAR(ui_scrollview_resistance, 5.0f, CLIENT | SKINS | SERVER,
 CONVAR(ui_scrollview_scrollbarwidth, 15.0f, CLIENT | SKINS | SERVER);
 CONVAR(ui_textbox_caret_blink_time, 0.5f, CLIENT | SKINS | SERVER);
 CONVAR(ui_textbox_text_offset_x, 3, CLIENT | SKINS | SERVER);
-CONVAR(use_ime, true, CLIENT, "enable the use of the OS IME window for editing text");
 CONVAR(vsync, false, CLIENT);  // callback set in Graphics.cpp
 CONVAR(archive_threads, 1, CLIENT, "default number of threads to use for compressing archives");
 // this is not windows-only anymore, just keeping it with the "win_" prefix to not break old configs

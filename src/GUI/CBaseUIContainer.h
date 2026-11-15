@@ -20,7 +20,6 @@ class CBaseUIContainer : public CBaseUIElement {
 
     void onKeyUp(KeyboardEvent &e) override;
     void onKeyDown(KeyboardEvent &e) override;
-    void onChar(KeyboardEvent &e) override;
 
     // just add to container without setting position
     CBaseUIContainer *addBaseUIElementRaw(CBaseUIElement *element);

@@ -19,7 +19,6 @@ class PauseOverlay final : public UIScreen {
 
     void onKeyDown(KeyboardEvent &e) override;
     void onKeyUp(KeyboardEvent &e) override;
-    void onChar(KeyboardEvent &e) override;
 
     void onResolutionChange(vec2 newResolution) override;
 

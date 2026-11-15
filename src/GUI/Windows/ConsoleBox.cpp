@@ -210,12 +210,6 @@ void ConsoleBox::onKeyDown(KeyboardEvent &e) {
     this->textbox->onKeyDown(e);
 }
 
-void ConsoleBox::onChar(KeyboardEvent &e) {
-    if(this->bConsoleAnimateOut && !this->bConsoleAnimateIn) return;
-
-    this->textbox->onChar(e);
-}
-
 void ConsoleBox::onResolutionChange(vec2 newResolution) {
     const float dpiScale = this->getDPIScale();
 
@@ -256,7 +250,7 @@ bool ConsoleBox::toggle() {
         this->fConsoleAnimation.set(0.0f, 0.25f, anim::QuartOut);
 
         // release the keyboard (the suggestion popup goes with it): the box keeps drawing through the close
-        // animation, but it is no longer the focus target (onKeyDown/onChar early-out while animating out anyway)
+        // animation, but it is no longer the focus target (onKeyDown early-outs while animating out anyway)
         this->textbox->stealFocus();
     } else if(!this->bConsoleAnimateOut) {
         this->textbox->setVisible(true);

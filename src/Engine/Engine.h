@@ -75,7 +75,6 @@ class Engine final : public KeyboardListener {
     // primary keyboard messages
     void onKeyDown(KeyboardEvent &e) override;
     void onKeyUp(KeyboardEvent & /**/) override {}
-    void onChar(KeyboardEvent & /**/) override {}
 
     // convenience functions (passthroughs)
     inline void shutdown() { this->onShutdown(); }

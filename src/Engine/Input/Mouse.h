@@ -17,7 +17,7 @@
 // space into a viewport on the window (letterboxed, or scaled to fit or fill it) and getPos() is in that space
 // (setAppViewport). raw input moves the pointer in app pixels, as if the app space were the display.
 // the engine gui is laid out in window pixels, so the engine runs it inside a RealPosScope, where getPos() reports
-// window pixels too.
+// window pixels too. toWindow() is the way back from whichever space getPos() reports.
 // the os mouse is polled every update (raw deltas in relative mode); absolute pointers (pens, touch) report where they
 // are through onPosChange instead, which applies right away and overrides the os mouse for that frame, so raw input
 // and sensitivity never apply to them.
@@ -49,10 +49,12 @@ class Mouse final : public InputDevice {
     void onButtonChange(ButtonEvent ev);
 
     // position/coordinate handling
-    void setPos(vec2 pos);  // app space; moves the virtual cursor, not the os one
+    void setPos(vec2 pos);  // in the space getPos() reports; moves the virtual cursor, not the os one
     // viewport in window pixels (empty = the whole window), appSize is the app space drawn into it (empty = 1:1)
     void setAppViewport(const McRect &viewport, vec2 appSize = {});
     [[nodiscard]] McRect getAppViewport() const;
+    // a position in the space getPos() reports, in window pixels
+    [[nodiscard]] vec2 toWindow(vec2 pos) const;
 
     class RealPosScope {
         NOCOPY_NOMOVE(RealPosScope)
@@ -159,7 +161,7 @@ class Mouse final : public InputDevice {
     // mode tracking
     bool bIsRawInputDesired{false};  // whether the user wants raw (relative) input
     bool bRawInputOverride{false};   // an app feature needs raw deltas (setRawInputOverride)
-    bool bRealPos{false};            // getPos() bypasses the viewport mapping (RealPosScope)
+    bool bRealPos{false};            // getPos() and toWindow() bypass the viewport mapping (RealPosScope)
     float fSensitivity{1.0f};
 
     // os cursor policy inputs

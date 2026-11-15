@@ -260,11 +260,6 @@ void CBaseUIWindow::onKeyUp(KeyboardEvent &e) {
     this->container->onKeyUp(e);
 }
 
-void CBaseUIWindow::onChar(KeyboardEvent &e) {
-    if(!this->bVisible) return;
-    this->container->onChar(e);
-}
-
 CBaseUIWindow *CBaseUIWindow::setTitle(std::string text) {
     this->sTitle = std::move(text);
     this->updateTitleBarMetrics();

@@ -5,7 +5,9 @@
 #include "ContainerRanges.h"
 #include "Engine.h"
 #include "Environment.h"
+#include "Keyboard.h"
 #include "Mouse.h"
+#include "TextInput.h"
 
 #include <algorithm>
 #include <array>
@@ -13,6 +15,7 @@
 #include <ranges>
 #include <span>
 #include <utility>
+#include <vector>
 #include <cassert>
 
 namespace CBaseUIDispatch {
@@ -25,7 +28,9 @@ struct State final {
     void setFocus(CBaseUIElement *elem);
     [[nodiscard]] CBaseUIElement *getFocus() const { return this->focused; }
     void clearFocusIf(const CBaseUIElement *elem) {
-        if(this->focused == elem) this->focused = nullptr;
+        if(this->focused != elem) return;
+        this->focused = nullptr;
+        this->forgetFocusPath();
     }
     void lockCapture(const CBaseUIElement *who);
     bool stealCapture(CBaseUIElement *thief);
@@ -48,6 +53,14 @@ struct State final {
     // element-local (CBaseUIElement::updateInput); a held capture freezes gains for its own root.
     void resolveHover(CBaseUIEventCtx &c, Root root);
     void applyCursorShape();
+
+    CBaseUIElement *locateFocus(CBaseUIElement *top);
+    void offerTextTarget(CBaseUIElement *target);
+    // the focus moved or died: where it is is looked for again
+    void forgetFocusPath() {
+        this->focusPath.clear();
+        this->focusSearched.clear();
+    }
 
     // capture ends without an up: onMouseCancel to the captor + observation end (cancelCapture),
     // or observation end alone (endObservation, captor handled separately by the caller)
@@ -76,6 +89,10 @@ struct State final {
 
     // the single focused element across both roots; element dtors and stealFocus() clear it
     CBaseUIElement *focused{nullptr};
+    // the elements from the one the focus was found under (locateFocus) down to the focus, or those it wasn't found
+    // under (compared, never dereferenced). element dtors drop the path they're on
+    std::vector<CBaseUIElement *> focusPath;
+    std::vector<const CBaseUIElement *> focusSearched;
 
     // per-frame hover resolution: the first root that hovers something claims the pointer for the
     // frame (engine before app), so a lower root suppresses its hover when an upper root already has it
@@ -184,6 +201,7 @@ void State::setFocus(CBaseUIElement *elem) {
     if(this->focused == elem) return;
     CBaseUIElement *old = this->focused;
     this->focused = elem;
+    this->forgetFocusPath();
     // the old holder loses focus (bActive=false + onFocusStolen); its own clearFocusIf is a
     // no-op now that focused already moved, so this does not recurse
     if(old != nullptr) old->stealFocus();
@@ -195,6 +213,7 @@ void State::onElementDestroyed(CBaseUIElement *elem) {
     ++this->elemGeneration;
     if(this->wheelSink == elem) this->wheelSink = nullptr;
     if(this->focused == elem) this->focused = nullptr;
+    if(this->focused == nullptr || Mc::ranges::contains(this->focusPath, elem)) this->forgetFocusPath();
     if(this->lastPressTarget == elem) this->lastPressTarget = nullptr;
     if(this->captor == elem) {
         // the captor is mid-destruction: no calls into it, but observers still disarm
@@ -353,6 +372,49 @@ void State::resolveHover(CBaseUIEventCtx &c, Root root) {
 void State::applyCursorShape() {
     env->setCursor(this->cursorShape.value_or(CURSORTYPE::CURSOR_NORMAL));
     this->cursorShape.reset();
+}
+
+namespace {
+// the elements from elem down to target (outermost first), through all children: visible or not
+bool findPath(CBaseUIElement *elem, const CBaseUIElement *target, std::vector<CBaseUIElement *> &path) {
+    path.push_back(elem);
+    if(elem == target) return true;
+    for(CBaseUIElement *child : elem->getAllChildren()) {
+        if(child != nullptr && findPath(child, target, path)) return true;
+    }
+    path.pop_back();
+    return false;
+}
+}  // namespace
+
+CBaseUIElement *State::locateFocus(CBaseUIElement *top) {
+    if(this->focused == nullptr || top == nullptr) return nullptr;
+
+    if(this->focusPath.empty()) {
+        if(Mc::ranges::contains(this->focusSearched, top)) return nullptr;
+        if(!findPath(top, this->focused, this->focusPath)) {
+            this->focusSearched.push_back(top);
+            return nullptr;
+        }
+    }
+
+    if(this->focusPath.front() != top) return nullptr;
+    const bool shown =
+        Mc::ranges::all_of(std::span{this->focusPath}.subspan(1), [](CBaseUIElement *e) { return e->isVisible(); });
+    return shown ? this->focused : nullptr;
+}
+
+void State::offerTextTarget(CBaseUIElement *target) {
+    auto *client = dynamic_cast<TextInputClient *>(target);
+    if(client == nullptr) return;
+
+    // its text is in the space of the root being run, which the mouse maps to the window
+    const TextInputArea area = client->getTextInputArea();
+    const vec2 min = mouse->toWindow(area.rect.getMin());
+    keyboard->offerTextTarget(client,
+                              {.rect = McRect{min, mouse->toWindow(area.rect.getMax()) - min},
+                               .caretX = mouse->toWindow({area.caretX, 0.f}).x},
+                              target != this->focused);
 }
 
 void State::dispatchEvents(CBaseUIEventCtx &c, Root root) {
@@ -572,6 +634,8 @@ void setFocus(CBaseUIElement *elem) { return state.setFocus(elem); }
 CBaseUIElement *getFocus() { return state.getFocus(); }
 void clearFocusIf(const CBaseUIElement *elem) { return state.clearFocusIf(elem); }
 void applyCursorShape() { return state.applyCursorShape(); }
+CBaseUIElement *locateFocus(CBaseUIElement *top) { return state.locateFocus(top); }
+void offerTextTarget(CBaseUIElement *target) { return state.offerTextTarget(target); }
 void lockCapture(const CBaseUIElement *who) { return state.lockCapture(who); }
 bool stealCapture(CBaseUIElement *thief) { return state.stealCapture(thief); }
 CBaseUIElement *getCaptor() { return state.getCaptor(); }

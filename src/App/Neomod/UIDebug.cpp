@@ -14,6 +14,7 @@
 #include "CBaseUIStyledLabel.h"
 #include "CBaseUITextbox.h"
 #include "PromptOverlay.h"
+#include "UISearchOverlay.h"
 #include "Parsing.h"
 #include "SString.h"
 #include "Bancho.h"
@@ -31,6 +32,8 @@
 #include "Database.h"
 #include "DatabaseBeatmap.h"
 #include "Graphics.h"
+#include "Keyboard.h"
+#include "TextInput.h"
 #include "NeomodEnvInterop.h"
 
 #include <algorithm>
@@ -151,6 +154,7 @@ void UIDebug::debugAssert(std::string_view args) {
     // ui_assert sets <count>
     // ui_assert play finished <count>
     // ui_assert skin samples <count>
+    // ui_assert text_target <name|none>
     auto parts = SString::split(args, ' ');
     std::erase_if(parts, [](std::string_view p) { return p.empty(); });
 
@@ -191,6 +195,14 @@ void UIDebug::debugAssert(std::string_view args) {
         }
         logRaw("UITEST {} map {} expected='{}' actual='{}'", actual == expected ? "OK" : "FAIL", parts[1], expected,
                actual);
+        return;
+    }
+
+    if(parts.size() >= 2 && SString::to_lower(parts[0]) == "text_target"sv) {
+        // what typed text goes to (the element the os text input is on for), none without one
+        const auto *target = dynamic_cast<const CBaseUIElement *>(keyboard->getTextTarget());
+        const std::string_view actual = target ? target->getName() : "none"sv;
+        logRaw("UITEST {} text_target expected={} actual={}", actual == parts[1] ? "OK" : "FAIL", parts[1], actual);
         return;
     }
 
@@ -337,17 +349,20 @@ void UIDebug::debugAssert(std::string_view args) {
     }
 
     if(pred == "text"sv) {
-        // ui_assert text <name> <expected> (the rest of the line): the text in a textbox, a styled label or a button
+        // ui_assert text <name> <expected> (the rest of the line): the text in a textbox, a styled label, a button or
+        // a type-to-search
         const std::string_view expected = args.substr(parts[2].data() - args.data());
         std::string_view actualText;
         if(auto *tb = dynamic_cast<CBaseUITextbox *>(elem)) {
             actualText = tb->getText();
+        } else if(auto *search = dynamic_cast<UISearchOverlay *>(elem)) {
+            actualText = search->getSearchString();
         } else if(auto *label = dynamic_cast<CBaseUIStyledLabel *>(elem)) {
             actualText = label->getText();
         } else if(auto *button = dynamic_cast<CBaseUIButton *>(elem)) {
             actualText = button->getText();
         } else {
-            logRaw("UITEST FAIL text {} (not a textbox, a styled label or a button)", parts[1]);
+            logRaw("UITEST FAIL text {} (not a textbox, a styled label, a button or a search)", parts[1]);
             return;
         }
         logRaw("UITEST {} text {} expected='{}' actual='{}'", actualText == expected ? "OK" : "FAIL", parts[1],

@@ -41,6 +41,7 @@ class CBaseUINumberField : public CBaseUIStyledTextbox {
 
     void visit() override;
     void commit() override;
+    [[nodiscard]] TextInputType getTextInputType() const override { return TextInputType::NUMBER; }
     [[nodiscard]] std::optional<CURSORTYPE> getCursorShape() override;
     void onKeyDown(KeyboardEvent &e) override;
     void onFocusStolen() override;

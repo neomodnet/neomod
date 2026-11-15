@@ -59,7 +59,7 @@ class NotificationOverlay final : public UIScreen {
     void draw() override;
     void onResolutionChange(vec2 newResolution) override;
 
-    void onChar(KeyboardEvent &e) override;
+    [[nodiscard]] CBaseUIElement *getTextTarget(CBaseUIElement *focus) override;
 
     // any thread
     void addToast(std::string text, Color borderColor, ToastElement::TYPE type = ToastElement::TYPE::SYSTEM);
@@ -71,9 +71,9 @@ class NotificationOverlay final : public UIScreen {
     void addNotification(std::string text, Color textColor = 0xffffffff, bool waitForKey = false,
                          float duration = -1.0f);
 
-    void stopWaitingForKey(bool stillConsumeNextChar = false);
+    void stopWaitingForKey();
 
-    inline bool isWaitingForKey() { return this->bWaitForKey || this->bConsumeNextChar; }
+    [[nodiscard]] inline bool isWaitingForKey() const { return this->bWaitForKey; }
 
    private:
     void addToastElement(std::string text, Color borderColor, ToastElement::TYPE type, u64 callbackId);
@@ -116,5 +116,4 @@ class NotificationOverlay final : public UIScreen {
     NOTIFICATION notification2;
 
     bool bWaitForKey{false};
-    bool bConsumeNextChar{false};
 };

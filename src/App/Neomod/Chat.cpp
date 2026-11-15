@@ -926,18 +926,11 @@ void Chat::onKeyUp(KeyboardEvent &key) {
     key.consume();
 }
 
-void Chat::onChar(KeyboardEvent &key) {
-    if(!this->bVisible || key.isConsumed() || !this->input_box->isFocused() ||
-       (keyboard->isSuperDown() || (keyboard->isControlDown() && !keyboard->isAltDown())))
-        return;
-
-    if(BanchoState::get_silence_seconds_left() > 0) {
-        key.consume();
-        return;
-    }
-
-    this->input_box->onChar(key);
-    key.consume();
+CBaseUIElement *Chat::getTextTarget(CBaseUIElement *focus) {
+    CBaseUIElement *target = UIScreen::getTextTarget(focus);
+    // silenced: the input box takes no text
+    if(target == this->input_box && BanchoState::get_silence_seconds_left() > 0) return this;
+    return target;
 }
 
 void Chat::mark_as_read(ChatChannel *chan) {
@@ -1508,9 +1501,6 @@ CBaseUIContainer *Chat::setVisible(bool visible) {
     } else {
         this->fAnimation.set(0.0f, 0.25f * this->fAnimation, anim::QuadOut);
     }
-
-    // HACKHACK for text input listening
-    osu->updateWindowsKeyDisable();
 
     return this;
 }

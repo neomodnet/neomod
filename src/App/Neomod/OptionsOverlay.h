@@ -19,7 +19,8 @@ class OptionsOverlay final : public ScreenBackable {
     void updateInput(CBaseUIEventCtx &c) override;
 
     void onKeyDown(KeyboardEvent &e) override;
-    void onChar(KeyboardEvent &e) override;
+    // typing searches the options (or the skin dropdown, which its hotkey opens with the options hidden)
+    [[nodiscard]] CBaseUIElement *getTextTarget(CBaseUIElement *focus) override;
 
     void onResolutionChange(vec2 newResolution) override;
 

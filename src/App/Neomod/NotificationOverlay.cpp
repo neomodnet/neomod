@@ -275,10 +275,10 @@ void NotificationOverlay::drawNotificationBackground(const NotificationOverlay::
     g->fillRect(0, osu->getVirtScreenHeight() / 2 - height / 2, osu->getVirtScreenWidth(), height);
 }
 
-void NotificationOverlay::onChar(KeyboardEvent &e) {
-    if(this->bWaitForKey || this->bConsumeNextChar) e.consume();
-
-    this->bConsumeNextChar = false;
+CBaseUIElement *NotificationOverlay::getTextTarget(CBaseUIElement *focus) {
+    // a key being bound types nothing
+    if(this->bWaitForKey) return this;
+    return UIScreen::getTextTarget(focus);
 }
 
 void NotificationOverlay::addNotification(std::string text, Color textColor, bool waitForKey, float duration) {
@@ -308,7 +308,6 @@ void NotificationOverlay::addNotification(std::string text, Color textColor, boo
 
     // build new notification
     this->bWaitForKey = waitForKey;
-    this->bConsumeNextChar = this->bWaitForKey;
 
     float fadeOutTime = 0.4f;
 
@@ -415,10 +414,7 @@ void NotificationOverlay::layoutToasts() {
     }
 }
 
-void NotificationOverlay::stopWaitingForKey(bool stillConsumeNextChar) {
-    this->bWaitForKey = false;
-    this->bConsumeNextChar = stillConsumeNextChar;
-}
+void NotificationOverlay::stopWaitingForKey() { this->bWaitForKey = false; }
 
 void NotificationOverlay::updateVisibility() {
     this->bVisible = engine->getTime() < this->notification1.time || engine->getTime() < this->notification2.time ||

@@ -1,0 +1,71 @@
+# what typed text goes to, the only time the os text input (and with it an IME) is on: nothing in the mainmenu, the
+# songbrowser search, nothing under the modal modselector, the options search over the songbrowser, nothing while a
+# keybind is being captured (the text its key would type is dropped), then the prompt's input over everything
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+ui_assert text_target none
+osu_folder uitest_osu_folder
+set_active_ui_screen songbrowser
+@wait 300
+ui_assert screen_active songbrowser 1
+ui_assert text_target songbrowser_search
+sendkey F1
+@wait 5
+ui_assert visible modselector 1
+ui_assert text_target none
+sendkey Escape
+@wait 5
+ui_assert visible modselector 0
+ui_assert text_target songbrowser_search
+sendkey Left Ctrl down
+sendkey O
+sendkey Left Ctrl up
+@wait 30
+ui_assert visible optionsoverlay 1
+ui_assert text_target options_search
+mouse_to 40 365
+@wait 3
+mouse_down
+@wait 3
+mouse_up
+@wait 20
+ui_assert convar key_left_click 29
+mouse_to 346 330
+@wait 3
+mouse_down
+@wait 3
+mouse_up
+@wait 10
+ui_assert text_target none
+sendkey A down
+sendtext a
+sendkey A up
+@wait 5
+ui_assert convar key_left_click 4
+ui_assert text_target options_search
+sendtext bc
+@wait 3
+ui_assert text options_search bc
+sendkey Escape
+@wait 3
+sendkey Escape
+@wait 5
+ui_assert visible optionsoverlay 0
+ui_assert text_target songbrowser_search
+sendtext q
+@wait 3
+ui_assert text songbrowser_search q
+ui_prompt words
+@wait 3
+ui_assert text_target prompt_input
+sendtext x
+@wait 3
+ui_assert text prompt_input x
+ui_assert text songbrowser_search q
+exit

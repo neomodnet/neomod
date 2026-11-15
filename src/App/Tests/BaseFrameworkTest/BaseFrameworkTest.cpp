@@ -191,12 +191,6 @@ void BaseFrameworkTest::onKeyDown(KeyboardEvent &e) { debugLog("keyDown: {}", e.
 
 void BaseFrameworkTest::onKeyUp(KeyboardEvent &e) { debugLog("keyUp: {}", e.getScanCode()); }
 
-void BaseFrameworkTest::onChar(KeyboardEvent &e) {
-    const char32_t code = e.getCharCode();
-    const char32_t charray[]{code, U'\0'};
-    debugLog("charCode: {}", UniString::to_utf8(std::u32string_view{charray}));
-}
-
 void BaseFrameworkTest::onButtonChange(ButtonEvent &event) {
     debugLog("button: {} down: {} timestamp: {}", static_cast<size_t>(event.btn), event.down, event.timestamp);
 }

@@ -228,14 +228,6 @@ void UIContextMenu::onKeyDown(KeyboardEvent &e) {
     }
 }
 
-void UIContextMenu::onChar(KeyboardEvent &e) {
-    if(!this->bVisible2) return;
-
-    CBaseUIScrollView::onChar(e);
-
-    if(this->searchTextbox != nullptr) e.consume();
-}
-
 void UIContextMenu::begin(int minWidth, bool bigStyle, bool searchable) {
     this->iWidthCounter = minWidth;
     this->bBigStyle = bigStyle;

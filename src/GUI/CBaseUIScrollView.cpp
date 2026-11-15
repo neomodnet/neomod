@@ -536,8 +536,6 @@ void CBaseUIScrollView::onKeyUp(KeyboardEvent &e) { this->container.onKeyUp(e); 
 
 void CBaseUIScrollView::onKeyDown(KeyboardEvent &e) { this->container.onKeyDown(e); }
 
-void CBaseUIScrollView::onChar(KeyboardEvent &e) { this->container.onChar(e); }
-
 void CBaseUIScrollView::scrollY(int delta, bool animated) {
     if(!this->bVerticalScrolling || delta == 0 || this->bScrolling || this->getSize().y >= this->vScrollSize.y ||
        this->container.isBusy())

@@ -19,6 +19,7 @@
 #include "UniString.h"
 #include "LaunchArgs.h"
 #include "SingleInstance.h"
+#include "TextInput.h"
 
 #include "AppDescriptor.h"
 
@@ -43,6 +44,7 @@
 #endif
 
 #include <algorithm>
+#include <cmath>
 #include <array>
 #include <cassert>
 #include <cstddef>
@@ -153,6 +155,22 @@ Environment::Environment(const Mc::AppDescriptor &appDesc)
     m_cursorType = CURSORTYPE::CURSOR_NORMAL;
 
     m_sCurrClipboardText = {};
+
+    // create cached text input properties
+    for(auto type : {TextInputType::TEXT, TextInputType::PASSWORD, TextInputType::NUMBER}) {
+        static_assert((int)TextInputType::TEXT == 0 && (int)TextInputType::PASSWORD == 1 &&
+                      (int)TextInputType::NUMBER == 2);
+        const SDL_PropertiesID props = SDL_CreateProperties();
+        SDL_SetNumberProperty(props, SDL_PROP_TEXTINPUT_TYPE_NUMBER,
+                              type == TextInputType::PASSWORD ? SDL_TEXTINPUT_TYPE_TEXT_PASSWORD_HIDDEN
+                              : type == TextInputType::NUMBER ? SDL_TEXTINPUT_TYPE_NUMBER
+                                                              : SDL_TEXTINPUT_TYPE_TEXT);
+        SDL_SetNumberProperty(props, SDL_PROP_TEXTINPUT_CAPITALIZATION_NUMBER, SDL_CAPITALIZE_NONE);
+        SDL_SetBooleanProperty(props, SDL_PROP_TEXTINPUT_AUTOCORRECT_BOOLEAN, false);
+        SDL_SetBooleanProperty(props, SDL_PROP_TEXTINPUT_MULTILINE_BOOLEAN, false);
+        m_textInputProps[(int)type] = props;
+    }
+
     // lazy init (with initMonitors)
     m_fullDesktopBoundingBox = McRect{};
 
@@ -161,7 +179,6 @@ Environment::Environment(const Mc::AppDescriptor &appDesc)
     m_bIsKMSDRM = (m_sdldriver == "kmsdrm");
     m_bIsWayland = (m_sdldriver == "wayland");
 
-    m_bShouldListenToTextInput = cv::use_ime.getBool();
     m_bRawKB = SDL_GetHintBoolean(SDL_HINT_WINDOWS_RAW_KEYBOARD, false);
     // the hints might already be set from the startup environment, so respect that here (1)
     m_bWinKeyDisabled = m_bRawKB ? SDL_GetHintBoolean(SDL_HINT_WINDOWS_RAW_KEYBOARD_EXCLUDE_HOTKEYS, false) : false;
@@ -258,6 +275,11 @@ Environment::~Environment() {
     }
     m_cursorIcons = {};
     if(m_normalCursorImage) SDL_DestroyCursor(m_normalCursorImage);
+
+    for(auto &prop : m_textInputProps) {
+        if(prop) SDL_DestroyProperties(prop);
+        prop = 0;
+    }
 
     env = nullptr;
 }
@@ -1650,14 +1672,29 @@ bool Environment::setWindowsKeyDisabled(bool disable) {
     return m_bWinKeyDisabled;
 }
 
-void Environment::listenToTextInput(bool listen) {
-    m_bShouldListenToTextInput = listen;
-    if(cv::use_ime.getBool()) {
-        listen ? SDL_StartTextInput(m_window) : SDL_StopTextInput(m_window);
-    } else if(!SDL_TextInputActive(m_window)) {
-        // always keep text input active if we're not allowing IME events
-        SDL_StartTextInput(m_window);
-    }
+void Environment::startTextInput(TextInputType type, bool screenKeyboard) {
+    // read on every start (an environment variable still wins over this)
+    // TODO: is this expensive?
+    if(screenKeyboard)
+        SDL_ResetHint(SDL_HINT_ENABLE_SCREEN_KEYBOARD);
+    else
+        SDL_SetHintWithPriority(SDL_HINT_ENABLE_SCREEN_KEYBOARD, "0", SDL_HINT_NORMAL);
+
+    assert((int)type >= 0 && (int)type < m_textInputProps.size());
+    assert(m_textInputProps[(int)type] != 0);
+    SDL_StartTextInputWithProperties(m_window, m_textInputProps[(int)type]);
+}
+
+void Environment::stopTextInput() { SDL_StopTextInput(m_window); }
+
+void Environment::setTextInputArea(const McRect &rect, float caretX) {
+    // sdl wants window coordinates (points where they aren't pixels)
+    const float density = getPixelDensity();
+    const SDL_Rect area{.x = (int)std::floor(rect.getX() / density),
+                        .y = (int)std::floor(rect.getY() / density),
+                        .w = (int)std::ceil(rect.getWidth() / density),
+                        .h = (int)std::ceil(rect.getHeight() / density)};
+    SDL_SetTextInputArea(m_window, &area, (int)std::lround((caretX - rect.getX()) / density));
 }
 
 //******************************//
@@ -1682,20 +1719,6 @@ void Environment::onPenInputChange(float newValue) {
     }
 }
 
-void Environment::onUseIMEChange(float newValue) {
-    const bool enable = !!static_cast<int>(newValue);
-    SDL_SetEventEnabled(SDL_EVENT_TEXT_EDITING_CANDIDATES, enable);
-    SDL_SetEventEnabled(SDL_EVENT_TEXT_EDITING, enable);
-    if(enable) {
-        // use OS IME input
-        SDL_SetHintWithPriority(SDL_HINT_IME_IMPLEMENTED_UI, "none", SDL_HINT_NORMAL);
-    } else {
-        // tell SDL we're "handling it ourselves" so it doesn't pop up an OS IME input window, if we're disabling IME
-        SDL_SetHintWithPriority(SDL_HINT_IME_IMPLEMENTED_UI, "candidates,composition", SDL_HINT_NORMAL);
-    }
-    listenToTextInput(enable && m_bShouldListenToTextInput);
-}
-
 // called by event loop on display or window events
 void Environment::updateWindowSizeCache() {
     if(!m_window) return;
@@ -1715,6 +1738,8 @@ void Environment::updateWindowStateCache() {
     if(!m_window) return;
     // update window flags
     m_winflags = static_cast<WinFlags>(SDL_GetWindowFlags(m_window));
+    // a headless window never gets the focus, it acts as the focused one
+    if(m_bHeadless) m_winflags |= (WinFlags::F_MOUSE_FOCUS | WinFlags::F_INPUT_FOCUS);
 
     // update window pos
     {

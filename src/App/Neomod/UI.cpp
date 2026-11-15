@@ -177,6 +177,7 @@ void UI::update() {
     }
 
     CBaseUIDispatch::dispatchEvents(c, CBaseUIDispatch::Root::APP);
+    CBaseUIDispatch::offerTextTarget(this->getTextTarget());
 
     if constexpr(Env::cfg(BUILD::DEBUG)) {
         if(unlikely(cv::ui_validate_ticks.getBool())) this->validateTicks();
@@ -410,7 +411,24 @@ void UI::onKeyUp(KeyboardEvent &key) {
     this->hiddenAtPress.reset();
 }
 
-void UI::onChar(KeyboardEvent &e) { this->routeKey(e, &CBaseUIElement::onChar, "char"); }
+CBaseUIElement *UI::getTextTarget() {
+    // a hidden layer has no use for the focus, so it isn't looked for in one
+    const auto ask = [](UIScreen *layer) {
+        return layer->getTextTarget(layer->isVisible() ? CBaseUIDispatch::locateFocus(layer) : nullptr);
+    };
+
+    bool walked_extras = this->extra_overlays.empty();
+    for(sSz li = static_cast<sSz>(NUM_SCREENS) - 1; li >= 0; --li) {
+        if(li < static_cast<sSz>(EXTRAS_SPLICE) && !walked_extras) {
+            walked_extras = true;
+            for(sSz oi = static_cast<sSz>(this->extra_overlays.size()) - 1; oi >= 0; --oi) {
+                if(auto *target = ask(this->extra_overlays[oi])) return target;
+            }
+        }
+        if(auto *target = ask(this->screens[LAYER_ORDER[li]])) return target;
+    }
+    return nullptr;
+}
 
 void UI::onResolutionChange(vec2 newResolution) {
     // NOLINTNEXTLINE(modernize-loop-convert)

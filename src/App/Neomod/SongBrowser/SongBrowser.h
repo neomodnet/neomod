@@ -137,7 +137,8 @@ class SongBrowser final : public ScreenBackable {
 
     void onKeyDown(KeyboardEvent &e) override;
     void onKeyUp(KeyboardEvent &e) override;
-    void onChar(KeyboardEvent &e) override;
+    // typing searches
+    [[nodiscard]] CBaseUIElement *getTextTarget(CBaseUIElement *focus) override;
 
     void onResolutionChange(vec2 newResolution) override;
 
@@ -341,7 +342,7 @@ class SongBrowser final : public ScreenBackable {
     // song carousel
     std::unique_ptr<BeatmapCarousel> carousel{nullptr};
     // vElements + the manually-managed containers (topbars, score browser, carousel, ...);
-    // rebuilt on each getAllChildren() call (debug-only path)
+    // rebuilt on each getAllChildren() call (not for per-frame use)
     mutable std::vector<CBaseUIElement *> allChildren;
     CarouselButton *selectedButton = nullptr;
     bool bSongBrowserRightClickScrollCheck;
@@ -420,7 +421,6 @@ class SongBrowser final : public ScreenBackable {
 
     // search
     UISearchOverlay *search;
-    std::string sSearchString;
     std::string sPrevSearchString;
     std::string sPrevHardcodedSearchString;
     float fSearchWaitTime;

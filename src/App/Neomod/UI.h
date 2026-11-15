@@ -121,7 +121,6 @@ struct UI final {
     void draw();
     void onKeyDown(KeyboardEvent& key);
     void onKeyUp(KeyboardEvent& key);
-    void onChar(KeyboardEvent& e);
     void onResolutionChange(vec2 newResolution);
 
     [[nodiscard]] inline UIScreen* getActiveScreen() const { return this->active_screen; }
@@ -157,6 +156,8 @@ struct UI final {
 
     // walks LAYER_ORDER top -> bottom (with extra_overlays spliced in) until consumed, skipping the layers the press opened
     void routeKey(KeyboardEvent& e, void (CBaseUIElement::*handler)(KeyboardEvent&), std::string_view traceName);
+    // what typed text goes to: the first layer in routeKey's order that says (UIScreen::getTextTarget)
+    [[nodiscard]] CBaseUIElement* getTextTarget();
     // draws LAYER_ORDER[from, to), skipping the active screen (drawn at the frame bottom)
     void drawLayerRange(size_t from, size_t to);
     void drawExtraOverlays();
@@ -182,10 +183,9 @@ struct UI final {
 
     // layers hidden when the current key press began (snapshot on its non-repeat keydown, cleared on
     // keyup); routeKey skips the ones visible since, so a hotkey that opens a screen doesn't also hand
-    // it the same press: the keydown walk continues below the handler and the char event
-    // follows right behind (mainmenu P/Enter -> songbrowser got the Enter as "play" and the p in its
-    // search). a layer that stays hidden gets its keys, which it gates itself: some act while hidden
-    // (the volume overlay on the media keys, the options with their skin dropdown open)
+    // it the same press: the keydown walk continues below the handler (mainmenu Enter -> songbrowser
+    // got it as "play"). a layer that stays hidden gets its keys, which it gates itself: some act while
+    // hidden (the volume overlay on the media keys, the options with their skin dropdown open)
     std::bitset<NUM_SCREENS> hiddenAtPress{};
 
     // additional overlays added by pushOverlay (owned by UI)

@@ -27,8 +27,9 @@ ConsoleTextbox::ConsoleTextbox(float xPos, float yPos, float xSize, float ySize,
 }
 
 void ConsoleTextbox::drawText() {
-    // the top match in grey behind the text, as long as the text is still a prefix of it
-    if(cv::consolebox_draw_preview.getBool() && this->suggestions->isVisible() && !this->text.empty()) {
+    // the top match in grey behind the text, as long as the text is still a prefix of it (and nothing's being composed)
+    if(cv::consolebox_draw_preview.getBool() && this->suggestions->isVisible() && !this->text.empty() &&
+       keyboard->getComposition(this) == nullptr) {
         const std::string_view top = this->suggestions->getTopCommand();
         if(top.starts_with(this->text)) {
             g->setColor(0xff666666);

@@ -8,17 +8,15 @@
 #include "KeyBindings.h"  // IWYU pragma: keep
 #include "StaticPImpl.h"
 
-#include <span>
-
-typedef struct SDL_KeyboardEvent SDL_KeyboardEvent;
-typedef struct SDL_TextInputEvent SDL_TextInputEvent;
-
 using SCANCODE = uint16_t;
 using KEYCODE = uint32_t;
 using KEYMOD = uint16_t;
 
 class KeyboardListener;
 class SDLMain;
+class TextInputClient;
+struct TextComposition;
+struct TextInputArea;
 
 class Keyboard final : public InputDevice {
     NOCOPY_NOMOVE(Keyboard)
@@ -44,14 +42,31 @@ class Keyboard final : public InputDevice {
     // don't use KEY_ prefixed keys here, use KEYMOD_ ones!
     [[nodiscard]] bool areModsHeld(KEYCODE keymodMask) const = delete;
 
+    // typed text and IME compositions go to the text target, and the os text input (IME, on-screen keyboard) is on
+    // while there is one and the window has the focus. the ui offers one every frame, with where its text is (window
+    // pixels); applyTextTarget() makes the frame's first offer the target, or ends it without one. ambient: typed into
+    // without a focus (a type-to-search), which brings up no on-screen keyboard
+    void offerTextTarget(TextInputClient *target, const TextInputArea &area, bool ambient);
+    void applyTextTarget();
+    [[nodiscard]] TextInputClient *getTextTarget() const;
+    // what the IME is composing for client (null: nothing). key events wait until it's done
+    [[nodiscard]] const TextComposition *getComposition(const TextInputClient *client) const;
+    // makes what's being composed for client typed text and lets the IME start over, for a text target about to lose
+    // the focus or to have its caret moved under the composition
+    void commitComposition(const TextInputClient *client);
+    // a dying client stops being the target (or the one offered)
+    void forgetTextClient(const TextInputClient *client);
+
    private:
     // events received in main loop
     friend SDLMain;
 
     void onKeyEvent(u64 timestamp, u32 keyboardID, KEYCODE layoutDependentKeycode, KEYMOD heldModifiersAsOfEvent,
                     SCANCODE layoutIndependentScancode, bool isKeyDown, bool isRepeatEvent);
-    void onCharEvent(u64 timestamp, const char *text);
+    void onTextEvent(u64 timestamp, const char *text);
+    // start and length in codepoints, as SDL gives them (-1: not given)
+    void onTextEditingEvent(u64 timestamp, const char *text, i32 start, i32 length);
 
     struct KeyboardImpl;
-    StaticPImpl<KeyboardImpl, sizeof(void *) == 8 ? 64 : 32> m_impl;
+    StaticPImpl<KeyboardImpl, sizeof(void *) == 8 ? 256 : 160> m_impl;
 };

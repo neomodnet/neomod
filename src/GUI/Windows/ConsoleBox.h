@@ -25,7 +25,6 @@ class ConsoleBox : public CBaseUIElement {
     void updateInput(CBaseUIEventCtx &c) override;
 
     void onKeyDown(KeyboardEvent &e) override;
-    void onChar(KeyboardEvent &e) override;
 
     void onResolutionChange(vec2 newResolution);
 

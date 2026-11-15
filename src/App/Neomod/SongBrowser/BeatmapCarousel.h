@@ -13,7 +13,6 @@ class BeatmapCarousel final : public CBaseUIScrollView {
 
     void onKeyUp(KeyboardEvent &e) override;
     void onKeyDown(KeyboardEvent &e) override;
-    void onChar(KeyboardEvent &e) override;
 
     void draw() override;
     void tick() override;

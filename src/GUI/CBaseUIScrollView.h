@@ -21,7 +21,6 @@ class CBaseUIScrollView : public CBaseUIElement {
 
     void onKeyUp(KeyboardEvent &e) override;
     void onKeyDown(KeyboardEvent &e) override;
-    void onChar(KeyboardEvent &e) override;
 
     // scrolling
     void scrollY(int delta, bool animated = true);

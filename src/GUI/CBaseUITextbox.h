@@ -2,13 +2,14 @@
 // Copyright (c) 2015, PG, All rights reserved.
 #include "CBaseUIElement.h"
 #include "Color.h"
+#include "TextInput.h"
 
 #include <utility>
 
 class McFont;
 
 // TODO: so much duplication for text things between textbox/label/button
-class CBaseUITextbox : public CBaseUIElement {
+class CBaseUITextbox : public CBaseUIElement, public TextInputClient {
     NOCOPY_NOMOVE(CBaseUITextbox)
    public:
     CBaseUITextbox(float xPos = 0.0f, float yPos = 0.0f, float xSize = 0.0f, float ySize = 0.0f, std::string name = {});
@@ -25,8 +26,13 @@ class CBaseUITextbox : public CBaseUIElement {
     // states (focus is the dispatcher pointer now; bActive is only the transient press)
     bool isActive() override;
 
-    void onChar(KeyboardEvent &e) override;
     void onKeyDown(KeyboardEvent &e) override;
+
+    // typed text goes in at the caret, what the IME composes shows there
+    void onTextInput(std::string_view text) override;
+    void onTextComposition(const TextComposition &composition) override;
+    [[nodiscard]] TextInputArea getTextInputArea() override;
+    [[nodiscard]] TextInputType getTextInputType() const override;
 
     std::string getVisibleText();
     [[nodiscard]] inline std::string_view getText() const { return this->text; }
@@ -111,6 +117,16 @@ class CBaseUITextbox : public CBaseUIElement {
     void onMouseUpOutside(bool left = true, bool right = false) override;
     void onMouseCancel() override;
     void onCapturedMouseMove() override;
+
+    // the text as drawn (a password masked) with what the IME composes at the caret, the caret in it, and where the
+    // composition and the part of it being converted are (byte offsets)
+    struct DrawnText {
+        std::string text;
+        int caret;
+        int compositionStart, compositionEnd;
+        int clauseStart, clauseEnd;
+    };
+    [[nodiscard]] DrawnText getDrawnText();
 
     [[nodiscard]] int hitTestCaret(std::string_view vt, int mx) const;
     // the word under the cursor as byte offsets [start, end): a run of spaces, punctuation or letters of one script

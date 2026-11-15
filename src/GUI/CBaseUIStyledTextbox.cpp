@@ -7,6 +7,8 @@
 #include "UniString.h"
 
 #include <cmath>
+#include <string>
+#include <string_view>
 #include <utility>
 
 namespace {
@@ -121,17 +123,23 @@ void CBaseUIStyledTextbox::onKeyDown(KeyboardEvent &e) {
     this->edited(before);
 }
 
-void CBaseUIStyledTextbox::onChar(KeyboardEvent &e) {
-    if(!this->isFocused() || !this->isVisible()) return;
-    if(!this->takes(e.getCharCode())) {
-        e.consume();
-        return;
+void CBaseUIStyledTextbox::onTextInput(std::string_view text) {
+    std::string taken;
+    for(const char32_t character : UniString::codepoints(text)) {
+        if(this->takes(character)) taken += UniString::to_utf8(std::u32string_view{&character, 1});
     }
+    if(taken.empty()) return;
 
     if(!this->visitText) this->visitText = this->text;
     const std::string before = this->text;
-    CBaseUITextbox::onChar(e);
+    CBaseUITextbox::onTextInput(taken);
     this->edited(before);
+}
+
+void CBaseUIStyledTextbox::onTextComposition(const TextComposition &composition) {
+    // composing over the selection edits the text too
+    if(!composition.text.empty() && !this->visitText) this->visitText = this->text;
+    CBaseUITextbox::onTextComposition(composition);
 }
 
 void CBaseUIStyledTextbox::onFocusStolen() {

@@ -63,6 +63,7 @@ class SDLMain final : public Environment {
     // debug convar callbacks
     void sendkey(std::string_view args);
     void sendtext(std::string_view args);
+    void sendediting(std::string_view args);
 
     void pushMouseButtonEvent(std::string_view args, bool down);
     void mouse_to(std::string_view args);

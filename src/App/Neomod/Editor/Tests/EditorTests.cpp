@@ -44,6 +44,7 @@
 #include "TimingPanel.h"
 #include "Verify.h"
 #include "crypto.h"
+#include "UniString.h"
 
 #include "fmt/format.h"
 #include "fmt/ranges.h"
@@ -2121,12 +2122,11 @@ class EditorTests {
         };
         const auto type = [&](CBaseUIStyledTextbox *field, std::u32string_view characters) {
             for(const char32_t character : characters) {
-                KeyboardEvent e{0, 0, character, 0, KEYMOD_NONE};
-                field->onChar(e);
+                field->onTextInput(UniString::to_utf8(std::u32string_view{&character, 1}));
             }
         };
         const auto press = [&](CBaseUIElement *target, SCANCODE scancode, KEYMOD modifiers = KEYMOD_NONE) {
-            KeyboardEvent e{scancode, 0, 0, 0, modifiers};
+            KeyboardEvent e{scancode, 0, 0, modifiers};
             target->onKeyDown(e);
             return e.isConsumed();
         };
@@ -2826,15 +2826,14 @@ class EditorTests {
                 return static_cast<CBaseUINumberField *>(find(&panel, name));
             };
             const auto press = [&](CBaseUIElement *target, SCANCODE scancode, KEYMOD modifiers = KEYMOD_NONE) {
-                KeyboardEvent e{scancode, 0, 0, 0, modifiers};
+                KeyboardEvent e{scancode, 0, 0, modifiers};
                 target->onKeyDown(e);
             };
             const auto set = [&](std::string_view name, std::u32string_view value) {
                 CBaseUINumberField *field = number(name);
                 field->visit();
                 for(const char32_t character : value) {
-                    KeyboardEvent e{0, 0, character, 0, KEYMOD_NONE};
-                    field->onChar(e);
+                    field->onTextInput(UniString::to_utf8(std::u32string_view{&character, 1}));
                 }
                 press(field, KEY_ENTER);
                 panel.tick();
@@ -3054,7 +3053,7 @@ class EditorTests {
                            "it passed on the way)");
             auto *list = static_cast<CBaseUIList *>(find(&panel, "editor_timing_points"));
             list->requestFocus();
-            KeyboardEvent home{KEY_HOME, 0, 0, 0, KEYMOD_NONE};
+            KeyboardEvent home{KEY_HOME, 0, 0, KEYMOD_NONE};
             list->onKeyDown(home);
             panel.tick();
             earlier->click();
@@ -3147,7 +3146,7 @@ class EditorTests {
             panel.setSize(1200.f, 500.f);
             auto *list = static_cast<CBaseUIList *>(find(&panel, "editor_timing_points"));
             list->requestFocus();
-            KeyboardEvent all{KEY_A, 0, 0, 0, KEYMOD_LCONTROL};
+            KeyboardEvent all{KEY_A, 0, 0, KEYMOD_LCONTROL};
             list->onKeyDown(all);
             timedStep("the panel's tick after selecting every point", [&] { panel.tick(); });
             const f64 start = Timing::getTimeReal();

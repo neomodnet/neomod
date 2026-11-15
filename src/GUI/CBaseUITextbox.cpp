@@ -4,6 +4,9 @@
 #include "CBaseUITextbox.h"
 
 #include <algorithm>
+#include <cmath>
+#include <string>
+#include <string_view>
 #include <utility>
 
 #include "App.h"
@@ -192,14 +195,51 @@ void CBaseUITextbox::draw() {
 }
 
 void CBaseUITextbox::drawText() {
+    const DrawnText drawn = this->getDrawnText();
+    const int x = (int)(this->getPos().x + this->iTextAddX + this->fTextScrollAddX);
+    const int y = (int)(this->getPos().y + this->iTextAddY);
+
     g->setColor(this->textColor);
     g->pushTransform();
     {
-        g->translate((int)(this->getPos().x + this->iTextAddX + this->fTextScrollAddX),
-                     (int)(this->getPos().y + this->iTextAddY));
-        g->drawString(this->font, this->getVisibleText());
+        g->translate(x, y);
+        g->drawString(this->font, drawn.text);
     }
     g->popTransform();
+
+    // what the IME composes is underlined, the part it converts thicker
+    if(drawn.compositionEnd > drawn.compositionStart) {
+        const auto at = [&](int pos) {
+            return x + (int)this->font->getStringWidth(std::string_view{drawn.text}.substr(0, pos));
+        };
+        const float dpiScale = (float)this->font->getDPI() / 96.0f;
+        const int thickness = std::max(1, (int)std::round(dpiScale));
+        const int lineY = y + (int)std::round(2 * dpiScale);
+        g->fillRect(at(drawn.compositionStart), lineY, at(drawn.compositionEnd) - at(drawn.compositionStart),
+                    thickness);
+        if(drawn.clauseEnd > drawn.clauseStart)
+            g->fillRect(at(drawn.clauseStart), lineY, at(drawn.clauseEnd) - at(drawn.clauseStart), thickness * 2);
+    }
+}
+
+CBaseUITextbox::DrawnText CBaseUITextbox::getDrawnText() {
+    std::string drawn = this->getVisibleText();
+    const int caret = std::clamp(this->caretPosition, 0, (int)drawn.size());
+    const TextComposition *composition = keyboard->getComposition(this);
+    if(composition == nullptr) return {std::move(drawn), caret, caret, caret, caret, caret};
+
+    // a masked composition keeps its caret at the end
+    const std::string composed =
+        this->is_password ? std::string(UniString::num_codepoints(composition->text), '*') : composition->text;
+    const int cursor = this->is_password ? (int)composed.size() : composition->cursor;
+    const int clause = this->is_password ? 0 : composition->clauseLength;
+    drawn.insert(caret, composed);
+    return {.text = std::move(drawn),
+            .caret = caret + cursor + clause,
+            .compositionStart = caret,
+            .compositionEnd = caret + (int)composed.size(),
+            .clauseStart = caret + cursor,
+            .clauseEnd = caret + cursor + clause};
 }
 
 void CBaseUITextbox::tick() {
@@ -312,6 +352,8 @@ void CBaseUITextbox::onCapturedMouseMove() {
 bool CBaseUITextbox::isActive() { return CBaseUIElement::isActive() || this->isFocused(); }
 
 void CBaseUITextbox::onFocusStolen() {
+    // what was being composed stays here, as in native fields
+    keyboard->commitComposition(this);
     this->bBusy = false;
     this->deselectText();
 }
@@ -423,38 +465,45 @@ void CBaseUITextbox::onKeyDown(KeyboardEvent &e) {
     }
 }
 
-void CBaseUITextbox::onChar(KeyboardEvent &e) {
-    if(!this->isFocused() || !this->bVisible) return;
-
-    e.consume();
-
-    // ignore any control characters, we only want text
-    // funny story: Windows 10 still has this bug even today, where when editing the name of any shortcut/folder on the
-    // desktop, hitting CTRL + BACKSPACE will insert an invalid character
-    if(e.getCharCode() < 32 || (keyboard->isSuperDown() || (keyboard->isControlDown() && !keyboard->isAltDown())))
-        return;
-
-    // Linux inserts a weird character when pressing the delete key
-    if(e.getCharCode() == 127) return;
-
-    // delete any potentially selected text
+void CBaseUITextbox::onTextInput(std::string_view text) {
+    // typing replaces the selection
     this->handleDeleteSelectedText();
-
-    // add the pressed letter to the text
-    {
-        char32_t ch = e.getCharCode();
-        auto inserted = UniString::to_utf8(std::u32string_view{&ch, 1});
-        this->text.insert(this->caretPosition, inserted);
-        this->caretPosition += inserted.length();
-
-        this->setText(this->text);
-    }
+    this->text.insert(this->caretPosition, text);
+    this->caretPosition += (int)text.size();
+    this->setText(this->text);
 
     this->tickCaret();
 
     Sound *sounds[] = {app->getSound(ActionSound::TYPING1), app->getSound(ActionSound::TYPING2),
                        app->getSound(ActionSound::TYPING3), app->getSound(ActionSound::TYPING4)};
     soundEngine->play(sounds[prand() % 4]);
+}
+
+void CBaseUITextbox::onTextComposition(const TextComposition &composition) {
+    // so does composing
+    if(!composition.text.empty()) this->handleDeleteSelectedText();
+    this->setText(this->text);
+    this->tickCaret();
+}
+
+TextInputArea CBaseUITextbox::getTextInputArea() {
+    const float left = this->getPos().x;
+    const float right = left + this->getSize().x;
+    const float textX = left + (float)this->iTextAddX + this->fTextScrollAddX;
+    const float caret = std::clamp(textX + (float)this->iCaretX, left, right);
+
+    // from where the composition starts, where the candidates go below on every platform
+    float start = caret;
+    if(keyboard->getComposition(this) != nullptr) {
+        const DrawnText drawn = this->getDrawnText();
+        const float width = this->font->getStringWidth(std::string_view{drawn.text}.substr(0, drawn.compositionStart));
+        start = std::clamp(textX + width, left, right);
+    }
+    return {.rect = McRect{start, this->getPos().y, right - start, this->getSize().y}, .caretX = caret};
+}
+
+TextInputType CBaseUITextbox::getTextInputType() const {
+    return this->is_password ? TextInputType::PASSWORD : TextInputType::TEXT;
 }
 
 void CBaseUITextbox::moveCaret(int position, bool select) {
@@ -475,8 +524,9 @@ void CBaseUITextbox::moveCaret(int position, bool select) {
 }
 
 void CBaseUITextbox::handleCaretKeyboardMove() {
+    const DrawnText drawn = this->getDrawnText();
     const int caretPosition = this->iTextAddX +
-                              this->font->getStringWidth(this->getVisibleText().substr(0, this->caretPosition)) +
+                              this->font->getStringWidth(std::string_view{drawn.text}.substr(0, drawn.caret)) +
                               this->fTextScrollAddX;
     if(caretPosition < 0)
         this->fTextScrollAddX += std::abs(caretPosition) + this->getTextOffsetX();
@@ -486,8 +536,9 @@ void CBaseUITextbox::handleCaretKeyboardMove() {
 
 void CBaseUITextbox::handleCaretKeyboardDelete() {
     if(this->fTextWidth > this->getSize().x) {
+        const DrawnText drawn = this->getDrawnText();
         const int caretPosition = this->iTextAddX +
-                                  this->font->getStringWidth(this->getVisibleText().substr(0, this->caretPosition)) +
+                                  this->font->getStringWidth(std::string_view{drawn.text}.substr(0, drawn.caret)) +
                                   this->fTextScrollAddX;
         if(caretPosition < (this->getSize().x - this->getTextOffsetX()))
             this->fTextScrollAddX += std::abs(this->getSize().x - this->getTextOffsetX() - caretPosition);
@@ -545,7 +596,7 @@ CBaseUITextbox *CBaseUITextbox::setText(std::string text) {
     this->caretPosition = std::clamp<int>(this->caretPosition, 0, this->text.length());
 
     // handle text justification
-    this->fTextWidth = this->font->getStringWidth(this->getVisibleText());
+    this->fTextWidth = this->font->getStringWidth(this->getDrawnText().text);
     switch(this->textJustification) {
         case TEXT_JUSTIFICATION::LEFT:
             this->iTextAddX = this->getTextOffsetX();
@@ -592,8 +643,8 @@ void CBaseUITextbox::setCursorPosRight() {
 }
 
 void CBaseUITextbox::updateCaretX() {
-    std::string text = this->getVisibleText().substr(0, this->caretPosition);
-    this->iCaretX = this->font->getStringWidth(text);
+    const DrawnText drawn = this->getDrawnText();
+    this->iCaretX = this->font->getStringWidth(std::string_view{drawn.text}.substr(0, drawn.caret));
 }
 
 int CBaseUITextbox::getTextOffsetX() const {
@@ -671,6 +722,9 @@ void CBaseUITextbox::onResized() {
 
 void CBaseUITextbox::onMouseDownInside(bool left, bool right) {
     CBaseUIElement::onMouseDownInside(left, right);
+
+    // the caret moves: what was being composed stays where it was
+    keyboard->commitComposition(this);
 
     // take keyboard focus: relinquishes any other focused textbox (in either root); the
     // dispatch sets bActive on us after this handler returns

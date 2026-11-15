@@ -24,7 +24,6 @@ class CBaseUIWindow : public CBaseUIElement {
 
     void onKeyDown(KeyboardEvent &e) override;
     void onKeyUp(KeyboardEvent &e) override;
-    void onChar(KeyboardEvent &e) override;
 
     // actions
     void close();

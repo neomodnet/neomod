@@ -471,6 +471,7 @@ void Engine::onUpdate() {
                 this->guiContainer->updateInput(c);
                 // engine root dispatches (and consumes) before the app root: it draws on top
                 CBaseUIDispatch::dispatchEvents(c, CBaseUIDispatch::Root::ENGINE);
+                CBaseUIDispatch::offerTextTarget(CBaseUIDispatch::locateFocus(this->guiContainer));
             }
         }
     }
@@ -480,7 +481,6 @@ void Engine::onUpdate() {
         VPROF_BUDGET("App::update", VPROF_BUDGETGROUP_UPDATE);
         app->update();
     }
-    CBaseUIDispatch::applyCursorShape();
 
     // update discord presence
     {
@@ -491,6 +491,10 @@ void Engine::onUpdate() {
     // update environment (after app, at the end here)
     {
         VPROF_BUDGET("Environment::update", VPROF_BUDGETGROUP_UPDATE);
+
+        CBaseUIDispatch::applyCursorShape();
+        keyboard->applyTextTarget();
+
         env->update();
     }
 }

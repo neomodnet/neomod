@@ -230,7 +230,11 @@ void Mouse::onButtonChange_internal(ButtonEvent &ev) {
     }
 }
 
-void Mouse::setPos(vec2 newPos) { this->applyPos(dvec2{newPos / this->vAppScale + this->appViewport.getMin()}); }
+void Mouse::setPos(vec2 newPos) { this->applyPos(dvec2{this->toWindow(newPos)}); }
+
+vec2 Mouse::toWindow(vec2 pos) const {
+    return this->bRealPos ? pos : pos / this->vAppScale + this->appViewport.getMin();
+}
 
 void Mouse::setAppViewport(const McRect &viewport, vec2 appSize) {
     this->appViewport = viewport;

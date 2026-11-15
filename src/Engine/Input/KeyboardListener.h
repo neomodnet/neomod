@@ -16,7 +16,6 @@ class KeyboardListener {
 
     virtual void onKeyDown(KeyboardEvent &e) = 0;
     virtual void onKeyUp(KeyboardEvent &e) = 0;
-    virtual void onChar(KeyboardEvent &e) = 0;
 };
 
 #endif

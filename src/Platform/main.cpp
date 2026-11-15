@@ -276,13 +276,8 @@ MAIN_FUNC /* int argc, char *argv[] */
     // use IOHID mouse input on macOS
     SDL_SetHintWithPriority("SDL_MAC_MOUSE_RAW_HID", "1", SDL_HINT_NORMAL);
 
-    // we have no way of knowing when "char" event listeners are actually interested in text input,
-    // so we have SDL_StartTextInput enabled most of the time
-    // disable IME input panels so that it isn't annoying
-    // should be fixed in engine so that IME input is actually usable
-    if(!has_arg(MISC_ENABLE_IME)) {
-        SDL_SetHintWithPriority(SDL_HINT_ENABLE_SCREEN_KEYBOARD, "0", SDL_HINT_NORMAL);
-    }
+    // text fields draw the IME composition themselves, the os draws the candidate list (read at window creation on x11)
+    SDL_SetHintWithPriority(SDL_HINT_IME_IMPLEMENTED_UI, "composition", SDL_HINT_NORMAL);
 
     if(headless) {
         // use a video driver that doesn't need a real display

@@ -286,12 +286,6 @@ void PauseOverlay::onKeyUp(KeyboardEvent &e) {
     if(e == binds::RIGHT_CLICK || e == binds::RIGHT_CLICK_2) this->bClick2Down = false;
 }
 
-void PauseOverlay::onChar(KeyboardEvent &e) {
-    if(!this->bVisible) return;
-
-    e.consume();
-}
-
 bool PauseOverlay::areButtonsActive() const { return engine->getTime() >= this->fButtonsActiveTime; }
 
 void PauseOverlay::scheduleVisibilityChange(bool visible) {

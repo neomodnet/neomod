@@ -1183,8 +1183,6 @@ void Osu::onKeyUp(KeyboardEvent &key) {
     this->fposu->onKeyUp(key);
 }
 
-void Osu::onChar(KeyboardEvent &e) { this->UIReady() ? ui->onChar(e) : (void)0; }
-
 void Osu::onButtonChange(ButtonEvent &ev) {
     using enum MouseButtonFlags;
     if(!(ev.btn & (MF_LEFT | MF_RIGHT))) {
@@ -1821,16 +1819,9 @@ void Osu::updateWindowsKeyDisable() {
                                  !(cv::mod_autoplay.getBool() || this->map_iface->isWatching());
 
     const bool disable = cv::win_disable_windows_key_while_playing.getBool() && isPlayerPlaying;
-    logIfCV(debug_osu, "{} windows key, {} to text input", disable ? "disabling" : "enabling",
-            isPlayerPlaying ? "not listening" : "listening");
+    logIfCV(debug_osu, "{} windows key", disable ? "disabling" : "enabling");
 
     env->setWindowsKeyDisabled(disable);
-
-    // this is kind of a weird place to put this, but we don't care about text input when in gameplay
-    // on some platforms, text input being enabled might result in an on-screen keyboard showing up
-    // ultra hack: we have no way of knowing whether there are any char event consumers currently listening
-    // special case chat to allow chat while playing (chat->setVisible will call this function too)
-    env->listenToTextInput(!isPlayerPlaying || ui->getChat()->isVisible());
 }
 
 void Osu::onWindowedResolutionChanged(std::string_view args) {

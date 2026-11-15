@@ -67,7 +67,6 @@
 
 #include "fmt/chrono.h"
 
-#include <cwctype>
 #include <algorithm>
 #include <atomic>
 #include <optional>
@@ -114,7 +113,7 @@ struct OptionsOverlayImpl final {
     void tick();
     void updateInput(CBaseUIEventCtx &c);
     void onKeyDown(KeyboardEvent &e);
-    void onChar(KeyboardEvent &e);
+    CBaseUIElement *getTextTarget(CBaseUIElement *focus);
     void onResolutionChange(vec2 newResolution);
     CBaseUIContainer *setVisible(bool visible);
 
@@ -325,10 +324,6 @@ struct OptionsOverlayImpl final {
     // non-blocking skin folder enumerator (clicking select skin can lag spike with large folders otherwise)
     Async::Future<std::vector<std::string>> skinFolderEnumHandle;
 
-    // search
-    std::string sSearchString{};
-    float fSearchOnCharKeybindHackTime{0.f};
-
     // notelock
     std::vector<std::string> notelockTypes;
 
@@ -348,7 +343,7 @@ void OptionsOverlay::draw() { return pImpl->draw(); }
 void OptionsOverlay::tick() { return pImpl->tick(); }
 void OptionsOverlay::updateInput(CBaseUIEventCtx &c) { return pImpl->updateInput(c); }
 void OptionsOverlay::onKeyDown(KeyboardEvent &e) { return pImpl->onKeyDown(e); }
-void OptionsOverlay::onChar(KeyboardEvent &e) { return pImpl->onChar(e); }
+CBaseUIElement *OptionsOverlay::getTextTarget(CBaseUIElement *focus) { return pImpl->getTextTarget(focus); }
 void OptionsOverlay::onResolutionChange(vec2 newResolution) { return pImpl->onResolutionChange(newResolution); }
 CBaseUIContainer *OptionsOverlay::setVisible(bool visible) { return pImpl->setVisible(visible); }
 void OptionsOverlay::save() { return pImpl->save(); }
@@ -829,6 +824,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
 
     this->search = new UISearchOverlay(0, 0, 0, 0, "options_search");
     this->search->setOffsetRight(20);
+    this->search->setChangeCallback([this] { this->scheduleSearchUpdate(); });
     parent->addBaseUIElement(this->search);
 
     this->spacer = new CBaseUILabel(0, 0, 1, 40, "", "");
@@ -2154,10 +2150,6 @@ void OptionsOverlayImpl::updateInput(CBaseUIEventCtx &c) {
     } else
         this->osuFolderTextbox->setBackgroundColor(0xff000000);
 
-    // hack to avoid entering search text while binding keys
-    if(ui->getNotificationOverlay()->isVisible() && ui->getNotificationOverlay()->isWaitingForKey())
-        this->fSearchOnCharKeybindHackTime = engine->getTime() + 0.1f;
-
     // highlight active category depending on scroll position
     if(this->categoryButtons.size() > 0) {
         CategoryButton *activeCategoryButton = this->categoryButtons[0];
@@ -2315,7 +2307,7 @@ void OptionsOverlayImpl::onKeyDown(KeyboardEvent &e) {
         }
         this->waitingKey = nullptr;
         this->bWaitingKeyDisallowsLeftClick = false;
-        ui->getNotificationOverlay()->stopWaitingForKey(!cancel);
+        ui->getNotificationOverlay()->stopWaitingForKey();
         e.consume();
         return;
     }
@@ -2338,80 +2330,29 @@ void OptionsOverlayImpl::onKeyDown(KeyboardEvent &e) {
     }
 
     // searching text delete, with the keys the elements pass on (a focused textbox edits its own text)
-    if(!this->sSearchString.empty() && (e == KEY_DELETE || e == KEY_BACKSPACE || e == KEY_ESCAPE)) {
+    if(!this->search->getSearchString().empty() && (e == KEY_DELETE || e == KEY_BACKSPACE || e == KEY_ESCAPE)) {
         // not through ScreenBackable::onKeyDown, which would close the overlay on an Escape they pass on
         parent->UIScreen::onKeyDown(e);
         if(e.isConsumed()) return;
 
-        if(e == KEY_ESCAPE) {
-            this->sSearchString.clear();
-        } else {
-            std::u32string uSearch{UniString::to_utf32(this->sSearchString)};
-            if(keyboard->isControlDown()) {
-                // delete everything from the current caret position to the left, until after the first
-                // non-space character (but including it)
-                bool foundNonSpaceChar = false;
-                while(!uSearch.empty()) {
-                    const auto &curChar = uSearch.back();
-
-                    const bool whitespace = std::iswspace(static_cast<wint_t>(curChar)) != 0;
-                    if(foundNonSpaceChar && whitespace) break;
-
-                    if(!whitespace) foundNonSpaceChar = true;
-
-                    uSearch.pop_back();
-                }
-            } else {
-                uSearch.pop_back();
-            }
-            this->sSearchString = UniString::to_utf8(uSearch);
-        }
-
-        e.consume();
-        this->scheduleSearchUpdate();
+        this->search->onEditKey(e);
         return;
     }
 
     parent->ScreenBackable::onKeyDown(e);
 
     // paste clipboard support
-    if(!e.isConsumed() && keyboard->isControlDown() && e == KEY_V) {
-        const auto clipstring = env->getClipBoardText();
-        if(!clipstring.empty()) {
-            this->sSearchString.append(clipstring);
-            this->scheduleSearchUpdate();
-            e.consume();
-            return;
-        }
-    }
+    if(!e.isConsumed()) this->search->onEditKey(e);
 
     // Consuming all keys so they're not forwarded to main menu or chat when searching for a setting
     e.consume();
 }
 
-void OptionsOverlayImpl::onChar(KeyboardEvent &e) {
-    if(!parent->bVisible) {
-        // the skins dropdown has a search box
-        if(this->contextMenu->isVisible()) this->contextMenu->onChar(e);
-        return;
-    }
-
-    parent->ScreenBackable::onChar(e);
-    if(e.isConsumed()) return;
-
-    // handle searching
-    if(e.getCharCode() < 32 || !parent->bVisible ||
-       ((keyboard->isSuperDown() || (keyboard->isControlDown() && !keyboard->isAltDown()))) ||
-       this->fSearchOnCharKeybindHackTime > engine->getTime())
-        return;
-
-    char32_t ch = e.getCharCode();
-    std::u32string_view uChar{&ch, 1};
-    this->sSearchString.append(UniString::to_utf8(uChar));
-
-    this->scheduleSearchUpdate();
-
-    e.consume();
+CBaseUIElement *OptionsOverlayImpl::getTextTarget(CBaseUIElement *focus) {
+    if(!parent->isVisible()) return this->contextMenu->getSearchTextbox();
+    if(focus) return focus;
+    if(auto *menuSearch = this->contextMenu->getSearchTextbox()) return menuSearch;
+    return this->search;
 }
 
 void OptionsOverlayImpl::onResolutionChange(vec2 newResolution) {
@@ -2638,7 +2579,7 @@ void OptionsOverlayImpl::updateLayout() {
     bool inSkipSubSection = false;
     bool sectionTitleMatch = false;
     bool subSectionTitleMatch = false;
-    const std::string search = SString::to_lower(this->sSearchString);
+    const std::string search = SString::to_lower(this->search->getSearchString());
     for(int i = 0; i < this->elemContainers.size(); i++) {
         if(!this->elemContainers[i]->render_condition()) continue;
         if(this->elemContainers[i]->render_condition == RenderCondition::ASIO_ENABLED && !soundEngine->isASIO())
@@ -3030,7 +2971,6 @@ void OptionsOverlayImpl::onBack() {
 void OptionsOverlayImpl::scheduleSearchUpdate() {
     this->updateLayout();
     this->options->scrollToTop();
-    this->search->setSearchString(this->sSearchString);
 
     if(this->contextMenu->isVisible()) this->contextMenu->setVisible2(false);
 }
@@ -3889,7 +3829,7 @@ void OptionsOverlayImpl::onHighQualitySlidersConVarChange(float newValue) {
 }
 
 void OptionsOverlayImpl::resetSearch() {
-    this->sSearchString.clear();
+    this->search->clear();
     this->scheduleSearchUpdate();
 }
 

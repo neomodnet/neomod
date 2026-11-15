@@ -408,11 +408,6 @@ void RoomScreen::onKeyUp(KeyboardEvent &key) {
     UIScreen::onKeyUp(key);
 }
 
-void RoomScreen::onChar(KeyboardEvent &key) {
-    if(!this->bVisible) return;
-    UIScreen::onChar(key);
-}
-
 void RoomScreen::onResolutionChange(vec2 newResolution) { this->updateLayout(newResolution); }
 
 CBaseUIContainer *RoomScreen::setVisible(bool visible) {

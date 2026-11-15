@@ -55,6 +55,7 @@ extern char **environ;
 namespace cv {
 static ConVar sendkey_cmd("sendkey", CLIENT | NOLOAD | NOSAVE);
 static ConVar sendtext_cmd("sendtext", CLIENT | NOLOAD | NOSAVE);
+static ConVar sendediting_cmd("sendediting", CLIENT | NOLOAD | NOSAVE);
 static ConVar mouse_to_cmd("mouse_to", CLIENT | NOLOAD | NOSAVE);
 static ConVar mouse_down_cmd("mouse_down", CLIENT | NOLOAD | NOSAVE);
 static ConVar mouse_up_cmd("mouse_up", CLIENT | NOLOAD | NOSAVE);
@@ -153,6 +154,29 @@ void SDLMain::sendtext(std::string_view text) {
     stringsIndex = (stringsIndex + 1) % 16;
 
     ev.text.text = current.c_str();
+    handleEvent(&ev);
+}
+
+// for sending an IME composition from console: sendediting <cursor> <clause length> [text] (codepoints, as SDL gives
+// them; no text ends the composition)
+void SDLMain::sendediting(std::string_view args) {
+    const auto parts = SString::split(args, ' ');
+    if(parts.size() < 2) {
+        debugLog("usage: sendediting <cursor> <clause length> [text]");
+        return;
+    }
+
+    static std::string text;
+    const uSz textStart = (parts[1].data() - args.data()) + parts[1].size() + 1;
+    text = textStart < args.size() ? args.substr(textStart) : std::string_view{};
+
+    SDL_Event ev{};
+    ev.edit.type = SDL_EVENT_TEXT_EDITING;
+    ev.edit.timestamp = Timing::getTicksNS();
+    ev.edit.windowID = m_windowID;
+    ev.edit.text = text.c_str();
+    ev.edit.start = Parsing::strto<int>(parts[0]);
+    ev.edit.length = Parsing::strto<int>(parts[1]);
     handleEvent(&ev);
 }
 
@@ -263,6 +287,7 @@ SDLMain::SDLMain(const Mc::AppDescriptor &appDesc)
 
     cv::sendkey_cmd.setCallback(SA::MakeDelegate<&SDLMain::sendkey>(this));
     cv::sendtext_cmd.setCallback(SA::MakeDelegate<&SDLMain::sendtext>(this));
+    cv::sendediting_cmd.setCallback(SA::MakeDelegate<&SDLMain::sendediting>(this));
     cv::mouse_to_cmd.setCallback(SA::MakeDelegate<&SDLMain::mouse_to>(this));
     cv::mouse_down_cmd.setCallback(SA::MakeDelegate<&SDLMain::mouse_down>(this));
     cv::mouse_up_cmd.setCallback(SA::MakeDelegate<&SDLMain::mouse_up>(this));
@@ -277,6 +302,7 @@ SDLMain::~SDLMain() {
     cv::fps_max_background.removeAllCallbacks();
     cv::sendkey_cmd.removeAllCallbacks();
     cv::sendtext_cmd.removeAllCallbacks();
+    cv::sendediting_cmd.removeAllCallbacks();
     cv::mouse_to_cmd.removeAllCallbacks();
     cv::mouse_down_cmd.removeAllCallbacks();
     cv::mouse_up_cmd.removeAllCallbacks();
@@ -433,8 +459,6 @@ SDL_AppResult SDLMain::initialize() {
         mouse->onPosChange(realPos);
     }
 
-    // SDL3 stops listening to text input globally when window is created
-    listenToTextInput(cv::use_ime.getBool());
     SDL_SetWindowKeyboardGrab(m_window, false);  // this allows windows key and such to work
 
     // set up live-resize event callback
@@ -709,7 +733,12 @@ SDL_AppResult SDLMain::handleEvent(SDL_Event *event) {
             break;
 
         case SDL_EVENT_TEXT_INPUT:
-            keyboard->onCharEvent(event->text.timestamp, event->text.text);
+            keyboard->onTextEvent(event->text.timestamp, event->text.text);
+            break;
+
+        case SDL_EVENT_TEXT_EDITING:
+            keyboard->onTextEditingEvent(event->edit.timestamp, event->edit.text, event->edit.start,
+                                         event->edit.length);
             break;
 
         // mouse events
@@ -1180,12 +1209,8 @@ void SDLMain::configureEvents() {
     // touch
     SDL_SetEventEnabled(SDL_EVENT_FINGER_CANCELED, false);
 
-    // IME input
-    SDL_SetEventEnabled(SDL_EVENT_TEXT_EDITING_CANDIDATES, cv::use_ime.getBool());
-    SDL_SetEventEnabled(SDL_EVENT_TEXT_EDITING, cv::use_ime.getBool());
-
-    // allow callback to enable/disable too
-    cv::use_ime.setCallback(SA::MakeDelegate<&SDLMain::onUseIMEChange>(this));
+    // IME compositions are drawn by the text clients, the candidate list by the os
+    SDL_SetEventEnabled(SDL_EVENT_TEXT_EDITING_CANDIDATES, false);
 }
 
 static void sdl_log_callback(void * /*userdata*/, int category, SDL_LogPriority /*priority*/, const char *message) {

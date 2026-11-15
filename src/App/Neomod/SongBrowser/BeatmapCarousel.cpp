@@ -258,5 +258,3 @@ void BeatmapCarousel::onKeyDown(KeyboardEvent &key) {
     if((key == KEY_ENTER || key == KEY_NUMPAD_ENTER) && !keyboard->isShiftDown())
         g_songbrowser->playSelectedDifficulty();
 }
-
-void BeatmapCarousel::onChar(KeyboardEvent & /*e*/) { /*this->container.onChar(e);*/ ; }

@@ -28,6 +28,11 @@ class UIScreen : public CBaseUIContainer {
     [[nodiscard]] bool isModal() const { return this->bModal; }
     [[nodiscard]] bool closesOnScreenSwitch() const { return this->bCloseOnScreenSwitch; }
 
+    // the element typed text goes to when the walk down the layers gets here, or null to go on below. one that isn't
+    // a text field takes none: returning the layer itself keeps the text from the layers below. focus is the focused
+    // element if it's in this layer. by default the focus of a visible layer gets the text, and a modal one keeps it
+    [[nodiscard]] virtual CBaseUIElement *getTextTarget(CBaseUIElement *focus);
+
    protected:
     bool bModal{false};
     bool bCloseOnScreenSwitch{false};

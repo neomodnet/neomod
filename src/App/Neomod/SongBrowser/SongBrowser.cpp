@@ -77,7 +77,6 @@
 #include <cmath>
 #include <memory>
 #include <charconv>
-#include <cwctype>
 #include <unordered_set>
 #include <utility>
 
@@ -537,6 +536,8 @@ SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
     // search
     this->search = new UISearchOverlay(0, 0, 0, 0, "songbrowser_search");
     this->search->setOffsetRight(10);
+    this->search->setChangeCallback([this] { this->scheduleSearchUpdate(this->search->getSearchString().empty()); });
+    this->search->setTypingBlocked([this] { return this->bF2Pressed || this->bF3Pressed; });
     this->fSearchWaitTime = 0.0f;
     this->bInSearch = (!cv::songbrowser_search_hardcoded_filter.getString().empty());
     this->updateLayout();
@@ -721,7 +722,7 @@ void SongBrowser::draw() {
     if(cv::debug_osu.getBool()) this->topbarRight->draw_debug();
 
     // draw search
-    this->search->setSearchString(this->sSearchString, cv::songbrowser_search_hardcoded_filter.getString());
+    this->search->setHardcodedSearchString(cv::songbrowser_search_hardcoded_filter.getString());
     this->search->setDrawNumResults(this->bInSearch);
     this->search->setNumFoundResults(this->currentVisibleSearchMatches);
     this->search->setSearching(this->searchHandle.valid() && !this->searchHandle.is_ready());
@@ -985,62 +986,12 @@ void SongBrowser::onKeyDown(KeyboardEvent &key) {
     this->contextMenu->onKeyDown(key);
     if(key.isConsumed()) return;
 
-    // searching text delete & escape key handling
-    std::u32string uSearch{UniString::to_utf32(this->sSearchString)};
+    // the search's keys (deleting, Escape while searching, pasting)
+    this->search->onEditKey(key);
+    if(key.isConsumed()) return;
 
-    if(!uSearch.empty()) {
-        switch(key.getScanCode()) {
-            case KEY_DELETE:
-            case KEY_BACKSPACE:
-                key.consume();
-                if(!uSearch.empty()) {
-                    if(keyboard->isControlDown()) {
-                        // delete everything from the current caret position to the left, until after the first
-                        // non-space character (but including it)
-                        bool foundNonSpaceChar = false;
-                        while(!uSearch.empty()) {
-                            const auto curChar = uSearch.back();
-
-                            const bool whitespace = std::iswspace(static_cast<wint_t>(curChar)) != 0;
-                            if(foundNonSpaceChar && whitespace) break;
-
-                            if(!whitespace) foundNonSpaceChar = true;
-
-                            uSearch.pop_back();
-                        }
-                    } else {
-                        uSearch.pop_back();
-                    }
-
-                    this->sSearchString = UniString::to_utf8(uSearch);
-                    this->scheduleSearchUpdate(uSearch.length() == 0);
-                }
-                break;
-
-            case KEY_ESCAPE:
-                key.consume();
-                uSearch.clear();
-                this->sSearchString.clear();
-                this->scheduleSearchUpdate(true);
-                break;
-            default:
-                break;
-        }
-    } else if(!this->contextMenu->isVisible()) {
-        if(key == KEY_ESCAPE)  // can't support GAME_PAUSE hotkey here because of text searching
-            this->onBack();
-    }
-
-    // paste clipboard support
-    if(key == KEY_V) {
-        if(keyboard->isControlDown()) {
-            const auto clipstring = env->getClipBoardText();
-            if(!clipstring.empty()) {
-                this->sSearchString.append(clipstring);
-                this->scheduleSearchUpdate(false);
-            }
-        }
-    }
+    // can't support GAME_PAUSE hotkey here because of text searching
+    if(key == KEY_ESCAPE && !this->contextMenu->isVisible()) this->onBack();
 
     // function hotkeys
     // NOTE: no held-flag for F1: the modal modselector floors our key-ups while it is open,
@@ -1080,22 +1031,12 @@ void SongBrowser::onKeyUp(KeyboardEvent &key) {
     if(key == KEY_F3) this->bF3Pressed = false;
 }
 
-void SongBrowser::onChar(KeyboardEvent &e) {
-    // context menu
-    this->contextMenu->onChar(e);
-    if(e.isConsumed()) return;
-
-    if(e.getCharCode() < 32 || !this->bVisible ||
-       (keyboard->isSuperDown() || (keyboard->isControlDown() && !keyboard->isAltDown())))
-        return;
-    if(this->bF2Pressed || this->bF3Pressed) return;
-
-    // handle searching
-    char32_t ch = e.getCharCode();
-    std::u32string_view uChar{&ch, 1};
-    this->sSearchString.append(UniString::to_utf8(uChar));
-
-    this->scheduleSearchUpdate();
+CBaseUIElement *SongBrowser::getTextTarget(CBaseUIElement *focus) {
+    if(!this->isVisible()) return nullptr;
+    if(focus) return focus;
+    // an open searchable context menu has its own box
+    if(auto *menuSearch = this->contextMenu->getSearchTextbox()) return menuSearch;
+    return this->search;
 }
 
 void SongBrowser::onResolutionChange(vec2 newResolution) {
@@ -1541,7 +1482,7 @@ void SongBrowser::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
 
     // clear potentially active search
     this->bInSearch = false;
-    this->sSearchString.clear();
+    this->search->clear();
     this->sPrevSearchString.clear();
     this->fSearchWaitTime = 0.0f;
     this->searchPrevGroup = std::nullopt;
@@ -2770,10 +2711,11 @@ void SongBrowser::onDatabaseLoadingFinished(bool isNextScreenSongBrowser) {
 void SongBrowser::onSearchUpdate() {
     const std::string hardcodedFilterString{cv::songbrowser_search_hardcoded_filter.getString()};  // NOLINT
     const bool hasHardcodedSearchStringChanged = (this->sPrevHardcodedSearchString != hardcodedFilterString);
-    const bool hasSearchStringChanged = (this->sPrevSearchString != this->sSearchString);
+    const std::string &searchString = this->search->getSearchString();
+    const bool hasSearchStringChanged = (this->sPrevSearchString != searchString);
 
     const bool prevInSearch = this->bInSearch;
-    this->bInSearch = (!this->sSearchString.empty() || !hardcodedFilterString.empty());
+    this->bInSearch = (!searchString.empty() || !hardcodedFilterString.empty());
     const bool hasInSearchChanged = (prevInSearch != this->bInSearch);
 
     if(this->bInSearch) {
@@ -2811,9 +2753,9 @@ void SongBrowser::onSearchUpdate() {
                 }
             }
 
-            this->searchHandle = AsyncSongButtonMatcher::submitSearchMatch(
-                std::move(searchData), this->sSearchString, hardcodedFilterString,
-                osu->getMapInterface()->getSpeedMultiplier());
+            this->searchHandle =
+                AsyncSongButtonMatcher::submitSearchMatch(std::move(searchData), searchString, hardcodedFilterString,
+                                                          osu->getMapInterface()->getSpeedMultiplier());
         } else
             this->rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(true, true);
 
@@ -2845,7 +2787,7 @@ void SongBrowser::onSearchUpdate() {
         }
     }
 
-    this->sPrevSearchString = this->sSearchString;
+    this->sPrevSearchString = searchString;
     this->sPrevHardcodedSearchString = cv::songbrowser_search_hardcoded_filter.getString();
 }
 

@@ -108,7 +108,7 @@ class ModSelector final : public UIScreen {
     bool bExperimentalVisible{false};
     std::unique_ptr<CBaseUIContainer> overrideSliderContainer;
     std::unique_ptr<CBaseUIScrollView> experimentalContainer;
-    // vElements + the two manual containers above; rebuilt on each getAllChildren() call (debug-only path)
+    // vElements + the two manual containers above; rebuilt on each getAllChildren() call (not for per-frame use)
     mutable std::vector<CBaseUIElement *> allChildren;
 
     bool bWaitForCSChangeFinished{false};

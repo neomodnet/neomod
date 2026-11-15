@@ -26,7 +26,6 @@ class AppRunner final : public App, public MouseListener {
 
     void onKeyDown(KeyboardEvent &e) override;
     void onKeyUp(KeyboardEvent &e) override;
-    void onChar(KeyboardEvent &e) override;
 
     void onButtonChange(ButtonEvent &event) override;
     void onWheelVertical(WheelDelta wheel) override;

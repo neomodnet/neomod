@@ -51,7 +51,7 @@ class Chat final : public UIScreen {
     void updateInput(CBaseUIEventCtx &c) override;
     void onKeyDown(KeyboardEvent &e) override;
     void onKeyUp(KeyboardEvent &e) override;
-    void onChar(KeyboardEvent &e) override;
+    [[nodiscard]] CBaseUIElement *getTextTarget(CBaseUIElement *focus) override;
     void onResolutionChange(vec2 newResolution) override;
 
     bool isMouseInside() override;

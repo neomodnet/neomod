@@ -80,10 +80,11 @@ struct BoxItem {
 //     Do not bump the hit tier by hand.
 //   - Scrollable surface: derive from CBaseUIScrollView (sets bWheelSurface so it owns the wheel
 //     over its area); drag / kinetic / scrollbar come for free via mouse capture.
-//   - Keyboard: override onKeyDown/onKeyUp/onChar. To be THE keyboard target (textbox), call
+//   - Keyboard: override onKeyDown/onKeyUp. To be THE keyboard target (textbox), call
 //     requestFocus() on press and gate the handlers on isFocused() - the dispatcher keeps one
 //     focused element across both UI roots. A container offers a key to its focused child first,
-//     then to the others in order, until one consumes it.
+//     then to the others in order, until one consumes it. Typed text goes to the text target
+//     instead (TextInputClient, see CBaseUIDispatch::offerTextTarget).
 //
 //  Read but don't set: bMouseInside (hover), bActive (pressed/held while a button is down on us).
 //  Do set: bVisible, bEnabled, and bBusy for "mid-gesture" (queried via isBusy()). The keyboard
@@ -111,7 +112,6 @@ class CBaseUIElement : public KeyboardListener {
     // keyboard input (nothing by default)
     void onKeyUp(KeyboardEvent &e) override;
     void onKeyDown(KeyboardEvent &e) override;
-    void onChar(KeyboardEvent &e) override;
 
     // getters
     [[nodiscard]] std::string_view getName() const;

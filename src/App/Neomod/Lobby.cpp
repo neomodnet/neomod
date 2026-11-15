@@ -136,12 +136,6 @@ void Lobby::onKeyUp(KeyboardEvent& /*key*/) {
     // XXX: search bar
 }
 
-void Lobby::onChar(KeyboardEvent& /*key*/) {
-    if(!this->bVisible) return;
-
-    // XXX: search bar
-}
-
 void Lobby::onResolutionChange(vec2 newResolution) { this->updateLayout(newResolution); }
 
 CBaseUIContainer* Lobby::setVisible(bool visible) {

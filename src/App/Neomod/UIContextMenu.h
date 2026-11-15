@@ -32,7 +32,6 @@ class UIContextMenu final : public CBaseUIScrollView {
 
     void onKeyUp(KeyboardEvent &e) override;
     void onKeyDown(KeyboardEvent &e) override;
-    void onChar(KeyboardEvent &e) override;
 
     using ButtonClickCallback = SA::delegate<void(std::string_view, int)>;
     void setClickCallback(ButtonClickCallback clickCallback) { this->clickCallback = std::move(clickCallback); }
@@ -75,6 +74,11 @@ class UIContextMenu final : public CBaseUIScrollView {
     void setVisible2(bool visible2);
 
     bool isVisible() override { return this->bVisible2; }
+
+    // the search box of a searchable menu while it's open: what its screen types into
+    [[nodiscard]] UIContextMenuTextbox *getSearchTextbox() const {
+        return this->bVisible2 ? this->searchTextbox : nullptr;
+    }
 
     static constexpr const Color defaultBGColor{0xff222222};
     static constexpr const Color defaultFrameColor{0xffffffff};

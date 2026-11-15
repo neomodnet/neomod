@@ -85,12 +85,6 @@ void PromptOverlay::onKeyUp(KeyboardEvent &e) {
     e.consume();
 }
 
-void PromptOverlay::onChar(KeyboardEvent &e) {
-    if(!this->bVisible) return;
-    this->prompt_input->onChar(e);
-    e.consume();
-}
-
 Mc::Registration PromptOverlay::prompt(std::string msg, const PromptResponseCallback &callback) {
     this->prompt_label->setText(std::move(msg));
     this->prompt_input->setText("");

@@ -8,6 +8,12 @@ void UIScreen::tick() {
     CBaseUIContainer::tick();
 }
 
+CBaseUIElement* UIScreen::getTextTarget(CBaseUIElement* focus) {
+    if(!this->isVisible()) return nullptr;
+    if(focus) return focus;
+    return this->isModal() ? this : nullptr;
+}
+
 UIOverlay::UIOverlay(UIScreen* parent) : UIScreen(), parent(parent) {}
 
 UIScreen* UIOverlay::getParent() {

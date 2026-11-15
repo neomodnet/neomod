@@ -69,7 +69,6 @@ class RoomScreen final : public UIScreen {
     void updateInput(CBaseUIEventCtx& c) override;
     void onKeyDown(KeyboardEvent& e) override;
     void onKeyUp(KeyboardEvent& e) override;
-    void onChar(KeyboardEvent& e) override;
     void onResolutionChange(vec2 newResolution) override;
     CBaseUIContainer* setVisible(bool visible) override;  // does nothing
 

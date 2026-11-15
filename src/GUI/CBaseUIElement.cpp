@@ -46,7 +46,6 @@ CBaseUIElement::~CBaseUIElement() { CBaseUIDispatch::onElementDestroyed(this); }
 // keyboard input
 void CBaseUIElement::onKeyUp(KeyboardEvent &e) { (void)e; }
 void CBaseUIElement::onKeyDown(KeyboardEvent &e) { (void)e; }
-void CBaseUIElement::onChar(KeyboardEvent &e) { (void)e; }
 
 // getters
 std::string_view CBaseUIElement::getName() const { return this->sName; }

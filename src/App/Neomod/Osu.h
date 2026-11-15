@@ -94,7 +94,6 @@ class Osu final : public App, public MouseListener, public TouchListener {
 
     void onKeyDown(KeyboardEvent &e) override;
     void onKeyUp(KeyboardEvent &e) override;
-    void onChar(KeyboardEvent &e) override;
 
     void onButtonChange(ButtonEvent &ev) override;
 

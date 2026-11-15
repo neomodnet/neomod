@@ -23,6 +23,8 @@
 #include <string>
 
 typedef uint32_t SDL_WindowID;
+typedef uint32_t SDL_PropertiesID;
+
 typedef struct SDL_Window SDL_Window;
 typedef struct SDL_Cursor SDL_Cursor;
 typedef struct SDL_Environment SDL_Environment;
@@ -73,6 +75,7 @@ MAKE_FLAG_ENUM(WinFlags);
 // clang-format on
 
 enum class MouseButtonFlags : uint8_t;
+enum class TextInputType : uint8_t;
 
 class Environment {
     NOCOPY_NOMOVE(Environment)
@@ -307,7 +310,6 @@ class Environment {
     // keyboard
     [[nodiscard]] std::string scanCodeToString(SCANCODE scanCode) const;
     [[nodiscard]] std::string keyCodeToString(KEYCODE keyCode) const;
-    void listenToTextInput(bool listen);
     bool setWindowsKeyDisabled(bool disable);
     void setRawKeyboardInput(bool raw);  // enable/disable OS-level rawinput
 
@@ -315,6 +317,13 @@ class Environment {
     [[nodiscard]] constexpr bool isKeyboardInputGrabbed() const {
         return flags::has<WinFlags::F_KEYBOARD_GRABBED>(m_winflags);
     }
+
+    // os text input (typed text, IME, on-screen keyboard), on between start and stop; Keyboard drives it from the text
+    // target. screenKeyboard: an on-screen keyboard may come up
+    void startTextInput(TextInputType type, bool screenKeyboard);
+    void stopTextInput();
+    // where the text being edited is and its caret, in window pixels, for placing the IME candidate window
+    void setTextInputArea(const McRect &rect, float caretX);
 
     // debug
     [[nodiscard]] inline bool envDebug() const { return m_bEnvDebug; }
@@ -470,13 +479,14 @@ class Environment {
             this->setRawKeyboardInput(newValue > 0);
         }
     }
-    void onUseIMEChange(float newValue);
     void onPenInputChange(float newValue);
     void onDebugDrawHardwareCursorChange(float newValue);
 
-    bool m_bShouldListenToTextInput;
     bool m_bRawKB;
     bool m_bWinKeyDisabled;
+
+    // cached SDL properties for text input
+    std::array<SDL_PropertiesID, 3> m_textInputProps{};
 
     // clipboard
     std::string m_sCurrClipboardText;

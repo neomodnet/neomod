@@ -1,0 +1,71 @@
+# an IME composition shows at the caret and has the keys until it ends: Enter and Escape go to the IME, not to the
+# prompt. a cancelled composition leaves the text as it was, a committed one is typed, and one still going when the
+# field loses the focus stays in it (as in native fields). the songbrowser search shows a composition after its text
+# but searches only what's committed, and its Escape waits for the composition too
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+ui_prompt words
+@wait 3
+ui_assert text_target prompt_input
+sendtext ab
+@wait 2
+sendediting 1 0 か
+@wait 2
+sendkey Return
+sendkey Escape
+@wait 3
+ui_assert visible promptoverlay 1
+ui_assert text prompt_input ab
+sendediting 0 0
+@wait 2
+ui_assert text prompt_input ab
+sendediting 2 0 かな
+@wait 2
+sendediting 0 0
+sendtext かな
+@wait 2
+ui_assert text prompt_input abかな
+sendediting 1 0 き
+@wait 2
+# a press off the input (440,360,400,40) takes the focus from it
+mouse_to 640 200
+@wait 2
+mouse_down
+@wait 2
+mouse_up
+@wait 3
+ui_assert focused prompt_input 0
+ui_assert text prompt_input abかなき
+sendkey Escape
+@wait 3
+ui_assert visible promptoverlay 0
+osu_folder uitest_osu_folder
+set_active_ui_screen songbrowser
+@wait 300
+ui_assert text_target songbrowser_search
+sendtext ab
+@wait 3
+sendediting 1 0 か
+@wait 3
+ui_assert text songbrowser_search ab
+sendkey Escape
+@wait 3
+ui_assert screen_active songbrowser 1
+ui_assert text songbrowser_search ab
+sendediting 0 0
+sendtext か
+@wait 3
+ui_assert text songbrowser_search abか
+sendkey Escape
+@wait 3
+ui_assert screen_active songbrowser 1
+sendkey Escape
+@wait 5
+ui_assert screen_active mainmenu 1
+exit

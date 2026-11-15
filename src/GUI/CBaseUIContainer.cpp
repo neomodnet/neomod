@@ -283,11 +283,6 @@ void CBaseUIContainer::onKeyDown(KeyboardEvent &e) {
     forward_key(this->vElements, e, &CBaseUIElement::onKeyDown);
 }
 
-void CBaseUIContainer::onChar(KeyboardEvent &e) {
-    if(!this->isVisible()) return;
-    forward_key(this->vElements, e, &CBaseUIElement::onChar);
-}
-
 void CBaseUIContainer::onFocusStolen() {
     for(auto *elem : this->vElements) {
         elem->stealFocus();

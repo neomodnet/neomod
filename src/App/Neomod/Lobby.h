@@ -37,7 +37,6 @@ class Lobby final : public UIScreen {
 
     void onKeyDown(KeyboardEvent& e) override;
     void onKeyUp(KeyboardEvent& e) override;
-    void onChar(KeyboardEvent& e) override;
     void onResolutionChange(vec2 newResolution) override;
 
     // /!\ Side-effect: sends bancho packets when changing state
