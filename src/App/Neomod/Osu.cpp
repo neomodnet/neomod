@@ -65,6 +65,7 @@
 #include "MapExporter.h"
 #include "AsyncPPCalculator.h"
 #include "AsyncPool.h"
+#include "AsyncIOHandler.h"
 #include "SongBrowser/VolNormalization.h"
 #include "DiffCalc/BatchDiffCalc.h"
 #include "SongBrowser/SongBrowser.h"
@@ -348,6 +349,7 @@ Osu::Osu()
     cv::mod_halftime_dummy.setCallback(
         [] { cv::speed_override.setValue(cv::mod_halftime_dummy.getBool() ? "0.75" : "-1.0"); });
     cv::draw_songbrowser_thumbnails.setCallback(SA::MakeDelegate<&Osu::onThumbnailsToggle>(this));
+    cv::prefer_cjk.setCallback(SA::MakeDelegate<&Osu::loadCJKFont>(this));
     cv::bleedingedge.setCallback(SA::MakeDelegate<&UpdateHandler::onBleedingEdgeChanged>(this->updateHandler.get()));
 
     // These mods conflict with each other, prevent them from being enabled at the same time
@@ -433,6 +435,8 @@ void Osu::doDeferredInitTasks() {
     // update mod settings
     this->updateMods();
 
+    this->loadCJKFont();
+
     // Init online functionality (multiplayer/leaderboards/etc)
     if(cv::mp_autologin.getBool() || Osu::isDiscordActivity()) {
         BanchoState::reconnect();
@@ -494,6 +498,9 @@ Osu::~Osu() {
     AsyncPPC::set_map(nullptr);
     VolNormalization::shutdown();
     BANCHO::Net::cleanup_networking();
+
+    cv::prefer_cjk.removeCallback();
+    this->cjkFontCancel.request_stop();
 
     // destroy playing music
     this->map_iface.reset();
@@ -1786,6 +1793,65 @@ void Osu::reloadFonts() {
             }
         }
     }
+}
+
+void Osu::loadCJKFont() {
+    if(!this->UIReady() || this->cjkFontTransfer != 0) return;
+
+    const std::string_view lang = i18n::get_current_language().code;
+    if(!cv::prefer_cjk.getBool() && !lang.starts_with("ja") && !lang.starts_with("ko") && !lang.starts_with("zh")) {
+        return;
+    }
+
+    // the bundled fonts only cover the language names, so these probe for a font with the rest of CJK
+    if(std::ranges::all_of(std::array{U'あ', U'가', U'们'}, McFont::fallbacksHaveGlyph)) return;
+
+    static constexpr std::string_view FONT_NAME = "NotoSansCJKjp-Regular.woff2";
+    const std::string path = fmt::format("{}/{}", Mc::Paths::cache(), FONT_NAME);
+    if(Environment::fileExists(path)) {
+        if(McFont::addFallbackFont(path)) {
+            // re-measure the text that was laid out without it
+            this->last_res_change_req_src |= R_MISC_MANUAL;
+            return;
+        }
+        Environment::deleteFile(path);
+    }
+
+    // not translated: the language they would be translated to may be the one that needs this font
+    auto progress = std::make_shared<std::atomic<f32>>(0.f);
+    this->cjkFontCancel = {};
+    this->cjkFontTransfer = ui->getTransferOverlay()->addTransfer("Downloading CJK font", progress,
+                                                                  [cancel = this->cjkFontCancel]() mutable {
+                                                                      cancel.request_stop();
+                                                                      if(osu) osu->cjkFontTransfer = 0;
+                                                                  });
+    Mc::Net::RequestOptions options{
+        .progress_callback = [progress](float p) { progress->store(p, std::memory_order_relaxed); },
+        .timeout = cv::net_transfer_timeout.getVal<long>(),
+        .connect_timeout = 5,
+        .flags = Mc::Net::RequestOptions::FOLLOW_REDIRECTS,
+        .cancel_token = this->cjkFontCancel.get_token(),
+    };
+    networkHandler->httpRequestAsync(
+        fmt::format(NEOMOD_DOMAIN "/fonts/{}", FONT_NAME), std::move(options), [path](Mc::Net::Response response) {
+            if(!osu || !osu->UIReady()) return;
+            ui->getTransferOverlay()->removeTransfer(osu->cjkFontTransfer);
+            if(!response.success || response.response_code != 200 || response.body.empty()) {
+                osu->cjkFontTransfer = 0;
+                ui->getNotificationOverlay()->addNotification("Failed to download CJK font", 0xffff0000);
+                return;
+            }
+            io->write(path, std::move(response.body), [path](bool success) {
+                  if(!osu || !osu->UIReady()) return;
+                  osu->cjkFontTransfer = 0;
+                  if(success && McFont::addFallbackFont(path)) {
+                      osu->last_res_change_req_src |= R_MISC_MANUAL;
+                      return;
+                  }
+                  Environment::deleteFile(path);
+                  ui->getNotificationOverlay()->addNotification("Failed to download CJK font", 0xffff0000);
+              }).detach();
+        });
 }
 
 McRect Osu::getVirtScreenViewport() const {

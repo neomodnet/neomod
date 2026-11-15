@@ -16,6 +16,7 @@
 #include <vector>
 #include <optional>
 #include <span>
+#include <string>
 
 class Graphics;
 class OpenGLInterface;
@@ -45,6 +46,13 @@ class McFont final : public Resource {
 
     // called once on engine startup
     static bool initSharedResources();
+
+    // adds a font file as a fallback for every font, also for glyphs that were missing until now.
+    // false if it can't be loaded
+    static bool addFallbackFont(const std::string &fontPath);
+
+    // whether any fallback font (bundled, system or added) has the glyph
+    [[nodiscard]] static bool fallbacksHaveGlyph(char32_t ch);
 
     // called on engine shutdown to clean up freetype/shared fallback fonts
     static void cleanupSharedResources();

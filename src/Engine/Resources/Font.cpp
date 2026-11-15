@@ -195,6 +195,7 @@ struct McFontImpl final {
         float advance_x{0.f};
         bool inAtlas{false};  // whether UV coordinates are valid (glyph is rendered in atlas)
         bool isColor{false};  // color bitmap glyph (e.g. emoji from CBDT font)
+        bool missing{false};  // UNKNOWN_CHAR glyph copy, since no font had it
         int dynamicSlot{-1};  // index into m_dynamicSlots while the glyph is in one
     };
 
@@ -802,7 +803,9 @@ const McFontImpl::GLYPH_METRICS &McFontImpl::getGlyphMetrics(char32_t ch) const 
             // fallback to unknown character glyph
             if(const auto &it = m_mGlyphMetrics.find(UNKNOWN_CHAR); it != m_mGlyphMetrics.end()) {
                 // update metrics to just always point to UNKNOWN_CHAR
-                return *(metrics[ch] = std::make_unique<GLYPH_METRICS>(*it->second));
+                auto &missing = metrics[ch] = std::make_unique<GLYPH_METRICS>(*it->second);
+                missing->missing = true;
+                return *missing;
             }
         }
     } else {
@@ -1777,6 +1780,22 @@ bool McFont::initSharedResources() {
     s_sharedFallbacksInitialized = true;
 
     return s_sharedFtLibraryInitialized && s_sharedFallbacksInitialized;
+}
+
+bool McFont::addFallbackFont(const std::string &fontPath) {
+    if(!loadFallbackFont(fontPath, false)) return false;
+
+    // characters no font had before may be in this one
+    s_sharedFallbackFaceBlacklist.clear();
+    for(McFont *font : resourceManager->getFonts()) {
+        erase_if(font->pImpl->m_mGlyphMetrics, [](const auto &entry) { return entry.second->missing; });
+    }
+    return true;
+}
+
+bool McFont::fallbacksHaveGlyph(char32_t ch) {
+    return Mc::ranges::any_of(s_sharedFallbackFonts,
+                              [ch](const FallbackFont &font) { return FT_Get_Char_Index(font.face, ch) != 0; });
 }
 
 void McFont::cleanupSharedResources() {

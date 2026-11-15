@@ -7,6 +7,7 @@
 #include "MouseListener.h"
 #include "Touch.h"
 #include "Rect.h"
+#include "SyncStoptoken.h"
 
 #include <atomic>
 #include <vector>
@@ -257,6 +258,8 @@ class Osu final : public App, public MouseListener, public TouchListener {
 
     void rebuildRenderTargets();
     void reloadFonts();
+    // loads the CJK fallback font (downloading it first) when the language or cv::prefer_cjk needs one
+    void loadCJKFont();
 
     void openURLWithNotification(std::string_view url) const;
 
@@ -397,6 +400,8 @@ class Osu final : public App, public MouseListener, public TouchListener {
     bool bWasBossKeyPaused{false};
     bool bSkinLoadWasReload{false};
     bool bFontReloadScheduled{false};
+    u32 cjkFontTransfer{0};  // TransferOverlay row while the CJK font downloads, 0 otherwise
+    Sync::stop_source cjkFontCancel;
 
     friend class BeatmapInterface;
     bool bIsPlayingASelectedBeatmap{false};

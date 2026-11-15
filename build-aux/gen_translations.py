@@ -10,6 +10,13 @@ keywords = ["_", "tformat"]
 # Add a new language here to automatically generate a new .po file!
 # Codes are gettext locales (pt_BR, not pt-BR) since they also become embedded symbol names.
 # Names are endonyms; the language list is sorted by name, after English.
+# CJK characters in the names are drawn from assets/fonts/NotoSansCJK-LanguageNames.woff2, a subset of
+# NotoSansCJKjp-Regular.otf that has to be rebuilt when a name adds new ones:
+#   pyftsubset NotoSansCJKjp-Regular.otf --text="<all CJK characters in the names>" --layout-features='' \
+#     --drop-tables+=GSUB,GPOS,GDEF,BASE,VORG,vhea,vmtx,DSIG,meta --no-hinting --desubroutinize --name-IDs='*' \
+#     --flavor=woff2 --output-file=NotoSansCJK-LanguageNames.woff2
+# The full font downloaded at runtime (NEOMOD_DOMAIN/fonts/NotoSansCJKjp-Regular.woff2) is made the same way with
+# --unicodes='*' instead of --text.
 languages = {
     "de": "Deutsch",
     "es": "Español",

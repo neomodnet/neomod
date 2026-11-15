@@ -905,12 +905,8 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
         this->languageSelectButton = (CBaseUIButton *)languageElement->baseElems[0].get();
         this->languageSelectButton->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onLanguageSelect>(this));
 
-        // Fallback font support is currently implemented for these platforms
-        // Remember to update this if adding support for another platform
-        if constexpr(Env::cfg(OS::LINUX | OS::WINDOWS | OS::MAC)) {
-            this->addCheckbox(_("Prefer metadata in original language"), &cv::prefer_cjk);
-            this->elemContainers.back()->searchTags = "native character cjk";
-        }
+        this->addCheckbox(_("Prefer metadata in original language"), &cv::prefer_cjk);
+        this->elemContainers.back()->searchTags = "native character cjk";
     }
 
 #ifndef MCENGINE_PLATFORM_WASM

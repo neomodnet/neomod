@@ -400,6 +400,7 @@ void AboutScreen::buildChangelog() {
     v45_01.title = "45.01 (" CHANGELOG_TIMESTAMP ")";
     v45_01.changes = {
         R"(- Reworked IME (OS language input method) support)",
+        R"(- Web: Added CJK text support (the font is downloaded when needed))",
     };
     changelogs.push_back(std::move(v45_01));
 
