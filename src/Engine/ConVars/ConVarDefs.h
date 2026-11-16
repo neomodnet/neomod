@@ -110,7 +110,7 @@ CONVAR(clear, CLIENT | NOLOAD, CFUNC(Console::clearLog));
 CONVAR(dpiinfo, CLIENT, CFUNC(_dpiinfo));
 CONVAR(dumpcommands, CLIENT, CFUNC(ConVarHandler::ConVarBuiltins::dumpcommands));
 CONVAR(errortest, CLIENT, CFUNC(_errortest));
-CONVAR(exec, CLIENT | NOLOAD, CFUNC(Console::execConfigFile));
+CONVAR(exec, CLIENT | NOLOAD, [](std::string_view file) -> void { Console::execConfigFile(file); });
 CONVAR(find, CLIENT, CFUNC(ConVarHandler::ConVarBuiltins::find));
 CONVAR(focus, CLIENT, CFUNC(_focus));
 CONVAR(help, CLIENT, CFUNC(ConVarHandler::ConVarBuiltins::help));
@@ -152,6 +152,8 @@ CONVAR(snd_file_min_size, 51, CLIENT,
 CONVAR(snd_force_load_unknown, false, CLIENT, "force loading of assumed invalid audio files");
 CONVAR(snd_freq, 44100, CLIENT | NOSAVE, "output sampling rate in Hz");
 CONVAR(snd_soloud_buffer, 0, CLIENT | NOSAVE, "SoLoud audio device buffer size (recommended to leave this on 0/auto)");
+CONVAR(snd_engine, "auto"sv, CLIENT | STARTUP,
+       R"(audio engine to start with: "auto", "soloud" or "bass" (the other one is tried if it can't start))");
 CONVAR(snd_soloud_backend, "MiniAudio"sv, CLIENT, R"(SoLoud backend, "MiniAudio" or "SDL3" (MiniAudio is default))");
 CONVAR(snd_sanity_simultaneous_limit, 128, CLIENT | NOSAVE,
        "The maximum number of overlayable sounds that are allowed to be active at once");
@@ -224,8 +226,12 @@ CONVAR(r_debug_drawstring_unbind, false, CLIENT);
 CONVAR(r_debug_font_unicode, false, CLIENT, "debug messages for unicode/fallback font related stuff");
 CONVAR(r_sync_timeout, 5000000, CLIENT, "timeout in microseconds for GPU synchronization operations");
 CONVAR(r_sync_enabled, true, CLIENT, "enable explicit GPU synchronization for OpenGL");
-CONVAR(r_disable_driver_threaded_opts, true, CLIENT,
+CONVAR(r_disable_driver_threaded_opts, true, CLIENT | STARTUP,
        "force disable driver-enforced threaded optimizations (they increase framerate, but also increase latency)");
+CONVAR(
+    r_renderer, "auto"sv, CLIENT | STARTUP,
+    R"(renderer to start with: "auto", "direct3d12", "vulkan", "metal", "dx11" or "opengl" (the others are tried if it can't start))");
+CONVAR(r_dx11_exclusive, false, CLIENT | STARTUP, "exclusive fullscreen instead of flip presentation (DX11)");
 CONVAR(r_opengl_legacy_vao_use_vertex_array, Env::cfg(REND::GLES32) ? true : false, CLIENT,
        "dramatically reduces per-vao draw calls, but completely breaks legacy ffp draw calls (vertices work, but "
        "texcoords/normals/etc. are NOT in gl_MultiTexCoord0 -> requiring a shader with attributes)");
@@ -265,6 +271,8 @@ CONVAR(
 CONVAR(fullscreen_windowed_borderless, false, CLIENT);
 CONVAR(fullscreen, false, CLIENT, [](float /*newValue*/) -> void { engine ? engine->toggleFullscreen() : (void)0; });
 CONVAR(monitor, 0, CLIENT, "monitor/display device to switch to, 0 = primary monitor");
+CONVAR(win_highdpi, true, CLIENT | STARTUP,
+       "use the full resolution of high DPI displays, and DPI awareness on Windows (off is like -nodpi)");
 CONVAR(r_sync_max_frames, 1, CLIENT,
        "maximum pre-rendered frames allowed in rendering pipeline");  // (a la "Max Prerendered Frames")
 CONVAR(alt_sleep, 0, CLIENT,
@@ -297,7 +305,7 @@ CONVAR(file_size_max, 1024, CLIENT | SKINS | SERVER,
        "maximum filesize sanity limit in MB, all files bigger than this are not allowed to load");
 CONVAR(interpolate_music_pos, 3L, CLIENT | SKINS | SERVER,
        "interpolate song position with engine time (0 = none, 2 = McOsu, 3 = \"lazer\")");
-CONVAR(language, "en"sv, CLIENT | SKINS | SERVER, "display language used by the game" I18N_LOAD_CB);
+CONVAR(language, "en"sv, CLIENT | STARTUP, "display language used by the game" I18N_LOAD_CB);
 CONVAR(minimize_on_focus_lost_if_fullscreen, Env::cfg(OS::WINDOWS) ? true : false,
        CLIENT | SKINS | SERVER);  // buggy/unpredictable on other platforms
 CONVAR(mouse_raw_input, Env::cfg(OS::MAC) ? true : false,
@@ -326,7 +334,7 @@ CONVAR(ui_textbox_text_offset_x, 3, CLIENT | SKINS | SERVER);
 CONVAR(vsync, false, CLIENT);  // callback set in Graphics.cpp
 CONVAR(archive_threads, 1, CLIENT, "default number of threads to use for compressing archives");
 // this is not windows-only anymore, just keeping it with the "win_" prefix to not break old configs
-CONVAR(win_processpriority, (uint8_t)1, CLIENT, "sets the main process priority (0 = normal, 1 = high)",
+CONVAR(win_processpriority, (uint8_t)1, CLIENT | STARTUP, "sets the main process priority (0 = normal, 1 = high)",
        [](float newFloat) -> void { McThread::set_current_thread_prio((McThread::Priority)(int)newFloat); });
 
 // NOLINTEND(misc-definitions-in-headers)

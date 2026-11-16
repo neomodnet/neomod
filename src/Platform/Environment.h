@@ -10,6 +10,7 @@
 #include "KeyboardEvent.h"
 #include "Rect.h"
 #include "Registration.h"
+#include "Startup.h"
 #include "StaticPImpl.h"
 #include "Vectors.h"
 
@@ -99,34 +100,36 @@ class Environment {
 
     void update();
 
-    // engine/factory
-    Graphics *createRenderer();
+    // creates the renderer for m_renderer on the current window and starts it, as `g` (false and none if it couldn't)
+    bool startRenderer();
 
     [[nodiscard]] constexpr forceinline bool usingNullGraphics() const {
-        return m_renderer == RuntimeRenderer::NULLGRAPHICS;
+        return m_renderer == Mc::Startup::Renderer::NULLGRAPHICS;
     }
 #ifdef MCENGINE_FEATURE_DIRECTX11
-    [[nodiscard]] inline bool usingDX11() const { return m_renderer == RuntimeRenderer::DX11; }
+    [[nodiscard]] inline bool usingDX11() const { return m_renderer == Mc::Startup::Renderer::DX11; }
 #else
     [[nodiscard]] constexpr forceinline bool usingDX11() const { return false; }
 #endif
 #if defined(MCENGINE_FEATURE_OPENGL) || defined(MCENGINE_FEATURE_GLES32)
     [[nodiscard]] inline bool usingGL() const {
-        return m_renderer == RuntimeRenderer::GL || m_renderer == RuntimeRenderer::GLES;
+        return m_renderer == Mc::Startup::Renderer::GL || m_renderer == Mc::Startup::Renderer::GLES;
     }
 #else
     [[nodiscard]] constexpr forceinline bool usingGL() const { return false; }
 #endif
 #ifdef MCENGINE_FEATURE_GLES32
-    [[nodiscard]] inline bool usingGLES() const { return m_renderer == RuntimeRenderer::GLES; }
+    [[nodiscard]] inline bool usingGLES() const { return m_renderer == Mc::Startup::Renderer::GLES; }
 #else
     [[nodiscard]] constexpr forceinline bool usingGLES() const { return false; }
 #endif
 #ifdef MCENGINE_FEATURE_SDLGPU
-    [[nodiscard]] inline bool usingSDLGPU() const { return m_renderer == RuntimeRenderer::SDLGPU; }
+    [[nodiscard]] inline bool usingSDLGPU() const { return m_renderer == Mc::Startup::Renderer::SDLGPU; }
 #else
     [[nodiscard]] constexpr forceinline bool usingSDLGPU() const { return false; }
 #endif
+    // what r_renderer calls the renderer that is running, e.g. "opengl" or "vulkan"
+    [[nodiscard]] std::string_view getGraphicsAPI() const;
 
     // system
     void shutdown();
@@ -160,7 +163,7 @@ class Environment {
 
     // user
     [[nodiscard]] std::string_view getUsername() const noexcept;
-    [[nodiscard]] const std::string &getDefaultLocale() const noexcept;
+    [[nodiscard]] static std::string getDefaultLocale() noexcept;  // of the system, e.g. "ja_JP"
     [[nodiscard]] const std::string &getUserDataPath() const noexcept;
 
     // file IO
@@ -342,8 +345,7 @@ class Environment {
     SDL_Window *m_window;
     SDL_WindowID m_windowID;
     std::string m_sdldriver;
-    enum class RuntimeRenderer : uint8_t { GL, GLES, DX11, SDLGPU, NULLGRAPHICS };
-    RuntimeRenderer m_renderer;
+    Mc::Startup::Renderer m_renderer;
 
     bool m_bRunning;
     bool m_bIsRestartScheduled;
@@ -496,14 +498,13 @@ class Environment {
     bool m_bIsKMSDRM;
     bool m_bIsWayland;
 
-    // locale (cached)
-    mutable std::string m_sLocaleString;
-
     // process environment (declared here for restart access)
     friend void Mc::initEnvBlock();
     static SDL_Environment *s_sdlenv;
 
    private:
+    Graphics *createRenderer();  // for m_renderer
+
     // lazy inits
     void initCursors();
 

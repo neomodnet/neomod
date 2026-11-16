@@ -1,0 +1,85 @@
+# picking a renderer in the options saves it in engine.cfg, not osu.cfg. it takes effect at the next start, which a
+# toast offers right away, but not when the pick is what the game started with (going back to it) or what is running.
+# the automatic choice says what it came to.
+# the save is async (read old cfg -> write), hence the @sleep/@wait pairs around it; the final
+# options_save_on_back 0 keeps the exit path from saving again.
+# uitest-datadir: fresh
+# uitest-file: cfg/engine.cfg|language en
+# uitest-log: 2 This takes effect after a restart
+# uitest-cfg: engine.cfg|r_renderer opengl
+# uitest-cfg: engine.cfg|language en
+# uitest-cfg: r_renderer -
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+set_active_ui_screen optionsoverlay
+@wait 20
+sendtext renderer
+@wait 20
+ui_assert text r_renderer Automatic (Metal)
+# "Select Renderer", then its list (Automatic, Metal, OpenGL): OpenGL (the first toast)
+mouse_to 256 378
+@wait 2
+mouse_down
+mouse_up
+@wait 10
+ui_assert visible options_contextmenu 1
+mouse_to 256 437
+@wait 2
+mouse_down
+mouse_up
+@wait 10
+ui_assert convar r_renderer opengl
+ui_assert text r_renderer OpenGL
+# back to Automatic, which the game started with: no toast
+mouse_to 256 378
+@wait 2
+mouse_down
+mouse_up
+@wait 10
+mouse_to 256 377
+@wait 2
+mouse_down
+mouse_up
+@wait 10
+ui_assert convar r_renderer auto
+# Metal is what runs: no toast either
+mouse_to 256 378
+@wait 2
+mouse_down
+mouse_up
+@wait 10
+mouse_to 256 407
+@wait 2
+mouse_down
+mouse_up
+@wait 10
+ui_assert convar r_renderer metal
+ui_assert text r_renderer Metal
+# OpenGL again (the second toast)
+mouse_to 256 378
+@wait 2
+mouse_down
+mouse_up
+@wait 10
+mouse_to 256 437
+@wait 2
+mouse_down
+mouse_up
+@wait 10
+ui_assert convar r_renderer opengl
+sendkey Escape
+@wait 5
+sendkey Escape
+@wait 5
+ui_assert visible optionsoverlay 0
+@sleep 200
+@wait 5
+@sleep 200
+@wait 5
+options_save_on_back 0
+exit

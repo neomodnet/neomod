@@ -401,6 +401,8 @@ void AboutScreen::buildChangelog() {
     v45_01.changes = {
         R"(- Reworked IME (OS language input method) support)",
         R"(- Web: Added CJK text support (the font is downloaded when needed))",
+        R"(- The renderer and the audio engine can now be picked in the options)",
+        R"(  - Hold Shift while starting the game (or start it with -setup) to change these settings before it starts)",
     };
     changelogs.push_back(std::move(v45_01));
 

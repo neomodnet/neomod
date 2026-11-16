@@ -763,7 +763,7 @@ msgstr "Arka Plan"
 msgid "Help"
 msgstr "Yardım"
 
-#: src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Editor.cpp src/Platform/Startup.cpp
 msgid "Back"
 msgstr "Geri"
 
@@ -1890,24 +1890,16 @@ msgid "Press {:s} or {:s} anywhere to open chat."
 msgstr "Sohbeti açmak için her yerde {:s} veya {:s} tuşuna bas."
 
 #: src/App/Neomod/MainMenuTips.cpp
-msgid "Launch with the neomod-BASS shortcut to use BASS (ASIO/Exclusive mode) for audio."
-msgstr "Ses için BASS (ASIO/Özel mod) kullanmak üzere neomod-BASS kısayoluyla başlat."
+msgid "BASS (ASIO/Exclusive mode) can be picked as the audio engine in the options."
+msgstr "BASS (ASIO/Özel mod), seçeneklerden ses motoru olarak seçilebilir."
 
 #: src/App/Neomod/MainMenuTips.cpp
-msgid "Launch with \"-sound bass\" as a commandline argument to use BASS for audio."
-msgstr "Ses için BASS kullanmak üzere komut satırı argümanı olarak \"-sound bass\" ile başlat."
+msgid "BASS can be picked as the audio engine in the options."
+msgstr "BASS, seçeneklerden ses motoru olarak seçilebilir."
 
 #: src/App/Neomod/MainMenuTips.cpp
-msgid "Put \"-gpu vk\" after the \"Target:\" field in a shortcut to neomod to use the Vulkan renderer."
-msgstr "Vulkan oluşturucuyu kullanmak için neomod kısayolunda \"Hedef:\" alanından sonra \"-gpu vk\" ekle."
-
-#: src/App/Neomod/MainMenuTips.cpp
-msgid "Put \"-dx11\" after the \"Target:\" field in a shortcut to neomod to use the D3D11 renderer."
-msgstr "D3D11 oluşturucuyu kullanmak için neomod kısayolunda \"Hedef:\" alanından sonra \"-dx11\" ekle."
-
-#: src/App/Neomod/MainMenuTips.cpp
-msgid "Launch with \"-dx11\" as a commandline argument to use the D3D11 renderer."
-msgstr "D3D11 oluşturucuyu kullanmak için komut satırı argümanı olarak \"-dx11\" ile başlat."
+msgid "The renderer can be changed in the options, under Graphics."
+msgstr "Oluşturucu, seçeneklerde Grafik bölümünden değiştirilebilir."
 
 #: src/App/Neomod/MainMenuTips.cpp
 msgid "Press Ctrl + O to open the options menu from anywhere."
@@ -2710,9 +2702,13 @@ msgstr "Discord Rich Presence'ta harita arka planlarını göster"
 msgid "Graphics"
 msgstr "Grafik"
 
-#: src/App/Neomod/OptionsOverlay.cpp
+#: src/App/Neomod/OptionsOverlay.cpp src/Platform/Startup.cpp
 msgid "Renderer"
 msgstr "Oluşturucu"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Select Renderer"
+msgstr "Oluşturucu Seç"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "If enabled: plz enjoy input lag."
@@ -2907,6 +2903,10 @@ msgstr "Ses"
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Devices"
 msgstr "Cihazlar"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Select Audio Engine"
+msgstr "Ses Motoru Seç"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Select Output Device"
@@ -4327,6 +4327,14 @@ msgid "Tried to enable exclusive mode, but couldn't :("
 msgstr "Özel mod açılmaya çalışıldı ama açılamadı :("
 
 #: src/App/Neomod/OptionsOverlay.cpp
+msgid "A launch option overrides this setting, it takes effect once the game is started without it."
+msgstr "Bir başlatma seçeneği bu ayarı geçersiz kılıyor, oyun o seçenek olmadan başlatıldığında geçerli olur."
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "This takes effect after a restart, click here to restart now."
+msgstr "Bu, yeniden başlatmadan sonra geçerli olur, şimdi yeniden başlatmak için buraya tıklayın."
+
+#: src/App/Neomod/OptionsOverlay.cpp
 #, c++-format
 msgid "Press new key for {}:"
 msgstr "{} için yeni tuşa bas:"
@@ -4572,7 +4580,7 @@ msgstr "Devam et"
 msgid "Retry"
 msgstr "Tekrar dene"
 
-#: src/App/Neomod/PauseOverlay.cpp
+#: src/App/Neomod/PauseOverlay.cpp src/Platform/Startup.cpp
 msgid "Quit"
 msgstr "Çık"
 
@@ -5278,3 +5286,70 @@ msgstr "Deneysel sürüm güncellemeleri supporter'lara özeldir."
 #: src/Engine/Sound/SoundEngine.cpp
 msgid "No sound"
 msgstr "Ses yok"
+
+#: src/Platform/Startup.cpp
+msgid "Startup settings"
+msgstr "Başlangıç ayarları"
+
+#: src/Platform/Startup.cpp
+msgid "Audio Engine"
+msgstr "Ses motoru"
+
+#: src/Platform/Startup.cpp
+msgid "(overridden by a launch option)"
+msgstr "(bir başlatma seçeneği tarafından geçersiz kılındı)"
+
+#: src/Platform/Startup.cpp
+msgid "The game starts with these settings:"
+msgstr "Oyun şu ayarlarla başlar:"
+
+#: src/Platform/Startup.cpp
+msgid "High DPI"
+msgstr "Yüksek DPI"
+
+#: src/Platform/Startup.cpp
+msgid "Off"
+msgstr "Kapalı"
+
+#: src/Platform/Startup.cpp
+msgid "On"
+msgstr "Açık"
+
+#: src/Platform/Startup.cpp
+msgid "Language"
+msgstr "Dil"
+
+#: src/Platform/Startup.cpp
+msgid "Launch"
+msgstr "Başlat"
+
+#: src/Platform/Startup.cpp
+msgid "Defaults"
+msgstr "Varsayılanlar"
+
+#: src/Platform/Startup.cpp
+msgid "The game stopped while loading last time."
+msgstr "Oyun geçen sefer yüklenirken durdu."
+
+#: src/Platform/Startup.cpp
+#, c++-format
+msgid "The game stopped while starting {} last time."
+msgstr "Oyun geçen sefer {} başlatılırken durdu."
+
+#: src/Platform/Startup.cpp
+msgid "Automatic"
+msgstr "Otomatik"
+
+#: src/Platform/main_impl.cpp
+#, c++-format
+msgid "No renderer could be started (tried {}), the log has the details."
+msgstr "Hiçbir oluşturucu başlatılamadı (denenenler: {}), ayrıntılar günlükte."
+
+#: src/Platform/main_impl.cpp
+msgid "A launch option asked for it, so no other one was tried."
+msgstr "Bir başlatma seçeneği bunu istediği için başka biri denenmedi."
+
+#: src/Platform/main_impl.cpp
+#, c++-format
+msgid "{} couldn't start, using {} instead."
+msgstr "{} başlatılamadı, bunun yerine {} kullanılıyor."

@@ -27,6 +27,7 @@
 #include "LaunchArgs.h"
 #include "Paths.h"
 #include "SingleInstance.h"
+#include "Startup.h"
 
 #include "environment_private.h"
 #include "AppDescriptor.h"
@@ -73,6 +74,9 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
 
         std::exit(-1);
     }
+
+    // quitting before the first frame (e.g. while minimized) is no start that stopped
+    Mc::Startup::finished();
 
     auto *fmain = static_cast<SDLMain *>(appstate);
 
@@ -262,12 +266,19 @@ MAIN_FUNC /* int argc, char *argv[] */
     SDL_SetAppMetadataProperty(SDL_PROP_APP_METADATA_URL_STRING, PACKAGE_URL);
     SDL_SetAppMetadataProperty(SDL_PROP_APP_METADATA_TYPE_STRING, "game");
 
+    // what the engine reads while it starts (engine.cfg), and what this launch makes of it
+    if(!Mc::Startup::detail::init()) {
+        // the player quit from the startup settings dialog
+        Mc::SingleInstance::release();
+        std::exit(0);
+    }
+
     SDL_SetHintWithPriority(SDL_HINT_VIDEO_DOUBLE_BUFFER, "1", SDL_HINT_NORMAL);
     SDL_SetHintWithPriority(SDL_HINT_INVALID_PARAM_CHECKS, Env::cfg(BUILD::DEBUG) ? "2" : "1", SDL_HINT_NORMAL);
 
 #if defined(_WIN32)
     // this hint needs to be set before SDL_Init
-    if(has_arg(MISC_NO_DPI)) {
+    if(!Mc::Startup::get().highDPI) {
         // it's not even defined anywhere...
         SDL_SetHintWithPriority("SDL_WINDOWS_DPI_AWARENESS", "unaware", SDL_HINT_NORMAL);
     }
@@ -286,8 +297,10 @@ MAIN_FUNC /* int argc, char *argv[] */
         } else {
             // don't use offscreen for SDL_gpu headless, that would attempt to initialize a bunch of
             // offscreen openGL stuff we don't want
-            const bool using_opengl =
-                Env::cfg(REND::GL | REND::GLES32) && (!Env::cfg(REND::SDLGPU | REND::DX11) || has_arg(REND_GL));
+            const auto &startup = Mc::Startup::get();
+            const bool using_opengl = (startup.renderers.front() == Mc::Startup::Renderer::GL ||
+                                       startup.renderers.front() == Mc::Startup::Renderer::GLES) &&
+                                      (startup.rendererSwitched || !Env::cfg(REND::SDLGPU | REND::DX11));
             if(using_opengl) {
                 SDL_SetHintWithPriority(SDL_HINT_VIDEO_DRIVER, "offscreen", SDL_HINT_OVERRIDE);
             }

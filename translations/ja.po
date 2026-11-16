@@ -765,7 +765,7 @@ msgstr "背景"
 msgid "Help"
 msgstr "ヘルプ"
 
-#: src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Editor.cpp src/Platform/Startup.cpp
 msgid "Back"
 msgstr "戻る"
 
@@ -1892,24 +1892,16 @@ msgid "Press {:s} or {:s} anywhere to open chat."
 msgstr "どこでも {:s} または {:s} を押すとチャットを開きます。"
 
 #: src/App/Neomod/MainMenuTips.cpp
-msgid "Launch with the neomod-BASS shortcut to use BASS (ASIO/Exclusive mode) for audio."
-msgstr "オーディオにBASS (ASIO/排他モード) を使用するには、neomod-BASSショートカットで起動してください。"
+msgid "BASS (ASIO/Exclusive mode) can be picked as the audio engine in the options."
+msgstr "オプションでオーディオエンジンにBASS (ASIO/排他モード) を選択できます。"
 
 #: src/App/Neomod/MainMenuTips.cpp
-msgid "Launch with \"-sound bass\" as a commandline argument to use BASS for audio."
-msgstr "オーディオにBASSを使用するには、起動オプションに \"-sound bass\" を指定してください。"
+msgid "BASS can be picked as the audio engine in the options."
+msgstr "オプションでオーディオエンジンにBASSを選択できます。"
 
 #: src/App/Neomod/MainMenuTips.cpp
-msgid "Put \"-gpu vk\" after the \"Target:\" field in a shortcut to neomod to use the Vulkan renderer."
-msgstr "Vulkanレンダラーを使用するには、neomodのショートカットの「リンク先」の後に \"-gpu vk\" を追加してください。"
-
-#: src/App/Neomod/MainMenuTips.cpp
-msgid "Put \"-dx11\" after the \"Target:\" field in a shortcut to neomod to use the D3D11 renderer."
-msgstr "D3D11レンダラーを使用するには、neomodのショートカットの「リンク先」の後に \"-dx11\" を追加してください。"
-
-#: src/App/Neomod/MainMenuTips.cpp
-msgid "Launch with \"-dx11\" as a commandline argument to use the D3D11 renderer."
-msgstr "D3D11レンダラーを使用するには、起動オプションに \"-dx11\" を指定してください。"
+msgid "The renderer can be changed in the options, under Graphics."
+msgstr "レンダラーはオプションのグラフィックで変更できます。"
 
 #: src/App/Neomod/MainMenuTips.cpp
 msgid "Press Ctrl + O to open the options menu from anywhere."
@@ -2712,9 +2704,13 @@ msgstr "Discord Rich Presence にマップの背景を表示する"
 msgid "Graphics"
 msgstr "グラフィック"
 
-#: src/App/Neomod/OptionsOverlay.cpp
+#: src/App/Neomod/OptionsOverlay.cpp src/Platform/Startup.cpp
 msgid "Renderer"
 msgstr "レンダラー"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Select Renderer"
+msgstr "レンダラーを選択"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "If enabled: plz enjoy input lag."
@@ -2909,6 +2905,10 @@ msgstr "オーディオ"
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Devices"
 msgstr "デバイス"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Select Audio Engine"
+msgstr "オーディオエンジンを選択"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Select Output Device"
@@ -4329,6 +4329,14 @@ msgid "Tried to enable exclusive mode, but couldn't :("
 msgstr "排他モードを有効にしようとしましたが、できませんでした :("
 
 #: src/App/Neomod/OptionsOverlay.cpp
+msgid "A launch option overrides this setting, it takes effect once the game is started without it."
+msgstr "起動オプションがこの設定を上書きしています。起動オプションなしで起動すると反映されます。"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "This takes effect after a restart, click here to restart now."
+msgstr "再起動後に反映されます。ここをクリックすると今すぐ再起動します。"
+
+#: src/App/Neomod/OptionsOverlay.cpp
 #, c++-format
 msgid "Press new key for {}:"
 msgstr "{} に新しいキーを押してください:"
@@ -4574,7 +4582,7 @@ msgstr "再開"
 msgid "Retry"
 msgstr "リトライ"
 
-#: src/App/Neomod/PauseOverlay.cpp
+#: src/App/Neomod/PauseOverlay.cpp src/Platform/Startup.cpp
 msgid "Quit"
 msgstr "終了"
 
@@ -5280,3 +5288,70 @@ msgstr "Bleeding Edge アップデートはサポーター特典です。"
 #: src/Engine/Sound/SoundEngine.cpp
 msgid "No sound"
 msgstr "音声なし"
+
+#: src/Platform/Startup.cpp
+msgid "Startup settings"
+msgstr "起動設定"
+
+#: src/Platform/Startup.cpp
+msgid "Audio Engine"
+msgstr "オーディオエンジン"
+
+#: src/Platform/Startup.cpp
+msgid "(overridden by a launch option)"
+msgstr "(起動オプションで上書き中)"
+
+#: src/Platform/Startup.cpp
+msgid "The game starts with these settings:"
+msgstr "ゲームは次の設定で起動します:"
+
+#: src/Platform/Startup.cpp
+msgid "High DPI"
+msgstr "高DPI"
+
+#: src/Platform/Startup.cpp
+msgid "Off"
+msgstr "オフ"
+
+#: src/Platform/Startup.cpp
+msgid "On"
+msgstr "オン"
+
+#: src/Platform/Startup.cpp
+msgid "Language"
+msgstr "言語"
+
+#: src/Platform/Startup.cpp
+msgid "Launch"
+msgstr "起動"
+
+#: src/Platform/Startup.cpp
+msgid "Defaults"
+msgstr "デフォルト"
+
+#: src/Platform/Startup.cpp
+msgid "The game stopped while loading last time."
+msgstr "前回は読み込み中にゲームが停止しました。"
+
+#: src/Platform/Startup.cpp
+#, c++-format
+msgid "The game stopped while starting {} last time."
+msgstr "前回は{}の起動中にゲームが停止しました。"
+
+#: src/Platform/Startup.cpp
+msgid "Automatic"
+msgstr "自動"
+
+#: src/Platform/main_impl.cpp
+#, c++-format
+msgid "No renderer could be started (tried {}), the log has the details."
+msgstr "レンダラーを起動できませんでした（試したもの: {}）。詳細はログにあります。"
+
+#: src/Platform/main_impl.cpp
+msgid "A launch option asked for it, so no other one was tried."
+msgstr "起動オプションで指定されているため、他のレンダラーは試していません。"
+
+#: src/Platform/main_impl.cpp
+#, c++-format
+msgid "{} couldn't start, using {} instead."
+msgstr "{}を起動できなかったため、代わりに{}を使用しています。"

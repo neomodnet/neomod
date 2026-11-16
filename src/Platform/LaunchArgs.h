@@ -35,8 +35,9 @@ using ArgMap = std::unordered_map<std::string, std::optional<std::string>>;
 [[nodiscard]] std::span<const std::string> get_array() noexcept;
 
 // the known switches (the ones behind ArgSwitch), each followed by its value if it was given one, in get_array() order.
-// everything else is left out: the program name, operands (files or urls to open) and unknown switches.
-// relaunching in the same configuration (restart, "open with") passes exactly these
+// everything else is left out: the program name, operands (files or urls to open), unknown switches and the ones that
+// only ask something of this launch (-setup). relaunching in the same configuration (restart, "open with") passes
+// exactly these
 [[nodiscard]] std::span<const std::string> get_switches() noexcept;
 
 // the operands: the files or urls this launch was asked to open, i.e. every argument after the program name that is
@@ -77,6 +78,7 @@ enum ArgSwitch : unsigned char {
     MODE_DIFFCALC,  // -diffcalc (run the standalone difficulty calculator tool and exit)
     MODE_TESTAPP,   // -testapp <name> (launch the given test app instead of the main game)
     MODE_MULTI,     // -multi (allow running alongside an already-running instance)
+    MODE_SETUP,     // -setup (the startup settings dialog first, see Startup.h)
     // misc
     MISC_GL_VERBOSE,      // -info, -print, -printinfo (print verbose startup info for gl context)
     MISC_GL_DEBUG,        // -debugctx (immediately initialize opengl with debugging)

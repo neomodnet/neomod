@@ -1,0 +1,29 @@
+# startup settings (cv::STARTUP) belong in engine.cfg. until it exists, an osu.cfg from before still hands its startup
+# settings over: they apply, engine.cfg gets them right away, and the next options save leaves them out of osu.cfg.
+# the save is async (read old cfg -> write), hence the @sleep/@wait pairs around it; the final
+# options_save_on_back 0 keeps the exit path from saving again.
+# uitest-datadir: fresh
+# uitest-file: cfg/osu.cfg|win_processpriority 0|hud_scale 1.5
+# uitest-cfg: engine.cfg|win_processpriority 0
+# uitest-cfg: win_processpriority -
+# uitest-cfg: hud_scale 1.5
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+mouse_to 10 10
+@wait 30
+ui_assert convar win_processpriority 0
+ui_assert convar hud_scale 1.5
+set_active_ui_screen optionsoverlay
+@wait 20
+ui_assert visible optionsoverlay 1
+sendkey Escape
+@wait 5
+@sleep 200
+@wait 5
+@sleep 200
+@wait 5
+options_save_on_back 0
+exit

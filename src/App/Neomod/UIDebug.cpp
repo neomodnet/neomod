@@ -8,6 +8,7 @@
 #include "ConVarHandler.h"
 #include "MakeDelegateWrapper.h"
 
+#include "CBaseUILabel.h"
 #include "CBaseUIList.h"
 #include "CBaseUIScrollView.h"
 #include "CBaseUIStyledButton.h"
@@ -349,8 +350,8 @@ void UIDebug::debugAssert(std::string_view args) {
     }
 
     if(pred == "text"sv) {
-        // ui_assert text <name> <expected> (the rest of the line): the text in a textbox, a styled label, a button or
-        // a type-to-search
+        // ui_assert text <name> <expected> (the rest of the line): the text in a textbox, a label, a button or a
+        // type-to-search
         const std::string_view expected = args.substr(parts[2].data() - args.data());
         std::string_view actualText;
         if(auto *tb = dynamic_cast<CBaseUITextbox *>(elem)) {
@@ -359,10 +360,12 @@ void UIDebug::debugAssert(std::string_view args) {
             actualText = search->getSearchString();
         } else if(auto *label = dynamic_cast<CBaseUIStyledLabel *>(elem)) {
             actualText = label->getText();
+        } else if(auto *plainLabel = dynamic_cast<CBaseUILabel *>(elem)) {
+            actualText = plainLabel->getText();
         } else if(auto *button = dynamic_cast<CBaseUIButton *>(elem)) {
             actualText = button->getText();
         } else {
-            logRaw("UITEST FAIL text {} (not a textbox, a styled label, a button or a search)", parts[1]);
+            logRaw("UITEST FAIL text {} (not a textbox, a label, a button or a search)", parts[1]);
             return;
         }
         logRaw("UITEST {} text {} expected='{}' actual='{}'", actualText == expected ? "OK" : "FAIL", parts[1],

@@ -56,7 +56,7 @@ class Graphics {
     static constexpr u32 MAX_TEXTURE_UNITS{4};
 
    public:
-    friend class Engine;
+    friend class Environment;
 
     Graphics();
     virtual ~Graphics();

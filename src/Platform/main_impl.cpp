@@ -32,6 +32,8 @@
 #include "LaunchArgs.h"
 #include "Paths.h"
 #include "SingleInstance.h"
+#include "Startup.h"
+#include "i18n.h"
 
 #include <algorithm>
 #include <array>
@@ -318,12 +320,14 @@ SDLMain::~SDLMain() {
 
     m_engine.reset();
 
-    // clean up GL context
+    destroyWindow();
+}
+
+void SDLMain::destroyWindow() {
     if(m_context) {
         SDL_GL_DestroyContext(m_context);
         m_context = nullptr;
     }
-    // close/delete the window
     if(m_window) {
         SDL_DestroyWindow(m_window);
         m_window = nullptr;
@@ -386,29 +390,52 @@ bool SDLMain::resizeCallback(void *userdata, SDL_Event *event) {
 SDL_AppResult SDLMain::initialize() {
     setupLogging();
 
-    // WASM: no window, no GL, no events, just engine + app
+    // the first renderer that starts, each on a window made for it. the engine is created with the first window (it
+    // takes its size), since a renderer starts with the engine there
+    std::vector<Mc::Startup::Renderer> failed;
+    for(const auto renderer : Mc::Startup::get().renderers) {
+        Mc::Startup::progress(Mc::Startup::Progress::RENDERER, renderer);
+        m_renderer = renderer;
+        SDL_ClearError();
+        // WASM headless: no window, no GL, no events, just engine + app
+        const bool windowless = renderer == Mc::Startup::Renderer::NULLGRAPHICS;
+        if(windowless || createWindow()) {
+            if(!m_engine) {
+                // disable (filter) some SDL events we don't care about
+                if(!windowless) configureEvents();
+                m_engine = std::make_unique<Engine>();
+                if(m_engine->isShuttingDown()) return SDL_APP_FAILURE;
+            }
+            if(startRenderer()) break;
+        }
+
+        const std::string_view error = SDL_GetError();
+        debugLog("{} couldn't start{}{}", Mc::Startup::rendererName(renderer), error.empty() ? "" : ": ", error);
+        failed.push_back(renderer);
+        destroyWindow();
+    }
+    if(!g) {
+        std::string tried;
+        for(const auto renderer : failed)
+            tried.append(tried.empty() ? "" : ", ").append(Mc::Startup::rendererName(renderer));
+        std::string message = tformat("No renderer could be started (tried {}), the log has the details.", tried);
+        if(Mc::Startup::get().rendererSwitched) {
+            message += fmt::format(" {}", _("A launch option asked for it, so no other one was tried."));
+        }
+        SDL_SetError("%s", message.c_str());
+        return SDL_APP_FAILURE;
+    }
+
+    Mc::Startup::progress(Mc::Startup::Progress::APP, m_renderer);
+
+    // default launch overrides
+    g->setVSync(false);
+
     if constexpr(Env::cfg(OS::WASM)) {
         if(isHeadless()) {
-            m_engine = std::make_unique<Engine>();
-            if(!m_engine || m_engine->isShuttingDown()) return SDL_APP_FAILURE;
             if(!m_engine->loadApp()) return SDL_APP_FAILURE;
             return SDL_APP_CONTINUE;
         }
-    }
-
-    // create window with props
-    if(!createWindow()) {
-        return SDL_APP_FAILURE;
-    }
-
-    // disable (filter) some SDL events we don't care about
-    configureEvents();
-
-    // initialize engine, now that all the setup is done
-    m_engine = std::make_unique<Engine>();
-
-    if(!m_engine || m_engine->isShuttingDown()) {
-        return SDL_APP_FAILURE;
     }
 
     // set up platform-specific integrations (IPC, hotkeys, etc.)
@@ -427,6 +454,17 @@ SDL_AppResult SDLMain::initialize() {
     // load app
     if(!m_engine->loadApp()) {
         return SDL_APP_FAILURE;
+    }
+    Mc::Startup::progress(Mc::Startup::Progress::FIRST_FRAME, m_renderer);
+
+    // the renderer the player chose isn't the one that runs (falling back from the automatic choice goes without
+    // saying)
+    if(Mc::Startup::get().rendererChosen && !SString::strcase_equal(cv::r_renderer.getString(), getGraphicsAPI())) {
+        const auto choices = Mc::Startup::rendererChoices();
+        app->showNotification({tformat("{} couldn't start, using {} instead.",
+                                       Mc::Startup::choiceName(choices, cv::r_renderer.getString()),
+                                       Mc::Startup::choiceName(choices, getGraphicsAPI())),
+                               NotificationPreset::ERROR});
     }
 
     // make window visible now, after we loaded the config and set the wanted window size & fullscreen state
@@ -851,6 +889,7 @@ SDL_AppResult SDLMain::iterate() {
                                (!cv::window_draw_while_occluded.getBool() && occludedUnfocusedFullscreen));
         if(!skipDraw) {
             m_engine->onPaint();
+            if(m_engine->getFrameCount() == 1) Mc::Startup::finished();
         }
     }
 

@@ -37,7 +37,8 @@ class SDLMain final : public Environment {
 
    private:
     // init methods
-    bool createWindow();
+    bool createWindow();  // for m_renderer
+    void destroyWindow();
     void setupLogging();
     void configureEvents();
     float queryDisplayHz();

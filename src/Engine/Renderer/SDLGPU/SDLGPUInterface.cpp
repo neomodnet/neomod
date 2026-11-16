@@ -27,7 +27,8 @@
 #include "VertexArrayObject.h"
 #include "Environment.h"
 #include "VisualProfiler.h"
-#include "LaunchArgs.h"
+#include "ContainerRanges.h"
+#include "Startup.h"
 
 #include "Graphics_private.h"
 
@@ -35,7 +36,9 @@
 
 #include <algorithm>
 #include <cstring>
+#include <iterator>
 #include <limits>
+#include <string_view>
 #include <utility>
 
 #define DEBUG_SDLGPU false
@@ -89,6 +92,8 @@ SDLGPUInterface::~SDLGPUInterface() {
     }
 }
 
+std::string_view SDLGPUInterface::getDriver() const { return SDL_GetGPUDeviceDriver(m_device); }
+
 bool SDLGPUInterface::init() {
     std::string drivers;
     {
@@ -130,13 +135,13 @@ bool SDLGPUInterface::init() {
         return false;
     }
 
-    if constexpr(Env::cfg(OS::WINDOWS | OS::MAC)) {
-        if(vkAvailable && (d3dAvailable || metalAvailable) && Mc::LaunchArgs::has_arg(Mc::LaunchArgs::REND_SDLGPU_VK)) {
-            // prefer vulkan over d3d12/metal if explicitly requested with e.g. "-sdlgpu vulkan"
-            auto temp = initOrder[1];
-            initOrder[1] = initOrder[0];
-            initOrder[0] = temp;
-            if constexpr(Env::cfg(OS::MAC)) {
+    // the driver asked for (by -sdlgpu <driver> or r_renderer) goes first
+    if(const auto it = Mc::ranges::find(initOrder, Mc::Startup::get().sdlgpuDriver,
+                                        [](const SDLGPUBackend &backend) { return std::string_view{backend.name()}; });
+       it != initOrder.end()) {
+        std::rotate(initOrder.begin(), it, std::next(it));
+        if constexpr(Env::cfg(OS::MAC)) {
+            if(initOrder.front().type == SDLGPUBackend::VULKAN) {
                 const char *vkLoaderLib = "/opt/homebrew/lib/libvulkan.dylib";
                 if(Environment::fileExists(vkLoaderLib)) {
                     SDL_SetHintWithPriority(SDL_HINT_VULKAN_LIBRARY, vkLoaderLib, SDL_HINT_NORMAL);

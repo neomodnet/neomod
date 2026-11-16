@@ -116,24 +116,7 @@ Engine::Engine() {
         this->inputDevices.push_back(keyboard);
         this->keyboards.push_back(keyboard);
 
-        // create graphics through environment
-        g = env->createRenderer();
-        // needs init() separation due to potential graphics access
-        this->runtime_assert(!!g, "Graphics failed to initialize!");
-        // TODO: transparent fallback like SoundEngine
-        if constexpr(Env::cfg(OS::WINDOWS)) {
-            this->runtime_assert(g->init(), fmt::format(
-                                                R"({:s} failed to initialize!
-Try running with "-opengl" or "-dx11" added to
-the "Target:" field in a shortcut to)" PACKAGE_NAME ".",
-                                                g->getName()));
-        } else {
-            this->runtime_assert(
-                g->init(),
-                fmt::format(
-                    "{:s} failed to initialize!\nTry running with -opengl or -dx11 as extra commandline arguments.",
-                    g->getName()));
-        }
+        // graphics are started once the engine exists, see SDLMain::initialize()
 
         // make unique_ptrs for the rest
         networkHandler = new NetworkHandler();
@@ -147,9 +130,6 @@ the "Target:" field in a shortcut to)" PACKAGE_NAME ".",
         resourceManager->setSyncLoadMaxBatchSize(512);  // this decays back down to a small number quickly by itself
 
         DiscRPC::init();
-
-        // default launch overrides
-        g->setVSync(false);
 
         // engine time starts now
         this->dTime = Timing::getTimeReal();

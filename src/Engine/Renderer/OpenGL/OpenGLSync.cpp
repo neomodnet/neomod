@@ -8,7 +8,6 @@
 #include "Logging.h"
 #include "MakeDelegateWrapper.h"
 
-
 void OpenGLSync::onFramecountNumChanged(float newValue) {
     int newInt = static_cast<int>(newValue);
     if(newInt > 0) {
@@ -35,6 +34,9 @@ OpenGLSync::OpenGLSync() {
 }
 
 OpenGLSync::~OpenGLSync() {
+    cv::r_sync_max_frames.removeAllCallbacks();
+    cv::r_sync_enabled.removeAllCallbacks();
+
     if(this->bAvailable) {
         while(!this->frameSyncQueue.empty()) {
             this->deleteSyncObject(this->frameSyncQueue.front().syncObject);

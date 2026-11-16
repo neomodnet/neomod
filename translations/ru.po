@@ -765,7 +765,7 @@ msgstr "Фон"
 msgid "Help"
 msgstr "Справка"
 
-#: src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Editor.cpp src/Platform/Startup.cpp
 msgid "Back"
 msgstr "Назад"
 
@@ -1892,24 +1892,16 @@ msgid "Press {:s} or {:s} anywhere to open chat."
 msgstr "Нажмите {:s} или {:s} в любом месте, чтобы открыть чат."
 
 #: src/App/Neomod/MainMenuTips.cpp
-msgid "Launch with the neomod-BASS shortcut to use BASS (ASIO/Exclusive mode) for audio."
-msgstr "Запустите через ярлык neomod-BASS, чтобы использовать BASS (ASIO/эксклюзивный режим) для звука."
+msgid "BASS (ASIO/Exclusive mode) can be picked as the audio engine in the options."
+msgstr "BASS (ASIO/эксклюзивный режим) можно выбрать как аудиодвижок в настройках."
 
 #: src/App/Neomod/MainMenuTips.cpp
-msgid "Launch with \"-sound bass\" as a commandline argument to use BASS for audio."
-msgstr "Запустите с аргументом командной строки \"-sound bass\", чтобы использовать BASS для звука."
+msgid "BASS can be picked as the audio engine in the options."
+msgstr "BASS можно выбрать как аудиодвижок в настройках."
 
 #: src/App/Neomod/MainMenuTips.cpp
-msgid "Put \"-gpu vk\" after the \"Target:\" field in a shortcut to neomod to use the Vulkan renderer."
-msgstr "Добавьте \"-gpu vk\" в конец поля \"Объект:\" ярлыка neomod, чтобы использовать рендерер Vulkan."
-
-#: src/App/Neomod/MainMenuTips.cpp
-msgid "Put \"-dx11\" after the \"Target:\" field in a shortcut to neomod to use the D3D11 renderer."
-msgstr "Добавьте \"-dx11\" в конец поля \"Объект:\" ярлыка neomod, чтобы использовать рендерер D3D11."
-
-#: src/App/Neomod/MainMenuTips.cpp
-msgid "Launch with \"-dx11\" as a commandline argument to use the D3D11 renderer."
-msgstr "Запустите с аргументом командной строки \"-dx11\", чтобы использовать рендерер D3D11."
+msgid "The renderer can be changed in the options, under Graphics."
+msgstr "Рендерер можно сменить в настройках, в разделе «Графика»."
 
 #: src/App/Neomod/MainMenuTips.cpp
 msgid "Press Ctrl + O to open the options menu from anywhere."
@@ -2712,9 +2704,13 @@ msgstr "Показывать фон карты в статусе Discord"
 msgid "Graphics"
 msgstr "Графика"
 
-#: src/App/Neomod/OptionsOverlay.cpp
+#: src/App/Neomod/OptionsOverlay.cpp src/Platform/Startup.cpp
 msgid "Renderer"
 msgstr "Рендерер"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Select Renderer"
+msgstr "Выбрать рендерер"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "If enabled: plz enjoy input lag."
@@ -2909,6 +2905,10 @@ msgstr "Аудио"
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Devices"
 msgstr "Устройства"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Select Audio Engine"
+msgstr "Выбрать аудиодвижок"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Select Output Device"
@@ -4329,6 +4329,14 @@ msgid "Tried to enable exclusive mode, but couldn't :("
 msgstr "Попытка включить эксклюзивный режим не удалась :("
 
 #: src/App/Neomod/OptionsOverlay.cpp
+msgid "A launch option overrides this setting, it takes effect once the game is started without it."
+msgstr "Параметр запуска переопределяет эту настройку, она вступит в силу, когда игра будет запущена без него."
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "This takes effect after a restart, click here to restart now."
+msgstr "Вступит в силу после перезапуска, нажмите здесь, чтобы перезапустить сейчас."
+
+#: src/App/Neomod/OptionsOverlay.cpp
 #, c++-format
 msgid "Press new key for {}:"
 msgstr "Нажмите новую клавишу для {}:"
@@ -4574,7 +4582,7 @@ msgstr "Продолжить"
 msgid "Retry"
 msgstr "Повторить"
 
-#: src/App/Neomod/PauseOverlay.cpp
+#: src/App/Neomod/PauseOverlay.cpp src/Platform/Startup.cpp
 msgid "Quit"
 msgstr "Выйти"
 
@@ -5280,3 +5288,70 @@ msgstr "Обновления тестовой ветки (bleeding edge) дос�
 #: src/Engine/Sound/SoundEngine.cpp
 msgid "No sound"
 msgstr "Нет звука"
+
+#: src/Platform/Startup.cpp
+msgid "Startup settings"
+msgstr "Параметры запуска"
+
+#: src/Platform/Startup.cpp
+msgid "Audio Engine"
+msgstr "Аудиодвижок"
+
+#: src/Platform/Startup.cpp
+msgid "(overridden by a launch option)"
+msgstr "(переопределено параметром запуска)"
+
+#: src/Platform/Startup.cpp
+msgid "The game starts with these settings:"
+msgstr "Игра запускается с этими параметрами:"
+
+#: src/Platform/Startup.cpp
+msgid "High DPI"
+msgstr "Высокий DPI"
+
+#: src/Platform/Startup.cpp
+msgid "Off"
+msgstr "Выкл."
+
+#: src/Platform/Startup.cpp
+msgid "On"
+msgstr "Вкл."
+
+#: src/Platform/Startup.cpp
+msgid "Language"
+msgstr "Язык"
+
+#: src/Platform/Startup.cpp
+msgid "Launch"
+msgstr "Запустить"
+
+#: src/Platform/Startup.cpp
+msgid "Defaults"
+msgstr "По умолчанию"
+
+#: src/Platform/Startup.cpp
+msgid "The game stopped while loading last time."
+msgstr "В прошлый раз игра остановилась во время загрузки."
+
+#: src/Platform/Startup.cpp
+#, c++-format
+msgid "The game stopped while starting {} last time."
+msgstr "В прошлый раз игра остановилась при запуске {}."
+
+#: src/Platform/Startup.cpp
+msgid "Automatic"
+msgstr "Автоматически"
+
+#: src/Platform/main_impl.cpp
+#, c++-format
+msgid "No renderer could be started (tried {}), the log has the details."
+msgstr "Не удалось запустить ни один рендерер (испробованы: {}), подробности в логе."
+
+#: src/Platform/main_impl.cpp
+msgid "A launch option asked for it, so no other one was tried."
+msgstr "Он задан параметром запуска, поэтому другие не пробовались."
+
+#: src/Platform/main_impl.cpp
+#, c++-format
+msgid "{} couldn't start, using {} instead."
+msgstr "Не удалось запустить {}, вместо него используется {}."

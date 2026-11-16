@@ -19,7 +19,7 @@
 #include "Font.h"
 #include "Logging.h"
 #include "RuntimePlatform.h"
-#include "LaunchArgs.h"
+#include "Startup.h"
 
 #include "Graphics_private.h"
 
@@ -112,7 +112,7 @@ DirectX11Interface::DirectX11Interface(HWND hwnd)
       // maybe TODO: allow runtime switching between exclusive/flip presentation
       // requires recreating swapchain (complex!)
       // flip presentation should theoretically be better/on par with exclusive fullscreen
-      bFlipping(!Mc::LaunchArgs::has_arg(Mc::LaunchArgs::MISC_DX11_EXCLUSIVE) &&
+      bFlipping(!Mc::Startup::get().dx11Exclusive &&
                 (!(RuntimePlatform::current() & RuntimePlatform::WIN_WINE) &&
                  RuntimePlatform::current() & (RuntimePlatform::WIN_8 | RuntimePlatform::WIN_10 |
                                                RuntimePlatform::WIN_11 | RuntimePlatform::WIN_UNKNOWN))),
@@ -167,14 +167,8 @@ bool DirectX11Interface::init() {
         hr = this->dxgiAdapter->GetParent(__uuidof(IDXGIFactory2), (void **)&this->dxgiFactory);
     }
     if(FAILED(hr)) {
-        std::string errorTitle = "DirectX Error";
-        std::string errorMessage =
-            fmt::format("{} failed! HR: {:#x} DXGI_HR: {:#x})", error, (u32)hr, (u32)MAKE_DXGI_HRESULT(hr));
-
-        errorMessage.append("\nThe engine will quit now.");
-        engine->showMessageErrorFatal("DirectX Error", errorMessage);
-        engine->shutdown();
-
+        debugLog("DirectX11Interface: {} failed! HR: {:#x} DXGI_HR: {:#x})", error, (u32)hr,
+                 (u32)MAKE_DXGI_HRESULT(hr));
         return false;
     }
 
@@ -187,12 +181,6 @@ bool DirectX11Interface::init() {
             (u32)hr, (u32)MAKE_DXGI_HRESULT(hr));
     } else {
         this->dxgiDevice1->SetMaximumFrameLatency(this->iMaxFrameLatency);
-
-        cv::r_sync_max_frames.setDefaultDouble(this->iMaxFrameLatency);
-        cv::r_sync_enabled.setDefaultDouble((double)!this->bFrameLatencyDisabled);
-
-        cv::r_sync_max_frames.setCallback(SA::MakeDelegate<&DirectX11Interface::onFramecountNumChanged>(this));
-        cv::r_sync_enabled.setCallback(SA::MakeDelegate<&DirectX11Interface::onSyncBehaviorChanged>(this));
     }
 
     this->device->CreateRasterizerState(&this->rasterizerDesc, &this->rasterizerState);
@@ -213,15 +201,12 @@ bool DirectX11Interface::init() {
     this->shaderTexturedGeneric->load();
 
     if(!this->shaderTexturedGeneric->isReady()) {
-        engine->showMessageErrorFatal("DirectX Error", "Failed to create default shader!\nThe engine will quit now.");
-        engine->shutdown();
+        debugLog("DirectX11Interface: Failed to create default shader!");
         return false;
     }
 
     if(FAILED(this->device->CreateBuffer(&this->vertexBufferDesc, nullptr, &this->vertexBuffer))) {
-        engine->showMessageErrorFatal("DirectX Error",
-                                      "Failed to create default vertex buffer!\nThe engine will quit now.");
-        engine->shutdown();
+        debugLog("DirectX11Interface: Failed to create default vertex buffer!");
         return false;
     }
 
@@ -254,11 +239,8 @@ bool DirectX11Interface::init() {
                                                    &this->swapChain);
 
     if(FAILED(hr)) {
-        engine->showMessageErrorFatal(
-            "DirectX Error",
-            fmt::format("Failed to create a swapchain: HR: {:#x} DXGI_HR: {:#x})\nThe engine will shut down now.",
-                        (u32)hr, (u32)MAKE_DXGI_HRESULT(hr)));
-        engine->shutdown();
+        debugLog("DirectX11Interface: Failed to create a swapchain: HR: {:#x} DXGI_HR: {:#x})", (u32)hr,
+                 (u32)MAKE_DXGI_HRESULT(hr));
         return false;
     }
 
@@ -281,20 +263,35 @@ bool DirectX11Interface::init() {
     // NOTE: force build swapchain rendertarget
     this->onResolutionChange(env->getWindowSize());
 
+    // only once nothing can fail anymore: the next renderer would inherit the defaults
+    if(this->dxgiDevice1) {
+        cv::r_sync_max_frames.setDefaultDouble(this->iMaxFrameLatency);
+        cv::r_sync_enabled.setDefaultDouble((double)!this->bFrameLatencyDisabled);
+
+        cv::r_sync_max_frames.setCallback(SA::MakeDelegate<&DirectX11Interface::onFramecountNumChanged>(this));
+        cv::r_sync_enabled.setCallback(SA::MakeDelegate<&DirectX11Interface::onSyncBehaviorChanged>(this));
+    }
+
     return true;
 }
 
 DirectX11Interface::~DirectX11Interface() {
+    cv::r_sync_max_frames.removeAllCallbacks();
+    cv::r_sync_enabled.removeAllCallbacks();
+
     if(this->swapChain) this->swapChain->SetFullscreenState(FALSE, nullptr);
 
     SAFE_DELETE(this->shaderTexturedGeneric);
 
     if(this->vertexBuffer) this->vertexBuffer->Release();
     if(this->rasterizerState) this->rasterizerState->Release();
+    if(this->depthStencilState) this->depthStencilState->Release();
+    if(this->blendState) this->blendState->Release();
     if(this->swapChain) this->swapChain->Release();
     if(this->frameBuffer) this->frameBuffer->Release();
     if(this->frameBufferDepthStencilView) this->frameBufferDepthStencilView->Release();
     if(this->frameBufferDepthStencilTexture) this->frameBufferDepthStencilTexture->Release();
+    if(this->dxgiDevice1) this->dxgiDevice1->Release();
     if(this->dxgiDevice) this->dxgiDevice->Release();
     if(this->dxgiAdapter) this->dxgiAdapter->Release();
     if(this->dxgiFactory) this->dxgiFactory->Release();

@@ -763,7 +763,7 @@ msgstr "背景"
 msgid "Help"
 msgstr "帮助"
 
-#: src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Editor.cpp src/Platform/Startup.cpp
 msgid "Back"
 msgstr "返回"
 
@@ -1890,24 +1890,16 @@ msgid "Press {:s} or {:s} anywhere to open chat."
 msgstr "在任意位置按 {:s} 或 {:s} 打开聊天。"
 
 #: src/App/Neomod/MainMenuTips.cpp
-msgid "Launch with the neomod-BASS shortcut to use BASS (ASIO/Exclusive mode) for audio."
-msgstr "使用 neomod-BASS 快捷方式启动，以使用 BASS（ASIO/独占模式）输出音频。"
+msgid "BASS (ASIO/Exclusive mode) can be picked as the audio engine in the options."
+msgstr "可以在选项中选择 BASS（ASIO/独占模式）作为音频引擎。"
 
 #: src/App/Neomod/MainMenuTips.cpp
-msgid "Launch with \"-sound bass\" as a commandline argument to use BASS for audio."
-msgstr "使用命令行参数 \"-sound bass\" 启动，以使用 BASS 输出音频。"
+msgid "BASS can be picked as the audio engine in the options."
+msgstr "可以在选项中选择 BASS 作为音频引擎。"
 
 #: src/App/Neomod/MainMenuTips.cpp
-msgid "Put \"-gpu vk\" after the \"Target:\" field in a shortcut to neomod to use the Vulkan renderer."
-msgstr "在 neomod 快捷方式的 \"目标:\" 字段后加上 \"-gpu vk\"，即可使用 Vulkan 渲染器。"
-
-#: src/App/Neomod/MainMenuTips.cpp
-msgid "Put \"-dx11\" after the \"Target:\" field in a shortcut to neomod to use the D3D11 renderer."
-msgstr "在 neomod 快捷方式的 \"目标:\" 字段后加上 \"-dx11\"，即可使用 D3D11 渲染器。"
-
-#: src/App/Neomod/MainMenuTips.cpp
-msgid "Launch with \"-dx11\" as a commandline argument to use the D3D11 renderer."
-msgstr "使用命令行参数 \"-dx11\" 启动，即可使用 D3D11 渲染器。"
+msgid "The renderer can be changed in the options, under Graphics."
+msgstr "可以在选项的图形部分更改渲染器。"
 
 #: src/App/Neomod/MainMenuTips.cpp
 msgid "Press Ctrl + O to open the options menu from anywhere."
@@ -2710,9 +2702,13 @@ msgstr "在 Discord Rich Presence 中显示谱面背景"
 msgid "Graphics"
 msgstr "图形"
 
-#: src/App/Neomod/OptionsOverlay.cpp
+#: src/App/Neomod/OptionsOverlay.cpp src/Platform/Startup.cpp
 msgid "Renderer"
 msgstr "渲染器"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Select Renderer"
+msgstr "选择渲染器"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "If enabled: plz enjoy input lag."
@@ -2907,6 +2903,10 @@ msgstr "音频"
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Devices"
 msgstr "设备"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Select Audio Engine"
+msgstr "选择音频引擎"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Select Output Device"
@@ -4327,6 +4327,14 @@ msgid "Tried to enable exclusive mode, but couldn't :("
 msgstr "尝试启用独占模式，但失败了 :("
 
 #: src/App/Neomod/OptionsOverlay.cpp
+msgid "A launch option overrides this setting, it takes effect once the game is started without it."
+msgstr "启动参数覆盖了此设置，不带该参数启动游戏后才会生效。"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "This takes effect after a restart, click here to restart now."
+msgstr "重启后生效，点击此处立即重启。"
+
+#: src/App/Neomod/OptionsOverlay.cpp
 #, c++-format
 msgid "Press new key for {}:"
 msgstr "为 {} 按下新按键："
@@ -4572,7 +4580,7 @@ msgstr "继续"
 msgid "Retry"
 msgstr "重试"
 
-#: src/App/Neomod/PauseOverlay.cpp
+#: src/App/Neomod/PauseOverlay.cpp src/Platform/Startup.cpp
 msgid "Quit"
 msgstr "退出"
 
@@ -5278,3 +5286,70 @@ msgstr "最新测试版更新是支持者专属福利。"
 #: src/Engine/Sound/SoundEngine.cpp
 msgid "No sound"
 msgstr "无声音"
+
+#: src/Platform/Startup.cpp
+msgid "Startup settings"
+msgstr "启动设置"
+
+#: src/Platform/Startup.cpp
+msgid "Audio Engine"
+msgstr "音频引擎"
+
+#: src/Platform/Startup.cpp
+msgid "(overridden by a launch option)"
+msgstr "(已被启动参数覆盖)"
+
+#: src/Platform/Startup.cpp
+msgid "The game starts with these settings:"
+msgstr "游戏将以这些设置启动："
+
+#: src/Platform/Startup.cpp
+msgid "High DPI"
+msgstr "高 DPI"
+
+#: src/Platform/Startup.cpp
+msgid "Off"
+msgstr "关"
+
+#: src/Platform/Startup.cpp
+msgid "On"
+msgstr "开"
+
+#: src/Platform/Startup.cpp
+msgid "Language"
+msgstr "语言"
+
+#: src/Platform/Startup.cpp
+msgid "Launch"
+msgstr "启动"
+
+#: src/Platform/Startup.cpp
+msgid "Defaults"
+msgstr "默认"
+
+#: src/Platform/Startup.cpp
+msgid "The game stopped while loading last time."
+msgstr "上次游戏在加载时停止了。"
+
+#: src/Platform/Startup.cpp
+#, c++-format
+msgid "The game stopped while starting {} last time."
+msgstr "上次游戏在启动 {} 时停止了。"
+
+#: src/Platform/Startup.cpp
+msgid "Automatic"
+msgstr "自动"
+
+#: src/Platform/main_impl.cpp
+#, c++-format
+msgid "No renderer could be started (tried {}), the log has the details."
+msgstr "无法启动任何渲染器（已尝试：{}），详情见日志。"
+
+#: src/Platform/main_impl.cpp
+msgid "A launch option asked for it, so no other one was tried."
+msgstr "该渲染器由启动参数指定，因此未尝试其他渲染器。"
+
+#: src/Platform/main_impl.cpp
+#, c++-format
+msgid "{} couldn't start, using {} instead."
+msgstr "{} 无法启动，已改用 {}。"

@@ -61,8 +61,6 @@ void SDLGLInterface::load() {
 #endif
     if(!loadedGLVer) {
         debugLog("glad load error");
-        engine->showMessageErrorFatal("OpenGL Error", "Couldn't load OpenGL!\nThe engine will exit now.");
-        engine->shutdown();
         return;
     }
     debugLog("glad loaded GL{} {:d}.{:d}, EGL: {:s}", Env::cfg(REND::GLES32) ? " ES" : "",

@@ -36,6 +36,12 @@ u64 s_logNext{0};                    // sequence the next entry gets
 // command history (main thread only)
 std::vector<std::string> s_history;
 int s_historySelection{-1};
+
+// engine.cfg: whether it existed when it was loaded, and the startup convars as it has them
+bool s_haveEngineConfig{false};
+std::string s_engineConfigValues;
+
+std::string engineConfigPath() { return Mc::Paths::cfg() + "/engine.cfg"; }
 }  // namespace
 
 bool processCommand(std::string_view command, Source source) {
@@ -77,6 +83,10 @@ bool processCommand(std::string_view command, Source source) {
 
     // get convar
     ConVar *var = cvars().getConVarByName(commandName);
+    if(source == Source::STARTUP && (!var || !var->isFlagSet(cv::STARTUP))) {
+        debugLog("engine.cfg: {:s} isn't a startup setting", commandName);
+        return false;
+    }
     if(!var) {
         // (it may belong to code that isn't there yet)
         if(source == Source::CONFIG && !commandValue.empty()) {
@@ -88,6 +98,12 @@ bool processCommand(std::string_view command, Source source) {
     }
 
     if(fromFile && var->isFlagSet(cv::NOLOAD)) {
+        return false;
+    }
+
+    // other configs only hand startup convars over while there is no engine.cfg
+    if(fromFile && source != Source::STARTUP && var->isFlagSet(cv::STARTUP) && s_haveEngineConfig) {
+        debugLog("{:s} is a startup setting, it's read from engine.cfg", commandName);
         return false;
     }
 
@@ -154,7 +170,7 @@ bool processCommand(std::string_view command, Source source) {
 }
 
 // TODO: move this bullshit osu_ prefix rewriting out of engine code or preferably dont do it at all
-void execConfigFile(std::string_view filename_view) {
+void execConfigFile(std::string_view filename_view, Source source) {
     if(filename_view.empty()) return;
     std::string filename{filename_view};
     File::normalizeSlashes(filename);
@@ -162,6 +178,8 @@ void execConfigFile(std::string_view filename_view) {
     const bool is_absolute = filename.contains('/');
     if(!is_absolute) {  // allow absolute paths
         filename = fmt::format("{}/{}", Mc::Paths::cfg(), filename_view);
+    } else if(source == Source::CONFIG) {
+        source = Source::OTHER_INSTALL_CONFIG;
     }
 
     // handle extension
@@ -188,7 +206,8 @@ void execConfigFile(std::string_view filename_view) {
                 // So, to avoid breaking old configs, we're removing the prefix for (almost) all convars here.
                 if(line.starts_with("osu_") && !line.starts_with("osu_folder")) {
                     line.erase(0, 4);
-                    needs_write = !is_absolute;  // DON'T OVERWRITE CONFIGS COMING FROM OTHER INSTALLATIONS!!!
+                    // DON'T OVERWRITE CONFIGS COMING FROM OTHER INSTALLATIONS!!!
+                    needs_write = source == Source::CONFIG;
                 }
 
                 // add command
@@ -200,7 +219,7 @@ void execConfigFile(std::string_view filename_view) {
         }
 
         // process the collected commands
-        for(const auto &cmd : cmds) processCommand(cmd, is_absolute ? Source::OTHER_INSTALL_CONFIG : Source::CONFIG);
+        for(const auto &cmd : cmds) processCommand(cmd, source);
     }
 
     // if we don't remove prefixed lines, this could prevent users from
@@ -216,6 +235,9 @@ void execConfigFile(std::string_view filename_view) {
         });
         write.detach();
     }
+
+    // startup convars it handed over go into engine.cfg right away, before this config can lose them
+    if(source != Source::STARTUP && !s_haveEngineConfig) saveEngineConfig();
 }
 
 std::string_view configValue(const ConVar &var, std::string_view text) {
@@ -227,17 +249,19 @@ std::string_view configValue(const ConVar &var, std::string_view text) {
     return text;
 }
 
-std::string makeConfig(std::string_view previous) {
+std::string makeConfig(std::string_view previous, Source source) {
+    const bool startup = source == Source::STARTUP;
     std::string config;
     for(auto line : SString::split(previous, '\n')) {
         SString::trim_inplace(line);
         if(line.empty()) continue;
         if(!SString::is_comment(line, "#") && !SString::is_comment(line, "//")) {
-            // (written from the convar's or the kept value below)
+            // written below from the convar or the kept value, or into the other kind of config
             const std::string_view name = line.substr(0, line.find(' '));
             const ConVar *var = cvars().getConVarByName(name);
             const auto kept = cvars().getKeptValues().find(name);
-            if((var && !var->isFlagSet(cv::NOSAVE)) || (kept != cvars().getKeptValues().end() && kept->second.save)) {
+            if((var && !var->isFlagSet(cv::NOSAVE)) ||
+               (!startup && kept != cvars().getKeptValues().end() && kept->second.save)) {
                 continue;
             }
         }
@@ -249,13 +273,41 @@ std::string makeConfig(std::string_view previous) {
 
     // (the client's own values: what a skin/the server/a multiplayer room is forcing right now isn't ours to keep)
     for(const auto *var : cvars().getConVarArray()) {
-        if(!var->canHaveValue() || var->isFlagSet(cv::NOSAVE) || var->isClientDefault()) continue;
+        if(!var->canHaveValue() || var->isFlagSet(cv::NOSAVE) || var->isFlagSet(cv::STARTUP) != startup ||
+           var->isClientDefault()) {
+            continue;
+        }
         config.append(fmt::format("{} {}\n", var->getName(), var->getClientString()));
     }
-    for(const auto &[name, kept] : cvars().getKeptValues()) {
-        if(kept.save && kept.text) config.append(fmt::format("{} {}\n", name, *kept.text));
+    if(!startup) {
+        for(const auto &[name, kept] : cvars().getKeptValues()) {
+            if(kept.save && kept.text) config.append(fmt::format("{} {}\n", name, *kept.text));
+        }
     }
     return config;
+}
+
+void loadEngineConfig() {
+    s_haveEngineConfig = File::exists(engineConfigPath()) == File::FILETYPE::FILE;
+    if(s_haveEngineConfig) execConfigFile("engine", Source::STARTUP);
+    s_engineConfigValues = makeConfig({}, Source::STARTUP);
+}
+
+void saveEngineConfig() {
+    std::string values = makeConfig({}, Source::STARTUP);
+    if(values == s_engineConfigValues) return;
+
+    const std::string path = engineConfigPath();
+    std::string previous;
+    if(File file(path); file.canRead()) previous = file.readToString();
+
+    File::createDirectoryRecursive(Mc::Paths::cfg());
+    if(File file(path, File::MODE::WRITE);
+       !file.canWrite() || !file.writeLine(makeConfig(previous, Source::STARTUP), false)) {
+        debugLog("WARNING: couldn't write {:s}", path);
+        return;
+    }
+    s_engineConfigValues = std::move(values);
 }
 
 void log(std::string_view text, Color color) {

@@ -64,6 +64,7 @@
 #include "Graphics.h"
 #include "Sound.h"
 #include "SoundEngine.h"
+#include "Startup.h"
 
 #include "fmt/chrono.h"
 
@@ -163,6 +164,25 @@ struct OptionsOverlayImpl final {
     void onNotelockSelect2(std::string_view notelockType, int id = -1);
     void onNotelockSelectResetClicked();
     void onNotelockSelectResetUpdate();
+
+    // a startup setting picked from a list: it takes effect at the next start, unless a launch option overrides it
+    struct StartupChoice {
+        ConVar *cvar;
+        std::vector<Mc::Startup::Choice> choices;
+        std::string inEffect;    // the value of what is running
+        std::string startValue;  // what the setting was when the game started
+        bool switched;
+        CBaseUIButton *button;
+        CBaseUILabel *label;
+    };
+    std::vector<StartupChoice> startupChoices;
+    size_t openStartupChoice{0};  // the one whose list is open
+    // adds nothing if there is nothing to pick
+    void addStartupChoice(const std::string &text, ConVar *cvar, std::vector<Mc::Startup::Choice> choices,
+                          std::string_view inEffect, bool switched);
+    void onStartupChoiceSelect(CBaseUIButton *button);
+    void onStartupChoiceSelected(std::string_view name, int id);
+    void updateStartupChoiceLabels();
 
     void onCheckboxChange(CBaseUICheckbox *checkbox);
     void onCheckboxChangeWithLayoutUpdate(CBaseUICheckbox *checkbox);
@@ -1013,6 +1033,8 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     CBaseUIElement *sectionGraphics = this->addSection(_("Graphics"));
 
     this->addSubSection(_("Renderer"));
+    this->addStartupChoice(_("Select Renderer"), &cv::r_renderer, Mc::Startup::rendererChoices(), env->getGraphicsAPI(),
+                           Mc::Startup::get().rendererSwitched);
     // makes the game run worse
     if constexpr(!Env::cfg(OS::WASM)) {
         this->addCheckbox(_("VSync"), _("If enabled: plz enjoy input lag."), &cv::vsync);
@@ -1132,6 +1154,9 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     CBaseUIElement *sectionAudio = this->addSection(_("Audio"));
 
     this->addSubSection(_("Devices"));
+    this->addStartupChoice(_("Select Audio Engine"), &cv::snd_engine, Mc::Startup::soundEngineChoices(),
+                           soundEngine->getTypeId() == SoundEngine::BASS ? "bass" : "soloud",
+                           Mc::Startup::get().soundEngineSwitched);
     {
         OptionsElement *outputDeviceSelect =
             this->addButton(_("Select Output Device"), _("Default"), true, &cv::snd_output_device);
@@ -2506,6 +2531,7 @@ void OptionsOverlayImpl::updateLayout() {
 
     this->updateSkinNameLabel();
     this->updateNotelockSelectLabel();
+    this->updateStartupChoiceLabels();
 
     if(this->outputDeviceLabel != nullptr)
         this->outputDeviceLabel->setText(std::string{soundEngine->getOutputDeviceName()});
@@ -3424,6 +3450,76 @@ void OptionsOverlayImpl::onNotelockSelectResetUpdate() {
     if(this->notelockSelectResetButton != nullptr)
         this->notelockSelectResetButton->setEnabled(cv::notelock_type.getInt() !=
                                                     (int)cv::notelock_type.getDefaultFloat());
+}
+
+void OptionsOverlayImpl::addStartupChoice(const std::string &text, ConVar *cvar,
+                                          std::vector<Mc::Startup::Choice> choices, std::string_view inEffect,
+                                          bool switched) {
+    if(choices.empty()) return;
+    OptionsElement *element = this->addButton(text, "", false, cvar);
+    auto *button = static_cast<CBaseUIButton *>(element->baseElems[0].get());
+    button->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onStartupChoiceSelect>(this));
+    // the search finds the row by its convar too
+    element->baseElems[1]->setName(std::string{cvar->getName()});
+    this->startupChoices.push_back({.cvar = cvar,
+                                    .choices = std::move(choices),
+                                    .inEffect = std::string{inEffect},
+                                    .startValue = cvar->getString(),
+                                    .switched = switched,
+                                    .button = button,
+                                    .label = static_cast<CBaseUILabel *>(element->baseElems[1].get())});
+    this->updateStartupChoiceLabels();
+}
+
+void OptionsOverlayImpl::onStartupChoiceSelect(CBaseUIButton *button) {
+    const auto it = Mc::ranges::find(this->startupChoices, button, &StartupChoice::button);
+    if(it == this->startupChoices.end()) return;
+    this->openStartupChoice = it - this->startupChoices.begin();
+
+    this->contextMenu->setPos(button->getPos());
+    this->contextMenu->setRelPos(button->getRelPos());
+    this->contextMenu->begin(button->getSize().x);
+    for(int i = 0; i < static_cast<int>(it->choices.size()); i++) {
+        CBaseUIButton *item = this->contextMenu->addButton(it->choices[i].name, i);
+        if(SString::strcase_equal(it->choices[i].value, it->cvar->getString())) item->setTextBrightColor(0xff00ff00);
+    }
+    this->contextMenu->end(false, false);
+    this->contextMenu->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onStartupChoiceSelected>(this));
+    this->options->setScrollSizeToContent();
+}
+
+void OptionsOverlayImpl::onStartupChoiceSelected(std::string_view /*name*/, int id) {
+    const StartupChoice &choice = this->startupChoices[this->openStartupChoice];
+    const std::string_view value = choice.choices[id].value;
+    if(SString::strcase_equal(value, choice.cvar->getString())) return;
+    choice.cvar->setValue(value);
+    this->updateStartupChoiceLabels();
+
+    // nothing to announce if the next start would be like this one
+    if(SString::strcase_equal(value, choice.startValue) || SString::strcase_equal(value, choice.inEffect)) return;
+
+    if(choice.switched) {
+        // a restart would pass the launch option on
+        ui->getNotificationOverlay()->addToast(
+            _("A launch option overrides this setting, it takes effect once the game is started without it."),
+            INFO_TOAST);
+        return;
+    }
+    ui->getNotificationOverlay()
+        ->addToast(_("This takes effect after a restart, click here to restart now."), INFO_TOAST,
+                   [] { engine->restart(); })
+        .detach();
+}
+
+void OptionsOverlayImpl::updateStartupChoiceLabels() {
+    for(const auto &choice : this->startupChoices) {
+        std::string name = Mc::Startup::choiceName(choice.choices, choice.cvar->getString());
+        // the automatic choice says what it came to
+        if(SString::strcase_equal(choice.cvar->getString(), choice.choices.front().value)) {
+            name = fmt::format("{} ({})", name, Mc::Startup::choiceName(choice.choices, choice.inEffect));
+        }
+        choice.label->setText(name);
+    }
 }
 
 void OptionsOverlayImpl::onCheckboxChangeWithLayoutUpdate(CBaseUICheckbox *checkbox) {
@@ -4366,6 +4462,9 @@ void OptionsOverlayImpl::save() {
     }
 
     debugLog("Osu: Saving user config file ...");
+
+    // startup settings live in engine.cfg
+    Console::saveEngineConfig();
 
     static const std::string cfg_name = Mc::Paths::cfg() + "/osu.cfg";
     static AsyncIOHandler::WriteCallback wr_callback = [](bool success) -> void {

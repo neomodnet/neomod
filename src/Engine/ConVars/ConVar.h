@@ -34,7 +34,7 @@ using namespace std::string_literals;
 #endif
 
 namespace cv {
-enum CvarFlags : uint8_t {
+enum CvarFlags : uint16_t {
     // Modifiable by clients
     CLIENT = (1 << 0),
 
@@ -60,6 +60,10 @@ enum CvarFlags : uint8_t {
 
     // Don't load this cvar from configs
     NOLOAD = (1 << 7),
+
+    // Read by the engine while it starts, so a change may only take effect at the next start. Kept in engine.cfg,
+    // which is loaded before the engine starts. Only the client sets these
+    STARTUP CV_HOST_ONLY = (1 << 8),
 
     // Mark the variable as intended for use only inside engine code
     // NOTE: This is intended to be used without any other flags
@@ -159,14 +163,14 @@ class ConVar {
     // utils
     static std::string_view typeToString(CONVAR_TYPE type);
     static std::string_view editorToString(CvarEditor editor);
-    static std::string flagsToString(uint8_t flags);
+    static std::string flagsToString(uint16_t flags);
 
    public:
     // ctors are neverinline due to causing giant compile-time blowups on TUs with many convars defined
     // they only ever run once at startup anyway, so there's no measurable runtime cost (besides maybe some extra milliseconds to boot)
 
     // command-only constructor
-    neverinline explicit ConVar(const char *name, uint8_t flags = cv::CLIENT)
+    neverinline explicit ConVar(const char *name, uint16_t flags = cv::CLIENT)
         : sName(name), sHelpString(""), defaultValue{.d = 0.0, .s = name} {
         this->type = CONVAR_TYPE::STRING;
         this->iFlags = cv::NOSAVE | flags;
@@ -175,7 +179,7 @@ class ConVar {
 
     // callback-only constructors (no value)
     template <typename Callback>
-    neverinline explicit ConVar(const char *name, uint8_t flags, Callback &&callback)
+    neverinline explicit ConVar(const char *name, uint16_t flags, Callback &&callback)
         requires cv::detail::CallbackCmd<Callback>
         : sName(name), sHelpString("") {
         this->setupCmdCallback(flags, std::forward<Callback>(callback));
@@ -183,7 +187,7 @@ class ConVar {
     }
 
     template <typename Callback>
-    neverinline explicit ConVar(const char *name, uint8_t flags, const char *helpString, Callback &&callback)
+    neverinline explicit ConVar(const char *name, uint16_t flags, const char *helpString, Callback &&callback)
         requires cv::detail::CallbackCmd<Callback>
         : sName(name), sHelpString(helpString) {
         this->setupCmdCallback(flags, std::forward<Callback>(callback));
@@ -192,7 +196,7 @@ class ConVar {
 
     // value constructors handle all types uniformly
     template <typename T>
-    neverinline explicit ConVar(const char *name, T &&defaultValue, uint8_t flags, const char *helpString = "")
+    neverinline explicit ConVar(const char *name, T &&defaultValue, uint16_t flags, const char *helpString = "")
         requires(!std::is_same_v<std::decay_t<T>, const char *>)
         : sName(name), sHelpString(helpString) {
         this->setupValue(std::forward<T>(defaultValue), flags);
@@ -200,7 +204,7 @@ class ConVar {
     }
 
     template <typename T, typename Callback>
-    neverinline explicit ConVar(const char *name, T &&defaultValue, uint8_t flags, const char *helpString,
+    neverinline explicit ConVar(const char *name, T &&defaultValue, uint16_t flags, const char *helpString,
                                 Callback &&callback)
         requires(!std::is_same_v<std::decay_t<T>, const char *>) && cv::detail::CallbackAny<Callback>
         : sName(name), sHelpString(helpString) {
@@ -210,7 +214,7 @@ class ConVar {
     }
 
     template <typename T>
-    neverinline explicit ConVar(const char *name, T &&defaultValue, uint8_t flags, const char *helpString,
+    neverinline explicit ConVar(const char *name, T &&defaultValue, uint16_t flags, const char *helpString,
                                 cv::Range range)
         requires std::is_arithmetic_v<std::decay_t<T>>
         : sName(name), sHelpString(helpString), range(range) {
@@ -219,7 +223,7 @@ class ConVar {
     }
 
     template <typename T, typename Callback>
-    neverinline explicit ConVar(const char *name, T &&defaultValue, uint8_t flags, const char *helpString,
+    neverinline explicit ConVar(const char *name, T &&defaultValue, uint16_t flags, const char *helpString,
                                 cv::Range range, Callback &&callback)
         requires std::is_arithmetic_v<std::decay_t<T>> && cv::detail::CallbackAny<Callback>
         : sName(name), sHelpString(helpString), range(range) {
@@ -229,7 +233,7 @@ class ConVar {
     }
 
     template <typename T, typename Callback>
-    neverinline explicit ConVar(const char *name, T &&defaultValue, uint8_t flags, Callback &&callback)
+    neverinline explicit ConVar(const char *name, T &&defaultValue, uint16_t flags, Callback &&callback)
         requires(!std::is_same_v<std::decay_t<T>, const char *>) && cv::detail::CallbackAny<Callback>
         : sName(name), sHelpString("") {
         this->setupValue(std::forward<T>(defaultValue), flags);
@@ -238,7 +242,7 @@ class ConVar {
     }
 
     // const char* specializations for string convars
-    neverinline explicit ConVar(const char *name, std::string_view defaultValue, uint8_t flags,
+    neverinline explicit ConVar(const char *name, std::string_view defaultValue, uint16_t flags,
                                 const char *helpString = "")
         : sName(name), sHelpString(helpString) {
         this->initValueImpl(defaultValue, flags);
@@ -246,7 +250,7 @@ class ConVar {
     }
 
     template <typename Callback>
-    neverinline explicit ConVar(const char *name, std::string_view defaultValue, uint8_t flags, const char *helpString,
+    neverinline explicit ConVar(const char *name, std::string_view defaultValue, uint16_t flags, const char *helpString,
                                 Callback &&callback)
         requires cv::detail::CallbackAny<Callback>
         : sName(name), sHelpString(helpString) {
@@ -256,7 +260,7 @@ class ConVar {
     }
 
     template <typename Callback>
-    neverinline explicit ConVar(const char *name, std::string_view defaultValue, uint8_t flags, Callback &&callback)
+    neverinline explicit ConVar(const char *name, std::string_view defaultValue, uint16_t flags, Callback &&callback)
         requires cv::detail::CallbackAny<Callback>
         : sName(name), sHelpString("") {
         this->initValueImpl(defaultValue, flags);
@@ -339,12 +343,12 @@ class ConVar {
     [[nodiscard]] forceinline std::string_view getHelpstring() const { return this->sHelpString; }
     [[nodiscard]] forceinline std::string_view getName() const { return this->sName; }
     [[nodiscard]] forceinline CONVAR_TYPE getType() const { return this->type; }
-    [[nodiscard]] forceinline uint8_t getFlags() const { return this->iFlags; }
+    [[nodiscard]] forceinline uint16_t getFlags() const { return this->iFlags; }
     [[nodiscard]] forceinline bool canHaveValue() const { return this->bCanHaveValue; }
 
     [[nodiscard]] bool hasSingleArgCallback() const;
 
-    [[nodiscard]] inline bool isFlagSet(uint8_t flag) const { return ((this->iFlags & flag) == flag); }
+    [[nodiscard]] inline bool isFlagSet(uint16_t flag) const { return ((this->iFlags & flag) == flag); }
     [[nodiscard]] inline bool isDefault() const {
         assert(McThread::is_main_thread() && "convars belong to the main thread");
         return this->sameValue(*this->effectiveValue, this->defaultValue);
@@ -413,7 +417,7 @@ class ConVar {
 
     // constructor helpers — compile-time dispatch into typed init impls
     template <typename T>
-    void setupValue(T &&v, uint8_t flags) {
+    void setupValue(T &&v, uint16_t flags) {
         using D = std::decay_t<T>;
         if constexpr(std::is_same_v<D, bool>)
             this->initValueImpl(static_cast<bool>(v), flags);
@@ -426,7 +430,7 @@ class ConVar {
     }
 
     template <typename Callback>
-    void setupCmdCallback(uint8_t flags, Callback &&cb) {
+    void setupCmdCallback(uint16_t flags, Callback &&cb) {
         using D = std::decay_t<Callback>;
         if constexpr(is_cb_delegate<D>)
             this->initCmdCallbackImpl(flags, std::forward<Callback>(cb));
@@ -442,16 +446,16 @@ class ConVar {
             static_assert(Env::always_false_v<D>, "Unsupported command callback signature");
     }
 
-    void initValueImpl(bool v, uint8_t flags);
-    void initValueImpl(int v, uint8_t flags);
-    void initValueImpl(double v, uint8_t flags);
-    void initValueImpl(std::string_view v, uint8_t flags);
-    void initValueInt(Value value, uint8_t flags);
+    void initValueImpl(bool v, uint16_t flags);
+    void initValueImpl(int v, uint16_t flags);
+    void initValueImpl(double v, uint16_t flags);
+    void initValueImpl(std::string_view v, uint16_t flags);
+    void initValueInt(Value value, uint16_t flags);
 
-    void initCmdCallbackImpl(uint8_t flags, VoidCB cb);
-    void initCmdCallbackImpl(uint8_t flags, StringCB cb);
-    void initCmdCallbackImpl(uint8_t flags, FloatCB cb);
-    void initCmdCallbackImpl(uint8_t flags, DoubleCB cb);
+    void initCmdCallbackImpl(uint16_t flags, VoidCB cb);
+    void initCmdCallbackImpl(uint16_t flags, StringCB cb);
+    void initCmdCallbackImpl(uint16_t flags, FloatCB cb);
+    void initCmdCallbackImpl(uint16_t flags, DoubleCB cb);
 
     // what a number is as a value of this convar: inside of its range
     [[nodiscard]] Value makeValue(double dbl) const;
@@ -529,11 +533,12 @@ class ConVar {
     CallbackSlot callback;
     CallbackSlot changeCallback;
 
+    uint16_t iFlags{0};
+
     CvarProtection serverProtectionPolicy{CvarProtection::DEFAULT};
     CvarEditor master{CvarEditor::CLIENT};
 
     CONVAR_TYPE type{CONVAR_TYPE::FLOAT};
-    uint8_t iFlags{0};
 
     bool bCanHaveValue{false};
     bool bInSession{false};            // whether sessionValue is what stands in for clientValue

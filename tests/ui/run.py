@@ -177,7 +177,8 @@ def script_directives(text):
     copy: '<source>|<path>' copies a fixture file (relative to the bin dir) into the data dir before the run
     file: '<path>|<line>|<line>...' writes a fixture file (relative to the data dir) before the run; backslash
           escapes (\\x01) write raw bytes
-    cfg: '<convar> <value>' is what osu.cfg has to hold for the convar after the run ('-' = no line at all)
+    cfg: '[<file>|]<convar> <value>' is what osu.cfg (or cfg/<file>) has to hold for the convar after the run ('-' = no
+         line at all)
     log: '<count> <text>' is how many lines of the log have to contain the text (0 = none)
     unchanged: a fixture directory (relative to the bin dir) the run must leave byte for byte as it was
     xfail: a known failure that planned work fixes: the script is reported as XFAIL as long as every
@@ -199,21 +200,27 @@ def tree_digest(root):
 
 
 def cfg_checks(datadir, specs):
-    """check the '# uitest-cfg:' expectations against the saved osu.cfg; returns CFG OK/FAIL log lines."""
+    """check the '# uitest-cfg:' expectations against the saved configs; returns CFG OK/FAIL log lines."""
     saved = {}
-    cfg = datadir / "cfg" / "osu.cfg"
-    if cfg.is_file():
-        for ln in cfg.read_text().splitlines():
-            key, _, value = ln.strip().partition(" ")
-            if key and not key.startswith(("#", "//")):
-                saved[key] = value.strip()
     lines = []
     for spec in specs:
-        key, _, expected = spec.partition(" ")
+        name, sep, rest = spec.partition("|")
+        if not sep:
+            name, rest = "osu.cfg", spec
+        if name not in saved:
+            saved[name] = {}
+            cfg = datadir / "cfg" / name
+            if cfg.is_file():
+                for ln in cfg.read_text().splitlines():
+                    key, _, value = ln.strip().partition(" ")
+                    if key and not key.startswith(("#", "//")):
+                        saved[name][key] = value.strip()
+        key, _, expected = rest.partition(" ")
         expected = expected.strip()
-        actual = saved.get(key, "-")
+        actual = saved[name].get(key, "-")
         result = "OK" if actual == expected else "FAIL"
-        lines.append(f"CFG {result} {key} expected='{expected}' actual='{actual}'")
+        where = key if name == "osu.cfg" else f"{name}:{key}"
+        lines.append(f"CFG {result} {where} expected='{expected}' actual='{actual}'")
     return lines
 
 

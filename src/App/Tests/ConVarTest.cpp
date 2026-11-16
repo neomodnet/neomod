@@ -158,6 +158,7 @@ void ConVarTest::update() {
     this->testChange();
     this->testThreads();
     this->testLifetime();
+    this->testStartup();
 
     TEST_PRINT_RESULTS("ConVarTest");
     engine->shutdown();
@@ -1480,6 +1481,37 @@ void ConVarTest::testLifetime() {
         Mc::ranges::none_of(cvars().getKeptValues(),
                             [](const auto &kept) { return kept.first.starts_with("cvtest_") && kept.second.text; }),
         "(no value of the tests is kept anymore)");
+}
+
+void ConVarTest::testStartup() {
+    TEST_SECTION("startup convars (engine.cfg)");
+
+    ConVar startup("cvtest_startup", 1, cv::CLIENT | cv::STARTUP | cv::HIDDEN);
+    ConVar other("cvtest_other", 0, cv::CLIENT | cv::HIDDEN);
+
+    TEST_ASSERT(Console::processCommand("cvtest_startup 2", Console::Source::STARTUP) && startup.getInt() == 2,
+                "engine.cfg sets a startup convar");
+    TEST_ASSERT(!Console::processCommand("cvtest_other 4", Console::Source::STARTUP) && other.getInt() == 0,
+                "...but no other convar");
+    TEST_ASSERT(
+        !Console::processCommand("cvtest_startup_later 3", Console::Source::STARTUP) && !isKept("cvtest_startup_later"),
+        "...and keeps no value for a name without a convar");
+
+    other.setValue(5);
+    const std::string previous = "# a comment\ncvtest_startup 9\ncvtest_other 9\nnobody_knows\n";
+    const std::string engineConfig = Console::makeConfig(previous, Console::Source::STARTUP);
+    TEST_ASSERT(countLines(engineConfig, "cvtest_startup ") == 1 && countLines(engineConfig, "cvtest_startup 2") == 1,
+                "engine.cfg gets the startup convars");
+    TEST_ASSERT_EQ(countLines(engineConfig, "cvtest_other"), 0, "...and no line of any other convar");
+    TEST_ASSERT(countLines(engineConfig, "# a comment") == 1 && countLines(engineConfig, "nobody_knows") == 1,
+                "...but keeps what nothing here knows about");
+    const std::string appConfig = Console::makeConfig(previous);
+    TEST_ASSERT(countLines(appConfig, "cvtest_other ") == 1 && countLines(appConfig, "cvtest_other 5") == 1,
+                "another config gets every other convar");
+    TEST_ASSERT_EQ(countLines(appConfig, "cvtest_startup"), 0, "...and drops the lines of startup convars");
+
+    startup.setValue(1);
+    other.setValue(0);
 }
 
 }  // namespace Mc::Tests

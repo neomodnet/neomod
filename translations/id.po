@@ -763,7 +763,7 @@ msgstr "Latar"
 msgid "Help"
 msgstr "Bantuan"
 
-#: src/App/Neomod/Editor/Editor.cpp
+#: src/App/Neomod/Editor/Editor.cpp src/Platform/Startup.cpp
 msgid "Back"
 msgstr "Kembali"
 
@@ -1890,24 +1890,16 @@ msgid "Press {:s} or {:s} anywhere to open chat."
 msgstr "Tekan {:s} atau {:s} di mana saja untuk membuka obrolan."
 
 #: src/App/Neomod/MainMenuTips.cpp
-msgid "Launch with the neomod-BASS shortcut to use BASS (ASIO/Exclusive mode) for audio."
-msgstr "Jalankan lewat pintasan neomod-BASS untuk memakai BASS (mode ASIO/Eksklusif) sebagai audio."
+msgid "BASS (ASIO/Exclusive mode) can be picked as the audio engine in the options."
+msgstr "BASS (ASIO/mode eksklusif) dapat dipilih sebagai mesin audio di opsi."
 
 #: src/App/Neomod/MainMenuTips.cpp
-msgid "Launch with \"-sound bass\" as a commandline argument to use BASS for audio."
-msgstr "Jalankan dengan \"-sound bass\" sebagai argumen baris perintah untuk memakai BASS sebagai audio."
+msgid "BASS can be picked as the audio engine in the options."
+msgstr "BASS dapat dipilih sebagai mesin audio di opsi."
 
 #: src/App/Neomod/MainMenuTips.cpp
-msgid "Put \"-gpu vk\" after the \"Target:\" field in a shortcut to neomod to use the Vulkan renderer."
-msgstr "Tambahkan \"-gpu vk\" setelah kolom \"Target:\" pada pintasan neomod untuk memakai renderer Vulkan."
-
-#: src/App/Neomod/MainMenuTips.cpp
-msgid "Put \"-dx11\" after the \"Target:\" field in a shortcut to neomod to use the D3D11 renderer."
-msgstr "Tambahkan \"-dx11\" setelah kolom \"Target:\" pada pintasan neomod untuk memakai renderer D3D11."
-
-#: src/App/Neomod/MainMenuTips.cpp
-msgid "Launch with \"-dx11\" as a commandline argument to use the D3D11 renderer."
-msgstr "Jalankan dengan \"-dx11\" sebagai argumen baris perintah untuk memakai renderer D3D11."
+msgid "The renderer can be changed in the options, under Graphics."
+msgstr "Renderer dapat diubah di opsi, pada bagian Grafis."
 
 #: src/App/Neomod/MainMenuTips.cpp
 msgid "Press Ctrl + O to open the options menu from anywhere."
@@ -2710,9 +2702,13 @@ msgstr "Tampilkan latar map di Discord Rich Presence"
 msgid "Graphics"
 msgstr "Grafis"
 
-#: src/App/Neomod/OptionsOverlay.cpp
+#: src/App/Neomod/OptionsOverlay.cpp src/Platform/Startup.cpp
 msgid "Renderer"
 msgstr "Renderer"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Select Renderer"
+msgstr "Pilih Renderer"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "If enabled: plz enjoy input lag."
@@ -2907,6 +2903,10 @@ msgstr "Audio"
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Devices"
 msgstr "Perangkat"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Select Audio Engine"
+msgstr "Pilih Mesin Audio"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Select Output Device"
@@ -4327,6 +4327,14 @@ msgid "Tried to enable exclusive mode, but couldn't :("
 msgstr "Mencoba mengaktifkan mode eksklusif, tetapi gagal :("
 
 #: src/App/Neomod/OptionsOverlay.cpp
+msgid "A launch option overrides this setting, it takes effect once the game is started without it."
+msgstr "Opsi peluncuran menimpa pengaturan ini, pengaturan ini berlaku setelah game dijalankan tanpa opsi tersebut."
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "This takes effect after a restart, click here to restart now."
+msgstr "Ini berlaku setelah dimulai ulang, klik di sini untuk memulai ulang sekarang."
+
+#: src/App/Neomod/OptionsOverlay.cpp
 #, c++-format
 msgid "Press new key for {}:"
 msgstr "Tekan tombol baru untuk {}:"
@@ -4572,7 +4580,7 @@ msgstr "Lanjutkan"
 msgid "Retry"
 msgstr "Ulangi"
 
-#: src/App/Neomod/PauseOverlay.cpp
+#: src/App/Neomod/PauseOverlay.cpp src/Platform/Startup.cpp
 msgid "Quit"
 msgstr "Keluar"
 
@@ -5278,3 +5286,70 @@ msgstr "Pembaruan bleeding edge adalah keuntungan khusus supporter."
 #: src/Engine/Sound/SoundEngine.cpp
 msgid "No sound"
 msgstr "Tanpa suara"
+
+#: src/Platform/Startup.cpp
+msgid "Startup settings"
+msgstr "Pengaturan awal"
+
+#: src/Platform/Startup.cpp
+msgid "Audio Engine"
+msgstr "Mesin audio"
+
+#: src/Platform/Startup.cpp
+msgid "(overridden by a launch option)"
+msgstr "(ditimpa oleh opsi peluncuran)"
+
+#: src/Platform/Startup.cpp
+msgid "The game starts with these settings:"
+msgstr "Game dimulai dengan pengaturan ini:"
+
+#: src/Platform/Startup.cpp
+msgid "High DPI"
+msgstr "DPI tinggi"
+
+#: src/Platform/Startup.cpp
+msgid "Off"
+msgstr "Mati"
+
+#: src/Platform/Startup.cpp
+msgid "On"
+msgstr "Nyala"
+
+#: src/Platform/Startup.cpp
+msgid "Language"
+msgstr "Bahasa"
+
+#: src/Platform/Startup.cpp
+msgid "Launch"
+msgstr "Mulai"
+
+#: src/Platform/Startup.cpp
+msgid "Defaults"
+msgstr "Bawaan"
+
+#: src/Platform/Startup.cpp
+msgid "The game stopped while loading last time."
+msgstr "Terakhir kali game berhenti saat memuat."
+
+#: src/Platform/Startup.cpp
+#, c++-format
+msgid "The game stopped while starting {} last time."
+msgstr "Terakhir kali game berhenti saat menjalankan {}."
+
+#: src/Platform/Startup.cpp
+msgid "Automatic"
+msgstr "Otomatis"
+
+#: src/Platform/main_impl.cpp
+#, c++-format
+msgid "No renderer could be started (tried {}), the log has the details."
+msgstr "Tidak ada renderer yang dapat dijalankan (dicoba: {}), log berisi detailnya."
+
+#: src/Platform/main_impl.cpp
+msgid "A launch option asked for it, so no other one was tried."
+msgstr "Opsi peluncuran memintanya, jadi tidak ada yang lain yang dicoba."
+
+#: src/Platform/main_impl.cpp
+#, c++-format
+msgid "{} couldn't start, using {} instead."
+msgstr "{} tidak dapat dijalankan, menggunakan {} sebagai gantinya."

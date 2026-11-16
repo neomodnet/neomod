@@ -1,0 +1,33 @@
+# a launch option that picks the renderer overrides what the options save: the toast says so instead of offering a
+# restart, which would pass the option on.
+# uitest-datadir: fresh
+# uitest-args: -sdlgpu
+# uitest-file: cfg/engine.cfg|language en
+# uitest-log: 1 A launch option overrides this setting
+# uitest-log: 0 This takes effect after a restart
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+options_save_on_back 0
+mouse_to 10 10
+@wait 30
+set_active_ui_screen optionsoverlay
+@wait 20
+sendtext renderer
+@wait 20
+# "Select Renderer", then OpenGL in its list (Automatic, Metal, OpenGL)
+mouse_to 256 378
+@wait 2
+mouse_down
+mouse_up
+@wait 10
+ui_assert visible options_contextmenu 1
+mouse_to 256 437
+@wait 2
+mouse_down
+mouse_up
+@wait 10
+ui_assert convar r_renderer opengl
+exit

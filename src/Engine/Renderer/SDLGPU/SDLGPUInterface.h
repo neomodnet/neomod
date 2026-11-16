@@ -124,6 +124,7 @@ class SDLGPUInterface final : public ModernGraphicsShared {
     [[nodiscard]] inline vec2 getResolution() const override { return m_viewport.size; }
 
     [[nodiscard]] inline std::string_view getName() const override { return m_rendererName; }
+    [[nodiscard]] std::string_view getDriver() const;  // SDL's name for the API it runs on, e.g. "vulkan"
     [[nodiscard]] inline std::string_view getVendor() override { return m_gpuVendor; }
     [[nodiscard]] inline std::string_view getModel() override { return m_gpuModel; }
     [[nodiscard]] inline std::string_view getVersion() override { return m_gpuDriverVersion; }

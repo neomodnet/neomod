@@ -15,21 +15,29 @@ class ConVar;
 // frame (updateLog()) and the views read it from there, without any locking
 namespace Console {
 // where a command comes from: configs don't set NOLOAD convars and may have a comment after a number, and a value for a
-// name no convar has is kept from our own configs (in the cfg folder) for the convar that registers under it later
+// name no convar has is kept from our own configs (in the cfg folder) for the convar that registers under it later.
+// startup convars (cv::STARTUP) only come from engine.cfg, once it exists
 enum class Source : u8 {
     USER,
     CONFIG,
     OTHER_INSTALL_CONFIG,  // (given by an absolute path: another installation's, imported from)
+    STARTUP,               // engine.cfg
 };
 bool processCommand(std::string_view command, Source source = Source::USER);
-void execConfigFile(std::string_view filename_view);
+void execConfigFile(std::string_view filename_view, Source source = Source::CONFIG);
 
 // what a config's text sets a convar to: a number may have a comment after it, text may be anything (urls...)
 [[nodiscard]] std::string_view configValue(const ConVar &var, std::string_view text);
 
-// a config of the client's values, including those kept for names without a convar; whatever else `previous` has
-// (comments, lines nothing here knows about) stays as it was
-[[nodiscard]] std::string makeConfig(std::string_view previous);
+// a config of the client's values for `source` to read: the startup convars for engine.cfg, every other convar
+// (including those kept for names without one) for the rest. whatever else `previous` has (comments, lines nothing
+// here knows about) stays as it was
+[[nodiscard]] std::string makeConfig(std::string_view previous, Source source = Source::CONFIG);
+
+// engine.cfg holds the startup convars, loaded before the engine starts.
+// saving writes it if a startup convar changed since it was loaded
+void loadEngineConfig();
+void saveEngineConfig();
 
 // log scrollback
 struct LogEntry {

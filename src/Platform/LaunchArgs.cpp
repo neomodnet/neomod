@@ -39,6 +39,7 @@ enum class Takes : unsigned char {
 struct KnownSwitch {
     std::string_view name;
     Takes takes;
+    bool once{false};  // only for this launch: never passed on (see get_switches())
 };
 
 // every switch has_arg() looks for
@@ -58,6 +59,7 @@ constexpr auto KNOWN_SWITCHES = std::to_array<KnownSwitch>({
     {"-async_threads", Takes::WORD}, {"-datadir", Takes::ANYTHING},
     {"-w", Takes::WORD},             {"-width", Takes::WORD},
     {"-h", Takes::WORD},             {"-height", Takes::WORD},
+    {"-setup", Takes::NOTHING, true},
 });
 // clang-format on
 
@@ -121,7 +123,7 @@ void init(int argc, char *argv[]) noexcept {
             SString::lower_inplace(arg);
             const KnownSwitch *known = find_known(arg);
             const bool has_value = i + 1 < argc && can_be_value(known ? known->takes : Takes::ANYTHING, argv[i + 1]);
-            if(known) {
+            if(known && !known->once) {
                 s_switch_indices.push_back(i);
                 if(has_value) s_switch_indices.push_back(i + 1);
             }
@@ -231,6 +233,8 @@ std::optional<std::string> has_arg(ArgSwitch arg_switch) noexcept {
             return find_switch({"-testapp"});
         case MODE_MULTI:
             return find_switch({"-multi"});
+        case MODE_SETUP:
+            return find_switch({"-setup"});
         case MISC_GL_VERBOSE:
             return find_switch({"-info", "-print", "-printinfo"});
         case MISC_GL_DEBUG:

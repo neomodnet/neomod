@@ -139,7 +139,7 @@ Environment::Environment(const Mc::AppDescriptor &appDesc)
 
     // make env->getDPI() always return 96
     // the hint set in main.cpp, before SDL_Init, will do the rest of the dirty work
-    m_bDPIOverride = has_arg(MISC_NO_DPI).has_value();
+    m_bDPIOverride = !Mc::Startup::get().highDPI;
 
     m_bEnvDebug = false;
 
@@ -183,43 +183,8 @@ Environment::Environment(const Mc::AppDescriptor &appDesc)
     // the hints might already be set from the startup environment, so respect that here (1)
     m_bWinKeyDisabled = m_bRawKB ? SDL_GetHintBoolean(SDL_HINT_WINDOWS_RAW_KEYBOARD_EXCLUDE_HOTKEYS, false) : false;
 
-    // this is the only platform/configuration where NullGraphics is used currently
-    if(Env::cfg(OS::WASM) && m_bHeadless) {
-        m_renderer = RuntimeRenderer::NULLGRAPHICS;
-    } else {
-        const bool wants_gl = !!has_arg(REND_GL);
-        const bool wants_dx11 = !!has_arg(REND_DX11);
-        const bool wants_sdlgpu = !!has_arg(REND_SDLGPU);
-        using enum RuntimeRenderer;
-        if(Env::cfg(REND::DX11) && (wants_dx11 || !Env::cfg(REND::GL | REND::GLES32 | REND::SDLGPU))) {
-            m_renderer = DX11;
-        } else if(Env::cfg(REND::SDLGPU) && (wants_sdlgpu || !Env::cfg(REND::GL | REND::GLES32 | REND::DX11))) {
-            m_renderer = SDLGPU;
-        } else if(Env::cfg(REND::GL | REND::GLES32) && (wants_gl || !Env::cfg(REND::DX11 | REND::SDLGPU))) {
-            m_renderer = Env::cfg(REND::GLES32) ? GLES : GL;
-        } else {
-            // defaults for multiple renderers and no commandline arguments specified
-            if(RuntimePlatform::current() & RuntimePlatform::WIN_WINE) {
-                // special case wine to prefer opengl over sdl_gpu (d3d12 translation is higher overhead than opengl)
-                m_renderer = Env::cfg(REND::GL)       ? GL
-                             : Env::cfg(REND::DX11)   ? DX11
-                             : Env::cfg(REND::SDLGPU) ? SDLGPU
-                                                      : GLES;
-            } else {
-                m_renderer = Env::cfg(REND::SDLGPU)   ? SDLGPU
-                             : Env::cfg(REND::DX11)   ? DX11
-                             : Env::cfg(REND::GLES32) ? GLES
-                                                      : GL;
-            }
-        }
-    }
-
-    m_sLocaleString = {};
-    {
-        // initialize default language instead of always using "en"
-        auto defaultLanguage = getDefaultLocale();
-        cv::language.setDefaultString(defaultLanguage);
-    }
+    // the first renderer to try (see SDLMain::initialize())
+    m_renderer = Mc::Startup::get().renderers.front();
 
     // setup callbacks
     cv::debug_env.setCallback(SA::MakeDelegate<&Environment::onLogLevelChange>(this));
@@ -301,12 +266,27 @@ void Environment::update() {
 
 std::vector<std::string> Environment::takeOpenRequests() { return std::exchange(m_vOpenRequests, {}); }
 
+bool Environment::startRenderer() {
+    // started once it is `g`, since starting may already go through it
+    g = this->createRenderer();
+    if(g->init()) return true;
+    SAFE_DELETE(g);
+    return false;
+}
+
+std::string_view Environment::getGraphicsAPI() const {
+#ifdef MCENGINE_FEATURE_SDLGPU
+    if(usingSDLGPU()) return static_cast<const SDLGPUInterface *>(g)->getDriver();
+#endif
+    return Mc::Startup::rendererValue(m_renderer, {});
+}
+
 Graphics *Environment::createRenderer() {
 #if defined(MCENGINE_PLATFORM_WASM)
     if(m_bHeadless) return new NullGraphics();
 #endif
 #ifdef MCENGINE_FEATURE_DIRECTX11
-    if(usingDX11())  // only if specified on the command line, for now
+    if(usingDX11())
         return new DirectX11Interface(Env::cfg(OS::WINDOWS) ? getHwnd() : reinterpret_cast<HWND>(m_window));
     else {
 #endif
@@ -489,22 +469,20 @@ std::string_view Environment::getUsername() const noexcept {
     return m_sUsername;
 }
 
-const std::string &Environment::getDefaultLocale() const noexcept {
-    // need restart to update locale
-    if(!m_sLocaleString.empty()) return m_sLocaleString;
+std::string Environment::getDefaultLocale() noexcept {
 #if defined(MCENGINE_PLATFORM_WINDOWS)
 
 #ifdef MC_ARCH32
     // GetUserDefaultLocaleName is Windows Vista and later, this is fallback for Windows XP
     // This will give something like "en", not "en-US", but who cares
     // We could concat with LOCALE_SISO639TRYNAME if we ever add Traditional English
-    char locale_name[9]{};  // 9 is max according to ms docs
+    char locale_name[10]{};  // 9 is max according to ms docs
     GetLocaleInfoA(GetUserDefaultLCID(), LOCALE_SISO639LANGNAME, &locale_name[0], 9);
-    return (m_sLocaleString = &locale_name[0]);
+    return &locale_name[0];
 #else
     std::array<wchar_t, LOCALE_NAME_MAX_LENGTH> wlocale{};
     GetUserDefaultLocaleName(wlocale.data(), LOCALE_NAME_MAX_LENGTH);
-    return (m_sLocaleString = UniString::to_utf8(wlocale.data()));
+    return UniString::to_utf8(wlocale.data());
 #endif
 
 #else  // !MCENGINE_PLATFORM_WINDOWS
@@ -518,7 +496,7 @@ const std::string &Environment::getDefaultLocale() const noexcept {
         char buf[64]{};
         const bool ok = CFStringGetCString(cfid, &buf[0], sizeof(buf), kCFStringEncodingUTF8);
         CFRelease(cflocale);
-        if(ok && buf[0] != '\0') return (m_sLocaleString = &buf[0]);
+        if(ok && buf[0] != '\0') return &buf[0];
     }
 #endif
 
@@ -530,9 +508,9 @@ const std::string &Environment::getDefaultLocale() const noexcept {
         auto locale = getEnvVariable(var);
         if(locale.empty()) continue;
         if(const auto colon = locale.find(':'); colon != std::string::npos) locale.resize(colon);
-        return (m_sLocaleString = locale);
+        return locale;
     }
-    return (m_sLocaleString = "en");
+    return "en";
 #endif
 }
 

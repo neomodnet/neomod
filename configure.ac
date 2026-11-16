@@ -899,7 +899,8 @@ __EOF__
     AC_SUBST([NASMOBJ],[macho64])
 
     # fixup linker runtime paths (the app bundle keeps its dylibs in Contents/Frameworks)
-    NATIVE_LDFLAGS="-Wl,-rpath,@executable_path/../Frameworks"
+    # CoreGraphics: the modifier keys at startup
+    NATIVE_LDFLAGS="-Wl,-rpath,@executable_path/../Frameworks -Wl,-framework,CoreGraphics"
     AC_SUBST([NATIVE_LDFLAGS])
 
     AC_DEFINE([MCENGINE_PLATFORM_MACOS], [1], [Define if compiling for macOS.])

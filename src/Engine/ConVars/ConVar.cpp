@@ -54,6 +54,8 @@ void ConVar::addConVar() {
     // If you really need it, you'll also need to edit Console::execConfigFile to whitelist it there.
     assert(!(this->sName.starts_with("osu_") && !this->sName.starts_with("osu_folder")) &&
            "osu_ ConVar prefix is deprecated.");
+    assert((!(this->iFlags & cv::STARTUP) || !(this->iFlags & (cv::SERVER | cv::SKINS))) &&
+           "startup convars can only be set by the client");
 
     // (which may hand it the client value kept under its name)
     cvars().add(*this);
@@ -128,7 +130,7 @@ std::string_view ConVar::editorToString(CvarEditor editor) {
     return ""sv;
 }
 
-std::string ConVar::flagsToString(uint8_t flags) {
+std::string ConVar::flagsToString(uint16_t flags) {
     if(flags == 0) {
         return "no flags";
     }
@@ -136,7 +138,7 @@ std::string ConVar::flagsToString(uint8_t flags) {
     static constexpr const auto flagStringPairArray = std::array{
         std::pair{cv::CLIENT, "client"},       std::pair{cv::SERVER, "server"},     std::pair{cv::SKINS, "skins"},
         std::pair{cv::PROTECTED, "protected"}, std::pair{cv::GAMEPLAY, "gameplay"}, std::pair{cv::HIDDEN, "hidden"},
-        std::pair{cv::NOSAVE, "nosave"},       std::pair{cv::NOLOAD, "noload"}};
+        std::pair{cv::NOSAVE, "nosave"},       std::pair{cv::NOLOAD, "noload"},     std::pair{cv::STARTUP, "startup"}};
 
     std::string string;
     for(bool first = true; const auto &[flag, str] : flagStringPairArray) {
@@ -444,29 +446,29 @@ void ConVar::setCallbackImpl(DoubleChangeCB cb) {
 // typed init impls used by value ctors. each sets type/flags + default value, which is what the convar is until the
 // client (or anyone else) sets it.
 
-void ConVar::initValueImpl(bool v, uint8_t flags) {
+void ConVar::initValueImpl(bool v, uint16_t flags) {
     this->type = CONVAR_TYPE::BOOL;
     this->initValueInt({.d = v ? 1.0 : 0.0, .s = v ? "1" : "0"}, flags);
 }
 
-void ConVar::initValueImpl(int v, uint8_t flags) {
+void ConVar::initValueImpl(int v, uint16_t flags) {
     this->type = CONVAR_TYPE::INT;
     this->initValueInt({.d = static_cast<double>(v), .s = fmt::format("{:g}", static_cast<double>(v))}, flags);
 }
 
-void ConVar::initValueImpl(double v, uint8_t flags) {
+void ConVar::initValueImpl(double v, uint16_t flags) {
     this->type = CONVAR_TYPE::FLOAT;
     this->initValueInt({.d = v, .s = fmt::format("{:g}", v)}, flags);
 }
 
-void ConVar::initValueImpl(std::string_view v, uint8_t flags) {
+void ConVar::initValueImpl(std::string_view v, uint16_t flags) {
     this->type = CONVAR_TYPE::STRING;
 
     // (string convars take any text, with a numeric view of it if it happens to be a number)
     this->initValueInt(*this->makeValue(v), flags);
 }
 
-void ConVar::initValueInt(Value value, uint8_t flags) {
+void ConVar::initValueInt(Value value, uint16_t flags) {
     assert(value.d >= this->range.min && value.d <= this->range.max &&
            "a convar's default has to be inside of its range");
     this->bCanHaveValue = true;
@@ -477,25 +479,25 @@ void ConVar::initValueInt(Value value, uint8_t flags) {
 // typed init impls used by callback-only ctors. flags get NOSAVE forced on, and type is
 // determined by the callback signature (preserves pre-refactor semantics: float/double cb → INT).
 
-void ConVar::initCmdCallbackImpl(uint8_t flags, VoidCB cb) {
+void ConVar::initCmdCallbackImpl(uint16_t flags, VoidCB cb) {
     this->iFlags = flags | cv::NOSAVE;
     this->type = CONVAR_TYPE::STRING;
     ::new(&this->callback.storage[0]) VoidCB(cb);
     this->callback.kind = CallbackKind::Void;
 }
-void ConVar::initCmdCallbackImpl(uint8_t flags, StringCB cb) {
+void ConVar::initCmdCallbackImpl(uint16_t flags, StringCB cb) {
     this->iFlags = flags | cv::NOSAVE;
     this->type = CONVAR_TYPE::STRING;
     ::new(&this->callback.storage[0]) StringCB(cb);
     this->callback.kind = CallbackKind::String;
 }
-void ConVar::initCmdCallbackImpl(uint8_t flags, FloatCB cb) {
+void ConVar::initCmdCallbackImpl(uint16_t flags, FloatCB cb) {
     this->iFlags = flags | cv::NOSAVE;
     this->type = CONVAR_TYPE::INT;
     ::new(&this->callback.storage[0]) FloatCB(cb);
     this->callback.kind = CallbackKind::Float;
 }
-void ConVar::initCmdCallbackImpl(uint8_t flags, DoubleCB cb) {
+void ConVar::initCmdCallbackImpl(uint16_t flags, DoubleCB cb) {
     this->iFlags = flags | cv::NOSAVE;
     this->type = CONVAR_TYPE::INT;
     ::new(&this->callback.storage[0]) DoubleCB(cb);

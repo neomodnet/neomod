@@ -10,7 +10,7 @@
 #include "ConVar.h"
 #include "i18n.h"
 #include "Logging.h"
-#include "LaunchArgs.h"
+#include "Startup.h"
 #include "Thread.h"
 
 #include <algorithm>
@@ -66,8 +66,8 @@ SoundEngine *SoundEngine::initialize() {
 
     std::vector<SndEngineType> initOrderList;
     if constexpr(Env::cfg(AUD::SOLOUD) && Env::cfg(AUD::BASS)) {
-        // built with both backends supported, only prefer bass if explicitly passed as a launch arg
-        if(Mc::LaunchArgs::has_arg(Mc::LaunchArgs::SND_BASS)) {
+        // built with both backends supported, bass only goes first if asked for
+        if(Mc::Startup::get().preferBASS) {
             initOrderList = {SndEngineType::BASS, SndEngineType::SOLOUD};
         } else {
             initOrderList = {SndEngineType::SOLOUD, SndEngineType::BASS};

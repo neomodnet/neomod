@@ -58,26 +58,15 @@ static std::array s_tips{
 #if !defined(MCENGINE_PLATFORM_WASM) // irrelevant for web
 #if defined(MCENGINE_FEATURE_BASS) && defined(MCENGINE_FEATURE_SOLOUD)
 #if defined(MCENGINE_PLATFORM_WINDOWS)
-	Tip{_(R"(Launch with the neomod-BASS shortcut to use BASS (ASIO/Exclusive mode) for audio.)")},
+	Tip{_(R"(BASS (ASIO/Exclusive mode) can be picked as the audio engine in the options.)")},
 #else
-	Tip{_(R"(Launch with "-sound bass" as a commandline argument to use BASS for audio.)")},
+	Tip{_(R"(BASS can be picked as the audio engine in the options.)")},
 #endif // defined(MCENGINE_PLATFORM_WINDOWS)
 #endif // defined(MCENGINE_FEATURE_BASS) && defined(MCENGINE_FEATURE_SOLOUD)
-#if defined(MCENGINE_FEATURE_SDLGPU)
-#if defined(MCENGINE_PLATFORM_WINDOWS)
-//     Tip{_(R"(Put "-gpu" after the "Target:" field in a shortcut to neomod to use the D3D12 renderer.)")},
-    Tip{_(R"(Put "-gpu vk" after the "Target:" field in a shortcut to neomod to use the Vulkan renderer.)")},
-// #else
-//     Tip{_(R"(Launch with "-sdlgpu" as a commandline argument to use the Vulkan renderer.)")},
-#endif // defined(MCENGINE_PLATFORM_WINDOWS)
-#endif // defined(MCENGINE_FEATURE_SDLGPU)
-#if defined(MCENGINE_FEATURE_DIRECTX11)
-#if defined(MCENGINE_PLATFORM_WINDOWS)
-    Tip{_(R"(Put "-dx11" after the "Target:" field in a shortcut to neomod to use the D3D11 renderer.)")},
-#else
-    Tip{_(R"(Launch with "-dx11" as a commandline argument to use the D3D11 renderer.)")},
-#endif // defined(MCENGINE_PLATFORM_WINDOWS)
-#endif // defined(MCENGINE_FEATURE_DIRECTX11)
+#if (defined(MCENGINE_FEATURE_SDLGPU) + defined(MCENGINE_FEATURE_DIRECTX11) + \
+     (defined(MCENGINE_FEATURE_OPENGL) || defined(MCENGINE_FEATURE_GLES32))) > 1
+    Tip{_(R"(The renderer can be changed in the options, under Graphics.)")},
+#endif
 #endif // !defined(MCENGINE_PLATFORM_WASM)
     Tip{_(R"(Press Ctrl + O to open the options menu from anywhere.)")},
         // clang-format on
