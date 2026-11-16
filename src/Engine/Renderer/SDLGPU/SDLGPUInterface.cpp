@@ -659,6 +659,9 @@ void SDLGPUInterface::endScene() {
         }
 
         SDL_SubmitGPUCommandBuffer(m_cmdBuf);
+        if constexpr(Env::cfg(OS::MAC)) {
+            SDL_WaitForGPUSwapchain(m_device, m_window);
+        }
     } else if(auto *fence = SDL_SubmitGPUCommandBufferAndAcquireFence(m_cmdBuf)) {
         // no swapchain acquire to wait on, so limit the frames in flight here (or a slow GPU falls behind forever)
         m_headlessFrameFences.push_back(fence);
