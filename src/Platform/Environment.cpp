@@ -353,9 +353,11 @@ void Environment::restart() {
 
 void Environment::openURLInDefaultBrowser(std::string_view url, bool /*preventFocusSteal*/ /*(TODO)*/) noexcept {
     // TODO: focus-stealing prevention
-    if(!SDL_OpenURL(std::string{url}.c_str())) {
-        debugLog("Failed to open URL: {:s}", SDL_GetError());
-    }
+    Async::dispatch(
+        [url = std::string{url}]() {
+            if(!SDL_OpenURL(url.c_str())) debugLog("Failed to open URL: {:s}", SDL_GetError());
+        },
+        Lane::Background);
 }
 
 #ifdef MCENGINE_PLATFORM_WASM
