@@ -1811,12 +1811,14 @@ void BeatmapInterface::drawHitObjects() {
     if(!cv::mod_mafham.getBool()) {
         this->objectsToDraw.clear();
         i32 mostDistantEndTimeDrawn = 0;
+        const bool freezeFrame = flags::has<ModFlags::FreezeFrame>(this->getModFlags());
 
         for(sSz i = static_cast<sSz>(hitobjectsSortedByEndTime.size()) - 1; i >= 0; i--) {
             // PVS optimization (reversed)
             HitObject *obj = hitobjectsSortedByEndTime[i];
             if(likely(usePVS)) {
-                if(obj->getClickTime() > curPos + pvs)  // future objects
+                // freeze frame shows a whole combo once it starts
+                if((freezeFrame ? obj->getComboStartTime() : obj->getClickTime()) > curPos + pvs)  // future objects
                     continue;
 
                 const i32 endTime = obj->getEndTime();

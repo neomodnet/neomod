@@ -319,12 +319,13 @@ void HitObject::updateLook(i32 curPosMS, ModFlags mods, f32 approachTimeMS, f32 
     // 1 ms fudge by using >=, shouldn't really be a problem
     if(curPosMS >= (visibleTms - m_approachTimeMS) && curPosMS < (getEndTime())) {
         // approach circle scale
-        const f32 scale = std::clamp<f32>((f32)m_deltaMS / (f32)m_approachTimeMS, 0.0f, 1.0f);
+        // freeze frame keeps the usual shrink rate, so objects later in the combo start out larger
+        const f32 scale = std::max(0.0f, (f32)m_deltaMS / (f32)m_approachTimeMS);
         m_approachScale = 1 + (scale * cv::approach_scale_multiplier.getFloat());
         if(flags::has<ModFlags::ApproachDifferent>(mods)) {
             constexpr f32 back_const = 1.70158;
 
-            f32 time = 1.0f - scale;
+            f32 time = 1.0f - std::min(scale, 1.0f);
             {
                 switch(cv::mod_approach_different_style.getInt()) {
                     default:  // "Linear"
@@ -413,10 +414,10 @@ void HitObject::updateLook(i32 curPosMS, ModFlags mods, f32 approachTimeMS, f32 
         }
 
         // approach circle fadein (doubled fadeintime)
-        const i32 approachCircleFadeStart = m_clickTimeMS - m_approachTimeMS;
+        const i32 approachCircleFadeStart = visibleTms - m_approachTimeMS;
         const i32 approachCircleFadeEnd =
-            std::min(m_clickTimeMS,
-                     m_clickTimeMS - m_approachTimeMS +
+            std::min(visibleTms,
+                     visibleTms - m_approachTimeMS +
                          2 * m_fadeInTimeMS);  // std::min() ensures that the fade always finishes at click_time
                                                // (even if the fadeintime is longer than the approachtime)
         m_alphaForApproachCircle = std::clamp<f32>(

@@ -192,9 +192,10 @@ void GameplayJudge::simulate_to(i32 musicPos) {
 
 void GameplayJudge::animate(i32 curPos) {
     const i32 pvs = this->getPVS();
+    const bool freezeFrame = this->getMods().has(ModFlags::FreezeFrame);
     for(auto &hitobject : this->hitobjects) {
         if(hitobject->isFinished() && curPos - pvs > hitobject->getEndTime()) continue;
-        if(hitobject->getClickTime() > curPos + pvs) break;
+        if((freezeFrame ? hitobject->getComboStartTime() : hitobject->getClickTime()) > curPos + pvs) break;
         hitobject->animate(curPos);
     }
 }
@@ -719,26 +720,11 @@ void GameplayJudge::update(f64 frameTimeSecs) {
                                     (i32)this->hitobjects.size() - 1);
                 return this->hitobjects[objIdx]->getClickTime() - this->iCurMusicPos + 1500;
             }
-            if(mods.has(ModFlags::FreezeFrame)) {
-                // For freeze frame, we want to extend PVS to encompass the whole combo group
-                // Find the next combo group, then get the difference from our current combo group
-                const auto &current_hitobject = this->hitobjects[this->iCurrentHitObjectIndex];
-                for(int i = this->iCurrentHitObjectIndex; i < this->hitobjects.size(); i++) {
-                    const auto &future_hitobject = this->hitobjects[i];
-                    if(future_hitobject->getComboStartTime() > current_hitobject->getComboStartTime()) {
-                        return this->getPVS() +
-                               (future_hitobject->getClickTime() - current_hitobject->getComboStartTime());
-                    }
-                }
-
-                // Oops! We are on the last combo group.
-                const auto &last_hitobject = this->hitobjects.back();
-                return this->getPVS() + (last_hitobject->getClickTime() - current_hitobject->getComboStartTime());
-            }
 
             return this->getPVS();
         }();
         const bool usePVS = cv::pvs.getBool();
+        const bool freezeFrame = mods.has(ModFlags::FreezeFrame);
 
         const int notelockType = mods.notelock_type;
         const i32 tolerance2B = (i32)cv::notelock_stable_tolerance2b.getInt();
@@ -788,7 +774,9 @@ void GameplayJudge::update(f64 frameTimeSecs) {
                     this->iCurrentHitObjectIndex = i;
                     continue;
                 }
-                if(curHobj->getClickTime() > this->iCurMusicPos + pvs)  // future objects
+                // freeze frame shows a whole combo once it starts
+                if((freezeFrame ? curHobj->getComboStartTime() : curHobj->getClickTime()) >
+                   this->iCurMusicPos + pvs)  // future objects
                     break;
             }
 
