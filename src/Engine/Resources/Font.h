@@ -20,10 +20,8 @@
 
 class Graphics;
 class OpenGLInterface;
-class OpenGLES32Interface;
-class DirectX11Interface;
+class ModernGraphicsShared;
 class NullGraphics;
-class SDLGPUInterface;
 struct TextFX;
 
 struct McFontImpl;
@@ -32,10 +30,8 @@ class McFont final : public Resource {
    private:
     friend Graphics;
     friend OpenGLInterface;
-    friend OpenGLES32Interface;
-    friend DirectX11Interface;
+    friend ModernGraphicsShared;
     friend NullGraphics;
-    friend SDLGPUInterface;
     void drawString(std::string_view text, std::optional<TextFX> effects);
 
    public:

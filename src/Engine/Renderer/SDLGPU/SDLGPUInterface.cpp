@@ -83,7 +83,7 @@ SDLGPUInterface::~SDLGPUInterface() {
         if(m_dummySampler) SDL_ReleaseGPUSampler(m_device, m_dummySampler);
         if(m_whiteTexture) SDL_ReleaseGPUTexture(m_device, m_whiteTexture);
         if(m_dummyTexture) SDL_ReleaseGPUTexture(m_device, m_dummyTexture);
-        m_smoothClipShader.reset();
+        this->smoothClipShader.reset();
         m_defaultShader.reset();
         m_activeShader = nullptr;
 
@@ -691,104 +691,11 @@ void SDLGPUInterface::clearDepthBuffer() {
 
 // color
 
-void SDLGPUInterface::setColor(Color color) { m_data->color = color; }
-
-void SDLGPUInterface::setAlpha(float alpha) { m_data->color.setA(alpha); }
-
 // 2d resource drawing
 
-namespace {
-static CONSTINIT VertexArrayObject triStripVAO(DrawPrimitive::TRIANGLE_STRIP);
-}
-
-void SDLGPUInterface::drawImage(const Image *image, AnchorPoint anchor, float edgeSoftness, McRect clipRect) {
-    // skip entirely transparent images
-    if(image == nullptr || !image->isGPUReady()) {
-        if(image && cv::r_debug_drawimage.getBool()) {
-            const vec2 size = image->getSize();
-            const vec2 pos = getAnchoredOrigin(anchor, size);
-            this->setColor(0xbbff00ff);
-            Graphics::drawRectf(pos.x, pos.y, size.x, size.y);
-        }
-        return;
-    }
-
-    const bool clipRectSpecified = vec::length(clipRect.getSize()) != 0;
-    bool smoothedEdges = edgeSoftness > 0.0f;
-
-    // initialize smooth clip shader on first use
-    if(smoothedEdges) {
-        if(!m_smoothClipShader) initSmoothClipShader();
-        smoothedEdges = m_smoothClipShader && m_smoothClipShader->isReady();
-    }
-
-    const bool fallbackClip = clipRectSpecified && !smoothedEdges;
-    if(fallbackClip) this->pushClipRect(clipRect);
-
-    this->updateTransform();
-    this->setTexturing(true);
-
-    const vec2 size = image->getSize();
-    const vec2 pos = getAnchoredOrigin(anchor, size);
-    const auto [x, y, width, height] = std::tuple{pos.x, pos.y, size.x, size.y};
-
-    if(smoothedEdges && !clipRectSpecified) {
-        clipRect = McRect{pos, size};
-    }
-
-    if(smoothedEdges) {
-        // SDL_gpu uses top-left origin like DX11
-        float clipMinX = (clipRect.getX() + m_viewport.pos.x) - .5f;
-        float clipMinY = (clipRect.getY() + m_viewport.pos.y) - .5f;
-        float clipMaxX = (clipMinX + clipRect.getWidth());
-        float clipMaxY = (clipMinY + clipRect.getHeight());
-
-        m_smoothClipShader->enable();
-        m_smoothClipShader->setUniform2f("rect_min", clipMinX, clipMinY);
-        m_smoothClipShader->setUniform2f("rect_max", clipMaxX, clipMaxY);
-        m_smoothClipShader->setUniform1f("edge_softness", edgeSoftness);
-        m_smoothClipShader->setUniform4f("col", m_data->color.Rf(), m_data->color.Gf(), m_data->color.Bf(),
-                                         m_data->color.Af());
-        m_smoothClipShader->setMVP(m_data->MP);
-    }
-
-    triStripVAO.clear();
-    {
-        triStripVAO.addVertex(x, y);
-        triStripVAO.addTexcoord(0, 0);
-        triStripVAO.addVertex(x, y + height);
-        triStripVAO.addTexcoord(0, 1);
-        triStripVAO.addVertex(x + width, y);
-        triStripVAO.addTexcoord(1, 0);
-        triStripVAO.addVertex(x + width, y + height);
-        triStripVAO.addTexcoord(1, 1);
-    }
-
-    image->bind();
-    {
-        this->drawVAO(&triStripVAO);
-    }
-    image->unbind();
-
-    if(smoothedEdges) {
-        m_smoothClipShader->disable();
-    } else if(fallbackClip) {
-        this->popClipRect();
-    }
-
-    if(cv::r_debug_drawimage.getBool()) {
-        this->setColor(0xbbff00ff);
-        Graphics::drawRectf(x, y, width, height);
-    }
-}
-
-void SDLGPUInterface::drawString(McFont *font, std::string_view text, std::optional<TextFX> effects) {
-    if(font == nullptr || text.length() < 1 || !font->isReady()) return;
-
-    this->updateTransform();
-    this->setTexturing(true);
-
-    font->drawString(text, effects);
+vec2 SDLGPUInterface::getSmoothClipMin(McRect clipRect) const {
+    // SDL_gpu uses top-left origin like DX11
+    return clipRect.getPos() + m_viewport.pos - .5f;
 }
 
 // 3d type drawing
@@ -1034,8 +941,8 @@ void SDLGPUInterface::recordDraw(SDL_GPUBuffer *bakedBuffer, u32 first, u32 coun
 
     // snapshot scissor
     Scissor scissor{};
-    if(m_scissorEnabled && !m_clipRectStack.empty()) {
-        const auto &cr = m_clipRectStack.back();
+    if(m_scissorEnabled && !this->clipRectStack.empty()) {
+        const auto &cr = this->clipRectStack.back();
         scissor = {.pos{(i32)cr.getMinX(), (i32)cr.getMinY()}, .size{(i32)cr.getWidth(), (i32)cr.getHeight()}};
         // clamp for vulkan
         if(scissor.pos.x < 0) {
@@ -1430,24 +1337,6 @@ void SDLGPUInterface::setClipRect(McRect /*clipRect*/) {
     // TODO: is this necessary? maybe this shouldn't be a public API at all (not used in app code currently anyways)
 }
 
-void SDLGPUInterface::pushClipRect(McRect clipRect) {
-    if(m_clipRectStack.size() > 0)
-        m_clipRectStack.push_back(m_clipRectStack.back().intersect(clipRect));
-    else
-        m_clipRectStack.push_back(clipRect);
-
-    this->setClipRect(m_clipRectStack.back());
-}
-
-void SDLGPUInterface::popClipRect() {
-    m_clipRectStack.pop_back();
-
-    if(m_clipRectStack.size() > 0)
-        this->setClipRect(m_clipRectStack.back());
-    else
-        this->setClipping(false);
-}
-
 // viewport
 
 void SDLGPUInterface::pushViewport() {
@@ -1506,7 +1395,7 @@ void SDLGPUInterface::popStencil() {
 
 void SDLGPUInterface::setClipping(bool enabled) {
     if(enabled) {
-        if(m_clipRectStack.size() < 1) enabled = false;
+        if(this->clipRectStack.size() < 1) enabled = false;
     }
     m_scissorEnabled = enabled;
     // scissor state is captured per-draw in recordDraw();
@@ -1802,18 +1691,10 @@ void SDLGPUInterface::setActiveShader(SDLGPUShader *shader) {
     }
 }
 
-void SDLGPUInterface::initSmoothClipShader() {
-    if(m_smoothClipShader) return;
-
-    m_smoothClipShader.reset(static_cast<SDLGPUShader *>(createShaderFromSource(
+Shader *SDLGPUInterface::createSmoothClipShader() {
+    return createShaderFromSource(
         std::string_view(reinterpret_cast<const char *>(VK_smoothclip_vsh), static_cast<uSz>(VK_smoothclip_vsh_size)),
-        std::string_view(reinterpret_cast<const char *>(VK_smoothclip_fsh),
-                         static_cast<uSz>(VK_smoothclip_fsh_size)))));
-
-    if(m_smoothClipShader) {
-        m_smoothClipShader->loadAsync();
-        m_smoothClipShader->load();
-    }
+        std::string_view(reinterpret_cast<const char *>(VK_smoothclip_fsh), static_cast<uSz>(VK_smoothclip_fsh_size)));
 }
 
 // factory

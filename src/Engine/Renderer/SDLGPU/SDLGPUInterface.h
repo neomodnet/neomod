@@ -75,23 +75,13 @@ class SDLGPUInterface final : public ModernGraphicsShared {
     // depth buffer
     void clearDepthBuffer() override;
 
-    // color
-    void setColor(Color color) override;
-    void setAlpha(float alpha) override;
-
     // 2d primitive drawing (implemented in ModernGraphicsShared)
-
-    // 2d resource drawing
-    void drawImage(const Image *image, AnchorPoint anchor, float edgeSoftness, McRect clipRect) override;
-    void drawString(McFont *font, std::string_view text, std::optional<TextFX> effects = std::nullopt) override;
 
     // 3d type drawing
     void drawVAO(VertexArrayObject *vao) override;
 
     // 2d clipping
     void setClipRect(McRect clipRect) override;
-    void pushClipRect(McRect clipRect) override;
-    void popClipRect() override;
 
     // viewport
     void pushViewport() override;
@@ -209,7 +199,8 @@ class SDLGPUInterface final : public ModernGraphicsShared {
     // default shader fragment uniforms (misc = texturing/inversion/colorless flags, col = tint), written on change
     void applyDefaultFragState(bool texturing, bool colorless, Color col);
 
-    void initSmoothClipShader();
+    Shader *createSmoothClipShader() override;
+    [[nodiscard]] vec2 getSmoothClipMin(McRect clipRect) const override;
     void onFramecountNumChanged(float maxFramesInFlight);
 
     static SDLGPUPrimitiveType primitiveToSDLGPUPrimitive(DrawPrimitive prim);
@@ -228,7 +219,6 @@ class SDLGPUInterface final : public ModernGraphicsShared {
     // shaders
     std::unique_ptr<SDLGPUShader> m_defaultShader{nullptr};
     SDLGPUShader *m_activeShader{nullptr};  // always points to default or custom
-    std::unique_ptr<SDLGPUShader> m_smoothClipShader{nullptr};
 
     // pipeline cache (keyed by state)
     struct PipelineKey {
@@ -457,7 +447,6 @@ class SDLGPUInterface final : public ModernGraphicsShared {
     std::array<std::atomic<SDL_GPUSampler *>, MAX_TEXTURE_UNITS> m_boundSamplers{};
 
     // stacks
-    std::vector<McRect> m_clipRectStack;
 
     // render target stack
     struct RenderTargetState {

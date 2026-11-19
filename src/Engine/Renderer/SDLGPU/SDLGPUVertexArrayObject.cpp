@@ -12,6 +12,7 @@
 
 #include "SDLGPUVertexArrayObject.h"
 #include "SDLGPUInterface.h"
+#include "ModernGraphicsShared.h"
 
 #include "ContainerRanges.h"
 #include "Engine.h"
@@ -91,95 +92,14 @@ void SDLGPUVertexArrayObject::init() {
     std::vector<vec2> convTexcoords;
     std::vector<Color> convColors;
 
-    std::span<const vec3> srcVerts;
-    std::span<const vec2> srcTCs;
-    std::span<const Color> srcColors;
+    m_convertedPrimitive = ModernGraphicsShared::convertToTriangles(
+        this->primitive, this->vertices, this->texcoords, this->colors, convVertices, convTexcoords, convColors);
+    const bool converted = m_convertedPrimitive != this->primitive;
 
-    if(this->primitive == DrawPrimitive::QUADS) {
-        m_convertedPrimitive = DrawPrimitive::TRIANGLES;
-
-        if(this->vertices.size() > 3) {
-            const size_t numQuads = this->vertices.size() / 4;
-            // a trailing partial quad can't be baked, so don't read past the last complete one
-            const size_t numQuadVerts = numQuads * 4;
-            convVertices.reserve(numQuads * 6);
-
-            // partial texcoords can't be expanded alongside the quads, so ignore them entirely (as the default path does)
-            const bool hasTCs = this->texcoords.size() >= this->vertices.size();
-            if(hasTCs) convTexcoords.reserve(numQuads * 6);
-
-            const size_t maxColorIdx = this->colors.empty() ? 0 : this->colors.size() - 1;
-            if(!this->colors.empty()) convColors.reserve(numQuads * 6);
-
-            for(size_t i = 0; i < numQuadVerts; i += 4) {
-                convVertices.push_back(this->vertices[i + 0]);
-                convVertices.push_back(this->vertices[i + 1]);
-                convVertices.push_back(this->vertices[i + 2]);
-                convVertices.push_back(this->vertices[i + 0]);
-                convVertices.push_back(this->vertices[i + 2]);
-                convVertices.push_back(this->vertices[i + 3]);
-
-                if(hasTCs) {
-                    convTexcoords.push_back(this->texcoords[i + 0]);
-                    convTexcoords.push_back(this->texcoords[i + 1]);
-                    convTexcoords.push_back(this->texcoords[i + 2]);
-                    convTexcoords.push_back(this->texcoords[i + 0]);
-                    convTexcoords.push_back(this->texcoords[i + 2]);
-                    convTexcoords.push_back(this->texcoords[i + 3]);
-                }
-
-                if(!this->colors.empty()) {
-                    convColors.push_back(this->colors[std::min(i + 0, maxColorIdx)]);
-                    convColors.push_back(this->colors[std::min(i + 1, maxColorIdx)]);
-                    convColors.push_back(this->colors[std::min(i + 2, maxColorIdx)]);
-                    convColors.push_back(this->colors[std::min(i + 0, maxColorIdx)]);
-                    convColors.push_back(this->colors[std::min(i + 2, maxColorIdx)]);
-                    convColors.push_back(this->colors[std::min(i + 3, maxColorIdx)]);
-                }
-            }
-        }
-        srcVerts = convVertices;
-        srcTCs = convTexcoords;
-        srcColors = convColors;
-    } else if(this->primitive == DrawPrimitive::TRIANGLE_FAN) {
-        m_convertedPrimitive = DrawPrimitive::TRIANGLES;
-
-        if(this->vertices.size() > 2) {
-            const size_t numTris = this->vertices.size() - 2;
-            convVertices.reserve(numTris * 3);
-
-            const bool hasTCs = this->texcoords.size() >= this->vertices.size();
-            if(hasTCs) convTexcoords.reserve(numTris * 3);
-
-            const size_t maxColorIdx = this->colors.empty() ? 0 : this->colors.size() - 1;
-            if(!this->colors.empty()) convColors.reserve(numTris * 3);
-
-            for(size_t i = 2; i < this->vertices.size(); i++) {
-                convVertices.push_back(this->vertices[0]);
-                convVertices.push_back(this->vertices[i]);
-                convVertices.push_back(this->vertices[i - 1]);
-
-                if(hasTCs) {
-                    convTexcoords.push_back(this->texcoords[0]);
-                    convTexcoords.push_back(this->texcoords[i]);
-                    convTexcoords.push_back(this->texcoords[i - 1]);
-                }
-
-                if(!this->colors.empty()) {
-                    convColors.push_back(this->colors[std::min<size_t>(0, maxColorIdx)]);
-                    convColors.push_back(this->colors[std::min(i, maxColorIdx)]);
-                    convColors.push_back(this->colors[std::min(i - 1, maxColorIdx)]);
-                }
-            }
-        }
-        srcVerts = convVertices;
-        srcTCs = convTexcoords;
-        srcColors = convColors;
-    } else {
-        srcVerts = this->vertices;
-        srcTCs = this->texcoords;
-        srcColors = this->colors;  // interleave() clamps the index, so a short color array is fine as-is
-    }
+    // interleave() clamps the color index, so a short color array is fine as-is
+    const std::span<const vec3> srcVerts = converted ? convVertices : std::span<const vec3>{this->vertices};
+    const std::span<const vec2> srcTCs = converted ? convTexcoords : std::span<const vec2>{this->texcoords};
+    const std::span<const Color> srcColors = converted ? convColors : std::span<const Color>{this->colors};
 
     const size_t numVerts = srcVerts.size();
     if(numVerts == 0) return;
@@ -441,16 +361,7 @@ void SDLGPUVertexArrayObject::destroy() {
 void SDLGPUVertexArrayObject::draw() {
     if(unlikely(!m_gpu || !m_device || !this->isReady())) return;
 
-    const int start = std::clamp<int>(this->iDrawRangeFromIndex > -1
-                                          ? this->iDrawRangeFromIndex
-                                          : nearestMultipleUp((int)(this->iNumVertices * this->fDrawPercentFromPercent),
-                                                              this->iDrawPercentNearestMultiple),
-                                      0, this->iNumVertices);
-    const int end = std::clamp<int>(this->iDrawRangeToIndex > -1
-                                        ? this->iDrawRangeToIndex
-                                        : nearestMultipleDown((int)(this->iNumVertices * this->fDrawPercentToPercent),
-                                                              this->iDrawPercentNearestMultiple),
-                                    0, this->iNumVertices);
+    const auto [start, end] = this->getDrawRange();
 
     if(start >= end) return;
 

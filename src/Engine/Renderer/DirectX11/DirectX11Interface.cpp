@@ -34,7 +34,10 @@
 
 #include "binary_embed.h"
 
+#include <algorithm>
+#include <span>
 #include <string_view>
+#include <vector>
 
 // #define D3D11_DEBUG
 
@@ -475,113 +478,15 @@ void DirectX11Interface::drawPixel(int x, int y) {
     this->uploadAndDrawVertexBatch(D3D_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
 }
 
-namespace {
-static CONSTINIT VertexArrayObject triStripVAO{DrawPrimitive::TRIANGLE_STRIP};
-}
+vec2 DirectX11Interface::getSmoothClipMin(McRect clipRect) const {
+    // DirectX uses top-left origin, so no Y-flipping needed
+    D3D11_VIEWPORT viewport;
+    UINT numViewports = 1;
+    // maybe inefficient? could be cached like opengl
+    this->deviceContext->RSGetViewports(&numViewports, &viewport);
 
-void DirectX11Interface::drawImage(const Image *image, AnchorPoint anchor, float edgeSoftness, McRect clipRect) {
-    // skip entirely transparent images
-    if(image == nullptr || !image->isGPUReady()) {
-        if(image && cv::r_debug_drawimage.getBool()) {
-            const vec2 size = image->getSize();
-            const vec2 pos = getAnchoredOrigin(anchor, size);
-            this->setColor(0xbbff00ff);
-            Graphics::drawRectf(pos.x, pos.y, size.x, size.y);
-        }
-        return;
-    }
-
-    const bool clipRectSpecified = vec::length(clipRect.getSize()) != 0;
-    bool smoothedEdges = edgeSoftness > 0.0f;
-
-    // initialize shader on first use
-    if(smoothedEdges) {
-        if(!this->smoothClipShader) {
-            this->initSmoothClipShader();
-        }
-        smoothedEdges = this->smoothClipShader->isReady();
-    }
-
-    const bool fallbackClip = clipRectSpecified && !smoothedEdges;
-
-    if(fallbackClip) {
-        this->pushClipRect(clipRect);
-    }
-
-    this->updateTransform();
-
-    this->setTexturing(true);  // enable texturing
-
-    const vec2 size = image->getSize();
-    const vec2 pos = getAnchoredOrigin(anchor, size);
-    const auto [x, y, width, height] = std::tuple{pos.x, pos.y, size.x, size.y};
-
-    if(smoothedEdges && !clipRectSpecified) {
-        // set a default clip rect as the exact image size if one wasn't explicitly passed, but we still want smoothing
-        clipRect = McRect{x, y, width, height};
-    }
-
-    if(smoothedEdges) {
-        // DirectX uses top-left origin, so no Y-flipping needed
-        D3D11_VIEWPORT viewport;
-        UINT numViewports = 1;
-        // maybe inefficient? could be cached like opengl
-        this->deviceContext->RSGetViewports(&numViewports, &viewport);
-
-        float clipMinX = (clipRect.getX() + viewport.TopLeftX) - .5f;  // i don't know... weird rounding
-        float clipMinY = (clipRect.getY() + viewport.TopLeftY) - .5f;
-        float clipMaxX = (clipMinX + clipRect.getWidth());
-        float clipMaxY = (clipMinY + clipRect.getHeight());
-
-        this->smoothClipShader->enable();
-        this->smoothClipShader->setUniform2f("rect_min", clipMinX, clipMinY);
-        this->smoothClipShader->setUniform2f("rect_max", clipMaxX, clipMaxY);
-        this->smoothClipShader->setUniform1f("edge_softness", edgeSoftness);
-        this->smoothClipShader->setUniform4f("col", m_data->color.Rf(), m_data->color.Gf(), m_data->color.Bf(),
-                                             m_data->color.Af());
-
-        // set mvp for the shader
-        this->smoothClipShader->setMVP(m_data->MP);
-    }
-
-    triStripVAO.clear();
-    {
-        triStripVAO.addVertex(x, y);
-        triStripVAO.addTexcoord(0, 0);
-        triStripVAO.addVertex(x, y + height);
-        triStripVAO.addTexcoord(0, 1);
-        triStripVAO.addVertex(x + width, y);
-        triStripVAO.addTexcoord(1, 0);
-        triStripVAO.addVertex(x + width, y + height);
-        triStripVAO.addTexcoord(1, 1);
-    }
-
-    image->bind();
-    {
-        this->drawVAO(&triStripVAO);
-    }
-    image->unbind();
-
-    if(smoothedEdges) {
-        this->smoothClipShader->disable();
-    } else if(fallbackClip) {
-        this->popClipRect();
-    }
-
-    if(cv::r_debug_drawimage.getBool()) {
-        this->setColor(0xbbff00ff);
-        Graphics::drawRectf(x, y, width, height);
-    }
-}
-
-void DirectX11Interface::drawString(McFont *font, std::string_view text, std::optional<TextFX> effects) {
-    if(font == nullptr || text.length() < 1 || !font->isReady()) return;
-
-    this->updateTransform();
-
-    this->setTexturing(true);  // enable texturing
-
-    font->drawString(text, effects);
+    // i don't know... weird rounding
+    return clipRect.getPos() + vec2(viewport.TopLeftX, viewport.TopLeftY) - .5f;
 }
 
 void DirectX11Interface::drawVAO(VertexArrayObject *vao) {
@@ -613,95 +518,16 @@ void DirectX11Interface::drawVAO(VertexArrayObject *vao) {
 
     // TODO: optimize this piece of shit
 
-    // no support for quads, because fuck you
-    // no support for triangle fans, because fuck youuu
-    // rewrite all quads into triangles
-    // rewrite all triangle fans into triangles
-    static std::vector<vec3> finalVertices;
-    finalVertices.assign(vertices.begin(), vertices.end());
-    static std::vector<vec2> finalTexcoords;
-    finalTexcoords.assign(texcoords.begin(), texcoords.end());
-    static std::vector<vec4> colors;
-    colors.clear();
-    static std::vector<vec4> finalColors;
-    finalColors.clear();
+    static std::vector<vec3> convVertices;
+    static std::vector<vec2> convTexcoords;
+    static std::vector<Color> convColors;
+    const DrawPrimitive primitive = ModernGraphicsShared::convertToTriangles(
+        vao->getPrimitive(), vertices, texcoords, vcolors, convVertices, convTexcoords, convColors);
+    const bool converted = primitive != vao->getPrimitive();
 
-    for(auto vcolor : vcolors) {
-        const vec4 color = vec4(vcolor.Rf(), vcolor.Gf(), vcolor.Bf(), vcolor.Af());
-        colors.push_back(color);
-        finalColors.push_back(color);
-    }
-    const size_t maxColorIndex = (colors.size() > 0 ? colors.size() - 1 : 0);
-
-    DrawPrimitive primitive = vao->getPrimitive();
-    if(primitive == DrawPrimitive::QUADS) {
-        finalVertices.clear();
-        finalTexcoords.clear();
-        finalColors.clear();
-        primitive = DrawPrimitive::TRIANGLES;
-
-        if(vertices.size() > 3) {
-            for(size_t i = 0; i < vertices.size(); i += 4) {
-                finalVertices.push_back(vertices[i + 0]);
-                finalVertices.push_back(vertices[i + 1]);
-                finalVertices.push_back(vertices[i + 2]);
-
-                if(!texcoords.empty()) {
-                    finalTexcoords.push_back(texcoords[i + 0]);
-                    finalTexcoords.push_back(texcoords[i + 1]);
-                    finalTexcoords.push_back(texcoords[i + 2]);
-                }
-
-                if(colors.size() > 0) {
-                    finalColors.push_back(colors[std::clamp<size_t>(i + 0, 0, maxColorIndex)]);
-                    finalColors.push_back(colors[std::clamp<size_t>(i + 1, 0, maxColorIndex)]);
-                    finalColors.push_back(colors[std::clamp<size_t>(i + 2, 0, maxColorIndex)]);
-                }
-
-                finalVertices.push_back(vertices[i + 0]);
-                finalVertices.push_back(vertices[i + 2]);
-                finalVertices.push_back(vertices[i + 3]);
-
-                if(!texcoords.empty()) {
-                    finalTexcoords.push_back(texcoords[i + 0]);
-                    finalTexcoords.push_back(texcoords[i + 2]);
-                    finalTexcoords.push_back(texcoords[i + 3]);
-                }
-
-                if(colors.size() > 0) {
-                    finalColors.push_back(colors[std::clamp<size_t>(i + 0, 0, maxColorIndex)]);
-                    finalColors.push_back(colors[std::clamp<size_t>(i + 2, 0, maxColorIndex)]);
-                    finalColors.push_back(colors[std::clamp<size_t>(i + 3, 0, maxColorIndex)]);
-                }
-            }
-        }
-    } else if(primitive == DrawPrimitive::TRIANGLE_FAN) {
-        finalVertices.clear();
-        finalTexcoords.clear();
-        finalColors.clear();
-        primitive = DrawPrimitive::TRIANGLES;
-
-        if(vertices.size() > 2) {
-            for(size_t i = 2; i < vertices.size(); i++) {
-                finalVertices.push_back(vertices[0]);
-
-                finalVertices.push_back(vertices[i]);
-                finalVertices.push_back(vertices[i - 1]);
-
-                if(!texcoords.empty()) {
-                    finalTexcoords.push_back(texcoords[0]);
-                    finalTexcoords.push_back(texcoords[i]);
-                    finalTexcoords.push_back(texcoords[i - 1]);
-                }
-
-                if(colors.size() > 0) {
-                    finalColors.push_back(colors[std::clamp<size_t>(0, 0, maxColorIndex)]);
-                    finalColors.push_back(colors[std::clamp<size_t>(i, 0, maxColorIndex)]);
-                    finalColors.push_back(colors[std::clamp<size_t>(i - 1, 0, maxColorIndex)]);
-                }
-            }
-        }
-    }
+    const std::span<const vec3> finalVertices = converted ? std::span<const vec3>{convVertices} : vertices;
+    const std::span<const vec2> finalTexcoords = converted ? std::span<const vec2>{convTexcoords} : texcoords;
+    const std::span<const Color> finalColors = converted ? std::span<const Color>{convColors} : vcolors;
 
     // build directx vertices
     const bool hasTexcoords0 = (finalTexcoords.size() > 0);
@@ -722,10 +548,12 @@ void DirectX11Interface::drawVAO(VertexArrayObject *vao) {
         for(size_t i = 0; i < finalVertices.size(); i++) {
             this->vertices[i].pos = finalVertices[i];
 
-            if(hasColors)
-                this->vertices[i].col = finalColors[std::clamp<size_t>(i, 0, maxColorIndex)];
-            else
+            if(hasColors) {
+                const Color clr = finalColors[std::min(i, maxColorIndex)];
+                this->vertices[i].col = vec4(clr.Rf(), clr.Gf(), clr.Bf(), clr.Af());
+            } else {
                 this->vertices[i].col = color;
+            }
 
             // TODO: multitexturing
             if(hasTexcoords0) this->vertices[i].tex = finalTexcoords[std::clamp<size_t>(i, 0, maxTexcoords0Index)];
@@ -751,24 +579,6 @@ void DirectX11Interface::setClipRect(McRect clipRect) {
                     .bottom = static_cast<LONG>(clipRect.getMaxY() - 1)};
 
     this->deviceContext->RSSetScissorRects(1, &rect);
-}
-
-void DirectX11Interface::pushClipRect(McRect clipRect) {
-    if(this->clipRectStack.size() > 0)
-        this->clipRectStack.push_back(this->clipRectStack.back().intersect(clipRect));
-    else
-        this->clipRectStack.push_back(clipRect);
-
-    this->setClipRect(this->clipRectStack.back());
-}
-
-void DirectX11Interface::popClipRect() {
-    this->clipRectStack.pop_back();
-
-    if(this->clipRectStack.size() > 0)
-        this->setClipRect(this->clipRectStack.back());
-    else
-        this->setClipping(false);
 }
 
 void DirectX11Interface::setClipping(bool enabled) {
@@ -1258,19 +1068,11 @@ int DirectX11Interface::compareFuncToDirectX(DrawCompareFunc /*compareFunc*/) {
     return 0;
 }
 
-void DirectX11Interface::initSmoothClipShader() {
-    if(this->smoothClipShader) return;
-
-    this->smoothClipShader.reset(
-        this->createShaderFromSource(std::string_view(reinterpret_cast<const char *>(&DX11_smoothclip_vsh[0]),
-                                                      static_cast<size_t>(DX11_smoothclip_vsh_size)),
-                                     std::string_view(reinterpret_cast<const char *>(&DX11_smoothclip_fsh[0]),
-                                                      static_cast<size_t>(DX11_smoothclip_fsh_size))));
-
-    if(this->smoothClipShader) {
-        this->smoothClipShader->loadAsync();
-        this->smoothClipShader->load();
-    }
+Shader *DirectX11Interface::createSmoothClipShader() {
+    return this->createShaderFromSource(std::string_view(reinterpret_cast<const char *>(&DX11_smoothclip_vsh[0]),
+                                                         static_cast<size_t>(DX11_smoothclip_vsh_size)),
+                                        std::string_view(reinterpret_cast<const char *>(&DX11_smoothclip_fsh[0]),
+                                                         static_cast<size_t>(DX11_smoothclip_fsh_size)));
 }
 
 DXGI_MODE_DESC DirectX11Interface::queryCurrentSwapchainDesc() const {

@@ -5,6 +5,9 @@
 #include "ContainerRanges.h"
 #include "Graphics.h"
 
+#include <algorithm>
+#include <utility>
+
 static_assert(DrawUsageType::STATIC == DrawUsageType{0});
 static_assert(DrawPrimitive::TRIANGLES == DrawPrimitive{2});
 
@@ -167,20 +170,20 @@ void VertexArrayObject::reserve(size_t vertexCount) noexcept {
     this->texcoords.reserve(vertexCount);
 }
 
-int VertexArrayObject::nearestMultipleUp(int number, int multiple) noexcept {
-    if(multiple == 0) return number;
+std::pair<int, int> VertexArrayObject::getDrawRange() const noexcept {
+    const int multiple = this->iDrawPercentNearestMultiple;
 
-    int remainder = number % multiple;
-    if(remainder == 0) return number;
+    int start = this->iDrawRangeFromIndex;
+    if(start < 0) {
+        start = (int)(this->iNumVertices * this->fDrawPercentFromPercent);
+        if(multiple != 0 && start % multiple != 0) start += multiple - start % multiple;
+    }
 
-    return number + multiple - remainder;
-}
+    int end = this->iDrawRangeToIndex;
+    if(end < 0) {
+        end = (int)(this->iNumVertices * this->fDrawPercentToPercent);
+        if(multiple != 0) end -= end % multiple;
+    }
 
-int VertexArrayObject::nearestMultipleDown(int number, int multiple) noexcept {
-    if(multiple == 0) return number;
-
-    int remainder = number % multiple;
-    if(remainder == 0) return number;
-
-    return number - remainder;
+    return {std::clamp<int>(start, 0, this->iNumVertices), std::clamp<int>(end, 0, this->iNumVertices)};
 }

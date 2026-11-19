@@ -33,25 +33,14 @@ class OpenGLES32Interface final : public SDLGLInterface {
     // depth buffer
     void clearDepthBuffer() final;
 
-    // color
-    void setColor(Color color) final;
-    void setAlpha(float alpha) final;
-
     // 2d primitive drawing (implemented in ModernGraphicsShared)
     void drawRectf(const RectOptions &opts) final;  // exception: overridden because GL_LINE_LOOP works better
-
-    // 2d resource drawing
-    void drawImage(const Image *image, AnchorPoint anchor = AnchorPoint::CENTER, float edgeSoftness = 0.0f,
-                   McRect clipRect = {}) final;
-    void drawString(McFont *font, std::string_view text, std::optional<TextFX> effects = std::nullopt) final;
 
     // 3d type drawing
     void drawVAO(VertexArrayObject *vao) final;
 
     // DEPRECATED: 2d clipping
     void setClipRect(McRect clipRect) final;
-    void pushClipRect(McRect clipRect) final;
-    void popClipRect() final;
 
     // viewport modification
     void pushViewport() final;
@@ -109,8 +98,8 @@ class OpenGLES32Interface final : public SDLGLInterface {
     void unregisterShader(OpenGLES32Shader *shader);
     void updateAllShaderTransforms();
 
-    std::unique_ptr<Shader> smoothClipShader{nullptr};
-    void initSmoothClipShader();
+    Shader *createSmoothClipShader() override;
+    [[nodiscard]] vec2 getSmoothClipMin(McRect clipRect) const override;
 
     // renderer
     vec2 m_vResolution;
@@ -133,7 +122,6 @@ class OpenGLES32Interface final : public SDLGLInterface {
     bool m_bColorInversion{false};
 
     // clipping
-    std::vector<McRect> m_clipRectStack;
 };
 
 #else

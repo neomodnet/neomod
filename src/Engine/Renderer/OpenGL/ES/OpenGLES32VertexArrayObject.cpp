@@ -19,8 +19,7 @@
 
 OpenGLES32VertexArrayObject::OpenGLES32VertexArrayObject(DrawPrimitive primitive, DrawUsageType usage,
                                                          bool keepInSystemMemory)
-    : VertexArrayObject(primitive, usage, keepInSystemMemory) {
-}
+    : VertexArrayObject(primitive, usage, keepInSystemMemory) {}
 
 void OpenGLES32VertexArrayObject::init() {
     if(!(this->isAsyncReady()) || this->vertices.size() < 2) return;
@@ -103,7 +102,7 @@ void OpenGLES32VertexArrayObject::init() {
         m_iNumColors = this->colors.size();
 
         // convert ARGB to ABGR for OpenGL
-        for(auto & color : this->colors) {
+        for(auto &color : this->colors) {
             color = abgr(color);
         }
 
@@ -154,20 +153,9 @@ void OpenGLES32VertexArrayObject::draw() {
         return;
     }
 
-    const int start = std::clamp<int>(this->iDrawRangeFromIndex > -1
-                                          ? this->iDrawRangeFromIndex
-                                          : nearestMultipleUp((int)(this->iNumVertices * this->fDrawPercentFromPercent),
-                                                              this->iDrawPercentNearestMultiple),
-                                      0, this->iNumVertices);
-    const int end = std::clamp<int>(this->iDrawRangeToIndex > -1
-                                        ? this->iDrawRangeToIndex
-                                        : nearestMultipleDown((int)(this->iNumVertices * this->fDrawPercentToPercent),
-                                                              this->iDrawPercentNearestMultiple),
-                                    0, this->iNumVertices);
+    const auto [start, end] = this->getDrawRange();
 
-    if(start > end || std::abs(end - start) == 0) {
-        return;
-    }
+    if(start >= end) return;
 
     auto *gles32 = static_cast<OpenGLES32Interface *>(g);
 

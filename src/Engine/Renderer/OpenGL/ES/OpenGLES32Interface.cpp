@@ -29,6 +29,10 @@
 
 #include "binary_embed.h"
 
+#include <algorithm>
+#include <span>
+#include <vector>
+
 OpenGLES32Interface::OpenGLES32Interface(void *window)
     : SDLGLInterface(static_cast<SDL_Window *>(window)), m_vResolution(engine->getScreenSize()) {
     // renderer
@@ -229,7 +233,7 @@ void OpenGLES32Interface::endScene() {
 
     this->processPendingScreenshot();
 
-    if(m_clipRectStack.size() > 0) {
+    if(this->clipRectStack.size() > 0) {
         engine->showMessageErrorFatal("ClipRect Stack Leak", "Make sure all push*() have a pop*()!");
         engine->shutdown();
     }
@@ -239,12 +243,6 @@ void OpenGLES32Interface::endScene() {
 }
 
 void OpenGLES32Interface::clearDepthBuffer() { glClear(GL_DEPTH_BUFFER_BIT); }
-
-void OpenGLES32Interface::setColor(Color color) { m_data->color = color; }
-
-void OpenGLES32Interface::setAlpha(float alpha) {
-    setColor(rgba(m_data->color.Rf(), m_data->color.Gf(), m_data->color.Bf(), alpha));
-}
 
 namespace {
 static CONSTINIT VertexArrayObject lineLoopVAO{DrawPrimitive::LINE_LOOP};
@@ -280,105 +278,11 @@ void OpenGLES32Interface::drawRectf(const RectOptions &opts) {
     }
 }
 
-namespace {
-static CONSTINIT VertexArrayObject triStripVAO{DrawPrimitive::TRIANGLE_STRIP};
-}
-
-void OpenGLES32Interface::drawImage(const Image *image, AnchorPoint anchor, float edgeSoftness, McRect clipRect) {
-    // skip entirely transparent images
-    if(image == nullptr || !image->isGPUReady()) {
-        if(image && cv::r_debug_drawimage.getBool()) {
-            const vec2 size = image->getSize();
-            const vec2 pos = getAnchoredOrigin(anchor, size);
-            this->setColor(0xbbff00ff);
-            Graphics::drawRectf(pos.x, pos.y, size.x, size.y);
-        }
-        return;
-    }
-
-    const bool clipRectSpecified = vec::length(clipRect.getSize()) != 0;
-    bool smoothedEdges = edgeSoftness > 0.0f;
-
-    // initialize shader on first use
-    if(smoothedEdges) {
-        if(!this->smoothClipShader) {
-            this->initSmoothClipShader();
-        }
-        smoothedEdges = this->smoothClipShader->isReady();
-    }
-
-    const bool fallbackClip = clipRectSpecified && !smoothedEdges;
-
-    if(fallbackClip) {
-        pushClipRect(clipRect);
-    }
-
-    this->updateTransform();
-
-    const vec2 size = image->getSize();
-    const vec2 pos = getAnchoredOrigin(anchor, size);
-    const auto [x, y, width, height] = std::tuple{pos.x, pos.y, size.x, size.y};
-
-    if(smoothedEdges && !clipRectSpecified) {
-        // set a default clip rect as the exact image size if one wasn't explicitly passed, but we still want smoothing
-        clipRect = McRect{pos, size};
-    }
-
-    if(smoothedEdges) {
-        // compensate for viewport changed by rendertargets
-        // flip Y for engine<->opengl coordinate origin
-        const auto &viewport{GLStateCache::getCurrentViewport()};
-        float clipMinX{clipRect.getX() + viewport[0]},                                           //
-            clipMinY{viewport[3] - (clipRect.getY() - viewport[1] - 1 + clipRect.getHeight())},  //
-            clipMaxX{clipMinX + clipRect.getWidth()},                                            //
-            clipMaxY{clipMinY + clipRect.getHeight()};                                           //
-
-        this->smoothClipShader->enable();
-        this->smoothClipShader->setUniform2f("rect_min", clipMinX, clipMinY);
-        this->smoothClipShader->setUniform2f("rect_max", clipMaxX, clipMaxY);
-        this->smoothClipShader->setUniform1f("edge_softness", edgeSoftness);
-        this->smoothClipShader->setUniform4f("col", m_data->color.Rf(), m_data->color.Gf(), m_data->color.Bf(),
-                                             m_data->color.Af());
-
-        // set mvp for the shader
-        this->smoothClipShader->setMVP(m_data->MP);
-    }
-
-    triStripVAO.clear();
-    {
-        triStripVAO.addVertex(x, y);
-        triStripVAO.addTexcoord(0, 0);
-        triStripVAO.addVertex(x, y + height);
-        triStripVAO.addTexcoord(0, 1);
-        triStripVAO.addVertex(x + width, y);
-        triStripVAO.addTexcoord(1, 0);
-        triStripVAO.addVertex(x + width, y + height);
-        triStripVAO.addTexcoord(1, 1);
-    }
-    image->bind();
-    {
-        drawVAO(&triStripVAO);
-    }
-    image->unbind();
-
-    if(smoothedEdges) {
-        this->smoothClipShader->disable();
-    } else if(fallbackClip) {
-        popClipRect();
-    }
-
-    if(cv::r_debug_drawimage.getBool()) {
-        this->setColor(0xbbff00ff);
-        this->drawRect(x, y, width - 1, height - 1);
-    }
-}
-
-void OpenGLES32Interface::drawString(McFont *font, std::string_view text, std::optional<TextFX> effects) {
-    if(font == nullptr || text.length() < 1 || !font->isReady()) return;
-
-    updateTransform();
-
-    font->drawString(text, effects);
+vec2 OpenGLES32Interface::getSmoothClipMin(McRect clipRect) const {
+    // compensate for viewport changed by rendertargets
+    // flip Y for engine<->opengl coordinate origin
+    const auto &viewport{GLStateCache::getCurrentViewport()};
+    return {clipRect.getX() + viewport[0], viewport[3] - (clipRect.getY() - viewport[1] - 1 + clipRect.getHeight())};
 }
 
 void OpenGLES32Interface::drawVAO(VertexArrayObject *vao) {
@@ -447,81 +351,34 @@ void OpenGLES32Interface::drawVAO(VertexArrayObject *vao) {
 
     if(vertices.size() < 2) return;
 
-    // TODO: separate draw for non-quads, update quad draws to triangle draws to avoid rewrite overhead here
+    // TODO: update quad draws to triangle draws to avoid the rewrite overhead here
 
-    // no support for quads, because fuck you
-    // rewrite all quads into triangles
-    std::vector<vec3> finalVertices{vertices.begin(), vertices.end()};
-    std::vector<vec2> finalTexcoords{texcoords.begin(), texcoords.end()};
-    std::vector<Color> colors;
-    std::vector<Color> finalColors;
-
-    if(!vcolors.empty()) {
-        // check if any color needs conversion (only R and B are swapped)
-        bool needsConversion = false;
+    std::vector<Color> swappedColors;
+    std::span<const Color> colors = vcolors;
+    // check if any color needs conversion (only R and B are swapped)
+    if(std::ranges::any_of(vcolors, [](Color color) { return color.r != color.b; })) {
+        swappedColors.reserve(vcolors.size());
         MC_UNROLL
         for(auto color : vcolors) {
-            if(color.r != color.b) {
-                needsConversion = true;
-                break;
-            }
+            swappedColors.push_back(abgr(color));
         }
-        if(needsConversion) {
-            colors.reserve(vcolors.size());
-            MC_UNROLL
-            for(auto color : vcolors) {
-                colors.push_back(abgr(color));
-            }
-        } else {
-            colors.assign(vcolors.begin(), vcolors.end());
-        }
-        finalColors = colors;
+        colors = swappedColors;
     }
 
-    int maxColorIndex = colors.size() - 1;
+    std::span<const vec3> finalVertices = vertices;
+    std::span<const vec2> finalTexcoords = texcoords;
+    std::span<const Color> finalColors = colors;
 
+    std::vector<vec3> quadVertices;
+    std::vector<vec2> quadTexcoords;
+    std::vector<Color> quadColors;
     DrawPrimitive primitive = vao->getPrimitive();
     if(primitive == DrawPrimitive::QUADS) {
-        finalVertices.clear();
-        finalTexcoords.clear();
-        finalColors.clear();
-        primitive = DrawPrimitive::TRIANGLES;
-
-        if(vertices.size() > 3) {
-            for(size_t i = 0; i < vertices.size(); i += 4) {
-                finalVertices.push_back(vertices[i + 0]);
-                finalVertices.push_back(vertices[i + 1]);
-                finalVertices.push_back(vertices[i + 2]);
-
-                if(!texcoords.empty()) {
-                    finalTexcoords.push_back(texcoords[i + 0]);
-                    finalTexcoords.push_back(texcoords[i + 1]);
-                    finalTexcoords.push_back(texcoords[i + 2]);
-                }
-
-                if(colors.size() > 0) {
-                    finalColors.push_back(colors[std::clamp<size_t>(i + 0, 0, maxColorIndex)]);
-                    finalColors.push_back(colors[std::clamp<size_t>(i + 1, 0, maxColorIndex)]);
-                    finalColors.push_back(colors[std::clamp<size_t>(i + 2, 0, maxColorIndex)]);
-                }
-
-                finalVertices.push_back(vertices[i + 0]);
-                finalVertices.push_back(vertices[i + 2]);
-                finalVertices.push_back(vertices[i + 3]);
-
-                if(!texcoords.empty()) {
-                    finalTexcoords.push_back(texcoords[i + 0]);
-                    finalTexcoords.push_back(texcoords[i + 2]);
-                    finalTexcoords.push_back(texcoords[i + 3]);
-                }
-
-                if(colors.size() > 0) {
-                    finalColors.push_back(colors[std::clamp<size_t>(i + 0, 0, maxColorIndex)]);
-                    finalColors.push_back(colors[std::clamp<size_t>(i + 2, 0, maxColorIndex)]);
-                    finalColors.push_back(colors[std::clamp<size_t>(i + 3, 0, maxColorIndex)]);
-                }
-            }
-        }
+        primitive = ModernGraphicsShared::convertToTriangles(primitive, vertices, texcoords, colors, quadVertices,
+                                                             quadTexcoords, quadColors);
+        finalVertices = quadVertices;
+        finalTexcoords = quadTexcoords;
+        finalColors = quadColors;
     }
 
     const bool orphanBuffers = cv::r_gles_orphan_buffers.getBool();
@@ -601,24 +458,6 @@ void OpenGLES32Interface::setClipRect(McRect clipRect) {
     // debugLog("scissor = {}, {}, {}, {}", (int)clipRect.getX()+viewport[0],
 }
 
-void OpenGLES32Interface::pushClipRect(McRect clipRect) {
-    if(m_clipRectStack.size() > 0)
-        m_clipRectStack.push_back(m_clipRectStack.back().intersect(clipRect));
-    else
-        m_clipRectStack.push_back(clipRect);
-
-    setClipRect(m_clipRectStack.back());
-}
-
-void OpenGLES32Interface::popClipRect() {
-    m_clipRectStack.pop_back();
-
-    if(m_clipRectStack.size() > 0)
-        setClipRect(m_clipRectStack.back());
-    else
-        setClipping(false);
-}
-
 void OpenGLES32Interface::pushViewport() {
     m_data->viewportStack.push_back(GLStateCache::getCurrentViewport());
     m_data->resolutionStack.push_back(m_vResolution);
@@ -644,7 +483,7 @@ void OpenGLES32Interface::popViewport() {
 
 void OpenGLES32Interface::setClipping(bool enabled) {
     if(enabled) {
-        if(m_clipRectStack.size() > 0) glEnable(GL_SCISSOR_TEST);
+        if(this->clipRectStack.size() > 0) glEnable(GL_SCISSOR_TEST);
     } else
         glDisable(GL_SCISSOR_TEST);
 }
@@ -677,7 +516,7 @@ void OpenGLES32Interface::setAntialiasing(bool /*aa*/) {}
 
 void OpenGLES32Interface::setColorInversion(bool enabled) { m_bColorInversion = enabled; }
 
-void OpenGLES32Interface::setWireframe(bool _) {
+void OpenGLES32Interface::setWireframe(bool /*enabled*/) {
     // TODO
 }
 
@@ -825,19 +664,11 @@ void OpenGLES32Interface::updateAllShaderTransforms() {
     }
 }
 
-void OpenGLES32Interface::initSmoothClipShader() {
-    if(this->smoothClipShader != nullptr) return;
-
-    this->smoothClipShader.reset(
-        this->createShaderFromSource(std::string_view(reinterpret_cast<const char *>(&GL_smoothclip_vsh[0]),
-                                                      static_cast<size_t>(GL_smoothclip_vsh_size)),
-                                     std::string_view(reinterpret_cast<const char *>(&GL_smoothclip_fsh[0]),
-                                                      static_cast<size_t>(GL_smoothclip_fsh_size))));
-
-    if(this->smoothClipShader != nullptr) {
-        this->smoothClipShader->loadAsync();
-        this->smoothClipShader->load();
-    }
+Shader *OpenGLES32Interface::createSmoothClipShader() {
+    return this->createShaderFromSource(std::string_view(reinterpret_cast<const char *>(&GL_smoothclip_vsh[0]),
+                                                         static_cast<size_t>(GL_smoothclip_vsh_size)),
+                                        std::string_view(reinterpret_cast<const char *>(&GL_smoothclip_fsh[0]),
+                                                         static_cast<size_t>(GL_smoothclip_fsh_size)));
 }
 
 #endif

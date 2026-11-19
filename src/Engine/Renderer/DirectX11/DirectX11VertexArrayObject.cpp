@@ -14,6 +14,11 @@
 #include "Logging.h"
 
 #include "DirectX11Interface.h"
+#include "ModernGraphicsShared.h"
+
+#include <algorithm>
+#include <span>
+#include <vector>
 
 DirectX11VertexArrayObject::DirectX11VertexArrayObject(DrawPrimitive primitive, DrawUsageType usage,
                                                        bool keepInSystemMemory)
@@ -85,115 +90,40 @@ void DirectX11VertexArrayObject::init() {
 
     // TODO: optimize this piece of shit
 
-    this->convertedVertices.clear();
     {
-        std::vector<vec3> finalVertices = this->vertices;
-        std::vector<vec2> finalTexcoords = this->texcoords;
-        std::vector<vec4> colors;
-        std::vector<vec4> finalColors;
+        std::vector<vec3> convVertices;
+        std::vector<vec2> convTexcoords;
+        std::vector<Color> convColors;
+        this->convertedPrimitive = ModernGraphicsShared::convertToTriangles(
+            this->primitive, this->vertices, this->texcoords, this->colors, convVertices, convTexcoords, convColors);
+        const bool converted = this->convertedPrimitive != this->primitive;
 
-        for(auto clr : this->colors) {
-            const vec4 color = vec4(clr.Rf(), clr.Gf(), clr.Bf(), clr.Af());
-            colors.push_back(color);
-            finalColors.push_back(color);
-        }
-        const size_t maxColorIndex = (finalColors.size() > 0 ? finalColors.size() - 1 : 0);
-
-        if(this->primitive == DrawPrimitive::QUADS) {
-            finalTexcoords.clear();
-            finalColors.clear();
-            this->convertedPrimitive = DrawPrimitive::TRIANGLES;
-
-            if(this->vertices.size() > 3) {
-                for(size_t i = 0; i < this->vertices.size(); i += 4) {
-                    finalVertices.push_back(this->vertices[i + 0]);
-                    finalVertices.push_back(this->vertices[i + 1]);
-                    finalVertices.push_back(this->vertices[i + 2]);
-
-                    if(!this->texcoords.empty()) {
-                        finalTexcoords.push_back(this->texcoords[i + 0]);
-                        finalTexcoords.push_back(this->texcoords[i + 1]);
-                        finalTexcoords.push_back(this->texcoords[i + 2]);
-                    }
-
-                    if(colors.size() > 0) {
-                        finalColors.push_back(colors[std::clamp<int>(i + 0, 0, maxColorIndex)]);
-                        finalColors.push_back(colors[std::clamp<int>(i + 1, 0, maxColorIndex)]);
-                        finalColors.push_back(colors[std::clamp<int>(i + 2, 0, maxColorIndex)]);
-                    }
-
-                    if(!this->texcoords.empty()) {
-                        finalVertices.push_back(this->vertices[i + 0]);
-                        finalVertices.push_back(this->vertices[i + 2]);
-                        finalVertices.push_back(this->vertices[i + 3]);
-                    }
-
-                    finalTexcoords.push_back(this->texcoords[i + 0]);
-                    finalTexcoords.push_back(this->texcoords[i + 2]);
-                    finalTexcoords.push_back(this->texcoords[i + 3]);
-
-                    if(colors.size() > 0) {
-                        finalColors.push_back(colors[std::clamp<int>(i + 0, 0, maxColorIndex)]);
-                        finalColors.push_back(colors[std::clamp<int>(i + 2, 0, maxColorIndex)]);
-                        finalColors.push_back(colors[std::clamp<int>(i + 3, 0, maxColorIndex)]);
-                    }
-                }
-            }
-        } else if(this->primitive == DrawPrimitive::TRIANGLE_FAN) {
-            finalVertices.clear();
-            finalTexcoords.clear();
-            finalColors.clear();
-            this->convertedPrimitive = DrawPrimitive::TRIANGLES;
-
-            if(this->vertices.size() > 2) {
-                for(size_t i = 2; i < this->vertices.size(); i++) {
-                    finalVertices.push_back(this->vertices[0]);
-
-                    finalVertices.push_back(this->vertices[i]);
-                    finalVertices.push_back(this->vertices[i - 1]);
-
-                    if(!this->texcoords.empty()) {
-                        finalTexcoords.push_back(this->texcoords[0]);
-                        finalTexcoords.push_back(this->texcoords[i]);
-                        finalTexcoords.push_back(this->texcoords[i - 1]);
-                    }
-
-                    if(colors.size() > 0) {
-                        finalColors.push_back(colors[std::clamp<int>(0, 0, maxColorIndex)]);
-                        finalColors.push_back(colors[std::clamp<int>(i, 0, maxColorIndex)]);
-                        finalColors.push_back(colors[std::clamp<int>(i - 1, 0, maxColorIndex)]);
-                    }
-                }
-            }
-        }
+        const std::span<const vec3> finalVertices = converted ? convVertices : std::span<const vec3>{this->vertices};
+        const std::span<const vec2> finalTexcoords = converted ? convTexcoords : std::span<const vec2>{this->texcoords};
+        const std::span<const Color> finalColors = converted ? convColors : std::span<const Color>{this->colors};
 
         // build directx vertices
-        {
-            this->convertedVertices.resize(finalVertices.size());
+        this->convertedVertices.resize(finalVertices.size());
 
-            this->iNumVertices =
-                this->convertedVertices.size();  // NOTE: overwrite this->iNumVertices for potential conversions
+        this->iNumVertices =
+            this->convertedVertices.size();  // NOTE: overwrite this->iNumVertices for potential conversions
 
-            const bool hasColors = (finalColors.size() > 0);
-            const bool hasTexCoords0 = (finalTexcoords.size() == this->convertedVertices.size());
+        const bool hasColors = !finalColors.empty();
+        const size_t maxColorIndex = hasColors ? finalColors.size() - 1 : 0;
+        const bool hasTexCoords0 = (finalTexcoords.size() == this->convertedVertices.size());
 
-            for(size_t i = 0; i < finalVertices.size(); i++) {
-                this->convertedVertices[i].pos.x = finalVertices[i].x;
-                this->convertedVertices[i].pos.y = finalVertices[i].y;
-                this->convertedVertices[i].pos.z = finalVertices[i].z;
+        for(size_t i = 0; i < finalVertices.size(); i++) {
+            this->convertedVertices[i].pos = finalVertices[i];
 
-                if(hasColors)
-                    this->convertedVertices[i].col = finalColors[std::clamp<size_t>(i, 0, maxColorIndex)];
-                else {
-                    this->convertedVertices[i].col.x = 1.0f;
-                    this->convertedVertices[i].col.y = 1.0f;
-                    this->convertedVertices[i].col.z = 1.0f;
-                    this->convertedVertices[i].col.w = 1.0f;
-                }
-
-                // TODO: multitexturing
-                if(hasTexCoords0) this->convertedVertices[i].tex = finalTexcoords[i];
+            if(hasColors) {
+                const Color clr = finalColors[std::min(i, maxColorIndex)];
+                this->convertedVertices[i].col = vec4(clr.Rf(), clr.Gf(), clr.Bf(), clr.Af());
+            } else {
+                this->convertedVertices[i].col = vec4(1.0f, 1.0f, 1.0f, 1.0f);
             }
+
+            // TODO: multitexturing
+            if(hasTexCoords0) this->convertedVertices[i].tex = finalTexcoords[i];
         }
     }
 
@@ -278,18 +208,9 @@ void DirectX11VertexArrayObject::draw() {
         return;
     }
 
-    const int start = std::clamp<int>(this->iDrawRangeFromIndex > -1
-                                          ? this->iDrawRangeFromIndex
-                                          : nearestMultipleUp((int)(this->iNumVertices * this->fDrawPercentFromPercent),
-                                                              this->iDrawPercentNearestMultiple),
-                                      0, this->iNumVertices);
-    const int end = std::clamp<int>(this->iDrawRangeToIndex > -1
-                                        ? this->iDrawRangeToIndex
-                                        : nearestMultipleDown((int)(this->iNumVertices * this->fDrawPercentToPercent),
-                                                              this->iDrawPercentNearestMultiple),
-                                    0, this->iNumVertices);
+    const auto [start, end] = this->getDrawRange();
 
-    if(start > end || std::abs(end - start) == 0) return;
+    if(start >= end) return;
 
     auto* context = static_cast<DirectX11Interface*>(g)->getDeviceContext();
 

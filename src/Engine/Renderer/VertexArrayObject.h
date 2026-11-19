@@ -8,6 +8,7 @@
 #include "Vectors.h"
 
 #include <span>
+#include <utility>
 #include <vector>
 
 class VertexArrayObject : public Resource {
@@ -101,8 +102,8 @@ class VertexArrayObject : public Resource {
     [[nodiscard]] const VertexArrayObject *asVAO() const final { return this; }
 
    protected:
-    static int nearestMultipleUp(int number, int multiple) noexcept;
-    static int nearestMultipleDown(int number, int multiple) noexcept;
+    // the [start, end) vertex range to draw, from setDrawRange() or setDrawPercent()
+    [[nodiscard]] std::pair<int, int> getDrawRange() const noexcept;
 
     void init() override;
     void initAsync() override;

@@ -75,18 +75,11 @@ class DirectX11Interface final : public ModernGraphicsShared {
     // 2d primitive drawing (implemented in ModernGraphicsShared)
     void drawPixel(int x, int y) override;  // TODO: add shared implementation
 
-    // 2d resource drawing
-    void drawImage(const Image *image, AnchorPoint anchor = AnchorPoint::CENTER, float edgeSoftness = 0.0f,
-                   McRect clipRect = {}) final;
-    void drawString(McFont *font, std::string_view text, std::optional<TextFX> effects = std::nullopt) override;
-
     // 3d type drawing
     void drawVAO(VertexArrayObject *vao) override;
 
     // 2d clipping
     void setClipRect(McRect clipRect) override;
-    void pushClipRect(McRect clipRect) override;
-    void popClipRect() override;
 
     // viewport modification
     void pushViewport() override;
@@ -161,7 +154,8 @@ class DirectX11Interface final : public ModernGraphicsShared {
     [[deprecated("not implemented")]] static int compareFuncToDirectX(DrawCompareFunc compareFunc);
 
     // clipping for drawImage
-    void initSmoothClipShader();
+    Shader *createSmoothClipShader() override;
+    [[nodiscard]] vec2 getSmoothClipMin(McRect clipRect) const override;
 
     DXGI_MODE_DESC queryCurrentSwapchainDesc() const;
 
@@ -282,10 +276,6 @@ class DirectX11Interface final : public ModernGraphicsShared {
     size_t iVertexBufferNumVertexOffsetCounter{0};
 
     // clipping
-    std::vector<McRect> clipRectStack;
-
-    // clipping for drawImage
-    std::unique_ptr<Shader> smoothClipShader{nullptr};
 
     // persistent vars
     DirectX11Shader *activeShader{nullptr};
