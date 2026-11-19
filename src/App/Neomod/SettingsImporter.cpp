@@ -15,6 +15,9 @@
 #include "Parsing.h"
 #include "Logging.h"
 
+#include <string_view>
+#include <utility>
+
 #ifdef MCENGINE_PLATFORM_WINDOWS
 #include "WinDebloatDefs.h"
 
@@ -27,149 +30,85 @@
 namespace SettingsImporter {
 namespace {  // static namespace
 void try_set_key(const std::string& key, OsuKeyBinds::Bind& bind) {
-    if(key == "None") {
-        bind.set(0);
-    } else if(key == "A") {
-        bind.set(KEY_A);
-    } else if(key == "B") {
-        bind.set(KEY_B);
-    } else if(key == "C") {
-        bind.set(KEY_C);
-    } else if(key == "D") {
-        bind.set(KEY_D);
-    } else if(key == "E") {
-        bind.set(KEY_E);
-    } else if(key == "F") {
-        bind.set(KEY_F);
-    } else if(key == "G") {
-        bind.set(KEY_G);
-    } else if(key == "H") {
-        bind.set(KEY_H);
-    } else if(key == "I") {
-        bind.set(KEY_I);
-    } else if(key == "J") {
-        bind.set(KEY_J);
-    } else if(key == "K") {
-        bind.set(KEY_K);
-    } else if(key == "L") {
-        bind.set(KEY_L);
-    } else if(key == "M") {
-        bind.set(KEY_M);
-    } else if(key == "N") {
-        bind.set(KEY_N);
-    } else if(key == "O") {
-        bind.set(KEY_O);
-    } else if(key == "P") {
-        bind.set(KEY_P);
-    } else if(key == "Q") {
-        bind.set(KEY_Q);
-    } else if(key == "R") {
-        bind.set(KEY_R);
-    } else if(key == "S") {
-        bind.set(KEY_S);
-    } else if(key == "T") {
-        bind.set(KEY_T);
-    } else if(key == "U") {
-        bind.set(KEY_U);
-    } else if(key == "V") {
-        bind.set(KEY_V);
-    } else if(key == "W") {
-        bind.set(KEY_W);
-    } else if(key == "X") {
-        bind.set(KEY_X);
-    } else if(key == "Y") {
-        bind.set(KEY_Y);
-    } else if(key == "Z") {
-        bind.set(KEY_Z);
-    } else if(key == "0") {
-        bind.set(KEY_0);
-    } else if(key == "1") {
-        bind.set(KEY_1);
-    } else if(key == "2") {
-        bind.set(KEY_2);
-    } else if(key == "3") {
-        bind.set(KEY_3);
-    } else if(key == "4") {
-        bind.set(KEY_4);
-    } else if(key == "5") {
-        bind.set(KEY_5);
-    } else if(key == "6") {
-        bind.set(KEY_6);
-    } else if(key == "7") {
-        bind.set(KEY_7);
-    } else if(key == "8") {
-        bind.set(KEY_8);
-    } else if(key == "9") {
-        bind.set(KEY_9);
-    } else if(key == "F1") {
-        bind.set(KEY_F1);
-    } else if(key == "F2") {
-        bind.set(KEY_F2);
-    } else if(key == "F3") {
-        bind.set(KEY_F3);
-    } else if(key == "F4") {
-        bind.set(KEY_F4);
-    } else if(key == "F5") {
-        bind.set(KEY_F5);
-    } else if(key == "F6") {
-        bind.set(KEY_F6);
-    } else if(key == "F7") {
-        bind.set(KEY_F7);
-    } else if(key == "F8") {
-        bind.set(KEY_F8);
-    } else if(key == "F9") {
-        bind.set(KEY_F9);
-    } else if(key == "F10") {
-        bind.set(KEY_F10);
-    } else if(key == "F11") {
-        bind.set(KEY_F11);
-    } else if(key == "F12") {
-        bind.set(KEY_F12);
-    } else if(key == "Left") {
-        bind.set(KEY_LEFT);
-    } else if(key == "Right") {
-        bind.set(KEY_RIGHT);
-    } else if(key == "Up") {
-        bind.set(KEY_UP);
-    } else if(key == "Down") {
-        bind.set(KEY_DOWN);
-    } else if(key == "Tab") {
-        bind.set(KEY_TAB);
-    } else if((key == "Return") || (key == "Enter")) {
-        bind.set(KEY_ENTER);
-    } else if(key == "Shift") {
-        bind.set(KEY_LSHIFT);
-    } else if(key == "Control") {
-        bind.set(KEY_LCONTROL);
-    } else if(key == "LeftAlt") {
-        bind.set(KEY_LALT);
-    } else if(key == "RightAlt") {
-        bind.set(KEY_RALT);
-    } else if(key == "Escape") {
-        bind.set(KEY_ESCAPE);
-    } else if(key == "Space") {
-        bind.set(KEY_SPACE);
-    } else if(key == "Back") {
-        bind.set(KEY_BACKSPACE);
-    } else if(key == "End") {
-        bind.set(KEY_END);
-    } else if(key == "Insert") {
-        bind.set(KEY_INSERT);
-    } else if(key == "Delete") {
-        bind.set(KEY_DELETE);
-    } else if(key == "Help") {
-        bind.set(KEY_HELP);
-    } else if(key == "Home") {
-        bind.set(KEY_HOME);
-    } else if(key == "Escape") {
-        bind.set(KEY_ESCAPE);
-    } else if(key == "PageUp") {
-        bind.set(KEY_PAGEUP);
-    } else if(key == "PageDown") {
-        bind.set(KEY_PAGEDOWN);
-    } else {
-        debugLog("No key code found for '{}'!", key);
+    static constexpr std::pair<std::string_view, SCANCODE> keys[] = {
+        {"None", 0},
+        {"A", KEY_A},
+        {"B", KEY_B},
+        {"C", KEY_C},
+        {"D", KEY_D},
+        {"E", KEY_E},
+        {"F", KEY_F},
+        {"G", KEY_G},
+        {"H", KEY_H},
+        {"I", KEY_I},
+        {"J", KEY_J},
+        {"K", KEY_K},
+        {"L", KEY_L},
+        {"M", KEY_M},
+        {"N", KEY_N},
+        {"O", KEY_O},
+        {"P", KEY_P},
+        {"Q", KEY_Q},
+        {"R", KEY_R},
+        {"S", KEY_S},
+        {"T", KEY_T},
+        {"U", KEY_U},
+        {"V", KEY_V},
+        {"W", KEY_W},
+        {"X", KEY_X},
+        {"Y", KEY_Y},
+        {"Z", KEY_Z},
+        {"0", KEY_0},
+        {"1", KEY_1},
+        {"2", KEY_2},
+        {"3", KEY_3},
+        {"4", KEY_4},
+        {"5", KEY_5},
+        {"6", KEY_6},
+        {"7", KEY_7},
+        {"8", KEY_8},
+        {"9", KEY_9},
+        {"F1", KEY_F1},
+        {"F2", KEY_F2},
+        {"F3", KEY_F3},
+        {"F4", KEY_F4},
+        {"F5", KEY_F5},
+        {"F6", KEY_F6},
+        {"F7", KEY_F7},
+        {"F8", KEY_F8},
+        {"F9", KEY_F9},
+        {"F10", KEY_F10},
+        {"F11", KEY_F11},
+        {"F12", KEY_F12},
+        {"Left", KEY_LEFT},
+        {"Right", KEY_RIGHT},
+        {"Up", KEY_UP},
+        {"Down", KEY_DOWN},
+        {"Tab", KEY_TAB},
+        {"Return", KEY_ENTER},
+        {"Enter", KEY_ENTER},
+        {"Shift", KEY_LSHIFT},
+        {"Control", KEY_LCONTROL},
+        {"LeftAlt", KEY_LALT},
+        {"RightAlt", KEY_RALT},
+        {"Escape", KEY_ESCAPE},
+        {"Space", KEY_SPACE},
+        {"Back", KEY_BACKSPACE},
+        {"End", KEY_END},
+        {"Insert", KEY_INSERT},
+        {"Delete", KEY_DELETE},
+        {"Help", KEY_HELP},
+        {"Home", KEY_HOME},
+        {"PageUp", KEY_PAGEUP},
+        {"PageDown", KEY_PAGEDOWN},
+    };
+    for(const auto& [name, code] : keys) {
+        if(key == name) {
+            bind.set(code);
+            return;
+        }
     }
+    debugLog("No key code found for '{}'!", key);
 }
 
 void update_osu_folder_from_registry() {

@@ -118,11 +118,13 @@ vec2 SongBrowser::getSkinDimensions(const SkinImage &img) {
 }
 
 namespace {
-class ScoresStillLoadingElement final : public CBaseUILabel {
+// a label with an icon on its left, for score list placeholders
+class IconLabel final : public CBaseUILabel {
    public:
-    ScoresStillLoadingElement(std::string text)
+    IconLabel(char32_t icon, std::string text, float textScale)
         : CBaseUILabel(0, 0, 0, 0, "", std::move(text)),
-          sIconString(UniString::to_utf8(std::u32string_view{&Icons::GLOBE, 1})) {}
+          sIconString(UniString::to_utf8(std::u32string_view{&icon, 1})),
+          fTextScale(textScale) {}
 
    protected:
     void drawText() override {
@@ -146,13 +148,12 @@ class ScoresStillLoadingElement final : public CBaseUILabel {
         g->popTransform();
 
         // draw text
-        const float textScale = 0.4f;
         McFont *textFont = osu->getSongBrowserFont();
         g->pushTransform();
         {
             const float stringWidth = textFont->getStringWidth(this->sText);
 
-            const float scale = ((this->getSize().x - iconWidth) / stringWidth) * textScale;
+            const float scale = ((this->getSize().x - iconWidth) / stringWidth) * this->fTextScale;
 
             g->scale(scale, scale);
             g->translate((f32)(i32)(this->getPos().x + iconWidth + (this->getSize().x - iconWidth) / 2 -
@@ -166,57 +167,9 @@ class ScoresStillLoadingElement final : public CBaseUILabel {
 
    private:
     std::string sIconString;
+    float fTextScale;
 };
 
-class NoRecordsSetElement final : public CBaseUILabel {
-   public:
-    NoRecordsSetElement(std::string text)
-        : CBaseUILabel(0, 0, 0, 0, "", std::move(text)),
-          sIconString(UniString::to_utf8(std::u32string_view{&Icons::TROPHY, 1})) {}
-
-   protected:
-    void drawText() override {
-        // draw icon
-        const float iconScale = 0.6f;
-        McFont *iconFont = osu->getFontIcons();
-        f32 iconWidth = 0;
-        g->pushTransform();
-        {
-            const float scale = (this->getSize().y / iconFont->getHeight()) * iconScale;
-            const float paddingLeft = scale * 15;
-
-            iconWidth = paddingLeft + iconFont->getStringWidth(this->sIconString) * scale;
-
-            g->scale(scale, scale);
-            g->translate((f32)(i32)(this->getPos().x + paddingLeft),
-                         (f32)(i32)(this->getPos().y + this->getSize().y / 2 + iconFont->getHeight() * scale / 2));
-            g->setColor(0xffffffff);
-            g->drawString(iconFont, this->sIconString);
-        }
-        g->popTransform();
-
-        // draw text
-        const float textScale = 0.6f;
-        McFont *textFont = osu->getSongBrowserFont();
-        g->pushTransform();
-        {
-            const float stringWidth = textFont->getStringWidth(this->sText);
-
-            const float scale = ((this->getSize().x - iconWidth) / stringWidth) * textScale;
-
-            g->scale(scale, scale);
-            g->translate((f32)(i32)(this->getPos().x + iconWidth + (this->getSize().x - iconWidth) / 2 -
-                                    stringWidth * scale / 2),
-                         (f32)(i32)(this->getPos().y + this->getSize().y / 2 + textFont->getHeight() * scale / 2));
-            g->setColor(0xff02c3e5);
-            g->drawString(textFont, this->sText);
-        }
-        g->popTransform();
-    }
-
-   private:
-    std::string sIconString;
-};
 }  // namespace
 
 // used also by SongButton
@@ -515,8 +468,8 @@ SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
     this->scoreBrowser->setScrollbarSizeMultiplier(0.25f);
     this->scoreBrowser->setScrollResistance(15);
     this->scoreBrowser->setHorizontalClipping(false);
-    this->scoreBrowserScoresStillLoadingElement = new ScoresStillLoadingElement(_("Loading..."));
-    this->scoreBrowserNoRecordsSetElement = new NoRecordsSetElement(_("No records set!"));
+    this->scoreBrowserScoresStillLoadingElement = new IconLabel(Icons::GLOBE, _("Loading..."), 0.4f);
+    this->scoreBrowserNoRecordsSetElement = new IconLabel(Icons::TROPHY, _("No records set!"), 0.6f);
     this->scoreBrowser->container.addBaseUIElement(this->scoreBrowserNoRecordsSetElement);
 
     // NOTE: we don't add personalBestContainer to the screen; we draw and update it manually so that

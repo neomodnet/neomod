@@ -1246,19 +1246,13 @@ void HUD::drawAccuracy(f32 accuracy) {
 
     g->setColor(0xffffffff);
 
-    // get integer & fractional parts of the number
-    const i32 accuracyInt = (i32)accuracy;
-    const i32 accuracyFrac =
-        std::clamp<i32>(((i32)(std::round((accuracy - accuracyInt) * 100.0f))), 0, 99);  // round up
-
-    // draw it
     const i32 offset = 5;
     const f32 scale =
         Osu::getImageScale(skin->i_scores[0], 13) * cv::hud_scale.getFloat() * cv::hud_accuracy_scale.getFloat();
     g->pushTransform();
     {
         constexpr i32 numTotalDigits = 5;
-        const i32 numDrawDigits = (accuracyInt > 99 ? 5 : 4);
+        const i32 numDrawDigits = (accuracy >= 100.0f ? 5 : 4);
 
         const i32 dotWidth = (scale * (skin->i_score_dot != MISSING_TEXTURE ? skin->i_score_dot.getWidth() : 0));
         const i32 pctWidth =
@@ -1288,25 +1282,7 @@ void HUD::drawAccuracy(f32 accuracy) {
         g->scale(scale, scale);
         g->translate(drawXOffset, this->fAccuracyYOffset);
 
-        HUD::drawNumberWithSkinDigits({.number = (u64)accuracyInt, .scale = scale, .combo = false, .minDigits = 2});
-
-        // draw dot '.' between the integer and fractional part
-        if(skin->i_score_dot != MISSING_TEXTURE) {
-            g->setColor(0xffffffff);
-            g->translate(skin->i_score_dot.getWidth() * 0.5f * scale, 0);
-            g->drawImage(skin->i_score_dot);
-            g->translate(skin->i_score_dot.getWidth() * 0.5f * scale, 0);
-            g->translate(-skin->score_overlap_amt * (skin->i_scores[0].scale()) * scale, 0);
-        }
-
-        HUD::drawNumberWithSkinDigits({.number = (u64)accuracyFrac, .scale = scale, .combo = false, .minDigits = 2});
-
-        // draw '%' at the end
-        if(skin->i_score_percent != MISSING_TEXTURE) {
-            g->setColor(0xffffffff);
-            g->translate(skin->i_score_percent.getWidth() * 0.5f * scale, 0);
-            g->drawImage(skin->i_score_percent);
-        }
+        HUD::drawAccuracySimple(accuracy, scale);
     }
     g->popTransform();
 }

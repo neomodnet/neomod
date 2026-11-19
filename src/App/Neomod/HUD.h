@@ -85,8 +85,8 @@ class HUD final : public UIScreen {
         const Skin *skin{nullptr};              // NULL: the current one
     };
     static void drawNumberWithSkinDigits(const SkinDigitDrawOpts &opts);
-    static void drawComboSimple(i32 combo, f32 scale = 1.0f);        // used by RankingScreen
-    static void drawAccuracySimple(f32 accuracy, f32 scale = 1.0f);  // used by RankingScreen
+    static void drawComboSimple(i32 combo, f32 scale = 1.0f);  // used by RankingScreen
+    static void drawAccuracySimple(f32 accuracy, f32 scale = 1.0f);
     static void drawWarningArrow(vec2 pos, bool flipVertically, bool originLeft = true);
 
     [[nodiscard]] bool shouldDrawScoreboard() const;

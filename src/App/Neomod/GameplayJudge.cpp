@@ -493,16 +493,7 @@ vec2 GameplayJudge::osuCoords2Pixels(vec2 coords) const {
 
     // wobble rotation
     if(this->fPlayfieldRotation != 0.0f) {
-        coords.x -= GameRules::OSU_COORD_WIDTH / 2;
-        coords.y -= GameRules::OSU_COORD_HEIGHT / 2;
-
-        vec3 coords3 = vec3(coords.x, coords.y, 0);
-        Matrix4 rot;
-        rot.rotateZ(this->fPlayfieldRotation);
-
-        coords3 = coords3 * rot;
-        coords.x = coords3.x + GameRules::OSU_COORD_WIDTH / 2;
-        coords.y = coords3.y + GameRules::OSU_COORD_HEIGHT / 2;
+        coords = GameRules::rotateAroundPlayfieldCenter(coords, this->fPlayfieldRotation);
     }
 
     // if wobble, clamp coordinates

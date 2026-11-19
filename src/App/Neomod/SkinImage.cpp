@@ -271,55 +271,8 @@ void draw_bright_quad(Graphics* g, VertexArrayObject* vao, float brightness) {
 }  // namespace
 
 void SkinImage::draw(vec2 pos, float scale, float brightness, bool animated) const {
-    if(m_impl->images.size() < 1) return;
-
-    scale *= this->getScale(animated);  // auto scale to current resolution
-
-    g->pushTransform();
-    {
-        g->scale(scale, scale);
-        g->translate(pos.x, pos.y);
-
-        Image* img = this->getImageForCurrentFrame(animated).img;
-
-        if(m_impl->fDrawClipWidthPercent == 1.0f && brightness <= 0.f)
-            g->drawImage(img);
-        else if(img->isReady()) {
-            const float realWidth = img->getWidth();
-            const float realHeight = img->getHeight();
-
-            const float width = realWidth * m_impl->fDrawClipWidthPercent;
-            const float height = realHeight;
-
-            const float x = -realWidth / 2.f;
-            const float y = -realHeight / 2.f;
-
-            quadVAO.clear();
-
-            quadVAO.addVertex(x, y);
-            quadVAO.addTexcoord(0, 0);
-
-            quadVAO.addVertex(x, (y + height));
-            quadVAO.addTexcoord(0, 1);
-
-            quadVAO.addVertex((x + width), (y + height));
-            quadVAO.addTexcoord(m_impl->fDrawClipWidthPercent, 1);
-
-            quadVAO.addVertex((x + width), y);
-            quadVAO.addTexcoord(m_impl->fDrawClipWidthPercent, 0);
-
-            img->bind();
-            {
-                g->drawVAO(&quadVAO);
-
-                if(brightness > 0.f) {
-                    draw_bright_quad(g, &quadVAO, brightness);
-                }
-            }
-            img->unbind();
-        }
-    }
-    g->popTransform();
+    // auto scale to current resolution
+    this->drawRaw(pos, scale * this->getScale(animated), AnchorPoint::CENTER, brightness, animated);
 }
 
 static_assert(AnchorPoint{} == AnchorPoint::CENTER);  // sanity

@@ -60,7 +60,6 @@
 #include "Storyboard.h"
 #include "UI.h"
 #include "VolumeOverlay.h"
-#include "Matrices.h"
 #include "UIModSelectorModButton.h"
 #include "Graphics.h"
 #include "URLHistory.h"
@@ -2807,15 +2806,15 @@ vec2 BeatmapInterface::legacyPixels2RawPixels(vec2 coords) const {
     return coords;
 }
 
+namespace {
+// HACKHACK: this is the worst hack possible (engine->isDrawing()), but it works
+// the problem is that the coordinate conversions are called while draw()ing and update()ing
+bool pixelsFollowFirstPersonCursor() { return engine->isDrawing() || !(osu->getModAuto() || osu->getModAutopilot()); }
+}  // namespace
+
 vec2 BeatmapInterface::pixels2OsuCoords(vec2 pixelCoords) const {
     // un-first-person
-    if(cv::mod_fps.getBool()) {
-        // HACKHACK: this is the worst hack possible (engine->isDrawing()), but it works
-        // the problem is that this same function is called while draw()ing and update()ing
-        if(!((engine->isDrawing() && (osu->getModAuto() || osu->getModAutopilot())) ||
-             !(osu->getModAuto() || osu->getModAutopilot())))
-            pixelCoords += this->getFirstPersonCursorDelta();
-    }
+    if(cv::mod_fps.getBool() && !pixelsFollowFirstPersonCursor()) pixelCoords += this->getFirstPersonCursorDelta();
 
     // un-offset and un-scale, reverse order
     pixelCoords -= this->vPlayfieldOffset;
@@ -2832,35 +2831,15 @@ vec2 BeatmapInterface::osuCoords2Pixels(vec2 coords) const {
     if(cv::playfield_mirror_horizontal.getBool()) coords.y = GameRules::OSU_COORD_HEIGHT - coords.y;
     if(cv::playfield_mirror_vertical.getBool()) coords.x = GameRules::OSU_COORD_WIDTH - coords.x;
     if(cv::playfield_rotation.getFloat() != 0.0f) {
-        coords.x -= GameRules::OSU_COORD_WIDTH / 2;
-        coords.y -= GameRules::OSU_COORD_HEIGHT / 2;
-
-        vec3 coords3 = vec3(coords.x, coords.y, 0);
-        Matrix4 rot;
-        rot.rotateZ(cv::playfield_rotation.getFloat());
-
-        coords3 = coords3 * rot;
-        coords.x = coords3.x + GameRules::OSU_COORD_WIDTH / 2;
-        coords.y = coords3.y + GameRules::OSU_COORD_HEIGHT / 2;
+        coords = GameRules::rotateAroundPlayfieldCenter(coords, cv::playfield_rotation.getFloat());
     }
 
     if(this->hasFailed()) {
         f32 failTimePercentInv = 1.0f - this->fFailAnim;  // goes from 0 to 1 over the duration of osu_fail_time
         failTimePercentInv *= failTimePercentInv;
 
-        coords.x -= GameRules::OSU_COORD_WIDTH / 2;
-        coords.y -= GameRules::OSU_COORD_HEIGHT / 2;
-
-        vec3 coords3 = vec3(coords.x, coords.y, 0);
-        Matrix4 rot;
-        rot.rotateZ(failTimePercentInv * 60.0f);
-
-        coords3 = coords3 * rot;
-        coords3.x += GameRules::OSU_COORD_WIDTH / 2;
-        coords3.y += GameRules::OSU_COORD_HEIGHT / 2;
-
-        coords.x = coords3.x + failTimePercentInv * GameRules::OSU_COORD_WIDTH * 0.25f;
-        coords.y = coords3.y + failTimePercentInv * GameRules::OSU_COORD_HEIGHT * 1.25f;
+        coords = GameRules::rotateAroundPlayfieldCenter(coords, failTimePercentInv * 60.0f) +
+                 failTimePercentInv * vec2(GameRules::OSU_COORD_WIDTH * 0.25f, GameRules::OSU_COORD_HEIGHT * 1.25f);
     }
 
     // scale and offset
@@ -2868,13 +2847,7 @@ vec2 BeatmapInterface::osuCoords2Pixels(vec2 coords) const {
     coords += this->vPlayfieldOffset;  // the offset is already scaled, just add it
 
     // first person mod, centered cursor
-    if(cv::mod_fps.getBool()) {
-        // this is the worst hack possible (engine->isDrawing()), but it works
-        // the problem is that this same function is called while draw()ing and update()ing
-        if((engine->isDrawing() && (osu->getModAuto() || osu->getModAutopilot())) ||
-           !(osu->getModAuto() || osu->getModAutopilot()))
-            coords += this->getFirstPersonCursorDelta();
-    }
+    if(cv::mod_fps.getBool() && pixelsFollowFirstPersonCursor()) coords += this->getFirstPersonCursorDelta();
 
     return coords;
 }
@@ -2884,14 +2857,7 @@ vec2 BeatmapInterface::pixels2ReplayCoords(vec2 pixelCoords) const {
 
     // undo the playfield's rotation and flips (in reverse order of osuCoords2Pixels())
     if(cv::playfield_rotation.getFloat() != 0.0f) {
-        pos.x -= GameRules::OSU_COORD_WIDTH / 2;
-        pos.y -= GameRules::OSU_COORD_HEIGHT / 2;
-        vec3 coords3 = vec3(pos.x, pos.y, 0);
-        Matrix4 rot;
-        rot.rotateZ(-cv::playfield_rotation.getFloat());
-        coords3 = coords3 * rot;
-        pos.x = coords3.x + GameRules::OSU_COORD_WIDTH / 2;
-        pos.y = coords3.y + GameRules::OSU_COORD_HEIGHT / 2;
+        pos = GameRules::rotateAroundPlayfieldCenter(pos, -cv::playfield_rotation.getFloat());
     }
     if(cv::playfield_mirror_vertical.getBool()) pos.x = GameRules::OSU_COORD_WIDTH - pos.x;
     if(cv::playfield_mirror_horizontal.getBool()) pos.y = GameRules::OSU_COORD_HEIGHT - pos.y;
@@ -2903,14 +2869,7 @@ vec2 BeatmapInterface::replayCoords2Pixels(vec2 coords) const {
     if(cv::playfield_mirror_horizontal.getBool()) coords.y = GameRules::OSU_COORD_HEIGHT - coords.y;
     if(cv::playfield_mirror_vertical.getBool()) coords.x = GameRules::OSU_COORD_WIDTH - coords.x;
     if(cv::playfield_rotation.getFloat() != 0.0f) {
-        coords.x -= GameRules::OSU_COORD_WIDTH / 2;
-        coords.y -= GameRules::OSU_COORD_HEIGHT / 2;
-        vec3 coords3 = vec3(coords.x, coords.y, 0);
-        Matrix4 rot;
-        rot.rotateZ(cv::playfield_rotation.getFloat());
-        coords3 = coords3 * rot;
-        coords.x = coords3.x + GameRules::OSU_COORD_WIDTH / 2;
-        coords.y = coords3.y + GameRules::OSU_COORD_HEIGHT / 2;
+        coords = GameRules::rotateAroundPlayfieldCenter(coords, cv::playfield_rotation.getFloat());
     }
 
     return coords * this->fScaleFactor + this->vPlayfieldOffset;
@@ -2923,21 +2882,7 @@ vec2 BeatmapInterface::osuCoords2LegacyPixels(vec2 coords) const {
 
     // rotation (getPlayfieldRotation() is for mods like wobble, cv::playfield_rotation is user preference)
     const f32 rotation = (this->judge ? this->judge->getPlayfieldRotation() : 0.f) + cv::playfield_rotation.getFloat();
-    if(rotation != 0.0f) {
-        coords.x -= GameRules::OSU_COORD_WIDTH / 2;
-        coords.y -= GameRules::OSU_COORD_HEIGHT / 2;
-
-        vec3 coords3 = vec3(coords.x, coords.y, 0);
-        Matrix4 rot;
-        rot.rotateZ(rotation);
-
-        coords3 = coords3 * rot;
-        coords3.x += GameRules::OSU_COORD_WIDTH / 2;
-        coords3.y += GameRules::OSU_COORD_HEIGHT / 2;
-
-        coords.x = coords3.x;
-        coords.y = coords3.y;
-    }
+    if(rotation != 0.0f) coords = GameRules::rotateAroundPlayfieldCenter(coords, rotation);
 
     // VR center
     coords.x -= GameRules::OSU_COORD_WIDTH / 2;

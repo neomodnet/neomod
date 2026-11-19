@@ -6,6 +6,7 @@
 #include "Osu.h"
 #include "GameplayJudge.h"
 #include "ConVar.h"
+#include "Matrices.h"
 #include "OsuConVars/DiffCalcDefaults.h"
 
 namespace cv {
@@ -91,6 +92,14 @@ float arWithSpeed(float AR, float speed) {
 float getSpinnerSpinsPerSecond(const GameplayJudge *beatmap) {
     (void)beatmap;
     return mapDifficultyRange(BEATMAP_OD(beatmap), 3.0f, 5.0f, 7.5f);
+}
+
+vec2 rotateAroundPlayfieldCenter(vec2 coords, float degrees) {
+    const vec2 center = vec2(OSU_COORD_WIDTH, OSU_COORD_HEIGHT) / 2.f;
+    Matrix4 rot;
+    rot.rotateZ(degrees);
+    const vec3 rotated = vec3(coords - center, 0) * rot;
+    return vec2(rotated.x, rotated.y) + center;
 }
 
 vec2 getPlayfieldOffset() {

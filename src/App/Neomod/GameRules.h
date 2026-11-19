@@ -124,6 +124,9 @@ inline vec2 getPlayfieldSize() {
 
 vec2 getPlayfieldOffset();
 
+// rotates osu!pixel coordinates around the playfield center, by an angle in degrees
+vec2 rotateAroundPlayfieldCenter(vec2 coords, float degrees);
+
 inline vec2 getPlayfieldCenter() {
     const float scaleFactor = getPlayfieldScaleFactor();
     const vec2 playfieldOffset = getPlayfieldOffset();
