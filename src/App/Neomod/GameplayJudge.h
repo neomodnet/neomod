@@ -68,6 +68,7 @@ class GameplayJudge final {
         // timed: whether delta is a hit error, which counts towards the unstable rate
         virtual void onHitResult(const neomod::HitObject *hitObject, LiveHitResult hit, i32 delta, bool timed);
         virtual void onComboBreak();  // called right before the combo is reset
+        virtual void onExtraClick();  // a click that hit nothing and wasn't punished
         virtual void onHealthGain(f64 healthBefore);
         virtual bool onFail(bool byMods);  // byMods true when fail is caused by Perfect/SuddenDeath
     };

@@ -39,6 +39,7 @@ void GameplayJudge::Listener::addTargetHit(f32 /*delta*/, f32 /*angle*/) {}
 void GameplayJudge::Listener::onHitResult(const HitObject * /*hitObject*/, LiveHitResult /*hit*/, i32 /*delta*/,
                                           bool /*timed*/) {}
 void GameplayJudge::Listener::onComboBreak() {}
+void GameplayJudge::Listener::onExtraClick() {}
 void GameplayJudge::Listener::onHealthGain(f64 /*healthBefore*/) {}
 bool GameplayJudge::Listener::onFail(bool /*byMods*/) { return true; }
 
@@ -957,10 +958,8 @@ void GameplayJudge::update(f64 frameTimeSecs) {
 
         // all remaining clicks which have not been consumed by any hitobjects can safely be deleted
         if(!this->clicks.empty()) {
-            // nightmare mod: extra clicks = sliderbreak
-            bool break_on_extra_click = mods.has(ModFlags::StrictClicks);
-            break_on_extra_click &= !this->bIsInSkippableSection && !this->bInBreak;
-            break_on_extra_click &= this->iCurrentHitObjectIndex > 0;
+            bool extra_click = !this->bIsInSkippableSection && !this->bInBreak;
+            extra_click &= this->iCurrentHitObjectIndex > 0;
 
             // clicks during a spinner spin it.
             // this uses the click time, since the frame time can be outside the spinner while the click was inside.
@@ -972,11 +971,14 @@ void GameplayJudge::update(f64 frameTimeSecs) {
                 }
                 return false;
             };
-            break_on_extra_click &= !Mc::ranges::all_of(this->clicks, isSpinnerClick);
-            if(break_on_extra_click) {
+            extra_click &= !Mc::ranges::all_of(this->clicks, isSpinnerClick);
+            // nightmare mod: extra clicks = sliderbreak
+            if(extra_click && mods.has(ModFlags::StrictClicks)) {
                 this->addSliderBreak();
                 this->addHitResult(nullptr, LiveHitResult::HIT_MISS_SLIDERBREAK, 0, false, true, true, true, true,
                                    false);  // only decrease health
+            } else if(extra_click && this->listener) {
+                this->listener->onExtraClick();
             }
 
             this->clicks.clear();

@@ -407,6 +407,7 @@ void AboutScreen::buildChangelog() {
         R"(- Fixed the Flashlight icon missing from the mods shown on the results screen and in multiplayer rooms)",
         R"(- The "Game Pause" key now also closes the main menu buttons and leaves song select (unless it is a key that types))",
         R"(- Added options to only show song select grades of scores set with your current name and/or on the current server)",
+        R"(- Added combobreak_sound_extra_clicks convar to play the combobreak sound for clicks that hit nothing)",
     };
     changelogs.push_back(std::move(v45_01));
 

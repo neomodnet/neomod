@@ -1304,6 +1304,11 @@ void BeatmapInterface::onComboBreak() {
     }
 }
 
+void BeatmapInterface::onExtraClick() {
+    if(cv::combobreak_sound_extra_clicks.getBool() && !osu->getScore()->simulating)
+        soundEngine->play(this->getSkin()->s_combobreak);
+}
+
 void BeatmapInterface::onHealthGain(f64 healthBefore) {
     ui->getHUD()->animateKiBulge();
     if(healthBefore > 0.9) ui->getHUD()->animateKiExplode();
