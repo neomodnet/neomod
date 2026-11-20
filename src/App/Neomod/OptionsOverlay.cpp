@@ -1002,6 +1002,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
         this->addCheckbox(_("Notify when receiving a direct message"), &cv::chat_notify_on_dm);
         this->addCheckbox(_("Notify when mentioned"), &cv::chat_notify_on_mention);
         this->addCheckbox(_("Ping when mentioned"), &cv::chat_ping_on_mention);
+        this->addCheckbox(_("Play a sound for new messages while the chat is open"), &cv::chat_sound_on_message);
     }
     this->addCheckbox(_("Show notifications during gameplay"), &cv::notify_during_gameplay);
 

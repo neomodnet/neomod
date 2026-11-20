@@ -292,6 +292,7 @@ void Skin::load() {
     if(!this->s_hover_button) this->s_hover_button = this->s_menu_hover;
     if(!this->s_pause_hover) this->s_pause_hover = this->s_hover_button;
     if(!this->s_select_difficulty) this->s_select_difficulty = this->s_click_button;
+    if(!this->s_message_received) this->s_message_received = this->s_message_sent;
     if(!this->s_typing2) this->s_typing2 = this->s_typing1;
     if(!this->s_typing3) this->s_typing3 = this->s_typing2;
     if(!this->s_typing4) this->s_typing4 = this->s_typing3;
@@ -731,6 +732,8 @@ void Skin::loadElements() {
 
     // UI feedback
     this->loadSound(this->s_message_sent, "key-confirm", "SK_S_MESSAGE_SENT", OVERLAYABLE | SAMPLE);
+    this->loadSound(this->s_message_received, "message-received", "SK_S_MESSAGE_RECEIVED",
+                    OVERLAYABLE | SAMPLE | NO_DEFAULT);
     this->loadSound(this->s_deleting_text, "key-delete", "SK_S_DELETING_TEXT", OVERLAYABLE | SAMPLE);
     this->loadSound(this->s_moving_text_cursor, "key-movement", "SK_S_MOVING_TEXT_CURSOR", OVERLAYABLE | SAMPLE);
     this->loadSound(this->s_typing1, "key-press-1", "SK_S_TYPING_1", OVERLAYABLE | SAMPLE);

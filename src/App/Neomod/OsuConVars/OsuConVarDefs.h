@@ -557,6 +557,7 @@ CONVAR(chat_ignore_list, ""sv, CLIENT, "space-separated list of words to ignore"
 CONVAR(chat_notify_on_dm, true, CLIENT);
 CONVAR(chat_notify_on_mention, true, CLIENT, "get notified when someone says your name");
 CONVAR(chat_ping_on_mention, true, CLIENT, "play a sound when someone says your name");
+CONVAR(chat_sound_on_message, true, CLIENT, "play a sound when a message arrives while the chat is open");
 CONVAR(chat_ticker, true, CLIENT);
 
 // Memes

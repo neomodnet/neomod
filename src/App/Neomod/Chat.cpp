@@ -1076,6 +1076,12 @@ void Chat::addMessage(std::string channel_name, const ChatMessage &msg, bool mar
         soundEngine->play(osu->getSkin()->s_match_start);
     }
 
+    const bool pinged = cv::chat_ping_on_mention.getBool() && (is_pm || mentioned);
+    if(!pinged && this->isVisible() && cv::chat_sound_on_message.getBool() && msg.author_id != 0 &&
+       msg.author_id != BanchoState::get_uid()) {
+        soundEngine->play(osu->getSkin()->s_message_received);
+    }
+
     this->addChannel(channel_name);
     for(auto chan : this->channels) {
         if(chan->name != channel_name) continue;

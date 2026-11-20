@@ -382,6 +382,9 @@ struct Skin final {
     // Plays when sending a message in chat
     Sound *s_message_sent{nullptr};
 
+    // Plays when a message arrives while the chat is open
+    Sound *s_message_received{nullptr};
+
     // Plays when deleting text in a message in chat
     Sound *s_deleting_text{nullptr};
 

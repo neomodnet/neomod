@@ -2657,6 +2657,10 @@ msgid "Ping when mentioned"
 msgstr "Biper quand on vous mentionne"
 
 #: src/App/Neomod/OptionsOverlay.cpp
+msgid "Play a sound for new messages while the chat is open"
+msgstr "Jouer un son pour les nouveaux messages lorsque le chat est ouvert"
+
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "Show notifications during gameplay"
 msgstr "Afficher les notifications pendant le jeu"
 
