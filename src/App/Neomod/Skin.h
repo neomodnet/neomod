@@ -165,6 +165,8 @@ struct Skin final {
 
     [[nodiscard]] const BasicSkinImage &getGradeImageLarge(ScoreGrade grade) const;
     [[nodiscard]] const SkinImage &getGradeImageSmall(ScoreGrade grade) const;
+    // the applause of a grade: its own sample ("applause-s") if there is one, the plain one otherwise
+    [[nodiscard]] Sound *getApplause(ScoreGrade grade) const;
 
     [[nodiscard]] inline bool useSmoothCursorTrail() const { return this->i_cursor_middle.img != MISSING_TEXTURE; }
     // whether the elements come from random skins (skin_random_elements) instead of the skin's own folder
@@ -458,6 +460,7 @@ struct Skin final {
     Sound *s_combobreak{nullptr};
     Sound *s_fail{nullptr};
     Sound *s_applause{nullptr};
+    std::array<Sound *, 8> s_applause_grades{};  // by ScoreGrade (XH to D), null without a sample for the grade
     Sound *s_menu_hit{nullptr};
     Sound *s_menu_hover{nullptr};
     Sound *s_check_on{nullptr};

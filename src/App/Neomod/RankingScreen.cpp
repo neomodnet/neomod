@@ -459,7 +459,7 @@ CBaseUIContainer *RankingScreen::setVisible(bool visible) {
         this->updateLayout();
     } else {
         // Stop applause sound
-        soundEngine->stop(osu->getSkin()->s_applause);
+        soundEngine->stop(osu->getSkin()->getApplause(m_impl->grade));
     }
 
     // update url history

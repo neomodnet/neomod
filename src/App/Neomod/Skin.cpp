@@ -716,6 +716,10 @@ void Skin::loadElements() {
     this->loadSound(this->s_combobreak, "combobreak", "SK_S_COMBOBREAK", OVERLAYABLE | SAMPLE | BEATMAP);
     this->loadSound(this->s_fail, "failsound", "SK_S_FAILSOUND", BEATMAP);
     this->loadSound(this->s_applause, "applause", "SK_S_APPLAUSE", BEATMAP);
+    for(size_t i = 0; const std::string_view grade : {"XH", "SH", "X", "S", "A", "B", "C", "D"}) {
+        this->loadSound(this->s_applause_grades[i++], fmt::format("applause-{}", SString::to_lower(grade)),
+                        fmt::format("SK_S_APPLAUSE_{}", grade), NO_DEFAULT);
+    }
     this->loadSound(this->s_menu_hit, "menuhit", "SK_S_MENUHIT", OVERLAYABLE | SAMPLE);
     this->loadSound(this->s_menu_hover, "menuclick", "SK_S_MENUCLICK", OVERLAYABLE | SAMPLE);
     this->loadSound(this->s_check_on, "check-on", "SK_S_CHECKON", OVERLAYABLE | SAMPLE);
@@ -1457,6 +1461,12 @@ void Skin::loadSound(Sound *&ref, const std::string &skinElementName, const std:
     }
 
     return;
+}
+
+Sound *Skin::getApplause(ScoreGrade grade) const {
+    const auto index = (size_t)grade;
+    if(index >= this->s_applause_grades.size() || !this->s_applause_grades[index]) return this->s_applause;
+    return this->s_applause_grades[index];
 }
 
 const BasicSkinImage &Skin::getGradeImageLarge(ScoreGrade grade) const {

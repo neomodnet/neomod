@@ -1597,7 +1597,7 @@ void Osu::onPlayEnd(const FinishedScore &score, bool quit) {
     } else {
         ui->getRankingScreen()->setScore(score);
         ui->setScreen(ui->getRankingScreen());
-        soundEngine->play(this->skin->s_applause);
+        soundEngine->play(this->skin->getApplause(score.calculate_grade()));
     }
 
     ui->getSongBrowser()->onPlayEnd(quit);
