@@ -314,7 +314,6 @@ void onPlayStart() {
     auto activity = DiscRPC::create_base_activity();
 
     activity.timestamps.start = tms;
-    activity.timestamps.end = 0;
 
     activity.details = beatmap_desc_str(map, true);
 

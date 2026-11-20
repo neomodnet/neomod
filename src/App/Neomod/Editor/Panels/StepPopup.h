@@ -28,12 +28,12 @@ class StepPopup final : public CBaseUIBox {
     ~StepPopup() override;
 
     // a number to set (number(i) is the i-th one added)
-    CBaseUINumberField *addNumber(const std::string &name, std::string label, f64 value, f64 min, f64 max, f64 step,
+    CBaseUINumberField *addNumber(std::string name, std::string label, f64 value, f64 min, f64 max, f64 step,
                                   int decimals);
     // buttons of which one is chosen (choice(i))
-    void addChoice(const std::string &name, std::string label, std::vector<std::string> options, i32 chosen);
+    void addChoice(std::string name, std::string label, std::vector<std::string> options, i32 chosen);
     // a button that's on or off (toggle(i))
-    void addToggle(const std::string &name, std::string label, bool on);
+    void addToggle(std::string name, std::string label, bool on);
     // starts the preview of `action` and shows the popup at `pos`, its first number field typed in
     void open(Document::Action action, vec2 pos);
 

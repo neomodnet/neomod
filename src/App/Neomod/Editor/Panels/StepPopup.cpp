@@ -49,16 +49,16 @@ void StepPopup::addRow(std::string label, CBaseUIElement *control) {
     this->rows->add(line, BoxItem::fit());
 }
 
-CBaseUINumberField *StepPopup::addNumber(const std::string &name, std::string label, f64 value, f64 min, f64 max,
+CBaseUINumberField *StepPopup::addNumber(std::string name, std::string label, f64 value, f64 min, f64 max,
                                          f64 step, int decimals) {
-    auto *field = new CBaseUINumberField(name);
+    auto *field = new CBaseUINumberField(std::move(name));
     field->setRange(min, max)->setStep(step, step)->setDecimals(decimals)->setValue(value);
     this->numbers.push_back(field);
     this->addRow(std::move(label), field);
     return field;
 }
 
-void StepPopup::addChoice(const std::string &name, std::string label, std::vector<std::string> options, i32 chosen) {
+void StepPopup::addChoice(std::string name, std::string label, std::vector<std::string> options, i32 chosen) {
     const uSz index = this->choices.size();
     Choice &choice = this->choices.emplace_back(Choice{.buttons = {}, .chosen = chosen});
     auto *line = new CBaseUIBox(Axis::ROW);
@@ -77,8 +77,8 @@ void StepPopup::addChoice(const std::string &name, std::string label, std::vecto
     this->addRow(std::move(label), line);
 }
 
-void StepPopup::addToggle(const std::string &name, std::string label, bool on) {
-    auto *button = new CBaseUIStyledButton(std::move(label), name);
+void StepPopup::addToggle(std::string name, std::string label, bool on) {
+    auto *button = new CBaseUIStyledButton(std::move(label), std::move(name));
     button->setChecked(on);
     button->setClickCallback([button] { button->setChecked(!button->isChecked()); });
     this->toggles.push_back(button);

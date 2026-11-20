@@ -17,6 +17,7 @@ DiscordActivity create_base_activity() { return DiscordActivity{}; }
 #include <discord_rpc.h>
 
 #include <tuple>
+#include <chrono>
 
 #include "ConVar.h"
 #include "Engine.h"
@@ -33,6 +34,7 @@ namespace  // static
 {
 
 static bool initialized{false};
+static i64 start_timestamp{0};
 
 static void on_ready(const DiscordUser* user) {
     if(user && user->username) {
@@ -55,6 +57,8 @@ static void on_errored(int errorCode, const char* message) {
 void init() {
     if(initialized) return;
 
+    start_timestamp =
+        std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     // TODOs:
     // - set up more event handlers
     // - allow spectate/join lobby/invite etc. handlers
@@ -98,6 +102,7 @@ DiscordActivity create_base_activity() {
     DiscordActivity activity{};
     activity.assets.large_image = {PACKAGE_NAME "_icon"};
     activity.assets.small_image = {"None"};
+    activity.timestamps.start = start_timestamp;
     return activity;
 }
 
