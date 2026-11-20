@@ -330,7 +330,7 @@ void UIUserLabel::draw() {
     }
 }
 
-void UIUserLabel::onMouseUpInside(bool /*left*/, bool /*right*/) {
+void UIUserLabel::onMouseUpInside(MouseButtonFlags /*buttons*/) {
     ui->getUIUserContextMenuScreen()->open(this->user_id);
 }
 

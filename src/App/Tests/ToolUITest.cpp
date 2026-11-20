@@ -545,7 +545,7 @@ void ToolUITest::testNumberFields() {
     field.setValue(5.0);
     heard.clear();
     mouse->setPos({10.f, 10.f});
-    field.onMouseDownInside(true, false);
+    field.onMouseDownInside(MouseButtonFlags::MF_LEFT);
     mouse->setPos({12.f, 10.f});
     field.onCapturedMouseMove();
     TEST_ASSERT(!field.isAdjusting() && heard.empty(), "a press isn't a drag before the cursor went some way");
@@ -561,20 +561,20 @@ void ToolUITest::testNumberFields() {
     TEST_ASSERT_EQ(field.getValue(), 5.0, "back where it started it's the value it was");
     mouse->setPos({1000.f, 10.f});
     field.onCapturedMouseMove();
-    field.onMouseUpOutside(true, false);
+    field.onMouseUpOutside(MouseButtonFlags::MF_LEFT);
     TEST_ASSERT(heard == std::vector<f64>({10.0}) && !field.isAdjusting() && !field.isFocused(),
                 "the value it ends at is told, within the range");
 
     mouse->setPos({10.f, 10.f});
-    field.onMouseDownInside(true, false);
+    field.onMouseDownInside(MouseButtonFlags::MF_LEFT);
     mouse->setPos({-30.f, 10.f});
     field.onCapturedMouseMove();
     mouse->setPos({10.f, 10.f});
     field.onCapturedMouseMove();
-    field.onMouseUpInside(true, false);
+    field.onMouseUpInside(MouseButtonFlags::MF_LEFT);
     TEST_ASSERT(heard.size() == 1 && !field.isFocused(), "a drag that ends where it started is no change");
     mouse->setPos({10.f, 10.f});
-    field.onMouseDownInside(true, false);
+    field.onMouseDownInside(MouseButtonFlags::MF_LEFT);
     mouse->setPos({-30.f, 10.f});
     field.onCapturedMouseMove();
     field.onMouseCancel();
@@ -582,8 +582,8 @@ void ToolUITest::testNumberFields() {
                 "...and neither is one that's cancelled");
 
     mouse->setPos({10.f, 10.f});
-    field.onMouseDownInside(true, false);
-    field.onMouseUpInside(true, false);
+    field.onMouseDownInside(MouseButtonFlags::MF_LEFT);
+    field.onMouseUpInside(MouseButtonFlags::MF_LEFT);
     TEST_ASSERT(field.isFocused() && field.getText() == "10" && field.hasSelectedText(), "a click visits it");
     field.stealFocus();
 
@@ -591,10 +591,10 @@ void ToolUITest::testNumberFields() {
     const uSz told = heard.size();
     field.setValue(std::numeric_limits<f64>::quiet_NaN());
     TEST_ASSERT(field.getText().empty() && heard.size() == told, "a value that's no number shows as nothing");
-    field.onMouseDownInside(true, false);
+    field.onMouseDownInside(MouseButtonFlags::MF_LEFT);
     mouse->setPos({60.f, 10.f});
     field.onCapturedMouseMove();
-    field.onMouseUpInside(true, false);
+    field.onMouseUpInside(MouseButtonFlags::MF_LEFT);
     TEST_ASSERT(!field.isAdjusting() && field.isFocused() && field.getText().empty(),
                 "...which a drag doesn't change: it's a click");
     press(KEY_UP);
@@ -629,8 +629,8 @@ void ToolUITest::testLists() {
     };
     const auto click = [&](uSz rowInView) {
         mouse->setPos({20.f, rowHeight * ((float)rowInView + 1.5f)});
-        list.onMouseDownInside(true, false);
-        list.onMouseUpInside(true, false);
+        list.onMouseDownInside(MouseButtonFlags::MF_LEFT);
+        list.onMouseUpInside(MouseButtonFlags::MF_LEFT);
     };
     const auto press = [&](SCANCODE scancode, KEYMOD modifiers = KEYMOD_NONE) {
         KeyboardEvent e = key(scancode, modifiers);

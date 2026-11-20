@@ -76,9 +76,9 @@ class NowPlaying::SeekBar final : public CBaseUIElement {
     }
 
    protected:
-    void onMouseDownInside(bool left, bool right) override;
-    void onMouseUpInside(bool left, bool right) override;
-    void onMouseUpOutside(bool left, bool right) override;
+    void onMouseDownInside(MouseButtonFlags buttons) override;
+    void onMouseUpInside(MouseButtonFlags buttons) override;
+    void onMouseUpOutside(MouseButtonFlags buttons) override;
 
    private:
     [[nodiscard]] f32 getCursorPercent() const {
@@ -127,13 +127,13 @@ void NowPlaying::SeekBar::updateInput(CBaseUIEventCtx &c) {
     tooltips->end();
 }
 
-void NowPlaying::SeekBar::onMouseDownInside(bool /*left*/, bool /*right*/) {
+void NowPlaying::SeekBar::onMouseDownInside(MouseButtonFlags /*buttons*/) {
     // an enclosing scrollview must not turn the drag into a scroll
     this->lockCapture();
 }
 
-void NowPlaying::SeekBar::onMouseUpInside(bool /*left*/, bool /*right*/) { this->seek(); }
-void NowPlaying::SeekBar::onMouseUpOutside(bool /*left*/, bool /*right*/) { this->seek(); }
+void NowPlaying::SeekBar::onMouseUpInside(MouseButtonFlags /*buttons*/) { this->seek(); }
+void NowPlaying::SeekBar::onMouseUpOutside(MouseButtonFlags /*buttons*/) { this->seek(); }
 
 void NowPlaying::SeekBar::seek() const {
     MusicTrack *music = osu->getMusicTrack();

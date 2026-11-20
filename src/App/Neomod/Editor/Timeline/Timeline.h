@@ -38,10 +38,10 @@ class Timeline final : public CBaseUIElement {
 
    protected:
     bool onWheel(WheelDelta vertical, WheelDelta horizontal) override;
-    void onMouseDownInside(bool left, bool right) override;
+    void onMouseDownInside(MouseButtonFlags buttons) override;
     void onCapturedMouseMove() override;
-    void onMouseUpInside(bool left, bool right) override;
-    void onMouseUpOutside(bool left, bool right) override;
+    void onMouseUpInside(MouseButtonFlags buttons) override;
+    void onMouseUpOutside(MouseButtonFlags buttons) override;
     void onMouseCancel() override;
 
    private:

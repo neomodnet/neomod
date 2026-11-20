@@ -562,11 +562,11 @@ void State::dispatchEvents(CBaseUIEventCtx &c, Root root) {
                     this->countClicks(elem, btn, qe.clicks);
                     if(elem->bMouseInside) {
                         UI_TRACE_EVENT(0, elem, "downInside");
-                        elem->onMouseDownInside(left, right);
+                        elem->onMouseDownInside(btn);
                         if(this->captor == elem) elem->bActive = true;
                     } else {
                         UI_TRACE_EVENT(1, elem, "downOutside");
-                        elem->onMouseDownOutside(left, right);
+                        elem->onMouseDownOutside(btn);
                     }
                 }
             } else {
@@ -575,10 +575,10 @@ void State::dispatchEvents(CBaseUIEventCtx &c, Root root) {
                 if(eligible && elem->bActive) {
                     if(elem->bMouseInside) {
                         UI_TRACE_EVENT(0, elem, "upInside");
-                        elem->onMouseUpInside(left, right);
+                        elem->onMouseUpInside(btn);
                     } else {
                         UI_TRACE_EVENT(1, elem, "upOutside");
-                        elem->onMouseUpOutside(left, right);
+                        elem->onMouseUpOutside(btn);
                     }
                     if(this->captor == elem) elem->bActive = false;
                 } else if(!eligible) {
@@ -615,7 +615,7 @@ void State::dispatchEvents(CBaseUIEventCtx &c, Root root) {
             this->lastCaptureMovePos = mouse->getPos();
             this->countClicks(target->elem, btn, qe.clicks);
             UI_TRACE_EVENT(0, target->elem, "downInside");
-            target->elem->onMouseDownInside(left, right);
+            target->elem->onMouseDownInside(btn);
             if(this->captor == target->elem) {
                 target->elem->bActive = true;
                 // ancestors observe from the press frame (a scrollview arms its drag gesture here)

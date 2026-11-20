@@ -137,9 +137,9 @@ class MainMenu::MainButton final : public UIButtonRounded {
         return this->isEnabled() && UIButtonRounded::isMouseInside();
     }
 
-    void onMouseDownInside(bool left = true, bool right = false) override {
+    void onMouseDownInside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override {
         if(this->mm->cube->isMouseInside()) return;
-        UIButtonRounded::onMouseDownInside(left, right);
+        UIButtonRounded::onMouseDownInside(buttons);
     }
 
     void onMouseOutside() override {
@@ -405,8 +405,9 @@ MainMenu::MainMenu() : UIScreen() {
     this->tipLabel = new mainmenu::WrappedText(engine->getDefaultFont(), 0, 0, 0, 0);
     this->tipLabel->setName("mainmenu_tip");
     this->tipLabel->setHandleRightMouse(true);
-    this->tipLabel->setOnMouseUpInsideCallback(
-        [](bool left, bool /*right*/) -> void { mainmenu::cycleTip(left ? 1 : -1); });
+    this->tipLabel->setOnMouseUpInsideCallback([](MouseButtonFlags buttons) -> void {
+        mainmenu::cycleTip(flags::has<MouseButtonFlags::MF_LEFT>(buttons) ? 1 : -1);
+    });
     this->addBaseUIElement(this->tipLabel);
     cv::main_menu_tips.setCallback(SA::MakeDelegate<&mainmenu::WrappedText::setVisibleCallback>(this->tipLabel));
 

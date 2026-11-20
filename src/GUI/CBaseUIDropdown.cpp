@@ -80,8 +80,8 @@ vec2 CBaseUIDropdown::getNaturalSize() {
             style.px(style.metrics.controlHeight)};
 }
 
-void CBaseUIDropdown::onMouseDownInside(bool left, bool /*right*/) {
-    if(!left) return;
+void CBaseUIDropdown::onMouseDownInside(MouseButtonFlags buttons) {
+    if(!flags::has<MouseButtonFlags::MF_LEFT>(buttons)) return;
     if(this->isOpen()) {
         this->close();
     } else {

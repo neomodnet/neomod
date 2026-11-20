@@ -34,7 +34,7 @@ class CBaseUIPopupLayer final : public CBaseUIContainer {
     void onFocusStolen() override {}
 
    protected:
-    void onMouseDownInside(bool left, bool right) override;
+    void onMouseDownInside(MouseButtonFlags buttons) override;
     bool onWheel(WheelDelta vertical, WheelDelta horizontal) override;
 
    private:

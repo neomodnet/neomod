@@ -12,7 +12,7 @@ class UIBackButton final : public CBaseUIButton {
     void draw() override;
     void updateInput(CBaseUIEventCtx &c) override;
 
-    void onMouseDownInside(bool left = true, bool right = false) override;
+    void onMouseDownInside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
     void onMouseInside() override;
     void onMouseOutside() override;
 

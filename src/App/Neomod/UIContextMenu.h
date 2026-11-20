@@ -84,7 +84,7 @@ class UIContextMenu final : public CBaseUIScrollView {
     static constexpr const Color defaultFrameColor{0xffffffff};
 
    private:
-    void onMouseDownOutside(bool left = true, bool right = false) override;
+    void onMouseDownOutside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
 
     void onClick(UIContextMenuButton *button);
     void onHitEnter(UIContextMenuTextbox *textbox);
@@ -125,7 +125,7 @@ class UIContextMenuButton final : public CBaseUIButton {
     void updateInput(CBaseUIEventCtx &c) override;
 
     void onMouseInside() override;
-    void onMouseDownInside(bool left = true, bool right = false) override;
+    void onMouseDownInside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
 
     [[nodiscard]] inline int getID() const { return this->iID; }
 

@@ -321,19 +321,19 @@ void CBaseUISlider::onFocusStolen() { this->bBusy = false; }
 
 void CBaseUISlider::onMouseCancel() { this->bBusy = false; }
 
-void CBaseUISlider::onMouseUpInside(bool /*left*/, bool /*right*/) {
+void CBaseUISlider::onMouseUpInside(MouseButtonFlags /*buttons*/) {
     this->bBusy = false;
 
     if(this->fCurValue != this->fPrevValue && this->sliderChangeCallback != nullptr) this->fireChangeCallback();
 }
 
-void CBaseUISlider::onMouseUpOutside(bool /*left*/, bool /*right*/) {
+void CBaseUISlider::onMouseUpOutside(MouseButtonFlags /*buttons*/) {
     this->bBusy = false;
 
     if(this->fCurValue != this->fPrevValue && this->sliderChangeCallback != nullptr) this->fireChangeCallback();
 }
 
-void CBaseUISlider::onMouseDownInside(bool /*left*/, bool /*right*/) {
+void CBaseUISlider::onMouseDownInside(MouseButtonFlags /*buttons*/) {
     this->fPrevValue = this->fCurValue;
 
     if(McRect(this->getPos().x + this->vBlockPos.x, this->getPos().y + this->vBlockPos.y, this->vBlockSize.x,

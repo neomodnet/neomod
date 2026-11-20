@@ -458,7 +458,7 @@ void PlayfieldPanel::drawBackground() const {
     g->popTransform();
 }
 
-void PlayfieldPanel::onMouseDownInside(bool left, bool right) {
+void PlayfieldPanel::onMouseDownInside(MouseButtonFlags buttons) {
     if(!this->state.objects) return;
     Compose &compose = this->state.compose;
     this->fit();
@@ -467,7 +467,7 @@ void PlayfieldPanel::onMouseDownInside(bool left, bool right) {
     const auto point = compose.getTool() == Compose::Tool::SELECT
                            ? compose.controlPointAt(pos, this->controlPointReach())
                            : std::nullopt;
-    if(right) {
+    if(flags::has<MouseButtonFlags::MF_RIGHT>(buttons)) {
         if(point) {
             compose.removeControlPoint(*point);
         } else {
@@ -475,7 +475,7 @@ void PlayfieldPanel::onMouseDownInside(bool left, bool right) {
         }
         return;
     }
-    if(!left) return;
+    if(!flags::has<MouseButtonFlags::MF_LEFT>(buttons)) return;
 
     // a click without a drag on the selected slider picks a part of it
     this->pressed = pos;
@@ -574,8 +574,8 @@ void PlayfieldPanel::onCapturedMouseMove() {
     }
 }
 
-void PlayfieldPanel::onMouseUpInside(bool left, bool /*right*/) {
-    if(!left) return;
+void PlayfieldPanel::onMouseUpInside(MouseButtonFlags buttons) {
+    if(!flags::has<MouseButtonFlags::MF_LEFT>(buttons)) return;
     Compose &compose = this->state.compose;
     if(this->picking && !this->moving) {
         if(const auto part = compose.partAt(this->pressed)) compose.pick(*part);
@@ -585,7 +585,7 @@ void PlayfieldPanel::onMouseUpInside(bool left, bool /*right*/) {
     compose.endGesture();
 }
 
-void PlayfieldPanel::onMouseUpOutside(bool left, bool right) { this->onMouseUpInside(left, right); }
+void PlayfieldPanel::onMouseUpOutside(MouseButtonFlags buttons) { this->onMouseUpInside(buttons); }
 
 bool PlayfieldPanel::onWheel(WheelDelta vertical, WheelDelta /*horizontal*/) {
     // Alt and the wheel set the distance snap spacing (with Shift finer)

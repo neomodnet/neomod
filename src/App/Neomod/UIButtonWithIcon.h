@@ -17,7 +17,7 @@ class UIButtonWithIcon : public CBaseUIContainer {
         this->clickCallback = std::forward<Callable>(cb);
     }
 
-    void onMouseUpInside(bool /*left*/, bool /*right*/) override {
+    void onMouseUpInside(MouseButtonFlags /*buttons*/) override {
         if(this->clickCallback) this->clickCallback();
     }
 

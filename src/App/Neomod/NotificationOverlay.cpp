@@ -111,7 +111,7 @@ void ToastElement::updateLayout() {
     this->setSize(TOAST_WIDTH, (this->font->getHeight() * 1.5f * this->lines.size()) + (TOAST_INNER_Y_MARGIN * 2.0f));
 }
 
-void ToastElement::onClicked(bool left, bool right) {
+void ToastElement::onClicked(MouseButtonFlags buttons) {
     // Change creation_time so that the fadeout is triggered immediately
     const f64 time_remaining_until_fadeout =
         std::max<f64>(1., ((this->creation_time + (this->timeout - 0.5)) - engine->getTime()) - 1.);
@@ -120,8 +120,8 @@ void ToastElement::onClicked(bool left, bool right) {
     // TODO: toast click callbacks should also take left/right so that they can respond to them independently
     // (e.g. right click -> dismissed -> do something else)
     // for now just avoid calling onClicked (which calls the callback) entirely if we got a right click
-    if(left) {
-        CBaseUIButton::onClicked(left, right);
+    if(flags::has<MouseButtonFlags::MF_LEFT>(buttons)) {
+        CBaseUIButton::onClicked(buttons);
     }
 }
 

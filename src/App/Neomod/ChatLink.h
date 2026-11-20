@@ -9,7 +9,7 @@ class ChatLink final : public CBaseUILabel {
              std::string label = "");
 
     void updateInput(CBaseUIEventCtx &c) override;
-    void onMouseUpInside(bool left = true, bool right = false) override;
+    void onMouseUpInside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
 
     void open_beatmap_link(i32 map_id, i32 set_id);
 

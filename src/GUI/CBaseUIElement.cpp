@@ -186,12 +186,12 @@ void CBaseUIElement::onDisabled() { ; }
 
 void CBaseUIElement::onMouseInside() { ; }
 void CBaseUIElement::onMouseOutside() { ; }
-void CBaseUIElement::onMouseDownInside(bool /*left*/, bool /*right*/) { ; }
-void CBaseUIElement::onMouseDownOutside(bool /*left*/, bool /*right*/) {
+void CBaseUIElement::onMouseDownInside(MouseButtonFlags /*buttons*/) { ; }
+void CBaseUIElement::onMouseDownOutside(MouseButtonFlags /*buttons*/) {
     if(this->isFocused()) this->stealFocus();
 }
-void CBaseUIElement::onMouseUpInside(bool /*left*/, bool /*right*/) { ; }
-void CBaseUIElement::onMouseUpOutside(bool /*left*/, bool /*right*/) { ; }
+void CBaseUIElement::onMouseUpInside(MouseButtonFlags /*buttons*/) { ; }
+void CBaseUIElement::onMouseUpOutside(MouseButtonFlags /*buttons*/) { ; }
 bool CBaseUIElement::onWheel(WheelDelta /*vertical*/, WheelDelta /*horizontal*/) { return false; }
 void CBaseUIElement::onMouseCancel() { ; }
 void CBaseUIElement::onCapturedMouseMove() { ; }
@@ -266,24 +266,28 @@ void CBaseUIElement::updateInput(CBaseUIEventCtx &c) {
 
     // hit candidacy: who MAY receive this frame's button/wheel events, and the set the dispatcher
     // ranks to pick the single hovered element. rect-based (NOT bMouseInside: the gain is deferred)
-    // and NOT handle-gated (clicks filter on bHandleLeftMouse/Right, wheel on onWheel, at dispatch
+    // and NOT handle-gated (clicks filter on bHandleLeftMouse/Right/Middle, wheel on onWheel, at dispatch
     // time); only a transparent wrapper (bClickThroughSelf) opts out. gated on propagate_clicks so a
     // click-blocked element is not a candidate and the dispatcher never grants it hover.
     if(c.propagate_clicks && rectInside && !this->bClickThroughSelf) c.addHitCandidate(this);
 
-    // the focus holder hears of either button, whichever it handles: a press elsewhere takes the keyboard from it
+    // the focus holder hears of every button, whichever it handles: a press elsewhere takes the keyboard from it
     const bool focused = this->isFocused();
-    if(c.propagate_clicks && (this->bHandleLeftMouse || this->bHandleRightMouse || focused)) {
+    if(c.propagate_clicks &&
+       (this->bHandleLeftMouse || this->bHandleRightMouse || this->bHandleMiddleMouse || focused)) {
         // outside-downs stay a per-element broadcast: the rect-based "pressed elsewhere" signal
         // (popup close-on-outside, contextmenu/textbox deactivation). KEPT deliberately - it is a
         // mouse concept, not keyboard focus: a context menu holding clickable items cannot be the
         // focus holder, so the broadcast is the right tool, not the focus pointer.
         // the captor is excluded; its events are routed in CBaseUIDispatch::dispatchEvents.
-        const u8 pressedMask = (u8)(((this->bHandleLeftMouse || focused) && mouse->isLeftPressed()) << 1) |
-                               (u8)((this->bHandleRightMouse || focused) && mouse->isRightPressed());
-        if(pressedMask && !rectInside && this != CBaseUIDispatch::getCaptor()) {
+        using namespace flags::operators;
+        MouseButtonFlags pressed{};
+        if((this->bHandleLeftMouse || focused) && mouse->isLeftPressed()) pressed |= MouseButtonFlags::MF_LEFT;
+        if((this->bHandleRightMouse || focused) && mouse->isRightPressed()) pressed |= MouseButtonFlags::MF_RIGHT;
+        if((this->bHandleMiddleMouse || focused) && mouse->isMiddlePressed()) pressed |= MouseButtonFlags::MF_MIDDLE;
+        if(pressed != MouseButtonFlags::MF_NONE && !rectInside && this != CBaseUIDispatch::getCaptor()) {
             UI_TRACE_EVENT(1, this, "downOutside");
-            this->onMouseDownOutside((pressedMask & 0b10), (pressedMask & 0b01));
+            this->onMouseDownOutside(pressed);
         }
     }
 

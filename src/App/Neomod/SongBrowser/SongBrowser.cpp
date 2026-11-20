@@ -2957,8 +2957,8 @@ void SongBrowser::onWebClicked(CBaseUIButton * /*button*/) {
     }
 }
 
-void SongBrowser::onQuickGroupClicked(CBaseUIButton *button, bool /*left*/, bool right) {
-    if(right || button->getText().empty()) return;
+void SongBrowser::onQuickGroupClicked(CBaseUIButton *button, MouseButtonFlags buttons) {
+    if(flags::has<MouseButtonFlags::MF_RIGHT>(buttons) || button->getText().empty()) return;
     const std::string_view btntxt = button->getText();
 
     for(int gid = -1; const auto &gname : GROUP_NAMES) {

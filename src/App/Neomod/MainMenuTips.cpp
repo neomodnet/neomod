@@ -93,7 +93,7 @@ WrappedText *WrappedText::setFont(McFont *font) {
     return this;
 }
 
-WrappedText *WrappedText::setOnMouseUpInsideCallback(std::function<void(bool, bool)> cb) {
+WrappedText *WrappedText::setOnMouseUpInsideCallback(std::function<void(MouseButtonFlags)> cb) {
     this->onMouseUpCB = std::move(cb);
     return this;
 }
@@ -129,9 +129,9 @@ WrappedText *WrappedText::setText(const std::string &text) {
     return this;
 }
 
-void WrappedText::onMouseUpInside(bool left, bool right) {
+void WrappedText::onMouseUpInside(MouseButtonFlags buttons) {
     if(this->onMouseUpCB) {
-        this->onMouseUpCB(left, right);
+        this->onMouseUpCB(buttons);
     }
 }
 

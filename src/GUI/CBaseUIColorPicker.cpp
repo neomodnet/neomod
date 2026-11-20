@@ -87,9 +87,9 @@ class CBaseUIColorPicker::Square : public CBaseUIElement {
         this->picker.value = 1.f - at.y;
     }
 
-    void onMouseDownInside(bool left, bool right) override {
-        CBaseUIElement::onMouseDownInside(left, right);
-        if(!left) return;
+    void onMouseDownInside(MouseButtonFlags buttons) override {
+        CBaseUIElement::onMouseDownInside(buttons);
+        if(!flags::has<MouseButtonFlags::MF_LEFT>(buttons)) return;
         this->lockCapture();
         this->pressed = true;
         this->onCapturedMouseMove();
@@ -100,12 +100,12 @@ class CBaseUIColorPicker::Square : public CBaseUIElement {
         this->follow(vec::clamp((mouse->getPos() - this->getPos()) / span, vec2{0.f}, vec2{1.f}));
         this->picker.show(fromHSV(this->picker.hue, this->picker.saturation, this->picker.value), true);
     }
-    void onMouseUpInside(bool left, bool right) override {
-        CBaseUIElement::onMouseUpInside(left, right);
+    void onMouseUpInside(MouseButtonFlags buttons) override {
+        CBaseUIElement::onMouseUpInside(buttons);
         this->release();
     }
-    void onMouseUpOutside(bool left, bool right) override {
-        CBaseUIElement::onMouseUpOutside(left, right);
+    void onMouseUpOutside(MouseButtonFlags buttons) override {
+        CBaseUIElement::onMouseUpOutside(buttons);
         this->release();
     }
     void onMouseCancel() override {
@@ -181,9 +181,9 @@ class CBaseUIColorPicker::Preview final : public CBaseUIElement {
     }
 
    protected:
-    void onMouseUpInside(bool left, bool right) override {
-        CBaseUIElement::onMouseUpInside(left, right);
-        if(!left || !this->picker.reference) return;
+    void onMouseUpInside(MouseButtonFlags buttons) override {
+        CBaseUIElement::onMouseUpInside(buttons);
+        if(!flags::has<MouseButtonFlags::MF_LEFT>(buttons) || !this->picker.reference) return;
         if(mouse->getPos().x >= this->getPos().x + this->getSize().x / 2.f) return;
         this->picker.show(*this->picker.reference, false);
         this->picker.settle();

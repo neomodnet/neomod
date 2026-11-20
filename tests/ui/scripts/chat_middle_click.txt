@@ -1,0 +1,40 @@
+# a middle press on a channel tab leaves the channel and, like any press inside the chat, keeps the input focused;
+# one outside the chat takes the focus from it
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+osu_folder uitest_osu_folder
+mouse_to 10 10
+debug_fake_online 1
+set_active_ui_screen songbrowser
+@wait 300
+sendkey F8
+@wait 30
+debug_chat_message #aaa 7 hi
+debug_chat_message #test 7 hi
+@wait 10
+mouse_to 600 705
+@wait 3
+mouse_down
+@wait 3
+mouse_up
+@wait 3
+ui_assert focused chat_input 1
+mouse_to 30 490
+@wait 3
+mouse_down middle
+@wait 3
+mouse_up middle
+@wait 3
+ui_assert focused chat_input 1
+mouse_to 600 300
+@wait 3
+mouse_down middle
+@wait 3
+mouse_up middle
+@wait 3
+ui_assert focused chat_input 0
+exit

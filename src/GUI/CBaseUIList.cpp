@@ -260,9 +260,9 @@ vec2 CBaseUIList::getNaturalSize() {
     return {width, style.px(style.metrics.rowHeight) * (float)(NATURAL_ROWS + 1)};
 }
 
-void CBaseUIList::onMouseDownInside(bool left, bool right) {
-    CBaseUIElement::onMouseDownInside(left, right);
-    if(!left) return;
+void CBaseUIList::onMouseDownInside(MouseButtonFlags buttons) {
+    CBaseUIElement::onMouseDownInside(buttons);
+    if(!flags::has<MouseButtonFlags::MF_LEFT>(buttons)) return;
     this->requestFocus();
 
     const McRect rows = this->getRowsRect();
@@ -316,13 +316,13 @@ void CBaseUIList::onCapturedMouseMove() {
     this->scroll = this->getMaxScroll() * top / free;
 }
 
-void CBaseUIList::onMouseUpInside(bool left, bool right) {
-    CBaseUIElement::onMouseUpInside(left, right);
+void CBaseUIList::onMouseUpInside(MouseButtonFlags buttons) {
+    CBaseUIElement::onMouseUpInside(buttons);
     this->grabbed.reset();
 }
 
-void CBaseUIList::onMouseUpOutside(bool left, bool right) {
-    CBaseUIElement::onMouseUpOutside(left, right);
+void CBaseUIList::onMouseUpOutside(MouseButtonFlags buttons) {
+    CBaseUIElement::onMouseUpOutside(buttons);
     this->grabbed.reset();
 }
 

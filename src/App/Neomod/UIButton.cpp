@@ -107,8 +107,8 @@ void UIButton::onMouseInside() {
 
 void UIButton::onMouseOutside() { this->fHoverAlpha = 0.f; }
 
-void UIButton::onClicked(bool left, bool right) {
-    CBaseUIButton::onClicked(left, right);
+void UIButton::onClicked(MouseButtonFlags buttons) {
+    CBaseUIButton::onClicked(buttons);
 
     if(this->is_loading) return;
 

@@ -43,9 +43,9 @@ class CarouselButton : public CBaseUIButton {
 
     CarouselButton *setVisible(bool visible) override;
 
-    inline void onMouseUpInside(bool left = true, bool right = false) override {
-        CBaseUIButton::onMouseUpInside(left, right);
-        if(right) {
+    inline void onMouseUpInside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override {
+        CBaseUIButton::onMouseUpInside(buttons);
+        if(flags::has<MouseButtonFlags::MF_RIGHT>(buttons)) {
             return this->onRightMouseUpInside();
         }
     }
@@ -102,7 +102,7 @@ class CarouselButton : public CBaseUIButton {
     virtual void onSelected(bool /*wasSelected*/, SelOpts /*opts*/) { ; }
 
     virtual void onRightMouseUpInside() { ; }
-    void onClicked(bool left = true, bool right = false) override;
+    void onClicked(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
 
     void onMouseInside() override;
     void onMouseOutside() override;

@@ -125,8 +125,8 @@ void CBaseUISelectableTextView::beginSelection(vec2 pos) {
     this->bHasSelection = this->bSelecting = true;
 }
 
-void CBaseUISelectableTextView::onMouseDownInside(bool left, bool /*right*/) {
-    if(!left) return;
+void CBaseUISelectableTextView::onMouseDownInside(MouseButtonFlags buttons) {
+    if(!flags::has<MouseButtonFlags::MF_LEFT>(buttons)) return;
 
     // the scrollbar keeps its drag, a press on the text starts a selection instead of the base's drag-scroll
     this->bBusy = true;
@@ -134,13 +134,13 @@ void CBaseUISelectableTextView::onMouseDownInside(bool left, bool /*right*/) {
     this->lockCapture();
 }
 
-void CBaseUISelectableTextView::onMouseUpInside(bool left, bool right) {
-    CBaseUIScrollView::onMouseUpInside(left, right);
+void CBaseUISelectableTextView::onMouseUpInside(MouseButtonFlags buttons) {
+    CBaseUIScrollView::onMouseUpInside(buttons);
     this->bSelecting = false;
 }
 
-void CBaseUISelectableTextView::onMouseUpOutside(bool left, bool right) {
-    CBaseUIScrollView::onMouseUpOutside(left, right);
+void CBaseUISelectableTextView::onMouseUpOutside(MouseButtonFlags buttons) {
+    CBaseUIScrollView::onMouseUpOutside(buttons);
     this->bSelecting = false;
 }
 

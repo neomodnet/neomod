@@ -32,7 +32,7 @@ class UIButton : public CBaseUIButton {
     bool bVisible2 = true;
 
    private:
-    void onClicked(bool left = true, bool right = false) override;
+    void onClicked(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
     void onFocusStolen() override;
 
     bool bDefaultSkin{false};

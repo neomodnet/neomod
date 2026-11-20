@@ -25,7 +25,7 @@ CBaseUIButton::CBaseUIButton(f32 xPos, f32 yPos, f32 xSize, f32 ySize, std::stri
 
 CBaseUIButton::~CBaseUIButton() = default;
 
-void CBaseUIButton::click(bool left, bool right) { this->onClicked(left, right); }
+void CBaseUIButton::click(MouseButtonFlags buttons) { this->onClicked(buttons); }
 
 // set
 CBaseUIButton *CBaseUIButton::setDrawFrame(bool drawFrame) {
@@ -191,11 +191,11 @@ void CBaseUIButton::drawHoverRect(int distance, bool isClickHeld) {
     g->drawLine(pos.x + size.x + distance, pos.y, pos.x + size.x + distance, pos.y + size.y + 1);
 }
 
-void CBaseUIButton::onMouseUpInside(bool left, bool right) { this->onClicked(left, right); }
+void CBaseUIButton::onMouseUpInside(MouseButtonFlags buttons) { this->onClicked(buttons); }
 
-void CBaseUIButton::onClicked(bool left, bool right) {
+void CBaseUIButton::onClicked(MouseButtonFlags buttons) {
     if(this->clickCallback && (*this->clickCallback)) {
-        (*this->clickCallback)(this, left, right);
+        (*this->clickCallback)(this, buttons);
     }
 }
 

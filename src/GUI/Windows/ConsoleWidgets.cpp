@@ -72,11 +72,11 @@ void ConsoleTextbox::onFocusStolen() {
     this->suggestions->clear();
 }
 
-void ConsoleTextbox::onMouseDownOutside(bool left, bool right) {
+void ConsoleTextbox::onMouseDownOutside(MouseButtonFlags buttons) {
     // a press on the popup keeps the keyboard here, the click on a suggestion needs the popup to stay
     if(this->suggestions->isVisible() && this->suggestions->getRect().contains(mouse->getPos())) return;
 
-    CBaseUITextbox::onMouseDownOutside(left, right);
+    CBaseUITextbox::onMouseDownOutside(buttons);
 }
 
 CBaseUITextbox *ConsoleTextbox::setText(std::string text) {

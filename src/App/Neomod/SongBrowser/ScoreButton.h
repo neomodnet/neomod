@@ -62,7 +62,7 @@ class ScoreButton final : public CBaseUIButton {
     void onFocusStolen() override;
 
    protected:
-    void onClicked(bool left = true, bool right = false) override;
+    void onClicked(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
 
    private:
     static std::string recentScoreIconString;

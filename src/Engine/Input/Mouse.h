@@ -115,6 +115,9 @@ class Mouse final : public InputDevice {
     [[nodiscard]] constexpr forceinline bool isRightPressed() const {
         return flags::has<MouseButtonFlags::MF_RIGHT>(this->buttonsPressedMask);
     }
+    [[nodiscard]] constexpr forceinline bool isMiddlePressed() const {
+        return flags::has<MouseButtonFlags::MF_MIDDLE>(this->buttonsPressedMask);
+    }
 
     [[nodiscard]] constexpr forceinline bool isRawInputWanted() const {
         return this->bIsRawInputDesired;

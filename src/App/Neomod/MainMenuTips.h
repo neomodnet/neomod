@@ -3,6 +3,7 @@
 
 #include "Color.h"
 #include "CBaseUIContainer.h"
+#include "MouseListener.h"
 
 #include <span>
 #include <string_view>
@@ -23,9 +24,9 @@ class WrappedText final : public CBaseUIContainer {
 
     WrappedText *setText(const std::string &text);
     WrappedText *setTextColor(Color color);
-    WrappedText *setOnMouseUpInsideCallback(std::function<void(bool, bool)> cb);
+    WrappedText *setOnMouseUpInsideCallback(std::function<void(MouseButtonFlags)> cb);
 
-    void onMouseUpInside(bool left = true, bool right = false) override;
+    void onMouseUpInside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
 
     void setVisibleCallback(float visible) { (void)this->setVisible(!!static_cast<int>(visible)); }
 
@@ -34,7 +35,7 @@ class WrappedText final : public CBaseUIContainer {
     Color textColor{rgb(200, 200, 200)};
     std::string lastText;
     float lastWrapWidth{0.f};
-    std::function<void(bool, bool)> onMouseUpCB{nullptr};
+    std::function<void(MouseButtonFlags)> onMouseUpCB{nullptr};
 };
 
 std::string getCurrentTip();

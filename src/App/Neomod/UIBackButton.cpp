@@ -46,8 +46,8 @@ void UIBackButton::updateInput(CBaseUIEventCtx &c) {
     CBaseUIButton::updateInput(c);
 }
 
-void UIBackButton::onMouseDownInside(bool left, bool right) {
-    CBaseUIButton::onMouseDownInside(left, right);
+void UIBackButton::onMouseDownInside(MouseButtonFlags buttons) {
+    CBaseUIButton::onMouseDownInside(buttons);
 
     soundEngine->play(osu->getSkin()->s_click_back_button);
 }

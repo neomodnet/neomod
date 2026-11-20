@@ -25,15 +25,21 @@ class FrameworkTestButton : public CBaseUIButton {
 
     void onMouseInside() override { debugLog(""); }
     void onMouseOutside() override { debugLog(""); }
-    void onMouseDownInside(bool left = true, bool right = false) override {
-        debugLog("left: {} right: {}", left, right);
+    void onMouseDownInside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override {
+        debugLog("left: {} right: {}", flags::has<MouseButtonFlags::MF_LEFT>(buttons),
+                 flags::has<MouseButtonFlags::MF_RIGHT>(buttons));
     }
-    void onMouseDownOutside(bool left = true, bool right = false) override {
-        debugLog("left: {} right: {}", left, right);
+    void onMouseDownOutside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override {
+        debugLog("left: {} right: {}", flags::has<MouseButtonFlags::MF_LEFT>(buttons),
+                 flags::has<MouseButtonFlags::MF_RIGHT>(buttons));
     }
-    void onMouseUpInside(bool left = true, bool right = false) override { debugLog("left: {} right: {}", left, right); }
-    void onMouseUpOutside(bool left = true, bool right = false) override {
-        debugLog("left: {} right: {}", left, right);
+    void onMouseUpInside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override {
+        debugLog("left: {} right: {}", flags::has<MouseButtonFlags::MF_LEFT>(buttons),
+                 flags::has<MouseButtonFlags::MF_RIGHT>(buttons));
+    }
+    void onMouseUpOutside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override {
+        debugLog("left: {} right: {}", flags::has<MouseButtonFlags::MF_LEFT>(buttons),
+                 flags::has<MouseButtonFlags::MF_RIGHT>(buttons));
     }
 };
 

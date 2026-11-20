@@ -62,9 +62,9 @@ class CBaseUIList : public CBaseUIElement {
     [[nodiscard]] vec2 getNaturalSize() override;
 
    protected:
-    void onMouseDownInside(bool left = true, bool right = false) override;
-    void onMouseUpInside(bool left = true, bool right = false) override;
-    void onMouseUpOutside(bool left = true, bool right = false) override;
+    void onMouseDownInside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
+    void onMouseUpInside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
+    void onMouseUpOutside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
     void onMouseCancel() override;
     void onCapturedMouseMove() override;
     bool onWheel(WheelDelta vertical, WheelDelta horizontal) override;

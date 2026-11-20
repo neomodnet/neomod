@@ -29,7 +29,7 @@ class ToastElement final : public CBaseUIButton {
     ~ToastElement() override = default;
 
     void draw() override;
-    void onClicked(bool left = true, bool right = false) override;
+    void onClicked(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
     void updateLayout();
 
     [[nodiscard]] f64 getTimeRemaining() const;

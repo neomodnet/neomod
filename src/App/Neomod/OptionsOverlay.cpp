@@ -159,7 +159,7 @@ struct OptionsOverlayImpl final {
     void onOutputDeviceResetUpdate();
     void onOutputDeviceSelect();
     void onOutputDeviceSelect2(std::string_view outputDeviceName, int id = -1);
-    void onLogInClicked(bool left, bool right);
+    void onLogInClicked(MouseButtonFlags buttons);
     void onNotelockSelect();
     void onNotelockSelect2(std::string_view notelockType, int id = -1);
     void onNotelockSelectResetClicked();
@@ -454,8 +454,8 @@ class ResetButton final : public CBaseUIButton {
     OptionsElement *elemContainer;
 
    protected:
-    void onClicked(bool left = true, bool right = false) override {
-        if(this->isAvailable()) CBaseUIButton::onClicked(left, right);
+    void onClicked(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override {
+        if(this->isAvailable()) CBaseUIButton::onClicked(buttons);
     }
 
     void onEnabled() override {
@@ -572,7 +572,7 @@ class SkinPreviewElement final : public CBaseUIElement {
     }
 
    protected:
-    void onMouseUpInside(bool /*left*/, bool /*right*/) override {
+    void onMouseUpInside(MouseButtonFlags /*buttons*/) override {
         this->iMode++;
         this->iMode = this->iMode % 3;
     }
@@ -740,9 +740,9 @@ class OptionsMenuKeyBindLabel final : public CBaseUILabel {
     void setTextColorUnbound(Color textColorUnbound) { this->textColorUnbound = textColorUnbound; }
 
    protected:
-    void onMouseUpInside(bool left, bool right) override {
-        CBaseUILabel::onMouseUpInside(left, right);
-        this->bindButton->click(left, right);
+    void onMouseUpInside(MouseButtonFlags buttons) override {
+        CBaseUILabel::onMouseUpInside(buttons);
+        this->bindButton->click(buttons);
     }
 
    private:
@@ -3383,8 +3383,8 @@ void OptionsOverlayImpl::onOutputDeviceResetUpdate() {
     }
 }
 
-void OptionsOverlayImpl::onLogInClicked(bool left, bool right) {
-    if(left && BanchoState::is_logging_in()) {
+void OptionsOverlayImpl::onLogInClicked(MouseButtonFlags buttons) {
+    if(flags::has<MouseButtonFlags::MF_LEFT>(buttons) && BanchoState::is_logging_in()) {
         return;
     }
     soundEngine->play(osu->getSkin()->s_menu_hit);
@@ -3396,7 +3396,8 @@ void OptionsOverlayImpl::onLogInClicked(bool left, bool right) {
     }
 
     const bool is_polling = BanchoState::get_online_status() == OnlineStatus::POLLING;
-    if((right && BanchoState::is_logging_in()) || BanchoState::is_online() || is_polling) {
+    if((flags::has<MouseButtonFlags::MF_RIGHT>(buttons) && BanchoState::is_logging_in()) || BanchoState::is_online() ||
+       is_polling) {
         BanchoState::disconnect();
 
         // Manually clicked disconnect button: clear oauth token

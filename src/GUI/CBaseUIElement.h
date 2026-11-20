@@ -208,10 +208,10 @@ class CBaseUIElement : public KeyboardListener {
 
     virtual void onMouseInside();
     virtual void onMouseOutside();
-    virtual void onMouseDownInside(bool /*left*/ = true, bool /*right*/ = false);
-    virtual void onMouseDownOutside(bool /*left*/ = true, bool /*right*/ = false);
-    virtual void onMouseUpInside(bool /*left*/ = true, bool /*right*/ = false);
-    virtual void onMouseUpOutside(bool /*left*/ = true, bool /*right*/ = false);
+    virtual void onMouseDownInside(MouseButtonFlags /*buttons*/ = MouseButtonFlags::MF_LEFT);
+    virtual void onMouseDownOutside(MouseButtonFlags /*buttons*/ = MouseButtonFlags::MF_LEFT);
+    virtual void onMouseUpInside(MouseButtonFlags /*buttons*/ = MouseButtonFlags::MF_LEFT);
+    virtual void onMouseUpOutside(MouseButtonFlags /*buttons*/ = MouseButtonFlags::MF_LEFT);
 
     // wheel routing (dispatch-driven, see CBaseUIDispatch): per-frame wheel totals, offered
     // top-most-first to the hovered hit candidates; return true to consume (stops the

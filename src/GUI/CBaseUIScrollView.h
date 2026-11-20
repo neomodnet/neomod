@@ -142,10 +142,10 @@ class CBaseUIScrollView : public CBaseUIElement {
 
     // events
     void onResized() override;
-    void onMouseDownOutside(bool left = true, bool right = false) override;
-    void onMouseDownInside(bool left = true, bool right = false) override;
-    void onMouseUpInside(bool left = true, bool right = false) override;
-    void onMouseUpOutside(bool left = true, bool right = false) override;
+    void onMouseDownOutside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
+    void onMouseDownInside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
+    void onMouseUpInside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
+    void onMouseUpOutside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
     void onMouseCancel() override;
     void onCapturedMouseMove() override;
     void onCapturedMoveThrough() override;

@@ -135,14 +135,14 @@ void CBaseUINumberField::onFocusStolen() {
     }
 }
 
-void CBaseUINumberField::onMouseDownInside(bool left, bool right) {
+void CBaseUINumberField::onMouseDownInside(MouseButtonFlags buttons) {
     // (typed in, it's a textbox)
     if(this->typing) {
-        CBaseUIStyledTextbox::onMouseDownInside(left, right);
+        CBaseUIStyledTextbox::onMouseDownInside(buttons);
         return;
     }
-    CBaseUIElement::onMouseDownInside(left, right);
-    if(!left) return;
+    CBaseUIElement::onMouseDownInside(buttons);
+    if(!flags::has<MouseButtonFlags::MF_LEFT>(buttons)) return;
 
     this->lockCapture();
     this->pressed = true;
@@ -173,12 +173,12 @@ void CBaseUINumberField::onCapturedMouseMove() {
                    : this->fit(this->pressValue + this->steps * this->step + this->fineSteps * this->fine));
 }
 
-void CBaseUINumberField::onMouseUpInside(bool left, bool right) {
+void CBaseUINumberField::onMouseUpInside(MouseButtonFlags buttons) {
     if(!this->pressed) {
-        if(this->typing) CBaseUIStyledTextbox::onMouseUpInside(left, right);
+        if(this->typing) CBaseUIStyledTextbox::onMouseUpInside(buttons);
         return;
     }
-    CBaseUIElement::onMouseUpInside(left, right);
+    CBaseUIElement::onMouseUpInside(buttons);
     const bool clicked = !this->dragging;
     this->pressed = this->dragging = false;
     if(clicked) {
@@ -188,12 +188,12 @@ void CBaseUINumberField::onMouseUpInside(bool left, bool right) {
     }
 }
 
-void CBaseUINumberField::onMouseUpOutside(bool left, bool right) {
+void CBaseUINumberField::onMouseUpOutside(MouseButtonFlags buttons) {
     if(!this->pressed) {
-        if(this->typing) CBaseUIStyledTextbox::onMouseUpOutside(left, right);
+        if(this->typing) CBaseUIStyledTextbox::onMouseUpOutside(buttons);
         return;
     }
-    CBaseUIElement::onMouseUpOutside(left, right);
+    CBaseUIElement::onMouseUpOutside(buttons);
     this->pressed = this->dragging = false;
     this->settle();
 }

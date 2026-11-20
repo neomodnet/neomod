@@ -720,8 +720,8 @@ void CBaseUITextbox::onResized() {
     this->setText(this->text);
 }
 
-void CBaseUITextbox::onMouseDownInside(bool left, bool right) {
-    CBaseUIElement::onMouseDownInside(left, right);
+void CBaseUITextbox::onMouseDownInside(MouseButtonFlags buttons) {
+    CBaseUIElement::onMouseDownInside(buttons);
 
     // the caret moves: what was being composed stays where it was
     keyboard->commitComposition(this);
@@ -741,7 +741,7 @@ void CBaseUITextbox::onMouseDownInside(bool left, bool right) {
         const int mouseX = mouse->getPos().x - this->getPos().x;
         const auto visibleText = this->getVisibleText();
         const int hit = this->hitTestCaret(visibleText, mouseX);
-        if(left) {
+        if(flags::has<MouseButtonFlags::MF_LEFT>(buttons)) {
             // begin a fresh selection: at the click point, the word under it on a double click, everything on a triple
             // click (a password has no words to show); captured moves extend it
             const int clicks = std::min<int>(CBaseUIDispatch::getClicks(), 3);
@@ -765,14 +765,14 @@ void CBaseUITextbox::onMouseDownInside(bool left, bool right) {
 
 void CBaseUITextbox::onMouseCancel() { this->bBusy = false; }
 
-void CBaseUITextbox::onMouseUpInside(bool left, bool right) {
-    CBaseUIElement::onMouseUpInside(left, right);
+void CBaseUITextbox::onMouseUpInside(MouseButtonFlags buttons) {
+    CBaseUIElement::onMouseUpInside(buttons);
 
     this->bBusy = false;
 }
 
-void CBaseUITextbox::onMouseUpOutside(bool left, bool right) {
-    CBaseUIElement::onMouseUpOutside(left, right);
+void CBaseUITextbox::onMouseUpOutside(MouseButtonFlags buttons) {
+    CBaseUIElement::onMouseUpOutside(buttons);
 
     this->bBusy = false;
 }

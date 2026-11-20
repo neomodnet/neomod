@@ -92,7 +92,7 @@ void UIModSelectorModButton::resetState() {
     this->setState(0);
 }
 
-void UIModSelectorModButton::onClicked(bool /*left*/, bool /*right*/) {
+void UIModSelectorModButton::onClicked(MouseButtonFlags /*buttons*/) {
     if(!this->bAvailable) return;
 
     // increase state, wrap around, switch on and off

@@ -19,7 +19,7 @@ class SongDifficultyButton final : public SongButton {
     void draw() override;
     void tick() override;
     void updateInput(CBaseUIEventCtx &c) override;
-    void onClicked(bool left = true, bool right = false) override;
+    void onClicked(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
 
     void resetAnimations() override;
 

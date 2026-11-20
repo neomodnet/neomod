@@ -125,8 +125,8 @@ class HUD::SeekArea final : public CBaseUIElement {
     void draw() override {}
 
    protected:
-    void onMouseDownInside(bool left, bool /*right*/) override {
-        if(left) this->fPrevSeekMousePosX = -1.f;
+    void onMouseDownInside(MouseButtonFlags buttons) override {
+        if(flags::has<MouseButtonFlags::MF_LEFT>(buttons)) this->fPrevSeekMousePosX = -1.f;
     }
 
     void onCapturedMouseMove() override {

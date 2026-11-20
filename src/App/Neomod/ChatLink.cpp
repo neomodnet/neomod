@@ -55,7 +55,7 @@ void ChatLink::open_beatmap_link(i32 map_id, i32 set_id) {
     }
 }
 
-void ChatLink::onMouseUpInside(bool /*left*/, bool /*right*/) {
+void ChatLink::onMouseUpInside(MouseButtonFlags /*buttons*/) {
     std::wstring link_wstr = UniString::to_wide(this->link);
 
     // Detect multiplayer invite links

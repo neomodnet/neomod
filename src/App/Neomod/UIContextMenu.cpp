@@ -54,7 +54,7 @@ void UIContextMenuButton::onMouseInside() {
     }
 }
 
-void UIContextMenuButton::onMouseDownInside(bool /*left*/, bool /*right*/) {
+void UIContextMenuButton::onMouseDownInside(MouseButtonFlags /*buttons*/) {
     soundEngine->play(osu->getSkin()->s_click_button);
 }
 
@@ -514,7 +514,7 @@ void UIContextMenu::setVisible2(bool visible2) {
     }
 }
 
-void UIContextMenu::onMouseDownOutside(bool /*left*/, bool /*right*/) { this->setVisible2(false); }
+void UIContextMenu::onMouseDownOutside(MouseButtonFlags /*buttons*/) { this->setVisible2(false); }
 
 void UIContextMenu::onClick(UIContextMenuButton *button) {
     this->setVisible2(false);

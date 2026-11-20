@@ -36,7 +36,7 @@ class ConsoleTextbox final : public CBaseUITextbox {
 
    protected:
     void drawText() override;
-    void onMouseDownOutside(bool left, bool right) override;
+    void onMouseDownOutside(MouseButtonFlags buttons) override;
 
    private:
     // puts a completion or a history entry into the box without touching the suggestions (tab keeps cycling)

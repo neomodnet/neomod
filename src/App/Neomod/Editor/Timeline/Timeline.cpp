@@ -416,7 +416,7 @@ bool Timeline::onWheel(WheelDelta vertical, WheelDelta /*horizontal*/) {
     return true;
 }
 
-void Timeline::onMouseDownInside(bool left, bool right) {
+void Timeline::onMouseDownInside(MouseButtonFlags buttons) {
     if(!this->state.objects) return;
     Compose &compose = this->state.compose;
     const f64 time = this->timeAt(mouse->getPos().x);
@@ -427,12 +427,12 @@ void Timeline::onMouseDownInside(bool left, bool right) {
         if(dy >= reach) return std::nullopt;
         return compose.objectAtTime(time, std::sqrt(reach * reach - dy * dy) / pxPerMS);
     };
-    if(right) {
+    if(flags::has<MouseButtonFlags::MF_RIGHT>(buttons)) {
         // a click in a break belongs to the break, over no object
         if(const auto hit = objectAt(); hit || !compose.removeBreakAt(time)) compose.rightClick(hit);
         return;
     }
-    if(!left) return;
+    if(!flags::has<MouseButtonFlags::MF_LEFT>(buttons)) return;
 
     // the timeline selects, whatever the tool: a spinner being placed is finished first
     compose.setTool(Compose::Tool::SELECT);
@@ -539,8 +539,8 @@ void Timeline::onCapturedMouseMove() {
     }
 }
 
-void Timeline::onMouseUpInside(bool left, bool /*right*/) {
-    if(!left) return;
+void Timeline::onMouseUpInside(MouseButtonFlags buttons) {
+    if(!flags::has<MouseButtonFlags::MF_LEFT>(buttons)) return;
     Compose &compose = this->state.compose;
     if(this->picking && !this->moving && (this->gesture == Gesture::MOVE || this->gesture == Gesture::END)) {
         compose.pick({.edge = this->pressedNode});
@@ -550,7 +550,7 @@ void Timeline::onMouseUpInside(bool left, bool /*right*/) {
     compose.endGesture();
 }
 
-void Timeline::onMouseUpOutside(bool left, bool right) { this->onMouseUpInside(left, right); }
+void Timeline::onMouseUpOutside(MouseButtonFlags buttons) { this->onMouseUpInside(buttons); }
 
 void Timeline::onMouseCancel() {
     this->gesture = Gesture::NONE;

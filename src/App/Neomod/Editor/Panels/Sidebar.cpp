@@ -64,8 +64,8 @@ class Sidebar::Swatch final : public CBaseUIElement {
     bool chosen{false};
 
    protected:
-    void onMouseUpInside(bool left, bool /*right*/) override {
-        if(left) this->state.compose.setColourSkip(this->skip);
+    void onMouseUpInside(MouseButtonFlags buttons) override {
+        if(flags::has<MouseButtonFlags::MF_LEFT>(buttons)) this->state.compose.setColourSkip(this->skip);
     }
 
    private:

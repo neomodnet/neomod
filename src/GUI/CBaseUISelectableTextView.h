@@ -52,9 +52,9 @@ class CBaseUISelectableTextView : public CBaseUIScrollView {
     // the first removedRuns runs are gone: the selection slides along with the rest
     void shiftSelection(size_t removedRuns);
 
-    void onMouseDownInside(bool left, bool right) override;
-    void onMouseUpInside(bool left, bool right) override;
-    void onMouseUpOutside(bool left, bool right) override;
+    void onMouseDownInside(MouseButtonFlags buttons) override;
+    void onMouseUpInside(MouseButtonFlags buttons) override;
+    void onMouseUpOutside(MouseButtonFlags buttons) override;
     void onMouseCancel() override;
     void onCapturedMouseMove() override;
     void onCapturedMoveThrough() override;

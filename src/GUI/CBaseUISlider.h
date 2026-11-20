@@ -103,9 +103,9 @@ class CBaseUISlider : public CBaseUIElement {
     bool hasChanged();
 
     void onFocusStolen() override;
-    void onMouseUpInside(bool left = true, bool right = false) override;
-    void onMouseUpOutside(bool left = true, bool right = false) override;
-    void onMouseDownInside(bool left = true, bool right = false) override;
+    void onMouseUpInside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
+    void onMouseUpOutside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
+    void onMouseDownInside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
     void onMouseCancel() override;
     void onCapturedMouseMove() override;
     bool onWheel(WheelDelta vertical, WheelDelta horizontal) override;

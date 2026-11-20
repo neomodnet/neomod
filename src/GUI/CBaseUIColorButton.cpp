@@ -97,9 +97,9 @@ vec2 CBaseUIColorButton::getNaturalSize() {
     return {2.f * style.px(style.metrics.controlHeight), style.px(style.metrics.controlHeight)};
 }
 
-void CBaseUIColorButton::onMouseDownInside(bool left, bool right) {
-    CBaseUIElement::onMouseDownInside(left, right);
-    if(!left) return;
+void CBaseUIColorButton::onMouseDownInside(MouseButtonFlags buttons) {
+    CBaseUIElement::onMouseDownInside(buttons);
+    if(!flags::has<MouseButtonFlags::MF_LEFT>(buttons)) return;
     if(this->isOpen()) {
         this->close();
     } else {

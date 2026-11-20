@@ -376,20 +376,20 @@ CBaseUIWindow *CBaseUIWindow::setSizeToContent(int horizontalBorderSize, int ver
     return this;
 }
 
-void CBaseUIWindow::onMouseDownInside(bool /*left*/, bool /*right*/) {
+void CBaseUIWindow::onMouseDownInside(MouseButtonFlags /*buttons*/) {
     this->bBusy = true;
     this->updateResizeAndMoveLogic(true);
     // a started move/resize follows the cursor via captured moves and may leave the rect freely
     if(this->bResizing || this->bMoving) this->lockCapture();
 }
 
-void CBaseUIWindow::onMouseUpInside(bool /*left*/, bool /*right*/) {
+void CBaseUIWindow::onMouseUpInside(MouseButtonFlags /*buttons*/) {
     this->bBusy = false;
     this->bResizing = false;
     this->bMoving = false;
 }
 
-void CBaseUIWindow::onMouseUpOutside(bool /*left*/, bool /*right*/) {
+void CBaseUIWindow::onMouseUpOutside(MouseButtonFlags /*buttons*/) {
     this->bBusy = false;
     this->bResizing = false;
     this->bMoving = false;

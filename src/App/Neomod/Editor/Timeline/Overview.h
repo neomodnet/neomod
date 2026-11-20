@@ -22,7 +22,7 @@ class Overview final : public CBaseUIElement {
     void draw() override;
 
    protected:
-    void onMouseDownInside(bool left, bool right) override;
+    void onMouseDownInside(MouseButtonFlags buttons) override;
     void onCapturedMouseMove() override;
 
    private:

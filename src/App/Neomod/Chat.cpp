@@ -131,6 +131,20 @@ ChatLogView::TextRun ChatLogView::getRun(size_t index) const {
             .separator = separator};
 }
 
+namespace {
+// a channel's tab: a middle press on it leaves the channel
+class ChannelButton final : public UIButton {
+   public:
+    using UIButton::UIButton;
+
+    void onMouseDownInside(MouseButtonFlags buttons) override {
+        if(!flags::has<MouseButtonFlags::MF_MIDDLE>(buttons)) return UIButton::onMouseDownInside(buttons);
+        // (leaving destroys the tab)
+        ui->getChat()->leave(std::string{this->getText()});
+    }
+};
+}  // namespace
+
 ChatChannel::ChatChannel(Chat *chat, std::string name_arg) {
     this->chat = chat;
     this->name = std::move(name_arg);
@@ -143,7 +157,8 @@ ChatChannel::ChatChannel(Chat *chat, std::string name_arg) {
     this->ui->setAutoscroll(true);
 
     if(chat != nullptr) {
-        this->btn = new UIButton(0, 0, 0, 0, "button", this->name);
+        this->btn = new ChannelButton(0, 0, 0, 0, "button", this->name);
+        this->btn->setHandleMiddleMouse(true);
         this->btn->setDrawsOnTop(true);
         this->btn->setUseDefaultSkin();
         this->btn->setClickCallback(SA::MakeDelegate<&ChatChannel::onChannelButtonClick>(this));
@@ -569,31 +584,12 @@ void Chat::updateInput(CBaseUIEventCtx &c) {
         this->selected_channel->ui->updateInput(c);
     }
 
-    // HACKHACK: MOUSE3 handling
-    static bool was_M3_down = false;
-    bool is_M3_down = mouse->isMiddleDown();
-    if(is_M3_down != was_M3_down) {
-        if(is_M3_down) {
-            auto mpos = mouse->getPos();
-
-            // Try to close hovered channel
-            for(auto &chan : this->channels) {
-                if(chan->btn->getRect().contains(mpos)) {
-                    this->leave(chan->name);
-                    break;
-                }
-            }
-        }
-
-        was_M3_down = is_M3_down;
-    }
-
     // keep the input focused while the user presses anywhere WITHIN the chat panel (messages,
     // user list, tabs); only a press truly outside chat releases focus, via the input box's
     // own onMouseDownOutside. scoped to the panel so it does not re-introduce the global grab
     // (chat_focus_steal): without it, clicking off the input dropped focus and the next
     // keystroke leaked into the song browser's type-to-search behind the still-open chat.
-    if(mouse->isLeftPressed() && this->isMouseInside()) {
+    if((mouse->isLeftPressed() || mouse->isMiddlePressed()) && this->isMouseInside()) {
         this->input_box->focus(false);
     }
 }

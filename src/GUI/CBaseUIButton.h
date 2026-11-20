@@ -22,25 +22,25 @@ class CBaseUIButton : public CBaseUIElement {
 
     void draw() override;
 
-    void click(bool left = true, bool right = false);
+    void click(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT);
 
-    using CBaseUIButtonClickCB = std::function<void(CBaseUIButton *, bool, bool)>;
+    using CBaseUIButtonClickCB = std::function<void(CBaseUIButton *, MouseButtonFlags)>;
 
     template <typename Callable>
     CBaseUIButton *setClickCallback(Callable &&cb) {
         using CBType = std::decay_t<Callable>;
 
-        if constexpr(std::is_invocable_v<CBType, CBaseUIButton *, bool, bool>) {
+        if constexpr(std::is_invocable_v<CBType, CBaseUIButton *, MouseButtonFlags>) {
             this->clickCallback = std::make_unique<CBaseUIButtonClickCB>(std::forward<Callable>(cb));
-        } else if constexpr(std::is_invocable_v<CBType, bool, bool>) {
+        } else if constexpr(std::is_invocable_v<CBType, MouseButtonFlags>) {
             this->clickCallback = std::make_unique<CBaseUIButtonClickCB>(
-                [cb = std::forward<Callable>(cb)](CBaseUIButton *, bool left, bool right) { cb(left, right); });
+                [cb = std::forward<Callable>(cb)](CBaseUIButton *, MouseButtonFlags buttons) { cb(buttons); });
         } else if constexpr(std::is_invocable_v<CBType, CBaseUIButton *>) {
             this->clickCallback = std::make_unique<CBaseUIButtonClickCB>(
-                [cb = std::forward<Callable>(cb)](CBaseUIButton *btn, bool, bool) { cb(btn); });
+                [cb = std::forward<Callable>(cb)](CBaseUIButton *btn, MouseButtonFlags) { cb(btn); });
         } else if constexpr(std::is_invocable_v<CBType>) {
             this->clickCallback = std::make_unique<CBaseUIButtonClickCB>(
-                [cb = std::forward<Callable>(cb)](CBaseUIButton *, bool, bool) { cb(); });
+                [cb = std::forward<Callable>(cb)](CBaseUIButton *, MouseButtonFlags) { cb(); });
         } else if constexpr(SA::is_delegate_v<CBType>) {
             using traits = SA::delegate_traits<CBType>;
             using FirstArg = typename traits::template nth_arg<0>;
@@ -50,13 +50,13 @@ class CBaseUIButton : public CBaseUIElement {
 
             if constexpr(traits::arity == 1) {
                 this->clickCallback = std::make_unique<CBaseUIButtonClickCB>(
-                    [cb = std::forward<Callable>(cb)](CBaseUIButton *btn, bool, bool) {
+                    [cb = std::forward<Callable>(cb)](CBaseUIButton *btn, MouseButtonFlags) {
                         cb(static_cast<FirstArg>(btn));
                     });
-            } else if constexpr(traits::arity == 3) {
+            } else if constexpr(traits::arity == 2) {
                 this->clickCallback = std::make_unique<CBaseUIButtonClickCB>(
-                    [cb = std::forward<Callable>(cb)](CBaseUIButton *btn, bool left, bool right) {
-                        cb(static_cast<FirstArg>(btn), left, right);
+                    [cb = std::forward<Callable>(cb)](CBaseUIButton *btn, MouseButtonFlags buttons) {
+                        cb(static_cast<FirstArg>(btn), buttons);
                     });
             } else {
                 static_assert(Env::always_false_v<Callable>, "Unsupported delegate arity for derived button callback");
@@ -95,11 +95,11 @@ class CBaseUIButton : public CBaseUIElement {
     [[nodiscard]] McFont *getFont() const;
 
     // events
-    void onMouseUpInside(bool left = true, bool right = false) override;
+    void onMouseUpInside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
     void onResized() override;
 
    protected:
-    virtual void onClicked(bool left = true, bool right = false);
+    virtual void onClicked(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT);
 
     virtual void drawBackground();
     virtual void drawFrame();
@@ -110,7 +110,7 @@ class CBaseUIButton : public CBaseUIElement {
 
     std::string sText;
 
-    // callbacks, either void, with ourself as the argument, or with the held left/right buttons
+    // callbacks, either void, with ourself as the argument, or with the clicked buttons
     std::unique_ptr<CBaseUIButtonClickCB> clickCallback{nullptr};
 
     McFont *font;

@@ -104,8 +104,8 @@ void Overview::remake() {
     }
 }
 
-void Overview::onMouseDownInside(bool left, bool /*right*/) {
-    if(left) this->seekToCursor();
+void Overview::onMouseDownInside(MouseButtonFlags buttons) {
+    if(flags::has<MouseButtonFlags::MF_LEFT>(buttons)) this->seekToCursor();
 }
 
 void Overview::onCapturedMouseMove() {

@@ -234,9 +234,9 @@ void CarouselButton::deselect() { this->bSelected = false; }
 
 void CarouselButton::resetAnimations() { this->setMoveAwayState(MOVE_AWAY_STATE::MOVE_CENTER, false); }
 
-void CarouselButton::onClicked(bool left, bool right) {
-    CBaseUIButton::onClicked(left, right);
-    if(left) {
+void CarouselButton::onClicked(MouseButtonFlags buttons) {
+    CBaseUIButton::onClicked(buttons);
+    if(flags::has<MouseButtonFlags::MF_LEFT>(buttons)) {
         soundEngine->play(osu->getSkin()->s_select_difficulty);
 
         this->select();

@@ -6,6 +6,7 @@
 #include "AsyncCancellable.h"
 #include "Registration.h"
 #include "MapFetcher.h"
+#include "MouseListener.h"
 #include "ScreenBackable.h"
 #include "StrainGraph.h"
 
@@ -257,7 +258,7 @@ class SongBrowser final : public ScreenBackable {
     void onSortScoresChange(std::string_view text, int id = -1);
     void onWebClicked(CBaseUIButton *button);
 
-    void onQuickGroupClicked(CBaseUIButton *button, bool left = true, bool right = false);
+    void onQuickGroupClicked(CBaseUIButton *button, MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT);
     void onGroupClicked(CBaseUIButton *button);
     void onGroupChange(std::string_view text, int id = -1);
 

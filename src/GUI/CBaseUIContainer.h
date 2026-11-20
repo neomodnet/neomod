@@ -48,7 +48,7 @@ class CBaseUIContainer : public CBaseUIElement {
     void onMoved() override { this->update_pos(); }
     void onResized() override { this->update_pos(); }
 
-    void onMouseDownOutside(bool left = true, bool right = false) override;
+    void onMouseDownOutside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
 
     void onFocusStolen() override;
     void onEnabled() override;

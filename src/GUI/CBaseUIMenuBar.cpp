@@ -31,8 +31,8 @@ class CBaseUIMenuBar::Title final : public CBaseUIElement {
     }
 
    protected:
-    void onMouseDownInside(bool left, bool /*right*/) override {
-        if(!left) return;
+    void onMouseDownInside(MouseButtonFlags buttons) override {
+        if(!flags::has<MouseButtonFlags::MF_LEFT>(buttons)) return;
         if(this->bar.openIndex == this->index) {
             this->bar.close();
         } else {

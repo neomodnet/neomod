@@ -89,6 +89,6 @@ void CBaseUIPopupLayer::onKeyUp(KeyboardEvent &e) {
     if(this->isOpen()) this->vElements.back()->onKeyUp(e);
 }
 
-void CBaseUIPopupLayer::onMouseDownInside(bool /*left*/, bool /*right*/) { this->closeAll(); }
+void CBaseUIPopupLayer::onMouseDownInside(MouseButtonFlags /*buttons*/) { this->closeAll(); }
 
 bool CBaseUIPopupLayer::onWheel(WheelDelta /*vertical*/, WheelDelta /*horizontal*/) { return true; }

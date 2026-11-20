@@ -32,7 +32,7 @@ class CBaseUIDropdown final : public CBaseUIElement {
     [[nodiscard]] vec2 getNaturalSize() override;
 
    protected:
-    void onMouseDownInside(bool left, bool right) override;
+    void onMouseDownInside(MouseButtonFlags buttons) override;
 
    private:
     CBaseUIPopupLayer &layer;

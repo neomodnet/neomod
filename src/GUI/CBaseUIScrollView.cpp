@@ -884,10 +884,10 @@ void CBaseUIScrollView::scrollToBottom() { this->scrollToY(-this->vScrollSize.y)
 
 void CBaseUIScrollView::scrollToTop() { this->scrollToY(0); }
 
-void CBaseUIScrollView::onMouseDownOutside(bool /*left*/, bool /*right*/) { this->container.stealFocus(); }
+void CBaseUIScrollView::onMouseDownOutside(MouseButtonFlags /*buttons*/) { this->container.stealFocus(); }
 
-void CBaseUIScrollView::onMouseDownInside(bool left, bool /*right*/) {
-    if(!left) return;
+void CBaseUIScrollView::onMouseDownInside(MouseButtonFlags buttons) {
+    if(!flags::has<MouseButtonFlags::MF_LEFT>(buttons)) return;
 
     // a press on our own surface (scrollbar or empty content space); children get their own
     // captures and we observe them through onCapturedMoveThrough instead
@@ -901,9 +901,9 @@ void CBaseUIScrollView::onMouseDownInside(bool left, bool /*right*/) {
     this->lockCapture();
 }
 
-void CBaseUIScrollView::onMouseUpInside(bool /*left*/, bool /*right*/) { this->endDragScroll(true); }
+void CBaseUIScrollView::onMouseUpInside(MouseButtonFlags /*buttons*/) { this->endDragScroll(true); }
 
-void CBaseUIScrollView::onMouseUpOutside(bool /*left*/, bool /*right*/) { this->endDragScroll(true); }
+void CBaseUIScrollView::onMouseUpOutside(MouseButtonFlags /*buttons*/) { this->endDragScroll(true); }
 
 void CBaseUIScrollView::onMouseCancel() { this->endDragScroll(false); }
 

@@ -41,7 +41,7 @@ class TimeDisplay final : public CBaseUIBox {
     [[nodiscard]] static std::optional<Timestamp> parse(std::string_view text);
 
    protected:
-    void onMouseDownInside(bool left, bool right) override;
+    void onMouseDownInside(MouseButtonFlags buttons) override;
 
    private:
     // the field goes, the time shows again (what it has that wasn't taken yet is taken)

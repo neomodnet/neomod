@@ -200,11 +200,11 @@ void SongDifficultyButton::resetAnimations() {
     this->fOffsetPercentAnim = 0.f;
 }
 
-void SongDifficultyButton::onClicked(bool left, bool right) {
-    // NOTE: Intentionally not calling Button::onClicked(left, right), since that one plays another sound
-    CBaseUIButton::onClicked(left, right);  // NOLINT(bugprone-parent-virtual-call)
+void SongDifficultyButton::onClicked(MouseButtonFlags buttons) {
+    // NOTE: Intentionally not calling Button::onClicked(buttons), since that one plays another sound
+    CBaseUIButton::onClicked(buttons);  // NOLINT(bugprone-parent-virtual-call)
 
-    if(left) {
+    if(flags::has<MouseButtonFlags::MF_LEFT>(buttons)) {
         soundEngine->play(osu->getSkin()->s_select_difficulty);
 
         this->select();

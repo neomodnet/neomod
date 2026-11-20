@@ -141,7 +141,7 @@ class PreviewAudioToggle final : public CBaseUIElement {
     void draw() override;
 
    protected:
-    void onMouseUpInside(bool left = true, bool right = false) override;
+    void onMouseUpInside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
 
    private:
     const std::string play_glyph;
@@ -222,7 +222,7 @@ class OnlineMapListing : public CBaseUIContainer {
     void onResolutionChange(vec2 newResolution);
 
    protected:
-    void onMouseUpInside(bool left = true, bool right = false) override;
+    void onMouseUpInside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
     void onMouseInside() override;
     void onMouseOutside() override;
 
@@ -272,11 +272,11 @@ OnlineMapListing::OnlineMapListing(Downloader::BeatmapSetMetadata meta, OnlineMa
 OnlineMapListing::~OnlineMapListing() { osu->getThumbnailManager()->discard_image(this->thumb_id); }
 
 // a left press that turns into a drag never gets here: the scrollview takes it over (cancelling it) past its resistance
-void OnlineMapListing::onMouseUpInside(bool left, bool /*right*/) {
+void OnlineMapListing::onMouseUpInside(MouseButtonFlags buttons) {
     this->click_anim = 1.f;
     this->click_anim.set(0.0f, 0.15f, anim::QuadInOut);
 
-    if(!left) return open_beatmap_page(this->meta.set_id);
+    if(!flags::has<MouseButtonFlags::MF_LEFT>(buttons)) return open_beatmap_page(this->meta.set_id);
 
     // the first click shows the set in the preview, another one (e.g. the second half of a double click) acts on it
     if(this->preview.is_showing(this->meta.set_id)) {
@@ -629,8 +629,8 @@ void PreviewAudioToggle::draw() {
     g->popTransform();
 }
 
-void PreviewAudioToggle::onMouseUpInside(bool left, bool /*right*/) {
-    if(!left || this->set_id == 0) return;
+void PreviewAudioToggle::onMouseUpInside(MouseButtonFlags buttons) {
+    if(!flags::has<MouseButtonFlags::MF_LEFT>(buttons) || this->set_id == 0) return;
 
     auto* previews = osu->getPreviewTrackManager();
     if(previews->get_state(this->set_id) == PreviewTrackManager::State::NONE) {

@@ -63,8 +63,8 @@ class CBaseUIMenu::Row final : public CBaseUIElement {
             this->menu.highlighted = -1;
         }
     }
-    void onMouseUpInside(bool left, bool /*right*/) override {
-        if(left) this->menu.choose(this->index, false);
+    void onMouseUpInside(MouseButtonFlags buttons) override {
+        if(flags::has<MouseButtonFlags::MF_LEFT>(buttons)) this->menu.choose(this->index, false);
     }
 
    private:

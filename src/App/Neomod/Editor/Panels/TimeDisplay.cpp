@@ -93,8 +93,8 @@ std::optional<TimeDisplay::Timestamp> TimeDisplay::parse(std::string_view text) 
     return out;
 }
 
-void TimeDisplay::onMouseDownInside(bool left, bool /*right*/) {
-    if(!left || !this->state.document || this->field->isVisible()) return;
+void TimeDisplay::onMouseDownInside(MouseButtonFlags buttons) {
+    if(!flags::has<MouseButtonFlags::MF_LEFT>(buttons) || !this->state.document || this->field->isVisible()) return;
     this->taken = format(this->state.clock.getTime());
     this->field->setText(this->taken);
     this->time->setVisible(false);

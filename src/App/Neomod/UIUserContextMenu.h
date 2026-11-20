@@ -38,7 +38,7 @@ class UIUserLabel final : public CBaseUILabel {
     static std::optional<Color> getUserColor(const UserInfo* user);
 
     void draw() override;
-    void onMouseUpInside(bool left = true, bool right = false) override;
+    void onMouseUpInside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
     void onMouseInside() override;
     void onMouseOutside() override;
 
