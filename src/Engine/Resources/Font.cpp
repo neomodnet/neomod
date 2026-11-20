@@ -690,7 +690,9 @@ std::vector<std::string> McFontImpl::wrap(std::string_view text, f64 max_width) 
     u32 line = 0;
     f64 line_width = 0.0;
     f64 word_width = 0.0;
-    for(char32_t ch : UniString::codepoints(text)) {
+    const auto codepoints = UniString::codepoints(text);
+    for(auto it = codepoints.begin(); it != codepoints.end(); ++it) {
+        const char32_t ch = *it;
         if(ch == U'\n') {
             lines[line].append(word);
             lines.emplace_back();
@@ -734,8 +736,7 @@ std::vector<std::string> McFontImpl::wrap(std::string_view text, f64 max_width) 
                 line_width = 0.0;
             }
             // Add character to word
-            const char32_t charray[]{ch, U'\0'};
-            word.append(UniString::to_utf8(std::u32string_view{&charray[0]}));
+            word.append(it.pos, it.length);
             word_width += char_width;
         }
     }
@@ -768,16 +769,16 @@ std::string McFontImpl::ellipsize(std::string_view text, f64 max_width) const {
     const f64 ellipsis_width = getGlyphMetrics(U'.').advance_x * 3.0;
 
     // find how many codepoints fit with room for "..."
-    std::string ret;
     f64 width = 0.0;
-    for(char32_t ch : UniString::codepoints(text)) {
-        const f64 ch_width = getGlyphMetrics(ch).advance_x;
+    const auto codepoints = UniString::codepoints(text);
+    auto it = codepoints.begin();
+    for(; it != codepoints.end(); ++it) {
+        const f64 ch_width = getGlyphMetrics(*it).advance_x;
         if(width + ch_width + ellipsis_width > max_width) break;
-        const char32_t charray[]{ch, U'\0'};
-        ret.append(UniString::to_utf8(std::u32string_view{&charray[0]}));
         width += ch_width;
     }
 
+    std::string ret{text.substr(0, static_cast<uSz>(it.pos - text.data()))};
     ret.append("...");
     return ret;
 }

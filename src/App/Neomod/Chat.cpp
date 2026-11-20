@@ -326,8 +326,9 @@ void ChatChannel::add_message(ChatMessage msg) {
         std::string text_str("");
         auto fragment_text = fragment->getText();
 
-        for(char32_t ch : UniString::codepoints(fragment_text)) {
-            float char_width = chat_font->getGlyphWidth(ch);
+        const auto codepoints = UniString::codepoints(fragment_text);
+        for(auto it = codepoints.begin(); it != codepoints.end(); ++it) {
+            float char_width = chat_font->getGlyphWidth(*it);
             if(line_width + char_width + 20 >= this->ui->getSize().x) {
                 auto *link_fragment = dynamic_cast<ChatLink *>(fragment);
                 if(link_fragment == nullptr) {
@@ -351,8 +352,7 @@ void ChatChannel::add_message(ChatMessage msg) {
                 text_str.clear();
             }
 
-            const char32_t charray[]{ch, U'\0'};
-            text_str.append(UniString::to_utf8(std::u32string_view{&charray[0]}));
+            text_str.append(it.pos, it.length);
             line_width += char_width;
         }
 

@@ -4,6 +4,7 @@
 
 #include "simdutf.h"
 
+#include <algorithm>
 #include <string>
 #include <cstring>
 #include <bit>
@@ -27,7 +28,7 @@ namespace {
 // U+FFFD in UTF-8
 constexpr char UTF8_REPLACEMENT[]{'\xEF', '\xBF', '\xBD'};
 
-// rebuild with invalid UTF-8 sequences replaced by U+FFFD
+// rebuild with ill-formed UTF-8 sequences replaced by U+FFFD, split up like the codepoint iteration does
 std::string replace_invalid_utf8(const char *input, uSz len) noexcept {
     std::string ret;
     ret.reserve(len);
@@ -37,7 +38,8 @@ std::string replace_invalid_utf8(const char *input, uSz len) noexcept {
         ret.append(input + i, result.count);
         if(result.error == simdutf::error_code::SUCCESS) break;
         ret.append(&UTF8_REPLACEMENT[0], sizeof(UTF8_REPLACEMENT));
-        i += result.count + 1;
+        i += result.count;
+        i += codepoints({input + i, len - i}).begin().length;
     }
     return ret;
 }
@@ -210,77 +212,51 @@ std::wstring to_wide(std::string_view utf8) noexcept {
 #endif
 }
 
-u8codepoint_view::u8codepoint_view(std::string_view sv) noexcept : m_sv(sv) {}
-
-char32_t u8codepoint_view::iterator::operator*() const noexcept {
-    char32_t c = pos[0];
-    if(c < 0x80) return c;
-    if(c < 0xE0) return (c & 0x1F) << 6 | (pos[1] & 0x3F);
-    if(c < 0xF0) return (c & 0x0F) << 12 | (pos[1] & 0x3F) << 6 | (pos[2] & 0x3F);
-    return (c & 0x07) << 18 | (pos[1] & 0x3F) << 12 | (pos[2] & 0x3F) << 6 | (pos[3] & 0x3F);
+u32 detail::ill_formed_length(const char *pos, const char *end) noexcept {
+    const auto byte = [pos](u32 i) { return static_cast<u8>(pos[i]); };
+    const uSz available = static_cast<uSz>(end - pos);
+    // the bytes that still fit a well-formed sequence go together, at least the first one
+    u32 total = 0;
+    u8 firstTrailMin = 0x80, firstTrailMax = 0xBF;
+    if(const u8 lead = byte(0); lead >= 0xE0 && lead <= 0xEF) {
+        total = 3;
+        if(lead == 0xE0) firstTrailMin = 0xA0;  // below: overlong
+        if(lead == 0xED) firstTrailMax = 0x9F;  // above: surrogates
+    } else if(lead >= 0xF0 && lead <= 0xF4) {
+        total = 4;
+        if(lead == 0xF0) firstTrailMin = 0x90;  // below: overlong
+        if(lead == 0xF4) firstTrailMax = 0x8F;  // above: past U+10FFFF
+    }
+    if(available < 2 || total == 0 || byte(1) < firstTrailMin || byte(1) > firstTrailMax) return 1;
+    u32 fitting = 2;
+    while(fitting < total && fitting < available && (byte(fitting) & 0xC0) == 0x80) fitting++;
+    return fitting;
 }
 
-u8codepoint_view::iterator &u8codepoint_view::iterator::operator++() noexcept {
-    if(pos[0] < 0x80)
-        pos += 1;
-    else if(pos[0] < 0xE0)
-        pos += 2;
-    else if(pos[0] < 0xF0)
-        pos += 3;
-    else
-        pos += 4;
-
-    return *this;
+namespace {
+// where the sequence with the byte at `pos` in it starts
+uSz sequence_start(std::string_view sv, uSz pos) noexcept {
+    const auto isTrail = [sv](uSz i) { return (static_cast<u8>(sv[i]) & 0xC0) == 0x80; };
+    if(!isTrail(pos)) return pos;
+    // a trail byte belongs to the closest byte before it that isn't one, if the sequence from there reaches it
+    for(uSz lead = pos; lead > 0 && pos - lead < 3;) {
+        lead--;
+        if(isTrail(lead)) continue;
+        return lead + codepoints(sv.substr(lead)).begin().length > pos ? lead : pos;
+    }
+    return pos;
 }
-
-bool u8codepoint_view::iterator::operator==(const iterator &o) const noexcept { return pos == o.pos; }
-
-u8codepoint_view::iterator u8codepoint_view::begin() const noexcept {
-    return {reinterpret_cast<const u8 *>(m_sv.data())};
-}
-
-u8codepoint_view::iterator u8codepoint_view::end() const noexcept {
-    return {reinterpret_cast<const u8 *>(m_sv.data() + m_sv.size())};
-}
-
-u16codepoint_view::u16codepoint_view(std::u16string_view sv) noexcept : m_sv(sv) {}
-
-char32_t u16codepoint_view::iterator::operator*() const noexcept {
-    if(*pos >= 0xD800 && *pos <= 0xDBFF) return 0x10000 + (char32_t(*pos - 0xD800) << 10) + (pos[1] - 0xDC00);
-    return *pos;
-}
-
-u16codepoint_view::iterator &u16codepoint_view::iterator::operator++() noexcept {
-    pos += (*pos >= 0xD800 && *pos <= 0xDBFF) ? 2 : 1;
-    return *this;
-}
-
-bool u16codepoint_view::iterator::operator==(const iterator &o) const noexcept { return pos == o.pos; }
-
-u16codepoint_view::iterator u16codepoint_view::begin() const noexcept {
-    return {m_sv.data() /* NOLINT(bugprone-suspicious-stringview-data-usage) */};
-}
-
-u16codepoint_view::iterator u16codepoint_view::end() const noexcept { return {m_sv.data() + m_sv.size()}; }
-
-u8codepoint_view codepoints(std::string_view sv) noexcept { return u8codepoint_view{sv}; }
-
-u16codepoint_view codepoints(std::u16string_view sv) noexcept { return u16codepoint_view{sv}; }
+}  // namespace
 
 uSz prev(std::string_view sv, uSz pos) noexcept {
-    if(pos == 0) return 0;
-    do {
-        pos--;
-    } while(pos > 0 && (static_cast<u8>(sv[pos]) & 0xC0) == 0x80);
-    return pos;
+    pos = std::min(pos, sv.size());
+    return pos == 0 ? 0 : sequence_start(sv, pos - 1);
 }
 
 uSz next(std::string_view sv, uSz pos) noexcept {
     if(pos >= sv.size()) return sv.size();
-    do {
-        pos++;
-    } while(pos < sv.size() && (static_cast<u8>(sv[pos]) & 0xC0) == 0x80);
-    return pos;
+    const uSz start = sequence_start(sv, pos);
+    return start + codepoints(sv.substr(start)).begin().length;
 }
 
 }  // namespace UniString
