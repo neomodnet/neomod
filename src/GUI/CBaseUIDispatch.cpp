@@ -544,12 +544,15 @@ void State::dispatchEvents(CBaseUIEventCtx &c, Root root) {
         const MouseButtonFlags btn = qe.btn;
         const bool left = (btn == MouseButtonFlags::MF_LEFT);
         const bool right = (btn == MouseButtonFlags::MF_RIGHT);
-        if(!left && !right) continue;  // middle/X buttons have no UI semantics (app code polls them)
+        const bool middle = (btn == MouseButtonFlags::MF_MIDDLE);
+        if(!left && !right && !middle) continue;  // X buttons have no UI semantics (app code polls them)
 
         if(this->elemGeneration != startGeneration) break;  // a handler mutated the UI, candidates are stale
 
         if(this->captor != nullptr) {
             if(this->captorRoot != root) continue;  // the owning root's dispatch handles these
+            // the middle button only reaches elements that take it (app code polls it)
+            if(middle && !this->captor->bHandleMiddleMouse) continue;
             qe.consumed = true;
 
             CBaseUIElement *elem = this->captor;
@@ -598,10 +601,11 @@ void State::dispatchEvents(CBaseUIEventCtx &c, Root root) {
             // route to the best candidate (the shared top-most ranking, filtered to handlers of
             // this button): groups in input-priority order, within a group by (tier, latest visit)
             const CBaseUIEventCtx::HitCandidate *target =
-                topCandidate(c, [left, right](const CBaseUIEventCtx::HitCandidate &cand) {
+                topCandidate(c, [left, right, middle](const CBaseUIEventCtx::HitCandidate &cand) {
                     if(cand.wheelOnly) return false;
                     if(left && !cand.elem->bHandleLeftMouse) return false;
                     if(right && !cand.elem->bHandleRightMouse) return false;
+                    if(middle && !cand.elem->bHandleMiddleMouse) return false;
                     return true;
                 });
             if(target == nullptr) continue;  // nothing under the cursor in this root; the other may deliver

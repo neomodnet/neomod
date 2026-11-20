@@ -76,6 +76,7 @@ class CBaseUISelectableTextView : public CBaseUIScrollView {
 
     [[nodiscard]] TextPos hitTest(vec2 pos) const;
     void beginSelection(vec2 pos);
+    void endSelection();
 
     TextPos selAnchor{};
     TextPos selHead{};

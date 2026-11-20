@@ -200,6 +200,9 @@ class Environment {
     // clipboard
     [[nodiscard]] std::string_view getClipBoardText();
     void setClipBoardText(std::string text);
+    // the text selected last, which a middle click pastes (X11/Wayland; other systems only keep it within the app)
+    [[nodiscard]] std::string getPrimarySelectionText();
+    void setPrimarySelectionText(const std::string &text);
     // returns false if failed/unsupported
     bool setClipBoardImage(std::vector<u8> pngData);
 

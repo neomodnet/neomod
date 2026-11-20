@@ -175,6 +175,7 @@ class CBaseUIElement : public KeyboardListener {
     virtual CBaseUIElement *setName(std::string name);
     virtual CBaseUIElement *setHandleLeftMouse(bool handle);
     virtual CBaseUIElement *setHandleRightMouse(bool handle);
+    virtual CBaseUIElement *setHandleMiddleMouse(bool handle);
 
     // declare that this element's (sub)tree draws above later-visited same-group siblings, so it
     // out-ranks them for hover/click/wheel hit-testing (the declarative form of raising the hit tier;
@@ -280,4 +281,5 @@ class CBaseUIElement : public KeyboardListener {
 
     bool bHandleLeftMouse : 1 {true};
     bool bHandleRightMouse : 1 {false};
+    bool bHandleMiddleMouse : 1 {false};
 };

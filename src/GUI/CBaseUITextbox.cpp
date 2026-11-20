@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "App.h"
+#include "BaseEnvironment.h"
 #include "ConVar.h"
 #include "Cursors.h"
 #include "Engine.h"
@@ -110,6 +111,9 @@ CBaseUITextbox::CBaseUITextbox(float xPos, float yPos, float xSize, float ySize,
 
     this->bDrawFrame = true;
     this->bDrawBackground = true;
+
+    // a middle click pastes the primary selection, where the system has one
+    this->bHandleMiddleMouse = Env::cfg(OS::LINUX);
 
     this->iTextAddX = this->getTextOffsetX();
     this->iTextAddY = 0;
@@ -438,11 +442,14 @@ void CBaseUITextbox::onKeyDown(KeyboardEvent &e) {
             break;
 
         case KEY_V:
-            if(control) this->insertTextFromClipboard();
+            if(control) this->insertText(env->getClipBoardText());
             break;
 
         case KEY_A:
-            if(control) this->selectAll();
+            if(control) {
+                this->selectAll();
+                this->publishSelection();
+            }
             break;
 
         case KEY_X:
@@ -514,7 +521,10 @@ void CBaseUITextbox::moveCaret(int position, bool select) {
         this->iSelectX = this->font->getStringWidth(this->getVisibleText().substr(0, this->iSelectStart));
     }
     this->caretPosition = position;
-    if(select) this->iSelectEnd = position;
+    if(select) {
+        this->iSelectEnd = position;
+        this->publishSelection();
+    }
 
     this->tickCaret();
     this->handleCaretKeyboardMove();
@@ -665,25 +675,19 @@ void CBaseUITextbox::handleDeleteSelectedText() {
     this->setText(this->text);
 }
 
-void CBaseUITextbox::insertTextFromClipboard() {
-    const std::string_view clipstring = env->getClipBoardText();
-
-    /*
-    debugLog("got clip string: {:s}", clipstring.toUtf8());
-    for (int i=0; i<clipstring.length(); i++)
-    {
-            debugLog("char #{:d} = {:d}", i, clipstring[i]);
-    }
-    */
-
-    if(clipstring.length() > 0) {
+void CBaseUITextbox::insertText(std::string_view inserted) {
+    if(inserted.length() > 0) {
         this->handleDeleteSelectedText();
         {
-            this->text.insert(this->caretPosition, clipstring);
-            this->caretPosition = this->caretPosition + clipstring.length();
+            this->text.insert(this->caretPosition, inserted);
+            this->caretPosition = this->caretPosition + inserted.length();
         }
         this->setText(this->text);
     }
+}
+
+void CBaseUITextbox::publishSelection() {
+    if(!this->is_password && this->hasSelectedText()) env->setPrimarySelectionText(this->getSelectedText());
 }
 
 void CBaseUITextbox::updateTextPos() {
@@ -756,11 +760,16 @@ void CBaseUITextbox::onMouseDownInside(MouseButtonFlags buttons) {
                 this->iSelectStart = this->iSelectEnd = this->caretPosition = hit;
             }
             this->iSelectX = this->font->getStringWidth(visibleText.substr(0, this->iSelectStart));
+        } else if(flags::has<MouseButtonFlags::MF_MIDDLE>(buttons)) {
+            this->deselectText();
+            this->caretPosition = hit;
         } else if(!this->hasSelectedText()) {
             this->caretPosition = hit;
         }
         this->updateCaretX();
     }
+
+    if(flags::has<MouseButtonFlags::MF_MIDDLE>(buttons)) this->insertText(env->getPrimarySelectionText());
 }
 
 void CBaseUITextbox::onMouseCancel() { this->bBusy = false; }
@@ -769,10 +778,12 @@ void CBaseUITextbox::onMouseUpInside(MouseButtonFlags buttons) {
     CBaseUIElement::onMouseUpInside(buttons);
 
     this->bBusy = false;
+    if(flags::has<MouseButtonFlags::MF_LEFT>(buttons)) this->publishSelection();
 }
 
 void CBaseUITextbox::onMouseUpOutside(MouseButtonFlags buttons) {
     CBaseUIElement::onMouseUpOutside(buttons);
 
     this->bBusy = false;
+    if(flags::has<MouseButtonFlags::MF_LEFT>(buttons)) this->publishSelection();
 }

@@ -4,6 +4,7 @@
 #include "Color.h"
 #include "TextInput.h"
 
+#include <string_view>
 #include <utility>
 
 class McFont;
@@ -141,7 +142,8 @@ class CBaseUITextbox : public CBaseUIElement, public TextInputClient {
     [[nodiscard]] int getTextOffsetX() const;
 
     void handleDeleteSelectedText();
-    void insertTextFromClipboard();
+    void insertText(std::string_view inserted);  // at the caret, in place of the selection
+    void publishSelection();                     // makes the selected text the primary selection
     void deselectText();
     std::string getSelectedText();
 

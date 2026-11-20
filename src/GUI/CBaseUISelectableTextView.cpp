@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cmath>
 #include <ranges>
+#include <utility>
 
 vec2 CBaseUISelectableTextView::getContentOrigin() const {
     // where the base puts its container: whole pixels (CBaseUIScrollView::tick)
@@ -136,12 +137,18 @@ void CBaseUISelectableTextView::onMouseDownInside(MouseButtonFlags buttons) {
 
 void CBaseUISelectableTextView::onMouseUpInside(MouseButtonFlags buttons) {
     CBaseUIScrollView::onMouseUpInside(buttons);
-    this->bSelecting = false;
+    this->endSelection();
 }
 
 void CBaseUISelectableTextView::onMouseUpOutside(MouseButtonFlags buttons) {
     CBaseUIScrollView::onMouseUpOutside(buttons);
-    this->bSelecting = false;
+    this->endSelection();
+}
+
+void CBaseUISelectableTextView::endSelection() {
+    // what was selected becomes the primary selection
+    if(std::exchange(this->bSelecting, false) && this->hasSelection())
+        env->setPrimarySelectionText(this->getSelectedText());
 }
 
 void CBaseUISelectableTextView::onMouseCancel() {

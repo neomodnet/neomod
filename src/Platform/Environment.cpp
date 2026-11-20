@@ -849,6 +849,13 @@ void Environment::setClipBoardText(std::string text) {
     SDL_SetClipboardText(m_sCurrClipboardText.c_str());
 }
 
+std::string Environment::getPrimarySelectionText() {
+    const std::unique_ptr<char[], decltype(&SDL_free)> text{SDL_GetPrimarySelectionText(), &SDL_free};
+    return text ? std::string{text.get()} : std::string{};
+}
+
+void Environment::setPrimarySelectionText(const std::string &text) { SDL_SetPrimarySelectionText(text.c_str()); }
+
 namespace {
 struct ClipboardImageState final {
     static constexpr const char *const imageMimeTypes[]{"image/png"};

@@ -171,6 +171,10 @@ CBaseUIElement *CBaseUIElement::setHandleRightMouse(bool handle) {
     this->bHandleRightMouse = handle;
     return this;
 }
+CBaseUIElement *CBaseUIElement::setHandleMiddleMouse(bool handle) {
+    this->bHandleMiddleMouse = handle;
+    return this;
+}
 
 CBaseUIElement *CBaseUIElement::setDrawsOnTop(bool drawsOnTop) {
     this->bDrawsOnTop = drawsOnTop;
