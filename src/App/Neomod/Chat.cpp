@@ -395,6 +395,15 @@ Chat::Chat() : UIScreen() {
     this->join_channel_btn->setClickCallback(SA::MakeDelegate<&Chat::askWhatChannelToJoin>(this));
     this->button_container->addBaseUIElement(this->join_channel_btn);
 
+    this->user_sort_btn = new UIButton(0, 0, 0, 0, "chat_user_sort", "");
+    this->user_sort_btn->setUseDefaultSkin();
+    this->user_sort_btn->setColor(0xff2a8a8a);
+    this->user_sort_btn->setVisible(false);
+    this->user_sort_btn->setClickCallback(
+        [] { cv::chat_userlist_sort.setValue((cv::chat_userlist_sort.getInt() + 1) % 2); });
+    this->button_container->addBaseUIElement(this->user_sort_btn);
+    cv::chat_userlist_sort.setCallback([] { ui->getChat()->updateLayout(osu->getVirtScreenSize()); });
+
     this->input_box = new CBaseUITextbox(0, 0, 0, 0, "chat_input");
     this->input_box->setDrawFrame(false);
     this->input_box->setDrawBackground(true);
@@ -414,6 +423,7 @@ Chat::Chat() : UIScreen() {
 }
 
 Chat::~Chat() {
+    cv::chat_userlist_sort.removeCallback();
     for(auto &chan : this->channels) {
         SAFE_DELETE(chan);
     }
@@ -1210,6 +1220,12 @@ void Chat::updateButtonLayout(vec2 screen) {
 
     Mc::ranges::sort(this->channels, [](ChatChannel *a, ChatChannel *b) { return a->name < b->name; });
 
+    // the sort button keeps the right end of the first row: the channels (and the join button) wrap before it
+    this->user_sort_btn->setText(cv::chat_userlist_sort.getInt() == 1 ? _("Users by rank") : _("Users by name"));
+    const f32 sort_width = chat_font->getStringWidth(this->user_sort_btn->getText()) + space + border;
+    const f32 wrap_x =
+        screen.x - space - (this->user_sort_btn->isVisible() ? sort_width + this->button_height + border : 0.f);
+
     // Look, I really tried. But for some reason setPos() doesn't work until we change
     // the screen resolution once. So I'll just compute absolute position manually.
     f32 button_container_height = this->button_height + border;
@@ -1218,7 +1234,7 @@ void Chat::updateButtonLayout(vec2 screen) {
         const f32 button_width = chat_font->getStringWidth(btn->getText()) + space;
 
         // Wrap channel buttons
-        if(total_x + button_width > screen.x - space) {
+        if(total_x + button_width > wrap_x) {
             total_x = initial_x;
             button_container_height += this->button_height;
         }
@@ -1234,7 +1250,7 @@ void Chat::updateButtonLayout(vec2 screen) {
         float button_width = chat_font->getStringWidth(btn->getText()) + space;
 
         // Wrap channel buttons
-        if(total_x + button_width > screen.x - space) {
+        if(total_x + button_width > wrap_x) {
             total_x = initial_x;
             total_y += this->button_height;
         }
@@ -1260,6 +1276,11 @@ void Chat::updateButtonLayout(vec2 screen) {
     this->join_channel_btn->setPos(total_x, chat_y - button_container_height + total_y);
     this->join_channel_btn->onResized();
     this->join_channel_btn->setSize(button_container_height, button_container_height);
+
+    this->user_sort_btn->setPos(screen.x - sort_width - border, chat_y - button_container_height);
+    this->user_sort_btn->onResized();
+    this->user_sort_btn->setSize(sort_width, this->button_height + border);
+
     this->button_container->setPos(0, chat_y - button_container_height);
     this->button_container->setSize(screen.x, button_container_height);
 
@@ -1314,6 +1335,10 @@ void Chat::updateUserList() {
 
     // FIXME: dumb to sort this every time, can cause pop-in and jarring reshuffling in f9 menu buttons
     Mc::ranges::sort(sorted_users, SString::alnum_comp, [](const UserInfo *ui) { return ui->name; });
+    if(cv::chat_userlist_sort.getInt() == 1) {
+        // unranked users (rank 0) go last
+        Mc::ranges::stable_sort(sorted_users, {}, [](const UserInfo *ui) { return (u32)(ui->global_rank - 1); });
+    }
 
     for(const auto *user : sorted_users) {
         if(total_x + card_size.x + MARGIN > size.x) {
@@ -1448,6 +1473,11 @@ bool Chat::isVisibilityForced() {
 void Chat::updateVisibility() {
     // the user list closes with the user's chat, so the lobby/room's forced-open chat doesn't bring it back
     if(!this->user_wants_chat) this->user_list->setVisible(false);
+    if(this->user_sort_btn->isVisible() != this->user_list->isVisible()) {
+        // (the channel buttons make room for it)
+        this->user_sort_btn->setVisible(this->user_list->isVisible());
+        this->updateLayout(osu->getVirtScreenSize());
+    }
 
     // the gameplay modselector doesn't dim the screen, and Osu's in-play F1 toggle is off while chat is visible
     auto *modselector = ui->getModSelector();

@@ -197,6 +197,14 @@ msgstr "{} te envió un mensaje"
 msgid "You were mentioned in {:s}"
 msgstr "Te mencionaron en {:s}"
 
+#: src/App/Neomod/Chat.cpp
+msgid "Users by name"
+msgstr "Usuarios por nombre"
+
+#: src/App/Neomod/Chat.cpp
+msgid "Users by rank"
+msgstr "Usuarios por rango"
+
 #: src/App/Neomod/Chat.cpp src/App/Neomod/Osu.cpp
 msgid "You must log in to chat!"
 msgstr "¡Debes iniciar sesión para chatear!"

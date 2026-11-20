@@ -199,6 +199,14 @@ msgstr "{} отправил(а) вам сообщение"
 msgid "You were mentioned in {:s}"
 msgstr "Вас упомянули в {:s}"
 
+#: src/App/Neomod/Chat.cpp
+msgid "Users by name"
+msgstr "Игроки по имени"
+
+#: src/App/Neomod/Chat.cpp
+msgid "Users by rank"
+msgstr "Игроки по рангу"
+
 #: src/App/Neomod/Chat.cpp src/App/Neomod/Osu.cpp
 msgid "You must log in to chat!"
 msgstr "Необходимо войти в аккаунт, чтобы использовать чат!"

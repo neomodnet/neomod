@@ -197,6 +197,14 @@ msgstr "{} надіслав вам повідомлення"
 msgid "You were mentioned in {:s}"
 msgstr "Вас згадали в {:s}"
 
+#: src/App/Neomod/Chat.cpp
+msgid "Users by name"
+msgstr "Гравці за іменем"
+
+#: src/App/Neomod/Chat.cpp
+msgid "Users by rank"
+msgstr "Гравці за рангом"
+
 #: src/App/Neomod/Chat.cpp src/App/Neomod/Osu.cpp
 msgid "You must log in to chat!"
 msgstr "Увійдіть, щоб користуватися чатом!"

@@ -195,6 +195,19 @@ void UserCard2::draw() {
     // draw status
     const auto font = engine->getDefaultFont();
     const f32 status_scale = this->getSize().y * 0.5f / font->getHeight() * 0.3f;
+
+    if(this->info->global_rank > 0) {
+        const std::string rank = fmt::format("#{}", this->info->global_rank);
+        g->pushTransform();
+        g->setColor(0xffcccccc);
+        g->scale(status_scale, status_scale);
+        g->translate(
+            this->getPos().x + this->getSize().x - AVATAR_MARGIN * 2 - font->getStringWidth(rank) * status_scale,
+            this->getPos().y + yCounter);
+        g->drawString(font, rank);
+        g->popTransform();
+    }
+
     yCounter += font->getHeight() * status_scale * 0.1f;
     auto line_width = this->getSize().x - (xCounter + AVATAR_MARGIN);
     auto lines = font->wrap(status_text, line_width);

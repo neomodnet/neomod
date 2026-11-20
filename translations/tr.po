@@ -197,6 +197,14 @@ msgstr "{} sana bir mesaj gönderdi"
 msgid "You were mentioned in {:s}"
 msgstr "{:s} kanalında anıldın"
 
+#: src/App/Neomod/Chat.cpp
+msgid "Users by name"
+msgstr "Kullanıcılar: ada göre"
+
+#: src/App/Neomod/Chat.cpp
+msgid "Users by rank"
+msgstr "Kullanıcılar: sıralamaya göre"
+
 #: src/App/Neomod/Chat.cpp src/App/Neomod/Osu.cpp
 msgid "You must log in to chat!"
 msgstr "Sohbet etmek için giriş yapmalısın!"

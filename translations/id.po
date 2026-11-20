@@ -197,6 +197,14 @@ msgstr "{} mengirimimu pesan"
 msgid "You were mentioned in {:s}"
 msgstr "Kamu disebut di {:s}"
 
+#: src/App/Neomod/Chat.cpp
+msgid "Users by name"
+msgstr "Pengguna menurut nama"
+
+#: src/App/Neomod/Chat.cpp
+msgid "Users by rank"
+msgstr "Pengguna menurut peringkat"
+
 #: src/App/Neomod/Chat.cpp src/App/Neomod/Osu.cpp
 msgid "You must log in to chat!"
 msgstr "Kamu harus masuk untuk mengobrol!"

@@ -83,6 +83,7 @@ class Chat final : public UIScreen {
 
     void askWhatChannelToJoin(CBaseUIButton *btn);
     UIButton *join_channel_btn;
+    UIButton *user_sort_btn;
 
     ChatChannel *selected_channel = nullptr;
     std::vector<ChatChannel *> channels;

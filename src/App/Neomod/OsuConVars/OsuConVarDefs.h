@@ -559,6 +559,7 @@ CONVAR(chat_notify_on_mention, true, CLIENT, "get notified when someone says you
 CONVAR(chat_ping_on_mention, true, CLIENT, "play a sound when someone says your name");
 CONVAR(chat_sound_on_message, true, CLIENT, "play a sound when a message arrives while the chat is open");
 CONVAR(chat_ticker, true, CLIENT);
+CONVAR(chat_userlist_sort, 0, CLIENT, "how the online users list is sorted: 0 = by name, 1 = by rank");
 
 // Memes
 CONVAR(auto_cursordance, false, CLIENT | SERVER);

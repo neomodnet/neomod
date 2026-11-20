@@ -199,6 +199,14 @@ msgstr "{} からメッセージが届きました"
 msgid "You were mentioned in {:s}"
 msgstr "{:s} でメンションされました"
 
+#: src/App/Neomod/Chat.cpp
+msgid "Users by name"
+msgstr "ユーザー: 名前順"
+
+#: src/App/Neomod/Chat.cpp
+msgid "Users by rank"
+msgstr "ユーザー: ランク順"
+
 #: src/App/Neomod/Chat.cpp src/App/Neomod/Osu.cpp
 msgid "You must log in to chat!"
 msgstr "チャットするにはログインが必要です！"

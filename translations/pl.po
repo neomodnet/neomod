@@ -199,6 +199,14 @@ msgstr "Nowa wiadomość od {}"
 msgid "You were mentioned in {:s}"
 msgstr "Wspomniano o tobie na {:s}"
 
+#: src/App/Neomod/Chat.cpp
+msgid "Users by name"
+msgstr "Użytkownicy wg nazwy"
+
+#: src/App/Neomod/Chat.cpp
+msgid "Users by rank"
+msgstr "Użytkownicy wg rankingu"
+
 #: src/App/Neomod/Chat.cpp src/App/Neomod/Osu.cpp
 msgid "You must log in to chat!"
 msgstr "Musisz się zalogować, aby czatować!"

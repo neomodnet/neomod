@@ -197,6 +197,14 @@ msgstr "{} 님이 메시지를 보냈습니다"
 msgid "You were mentioned in {:s}"
 msgstr "{:s}에서 언급되었습니다"
 
+#: src/App/Neomod/Chat.cpp
+msgid "Users by name"
+msgstr "유저: 이름순"
+
+#: src/App/Neomod/Chat.cpp
+msgid "Users by rank"
+msgstr "유저: 랭크순"
+
 #: src/App/Neomod/Chat.cpp src/App/Neomod/Osu.cpp
 msgid "You must log in to chat!"
 msgstr "채팅하려면 로그인해야 합니다!"

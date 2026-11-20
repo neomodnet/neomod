@@ -197,6 +197,14 @@ msgstr "{} 给你发送了一条消息"
 msgid "You were mentioned in {:s}"
 msgstr "你在 {:s} 中被提到"
 
+#: src/App/Neomod/Chat.cpp
+msgid "Users by name"
+msgstr "用户：按名称"
+
+#: src/App/Neomod/Chat.cpp
+msgid "Users by rank"
+msgstr "用户：按排名"
+
 #: src/App/Neomod/Chat.cpp src/App/Neomod/Osu.cpp
 msgid "You must log in to chat!"
 msgstr "你必须登录才能聊天！"

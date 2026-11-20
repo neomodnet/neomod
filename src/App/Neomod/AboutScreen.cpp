@@ -410,6 +410,7 @@ void AboutScreen::buildChangelog() {
         R"(- Added combobreak_sound_extra_clicks convar to play the combobreak sound for clicks that hit nothing)",
         R"(- Added a sound for new chat messages while the chat is open (Options > General > Alerts; skins can provide "message-received"))",
         R"(- Skins can now have an applause sound per grade ("applause-xh", "applause-x", "applause-sh", "applause-s", "applause-a" to "applause-d"))",
+        R"(- The online users list (F9) can now be sorted by rank (button next to the chat tabs), and its cards show the rank)",
     };
     changelogs.push_back(std::move(v45_01));
 
