@@ -405,6 +405,7 @@ void AboutScreen::buildChangelog() {
         R"(  - Hold Shift while starting the game (or start it with -setup) to change these settings before it starts)",
         R"(- Fixed Freeze Frame mod approach circles showing when they shouldn't)",
         R"(- Fixed the Flashlight icon missing from the mods shown on the results screen and in multiplayer rooms)",
+        R"(- The "Game Pause" key now also closes the main menu buttons and leaves song select (unless it is a key that types))",
     };
     changelogs.push_back(std::move(v45_01));
 

@@ -11,6 +11,8 @@
 #include "DirectoryWatcher.h"
 #include "Mouse.h"
 #include "Keyboard.h"
+#include "KeyBindings.h"
+#include "KeyboardEvent.h"
 #include "Font.h"
 #include "File.h"
 #include "Timing.h"
@@ -943,8 +945,11 @@ void SongBrowser::onKeyDown(KeyboardEvent &key) {
     this->search->onEditKey(key);
     if(key.isConsumed()) return;
 
-    // can't support GAME_PAUSE hotkey here because of text searching
-    if(key == KEY_ESCAPE && !this->contextMenu->isVisible()) this->onBack();
+    // GAME_PAUSE goes back too, unless that key types into the search
+    const KEYCODE keyCode = key.getKeyCode();
+    const bool typesText = keyCode >= ' ' && keyCode != 0x7f && !(keyCode & MC_SCANCODE_MASK);
+    if((key == KEY_ESCAPE || (key == binds::GAME_PAUSE && !typesText)) && !this->contextMenu->isVisible())
+        this->onBack();
 
     // function hotkeys
     // NOTE: no held-flag for F1: the modal modselector floors our key-ups while it is open,

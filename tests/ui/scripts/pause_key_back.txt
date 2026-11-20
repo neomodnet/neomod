@@ -1,0 +1,32 @@
+options_save_on_back 0
+debug_fixed_frametime 0.0166667
+mouse_raw_input 0
+mouse_sensitivity 1
+ui_scale_to_dpi 0
+windowed_resolution 1280x720
+osu_folder uitest_osu_folder
+mouse_to 10 10
+@wait 30
+# Insert as the pause key collapses the main menu buttons
+key_game_pause 73
+sendkey P
+@wait 40
+ui_assert visible mainmenu_singleplayer 1
+sendkey Insert
+@wait 40
+ui_assert visible mainmenu_singleplayer 0
+# and leaves song select
+set_active_ui_screen songbrowser
+@wait_secs 2
+ui_assert screen_active songbrowser 1
+sendkey Insert
+@wait 30
+ui_assert screen_active mainmenu 1
+# a pause key that types goes to the search instead
+key_game_pause 19
+set_active_ui_screen songbrowser
+@wait 30
+sendkey P
+@wait 30
+ui_assert screen_active songbrowser 1
+exit

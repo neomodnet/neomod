@@ -1438,7 +1438,7 @@ void MainMenu::onKeyDown(KeyboardEvent &e) {
         if(e == KEY_X) {
             this->onSaveOrExitButtonPressed();
         }
-        if(e == KEY_ESCAPE) {
+        if(e == KEY_ESCAPE || e == binds::GAME_PAUSE) {
             this->setMenuElementsVisible(false);
         }
     }
