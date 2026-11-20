@@ -1658,7 +1658,7 @@ void Slider::update(i32 curPosMS, f64 /*frameTimeSecs*/) {
         // started sliding, you will be punished for leaving the (still invisible) followcircle area after having
         // clicked the startcircle, always.
         const bool isTrackingStrictTrackingMod =
-            ((m_startFinished || curPosMS >= m_clickTimeMS) && cv::mod_strict_tracking.getBool());
+            ((m_startFinished || curPosMS >= m_clickTimeMS) && flags::has<ModFlags::StrictTracking>(curIFaceMods));
 
         // slider tail lenience bullshit: see
         // https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Objects/Slider.cs#L123 being "inside the slider"
@@ -1714,9 +1714,8 @@ void Slider::update(i32 curPosMS, f64 /*frameTimeSecs*/) {
         if(isTrackingStrictTrackingMod) {
             const bool wasTrackingCorrectlyAtLeastOnce = (m_strictTrackingModLastClickHeldTime != 0);
             if(wasTrackingCorrectlyAtLeastOnce && !isTrackingCorrectly) {
-                // if past lenience end time then don't trigger a strict tracking miss,
-                // since the slider is then already considered fully finished gameplay wise
-                if(!m_heldTillEndForLenienceHack) {
+                // no strict tracking miss past the tail check time, even if a later tick or repeat delays the check
+                if(curPosMS < lenienceHackEndTimeMS) {
                     // force miss the end once, if it has not already been force missed by notelock
                     if(m_endResult == LiveHitResult::HIT_NULL) {
                         // force miss endcircle
