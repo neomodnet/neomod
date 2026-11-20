@@ -2611,6 +2611,22 @@ msgid "If enabled, then song buttons are positioned on a vertically centered cur
 msgstr "켜면 곡 버튼이 세로 중앙에 맞춘 곡선 위에 배치됩니다."
 
 #: src/App/Neomod/OptionsOverlay.cpp
+msgid "Only Show Grades From Your Current Name"
+msgstr "현재 이름의 등급만 표시"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "If enabled, then the grades on song buttons only count scores set with your current name."
+msgstr "켜면 곡 버튼의 등급에 현재 이름으로 기록한 점수만 반영됩니다."
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Only Show Grades From The Current Server"
+msgstr "현재 서버의 등급만 표시"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "If enabled, then the grades on song buttons only count scores set on the server you are logged in to (while offline: scores set offline)."
+msgstr "켜면 곡 버튼의 등급에 로그인한 서버에서 기록한 점수만 반영됩니다 (오프라인일 때: 오프라인에서 기록한 점수)."
+
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "Window"
 msgstr "창"
 

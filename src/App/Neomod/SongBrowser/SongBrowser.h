@@ -179,6 +179,8 @@ class SongBrowser final : public ScreenBackable {
     void rebuildSongButtons();
     void recreateCollectionsButtons();
     void onGotNewLeaderboard(const MD5Hash &lbHash);
+    // recomputes the grade every difficulty and set button shows
+    void refreshGrades();
     void rebuildScoreButtons();
     void partiallyUpdateSongButtonLayout(const std::vector<CarouselButton *> &btns, f32 y);
     void updateSongButtonLayout();

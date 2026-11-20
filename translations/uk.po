@@ -2611,6 +2611,22 @@ msgid "If enabled, then song buttons are positioned on a vertically centered cur
 msgstr "Якщо увімкнено, кнопки пісень розташовуються на вертикально відцентрованій кривій."
 
 #: src/App/Neomod/OptionsOverlay.cpp
+msgid "Only Show Grades From Your Current Name"
+msgstr "Показувати оцінки лише для поточного імені"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "If enabled, then the grades on song buttons only count scores set with your current name."
+msgstr "Якщо увімкнено, оцінки на кнопках пісень враховують лише результати, поставлені під поточним іменем."
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Only Show Grades From The Current Server"
+msgstr "Показувати оцінки лише з поточного сервера"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "If enabled, then the grades on song buttons only count scores set on the server you are logged in to (while offline: scores set offline)."
+msgstr "Якщо увімкнено, оцінки на кнопках пісень враховують лише результати, поставлені на сервері, на якому ви авторизовані (офлайн: результати, поставлені офлайн)."
+
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "Window"
 msgstr "Вікно"
 

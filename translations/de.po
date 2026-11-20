@@ -2613,6 +2613,22 @@ msgid "If enabled, then song buttons are positioned on a vertically centered cur
 msgstr "Wenn aktiviert, werden Song-Buttons auf einer vertikal zentrierten Kurve positioniert."
 
 #: src/App/Neomod/OptionsOverlay.cpp
+msgid "Only Show Grades From Your Current Name"
+msgstr "Nur Bewertungen unter dem aktuellen Namen anzeigen"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "If enabled, then the grades on song buttons only count scores set with your current name."
+msgstr "Wenn aktiviert, zählen für die Bewertungen auf Song-Buttons nur Scores, die unter deinem aktuellen Namen erzielt wurden."
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Only Show Grades From The Current Server"
+msgstr "Nur Bewertungen vom aktuellen Server anzeigen"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "If enabled, then the grades on song buttons only count scores set on the server you are logged in to (while offline: scores set offline)."
+msgstr "Wenn aktiviert, zählen für die Bewertungen auf Song-Buttons nur Scores, die auf dem Server erzielt wurden, bei dem du angemeldet bist (offline: offline erzielte Scores)."
+
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "Window"
 msgstr "Fenster"
 

@@ -350,6 +350,9 @@ SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
     // they decide whether the score buttons show pp, which buildScoreButtons() may have to wait for
     cv::scores_always_display_pp.setCallback(SA::MakeDelegate<&SongBrowser::rebuildScoreButtons>(this));
     cv::scores_sort_by_pp.setCallback(SA::MakeDelegate<&SongBrowser::rebuildScoreButtons>(this));
+    cv::songbrowser_grades_current_name.setCallback(SA::MakeDelegate<&SongBrowser::refreshGrades>(this));
+    cv::songbrowser_grades_current_server.setCallback(SA::MakeDelegate<&SongBrowser::refreshGrades>(this));
+    cv::name.setCallback(SA::MakeDelegate<&SongBrowser::refreshGrades>(this));
 
     // vars
     this->bSongBrowserRightClickScrollCheck = false;
@@ -541,6 +544,9 @@ SongBrowser::~SongBrowser() {
     cv::songbrowser_search_hardcoded_filter.removeAllCallbacks();
     cv::scores_always_display_pp.removeCallback();
     cv::scores_sort_by_pp.removeCallback();
+    cv::songbrowser_grades_current_name.removeCallback();
+    cv::songbrowser_grades_current_server.removeCallback();
+    cv::name.removeCallback();
 }
 
 bool SongBrowser::drawBeatmapOrMenuBackground() {
@@ -2319,6 +2325,11 @@ void SongBrowser::onGotNewLeaderboard(const MD5Hash &lbHash) {
     this->rebuildScoreButtons();
 }
 
+void SongBrowser::refreshGrades() {
+    for(const auto &[md5, button] : *this->hashToDiffButton) button->getParentSongButton()->setGrade(ScoreGrade::N);
+    for(const auto &[md5, button] : *this->hashToDiffButton) button->updateGrade();
+}
+
 void SongBrowser::rebuildScoreButtons() {
     if(!this->isVisible()) return;
 
@@ -2907,6 +2918,8 @@ void SongBrowser::onFilterScoresChange(std::string_view text, int id) {
         text_to_set = std::string{manual_type_cv->getString()};
     }
     type_cv->setValue(text_to_set);  // NOTE: remember
+
+    if(id == LOGIN_STATE_FILTER_ID) this->refreshGrades();
 
     this->filterScoresDropdown->setText(text_to_set);
     db->getOnlineLeaderboards().clear();

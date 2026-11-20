@@ -984,6 +984,13 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     this->addCheckbox(_("Song Buttons Curved Layout"),
                       _("If enabled, then song buttons are positioned on a vertically centered curve."),
                       &cv::songbrowser_button_anim_y_curve);
+    this->addCheckbox(_("Only Show Grades From Your Current Name"),
+                      _("If enabled, then the grades on song buttons only count scores set with your current name."),
+                      &cv::songbrowser_grades_current_name);
+    this->addCheckbox(_("Only Show Grades From The Current Server"),
+                      _("If enabled, then the grades on song buttons only count scores set on the server you are "
+                        "logged in to (while offline: scores set offline)."),
+                      &cv::songbrowser_grades_current_server);
 
     this->addSubSection(_("Window"));
     this->addCheckbox(_("Pause on Focus Loss"), _("Should the game pause when you switch to another application?"),

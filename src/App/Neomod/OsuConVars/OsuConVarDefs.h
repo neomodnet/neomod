@@ -172,6 +172,10 @@ CONVAR(songbrowser_search_hardcoded_filter, ""sv, CLIENT,
        "allows forcing the specified search filter to be active all the time");
 
 // Song browser (maybe useful to servers)
+CONVAR(songbrowser_grades_current_name, false, CLIENT | SKINS | SERVER,
+       "only show the grades of scores set with the current name");
+CONVAR(songbrowser_grades_current_server, false, CLIENT | SKINS | SERVER,
+       "only show the grades of scores set on the current server (while offline: of scores set offline)");
 CONVAR(songbrowser_scorebrowser_enabled, true, CLIENT | SKINS | SERVER);
 CONVAR(songbrowser_scores_filteringtype, "Local"sv, CLIENT | SKINS | SERVER);
 CONVAR(songbrowser_scores_filteringtype_manual, "unset"sv, CLIENT | SKINS | SERVER);

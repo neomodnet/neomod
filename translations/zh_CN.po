@@ -2611,6 +2611,22 @@ msgid "If enabled, then song buttons are positioned on a vertically centered cur
 msgstr "启用后，歌曲按钮会排列在垂直居中的曲线上。"
 
 #: src/App/Neomod/OptionsOverlay.cpp
+msgid "Only Show Grades From Your Current Name"
+msgstr "仅显示当前名称的评级"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "If enabled, then the grades on song buttons only count scores set with your current name."
+msgstr "启用后，歌曲按钮上的评级只统计以当前名称取得的成绩。"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Only Show Grades From The Current Server"
+msgstr "仅显示当前服务器的评级"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "If enabled, then the grades on song buttons only count scores set on the server you are logged in to (while offline: scores set offline)."
+msgstr "启用后，歌曲按钮上的评级只统计在当前登录的服务器上取得的成绩（离线时：离线取得的成绩）。"
+
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "Window"
 msgstr "窗口"
 

@@ -2611,6 +2611,22 @@ msgid "If enabled, then song buttons are positioned on a vertically centered cur
 msgstr "Açıksa, şarkı düğmeleri dikey olarak ortalanmış bir eğri üzerine yerleştirilir."
 
 #: src/App/Neomod/OptionsOverlay.cpp
+msgid "Only Show Grades From Your Current Name"
+msgstr "Yalnızca geçerli adınızın derecelerini göster"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "If enabled, then the grades on song buttons only count scores set with your current name."
+msgstr "Açıksa, şarkı düğmelerindeki dereceler yalnızca geçerli adınızla yapılan skorları sayar."
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Only Show Grades From The Current Server"
+msgstr "Yalnızca geçerli sunucunun derecelerini göster"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "If enabled, then the grades on song buttons only count scores set on the server you are logged in to (while offline: scores set offline)."
+msgstr "Açıksa, şarkı düğmelerindeki dereceler yalnızca giriş yaptığınız sunucuda yapılan skorları sayar (çevrimdışıyken: çevrimdışı yapılan skorlar)."
+
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "Window"
 msgstr "Pencere"
 

@@ -2611,6 +2611,22 @@ msgid "If enabled, then song buttons are positioned on a vertically centered cur
 msgstr "Jika diaktifkan, tombol lagu diletakkan pada lengkungan yang berada di tengah secara vertikal."
 
 #: src/App/Neomod/OptionsOverlay.cpp
+msgid "Only Show Grades From Your Current Name"
+msgstr "Hanya tampilkan nilai dari nama saat ini"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "If enabled, then the grades on song buttons only count scores set with your current name."
+msgstr "Jika diaktifkan, nilai pada tombol lagu hanya memperhitungkan skor yang dibuat dengan nama Anda saat ini."
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Only Show Grades From The Current Server"
+msgstr "Hanya tampilkan nilai dari server saat ini"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "If enabled, then the grades on song buttons only count scores set on the server you are logged in to (while offline: scores set offline)."
+msgstr "Jika diaktifkan, nilai pada tombol lagu hanya memperhitungkan skor yang dibuat di server tempat Anda masuk (saat offline: skor yang dibuat offline)."
+
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "Window"
 msgstr "Jendela"
 
