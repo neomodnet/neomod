@@ -773,16 +773,26 @@ bool SoLoudSoundEngine::initializeOutputDevice(const OUTPUT_DEVICE &device) {
              : cv::snd_freq.getVal<unsigned int>());
     if(sampleRate < 22500 || sampleRate > 192000) sampleRate = SoLoud::Soloud::AUTO;
 
-    // WASM: browser complains if buffer size isn't explicitly a power of 2, so just set it to a power of 2 here
-    // (512 is quite low but seems okay on my hardware)
-    // TODO: maybe it could be lower? users can adjust with ingame convar if they want, for now
-    unsigned int bufferSize = Env::cfg(OS::WASM)
-                                  ? 512
-                                  : (cv::snd_soloud_buffer.getVal<unsigned int>() ==
-                                             static_cast<unsigned int>(cv::snd_soloud_buffer.getDefaultFloat())
-                                         ? (unsigned int)SoLoud::Soloud::AUTO
-                                         : cv::snd_soloud_buffer.getVal<unsigned int>());
+    unsigned int automaticBufferSize = (unsigned int)SoLoud::Soloud::AUTO;
+    switch(Env::getOS()) {
+            // WASM: browser complains if buffer size isn't explicitly a power of 2, so just set it to a power of 2 here
+            // TODO: maybe it could be lower? users can adjust with ingame convar if they want, for now
+        case Env::OS::WASM:
+            automaticBufferSize = 512;
+            break;
+        case Env::OS::MAC:
+            automaticBufferSize = 128;  // the default seems to be 512 (~11ms)
+            break;
+        // linux and windows already auto-negotiates a low buffer size on AUTO (0)
+        case Env::OS::WINDOWS:
+        case Env::OS::LINUX:
+        default:
+            break;
+    }
+    unsigned int bufferSize =
+        cv::snd_soloud_buffer.isDefault() ? automaticBufferSize : cv::snd_soloud_buffer.getVal<unsigned int>();
     if(bufferSize > 2048) bufferSize = SoLoud::Soloud::AUTO;
+    if constexpr(Env::cfg(OS::WASM)) bufferSize = std::clamp(std::bit_floor(bufferSize), 16U, 2048U);
 
     // asio: the driver's current rate and preferred buffer size unless the asio cvars ask for something specific
     // (soloud clamps the size to what the driver allows); after the driver changed those itself (control panel,
