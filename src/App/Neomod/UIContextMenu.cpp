@@ -62,6 +62,26 @@ void UIContextMenuButton::setTooltipText(std::string_view text) {
     this->tooltipTextLines = SString::split_newlines<std::string>(text);
 }
 
+UIContextMenuCheckbox::UIContextMenuCheckbox(float xPos, float yPos, float xSize, float ySize, std::string name,
+                                             std::string text, int id)
+    : UICheckbox(xPos, yPos, xSize, ySize, std::move(name), std::move(text)) {
+    this->iID = id;
+}
+
+void UIContextMenuCheckbox::onMouseInside() {
+    UICheckbox::onMouseInside();
+
+    if(button_sound_cooldown + 0.05f < engine->getTime()) {
+        button_sound_cooldown = engine->getTime();
+        soundEngine->play(osu->getSkin()->s_hover_button);
+    }
+}
+
+void UIContextMenuCheckbox::onPressed() {
+    UICheckbox::onPressed();
+    soundEngine->play(this->isChecked() ? osu->getSkin()->s_check_on : osu->getSkin()->s_check_off);
+}
+
 UIContextMenuTextbox::UIContextMenuTextbox(float xPos, float yPos, float xSize, float ySize, std::string name, int id)
     : CBaseUITextbox(xPos, yPos, xSize, ySize, std::move(name)) {
     this->iID = id;
@@ -234,6 +254,7 @@ void UIContextMenu::begin(int minWidth, bool bigStyle, bool searchable) {
 
     this->iYCounter = 0;
     this->clickCallback = {};
+    this->toggleCallback = {};
 
     this->setSizeX(this->iWidthCounter);
 
@@ -337,6 +358,33 @@ UIContextMenuTextbox *UIContextMenu::addTextbox(const std::string &text, int id)
     this->containedTextbox = textbox;
 
     return textbox;
+}
+
+UIContextMenuCheckbox *UIContextMenu::addCheckbox(const std::string &text, bool checked, int id) {
+    const int buttonHeight = 30 * Osu::getUIScale() * (this->bBigStyle ? 1.27f : 1.0f);
+    const int margin = 9 * Osu::getUIScale();
+
+    auto *checkbox = new UIContextMenuCheckbox(margin, this->iYCounter + margin, 0, buttonHeight, text, text, id);
+    {
+        if(this->bBigStyle) checkbox->setFont(osu->getSubTitleFont());
+
+        checkbox->setChecked(checked, false);
+        checkbox->setChangeCallback(SA::MakeDelegate<&UIContextMenu::onToggle>(this));
+        checkbox->setWidthToContent(3 * Osu::getUIScale());
+        checkbox->setDrawFrame(false);
+        checkbox->setDrawBackground(false);
+    }
+    this->container.addBaseUIElement(checkbox);
+
+    if(checkbox->getSize().x + 2 * margin > this->iWidthCounter) {
+        this->iWidthCounter = checkbox->getSize().x + 2 * margin;
+        this->setSizeX(this->iWidthCounter);
+    }
+
+    this->iYCounter += buttonHeight;
+    this->setSizeY(this->iYCounter + 2 * margin);
+
+    return checkbox;
 }
 
 void UIContextMenu::end(bool invertAnimation, EndStyle style) {
@@ -525,6 +573,11 @@ void UIContextMenu::onClick(UIContextMenuButton *button) {
         this->clickCallback(this->containedTextbox->getText(), button->getID());
     else
         this->clickCallback(button->getName(), button->getID());
+}
+
+void UIContextMenu::onToggle(CBaseUICheckbox *checkbox) {
+    if(this->toggleCallback != nullptr)
+        this->toggleCallback(static_cast<UIContextMenuCheckbox *>(checkbox)->getID(), checkbox->isChecked());
 }
 
 void UIContextMenu::onHitEnter(UIContextMenuTextbox *textbox) {

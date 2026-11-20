@@ -2429,6 +2429,27 @@ msgstr "Права кнопка миші"
 msgid "<UNBOUND>"
 msgstr "<НЕ ПРИЗНАЧЕНО>"
 
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "This setting is forced by the current skin."
+msgstr "Це налаштування встановлено поточним скіном."
+
+#: src/App/Neomod/OptionsOverlay.cpp
+#, c++-format
+msgid "(turn off \"{}\" in the skin options to change it)"
+msgstr "(вимкніть \"{}\" у налаштуваннях скіна, щоб змінити)"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Let Skins Change Settings"
+msgstr "Дозволити скінам змінювати налаштування"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "This setting is overridden for the current beatmap."
+msgstr "Цей параметр перевизначено для поточної бітмапи."
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "(change it in the beatmap settings at the bottom of the screen)"
+msgstr "(змініть його в налаштуваннях бітмапи внизу екрана)"
+
 #: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/SongBrowser/ScoreButton.cpp
 msgid "McOsu"
 msgstr "McOsu"
@@ -2619,20 +2640,28 @@ msgid "If enabled, then song buttons are positioned on a vertically centered cur
 msgstr "Якщо увімкнено, кнопки пісень розташовуються на вертикально відцентрованій кривій."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Only Show Grades From Your Current Name"
-msgstr "Показувати оцінки лише для поточного імені"
+msgid "Grade Filtering"
+msgstr "Фільтр оцінок"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "If enabled, then the grades on song buttons only count scores set with your current name."
-msgstr "Якщо увімкнено, оцінки на кнопках пісень враховують лише результати, поставлені під поточним іменем."
+msgid "Which scores count toward the grades on song buttons."
+msgstr "Які результати враховуються в оцінках на кнопках пісень."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Only Show Grades From The Current Server"
-msgstr "Показувати оцінки лише з поточного сервера"
+msgid "Server"
+msgstr "Сервер"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "If enabled, then the grades on song buttons only count scores set on the server you are logged in to (while offline: scores set offline)."
-msgstr "Якщо увімкнено, оцінки на кнопках пісень враховують лише результати, поставлені на сервері, на якому ви авторизовані (офлайн: результати, поставлені офлайн)."
+msgid "Only scores set on the current server"
+msgstr "Лише результати, поставлені на поточному сервері"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Username"
+msgstr "Ім'я користувача"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Only scores with the current username"
+msgstr "Лише результати з поточним ім'ям користувача"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Window"
@@ -3177,10 +3206,6 @@ msgstr ""
 "Використовуйте \"skin_random 1\" для випадкового скіна при кожному перезавантаженні.\n"
 "Використовуйте \"skin_random_elements 1\", щоб змішувати кілька скінів.\n"
 "Використовуйте \"skin_export\", щоб експортувати активний скін."
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Let Skins Change Settings"
-msgstr "Дозволити скінам змінювати налаштування"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid ""
@@ -4362,6 +4387,10 @@ msgstr "Параметр запуску перевизначає це налаш
 msgid "This takes effect after a restart, click here to restart now."
 msgstr "Набуде чинності після перезапуску, натисніть тут, щоб перезапустити зараз."
 
+#: src/App/Neomod/OptionsOverlay.cpp src/Platform/Startup.cpp
+msgid "Off"
+msgstr "Вимк."
+
 #: src/App/Neomod/OptionsOverlay.cpp
 #, c++-format
 msgid "Press new key for {}:"
@@ -4380,23 +4409,6 @@ msgstr "Натисніть ще {:d} разів для підтвердженн�
 #, c++-format
 msgid "Press {:d} more time to confirm!"
 msgstr "Натисніть ще {:d} раз для підтвердження!"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "This setting is forced by the current skin."
-msgstr "Це налаштування встановлено поточним скіном."
-
-#: src/App/Neomod/OptionsOverlay.cpp
-#, c++-format
-msgid "(turn off \"{}\" in the skin options to change it)"
-msgstr "(вимкніть \"{}\" у налаштуваннях скіна, щоб змінити)"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "This setting is overridden for the current beatmap."
-msgstr "Цей параметр перевизначено для поточної бітмапи."
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "(change it in the beatmap settings at the bottom of the screen)"
-msgstr "(змініть його в налаштуваннях бітмапи внизу екрана)"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "All settings have been reset."
@@ -5334,10 +5346,6 @@ msgstr "Гра запускається з цими параметрами:"
 #: src/Platform/Startup.cpp
 msgid "High DPI"
 msgstr "Високий DPI"
-
-#: src/Platform/Startup.cpp
-msgid "Off"
-msgstr "Вимк."
 
 #: src/Platform/Startup.cpp
 msgid "On"

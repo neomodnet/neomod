@@ -2429,6 +2429,27 @@ msgstr "Mouse destro"
 msgid "<UNBOUND>"
 msgstr "<NON ASSEGNATO>"
 
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "This setting is forced by the current skin."
+msgstr "Questa impostazione è imposta dalla skin attuale."
+
+#: src/App/Neomod/OptionsOverlay.cpp
+#, c++-format
+msgid "(turn off \"{}\" in the skin options to change it)"
+msgstr "(disattiva \"{}\" nelle opzioni della skin per cambiarla)"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Let Skins Change Settings"
+msgstr "Consenti alle skin di cambiare le impostazioni"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "This setting is overridden for the current beatmap."
+msgstr "Questa impostazione è sovrascritta per la beatmap attuale."
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "(change it in the beatmap settings at the bottom of the screen)"
+msgstr "(modificala nelle impostazioni della beatmap in fondo allo schermo)"
+
 #: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/SongBrowser/ScoreButton.cpp
 msgid "McOsu"
 msgstr "McOsu"
@@ -2619,20 +2640,28 @@ msgid "If enabled, then song buttons are positioned on a vertically centered cur
 msgstr "Se attivo, i pulsanti dei brani sono posizionati su una curva centrata verticalmente."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Only Show Grades From Your Current Name"
-msgstr "Mostra solo i voti del tuo nome attuale"
+msgid "Grade Filtering"
+msgstr "Filtro dei voti"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "If enabled, then the grades on song buttons only count scores set with your current name."
-msgstr "Se attivo, i voti sui pulsanti dei brani considerano solo i punteggi ottenuti con il tuo nome attuale."
+msgid "Which scores count toward the grades on song buttons."
+msgstr "Quali punteggi contano per i voti sui pulsanti dei brani."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Only Show Grades From The Current Server"
-msgstr "Mostra solo i voti del server attuale"
+msgid "Server"
+msgstr "Server"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "If enabled, then the grades on song buttons only count scores set on the server you are logged in to (while offline: scores set offline)."
-msgstr "Se attivo, i voti sui pulsanti dei brani considerano solo i punteggi ottenuti sul server a cui hai effettuato l'accesso (offline: i punteggi ottenuti offline)."
+msgid "Only scores set on the current server"
+msgstr "Solo i punteggi ottenuti sul server attuale"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Username"
+msgstr "Nome utente"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Only scores with the current username"
+msgstr "Solo i punteggi con il nome utente attuale"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Window"
@@ -3177,10 +3206,6 @@ msgstr ""
 "Usa \"skin_random 1\" per una skin casuale a ogni ricarica.\n"
 "Usa \"skin_random_elements 1\" per mescolare più skin.\n"
 "Usa \"skin_export\" per esportare la skin attiva."
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Let Skins Change Settings"
-msgstr "Consenti alle skin di cambiare le impostazioni"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid ""
@@ -4362,6 +4387,10 @@ msgstr "Un'opzione di avvio sovrascrive questa impostazione, avrà effetto quand
 msgid "This takes effect after a restart, click here to restart now."
 msgstr "Avrà effetto dopo un riavvio, clicca qui per riavviare ora."
 
+#: src/App/Neomod/OptionsOverlay.cpp src/Platform/Startup.cpp
+msgid "Off"
+msgstr "Disattivato"
+
 #: src/App/Neomod/OptionsOverlay.cpp
 #, c++-format
 msgid "Press new key for {}:"
@@ -4380,23 +4409,6 @@ msgstr "Premi altre {:d} volte per confermare."
 #, c++-format
 msgid "Press {:d} more time to confirm!"
 msgstr "Premi ancora {:d} volta per confermare!"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "This setting is forced by the current skin."
-msgstr "Questa impostazione è imposta dalla skin attuale."
-
-#: src/App/Neomod/OptionsOverlay.cpp
-#, c++-format
-msgid "(turn off \"{}\" in the skin options to change it)"
-msgstr "(disattiva \"{}\" nelle opzioni della skin per cambiarla)"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "This setting is overridden for the current beatmap."
-msgstr "Questa impostazione è sovrascritta per la beatmap attuale."
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "(change it in the beatmap settings at the bottom of the screen)"
-msgstr "(modificala nelle impostazioni della beatmap in fondo allo schermo)"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "All settings have been reset."
@@ -5334,10 +5346,6 @@ msgstr "Il gioco si avvia con queste impostazioni:"
 #: src/Platform/Startup.cpp
 msgid "High DPI"
 msgstr "DPI elevato"
-
-#: src/Platform/Startup.cpp
-msgid "Off"
-msgstr "Disattivato"
 
 #: src/Platform/Startup.cpp
 msgid "On"

@@ -3,6 +3,7 @@
 #include "CBaseUIButton.h"
 #include "CBaseUIScrollView.h"
 #include "CBaseUITextbox.h"
+#include "UICheckbox.h"
 
 #include "Delegate.h"
 
@@ -13,6 +14,7 @@
 class CBaseUIContainer;
 
 class UIContextMenuButton;
+class UIContextMenuCheckbox;
 class UIContextMenuTextbox;
 
 class UIContextMenu final : public CBaseUIScrollView {
@@ -36,6 +38,10 @@ class UIContextMenu final : public CBaseUIScrollView {
     using ButtonClickCallback = SA::delegate<void(std::string_view, int)>;
     void setClickCallback(ButtonClickCallback clickCallback) { this->clickCallback = std::move(clickCallback); }
 
+    // gets the id and the new state of a toggled checkbox
+    using CheckboxToggleCallback = SA::delegate<void(int, bool)>;
+    void setToggleCallback(CheckboxToggleCallback toggleCallback) { this->toggleCallback = std::move(toggleCallback); }
+
     void begin(int minWidth = 0, bool bigStyle = false, bool searchable = false);
     UIContextMenuButton *addButtonJustified(const std::string &text,
                                             TEXT_JUSTIFICATION j = TEXT_JUSTIFICATION::CENTERED, int id = -1);
@@ -43,6 +49,8 @@ class UIContextMenu final : public CBaseUIScrollView {
         return this->addButtonJustified(text, TEXT_JUSTIFICATION::LEFT, id);
     };
     UIContextMenuTextbox *addTextbox(const std::string &text, int id = -1);
+    // toggling it keeps the menu open
+    UIContextMenuCheckbox *addCheckbox(const std::string &text, bool checked, int id = -1);
 
     enum class EndStyle : u8 {
         CLAMP_TOP = (1 << 0),
@@ -87,6 +95,7 @@ class UIContextMenu final : public CBaseUIScrollView {
     void onMouseDownOutside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
 
     void onClick(UIContextMenuButton *button);
+    void onToggle(CBaseUICheckbox *checkbox);
     void onHitEnter(UIContextMenuTextbox *textbox);
 
     void updateSearch();
@@ -97,6 +106,7 @@ class UIContextMenu final : public CBaseUIScrollView {
     CBaseUIScrollView *parent = nullptr;
     UIContextMenuTextbox *containedTextbox = nullptr;
     ButtonClickCallback clickCallback = {};
+    CheckboxToggleCallback toggleCallback = {};
 
     std::vector<std::unique_ptr<UIContextMenuButton>> searchButtons;
     UIContextMenuTextbox *searchTextbox = nullptr;
@@ -135,6 +145,23 @@ class UIContextMenuButton final : public CBaseUIButton {
     int iID;
 
     std::vector<std::string> tooltipTextLines;
+};
+
+class UIContextMenuCheckbox final : public UICheckbox {
+    NOCOPY_NOMOVE(UIContextMenuCheckbox)
+   public:
+    UIContextMenuCheckbox(float xPos, float yPos, float xSize, float ySize, std::string name, std::string text, int id);
+    ~UIContextMenuCheckbox() override { ; }
+
+    void onMouseInside() override;
+
+    [[nodiscard]] inline int getID() const { return this->iID; }
+
+   protected:
+    void onPressed() override;
+
+   private:
+    int iID;
 };
 
 class UIContextMenuTextbox final : public CBaseUITextbox {

@@ -97,10 +97,17 @@ enum class ElementType : int8_t {
     TBX = 8,        // textbox
     SKNPRVW = 9,    // skin preview
     SLDRPRVW = 10,  // slider preview
-    CBX_BTN = 11    // checkbox+button
+    CBX_BTN = 11,   // checkbox+button
+    CBX_GROUP = 12  // button that opens a menu of checkboxes
 };
 using enum ElementType;
 struct OptionsElement;
+
+struct CheckboxGroupItem {
+    std::string label;
+    std::string tooltip;
+    ConVar *cvar;
+};
 }  // namespace
 
 struct OptionsOverlayImpl final {
@@ -176,7 +183,8 @@ struct OptionsOverlayImpl final {
         CBaseUILabel *label;
     };
     std::vector<StartupChoice> startupChoices;
-    size_t openStartupChoice{0};  // the one whose list is open
+    size_t openStartupChoice{0};                 // the one whose list is open
+    OptionsElement *openCheckboxGroup{nullptr};  // the one whose menu is open
     // adds nothing if there is nothing to pick
     void addStartupChoice(const std::string &text, ConVar *cvar, std::vector<Mc::Startup::Choice> choices,
                           std::string_view inEffect, bool switched);
@@ -186,6 +194,9 @@ struct OptionsOverlayImpl final {
 
     void onCheckboxChange(CBaseUICheckbox *checkbox);
     void onCheckboxChangeWithLayoutUpdate(CBaseUICheckbox *checkbox);
+    void onCheckboxGroupSelect(CBaseUIButton *button);
+    void onCheckboxGroupToggled(int id, bool checked);
+    void updateCheckboxGroupLabel(OptionsElement *group);
     void onSliderChange(CBaseUISlider *slider);
     void onSliderChangeOneDecimalPlace(CBaseUISlider *slider);
     void onSliderChangeTwoDecimalPlaces(CBaseUISlider *slider);
@@ -244,6 +255,9 @@ struct OptionsOverlayImpl final {
     KeyBindButton *addKeyBindButton(const std::string &text, OsuKeyBinds::Bind *bind);
     CBaseUICheckbox *addCheckbox(const std::string &text, ConVar *cvar);
     CBaseUICheckbox *addCheckbox(const std::string &text, const std::string &tooltipText = {}, ConVar *cvar = nullptr);
+    // a row for related checkboxes: its button opens them in a menu, its label lists the checked ones
+    void addCheckboxGroup(const std::string &text, const std::string &tooltipText,
+                          std::vector<CheckboxGroupItem> items);
     OptionsElement *addButtonCheckbox(const std::string &buttontext, const std::string &cbxtooltip);
     UISlider *addSlider(const std::string &text, float min = 0.0f, float max = 1.0f, ConVar *cvar = nullptr,
                         float label1Width = 0.0f, bool allowOverscale = false, bool allowUnderscale = false);
@@ -482,6 +496,8 @@ struct OptionsElement {
 
     RenderCondition render_condition{RenderCondition::NONE};
     std::unique_ptr<ResetButton> resetButton{nullptr};
+
+    std::vector<CheckboxGroupItem> groupItems;  // CBX_GROUP
 
     float label1Width{0.f};
     float relSizeDPI{96.f};
@@ -800,6 +816,30 @@ bool setFromWidget(ConVar *cvar, const T &value) {
     return cvar->getMaster() == CvarEditor::CLIENT && cvar->setValue(value) == CvarSetResult::APPLIED;
 }
 
+// a tooltip that says what decides the value of a forced convar
+void pushForcedCvarTooltip(const ConVar *cvar) {
+    auto *ttoverlay = ui->getTooltipOverlay();
+    ttoverlay->begin();
+    switch(cvar->getMaster()) {
+        case CvarEditor::SERVER:
+            ttoverlay->addLine(cvar->isLocked() ? _("This setting is locked in multiplayer rooms.")
+                                                : _("This setting is forced by the server."));
+            break;
+        case CvarEditor::SKIN:
+            ttoverlay->addLine(_("This setting is forced by the current skin."));
+            ttoverlay->addLine(
+                tformat("(turn off \"{}\" in the skin options to change it)", _("Let Skins Change Settings")));
+            break;
+        case CvarEditor::CONTEXT:
+            ttoverlay->addLine(_("This setting is overridden for the current beatmap."));
+            ttoverlay->addLine(_("(change it in the beatmap settings at the bottom of the screen)"));
+            break;
+        case CvarEditor::CLIENT:
+            break;
+    }
+    ttoverlay->end();
+}
+
 }  // namespace
 
 OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) {
@@ -984,13 +1024,13 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     this->addCheckbox(_("Song Buttons Curved Layout"),
                       _("If enabled, then song buttons are positioned on a vertically centered curve."),
                       &cv::songbrowser_button_anim_y_curve);
-    this->addCheckbox(_("Only Show Grades From Your Current Name"),
-                      _("If enabled, then the grades on song buttons only count scores set with your current name."),
-                      &cv::songbrowser_grades_current_name);
-    this->addCheckbox(_("Only Show Grades From The Current Server"),
-                      _("If enabled, then the grades on song buttons only count scores set on the server you are "
-                        "logged in to (while offline: scores set offline)."),
-                      &cv::songbrowser_grades_current_server);
+    this->addCheckboxGroup(_("Grade Filtering"), _("Which scores count toward the grades on song buttons."),
+                           {{.label = _("Server"),
+                             .tooltip = _("Only scores set on the current server"),
+                             .cvar = &cv::songbrowser_grades_current_server},
+                            {.label = _("Username"),
+                             .tooltip = _("Only scores with the current username"),
+                             .cvar = &cv::songbrowser_grades_current_name}});
 
     this->addSubSection(_("Window"));
     this->addCheckbox(_("Pause on Focus Loss"), _("Should the game pause when you switch to another application?"),
@@ -2149,6 +2189,10 @@ void OptionsOverlayImpl::updateInput(CBaseUIEventCtx &c) {
     if(!optionsMenuVisible && !contextMenuVisible) return;
     const bool onlyContextMenuVisible = contextMenuVisible && !optionsMenuVisible;
 
+    // disable widgets bound to a server/skin-forced cvar before their update runs (the context menu's too),
+    // so input handlers + their own tooltip code don't fire for forced settings
+    this->applyForcedCvarLocks();
+
     // early-update the context menu: it is the whole walk for the standalone case (options
     // hidden, nested walk below never runs) and keeps close-on-outside working when the
     // dropdown is scrolled out of the clip list. when the options menu IS visible the menu is
@@ -2157,10 +2201,6 @@ void OptionsOverlayImpl::updateInput(CBaseUIEventCtx &c) {
     // chain through an unscrollable dropdown).
     this->contextMenu->updateInput(c);
     if(onlyContextMenuVisible) return;  // HACK: not returning early if options menu is hidden, for skins menu dropdown
-
-    // disable widgets bound to a server/skin-forced cvar before their update runs,
-    // so input handlers + their own tooltip code don't fire for forced settings
-    this->applyForcedCvarLocks();
 
     parent->ScreenBackable::updateInput(c);
 
@@ -2484,6 +2524,10 @@ void OptionsOverlayImpl::updateLayout() {
 
     // set all elements to the current convar values, and update the reset button states
     for(const auto &element : this->elemContainers) {
+        if(element->type == CBX_GROUP) {
+            this->onResetUpdate(element->resetButton.get());
+            continue;
+        }
         if(!element->cvar) continue;
         for(const auto &baseElem : element->baseElems) {
             switch(element->type) {
@@ -2873,6 +2917,8 @@ void OptionsOverlayImpl::updateLayout() {
 
                 e2->setRelPos(sideMargin + e1->getSize().x + 2 * spacing, yCounter);
                 e2->setSizeX(elementWidth * dividerEnd - spacing);
+                if(this->elemContainers[i]->type == CBX_GROUP)
+                    this->updateCheckboxGroupLabel(this->elemContainers[i].get());
 
                 yCounter += e1->getSize().y;
             }
@@ -3531,6 +3577,40 @@ void OptionsOverlayImpl::updateStartupChoiceLabels() {
     }
 }
 
+void OptionsOverlayImpl::onCheckboxGroupSelect(CBaseUIButton *button) {
+    const auto it = this->uiToOptElemMap.find(button);
+    if(it == this->uiToOptElemMap.end()) return;
+    this->openCheckboxGroup = it->second;
+
+    this->contextMenu->setPos(button->getPos());
+    this->contextMenu->setRelPos(button->getRelPos());
+    this->contextMenu->begin(button->getSize().x);
+    for(int i = 0; const auto &item : this->openCheckboxGroup->groupItems) {
+        this->contextMenu->addCheckbox(item.label, item.cvar->getBool(), i++)->setTooltipText(item.tooltip);
+    }
+    this->contextMenu->end(false, false);
+    this->contextMenu->setToggleCallback(SA::MakeDelegate<&OptionsOverlayImpl::onCheckboxGroupToggled>(this));
+    this->options->setScrollSizeToContent();
+}
+
+void OptionsOverlayImpl::onCheckboxGroupToggled(int id, bool checked) {
+    setFromWidget(this->openCheckboxGroup->groupItems[id].cvar, checked);
+    this->updateCheckboxGroupLabel(this->openCheckboxGroup);
+    this->onResetUpdate(this->openCheckboxGroup->resetButton.get());
+}
+
+void OptionsOverlayImpl::updateCheckboxGroupLabel(OptionsElement *group) {
+    std::string text;
+    for(const auto &item : group->groupItems) {
+        if(!item.cvar->getBool()) continue;
+        if(!text.empty()) text += ", ";
+        text += item.label;
+    }
+    // the menu shows what doesn't fit
+    auto *label = static_cast<CBaseUILabel *>(group->baseElems[1].get());
+    label->setText(label->getFont()->ellipsize(text.empty() ? _("Off") : text, label->getSize().x));
+}
+
 void OptionsOverlayImpl::onCheckboxChangeWithLayoutUpdate(CBaseUICheckbox *checkbox) {
     this->onCheckboxChange(checkbox);
     if(!this->updating_layout) this->scheduleLayoutUpdate();
@@ -3953,6 +4033,12 @@ void OptionsOverlayImpl::onResetUpdate(ResetButton *resbtn) {
         case SLDR:
             resbtn->setEnabled(optelem->cvar->getDouble() != optelem->cvar->getDefaultDouble());
             break;
+        case CBX_GROUP:
+            resbtn->setEnabled(Mc::ranges::any_of(optelem->groupItems, [](const CheckboxGroupItem &item) {
+                return item.cvar->getMaster() == CvarEditor::CLIENT &&
+                       item.cvar->getBool() != (bool)item.cvar->getDefaultDouble();
+            }));
+            break;
         case BINDBTN: {
             const auto binds = OsuKeyBinds::getAll();
             if(const auto &it = Mc::ranges::find(binds, optelem->cvar, &OsuKeyBinds::Bind::cvar); it != binds.end()) {
@@ -3990,36 +4076,36 @@ void OptionsOverlayImpl::applyForcedCvarLocks() {
         }
         e->cvarLocked = nowLocked;
     }
+
+    // and the checkboxes of an open checkbox group
+    if(this->openCheckboxGroup == nullptr || !this->contextMenu->isVisible()) return;
+    for(auto *elem : this->contextMenu->container.getElements()) {
+        if(auto *checkbox = dynamic_cast<UIContextMenuCheckbox *>(elem)) {
+            const ConVar *cvar = this->openCheckboxGroup->groupItems[checkbox->getID()].cvar;
+            checkbox->setEnabled(cvar->getMaster() == CvarEditor::CLIENT);
+        }
+    }
 }
 
 void OptionsOverlayImpl::pushForcedCvarTooltipIfHovered() {
     if(!this->options->getRect().contains(mouse->getPos())) return;
 
+    // an open menu covers the rows beneath it
+    if(this->contextMenu->isVisible() && this->contextMenu->getRect().contains(mouse->getPos())) {
+        for(auto *elem : this->contextMenu->container.getElements()) {
+            auto *checkbox = dynamic_cast<UIContextMenuCheckbox *>(elem);
+            if(checkbox == nullptr || checkbox->isEnabled() || !checkbox->getRect().contains(mouse->getPos())) continue;
+            pushForcedCvarTooltip(this->openCheckboxGroup->groupItems[checkbox->getID()].cvar);
+            break;
+        }
+        return;
+    }
+
     for(const auto &e : this->elemContainers) {
         if(!e->cvarLocked) continue;
         for(const auto &elem : e->baseElems) {
             if(!elem->isVisible() || !elem->getRect().contains(mouse->getPos())) continue;
-
-            auto *ttoverlay = ui->getTooltipOverlay();
-            ttoverlay->begin();
-            switch(e->cvar->getMaster()) {
-                case CvarEditor::SERVER:
-                    ttoverlay->addLine(e->cvar->isLocked() ? _("This setting is locked in multiplayer rooms.")
-                                                           : _("This setting is forced by the server."));
-                    break;
-                case CvarEditor::SKIN:
-                    ttoverlay->addLine(_("This setting is forced by the current skin."));
-                    ttoverlay->addLine(
-                        tformat("(turn off \"{}\" in the skin options to change it)", _("Let Skins Change Settings")));
-                    break;
-                case CvarEditor::CONTEXT:
-                    ttoverlay->addLine(_("This setting is overridden for the current beatmap."));
-                    ttoverlay->addLine(_("(change it in the beatmap settings at the bottom of the screen)"));
-                    break;
-                case CvarEditor::CLIENT:
-                    break;  // unreachable: cvarLocked implies non-CLIENT master
-            }
-            ttoverlay->end();
+            pushForcedCvarTooltip(e->cvar);
             return;
         }
     }
@@ -4035,6 +4121,10 @@ void OptionsOverlayImpl::onResetClicked(ResetButton *resbtn) {
                 auto *checkboxPointer = dynamic_cast<CBaseUICheckbox *>(e.get());
                 if(checkboxPointer != nullptr) checkboxPointer->setChecked((bool)optelem->cvar->getDefaultDouble());
             }
+            break;
+        case CBX_GROUP:
+            for(const auto &item : optelem->groupItems) setFromWidget(item.cvar, (bool)item.cvar->getDefaultDouble());
+            this->updateCheckboxGroupLabel(optelem);
             break;
         case SLDR:
             if(optelem->baseElems.size() == 3) {
@@ -4297,6 +4387,25 @@ CBaseUICheckbox *OptionsOverlayImpl::addCheckbox(const std::string &text, const 
     this->uiToOptElemMap[checkbox] = last.get();
 
     return checkbox;
+}
+
+void OptionsOverlayImpl::addCheckboxGroup(const std::string &text, const std::string &tooltipText,
+                                          std::vector<CheckboxGroupItem> items) {
+    OptionsElement *element = this->addButton(text, "", true);
+    element->type = CBX_GROUP;
+    element->resetButton->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onResetClicked>(this));
+
+    auto *button = static_cast<UIButton *>(element->baseElems[0].get());
+    button->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onCheckboxGroupSelect>(this));
+    button->setTooltipText(tooltipText);
+
+    // the search finds the row by its checkboxes
+    for(const auto &item : items) {
+        if(!element->searchTags.empty()) element->searchTags += ' ';
+        element->searchTags += item.label;
+    }
+    element->groupItems = std::move(items);
+    this->updateCheckboxGroupLabel(element);
 }
 
 OptionsElement *OptionsOverlayImpl::addButtonCheckbox(const std::string &buttontext, const std::string &cbxtooltip) {

@@ -2390,6 +2390,27 @@ msgstr ""
 msgid "<UNBOUND>"
 msgstr ""
 
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "This setting is forced by the current skin."
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
+#, c++-format
+msgid "(turn off \"{}\" in the skin options to change it)"
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Let Skins Change Settings"
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "This setting is overridden for the current beatmap."
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "(change it in the beatmap settings at the bottom of the screen)"
+msgstr ""
+
 #: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/SongBrowser/ScoreButton.cpp
 msgid "McOsu"
 msgstr ""
@@ -2566,19 +2587,27 @@ msgid "If enabled, then song buttons are positioned on a vertically centered cur
 msgstr ""
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Only Show Grades From Your Current Name"
+msgid "Grade Filtering"
 msgstr ""
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "If enabled, then the grades on song buttons only count scores set with your current name."
+msgid "Which scores count toward the grades on song buttons."
 msgstr ""
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Only Show Grades From The Current Server"
+msgid "Server"
 msgstr ""
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "If enabled, then the grades on song buttons only count scores set on the server you are logged in to (while offline: scores set offline)."
+msgid "Only scores set on the current server"
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Username"
+msgstr ""
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Only scores with the current username"
 msgstr ""
 
 #: src/App/Neomod/OptionsOverlay.cpp
@@ -3086,10 +3115,6 @@ msgid ""
 "Use \"skin_random 1\" to randomize on every skin reload.\n"
 "Use \"skin_random_elements 1\" to mix multiple skins.\n"
 "Use \"skin_export\" to export the currently active skin."
-msgstr ""
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Let Skins Change Settings"
 msgstr ""
 
 #: src/App/Neomod/OptionsOverlay.cpp
@@ -4234,6 +4259,10 @@ msgstr ""
 msgid "This takes effect after a restart, click here to restart now."
 msgstr ""
 
+#: src/App/Neomod/OptionsOverlay.cpp src/Platform/Startup.cpp
+msgid "Off"
+msgstr ""
+
 #: src/App/Neomod/OptionsOverlay.cpp
 #, c++-format
 msgid "Press new key for {}:"
@@ -4251,23 +4280,6 @@ msgstr ""
 #: src/App/Neomod/OptionsOverlay.cpp
 #, c++-format
 msgid "Press {:d} more time to confirm!"
-msgstr ""
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "This setting is forced by the current skin."
-msgstr ""
-
-#: src/App/Neomod/OptionsOverlay.cpp
-#, c++-format
-msgid "(turn off \"{}\" in the skin options to change it)"
-msgstr ""
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "This setting is overridden for the current beatmap."
-msgstr ""
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "(change it in the beatmap settings at the bottom of the screen)"
 msgstr ""
 
 #: src/App/Neomod/OptionsOverlay.cpp
@@ -5203,10 +5215,6 @@ msgstr ""
 
 #: src/Platform/Startup.cpp
 msgid "High DPI"
-msgstr ""
-
-#: src/Platform/Startup.cpp
-msgid "Off"
 msgstr ""
 
 #: src/Platform/Startup.cpp

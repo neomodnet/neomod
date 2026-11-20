@@ -2429,6 +2429,27 @@ msgstr "鼠标右键"
 msgid "<UNBOUND>"
 msgstr "<未绑定>"
 
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "This setting is forced by the current skin."
+msgstr "此设置由当前皮肤强制设定。"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+#, c++-format
+msgid "(turn off \"{}\" in the skin options to change it)"
+msgstr "（在皮肤选项中关闭 \"{}\" 即可更改）"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Let Skins Change Settings"
+msgstr "允许皮肤更改设置"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "This setting is overridden for the current beatmap."
+msgstr "此设置已被当前谱面覆盖。"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "(change it in the beatmap settings at the bottom of the screen)"
+msgstr "（可在屏幕底部的谱面设置中更改）"
+
 #: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/SongBrowser/ScoreButton.cpp
 msgid "McOsu"
 msgstr "McOsu"
@@ -2619,20 +2640,28 @@ msgid "If enabled, then song buttons are positioned on a vertically centered cur
 msgstr "启用后，歌曲按钮会排列在垂直居中的曲线上。"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Only Show Grades From Your Current Name"
-msgstr "仅显示当前名称的评级"
+msgid "Grade Filtering"
+msgstr "评级筛选"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "If enabled, then the grades on song buttons only count scores set with your current name."
-msgstr "启用后，歌曲按钮上的评级只统计以当前名称取得的成绩。"
+msgid "Which scores count toward the grades on song buttons."
+msgstr "哪些成绩计入歌曲按钮上的评级。"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Only Show Grades From The Current Server"
-msgstr "仅显示当前服务器的评级"
+msgid "Server"
+msgstr "服务器"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "If enabled, then the grades on song buttons only count scores set on the server you are logged in to (while offline: scores set offline)."
-msgstr "启用后，歌曲按钮上的评级只统计在当前登录的服务器上取得的成绩（离线时：离线取得的成绩）。"
+msgid "Only scores set on the current server"
+msgstr "仅限在当前服务器取得的成绩"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Username"
+msgstr "用户名"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Only scores with the current username"
+msgstr "仅限使用当前用户名取得的成绩"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Window"
@@ -3177,10 +3206,6 @@ msgstr ""
 "使用 \"skin_random 1\" 在每次重新加载皮肤时随机选择。\n"
 "使用 \"skin_random_elements 1\" 混合多个皮肤。\n"
 "使用 \"skin_export\" 导出当前皮肤。"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Let Skins Change Settings"
-msgstr "允许皮肤更改设置"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid ""
@@ -4362,6 +4387,10 @@ msgstr "启动参数覆盖了此设置，不带该参数启动游戏后才会生
 msgid "This takes effect after a restart, click here to restart now."
 msgstr "重启后生效，点击此处立即重启。"
 
+#: src/App/Neomod/OptionsOverlay.cpp src/Platform/Startup.cpp
+msgid "Off"
+msgstr "关"
+
 #: src/App/Neomod/OptionsOverlay.cpp
 #, c++-format
 msgid "Press new key for {}:"
@@ -4380,23 +4409,6 @@ msgstr "再按 {:d} 次以确认。"
 #, c++-format
 msgid "Press {:d} more time to confirm!"
 msgstr "再按 {:d} 次以确认！"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "This setting is forced by the current skin."
-msgstr "此设置由当前皮肤强制设定。"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-#, c++-format
-msgid "(turn off \"{}\" in the skin options to change it)"
-msgstr "（在皮肤选项中关闭 \"{}\" 即可更改）"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "This setting is overridden for the current beatmap."
-msgstr "此设置已被当前谱面覆盖。"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "(change it in the beatmap settings at the bottom of the screen)"
-msgstr "（可在屏幕底部的谱面设置中更改）"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "All settings have been reset."
@@ -5334,10 +5346,6 @@ msgstr "游戏将以这些设置启动："
 #: src/Platform/Startup.cpp
 msgid "High DPI"
 msgstr "高 DPI"
-
-#: src/Platform/Startup.cpp
-msgid "Off"
-msgstr "关"
 
 #: src/Platform/Startup.cpp
 msgid "On"

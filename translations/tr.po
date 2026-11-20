@@ -2429,6 +2429,27 @@ msgstr "Fare Sağ"
 msgid "<UNBOUND>"
 msgstr "<ATANMAMIŞ>"
 
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "This setting is forced by the current skin."
+msgstr "Bu ayar mevcut skin tarafından zorlanıyor."
+
+#: src/App/Neomod/OptionsOverlay.cpp
+#, c++-format
+msgid "(turn off \"{}\" in the skin options to change it)"
+msgstr "(değiştirmek için skin seçeneklerinde \"{}\" ayarını kapat)"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Let Skins Change Settings"
+msgstr "Skinlerin Ayarları Değiştirmesine İzin Ver"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "This setting is overridden for the current beatmap."
+msgstr "Bu ayar mevcut beatmap için geçersiz kılınmış."
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "(change it in the beatmap settings at the bottom of the screen)"
+msgstr "(ekranın altındaki beatmap ayarlarından değiştir)"
+
 #: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/SongBrowser/ScoreButton.cpp
 msgid "McOsu"
 msgstr "McOsu"
@@ -2619,20 +2640,28 @@ msgid "If enabled, then song buttons are positioned on a vertically centered cur
 msgstr "Açıksa, şarkı düğmeleri dikey olarak ortalanmış bir eğri üzerine yerleştirilir."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Only Show Grades From Your Current Name"
-msgstr "Yalnızca geçerli adınızın derecelerini göster"
+msgid "Grade Filtering"
+msgstr "Derece filtreleme"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "If enabled, then the grades on song buttons only count scores set with your current name."
-msgstr "Açıksa, şarkı düğmelerindeki dereceler yalnızca geçerli adınızla yapılan skorları sayar."
+msgid "Which scores count toward the grades on song buttons."
+msgstr "Şarkı düğmelerindeki derecelerde hangi skorların sayılacağı."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Only Show Grades From The Current Server"
-msgstr "Yalnızca geçerli sunucunun derecelerini göster"
+msgid "Server"
+msgstr "Sunucu"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "If enabled, then the grades on song buttons only count scores set on the server you are logged in to (while offline: scores set offline)."
-msgstr "Açıksa, şarkı düğmelerindeki dereceler yalnızca giriş yaptığınız sunucuda yapılan skorları sayar (çevrimdışıyken: çevrimdışı yapılan skorlar)."
+msgid "Only scores set on the current server"
+msgstr "Yalnızca geçerli sunucuda yapılan skorlar"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Username"
+msgstr "Kullanıcı adı"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Only scores with the current username"
+msgstr "Yalnızca geçerli kullanıcı adıyla yapılan skorlar"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Window"
@@ -3177,10 +3206,6 @@ msgstr ""
 "Her skin yüklemesinde rastgele seçmek için \"skin_random 1\" kullan.\n"
 "Birden fazla skin'i karıştırmak için \"skin_random_elements 1\" kullan.\n"
 "Etkin skin'i dışa aktarmak için \"skin_export\" kullan."
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Let Skins Change Settings"
-msgstr "Skinlerin Ayarları Değiştirmesine İzin Ver"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid ""
@@ -4362,6 +4387,10 @@ msgstr "Bir başlatma seçeneği bu ayarı geçersiz kılıyor, oyun o seçenek 
 msgid "This takes effect after a restart, click here to restart now."
 msgstr "Bu, yeniden başlatmadan sonra geçerli olur, şimdi yeniden başlatmak için buraya tıklayın."
 
+#: src/App/Neomod/OptionsOverlay.cpp src/Platform/Startup.cpp
+msgid "Off"
+msgstr "Kapalı"
+
 #: src/App/Neomod/OptionsOverlay.cpp
 #, c++-format
 msgid "Press new key for {}:"
@@ -4380,23 +4409,6 @@ msgstr "Onaylamak için {:d} kez daha bas."
 #, c++-format
 msgid "Press {:d} more time to confirm!"
 msgstr "Onaylamak için {:d} kez daha bas!"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "This setting is forced by the current skin."
-msgstr "Bu ayar mevcut skin tarafından zorlanıyor."
-
-#: src/App/Neomod/OptionsOverlay.cpp
-#, c++-format
-msgid "(turn off \"{}\" in the skin options to change it)"
-msgstr "(değiştirmek için skin seçeneklerinde \"{}\" ayarını kapat)"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "This setting is overridden for the current beatmap."
-msgstr "Bu ayar mevcut beatmap için geçersiz kılınmış."
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "(change it in the beatmap settings at the bottom of the screen)"
-msgstr "(ekranın altındaki beatmap ayarlarından değiştir)"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "All settings have been reset."
@@ -5334,10 +5346,6 @@ msgstr "Oyun şu ayarlarla başlar:"
 #: src/Platform/Startup.cpp
 msgid "High DPI"
 msgstr "Yüksek DPI"
-
-#: src/Platform/Startup.cpp
-msgid "Off"
-msgstr "Kapalı"
 
 #: src/Platform/Startup.cpp
 msgid "On"
