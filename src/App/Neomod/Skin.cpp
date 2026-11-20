@@ -1527,6 +1527,7 @@ void Skin::getModImagesForMods(std::vector<SkinImage Skin::*> &outVec, const Rep
     else if(modDC)
         outVec.push_back(&Skin::i_modselect_dc);  // idk where this should actually go since osu doesn't have it
     if(modNC) outVec.push_back(&Skin::i_modselect_nc);
+    if(flags::has<Flashlight>(mods.flags)) outVec.push_back(&Skin::i_modselect_fl);
     if(flags::has<Autoplay>(mods.flags)) outVec.push_back(&Skin::i_modselect_auto);
     if(flags::has<SpunOut>(mods.flags)) outVec.push_back(&Skin::i_modselect_so);
     if(flags::has<Autopilot>(mods.flags)) outVec.push_back(&Skin::i_modselect_ap);

@@ -404,6 +404,7 @@ void AboutScreen::buildChangelog() {
         R"(- The renderer and the audio engine can now be picked in the options)",
         R"(  - Hold Shift while starting the game (or start it with -setup) to change these settings before it starts)",
         R"(- Fixed Freeze Frame mod approach circles showing when they shouldn't)",
+        R"(- Fixed the Flashlight icon missing from the mods shown on the results screen and in multiplayer rooms)",
     };
     changelogs.push_back(std::move(v45_01));
 
