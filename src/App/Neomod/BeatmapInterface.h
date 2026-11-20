@@ -275,6 +275,7 @@ class BeatmapInterface final : public GameplayJudge::Listener, public PlayfieldV
     [[nodiscard]] inline bool isPaused() const { return this->bIsPaused; }
     [[nodiscard]] inline bool isRestartScheduled() const { return this->bIsRestartScheduled; }
     [[nodiscard]] inline bool isContinueScheduled() const { return this->bContinueScheduled; }
+    [[nodiscard]] bool shouldDrawContinue() const;
     // whether a continue is waiting for its click and the cursor is where it would go ahead
     [[nodiscard]] bool isCursorOnContinuePoint() const;
     [[nodiscard]] inline bool isInSkippableSection() const { return this->bIsInSkippableSection; }

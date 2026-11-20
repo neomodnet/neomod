@@ -326,8 +326,11 @@ void HUD::draw() {
         }
     }
 
-    if(pf->shouldFlashSectionPass()) this->drawSectionPass(pf->shouldFlashSectionPass());
-    if(pf->shouldFlashSectionFail()) this->drawSectionFail(pf->shouldFlashSectionFail());
+    // don't overlap pass/fail over press to continue
+    if(!pf->shouldDrawContinue()) {
+        if(pf->shouldFlashSectionPass()) this->drawSectionPass(pf->shouldFlashSectionPass());
+        if(pf->shouldFlashSectionFail()) this->drawSectionFail(pf->shouldFlashSectionFail());
+    }
 
     if(pf->shouldFlashWarningArrows()) HUD::drawWarningArrows(pf->fHitcircleDiameter);
 

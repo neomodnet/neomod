@@ -1621,7 +1621,7 @@ void BeatmapInterface::draw() {
     if(cv::mod_flashlight.getBool()) this->drawFlashlight();
 
     // draw continue overlay (moved from HUD to draw properly in FPoSu)
-    if(this->isContinueScheduled() && !this->isPaused() && cv::draw_continue.getBool()) this->drawContinue();
+    if(this->shouldDrawContinue()) this->drawContinue();
 
     // debug stuff
     if(cv::debug_hiterrorbar_misaims.getBool()) {
@@ -3188,4 +3188,8 @@ bool BeatmapInterface::isActuallyPausedAndNotSpectating() const {
     return (this->isPaused() && ui->getPauseOverlay()->isVisible())  //
            && !this->music.isPlaying()                               //
            && !(this->bIsWaiting || this->isActuallyLoading());
+}
+
+bool BeatmapInterface::shouldDrawContinue() const {
+    return this->isContinueScheduled() && !this->isPaused() && cv::draw_continue.getBool();
 }
