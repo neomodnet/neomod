@@ -2413,6 +2413,10 @@ msgstr "실험적 모드"
 msgid "Hold [ALT] to slide in 0.01 increments."
 msgstr "[ALT]를 누른 채 0.01 단위로 조절합니다."
 
+#: src/App/Neomod/NeomodEnvInterop.cpp
+msgid "The selected skin is not editable."
+msgstr "선택한 스킨은 편집할 수 없습니다."
+
 #: src/App/Neomod/NeomodUrl.cpp
 msgid "This editor link isn't valid."
 msgstr "이 에디터 링크는 유효하지 않습니다."

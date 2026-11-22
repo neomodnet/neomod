@@ -2374,6 +2374,10 @@ msgstr ""
 msgid "Hold [ALT] to slide in 0.01 increments."
 msgstr ""
 
+#: src/App/Neomod/NeomodEnvInterop.cpp
+msgid "The selected skin is not editable."
+msgstr ""
+
 #: src/App/Neomod/NeomodUrl.cpp
 msgid "This editor link isn't valid."
 msgstr ""

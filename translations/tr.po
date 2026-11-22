@@ -2413,6 +2413,10 @@ msgstr "Deneysel Modlar"
 msgid "Hold [ALT] to slide in 0.01 increments."
 msgstr "0.01'lik adımlarla kaydırmak için [ALT] basılı tut."
 
+#: src/App/Neomod/NeomodEnvInterop.cpp
+msgid "The selected skin is not editable."
+msgstr "Seçili skin düzenlenemez."
+
 #: src/App/Neomod/NeomodUrl.cpp
 msgid "This editor link isn't valid."
 msgstr "Bu editör bağlantısı geçerli değil."

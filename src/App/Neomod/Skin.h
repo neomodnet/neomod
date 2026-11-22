@@ -110,6 +110,8 @@ struct Skin final {
    public:
     // the audio formats a sound element can come in, in the order they're looked for
     static constexpr std::array<std::string_view, 4> SOUND_EXTENSIONS{".wav", ".mp3", ".ogg", ".flac"};
+    // whether a file can be an element or the skin.ini, judging by its name
+    [[nodiscard]] static bool isElementFile(std::string_view path);
 
     Skin(std::string name, std::string filepath, std::string fallbackDir = "");
     ~Skin();

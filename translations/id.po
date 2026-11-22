@@ -2413,6 +2413,10 @@ msgstr "Mod Eksperimental"
 msgid "Hold [ALT] to slide in 0.01 increments."
 msgstr "Tahan [ALT] untuk menggeser dengan kenaikan 0.01."
 
+#: src/App/Neomod/NeomodEnvInterop.cpp
+msgid "The selected skin is not editable."
+msgstr "Skin yang dipilih tidak dapat diedit."
+
 #: src/App/Neomod/NeomodUrl.cpp
 msgid "This editor link isn't valid."
 msgstr "Tautan editor ini tidak valid."

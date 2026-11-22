@@ -765,6 +765,11 @@ void Osu::update() {
 
             this->skinScheduledToLoad = nullptr;
 
+            this->skinFilesWatch =
+                directoryWatcher->watch_directory(this->skin->skin_dir, [this](const FileChangeEvent &ev) -> void {
+                    if(ev.is_dir || Skin::isElementFile(ev.path)) this->bSkinFilesChanged = true;
+                });
+
             // force effect volume update now that the new skin's sounds are loaded
             ui->getVolumeOverlay()->updateEffectVolume(this->skin.get());
 
@@ -786,6 +791,12 @@ void Osu::update() {
                 this->onSkinChange(wanted);
             }
         }
+    }
+
+    // changes during a load may have been read too early, so they wait for it to finish
+    if(this->bSkinFilesChanged && !this->isSkinLoading()) {
+        this->bSkinFilesChanged = false;
+        this->onSkinReload();
     }
 
     // delayed font reloads (must be before layout updates!)

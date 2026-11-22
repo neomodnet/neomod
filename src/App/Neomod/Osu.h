@@ -331,6 +331,8 @@ class Osu final : public App, public MouseListener, public TouchListener {
 
     // imports .osk files dropped into skins/
     Mc::Registration skinsWatch;
+    // reloads the skin on file change
+    Mc::Registration skinFilesWatch;
 
     // rendering
     RenderTarget *backBuffer{nullptr};
@@ -400,6 +402,7 @@ class Osu final : public App, public MouseListener, public TouchListener {
     bool bScheduleEndlessModNextBeatmap{false};
     bool bWasBossKeyPaused{false};
     bool bSkinLoadWasReload{false};
+    bool bSkinFilesChanged{false};
     bool bFontReloadScheduled{false};
     u32 cjkFontTransfer{0};  // TransferOverlay row while the CJK font downloads, 0 otherwise
     Sync::stop_source cjkFontCancel;

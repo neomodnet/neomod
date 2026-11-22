@@ -68,6 +68,13 @@ static std::string findBeatmapSound(const Skin &skin, std::string_view stem) {
     return {};
 }
 
+bool Skin::isElementFile(std::string_view path) {
+    if(SString::strcase_equal(Environment::getFileNameFromFilePath(path), "skin.ini")) return true;
+    const std::string ext = "." + Environment::getFileExtensionFromFilePath(path);
+    return SString::strcase_equal(ext, ".png") || SString::strcase_equal(ext, ".jpg") ||
+           Mc::ranges::any_of(SOUND_EXTENSIONS, [&](auto e) { return SString::strcase_equal(ext, e); });
+}
+
 Skin::Skin(std::string name, std::string filepath, std::string fallbackDir)
     : name(std::move(name)),
       skin_dir(std::move(filepath)),

@@ -2413,6 +2413,10 @@ msgstr "实验性模组"
 msgid "Hold [ALT] to slide in 0.01 increments."
 msgstr "按住 [ALT] 以 0.01 为步长调整。"
 
+#: src/App/Neomod/NeomodEnvInterop.cpp
+msgid "The selected skin is not editable."
+msgstr "所选皮肤无法编辑。"
+
 #: src/App/Neomod/NeomodUrl.cpp
 msgid "This editor link isn't valid."
 msgstr "此编辑器链接无效。"

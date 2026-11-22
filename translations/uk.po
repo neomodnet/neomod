@@ -2413,6 +2413,10 @@ msgstr "Експериментальні моди"
 msgid "Hold [ALT] to slide in 0.01 increments."
 msgstr "Утримуйте [ALT] для кроку 0.01."
 
+#: src/App/Neomod/NeomodEnvInterop.cpp
+msgid "The selected skin is not editable."
+msgstr "Вибраний скін не можна редагувати."
+
 #: src/App/Neomod/NeomodUrl.cpp
 msgid "This editor link isn't valid."
 msgstr "Це посилання на редактор недійсне."

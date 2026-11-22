@@ -10,6 +10,7 @@
 #include "OptionsOverlay.h"
 #include "Osu.h"
 #include "RankingScreen.h"
+#include "Skin.h"
 #include "SkinArchive.h"
 #include "SongBrowser/SongBrowser.h"
 #include "UI.h"
@@ -18,6 +19,10 @@
 #include "SString.h"
 #include "LaunchArgs.h"
 #include "Paths.h"
+#include "ContainerRanges.h"
+#include "File.h"
+#include "NotificationOverlay.h"
+#include "i18n.h"
 
 namespace neomod {
 namespace {
@@ -94,6 +99,24 @@ void handle_open_requests(std::span<const std::string> requests) {
     // the editor screen stays the active one, hidden, during a test play it started
     if(!unclaimed.empty() && ui->getActiveScreen() == ui->getEditorScreen() && ui->getEditorScreen()->isVisible()) {
         ui->getEditorScreen()->onDrop(unclaimed);
+    } else if(const Skin *skin = osu->getSkin(); skin && Mc::ranges::any_of(unclaimed, &Skin::isElementFile)) {
+        // editing files in a macOS app bundle would break signature (once we add one)
+        const bool in_bundle = Env::cfg(OS::MAC) && Mc::Paths::exe_dir().ends_with("/Contents/MacOS") &&
+                               skin->skin_dir.starts_with(Mc::Paths::assets());
+        bool copied = false;
+        bool failed = in_bundle;
+        for(const auto &path : unclaimed) {
+            if(failed) break;
+            if(!Skin::isElementFile(path)) continue;
+            failed = !File::copy(path, skin->skin_dir + Environment::getFileNameFromFilePath(path));
+            copied |= !failed;
+        }
+        if(failed) ui->getNotificationOverlay()->addToast(_("The selected skin is not editable."), ERROR_TOAST);
+
+        // wasm doesn't have a file watcher running
+        if constexpr(Env::cfg(OS::WASM)) {
+            if(copied) osu->reloadSkin();
+        }
     }
 
     if(!got_db_related_import) return;

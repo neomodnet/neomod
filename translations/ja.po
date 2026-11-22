@@ -2415,6 +2415,10 @@ msgstr "実験的モッド"
 msgid "Hold [ALT] to slide in 0.01 increments."
 msgstr "[ALT]を押し続けると0.01刻みでスライドできます。"
 
+#: src/App/Neomod/NeomodEnvInterop.cpp
+msgid "The selected skin is not editable."
+msgstr "選択中のスキンは編集できません。"
+
 #: src/App/Neomod/NeomodUrl.cpp
 msgid "This editor link isn't valid."
 msgstr "このエディターリンクは無効です。"

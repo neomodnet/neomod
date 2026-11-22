@@ -400,6 +400,11 @@ void AboutScreen::buildChangelog() {
     v45_01.title = "45.01 (" CHANGELOG_TIMESTAMP ")";
     v45_01.changes = {
         R"(- Reworked IME (OS language input method) support)",
+        R"(- Skins:)",
+        R"(  - Added "message-received" sound notification)",
+        R"(  - Added per-grade applause sounds ("applause-s", "applause-a", etc.))",
+        R"(  - Dropping a skin element onto the window places it into the current skin folder)",
+        R"(  - Skins now hot-reload on file changes)",
         R"(- Web: Added CJK text support (the font is downloaded when needed))",
         R"(- The renderer and the audio engine can now be picked in the options)",
         R"(  - Hold Shift while starting the game (or start it with -setup) to change these settings before it starts)",
@@ -409,8 +414,6 @@ void AboutScreen::buildChangelog() {
         R"(- Added "Grade Filtering" (Options > General > Songbrowser) to filter the grades shown on song browser buttons)",
         R"(- Added "timewarp": hold the seek key (Shift) and scroll during gameplay or replays to change the speed until the map ends)",
         R"(- Added combobreak_sound_extra_clicks convar to play the combobreak sound for clicks that hit nothing)",
-        R"(- Added a sound for new chat messages while the chat is open (Options > General > Alerts; skins can provide "message-received"))",
-        R"(- Skins can now have an applause sound per grade ("applause-xh", "applause-x", "applause-sh", "applause-s", "applause-a" to "applause-d"))",
         R"(- The online users list (F9) can now be sorted by rank (button next to the chat tabs), and its cards show the rank)",
         R"(- Linux: Middle click now pastes the selected text into text boxes)",
         R"(- Fixed Strict Tracking turning a slider into a miss when leaving it in its last 36ms before a tick/repeat)",
