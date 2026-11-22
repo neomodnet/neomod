@@ -9,7 +9,9 @@
 #include "ResourceManager.h"
 #include "Font.h"
 #include "Graphics.h"
+#include "Icons.h"
 #include "Image.h"
+#include "UniString.h"
 
 UIVolumeSlider::Resources UIVolumeSlider::imageResources{};  // shared
 bool UIVolumeSlider::resourcesReady = false;
@@ -53,36 +55,55 @@ void UIVolumeSlider::drawBlock() {
     }
 
     // draw icon
-    Image* img = nullptr;
-    if(this->getFloat() < 0.01f)
-        img = imageResources.disabled[(size_t)this->type];
-    else
-        img = imageResources.enabled[(size_t)this->type];
+    const float scaleMultiplier = 0.95f + 0.2f * this->fSelectionAnim;
+    const vec2 blockCenter = this->getPos() + this->blockPos() + this->vBlockSize / 2.0f;
+    if(this->type == TYPE::SPEED) {
+        McFont* iconFont = osu->getFontIcons();
+        const std::string glyph = UniString::to_utf8(std::u32string_view{&Icons::TACHOMETER, 1});
+        const float glyphHeight = iconFont->getGlyphHeight(Icons::TACHOMETER);
+        const float scale = glyphHeight > 0.f ? std::min(1.f, this->vBlockSize.y * 0.75f / glyphHeight) : 0.f;
 
-    g->pushTransform();
-    {
-        const float scaleMultiplier = 0.95f + 0.2f * this->fSelectionAnim;
+        g->pushTransform();
+        {
+            g->scale(scale, scale);
+            g->translate(std::round(blockCenter.x - iconFont->getStringWidth(glyph) * scale / 2.0f),
+                         std::round(blockCenter.y + glyphHeight * scale / 2.0f));
+            g->setColor(0xffffffff);
+            g->drawString(iconFont, glyph);
+        }
+        g->popTransform();
+    } else {
+        Image* img = nullptr;
+        if(this->getFloat() < 0.01f)
+            img = imageResources.disabled[(size_t)this->type];
+        else
+            img = imageResources.enabled[(size_t)this->type];
 
-        g->scale((this->vBlockSize.y / img->getSize().x) * scaleMultiplier,
-                 (this->vBlockSize.y / img->getSize().y) * scaleMultiplier);
-        g->translate(this->getPos().x + this->blockPos().x + this->vBlockSize.x / 2.0f,
-                     this->getPos().y + this->blockPos().y + this->vBlockSize.y / 2.0f + 1);
-        g->setColor(0xffffffff);
-        g->drawImage(img);
+        g->pushTransform();
+        {
+            g->scale((this->vBlockSize.y / img->getSize().x) * scaleMultiplier,
+                     (this->vBlockSize.y / img->getSize().y) * scaleMultiplier);
+            g->translate(blockCenter.x, blockCenter.y + 1);
+            g->setColor(0xffffffff);
+            g->drawImage(img);
+        }
+        g->popTransform();
     }
-    g->popTransform();
 
     // draw percentage
+    const std::string valueText = this->type == TYPE::SPEED
+                                      ? fmt::format("{:.2f}x", this->getFloat())
+                                      : fmt::format("{}%", (int)(std::round(this->getFloat() * 100.0f)));
     g->pushTransform();
     {
         g->translate((int)(this->getPos().x + this->getSize().x + this->getSize().x * 0.0335f),
                      (int)(this->getPos().y + this->getSize().y / 2 + this->font->getHeight() / 2));
         g->setColor(0xff000000);
         g->translate(1, 1);
-        g->drawString(this->font, fmt::format("{}%", (int)(std::round(this->getFloat() * 100.0f))));
+        g->drawString(this->font, valueText);
         g->setColor(0xffffffff);
         g->translate(-1, -1);
-        g->drawString(this->font, fmt::format("{}%", (int)(std::round(this->getFloat() * 100.0f))));
+        g->drawString(this->font, valueText);
     }
     g->popTransform();
 }

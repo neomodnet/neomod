@@ -34,6 +34,7 @@ class VolumeOverlay final : public UIScreen {
     void volumeUp(int multiplier = 1) { this->onVolumeChange(multiplier); }
     void volumeDown(int multiplier = 1) { this->onVolumeChange(-multiplier); }
     void onVolumeChange(int multiplier);
+    void onTimewarp(int multiplier);
     void onMasterVolumeChange(float newValue);
     void onEffectVolumeChange();
     void updateEffectVolume(Skin* skin);
@@ -49,4 +50,7 @@ class VolumeOverlay final : public UIScreen {
     UIVolumeSlider* volumeMaster = nullptr;
     UIVolumeSlider* volumeEffects = nullptr;
     UIVolumeSlider* volumeMusic = nullptr;
+
+    std::unique_ptr<UIVolumeSlider> speedSlider{nullptr};
+    bool bShowSpeed{false};
 };

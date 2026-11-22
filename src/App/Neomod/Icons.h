@@ -38,6 +38,7 @@ inline constexpr char32_t STEP_BACKWARD{0xf048};
 inline constexpr char32_t STEP_FORWARD{0xf051};
 inline constexpr char32_t MUSIC{0xf001};
 inline constexpr char32_t THUMB_TACK{0xf08d};
+inline constexpr char32_t TACHOMETER{0xf0e4};
 
 inline constexpr const std::array icons{
     Z_UNKNOWN_CHAR,   //
@@ -72,6 +73,7 @@ inline constexpr const std::array icons{
     STEP_FORWARD,     //
     MUSIC,            //
     THUMB_TACK,       //
+    TACHOMETER,       //
 };
 
 };  // namespace Icons

@@ -5,6 +5,7 @@
 #include "MakeDelegateWrapper.h"
 #include "AnimationHandler.h"
 #include "UIVolumeSlider.h"
+#include "ConVarHandler.h"
 #include "Engine.h"
 #include "Sound.h"
 #include "SoundEngine.h"
@@ -20,6 +21,7 @@
 #include "MusicTrack.h"
 #include "PreviewTrackManager.h"
 #include "Skin.h"
+#include "score.h"
 
 VolumeOverlay::VolumeOverlay() : UIScreen() {
     cv::volume_master.setCallback(SA::MakeDelegate<&VolumeOverlay::onMasterVolumeChange>(this));
@@ -57,6 +59,14 @@ VolumeOverlay::VolumeOverlay() : UIScreen() {
     this->volumeMusic->setKeyDelta(cv::volume_change_interval.getFloat());
     this->volumeMusic->setAnimated(false);
     this->volumeSliderOverlayContainer->addBaseUIElement(this->volumeMusic);
+
+    this->speedSlider = std::make_unique<UIVolumeSlider>(0, 0, this->volumeMaster->getSize().x,
+                                                         this->volumeMaster->getSize().y / 1.5f, "");
+    this->speedSlider->setType(UIVolumeSlider::TYPE::SPEED);
+    this->speedSlider->setBounds(0.05f, 2.5f);
+    this->speedSlider->setAllowMouseWheel(false);
+    this->speedSlider->setAnimated(false);
+    this->speedSlider->setSelected(true);
 
     soundEngine->setMasterVolume(cv::volume_master.getFloat());
     this->updateLayout();
@@ -109,7 +119,13 @@ void VolumeOverlay::draw() {
     this->volumeMusic->setPos(this->volumeEffects->getPos() -
                               vec2(0, this->volumeMusic->getSize().y + 20 * sizeMultiplier));
 
-    this->volumeSliderOverlayContainer->draw();
+    if(this->bShowSpeed) {
+        this->speedSlider->setPos(this->volumeMaster->getPos() +
+                                  vec2(0, this->volumeMaster->getSize().y - this->speedSlider->getSize().y));
+        this->speedSlider->draw();
+    } else {
+        this->volumeSliderOverlayContainer->draw();
+    }
 
     if(this->fVolumeChangeFade != 1.0f) g->pop3DScene();
 }
@@ -117,7 +133,7 @@ void VolumeOverlay::draw() {
 void VolumeOverlay::tick() {
     UIScreen::tick();
 
-    this->volumeMaster->setEnabled(this->fVolumeChangeTime > engine->getTime());
+    this->volumeMaster->setEnabled(this->fVolumeChangeTime > engine->getTime() && !this->bShowSpeed);
     this->volumeEffects->setEnabled(this->volumeMaster->isEnabled());
     this->volumeMusic->setEnabled(this->volumeMaster->isEnabled());
     this->volumeSliderOverlayContainer->setSize(osu->getVirtScreenSize());
@@ -202,6 +218,11 @@ void VolumeOverlay::updateInput(CBaseUIEventCtx &c) {
 bool VolumeOverlay::onWheel(WheelDelta vertical, WheelDelta /*horizontal*/) {
     if(vertical.delta == 0 && vertical.ticks == 0) return false;
 
+    if(osu->isSeeking() && osu->isSeekKeyDown()) {
+        if(vertical.ticks != 0) this->onTimewarp(vertical.ticks);
+        return true;
+    }
+
     // the global gates that survived canChangeVolume's screen enumeration (exclusivity is
     // structural now: this only runs when no candidate consumed the wheel, or as the
     // hovered-slider claim): on the sliders or with alt held, always allow; otherwise
@@ -234,6 +255,10 @@ void VolumeOverlay::updateLayout() {
 
     this->volumeMusic->setSize(this->volumeMaster->getSize().x, this->volumeMaster->getSize().y / 1.5f);
     this->volumeMusic->setBlockSize((this->volumeMaster->getSize().y + 7 * dpiScale) / 1.5f,
+                                    this->volumeMaster->getSize().y / 1.5f);
+
+    this->speedSlider->setSize(this->volumeMaster->getSize().x, this->volumeMaster->getSize().y / 1.5f);
+    this->speedSlider->setBlockSize((this->volumeMaster->getSize().y + 7 * dpiScale) / 1.5f,
                                     this->volumeMaster->getSize().y / 1.5f);
 }
 
@@ -339,7 +364,7 @@ void VolumeOverlay::onVolumeChange(int multiplier) {
     // don't actually change volume for the first interaction, just make ourselves visible
     // e.g. scrolling 1 tick should just set visible but not change volume
     // also allow immediate change if we are changing due to a global hotkey
-    if(this->isVisible() || !env->winFocused()) {
+    if((this->isVisible() && !this->bShowSpeed) || !env->winFocused()) {
         // chose which volume to change, depending on the volume overlay, default is master
         ConVar *volumeConVar = &cv::volume_master;
         if(this->volumeMusic->isSelected())
@@ -353,6 +378,22 @@ void VolumeOverlay::onVolumeChange(int multiplier) {
         volumeConVar->setValue(newVolume);
     }
 
+    this->bShowSpeed = false;
+    this->animate();
+}
+
+void VolumeOverlay::onTimewarp(int multiplier) {
+    // steps of 0.05x, clamped like the mod selector speed slider
+    const f32 speed =
+        std::clamp(std::round((osu->getScore()->mods.speed + 0.05f * (f32)multiplier) * 20.f) / 20.f, 0.05f, 2.5f);
+
+    ConVar *speedConVar = &cv::speed_override;
+    cvars().beginSession({&speedConVar, 1});
+    speedConVar->setValue(speed == 1.f ? -1.f : speed);
+    osu->updateMods();
+
+    this->speedSlider->setValue(speed, false);
+    this->bShowSpeed = true;
     this->animate();
 }
 

@@ -10,7 +10,7 @@ class Image;
 class UIVolumeSlider final : public CBaseUISlider {
     NOCOPY_NOMOVE(UIVolumeSlider)
    public:
-    enum class TYPE : uint8_t { MASTER, MUSIC, EFFECTS };
+    enum class TYPE : uint8_t { MASTER, MUSIC, EFFECTS, SPEED };
 
    public:
     UIVolumeSlider(float xPos, float yPos, float xSize, float ySize, std::string name);

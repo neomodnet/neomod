@@ -230,6 +230,7 @@ class Osu final : public App, public MouseListener, public TouchListener {
     }
 
     [[nodiscard]] inline bool isSeeking() const { return this->bSeeking; }
+    [[nodiscard]] inline bool isSeekKeyDown() const { return this->bSeekKey; }
     [[nodiscard]] inline u32 getQuickSaveTimeMS() const { return this->iQuickSaveMS; }
 
     // open the ranking screen for a score once its beatmap is in the db. used for command-line score
