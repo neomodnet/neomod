@@ -2616,9 +2616,9 @@ void OptionsOverlayImpl::updateLayout() {
         if(elem->baseElems.size() != 1 || elem->type != CBX) continue;
         auto *checkbox = dynamic_cast<CBaseUICheckbox *>(elem->baseElems[0].get());
         if(checkbox == nullptr) continue;
-        // checkbox->setSizeY(checkbox->getRelSize().y * dpiScale);
-        // checkbox->onResized();
-        // checkbox->setWidthToContent(0);
+        checkbox->setSizeY(checkbox->getRelSize().y * dpiScale);
+        checkbox->onResized();  // HACKHACK: framework, setWidth*() does not update string metrics
+        checkbox->setWidthToContent(0);
         maxElementWidth = std::max(maxElementWidth, checkbox->getSize().x);
     }
     if(maxElementWidth > baseElementWidth) {
