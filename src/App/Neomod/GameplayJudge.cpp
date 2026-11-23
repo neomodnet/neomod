@@ -191,7 +191,7 @@ void GameplayJudge::simulate_to(i32 musicPos) {
     }
 }
 
-void GameplayJudge::animate(i32 curPos) {
+void GameplayJudge::animate(f64 curPos) {
     const i32 pvs = this->getPVS();
     const bool freezeFrame = this->getMods().has(ModFlags::FreezeFrame);
     for(auto &hitobject : this->hitobjects) {

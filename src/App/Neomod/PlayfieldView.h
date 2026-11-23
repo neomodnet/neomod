@@ -44,8 +44,8 @@ class PlayfieldView {
     [[nodiscard]] virtual f32 getHitcircleOverlapScale() const = 0;
 
     // the music position, and with the offsets objects are timed against
-    [[nodiscard]] virtual i32 getCurMusicPos() const = 0;
-    [[nodiscard]] virtual i32 getCurMusicPosWithOffsets() const = 0;
+    [[nodiscard]] virtual f64 getCurMusicPos() const = 0;
+    [[nodiscard]] virtual f64 getCurMusicPosWithOffsets() const = 0;
     // how long objects take to approach (ms)
     [[nodiscard]] virtual f32 getApproachTime() const = 0;
     // wall-clock animations take 1 / this of their time
@@ -99,8 +99,8 @@ class PlainPlayfieldView final : public PlayfieldView {
     [[nodiscard]] f32 getNumberScale() const override;
     [[nodiscard]] f32 getHitcircleOverlapScale() const override;
 
-    [[nodiscard]] i32 getCurMusicPos() const override { return this->musicPos; }
-    [[nodiscard]] i32 getCurMusicPosWithOffsets() const override { return this->musicPos; }
+    [[nodiscard]] f64 getCurMusicPos() const override { return this->musicPos; }
+    [[nodiscard]] f64 getCurMusicPosWithOffsets() const override { return this->musicPos; }
     [[nodiscard]] f32 getApproachTime() const override { return this->approachTimeMS; }
     [[nodiscard]] f32 getBaseAnimationSpeed() const override { return 1.f; }
     [[nodiscard]] f32 getSpeedAdjustedAnimationSpeed() const override { return 1.f; }

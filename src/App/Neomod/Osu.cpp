@@ -695,7 +695,7 @@ void Osu::update() {
 
     if(this->skin.get()) {
         this->skin->update(this->isInPlayMode(), this->map_iface->isPlaying(),
-                           this->map_iface->getCurMusicPosWithOffsets());
+                           (i32)this->map_iface->getCurMusicPosWithOffsets());
     }
 
     this->fposu->update();

@@ -89,7 +89,7 @@ class GameplayJudge final {
     void simulate_to(i32 musicPos);
     std::vector<Replay::Frame> replay;
 
-    void animate(i32 curPos);  // TODO: this shouldn't be in this class
+    void animate(f64 curPos);  // TODO: this shouldn't be in this class
 
     // updates all objects at curPos, even those outside of the PVS
     void updateAll(i32 curPos, f64 frameTimeSecs);

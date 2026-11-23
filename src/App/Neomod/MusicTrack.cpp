@@ -51,12 +51,12 @@ bool MusicTrack::update() {
     if(this->outsideSong) {
         const f64 before = this->virtualMS;
         if(this->playing) this->virtualMS += elapsed * 1000.0 * this->speed * this->slowdown;
-        this->time = (i32)std::round(this->virtualMS);
-        logIf(cv::debug_snd.getInt() > 1, "music clock: real time {:.6f} position {:.3f} time {} (virtual)", now,
+        this->time = this->virtualMS;
+        logIf(cv::debug_snd.getInt() > 1, "music clock: real time {:.6f} position {:.3f} time {:.3f} (virtual)", now,
               this->virtualMS, this->time);
         // only the lead-in runs into the song. a song that ended stays ended, even if it ended before getLengthMS()
         if(before < 0.0 && this->virtualMS >= 0.0 && this->virtualMS < this->getLengthMS()) {
-            this->enterSong(this->time);
+            this->enterSong((i32)std::round(this->time));
         }
         return finished;
     }
@@ -82,14 +82,14 @@ bool MusicTrack::update() {
     }
 
     if(interpolation == 0) {
-        this->time = (i32)std::round(position);
+        this->time = position;
     } else {
         if(restart) this->smoothing->reset(position, now);
-        this->time = (i32)this->smoothing->update(position, now, this->speed, false, this->getLengthMS(),
-                                                  this->stream->isPlaying());
+        this->time =
+            this->smoothing->update(position, now, this->speed, false, this->getLengthMS(), this->stream->isPlaying());
     }
 
-    logIf(cv::debug_snd.getInt() > 1, "music clock: real time {:.6f} position {:.3f} time {}", now, position,
+    logIf(cv::debug_snd.getInt() > 1, "music clock: real time {:.6f} position {:.3f} time {:.3f}", now, position,
           this->time);
     return finished;
 }
@@ -200,7 +200,7 @@ bool MusicTrack::finishLoad() {
         this->time = (i32)this->getRestartPoint();
         this->seekOnLoad = true;
     }
-    if(std::exchange(this->seekOnLoad, false)) this->setPosition(this->time);
+    if(std::exchange(this->seekOnLoad, false)) this->setPosition((i32)std::round(this->time));
     if(std::exchange(this->playOnLoad, false)) this->play();
     return true;
 }
@@ -224,7 +224,7 @@ void MusicTrack::setVirtualTime(bool on) {
     this->playing = this->stream && this->stream->isPlaying();
     if(!on && std::exchange(this->outsideSong, false)) {
         // the song's own time again: its start before it, its end past it
-        this->time = std::clamp(this->time, 0, (i32)this->getLengthMS());
+        this->time = std::clamp(this->time, 0.0, (f64)this->getLengthMS());
         this->seeked = true;
     }
 }

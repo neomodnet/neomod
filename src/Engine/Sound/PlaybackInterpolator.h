@@ -12,7 +12,7 @@ class GameplayInterpolator {
     GameplayInterpolator(GameplayInterpolator &&) noexcept = default;
     GameplayInterpolator &operator=(GameplayInterpolator &&) noexcept = default;
 
-    virtual u32 update(f64 rawPositionMS, f64 currentTime, f64 playbackSpeed, bool isLooped = false, u64 lengthMS = 0,
+    virtual f64 update(f64 rawPositionMS, f64 currentTime, f64 playbackSpeed, bool isLooped = false, u64 lengthMS = 0,
                        bool isPlaying = true) = 0;
     // starts over from this position, for a jump the source made (a seek, a loop, a new voice)
     virtual void reset(f64 rawPositionMS, f64 currentTime) = 0;
@@ -25,7 +25,7 @@ class GameplayInterpolator {
 class McOsuInterpolator : public GameplayInterpolator {
    public:
     McOsuInterpolator() = default;
-    u32 update(f64 rawPositionMS, f64 currentTime, f64 playbackSpeed, bool isLooped = false, u64 lengthMS = 0,
+    f64 update(f64 rawPositionMS, f64 currentTime, f64 playbackSpeed, bool isLooped = false, u64 lengthMS = 0,
                bool isPlaying = true) override;
     void reset(f64 rawPositionMS, f64 currentTime) override;
 
@@ -42,7 +42,7 @@ class TachyonInterpolator : public GameplayInterpolator {
    public:
     TachyonInterpolator() = default;
 
-    u32 update(f64 rawPositionMS, f64 currentTime, f64 playbackSpeed, bool isLooped = false, u64 lengthMS = 0,
+    f64 update(f64 rawPositionMS, f64 currentTime, f64 playbackSpeed, bool isLooped = false, u64 lengthMS = 0,
                bool isPlaying = true) override;
     void reset(f64 rawPositionMS, f64 currentTime) override;
 

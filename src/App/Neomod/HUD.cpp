@@ -2360,7 +2360,7 @@ void HUD::drawInputOverlayTrail(f32 xStart, f32 yStart, f32 oScale, f32 scale) {
     auto *pf = osu->getMapInterface();
     if(!dummy && pf == nullptr) return;
 
-    const i32 now = dummy ? (i32)(engine->getTime() * 1000.0) : pf->getCurMusicPosWithOffsets();
+    const i32 now = dummy ? (i32)(engine->getTime() * 1000.0) : (i32)pf->getCurMusicPosWithOffsets();
 
     // blocks from the future mean the music position jumped backwards without passing through
     // resetScore(); the tolerance covers small music position interpolation regressions
@@ -2631,7 +2631,7 @@ void HUD::animateInputOverlay(GameplayKeys key_flag, bool down, std::optional<i3
         if(cv::draw_inputoverlay_trail.getBool()) {
             if(auto *pf = osu->getMapInterface()) {
                 auto &blocks = this->inputOverlayTrails[key_idx];
-                const i32 t = musicPos.value_or(pf->getCurMusicPosWithOffsets());
+                const i32 t = musicPos.value_or((i32)pf->getCurMusicPosWithOffsets());
                 if(down) {
                     // down while a block is still open can happen when edges get swallowed upstream
                     // (mods, toggling mid-hold); treat as no-op

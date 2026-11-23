@@ -14,6 +14,7 @@
 #include "Storyboard.h"
 #include "MD5Hash.h"
 
+#include <cmath>
 #include <limits>
 #include <memory>
 
@@ -239,8 +240,9 @@ class BeatmapInterface final : public GameplayJudge::Listener, public PlayfieldV
     [[nodiscard]] Skin *getSkinMutable();
 
     // NOTE: these may not be current outside of gameplay!
-    [[nodiscard]] inline i32 getCurMusicPos() const override { return this->iCurMusicPos; }
-    [[nodiscard]] inline i32 getCurMusicPosWithOffsets() const override { return this->iCurMusicPosWithOffsets; }
+    [[nodiscard]] inline f64 getCurMusicPos() const override { return this->fCurMusicPos; }
+    [[nodiscard]] inline f64 getCurMusicPosWithOffsets() const override { return this->fCurMusicPosWithOffsets; }
+    [[nodiscard]] inline i32 getJudgeMusicPos() const { return (i32)std::round(this->fCurMusicPosWithOffsets); }
     [[nodiscard]] f32 getBaseAnimationSpeed() const override;
     [[nodiscard]] f32 getSpeedAdjustedAnimationSpeed() const override;
     [[nodiscard]] ModFlags getModFlags() const override;
@@ -347,8 +349,8 @@ class BeatmapInterface final : public GameplayJudge::Listener, public PlayfieldV
     bool bContinueScheduled;
     f64 fPrevUnpauseTime{0.f};
 
-    i32 iCurMusicPos;
-    i32 iCurMusicPosWithOffsets;
+    f64 fCurMusicPos;
+    f64 fCurMusicPosWithOffsets;
     u64 iLastMusicPosUpdateTime{0};
     bool bIsFirstMissSound;
     DBTimingInfo cur_timing_info{};

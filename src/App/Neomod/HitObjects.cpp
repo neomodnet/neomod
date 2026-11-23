@@ -299,14 +299,14 @@ void HitObject::drawHitResultAnim(const HITRESULTANIM &hitresultanim) {
 
 void HitObject::update(i32 curPosMS, f64 /*frame_time*/) { HitObject::animate(curPosMS); }
 
-void HitObject::animate(i32 curPosMS) {
+void HitObject::animate(f64 curPosMS) {
     // (the view's mods include the experimental ones; objects without a view aren't drawn)
     this->updateLook(curPosMS, m_view ? m_view->getModFlags() : m_judge->getMods().flags,
                      m_judge->getCachedApproachTimeForUpdate(),
                      m_view ? m_view->getSpeedAdjustedAnimationSpeed() : m_judge->getSpeedMultiplier());
 }
 
-void HitObject::updateLook(i32 curPosMS, ModFlags mods, f32 approachTimeMS, f32 speedAdjustedAnimationSpeed) {
+void HitObject::updateLook(f64 curPosMS, ModFlags mods, f32 approachTimeMS, f32 speedAdjustedAnimationSpeed) {
     m_alphaForApproachCircle = 0.0f;
     m_hittableDimRGBColorMultiplierPct = 1.0f;
 
@@ -314,13 +314,13 @@ void HitObject::updateLook(i32 curPosMS, ModFlags mods, f32 approachTimeMS, f32 
     const i32 visibleTms = (flags::has<ModFlags::FreezeFrame>(mods) ? m_comboStartMS : m_clickTimeMS);
     m_fadeInTimeMS = GameRules::getFadeInTime() * animationSpeedMultiplier;
     m_approachTimeMS = (m_useFadeInTimeAsApproachTime ? m_fadeInTimeMS : (i32)approachTimeMS);
-    m_deltaMS = m_clickTimeMS - curPosMS;
+    m_deltaMS = m_clickTimeMS - (i32)std::round(curPosMS);
 
     // 1 ms fudge by using >=, shouldn't really be a problem
     if(curPosMS >= (visibleTms - m_approachTimeMS) && curPosMS < (getEndTime())) {
         // approach circle scale
         // freeze frame keeps the usual shrink rate, so objects later in the combo start out larger
-        const f32 scale = std::max(0.0f, (f32)m_deltaMS / (f32)m_approachTimeMS);
+        const f32 scale = std::max(0.0f, (f32)(m_clickTimeMS - curPosMS) / (f32)m_approachTimeMS);
         m_approachScale = 1 + (scale * cv::approach_scale_multiplier.getFloat());
         if(flags::has<ModFlags::ApproachDifferent>(mods)) {
             constexpr f32 back_const = 1.70158;
@@ -791,7 +791,7 @@ void Circle::draw() {
     const bool hd = flags::has<ModFlags::Hidden>(curGameplayFlags);
 
     const i32 animTimeOffset =
-        !m_view->isInMafhamRenderChunk() ? m_clickTimeMS - m_approachTimeMS : m_view->getCurMusicPosWithOffsets();
+        !m_view->isInMafhamRenderChunk() ? m_clickTimeMS - m_approachTimeMS : (i32)m_view->getCurMusicPosWithOffsets();
 
     // draw hit animation (if not hidden)
     const bool instafade = cv::instafade.getBool() && cv::sv_allow_instafade.getBool();
@@ -1284,8 +1284,9 @@ void Slider::draw() {
             {
                 g->scale((1.0f + scale * foscale), (1.0f + scale * foscale));
                 if(m_curRepeat < 1) {
-                    const i32 animTimeOffset = !m_view->isInMafhamRenderChunk() ? m_clickTimeMS - m_approachTimeMS
-                                                                                : m_view->getCurMusicPosWithOffsets();
+                    const i32 animTimeOffset = !m_view->isInMafhamRenderChunk()
+                                                   ? m_clickTimeMS - m_approachTimeMS
+                                                   : (i32)m_view->getCurMusicPosWithOffsets();
 
                     skin->i_hitcircleoverlay.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
                     skin->i_slider_start_circle_overlay2.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
@@ -1294,7 +1295,7 @@ void Slider::draw() {
                                                   m_colorOffset, 1.0f, 1.0f, alpha, number_alpha, drawNumber);
                 } else {
                     const i32 animTimeOffset =
-                        !m_view->isInMafhamRenderChunk() ? m_clickTimeMS : m_view->getCurMusicPosWithOffsets();
+                        !m_view->isInMafhamRenderChunk() ? m_clickTimeMS : (i32)m_view->getCurMusicPosWithOffsets();
 
                     skin->i_hitcircleoverlay.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
                     skin->i_slider_end_circle_overlay2.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
@@ -1316,7 +1317,7 @@ void Slider::draw() {
                 g->scale((1.0f + scale * foscale), (1.0f + scale * foscale));
 
                 const i32 animTimeOffset = !m_view->isInMafhamRenderChunk() ? m_clickTimeMS - m_fadeInTimeMS
-                                                                            : m_view->getCurMusicPosWithOffsets();
+                                                                            : (i32)m_view->getCurMusicPosWithOffsets();
 
                 skin->i_hitcircleoverlay.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
                 skin->i_slider_end_circle_overlay2.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
@@ -1432,7 +1433,7 @@ void Slider::drawStartCircle(f32 alpha) {
 
     if(m_startFinished) {
         const i32 animTimeOffset =
-            !m_view->isInMafhamRenderChunk() ? m_clickTimeMS : m_view->getCurMusicPosWithOffsets();
+            !m_view->isInMafhamRenderChunk() ? m_clickTimeMS : (i32)m_view->getCurMusicPosWithOffsets();
 
         skin->i_hitcircleoverlay.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
         skin->i_slider_end_circle_overlay2.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
@@ -1443,7 +1444,7 @@ void Slider::drawStartCircle(f32 alpha) {
         const i32 visibleTms =
             flags::has<ModFlags::FreezeFrame>(m_view->getModFlags()) ? m_comboStartMS : m_clickTimeMS;
         const i32 animTimeOffset =
-            !m_view->isInMafhamRenderChunk() ? visibleTms - m_approachTimeMS : m_view->getCurMusicPosWithOffsets();
+            !m_view->isInMafhamRenderChunk() ? visibleTms - m_approachTimeMS : (i32)m_view->getCurMusicPosWithOffsets();
 
         skin->i_hitcircleoverlay.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
         skin->i_slider_start_circle_overlay2.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
@@ -1457,7 +1458,7 @@ void Slider::drawStartCircle(f32 alpha) {
 void Slider::drawEndCircle(f32 alpha, f32 sliderSnake) {
     const Skin *skin = m_view->getSkin();
     const i32 animTimeOffset =
-        !m_view->isInMafhamRenderChunk() ? m_clickTimeMS - m_fadeInTimeMS : m_view->getCurMusicPosWithOffsets();
+        !m_view->isInMafhamRenderChunk() ? m_clickTimeMS - m_fadeInTimeMS : (i32)m_view->getCurMusicPosWithOffsets();
 
     skin->i_hitcircleoverlay.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
     skin->i_slider_end_circle_overlay2.setAnimationTimeOffset(skin->anim_speed, animTimeOffset);
@@ -1561,7 +1562,7 @@ std::pair<f32, f32> Slider::getSnakeRange() const {
     return {from, to};
 }
 
-void Slider::animate(i32 curPosMS) {
+void Slider::animate(f64 curPosMS) {
     HitObject::animate(curPosMS);
 
     // animations must be updated even if we are finished
@@ -1945,16 +1946,16 @@ void Slider::addSoundCues(std::vector<SoundCue> &out) const {
     cue(endTimeMS, SoundCue::Kind::HIT, m_edgeSamples.back(), endTimeMS);
 }
 
-void Slider::updateSlideLook(i32 curPosMS, ModFlags mods) {
+void Slider::updateSlideLook(f64 curPosMS, ModFlags mods) {
     // slider slide percent
     m_slidePct = 0.0f;
     if(curPosMS > m_clickTimeMS)
         m_slidePct = std::clamp<f32>(
-            std::clamp<i32>((curPosMS - (m_clickTimeMS)), 0, (i32)m_sliderTimeMS) / m_sliderTimeMS, 0.0f, 1.0f);
+            (f32)std::clamp<f64>(curPosMS - m_clickTimeMS, 0.0, (i32)m_sliderTimeMS) / m_sliderTimeMS, 0.0f, 1.0f);
 
     const i32 visibleTms = flags::has<ModFlags::FreezeFrame>(mods) ? m_comboStartMS : m_clickTimeMS;
     const f32 sliderSnakeDuration = (1.0f / 3.0f) * m_approachTimeMS * cv::slider_snake_duration_multiplier.getFloat();
-    m_sliderSnakePercent = std::min(1.0f, (curPosMS - (visibleTms - m_approachTimeMS)) / (sliderSnakeDuration));
+    m_sliderSnakePercent = std::min(1.0f, (f32)(curPosMS - (visibleTms - m_approachTimeMS)) / sliderSnakeDuration);
 
     const i32 reverseArrowFadeInStart =
         m_clickTimeMS - (cv::snaking_sliders.getBool() ? (m_approachTimeMS - sliderSnakeDuration) : m_approachTimeMS);
@@ -2016,7 +2017,7 @@ void Slider::updateSlideLook(i32 curPosMS, ModFlags mods) {
     }
 }
 
-void Slider::updateAnimations(i32 curPosMS, f32 speedAdjustedAnimationSpeed) {
+void Slider::updateAnimations(f64 curPosMS, f32 speedAdjustedAnimationSpeed) {
     f32 animation_multiplier = speedAdjustedAnimationSpeed;
 
     f32 fadein_fade_time = cv::slider_followcircle_fadein_fade_time.getFloat() * animation_multiplier;
@@ -3138,7 +3139,7 @@ void stack(std::span<const std::unique_ptr<HitObject>> objects, f32 AR, i32 beat
 void drawFollowPoints(const PlayfieldView &view, std::span<const std::unique_ptr<HitObject>> objects, uSz firstIndex) {
     const Skin *skin = view.getSkin();
 
-    const i32 curPos = view.getCurMusicPosWithOffsets();
+    const f64 curPos = view.getCurMusicPosWithOffsets();
 
     // followpoints always fade in with a fixed 800 ms approach time (like stable),
     // which can be abused for reading high AR.
@@ -3245,12 +3246,12 @@ void drawFollowPoints(const PlayfieldView &view, std::span<const std::unique_ptr
                 // calculate trail alpha
                 if(curPos >= fadeInTime && curPos < fadeOutTime) {
                     // future trail
-                    const i32 delta = curPos - fadeInTime;
-                    alpha = std::min((f32)delta / followPointFadeTime, 1.0f);
+                    const f32 delta = (f32)(curPos - fadeInTime);
+                    alpha = std::min(delta / followPointFadeTime, 1.0f);
                 } else if(curPos >= fadeOutTime && curPos < (fadeOutTime + (i32)followPointFadeTime)) {
                     // previous trail
-                    const i32 delta = curPos - fadeOutTime;
-                    alpha = 1.0f - (f32)delta / followPointFadeTime;
+                    const f32 delta = (f32)(curPos - fadeOutTime);
+                    alpha = 1.0f - delta / followPointFadeTime;
                 } else
                     alpha = 0.0f;
 

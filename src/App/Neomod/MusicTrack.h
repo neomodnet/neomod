@@ -80,7 +80,7 @@ class MusicTrack final {
     [[nodiscard]] bool isLooped() const { return this->loop; }
     [[nodiscard]] bool isSlowedDown() const { return this->slowdown < 1.f; }
     // the clock: this frame's time in ms, without offsets (the stream's position, smoothed by interpolate_music_pos)
-    [[nodiscard]] i32 getTime() const { return this->time; }
+    [[nodiscard]] f64 getTime() const { return this->time; }
     // what to add to the time for a map's time: the universal offsets and the slow-rate compensation at the track's
     // rate, the old-version one by the file format version (which the map's database record may not know), and with a
     // map its local and online offsets
@@ -114,7 +114,7 @@ class MusicTrack final {
     f32 baseFrequency{0.f};
     f32 slowdown{1.f};
 
-    i32 time{0};
+    f64 time{0.0};
     f64 lastPosition{0.0};  // the stream's, at the last sample
     bool seeked{false};     // restarts the smoothing at the next sample
     f64 lastUpdate{0.0};    // real time

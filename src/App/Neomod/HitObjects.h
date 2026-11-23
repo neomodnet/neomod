@@ -91,7 +91,7 @@ class HitObject {
     HitObject(HitObject &&) noexcept = default;
     HitObject &operator=(HitObject &&) noexcept = default;
 
-    virtual void animate(i32 curPosMS);
+    virtual void animate(f64 curPosMS);
     virtual void draw() {}
     virtual void draw2();
     virtual void update(i32 curPosMS, f64 frameTimeMS);
@@ -172,7 +172,7 @@ class HitObject {
    protected:
     // the fades, approach, Hidden, the hittable dim and visibility at curPosMS (update() passes the view's mods and the
     // judging interface's timing)
-    void updateLook(i32 curPosMS, ModFlags mods, f32 approachTimeMS, f32 speedAdjustedAnimationSpeed);
+    void updateLook(f64 curPosMS, ModFlags mods, f32 approachTimeMS, f32 speedAdjustedAnimationSpeed);
 
    private:
     static f32 lerp3f(f32 a, f32 b, f32 c, f32 percent);
@@ -339,7 +339,7 @@ class Slider final : public HitObject, public SliderRenderer::BodySource {
     Slider(Slider &&) noexcept = default;
     Slider &operator=(Slider &&) noexcept = default;
 
-    void animate(i32 curPosMS) override;
+    void animate(f64 curPosMS) override;
     void draw() override;
     inline void draw2() override { draw2(true, false); }
     void draw2(bool drawApproachCircle, bool drawOnlyApproachCircle);
@@ -380,9 +380,9 @@ class Slider final : public HitObject, public SliderRenderer::BodySource {
     [[nodiscard]] std::pair<f32, f32> getSnakeRange() const;
 
     // the slide, snake, reverse arrow, body fade and repeat state at curPosMS
-    void updateSlideLook(i32 curPosMS, ModFlags mods);
+    void updateSlideLook(f64 curPosMS, ModFlags mods);
     // the follow circle's fades at curPosMS
-    void updateAnimations(i32 curPosMS, f32 speedAdjustedAnimationSpeed);
+    void updateAnimations(f64 curPosMS, f32 speedAdjustedAnimationSpeed);
     // whatever changes the cursor's position or the keys that count calls this
     void updateTracking();
 

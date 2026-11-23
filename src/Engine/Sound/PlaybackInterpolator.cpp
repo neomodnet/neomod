@@ -4,12 +4,12 @@
 #include <cmath>
 
 // Playback interpolator used by McOsu
-u32 McOsuInterpolator::update(f64 rawPositionMS, f64 currentTime, f64 playbackSpeed, bool /*isLooped*/,
+f64 McOsuInterpolator::update(f64 rawPositionMS, f64 currentTime, f64 playbackSpeed, bool /*isLooped*/,
                               u64 /*lengthMS*/, bool isPlaying) {
     if(!isPlaying) {
         // no interpolation
         this->reset(rawPositionMS, currentTime);
-        return (u32)std::round(this->fInterpolatedMusicPos);
+        return this->fInterpolatedMusicPos;
     }
 
     // not reinventing the wheel, the interpolation magic numbers here are (c) peppy
@@ -45,7 +45,7 @@ u32 McOsuInterpolator::update(f64 rawPositionMS, f64 currentTime, f64 playbackSp
         this->fLastAudioTimeAccurateSet = currentTime;
     }
 
-    return (u32)std::round(this->fInterpolatedMusicPos);
+    return this->fInterpolatedMusicPos;
 }
 
 void McOsuInterpolator::reset(f64 rawPositionMS, f64 currentTime) {
@@ -55,7 +55,7 @@ void McOsuInterpolator::reset(f64 rawPositionMS, f64 currentTime) {
 }
 
 // Playback interpolator used by osu-framework (LLM'd to C++)
-u32 TachyonInterpolator::update(f64 rawPositionMS, f64 currentTime, f64 playbackSpeed, bool /*isLooped*/,
+f64 TachyonInterpolator::update(f64 rawPositionMS, f64 currentTime, f64 playbackSpeed, bool /*isLooped*/,
                                 u64 /*lengthMS*/, bool isPlaying) {
     f64 lastTime = this->fInterpolatedMusicPos;
     // (in ms, like the positions)
@@ -69,7 +69,7 @@ u32 TachyonInterpolator::update(f64 rawPositionMS, f64 currentTime, f64 playback
             this->fInterpolatedMusicPos = rawPositionMS;
             this->fLastAudioTimeAccurateSet = rawPositionMS;
         }
-        return (u32)std::round(this->fInterpolatedMusicPos);
+        return this->fInterpolatedMusicPos;
     }
 
     if(this->fIsInterpolating) {
@@ -103,7 +103,7 @@ u32 TachyonInterpolator::update(f64 rawPositionMS, f64 currentTime, f64 playback
                                                            : std::min(lastTime, this->fInterpolatedMusicPos);
     }
 
-    return (u32)std::round(this->fInterpolatedMusicPos);
+    return this->fInterpolatedMusicPos;
 }
 
 void TachyonInterpolator::reset(f64 rawPositionMS, f64 currentTime) {
