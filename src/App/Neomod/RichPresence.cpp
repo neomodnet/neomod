@@ -110,6 +110,14 @@ void set_activity_with_image(const DatabaseBeatmap* map, DiscordActivity& to_set
         }
     }
 
+    if(BanchoState::is_online()) {
+        to_set.buttons[1] = {
+            .label = "Spectate",
+            .url = fmt::format("https://neomod.net/open/online/{:s}/spectate/{:d}", BanchoState::endpoint,
+                               BanchoState::get_uid()),
+        };
+    }
+
     Discord::set_activity(to_set);
 }
 
