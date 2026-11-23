@@ -838,24 +838,28 @@ void SongBrowser::tick() {
     }
 
     // auto-download (delegates to MapFetcher; install failure toasts come from the installer)
-    if(this->map_autodl) {
-        this->autodl_fetcher.target_map(this->map_autodl, {}, this->set_autodl);
+    if(this->map_autodl || !this->md5_autodl.empty()) {
+        this->autodl_fetcher.target_map(this->map_autodl, this->md5_autodl, this->set_autodl);
         const auto &fs = this->autodl_fetcher.tick();
         if(fs.status == MapFetcher::Status::Found) {
             this->onDifficultySelected(this->autodl_fetcher.result(), false);
             this->selectSelectedBeatmapSongButton();
             this->map_autodl = 0;
             this->set_autodl = 0;
+            this->md5_autodl = {};
             this->autodl_fetcher.clear();
         } else if(fs.status == MapFetcher::Status::NotFound) {
             // only resolution failures / version mismatches need a message here (the linked map
             // doesn't exist in the set the server has); install failures already toasted
             if(fs.why != MapFetcher::Why::Install) {
-                ui->getNotificationOverlay()->addToast(tformat("Failed to find Beatmap #{:d} :(", this->map_autodl),
-                                                       ERROR_TOAST);
+                ui->getNotificationOverlay()->addToast(
+                    this->map_autodl ? tformat("Failed to find Beatmap #{:d} :(", this->map_autodl)
+                                     : _("The map isn't installed and wasn't found online."),
+                    ERROR_TOAST);
             }
             this->map_autodl = 0;
             this->set_autodl = 0;
+            this->md5_autodl = {};
             this->autodl_fetcher.clear();
         }
     } else if(this->set_autodl) {

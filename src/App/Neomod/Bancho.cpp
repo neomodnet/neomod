@@ -22,6 +22,7 @@
 #include "ConVarHandler.h"
 #include "Engine.h"
 #include "Lobby.h"
+#include "NeomodUrl.h"
 #include "crypto.h"
 #include "NetworkHandler.h"
 #include "NotificationOverlay.h"
@@ -149,6 +150,8 @@ void BanchoState::update_online_status(OnlineStatus new_status) {
         // (a status set before the login went nowhere, but is remembered as sent)
         if(new_status == OnlineStatus::LOGGED_IN) RichPresence::resetBanchoStatus();
         RichPresence::refreshStatus();
+
+        if(new_status == OnlineStatus::LOGGED_IN) neomod::run_pending_online_action();
     }
 }
 

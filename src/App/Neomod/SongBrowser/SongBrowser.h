@@ -6,6 +6,7 @@
 #include "AsyncCancellable.h"
 #include "Registration.h"
 #include "MapFetcher.h"
+#include "MD5Hash.h"
 #include "MouseListener.h"
 #include "ScreenBackable.h"
 #include "StrainGraph.h"
@@ -40,16 +41,6 @@ class CBaseUILabel;
 class McFont;
 class ConVar;
 struct FinishedScore;
-
-#ifndef UTIL_MD5HASH_H
-#if defined(__GNUC__) && !defined(__clang__) && (defined(__MINGW32__) || defined(__MINGW64__))
-struct MD5String;
-struct MD5Hash;
-#else
-struct alignas(sizeof(void *) * 2) MD5Hash;
-struct alignas(sizeof(void *) * 2) MD5String;
-#endif
-#endif
 
 namespace SortTypes {
 enum type : i8 { ARTIST, BPM, CREATOR, DATEADDED, DIFFICULTY, LENGTH, TITLE, RANKACHIEVED, DATEPLAYED, MAX };
@@ -417,6 +408,7 @@ class SongBrowser final : public ScreenBackable {
    public:
     i32 map_autodl = 0;
     i32 set_autodl = 0;
+    MD5Hash md5_autodl{};
 
    private:
     // drives the map_autodl/set_autodl intent flags to a terminal verdict

@@ -2419,6 +2419,15 @@ msgid "The selected skin is not editable."
 msgstr "Вибраний скін не можна редагувати."
 
 #: src/App/Neomod/NeomodUrl.cpp
+msgid "This link isn't valid."
+msgstr "Це посилання недійсне."
+
+#: src/App/Neomod/NeomodUrl.cpp
+#, c++-format
+msgid "Log in to {} to open this link."
+msgstr "Увійдіть на {}, щоб відкрити це посилання."
+
+#: src/App/Neomod/NeomodUrl.cpp
 msgid "This editor link isn't valid."
 msgstr "Це посилання на редактор недійсне."
 
@@ -4452,13 +4461,13 @@ msgstr "Посилання на редактор відкриваються з �
 msgid "This replay's beatmap is not installed."
 msgstr "Бітмапу цього реплею не встановлено."
 
-#: src/App/Neomod/Osu.cpp
-msgid "The linked map isn't installed and wasn't found online."
-msgstr "Мапу за посиланням не встановлено і не знайдено в мережі."
+#: src/App/Neomod/Osu.cpp src/App/Neomod/SongBrowser/SongBrowser.cpp
+msgid "The map isn't installed and wasn't found online."
+msgstr "Мапу не встановлено і не знайдено в мережі."
 
 #: src/App/Neomod/Osu.cpp
-msgid "The linked map isn't installed. Log in to download it."
-msgstr "Мапу за посиланням не встановлено. Увійдіть, щоб завантажити її."
+msgid "The map isn't installed. Log in to download it."
+msgstr "Мапу не встановлено. Увійдіть, щоб завантажити її."
 
 #: src/App/Neomod/Osu.cpp
 #, c++-format

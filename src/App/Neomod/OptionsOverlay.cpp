@@ -139,6 +139,7 @@ struct OptionsOverlayImpl final {
     void onOutputDeviceChange();
     void updateOsuFolderTextbox(std::string_view newFolder);
     void askForLoginDetails();
+    void setServer(std::string_view server);
     void update_login_button(bool loggedIn = false);
     void updateSkinNameLabel();
     UIContextMenu *getContextMenu();
@@ -406,6 +407,7 @@ void OptionsOverlay::updateOsuFolderTextbox(std::string_view newFolder) {
     return pImpl->updateOsuFolderTextbox(newFolder);
 }
 void OptionsOverlay::askForLoginDetails() { return pImpl->askForLoginDetails(); }
+void OptionsOverlay::setServer(std::string_view server) { return pImpl->setServer(server); }
 void OptionsOverlay::update_login_button(bool loggedIn) { return pImpl->update_login_button(loggedIn); }
 void OptionsOverlay::updateSkinNameLabel() { return pImpl->updateSkinNameLabel(); }
 UIContextMenu *OptionsOverlay::getContextMenu() { return pImpl->getContextMenu(); }
@@ -3566,10 +3568,12 @@ void OptionsOverlayImpl::applyServerText() {
     this->scheduleLayoutUpdate();  // toggle user/pass fields based on oauthness
 }
 
-void OptionsOverlayImpl::onAccountSelected(std::string_view server, int /*id*/) {
+void OptionsOverlayImpl::setServer(std::string_view server) {
     this->serverTextbox->setText(std::string{server});
     this->applyServerText();
 }
+
+void OptionsOverlayImpl::onAccountSelected(std::string_view server, int /*id*/) { this->setServer(server); }
 
 void OptionsOverlayImpl::onAccountRemoved(std::string_view server, int /*id*/) {
     if(server == cv::mp_server.getString()) this->passwordTextbox->setText("");

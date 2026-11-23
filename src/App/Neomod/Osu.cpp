@@ -669,8 +669,8 @@ void Osu::update() {
                 // the installer said so itself if a download failed
                 if(fetch.why != MapFetcher::Why::Install) {
                     ui->getNotificationOverlay()->addToast(
-                        BanchoState::is_online() ? _("The linked map isn't installed and wasn't found online.")
-                                                 : _("The linked map isn't installed. Log in to download it."),
+                        BanchoState::is_online() ? _("The map isn't installed and wasn't found online.")
+                                                 : _("The map isn't installed. Log in to download it."),
                         ERROR_TOAST);
                 }
                 this->pendingEditorLink.reset();

@@ -2419,6 +2419,15 @@ msgid "The selected skin is not editable."
 msgstr "所选皮肤无法编辑。"
 
 #: src/App/Neomod/NeomodUrl.cpp
+msgid "This link isn't valid."
+msgstr "此链接无效。"
+
+#: src/App/Neomod/NeomodUrl.cpp
+#, c++-format
+msgid "Log in to {} to open this link."
+msgstr "登录 {} 以打开此链接。"
+
+#: src/App/Neomod/NeomodUrl.cpp
 msgid "This editor link isn't valid."
 msgstr "此编辑器链接无效。"
 
@@ -4452,13 +4461,13 @@ msgstr "编辑器链接可从主菜单、歌曲浏览器和编辑器中打开。
 msgid "This replay's beatmap is not installed."
 msgstr "此回放的谱面未安装。"
 
-#: src/App/Neomod/Osu.cpp
-msgid "The linked map isn't installed and wasn't found online."
-msgstr "链接的谱面未安装，且在线上也未找到。"
+#: src/App/Neomod/Osu.cpp src/App/Neomod/SongBrowser/SongBrowser.cpp
+msgid "The map isn't installed and wasn't found online."
+msgstr "谱面未安装，且在线上也未找到。"
 
 #: src/App/Neomod/Osu.cpp
-msgid "The linked map isn't installed. Log in to download it."
-msgstr "链接的谱面未安装。登录后即可下载。"
+msgid "The map isn't installed. Log in to download it."
+msgstr "谱面未安装。登录后即可下载。"
 
 #: src/App/Neomod/Osu.cpp
 #, c++-format

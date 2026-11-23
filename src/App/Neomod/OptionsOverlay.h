@@ -30,7 +30,6 @@ class OptionsOverlay final : public ScreenBackable {
 
     void openAndScrollToSkinSection();
 
-
     bool isMouseInside() override;
     bool isBusy() override;
 
@@ -47,6 +46,9 @@ class OptionsOverlay final : public ScreenBackable {
 
     // used by Chat
     void askForLoginDetails();
+
+    // used by NeomodUrl
+    void setServer(std::string_view server);
 
     // used by networking stuff
     void update_login_button(bool loggedIn = false);
