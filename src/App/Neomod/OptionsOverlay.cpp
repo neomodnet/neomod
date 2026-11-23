@@ -1598,6 +1598,10 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     }
 
     this->addCheckbox(_("Raw Mouse Input"), _("Not recommended if you're using a tablet."), &cv::mouse_raw_input);
+    this->addCheckbox(_("Hardware Cursor (!)"),
+                      _("This can increase cursor responsiveness, but support depends on your OS.\nOnly works with raw "
+                        "input disabled."),
+                      &cv::cursor_hardware);
     this->elemContainers.back()->searchTags = "raw input";
     this->addChoice(_("Confine Cursor"), "", &cv::confine_cursor,
                     {{.value = "never", .name = _("Never")},
