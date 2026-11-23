@@ -480,8 +480,16 @@ SDL_AppResult SDLMain::initialize() {
 
     updateWindowStateCache();
 
-    // clear spurious window minimize/unfocus events accumulated during startup
+    // clear spurious window minimize/unfocus events accumulated during startup.
+    // on macOS, a text input session also runs here once: the first one loads the input method UI, which takes tens of
+    // milliseconds and would otherwise stall the frame where the first text box gets focus
+    if constexpr(Env::cfg(OS::MAC)) {
+        if(!isHeadless()) SDL_StartTextInput(m_window);
+    }
     SDL_PumpEvents();
+    if constexpr(Env::cfg(OS::MAC)) {
+        if(!isHeadless()) SDL_StopTextInput(m_window);
+    }
     SDL_FlushEvent(SDL_EVENT_WINDOW_MINIMIZED);
     SDL_FlushEvent(SDL_EVENT_WINDOW_FOCUS_LOST);
 
