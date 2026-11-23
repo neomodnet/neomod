@@ -3432,12 +3432,12 @@ msgid "During gameplay"
 msgstr "Beim Spielen"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "During gameplay and when windowed"
-msgstr "Beim Spielen und im Fenstermodus"
+msgid "Gameplay or windowed"
+msgstr "Spielen oder Fenster"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "During gameplay and when fullscreen"
-msgstr "Beim Spielen und im Vollbild"
+msgid "Gameplay or fullscreen"
+msgstr "Spielen oder Vollbild"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Always"

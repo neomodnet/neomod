@@ -1602,8 +1602,8 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     this->addChoice(_("Confine Cursor"), "", &cv::confine_cursor,
                     {{.value = "never", .name = _("Never")},
                      {.value = "gameplay", .name = _("During gameplay")},
-                     {.value = "windowed", .name = _("During gameplay and when windowed")},
-                     {.value = "fullscreen", .name = _("During gameplay and when fullscreen")},
+                     {.value = "windowed", .name = _("Gameplay or windowed")},
+                     {.value = "fullscreen", .name = _("Gameplay or fullscreen")},
                      {.value = "always", .name = _("Always")}});
     this->addCheckbox(_("Disable Mouse Wheel in Play Mode"), &cv::disable_mousewheel);
     this->addCheckbox(_("Disable Mouse Buttons in Play Mode"), &cv::disable_mousebuttons);
