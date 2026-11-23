@@ -854,7 +854,7 @@ void SongBrowser::tick() {
             if(fs.why != MapFetcher::Why::Install) {
                 ui->getNotificationOverlay()->addToast(
                     this->map_autodl ? tformat("Failed to find Beatmap #{:d} :(", this->map_autodl)
-                                     : _("The map isn't installed and wasn't found online."),
+                                     : std::string{_("The map isn't installed and wasn't found online.")},
                     ERROR_TOAST);
             }
             this->map_autodl = 0;
