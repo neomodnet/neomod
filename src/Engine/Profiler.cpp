@@ -2,22 +2,26 @@
 #include "Profiler.h"
 
 #include "BaseEnvironment.h"
+#include "ConVar.h"
 #include "Logging.h"
 #include "Timing.h"
+
+#include "fmt/format.h"
+
+#include <iterator>
 
 ProfilerProfile g_profCurrentProfile(true);
 
 // weird extra namespace here due to msvc linkage issues for callback in ConVarDefs.h
 namespace Profiling {
-void vprofToggleCB(float newValue) {
-    const bool enable = !!static_cast<int>(newValue);
+void vprofToggleCB(float oldValue, float newValue) {
+    const bool enable = newValue != 0.f;
+    if(enable == (oldValue != 0.f)) return;
 
-    if(enable != g_profCurrentProfile.isEnabled()) {
-        if(enable)
-            g_profCurrentProfile.start();
-        else
-            g_profCurrentProfile.stop();
-    }
+    if(enable)
+        g_profCurrentProfile.start();
+    else
+        g_profCurrentProfile.stop();
 }
 }  // namespace Profiling
 
@@ -83,6 +87,25 @@ double ProfilerProfile::sumTimes(const ProfilerNode *node, int groupID) const {
     }
 
     return sum;
+}
+
+void ProfilerProfile::logSlowFrame() const {
+    const double thresholdMS = cv::vprof_log_slow_frames.getDouble();
+    const ProfilerNode *main = this->root.child;
+    if(thresholdMS <= 0.0 || main == nullptr || main->fTimeLastFrame * 1000.0 < thresholdMS) return;
+
+    std::string tree;
+    const auto appendNodes = [&](this const auto &self, const ProfilerNode *node, int depth) -> void {
+        if(node == nullptr) return;
+        self(node->sibling, depth);
+        if(node->fTimeLastFrame <= 0.0) return;
+        fmt::format_to(std::back_inserter(tree), "\n{:{}}[{:s}] - {:s} = {:.3f} ms", "", depth * 2, node->getName(),
+                       this->getGroupName(node->iGroupID), node->fTimeLastFrame * 1000.0);
+        self(node->child, depth + 1);
+    };
+    appendNodes(main, 0);
+
+    debugLog("slow frame ({:.3f} ms):{:s}", main->fTimeLastFrame * 1000.0, tree);
 }
 
 int ProfilerProfile::groupNameToID(const char *group) {

@@ -70,7 +70,7 @@ extern void _update();
 #include <cstdlib>  // abort()
 
 namespace Profiling {
-extern void vprofToggleCB(float);
+extern void vprofToggleCB(float, float);
 }
 
 namespace CBaseUIDebug {
@@ -259,6 +259,9 @@ CONVAR(vprof_graph_height, 250.0f, CLIENT | SERVER);
 CONVAR(vprof_graph_margin, 40.0f, CLIENT | SERVER);
 CONVAR(vprof_graph_range_max, 16.666666f, CLIENT | SERVER, "max value of the y-axis in milliseconds");
 CONVAR(vprof_graph_width, 800.0f, CLIENT | SERVER);
+CONVAR(vprof_log_slow_frames, 0.0f, CLIENT | SERVER,
+       "log the profiler tree of every frame taking longer than this many milliseconds, 0 = disabled",
+       CFUNC(Profiling::vprofToggleCB));
 CONVAR(vprof_spike, 0, CLIENT | SERVER,
        "measure and display largest spike details (1 = small info, 2 = extended info)");
 

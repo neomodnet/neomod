@@ -77,7 +77,7 @@
 #endif
 
 namespace Profiling {
-void vprofToggleCB(float newValue);
+void vprofToggleCB(float oldValue, float newValue);
 }
 
 class ProfilerNode {
@@ -146,7 +146,9 @@ class ProfilerProfile {
         if(this->iEnabled > 0) {
             for(int i = 0; i < this->iNumNodes; i++) {
                 this->nodes[i].fTimeLastFrame = this->nodes[i].fTimeCurrentFrame;
+                if(this->nodes[i].iNumRecursions == 0) this->nodes[i].fTimeCurrentFrame = 0.0;
             }
+            this->logSlowFrame();
         }
     }
 
@@ -241,6 +243,7 @@ class ProfilerProfile {
     };
 
     int groupNameToID(const char *group);
+    void logSlowFrame() const;
 
     int iNumGroups;
     BUDGETGROUP groups[VPROF_MAX_NUM_BUDGETGROUPS]{};
