@@ -195,7 +195,7 @@ void SpectatorScreen::controlClientState() {
             }
 
             if(leeway >= cv::spec_buffer.getInt()) {
-                debugLog("UNPAUSING: leeway: {:d}, fCurMusicPos: {:.3f}", leeway, map_iface->fCurMusicPos);
+                debugLog("UNPAUSING: leeway: {:d}, music pos: {:d}", leeway, map_iface->getJudgeMusicPos());
                 osu->getMusicTrack()->play();
                 map_iface->bIsPlaying = true;
                 map_iface->bIsPaused = false;
@@ -207,7 +207,7 @@ void SpectatorScreen::controlClientState() {
             bool is_finished = lastHitObject != nullptr && lastHitObject->isFinished();
 
             if(leeway <= 0 && !is_finished) {
-                debugLog("PAUSING: leeway: {:d}, fCurMusicPos: {:.3f}", leeway, map_iface->fCurMusicPos);
+                debugLog("PAUSING: leeway: {:d}, music pos: {:d}", leeway, map_iface->getJudgeMusicPos());
                 osu->getMusicTrack()->pause();
                 map_iface->bIsPlaying = false;
                 map_iface->bIsPaused = true;
@@ -220,7 +220,8 @@ void SpectatorScreen::controlClientState() {
             if(leeway > 2 * cv::spec_buffer.getInt()) {
                 i32 target = std::max(map_iface->judge->replay.front().cur_music_pos,
                                       map_iface->judge->replay.back().cur_music_pos - cv::spec_buffer.getInt());
-                debugLog("We're {:.3f}ms behind, seeking to catch up to player...", target - map_iface->fCurMusicPos);
+                debugLog("We're {:d}ms behind, seeking to catch up to player...",
+                         target - map_iface->getJudgeMusicPos());
                 map_iface->judge->bTempSeekNF = true;
                 map_iface->seekMS(std::max(0, target));
                 return;

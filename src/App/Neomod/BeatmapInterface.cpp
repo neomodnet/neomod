@@ -1132,10 +1132,11 @@ void BeatmapInterface::seekMS(u32 ms) {
 
     this->bWasSeekFrame = true;
 
-    this->music.setPosition(ms);
+    // the speed first, since the offsets depend on it
     this->setMusicSpeed(this->getSpeedMultiplier());
+    this->music.setPosition((i32)ms - this->music.getOffset(this->beatmap, this->judge->getMapVersion()));
 
-    const bool backwards = ms < this->fCurMusicPos;
+    const bool backwards = std::cmp_less(ms, this->getJudgeMusicPos());
     this->resetScore();
     this->is_submittable = false;
     ui->getHUD()->resetHitErrorBar();
@@ -2244,7 +2245,7 @@ void BeatmapInterface::update2() {
         Replay::Frame current_frame = replay[this->current_frame_idx];
         Replay::Frame next_frame = replay[this->current_frame_idx + 1];
 
-        while(next_frame.cur_music_pos <= this->fCurMusicPosWithOffsets) {
+        while(next_frame.cur_music_pos <= this->getJudgeMusicPos()) {
             if(this->current_frame_idx + 2 >= replay.size()) break;
 
             this->last_keys = this->current_keys;
@@ -2278,8 +2279,9 @@ void BeatmapInterface::update2() {
 
         f32 percent = 0.f;
         if(next_frame.milliseconds_since_last_frame > 0) {
+            // frames are taken by the rounded time, so the current one can be up to half a ms ahead
             const f64 ms_since_last_frame = this->fCurMusicPosWithOffsets - current_frame.cur_music_pos;
-            percent = (f32)(ms_since_last_frame / next_frame.milliseconds_since_last_frame);
+            percent = std::max(0.f, (f32)(ms_since_last_frame / next_frame.milliseconds_since_last_frame));
         }
 
         this->interpolatedMousePos = this->replayCoords2Pixels(
@@ -2592,7 +2594,7 @@ void BeatmapInterface::playNightcoreBeats(bool wasSeekFrame) {
     f64 halfBeatLength = timing.msPerBeat / 2.0;
     while(halfBeatLength < 50.0) halfBeatLength *= 2.0;
 
-    const i64 halfBeat = (i64)std::floor((this->fCurMusicPosWithOffsets - timing.offset) / halfBeatLength);
+    const i64 halfBeat = (i64)std::floor((this->getJudgeMusicPos() - timing.offset) / halfBeatLength);
     const i32 halfBeatTime = (i32)(timing.offset + (f64)halfBeat * halfBeatLength);
     if(halfBeatTime != this->iLastNightcoreBeatTime) {
         this->iLastNightcoreBeatTime = halfBeatTime;
@@ -2785,7 +2787,7 @@ const AsyncPPC::pp_res &BeatmapInterface::getWholeMapPPInfo() const {
 
 i32 BeatmapInterface::getSpectatingLeeway() const {
     if(!this->judge || this->judge->replay.empty()) return 0;
-    return std::max(0, (i32)(this->judge->replay.back().cur_music_pos - this->fCurMusicPos));
+    return std::max(0, this->judge->replay.back().cur_music_pos - this->getJudgeMusicPos());
 }
 
 bool BeatmapInterface::isLoading() {
@@ -3052,7 +3054,8 @@ FinishedScore BeatmapInterface::saveAndSubmitScore(bool quit) {
     score.map = this->beatmap->getMD5() == played.md5 ? this->beatmap : nullptr;
     score.ragequit = quit;
     // fCurMusicPos < 0 means "did not start"
-    score.play_time_ms = (this->fCurMusicPos > 0 ? (u64)(this->fCurMusicPos / this->getSpeedMultiplier()) : 0);
+    score.play_time_ms =
+        (this->fCurMusicPos > 0 ? (u64)std::round(this->fCurMusicPos / this->getSpeedMultiplier()) : 0);
 
     // osu!stable doesn't submit scores of less than 7 seconds
     isZero |= (score.play_time_ms < 7000);
@@ -3179,7 +3182,7 @@ f32 BeatmapInterface::getSpeedAdjustedAnimationSpeed() const {
 bool BeatmapInterface::isActuallyPausedAndNotSpectating() const {
     // TODO(spec): need to actually test spectating to make sure i dont break something, so not including that here for now
     // this function is mainly to avoid running through replay frames while we are paused
-    // (see while(next_frame.cur_music_pos <= this->fCurMusicPosWithOffsets) ... in update2())
+    // (see while(next_frame.cur_music_pos <= this->getJudgeMusicPos()) ... in update2())
     if(this->kind == PlayKind::SPECTATE) return false;
 
     return (this->isPaused() && ui->getPauseOverlay()->isVisible())  //

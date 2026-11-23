@@ -97,6 +97,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <limits>
 #include <memory>
 
@@ -694,8 +695,7 @@ void Osu::update() {
     if(this->musicTrack->update()) RichPresence::refreshStatus();
 
     if(this->skin.get()) {
-        this->skin->update(this->isInPlayMode(), this->map_iface->isPlaying(),
-                           (i32)this->map_iface->getCurMusicPosWithOffsets());
+        this->skin->update(this->isInPlayMode(), this->map_iface->isPlaying(), this->map_iface->getJudgeMusicPos());
     }
 
     this->fposu->update();
@@ -996,8 +996,8 @@ void Osu::onKeyDown(KeyboardEvent &key) {
             score.playerName = BanchoState::get_username();
             score.player_id = std::max(0, BanchoState::get_uid());
 
-            f64 pos_seconds = this->map_iface->getTime() / 1000.0 - cv::instant_replay_duration.getFloat();
-            u32 pos_ms = (u32)(std::max(0.0, pos_seconds) * 1000.0);
+            f64 pos_seconds = this->map_iface->getJudgeMusicPos() / 1000.0 - cv::instant_replay_duration.getFloat();
+            u32 pos_ms = (u32)std::round(std::max(0.0, pos_seconds) * 1000.0);
             this->map_iface->cancelFailing();
             this->map_iface->watch(score, pos_ms);
             return;
@@ -1079,7 +1079,7 @@ void Osu::onKeyDown(KeyboardEvent &key) {
             if(!BanchoState::is_playing_a_multi_map()) {
                 // quick save/load
                 if(key == binds::QUICK_SAVE) {
-                    this->iQuickSaveMS = this->map_iface->getTime();
+                    this->iQuickSaveMS = (u32)std::max(0, this->map_iface->getJudgeMusicPos());
                 } else if(key == binds::QUICK_LOAD) {
                     // special case: allow cancelling the failing animation here
                     if(this->map_iface->hasFailed()) this->map_iface->cancelFailing();
@@ -1093,7 +1093,7 @@ void Osu::onKeyDown(KeyboardEvent &key) {
                             // special case: allow cancelling the failing animation here
                             if(this->map_iface->hasFailed()) this->map_iface->cancelFailing();
 
-                            const i32 destMS = std::max((i32)this->map_iface->getTime() + diffMS, 0);
+                            const i32 destMS = std::max(this->map_iface->getJudgeMusicPos() + diffMS, 0);
                             this->map_iface->seekMS(destMS);
                         }
                     }

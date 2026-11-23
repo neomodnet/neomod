@@ -14,7 +14,6 @@
 #include "Storyboard.h"
 #include "MD5Hash.h"
 
-#include <cmath>
 #include <limits>
 #include <memory>
 
@@ -159,6 +158,7 @@ class BeatmapInterface final : public GameplayJudge::Listener, public PlayfieldV
     };
 
     bool play();
+    // the replay of score from start_ms, in map time like seekMS()
     bool watch(const FinishedScore &score, u32 start_ms);
     bool spectate();
     // plays the selected map from startMS (its time) to try it out: one approach time ahead of it with what starts
@@ -183,6 +183,7 @@ class BeatmapInterface final : public GameplayJudge::Listener, public PlayfieldV
 
     // the speed (and the pitch that goes with it) gameplay plays the music at, or 1 outside of it
     void setMusicSpeed(f32 speed);
+    // to ms in map time: the time hitobjects and replay frames are at, the music time plus the offsets
     void seekMS(u32 ms);
     [[nodiscard]] inline DBTimingInfo getCurrentTimingInfo() const { return this->cur_timing_info; }
 
@@ -242,7 +243,6 @@ class BeatmapInterface final : public GameplayJudge::Listener, public PlayfieldV
     // NOTE: these may not be current outside of gameplay!
     [[nodiscard]] inline f64 getCurMusicPos() const override { return this->fCurMusicPos; }
     [[nodiscard]] inline f64 getCurMusicPosWithOffsets() const override { return this->fCurMusicPosWithOffsets; }
-    [[nodiscard]] inline i32 getJudgeMusicPos() const { return (i32)std::round(this->fCurMusicPosWithOffsets); }
     [[nodiscard]] f32 getBaseAnimationSpeed() const override;
     [[nodiscard]] f32 getSpeedAdjustedAnimationSpeed() const override;
     [[nodiscard]] ModFlags getModFlags() const override;

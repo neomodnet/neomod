@@ -6,6 +6,8 @@
 #include "BeatmapInterface.h"
 #include "Osu.h"
 
+#include <cmath>
+
 Room::Room(PacketReader &packet) {
     this->slots.resize(16);
 
@@ -226,7 +228,7 @@ ScoreFrame ScoreFrame::get() {
                     score->getNum100s() == 0);
 
     return ScoreFrame{
-        .time = (i32)osu->getMapInterface()->getCurMusicPos(),  // NOTE: might be incorrect
+        .time = (i32)std::round(osu->getMapInterface()->getCurMusicPos()),  // NOTE: might be incorrect
         .slot_id = slot_id,
         .num300 = (u16)score->getNum300s(),
         .num100 = (u16)score->getNum100s(),

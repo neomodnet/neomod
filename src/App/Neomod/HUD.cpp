@@ -2,6 +2,7 @@
 #include "HUD.h"
 
 #include <algorithm>
+#include <cmath>
 #include <utility>
 
 #include "AnimationHandler.h"
@@ -368,11 +369,11 @@ void HUD::draw() {
         f32 true_percent = pf->getPercentFinishedPlayable();
         if(!pf->isWaiting()) {
             f32 true_length = pf->getStartTimePlayable() + pf->getLengthPlayable();
-            true_percent = std::clamp(pf->getTime() / true_length, 0.f, 1.f);
+            true_percent = std::clamp((f32)(pf->getCurMusicPosWithOffsets() / true_length), 0.f, 1.f);
         }
 
-        this->drawScrubbingTimeline(pf->getTime(), pf->getLengthPlayable(), pf->getStartTimePlayable(), true_percent,
-                                    breaks);
+        this->drawScrubbingTimeline((u32)std::max(0, pf->getJudgeMusicPos()), pf->getLengthPlayable(),
+                                    pf->getStartTimePlayable(), true_percent, breaks);
     }
 
     if(!pf->isSkipScheduled() && pf->isInSkippableSection() &&
@@ -2329,14 +2330,14 @@ void HUD::updateInputOverlayDemo() {
         this->resetInputOverlayTrail();
         const u8 held = demo.keysHeld;
         for(auto key : {GameplayKeys::K1, GameplayKeys::K2, GameplayKeys::M1, GameplayKeys::M2})
-            if(held & key) this->animateInputOverlay(key, false, (i32)(now * 1000.0));
+            if(held & key) this->animateInputOverlay(key, false, (i32)std::round(now * 1000.0));
         demo = {.loopStart = now};
     }
     demo.lastUpdate = now;
 
     while(demo.loopStart + demoEvents[demo.eventIdx].time <= now) {
         const auto &evt = demoEvents[demo.eventIdx];
-        this->animateInputOverlay(evt.key, evt.down, (i32)((demo.loopStart + evt.time) * 1000.0));
+        this->animateInputOverlay(evt.key, evt.down, (i32)std::round((demo.loopStart + evt.time) * 1000.0));
         if(evt.down) {
             demo.keysHeld |= evt.key;
             const i32 idx = gameplayKeyToInputOverlayIndex(evt.key);
@@ -2360,7 +2361,7 @@ void HUD::drawInputOverlayTrail(f32 xStart, f32 yStart, f32 oScale, f32 scale) {
     auto *pf = osu->getMapInterface();
     if(!dummy && pf == nullptr) return;
 
-    const i32 now = dummy ? (i32)(engine->getTime() * 1000.0) : (i32)pf->getCurMusicPosWithOffsets();
+    const f64 now = dummy ? engine->getTime() * 1000.0 : pf->getCurMusicPosWithOffsets();
 
     // blocks from the future mean the music position jumped backwards without passing through
     // resetScore(); the tolerance covers small music position interpolation regressions
@@ -2390,12 +2391,12 @@ void HUD::drawInputOverlayTrail(f32 xStart, f32 yStart, f32 oScale, f32 scale) {
 
         // if a release edge was missed (e.g. overlay toggled mid-hold), stop the block from growing forever
         if(!blocks.empty() && blocks.back().endTime == TRAIL_BLOCK_OPEN && !(heldKeys & rowFlags[i]))
-            blocks.back().endTime = now;
+            blocks.back().endTime = (i32)std::round(now);
 
         // evict blocks whose newest edge has scrolled past the fade end (blocks are ordered by time,
         // so everything remaining after this is at least partially visible)
         auto it = blocks.begin();
-        while(it != blocks.end() && (f32)(now - std::min(it->endTime, now)) * pxPerMs > fadeEndPx) ++it;
+        while(it != blocks.end() && (f32)(now - std::min<f64>(it->endTime, now)) * pxPerMs > fadeEndPx) ++it;
         blocks.erase(blocks.begin(), it);
 
         totalBlocks += blocks.size();
@@ -2432,7 +2433,7 @@ void HUD::drawInputOverlayTrail(f32 xStart, f32 yStart, f32 oScale, f32 scale) {
         for(const auto &block : this->inputOverlayTrails[i]) {
             // dNear stays glued to the anchor while the key is held (so the block grows with hold
             // duration); dFar is capped at the fade end so the visible length never runs past it
-            const f32 dNear = (f32)(now - std::min(block.endTime, now)) * pxPerMs;
+            const f32 dNear = (f32)(now - std::min<f64>(block.endTime, now)) * pxPerMs;
             if(dNear >= fadeEndPx) continue;
             const f32 dFar = std::min(std::max((f32)(now - block.startTime) * pxPerMs, dNear + minWidth), fadeEndPx);
 
@@ -2631,7 +2632,7 @@ void HUD::animateInputOverlay(GameplayKeys key_flag, bool down, std::optional<i3
         if(cv::draw_inputoverlay_trail.getBool()) {
             if(auto *pf = osu->getMapInterface()) {
                 auto &blocks = this->inputOverlayTrails[key_idx];
-                const i32 t = musicPos.value_or((i32)pf->getCurMusicPosWithOffsets());
+                const i32 t = musicPos.value_or(pf->getJudgeMusicPos());
                 if(down) {
                     // down while a block is still open can happen when edges get swallowed upstream
                     // (mods, toggling mid-hold); treat as no-op

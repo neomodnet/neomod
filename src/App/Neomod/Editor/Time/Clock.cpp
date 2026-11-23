@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <utility>
 
 void Clock::attach(DatabaseBeatmap &map, i32 version, i32 timeMS) {
@@ -31,7 +32,7 @@ void Clock::update() {
     this->previousTime = this->time;
     if(this->track) {
         this->track->update();
-        this->time = this->track->getTime() + this->getOffset();
+        this->time = (i32)std::round(this->track->getTime() + this->getOffset());
     }
     this->seekFrame = std::exchange(this->seeked, false);
 }

@@ -5,6 +5,7 @@
 #include "Color.h"
 #include "Vectors.h"
 
+#include <cmath>
 #include <vector>
 
 struct Skin;
@@ -46,6 +47,8 @@ class PlayfieldView {
     // the music position, and with the offsets objects are timed against
     [[nodiscard]] virtual f64 getCurMusicPos() const = 0;
     [[nodiscard]] virtual f64 getCurMusicPosWithOffsets() const = 0;
+    // the latter rounded to whole ms, for anything that works in integer times
+    [[nodiscard]] i32 getJudgeMusicPos() const { return (i32)std::round(this->getCurMusicPosWithOffsets()); }
     // how long objects take to approach (ms)
     [[nodiscard]] virtual f32 getApproachTime() const = 0;
     // wall-clock animations take 1 / this of their time
