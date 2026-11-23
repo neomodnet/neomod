@@ -21,7 +21,6 @@
 #include "Database.h"
 #include "DatabaseBeatmap.h"
 #include "DirectoryWatcher.h"
-#include "DiscordInterface.h"
 #include "Downloader.h"
 #include "EditorScreen.h"
 #include "Engine.h"
@@ -903,7 +902,7 @@ void Osu::onKeyDown(KeyboardEvent &key) {
             MapSettings settings = diff->getSettings();
             settings.draw_background = !settings.draw_background;
             db->setSettings(diff, std::move(settings));
-            DiscRPC::clear_activity();
+            RichPresence::refreshStatus();
         }
         key.consume();
         return;

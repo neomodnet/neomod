@@ -3,7 +3,6 @@
 
 #include <algorithm>
 #include <array>
-#include <chrono>
 #include <cmath>
 #include <limits>
 #include <span>
@@ -3040,8 +3039,7 @@ FinishedScore BeatmapInterface::saveAndSubmitScore(bool quit) {
 
     score.client = fmt::format(PACKAGE_NAME "-{}", BanchoState::neomod_version);
 
-    score.unix_timestamp =
-        std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    score.unix_timestamp = Timing::getUnixTime();
 
     if(BanchoState::is_online()) {
         score.player_id = BanchoState::get_uid();

@@ -53,7 +53,6 @@ message(STATUS "Changelog timestamp: ${CHANGELOG_TIMESTAMP}")
 
 # Platform and feature detection
 set(MCENGINE_PLATFORM_WINDOWS ON)
-set(MCENGINE_FEATURE_DISCORD ON)
 set(MCENGINE_FEATURE_OPENGL ON)
 set(MCENGINE_FEATURE_BASS ON)
 set(MCENGINE_FEATURE_SOLOUD ON)
@@ -348,7 +347,6 @@ target_link_libraries(neomod PRIVATE
     ${DEPS_INSTALL_DIR}/lib/bz2_static.lib # cool awesome
     ${LIBARCHIVE_STATIC_LIBRARIES}
     ${PC_BROTLIDEC_STATIC_LIBRARIES}
-    ${DEPS_INSTALL_DIR}/lib/discord-rpc.lib
     psapi
     advapi32
     comctl32

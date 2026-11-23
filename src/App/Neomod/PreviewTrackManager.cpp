@@ -20,13 +20,13 @@
 #include "Sound.h"
 #include "SoundEngine.h"
 #include "SyncStoptoken.h"
+#include "Timing.h"
 
 #include "fmt/format.h"
 
 #include <algorithm>
 #include <charconv>
 #include <cstdint>
-#include <ctime>
 #include <memory>
 #include <optional>
 #include <string>
@@ -225,7 +225,7 @@ void PreviewTrackManager::Impl::drop_track() {
 
 void PreviewTrackManager::Impl::start() {
     if(const auto it = this->cached.find(this->set_id); it != this->cached.end()) {
-        it->second.last_used = time(nullptr);
+        it->second.last_used = Timing::getUnixTime();
         return this->load(true);
     }
     this->download();
@@ -309,7 +309,7 @@ void PreviewTrackManager::Impl::add_to_cache(i32 cached_set_id, u64 size) {
     // (a file downloaded again replaces the old one)
     CachedFile &file = this->cached[cached_set_id];
     this->cached_bytes = this->cached_bytes - file.size + size;
-    file = {.size = size, .last_used = time(nullptr)};
+    file = {.size = size, .last_used = Timing::getUnixTime()};
 
     // the least recently played ones go first. never the current one, which may be streamed from its file. deleted
     // right here, since a deletion that runs later could hit the same set's file downloaded again meanwhile

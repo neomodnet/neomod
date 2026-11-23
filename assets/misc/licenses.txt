@@ -1925,7 +1925,6 @@ Used by the following dependencies:
 - brotli (https://github.com/google/brotli)
 - mimalloc (https://github.com/microsoft/mimalloc)
 - Signalsmith Stretch + signalsmith-linear (https://github.com/Signalsmith-Audio/signalsmith-stretch)
-- discord-rpc (https://github.com/harmonytf/discord-rpc)
 - rapidjson (https://github.com/Tencent/rapidjson)
 - unordered_dense (https://github.com/martinus/unordered_dense)
 - delegatesv2 (https://sakryukov.github.io/publications/2017-02-13.The-Impossibly-Fast-C++Delegates-Fixed.html)

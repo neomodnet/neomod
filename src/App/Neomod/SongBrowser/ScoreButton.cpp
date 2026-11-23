@@ -5,7 +5,6 @@
 #include "SongBrowser.h"
 // ---
 
-#include <chrono>
 #include <utility>
 
 #include "SString.h"
@@ -489,9 +488,7 @@ void ScoreButton::resetHighlight() {
 
 void ScoreButton::updateElapsedTimeString() {
     if(this->iScoreUnixTimestamp > 0) {
-        const i64 curUnixTime =
-            std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch())
-                .count();
+        const i64 curUnixTime = Timing::getUnixTime();
         const i64 delta = curUnixTime - (i64)this->iScoreUnixTimestamp;
 
         const i64 deltaInSeconds = delta;

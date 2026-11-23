@@ -3,6 +3,8 @@
 
 #include <SDL3/SDL_timer.h>
 
+#include <chrono>
+
 #ifdef MCENGINE_PLATFORM_WINDOWS
 #include "WinDebloatDefs.h"
 #include <libloaderapi.h>
@@ -180,6 +182,11 @@ void yield_internal() noexcept {
 }  // namespace detail
 
 u64 getTicksNS() noexcept { return SDL_GetTicksNS(); }
+
+i64 getUnixTime() noexcept {
+    return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch())
+        .count();
+}
 
 }  // namespace Timing
 

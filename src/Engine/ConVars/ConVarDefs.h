@@ -189,6 +189,7 @@ CONVAR(debug_cv, false, CLIENT);
 CONVAR(debug_network, false, CLIENT);
 CONVAR(debug_anim, false, CLIENT, CFUNC(AnimationHandler::onDebugAnimChange));
 CONVAR(debug_box_shadows, false, CLIENT);
+CONVAR(debug_discord_rpc, false, CLIENT);
 CONVAR(debug_engine, false, CLIENT);
 CONVAR(debug_fixed_frametime, 0.0f, CLIENT | NOLOAD | NOSAVE | PROTECTED | GAMEPLAY,
        "advance engine time by a fixed step per frame instead of wall clock (deterministic headless testing), 0 = "
@@ -314,7 +315,7 @@ CONVAR(keyboard_raw_input, false, CLIENT | SKINS | SERVER,
        "listen to keyboard input on a separate thread (Windows only)");
 CONVAR(mouse_sensitivity, 1.0f, CLIENT | SKINS | SERVER);
 CONVAR(pen_input, true, CLIENT | SKINS | SERVER, "support OTD Artist Mode and native tablet drivers' pen events");
-CONVAR(rich_presence, true, CLIENT | SKINS | SERVER);  // callback set in DiscordInterface
+CONVAR(rich_presence, true, CLIENT | SKINS | SERVER);  // read by Discord::tick()
 CONVAR(ssl_verify, true, CLIENT);
 CONVAR(use_https, true, CLIENT);
 CONVAR(

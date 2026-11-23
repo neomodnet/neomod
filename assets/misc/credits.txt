@@ -42,7 +42,6 @@ External libraries (downloaded/built from source):
 - Signalsmith Stretch + signalsmith-linear (https://github.com/Signalsmith-Audio/signalsmith-stretch) - MIT
 - mpg123 (https://github.com/madebr/mpg123) - LGPLv2.1+
 - FFmpeg (https://ffmpeg.org) - LGPLv2.1+ / GPLv2+
-- discord-rpc (https://github.com/harmonytf/discord-rpc) - MIT
 - rapidjson (https://github.com/Tencent/rapidjson) - MIT
 - curl (https://github.com/curl/curl) - curl license (MIT-like)
 - DirectXShaderCompiler (https://github.com/microsoft/DirectXShaderCompiler) - LLVM Release License & Apache 2.0 with LLVM exceptions

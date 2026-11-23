@@ -68,6 +68,9 @@ void sleep_ns_precise_internal(u64 ns) noexcept;
 
 [[nodiscard]] u64 getTicksNS() noexcept;
 
+// wall clock time in seconds since the unix epoch
+[[nodiscard]] i64 getUnixTime() noexcept;
+
 static constexpr forceinline INLINE_BODY u64 ticksNSToMS(u64 ns) noexcept {
     return detail::convert_time<NS_PER_MS>(ns);
 }

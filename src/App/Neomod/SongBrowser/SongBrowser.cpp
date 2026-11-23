@@ -1281,7 +1281,7 @@ void SongBrowser::onDifficultySelected(DatabaseBeatmap *map, bool play) {
         // start playing
         if(play) {
             // update last play time (TODO: should this only be stored if a certain amount of playtime is reached?)
-            map->setLastPlayTime((i64)time(nullptr));
+            map->setLastPlayTime(Timing::getUnixTime());
             db->update_overrides(map);  // save peppy overrides
             if(this->curSortMethod == SortType::DATEPLAYED) {
                 // force resort

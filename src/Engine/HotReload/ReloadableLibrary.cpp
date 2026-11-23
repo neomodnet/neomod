@@ -12,10 +12,10 @@
 #include "Logging.h"
 #include "Paths.h"
 #include "Profiler.h"
+#include "Timing.h"
 
 #include "fmt/format.h"
 
-#include <ctime>
 #include <filesystem>
 #include <system_error>
 #include <vector>
@@ -52,7 +52,7 @@ ReloadableLibrary::LoadResult ReloadableLibrary::load() {
     if(Environment::createDirectory(dir) && this->loads == 0) {
         std::vector<File::DirEntry> copies;
         File::getDirectoryEntries(dir, File::DirContents::ALL, copies);
-        const i64 now = time(nullptr);
+        const i64 now = Timing::getUnixTime();
         for(const auto &entry : copies) {
             if(now - entry.mtime > 24 * 60 * 60) removeCopy(dir + '/' + entry.name);
         }

@@ -666,8 +666,6 @@ WIN_PLATFORM_FALSE
 WIN_PLATFORM_TRUE
 ENABLE_I18N_FALSE
 ENABLE_I18N_TRUE
-USE_DISCORDRPC_FALSE
-USE_DISCORDRPC_TRUE
 DOWNLOAD_DXC_FALSE
 DOWNLOAD_DXC_TRUE
 USE_SDLGPU_FALSE
@@ -812,7 +810,6 @@ CURL_LIBS
 CURL_CFLAGS
 BASS_VERSION
 RAPIDJSON_COMMIT
-DISCORDRPC_COMMIT
 FFMPEG_VERSION
 GLM_VERSION
 MIMALLOC_PREFIX
@@ -1087,7 +1084,6 @@ with_ffmpeg
 with_libjpeg
 with_mimalloc
 with_nsync
-with_discord
 with_i18n
 enable_threads
 '
@@ -1853,8 +1849,6 @@ Optional Packages:
                           (faster) (default: on if not debug and not winx86)
   --with-nsync            Use nsync instead of std::mutex for synchronization
                           (faster) (default: on if not winx86 (unsupported))
-  --with-discord          Build with Discord rich presence support (default on
-                          for native targets, off for Emscripten)
   --with-i18n             Build with support for internationalization
                           (translated text) (default: on)
 
@@ -7081,14 +7075,6 @@ fi
 
 
 
-# Check whether --with-discord was given.
-if test ${with_discord+y}
-then :
-  withval=$with_discord;
-fi
-
-
-
 # Check whether --with-i18n was given.
 if test ${with_i18n+y}
 then :
@@ -7312,21 +7298,6 @@ else case e in #(
 esac
 fi
 
-
-if test "x$with_discord" != "xno" && test -z "$WASM_CC"
-then :
-
-    with_discord=yes
-
-printf '%s\n' "#define MCENGINE_FEATURE_DISCORD 1" >>confdefs.h
-
-
-else case e in #(
-  e)
-    with_discord=no
- ;;
-esac
-fi
 
 # enable tests by default
 if test "x$enable_tests" != "xno"
@@ -15904,8 +15875,6 @@ GLM_VERSION=1.0.3
 FFMPEG_VERSION=9.0.2
 
 
-DISCORDRPC_COMMIT=deedb52ce511728458641783cb6d80c7bbdde38c
- # harmonytf/discord-rpc
 RAPIDJSON_COMMIT=8261c1ddf43f10de00fd8c9a67811d1486b2c784
  # header-only
 
@@ -19677,14 +19646,6 @@ else
   DOWNLOAD_DXC_FALSE=
 fi
 
- if test "$with_discord" = "yes"; then
-  USE_DISCORDRPC_TRUE=
-  USE_DISCORDRPC_FALSE='#'
-else
-  USE_DISCORDRPC_TRUE='#'
-  USE_DISCORDRPC_FALSE=
-fi
-
  if test "x$with_i18n" = "xyes"; then
   ENABLE_I18N_TRUE=
   ENABLE_I18N_FALSE='#'
@@ -20125,10 +20086,6 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${DOWNLOAD_DXC_TRUE}" && test -z "${DOWNLOAD_DXC_FALSE}"; then
   as_fn_error $? "conditional \"DOWNLOAD_DXC\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
-if test -z "${USE_DISCORDRPC_TRUE}" && test -z "${USE_DISCORDRPC_FALSE}"; then
-  as_fn_error $? "conditional \"USE_DISCORDRPC\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${ENABLE_I18N_TRUE}" && test -z "${ENABLE_I18N_FALSE}"; then
@@ -21548,7 +21505,6 @@ neomod build configuration:
     nsync:              ${with_nsync-yes}
     BASS:               ${with_bass-no}
     SoLoud:             ${with_soloud-no}
-    Discord:            ${with_discord-yes}
     i18n:               ${with_i18n-yes}
     IME enabled:        ${enable_ime-yes}
     Hardened build:     ${hardened_build-no}
@@ -21612,7 +21568,6 @@ neomod build configuration:
     nsync:              ${with_nsync-yes}
     BASS:               ${with_bass-no}
     SoLoud:             ${with_soloud-no}
-    Discord:            ${with_discord-yes}
     i18n:               ${with_i18n-yes}
     IME enabled:        ${enable_ime-yes}
     Hardened build:     ${hardened_build-no}

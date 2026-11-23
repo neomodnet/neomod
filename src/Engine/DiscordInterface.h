@@ -1,46 +1,32 @@
 #pragma once
-// Copyright (c) 2018, PG, All rights reserved.
-
-#include "config.h"
-
-#include <cstdint>
+// Copyright (c) 2026, kiwec, All rights reserved.
 #include <array>
+#include <string>
 
-// shim activity struct: we own the buffers, the impl translates to the underlying lib's struct.
-// kept independent of any external header so this compiles whether or not Discord is enabled.
+#include "types.h"
+
 struct DiscordActivity {
-    std::array<char, 128> state{};
-    std::array<char, 128> details{};
-    struct {
-        int64_t start{0};
-        int64_t end{0};
-    } timestamps{};
-    struct {
-        std::array<char, 256> large_image{};
-        std::array<char, 128> large_text{};
-        std::array<char, 256> small_image{};
-        std::array<char, 128> small_text{};
-    } assets{};
-    struct {
-        std::array<char, 128> id{};
-        struct {
-            int current_size{0};
-            int max_size{0};
-        } size{};
-    } party{};
+    std::string details;      // first line
+    std::string state;        // second line
+    i64 start_timestamp{0};   // unix seconds, shown as elapsed time
+    std::string large_image;  // asset key or image url
+    std::string large_text;
+    std::string small_image;
+    std::string small_text;
+    i32 party_size{0};
+    i32 party_max{0};
     struct Button {
-        std::array<char, 128> label{};  // discord limit: 32 chars
-        std::array<char, 512> url{};    // discord limit: 512 chars
+        std::string label;
+        std::string url;
+        bool operator==(const Button &) const = default;
     };
-    std::array<Button, 2> buttons{};  // discord shows at most 2; empty label == unused slot
+    std::array<Button, 2> buttons{};  // empty label == unused slot
+
+    bool operator==(const DiscordActivity &) const = default;
 };
 
-namespace DiscRPC {
-void init();
-void deinit();
-void tick();
-void destroy();
-void clear_activity();
+namespace Discord {
 void set_activity(const DiscordActivity &activity);
-DiscordActivity create_base_activity();  // base init
-}  // namespace DiscRPC
+void tick();
+void shutdown();
+}  // namespace Discord

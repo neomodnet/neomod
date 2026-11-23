@@ -13,6 +13,7 @@
 #include "Logging.h"
 #include "SyncMutex.h"
 #include "SyncOnce.h"
+#include "Timing.h"
 #include "UniString.h"
 
 #include <algorithm>
@@ -956,7 +957,7 @@ std::vector<File::DirEntry> File::pruneDirectory(std::string_view dir, bool (*ma
                   [managed](const DirEntry &entry) { return entry.type != FILETYPE::FILE || !managed(entry.name); });
     Mc::ranges::sort(entries, [](const DirEntry &a, const DirEntry &b) { return a.mtime > b.mtime; });
 
-    const i64 now = time(nullptr);
+    const i64 now = Timing::getUnixTime();
     u64 totalBytes = 0;
     std::erase_if(entries, [&](const DirEntry &entry) {
         const bool expired = now - entry.mtime > maxAgeSeconds;

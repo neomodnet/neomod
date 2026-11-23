@@ -129,8 +129,6 @@ Engine::Engine() {
         this->runtime_assert(!!resourceManager, "Resource manager menu failed to initialize!");
         resourceManager->setSyncLoadMaxBatchSize(512);  // this decays back down to a small number quickly by itself
 
-        DiscRPC::init();
-
         // engine time starts now
         this->dTime = Timing::getTimeReal();
     }
@@ -158,7 +156,7 @@ Engine::~Engine() {
     this->uiMouseSink.reset();
     CBaseUIDispatch::clear();
 
-    DiscRPC::destroy();
+    Discord::shutdown();
 
     debugLog("Engine: Freeing animation handler...");
     anim::clearAll();
@@ -464,8 +462,8 @@ void Engine::onUpdate() {
 
     // update discord presence
     {
-        VPROF_BUDGET("DiscRPC::tick", VPROF_BUDGETGROUP_UPDATE);
-        DiscRPC::tick();
+        VPROF_BUDGET("Discord::tick", VPROF_BUDGETGROUP_UPDATE);
+        Discord::tick();
     }
 
     // update environment (after app, at the end here)

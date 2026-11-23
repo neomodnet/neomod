@@ -60,9 +60,6 @@
 /* Defined if the DX11 backend is to be used. */
 #undef MCENGINE_FEATURE_DIRECTX11
 
-/* Defined if building with Discord RPC integration. */
-#undef MCENGINE_FEATURE_DISCORD
-
 /* Define if ffmpeg library is available. */
 #undef MCENGINE_FEATURE_FFMPEG
 

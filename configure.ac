@@ -334,9 +334,6 @@ AC_ARG_WITH([mimalloc],
 AC_ARG_WITH([nsync],
     AS_HELP_STRING([--with-nsync], [Use nsync instead of std::mutex for synchronization (faster) (default: on if not winx86 (unsupported))]))
 
-AC_ARG_WITH([discord],
-    AS_HELP_STRING([--with-discord], [Build with Discord rich presence support (default on for native targets, off for Emscripten)]))
-
 AC_ARG_WITH([i18n],
     AS_HELP_STRING([--with-i18n], [Build with support for internationalization (translated text) (default: on)]))
 
@@ -418,13 +415,6 @@ AS_IF([test "x$enable_ime" != "xno"], [
     NOIME="yes"
 ])
 AC_SUBST([NOIME])
-
-AS_IF([test "x$with_discord" != "xno" && test -z "$WASM_CC"], [
-    with_discord=yes
-    AC_DEFINE([MCENGINE_FEATURE_DISCORD], [1], [Defined if building with Discord RPC integration.])
-], [
-    with_discord=no
-])
 
 # enable tests by default
 AS_IF([test "x$enable_tests" != "xno"], [
@@ -1898,7 +1888,6 @@ AC_SUBST([GLM_VERSION], [1.0.3])
 # (needs manual url changes in Makefile.am)
 AC_SUBST([FFMPEG_VERSION], [9.0.2])
 
-AC_SUBST([DISCORDRPC_COMMIT], [deedb52ce511728458641783cb6d80c7bbdde38c]) # harmonytf/discord-rpc
 AC_SUBST([RAPIDJSON_COMMIT], [8261c1ddf43f10de00fd8c9a67811d1486b2c784]) # header-only
 
 AC_SUBST([BASS_VERSION], [20260208_202602]) # just mark the date so we can invalidate the cache if necessary
@@ -2179,7 +2168,6 @@ AM_CONDITIONAL([USE_OPENGLES], [test "$use_opengles32" = "yes"])
 AM_CONDITIONAL([USE_DX11], [test "$use_dx11" = "yes"])
 AM_CONDITIONAL([USE_SDLGPU], [test "$use_sdlgpu" = "yes"])
 AM_CONDITIONAL([DOWNLOAD_DXC], [test -z "$DXC" && test "$host_os" = "mingw32" && test "$use_sdlgpu" = "yes"])
-AM_CONDITIONAL([USE_DISCORDRPC], [test "$with_discord" = "yes"])
 AM_CONDITIONAL([ENABLE_I18N], [test "x$with_i18n" = "xyes"])
 AM_CONDITIONAL([WIN_PLATFORM], [test "$SYSNAME" = "windows"])
 AM_CONDITIONAL([WIN32_PLATFORM], [test "$SYSNAME" = "windows" && test "$host_cpu" = "i686"])
@@ -2259,7 +2247,6 @@ neomod build configuration:
     nsync:              ${with_nsync-yes}
     BASS:               ${with_bass-no}
     SoLoud:             ${with_soloud-no}
-    Discord:            ${with_discord-yes}
     i18n:               ${with_i18n-yes}
     IME enabled:        ${enable_ime-yes}
     Hardened build:     ${hardened_build-no}

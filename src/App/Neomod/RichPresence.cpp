@@ -19,9 +19,8 @@
 #include "SongBrowser/SongBrowser.h"
 #include "MusicTrack.h"
 #include "score.h"
+#include "Timing.h"
 #include "UI.h"
-
-#include <chrono>
 
 #ifdef MCENGINE_PLATFORM_WASM
 #include <emscripten/em_asm.h>
@@ -45,25 +44,15 @@ enum class MusicDependentCallback : u8 {
 MusicDependentCallback last_callback{};
 MD5Hash editor_map;  // what onEditor() was last told about (by content: its record may be gone at a refresh)
 
-template <size_t N = 128>
-std::array<char, N> crop_string_to_n(const std::string& str) {
-    std::array<char, N> output{};
-    if(str.length() < N) {
-        strcpy(output.data(), str.c_str());
-    } else {
-        strncpy(output.data(), str.c_str(), N - 4);
-        output[N - 4] = '.';
-        output[N - 3] = '.';
-        output[N - 2] = '.';
-        output[N - 1] = '\0';
-    }
-    return output;
+DiscordActivity base_activity() {
+    static const i64 session_start = Timing::getUnixTime();
+    DiscordActivity activity;
+    activity.start_timestamp = session_start;
+    return activity;
 }
 
-std::array<char, 128> beatmap_desc_str(const DatabaseBeatmap* map, bool include_difficulty) {
-    std::array<char, 128> ret{};
-    strncpy(ret.data(), "No map selected", ret.size() - 1);
-    if(!map) return ret;
+std::string beatmap_desc_str(const DatabaseBeatmap* map, bool include_difficulty) {
+    if(!map) return "No map selected";
 
     std::string playingInfo = fmt::format("{:s} - {:s}", map->getArtist(), map->getTitle());
 
@@ -74,8 +63,7 @@ std::array<char, 128> beatmap_desc_str(const DatabaseBeatmap* map, bool include_
         }
     }
 
-    ret = crop_string_to_n(playingInfo);
-    return ret;
+    return playingInfo;
 }
 
 void set_activity_with_image(const DatabaseBeatmap* map, DiscordActivity& to_set, bool is_editor = false) {
@@ -86,19 +74,17 @@ void set_activity_with_image(const DatabaseBeatmap* map, DiscordActivity& to_set
             if(window.neomod_set_activity) {
                 window.neomod_set_activity(UTF8ToString($0), UTF8ToString($1), $2, $3, $4);
             }
-        }, to_set.details.data(), to_set.state.data(), to_set.party.size.current_size, to_set.party.size.max_size, (double)to_set.timestamps.start);
+        }, to_set.details.c_str(), to_set.state.c_str(), to_set.party_size, to_set.party_max, (double)to_set.start_timestamp);
         // clang-format on
     }
 #endif
 
-#ifdef MCENGINE_FEATURE_DISCORD
     const bool listening = !!map && (osu->getMusicTrack()->isPlaying() || is_editor);
     const bool playing = !!map && osu->isInPlayMode();
-    const bool bg_visible = !!map && map->getSettings().draw_background && cv::rich_presence_map_backgrounds.getBool();
+    const bool bg_visible = !!map && map->getSetID() > 0 && map->getSettings().draw_background &&
+                            cv::rich_presence_map_backgrounds.getBool();
 
-    to_set.assets.large_image = {PACKAGE_NAME "_icon"};
-    to_set.assets.small_image = {};
-    to_set.assets.small_text = {};
+    to_set.large_image = PACKAGE_NAME "_icon";
 
     if(listening || playing) {
         const bool online = BanchoState::is_online();
@@ -108,42 +94,30 @@ void set_activity_with_image(const DatabaseBeatmap* map, DiscordActivity& to_set
         if(bg_visible) {
             const std::string server_icon_url = online ? BanchoState::server_icon_url : "";
 
-            const std::string url = fmt::format("{:s}b.{:s}/thumb/{:d}l.jpg", scheme, endpoint, map->getSetID());
-            strncpy(&to_set.assets.large_image[0], url.c_str(), 127);
+            to_set.large_image = fmt::format("{:s}b.{:s}/thumb/{:d}l.jpg", scheme, endpoint, map->getSetID());
 
             if(server_icon_url.length() > 0 && cv::main_menu_use_server_logo.getBool()) {
-                strncpy(&to_set.assets.small_image[0], server_icon_url.c_str(), 127);
-                strncpy(&to_set.assets.small_text[0], endpoint.c_str(), 127);
+                to_set.small_image = server_icon_url;
+                to_set.small_text = endpoint;
             } else {
-                to_set.assets.small_image = {PACKAGE_NAME "_icon"};
-                to_set.assets.small_text = {};
+                to_set.small_image = PACKAGE_NAME "_icon";
             }
         }
 
         const i32 map_id = map->getID();
         const i32 set_id = map->getSetID();
         if((map_id > 0) || (set_id > 0)) {
-            auto& btn = to_set.buttons[0];
-            // shouldn't be translated (we don't know what language other users' discord clients are in...)
-            // TODO: same applies for all other strings here?
-            btn.label = {"View beatmap"};
-
             const bool use_set_id = map_id <= 0;
             const i32 real_id = use_set_id ? set_id : map_id;
             const auto b_or_s_endpoint = use_set_id ? "s" : "b";
-
-            const std::string map_url =
-                fmt::format("{:s}osu.{:s}/{:s}/{:d}", scheme, endpoint, b_or_s_endpoint, real_id);
-            strncpy(btn.url.data(), map_url.c_str(), btn.url.size() - 1);
+            to_set.buttons[0] = {
+                .label = "View beatmap",
+                .url = fmt::format("{:s}osu.{:s}/{:s}/{:d}", scheme, endpoint, b_or_s_endpoint, real_id),
+            };
         }
     }
 
-    DiscRPC::set_activity(to_set);
-#else
-    (void)map;
-    (void)to_set;
-    (void)is_editor;
-#endif
+    Discord::set_activity(to_set);
 }
 
 // what setBanchoStatus() sends, about `map`
@@ -260,7 +234,7 @@ void onMainMenu() {
         }
     }
 
-    auto activity = DiscRPC::create_base_activity();
+    auto activity = base_activity();
 
     const auto* map = osu->getMapInterface()->getBeatmap();
     bool listening = map != nullptr && osu->getMusicTrack()->isPlaying();
@@ -268,8 +242,8 @@ void onMainMenu() {
         activity.details = beatmap_desc_str(map, false);
     }
 
-    strncpy(activity.state.data(), msg.data(), activity.state.size() - 1);
-    setBanchoStatus(msg.data(), action);
+    activity.state = msg;
+    setBanchoStatus(msg.c_str(), action);
     set_activity_with_image(map, activity);
 }
 
@@ -277,22 +251,22 @@ void onSongBrowser() {
     if(BanchoState::spectating) return;
 
     last_callback = MusicDependentCallback::ON_SONGBROWSER;
-    auto activity = DiscRPC::create_base_activity();
+    auto activity = base_activity();
 
-    strncpy(activity.details.data(), "Picking a map", activity.details.size() - 1);
+    activity.details = "Picking a map";
 
     if(ui->getRoomScreen()->isVisible()) {
         setBanchoStatus("Picking a map", Action::MULTIPLAYER);
 
-        strncpy(activity.state.data(), "Multiplayer", activity.state.size() - 1);
-        activity.party.size.current_size = BanchoState::room.nb_players;
-        activity.party.size.max_size = BanchoState::room.nb_open_slots;
+        activity.state = "Multiplayer";
+        activity.party_size = BanchoState::room.nb_players;
+        activity.party_max = BanchoState::room.nb_open_slots;
     } else {
         setBanchoStatus("Song selection", Action::IDLE);
 
-        strncpy(activity.state.data(), "Singleplayer", activity.state.size() - 1);
-        activity.party.size.current_size = 0;
-        activity.party.size.max_size = 0;
+        activity.state = "Singleplayer";
+        activity.party_size = 0;
+        activity.party_max = 0;
     }
 
     set_activity_with_image(osu->getMapInterface()->getBeatmap(), activity);
@@ -304,66 +278,64 @@ void onPlayStart() {
     const auto* map = osu->getMapInterface()->getBeatmap();
 
     static const DatabaseBeatmap* last_diff = nullptr;
-    static int64_t tms = 0;
+    static i64 tms = 0;
     if(tms == 0 || last_diff != map) {
         last_diff = map;
-        tms = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch())
-                  .count();
+        tms = Timing::getUnixTime();
     }
 
-    auto activity = DiscRPC::create_base_activity();
+    auto activity = base_activity();
 
-    activity.timestamps.start = tms;
+    activity.start_timestamp = tms;
 
     activity.details = beatmap_desc_str(map, true);
 
     if(osu->getMapInterface()->getKind() == BeatmapInterface::PlayKind::TEST) {
-        setBanchoStatus(activity.details.data(), Action::TESTING);
+        setBanchoStatus(activity.details.c_str(), Action::TESTING);
 
-        strncpy(activity.state.data(), "Testing", activity.state.size() - 1);
-        activity.party.size.current_size = 0;
-        activity.party.size.max_size = 0;
+        activity.state = "Testing";
+        activity.party_size = 0;
+        activity.party_max = 0;
     } else if(BanchoState::is_in_a_multi_room()) {
-        setBanchoStatus(activity.details.data(), Action::MULTIPLAYER);
+        setBanchoStatus(activity.details.c_str(), Action::MULTIPLAYER);
 
-        strncpy(activity.state.data(), "Playing in a lobby", activity.state.size() - 1);
-        activity.party.size.current_size = BanchoState::room.nb_players;
-        activity.party.size.max_size = BanchoState::room.nb_open_slots;
+        activity.state = "Playing in a lobby";
+        activity.party_size = BanchoState::room.nb_players;
+        activity.party_max = BanchoState::room.nb_open_slots;
     } else if(BanchoState::spectating) {
-        setBanchoStatus(activity.details.data(), Action::WATCHING);
-        activity.party.size.current_size = 0;
-        activity.party.size.max_size = 0;
+        setBanchoStatus(activity.details.c_str(), Action::WATCHING);
+        activity.party_size = 0;
+        activity.party_max = 0;
 
         const auto* user = BANCHO::User::get_user_info(BanchoState::spectated_player_id, true);
         if(user->has_presence) {
-            auto msg = fmt::format("Spectating {:s}", user->name.c_str());
-            strncpy(activity.state.data(), msg.c_str(), activity.state.size() - 1);
+            activity.state = fmt::format("Spectating {:s}", user->name.c_str());
         } else {
-            strncpy(activity.state.data(), "Spectating", activity.state.size() - 1);
+            activity.state = "Spectating";
         }
     } else {
-        setBanchoStatus(activity.details.data(), Action::PLAYING);
+        setBanchoStatus(activity.details.c_str(), Action::PLAYING);
 
-        strncpy(activity.state.data(), "Playing Solo", activity.state.size() - 1);
-        activity.party.size.current_size = 0;
-        activity.party.size.max_size = 0;
+        activity.state = "Playing Solo";
+        activity.party_size = 0;
+        activity.party_max = 0;
     }
 
     set_activity_with_image(map, activity);
 
     // also update window title
-    env->setWindowTitle(fmt::format(PACKAGE_NAME " - {:s}", std::string_view{&activity.details[0]}));
+    env->setWindowTitle(fmt::format(PACKAGE_NAME " - {:s}", activity.details));
 }
 
 void onEditor(const DatabaseBeatmap& map) {
     last_callback = MusicDependentCallback::ON_EDITOR;
     editor_map = map.getMD5();
 
-    auto activity = DiscRPC::create_base_activity();
+    auto activity = base_activity();
     activity.details = beatmap_desc_str(&map, true);
-    strncpy(activity.state.data(), "Editing", activity.state.size() - 1);
+    activity.state = "Editing";
 
-    send_status(activity.details.data(), Action::EDITING, &map);
+    send_status(activity.details.c_str(), Action::EDITING, &map);
     set_activity_with_image(&map, activity, /*is_editor=*/true);
 }
 
@@ -398,12 +370,12 @@ void onPlayEnd(bool quit) {
 
 void onMultiplayerLobby() {
     last_callback = MusicDependentCallback::ON_MULTI;
-    auto activity = DiscRPC::create_base_activity();
+    auto activity = base_activity();
 
-    activity.state = crop_string_to_n(BanchoState::endpoint);
-    activity.details = crop_string_to_n(BanchoState::room.name);
-    activity.party.size.current_size = BanchoState::room.nb_players;
-    activity.party.size.max_size = BanchoState::room.nb_open_slots;
+    activity.state = BanchoState::endpoint;
+    activity.details = BanchoState::room.name;
+    activity.party_size = BanchoState::room.nb_players;
+    activity.party_max = BanchoState::room.nb_open_slots;
 
     set_activity_with_image(osu->getMapInterface()->getBeatmap(), activity);
 }

@@ -115,12 +115,6 @@ set(CURL_HASH "SHA512=e05a7728b24b6d3dffab3e8dd50031e36412132945c5997413f7dae2b2
 set_download_name("curl" "${CURL_VERSION}" "${CURL_URL}")
 unset(_curl_ver_temp)
 
-set(DISCORDRPC_COMMIT "deedb52ce511728458641783cb6d80c7bbdde38c")
-set(DISCORDRPC_URL "https://github.com/harmonytf/discord-rpc/archive/${DISCORDRPC_COMMIT}.tar.gz")
-set(DISCORDRPC_HASH "SHA512=35e807a8901458cdaaac89e0464785ec326df219268bc8bbd08876ff40bc9f0d01b6edfabfe3e333dc367c04f6fa74d1004ca301bae95582308cbd1a0aa8eb5e")
-set_download_name("discordrpc" "${DISCORDRPC_COMMIT}" "${DISCORDRPC_URL}")
-
-# discord-rpc bundles rapidjson via submodule, but we pre-stage it ourselves to avoid the cmake-time download
 set(RAPIDJSON_COMMIT "8261c1ddf43f10de00fd8c9a67811d1486b2c784")
 set(RAPIDJSON_URL "https://github.com/Tencent/rapidjson/archive/${RAPIDJSON_COMMIT}.tar.gz")
 set(RAPIDJSON_HASH "SHA512=462dd6fad8eed048cc1fef57337742f483ac7df7742cb3ab772cc943cc0a8ff279c38d3078af36b0283c40b75cf7667a166d7af6af2fb93eb0df8127ca879025")
