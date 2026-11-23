@@ -14,6 +14,7 @@
 #include "Environment.h"
 #include "Parsing.h"
 #include "Logging.h"
+#include "SString.h"
 
 #include <string_view>
 #include <utility>
@@ -369,14 +370,9 @@ bool import_from_osu_stable() {
             cv::draw_video.setValue(b);
         else if(Parsing::parse(line, "RawInput", '=', &b))
             cv::mouse_raw_input.setValue(b);
-        else if(Parsing::parse(line, "ConfineMouse", '=', &str)) {
-            const bool never = str == "Never";
-            const bool fullscreen = !never && str == "Fullscreen";
-            const bool always = !fullscreen && !never && str == "Always";
-            cv::confine_cursor_fullscreen.setValue(fullscreen || always);
-            cv::confine_cursor_windowed.setValue(always);
-            cv::confine_cursor_never.setValue(never);
-        } else if(Parsing::parse(line, "HiddenShowFirstApproach", '=', &b))
+        else if(Parsing::parse(line, "ConfineMouse", '=', &str))
+            cv::confine_cursor.setValue(SString::to_lower(str));
+        else if(Parsing::parse(line, "HiddenShowFirstApproach", '=', &b))
             cv::show_approach_circle_on_first_hidden_object.setValue(b);
         else if(Parsing::parse(line, "ComboColourSliderBall", '=', &b))
             cv::slider_ball_tint_combo_color.setValue(b);

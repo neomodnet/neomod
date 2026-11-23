@@ -1418,6 +1418,7 @@ msgid "Selected Points"
 msgstr "Points sélectionnés"
 
 #: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "BPM"
 msgstr "BPM"
 
@@ -1846,12 +1847,12 @@ msgid "Click here to install the update!"
 msgstr "Cliquez ici pour installer la mise à jour !"
 
 #: src/App/Neomod/MainMenu.cpp
-msgid "A new version is available! Click to open the download page."
-msgstr "Une nouvelle version est disponible ! Cliquez pour ouvrir la page de téléchargement."
-
-#: src/App/Neomod/MainMenu.cpp
 msgid "Update Error! Click to retry ..."
 msgstr "Erreur de mise à jour ! Cliquez pour réessayer..."
+
+#: src/App/Neomod/MainMenu.cpp
+msgid "A new version is available! Click to open the download page."
+msgstr "Une nouvelle version est disponible ! Cliquez pour ouvrir la page de téléchargement."
 
 #: src/App/Neomod/MainMenu.cpp
 msgid "Your browser doesn't support multithreaded WebAssembly, so performance will be worse than usual."
@@ -3406,20 +3407,28 @@ msgid "Raw Mouse Input"
 msgstr "Entrée souris brute"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Confine Cursor (Windowed)"
-msgstr "Confiner le curseur (en mode fenêtré)"
+msgid "Confine Cursor"
+msgstr "Confiner le curseur"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Confine Cursor (Fullscreen)"
-msgstr "Confiner le curseur (en plein écran)"
+msgid "Never"
+msgstr "Jamais"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Confine Cursor (NEVER)"
-msgstr "Ne jamais confiner le curseur"
+msgid "During gameplay"
+msgstr "En jeu"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Overrides automatic cursor clipping during gameplay."
-msgstr "Remplace le clipping automatique du curseur pendant le jeu."
+msgid "During gameplay and when windowed"
+msgstr "En jeu et en mode fenêtré"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "During gameplay and when fullscreen"
+msgstr "En jeu et en plein écran"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Always"
+msgstr "Toujours"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Disable Mouse Wheel in Play Mode"
@@ -3846,44 +3855,57 @@ msgid "Enabled: "
 msgstr "Activé : "
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Score"
-msgstr "Afficher le score"
+msgid "HUD Elements"
+msgstr "Éléments de l'interface"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Combo"
-msgstr "Afficher le combo"
+msgid "Which elements are drawn during gameplay."
+msgstr "Quels éléments sont affichés pendant le jeu."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Accuracy"
-msgstr "Afficher la précision"
+msgid "Score"
+msgstr "Score"
+
+#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/RoomScreen.cpp
+msgid "Combo"
+msgstr "Combo"
+
+#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/RankingScreen.cpp
+#: src/App/Neomod/RoomScreen.cpp
+msgid "Accuracy"
+msgstr "Précision"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Clock"
-msgstr "Afficher l'horloge"
+msgid "Clock"
+msgstr "Horloge"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw HitErrorBar"
-msgstr "Afficher la barre d'erreur"
+msgid "HitErrorBar"
+msgstr "Barre d'erreur"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw HitErrorBar UR"
-msgstr "Afficher l'UR de la barre d'erreur"
+msgid "HitErrorBar UR"
+msgstr "UR de la barre d'erreur"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Unstable Rate"
 msgstr "Taux d'instabilité"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw ScoreBar"
-msgstr "Afficher la barre de score"
+msgid "Miss Window on HitErrorBar"
+msgstr "Fenêtre de miss sur la barre d'erreur"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Health/HP Bar."
 msgstr "Barre de vie/HP."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw ScoreBar-bg"
-msgstr "Afficher le fond de la barre de score"
+msgid "ScoreBar"
+msgstr "Barre de score"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "ScoreBar-bg"
+msgstr "Fond de la barre de score"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid ""
@@ -3894,24 +3916,28 @@ msgstr ""
 "C'est en fait juste l'image de fond de la barre de vie/HP."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw ScoreBoard in singleplayer"
-msgstr "Afficher le tableau des scores en solo"
+msgid "ScoreBoard in singleplayer"
+msgstr "Tableau des scores en solo"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw ScoreBoard in multiplayer"
-msgstr "Afficher le tableau des scores en multijoueur"
+msgid "ScoreBoard in multiplayer"
+msgstr "Tableau des scores en multijoueur"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Scrubbing Timeline"
-msgstr "Afficher la timeline de scrubbing"
+msgid "Scrubbing Timeline"
+msgstr "Timeline de scrubbing"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Miss Window on HitErrorBar"
-msgstr "Afficher la fenêtre de miss sur la barre d'erreur"
+msgid "Statistics"
+msgstr "Statistiques"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: pp"
-msgstr "Afficher les stats : pp"
+msgid "Which statistics are drawn during gameplay."
+msgstr "Quelles statistiques sont affichées pendant le jeu."
+
+#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/RoomScreen.cpp
+msgid "pp"
+msgstr "pp"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid ""
@@ -3922,108 +3948,100 @@ msgstr ""
 "Calcule dynamiquement les pp gagnés en mettant à jour progressivement le star rating."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: pp (SS)"
-msgstr "Afficher les stats : pp (SS)"
+msgid "pp (SS)"
+msgstr "pp (SS)"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Max possible total pp for active mods (full combo + perfect acc)."
 msgstr "pp total maximum possible pour les mods actifs (full combo + précision parfaite)."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Misses"
-msgstr "Afficher les stats : Misses"
+msgid "Misses"
+msgstr "Misses"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Number of misses."
 msgstr "Nombre de misses."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: SliderBreaks"
-msgstr "Afficher les stats : SliderBreaks"
+msgid "SliderBreaks"
+msgstr "SliderBreaks"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Number of slider breaks."
 msgstr "Nombre de slider breaks."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Retries"
-msgstr "Afficher les stats : Essais"
+msgid "Retries"
+msgstr "Essais"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "How many times the current map was retried."
 msgstr "Nombre de fois où la map actuelle a été recommencée."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Max Possible Combo"
-msgstr "Afficher les stats : Combo maximum possible"
+msgid "Max Possible Combo"
+msgstr "Combo maximum possible"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Stars*** (Until Now)"
-msgstr "Afficher les stats : Étoiles*** (jusqu'à présent)"
+msgid "Stars*** (Until Now)"
+msgstr "Étoiles*** (jusqu'à présent)"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Incrementally updates the star rating (aka \"realtime stars\")."
 msgstr "Met à jour progressivement le star rating (alias \"étoiles en temps réel\")."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Stars* (Total)"
-msgstr "Afficher les stats : Étoiles* (Total)"
+msgid "Stars* (Total)"
+msgstr "Étoiles* (Total)"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Total stars for active mods."
 msgstr "Total d'étoiles pour les mods actifs."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: BPM"
-msgstr "Afficher les stats : BPM"
+msgid "AR"
+msgstr "AR"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: AR"
-msgstr "Afficher les stats : AR"
+msgid "CS"
+msgstr "CS"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: CS"
-msgstr "Afficher les stats : CS"
+msgid "OD"
+msgstr "OD"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: OD"
-msgstr "Afficher les stats : OD"
+msgid "HP"
+msgstr "HP"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: HP"
-msgstr "Afficher les stats : HP"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: 300 hitwindow"
-msgstr "Afficher les stats : fenêtre de hit 300"
+msgid "300 hitwindow"
+msgstr "Fenêtre de hit 300"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Timing window for hitting a 300 (e.g. +-25ms)."
 msgstr "Fenêtre de timing pour un 300 (ex. +-25ms)."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Notes Per Second"
-msgstr "Afficher les stats : Notes par seconde"
+msgid "Notes Per Second"
+msgstr "Notes par seconde"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "How many clicks per second are currently required."
 msgstr "Combien de clics par seconde sont actuellement nécessaires."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Note Density"
-msgstr "Afficher les stats : Densité de notes"
+msgid "Note Density"
+msgstr "Densité de notes"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "How many objects are visible at the same time."
 msgstr "Combien d'objets sont visibles en même temps."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Unstable Rate"
-msgstr "Afficher les stats : Taux d'instabilité"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Accuracy Error"
-msgstr "Afficher les stats : Erreur de précision"
+msgid "Accuracy Error"
+msgstr "Erreur de précision"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid ""
@@ -4713,10 +4731,6 @@ msgstr "Score total"
 msgid "Max combo"
 msgstr "Combo max"
 
-#: src/App/Neomod/RankingScreen.cpp src/App/Neomod/RoomScreen.cpp
-msgid "Accuracy"
-msgstr "Précision"
-
 #: src/App/Neomod/RankingScreen.cpp
 msgid "Performance"
 msgstr "Performance"
@@ -4908,14 +4922,6 @@ msgstr "Nouveau mot de passe :"
 #: src/App/Neomod/RoomScreen.cpp
 msgid "Score V1"
 msgstr "Score V1"
-
-#: src/App/Neomod/RoomScreen.cpp
-msgid "Combo"
-msgstr "Combo"
-
-#: src/App/Neomod/RoomScreen.cpp
-msgid "pp"
-msgstr "pp"
 
 #: src/App/Neomod/SongBrowser/BottomBar.cpp
 #, c++-format

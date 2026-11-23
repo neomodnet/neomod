@@ -88,19 +88,20 @@ class KeyBindButton;
 class ResetButton;
 
 enum class ElementType : int8_t {
-    SPCR = 0,       // spacer
-    SECT = 1,       // section
-    SUBSECT = 2,    // sub-section
-    LABEL = 3,      // ...
-    BTN = 4,        // button
-    BINDBTN = 5,    // keybind button
-    CBX = 6,        // checkbox
-    SLDR = 7,       // slider
-    TBX = 8,        // textbox
-    SKNPRVW = 9,    // skin preview
-    SLDRPRVW = 10,  // slider preview
-    CBX_BTN = 11,   // checkbox+button
-    CBX_GROUP = 12  // button that opens a menu of checkboxes
+    SPCR = 0,        // spacer
+    SECT = 1,        // section
+    SUBSECT = 2,     // sub-section
+    LABEL = 3,       // ...
+    BTN = 4,         // button
+    BINDBTN = 5,     // keybind button
+    CBX = 6,         // checkbox
+    SLDR = 7,        // slider
+    TBX = 8,         // textbox
+    SKNPRVW = 9,     // skin preview
+    SLDRPRVW = 10,   // slider preview
+    CBX_BTN = 11,    // checkbox+button
+    CBX_GROUP = 12,  // button that opens a menu of checkboxes
+    CHOICE = 13      // button that opens a list of values
 };
 using enum ElementType;
 struct OptionsElement;
@@ -188,8 +189,8 @@ struct OptionsOverlayImpl final {
         CBaseUILabel *label;
     };
     std::vector<StartupChoice> startupChoices;
-    size_t openStartupChoice{0};                 // the one whose list is open
-    OptionsElement *openCheckboxGroup{nullptr};  // the one whose menu is open
+    size_t openStartupChoice{0};               // the one whose list is open
+    OptionsElement *openMenuElement{nullptr};  // the checkbox group or choice whose menu is open
     // adds nothing if there is nothing to pick
     void addStartupChoice(const std::string &text, ConVar *cvar, std::vector<Mc::Startup::Choice> choices,
                           std::string_view inEffect, bool switched);
@@ -202,6 +203,10 @@ struct OptionsOverlayImpl final {
     void onCheckboxGroupSelect(CBaseUIButton *button);
     void onCheckboxGroupToggled(int id, bool checked);
     void updateCheckboxGroupLabel(OptionsElement *group);
+    void onChoiceSelect(CBaseUIButton *button);
+    void onChoiceSelected(std::string_view name, int id);
+    void updateChoiceLabel(OptionsElement *element);
+    [[nodiscard]] bool isAnyStatisticDrawn() const;
     void onSliderChange(CBaseUISlider *slider);
     void onSliderChangeOneDecimalPlace(CBaseUISlider *slider);
     void onSliderChangeTwoDecimalPlaces(CBaseUISlider *slider);
@@ -261,8 +266,11 @@ struct OptionsOverlayImpl final {
     CBaseUICheckbox *addCheckbox(const std::string &text, ConVar *cvar);
     CBaseUICheckbox *addCheckbox(const std::string &text, const std::string &tooltipText = {}, ConVar *cvar = nullptr);
     // a row for related checkboxes: its button opens them in a menu, its label lists the checked ones
-    void addCheckboxGroup(const std::string &text, const std::string &tooltipText,
-                          std::vector<CheckboxGroupItem> items);
+    OptionsElement *addCheckboxGroup(const std::string &text, const std::string &tooltipText,
+                                     std::vector<CheckboxGroupItem> items);
+    // a row for a string convar with a fixed set of values
+    void addChoice(const std::string &text, const std::string &tooltipText, ConVar *cvar,
+                   std::vector<Mc::Startup::Choice> choices);
     OptionsElement *addButtonCheckbox(const std::string &buttontext, const std::string &cbxtooltip);
     UISlider *addSlider(const std::string &text, float min = 0.0f, float max = 1.0f, ConVar *cvar = nullptr,
                         float label1Width = 0.0f, bool allowOverscale = false, bool allowUnderscale = false);
@@ -280,6 +288,7 @@ struct OptionsOverlayImpl final {
     UISearchOverlay *search{nullptr};
     CBaseUILabel *spacer{nullptr};
     CategoryButton *fposuCategoryButton{nullptr};
+    OptionsElement *statisticsGroup{nullptr};
     std::vector<CategoryButton *> categoryButtons;
     std::vector<std::unique_ptr<OptionsElement>> elemContainers;
     Hash::flat::map<CBaseUIElement *, OptionsElement *> uiToOptElemMap;
@@ -503,6 +512,7 @@ struct OptionsElement {
     std::unique_ptr<ResetButton> resetButton{nullptr};
 
     std::vector<CheckboxGroupItem> groupItems;  // CBX_GROUP
+    std::vector<Mc::Startup::Choice> choices;   // CHOICE
 
     float label1Width{0.f};
     float relSizeDPI{96.f};
@@ -512,9 +522,7 @@ struct OptionsElement {
     bool allowUnderscale{false};
 
     // tracks whether the centralized cvar-lock sweep currently has baseElems forced bEnabled=false
-    // (so we can restore the state set by other code, e.g. the high-quality-sliders toggle, when the lock is released).
     bool cvarLocked{false};
-    std::vector<bool> enabledBeforeCvarLock;
 };
 
 bool ResetButton::isAvailable() {
@@ -1073,11 +1081,13 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     this->addCheckbox(_("Share currently played map with spectators"), &cv::spec_share_map);
     if constexpr(!Env::cfg(OS::WASM)) {
         this->addCheckbox(
-            _("Enable Discord Rich Presence"),
-            _("Shows your current game state in your friends' friendslists.\ne.g.: Playing Gavin G - Reach Out "
-              "[Cherry Blossom's Insane]"),
-            &cv::rich_presence);
+                _("Enable Discord Rich Presence"),
+                _("Shows your current game state in your friends' friendslists.\ne.g.: Playing Gavin G - Reach Out "
+                  "[Cherry Blossom's Insane]"),
+                &cv::rich_presence)
+            ->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onCheckboxChangeWithLayoutUpdate>(this));
         this->addCheckbox(_("Draw map backgrounds in Discord Rich Presence"), &cv::rich_presence_map_backgrounds);
+        this->elemContainers.back()->render_condition = {[]() { return cv::rich_presence.getBool(); }};
 
         cv::rich_presence_map_backgrounds.setCallback([]() { RichPresence::refreshStatus(); });
     }
@@ -1135,25 +1145,31 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     // the internal resolution always matches the window in browsers, nothing to letterbox or stretch
     if constexpr(!Env::cfg(OS::WASM)) {
         this->addCheckbox(
-            _("Keep Aspect Ratio"),
-            _("Black borders instead of a stretched image.\nOnly relevant if fullscreen is enabled, and "
-              "letterboxing is disabled.\nUse the two position sliders below to move the viewport around."),
-            &cv::resolution_keep_aspect_ratio);
+                _("Keep Aspect Ratio"),
+                _("Black borders instead of a stretched image.\nOnly relevant if fullscreen is enabled, and "
+                  "letterboxing is disabled.\nUse the two position sliders below to move the viewport around."),
+                &cv::resolution_keep_aspect_ratio)
+            ->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onCheckboxChangeWithLayoutUpdate>(this));
         this->addCheckbox(
-            _("Letterboxing"),
-            _("Useful to get the low latency of fullscreen with a smaller game resolution.\nUse the two position "
-              "sliders below to move the viewport around."),
-            &cv::letterboxing);
+                _("Letterboxing"),
+                _("Useful to get the low latency of fullscreen with a smaller game resolution.\nUse the two position "
+                  "sliders below to move the viewport around."),
+                &cv::letterboxing)
+            ->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onCheckboxChangeWithLayoutUpdate>(this));
+        static const RenderCondition letterboxingCondition{
+            []() -> bool { return cv::letterboxing.getBool() || cv::resolution_keep_aspect_ratio.getBool(); }};
         this->letterboxingOffsetXSlider =
             this->addSlider(_("Horizontal position"), -1.0f, 1.0f, &cv::letterboxing_offset_x, 170)
                 ->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeLetterboxingOffset>(this))
                 ->setKeyDelta(0.01f)
                 ->setAnimated(false);
+        this->elemContainers.back()->render_condition = letterboxingCondition;
         this->letterboxingOffsetYSlider =
             this->addSlider(_("Vertical position"), -1.0f, 1.0f, &cv::letterboxing_offset_y, 170)
                 ->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeLetterboxingOffset>(this))
                 ->setKeyDelta(0.01f)
                 ->setAnimated(false);
+        this->elemContainers.back()->render_condition = letterboxingCondition;
     }
 
     // TRANSLATORS: Global UI scale, to make text bigger on big screens
@@ -1200,6 +1216,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
         ->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onHighQualitySlidersCheckboxChange>(this));
 
     this->sliderQualitySlider = this->addSlider(_("Slider Quality"), 0.0f, 1.0f, &cv::options_slider_quality);
+    this->elemContainers.back()->render_condition = {[]() { return cv::options_high_quality_sliders.getBool(); }};
     this->sliderQualitySlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeSliderQuality>(this));
 
@@ -1517,17 +1534,24 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
                       _("On very low resolutions (below 1600x900) you can disable this to get smoother visuals."),
                       &cv::skin_hd);
     this->addSpacer();
-    this->addCheckbox(_("Draw Cursor Trail"), &cv::draw_cursor_trail);
-    this->addCheckbox(
-        _("Force Smooth Cursor Trail"),
-        _("Usually, the presence of the cursormiddle.png skin image enables smooth cursortrails.\nThis option "
-          "allows you to force enable smooth cursortrails for all skins."),
-        &cv::cursor_trail_smooth_force);
-    this->addCheckbox(_("Always draw Cursor Trail"), _("Draw the cursor trail even when the cursor isn't moving"),
-                      &cv::always_render_cursor_trail);
-    this->addSlider(_("Cursor trail spacing:"), 0.f, 30.f, &cv::cursor_trail_spacing, -1.f, true)
-        ->setAnimated(false)
-        ->setKeyDelta(0.01f);
+    this->addCheckbox(_("Draw Cursor Trail"), &cv::draw_cursor_trail)
+        ->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onCheckboxChangeWithLayoutUpdate>(this));
+    {
+        static const RenderCondition cursorTrailCondition{[]() -> bool { return cv::draw_cursor_trail.getBool(); }};
+        this->addCheckbox(
+            _("Force Smooth Cursor Trail"),
+            _("Usually, the presence of the cursormiddle.png skin image enables smooth cursortrails.\nThis option "
+              "allows you to force enable smooth cursortrails for all skins."),
+            &cv::cursor_trail_smooth_force);
+        this->elemContainers.back()->render_condition = cursorTrailCondition;
+        this->addCheckbox(_("Always draw Cursor Trail"), _("Draw the cursor trail even when the cursor isn't moving"),
+                          &cv::always_render_cursor_trail);
+        this->elemContainers.back()->render_condition = cursorTrailCondition;
+        this->addSlider(_("Cursor trail spacing:"), 0.f, 30.f, &cv::cursor_trail_spacing, -1.f, true)
+            ->setAnimated(false)
+            ->setKeyDelta(0.01f);
+        this->elemContainers.back()->render_condition = cursorTrailCondition;
+    }
     this->cursorSizeSlider = this->addSlider(_("Cursor Size:"), 0.01f, 5.0f, &cv::cursor_scale, -1.0f, true);
     this->cursorSizeSlider->setAnimated(false);
     this->cursorSizeSlider->setKeyDelta(0.01f);
@@ -1573,10 +1597,12 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
 
     this->addCheckbox(_("Raw Mouse Input"), _("Not recommended if you're using a tablet."), &cv::mouse_raw_input);
     this->elemContainers.back()->searchTags = "raw input";
-    this->addCheckbox(_("Confine Cursor (Windowed)"), &cv::confine_cursor_windowed);
-    this->addCheckbox(_("Confine Cursor (Fullscreen)"), &cv::confine_cursor_fullscreen);
-    this->addCheckbox(_("Confine Cursor (NEVER)"), _("Overrides automatic cursor clipping during gameplay."),
-                      &cv::confine_cursor_never);
+    this->addChoice(_("Confine Cursor"), "", &cv::confine_cursor,
+                    {{.value = "never", .name = _("Never")},
+                     {.value = "gameplay", .name = _("During gameplay")},
+                     {.value = "windowed", .name = _("During gameplay and when windowed")},
+                     {.value = "fullscreen", .name = _("During gameplay and when fullscreen")},
+                     {.value = "always", .name = _("Always")}});
     this->addCheckbox(_("Disable Mouse Wheel in Play Mode"), &cv::disable_mousewheel);
     this->addCheckbox(_("Disable Mouse Buttons in Play Mode"), &cv::disable_mousebuttons);
     this->addCheckbox(_("Cursor ripples"), _("The cursor will ripple outwards on clicking."), &cv::draw_cursor_ripples);
@@ -1708,34 +1734,48 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     this->addSubSection(_("Backgrounds"), "image thumbnail");
     this->addCheckbox(_("Load Background Images (!)"),
                       _("NOTE: Disabling this will disable ALL beatmap images everywhere!"),
-                      &cv::load_beatmap_background_images);
-    this->addCheckbox(_("Draw Background in Beatmap"), &cv::draw_beatmap_background_image);
-    this->addCheckbox(_("Draw Background in SongBrowser"),
-                      _("NOTE: You can disable this if you always want menu-background."),
-                      &cv::draw_songbrowser_background_image);
-    this->addCheckbox(_("Draw Background Thumbnails in SongBrowser"), &cv::draw_songbrowser_thumbnails);
-    this->addCheckbox(_("Draw Background in Ranking/Results Screen"), &cv::draw_rankingscreen_background_image);
-    this->addCheckbox(_("Prefer beatmap background in Menu"),
-                      _("Use the background from the currently playing song, even in the main menu."),
-                      &cv::main_menu_prefer_map_bg);
+                      &cv::load_beatmap_background_images)
+        ->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onCheckboxChangeWithLayoutUpdate>(this));
+    {
+        static const RenderCondition backgroundsCondition{
+            []() -> bool { return cv::load_beatmap_background_images.getBool(); }};
+        this->addCheckbox(_("Draw Background in Beatmap"), &cv::draw_beatmap_background_image);
+        this->elemContainers.back()->render_condition = backgroundsCondition;
+        this->addCheckbox(_("Draw Background in SongBrowser"),
+                          _("NOTE: You can disable this if you always want menu-background."),
+                          &cv::draw_songbrowser_background_image)
+            ->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onCheckboxChangeWithLayoutUpdate>(this));
+        this->elemContainers.back()->render_condition = backgroundsCondition;
+        this->addCheckbox(_("Draw Background Thumbnails in SongBrowser"), &cv::draw_songbrowser_thumbnails);
+        this->elemContainers.back()->render_condition = backgroundsCondition;
+        this->addCheckbox(_("Draw Background in Ranking/Results Screen"), &cv::draw_rankingscreen_background_image);
+        this->elemContainers.back()->render_condition = backgroundsCondition;
+        this->addCheckbox(_("Prefer beatmap background in Menu"),
+                          _("Use the background from the currently playing song, even in the main menu."),
+                          &cv::main_menu_prefer_map_bg);
+        this->elemContainers.back()->render_condition = backgroundsCondition;
+    }
     this->addCheckbox(_("Draw menu-background in Menu"), &cv::draw_menu_background);
     this->addCheckbox(_("Draw menu-background in SongBrowser"),
                       _("NOTE: Only applies if \"Draw Background in SongBrowser\" is disabled."),
                       &cv::draw_songbrowser_menu_background_image);
+    this->elemContainers.back()->render_condition = {[]() { return !cv::draw_songbrowser_background_image.getBool(); }};
     this->addSpacer();
     // addCheckbox(_("Show pp on ranking screen"), &cv::rankingscreen_pp);
 
     this->addSubSection(_("Key Overlay"), "input visual hud key trail");
-    this->addCheckbox(_("Draw Key Overlay"), &cv::draw_inputoverlay);
+    this->addCheckbox(_("Draw Key Overlay"), &cv::draw_inputoverlay)
+        ->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onCheckboxChangeWithLayoutUpdate>(this));
     {
         auto *keytrailCbox =
             this->addCheckbox(_("Draw Key Overlay Trail"),
                               _("Scrolling blocks next to the key overlay, visualizing how long each key was held."),
                               &cv::draw_inputoverlay_trail);
         keytrailCbox->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onCheckboxChangeWithLayoutUpdate>(this));
+        this->elemContainers.back()->render_condition = {[]() { return cv::draw_inputoverlay.getBool(); }};
 
         static const RenderCondition trailOptionsCondition{
-            []() -> bool { return cv::draw_inputoverlay_trail.getBool(); }};
+            []() -> bool { return cv::draw_inputoverlay.getBool() && cv::draw_inputoverlay_trail.getBool(); }};
 
         this->hudInputoverlayTrailOpacitySlider =
             this->addSlider(_("Trail Opacity:"), 0.01f, 1.0f, &cv::hud_inputoverlay_trail_alpha, 165.0f);
@@ -1767,55 +1807,66 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
           " default (toggle \"Draw HUD\")\nDisabled: osu! default (always show hiterrorbar + key overlay)"),
         &cv::hud_shift_tab_toggles_everything);
     this->addSpacer();
-    this->addCheckbox(_("Draw Score"), &cv::draw_score);
-    this->addCheckbox(_("Draw Combo"), &cv::draw_combo);
-    this->addCheckbox(_("Draw Accuracy"), &cv::draw_accuracy);
-    this->addCheckbox(_("Draw Clock"), &cv::draw_progressbar);
-    this->addCheckbox(_("Draw HitErrorBar"), &cv::draw_hiterrorbar);
-    this->addCheckbox(_("Draw HitErrorBar UR"), _("Unstable Rate"), &cv::draw_hiterrorbar_ur);
-    this->addCheckbox(_("Draw ScoreBar"), _("Health/HP Bar."), &cv::draw_scorebar);
-    this->addCheckbox(
-        _("Draw ScoreBar-bg"),
-        _("Some skins abuse this as the playfield background image.\nIt is actually just the background image "
-          "for the Health/HP Bar."),
-        &cv::draw_scorebarbg);
-    this->addCheckbox(_("Draw ScoreBoard in singleplayer"), &cv::draw_scoreboard);
-    this->addCheckbox(_("Draw ScoreBoard in multiplayer"), &cv::draw_scoreboard_mp);
-    this->addCheckbox(_("Draw Scrubbing Timeline"), &cv::draw_scrubbing_timeline);
-    this->addCheckbox(_("Draw Miss Window on HitErrorBar"), &cv::hud_hiterrorbar_showmisswindow);
-    this->addSpacer();
-    this->addCheckbox(
-        _("Draw Stats: pp"),
-        _("Realtime pp counter.\nDynamically calculates earned pp by incrementally updating the star rating."),
-        &cv::draw_statistics_pp);
-    this->addCheckbox(_("Draw Stats: pp (SS)"), _("Max possible total pp for active mods (full combo + perfect acc)."),
-                      &cv::draw_statistics_perfectpp);
-    this->addCheckbox(_("Draw Stats: Misses"), _("Number of misses."), &cv::draw_statistics_misses);
-    this->addCheckbox(_("Draw Stats: SliderBreaks"), _("Number of slider breaks."), &cv::draw_statistics_sliderbreaks);
-    this->addCheckbox(_("Draw Stats: Retries"), _("How many times the current map was retried."),
-                      &cv::draw_statistics_retries);
-    this->addCheckbox(_("Draw Stats: Max Possible Combo"), &cv::draw_statistics_maxpossiblecombo);
-    this->addCheckbox(_("Draw Stats: Stars*** (Until Now)"),
-                      _("Incrementally updates the star rating (aka \"realtime stars\")."),
-                      &cv::draw_statistics_livestars);
-    this->addCheckbox(_("Draw Stats: Stars* (Total)"), _("Total stars for active mods."),
-                      &cv::draw_statistics_totalstars);
-    this->addCheckbox(_("Draw Stats: BPM"), &cv::draw_statistics_bpm);
-    this->addCheckbox(_("Draw Stats: AR"), &cv::draw_statistics_ar);
-    this->addCheckbox(_("Draw Stats: CS"), &cv::draw_statistics_cs);
-    this->addCheckbox(_("Draw Stats: OD"), &cv::draw_statistics_od);
-    this->addCheckbox(_("Draw Stats: HP"), &cv::draw_statistics_hp);
-    this->addCheckbox(_("Draw Stats: 300 hitwindow"), _("Timing window for hitting a 300 (e.g. +-25ms)."),
-                      &cv::draw_statistics_hitwindow300);
-    this->addCheckbox(_("Draw Stats: Notes Per Second"), _("How many clicks per second are currently required."),
-                      &cv::draw_statistics_nps);
-    this->addCheckbox(_("Draw Stats: Note Density"), _("How many objects are visible at the same time."),
-                      &cv::draw_statistics_nd);
-    this->addCheckbox(_("Draw Stats: Unstable Rate"), &cv::draw_statistics_ur);
-    this->addCheckbox(_("Draw Stats: Accuracy Error"),
-                      _("Average hit error delta (e.g. -5ms +15ms).\nSee \"hud_statistics_hitdelta_chunksize 30\",\nit "
-                        "defines how many recent hit deltas are averaged."),
-                      &cv::draw_statistics_hitdelta);
+    this->addCheckboxGroup(
+        _("HUD Elements"), _("Which elements are drawn during gameplay."),
+        {{.label = _("Score"), .tooltip = {}, .cvar = &cv::draw_score},
+         {.label = _("Combo"), .tooltip = {}, .cvar = &cv::draw_combo},
+         {.label = _("Accuracy"), .tooltip = {}, .cvar = &cv::draw_accuracy},
+         {.label = _("Clock"), .tooltip = {}, .cvar = &cv::draw_progressbar},
+         {.label = _("HitErrorBar"), .tooltip = {}, .cvar = &cv::draw_hiterrorbar},
+         {.label = _("HitErrorBar UR"), .tooltip = _("Unstable Rate"), .cvar = &cv::draw_hiterrorbar_ur},
+         {.label = _("Miss Window on HitErrorBar"), .tooltip = {}, .cvar = &cv::hud_hiterrorbar_showmisswindow},
+         {.label = _("ScoreBar"), .tooltip = _("Health/HP Bar."), .cvar = &cv::draw_scorebar},
+         {.label = _("ScoreBar-bg"),
+          .tooltip = _("Some skins abuse this as the playfield background image.\nIt is actually just the background "
+                       "image for the Health/HP Bar."),
+          .cvar = &cv::draw_scorebarbg},
+         {.label = _("ScoreBoard in singleplayer"), .tooltip = {}, .cvar = &cv::draw_scoreboard},
+         {.label = _("ScoreBoard in multiplayer"), .tooltip = {}, .cvar = &cv::draw_scoreboard_mp},
+         {.label = _("Scrubbing Timeline"), .tooltip = {}, .cvar = &cv::draw_scrubbing_timeline}});
+    this->statisticsGroup = this->addCheckboxGroup(
+        _("Statistics"), _("Which statistics are drawn during gameplay."),
+        {{.label = _("pp"),
+          .tooltip =
+              _("Realtime pp counter.\nDynamically calculates earned pp by incrementally updating the star rating."),
+          .cvar = &cv::draw_statistics_pp},
+         {.label = _("pp (SS)"),
+          .tooltip = _("Max possible total pp for active mods (full combo + perfect acc)."),
+          .cvar = &cv::draw_statistics_perfectpp},
+         {.label = _("Misses"), .tooltip = _("Number of misses."), .cvar = &cv::draw_statistics_misses},
+         {.label = _("SliderBreaks"),
+          .tooltip = _("Number of slider breaks."),
+          .cvar = &cv::draw_statistics_sliderbreaks},
+         {.label = _("Retries"),
+          .tooltip = _("How many times the current map was retried."),
+          .cvar = &cv::draw_statistics_retries},
+         {.label = _("Max Possible Combo"), .tooltip = {}, .cvar = &cv::draw_statistics_maxpossiblecombo},
+         {.label = _("Stars*** (Until Now)"),
+          .tooltip = _("Incrementally updates the star rating (aka \"realtime stars\")."),
+          .cvar = &cv::draw_statistics_livestars},
+         {.label = _("Stars* (Total)"),
+          .tooltip = _("Total stars for active mods."),
+          .cvar = &cv::draw_statistics_totalstars},
+         {.label = _("BPM"), .tooltip = {}, .cvar = &cv::draw_statistics_bpm},
+         {.label = _("AR"), .tooltip = {}, .cvar = &cv::draw_statistics_ar},
+         {.label = _("CS"), .tooltip = {}, .cvar = &cv::draw_statistics_cs},
+         {.label = _("OD"), .tooltip = {}, .cvar = &cv::draw_statistics_od},
+         {.label = _("HP"), .tooltip = {}, .cvar = &cv::draw_statistics_hp},
+         {.label = _("300 hitwindow"),
+          .tooltip = _("Timing window for hitting a 300 (e.g. +-25ms)."),
+          .cvar = &cv::draw_statistics_hitwindow300},
+         {.label = _("Notes Per Second"),
+          .tooltip = _("How many clicks per second are currently required."),
+          .cvar = &cv::draw_statistics_nps},
+         {.label = _("Note Density"),
+          .tooltip = _("How many objects are visible at the same time."),
+          .cvar = &cv::draw_statistics_nd},
+         {.label = _("Unstable Rate"), .tooltip = {}, .cvar = &cv::draw_statistics_ur},
+         {.label = _("Accuracy Error"),
+          .tooltip = _("Average hit error delta (e.g. -5ms +15ms).\nSee \"hud_statistics_hitdelta_chunksize 30\",\nit "
+                       "defines how many recent hit deltas are averaged."),
+          .cvar = &cv::draw_statistics_hitdelta}});
+    const RenderCondition statisticsCondition{SA::MakeDelegate<&OptionsOverlayImpl::isAnyStatisticDrawn>(this)};
     this->addSpacer();
 
     // TRANSLATORS: Section of option sliders to set the scale of in-game UI elements
@@ -1826,61 +1877,77 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     this->hudScoreScaleSlider = this->addSlider(_("Score:"), 0.01f, 3.0f, &cv::hud_score_scale, 165.0f);
     this->hudScoreScaleSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudScoreScaleSlider->setKeyDelta(0.01f);
+    this->elemContainers.back()->render_condition = {[]() { return cv::draw_score.getBool(); }};
     this->hudComboScaleSlider = this->addSlider(_("Combo:"), 0.01f, 3.0f, &cv::hud_combo_scale, 165.0f);
     this->hudComboScaleSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudComboScaleSlider->setKeyDelta(0.01f);
+    this->elemContainers.back()->render_condition = {[]() { return cv::draw_combo.getBool(); }};
     this->hudAccuracyScaleSlider = this->addSlider(_("Accuracy:"), 0.01f, 3.0f, &cv::hud_accuracy_scale, 165.0f);
     this->hudAccuracyScaleSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudAccuracyScaleSlider->setKeyDelta(0.01f);
+    this->elemContainers.back()->render_condition = {[]() { return cv::draw_accuracy.getBool(); }};
     this->hudHiterrorbarScaleSlider =
         this->addSlider(_("HitErrorBar:"), 0.01f, 3.0f, &cv::hud_hiterrorbar_scale, 165.0f);
     this->hudHiterrorbarScaleSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudHiterrorbarScaleSlider->setKeyDelta(0.01f);
+    this->elemContainers.back()->render_condition = {[]() { return cv::draw_hiterrorbar.getBool(); }};
     this->hudHiterrorbarURScaleSlider =
         this->addSlider(_("HitErrorBar UR:"), 0.01f, 3.0f, &cv::hud_hiterrorbar_ur_scale, 165.0f);
     this->hudHiterrorbarURScaleSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudHiterrorbarURScaleSlider->setKeyDelta(0.01f);
+    this->elemContainers.back()->render_condition = {[]() { return cv::draw_hiterrorbar_ur.getBool(); }};
     this->hudProgressbarScaleSlider = this->addSlider(_("Clock:"), 0.01f, 3.0f, &cv::hud_progressbar_scale, 165.0f);
     this->hudProgressbarScaleSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudProgressbarScaleSlider->setKeyDelta(0.01f);
+    this->elemContainers.back()->render_condition = {[]() { return cv::draw_progressbar.getBool(); }};
     this->hudScoreBarScaleSlider = this->addSlider(_("ScoreBar:"), 0.01f, 3.0f, &cv::hud_scorebar_scale, 165.0f);
     this->hudScoreBarScaleSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudScoreBarScaleSlider->setKeyDelta(0.01f);
+    this->elemContainers.back()->render_condition = {[]() { return cv::draw_scorebar.getBool(); }};
     this->hudScoreBoardScaleSlider = this->addSlider(_("ScoreBoard:"), 0.01f, 3.0f, &cv::hud_scoreboard_scale, 165.0f);
     this->hudScoreBoardScaleSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudScoreBoardScaleSlider->setKeyDelta(0.01f);
+    this->elemContainers.back()->render_condition = {
+        []() { return cv::draw_scoreboard.getBool() || cv::draw_scoreboard_mp.getBool(); }};
     this->hudInputoverlayScaleSlider =
         this->addSlider(_("Key Overlay:"), 0.01f, 3.0f, &cv::hud_inputoverlay_scale, 165.0f);
     this->hudInputoverlayScaleSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->hudInputoverlayScaleSlider->setKeyDelta(0.01f);
+    this->elemContainers.back()->render_condition = {[]() { return cv::draw_inputoverlay.getBool(); }};
     this->statisticsOverlayScaleSlider =
         this->addSlider(_("Statistics:"), 0.01f, 3.0f, &cv::hud_statistics_scale, 165.0f);
     this->statisticsOverlayScaleSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangePercent>(this));
     this->statisticsOverlayScaleSlider->setKeyDelta(0.01f);
+    this->elemContainers.back()->render_condition = statisticsCondition;
     this->addSpacer();
     this->addSubSection(_("Statistics Offset"));
+    this->elemContainers.back()->render_condition = statisticsCondition;
     this->statisticsOverlayXOffsetSlider =
         this->addSlider(_("X Offset:"), 0.0f, 2000.0f, &cv::hud_statistics_offset_x, 165.0f, true);
     this->statisticsOverlayXOffsetSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeInt>(this));
     this->statisticsOverlayXOffsetSlider->setKeyDelta(1.0f);
+    this->elemContainers.back()->render_condition = statisticsCondition;
     this->statisticsOverlayYOffsetSlider =
         this->addSlider(_("Y Offset:"), 0.0f, 1000.0f, &cv::hud_statistics_offset_y, 165.0f, true);
     this->statisticsOverlayYOffsetSlider->setChangeCallback(
         SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeInt>(this));
     this->statisticsOverlayYOffsetSlider->setKeyDelta(1.0f);
+    this->elemContainers.back()->render_condition = statisticsCondition;
 
     this->addSubSection(_("Playfield"));
     this->addCheckbox(_("Draw FollowPoints"), &cv::draw_followpoints);
     this->addCheckbox(_("Draw Playfield Border"), _("Correct border relative to the current Circle Size."),
-                      &cv::draw_playfield_border);
+                      &cv::draw_playfield_border)
+        ->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onCheckboxChangeWithLayoutUpdate>(this));
     this->playfieldBorderSizeSlider = this->addSlider(_("Border Size:"), 0.0f, 500.0f, &cv::hud_playfield_border_size);
+    this->elemContainers.back()->render_condition = {[]() { return cv::draw_playfield_border.getBool(); }};
     this->playfieldBorderSizeSlider->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onSliderChangeInt>(this));
     this->playfieldBorderSizeSlider->setKeyDelta(1.0f);
 
@@ -1899,7 +1966,9 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     this->addCheckbox(_("FPoSu"),
                       _("The real 3D FPS mod.\nPlay from a first person shooter perspective in a 3D environment.\nThis "
                         "is only intended for mouse! (Enable \"Tablet/Absolute Mode\" for tablets.)"),
-                      &cv::mod_fposu);
+                      &cv::mod_fposu)
+        ->setChangeCallback(SA::MakeDelegate<&OptionsOverlayImpl::onCheckboxChangeWithLayoutUpdate>(this));
+    const size_t fposuOptionsStart = this->elemContainers.size();
     this->addLabel("");
     this->addLabel(_("NOTE: Use CTRL + O during gameplay to get here!"))->setTextColor(0xff555555);
     this->addLabel("");
@@ -1946,6 +2015,9 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
                       _("Don't enable this if you are using a mouse.\nIf this is enabled, then DPI and cm per "
                         "360 will be ignored!"),
                       &cv::fposu_absolute_mode);
+    for(size_t i = fposuOptionsStart; i < this->elemContainers.size(); i++) {
+        this->elemContainers[i]->render_condition = {[]() { return cv::mod_fposu.getBool(); }};
+    }
 
     //**************************************************************************************************************************//
 
@@ -2517,6 +2589,7 @@ void OptionsOverlayImpl::updateLayout() {
             this->onResetUpdate(element->resetButton.get());
             continue;
         }
+        if(element->type == CHOICE) this->updateChoiceLabel(element.get());
         if(!element->cvar) continue;
         for(const auto &baseElem : element->baseElems) {
             switch(element->type) {
@@ -3614,12 +3687,12 @@ void OptionsOverlayImpl::updateStartupChoiceLabels() {
 void OptionsOverlayImpl::onCheckboxGroupSelect(CBaseUIButton *button) {
     const auto it = this->uiToOptElemMap.find(button);
     if(it == this->uiToOptElemMap.end()) return;
-    this->openCheckboxGroup = it->second;
+    this->openMenuElement = it->second;
 
     this->contextMenu->setPos(button->getPos());
     this->contextMenu->setRelPos(button->getRelPos());
     this->contextMenu->begin(button->getSize().x);
-    for(int i = 0; const auto &item : this->openCheckboxGroup->groupItems) {
+    for(int i = 0; const auto &item : this->openMenuElement->groupItems) {
         this->contextMenu->addCheckbox(item.label, item.cvar->getBool(), i++)->setTooltipText(item.tooltip);
     }
     this->contextMenu->end(false, false);
@@ -3628,9 +3701,10 @@ void OptionsOverlayImpl::onCheckboxGroupSelect(CBaseUIButton *button) {
 }
 
 void OptionsOverlayImpl::onCheckboxGroupToggled(int id, bool checked) {
-    setFromWidget(this->openCheckboxGroup->groupItems[id].cvar, checked);
-    this->updateCheckboxGroupLabel(this->openCheckboxGroup);
-    this->onResetUpdate(this->openCheckboxGroup->resetButton.get());
+    setFromWidget(this->openMenuElement->groupItems[id].cvar, checked);
+    this->updateCheckboxGroupLabel(this->openMenuElement);
+    this->onResetUpdate(this->openMenuElement->resetButton.get());
+    this->scheduleLayoutUpdate();
 }
 
 void OptionsOverlayImpl::updateCheckboxGroupLabel(OptionsElement *group) {
@@ -3643,6 +3717,39 @@ void OptionsOverlayImpl::updateCheckboxGroupLabel(OptionsElement *group) {
     // the menu shows what doesn't fit
     auto *label = static_cast<CBaseUILabel *>(group->baseElems[1].get());
     label->setText(label->getFont()->ellipsize(text.empty() ? _("Off") : text, label->getSize().x));
+}
+
+void OptionsOverlayImpl::onChoiceSelect(CBaseUIButton *button) {
+    const auto it = this->uiToOptElemMap.find(button);
+    if(it == this->uiToOptElemMap.end()) return;
+    this->openMenuElement = it->second;
+
+    this->contextMenu->setPos(button->getPos());
+    this->contextMenu->setRelPos(button->getRelPos());
+    this->contextMenu->begin(button->getSize().x);
+    for(int i = 0; const auto &choice : this->openMenuElement->choices) {
+        CBaseUIButton *item = this->contextMenu->addButton(choice.name, i++);
+        if(choice.value == this->openMenuElement->cvar->getString()) item->setTextBrightColor(0xff00ff00);
+    }
+    this->contextMenu->end(false, false);
+    this->contextMenu->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onChoiceSelected>(this));
+    this->options->setScrollSizeToContent();
+}
+
+void OptionsOverlayImpl::onChoiceSelected(std::string_view /*name*/, int id) {
+    setFromWidget(this->openMenuElement->cvar, this->openMenuElement->choices[id].value);
+    this->updateChoiceLabel(this->openMenuElement);
+    this->onResetUpdate(this->openMenuElement->resetButton.get());
+}
+
+void OptionsOverlayImpl::updateChoiceLabel(OptionsElement *element) {
+    static_cast<CBaseUILabel *>(element->baseElems[1].get())
+        ->setText(Mc::Startup::choiceName(element->choices, element->cvar->getString()));
+}
+
+bool OptionsOverlayImpl::isAnyStatisticDrawn() const {
+    return Mc::ranges::any_of(this->statisticsGroup->groupItems,
+                              [](const CheckboxGroupItem &item) { return item.cvar->getBool(); });
 }
 
 void OptionsOverlayImpl::onCheckboxChangeWithLayoutUpdate(CBaseUICheckbox *checkbox) {
@@ -4006,41 +4113,9 @@ void OptionsOverlayImpl::onHighQualitySlidersCheckboxChange(CBaseUICheckbox *che
 }
 
 void OptionsOverlayImpl::onHighQualitySlidersConVarChange(float newValue) {
-    const bool enabled = newValue > 0;
-    for(auto &element : this->elemContainers) {
-        bool contains = false;
-        for(const auto &e : element->baseElems) {
-            if(e.get() == this->sliderQualitySlider) {
-                contains = true;
-                break;
-            }
-        }
-
-        if(contains) {
-            // HACKHACK: show/hide quality slider, this is ugly as fuck
-            // TODO: containers use setVisible() on all elements. there needs to be a separate API for hiding elements
-            // while inside any kind of container
-            for(const auto &e : element->baseElems) {
-                e->setEnabled(enabled);
-
-                auto *sliderPointer = dynamic_cast<UISlider *>(e.get());
-                auto *labelPointer = dynamic_cast<CBaseUILabel *>(e.get());
-
-                if(sliderPointer != nullptr) sliderPointer->setFrameColor(enabled ? 0xffffffff : 0xff000000);
-                if(labelPointer != nullptr) labelPointer->setTextColor(enabled ? 0xffffffff : 0xff000000);
-            }
-
-            // reset value if disabled
-            if(!enabled && element->cvar) {
-                this->sliderQualitySlider->setValue(static_cast<float>(element->cvar->getDefaultDouble()), false);
-                element->cvar->setValue(element->cvar->getDefaultDouble());
-            }
-
-            this->onResetUpdate(element->resetButton.get());
-
-            break;
-        }
-    }
+    // reset value if disabled
+    if(newValue <= 0) cv::options_slider_quality.setValue(cv::options_slider_quality.getDefaultDouble());
+    this->scheduleLayoutUpdate();
 }
 
 void OptionsOverlayImpl::resetSearch() {
@@ -4067,6 +4142,9 @@ void OptionsOverlayImpl::onResetUpdate(ResetButton *resbtn) {
         case SLDR:
             resbtn->setEnabled(optelem->cvar->getDouble() != optelem->cvar->getDefaultDouble());
             break;
+        case CHOICE:
+            resbtn->setEnabled(optelem->cvar->getString() != optelem->cvar->getDefaultString());
+            break;
         case CBX_GROUP:
             resbtn->setEnabled(Mc::ranges::any_of(optelem->groupItems, [](const CheckboxGroupItem &item) {
                 return item.cvar->getMaster() == CvarEditor::CLIENT &&
@@ -4091,31 +4169,15 @@ void OptionsOverlayImpl::applyForcedCvarLocks() {
         const bool nowLocked = (e->cvar->getMaster() != CvarEditor::CLIENT);
         if(nowLocked == e->cvarLocked) continue;  // no transition
 
-        if(nowLocked) {
-            // save each baseElem's bEnabled so we can restore it later, even if
-            // some unrelated code (e.g. onHighQualitySlidersConVarChange) has it
-            // disabled for its own reasons
-            e->enabledBeforeCvarLock.clear();
-            e->enabledBeforeCvarLock.reserve(e->baseElems.size());
-            for(auto &elem : e->baseElems) {
-                e->enabledBeforeCvarLock.push_back(elem->isEnabled());
-                elem->setEnabled(false);
-            }
-        } else {
-            for(size_t i = 0; i < e->baseElems.size(); i++) {
-                const bool restored = i < e->enabledBeforeCvarLock.size() ? e->enabledBeforeCvarLock[i] : true;
-                e->baseElems[i]->setEnabled(restored);
-            }
-            e->enabledBeforeCvarLock.clear();
-        }
+        for(auto &elem : e->baseElems) elem->setEnabled(!nowLocked);
         e->cvarLocked = nowLocked;
     }
 
     // and the checkboxes of an open checkbox group
-    if(this->openCheckboxGroup == nullptr || !this->contextMenu->isVisible()) return;
+    if(this->openMenuElement == nullptr || !this->contextMenu->isVisible()) return;
     for(auto *elem : this->contextMenu->container.getElements()) {
         if(auto *checkbox = dynamic_cast<UIContextMenuCheckbox *>(elem)) {
-            const ConVar *cvar = this->openCheckboxGroup->groupItems[checkbox->getID()].cvar;
+            const ConVar *cvar = this->openMenuElement->groupItems[checkbox->getID()].cvar;
             checkbox->setEnabled(cvar->getMaster() == CvarEditor::CLIENT);
         }
     }
@@ -4129,7 +4191,7 @@ void OptionsOverlayImpl::pushForcedCvarTooltipIfHovered() {
         for(auto *elem : this->contextMenu->container.getElements()) {
             auto *checkbox = dynamic_cast<UIContextMenuCheckbox *>(elem);
             if(checkbox == nullptr || checkbox->isEnabled() || !checkbox->getRect().contains(mouse->getPos())) continue;
-            pushForcedCvarTooltip(this->openCheckboxGroup->groupItems[checkbox->getID()].cvar);
+            pushForcedCvarTooltip(this->openMenuElement->groupItems[checkbox->getID()].cvar);
             break;
         }
         return;
@@ -4159,6 +4221,11 @@ void OptionsOverlayImpl::onResetClicked(ResetButton *resbtn) {
         case CBX_GROUP:
             for(const auto &item : optelem->groupItems) setFromWidget(item.cvar, (bool)item.cvar->getDefaultDouble());
             this->updateCheckboxGroupLabel(optelem);
+            this->scheduleLayoutUpdate();
+            break;
+        case CHOICE:
+            setFromWidget(optelem->cvar, optelem->cvar->getDefaultString());
+            this->updateChoiceLabel(optelem);
             break;
         case SLDR:
             if(optelem->baseElems.size() == 3) {
@@ -4423,8 +4490,8 @@ CBaseUICheckbox *OptionsOverlayImpl::addCheckbox(const std::string &text, const 
     return checkbox;
 }
 
-void OptionsOverlayImpl::addCheckboxGroup(const std::string &text, const std::string &tooltipText,
-                                          std::vector<CheckboxGroupItem> items) {
+OptionsElement *OptionsOverlayImpl::addCheckboxGroup(const std::string &text, const std::string &tooltipText,
+                                                     std::vector<CheckboxGroupItem> items) {
     OptionsElement *element = this->addButton(text, "", true);
     element->type = CBX_GROUP;
     element->resetButton->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onResetClicked>(this));
@@ -4440,6 +4507,21 @@ void OptionsOverlayImpl::addCheckboxGroup(const std::string &text, const std::st
     }
     element->groupItems = std::move(items);
     this->updateCheckboxGroupLabel(element);
+    return element;
+}
+
+void OptionsOverlayImpl::addChoice(const std::string &text, const std::string &tooltipText, ConVar *cvar,
+                                   std::vector<Mc::Startup::Choice> choices) {
+    OptionsElement *element = this->addButton(text, "", true, cvar);
+    element->type = CHOICE;
+    element->resetButton->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onResetClicked>(this));
+
+    auto *button = static_cast<UIButton *>(element->baseElems[0].get());
+    button->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onChoiceSelect>(this));
+    button->setTooltipText(tooltipText);
+
+    element->choices = std::move(choices);
+    this->updateChoiceLabel(element);
 }
 
 OptionsElement *OptionsOverlayImpl::addButtonCheckbox(const std::string &buttontext, const std::string &cbxtooltip) {

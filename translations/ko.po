@@ -1420,6 +1420,7 @@ msgid "Selected Points"
 msgstr "선택한 포인트"
 
 #: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "BPM"
 msgstr "BPM"
 
@@ -1848,12 +1849,12 @@ msgid "Click here to install the update!"
 msgstr "여기를 클릭해 업데이트를 설치하세요!"
 
 #: src/App/Neomod/MainMenu.cpp
-msgid "A new version is available! Click to open the download page."
-msgstr "새 버전이 있습니다! 클릭하면 다운로드 페이지가 열립니다."
-
-#: src/App/Neomod/MainMenu.cpp
 msgid "Update Error! Click to retry ..."
 msgstr "업데이트 오류! 클릭해서 다시 시도 ..."
+
+#: src/App/Neomod/MainMenu.cpp
+msgid "A new version is available! Click to open the download page."
+msgstr "새 버전이 있습니다! 클릭하면 다운로드 페이지가 열립니다."
 
 #: src/App/Neomod/MainMenu.cpp
 msgid "Your browser doesn't support multithreaded WebAssembly, so performance will be worse than usual."
@@ -3408,20 +3409,28 @@ msgid "Raw Mouse Input"
 msgstr "마우스 원시 입력"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Confine Cursor (Windowed)"
-msgstr "커서 가두기 (창 모드)"
+msgid "Confine Cursor"
+msgstr "커서 가두기"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Confine Cursor (Fullscreen)"
-msgstr "커서 가두기 (전체 화면)"
+msgid "Never"
+msgstr "안 함"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Confine Cursor (NEVER)"
-msgstr "커서 가두기 (안 함)"
+msgid "During gameplay"
+msgstr "플레이 중"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Overrides automatic cursor clipping during gameplay."
-msgstr "플레이 중 자동 커서 가두기를 덮어씁니다."
+msgid "During gameplay and when windowed"
+msgstr "플레이 중 및 창 모드일 때"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "During gameplay and when fullscreen"
+msgstr "플레이 중 및 전체 화면일 때"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Always"
+msgstr "항상"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Disable Mouse Wheel in Play Mode"
@@ -3848,44 +3857,57 @@ msgid "Enabled: "
 msgstr "켜짐: "
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Score"
-msgstr "점수 표시"
+msgid "HUD Elements"
+msgstr "HUD 요소"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Combo"
-msgstr "콤보 표시"
+msgid "Which elements are drawn during gameplay."
+msgstr "플레이 중 표시할 요소입니다."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Accuracy"
-msgstr "정확도 표시"
+msgid "Score"
+msgstr "점수"
+
+#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/RoomScreen.cpp
+msgid "Combo"
+msgstr "콤보"
+
+#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/RankingScreen.cpp
+#: src/App/Neomod/RoomScreen.cpp
+msgid "Accuracy"
+msgstr "정확도"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Clock"
-msgstr "시계 표시"
+msgid "Clock"
+msgstr "시계"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw HitErrorBar"
-msgstr "HitErrorBar 표시"
+msgid "HitErrorBar"
+msgstr "HitErrorBar"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw HitErrorBar UR"
-msgstr "HitErrorBar UR 표시"
+msgid "HitErrorBar UR"
+msgstr "HitErrorBar UR"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Unstable Rate"
 msgstr "Unstable Rate"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw ScoreBar"
-msgstr "ScoreBar 표시"
+msgid "Miss Window on HitErrorBar"
+msgstr "HitErrorBar의 미스 범위"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Health/HP Bar."
 msgstr "체력/HP 바."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw ScoreBar-bg"
-msgstr "ScoreBar-bg 표시"
+msgid "ScoreBar"
+msgstr "ScoreBar"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "ScoreBar-bg"
+msgstr "ScoreBar-bg"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid ""
@@ -3896,24 +3918,28 @@ msgstr ""
 "실제로는 체력/HP 바의 배경 이미지일 뿐입니다."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw ScoreBoard in singleplayer"
-msgstr "싱글플레이에서 스코어보드 표시"
+msgid "ScoreBoard in singleplayer"
+msgstr "싱글플레이 스코어보드"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw ScoreBoard in multiplayer"
-msgstr "멀티플레이에서 스코어보드 표시"
+msgid "ScoreBoard in multiplayer"
+msgstr "멀티플레이 스코어보드"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Scrubbing Timeline"
-msgstr "탐색 타임라인 표시"
+msgid "Scrubbing Timeline"
+msgstr "탐색 타임라인"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Miss Window on HitErrorBar"
-msgstr "HitErrorBar에 미스 범위 표시"
+msgid "Statistics"
+msgstr "통계"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: pp"
-msgstr "통계 표시: pp"
+msgid "Which statistics are drawn during gameplay."
+msgstr "플레이 중 표시할 통계입니다."
+
+#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/RoomScreen.cpp
+msgid "pp"
+msgstr "pp"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid ""
@@ -3924,108 +3950,100 @@ msgstr ""
 "별점을 점진적으로 갱신하며 획득한 pp를 동적으로 계산합니다."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: pp (SS)"
-msgstr "통계 표시: pp (SS)"
+msgid "pp (SS)"
+msgstr "pp (SS)"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Max possible total pp for active mods (full combo + perfect acc)."
 msgstr "현재 모드로 얻을 수 있는 최대 총 pp (풀콤보 + 완벽한 정확도)."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Misses"
-msgstr "통계 표시: 미스"
+msgid "Misses"
+msgstr "미스"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Number of misses."
 msgstr "미스 횟수."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: SliderBreaks"
-msgstr "통계 표시: 슬라이더 브레이크"
+msgid "SliderBreaks"
+msgstr "슬라이더 브레이크"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Number of slider breaks."
 msgstr "슬라이더 브레이크 횟수."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Retries"
-msgstr "통계 표시: 재시도"
+msgid "Retries"
+msgstr "재시도"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "How many times the current map was retried."
 msgstr "현재 맵을 다시 시도한 횟수."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Max Possible Combo"
-msgstr "통계 표시: 가능한 최대 콤보"
+msgid "Max Possible Combo"
+msgstr "가능한 최대 콤보"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Stars*** (Until Now)"
-msgstr "통계 표시: 별점*** (현재까지)"
+msgid "Stars*** (Until Now)"
+msgstr "별점*** (현재까지)"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Incrementally updates the star rating (aka \"realtime stars\")."
 msgstr "별점을 점진적으로 갱신합니다 (일명 \"실시간 별점\")."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Stars* (Total)"
-msgstr "통계 표시: 별점* (전체)"
+msgid "Stars* (Total)"
+msgstr "별점* (전체)"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Total stars for active mods."
 msgstr "현재 모드 기준 전체 별점."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: BPM"
-msgstr "통계 표시: BPM"
+msgid "AR"
+msgstr "AR"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: AR"
-msgstr "통계 표시: AR"
+msgid "CS"
+msgstr "CS"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: CS"
-msgstr "통계 표시: CS"
+msgid "OD"
+msgstr "OD"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: OD"
-msgstr "통계 표시: OD"
+msgid "HP"
+msgstr "HP"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: HP"
-msgstr "통계 표시: HP"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: 300 hitwindow"
-msgstr "통계 표시: 300 판정 범위"
+msgid "300 hitwindow"
+msgstr "300 판정 범위"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Timing window for hitting a 300 (e.g. +-25ms)."
 msgstr "300을 받기 위한 판정 범위 (예: +-25ms)."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Notes Per Second"
-msgstr "통계 표시: 초당 노트 수"
+msgid "Notes Per Second"
+msgstr "초당 노트 수"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "How many clicks per second are currently required."
 msgstr "현재 초당 몇 번 클릭해야 하는지."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Note Density"
-msgstr "통계 표시: 노트 밀도"
+msgid "Note Density"
+msgstr "노트 밀도"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "How many objects are visible at the same time."
 msgstr "동시에 보이는 오브젝트 수."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Unstable Rate"
-msgstr "통계 표시: Unstable Rate"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Accuracy Error"
-msgstr "통계 표시: 정확도 오차"
+msgid "Accuracy Error"
+msgstr "정확도 오차"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid ""
@@ -4715,10 +4733,6 @@ msgstr "총 점수"
 msgid "Max combo"
 msgstr "최대 콤보"
 
-#: src/App/Neomod/RankingScreen.cpp src/App/Neomod/RoomScreen.cpp
-msgid "Accuracy"
-msgstr "정확도"
-
 #: src/App/Neomod/RankingScreen.cpp
 msgid "Performance"
 msgstr "퍼포먼스"
@@ -4910,14 +4924,6 @@ msgstr "새 비밀번호:"
 #: src/App/Neomod/RoomScreen.cpp
 msgid "Score V1"
 msgstr "Score V1"
-
-#: src/App/Neomod/RoomScreen.cpp
-msgid "Combo"
-msgstr "콤보"
-
-#: src/App/Neomod/RoomScreen.cpp
-msgid "pp"
-msgstr "pp"
 
 #: src/App/Neomod/SongBrowser/BottomBar.cpp
 #, c++-format

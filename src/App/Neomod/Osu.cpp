@@ -211,9 +211,7 @@ Osu::Osu()
     cv::letterboxing_offset_x.setCallback(SA::MakeDelegate<&Osu::updateMouseViewport>(this));
     cv::letterboxing_offset_y.setCallback(SA::MakeDelegate<&Osu::updateMouseViewport>(this));
     cv::resolution_keep_aspect_ratio.setCallback(SA::MakeDelegate<&Osu::updateMouseViewport>(this));
-    cv::confine_cursor_windowed.setCallback(SA::MakeDelegate<&Osu::updateConfineCursor>(this));
-    cv::confine_cursor_fullscreen.setCallback(SA::MakeDelegate<&Osu::updateConfineCursor>(this));
-    cv::confine_cursor_never.setCallback(SA::MakeDelegate<&Osu::updateConfineCursor>(this));
+    cv::confine_cursor.setCallback(SA::MakeDelegate<&Osu::updateConfineCursor>(this));
     cv::osu_folder.setCallback([](std::string_view oldString, std::string_view newString) -> void {
         std::string normalized = Environment::normalizeDirectory(std::string{newString});
         if(normalized.empty()) {
@@ -563,9 +561,7 @@ Osu::~Osu() {
         cv::letterboxing_offset_x.removeAllCallbacks();
         cv::letterboxing_offset_y.removeAllCallbacks();
         cv::resolution_keep_aspect_ratio.removeAllCallbacks();
-        cv::confine_cursor_windowed.removeAllCallbacks();
-        cv::confine_cursor_fullscreen.removeAllCallbacks();
-        cv::confine_cursor_never.removeAllCallbacks();
+        cv::confine_cursor.removeAllCallbacks();
         cv::osu_folder.removeAllCallbacks();
         cv::skin.removeAllCallbacks();
         cv::skin_reload.removeAllCallbacks();
@@ -2205,17 +2201,19 @@ void Osu::updateConfineCursor() {
     // we need relative mode (rawinput) for fposu without absolute mode
     const bool playing_fposu_nonabs = (playing && cv::mod_fposu.getBool() && !cv::fposu_absolute_mode.getBool());
 
+    const std::string &confine = cv::confine_cursor.getString();
     const bool might_confine = (playing_fposu_nonabs) ||                                                     //
-                               (is_fullscreen && cv::confine_cursor_fullscreen.getBool()) ||                 //
-                               (!is_fullscreen && cv::confine_cursor_windowed.getBool()) ||                  //
+                               (confine == "always") ||                                                      //
+                               (is_fullscreen && confine == "fullscreen") ||                                 //
+                               (!is_fullscreen && confine == "windowed") ||                                  //
                                (playing && !(ui->getPauseOverlay() && ui->getPauseOverlay()->isVisible()));  //
 
-    const bool force_no_confine = !env->winFocused() ||                                             //
-                                  (!playing_fposu_nonabs && cv::confine_cursor_never.getBool()) ||  //
-                                  this->getModAuto() ||                                             //
-                                  this->getModAutopilot() ||                                        //
-                                  (this->map_iface && this->map_iface->isWatching()) ||             //
-                                  BanchoState::spectating;                                          //
+    const bool force_no_confine = !env->winFocused() ||                                  //
+                                  (!playing_fposu_nonabs && confine == "never") ||       //
+                                  this->getModAuto() ||                                  //
+                                  this->getModAutopilot() ||                             //
+                                  (this->map_iface && this->map_iface->isWatching()) ||  //
+                                  BanchoState::spectating;                               //
 
     const bool confine_cursor = might_confine && !force_no_confine;
     logIfCV(debug_mouse, "confined: {}", confine_cursor);

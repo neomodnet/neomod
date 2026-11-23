@@ -135,6 +135,7 @@ void run() {
         shouldSave = true;
     }
     if(version < 45.01 || buildstamp <= 2611240000) {
+        // accounts.cfg
         std::optional<std::string> password_md5 = cvars().takeKeptValue("mp_password_md5");
         if(const auto password = cvars().takeKeptValue("mp_password"); password && !password->empty()) {
             password_md5 = std::string{crypto::hash::md5(*password).to_chars().string()};
@@ -157,6 +158,26 @@ void run() {
         }
         if(password_md5 || oauth_token || supporter_token) {
             Accounts::save();
+            shouldSave = true;
+        }
+
+        // confine cursor setting
+        const auto never = cvars().takeKeptValue("confine_cursor_never");
+        const auto windowed = cvars().takeKeptValue("confine_cursor_windowed");
+        const auto fullscreen = cvars().takeKeptValue("confine_cursor_fullscreen");
+        if(never || windowed || fullscreen) {
+            const auto isOn = [](const std::optional<std::string> &text, bool def) {
+                return text ? Parsing::strto<bool>(*text) : def;
+            };
+            const bool inWindow = isOn(windowed, false);
+            const bool inFullscreen = isOn(fullscreen, true);
+            if(isOn(never, false)) {
+                cv::confine_cursor.setValue("never");
+            } else if(inWindow) {
+                cv::confine_cursor.setValue(inFullscreen ? "always" : "windowed");
+            } else if(!inFullscreen) {
+                cv::confine_cursor.setValue("gameplay");
+            }
             shouldSave = true;
         }
     }

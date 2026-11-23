@@ -1420,6 +1420,7 @@ msgid "Selected Points"
 msgstr "Seçili Noktalar"
 
 #: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "BPM"
 msgstr "BPM"
 
@@ -1848,12 +1849,12 @@ msgid "Click here to install the update!"
 msgstr "Güncellemeyi yüklemek için buraya tıkla!"
 
 #: src/App/Neomod/MainMenu.cpp
-msgid "A new version is available! Click to open the download page."
-msgstr "Yeni bir sürüm mevcut! İndirme sayfasını açmak için tıkla."
-
-#: src/App/Neomod/MainMenu.cpp
 msgid "Update Error! Click to retry ..."
 msgstr "Güncelleme hatası! Yeniden denemek için tıkla ..."
+
+#: src/App/Neomod/MainMenu.cpp
+msgid "A new version is available! Click to open the download page."
+msgstr "Yeni bir sürüm mevcut! İndirme sayfasını açmak için tıkla."
 
 #: src/App/Neomod/MainMenu.cpp
 msgid "Your browser doesn't support multithreaded WebAssembly, so performance will be worse than usual."
@@ -3408,20 +3409,28 @@ msgid "Raw Mouse Input"
 msgstr "Ham Fare Girdisi"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Confine Cursor (Windowed)"
-msgstr "İmleci Sınırla (Pencere)"
+msgid "Confine Cursor"
+msgstr "İmleci Sınırla"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Confine Cursor (Fullscreen)"
-msgstr "İmleci Sınırla (Tam Ekran)"
+msgid "Never"
+msgstr "Asla"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Confine Cursor (NEVER)"
-msgstr "İmleci Sınırla (ASLA)"
+msgid "During gameplay"
+msgstr "Oyun sırasında"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Overrides automatic cursor clipping during gameplay."
-msgstr "Oyun sırasında otomatik imleç sınırlamasını geçersiz kılar."
+msgid "During gameplay and when windowed"
+msgstr "Oyun sırasında ve pencere modunda"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "During gameplay and when fullscreen"
+msgstr "Oyun sırasında ve tam ekranda"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Always"
+msgstr "Her Zaman"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Disable Mouse Wheel in Play Mode"
@@ -3848,44 +3857,57 @@ msgid "Enabled: "
 msgstr "Açık: "
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Score"
-msgstr "Skoru Çiz"
+msgid "HUD Elements"
+msgstr "HUD Öğeleri"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Combo"
-msgstr "Komboyu Çiz"
+msgid "Which elements are drawn during gameplay."
+msgstr "Oyun sırasında hangi öğelerin çizileceği."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Accuracy"
-msgstr "İsabeti Çiz"
+msgid "Score"
+msgstr "Skor"
+
+#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/RoomScreen.cpp
+msgid "Combo"
+msgstr "Kombo"
+
+#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/RankingScreen.cpp
+#: src/App/Neomod/RoomScreen.cpp
+msgid "Accuracy"
+msgstr "İsabet"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Clock"
-msgstr "Saati Çiz"
+msgid "Clock"
+msgstr "Saat"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw HitErrorBar"
-msgstr "HitErrorBar'ı Çiz"
+msgid "HitErrorBar"
+msgstr "HitErrorBar"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw HitErrorBar UR"
-msgstr "HitErrorBar UR'sini Çiz"
+msgid "HitErrorBar UR"
+msgstr "HitErrorBar UR"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Unstable Rate"
 msgstr "Unstable Rate"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw ScoreBar"
-msgstr "ScoreBar'ı Çiz"
+msgid "Miss Window on HitErrorBar"
+msgstr "HitErrorBar'da Miss Penceresi"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Health/HP Bar."
 msgstr "Can/HP Çubuğu."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw ScoreBar-bg"
-msgstr "ScoreBar-bg'yi Çiz"
+msgid "ScoreBar"
+msgstr "ScoreBar"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "ScoreBar-bg"
+msgstr "ScoreBar-bg"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid ""
@@ -3896,24 +3918,28 @@ msgstr ""
 "Aslında yalnızca Can/HP Çubuğunun arka plan görselidir."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw ScoreBoard in singleplayer"
-msgstr "Tek oyunculuda Skor Tablosunu Çiz"
+msgid "ScoreBoard in singleplayer"
+msgstr "Tek oyunculuda Skor Tablosu"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw ScoreBoard in multiplayer"
-msgstr "Çok oyunculuda Skor Tablosunu Çiz"
+msgid "ScoreBoard in multiplayer"
+msgstr "Çok oyunculuda Skor Tablosu"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Scrubbing Timeline"
-msgstr "Zaman Çizelgesini Çiz"
+msgid "Scrubbing Timeline"
+msgstr "Zaman Çizelgesi"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Miss Window on HitErrorBar"
-msgstr "HitErrorBar'da Miss Penceresini Çiz"
+msgid "Statistics"
+msgstr "İstatistikler"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: pp"
-msgstr "İstatistik Çiz: pp"
+msgid "Which statistics are drawn during gameplay."
+msgstr "Oyun sırasında hangi istatistiklerin çizileceği."
+
+#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/RoomScreen.cpp
+msgid "pp"
+msgstr "pp"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid ""
@@ -3924,108 +3950,100 @@ msgstr ""
 "Yıldız derecesini kademeli güncelleyerek kazanılan pp'yi dinamik olarak hesaplar."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: pp (SS)"
-msgstr "İstatistik Çiz: pp (SS)"
+msgid "pp (SS)"
+msgstr "pp (SS)"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Max possible total pp for active mods (full combo + perfect acc)."
 msgstr "Etkin modlarla mümkün olan maksimum toplam pp (full combo + kusursuz isabet)."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Misses"
-msgstr "İstatistik Çiz: Miss"
+msgid "Misses"
+msgstr "Miss"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Number of misses."
 msgstr "Miss sayısı."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: SliderBreaks"
-msgstr "İstatistik Çiz: SliderBreak"
+msgid "SliderBreaks"
+msgstr "SliderBreak"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Number of slider breaks."
 msgstr "Slider break sayısı."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Retries"
-msgstr "İstatistik Çiz: Tekrar"
+msgid "Retries"
+msgstr "Tekrar"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "How many times the current map was retried."
 msgstr "Mevcut haritanın kaç kez tekrar denendiği."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Max Possible Combo"
-msgstr "İstatistik Çiz: Mümkün Maks. Kombo"
+msgid "Max Possible Combo"
+msgstr "Mümkün Maks. Kombo"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Stars*** (Until Now)"
-msgstr "İstatistik Çiz: Yıldız*** (Şimdiye Kadar)"
+msgid "Stars*** (Until Now)"
+msgstr "Yıldız*** (Şimdiye Kadar)"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Incrementally updates the star rating (aka \"realtime stars\")."
 msgstr "Yıldız derecesini kademeli olarak günceller (\"gerçek zamanlı yıldız\")."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Stars* (Total)"
-msgstr "İstatistik Çiz: Yıldız* (Toplam)"
+msgid "Stars* (Total)"
+msgstr "Yıldız* (Toplam)"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Total stars for active mods."
 msgstr "Etkin modlar için toplam yıldız."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: BPM"
-msgstr "İstatistik Çiz: BPM"
+msgid "AR"
+msgstr "AR"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: AR"
-msgstr "İstatistik Çiz: AR"
+msgid "CS"
+msgstr "CS"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: CS"
-msgstr "İstatistik Çiz: CS"
+msgid "OD"
+msgstr "OD"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: OD"
-msgstr "İstatistik Çiz: OD"
+msgid "HP"
+msgstr "HP"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: HP"
-msgstr "İstatistik Çiz: HP"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: 300 hitwindow"
-msgstr "İstatistik Çiz: 300 isabet penceresi"
+msgid "300 hitwindow"
+msgstr "300 isabet penceresi"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Timing window for hitting a 300 (e.g. +-25ms)."
 msgstr "300 almak için zamanlama penceresi (örn. +-25ms)."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Notes Per Second"
-msgstr "İstatistik Çiz: Saniye Başına Nota"
+msgid "Notes Per Second"
+msgstr "Saniye Başına Nota"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "How many clicks per second are currently required."
 msgstr "Şu anda saniyede kaç tıklama gerekiyor."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Note Density"
-msgstr "İstatistik Çiz: Nota Yoğunluğu"
+msgid "Note Density"
+msgstr "Nota Yoğunluğu"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "How many objects are visible at the same time."
 msgstr "Aynı anda kaç nesne görünüyor."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Unstable Rate"
-msgstr "İstatistik Çiz: Unstable Rate"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Accuracy Error"
-msgstr "İstatistik Çiz: İsabet Hatası"
+msgid "Accuracy Error"
+msgstr "İsabet Hatası"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid ""
@@ -4715,10 +4733,6 @@ msgstr "Toplam skor"
 msgid "Max combo"
 msgstr "Maksimum kombo"
 
-#: src/App/Neomod/RankingScreen.cpp src/App/Neomod/RoomScreen.cpp
-msgid "Accuracy"
-msgstr "İsabet"
-
 #: src/App/Neomod/RankingScreen.cpp
 msgid "Performance"
 msgstr "Performans"
@@ -4910,14 +4924,6 @@ msgstr "Yeni şifre:"
 #: src/App/Neomod/RoomScreen.cpp
 msgid "Score V1"
 msgstr "Score V1"
-
-#: src/App/Neomod/RoomScreen.cpp
-msgid "Combo"
-msgstr "Kombo"
-
-#: src/App/Neomod/RoomScreen.cpp
-msgid "pp"
-msgstr "pp"
 
 #: src/App/Neomod/SongBrowser/BottomBar.cpp
 #, c++-format

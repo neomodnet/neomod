@@ -402,6 +402,7 @@ void AboutScreen::buildChangelog() {
         R"(- Added "Grade Filtering" (Options > General > Songbrowser) to filter the grades shown on song browser buttons)",
         R"(- Added "timewarp": hold the seek key (Shift) and scroll during gameplay or replays to change the speed until the map ends)",
         R"(- Added combobreak_sound_extra_clicks convar to play the combobreak sound for clicks that hit nothing)",
+        R"(- Reduced amount of stuff in the options menu)",
         R"(- Reworked IME (OS language input method) support)",
         R"(- Skins:)",
         R"(  - Added "message-received" sound notification)",

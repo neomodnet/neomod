@@ -1420,6 +1420,7 @@ msgid "Selected Points"
 msgstr "Titik Terpilih"
 
 #: src/App/Neomod/Editor/Panels/TimingPanel.cpp
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "BPM"
 msgstr "BPM"
 
@@ -1848,12 +1849,12 @@ msgid "Click here to install the update!"
 msgstr "Klik di sini untuk memasang pembaruan!"
 
 #: src/App/Neomod/MainMenu.cpp
-msgid "A new version is available! Click to open the download page."
-msgstr "Versi baru tersedia! Klik untuk membuka halaman unduhan."
-
-#: src/App/Neomod/MainMenu.cpp
 msgid "Update Error! Click to retry ..."
 msgstr "Pembaruan gagal! Klik untuk mencoba lagi ..."
+
+#: src/App/Neomod/MainMenu.cpp
+msgid "A new version is available! Click to open the download page."
+msgstr "Versi baru tersedia! Klik untuk membuka halaman unduhan."
 
 #: src/App/Neomod/MainMenu.cpp
 msgid "Your browser doesn't support multithreaded WebAssembly, so performance will be worse than usual."
@@ -3408,20 +3409,28 @@ msgid "Raw Mouse Input"
 msgstr "Input Mouse Mentah"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Confine Cursor (Windowed)"
-msgstr "Kurung Kursor (Jendela)"
+msgid "Confine Cursor"
+msgstr "Kurung Kursor"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Confine Cursor (Fullscreen)"
-msgstr "Kurung Kursor (Layar Penuh)"
+msgid "Never"
+msgstr "Tidak Pernah"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Confine Cursor (NEVER)"
-msgstr "Kurung Kursor (TIDAK PERNAH)"
+msgid "During gameplay"
+msgstr "Saat bermain"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Overrides automatic cursor clipping during gameplay."
-msgstr "Mengesampingkan pengurungan kursor otomatis saat bermain."
+msgid "During gameplay and when windowed"
+msgstr "Saat bermain dan dalam mode jendela"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "During gameplay and when fullscreen"
+msgstr "Saat bermain dan dalam layar penuh"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "Always"
+msgstr "Selalu"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Disable Mouse Wheel in Play Mode"
@@ -3848,44 +3857,57 @@ msgid "Enabled: "
 msgstr "Aktif: "
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Score"
-msgstr "Tampilkan Skor"
+msgid "HUD Elements"
+msgstr "Elemen HUD"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Combo"
-msgstr "Tampilkan Combo"
+msgid "Which elements are drawn during gameplay."
+msgstr "Elemen mana yang ditampilkan saat bermain."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Accuracy"
-msgstr "Tampilkan Akurasi"
+msgid "Score"
+msgstr "Skor"
+
+#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/RoomScreen.cpp
+msgid "Combo"
+msgstr "Combo"
+
+#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/RankingScreen.cpp
+#: src/App/Neomod/RoomScreen.cpp
+msgid "Accuracy"
+msgstr "Akurasi"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Clock"
-msgstr "Tampilkan Jam"
+msgid "Clock"
+msgstr "Jam"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw HitErrorBar"
-msgstr "Tampilkan HitErrorBar"
+msgid "HitErrorBar"
+msgstr "HitErrorBar"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw HitErrorBar UR"
-msgstr "Tampilkan UR HitErrorBar"
+msgid "HitErrorBar UR"
+msgstr "UR HitErrorBar"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Unstable Rate"
 msgstr "Unstable Rate"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw ScoreBar"
-msgstr "Tampilkan ScoreBar"
+msgid "Miss Window on HitErrorBar"
+msgstr "Jendela Miss di HitErrorBar"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Health/HP Bar."
 msgstr "Bar Health/HP."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw ScoreBar-bg"
-msgstr "Tampilkan ScoreBar-bg"
+msgid "ScoreBar"
+msgstr "ScoreBar"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid "ScoreBar-bg"
+msgstr "ScoreBar-bg"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid ""
@@ -3896,24 +3918,28 @@ msgstr ""
 "Sebenarnya ini hanya gambar latar untuk bar Health/HP."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw ScoreBoard in singleplayer"
-msgstr "Tampilkan ScoreBoard di singleplayer"
+msgid "ScoreBoard in singleplayer"
+msgstr "ScoreBoard di singleplayer"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw ScoreBoard in multiplayer"
-msgstr "Tampilkan ScoreBoard di multiplayer"
+msgid "ScoreBoard in multiplayer"
+msgstr "ScoreBoard di multiplayer"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Scrubbing Timeline"
-msgstr "Tampilkan Timeline Scrubbing"
+msgid "Scrubbing Timeline"
+msgstr "Timeline Scrubbing"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Miss Window on HitErrorBar"
-msgstr "Tampilkan Jendela Miss di HitErrorBar"
+msgid "Statistics"
+msgstr "Statistik"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: pp"
-msgstr "Tampilkan Statistik: pp"
+msgid "Which statistics are drawn during gameplay."
+msgstr "Statistik mana yang ditampilkan saat bermain."
+
+#: src/App/Neomod/OptionsOverlay.cpp src/App/Neomod/RoomScreen.cpp
+msgid "pp"
+msgstr "pp"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid ""
@@ -3924,108 +3950,100 @@ msgstr ""
 "Menghitung pp yang didapat secara dinamis dengan memperbarui star rating secara bertahap."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: pp (SS)"
-msgstr "Tampilkan Statistik: pp (SS)"
+msgid "pp (SS)"
+msgstr "pp (SS)"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Max possible total pp for active mods (full combo + perfect acc)."
 msgstr "Total pp maksimum yang mungkin untuk mod aktif (full combo + akurasi sempurna)."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Misses"
-msgstr "Tampilkan Statistik: Miss"
+msgid "Misses"
+msgstr "Miss"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Number of misses."
 msgstr "Jumlah miss."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: SliderBreaks"
-msgstr "Tampilkan Statistik: SliderBreak"
+msgid "SliderBreaks"
+msgstr "SliderBreak"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Number of slider breaks."
 msgstr "Jumlah slider break."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Retries"
-msgstr "Tampilkan Statistik: Ulangan"
+msgid "Retries"
+msgstr "Ulangan"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "How many times the current map was retried."
 msgstr "Berapa kali map saat ini diulang."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Max Possible Combo"
-msgstr "Tampilkan Statistik: Combo Maksimum"
+msgid "Max Possible Combo"
+msgstr "Combo Maksimum"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Stars*** (Until Now)"
-msgstr "Tampilkan Statistik: Bintang*** (Sejauh Ini)"
+msgid "Stars*** (Until Now)"
+msgstr "Bintang*** (Sejauh Ini)"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Incrementally updates the star rating (aka \"realtime stars\")."
 msgstr "Memperbarui star rating secara bertahap (alias \"bintang waktu nyata\")."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Stars* (Total)"
-msgstr "Tampilkan Statistik: Bintang* (Total)"
+msgid "Stars* (Total)"
+msgstr "Bintang* (Total)"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Total stars for active mods."
 msgstr "Total bintang untuk mod aktif."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: BPM"
-msgstr "Tampilkan Statistik: BPM"
+msgid "AR"
+msgstr "AR"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: AR"
-msgstr "Tampilkan Statistik: AR"
+msgid "CS"
+msgstr "CS"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: CS"
-msgstr "Tampilkan Statistik: CS"
+msgid "OD"
+msgstr "OD"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: OD"
-msgstr "Tampilkan Statistik: OD"
+msgid "HP"
+msgstr "HP"
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: HP"
-msgstr "Tampilkan Statistik: HP"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: 300 hitwindow"
-msgstr "Tampilkan Statistik: jendela hit 300"
+msgid "300 hitwindow"
+msgstr "Jendela hit 300"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "Timing window for hitting a 300 (e.g. +-25ms)."
 msgstr "Jendela timing untuk mendapat 300 (mis. +-25ms)."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Notes Per Second"
-msgstr "Tampilkan Statistik: Not per Detik"
+msgid "Notes Per Second"
+msgstr "Not per Detik"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "How many clicks per second are currently required."
 msgstr "Berapa klik per detik yang dibutuhkan saat ini."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Note Density"
-msgstr "Tampilkan Statistik: Kepadatan Not"
+msgid "Note Density"
+msgstr "Kepadatan Not"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid "How many objects are visible at the same time."
 msgstr "Berapa banyak objek yang terlihat bersamaan."
 
 #: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Unstable Rate"
-msgstr "Tampilkan Statistik: Unstable Rate"
-
-#: src/App/Neomod/OptionsOverlay.cpp
-msgid "Draw Stats: Accuracy Error"
-msgstr "Tampilkan Statistik: Error Akurasi"
+msgid "Accuracy Error"
+msgstr "Error Akurasi"
 
 #: src/App/Neomod/OptionsOverlay.cpp
 msgid ""
@@ -4715,10 +4733,6 @@ msgstr "Skor total"
 msgid "Max combo"
 msgstr "Combo maksimum"
 
-#: src/App/Neomod/RankingScreen.cpp src/App/Neomod/RoomScreen.cpp
-msgid "Accuracy"
-msgstr "Akurasi"
-
 #: src/App/Neomod/RankingScreen.cpp
 msgid "Performance"
 msgstr "Performa"
@@ -4910,14 +4924,6 @@ msgstr "Kata sandi baru:"
 #: src/App/Neomod/RoomScreen.cpp
 msgid "Score V1"
 msgstr "Score V1"
-
-#: src/App/Neomod/RoomScreen.cpp
-msgid "Combo"
-msgstr "Combo"
-
-#: src/App/Neomod/RoomScreen.cpp
-msgid "pp"
-msgstr "pp"
 
 #: src/App/Neomod/SongBrowser/BottomBar.cpp
 #, c++-format

@@ -660,9 +660,7 @@ CONVAR(combobreak_sound_extra_clicks, false, CLIENT | SKINS | SERVER,
        "Also play the combobreak sound for clicks that hit nothing");
 CONVAR(compensate_music_speed, true, CLIENT | SKINS | SERVER,
        "compensates speeds slower than 1x a little bit, by adding an offset depending on the slowness");
-CONVAR(confine_cursor_fullscreen, true, CLIENT | SKINS | SERVER);
-CONVAR(confine_cursor_windowed, false, CLIENT | SKINS | SERVER);
-CONVAR(confine_cursor_never, false, CLIENT | SKINS | SERVER);
+CONVAR(confine_cursor, "fullscreen"sv, CLIENT | SKINS | SERVER);
 CONVAR(crop_screenshots, true, CLIENT, "whether to crop screenshots to the letterboxed resolution");
 CONVAR(screenshot_clipboard, true, CLIENT, "copy screenshots to the clipboard as PNG");
 CONVAR(cursor_alpha, 1.0f, CLIENT | SKINS | SERVER);
