@@ -7,6 +7,7 @@
 #include <cstring>
 
 #include "Bancho.h"
+#include "Accounts.h"
 #include "AsyncIOHandler.h"
 #include "BanchoApi.h"
 #include "BanchoNetworking.h"
@@ -255,7 +256,8 @@ void BanchoState::handle_packet(PacketReader &packet) {
         case INP_USER_ID: {
             i32 new_user_id = packet.read<i32>();
             BanchoState::set_uid(new_user_id);
-            BanchoState::is_oauth = !cv::mp_oauth_token.getString().empty();
+            const Account *account = Accounts::find(BanchoState::endpoint);
+            BanchoState::is_oauth = account && !account->oauth_token.empty();
 
             if(BANCHO::User::is_online_id(new_user_id)) {
                 // Prevent getting into an invalid state where we are "logged in" but can't send any packets
@@ -283,7 +285,10 @@ void BanchoState::handle_packet(PacketReader &packet) {
                 ui->getOptionsOverlay()->scheduleLayoutUpdate();
             } else {
                 cv::mp_autologin.setValue(false);
-                cv::mp_oauth_token.setValue("");
+                if(BanchoState::is_oauth) {
+                    Accounts::get(BanchoState::endpoint).oauth_token.clear();
+                    Accounts::save();
+                }
 
                 debugLog("Failed to log in, server returned code {:d}.", BanchoState::get_uid());
                 std::string errmsg =
@@ -930,7 +935,8 @@ void BanchoState::handle_packet(PacketReader &packet) {
         case INP_SUPPORTER_TOKEN: {
             auto token = packet.read_string();
             if(BanchoState::endpoint == NEOMOD_DOMAIN) {
-                cv::supporter_token.setValue(token);
+                Accounts::get(BanchoState::endpoint).supporter_token = token;
+                Accounts::save();
                 osu->getUpdateHandler()->onSupporterToken();
             }
             break;
@@ -948,7 +954,10 @@ std::string BanchoState::build_login_packet() {
     // username\npasswd_md5\nosu_version|utc_offset|display_city|client_hashes|pm_private\n
     std::string req;
 
-    if(cv::mp_oauth_token.getString().empty()) {
+    const Account *account = Accounts::find(BanchoState::endpoint);
+    if(!account) return req;
+
+    if(account->oauth_token.empty()) {
         req.append(BanchoState::username);
         req.append("\n");
         req.append(BanchoState::pw_md5.string());
@@ -956,7 +965,7 @@ std::string BanchoState::build_login_packet() {
     } else {
         req.append("$oauth");
         req.append("\n");
-        req.append(cv::mp_oauth_token.getString());
+        req.append(account->oauth_token);
         req.append("\n");
     }
 

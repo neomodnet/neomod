@@ -1,6 +1,7 @@
 // Copyright (c) 2016, PG, All rights reserved.
 #include "UpdateHandler.h"
 
+#include "Accounts.h"
 #include "Archival.h"
 #include "BanchoNetworking.h"
 #include "Bancho.h"
@@ -67,7 +68,9 @@ void UpdateHandler::checkForUpdates(bool force_update) {
 
     // without a token, the server treats us like a client from before supporter tokens.
     // releases get checked until login brings one, then onSupporterToken() checks bleeding edge.
-    this->checking_bleedingedge = cv::bleedingedge.getBool() && !cv::supporter_token.getString().empty();
+    const Account *account = Accounts::find(NEOMOD_DOMAIN);
+    const std::string supporter_token = account ? account->supporter_token : "";
+    this->checking_bleedingedge = cv::bleedingedge.getBool() && !supporter_token.empty();
     this->waiting_for_token = cv::bleedingedge.getBool() && !this->checking_bleedingedge;
     if(this->waiting_for_token) {
         debugLog("UpdateHandler: No supporter token yet, checking releases until login");
@@ -89,18 +92,17 @@ void UpdateHandler::checkForUpdates(bool force_update) {
         .timeout = 10,
         .connect_timeout = 5,
     };
-    options.headers["X-Supporter-Token"] = cv::supporter_token.getString();
+    options.headers["X-Supporter-Token"] = supporter_token;
 
     // arm cancellation for this whole check -> download chain (see onBleedingEdgeChanged)
     this->cancel_src = {};
     options.cancel_token = this->cancel_src.get_token();
 
     this->status = STATUS_CHECKING_FOR_UPDATE;
-    networkHandler->httpRequestAsync(versionUrl, std::move(options),
-                                     [this, force_update](const Mc::Net::Response &response) {
-                                         this->onVersionCheckComplete(response.text(), response.success,
-                                                                      response.response_code, force_update);
-                                     });
+    networkHandler->httpRequestAsync(
+        versionUrl, std::move(options), [this, force_update](const Mc::Net::Response &response) {
+            this->onVersionCheckComplete(response.text(), response.success, response.response_code, force_update);
+        });
 }
 
 void UpdateHandler::onVersionCheckComplete(std::string_view response, bool success, long response_code,
@@ -182,7 +184,8 @@ void UpdateHandler::onVersionCheckComplete(std::string_view response, bool succe
         .connect_timeout = 10,
         .flags = Mc::Net::RequestOptions::FOLLOW_REDIRECTS,
     };
-    options.headers["X-Supporter-Token"] = cv::supporter_token.getString();
+    const Account *account = Accounts::find(NEOMOD_DOMAIN);
+    options.headers["X-Supporter-Token"] = account ? account->supporter_token : "";
     // same source as the version check, so cancelling aborts the download too
     options.cancel_token = this->cancel_src.get_token();
 

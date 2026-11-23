@@ -399,6 +399,9 @@ void AboutScreen::buildChangelog() {
     CHANGELOG v45_01;
     v45_01.title = "45.01 (" CHANGELOG_TIMESTAMP ")";
     v45_01.changes = {
+        R"(- Added "Grade Filtering" (Options > General > Songbrowser) to filter the grades shown on song browser buttons)",
+        R"(- Added "timewarp": hold the seek key (Shift) and scroll during gameplay or replays to change the speed until the map ends)",
+        R"(- Added combobreak_sound_extra_clicks convar to play the combobreak sound for clicks that hit nothing)",
         R"(- Reworked IME (OS language input method) support)",
         R"(- Skins:)",
         R"(  - Added "message-received" sound notification)",
@@ -411,10 +414,8 @@ void AboutScreen::buildChangelog() {
         R"(- Fixed Freeze Frame mod approach circles showing when they shouldn't)",
         R"(- Fixed hitobject animations stuttering at very low speed multipliers)",
         R"(- Fixed the Flashlight icon missing from the mods shown on the results screen and in multiplayer rooms)",
+        R"(- Logins are now saved per server to make it easier to switch between servers)",
         R"(- The "Game Pause" key now also closes the main menu buttons and leaves song select (unless it is a key that types))",
-        R"(- Added "Grade Filtering" (Options > General > Songbrowser) to filter the grades shown on song browser buttons)",
-        R"(- Added "timewarp": hold the seek key (Shift) and scroll during gameplay or replays to change the speed until the map ends)",
-        R"(- Added combobreak_sound_extra_clicks convar to play the combobreak sound for clicks that hit nothing)",
         R"(- The online users list (F9) can now be sorted by rank (button next to the chat tabs), and its cards show the rank)",
         R"(- Linux: Middle click now pastes the selected text into text boxes)",
         R"(- Fixed Strict Tracking turning a slider into a miss when leaving it in its last 36ms before a tick/repeat)",

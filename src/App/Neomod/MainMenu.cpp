@@ -23,10 +23,8 @@
 #include "Downloader.h"
 #include "EditorScreen.h"
 #include "Engine.h"
-#include "File.h"
 #include "i18n.h"
 #include "Font.h"
-#include "Parsing.h"
 #include "Sound.h"
 #include "MusicTrack.h"
 #include "RenderTarget.h"
@@ -34,6 +32,7 @@
 #include "Icons.h"
 #include "Keyboard.h"
 #include "Lobby.h"
+#include "Migrations.h"
 #include "Mouse.h"
 #include "OptionsOverlay.h"
 #include "Osu.h"
@@ -179,128 +178,6 @@ class MainMenu::MainButton final : public UIButtonRounded {
     [[maybe_unused]] bool showSaveTooltip{false};
 };
 
-namespace {
-bool is_updating_from_old_version() {
-    if(!Environment::fileExists(Mc::Paths::data() + "/version.txt")) {
-        // no version.txt exists, we are not updating
-        return false;
-    }
-
-    File versionFile(Mc::Paths::data() + "/version.txt");
-    std::string linebuf{};
-    double version = -1.;
-    u64 buildstamp = 0;
-    // get version number
-    if(!(versionFile.canRead() && ((linebuf = versionFile.readLine()) != "") &&
-         ((version = Parsing::strto<f64>(linebuf)) > 0.))) {
-        // assume empty/invalid version.txt means we updated
-        return true;
-    }
-
-    bool drawNotificationArrow = false;
-    bool makeBackup = false;
-    bool gotLegitBuildstamp = true;
-    // get build timestamp
-    if(versionFile.canRead() && ((linebuf = versionFile.readLine()) != "") &&
-       ((buildstamp = Parsing::strto<u64>(linebuf)) > 0)) {
-        // ignore bogus build timestamps
-        if(buildstamp > 4000000000 || buildstamp < 2000000000) {
-            gotLegitBuildstamp = false;
-            buildstamp = cv::build_timestamp.getVal<u64>();
-        }
-    }
-    gotLegitBuildstamp &= buildstamp > 0;
-
-    // debugLog("versionFile version: {} our version: {}{}", version, cv::version.getFloat(),
-    //           buildstamp > 0.0f ? fmt::format(" build timestamp: {}", buildstamp) : "");
-    if(version < cv::version.getDouble() || buildstamp < cv::build_timestamp.getVal<u64>()) {
-        if(!Env::cfg(BUILD::DEBUG)) {
-            // we know
-            drawNotificationArrow = true;
-        }
-        makeBackup = !Env::cfg(OS::WASM) &&                 // too hard to even access on wasm
-                     (version < cv::version.getDouble() ||  // always backup release version bumps
-                      // don't spam backups for debug builds with build timestamp updates
-                      (!Env::cfg(BUILD::DEBUG) && buildstamp < cv::build_timestamp.getVal<u64>()));
-    }
-
-    bool shouldSave = false;
-    if(version < 35.06) {
-        // SoundEngine choking issues have been fixed, option has been removed from settings menu
-        // We leave the cvar available as it could still be useful for some players
-        cv::restart_sound_engine_before_playing.setValue(false);
-
-        // 0.5 is shit default value
-        if(cv::songbrowser_search_delay.getFloat() == 0.5f) {
-            cv::songbrowser_search_delay.setValue(0.2f);
-        }
-
-        // Match osu!stable value
-        if(cv::relax_offset.getFloat() == 0.f) {
-            cv::relax_offset.setValue(-12.f);
-        }
-
-        shouldSave = true;
-    }
-    if(version < 39.00) {
-        if(!cv::mp_password.getString().empty()) {
-            const MD5String hash{crypto::hash::md5(cv::mp_password.getString())};
-            cv::mp_password_md5.setValue(hash.string());
-            cv::mp_password.setValue("");
-            shouldSave = true;
-        }
-    }
-    if(version < 39.01) {
-        if(cv::fps_unlimited.getBool()) {
-            cv::fps_max.setValue(0);
-            shouldSave = true;
-        }
-    }
-    if(version < 40.00) {
-        for(auto *bind : OsuKeyBinds::getAll()) {
-            if(bind->isDefault()) continue;
-            bind->set(KeyBindings::old_keycode_to_sdl_scancode(bind->get()));
-        }
-        shouldSave = true;
-    }
-    if(version < 40.06) {
-        cv::letterboxed_resolution.setValue(cv::resolution.getString());
-        shouldSave = true;
-    }
-    if(version < 43.02) {
-        if(cv::mp_server.getString() == "neosu.net"sv) {
-            cv::mp_server.setValue(cv::mp_server.getDefaultString());
-            shouldSave = true;
-        }
-        if(Database::migrate_neosu_to_neomod()) {
-            debugLog("Migrated old neosu databases to neomod.");
-        }
-    }
-    if(version < 43.04 || buildstamp <= 2602190926) {
-        cv::prefer_websockets.setValue(true);
-        shouldSave = true;
-    }
-
-    makeBackup &= shouldSave;
-    if(makeBackup) {
-        // back up synchronously
-        const std::string cfg_path = Mc::Paths::cfg() + "/osu.cfg";
-        const std::string backup_name = fmt::format("{}.{:.2f}{:s}.bak", cfg_path, version,
-                                                    gotLegitBuildstamp ? fmt::format("-{:d}", buildstamp) : "");
-        debugLog("Backing up config {} -> {}", cfg_path, backup_name);
-        if(!File::copy(cfg_path, backup_name)) {
-            debugLog("WARNING: failed to back up {} -> {:s}!", cfg_path, backup_name);
-        }
-    }
-    if(shouldSave) {
-        ui->getOptionsOverlay()->save();
-    }
-
-    return drawNotificationArrow;
-}
-
-}  // namespace
-
 MainMenu::MainMenu() : UIScreen() {
     // engine settings
     mouse->addListener(this);  // TODO: why is this special-cased here?
@@ -351,7 +228,7 @@ MainMenu::MainMenu() : UIScreen() {
 
     // check if the user has never clicked the changelog for this update
     this->didUserUpdateFromOlderVersion = this->drawVersionNotificationArrow =
-        is_updating_from_old_version();  // (same logic atm)
+        Migrations::is_updating_from_old_version();  // (same logic atm)
 
     this->setPos(-1, 0);
     this->setSize(osu->getVirtScreenWidth(), osu->getVirtScreenHeight());

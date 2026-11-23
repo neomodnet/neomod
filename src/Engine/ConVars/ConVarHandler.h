@@ -46,6 +46,7 @@ class ConVarHandler {
         return this->vKeptValues;
     }
     void keepConfigValue(std::string_view name, std::string_view text);
+    [[nodiscard]] std::optional<std::string> takeKeptValue(std::string_view name);
 
     // whether every protected convar is at its default value, and the ones that aren't
     // (the former is cheap enough to ask every frame: convars keep count whenever their value changes)

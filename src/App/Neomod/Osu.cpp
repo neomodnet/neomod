@@ -1,7 +1,9 @@
 // Copyright (c) 2015, PG, All rights reserved.
 #include "Osu.h"
 
+#include "Accounts.h"
 #include "BeatmapInstaller.h"
+#include "Migrations.h"
 #include "MusicTrack.h"
 #include "PreviewTrackManager.h"
 #include "ThumbnailManager.h"
@@ -261,6 +263,7 @@ Osu::Osu()
     Console::execConfigFile("underride");  // same as override, but for defaults
     Console::execConfigFile("osu");
     Console::execConfigFile("override");  // used for quickfixing live builds without redeploying/recompiling
+    Accounts::load();
 
     // if we don't have an osu.cfg, import
     {
@@ -413,6 +416,7 @@ Osu::Osu()
     // the songbrowser bottom bar draws this over the full-height carousel, so it must win clicks there
     this->userButton->setDrawsOnTop(true);
     this->bUILoaded = ui->init();
+    Migrations::run();
 }
 
 void Osu::doDeferredInitTasks() {
@@ -2305,8 +2309,7 @@ void Osu::onGameplayKey(GameplayKeys key_flag, bool down, u64 timestamp, bool fr
 }
 
 void Osu::onUserCardChange(std::string_view new_username) {
-    // NOTE: force update options textbox to avoid shutdown inconsistency
-    ui->getOptionsOverlay()->setUsername(std::string{new_username});
+    if(!new_username.empty()) cv::name.setValue(new_username);
     this->userButton->setID(BanchoState::get_uid());
 }
 

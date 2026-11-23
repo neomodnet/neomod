@@ -238,8 +238,7 @@ void UIUserContextMenuScreen::on_action(std::string_view text, int user_action) 
             std::string newName{text};
             SString::trim_inplace(newName);
             if(!newName.empty() && newName != cv::name.getString()) {
-                cv::name.setValue(newName);
-                osu->onUserCardChange(newName);  // sync options username textbox + card id
+                osu->onUserCardChange(newName);
                 if(ui->getUserStatsScreen()->isVisible()) ui->getUserStatsScreen()->rebuildScoreButtons();
             }
         } break;

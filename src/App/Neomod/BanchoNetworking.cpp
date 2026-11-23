@@ -3,6 +3,7 @@
 
 #include "ContainerRanges.h"
 #include "Osu.h"
+#include "Accounts.h"
 #include "Bancho.h"
 #include "BanchoProtocol.h"
 #include "BanchoSubmitter.h"
@@ -369,7 +370,8 @@ void BanchoState::poll_login() {
                 BANCHO::Net::login_poll_timeout = engine->getTime() + 0.5;
             } else {
                 BANCHO::Net::login_poll_timeout = -1.;  // sanity reset
-                cv::mp_oauth_token.setValue(response.text());
+                Accounts::get(BanchoState::endpoint).oauth_token = response.text();
+                Accounts::save();
                 BanchoState::reconnect();
             }
         } else {
@@ -476,24 +478,18 @@ void BanchoState::reconnect() {
     // Will be reenabled after the login succeeds
     cv::mp_autologin.setValue(false);
 
-    // XXX: Put this in cv::mp_password callback?
-    if(!cv::mp_password.getString().empty()) {
-        const MD5String hash{crypto::hash::md5(cv::mp_password.getString())};
-        cv::mp_password_md5.setValue(hash.string());
-        cv::mp_password.setValue("");
-    }
+    BanchoState::endpoint = cv::mp_server.getString();
+    BanchoState::game_endpoint = "c." + BanchoState::endpoint;
 
     // the shell gets a new token from discord every time the activity starts
     if(Osu::isDiscordActivity()) {
-        cv::mp_oauth_token.setValue(Environment::getEnvVariable("NEOMOD_DISCORD_TOKEN"));
+        Accounts::get(BanchoState::endpoint).oauth_token = Environment::getEnvVariable("NEOMOD_DISCORD_TOKEN");
     }
 
-    BanchoState::endpoint = cv::mp_server.getString();
-    BanchoState::game_endpoint = "c." + BanchoState::endpoint;
-    BanchoState::username = cv::name.getString().c_str();
-    if(strlen(cv::mp_password_md5.getString().c_str()) == 32) {
-        BanchoState::pw_md5 = {cv::mp_password_md5.getString().c_str()};
-    }
+    const Account *account = Accounts::find(BanchoState::endpoint);
+    BanchoState::username = account && !account->username.empty() ? account->username : cv::name.getString();
+    BanchoState::pw_md5 =
+        account && account->password_md5.size() == 32 ? MD5String{account->password_md5.c_str()} : MD5String{};
 
     // Admins told me they don't want any clients to connect
     static constexpr const auto server_blacklist = std::array{

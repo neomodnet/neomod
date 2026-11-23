@@ -30,7 +30,6 @@ class OptionsOverlay final : public ScreenBackable {
 
     void openAndScrollToSkinSection();
 
-    void setUsername(std::string username);
 
     bool isMouseInside() override;
     bool isBusy() override;

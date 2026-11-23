@@ -15,18 +15,57 @@
 #include "KeyBindings.h"
 #include "OsuKeyBinds.h"
 #include "Mouse.h"
+#include "Font.h"
 #include "Graphics.h"
+#include "Icons.h"
 #include "Osu.h"
 #include "Skin.h"
 #include "SoundEngine.h"
 #include "TooltipOverlay.h"
 #include "UI.h"
 #include "SString.h"
+#include "UniString.h"
 
 UIContextMenuButton::UIContextMenuButton(float xPos, float yPos, float xSize, float ySize, std::string name,
                                          std::string text, int id)
     : CBaseUIButton(xPos, yPos, xSize, ySize, std::move(name), std::move(text)) {
     this->iID = id;
+}
+
+void UIContextMenuButton::draw() {
+    CBaseUIButton::draw();
+    if(this->removeCallback == nullptr || !this->isVisible()) return;
+
+    McFont *iconFont = osu->getFontIcons();
+    const std::string glyph = UniString::to_utf8(std::u32string_view{&Icons::TIMES, 1});
+    const McRect rect = this->getRemoveRect();
+    const float scale = rect.getSize().y * 0.5f / iconFont->getHeight();
+    g->setColor(this->isMouseInsideRemove() ? 0xffff4444 : 0xff888888);
+    g->pushTransform();
+    {
+        g->scale(scale, scale);
+        g->translate(std::round(rect.getCenter().x - iconFont->getStringWidth(glyph) * scale / 2.f),
+                     std::round(rect.getCenter().y + iconFont->getHeight() * scale / 2.f));
+        g->drawString(iconFont, glyph);
+    }
+    g->popTransform();
+}
+
+void UIContextMenuButton::onClicked(MouseButtonFlags buttons) {
+    if(this->isMouseInsideRemove()) {
+        this->removeCallback(this);
+        return;
+    }
+    CBaseUIButton::onClicked(buttons);
+}
+
+McRect UIContextMenuButton::getRemoveRect() const {
+    return {this->getPos().x + this->getSize().x - this->getSize().y, this->getPos().y, this->getSize().y,
+            this->getSize().y};
+}
+
+bool UIContextMenuButton::isMouseInsideRemove() const {
+    return this->removeCallback != nullptr && this->getRemoveRect().contains(mouse->getPos());
 }
 
 void UIContextMenuButton::updateInput(CBaseUIEventCtx &c) {
@@ -254,6 +293,7 @@ void UIContextMenu::begin(int minWidth, bool bigStyle, bool searchable) {
 
     this->iYCounter = 0;
     this->clickCallback = {};
+    this->removeCallback = {};
     this->toggleCallback = {};
 
     this->setSizeX(this->iWidthCounter);
@@ -333,6 +373,20 @@ UIContextMenuButton *UIContextMenu::addButtonJustified(const std::string &text, 
 
     this->iYCounter += buttonHeight;
     this->setSizeY(this->iYCounter + 2 * margin);
+
+    return button;
+}
+
+UIContextMenuButton *UIContextMenu::addRemovableButton(const std::string &text, int id) {
+    const int margin = 9 * Osu::getUIScale();
+
+    UIContextMenuButton *button = this->addButton(text, id);
+    button->setRemoveCallback(SA::MakeDelegate<&UIContextMenu::onRemove>(this));
+    button->setSizeX(button->getSize().x + button->getSize().y);
+    if(button->getSize().x + 2 * margin > this->iWidthCounter) {
+        this->iWidthCounter = button->getSize().x + 2 * margin;
+        this->setSizeX(this->iWidthCounter);
+    }
 
     return button;
 }
@@ -573,6 +627,41 @@ void UIContextMenu::onClick(UIContextMenuButton *button) {
         this->clickCallback(this->containedTextbox->getText(), button->getID());
     else
         this->clickCallback(button->getName(), button->getID());
+}
+
+void UIContextMenu::onRemove(UIContextMenuButton *button) {
+    if(this->removeCallback != nullptr) this->removeCallback(button->getName(), button->getID());
+
+    const int buttonHeight = 30 * Osu::getUIScale() * (this->bBigStyle ? 1.27f : 1.0f);
+    const int margin = 9 * Osu::getUIScale();
+
+    this->selfDeletionCrashWorkaroundScheduledElementDeleteHack.push_back(button);
+    if(this->searchList != nullptr) {
+        const auto it = Mc::ranges::find(this->searchButtons, button, [](const auto &b) { return b.get(); });
+        (void)it->release();
+        this->searchButtons.erase(it);
+        if(this->highlighted == button) this->highlighted = nullptr;
+        this->updateSearch();
+        if(this->searchButtons.empty()) this->setVisible2(false);
+        return;
+    }
+
+    const float removedY = button->getRelPos().y;
+    this->container.removeBaseUIElement(button);
+    for(auto *element : this->container.getElements()) {
+        if(element->getRelPos().y > removedY) element->setRelPosY(element->getRelPos().y - buttonHeight);
+    }
+    this->container.update_pos();
+
+    this->iYCounter -= buttonHeight;
+    this->setSizeY(std::min(this->getSize().y, (float)(this->iYCounter + 2 * margin)));
+    this->setScrollSizeToContent();
+    if(this->container.getElements().empty()) {
+        this->setVisible2(false);
+    } else if(this->parent && this->parent->isVisible()) {
+        this->parent->setScrollSizeToContent();
+        this->parent->forceInvalidateClipping();
+    }
 }
 
 void UIContextMenu::onToggle(CBaseUICheckbox *checkbox) {

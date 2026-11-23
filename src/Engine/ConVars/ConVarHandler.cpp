@@ -94,6 +94,12 @@ void ConVarHandler::keepConfigValue(std::string_view name, std::string_view text
     this->vKeptValues.insert_or_assign(name, KeptValue{.text = std::string{text}, .fromConfig = true, .save = true});
 }
 
+std::optional<std::string> ConVarHandler::takeKeptValue(std::string_view name) {
+    const auto kept = this->vKeptValues.find(name);
+    if(kept == this->vKeptValues.end()) return std::nullopt;
+    return std::exchange(kept->second.text, std::nullopt);
+}
+
 std::vector<ConVar *> ConVarHandler::getConVarByLetter(std::string_view letters) const {
     std::unordered_set<std::string_view> matchingConVarNames;
     std::vector<ConVar *> matchingConVars;

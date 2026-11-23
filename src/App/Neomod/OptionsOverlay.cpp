@@ -1,6 +1,8 @@
 // Copyright (c) 2016, PG & 2025-2026 WH, All rights reserved.
 #include "OptionsOverlay.h"
 
+#include "Accounts.h"
+#include "UIDropdownTextbox.h"
 #include "ContainerRanges.h"
 #include "OsuConVars.h"
 
@@ -128,7 +130,6 @@ struct OptionsOverlayImpl final {
     void save();
 
     void openAndScrollToSkinSection();
-    void setUsername(std::string username);
     bool isMouseInside();
     bool isBusy();
 
@@ -167,6 +168,10 @@ struct OptionsOverlayImpl final {
     void onOutputDeviceSelect();
     void onOutputDeviceSelect2(std::string_view outputDeviceName, int id = -1);
     void onLogInClicked(MouseButtonFlags buttons);
+    void onAccountsClicked();
+    void onAccountSelected(std::string_view server, int id);
+    void applyServerText();
+    void onAccountRemoved(std::string_view server, int id);
     void onNotelockSelect();
     void onNotelockSelect2(std::string_view notelockType, int id = -1);
     void onNotelockSelectResetClicked();
@@ -262,7 +267,8 @@ struct OptionsOverlayImpl final {
     UISlider *addSlider(const std::string &text, float min = 0.0f, float max = 1.0f, ConVar *cvar = nullptr,
                         float label1Width = 0.0f, bool allowOverscale = false, bool allowUnderscale = false);
     CBaseUITextbox *addTextbox(const std::string &text, ConVar *cvar = nullptr);
-    CBaseUITextbox *addTextbox(const std::string &text, const std::string &labelText, ConVar *cvar = nullptr);
+    template <typename Textbox = CBaseUITextbox>
+    Textbox *addTextbox(const std::string &text, const std::string &labelText, ConVar *cvar = nullptr);
 
     SkinPreviewElement *addSkinPreview();
     SliderPreviewElement *addSliderPreview();
@@ -328,7 +334,7 @@ struct OptionsOverlayImpl final {
     ResetButton *notelockSelectResetButton{nullptr};
 
     CBaseUIElement *sectionGeneral{nullptr};
-    CBaseUITextbox *serverTextbox{nullptr};
+    UIDropdownTextbox *serverTextbox{nullptr};
     CBaseUICheckbox *submitScoresCheckbox{nullptr};
     CBaseUITextbox *nameTextbox{nullptr};
     CBaseUITextbox *passwordTextbox{nullptr};
@@ -382,7 +388,6 @@ void OptionsOverlay::onResolutionChange(vec2 newResolution) { return pImpl->onRe
 CBaseUIContainer *OptionsOverlay::setVisible(bool visible) { return pImpl->setVisible(visible); }
 void OptionsOverlay::save() { return pImpl->save(); }
 void OptionsOverlay::openAndScrollToSkinSection() { return pImpl->openAndScrollToSkinSection(); }
-void OptionsOverlay::setUsername(std::string username) { return pImpl->setUsername(std::move(username)); }
 bool OptionsOverlay::isMouseInside() { return pImpl->isMouseInside(); }
 bool OptionsOverlay::isBusy() { return pImpl->isBusy(); }
 void OptionsOverlay::scheduleLayoutUpdate() { return pImpl->scheduleLayoutUpdate(); }
@@ -909,8 +914,10 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
         this->elemContainers.back()->render_condition = RenderCondition::SCORE_SUBMISSION_POLICY;
     }
 
-    this->serverTextbox = this->addTextbox(cv::mp_server.getString(), _("Server address:"), &cv::mp_server);
+    this->serverTextbox =
+        this->addTextbox<UIDropdownTextbox>(cv::mp_server.getString(), _("Server address:"), &cv::mp_server);
     this->serverTextbox->setName("options_server_box");
+    this->serverTextbox->setDropdownCallback(SA::MakeDelegate<&OptionsOverlayImpl::onAccountsClicked>(this));
 
     // Only renders if server submission policy is unknown
     {
@@ -922,11 +929,11 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     {
         this->addSubSection(_("Login details (username/password)"));
         this->elemContainers.back()->render_condition = RenderCondition::PASSWORD_AUTH;
-        this->nameTextbox = this->addTextbox(cv::name.getString(), &cv::name);
+        const Account *account = Accounts::find(cv::mp_server.getString());
+        this->nameTextbox = this->addTextbox(account ? account->username : cv::name.getString());
         this->nameTextbox->setName("options_name_box");
         this->elemContainers.back()->render_condition = RenderCondition::PASSWORD_AUTH;
-        const auto &md5pass = cv::mp_password_md5.getString();
-        this->passwordTextbox = this->addTextbox(md5pass.empty() ? "" : md5pass, &cv::mp_password);
+        this->passwordTextbox = this->addTextbox(account ? account->password_md5 : "");
         this->passwordTextbox->setName("options_password_box");
         this->passwordTextbox->is_password = true;
         this->elemContainers.back()->render_condition = RenderCondition::PASSWORD_AUTH;
@@ -2316,24 +2323,8 @@ void OptionsOverlayImpl::updateInput(CBaseUIEventCtx &c) {
     // HACKHACK (should just use callback)
     // XXX: disable serverTextbox while logging in
     // XXX: jank logic split between update_login_button/setLogingLoadingState
-    const auto server_text{this->serverTextbox->getText()};
-    if(cv::mp_server.getString() != server_text) {
-        cv::mp_server.setValue(server_text);
-        this->update_login_button();
-        this->scheduleLayoutUpdate();  // toggle user/pass fields based on oauthness
-    }
+    this->applyServerText();
 
-    // why does all of this need to run in update()...
-    const auto name_text{this->nameTextbox->getText()};
-    if(!name_text.empty() && cv::name.getString() != name_text) {
-        cv::name.setValue(name_text);
-    }
-    const auto password_text{this->passwordTextbox->getText()};
-    if(!password_text.empty() && password_text != cv::mp_password_md5.getString()) {
-        // passwordTextbox gets overwritten with mp_password_md5 on login
-        // mp_password should remain empty after that
-        cv::mp_password.setValue(password_text);
-    }
     if(this->nameTextbox->hitEnter()) {
         this->nameTextbox->stealFocus();
         this->passwordTextbox->focus();
@@ -2479,8 +2470,6 @@ void OptionsOverlayImpl::setVisibleInt(bool visible, bool fromOnBack) {
     }
 }
 
-void OptionsOverlayImpl::setUsername(std::string username) { this->nameTextbox->setText(std::move(username)); }
-
 bool OptionsOverlayImpl::isMouseInside() {
     return (parent->backButton->isMouseInside() || this->options->isMouseInside() ||
             this->categories->isMouseInside()) &&
@@ -2500,6 +2489,7 @@ void OptionsOverlayImpl::updateLayout() {
 
     const bool oauth = this->should_use_oauth_login();
     this->update_login_button();
+    this->serverTextbox->setShowDropdown(Accounts::get_all().size() > 1);
 
     // the asio buffer size slider follows the driver's limits (which its control panel can change), and "default" is
     // whatever it prefers
@@ -2558,12 +2548,7 @@ void OptionsOverlayImpl::updateLayout() {
                     if(element->baseElems.size() == 1) {
                         auto *textboxPointer = dynamic_cast<CBaseUITextbox *>(element->baseElems[0].get());
                         if(textboxPointer != nullptr) {
-                            // HACKHACK: don't override textbox with mp_password (which gets deleted on login)
-                            std::string textToSet{element->cvar->getString()};
-                            if(element->cvar == &cv::mp_password && cv::mp_password.getString().empty()) {
-                                textToSet = cv::mp_password_md5.getString();
-                            }
-                            textboxPointer->setText(std::move(textToSet));
+                            textboxPointer->setText(element->cvar->getString());
                         }
                     } else if(element->baseElems.size() == 2) {
                         auto *textboxPointer = dynamic_cast<CBaseUITextbox *>(element->baseElems[1].get());
@@ -3013,7 +2998,7 @@ void OptionsOverlayImpl::updateLayout() {
     if(!enableHorizontalScrolling) this->options->scrollToLeft();
     this->options->setHorizontalScrolling(enableHorizontalScrolling);
 
-    this->options->container.addBaseUIElement(this->contextMenu);
+    this->options->container.addBaseUIElement(this->contextMenu, this->contextMenu->getRelPos());
 
     this->options->container.update_pos();
 
@@ -3429,27 +3414,20 @@ void OptionsOverlayImpl::onOutputDeviceResetUpdate() {
 }
 
 void OptionsOverlayImpl::onLogInClicked(MouseButtonFlags buttons) {
-    if(flags::has<MouseButtonFlags::MF_LEFT>(buttons) && BanchoState::is_logging_in()) {
-        return;
-    }
+    const bool logging_in = BanchoState::is_logging_in();
+    if(flags::has<MouseButtonFlags::MF_LEFT>(buttons) && logging_in) return;
     soundEngine->play(osu->getSkin()->s_menu_hit);
 
-    // Clear mp_oauth_token if the user is connecting to a non-oauth server
-    // This makes it easy to check what we need to do when building the login packet
-    if(!this->should_use_oauth_login()) {
-        cv::mp_oauth_token.setValue("");
+    if(logging_in || BanchoState::is_online() || BanchoState::get_online_status() == OnlineStatus::POLLING) {
+        BanchoState::disconnect();
+        return;
     }
 
-    const bool is_polling = BanchoState::get_online_status() == OnlineStatus::POLLING;
-    if((flags::has<MouseButtonFlags::MF_RIGHT>(buttons) && BanchoState::is_logging_in()) || BanchoState::is_online() ||
-       is_polling) {
-        BanchoState::disconnect();
-
-        // Manually clicked disconnect button: clear oauth token
-        cv::mp_oauth_token.setValue("");
-    } else {
-        if(this->should_use_oauth_login() && cv::mp_oauth_token.getString().empty()) {
-            BanchoState::endpoint = cv::mp_server.getString();
+    const std::string &server = cv::mp_server.getString();
+    if(this->should_use_oauth_login()) {
+        const Account *account = Accounts::find(server);
+        if(!account || account->oauth_token.empty()) {
+            BanchoState::endpoint = server;
             BanchoState::game_endpoint = "c." + BanchoState::endpoint;
 
             crypto::rng::get_rand(BanchoState::oauth_verifier);
@@ -3464,10 +3442,67 @@ void OptionsOverlayImpl::onLogInClicked(MouseButtonFlags buttons) {
 
             BanchoState::update_online_status(OnlineStatus::POLLING);
             BanchoState::poll_login();
-        } else {
-            BanchoState::reconnect();
+            return;
         }
+    } else {
+        Account &account = Accounts::get(server);
+        account.username = this->nameTextbox->getText();
+        const std::string_view password = this->passwordTextbox->getText();
+        if(!password.empty() && password != account.password_md5) {
+            account.password_md5 = crypto::hash::md5(password).to_chars().string();
+        }
+        account.oauth_token.clear();  // sanity
+        Accounts::save();
+        this->passwordTextbox->setText(account.password_md5);
+        this->scheduleLayoutUpdate();
     }
+
+    BanchoState::reconnect();
+}
+
+void OptionsOverlayImpl::onAccountsClicked() {
+    const vec2 below{0.f, this->serverTextbox->getSize().y};
+    this->contextMenu->setPos(this->serverTextbox->getPos() + below);
+    this->contextMenu->setRelPos(this->serverTextbox->getRelPos() + below);
+    this->contextMenu->begin(this->serverTextbox->getSize().x);
+    for(const Account &account : Accounts::get_all()) {
+        CBaseUIButton *button = this->contextMenu->addRemovableButton(
+            account.username.empty() ? account.server : fmt::format("{} ({})", account.server, account.username));
+        button->setName(account.server);
+        if(account.server == cv::mp_server.getString()) button->setTextBrightColor(0xff00ff00);
+    }
+    this->contextMenu->end(false, false);
+    this->contextMenu->setClickCallback(SA::MakeDelegate<&OptionsOverlayImpl::onAccountSelected>(this));
+    this->contextMenu->setRemoveCallback(SA::MakeDelegate<&OptionsOverlayImpl::onAccountRemoved>(this));
+    this->options->setScrollSizeToContent();
+}
+
+void OptionsOverlayImpl::applyServerText() {
+    const auto server_text{this->serverTextbox->getText()};
+    if(cv::mp_server.getString() == server_text) return;
+
+    if(BanchoState::get_online_status() != OnlineStatus::LOGGED_OUT) BanchoState::disconnect();
+    cv::mp_server.setValue(server_text);
+    if(const Account *account = Accounts::find(server_text)) {
+        this->nameTextbox->setText(account->username);
+        this->passwordTextbox->setText(account->password_md5);
+    } else {
+        this->passwordTextbox->setText("");
+    }
+    this->update_login_button();
+    this->scheduleLayoutUpdate();  // toggle user/pass fields based on oauthness
+}
+
+void OptionsOverlayImpl::onAccountSelected(std::string_view server, int /*id*/) {
+    this->serverTextbox->setText(std::string{server});
+    this->applyServerText();
+}
+
+void OptionsOverlayImpl::onAccountRemoved(std::string_view server, int /*id*/) {
+    if(server == cv::mp_server.getString()) this->passwordTextbox->setText("");
+    Accounts::remove(server);
+    Accounts::save();
+    this->scheduleLayoutUpdate();
 }
 
 void OptionsOverlayImpl::onNotelockSelect() {
@@ -4479,8 +4514,6 @@ UISlider *OptionsOverlayImpl::addSlider(const std::string &text, float min, floa
 }
 
 CBaseUITextbox *OptionsOverlayImpl::addTextbox(const std::string &text, ConVar *cvar) {
-    assert(cvar != nullptr);
-
     auto *textbox = new CBaseUITextbox(0, 0, this->options->getSize().x, 40, "");
     textbox->setText(text);
     this->options->container.addBaseUIElement(textbox);
@@ -4494,10 +4527,11 @@ CBaseUITextbox *OptionsOverlayImpl::addTextbox(const std::string &text, ConVar *
     return textbox;
 }
 
-CBaseUITextbox *OptionsOverlayImpl::addTextbox(const std::string &text, const std::string &labelText, ConVar *cvar) {
+template <typename Textbox>
+Textbox *OptionsOverlayImpl::addTextbox(const std::string &text, const std::string &labelText, ConVar *cvar) {
     assert(cvar != nullptr);
 
-    auto *textbox = new CBaseUITextbox(0, 0, this->options->getSize().x, 40, "");
+    auto *textbox = new Textbox(0, 0, this->options->getSize().x, 40, "");
     textbox->setText(text);
     this->options->container.addBaseUIElement(textbox);
 

@@ -42,12 +42,15 @@ class UIContextMenu final : public CBaseUIScrollView {
     using CheckboxToggleCallback = SA::delegate<void(int, bool)>;
     void setToggleCallback(CheckboxToggleCallback toggleCallback) { this->toggleCallback = std::move(toggleCallback); }
 
+    void setRemoveCallback(ButtonClickCallback removeCallback) { this->removeCallback = std::move(removeCallback); }
+
     void begin(int minWidth = 0, bool bigStyle = false, bool searchable = false);
     UIContextMenuButton *addButtonJustified(const std::string &text,
                                             TEXT_JUSTIFICATION j = TEXT_JUSTIFICATION::CENTERED, int id = -1);
     inline UIContextMenuButton *addButton(const std::string &text, int id = -1) {
         return this->addButtonJustified(text, TEXT_JUSTIFICATION::LEFT, id);
     };
+    UIContextMenuButton *addRemovableButton(const std::string &text, int id = -1);
     UIContextMenuTextbox *addTextbox(const std::string &text, int id = -1);
     // toggling it keeps the menu open
     UIContextMenuCheckbox *addCheckbox(const std::string &text, bool checked, int id = -1);
@@ -95,6 +98,7 @@ class UIContextMenu final : public CBaseUIScrollView {
     void onMouseDownOutside(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
 
     void onClick(UIContextMenuButton *button);
+    void onRemove(UIContextMenuButton *button);
     void onToggle(CBaseUICheckbox *checkbox);
     void onHitEnter(UIContextMenuTextbox *textbox);
 
@@ -106,6 +110,7 @@ class UIContextMenu final : public CBaseUIScrollView {
     CBaseUIScrollView *parent = nullptr;
     UIContextMenuTextbox *containedTextbox = nullptr;
     ButtonClickCallback clickCallback = {};
+    ButtonClickCallback removeCallback = {};
     CheckboxToggleCallback toggleCallback = {};
 
     std::vector<std::unique_ptr<UIContextMenuButton>> searchButtons;
@@ -132,6 +137,7 @@ class UIContextMenuButton final : public CBaseUIButton {
     UIContextMenuButton(float xPos, float yPos, float xSize, float ySize, std::string name, std::string text, int id);
     ~UIContextMenuButton() override { ; }
 
+    void draw() override;
     void updateInput(CBaseUIEventCtx &c) override;
 
     void onMouseInside() override;
@@ -141,8 +147,18 @@ class UIContextMenuButton final : public CBaseUIButton {
 
     void setTooltipText(std::string_view text);
 
+    using RemoveCallback = SA::delegate<void(UIContextMenuButton *)>;
+    void setRemoveCallback(RemoveCallback removeCallback) { this->removeCallback = std::move(removeCallback); }
+
+   protected:
+    void onClicked(MouseButtonFlags buttons = MouseButtonFlags::MF_LEFT) override;
+
    private:
+    [[nodiscard]] McRect getRemoveRect() const;
+    [[nodiscard]] bool isMouseInsideRemove() const;
+
     int iID;
+    RemoveCallback removeCallback = {};
 
     std::vector<std::string> tooltipTextLines;
 };
