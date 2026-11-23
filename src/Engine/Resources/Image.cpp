@@ -360,7 +360,7 @@ bool Image::saveToImage(const u8 *data, i32 width, i32 height, u8 channels, cons
     auto pngData = encodeToPNG(data, width, height, channels);
     if(pngData.empty()) return false;
 
-    FILE *fp = File::fopen_c(filepath.c_str(), "wb");
+    FILE *fp = File::fopen_c(filepath, "wb");
     if(!fp) {
         debugLog("PNG error: Could not open file {:s} for writing", filepath);
         return false;

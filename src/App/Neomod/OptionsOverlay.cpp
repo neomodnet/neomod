@@ -3724,7 +3724,7 @@ void OptionsOverlayImpl::updateCheckboxGroupLabel(OptionsElement *group) {
     }
     // the menu shows what doesn't fit
     auto *label = static_cast<CBaseUILabel *>(group->baseElems[1].get());
-    label->setText(label->getFont()->ellipsize(text.empty() ? _("Off") : text, label->getSize().x));
+    label->setText(label->getFont()->ellipsize(text.empty() ? std::string_view{_("Off")} : text, label->getSize().x));
 }
 
 void OptionsOverlayImpl::onChoiceSelect(CBaseUIButton *button) {

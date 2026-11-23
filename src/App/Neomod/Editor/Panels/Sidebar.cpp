@@ -118,7 +118,7 @@ Sidebar::Sidebar(EditorState &state, CBaseUIPopupLayer &popups, std::function<vo
     this->sampleFile = new CBaseUIStyledButton({}, "editor_sample_file");
     this->sampleFile->setClickCallback([this] { this->chooseSample(); });
     // each field under its label: the second column is as wide as its label, the first takes the rest
-    const auto labelled = [&style](const char *label, CBaseUINumberField *field) {
+    const auto labelled = [&style](Mc::cstr_view label, CBaseUINumberField *field) {
         field->setNaturalWidth(0.f);
         auto *column = new CBaseUIBox(Axis::COLUMN);
         column->setGap(style.metrics.gap);

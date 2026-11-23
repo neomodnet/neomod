@@ -3418,6 +3418,18 @@ msgid "Raw Mouse Input"
 msgstr "原始鼠标输入"
 
 #: src/App/Neomod/OptionsOverlay.cpp
+msgid "Hardware Cursor (!)"
+msgstr "硬件光标 (!)"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid ""
+"This can increase cursor responsiveness, but support depends on your OS.\n"
+"Only works with raw input disabled."
+msgstr ""
+"可以提高光标的响应速度，但支持情况取决于你的操作系统。\n"
+"仅在禁用原始鼠标输入时有效。"
+
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "Confine Cursor"
 msgstr "限制光标"
 

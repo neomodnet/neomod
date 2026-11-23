@@ -2741,7 +2741,7 @@ i64 folder_mtime(std::string_view folder) {
     std::string path{folder};
     while(path.size() > 1 && (path.back() == '/' || path.back() == '\\')) path.pop_back();
     struct stat64 st{};
-    return File::stat_c(path.c_str(), &st) == 0 ? static_cast<i64>(st.st_mtime) : 0;
+    return File::stat_c(path, &st) == 0 ? static_cast<i64>(st.st_mtime) : 0;
 }
 
 }  // namespace

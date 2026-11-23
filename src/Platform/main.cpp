@@ -69,7 +69,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
         // Display the error to the user (as opposed to a black screen)
         js_fatal_error(err_msg.c_str());
 #else
-        Environment::showDialog("Fatal Error", err_msg.c_str());
+        Environment::showDialog("Fatal Error", err_msg);
 #endif
 
         std::exit(-1);

@@ -72,7 +72,7 @@ void SoLoudSound::initAsync() {
 
     // both source types read the whole file into memory up front (streams are decoded from there), so it doesn't have
     // to stay open, and the wide path conversion happens once in fopen_c
-    SoLoud::DiskFile df(File::fopen_c(this->sFilePath.c_str(), "rb"));
+    SoLoud::DiskFile df(File::fopen_c(this->sFilePath, "rb"));
     if(!df.getFilePtr()) {
         debugLog("Sound Error: couldn't open file {:s}", this->sFilePath);
         return;

@@ -353,7 +353,7 @@ void SetupPanel::tick() {
         const uSz count = comboColours(*document).size();
         for(uSz i = 0; i < this->colourRows.size(); i++) this->colourRows[i]->setVisible(i < count);
         this->noColours->setVisible(count == 0);
-        if(const char *label = count == 0 ? _("Use Custom Colours") : _("Add Colour");
+        if(const Mc::cstr_view label = count == 0 ? _("Use Custom Colours") : _("Add Colour");
            this->addColour->getText() != label) {
             this->addColour->setText(label);
         }

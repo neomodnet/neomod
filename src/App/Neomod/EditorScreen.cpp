@@ -121,7 +121,7 @@ void EditorScreen::onFocusGained() {
     if(this->root && this->isVisible()) this->module->focus(this->root);
 }
 
-const char *EditorScreen::failureReason() const {
+Mc::cstr_view EditorScreen::failureReason() const {
     switch(this->failure) {
         case Failure::CREATE_FAILED:
             return _("The editor failed to start.");
@@ -141,8 +141,8 @@ void EditorScreen::draw() {
     }
 
     // instead of the editor: why it isn't there, and the ways out
-    const char *reason = this->failureReason();
-    const char *hint = _("Ctrl+Alt+E tries again, Escape goes back.");
+    const Mc::cstr_view reason = this->failureReason();
+    const Mc::cstr_view hint = _("Ctrl+Alt+E tries again, Escape goes back.");
 
     const vec2 center = this->getPos() + this->getSize() / 2.f;
     McFont *reasonFont = osu->getSubTitleFont();

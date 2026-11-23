@@ -210,7 +210,7 @@ Environment::Environment(const Mc::AppDescriptor &appDesc)
         SString::trim_inplace(args);
         for(auto var : SString::split(args, ' ')) {
             bool unset = false;
-            const std::string value = Environment::getEnvVariable(var, &unset);
+            const std::string value = Environment::getEnvVariable(std::string{var}, &unset);
             if(unset) {
                 logRaw("[getenv] {:s} is not set", var);
             } else {
@@ -588,7 +588,7 @@ bool Environment::deletePathsRecursive(const std::string &path, int maxRecursion
     return SDL_RemovePath(curFolder.c_str());
 }
 
-bool Environment::renameFile(const std::string &oldFileName, const std::string &newFileName) noexcept {
+bool Environment::renameFile(Mc::cstr_view oldFileName, Mc::cstr_view newFileName) noexcept {
     if(oldFileName == newFileName) {
         return true;
     }
@@ -599,7 +599,7 @@ bool Environment::renameFile(const std::string &oldFileName, const std::string &
            std::filesystem::equivalent(File::getFsPath(oldFileName), File::getFsPath(newFileName), ec)) {
             return false;
         }
-        std::string tempFile{newFileName + ".tmp"};
+        const std::string tempFile = std::string{newFileName}.append(".tmp");
         if(!SDL_CopyFile(oldFileName.c_str(), tempFile.c_str())) {
             return false;
         }
@@ -613,7 +613,7 @@ bool Environment::renameFile(const std::string &oldFileName, const std::string &
     return Environment::fileExists(newFileName);
 }
 
-bool Environment::deleteFile(const std::string &filePath) noexcept { return SDL_RemovePath(filePath.c_str()); }
+bool Environment::deleteFile(Mc::cstr_view filePath) noexcept { return SDL_RemovePath(filePath.c_str()); }
 
 namespace {
 // make sure we have a valid path for enumeration (ends with the right separator, and handles long paths on windows)
@@ -750,11 +750,11 @@ std::vector<std::string> Environment::getLogicalDrives() noexcept {
     return drives;
 }
 
-std::string Environment::getEnvVariable(std::string_view varToQuery, bool *isUnset) noexcept {
+std::string Environment::getEnvVariable(Mc::cstr_view varToQuery, bool *isUnset) noexcept {
     bool wasUnset = false;
     std::string ret;
     if(s_sdlenv && !varToQuery.empty()) {
-        if(const char *varVal = SDL_GetEnvironmentVariable(s_sdlenv, std::string{varToQuery}.c_str())) {
+        if(const char *varVal = SDL_GetEnvironmentVariable(s_sdlenv, varToQuery.c_str())) {
             ret = varVal;
         } else {
             wasUnset = true;
@@ -766,27 +766,24 @@ std::string Environment::getEnvVariable(std::string_view varToQuery, bool *isUns
     return ret;
 }
 
-bool Environment::setEnvVariable(std::string_view varToSet, std::string_view varValue, bool overwrite) noexcept {
+bool Environment::setEnvVariable(Mc::cstr_view varToSet, Mc::cstr_view varValue, bool overwrite) noexcept {
     if(varToSet.empty()) return false;
     assert(McThread::is_main_thread());
-    const std::string cVar{varToSet};
-    const std::string cVal{varValue};
-    bool ret = SDL_setenv_unsafe(cVar.c_str(), cVal.c_str(), overwrite);
+    bool ret = SDL_setenv_unsafe(varToSet.c_str(), varValue.c_str(), overwrite);
     if(s_sdlenv) {
         // also set SDL environment (which is decoupled from C runtime environment)
-        ret = SDL_SetEnvironmentVariable(s_sdlenv, cVar.c_str(), cVal.c_str(), overwrite);
+        ret = SDL_SetEnvironmentVariable(s_sdlenv, varToSet.c_str(), varValue.c_str(), overwrite);
     }
     return ret;
 }
 
-bool Environment::unsetEnvVariable(std::string_view varToUnset) noexcept {
+bool Environment::unsetEnvVariable(Mc::cstr_view varToUnset) noexcept {
     if(varToUnset.empty()) return false;
     assert(McThread::is_main_thread());
-    const std::string cVar{varToUnset};
-    bool ret = SDL_unsetenv_unsafe(cVar.c_str());
+    bool ret = SDL_unsetenv_unsafe(varToUnset.c_str());
     if(s_sdlenv) {
         // also unset SDL environment (which is decoupled from C runtime environment)
-        ret = SDL_UnsetEnvironmentVariable(s_sdlenv, cVar.c_str());
+        ret = SDL_UnsetEnvironmentVariable(s_sdlenv, varToUnset.c_str());
     }
     return ret;
 }
@@ -854,7 +851,7 @@ std::string Environment::getPrimarySelectionText() {
     return text ? std::string{text.get()} : std::string{};
 }
 
-void Environment::setPrimarySelectionText(const std::string &text) { SDL_SetPrimarySelectionText(text.c_str()); }
+void Environment::setPrimarySelectionText(Mc::cstr_view text) { SDL_SetPrimarySelectionText(text.c_str()); }
 
 namespace {
 struct ClipboardImageState final {
@@ -906,7 +903,7 @@ bool Environment::setClipBoardImage(std::vector<u8> pngData) {
 }
 
 // static helper for class methods below (defaults to flags = error, modalWindow = null)
-void Environment::showDialog(const char *title, const char *message, unsigned int flags, void *modalWindow) {
+void Environment::showDialog(Mc::cstr_view title, Mc::cstr_view message, unsigned int flags, void *modalWindow) {
     // nobody is there to close it in headless mode (the callers log the message)
     if(Mc::LaunchArgs::has_arg(Mc::LaunchArgs::REND_HEADLESS)) return;
 
@@ -928,7 +925,7 @@ void Environment::showDialog(const char *title, const char *message, unsigned in
         }
     }
 
-    SDL_ShowSimpleMessageBox(flags, title, message, actualWin);
+    SDL_ShowSimpleMessageBox(flags, title.c_str(), message.c_str(), actualWin);
 
     // re-enable fullscreen
     if(wasFullscreen) {
@@ -938,25 +935,25 @@ void Environment::showDialog(const char *title, const char *message, unsigned in
     }
 }
 
-void Environment::showMessageInfo(std::string_view title, std::string_view message) const {
-    showDialog(std::string{title}.c_str(), std::string{message}.c_str(), SDL_MESSAGEBOX_INFORMATION, m_window);
+void Environment::showMessageInfo(Mc::cstr_view title, Mc::cstr_view message) const {
+    showDialog(title, message, SDL_MESSAGEBOX_INFORMATION, m_window);
 }
 
-void Environment::showMessageWarning(std::string_view title, std::string_view message) const {
-    showDialog(std::string{title}.c_str(), std::string{message}.c_str(), SDL_MESSAGEBOX_WARNING, m_window);
+void Environment::showMessageWarning(Mc::cstr_view title, Mc::cstr_view message) const {
+    showDialog(title, message, SDL_MESSAGEBOX_WARNING, m_window);
 }
 
-void Environment::showMessageError(std::string_view title, std::string_view message) const {
-    showDialog(std::string{title}.c_str(), std::string{message}.c_str(), SDL_MESSAGEBOX_ERROR, m_window);
+void Environment::showMessageError(Mc::cstr_view title, Mc::cstr_view message) const {
+    showDialog(title, message, SDL_MESSAGEBOX_ERROR, m_window);
 }
 
 // what is the point of this exactly?
-void Environment::showMessageErrorFatal(std::string_view title, std::string_view message) const {
+void Environment::showMessageErrorFatal(Mc::cstr_view title, Mc::cstr_view message) const {
     showMessageError(title, message);
 }
 
 Mc::Registration Environment::openFileWindow(FileDialogCallback callback, const char *filetypefilters,
-                                             std::string_view /*title*/, std::string_view initialpath) noexcept {
+                                             std::string_view /*title*/, Mc::cstr_view initialpath) noexcept {
     if(initialpath.length() > 0 && !directoryExists(initialpath)) {
         initialpath = Mc::Paths::data();
     }
@@ -983,11 +980,11 @@ Mc::Registration Environment::openFileWindow(FileDialogCallback callback, const 
     SDL_ShowOpenFileDialog(sdlFileDialogCallback,
                            reinterpret_cast<void *>(static_cast<uintptr_t>(this->lastFileDialogId)), m_window,
                            dialog.filters.empty() ? nullptr : dialog.filters.data(),
-                           static_cast<int>(dialog.filters.size()), std::string{initialpath}.c_str(), false);
+                           static_cast<int>(dialog.filters.size()), initialpath.c_str(), false);
     return registration;
 }
 
-Mc::Registration Environment::openFolderWindow(FileDialogCallback callback, std::string_view initialpath) noexcept {
+Mc::Registration Environment::openFolderWindow(FileDialogCallback callback, Mc::cstr_view initialpath) noexcept {
     if(initialpath.length() > 0 && !directoryExists(initialpath)) {
         initialpath = Mc::Paths::data();
     }
@@ -996,7 +993,7 @@ Mc::Registration Environment::openFolderWindow(FileDialogCallback callback, std:
 
     SDL_ShowOpenFolderDialog(sdlFileDialogCallback,
                              reinterpret_cast<void *>(static_cast<uintptr_t>(this->lastFileDialogId)), m_window,
-                             std::string{initialpath}.c_str(), false);
+                             initialpath.c_str(), false);
     return registration;
 }
 
@@ -1266,7 +1263,7 @@ void Environment::disableFullscreen() {
     }
 }
 
-void Environment::setWindowTitle(const std::string &title) { SDL_SetWindowTitle(m_window, title.c_str()); }
+void Environment::setWindowTitle(Mc::cstr_view title) { SDL_SetWindowTitle(m_window, title.c_str()); }
 
 void Environment::syncWindow() { SDL_SyncWindow(m_window); }
 

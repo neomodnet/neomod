@@ -1,5 +1,7 @@
 #pragma once
 // Copyright (c) 2018, PG, All rights reserved.
+#include <string_view>
+
 enum class Action : unsigned char;
 class DatabaseBeatmap;
 
@@ -12,7 +14,7 @@ void onEditor(const DatabaseBeatmap &map);  // editing `map`
 void onPlayEnd(bool quit);
 void onMultiplayerLobby();
 
-void setBanchoStatus(const char *info_text, Action action);
+void setBanchoStatus(std::string_view info_text, Action action);
 void resetBanchoStatus();
 void updateBanchoMods();
 };  // namespace RichPresence

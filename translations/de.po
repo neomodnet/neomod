@@ -3420,6 +3420,18 @@ msgid "Raw Mouse Input"
 msgstr "Rohe Mauseingabe (Raw Input)"
 
 #: src/App/Neomod/OptionsOverlay.cpp
+msgid "Hardware Cursor (!)"
+msgstr "Hardware-Cursor (!)"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid ""
+"This can increase cursor responsiveness, but support depends on your OS.\n"
+"Only works with raw input disabled."
+msgstr ""
+"Das kann die Reaktion des Cursors verbessern, die Unterstützung hängt aber von deinem Betriebssystem ab.\n"
+"Funktioniert nur mit deaktivierter roher Mauseingabe (Raw Input)."
+
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "Confine Cursor"
 msgstr "Cursor einsperren"
 

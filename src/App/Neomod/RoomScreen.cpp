@@ -533,7 +533,7 @@ void RoomScreen::updateSettingsLayout(vec2 newResolution) {
     if(is_host && is_ready) {
         const std::string force_start_str =
             BanchoState::room.all_players_ready()
-                ? _("Start game")
+                ? std::string{_("Start game")}
                 : tformat("Force start ({:d}/{:d})", nb_ready, BanchoState::room.nb_players);
         this->ready_btn->setText(force_start_str);
         this->ready_btn->setColor(0xff00d900);
@@ -787,7 +787,7 @@ void RoomScreen::on_room_joined(const Room &room) {
     this->updateLayout(osu->getVirtScreenSize());
     ui->setScreen(ui->getRoomScreen());
 
-    RichPresence::setBanchoStatus(room.name.c_str(), Action::MULTIPLAYER);
+    RichPresence::setBanchoStatus(room.name, Action::MULTIPLAYER);
     RichPresence::onMultiplayerLobby();
     ui->getChat()->openChannel("#multiplayer");
 

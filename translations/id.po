@@ -3418,6 +3418,18 @@ msgid "Raw Mouse Input"
 msgstr "Input Mouse Mentah"
 
 #: src/App/Neomod/OptionsOverlay.cpp
+msgid "Hardware Cursor (!)"
+msgstr "Kursor Perangkat Keras (!)"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid ""
+"This can increase cursor responsiveness, but support depends on your OS.\n"
+"Only works with raw input disabled."
+msgstr ""
+"Ini dapat meningkatkan responsivitas kursor, tetapi dukungannya tergantung pada OS Anda.\n"
+"Hanya berfungsi jika input mouse mentah dinonaktifkan."
+
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "Confine Cursor"
 msgstr "Kurung Kursor"
 

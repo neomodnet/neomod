@@ -1467,7 +1467,7 @@ void Osu::saveScreenshot(bool upload) {
                 if constexpr(!Env::cfg(OS::WASM)) {
                     // write to file
                     debugLog("Saving image to {:s} ...", ret.savePath);
-                    FILE *fp = File::fopen_c(ret.savePath.c_str(), "wb");
+                    FILE *fp = File::fopen_c(ret.savePath, "wb");
                     if(!fp) {
                         ret.error = fmt::format("Screenshot error: Could not open file {:s} for writing", ret.savePath);
                         return ret;

@@ -1193,7 +1193,7 @@ std::string get_disk_uuid_platform() {
 
 #elif defined(MCENGINE_PLATFORM_WASM)
     const std::string client_id_path = Mc::Paths::data() + "/client_id";
-    FILE *f = File::fopen_c(client_id_path.c_str(), "r");
+    FILE *f = File::fopen_c(client_id_path, "r");
     if(f) {
         std::array<char, 64> buf{};
         fgets(buf.data(), buf.size(), f);
@@ -1202,7 +1202,7 @@ std::string get_disk_uuid_platform() {
     }
 
     const char *uuid = emscripten_run_script_string("crypto.randomUUID()");
-    f = File::fopen_c(client_id_path.c_str(), "w");
+    f = File::fopen_c(client_id_path, "w");
     if(f) {
         fputs(uuid, f);
         fclose(f);

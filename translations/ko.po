@@ -3418,6 +3418,18 @@ msgid "Raw Mouse Input"
 msgstr "마우스 원시 입력"
 
 #: src/App/Neomod/OptionsOverlay.cpp
+msgid "Hardware Cursor (!)"
+msgstr "하드웨어 커서 (!)"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid ""
+"This can increase cursor responsiveness, but support depends on your OS.\n"
+"Only works with raw input disabled."
+msgstr ""
+"커서 반응성이 향상될 수 있지만, 지원 여부는 운영체제에 따라 다릅니다.\n"
+"마우스 원시 입력이 꺼져 있을 때만 작동합니다."
+
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "Confine Cursor"
 msgstr "커서 가두기"
 

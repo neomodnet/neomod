@@ -8,6 +8,8 @@
 #include "noinclude.h"
 #include "types.h"
 
+#include "CStrView.h"
+
 #ifdef MCENGINE_FEATURE_HOT_RELOAD
 #include "Registration.h"
 #include "ReloadableLibrary.h"
@@ -92,7 +94,7 @@ class EditorScreen final : public UIScreen {
 
     // why the last start failed, shown while there's no root
     enum class Failure : u8 { CREATE_FAILED, LOAD_FAILED, STALE_LIBRARY } failure{Failure::CREATE_FAILED};
-    [[nodiscard]] const char *failureReason() const;
+    [[nodiscard]] Mc::cstr_view failureReason() const;
 
     bool reloadScheduled{false};
     bool dropSession{false};

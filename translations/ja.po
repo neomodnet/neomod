@@ -3420,6 +3420,18 @@ msgid "Raw Mouse Input"
 msgstr "マウスの直接入力 (Raw Input)"
 
 #: src/App/Neomod/OptionsOverlay.cpp
+msgid "Hardware Cursor (!)"
+msgstr "ハードウェアカーソル (!)"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid ""
+"This can increase cursor responsiveness, but support depends on your OS.\n"
+"Only works with raw input disabled."
+msgstr ""
+"カーソルの応答性が向上することがありますが、対応状況はOSによって異なります。\n"
+"マウスの直接入力 (Raw Input) が無効の場合のみ機能します。"
+
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "Confine Cursor"
 msgstr "カーソルを制限する"
 

@@ -19,6 +19,8 @@
 #include "noinclude.h"
 #include "types.h"
 
+#include "CStrView.h"
+
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -137,11 +139,11 @@ class File {
     [[nodiscard]] static std::filesystem::path getFsPath(std::string_view utf8path);
 
     // passthrough to "_wfopen" on Windows, "fopen" otherwise
-    [[nodiscard]] static FILE *fopen_c(const char *__restrict utf8filename, const char *__restrict modes) noexcept;
+    [[nodiscard]] static FILE *fopen_c(Mc::cstr_view utf8filename, const char *modes) noexcept;
 
     // stat64, via the win32 file attributes on Windows (mode/size/times only; the timestamps convert straight from
     // utc there, matching what getDirectoryEntries reports)
-    [[nodiscard]] static int stat_c(const char *__restrict utf8filename, struct stat64 *__restrict buffer) noexcept;
+    [[nodiscard]] static int stat_c(Mc::cstr_view utf8filename, struct stat64 *buffer) noexcept;
 
     // copy file from source to destination, overwriting if exists
     [[nodiscard]] static bool copy(std::string_view fromPath, std::string_view toPath);
@@ -180,7 +182,7 @@ MAKE_FLAG_ENUM(File::DirContents)
 class MappedFile final {
     NOCOPY_NOMOVE(MappedFile)
    public:
-    explicit MappedFile(std::string_view utf8path);
+    explicit MappedFile(Mc::cstr_view utf8path);
     ~MappedFile();
 
     // empty if the file couldn't be opened or mapped

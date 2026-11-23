@@ -480,7 +480,7 @@ bool BGImageHandlerImpl::isUnchanged(const ENTRY &entry) const {
     if(!entry.has_image_ref || !entry.image->isReady()) return false;
     const std::string path = fmt::format("{:s}{:s}", entry.folder, entry.bg_image_filename);
     struct stat64 now{};
-    return File::stat_c(path.c_str(), &now) == 0 && now.st_mtime == entry.image->getFileModificationTime();
+    return File::stat_c(path, &now) == 0 && now.st_mtime == entry.image->getFileModificationTime();
 }
 
 void BGImageHandlerImpl::forgetFolder(std::string_view folder) {

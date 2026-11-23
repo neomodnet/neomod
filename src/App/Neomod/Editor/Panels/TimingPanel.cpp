@@ -496,7 +496,7 @@ void TimingPanel::tick() {
         std::string said =
             bpm ? tformat("Taps: {} ({} BPM)", this->taps.size(), *bpm) : tformat("Taps: {}", this->taps.size());
         if(this->tapped->getText() != said) this->tapped->setText(std::move(said));
-    } else if(const char *said = _("Tap along to set the tempo (T)"); this->tapped->getText() != said) {
+    } else if(const Mc::cstr_view said = _("Tap along to set the tempo (T)"); this->tapped->getText() != said) {
         this->tapped->setText(said);
     }
     CBaseUIBox::tick();

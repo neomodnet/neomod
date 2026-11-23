@@ -10,6 +10,8 @@
 #include "KeyboardListener.h"
 #include "Vectors.h"
 
+#include "CStrView.h"
+
 #include <vector>
 #include <memory>
 #include <deque>
@@ -84,10 +86,10 @@ class Engine final : public KeyboardListener {
     void toggleFullscreen();
     void disableFullscreen();
 
-    void showMessageInfo(std::string_view title, std::string_view message);
-    void showMessageWarning(std::string_view title, std::string_view message);
-    void showMessageError(std::string_view title, std::string_view message);
-    void showMessageErrorFatal(std::string_view title, std::string_view message);
+    void showMessageInfo(Mc::cstr_view title, Mc::cstr_view message);
+    void showMessageWarning(Mc::cstr_view title, Mc::cstr_view message);
+    void showMessageError(Mc::cstr_view title, Mc::cstr_view message);
+    void showMessageErrorFatal(Mc::cstr_view title, Mc::cstr_view message);
 
     // engine specifics
     [[nodiscard]] inline bool isShuttingDown() const { return this->bShuttingDown; }
@@ -129,7 +131,7 @@ class Engine final : public KeyboardListener {
    private:
     void onResolutionChange(vec2 newResolution);
 
-    void runtime_assert(bool cond, std::string_view reason);
+    void runtime_assert(bool cond, Mc::cstr_view reason);
 
     // input devices
     std::vector<Mouse *> mice;

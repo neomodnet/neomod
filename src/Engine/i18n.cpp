@@ -67,13 +67,11 @@ static const std::unordered_map<std::string_view, PLURAL_FORM> plural_forms_tabl
     {"ar", SIX_FORMS},
 };
 
-// Looks hacky, but better than just using a NULL pointer
-const char* translation_fallback = "\0\0\0\0\0\0\0";
-
 // nullptr while the source language (English) is in use
 const Language* current_language{nullptr};
 PLURAL_FORM current_plural_form{ONE_FORM};
-std::array<const char*, std::size(TRANSLATABLE_STRINGS)> translations;
+// empty where the .mo file has no translation
+std::array<Mc::cstr_view, std::size(TRANSLATABLE_STRINGS)> translations;
 
 struct MOHeader {
     u32 magic;
@@ -100,9 +98,7 @@ void load_translation(const char* data) {
 
     // In case .mo file is outdated or a translation is missing.
     // Shouldn't happen in releases, but it would be annoying to crash during development.
-    for(u32 i = 0; i < std::size(TRANSLATABLE_STRINGS); i++) {
-        translations[i] = translation_fallback;
-    }
+    translations.fill({});
 
     const MOString* origs = reinterpret_cast<const MOString*>(data + mo->orig_offset);
     const MOString* trans = reinterpret_cast<const MOString*>(data + mo->trans_offset);
@@ -116,14 +112,15 @@ void load_translation(const char* data) {
         auto it = Mc::ranges::lower_bound(TRANSLATABLE_STRINGS, orig);
         if(it == std::end(TRANSLATABLE_STRINGS) || *it != orig) continue;
 
-        const char* translation = data + trans[i].offset;
-        if(translation[0] != '\0') {
+        // the first form, for msgids with plural forms
+        const Mc::cstr_view translation{data + trans[i].offset};
+        if(!translation.empty()) {
             translations[it - std::begin(TRANSLATABLE_STRINGS)] = translation;
         }
     }
 
     for(u32 i = 0; i < std::size(TRANSLATABLE_STRINGS); i++) {
-        if(translations[i] == translation_fallback) {
+        if(translations[i].empty()) {
             debugLog("Failed to find translation for '{}'!", TRANSLATABLE_STRINGS[i]);
         }
     }
@@ -263,34 +260,18 @@ void load(std::string_view locale) {
     debugLog("Failed to load locale '{}' (doesn't exist!)", locale);
 }
 
-const char* translate(int index, std::string_view original) {
-    // NOTE: _() always feeds us a string literal (string_index is consteval), so reading the byte
-    //       at .size() is well-defined for every real call site; the assert catches any future
-    //       non-literal misuse before it silently reads past-end bytes.
-    assert(original.data()[original.size()] == '\0');
-    if(!current_language) return original.data();
-
-    if(index == -1) return original.data();
-    if(translations[index] == translation_fallback) return original.data();
-
+Mc::cstr_view translate(int index, Mc::cstr_view original) {
+    if(!current_language || index == -1 || translations[index].empty()) return original;
     return translations[index];
 }
 
-const char* translate_plural(int index, std::string_view singular, std::string_view plural, int n) {
-    assert(singular.data()[singular.size()] == '\0');
-    assert(plural.data()[plural.size()] == '\0');
-    if(index == -1 || !current_language) {
-        return n == 1 ? singular.data() : plural.data();
-    }
-
-    const char* text = translations[index];
-    if(text == translation_fallback) {
-        return n == 1 ? singular.data() : plural.data();
-    }
+Mc::cstr_view translate_plural(int index, Mc::cstr_view singular, Mc::cstr_view plural, int n) {
+    if(!current_language || index == -1 || translations[index].empty()) return n == 1 ? singular : plural;
 
     // Plural variants are stored consecutively, separated by a NULL byte.
+    Mc::cstr_view text = translations[index];
     for(int i = 0; i < get_plural(n); i++) {
-        text = text + strlen(text) + 1;
+        text = Mc::cstr_view{text.data() + text.size() + 1};
     }
 
     return text;

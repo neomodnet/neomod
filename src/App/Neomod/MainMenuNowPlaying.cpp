@@ -167,7 +167,7 @@ class NowPlaying::PinButton final : public UIIconButton {
 
    private:
     static constexpr f32 TILT{45.f};
-    static const char *tooltipFor(bool pinned) { return pinned ? _("Collapse when idle") : _("Keep expanded"); }
+    static Mc::cstr_view tooltipFor(bool pinned) { return pinned ? _("Collapse when idle") : _("Keep expanded"); }
 
     bool pinned;
 };

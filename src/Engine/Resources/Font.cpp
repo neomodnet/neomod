@@ -117,7 +117,7 @@ struct LastSizedFTFace {
 struct SharedFace {
     NOCOPY_NOMOVE(SharedFace)
    public:
-    explicit SharedFace(std::string_view path) : file(path) {
+    explicit SharedFace(Mc::cstr_view path) : file(path) {
         const std::span<const u8> bytes = this->file.data();
         if(bytes.empty() || !std::in_range<FT_Long>(bytes.size()) ||
            FT_New_Memory_Face(s_sharedFtLibrary, bytes.data(), static_cast<FT_Long>(bytes.size()), 0, &this->face)) {

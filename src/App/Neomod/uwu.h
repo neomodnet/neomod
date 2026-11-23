@@ -81,7 +81,7 @@ struct lazy_promise {
     void run(const Sync::stop_token &stoken) {
         {
             const std::string thread_name = fmt::format("lazy_promise{}", threads_created % 128);
-            McThread::set_current_thread_name(thread_name.c_str());  // just for uniqueness
+            McThread::set_current_thread_name(thread_name);  // just for uniqueness
             McThread::set_current_thread_prio(McThread::Priority::LOW);
         }
 

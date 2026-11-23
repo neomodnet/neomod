@@ -201,10 +201,9 @@ std::optional<int> ask(const std::string &message, std::span<const std::string> 
     data.front().flags |= SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT;
     data.back().flags |= SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT;
 
-    const std::string title{_("Startup settings")};
     const SDL_MessageBoxData box{.flags = SDL_MESSAGEBOX_INFORMATION | SDL_MESSAGEBOX_BUTTONS_LEFT_TO_RIGHT,
                                  .window = nullptr,
-                                 .title = title.c_str(),
+                                 .title = _("Startup settings").c_str(),
                                  .message = message.c_str(),
                                  .numbuttons = static_cast<int>(data.size()),
                                  .buttons = data.data(),

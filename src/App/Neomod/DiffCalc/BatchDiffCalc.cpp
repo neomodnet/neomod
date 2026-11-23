@@ -530,7 +530,7 @@ void process_work_item(WorkItem& item, const Sync::stop_token& stoken, WorkerCon
 void worker_fn(i32 thread_index, const Sync::stop_token& coord_stoken) {
     {
         const std::string thread_name = fmt::format("diffcalc_{}", thread_index);
-        McThread::set_current_thread_name(thread_name.c_str());
+        McThread::set_current_thread_name(thread_name);
         // just use a low priority so we don't eat into main thread cpu time too much
         McThread::set_current_thread_prio(McThread::Priority::LOW);
     }

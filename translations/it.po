@@ -3418,6 +3418,18 @@ msgid "Raw Mouse Input"
 msgstr "Input mouse diretto (raw)"
 
 #: src/App/Neomod/OptionsOverlay.cpp
+msgid "Hardware Cursor (!)"
+msgstr "Cursore hardware (!)"
+
+#: src/App/Neomod/OptionsOverlay.cpp
+msgid ""
+"This can increase cursor responsiveness, but support depends on your OS.\n"
+"Only works with raw input disabled."
+msgstr ""
+"Può migliorare la reattività del cursore, ma il supporto dipende dal tuo sistema operativo.\n"
+"Funziona solo con l'input mouse diretto (raw) disattivato."
+
+#: src/App/Neomod/OptionsOverlay.cpp
 msgid "Confine Cursor"
 msgstr "Confina il cursore"
 

@@ -14,6 +14,8 @@
 #include "StaticPImpl.h"
 #include "Vectors.h"
 
+#include "CStrView.h"
+
 #include <memory>
 #include <optional>
 #include <unordered_map>
@@ -145,11 +147,11 @@ class Environment {
 
     // i.e. getenv()
     // isUnset is an out variable, if the variable was unset it will be set to true
-    [[nodiscard]] static std::string getEnvVariable(std::string_view varToQuery, bool *isUnset = nullptr) noexcept;
+    [[nodiscard]] static std::string getEnvVariable(Mc::cstr_view varToQuery, bool *isUnset = nullptr) noexcept;
     // i.e. setenv()
-    static bool setEnvVariable(std::string_view varToSet, std::string_view varValue, bool overwrite = true) noexcept;
+    static bool setEnvVariable(Mc::cstr_view varToSet, Mc::cstr_view varValue, bool overwrite = true) noexcept;
     // i.e. unsetenv()
-    static bool unsetEnvVariable(std::string_view varToUnset) noexcept;
+    static bool unsetEnvVariable(Mc::cstr_view varToUnset) noexcept;
 
     void openURLInDefaultBrowser(std::string_view url, bool preventFocusSteal = false) noexcept;
     // opens in-memory file contents in a new browser tab, for platforms whose files the user can't reach (WASM)
@@ -181,8 +183,8 @@ class Environment {
     // returns true if it ended up fully removed && it actually existed in the first place.
     static bool deletePathsRecursive(const std::string &path, int maxRecursionLevels = 1) noexcept;
 
-    static bool renameFile(const std::string &oldFileName, const std::string &newFileName) noexcept;
-    static bool deleteFile(const std::string &filePath) noexcept;
+    static bool renameFile(Mc::cstr_view oldFileName, Mc::cstr_view newFileName) noexcept;
+    static bool deleteFile(Mc::cstr_view filePath) noexcept;
     [[nodiscard]] static std::vector<std::string> getFilesInFolder(std::string_view folder) noexcept;
     [[nodiscard]] static std::vector<std::string> getFoldersInFolder(std::string_view folder) noexcept;
     [[nodiscard]] static std::vector<std::string> getEntriesInFolder(std::string_view folder) noexcept;
@@ -202,26 +204,26 @@ class Environment {
     void setClipBoardText(std::string text);
     // the text selected last, which a middle click pastes (X11/Wayland; other systems only keep it within the app)
     [[nodiscard]] std::string getPrimarySelectionText();
-    void setPrimarySelectionText(const std::string &text);
+    void setPrimarySelectionText(Mc::cstr_view text);
     // returns false if failed/unsupported
     bool setClipBoardImage(std::vector<u8> pngData);
 
     // dialogs & message boxes
-    static void showDialog(const char *title, const char *message,
+    static void showDialog(Mc::cstr_view title, Mc::cstr_view message,
                            unsigned int flags = 0x00000010u /* SDL_MESSAGEBOX_ERROR */,
                            void /*SDL_Window*/ *modalWindow = nullptr);
-    void showMessageInfo(std::string_view title, std::string_view message) const;
-    void showMessageWarning(std::string_view title, std::string_view message) const;
-    void showMessageError(std::string_view title, std::string_view message) const;
-    void showMessageErrorFatal(std::string_view title, std::string_view message) const;
+    void showMessageInfo(Mc::cstr_view title, Mc::cstr_view message) const;
+    void showMessageWarning(Mc::cstr_view title, Mc::cstr_view message) const;
+    void showMessageError(Mc::cstr_view title, Mc::cstr_view message) const;
+    void showMessageErrorFatal(Mc::cstr_view title, Mc::cstr_view message) const;
 
     // `callback` gets the chosen paths (none if cancelled) on the main thread, unless the Registration is gone by then.
     // `filetypefilters` are pairs of a name and a pattern (extensions separated by ';', or "*"), each one NUL-terminated
     // and an empty name after the last ("Images\0png;jpg\0" as a string literal)
     using FileDialogCallback = std::function<void(const std::vector<std::string> &paths)>;
     Mc::Registration openFileWindow(FileDialogCallback callback, const char *filetypefilters, std::string_view title,
-                                    std::string_view initialpath = "") noexcept;
-    Mc::Registration openFolderWindow(FileDialogCallback callback, std::string_view initialpath = "") noexcept;
+                                    Mc::cstr_view initialpath = "") noexcept;
+    Mc::Registration openFolderWindow(FileDialogCallback callback, Mc::cstr_view initialpath = "") noexcept;
     void openFileBrowser(std::string_view initialpath) const noexcept;
     // shows the user a file the game wrote for them (an export, a screenshot): the file manager at its folder.
     // WASM has no file manager and its files are out of the user's reach, so the browser downloads it instead
@@ -238,7 +240,7 @@ class Environment {
     void enableFullscreen();
     void disableFullscreen();
     void syncWindow();
-    void setWindowTitle(const std::string &title);
+    void setWindowTitle(Mc::cstr_view title);
     bool setWindowPos(int x, int y);
     bool setWindowSize(int width, int height);
     void setWindowResizable(bool resizable);

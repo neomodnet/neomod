@@ -90,7 +90,7 @@ using Tab = EditorState::Tab;
 
 namespace {
 // the step name, for the Edit menu
-const char *stepName(Step step) {
+Mc::cstr_view stepName(Step step) {
     switch(step) {
         case Step::ADD_BOOKMARK:
             return _("Add Bookmark");
@@ -703,9 +703,10 @@ void Editor::showPanels() {
     if(shown) return;
 
     this->title->setText(_("Beatmap Editor"));
-    this->emptyMessage->setText(this->problem.empty()
-                                    ? _("Right-click a difficulty in the song browser and choose Edit to open it here.")
-                                    : this->problem);
+    this->emptyMessage->setText(
+        this->problem.empty()
+            ? std::string{_("Right-click a difficulty in the song browser and choose Edit to open it here.")}
+            : this->problem);
     const DatabaseBeatmap *selected = osu->getMapInterface()->getBeatmap();
     const bool offered = selected && !db->locate(*selected).file.empty() &&
                          (!this->session.open || db->locate(*selected) != *this->session.open);

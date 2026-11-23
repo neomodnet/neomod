@@ -122,7 +122,7 @@ void set_activity_with_image(const DatabaseBeatmap* map, DiscordActivity& to_set
 }
 
 // what setBanchoStatus() sends, about `map`
-void send_status(const char* info_text, Action action, const DatabaseBeatmap* map) {
+void send_status(std::string_view info_text, Action action, const DatabaseBeatmap* map) {
     std::string fancy_text{fmt::format("\n{:s}", info_text)};
     if(fancy_text.length() > 1023) fancy_text.resize(1023);
 
@@ -177,7 +177,7 @@ void refreshStatus() {
     }
 }
 
-void setBanchoStatus(const char* info_text, Action action) {
+void setBanchoStatus(std::string_view info_text, Action action) {
     if(osu == nullptr) return;
     send_status(info_text, action, osu->getMapInterface()->getBeatmap());
 }
@@ -244,7 +244,7 @@ void onMainMenu() {
     }
 
     activity.state = msg;
-    setBanchoStatus(msg.c_str(), action);
+    setBanchoStatus(msg, action);
     set_activity_with_image(map, activity);
 }
 
@@ -292,19 +292,19 @@ void onPlayStart() {
     activity.details = beatmap_desc_str(map, true);
 
     if(osu->getMapInterface()->getKind() == BeatmapInterface::PlayKind::TEST) {
-        setBanchoStatus(activity.details.c_str(), Action::TESTING);
+        setBanchoStatus(activity.details, Action::TESTING);
 
         activity.state = "Testing";
         activity.party_size = 0;
         activity.party_max = 0;
     } else if(BanchoState::is_in_a_multi_room()) {
-        setBanchoStatus(activity.details.c_str(), Action::MULTIPLAYER);
+        setBanchoStatus(activity.details, Action::MULTIPLAYER);
 
         activity.state = "Playing in a lobby";
         activity.party_size = BanchoState::room.nb_players;
         activity.party_max = BanchoState::room.nb_open_slots;
     } else if(BanchoState::spectating) {
-        setBanchoStatus(activity.details.c_str(), Action::WATCHING);
+        setBanchoStatus(activity.details, Action::WATCHING);
         activity.party_size = 0;
         activity.party_max = 0;
 
@@ -315,7 +315,7 @@ void onPlayStart() {
             activity.state = "Spectating";
         }
     } else {
-        setBanchoStatus(activity.details.c_str(), Action::PLAYING);
+        setBanchoStatus(activity.details, Action::PLAYING);
 
         activity.state = "Playing Solo";
         activity.party_size = 0;
@@ -336,7 +336,7 @@ void onEditor(const DatabaseBeatmap& map) {
     activity.details = beatmap_desc_str(&map, true);
     activity.state = "Editing";
 
-    send_status(activity.details.c_str(), Action::EDITING, &map);
+    send_status(activity.details, Action::EDITING, &map);
     set_activity_with_image(&map, activity, /*is_editor=*/true);
 }
 
@@ -366,7 +366,7 @@ void onPlayEnd(bool quit) {
     // stars
     scoreInfo.append(fmt::format(" {:.2f}*", osu->getScore()->getStarsTomTotal()));
 
-    setBanchoStatus(scoreInfo.c_str(), Action::SUBMITTING);
+    setBanchoStatus(scoreInfo, Action::SUBMITTING);
 }
 
 void onMultiplayerLobby() {

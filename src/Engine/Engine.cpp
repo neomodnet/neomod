@@ -643,29 +643,29 @@ void Engine::toggleFullscreen() {
 
 void Engine::disableFullscreen() { env->disableFullscreen(); }
 
-void Engine::showMessageInfo(std::string_view title, std::string_view message) {
+void Engine::showMessageInfo(Mc::cstr_view title, Mc::cstr_view message) {
     debugLog("INFO: [{:s}] | {:s}", title, message);
     env->showMessageInfo(title, message);
 }
 
-void Engine::showMessageWarning(std::string_view title, std::string_view message) {
+void Engine::showMessageWarning(Mc::cstr_view title, Mc::cstr_view message) {
     debugLog("WARNING: [{:s}] | {:s}", title, message);
     env->showMessageWarning(title, message);
 }
 
-void Engine::showMessageError(std::string_view title, std::string_view message) {
+void Engine::showMessageError(Mc::cstr_view title, Mc::cstr_view message) {
     debugLog("ERROR: [{:s}] | {:s}", title, message);
     Logger::flush();
     env->showMessageError(title, message);
 }
 
-void Engine::showMessageErrorFatal(std::string_view title, std::string_view message) {
+void Engine::showMessageErrorFatal(Mc::cstr_view title, Mc::cstr_view message) {
     debugLog("FATAL ERROR: [{:s}] | {:s}", title, message);
     Logger::flush();
     env->showMessageErrorFatal(title, message);
 }
 
-void Engine::runtime_assert(bool cond, std::string_view reason) {
+void Engine::runtime_assert(bool cond, Mc::cstr_view reason) {
     if(cond) return;
     this->showMessageErrorFatal("Engine Error", reason);
     fubar_abort();

@@ -3,6 +3,8 @@
 #include "Shortcut.h"
 #include "types.h"
 
+#include "CStrView.h"
+
 #include <span>
 #include <string>
 
@@ -92,7 +94,7 @@ struct Binding {
 // what a command with this value is called, in a menu, a tooltip and the shortcut list
 [[nodiscard]] std::string label(Command command, i32 value = 0);
 [[nodiscard]] Group group(Command command);
-[[nodiscard]] const char *groupName(Group group);
+[[nodiscard]] Mc::cstr_view groupName(Group group);
 // the keys bound to a command with this value, e.g. "F3, F6" (none: empty)
 [[nodiscard]] std::string keys(Command command, i32 value = 0);
 // shows a tooltip with the command and its keys while the mouse is over `element`, e.g. "Circle (2)". called every

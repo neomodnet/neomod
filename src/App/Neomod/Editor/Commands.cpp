@@ -115,7 +115,7 @@ constexpr std::array BINDINGS{
 };
 
 // a sample set as NORMAL_SET and ADDITION_SET number them
-const char *setName(i32 set) {
+Mc::cstr_view setName(i32 set) {
     switch(set) {
         case 1:
             return _("Normal");
@@ -383,7 +383,7 @@ Group group(Command command) {
     std::unreachable();
 }
 
-const char *groupName(Group group) {
+Mc::cstr_view groupName(Group group) {
     switch(group) {
         case Group::FILE:
             return _("File");

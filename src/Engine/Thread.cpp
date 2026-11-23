@@ -93,24 +93,21 @@ void on_thread_init() noexcept {
 }
 
 // WARNING: must be called from within the thread itself! otherwise, the main process name will be changed
-bool set_current_thread_name(const char *name) noexcept {
+bool set_current_thread_name(Mc::cstr_view name) noexcept {
     (void)name;  // may be unused on some platforms
 #if defined(_WIN32)
     try_load_funcs();
     if(pset_thread_desc) {
         HANDLE handle = GetCurrentThread();
-        std::wstring wide_name = UniString::to_wide(std::string_view{name});
+        std::wstring wide_name = UniString::to_wide(name);
         HRESULT hr = pset_thread_desc(handle, wide_name.c_str());
         return SUCCEEDED(hr);
     }
 #elif defined(__linux__)
-    std::string truncated_name{name};
-    if(truncated_name.length() > 15) {
-        truncated_name = truncated_name.substr(0, 15);
-    }
+    const std::string truncated_name{name.substr(0, 15)};
     return pthread_setname_np(pthread_self(), truncated_name.c_str()) == 0;
 #elif defined(__APPLE__)
-    return pthread_setname_np(name) == 0;
+    return pthread_setname_np(name.c_str()) == 0;
 #elif defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
     pthread_set_name_np(pthread_self(), name.c_str());
     return true;

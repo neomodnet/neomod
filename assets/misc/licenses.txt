@@ -208,6 +208,7 @@ Used by the following dependencies:
 - ctre (https://github.com/hanickadot/compile-time-regular-expressions) [Apache 2.0 option]
 - glad (https://glad.dav1d.de/) [Apache-2.0 for Khronos EGL/GL headers]
 - DirectXShaderCompiler (https://github.com/microsoft/DirectXShaderCompiler)
+- cstring_view (https://github.com/bemanproject/cstring_view)
 
 ============================================================
 

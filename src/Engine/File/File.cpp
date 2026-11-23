@@ -915,7 +915,7 @@ bool enumerate_directory(std::string_view pathToEnum, File::DirContents types, b
         File::DirEntry out{.name = entry.path().filename().generic_string(), .type = type};
         if(withMetadata) {
             struct stat64 st{};
-            if(File::stat_c(entry.path().string().c_str(), &st) != 0) continue;
+            if(File::stat_c(entry.path().string(), &st) != 0) continue;
             out.mtime = static_cast<i64>(st.st_mtime);
             out.mtime_nsec = stat_to_nsec_mtime(st);
             out.size = isDir ? 0 : static_cast<u64>(st.st_size);
@@ -1083,27 +1083,27 @@ fs::path File::getFsPath(std::string_view utf8path) {
 #endif
 }
 
-FILE *File::fopen_c(const char *__restrict utf8filename, const char *__restrict modes) noexcept {
+FILE *File::fopen_c(Mc::cstr_view utf8filename, const char *modes) noexcept {
 #ifdef MCENGINE_PLATFORM_WINDOWS
-    if(utf8filename == nullptr || utf8filename[0] == '\0') return nullptr;
-    const std::wstring wideFilename{adjust_path(std::string_view{utf8filename})};
+    if(utf8filename.empty()) return nullptr;
+    const std::wstring wideFilename{adjust_path(utf8filename)};
     const std::wstring wideModes{UniString::to_wide(std::string_view{modes})};
     return _wfopen(wideFilename.c_str(), wideModes.c_str());
 #else
-    return fopen(utf8filename, modes);
+    return fopen(utf8filename.c_str(), modes);
 #endif
 }
 
-int File::stat_c(const char *__restrict utf8filename, struct stat64 *__restrict buffer) noexcept {
+int File::stat_c(Mc::cstr_view utf8filename, struct stat64 *buffer) noexcept {
 #ifdef MCENGINE_PLATFORM_WINDOWS
-    if(utf8filename == nullptr || utf8filename[0] == '\0' || buffer == nullptr) {
+    if(utf8filename.empty() || buffer == nullptr) {
         errno = EINVAL;
         return -1;
     }
-    const std::wstring wideFilename{adjust_path(std::string_view{utf8filename})};
+    const std::wstring wideFilename{adjust_path(utf8filename)};
     return stat_w(wideFilename.c_str(), buffer);
 #else
-    return stat64(utf8filename, buffer);
+    return stat64(utf8filename.c_str(), buffer);
 #endif
 }
 
@@ -1423,7 +1423,7 @@ void File::flushToDisk() {}
 #include <unistd.h>
 #endif
 
-MappedFile::MappedFile(std::string_view utf8path) {
+MappedFile::MappedFile(Mc::cstr_view utf8path) {
 #ifdef MCENGINE_PLATFORM_WINDOWS
     HANDLE file = CreateFileW(adjust_path(utf8path).c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
                               FILE_ATTRIBUTE_NORMAL, nullptr);
@@ -1441,7 +1441,7 @@ MappedFile::MappedFile(std::string_view utf8path) {
     }
     CloseHandle(file);
 #else
-    const int fd = openat64(AT_FDCWD, std::string{utf8path}.c_str(), O_RDONLY | O_CLOEXEC);
+    const int fd = openat64(AT_FDCWD, utf8path.c_str(), O_RDONLY | O_CLOEXEC);
     if(fd == -1) return;
 
     struct stat64 st{};

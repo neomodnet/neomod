@@ -2,6 +2,8 @@
 // Copyright (c) 2026, kiwec, All rights reserved.
 #include "config.h"
 
+#include "CStrView.h"
+
 #include <span>
 #include <string_view>
 
@@ -37,8 +39,8 @@ consteval int string_index(std::string_view s) {
 }
 
 void load(std::string_view locale);
-const char* translate(int index, std::string_view original);
-const char* translate_plural(int index, std::string_view singular, std::string_view plural, int n);
+Mc::cstr_view translate(int index, Mc::cstr_view original);
+Mc::cstr_view translate_plural(int index, Mc::cstr_view singular, Mc::cstr_view plural, int n);
 
 std::span<const Language> get_available_languages();
 // the language load() resolved its locale to (English if it matched none)
@@ -52,7 +54,7 @@ const Language& get_current_language();
 // Format a string with translation (compile-time checked arguments)
 template <typename... Args>
 // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
-std::string tformat_impl(fmt::format_string<Args...> /*original*/, const char* translated, Args&&... args) {
+std::string tformat_impl(fmt::format_string<Args...> /*original*/, Mc::cstr_view translated, Args&&... args) {
     return fmt::vformat(translated, fmt::make_format_args(args...));
 }
 #define tformat(String, ...) tformat_impl(String, _(String) __VA_OPT__(, ) __VA_ARGS__)
@@ -87,7 +89,7 @@ inline const Language& get_current_language() { return get_available_languages()
 
 }  // namespace i18n
 
-#define _(String) (String)
+#define _(String) Mc::cstr_view(String)
 
 #if defined(BUILD_TOOLS_ONLY)
 #define tformat(String, ...) std::format(String __VA_OPT__(, ) __VA_ARGS__)

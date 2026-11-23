@@ -132,8 +132,8 @@ vec2 TimeDisplay::getNaturalSize() {
     for(char32_t d = U'0'; d <= U'9'; d++) digit = std::max(digit, font->getGlyphWidth(d));
     const uSz digits = format((i32)this->state.clock.getLength()).size() - 2;
     float width = font->getStringWidth("-::") + digit * (float)digits;
-    const std::array part{"100.0%", _("intro"), _("outro")};
-    for(const char *where : part) {
+    const std::array<Mc::cstr_view, 3> part{"100.0%", _("intro"), _("outro")};
+    for(const Mc::cstr_view where : part) {
         width = std::max(width, font->getStringWidth(tformat("{} kiai", where)));
     }
 
@@ -165,8 +165,8 @@ void TimeDisplay::tick() {
         const auto after = Mc::ranges::upper_bound(points, (f64)at, {}, &TimingPoint::time);
         const bool kiai = after != points.begin() && std::prev(after)->effects & TimingPoint::EFFECT_KIAI;
         const u32 length = s.clock.getLength();
-        std::string where = at < 0                           ? _("intro")
-                            : length > 0 && (u32)at > length ? _("outro")
+        std::string where = at < 0                           ? std::string{_("intro")}
+                            : length > 0 && (u32)at > length ? std::string{_("outro")}
                             : length > 0                     ? fmt::format("{:.1f}%", 100.0 * at / length)
                                                              : std::string{};
         if(kiai) where = where.empty() ? std::string{_("kiai")} : tformat("{} kiai", where);

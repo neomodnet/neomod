@@ -265,10 +265,10 @@ void draw() {
             export_entry_copy = export_entry;
             export_collection_copy = export_collection;
         }
+        const std::string_view collection = export_collection_copy;
         std::string msg1 =
             // TRANSLATORS: {} is the name of the exported collection, or "mapset"
-            tformat("Exporting {} {:.2f}%", !export_collection_copy.empty() ? export_collection_copy : _("mapset"),
-                    progress * 100.f);
+            tformat("Exporting {} {:.2f}%", !collection.empty() ? collection : _("mapset"), progress * 100.f);
         std::string msg2 = tformat(" {:s}", export_entry_copy);
         g->pushTransform();
         g->translate(calcx, calcy);

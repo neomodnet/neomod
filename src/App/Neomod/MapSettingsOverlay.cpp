@@ -60,8 +60,8 @@ constexpr f32 OFFSET_RANGE{300.f};
 constexpr Color ACCENT{argb(255, 0, 114, 255)};
 constexpr Color ACCENT_TRACK{argb(255, 70, 70, 70)};
 
-// why the map can't change a convar right now (nullptr if it can)
-const char *lockReason(const ConVar &cvar) {
+// why the map can't change a convar right now (empty if it can)
+Mc::cstr_view lockReason(const ConVar &cvar) {
     if(cvar.getMaster() == CvarEditor::SERVER) {
         return cvar.isLocked() ? _("This setting is locked in multiplayer rooms.")
                                : _("This setting is forced by the server.");
@@ -69,7 +69,7 @@ const char *lockReason(const ConVar &cvar) {
     if(!Osu::isConVarEditable(cvar, CvarEditor::CONTEXT)) {
         return _("This setting can't be changed during a multiplayer match.");
     }
-    return nullptr;
+    return {};
 }
 
 void drawText(McFont *font, const std::string &text, f32 x, f32 centerY, f32 alpha) {
@@ -103,7 +103,7 @@ MapSettingsOverlay::MapSettingsOverlay() : UIScreen() {
         this->addBaseUIElement(slider);
         return slider;
     };
-    const auto makeReset = [this](std::string name, const char *tooltip) {
+    const auto makeReset = [this](std::string name, Mc::cstr_view tooltip) {
         auto *reset = new UIIconButton(Icons::UNDO, std::move(name));
         reset->setIconHeight(0.5f)->setTooltipText(tooltip);
         this->addBaseUIElement(reset);
@@ -121,7 +121,7 @@ MapSettingsOverlay::MapSettingsOverlay() : UIScreen() {
     this->offsetReset->setClickCallback([this] { this->setLocalOffset(0); });
 
     // (named after their convars)
-    const auto makeToggle = [&](const char *text, ConVar *cvar, bool inverted) -> Toggle {
+    const auto makeToggle = [&](Mc::cstr_view text, ConVar *cvar, bool inverted) -> Toggle {
         const std::string name = fmt::format("mapsettings_{}", cvar->getName());
         auto *checkbox = new UICheckbox(0, 0, 0, 0, name, text);
         checkbox->setDrawFrame(false);
@@ -235,7 +235,7 @@ void MapSettingsOverlay::syncWidgets() {
         return Mc::ranges::contains(settings.convars, cvar.getName(), &std::pair<std::string, std::string>::first);
     };
 
-    const bool dimEditable = !lockReason(cv::background_dim);
+    const bool dimEditable = lockReason(cv::background_dim).empty();
     if(!this->dimSlider->isActive()) this->dimSlider->setValue(cv::background_dim.getFloat(), false, false);
     this->dimSlider->setEnabled(dimEditable);
     this->dimReset->setVisible(dimEditable && isOwn(cv::background_dim));
@@ -244,7 +244,7 @@ void MapSettingsOverlay::syncWidgets() {
     this->offsetReset->setVisible(settings.local_offset != 0);
 
     for(Toggle &toggle : this->toggles) {
-        const bool editable = !lockReason(*toggle.cvar);
+        const bool editable = lockReason(*toggle.cvar).empty();
         toggle.checkbox->setChecked(toggle.cvar->getBool() != toggle.inverted, false);
         toggle.checkbox->setEnabled(editable);
         toggle.checkbox->setTextColor(editable ? rgb(255, 255, 255) : rgb(128, 128, 128));
@@ -315,11 +315,11 @@ void MapSettingsOverlay::updateInput(CBaseUIEventCtx &c) {
     }
     if(!rowCvar) return;
 
-    const char *line = lockReason(*rowCvar);
-    if(!line && rowCvar->isFlagSet(cv::GAMEPLAY) && osu->getMapInterface()->bLeadInStarted) {
+    Mc::cstr_view line = lockReason(*rowCvar);
+    if(line.empty() && rowCvar->isFlagSet(cv::GAMEPLAY) && osu->getMapInterface()->bLeadInStarted) {
         line = _("Changing this mid-play makes the play unranked.");
     }
-    if(!line) return;
+    if(line.empty()) return;
 
     TooltipOverlay *tooltips = ui->getTooltipOverlay();
     tooltips->begin();

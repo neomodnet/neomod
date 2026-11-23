@@ -152,7 +152,7 @@ f32 calc_one_soloud(const std::string &song_path, WorkerCtx &ctx, f32 fallback_l
         return ctx.last_loudness;
     }
 
-    FILE *fp = File::fopen_c(song_path.c_str(), "rb");
+    FILE *fp = File::fopen_c(song_path, "rb");
     if(!fp) {
         logIfCV(debug_snd, "Failed to open '{:s}' for loudness calc", song_path.c_str());
         return fallback_loudness;

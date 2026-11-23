@@ -172,7 +172,7 @@ bool AudioTesterImpl::generateTestWav(const std::string &path) {
     constexpr unsigned int totalSamples = wavSampleRate * wavDurationS;
     constexpr unsigned int dataSize = totalSamples * wavChannels * sizeof(int16_t);
 
-    FILE *f = File::fopen_c(path.c_str(), "wb");
+    FILE *f = File::fopen_c(path, "wb");
     if(!f) return false;
 
     // RIFF header

@@ -299,7 +299,7 @@ class Pool final {
         tl_pool_thread = true;
         {
             const std::string name = fmt::format("async_{}_{}", lane == Lane::Foreground ? "fg" : "bg", index);
-            McThread::set_current_thread_name(name.c_str());
+            McThread::set_current_thread_name(name);
             McThread::set_current_thread_prio(McThread::Priority::NORMAL);
         }
 
