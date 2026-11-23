@@ -88,7 +88,11 @@ void ipc_close() {
     if(pipe != INVALID_HANDLE_VALUE) {
         if(write_pending) {
             DWORD written = 0;
+#if defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x600
             CancelIoEx(pipe, &write_ov);
+#else
+            CancelIo(pipe);
+#endif
             GetOverlappedResult(pipe, &write_ov, &written, TRUE);
         }
         CloseHandle(pipe);
