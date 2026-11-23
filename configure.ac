@@ -1888,7 +1888,7 @@ AC_SUBST([GLM_VERSION], [1.0.3])
 # (needs manual url changes in Makefile.am)
 AC_SUBST([FFMPEG_VERSION], [9.0.2])
 
-AC_SUBST([RAPIDJSON_COMMIT], [8261c1ddf43f10de00fd8c9a67811d1486b2c784]) # header-only
+AC_SUBST([RAPIDJSON_COMMIT], [297637bc0a0f00dc504dbc1a47ebdaa577f8ae19]) # header-only
 
 AC_SUBST([BASS_VERSION], [20260208_202602]) # just mark the date so we can invalidate the cache if necessary
 
