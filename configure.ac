@@ -989,10 +989,13 @@ AS_IF([test "$_HAVE_MD5SUM" = "yes"],
     [_cc_real_hash="$($CC --version | md5 -q),$host"
      _cxx_real_hash="$($CXX --version | md5 -q),$host"])
 
-# CCACHE_DEPEND: on a miss, compile right away and take the headers from the -MD output, instead of preprocessing
+# CCACHE_DEPEND: on a miss, compile right away and take the headers from the -MMD output, instead of preprocessing
 # the whole file (without the pch) first; that pass costs about as much as the compile itself
+# automake hardcodes -MD, so the wrappers turn it into -MMD: system headers make up most of the .Po files otherwise,
+# and make spends about a second parsing them on every run
 cat > "$PWD/build/cc" <<EOF
 #!/usr/bin/env bash
+for a do shift; case \$a in -MD) a=-MMD ;; esac; set -- "\$@" "\$a"; done
 CCACHE_SLOPPINESS=pch_defines,time_macros,include_file_mtime,include_file_ctime CCACHE_DEPEND=1 \\
 CCACHE_COMPRESS=1 CCACHE_COMPRESSLEVEL=4 CCACHE_COMPILERTYPE=$_ccache_ctype CCACHE_COMPILERCHECK="string:$_cc_real_hash" \\
 $CCACHE $CC_REAL "\$@"
@@ -1001,6 +1004,7 @@ chmod +x "$PWD/build/cc"
 # the pch depends on this wrapper, so only replace it when the compiler (hash) actually changed
 cat > "$PWD/build/cxx.new" <<EOF
 #!/usr/bin/env bash
+for a do shift; case \$a in -MD) a=-MMD ;; esac; set -- "\$@" "\$a"; done
 CCACHE_SLOPPINESS=pch_defines,time_macros,include_file_mtime,include_file_ctime CCACHE_DEPEND=1 \\
 CCACHE_COMPRESS=1 CCACHE_COMPRESSLEVEL=4 CCACHE_COMPILERTYPE=$_ccache_ctype CCACHE_COMPILERCHECK="string:$_cxx_real_hash" \\
 $CCACHE $CXX_REAL "\$@"
