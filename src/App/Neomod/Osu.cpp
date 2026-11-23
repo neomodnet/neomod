@@ -23,6 +23,7 @@
 #include "Database.h"
 #include "DatabaseBeatmap.h"
 #include "DirectoryWatcher.h"
+#include "DiscordInterface.h"
 #include "Downloader.h"
 #include "EditorScreen.h"
 #include "Engine.h"
@@ -2036,6 +2037,7 @@ bool Osu::onShutdown() {
 
     this->saveEverything();
     BanchoState::disconnect(true);
+    Discord::clear_activity();
 
     // the process may go on without us (the app selection screen of test builds): like what the server had set, what
     // the skin had set isn't for whichever app comes next (nor are the settings of a map that was still being played,

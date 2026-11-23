@@ -1079,7 +1079,7 @@ OptionsOverlayImpl::OptionsOverlayImpl(OptionsOverlay *parent) : parent(parent) 
     this->addCheckbox(_("Replace main menu logo with server logo"), &cv::main_menu_use_server_logo);
     this->addCheckbox(_("Show spectator list"), &cv::draw_spectator_list);
     this->addCheckbox(_("Share currently played map with spectators"), &cv::spec_share_map);
-    if constexpr(!Env::cfg(OS::WASM)) {
+    if constexpr(Env::cfg(FEAT::DISCORD)) {
         this->addCheckbox(
                 _("Enable Discord Rich Presence"),
                 _("Shows your current game state in your friends' friendslists.\ne.g.: Playing Gavin G - Reach Out "

@@ -109,7 +109,7 @@ bool BanchoState::nonsubmittable_notification_clicked{false};
 
 bool BanchoState::is_in_a_multi_room() { return room.nb_players > 0; }
 
-i64 BanchoState::get_silence_seconds_left() { return std::max<i64>(std::ceil(silence_end - Timing::getTimeReal()), 0); }
+i64 BanchoState::get_silence_seconds_left() { return std::max<i64>(std::ceil(silence_end - engine->getTime()), 0); }
 
 void BanchoState::set_uid(i32 new_uid) {
     const i32 old_uid = get_uid();
@@ -730,7 +730,7 @@ void BanchoState::handle_packet(PacketReader &packet) {
         case INP_SILENCE_END: {
             i32 delta = packet.read<i32>();
             debugLog("Silence ends in {:d} seconds.", delta);
-            BanchoState::silence_end = delta > 0 ? Timing::getTimeReal() + delta : 0.0;
+            BanchoState::silence_end = delta > 0 ? engine->getTime() + delta : 0.0;
             if(delta > 0) ui->getChat()->input_box->clear();
             break;
         }

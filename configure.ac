@@ -334,6 +334,9 @@ AC_ARG_WITH([mimalloc],
 AC_ARG_WITH([nsync],
     AS_HELP_STRING([--with-nsync], [Use nsync instead of std::mutex for synchronization (faster) (default: on if not winx86 (unsupported))]))
 
+AC_ARG_WITH([discord],
+    AS_HELP_STRING([--with-discord], [Build with Discord rich presence support (default on for native targets, off for Emscripten)]))
+
 AC_ARG_WITH([i18n],
     AS_HELP_STRING([--with-i18n], [Build with support for internationalization (translated text) (default: on)]))
 
@@ -415,6 +418,13 @@ AS_IF([test "x$enable_ime" != "xno"], [
     NOIME="yes"
 ])
 AC_SUBST([NOIME])
+
+AS_IF([test "x$with_discord" != "xno" && test -z "$WASM_CC"], [
+    with_discord=yes
+    AC_DEFINE([MCENGINE_FEATURE_DISCORD], [1], [Defined if building with Discord RPC integration.])
+], [
+    with_discord=no
+])
 
 # enable tests by default
 AS_IF([test "x$enable_tests" != "xno"], [
@@ -2247,6 +2257,7 @@ neomod build configuration:
     nsync:              ${with_nsync-yes}
     BASS:               ${with_bass-no}
     SoLoud:             ${with_soloud-no}
+    Discord:            ${with_discord-yes}
     i18n:               ${with_i18n-yes}
     IME enabled:        ${enable_ime-yes}
     Hardened build:     ${hardened_build-no}

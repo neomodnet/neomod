@@ -55,14 +55,7 @@ std::string beatmap_desc_str(const DatabaseBeatmap* map, bool include_difficulty
     if(!map) return "No map selected";
 
     std::string playingInfo = fmt::format("{:s} - {:s}", map->getArtist(), map->getTitle());
-
-    if(include_difficulty) {
-        std::string diffStr = fmt::format(" [{:s}]", map->getDifficultyName());
-        if(playingInfo.length() + diffStr.length() < 128) {
-            playingInfo.append(diffStr);
-        }
-    }
-
+    if(include_difficulty) playingInfo.append(fmt::format(" [{:s}]", map->getDifficultyName()));
     return playingInfo;
 }
 

@@ -3,12 +3,12 @@
 
 #include "config.h"
 
-// the web build has no discord client to talk to
-#ifdef MCENGINE_PLATFORM_WASM
+#ifndef MCENGINE_FEATURE_DISCORD
 namespace Discord {
 void set_activity(const DiscordActivity& /*activity*/) {}
+void clear_activity() {}
 void tick() {}
-void shutdown() {}
+void on_rich_presence_change() {}
 }  // namespace Discord
 
 #else
@@ -49,11 +49,14 @@ namespace {
 constexpr const char *CLIENT_ID{"1474141308183380181"};
 
 // each frame is the opcode and the payload size as little-endian u32s, followed by a json payload
+// NOLINTNEXTLINE(performance-enum-size)
 enum class Op : u32 { HANDSHAKE = 0, FRAME = 1, CLOSE = 2, PING = 3, PONG = 4 };
 constexpr size_t HEADER_SIZE{2 * sizeof(u32)};
 constexpr u32 MAX_FRAME_SIZE{64 * 1024};
 constexpr size_t MAX_BUFFERED{HEADER_SIZE + MAX_FRAME_SIZE};
 
+// nothing here needs to happen every frame
+constexpr u64 TICK_INTERVAL_MS{100};
 // discord drops activity updates past 5 per 20 seconds
 constexpr u64 SEND_INTERVAL_MS{4000};
 constexpr u64 HANDSHAKE_TIMEOUT_MS{10000};
@@ -62,12 +65,14 @@ constexpr u64 MIN_RETRY_MS{2000};
 constexpr u64 MAX_RETRY_MS{60000};
 
 enum class State : u8 { DISCONNECTED, HANDSHAKING, READY };
+// what ipc_open() found
+enum class Open : u8 { CONNECTED, BUSY, NOT_FOUND };
 
 State state{State::DISCONNECTED};
 std::vector<char> recv_buf;
 std::optional<DiscordActivity> wanted;
 std::optional<DiscordActivity> sent;
-u64 next_connect_ms{0};
+u64 next_tick_ms{0};
 u64 retry_ms{MIN_RETRY_MS};
 u64 next_send_ms{0};
 u64 handshake_deadline_ms{0};
@@ -87,12 +92,8 @@ i64 pid() { return GetCurrentProcessId(); }
 void ipc_close() {
     if(pipe != INVALID_HANDLE_VALUE) {
         if(write_pending) {
-            DWORD written = 0;
-#if defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x600
-            CancelIoEx(pipe, &write_ov);
-#else
             CancelIo(pipe);
-#endif
+            DWORD written = 0;
             GetOverlappedResult(pipe, &write_ov, &written, TRUE);
         }
         CloseHandle(pipe);
@@ -105,22 +106,24 @@ void ipc_close() {
     write_pending = false;
 }
 
-bool ipc_open() {
+Open ipc_open() {
+    Open result = Open::NOT_FOUND;
     for(int i = 0; i < 10; i++) {
         const std::wstring name = L"\\\\.\\pipe\\discord-ipc-" + std::to_wstring(i);
-        pipe = CreateFileW(name.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED,
-                           nullptr);
+        pipe = CreateFileW(name.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING,
+                           FILE_FLAG_OVERLAPPED | SECURITY_SQOS_PRESENT | SECURITY_IDENTIFICATION, nullptr);
         if(pipe != INVALID_HANDLE_VALUE) break;
+        if(GetLastError() == ERROR_PIPE_BUSY) result = Open::BUSY;
     }
-    if(pipe == INVALID_HANDLE_VALUE) return false;
+    if(pipe == INVALID_HANDLE_VALUE) return result;
 
     read_event = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     write_ov.hEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     if(!read_event || !write_ov.hEvent) {
         ipc_close();
-        return false;
+        return Open::NOT_FOUND;
     }
-    return true;
+    return Open::CONNECTED;
 }
 
 bool ipc_write(const char *data, size_t size) {
@@ -178,7 +181,7 @@ bool try_connect(const std::string &path) {
     sockaddr_un addr{};
     addr.sun_family = AF_UNIX;
     if(path.size() >= sizeof(addr.sun_path)) return false;
-    std::memcpy(addr.sun_path, path.c_str(), path.size());
+    std::memcpy(&addr.sun_path[0], path.c_str(), path.size());
 
     const int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if(fd < 0) return false;
@@ -197,7 +200,7 @@ bool try_connect(const std::string &path) {
     return true;
 }
 
-bool ipc_open() {
+Open ipc_open() {
     std::string dir{"/tmp"};
     for(const char *var : {"XDG_RUNTIME_DIR", "TMPDIR", "TMP", "TEMP"}) {
         if(std::string value = Environment::getEnvVariable(var); !value.empty()) {
@@ -209,10 +212,10 @@ bool ipc_open() {
     // flatpak and snap installs of discord put the socket in their own subdirectory
     for(const char *subdir : {"", "app/com.discordapp.Discord/", "snap.discord/"}) {
         for(int i = 0; i < 10; i++) {
-            if(try_connect(fmt::format("{}/{}discord-ipc-{}", dir, subdir, i))) return true;
+            if(try_connect(fmt::format("{}/{}discord-ipc-{}", dir, subdir, i))) return Open::CONNECTED;
         }
     }
-    return false;
+    return Open::NOT_FOUND;
 }
 
 bool ipc_write(const char *data, size_t size) {
@@ -233,14 +236,13 @@ bool ipc_write(const char *data, size_t size) {
 bool ipc_read(std::vector<char> &buf) {
     char chunk[4096];
     while(buf.size() < MAX_BUFFERED) {
-        const ssize_t n = recv(sock, chunk, std::min(sizeof(chunk), MAX_BUFFERED - buf.size()), 0);
+        const ssize_t n = recv(sock, &chunk[0], std::min(sizeof(chunk), MAX_BUFFERED - buf.size()), 0);
+        const auto err = errno;
         if(n > 0) {
-            buf.insert(buf.end(), chunk, chunk + n);
-        } else if(n == 0) {
-            return false;
-        } else if(errno == EAGAIN || errno == EWOULDBLOCK) {
+            buf.insert(buf.end(), &chunk[0], &chunk[0] + n);
+        } else if(n < 0 && (err == EAGAIN || err == EWOULDBLOCK)) {
             return true;
-        } else if(errno != EINTR) {
+        } else if(n == 0 || err != EINTR) {
             return false;
         }
     }
@@ -267,7 +269,7 @@ void disconnect() {
 void fail(u64 now) {
     if(state == State::READY) logRaw("[Discord] disconnected");
     disconnect();
-    next_connect_ms = now + retry_ms;
+    next_tick_ms = now + retry_ms;
     retry_ms = std::min(retry_ms * 2, MAX_RETRY_MS);
 }
 
@@ -324,16 +326,26 @@ bool handle_frames() {
     return true;
 }
 
-// cuts `text` to `max` code points, ending it with "..." if it was cut
+// fits `text` into a discord text field: valid utf-8 of 2 to `max` characters, padded with a blank if shorter and cut
+// with "..." if longer. discord measures them as javascript strings, where an emoji counts twice
 std::string crop(std::string_view text, size_t max) {
-    size_t count = 0;
+    std::string valid = UniString::sanitize_utf8(std::string{text});
+    size_t units = 0;
     size_t cut = 0;
-    for(size_t i = 0; i < text.size(); i++) {
-        if((static_cast<u8>(text[i]) & 0xC0) == 0x80) continue;
-        if(count == max - 3) cut = i;
-        if(++count > max) return fmt::format("{:s}...", text.substr(0, cut));
+    for(size_t i = 0; i < valid.size(); i++) {
+        const auto c = static_cast<u8>(valid[i]);
+        if((c & 0xC0) == 0x80) continue;
+        if(units <= max - 3) cut = i;
+        // 4-byte sequences are surrogate pairs in utf-16
+        units += c >= 0xF0 ? 2 : 1;
+        if(units > max) {
+            valid.resize(cut);
+            return valid + "...";
+        }
     }
-    return std::string{text};
+    // u+2800, a blank braille pattern: unlike a space, it isn't whitespace
+    if(units == 1) valid += "\xE2\xA0\x80";
+    return valid;
 }
 
 std::string activity_command(const DiscordActivity *activity) {
@@ -347,7 +359,8 @@ std::string activity_command(const DiscordActivity *activity) {
     const auto text = [&](const char *key, std::string_view value, size_t max) {
         if(value.empty()) return;
         w.Key(key);
-        string(crop(value, max));
+        const std::string fitted = crop(value, max);
+        w.String(fitted.data(), static_cast<rapidjson::SizeType>(fitted.size()));
     };
     // a cropped url would be broken, so drop it if it's too long
     const auto image = [&](const char *key, std::string_view value) {
@@ -417,23 +430,47 @@ std::string activity_command(const DiscordActivity *activity) {
     return {buf.GetString(), buf.GetSize()};
 }
 
+// removes the status and disconnects
+void stop() {
+    // closing the connection already removes the status, clearing it first doesn't rely on that
+    if(state == State::READY && sent) send_frame(Op::FRAME, activity_command(nullptr));
+    disconnect();
+    // turning it back on, or a new activity, connects right away
+    next_tick_ms = 0;
+    retry_ms = MIN_RETRY_MS;
+}
+
 }  // namespace
 
 void set_activity(const DiscordActivity &activity) { wanted = activity; }
 
-void tick() {
-    if(!wanted || !cv::rich_presence.getBool()) {
-        shutdown();
-        return;
-    }
+void clear_activity() {
+    wanted.reset();
+    stop();
+}
 
+void on_rich_presence_change() {
+    if(!cv::rich_presence.getBool()) stop();
+}
+
+void tick() {
+    if(!wanted || !cv::rich_presence.getBool()) return;
     const u64 now = Timing::getTicksMS();
+    if(now < next_tick_ms) return;
+    next_tick_ms = now + TICK_INTERVAL_MS;
+
     if(state == State::DISCONNECTED) {
-        if(now < next_connect_ms) return;
-        if(!ipc_open()) {
-            logIf(cv::debug_discord_rpc.getBool(), "no discord client found, retrying in {}ms", retry_ms);
-            fail(now);
-            return;
+        switch(ipc_open()) {
+            case Open::NOT_FOUND:
+                logIf(cv::debug_discord_rpc.getBool(), "no discord client found, retrying in {}ms", retry_ms);
+                fail(now);
+                return;
+            case Open::BUSY:
+                // the client is there, it just has no free pipe instance at the moment
+                next_tick_ms = now + MIN_RETRY_MS;
+                return;
+            case Open::CONNECTED:
+                break;
         }
         state = State::HANDSHAKING;
         handshake_deadline_ms = now + HANDSHAKE_TIMEOUT_MS;
@@ -443,7 +480,9 @@ void tick() {
         }
     }
 
-    if(!ipc_read(recv_buf) || !handle_frames()) {
+    // what arrived together with a disconnect still gets handled, like the reason in a CLOSE
+    const bool open = ipc_read(recv_buf);
+    if(!handle_frames() || !open) {
         fail(now);
         return;
     }
@@ -465,15 +504,6 @@ void tick() {
     }
     sent = wanted;
     next_send_ms = now + SEND_INTERVAL_MS;
-}
-
-void shutdown() {
-    // closing the connection already removes the status, clearing it first doesn't rely on that
-    if(state == State::READY && sent) send_frame(Op::FRAME, activity_command(nullptr));
-    disconnect();
-    // turning it back on connects right away
-    next_connect_ms = 0;
-    retry_ms = MIN_RETRY_MS;
 }
 
 }  // namespace Discord

@@ -27,6 +27,8 @@ struct DiscordActivity {
 
 namespace Discord {
 void set_activity(const DiscordActivity &activity);
+// removes the status and disconnects from discord, until the next set_activity()
+void clear_activity();
 void tick();
-void shutdown();
+void on_rich_presence_change();
 }  // namespace Discord

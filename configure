@@ -1084,6 +1084,7 @@ with_ffmpeg
 with_libjpeg
 with_mimalloc
 with_nsync
+with_discord
 with_i18n
 enable_threads
 '
@@ -1849,6 +1850,8 @@ Optional Packages:
                           (faster) (default: on if not debug and not winx86)
   --with-nsync            Use nsync instead of std::mutex for synchronization
                           (faster) (default: on if not winx86 (unsupported))
+  --with-discord          Build with Discord rich presence support (default on
+                          for native targets, off for Emscripten)
   --with-i18n             Build with support for internationalization
                           (translated text) (default: on)
 
@@ -7075,6 +7078,14 @@ fi
 
 
 
+# Check whether --with-discord was given.
+if test ${with_discord+y}
+then :
+  withval=$with_discord;
+fi
+
+
+
 # Check whether --with-i18n was given.
 if test ${with_i18n+y}
 then :
@@ -7298,6 +7309,21 @@ else case e in #(
 esac
 fi
 
+
+if test "x$with_discord" != "xno" && test -z "$WASM_CC"
+then :
+
+    with_discord=yes
+
+printf '%s\n' "#define MCENGINE_FEATURE_DISCORD 1" >>confdefs.h
+
+
+else case e in #(
+  e)
+    with_discord=no
+ ;;
+esac
+fi
 
 # enable tests by default
 if test "x$enable_tests" != "xno"
@@ -21505,6 +21531,7 @@ neomod build configuration:
     nsync:              ${with_nsync-yes}
     BASS:               ${with_bass-no}
     SoLoud:             ${with_soloud-no}
+    Discord:            ${with_discord-yes}
     i18n:               ${with_i18n-yes}
     IME enabled:        ${enable_ime-yes}
     Hardened build:     ${hardened_build-no}
@@ -21568,6 +21595,7 @@ neomod build configuration:
     nsync:              ${with_nsync-yes}
     BASS:               ${with_bass-no}
     SoLoud:             ${with_soloud-no}
+    Discord:            ${with_discord-yes}
     i18n:               ${with_i18n-yes}
     IME enabled:        ${enable_ime-yes}
     Hardened build:     ${hardened_build-no}

@@ -26,6 +26,7 @@ enum class BUILD : uint8_t {
 };
 enum class FEAT : uint8_t {
     STEAM = 1 << 0,
+    DISCORD = 1 << 1,
     MAINCB = 1 << 2,
     TESTS = 1 << 3,
     I18N = 1 << 4,
@@ -99,6 +100,9 @@ consteval FEAT getFeatures() {
     return
 #ifdef MCENGINE_FEATURE_STEAMWORKS
         FEAT::STEAM |
+#endif
+#if defined(MCENGINE_FEATURE_DISCORD)
+        FEAT::DISCORD |
 #endif
 #if defined(MCENGINE_PLATFORM_WASM) || defined(MCENGINE_FEATURE_MAINCALLBACKS)
         FEAT::MAINCB |

@@ -156,7 +156,7 @@ Engine::~Engine() {
     this->uiMouseSink.reset();
     CBaseUIDispatch::clear();
 
-    Discord::shutdown();
+    Discord::clear_activity();
 
     debugLog("Engine: Freeing animation handler...");
     anim::clearAll();

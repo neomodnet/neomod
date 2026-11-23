@@ -62,7 +62,7 @@ struct BanchoState final {
 
     static Hash::unstable_stringmap<BanchoState::Channel *> chat_channels;
 
-    // Timing::getTimeReal() at which the chat silence ends, 0 when not silenced
+    // engine->getTime() at which the chat silence ends, 0 when not silenced
     static f64 silence_end;
     [[nodiscard]] static i64 get_silence_seconds_left();
 
