@@ -99,23 +99,13 @@ class MainMenu::CubeButton final : public CBaseUIButton {
     MainMenu *mm;
 };
 
-namespace {
-enum class SubButtonType : u8 {
-    Singleplayer,
-    Multiplayer,
-    Edit,
-    Options,
-    Exit,
-    Save,  // only relevant in WASM
-};
-
-}
-
 class MainMenu::MainButton final : public UIButtonRounded {
    public:
-    MainButton(MainMenu *parent, float xPos, float yPos, float xSize, float ySize, std::string name, std::string text,
-               SubButtonType type)
-        : UIButtonRounded(xPos, yPos, xSize, ySize, std::move(name), std::move(text)), mm(parent), type(type) {}
+    MainButton(MainMenu *parent, std::string name, std::string text, Sound *Skin::*hoverSound, bool isSave = false)
+        : UIButtonRounded(parent->vSize.x, 0, 1, 1, std::move(name), std::move(text)),
+          mm(parent),
+          hoverSound(hoverSound),
+          isSave(isSave) {}
 
     void updateInput(CBaseUIEventCtx &c) override {
         UIButtonRounded::updateInput(c);
@@ -149,33 +139,19 @@ class MainMenu::MainButton final : public UIButtonRounded {
     void onMouseInside() override {
         if(this->mm->cube->isMouseInside()) return;
         UIButtonRounded::onMouseInside();
-        if(this->type == SubButtonType::Save) {
-            this->showSaveTooltip = true;
-        }
+        this->showSaveTooltip = this->isSave;
 
         if(this->mm->buttonSoundCooldown + 0.05f < engine->getTime()) {
             this->mm->buttonSoundCooldown = engine->getTime();
-            const auto *skin = osu->getSkin();
-            Sound *sound{nullptr};
-            switch(this->type) {
-                // clang-format off
-                using enum SubButtonType;
-                case Singleplayer:  sound = skin->s_hover_sp;       break;
-                case Multiplayer:   sound = skin->s_hover_mp;       break;
-                case Edit:          sound = skin->s_hover_edit;     break;
-                case Save:          [[fallthrough]]; // WASM (just use options sound)
-                case Options:       sound = skin->s_hover_options;  break;
-                case Exit:          sound = skin->s_hover_exit;     break;
-                    // clang-format on
-            }
-            soundEngine->play(sound);
+            soundEngine->play(osu->getSkin()->*this->hoverSound);
         }
     }
 
    private:
     MainMenu *mm;
-    SubButtonType type;
-    [[maybe_unused]] bool showSaveTooltip{false};
+    Sound *Skin::*hoverSound;
+    bool isSave;
+    bool showSaveTooltip{false};
 };
 
 MainMenu::MainMenu() : UIScreen() {
@@ -189,46 +165,12 @@ MainMenu::MainMenu() : UIScreen() {
                                     ->setTextColor(0x22ffffff)
                                     ->setClickCallback(SA::MakeDelegate<&MainMenu::onUpdatePressed>(this))));
 
-    this->sizeAddAnim = 0.0f;
-    this->centerOffsetAnim = 0.0f;
-    this->menuElementsVisible = false;
-
-    this->menuAnimTime = 0.0f;
-    this->menuAnimDuration = 0.0f;
-    this->menuAnim = 0.0f;
-    this->menuAnim1 = 0.0f;
-    this->menuAnim2 = 0.0f;
-    this->menuAnim3 = 0.0f;
-    this->menuAnim1Target = 0.0f;
-    this->menuAnim2Target = 0.0f;
-    this->menuAnim3Target = 0.0f;
-    this->inRandomAnim = false;
-    this->randomAnimType = 0;
-    this->animBeatCounter = 0;
-
-    this->friendAnimEnabled = false;
-    this->shouldFadeToFriendForNextAnim = false;
-    this->friendAnimScheduled = false;
-    this->friendAnimPercent = 0.0f;
-    this->mainMenuAnimFriendEyeFollow.x = 0.0f;
-    this->mainMenuAnimFriendEyeFollow.y = 0.0f;
-
-    this->shutdownScheduledTime = 0.0f;
-    this->wasCleanShutdown = false;
-
-    this->updateStatusTime = 0.0f;
-    this->updateButtonTextTime = 0.0f;
-    this->updateButtonAnim = 0.0f;
-    this->updateButtonAnimTime = 0.0f;
-    this->hasClickedUpdate = false;
-
     // loaded in Osu:: ctor, async
     this->logoImg = resourceManager->getImage("NEOMOD_LOGO");
     assert(this->logoImg);
 
     // check if the user has never clicked the changelog for this update
-    this->didUserUpdateFromOlderVersion = this->drawVersionNotificationArrow =
-        Migrations::is_updating_from_old_version();  // (same logic atm)
+    this->drawVersionNotificationArrow = Migrations::is_updating_from_old_version();
 
     this->setPos(-1, 0);
     this->setSize(osu->getVirtScreenWidth(), osu->getVirtScreenHeight());
@@ -237,28 +179,24 @@ MainMenu::MainMenu() : UIScreen() {
     this->cube->setClickCallback(SA::MakeDelegate<&MainMenu::onCubePressed>(this));
     this->addBaseUIElement(this->cube);
 
-    {
-        auto add_main_menu_button = [this](std::string text, std::string name, SubButtonType type) -> MainButton * {
-            auto *button = new MainButton(this, this->vSize.x, 0, 1, 1, std::move(name), std::move(text), type);
-            button->setFont(osu->getSubTitleFont());
-            button->setVisible(false);
-
-            this->menuElements.push_back(button);
-            this->addBaseUIElement(button);
-            return button;
-        };
-
-        add_main_menu_button(_("Singleplayer"), "mainmenu_singleplayer", SubButtonType::Singleplayer)
-            ->setClickCallback(SA::MakeDelegate<&MainMenu::onPlayButtonPressed>(this));
-        add_main_menu_button(_("Multiplayer"), "mainmenu_multiplayer", SubButtonType::Multiplayer)
-            ->setClickCallback(SA::MakeDelegate<&MainMenu::onMultiplayerButtonPressed>(this));
-        add_main_menu_button(_("Edit"), "mainmenu_edit", SubButtonType::Edit)
-            ->setClickCallback(SA::MakeDelegate<&MainMenu::onEditButtonPressed>(this));
-        add_main_menu_button(_("Options"), "mainmenu_options", SubButtonType::Options)
-            ->setClickCallback(SA::MakeDelegate<&MainMenu::onOptionsButtonPressed>(this));
-        add_main_menu_button(Env::cfg(OS::WASM) ? _("Save") : _("Exit"), "mainmenu_exit",
-                             Env::cfg(OS::WASM) ? SubButtonType::Save : SubButtonType::Exit)
-            ->setClickCallback(SA::MakeDelegate<&MainMenu::onSaveOrExitButtonPressed>(this));
+    this->menuElements = {
+        new MainButton(this, "mainmenu_singleplayer", _("Singleplayer"), &Skin::s_hover_sp),
+        new MainButton(this, "mainmenu_multiplayer", _("Multiplayer"), &Skin::s_hover_mp),
+        new MainButton(this, "mainmenu_edit", _("Edit"), &Skin::s_hover_edit),
+        new MainButton(this, "mainmenu_options", _("Options"), &Skin::s_hover_options),
+        // WASM (just use options sound)
+        Env::cfg(OS::WASM) ? new MainButton(this, "mainmenu_exit", _("Save"), &Skin::s_hover_options, true)
+                           : new MainButton(this, "mainmenu_exit", _("Exit"), &Skin::s_hover_exit),
+    };
+    this->menuElements[0]->setClickCallback(SA::MakeDelegate<&MainMenu::onPlayButtonPressed>(this));
+    this->menuElements[1]->setClickCallback(SA::MakeDelegate<&MainMenu::onMultiplayerButtonPressed>(this));
+    this->menuElements[2]->setClickCallback(SA::MakeDelegate<&MainMenu::onEditButtonPressed>(this));
+    this->menuElements[3]->setClickCallback(SA::MakeDelegate<&MainMenu::onOptionsButtonPressed>(this));
+    this->menuElements[4]->setClickCallback(SA::MakeDelegate<&MainMenu::onSaveOrExitButtonPressed>(this));
+    for(auto *button : this->menuElements) {
+        button->setFont(osu->getSubTitleFont());
+        button->setVisible(false);
+        this->addBaseUIElement(button);
     }
 
     this->nowPlaying = new mainmenu::NowPlaying(this);
@@ -332,40 +270,21 @@ void MainMenu::drawFriend(const McRect &mainButtonRect, float pulse, bool haveTi
             vec2 top = pos + vec2(width / 2, -width * std::sqrt(3.0f) / 2.0f);
             vec2 right = pos + vec2(width, 0);
 
-            vec2 topRightDir = (top - right);
-            {
-                const float temp = topRightDir.x;
-                topRightDir.x = -topRightDir.y;
-                topRightDir.y = temp;
-            }
+            const auto perpendicular = [](vec2 v) { return vec::normalize(vec2(-v.y, v.x)); };
 
-            vec2 innerLeft = left + vec::normalize(topRightDir) * margin;
+            vec2 innerLeft = left + perpendicular(top - right) * margin;
 
             vao.addVertex(left.x, left.y);
             vao.addVertex(top.x, top.y);
             vao.addVertex(innerLeft.x, innerLeft.y);
 
-            vec2 leftRightDir = (right - left);
-            {
-                const float temp = leftRightDir.x;
-                leftRightDir.x = -leftRightDir.y;
-                leftRightDir.y = temp;
-            }
-
-            vec2 innerTop = top + vec::normalize(leftRightDir) * margin;
+            vec2 innerTop = top + perpendicular(right - left) * margin;
 
             vao.addVertex(top.x, top.y);
             vao.addVertex(innerTop.x, innerTop.y);
             vao.addVertex(innerLeft.x, innerLeft.y);
 
-            vec2 leftTopDir = (left - top);
-            {
-                const float temp = leftTopDir.x;
-                leftTopDir.x = -leftTopDir.y;
-                leftTopDir.y = temp;
-            }
-
-            vec2 innerRight = right + vec::normalize(leftTopDir) * margin;
+            vec2 innerRight = right + perpendicular(left - top) * margin;
 
             vao.addVertex(top.x, top.y);
             vao.addVertex(innerRight.x, innerRight.y);
@@ -398,21 +317,8 @@ void MainMenu::drawFriend(const McRect &mainButtonRect, float pulse, bool haveTi
         g->popTransform();
     }
 
-    float headBob = 0.0f;
-    {
-        float customPulse = 0.0f;
-        if(pulse > 0.5f)
-            customPulse = (pulse - 0.5f) / 0.5f;
-        else
-            customPulse = (0.5f - pulse) / 0.5f;
-
-        customPulse = 1.0f - customPulse;
-
-        if(!haveTimingpoints) customPulse = 1.0f;
-
-        headBob = (customPulse) * (customPulse);
-        headBob *= this->friendAnimPercent;
-    }
+    const float customPulse = haveTimingpoints ? 1.0f - std::abs(pulse - 0.5f) / 0.5f : 1.0f;
+    const float headBob = customPulse * customPulse * this->friendAnimPercent;
 
     const float mouthEyeOffsetY = mainButtonRect.getWidth() * 0.18f + headBob * mainButtonRect.getWidth() * 0.075f;
 
@@ -499,16 +405,6 @@ void MainMenu::drawFriend(const McRect &mainButtonRect, float pulse, bool haveTi
         const float size = mainButtonRect.getWidth() * 0.2f;
 
         const float offset = -size * 0.75f;
-
-        float customPulse = 0.0f;
-        if(pulse > 0.5f)
-            customPulse = (pulse - 0.5f) / 0.5f;
-        else
-            customPulse = (0.5f - pulse) / 0.5f;
-
-        customPulse = 1.0f - customPulse;
-
-        if(!haveTimingpoints) customPulse = 1.0f;
 
         const float animLeftMultiplier = (this->animBeatCounter % 2 == 0 ? 1.0f : 0.1f);
         const float animRightMultiplier = (this->animBeatCounter % 2 == 1 ? 1.0f : 0.1f);
@@ -645,14 +541,7 @@ void MainMenu::drawMainButton() {
         float friendTranslationX = 0.0f;
         float friendTranslationY = 0.0f;
         if(haveTimingpoints && this->friendAnimPercent > 0.0f) {
-            float customPulse = 0.0f;
-            if(pulse > 0.5f)
-                customPulse = (pulse - 0.5f) / 0.5f;
-            else
-                customPulse = (0.5f - pulse) / 0.5f;
-
-            customPulse = 1.0f - customPulse;
-
+            const float customPulse = 1.0f - std::abs(pulse - 0.5f) / 0.5f;
             const float anim1 = std::lerp((1.0f - customPulse) * (1.0f - customPulse), (1.0f - customPulse), 0.25f);
             const float anim2 = anim1 * (this->animBeatCounter % 2 == 1 ? 1.0f : -1.0f);
             const float anim3 = anim1;
@@ -683,17 +572,19 @@ void MainMenu::drawMainButton() {
                                                  .height = mainButtonRect.getHeight() - 2 * inset,
                                                  .lineThickness = 2.0f};
 
-    // front side
-    g->pushTransform();
-    g->translate(0, 0, inset);
-    g->setColor(cubeColor);
+    const auto drawSide = [&] {
+        g->pushTransform();
+        g->translate(0, 0, inset);
+        g->setColor(cubeColor);
+        g->fillRectf(thickRect.x, thickRect.y, thickRect.width, thickRect.height);
+        g->translate(0, 0, -0.2f);  // move the border slightly towards the camera to prevent Z fighting
+        g->setColor(cubeBorderColor);
+        g->drawRectf(thickRect);
+        g->popTransform();
+    };
 
-    g->fillRectf(mainButtonRect.getX() + inset, mainButtonRect.getY() + inset, mainButtonRect.getWidth() - 2 * inset,
-                 mainButtonRect.getHeight() - 2 * inset);
-    g->translate(0, 0, -0.2f);  // move the border slightly towards the camera to prevent Z fighting
-    g->setColor(cubeBorderColor);
-    g->drawRectf(thickRect);
-    g->popTransform();
+    // front side
+    drawSide();
 
     // friend
     if(this->friendAnimPercent > 0.0f) {
@@ -712,80 +603,16 @@ void MainMenu::drawMainButton() {
     if(drawing_full_cube) {
         // back side
         g->rotate3DScene(0, -180, 0);
-        g->pushTransform();
-        g->translate(0, 0, inset);
-        g->setColor(Color(cubeColor).setA(cv::main_menu_alpha.getFloat()));
+        drawSide();
 
-        g->fillRectf(mainButtonRect.getX() + inset, mainButtonRect.getY() + inset,
-                     mainButtonRect.getWidth() - 2 * inset, mainButtonRect.getHeight() - 2 * inset);
-        g->translate(0, 0, -0.2f);
-        g->setColor(cubeBorderColor);
-        g->drawRectf(thickRect);
-        g->popTransform();
-
-        // right side
-        g->offset3DScene(0, 0, mainButtonRect.getWidth() / 2);
-        g->rotate3DScene(0, 90, 0);
-        g->pushTransform();
-        g->translate(0, 0, inset);
-        g->setColor(Color(cubeColor).setA(cv::main_menu_alpha.getFloat()));
-
-        g->fillRectf(mainButtonRect.getX() + inset, mainButtonRect.getY() + inset,
-                     mainButtonRect.getWidth() - 2 * inset, mainButtonRect.getHeight() - 2 * inset);
-        g->translate(0, 0, -0.2f);
-        g->setColor(cubeBorderColor);
-        g->drawRectf(thickRect);
-        g->popTransform();
-        g->rotate3DScene(0, -90, 0);
-        g->offset3DScene(0, 0, 0);
-
-        // left side
-        g->offset3DScene(0, 0, mainButtonRect.getWidth() / 2);
-        g->rotate3DScene(0, -90, 0);
-        g->pushTransform();
-        g->translate(0, 0, inset);
-        g->setColor(Color(cubeColor).setA(cv::main_menu_alpha.getFloat()));
-
-        g->fillRectf(mainButtonRect.getX() + inset, mainButtonRect.getY() + inset,
-                     mainButtonRect.getWidth() - 2 * inset, mainButtonRect.getHeight() - 2 * inset);
-        g->translate(0, 0, -0.2f);
-        g->setColor(cubeBorderColor);
-        g->drawRectf(thickRect);
-        g->popTransform();
-        g->rotate3DScene(0, 90, 0);
-        g->offset3DScene(0, 0, 0);
-
-        // top side
-        g->offset3DScene(0, 0, mainButtonRect.getHeight() / 2);
-        g->rotate3DScene(90, 0, 0);
-        g->pushTransform();
-        g->translate(0, 0, inset);
-        g->setColor(Color(cubeColor).setA(cv::main_menu_alpha.getFloat()));
-
-        g->fillRectf(mainButtonRect.getX() + inset, mainButtonRect.getY() + inset,
-                     mainButtonRect.getWidth() - 2 * inset, mainButtonRect.getHeight() - 2 * inset);
-        g->translate(0, 0, -0.2f);
-        g->setColor(cubeBorderColor);
-        g->drawRectf(thickRect);
-        g->popTransform();
-        g->rotate3DScene(-90, 0, 0);
-        g->offset3DScene(0, 0, 0);
-
-        // bottom side
-        g->offset3DScene(0, 0, mainButtonRect.getHeight() / 2);
-        g->rotate3DScene(-90, 0, 0);
-        g->pushTransform();
-        g->translate(0, 0, inset);
-        g->setColor(Color(cubeColor).setA(cv::main_menu_alpha.getFloat()));
-
-        g->fillRectf(mainButtonRect.getX() + inset, mainButtonRect.getY() + inset,
-                     mainButtonRect.getWidth() - 2 * inset, mainButtonRect.getHeight() - 2 * inset);
-        g->translate(0, 0, -0.2f);
-        g->setColor(cubeBorderColor);
-        g->drawRectf(thickRect);
-        g->popTransform();
-        g->rotate3DScene(90, 0, 0);
-        g->offset3DScene(0, 0, 0);
+        // right, left, top and bottom sides
+        for(const vec3 rot : {vec3(0, 90, 0), vec3(0, -90, 0), vec3(90, 0, 0), vec3(-90, 0, 0)}) {
+            g->offset3DScene(0, 0, (rot.x != 0 ? mainButtonRect.getHeight() : mainButtonRect.getWidth()) / 2);
+            g->rotate3DScene(rot.x, rot.y, rot.z);
+            drawSide();
+            g->rotate3DScene(-rot.x, -rot.y, -rot.z);
+            g->offset3DScene(0, 0, 0);
+        }
 
         g->pop3DScene();
 
@@ -965,12 +792,10 @@ void MainMenu::tick() {
     if(Osu::isBleedingEdge()) {
         static std::string versionString =
             tformat("Version {:.2f} ({:s})", cv::version.getFloat(), cv::build_timestamp.getString());
-        this->versionButton->setTextColor(rgb(255, 220, 220));
-        this->versionButton->setText(versionString);
+        this->versionButton->setTextColor(rgb(255, 220, 220))->setText(versionString);
     } else {
         static std::string versionString = tformat("Version {:.2f}", cv::version.getFloat());
-        this->versionButton->setTextColor(rgb(255, 255, 255));
-        this->versionButton->setText(versionString);
+        this->versionButton->setTextColor(rgb(255, 255, 255))->setText(versionString);
     }
 
     this->updateLayout();
@@ -1009,19 +834,17 @@ void MainMenu::tick() {
         this->animMainButton();
     }
 
-    if(this->inRandomAnim && this->randomAnimType == 1 && this->menuAnim.animating()) {
-        const vec2 mouseDelta = vec::clamp((this->cube->getPos() + this->cube->getSize() / 2.f) - mouse->getPos(),
-                                           -osu->getVirtScreenSize() / 2.f, osu->getVirtScreenSize() / 2.f) /
-                                osu->getVirtScreenSize();
+    const vec2 mouseDelta = vec::clamp((this->cube->getPos() + this->cube->getSize() / 2.f) - mouse->getPos(),
+                                       -osu->getVirtScreenSize() / 2.f, osu->getVirtScreenSize() / 2.f) /
+                            osu->getVirtScreenSize();
 
+    if(this->inRandomAnim && this->randomAnimType == 1 && this->menuAnim.animating()) {
         const float decay = std::clamp<float>((1.0f - this->menuAnim - 0.075f) / 0.025f, 0.0f, 1.0f);
 
-        const vec2 pushAngle = vec2(mouseDelta.y, -mouseDelta.x) * vec2(0.15f, 0.15f) * decay;
+        const vec2 pushAngle = vec2(mouseDelta.y, -mouseDelta.x) * 0.15f * decay;
 
         this->menuAnim1.set(pushAngle.x, 0.15f, anim::QuadOut);
-
         this->menuAnim2.set(pushAngle.y, 0.15f, anim::QuadOut);
-
         this->menuAnim3.set(0.0f, 0.15f, anim::QuadOut);
     }
 
@@ -1035,31 +858,22 @@ void MainMenu::tick() {
         if(this->friendAnimEnabled) this->friendAnimPercent = 1.0f;
         if(!this->friendAnimScheduled) this->friendAnimPercent = 0.0f;
 
-        const vec2 mouseDelta = vec::clamp((this->cube->getPos() + this->cube->getSize() / 2.f) - mouse->getPos(),
-                                           -osu->getVirtScreenSize() / 2.f, osu->getVirtScreenSize() / 2.f) /
-                                osu->getVirtScreenSize();
-
-        const vec2 pushAngle = vec2(mouseDelta.x, mouseDelta.y) * 0.1f;
+        const vec2 pushAngle = mouseDelta * 0.1f;
 
         this->mainMenuAnimFriendEyeFollow.x.set(pushAngle.x, 0.25f, anim::Linear);
         this->mainMenuAnimFriendEyeFollow.y.set(pushAngle.y, 0.25f, anim::Linear);
     }
 
     // handle update checker and status text
-    switch(osu->getUpdateHandler()->getStatus()) {
+    switch(const auto status = osu->getUpdateHandler()->getStatus()) {
         using enum UpdateHandler::STATUS;
         case STATUS_IDLE:
-            if(this->updateAvailableButton->isVisible()) {
-                this->updateAvailableButton->setVisible(false);
-            }
+            this->updateAvailableButton->setVisible(false);
             break;
         case STATUS_CHECKING_FOR_UPDATE:
-            this->updateAvailableButton->setText(_("Checking for updates ..."));
-            this->updateAvailableButton->setColor(0x2200d900);
-            this->updateAvailableButton->setVisible(true);
-            break;
         case STATUS_DOWNLOADING_UPDATE:
-            this->updateAvailableButton->setText(_("Downloading ..."));
+            this->updateAvailableButton->setText(status == STATUS_CHECKING_FOR_UPDATE ? _("Checking for updates ...")
+                                                                                      : _("Downloading ..."));
             this->updateAvailableButton->setColor(0x2200d900);
             this->updateAvailableButton->setVisible(true);
             break;
@@ -1085,14 +899,11 @@ void MainMenu::tick() {
             }
             break;
         case STATUS_MANUAL_UPDATE:
-            this->updateAvailableButton->setText(_("A new version is available! Click to open the download page."));
-            this->updateAvailableButton->setColor(rgb(0, 130, 200));
-            this->updateAvailableButton->setTextColor(0xffffffff);
-            this->updateAvailableButton->setVisible(true);
-            break;
         case STATUS_ERROR:
-            this->updateAvailableButton->setText(_("Update Error! Click to retry ..."));
-            this->updateAvailableButton->setColor(rgb(220, 0, 0));
+            this->updateAvailableButton->setText(
+                status == STATUS_ERROR ? _("Update Error! Click to retry ...")
+                                       : _("A new version is available! Click to open the download page."));
+            this->updateAvailableButton->setColor(status == STATUS_ERROR ? rgb(220, 0, 0) : rgb(0, 130, 200));
             this->updateAvailableButton->setTextColor(0xffffffff);
             this->updateAvailableButton->setVisible(true);
             break;
@@ -1210,11 +1021,7 @@ void MainMenu::selectRandomBeatmap() {
             }
             const auto &mapset_folder = this->songsFolderEntries[folderIndex];
             auto set = Database::loadRawBeatmap(mapset_folder);
-            if(set == nullptr) {
-                // loadRawBeatmap will log failure with reason
-                // debugLog("Failed to load beatmap set '{:s}'", mapset_folder.c_str());
-                continue;
-            }
+            if(set == nullptr) continue;  // loadRawBeatmap will log failure with reason
 
             auto &beatmap_diffs = set->getDifficulties();
             assert(!beatmap_diffs.empty());
@@ -1300,26 +1107,15 @@ void MainMenu::onKeyDown(KeyboardEvent &e) {
     }
 
     if(!this->menuElementsVisible) {
-        if(e == KEY_P || e == KEY_ENTER || e == KEY_NUMPAD_ENTER) {
-            this->cube->click();
-        }
-    } else {
-        if(e == KEY_P || e == KEY_ENTER || e == KEY_NUMPAD_ENTER) {
-            this->onPlayButtonPressed();
-        }
-        if(e == KEY_O) {
-            this->onOptionsButtonPressed();
-        }
-        if(e == KEY_E) {
-            this->onEditButtonPressed();
-        }
-        if(e == KEY_X) {
-            this->onSaveOrExitButtonPressed();
-        }
-        if(e == KEY_ESCAPE || e == binds::GAME_PAUSE) {
-            this->setMenuElementsVisible(false);
-        }
+        if(e == KEY_P || e == KEY_ENTER || e == KEY_NUMPAD_ENTER) this->cube->click();
+        return;
     }
+
+    if(e == KEY_P || e == KEY_ENTER || e == KEY_NUMPAD_ENTER) this->onPlayButtonPressed();
+    if(e == KEY_O) this->onOptionsButtonPressed();
+    if(e == KEY_E) this->onEditButtonPressed();
+    if(e == KEY_X) this->onSaveOrExitButtonPressed();
+    if(e == KEY_ESCAPE || e == binds::GAME_PAUSE) this->setMenuElementsVisible(false);
 }
 
 void MainMenu::onButtonChange(ButtonEvent &ev) {
@@ -1380,8 +1176,6 @@ CBaseUIContainer *MainMenu::setVisible(bool visible) {
         if(this->isStartupAnim) {
             this->isStartupAnim = false;
             this->startupAnim.set(1.0f, cv::main_menu_startup_anim_duration.getFloat(), anim::QuartOut);
-            this->startupAnim2.set(1.0f, cv::main_menu_startup_anim_duration.getFloat() * 6.0f, anim::QuartOut,
-                                   cv::main_menu_startup_anim_duration.getFloat() * 0.5f);
         }
     } else {
         this->setMenuElementsVisible(false, false);
@@ -1517,7 +1311,6 @@ void MainMenu::animMainButton() {
         this->menuAnim2Target = 0.0f;
         this->menuAnim3Target = 0.0f;
 
-        this->menuAnim = 0.0f;
         this->menuAnim.set(1.0f, 5.0f, anim::QuadOut);
     }
 }
@@ -1607,13 +1400,12 @@ void MainMenu::onCubePressed() {
     else {
         this->inRandomAnim = false;
 
-        vec2 mouseDelta = (this->cube->getPos() + this->cube->getSize() / 2.f) - mouse->getPos();
-        mouseDelta.x = std::clamp<float>(mouseDelta.x, -this->cube->getSize().x / 2, this->cube->getSize().x / 2);
-        mouseDelta.y = std::clamp<float>(mouseDelta.y, -this->cube->getSize().y / 2, this->cube->getSize().y / 2);
-        mouseDelta.x /= this->cube->getSize().x;
-        mouseDelta.y /= this->cube->getSize().y;
+        const vec2 cubeSize = this->cube->getSize();
+        const vec2 mouseDelta =
+            vec::clamp((this->cube->getPos() + cubeSize / 2.f) - mouse->getPos(), -cubeSize / 2.f, cubeSize / 2.f) /
+            cubeSize;
 
-        const vec2 pushAngle = vec2(mouseDelta.y, -mouseDelta.x) * vec2(0.15f, 0.15f);
+        const vec2 pushAngle = vec2(mouseDelta.y, -mouseDelta.x) * 0.15f;
 
         this->menuAnim = 0.001f;
         this->menuAnim.set(1.0f, 0.15f + 0.4f, anim::QuadOut);
@@ -1634,6 +1426,14 @@ void MainMenu::onCubePressed() {
     }
 }
 
+namespace {
+void playMenuHitSound(Sound *Skin::*clickSound) {
+    const auto *skin = osu->getSkin();
+    soundEngine->play(skin->s_menu_hit);
+    if(skin->*clickSound != skin->s_menu_hit) soundEngine->play(skin->*clickSound);
+}
+}  // namespace
+
 void MainMenu::onPlayButtonPressed() {
     this->friendAnimEnabled = false;
     this->shouldFadeToFriendForNextAnim = false;
@@ -1642,11 +1442,7 @@ void MainMenu::onPlayButtonPressed() {
     ui->getOptionsOverlay()->setVisible(false);
     ui->setScreen(ui->getSongBrowser());
 
-    const auto *skin = osu->getSkin();
-    soundEngine->play(skin->s_menu_hit);
-    if(skin->s_click_sp != skin->s_menu_hit) {
-        soundEngine->play(skin->s_click_sp);
-    }
+    playMenuHitSound(&Skin::s_click_sp);
 }
 
 void MainMenu::onMultiplayerButtonPressed() {
@@ -1658,21 +1454,13 @@ void MainMenu::onMultiplayerButtonPressed() {
 
     ui->setScreen(ui->getLobby());
 
-    const auto *skin = osu->getSkin();
-    soundEngine->play(skin->s_menu_hit);
-    if(skin->s_click_mp != skin->s_menu_hit) {
-        soundEngine->play(skin->s_click_mp);
-    }
+    playMenuHitSound(&Skin::s_click_mp);
 }
 
 void MainMenu::onEditButtonPressed() {
     ui->getEditorScreen()->enter();
 
-    const auto *skin = osu->getSkin();
-    soundEngine->play(skin->s_menu_hit);
-    if(skin->s_click_edit != skin->s_menu_hit) {
-        soundEngine->play(skin->s_click_edit);
-    }
+    playMenuHitSound(&Skin::s_click_edit);
 }
 
 void MainMenu::onOptionsButtonPressed() {

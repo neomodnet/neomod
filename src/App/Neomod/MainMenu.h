@@ -90,18 +90,16 @@ class MainMenu final : public UIScreen, public MouseListener {
     void onUpdatePressed();
     void onVersionPressed();
 
-    float updateStatusTime;
-    float updateButtonTextTime;
-    float updateButtonAnimTime;
+    float updateButtonTextTime{0.f};
+    float updateButtonAnimTime{0.f};
     AnimFloat updateButtonAnim;
-    bool hasClickedUpdate;
 
     vec2 vSize{0.f};
     vec2 vCenter{0.f};
     AnimFloat sizeAddAnim;
     AnimFloat centerOffsetAnim;
 
-    bool menuElementsVisible;
+    bool menuElementsVisible{false};
     float mainMenuButtonCloseTime{0.f};
 
     CubeButton *cube;
@@ -121,35 +119,32 @@ class MainMenu final : public UIScreen, public MouseListener {
     bool setToggleableVisibilitiesOnce{false};
 
     bool drawVersionNotificationArrow;
-    bool didUserUpdateFromOlderVersion;
 
     // custom
-    float menuAnimTime;
-    float menuAnimDuration;
+    float menuAnimTime{0.f};
+    float menuAnimDuration{0.f};
     AnimFloat menuAnim;
     AnimFloat menuAnim1;
     AnimFloat menuAnim2;
     AnimFloat menuAnim3;
-    float menuAnim1Target;
-    float menuAnim2Target;
-    float menuAnim3Target;
-    bool inRandomAnim;
-    int randomAnimType;
-    unsigned int animBeatCounter;
+    float menuAnim1Target{0.f};
+    float menuAnim2Target{0.f};
+    float menuAnim3Target{0.f};
+    bool inRandomAnim{false};
+    int randomAnimType{0};
+    unsigned int animBeatCounter{0};
 
-    bool friendAnimEnabled;
-    bool shouldFadeToFriendForNextAnim;
-    bool friendAnimScheduled;
-    float friendAnimPercent;
+    bool friendAnimEnabled{false};
+    bool shouldFadeToFriendForNextAnim{false};
+    bool friendAnimScheduled{false};
+    float friendAnimPercent{0.f};
     AnimVec2 mainMenuAnimFriendEyeFollow;
 
-    float shutdownScheduledTime;
-    bool wasCleanShutdown;
+    float shutdownScheduledTime{0.f};
+    bool wasCleanShutdown{false};
 
     bool isStartupAnim{true};
     AnimFloat startupAnim;
-    AnimFloat startupAnim2;
-    float prevShuffleTime{0.f};
 
     Downloader::DownloadHandle serverIconDL;
     const Image *logoImg;
