@@ -27,7 +27,10 @@
 #include <cmath>
 #include <limits>
 #include <numbers>
+#include <span>
+#include <tuple>
 #include <utility>
+#include <variant>
 
 // NOLINTBEGIN(cppcoreguidelines-init-variables)
 
@@ -53,37 +56,40 @@ struct Command {
     f64 reach{-INF};  // the latest end of this command and the ones before it in its list
 };
 
+template <typename T>
+struct List {
+    u32 first{0};
+    u32 count{0};
+
+    [[nodiscard]] bool empty() const { return this->count == 0; }
+};
+
+template <typename T>
+using Commands = List<Command<T>>;
+
+template <template <typename> typename Of>
+struct PerProperty {
+    Of<f32> x, y, scale, rotation, alpha;  // (x, y: MX and MY)
+    Of<vec2> move, vectorScale;
+    Of<vec3> colour;
+    Of<bool> flipH, flipV, additive;
+
+    // fn(mine, theirs) for each property
+    template <typename Other, typename Fn>
+    void each(Other &other, Fn &&fn) {
+        fn(this->x, other.x), fn(this->y, other.y), fn(this->scale, other.scale), fn(this->rotation, other.rotation);
+        fn(this->alpha, other.alpha), fn(this->move, other.move), fn(this->vectorScale, other.vectorScale);
+        fn(this->colour, other.colour), fn(this->flipH, other.flipH), fn(this->flipV, other.flipV);
+        fn(this->additive, other.additive);
+    }
+};
+
 // the commands of a sprite, a loop or a trigger, per property, sorted by start (then end) time
-struct Group {
-    std::vector<Command<f32>> x, y, scale, rotation, alpha;  // (x, y: MX and MY)
-    std::vector<Command<vec2>> move, vectorScale;
-    std::vector<Command<vec3>> colour;
-    std::vector<Command<bool>> flipH, flipV, additive;
+struct Group : PerProperty<Commands> {
     f64 start{INF};
     f64 end{-INF};
 
     [[nodiscard]] bool empty() const { return this->start > this->end; }
-
-    template <typename T>
-    void add(std::vector<Command<T>> &list, Command<T> cmd) {
-        if(cmd.end < cmd.start) cmd.end = cmd.start;
-        list.push_back(cmd);
-        this->start = std::min(this->start, cmd.start);
-        this->end = std::max(this->end, cmd.end);
-    }
-
-    void sort() {
-        const auto byTime = [](auto &list) {
-            Mc::ranges::stable_sort(list, [](const auto &a, const auto &b) {
-                return a.start != b.start ? a.start < b.start : a.end < b.end;
-            });
-            f64 reach = -INF;
-            for(auto &cmd : list) cmd.reach = reach = std::max(reach, cmd.end);
-        };
-        byTime(this->x), byTime(this->y), byTime(this->scale), byTime(this->rotation), byTime(this->alpha);
-        byTime(this->move), byTime(this->vectorScale), byTime(this->colour), byTime(this->flipH), byTime(this->flipV);
-        byTime(this->additive);
-    }
 };
 
 // commands repeated `iterations` times after `start`
@@ -127,13 +133,13 @@ struct Sprite {
     Layer layer;
     vec2 origin;
     vec2 pos;
-    std::string path;
+    u32 path{0};
     u32 frameCount{0};
     f64 frameDelay{0.0};
     bool loopForever{true};
     Group cmds{};
-    std::vector<Loop> loops{};
-    std::vector<Trigger> triggers{};
+    List<Loop> loops{};
+    List<Trigger> triggers{};
 
     f64 start{0.0};
     f64 end{0.0};
@@ -149,6 +155,56 @@ struct Sprite {
     bool instantAdditive{false};
 
     [[nodiscard]] bool isLive(f64 time) const { return time >= this->start && time <= this->end; }
+};
+
+struct Lists {
+    std::tuple<std::vector<Command<f32>>, std::vector<Command<vec2>>, std::vector<Command<vec3>>,
+               std::vector<Command<bool>>, std::vector<Loop>, std::vector<Trigger>>
+        all;
+
+    template <typename T>
+    [[nodiscard]] std::vector<T> &of() {
+        return std::get<std::vector<T>>(this->all);
+    }
+
+    template <typename T>
+    [[nodiscard]] std::span<const T> operator[](List<T> list) const {
+        return std::span{std::get<std::vector<T>>(this->all)}.subspan(list.first, list.count);
+    }
+};
+
+template <typename T>
+using CommandVector = std::vector<Command<T>>;
+
+struct GroupBuilder : PerProperty<CommandVector> {
+    f64 start{INF};
+    f64 end{-INF};
+
+    template <typename T>
+    void add(std::vector<Command<T>> &list, Command<T> cmd) {
+        if(cmd.end < cmd.start) cmd.end = cmd.start;
+        list.push_back(cmd);
+        this->start = std::min(this->start, cmd.start);
+        this->end = std::max(this->end, cmd.end);
+    }
+
+    [[nodiscard]] Group build(Lists &lists) {
+        Group group;
+        group.start = std::exchange(this->start, INF);
+        group.end = std::exchange(this->end, -INF);
+        group.each(*this, [&lists]<typename T>(Commands<T> &range, std::vector<Command<T>> &cmds) {
+            Mc::ranges::stable_sort(cmds, [](const Command<T> &a, const Command<T> &b) {
+                return a.start != b.start ? a.start < b.start : a.end < b.end;
+            });
+            f64 reach = -INF;
+            for(auto &cmd : cmds) cmd.reach = reach = std::max(reach, cmd.end);
+            auto &all = lists.of<Command<T>>();
+            range = {.first = (u32)all.size(), .count = (u32)cmds.size()};
+            all.insert(all.end(), cmds.begin(), cmds.end());
+            cmds.clear();
+        });
+        return group;
+    }
 };
 
 struct Sample {
@@ -241,20 +297,7 @@ struct Pick {
 };
 
 // every property's pick
-struct Picks {
-    Pick<f32> x, y, scale, rotation, alpha;
-    Pick<vec2> move, vectorScale;
-    Pick<vec3> colour;
-    Pick<bool> flipH, flipV, additive;
-
-    // fn(pick, commands) for each property of a group
-    template <typename Fn>
-    void each(const Group &g, Fn &&fn) {
-        fn(this->x, g.x), fn(this->y, g.y), fn(this->scale, g.scale), fn(this->rotation, g.rotation);
-        fn(this->alpha, g.alpha), fn(this->move, g.move), fn(this->vectorScale, g.vectorScale);
-        fn(this->colour, g.colour), fn(this->flipH, g.flipH), fn(this->flipV, g.flipV), fn(this->additive, g.additive);
-    }
-};
+using Picks = PerProperty<Pick>;
 
 // scale and position of a sprite with S and V, or M and MX/MY: each pair goes by shared flags (a frame applies one
 // command of the pair, and a value it doesn't set stays as it was), so what shows depends on the frames before. Use
@@ -490,6 +533,8 @@ struct Storyboard::Impl {
     bool useSkinSprites{false};
 
     std::vector<Sprite> sprites;
+    Lists lists;
+    std::vector<std::string> spritePaths;
     std::vector<u32> byStart;     // the sprites in order of their start
     std::vector<Sample> samples;  // sorted by time
     MD5Hash osbHash;
@@ -550,21 +595,58 @@ struct StoryboardParser {
     Storyboard::Impl &sb;
     std::vector<std::pair<std::string, std::string>> variables{};
     i32 version{14};
-    // where the next command goes: a sprite's own commands, one of its loops or one of its triggers
+    Hash::unstable_ncase_stringmap<u32> paths{};
+    // where the next command goes: a sprite's own commands, or those of the loop or trigger in `nested`
     Sprite *sprite{nullptr};
-    Group *group{nullptr};
+    GroupBuilder *group{nullptr};
+    GroupBuilder own{}, nestedCmds{};
+    std::variant<std::monostate, Loop, Trigger> nested{};
     std::vector<std::string_view> fields{};
 
     void file(std::string_view file, bool isOsu);
     void eventLine(std::string_view line);
+    void endNested();
+    void endSprite();
 };
+
+void StoryboardParser::endNested() {
+    std::visit(
+        [this]<typename T>(T &nested) {
+            if constexpr(!std::is_same_v<T, std::monostate>) {
+                nested.cmds = this->nestedCmds.build(this->sb.lists);
+                if(nested.cmds.empty()) return;
+                List<T> *list;
+                if constexpr(std::is_same_v<T, Loop>) {
+                    list = &this->sprite->loops;
+                } else {
+                    list = &this->sprite->triggers;
+                }
+                auto &all = this->sb.lists.of<T>();
+                if(list->empty()) list->first = (u32)all.size();
+                all.push_back(nested);
+                list->count++;
+            }
+        },
+        this->nested);
+    this->nested = std::monostate{};
+}
+
+void StoryboardParser::endSprite() {
+    if(this->sprite) {
+        this->endNested();
+        Sprite &sprite = *this->sprite;
+        sprite.cmds = this->own.build(this->sb.lists);
+        // only what has something to do is drawn
+        if(sprite.cmds.empty() && sprite.loops.empty() && sprite.triggers.empty()) this->sb.sprites.pop_back();
+    }
+    this->sprite = nullptr;
+    this->group = nullptr;
+}
 
 void StoryboardParser::file(std::string_view file, bool isOsu) {
     const BeatmapFile osu{file};
     // .osb files have no version, they're read as the latest one
     this->version = isOsu ? osu.getVersion().value_or(14) : 14;
-    this->sprite = nullptr;
-    this->group = nullptr;
 
     auto &variables = this->variables;
     for(const auto &section : osu.getSections()) {
@@ -608,6 +690,7 @@ void StoryboardParser::file(std::string_view file, bool isOsu) {
             }
         }
     }
+    this->endSprite();
 }
 
 // absolute hell
@@ -624,8 +707,7 @@ void StoryboardParser::eventLine(std::string_view line) {
     if(fields.empty()) return;
 
     if(depth == 0) {
-        this->sprite = nullptr;
-        this->group = nullptr;
+        this->endSprite();
 
         const std::string_view type = SString::trimmed(fields[0]);
         if(type == "Background" || type == "0") {
@@ -640,7 +722,7 @@ void StoryboardParser::eventLine(std::string_view line) {
             f32 x, y;
             if(!layer || !origin || !readNumber(fields[4], x) || !readNumber(fields[5], y)) return;
 
-            Sprite sprite{.layer = *layer, .origin = *origin, .pos = {x, y}, .path = cleanPath(fields[3])};
+            Sprite sprite{.layer = *layer, .origin = *origin, .pos = {x, y}};
             if(animation) {
                 i32 frameCount;
                 f64 frameDelay;
@@ -653,7 +735,11 @@ void StoryboardParser::eventLine(std::string_view line) {
                 sprite.loopForever = fields.size() <= 8 ||
                                      (SString::trimmed(fields[8]) != "LoopOnce" && SString::trimmed(fields[8]) != "1");
             }
-            this->sb.sprites.push_back(std::move(sprite));
+            std::string path = cleanPath(fields[3]);
+            const auto [known, added] = this->paths.try_emplace(path, (u32)this->sb.spritePaths.size());
+            if(added) this->sb.spritePaths.push_back(std::move(path));
+            sprite.path = known->second;
+            this->sb.sprites.push_back(sprite);
             this->sprite = &this->sb.sprites.back();
         } else if(type == "Sample" || type == "5") {
             f64 time;
@@ -672,19 +758,24 @@ void StoryboardParser::eventLine(std::string_view line) {
     }
 
     if(!this->sprite) return;
-    if(depth < 2) this->group = &this->sprite->cmds;
+    if(depth < 2) {
+        this->endNested();
+        this->group = &this->own;
+    }
 
     const std::string_view type = SString::trimmed(fields[0]);
     if(type == "L") {
         f64 start;
         i32 count;
         if(fields.size() < 3 || !readNumber(fields[1], start) || !Parsing::strto_s(fields[2], count)) return;
-        this->sprite->loops.push_back({.start = start, .iterations = std::max(count, 1), .cmds = {}});
-        this->group = &this->sprite->loops.back().cmds;
+        this->endNested();
+        this->nested = Loop{.start = start, .iterations = std::max(count, 1), .cmds = {}};
+        this->group = &this->nestedCmds;
         return;
     }
     if(type == "T") {
         const auto condition = fields.size() >= 2 ? parseTriggerCondition(fields[1]) : std::nullopt;
+        this->endNested();
         if(!condition) {
             this->group = nullptr;
             return;
@@ -694,13 +785,13 @@ void StoryboardParser::eventLine(std::string_view line) {
         if(fields.size() > 2) (void)readNumber(fields[2], start);
         if(fields.size() > 3) (void)readNumber(fields[3], end);
         if(fields.size() > 4) (void)Parsing::strto_s(fields[4], groupNumber);
-        this->sprite->triggers.push_back(
-            {.condition = *condition, .start = start, .end = end, .groupNumber = groupNumber, .cmds = {}});
-        this->group = &this->sprite->triggers.back().cmds;
+        this->nested =
+            Trigger{.condition = *condition, .start = start, .end = end, .groupNumber = groupNumber, .cmds = {}};
+        this->group = &this->nestedCmds;
         return;
     }
 
-    Group *group = this->group;
+    GroupBuilder *group = this->group;
     if(!group || fields.size() < 5) return;
 
     i32 easing;
@@ -787,22 +878,13 @@ void StoryboardParser::eventLine(std::string_view line) {
 }  // namespace
 
 void Storyboard::Impl::finish() {
-    // only what has something to do is drawn
-    std::erase_if(this->sprites, [](Sprite &sprite) {
-        std::erase_if(sprite.loops, [](const Loop &loop) { return loop.cmds.empty(); });
-        std::erase_if(sprite.triggers, [](const Trigger &trigger) { return trigger.cmds.empty(); });
-        return sprite.cmds.empty() && sprite.loops.empty() && sprite.triggers.empty();
-    });
-
     for(u32 i = 0; i < this->sprites.size(); i++) {
         Sprite &sprite = this->sprites[i];
-        sprite.cmds.sort();
-        for(auto &loop : sprite.loops) loop.cmds.sort();
-        for(auto &trigger : sprite.triggers) trigger.cmds.sort();
+        const auto loops = this->lists[sprite.loops];
 
         f64 earliest = sprite.cmds.start;
         f64 end = sprite.cmds.end;
-        for(const auto &loop : sprite.loops) {
+        for(const auto &loop : loops) {
             earliest = std::min(earliest, loop.start + loop.cmds.start);
             end = std::max(end, loop.start + loop.cmds.start + loop.duration() * loop.iterations);
         }
@@ -818,14 +900,14 @@ void Storyboard::Impl::finish() {
 
         const auto visible = [](f32 alpha) { return drawnOpacity(alpha) > 0.f; };
         std::vector<std::pair<f64, const Command<f32> *>> alphas;  // (startTime, cmd)
-        const auto collectAlphas = [&](const std::vector<Command<f32>> &cmds, f64 offset) {
+        const auto collectAlphas = [&](std::span<const Command<f32>> cmds, f64 offset) {
             for(const auto &cmd : cmds) {
                 alphas.emplace_back(cmd.start + offset, &cmd);
                 if(visible(cmd.from) || visible(cmd.to)) break;
             }
         };
-        collectAlphas(sprite.cmds.alpha, 0.0);
-        for(const auto &loop : sprite.loops) collectAlphas(loop.cmds.alpha, loop.start);
+        collectAlphas(this->lists[sprite.cmds.alpha], 0.0);
+        for(const auto &loop : loops) collectAlphas(this->lists[loop.cmds.alpha], loop.start);
         if(!alphas.empty() && sprite.triggers.empty()) {
             const auto first = Mc::ranges::min_element(alphas, {}, &std::pair<f64, const Command<f32> *>::first);
             f64 firstVisible = INF;
@@ -841,8 +923,8 @@ void Storyboard::Impl::finish() {
             xy |= !g.x.empty() || !g.y.empty();
         };
         has(sprite.cmds);
-        for(const auto &loop : sprite.loops) has(loop.cmds);
-        for(const auto &trigger : sprite.triggers) has(trigger.cmds);
+        for(const auto &loop : loops) has(loop.cmds);
+        for(const auto &trigger : this->lists[sprite.triggers]) has(trigger.cmds);
         if((s && v) || (m && xy)) {
             sprite.slots = (u32)this->slots.size();
             this->slots.push_back({.pos = sprite.pos});
@@ -920,17 +1002,18 @@ void Storyboard::Impl::resolveFiles(std::span<const std::string> skinDirs) {
     };
 
     for(auto &sprite : this->sprites) {
+        const std::string &path = this->spritePaths[sprite.path];
         sprite.firstImage = (u32)this->frameFiles.size();
         if(sprite.frameCount == 0) {
-            this->frameFiles.push_back(findImage(sprite.path));
+            this->frameFiles.push_back(findImage(path));
             continue;
         }
-        const uSz slash = sprite.path.rfind('/');
-        const uSz dot = sprite.path.rfind('.');
+        const uSz slash = path.rfind('/');
+        const uSz dot = path.rfind('.');
         const uSz numberAt =
-            dot != std::string::npos && (slash == std::string::npos || dot > slash) ? dot : sprite.path.size();
+            dot != std::string::npos && (slash == std::string::npos || dot > slash) ? dot : path.size();
         for(u32 i = 0; i < sprite.frameCount; i++) {
-            std::string framePath = sprite.path;
+            std::string framePath = path;
             framePath.insert(numberAt, std::to_string(i));
             this->frameFiles.push_back(findImage(framePath));
         }
@@ -959,8 +1042,8 @@ void Storyboard::Impl::resolveFiles(std::span<const std::string> skinDirs) {
 Picks Storyboard::Impl::picksAt(u32 index, f64 time, f64 firedBy) const {
     const Sprite &sprite = this->sprites[index];
     Picks picks;
-    picks.each(sprite.cmds, [time](auto &pick, const auto &cmds) { pick.sorted(cmds, 0.0, time); });
-    for(const auto &loop : sprite.loops) {
+    picks.each(sprite.cmds, [&](auto &pick, const auto &cmds) { pick.sorted(this->lists[cmds], 0.0, time); });
+    for(const auto &loop : this->lists[sprite.loops]) {
         // each command repeats on its own: by now, the ones that started iteration k (counted from the loop's first
         // command) are on it, the others still on k - 1; before the loop they're all on the first, after it on the last
         const f64 duration = loop.duration();
@@ -968,13 +1051,14 @@ Picks Storyboard::Impl::picksAt(u32 index, f64 time, f64 firedBy) const {
         const f64 iteration = std::clamp(k, 0.0, (f64)(loop.iterations - 1));
         const f64 current = loop.start + duration * iteration;
         const f64 split = iteration == k && k > 0.0 ? time - current : INF;
-        picks.each(loop.cmds,
-                   [&](auto &pick, const auto &cmds) { pick.loop(cmds, current, current - duration, split, time); });
+        picks.each(loop.cmds, [&](auto &pick, const auto &cmds) {
+            pick.loop(this->lists[cmds], current, current - duration, split, time);
+        });
     }
     for(const auto &fired : sprite.fired == NO_INDEX ? std::span<const FiredTrigger>{} : this->fired[sprite.fired]) {
         if(fired.time > firedBy) continue;
-        picks.each(sprite.triggers[fired.trigger].cmds,
-                   [&](auto &pick, const auto &cmds) { pick.sorted(cmds, fired.time, time); });
+        picks.each(this->lists[sprite.triggers][fired.trigger].cmds,
+                   [&](auto &pick, const auto &cmds) { pick.sorted(this->lists[cmds], fired.time, time); });
     }
     return picks;
 }
@@ -1037,8 +1121,9 @@ std::optional<Storyboard::SpriteState> Storyboard::Impl::stateAt(u32 index, f64 
 void Storyboard::Impl::fire(TriggerCondition::Kind kind, const HitSound *sound, f64 time) {
     for(const u32 s : this->triggered) {
         const Sprite &sprite = this->sprites[s];
-        for(u32 t = 0; t < sprite.triggers.size(); t++) {
-            const Trigger &trigger = sprite.triggers[t];
+        const auto triggers = this->lists[sprite.triggers];
+        for(u32 t = 0; t < triggers.size(); t++) {
+            const Trigger &trigger = triggers[t];
             if(trigger.condition.kind != kind || time < trigger.start || time > trigger.end) continue;
             if(sound && !trigger.condition.matches(*sound)) continue;
 
@@ -1046,7 +1131,7 @@ void Storyboard::Impl::fire(TriggerCondition::Kind kind, const HitSound *sound, 
             auto &fired = this->fired[sprite.fired];
             std::erase_if(fired, [&](const FiredTrigger &f) {
                 return f.trigger == t ||
-                       (trigger.groupNumber != 0 && sprite.triggers[f.trigger].groupNumber == trigger.groupNumber);
+                       (trigger.groupNumber != 0 && triggers[f.trigger].groupNumber == trigger.groupNumber);
             });
             fired.push_back({.trigger = t, .time = time});
         }
@@ -1140,7 +1225,7 @@ bool Storyboard::replacesBackground() const {
     const auto &bg = this->impl->backgroundFile;
     if(bg.empty()) return false;
     return Mc::ranges::any_of(this->impl->sprites, [&](const Sprite &sprite) {
-        return sprite.layer == Layer::BACKGROUND && SString::strcase_equal(sprite.path, bg);
+        return sprite.layer == Layer::BACKGROUND && SString::strcase_equal(this->impl->spritePaths[sprite.path], bg);
     });
 }
 
