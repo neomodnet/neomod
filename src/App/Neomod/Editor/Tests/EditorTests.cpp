@@ -63,7 +63,7 @@
 
 namespace {
 using TimingPoint = neomod::BeatmapFile::TimingPoint;
-using Cue = neomod::HitObject::SoundCue;
+using Cue = neomod::SoundCue;
 
 TimingPoint uninherited(f64 time, f64 beatLength) {
     TimingPoint point;
@@ -3779,7 +3779,7 @@ class EditorTests {
                     if(std::exchange(first, false)) {
                         if(neomod::HitObject *object = state.objects->find(sliders[i]);
                            object && object->isSlider() && object->getDuration() > 0) {
-                            const i32 spans = static_cast<const neomod::Slider &>(*object).getRepeat();
+                            const i32 spans = object->getRepeat();
                             const f64 end = object->getEndTime() + (f64)object->getDuration() / std::max(spans, 1);
                             if(compose.startEndDrag({.object = object, .id = sliders[i], .node = spans})) {
                                 compose.dragEnd(end, true);

@@ -663,14 +663,14 @@ void BeatmapFileTest::runTests() {
         const auto comboEnds = [&load](std::string_view text) {
             std::string ends;
             HitObjects objects;
-            objects.build(load(text), nullptr, nullptr);
+            objects.build(load(text), nullptr);
             for(const u8 endsCombo : objects.endsCombo) ends += endsCombo ? '1' : '0';
             return ends;
         };
         const auto comboStarts = [&load](std::string_view text) {
             std::string starts;
             HitObjects objects;
-            objects.build(load(text), nullptr, nullptr);
+            objects.build(load(text), nullptr);
             for(const i32 start : objects.comboStartTimes) starts += fmt::format("{} ", start);
             return starts;
         };

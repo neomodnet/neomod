@@ -23,8 +23,8 @@ class MapObjects {
         bool meshBuilt;  // sliders build theirs before they're first drawn
     };
     struct Sounds {
-        std::vector<neomod::HitObject::SoundCue> cues;  // in time order
-        i32 longestSlideMS{0};                          // how far back a slide that still plays can start
+        std::vector<neomod::SoundCue> cues;  // in time order
+        i32 longestSlideMS{0};               // how far back a slide that still plays can start
     };
 
     explicit MapObjects(const Document &document);

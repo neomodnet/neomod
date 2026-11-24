@@ -2575,7 +2575,7 @@ bool BeatmapInterface::clickableHitobjectAt(vec2 cursor_pos) const {
     const HitObjects &hitobjects = this->judge->getHitObjects();
     for(uSz i = this->judge->getFirstLiveObject(musicPos); i < hitobjects.size(); i++) {
         if(hitobjects.clickTimes[i] - musicPos > (i32)GameRules::HITWINDOW_MISS) break;
-        if(hitobjects[i].isClickableFrom(musicPos, replayCursorPos)) return true;
+        if(this->judge->isClickable((u32)i, musicPos, replayCursorPos)) return true;
     }
 
     return false;

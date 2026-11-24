@@ -187,6 +187,10 @@ class GameplayJudge final {
 
     [[nodiscard]] vec2 getCursorPos() const;
     [[nodiscard]] inline vec2 getAutoCursorPos() const { return this->vAutoCursorPos; }
+    // where autoplay has the cursor on object i at curPosMS
+    [[nodiscard]] vec2 getAutoCursorPos(u32 i, i32 curPosMS) const;
+    // whether a click at musicPos on cursorPos (osu!px) would hit object i
+    [[nodiscard]] bool isClickable(u32 i, i32 musicPos, vec2 cursorPos) const;
     [[nodiscard]] inline u8 getKeys() const { return this->current_keys; }
     [[nodiscard]] bool isClickHeld() const;
 
@@ -232,6 +236,51 @@ class GameplayJudge final {
 
    private:
     void update(f64 frameTimeSecs);
+
+    // judging object i: at curPosMS after the step clicks (circles and sliders), and when notelock misses it
+    void updateObject(u32 i, i32 curPosMS, f64 frameTimeSecs);
+    void missObject(u32 i, i32 curPosMS);
+    // done at curPosMS when it's before it (or going on), not when it's past
+    void resetObject(u32 i, i32 curPosMS);
+    void resetCommon(u32 i);
+
+    // a judgement for object i with its look (see showHitResult()). Target judges by targetDelta instead of the time
+    void addObjectHitResult(u32 i, LiveHitResult result, i32 delta, bool isEndOfCombo, vec2 posRaw,
+                            f32 targetDelta = 0.0f, f32 targetAngle = 0.0f, bool ignoreOnHitErrorBar = false,
+                            bool ignoreCombo = false, bool ignoreHealth = false,
+                            bool addObjectDurationToSkinAnimationTimeStartOffset = true);
+    // shows a hit result at posRaw without judging anything
+    void showHitResult(u32 i, LiveHitResult result, i32 delta, vec2 posRaw,
+                       bool addObjectDurationToSkinAnimationTimeStartOffset);
+    // whether hits start animations on the drawn objects
+    [[nodiscard]] bool animatesHits() const;
+
+    void updateCircle(u32 i, i32 curPosMS);
+    void clickCircle(u32 i);
+    void missCircle(u32 i, i32 curPosMS);
+    void hitCircle(u32 i, LiveHitResult result, i32 delta, f32 targetDelta = 0.0f, f32 targetAngle = 0.0f);
+    void resetCircle(u32 i, i32 curPosMS);
+    [[nodiscard]] bool isCircleClickable(u32 i, i32 music_pos, vec2 cursor_pos) const;
+
+    void updateSlider(u32 i, i32 curPosMS);
+    void clickSlider(u32 i);
+    void missSlider(u32 i, i32 curPosMS);
+    void hitSlider(u32 i, LiveHitResult result, i32 delta, bool isEndCircle, f32 targetDelta = 0.0f,
+                   f32 targetAngle = 0.0f, bool isEndResultFromStrictTrackingMod = false);
+    void hitSliderRepeat(u32 i, const neomod::SliderClick &click);
+    void hitSliderTick(u32 i, const neomod::SliderClick &click);
+    void resetSlider(u32 i, i32 curPosMS);
+    void addSliderHitAnim(u32 i, u8 typeFlags, f32 duration);
+    // whatever changes the cursor position or the keys that count calls this
+    void updateSliderTracking(u32 i);
+    [[nodiscard]] bool isSliderHeld(u32 i) const;  // special logic to disallow hold tapping
+    [[nodiscard]] bool isSliderClickable(u32 i, i32 music_pos, vec2 cursor_pos) const;
+
+    void updateSpinner(u32 i, i32 curPosMS, f64 frameTimeSecs);
+    void hitSpinner(u32 i);
+    void rotateSpinner(u32 i, f32 rad, i32 curPosMS);
+    void resetSpinner(u32 i, i32 curPosMS);
+    [[nodiscard]] vec2 getSpinnerAutoCursorPos(u32 i, i32 curPosMS) const;
     void updateAutoCursorPos();
     void addHealth(f64 percent, bool isFromHitResult);
     void resetScore();

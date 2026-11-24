@@ -24,8 +24,8 @@ class Playback {
     void stop();
 
     // the cues (in time order) that play when the time goes from `from` to `to`: after `from`, up to `to`
-    [[nodiscard]] static std::span<const neomod::HitObject::SoundCue> crossed(
-        std::span<const neomod::HitObject::SoundCue> cues, i32 from, i32 to);
+    [[nodiscard]] static std::span<const neomod::SoundCue> crossed(std::span<const neomod::SoundCue> cues, i32 from,
+                                                                   i32 to);
 
    private:
     bool sliding{false};

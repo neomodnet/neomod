@@ -123,12 +123,12 @@ void PlayfieldPanel::draw() {
             obj->rebuildVertexBuffer();
             it->meshBuilt = true;
         }
-        obj->pose(time, fadeOutMS, trailMS);
+        HitObjectDrawing::pose(objects.objects, obj->getIndex(), objects.view, time, fadeOutMS, trailMS);
         // selected slider borders and spinners are tinted, and a slider whose body is picked gets a red border
-        obj->setTint(!compose.isSelected(it->id) ? std::nullopt
-                     : obj->isSpinner()          ? std::optional{SELECTED_SPINNER}
-                     : bodyPicked                ? std::optional{PICKED}
-                                                 : std::optional{SELECTED_SLIDER});
+        objects.objects.looks[obj->getIndex()].tint = !compose.isSelected(it->id) ? std::nullopt
+                                                      : obj->isSpinner()          ? std::optional{SELECTED_SPINNER}
+                                                      : bodyPicked                ? std::optional{PICKED}
+                                                                                  : std::optional{SELECTED_SLIDER};
         this->shown.push_back(obj->getIndex());
     }
     std::reverse(this->shown.begin(), this->shown.end());

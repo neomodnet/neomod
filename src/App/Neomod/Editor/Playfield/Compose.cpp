@@ -79,7 +79,7 @@ vec2 stackOffsetOf(const MapObjects &objects, Document::Id id) {
 std::vector<i32> edgeTimes(const HitObject &object) {
     std::vector<i32> times{object.getClickTime()};
     if(object.isSlider()) {
-        for(const auto &click : static_cast<const Slider &>(object).getClicks()) {
+        for(const auto &click : object.getClicks()) {
             if(click.type == 0) times.push_back(click.timeMS);
         }
     }
@@ -88,7 +88,7 @@ std::vector<i32> edgeTimes(const HitObject &object) {
 }
 
 // whether pos is within `radius` from the slider body (along its first span, as finely as a few points per radius)
-bool onBody(const Slider &slider, vec2 pos, f32 radius) {
+bool onBody(const HitObject &slider, vec2 pos, f32 radius) {
     const f32 span = (f32)slider.getDuration() / (f32)std::max(slider.getRepeat(), 1);
     const i32 samples = std::clamp((i32)(slider.getPixelLength() / std::max(radius / 2.f, 1.f)), 2, 1000);
     for(i32 i = 0; i <= samples; i++) {
@@ -259,7 +259,7 @@ std::optional<Compose::Part> Compose::getPicked() const {
     const HitObject *object = this->state.objects->find(this->selection.front());
     if(!object || !object->isSlider()) return std::nullopt;
     // an edge the slider doesn't have any more is none
-    if(this->picked->edge && *this->picked->edge > std::max(static_cast<const Slider &>(*object).getRepeat(), 1)) {
+    if(this->picked->edge && *this->picked->edge > std::max(object->getRepeat(), 1)) {
         return std::nullopt;
     }
     return this->picked;
@@ -284,7 +284,7 @@ std::optional<Compose::Part> Compose::partAt(vec2 pos) const {
         if(!nearest || std::abs(times[i] - time) < std::abs(times[*nearest] - time)) nearest = i;
     }
     if(nearest) return Part{.edge = (i32)*nearest};
-    if(onBody(static_cast<const Slider &>(*object), pos, radius)) return Part{.edge = std::nullopt};
+    if(onBody(*object, pos, radius)) return Part{.edge = std::nullopt};
     return std::nullopt;
 }
 
@@ -364,7 +364,7 @@ bool Compose::isShown(const HitObject &object) const {
 
 i32 Compose::tailTime(const HitObject &object) {
     if(object.isSlider()) {
-        for(const auto &click : static_cast<const Slider &>(object).getClicks()) {
+        for(const auto &click : object.getClicks()) {
             if(click.type == 0) return click.timeMS;
         }
     }
@@ -438,9 +438,7 @@ std::optional<Compose::Hit> Compose::objectAt(vec2 pos) const {
         return best ? std::optional{hit(*best)} : std::nullopt;
     };
     if(auto found = nearest([&](const HitObject &object) { return reaches(object, radius * 0.8f); })) return found;
-    return nearest([&](const HitObject &object) {
-        return object.isSlider() && onBody(static_cast<const Slider &>(object), pos, radius);
-    });
+    return nearest([&](const HitObject &object) { return object.isSlider() && onBody(object, pos, radius); });
 }
 
 std::optional<Compose::Hit> Compose::objectAtTime(f64 timeMS, f64 withinMS) const {
@@ -871,7 +869,7 @@ void Compose::hover(std::optional<vec2> cursor, f32 within) {
            (at && std::abs(object.getClickTime() - time) >= std::abs(objects.objects[*at].getClickTime() - time))) {
             continue;
         }
-        if(onBody(static_cast<const Slider &>(object), *cursor, radius)) at = i;
+        if(onBody(object, *cursor, radius)) at = i;
     }
     if(!at) {
         this->hovered.reset();
@@ -1521,7 +1519,7 @@ bool Compose::startEndDrag(const Hit &hit) {
     this->endDrag.reset();
     const HitObject &object = *hit.object;
     if(object.isCircle() || object.getDuration() <= 0 || !hit.node) return false;
-    const i32 spans = object.isSlider() ? std::max(static_cast<const Slider &>(object).getRepeat(), 1) : 1;
+    const i32 spans = object.isSlider() ? std::max(object.getRepeat(), 1) : 1;
     if(*hit.node != spans || (this->isSelected(hit.id) && this->selection.size() > 1)) return false;
     const auto record = this->state.document->getObject(hit.id);
     if(!record) return false;

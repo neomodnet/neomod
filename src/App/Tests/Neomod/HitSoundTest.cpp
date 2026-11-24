@@ -569,17 +569,17 @@ void HitSoundTest::runTests() {
             std::span{reinterpret_cast<const u8 *>(map.data()), map.size()}, {});
         TEST_ASSERT(!c.error, "the map loads");
         HitObjects objects;
-        objects.build(c, nullptr, nullptr);
+        objects.build(c, nullptr);
         TEST_ASSERT_EQ(objects.size(), (uSz)4, "four objects");
         if(objects.size() == 4) {
-            using Kind = HitObject::SoundCue::Kind;
-            const auto cuesOf = [](const HitObject &obj) {
-                std::vector<HitObject::SoundCue> cues;
-                obj.addSoundCues(cues);
+            using Kind = SoundCue::Kind;
+            const auto cuesOf = [&objects](uSz index) {
+                std::vector<SoundCue> cues;
+                objects.addSoundCues(index, cues);
                 return cues;
             };
 
-            const auto circle = cuesOf(objects[0]);
+            const auto circle = cuesOf(0);
             TEST_ASSERT_EQ(circle.size(), (uSz)1, "a circle: one hit");
             if(circle.size() == 1) {
                 TEST_ASSERT_EQ(circle[0].timeMS, 1000, "at its time");
@@ -588,15 +588,15 @@ void HitSoundTest::runTests() {
             }
 
             // head, slide, two repeats, a tick per span, end
-            const auto slider = cuesOf(objects[1]);
+            const auto slider = cuesOf(1);
             TEST_ASSERT_EQ(slider.size(), (uSz)8, "a slider with two repeats and a tick per span: eight cues");
-            const auto find = [](const std::vector<HitObject::SoundCue> &cues, i32 timeMS, Kind kind) {
+            const auto find = [](const std::vector<SoundCue> &cues, i32 timeMS, Kind kind) {
                 for(const auto &cue : cues) {
                     if(cue.timeMS == timeMS && cue.kind == kind) return &cue;
                 }
-                return static_cast<const HitObject::SoundCue *>(nullptr);
+                return static_cast<const SoundCue *>(nullptr);
             };
-            const auto hitSoundsAt = [&](const std::vector<HitObject::SoundCue> &cues, i32 timeMS) {
+            const auto hitSoundsAt = [&](const std::vector<SoundCue> &cues, i32 timeMS) {
                 const auto *cue = find(cues, timeMS, Kind::HIT);
                 return cue ? (i32)cue->samples.hitSounds : -1;
             };
@@ -614,7 +614,7 @@ void HitSoundTest::runTests() {
                 TEST_ASSERT_NEAR(end->rawPos.x, 344.f, 1.f, "three spans end at the far end, where the end is heard");
             }
 
-            const auto spinner = cuesOf(objects[2]);
+            const auto spinner = cuesOf(2);
             TEST_ASSERT_EQ(spinner.size(), (uSz)1, "a spinner: one hit");
             if(spinner.size() == 1) {
                 TEST_ASSERT_EQ(spinner[0].timeMS, 7000, "at its end");
@@ -622,7 +622,7 @@ void HitSoundTest::runTests() {
             }
 
             // three repeats with only a head and an end sample given: the repeats play the head's
-            const auto fallback = cuesOf(objects[3]);
+            const auto fallback = cuesOf(3);
             TEST_ASSERT_EQ(hitSoundsAt(fallback, 9000), (i32)HitSoundType::CLAP,
                            "more repeats than edge samples: a repeat plays the start's");
             TEST_ASSERT_EQ(hitSoundsAt(fallback, 11000), (i32)HitSoundType::CLAP, "every repeat");
@@ -642,14 +642,14 @@ void HitSoundTest::runTests() {
             std::span{reinterpret_cast<const u8 *>(map.data()), map.size()}, {});
         TEST_ASSERT(!c.error, "the map with unified sliders loads");
         HitObjects objects;
-        objects.build(c, nullptr, nullptr);
+        objects.build(c, nullptr);
         TEST_ASSERT_EQ(objects.size(), (uSz)3, "three sliders");
         if(objects.size() == 3) {
             const auto hitAt = [&](uSz index, i32 timeMS) {
-                std::vector<HitObject::SoundCue> cues;
-                objects[index].addSoundCues(cues);
+                std::vector<SoundCue> cues;
+                objects.addSoundCues(index, cues);
                 for(const auto &cue : cues) {
-                    if(cue.timeMS == timeMS && cue.kind == HitObject::SoundCue::Kind::HIT) return cue.samples;
+                    if(cue.timeMS == timeMS && cue.kind == SoundCue::Kind::HIT) return cue.samples;
                 }
                 return HITSAMPLE_BITS{
                     .hitSounds = 0xff, .normalSet = 0xff, .additionSet = 0xff, .volume = 0, .index = 0, .filename = 0};

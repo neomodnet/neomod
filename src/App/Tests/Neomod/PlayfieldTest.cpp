@@ -89,7 +89,7 @@ bool PlayfieldTest::load(const std::string &path) {
     m_view.comboColors = c.combocolors;
 
     HitObjects &objects = *m_objects;
-    objects.build(c, nullptr, &m_view);
+    objects.build(c, &m_view);
     objects.stack(0, objects.size(), c.AR, c.version, c.stackLeniency, m_view.rawHitcircleDiameter, false);
 
     for(uSz i = 0; i < objects.size(); i++) m_byEndTime.push_back({(u32)i, false});
@@ -118,14 +118,15 @@ void PlayfieldTest::drawAt(i32 timeMS) {
     // what can show at timeMS (approaching or fading out), posed
     const i32 lead = (i32)m_view.approachTimeMS + GameRules::getFadeInTime() + 1000;
     m_shown.clear();
-    const HitObjects &objects = *m_objects;
+    HitObjects &objects = *m_objects;
     for(Entry &e : std::views::reverse(m_byEndTime)) {
         if(objects.clickTimes[e.index] - lead > timeMS || objects.endTimes[e.index] + 2000 < timeMS) continue;
         if(!e.meshBuilt) {
             objects[e.index].rebuildVertexBuffer();
             e.meshBuilt = true;
         }
-        objects[e.index].pose(timeMS, fadeOutMS, m_trail ? GameRules::EDITOR_TRAIL_TIME_MS : 0);
+        HitObjectDrawing::pose(objects, e.index, m_view, timeMS, fadeOutMS,
+                               m_trail ? GameRules::EDITOR_TRAIL_TIME_MS : 0);
         m_shown.push_back(e.index);
     }
 

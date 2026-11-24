@@ -46,34 +46,181 @@ enum class HitObjectType : uint8_t {
 
 class HitObjects;
 
+// a sound a perfect play makes: what judgement plays when the object, or a part of it, is hit at its time
+struct SoundCue {
+    enum class Kind : u8 {
+        HIT,    // a circle, a slider's head, repeats and end, a spinner's end
+        TICK,   // a slider tick
+        SLIDE,  // a slider's slide sound, held until endTimeMS
+    };
+    i32 timeMS;
+    i32 endTimeMS;
+    Kind kind;
+    DatabaseBeatmapTypes::HITSAMPLE_BITS samples;
+    vec2 rawPos;  // where it happens (osu!px), which its pan follows
+};
+
+// a hit result shown over an object
+struct HitResultAnim {
+    vec2 rawPos{0.f};
+    i32 deltaMS{0};
+    f32 deltaRangePercent{0.f};  // deltaMS within the 50 window, -1 (early) to 1 (late)
+    f32 timeSecs{-9999.0f};
+    LiveHitResult result{0 /* LiveHitResult::HIT_NULL*/};
+    bool addObjectDurationToSkinAnimationTimeStartOffset{false};
+};
+
+// what an object looks like at the time it was last animated or posed
+struct HitObjectLook {
+    // currently a maximum of 2 simultaneous results are supported (for drawing, per hitobject)
+    HitResultAnim result1;
+    HitResultAnim result2;
+
+    i32 deltaMS{0};  // this must be signed
+    i32 approachTimeMS{0};
+    i32 fadeInTimeMS{0};  // extra time added before the approachTime to let the object smoothly become visible
+
+    f32 alpha{0.f};
+    f32 alphaWithoutHidden{0.f};
+    f32 alphaForApproachCircle{0.f};
+    f32 approachScale{0.f};
+    f32 hittableDimRGBColorMultiplierPct{1.f};
+    // a posed trail (see HitObjectDrawing::pose()): the circle (or slider head) alpha, 0 without one, and the
+    // approach circle scale
+    f32 trailAlpha{0.f};
+    f32 trailApproachScale{1.f};
+    std::optional<Color> tint;  // a slider border or a spinner in this colour instead of its own (none: its own)
+
+    bool overrideHDApproachCircle{false};
+    bool useFadeInTimeAsApproachTime{false};
+};
+
+struct CircleState {
+    AnimFloat hitAnimation;
+    f32 shakeAnimation{0.f};
+    bool waiting{false};
+};
+
+struct SliderClick {
+    i32 timeMS;
+    i32 type;  // 0: a repeat, 1: a tick
+    i32 tickIndex;
+    bool finished;
+    bool successful;
+    bool sliderend;
+};
+
+struct SliderTick {
+    f32 percent;
+    bool finished;
+};
+
+struct SliderHitAnim {
+    AnimFloat percent;
+    // HEAD_TAIL is to emulate how pre-2015 osu! sliders were rendered,
+    // when the tail animation happens, the head also gets an additional hit animation, but without drawing the numbers again
+    // (TODO: shelved the idea for now)
+    enum : u8 { HEAD = (1 << 0), TAIL = (1 << 1), HEAD_TAIL = HEAD | TAIL | (1 << 2) } type;
+    [[nodiscard]] bool isAnimating() const { return (percent > 0.f && percent != 1.f); };
+};
+
+struct SliderState {
+    SliderState(SLIDERCURVETYPE stype, std::span<const vec2> points, f32 pixelLength);
+
+    std::vector<SliderHitAnim> clickAnimations;
+    std::vector<DatabaseBeatmapTypes::HITSAMPLE_BITS> edgeSamples;
+    std::vector<HitSoundUtils::Set_Slider_Hit> lastSliderSampleSets;
+
+    std::vector<SliderTick> ticks;  // ticks (drawing)
+
+    // TEMP: auto cursordance
+    std::vector<SliderClick> clicks;  // repeats (type 0) + ticks (type 1), in time order
+
+    SliderRenderer::Mesh mesh;
+
+    SliderCurve curve;
+
+    vec2 stackOffset{0.f};
+    vec2 curPoint{0.f};
+    vec2 curPointRaw{0.f};
+
+    i32 strictTrackingModLastClickHeldTime{0};
+
+    f32 sliderTimeMS{0.f};
+    f32 sliderTimeMSWithoutRepeats{0.f};
+
+    f32 slidePct{0.f};  // 0.0f - 1.0f - 0.0f - 1.0f - etc.
+    f32 sliderSnakePercent{0.f};
+    f32 reverseArrowAlpha{0.f};
+    f32 bodyAlpha{0.f};
+
+    AnimFloat endSliderBodyFadeAnimation;
+
+    AnimFloat followCircleTickAnimationScale;
+    f32 followCircleAnimationScale{0.f};
+    f32 followCircleAnimationAlpha{0.f};
+
+    i32 repeat{0};
+    i32 ignoredKeys{0};
+    i32 reverseArrowPos{0};
+    i32 curRepeat{0};
+    i32 curRepeatCounterForHitSounds{0};
+    i32 slideStartTimeMS{-1};
+    u32 numCtrlPoints{0};
+
+    LiveHitResult startResult{0 /* LiveHitResult::HIT_NULL*/};
+    LiveHitResult endResult{0 /* LiveHitResult::HIT_NULL*/};
+
+    bool startFinished{false};
+    bool endFinished{false};
+    bool cursorLeft{true};
+    bool cursorInside{false};
+    bool tracking{false};  // inside and held: the follow circle shows
+    bool heldTillEnd{false};
+    bool heldTillEndForLenienceHack{false};
+    bool heldTillEndForLenienceHackCheck{false};
+    bool inReverse{false};
+    bool hideNumberAfterFirstRepeatHit{false};
+
+    // the point on the curve at t (0 to 1), with its stack
+    [[nodiscard]] vec2 pointAt(f32 t) const { return this->curve.pointAt(t) - this->stackOffset; }
+    // what the repeat-th repeat (counted from 1) plays
+    [[nodiscard]] const DatabaseBeatmapTypes::HITSAMPLE_BITS &repeatSamples(i32 repeat) const;
+};
+
+struct SpinnerState {
+    f32 percent{0.f};
+
+    f32 drawRot{0.f};
+    f32 rotations{0.f};
+    i32 halfSpinsNeeded{-1};
+    f32 deltaOverflowMS{0.f};
+    f32 deltaAngleOverflow{0.f};
+
+    // in rad per real ms
+    f32 velocity{0.f};
+    f32 theoreticalVelocity{0.f};
+    i32 stillSteps{0};
+
+    f32 RPM{0.f};
+
+    f32 lastMouseAngle{0.f};
+    f32 ratio{0.f};
+
+    // music positions driving the skin element animations (-1 == not happened yet)
+    i32 completedTimeMS{-1};  // spinner cleared ("CLEAR!")
+    i32 firstSpinTimeMS{-1};  // first half rotation (fades out "SPIN!")
+    i32 bonusTimeMS{-1};      // latest bonus spin (bonus counter, glow flash)
+    i32 bonusSpins{0};
+    i32 lastDrawMusicPosMS{0};
+    bool hitSuccess{false};  // non-miss result ("spinner-osu")
+};
+
+// an object as read by the editor and the tests
 class HitObject {
    public:
-    // a sound a perfect play makes: what judgement plays when the object, or a part of it, is hit at its time
-    struct SoundCue {
-        enum class Kind : u8 {
-            HIT,    // a circle, a slider's head, repeats and end, a spinner's end
-            TICK,   // a slider tick
-            SLIDE,  // a slider's slide sound, held until endTimeMS
-        };
-        i32 timeMS;
-        i32 endTimeMS;
-        Kind kind;
-        DatabaseBeatmapTypes::HITSAMPLE_BITS samples;
-        vec2 rawPos;  // where it happens (osu!px), which its pan follows
-    };
-
-    // pos is on the screen
-    static void drawHitResult(const PlayfieldView &view, vec2 pos, LiveHitResult result, f32 animPercentInv,
-                              f32 hitDeltaRangePercent);
-
-   protected:  // only constructable through subclasses
-    // the one at index among objects, whose fields there it reads and writes.
-    // judge: what judges it (NULL: never updated), view: what it's drawn on (NULL: never drawn)
-    HitObject(HitObjects &objects, u32 index, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, GameplayJudge *judge,
-              const PlayfieldView *view);
-
-   public:
-    HitObject() = delete;
+    HitObject(HitObjects &objects, u32 index, const PlayfieldView *view)
+        : m_objects(objects), m_index(index), m_view(view) {}
     virtual ~HitObject() = default;
 
     HitObject(const HitObject &) = delete;
@@ -81,22 +228,14 @@ class HitObject {
     HitObject(HitObject &&) noexcept = delete;
     HitObject &operator=(HitObject &&) noexcept = delete;
 
-    virtual void animate(f64 curPosMS);
     virtual void draw() {}
     virtual void draw2();
-    virtual void update(i32 curPosMS, f64 frameTimeMS) = 0;
+    // only for sliders
+    virtual void rebuildVertexBuffer() { ; }
 
-    // shows the object at timeMS as a perfect play would have left it, without judging it: every part hit at its
-    // time, hit animations timeMS - hit time into fadeOutMS of music time, no hit results; spinners aren't spun.
-    // with a trail (trailMS > 0, osu!stable's editor without hit animations), circles and slider heads stay white after
-    // their hit and fade out over trailMS instead, and slider repeats and ends don't animate
-    virtual void pose(i32 timeMS, i32 fadeOutMS, i32 trailMS) = 0;
-    // the sounds a perfect play makes for it: pose()'s counterpart for sound
-    virtual void addSoundCues(std::vector<SoundCue> &out) const = 0;
-
-    virtual void updateStackPosition(f32 /*stackOffset*/, bool /*hardRock*/) {}  // unused by spinners
-    virtual void miss(i32 /*curPos*/) {}                                         // only used by notelock
-    [[nodiscard]] virtual bool isClickableFrom(i32 /*music_pos*/, vec2 /*cursor_pos*/) const { return false; }
+    // pos is on the screen
+    static void drawHitResult(const PlayfieldView &view, vec2 pos, LiveHitResult result, f32 animPercentInv,
+                              f32 hitDeltaRangePercent);
 
     // where it is among the objects
     [[nodiscard]] u32 getIndex() const { return m_index; }
@@ -106,122 +245,32 @@ class HitObject {
     [[nodiscard]] bool isSlider() const { return this->getType() == HitObjectType::SLIDER; }
     [[nodiscard]] bool isSpinner() const { return this->getType() == HitObjectType::SPINNER; }
 
-    // Gameplay logic
     [[nodiscard]] i32 getEndTime() const;
     [[nodiscard]] i32 getClickTime() const;
     [[nodiscard]] i32 getDuration() const { return this->getEndTime() - this->getClickTime(); }
-
     [[nodiscard]] bool isEndOfCombo() const;
-
-    // Visual
     [[nodiscard]] i32 getComboStartTime() const;
     [[nodiscard]] i32 getComboNumber() const;
-
     // the line in its file it was read from (1-based, 0: not from a file)
     [[nodiscard]] u32 getLine() const;
-
-    void addHitResult(LiveHitResult result, i32 delta, bool isEndOfCombo, vec2 posRaw, f32 targetDeltaPct = 0.0f,
-                      f32 targetAngle = 0.0f, bool ignoreOnHitErrorBar = false, bool ignoreCombo = false,
-                      bool ignoreHealth = false, bool addObjectDurationToSkinAnimationTimeStartOffset = true);
-    // shows a hit result at posRaw without judging anything
-    void addHitResultAnim(LiveHitResult result, i32 delta, vec2 posRaw,
-                          bool addObjectDurationToSkinAnimationTimeStartOffset);
-
-    void setForceDrawApproachCircle(bool firstNote) { m_overrideHDApproachCircle = firstNote; }
-    // draws a slider border or a spinner in this colour instead of its own (none: its own)
-    void setTint(std::optional<Color> tint) { m_tint = tint; }
-
-    [[nodiscard]] virtual vec2 getRawPosAt(i32 posMS) const = 0;          // with stack calculation modifications
-    [[nodiscard]] virtual vec2 getOriginalRawPosAt(i32 posMS) const = 0;  // without stack calculations
-    [[nodiscard]] virtual vec2 getAutoCursorPos(i32 curPosMS) const = 0;
-
     [[nodiscard]] i32 getStack() const;
     [[nodiscard]] i32 getColorCounter() const;
     [[nodiscard]] i32 getColorOffset() const;
-    [[nodiscard]] inline f32 getApproachScale() const { return m_approachScale; }
-    [[nodiscard]] inline i32 getDelta() const { return m_deltaMS; }
-    [[nodiscard]] inline i32 getApproachTime() const { return m_approachTimeMS; }
 
-    [[nodiscard]] bool isVisible() const;
-    [[nodiscard]] bool isVisibleAt(f64 curPosMS) const;
-    [[nodiscard]] bool isFinished() const;
-
-    virtual void onClickEvent(std::vector<Click> & /*clicks*/) { ; }
-    virtual void onReset(i32 curPosMS);
+    [[nodiscard]] vec2 getRawPosAt(i32 posMS) const;          // with stack calculation modifications
+    [[nodiscard]] vec2 getOriginalRawPosAt(i32 posMS) const;  // without stack calculations
 
     // only for sliders
-    virtual void rebuildVertexBuffer() { ; }
+    [[nodiscard]] i32 getRepeat() const;
+    [[nodiscard]] f32 getPixelLength() const;
+    [[nodiscard]] const std::vector<SliderClick> &getClicks() const;
 
    protected:
-    // the fades, approach, Hidden, the hittable dim and visibility at curPosMS.
-    // animate() passes view mods and judge timing.
-    void updateLook(f64 curPosMS, ModFlags mods, f32 approachTimeMS, f32 speedAdjustedAnimationSpeed);
+    void drawHitResultAnim(const HitResultAnim &hitresultanim);
 
-    // its fields in the arrays
-    [[nodiscard]] i32 clickTimeMS() const;
-    [[nodiscard]] i32 durationMS() const { return this->getDuration(); }
-    [[nodiscard]] i32 comboStartMS() const;
-    [[nodiscard]] i32 comboNumber() const;
-    [[nodiscard]] i32 colorCounter() const;
-    [[nodiscard]] i32 colorOffset() const;
-    [[nodiscard]] bool endOfCombo() const;
-    [[nodiscard]] i32 stack() const;
-    [[nodiscard]] u8 &finished() const;
-    [[nodiscard]] u8 &blocked() const;
-    [[nodiscard]] u8 &misAim() const;
-    [[nodiscard]] u8 &visible() const;
-    [[nodiscard]] i32 &autopilotDelta() const;
-
-   private:
-    static f32 lerp3f(f32 a, f32 b, f32 c, f32 percent);
-
-    [[nodiscard]] ModFlags getLookMods() const;
-    [[nodiscard]] f32 getLookAnimationSpeed() const;
-    [[nodiscard]] i32 getLookApproachTime(i32 fadeInTimeMS, f32 approachTimeMS) const {
-        return m_useFadeInTimeAsApproachTime ? fadeInTimeMS : (i32)approachTimeMS;
-    }
-    [[nodiscard]] bool isVisibleAt(f64 curPosMS, ModFlags mods, i32 approachTimeMS) const;
-
-    struct HITRESULTANIM {
-        vec2 rawPos{0.f};
-        i32 deltaMS{0};
-        f32 deltaRangePercent{0.f};  // deltaMS within the 50 window, -1 (early) to 1 (late)
-        f32 timeSecs{-9999.0f};
-        LiveHitResult result{0 /* LiveHitResult::HIT_NULL*/};
-        bool addObjectDurationToSkinAnimationTimeStartOffset{false};
-    };
-
-    void drawHitResultAnim(const HITRESULTANIM &hitresultanim);
-
-    HITRESULTANIM m_hitresultanim1;
-    HITRESULTANIM m_hitresultanim2;
-
-   protected:
     HitObjects &m_objects;
     u32 m_index;
-    GameplayJudge *m_judge;       // what judges it (NULL: never updated)
-    const PlayfieldView *m_view;  // what it's drawn on (NULL: never drawn, no draw-only animations)
-
-    [[nodiscard]] bool animatesHits() const;
-
-    i32 m_deltaMS{0};  // this must be signed
-    i32 m_approachTimeMS{0};
-    i32 m_fadeInTimeMS{0};  // extra time added before the approachTime to let the object smoothly become visible
-
-    DatabaseBeatmapTypes::HITSAMPLE_BITS m_hitSamples;
-
-    f32 m_alpha{0.f};
-    f32 m_alphaWithoutHidden{0.f};
-    f32 m_alphaForApproachCircle{0.f};
-    f32 m_approachScale{0.f};
-    f32 m_hittableDimRGBColorMultiplierPct{1.f};
-    // a posed trail (see pose()): the circle's (or slider head's) alpha, 0 without one, and its approach circle's scale
-    f32 m_trailAlpha{0.f};
-    f32 m_trailApproachScale{1.f};
-    std::optional<Color> m_tint;
-
-    bool m_overrideHDApproachCircle{false};
-    bool m_useFadeInTimeAsApproachTime{false};
+    const PlayfieldView *m_view;  // what it's drawn on (NULL: never drawn)
 };
 
 class Circle final : public HitObject {
@@ -257,107 +306,28 @@ class Circle final : public HitObject {
                                     f32 numberAlpha, f32 colorRGBMultiplier);
 
    public:
-    Circle() = delete;
-    ~Circle() override;
-
-    Circle(HitObjects &objects, u32 index, vec2 pos, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, GameplayJudge *judge,
-           const PlayfieldView *view);
-
-    Circle(const Circle &) = delete;
-    Circle &operator=(const Circle &) = delete;
-    Circle(Circle &&) noexcept = delete;
-    Circle &operator=(Circle &&) noexcept = delete;
+    Circle(HitObjects &objects, u32 index, const PlayfieldView *view) : HitObject(objects, index, view) {}
 
     void draw() override;
     void draw2() override;
-    void update(i32 curPosMS, f64 frameTimeMS) override;
-    void pose(i32 timeMS, i32 fadeOutMS, i32 trailMS) override;
-    void addSoundCues(std::vector<SoundCue> &out) const override;
-
-    void updateStackPosition(f32 stackOffset, bool hardRock) override;
-    void miss(i32 curPosMS) override;
-    [[nodiscard]] bool isClickableFrom(i32 music_pos, vec2 cursor_pos) const override;
-
-    [[nodiscard]] vec2 getRawPosAt(i32 /*pos*/) const override { return m_rawPos; }
-    [[nodiscard]] vec2 getOriginalRawPosAt(i32 /*pos*/) const override { return m_originalRawPos; }
-    [[nodiscard]] vec2 getAutoCursorPos(i32 curPosMS) const override;
-
-    void onClickEvent(std::vector<Click> &clicks) override;
-    void onReset(i32 curPosMS) override;
 
    private:
     // necessary due to the static draw functions
     static i32 rainbowNumber;
     static i32 rainbowColorCounter;
-
-    void onHit(LiveHitResult result, i32 hitDeltaMS, f32 targetDeltaPct = 0.0f, f32 targetAngle = 0.0f);
-
-    bool m_waiting{false};
-
-    vec2 m_rawPos;
-    vec2 m_originalRawPos;  // for live mod changing
-
-    AnimFloat m_hitAnimation;
-    f32 m_shakeAnimation{0.f};
 };
 
 class Slider final : public HitObject, public SliderRenderer::BodySource {
    public:
-    struct SLIDERCLICK {
-        i32 timeMS;
-        i32 type;
-        i32 tickIndex;
-        bool finished;
-        bool successful;
-        bool sliderend;
-    };
+    Slider(HitObjects &objects, u32 index, const PlayfieldView *view) : HitObject(objects, index, view) {}
 
-   public:
-    Slider() = delete;
-    ~Slider() override;
-
-    Slider(HitObjects &objects, u32 index, neomod::SLIDERCURVETYPE stype, i32 repeat, f32 pixelLength,
-           std::span<const vec2> points, std::span<const f32> ticks, f32 sliderTimeMS, f32 sliderTimeMSWithoutRepeats,
-           DatabaseBeatmapTypes::HITSAMPLE_BITS hoverSamples,
-           std::vector<DatabaseBeatmapTypes::HITSAMPLE_BITS> edgeSamples, GameplayJudge *judge,
-           const PlayfieldView *view);
-
-    Slider(const Slider &) = delete;
-    Slider &operator=(const Slider &) = delete;
-    Slider(Slider &&) noexcept = delete;
-    Slider &operator=(Slider &&) noexcept = delete;
-
-    void animate(f64 curPosMS) override;
     void draw() override;
     inline void draw2() override { draw2(true, false); }
     void draw2(bool drawApproachCircle, bool drawOnlyApproachCircle);
-    void update(i32 curPosMS, f64 frameTimeSecs) override;
-    void pose(i32 timeMS, i32 fadeOutMS, i32 trailMS) override;
-    void addSoundCues(std::vector<SoundCue> &out) const override;
-
-    void updateStackPosition(f32 stackOffset, bool hardRock) override;
-    void miss(i32 curPosMS) override;
-    [[nodiscard]] bool isClickableFrom(i32 music_pos, vec2 cursor_pos) const override;
-    // [[nodiscard]] constexpr forceinline i32 getCombo() const override {
-    //     return 2 + std::max((iRepeat - 1), 0) + (std::max((iRepeat - 1), 0) + 1) * ticks.size();
-    // }
-
-    [[nodiscard]] vec2 getRawPosAt(i32 posMS) const override;
-    [[nodiscard]] vec2 getOriginalRawPosAt(i32 posMS) const override;
-    [[nodiscard]] inline vec2 getAutoCursorPos(i32 /*curPos*/) const override { return m_curPoint; }
-
-    void onClickEvent(std::vector<Click> &clicks) override;
-    void onReset(i32 curPosMS) override;
-
     void rebuildVertexBuffer() override;
 
     // the live body, or the one fading out after the end
     [[nodiscard]] std::optional<SliderRenderer::Body> getBody() const override;
-
-    [[nodiscard]] inline bool isStartCircleFinished() const { return m_startFinished; }
-    [[nodiscard]] inline i32 getRepeat() const { return m_repeat; }
-    [[nodiscard]] inline f32 getPixelLength() const { return m_curve.getPixelLength(); }
-    [[nodiscard]] inline const std::vector<SLIDERCLICK> &getClicks() const { return m_clicks; }
 
    private:
     void drawStartCircle(f32 alpha);
@@ -366,155 +336,13 @@ class Slider final : public HitObject, public SliderRenderer::BodySource {
     [[nodiscard]] SliderRenderer::Body makeBody(f32 alpha, f32 from, f32 to) const;
     // the drawn part of the curve while snaking in or shrinking
     [[nodiscard]] std::pair<f32, f32> getSnakeRange() const;
-
-    void updateSlideLook(f64 curPosMS, ModFlags mods);
-    void updateSlide(f64 curPosMS, bool visible);
-    // the follow circle's fades at curPosMS
-    void updateAnimations(f64 curPosMS, f32 speedAdjustedAnimationSpeed);
-    // whatever changes the cursor's position or the keys that count calls this
-    void updateTracking();
-
-    void onHit(LiveHitResult result, i32 hitDeltaMS, bool isEndCircle, f32 targetDelta = 0.0f, f32 targetAngle = 0.0f,
-               bool isEndResultFromStrictTrackingMod = false);
-    void onRepeatHit(const SLIDERCLICK &click);
-    void onTickHit(const SLIDERCLICK &click);
-    void onSliderBreak();
-    // what the repeat-th repeat (counted from 1) plays
-    [[nodiscard]] const DatabaseBeatmapTypes::HITSAMPLE_BITS &getRepeatSamples(i32 repeat) const;
-
-    [[nodiscard]] vec2 curvePointAt(f32 t) const { return m_curve.pointAt(t) - m_stackOffset; }
-    [[nodiscard]] f32 getT(i32 posMS, bool raw) const;
-
-    [[nodiscard]] bool isClickHeldSlider() const;  // special logic to disallow hold tapping
-    struct SLIDERTICK {
-        f32 percent;
-        bool finished;
-    };
-
-    struct HitAnim {
-        AnimFloat percent;
-        // HEAD_TAIL is to emulate how pre-2015 osu! sliders were rendered,
-        // when the tail animation happens, the head also gets an additional hit animation, but without drawing the numbers again
-        // (TODO: shelved the idea for now)
-        enum : u8 { HEAD = (1 << 0), TAIL = (1 << 1), HEAD_TAIL = HEAD | TAIL | (1 << 2) } type;
-        [[nodiscard]] bool isAnimating() const { return (percent > 0.f && percent != 1.f); };
-    };
-    HitAnim &addHitAnim(u8 typeFlags, f32 duration);
-
-    std::vector<HitAnim> m_clickAnimations;
-    std::vector<DatabaseBeatmapTypes::HITSAMPLE_BITS> m_edgeSamples;
-    std::vector<HitSoundUtils::Set_Slider_Hit> m_lastSliderSampleSets;
-
-    std::vector<SLIDERTICK> m_ticks;  // ticks (drawing)
-
-    // TEMP: auto cursordance
-    std::vector<SLIDERCLICK> m_clicks;  // repeats (type 0) + ticks (type 1)
-
-    SliderRenderer::Mesh m_mesh;
-
-    SliderCurve m_curve;
-
-    vec2 m_stackOffset{0.f};
-    vec2 m_curPoint{0.f};
-    vec2 m_curPointRaw{0.f};
-
-    i32 m_strictTrackingModLastClickHeldTime{0};
-
-    f32 m_sliderTimeMS;
-    f32 m_sliderTimeMSWithoutRepeats;
-
-    f32 m_slidePct{0.f};  // 0.0f - 1.0f - 0.0f - 1.0f - etc.
-    f32 m_sliderSnakePercent{0.f};
-    f32 m_reverseArrowAlpha{0.f};
-    f32 m_bodyAlpha{0.f};
-
-    AnimFloat m_endSliderBodyFadeAnimation;
-
-    AnimFloat m_followCircleTickAnimationScale;
-    f32 m_followCircleAnimationScale{0.f};
-    f32 m_followCircleAnimationAlpha{0.f};
-
-    i32 m_repeat;
-    i32 m_ignoredKeys{0};
-    i32 m_reverseArrowPos{0};
-    i32 m_curRepeat{0};
-    i32 m_curRepeatCounterForHitSounds{0};
-    i32 m_slideStartTimeMS{-1};
-    u32 m_numCtrlPoints{0};
-
-    LiveHitResult m_startResult{0 /* LiveHitResult::HIT_NULL*/};
-    LiveHitResult m_endResult{0 /* LiveHitResult::HIT_NULL*/};
-
-    bool m_startFinished{false};
-    bool m_endFinished{false};
-    bool m_cursorLeft{true};
-    bool m_cursorInside{false};
-    bool m_tracking{false};  // inside and held: the follow circle shows
-    bool m_heldTillEnd{false};
-    bool m_heldTillEndForLenienceHack{false};
-    bool m_heldTillEndForLenienceHackCheck{false};
-    bool m_inReverse{false};
-    bool m_hideNumberAfterFirstRepeatHit{false};
 };
 
 class Spinner final : public HitObject {
    public:
-    Spinner() = delete;
-    Spinner(HitObjects &objects, u32 index, vec2 pos, DatabaseBeatmapTypes::HITSAMPLE_BITS samples,
-            GameplayJudge *judge, const PlayfieldView *view);
-    ~Spinner() override;
-
-    Spinner(const Spinner &) = delete;
-    Spinner &operator=(const Spinner &) = delete;
-    Spinner(Spinner &&) noexcept = delete;
-    Spinner &operator=(Spinner &&) noexcept = delete;
+    Spinner(HitObjects &objects, u32 index, const PlayfieldView *view) : HitObject(objects, index, view) {}
 
     void draw() override;
-    void update(i32 curPosMS, f64 frameTimeSecs) override;
-    void pose(i32 timeMS, i32 fadeOutMS, i32 trailMS) override;
-    void addSoundCues(std::vector<SoundCue> &out) const override;
-
-    [[nodiscard]] vec2 getRawPosAt(i32 /*pos*/) const override { return m_rawPos; }
-    [[nodiscard]] vec2 getOriginalRawPosAt(i32 /*pos*/) const override { return m_originalRawPos; }
-    [[nodiscard]] vec2 getAutoCursorPos(i32 curPosMS) const override;
-
-    void onReset(i32 curPosMS) override;
-
-   private:
-    void onHit();
-    void rotate(f32 rad, i32 curPosMS);
-    // the part of its time left at curPosMS (1 until it starts)
-    [[nodiscard]] f32 getTimeLeftPercent(i32 curPosMS) const;
-
-    vec2 m_rawPos;
-    vec2 m_originalRawPos;
-
-    // bool bClickedOnce;
-    f32 m_percent{0.f};
-
-    f32 m_drawRot{0.f};
-    f32 m_rotations{0.f};
-    i32 m_halfSpinsNeeded{-1};
-    f32 m_deltaOverflowMS{0.f};
-    f32 m_deltaAngleOverflow{0.f};
-
-    // in rad per real ms
-    f32 m_velocity{0.f};
-    f32 m_theoreticalVelocity{0.f};
-    i32 m_stillSteps{0};
-
-    f32 m_RPM{0.f};
-
-    f32 m_lastMouseAngle{0.f};
-    f32 m_ratio{0.f};
-
-    // music positions driving the skin element animations (-1 == not happened yet)
-    i32 m_completedTimeMS{-1};  // spinner cleared ("CLEAR!")
-    i32 m_firstSpinTimeMS{-1};  // first half rotation (fades out "SPIN!")
-    i32 m_bonusTimeMS{-1};      // latest bonus spin (bonus counter, glow flash)
-    i32 m_bonusSpins{0};
-    i32 m_lastDrawMusicPosMS{0};
-    bool m_hitSuccess{false};  // non-miss result ("spinner-osu")
 };
 
 // map objects as plain data, sorted by start time: one array per field, indexed by their place in play order.
@@ -526,12 +354,11 @@ class HitObjects {
     ~HitObjects();
 
     // makes them from the map primitives (with timing points if it has sliders), in the order they're played,
-    // their combo ends and combo start times set; judged by judge and drawn on view (see the HitObject constructor)
-    void build(const Primitives::PRIMITIVE_CONTAINER &primitives, GameplayJudge *judge, const PlayfieldView *view);
+    // their combo ends and combo start times set; drawn on view (NULL: never drawn)
+    void build(const Primitives::PRIMITIVE_CONTAINER &primitives, const PlayfieldView *view);
     // makes the one at `index` again from the primitives, as build() makes it but for the combo start time (which
     // follows from the objects before it)
-    void remake(const Primitives::PRIMITIVE_CONTAINER &primitives, uSz index, GameplayJudge *judge,
-                const PlayfieldView *view);
+    void remake(const Primitives::PRIMITIVE_CONTAINER &primitives, uSz index, const PlayfieldView *view);
     void clear();
 
     [[nodiscard]] uSz size() const { return this->types.size(); }
@@ -548,7 +375,21 @@ class HitObjects {
     // where the stacking run after the one at `start` starts (see Primitives::nextStackingRun())
     [[nodiscard]] uSz nextStackingRun(uSz start, f32 AR, f32 stackLeniency) const;
 
+    // where one is at posMS, with its stack and without
+    [[nodiscard]] vec2 rawPosAt(uSz index, i32 posMS) const;
+    [[nodiscard]] vec2 originalRawPosAt(uSz index, i32 posMS) const;
+    // the sounds a perfect play makes for one: what HitObjectDrawing::pose() shows, for sound
+    void addSoundCues(uSz index, std::vector<SoundCue> &out) const;
+
+    [[nodiscard]] CircleState &circleAt(uSz index) { return this->circles[this->typeIndices[index]]; }
+    [[nodiscard]] const CircleState &circleAt(uSz index) const { return this->circles[this->typeIndices[index]]; }
+    [[nodiscard]] SliderState &sliderAt(uSz index) { return this->sliders[this->typeIndices[index]]; }
+    [[nodiscard]] const SliderState &sliderAt(uSz index) const { return this->sliders[this->typeIndices[index]]; }
+    [[nodiscard]] SpinnerState &spinnerAt(uSz index) { return this->spinners[this->typeIndices[index]]; }
+    [[nodiscard]] const SpinnerState &spinnerAt(uSz index) const { return this->spinners[this->typeIndices[index]]; }
+
     std::vector<HitObjectType> types;
+    std::vector<u32> typeIndices;  // into circles, sliders or spinners by type
     std::vector<i32> clickTimes;
     std::vector<i32> endTimes;
     std::vector<i32> comboStartTimes;  // for freeze frame
@@ -558,6 +399,9 @@ class HitObjects {
     std::vector<u8> endsCombo;
     std::vector<u32> lines;  // in the file they were read from (1-based, 0: not from a file)
     std::vector<i32> stacks;
+    std::vector<DatabaseBeatmapTypes::HITSAMPLE_BITS> samples;  // hover samples for sliders
+    std::vector<vec2> positions;                                // where they start (osu!px), stacked
+    std::vector<vec2> originalPositions;                        // and without the stacks
 
     // play state
     std::vector<u8> finished;
@@ -566,15 +410,41 @@ class HitObjects {
     std::vector<u8> visible;
     std::vector<i32> autopilotDeltas;
 
+    std::vector<HitObjectLook> looks;
+
+    // what only one type has
+    std::vector<CircleState> circles;
+    std::vector<SliderState> sliders;
+    std::vector<SpinnerState> spinners;
+
     std::vector<std::unique_ptr<HitObject>> objects;
 
    private:
     void resize(uSz size);
-    void make(const Primitives::PRIMITIVE_CONTAINER &primitives, uSz index, GameplayJudge *judge,
-              const PlayfieldView *view);
+    // remade: in place of one made before
+    void make(const Primitives::PRIMITIVE_CONTAINER &primitives, uSz index, const PlayfieldView *view, bool remade);
 };
 
+// where the slider is along its curve at curPosMS, and its repeats and reverse arrows: the slider state that both
+// judging and drawing follow
+void updateSlide(SliderState &slider, i32 clickTimeMS, f64 curPosMS, bool visible);
+// the part of its time a spinner has left at curPosMS (1 until it starts)
+[[nodiscard]] f32 spinnerTimeLeftPercent(const HitObjects &objects, uSz index, i32 curPosMS);
+
 namespace HitObjectDrawing {
+
+// sets how the object looks at curPosMS while judge plays it, drawn on view (NULL: not drawn, by the judge mods and
+// timing)
+void animate(HitObjects &objects, uSz index, f64 curPosMS, const GameplayJudge &judge, const PlayfieldView *view);
+// whether it shows at curPosMS
+[[nodiscard]] bool isVisibleAt(const HitObjects &objects, uSz index, f64 curPosMS, const GameplayJudge &judge,
+                               const PlayfieldView *view);
+
+// shows the object at timeMS on view as a perfect play would have left it, without judging it: every part hit at its
+// time, hit animations timeMS - hit time into fadeOutMS of music time, no hit results; spinners aren't spun.
+// with a trail (trailMS > 0, osu!stable's editor without hit animations), circles and slider heads stay white after
+// their hit and fade out over trailMS instead, and slider repeats and ends don't animate
+void pose(HitObjects &objects, uSz index, const PlayfieldView &view, i32 timeMS, i32 fadeOutMS, i32 trailMS);
 
 // the follow points between the objects at the view time; the ones before firstIndex are gone
 void drawFollowPoints(const PlayfieldView &view, const HitObjects &objects, uSz firstIndex);

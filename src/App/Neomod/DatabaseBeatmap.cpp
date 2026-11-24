@@ -498,7 +498,7 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(PlayedMap &p
 
         judge->iMaxPossibleCombo = maxPossibleCombo;
 
-        objects.build(c, judge, view);
+        objects.build(c, view);
     }
 
     // precalculate Score v2 combo portion maximum
@@ -517,7 +517,7 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(PlayedMap &p
                 scoreV2ComboPortionMaximum += (u32)(300.0 * (1.0 + (double)scoreComboMultiplier / 10.0));
                 combo++;
             } else if(objects.types[i] == HitObjectType::SLIDER) {
-                combo += 1 + static_cast<const Slider &>(objects[i]).getClicks().size();
+                combo += 1 + objects.sliderAt(i).clicks.size();
                 scoreComboMultiplier = combo == 0 ? 0 : combo - 1;
                 scoreV2ComboPortionMaximum += (u32)(300.0 * (1.0 + (double)scoreComboMultiplier / 10.0));
                 combo++;
@@ -529,7 +529,7 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(PlayedMap &p
 
     // special rule for first hitobject (for 1 approach circle with HD)
     if(cv::show_approach_circle_on_first_hidden_object.getBool()) {
-        if(objects.size() > 0) objects[0].setForceDrawApproachCircle(true);
+        if(objects.size() > 0) objects.looks[0].overrideHDApproachCircle = true;
     }
 
     // custom override for forcing a hard number cap and/or sequence (visually only)

@@ -42,7 +42,7 @@ MapObjects::MapObjects(const Document &document) : revision(document.getRevision
         c.AR, GameRules::getMinApproachTime(), GameRules::getMidApproachTime(), GameRules::getMaxApproachTime());
     this->view.comboColors = c.combocolors;
 
-    this->objects.build(c, nullptr, &this->view);
+    this->objects.build(c, &this->view);
     this->objects.stack(0, this->objects.size(), c.AR, c.version, c.stackLeniency, this->view.rawHitcircleDiameter,
                         false);
     for(uSz run = 0; run < this->objects.size(); run = this->nextRun(run, c)) this->stackRuns.push_back(run);
@@ -97,10 +97,10 @@ uSz MapObjects::firstFrom(i32 timeMS) const {
 const MapObjects::Sounds &MapObjects::getSounds() const {
     if(!this->sounds) {
         Sounds made;
-        for(uSz i = 0; i < this->objects.size(); i++) this->objects[i].addSoundCues(made.cues);
-        Mc::ranges::stable_sort(made.cues, {}, &HitObject::SoundCue::timeMS);
+        for(uSz i = 0; i < this->objects.size(); i++) this->objects.addSoundCues(i, made.cues);
+        Mc::ranges::stable_sort(made.cues, {}, &SoundCue::timeMS);
         for(const auto &cue : made.cues) {
-            if(cue.kind == HitObject::SoundCue::Kind::SLIDE) {
+            if(cue.kind == SoundCue::Kind::SLIDE) {
                 made.longestSlideMS = std::max(made.longestSlideMS, cue.endTimeMS - cue.timeMS);
             }
         }
@@ -129,7 +129,7 @@ void MapObjects::remake(const Document &document, std::span<const uSz> indexes) 
     std::vector<Shown> made;
     for(const uSz i : indexes) {
         const i32 duration = this->objects[i].getDuration();
-        this->objects.remake(c, i, nullptr, &this->view);
+        this->objects.remake(c, i, &this->view);
         shorter |= duration == this->longestObjectMS && this->objects[i].getDuration() < duration;
         this->longestObjectMS = std::max(this->longestObjectMS, this->objects[i].getDuration());
         const Document::Id id = document.getIdAt(this->objects.lines[i]);

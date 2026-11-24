@@ -13,7 +13,7 @@
 #include <algorithm>
 
 using namespace neomod;
-using Cue = HitObject::SoundCue;
+using Cue = SoundCue;
 
 namespace {
 // a frame longer than this (in music time) is a hitch, whose cues stay silent

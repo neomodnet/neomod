@@ -297,11 +297,11 @@ void Timeline::drawObjects(f64 left, f64 right) const {
                    : selected && end  ? std::optional{argb(255, 255, 255, 255)}
                                       : std::nullopt;
         };
-        const i32 spans = obj.isSlider() ? std::max(static_cast<const Slider &>(obj).getRepeat(), 1) : 1;
+        const i32 spans = obj.isSlider() ? std::max(obj.getRepeat(), 1) : 1;
         if(obj.getDuration() > 0) circle(obj.getEndTime(), c, 0, false, ring(spans, true));
         if(obj.isSlider()) {
             i32 repeat = 0;
-            for(const auto &click : static_cast<const Slider &>(obj).getClicks()) {
+            for(const auto &click : obj.getClicks()) {
                 if(click.type == 0) circle(click.timeMS, c, 0, true, ring(++repeat, false));
             }
         }

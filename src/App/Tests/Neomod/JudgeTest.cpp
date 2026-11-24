@@ -155,21 +155,21 @@ void hashState(Hash &frames, Hash &looks, const GameplayJudge &judge, f64 posMS,
     const auto from = std::partition_point(objects.clickTimes.begin(), objects.clickTimes.end(),
                                            [&](i32 clickTime) { return clickTime < posMS - 1000 - maxDurationMS; });
     for(uSz i = from - objects.clickTimes.begin(); i < objects.size(); i++) {
-        const HitObject *obj = &objects[i];
-        if(obj->getClickTime() > posMS + approach) break;
-        if(obj->getEndTime() < posMS - 1000) continue;
-        looks.add(obj->isVisible());
-        looks.add(obj->isFinished());
+        if(objects.clickTimes[i] > posMS + approach) break;
+        if(objects.endTimes[i] < posMS - 1000) continue;
+        const HitObjectLook &look = objects.looks[i];
+        looks.add((bool)objects.visible[i]);
+        looks.add((bool)objects.finished[i]);
         looks.add((bool)objects.blocked[i]);
-        looks.add(obj->getApproachScale());
-        looks.add(obj->getDelta());
-        looks.add(obj->getApproachTime());
-        looks.add(obj->getRawPosAt((i32)posMS));
-        looks.add(obj->getAutoCursorPos((i32)posMS));
-        if(obj->isSlider()) {
-            const auto *slider = static_cast<const Slider *>(obj);
-            looks.add(slider->isStartCircleFinished());
-            for(const auto &click : slider->getClicks()) {
+        looks.add(look.approachScale);
+        looks.add(look.deltaMS);
+        looks.add(look.approachTimeMS);
+        looks.add(objects.rawPosAt(i, (i32)posMS));
+        looks.add(judge.getAutoCursorPos((u32)i, (i32)posMS));
+        if(objects.types[i] == HitObjectType::SLIDER) {
+            const SliderState &slider = objects.sliderAt(i);
+            looks.add(slider.startFinished);
+            for(const auto &click : slider.clicks) {
                 looks.add(click.finished);
                 looks.add(click.successful);
             }
