@@ -321,26 +321,20 @@ i32 lookApproachTime(const HitObjectLook &l, i32 fadeInTimeMS, f32 approachTimeM
     return l.useFadeInTimeAsApproachTime ? fadeInTimeMS : (i32)approachTimeMS;
 }
 
-// the view mods include the experimental ones (objects without a view aren't drawn)
-ModFlags lookMods(const GameplayJudge &judge, const PlayfieldView *view) {
-    return view ? view->getModFlags() : judge.getMods().flags;
-}
-
-f32 lookAnimationSpeed(const GameplayJudge &judge, const PlayfieldView *view) {
-    return view ? view->getSpeedAdjustedAnimationSpeed() : judge.getSpeedMultiplier();
+i32 fadeInTimeFor(f32 speedAdjustedAnimationSpeed) {
+    const f64 animationSpeedMultiplier = speedAdjustedAnimationSpeed;
+    return GameRules::getFadeInTime() * animationSpeedMultiplier;
 }
 
 // the fades, approach, Hidden, the hittable dim and visibility at curPosMS
-void updateLook(HitObjects &objects, uSz index, f64 curPosMS, ModFlags mods, f32 approachTimeMS,
-                f32 speedAdjustedAnimationSpeed) {
+void updateLook(HitObjects &objects, uSz index, f64 curPosMS, ModFlags mods, f32 approachTimeMS, i32 fadeInTimeMS) {
     HitObjectLook &l = objects.looks[index];
     l.alphaForApproachCircle = 0.0f;
     l.hittableDimRGBColorMultiplierPct = 1.0f;
 
-    const f64 animationSpeedMultiplier = speedAdjustedAnimationSpeed;
     const i32 visibleTms =
         (flags::has<ModFlags::FreezeFrame>(mods) ? objects.comboStartTimes[index] : objects.clickTimes[index]);
-    l.fadeInTimeMS = GameRules::getFadeInTime() * animationSpeedMultiplier;
+    l.fadeInTimeMS = fadeInTimeMS;
     l.approachTimeMS = lookApproachTime(l, l.fadeInTimeMS, approachTimeMS);
     l.deltaMS = objects.clickTimes[index] - (i32)std::round(curPosMS);
 
@@ -604,23 +598,30 @@ f32 spinnerTimeLeftPercent(const HitObjects &objects, uSz index, i32 curPosMS) {
 
 namespace HitObjectDrawing {
 
-void animate(HitObjects &objects, uSz index, f64 curPosMS, const GameplayJudge &judge, const PlayfieldView *view) {
-    updateLook(objects, index, curPosMS, lookMods(judge, view), judge.getCachedApproachTimeForUpdate(),
-               lookAnimationSpeed(judge, view));
+LookTiming lookTiming(const GameplayJudge &judge, const PlayfieldView *view) {
+    const f32 animationSpeed = view ? view->getSpeedAdjustedAnimationSpeed() : judge.getSpeedMultiplier();
+    // the view mods include the experimental ones (objects without a view aren't drawn)
+    return {.mods = view ? view->getModFlags() : judge.getMods().flags,
+            .playMods = judge.getMods().flags,
+            .approachTimeMS = judge.getCachedApproachTimeForUpdate(),
+            .animationSpeed = animationSpeed,
+            .fadeInTimeMS = fadeInTimeFor(animationSpeed),
+            .drawn = view != nullptr};
+}
+
+void animate(HitObjects &objects, uSz index, f64 curPosMS, const LookTiming &timing) {
+    updateLook(objects, index, curPosMS, timing.mods, timing.approachTimeMS, timing.fadeInTimeMS);
     if(objects.types[index] != HitObjectType::SLIDER) return;
 
     // animations must be updated even if we are finished
-    if(view != nullptr) updateAnimations(objects, index, curPosMS, view->getSpeedAdjustedAnimationSpeed());
+    if(timing.drawn) updateAnimations(objects, index, curPosMS, timing.animationSpeed);
 
-    if(!objects.finished[index]) updateSlideLook(objects, index, curPosMS, judge.getMods().flags);
+    if(!objects.finished[index]) updateSlideLook(objects, index, curPosMS, timing.playMods);
 }
 
-bool isVisibleAt(const HitObjects &objects, uSz index, f64 curPosMS, const GameplayJudge &judge,
-                 const PlayfieldView *view) {
-    const f64 animationSpeedMultiplier = lookAnimationSpeed(judge, view);
-    const i32 fadeInTimeMS = GameRules::getFadeInTime() * animationSpeedMultiplier;
-    return isVisibleWith(objects, index, curPosMS, lookMods(judge, view),
-                         lookApproachTime(objects.looks[index], fadeInTimeMS, judge.getCachedApproachTimeForUpdate()));
+bool isVisibleAt(const HitObjects &objects, uSz index, f64 curPosMS, const LookTiming &timing) {
+    return isVisibleWith(objects, index, curPosMS, timing.mods,
+                         lookApproachTime(objects.looks[index], timing.fadeInTimeMS, timing.approachTimeMS));
 }
 
 void pose(HitObjects &objects, uSz index, const PlayfieldView &view, i32 timeMS, i32 fadeOutMS, i32 trailMS) {
@@ -629,7 +630,7 @@ void pose(HitObjects &objects, uSz index, const PlayfieldView &view, i32 timeMS,
         case HitObjectType::CIRCLE: {
             CircleState &s = objects.circleAt(index);
             updateLook(objects, index, timeMS, view.getModFlags(), view.getApproachTime(),
-                       view.getSpeedAdjustedAnimationSpeed());
+                       fadeInTimeFor(view.getSpeedAdjustedAnimationSpeed()));
 
             s.waiting = false;
             objects.finished[index] = timeMS >= objects.clickTimes[index];
@@ -644,7 +645,7 @@ void pose(HitObjects &objects, uSz index, const PlayfieldView &view, i32 timeMS,
             SliderState &s = objects.sliderAt(index);
             const ModFlags mods = view.getModFlags();
             const f32 animationSpeed = view.getSpeedAdjustedAnimationSpeed();
-            updateLook(objects, index, timeMS, mods, view.getApproachTime(), animationSpeed);
+            updateLook(objects, index, timeMS, mods, view.getApproachTime(), fadeInTimeFor(animationSpeed));
 
             const i32 endTimeMS = objects.endTimes[index];
             s.startFinished = timeMS >= objects.clickTimes[index];
@@ -704,7 +705,7 @@ void pose(HitObjects &objects, uSz index, const PlayfieldView &view, i32 timeMS,
         case HitObjectType::SPINNER: {
             SpinnerState &s = objects.spinnerAt(index);
             updateLook(objects, index, timeMS, view.getModFlags(), view.getApproachTime(),
-                       view.getSpeedAdjustedAnimationSpeed());
+                       fadeInTimeFor(view.getSpeedAdjustedAnimationSpeed()));
 
             objects.finished[index] = timeMS >= objects.endTimes[index];
             s.percent = spinnerTimeLeftPercent(objects, index, std::min(timeMS, objects.endTimes[index]));

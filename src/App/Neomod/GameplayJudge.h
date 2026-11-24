@@ -349,6 +349,7 @@ class GameplayJudge final {
     // playfield
     f32 fPlayfieldRotation = 0.f;  // wobble
     f32 fCachedApproachTimeForUpdate = 0.f;
+    neomod::HitObjectDrawing::LookTiming lookTiming{};  // as of the last step, reset or animate()
 
     // auto
     vec2 vAutoCursorPos{0.f};

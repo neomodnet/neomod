@@ -136,13 +136,14 @@ void GameplayJudge::reset(i32 curPos, bool leaveOutStarted) {
     this->resetScore();
     this->numFinishedFirst = 0;
     this->numFinishedFirstByEndTime = 0;
+    this->lookTiming = HitObjectDrawing::lookTiming(*this, this->view);
     for(uSz i = 0; i < this->hitobjects.size(); i++) {
         // (past its end, it's done)
         const i32 pos = leaveOutStarted && this->hitobjects.clickTimes[i] <= curPos
                             ? std::max(curPos, this->hitobjects.endTimes[i] + 1)
                             : curPos;
         this->resetObject((u32)i, pos);
-        HitObjectDrawing::animate(this->hitobjects, i, pos, *this, this->view);
+        HitObjectDrawing::animate(this->hitobjects, i, pos, this->lookTiming);
         this->updateObject((u32)i, pos, 0.0);
         this->resetObject((u32)i, pos);
     }
@@ -228,17 +229,19 @@ void GameplayJudge::simulate_to(i32 musicPos) {
 void GameplayJudge::animate(f64 curPos) {
     const i32 pvs = this->getPVS();
     const bool freezeFrame = this->getMods().has(ModFlags::FreezeFrame);
-    const HitObjects &objs = this->hitobjects;
+    HitObjects &objs = this->hitobjects;
+    this->lookTiming = HitObjectDrawing::lookTiming(*this, this->view);
     for(uSz i = this->getFirstLiveObject(curPos - pvs); i < objs.size(); i++) {
         if(objs.finished[i] && curPos - pvs > objs.endTimes[i]) continue;
         if((freezeFrame ? objs.comboStartTimes[i] : objs.clickTimes[i]) > curPos + pvs) break;
-        HitObjectDrawing::animate(this->hitobjects, i, curPos, *this, this->view);
+        HitObjectDrawing::animate(objs, i, curPos, this->lookTiming);
     }
 }
 
 void GameplayJudge::updateAll(i32 curPos, f64 frameTimeSecs) {
+    this->lookTiming = HitObjectDrawing::lookTiming(*this, this->view);
     for(uSz i = 0; i < this->hitobjects.size(); i++) {
-        HitObjectDrawing::animate(this->hitobjects, i, curPos, *this, this->view);
+        HitObjectDrawing::animate(this->hitobjects, i, curPos, this->lookTiming);
         this->updateObject((u32)i, curPos, frameTimeSecs);
     }
 }
@@ -501,7 +504,7 @@ void GameplayJudge::updateSlider(u32 i, i32 curPosMS) {
     SliderState &s = objs.sliderAt(i);
     if(!objs.finished[i])
         updateSlide(s, objs.clickTimes[i], curPosMS,
-                    HitObjectDrawing::isVisibleAt(objs, i, curPosMS, *this, this->view));
+                    HitObjectDrawing::isVisibleAt(objs, i, curPosMS, this->lookTiming));
 
     // all further calculations are only done while we are active
     if(objs.finished[i]) {
@@ -1943,6 +1946,7 @@ void GameplayJudge::update(f64 frameTimeSecs) {
 
         // to avoid recalculating it for every object
         this->fCachedApproachTimeForUpdate = this->getApproachTime();
+        this->lookTiming = HitObjectDrawing::lookTiming(*this, this->view);
 
         const i32 pvs = [&]() -> i32 {
             if(mods.has(ModFlags::Mafham)) {
@@ -2169,7 +2173,7 @@ void GameplayJudge::update(f64 frameTimeSecs) {
                 this->iNPS++;
 
             // note density
-            if(HitObjectDrawing::isVisibleAt(objs, i, this->iCurMusicPos, *this, this->view)) this->iND++;
+            if(HitObjectDrawing::isVisibleAt(objs, i, this->iCurMusicPos, this->lookTiming)) this->iND++;
         }
 
         while(this->numFinishedFirst < this->hitobjects.size() && objs.finished[this->numFinishedFirst])

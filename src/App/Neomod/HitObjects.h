@@ -396,12 +396,22 @@ namespace HitObjectDrawing {
 void drawHitResult(const PlayfieldView &view, vec2 pos, LiveHitResult result, f32 animPercentInv,
                    f32 hitDeltaRangePercent);
 
-// sets how the object looks at curPosMS while judge plays it, drawn on view (NULL: not drawn, by the judge mods and
-// timing)
-void animate(HitObjects &objects, uSz index, f64 curPosMS, const GameplayJudge &judge, const PlayfieldView *view);
+// what play objects look by in a frame
+struct LookTiming {
+    ModFlags mods;      // the ones that change the look
+    ModFlags playMods;  // the slider slide follows these
+    f32 approachTimeMS;
+    f32 animationSpeed;  // fixed durations last this many times as long in music time
+    i32 fadeInTimeMS;
+    bool drawn;  // whether there are draw-only animations
+};
+// while judge plays them, drawn on view (NULL: not drawn, by the judge mods and timing)
+[[nodiscard]] LookTiming lookTiming(const GameplayJudge &judge, const PlayfieldView *view);
+
+// sets how the object looks at curPosMS
+void animate(HitObjects &objects, uSz index, f64 curPosMS, const LookTiming &timing);
 // whether it shows at curPosMS
-[[nodiscard]] bool isVisibleAt(const HitObjects &objects, uSz index, f64 curPosMS, const GameplayJudge &judge,
-                               const PlayfieldView *view);
+[[nodiscard]] bool isVisibleAt(const HitObjects &objects, uSz index, f64 curPosMS, const LookTiming &timing);
 
 // shows the object at timeMS on view as a perfect play would have left it, without judging it: every part hit at its
 // time, hit animations timeMS - hit time into fadeOutMS of music time, no hit results; spinners aren't spun.
