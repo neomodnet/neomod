@@ -388,19 +388,19 @@ struct JsReplay {
         val objects = val::array();
         const HitObjects &hitobjects = judge.getHitObjects();
         for(i32 i = 0; i < (i32)hitobjects.size(); i++) {
-            const HitObject *obj = &hitobjects[i];
+            const HitObject obj = hitobjects[i];
 
-            const vec2 start = judge.osuCoords2Pixels(obj->getRawPosAt(obj->getClickTime()));
-            const vec2 end = judge.osuCoords2Pixels(obj->getRawPosAt(obj->getEndTime()));
+            const vec2 start = judge.osuCoords2Pixels(obj.getRawPosAt(obj.getClickTime()));
+            const vec2 end = judge.osuCoords2Pixels(obj.getRawPosAt(obj.getEndTime()));
             val o = val::object();
-            o.set("type", std::string{hit_object_type_name(obj->getType())});
-            o.set("time", obj->getClickTime());
-            o.set("endTime", obj->getEndTime());
+            o.set("type", std::string{hit_object_type_name(obj.getType())});
+            o.set("time", obj.getClickTime());
+            o.set("endTime", obj.getEndTime());
             o.set("x", start.x);
             o.set("y", start.y);
             o.set("endX", end.x);
             o.set("endY", end.y);
-            o.set("stack", obj->getStack());
+            o.set("stack", obj.getStack());
             objects.call<void>("push", o);
         }
 

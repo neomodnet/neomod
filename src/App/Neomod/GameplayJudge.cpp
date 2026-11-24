@@ -63,7 +63,7 @@ Primitives::LoadError GameplayJudge::load(std::shared_ptr<const std::vector<u8>>
     // the play goes by what it reads from the file now (objects ask for the map's settings while they're made)
     this->mapData = std::make_unique<PlayedMap>(this->beatmap->readPlayedMap(std::move(fileData)));
     DatabaseBeatmap::LOAD_GAMEPLAY_RESULT result =
-        DatabaseBeatmap::loadGameplay(*this->mapData, this->hitobjects, this, this->view);
+        DatabaseBeatmap::loadGameplay(*this->mapData, this->hitobjects, this);
     if(result.error.errc) {
         this->hitobjects.clear();
         this->mapData.reset();
@@ -1783,7 +1783,7 @@ LiveHitResult GameplayJudge::addHitResult(i32 object, LiveHitResult hit, i32 del
 
         // geki/katu handling
         if(isEndOfCombo) {
-            // (a combo end without a hit result, see Slider::onHit(), awards nothing)
+            // a combo end without a hit result (see hitSlider()) awards nothing
             const int comboEndBitmask = hit == HIT_MISS_SLIDERBREAK ? 2 : this->score.getComboEndBitmask();
 
             if(comboEndBitmask == 0) {
@@ -1941,7 +1941,7 @@ void GameplayJudge::update(f64 frameTimeSecs) {
     {
         bool blockNextNotes = false;
 
-        // to avoid recalculating in HitObject::update every call
+        // to avoid recalculating it for every object
         this->fCachedApproachTimeForUpdate = this->getApproachTime();
 
         const i32 pvs = [&]() -> i32 {
@@ -2093,9 +2093,9 @@ void GameplayJudge::update(f64 frameTimeSecs) {
                 if(notelockType == 2)  // osu!stable
                 {
                     // edge case: frame perfect double tapping on overlapping sliders would incorrectly eat the second
-                    // input, because the isStartCircleFinished() 2b edge case check handling happens before
-                    // m_hitobjects[i]->onClickEvent(this->clicks); so, we check if the currentSliderPointer got its
-                    // isStartCircleFinished() within this m_hitobjects[i]->onClickEvent(this->clicks); and unlock
+                    // input, because the startFinished 2b edge case check handling happens before
+                    // clickSlider(i); so, we check if the currentSliderPointer got its
+                    // startFinished within this clickSlider(i); and unlock
                     // blockNextNotes if that is the case note that we still only unlock within duration + tolerance2B
                     // (same as in (1))
                     if((i + 1) < this->hitobjects.size()) {

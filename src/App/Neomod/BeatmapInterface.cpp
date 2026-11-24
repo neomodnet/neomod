@@ -1809,7 +1809,7 @@ void BeatmapInterface::drawContinue() {
 void BeatmapInterface::drawHitObjects() {
     const f64 curPos = this->fCurMusicPosWithOffsets;
     const i32 pvs = this->judge->getPVS();
-    const HitObjects &objects = this->judge->getHitObjects();
+    HitObjects &objects = this->judge->getHitObjects();
     const auto hitobjectsSortedByEndTime = this->judge->getHitObjectsSortedByEndTime();
     const i32 currentHitObjectIndex = this->judge->getCurrentHitObjectIndex();
     const bool usePVS = cv::pvs.getBool();
@@ -1841,7 +1841,7 @@ void BeatmapInterface::drawHitObjects() {
             this->objectsToDraw.push_back(obj);
         }
 
-        HitObjectDrawing::draw(objects, this->objectsToDraw, osu->getSliderFrameBuffer());
+        HitObjectDrawing::draw(*this, objects, this->objectsToDraw, osu->getSliderFrameBuffer());
 
         // this avoids PVS culling objects which are overlapped before the end of other objects, like circles appearing before
         // sliders are finished causing the initial slider approach circle to not be drawn
@@ -1861,16 +1861,12 @@ void BeatmapInterface::drawHitObjects() {
                     break;
             }
 
-            objects[obj].draw2();
+            HitObjectDrawing::draw2(*this, objects, obj);
         }
     } else {
         // the slider bodies are queued before any of the objects is drawn, so their fields render together
-        const auto drawObjects = [&objects](std::span<const u32> indices) {
-            SliderRenderer::Batch sliderBodies{osu->getSliderFrameBuffer()};
-            for(const u32 obj : indices)
-                if(objects.types[obj] == HitObjectType::SLIDER)
-                    sliderBodies.queue(static_cast<const Slider &>(objects[obj]));
-            for(const u32 obj : indices) objects[obj].draw();
+        const auto drawObjects = [&](std::span<const u32> indices) {
+            HitObjectDrawing::draw(*this, objects, indices, osu->getSliderFrameBuffer(), false);
         };
 
         const int mafhamRenderLiveSize = cv::mod_mafham_render_livesize.getInt();
@@ -1991,7 +1987,7 @@ void BeatmapInterface::drawHitObjects() {
                    (i >= this->iMafhamFinishedRenderHitObjectIndex - 1 && shouldDrawBuffer))  // skip non-live objects
                     break;
 
-                objects[hitobjectsSortedByEndTime[i]].draw2();
+                HitObjectDrawing::draw2(*this, objects, hitobjectsSortedByEndTime[i]);
             }
         }
     }
@@ -2030,7 +2026,7 @@ void BeatmapInterface::update() {
         f64 delta = 0.0;
 
         // hardcoded deadline of 10 ms, will temporarily bring us down to 45fps on average (better than freezing)
-        const HitObjects &hitobjects = this->judge->getHitObjects();
+        HitObjects &hitobjects = this->judge->getHitObjects();
         while(delta < 0.010 && this->bIsPreLoading) {
             if(this->iPreLoadingIndex >= hitobjects.size()) {
                 // (and for the map's skin elements to load, see loadBeatmapSkin())
@@ -2041,7 +2037,7 @@ void BeatmapInterface::update() {
                 debugLog("Beatmap: Preloading done.");
                 break;
             } else {
-                hitobjects[this->iPreLoadingIndex].rebuildVertexBuffer();
+                HitObjectDrawing::rebuildMesh(*this, hitobjects, this->iPreLoadingIndex);
             }
 
             this->iPreLoadingIndex++;
@@ -3176,8 +3172,8 @@ void BeatmapInterface::updateSliderVertexBuffers() {
 
     debugLog("rebuilding for {:d} hitobjects ...", this->judge->getHitObjects().size());
 
-    const HitObjects &hitobjects = this->judge->getHitObjects();
-    for(uSz i = 0; i < hitobjects.size(); i++) hitobjects[i].rebuildVertexBuffer();
+    HitObjects &hitobjects = this->judge->getHitObjects();
+    for(uSz i = 0; i < hitobjects.size(); i++) HitObjectDrawing::rebuildMesh(*this, hitobjects, i);
 }
 
 f32 BeatmapInterface::getBaseAnimationSpeed() const { return osu->getAnimationSpeedMultiplier(); }

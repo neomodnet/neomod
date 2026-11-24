@@ -446,7 +446,7 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(
 }
 
 DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(PlayedMap &played, HitObjects &objects,
-                                                                    GameplayJudge *judge, const PlayfieldView *view) {
+                                                                    GameplayJudge *judge) {
     LOAD_GAMEPLAY_RESULT result = LOAD_GAMEPLAY_RESULT();
     Primitives::PRIMITIVE_CONTAINER &c = played.primitives;
 
@@ -498,7 +498,7 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(PlayedMap &p
 
         judge->iMaxPossibleCombo = maxPossibleCombo;
 
-        objects.build(c, view);
+        objects.build(c);
     }
 
     // precalculate Score v2 combo portion maximum

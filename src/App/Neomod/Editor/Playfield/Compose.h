@@ -2,6 +2,7 @@
 // Copyright (c) 2026, WH, All rights reserved.
 #include "Color.h"
 #include "Document.h"
+#include "HitObjects.h"
 #include "Rect.h"
 #include "Snapping.h"
 #include "Vectors.h"
@@ -20,7 +21,6 @@
 
 struct EditorState;
 namespace neomod {
-class HitObject;
 enum class SLIDERCURVETYPE : char;
 }  // namespace neomod
 namespace SliderPath {
@@ -48,7 +48,7 @@ class Compose {
     };
 
     struct Hit {
-        neomod::HitObject *object;
+        std::optional<neomod::HitObject> object;
         Document::Id id;
         // on the timeline, which circle it has: 0 its start, then the slider repeats, last its end (none: between them)
         std::optional<i32> node;
@@ -82,7 +82,7 @@ class Compose {
     void selectTouched(std::vector<Document::Id> ids);
     // the objects were made again: lines that are no objects any more drop out of the selection
     void onObjectsRebuilt();
-    [[nodiscard]] const neomod::HitObject *getEarliestSelected() const;
+    [[nodiscard]] std::optional<neomod::HitObject> getEarliestSelected() const;
     // to the start of the earliest selected object (a double-click), not snapped
     void seekToSelection();
     // selects by combo numbers from the first object starting at timeMS or later: each number the next object that
@@ -500,7 +500,7 @@ class Compose {
                                                                          neomod::SLIDERCURVETYPE type) const;
     // the last object ending before the time, which a position at it is spaced from (none: there's none, or it's a
     // spinner)
-    [[nodiscard]] const neomod::HitObject *endingBefore(i32 timeMS) const;
+    [[nodiscard]] std::optional<neomod::HitObject> endingBefore(i32 timeMS) const;
     // what distance snap spaces from at the time (none: no such object, or no timing points)
     [[nodiscard]] std::optional<Snapping::Reference> referenceBefore(i32 timeMS) const;
     // gives `fn` each position things stack onto: the heads and slider ends (unstacked) of the shown objects, or of
@@ -511,7 +511,7 @@ class Compose {
     [[nodiscard]] std::optional<f32> spacing(vec2 from, i32 fromMS, vec2 to, i32 toMS, i32 velocityAtMS) const;
     // the objects in time order: the line for the first starting exactly at timeMS, the last starting before it
     [[nodiscard]] std::optional<Document::Id> objectStartingAt(i32 timeMS) const;
-    [[nodiscard]] const neomod::HitObject *objectBefore(i32 timeMS) const;
+    [[nodiscard]] std::optional<neomod::HitObject> objectBefore(i32 timeMS) const;
     void updateSpinner(i32 end);
     // the slider being placed, as it is now, into the map (out while it's under a tick)
     void restateSlider();

@@ -419,7 +419,7 @@ struct JudgeTest::Drawn {
     void draw() {
         const f64 curPos = this->timeMS;
         const i32 pvs = this->judge->getPVS();
-        const HitObjects &objects = this->judge->getHitObjects();
+        HitObjects &objects = this->judge->getHitObjects();
         const auto sorted = this->judge->getHitObjectsSortedByEndTime();
         const bool freezeFrame = flags::has<ModFlags::FreezeFrame>(this->view->mods);
 
@@ -435,13 +435,13 @@ struct JudgeTest::Drawn {
             mostDistantEndTimeDrawn = std::max(mostDistantEndTimeDrawn, objects.endTimes[obj]);
             this->objectsToDraw.push_back(obj);
         }
-        HitObjectDrawing::draw(objects, this->objectsToDraw, this->sliderRT);
+        HitObjectDrawing::draw(*this->view, objects, this->objectsToDraw, this->sliderRT);
 
         const f64 mostDistantFutureObjectPVS = std::max((f64)mostDistantEndTimeDrawn, curPos + pvs);
         for(const u32 obj : sorted.subspan(this->judge->getFirstLiveObjectByEndTime(curPos - pvs))) {
             if(objects.finished[obj] && curPos - pvs > objects.endTimes[obj]) continue;
             if(objects.clickTimes[obj] > mostDistantFutureObjectPVS) break;
-            objects[obj].draw2();
+            HitObjectDrawing::draw2(*this->view, objects, obj);
         }
     }
 };
@@ -500,8 +500,8 @@ void JudgeTest::update() {
             engine->shutdown();
             return;
         }
-        const HitObjects &objects = d->judge->getHitObjects();
-        for(uSz i = 0; i < objects.size(); i++) objects[i].rebuildVertexBuffer();
+        HitObjects &objects = d->judge->getHitObjects();
+        for(uSz i = 0; i < objects.size(); i++) HitObjectDrawing::rebuildMesh(*d->view, objects, i);
         d->endMS = objects.endTimes[d->judge->getHitObjectsSortedByEndTime().back()] + 1000.0;
         m_drawn = std::move(d);
         return;

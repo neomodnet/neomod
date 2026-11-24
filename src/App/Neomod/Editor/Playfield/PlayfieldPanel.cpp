@@ -114,29 +114,31 @@ void PlayfieldPanel::draw() {
     const auto picked = compose.getPicked();
     const bool bodyPicked = picked && !picked->edge;
     const auto first = Mc::ranges::lower_bound(objects.byEndTime, time - SHOWN_AFTER_MS, {},
-                                               [](const MapObjects::Shown &s) { return s.object->getEndTime(); });
+                                               [](const MapObjects::Shown &s) { return s.object.getEndTime(); });
     for(auto it = first; it != objects.byEndTime.end(); ++it) {
-        HitObject *obj = it->object;
-        if(obj->getEndTime() - objects.longestObjectMS > time + lead) break;
-        if(obj->getClickTime() - lead > time) continue;
+        const HitObject obj = it->object;
+        if(obj.getEndTime() - objects.longestObjectMS > time + lead) break;
+        if(obj.getClickTime() - lead > time) continue;
         if(!it->meshBuilt) {
-            obj->rebuildVertexBuffer();
+            HitObjectDrawing::rebuildMesh(objects.view, objects.objects, obj.getIndex());
             it->meshBuilt = true;
         }
-        HitObjectDrawing::pose(objects.objects, obj->getIndex(), objects.view, time, fadeOutMS, trailMS);
+        HitObjectDrawing::pose(objects.objects, obj.getIndex(), objects.view, time, fadeOutMS, trailMS);
         // selected slider borders and spinners are tinted, and a slider whose body is picked gets a red border
-        objects.objects.looks[obj->getIndex()].tint = !compose.isSelected(it->id) ? std::nullopt
-                                                      : obj->isSpinner()          ? std::optional{SELECTED_SPINNER}
-                                                      : bodyPicked                ? std::optional{PICKED}
-                                                                                  : std::optional{SELECTED_SLIDER};
-        this->shown.push_back(obj->getIndex());
+        objects.objects.looks[obj.getIndex()].tint = !compose.isSelected(it->id) ? std::nullopt
+                                                     : obj.isSpinner()           ? std::optional{SELECTED_SPINNER}
+                                                     : bodyPicked                ? std::optional{PICKED}
+                                                                                 : std::optional{SELECTED_SLIDER};
+        this->shown.push_back(obj.getIndex());
     }
     std::reverse(this->shown.begin(), this->shown.end());
 
     // follow points fade out soon after the object they lead to
     HitObjectDrawing::drawFollowPoints(objects.view, objects.objects, objects.firstFrom(time - SHOWN_AFTER_MS));
-    HitObjectDrawing::draw(objects.objects, this->shown, osu->getSliderFrameBuffer());
-    for(auto it = this->shown.rbegin(); it != this->shown.rend(); ++it) objects.objects[*it].draw2();
+    HitObjectDrawing::draw(objects.view, objects.objects, this->shown, osu->getSliderFrameBuffer());
+    for(auto it = this->shown.rbegin(); it != this->shown.rend(); ++it) {
+        HitObjectDrawing::draw2(objects.view, objects.objects, *it);
+    }
     if(this->state.showsGrid()) this->drawGrid();
     this->drawMarks();
     this->drawReadout();
@@ -342,7 +344,7 @@ void PlayfieldPanel::updateRings() {
     const auto ringsOf = [&](std::span<const Document::Id> ids) {
         std::vector<vec2> centers;
         for(const Document::Id id : ids) {
-            const HitObject *object = objects.find(id);
+            const std::optional<HitObject> object = objects.find(id);
             if(!object || object->isSpinner()) continue;
             centers.push_back(object->getRawPosAt(object->getClickTime()));
             if(object->isSlider()) centers.push_back(object->getRawPosAt(Compose::tailTime(*object)));

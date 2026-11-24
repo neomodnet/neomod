@@ -569,7 +569,7 @@ void HitSoundTest::runTests() {
             std::span{reinterpret_cast<const u8 *>(map.data()), map.size()}, {});
         TEST_ASSERT(!c.error, "the map loads");
         HitObjects objects;
-        objects.build(c, nullptr);
+        objects.build(c);
         TEST_ASSERT_EQ(objects.size(), (uSz)4, "four objects");
         if(objects.size() == 4) {
             using Kind = SoundCue::Kind;
@@ -642,7 +642,7 @@ void HitSoundTest::runTests() {
             std::span{reinterpret_cast<const u8 *>(map.data()), map.size()}, {});
         TEST_ASSERT(!c.error, "the map with unified sliders loads");
         HitObjects objects;
-        objects.build(c, nullptr);
+        objects.build(c);
         TEST_ASSERT_EQ(objects.size(), (uSz)3, "three sliders");
         if(objects.size() == 3) {
             const auto hitAt = [&](uSz index, i32 timeMS) {

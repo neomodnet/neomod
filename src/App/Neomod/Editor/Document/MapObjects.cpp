@@ -31,7 +31,7 @@ std::tuple<i32, i32, i32, bool> comboOf(const Primitives::Object &object) {
 
 // by end time, equal ends in play order (by start, then line)
 std::tuple<i32, i32, u32> endOrder(const MapObjects::Shown &shown) {
-    return {shown.object->getEndTime(), shown.object->getClickTime(), shown.object->getLine()};
+    return {shown.object.getEndTime(), shown.object.getClickTime(), shown.object.getLine()};
 }
 }  // namespace
 
@@ -42,7 +42,7 @@ MapObjects::MapObjects(const Document &document) : revision(document.getRevision
         c.AR, GameRules::getMinApproachTime(), GameRules::getMidApproachTime(), GameRules::getMaxApproachTime());
     this->view.comboColors = c.combocolors;
 
-    this->objects.build(c, &this->view);
+    this->objects.build(c);
     this->objects.stack(0, this->objects.size(), c.AR, c.version, c.stackLeniency, this->view.rawHitcircleDiameter,
                         false);
     for(uSz run = 0; run < this->objects.size(); run = this->nextRun(run, c)) this->stackRuns.push_back(run);
@@ -54,11 +54,11 @@ MapObjects::MapObjects(const Document &document) : revision(document.getRevision
         const Document::Id id = document.getIdAt(this->objects.lines[i]);
         this->indexes[id] = this->ids.size();
         this->ids.push_back(id);
-        this->byEndTime.push_back({.object = &this->objects[i], .id = id, .meshBuilt = false});
+        this->byEndTime.push_back({.object = this->objects[i], .id = id, .meshBuilt = false});
         this->longestObjectMS =
             std::max(this->longestObjectMS, this->objects.endTimes[i] - this->objects.clickTimes[i]);
     }
-    Mc::ranges::stable_sort(this->byEndTime, {}, [](const Shown &shown) { return shown.object->getEndTime(); });
+    Mc::ranges::stable_sort(this->byEndTime, {}, [](const Shown &shown) { return shown.object.getEndTime(); });
 }
 
 MapObjects::~MapObjects() = default;
@@ -111,31 +111,29 @@ const MapObjects::Sounds &MapObjects::getSounds() const {
 
 MapObjects::Shown &MapObjects::shownOf(const HitObject &object) {
     auto it = Mc::ranges::lower_bound(this->byEndTime, object.getEndTime(), {},
-                                      [](const Shown &shown) { return shown.object->getEndTime(); });
-    while(it->object != &object) ++it;
+                                      [](const Shown &shown) { return shown.object.getEndTime(); });
+    while(it->object != object) ++it;
     return *it;
 }
 
 void MapObjects::remake(const Document &document, std::span<const uSz> indexes) {
     const Primitives::PRIMITIVE_CONTAINER &c = document.getPrimitives();
     // their entries by end time give way to the new entries, each where it goes
-    std::vector<const HitObject *> gone;
-    for(const uSz i : indexes) gone.push_back(&this->objects[i]);
-    Mc::ranges::sort(gone);
-    std::erase_if(this->byEndTime,
-                  [&](const Shown &shown) { return std::binary_search(gone.begin(), gone.end(), shown.object); });
+    std::erase_if(this->byEndTime, [&](const Shown &shown) {
+        return std::binary_search(indexes.begin(), indexes.end(), (uSz)shown.object.getIndex());
+    });
     // the longest an object lasts, found again when one that lasted as long got shorter
     bool shorter = false;
     std::vector<Shown> made;
     for(const uSz i : indexes) {
         const i32 duration = this->objects[i].getDuration();
-        this->objects.remake(c, i, &this->view);
+        this->objects.remake(c, i);
         shorter |= duration == this->longestObjectMS && this->objects[i].getDuration() < duration;
         this->longestObjectMS = std::max(this->longestObjectMS, this->objects[i].getDuration());
         const Document::Id id = document.getIdAt(this->objects.lines[i]);
         this->ids[i] = id;
         this->indexes[id] = i;
-        made.push_back({.object = &this->objects[i], .id = id, .meshBuilt = false});
+        made.push_back({.object = this->objects[i], .id = id, .meshBuilt = false});
     }
     if(shorter) {
         this->longestObjectMS = 0;

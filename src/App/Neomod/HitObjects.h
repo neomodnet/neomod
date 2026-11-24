@@ -13,10 +13,7 @@
 #include <span>
 #include <utility>
 #include <vector>
-#include <memory>
 
-class ConVar;
-class ModFPoSu;
 class SkinImage;
 class Image;
 class GameplayJudge;
@@ -216,29 +213,13 @@ struct SpinnerState {
     bool hitSuccess{false};  // non-miss result ("spinner-osu")
 };
 
-// an object as read by the editor and the tests
+// an object read from HitObjects (the editor and the tests use it)
 class HitObject {
    public:
-    HitObject(HitObjects &objects, u32 index, const PlayfieldView *view)
-        : m_objects(objects), m_index(index), m_view(view) {}
-    virtual ~HitObject() = default;
-
-    HitObject(const HitObject &) = delete;
-    HitObject &operator=(const HitObject &) = delete;
-    HitObject(HitObject &&) noexcept = delete;
-    HitObject &operator=(HitObject &&) noexcept = delete;
-
-    virtual void draw() {}
-    virtual void draw2();
-    // only for sliders
-    virtual void rebuildVertexBuffer() { ; }
-
-    // pos is on the screen
-    static void drawHitResult(const PlayfieldView &view, vec2 pos, LiveHitResult result, f32 animPercentInv,
-                              f32 hitDeltaRangePercent);
+    HitObject(const HitObjects &objects, u32 index) : objects(&objects), index(index) {}
 
     // where it is among the objects
-    [[nodiscard]] u32 getIndex() const { return m_index; }
+    [[nodiscard]] u32 getIndex() const { return this->index; }
 
     [[nodiscard]] HitObjectType getType() const;
     [[nodiscard]] bool isCircle() const { return this->getType() == HitObjectType::CIRCLE; }
@@ -265,85 +246,44 @@ class HitObject {
     [[nodiscard]] f32 getPixelLength() const;
     [[nodiscard]] const std::vector<SliderClick> &getClicks() const;
 
-   protected:
-    void drawHitResultAnim(const HitResultAnim &hitresultanim);
-
-    HitObjects &m_objects;
-    u32 m_index;
-    const PlayfieldView *m_view;  // what it's drawn on (NULL: never drawn)
-};
-
-class Circle final : public HitObject {
-   public:
-    // main (rawPos in osu!px)
-    static void drawApproachCircle(const PlayfieldView &view, vec2 rawPos, i32 number, i32 colorCounter,
-                                   i32 colorOffset, f32 colorRGBMultiplier, f32 approachScale, f32 alpha,
-                                   bool overrideHDApproachCircle = false);
-    static void drawCircle(const PlayfieldView &view, vec2 rawPos, i32 number, i32 colorCounter, i32 colorOffset,
-                           f32 colorRGBMultiplier, f32 approachScale, f32 alpha, f32 numberAlpha,
-                           bool drawNumber = true, bool overrideHDApproachCircle = false);
-    static void drawCircle(const Skin *skin, vec2 pos, f32 hitcircleDiameter, Color color, f32 alpha = 1.0f);
-    static void drawSliderStartCircle(const PlayfieldView &view, vec2 rawPos, i32 number, i32 colorCounter = 0,
-                                      i32 colorOffset = 0, f32 colorRGBMultiplier = 1.0f, f32 approachScale = 1.0f,
-                                      f32 alpha = 1.0f, f32 numberAlpha = 1.0f, bool drawNumber = true,
-                                      bool overrideHDApproachCircle = false);
-    static void drawSliderEndCircle(const PlayfieldView &view, vec2 rawPos, i32 number = 0, i32 colorCounter = 0,
-                                    i32 colorOffset = 0, f32 colorRGBMultiplier = 1.0f, f32 approachScale = 1.0f,
-                                    f32 alpha = 1.0f, f32 numberAlpha = 1.0f, bool drawNumber = true,
-                                    bool overrideHDApproachCircle = false);
-    // a circle in `color` (the combo colour, or white for a trail): the skin's hit circle, or for a slider's head its
-    // slider start circle where the skin has one
-    static void drawCircleIn(const PlayfieldView &view, vec2 rawPos, i32 number, i32 colorCounter, Color color,
-                             f32 colorRGBMultiplier, f32 alpha, f32 numberAlpha, bool drawNumber, bool sliderHead);
-
-    // split helper functions
-    static void drawApproachCircle(const Skin *skin, vec2 pos, Color comboColor, f32 hitcircleDiameter,
-                                   f32 approachScale, f32 alpha, bool modHD, bool overrideHDApproachCircle);
-    static void drawHitCircleOverlay(const SkinImage &hitCircleOverlayImage, vec2 pos, f32 circleOverlayImageScale,
-                                     f32 alpha, f32 colorRGBMultiplier);
-    static void drawHitCircle(Image *hitCircleImage, vec2 pos, Color comboColor, f32 circleImageScale, f32 alpha);
-    static void drawHitCircleNumber(const Skin *skin, f32 numberScale, f32 overlapScale, vec2 pos, i32 number,
-                                    f32 numberAlpha, f32 colorRGBMultiplier);
-
-   public:
-    Circle(HitObjects &objects, u32 index, const PlayfieldView *view) : HitObject(objects, index, view) {}
-
-    void draw() override;
-    void draw2() override;
+    bool operator==(const HitObject &) const = default;
 
    private:
-    // necessary due to the static draw functions
-    static i32 rainbowNumber;
-    static i32 rainbowColorCounter;
+    const HitObjects *objects;
+    u32 index;
 };
 
-class Slider final : public HitObject, public SliderRenderer::BodySource {
-   public:
-    Slider(HitObjects &objects, u32 index, const PlayfieldView *view) : HitObject(objects, index, view) {}
+// a hit circle drawn anywhere (rawPos in osu!px)
+namespace Circle {
 
-    void draw() override;
-    inline void draw2() override { draw2(true, false); }
-    void draw2(bool drawApproachCircle, bool drawOnlyApproachCircle);
-    void rebuildVertexBuffer() override;
+// main (rawPos in osu!px)
+void drawApproachCircle(const PlayfieldView &view, vec2 rawPos, i32 number, i32 colorCounter, i32 colorOffset,
+                        f32 colorRGBMultiplier, f32 approachScale, f32 alpha, bool overrideHDApproachCircle = false);
+void drawCircle(const PlayfieldView &view, vec2 rawPos, i32 number, i32 colorCounter, i32 colorOffset,
+                f32 colorRGBMultiplier, f32 approachScale, f32 alpha, f32 numberAlpha, bool drawNumber = true,
+                bool overrideHDApproachCircle = false);
+void drawCircle(const Skin *skin, vec2 pos, f32 hitcircleDiameter, Color color, f32 alpha = 1.0f);
+void drawSliderStartCircle(const PlayfieldView &view, vec2 rawPos, i32 number, i32 colorCounter = 0,
+                           i32 colorOffset = 0, f32 colorRGBMultiplier = 1.0f, f32 approachScale = 1.0f,
+                           f32 alpha = 1.0f, f32 numberAlpha = 1.0f, bool drawNumber = true,
+                           bool overrideHDApproachCircle = false);
+void drawSliderEndCircle(const PlayfieldView &view, vec2 rawPos, i32 number = 0, i32 colorCounter = 0,
+                         i32 colorOffset = 0, f32 colorRGBMultiplier = 1.0f, f32 approachScale = 1.0f, f32 alpha = 1.0f,
+                         f32 numberAlpha = 1.0f, bool drawNumber = true, bool overrideHDApproachCircle = false);
+// a circle in `color` (the combo colour, or white for a trail): the skin's hit circle, or for a slider's head its
+// slider start circle where the skin has one
+void drawCircleIn(const PlayfieldView &view, vec2 rawPos, i32 number, i32 colorCounter, Color color,
+                  f32 colorRGBMultiplier, f32 alpha, f32 numberAlpha, bool drawNumber, bool sliderHead);
 
-    // the live body, or the one fading out after the end
-    [[nodiscard]] std::optional<SliderRenderer::Body> getBody() const override;
-
-   private:
-    void drawStartCircle(f32 alpha);
-    void drawEndCircle(f32 alpha, f32 sliderSnake);
-
-    [[nodiscard]] SliderRenderer::Body makeBody(f32 alpha, f32 from, f32 to) const;
-    // the drawn part of the curve while snaking in or shrinking
-    [[nodiscard]] std::pair<f32, f32> getSnakeRange() const;
-};
-
-class Spinner final : public HitObject {
-   public:
-    Spinner(HitObjects &objects, u32 index, const PlayfieldView *view) : HitObject(objects, index, view) {}
-
-    void draw() override;
-};
+// split helper functions
+void drawApproachCircle(const Skin *skin, vec2 pos, Color comboColor, f32 hitcircleDiameter, f32 approachScale,
+                        f32 alpha, bool modHD, bool overrideHDApproachCircle);
+void drawHitCircleOverlay(const SkinImage &hitCircleOverlayImage, vec2 pos, f32 circleOverlayImageScale, f32 alpha,
+                          f32 colorRGBMultiplier);
+void drawHitCircle(Image *hitCircleImage, vec2 pos, Color comboColor, f32 circleImageScale, f32 alpha);
+void drawHitCircleNumber(const Skin *skin, f32 numberScale, f32 overlapScale, vec2 pos, i32 number, f32 numberAlpha,
+                         f32 colorRGBMultiplier);
+}  // namespace Circle
 
 // map objects as plain data, sorted by start time: one array per field, indexed by their place in play order.
 // whatever plays or shows them owns them: the judge, the editor MapObjects
@@ -354,16 +294,16 @@ class HitObjects {
     ~HitObjects();
 
     // makes them from the map primitives (with timing points if it has sliders), in the order they're played,
-    // their combo ends and combo start times set; drawn on view (NULL: never drawn)
-    void build(const Primitives::PRIMITIVE_CONTAINER &primitives, const PlayfieldView *view);
+    // their combo ends and combo start times set
+    void build(const Primitives::PRIMITIVE_CONTAINER &primitives);
     // makes the one at `index` again from the primitives, as build() makes it but for the combo start time (which
     // follows from the objects before it)
-    void remake(const Primitives::PRIMITIVE_CONTAINER &primitives, uSz index, const PlayfieldView *view);
+    void remake(const Primitives::PRIMITIVE_CONTAINER &primitives, uSz index);
     void clear();
 
     [[nodiscard]] uSz size() const { return this->types.size(); }
     [[nodiscard]] bool empty() const { return this->types.empty(); }
-    [[nodiscard]] HitObject &operator[](uSz index) const { return *this->objects[index]; }
+    [[nodiscard]] HitObject operator[](uSz index) const { return {*this, (u32)index}; }
 
     // gives the ones in [from, to) (the first one starting a combo) their combo start times, each combo starting
     // after an object that ends one
@@ -417,12 +357,10 @@ class HitObjects {
     std::vector<SliderState> sliders;
     std::vector<SpinnerState> spinners;
 
-    std::vector<std::unique_ptr<HitObject>> objects;
-
    private:
     void resize(uSz size);
     // remade: in place of one made before
-    void make(const Primitives::PRIMITIVE_CONTAINER &primitives, uSz index, const PlayfieldView *view, bool remade);
+    void make(const Primitives::PRIMITIVE_CONTAINER &primitives, uSz index, bool remade);
 };
 
 // where the slider is along its curve at curPosMS, and its repeats and reverse arrows: the slider state that both
@@ -431,7 +369,32 @@ void updateSlide(SliderState &slider, i32 clickTimeMS, f64 curPosMS, bool visibl
 // the part of its time a spinner has left at curPosMS (1 until it starts)
 [[nodiscard]] f32 spinnerTimeLeftPercent(const HitObjects &objects, uSz index, i32 curPosMS);
 
+inline HitObjectType HitObject::getType() const { return this->objects->types[this->index]; }
+inline i32 HitObject::getEndTime() const { return this->objects->endTimes[this->index]; }
+inline i32 HitObject::getClickTime() const { return this->objects->clickTimes[this->index]; }
+inline bool HitObject::isEndOfCombo() const { return this->objects->endsCombo[this->index]; }
+inline i32 HitObject::getComboStartTime() const { return this->objects->comboStartTimes[this->index]; }
+inline i32 HitObject::getComboNumber() const { return this->objects->comboNumbers[this->index]; }
+inline u32 HitObject::getLine() const { return this->objects->lines[this->index]; }
+inline i32 HitObject::getStack() const { return this->objects->stacks[this->index]; }
+inline i32 HitObject::getColorCounter() const { return this->objects->colorCounters[this->index]; }
+inline i32 HitObject::getColorOffset() const { return this->objects->colorOffsets[this->index]; }
+inline vec2 HitObject::getRawPosAt(i32 posMS) const { return this->objects->rawPosAt(this->index, posMS); }
+inline vec2 HitObject::getOriginalRawPosAt(i32 posMS) const {
+    return this->objects->originalRawPosAt(this->index, posMS);
+}
+inline i32 HitObject::getRepeat() const { return this->objects->sliderAt(this->index).repeat; }
+inline f32 HitObject::getPixelLength() const { return this->objects->sliderAt(this->index).curve.getPixelLength(); }
+inline const std::vector<SliderClick> &HitObject::getClicks() const {
+    return this->objects->sliderAt(this->index).clicks;
+}
+
+// what play, the editor and the tests draw the objects with
 namespace HitObjectDrawing {
+
+// pos is on the screen
+void drawHitResult(const PlayfieldView &view, vec2 pos, LiveHitResult result, f32 animPercentInv,
+                   f32 hitDeltaRangePercent);
 
 // sets how the object looks at curPosMS while judge plays it, drawn on view (NULL: not drawn, by the judge mods and
 // timing)
@@ -449,10 +412,16 @@ void pose(HitObjects &objects, uSz index, const PlayfieldView &view, i32 timeMS,
 // the follow points between the objects at the view time; the ones before firstIndex are gone
 void drawFollowPoints(const PlayfieldView &view, const HitObjects &objects, uSz firstIndex);
 
-// draws the objects at these indices (the ones to show, latest-ending first) the way play does: spinners first, then
-// the others with their slider bodies rendered together into sliderBodies, so that earlier objects end up on top.
-// their draw2() is the caller's, earliest-ending first
-void draw(const HitObjects &objects, std::span<const u32> indices, RenderTarget *sliderBodies);
+// makes the slider body mesh for view (nothing for other objects), before it's first drawn
+void rebuildMesh(const PlayfieldView &view, HitObjects &objects, uSz index);
+
+// draws the objects at these indices (the ones to show, latest-ending first) the way play does: spinners first (unless
+// not spinnersFirst), then the others with their slider bodies rendered together into sliderBodies, so that earlier
+// objects end up on top. the caller runs their draw2(), earliest-ending first
+void draw(const PlayfieldView &view, HitObjects &objects, std::span<const u32> indices, RenderTarget *sliderBodies,
+          bool spinnersFirst = true);
+// what goes over all of them: approach circles, follow circles, slider balls and hit results
+void draw2(const PlayfieldView &view, HitObjects &objects, uSz index);
 
 }  // namespace HitObjectDrawing
 }  // namespace neomod

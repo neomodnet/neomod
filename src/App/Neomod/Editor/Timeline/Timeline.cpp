@@ -437,7 +437,8 @@ void Timeline::onMouseDownInside(MouseButtonFlags buttons) {
     compose.setTool(Compose::Tool::SELECT);
     const auto hit = objectAt();
     // Shift: everything from the object last clicked to this one (Ctrl: on top of the selection, and on from this one)
-    if(const neomod::HitObject *from = this->state.objects->find(this->pivot); from && hit && keyboard->isShiftDown()) {
+    if(const std::optional<neomod::HitObject> from = this->state.objects->find(this->pivot);
+       from && hit && keyboard->isShiftDown()) {
         std::vector<Document::Id> range =
             compose.objectsBetween(std::min(from->getClickTime(), hit->object->getClickTime()),
                                    std::max(from->getEndTime(), hit->object->getEndTime()));

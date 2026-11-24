@@ -526,7 +526,7 @@ class EditorTests {
             if(look(objects, i) != look(made, i)) {
                 return fmt::format("made {}: {} | {}", i, look(objects, i), look(made, i));
             }
-            if(objects.byEndTime[i].object->getLine() != made.byEndTime[i].object->getLine()) {
+            if(objects.byEndTime[i].object.getLine() != made.byEndTime[i].object.getLine()) {
                 return fmt::format("by end time {}", i);
             }
         }
@@ -1027,7 +1027,7 @@ class EditorTests {
         TEST_ASSERT_EQ(text(doc), original, "...one step");
         // what the sidebar shows for the selection, and the earliest selected object, through such a drag
         const auto earliestAt = [&] {
-            const neomod::HitObject *earliest = compose.getEarliestSelected();
+            const std::optional<neomod::HitObject> earliest = compose.getEarliestSelected();
             return earliest ? earliest->getClickTime() : -1;
         };
         compose.select({a, b});
@@ -1987,11 +1987,11 @@ class EditorTests {
         const auto contains = [&](std::string_view part) { return text(doc).find(part) != std::string::npos; };
 
         const MapObjects *objects = state.objects.get();
-        const neomod::HitObject *kept = &state.objects->objects[0];
+        const std::optional<neomod::HitObject> kept = state.objects->objects[0];
         edit(Action::MOVE, b, moveBy({5.f, 0.f}));
         TEST_ASSERT(patched() && doc.getPatched()->objects == std::vector<uSz>{1},
                     "a move reads only the object it moved");
-        TEST_ASSERT(state.objects.get() == objects && &state.objects->objects[0] == kept,
+        TEST_ASSERT(state.objects.get() == objects && state.objects->objects[0] == kept,
                     "...and makes only that one again");
         TEST_ASSERT_EQ(unlikeRead(doc, *state.objects), std::string{}, "...as reading the map whole would");
         edit(Action::MOVE, b, [](HO &object) {
@@ -3777,7 +3777,7 @@ class EditorTests {
                     compose.endGesture();
                     compose.removeControlPoint(1);
                     if(std::exchange(first, false)) {
-                        if(neomod::HitObject *object = state.objects->find(sliders[i]);
+                        if(const std::optional<neomod::HitObject> object = state.objects->find(sliders[i]);
                            object && object->isSlider() && object->getDuration() > 0) {
                             const i32 spans = object->getRepeat();
                             const f64 end = object->getEndTime() + (f64)object->getDuration() / std::max(spans, 1);

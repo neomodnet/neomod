@@ -18,7 +18,7 @@ class MapObjects {
     NOCOPY_NOMOVE(MapObjects)
    public:
     struct Shown {
-        neomod::HitObject *object;
+        neomod::HitObject object;
         Document::Id id;
         bool meshBuilt;  // sliders build theirs before they're first drawn
     };
@@ -46,9 +46,10 @@ class MapObjects {
     u32 revision;            // the document revision they were made from
 
     // the object made from the line with this id (none: no object comes from it)
-    [[nodiscard]] neomod::HitObject *find(Document::Id id) const {
+    [[nodiscard]] std::optional<neomod::HitObject> find(Document::Id id) const {
         const auto it = this->indexes.find(id);
-        return it != this->indexes.end() ? &this->objects[it->second] : nullptr;
+        if(it == this->indexes.end()) return std::nullopt;
+        return this->objects[it->second];
     }
     // the index of the first object starting at timeMS or later (the number of objects if none does)
     [[nodiscard]] uSz firstFrom(i32 timeMS) const;

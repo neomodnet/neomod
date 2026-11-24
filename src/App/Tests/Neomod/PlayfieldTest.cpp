@@ -89,7 +89,7 @@ bool PlayfieldTest::load(const std::string &path) {
     m_view.comboColors = c.combocolors;
 
     HitObjects &objects = *m_objects;
-    objects.build(c, &m_view);
+    objects.build(c);
     objects.stack(0, objects.size(), c.AR, c.version, c.stackLeniency, m_view.rawHitcircleDiameter, false);
 
     for(uSz i = 0; i < objects.size(); i++) m_byEndTime.push_back({(u32)i, false});
@@ -122,7 +122,7 @@ void PlayfieldTest::drawAt(i32 timeMS) {
     for(Entry &e : std::views::reverse(m_byEndTime)) {
         if(objects.clickTimes[e.index] - lead > timeMS || objects.endTimes[e.index] + 2000 < timeMS) continue;
         if(!e.meshBuilt) {
-            objects[e.index].rebuildVertexBuffer();
+            HitObjectDrawing::rebuildMesh(m_view, objects, e.index);
             e.meshBuilt = true;
         }
         HitObjectDrawing::pose(objects, e.index, m_view, timeMS, fadeOutMS,
@@ -131,8 +131,8 @@ void PlayfieldTest::drawAt(i32 timeMS) {
     }
 
     HitObjectDrawing::drawFollowPoints(m_view, objects, 0);
-    HitObjectDrawing::draw(objects, m_shown, m_sliderRT);
-    for(const u32 i : std::views::reverse(m_shown)) objects[i].draw2();
+    HitObjectDrawing::draw(m_view, objects, m_shown, m_sliderRT);
+    for(const u32 i : std::views::reverse(m_shown)) HitObjectDrawing::draw2(m_view, objects, i);
 }
 
 void PlayfieldTest::drawCorpusFrame() {

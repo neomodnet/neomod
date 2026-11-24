@@ -157,6 +157,7 @@ class GameplayJudge final {
 
     // the objects, in the order they are played, and their indices sorted by end time
     [[nodiscard]] inline const neomod::HitObjects &getHitObjects() const { return this->hitobjects; }
+    [[nodiscard]] inline neomod::HitObjects &getHitObjects() { return this->hitobjects; }
     [[nodiscard]] inline std::span<const u32> getHitObjectsSortedByEndTime() const {
         return this->hitobjectsSortedByEndTime;
     }
@@ -216,7 +217,7 @@ class GameplayJudge final {
     void playSpinnerBonusSound(neomod::DatabaseBeatmapTypes::HITSAMPLE_BITS samples);
     void addTargetHit(f32 delta, f32 angle);
 
-    // for HitObject::update to avoid recalculating for each object every frame
+    // for judging and animating the objects without recalculating it for each one every frame
     [[nodiscard]] forceinline f32 getCachedApproachTimeForUpdate() const { return this->fCachedApproachTimeForUpdate; }
 
     void updateHitobjectMetrics();

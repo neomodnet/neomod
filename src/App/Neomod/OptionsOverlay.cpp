@@ -566,13 +566,13 @@ class SkinPreviewElement final : public CBaseUIElement {
 
             Circle::drawCircle(view, vec2(this->getSize().x * (1.0f / 5.0f), 0.0f), number, colorCounter, colorOffset,
                                colorRGBMultiplier, approachScale, approachAlpha, approachAlpha, true, false);
-            Circle::drawHitResult(
+            HitObjectDrawing::drawHitResult(
                 view, this->getPos() + vec2(0, this->getSize().y / 2) + vec2(this->getSize().x * (2.0f / 5.0f), 0.0f),
                 HIT_100, 0.45f, 0.33f);
-            Circle::drawHitResult(
+            HitObjectDrawing::drawHitResult(
                 view, this->getPos() + vec2(0, this->getSize().y / 2) + vec2(this->getSize().x * (3.0f / 5.0f), 0.0f),
                 HIT_50, 0.45f, 0.66f);
-            Circle::drawHitResult(
+            HitObjectDrawing::drawHitResult(
                 view, this->getPos() + vec2(0, this->getSize().y / 2) + vec2(this->getSize().x * (4.0f / 5.0f), 0.0f),
                 HIT_MISS, 0.45f, 1.0f);
             Circle::drawApproachCircle(

@@ -133,9 +133,8 @@ class DatabaseBeatmap final {
     };
 
     // makes the play objects from what it read into objects (the convar mods applied to its primitives on the way),
-    // judged by judge and drawn on view (NULL: never drawn)
-    static LOAD_GAMEPLAY_RESULT loadGameplay(PlayedMap &played, neomod::HitObjects &objects, GameplayJudge *judge,
-                                             const PlayfieldView *view);
+    // judged by judge
+    static LOAD_GAMEPLAY_RESULT loadGameplay(PlayedMap &played, neomod::HitObjects &objects, GameplayJudge *judge);
 
     [[nodiscard]] MapOverrides get_overrides() const;
 
