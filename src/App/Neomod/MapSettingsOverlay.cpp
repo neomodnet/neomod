@@ -387,7 +387,7 @@ void MapSettingsOverlay::draw() {
     const DatabaseBeatmap *map = osu->getMapInterface()->getBeatmap();
     const f32 left = rect.getX() + this->labelX;
     const f32 headerCenter = rect.getY() + headerHeight / 2.f;
-    const std::string title = _("Beatmap settings");
+    const Mc::cstr_view title = _("Beatmap settings");
     drawText(this->font, title, left, headerCenter, 1.f);
     if(map) {
         drawText(this->font, fmt::format("[{}]", map->getDifficultyName()),

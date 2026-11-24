@@ -334,7 +334,7 @@ class HitObjects {
     std::vector<i32> comboNumbers;
     std::vector<i32> colorCounters;
     std::vector<i32> colorOffsets;
-    std::vector<u8> endsCombo;
+    std::vector<b8> endsCombo;
     std::vector<u32> lines;  // in the file they were read from (1-based, 0: not from a file)
     std::vector<i32> stacks;
     std::vector<DatabaseBeatmapTypes::HITSAMPLE_BITS> samples;  // hover samples for sliders
@@ -342,10 +342,10 @@ class HitObjects {
     std::vector<vec2> originalPositions;                        // and without the stacks
 
     // play state
-    std::vector<u8> finished;
-    std::vector<u8> blocked;   // by notelock
-    std::vector<u8> misAimed;  // has its slot in the hit error bar (see cv::hiterrorbar_misaims)
-    std::vector<u8> visible;
+    std::vector<b8> finished;
+    std::vector<b8> blocked;   // by notelock
+    std::vector<b8> misAimed;  // has its slot in the hit error bar (see cv::hiterrorbar_misaims)
+    std::vector<b8> visible;
     std::vector<i32> autopilotDeltas;
 
     std::vector<HitObjectLook> looks;

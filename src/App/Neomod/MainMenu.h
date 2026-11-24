@@ -103,7 +103,8 @@ class MainMenu final : public UIScreen, public MouseListener {
     float mainMenuButtonCloseTime{0.f};
 
     CubeButton *cube;
-    std::vector<MainButton *> menuElements;
+    enum class MainButtonType : u8 { Singleplayer, Multiplayer, Edit, Options, SaveOrExit, COUNT };
+    std::array<MainButton *, (size_t)MainButtonType::COUNT> menuElements;
 
     neomod::mainmenu::NowPlaying *nowPlaying;
     neomod::mainmenu::WrappedText *tipLabel{nullptr};

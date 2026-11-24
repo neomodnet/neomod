@@ -64,7 +64,7 @@ struct StrainComputeState {
     std::vector<vec2> lazyEndPos;
     std::vector<f64> lazyTravelDist;
     std::vector<f64> lazyTravelTime;
-    std::vector<u8> lazyCalcFinished;
+    std::vector<b8> lazyCalcFinished;
 
     // recorded per-object difficulties (lazer Skill.ObjectDifficulties). for speed the rhythm
     // multiplier is part of the recorded value. the reading/flashlight series track both hidden

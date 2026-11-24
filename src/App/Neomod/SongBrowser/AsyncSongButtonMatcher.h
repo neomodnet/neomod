@@ -38,7 +38,7 @@ struct SearchResult {
     std::shared_ptr<const SearchIndex> index;
     std::string query;
     f32 speed{1.f};
-    std::vector<u8> matches;
+    std::vector<b8> matches;
 };
 
 // the lowercased "<hardcoded> <search>" query that submitSearchMatch() takes

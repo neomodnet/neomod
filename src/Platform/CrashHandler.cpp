@@ -132,10 +132,9 @@ void putAddresses(FileHandle file, const neotrace::trace &trace) {
     put(file, "\n\n");
 }
 
-void putSymbolsAndFlushLog(FileHandle file, const neotrace::trace &trace) {
+void putSymbols(FileHandle file, const neotrace::trace &trace) {
     put(file, neotrace::to_string(trace));
     put(file, "\n");
-    Logger::flush(true);
 }
 
 #ifdef MCENGINE_PLATFORM_WINDOWS
@@ -239,7 +238,8 @@ LONG write_crash_dump_internal(EXCEPTION_POINTERS *exceptionInfo) {
         CloseHandle(reporter.hThread);
     }
 
-    putSymbolsAndFlushLog(traceFile, trace);
+    putSymbols(traceFile, trace);
+    Logger::flush(true);
     CloseHandle(traceFile);
     SetEvent(finished);
 
@@ -417,7 +417,8 @@ void onSignal(int sig, siginfo_t *info, void *context) {
         posix_spawn(&reporter, s_reporterArgv[0], nullptr, nullptr, s_reporterArgv.data(), environ);
     }
 
-    putSymbolsAndFlushLog(traceFile, trace);
+    putSymbols(traceFile, trace);
+    Logger::flush(true);
     close(traceFile);
 
 #ifdef MCENGINE_PLATFORM_MACOS

@@ -612,7 +612,7 @@ void ModSelector::draw() {
         {
             const float dpiScale = Osu::getUIScale();
 
-            static std::string_view experimentalText = _("Experimental Mods");
+            const Mc::cstr_view experimentalText = _("Experimental Mods");
             McFont *experimentalFont = osu->getSubTitleFont();
 
             const float experimentalTextWidth = experimentalFont->getStringWidth(experimentalText);

@@ -179,26 +179,28 @@ MainMenu::MainMenu() : UIScreen() {
     this->cube->setClickCallback(SA::MakeDelegate<&MainMenu::onCubePressed>(this));
     this->addBaseUIElement(this->cube);
 
-    this->menuElements = {
-        new MainButton(this, "mainmenu_singleplayer", _("Singleplayer"), &Skin::s_hover_sp),
-        new MainButton(this, "mainmenu_multiplayer", _("Multiplayer"), &Skin::s_hover_mp),
-        new MainButton(this, "mainmenu_edit", _("Edit"), &Skin::s_hover_edit),
-        new MainButton(this, "mainmenu_options", _("Options"), &Skin::s_hover_options),
+    {
+        using enum MainButtonType;
+        auto &es = this->menuElements;
+        (es[(uSz)Singleplayer] = new MainButton(this, "mainmenu_singleplayer", _("Singleplayer"), &Skin::s_hover_sp))
+            ->setClickCallback(SA::MakeDelegate<&MainMenu::onPlayButtonPressed>(this));
+        (es[(uSz)Multiplayer] = new MainButton(this, "mainmenu_multiplayer", _("Multiplayer"), &Skin::s_hover_mp))
+            ->setClickCallback(SA::MakeDelegate<&MainMenu::onMultiplayerButtonPressed>(this));
+        (es[(uSz)Edit] = new MainButton(this, "mainmenu_edit", _("Edit"), &Skin::s_hover_edit))
+            ->setClickCallback(SA::MakeDelegate<&MainMenu::onEditButtonPressed>(this));
+        (es[(uSz)Options] = new MainButton(this, "mainmenu_options", _("Options"), &Skin::s_hover_options))
+            ->setClickCallback(SA::MakeDelegate<&MainMenu::onOptionsButtonPressed>(this));
         // WASM (just use options sound)
-        Env::cfg(OS::WASM) ? new MainButton(this, "mainmenu_exit", _("Save"), &Skin::s_hover_options, true)
-                           : new MainButton(this, "mainmenu_exit", _("Exit"), &Skin::s_hover_exit),
-    };
-    this->menuElements[0]->setClickCallback(SA::MakeDelegate<&MainMenu::onPlayButtonPressed>(this));
-    this->menuElements[1]->setClickCallback(SA::MakeDelegate<&MainMenu::onMultiplayerButtonPressed>(this));
-    this->menuElements[2]->setClickCallback(SA::MakeDelegate<&MainMenu::onEditButtonPressed>(this));
-    this->menuElements[3]->setClickCallback(SA::MakeDelegate<&MainMenu::onOptionsButtonPressed>(this));
-    this->menuElements[4]->setClickCallback(SA::MakeDelegate<&MainMenu::onSaveOrExitButtonPressed>(this));
-    for(auto *button : this->menuElements) {
-        button->setFont(osu->getSubTitleFont());
-        button->setVisible(false);
-        this->addBaseUIElement(button);
+        (es[(uSz)SaveOrExit] = Env::cfg(OS::WASM)
+                                   ? new MainButton(this, "mainmenu_exit", _("Save"), &Skin::s_hover_options, true)
+                                   : new MainButton(this, "mainmenu_exit", _("Exit"), &Skin::s_hover_exit))
+            ->setClickCallback(SA::MakeDelegate<&MainMenu::onSaveOrExitButtonPressed>(this));
+        for(auto *button : es) {
+            button->setFont(osu->getSubTitleFont());
+            button->setVisible(false);
+            this->addBaseUIElement(button);
+        }
     }
-
     this->nowPlaying = new mainmenu::NowPlaying(this);
     this->addBaseUIElement(this->nowPlaying);
 
@@ -685,7 +687,7 @@ void MainMenu::draw() {
                                    osu->getVirtScreenHeight() - this->versionButton->getSize().y * 2 -
                                        this->versionButton->getSize().y * scale);
 
-        std::string notificationText = _("Changelog");
+        const Mc::cstr_view notificationText = _("Changelog");
         g->setColor(0xffffffff);
         g->pushTransform();
         {
@@ -772,6 +774,7 @@ void MainMenu::updateStoryboard() {
 void MainMenu::tick() {
     UIScreen::tick();
     this->updateAvailableButton->tick();
+    // NOTE: does nothing after this->currentMap is set to NULL on setting the screen invisible
     this->updateStoryboard();
 
     if(!this->bVisible) return;
@@ -809,7 +812,7 @@ void MainMenu::tick() {
 
     // hide the buttons if the closing animation finished
     if(!this->centerOffsetAnim.animating() && this->centerOffsetAnim == 0.0f) {
-        for(auto &menuElement : this->menuElements) {
+        for(auto *menuElement : this->menuElements) {
             menuElement->setVisible(false);
         }
     }
@@ -1249,7 +1252,7 @@ void MainMenu::updateLayout() {
     }
 
     // the buttons split a stack of fixed height, centered on the cube
-    int numButtons = this->menuElements.size();
+    int numButtons = (int)MainButtonType::COUNT;
     int menuElementPadding = this->vSize.y * 0.02f;
     int menuElementHeight = (this->vSize.y * 0.64f - (numButtons - 1) * menuElementPadding) / numButtons;
     int menuElementExtraWidth = this->vSize.x * 0.06f;

@@ -22,6 +22,9 @@ using u16 = uint16_t;
 using u32 = uint32_t;
 using u64 = uint64_t;
 
+// to avoid std::vector<bool> bs
+using b8 = u8;
+
 using f32 = float;
 using f64 = double;
 
