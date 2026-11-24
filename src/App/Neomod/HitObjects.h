@@ -94,7 +94,7 @@ class HitObject {
     virtual void animate(f64 curPosMS);
     virtual void draw() {}
     virtual void draw2();
-    virtual void update(i32 curPosMS, f64 frameTimeMS);
+    virtual void update(i32 curPosMS, f64 frameTimeMS) = 0;
 
     // shows the object at timeMS as a perfect play would have left it, without judging it: every part hit at its
     // time, hit animations timeMS - hit time into fadeOutMS of music time, no hit results; spinners aren't spun.
@@ -159,6 +159,7 @@ class HitObject {
     [[nodiscard]] inline i32 getAutopilotDelta() const { return m_autopilotDeltaMS; }
 
     [[nodiscard]] inline bool isVisible() const { return m_visible; }
+    [[nodiscard]] bool isVisibleAt(f64 curPosMS) const;
     [[nodiscard]] inline bool isFinished() const { return m_finished; }
     [[nodiscard]] inline bool isBlocked() const { return m_blocked; }
     [[nodiscard]] inline bool hasMisAimed() const { return m_misAim; }
@@ -170,12 +171,19 @@ class HitObject {
     virtual void rebuildVertexBuffer() { ; }
 
    protected:
-    // the fades, approach, Hidden, the hittable dim and visibility at curPosMS (update() passes the view's mods and the
-    // judging interface's timing)
+    // the fades, approach, Hidden, the hittable dim and visibility at curPosMS.
+    // animate() passes view mods and judge timing.
     void updateLook(f64 curPosMS, ModFlags mods, f32 approachTimeMS, f32 speedAdjustedAnimationSpeed);
 
    private:
     static f32 lerp3f(f32 a, f32 b, f32 c, f32 percent);
+
+    [[nodiscard]] ModFlags getLookMods() const;
+    [[nodiscard]] f32 getLookAnimationSpeed() const;
+    [[nodiscard]] i32 getLookApproachTime(i32 fadeInTimeMS, f32 approachTimeMS) const {
+        return m_useFadeInTimeAsApproachTime ? fadeInTimeMS : (i32)approachTimeMS;
+    }
+    [[nodiscard]] bool isVisibleAt(f64 curPosMS, ModFlags mods, i32 approachTimeMS) const;
 
     struct HITRESULTANIM {
         vec2 rawPos{0.f};
@@ -379,8 +387,8 @@ class Slider final : public HitObject, public SliderRenderer::BodySource {
     // the drawn part of the curve while snaking in or shrinking
     [[nodiscard]] std::pair<f32, f32> getSnakeRange() const;
 
-    // the slide, snake, reverse arrow, body fade and repeat state at curPosMS
     void updateSlideLook(f64 curPosMS, ModFlags mods);
+    void updateSlide(f64 curPosMS, bool visible);
     // the follow circle's fades at curPosMS
     void updateAnimations(f64 curPosMS, f32 speedAdjustedAnimationSpeed);
     // whatever changes the cursor's position or the keys that count calls this
@@ -494,7 +502,7 @@ class Spinner final : public HitObject {
 
    private:
     void onHit();
-    void rotate(f32 rad);
+    void rotate(f32 rad, i32 curPosMS);
     // the part of its time left at curPosMS (1 until it starts)
     [[nodiscard]] f32 getTimeLeftPercent(i32 curPosMS) const;
 

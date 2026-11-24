@@ -80,6 +80,26 @@ Primitives::LoadError GameplayJudge::load(std::shared_ptr<const std::vector<u8>>
     }
     Mc::ranges::stable_sort(this->hitobjectsSortedByEndTime, {}, &HitObject::getEndTime);
 
+    const uSz numObjects = this->hitobjects.size();
+    this->latestTimeBefore.assign(numObjects + 1, std::numeric_limits<i32>::min());
+    this->latestTimeBeforeByEndTime.assign(numObjects + 1, std::numeric_limits<i32>::min());
+    this->numCirclesBefore.assign(numObjects + 1, 0);
+    this->numSlidersBefore.assign(numObjects + 1, 0);
+    for(uSz i = 0; i < numObjects; i++) {
+        const HitObject *obj = this->hitobjects[i].get();
+        const HitObject *byEnd = this->hitobjectsSortedByEndTime[i];
+        this->latestTimeBefore[i + 1] = std::max({this->latestTimeBefore[i], obj->getClickTime(), obj->getEndTime()});
+        this->latestTimeBeforeByEndTime[i + 1] =
+            std::max({this->latestTimeBeforeByEndTime[i], byEnd->getClickTime(), byEnd->getEndTime()});
+        this->numCirclesBefore[i + 1] = this->numCirclesBefore[i] + (obj->isCircle() ? 1 : 0);
+        this->numSlidersBefore[i + 1] = this->numSlidersBefore[i] + (obj->isSlider() ? 1 : 0);
+    }
+    this->earliestStartFrom.assign(numObjects + 1, std::numeric_limits<i32>::max());
+    for(uSz i = numObjects; i-- > 0;) {
+        this->earliestStartFrom[i] =
+            std::min(this->earliestStartFrom[i + 1], this->hitobjectsSortedByEndTime[i]->getComboStartTime());
+    }
+
     // after the hitobjects have been loaded we can calculate the stacks
     this->calculateStacks();
     this->computeDrainRate();
@@ -97,18 +117,28 @@ void GameplayJudge::unload() {
     this->hitobjectsSortedByEndTime.clear();
     this->misaimObjects.clear();
     this->hitobjects.clear();
+    this->latestTimeBefore.clear();
+    this->latestTimeBeforeByEndTime.clear();
+    this->numCirclesBefore.clear();
+    this->numSlidersBefore.clear();
+    this->earliestStartFrom.clear();
+    this->numFinishedFirst = 0;
+    this->numFinishedFirstByEndTime = 0;
     this->breaks.clear();
     this->clicks.clear();
 }
 
 void GameplayJudge::reset(i32 curPos, bool leaveOutStarted) {
     this->resetScore();
+    this->numFinishedFirst = 0;
+    this->numFinishedFirstByEndTime = 0;
     for(auto &hitobject : this->hitobjects) {
         // (past its end, it's done)
         const i32 pos = leaveOutStarted && hitobject->getClickTime() <= curPos
                             ? std::max(curPos, hitobject->getEndTime() + 1)
                             : curPos;
         hitobject->onReset(pos);
+        hitobject->animate(pos);
         hitobject->update(pos, 0.0);
         hitobject->onReset(pos);
     }
@@ -194,7 +224,7 @@ void GameplayJudge::simulate_to(i32 musicPos) {
 void GameplayJudge::animate(f64 curPos) {
     const i32 pvs = this->getPVS();
     const bool freezeFrame = this->getMods().has(ModFlags::FreezeFrame);
-    for(auto &hitobject : this->hitobjects) {
+    for(const auto &hitobject : std::span{this->hitobjects}.subspan(this->getFirstLiveObject(curPos - pvs))) {
         if(hitobject->isFinished() && curPos - pvs > hitobject->getEndTime()) continue;
         if((freezeFrame ? hitobject->getComboStartTime() : hitobject->getClickTime()) > curPos + pvs) break;
         hitobject->animate(curPos);
@@ -203,6 +233,7 @@ void GameplayJudge::animate(f64 curPos) {
 
 void GameplayJudge::updateAll(i32 curPos, f64 frameTimeSecs) {
     for(auto &hitobject : this->hitobjects) {
+        hitobject->animate(curPos);
         hitobject->update(curPos, frameTimeSecs);
     }
 }
@@ -454,6 +485,28 @@ DBType::BREAK GameplayJudge::getBreakForTimeRange(i32 startMS, i32 positionMS, i
     }
 
     return curBreak;
+}
+
+namespace {
+// counts how many objects in a row, from the first one, are finished and end before time.
+// latestTimeBefore[i] is the latest start or end time among the first i objects.
+uSz countBefore(std::span<const i32> latestTimeBefore, uSz numFinished, f64 time) {
+    if(latestTimeBefore.empty()) return 0;
+    const auto before = latestTimeBefore.first(numFinished + 1);
+    return (uSz)(Mc::ranges::lower_bound(before, time) - before.begin()) - 1;
+}
+}  // namespace
+
+uSz GameplayJudge::getFirstLiveObject(f64 time) const {
+    return countBefore(this->latestTimeBefore, this->numFinishedFirst, time);
+}
+
+uSz GameplayJudge::getFirstLiveObjectByEndTime(f64 time) const {
+    return countBefore(this->latestTimeBeforeByEndTime, this->numFinishedFirstByEndTime, time);
+}
+
+uSz GameplayJudge::getFirstFutureObjectByEndTime(f64 time) const {
+    return (uSz)(Mc::ranges::upper_bound(this->earliestStartFrom, time) - this->earliestStartFrom.begin());
 }
 
 i32 GameplayJudge::getPVS() const {
@@ -723,7 +776,25 @@ void GameplayJudge::update(f64 frameTimeSecs) {
 
         this->iCurrentHitObjectIndex = 0;  // reset below here, since it's needed for mafham pvs
 
-        for(int i = 0; i < this->hitobjects.size(); i++) {
+        const i32 followPointFadeTime = (i32)cv::followpoints_prevfadetime.getFloat();
+        const uSz firstLive =
+            usePVS ? this->getFirstLiveObject(std::min(this->iCurMusicPos - pvs, this->iCurMusicPos)) : 0;
+        if(firstLive > 0) {
+            this->currentHitObject = this->hitobjects[firstLive - 1].get();
+            this->iPreviousHitObjectTime = this->currentHitObject->getEndTime();
+            for(uSz i = firstLive; i-- > 0;) {
+                if(this->iCurMusicPos > this->hitobjects[i]->getEndTime() + followPointFadeTime) {
+                    this->iPreviousFollowPointObjectIndex = (i32)i;
+                    break;
+                }
+            }
+            this->iCurrentNumCircles = this->numCirclesBefore[firstLive];
+            this->iCurrentNumSliders = this->numSlidersBefore[firstLive];
+            this->iCurrentNumSpinners = (i32)firstLive - this->iCurrentNumCircles - this->iCurrentNumSliders;
+            this->iCurrentHitObjectIndex = (i32)firstLive - 1;
+        }
+
+        for(int i = (int)firstLive; i < this->hitobjects.size(); i++) {
             HitObject *curHobj = this->hitobjects[i].get();
             // the order must be like this:
             // 0) miscellaneous stuff (minimal performance impact)
@@ -749,8 +820,7 @@ void GameplayJudge::update(f64 frameTimeSecs) {
                     this->currentHitObject = curHobj;
                     this->iPreviousHitObjectTime = curHobj->getEndTime();
 
-                    if(this->iCurMusicPos >
-                       this->iPreviousHitObjectTime + (i32)cv::followpoints_prevfadetime.getFloat())
+                    if(this->iCurMusicPos > this->iPreviousHitObjectTime + followPointFadeTime)
                         this->iPreviousFollowPointObjectIndex = i;
                 }
             }
@@ -912,8 +982,15 @@ void GameplayJudge::update(f64 frameTimeSecs) {
                 this->iNPS++;
 
             // note density
-            if(curHobj->isVisible()) this->iND++;
+            if(curHobj->isVisibleAt(this->iCurMusicPos)) this->iND++;
         }
+
+        while(this->numFinishedFirst < this->hitobjects.size() &&
+              this->hitobjects[this->numFinishedFirst]->isFinished())
+            this->numFinishedFirst++;
+        while(this->numFinishedFirstByEndTime < this->hitobjectsSortedByEndTime.size() &&
+              this->hitobjectsSortedByEndTime[this->numFinishedFirstByEndTime]->isFinished())
+            this->numFinishedFirstByEndTime++;
 
         // miss hiterrorbar slots
         // this gets the closest previous unfinished hitobject, as well as all following hitobjects which are in 50
@@ -922,9 +999,7 @@ void GameplayJudge::update(f64 frameTimeSecs) {
             this->misaimObjects.clear();
             HitObject *lastUnfinishedHitObject = nullptr;
             const i32 hitWindow50 = (i32)this->getHitWindow50();
-            for(const auto &hitobject : this->hitobjects)  // this shouldn't hurt performance too much, since no
-                                                           // expensive operations are happening within the loop
-            {
+            for(const auto &hitobject : std::span{this->hitobjects}.subspan(this->numFinishedFirst)) {
                 if(!hitobject->isFinished()) {
                     if(this->iCurMusicPos >= hitobject->getClickTime())
                         lastUnfinishedHitObject = hitobject.get();
@@ -1083,8 +1158,15 @@ void GameplayJudge::updateAutoCursorPos() {
         prevTime = (int)std::roundf((float)-cv::early_note_time.getInt() * this->getSpeedMultiplier());
 
     if(!autopilot) {
+        const uSz firstLive = this->getFirstLiveObject(curMusicPos);
+        if(firstLive > 0) {
+            const HitObject *o = this->hitobjects[firstLive - 1].get();
+            prevTime = o->getEndTime();
+            prevPos = o->getAutoCursorPos(curMusicPos);
+        }
+
         bool autoDanceOverride = false;
-        for(int i = 0; i < this->hitobjects.size(); i++) {
+        for(int i = (int)firstLive; i < this->hitobjects.size(); i++) {
             HitObject *o = this->hitobjects[i].get();
 
             // get previous object
@@ -1163,7 +1245,13 @@ void GameplayJudge::updateAutoCursorPos() {
             }
         }
     } else {
-        for(int i = 0; i < this->hitobjects.size(); i++) {
+        if(this->numFinishedFirst > 0) {
+            const HitObject *o = this->hitobjects[this->numFinishedFirst - 1].get();
+            prevTime = o->getEndTime() + o->getAutopilotDelta();
+            prevPos = o->getAutoCursorPos(curMusicPos);
+        }
+
+        for(int i = (int)this->numFinishedFirst; i < this->hitobjects.size(); i++) {
             HitObject *o = this->hitobjects[i].get();
 
             // get previous object

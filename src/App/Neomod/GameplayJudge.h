@@ -163,6 +163,10 @@ class GameplayJudge final {
         return this->hitobjectsSortedByEndTime;
     }
 
+    [[nodiscard]] uSz getFirstLiveObject(f64 time) const;
+    [[nodiscard]] uSz getFirstLiveObjectByEndTime(f64 time) const;
+    [[nodiscard]] uSz getFirstFutureObjectByEndTime(f64 time) const;
+
     // the unfinished objects the last clicks could have been meant for (see cv::hiterrorbar_misaims)
     [[nodiscard]] inline std::span<neomod::HitObject *const> getMisaimObjects() const { return this->misaimObjects; }
 
@@ -273,6 +277,17 @@ class GameplayJudge final {
     std::vector<std::unique_ptr<neomod::HitObject>> hitobjects;
     std::vector<neomod::HitObject *> hitobjectsSortedByEndTime;  // non-owning view of hitobjects data
     std::vector<neomod::HitObject *> misaimObjects;
+
+    // running totals over the objects, for finding the live ones without touching the others
+    std::vector<i32> latestTimeBefore;           // [i]: the latest start or end among the first i objects
+    std::vector<i32> latestTimeBeforeByEndTime;  // the same in end time order
+    std::vector<i32> numCirclesBefore;           // [i]: among the first i objects
+    std::vector<i32> numSlidersBefore;
+    std::vector<i32> earliestStartFrom;  // [i]: the earliest combo start from the i-th object on, in end time order
+    // how many objects in a row are finished from the first one, in both orders.
+    // objects only become unfinished again through reset().
+    uSz numFinishedFirst = 0;
+    uSz numFinishedFirstByEndTime = 0;
 
     // statistics
     i32 iNPS = 0;

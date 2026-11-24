@@ -232,11 +232,11 @@ class LiveScore final {
     [[nodiscard]] inline int getComboFull() const { return this->iComboFull; }
     [[nodiscard]] inline int getComboEndBitmask() const { return this->iComboEndBitmask; }
     [[nodiscard]] inline float getAccuracy() const { return this->fAccuracy; }
-    [[nodiscard]] inline float getUnstableRate() const { return this->fUnstableRate; }
-    [[nodiscard]] inline float getHitErrorAvgMin() const { return this->fHitErrorAvgMin; }
-    [[nodiscard]] inline float getHitErrorAvgMax() const { return this->fHitErrorAvgMax; }
-    [[nodiscard]] inline float getHitErrorAvgCustomMin() const { return this->fHitErrorAvgCustomMin; }
-    [[nodiscard]] inline float getHitErrorAvgCustomMax() const { return this->fHitErrorAvgCustomMax; }
+    [[nodiscard]] float getUnstableRate() const;
+    [[nodiscard]] float getHitErrorAvgMin() const;
+    [[nodiscard]] float getHitErrorAvgMax() const;
+    [[nodiscard]] float getHitErrorAvgCustomMin() const;
+    [[nodiscard]] float getHitErrorAvgCustomMax() const;
     [[nodiscard]] inline int getNumMisses() const { return this->iNumMisses; }
     [[nodiscard]] inline int getNumSliderBreaks() const { return this->iNumSliderBreaks; }
     [[nodiscard]] inline int getNum50s() const { return this->iNum50s; }
@@ -291,11 +291,15 @@ class LiveScore final {
     int iComboFull;
     int iComboEndBitmask;
     float fAccuracy;
-    float fHitErrorAvgMin;
-    float fHitErrorAvgMax;
-    float fHitErrorAvgCustomMin;
-    float fHitErrorAvgCustomMax;
-    float fUnstableRate;
+    // the unstable rate and hit error averages over hitdeltas, recalculated when read after a hit result
+    void updateHitErrorStats() const;
+    mutable float fHitErrorAvgMin;
+    mutable float fHitErrorAvgMax;
+    mutable float fHitErrorAvgCustomMin;
+    mutable float fHitErrorAvgCustomMax;
+    mutable float fUnstableRate;
+    float fUnstableRateSpeedMultiplier{1.f};  // the judge speed at the last hit result
+    mutable bool bHitErrorStatsDirty{false};
 
     int iNumMisses;
     int iNumSliderBreaks;

@@ -55,6 +55,7 @@ void LiveScore::reset() {
     this->fHitErrorAvgCustomMin = 0.0f;
     this->fHitErrorAvgCustomMax = 0.0f;
     this->fUnstableRate = 0.0f;
+    this->bHitErrorStatsDirty = false;
 
     this->iNumMisses = 0;
     this->iNumSliderBreaks = 0;
@@ -192,7 +193,21 @@ void LiveScore::addHitResult(GameplayJudge *judge, HitObject * /*hitObject*/, Li
         this->grade = (hd || fl) ? ScoreGrade::XH : ScoreGrade::X;
     }
 
-    // recalculate unstable rate
+    this->fUnstableRateSpeedMultiplier = judge->getSpeedMultiplier();
+    this->bHitErrorStatsDirty = true;
+
+    // recalculate max combo
+    if(this->iCombo > this->iComboMax) this->iComboMax = this->iCombo;
+
+    if(!this->simulating) {
+        this->onScoreChange();
+    }
+}
+
+void LiveScore::updateHitErrorStats() const {
+    if(!this->bHitErrorStatsDirty) return;
+    this->bHitErrorStatsDirty = false;
+
     float averageDelta = 0.0f;
     this->fUnstableRate = 0.0f;
     this->fHitErrorAvgMin = 0.0f;
@@ -258,15 +273,33 @@ void LiveScore::addHitResult(GameplayJudge *judge, HitObject * /*hitObject*/, Li
         this->fUnstableRate = std::sqrt(this->fUnstableRate) * 10;
 
         // compensate for speed
-        this->fUnstableRate /= judge->getSpeedMultiplier();
+        this->fUnstableRate /= this->fUnstableRateSpeedMultiplier;
     }
+}
 
-    // recalculate max combo
-    if(this->iCombo > this->iComboMax) this->iComboMax = this->iCombo;
+float LiveScore::getUnstableRate() const {
+    this->updateHitErrorStats();
+    return this->fUnstableRate;
+}
 
-    if(!this->simulating) {
-        this->onScoreChange();
-    }
+float LiveScore::getHitErrorAvgMin() const {
+    this->updateHitErrorStats();
+    return this->fHitErrorAvgMin;
+}
+
+float LiveScore::getHitErrorAvgMax() const {
+    this->updateHitErrorStats();
+    return this->fHitErrorAvgMax;
+}
+
+float LiveScore::getHitErrorAvgCustomMin() const {
+    this->updateHitErrorStats();
+    return this->fHitErrorAvgCustomMin;
+}
+
+float LiveScore::getHitErrorAvgCustomMax() const {
+    this->updateHitErrorStats();
+    return this->fHitErrorAvgCustomMax;
 }
 
 void LiveScore::addHitResultComboEnd(LiveHitResult hit) {

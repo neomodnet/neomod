@@ -1816,7 +1816,10 @@ void BeatmapInterface::drawHitObjects() {
         i32 mostDistantEndTimeDrawn = 0;
         const bool freezeFrame = flags::has<ModFlags::FreezeFrame>(this->getModFlags());
 
-        for(sSz i = static_cast<sSz>(hitobjectsSortedByEndTime.size()) - 1; i >= 0; i--) {
+        // all objects >= firstFuture start after the PVS
+        const sSz firstFuture = usePVS ? (sSz)this->judge->getFirstFutureObjectByEndTime(curPos + pvs)
+                                       : (sSz)hitobjectsSortedByEndTime.size();
+        for(sSz i = firstFuture - 1; i >= 0; i--) {
             // PVS optimization (reversed)
             HitObject *obj = hitobjectsSortedByEndTime[i];
             if(likely(usePVS)) {
@@ -1842,7 +1845,8 @@ void BeatmapInterface::drawHitObjects() {
         const f64 mostDistantFutureObjectPVS = std::max((f64)mostDistantEndTimeDrawn, curPos + pvs);
 
         // this doesn't need the spinner front-to-back thing because spinners have no draw2
-        for(auto *obj : hitobjectsSortedByEndTime) {
+        const uSz firstLive = usePVS ? this->judge->getFirstLiveObjectByEndTime(curPos - pvs) : 0;
+        for(auto *obj : hitobjectsSortedByEndTime.subspan(firstLive)) {
             // NOTE: to fix mayday simultaneous sliders with increasing endtime getting culled here, would have to
             // switch from m_hitobjectsSortedByEndTime to m_hitobjects PVS optimization
             if(likely(usePVS)) {
@@ -2563,11 +2567,13 @@ void BeatmapInterface::stopObjectSounds() {
 }
 
 bool BeatmapInterface::clickableHitobjectAt(vec2 cursor_pos) const {
-    // FIXME: this doesn't use PVS and iterates over every hit object
     const vec2 replayCursorPos = this->pixels2ReplayCoords(cursor_pos);
-    for(const auto &h : this->judge->getHitObjects()) {
-        if(!h->isClickableFrom(this->getJudgeMusicPos(), replayCursorPos)) continue;
-        return true;
+    const i32 musicPos = this->getJudgeMusicPos();
+
+    const auto hitobjects = this->judge->getHitObjects();
+    for(const auto &h : hitobjects.subspan(this->judge->getFirstLiveObject(musicPos))) {
+        if(h->getClickTime() - musicPos > (i32)GameRules::HITWINDOW_MISS) break;
+        if(h->isClickableFrom(musicPos, replayCursorPos)) return true;
     }
 
     return false;

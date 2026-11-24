@@ -297,13 +297,31 @@ void HitObject::drawHitResultAnim(const HITRESULTANIM &hitresultanim) {
     }
 }
 
-void HitObject::update(i32 curPosMS, f64 /*frame_time*/) { HitObject::animate(curPosMS); }
-
 void HitObject::animate(f64 curPosMS) {
-    // (the view's mods include the experimental ones; objects without a view aren't drawn)
-    this->updateLook(curPosMS, m_view ? m_view->getModFlags() : m_judge->getMods().flags,
-                     m_judge->getCachedApproachTimeForUpdate(),
-                     m_view ? m_view->getSpeedAdjustedAnimationSpeed() : m_judge->getSpeedMultiplier());
+    this->updateLook(curPosMS, this->getLookMods(), m_judge->getCachedApproachTimeForUpdate(),
+                     this->getLookAnimationSpeed());
+}
+
+ModFlags HitObject::getLookMods() const {
+    // the view mods include the experimental ones (objects without a view aren't drawn)
+    return m_view ? m_view->getModFlags() : m_judge->getMods().flags;
+}
+
+f32 HitObject::getLookAnimationSpeed() const {
+    return m_view ? m_view->getSpeedAdjustedAnimationSpeed() : m_judge->getSpeedMultiplier();
+}
+
+bool HitObject::isVisibleAt(f64 curPosMS) const {
+    const f64 animationSpeedMultiplier = this->getLookAnimationSpeed();
+    const i32 fadeInTimeMS = GameRules::getFadeInTime() * animationSpeedMultiplier;
+    return this->isVisibleAt(curPosMS, this->getLookMods(),
+                             this->getLookApproachTime(fadeInTimeMS, m_judge->getCachedApproachTimeForUpdate()));
+}
+
+bool HitObject::isVisibleAt(f64 curPosMS, ModFlags mods, i32 approachTimeMS) const {
+    const i32 visibleTms = (flags::has<ModFlags::FreezeFrame>(mods) ? m_comboStartMS : m_clickTimeMS);
+    // 1 ms fudge by using >=, shouldn't really be a problem
+    return curPosMS >= (visibleTms - approachTimeMS) && curPosMS < getEndTime();
 }
 
 void HitObject::updateLook(f64 curPosMS, ModFlags mods, f32 approachTimeMS, f32 speedAdjustedAnimationSpeed) {
@@ -313,11 +331,10 @@ void HitObject::updateLook(f64 curPosMS, ModFlags mods, f32 approachTimeMS, f32 
     const f64 animationSpeedMultiplier = speedAdjustedAnimationSpeed;
     const i32 visibleTms = (flags::has<ModFlags::FreezeFrame>(mods) ? m_comboStartMS : m_clickTimeMS);
     m_fadeInTimeMS = GameRules::getFadeInTime() * animationSpeedMultiplier;
-    m_approachTimeMS = (m_useFadeInTimeAsApproachTime ? m_fadeInTimeMS : (i32)approachTimeMS);
+    m_approachTimeMS = this->getLookApproachTime(m_fadeInTimeMS, approachTimeMS);
     m_deltaMS = m_clickTimeMS - (i32)std::round(curPosMS);
 
-    // 1 ms fudge by using >=, shouldn't really be a problem
-    if(curPosMS >= (visibleTms - m_approachTimeMS) && curPosMS < (getEndTime())) {
+    if(this->isVisibleAt(curPosMS, mods, m_approachTimeMS)) {
         // approach circle scale
         // freeze frame keeps the usual shrink rate, so objects later in the combo start out larger
         const f32 scale = std::max(0.0f, (f32)(m_clickTimeMS - curPosMS) / (f32)m_approachTimeMS);
@@ -884,8 +901,7 @@ void Circle::draw2() {
                        m_waiting && !hd ? 1.0f : m_alphaForApproachCircle, m_overrideHDApproachCircle);
 }
 
-void Circle::update(i32 curPosMS, f64 frameTimeSecs) {
-    HitObject::update(curPosMS, frameTimeSecs);
+void Circle::update(i32 curPosMS, f64 /*frameTimeSecs*/) {
     if(m_finished) return;
 
     const ModFlags curIFaceMods = m_judge->getMods().flags;
@@ -1570,7 +1586,7 @@ void Slider::animate(f64 curPosMS) {
 }
 
 void Slider::update(i32 curPosMS, f64 /*frameTimeSecs*/) {
-    this->animate(curPosMS);
+    if(!m_finished) this->updateSlide(curPosMS, this->isVisibleAt(curPosMS));
 
     // all further calculations are only done while we are active
     if(m_finished) {
@@ -1854,7 +1870,7 @@ void Slider::update(i32 curPosMS, f64 /*frameTimeSecs*/) {
         // handle sliderslide sound
         // TODO @kiwec: move this to draw()
         const ModFlags curGameplayFlags = m_judge->getMods().flags;
-        const bool sliding = m_startFinished && !m_endFinished && m_cursorInside && m_deltaMS <= 0             //
+        const bool sliding = m_startFinished && !m_endFinished && m_cursorInside && curPosMS >= m_clickTimeMS  //
                              && (isClickHeldSlider() || (flags::has<ModFlags::Autoplay>(curGameplayFlags)) ||  //
                                  (flags::has<ModFlags::Relax>(curGameplayFlags)));
         m_lastSliderSampleSets =
@@ -1945,12 +1961,6 @@ void Slider::addSoundCues(std::vector<SoundCue> &out) const {
 }
 
 void Slider::updateSlideLook(f64 curPosMS, ModFlags mods) {
-    // slider slide percent
-    m_slidePct = 0.0f;
-    if(curPosMS > m_clickTimeMS)
-        m_slidePct = std::clamp<f32>(
-            (f32)std::clamp<f64>(curPosMS - m_clickTimeMS, 0.0, (i32)m_sliderTimeMS) / m_sliderTimeMS, 0.0f, 1.0f);
-
     const i32 visibleTms = flags::has<ModFlags::FreezeFrame>(mods) ? m_comboStartMS : m_clickTimeMS;
     const f32 sliderSnakeDuration = (1.0f / 3.0f) * m_approachTimeMS * cv::slider_snake_duration_multiplier.getFloat();
     m_sliderSnakePercent = std::min(1.0f, (f32)(curPosMS - (visibleTms - m_approachTimeMS)) / sliderSnakeDuration);
@@ -1981,8 +1991,18 @@ void Slider::updateSlideLook(f64 curPosMS, ModFlags mods) {
         }
     }
 
+    this->updateSlide(curPosMS, m_visible);
+}
+
+void Slider::updateSlide(f64 curPosMS, bool visible) {
+    // slider slide percent
+    m_slidePct = 0.0f;
+    if(curPosMS > m_clickTimeMS)
+        m_slidePct = std::clamp<f32>(
+            (f32)std::clamp<f64>(curPosMS - m_clickTimeMS, 0.0, (i32)m_sliderTimeMS) / m_sliderTimeMS, 0.0f, 1.0f);
+
     // if this slider is active, recalculate sliding/curve position and general state
-    if(m_slidePct > 0.0f || m_visible) {
+    if(m_slidePct > 0.0f || visible) {
         // handle reverse sliders
         m_inReverse = false;
         m_hideNumberAfterFirstRepeatHit = false;
@@ -2830,8 +2850,6 @@ void Spinner::draw() {
 }
 
 void Spinner::update(i32 curPosMS, f64 frameTimeSecs) {
-    HitObject::update(curPosMS, frameTimeSecs);
-
     // if we have not been clicked yet, check if we are in the timeframe of a miss, also handle auto and relax
     if(!m_finished) {
         m_halfSpinsNeeded = GameRules::getSpinnerHalfSpinsRequired(m_judge, m_durationMS);
@@ -2920,7 +2938,7 @@ void Spinner::update(i32 curPosMS, f64 frameTimeSecs) {
 
             // the spinner turns in music time: spins count 1.5x with DT, 0.75x with HT
             if(m_velocity != 0.0f)
-                rotate(m_velocity * frameMS * m_judge->getSpeedMultiplier());
+                rotate(m_velocity * frameMS * m_judge->getSpeedMultiplier(), curPosMS);
             else
                 m_judge->stopSpinnerSpinSound();
 
@@ -3018,14 +3036,14 @@ void Spinner::onHit() {
     m_judge->stopSpinnerSpinSound();
 }
 
-void Spinner::rotate(f32 rad) {
+void Spinner::rotate(f32 rad, i32 curPosMS) {
     m_drawRot += vec::degrees(rad);
 
     rad = std::abs(rad);
     const f32 newRotations = m_rotations + vec::degrees(rad);
 
     // stable counts spins in half rotations, the first one is what fades out "SPIN!"
-    if(m_firstSpinTimeMS < 0 && newRotations >= 180.0f) m_firstSpinTimeMS = m_clickTimeMS - m_deltaMS;
+    if(m_firstSpinTimeMS < 0 && newRotations >= 180.0f) m_firstSpinTimeMS = curPosMS;
 
     // past the first one, every half rotation gives health, and every whole rotation 100 points. from 2.5 rotations
     // past clearing the spinner, every other half rotation gives a 1100 point bonus instead.
@@ -3035,7 +3053,7 @@ void Spinner::rotate(f32 rad) {
 
         if(halfSpin > bonusStart && (halfSpin - bonusStart) % 2 == 0) {
             m_bonusSpins++;
-            m_bonusTimeMS = m_clickTimeMS - m_deltaMS;
+            m_bonusTimeMS = curPosMS;
             m_judge->playSpinnerBonusSound(m_hitSamples);
             m_judge->addHitResult(this, LiveHitResult::HIT_SPINNERBONUS, 0, false, true, true, true, true,
                                   false);  // only increase health
