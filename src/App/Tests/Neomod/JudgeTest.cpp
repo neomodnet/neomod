@@ -8,14 +8,22 @@
 #include "DatabaseBeatmap.h"
 #include "Engine.h"
 #include "File.h"
+#include "GameRules.h"
 #include "GameplayJudge.h"
+#include "Graphics.h"
 #include "HitObjects.h"
 #include "HitSounds.h"
 #include "Logging.h"
+#include "ModFlags.h"
 #include "OsuConVars.h"
 #include "Parsing.h"
+#include "Paths.h"
+#include "PlayfieldView.h"
+#include "RenderTarget.h"
 #include "Replay.h"
 #include "ReplayFile.h"
+#include "ResourceManager.h"
+#include "Skin.h"
 #include "Timing.h"
 #include "crypto.h"
 #include "score.h"
@@ -323,13 +331,187 @@ std::unique_ptr<DatabaseBeatmap> openMap(const std::string &path) {
     return map;
 }
 
+// the judged play as drawn: the default skin, the playfield fitted into the window, at its time and with its mods
+class DrawView final : public PlayfieldView {
+   public:
+    DrawView(const Skin *skin, ModFlags mods) : skin(skin), mods(mods) {
+        const vec2 screen = engine->getScreenSize();
+        const vec2 playfield{GameRules::OSU_COORD_WIDTH, GameRules::OSU_COORD_HEIGHT};
+        this->scale = std::min((screen.x - 80.f) / playfield.x, (screen.y - 80.f) / playfield.y);
+        this->offset = (screen - playfield * this->scale) / 2.0f;
+    }
+
+    const Skin *skin;
+    const GameplayJudge *judge{nullptr};
+    ModFlags mods;
+    vec2 offset{0.f};
+    f32 scale{1.f};
+    f64 timeMS{0.0};
+
+    [[nodiscard]] const Skin *getSkin() const override { return this->skin; }
+    [[nodiscard]] vec2 osuCoords2Pixels(vec2 coords) const override {
+        if(flags::has<ModFlags::HardRock>(this->mods)) coords.y = GameRules::OSU_COORD_HEIGHT - coords.y;
+        return coords * this->scale + this->offset;
+    }
+    [[nodiscard]] vec2 osuCoords2LegacyPixels(vec2 coords) const override {
+        if(flags::has<ModFlags::HardRock>(this->mods)) coords.y = GameRules::OSU_COORD_HEIGHT - coords.y;
+        return coords - vec2{GameRules::OSU_COORD_WIDTH / 2, GameRules::OSU_COORD_HEIGHT / 2};
+    }
+    [[nodiscard]] f32 osuAngle2PixelAngle(f32 degrees) const override {
+        return flags::has<ModFlags::HardRock>(this->mods) ? 360.0f - degrees : degrees;
+    }
+    [[nodiscard]] f32 getPlayfieldScaleFactor() const override { return this->scale; }
+    [[nodiscard]] vec2 getPlayfieldCenter() const override {
+        return vec2{GameRules::OSU_COORD_WIDTH / 2.f, GameRules::OSU_COORD_HEIGHT / 2.f} * this->scale + this->offset;
+    }
+    [[nodiscard]] vec2 getPlayfieldSize() const override {
+        return vec2{GameRules::OSU_COORD_WIDTH, GameRules::OSU_COORD_HEIGHT} * this->scale;
+    }
+    [[nodiscard]] vec2 getScreenSize() const override { return engine->getScreenSize(); }
+    [[nodiscard]] f32 getHitcircleDiameter() const override { return this->judge->fRawHitcircleDiameter * this->scale; }
+    [[nodiscard]] f32 getRawHitcircleDiameter() const override { return this->judge->fRawHitcircleDiameter; }
+    [[nodiscard]] f32 getSliderFollowCircleDiameter() const override {
+        return this->judge->fSliderFollowCircleDiameter * this->scale;
+    }
+    [[nodiscard]] f32 getNumberScale() const override {
+        return numberScale(this->skin, this->getRawHitcircleDiameter(), this->getHitcircleDiameter());
+    }
+    [[nodiscard]] f32 getHitcircleOverlapScale() const override {
+        return hitcircleOverlapScale(this->getRawHitcircleDiameter(), this->getHitcircleDiameter());
+    }
+    [[nodiscard]] f64 getCurMusicPos() const override { return this->timeMS; }
+    [[nodiscard]] f64 getCurMusicPosWithOffsets() const override { return this->timeMS; }
+    [[nodiscard]] f32 getApproachTime() const override { return this->judge->getApproachTime(); }
+    [[nodiscard]] f32 getBaseAnimationSpeed() const override { return 1.f; }
+    [[nodiscard]] f32 getSpeedAdjustedAnimationSpeed() const override { return this->judge->getSpeedMultiplier(); }
+    [[nodiscard]] ModFlags getModFlags() const override { return this->mods; }
+    [[nodiscard]] Color getComboColor(i32 colorCounter, i32 colorOffset) const override {
+        return this->skin->getComboColorForCounter(colorCounter, colorOffset, this->judge->getComboColors());
+    }
+};
+
 }  // namespace
+
+struct JudgeTest::Drawn {
+    std::unique_ptr<Skin> skin;
+    std::unique_ptr<DatabaseBeatmap> map;
+    LiveScore score{true};
+    std::unique_ptr<GameplayJudge> judge;
+    std::unique_ptr<DrawView> view;
+    RenderTarget *sliderRT{nullptr};
+    std::vector<HitObject *> objectsToDraw;
+    f64 timeMS{0.0};
+    f64 endMS{0.0};
+    i32 frames{0};  // since the start, which waits for the skin a fixed number of them
+    bool started{false};
+
+    ~Drawn() {
+        if(this->sliderRT) resourceManager->destroyResource(this->sliderRT);
+    }
+
+    void step() {
+        const f32 speed = this->judge->getSpeedMultiplier();
+        this->timeMS += 1000.0 / 60.0 * speed;
+        const vec2 cursor = this->judge->getAutoCursorPos();
+        const Replay::Frame frame{.cur_music_pos = (i32)std::round(this->timeMS),
+                                  .milliseconds_since_last_frame = 0,
+                                  .x = cursor.x,
+                                  .y = cursor.y,
+                                  .key_flags = 0};
+        this->judge->step(frame, 1.0 / 60.0, 0);
+        this->judge->animate(this->timeMS);
+        this->view->timeMS = this->timeMS;
+    }
+
+    // as BeatmapInterface::drawHitObjects() draws them without Mafham
+    void draw() {
+        const f64 curPos = this->timeMS;
+        const i32 pvs = this->judge->getPVS();
+        const auto sorted = this->judge->getHitObjectsSortedByEndTime();
+        const bool freezeFrame = flags::has<ModFlags::FreezeFrame>(this->view->mods);
+
+        HitObjects::drawFollowPoints(*this->view, this->judge->getHitObjects(),
+                                     (uSz)std::max(0, this->judge->getPreviousFollowPointObjectIndex()));
+
+        this->objectsToDraw.clear();
+        i32 mostDistantEndTimeDrawn = 0;
+        for(sSz i = (sSz)this->judge->getFirstFutureObjectByEndTime(curPos + pvs) - 1; i >= 0; i--) {
+            HitObject *obj = sorted[i];
+            if((freezeFrame ? obj->getComboStartTime() : obj->getClickTime()) > curPos + pvs) continue;
+            if(obj->isFinished() && curPos - pvs > obj->getEndTime()) break;
+            mostDistantEndTimeDrawn = std::max(mostDistantEndTimeDrawn, obj->getEndTime());
+            this->objectsToDraw.push_back(obj);
+        }
+        HitObjects::draw(this->objectsToDraw, this->sliderRT);
+
+        const f64 mostDistantFutureObjectPVS = std::max((f64)mostDistantEndTimeDrawn, curPos + pvs);
+        for(auto *obj : sorted.subspan(this->judge->getFirstLiveObjectByEndTime(curPos - pvs))) {
+            if(obj->isFinished() && curPos - pvs > obj->getEndTime()) continue;
+            if(obj->getClickTime() > mostDistantFutureObjectPVS) break;
+            obj->draw2();
+        }
+    }
+};
 
 JudgeTest::JudgeTest() { logRaw("JudgeTest created"); }
 
+JudgeTest::~JudgeTest() = default;
+
+void JudgeTest::draw() {
+    if(!m_drawn || !m_drawn->started) return;
+    g->setColor(0xff000000);
+    g->fillRect(0, 0, engine->getScreenWidth(), engine->getScreenHeight());
+    m_drawn->draw();
+}
+
 void JudgeTest::update() {
+    if(m_drawn) {
+        Drawn &d = *m_drawn;
+        if(++d.frames < 60) return;
+        if(!d.started) {
+            if(!d.skin->isReady()) logRaw("JudgeTest: the skin took more than 60 frames to load");
+            d.started = true;
+            d.sliderRT = resourceManager->createRenderTarget(0, 0, engine->getScreenWidth(), engine->getScreenHeight());
+            d.timeMS = d.judge->getHitObjects().front()->getClickTime() - 2000.0;
+            if(cv::debug_fixed_frametime.getFloat() <= 0.f) logRaw("JudgeTest: draw without debug_fixed_frametime");
+        }
+        if(d.timeMS < d.endMS) {
+            d.step();
+            d.skin->update(true, true, (i32)d.timeMS);
+        }
+        return;
+    }
+
     if(m_ran) return;
     m_ran = true;
+
+    if(const auto path = getTestArg("draw")) {
+        auto d = std::make_unique<Drawn>();
+        d->skin = std::make_unique<Skin>("default", Mc::Paths::materials() + "/default/");
+        d->map = openMap(*path);
+        ModFlags mods = ModFlags::Autoplay;
+        const std::string modList = getTestArg("mods").value_or("");
+        if(modList.find("HD") != std::string::npos) mods |= ModFlags::Hidden;
+        if(modList.find("FF") != std::string::npos) mods |= ModFlags::FreezeFrame;
+        if(modList.find("HR") != std::string::npos) mods |= ModFlags::HardRock;
+        if(modList.find("EZ") != std::string::npos) mods |= ModFlags::Easy;
+        if(modList.find("TC") != std::string::npos) mods |= ModFlags::Traceable;
+        d->score.mods.flags = mods;
+        if(modList.find("DT") != std::string::npos) d->score.mods.speed = 1.5f;
+        if(modList.find("HT") != std::string::npos) d->score.mods.speed = 0.75f;
+        d->view = std::make_unique<DrawView>(d->skin.get(), mods);
+        d->judge = std::make_unique<GameplayJudge>(d->map.get(), d->score, d->view.get());
+        d->view->judge = d->judge.get();
+        if(const auto err = d->judge->load(); err || d->judge->getHitObjects().empty()) {
+            logRaw("JudgeTest: can't draw {}", *path);
+            engine->shutdown();
+            return;
+        }
+        for(const auto &obj : d->judge->getHitObjects()) obj->rebuildVertexBuffer();
+        d->endMS = d->judge->getHitObjectsSortedByEndTime().back()->getEndTime() + 1000.0;
+        m_drawn = std::move(d);
+        return;
+    }
 
     cv::hiterrorbar_misaims.setValue(true);
 
