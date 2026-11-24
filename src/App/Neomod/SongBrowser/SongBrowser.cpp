@@ -933,7 +933,14 @@ void SongBrowser::tick() {
 
     // handle background search matcher
     if(this->searchHandle.valid() && this->searchHandle.is_ready()) {
-        this->searchHandle.get();
+        // a cancelled search or one over an outdated index has nothing to apply
+        if(auto result = this->searchHandle.get();
+           result.index == this->searchIndex && result.matches.size() == this->searchIndexButtons.size()) {
+            for(size_t i = 0; i < result.matches.size(); i++) {
+                this->searchIndexButtons[i]->setIsSearchMatch(result.matches[i]);
+            }
+            this->lastSearch = std::make_shared<const AsyncSongButtonMatcher::SearchResult>(std::move(result));
+        }
         this->rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(true);
     }
     if(!this->searchHandle.valid()) {
@@ -1435,6 +1442,7 @@ void SongBrowser::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
 
     // reset
     this->checkHandleKillBackgroundSearchMatcher();
+    this->invalidateSearchIndex();
 
     // clear beatmap interface to lose any potential stale references
     VolNormalization::flush_priority();  // it may be calculating on preloaded maps
@@ -1546,6 +1554,8 @@ void SongBrowser::addBeatmapSet(BeatmapSet *mapset, bool initialSongBrowserLoad)
     // NOTE: BeatmapSets must always be created with at least itself as a difficulty.
     assert(!mapset->getDifficulties().empty());
 
+    this->invalidateSearchIndex();
+
     // some invariants are assumed to be true if we are loading for the first time
     if(initialSongBrowserLoad) {
         assert(this->difficultyCollectionButtons.size() == 12);
@@ -1648,6 +1658,7 @@ void SongBrowser::unlinkBeatmapSet(const BeatmapSet *set) {
 
     // nothing may hold button pointers across the delete below
     this->checkHandleKillBackgroundSearchMatcher();
+    this->invalidateSearchIndex();
     this->contextMenu->setVisible2(false);
 
     auto forget = [](auto *&ptr, const CarouselButton *b) {
@@ -2523,6 +2534,12 @@ void SongBrowser::checkHandleKillBackgroundSearchMatcher() {
     if(this->searchHandle.valid()) this->searchHandle.wait();
 }
 
+void SongBrowser::invalidateSearchIndex() {
+    this->searchIndex.reset();
+    this->searchIndexButtons.clear();
+    this->lastSearch.reset();
+}
+
 void SongBrowser::initializeGroupingButtons() {
 #define MKCBTN(name__) \
     std::make_unique<CollectionButton>(250.f, 250.f, 200.f, 50.f, fmt::format("cbtn-{:s}", name__), name__)
@@ -2738,25 +2755,33 @@ void SongBrowser::onSearchUpdate() {
             // stop potentially running async search
             this->checkHandleKillBackgroundSearchMatcher();
 
-            // set up song buttons to be searched, snapshotting each diff's star rating here (on the
-            // main thread) since it depends on the global mod index and caches on read (see SearchEntry)
-            std::vector<AsyncSongButtonMatcher::SearchEntry> searchData;
-            for(auto *songButton : this->parentButtons) {
-                if(const auto &children = songButton->getChildren(); !children.empty()) {
-                    for(auto *c : children) {
-                        searchData.emplace_back(c, c->getDatabaseBeatmap()->getStarRating(StarPrecalc::active_idx));
+            if(!this->searchIndex) {
+                auto index = std::make_shared<AsyncSongButtonMatcher::SearchIndex>();
+                for(auto *songButton : this->parentButtons) {
+                    for(auto *c : songButton->getChildren()) {
+                        index->add(*c->getDatabaseBeatmap());
+                        this->searchIndexButtons.push_back(c);
                     }
-                } else {
-                    // sanity, to be removed
-                    assert(false && "parent song button with 0 difficulties");
-                    searchData.emplace_back(songButton,
-                                            songButton->getDatabaseBeatmap()->getStarRating(StarPrecalc::active_idx));
                 }
+                this->searchIndex = std::move(index);
             }
 
-            this->searchHandle =
-                AsyncSongButtonMatcher::submitSearchMatch(std::move(searchData), searchString, hardcodedFilterString,
-                                                          osu->getMapInterface()->getSpeedMultiplier());
+            // star ratings depend on the active mods and cache on read, so they are snapshotted here on the main
+            // thread. they can change without the mods changing (diffcalc), so such a search starts over
+            std::string query = AsyncSongButtonMatcher::combineQuery(searchString, hardcodedFilterString);
+            std::vector<f32> stars;
+            std::shared_ptr<const AsyncSongButtonMatcher::SearchResult> previous = this->lastSearch;
+            if(AsyncSongButtonMatcher::filtersByStars(query)) {
+                stars.reserve(this->searchIndexButtons.size());
+                for(const auto *button : this->searchIndexButtons) {
+                    stars.push_back(button->getDatabaseBeatmap()->getStarRating(StarPrecalc::active_idx));
+                }
+                previous.reset();
+            }
+
+            this->searchHandle = AsyncSongButtonMatcher::submitSearchMatch(
+                this->searchIndex, std::move(stars), std::move(query), osu->getMapInterface()->getSpeedMultiplier(),
+                std::move(previous));
         } else
             this->rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(true, true);
 

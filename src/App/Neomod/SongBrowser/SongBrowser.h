@@ -4,6 +4,7 @@
 
 #include "AnimationHandler.h"
 #include "AsyncCancellable.h"
+#include "AsyncSongButtonMatcher.h"
 #include "Registration.h"
 #include "MapFetcher.h"
 #include "MD5Hash.h"
@@ -411,5 +412,10 @@ class SongBrowser final : public ScreenBackable {
     bool bShouldRecountMatchesAfterSearch{true};
     i32 currentVisibleSearchMatches{0};
     std::optional<GroupType> searchPrevGroup{std::nullopt};
-    Async::CancellableHandle<void> searchHandle;
+    Async::CancellableHandle<AsyncSongButtonMatcher::SearchResult> searchHandle;
+    // built on the first search after the sets changed, searchIndexButtons[i] is the button of index entry i
+    std::shared_ptr<const AsyncSongButtonMatcher::SearchIndex> searchIndex;
+    std::vector<SongButton *> searchIndexButtons;
+    std::shared_ptr<const AsyncSongButtonMatcher::SearchResult> lastSearch;
+    void invalidateSearchIndex();
 };

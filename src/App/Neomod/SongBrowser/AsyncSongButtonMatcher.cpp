@@ -6,23 +6,21 @@
 #include "Parsing.h"
 #include "SString.h"
 
-#include "SongButton.h"
+#include "fmt/format.h"
 
 #include "DatabaseBeatmap.h"
 
 #include <algorithm>
-#include <array>
 #include <cassert>
 #include <cctype>
-#include <charconv>
 #include <cmath>
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <system_error>
 #include <vector>
 #include <utility>
+#include <iterator>
 
 namespace AsyncSongButtonMatcher {
 
@@ -154,48 +152,25 @@ static Query parse_query(std::string_view search) {
     return query;
 }
 
-// ---- matching (done once per button) ----------------------------------------
+// ---- matching (done once per index entry) -----------------------------------
 
-// case-insensitive substring search where the needle is already lowercased
-// (like SString::contains_ncase, but it skips re-lowercasing the needle every call).
-static forceinline INLINE_BODY bool haystack_contains_needle(std::string_view haystack, std::string_view lower_needle) {
-    return std::search(haystack.begin(), haystack.end(), lower_needle.begin(), lower_needle.end(),
-                       [](unsigned char hay, unsigned char ndl) { return SString::ascii_tolower(hay) == ndl; }) !=
-           haystack.end();
+// the text of index entry i is [textEnd[i - 1], textEnd[i])
+std::string_view entry_text(const SearchIndex &index, size_t i) {
+    const u32 begin = i == 0 ? 0 : index.textEnd[i - 1];
+    return std::string_view{index.text}.substr(begin, index.textEnd[i] - begin);
 }
 
-// does any of the difficulty's text metadata contain the (lowercased) needle?
-static forceinline bool metadata_contains_needle(const DatabaseBeatmap *diff, std::string_view lower_needle) {
-    if(haystack_contains_needle(diff->getTitleLatin(), lower_needle) ||
-       haystack_contains_needle(diff->getArtistLatin(), lower_needle) ||
-       haystack_contains_needle(diff->getCreator(), lower_needle) ||
-       haystack_contains_needle(diff->getDifficultyName(), lower_needle) ||
-       haystack_contains_needle(diff->getSource(), lower_needle) ||
-       haystack_contains_needle(diff->getTags(), lower_needle))
-        return true;
-
-    // unicode titles/artists are matched case-sensitively; properly lowercasing non-ASCII
-    // is out of scope (see the combined-string TODO in submitSearchMatch).
-    if((!diff->getTitleUnicode().empty() && diff->getTitleUnicode().contains(lower_needle)) ||
-       (!diff->getArtistUnicode().empty() && diff->getArtistUnicode().contains(lower_needle)))
-        return true;
-
-    // online ids
-    std::array<char, 16> buf{};
-    for(const int id : {diff->getID(), diff->getSetID()}) {
-        if(id <= 0) continue;
-        if(auto [end, ec] = std::to_chars(buf.data(), buf.data() + buf.size(), id);
-           ec == std::errc() &&
-           haystack_contains_needle({buf.data(), static_cast<size_t>(end - buf.data())}, lower_needle))
-            return true;
-    }
-    return false;
+// the nth \0-terminated field of an entry text
+std::string_view entry_field(std::string_view text, int n) {
+    size_t begin = 0;
+    for(; n > 0; n--) begin = text.find('\0', begin) + 1;
+    return text.substr(begin, text.find('\0', begin) - begin);
 }
 
-// evaluate one stat filter against a difficulty.
-static bool eval_expression(const Expression &expr, const DatabaseBeatmap *diff, float stars, float speed) {
-    const auto length_ms = diff->getLengthMS();
-    const auto num_objects = diff->getNumObjects();
+// evaluate one stat filter against an index entry.
+bool eval_expression(const Expression &expr, const SearchIndex &index, size_t i, float stars, float speed) {
+    const auto length_ms = index.lengthMS[i];
+    const auto num_objects = index.circles[i] + index.sliders[i] + index.spinners[i];
 
     // object/circle/slider count per minute (scaled by the speed multiplier)
     const auto per_minute = [length_ms, speed](i32 count) -> float {
@@ -208,57 +183,57 @@ static bool eval_expression(const Expression &expr, const DatabaseBeatmap *diff,
     };
 
     float lhs = 5.0f;           // the keyword's numeric value for this diff
-    std::string_view lhs_text;  // its string value (CREATOR is the only string-valued keyword)
+    std::string_view lhs_text;  // its string value (lowercased, CREATOR and ARTIST are the string-valued keywords)
     switch(expr.keyword) {
         using enum KWID;
         case AR:
-            lhs = diff->getAR();
+            lhs = index.ar[i];
             break;
         case CS:
-            lhs = diff->getCS();
+            lhs = index.cs[i];
             break;
         case OD:
-            lhs = diff->getOD();
+            lhs = index.od[i];
             break;
         case HP:
-            lhs = diff->getHP();
+            lhs = index.hp[i];
             break;
         case BPM:
-            lhs = (float)diff->getMostCommonBPM();
+            lhs = (float)index.bpm[i];
             break;
         case OPM:
             lhs = per_minute(num_objects);
             break;
         case CPM:
-            lhs = per_minute(diff->getNumCircles());
+            lhs = per_minute(index.circles[i]);
             break;
         case SPM:
-            lhs = per_minute(diff->getNumSliders());
+            lhs = per_minute(index.sliders[i]);
             break;
         case OBJECTS:
             lhs = (float)num_objects;
             break;
         case CIRCLES:
-            lhs = obj_count_or_percent(diff->getNumCircles());
+            lhs = obj_count_or_percent(index.circles[i]);
             break;
         case SLIDERS:
-            lhs = obj_count_or_percent(diff->getNumSliders());
+            lhs = obj_count_or_percent(index.sliders[i]);
             break;
         case SPINNERS:
-            lhs = obj_count_or_percent(diff->getNumSpinners());
+            lhs = obj_count_or_percent(index.spinners[i]);
             break;
         case LENGTH:
             lhs = (float)length_ms / 1000.0f;
             break;
         case STARS:
-            // snapshotted on the main thread at collection time (see SearchEntry)
+            // snapshotted on the main thread at submit time
             lhs = std::round(stars * 100.0f) / 100.0f;  // 2 decimal places
             break;
         case STR_CREATOR:
-            lhs_text = diff->getCreator();
+            lhs_text = entry_field(entry_text(index, i), 2);
             break;
         case STR_ARTIST:
-            lhs_text = diff->getArtistLatin();
+            lhs_text = entry_field(entry_text(index, i), 1);
             break;
     }
 
@@ -281,47 +256,114 @@ static bool eval_expression(const Expression &expr, const DatabaseBeatmap *diff,
     std::unreachable();
 }
 
-// a beatmap matches when its difficulty satisfies every stat filter and contains every needle.
-static bool matches(const DatabaseBeatmap *diff, float stars, const Query &query, float speed) {
-    assert(!!diff && "NULL databaseBeatmap");
-
+// an entry matches when it satisfies every stat filter and its text contains every needle.
+// the needles are lowercased like the latin fields, the unicode fields are matched as they are
+bool matches(const SearchIndex &index, size_t i, float stars, const Query &query, float speed) {
     for(const auto &expr : query.expressions)
-        if(!eval_expression(expr, diff, stars, speed)) return false;
+        if(!eval_expression(expr, index, i, stars, speed)) return false;
 
+    const std::string_view text = entry_text(index, i);
     for(const auto &needle : query.needles)
-        if(!metadata_contains_needle(diff, needle)) return false;
+        if(!text.contains(needle)) return false;
 
     return true;
 }
 
+// whether everything matching next also matches prev, so only the matches of prev need checking again
+bool narrows(const Query &prev, const Query &next) {
+    for(const auto &e : prev.expressions) {
+        if(!Mc::ranges::any_of(next.expressions, [&e](const Expression &n) {
+               return n.keyword == e.keyword && n.op == e.op && n.value == e.value &&
+                      n.valueIsPercent == e.valueIsPercent && n.text == e.text;
+           }))
+            return false;
+    }
+    for(const auto &needle : prev.needles) {
+        if(!Mc::ranges::any_of(next.needles, [&needle](const std::string &n) { return n.contains(needle); }))
+            return false;
+    }
+    return true;
+}
+
+void append_lower(std::string &out, std::string_view str) {
+    const size_t begin = out.size();
+    out.append(str);
+    for(size_t i = begin; i < out.size(); i++) out[i] = (char)SString::ascii_tolower((unsigned char)out[i]);
+    out.push_back('\0');
+}
+
 }  // namespace
 
-Async::CancellableHandle<void> submitSearchMatch(std::vector<SearchEntry> entries, std::string searchString,
-                                                 std::string hardcodedSearchString, float speed) {
+void SearchIndex::add(const DatabaseBeatmap &diff) {
+    append_lower(this->text, diff.getTitleLatin());
+    append_lower(this->text, diff.getArtistLatin());
+    append_lower(this->text, diff.getCreator());
+    append_lower(this->text, diff.getDifficultyName());
+    append_lower(this->text, diff.getSource());
+    append_lower(this->text, diff.getTags());
+    for(const int id : {diff.getID(), diff.getSetID()}) {
+        if(id <= 0) continue;
+        fmt::format_to(std::back_inserter(this->text), "{:d}", id);
+        this->text.push_back('\0');
+    }
+    for(const std::string_view unicode : {diff.getTitleUnicode(), diff.getArtistUnicode()}) {
+        this->text.append(unicode);
+        this->text.push_back('\0');
+    }
+    this->textEnd.push_back((u32)this->text.size());
+
+    this->ar.push_back(diff.getAR());
+    this->cs.push_back(diff.getCS());
+    this->od.push_back(diff.getOD());
+    this->hp.push_back(diff.getHP());
+    this->bpm.push_back(diff.getMostCommonBPM());
+    this->circles.push_back(diff.getNumCircles());
+    this->sliders.push_back(diff.getNumSliders());
+    this->spinners.push_back(diff.getNumSpinners());
+    this->lengthMS.push_back(diff.getLengthMS());
+}
+
+std::string combineQuery(std::string_view searchString, std::string_view hardcodedSearchString) {
+    // NOTE: this lowercasing won't work for non-ASCII queries, but
+    // SString::lower_inplace shouldn't modify those (if I understand correctly...)
+    std::string combined;
+    if(!hardcodedSearchString.empty()) {
+        combined.append(hardcodedSearchString);
+        combined.push_back(' ');
+    }
+    combined.append(searchString);
+    SString::lower_inplace(combined);
+    return combined;
+}
+
+bool filtersByStars(std::string_view query) {
+    return Mc::ranges::any_of(parse_query(query).expressions,
+                              [](const Expression &e) { return e.keyword == KWID::STARS; });
+}
+
+Async::CancellableHandle<SearchResult> submitSearchMatch(std::shared_ptr<const SearchIndex> index,
+                                                         std::vector<f32> stars, std::string query, f32 speed,
+                                                         std::shared_ptr<const SearchResult> previous) {
     return Async::submit_cancellable(
-        [entries = std::move(entries), hardcodedSearchString = std::move(hardcodedSearchString),
-         searchString = std::move(searchString), speed](const Sync::stop_token &tok) {
-            // combine the hardcoded prefix with the user's query, lowercased for case-insensitive matching.
-            // NOTE: this lowercasing won't work for non-ASCII queries, but
-            // SString::lower_inplace shouldn't modify those (if I understand correctly...)
-            std::string combined;
-            if(!hardcodedSearchString.empty()) {
-                combined.append(hardcodedSearchString);
-                combined.push_back(' ');
-            }
-            combined.append(searchString);
-            SString::lower_inplace(combined);
+        [index = std::move(index), stars = std::move(stars), query = std::move(query), speed,
+         previous = std::move(previous)](const Sync::stop_token &tok) -> SearchResult {
+            const Query parsed = parse_query(query);
+            const bool narrowing = previous && previous->index == index && previous->speed == speed &&
+                                   narrows(parse_query(previous->query), parsed);
 
-            // parse the query once, then flag every difficulty that matches it. each button is a single
-            // difficulty (SongBrowser flattens every set into its difficulty children before submitting),
-            // so there is nothing to recurse into here.
-            const Query query = parse_query(combined);
-            for(const auto &entry : entries) {
-                entry.button->setIsSearchMatch(matches(entry.button->getDatabaseBeatmap(), entry.stars, query, speed));
+            SearchResult result{.index = index, .query = query, .speed = speed, .matches = {}};
+            result.matches.resize(index->size(), 0);
+            for(size_t i = 0; i < index->size(); i++) {
+                if(narrowing && !previous->matches[i]) continue;
+                result.matches[i] = matches(*index, i, stars.empty() ? 0.f : stars[i], parsed, speed);
 
-                // cancellation point
-                if(tok.stop_requested()) break;
+                // cancellation point, a cancelled search has no matches
+                if((i & 1023) == 0 && tok.stop_requested()) {
+                    result.matches.clear();
+                    break;
+                }
             }
+            return result;
         },
         Lane::Background);
 }
