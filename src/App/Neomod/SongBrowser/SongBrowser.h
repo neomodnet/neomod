@@ -75,16 +75,6 @@ extern BeatmapCarousel *g_carousel;
 class SongBrowser final : public ScreenBackable {
     NOCOPY_NOMOVE(SongBrowser)
    private:
-    // not used anywhere else
-    static bool sort_by_artist(SongButton const *a, SongButton const *b);
-    static bool sort_by_bpm(SongButton const *a, SongButton const *b);
-    static bool sort_by_creator(SongButton const *a, SongButton const *b);
-    static bool sort_by_date_added(SongButton const *a, SongButton const *b);
-    static bool sort_by_date_played(SongButton const *a, SongButton const *b);
-    static bool sort_by_grade(SongButton const *a, SongButton const *b);
-    static bool sort_by_length(SongButton const *a, SongButton const *b);
-    static bool sort_by_title(SongButton const *a, SongButton const *b);
-
     struct GlobalSongBrowserCtorDtor {
         NOCOPY_NOMOVE(GlobalSongBrowserCtorDtor)
        public:
@@ -194,10 +184,8 @@ class SongBrowser final : public ScreenBackable {
     [[nodiscard]] SongDifficultyButton *getDiffButtonByHash(const MD5Hash &diff_hash) const;
 
     // Map sorting/filtering
-    using MAP_SORTING_COMPARATOR = bool (*)(const SongButton *a, const SongButton *b);
     struct MAP_SORTING_METHOD {
         std::string_view name;
-        MAP_SORTING_COMPARATOR comparator;
     };
 
     std::array<MAP_SORTING_METHOD, SortType::MAX> MAP_SORTING_METHODS;

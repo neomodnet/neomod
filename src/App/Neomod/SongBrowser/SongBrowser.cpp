@@ -79,6 +79,7 @@
 #include <cmath>
 #include <memory>
 #include <charconv>
+#include <cstring>
 #include <unordered_set>
 #include <utility>
 
@@ -192,87 +193,119 @@ bool SongBrowser::sort_by_difficulty(SongButton const *a, SongButton const *b) {
     return diff1 < diff2;
 }
 
-// not used anywhere else
-bool SongBrowser::sort_by_artist(SongButton const *a, SongButton const *b) {
-    const auto *aPtr = a->getDatabaseBeatmap(), *bPtr = b->getDatabaseBeatmap();
-    if((aPtr == nullptr) || (bPtr == nullptr)) return (aPtr == nullptr) < (bPtr == nullptr);
+namespace {
+// what a map sorting method compares, read from the beatmaps once per sort instead of on every comparison.
+// the keys compare in member order, the last two are sort_by_difficulty. the strings are lowercased into one
+// buffer, so that comparing them bytewise is strcase_cmp3. most comparisons are decided by the first 8 bytes of
+// str1, kept big-endian in prefix1
+struct SortKey {
+    u64 prefix1{0};
+    u32 str1{0}, str1Len{0};
+    u32 str2{0}, str2Len{0};
+    i64 num{0};
+    f32 stars{0.f};
+    f32 diff{0.f};
+    bool missing{false};
+};
 
-    const std::string_view artistA = aPtr->getArtistLatin();
-    const std::string_view artistB = bPtr->getArtistLatin();
+struct SortKeys {
+    std::string strings;
+    std::vector<SortKey> keys;
 
-    const i32 cmp = SString::strcase_cmp3(artistA, artistB);
-    if(cmp == 0) return sort_by_title(a, b);  // fall back to sort by title
-    return cmp < 0;
+    void add(const SongButton *button, SortTypes::type method) {
+        SortKey &key = this->keys.emplace_back();
+        const DatabaseBeatmap *map = button->getDatabaseBeatmap();
+        if(map == nullptr) {
+            key.missing = true;
+            return;
+        }
+
+        key.stars = map->getStarRating(StarPrecalc::active_idx);
+        key.diff = (map->getAR() + 1) * (map->getCS() + 1) * (map->getHP() + 1) * (map->getOD() + 1) *
+                   ((f32)std::max(map->getMostCommonBPM(), 1));
+        switch(method) {
+            using enum SortTypes::type;
+            case ARTIST:
+                this->addString(key.str1, key.str1Len, map->getArtistLatin());
+                this->addString(key.str2, key.str2Len, map->getTitleLatin());
+                break;
+            case BPM:
+                key.num = map->getMostCommonBPM();
+                break;
+            case CREATOR:
+                this->addString(key.str1, key.str1Len, map->getCreator());
+                break;
+            case DATEADDED:
+                key.num = -map->last_modification_time;
+                break;
+            case DIFFICULTY:
+            case MAX:
+                break;
+            case LENGTH:
+                key.num = map->getLengthMS();
+                break;
+            case TITLE:
+                this->addString(key.str1, key.str1Len, map->getTitleLatin());
+                break;
+            case RANKACHIEVED:
+                key.num = (i64)button->getGrade();
+                break;
+            case DATEPLAYED:
+                key.num = -map->getLastPlayTime();
+                break;
+        }
+        for(u32 i = 0; i < 8; i++) {
+            key.prefix1 <<= 8;
+            if(i < key.str1Len) key.prefix1 |= (u8)this->strings[key.str1 + i];
+        }
+    }
+
+    void addString(u32 &offset, u32 &len, std::string_view str) {
+        offset = (u32)this->strings.size();
+        len = (u32)str.size();
+        this->strings.append(str);
+        for(size_t i = offset; i < this->strings.size(); i++) {
+            this->strings[i] = (char)SString::ascii_tolower((unsigned char)this->strings[i]);
+        }
+    }
+
+    // the bytewise order, shorter first on a common prefix (like std::string_view::compare)
+    [[nodiscard]] int compare(u32 a, u32 aLen, u32 b, u32 bLen) const {
+        const int cmp = std::memcmp(this->strings.data() + a, this->strings.data() + b, std::min(aLen, bLen));
+        if(cmp != 0) return cmp;
+        return aLen == bLen ? 0 : (aLen < bLen ? -1 : 1);
+    }
+
+    [[nodiscard]] bool less(u32 a, u32 b) const {
+        const SortKey &ka = this->keys[a];
+        const SortKey &kb = this->keys[b];
+        if(ka.missing || kb.missing) return ka.missing < kb.missing;
+        if(ka.prefix1 != kb.prefix1) return ka.prefix1 < kb.prefix1;
+        if(const int cmp = this->compare(ka.str1, ka.str1Len, kb.str1, kb.str1Len); cmp != 0) return cmp < 0;
+        if(const int cmp = this->compare(ka.str2, ka.str2Len, kb.str2, kb.str2Len); cmp != 0) return cmp < 0;
+        if(ka.num != kb.num) return ka.num < kb.num;
+        if(ka.stars != kb.stars) return ka.stars < kb.stars;
+        if(ka.diff == kb.diff) return false;
+        return ka.diff < kb.diff;
+    }
+};
+
+template <typename T>
+void sort_buttons(std::vector<T *> &buttons, SortTypes::type method) {
+    SortKeys keys;
+    keys.keys.reserve(buttons.size());
+    for(const T *button : buttons) keys.add(button, method);
+
+    std::vector<u32> order(buttons.size());
+    for(u32 i = 0; i < order.size(); i++) order[i] = i;
+    Mc::ranges::sort(order, [&keys](u32 a, u32 b) { return keys.less(a, b); });
+
+    std::vector<T *> sorted;
+    sorted.reserve(buttons.size());
+    for(const u32 i : order) sorted.push_back(buttons[i]);
+    buttons = std::move(sorted);
 }
-
-bool SongBrowser::sort_by_bpm(SongButton const *a, SongButton const *b) {
-    const auto *aPtr = a->getDatabaseBeatmap(), *bPtr = b->getDatabaseBeatmap();
-    if((aPtr == nullptr) || (bPtr == nullptr)) return (aPtr == nullptr) < (bPtr == nullptr);
-
-    int bpm1 = aPtr->getMostCommonBPM();
-    int bpm2 = bPtr->getMostCommonBPM();
-    if(bpm1 == bpm2) return sort_by_difficulty(a, b);
-    return bpm1 < bpm2;
-}
-
-bool SongBrowser::sort_by_creator(SongButton const *a, SongButton const *b) {
-    const auto *aPtr = a->getDatabaseBeatmap(), *bPtr = b->getDatabaseBeatmap();
-    if((aPtr == nullptr) || (bPtr == nullptr)) return (aPtr == nullptr) < (bPtr == nullptr);
-
-    const std::string_view creatorA = aPtr->getCreator();
-    const std::string_view creatorB = bPtr->getCreator();
-
-    const i32 cmp = SString::strcase_cmp3(creatorA, creatorB);
-    if(cmp == 0) return sort_by_difficulty(a, b);
-    return cmp < 0;
-}
-
-bool SongBrowser::sort_by_date_added(SongButton const *a, SongButton const *b) {
-    const auto *aPtr = a->getDatabaseBeatmap(), *bPtr = b->getDatabaseBeatmap();
-    if((aPtr == nullptr) || (bPtr == nullptr)) return (aPtr == nullptr) < (bPtr == nullptr);
-
-    i64 time1 = aPtr->last_modification_time;
-    i64 time2 = bPtr->last_modification_time;
-    if(time1 == time2) return sort_by_difficulty(a, b);
-    return time1 > time2;
-}
-
-bool SongBrowser::sort_by_date_played(SongButton const *a, SongButton const *b) {
-    const auto *aPtr = a->getDatabaseBeatmap(), *bPtr = b->getDatabaseBeatmap();
-    if((aPtr == nullptr) || (bPtr == nullptr)) return (aPtr == nullptr) < (bPtr == nullptr);
-
-    i64 time1 = aPtr->getLastPlayTime();
-    i64 time2 = bPtr->getLastPlayTime();
-    if(time1 == time2) return sort_by_difficulty(a, b);
-    return time1 > time2;
-}
-
-bool SongBrowser::sort_by_grade(SongButton const *a, SongButton const *b) {
-    if(a->getGrade() == b->getGrade()) return sort_by_difficulty(a, b);
-    return a->getGrade() < b->getGrade();
-}
-
-bool SongBrowser::sort_by_length(SongButton const *a, SongButton const *b) {
-    const auto *aPtr = a->getDatabaseBeatmap(), *bPtr = b->getDatabaseBeatmap();
-    if((aPtr == nullptr) || (bPtr == nullptr)) return (aPtr == nullptr) < (bPtr == nullptr);
-
-    u32 length1 = aPtr->getLengthMS();
-    u32 length2 = bPtr->getLengthMS();
-    if(length1 == length2) return sort_by_difficulty(a, b);
-    return length1 < length2;
-}
-
-bool SongBrowser::sort_by_title(SongButton const *a, SongButton const *b) {
-    const auto *aPtr = a->getDatabaseBeatmap(), *bPtr = b->getDatabaseBeatmap();
-    if((aPtr == nullptr) || (bPtr == nullptr)) return (aPtr == nullptr) < (bPtr == nullptr);
-
-    const std::string_view titleA = aPtr->getTitleLatin();
-    const std::string_view titleB = bPtr->getTitleLatin();
-
-    const i32 cmp = SString::strcase_cmp3(titleA, titleB);
-    if(cmp == 0) return sort_by_difficulty(a, b);
-    return cmp < 0;
-}
+}  // namespace
 
 namespace neomod::sbr {
 SongBrowser *g_songbrowser{nullptr};
@@ -297,15 +330,15 @@ struct SongBrowser::PendingScores {
 };
 
 SongBrowser::SongBrowser() : ScreenBackable(), global_songbrowser_(this) {
-    this->MAP_SORTING_METHODS = {{{_("By Artist"), sort_by_artist},          //
-                                  {_("By BPM"), sort_by_bpm},                //
-                                  {_("By Creator"), sort_by_creator},        //
-                                  {_("By Date Added"), sort_by_date_added},  //
-                                  {_("By Difficulty"), sort_by_difficulty},  //
-                                  {_("By Length"), sort_by_length},          //
-                                  {_("By Title"), sort_by_title},            //
-                                  {_("By Rank Achieved"), sort_by_grade},    //
-                                  {_("By Date Played"), sort_by_date_played}}};
+    this->MAP_SORTING_METHODS = {{{_("By Artist")},         //
+                                  {_("By BPM")},            //
+                                  {_("By Creator")},        //
+                                  {_("By Date Added")},     //
+                                  {_("By Difficulty")},     //
+                                  {_("By Length")},         //
+                                  {_("By Title")},          //
+                                  {_("By Rank Achieved")},  //
+                                  {_("By Date Played")}}};
     this->GROUP_NAMES = {{_("By Artist"),      //
                           _("By BPM"),         //
                           _("By Creator"),     //
@@ -3111,7 +3144,7 @@ void SongBrowser::rebuildAfterGroupOrSortChange(GroupType group, const std::opti
             }
         }
         // the master button list should be sorted for all groupings
-        Mc::ranges::sort(this->parentButtons, MAP_SORTING_METHODS[this->curSortMethod].comparator);
+        sort_buttons(this->parentButtons, this->curSortMethod);
         this->bSongButtonsNeedSorting = false;
     }
 
@@ -3158,7 +3191,7 @@ void SongBrowser::rebuildAfterGroupOrSortChange(GroupType group, const std::opti
                 for(const auto &button : *collBtns) {
                     auto &children = button->getChildren();
                     if(!children.empty()) {
-                        Mc::ranges::sort(children, MAP_SORTING_METHODS[this->curSortMethod].comparator);
+                        sort_buttons(children, this->curSortMethod);
                         button->setChildren(children);
                     }
                 }
