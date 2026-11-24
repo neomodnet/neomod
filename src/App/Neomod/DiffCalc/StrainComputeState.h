@@ -77,6 +77,9 @@ struct StrainComputeState {
     std::vector<f64> readingStrainHidden;
     std::vector<f64> flashlightStrainNoHidden;
     std::vector<f64> flashlightStrainHidden;
+
+    // the harmonic sum index decay, which only depends on the index (kept across computations)
+    std::vector<f64> harmonicIndexDecay;
 };
 
 }  // namespace neomod::DiffCalc

@@ -303,7 +303,7 @@ struct JsBeatmap {
 
         this->difficulty_attributes = DiffCalc::DifficultyAttributes{};
         DiffCalc::StarCalcParams starParams{
-            .outAttributes = this->difficulty_attributes,
+            .outAttributes = &this->difficulty_attributes,
             .beatmapData = diffcalcData,
             .outAimStrains = &this->aim_strains,
             .outSpeedStrains = &this->speed_strains,

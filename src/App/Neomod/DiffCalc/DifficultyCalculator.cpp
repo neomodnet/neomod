@@ -9,6 +9,8 @@
 #include "ModFlags.h"
 #include "InlineVec.h"
 
+#include <array>
+#include <bit>
 #include <cassert>
 #include <numbers>
 #include <utility>
@@ -185,12 +187,12 @@ static FlashlightDifficultyPair evaluate_flashlight_difficulty_of(const StrainCo
 static f64 calculate_aim_difficulty(Skills::Skill type, const f64 *strains, const DifficultyHitObject *dobjects,
                                     uSz dobjectCount);
 // index^0.9 for every index a harmonic sum over dobjectCount objects can reach (lazer HarmonicSkill
-// decay, every harmonic skill uses the same exponent)
-static std::vector<f64> harmonic_index_decay(uSz dobjectCount);
+// decay, every harmonic skill uses the same exponent), extending the table as needed
+static std::span<const f64> harmonic_index_decay(std::vector<f64> &table, uSz dobjectCount);
 static f64 calculate_speed_difficulty(const f64 *difficulties, uSz dobjectCount, std::span<const f64> indexDecay,
                                       f64 &outObjectWeightSum);
 static f64 calculate_reading_difficulty(const f64 *strains, const DifficultyHitObject *dobjects, uSz dobjectCount,
-                                        std::span<const f64> indexDecay, f64 &outDifficultNoteCount);
+                                        std::span<const f64> indexDecay, f64 *outDifficultNoteCount);
 static f64 calculate_flashlight_difficulty(const f64 *strains, const DifficultyHitObject *dobjects, uSz dobjectCount);
 template <typename T>
     requires(std::is_same_v<T, float> || std::is_same_v<T, double>)
@@ -483,6 +485,37 @@ u32 LOAD_DIFFOBJ_RESULT::getMaxComboAtIndex(uSz index) const {
     return maxComboAtIndex.back();
 }
 
+namespace {
+// see Beatmap.cpp
+void stackDifficultyHitObjects(std::vector<DifficultyHitObject> &objects, const Primitives::PRIMITIVE_CONTAINER &c,
+                               f32 AR, f32 CS, bool hardRock) {
+    if(!STARS_STACKING) return;
+
+    Primitives::calculateStacks([&objects](uSz idx) -> DifficultyHitObject * { return &objects[idx]; }, objects.size(),
+                                AR, c.version, c.stackLeniency);
+    const float rawHitCircleDiameter = GameRules::getRawHitCircleDiameter(CS);
+
+    // update hitobject positions
+    float stackOffset = rawHitCircleDiameter / 128.0f / GameRules::broken_gamefield_rounding_allowance * 6.4f;
+    for(auto &object : objects) {
+        if(object.stack != 0) object.updateStackPosition(stackOffset, hardRock);
+    }
+}
+}  // namespace
+
+void restackDifficultyHitObjects(LOAD_DIFFOBJ_RESULT &result, const Primitives::PRIMITIVE_CONTAINER &c, f32 AR, f32 CS,
+                                 bool hardRock) {
+    for(auto &object : result.diffobjects) {
+        object.stack = 0;
+        object.pos = object.originalPos;
+        // a deferred curve is only built while the star calc runs
+        if(object.scheduledCurveAlloc) object.curve.reset();
+    }
+    result.strainState.valid = false;
+
+    stackDifficultyHitObjects(result.diffobjects, c, AR, CS, hardRock);
+}
+
 LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(Primitives::PRIMITIVE_CONTAINER &c, f32 AR, f32 CS, f32 speedMultiplier,
                                              bool hardRock, const Sync::stop_token &dead) {
     LOAD_DIFFOBJ_RESULT result{};
@@ -557,26 +590,11 @@ LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(Primitives::PRIMITIVE_CONTAINER &c,
         return result;
     }
 
-    // calculate stacks
-    // see Beatmap.cpp
     // NOTE: this must be done before the speed multiplier is applied!
-    if(STARS_STACKING) {
-        Primitives::calculateStacks(
-            Primitives::ObjectGetter<DifficultyHitObject>{
-                [&objs = result.diffobjects](uSz idx) -> DifficultyHitObject * { return &objs[idx]; }},
-            result.diffobjects.size(), AR, c.version, c.stackLeniency);
-        const float rawHitCircleDiameter = GameRules::getRawHitCircleDiameter(CS);
-
-        // update hitobject positions
-        float stackOffset = rawHitCircleDiameter / 128.0f / GameRules::broken_gamefield_rounding_allowance * 6.4f;
-        for(int i = 0; i < result.diffobjects.size(); i++) {
-            if(dead.stop_requested()) {
-                result.error.errc = Primitives::LoadError::LOAD_INTERRUPTED;
-                return result;
-            }
-
-            if(result.diffobjects[i].stack != 0) result.diffobjects[i].updateStackPosition(stackOffset, hardRock);
-        }
+    stackDifficultyHitObjects(result.diffobjects, c, AR, CS, hardRock);
+    if(dead.stop_requested()) {
+        result.error.errc = Primitives::LoadError::LOAD_INTERRUPTED;
+        return result;
     }
 
     // apply speed multiplier (if present)
@@ -973,36 +991,37 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
     const f64 aimNoSlidersDifficultyValue =
         calculate_aim_difficulty(Skills::AIM_NO_SLIDERS, s.aimNoSlidersStrain.data(), diffObjects, numDiffObjects);
 
-    const std::vector<f64> harmonicIndexDecay = harmonic_index_decay(numDiffObjects);
+    const std::span<const f64> harmonicIndexDecay = harmonic_index_decay(s.harmonicIndexDecay, numDiffObjects);
 
     f64 speedObjectWeightSum = 0.0;
     const f64 speedDifficultyValue =
         calculate_speed_difficulty(s.speedDifficulty.data(), numDiffObjects, harmonicIndexDecay, speedObjectWeightSum);
 
     // per-object weighted counts
-    params.outAttributes.AimDifficultStrainCount =
-        count_top_weighted_strains_geometric(s.aimStrain.data(), numDiffObjects, aimDifficultyValue);
-    params.outAttributes.AimDifficultSliderCount =
-        calculate_aim_difficult_slider_count(s.aimStrain.data(), diffObjects, numDiffObjects);
+    DifficultyAttributes *attrs = params.outAttributes;
+    if(attrs != nullptr) {
+        attrs->AimDifficultStrainCount =
+            count_top_weighted_strains_geometric(s.aimStrain.data(), numDiffObjects, aimDifficultyValue);
+        attrs->AimDifficultSliderCount =
+            calculate_aim_difficult_slider_count(s.aimStrain.data(), diffObjects, numDiffObjects);
 
-    // the aim top-weighted slider factor is intentionally computed on the no-sliders skill
-    const f64 aimNSTopWeightedSliderCount = count_top_weighted_sliders_geometric(
-        s.aimNoSlidersStrain.data(), diffObjects, numDiffObjects, aimNoSlidersDifficultyValue);
-    const f64 aimNSDifficultStrainCount =
-        count_top_weighted_strains_geometric(s.aimNoSlidersStrain.data(), numDiffObjects, aimNoSlidersDifficultyValue);
-    params.outAttributes.AimTopWeightedSliderFactor =
-        aimNSTopWeightedSliderCount / std::max(1.0, aimNSDifficultStrainCount - aimNSTopWeightedSliderCount);
+        // the aim top-weighted slider factor is intentionally computed on the no-sliders skill
+        const f64 aimNSTopWeightedSliderCount = count_top_weighted_sliders_geometric(
+            s.aimNoSlidersStrain.data(), diffObjects, numDiffObjects, aimNoSlidersDifficultyValue);
+        const f64 aimNSDifficultStrainCount = count_top_weighted_strains_geometric(
+            s.aimNoSlidersStrain.data(), numDiffObjects, aimNoSlidersDifficultyValue);
+        attrs->AimTopWeightedSliderFactor =
+            aimNSTopWeightedSliderCount / std::max(1.0, aimNSDifficultStrainCount - aimNSTopWeightedSliderCount);
 
-    params.outAttributes.SpeedDifficultStrainCount = count_top_weighted_speed_strains(
-        s.speedDifficulty.data(), numDiffObjects, speedDifficultyValue, speedObjectWeightSum);
-    const f64 speedTopWeightedSliderCount = count_top_weighted_speed_sliders(
-        s.speedDifficulty.data(), diffObjects, numDiffObjects, speedDifficultyValue, speedObjectWeightSum);
-    params.outAttributes.SpeedTopWeightedSliderFactor =
-        speedTopWeightedSliderCount /
-        std::max(1.0, params.outAttributes.SpeedDifficultStrainCount - speedTopWeightedSliderCount);
+        attrs->SpeedDifficultStrainCount = count_top_weighted_speed_strains(s.speedDifficulty.data(), numDiffObjects,
+                                                                            speedDifficultyValue, speedObjectWeightSum);
+        const f64 speedTopWeightedSliderCount = count_top_weighted_speed_sliders(
+            s.speedDifficulty.data(), diffObjects, numDiffObjects, speedDifficultyValue, speedObjectWeightSum);
+        attrs->SpeedTopWeightedSliderFactor =
+            speedTopWeightedSliderCount / std::max(1.0, attrs->SpeedDifficultStrainCount - speedTopWeightedSliderCount);
 
-    params.outAttributes.SpeedNoteCount =
-        calculate_speed_relevant_object_count(s.speedDifficulty.data(), numDiffObjects);
+        attrs->SpeedNoteCount = calculate_speed_relevant_object_count(s.speedDifficulty.data(), numDiffObjects);
+    }
 
     // reading + flashlight, both hidden variants (the strain series carry both, so the raw
     // values can drive hidden recomputes without another strain pass)
@@ -1010,14 +1029,17 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
     f64 readingDifficultNoteCountHidden = 0.0;
     const f64 readingNoHiddenDifficultyValue =
         calculate_reading_difficulty(s.readingStrainNoHidden.data(), diffObjects, numDiffObjects, harmonicIndexDecay,
-                                     readingDifficultNoteCountNoHidden);
-    const f64 readingHiddenDifficultyValue = calculate_reading_difficulty(
-        s.readingStrainHidden.data(), diffObjects, numDiffObjects, harmonicIndexDecay, readingDifficultNoteCountHidden);
+                                     attrs != nullptr ? &readingDifficultNoteCountNoHidden : nullptr);
+    const f64 readingHiddenDifficultyValue =
+        calculate_reading_difficulty(s.readingStrainHidden.data(), diffObjects, numDiffObjects, harmonicIndexDecay,
+                                     attrs != nullptr ? &readingDifficultNoteCountHidden : nullptr);
 
     const f64 readingDifficultyValue =
         params.beatmapData.hidden ? readingHiddenDifficultyValue : readingNoHiddenDifficultyValue;
-    params.outAttributes.ReadingDifficultNoteCount =
-        params.beatmapData.hidden ? readingDifficultNoteCountHidden : readingDifficultNoteCountNoHidden;
+    if(attrs != nullptr) {
+        attrs->ReadingDifficultNoteCount =
+            params.beatmapData.hidden ? readingDifficultNoteCountHidden : readingDifficultNoteCountNoHidden;
+    }
 
     f64 flashlightNoHiddenDifficultyValue = 0.0;
     f64 flashlightHiddenDifficultyValue = 0.0;
@@ -1062,15 +1084,17 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
     const f64 readingRating = calculateDifficultyRating(readingDifficultyValue);
     const f64 flashlightRating = calculateDifficultyRating(flashlightDifficultyValue);
 
-    params.outAttributes.SliderFactor = aimDifficultyValue > 0.0 ? aimNoSlidersRating / aimRating : 1.0;
+    if(attrs != nullptr) {
+        attrs->SliderFactor = aimDifficultyValue > 0.0 ? aimNoSlidersRating / aimRating : 1.0;
 
-    // Scorev1
-    calculateScoreV1Attributes(params.outAttributes, params.beatmapData, params.upToObjectIndex);
+        // Scorev1
+        calculateScoreV1Attributes(*attrs, params.beatmapData, params.upToObjectIndex);
 
-    params.outAttributes.AimDifficulty = aimRating;
-    params.outAttributes.SpeedDifficulty = speedRating;
-    params.outAttributes.ReadingDifficulty = readingRating;
-    params.outAttributes.FlashlightDifficulty = flashlightRating;
+        attrs->AimDifficulty = aimRating;
+        attrs->SpeedDifficulty = speedRating;
+        attrs->ReadingDifficulty = readingRating;
+        attrs->FlashlightDifficulty = flashlightRating;
+    }
 
     return calculateStarRatingFromRatings(aimRating, speedRating, readingRating, flashlightRating);
 }
@@ -1532,21 +1556,34 @@ f64 calculate_aim_difficulty(const Skills::Skill type, const f64 *strains, const
     static constexpr f64 reduced_strain_baseline = 0.727;
     static constexpr f64 chunk_size = 20.0;
 
+    // the reduction at each whole ms of section time (section lengths are rounded, so chunks start on whole ms)
+    static const std::array<f64, (uSz)reduced_section_time + 1> reductionAt = [] {
+        std::array<f64, (uSz)reduced_section_time + 1> reduction{};
+        for(uSz ms = 0; ms < reduction.size(); ms++) {
+            const f64 scale = std::log10(std::lerp(1.0, 10.0, (f64)ms / reduced_section_time));
+            reduction[ms] = std::lerp(reduced_strain_baseline, 1.0, scale);
+        }
+        return reduction;
+    }();
+
     f64 time = 0.0;
     uSz skipCount = 0;
     uSz chunkStart = peaks.size();
 
+    // where the chunks of each reduced section start; the reduction grows with time, so the chunks of one section
+    // come out in ascending value
+    Mc::InlineVec<uSz, 32> runStarts;
+
     while(peaks.size() > skipCount && time < reduced_section_time) {
         const StrainPeak strain = peaks[skipCount];  // copy, the vector is appended to below
 
+        runStarts.push_back(peaks.size());
         for(i32 chunkIdx = 0;; chunkIdx++) {
             const f64 addedTime = chunk_size * (f64)chunkIdx;
             if(addedTime >= strain.sectionLength) break;
 
-            const f64 scale =
-                std::log10(std::lerp(1.0, 10.0, std::clamp<f64>((time + addedTime) / reduced_section_time, 0.0, 1.0)));
             peaks.push_back(
-                StrainPeak{.value = strain.value * std::lerp(reduced_strain_baseline, 1.0, scale),
+                StrainPeak{.value = strain.value * reductionAt[(uSz)std::min(time + addedTime, reduced_section_time)],
                            .sectionLength = std::round(std::min(chunk_size, strain.sectionLength - addedTime)),
                            .seq = seq++});
         }
@@ -1562,7 +1599,34 @@ f64 calculate_aim_difficulty(const Skills::Skill type, const f64 *strains, const
     // re-sorting everything (seq keeps the LINQ OrderByDescending tie behavior: sections
     // before equal-valued chunks, chunks among themselves in generation order)
     chunkStart = std::max(chunkStart, skipCount);
-    std::sort(peaks.begin() + (sSz)chunkStart, peaks.end(), byValueDescStable);
+    // sort the section chunks by reversing them (equal values need their order back) and merge the runs
+    runStarts.push_back(peaks.size());
+    uSz numRuns = 0;
+    for(uSz r = 0; r + 1 < runStarts.size(); r++) {
+        const auto first = peaks.begin() + (sSz)std::max(runStarts[r], chunkStart);
+        const auto last = peaks.begin() + (sSz)runStarts[r + 1];
+        if(first >= last) continue;
+        std::reverse(first, last);
+        if(!std::is_sorted(first, last, byValueDescStable)) std::sort(first, last, byValueDescStable);
+        runStarts[numRuns++] = (uSz)(first - peaks.begin());
+    }
+    runStarts[numRuns] = peaks.size();
+    if(numRuns > 1) {
+        // bottom-up merge, alternating between the chunks and a scratch buffer
+        std::vector<StrainPeak> scratch(peaks.size() - chunkStart);
+        StrainPeak *src = peaks.data() + chunkStart;
+        StrainPeak *dst = scratch.data();
+        for(uSz r = 0; r <= numRuns; r++) runStarts[r] -= chunkStart;
+        for(uSz width = 1; width < numRuns; width *= 2) {
+            for(uSz r = 0; r < numRuns; r += 2 * width) {
+                const uSz mid = runStarts[std::min(r + width, numRuns)];
+                const uSz end = runStarts[std::min(r + 2 * width, numRuns)];
+                std::merge(src + runStarts[r], src + mid, src + mid, src + end, dst + runStarts[r], byValueDescStable);
+            }
+            std::swap(src, dst);
+        }
+        if(src != peaks.data() + chunkStart) std::copy(scratch.begin(), scratch.end(), peaks.begin() + (sSz)chunkStart);
+    }
 
     // continuous weighted sum: weight = integral of decay_weight^x over the section, with time
     // in units of max_section_length
@@ -1590,21 +1654,62 @@ f64 calculate_aim_difficulty(const Skills::Skill type, const f64 *strains, const
 // see https://github.com/ppy/osu/blob/master/osu.Game/Rulesets/Difficulty/Skills/HarmonicSkill.cs
 // harmonic weighted sum over the sorted per-object difficulties; every note contributes.
 // objectWeightSum is needed by the top-weighted counts and must come from this same sum.
-std::vector<f64> harmonic_index_decay(uSz dobjectCount) {
+std::span<const f64> harmonic_index_decay(std::vector<f64> &table, uSz dobjectCount) {
     static constexpr f64 decay_exponent = 0.9;
 
-    std::vector<f64> indexDecay(dobjectCount > 1 ? dobjectCount - 1 : 0);
-    for(uSz index = 0; index < indexDecay.size(); index++) {
-        indexDecay[index] = std::pow((f64)index, decay_exponent);
+    const uSz count = dobjectCount > 1 ? dobjectCount - 1 : 0;
+    for(uSz index = table.size(); index < count; index++) {
+        table.push_back(std::pow((f64)index, decay_exponent));
     }
-    return indexDecay;
+    return {table.data(), count};
+}
+
+// sorts descending with an LSD radix sort on the bits (equal values are equal bits, so this matches any comparison sort)
+void sort_descending(std::span<f64> values) {
+    if(values.size() < 256) {
+        Mc::ranges::sort(values, std::greater<>{});
+        return;
+    }
+
+    // keys ascend as the values descend: flip every bit but the sign of non-negative values, keep negative ones
+    std::vector<u64> keys(values.size() * 2);
+    const std::span<u64> scratch{keys.data() + values.size(), values.size()};
+    std::array<std::array<u32, 256>, 8> counts{};
+    for(uSz i = 0; i < values.size(); i++) {
+        const u64 bits = std::bit_cast<u64>(values[i]);
+        const u64 key = (bits >> 63) ? bits : bits ^ ~(1ULL << 63);
+        keys[i] = key;
+        for(uSz digit = 0; digit < 8; digit++) counts[digit][(key >> (digit * 8)) & 0xFF]++;
+    }
+
+    u64 *src = keys.data();
+    u64 *dst = scratch.data();
+    for(uSz digit = 0; digit < 8; digit++) {
+        auto &count = counts[digit];
+        // a digit shared by every key leaves the order as it is
+        if(count[(src[0] >> (digit * 8)) & 0xFF] == values.size()) continue;
+
+        u32 offset = 0;
+        for(u32 &c : count) {
+            const u32 n = c;
+            c = offset;
+            offset += n;
+        }
+        for(uSz i = 0; i < values.size(); i++) dst[count[(src[i] >> (digit * 8)) & 0xFF]++] = src[i];
+        std::swap(src, dst);
+    }
+
+    for(uSz i = 0; i < values.size(); i++) {
+        const u64 key = src[i];
+        values[i] = std::bit_cast<f64>((key >> 63) ? key : key ^ ~(1ULL << 63));
+    }
 }
 
 f64 harmonic_difficulty_sum(std::span<f64> difficulties, f64 harmonicScale, std::span<const f64> indexDecay,
                             f64 &outObjectWeightSum) {
     outObjectWeightSum = 0.0;
 
-    Mc::ranges::sort(difficulties, std::greater<>{});
+    sort_descending(difficulties);
 
     f64 difficulty = 0.0;
     i32 index = 0;
@@ -1636,10 +1741,11 @@ f64 calculate_speed_difficulty(const f64 *difficulties, uSz dobjectCount, std::s
 // see DifficultyValue() @ https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Reading.cs
 // harmonic sum (HS=1, DE=0.9) over the recorded per-object reading difficulties with the
 // first-minute notes scaled down ("assume the first seconds are completely memorised"), plus
-// the top-weighted note count (order dependency: it needs this sum's ObjectWeightSum)
+// the top-weighted note count (order dependency: it needs this sum's ObjectWeightSum) unless outDifficultNoteCount
+// is null
 f64 calculate_reading_difficulty(const f64 *strains, const DifficultyHitObject *dobjects, uSz dobjectCount,
-                                 std::span<const f64> indexDecay, f64 &outDifficultNoteCount) {
-    outDifficultNoteCount = 0.0;
+                                 std::span<const f64> indexDecay, f64 *outDifficultNoteCount) {
+    if(outDifficultNoteCount != nullptr) *outDifficultNoteCount = 0.0;
     if(dobjectCount < 2) return 0.0;
 
     // lazer counts this during processing; identical to counting the prefix objects within the
@@ -1667,14 +1773,14 @@ f64 calculate_reading_difficulty(const f64 *strains, const DifficultyHitObject *
     const f64 difficulty = harmonic_difficulty_sum(difficulties, 1.0, indexDecay, objectWeightSum);
 
     // CountTopWeightedObjectDifficulties (reading override), over the untransformed recorded values
-    if(objectWeightSum != 0.0) {
+    if(outDifficultNoteCount != nullptr && objectWeightSum != 0.0) {
         const f64 consistentTopNote = difficulty / objectWeightSum;
         if(consistentTopNote != 0.0) {
             f64 sum = 0.0;
             for(uSz i = 1; i < dobjectCount; i++) {
                 sum += logistic(strains[i] / consistentTopNote, 1.15, 5.0, 1.1);
             }
-            outDifficultNoteCount = sum;
+            *outDifficultNoteCount = sum;
         }
     }
 

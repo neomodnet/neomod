@@ -218,7 +218,7 @@ CalcSnapshot calcOnce(DiffCalc::LOAD_DIFFOBJ_RESULT &loaded, const CrosscheckSet
                                                .speedMultiplier = setup.speedMultiplier,
                                                .breakDuration = loaded.totalBreakDuration};
     DiffCalc::StarCalcParams starParams{
-        .outAttributes = snap.attrs,
+        .outAttributes = &snap.attrs,
         .beatmapData = diffcalcData,
         .outAimStrains = &snap.aimStrains,
         .outSpeedStrains = &snap.speedStrains,

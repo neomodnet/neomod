@@ -123,6 +123,11 @@ struct LOAD_DIFFOBJ_RESULT;
 LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(Primitives::PRIMITIVE_CONTAINER &c, f32 AR, f32 CS, f32 speedMultiplier,
                                              bool hardRock, const Sync::stop_token &dead = {});
 
+// stacks objects loaded at speed 1.0 again for another AR, CS and hardRock, as if they were loaded with them. their
+// times must be unscaled (as loaded at speed 1.0).
+void restackDifficultyHitObjects(LOAD_DIFFOBJ_RESULT &result, const Primitives::PRIMITIVE_CONTAINER &c, f32 AR, f32 CS,
+                                 bool hardRock);
+
 struct LOAD_DIFFOBJ_RESULT final {
     LOAD_DIFFOBJ_RESULT() = default;
     ~LOAD_DIFFOBJ_RESULT() = default;
@@ -227,7 +232,8 @@ struct RawDifficultyValues {
 };
 
 struct StarCalcParams {
-    DifficultyAttributes &outAttributes;
+    // if null, only the star rating is calculated (without the attributes only the pp calc needs)
+    DifficultyAttributes *outAttributes;
     const BeatmapDiffcalcData &beatmapData;
 
     std::vector<f32> *outAimStrains;

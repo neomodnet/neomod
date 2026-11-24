@@ -190,7 +190,7 @@ struct LivePPCalc::LivePPCalcImpl {
 
             // the first call computes the per-object fields for the whole map, later calls with a
             // larger upToObjectIndex reuse them via diffres.strainState
-            DiffCalc::StarCalcParams params{.outAttributes = diffattrsOut,
+            DiffCalc::StarCalcParams params{.outAttributes = &diffattrsOut,
                                             .beatmapData = diffcalcData,
                                             .outAimStrains = nullptr,
                                             .outSpeedStrains = nullptr,

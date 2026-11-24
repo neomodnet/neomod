@@ -3140,9 +3140,8 @@ void stack(std::span<const std::unique_ptr<HitObject>> objects, f32 AR, i32 beat
         hitobject->setStack(0);
     }
 
-    Primitives::calculateStacks(
-        Primitives::ObjectGetter<HitObject>{[objects](uSz idx) -> HitObject * { return objects[idx].get(); }},
-        objects.size(), AR, beatmapVersion, stackLeniency);
+    Primitives::calculateStacks([objects](uSz idx) -> HitObject * { return objects[idx].get(); }, objects.size(), AR,
+                                beatmapVersion, stackLeniency);
 
     // update hitobject positions (also of ones stacked before that aren't now)
     const f32 STACK_OFFSET = 0.05f;

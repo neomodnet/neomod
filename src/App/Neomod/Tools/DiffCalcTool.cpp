@@ -574,7 +574,7 @@ OneMapResult computeOneConfig(Primitives::PRIMITIVE_CONTAINER &primitives, std::
                                                .breakDuration = diffResult.totalBreakDuration};
 
     DiffCalc::StarCalcParams starParams{
-        .outAttributes = r.attrs,
+        .outAttributes = &r.attrs,
         .beatmapData = diffcalcData,
         .outAimStrains = &r.aimStrains,
         .outSpeedStrains = &r.speedStrains,

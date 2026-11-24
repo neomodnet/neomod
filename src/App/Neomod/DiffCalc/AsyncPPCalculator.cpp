@@ -241,7 +241,7 @@ void drain_work(const std::shared_ptr<calc_session>& s, const Sync::stop_token& 
             // NOTE: on >5000 slider maps this can return the first computation's attributes where a
             // recompute would see the ~2 leftover slider curves of the MCKAY sliding window (see the
             // star calc); measured at ~0.002% pp on a worst-case map, display-only
-            DiffCalc::StarCalcParams params{.outAttributes = new_info.diffattrs,
+            DiffCalc::StarCalcParams params{.outAttributes = &new_info.diffattrs,
                                             .beatmapData = diffcalcData,
                                             .outAimStrains = &new_info.info.aimStrains,
                                             .outSpeedStrains = &new_info.info.speedStrains,

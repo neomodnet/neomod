@@ -2984,7 +2984,7 @@ FinishedScore BeatmapInterface::saveAndSubmitScore(bool quit) {
 
     DiffCalc::DifficultyAttributes diffAttributesOut{};
 
-    DiffCalc::StarCalcParams params{.outAttributes = diffAttributesOut,
+    DiffCalc::StarCalcParams params{.outAttributes = &diffAttributesOut,
                                     .beatmapData = diffcalcData,
                                     .outAimStrains = nullptr,
                                     .outSpeedStrains = nullptr,

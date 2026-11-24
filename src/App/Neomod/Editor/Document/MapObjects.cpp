@@ -200,7 +200,6 @@ void MapObjects::restackAround(std::span<const uSz> indexes, const Primitives::P
 }
 
 uSz MapObjects::nextRun(uSz start, const Primitives::PRIMITIVE_CONTAINER &c) const {
-    return Primitives::nextStackingRun(
-        Primitives::ObjectGetter<HitObject>{[this](uSz i) { return this->objects[i].get(); }}, this->objects.size(),
-        start, c.AR, c.stackLeniency);
+    return Primitives::nextStackingRun([this](uSz i) { return this->objects[i].get(); }, this->objects.size(), start,
+                                       c.AR, c.stackLeniency);
 }

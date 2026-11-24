@@ -183,7 +183,7 @@ void process_score_group(const BeatmapDifficulty* map, const ModParams& params, 
 
     DiffCalc::DifficultyAttributes attributes{};
 
-    DiffCalc::StarCalcParams star_params{.outAttributes = attributes,
+    DiffCalc::StarCalcParams star_params{.outAttributes = &attributes,
                                          .beatmapData = diffcalc_data,
                                          .outAimStrains = nullptr,
                                          .outSpeedStrains = nullptr,
@@ -343,67 +343,72 @@ MapResult calc_map_attributes(BeatmapDifficulty* map, Primitives::PRIMITIVE_CONT
         ArCsVariant{0.5f, 0.5f, {3, 5}, false},  // EZ: EZ(3), HD|EZ(5)
     };
 
+    // build DifficultyHitObjects once at speed=1.0, every AR/CS variant restacks them.
+    // object construction and stacking are speed-independent;
+    // only the timing fields need rescaling per speed.
+    auto diffres = DiffCalc::loadDifficultyHitObjects(primitives, std::clamp(base_ar, 0.f, 10.f),
+                                                      std::clamp(base_cs, 0.f, 10.f), 1.0f, VARIANTS[0].hr, stoken);
+    if(stoken.stop_requested()) return result;
+
+    result.length_ms = diffres.diffobjects.empty()
+                           ? 0
+                           : (u32)(diffres.diffobjects.back().baseEndTime - diffres.diffobjects[0].baseTime);
+
+    if(diffres.error.errc) {
+        logFailure(diffres.error, "loadDifficultyHitObjects map hash: {} map path: {}", map->getMD5(),
+                   map->getFilePath());
+    }
+
+    // save base slider timing (overwritten by speed rescaling below).
+    // baseTime/baseEndTime are already preserved on DifficultyHitObject,
+    // but spanDuration and scoringTimes have no base counterpart.
+    ctx.base_span_durations.clear();
+    ctx.base_scoring_times.clear();
+    for(const auto& obj : diffres.diffobjects) {
+        if(obj.type == DifficultyHitObject::TYPE::SLIDER) {
+            ctx.base_span_durations.push_back(obj.spanDuration);
+            for(const auto& st : obj.scoringTimes) {
+                ctx.base_scoring_times.push_back(st.time);
+            }
+        }
+    }
+
+    // rescale timing fields from base values
+    const auto rescale = [&diffres, &ctx](f64 inv_speed) {
+        uSz si = 0, sti = 0;
+        for(auto& obj : diffres.diffobjects) {
+            obj.time = (i32)((f64)obj.baseTime * inv_speed);
+            obj.endTime = (i32)((f64)obj.baseEndTime * inv_speed);
+            if(obj.type == DifficultyHitObject::TYPE::SLIDER) {
+                obj.spanDuration = (f32)((f64)ctx.base_span_durations[si] * inv_speed);
+                for(auto& st : obj.scoringTimes) {
+                    st.time = (f32)((f64)ctx.base_scoring_times[sti] * inv_speed);
+                    sti++;
+                }
+                si++;
+            }
+        }
+    };
+
     for(const auto& var : VARIANTS) {
         if(stoken.stop_requested()) return result;
+        if(diffres.error.errc) break;
 
         const f32 ar = std::clamp(base_ar * var.ar_od_hp_mul, 0.f, 10.f);
         const f32 cs = std::clamp(base_cs * var.cs_mul, 0.f, 10.f);
         const f32 od = std::clamp(base_od * var.ar_od_hp_mul, 0.f, 10.f);
         const f32 hp = std::clamp(base_hp * var.ar_od_hp_mul, 0.f, 10.f);
 
-        // build DifficultyHitObjects once at speed=1.0 for this AR/CS variant.
-        // object construction and stacking are speed-independent;
-        // only the timing fields need rescaling per speed.
-        auto diffres = DiffCalc::loadDifficultyHitObjects(primitives, ar, cs, 1.0f, var.hr, stoken);
-        if(stoken.stop_requested()) return result;
-
-        if(&var == &VARIANTS[0]) {
-            result.length_ms = diffres.diffobjects.empty()
-                                   ? 0
-                                   : (u32)(diffres.diffobjects.back().baseEndTime - diffres.diffobjects[0].baseTime);
-        }
-
-        if(diffres.error.errc) {
-            logFailure(diffres.error, "loadDifficultyHitObjects map hash: {} map path: {}", map->getMD5(),
-                       map->getFilePath());
-            continue;
-        }
-
-        // save base slider timing (overwritten by speed rescaling below).
-        // baseTime/baseEndTime are already preserved on DifficultyHitObject,
-        // but spanDuration and scoringTimes have no base counterpart.
-        ctx.base_span_durations.clear();
-        ctx.base_scoring_times.clear();
-        for(const auto& obj : diffres.diffobjects) {
-            if(obj.type == DifficultyHitObject::TYPE::SLIDER) {
-                ctx.base_span_durations.push_back(obj.spanDuration);
-                for(const auto& st : obj.scoringTimes) {
-                    ctx.base_scoring_times.push_back(st.time);
-                }
-            }
+        if(&var != &VARIANTS[0]) {
+            // stacking reads the unscaled times
+            rescale(1.0);
+            DiffCalc::restackDifficultyHitObjects(diffres, primitives, ar, cs, var.hr);
         }
 
         for(u8 speed_idx = 0; speed_idx < StarPrecalc::SPEEDS_NUM; speed_idx++) {
             if(stoken.stop_requested()) return result;
             const f32 speed = StarPrecalc::SPEEDS[speed_idx];
-            const f64 inv_speed = 1.0 / (f64)speed;
-
-            // rescale timing fields from base values for this speed
-            {
-                uSz si = 0, sti = 0;
-                for(auto& obj : diffres.diffobjects) {
-                    obj.time = (i32)((f64)obj.baseTime * inv_speed);
-                    obj.endTime = (i32)((f64)obj.baseEndTime * inv_speed);
-                    if(obj.type == DifficultyHitObject::TYPE::SLIDER) {
-                        obj.spanDuration = (f32)((f64)ctx.base_span_durations[si] * inv_speed);
-                        for(auto& st : obj.scoringTimes) {
-                            st.time = (f32)((f64)ctx.base_scoring_times[sti] * inv_speed);
-                            sti++;
-                        }
-                        si++;
-                    }
-                }
-            }
+            rescale(1.0 / (f64)speed);
 
             // HD=0: full calculation, saving raw difficulty values
             {
@@ -424,12 +429,11 @@ MapResult calc_map_attributes(BeatmapDifficulty* map, Primitives::PRIMITIVE_CONT
                                                             .speedMultiplier = speed,
                                                             .breakDuration = primitives.totalBreakDuration};
 
-                DiffCalc::DifficultyAttributes attributes{};
                 DiffCalc::RawDifficultyValues raw_diff{};
 
                 // NOTE: the speed component of diffres.strainState never matches here (the timing
                 // fields were just rescaled above), so this always recomputes, as it must
-                DiffCalc::StarCalcParams star_params{.outAttributes = attributes,
+                DiffCalc::StarCalcParams star_params{.outAttributes = nullptr,
                                                      .beatmapData = diffcalc_data,
                                                      .outAimStrains = nullptr,
                                                      .outSpeedStrains = nullptr,

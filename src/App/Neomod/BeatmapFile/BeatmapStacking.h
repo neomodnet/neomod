@@ -5,7 +5,7 @@
 #include "GameRules.h"
 
 #include <algorithm>
-#include <functional>
+#include <concepts>
 #include <type_traits>
 
 namespace neomod {
@@ -20,12 +20,15 @@ namespace neomod::Primitives {
 template <typename T>
 concept HitObjectContainer = std::is_same_v<T, DiffCalc::DifficultyHitObject> || std::is_same_v<T, HitObject>;
 
-template <HitObjectContainer C>
-using ObjectGetter = std::function<C *(uSz)>;
+// a callable giving the object at an index
+template <typename G>
+concept ObjectGetter =
+    std::invocable<const G &, uSz> &&
+    HitObjectContainer<std::remove_const_t<std::remove_pointer_t<std::invoke_result_t<const G &, uSz>>>>;
 
 // osu!'s stacking of objects sorted by time whose stacks are all 0 (maps before v6 stack the old way)
-template <HitObjectContainer C>
-void calculateStacks(const ObjectGetter<C> &getObj, uSz numObjects, float AR, int beatmapVersion, float stackLeniency) {
+template <ObjectGetter G>
+void calculateStacks(const G &getObj, uSz numObjects, float AR, int beatmapVersion, float stackLeniency) {
     constexpr float STACK_LENIENCE = 3.f;
     const float approachTime = GameRules::getApproachTimeForStacking(AR);
 
@@ -144,12 +147,12 @@ void calculateStacks(const ObjectGetter<C> &getObj, uSz numObjects, float AR, in
 // it the stacks it gets over all objects. returns where the run after the one at `start` starts: the first object that
 // starts further after every earlier end in the run than objects stack across (numObjects if there's none). only the
 // objects from `start` on are looked at
-template <HitObjectContainer C>
-uSz nextStackingRun(const ObjectGetter<C> &getObj, uSz numObjects, uSz start, float AR, float stackLeniency) {
+template <ObjectGetter G>
+uSz nextStackingRun(const G &getObj, uSz numObjects, uSz start, float AR, float stackLeniency) {
     const float window = GameRules::getApproachTimeForStacking(AR) * stackLeniency;
     i32 latestEnd = getObj(start)->getEndTime();
     for(uSz i = start + 1; i < numObjects; i++) {
-        const C *object = getObj(i);
+        const auto *object = getObj(i);
         if((f32)object->getClickTime() - window > (f32)latestEnd) return i;
         latestEnd = std::max(latestEnd, object->getEndTime());
     }
