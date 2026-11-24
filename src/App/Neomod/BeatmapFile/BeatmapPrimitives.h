@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <array>
+#include <memory>
 #include <optional>
 #include <span>
 #include <string>
@@ -20,7 +21,8 @@
 
 namespace neomod {
 class BeatmapFile;
-}
+class SliderCurve;
+}  // namespace neomod
 
 // the objects, timing points and settings gameplay and the star calc are built from, read from a .osu file (see
 // BeatmapFile) without any of the game's state, so the standalone tools use the same code
@@ -174,6 +176,10 @@ struct PRIMITIVE_CONTAINER final {
     }
 
     u32 totalBreakDuration{0};
+
+    // the star calc slider curves by object index (null for other objects), built by the first
+    // DiffCalc::loadDifficultyHitObjects call that needs them and shared by later ones
+    std::vector<std::shared_ptr<const SliderCurve>> starCalcCurves{};
 
     i32 version{14};
     LoadError error;

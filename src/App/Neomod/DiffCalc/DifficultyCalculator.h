@@ -10,7 +10,6 @@
 #include "Vectors.h"
 #include "SyncStoptoken.h"
 #include "StrainComputeState.h"
-#include "StaticPImpl.h"
 #include "BeatmapPrimitives.h"
 
 #include <vector>
@@ -39,11 +38,8 @@ using DatabaseBeatmapTypes::SLIDER_SCORING_TIME;
 // for forward declaration
 extern const u32 PP_ALGORITHM_VERSION;
 
-// a parsed hitobject plus the per-object difficulty data computed from it by the star calc.
-// the parsed part is filled by loadDifficultyHitObjects, the computed part is
-// roughly equivalent to lazer's OsuDifficultyHitObject (+ a per-object slice of the skill state).
-// NOTE: unlike lazer, the first hitobject is included in the objects array (lazer's difficulty
-// hit objects start at the second one), so lazer's Index == index here.
+// a parsed hitobject, filled by loadDifficultyHitObjects. the per-object difficulty data computed
+// from it by the star calc (roughly the lazer OsuDifficultyHitObject) lives in StrainComputeState.
 class DifficultyHitObject {
    public:
     enum class TYPE : u8 {
@@ -68,7 +64,7 @@ class DifficultyHitObject {
     DifficultyHitObject(TYPE type, vec2 pos, i32 time, i32 endTime, f32 spanDuration,
                         SLIDERCURVETYPE osuSliderCurveType, const std::vector<vec2> &controlPoints, f32 pixelLength,
                         std::vector<SLIDER_SCORING_TIME> scoringTimes, i32 repeats,
-                        bool calculateSliderCurveInConstructor);  // slider
+                        std::shared_ptr<const SliderCurve> sliderCurve);  // slider, null curve to defer it
     ~DifficultyHitObject();
 
     DifficultyHitObject(const DifficultyHitObject &) = delete;
@@ -105,7 +101,7 @@ class DifficultyHitObject {
     // sliders
     std::vector<SLIDER_SCORING_TIME> scoringTimes;
     std::vector<vec2> scheduledCurveAllocControlPoints;
-    std::unique_ptr<SliderCurve> curve;
+    std::shared_ptr<const SliderCurve> curve;
 
     f32 spanDuration;  // i.e. sliderTimeWithoutRepeats
     f32 pixelLength;
@@ -118,11 +114,6 @@ class DifficultyHitObject {
     TYPE type;
     SLIDERCURVETYPE osuSliderCurveType;
     bool scheduledCurveAlloc;
-
-    // ============================================================================================================== //
-    // computed by the star calc (calculateStarDiffForHitObjects), never set by the loader/ctor.
-    struct Computed;
-    StaticPImpl<Computed, 216> c;
 };
 
 struct LOAD_DIFFOBJ_RESULT;
@@ -143,8 +134,8 @@ struct LOAD_DIFFOBJ_RESULT final {
 
     std::vector<DifficultyHitObject> diffobjects;
 
-    // which parameters the computed (star calc) fields of diffobjects were last fully computed
-    // with, invalid on a fresh load. pass to StarCalcParams::strainState to reuse them.
+    // the per-object values computed by the star calc for diffobjects, invalid on a fresh load.
+    // pass to StarCalcParams::strainState to reuse them.
     StrainComputeState strainState{};
 
     u32 totalBreakDuration{0};
@@ -253,11 +244,11 @@ struct StarCalcParams {
     // if non-null, raw difficulty values are written here before the rating transform
     RawDifficultyValues *outRawDifficulty{nullptr};
 
-    // if non-null, tracks which parameters the computed fields of beatmapData.sortedHitObjects were
-    // last fully computed with: on match the whole preprocessing+strain pass is skipped, otherwise
-    // it runs and the state is updated (so repeat calls over the same vector are cheap, e.g. live pp
-    // with an increasing upToObjectIndex). pass the state owned by the vector's LOAD_DIFFOBJ_RESULT,
-    // or null to always recompute.
+    // if non-null, holds the per-object values computed for beatmapData.sortedHitObjects and which
+    // parameters they were last fully computed with: on match the whole preprocessing+strain pass is
+    // skipped, otherwise it runs and the state is updated (so repeat calls over the same vector are
+    // cheap, e.g. live pp with an increasing upToObjectIndex). pass the state from the LOAD_DIFFOBJ_RESULT
+    // that owns the vector, or null to always recompute.
     StrainComputeState *strainState{nullptr};
 };
 

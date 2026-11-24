@@ -75,16 +75,22 @@ static f64 calculateScoreV1SpinnerScore(f64 spinnerDuration);
 
 // per-map constants shared by every strain evaluator (mod effects are per-note now)
 struct StrainEvalContext {
-    f64 hitWindow300{};             // rate-adjusted, == lazer HitWindowGreat
-    f64 circleRadius{};             // real (unnormalized) circle radius in osu!pixels
-    f64 smallCircleBonus{1.};       // max(1, 1 + (30 - radius) / 70)
-    f64 smallCircleBonusSqrt{1.};   // sqrt(smallCircleBonus) (flow aim)
-    f64 smallCircleBonusPow15{1.};  // smallCircleBonus^1.5 (agility)
-    f64 odScalingAimFl{1.};         // 0.985 + OD^2 / 4000 (per-note OD scaling for aim + flashlight)
-    f64 odScalingReading{1.};       // 0.825 + OD^2.2 / 1125
-    f64 preemptRaw{};               // beatmap-time preempt from AR (OpacityAt domain)
-    f64 preemptAdjusted{};          // rate-adjusted preempt (lazer Preempt)
-    f64 fadeInRaw{};                // 400 * min(1, preemptRaw / 450), beatmap-time
+    // the objects and the count of them, for lazer-style previous/next lookups
+    const DifficultyHitObject *objects{nullptr};
+    i32 numObjects{0};
+
+    f64 hitWindow300{};                // rate-adjusted, == lazer HitWindowGreat
+    f64 circleRadius{};                // real (unnormalized) circle radius in osu!pixels
+    f64 smallCircleBonus{1.};          // max(1, 1 + (30 - radius) / 70)
+    f64 smallCircleBonusSqrt{1.};      // sqrt(smallCircleBonus) (flow aim)
+    f64 smallCircleBonusPow15{1.};     // smallCircleBonus^1.5 (agility)
+    f64 odScalingAimFl{1.};            // 0.985 + OD^2 / 4000 (per-note OD scaling for aim + flashlight)
+    f64 odScalingReading{1.};          // 0.825 + OD^2.2 / 1125
+    f64 preemptRaw{};                  // beatmap-time preempt from AR (OpacityAt domain)
+    f64 preemptAdjusted{};             // rate-adjusted preempt (lazer Preempt)
+    f64 fadeInRaw{};                   // 400 * min(1, preemptRaw / 450), beatmap-time
+    f64 readingPreemptDifficulty{};    // reading preempt curve, before the per-note factors
+    f64 readingHiddenPreemptFactor{};  // 0.01 * preemptAdjusted^2.2
 
     bool relax{false};
     bool autopilot{false};
@@ -92,16 +98,72 @@ struct StrainEvalContext {
     bool flashlight{false};
 };
 
-static void calculate_strains(DifficultyHitObject &cur, const DifficultyHitObject &prev, const StrainEvalContext &ctx);
+// lazer Previous(skip)/Next(skip) on array positions, -1 for null: array position 0 is not a
+// difficulty object, so anything reaching it (or out of bounds) is null. several evaluator loops
+// rely on null termination, do NOT clamp here.
+static inline i32 previous_idx(i32 i, i32 backwardsIdx) {
+    const i32 p = i - 1 - backwardsIdx;
+    return p >= 1 ? p : -1;
+}
+static inline i32 next_idx(i32 i, i32 forwardIdx, const StrainEvalContext &ctx) {
+    const i32 p = i + 1 + forwardIdx;
+    return p < ctx.numObjects ? p : -1;
+}
 
-// per-note strain evaluators (lazer Evaluators/*), definitions below the strain pass
-static f64 evaluate_aim_difficulty_of(const DifficultyHitObject &cur, bool withSliders, f64 agilityDifficultyRaw,
-                                      const StrainEvalContext &ctx);
-static f64 evaluate_agility_of(const DifficultyHitObject &cur, const StrainEvalContext &ctx);
-static f64 evaluate_speed_difficulty_of(const DifficultyHitObject &cur, const StrainEvalContext &ctx);
-static f64 evaluate_rhythm_of(const DifficultyHitObject &cur, const StrainEvalContext &ctx);
-static f64 calculate_double_tap_feasibility(const DifficultyHitObject &cur, const DifficultyHitObject *next,
-                                            f64 hitWindow300);
+// lazer Index for array position i. WARNING: -1 for the first object!
+static inline i32 lazer_index(i32 i) { return i - 1; }
+
+// per-object terms used by several evaluators, by both aim variants or by every object whose
+// window contains the object, computed once per strain pass instead of at every use
+struct StrainPassTerms {
+    std::vector<f64> aimDecay;       // 0.2^(strainTime / 1000)
+    std::vector<f64> speedDecay;     // 0.3^(strainTime / 1000)
+    std::vector<f64> readingDecay;   // 0.8^(strainTime / 1000)
+    std::vector<f64> wideAngleTime;  // strainTime^1.45 (snap wide angle velocity)
+    std::vector<f64> snapTimeBonus;  // 1 / (1 - 0.03^((strainTime / 1000)^0.65))
+
+    // rhythm difficulty from the delta change since the previous object, before the island adjustments
+    std::vector<f64> rhythmDifficulty;
+
+    // how feasible it is to doubletap the previous object together with this one (speed and rhythm)
+    std::vector<f64> doubleTapFeasibility;
+
+    // snap wiggle distance falloff reverseLerp(distance, 300, 100)^1.8, for the jump/lazy jump distance
+    std::vector<f64> wiggleJumpFalloff;
+    std::vector<f64> wiggleLazyJumpFalloff;
+
+    // reading constant angle nerf terms
+    std::vector<f64> angleLongIntervalFactor;
+    std::vector<f64> angleStackFactor;
+    std::vector<f64> alternatingAngleDifference;
+
+    // smootherStep(lazyJumpDistance, 15, 150), small reading distances may be cheesed
+    std::vector<f64> readingDistanceFactor;
+};
+
+// the strain pass terms of every object, needs the delta/strain times and the preprocessing values
+static StrainPassTerms compute_strain_pass_terms(const StrainComputeState &s, const StrainEvalContext &ctx);
+
+// computes the strains at array position i (i >= 1)
+static void calculate_strains(StrainComputeState &s, const StrainPassTerms &t, i32 i, f64 &speedStrain,
+                              const StrainEvalContext &ctx);
+
+// per-note strain evaluators (lazer Evaluators/*) for array position i, definitions
+// below the strain pass
+struct AimDifficultyPair {
+    f64 withSliders;
+    f64 noSliders;
+};
+static AimDifficultyPair evaluate_aim_difficulty_of(const StrainComputeState &s, const StrainPassTerms &t, i32 i,
+                                                    const StrainEvalContext &ctx);
+static f64 evaluate_agility_of(const StrainComputeState &s, const StrainPassTerms &t, i32 i,
+                               const StrainEvalContext &ctx);
+static f64 evaluate_speed_difficulty_of(const StrainComputeState &s, const StrainPassTerms &t, i32 i,
+                                        const StrainEvalContext &ctx);
+static f64 evaluate_rhythm_of(const StrainComputeState &s, const StrainPassTerms &t, i32 i,
+                              const StrainEvalContext &ctx);
+static f64 calculate_double_tap_feasibility(const StrainComputeState &s, i32 cur, i32 next,
+                                            const StrainEvalContext &ctx);
 // both hidden variants of the hidden-dependent skills are evaluated in one pass
 struct ReadingDifficultyPair {
     f64 noHidden;
@@ -111,36 +173,41 @@ struct FlashlightDifficultyPair {
     f64 noHidden;
     f64 hidden;
 };
-static ReadingDifficultyPair evaluate_reading_difficulty_of(const DifficultyHitObject &cur,
-                                                            const StrainEvalContext &ctx);
-static FlashlightDifficultyPair evaluate_flashlight_difficulty_of(const DifficultyHitObject &cur,
+static ReadingDifficultyPair evaluate_reading_difficulty_of(const StrainComputeState &s, const StrainPassTerms &t,
+                                                            i32 i, const StrainEvalContext &ctx);
+static f64 reading_preempt_difficulty(f64 preemptAdjusted);
+static FlashlightDifficultyPair evaluate_flashlight_difficulty_of(const StrainComputeState &s, i32 i,
                                                                   const StrainEvalContext &ctx);
 
-// final difficulty calculation over the first dobjectCount objects (array position 0 is not a
-// lazer difficulty object; all of these iterate lazer objects only, i.e. array positions 1+)
-static f64 calculate_aim_difficulty(Skills::Skill type, const DifficultyHitObject *dobjects, uSz dobjectCount);
-static f64 calculate_speed_difficulty(const DifficultyHitObject *dobjects, uSz dobjectCount, f64 &outObjectWeightSum);
-static f64 calculate_reading_difficulty(const DifficultyHitObject *dobjects, uSz dobjectCount, bool hidden,
-                                        f64 &outDifficultNoteCount);
-static f64 calculate_flashlight_difficulty(const DifficultyHitObject *dobjects, uSz dobjectCount, bool hidden);
+// final difficulty calculation over the recorded per-object difficulties, first dobjectCount objects
+// only (array position 0 is not a lazer difficulty object; all of these iterate lazer objects only,
+// i.e. array positions 1+)
+static f64 calculate_aim_difficulty(Skills::Skill type, const f64 *strains, const DifficultyHitObject *dobjects,
+                                    uSz dobjectCount);
+// index^0.9 for every index a harmonic sum over dobjectCount objects can reach (lazer HarmonicSkill
+// decay, every harmonic skill uses the same exponent)
+static std::vector<f64> harmonic_index_decay(uSz dobjectCount);
+static f64 calculate_speed_difficulty(const f64 *difficulties, uSz dobjectCount, std::span<const f64> indexDecay,
+                                      f64 &outObjectWeightSum);
+static f64 calculate_reading_difficulty(const f64 *strains, const DifficultyHitObject *dobjects, uSz dobjectCount,
+                                        std::span<const f64> indexDecay, f64 &outDifficultNoteCount);
+static f64 calculate_flashlight_difficulty(const f64 *strains, const DifficultyHitObject *dobjects, uSz dobjectCount);
 template <typename T>
     requires(std::is_same_v<T, float> || std::is_same_v<T, double>)
-static std::vector<T> build_fixed_strain_sections(const DifficultyHitObject *dobjects, uSz dobjectCount, f64 decayBase,
-                                                  f64 (*strainOf)(const DifficultyHitObject &),
-                                                  f64 *outFirstSectionStart = nullptr);
+static std::vector<T> build_fixed_strain_sections(const f64 *strains, const DifficultyHitObject *dobjects,
+                                                  uSz dobjectCount, f64 decayBase, f64 *outFirstSectionStart = nullptr);
 
 // per-object weighted counts (lazer Count*/Relevant*/GetDifficultSliders)
-static f64 count_top_weighted_strains_geometric(const DifficultyHitObject *dobjects, uSz dobjectCount,
-                                                Skills::Skill type, f64 difficultyValue);
-static f64 count_top_weighted_sliders_geometric(const DifficultyHitObject *dobjects, uSz dobjectCount,
-                                                Skills::Skill type, f64 difficultyValue);
-static f64 calculate_aim_difficult_slider_count(const DifficultyHitObject *dobjects, uSz dobjectCount,
-                                                Skills::Skill type);
-static f64 calculate_speed_relevant_object_count(const DifficultyHitObject *dobjects, uSz dobjectCount);
-static f64 count_top_weighted_speed_strains(const DifficultyHitObject *dobjects, uSz dobjectCount, f64 difficultyValue,
+static f64 count_top_weighted_strains_geometric(const f64 *strains, uSz dobjectCount, f64 difficultyValue);
+static f64 count_top_weighted_sliders_geometric(const f64 *strains, const DifficultyHitObject *dobjects,
+                                                uSz dobjectCount, f64 difficultyValue);
+static f64 calculate_aim_difficult_slider_count(const f64 *strains, const DifficultyHitObject *dobjects,
+                                                uSz dobjectCount);
+static f64 calculate_speed_relevant_object_count(const f64 *difficulties, uSz dobjectCount);
+static f64 count_top_weighted_speed_strains(const f64 *difficulties, uSz dobjectCount, f64 difficultyValue,
                                             f64 objectWeightSum);
-static f64 count_top_weighted_speed_sliders(const DifficultyHitObject *dobjects, uSz dobjectCount, f64 difficultyValue,
-                                            f64 objectWeightSum);
+static f64 count_top_weighted_speed_sliders(const f64 *difficulties, const DifficultyHitObject *dobjects,
+                                            uSz dobjectCount, f64 difficultyValue, f64 objectWeightSum);
 
 struct ScoreData {
     ModFlags modFlags;
@@ -266,123 +333,16 @@ static inline f64 odToMehWindowMS(f64 OD) { return GameRules::mapDifficultyRange
 static f64 adjustOverallDifficultyByClockRate(f64 OD, f64 clockRate);
 }  // namespace
 
-// computed by the star calc (calculateStarDiffForHitObjects), never set by the loader/DifficultHitObject ctor.
-// IMPORTANT: resetFields() below must reset every field in this section, keep the two in sync!
-struct DifficultyHitObject::Computed {
-    // star calc methods, these operate on the computed fields below.
-    // lazer Previous(skip)/Next(skip) null semantics: array position 0 is not a difficulty
-    // object, so anything reaching it (or out of bounds) is null. several evaluator loops rely
-    // on null termination, do NOT clamp here.
-    [[nodiscard]] inline const DifficultyHitObject *get_previous(i32 backwardsIdx) const {
-        const i32 arrayIdx = index - backwardsIdx;  // == lazer (Index - (skip + 1)) + 1
-        return (arrayIdx >= 1 ? &objects[arrayIdx] : nullptr);
-    }
-    [[nodiscard]] inline const DifficultyHitObject *get_next(i32 forwardIdx) const {
-        const i32 arrayIdx = index + forwardIdx + 2;  // == lazer (Index + skip + 1) + 1
-        return (arrayIdx < numObjects ? &objects[arrayIdx] : nullptr);
-    }
-
-    // per-object recorded difficulty (lazer Skill.ObjectDifficulties): for speed the rhythm
-    // multiplier is part of the recorded value
-    [[nodiscard]] inline f64 get_strain(Skills::Skill dtype) const {
-        return strains[dtype] * (dtype == Skills::SPEED ? rhythm : 1.0);
-    }
-
-    std::array<f64, Skills::NUM_SKILLS> strains{};
-
-    // https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Speed.cs
-    // the speed EMA and the rhythm multiplier are stored separately: the EMA chains through
-    // strains[SPEED], the recorded per-object value is their product (get_strain)
-    f64 rhythm{0.};
-
-    // reading/flashlight recorded per-object difficulties, both hidden variants tracked in one
-    // pass so the hidden flag stays out of the strain state key (flashlight only filled when
-    // the flashlight flag is set, zero otherwise)
-    f64 readingStrainNoHidden{0.};
-    f64 readingStrainHidden{0.};
-    f64 flashlightStrainNoHidden{0.};
-    f64 flashlightStrainHidden{0.};
-
-    vec2 norm_start{};  // start position normalized on radius
-
-    f64 angle{std::numeric_limits<f64>::quiet_NaN()};  // precalc
-
-    // angle of the current-1 -> current vector, normalized so symmetrical vectors in any axis
-    // compare equal (lazer NormalisedVectorAngle); NaN when lazer would have null
-    f64 normalisedVectorAngle{std::numeric_limits<f64>::quiet_NaN()};  // precalc
-
-    f64 jumpDistance{0.};         // precalc (start->start distance, lazer JumpDistance)
-    f64 lazyJumpDistance{0.};     // precalc
-    f64 minimumJumpDistance{0.};  // precalc
-    f64 minimumJumpTime{0.};      // precalc
-    f64 travelDistance{0.};       // precalc
-
-    // time between the previous object's end and this object's start, min 25ms
-    // (lazer LastObjectEndDeltaTime; falls back to the start->start delta for the first pair)
-    f64 lastObjectEndDeltaTime{0.};  // precalc
-
-    f64 deltaTime{0.};   // strain temp
-    f64 strainTime{0.};  // strain temp
-
-    vec2 lazyEndPos{};       // precalc temp
-    f64 lazyTravelDist{0.};  // precalc temp
-    f64 lazyTravelTime{0.};  // precalc temp
-    f64 travelTime{0.};      // precalc temp
-
-    // first element (data()) and size of the containing array, so lazer-style previous()/next()
-    // lookups work anywhere (lazer stores the equivalent list reference per object).
-    // points at the element buffer, which is stable across vector/LOAD_DIFFOBJ_RESULT moves.
-    const DifficultyHitObject *objects{nullptr};
-    i32 numObjects{0};
-
-    // position in lazer's difficulty hit object list (== lazer's Index): lazer excludes the first
-    // hitobject, so this is the array position minus 1. WARNING: -1 for the first object!
-    i32 index{-1};
-
-    bool lazyCalcFinished{false};  // precalc temp
-
-    // brings every computed field into the same state a freshly constructed object would have,
-    // done for the whole vector before every full computation
-    inline void resetFields(DifficultyHitObject *parent, const DifficultyHitObject *allObjects, i32 numObjs,
-                            i32 arrayIndex, f32 radiusScalingFactor) {
-        strains = {};
-        rhythm = 0.;
-        readingStrainNoHidden = 0.;
-        readingStrainHidden = 0.;
-        flashlightStrainNoHidden = 0.;
-        flashlightStrainHidden = 0.;
-        norm_start = parent->pos * radiusScalingFactor;
-        angle = std::numeric_limits<f64>::quiet_NaN();
-        normalisedVectorAngle = std::numeric_limits<f64>::quiet_NaN();
-        jumpDistance = 0.;
-        lazyJumpDistance = 0.;
-        minimumJumpDistance = 0.;
-        minimumJumpTime = 0.;
-        travelDistance = 0.;
-        lastObjectEndDeltaTime = 0.;
-        deltaTime = 0.;
-        strainTime = 0.;
-        lazyEndPos = parent->pos;
-        lazyTravelDist = 0.;
-        lazyTravelTime = 0.;
-        travelTime = 0.;
-        objects = allObjects;
-        numObjects = numObjs;
-        index = arrayIndex - 1;
-        lazyCalcFinished = false;
-    }
-};
-
 DifficultyHitObject::DifficultyHitObject(TYPE type, vec2 pos, i32 time) : DifficultyHitObject(type, pos, time, time) {}
 
 DifficultyHitObject::DifficultyHitObject(TYPE type, vec2 pos, i32 time, i32 endTime)
     : DifficultyHitObject(type, pos, time, endTime, 0.0f, SLIDERCURVETYPE{}, std::vector<vec2>(), 0.0f,
-                          std::vector<SLIDER_SCORING_TIME>(), 0, true) {}
+                          std::vector<SLIDER_SCORING_TIME>(), 0, nullptr) {}
 
 DifficultyHitObject::DifficultyHitObject(TYPE type, vec2 pos, i32 time, i32 endTime, f32 spanDuration,
                                          SLIDERCURVETYPE osuSliderCurveType, const std::vector<vec2> &controlPoints,
                                          f32 pixelLength, std::vector<SLIDER_SCORING_TIME> scoringTimes, i32 repeats,
-                                         bool calculateSliderCurveInConstructor)
+                                         std::shared_ptr<const SliderCurve> sliderCurve)
     : pos(pos),
       time(time),
       baseTime(time),
@@ -398,9 +358,9 @@ DifficultyHitObject::DifficultyHitObject(TYPE type, vec2 pos, i32 time, i32 endT
       type(type),
       osuSliderCurveType(osuSliderCurveType),
       scheduledCurveAlloc(false) {
-    // build slider curve, if this is a (valid) slider
+    // take the slider curve, if this is a (valid) slider
     if(this->type == TYPE::SLIDER && controlPoints.size() > 1) {
-        if(calculateSliderCurveInConstructor) {
+        if(sliderCurve) {
             // old: too much kept memory allocations for over 14000 sliders in https://osu.ppy.sh/beatmapsets/592138#osu/1277649
 
             // NOTE: this is still used for beatmaps with less than 5000 sliders (because precomputing all curves is way faster, especially for star cache loader)
@@ -414,8 +374,7 @@ DifficultyHitObject::DifficultyHitObject(TYPE type, vec2 pos, i32 time, i32 endT
             // 14960 sliders @ pishifat - H E L L O  T H E R E (Kondou-Shinichi) [Sliders in the 69th centries].osu
             // 5208 sliders @ MillhioreF - haitai but every hai adds another haitai in the background (Chewy-san) [Weriko Rank the dream (nerf) but loli].osu
 
-            this->curve = std::make_unique<SliderCurve>(this->osuSliderCurveType, controlPoints, this->pixelLength,
-                                                        STARS_SLIDER_CURVE_POINTS_SEPARATION);
+            this->curve = std::move(sliderCurve);
         } else {
             // new: delay curve creation to when it's needed, and also immediately delete afterwards (at the cost of having to store a copy of the control points)
             this->scheduledCurveAlloc = true;
@@ -446,8 +405,6 @@ DifficultyHitObject::DifficultyHitObject(DifficultyHitObject &&dobj) noexcept
 
     this->stack = dobj.stack;
 
-    this->c = dobj.c;
-
     // reset source
     dobj.curve = nullptr;
     dobj.scheduledCurveAlloc = false;
@@ -475,8 +432,6 @@ DifficultyHitObject &DifficultyHitObject::operator=(DifficultyHitObject &&dobj) 
     this->scoringTimes = std::move(dobj.scoringTimes);
     this->scheduledCurveAllocControlPoints = std::move(dobj.scheduledCurveAllocControlPoints);
     this->curve = std::move(dobj.curve);
-
-    this->c = std::move(dobj.c);
 
     return *this;
 }
@@ -559,9 +514,14 @@ LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(Primitives::PRIMITIVE_CONTAINER &c,
     result.diffobjects.reserve(c.objects.size());
     // NOTE: for explanation see DiffCalc::DifficultyHitObject constructor (sliders are only counted when there could be
     // that many)
-    const bool calculateSliderCurveInConstructor =
+    const bool precomputeSliderCurves =
         c.objects.size() < 5000 || c.getNumObjects<DatabaseBeatmapTypes::SLIDER>() < 5000;
-    for(const auto &object : c.objects) {
+    // the curves only depend on the slider itself, so every load from this container shares them
+    if(precomputeSliderCurves && c.starCalcCurves.size() != c.objects.size()) {
+        c.starCalcCurves.assign(c.objects.size(), nullptr);
+    }
+    for(uSz i = 0; i < c.objects.size(); i++) {
+        const auto &object = c.objects[i];
         if(const auto *hitcircle = std::get_if<DatabaseBeatmapTypes::HITCIRCLE>(&object)) {
             result.diffobjects.emplace_back(DifficultyHitObject::TYPE::CIRCLE, vec2{hitcircle->x, hitcircle->y},
                                             (i32)hitcircle->time);
@@ -571,11 +531,20 @@ LOAD_DIFFOBJ_RESULT loadDifficultyHitObjects(Primitives::PRIMITIVE_CONTAINER &c,
                 return result;
             }
 
+            std::shared_ptr<const SliderCurve> curve;
+            if(precomputeSliderCurves && slider->points.size() > 1) {
+                std::shared_ptr<const SliderCurve> &sharedCurve = c.starCalcCurves[i];
+                if(!sharedCurve) {
+                    sharedCurve = std::make_shared<const SliderCurve>(slider->type, slider->points, slider->pixelLength,
+                                                                      STARS_SLIDER_CURVE_POINTS_SEPARATION);
+                }
+                curve = sharedCurve;
+            }
+
             result.diffobjects.emplace_back(DifficultyHitObject::TYPE::SLIDER, vec2{slider->x, slider->y}, slider->time,
                                             slider->time + (i32)slider->sliderTime, slider->sliderTimeWithoutRepeats,
                                             slider->type, slider->points, slider->pixelLength,
-                                            slider->scoringTimesForStarCalc, slider->repeat,
-                                            calculateSliderCurveInConstructor);
+                                            slider->scoringTimesForStarCalc, slider->repeat, std::move(curve));
         } else {
             const auto &spinner = std::get<DatabaseBeatmapTypes::SPINNER>(object);
             result.diffobjects.emplace_back(DifficultyHitObject::TYPE::SPINNER, vec2{spinner.x, spinner.y},
@@ -656,8 +625,9 @@ namespace {
 // see https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Preprocessing/OsuDifficultyHitObject.cs
 
 namespace DistanceCalc {
-static void computeSliderCursorPosition(DifficultyHitObject &slider, f32 circleRadius) {
-    if(slider.c->lazyCalcFinished || slider.curve == nullptr) return;
+static void computeSliderCursorPosition(StrainComputeState &s, i32 i, const DifficultyHitObject &slider,
+                                        f32 circleRadius) {
+    if(s.lazyCalcFinished[i] || slider.curve == nullptr) return;
 
     // NOTE: lazer won't load sliders above a certain length, but mcosu will
     // this isn't entirely accurate to how lazer does it (as that skips loading the object entirely),
@@ -675,28 +645,28 @@ static void computeSliderCursorPosition(DifficultyHitObject &slider, f32 circleR
 
     // NOTE: lazer has logic to reorder the last slider tick if it happens after trackingEndTime here, which already happens in mcosu
 
-    slider.c->lazyTravelTime = trackingEndTime - (f64)slider.time;
+    s.lazyTravelTime[i] = trackingEndTime - (f64)slider.time;
 
-    f64 endTimeMin = slider.c->lazyTravelTime / slider.spanDuration;
+    f64 endTimeMin = s.lazyTravelTime[i] / slider.spanDuration;
     if(std::fmod(endTimeMin, 2.0) >= 1.0)
         endTimeMin = 1.0 - std::fmod(endTimeMin, 1.0);
     else
         endTimeMin = std::fmod(endTimeMin, 1.0);
 
-    slider.c->lazyEndPos = slider.curvePointAt((f32)endTimeMin);
+    s.lazyEndPos[i] = slider.curvePointAt((f32)endTimeMin);
 
     vec2 cursor_pos = slider.pos;
     f64 scaling_factor = 50.0 / circleRadius;
 
-    for(uSz i = 0; i < slider.scoringTimes.size(); i++) {
+    for(uSz j = 0; j < slider.scoringTimes.size(); j++) {
         vec2 diff;
 
-        if(slider.scoringTimes[i].type == SLIDER_SCORING_TIME::TYPE::END) {
+        if(slider.scoringTimes[j].type == SLIDER_SCORING_TIME::TYPE::END) {
             // NOTE: In lazer, the position of the slider end is at the visual end, but the time is at the scoring end
             diff = slider.curvePointAt(slider.repeats % 2 ? 1.0 : 0.0) - cursor_pos;
         } else {
             f64 progress =
-                (std::clamp<f32>(slider.scoringTimes[i].time - (f32)slider.time, 0.0f, (f32)slider.getDuration())) /
+                (std::clamp<f32>(slider.scoringTimes[j].time - (f32)slider.time, 0.0f, (f32)slider.getDuration())) /
                 slider.spanDuration;
             if(std::fmod(progress, 2.0) >= 1.0)
                 progress = 1.0 - std::fmod(progress, 1.0);
@@ -710,12 +680,12 @@ static void computeSliderCursorPosition(DifficultyHitObject &slider, f32 circleR
 
         f64 req_diff = 90.0;
 
-        if(i == slider.scoringTimes.size() - 1) {
+        if(j == slider.scoringTimes.size() - 1) {
             // Slider end
-            vec2 lazy_diff = slider.c->lazyEndPos - cursor_pos;
+            vec2 lazy_diff = s.lazyEndPos[i] - cursor_pos;
             if(vec::length(lazy_diff) < vec::length(diff)) diff = lazy_diff;
             diff_len = scaling_factor * vec::length(diff);
-        } else if(slider.scoringTimes[i].type == SLIDER_SCORING_TIME::TYPE::REPEAT) {
+        } else if(slider.scoringTimes[j].type == SLIDER_SCORING_TIME::TYPE::REPEAT) {
             // Slider repeat
             req_diff = 50.0;
         }
@@ -723,19 +693,19 @@ static void computeSliderCursorPosition(DifficultyHitObject &slider, f32 circleR
         if(diff_len > req_diff) {
             cursor_pos += (diff * (f32)((diff_len - req_diff) / diff_len));
             diff_len *= (diff_len - req_diff) / diff_len;
-            slider.c->lazyTravelDist += diff_len;
+            s.lazyTravelDist[i] += diff_len;
         }
 
-        if(i == slider.scoringTimes.size() - 1) slider.c->lazyEndPos = cursor_pos;
+        if(j == slider.scoringTimes.size() - 1) s.lazyEndPos[i] = cursor_pos;
     }
 
-    slider.c->lazyCalcFinished = true;
+    s.lazyCalcFinished[i] = true;
 }
 
-static vec2 getEndCursorPosition(DifficultyHitObject &hitObject, f32 circleRadius) {
+static vec2 getEndCursorPosition(StrainComputeState &s, i32 i, const DifficultyHitObject &hitObject, f32 circleRadius) {
     if(hitObject.type == DifficultyHitObject::TYPE::SLIDER) {
-        computeSliderCursorPosition(hitObject, circleRadius);
-        return hitObject.c->lazyEndPos;  // (lazyEndPos is reset to pos before every full computation)
+        computeSliderCursorPosition(s, i, hitObject, circleRadius);
+        return s.lazyEndPos[i];  // (lazyEndPos is reset to pos before every full computation)
     }
 
     return hitObject.pos;
@@ -788,8 +758,6 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
     // see setDistances() @ https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Preprocessing/OsuDifficultyHitObject.cs
 
     static constexpr f32 normalized_radius = 50.0f;  // normalization factor
-    static constexpr f32 maximum_slider_radius = normalized_radius * 2.4f;
-    static constexpr f32 assumed_slider_radius = normalized_radius * 1.8f;
 
     // multiplier to normalize positions so that we can calc as if everything was the same circlesize.
 
@@ -800,9 +768,9 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
 
     // ****************************************************************************************************************************************** //
 
-    // NOTE: the computed fields are always (re)computed for the whole vector, upToObjectIndex only
+    // NOTE: the computed values are always (re)computed for the whole vector, upToObjectIndex only
     // cuts off the final difficulty calculation below. this way repeat calls with an increasing
-    // upToObjectIndex (live pp) reuse the computed fields via params.strainState.
+    // upToObjectIndex (live pp) reuse the computed values via params.strainState.
     // (for some rare individual upToObjectIndex this loses some extremely minor accuracy (~0.001 stars
     // territory) vs computing the cut set exactly, because the last object of the cut set sees its real
     // next object instead of none, but the performance gain is so insane I don't care)
@@ -810,17 +778,31 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
     const uSz numObjects = params.beatmapData.sortedHitObjects.size();
     const uSz numDiffObjects = (params.upToObjectIndex < 0) ? numObjects : params.upToObjectIndex + 1;
 
+    StrainComputeState localState;
+    StrainComputeState &s = params.strainState ? *params.strainState : localState;
+
     const bool reuseComputedFields =
-        params.strainState &&
-        params.strainState->matches(params.beatmapData.CS, params.beatmapData.OD, params.beatmapData.AR,
-                                    params.beatmapData.speedMultiplier, params.beatmapData.relax,
-                                    params.beatmapData.autopilot, params.beatmapData.touchDevice,
-                                    params.beatmapData.flashlight);
+        s.matches(params.beatmapData.CS, params.beatmapData.OD, params.beatmapData.AR,
+                  params.beatmapData.speedMultiplier, params.beatmapData.relax, params.beatmapData.autopilot,
+                  params.beatmapData.touchDevice, params.beatmapData.flashlight);
 
     if(!reuseComputedFields) {
-        // full (re)computation, start from a clean slate
+        // full (re)computation, start from a clean slate (and stay invalid if cancelled midway)
+        s.valid = false;
+
+        for(auto *values :
+            {&s.deltaTime, &s.strainTime, &s.lastObjectEndDeltaTime, &s.jumpDistance, &s.lazyJumpDistance,
+             &s.minimumJumpTime, &s.travelDistance, &s.travelTime, &s.lazyTravelDist, &s.lazyTravelTime, &s.aimStrain,
+             &s.aimNoSlidersStrain, &s.speedDifficulty, &s.readingStrainNoHidden, &s.readingStrainHidden,
+             &s.flashlightStrainNoHidden, &s.flashlightStrainHidden}) {
+            values->assign(numObjects, 0.0);
+        }
+        s.angle.assign(numObjects, std::numeric_limits<f64>::quiet_NaN());
+        s.normalisedVectorAngle.assign(numObjects, std::numeric_limits<f64>::quiet_NaN());
+        s.lazyCalcFinished.assign(numObjects, false);
+        s.lazyEndPos.resize(numObjects);
         for(uSz i = 0; i < numObjects; i++) {
-            diffObjects[i].c->resetFields(&diffObjects[i], diffObjects, (i32)numObjects, (i32)i, radius_scaling_factor);
+            s.lazyEndPos[i] = diffObjects[i].pos;
         }
     }
 
@@ -839,31 +821,30 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
 
                 // (the first pair has no previous difficulty object in lazer, so it falls back to
                 // the min-clamped start->start delta there)
-                cur.c->lastObjectEndDeltaTime = (i == 1) ? std::max((f64)(cur.time - prev1.time), 25.0)
-                                                         : std::max((f64)(cur.time - prev1.endTime), 25.0);
+                s.lastObjectEndDeltaTime[i] = (i == 1) ? std::max((f64)(cur.time - prev1.time), 25.0)
+                                                       : std::max((f64)(cur.time - prev1.endTime), 25.0);
 
                 // MCKAY:
                 {
                     // delay curve creation to when it's needed (1)
                     if(prev1.scheduledCurveAlloc && prev1.curve == nullptr) {
-                        prev1.curve = std::make_unique<SliderCurve>(
+                        prev1.curve = std::make_shared<const SliderCurve>(
                             prev1.osuSliderCurveType, prev1.scheduledCurveAllocControlPoints, prev1.pixelLength,
                             starsSliderCurvePointsSeparation);
                     }
                 }
 
                 if(cur.type == DifficultyHitObject::TYPE::SLIDER) {
-                    DistanceCalc::computeSliderCursorPosition(cur, circleRadiusInOsuPixels);
+                    DistanceCalc::computeSliderCursorPosition(s, (i32)i, cur, circleRadiusInOsuPixels);
                     // repeat slider bonus until a better per nested object strain system can be achieved
-                    cur.c->travelDistance =
-                        cur.c->lazyTravelDist * std::max(1.0, std::pow((f64)(cur.repeats - 1), 0.3));
-                    cur.c->travelTime = std::max(cur.c->lazyTravelTime, 25.0);
+                    s.travelDistance[i] = s.lazyTravelDist[i] * std::max(1.0, std::pow((f64)(cur.repeats - 1), 0.3));
+                    s.travelTime[i] = std::max(s.lazyTravelTime[i], 25.0);
                 }
 
                 f64 cur_strain_time = (f64)std::max(cur.time - prev1.time, 25);  // strainTime isn't initialized here
 
                 // (lazer sets this for every object, including spinners)
-                cur.c->minimumJumpTime = cur_strain_time;
+                s.minimumJumpTime[i] = cur_strain_time;
 
                 // don't need to jump to reach spinners
                 if(cur.type == DifficultyHitObject::TYPE::SPINNER || prev1.type == DifficultyHitObject::TYPE::SPINNER)
@@ -872,26 +853,16 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
                 // lazer's first difficulty object has no previous difficulty object, so its jump
                 // starts from the previous object's start position (never a slider lazy end)
                 const vec2 lastCursorPosition =
-                    (i > 1) ? DistanceCalc::getEndCursorPosition(prev1, circleRadiusInOsuPixels) : prev1.pos;
+                    (i > 1) ? DistanceCalc::getEndCursorPosition(s, (i32)i - 1, prev1, circleRadiusInOsuPixels)
+                            : prev1.pos;
 
-                cur.c->jumpDistance = vec::length(prev1.pos - cur.pos) * radius_scaling_factor;
-                cur.c->lazyJumpDistance = vec::length(cur.c->norm_start - lastCursorPosition * radius_scaling_factor);
-                cur.c->minimumJumpDistance = cur.c->lazyJumpDistance;
+                s.jumpDistance[i] = vec::length(prev1.pos - cur.pos) * radius_scaling_factor;
+                s.lazyJumpDistance[i] =
+                    vec::length(cur.pos * radius_scaling_factor - lastCursorPosition * radius_scaling_factor);
 
                 if(i > 1 && prev1.type == DifficultyHitObject::TYPE::SLIDER) {
-                    f64 last_travel = std::max(prev1.c->lazyTravelTime, 25.0);
-                    cur.c->minimumJumpTime = std::max(cur_strain_time - last_travel, 25.0);
-
-                    // NOTE: "curve shouldn't be null here, but Yin [test7] causes that to happen"
-                    // NOTE: the curve can be null if controlPoints.size() < 1 because the DifficultyHitObject() constructor will then not set scheduledCurveAlloc to true (which is perfectly fine and correct)
-                    f32 tail_jump_dist =
-                        vec::distance(prev1.curve ? prev1.curvePointAt(prev1.repeats % 2 ? 1.0 : 0.0) : prev1.pos,
-                                      cur.pos) *
-                        radius_scaling_factor;
-                    cur.c->minimumJumpDistance = std::max(
-                        0.0f,
-                        std::min((f32)cur.c->minimumJumpDistance - (maximum_slider_radius - assumed_slider_radius),
-                                 tail_jump_dist - maximum_slider_radius));
+                    f64 last_travel = std::max(s.lazyTravelTime[i - 1], 25.0);
+                    s.minimumJumpTime[i] = std::max(cur_strain_time - last_travel, 25.0);
                 }
 
                 // calculate angles: lazer needs a lastlast difficulty object, which only exists
@@ -901,7 +872,7 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
                     if(prev2.type == DifficultyHitObject::TYPE::SPINNER) continue;
 
                     const vec2 lastLastCursorPosition =
-                        DistanceCalc::getEndCursorPosition(prev2, circleRadiusInOsuPixels);
+                        DistanceCalc::getEndCursorPosition(s, (i32)i - 2, prev2, circleRadiusInOsuPixels);
 
                     // MCKAY:
                     {
@@ -912,7 +883,7 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
                     }
 
                     const bool prevSliderWithTravel =
-                        (prev1.type == DifficultyHitObject::TYPE::SLIDER && prev1.c->travelDistance > 0.0);
+                        (prev1.type == DifficultyHitObject::TYPE::SLIDER && s.travelDistance[i - 1] > 0.0);
 
                     // plain angle: the vertex moves to the previous slider's head when it has travel
                     const vec2 angleLastCursor = prevSliderWithTravel ? prev1.pos : lastCursorPosition;
@@ -926,10 +897,10 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
                     const f64 sliderAngle =
                         DistanceCalc::calcAngleBetween(cur.pos, lastCursorPosition, sliderAngleLastLast);
 
-                    cur.c->angle = std::min(angle, sliderAngle);
+                    s.angle[i] = std::min(angle, sliderAngle);
 
                     const vec2 v = cur.pos - angleLastCursor;
-                    cur.c->normalisedVectorAngle = std::atan2(std::fabs(v.y), std::fabs(v.x));
+                    s.normalisedVectorAngle[i] = std::atan2(std::fabs(v.y), std::fabs(v.x));
                 }
             }
         }
@@ -948,6 +919,8 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
             (f64)GameRules::getMaxApproachTime());
 
         const StrainEvalContext ctx{
+            .objects = diffObjects,
+            .numObjects = (i32)numObjects,
             .hitWindow300 = hitWindow300,
             .circleRadius = (f64)circleRadiusInOsuPixels,
             .smallCircleBonus = smallCircleBonus,
@@ -958,71 +931,88 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
             .preemptRaw = preemptRaw,
             .preemptAdjusted = preemptRaw / params.beatmapData.speedMultiplier,
             .fadeInRaw = 400.0 * std::min(1.0, preemptRaw / 450.0),
+            .readingPreemptDifficulty = reading_preempt_difficulty(preemptRaw / params.beatmapData.speedMultiplier),
+            .readingHiddenPreemptFactor = std::pow(preemptRaw / params.beatmapData.speedMultiplier, 2.2) * 0.01,
             .relax = params.beatmapData.relax,
             .autopilot = params.beatmapData.autopilot,
             .touchDevice = params.beatmapData.touchDevice,
             .flashlight = params.beatmapData.flashlight,
         };
 
+        for(uSz i = 1; i < numObjects; i++) {
+            const i32 time_elapsed = diffObjects[i].time - diffObjects[i - 1].time;
+            s.deltaTime[i] = (f64)time_elapsed;
+            s.strainTime[i] = (f64)std::max(time_elapsed, 25);  // == lazer AdjustedDeltaTime
+        }
+
+        const StrainPassTerms t = compute_strain_pass_terms(s, ctx);
+
+        // the speed EMA chains through this running value, the recorded per-object difficulty is
+        // the product with the rhythm multiplier
+        f64 speedStrain = 0.0;
         for(uSz i = 1; i < numObjects; i++) {  // NOTE: start at 1
             if(!(i % 64) && params.cancelCheck.stop_requested()) return 0.0;
-            calculate_strains(diffObjects[i], diffObjects[i - 1], ctx);
+            calculate_strains(s, t, (i32)i, speedStrain, ctx);
         }
 
         // everything was computed without cancellation, remember what for
-        if(params.strainState) {
-            *params.strainState = {.CS = params.beatmapData.CS,
-                                   .OD = params.beatmapData.OD,
-                                   .AR = params.beatmapData.AR,
-                                   .speedMultiplier = params.beatmapData.speedMultiplier,
-                                   .relax = params.beatmapData.relax,
-                                   .autopilot = params.beatmapData.autopilot,
-                                   .touchDevice = params.beatmapData.touchDevice,
-                                   .flashlight = params.beatmapData.flashlight,
-                                   .valid = true};
-        }
+        s.CS = params.beatmapData.CS;
+        s.OD = params.beatmapData.OD;
+        s.AR = params.beatmapData.AR;
+        s.speedMultiplier = params.beatmapData.speedMultiplier;
+        s.relax = params.beatmapData.relax;
+        s.autopilot = params.beatmapData.autopilot;
+        s.touchDevice = params.beatmapData.touchDevice;
+        s.flashlight = params.beatmapData.flashlight;
+        s.valid = true;
     }
 
     // calculate final difficulty values per skill
-    const f64 aimDifficultyValue = calculate_aim_difficulty(Skills::AIM_SLIDERS, diffObjects, numDiffObjects);
+    const f64 aimDifficultyValue =
+        calculate_aim_difficulty(Skills::AIM_SLIDERS, s.aimStrain.data(), diffObjects, numDiffObjects);
     const f64 aimNoSlidersDifficultyValue =
-        calculate_aim_difficulty(Skills::AIM_NO_SLIDERS, diffObjects, numDiffObjects);
+        calculate_aim_difficulty(Skills::AIM_NO_SLIDERS, s.aimNoSlidersStrain.data(), diffObjects, numDiffObjects);
+
+    const std::vector<f64> harmonicIndexDecay = harmonic_index_decay(numDiffObjects);
 
     f64 speedObjectWeightSum = 0.0;
-    const f64 speedDifficultyValue = calculate_speed_difficulty(diffObjects, numDiffObjects, speedObjectWeightSum);
+    const f64 speedDifficultyValue =
+        calculate_speed_difficulty(s.speedDifficulty.data(), numDiffObjects, harmonicIndexDecay, speedObjectWeightSum);
 
     // per-object weighted counts
     params.outAttributes.AimDifficultStrainCount =
-        count_top_weighted_strains_geometric(diffObjects, numDiffObjects, Skills::AIM_SLIDERS, aimDifficultyValue);
+        count_top_weighted_strains_geometric(s.aimStrain.data(), numDiffObjects, aimDifficultyValue);
     params.outAttributes.AimDifficultSliderCount =
-        calculate_aim_difficult_slider_count(diffObjects, numDiffObjects, Skills::AIM_SLIDERS);
+        calculate_aim_difficult_slider_count(s.aimStrain.data(), diffObjects, numDiffObjects);
 
     // the aim top-weighted slider factor is intentionally computed on the no-sliders skill
     const f64 aimNSTopWeightedSliderCount = count_top_weighted_sliders_geometric(
-        diffObjects, numDiffObjects, Skills::AIM_NO_SLIDERS, aimNoSlidersDifficultyValue);
-    const f64 aimNSDifficultStrainCount = count_top_weighted_strains_geometric(
-        diffObjects, numDiffObjects, Skills::AIM_NO_SLIDERS, aimNoSlidersDifficultyValue);
+        s.aimNoSlidersStrain.data(), diffObjects, numDiffObjects, aimNoSlidersDifficultyValue);
+    const f64 aimNSDifficultStrainCount =
+        count_top_weighted_strains_geometric(s.aimNoSlidersStrain.data(), numDiffObjects, aimNoSlidersDifficultyValue);
     params.outAttributes.AimTopWeightedSliderFactor =
         aimNSTopWeightedSliderCount / std::max(1.0, aimNSDifficultStrainCount - aimNSTopWeightedSliderCount);
 
-    params.outAttributes.SpeedDifficultStrainCount =
-        count_top_weighted_speed_strains(diffObjects, numDiffObjects, speedDifficultyValue, speedObjectWeightSum);
-    const f64 speedTopWeightedSliderCount =
-        count_top_weighted_speed_sliders(diffObjects, numDiffObjects, speedDifficultyValue, speedObjectWeightSum);
+    params.outAttributes.SpeedDifficultStrainCount = count_top_weighted_speed_strains(
+        s.speedDifficulty.data(), numDiffObjects, speedDifficultyValue, speedObjectWeightSum);
+    const f64 speedTopWeightedSliderCount = count_top_weighted_speed_sliders(
+        s.speedDifficulty.data(), diffObjects, numDiffObjects, speedDifficultyValue, speedObjectWeightSum);
     params.outAttributes.SpeedTopWeightedSliderFactor =
         speedTopWeightedSliderCount /
         std::max(1.0, params.outAttributes.SpeedDifficultStrainCount - speedTopWeightedSliderCount);
 
-    params.outAttributes.SpeedNoteCount = calculate_speed_relevant_object_count(diffObjects, numDiffObjects);
+    params.outAttributes.SpeedNoteCount =
+        calculate_speed_relevant_object_count(s.speedDifficulty.data(), numDiffObjects);
 
     // reading + flashlight, both hidden variants (the strain series carry both, so the raw
     // values can drive hidden recomputes without another strain pass)
     f64 readingDifficultNoteCountNoHidden = 0.0;
     f64 readingDifficultNoteCountHidden = 0.0;
     const f64 readingNoHiddenDifficultyValue =
-        calculate_reading_difficulty(diffObjects, numDiffObjects, false, readingDifficultNoteCountNoHidden);
-    const f64 readingHiddenDifficultyValue =
-        calculate_reading_difficulty(diffObjects, numDiffObjects, true, readingDifficultNoteCountHidden);
+        calculate_reading_difficulty(s.readingStrainNoHidden.data(), diffObjects, numDiffObjects, harmonicIndexDecay,
+                                     readingDifficultNoteCountNoHidden);
+    const f64 readingHiddenDifficultyValue = calculate_reading_difficulty(
+        s.readingStrainHidden.data(), diffObjects, numDiffObjects, harmonicIndexDecay, readingDifficultNoteCountHidden);
 
     const f64 readingDifficultyValue =
         params.beatmapData.hidden ? readingHiddenDifficultyValue : readingNoHiddenDifficultyValue;
@@ -1032,8 +1022,10 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
     f64 flashlightNoHiddenDifficultyValue = 0.0;
     f64 flashlightHiddenDifficultyValue = 0.0;
     if(params.beatmapData.flashlight) {
-        flashlightNoHiddenDifficultyValue = calculate_flashlight_difficulty(diffObjects, numDiffObjects, false);
-        flashlightHiddenDifficultyValue = calculate_flashlight_difficulty(diffObjects, numDiffObjects, true);
+        flashlightNoHiddenDifficultyValue =
+            calculate_flashlight_difficulty(s.flashlightStrainNoHidden.data(), diffObjects, numDiffObjects);
+        flashlightHiddenDifficultyValue =
+            calculate_flashlight_difficulty(s.flashlightStrainHidden.data(), diffObjects, numDiffObjects);
     }
     const f64 flashlightDifficultyValue =
         params.beatmapData.hidden ? flashlightHiddenDifficultyValue : flashlightNoHiddenDifficultyValue;
@@ -1043,9 +1035,8 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
     // NOTE: using floats here to reduce memory usage
     if(params.outAimStrains != nullptr) {
         f64 firstSectionStart = 0.0;
-        *params.outAimStrains = build_fixed_strain_sections<f32>(
-            diffObjects, numDiffObjects, decay_base[Skills::AIM_SLIDERS],
-            [](const DifficultyHitObject &o) { return o.c->strains[Skills::AIM_SLIDERS]; }, &firstSectionStart);
+        *params.outAimStrains = build_fixed_strain_sections<f32>(s.aimStrain.data(), diffObjects, numDiffObjects,
+                                                                 decay_base[Skills::AIM_SLIDERS], &firstSectionStart);
 
         // the sections are in rate-adjusted time
         const f64 speed = params.beatmapData.speedMultiplier;
@@ -1053,9 +1044,8 @@ f64 calculateStarDiffForHitObjects(StarCalcParams &params) {
         if(params.outStrainSectionMS != nullptr) *params.outStrainSectionMS = fixed_strain_section_length * speed;
     }
     if(params.outSpeedStrains != nullptr) {
-        *params.outSpeedStrains = build_fixed_strain_sections<f32>(
-            diffObjects, numDiffObjects, decay_base[Skills::SPEED],
-            [](const DifficultyHitObject &o) { return o.c->get_strain(Skills::SPEED); });
+        *params.outSpeedStrains = build_fixed_strain_sections<f32>(s.speedDifficulty.data(), diffObjects,
+                                                                   numDiffObjects, decay_base[Skills::SPEED]);
     }
 
     if(params.outRawDifficulty) {
@@ -1323,47 +1313,36 @@ namespace {
 // one skill pass per object, in list order (lazer DifficultyCalculator processes every skill
 // per object before moving on; the recorded per-object values here are lazer's
 // Skill.ObjectDifficulties, aggregated later by calculate_*_difficulty)
-static void calculate_strains(DifficultyHitObject &cur, const DifficultyHitObject &prev, const StrainEvalContext &ctx) {
-    const i32 time_elapsed = cur.time - prev.time;
-
-    // update our delta time
-    cur.c->deltaTime = (f64)time_elapsed;
-    cur.c->strainTime = (f64)std::max(time_elapsed, 25);  // == lazer AdjustedDeltaTime
-
+static void calculate_strains(StrainComputeState &s, const StrainPassTerms &t, const i32 i, f64 &speedStrain,
+                              const StrainEvalContext &ctx) {
     // aim, both variants (lazer Aim.StrainValueAt): normalized EMA on AdjustedDeltaTime.
     // with autopilot lazer returns 0 before ever touching the running strain
     if(ctx.autopilot) {
-        cur.c->strains[Skills::AIM_SLIDERS] = 0.0;
-        cur.c->strains[Skills::AIM_NO_SLIDERS] = 0.0;
+        s.aimStrain[i] = 0.0;
+        s.aimNoSlidersStrain[i] = 0.0;
     } else {
-        // agility doesn't depend on the slider variant, evaluate it once for both
-        const f64 agilityDifficultyRaw = evaluate_agility_of(cur, ctx);
-
-        for(const Skills::Skill dtype : {Skills::AIM_SLIDERS, Skills::AIM_NO_SLIDERS}) {
-            const f64 decay = strainDecay(dtype, cur.c->strainTime);
-            cur.c->strains[dtype] =
-                prev.c->strains[dtype] * decay +
-                evaluate_aim_difficulty_of(cur, dtype == Skills::AIM_SLIDERS, agilityDifficultyRaw, ctx) *
-                    (1.0 - decay);
-        }
+        static_assert(decay_base[Skills::AIM_SLIDERS] == decay_base[Skills::AIM_NO_SLIDERS]);
+        const AimDifficultyPair aimDifficulty = evaluate_aim_difficulty_of(s, t, i, ctx);
+        const f64 decay = t.aimDecay[i];
+        s.aimStrain[i] = s.aimStrain[i - 1] * decay + aimDifficulty.withSliders * (1.0 - decay);
+        s.aimNoSlidersStrain[i] = s.aimNoSlidersStrain[i - 1] * decay + aimDifficulty.noSliders * (1.0 - decay);
     }
 
     // speed (lazer Speed.ObjectDifficultyOf): with relax lazer returns 0 before ever touching
-    // the running strain. the recorded per-object value is strain * rhythm (get_strain)
+    // the running strain. the recorded per-object value is strain * rhythm
     if(ctx.relax) {
-        cur.c->strains[Skills::SPEED] = 0.0;
-        cur.c->rhythm = 0.0;
+        speedStrain = 0.0;
+        s.speedDifficulty[i] = 0.0;
     } else {
         constexpr f64 skill_multiplier = 1.16;
 
-        f64 speedDifficulty = evaluate_speed_difficulty_of(cur, ctx);
+        f64 speedDifficulty = evaluate_speed_difficulty_of(s, t, i, ctx);
         if(ctx.autopilot) speedDifficulty *= 0.5;
 
-        const f64 decay = strainDecay(Skills::SPEED, cur.c->strainTime);
-        cur.c->strains[Skills::SPEED] =
-            prev.c->strains[Skills::SPEED] * decay + speedDifficulty * (1.0 - decay) * skill_multiplier;
+        const f64 decay = t.speedDecay[i];
+        speedStrain = speedStrain * decay + speedDifficulty * (1.0 - decay) * skill_multiplier;
 
-        cur.c->rhythm = evaluate_rhythm_of(cur, ctx);
+        s.speedDifficulty[i] = speedStrain * evaluate_rhythm_of(s, t, i, ctx);
     }
 
     // reading (lazer Reading.ObjectDifficultyOf): normalized EMA on the RAW delta time (decay
@@ -1371,7 +1350,7 @@ static void calculate_strains(DifficultyHitObject &cur, const DifficultyHitObjec
     {
         constexpr f64 skill_multiplier = 2.5;
 
-        const auto readingDifficulty = evaluate_reading_difficulty_of(cur, ctx);
+        const auto readingDifficulty = evaluate_reading_difficulty_of(s, t, i, ctx);
 
         // per-note mod adjustments + OD scaling (lazer Reading.calculateAdjustedDifficulty)
         const auto adjust = [&ctx](f64 difficulty) {
@@ -1381,11 +1360,13 @@ static void calculate_strains(DifficultyHitObject &cur, const DifficultyHitObjec
             return difficulty * ctx.odScalingReading;
         };
 
-        const f64 decay = std::pow(0.8, cur.c->deltaTime / 1000.0);
-        cur.c->readingStrainNoHidden = prev.c->readingStrainNoHidden * decay +
-                                       adjust(readingDifficulty.noHidden) * (1.0 - decay) * skill_multiplier;
-        cur.c->readingStrainHidden =
-            prev.c->readingStrainHidden * decay + adjust(readingDifficulty.hidden) * (1.0 - decay) * skill_multiplier;
+        // readingDecay uses the strain time, so a delta under 25ms needs its own decay
+        const f64 decay =
+            s.deltaTime[i] == s.strainTime[i] ? t.readingDecay[i] : std::pow(0.8, s.deltaTime[i] / 1000.0);
+        s.readingStrainNoHidden[i] = s.readingStrainNoHidden[i - 1] * decay +
+                                     adjust(readingDifficulty.noHidden) * (1.0 - decay) * skill_multiplier;
+        s.readingStrainHidden[i] =
+            s.readingStrainHidden[i - 1] * decay + adjust(readingDifficulty.hidden) * (1.0 - decay) * skill_multiplier;
     }
 
     // flashlight (lazer Flashlight.StrainValueAt): NON-normalized accumulator on the RAW delta
@@ -1394,7 +1375,7 @@ static void calculate_strains(DifficultyHitObject &cur, const DifficultyHitObjec
     if(ctx.flashlight) {
         const f64 skill_multiplier = 0.058;
 
-        const auto flashlightDifficulty = evaluate_flashlight_difficulty_of(cur, ctx);
+        const auto flashlightDifficulty = evaluate_flashlight_difficulty_of(s, i, ctx);
 
         // per-note mod adjustments + OD scaling (lazer Flashlight.calculateAdjustedDifficulty)
         const auto adjust = [&ctx](f64 difficulty) {
@@ -1404,11 +1385,11 @@ static void calculate_strains(DifficultyHitObject &cur, const DifficultyHitObjec
             return difficulty * ctx.odScalingAimFl;
         };
 
-        const f64 decay = std::pow(0.15, cur.c->deltaTime / 1000.0);
-        cur.c->flashlightStrainNoHidden =
-            prev.c->flashlightStrainNoHidden * decay + adjust(flashlightDifficulty.noHidden) * skill_multiplier;
-        cur.c->flashlightStrainHidden =
-            prev.c->flashlightStrainHidden * decay + adjust(flashlightDifficulty.hidden) * skill_multiplier;
+        const f64 decay = std::pow(0.15, s.deltaTime[i] / 1000.0);
+        s.flashlightStrainNoHidden[i] =
+            s.flashlightStrainNoHidden[i - 1] * decay + adjust(flashlightDifficulty.noHidden) * skill_multiplier;
+        s.flashlightStrainHidden[i] =
+            s.flashlightStrainHidden[i - 1] * decay + adjust(flashlightDifficulty.hidden) * skill_multiplier;
     }
 }
 
@@ -1420,7 +1401,8 @@ static void calculate_strains(DifficultyHitObject &cur, const DifficultyHitObjec
 // sections in a list insertion-sorted by value (AddInPlace); a single buffer used as a
 // min-heap while the pass runs reproduces its evictions and final order exactly (see seq)
 // without shifting elements on every insert
-f64 calculate_aim_difficulty(const Skills::Skill type, const DifficultyHitObject *dobjects, uSz dobjectCount) {
+f64 calculate_aim_difficulty(const Skills::Skill type, const f64 *strains, const DifficultyHitObject *dobjects,
+                             uSz dobjectCount) {
     if(dobjectCount < 2) return 0.0;
 
     static constexpr f64 max_section_length = 400.0;
@@ -1444,7 +1426,7 @@ f64 calculate_aim_difficulty(const Skills::Skill type, const DifficultyHitObject
         return a.value != b.value ? a.value > b.value : a.seq < b.seq;
     };
 
-    std::vector<StrainPeak> strains;  // min-heap on byValueDescStable during the pass (front = next eviction)
+    std::vector<StrainPeak> peaks;  // min-heap on byValueDescStable during the pass (front = next eviction)
     u32 seq = 0;
     {
         // indices of objects whose strains are queued so a high-strain object followed by lower
@@ -1464,27 +1446,27 @@ f64 calculate_aim_difficulty(const Skills::Skill type, const DifficultyHitObject
             const StrainPeak peak{.value = curPeak, .sectionLength = std::round(sectionLength), .seq = seq++};
             totalLength += sectionLength;
 
-            if(totalLength > max_stored_length * max_section_length && !strains.empty() &&
-               byValueDescStable(strains.front(), peak)) {
+            if(totalLength > max_stored_length * max_section_length && !peaks.empty() &&
+               byValueDescStable(peaks.front(), peak)) {
                 // the container spills over and the new section ranks last, so it would be the
                 // first eviction below; skip the push + re-pop (the common case on long maps)
                 totalLength -= peak.sectionLength;
             } else {
-                strains.push_back(peak);
-                std::push_heap(strains.begin(), strains.end(), byValueDescStable);
+                peaks.push_back(peak);
+                std::push_heap(peaks.begin(), peaks.end(), byValueDescStable);
             }
 
             // remove the smallest sections once they can't contribute anymore
             while(totalLength > max_stored_length * max_section_length) {
-                std::pop_heap(strains.begin(), strains.end(), byValueDescStable);
-                totalLength -= strains.back().sectionLength;
-                strains.pop_back();
+                std::pop_heap(peaks.begin(), peaks.end(), byValueDescStable);
+                totalLength -= peaks.back().sectionLength;
+                peaks.pop_back();
             }
         };
 
         for(uSz i = 1; i < dobjectCount; i++) {
             const f64 time = (f64)dobjects[i].time;
-            const f64 strain = dobjects[i].c->strains[type];
+            const f64 strain = strains[i];
 
             if(i == 1) {
                 // first lazer object: set up the first section to end max_section_length after it
@@ -1495,7 +1477,7 @@ f64 calculate_aim_difficulty(const Skills::Skill type, const DifficultyHitObject
             }
 
             const f64 prevTime = (f64)dobjects[i - 1].time;
-            const f64 prevStrain = dobjects[i - 1].c->strains[type];
+            const f64 prevStrain = strains[i - 1];
             // CalculateInitialStrain: the running strain decayed from the previous object to the
             // given section start
             const auto initialStrain = [&](f64 t) { return prevStrain * strainDecay(type, t - prevTime); };
@@ -1506,12 +1488,12 @@ f64 calculate_aim_difficulty(const Skills::Skill type, const DifficultyHitObject
                 curBegin = curEnd;
 
                 if(queuedHead < queuedStrains.size()) {
-                    const auto &queued = dobjects[queuedStrains[queuedHead++]];
+                    const u32 queued = queuedStrains[queuedHead++];
 
                     // the section ends max_section_length after the queued strain, so a queued
                     // strain gets its own section if the gap to the current object is large enough
-                    curEnd = (f64)queued.time + max_section_length;
-                    curPeak = std::max(initialStrain(curBegin), queued.c->strains[type]);
+                    curEnd = (f64)dobjects[queued].time + max_section_length;
+                    curPeak = std::max(initialStrain(curBegin), strains[queued]);
                 } else {
                     curEnd = curBegin + max_section_length;
                     curPeak = initialStrain(curBegin);
@@ -1528,7 +1510,7 @@ f64 calculate_aim_difficulty(const Skills::Skill type, const DifficultyHitObject
                 curEnd = curBegin + max_section_length;
                 curPeak = strain;
             } else {
-                while(queuedStrains.size() > queuedHead && dobjects[queuedStrains.back()].c->strains[type] < strain)
+                while(queuedStrains.size() > queuedHead && strains[queuedStrains.back()] < strain)
                     queuedStrains.pop_back();
                 queuedStrains.push_back((u32)i);
             }
@@ -1536,13 +1518,13 @@ f64 calculate_aim_difficulty(const Skills::Skill type, const DifficultyHitObject
 
         // the provisional final peak (GetCurrentStrainPeaks); no length accounting, and no heap
         // fixup needed since the buffer gets fully sorted next
-        strains.push_back(StrainPeak{.value = curPeak, .sectionLength = std::round(curEnd - curBegin), .seq = seq++});
+        peaks.push_back(StrainPeak{.value = curPeak, .sectionLength = std::round(curEnd - curBegin), .seq = seq++});
     }
 
     // the exact order the insertion-sorted list ends up with; zero-value sections sort to the
     // tail, drop them
-    Mc::ranges::sort(strains, byValueDescStable);
-    while(!strains.empty() && !(strains.back().value > 0.0)) strains.pop_back();
+    Mc::ranges::sort(peaks, byValueDescStable);
+    while(!peaks.empty() && !(peaks.back().value > 0.0)) peaks.pop_back();
 
     // getReducedStrainPeaks: chop the top strains within the first 4000ms of cumulative section
     // time into 20ms chunks with a log10-lerp reduction, then re-sort
@@ -1552,10 +1534,10 @@ f64 calculate_aim_difficulty(const Skills::Skill type, const DifficultyHitObject
 
     f64 time = 0.0;
     uSz skipCount = 0;
-    uSz chunkStart = strains.size();
+    uSz chunkStart = peaks.size();
 
-    while(strains.size() > skipCount && time < reduced_section_time) {
-        const StrainPeak strain = strains[skipCount];  // copy, the vector is appended to below
+    while(peaks.size() > skipCount && time < reduced_section_time) {
+        const StrainPeak strain = peaks[skipCount];  // copy, the vector is appended to below
 
         for(i32 chunkIdx = 0;; chunkIdx++) {
             const f64 addedTime = chunk_size * (f64)chunkIdx;
@@ -1563,7 +1545,7 @@ f64 calculate_aim_difficulty(const Skills::Skill type, const DifficultyHitObject
 
             const f64 scale =
                 std::log10(std::lerp(1.0, 10.0, std::clamp<f64>((time + addedTime) / reduced_section_time, 0.0, 1.0)));
-            strains.push_back(
+            peaks.push_back(
                 StrainPeak{.value = strain.value * std::lerp(reduced_strain_baseline, 1.0, scale),
                            .sectionLength = std::round(std::min(chunk_size, strain.sectionLength - addedTime)),
                            .seq = seq++});
@@ -1580,23 +1562,26 @@ f64 calculate_aim_difficulty(const Skills::Skill type, const DifficultyHitObject
     // re-sorting everything (seq keeps the LINQ OrderByDescending tie behavior: sections
     // before equal-valued chunks, chunks among themselves in generation order)
     chunkStart = std::max(chunkStart, skipCount);
-    std::sort(strains.begin() + (sSz)chunkStart, strains.end(), byValueDescStable);
+    std::sort(peaks.begin() + (sSz)chunkStart, peaks.end(), byValueDescStable);
 
     // continuous weighted sum: weight = integral of decay_weight^x over the section, with time
     // in units of max_section_length
     f64 difficulty = 0.0;
     f64 t = 0.0;
+    f64 decayAtT = 1.0;  // decay_weight^t
 
     uSz sectionIdx = skipCount;
     uSz chunkIdx = chunkStart;
-    while(sectionIdx < chunkStart || chunkIdx < strains.size()) {
-        const bool takeSection = sectionIdx < chunkStart && (chunkIdx >= strains.size() ||
-                                                             byValueDescStable(strains[sectionIdx], strains[chunkIdx]));
-        const StrainPeak &strain = strains[takeSection ? sectionIdx++ : chunkIdx++];
+    while(sectionIdx < chunkStart || chunkIdx < peaks.size()) {
+        const bool takeSection = sectionIdx < chunkStart &&
+                                 (chunkIdx >= peaks.size() || byValueDescStable(peaks[sectionIdx], peaks[chunkIdx]));
+        const StrainPeak &strain = peaks[takeSection ? sectionIdx++ : chunkIdx++];
 
         const f64 t1 = t + strain.sectionLength / max_section_length;
-        difficulty += strain.value * (std::pow(decay_weight, t) - std::pow(decay_weight, t1));
+        const f64 decayAtT1 = std::pow(decay_weight, t1);
+        difficulty += strain.value * (decayAtT - decayAtT1);
         t = t1;
+        decayAtT = decayAtT1;
     }
 
     return difficulty / (1.0 - decay_weight);
@@ -1605,7 +1590,17 @@ f64 calculate_aim_difficulty(const Skills::Skill type, const DifficultyHitObject
 // see https://github.com/ppy/osu/blob/master/osu.Game/Rulesets/Difficulty/Skills/HarmonicSkill.cs
 // harmonic weighted sum over the sorted per-object difficulties; every note contributes.
 // objectWeightSum is needed by the top-weighted counts and must come from this same sum.
-f64 harmonic_difficulty_sum(std::span<f64> difficulties, f64 harmonicScale, f64 decayExponent,
+std::vector<f64> harmonic_index_decay(uSz dobjectCount) {
+    static constexpr f64 decay_exponent = 0.9;
+
+    std::vector<f64> indexDecay(dobjectCount > 1 ? dobjectCount - 1 : 0);
+    for(uSz index = 0; index < indexDecay.size(); index++) {
+        indexDecay[index] = std::pow((f64)index, decay_exponent);
+    }
+    return indexDecay;
+}
+
+f64 harmonic_difficulty_sum(std::span<f64> difficulties, f64 harmonicScale, std::span<const f64> indexDecay,
                             f64 &outObjectWeightSum) {
     outObjectWeightSum = 0.0;
 
@@ -1618,7 +1613,7 @@ f64 harmonic_difficulty_sum(std::span<f64> difficulties, f64 harmonicScale, f64 
         if(obj <= 0.0) break;  // sorted descending, nothing after this contributes
 
         const f64 harmonic = harmonicScale / (1 + index);
-        const f64 weight = (1 + harmonic) / (std::pow((f64)index, decayExponent) + 1 + harmonic);
+        const f64 weight = (1 + harmonic) / (indexDecay[index] + 1 + harmonic);
 
         outObjectWeightSum += weight;
         difficulty += obj * weight;
@@ -1629,31 +1624,23 @@ f64 harmonic_difficulty_sum(std::span<f64> difficulties, f64 harmonicScale, f64 
 }
 
 // see DifficultyValue() @ https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Speed.cs
-f64 calculate_speed_difficulty(const DifficultyHitObject *dobjects, uSz dobjectCount, f64 &outObjectWeightSum) {
+f64 calculate_speed_difficulty(const f64 *difficulties, uSz dobjectCount, std::span<const f64> indexDecay,
+                               f64 &outObjectWeightSum) {
     outObjectWeightSum = 0.0;
     if(dobjectCount < 2) return 0.0;
 
-    std::vector<f64> difficulties;
-    difficulties.reserve(dobjectCount - 1);
-    for(uSz i = 1; i < dobjectCount; i++) {
-        difficulties.push_back(dobjects[i].c->get_strain(Skills::SPEED));
-    }
-
-    return harmonic_difficulty_sum(difficulties, 20.0, 0.9, outObjectWeightSum);
+    std::vector<f64> sorted(difficulties + 1, difficulties + dobjectCount);
+    return harmonic_difficulty_sum(sorted, 20.0, indexDecay, outObjectWeightSum);
 }
 
 // see DifficultyValue() @ https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Reading.cs
 // harmonic sum (HS=1, DE=0.9) over the recorded per-object reading difficulties with the
 // first-minute notes scaled down ("assume the first seconds are completely memorised"), plus
 // the top-weighted note count (order dependency: it needs this sum's ObjectWeightSum)
-f64 calculate_reading_difficulty(const DifficultyHitObject *dobjects, uSz dobjectCount, bool hidden,
-                                 f64 &outDifficultNoteCount) {
+f64 calculate_reading_difficulty(const f64 *strains, const DifficultyHitObject *dobjects, uSz dobjectCount,
+                                 std::span<const f64> indexDecay, f64 &outDifficultNoteCount) {
     outDifficultNoteCount = 0.0;
     if(dobjectCount < 2) return 0.0;
-
-    const auto strainOf = [hidden](const DifficultyHitObject &o) {
-        return hidden ? o.c->readingStrainHidden : o.c->readingStrainNoHidden;
-    };
 
     // lazer counts this during processing; identical to counting the prefix objects within the
     // first 60 (rate-adjusted) seconds after the first difficulty object
@@ -1668,8 +1655,7 @@ f64 calculate_reading_difficulty(const DifficultyHitObject *dobjects, uSz dobjec
     std::vector<f64> difficulties;
     difficulties.reserve(dobjectCount - 1);
     for(uSz i = 1; i < dobjectCount; i++) {
-        const f64 v = strainOf(dobjects[i]);
-        if(v > 0.0) difficulties.push_back(v);
+        if(strains[i] > 0.0) difficulties.push_back(strains[i]);
     }
 
     for(uSz i = 0; (f64)i < std::min((f64)difficulties.size(), reducedNoteCount); i++) {
@@ -1678,7 +1664,7 @@ f64 calculate_reading_difficulty(const DifficultyHitObject *dobjects, uSz dobjec
     }
 
     f64 objectWeightSum = 0.0;
-    const f64 difficulty = harmonic_difficulty_sum(difficulties, 1.0, 0.9, objectWeightSum);
+    const f64 difficulty = harmonic_difficulty_sum(difficulties, 1.0, indexDecay, objectWeightSum);
 
     // CountTopWeightedObjectDifficulties (reading override), over the untransformed recorded values
     if(objectWeightSum != 0.0) {
@@ -1686,7 +1672,7 @@ f64 calculate_reading_difficulty(const DifficultyHitObject *dobjects, uSz dobjec
         if(consistentTopNote != 0.0) {
             f64 sum = 0.0;
             for(uSz i = 1; i < dobjectCount; i++) {
-                sum += logistic(strainOf(dobjects[i]) / consistentTopNote, 1.15, 5.0, 1.1);
+                sum += logistic(strains[i] / consistentTopNote, 1.15, 5.0, 1.1);
             }
             outDifficultNoteCount = sum;
         }
@@ -1699,8 +1685,8 @@ f64 calculate_reading_difficulty(const DifficultyHitObject *dobjects, uSz dobjec
 // the flashlight skill and the strain-graph export
 template <typename T>
     requires(std::is_same_v<T, float> || std::is_same_v<T, double>)
-std::vector<T> build_fixed_strain_sections(const DifficultyHitObject *dobjects, uSz dobjectCount, f64 decayBase,
-                                           f64 (*strainOf)(const DifficultyHitObject &), f64 *outFirstSectionStart) {
+std::vector<T> build_fixed_strain_sections(const f64 *strains, const DifficultyHitObject *dobjects, uSz dobjectCount,
+                                           f64 decayBase, f64 *outFirstSectionStart) {
     std::vector<T> highestStrains;
     if(dobjectCount < 2) return highestStrains;
 
@@ -1710,10 +1696,8 @@ std::vector<T> build_fixed_strain_sections(const DifficultyHitObject *dobjects, 
     f64 max_strain = 0.0;
 
     for(uSz i = 1; i < dobjectCount; i++) {
-        const DifficultyHitObject &cur = dobjects[i];
-
         // make previous peak strain decay until the current object
-        while(cur.time > interval_end) {
+        while(dobjects[i].time > interval_end) {
             highestStrains.push_back((T)max_strain);
 
             // skip calculating strain decay for very long breaks (e.g. beatmap upload size limit hack diffs)
@@ -1721,12 +1705,12 @@ std::vector<T> build_fixed_strain_sections(const DifficultyHitObject *dobjects, 
             if(strainDelta > 600000.0)
                 max_strain = 0.0;
             else
-                max_strain = strainOf(dobjects[i - 1]) * std::pow(decayBase, strainDelta / 1000.0);
+                max_strain = strains[i - 1] * std::pow(decayBase, strainDelta / 1000.0);
 
             interval_end += fixed_strain_section_length;
         }
 
-        max_strain = std::max(max_strain, strainOf(cur));
+        max_strain = std::max(max_strain, strains[i]);
     }
 
     // the peak strain will not be saved for the last section in the above loop
@@ -1738,11 +1722,8 @@ std::vector<T> build_fixed_strain_sections(const DifficultyHitObject *dobjects, 
 // see DifficultyValue() @ https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Flashlight.cs
 // plain sum of the fixed 400ms section peaks, scaled by a length factor (shorter maps have a
 // higher ratio of 0 combo/100 combo flashlight radius)
-f64 calculate_flashlight_difficulty(const DifficultyHitObject *dobjects, uSz dobjectCount, bool hidden) {
-    const std::vector<f64> peaks = build_fixed_strain_sections<f64>(
-        dobjects, dobjectCount, 0.15,
-        hidden ? +[](const DifficultyHitObject &o) { return o.c->flashlightStrainHidden; }
-               : +[](const DifficultyHitObject &o) { return o.c->flashlightStrainNoHidden; });
+f64 calculate_flashlight_difficulty(const f64 *strains, const DifficultyHitObject *dobjects, uSz dobjectCount) {
+    const std::vector<f64> peaks = build_fixed_strain_sections<f64>(strains, dobjects, dobjectCount, 0.15);
 
     f64 sum = 0.0;
     for(const f64 peak : peaks) sum += peak;
@@ -1755,8 +1736,7 @@ f64 calculate_flashlight_difficulty(const DifficultyHitObject *dobjects, uSz dob
 }
 
 // CountTopWeightedStrains @ https://github.com/ppy/osu/blob/master/osu.Game/Rulesets/Difficulty/Skills/VariableLengthStrainSkill.cs
-f64 count_top_weighted_strains_geometric(const DifficultyHitObject *dobjects, uSz dobjectCount,
-                                         const Skills::Skill type, f64 difficultyValue) {
+f64 count_top_weighted_strains_geometric(const f64 *strains, uSz dobjectCount, f64 difficultyValue) {
     if(dobjectCount < 2) return 0.0;
 
     // what would the top strain be if all strain values were identical
@@ -1765,14 +1745,14 @@ f64 count_top_weighted_strains_geometric(const DifficultyHitObject *dobjects, uS
 
     f64 sum = 0.0;
     for(uSz i = 1; i < dobjectCount; i++) {
-        sum += logistic(dobjects[i].c->strains[type] / consistentTopStrain, 0.88, 10.0, 1.1);
+        sum += logistic(strains[i] / consistentTopStrain, 0.88, 10.0, 1.1);
     }
     return sum;
 }
 
 // CountTopWeightedSliders @ https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Aim.cs
-f64 count_top_weighted_sliders_geometric(const DifficultyHitObject *dobjects, uSz dobjectCount,
-                                         const Skills::Skill type, f64 difficultyValue) {
+f64 count_top_weighted_sliders_geometric(const f64 *strains, const DifficultyHitObject *dobjects, uSz dobjectCount,
+                                         f64 difficultyValue) {
     if(dobjectCount < 2) return 0.0;
 
     const f64 consistentTopStrain = difficultyValue * (1.0 - 0.9);
@@ -1781,46 +1761,45 @@ f64 count_top_weighted_sliders_geometric(const DifficultyHitObject *dobjects, uS
     f64 sum = 0.0;
     for(uSz i = 1; i < dobjectCount; i++) {
         if(dobjects[i].type != DifficultyHitObject::TYPE::SLIDER) continue;
-        sum += logistic(dobjects[i].c->strains[type] / consistentTopStrain, 0.88, 10.0, 1.1);
+        sum += logistic(strains[i] / consistentTopStrain, 0.88, 10.0, 1.1);
     }
     return sum;
 }
 
 // GetDifficultSliders @ https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Aim.cs
-f64 calculate_aim_difficult_slider_count(const DifficultyHitObject *dobjects, uSz dobjectCount,
-                                         const Skills::Skill type) {
+f64 calculate_aim_difficult_slider_count(const f64 *strains, const DifficultyHitObject *dobjects, uSz dobjectCount) {
     f64 maxSliderStrain = 0.0;
     for(uSz i = 1; i < dobjectCount; i++) {
         if(dobjects[i].type == DifficultyHitObject::TYPE::SLIDER)
-            maxSliderStrain = std::max(maxSliderStrain, dobjects[i].c->strains[type]);
+            maxSliderStrain = std::max(maxSliderStrain, strains[i]);
     }
     if(maxSliderStrain <= 0.0) return 0.0;
 
     f64 sum = 0.0;
     for(uSz i = 1; i < dobjectCount; i++) {
         if(dobjects[i].type != DifficultyHitObject::TYPE::SLIDER) continue;
-        sum += logistic(dobjects[i].c->strains[type] / maxSliderStrain, 0.5, 12.0);
+        sum += logistic(strains[i] / maxSliderStrain, 0.5, 12.0);
     }
     return sum;
 }
 
 // RelevantObjectCount @ https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Speed.cs
-f64 calculate_speed_relevant_object_count(const DifficultyHitObject *dobjects, uSz dobjectCount) {
+f64 calculate_speed_relevant_object_count(const f64 *difficulties, uSz dobjectCount) {
     f64 maxStrain = 0.0;
     for(uSz i = 1; i < dobjectCount; i++) {
-        maxStrain = std::max(maxStrain, dobjects[i].c->get_strain(Skills::SPEED));
+        maxStrain = std::max(maxStrain, difficulties[i]);
     }
     if(maxStrain == 0.0) return 0.0;
 
     f64 sum = 0.0;
     for(uSz i = 1; i < dobjectCount; i++) {
-        sum += logistic(dobjects[i].c->get_strain(Skills::SPEED) / maxStrain, 0.5, 12.0);
+        sum += logistic(difficulties[i] / maxStrain, 0.5, 12.0);
     }
     return sum;
 }
 
 // CountTopWeightedObjectDifficulties @ https://github.com/ppy/osu/blob/master/osu.Game/Rulesets/Difficulty/Skills/HarmonicSkill.cs
-f64 count_top_weighted_speed_strains(const DifficultyHitObject *dobjects, uSz dobjectCount, f64 difficultyValue,
+f64 count_top_weighted_speed_strains(const f64 *difficulties, uSz dobjectCount, f64 difficultyValue,
                                      f64 objectWeightSum) {
     if(dobjectCount < 2 || objectWeightSum == 0.0) return 0.0;
 
@@ -1830,14 +1809,14 @@ f64 count_top_weighted_speed_strains(const DifficultyHitObject *dobjects, uSz do
 
     f64 sum = 0.0;
     for(uSz i = 1; i < dobjectCount; i++) {
-        sum += logistic(dobjects[i].c->get_strain(Skills::SPEED) / consistentTopObject, 0.88, 10.0, 1.1);
+        sum += logistic(difficulties[i] / consistentTopObject, 0.88, 10.0, 1.1);
     }
     return sum;
 }
 
 // CountTopWeightedSliders @ https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Speed.cs
-f64 count_top_weighted_speed_sliders(const DifficultyHitObject *dobjects, uSz dobjectCount, f64 difficultyValue,
-                                     f64 objectWeightSum) {
+f64 count_top_weighted_speed_sliders(const f64 *difficulties, const DifficultyHitObject *dobjects, uSz dobjectCount,
+                                     f64 difficultyValue, f64 objectWeightSum) {
     if(dobjectCount < 2 || objectWeightSum == 0.0) return 0.0;
 
     const f64 consistentTopObject = difficultyValue / objectWeightSum;
@@ -1846,7 +1825,7 @@ f64 count_top_weighted_speed_sliders(const DifficultyHitObject *dobjects, uSz do
     f64 sum = 0.0;
     for(uSz i = 1; i < dobjectCount; i++) {
         if(dobjects[i].type != DifficultyHitObject::TYPE::SLIDER) continue;
-        sum += logistic(dobjects[i].c->get_strain(Skills::SPEED) / consistentTopObject, 0.88, 10.0, 1.1);
+        sum += logistic(difficulties[i] / consistentTopObject, 0.88, 10.0, 1.1);
     }
     return sum;
 }
@@ -1884,33 +1863,34 @@ struct RhythmIsland {
 // how possible it is to doubletap cur together with next and still get a perfect judgement.
 // next's own deltaTime may not be computed yet during the strain pass, so it is derived from
 // the times directly (identical value)
-f64 calculate_double_tap_feasibility(const DifficultyHitObject &cur, const DifficultyHitObject *next,
-                                     f64 hitWindow300) {
-    if(next == nullptr) return 0.0;
+f64 calculate_double_tap_feasibility(const StrainComputeState &s, i32 cur, i32 next, const StrainEvalContext &ctx) {
+    if(next < 0) return 0.0;
 
-    const f64 currDeltaTime = std::max(1.0, cur.c->deltaTime);
-    const f64 nextDeltaTime = std::max(1.0, (f64)(next->time - cur.time));
+    const f64 currDeltaTime = std::max(1.0, s.deltaTime[cur]);
+    const f64 nextDeltaTime = std::max(1.0, (f64)(ctx.objects[next].time - ctx.objects[cur].time));
 
     const f64 deltaDifference = std::abs(nextDeltaTime - currDeltaTime);
 
     const f64 speedRatio = currDeltaTime / std::max(currDeltaTime, deltaDifference);
-    const f64 windowRatio = powi(std::min(1.0, currDeltaTime / hitWindow300), 5);
+    const f64 windowRatio = powi(std::min(1.0, currDeltaTime / ctx.hitWindow300), 5);
 
     // can't doubletap if circles don't intersect
-    const f64 distanceFactor = powi(reverseLerp(cur.c->lazyJumpDistance, 100.0, 50.0), 2);
+    const f64 distanceFactor = powi(reverseLerp(s.lazyJumpDistance[cur], 100.0, 50.0), 2);
 
     return 1.0 - std::pow(speedRatio, distanceFactor * (1.0 - windowRatio));
 }
 
 // https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Evaluators/Speed/SpeedEvaluator.cs
-f64 evaluate_speed_difficulty_of(const DifficultyHitObject &cur, const StrainEvalContext &ctx) {
-    if(cur.type == DifficultyHitObject::TYPE::SPINNER) return 0.0;
+f64 evaluate_speed_difficulty_of(const StrainComputeState &s, const StrainPassTerms &t, i32 i,
+                                 const StrainEvalContext &ctx) {
+    if(ctx.objects[i].type == DifficultyHitObject::TYPE::SPINNER) return 0.0;
 
     static constexpr f64 min_speed_bonus_ms = 75.0;  // 200 BPM 1/4th
     static constexpr f64 speed_balancing_factor = 40.0;
 
-    f64 strainTime = cur.c->strainTime;
-    const f64 doubleTapFeasibility = 1.0 - calculate_double_tap_feasibility(cur, cur.c->get_next(0), ctx.hitWindow300);
+    f64 strainTime = s.strainTime[i];
+    const i32 next = next_idx(i, 0, ctx);
+    const f64 doubleTapFeasibility = 1.0 - (next >= 0 ? t.doubleTapFeasibility[next] : 0.0);
 
     // cap deltatime to the OD 300 hitwindow
     // 0.93 is derived from making sure 260bpm OD8 streams aren't nerfed harshly, whilst 0.92 limits the effect of the cap
@@ -1924,7 +1904,7 @@ f64 evaluate_speed_difficulty_of(const DifficultyHitObject &cur, const StrainEva
     f64 speedDifficulty = (1.0 + speedBonus) * 1000.0 / strainTime;
 
     // having less time to strain-recover is harder (normalized EMA has no time scaling anymore)
-    speedDifficulty *= 1.0 / (1.0 - std::pow(0.3, cur.c->strainTime / 1000.0));
+    speedDifficulty *= 1.0 / (1.0 - t.speedDecay[i]);
 
     // apply penalty if there's doubletappable doubles
     return speedDifficulty * doubleTapFeasibility;
@@ -1940,16 +1920,60 @@ inline f64 rhythm_effective_difficulty(f64 deltaDifferenceRatio) {
     return 1.0 + rhythm_ratio_difficulty_multiplier * std::min(0.5, smoothstepBellCurve(deltaDifferenceFraction));
 }
 
+// delta times can be zero for simultaneous objects, floor them to a tiny value
+static constexpr f64 rhythm_delta_min_value = 1e-7;
+
+// rhythm difficulty from the prevObj -> currObj delta change, before the island adjustments
+f64 rhythm_delta_change_difficulty(const StrainComputeState &s, i32 prevObj, i32 currObj,
+                                   const StrainEvalContext &ctx) {
+    const DifficultyHitObject *o = ctx.objects;
+
+    const f64 deltaDifferenceEpsilon = ctx.hitWindow300 * 0.3;
+
+    const f64 currDelta = std::max(s.deltaTime[currObj], rhythm_delta_min_value);
+    const f64 prevDelta = std::max(s.deltaTime[prevObj], rhythm_delta_min_value);
+
+    const f64 deltaDifference = std::abs(prevDelta - currDelta);
+
+    // calculate how much current delta difference deserves a rhythm bonus
+    // this function is meant to reduce rhythm bonus for deltas that are multiples of each other (i.e 100 and 200)
+    const f64 deltaDifferenceRatio = std::max(prevDelta, currDelta) / std::min(prevDelta, currDelta);
+
+    // reduce ratio bonus if delta difference is too big
+    const f64 differenceMultiplier = std::clamp(2.0 - deltaDifferenceRatio / 8.0, 0.0, 1.0);
+
+    const f64 windowPenalty = std::clamp((deltaDifference - deltaDifferenceEpsilon) / deltaDifferenceEpsilon, 0.0, 1.0);
+
+    f64 effectiveDifficulty = rhythm_effective_difficulty(deltaDifferenceRatio) * windowPenalty * differenceMultiplier;
+
+    // if the previous object is a slider the "unpress->tap" motion might be simple even if
+    // the full deltatime is a weird ratio (slider-circle-circle should be evaluated as a
+    // regular triple), so take the least difficult interpretation of the lazy/real end deltas
+    if(o[prevObj].type == DifficultyHitObject::TYPE::SLIDER) {
+        const f64 sliderLazyEndDelta = s.minimumJumpTime[currObj];
+        const f64 sliderLazyDeltaDifferenceRatio =
+            std::max(sliderLazyEndDelta, currDelta) / std::min(sliderLazyEndDelta, currDelta);
+
+        const f64 sliderRealEndDelta = s.lastObjectEndDeltaTime[currObj];
+        const f64 sliderRealDeltaDifferenceRatio =
+            std::max(sliderRealEndDelta, currDelta) / std::min(sliderRealEndDelta, currDelta);
+
+        const f64 sliderEffectiveDifficulty = std::min(rhythm_effective_difficulty(sliderLazyDeltaDifferenceRatio),
+                                                       rhythm_effective_difficulty(sliderRealDeltaDifferenceRatio));
+        effectiveDifficulty = std::min(sliderEffectiveDifficulty, effectiveDifficulty);
+    }
+
+    return effectiveDifficulty;
+}
+
 // rhythm multiplier for the tap difficulty from the historic rhythm data of the current object
-f64 evaluate_rhythm_of(const DifficultyHitObject &cur, const StrainEvalContext &ctx) {
-    if(cur.type == DifficultyHitObject::TYPE::SPINNER) return 0.0;
+f64 evaluate_rhythm_of(const StrainComputeState &s, const StrainPassTerms &t, i32 cur, const StrainEvalContext &ctx) {
+    const DifficultyHitObject *o = ctx.objects;
+    if(o[cur].type == DifficultyHitObject::TYPE::SPINNER) return 0.0;
 
     static constexpr i32 history_time_max = 5 * 1000;  // 5 seconds
     static constexpr i32 history_objects_max = 32;
     static constexpr f64 rhythm_overall_multiplier = 0.95;
-
-    // delta times can be zero for simultaneous objects, floor them to a tiny value
-    static constexpr f64 delta_min_value = 1e-7;
 
     f64 rhythmComplexitySum = 0.0;
 
@@ -1964,68 +1988,42 @@ f64 evaluate_rhythm_of(const DifficultyHitObject &cur, const StrainEvalContext &
 
     bool firstDeltaSwitch = false;
 
-    const i32 historicalNoteCount = std::min(cur.c->index, history_objects_max);
+    const i32 historicalNoteCount = std::min(lazer_index(cur), history_objects_max);
 
     i32 rhythmStart = 0;
 
     while(rhythmStart < historicalNoteCount - 2 &&
-          cur.time - cur.c->get_previous(rhythmStart)->time < history_time_max) {
+          o[cur].time - o[previous_idx(cur, rhythmStart)].time < history_time_max) {
         rhythmStart++;
     }
 
-    const DifficultyHitObject *prevObj = cur.c->get_previous(rhythmStart);
-    const DifficultyHitObject *prevPrevObj = cur.c->get_previous(rhythmStart + 1);
+    i32 prevObj = previous_idx(cur, rhythmStart);
+    i32 prevPrevObj = previous_idx(cur, rhythmStart + 1);
 
     // we go from the furthest object back to the current one
     for(i32 i = rhythmStart; i > 0; i--) {
-        const DifficultyHitObject *currObj = cur.c->get_previous(i - 1);
+        const i32 currObj = previous_idx(cur, i - 1);
 
-        if(currObj->type == DifficultyHitObject::TYPE::SPINNER) continue;
+        if(o[currObj].type == DifficultyHitObject::TYPE::SPINNER) continue;
 
         // scales note 0 to 1 from history to now
-        const f64 timeDecay = (f64)(history_time_max - (cur.time - currObj->time)) / history_time_max;
+        const f64 timeDecay = (f64)(history_time_max - (o[cur].time - o[currObj].time)) / history_time_max;
         const f64 noteDecay = (f64)(historicalNoteCount - i) / historicalNoteCount;
 
         const f64 currHistoricalDecay =
             std::min(noteDecay, timeDecay);  // either we're limited by time or limited by object count
 
-        const f64 currDelta = std::max(currObj->c->deltaTime, delta_min_value);
-        const f64 prevDelta = std::max(prevObj->c->deltaTime, delta_min_value);
+        const f64 currDelta = std::max(s.deltaTime[currObj], rhythm_delta_min_value);
+        const f64 prevDelta = std::max(s.deltaTime[prevObj], rhythm_delta_min_value);
 
         const f64 deltaDifference = std::abs(prevDelta - currDelta);
 
         // make sure to always have the current island initialised
         if(island.delta == RhythmIsland::NOT_INITIALIZED) island = RhythmIsland{(i32)currDelta};
 
-        // calculate how much current delta difference deserves a rhythm bonus
-        // this function is meant to reduce rhythm bonus for deltas that are multiples of each other (i.e 100 and 200)
-        const f64 deltaDifferenceRatio = std::max(prevDelta, currDelta) / std::min(prevDelta, currDelta);
-
-        // reduce ratio bonus if delta difference is too big
-        const f64 differenceMultiplier = std::clamp(2.0 - deltaDifferenceRatio / 8.0, 0.0, 1.0);
-
-        const f64 windowPenalty =
-            std::clamp((deltaDifference - deltaDifferenceEpsilon) / deltaDifferenceEpsilon, 0.0, 1.0);
-
-        f64 effectiveDifficulty =
-            rhythm_effective_difficulty(deltaDifferenceRatio) * windowPenalty * differenceMultiplier;
-
-        // if the previous object is a slider the "unpress->tap" motion might be simple even if
-        // the full deltatime is a weird ratio (slider-circle-circle should be evaluated as a
-        // regular triple), so take the least difficult interpretation of the lazy/real end deltas
-        if(prevObj->type == DifficultyHitObject::TYPE::SLIDER) {
-            const f64 sliderLazyEndDelta = currObj->c->minimumJumpTime;
-            const f64 sliderLazyDeltaDifferenceRatio =
-                std::max(sliderLazyEndDelta, currDelta) / std::min(sliderLazyEndDelta, currDelta);
-
-            const f64 sliderRealEndDelta = currObj->c->lastObjectEndDeltaTime;
-            const f64 sliderRealDeltaDifferenceRatio =
-                std::max(sliderRealEndDelta, currDelta) / std::min(sliderRealEndDelta, currDelta);
-
-            const f64 sliderEffectiveDifficulty = std::min(rhythm_effective_difficulty(sliderLazyDeltaDifferenceRatio),
-                                                           rhythm_effective_difficulty(sliderRealDeltaDifferenceRatio));
-            effectiveDifficulty = std::min(sliderEffectiveDifficulty, effectiveDifficulty);
-        }
+        // rhythmDifficulty only covers adjacent objects. a skipped spinner in between needs a new calculation
+        f64 effectiveDifficulty = prevObj == currObj - 1 ? t.rhythmDifficulty[currObj]
+                                                         : rhythm_delta_change_difficulty(s, prevObj, currObj, ctx);
 
         if(deltaDifference < deltaDifferenceEpsilon) {
             // island is still progressing
@@ -2035,7 +2033,7 @@ f64 evaluate_rhythm_of(const DifficultyHitObject &cur, const StrainEvalContext &
         if(firstDeltaSwitch) {
             if(deltaDifference > deltaDifferenceEpsilon) {
                 // bpm change is into slider, this is easy acc window
-                if(currObj->type == DifficultyHitObject::TYPE::SLIDER) effectiveDifficulty *= 0.5;
+                if(o[currObj].type == DifficultyHitObject::TYPE::SLIDER) effectiveDifficulty *= 0.5;
 
                 // repeated island polarity (2 -> 4, 3 -> 5)
                 if(island.isSimilarPolarity(previousIsland, deltaDifferenceEpsilon)) effectiveDifficulty *= 0.5;
@@ -2043,7 +2041,7 @@ f64 evaluate_rhythm_of(const DifficultyHitObject &cur, const StrainEvalContext &
                 // previous increase happened a note ago, 1/1->1/2-1/4, dont want to buff this.
                 // (prevPrevObj is never null here: firstDeltaSwitch implies at least one prior
                 // iteration shifted it to a real object)
-                if(std::max(prevPrevObj->c->deltaTime, delta_min_value) > prevDelta + deltaDifferenceEpsilon &&
+                if(std::max(s.deltaTime[prevPrevObj], rhythm_delta_min_value) > prevDelta + deltaDifferenceEpsilon &&
                    prevDelta > currDelta + deltaDifferenceEpsilon)
                     effectiveDifficulty *= 0.125;
 
@@ -2074,7 +2072,9 @@ f64 evaluate_rhythm_of(const DifficultyHitObject &cur, const StrainEvalContext &
 
                 // scale down the difficulty if the object is double-tappable
                 effectiveDifficulty *=
-                    1.0 - calculate_double_tap_feasibility(*prevObj, currObj, ctx.hitWindow300) * 0.75;
+                    1.0 - (prevObj == currObj - 1 ? t.doubleTapFeasibility[currObj]
+                                                  : calculate_double_tap_feasibility(s, prevObj, currObj, ctx)) *
+                              0.75;
 
                 if(island.deltaCount > 1) {
                     rhythmComplexitySum += std::sqrt(effectiveDifficulty * startDifficulty) * currHistoricalDecay;
@@ -2097,11 +2097,11 @@ f64 evaluate_rhythm_of(const DifficultyHitObject &cur, const StrainEvalContext &
             firstDeltaSwitch = true;
 
             // bpm change is into slider, this is easy acc window
-            if(currObj->type == DifficultyHitObject::TYPE::SLIDER) effectiveDifficulty *= 0.6;
+            if(o[currObj].type == DifficultyHitObject::TYPE::SLIDER) effectiveDifficulty *= 0.6;
 
             // bpm change was from a slider, this is easier typically than circle -> circle
             // unintentional side effect is that bursts with kicksliders at the ends might have lower difficulty than bursts without sliders
-            if(prevObj->type == DifficultyHitObject::TYPE::SLIDER) effectiveDifficulty *= 0.6;
+            if(o[prevObj].type == DifficultyHitObject::TYPE::SLIDER) effectiveDifficulty *= 0.6;
 
             startDifficulty = effectiveDifficulty;
 
@@ -2129,8 +2129,8 @@ inline f64 calc_angle_acuteness(f64 angle) { return smoothstep(angle, 140.0 * PI
 // hot loops branch to the constant instead of calling cos
 static constexpr f64 cos_at_cap = 6.123233995736766e-17; /*std::cos(8.0 * (11.25 * PIOVER180))*/
 
-f64 snap_vector_angle_repetition(const DifficultyHitObject &cur, const DifficultyHitObject &previous) {
-    if(std::isnan(cur.c->angle) || std::isnan(previous.c->angle)) return 1.0;
+f64 snap_vector_angle_repetition(const StrainComputeState &s, i32 cur, i32 previous) {
+    if(std::isnan(s.angle[cur]) || std::isnan(s.angle[previous])) return 1.0;
 
     static constexpr i32 note_limit = 6;
     static constexpr f64 maximum_repetition_nerf = 0.15;
@@ -2139,17 +2139,17 @@ f64 snap_vector_angle_repetition(const DifficultyHitObject &cur, const Difficult
     f64 constantAngleCount = 0.0;
 
     for(i32 index = 0; index < note_limit; index++) {
-        const DifficultyHitObject *prevObj = cur.c->get_previous(index);
+        const i32 prevObj = previous_idx(cur, index);
 
-        if(prevObj == nullptr) break;
+        if(prevObj < 0) break;
 
         // only consider vectors in the same jump section, stopping to change rhythm ruins momentum
-        if(std::max(cur.c->strainTime, prevObj->c->strainTime) >
-           1.1 * std::min(cur.c->strainTime, prevObj->c->strainTime))
+        if(std::max(s.strainTime[cur], s.strainTime[prevObj]) >
+           1.1 * std::min(s.strainTime[cur], s.strainTime[prevObj]))
             break;
 
-        if(!std::isnan(prevObj->c->normalisedVectorAngle) && !std::isnan(cur.c->normalisedVectorAngle)) {
-            const f64 angleDifference = std::abs(cur.c->normalisedVectorAngle - prevObj->c->normalisedVectorAngle);
+        if(!std::isnan(s.normalisedVectorAngle[prevObj]) && !std::isnan(s.normalisedVectorAngle[cur])) {
+            const f64 angleDifference = std::abs(s.normalisedVectorAngle[cur] - s.normalisedVectorAngle[prevObj]);
             // constants need to be precise so that values stay within the range of 0 and 1,
             // https://www.desmos.com/calculator/a8jesv5sv2
             constantAngleCount += angleDifference < 11.25 * PIOVER180 ? std::cos(8.0 * angleDifference) : cos_at_cap;
@@ -2158,23 +2158,24 @@ f64 snap_vector_angle_repetition(const DifficultyHitObject &cur, const Difficult
 
     const f64 vectorRepetition = powi(std::min(0.5 / constantAngleCount, 1.0), 2);
 
-    const f64 stackFactor = smootherStep(cur.c->lazyJumpDistance, 0.0, 100.0);
+    const f64 stackFactor = smootherStep(s.lazyJumpDistance[cur], 0.0, 100.0);
 
-    const f64 stackedAngleDifference = std::abs(cur.c->angle - previous.c->angle) * stackFactor;
+    const f64 stackedAngleDifference = std::abs(s.angle[cur] - s.angle[previous]) * stackFactor;
     const f64 angleDifferenceAdjusted =
         stackedAngleDifference < 45.0 * PIOVER180 ? std::cos(2.0 * stackedAngleDifference) : cos_at_cap;
 
     const f64 baseNerf =
-        1.0 - maximum_repetition_nerf * calc_angle_acuteness(previous.c->angle) * angleDifferenceAdjusted;
+        1.0 - maximum_repetition_nerf * calc_angle_acuteness(s.angle[previous]) * angleDifferenceAdjusted;
 
     return powi(baseNerf + (1.0 - baseNerf) * vectorRepetition * maximum_vector_influence * stackFactor, 2);
 }
 
-f64 evaluate_snap_aim_of(const DifficultyHitObject &cur, bool withSliderTravelDistance, const StrainEvalContext &ctx) {
-    if(cur.type == DifficultyHitObject::TYPE::SPINNER || cur.c->index <= 1) return 0.0;
-
-    const DifficultyHitObject &last = *cur.c->get_previous(0);
-    if(last.type == DifficultyHitObject::TYPE::SPINNER) return 0.0;
+// the caller skips spinners and objects without a previous aim object, angleRepetition is
+// snap_vector_angle_repetition(cur, last)
+f64 evaluate_snap_aim_of(const StrainComputeState &s, const StrainPassTerms &t, i32 cur, bool withSliderTravelDistance,
+                         f64 angleRepetition, const StrainEvalContext &ctx) {
+    const DifficultyHitObject *o = ctx.objects;
+    const i32 last = previous_idx(cur, 0);
 
     static constexpr f64 wide_angle_multiplier = 9.67;
     static constexpr f64 acute_angle_multiplier = 2.41;
@@ -2184,39 +2185,39 @@ f64 evaluate_snap_aim_of(const DifficultyHitObject &cur, bool withSliderTravelDi
     // WARNING: increasing this multiplier beyond 1.02 reduces difficulty as distance increases
     static constexpr f64 wiggle_multiplier = 1.02;
 
-    const DifficultyHitObject *last2 = cur.c->get_previous(2);
+    const i32 last2 = previous_idx(cur, 2);
 
     static constexpr f64 radius = 50.0;     // NORMALISED_RADIUS
     static constexpr f64 diameter = 100.0;  // NORMALISED_DIAMETER
 
     // velocity to the current object, assuming the last object is a hitcircle
-    const f64 currDistance = withSliderTravelDistance ? cur.c->lazyJumpDistance : cur.c->jumpDistance;
-    f64 currVelocity = currDistance / cur.c->strainTime;
+    const f64 currDistance = withSliderTravelDistance ? s.lazyJumpDistance[cur] : s.jumpDistance[cur];
+    f64 currVelocity = currDistance / s.strainTime[cur];
 
     // but if the last object is a slider, then we extend the travel velocity through the slider into the current object
-    if(last.type == DifficultyHitObject::TYPE::SLIDER && withSliderTravelDistance) {
-        const f64 sliderDistance = last.c->lazyTravelDist + cur.c->lazyJumpDistance;
-        currVelocity = std::max(currVelocity, sliderDistance / cur.c->strainTime);
+    if(o[last].type == DifficultyHitObject::TYPE::SLIDER && withSliderTravelDistance) {
+        const f64 sliderDistance = s.lazyTravelDist[last] + s.lazyJumpDistance[cur];
+        currVelocity = std::max(currVelocity, sliderDistance / s.strainTime[cur]);
     }
 
-    const f64 prevDistance = withSliderTravelDistance ? last.c->lazyJumpDistance : last.c->jumpDistance;
-    f64 prevVelocity = prevDistance / last.c->strainTime;
+    const f64 prevDistance = withSliderTravelDistance ? s.lazyJumpDistance[last] : s.jumpDistance[last];
+    f64 prevVelocity = prevDistance / s.strainTime[last];
 
     f64 snapDifficulty = currVelocity;  // start difficulty with regular velocity
 
     // penalize angle repetition
-    snapDifficulty *= snap_vector_angle_repetition(cur, last);
+    snapDifficulty *= angleRepetition;
 
-    if(!std::isnan(cur.c->angle) && !std::isnan(last.c->angle)) {
-        const f64 currAngle = cur.c->angle;
-        const f64 lastAngle = last.c->angle;
+    if(!std::isnan(s.angle[cur]) && !std::isnan(s.angle[last])) {
+        const f64 currAngle = s.angle[cur];
+        const f64 lastAngle = s.angle[last];
 
         // rewarding angles, take the smaller velocity as base
         const f64 velocityInfluence = std::min(currVelocity, prevVelocity);
 
         f64 acuteAngleBonus = 0.0;
 
-        if(std::max(cur.c->strainTime, last.c->strainTime) < 1.25 * std::min(cur.c->strainTime, last.c->strainTime)) {
+        if(std::max(s.strainTime[cur], s.strainTime[last]) < 1.25 * std::min(s.strainTime[cur], s.strainTime[last])) {
             // rhythms are the same
             acuteAngleBonus = calc_angle_acuteness(currAngle);
 
@@ -2225,7 +2226,7 @@ f64 evaluate_snap_aim_of(const DifficultyHitObject &cur, bool withSliderTravelDi
                 0.08 + 0.92 * (1.0 - std::min(acuteAngleBonus, powi(calc_angle_acuteness(lastAngle), 3)));
 
             // apply acute angle bonus for BPM above 300 1/2 and distance more than one diameter
-            acuteAngleBonus *= velocityInfluence * smootherStep(30000.0 / cur.c->strainTime, 300.0, 400.0) *
+            acuteAngleBonus *= velocityInfluence * smootherStep(30000.0 / s.strainTime[cur], 300.0, 400.0) *
                                smootherStep(currDistance, 0.0, diameter * 2.0);
         }
 
@@ -2234,23 +2235,21 @@ f64 evaluate_snap_aim_of(const DifficultyHitObject &cur, bool withSliderTravelDi
         // penalize angle repetition, important to do it _before_ multiplying by velocity (raw wideness compared)
         wideAngleBonus *= 0.25 + 0.75 * (1.0 - std::min(wideAngleBonus, powi(calc_angle_wideness(lastAngle), 3)));
 
-        // rescaling velocity for the wide angle bonus
-        static constexpr f64 wide_angle_time_scale = 1.45;
-        f64 wideAngleCurrVelocity = currDistance / std::pow(cur.c->strainTime, wide_angle_time_scale);
-        const f64 wideAnglePrevVelocity = prevDistance / std::pow(last.c->strainTime, wide_angle_time_scale);
+        // rescaling velocity for the wide angle bonus (time scale 1.45)
+        f64 wideAngleCurrVelocity = currDistance / t.wideAngleTime[cur];
+        const f64 wideAnglePrevVelocity = prevDistance / t.wideAngleTime[last];
 
-        if(last.type == DifficultyHitObject::TYPE::SLIDER && withSliderTravelDistance) {
-            const f64 sliderDistance = last.c->lazyTravelDist + cur.c->lazyJumpDistance;
-            wideAngleCurrVelocity =
-                std::max(wideAngleCurrVelocity, sliderDistance / std::pow(cur.c->strainTime, wide_angle_time_scale));
+        if(o[last].type == DifficultyHitObject::TYPE::SLIDER && withSliderTravelDistance) {
+            const f64 sliderDistance = s.lazyTravelDist[last] + s.lazyJumpDistance[cur];
+            wideAngleCurrVelocity = std::max(wideAngleCurrVelocity, sliderDistance / t.wideAngleTime[cur]);
         }
 
         wideAngleBonus *= std::min(wideAngleCurrVelocity, wideAnglePrevVelocity);
 
-        if(last2 != nullptr) {
+        if(last2 >= 0) {
             // if objects just go back and forth through a middle point - don't give as much wide bonus
             // (any object's angle's center point is always the previous object)
-            const f32 distance = vec::length(last2->pos - last.pos);
+            const f32 distance = vec::length(o[last2].pos - o[last].pos);
 
             if(distance < 1.0f) wideAngleBonus *= 1.0 - 0.55 * (1.0 - distance);
         }
@@ -2260,11 +2259,11 @@ f64 evaluate_snap_aim_of(const DifficultyHitObject &cur, bool withSliderTravelDi
 
         // apply wiggle bonus for jumps that are [radius, 3*diameter] in distance, with < 110 angle
         // https://www.desmos.com/calculator/dp0v0nvowc
-        const f64 wiggleBonus = velocityInfluence * smootherStep(currDistance, radius, diameter) *
-                                std::pow(reverseLerp(currDistance, diameter * 3.0, diameter), 1.8) *
+        const std::vector<f64> &wiggleFalloff =
+            withSliderTravelDistance ? t.wiggleLazyJumpFalloff : t.wiggleJumpFalloff;
+        const f64 wiggleBonus = velocityInfluence * smootherStep(currDistance, radius, diameter) * wiggleFalloff[cur] *
                                 smootherStep(currAngle, 110.0 * PIOVER180, 60.0 * PIOVER180) *
-                                smootherStep(prevDistance, radius, diameter) *
-                                std::pow(reverseLerp(prevDistance, diameter * 3.0, diameter), 1.8) *
+                                smootherStep(prevDistance, radius, diameter) * wiggleFalloff[last] *
                                 smootherStep(lastAngle, 110.0 * PIOVER180, 60.0 * PIOVER180);
 
         snapDifficulty += wiggleBonus * wiggle_multiplier;
@@ -2273,7 +2272,7 @@ f64 evaluate_snap_aim_of(const DifficultyHitObject &cur, bool withSliderTravelDi
     if(std::max(prevVelocity, currVelocity) != 0.0) {
         if(withSliderTravelDistance) {
             // we want to use just the object jump without slider velocity when awarding differences
-            currVelocity = currDistance / cur.c->strainTime;
+            currVelocity = currDistance / s.strainTime[cur];
         }
 
         // scale with ratio of difference compared to 0.5 * max dist
@@ -2281,21 +2280,21 @@ f64 evaluate_snap_aim_of(const DifficultyHitObject &cur, bool withSliderTravelDi
             smoothstep(std::abs(prevVelocity - currVelocity) / std::max(prevVelocity, currVelocity), 0.0, 1.0);
 
         // reward for % distance up to 125 / strainTime for overlaps where velocity is still changing
-        const f64 overlapVelocityBuff = std::min(diameter * 1.25 / std::min(cur.c->strainTime, last.c->strainTime),
+        const f64 overlapVelocityBuff = std::min(diameter * 1.25 / std::min(s.strainTime[cur], s.strainTime[last]),
                                                  std::abs(prevVelocity - currVelocity));
 
         f64 velocityChangeBonus = overlapVelocityBuff * distRatio;
 
         // penalize for rhythm changes
         velocityChangeBonus *=
-            powi(std::min(cur.c->strainTime, last.c->strainTime) / std::max(cur.c->strainTime, last.c->strainTime), 2);
+            powi(std::min(s.strainTime[cur], s.strainTime[last]) / std::max(s.strainTime[cur], s.strainTime[last]), 2);
 
         snapDifficulty += velocityChangeBonus * velocity_change_multiplier;
     }
 
     // reward sliders based on velocity
-    if(cur.type == DifficultyHitObject::TYPE::SLIDER && withSliderTravelDistance) {
-        const f64 sliderBonus = cur.c->travelDistance / cur.c->travelTime;
+    if(o[cur].type == DifficultyHitObject::TYPE::SLIDER && withSliderTravelDistance) {
+        const f64 sliderBonus = s.travelDistance[cur] / s.travelTime[cur];
         snapDifficulty += (sliderBonus < 1.0 ? sliderBonus : std::pow(sliderBonus, 0.75)) * slider_multiplier;
     }
 
@@ -2303,7 +2302,7 @@ f64 evaluate_snap_aim_of(const DifficultyHitObject &cur, bool withSliderTravelDi
     snapDifficulty *= ctx.smallCircleBonus;
 
     // having less time to strain-recover is harder (normalized EMA has no time scaling anymore)
-    snapDifficulty *= 1.0 / (1.0 - std::pow(0.03, std::pow(cur.c->strainTime / 1000.0, 0.65)));
+    snapDifficulty *= t.snapTimeBonus[cur];
 
     return snapDifficulty;
 }
@@ -2314,29 +2313,61 @@ f64 flow_overlap_factor(const DifficultyHitObject &first, const DifficultyHitObj
     return std::clamp(1.0 - powi(std::max(distance - objectRadius, 0.0) / objectRadius, 2), 0.0, 1.0);
 }
 
-// "flow aim": the player doesn't stop their cursor on every object and instead flows through them
-f64 evaluate_flow_aim_of(const DifficultyHitObject &cur, bool withSliderTravelDistance, const StrainEvalContext &ctx) {
-    if(cur.type == DifficultyHitObject::TYPE::SPINNER || cur.c->index <= 1) return 0.0;
+// flow aim terms that don't depend on the slider variant
+struct FlowSharedTerms {
+    f64 angleFactor{1.};            // angular velocity factor, 1 without angles
+    f64 overlappedNotesWeight{1.};  // 0 when all three notes overlap
+};
 
-    const DifficultyHitObject &last = *cur.c->get_previous(0);
-    if(last.type == DifficultyHitObject::TYPE::SPINNER) return 0.0;
+FlowSharedTerms flow_shared_terms(const StrainComputeState &s, i32 cur, const StrainEvalContext &ctx) {
+    const DifficultyHitObject *o = ctx.objects;
+    const i32 last = previous_idx(cur, 0);
+    const i32 lastLast = previous_idx(cur, 1);
+
+    FlowSharedTerms terms;
+
+    if(!std::isnan(s.angle[cur]) && !std::isnan(s.angle[last])) {
+        const f64 angleDifference = std::abs(s.angle[cur] - s.angle[last]);
+        const f64 angleDifferenceAdjusted = std::sin(angleDifference / 2.0) * 180.0;
+        const f64 angularVelocity = angleDifferenceAdjusted / (s.strainTime[cur] * 0.1);
+
+        // low angular velocity flow (angles are consistent) is easier to follow than erratic flow
+        terms.angleFactor = 0.8 + std::sqrt(angularVelocity / 270.0);
+    }
+
+    // if all three notes are overlapping - don't reward bonuses as you don't have to do additional movement
+    if(lazer_index(cur) > 2) {
+        const f64 o1 = flow_overlap_factor(o[cur], o[last], ctx.circleRadius);
+        const f64 o2 = flow_overlap_factor(o[cur], o[lastLast], ctx.circleRadius);
+        const f64 o3 = flow_overlap_factor(o[last], o[lastLast], ctx.circleRadius);
+
+        terms.overlappedNotesWeight = 1.0 - o1 * o2 * o3;
+    }
+
+    return terms;
+}
+
+// "flow aim": the player doesn't stop their cursor on every object and instead flows through them.
+// the caller skips spinners and objects without a previous aim object
+f64 evaluate_flow_aim_of(const StrainComputeState &s, i32 cur, bool withSliderTravelDistance,
+                         const FlowSharedTerms &shared, const StrainEvalContext &ctx) {
+    const DifficultyHitObject *o = ctx.objects;
+    const i32 last = previous_idx(cur, 0);
 
     static constexpr f64 velocity_change_multiplier = 0.52;
 
-    const DifficultyHitObject &lastLast = *cur.c->get_previous(1);
+    const f64 currDistance = withSliderTravelDistance ? s.lazyJumpDistance[cur] : s.jumpDistance[cur];
+    const f64 prevDistance = withSliderTravelDistance ? s.lazyJumpDistance[last] : s.jumpDistance[last];
 
-    const f64 currDistance = withSliderTravelDistance ? cur.c->lazyJumpDistance : cur.c->jumpDistance;
-    const f64 prevDistance = withSliderTravelDistance ? last.c->lazyJumpDistance : last.c->jumpDistance;
+    f64 currVelocity = currDistance / s.strainTime[cur];
 
-    f64 currVelocity = currDistance / cur.c->strainTime;
-
-    if(last.type == DifficultyHitObject::TYPE::SLIDER && withSliderTravelDistance) {
+    if(o[last].type == DifficultyHitObject::TYPE::SLIDER && withSliderTravelDistance) {
         // if the last object is a slider, then we extend the travel velocity through the slider into the current object
-        const f64 sliderDistance = last.c->lazyTravelDist + cur.c->lazyJumpDistance;
-        currVelocity = std::max(currVelocity, sliderDistance / cur.c->strainTime);
+        const f64 sliderDistance = s.lazyTravelDist[last] + s.lazyJumpDistance[cur];
+        currVelocity = std::max(currVelocity, sliderDistance / s.strainTime[cur]);
     }
 
-    const f64 prevVelocity = prevDistance / last.c->strainTime;
+    const f64 prevVelocity = prevDistance / s.strainTime[last];
 
     f64 flowDifficulty = currVelocity;
 
@@ -2345,39 +2376,23 @@ f64 evaluate_flow_aim_of(const DifficultyHitObject &cur, bool withSliderTravelDi
     flowDifficulty *= ctx.smallCircleBonusSqrt;
 
     // rhythm changes are harder to flow
-    flowDifficulty *= 1.0 + std::min(0.25, powi((std::max(cur.c->strainTime, last.c->strainTime) -
-                                                 std::min(cur.c->strainTime, last.c->strainTime)) /
+    flowDifficulty *= 1.0 + std::min(0.25, powi((std::max(s.strainTime[cur], s.strainTime[last]) -
+                                                 std::min(s.strainTime[cur], s.strainTime[last])) /
                                                     50.0,
                                                 4));
 
-    if(!std::isnan(cur.c->angle) && !std::isnan(last.c->angle)) {
-        const f64 angleDifference = std::abs(cur.c->angle - last.c->angle);
-        const f64 angleDifferenceAdjusted = std::sin(angleDifference / 2.0) * 180.0;
-        const f64 angularVelocity = angleDifferenceAdjusted / (cur.c->strainTime * 0.1);
+    flowDifficulty *= shared.angleFactor;
 
-        // low angular velocity flow (angles are consistent) is easier to follow than erratic flow
-        flowDifficulty *= 0.8 + std::sqrt(angularVelocity / 270.0);
-    }
+    const f64 overlappedNotesWeight = shared.overlappedNotesWeight;
 
-    // if all three notes are overlapping - don't reward bonuses as you don't have to do additional movement
-    f64 overlappedNotesWeight = 1.0;
-
-    if(cur.c->index > 2) {
-        const f64 o1 = flow_overlap_factor(cur, last, ctx.circleRadius);
-        const f64 o2 = flow_overlap_factor(cur, lastLast, ctx.circleRadius);
-        const f64 o3 = flow_overlap_factor(last, lastLast, ctx.circleRadius);
-
-        overlappedNotesWeight = 1.0 - o1 * o2 * o3;
-    }
-
-    if(!std::isnan(cur.c->angle)) {
+    if(!std::isnan(s.angle[cur])) {
         // acute angles are also hard to flow
-        flowDifficulty += currVelocity * calc_angle_acuteness(cur.c->angle) * overlappedNotesWeight;
+        flowDifficulty += currVelocity * calc_angle_acuteness(s.angle[cur]) * overlappedNotesWeight;
     }
 
     if(std::max(prevVelocity, currVelocity) != 0.0) {
         if(withSliderTravelDistance) {
-            currVelocity = currDistance / cur.c->strainTime;
+            currVelocity = currDistance / s.strainTime[cur];
         }
 
         // scale with ratio of difference compared to 0.5 * max dist
@@ -2386,14 +2401,14 @@ f64 evaluate_flow_aim_of(const DifficultyHitObject &cur, bool withSliderTravelDi
 
         // reward for % distance up to 125 / strainTime for overlaps where velocity is still changing
         const f64 overlapVelocityBuff =
-            std::min(125.0 / std::min(cur.c->strainTime, last.c->strainTime), std::abs(prevVelocity - currVelocity));
+            std::min(125.0 / std::min(s.strainTime[cur], s.strainTime[last]), std::abs(prevVelocity - currVelocity));
 
         flowDifficulty += overlapVelocityBuff * distRatio * overlappedNotesWeight * velocity_change_multiplier;
     }
 
-    if(cur.type == DifficultyHitObject::TYPE::SLIDER && withSliderTravelDistance) {
+    if(o[cur].type == DifficultyHitObject::TYPE::SLIDER && withSliderTravelDistance) {
         // include slider velocity to make velocity more consistent with snap
-        flowDifficulty += cur.c->travelDistance / cur.c->travelTime;
+        flowDifficulty += s.travelDistance[cur] / s.travelTime[cur];
     }
 
     // raised to a power because flow difficulty scales harder with both high distance and time
@@ -2404,24 +2419,24 @@ f64 evaluate_flow_aim_of(const DifficultyHitObject &cur, bool withSliderTravelDi
 }
 
 // https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Evaluators/Aim/AgilityEvaluator.cs
-f64 evaluate_agility_of(const DifficultyHitObject &cur, const StrainEvalContext &ctx) {
-    if(cur.type == DifficultyHitObject::TYPE::SPINNER) return 0.0;
+f64 evaluate_agility_of(const StrainComputeState &s, const StrainPassTerms &t, i32 i, const StrainEvalContext &ctx) {
+    if(ctx.objects[i].type == DifficultyHitObject::TYPE::SPINNER) return 0.0;
 
     static constexpr f64 distance_cap = 100.0 * 1.2;  // 1.2 circles distance between centers
 
-    const DifficultyHitObject *prevObj = cur.c->get_previous(0);
+    const i32 prevObj = previous_idx(i, 0);
 
-    const f64 travelDistance = prevObj != nullptr ? prevObj->c->lazyTravelDist : 0.0;
-    const f64 distance = travelDistance + cur.c->lazyJumpDistance;
+    const f64 travelDistance = prevObj >= 0 ? s.lazyTravelDist[prevObj] : 0.0;
+    const f64 distance = travelDistance + s.lazyJumpDistance[i];
 
     const f64 distanceScaled = std::min(distance, distance_cap) / distance_cap;
 
-    f64 agilityDifficulty = distanceScaled * 1000.0 / cur.c->strainTime;
+    f64 agilityDifficulty = distanceScaled * 1000.0 / s.strainTime[i];
 
     agilityDifficulty *= ctx.smallCircleBonusPow15;
 
     // having less time to strain-recover is harder (normalized EMA has no time scaling anymore)
-    agilityDifficulty *= 1.0 / (1.0 - std::pow(0.2, cur.c->strainTime / 1000.0));
+    agilityDifficulty *= 1.0 / (1.0 - t.aimDecay[i]);
 
     return agilityDifficulty;
 }
@@ -2437,46 +2452,73 @@ f64 snap_flow_probability(f64 ratio) {
 }
 
 // https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Skills/Aim.cs
-// per-note aim difficulty: snap/agility/flow blended by the probability of the player
-// snapping vs flowing the pattern, with per-note mod adjustments. the agility difficulty is
-// passed in because it doesn't depend on withSliders (the caller evaluates both variants)
-f64 evaluate_aim_difficulty_of(const DifficultyHitObject &cur, bool withSliders, f64 agilityDifficultyRaw,
-                               const StrainEvalContext &ctx) {
+// per-note aim difficulty of both slider variants: snap/agility/flow blended by the probability of
+// the player snapping vs flowing the pattern, with per-note mod adjustments
+AimDifficultyPair evaluate_aim_difficulty_of(const StrainComputeState &s, const StrainPassTerms &t, i32 i,
+                                             const StrainEvalContext &ctx) {
     static constexpr f64 skill_multiplier_snap = 70.9;
     static constexpr f64 skill_multiplier_agility = 2.35;
     static constexpr f64 skill_multiplier_flow = 242.0;
     static constexpr f64 skill_multiplier_total = 1.12;
     static constexpr f64 combined_snap_norm_exponent = 1.2;
 
-    f64 snapDifficulty = evaluate_snap_aim_of(cur, withSliders, ctx) * skill_multiplier_snap;
-    const f64 agilityDifficulty = agilityDifficultyRaw * skill_multiplier_agility;
-    f64 flowDifficulty = evaluate_flow_aim_of(cur, withSliders, ctx) * skill_multiplier_flow;
+    // agility doesn't depend on the slider variant
+    const f64 agilityDifficulty = evaluate_agility_of(s, t, i, ctx) * skill_multiplier_agility;
+    const f64 agilityNormTerm = std::pow(agilityDifficulty, combined_snap_norm_exponent);
 
-    // snap by itself doesn't have enough difficulty to be above flow on streams; agility
-    // measures the rate of cursor velocity changes while snapping, so snapping every circle on
-    // a stream requires an enormous amount of agility at which point it's easier to flow
-    f64 combinedSnapDifficulty = norm(combined_snap_norm_exponent, {snapDifficulty, agilityDifficulty});
+    // norm(combined_snap_norm_exponent, {snapDifficulty, agilityDifficulty})
+    const auto combineSnap = [agilityNormTerm](f64 snapDifficulty) {
+        return std::pow(std::pow(snapDifficulty, combined_snap_norm_exponent) + agilityNormTerm,
+                        1.0 / combined_snap_norm_exponent);
+    };
 
-    const f64 pSnap = snap_flow_probability(flowDifficulty / combinedSnapDifficulty);
-    const f64 pFlow = 1.0 - pSnap;
+    const auto blend = [&](f64 snapDifficulty, f64 flowDifficulty) {
+        snapDifficulty *= skill_multiplier_snap;
+        flowDifficulty *= skill_multiplier_flow;
 
-    if(ctx.touchDevice) {
-        // agility is not adjusted since it represents TD difficulty in a decent enough way
-        snapDifficulty = std::pow(snapDifficulty, 0.89);
-        combinedSnapDifficulty = norm(combined_snap_norm_exponent, {snapDifficulty, agilityDifficulty});
+        // snap by itself doesn't have enough difficulty to be above flow on streams; agility
+        // measures the rate of cursor velocity changes while snapping, so snapping every circle on
+        // a stream requires an enormous amount of agility at which point it's easier to flow
+        f64 combinedSnapDifficulty = combineSnap(snapDifficulty);
+
+        const f64 pSnap = snap_flow_probability(flowDifficulty / combinedSnapDifficulty);
+        const f64 pFlow = 1.0 - pSnap;
+
+        if(ctx.touchDevice) {
+            // agility is not adjusted since it represents TD difficulty in a decent enough way
+            snapDifficulty = std::pow(snapDifficulty, 0.89);
+            combinedSnapDifficulty = combineSnap(snapDifficulty);
+        }
+
+        if(ctx.relax) {
+            combinedSnapDifficulty *= 0.75;
+            flowDifficulty *= 0.6;
+        }
+
+        f64 totalDifficulty = (combinedSnapDifficulty * pSnap + flowDifficulty * pFlow) * skill_multiplier_total;
+
+        // per-note OD scaling
+        totalDifficulty *= ctx.odScalingAimFl;
+
+        return totalDifficulty;
+    };
+
+    const DifficultyHitObject *o = ctx.objects;
+    if(o[i].type == DifficultyHitObject::TYPE::SPINNER || lazer_index(i) <= 1 ||
+       o[previous_idx(i, 0)].type == DifficultyHitObject::TYPE::SPINNER) {
+        // no snap or flow difficulty without a previous aim object
+        const f64 difficulty = blend(0.0, 0.0);
+        return {.withSliders = difficulty, .noSliders = difficulty};
     }
 
-    if(ctx.relax) {
-        combinedSnapDifficulty *= 0.75;
-        flowDifficulty *= 0.6;
-    }
+    // the slider variants only differ in their distances
+    const f64 angleRepetition = snap_vector_angle_repetition(s, i, previous_idx(i, 0));
+    const FlowSharedTerms flowTerms = flow_shared_terms(s, i, ctx);
 
-    f64 totalDifficulty = (combinedSnapDifficulty * pSnap + flowDifficulty * pFlow) * skill_multiplier_total;
-
-    // per-note OD scaling
-    totalDifficulty *= ctx.odScalingAimFl;
-
-    return totalDifficulty;
+    return {.withSliders = blend(evaluate_snap_aim_of(s, t, i, true, angleRepetition, ctx),
+                                 evaluate_flow_aim_of(s, i, true, flowTerms, ctx)),
+            .noSliders = blend(evaluate_snap_aim_of(s, t, i, false, angleRepetition, ctx),
+                               evaluate_flow_aim_of(s, i, false, flowTerms, ctx))};
 }
 
 // https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Preprocessing/OsuDifficultyHitObject.cs
@@ -2510,28 +2552,41 @@ f64 opacity_at(const DifficultyHitObject &obj, f64 rawTime, bool hidden, const S
 static constexpr f64 reading_window_size = 3000.0;                  // 3 seconds
 static constexpr f64 reading_distance_influence_threshold = 150.0;  // 1.5 circles distance between centers
 
+// preempt: arbitrary curve for the base value preempt difficulty should have as approach rate
+// increases, https://www.desmos.com/calculator/c175335a71
+f64 reading_preempt_difficulty(f64 preemptAdjusted) {
+    static constexpr f64 preempt_balancing_factor = 140000.0;
+    static constexpr f64 preempt_starting_point = 500.0;  // AR 9.66 in milliseconds
+
+    return std::pow(
+               (preempt_starting_point - preemptAdjusted + std::abs(preemptAdjusted - preempt_starting_point)) / 2.0,
+               2.5) /
+           preempt_balancing_factor;
+}
+
 // nerf for objects that are very distant in time, affecting reading less
 inline f64 reading_time_nerf(f64 deltaTime) {
     return std::clamp(2.0 - deltaTime / (reading_window_size / 2.0), 0.0, 1.0);
 }
 
 // density of objects visible at the point in time the current object needs to be clicked
-f64 reading_current_visible_density(const DifficultyHitObject &cur, const StrainEvalContext &ctx) {
+f64 reading_current_visible_density(i32 cur, const StrainEvalContext &ctx) {
+    const DifficultyHitObject *o = ctx.objects;
     f64 visibleObjectCount = 0.0;
 
-    const DifficultyHitObject *hitObject = cur.c->get_next(0);
+    i32 hitObject = next_idx(cur, 0, ctx);
 
-    while(hitObject != nullptr) {
+    while(hitObject >= 0) {
         // object not visible at the time the current object needs to be clicked
-        if((f64)(hitObject->time - cur.time) > reading_window_size ||
-           (f64)cur.time < (f64)hitObject->time - ctx.preemptAdjusted)
+        if((f64)(o[hitObject].time - o[cur].time) > reading_window_size ||
+           (f64)o[cur].time < (f64)o[hitObject].time - ctx.preemptAdjusted)
             break;
 
-        const f64 timeNerfFactor = reading_time_nerf((f64)(hitObject->time - cur.time));
+        const f64 timeNerfFactor = reading_time_nerf((f64)(o[hitObject].time - o[cur].time));
 
-        visibleObjectCount += opacity_at(*hitObject, (f64)cur.baseTime, false, ctx) * timeNerfFactor;
+        visibleObjectCount += opacity_at(o[hitObject], (f64)o[cur].baseTime, false, ctx) * timeNerfFactor;
 
-        hitObject = hitObject->c->get_next(0);
+        hitObject = next_idx(hitObject, 0, ctx);
     }
 
     return visibleObjectCount;
@@ -2539,23 +2594,24 @@ f64 reading_current_visible_density(const DifficultyHitObject &cur, const Strain
 
 // influence of objects that are visible on screen at the point in time the current object
 // becomes visible
-f64 reading_past_object_influence(const DifficultyHitObject &cur, const StrainEvalContext &ctx) {
+f64 reading_past_object_influence(const StrainPassTerms &t, i32 cur, const StrainEvalContext &ctx) {
+    const DifficultyHitObject *o = ctx.objects;
     f64 pastObjectDifficultyInfluence = 0.0;
 
     for(i32 i = 0;; i++) {
-        const DifficultyHitObject *loopObj = cur.c->get_previous(i);
+        const i32 loopObj = previous_idx(cur, i);
 
-        if(loopObj == nullptr || (f64)(cur.time - loopObj->time) > reading_window_size ||
-           (f64)loopObj->time < (f64)cur.time - ctx.preemptAdjusted)  // current object not visible then
+        if(loopObj < 0 || (f64)(o[cur].time - o[loopObj].time) > reading_window_size ||
+           (f64)o[loopObj].time < (f64)o[cur].time - ctx.preemptAdjusted)  // current object not visible then
             break;
 
-        f64 loopDifficulty = opacity_at(cur, (f64)loopObj->baseTime, false, ctx);
+        f64 loopDifficulty = opacity_at(o[cur], (f64)o[loopObj].baseTime, false, ctx);
 
         // small distances mean previous objects may be cheesed, so it doesn't matter whether
         // they were arranged confusingly
-        loopDifficulty *= smootherStep(loopObj->c->lazyJumpDistance, 15.0, reading_distance_influence_threshold);
+        loopDifficulty *= t.readingDistanceFactor[loopObj];
 
-        loopDifficulty *= reading_time_nerf((f64)(cur.time - loopObj->time));
+        loopDifficulty *= reading_time_nerf((f64)(o[cur].time - o[loopObj].time));
 
         pastObjectDifficultyInfluence += loopDifficulty;
     }
@@ -2563,52 +2619,59 @@ f64 reading_past_object_influence(const DifficultyHitObject &cur, const StrainEv
     return pastObjectDifficultyInfluence;
 }
 
+// constant angle nerf window and long interval range
+static constexpr f64 minimum_angle_relevancy_time = 2000.0;  // 2 seconds
+static constexpr f64 maximum_angle_relevancy_time = 200.0;
+
+// alternating-angle pattern difference at loopObj..loopObj+3 for the constant angle nerf. PI unless
+// all four angles exist, the angle at loopObj is checked by the caller.
+f64 alternating_angle_difference(const StrainComputeState &s, i32 loopObj) {
+    const i32 loopObjPrev0 = loopObj + 1;
+    const i32 loopObjPrev1 = loopObj + 2;
+    const i32 loopObjPrev2 = loopObj + 3;
+
+    if(loopObjPrev2 >= (i32)s.angle.size() || std::isnan(s.angle[loopObjPrev0]) || std::isnan(s.angle[loopObjPrev1]) ||
+       std::isnan(s.angle[loopObjPrev2]))
+        return PI;
+
+    f64 angleDifferenceAlternating = std::abs(s.angle[loopObjPrev1] - s.angle[loopObj]);
+    angleDifferenceAlternating += std::abs(s.angle[loopObjPrev2] - s.angle[loopObjPrev0]);
+
+    f64 weight = 1.0;
+
+    // be sure that one of the angles is very sharp, when the other is wide
+    weight *= reverseLerp(std::min(s.angle[loopObj], s.angle[loopObjPrev0]) * 180.0 / PI, 20.0, 5.0);
+    weight *= reverseLerp(std::max(s.angle[loopObj], s.angle[loopObjPrev0]) * 180.0 / PI, 60.0, 120.0);
+
+    // lerp between max angle difference and rescaled alternating difference, with
+    // more harsh scaling compared to normal difference
+    return std::lerp(PI, 0.1 * angleDifferenceAlternating, weight);
+}
+
 // how often the current object's angle has been repeated within the last 2 seconds, with
 // alternating-angle patterns weighted separately. https://www.desmos.com/calculator/eb057a4822
 // NOTE: the loop terminates via the real-null previous() (a clamping accessor would never let
 // the time gap grow past the first object and hang forever)
-f64 reading_constant_angle_nerf(const DifficultyHitObject &cur) {
-    static constexpr f64 minimum_angle_relevancy_time = 2000.0;  // 2 seconds
-    static constexpr f64 maximum_angle_relevancy_time = 200.0;
-
+f64 reading_constant_angle_nerf(const StrainComputeState &s, const StrainPassTerms &t, i32 cur,
+                                const StrainEvalContext &ctx) {
     f64 constantAngleCount = 0.0;
     i32 index = 0;
     f64 currentTimeGap = 0.0;
 
-    const DifficultyHitObject *loopObjPrev0 = &cur;
-    const DifficultyHitObject *loopObjPrev1 = nullptr;
-    const DifficultyHitObject *loopObjPrev2 = nullptr;
-
     while(currentTimeGap < minimum_angle_relevancy_time) {
-        const DifficultyHitObject *loopObj = cur.c->get_previous(index);
+        const i32 loopObj = previous_idx(cur, index);
 
-        if(loopObj == nullptr) break;
+        if(loopObj < 0) break;
 
         // account less for objects that are close to the time limit
-        const f64 longIntervalFactor =
-            1.0 - reverseLerp(loopObj->c->strainTime, maximum_angle_relevancy_time, minimum_angle_relevancy_time);
+        const f64 longIntervalFactor = t.angleLongIntervalFactor[loopObj];
 
-        if(!std::isnan(loopObj->c->angle) && !std::isnan(cur.c->angle)) {
-            const f64 angleDifference = std::abs(cur.c->angle - loopObj->c->angle);
-            f64 angleDifferenceAlternating = PI;
+        if(!std::isnan(s.angle[loopObj]) && !std::isnan(s.angle[cur])) {
+            const f64 angleDifference = std::abs(s.angle[cur] - s.angle[loopObj]);
+            // the alternating pattern needs the three objects after loopObj up to cur
+            const f64 angleDifferenceAlternating = index >= 2 ? t.alternatingAngleDifference[loopObj] : PI;
 
-            if(!std::isnan(loopObjPrev0->c->angle) && loopObjPrev1 != nullptr && !std::isnan(loopObjPrev1->c->angle) &&
-               loopObjPrev2 != nullptr && !std::isnan(loopObjPrev2->c->angle)) {
-                angleDifferenceAlternating = std::abs(loopObjPrev1->c->angle - loopObj->c->angle);
-                angleDifferenceAlternating += std::abs(loopObjPrev2->c->angle - loopObjPrev0->c->angle);
-
-                f64 weight = 1.0;
-
-                // be sure that one of the angles is very sharp, when the other is wide
-                weight *= reverseLerp(std::min(loopObj->c->angle, loopObjPrev0->c->angle) * 180.0 / PI, 20.0, 5.0);
-                weight *= reverseLerp(std::max(loopObj->c->angle, loopObjPrev0->c->angle) * 180.0 / PI, 60.0, 120.0);
-
-                // lerp between max angle difference and rescaled alternating difference, with
-                // more harsh scaling compared to normal difference
-                angleDifferenceAlternating = std::lerp(PI, 0.1 * angleDifferenceAlternating, weight);
-            }
-
-            const f64 stackFactor = smootherStep(loopObj->c->lazyJumpDistance, 0.0, 50.0);
+            const f64 stackFactor = t.angleStackFactor[loopObj];
             const f64 stackedAngleDifference = std::min(angleDifference, angleDifferenceAlternating) * stackFactor;
 
             // cos(0) == 1.0 exactly (stacked notes and repeated angles), see cos_at_cap for the other end
@@ -2622,12 +2685,8 @@ f64 reading_constant_angle_nerf(const DifficultyHitObject &cur) {
             if(constantAngleCount >= 10.0) break;
         }
 
-        currentTimeGap = (f64)(cur.time - loopObj->time);
+        currentTimeGap = (f64)(ctx.objects[cur].time - ctx.objects[loopObj].time);
         index++;
-
-        loopObjPrev2 = loopObjPrev1;
-        loopObjPrev1 = loopObjPrev0;
-        loopObjPrev0 = loopObj;
     }
 
     return std::clamp(2.0 / constantAngleCount, 0.2, 1.0);
@@ -2635,21 +2694,22 @@ f64 reading_constant_angle_nerf(const DifficultyHitObject &cur) {
 
 // per-note reading difficulty, both hidden variants in one pass (the expensive density/angle
 // windows are shared, hidden only adds one extra term)
-ReadingDifficultyPair evaluate_reading_difficulty_of(const DifficultyHitObject &cur, const StrainEvalContext &ctx) {
-    if(cur.type == DifficultyHitObject::TYPE::SPINNER || cur.c->index == 0) return {.noHidden = 0.0, .hidden = 0.0};
+ReadingDifficultyPair evaluate_reading_difficulty_of(const StrainComputeState &s, const StrainPassTerms &t, i32 cur,
+                                                     const StrainEvalContext &ctx) {
+    const DifficultyHitObject *o = ctx.objects;
+    if(o[cur].type == DifficultyHitObject::TYPE::SPINNER || lazer_index(cur) == 0)
+        return {.noHidden = 0.0, .hidden = 0.0};
 
     static constexpr f64 density_multiplier = 2.4;
     static constexpr f64 density_difficulty_base = 2.5;
-    static constexpr f64 preempt_balancing_factor = 140000.0;
-    static constexpr f64 preempt_starting_point = 500.0;  // AR 9.66 in milliseconds
     static constexpr f64 hidden_multiplier = 0.28;
 
-    const f64 velocity = std::max(1.0, cur.c->lazyJumpDistance / cur.c->strainTime);  // only allow velocity to buff
+    const f64 velocity = std::max(1.0, s.lazyJumpDistance[cur] / s.strainTime[cur]);  // only allow velocity to buff
 
     const f64 currentVisibleObjectDensity = reading_current_visible_density(cur, ctx);
-    const f64 pastObjectDifficultyInfluence = reading_past_object_influence(cur, ctx);
+    const f64 pastObjectDifficultyInfluence = reading_past_object_influence(t, cur, ctx);
 
-    const f64 constantAngleNerfFactor = reading_constant_angle_nerf(cur);
+    const f64 constantAngleNerfFactor = reading_constant_angle_nerf(s, t, cur, ctx);
 
     // note density: consider future densities too because it can make the path the cursor
     // takes less clear
@@ -2657,11 +2717,10 @@ ReadingDifficultyPair evaluate_reading_difficulty_of(const DifficultyHitObject &
     {
         f64 futureObjectDifficultyInfluence = std::sqrt(currentVisibleObjectDensity);
 
-        const DifficultyHitObject *nextObj = cur.c->get_next(0);
-        if(nextObj != nullptr) {
+        const i32 nextObj = next_idx(cur, 0, ctx);
+        if(nextObj >= 0) {
             // reduce difficulty if movement to next object is small
-            futureObjectDifficultyInfluence *=
-                smootherStep(nextObj->c->lazyJumpDistance, 15.0, reading_distance_influence_threshold);
+            futureObjectDifficultyInfluence *= t.readingDistanceFactor[nextObj];
         }
 
         // value higher note densities exponentially
@@ -2675,19 +2734,13 @@ ReadingDifficultyPair evaluate_reading_difficulty_of(const DifficultyHitObject &
         noteDensityDifficulty = std::pow(noteDensityDifficulty, 0.45) * density_multiplier;
     }
 
-    // preempt: arbitrary curve for the base value preempt difficulty should have as approach
-    // rate increases, https://www.desmos.com/calculator/c175335a71
-    const f64 preemptDifficulty = std::pow((preempt_starting_point - ctx.preemptAdjusted +
-                                            std::abs(ctx.preemptAdjusted - preempt_starting_point)) /
-                                               2.0,
-                                           2.5) /
-                                  preempt_balancing_factor * constantAngleNerfFactor * velocity;
+    const f64 preemptDifficulty = ctx.readingPreemptDifficulty * constantAngleNerfFactor * velocity;
 
     // hidden: time spent invisible + densities, with a perfect-stack bonus
     f64 hiddenDifficulty = 0.0;
     {
         // higher preempt means that time spent invisible is higher too, we want to reward that
-        const f64 preemptFactor = std::pow(ctx.preemptAdjusted, 2.2) * 0.01;
+        const f64 preemptFactor = ctx.readingHiddenPreemptFactor;
 
         // account for both past and current densities
         const f64 densityFactor = std::pow(currentVisibleObjectDensity + pastObjectDifficultyInfluence, 3.3) * 3.0;
@@ -2697,20 +2750,63 @@ ReadingDifficultyPair evaluate_reading_difficulty_of(const DifficultyHitObject &
         // apply a soft cap to general HD reading to account for partial memorization
         hiddenDifficulty = std::pow(hiddenDifficulty, 0.4) * hidden_multiplier;
 
-        const DifficultyHitObject *previousObj = cur.c->get_previous(0);  // non-null (index > 0)
+        const i32 previousObj = previous_idx(cur, 0);  // non-null (index > 0)
 
         // buff perfect stacks only if the current note is completely invisible at the time you
         // click the previous note (perfect stacks are harder the less time between notes)
-        if(cur.c->lazyJumpDistance == 0.0 && opacity_at(cur, (f64)previousObj->baseTime, true, ctx) == 0.0 &&
-           (f64)previousObj->time > (f64)cur.time - ctx.preemptAdjusted)
-            hiddenDifficulty += hidden_multiplier * 2500.0 / std::pow(cur.c->strainTime, 1.5);
+        if(s.lazyJumpDistance[cur] == 0.0 && opacity_at(o[cur], (f64)o[previousObj].baseTime, true, ctx) == 0.0 &&
+           (f64)o[previousObj].time > (f64)o[cur].time - ctx.preemptAdjusted)
+            hiddenDifficulty += hidden_multiplier * 2500.0 / std::pow(s.strainTime[cur], 1.5);
     }
 
     // having less time to process information is harder
-    const f64 highBpmBonus = 1.0 / (1.0 - std::pow(0.8, cur.c->strainTime / 1000.0));
+    const f64 highBpmBonus = 1.0 / (1.0 - t.readingDecay[cur]);
 
-    return {.noHidden = norm(1.5, {preemptDifficulty, 0.0, noteDensityDifficulty}) * highBpmBonus,
-            .hidden = norm(1.5, {preemptDifficulty, hiddenDifficulty, noteDensityDifficulty}) * highBpmBonus};
+    // norm(1.5, {preemptDifficulty, hiddenDifficulty, noteDensityDifficulty}), with no hidden term
+    // for the no-hidden variant (its zero term doesn't change the sum)
+    const f64 preemptTerm = std::pow(preemptDifficulty, 1.5);
+    const f64 densityTerm = std::pow(noteDensityDifficulty, 1.5);
+    return {.noHidden = std::pow(preemptTerm + densityTerm, 1.0 / 1.5) * highBpmBonus,
+            .hidden = std::pow(preemptTerm + std::pow(hiddenDifficulty, 1.5) + densityTerm, 1.0 / 1.5) * highBpmBonus};
+}
+
+StrainPassTerms compute_strain_pass_terms(const StrainComputeState &s, const StrainEvalContext &ctx) {
+    const uSz numObjects = (uSz)ctx.numObjects;
+
+    StrainPassTerms t;
+    for(auto *terms :
+        {&t.aimDecay, &t.speedDecay, &t.readingDecay, &t.wideAngleTime, &t.snapTimeBonus, &t.rhythmDifficulty,
+         &t.doubleTapFeasibility, &t.wiggleJumpFalloff, &t.wiggleLazyJumpFalloff, &t.angleLongIntervalFactor,
+         &t.angleStackFactor, &t.alternatingAngleDifference, &t.readingDistanceFactor}) {
+        terms->resize(numObjects);
+    }
+
+    for(uSz i = 1; i < numObjects; i++) {
+        const f64 strainTime = s.strainTime[i];
+        t.aimDecay[i] = strainDecay(Skills::AIM_SLIDERS, strainTime);
+        t.speedDecay[i] = strainDecay(Skills::SPEED, strainTime);
+        t.readingDecay[i] = std::pow(0.8, strainTime / 1000.0);
+        t.wideAngleTime[i] = std::pow(strainTime, 1.45);
+        t.snapTimeBonus[i] = 1.0 / (1.0 - std::pow(0.03, std::pow(strainTime / 1000.0, 0.65)));
+
+        // the rhythm window never reaches back to the first object
+        if(i >= 2) {
+            t.rhythmDifficulty[i] = rhythm_delta_change_difficulty(s, (i32)i - 1, (i32)i, ctx);
+            t.doubleTapFeasibility[i] = calculate_double_tap_feasibility(s, (i32)i - 1, (i32)i, ctx);
+        }
+
+        t.wiggleJumpFalloff[i] = std::pow(reverseLerp(s.jumpDistance[i], 300.0, 100.0), 1.8);
+        t.wiggleLazyJumpFalloff[i] = std::pow(reverseLerp(s.lazyJumpDistance[i], 300.0, 100.0), 1.8);
+
+        t.angleLongIntervalFactor[i] =
+            1.0 - reverseLerp(strainTime, maximum_angle_relevancy_time, minimum_angle_relevancy_time);
+        t.angleStackFactor[i] = smootherStep(s.lazyJumpDistance[i], 0.0, 50.0);
+        t.alternatingAngleDifference[i] = alternating_angle_difference(s, (i32)i);
+
+        t.readingDistanceFactor[i] = smootherStep(s.lazyJumpDistance[i], 15.0, reading_distance_influence_threshold);
+    }
+
+    return t;
 }
 
 // https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Difficulty/Evaluators/FlashlightEvaluator.cs
@@ -2723,9 +2819,10 @@ vec2 flashlight_end_position(const DifficultyHitObject &obj) {
 
 // per-note flashlight difficulty, both hidden variants in one pass (only the opacity bonus and
 // the flat hidden multiplier differ)
-FlashlightDifficultyPair evaluate_flashlight_difficulty_of(const DifficultyHitObject &cur,
+FlashlightDifficultyPair evaluate_flashlight_difficulty_of(const StrainComputeState &s, i32 cur,
                                                            const StrainEvalContext &ctx) {
-    if(cur.type == DifficultyHitObject::TYPE::SPINNER) return {.noHidden = 0.0, .hidden = 0.0};
+    const DifficultyHitObject *o = ctx.objects;
+    if(o[cur].type == DifficultyHitObject::TYPE::SPINNER) return {.noHidden = 0.0, .hidden = 0.0};
 
     static constexpr f64 max_opacity_bonus = 0.4;
     static constexpr f64 hidden_bonus = 0.2;
@@ -2741,37 +2838,39 @@ FlashlightDifficultyPair evaluate_flashlight_difficulty_of(const DifficultyHitOb
     f64 difficultyNoHidden = 0.0;
     f64 difficultyHidden = 0.0;
 
-    const DifficultyHitObject *lastObj = &cur;
+    i32 lastObj = cur;
 
     f64 angleRepeatCount = 0.0;
 
     // iterating backwards in time from the current object
-    const i32 lookback = std::min(cur.c->index, 10);
+    const i32 lookback = std::min(lazer_index(cur), 10);
     for(i32 i = 0; i < lookback; i++) {
-        const DifficultyHitObject *currentObj = cur.c->get_previous(i);
+        const i32 currentObj = previous_idx(cur, i);
 
-        cumulativeStrainTime += lastObj->c->strainTime;
+        cumulativeStrainTime += s.strainTime[lastObj];
 
-        if(currentObj->type != DifficultyHitObject::TYPE::SPINNER) {
-            const f64 jumpDistance = vec::distance(cur.pos, flashlight_end_position(*currentObj));
+        if(o[currentObj].type != DifficultyHitObject::TYPE::SPINNER) {
+            const f64 jumpDistance = vec::distance(o[cur].pos, flashlight_end_position(o[currentObj]));
 
             // objects that can be easily seen within the flashlight circle radius are nerfed
             if(i == 0) smallDistNerf = std::min(1.0, jumpDistance / 75.0);
 
             // nerf stacks so that only the first object of the stack is accounted for
-            const f64 stackNerf = std::min(1.0, (currentObj->c->lazyJumpDistance / scalingFactor) / 25.0);
+            const f64 stackNerf = std::min(1.0, (s.lazyJumpDistance[currentObj] / scalingFactor) / 25.0);
 
             const f64 basePart = stackNerf * scalingFactor * jumpDistance / cumulativeStrainTime;
 
             // bonus based on how visible the object is
             difficultyNoHidden +=
-                (1.0 + max_opacity_bonus * (1.0 - opacity_at(cur, (f64)currentObj->baseTime, false, ctx))) * basePart;
+                (1.0 + max_opacity_bonus * (1.0 - opacity_at(o[cur], (f64)o[currentObj].baseTime, false, ctx))) *
+                basePart;
             difficultyHidden +=
-                (1.0 + max_opacity_bonus * (1.0 - opacity_at(cur, (f64)currentObj->baseTime, true, ctx))) * basePart;
+                (1.0 + max_opacity_bonus * (1.0 - opacity_at(o[cur], (f64)o[currentObj].baseTime, true, ctx))) *
+                basePart;
 
-            if(!std::isnan(currentObj->c->angle) && !std::isnan(cur.c->angle)) {
+            if(!std::isnan(s.angle[currentObj]) && !std::isnan(s.angle[cur])) {
                 // objects further back in time should count less for the nerf
-                if(std::abs(currentObj->c->angle - cur.c->angle) < 0.02)
+                if(std::abs(s.angle[currentObj] - s.angle[cur]) < 0.02)
                     angleRepeatCount += std::max(1.0 - 0.1 * i, 0.0);
             }
         }
@@ -2792,18 +2891,18 @@ FlashlightDifficultyPair evaluate_flashlight_difficulty_of(const DifficultyHitOb
 
     f64 sliderBonus = 0.0;
 
-    if(cur.type == DifficultyHitObject::TYPE::SLIDER) {
+    if(o[cur].type == DifficultyHitObject::TYPE::SLIDER) {
         // invert the scaling factor to determine the true travel distance independent of circle size
-        const f64 pixelTravelDistance = cur.c->lazyTravelDist / scalingFactor;
+        const f64 pixelTravelDistance = s.lazyTravelDist[cur] / scalingFactor;
 
         // reward sliders based on velocity
-        sliderBonus = std::pow(std::max(0.0, pixelTravelDistance / cur.c->travelTime - min_velocity), 0.5);
+        sliderBonus = std::pow(std::max(0.0, pixelTravelDistance / s.travelTime[cur] - min_velocity), 0.5);
 
         // longer sliders require more memorisation
         sliderBonus *= pixelTravelDistance;
 
         // nerf sliders with repeats, as less memorisation is required
-        if(cur.repeats - 1 > 0) sliderBonus /= (f64)cur.repeats;  // == lazer RepeatCount + 1
+        if(o[cur].repeats - 1 > 0) sliderBonus /= (f64)o[cur].repeats;  // == lazer RepeatCount + 1
     }
 
     difficultyNoHidden += sliderBonus * slider_multiplier;
