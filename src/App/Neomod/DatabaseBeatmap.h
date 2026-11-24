@@ -35,7 +35,7 @@ using namespace std::string_literals;
 class GameplayJudge;
 class PlayfieldView;
 namespace neomod {
-class HitObject;
+class HitObjects;
 }  // namespace neomod
 
 namespace neomod::DiffCalc {
@@ -124,7 +124,6 @@ class DatabaseBeatmap final {
         LOAD_GAMEPLAY_RESULT(LOAD_GAMEPLAY_RESULT &&) noexcept;
         LOAD_GAMEPLAY_RESULT &operator=(LOAD_GAMEPLAY_RESULT &&) noexcept;
 
-        std::vector<std::unique_ptr<neomod::HitObject>> hitobjects;
         std::vector<DBType::BREAK> breaks;
         std::vector<Color> combocolors;
 
@@ -133,9 +132,10 @@ class DatabaseBeatmap final {
         u8 defaultSampleSet{1};
     };
 
-    // a play's objects from what it read (the convar mods applied to its primitives on the way), judged by judge and
-    // drawn on view (NULL: never drawn)
-    static LOAD_GAMEPLAY_RESULT loadGameplay(PlayedMap &played, GameplayJudge *judge, const PlayfieldView *view);
+    // makes the play objects from what it read into objects (the convar mods applied to its primitives on the way),
+    // judged by judge and drawn on view (NULL: never drawn)
+    static LOAD_GAMEPLAY_RESULT loadGameplay(PlayedMap &played, neomod::HitObjects &objects, GameplayJudge *judge,
+                                             const PlayfieldView *view);
 
     [[nodiscard]] MapOverrides get_overrides() const;
 

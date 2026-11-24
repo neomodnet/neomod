@@ -39,7 +39,7 @@ ConVar pft_time("pft_time", 0.0f, cv::CLIENT | cv::HIDDEN | cv::NOLOAD | cv::NOS
 constexpr int CORPUS_POSES = 8;
 }  // namespace
 
-PlayfieldTest::PlayfieldTest() {
+PlayfieldTest::PlayfieldTest() : m_objects(std::make_unique<HitObjects>()) {
     m_skin = std::make_unique<Skin>("default", Mc::Paths::materials() + "/default/");
     m_view.skin = m_skin.get();
     m_sliderRT = resourceManager->createRenderTarget(0, 0, engine->getScreenWidth(), engine->getScreenHeight());
@@ -72,7 +72,7 @@ PlayfieldTest::~PlayfieldTest() {
 bool PlayfieldTest::load(const std::string &path) {
     m_shown.clear();
     m_byEndTime.clear();
-    m_objects.clear();
+    m_objects->clear();
     m_loaded = false;
 
     std::vector<u8> bytes;
@@ -88,14 +88,15 @@ bool PlayfieldTest::load(const std::string &path) {
         c.AR, GameRules::getMinApproachTime(), GameRules::getMidApproachTime(), GameRules::getMaxApproachTime());
     m_view.comboColors = c.combocolors;
 
-    m_objects = HitObjects::create(c, nullptr, &m_view);
-    HitObjects::stack(m_objects, c.AR, c.version, c.stackLeniency, m_view.rawHitcircleDiameter, false);
+    HitObjects &objects = *m_objects;
+    objects.build(c, nullptr, &m_view);
+    objects.stack(0, objects.size(), c.AR, c.version, c.stackLeniency, m_view.rawHitcircleDiameter, false);
 
-    for(const auto &obj : m_objects) m_byEndTime.push_back({obj.get(), false});
-    Mc::ranges::stable_sort(m_byEndTime, {}, [](const Entry &e) { return e.obj->getEndTime(); });
+    for(uSz i = 0; i < objects.size(); i++) m_byEndTime.push_back({(u32)i, false});
+    Mc::ranges::stable_sort(m_byEndTime, {}, [&objects](const Entry &e) { return objects.endTimes[e.index]; });
 
-    m_firstTimeMS = m_objects.front()->getClickTime();
-    m_lastTimeMS = m_byEndTime.back().obj->getEndTime();
+    m_firstTimeMS = objects.clickTimes.front();
+    m_lastTimeMS = objects.endTimes[m_byEndTime.back().index];
     m_loaded = true;
     return true;
 }
@@ -117,19 +118,20 @@ void PlayfieldTest::drawAt(i32 timeMS) {
     // what can show at timeMS (approaching or fading out), posed
     const i32 lead = (i32)m_view.approachTimeMS + GameRules::getFadeInTime() + 1000;
     m_shown.clear();
+    const HitObjects &objects = *m_objects;
     for(Entry &e : std::views::reverse(m_byEndTime)) {
-        if(e.obj->getClickTime() - lead > timeMS || e.obj->getEndTime() + 2000 < timeMS) continue;
+        if(objects.clickTimes[e.index] - lead > timeMS || objects.endTimes[e.index] + 2000 < timeMS) continue;
         if(!e.meshBuilt) {
-            e.obj->rebuildVertexBuffer();
+            objects[e.index].rebuildVertexBuffer();
             e.meshBuilt = true;
         }
-        e.obj->pose(timeMS, fadeOutMS, m_trail ? GameRules::EDITOR_TRAIL_TIME_MS : 0);
-        m_shown.push_back(e.obj);
+        objects[e.index].pose(timeMS, fadeOutMS, m_trail ? GameRules::EDITOR_TRAIL_TIME_MS : 0);
+        m_shown.push_back(e.index);
     }
 
-    HitObjects::drawFollowPoints(m_view, m_objects, 0);
-    HitObjects::draw(m_shown, m_sliderRT);
-    for(HitObject *obj : std::views::reverse(m_shown)) obj->draw2();
+    HitObjectDrawing::drawFollowPoints(m_view, objects, 0);
+    HitObjectDrawing::draw(objects, m_shown, m_sliderRT);
+    for(const u32 i : std::views::reverse(m_shown)) objects[i].draw2();
 }
 
 void PlayfieldTest::drawCorpusFrame() {
@@ -141,7 +143,7 @@ void PlayfieldTest::drawCorpusFrame() {
         return;
     }
     m_corpusDrawn++;
-    m_corpusObjects += m_objects.size();
+    m_corpusObjects += m_objects->size();
 
     const i64 from = (i64)m_firstTimeMS - 1000;
     const i64 to = (i64)m_lastTimeMS + 1000;

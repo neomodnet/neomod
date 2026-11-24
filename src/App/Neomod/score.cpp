@@ -10,7 +10,6 @@
 #include "Engine.h"
 #include "GameRules.h"
 #include "HUD.h"
-#include "HitObjects.h"
 #include "ReplayFile.h"
 #include "Osu.h"
 #include "ModFlags.h"
@@ -81,8 +80,8 @@ void LiveScore::reset() {
 
 f64 LiveScore::getScoreMultiplier() const { return this->mods.get_scorev1_multiplier(); }
 
-void LiveScore::addHitResult(GameplayJudge *judge, HitObject * /*hitObject*/, LiveHitResult hit, i32 delta,
-                             bool ignoreOnHitErrorBar, bool hitErrorBarOnly, bool ignoreCombo, bool ignoreScore) {
+void LiveScore::addHitResult(GameplayJudge *judge, LiveHitResult hit, i32 delta, bool ignoreOnHitErrorBar,
+                             bool hitErrorBarOnly, bool ignoreCombo, bool ignoreScore) {
     // current combo, excluding the current hitobject which caused the addHitResult() call
     const int scoreComboMultiplier = std::max(this->iCombo - 1, 0);
 

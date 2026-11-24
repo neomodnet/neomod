@@ -230,19 +230,18 @@ void Timeline::drawObjects(f64 left, f64 right) const {
     const Document::Id pickedId = picked ? compose.getSelection().front() : Document::Id{0};
 
     // what overlaps the time shown
-    const auto first =
-        objects.objects.begin() + (sSz)objects.firstFrom((i32)std::ceil(left - margin) - objects.longestObjectMS);
-    const auto last = objects.objects.begin() + (sSz)objects.firstFrom((i32)std::floor(right + margin) + 1);
+    const uSz first = objects.firstFrom((i32)std::ceil(left - margin) - objects.longestObjectMS);
+    const uSz last = objects.firstFrom((i32)std::floor(right + margin) + 1);
 
     // the spans of sliders and spinners under every circle, round around the first and the last (opaque when selected,
     // red for a picked body)
-    for(auto it = first; it != last; ++it) {
-        const HitObject &obj = **it;
+    for(uSz i = first; i != last; ++i) {
+        const HitObject &obj = objects.objects[i];
         if(obj.getDuration() <= 0 || obj.getEndTime() < left - margin) continue;
         const f32 thickness = diameter * SLIDER_SPAN_THICKNESS;
         const f32 x0 = this->xAt(obj.getClickTime()) - thickness / 2.f;
         const f32 x1 = this->xAt(obj.getEndTime()) + thickness / 2.f;
-        const Document::Id id = objects.ids[it - objects.objects.begin()];
+        const Document::Id id = objects.ids[i];
         const bool selected = compose.isSelected(id);
         g->setColor(picked && !picked->edge && id == pickedId
                         ? PICKED_COLOR
@@ -285,11 +284,11 @@ void Timeline::drawObjects(f64 left, f64 right) const {
             g->popTransform();
         }
     };
-    for(auto it = last; it != first;) {
-        const HitObject &obj = **--it;
+    for(uSz i = last; i != first;) {
+        const HitObject &obj = objects.objects[--i];
         if(obj.getEndTime() < left - margin) continue;
         const Color c = color(obj);
-        const Document::Id id = objects.ids[it - objects.objects.begin()];
+        const Document::Id id = objects.ids[i];
         // white around the start and end of a selected object, red around the picked edge
         const bool selected = compose.isSelected(id);
         const std::optional<i32> pickedEdge = picked && id == pickedId ? picked->edge : std::nullopt;
@@ -387,7 +386,7 @@ void Timeline::drawSoundLabels(f64 left, f64 right) const {
     const uSz first = objects.firstFrom((i32)std::ceil(left) - objects.longestObjectMS);
     const uSz last = objects.firstFrom((i32)std::floor(right) + 1);
     for(uSz i = first; i < last; i++) {
-        const HitObject &obj = *objects.objects[i];
+        const HitObject &obj = objects.objects[i];
         if(const auto *circle = std::get_if<HITCIRCLE>(&read[i])) {
             label(obj.getClickTime(), circle->samples);
         } else if(const auto *slider = std::get_if<SLIDER>(&read[i])) {

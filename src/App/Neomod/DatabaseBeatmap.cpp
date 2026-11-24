@@ -445,8 +445,8 @@ DatabaseBeatmap::LOAD_META_RESULT DatabaseBeatmap::loadMetadata(
     return ret(Primitives::LoadError::NONE);
 }
 
-DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(PlayedMap &played, GameplayJudge *judge,
-                                                                    const PlayfieldView *view) {
+DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(PlayedMap &played, HitObjects &objects,
+                                                                    GameplayJudge *judge, const PlayfieldView *view) {
     LOAD_GAMEPLAY_RESULT result = LOAD_GAMEPLAY_RESULT();
     Primitives::PRIMITIVE_CONTAINER &c = played.primitives;
 
@@ -498,27 +498,26 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(PlayedMap &p
 
         judge->iMaxPossibleCombo = maxPossibleCombo;
 
-        result.hitobjects = HitObjects::create(c, judge, view);
+        objects.build(c, judge, view);
     }
 
     // precalculate Score v2 combo portion maximum
     if(judge != nullptr) {
         u32 scoreV2ComboPortionMaximum = 1;
 
-        if(result.hitobjects.size() > 0) {
+        if(objects.size() > 0) {
             scoreV2ComboPortionMaximum = 0;
         }
 
         uSz combo = 0;
-        for(const auto &currentHitObject : result.hitobjects) {
+        for(uSz i = 0; i < objects.size(); i++) {
             uSz scoreComboMultiplier = combo == 0 ? 0 : combo - 1;
 
-            if(currentHitObject->getType() == HitObjectType::CIRCLE ||
-               currentHitObject->getType() == HitObjectType::SPINNER) {
+            if(objects.types[i] == HitObjectType::CIRCLE || objects.types[i] == HitObjectType::SPINNER) {
                 scoreV2ComboPortionMaximum += (u32)(300.0 * (1.0 + (double)scoreComboMultiplier / 10.0));
                 combo++;
-            } else if(currentHitObject->getType() == HitObjectType::SLIDER) {
-                combo += 1 + static_cast<const Slider *>(currentHitObject.get())->getClicks().size();
+            } else if(objects.types[i] == HitObjectType::SLIDER) {
+                combo += 1 + static_cast<const Slider &>(objects[i]).getClicks().size();
                 scoreComboMultiplier = combo == 0 ? 0 : combo - 1;
                 scoreV2ComboPortionMaximum += (u32)(300.0 * (1.0 + (double)scoreComboMultiplier / 10.0));
                 combo++;
@@ -530,7 +529,7 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(PlayedMap &p
 
     // special rule for first hitobject (for 1 approach circle with HD)
     if(cv::show_approach_circle_on_first_hidden_object.getBool()) {
-        if(result.hitobjects.size() > 0) result.hitobjects[0]->setForceDrawApproachCircle(true);
+        if(objects.size() > 0) objects[0].setForceDrawApproachCircle(true);
     }
 
     // custom override for forcing a hard number cap and/or sequence (visually only)
@@ -539,9 +538,9 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(PlayedMap &p
         if(cv::ignore_beatmap_combo_numbers.getBool()) {
             // NOTE: spinners don't increment the combo number
             int comboNumber = 1;
-            for(const auto &currentHitObject : result.hitobjects) {
-                if(currentHitObject->getType() != HitObjectType::SPINNER) {
-                    currentHitObject->setComboNumber(comboNumber);
+            for(uSz i = 0; i < objects.size(); i++) {
+                if(objects.types[i] != HitObjectType::SPINNER) {
+                    objects.comboNumbers[i] = comboNumber;
                     comboNumber++;
                 }
             }
@@ -549,16 +548,14 @@ DatabaseBeatmap::LOAD_GAMEPLAY_RESULT DatabaseBeatmap::loadGameplay(PlayedMap &p
 
         const int numberMax = cv::number_max.getInt();
         if(numberMax > 0) {
-            for(const auto &currentHitObject : result.hitobjects) {
-                const int currentComboNumber = currentHitObject->getComboNumber();
-                const int newComboNumber = (currentComboNumber % numberMax);
-
-                currentHitObject->setComboNumber((newComboNumber == 0) ? numberMax : newComboNumber);
+            for(i32 &comboNumber : objects.comboNumbers) {
+                const int newComboNumber = (comboNumber % numberMax);
+                comboNumber = (newComboNumber == 0) ? numberMax : newComboNumber;
             }
         }
     }
 
-    debugLog("loaded {:d} hitobjects", result.hitobjects.size());
+    debugLog("loaded {:d} hitobjects", objects.size());
 
     return result;
 }

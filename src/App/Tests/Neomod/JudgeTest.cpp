@@ -97,8 +97,8 @@ class Recorder final : public GameplayJudge::Listener {
         out += fmt::format("bonus {}\n", now());
     }
     void addTargetHit(f32 delta, f32 angle) override { out += fmt::format("target {} {} {}\n", now(), delta, angle); }
-    void onHitResult(const HitObject *hitObject, LiveHitResult hit, i32 delta, bool timed) override {
-        out += fmt::format("hit {} {} {} {} {}\n", now(), indexOf(hitObject), (int)hit, delta, timed);
+    void onHitResult(i32 object, LiveHitResult hit, i32 delta, bool timed) override {
+        out += fmt::format("hit {} {} {} {} {}\n", now(), object, (int)hit, delta, timed);
     }
     void onComboBreak() override { out += fmt::format("break {}\n", now()); }
     void onExtraClick() override { out += fmt::format("extra {}\n", now()); }
@@ -111,19 +111,9 @@ class Recorder final : public GameplayJudge::Listener {
     std::string &out;
     const GameplayJudge *&judge;
     Hash slides, spins;
-    std::unordered_map<const HitObject *, i32> indices;
 
    private:
     [[nodiscard]] i32 now() const { return judge ? judge->getCurMusicPos() : 0; }
-    [[nodiscard]] i32 indexOf(const HitObject *obj) {
-        if(!obj) return -1;
-        if(indices.empty()) {
-            const auto objects = judge->getHitObjects();
-            for(i32 i = 0; i < (i32)objects.size(); i++) indices[objects[i].get()] = i;
-        }
-        const auto it = indices.find(obj);
-        return it == indices.end() ? -2 : it->second;
-    }
 };
 
 struct Scenario {
@@ -156,28 +146,28 @@ void hashState(Hash &frames, Hash &looks, const GameplayJudge &judge, f64 posMS,
     frames.add(judge.getPlayfieldRotation());
     frames.add(judge.holding_slider);
     frames.add(judge.getMisaimObjects().size());
-    const HitObject *cur = judge.getCurrentHitObject();
-    frames.add(cur ? cur->getClickTime() : -1);
+    const HitObjects &objects = judge.getHitObjects();
+    const i32 cur = judge.getCurrentHitObject();
+    frames.add(cur >= 0 ? objects.clickTimes[cur] : -1);
 
     // what is on screen around now
     const f32 approach = judge.getApproachTime();
-    const auto objects = judge.getHitObjects();
-    const auto from = std::partition_point(objects.begin(), objects.end(), [&](const auto &obj) {
-        return obj->getClickTime() < posMS - 1000 - maxDurationMS;
-    });
-    for(const auto &obj : std::span{from, objects.end()}) {
+    const auto from = std::partition_point(objects.clickTimes.begin(), objects.clickTimes.end(),
+                                           [&](i32 clickTime) { return clickTime < posMS - 1000 - maxDurationMS; });
+    for(uSz i = from - objects.clickTimes.begin(); i < objects.size(); i++) {
+        const HitObject *obj = &objects[i];
         if(obj->getClickTime() > posMS + approach) break;
         if(obj->getEndTime() < posMS - 1000) continue;
         looks.add(obj->isVisible());
         looks.add(obj->isFinished());
-        looks.add(obj->isBlocked());
+        looks.add((bool)objects.blocked[i]);
         looks.add(obj->getApproachScale());
         looks.add(obj->getDelta());
         looks.add(obj->getApproachTime());
         looks.add(obj->getRawPosAt((i32)posMS));
         looks.add(obj->getAutoCursorPos((i32)posMS));
         if(obj->isSlider()) {
-            const auto *slider = static_cast<const Slider *>(obj.get());
+            const auto *slider = static_cast<const Slider *>(obj);
             looks.add(slider->isStartCircleFinished());
             for(const auto &click : slider->getClicks()) {
                 looks.add(click.finished);
@@ -202,11 +192,13 @@ std::string judge(DatabaseBeatmap &map, const Scenario &scenario, const std::vec
         return out;
     }
 
-    const auto objects = judge.getHitObjects();
-    const i32 firstMS = objects.front()->getClickTime();
-    const i32 lastMS = judge.getHitObjectsSortedByEndTime().back()->getEndTime();
+    const HitObjects &objects = judge.getHitObjects();
+    const i32 firstMS = objects.clickTimes.front();
+    const i32 lastMS = objects.endTimes[judge.getHitObjectsSortedByEndTime().back()];
     i32 maxDurationMS = 0;
-    for(const auto &obj : objects) maxDurationMS = std::max(maxDurationMS, obj->getDuration());
+    for(uSz i = 0; i < objects.size(); i++) {
+        maxDurationMS = std::max(maxDurationMS, objects.endTimes[i] - objects.clickTimes[i]);
+    }
     const f64 frameMS = 1000.0 / 144.0;
     Hash frames, looks;
 
@@ -399,7 +391,7 @@ struct JudgeTest::Drawn {
     std::unique_ptr<GameplayJudge> judge;
     std::unique_ptr<DrawView> view;
     RenderTarget *sliderRT{nullptr};
-    std::vector<HitObject *> objectsToDraw;
+    std::vector<u32> objectsToDraw;
     f64 timeMS{0.0};
     f64 endMS{0.0};
     i32 frames{0};  // since the start, which waits for the skin a fixed number of them
@@ -427,28 +419,29 @@ struct JudgeTest::Drawn {
     void draw() {
         const f64 curPos = this->timeMS;
         const i32 pvs = this->judge->getPVS();
+        const HitObjects &objects = this->judge->getHitObjects();
         const auto sorted = this->judge->getHitObjectsSortedByEndTime();
         const bool freezeFrame = flags::has<ModFlags::FreezeFrame>(this->view->mods);
 
-        HitObjects::drawFollowPoints(*this->view, this->judge->getHitObjects(),
-                                     (uSz)std::max(0, this->judge->getPreviousFollowPointObjectIndex()));
+        HitObjectDrawing::drawFollowPoints(*this->view, this->judge->getHitObjects(),
+                                           (uSz)std::max(0, this->judge->getPreviousFollowPointObjectIndex()));
 
         this->objectsToDraw.clear();
         i32 mostDistantEndTimeDrawn = 0;
         for(sSz i = (sSz)this->judge->getFirstFutureObjectByEndTime(curPos + pvs) - 1; i >= 0; i--) {
-            HitObject *obj = sorted[i];
-            if((freezeFrame ? obj->getComboStartTime() : obj->getClickTime()) > curPos + pvs) continue;
-            if(obj->isFinished() && curPos - pvs > obj->getEndTime()) break;
-            mostDistantEndTimeDrawn = std::max(mostDistantEndTimeDrawn, obj->getEndTime());
+            const u32 obj = sorted[i];
+            if((freezeFrame ? objects.comboStartTimes[obj] : objects.clickTimes[obj]) > curPos + pvs) continue;
+            if(objects.finished[obj] && curPos - pvs > objects.endTimes[obj]) break;
+            mostDistantEndTimeDrawn = std::max(mostDistantEndTimeDrawn, objects.endTimes[obj]);
             this->objectsToDraw.push_back(obj);
         }
-        HitObjects::draw(this->objectsToDraw, this->sliderRT);
+        HitObjectDrawing::draw(objects, this->objectsToDraw, this->sliderRT);
 
         const f64 mostDistantFutureObjectPVS = std::max((f64)mostDistantEndTimeDrawn, curPos + pvs);
-        for(auto *obj : sorted.subspan(this->judge->getFirstLiveObjectByEndTime(curPos - pvs))) {
-            if(obj->isFinished() && curPos - pvs > obj->getEndTime()) continue;
-            if(obj->getClickTime() > mostDistantFutureObjectPVS) break;
-            obj->draw2();
+        for(const u32 obj : sorted.subspan(this->judge->getFirstLiveObjectByEndTime(curPos - pvs))) {
+            if(objects.finished[obj] && curPos - pvs > objects.endTimes[obj]) continue;
+            if(objects.clickTimes[obj] > mostDistantFutureObjectPVS) break;
+            objects[obj].draw2();
         }
     }
 };
@@ -472,7 +465,7 @@ void JudgeTest::update() {
             if(!d.skin->isReady()) logRaw("JudgeTest: the skin took more than 60 frames to load");
             d.started = true;
             d.sliderRT = resourceManager->createRenderTarget(0, 0, engine->getScreenWidth(), engine->getScreenHeight());
-            d.timeMS = d.judge->getHitObjects().front()->getClickTime() - 2000.0;
+            d.timeMS = d.judge->getHitObjects().clickTimes.front() - 2000.0;
             if(cv::debug_fixed_frametime.getFloat() <= 0.f) logRaw("JudgeTest: draw without debug_fixed_frametime");
         }
         if(d.timeMS < d.endMS) {
@@ -507,8 +500,9 @@ void JudgeTest::update() {
             engine->shutdown();
             return;
         }
-        for(const auto &obj : d->judge->getHitObjects()) obj->rebuildVertexBuffer();
-        d->endMS = d->judge->getHitObjectsSortedByEndTime().back()->getEndTime() + 1000.0;
+        const HitObjects &objects = d->judge->getHitObjects();
+        for(uSz i = 0; i < objects.size(); i++) objects[i].rebuildVertexBuffer();
+        d->endMS = objects.endTimes[d->judge->getHitObjectsSortedByEndTime().back()] + 1000.0;
         m_drawn = std::move(d);
         return;
     }

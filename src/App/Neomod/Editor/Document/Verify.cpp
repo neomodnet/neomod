@@ -4,6 +4,7 @@
 #include "BeatSnap.h"
 #include "BeatmapFile/BeatmapFile.h"
 #include "BeatmapFile/BeatmapPrimitives.h"
+#include "ContainerRanges.h"
 #include "DatabaseBeatmapTypes.h"
 #include "Environment.h"
 #include "GameRules.h"
@@ -81,9 +82,8 @@ std::vector<Issue> check(const Document &document, const MapObjects &objects, st
         }
     }
     if(!made.empty()) {
-        i32 end = made.front()->getEndTime();
-        for(const auto &object : made) end = std::max(end, object->getEndTime());
-        const f64 drain = (f64)end - made.front()->getClickTime() - c.totalBreakDuration;
+        const i32 end = *Mc::ranges::max_element(made.endTimes);
+        const f64 drain = (f64)end - made.clickTimes.front() - c.totalBreakDuration;
         if(drain < MIN_DRAIN_MS) {
             issues.push_back({.kind = Kind::SHORT_DRAIN, .severity = Severity::PROBLEM, .value = drain / 1000.0});
         }
@@ -117,7 +117,7 @@ std::vector<Issue> check(const Document &document, const MapObjects &objects, st
     const f64 briefSpinner = 500.0 + (c.OD < 5.f ? (5.0 - c.OD) * -21.8 : (c.OD - 5.0) * 20.0);
 
     for(uSz i = 0; i < made.size(); i++) {
-        const HitObject &object = *made[i];
+        const HitObject &object = made[i];
         const Document::Id line = objects.ids[i];
         const i32 start = object.getClickTime();
         const i32 end = object.getEndTime();
@@ -170,7 +170,7 @@ std::vector<Issue> check(const Document &document, const MapObjects &objects, st
 
         // with the next object only: in maps with objects on top of each other, every pair would be an issue
         if(i + 1 < made.size()) {
-            const i32 gap = made[i + 1]->getClickTime() - end;
+            const i32 gap = made.clickTimes[i + 1] - end;
             const bool concurrent = gap <= (i32)UNSNAP_PROBLEM_MS;
             if(concurrent || std::abs(gap) < ALMOST_CONCURRENT_MS) {
                 issues.push_back({.kind = concurrent ? Kind::CONCURRENT : Kind::ALMOST_CONCURRENT,

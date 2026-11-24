@@ -129,14 +129,14 @@ void PlayfieldPanel::draw() {
                      : obj->isSpinner()          ? std::optional{SELECTED_SPINNER}
                      : bodyPicked                ? std::optional{PICKED}
                                                  : std::optional{SELECTED_SLIDER});
-        this->shown.push_back(obj);
+        this->shown.push_back(obj->getIndex());
     }
     std::reverse(this->shown.begin(), this->shown.end());
 
     // follow points fade out soon after the object they lead to
-    HitObjects::drawFollowPoints(objects.view, objects.objects, objects.firstFrom(time - SHOWN_AFTER_MS));
-    HitObjects::draw(this->shown, osu->getSliderFrameBuffer());
-    for(auto it = this->shown.rbegin(); it != this->shown.rend(); ++it) (*it)->draw2();
+    HitObjectDrawing::drawFollowPoints(objects.view, objects.objects, objects.firstFrom(time - SHOWN_AFTER_MS));
+    HitObjectDrawing::draw(objects.objects, this->shown, osu->getSliderFrameBuffer());
+    for(auto it = this->shown.rbegin(); it != this->shown.rend(); ++it) objects.objects[*it].draw2();
     if(this->state.showsGrid()) this->drawGrid();
     this->drawMarks();
     this->drawReadout();

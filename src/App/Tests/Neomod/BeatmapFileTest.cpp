@@ -662,16 +662,16 @@ void BeatmapFileTest::runTests() {
         // which of the game's objects end a combo, and when the combo each is in starts (in the order they're played)
         const auto comboEnds = [&load](std::string_view text) {
             std::string ends;
-            for(const auto &object : HitObjects::create(load(text), nullptr, nullptr)) {
-                ends += object->isEndOfCombo() ? '1' : '0';
-            }
+            HitObjects objects;
+            objects.build(load(text), nullptr, nullptr);
+            for(const u8 endsCombo : objects.endsCombo) ends += endsCombo ? '1' : '0';
             return ends;
         };
         const auto comboStarts = [&load](std::string_view text) {
             std::string starts;
-            for(const auto &object : HitObjects::create(load(text), nullptr, nullptr)) {
-                starts += fmt::format("{} ", object->getComboStartTime());
-            }
+            HitObjects objects;
+            objects.build(load(text), nullptr, nullptr);
+            for(const i32 start : objects.comboStartTimes) starts += fmt::format("{} ", start);
             return starts;
         };
         constexpr std::string_view withSpinners =

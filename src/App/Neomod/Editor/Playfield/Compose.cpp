@@ -161,7 +161,7 @@ i32 Compose::selectCombos(i32 timeMS, std::span<const i32> numbers) {
     uSz from = first;
     for(const i32 number : numbers) {
         for(uSz i = from; i < objects.objects.size(); i++) {
-            const HitObject &object = *objects.objects[i];
+            const HitObject &object = objects.objects[i];
             if((object.isSpinner() ? 1 : object.getComboNumber()) != number) continue;
             picked.push_back(objects.ids[i]);
             from = i + 1;
@@ -169,7 +169,7 @@ i32 Compose::selectCombos(i32 timeMS, std::span<const i32> numbers) {
         }
     }
     this->select(std::move(picked));
-    return first < objects.objects.size() ? objects.objects[first]->getClickTime() : timeMS;
+    return first < objects.objects.size() ? objects.objects[first].getClickTime() : timeMS;
 }
 
 void Compose::setTool(Tool tool) {
@@ -343,7 +343,7 @@ bool Compose::changePicked(Action action, F &&change) {
 const HitObject *Compose::getEarliestSelected() const {
     if(!this->state.objects || this->selection.empty()) return nullptr;
     const auto earliest = this->summary().earliest;
-    return earliest ? this->state.objects->objects[*earliest].get() : nullptr;
+    return earliest ? &this->state.objects->objects[*earliest] : nullptr;
 }
 
 void Compose::seekToSelection() {
@@ -409,7 +409,7 @@ std::optional<Compose::Hit> Compose::objectAt(vec2 pos) const {
         return object.isSlider() && vec::distance(object.getRawPosAt(tailTime(object)), pos) <= within;
     };
     const auto hit = [&](uSz i) {
-        return Hit{.object = objects.objects[i].get(), .id = objects.ids[i], .node = std::nullopt};
+        return Hit{.object = &objects.objects[i], .id = objects.ids[i], .node = std::nullopt};
     };
 
     // a selected one first, the earliest: its ring shows however far it is from the time (a spinner has none)
@@ -417,7 +417,7 @@ std::optional<Compose::Hit> Compose::objectAt(vec2 pos) const {
     for(const Document::Id id : this->selection) {
         const auto it = objects.indexes.find(id);
         if(it == objects.indexes.end() || (earliest && *earliest < it->second)) continue;
-        const HitObject &object = *objects.objects[it->second];
+        const HitObject &object = objects.objects[it->second];
         if((!object.isSpinner() || this->isShown(object)) && reaches(object, radius)) earliest = it->second;
     }
     if(earliest) return hit(*earliest);
@@ -428,10 +428,10 @@ std::optional<Compose::Hit> Compose::objectAt(vec2 pos) const {
     const auto nearest = [&](auto &&isHit) -> std::optional<Hit> {
         std::optional<uSz> best;
         for(uSz i = first; i < last; i++) {
-            const HitObject &object = *objects.objects[i];
+            const HitObject &object = objects.objects[i];
             if(!this->isShown(object) || !isHit(object)) continue;
             if(!best ||
-               std::abs(object.getClickTime() - time) < std::abs(objects.objects[*best]->getClickTime() - time)) {
+               std::abs(object.getClickTime() - time) < std::abs(objects.objects[*best].getClickTime() - time)) {
                 best = i;
             }
         }
@@ -467,7 +467,7 @@ std::optional<Compose::Hit> Compose::objectAtTime(f64 timeMS, f64 withinMS) cons
     Circle bestCircle{};
     bool bestSelected = false;
     for(uSz i = first; i < objects.objects.size(); i++) {
-        const HitObject &object = *objects.objects[i];
+        const HitObject &object = objects.objects[i];
         if(object.getClickTime() > timeMS + withinMS) break;
         const Circle circle = nearestCircle(object);
         if(circle.distance > withinMS) continue;
@@ -480,16 +480,16 @@ std::optional<Compose::Hit> Compose::objectAtTime(f64 timeMS, f64 withinMS) cons
             bestSelected = selected;
         }
     }
-    if(best) return Hit{.object = objects.objects[*best].get(), .id = objects.ids[*best], .node = bestCircle.node};
+    if(best) return Hit{.object = &objects.objects[*best], .id = objects.ids[*best], .node = bestCircle.node};
     // what spans it, the latest starting
     std::optional<uSz> spanning;
     for(uSz i = first; i < objects.objects.size(); i++) {
-        const HitObject &object = *objects.objects[i];
+        const HitObject &object = objects.objects[i];
         if(object.getClickTime() > timeMS) break;
         if(timeMS < object.getEndTime()) spanning = i;
     }
     if(!spanning) return std::nullopt;
-    return Hit{.object = objects.objects[*spanning].get(), .id = objects.ids[*spanning], .node = std::nullopt};
+    return Hit{.object = &objects.objects[*spanning], .id = objects.ids[*spanning], .node = std::nullopt};
 }
 
 std::vector<Document::Id> Compose::objectsIn(const McRect &area) const {
@@ -498,7 +498,7 @@ std::vector<Document::Id> Compose::objectsIn(const McRect &area) const {
     const MapObjects &objects = *this->state.objects;
     const auto [first, last] = this->shownRange();
     for(uSz i = first; i < last; i++) {
-        const HitObject &object = *objects.objects[i];
+        const HitObject &object = objects.objects[i];
         if(this->isShown(object) && area.contains(object.getRawPosAt(object.getClickTime()))) {
             ids.push_back(objects.ids[i]);
         }
@@ -513,7 +513,7 @@ std::vector<Document::Id> Compose::objectsBetween(f64 fromMS, f64 toMS) const {
     const f64 to = std::max(fromMS, toMS);
     const MapObjects &objects = *this->state.objects;
     for(uSz i = objects.firstFrom((i32)std::floor(from) - objects.longestObjectMS); i < objects.objects.size(); i++) {
-        const HitObject &object = *objects.objects[i];
+        const HitObject &object = objects.objects[i];
         if(object.getClickTime() > to) break;
         if(object.getClickTime() >= from || (object.getEndTime() >= from && object.getEndTime() <= to)) {
             ids.push_back(objects.ids[i]);
@@ -562,7 +562,7 @@ void Compose::forStackTargets(bool unselected, std::optional<vec2> except, F &&f
     const MapObjects &objects = *this->state.objects;
     const auto [first, last] = this->shownRange();
     for(uSz i = first; i < last; i++) {
-        const HitObject &object = *objects.objects[i];
+        const HitObject &object = objects.objects[i];
         if(object.isSpinner() || (unselected && this->isSelected(objects.ids[i])) || !this->isShown(object)) continue;
         if(const vec2 head = object.getOriginalRawPosAt(object.getClickTime()); head != except) fn(head);
         if(const vec2 end = object.getOriginalRawPosAt(object.getEndTime()); object.isSlider() && end != except) {
@@ -581,14 +581,14 @@ std::optional<f32> Compose::spacing(vec2 from, i32 fromMS, vec2 to, i32 toMS, i3
 std::optional<Document::Id> Compose::objectStartingAt(i32 timeMS) const {
     const MapObjects &objects = *this->state.objects;
     const uSz i = objects.firstFrom(timeMS);
-    if(i == objects.objects.size() || objects.objects[i]->getClickTime() != timeMS) return std::nullopt;
+    if(i == objects.objects.size() || objects.objects[i].getClickTime() != timeMS) return std::nullopt;
     return objects.ids[i];
 }
 
 const HitObject *Compose::objectBefore(i32 timeMS) const {
     const MapObjects &objects = *this->state.objects;
     const uSz i = objects.firstFrom(timeMS);
-    return i > 0 ? objects.objects[i - 1].get() : nullptr;
+    return i > 0 ? &objects.objects[i - 1] : nullptr;
 }
 
 std::optional<Compose::Placement> Compose::placement(vec2 cursor, const Snapping::Settings &snap) const {
@@ -677,8 +677,8 @@ std::optional<Compose::Spot> Compose::spot(vec2 cursor, const Snapping::Settings
                                       spot.pos, spot.time, spot.time);
     }
     if(const uSz starting = objects.firstFrom(spot.time + 1);
-       starting != objects.objects.size() && !objects.objects[starting]->isSpinner()) {
-        const HitObject &next = *objects.objects[starting];
+       starting != objects.objects.size() && !objects.objects[starting].isSpinner()) {
+        const HitObject &next = objects.objects[starting];
         spot.next = this->spacing(spot.pos, spot.time, next.getOriginalRawPosAt(next.getClickTime()),
                                   next.getClickTime(), next.getClickTime());
     }
@@ -711,7 +711,7 @@ std::optional<f32> Compose::currentSpacing() const {
     if(!to) {
         const uSz starting = objects.firstFrom(this->state.clock.getTime());
         if(starting == objects.objects.size()) return std::nullopt;
-        to = objects.objects[starting].get();
+        to = &objects.objects[starting];
     }
     const HitObject *from = to->isSpinner() ? nullptr : this->endingBefore(to->getClickTime());
     if(!from) return std::nullopt;
@@ -866,9 +866,9 @@ void Compose::hover(std::optional<vec2> cursor, f32 within) {
     const auto [first, last] = this->shownRange();
     std::optional<uSz> at;
     for(uSz i = first; i < last; i++) {
-        const HitObject &object = *objects.objects[i];
+        const HitObject &object = objects.objects[i];
         if(!object.isSlider() || this->isSelected(objects.ids[i]) || !this->isShown(object) ||
-           (at && std::abs(object.getClickTime() - time) >= std::abs(objects.objects[*at]->getClickTime() - time))) {
+           (at && std::abs(object.getClickTime() - time) >= std::abs(objects.objects[*at].getClickTime() - time))) {
             continue;
         }
         if(onBody(static_cast<const Slider &>(object), *cursor, radius)) at = i;
@@ -1235,7 +1235,7 @@ std::pair<i32, std::vector<i32>> Compose::timestamp() const {
     if(const MapObjects *objects = this->state.objects.get()) {
         for(uSz i = 0; i < objects->objects.size(); i++) {
             if(!this->isSelected(objects->ids[i])) continue;
-            const HitObject &object = *objects->objects[i];
+            const HitObject &object = objects->objects[i];
             if(!start) start = object.getClickTime();
             // a spinner, which has no number, counts as 1
             numbers.push_back(object.isSpinner() ? 1 : object.getComboNumber());
@@ -1281,7 +1281,7 @@ Compose::Placed Compose::clone() {
         if(const auto record = this->state.document->getObject(objects.ids[i])) {
             lines.push_back(BeatmapFile::format(*record));
         }
-        latest = std::max(latest, objects.objects[i]->getEndTime());
+        latest = std::max(latest, objects.objects[i].getEndTime());
     }
     // a beat after (the beat there), snapped
     const BeatSnap &snap = this->state.document->getBeatSnap();
@@ -1325,7 +1325,7 @@ std::optional<std::vector<Document::Id>> Compose::replacedBy(std::span<const HO>
     if(!this->previewing) {
         for(const i32 time : times) {
             for(uSz i = objects.firstFrom(time);
-                i < objects.objects.size() && objects.objects[i]->getClickTime() == time; i++) {
+                i < objects.objects.size() && objects.objects[i].getClickTime() == time; i++) {
                 replaced.push_back(objects.ids[i]);
             }
         }
@@ -1337,7 +1337,7 @@ std::optional<std::vector<Document::Id>> Compose::replacedBy(std::span<const HO>
         starts.emplace();
         starts->reserve(objects.objects.size());
         for(uSz i = 0; i < objects.objects.size(); i++)
-            starts->emplace_back(objects.objects[i]->getClickTime(), objects.ids[i]);
+            starts->emplace_back(objects.objects[i].getClickTime(), objects.ids[i]);
     }
     for(const i32 time : times) {
         for(auto it = Mc::ranges::lower_bound(*starts, time, {}, &std::pair<i32, Document::Id>::first);
@@ -1377,7 +1377,7 @@ void Compose::startMove() {
     const MapObjects &objects = *this->state.objects;
     Move move;
     for(uSz i = 0; i < objects.objects.size(); i++) {
-        const HitObject &object = *objects.objects[i];
+        const HitObject &object = objects.objects[i];
         if(object.isSpinner() || !this->isSelected(objects.ids[i])) continue;
         if(move.points.empty()) {
             move.head = object.getOriginalRawPosAt(object.getClickTime());
@@ -1457,7 +1457,7 @@ void Compose::nudge(vec2 by, const Snapping::Settings &snap) {
     const HitObject *earliest = nullptr;
     const MapObjects *objects = this->state.objects.get();
     for(uSz i = 0; objects && !earliest && i < objects->objects.size(); i++) {
-        if(!objects->objects[i]->isSpinner() && this->isSelected(objects->ids[i])) earliest = objects->objects[i].get();
+        if(!objects->objects[i].isSpinner() && this->isSelected(objects->ids[i])) earliest = &objects->objects[i];
     }
     if(!earliest) return;
     // with the grid, the head of the earliest one to the next grid line that way (and onto the grid the other way)
@@ -1616,7 +1616,7 @@ void Compose::reverse() {
         if(!this->isSelected(objects.ids[i])) continue;
         auto record = this->state.document->getObject(objects.ids[i]);
         if(!record || record->kind == HO::Kind::NONE) continue;
-        const HitObject &object = *objects.objects[i];
+        const HitObject &object = objects.objects[i];
         first = std::min(first, object.getClickTime());
         last = std::max(last, object.getEndTime());
         ends.push_back(object.getEndTime());
@@ -2072,7 +2072,7 @@ std::optional<Compose::ColourSkips> Compose::getColourSkips() const {
 
     // after another combo, skipping all but one colour would come back to the colour that combo has
     const uSz count = objects.view.comboColors.empty() ? skin->c_combo_colors.size() : objects.view.comboColors.size();
-    const bool first = objects.objects.front().get() == object;
+    const bool first = &objects.objects[0] == object;
     const i32 skips = std::min((i32)count - (first ? 0 : 1), 8);
     if(skips < 2) return std::nullopt;
     const i32 current = s.colourSkip;

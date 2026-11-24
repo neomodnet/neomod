@@ -16,7 +16,6 @@
 #include <memory>
 #include <span>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 using namespace emscripten;
@@ -99,7 +98,7 @@ const char *hit_object_type_name(HitObjectType type) {
 // records every judgement of a simulated play, with where the cursor and the object were at that time
 class HitRecorder final : public GameplayJudge::Listener {
    public:
-    void onHitResult(const HitObject *hitObject, LiveHitResult hit, i32 delta, bool timed) override {
+    void onHitResult(i32 object, LiveHitResult hit, i32 delta, bool timed) override {
         const i32 time = this->judge->getCurMusicPos();
         const vec2 cursor = this->judge->getCursorPos();
 
@@ -110,10 +109,9 @@ class HitRecorder final : public GameplayJudge::Listener {
         h.set("timed", timed);
         h.set("cursorX", cursor.x);
         h.set("cursorY", cursor.y);
-        const auto it = hitObject ? this->indices.find(hitObject) : this->indices.end();
-        h.set("object", it != this->indices.end() ? it->second : -1);
-        if(hitObject) {
-            const vec2 pos = this->judge->osuCoords2Pixels(hitObject->getRawPosAt(time));
+        h.set("object", object);
+        if(object >= 0) {
+            const vec2 pos = this->judge->osuCoords2Pixels(this->judge->getHitObjects()[object].getRawPosAt(time));
             h.set("objectX", pos.x);
             h.set("objectY", pos.y);
         }
@@ -123,7 +121,6 @@ class HitRecorder final : public GameplayJudge::Listener {
     void onComboBreak() override { this->comboBreaks.call<void>("push", this->judge->getCurMusicPos()); }
 
     const GameplayJudge *judge = nullptr;
-    std::unordered_map<const HitObject *, i32> indices;
     val hits = val::array();
     val comboBreaks = val::array();
 };
@@ -389,10 +386,9 @@ struct JsReplay {
         // positions are where the objects get judged (stacked, flipped by HardRock); wobble mods move them during
         // play, so for those only the positions of hits are exact
         val objects = val::array();
-        const auto hitobjects = judge.getHitObjects();
+        const HitObjects &hitobjects = judge.getHitObjects();
         for(i32 i = 0; i < (i32)hitobjects.size(); i++) {
-            const HitObject *obj = hitobjects[i].get();
-            recorder.indices[obj] = i;
+            const HitObject *obj = &hitobjects[i];
 
             const vec2 start = judge.osuCoords2Pixels(obj->getRawPosAt(obj->getClickTime()));
             const vec2 end = judge.osuCoords2Pixels(obj->getRawPosAt(obj->getEndTime()));

@@ -5,6 +5,7 @@
 #include "BeatmapPrimitives.h"
 #include "Color.h"
 #include "DatabaseBeatmapTypes.h"
+#include "HitObjects.h"
 #include "ReplayFile.h"
 #include "Vectors.h"
 
@@ -22,7 +23,6 @@ namespace Replay {
 struct Mods;
 }
 namespace neomod {
-class HitObject;
 namespace HitSoundUtils {
 struct Set_Slider_Hit;
 }
@@ -64,9 +64,9 @@ class GameplayJudge final {
         virtual void addTargetHit(f32 delta, f32 angle);  // target mod hits by distance and angle from the center
 
         // every judgement that wasn't overridden by Perfect/SuddenDeath
-        // hitObject: NULL for some slider breaks
+        // object: its index, -1 for some slider breaks
         // timed: whether delta is a hit error, which counts towards the unstable rate
-        virtual void onHitResult(const neomod::HitObject *hitObject, LiveHitResult hit, i32 delta, bool timed);
+        virtual void onHitResult(i32 object, LiveHitResult hit, i32 delta, bool timed);
         virtual void onComboBreak();  // called right before the combo is reset
         virtual void onExtraClick();  // a click that hit nothing and wasn't punished
         virtual void onHealthGain(f64 healthBefore);
@@ -155,11 +155,9 @@ class GameplayJudge final {
     // Potentially Visible Set gate time size, for optimizing draw() and update() when iterating over all hitobjects
     [[nodiscard]] i32 getPVS() const;
 
-    // the objects, in the order they are played, and in the order of their end times
-    [[nodiscard]] inline std::span<const std::unique_ptr<neomod::HitObject>> getHitObjects() const {
-        return this->hitobjects;
-    }
-    [[nodiscard]] inline std::span<neomod::HitObject *const> getHitObjectsSortedByEndTime() const {
+    // the objects, in the order they are played, and their indices sorted by end time
+    [[nodiscard]] inline const neomod::HitObjects &getHitObjects() const { return this->hitobjects; }
+    [[nodiscard]] inline std::span<const u32> getHitObjectsSortedByEndTime() const {
         return this->hitobjectsSortedByEndTime;
     }
 
@@ -168,10 +166,11 @@ class GameplayJudge final {
     [[nodiscard]] uSz getFirstFutureObjectByEndTime(f64 time) const;
 
     // the unfinished objects the last clicks could have been meant for (see cv::hiterrorbar_misaims)
-    [[nodiscard]] inline std::span<neomod::HitObject *const> getMisaimObjects() const { return this->misaimObjects; }
+    [[nodiscard]] inline std::span<const u32> getMisaimObjects() const { return this->misaimObjects; }
 
     [[nodiscard]] inline i32 getCurMusicPos() const { return this->iCurMusicPos; }
-    [[nodiscard]] inline const neomod::HitObject *getCurrentHitObject() const { return this->currentHitObject; }
+    // the latest started object index, -1 if none started
+    [[nodiscard]] inline i32 getCurrentHitObject() const { return this->currentHitObject; }
     [[nodiscard]] inline i32 getCurrentHitObjectIndex() const { return this->iCurrentHitObjectIndex; }
     [[nodiscard]] inline i32 getNextHitObjectTime() const { return this->iNextHitObjectTime; }
     [[nodiscard]] inline i32 getPreviousHitObjectTime() const { return this->iPreviousHitObjectTime; }
@@ -195,7 +194,7 @@ class GameplayJudge final {
     [[nodiscard]] inline f32 getPlayfieldRotation() const { return this->fPlayfieldRotation; }
 
     // for the hitobjects to report what they judged
-    LiveHitResult addHitResult(neomod::HitObject *hitObject, LiveHitResult hit, i32 delta, bool isEndOfCombo = false,
+    LiveHitResult addHitResult(i32 object, LiveHitResult hit, i32 delta, bool isEndOfCombo = false,
                                bool ignoreOnHitErrorBar = false, bool hitErrorBarOnly = false, bool ignoreCombo = false,
                                bool ignoreScore = false, bool ignoreHealth = false);
     void addSliderBreak();
@@ -268,15 +267,15 @@ class GameplayJudge final {
     i32 iNumLongBreaks = 0;
     bool bIsInSkippableSection = false;
     bool bIsSpinnerActive = false;
-    neomod::HitObject *currentHitObject = nullptr;
+    i32 currentHitObject = -1;
     i32 iNextHitObjectTime = 0;
     i32 iPreviousHitObjectTime = 0;
     i32 iPreviousFollowPointObjectIndex = 0;  // TODO: this shouldn't be in this class
 
     // hitobjects
-    std::vector<std::unique_ptr<neomod::HitObject>> hitobjects;
-    std::vector<neomod::HitObject *> hitobjectsSortedByEndTime;  // non-owning view of hitobjects data
-    std::vector<neomod::HitObject *> misaimObjects;
+    neomod::HitObjects hitobjects;
+    std::vector<u32> hitobjectsSortedByEndTime;
+    std::vector<u32> misaimObjects;
 
     // running totals over the objects, for finding the live ones without touching the others
     std::vector<i32> latestTimeBefore;           // [i]: the latest start or end among the first i objects

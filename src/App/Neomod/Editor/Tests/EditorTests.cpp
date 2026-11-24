@@ -513,7 +513,7 @@ class EditorTests {
         if(doc.getPrimitives().sampleFiles != read->getPrimitives().sampleFiles) return "the sample files";
         const MapObjects made{*read};
         const auto look = [](const MapObjects &o, uSz i) {
-            const neomod::HitObject &h = *o.objects[i];
+            const neomod::HitObject &h = o.objects[i];
             const vec2 head = h.getRawPosAt(h.getClickTime());
             const vec2 tail = h.getRawPosAt(h.getEndTime());
             return fmt::format("{} {}-{} {},{} {},{} stack {} #{} {}+{} {} from {} line {}", (i32)h.getType(),
@@ -788,7 +788,7 @@ class EditorTests {
         const auto idAt = [&](i32 timeMS) {
             const MapObjects &objects = *state.objects;
             for(uSz i = 0; i < objects.objects.size(); i++) {
-                if(objects.objects[i]->getClickTime() == timeMS) return objects.ids[i];
+                if(objects.objects[i].getClickTime() == timeMS) return objects.ids[i];
             }
             return Document::Id{0};
         };
@@ -1468,7 +1468,7 @@ class EditorTests {
         const auto idAt = [&](i32 timeMS) {
             const MapObjects &objects = *state.objects;
             for(uSz i = 0; i < objects.objects.size(); i++) {
-                if(objects.objects[i]->getClickTime() == timeMS) return objects.ids[i];
+                if(objects.objects[i].getClickTime() == timeMS) return objects.ids[i];
             }
             return Document::Id{0};
         };
@@ -1703,7 +1703,7 @@ class EditorTests {
         const auto idAt = [&](i32 timeMS) {
             const MapObjects &objects = *state.objects;
             for(uSz i = 0; i < objects.objects.size(); i++) {
-                if(objects.objects[i]->getClickTime() == timeMS) return objects.ids[i];
+                if(objects.objects[i].getClickTime() == timeMS) return objects.ids[i];
             }
             return Document::Id{0};
         };
@@ -1816,7 +1816,7 @@ class EditorTests {
         const auto idAt = [&](i32 timeMS) {
             const MapObjects &objects = *state.objects;
             for(uSz i = 0; i < objects.objects.size(); i++) {
-                if(objects.objects[i]->getClickTime() == timeMS) return objects.ids[i];
+                if(objects.objects[i].getClickTime() == timeMS) return objects.ids[i];
             }
             return Document::Id{0};
         };
@@ -1987,18 +1987,18 @@ class EditorTests {
         const auto contains = [&](std::string_view part) { return text(doc).find(part) != std::string::npos; };
 
         const MapObjects *objects = state.objects.get();
-        const neomod::HitObject *kept = state.objects->objects[0].get();
+        const neomod::HitObject *kept = &state.objects->objects[0];
         edit(Action::MOVE, b, moveBy({5.f, 0.f}));
         TEST_ASSERT(patched() && doc.getPatched()->objects == std::vector<uSz>{1},
                     "a move reads only the object it moved");
-        TEST_ASSERT(state.objects.get() == objects && state.objects->objects[0].get() == kept,
+        TEST_ASSERT(state.objects.get() == objects && &state.objects->objects[0] == kept,
                     "...and makes only that one again");
         TEST_ASSERT_EQ(unlikeRead(doc, *state.objects), std::string{}, "...as reading the map whole would");
         edit(Action::MOVE, b, [](HO &object) {
             object.x = 100;
             object.y = 100;
         });
-        TEST_ASSERT(patched() && state.objects->objects[0]->getStack() != 0,
+        TEST_ASSERT(patched() && state.objects->objects[0].getStack() != 0,
                     "onto the object before it, which stacks under it");
         TEST_ASSERT_EQ(unlikeRead(doc, *state.objects), std::string{}, "...as reading the map whole would");
         edit(Action::MOVE, e, moveBy({0.f, 50.f}));
@@ -2010,7 +2010,7 @@ class EditorTests {
         TEST_ASSERT_EQ(unlikeRead(doc, *state.objects), std::string{}, "...as reading the map whole would");
 
         edit(Action::NEW_COMBO, b, [](HO &object) { object.type |= HO::TYPE_NEW_COMBO; });
-        TEST_ASSERT(patched() && state.objects->objects[2]->getComboNumber() == 2,
+        TEST_ASSERT(patched() && state.objects->objects[2].getComboNumber() == 2,
                     "a new combo, the combos after it counted again");
         TEST_ASSERT_EQ(unlikeRead(doc, *state.objects), std::string{}, "...as reading the map whole would");
         edit(Action::MOVE, b, at(1600));
@@ -2237,14 +2237,14 @@ class EditorTests {
         panel.tick();
 
         CBaseUINumberField *velocity = number("editor_setup_slider_velocity");
-        TEST_ASSERT_EQ(state.objects->objects.front()->getEndTime(), 3000, "a slider of two beats");
+        TEST_ASSERT_EQ(state.objects->objects[0].getEndTime(), 3000, "a slider of two beats");
         velocity->visit();
         type(velocity, U"2.8");
         press(velocity, KEY_ENTER);
         TEST_ASSERT(EditorTests::text(doc).contains("SliderMultiplier:2.8\r\n") &&
                         EditorTests::text(doc).contains("64,192,2000,6,0,L|344:192,1,280\r\n"),
                     "a slider velocity set leaves the sliders' lengths alone");
-        TEST_ASSERT_EQ(state.objects->objects.front()->getEndTime(), 2500, "...so that they end sooner");
+        TEST_ASSERT_EQ(state.objects->objects[0].getEndTime(), 2500, "...so that they end sooner");
         TEST_ASSERT_EQ(section("[Events]"), "//Break Periods\r\n2,2700,9100",
                        "...and the break after one starts sooner");
         undoAll();
@@ -3453,7 +3453,7 @@ class EditorTests {
         const auto idAt = [&](i32 timeMS) {
             const MapObjects &objects = *state.objects;
             for(uSz i = 0; i < objects.objects.size(); i++) {
-                if(objects.objects[i]->getClickTime() == timeMS) return objects.ids[i];
+                if(objects.objects[i].getClickTime() == timeMS) return objects.ids[i];
             }
             return Document::Id{0};
         };
@@ -3705,10 +3705,10 @@ class EditorTests {
                 const uSz count = objects->objects.size();
                 for(uSz i = 1; i < count; i += std::max<uSz>(count / 3, 1)) {
                     const Document::Id id = objects->ids[i];
-                    const neomod::HitObject &previous = *objects->objects[i - 1];
+                    const neomod::HitObject &previous = objects->objects[i - 1];
                     const vec2 before = previous.getOriginalRawPosAt(previous.getClickTime());
-                    const i32 earlier = objects->objects[i >= 3 ? i - 3 : 0]->getClickTime() - 1;
-                    const i32 later = objects->objects[std::min(i + 5, count - 1)]->getClickTime() + 1;
+                    const i32 earlier = objects->objects[i >= 3 ? i - 3 : 0].getClickTime() - 1;
+                    const i32 later = objects->objects[std::min(i + 5, count - 1)].getClickTime() + 1;
                     for(i32 step = 0; step < 3; step++) {
                         auto object = doc->getObject(id);
                         if(!object) break;
@@ -3757,7 +3757,7 @@ class EditorTests {
                 Compose &compose = state.compose;
                 std::vector<Document::Id> sliders;
                 for(uSz i = 0; i < state.objects->objects.size(); i++) {
-                    if(state.objects->objects[i]->isSlider()) sliders.push_back(state.objects->ids[i]);
+                    if(state.objects->objects[i].isSlider()) sliders.push_back(state.objects->ids[i]);
                 }
                 bool first = true;
                 for(uSz i = 0; i < sliders.size(); i += std::max<uSz>(sliders.size() / 3, 1)) {

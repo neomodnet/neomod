@@ -11,7 +11,7 @@
 class RenderTarget;
 struct Skin;
 namespace neomod {
-class HitObject;
+class HitObjects;
 }
 
 namespace Mc::Tests {
@@ -38,7 +38,7 @@ class PlayfieldTest : public App {
 
    private:
     struct Entry {
-        neomod::HitObject *obj;
+        u32 index;
         bool meshBuilt;
     };
 
@@ -52,9 +52,9 @@ class PlayfieldTest : public App {
     RenderTarget *m_sliderRT{nullptr};
     PlainPlayfieldView m_view{nullptr, vec2{0.f}, 1.f, 0.f};
 
-    std::vector<std::unique_ptr<neomod::HitObject>> m_objects;
-    std::vector<Entry> m_byEndTime;            // the draw order
-    std::vector<neomod::HitObject *> m_shown;  // posed for the frame being drawn, latest-ending first
+    std::unique_ptr<neomod::HitObjects> m_objects;
+    std::vector<Entry> m_byEndTime;  // the draw order
+    std::vector<u32> m_shown;        // posed for the frame being drawn, latest-ending first
     i32 m_firstTimeMS{0};
     i32 m_lastTimeMS{0};
 

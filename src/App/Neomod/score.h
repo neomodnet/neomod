@@ -8,9 +8,6 @@
 class ConVar;
 class DatabaseBeatmap;
 class GameplayJudge;
-namespace neomod {
-class HitObject;
-}  // namespace neomod
 
 namespace Replay {
 struct Frame;
@@ -197,8 +194,8 @@ class LiveScore final {
     void reset();  // only Beatmap may call this function!
 
     // only GameplayJudge may call this function!
-    void addHitResult(GameplayJudge *judge, neomod::HitObject *hitObject, LiveHitResult hit, i32 delta,
-                      bool ignoreOnHitErrorBar, bool hitErrorBarOnly, bool ignoreCombo, bool ignoreScore);
+    void addHitResult(GameplayJudge *judge, LiveHitResult hit, i32 delta, bool ignoreOnHitErrorBar,
+                      bool hitErrorBarOnly, bool ignoreCombo, bool ignoreScore);
 
     void addHitResultComboEnd(LiveHitResult hit);
     void addSliderBreak();  // only Beatmap may call this function!

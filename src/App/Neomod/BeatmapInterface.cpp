@@ -267,9 +267,10 @@ void BeatmapInterface::drawBackground() {
         y += 100;
 
         if(this->judge && !this->judge->getHitObjectsSortedByEndTime().empty()) {
-            const HitObject *lastHitObject = this->judge->getHitObjectsSortedByEndTime().back();
-            if(lastHitObject->isFinished() &&
-               this->fCurMusicPos > lastHitObject->getEndTime() + (i32)cv::end_skip_time.getInt()) {
+            const HitObjects &objects = this->judge->getHitObjects();
+            const u32 lastHitObject = this->judge->getHitObjectsSortedByEndTime().back();
+            if(objects.finished[lastHitObject] &&
+               this->fCurMusicPos > objects.endTimes[lastHitObject] + (i32)cv::end_skip_time.getInt()) {
                 g->setColor(0xff00ffff);
                 g->fillRect(50, y, 50, 50);
             }
@@ -833,12 +834,12 @@ void BeatmapInterface::actualRestart() {
 }
 
 void BeatmapInterface::seekToStart(bool quick) {
-    const auto hitobjects = this->judge->getHitObjects();
+    const HitObjects &hitobjects = this->judge->getHitObjects();
 
     // a test starts one approach time ahead of its start, so that what's there fades in fully, with what starts before
     // it left out (see test())
-    if(this->kind == PlayKind::TEST && !hitobjects.empty() && this->iTestStartMS > hitobjects.front()->getClickTime() &&
-       this->iTestStartMS <= hitobjects.back()->getClickTime()) {
+    if(this->kind == PlayKind::TEST && !hitobjects.empty() && this->iTestStartMS > hitobjects.clickTimes.front() &&
+       this->iTestStartMS <= hitobjects.clickTimes.back()) {
         this->judge->reset(this->iTestStartMS - 1, true);
         const i32 test_start_ms = this->iTestStartMS - (i32)this->getApproachTime() -
                                   this->music.getOffset(this->beatmap, this->judge->getMapVersion());
@@ -853,9 +854,9 @@ void BeatmapInterface::seekToStart(bool quick) {
     i32 start_ms = 0;
     if(quick && likely(!hitobjects.empty())) {
         const i32 retry_time = std::max(0, cv::quick_retry_time.getInt());
-        start_ms = std::max(hitobjects[0]->getClickTime() - retry_time, 0);
+        start_ms = std::max(hitobjects.clickTimes[0] - retry_time, 0);
     }
-    if(start_ms == 0 && likely(!hitobjects.empty()) && hitobjects[0]->getClickTime() < cv::early_note_time.getInt()) {
+    if(start_ms == 0 && likely(!hitobjects.empty()) && hitobjects.clickTimes[0] < cv::early_note_time.getInt()) {
         start_ms = -(i32)(cv::early_note_time.getFloat() * this->getSpeedMultiplier());
     }
     // a storyboard starting before that gets its lead-in (not on quick restarts)
@@ -877,7 +878,8 @@ std::optional<i32> BeatmapInterface::getStoryboardEnd() const {
 bool BeatmapInterface::isInOutro() const {
     const auto end = this->getStoryboardEnd();
     const auto sortedByEndTime = this->judge->getHitObjectsSortedByEndTime();
-    return end && !sortedByEndTime.empty() && this->fCurMusicPos > sortedByEndTime.back()->getEndTime() &&
+    return end && !sortedByEndTime.empty() &&
+           this->fCurMusicPos > this->judge->getHitObjects().endTimes[sortedByEndTime.back()] &&
            *end - this->fCurMusicPos > 3000;
 }
 
@@ -901,10 +903,10 @@ void BeatmapInterface::pause(bool quitIfWaiting) {
             // case 1: the beatmap is already "finished", jump to the ranking screen if some small amount of time past
             //         the last objects endTime
             // case 2: in the middle somewhere, pause as usual
+            const HitObjects &objects = this->judge->getHitObjects();
             const auto sortedByEndTime = this->judge->getHitObjectsSortedByEndTime();
-            const HitObject *lastHitObject = !sortedByEndTime.empty() ? sortedByEndTime.back() : nullptr;
-            if(lastHitObject != nullptr && lastHitObject->isFinished() &&
-               (this->fCurMusicPos > lastHitObject->getEndTime() + (i32)cv::end_skip_time.getInt()) &&
+            if(!sortedByEndTime.empty() && objects.finished[sortedByEndTime.back()] &&
+               (this->fCurMusicPos > objects.endTimes[sortedByEndTime.back()] + (i32)cv::end_skip_time.getInt()) &&
                cv::end_skip.getBool()) {
                 this->stop(false);
             } else {
@@ -1187,7 +1189,7 @@ u32 BeatmapInterface::getTime() const { return (u32)std::max(std::round(this->mu
 
 u32 BeatmapInterface::getStartTimePlayable() const {
     if(this->judge && !this->judge->getHitObjects().empty())
-        return (u32)this->judge->getHitObjects()[0]->getClickTime();
+        return (u32)this->judge->getHitObjects().clickTimes[0];
     else
         return 0;
 }
@@ -1608,8 +1610,8 @@ void BeatmapInterface::draw() {
 
     // draw followpoints
     if(cv::draw_followpoints.getBool() && !cv::mod_mafham.getBool())
-        HitObjects::drawFollowPoints(*this, this->judge->getHitObjects(),
-                                     (uSz)std::max(0, this->judge->getPreviousFollowPointObjectIndex()));
+        HitObjectDrawing::drawFollowPoints(*this, this->judge->getHitObjects(),
+                                           (uSz)std::max(0, this->judge->getPreviousFollowPointObjectIndex()));
 
     // draw all hitobjects in reverse
     if(cv::draw_hitobjects.getBool()) this->drawHitObjects();
@@ -1629,9 +1631,9 @@ void BeatmapInterface::draw() {
 
     // debug stuff
     if(cv::debug_hiterrorbar_misaims.getBool()) {
-        for(const auto *misaimObject : this->judge->getMisaimObjects()) {
+        for(const u32 misaimObject : this->judge->getMisaimObjects()) {
             g->setColor(0xbb00ff00);
-            vec2 pos = this->osuCoords2Pixels(misaimObject->getRawPosAt(0));
+            vec2 pos = this->osuCoords2Pixels(this->judge->getHitObjects()[misaimObject].getRawPosAt(0));
             g->fillRect(pos.x - 50, pos.y - 50, 100, 100);
         }
     }
@@ -1807,6 +1809,7 @@ void BeatmapInterface::drawContinue() {
 void BeatmapInterface::drawHitObjects() {
     const f64 curPos = this->fCurMusicPosWithOffsets;
     const i32 pvs = this->judge->getPVS();
+    const HitObjects &objects = this->judge->getHitObjects();
     const auto hitobjectsSortedByEndTime = this->judge->getHitObjectsSortedByEndTime();
     const i32 currentHitObjectIndex = this->judge->getCurrentHitObjectIndex();
     const bool usePVS = cv::pvs.getBool();
@@ -1821,14 +1824,15 @@ void BeatmapInterface::drawHitObjects() {
                                        : (sSz)hitobjectsSortedByEndTime.size();
         for(sSz i = firstFuture - 1; i >= 0; i--) {
             // PVS optimization (reversed)
-            HitObject *obj = hitobjectsSortedByEndTime[i];
+            const u32 obj = hitobjectsSortedByEndTime[i];
             if(likely(usePVS)) {
                 // freeze frame shows a whole combo once it starts
-                if((freezeFrame ? obj->getComboStartTime() : obj->getClickTime()) > curPos + pvs)  // future objects
+                if((freezeFrame ? objects.comboStartTimes[obj] : objects.clickTimes[obj]) >
+                   curPos + pvs)  // future objects
                     continue;
 
-                const i32 endTime = obj->getEndTime();
-                if(obj->isFinished() && (curPos - pvs > endTime))  // past objects
+                const i32 endTime = objects.endTimes[obj];
+                if(objects.finished[obj] && (curPos - pvs > endTime))  // past objects
                     break;
 
                 if(endTime > mostDistantEndTimeDrawn) mostDistantEndTimeDrawn = endTime;
@@ -1837,7 +1841,7 @@ void BeatmapInterface::drawHitObjects() {
             this->objectsToDraw.push_back(obj);
         }
 
-        HitObjects::draw(this->objectsToDraw, osu->getSliderFrameBuffer());
+        HitObjectDrawing::draw(objects, this->objectsToDraw, osu->getSliderFrameBuffer());
 
         // this avoids PVS culling objects which are overlapped before the end of other objects, like circles appearing before
         // sliders are finished causing the initial slider approach circle to not be drawn
@@ -1846,26 +1850,27 @@ void BeatmapInterface::drawHitObjects() {
 
         // this doesn't need the spinner front-to-back thing because spinners have no draw2
         const uSz firstLive = usePVS ? this->judge->getFirstLiveObjectByEndTime(curPos - pvs) : 0;
-        for(auto *obj : hitobjectsSortedByEndTime.subspan(firstLive)) {
+        for(const u32 obj : hitobjectsSortedByEndTime.subspan(firstLive)) {
             // NOTE: to fix mayday simultaneous sliders with increasing endtime getting culled here, would have to
             // switch from m_hitobjectsSortedByEndTime to m_hitobjects PVS optimization
             if(likely(usePVS)) {
-                if(obj->isFinished() && (curPos - pvs > obj->getEndTime()))  // past objects
+                if(objects.finished[obj] && (curPos - pvs > objects.endTimes[obj]))  // past objects
                     continue;
 
-                if((obj->getClickTime() > mostDistantFutureObjectPVS))  // future objects
+                if((objects.clickTimes[obj] > mostDistantFutureObjectPVS))  // future objects
                     break;
             }
 
-            obj->draw2();
+            objects[obj].draw2();
         }
     } else {
         // the slider bodies are queued before any of the objects is drawn, so their fields render together
-        const auto drawObjects = [](std::span<HitObject *const> objects) {
+        const auto drawObjects = [&objects](std::span<const u32> indices) {
             SliderRenderer::Batch sliderBodies{osu->getSliderFrameBuffer()};
-            for(const HitObject *obj : objects)
-                if(obj->isSlider()) sliderBodies.queue(*static_cast<const Slider *>(obj));
-            for(HitObject *obj : objects) obj->draw();
+            for(const u32 obj : indices)
+                if(objects.types[obj] == HitObjectType::SLIDER)
+                    sliderBodies.queue(static_cast<const Slider &>(objects[obj]));
+            for(const u32 obj : indices) objects[obj].draw();
         };
 
         const int mafhamRenderLiveSize = cv::mod_mafham_render_livesize.getInt();
@@ -1897,14 +1902,13 @@ void BeatmapInterface::drawHitObjects() {
 
                 // PVS optimization (reversed)
                 if(likely(usePVS)) {
-                    if(hitobjectsSortedByEndTime[i]->isFinished() &&
-                       (curPos - pvs > hitobjectsSortedByEndTime[i]->getClickTime() +
-                                           hitobjectsSortedByEndTime[i]->getDuration()))  // past objects
+                    if(objects.finished[hitobjectsSortedByEndTime[i]] &&
+                       (curPos - pvs > objects.endTimes[hitobjectsSortedByEndTime[i]]))  // past objects
                     {
                         this->iMafhamHitObjectRenderIndex = hitobjectsSortedByEndTime.size();  // stop chunk render
                         break;
                     }
-                    if(hitobjectsSortedByEndTime[i]->getClickTime() > curPos + pvs)  // future objects
+                    if(objects.clickTimes[hitobjectsSortedByEndTime[i]] > curPos + pvs)  // future objects
                         continue;
                 }
 
@@ -1949,8 +1953,8 @@ void BeatmapInterface::drawHitObjects() {
 
         // draw followpoints
         if(cv::draw_followpoints.getBool())
-            HitObjects::drawFollowPoints(*this, this->judge->getHitObjects(),
-                                         (uSz)std::max(0, this->judge->getPreviousFollowPointObjectIndex()));
+            HitObjectDrawing::drawFollowPoints(*this, this->judge->getHitObjects(),
+                                               (uSz)std::max(0, this->judge->getPreviousFollowPointObjectIndex()));
 
         // draw live hitobjects (also, code duplication yay)
         {
@@ -1958,11 +1962,10 @@ void BeatmapInterface::drawHitObjects() {
             for(int i = hitobjectsSortedByEndTime.size() - 1; i >= 0; i--) {
                 // PVS optimization (reversed)
                 if(likely(usePVS)) {
-                    if(hitobjectsSortedByEndTime[i]->getClickTime() > curPos + pvs)  // future objects
+                    if(objects.clickTimes[hitobjectsSortedByEndTime[i]] > curPos + pvs)  // future objects
                         continue;
-                    if(hitobjectsSortedByEndTime[i]->isFinished() &&
-                       (curPos - pvs > hitobjectsSortedByEndTime[i]->getClickTime() +
-                                           hitobjectsSortedByEndTime[i]->getDuration()))  // past objects
+                    if(objects.finished[hitobjectsSortedByEndTime[i]] &&
+                       (curPos - pvs > objects.endTimes[hitobjectsSortedByEndTime[i]]))  // past objects
                         break;
                 }
 
@@ -1977,11 +1980,10 @@ void BeatmapInterface::drawHitObjects() {
             for(int i = 0; i < hitobjectsSortedByEndTime.size(); i++) {
                 // PVS optimization
                 if(likely(usePVS)) {
-                    if(hitobjectsSortedByEndTime[i]->isFinished() &&
-                       (curPos - pvs > hitobjectsSortedByEndTime[i]->getClickTime() +
-                                           hitobjectsSortedByEndTime[i]->getDuration()))  // past objects
+                    if(objects.finished[hitobjectsSortedByEndTime[i]] &&
+                       (curPos - pvs > objects.endTimes[hitobjectsSortedByEndTime[i]]))  // past objects
                         continue;
-                    if(hitobjectsSortedByEndTime[i]->getClickTime() > curPos + pvs)  // future objects
+                    if(objects.clickTimes[hitobjectsSortedByEndTime[i]] > curPos + pvs)  // future objects
                         break;
                 }
 
@@ -1989,7 +1991,7 @@ void BeatmapInterface::drawHitObjects() {
                    (i >= this->iMafhamFinishedRenderHitObjectIndex - 1 && shouldDrawBuffer))  // skip non-live objects
                     break;
 
-                hitobjectsSortedByEndTime[i]->draw2();
+                objects[hitobjectsSortedByEndTime[i]].draw2();
             }
         }
     }
@@ -2028,7 +2030,7 @@ void BeatmapInterface::update() {
         f64 delta = 0.0;
 
         // hardcoded deadline of 10 ms, will temporarily bring us down to 45fps on average (better than freezing)
-        const auto hitobjects = this->judge->getHitObjects();
+        const HitObjects &hitobjects = this->judge->getHitObjects();
         while(delta < 0.010 && this->bIsPreLoading) {
             if(this->iPreLoadingIndex >= hitobjects.size()) {
                 // (and for the map's skin elements to load, see loadBeatmapSkin())
@@ -2039,7 +2041,7 @@ void BeatmapInterface::update() {
                 debugLog("Beatmap: Preloading done.");
                 break;
             } else {
-                hitobjects[this->iPreLoadingIndex]->rebuildVertexBuffer();
+                hitobjects[this->iPreLoadingIndex].rebuildVertexBuffer();
             }
 
             this->iPreLoadingIndex++;
@@ -2082,10 +2084,10 @@ void BeatmapInterface::update() {
     }
 
     // singletap/fullalternate mod lenience: the first press after a non-gameplay period may use any key
-    const auto hitobjects = this->judge->getHitObjects();
+    const HitObjects &hitobjects = this->judge->getHitObjects();
     const bool beforeFirstHitObject =
         !hitobjects.empty() &&
-        this->fCurMusicPosWithOffsets < hitobjects[0]->getClickTime() - (i32)this->judge->getHitWindow50();
+        this->fCurMusicPosWithOffsets < hitobjects.clickTimes[0] - (i32)this->judge->getHitWindow50();
     if(this->bInBreak || this->bIsInSkippableSection || this->judge->isSpinnerActive() || beforeFirstHitObject) {
         this->lastPressedKey = 0;
     }
@@ -2132,13 +2134,13 @@ void BeatmapInterface::update2() {
     const bool wasSeekFrame = this->bWasSeekFrame;
     this->bWasSeekFrame = false;
 
-    const auto hitobjects = this->judge->getHitObjects();
+    const HitObjects &hitobjects = this->judge->getHitObjects();
 
     // handle timewarp
     if(cv::mod_timewarp.getBool()) {
-        if(likely(!hitobjects.empty()) && this->fCurMusicPos > hitobjects[0]->getClickTime()) {
-            const f32 percentFinished = ((this->fCurMusicPos - hitobjects[0]->getClickTime()) /
-                                         (f64)(hitobjects.back()->getEndTime() - hitobjects[0]->getClickTime()));
+        if(likely(!hitobjects.empty()) && this->fCurMusicPos > hitobjects.clickTimes[0]) {
+            const f32 percentFinished = ((this->fCurMusicPos - hitobjects.clickTimes[0]) /
+                                         (f64)(hitobjects.endTimes.back() - hitobjects.clickTimes[0]));
             f32 warp_multiplier = std::max(cv::mod_timewarp_multiplier.getFloat(), 1.f);
             const f32 speed =
                 this->getSpeedMultiplier() + percentFinished * this->getSpeedMultiplier() * (warp_multiplier - 1.0f);
@@ -2201,7 +2203,7 @@ void BeatmapInterface::update2() {
         const bool isTimePastLastHitObjectPlusLenience =
             !sortedByEndTime.empty() &&
             (this->fCurMusicPos >
-             std::max(sortedByEndTime.back()->getEndTime() + (i32)cv::end_delay_time.getInt(), storyboardEnd));
+             std::max(hitobjects.endTimes[sortedByEndTime.back()] + (i32)cv::end_delay_time.getInt(), storyboardEnd));
         if(!hasAnyHitObjects || (cv::end_skip.getBool() && isTimePastLastHitObjectPlusLenience) ||
            (!cv::end_skip.getBool() && isMusicFinished && this->fCurMusicPos > storyboardEnd)) {
             if(!this->judge->hasFailed()) {
@@ -2382,7 +2384,7 @@ void BeatmapInterface::update2() {
 
     // warning arrow logic
     if(likely(!hitobjects.empty())) {
-        const i32 legacyOffset = (previousHitObjectTime < hitobjects[0]->getClickTime() ? 0 : 1000);  // Mc
+        const i32 legacyOffset = (previousHitObjectTime < hitobjects.clickTimes[0] ? 0 : 1000);  // Mc
         const i32 minGapSize = 1000;
         const i32 lastVisibleMin = 400;
         const i32 blinkDelta = 100;
@@ -2432,8 +2434,8 @@ void BeatmapInterface::update2() {
             (gapSize / 2 > minGapSize ? previousHitObjectTime + (gapSize / 2) : nextHitObjectTime - minGapSize);
         const f64 nextDelta = this->fCurMusicPosWithOffsets - start;
         const bool inSectionPassFail =
-            (gapSize > minGapSize && nextDelta > 0) && this->fCurMusicPosWithOffsets > hitobjects[0]->getClickTime() &&
-            this->fCurMusicPosWithOffsets < this->judge->getHitObjectsSortedByEndTime().back()->getEndTime() &&
+            (gapSize > minGapSize && nextDelta > 0) && this->fCurMusicPosWithOffsets > hitobjects.clickTimes[0] &&
+            this->fCurMusicPosWithOffsets < hitobjects.endTimes[this->judge->getHitObjectsSortedByEndTime().back()] &&
             !this->judge->hasFailed() && this->bInBreak && (breakEvent.endTime - breakEvent.startTime) > minGapSize;
 
         const bool passing = (this->judge->getHealth() >= 0.5);
@@ -2570,10 +2572,10 @@ bool BeatmapInterface::clickableHitobjectAt(vec2 cursor_pos) const {
     const vec2 replayCursorPos = this->pixels2ReplayCoords(cursor_pos);
     const i32 musicPos = this->getJudgeMusicPos();
 
-    const auto hitobjects = this->judge->getHitObjects();
-    for(const auto &h : hitobjects.subspan(this->judge->getFirstLiveObject(musicPos))) {
-        if(h->getClickTime() - musicPos > (i32)GameRules::HITWINDOW_MISS) break;
-        if(h->isClickableFrom(musicPos, replayCursorPos)) return true;
+    const HitObjects &hitobjects = this->judge->getHitObjects();
+    for(uSz i = this->judge->getFirstLiveObject(musicPos); i < hitobjects.size(); i++) {
+        if(hitobjects.clickTimes[i] - musicPos > (i32)GameRules::HITWINDOW_MISS) break;
+        if(hitobjects[i].isClickableFrom(musicPos, replayCursorPos)) return true;
     }
 
     return false;
@@ -3174,9 +3176,8 @@ void BeatmapInterface::updateSliderVertexBuffers() {
 
     debugLog("rebuilding for {:d} hitobjects ...", this->judge->getHitObjects().size());
 
-    for(const auto &hitobject : this->judge->getHitObjects()) {
-        hitobject->rebuildVertexBuffer();
-    }
+    const HitObjects &hitobjects = this->judge->getHitObjects();
+    for(uSz i = 0; i < hitobjects.size(); i++) hitobjects[i].rebuildVertexBuffer();
 }
 
 f32 BeatmapInterface::getBaseAnimationSpeed() const { return osu->getAnimationSpeedMultiplier(); }

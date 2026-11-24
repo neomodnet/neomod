@@ -23,10 +23,6 @@ class Shader;
 class ConVar;
 struct Skin;
 class Resource;
-namespace neomod {
-class HitObject;
-}  // namespace neomod
-
 class DatabaseBeatmap;
 class SpectatorScreen;
 struct LiveReplayFrame;
@@ -381,7 +377,7 @@ class BeatmapInterface final : public GameplayJudge::Listener, public PlayfieldV
     bool bClickedContinue;
     u8 lastPressedKey{0};
 
-    std::vector<neomod::HitObject *> objectsToDraw;  // for drawHitObjects, temp buffer
+    std::vector<u32> objectsToDraw;  // for drawHitObjects, temp buffer
 
    private:
     void playNightcoreBeats(bool wasSeekFrame = false);

@@ -38,9 +38,9 @@ class MapObjects {
 
     // where and how big the objects are drawn: the drawer sets the skin, the playfield place and scale
     PlainPlayfieldView view{nullptr, vec2{0.f}, 1.f, 0.f};
-    std::vector<std::unique_ptr<neomod::HitObject>> objects;  // in time order
-    std::vector<Document::Id> ids;                            // the line each one is on
-    Hash::flat::map<Document::Id, uSz> indexes;               // into objects, by line
+    neomod::HitObjects objects;                  // in time order
+    std::vector<Document::Id> ids;               // the line each one is on
+    Hash::flat::map<Document::Id, uSz> indexes;  // into objects, by line
     std::vector<Shown> byEndTime;
     i32 longestObjectMS{0};  // the longest an object lasts (how far after its start it can end)
     u32 revision;            // the document revision they were made from
@@ -48,7 +48,7 @@ class MapObjects {
     // the object made from the line with this id (none: no object comes from it)
     [[nodiscard]] neomod::HitObject *find(Document::Id id) const {
         const auto it = this->indexes.find(id);
-        return it != this->indexes.end() ? this->objects[it->second].get() : nullptr;
+        return it != this->indexes.end() ? &this->objects[it->second] : nullptr;
     }
     // the index of the first object starting at timeMS or later (the number of objects if none does)
     [[nodiscard]] uSz firstFrom(i32 timeMS) const;

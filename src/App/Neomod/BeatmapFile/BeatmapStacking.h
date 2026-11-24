@@ -8,17 +8,20 @@
 #include <concepts>
 #include <type_traits>
 
-namespace neomod {
-class HitObject;
-namespace DiffCalc {
-class DifficultyHitObject;
-}
-}  // namespace neomod
-
 namespace neomod::Primitives {
 
+// what stacking reads from an object
 template <typename T>
-concept HitObjectContainer = std::is_same_v<T, DiffCalc::DifficultyHitObject> || std::is_same_v<T, HitObject>;
+concept HitObjectContainer = requires(T &object, i32 time) {
+    { object.isCircle() } -> std::same_as<bool>;
+    { object.isSlider() } -> std::same_as<bool>;
+    { object.isSpinner() } -> std::same_as<bool>;
+    { object.getClickTime() } -> std::same_as<i32>;
+    { object.getEndTime() } -> std::same_as<i32>;
+    { object.getDuration() } -> std::same_as<i32>;
+    { object.getOriginalRawPosAt(time) } -> std::same_as<vec2>;
+    { object.getStack() } -> std::same_as<i32>;
+};
 
 // a callable giving the object at an index
 template <typename G>

@@ -219,9 +219,7 @@ void UIDebug::debugAssert(std::string_view args) {
         // how many of the played map's hitobjects are done (hit, missed or past)
         const GameplayJudge *judge = osu->getMapInterface()->getJudge();
         const auto expected = Parsing::strto<i32>(parts[2]);
-        const auto actual =
-            judge ? (i32)Mc::ranges::count_if(judge->getHitObjects(), [](const auto &h) { return h->isFinished(); })
-                  : -1;
+        const auto actual = judge ? (i32)Mc::ranges::count(judge->getHitObjects().finished, u8{1}) : -1;
         logRaw("UITEST {} play finished expected={} actual={}", actual == expected ? "OK" : "FAIL", expected, actual);
         return;
     }

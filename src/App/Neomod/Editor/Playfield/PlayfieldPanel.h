@@ -64,7 +64,7 @@ class PlayfieldPanel final : public CBaseUIElement {
     void drawReadout();
 
     EditorState &state;
-    std::vector<neomod::HitObject *> shown;  // posed for the frame drawn, latest-ending first
+    std::vector<u32> shown;  // posed for the frame drawn, latest-ending first
     f32 scale{1.f};
     vec2 offset{0.f};
     Gesture gesture{Gesture::NONE};

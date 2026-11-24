@@ -1474,16 +1474,16 @@ void Editor::seek(Command command) {
     switch(command) {
         case Command::FIRST_OBJECT:
             // from the first object, back to the start, stopped
-            if(objects.empty() || objects.front()->getClickTime() == time) {
+            if(objects.empty() || objects.clickTimes.front() == time) {
                 clock.pause();
                 clock.seek(0);
             } else {
-                clock.seek(objects.front()->getClickTime());
+                clock.seek(objects.clickTimes.front());
             }
             break;
         case Command::LAST_OBJECT:
-            if(!objects.empty() && time < objects.back()->getEndTime()) {
-                clock.seek(objects.back()->getEndTime());
+            if(!objects.empty() && time < objects.endTimes.back()) {
+                clock.seek(objects.endTimes.back());
             } else {
                 clock.seek(std::max(0, (i32)clock.getLength() - 500));
             }

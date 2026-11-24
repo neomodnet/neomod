@@ -203,8 +203,8 @@ void SpectatorScreen::controlClientState() {
             }
         } else {
             const auto sortedByEndTime = map_iface->judge->getHitObjectsSortedByEndTime();
-            const neomod::HitObject *lastHitObject = !sortedByEndTime.empty() ? sortedByEndTime.back() : nullptr;
-            bool is_finished = lastHitObject != nullptr && lastHitObject->isFinished();
+            bool is_finished =
+                !sortedByEndTime.empty() && map_iface->judge->getHitObjects().finished[sortedByEndTime.back()];
 
             if(leeway <= 0 && !is_finished) {
                 debugLog("PAUSING: leeway: {:d}, music pos: {:d}", leeway, map_iface->getJudgeMusicPos());

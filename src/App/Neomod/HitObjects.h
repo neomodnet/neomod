@@ -44,20 +44,9 @@ enum class HitObjectType : uint8_t {
     SPINNER,
 };
 
-class HitObject {
-   public:
-    // TEMP constructor helpers (HitObjects::create, DatabaseBeatmap::loadGameplay)
-    void setComboStartTime(i32 tms) { m_comboStartMS = tms; }
-    void setComboNumber(i32 comboNumber) { m_comboNumber = comboNumber; }
-    // its combo counted again (see Primitives::countCombos())
-    void setCombo(i32 comboNumber, i32 colorCounter, i32 colorOffset, bool isEndOfCombo) {
-        m_comboNumber = comboNumber;
-        m_colorCounter = colorCounter;
-        m_colorOffset = colorOffset;
-        m_endOfCombo = isEndOfCombo;
-    }
-    void setLine(u32 line) { m_line = line; }
+class HitObjects;
 
+class HitObject {
    public:
     // a sound a perfect play makes: what judgement plays when the object, or a part of it, is hit at its time
     struct SoundCue {
@@ -78,9 +67,10 @@ class HitObject {
                               f32 hitDeltaRangePercent);
 
    protected:  // only constructable through subclasses
+    // the one at index among objects, whose fields there it reads and writes.
     // judge: what judges it (NULL: never updated), view: what it's drawn on (NULL: never drawn)
-    HitObject(i32 timeMS, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, i32 comboNumber, bool isEndOfCombo,
-              i32 colorCounter, i32 colorOffset, GameplayJudge *judge, const PlayfieldView *view);
+    HitObject(HitObjects &objects, u32 index, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, GameplayJudge *judge,
+              const PlayfieldView *view);
 
    public:
     HitObject() = delete;
@@ -88,8 +78,8 @@ class HitObject {
 
     HitObject(const HitObject &) = delete;
     HitObject &operator=(const HitObject &) = delete;
-    HitObject(HitObject &&) noexcept = default;
-    HitObject &operator=(HitObject &&) noexcept = default;
+    HitObject(HitObject &&) noexcept = delete;
+    HitObject &operator=(HitObject &&) noexcept = delete;
 
     virtual void animate(f64 curPosMS);
     virtual void draw() {}
@@ -108,28 +98,27 @@ class HitObject {
     virtual void miss(i32 /*curPos*/) {}                                         // only used by notelock
     [[nodiscard]] virtual bool isClickableFrom(i32 /*music_pos*/, vec2 /*cursor_pos*/) const { return false; }
 
-    // [[nodiscard]] virtual constexpr forceinline i32 getCombo() const {
-    //     return 1;
-    // }  // how much combo this hitobject is "worth"
+    // where it is among the objects
+    [[nodiscard]] u32 getIndex() const { return m_index; }
 
-    [[nodiscard]] forceinline HitObjectType getType() const { return m_type; }
-    [[nodiscard]] forceinline bool isCircle() const { return m_type == HitObjectType::CIRCLE; }
-    [[nodiscard]] forceinline bool isSlider() const { return m_type == HitObjectType::SLIDER; }
-    [[nodiscard]] forceinline bool isSpinner() const { return m_type == HitObjectType::SPINNER; }
+    [[nodiscard]] HitObjectType getType() const;
+    [[nodiscard]] bool isCircle() const { return this->getType() == HitObjectType::CIRCLE; }
+    [[nodiscard]] bool isSlider() const { return this->getType() == HitObjectType::SLIDER; }
+    [[nodiscard]] bool isSpinner() const { return this->getType() == HitObjectType::SPINNER; }
 
     // Gameplay logic
-    [[nodiscard]] forceinline i32 getEndTime() const { return m_clickTimeMS + m_durationMS; }
-    [[nodiscard]] forceinline i32 getClickTime() const { return m_clickTimeMS; }
-    [[nodiscard]] forceinline i32 getDuration() const { return m_durationMS; }
+    [[nodiscard]] i32 getEndTime() const;
+    [[nodiscard]] i32 getClickTime() const;
+    [[nodiscard]] i32 getDuration() const { return this->getEndTime() - this->getClickTime(); }
 
-    [[nodiscard]] forceinline bool isEndOfCombo() const { return m_endOfCombo; }
+    [[nodiscard]] bool isEndOfCombo() const;
 
     // Visual
-    [[nodiscard]] forceinline i32 getComboStartTime() const { return m_comboStartMS; }
-    [[nodiscard]] forceinline i32 getComboNumber() const { return m_comboNumber; }
+    [[nodiscard]] i32 getComboStartTime() const;
+    [[nodiscard]] i32 getComboNumber() const;
 
     // the line in its file it was read from (1-based, 0: not from a file)
-    [[nodiscard]] forceinline u32 getLine() const { return m_line; }
+    [[nodiscard]] u32 getLine() const;
 
     void addHitResult(LiveHitResult result, i32 delta, bool isEndOfCombo, vec2 posRaw, f32 targetDeltaPct = 0.0f,
                       f32 targetAngle = 0.0f, bool ignoreOnHitErrorBar = false, bool ignoreCombo = false,
@@ -137,32 +126,25 @@ class HitObject {
     // shows a hit result at posRaw without judging anything
     void addHitResultAnim(LiveHitResult result, i32 delta, vec2 posRaw,
                           bool addObjectDurationToSkinAnimationTimeStartOffset);
-    void misAimed() { m_misAim = true; }
 
-    void setStack(i32 stack) { m_stackNum = stack; }
     void setForceDrawApproachCircle(bool firstNote) { m_overrideHDApproachCircle = firstNote; }
     // draws a slider border or a spinner in this colour instead of its own (none: its own)
     void setTint(std::optional<Color> tint) { m_tint = tint; }
-    void setAutopilotDelta(i32 deltaMS) { m_autopilotDeltaMS = deltaMS; }
-    void setBlocked(bool blocked) { m_blocked = blocked; }
 
     [[nodiscard]] virtual vec2 getRawPosAt(i32 posMS) const = 0;          // with stack calculation modifications
     [[nodiscard]] virtual vec2 getOriginalRawPosAt(i32 posMS) const = 0;  // without stack calculations
     [[nodiscard]] virtual vec2 getAutoCursorPos(i32 curPosMS) const = 0;
 
-    [[nodiscard]] inline i32 getStack() const { return m_stackNum; }
-    [[nodiscard]] inline i32 getColorCounter() const { return m_colorCounter; }
-    [[nodiscard]] inline i32 getColorOffset() const { return m_colorOffset; }
+    [[nodiscard]] i32 getStack() const;
+    [[nodiscard]] i32 getColorCounter() const;
+    [[nodiscard]] i32 getColorOffset() const;
     [[nodiscard]] inline f32 getApproachScale() const { return m_approachScale; }
     [[nodiscard]] inline i32 getDelta() const { return m_deltaMS; }
     [[nodiscard]] inline i32 getApproachTime() const { return m_approachTimeMS; }
-    [[nodiscard]] inline i32 getAutopilotDelta() const { return m_autopilotDeltaMS; }
 
-    [[nodiscard]] inline bool isVisible() const { return m_visible; }
+    [[nodiscard]] bool isVisible() const;
     [[nodiscard]] bool isVisibleAt(f64 curPosMS) const;
-    [[nodiscard]] inline bool isFinished() const { return m_finished; }
-    [[nodiscard]] inline bool isBlocked() const { return m_blocked; }
-    [[nodiscard]] inline bool hasMisAimed() const { return m_misAim; }
+    [[nodiscard]] bool isFinished() const;
 
     virtual void onClickEvent(std::vector<Click> & /*clicks*/) { ; }
     virtual void onReset(i32 curPosMS);
@@ -174,6 +156,21 @@ class HitObject {
     // the fades, approach, Hidden, the hittable dim and visibility at curPosMS.
     // animate() passes view mods and judge timing.
     void updateLook(f64 curPosMS, ModFlags mods, f32 approachTimeMS, f32 speedAdjustedAnimationSpeed);
+
+    // its fields in the arrays
+    [[nodiscard]] i32 clickTimeMS() const;
+    [[nodiscard]] i32 durationMS() const { return this->getDuration(); }
+    [[nodiscard]] i32 comboStartMS() const;
+    [[nodiscard]] i32 comboNumber() const;
+    [[nodiscard]] i32 colorCounter() const;
+    [[nodiscard]] i32 colorOffset() const;
+    [[nodiscard]] bool endOfCombo() const;
+    [[nodiscard]] i32 stack() const;
+    [[nodiscard]] u8 &finished() const;
+    [[nodiscard]] u8 &blocked() const;
+    [[nodiscard]] u8 &misAim() const;
+    [[nodiscard]] u8 &visible() const;
+    [[nodiscard]] i32 &autopilotDelta() const;
 
    private:
     static f32 lerp3f(f32 a, f32 b, f32 c, f32 percent);
@@ -200,28 +197,18 @@ class HitObject {
     HITRESULTANIM m_hitresultanim2;
 
    protected:
+    HitObjects &m_objects;
+    u32 m_index;
     GameplayJudge *m_judge;       // what judges it (NULL: never updated)
     const PlayfieldView *m_view;  // what it's drawn on (NULL: never drawn, no draw-only animations)
 
     [[nodiscard]] bool animatesHits() const;
 
-    i32 m_comboStartMS{0};  // for freeze time mod
-    i32 m_clickTimeMS;
-    i32 m_durationMS{0};
-
-    i32 m_comboNumber;
-
     i32 m_deltaMS{0};  // this must be signed
     i32 m_approachTimeMS{0};
     i32 m_fadeInTimeMS{0};  // extra time added before the approachTime to let the object smoothly become visible
-    i32 m_autopilotDeltaMS{0};
 
     DatabaseBeatmapTypes::HITSAMPLE_BITS m_hitSamples;
-    i32 m_colorCounter;
-    i32 m_colorOffset;
-
-    i32 m_stackNum{0};
-    u32 m_line{0};
 
     f32 m_alpha{0.f};
     f32 m_alphaWithoutHidden{0.f};
@@ -233,15 +220,8 @@ class HitObject {
     f32 m_trailApproachScale{1.f};
     std::optional<Color> m_tint;
 
-    bool m_blocked{false};
     bool m_overrideHDApproachCircle{false};
-    bool m_misAim{false};
     bool m_useFadeInTimeAsApproachTime{false};
-    bool m_visible{false};
-    bool m_finished{false};
-
-    bool m_endOfCombo;
-    HitObjectType m_type{HitObjectType::CIRCLE};
 };
 
 class Circle final : public HitObject {
@@ -280,13 +260,13 @@ class Circle final : public HitObject {
     Circle() = delete;
     ~Circle() override;
 
-    Circle(vec2 pos, i32 timeMS, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, i32 comboNumber, bool isEndOfCombo,
-           i32 colorCounter, i32 colorOffset, GameplayJudge *judge, const PlayfieldView *view);
+    Circle(HitObjects &objects, u32 index, vec2 pos, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, GameplayJudge *judge,
+           const PlayfieldView *view);
 
     Circle(const Circle &) = delete;
     Circle &operator=(const Circle &) = delete;
-    Circle(Circle &&) noexcept = default;
-    Circle &operator=(Circle &&) noexcept = default;
+    Circle(Circle &&) noexcept = delete;
+    Circle &operator=(Circle &&) noexcept = delete;
 
     void draw() override;
     void draw2() override;
@@ -336,16 +316,16 @@ class Slider final : public HitObject, public SliderRenderer::BodySource {
     Slider() = delete;
     ~Slider() override;
 
-    Slider(neomod::SLIDERCURVETYPE stype, i32 repeat, f32 pixelLength, std::span<const vec2> points,
-           std::span<const f32> ticks, f32 sliderTimeMS, f32 sliderTimeMSWithoutRepeats, i32 timeMS,
+    Slider(HitObjects &objects, u32 index, neomod::SLIDERCURVETYPE stype, i32 repeat, f32 pixelLength,
+           std::span<const vec2> points, std::span<const f32> ticks, f32 sliderTimeMS, f32 sliderTimeMSWithoutRepeats,
            DatabaseBeatmapTypes::HITSAMPLE_BITS hoverSamples,
-           std::vector<DatabaseBeatmapTypes::HITSAMPLE_BITS> edgeSamples, i32 comboNumber, bool isEndOfCombo,
-           i32 colorCounter, i32 colorOffset, GameplayJudge *judge, const PlayfieldView *view);
+           std::vector<DatabaseBeatmapTypes::HITSAMPLE_BITS> edgeSamples, GameplayJudge *judge,
+           const PlayfieldView *view);
 
     Slider(const Slider &) = delete;
     Slider &operator=(const Slider &) = delete;
-    Slider(Slider &&) noexcept = default;
-    Slider &operator=(Slider &&) noexcept = default;
+    Slider(Slider &&) noexcept = delete;
+    Slider &operator=(Slider &&) noexcept = delete;
 
     void animate(f64 curPosMS) override;
     void draw() override;
@@ -480,14 +460,14 @@ class Slider final : public HitObject, public SliderRenderer::BodySource {
 class Spinner final : public HitObject {
    public:
     Spinner() = delete;
-    Spinner(vec2 pos, i32 timeMS, DatabaseBeatmapTypes::HITSAMPLE_BITS samples, bool isEndOfCombo, i32 endTimeMS,
+    Spinner(HitObjects &objects, u32 index, vec2 pos, DatabaseBeatmapTypes::HITSAMPLE_BITS samples,
             GameplayJudge *judge, const PlayfieldView *view);
     ~Spinner() override;
 
     Spinner(const Spinner &) = delete;
     Spinner &operator=(const Spinner &) = delete;
-    Spinner(Spinner &&) noexcept = default;
-    Spinner &operator=(Spinner &&) noexcept = default;
+    Spinner(Spinner &&) noexcept = delete;
+    Spinner &operator=(Spinner &&) noexcept = delete;
 
     void draw() override;
     void update(i32 curPosMS, f64 frameTimeSecs) override;
@@ -537,33 +517,72 @@ class Spinner final : public HitObject {
     bool m_hitSuccess{false};  // non-miss result ("spinner-osu")
 };
 
-// a map's objects as a whole, sorted by start time
-namespace HitObjects {
+// map objects as plain data, sorted by start time: one array per field, indexed by their place in play order.
+// whatever plays or shows them owns them: the judge, the editor MapObjects
+class HitObjects {
+    NOCOPY_NOMOVE(HitObjects)
+   public:
+    HitObjects();
+    ~HitObjects();
 
-// from the map's primitives (with timing points if it has sliders), in the order they're played, their combo ends and
-// combo start times set; judged by judge and drawn on view (see HitObject's constructor)
-std::vector<std::unique_ptr<HitObject>> create(const Primitives::PRIMITIVE_CONTAINER &primitives, GameplayJudge *judge,
-                                               const PlayfieldView *view);
-// the one at `index` among them, as create() makes it but for the combo start time (which follows from the objects
-// before it)
-std::unique_ptr<HitObject> create(const Primitives::PRIMITIVE_CONTAINER &primitives, uSz index, GameplayJudge *judge,
-                                  const PlayfieldView *view);
-// gives objects in play order (the first one starting a combo) their combo start times, each combo starting after an
-// object that ends one
-void startCombos(std::span<const std::unique_ptr<HitObject>> objects);
+    // makes them from the map primitives (with timing points if it has sliders), in the order they're played,
+    // their combo ends and combo start times set; judged by judge and drawn on view (see the HitObject constructor)
+    void build(const Primitives::PRIMITIVE_CONTAINER &primitives, GameplayJudge *judge, const PlayfieldView *view);
+    // makes the one at `index` again from the primitives, as build() makes it but for the combo start time (which
+    // follows from the objects before it)
+    void remake(const Primitives::PRIMITIVE_CONTAINER &primitives, uSz index, GameplayJudge *judge,
+                const PlayfieldView *view);
+    void clear();
 
-// osu!'s stacking: moved up and left by a twentieth of the circle diameter per stack level, down and left with Hard Rock
-// (which flips the playfield)
-void stack(std::span<const std::unique_ptr<HitObject>> objects, f32 AR, i32 beatmapVersion, f32 stackLeniency,
-           f32 rawHitcircleDiameter, bool hardRock);
+    [[nodiscard]] uSz size() const { return this->types.size(); }
+    [[nodiscard]] bool empty() const { return this->types.empty(); }
+    [[nodiscard]] HitObject &operator[](uSz index) const { return *this->objects[index]; }
 
-// the follow points between them at the view's time; the ones before firstIndex are gone
-void drawFollowPoints(const PlayfieldView &view, std::span<const std::unique_ptr<HitObject>> objects, uSz firstIndex);
+    // gives the ones in [from, to) (the first one starting a combo) their combo start times, each combo starting
+    // after an object that ends one
+    void startCombos(uSz from, uSz to);
+    // stacks the ones in [from, to) as osu! does: moved up and left by a twentieth of the circle diameter per stack
+    // level, down and left with Hard Rock (which flips the playfield)
+    void stack(uSz from, uSz to, f32 AR, i32 beatmapVersion, f32 stackLeniency, f32 rawHitcircleDiameter,
+               bool hardRock);
+    // where the stacking run after the one at `start` starts (see Primitives::nextStackingRun())
+    [[nodiscard]] uSz nextStackingRun(uSz start, f32 AR, f32 stackLeniency) const;
 
-// draws objects (the ones to show, latest-ending first) the way play does: spinners first, then the others with their
-// slider bodies rendered together into sliderBodies, so that earlier objects end up on top. their draw2() is the
-// caller's, earliest-ending first
-void draw(std::span<HitObject *const> objects, RenderTarget *sliderBodies);
+    std::vector<HitObjectType> types;
+    std::vector<i32> clickTimes;
+    std::vector<i32> endTimes;
+    std::vector<i32> comboStartTimes;  // for freeze frame
+    std::vector<i32> comboNumbers;
+    std::vector<i32> colorCounters;
+    std::vector<i32> colorOffsets;
+    std::vector<u8> endsCombo;
+    std::vector<u32> lines;  // in the file they were read from (1-based, 0: not from a file)
+    std::vector<i32> stacks;
 
-}  // namespace HitObjects
+    // play state
+    std::vector<u8> finished;
+    std::vector<u8> blocked;   // by notelock
+    std::vector<u8> misAimed;  // has its slot in the hit error bar (see cv::hiterrorbar_misaims)
+    std::vector<u8> visible;
+    std::vector<i32> autopilotDeltas;
+
+    std::vector<std::unique_ptr<HitObject>> objects;
+
+   private:
+    void resize(uSz size);
+    void make(const Primitives::PRIMITIVE_CONTAINER &primitives, uSz index, GameplayJudge *judge,
+              const PlayfieldView *view);
+};
+
+namespace HitObjectDrawing {
+
+// the follow points between the objects at the view time; the ones before firstIndex are gone
+void drawFollowPoints(const PlayfieldView &view, const HitObjects &objects, uSz firstIndex);
+
+// draws the objects at these indices (the ones to show, latest-ending first) the way play does: spinners first, then
+// the others with their slider bodies rendered together into sliderBodies, so that earlier objects end up on top.
+// their draw2() is the caller's, earliest-ending first
+void draw(const HitObjects &objects, std::span<const u32> indices, RenderTarget *sliderBodies);
+
+}  // namespace HitObjectDrawing
 }  // namespace neomod
