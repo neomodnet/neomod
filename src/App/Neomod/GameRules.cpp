@@ -2,11 +2,12 @@
 
 #include "GameRules.h"
 
+#include "Matrices.h"
+
 #ifndef BUILD_TOOLS_ONLY
 #include "Osu.h"
 #include "GameplayJudge.h"
 #include "ConVar.h"
-#include "Matrices.h"
 #include "OsuConVars/DiffCalcDefaults.h"
 
 namespace cv {

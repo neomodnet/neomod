@@ -617,6 +617,7 @@ inline vec3 operator*(const vec3& v, const Matrix4& m) {
     return {result.x, result.y, result.z};
 }
 
+#ifndef BUILD_TOOLS_ONLY
 namespace fmt {
 template <>
 struct formatter<Matrix2> {
@@ -636,5 +637,6 @@ struct formatter<Matrix4> {
     format_context::iterator format(const Matrix4& m, format_context& ctx) const;
 };
 }  // namespace fmt
+#endif
 
 #endif
