@@ -35,10 +35,15 @@ BeatmapCarousel::~BeatmapCarousel() {
     this->invalidate();
 }
 
-void BeatmapCarousel::draw() { CBaseUIScrollView::draw(); }
+void BeatmapCarousel::draw() {
+    this->updateWindow();
+    CBaseUIScrollView::draw();
+}
 
 void BeatmapCarousel::tick() {
     CBaseUIScrollView::tick();
+    if(this->updateWindow() && !(this->bScrolling || this->bScrollbarScrolling)) this->updateClipping();
+
     if(!this->isVisible()) {
         // just reset this as a precaution
         this->bIsScrollingFast = false;
@@ -53,12 +58,11 @@ void BeatmapCarousel::tick() {
         return;
     }
 
-    const auto &elements = this->container.getElements();
-    if(elements.empty()) {
+    if(this->rows.empty()) {
         return;
     }
 
-    const f64 elemSizeY = elements[0]->getSize().y;
+    const f64 elemSizeY = CarouselButton::getScaledBaseSize().y;
     if(elemSizeY == 0) {
         return;
     }
@@ -72,6 +76,106 @@ void BeatmapCarousel::tick() {
 
     // if our velocity is more than 4 vertical screens' worth of items, we are scrolling fast
     this->bIsScrollingFast = wholeElementsScrolled > ((sizeY / elemSizeY) * 4);
+}
+
+void BeatmapCarousel::onCapturedMouseMove() {
+    CBaseUIScrollView::onCapturedMouseMove();
+    if(this->updateWindow()) this->updateClipping();
+}
+
+void BeatmapCarousel::setRows(std::vector<CarouselButton *> newRows) {
+    this->container.invalidate();
+    this->bClippingDirty = true;
+    this->rows = std::move(newRows);
+    this->rowY.clear();
+    this->windowBegin = this->windowEnd = 0;
+    this->hoveredRow = nullptr;
+    this->bRowsReplaced = true;
+}
+
+void BeatmapCarousel::onRowsMoved() {
+    dvec2 extent{0., 0.};
+    this->rowY.resize(this->rows.size());
+    for(size_t i = 0; i < this->rows.size(); i++) {
+        const CarouselButton *row = this->rows[i];
+        this->rowY[i] = row->fTargetRelPosY;
+        extent = glm::max(extent, dvec2{row->getRelPos() + row->getSize()});
+    }
+    const f64 border = (f64)(i32)(this->getSize().y / 2);
+    this->setScrollSize(extent + dvec2{border, border});
+
+    this->updateWindow();
+
+    // rows that were visible in what the rows were before and are now off screen, as the clipping would have
+    if(this->bRowsReplaced) {
+        this->bRowsReplaced = false;
+        for(size_t i = 0; i < this->rows.size(); i++) {
+            if(i >= this->windowBegin && i < this->windowEnd) continue;
+            if(this->rows[i]->isVisible()) this->rows[i]->setVisible(false);
+        }
+    }
+}
+
+bool BeatmapCarousel::updateWindow() {
+    size_t begin = 0;
+    size_t end = 0;
+    if(!this->rowY.empty()) {
+        // the clipping slack of CBaseUIScrollView::updateClipping plus a row for the hover offsets
+        const f32 rowHeight = CarouselButton::getScaledBaseSize().y;
+        const f32 slack = this->getSize().y * 0.075f + rowHeight;
+        const f32 top = this->getPos().y - this->container.getPos().y - slack;
+        const f32 bottom = top + this->getSize().y + 2.f * slack;
+        begin = std::lower_bound(this->rowY.begin(), this->rowY.end(), top - rowHeight) - this->rowY.begin();
+        end = std::lower_bound(this->rowY.begin() + (sSz)begin, this->rowY.end(), bottom) - this->rowY.begin();
+    }
+    if(begin == this->windowBegin && end == this->windowEnd) return false;
+
+    // rows scrolled out of the window get hidden, as the clipping would have
+    for(size_t i = this->windowBegin; i < this->windowEnd; i++) {
+        if((i < begin || i >= end) && this->rows[i]->isVisible()) this->rows[i]->setVisible(false);
+    }
+
+    this->container.invalidate();
+    const vec2 containerPos = this->container.getPos();
+    for(size_t i = begin; i < end; i++) {
+        CarouselButton *row = this->rows[i];
+        if(i < this->windowBegin || i >= this->windowEnd) {
+            this->applyMoveAwayState(row, false);
+            row->setRect(McRect{containerPos + row->getRelPos(), row->getSize()});
+        }
+        this->container.addBaseUIElementRaw(row);
+    }
+
+    this->windowBegin = begin;
+    this->windowEnd = end;
+    this->bClippingDirty = true;
+    return true;
+}
+
+void BeatmapCarousel::applyMoveAwayState(CarouselButton *row, bool animate) const {
+    using enum CarouselButton::MOVE_AWAY_STATE;
+    CarouselButton::MOVE_AWAY_STATE state = MOVE_CENTER;
+    if(this->hoveredRow != nullptr && row != this->hoveredRow) {
+        state = row->fTargetRelPosY < this->hoveredRow->fTargetRelPosY ? MOVE_UP : MOVE_DOWN;
+    }
+    row->setMoveAwayState(state, animate);
+}
+
+void BeatmapCarousel::setHoveredRow(CarouselButton *row) {
+    this->hoveredRow = row;
+    for(size_t i = this->windowBegin; i < this->windowEnd; i++) {
+        this->applyMoveAwayState(this->rows[i], true);
+    }
+}
+
+void BeatmapCarousel::clearHoveredRow(CarouselButton *row) {
+    // only reset all other rows if we still should do so (possible frame delay of onMouseOutside coming
+    // together with the next row already getting onMouseInside!)
+    if(row->moveAwayState != CarouselButton::MOVE_AWAY_STATE::MOVE_CENTER) return;
+    this->hoveredRow = nullptr;
+    for(size_t i = this->windowBegin; i < this->windowEnd; i++) {
+        this->applyMoveAwayState(this->rows[i], true);
+    }
 }
 
 void BeatmapCarousel::updateInput(CBaseUIEventCtx &c) {
@@ -88,6 +192,7 @@ void BeatmapCarousel::updateInput(CBaseUIEventCtx &c) {
 
                 bool isMouseInsideAnySongButton = false;
                 {
+                    // only rows in the container can be hovered
                     const std::vector<CarouselButton *> &buttons = this->container.getElementsAs<CarouselButton>();
                     for(auto *button : buttons) {
                         if(button->isMouseInside()) {
@@ -123,8 +228,7 @@ void BeatmapCarousel::onKeyUp(KeyboardEvent & /*e*/) { /*this->container.onKeyUp
 void BeatmapCarousel::onKeyDown(KeyboardEvent &key) {
     /*this->container.onKeyDown(e);*/
 
-    // all elements must be CarouselButtons, at least
-    const auto &elements{this->container.getElementsAs<CarouselButton>()};
+    const auto &elements{this->rows};
 
     // selection move
     if(!keyboard->isAltDown() && key == KEY_DOWN) {

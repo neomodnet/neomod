@@ -835,22 +835,25 @@ void CBaseUIScrollView::updateScrollbars() {
 }
 
 CBaseUIScrollView *CBaseUIScrollView::setScrollSizeToContent(int border) {
-    const dvec2 oldScrollPos{this->vScrollPos};
-    const bool wasAtBottom = this->isAtBottom();
-
-    this->vScrollSize = {0., 0.};
+    dvec2 scrollSize{0., 0.};
 
     const std::vector<CBaseUIElement *> &elements = this->container.getElements();
     for(auto *e : elements) {
         const f64 x = e->getRelPos().x + e->getSize().x;
         const f64 y = e->getRelPos().y + e->getSize().y;
 
-        if(x > this->vScrollSize.x) this->vScrollSize.x = x;
-        if(y > this->vScrollSize.y) this->vScrollSize.y = y;
+        if(x > scrollSize.x) scrollSize.x = x;
+        if(y > scrollSize.y) scrollSize.y = y;
     }
 
-    this->vScrollSize.x += border;
-    this->vScrollSize.y += border;
+    return this->setScrollSize(scrollSize + dvec2{(f64)border, (f64)border});
+}
+
+CBaseUIScrollView *CBaseUIScrollView::setScrollSize(dvec2 scrollSize) {
+    const dvec2 oldScrollPos{this->vScrollPos};
+    const bool wasAtBottom = this->isAtBottom();
+
+    this->vScrollSize = scrollSize;
 
     this->container.setSize(this->vScrollSize);
 

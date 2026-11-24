@@ -90,6 +90,8 @@ class CBaseUIScrollView : public CBaseUIElement {
     }
 
     CBaseUIScrollView *setScrollSizeToContent(int border = 5);
+    // for views that know their content extent without walking the container
+    CBaseUIScrollView *setScrollSize(dvec2 scrollSize);
     CBaseUIScrollView *setScrollResistance(int scrollResistanceInPixels) {
         this->iScrollResistance = scrollResistanceInPixels;
         return this;

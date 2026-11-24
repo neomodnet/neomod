@@ -1015,8 +1015,7 @@ void SongBrowser::onResolutionChange(vec2 newResolution) {
 
     const CBaseUIElement *anchor = nullptr;
     f64 anchorPct = 0.0;
-    if(const auto &elements = this->carousel->container.getElements();
-       !elements.empty() && this->carousel->getSize().y > 0) {
+    if(const auto &elements = this->carousel->getRows(); !elements.empty() && this->carousel->getSize().y > 0) {
         const f64 viewCenterY = this->carousel->getSize().y / 2 - this->carousel->getRelPosY();
         anchor = *Mc::ranges::min_element(elements, {},
                                           [&](const CBaseUIElement *e) { return std::abs(centerY(e) - viewCenterY); });
@@ -1416,7 +1415,7 @@ void SongBrowser::refreshBeatmaps(UIScreen *next_screen, bool full_rescan) {
     this->selectionPreviousCollectionButton = nullptr;
 
     // delete local database and UI
-    this->carousel->invalidate();
+    this->carousel->clearRows();
 
     this->hashToDiffButton->clear();
     for(auto &songButton : this->parentButtons) {
@@ -1646,7 +1645,7 @@ void SongBrowser::unlinkBeatmapSet(const BeatmapSet *set) {
                   [set](const DatabaseBeatmap *m) { return m == set || m->getParentSet() == set; });
 
     this->parentButtons.erase(btn_it);
-    this->carousel->invalidate();
+    this->carousel->clearRows();
     delete btn;  // deletes its difficulty buttons too
 }
 
@@ -1973,13 +1972,13 @@ void SongBrowser::scrollToSongButton(CarouselButton *songButton, bool alignOnTop
 }
 
 void SongBrowser::rebuildSongButtons() {
-    this->carousel->invalidate();
+    std::vector<CarouselButton *> rows;
+    rows.reserve(this->visibleSongButtons.size());
 
     // NOTE: currently supports 3 depth layers (collection > beatmap > diffs)
     for(CarouselButton *button : this->visibleSongButtons) {
         if(likely(!button->isSelected() || !button->isHiddenIfSelected())) {
-            // perf: not using addBaseUIElement(), we will set pos in updateSongButtonLayout
-            this->carousel->container.addBaseUIElementRaw(button);
+            rows.push_back(button);
         }
 
         button->resetAnimations();
@@ -2024,16 +2023,14 @@ void SongBrowser::rebuildSongButtons() {
                         for(auto *child : button2->getChildren()) {
                             if(child->isSearchMatch()) {
                                 addedSingleChild = true;
-                                // perf: not using addBaseUIElement(), we will set pos in updateSongButtonLayout
-                                this->carousel->container.addBaseUIElementRaw(child);
+                                rows.push_back(child);
 
                                 child->resetAnimations();
                                 break;  // only one visible child
                             }
                         }
                     } else {
-                        // perf: not using addBaseUIElement(), we will set pos in updateSongButtonLayout
-                        this->carousel->container.addBaseUIElementRaw(button2);
+                        rows.push_back(button2);
                     }
                 }
 
@@ -2045,9 +2042,7 @@ void SongBrowser::rebuildSongButtons() {
                     for(auto button3 : children2) {
                         if(this->bInSearch && !button3->isSearchMatch()) continue;
 
-                        if(!(button3->isSelected() && button3->isHiddenIfSelected()))
-                            // perf: not using addBaseUIElement(), we will set pos in updateSongButtonLayout
-                            this->carousel->container.addBaseUIElementRaw(button3);
+                        if(!(button3->isSelected() && button3->isHiddenIfSelected())) rows.push_back(button3);
 
                         button3->resetAnimations();
                     }
@@ -2056,6 +2051,7 @@ void SongBrowser::rebuildSongButtons() {
         }
     }
 
+    this->carousel->setRows(std::move(rows));
     this->updateSongButtonLayout();
 }
 
@@ -2092,7 +2088,7 @@ void SongBrowser::partiallyUpdateSongButtonLayout(const std::vector<CarouselButt
 
         y += carouselButton->getActualSize().y;
     }
-    this->carousel->setScrollSizeToContent((i32)(this->carousel->getSize().y / 2));
+    this->carousel->onRowsMoved();
 }
 
 void SongBrowser::updateSongButtonLayout() {
@@ -2100,8 +2096,7 @@ void SongBrowser::updateSongButtonLayout() {
     // only the y axis is set, because the x axis is constantly animated and handled within the button classes
     // themselves
 
-    // all elements must be CarouselButtons, at least
-    const auto &elements{this->carousel->container.getElementsAs<CarouselButton>()};
+    const auto &elements{this->carousel->getRows()};
 
     f32 yCounter = this->carousel->getSize().y / 4;
     if(elements.size() <= 1) yCounter = this->carousel->getSize().y / 2;
@@ -2741,7 +2736,7 @@ void SongBrowser::onSearchUpdate() {
         this->checkHandleKillBackgroundSearchMatcher();
 
         // reset container and visible buttons list
-        this->carousel->invalidate();
+        this->carousel->clearRows();
         this->visibleSongButtons.clear();
 
         // reset all search flags
@@ -2767,7 +2762,7 @@ void SongBrowser::onSearchUpdate() {
 void SongBrowser::rebuildSongButtonsAndVisibleSongButtonsWithSearchMatchSupport(bool scrollToTop,
                                                                                 bool doRebuildSongButtons) {
     // reset container and visible buttons list
-    this->carousel->invalidate();
+    this->carousel->clearRows();
     this->visibleSongButtons.clear();
 
     // optimization: currently, only grouping by collections can actually filter beatmaps
@@ -3486,7 +3481,7 @@ bool SongBrowser::selectRandomBeatmap() {
     const auto setOf = [](const DatabaseBeatmap *map) { return map->getParentSet() ? map->getParentSet() : map; };
 
     // filter songbuttons or independent diffs, other than the current song's
-    const auto &elements{this->carousel->container.getElementsAs<CarouselButton>()};
+    const auto &elements{this->carousel->getRows()};
 
     std::vector<CarouselButton *> songButtons;
     songButtons.reserve(elements.size());
@@ -3517,7 +3512,7 @@ bool SongBrowser::selectPreviousRandomBeatmap() {
     const DatabaseBeatmap *previousRandomBeatmap = history.back();
 
     // select it, if we can find it (and remove it from memory)
-    for(auto *element : this->carousel->container.getElementsAs<CarouselButton>()) {
+    for(auto *element : this->carousel->getRows()) {
         auto *songButton = element->as<SongButton>();  // allow ALL songbuttons
         if(songButton == nullptr) continue;
 
@@ -3537,7 +3532,7 @@ bool SongBrowser::selectPreviousRandomBeatmap() {
 }
 
 void SongBrowser::playSelectedDifficulty() {
-    const auto &elements{this->carousel->container.getElementsAs<CarouselButton>()};
+    const auto &elements{this->carousel->getRows()};
 
     for(auto *element : elements) {
         if(auto *songDifficultyButton = element->as<SongDifficultyButton>();
@@ -3553,7 +3548,7 @@ void SongBrowser::recreateCollectionsButtons() {
     {
         // sanity
         if(this->curGroup == GroupType::COLLECTIONS) {
-            this->carousel->invalidate();
+            this->carousel->clearRows();
             this->visibleSongButtons.clear();
         }
 

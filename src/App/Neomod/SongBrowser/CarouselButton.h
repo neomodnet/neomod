@@ -14,6 +14,8 @@ class UIContextMenu;
 
 class CarouselButton : public CBaseUIButton {
     NOCOPY_NOMOVE(CarouselButton)
+    friend BeatmapCarousel;
+
    public:
     // RTTI helpers (TODO: ugly and slow to use RTTI for such a fundamental thing)
     template <typename T>
